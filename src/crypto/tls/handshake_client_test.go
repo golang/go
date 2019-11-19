@@ -499,21 +499,15 @@ func peekError(conn net.Conn) error {
 }
 
 func runClientTestForVersion(t *testing.T, template *clientTest, version, option string) {
-	t.Run(version, func(t *testing.T) {
-		// Make a deep copy of the template before going parallel.
-		test := *template
-		if template.config != nil {
-			test.config = template.config.Clone()
-		}
+	// Make a deep copy of the template before going parallel.
+	test := *template
+	if template.config != nil {
+		test.config = template.config.Clone()
+	}
+	test.name = version + "-" + test.name
+	test.args = append([]string{option}, test.args...)
 
-		if !*update {
-			t.Parallel()
-		}
-
-		test.name = version + "-" + test.name
-		test.args = append([]string{option}, test.args...)
-		test.run(t, *update)
-	})
+	runTestAndUpdateIfNeeded(t, version, test.run, false)
 }
 
 func runClientTestTLS10(t *testing.T, template *clientTest) {

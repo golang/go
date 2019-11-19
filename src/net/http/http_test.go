@@ -9,6 +9,7 @@ package http
 import (
 	"bytes"
 	"internal/testenv"
+	"net/url"
 	"os/exec"
 	"reflect"
 	"testing"
@@ -107,5 +108,56 @@ func TestCmdGoNoHTTPServer(t *testing.T) {
 		if want && !got {
 			t.Errorf("expected to find symbol %q in cmd/go; not found", sym)
 		}
+	}
+}
+
+// Tests that the nethttpomithttp2 build tag doesn't rot too much,
+// even if there's not a regular builder on it.
+func TestOmitHTTP2(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+	t.Parallel()
+	goTool := testenv.GoToolPath(t)
+	out, err := exec.Command(goTool, "test", "-short", "-tags=nethttpomithttp2", "net/http").CombinedOutput()
+	if err != nil {
+		t.Fatalf("go test -short failed: %v, %s", err, out)
+	}
+}
+
+// Tests that the nethttpomithttp2 build tag at least type checks
+// in short mode.
+// The TestOmitHTTP2 test above actually runs tests (in long mode).
+func TestOmitHTTP2Vet(t *testing.T) {
+	t.Parallel()
+	goTool := testenv.GoToolPath(t)
+	out, err := exec.Command(goTool, "vet", "-tags=nethttpomithttp2", "net/http").CombinedOutput()
+	if err != nil {
+		t.Fatalf("go vet failed: %v, %s", err, out)
+	}
+}
+
+var valuesCount int
+
+func BenchmarkCopyValues(b *testing.B) {
+	b.ReportAllocs()
+	src := url.Values{
+		"a": {"1", "2", "3", "4", "5"},
+		"b": {"2", "2", "3", "4", "5"},
+		"c": {"3", "2", "3", "4", "5"},
+		"d": {"4", "2", "3", "4", "5"},
+		"e": {"1", "1", "2", "3", "4", "5", "6", "7", "abcdef", "l", "a", "b", "c", "d", "z"},
+		"j": {"1", "2"},
+		"m": nil,
+	}
+	for i := 0; i < b.N; i++ {
+		dst := url.Values{"a": {"b"}, "b": {"2"}, "c": {"3"}, "d": {"4"}, "j": nil, "m": {"x"}}
+		copyValues(dst, src)
+		if valuesCount = len(dst["a"]); valuesCount != 6 {
+			b.Fatalf(`%d items in dst["a"] but expected 6`, valuesCount)
+		}
+	}
+	if valuesCount == 0 {
+		b.Fatal("Benchmark wasn't run")
 	}
 }

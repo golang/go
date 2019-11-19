@@ -32,7 +32,7 @@ func shortcircuit(f *Func) {
 				if p.Kind != BlockIf {
 					continue
 				}
-				if p.Control != a {
+				if p.Controls[0] != a {
 					continue
 				}
 				if e.i == 0 {
@@ -50,7 +50,7 @@ func shortcircuit(f *Func) {
 		}
 	}
 
-	// Step 3: Redirect control flow around known branches.
+	// Step 2: Redirect control flow around known branches.
 	// p:
 	//   ... goto b ...
 	// b: <- p ...
@@ -103,7 +103,7 @@ func shortcircuitBlock(b *Block) bool {
 	// Look for control values of the form Copy(Not(Copy(Phi(const, ...)))).
 	// Those must be the only values in the b, and they each must be used only by b.
 	// Track the negations so that we can swap successors as needed later.
-	v := b.Control
+	v := b.Controls[0]
 	nval := 1 // the control value
 	swap := false
 	for v.Uses == 1 && v.Block == b && (v.Op == OpCopy || v.Op == OpNot) {
@@ -124,7 +124,6 @@ func shortcircuitBlock(b *Block) bool {
 		if a.Op != OpConstBool {
 			continue
 		}
-		changed = true
 		// The predecessor we come in from.
 		e1 := b.Preds[i]
 		p := e1.b
@@ -138,7 +137,14 @@ func shortcircuitBlock(b *Block) bool {
 		}
 		e2 := b.Succs[si]
 		t := e2.b
+		if p == b || t == b {
+			// This is an infinite loop; we can't remove it. See issue 33903.
+			continue
+		}
 		ti := e2.i
+
+		// Update CFG and Phis.
+		changed = true
 
 		// Remove b's incoming edge from p.
 		b.removePred(i)

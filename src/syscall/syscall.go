@@ -26,7 +26,7 @@
 //
 package syscall
 
-//go:generate go run mksyscall_windows.go -systemdll -output zsyscall_windows.go syscall_windows.go security_windows.go
+//go:generate go run golang.org/x/sys/windows/mkwinsyscall -systemdll -output zsyscall_windows.go syscall_windows.go security_windows.go
 
 // StringByteSlice converts a string to a NUL-terminated []byte,
 // If s contains a NUL byte this function panics instead of

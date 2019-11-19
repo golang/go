@@ -30,6 +30,9 @@ func TestScanner(t *testing.T) {
 		if s.tok == _EOF {
 			break
 		}
+		if !testing.Verbose() {
+			continue
+		}
 		switch s.tok {
 		case _Name:
 			fmt.Println(s.line, s.tok, "=>", s.lit)
@@ -499,6 +502,10 @@ func TestNumbers(t *testing.T) {
 			err = ""
 			s.next()
 
+			if err != "" && !s.bad {
+				t.Errorf("%q: got error but bad not set", test.src)
+			}
+
 			// compute lit where where s.lit is not defined
 			var lit string
 			switch s.tok {
@@ -598,7 +605,7 @@ func TestScanErrors(t *testing.T) {
 		{`"\x`, "string not terminated", 0, 0},
 		{`"\x"`, "non-hex character in escape sequence: \"", 0, 3},
 		{`var s string = "\x"`, "non-hex character in escape sequence: \"", 0, 18},
-		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point", 0, 18},
+		{`return "\Uffffffff"`, "escape sequence is invalid Unicode code point U+FFFFFFFF", 0, 18},
 
 		// former problem cases
 		{"package p\n\n\xef", "invalid UTF-8 encoding", 2, 0},
@@ -646,5 +653,27 @@ func TestIssue21938(t *testing.T) {
 
 	if got.tok != _Literal || got.lit != ".5" {
 		t.Errorf("got %s %q; want %s %q", got.tok, got.lit, _Literal, ".5")
+	}
+}
+
+func TestIssue33961(t *testing.T) {
+	literals := `08__ 0b.p 0b_._p 0x.e 0x.p`
+	for _, lit := range strings.Split(literals, " ") {
+		n := 0
+		var got scanner
+		got.init(strings.NewReader(lit), func(_, _ uint, msg string) {
+			// fmt.Printf("%s: %s\n", lit, msg) // uncomment for debugging
+			n++
+		}, 0)
+		got.next()
+
+		if n != 1 {
+			t.Errorf("%q: got %d errors; want 1", lit, n)
+			continue
+		}
+
+		if !got.bad {
+			t.Errorf("%q: got error but bad not set", lit)
+		}
 	}
 }

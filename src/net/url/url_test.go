@@ -668,6 +668,7 @@ var parseRequestURLTests = []struct {
 
 	{"foo.html", false},
 	{"../dir/", false},
+	{" http://foo.com", false},
 	{"http://192.168.0.%31/", false},
 	{"http://192.168.0.%31:8080/", false},
 	{"http://[fe80::%31]/", false},
@@ -1440,6 +1441,11 @@ func TestParseErrors(t *testing.T) {
 		{"mysql://x@y(z:123)/foo", true}, // not well-formed per RFC 3986, golang.org/issue/33646
 		{"mysql://x@y(1.2.3.4:123)/foo", true},
 
+		{" http://foo.com", true},  // invalid character in schema
+		{"ht tp://foo.com", true},  // invalid character in schema
+		{"ahttp://foo.com", false}, // valid schema characters
+		{"1http://foo.com", true},  // invalid character in schema
+
 		{"http://[]%20%48%54%54%50%2f%31%2e%31%0a%4d%79%48%65%61%64%65%72%3a%20%31%32%33%0a%0a/", true}, // golang.org/issue/11208
 		{"http://a b.com/", true},    // no space in host name please
 		{"cache_object://foo", true}, // scheme cannot have _, relative path cannot have : in first segment
@@ -1872,5 +1878,14 @@ func BenchmarkPathUnescape(b *testing.B) {
 			}
 
 		})
+	}
+}
+
+var sink string
+
+func BenchmarkSplit(b *testing.B) {
+	url := "http://www.google.com/?q=go+language#foo%26bar"
+	for i := 0; i < b.N; i++ {
+		sink, sink = split(url, '#', true)
 	}
 }

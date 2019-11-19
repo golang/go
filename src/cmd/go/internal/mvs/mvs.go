@@ -13,8 +13,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"cmd/go/internal/module"
 	"cmd/go/internal/par"
+
+	"golang.org/x/mod/module"
 )
 
 // A Reqs is the requirement graph on which Minimal Version Selection (MVS) operates.
@@ -250,10 +251,15 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) (m
 	return list, nil
 }
 
-// Req returns the minimal requirement list for the target module
-// that results in the given build list, with the constraint that all
-// module paths listed in base must appear in the returned list.
-func Req(target module.Version, list []module.Version, base []string, reqs Reqs) ([]module.Version, error) {
+// Req returns the minimal requirement list for the target module,
+// with the constraint that all module paths listed in base must
+// appear in the returned list.
+func Req(target module.Version, base []string, reqs Reqs) ([]module.Version, error) {
+	list, err := BuildList(target, reqs)
+	if err != nil {
+		return nil, err
+	}
+
 	// Note: Not running in parallel because we assume
 	// that list came from a previous operation that paged
 	// in all the requirements, so there's no I/O to overlap now.

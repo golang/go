@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// BUG(mikio): On JS and NaCl, methods and functions related to
+// BUG(mikio): On JS, methods and functions related to
 // Interface are not implemented.
 
 // BUG(mikio): On AIX, DragonFly BSD, NetBSD, OpenBSD, Plan 9 and

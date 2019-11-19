@@ -531,12 +531,12 @@ func (v *vcsCmd) tagSync(dir, tag string) error {
 // A vcsPath describes how to convert an import path into a
 // version control system and repository name.
 type vcsPath struct {
-	prefix string                              // prefix this description applies to
-	regexp *lazyregexp.Regexp                  // compiled pattern for import path
-	repo   string                              // repository to use (expand with match of re)
-	vcs    string                              // version control system to use (expand with match of re)
-	check  func(match map[string]string) error // additional checks
-	ping   bool                                // ping for scheme to use to download repo
+	prefix         string                              // prefix this description applies to
+	regexp         *lazyregexp.Regexp                  // compiled pattern for import path
+	repo           string                              // repository to use (expand with match of re)
+	vcs            string                              // version control system to use (expand with match of re)
+	check          func(match map[string]string) error // additional checks
+	schemelessRepo bool                                // if true, the repo pattern lacks a scheme
 }
 
 // vcsFromDir inspects dir and its parents to determine the
@@ -657,15 +657,15 @@ const (
 // RepoRootForImportPath analyzes importPath to determine the
 // version control system, and code repository to use.
 func RepoRootForImportPath(importPath string, mod ModuleMode, security web.SecurityMode) (*RepoRoot, error) {
-	rr, err := repoRootFromVCSPaths(importPath, "", security, vcsPaths)
+	rr, err := repoRootFromVCSPaths(importPath, security, vcsPaths)
 	if err == errUnknownSite {
 		rr, err = repoRootForImportDynamic(importPath, mod, security)
 		if err != nil {
-			err = fmt.Errorf("unrecognized import path %q (%v)", importPath, err)
+			err = fmt.Errorf("unrecognized import path %q: %v", importPath, err)
 		}
 	}
 	if err != nil {
-		rr1, err1 := repoRootFromVCSPaths(importPath, "", security, vcsPathsAfterDynamic)
+		rr1, err1 := repoRootFromVCSPaths(importPath, security, vcsPathsAfterDynamic)
 		if err1 == nil {
 			rr = rr1
 			err = nil
@@ -685,8 +685,7 @@ var errUnknownSite = errors.New("dynamic lookup required to find mapping")
 
 // repoRootFromVCSPaths attempts to map importPath to a repoRoot
 // using the mappings defined in vcsPaths.
-// If scheme is non-empty, that scheme is forced.
-func repoRootFromVCSPaths(importPath, scheme string, security web.SecurityMode, vcsPaths []*vcsPath) (*RepoRoot, error) {
+func repoRootFromVCSPaths(importPath string, security web.SecurityMode, vcsPaths []*vcsPath) (*RepoRoot, error) {
 	// A common error is to use https://packagepath because that's what
 	// hg and git require. Diagnose this helpfully.
 	if prefix := httpPrefix(importPath); prefix != "" {
@@ -731,26 +730,28 @@ func repoRootFromVCSPaths(importPath, scheme string, security web.SecurityMode, 
 		if vcs == nil {
 			return nil, fmt.Errorf("unknown version control system %q", match["vcs"])
 		}
-		if srv.ping {
-			if scheme != "" {
-				match["repo"] = scheme + "://" + match["repo"]
-			} else {
-				for _, scheme := range vcs.scheme {
-					if security == web.SecureOnly && !vcs.isSecureScheme(scheme) {
+		var repoURL string
+		if !srv.schemelessRepo {
+			repoURL = match["repo"]
+		} else {
+			scheme := vcs.scheme[0] // default to first scheme
+			repo := match["repo"]
+			if vcs.pingCmd != "" {
+				// If we know how to test schemes, scan to find one.
+				for _, s := range vcs.scheme {
+					if security == web.SecureOnly && !vcs.isSecureScheme(s) {
 						continue
 					}
-					if vcs.pingCmd != "" && vcs.ping(scheme, match["repo"]) == nil {
-						match["repo"] = scheme + "://" + match["repo"]
-						goto Found
+					if vcs.ping(s, repo) == nil {
+						scheme = s
+						break
 					}
 				}
-				// No scheme found. Fall back to the first one.
-				match["repo"] = vcs.scheme[0] + "://" + match["repo"]
-			Found:
 			}
+			repoURL = scheme + "://" + repo
 		}
 		rr := &RepoRoot{
-			Repo: match["repo"],
+			Repo: repoURL,
 			Root: match["root"],
 			VCS:  vcs.cmd,
 			vcs:  vcs,
@@ -799,6 +800,13 @@ func repoRootForImportDynamic(importPath string, mod ModuleMode, security web.Se
 	body := resp.Body
 	defer body.Close()
 	imports, err := parseMetaGoImports(body, mod)
+	if len(imports) == 0 {
+		if respErr := resp.Err(); respErr != nil {
+			// If the server's status was not OK, prefer to report that instead of
+			// an XML parse error.
+			return nil, respErr
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("parsing %s: %v", importPath, err)
 	}
@@ -904,16 +912,23 @@ func metaImportsForPrefix(importPrefix string, mod ModuleMode, security web.Secu
 		}
 		resp, err := web.Get(security, url)
 		if err != nil {
-			return setCache(fetchResult{url: url, err: fmt.Errorf("fetch %s: %v", resp.URL, err)})
+			return setCache(fetchResult{url: url, err: fmt.Errorf("fetching %s: %v", importPrefix, err)})
 		}
 		body := resp.Body
 		defer body.Close()
 		imports, err := parseMetaGoImports(body, mod)
+		if len(imports) == 0 {
+			if respErr := resp.Err(); respErr != nil {
+				// If the server's status was not OK, prefer to report that instead of
+				// an XML parse error.
+				return setCache(fetchResult{url: url, err: respErr})
+			}
+		}
 		if err != nil {
 			return setCache(fetchResult{url: url, err: fmt.Errorf("parsing %s: %v", resp.URL, err)})
 		}
 		if len(imports) == 0 {
-			err = fmt.Errorf("fetch %s: no go-import meta tag", url)
+			err = fmt.Errorf("fetching %s: no go-import meta tag found in %s", importPrefix, resp.URL)
 		}
 		return setCache(fetchResult{url: url, imports: imports, err: err})
 	})
@@ -962,7 +977,7 @@ func (m ImportMismatchError) Error() string {
 
 // matchGoImport returns the metaImport from imports matching importPath.
 // An error is returned if there are multiple matches.
-// errNoMatch is returned if none match.
+// An ImportMismatchError is returned if none match.
 func matchGoImport(imports []metaImport, importPath string) (metaImport, error) {
 	match := -1
 
@@ -1061,8 +1076,8 @@ var vcsPaths = []*vcsPath{
 	// General syntax for any server.
 	// Must be last.
 	{
-		regexp: lazyregexp.New(`(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?(/~?[A-Za-z0-9_.\-]+)+?)\.(?P<vcs>bzr|fossil|git|hg|svn))(/~?[A-Za-z0-9_.\-]+)*$`),
-		ping:   true,
+		regexp:         lazyregexp.New(`(?P<root>(?P<repo>([a-z0-9.\-]+\.)+[a-z0-9.\-]+(:[0-9]+)?(/~?[A-Za-z0-9_.\-]+)+?)\.(?P<vcs>bzr|fossil|git|hg|svn))(/~?[A-Za-z0-9_.\-]+)*$`),
+		schemelessRepo: true,
 	},
 }
 

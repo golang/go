@@ -126,12 +126,12 @@ func (w *gcWork) checkPut(ptr uintptr, ptrs []uintptr) {
 	if debugCachedWork {
 		alreadyFailed := w.putGen == w.pauseGen
 		w.putGen = w.pauseGen
-		if m := getg().m; m.locks > 0 || m.mallocing != 0 || m.preemptoff != "" || m.p.ptr().status != _Prunning {
+		if !canPreemptM(getg().m) {
 			// If we were to spin, the runtime may
-			// deadlock: the condition above prevents
-			// preemption (see newstack), which could
-			// prevent gcMarkDone from finishing the
-			// ragged barrier and releasing the spin.
+			// deadlock. Since we can't be preempted, the
+			// spin could prevent gcMarkDone from
+			// finishing the ragged barrier, which is what
+			// releases us from the spin.
 			return
 		}
 		for atomic.Load(&gcWorkPauseGen) == w.pauseGen {

@@ -9,17 +9,20 @@ compiler.
 - Introduction
 
 The test harness compiles Go code inside files in this directory and
-then matches the generated assembly (the output of `go tool compile -S`)
-against a set of regexps specified in comments that follow a special
-syntax (described below). The test driver is implemented as a step of
-the top-level test/run.go suite, called "asmcheck".
+matches the generated assembly (the output of `go tool compile -S`)
+against a set of regexps to be specified in comments that follow a
+special syntax (described below). The test driver is implemented as a
+step of the top-level test/run.go suite, called "asmcheck".
 
-The codegen tests run during all.bash, but can also be run in
-isolation by using
+The codegen harness is part of the all.bash test suite, but for
+performance reasons only the codegen tests for the host machine's
+GOARCH are enabled by default. To perform comprehensive tests for all
+the supported architectures, one can run the following command
 
-  $ ../bin/go run run.go -v codegen
+  $ ../bin/go run run.go -all_codegen -v codegen
 
-in the top-level test directory.
+in the top-level test directory. This is recommended after any change
+that affect the compiler's code.
 
 The test harness compiles the tests with the same go toolchain that is
 used to run run.go. After writing tests for a newly added codegen
@@ -93,6 +96,7 @@ For example:
 
 verifies that NO memmove call is present in the assembly generated for
 the copy() line.
+
 
 - Architecture specifiers
 

@@ -15,7 +15,9 @@ func isPoorStatementOp(op Op) bool {
 	switch op {
 	// Note that Nilcheck often vanishes, but when it doesn't, you'd love to start the statement there
 	// so that a debugger-user sees the stop before the panic, and can examine the value.
-	case OpAddr, OpLocalAddr, OpOffPtr, OpStructSelect, OpConstBool, OpConst8, OpConst16, OpConst32, OpConst64, OpConst32F, OpConst64F:
+	case OpAddr, OpLocalAddr, OpOffPtr, OpStructSelect, OpPhi, OpITab, OpIData,
+		OpIMake, OpStringMake, OpSliceMake, OpStructMake0, OpStructMake1, OpStructMake2, OpStructMake3, OpStructMake4,
+		OpConstBool, OpConst8, OpConst16, OpConst32, OpConst64, OpConst32F, OpConst64F:
 		return true
 	}
 	return false
@@ -43,16 +45,20 @@ func nextGoodStatementIndex(v *Value, i int, b *Block) int {
 	if i >= len(b.Values)-1 {
 		return i
 	}
-	// Only consider the likely-ephemeral/fragile opcodes expected to vanish in a rewrite.
+	// Skip the likely-ephemeral/fragile opcodes expected to vanish in a rewrite.
 	if !isPoorStatementOp(v.Op) {
 		return i
 	}
 	// Look ahead to see what the line number is on the next thing that could be a boundary.
 	for j := i + 1; j < len(b.Values); j++ {
-		if b.Values[j].Pos.IsStmt() == src.PosNotStmt { // ignore non-statements
+		u := b.Values[j]
+		if u.Pos.IsStmt() == src.PosNotStmt { // ignore non-statements
 			continue
 		}
-		if b.Values[j].Pos.Line() == v.Pos.Line() && v.Pos.SameFile(b.Values[j].Pos) {
+		if u.Pos.SameFileAndLine(v.Pos) {
+			if isPoorStatementOp(u.Op) {
+				continue // Keep looking, this is also not a good statement op
+			}
 			return j
 		}
 		return i
@@ -68,7 +74,7 @@ func nextGoodStatementIndex(v *Value, i int, b *Block) int {
 // rewrite.
 func notStmtBoundary(op Op) bool {
 	switch op {
-	case OpCopy, OpPhi, OpVarKill, OpVarDef, OpUnknown, OpFwdRef, OpArg:
+	case OpCopy, OpPhi, OpVarKill, OpVarDef, OpVarLive, OpUnknown, OpFwdRef, OpArg:
 		return true
 	}
 	return false
@@ -156,18 +162,10 @@ func numberLines(f *Func) {
 		}
 
 		if firstPosIndex == -1 { // Effectively empty block, check block's own Pos, consider preds.
-			if b.Pos.IsStmt() != src.PosNotStmt {
-				b.Pos = b.Pos.WithIsStmt()
-				endlines[b.ID] = b.Pos
-				if f.pass.debug > 0 {
-					fmt.Printf("Mark stmt effectively-empty-block %s %s %s\n", f.Name, b, flc(b.Pos))
-				}
-				continue
-			}
 			line := src.NoXPos
 			for _, p := range b.Preds {
 				pbi := p.Block().ID
-				if endlines[pbi] != line {
+				if !endlines[pbi].SameFileAndLine(line) {
 					if line == src.NoXPos {
 						line = endlines[pbi]
 						continue
@@ -178,7 +176,20 @@ func numberLines(f *Func) {
 
 				}
 			}
-			endlines[b.ID] = line
+			// If the block has no statement itself and is effectively empty, tag it w/ predecessor(s) but not as a statement
+			if b.Pos.IsStmt() == src.PosNotStmt {
+				b.Pos = line
+				endlines[b.ID] = line
+				continue
+			}
+			// If the block differs from its predecessors, mark it as a statement
+			if line == src.NoXPos || !line.SameFileAndLine(b.Pos) {
+				b.Pos = b.Pos.WithIsStmt()
+				if f.pass.debug > 0 {
+					fmt.Printf("Mark stmt effectively-empty-block %s %s %s\n", f.Name, b, flc(b.Pos))
+				}
+			}
+			endlines[b.ID] = b.Pos
 			continue
 		}
 		// check predecessors for any difference; if firstPos differs, then it is a boundary.
@@ -190,7 +201,7 @@ func numberLines(f *Func) {
 		} else { // differing pred
 			for _, p := range b.Preds {
 				pbi := p.Block().ID
-				if endlines[pbi].Line() != firstPos.Line() || !endlines[pbi].SameFile(firstPos) {
+				if !endlines[pbi].SameFileAndLine(firstPos) {
 					b.Values[firstPosIndex].Pos = firstPos.WithIsStmt()
 					if f.pass.debug > 0 {
 						fmt.Printf("Mark stmt differing-pred %s %s %s %s, different=%s ending %s\n",
@@ -210,7 +221,7 @@ func numberLines(f *Func) {
 			// skip ahead if possible
 			i = nextGoodStatementIndex(v, i, b)
 			v = b.Values[i]
-			if v.Pos.Line() != firstPos.Line() || !v.Pos.SameFile(firstPos) {
+			if !v.Pos.SameFileAndLine(firstPos) {
 				if f.pass.debug > 0 {
 					fmt.Printf("Mark stmt new line %s %s %s %s prev pos = %s\n", f.Name, b, v, flc(v.Pos), flc(firstPos))
 				}
@@ -220,7 +231,7 @@ func numberLines(f *Func) {
 				v.Pos = v.Pos.WithDefaultStmt()
 			}
 		}
-		if b.Pos.IsStmt() != src.PosNotStmt && (b.Pos.Line() != firstPos.Line() || !b.Pos.SameFile(firstPos)) {
+		if b.Pos.IsStmt() != src.PosNotStmt && !b.Pos.SameFileAndLine(firstPos) {
 			if f.pass.debug > 0 {
 				fmt.Printf("Mark stmt end of block differs %s %s %s prev pos = %s\n", f.Name, b, flc(b.Pos), flc(firstPos))
 			}

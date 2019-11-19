@@ -5,7 +5,6 @@
 package modfetch
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -17,9 +16,10 @@ import (
 	"cmd/go/internal/get"
 	"cmd/go/internal/modfetch/codehost"
 	"cmd/go/internal/par"
-	"cmd/go/internal/semver"
 	"cmd/go/internal/str"
 	web "cmd/go/internal/web"
+
+	"golang.org/x/mod/semver"
 )
 
 const traceRepo = false // trace all repo actions, for debugging
@@ -34,7 +34,7 @@ type Repo interface {
 	// Pseudo-versions are not included.
 	// Versions should be returned sorted in semver order
 	// (implementations can use SortVersions).
-	Versions(prefix string) (tags []string, err error)
+	Versions(prefix string) ([]string, error)
 
 	// Stat returns information about the revision rev.
 	// A revision can be any identifier known to the underlying service:
@@ -55,7 +55,7 @@ type Repo interface {
 
 // A Rev describes a single revision in a module repository.
 type RevInfo struct {
-	Version string    // version string
+	Version string    // suggested version string for this revision
 	Time    time.Time // commit time
 
 	// These fields are used for Stat of arbitrary rev,
@@ -214,7 +214,7 @@ func Lookup(proxy, path string) (Repo, error) {
 // lookup returns the module with the given module path.
 func lookup(proxy, path string) (r Repo, err error) {
 	if cfg.BuildMod == "vendor" {
-		return nil, errModVendor
+		return nil, errLookupDisabled
 	}
 
 	if str.GlobsMatchPath(cfg.GONOPROXY, path) {
@@ -238,16 +238,27 @@ func lookup(proxy, path string) (r Repo, err error) {
 	}
 }
 
+type lookupDisabledError struct{}
+
+func (lookupDisabledError) Error() string {
+	if cfg.BuildModReason == "" {
+		return fmt.Sprintf("module lookup disabled by -mod=%s", cfg.BuildMod)
+	}
+	return fmt.Sprintf("module lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
+}
+
+var errLookupDisabled error = lookupDisabledError{}
+
 var (
-	errModVendor       = errors.New("module lookup disabled by -mod=vendor")
-	errProxyOff        = notExistError("module lookup disabled by GOPROXY=off")
-	errNoproxy   error = notExistError("disabled by GOPRIVATE/GONOPROXY")
-	errUseProxy  error = notExistError("path does not match GOPRIVATE/GONOPROXY")
+	errProxyOff       = notExistError("module lookup disabled by GOPROXY=off")
+	errNoproxy  error = notExistError("disabled by GOPRIVATE/GONOPROXY")
+	errUseProxy error = notExistError("path does not match GOPRIVATE/GONOPROXY")
 )
 
 func lookupDirect(path string) (Repo, error) {
 	security := web.SecureOnly
-	if get.Insecure {
+
+	if allowInsecure(path) {
 		security = web.Insecure
 	}
 	rr, err := get.RepoRootForImportPath(path, get.PreferMod, security)
@@ -292,7 +303,7 @@ func ImportRepoRev(path, rev string) (Repo, *RevInfo, error) {
 	// version control system, we ignore meta tags about modules
 	// and use only direct source control entries (get.IgnoreMod).
 	security := web.SecureOnly
-	if get.Insecure {
+	if allowInsecure(path) {
 		security = web.Insecure
 	}
 	rr, err := get.RepoRootForImportPath(path, get.IgnoreMod, security)

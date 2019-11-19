@@ -102,9 +102,9 @@ func lshSignedMasked(v8 int8, v16 int16, v32 int32, v64 int64, x int) {
 //   bounded shifts   //
 // ------------------ //
 
-func lshGuarded64(v int64, s uint) int64 {
+func rshGuarded64(v int64, s uint) int64 {
 	if s < 64 {
-		// s390x:-".*AND",-".*MOVDGE"
+		// s390x:-".*AND",-".*MOVDGE" wasm:-"Select",-".*LtU"
 		return v >> s
 	}
 	panic("shift too large")
@@ -112,15 +112,15 @@ func lshGuarded64(v int64, s uint) int64 {
 
 func rshGuarded64U(v uint64, s uint) uint64 {
 	if s < 64 {
-		// s390x:-".*AND",-".*MOVDGE"
+		// s390x:-".*AND",-".*MOVDGE" wasm:-"Select",-".*LtU"
 		return v >> s
 	}
 	panic("shift too large")
 }
 
-func rshGuarded64(v int64, s uint) int64 {
+func lshGuarded64(v int64, s uint) int64 {
 	if s < 64 {
-		// s390x:-".*AND",-".*MOVDGE"
+		// s390x:-".*AND",-".*MOVDGE" wasm:-"Select",-".*LtU"
 		return v << s
 	}
 	panic("shift too large")

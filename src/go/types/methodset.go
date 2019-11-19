@@ -180,7 +180,12 @@ func NewMethodSet(T Type) *MethodSet {
 			}
 		}
 
-		current = consolidateMultiples(next)
+		// It's ok to call consolidateMultiples with a nil *Checker because
+		// MethodSets are not used internally (outside debug mode). When used
+		// externally, interfaces are expected to be completed and then we do
+		// not need a *Checker to complete them when (indirectly) calling
+		// Checker.identical via consolidateMultiples.
+		current = (*Checker)(nil).consolidateMultiples(next)
 	}
 
 	if len(base) == 0 {

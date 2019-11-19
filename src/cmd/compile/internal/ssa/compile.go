@@ -286,10 +286,12 @@ commas. For example:
 
 	if phase == "check" && flag == "on" {
 		checkEnabled = val != 0
+		debugPoset = checkEnabled // also turn on advanced self-checking in prove's datastructure
 		return ""
 	}
 	if phase == "check" && flag == "off" {
 		checkEnabled = val == 0
+		debugPoset = checkEnabled
 		return ""
 	}
 
@@ -409,6 +411,7 @@ var passes = [...]pass{
 	{name: "opt deadcode", fn: deadcode, required: true}, // remove any blocks orphaned during opt
 	{name: "generic cse", fn: cse},
 	{name: "phiopt", fn: phiopt},
+	{name: "gcse deadcode", fn: deadcode, required: true}, // clean out after cse and phiopt
 	{name: "nilcheckelim", fn: nilcheckelim},
 	{name: "prove", fn: prove},
 	{name: "fuse plain", fn: fusePlain},

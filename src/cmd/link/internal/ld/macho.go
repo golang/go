@@ -488,9 +488,9 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 
 	var msect *MachoSect
 	if sect.Rwx&1 == 0 && segname != "__DWARF" && (ctxt.Arch.Family == sys.ARM64 ||
-		(ctxt.Arch.Family == sys.AMD64 && ctxt.BuildMode != BuildModeExe) ||
-		(ctxt.Arch.Family == sys.ARM && ctxt.BuildMode != BuildModeExe)) {
-		// Darwin external linker on arm64 and on amd64 and arm in c-shared/c-archive buildmode
+		ctxt.Arch.Family == sys.ARM ||
+		(ctxt.Arch.Family == sys.AMD64 && ctxt.BuildMode != BuildModeExe)) {
+		// Darwin external linker on arm and arm64, and on amd64 in c-shared/c-archive buildmode
 		// complains about absolute relocs in __TEXT, so if the section is not
 		// executable, put it in __DATA segment.
 		msect = newMachoSect(mseg, buf, "__DATA")
@@ -809,7 +809,7 @@ func machogenasmsym(ctxt *Link) {
 			}
 		}
 
-		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ {
+		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ || s.Type == sym.SUNDEFEXT {
 			if s.Attr.Reachable() {
 				addsym(ctxt, s, "", DataSym, 0, nil)
 			}
@@ -869,6 +869,7 @@ func machosymtab(ctxt *Link) {
 		symtab.AddUint32(ctxt.Arch, uint32(symstr.Size))
 
 		export := machoShouldExport(ctxt, s)
+		isGoSymbol := strings.Contains(s.Extname(), ".")
 
 		// In normal buildmodes, only add _ to C symbols, as
 		// Go symbols have dot in the name.
@@ -877,15 +878,15 @@ func machosymtab(ctxt *Link) {
 		// symbols like crosscall2 are in pclntab and end up
 		// pointing at the host binary, breaking unwinding.
 		// See Issue #18190.
-		cexport := !strings.Contains(s.Extname(), ".") && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(s))
-		if cexport || export {
+		cexport := !isGoSymbol && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(s))
+		if cexport || export || isGoSymbol {
 			symstr.AddUint8('_')
 		}
 
 		// replace "·" as ".", because DTrace cannot handle it.
 		Addstring(symstr, strings.Replace(s.Extname(), "·", ".", -1))
 
-		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ {
+		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ || s.Type == sym.SUNDEFEXT {
 			symtab.AddUint8(0x01)                             // type N_EXT, external symbol
 			symtab.AddUint8(0)                                // no section
 			symtab.AddUint16(ctxt.Arch, 0)                    // desc

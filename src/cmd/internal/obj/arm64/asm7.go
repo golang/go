@@ -258,8 +258,10 @@ func MOVCONST(d int64, s int, rt int) uint32 {
 }
 
 const (
-	LFROM = 1 << 0
-	LTO   = 1 << 1
+	// Optab.flag
+	LFROM     = 1 << 0 // p.From uses constant pool
+	LTO       = 1 << 1 // p.To uses constant pool
+	NOTUSETMP = 1 << 2 // p expands to multiple instructions, but does NOT use REGTMP
 )
 
 var optab = []Optab{
@@ -383,10 +385,10 @@ var optab = []Optab{
 	{AMOVD, C_MOVCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
 	{AMOVW, C_BITCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
 	{AMOVD, C_BITCON, C_NONE, C_NONE, C_REG, 32, 4, 0, 0, 0},
-	{AMOVW, C_MOVCON2, C_NONE, C_NONE, C_REG, 12, 8, 0, 0, 0},
-	{AMOVD, C_MOVCON2, C_NONE, C_NONE, C_REG, 12, 8, 0, 0, 0},
-	{AMOVD, C_MOVCON3, C_NONE, C_NONE, C_REG, 12, 12, 0, 0, 0},
-	{AMOVD, C_VCON, C_NONE, C_NONE, C_REG, 12, 16, 0, 0, 0},
+	{AMOVW, C_MOVCON2, C_NONE, C_NONE, C_REG, 12, 8, 0, NOTUSETMP, 0},
+	{AMOVD, C_MOVCON2, C_NONE, C_NONE, C_REG, 12, 8, 0, NOTUSETMP, 0},
+	{AMOVD, C_MOVCON3, C_NONE, C_NONE, C_REG, 12, 12, 0, NOTUSETMP, 0},
+	{AMOVD, C_VCON, C_NONE, C_NONE, C_REG, 12, 16, 0, NOTUSETMP, 0},
 
 	{AMOVK, C_VCON, C_NONE, C_NONE, C_REG, 33, 4, 0, 0, 0},
 	{AMOVD, C_AACON, C_NONE, C_NONE, C_REG, 4, 4, REGFROM, 0, 0},
@@ -420,15 +422,15 @@ var optab = []Optab{
 	{ALSL, C_REG, C_REG, C_NONE, C_REG, 9, 4, 0, 0, 0},
 	{ASVC, C_VCON, C_NONE, C_NONE, C_NONE, 10, 4, 0, 0, 0},
 	{ASVC, C_NONE, C_NONE, C_NONE, C_NONE, 10, 4, 0, 0, 0},
-	{ADWORD, C_NONE, C_NONE, C_NONE, C_VCON, 11, 8, 0, 0, 0},
-	{ADWORD, C_NONE, C_NONE, C_NONE, C_LEXT, 11, 8, 0, 0, 0},
-	{ADWORD, C_NONE, C_NONE, C_NONE, C_ADDR, 11, 8, 0, 0, 0},
-	{ADWORD, C_NONE, C_NONE, C_NONE, C_LACON, 11, 8, 0, 0, 0},
+	{ADWORD, C_NONE, C_NONE, C_NONE, C_VCON, 11, 8, 0, NOTUSETMP, 0},
+	{ADWORD, C_NONE, C_NONE, C_NONE, C_LEXT, 11, 8, 0, NOTUSETMP, 0},
+	{ADWORD, C_NONE, C_NONE, C_NONE, C_ADDR, 11, 8, 0, NOTUSETMP, 0},
+	{ADWORD, C_NONE, C_NONE, C_NONE, C_LACON, 11, 8, 0, NOTUSETMP, 0},
 	{AWORD, C_NONE, C_NONE, C_NONE, C_LCON, 14, 4, 0, 0, 0},
 	{AWORD, C_NONE, C_NONE, C_NONE, C_LEXT, 14, 4, 0, 0, 0},
 	{AWORD, C_NONE, C_NONE, C_NONE, C_ADDR, 14, 4, 0, 0, 0},
-	{AMOVW, C_VCONADDR, C_NONE, C_NONE, C_REG, 68, 8, 0, 0, 0},
-	{AMOVD, C_VCONADDR, C_NONE, C_NONE, C_REG, 68, 8, 0, 0, 0},
+	{AMOVW, C_VCONADDR, C_NONE, C_NONE, C_REG, 68, 8, 0, NOTUSETMP, 0},
+	{AMOVD, C_VCONADDR, C_NONE, C_NONE, C_REG, 68, 8, 0, NOTUSETMP, 0},
 	{AMOVB, C_REG, C_NONE, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
 	{AMOVBU, C_REG, C_NONE, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
 	{AMOVH, C_REG, C_NONE, C_NONE, C_ADDR, 64, 12, 0, 0, 0},
@@ -780,16 +782,28 @@ var optab = []Optab{
 	{ASTLXR, C_REG, C_NONE, C_NONE, C_ZOREG, 59, 4, 0, 0, 0}, // RegTo2=C_REG
 	{ASTXP, C_PAIR, C_NONE, C_NONE, C_ZOREG, 59, 4, 0, 0, 0},
 
-	/* VLD1/VST1 */
+	/* VLD[1-4]/VST[1-4] */
 	{AVLD1, C_ZOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, 0},
 	{AVLD1, C_LOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
 	{AVLD1, C_ROFF, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
+	{AVLD1R, C_ZOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, 0},
+	{AVLD1R, C_LOREG, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
+	{AVLD1R, C_ROFF, C_NONE, C_NONE, C_LIST, 81, 4, 0, 0, C_XPOST},
 	{AVLD1, C_LOREG, C_NONE, C_NONE, C_ELEM, 97, 4, 0, 0, C_XPOST},
 	{AVLD1, C_ROFF, C_NONE, C_NONE, C_ELEM, 97, 4, 0, 0, C_XPOST},
 	{AVLD1, C_LOREG, C_NONE, C_NONE, C_ELEM, 97, 4, 0, 0, 0},
 	{AVST1, C_LIST, C_NONE, C_NONE, C_ZOREG, 84, 4, 0, 0, 0},
 	{AVST1, C_LIST, C_NONE, C_NONE, C_LOREG, 84, 4, 0, 0, C_XPOST},
 	{AVST1, C_LIST, C_NONE, C_NONE, C_ROFF, 84, 4, 0, 0, C_XPOST},
+	{AVST2, C_LIST, C_NONE, C_NONE, C_ZOREG, 84, 4, 0, 0, 0},
+	{AVST2, C_LIST, C_NONE, C_NONE, C_LOREG, 84, 4, 0, 0, C_XPOST},
+	{AVST2, C_LIST, C_NONE, C_NONE, C_ROFF, 84, 4, 0, 0, C_XPOST},
+	{AVST3, C_LIST, C_NONE, C_NONE, C_ZOREG, 84, 4, 0, 0, 0},
+	{AVST3, C_LIST, C_NONE, C_NONE, C_LOREG, 84, 4, 0, 0, C_XPOST},
+	{AVST3, C_LIST, C_NONE, C_NONE, C_ROFF, 84, 4, 0, 0, C_XPOST},
+	{AVST4, C_LIST, C_NONE, C_NONE, C_ZOREG, 84, 4, 0, 0, 0},
+	{AVST4, C_LIST, C_NONE, C_NONE, C_LOREG, 84, 4, 0, 0, C_XPOST},
+	{AVST4, C_LIST, C_NONE, C_NONE, C_ROFF, 84, 4, 0, 0, C_XPOST},
 	{AVST1, C_ELEM, C_NONE, C_NONE, C_LOREG, 96, 4, 0, 0, C_XPOST},
 	{AVST1, C_ELEM, C_NONE, C_NONE, C_ROFF, 96, 4, 0, 0, C_XPOST},
 	{AVST1, C_ELEM, C_NONE, C_NONE, C_LOREG, 96, 4, 0, 0, 0},
@@ -840,15 +854,6 @@ var pstatefield = []struct {
 	{REG_SPSel, 0<<16 | 4<<12 | 5<<5},
 	{REG_DAIFSet, 3<<16 | 4<<12 | 6<<5},
 	{REG_DAIFClr, 3<<16 | 4<<12 | 7<<5},
-}
-
-// the System register values, and value to use in instruction
-var systemreg = []struct {
-	reg int16
-	enc uint32
-}{
-	{REG_ELR_EL1, 8<<16 | 4<<12 | 1<<5},
-	{REG_DCZID_EL0, 3<<19 | 3<<16 | 7<<5},
 }
 
 var prfopfield = []struct {
@@ -1019,6 +1024,23 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			psz += 4
 		}
 	}
+
+	// Mark nonpreemptible instruction sequences.
+	// We use REGTMP as a scratch register during call injection,
+	// so instruction sequences that use REGTMP are unsafe to
+	// preempt asynchronously.
+	obj.MarkUnsafePoints(c.ctxt, c.cursym.Func.Text, c.newprog, c.isUnsafePoint)
+}
+
+// Return whether p is an unsafe point.
+func (c *ctxt7) isUnsafePoint(p *obj.Prog) bool {
+	if p.From.Reg == REGTMP || p.To.Reg == REGTMP || p.Reg == REGTMP {
+		return true
+	}
+	// Most of the multi-instruction sequence uses REGTMP, except
+	// ones marked safe.
+	o := c.oplook(p)
+	return o.size > 4 && o.flag&NOTUSETMP == 0
 }
 
 /*
@@ -1552,7 +1574,7 @@ func rclass(r int16) int {
 	return C_GOK
 }
 
-// con32class reclassifies the constant of 32-bit instruction. Becuase the constant type is 32-bit,
+// con32class reclassifies the constant of 32-bit instruction. Because the constant type is 32-bit,
 // but saved in Offset which type is int64, con32class treats it as uint32 type and reclassifies it.
 func (c *ctxt7) con32class(a *obj.Addr) int {
 	v := uint32(a.Offset)
@@ -2483,6 +2505,7 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(AYIELD, t)
 			oprangeset(ASEV, t)
 			oprangeset(ASEVL, t)
+			oprangeset(ANOOP, t)
 			oprangeset(ADRPS, t)
 
 		case ACBZ:
@@ -2700,11 +2723,22 @@ func buildop(ctxt *obj.Link) {
 		case AVZIP1:
 			oprangeset(AVZIP2, t)
 
+		case AVLD1R:
+			oprangeset(AVLD2, t)
+			oprangeset(AVLD2R, t)
+			oprangeset(AVLD3, t)
+			oprangeset(AVLD3R, t)
+			oprangeset(AVLD4, t)
+			oprangeset(AVLD4R, t)
+
 		case ASHA1H,
 			AVCNT,
 			AVMOV,
 			AVLD1,
 			AVST1,
+			AVST2,
+			AVST3,
+			AVST4,
 			AVTBL,
 			AVDUP,
 			AVMOVI,
@@ -2784,14 +2818,14 @@ func (c *ctxt7) checkindex(p *obj.Prog, index, maxindex int) {
 	}
 }
 
-/* checkoffset checks whether the immediate offset is valid for VLD1.P and VST1.P */
+/* checkoffset checks whether the immediate offset is valid for VLD[1-4].P and VST[1-4].P */
 func (c *ctxt7) checkoffset(p *obj.Prog, as obj.As) {
-	var offset, list, n int64
+	var offset, list, n, expect int64
 	switch as {
-	case AVLD1:
+	case AVLD1, AVLD2, AVLD3, AVLD4, AVLD1R, AVLD2R, AVLD3R, AVLD4R:
 		offset = p.From.Offset
 		list = p.To.Offset
-	case AVST1:
+	case AVST1, AVST2, AVST3, AVST4:
 		offset = p.To.Offset
 		list = p.From.Offset
 	default:
@@ -2816,6 +2850,23 @@ func (c *ctxt7) checkoffset(p *obj.Prog, as obj.As) {
 	}
 	if !(q == 0 && offset == n*8) && !(q == 1 && offset == n*16) {
 		c.ctxt.Diag("invalid post-increment offset: %v", p)
+	}
+
+	switch as {
+	case AVLD1, AVST1:
+		return
+	case AVLD1R:
+		expect = 1
+	case AVLD2, AVST2, AVLD2R:
+		expect = 2
+	case AVLD3, AVST3, AVLD3R:
+		expect = 3
+	case AVLD4, AVST4, AVLD4R:
+		expect = 4
+	}
+
+	if expect != n {
+		c.ctxt.Diag("expected %d registers, got %d: %v.", expect, n, p)
 	}
 }
 
@@ -3037,6 +3088,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 
 	case 12: /* movT $vcon, reg */
+		// NOTE: this case does not use REGTMP. If it ever does,
+		// remove the NOTUSETMP flag in optab.
 		num := c.omovlconst(p.As, p, &p.From, int(p.To.Reg), os[:])
 		if num == 0 {
 			c.ctxt.Diag("invalid constant: %v", p)
@@ -3512,18 +3565,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 35: /* mov SPR,R -> mrs */
 		o1 = c.oprrr(p, AMRS)
 
-		v := uint32(0)
-		for i := 0; i < len(systemreg); i++ {
-			if systemreg[i].reg == p.From.Reg {
-				v = systemreg[i].enc
-				break
-			}
-		}
+		// SysRegEnc function returns the system register encoding and accessFlags.
+		_, v, accessFlags := SysRegEnc(p.From.Reg)
 		if v == 0 {
 			c.ctxt.Diag("illegal system register:\n%v", p)
 		}
 		if (o1 & (v &^ (3 << 19))) != 0 {
 			c.ctxt.Diag("MRS register value overlap\n%v", p)
+		}
+		if accessFlags&SR_READ == 0 {
+			c.ctxt.Diag("system register is not readable: %v", p)
 		}
 
 		o1 |= v
@@ -3532,18 +3583,16 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 	case 36: /* mov R,SPR */
 		o1 = c.oprrr(p, AMSR)
 
-		v := uint32(0)
-		for i := 0; i < len(systemreg); i++ {
-			if systemreg[i].reg == p.To.Reg {
-				v = systemreg[i].enc
-				break
-			}
-		}
+		// SysRegEnc function returns the system register encoding and accessFlags.
+		_, v, accessFlags := SysRegEnc(p.To.Reg)
 		if v == 0 {
 			c.ctxt.Diag("illegal system register:\n%v", p)
 		}
 		if (o1 & (v &^ (3 << 19))) != 0 {
 			c.ctxt.Diag("MSR register value overlap\n%v", p)
+		}
+		if accessFlags&SR_WRITE == 0 {
+			c.ctxt.Diag("system register is not writable: %v", p)
 		}
 
 		o1 |= v
@@ -3989,6 +4038,8 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 = c.opldpstp(p, o, v, uint32(r), uint32(p.From.Reg), uint32(p.From.Offset), 0)
 
 	case 68: /* movT $vconaddr(SB), reg -> adrp + add + reloc */
+		// NOTE: this case does not use REGTMP. If it ever does,
+		// remove the NOTUSETMP flag in optab.
 		if p.As == AMOVW {
 			c.ctxt.Diag("invalid load of 32-bit address: %v", p)
 		}
@@ -4322,24 +4373,27 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 |= (uint32(imm5&0x1f) << 16) | (uint32(rf&31) << 5) | uint32(rt&31)
 
-	case 81: /* vld1 (Rn), [Vt1.<T>, Vt2.<T>, ...] */
+	case 81: /* vld[1-4]|vld[1-4]r (Rn), [Vt1.<T>, Vt2.<T>, ...] */
+		c.checkoffset(p, p.As)
 		r := int(p.From.Reg)
-		o1 = 3<<26 | 1<<22
+		o1 = c.oprrr(p, p.As)
 		if o.scond == C_XPOST {
 			o1 |= 1 << 23
 			if p.From.Index == 0 {
 				// immediate offset variant
-				c.checkoffset(p, p.As)
 				o1 |= 0x1f << 16
 			} else {
 				// register offset variant
 				if isRegShiftOrExt(&p.From) {
 					c.ctxt.Diag("invalid extended register op: %v\n", p)
 				}
-				o1 |= uint32(p.From.Index&31) << 16
+				o1 |= uint32(p.From.Index&0x1f) << 16
 			}
 		}
 		o1 |= uint32(p.To.Offset)
+		// cmd/asm/internal/arch/arm64.go:ARM64RegisterListOffset
+		// add opcode(bit 12-15) for vld1, mask it off if it's not vld1
+		o1 = c.maskOpvldvst(p, o1)
 		o1 |= uint32(r&31) << 5
 
 	case 82: /* vmov Rn, Vd.<T> */
@@ -4427,14 +4481,14 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 
 		o1 |= (Q&1)<<30 | (size&3)<<22 | uint32(rf&31)<<5 | uint32(rt&31)
 
-	case 84: /* vst1 [Vt1.<T>, Vt2.<T>, ...], (Rn) */
+	case 84: /* vst[1-4] [Vt1.<T>, Vt2.<T>, ...], (Rn) */
+		c.checkoffset(p, p.As)
 		r := int(p.To.Reg)
 		o1 = 3 << 26
 		if o.scond == C_XPOST {
 			o1 |= 1 << 23
 			if p.To.Index == 0 {
 				// immediate offset variant
-				c.checkoffset(p, p.As)
 				o1 |= 0x1f << 16
 			} else {
 				// register offset variant
@@ -4445,6 +4499,9 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			}
 		}
 		o1 |= uint32(p.From.Offset)
+		// cmd/asm/internal/arch/arm64.go:ARM64RegisterListOffset
+		// add opcode(bit 12-15) for vst1, mask it off if it's not vst1
+		o1 = c.maskOpvldvst(p, o1)
 		o1 |= uint32(r&31) << 5
 
 	case 85: /* vaddv/vuaddlv Vn.<T>, Vd*/
@@ -5563,6 +5620,15 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
 
 	case AVRBIT:
 		return 0x2E<<24 | 1<<22 | 0x10<<17 | 5<<12 | 2<<10
+
+	case AVLD1, AVLD2, AVLD3, AVLD4:
+		return 3<<26 | 1<<22
+
+	case AVLD1R, AVLD3R:
+		return 0xD<<24 | 1<<22
+
+	case AVLD2R, AVLD4R:
+		return 0xD<<24 | 3<<21
 	}
 
 	c.ctxt.Diag("%v: bad rrr %d %v", p, a, a)
@@ -5994,8 +6060,8 @@ func (c *ctxt7) op0(p *obj.Prog, a obj.As) uint32 {
 	case AERET:
 		return 0x6B<<25 | 4<<21 | 0x1F<<16 | 0<<10 | 0x1F<<5
 
-	// case ANOP:
-	// 	return SYSHINT(0)
+	case ANOOP:
+		return SYSHINT(0)
 
 	case AYIELD:
 		return SYSHINT(1)
@@ -6742,6 +6808,28 @@ func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh, ldp uin
 	}
 	ret |= 5<<27 | (ldp&1)<<22 | uint32(vo&0x7f)<<15 | (rh&31)<<10 | (rbase&31)<<5 | (rl & 31)
 	return ret
+}
+
+func (c *ctxt7) maskOpvldvst(p *obj.Prog, o1 uint32) uint32 {
+	if p.As == AVLD1 || p.As == AVST1 {
+		return o1
+	}
+
+	o1 &^= 0xf000 // mask out "opcode" field (bit 12-15)
+	switch p.As {
+	case AVLD1R, AVLD2R:
+		o1 |= 0xC << 12
+	case AVLD3R, AVLD4R:
+		o1 |= 0xE << 12
+	case AVLD2, AVST2:
+		o1 |= 8 << 12
+	case AVLD3, AVST3:
+		o1 |= 4 << 12
+	case AVLD4, AVST4:
+	default:
+		c.ctxt.Diag("unsupported instruction:%v\n", p.As)
+	}
+	return o1
 }
 
 /*

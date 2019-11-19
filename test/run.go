@@ -34,7 +34,7 @@ var (
 	keep           = flag.Bool("k", false, "keep. keep temporary directory.")
 	numParallel    = flag.Int("n", runtime.NumCPU(), "number of parallel tests to run")
 	summary        = flag.Bool("summary", false, "show summary of results")
-	allCodegen     = flag.Bool("all_codegen", false, "run all goos/goarch for codegen")
+	allCodegen     = flag.Bool("all_codegen", defaultAllCodeGen(), "run all goos/goarch for codegen")
 	showSkips      = flag.Bool("show_skips", false, "show skipped tests")
 	runSkips       = flag.Bool("run_skips", false, "run skipped tests (ignore skip and build tags)")
 	linkshared     = flag.Bool("linkshared", false, "")
@@ -44,6 +44,14 @@ var (
 	shard  = flag.Int("shard", 0, "shard index to run. Only applicable if -shards is non-zero.")
 	shards = flag.Int("shards", 0, "number of shards. If 0, all tests are run. This is used by the continuous build.")
 )
+
+// defaultAllCodeGen returns the default value of the -all_codegen
+// flag. By default, we prefer to be fast (returning false), except on
+// the linux-amd64 builder that's already very fast, so we get more
+// test coverage on trybots. See https://golang.org/issue/34297.
+func defaultAllCodeGen() bool {
+	return os.Getenv("GO_BUILDER_NAME") == "linux-amd64"
+}
 
 var (
 	goos, goarch string

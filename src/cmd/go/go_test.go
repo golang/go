@@ -56,7 +56,7 @@ func tooSlow(t *testing.T) {
 
 func init() {
 	switch runtime.GOOS {
-	case "android", "js", "nacl":
+	case "android", "js":
 		canRun = false
 	case "darwin":
 		switch runtime.GOARCH {
@@ -206,7 +206,7 @@ func TestMain(m *testing.M) {
 		// (installed in GOROOT/pkg/tool/GOOS_GOARCH).
 		// If these are not the same toolchain, then the entire standard library
 		// will look out of date (the compilers in those two different tool directories
-		// are built for different architectures and have different buid IDs),
+		// are built for different architectures and have different build IDs),
 		// which will cause many tests to do unnecessary rebuilds and some
 		// tests to attempt to overwrite the installed standard library.
 		// Bail out entirely in this case.
@@ -917,6 +917,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 		"src/runtime",
 		"src/internal/bytealg",
 		"src/internal/cpu",
+		"src/math/bits",
 		"src/unsafe",
 		filepath.Join("pkg", runtime.GOOS+"_"+runtime.GOARCH),
 		filepath.Join("pkg/tool", runtime.GOOS+"_"+runtime.GOARCH),
@@ -1433,17 +1434,6 @@ func TestRelativeImportsInCommandLinePackage(t *testing.T) {
 	files, err := filepath.Glob("./testdata/testimport/*.go")
 	tg.must(err)
 	tg.run(append([]string{"test"}, files...)...)
-}
-
-func TestNonCanonicalImportPaths(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.runFail("build", "canonical/d")
-	tg.grepStderr("package canonical/d", "did not report canonical/d")
-	tg.grepStderr("imports canonical/b", "did not report canonical/b")
-	tg.grepStderr("imports canonical/a/: non-canonical", "did not report canonical/a/")
 }
 
 func TestVersionControlErrorMessageIncludesCorrectDirectory(t *testing.T) {
@@ -4695,23 +4685,19 @@ func copyFile(src, dst string, perm os.FileMode) error {
 	return err2
 }
 
+// TestExecutableGOROOT verifies that the cmd/go binary itself uses
+// os.Executable (when available) to locate GOROOT.
 func TestExecutableGOROOT(t *testing.T) {
 	skipIfGccgo(t, "gccgo has no GOROOT")
-	if runtime.GOOS == "openbsd" {
-		t.Skipf("test case does not work on %s, missing os.Executable", runtime.GOOS)
-	}
 
-	// Env with no GOROOT.
-	var env []string
-	for _, e := range os.Environ() {
-		if !strings.HasPrefix(e, "GOROOT=") {
-			env = append(env, e)
-		}
-	}
+	// Note: Must not call tg methods inside subtests: tg is attached to outer t.
+	tg := testgo(t)
+	tg.unsetenv("GOROOT")
+	defer tg.cleanup()
 
 	check := func(t *testing.T, exe, want string) {
 		cmd := exec.Command(exe, "env", "GOROOT")
-		cmd.Env = env
+		cmd.Env = tg.env
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("%s env GOROOT: %v, %s", exe, err, out)
@@ -4730,10 +4716,6 @@ func TestExecutableGOROOT(t *testing.T) {
 			t.Logf("go env GOROOT: %s", goroot)
 		}
 	}
-
-	// Note: Must not call tg methods inside subtests: tg is attached to outer t.
-	tg := testgo(t)
-	defer tg.cleanup()
 
 	tg.makeTempdir()
 	tg.tempDir("new/bin")
@@ -4781,8 +4763,9 @@ func TestExecutableGOROOT(t *testing.T) {
 		}
 
 		cmd := exec.Command(newGoTool, "run", "testdata/print_goroot.go")
-		cmd.Env = env
-		out, err := cmd.CombinedOutput()
+		cmd.Env = tg.env
+		cmd.Stderr = os.Stderr
+		out, err := cmd.Output()
 		if err != nil {
 			t.Fatalf("%s run testdata/print_goroot.go: %v, %s", newGoTool, err, out)
 		}
@@ -4946,35 +4929,31 @@ func TestTestRegexps(t *testing.T) {
 	//	BenchmarkXX is run but only with N=1, once
 	//	BenchmarkX/Y is run in full, twice
 	want := `=== RUN   TestX
+    TestX: x_test.go:6: LOG: X running
 === RUN   TestX/Y
-    x_test.go:6: LOG: X running
-        x_test.go:8: LOG: Y running
+    TestX/Y: x_test.go:8: LOG: Y running
 === RUN   TestXX
-    z_test.go:10: LOG: XX running
+    TestXX: z_test.go:10: LOG: XX running
 === RUN   TestX
+    TestX: x_test.go:6: LOG: X running
 === RUN   TestX/Y
-    x_test.go:6: LOG: X running
-        x_test.go:8: LOG: Y running
+    TestX/Y: x_test.go:8: LOG: Y running
 === RUN   TestXX
-    z_test.go:10: LOG: XX running
---- BENCH: BenchmarkX/Y
-    x_test.go:15: LOG: Y running N=1
-    x_test.go:15: LOG: Y running N=100
-    x_test.go:15: LOG: Y running N=10000
-    x_test.go:15: LOG: Y running N=1000000
-    x_test.go:15: LOG: Y running N=100000000
-    x_test.go:15: LOG: Y running N=1000000000
---- BENCH: BenchmarkX/Y
-    x_test.go:15: LOG: Y running N=1
-    x_test.go:15: LOG: Y running N=100
-    x_test.go:15: LOG: Y running N=10000
-    x_test.go:15: LOG: Y running N=1000000
-    x_test.go:15: LOG: Y running N=100000000
-    x_test.go:15: LOG: Y running N=1000000000
---- BENCH: BenchmarkX
-    x_test.go:13: LOG: X running N=1
---- BENCH: BenchmarkXX
-    z_test.go:18: LOG: XX running N=1
+    TestXX: z_test.go:10: LOG: XX running
+    BenchmarkX: x_test.go:13: LOG: X running N=1
+    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1
+    BenchmarkX/Y: x_test.go:15: LOG: Y running N=100
+    BenchmarkX/Y: x_test.go:15: LOG: Y running N=10000
+    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1000000
+    BenchmarkX/Y: x_test.go:15: LOG: Y running N=100000000
+    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1000000000
+    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1
+    BenchmarkX/Y: x_test.go:15: LOG: Y running N=100
+    BenchmarkX/Y: x_test.go:15: LOG: Y running N=10000
+    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1000000
+    BenchmarkX/Y: x_test.go:15: LOG: Y running N=100000000
+    BenchmarkX/Y: x_test.go:15: LOG: Y running N=1000000000
+    BenchmarkXX: z_test.go:18: LOG: XX running N=1
 `
 
 	have := strings.Join(lines, "")
@@ -5200,52 +5179,6 @@ func TestUpxCompression(t *testing.T) {
 	}
 	if string(out) != "hello upx" {
 		t.Fatalf("bad output from compressed go binary:\ngot %q; want %q", out, "hello upx")
-	}
-}
-
-// Test that Go binaries can be run under QEMU in user-emulation mode
-// (See issue #13024).
-func TestQEMUUserMode(t *testing.T) {
-	if testing.Short() && testenv.Builder() == "" {
-		t.Skipf("skipping in -short mode on non-builder")
-	}
-
-	testArchs := []struct {
-		g, qemu string
-	}{
-		{"arm", "arm"},
-		{"arm64", "aarch64"},
-	}
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.tempFile("main.go", `package main; import "fmt"; func main() { fmt.Print("hello qemu-user") }`)
-	tg.parallel()
-	src, obj := tg.path("main.go"), tg.path("main")
-
-	for _, arch := range testArchs {
-		arch := arch
-		t.Run(arch.g, func(t *testing.T) {
-			qemu := "qemu-" + arch.qemu
-			testenv.MustHaveExecPath(t, qemu)
-
-			out, err := exec.Command(qemu, "--version").CombinedOutput()
-			if err != nil {
-				t.Fatalf("%s --version failed: %v", qemu, err)
-			}
-
-			tg.setenv("GOARCH", arch.g)
-			tg.run("build", "-o", obj, src)
-
-			out, err = exec.Command(qemu, obj).CombinedOutput()
-			if err != nil {
-				t.Logf("%s output:\n%s\n", qemu, out)
-				t.Fatalf("%s failed with %v", qemu, err)
-			}
-			if want := "hello qemu-user"; string(out) != want {
-				t.Errorf("bad output from %s:\ngot %s; want %s", qemu, out, want)
-			}
-		})
 	}
 }
 
@@ -5612,7 +5545,7 @@ func TestTestCacheInputs(t *testing.T) {
 	tg.grepStdout(`\(cached\)`, "did not cache")
 
 	switch runtime.GOOS {
-	case "nacl", "plan9", "windows":
+	case "plan9", "windows":
 		// no shell scripts
 	default:
 		tg.run("test", "testcache", "-run=Exec")
@@ -5766,14 +5699,6 @@ func TestInstallDeps(t *testing.T) {
 
 	tg.run("install", "-i", "p2")
 	tg.mustExist(p1)
-}
-
-func TestFmtLoadErrors(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.runFail("fmt", "does-not-exist")
-	tg.run("fmt", "-n", "exclude")
 }
 
 func TestGoTestMinusN(t *testing.T) {

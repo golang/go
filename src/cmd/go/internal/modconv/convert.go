@@ -13,10 +13,11 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/modfetch"
-	"cmd/go/internal/modfile"
-	"cmd/go/internal/module"
 	"cmd/go/internal/par"
-	"cmd/go/internal/semver"
+
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
 // ConvertLegacyConfig converts legacy config to modfile.

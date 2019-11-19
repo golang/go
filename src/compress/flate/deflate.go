@@ -465,17 +465,20 @@ Loop:
 				} else {
 					newIndex = d.index + prevLength - 1
 				}
-				for d.index++; d.index < newIndex; d.index++ {
-					if d.index < d.maxInsertIndex {
-						d.hash = hash4(d.window[d.index : d.index+minMatchLength])
+				index := d.index
+				for index++; index < newIndex; index++ {
+					if index < d.maxInsertIndex {
+						d.hash = hash4(d.window[index : index+minMatchLength])
 						// Get previous value with the same hash.
 						// Our chain should point to the previous value.
 						hh := &d.hashHead[d.hash&hashMask]
-						d.hashPrev[d.index&windowMask] = *hh
+						d.hashPrev[index&windowMask] = *hh
 						// Set the head of the hash chain to us.
-						*hh = uint32(d.index + d.hashOffset)
+						*hh = uint32(index + d.hashOffset)
 					}
 				}
+				d.index = index
+
 				if d.fastSkipHashing == skipNever {
 					d.byteAvailable = false
 					d.length = minMatchLength - 1

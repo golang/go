@@ -60,6 +60,8 @@ var regNamesARM = []string{
 	"F14",
 	"F15", // tmp
 
+	// If you add registers, update asyncPreempt in runtime.
+
 	// pseudo-registers
 	"SB",
 }
@@ -154,7 +156,7 @@ func init() {
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R1"), buildReg("R0")},
 				outputs:  []regMask{buildReg("R0"), buildReg("R1")},
-				clobbers: buildReg("R2 R3 R14"), // also clobbers R12 on NaCl (modified in ../config.go)
+				clobbers: buildReg("R2 R3 R14"),
 			},
 			clobberFlags: true,
 			typ:          "(UInt32,UInt32)",
@@ -192,6 +194,10 @@ func init() {
 		{name: "MULSF", argLength: 3, reg: fp31, asm: "MULSF", resultInArg0: true}, // arg0 - (arg1 * arg2)
 		{name: "MULSD", argLength: 3, reg: fp31, asm: "MULSD", resultInArg0: true}, // arg0 - (arg1 * arg2)
 
+		// FMULAD only exists on platforms with the VFPv4 instruction set.
+		// Any use must be preceded by a successful check of runtime.arm_support_vfpv4.
+		{name: "FMULAD", argLength: 3, reg: fp31, asm: "FMULAD", resultInArg0: true}, // arg0 + (arg1 * arg2)
+
 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0 & arg1
 		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int32"}, // arg0 & auxInt
 		{name: "OR", argLength: 2, reg: gp21, asm: "ORR", commutative: true},  // arg0 | arg1
@@ -211,6 +217,7 @@ func init() {
 		{name: "NEGF", argLength: 1, reg: fp11, asm: "NEGF"},   // -arg0, float32
 		{name: "NEGD", argLength: 1, reg: fp11, asm: "NEGD"},   // -arg0, float64
 		{name: "SQRTD", argLength: 1, reg: fp11, asm: "SQRTD"}, // sqrt(arg0), float64
+		{name: "ABSD", argLength: 1, reg: fp11, asm: "ABSD"},   // abs(arg0), float64
 
 		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},     // count leading zero
 		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},     // reverse byte order
@@ -224,6 +231,7 @@ func init() {
 		{name: "SRLconst", argLength: 1, reg: gp11, asm: "SRL", aux: "Int32"}, // arg0 >> auxInt, unsigned
 		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                    // arg0 >> arg1, signed, shift amount is mod 256
 		{name: "SRAconst", argLength: 1, reg: gp11, asm: "SRA", aux: "Int32"}, // arg0 >> auxInt, signed
+		{name: "SRR", argLength: 2, reg: gp21},                                // arg0 right rotate by arg1 bits
 		{name: "SRRconst", argLength: 1, reg: gp11, aux: "Int32"},             // arg0 right rotate by auxInt bits
 
 		{name: "ADDshiftLL", argLength: 2, reg: gp21, asm: "ADD", aux: "Int32"}, // arg0 + arg1<<auxInt
@@ -566,16 +574,16 @@ func init() {
 	}
 
 	blocks := []blockData{
-		{name: "EQ"},
-		{name: "NE"},
-		{name: "LT"},
-		{name: "LE"},
-		{name: "GT"},
-		{name: "GE"},
-		{name: "ULT"},
-		{name: "ULE"},
-		{name: "UGT"},
-		{name: "UGE"},
+		{name: "EQ", controls: 1},
+		{name: "NE", controls: 1},
+		{name: "LT", controls: 1},
+		{name: "LE", controls: 1},
+		{name: "GT", controls: 1},
+		{name: "GE", controls: 1},
+		{name: "ULT", controls: 1},
+		{name: "ULE", controls: 1},
+		{name: "UGT", controls: 1},
+		{name: "UGE", controls: 1},
 	}
 
 	archs = append(archs, arch{

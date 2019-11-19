@@ -572,8 +572,9 @@ func runTest(cmd *base.Command, args []string) {
 	}
 
 	// Pass timeout to tests if it exists.
+	// Prepend rather than appending so that it appears before positional arguments.
 	if testActualTimeout > 0 {
-		testArgs = append(testArgs, "-test.timeout="+testActualTimeout.String())
+		testArgs = append([]string{"-test.timeout=" + testActualTimeout.String()}, testArgs...)
 	}
 
 	// show passing test output (after buffering) with -v flag.
@@ -828,7 +829,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 	if p.ImportPath == "command-line-arguments" {
 		elem = p.Name
 	} else {
-		elem = load.DefaultExecName(p.ImportPath)
+		elem = p.DefaultExecName()
 	}
 	testBinary := elem + ".test"
 

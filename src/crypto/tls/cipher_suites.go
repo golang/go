@@ -40,7 +40,7 @@ type keyAgreement interface {
 }
 
 const (
-	// suiteECDH indicates that the cipher suite involves elliptic curve
+	// suiteECDHE indicates that the cipher suite involves elliptic curve
 	// Diffie-Hellman. This means that it should only be selected when the
 	// client indicates that it supports ECC with a curve and point format
 	// that we're happy with.
@@ -103,6 +103,24 @@ var cipherSuites = []*cipherSuite{
 	{TLS_RSA_WITH_RC4_128_SHA, 16, 20, 0, rsaKA, suiteDefaultOff, cipherRC4, macSHA1, nil},
 	{TLS_ECDHE_RSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheRSAKA, suiteECDHE | suiteDefaultOff, cipherRC4, macSHA1, nil},
 	{TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, 16, 20, 0, ecdheECDSAKA, suiteECDHE | suiteECSign | suiteDefaultOff, cipherRC4, macSHA1, nil},
+}
+
+// selectCipherSuite returns the first cipher suite from ids which is also in
+// supportedIDs and passes the ok filter.
+func selectCipherSuite(ids, supportedIDs []uint16, ok func(*cipherSuite) bool) *cipherSuite {
+	for _, id := range ids {
+		candidate := cipherSuiteByID(id)
+		if candidate == nil || !ok(candidate) {
+			continue
+		}
+
+		for _, suppID := range supportedIDs {
+			if id == suppID {
+				return candidate
+			}
+		}
+	}
+	return nil
 }
 
 // A cipherSuiteTLS13 defines only the pair of the AEAD algorithm and hash

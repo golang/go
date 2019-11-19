@@ -59,18 +59,40 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$3, R8			// sys_read
 	SVC
 	BCC	2(PC)
-	MOVW	$-1, R0
+	NEG	R0, R0
 	MOVW	R0, ret+24(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT|NOFRAME,$0
+// func pipe() (r, w int32, errno int32)
+TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
+	MOVD	RSP, R0
+	MOVW	$0, R1
+	MOVD	$101, R8		// sys_pipe2
+	SVC
+	BCC	2(PC)
+	NEG	R0, R0
+	MOVW	R0, errno+8(FP)
+	RET
+
+// func pipe2(flags int32) (r, w int32, errno int32)
+TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
+	ADD	$8, RSP, R0
+	MOVW	flags+0(FP), R1
+	MOVD	$101, R8		// sys_pipe2
+	SVC
+	BCC	2(PC)
+	NEG	R0, R0
+	MOVW	R0, errno+16(FP)
+	RET
+
+TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0
 	MOVW	fd+0(FP), R0		// arg 1 - fd
 	MOVD	p+8(FP), R1		// arg 2 - buf
 	MOVW	n+16(FP), R2		// arg 3 - nbyte
 	MOVD	$4, R8			// sys_write
 	SVC
 	BCC	2(PC)
-	MOVW	$-1, R0
+	NEG	R0, R0
 	MOVW	R0, ret+24(FP)
 	RET
 
@@ -92,11 +114,15 @@ TEXT runtime·usleep(SB),NOSPLIT,$24-4
 	SVC
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$0
+TEXT runtime·getthrid(SB),NOSPLIT,$0-4
 	MOVD	$299, R8		// sys_getthrid
 	SVC
-					// arg 1 - tid, already in R0
-	MOVW	sig+0(FP), R1		// arg 2 - signum
+	MOVW	R0, ret+0(FP)
+	RET
+
+TEXT runtime·thrkill(SB),NOSPLIT,$0-16
+	MOVW	tid+0(FP), R0		// arg 1 - tid
+	MOVD	sig+8(FP), R1		// arg 2 - signum
 	MOVW	$0, R2			// arg 3 - tcb
 	MOVD	$119, R8		// sys_thrkill
 	SVC
@@ -158,8 +184,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
 	SVC
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB), NOSPLIT, $32
+// func walltime1() (sec int64, nsec int32)
+TEXT runtime·walltime1(SB), NOSPLIT, $32
 	MOVW	CLOCK_REALTIME, R0	// arg 1 - clock_id
 	MOVD	$8(RSP), R1		// arg 2 - tp
 	MOVD	$87, R8			// sys_clock_gettime
@@ -172,9 +198,9 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 
 	RET
 
-// int64 nanotime(void) so really
-// void nanotime(int64 *nsec)
-TEXT runtime·nanotime(SB),NOSPLIT,$32
+// int64 nanotime1(void) so really
+// void nanotime1(int64 *nsec)
+TEXT runtime·nanotime1(SB),NOSPLIT,$32
 	MOVW	CLOCK_MONOTONIC, R0	// arg 1 - clock_id
 	MOVD	$8(RSP), R1		// arg 2 - tp
 	MOVD	$87, R8			// sys_clock_gettime
@@ -391,6 +417,21 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVW	fd+0(FP), R0		// arg 1 - fd
 	MOVD	$2, R1			// arg 2 - cmd (F_SETFD)
 	MOVD	$1, R2			// arg 3 - arg (FD_CLOEXEC)
+	MOVD	$92, R8			// sys_fcntl
+	SVC
+	RET
+
+// func runtime·setNonblock(int32 fd)
+TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
+	MOVW	fd+0(FP), R0		// arg 1 - fd
+	MOVD	$3, R1			// arg 2 - cmd (F_GETFL)
+	MOVD	$0, R2			// arg 3
+	MOVD	$92, R8			// sys_fcntl
+	SVC
+	MOVD	$0x800, R2		// O_NONBLOCK
+	EOR	R0, R2			// arg 3 - flags
+	MOVW	fd+0(FP), R0		// arg 1 - fd
+	MOVD	$4, R1			// arg 2 - cmd (F_SETFL)
 	MOVD	$92, R8			// sys_fcntl
 	SVC
 	RET

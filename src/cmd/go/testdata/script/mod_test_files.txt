@@ -20,6 +20,7 @@ stderr 'use of internal package'
 
 -- foo/go.mod --
 module example.com/foo
+go 1.12
 require example.com/internal v0.0.0
 replace example.com/internal => ../internal
 

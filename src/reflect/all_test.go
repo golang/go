@@ -787,6 +787,7 @@ type Loopy interface{}
 
 var loop1, loop2 Loop
 var loopy1, loopy2 Loopy
+var cycleMap1, cycleMap2, cycleMap3 map[string]interface{}
 
 func init() {
 	loop1 = &loop2
@@ -794,6 +795,13 @@ func init() {
 
 	loopy1 = &loopy2
 	loopy2 = &loopy1
+
+	cycleMap1 = map[string]interface{}{}
+	cycleMap1["cycle"] = cycleMap1
+	cycleMap2 = map[string]interface{}{}
+	cycleMap2["cycle"] = cycleMap2
+	cycleMap3 = map[string]interface{}{}
+	cycleMap3["different"] = cycleMap3
 }
 
 var deepEqualTests = []DeepEqualTest{
@@ -860,6 +868,8 @@ var deepEqualTests = []DeepEqualTest{
 	{&loop1, &loop2, true},
 	{&loopy1, &loopy1, true},
 	{&loopy1, &loopy2, true},
+	{&cycleMap1, &cycleMap2, true},
+	{&cycleMap1, &cycleMap3, false},
 }
 
 func TestDeepEqual(t *testing.T) {
@@ -868,7 +878,7 @@ func TestDeepEqual(t *testing.T) {
 			test.b = test.a
 		}
 		if r := DeepEqual(test.a, test.b); r != test.eq {
-			t.Errorf("DeepEqual(%v, %v) = %v, want %v", test.a, test.b, r, test.eq)
+			t.Errorf("DeepEqual(%#v, %#v) = %v, want %v", test.a, test.b, r, test.eq)
 		}
 	}
 }
@@ -4723,17 +4733,14 @@ func TestStructOfExportRules(t *testing.T) {
 			mustPanic: true,
 		},
 		{
-			field:     StructField{Name: "s2", Type: TypeOf(int(0)), PkgPath: "other/pkg"},
-			mustPanic: true,
+			field: StructField{Name: "s2", Type: TypeOf(int(0)), PkgPath: "other/pkg"},
 		},
 		{
-			field:     StructField{Name: "s2", Type: TypeOf(int(0)), PkgPath: "other/pkg"},
-			mustPanic: true,
+			field: StructField{Name: "s2", Type: TypeOf(int(0)), PkgPath: "other/pkg"},
 		},
 		{
-			field:     StructField{Name: "S", Type: TypeOf(S1{})},
-			mustPanic: false,
-			exported:  true,
+			field:    StructField{Name: "S", Type: TypeOf(S1{})},
+			exported: true,
 		},
 		{
 			field:    StructField{Name: "S", Type: TypeOf((*S1)(nil))},
@@ -4764,20 +4771,16 @@ func TestStructOfExportRules(t *testing.T) {
 			mustPanic: true,
 		},
 		{
-			field:     StructField{Name: "s", Type: TypeOf(S1{}), PkgPath: "other/pkg"},
-			mustPanic: true, // TODO(sbinet): creating a name with a package path
+			field: StructField{Name: "s", Type: TypeOf(S1{}), PkgPath: "other/pkg"},
 		},
 		{
-			field:     StructField{Name: "s", Type: TypeOf((*S1)(nil)), PkgPath: "other/pkg"},
-			mustPanic: true, // TODO(sbinet): creating a name with a package path
+			field: StructField{Name: "s", Type: TypeOf((*S1)(nil)), PkgPath: "other/pkg"},
 		},
 		{
-			field:     StructField{Name: "s", Type: TypeOf(s2{}), PkgPath: "other/pkg"},
-			mustPanic: true, // TODO(sbinet): creating a name with a package path
+			field: StructField{Name: "s", Type: TypeOf(s2{}), PkgPath: "other/pkg"},
 		},
 		{
-			field:     StructField{Name: "s", Type: TypeOf((*s2)(nil)), PkgPath: "other/pkg"},
-			mustPanic: true, // TODO(sbinet): creating a name with a package path
+			field: StructField{Name: "s", Type: TypeOf((*s2)(nil)), PkgPath: "other/pkg"},
 		},
 		{
 			field:     StructField{Name: "", Type: TypeOf(ΦType{})},
@@ -6101,9 +6104,6 @@ var funcLayoutTests []funcLayoutTest
 
 func init() {
 	var argAlign uintptr = PtrSize
-	if runtime.GOARCH == "amd64p32" {
-		argAlign = 2 * PtrSize
-	}
 	roundup := func(x uintptr, a uintptr) uintptr {
 		return (x + a - 1) / a * a
 	}
@@ -6413,7 +6413,7 @@ func TestGCBits(t *testing.T) {
 		join(hdr, rep(8, lit(0, 1)), rep(8, lit(1)), lit(1)))
 	verifyMapBucket(t, Tint64, Tptr,
 		map[int64]Xptr(nil),
-		join(hdr, rep(8, rep(8/PtrSize, lit(0))), rep(8, lit(1)), naclpad(), lit(1)))
+		join(hdr, rep(8, rep(8/PtrSize, lit(0))), rep(8, lit(1)), lit(1)))
 	verifyMapBucket(t,
 		Tscalar, Tscalar,
 		map[Xscalar]Xscalar(nil),
@@ -6438,13 +6438,6 @@ func TestGCBits(t *testing.T) {
 		ArrayOf(64/PtrSize+1, Tscalarptr), ArrayOf(64/PtrSize+1, Tptrscalar),
 		map[[64/PtrSize + 1]Xscalarptr][64/PtrSize + 1]Xptrscalar(nil),
 		join(hdr, rep(8, lit(1)), rep(8, lit(1)), lit(1)))
-}
-
-func naclpad() []byte {
-	if runtime.GOARCH == "amd64p32" {
-		return lit(0)
-	}
-	return nil
 }
 
 func rep(n int, b []byte) []byte { return bytes.Repeat(b, n) }

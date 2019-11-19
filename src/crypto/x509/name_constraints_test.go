@@ -1457,7 +1457,7 @@ var nameConstraintsTests = []nameConstraintsTest{
 	// that we can process CA certificates in the wild that have invalid SANs.
 	// See https://github.com/golang/go/issues/23995
 
-	// #77: an invalid DNS or mail SAN will not be detected if name constaint
+	// #77: an invalid DNS or mail SAN will not be detected if name constraint
 	// checking is not triggered.
 	{
 		roots: make([]constraintsSpec, 1),

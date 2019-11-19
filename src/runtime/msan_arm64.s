@@ -47,9 +47,10 @@ TEXT	runtime·msanfree(SB), NOSPLIT, $0-16
 
 // Switches SP to g0 stack and calls (FARG). Arguments already set.
 TEXT	msancall<>(SB), NOSPLIT, $0-0
+	MOVD	RSP, R19                  // callee-saved
+	CBZ	g, g0stack                // no g, still on a system stack
 	MOVD	g_m(g), R10
 	MOVD	m_g0(R10), R11
-	MOVD	RSP, R19	// callee-saved
 	CMP	R11, g
 	BEQ	g0stack
 

@@ -186,7 +186,7 @@ func TestInterfaceArrivalAndDepartureZoneCache(t *testing.T) {
 	}
 
 	// Ensure zoneCache is filled:
-	_, _ = Listen("tcp", "[fe80::1%nonexistant]:0")
+	_, _ = Listen("tcp", "[fe80::1%nonexistent]:0")
 
 	ti := &testInterface{local: "fe80::1"}
 	if err := ti.setLinkLocal(0); err != nil {
@@ -200,7 +200,7 @@ func TestInterfaceArrivalAndDepartureZoneCache(t *testing.T) {
 	time.Sleep(3 * time.Millisecond)
 
 	// If Listen fails (on Linux with “bind: invalid argument”), zoneCache was
-	// not updated when encountering a nonexistant interface:
+	// not updated when encountering a nonexistent interface:
 	ln, err := Listen("tcp", "[fe80::1%"+ti.name+"]:0")
 	if err != nil {
 		t.Fatal(err)

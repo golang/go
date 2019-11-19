@@ -401,6 +401,11 @@ type B struct {
 	B bool `json:",string"`
 }
 
+type DoublePtr struct {
+	I **int
+	J **int
+}
+
 var unmarshalTests = []unmarshalTest{
 	// basic types
 	{in: `true`, ptr: new(bool), out: true},
@@ -655,6 +660,11 @@ var unmarshalTests = []unmarshalTest{
 		ptr:                   new(S10),
 		err:                   fmt.Errorf("json: unknown field \"X\""),
 		disallowUnknownFields: true,
+	},
+	{
+		in:  `{"I": 0, "I": null, "J": null}`,
+		ptr: new(DoublePtr),
+		out: DoublePtr{I: nil, J: nil},
 	},
 
 	// invalid UTF-8 is coerced to valid UTF-8.
@@ -938,6 +948,37 @@ var unmarshalTests = []unmarshalTest{
 			Type:   reflect.TypeOf(int(0)),
 			Offset: 29,
 		},
+	},
+	// #14702
+	{
+		in:  `invalid`,
+		ptr: new(Number),
+		err: &SyntaxError{
+			msg:    "invalid character 'i' looking for beginning of value",
+			Offset: 1,
+		},
+	},
+	{
+		in:  `"invalid"`,
+		ptr: new(Number),
+		err: fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
+	},
+	{
+		in:  `{"A":"invalid"}`,
+		ptr: new(struct{ A Number }),
+		err: fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
+	},
+	{
+		in: `{"A":"invalid"}`,
+		ptr: new(struct {
+			A Number `json:",string"`
+		}),
+		err: fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into json.Number", `invalid`),
+	},
+	{
+		in:  `{"A":"invalid"}`,
+		ptr: new(map[string]Number),
+		err: fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
 	},
 }
 
@@ -1744,41 +1785,6 @@ type NullTest struct {
 	Struct struct{}
 }
 
-type NullTestStrings struct {
-	Bool      bool              `json:",string"`
-	Int       int               `json:",string"`
-	Int8      int8              `json:",string"`
-	Int16     int16             `json:",string"`
-	Int32     int32             `json:",string"`
-	Int64     int64             `json:",string"`
-	Uint      uint              `json:",string"`
-	Uint8     uint8             `json:",string"`
-	Uint16    uint16            `json:",string"`
-	Uint32    uint32            `json:",string"`
-	Uint64    uint64            `json:",string"`
-	Float32   float32           `json:",string"`
-	Float64   float64           `json:",string"`
-	String    string            `json:",string"`
-	PBool     *bool             `json:",string"`
-	Map       map[string]string `json:",string"`
-	Slice     []string          `json:",string"`
-	Interface interface{}       `json:",string"`
-
-	PRaw    *RawMessage           `json:",string"`
-	PTime   *time.Time            `json:",string"`
-	PBigInt *big.Int              `json:",string"`
-	PText   *MustNotUnmarshalText `json:",string"`
-	PBuffer *bytes.Buffer         `json:",string"`
-	PStruct *struct{}             `json:",string"`
-
-	Raw    RawMessage           `json:",string"`
-	Time   time.Time            `json:",string"`
-	BigInt big.Int              `json:",string"`
-	Text   MustNotUnmarshalText `json:",string"`
-	Buffer bytes.Buffer         `json:",string"`
-	Struct struct{}             `json:",string"`
-}
-
 // JSON null values should be ignored for primitives and string values instead of resulting in an error.
 // Issue 2540
 func TestUnmarshalNulls(t *testing.T) {
@@ -2345,6 +2351,41 @@ func TestUnmarshalEmbeddedUnexported(t *testing.T) {
 	}
 }
 
+func TestUnmarshalErrorAfterMultipleJSON(t *testing.T) {
+	tests := []struct {
+		in  string
+		err error
+	}{{
+		in:  `1 false null :`,
+		err: &SyntaxError{"invalid character ':' looking for beginning of value", 14},
+	}, {
+		in:  `1 [] [,]`,
+		err: &SyntaxError{"invalid character ',' looking for beginning of value", 7},
+	}, {
+		in:  `1 [] [true:]`,
+		err: &SyntaxError{"invalid character ':' after array element", 11},
+	}, {
+		in:  `1  {}    {"x"=}`,
+		err: &SyntaxError{"invalid character '=' after object key", 14},
+	}, {
+		in:  `falsetruenul#`,
+		err: &SyntaxError{"invalid character '#' in literal null (expecting 'l')", 13},
+	}}
+	for i, tt := range tests {
+		dec := NewDecoder(strings.NewReader(tt.in))
+		var err error
+		for {
+			var v interface{}
+			if err = dec.Decode(&v); err != nil {
+				break
+			}
+		}
+		if !reflect.DeepEqual(err, tt.err) {
+			t.Errorf("#%d: got %#v, want %#v", i, err, tt.err)
+		}
+	}
+}
+
 type unmarshalPanic struct{}
 
 func (unmarshalPanic) UnmarshalJSON([]byte) error { panic(0xdead) }
@@ -2368,5 +2409,25 @@ func TestUnmarshalRecursivePointer(t *testing.T) {
 
 	if err := Unmarshal(data, v); err != nil {
 		t.Fatal(err)
+	}
+}
+
+type textUnmarshalerString string
+
+func (m *textUnmarshalerString) UnmarshalText(text []byte) error {
+	*m = textUnmarshalerString(strings.ToLower(string(text)))
+	return nil
+}
+
+// Test unmarshal to a map, with map key is a user defined type.
+// See golang.org/issues/34437.
+func TestUnmarshalMapWithTextUnmarshalerStringKey(t *testing.T) {
+	var p map[textUnmarshalerString]string
+	if err := Unmarshal([]byte(`{"FOO": "1"}`), &p); err != nil {
+		t.Fatalf("Unmarshal unexpected error: %v", err)
+	}
+
+	if _, ok := p["foo"]; !ok {
+		t.Errorf(`Key "foo" is not existed in map: %v`, p)
 	}
 }

@@ -114,6 +114,7 @@ var pkgDeps = map[string][]string{
 	"hash/crc32":             {"L2", "hash"},
 	"hash/crc64":             {"L2", "hash"},
 	"hash/fnv":               {"L2", "hash"},
+	"hash/maphash":           {"L2", "hash"},
 	"image":                  {"L2", "image/color"}, // interfaces
 	"image/color":            {"L2"},                // interfaces
 	"image/color/palette":    {"L2", "image/color"},
@@ -257,7 +258,7 @@ var pkgDeps = map[string][]string{
 	"compress/gzip":                  {"L4", "compress/flate"},
 	"compress/lzw":                   {"L4"},
 	"compress/zlib":                  {"L4", "compress/flate"},
-	"context":                        {"errors", "internal/reflectlite", "sync", "time"},
+	"context":                        {"errors", "internal/reflectlite", "sync", "sync/atomic", "time"},
 	"database/sql":                   {"L4", "container/list", "context", "database/sql/driver", "database/sql/internal"},
 	"database/sql/driver":            {"L4", "context", "time", "database/sql/internal"},
 	"debug/dwarf":                    {"L4"},
@@ -519,7 +520,7 @@ func listStdPkgs(goroot string) ([]string, error) {
 
 func TestDependencies(t *testing.T) {
 	iOS := runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
-	if runtime.GOOS == "nacl" || iOS {
+	if iOS {
 		// Tests run in a limited file system and we do not
 		// provide access to every source file.
 		t.Skipf("skipping on %s/%s, missing full GOROOT", runtime.GOOS, runtime.GOARCH)

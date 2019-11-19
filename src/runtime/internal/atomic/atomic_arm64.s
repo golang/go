@@ -48,6 +48,12 @@ TEXT runtime∕internal∕atomic·Store(SB), NOSPLIT, $0-12
 	STLRW	R1, (R0)
 	RET
 
+TEXT runtime∕internal∕atomic·Store8(SB), NOSPLIT, $0-9
+	MOVD	ptr+0(FP), R0
+	MOVB	val+8(FP), R1
+	STLRB	R1, (R0)
+	RET
+
 TEXT runtime∕internal∕atomic·Store64(SB), NOSPLIT, $0-16
 	MOVD	ptr+0(FP), R0
 	MOVD	val+8(FP), R1

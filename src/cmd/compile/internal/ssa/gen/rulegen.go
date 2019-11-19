@@ -21,12 +21,13 @@ import (
 	"go/parser"
 	"go/printer"
 	"go/token"
-	"go/types"
 	"io"
 	"log"
 	"os"
+	"path"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
@@ -236,8 +237,7 @@ func genRulesSuffix(arch arch, suff string) {
 	// so we can make this one function with a switch.
 	fn = &Func{kind: "Block"}
 	fn.add(declf("config", "b.Func.Config"))
-	fn.add(declf("typ", "&config.Types"))
-	fn.add(declf("v", "b.Control"))
+	fn.add(declf("typ", "&b.Func.Config.Types"))
 
 	sw = &Switch{expr: exprf("b.Kind")}
 	ops = ops[:0]
@@ -246,9 +246,10 @@ func genRulesSuffix(arch arch, suff string) {
 	}
 	sort.Strings(ops)
 	for _, op := range ops {
-		swc := &Case{expr: exprf("%s", blockName(op, arch))}
+		name, data := getBlockInfo(op, arch)
+		swc := &Case{expr: exprf("%s", name)}
 		for _, rule := range blockrules[op] {
-			swc.add(genBlockRewrite(rule, arch))
+			swc.add(genBlockRewrite(rule, arch, data))
 		}
 		sw.add(swc)
 	}
@@ -266,38 +267,38 @@ func genRulesSuffix(arch arch, suff string) {
 	}
 	tfile := fset.File(file.Pos())
 
-	for n := 0; n < 3; n++ {
-		unused := make(map[token.Pos]bool)
-		conf := types.Config{Error: func(err error) {
-			if terr, ok := err.(types.Error); ok && strings.Contains(terr.Msg, "not used") {
-				unused[terr.Pos] = true
-			}
-		}}
-		_, _ = conf.Check("ssa", fset, []*ast.File{file}, nil)
-		if len(unused) == 0 {
-			break
-		}
-		pre := func(c *astutil.Cursor) bool {
-			if node := c.Node(); node != nil && unused[node.Pos()] {
-				c.Delete()
-				// Unused imports and declarations use exactly
-				// one line. Prevent leaving an empty line.
-				tfile.MergeLine(tfile.Position(node.Pos()).Line)
-				return false
-			}
+	// First, use unusedInspector to find the unused declarations by their
+	// start position.
+	u := unusedInspector{unused: make(map[token.Pos]bool)}
+	u.node(file)
+
+	// Then, delete said nodes via astutil.Apply.
+	pre := func(c *astutil.Cursor) bool {
+		node := c.Node()
+		if node == nil {
 			return true
 		}
-		post := func(c *astutil.Cursor) bool {
-			switch node := c.Node().(type) {
-			case *ast.GenDecl:
-				if len(node.Specs) == 0 {
-					c.Delete()
-				}
-			}
-			return true
+		if u.unused[node.Pos()] {
+			c.Delete()
+			// Unused imports and declarations use exactly
+			// one line. Prevent leaving an empty line.
+			tfile.MergeLine(tfile.Position(node.Pos()).Line)
+			return false
 		}
-		file = astutil.Apply(file, pre, post).(*ast.File)
+		return true
 	}
+	post := func(c *astutil.Cursor) bool {
+		switch node := c.Node().(type) {
+		case *ast.GenDecl:
+			if len(node.Specs) == 0 {
+				// Don't leave a broken or empty GenDecl behind,
+				// such as "import ()".
+				c.Delete()
+			}
+		}
+		return true
+	}
+	file = astutil.Apply(file, pre, post).(*ast.File)
 
 	// Write the well-formatted source to file
 	f, err := os.Create("../rewrite" + arch.name + suff + ".go")
@@ -319,17 +320,247 @@ func genRulesSuffix(arch arch, suff string) {
 	}
 }
 
+// unusedInspector can be used to detect unused variables and imports in an
+// ast.Node via its node method. The result is available in the "unused" map.
+//
+// note that unusedInspector is lazy and best-effort; it only supports the node
+// types and patterns used by the rulegen program.
+type unusedInspector struct {
+	// scope is the current scope, which can never be nil when a declaration
+	// is encountered. That is, the unusedInspector.node entrypoint should
+	// generally be an entire file or block.
+	scope *scope
+
+	// unused is the resulting set of unused declared names, indexed by the
+	// starting position of the node that declared the name.
+	unused map[token.Pos]bool
+
+	// defining is the object currently being defined; this is useful so
+	// that if "foo := bar" is unused and removed, we can then detect if
+	// "bar" becomes unused as well.
+	defining *object
+}
+
+// scoped opens a new scope when called, and returns a function which closes
+// that same scope. When a scope is closed, unused variables are recorded.
+func (u *unusedInspector) scoped() func() {
+	outer := u.scope
+	u.scope = &scope{outer: outer, objects: map[string]*object{}}
+	return func() {
+		for anyUnused := true; anyUnused; {
+			anyUnused = false
+			for _, obj := range u.scope.objects {
+				if obj.numUses > 0 {
+					continue
+				}
+				u.unused[obj.pos] = true
+				for _, used := range obj.used {
+					if used.numUses--; used.numUses == 0 {
+						anyUnused = true
+					}
+				}
+				// We've decremented numUses for each of the
+				// objects in used. Zero this slice too, to keep
+				// everything consistent.
+				obj.used = nil
+			}
+		}
+		u.scope = outer
+	}
+}
+
+func (u *unusedInspector) exprs(list []ast.Expr) {
+	for _, x := range list {
+		u.node(x)
+	}
+}
+
+func (u *unusedInspector) stmts(list []ast.Stmt) {
+	for _, x := range list {
+		u.node(x)
+	}
+}
+
+func (u *unusedInspector) decls(list []ast.Decl) {
+	for _, x := range list {
+		u.node(x)
+	}
+}
+
+func (u *unusedInspector) node(node ast.Node) {
+	switch node := node.(type) {
+	case *ast.File:
+		defer u.scoped()()
+		u.decls(node.Decls)
+	case *ast.GenDecl:
+		for _, spec := range node.Specs {
+			u.node(spec)
+		}
+	case *ast.ImportSpec:
+		impPath, _ := strconv.Unquote(node.Path.Value)
+		name := path.Base(impPath)
+		u.scope.objects[name] = &object{
+			name: name,
+			pos:  node.Pos(),
+		}
+	case *ast.FuncDecl:
+		u.node(node.Type)
+		if node.Body != nil {
+			u.node(node.Body)
+		}
+	case *ast.FuncType:
+		if node.Params != nil {
+			u.node(node.Params)
+		}
+		if node.Results != nil {
+			u.node(node.Results)
+		}
+	case *ast.FieldList:
+		for _, field := range node.List {
+			u.node(field)
+		}
+	case *ast.Field:
+		u.node(node.Type)
+
+	// statements
+
+	case *ast.BlockStmt:
+		defer u.scoped()()
+		u.stmts(node.List)
+	case *ast.IfStmt:
+		if node.Init != nil {
+			u.node(node.Init)
+		}
+		u.node(node.Cond)
+		u.node(node.Body)
+		if node.Else != nil {
+			u.node(node.Else)
+		}
+	case *ast.ForStmt:
+		if node.Init != nil {
+			u.node(node.Init)
+		}
+		if node.Cond != nil {
+			u.node(node.Cond)
+		}
+		if node.Post != nil {
+			u.node(node.Post)
+		}
+		u.node(node.Body)
+	case *ast.SwitchStmt:
+		if node.Init != nil {
+			u.node(node.Init)
+		}
+		if node.Tag != nil {
+			u.node(node.Tag)
+		}
+		u.node(node.Body)
+	case *ast.CaseClause:
+		u.exprs(node.List)
+		defer u.scoped()()
+		u.stmts(node.Body)
+	case *ast.BranchStmt:
+	case *ast.ExprStmt:
+		u.node(node.X)
+	case *ast.AssignStmt:
+		if node.Tok != token.DEFINE {
+			u.exprs(node.Rhs)
+			u.exprs(node.Lhs)
+			break
+		}
+		if len(node.Lhs) != 1 {
+			panic("no support for := with multiple names")
+		}
+
+		name := node.Lhs[0].(*ast.Ident)
+		obj := &object{
+			name: name.Name,
+			pos:  name.NamePos,
+		}
+
+		old := u.defining
+		u.defining = obj
+		u.exprs(node.Rhs)
+		u.defining = old
+
+		u.scope.objects[name.Name] = obj
+	case *ast.ReturnStmt:
+		u.exprs(node.Results)
+
+	// expressions
+
+	case *ast.CallExpr:
+		u.node(node.Fun)
+		u.exprs(node.Args)
+	case *ast.SelectorExpr:
+		u.node(node.X)
+	case *ast.UnaryExpr:
+		u.node(node.X)
+	case *ast.BinaryExpr:
+		u.node(node.X)
+		u.node(node.Y)
+	case *ast.StarExpr:
+		u.node(node.X)
+	case *ast.ParenExpr:
+		u.node(node.X)
+	case *ast.IndexExpr:
+		u.node(node.X)
+		u.node(node.Index)
+	case *ast.TypeAssertExpr:
+		u.node(node.X)
+		u.node(node.Type)
+	case *ast.Ident:
+		if obj := u.scope.Lookup(node.Name); obj != nil {
+			obj.numUses++
+			if u.defining != nil {
+				u.defining.used = append(u.defining.used, obj)
+			}
+		}
+	case *ast.BasicLit:
+	default:
+		panic(fmt.Sprintf("unhandled node: %T", node))
+	}
+}
+
+// scope keeps track of a certain scope and its declared names, as well as the
+// outer (parent) scope.
+type scope struct {
+	outer   *scope             // can be nil, if this is the top-level scope
+	objects map[string]*object // indexed by each declared name
+}
+
+func (s *scope) Lookup(name string) *object {
+	if obj := s.objects[name]; obj != nil {
+		return obj
+	}
+	if s.outer == nil {
+		return nil
+	}
+	return s.outer.Lookup(name)
+}
+
+// object keeps track of a declared name, such as a variable or import.
+type object struct {
+	name string
+	pos  token.Pos // start position of the node declaring the object
+
+	numUses int       // number of times this object is used
+	used    []*object // objects that its declaration makes use of
+}
+
 func fprint(w io.Writer, n Node) {
 	switch n := n.(type) {
 	case *File:
 		fmt.Fprintf(w, "// Code generated from gen/%s%s.rules; DO NOT EDIT.\n", n.arch.name, n.suffix)
 		fmt.Fprintf(w, "// generated with: cd gen; go run *.go\n")
 		fmt.Fprintf(w, "\npackage ssa\n")
-		for _, path := range []string{
-			"fmt", "math",
-			"cmd/internal/obj", "cmd/internal/objabi",
+		for _, path := range append([]string{
+			"fmt",
+			"math",
+			"cmd/internal/obj",
+			"cmd/internal/objabi",
 			"cmd/compile/internal/types",
-		} {
+		}, n.arch.imports...) {
 			fmt.Fprintf(w, "import %q\n", path)
 		}
 		for _, f := range n.list {
@@ -358,13 +589,11 @@ func fprint(w io.Writer, n Node) {
 		}
 	case *RuleRewrite:
 		fmt.Fprintf(w, "// match: %s\n", n.match)
-		fmt.Fprintf(w, "// cond: %s\n", n.cond)
-		fmt.Fprintf(w, "// result: %s\n", n.result)
-		if n.checkOp != "" {
-			fmt.Fprintf(w, "for v.Op == %s {\n", n.checkOp)
-		} else {
-			fmt.Fprintf(w, "for {\n")
+		if n.cond != "" {
+			fmt.Fprintf(w, "// cond: %s\n", n.cond)
 		}
+		fmt.Fprintf(w, "// result: %s\n", n.result)
+		fmt.Fprintf(w, "for %s {\n", n.check)
 		for _, n := range n.list {
 			fprint(w, n)
 		}
@@ -378,13 +607,17 @@ func fprint(w io.Writer, n Node) {
 		fprint(w, n.expr)
 		fmt.Fprintf(w, " {\nbreak\n}\n")
 	case ast.Node:
-		printer.Fprint(w, emptyFset, n)
+		printConfig.Fprint(w, emptyFset, n)
 		if _, ok := n.(ast.Stmt); ok {
 			fmt.Fprintln(w)
 		}
 	default:
 		log.Fatalf("cannot print %T", n)
 	}
+}
+
+var printConfig = printer.Config{
+	Mode: printer.RawFormat, // we use go/format later, so skip work here
 }
 
 var emptyFset = token.NewFileSet()
@@ -396,21 +629,33 @@ type Node interface{}
 // ast.Stmt under some limited circumstances.
 type Statement interface{}
 
-// bodyBase is shared by all of our statement psuedo-node types which can
+// bodyBase is shared by all of our statement pseudo-node types which can
 // contain other statements.
 type bodyBase struct {
 	list    []Statement
 	canFail bool
 }
 
-func (w *bodyBase) body() []Statement { return w.list }
-func (w *bodyBase) add(nodes ...Statement) {
-	w.list = append(w.list, nodes...)
-	for _, node := range nodes {
-		if _, ok := node.(*CondBreak); ok {
-			w.canFail = true
+func (w *bodyBase) add(node Statement) {
+	var last Statement
+	if len(w.list) > 0 {
+		last = w.list[len(w.list)-1]
+	}
+	if node, ok := node.(*CondBreak); ok {
+		w.canFail = true
+		if last, ok := last.(*CondBreak); ok {
+			// Add to the previous "if <cond> { break }" via a
+			// logical OR, which will save verbosity.
+			last.expr = &ast.BinaryExpr{
+				Op: token.LOR,
+				X:  last.expr,
+				Y:  node.expr,
+			}
+			return
 		}
 	}
+
+	w.list = append(w.list, node)
 }
 
 // declared reports if the body contains a Declare with the given name.
@@ -451,7 +696,7 @@ type (
 	RuleRewrite struct {
 		bodyBase
 		match, cond, result string // top comments
-		checkOp             string
+		check               string // top-level boolean expression
 
 		alloc int    // for unique var names
 		loc   string // file name & line number of the original rule
@@ -501,33 +746,71 @@ func breakf(format string, a ...interface{}) *CondBreak {
 	return &CondBreak{exprf(format, a...)}
 }
 
-func genBlockRewrite(rule Rule, arch arch) *RuleRewrite {
+func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 	rr := &RuleRewrite{loc: rule.loc}
 	rr.match, rr.cond, rr.result = rule.parse()
-	_, _, _, aux, s := extract(rr.match) // remove parens, then split
+	_, _, auxint, aux, s := extract(rr.match) // remove parens, then split
 
-	// check match of control value
-	pos := ""
-	if s[0] != "nil" {
-		if strings.Contains(s[0], "(") {
-			pos, rr.checkOp = genMatch0(rr, arch, s[0], "v")
+	// check match of control values
+	if len(s) < data.controls {
+		log.Fatalf("incorrect number of arguments in %s, got %v wanted at least %v", rule, len(s), data.controls)
+	}
+	controls := s[:data.controls]
+	pos := make([]string, data.controls)
+	for i, arg := range controls {
+		if strings.Contains(arg, "(") {
+			// TODO: allow custom names?
+			cname := fmt.Sprintf("b.Controls[%v]", i)
+			vname := fmt.Sprintf("v_%v", i)
+			rr.add(declf(vname, cname))
+			p, op := genMatch0(rr, arch, arg, vname)
+			if op != "" {
+				check := fmt.Sprintf("%s.Op == %s", cname, op)
+				if rr.check == "" {
+					rr.check = check
+				} else {
+					rr.check = rr.check + " && " + check
+				}
+			}
+			if p == "" {
+				p = vname + ".Pos"
+			}
+			pos[i] = p
 		} else {
-			rr.add(declf(s[0], "b.Control"))
+			rr.add(declf(arg, "b.Controls[%v]", i))
+			pos[i] = arg + ".Pos"
 		}
 	}
-	if aux != "" {
-		rr.add(declf(aux, "b.Aux"))
+	for _, e := range []struct {
+		name, field string
+	}{
+		{auxint, "AuxInt"},
+		{aux, "Aux"},
+	} {
+		if e.name == "" {
+			continue
+		}
+		if !token.IsIdentifier(e.name) || rr.declared(e.name) {
+			// code or variable
+			rr.add(breakf("b.%s != %s", e.field, e.name))
+		} else {
+			rr.add(declf(e.name, "b.%s", e.field))
+		}
 	}
 	if rr.cond != "" {
 		rr.add(breakf("!(%s)", rr.cond))
 	}
 
 	// Rule matches. Generate result.
-	outop, _, _, aux, t := extract(rr.result) // remove parens, then split
-	newsuccs := t[1:]
+	outop, _, auxint, aux, t := extract(rr.result) // remove parens, then split
+	_, outdata := getBlockInfo(outop, arch)
+	if len(t) < outdata.controls {
+		log.Fatalf("incorrect number of output arguments in %s, got %v wanted at least %v", rule, len(s), outdata.controls)
+	}
 
 	// Check if newsuccs is the same set as succs.
-	succs := s[1:]
+	succs := s[data.controls:]
+	newsuccs := t[outdata.controls:]
 	m := map[string]bool{}
 	for _, succ := range succs {
 		if m[succ] {
@@ -545,20 +828,28 @@ func genBlockRewrite(rule Rule, arch arch) *RuleRewrite {
 		log.Fatalf("unmatched successors %v in %s", m, rule)
 	}
 
-	rr.add(stmtf("b.Kind = %s", blockName(outop, arch)))
-	if t[0] == "nil" {
-		rr.add(stmtf("b.SetControl(nil)"))
-	} else {
-		if pos == "" {
-			pos = "v.Pos"
+	blockName, _ := getBlockInfo(outop, arch)
+	rr.add(stmtf("b.Reset(%s)", blockName))
+	for i, control := range t[:outdata.controls] {
+		// Select a source position for any new control values.
+		// TODO: does it always make sense to use the source position
+		// of the original control values or should we be using the
+		// block's source position in some cases?
+		newpos := "b.Pos" // default to block's source position
+		if i < len(pos) && pos[i] != "" {
+			// Use the previous control value's source position.
+			newpos = pos[i]
 		}
-		v := genResult0(rr, arch, t[0], false, false, pos)
-		rr.add(stmtf("b.SetControl(%s)", v))
+
+		// Generate a new control value (or copy an existing value).
+		v := genResult0(rr, arch, control, false, false, newpos)
+		rr.add(stmtf("b.AddControl(%s)", v))
+	}
+	if auxint != "" {
+		rr.add(stmtf("b.AuxInt = %s", auxint))
 	}
 	if aux != "" {
 		rr.add(stmtf("b.Aux = %s", aux))
-	} else {
-		rr.add(stmtf("b.Aux = nil"))
 	}
 
 	succChanged := false
@@ -602,28 +893,21 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string) (pos, checkOp string
 		pos = v + ".Pos"
 	}
 
-	if typ != "" {
-		if !token.IsIdentifier(typ) || rr.declared(typ) {
-			// code or variable
-			rr.add(breakf("%s.Type != %s", v, typ))
-		} else {
-			rr.add(declf(typ, "%s.Type", v))
+	for _, e := range []struct {
+		name, field string
+	}{
+		{typ, "Type"},
+		{auxint, "AuxInt"},
+		{aux, "Aux"},
+	} {
+		if e.name == "" {
+			continue
 		}
-	}
-	if auxint != "" {
-		if !token.IsIdentifier(auxint) || rr.declared(auxint) {
+		if !token.IsIdentifier(e.name) || rr.declared(e.name) {
 			// code or variable
-			rr.add(breakf("%s.AuxInt != %s", v, auxint))
+			rr.add(breakf("%s.%s != %s", v, e.field, e.name))
 		} else {
-			rr.add(declf(auxint, "%s.AuxInt", v))
-		}
-	}
-	if aux != "" {
-		if !token.IsIdentifier(aux) || rr.declared(aux) {
-			// code or variable
-			rr.add(breakf("%s.Aux != %s", v, aux))
-		} else {
-			rr.add(declf(aux, "%s.Aux", v))
+			rr.add(declf(e.name, "%s.%s", v, e.field))
 		}
 	}
 
@@ -672,7 +956,6 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string) (pos, checkOp string
 		rr.add(declf(argname, "%s.Args[%d]", v, i))
 		bexpr := exprf("%s.Op != addLater", argname)
 		rr.add(&CondBreak{expr: bexpr})
-		rr.canFail = true // since we're not using breakf
 		argPos, argCheckOp := genMatch0(rr, arch, arg, argname)
 		bexpr.(*ast.BinaryExpr).Y.(*ast.Ident).Name = argCheckOp
 
@@ -908,14 +1191,14 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch, typ, auxi
 	// Sanity check aux, auxint.
 	if auxint != "" {
 		switch op.aux {
-		case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "SymInt32", "TypSize":
+		case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "TypSize":
 		default:
 			log.Fatalf("%s: op %s %s can't have auxint", loc, op.name, op.aux)
 		}
 	}
 	if aux != "" {
 		switch op.aux {
-		case "String", "Sym", "SymOff", "SymValAndOff", "SymInt32", "Typ", "TypSize", "CCop":
+		case "String", "Sym", "SymOff", "SymValAndOff", "Typ", "TypSize", "CCop", "ArchSpecific":
 		default:
 			log.Fatalf("%s: op %s %s can't have aux", loc, op.name, op.aux)
 		}
@@ -923,13 +1206,19 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch, typ, auxi
 	return
 }
 
-func blockName(name string, arch arch) string {
+func getBlockInfo(op string, arch arch) (name string, data blockData) {
 	for _, b := range genericBlocks {
-		if b.name == name {
-			return "Block" + name
+		if b.name == op {
+			return "Block" + op, b
 		}
 	}
-	return "Block" + arch.name + name
+	for _, b := range arch.blocks {
+		if b.name == op {
+			return "Block" + arch.name + op, b
+		}
+	}
+	log.Fatalf("could not find block data for %s", op)
+	panic("unreachable")
 }
 
 // typeName returns the string to use to generate a type.

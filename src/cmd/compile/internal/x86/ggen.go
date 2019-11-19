@@ -23,7 +23,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, ax *uint32) *obj.Prog 
 		for i := int64(0); i < cnt; i += int64(gc.Widthreg) {
 			p = pp.Appendpp(p, x86.AMOVL, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, off+i)
 		}
-	} else if !gc.Nacl && cnt <= int64(128*gc.Widthreg) {
+	} else if cnt <= int64(128*gc.Widthreg) {
 		p = pp.Appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, off, obj.TYPE_REG, x86.REG_DI, 0)
 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, 1*(128-cnt/int64(gc.Widthreg)))
 		p.To.Sym = gc.Duffzero
@@ -35,22 +35,6 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, ax *uint32) *obj.Prog 
 	}
 
 	return p
-}
-
-func zeroAuto(pp *gc.Progs, n *gc.Node) {
-	// Note: this code must not clobber any registers.
-	sym := n.Sym.Linksym()
-	size := n.Type.Size()
-	for i := int64(0); i < size; i += 4 {
-		p := pp.Prog(x86.AMOVL)
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = 0
-		p.To.Type = obj.TYPE_MEM
-		p.To.Name = obj.NAME_AUTO
-		p.To.Reg = x86.REG_SP
-		p.To.Offset = n.Xoffset + i
-		p.To.Sym = sym
-	}
 }
 
 func ginsnop(pp *gc.Progs) *obj.Prog {

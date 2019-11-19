@@ -28,7 +28,7 @@
 //            if err != nil {
 //                log.Fatal("could not create CPU profile: ", err)
 //            }
-//            defer f.Close()
+//            defer f.Close() // error handling omitted for example
 //            if err := pprof.StartCPUProfile(f); err != nil {
 //                log.Fatal("could not start CPU profile: ", err)
 //            }
@@ -42,7 +42,7 @@
 //            if err != nil {
 //                log.Fatal("could not create memory profile: ", err)
 //            }
-//            defer f.Close()
+//            defer f.Close() // error handling omitted for example
 //            runtime.GC() // get up-to-date statistics
 //            if err := pprof.WriteHeapProfile(f); err != nil {
 //                log.Fatal("could not write memory profile: ", err)
@@ -386,16 +386,9 @@ func printCountCycleProfile(w io.Writer, countName, cycleName string, scaler fun
 		count, nanosec := scaler(r.Count, float64(r.Cycles)/cpuGHz)
 		values[0] = count
 		values[1] = int64(nanosec)
-		locs = locs[:0]
-		for _, addr := range r.Stack() {
-			// For count profiles, all stack addresses are
-			// return PCs, which is what locForPC expects.
-			l := b.locForPC(addr)
-			if l == 0 { // runtime.goexit
-				continue
-			}
-			locs = append(locs, l)
-		}
+		// For count profiles, all stack addresses are
+		// return PCs, which is what appendLocsForStack expects.
+		locs = b.appendLocsForStack(locs[:0], r.Stack())
 		b.pbSample(values, locs, nil)
 	}
 	b.build()
@@ -451,16 +444,9 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 	var locs []uint64
 	for _, k := range keys {
 		values[0] = int64(count[k])
-		locs = locs[:0]
-		for _, addr := range p.Stack(index[k]) {
-			// For count profiles, all stack addresses are
-			// return PCs, which is what locForPC expects.
-			l := b.locForPC(addr)
-			if l == 0 { // runtime.goexit
-				continue
-			}
-			locs = append(locs, l)
-		}
+		// For count profiles, all stack addresses are
+		// return PCs, which is what appendLocsForStack expects.
+		locs = b.appendLocsForStack(locs[:0], p.Stack(index[k]))
 		b.pbSample(values, locs, nil)
 	}
 	b.build()

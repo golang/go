@@ -210,4 +210,7 @@ func Xchg64(addr *uint64, v uint64) uint64
 func Load64(addr *uint64) uint64
 
 //go:noescape
+func Store8(addr *uint8, v uint8)
+
+//go:noescape
 func Store64(addr *uint64, v uint64)

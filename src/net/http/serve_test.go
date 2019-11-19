@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"compress/zlib"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -28,7 +29,9 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"sort"
@@ -1504,6 +1507,7 @@ func TestTLSServer(t *testing.T) {
 }
 
 func TestServeTLS(t *testing.T) {
+	CondSkipHTTP2(t)
 	// Not parallel: uses global test hooks.
 	defer afterTest(t)
 	defer SetTestHookServerServe(nil)
@@ -1654,6 +1658,7 @@ func TestAutomaticHTTP2_ListenAndServe_GetCertificate(t *testing.T) {
 }
 
 func testAutomaticHTTP2_ListenAndServe(t *testing.T, tlsConf *tls.Config) {
+	CondSkipHTTP2(t)
 	// Not parallel: uses global test hooks.
 	defer afterTest(t)
 	defer SetTestHookServerServe(nil)
@@ -4755,6 +4760,10 @@ func TestServerValidatesHeaders(t *testing.T) {
 		{"foo\xffbar: foo\r\n", 400},                         // binary in header
 		{"foo\x00bar: foo\r\n", 400},                         // binary in header
 		{"Foo: " + strings.Repeat("x", 1<<21) + "\r\n", 431}, // header too large
+		// Spaces between the header key and colon are not allowed.
+		// See RFC 7230, Section 3.2.4.
+		{"Foo : bar\r\n", 400},
+		{"Foo\t: bar\r\n", 400},
 
 		{"foo: foo foo\r\n", 200},    // LWS space is okay
 		{"foo: foo\tfoo\r\n", 200},   // LWS tab is okay
@@ -6154,6 +6163,201 @@ func TestUnsupportedTransferEncodingsReturn501(t *testing.T) {
 		if string(gotBody) != wantBody {
 			t.Errorf("%q. body\ngot\n%q\nwant\n%q", badTE, gotBody, wantBody)
 		}
+	}
+}
+
+func TestContentEncodingNoSniffing_h1(t *testing.T) {
+	testContentEncodingNoSniffing(t, h1Mode)
+}
+
+func TestContentEncodingNoSniffing_h2(t *testing.T) {
+	testContentEncodingNoSniffing(t, h2Mode)
+}
+
+// Issue 31753: don't sniff when Content-Encoding is set
+func testContentEncodingNoSniffing(t *testing.T, h2 bool) {
+	setParallel(t)
+	defer afterTest(t)
+
+	type setting struct {
+		name string
+		body []byte
+
+		// setting contentEncoding as an interface instead of a string
+		// directly, so as to differentiate between 3 states:
+		//    unset, empty string "" and set string "foo/bar".
+		contentEncoding interface{}
+		wantContentType string
+	}
+
+	settings := []*setting{
+		{
+			name:            "gzip content-encoding, gzipped", // don't sniff.
+			contentEncoding: "application/gzip",
+			wantContentType: "",
+			body: func() []byte {
+				buf := new(bytes.Buffer)
+				gzw := gzip.NewWriter(buf)
+				gzw.Write([]byte("doctype html><p>Hello</p>"))
+				gzw.Close()
+				return buf.Bytes()
+			}(),
+		},
+		{
+			name:            "zlib content-encoding, zlibbed", // don't sniff.
+			contentEncoding: "application/zlib",
+			wantContentType: "",
+			body: func() []byte {
+				buf := new(bytes.Buffer)
+				zw := zlib.NewWriter(buf)
+				zw.Write([]byte("doctype html><p>Hello</p>"))
+				zw.Close()
+				return buf.Bytes()
+			}(),
+		},
+		{
+			name:            "no content-encoding", // must sniff.
+			wantContentType: "application/x-gzip",
+			body: func() []byte {
+				buf := new(bytes.Buffer)
+				gzw := gzip.NewWriter(buf)
+				gzw.Write([]byte("doctype html><p>Hello</p>"))
+				gzw.Close()
+				return buf.Bytes()
+			}(),
+		},
+		{
+			name:            "phony content-encoding", // don't sniff.
+			contentEncoding: "foo/bar",
+			body:            []byte("doctype html><p>Hello</p>"),
+		},
+		{
+			name:            "empty but set content-encoding",
+			contentEncoding: "",
+			wantContentType: "audio/mpeg",
+			body:            []byte("ID3"),
+		},
+	}
+
+	for _, tt := range settings {
+		t.Run(tt.name, func(t *testing.T) {
+			cst := newClientServerTest(t, h2, HandlerFunc(func(rw ResponseWriter, r *Request) {
+				if tt.contentEncoding != nil {
+					rw.Header().Set("Content-Encoding", tt.contentEncoding.(string))
+				}
+				rw.Write(tt.body)
+			}))
+			defer cst.close()
+
+			res, err := cst.c.Get(cst.ts.URL)
+			if err != nil {
+				t.Fatalf("Failed to fetch URL: %v", err)
+			}
+			defer res.Body.Close()
+
+			if g, w := res.Header.Get("Content-Encoding"), tt.contentEncoding; g != w {
+				if w != nil { // The case where contentEncoding was set explicitly.
+					t.Errorf("Content-Encoding mismatch\n\tgot:  %q\n\twant: %q", g, w)
+				} else if g != "" { // "" should be the equivalent when the contentEncoding is unset.
+					t.Errorf("Unexpected Content-Encoding %q", g)
+				}
+			}
+
+			if g, w := res.Header.Get("Content-Type"), tt.wantContentType; g != w {
+				t.Errorf("Content-Type mismatch\n\tgot:  %q\n\twant: %q", g, w)
+			}
+		})
+	}
+}
+
+// Issue 30803: ensure that TimeoutHandler logs spurious
+// WriteHeader calls, for consistency with other Handlers.
+func TestTimeoutHandlerSuperfluousLogs(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+
+	pc, curFile, _, _ := runtime.Caller(0)
+	curFileBaseName := filepath.Base(curFile)
+	testFuncName := runtime.FuncForPC(pc).Name()
+
+	timeoutMsg := "timed out here!"
+	maxTimeout := 200 * time.Millisecond
+
+	tests := []struct {
+		name      string
+		sleepTime time.Duration
+		wantResp  string
+	}{
+		{
+			name:      "return before timeout",
+			sleepTime: 0,
+			wantResp:  "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n",
+		},
+		{
+			name:      "return after timeout",
+			sleepTime: maxTimeout * 2,
+			wantResp: fmt.Sprintf("HTTP/1.1 503 Service Unavailable\r\nContent-Length: %d\r\n\r\n%s",
+				len(timeoutMsg), timeoutMsg),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var lastSpuriousLine int32
+
+			sh := HandlerFunc(func(w ResponseWriter, r *Request) {
+				w.WriteHeader(404)
+				w.WriteHeader(404)
+				w.WriteHeader(404)
+				w.WriteHeader(404)
+				_, _, line, _ := runtime.Caller(0)
+				atomic.StoreInt32(&lastSpuriousLine, int32(line))
+
+				<-time.After(tt.sleepTime)
+			})
+
+			logBuf := new(bytes.Buffer)
+			srvLog := log.New(logBuf, "", 0)
+			th := TimeoutHandler(sh, maxTimeout, timeoutMsg)
+			cst := newClientServerTest(t, h1Mode /* the test is protocol-agnostic */, th, optWithServerLog(srvLog))
+			defer cst.close()
+
+			res, err := cst.c.Get(cst.ts.URL)
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			// Deliberately removing the "Date" header since it is highly ephemeral
+			// and will cause failure if we try to match it exactly.
+			res.Header.Del("Date")
+			res.Header.Del("Content-Type")
+
+			// Match the response.
+			blob, _ := httputil.DumpResponse(res, true)
+			if g, w := string(blob), tt.wantResp; g != w {
+				t.Errorf("Response mismatch\nGot\n%q\n\nWant\n%q", g, w)
+			}
+
+			// Given 4 w.WriteHeader calls, only the first one is valid
+			// and the rest should be reported as the 3 spurious logs.
+			logEntries := strings.Split(strings.TrimSpace(logBuf.String()), "\n")
+			if g, w := len(logEntries), 3; g != w {
+				blob, _ := json.MarshalIndent(logEntries, "", "  ")
+				t.Fatalf("Server logs count mismatch\ngot %d, want %d\n\nGot\n%s\n", g, w, blob)
+			}
+
+			// Now ensure that the regexes match exactly.
+			//      "http: superfluous response.WriteHeader call from <fn>.func\d.\d (<curFile>:lastSpuriousLine-[1, 3]"
+			for i, logEntry := range logEntries {
+				wantLine := atomic.LoadInt32(&lastSpuriousLine) - 3 + int32(i)
+				pat := fmt.Sprintf("^http: superfluous response.WriteHeader call from %s.func\\d+.\\d+ \\(%s:%d\\)$",
+					testFuncName, curFileBaseName, wantLine)
+				re := regexp.MustCompile(pat)
+				if !re.MatchString(logEntry) {
+					t.Errorf("Log entry mismatch\n\t%s\ndoes not match\n\t%s", logEntry, pat)
+				}
+			}
+		})
 	}
 }
 

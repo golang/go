@@ -160,7 +160,7 @@ type option struct {
 
 // processOptions enables or disables CPU feature values based on the parsed env string.
 // The env string is expected to be of the form cpu.feature1=value1,cpu.feature2=value2...
-// where feature names is one of the architecture specifc list stored in the
+// where feature names is one of the architecture specific list stored in the
 // cpu packages options variable and values are either 'on' or 'off'.
 // If env contains cpu.all=off then all cpu features referenced through the options
 // variable are disabled. Other feature names and values result in warning messages.

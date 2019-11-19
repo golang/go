@@ -13,11 +13,16 @@ package json
 // This file starts with two simple examples using the scanner
 // before diving into the scanner itself.
 
-import "strconv"
+import (
+	"strconv"
+	"sync"
+)
 
 // Valid reports whether data is a valid JSON encoding.
 func Valid(data []byte) bool {
-	return checkValid(data, &scanner{}) == nil
+	scan := newScanner()
+	defer freeScanner(scan)
+	return checkValid(data, scan) == nil
 }
 
 // checkValid verifies that data is valid JSON-encoded data.
@@ -45,7 +50,7 @@ type SyntaxError struct {
 func (e *SyntaxError) Error() string { return e.msg }
 
 // A scanner is a JSON scanning state machine.
-// Callers call scan.reset() and then pass bytes in one at a time
+// Callers call scan.reset and then pass bytes in one at a time
 // by calling scan.step(&scan, c) for each byte.
 // The return value, referred to as an opcode, tells the
 // caller about significant parsing events like beginning
@@ -72,8 +77,31 @@ type scanner struct {
 	// Error that happened, if any.
 	err error
 
-	// total bytes consumed, updated by decoder.Decode
+	// total bytes consumed, updated by decoder.Decode (and deliberately
+	// not set to zero by scan.reset)
 	bytes int64
+}
+
+var scannerPool = sync.Pool{
+	New: func() interface{} {
+		return &scanner{}
+	},
+}
+
+func newScanner() *scanner {
+	scan := scannerPool.Get().(*scanner)
+	// scan.reset by design doesn't set bytes to zero
+	scan.bytes = 0
+	scan.reset()
+	return scan
+}
+
+func freeScanner(scan *scanner) {
+	// Avoid hanging on to too much memory in extreme cases.
+	if len(scan.parseState) > 1024 {
+		scan.parseState = nil
+	}
+	scannerPool.Put(scan)
 }
 
 // These values are returned by the state transition functions

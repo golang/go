@@ -52,7 +52,7 @@ func overlayDir(dstRoot, srcRoot string) error {
 		// Always copy directories (don't symlink them).
 		// If we add a file in the overlay, we don't want to add it in the original.
 		if info.IsDir() {
-			return os.Mkdir(dstPath, perm)
+			return os.Mkdir(dstPath, perm|0200)
 		}
 
 		// If the OS supports symlinks, use them instead of copying bytes.

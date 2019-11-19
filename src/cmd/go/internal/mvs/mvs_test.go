@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"cmd/go/internal/module"
+	"golang.org/x/mod/module"
 )
 
 var tests = `
@@ -280,6 +280,20 @@ D2:
 build A: A B1 C1 D1
 upgrade* A: A B2 C2 D2
 
+# Cycles with multiple possible solutions.
+# (golang.org/issue/34086)
+name: cycle3
+M: A1 C2
+A1: B1
+B1: C1
+B2: C2
+C1:
+C2: B2
+build M: M A1 B2 C2
+req M: A1 B2
+req M A: A1 B2
+req M C: A1 C2
+
 # Requirement minimization.
 
 name: req1
@@ -390,7 +404,15 @@ func Test(t *testing.T) {
 			fns = append(fns, func(t *testing.T) {
 				list, err := Upgrade(m(kf[1]), reqs, ms(kf[2:])...)
 				if err == nil {
-					list, err = Req(m(kf[1]), list, nil, reqs)
+					// Copy the reqs map, but substitute the upgraded requirements in
+					// place of the target's original requirements.
+					upReqs := make(reqsMap, len(reqs))
+					for m, r := range reqs {
+						upReqs[m] = r
+					}
+					upReqs[m(kf[1])] = list
+
+					list, err = Req(m(kf[1]), nil, upReqs)
 				}
 				checkList(t, key, list, err, val)
 			})
@@ -418,11 +440,7 @@ func Test(t *testing.T) {
 				t.Fatalf("req takes at least one argument: %q", line)
 			}
 			fns = append(fns, func(t *testing.T) {
-				list, err := BuildList(m(kf[1]), reqs)
-				if err != nil {
-					t.Fatal(err)
-				}
-				list, err = Req(m(kf[1]), list, kf[2:], reqs)
+				list, err := Req(m(kf[1]), kf[2:], reqs)
 				checkList(t, key, list, err, val)
 			})
 			continue

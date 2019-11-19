@@ -24,7 +24,6 @@ import (
 var archInits = map[string]func(*gc.Arch){
 	"386":      x86.Init,
 	"amd64":    amd64.Init,
-	"amd64p32": amd64.Init,
 	"arm":      arm.Init,
 	"arm64":    arm64.Init,
 	"mips":     mips.Init,

@@ -8,6 +8,7 @@ import (
 	"math"
 
 	"cmd/compile/internal/gc"
+	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -452,6 +453,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpARM64MOVDstore,
 		ssa.OpARM64FMOVSstore,
 		ssa.OpARM64FMOVDstore,
+		ssa.OpARM64STLRB,
 		ssa.OpARM64STLR,
 		ssa.OpARM64STLRW:
 		p := s.Prog(v.Op.Asm())
@@ -900,6 +902,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = arm64.REGTMP
+		if logopt.Enabled() {
+			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
+		}
 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Line==1 in generated wrappers
 			gc.Warnl(v.Pos, "generated nil check")
 		}
@@ -1057,9 +1062,9 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 				s.Br(obj.AJMP, b.Succs[0].Block())
 			}
 		}
-		if !b.Control.Type.IsFlags() {
+		if !b.Controls[0].Type.IsFlags() {
 			p.From.Type = obj.TYPE_REG
-			p.From.Reg = b.Control.Reg()
+			p.From.Reg = b.Controls[0].Reg()
 		}
 	case ssa.BlockARM64TBZ, ssa.BlockARM64TBNZ:
 		jmp := blockJump[b.Kind]
@@ -1080,9 +1085,9 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		}
 		p.From.Offset = b.Aux.(int64)
 		p.From.Type = obj.TYPE_CONST
-		p.Reg = b.Control.Reg()
+		p.Reg = b.Controls[0].Reg()
 
 	default:
-		b.Fatalf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
+		b.Fatalf("branch not implemented: %s", b.LongString())
 	}
 }

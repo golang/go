@@ -125,32 +125,43 @@ func SetModRoot(dir string) {
 	modRoot = dir
 }
 
-// MatchPackagesInFS is like allPackages but is passed a pattern
-// beginning ./ or ../, meaning it should scan the tree rooted
-// at the given directory. There are ... in the pattern too.
-// (See go help packages for pattern syntax.)
+// MatchPackagesInFS is like MatchPackages but is passed a pattern that
+// begins with an absolute path or "./" or "../". On Windows, the pattern may
+// use slash or backslash separators or a mix of both.
+//
+// MatchPackagesInFS scans the tree rooted at the directory that contains the
+// first "..." wildcard and returns a match with packages that
 func MatchPackagesInFS(pattern string) *Match {
 	m := &Match{
 		Pattern: pattern,
 		Literal: false,
 	}
 
+	// Clean the path and create a matching predicate.
+	// filepath.Clean removes "./" prefixes (and ".\" on Windows). We need to
+	// preserve these, since they are meaningful in MatchPattern and in
+	// returned import paths.
+	cleanPattern := filepath.Clean(pattern)
+	isLocal := strings.HasPrefix(pattern, "./") || (os.PathSeparator == '\\' && strings.HasPrefix(pattern, `.\`))
+	prefix := ""
+	if cleanPattern != "." && isLocal {
+		prefix = "./"
+		cleanPattern = "." + string(os.PathSeparator) + cleanPattern
+	}
+	slashPattern := filepath.ToSlash(cleanPattern)
+	match := MatchPattern(slashPattern)
+
 	// Find directory to begin the scan.
 	// Could be smarter but this one optimization
 	// is enough for now, since ... is usually at the
 	// end of a path.
-	i := strings.Index(pattern, "...")
-	dir, _ := path.Split(pattern[:i])
+	i := strings.Index(cleanPattern, "...")
+	dir, _ := filepath.Split(cleanPattern[:i])
 
 	// pattern begins with ./ or ../.
 	// path.Clean will discard the ./ but not the ../.
 	// We need to preserve the ./ for pattern matching
 	// and in the returned import paths.
-	prefix := ""
-	if strings.HasPrefix(pattern, "./") {
-		prefix = "./"
-	}
-	match := MatchPattern(pattern)
 
 	if modRoot != "" {
 		abs, err := filepath.Abs(dir)
@@ -241,7 +252,7 @@ func TreeCanMatchPattern(pattern string) func(name string) bool {
 //
 // First, /... at the end of the pattern can match an empty string,
 // so that net/... matches both net and packages in its subdirectories, like net/http.
-// Second, any slash-separted pattern element containing a wildcard never
+// Second, any slash-separated pattern element containing a wildcard never
 // participates in a match of the "vendor" element in the path of a vendored
 // package, so that ./... does not match packages in subdirectories of
 // ./vendor or ./mycode/vendor, but ./vendor/... and ./mycode/vendor/... do.
@@ -361,32 +372,49 @@ func ImportPathsQuiet(patterns []string) []*Match {
 	return out
 }
 
-// CleanPatterns returns the patterns to use for the given
-// command line. It canonicalizes the patterns but does not
-// evaluate any matches.
+// CleanPatterns returns the patterns to use for the given command line. It
+// canonicalizes the patterns but does not evaluate any matches. For patterns
+// that are not local or absolute paths, it preserves text after '@' to avoid
+// modifying version queries.
 func CleanPatterns(patterns []string) []string {
 	if len(patterns) == 0 {
 		return []string{"."}
 	}
 	var out []string
 	for _, a := range patterns {
-		// Arguments are supposed to be import paths, but
-		// as a courtesy to Windows developers, rewrite \ to /
-		// in command-line arguments. Handles .\... and so on.
-		if filepath.Separator == '\\' {
-			a = strings.ReplaceAll(a, `\`, `/`)
+		var p, v string
+		if build.IsLocalImport(a) || filepath.IsAbs(a) {
+			p = a
+		} else if i := strings.IndexByte(a, '@'); i < 0 {
+			p = a
+		} else {
+			p = a[:i]
+			v = a[i:]
 		}
 
-		// Put argument in canonical form, but preserve leading ./.
-		if strings.HasPrefix(a, "./") {
-			a = "./" + path.Clean(a)
-			if a == "./." {
-				a = "."
-			}
+		// Arguments may be either file paths or import paths.
+		// As a courtesy to Windows developers, rewrite \ to /
+		// in arguments that look like import paths.
+		// Don't replace slashes in absolute paths.
+		if filepath.IsAbs(p) {
+			p = filepath.Clean(p)
 		} else {
-			a = path.Clean(a)
+			if filepath.Separator == '\\' {
+				p = strings.ReplaceAll(p, `\`, `/`)
+			}
+
+			// Put argument in canonical form, but preserve leading ./.
+			if strings.HasPrefix(p, "./") {
+				p = "./" + path.Clean(p)
+				if p == "./." {
+					p = "."
+				}
+			} else {
+				p = path.Clean(p)
+			}
 		}
-		out = append(out, a)
+
+		out = append(out, p+v)
 	}
 	return out
 }

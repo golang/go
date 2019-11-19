@@ -35,6 +35,13 @@ TEXT runtime·write_trampoline(SB),NOSPLIT,$0
 	MOVW	16(R0), R2	// arg 3 count
 	MOVW	0(R0), R0	// arg 1 fd
 	BL	libc_write(SB)
+	MOVD	$-1, R1
+	CMP	R0, R1
+	BNE	noerr
+	BL	libc_error(SB)
+	MOVW	(R0), R0
+	NEG	R0, R0		// caller expects negative errno value
+noerr:
 	RET
 
 TEXT runtime·read_trampoline(SB),NOSPLIT,$0
@@ -42,6 +49,13 @@ TEXT runtime·read_trampoline(SB),NOSPLIT,$0
 	MOVW	16(R0), R2	// arg 3 count
 	MOVW	0(R0), R0	// arg 1 fd
 	BL	libc_read(SB)
+	MOVD	$-1, R1
+	CMP	R0, R1
+	BNE	noerr
+	BL	libc_error(SB)
+	MOVW	(R0), R0
+	NEG	R0, R0		// caller expects negative errno value
+noerr:
 	RET
 
 TEXT runtime·pipe_trampoline(SB),NOSPLIT,$0
@@ -455,6 +469,18 @@ TEXT runtime·pthread_cond_timedwait_relative_np_trampoline(SB),NOSPLIT,$0
 TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
 	MOVD	0(R0), R0	// arg 1 cond
 	BL	libc_pthread_cond_signal(SB)
+	RET
+
+TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
+	MOVD	R0, R19		// R19 is callee-save
+	BL	libc_pthread_self(SB)
+	MOVD	R0, 0(R19)	// return value
+	RET
+
+TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
+	MOVD	8(R0), R1	// arg 2 sig
+	MOVD	0(R0), R0	// arg 1 thread
+	BL	libc_pthread_kill(SB)
 	RET
 
 // syscall calls a function in libc on behalf of the syscall package.

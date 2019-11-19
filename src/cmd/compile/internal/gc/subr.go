@@ -154,6 +154,11 @@ func yyerrorl(pos src.XPos, format string, args ...interface{}) {
 	}
 }
 
+func yyerrorv(lang string, format string, args ...interface{}) {
+	what := fmt.Sprintf(format, args...)
+	yyerrorl(lineno, "%s requires %s or later (-lang was set to %s; check go.mod)", what, lang, flag_lang)
+}
+
 func yyerror(format string, args ...interface{}) {
 	yyerrorl(lineno, format, args...)
 }
@@ -365,7 +370,6 @@ func newnamel(pos src.XPos, s *types.Sym) *Node {
 	n.Orig = n
 
 	n.Sym = s
-	n.SetAddable(true)
 	return n
 }
 
@@ -798,11 +802,10 @@ func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
 		yyerror("use of untyped nil")
 	}
 
-	old := n
-	od := old.Diag()
-	old.SetDiag(true) // silence errors about n; we'll issue one below
-	n = defaultlit(n, t)
-	old.SetDiag(od)
+	n = convlit1(n, t, false, context)
+	if n.Type == nil {
+		return n
+	}
 	if t.Etype == TBLANK {
 		return n
 	}
@@ -826,9 +829,7 @@ func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
 	var why string
 	op := assignop(n.Type, t, &why)
 	if op == 0 {
-		if !old.Diag() {
-			yyerror("cannot use %L as type %v in %s%s", n, t, context(), why)
-		}
+		yyerror("cannot use %L as type %v in %s%s", n, t, context(), why)
 		op = OCONV
 	}
 
@@ -1187,7 +1188,12 @@ func lookdot0(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) 
 		}
 	}
 
-	u = methtype(t)
+	u = t
+	if t.Sym != nil && t.IsPtr() && !t.Elem().IsPtr() {
+		// If t is a defined pointer type, then x.m is shorthand for (*x).m.
+		u = t.Elem()
+	}
+	u = methtype(u)
 	if u != nil {
 		for _, f := range u.Methods().Slice() {
 			if f.Embedded == 0 && (f.Sym == s || (ignorecase && strings.EqualFold(f.Sym.Name, s.Name))) {
@@ -1286,7 +1292,7 @@ func dotpath(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) (
 // will give shortest unique addressing.
 // modify the tree with missing type names.
 func adddot(n *Node) *Node {
-	n.Left = typecheck(n.Left, Etype|ctxExpr)
+	n.Left = typecheck(n.Left, ctxType|ctxExpr)
 	if n.Left.Diag() {
 		n.SetDiag(true)
 	}
@@ -1579,7 +1585,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type && rcvr.Elem().Sym != nil {
 		inlcalls(fn)
 	}
-	escapeImpl()([]*Node{fn}, false)
+	escapeFuncs([]*Node{fn}, false)
 
 	Curfn = nil
 	funccompile(fn)

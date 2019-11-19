@@ -14,6 +14,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -639,9 +640,11 @@ func TestDialerLocalAddr(t *testing.T) {
 		}
 		c, err := d.Dial(tt.network, addr)
 		if err == nil && tt.error != nil || err != nil && tt.error == nil {
-			// On Darwin this occasionally times out.
-			// We don't know why. Issue #22019.
-			if runtime.GOOS == "darwin" && tt.error == nil && os.IsTimeout(err) {
+			// A suspected kernel bug in macOS 10.12 occasionally results in
+			// timeout errors when dialing address ::1. The errors have not
+			// been observed on newer versions of the OS, so we don't plan to work
+			// around them. See https://golang.org/issue/22019.
+			if tt.raddr == "::1" && os.Getenv("GO_BUILDER_NAME") == "darwin-amd64-10_12" && os.IsTimeout(err) {
 				t.Logf("ignoring timeout error on Darwin; see https://golang.org/issue/22019")
 			} else {
 				t.Errorf("%s %v->%s: got %v; want %v", tt.network, tt.laddr, tt.raddr, err, tt.error)
@@ -757,16 +760,7 @@ func TestDialerKeepAlive(t *testing.T) {
 }
 
 func TestDialCancel(t *testing.T) {
-	switch testenv.Builder() {
-	case "linux-arm64-buildlet":
-		t.Skip("skipping on linux-arm64-buildlet; incompatible network config? issue 15191")
-	}
 	mustHaveExternalNetwork(t)
-
-	if runtime.GOOS == "nacl" {
-		// nacl doesn't have external network access.
-		t.Skipf("skipping on %s", runtime.GOOS)
-	}
 
 	blackholeIPPort := JoinHostPort(slowDst4, "1234")
 	if !supportsIPv4() {
@@ -810,6 +804,11 @@ func TestDialCancel(t *testing.T) {
 				t.Error(perr)
 			}
 			if ticks < cancelTick {
+				// Using strings.Contains is ugly but
+				// may work on plan9 and windows.
+				if strings.Contains(err.Error(), "connection refused") {
+					t.Skipf("connection to %v failed fast with %v", blackholeIPPort, err)
+				}
 				t.Fatalf("dial error after %d ticks (%d before cancel sent): %v",
 					ticks, cancelTick-ticks, err)
 			}
@@ -923,7 +922,7 @@ func TestDialListenerAddr(t *testing.T) {
 
 func TestDialerControl(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "plan9":
+	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 

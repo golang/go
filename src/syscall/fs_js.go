@@ -259,7 +259,7 @@ func Lchown(path string, uid, gid int) error {
 	if err := checkPath(path); err != nil {
 		return err
 	}
-	if jsFS.Get("lchown") == js.Undefined() {
+	if jsFS.Get("lchown").IsUndefined() {
 		// fs.lchown is unavailable on Linux until Node.js 10.6.0
 		// TODO(neelance): remove when we require at least this Node.js version
 		return ENOSYS
@@ -404,6 +404,14 @@ func Write(fd int, b []byte) (int, error) {
 		return n, err
 	}
 
+	if faketime && (fd == 1 || fd == 2) {
+		n := faketimeWrite(fd, b)
+		if n < 0 {
+			return 0, errnoErr(Errno(-n))
+		}
+		return n, nil
+	}
+
 	buf := uint8Array.New(len(b))
 	js.CopyBytesToJS(buf, b)
 	n, err := fsCall("write", fd, buf, 0, len(b), nil)
@@ -489,7 +497,7 @@ func fsCall(name string, args ...interface{}) (js.Value, error) {
 		var res callResult
 
 		if len(args) >= 1 { // on Node.js 8, fs.utimes calls the callback without any arguments
-			if jsErr := args[0]; jsErr != js.Null() {
+			if jsErr := args[0]; !jsErr.IsNull() {
 				res.err = mapJSError(jsErr)
 			}
 		}

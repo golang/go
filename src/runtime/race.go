@@ -155,15 +155,51 @@ func racecallback(cmd uintptr, ctx unsafe.Pointer) {
 	}
 }
 
+// raceSymbolizeCode reads ctx.pc and populates the rest of *ctx with
+// information about the code at that pc.
+//
+// The race detector has already subtracted 1 from pcs, so they point to the last
+// byte of call instructions (including calls to runtime.racewrite and friends).
+//
+// If the incoming pc is part of an inlined function, *ctx is populated
+// with information about the inlined function, and on return ctx.pc is set
+// to a pc in the logically containing function. (The race detector should call this
+// function again with that pc.)
+//
+// If the incoming pc is not part of an inlined function, the return pc is unchanged.
 func raceSymbolizeCode(ctx *symbolizeCodeContext) {
-	f := findfunc(ctx.pc)._Func()
+	pc := ctx.pc
+	fi := findfunc(pc)
+	f := fi._Func()
 	if f != nil {
-		file, line := f.FileLine(ctx.pc)
+		file, line := f.FileLine(pc)
 		if line != 0 {
-			ctx.fn = cfuncname(f.funcInfo())
+			if inldata := funcdata(fi, _FUNCDATA_InlTree); inldata != nil {
+				inltree := (*[1 << 20]inlinedCall)(inldata)
+				for {
+					ix := pcdatavalue(fi, _PCDATA_InlTreeIndex, pc, nil)
+					if ix >= 0 {
+						if inltree[ix].funcID == funcID_wrapper {
+							// ignore wrappers
+							// Back up to an instruction in the "caller".
+							pc = f.Entry() + uintptr(inltree[ix].parentPc)
+							continue
+						}
+						ctx.pc = f.Entry() + uintptr(inltree[ix].parentPc) // "caller" pc
+						ctx.fn = cfuncnameFromNameoff(fi, inltree[ix].func_)
+						ctx.line = uintptr(line)
+						ctx.file = &bytes(file)[0] // assume NUL-terminated
+						ctx.off = pc - f.Entry()
+						ctx.res = 1
+						return
+					}
+					break
+				}
+			}
+			ctx.fn = cfuncname(fi)
 			ctx.line = uintptr(line)
 			ctx.file = &bytes(file)[0] // assume NUL-terminated
-			ctx.off = ctx.pc - f.Entry()
+			ctx.off = pc - f.Entry()
 			ctx.res = 1
 			return
 		}
@@ -349,7 +385,7 @@ func raceinit() (gctx, pctx uintptr) {
 	if end < firstmoduledata.ebss {
 		end = firstmoduledata.ebss
 	}
-	size := round(end-start, _PageSize)
+	size := alignUp(end-start, _PageSize)
 	racecall(&__tsan_map_shadow, start, size, 0, 0)
 	racedatastart = start
 	racedataend = start + size
@@ -424,6 +460,11 @@ func racegoend() {
 }
 
 //go:nosplit
+func racectxend(racectx uintptr) {
+	racecall(&__tsan_go_end, racectx, 0, 0, 0)
+}
+
+//go:nosplit
 func racewriterangepc(addr unsafe.Pointer, sz, callpc, pc uintptr) {
 	_g_ := getg()
 	if _g_ != _g_.m.curg {
@@ -468,6 +509,14 @@ func raceacquireg(gp *g, addr unsafe.Pointer) {
 		return
 	}
 	racecall(&__tsan_acquire, gp.racectx, uintptr(addr), 0, 0)
+}
+
+//go:nosplit
+func raceacquirectx(racectx uintptr, addr unsafe.Pointer) {
+	if !isvalidaddr(addr) {
+		return
+	}
+	racecall(&__tsan_acquire, racectx, uintptr(addr), 0, 0)
 }
 
 //go:nosplit

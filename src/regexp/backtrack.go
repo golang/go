@@ -247,7 +247,7 @@ func (re *Regexp) tryBacktrack(b *bitState, i input, pc uint32, pos int) bool {
 				b.cap[inst.Arg] = pos
 				continue
 			} else {
-				if 0 <= inst.Arg && inst.Arg < uint32(len(b.cap)) {
+				if inst.Arg < uint32(len(b.cap)) {
 					// Capture pos to register, but save old value.
 					b.push(re, pc, b.cap[inst.Arg], true) // come back when we're done.
 					b.cap[inst.Arg] = pos

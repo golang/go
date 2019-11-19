@@ -8,6 +8,8 @@ env GOSUMDB=off
 # basic auth should fail.
 env NETRC=$WORK/empty
 ! go list all
+stderr '^\tserver response: ACCESS DENIED, buddy$'
+stderr '^\tserver response: File\? What file\?$'
 
 # With credentials from a netrc file, it should succeed.
 env NETRC=$WORK/netrc

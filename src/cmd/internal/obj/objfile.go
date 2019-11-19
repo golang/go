@@ -8,6 +8,7 @@ package obj
 
 import (
 	"bufio"
+	"cmd/internal/bio"
 	"cmd/internal/dwarf"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
@@ -31,7 +32,6 @@ type objWriter struct {
 	nData     int
 	nReloc    int
 	nPcdata   int
-	nAutom    int
 	nFuncdata int
 	nFile     int
 
@@ -60,7 +60,6 @@ func (w *objWriter) addLengths(s *LSym) {
 	w.nData += data
 	w.nPcdata += len(pc.Pcdata)
 
-	w.nAutom += len(s.Func.Autom)
 	w.nFuncdata += len(pc.Funcdataoff)
 	w.nFile += len(pc.File)
 }
@@ -69,7 +68,7 @@ func (w *objWriter) writeLengths() {
 	w.writeInt(int64(w.nData))
 	w.writeInt(int64(w.nReloc))
 	w.writeInt(int64(w.nPcdata))
-	w.writeInt(int64(w.nAutom))
+	w.writeInt(int64(0)) // TODO: remove at next object file rev
 	w.writeInt(int64(w.nFuncdata))
 	w.writeInt(int64(w.nFile))
 }
@@ -82,11 +81,17 @@ func newObjWriter(ctxt *Link, b *bufio.Writer, pkgpath string) *objWriter {
 	}
 }
 
-func WriteObjFile(ctxt *Link, b *bufio.Writer, pkgpath string) {
+func WriteObjFile(ctxt *Link, bout *bio.Writer, pkgpath string) {
+	if ctxt.Flag_newobj {
+		WriteObjFile2(ctxt, bout, pkgpath)
+		return
+	}
+
+	b := bout.Writer
 	w := newObjWriter(ctxt, b, pkgpath)
 
 	// Magic header
-	w.wr.WriteString("\x00go112ld")
+	w.wr.WriteString("\x00go114ld")
 
 	// Version
 	w.wr.WriteByte(1)
@@ -96,6 +101,13 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer, pkgpath string) {
 		w.writeString(pkg)
 	}
 	w.writeString("")
+
+	// DWARF File Table
+	fileTable := ctxt.PosTable.DebugLinesFileTable()
+	w.writeInt(int64(len(fileTable)))
+	for _, str := range fileTable {
+		w.writeString(str)
+	}
 
 	// Symbol references
 	for _, s := range ctxt.Text {
@@ -161,7 +173,7 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer, pkgpath string) {
 	}
 
 	// Magic footer
-	w.wr.WriteString("\xffgo112ld")
+	w.wr.WriteString("\xffgo114ld")
 }
 
 // Symbols are prefixed so their content doesn't get confused with the magic footer.
@@ -199,10 +211,6 @@ func (w *objWriter) writeRefs(s *LSym) {
 	}
 
 	if s.Type == objabi.STEXT {
-		for _, a := range s.Func.Autom {
-			w.writeRef(a.Asym, false)
-			w.writeRef(a.Gotype, false)
-		}
 		pc := &s.Func.Pcln
 		for _, d := range pc.Funcdata {
 			w.writeRef(d, false)
@@ -220,8 +228,7 @@ func (w *objWriter) writeRefs(s *LSym) {
 	}
 }
 
-func (w *objWriter) writeSymDebug(s *LSym) {
-	ctxt := w.ctxt
+func (ctxt *Link) writeSymDebug(s *LSym) {
 	fmt.Fprintf(ctxt.Bso, "%s ", s.Name)
 	if s.Type != 0 {
 		fmt.Fprintf(ctxt.Bso, "%v ", s.Type)
@@ -301,7 +308,7 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 func (w *objWriter) writeSym(s *LSym) {
 	ctxt := w.ctxt
 	if ctxt.Debugasm > 0 {
-		w.writeSymDebug(s)
+		w.ctxt.writeSymDebug(s)
 	}
 
 	w.wr.WriteByte(symPrefix)
@@ -357,21 +364,7 @@ func (w *objWriter) writeSym(s *LSym) {
 		flags |= 1 << 4
 	}
 	w.writeInt(flags)
-	w.writeInt(int64(len(s.Func.Autom)))
-	for _, a := range s.Func.Autom {
-		w.writeRefIndex(a.Asym)
-		w.writeInt(int64(a.Aoffset))
-		if a.Name == NAME_AUTO {
-			w.writeInt(objabi.A_AUTO)
-		} else if a.Name == NAME_PARAM {
-			w.writeInt(objabi.A_PARAM)
-		} else if a.Name == NAME_DELETED_AUTO {
-			w.writeInt(objabi.A_DELETED_AUTO)
-		} else {
-			log.Fatalf("%s: invalid local variable type %d", s.Name, a.Name)
-		}
-		w.writeRefIndex(a.Gotype)
-	}
+	w.writeInt(int64(0)) // TODO: remove at next object file rev
 
 	pc := &s.Func.Pcln
 	w.writeInt(int64(len(pc.Pcsp.P)))
@@ -460,6 +453,13 @@ func (c dwCtxt) AddInt(s dwarf.Sym, size int, i int64) {
 	ls := s.(*LSym)
 	ls.WriteInt(c.Link, ls.Size, size, i)
 }
+func (c dwCtxt) AddUint16(s dwarf.Sym, i uint16) {
+	c.AddInt(s, 2, int64(i))
+}
+func (c dwCtxt) AddUint8(s dwarf.Sym, i uint8) {
+	b := []byte{byte(i)}
+	c.AddBytes(s, b)
+}
 func (c dwCtxt) AddBytes(s dwarf.Sym, b []byte) {
 	ls := s.(*LSym)
 	ls.WriteBytes(c.Link, ls.Size, b)
@@ -537,7 +537,7 @@ func isDwarf64(ctxt *Link) bool {
 	return ctxt.Headtype == objabi.Haix
 }
 
-func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, dwarfAbsFnSym, dwarfIsStmtSym *LSym) {
+func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, dwarfAbsFnSym, dwarfDebugLines *LSym) {
 	if s.Type != objabi.STEXT {
 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
 	}
@@ -550,10 +550,9 @@ func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, 
 		if s.WasInlined() {
 			s.Func.dwarfAbsFnSym = ctxt.DwFixups.AbsFuncDwarfSym(s)
 		}
-		s.Func.dwarfIsStmtSym = ctxt.LookupDerived(s, dwarf.IsStmtPrefix+s.Name)
-
+		s.Func.dwarfDebugLinesSym = ctxt.LookupDerived(s, dwarf.DebugLinesPrefix+s.Name)
 	}
-	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym, s.Func.dwarfAbsFnSym, s.Func.dwarfIsStmtSym
+	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym, s.Func.dwarfAbsFnSym, s.Func.dwarfDebugLinesSym
 }
 
 func (s *LSym) Len() int64 {
@@ -577,15 +576,14 @@ func (ctxt *Link) fileSymbol(fn *LSym) *LSym {
 // TEXT symbol 's'. The various DWARF symbols must already have been
 // initialized in InitTextSym.
 func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string) {
-	info, loc, ranges, absfunc, _ := ctxt.dwarfSym(s)
+	info, loc, ranges, absfunc, lines := ctxt.dwarfSym(s)
 	if info.Size != 0 {
 		ctxt.Diag("makeFuncDebugEntry double process %v", s)
 	}
 	var scopes []dwarf.Scope
 	var inlcalls dwarf.InlCalls
 	if ctxt.DebugInfo != nil {
-		stmtData(ctxt, s)
-		scopes, inlcalls = ctxt.DebugInfo(s, curfn)
+		scopes, inlcalls = ctxt.DebugInfo(s, info, curfn)
 	}
 	var err error
 	dwctxt := dwCtxt{ctxt}
@@ -617,6 +615,8 @@ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string)
 	if err != nil {
 		ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)
 	}
+	// Fill in the debug lines symbol.
+	ctxt.generateDebugLinesSymbol(s, lines)
 }
 
 // DwarfIntConst creates a link symbol for an integer constant with the
@@ -640,7 +640,7 @@ func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath str
 	if s.Func == nil {
 		s.Func = new(FuncInfo)
 	}
-	scopes, _ := ctxt.DebugInfo(s, curfn)
+	scopes, _ := ctxt.DebugInfo(s, absfn, curfn)
 	dwctxt := dwCtxt{ctxt}
 	filesym := ctxt.fileSymbol(s)
 	fnstate := dwarf.FnState{
@@ -658,7 +658,7 @@ func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath str
 	}
 }
 
-// This table is designed to aid in the creation of references betweeen
+// This table is designed to aid in the creation of references between
 // DWARF subprogram DIEs.
 //
 // In most cases when one DWARF DIE has to refer to another DWARF DIE,
@@ -879,7 +879,7 @@ func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
 		fns[idx] = fn
 		idx++
 	}
-	sort.Sort(bySymName(fns))
+	sort.Sort(BySymName(fns))
 
 	// Should not be called during parallel portion of compilation.
 	if ft.ctxt.InParallel {
@@ -907,8 +907,8 @@ func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
 	}
 }
 
-type bySymName []*LSym
+type BySymName []*LSym
 
-func (s bySymName) Len() int           { return len(s) }
-func (s bySymName) Less(i, j int) bool { return s[i].Name < s[j].Name }
-func (s bySymName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s BySymName) Len() int           { return len(s) }
+func (s BySymName) Less(i, j int) bool { return s[i].Name < s[j].Name }
+func (s BySymName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }

@@ -7,8 +7,7 @@ package sys
 import "encoding/binary"
 
 // ArchFamily represents a family of one or more related architectures.
-// For example, amd64 and amd64p32 are both members of the AMD64 family,
-// and ppc64 and ppc64le are both members of the PPC64 family.
+// For example, ppc64 and ppc64le are both members of the PPC64 family.
 type ArchFamily byte
 
 const (
@@ -20,6 +19,7 @@ const (
 	MIPS
 	MIPS64
 	PPC64
+	RISCV64
 	S390X
 	Wasm
 )
@@ -67,15 +67,6 @@ var ArchAMD64 = &Arch{
 	Family:    AMD64,
 	ByteOrder: binary.LittleEndian,
 	PtrSize:   8,
-	RegSize:   8,
-	MinLC:     1,
-}
-
-var ArchAMD64P32 = &Arch{
-	Name:      "amd64p32",
-	Family:    AMD64,
-	ByteOrder: binary.LittleEndian,
-	PtrSize:   4,
 	RegSize:   8,
 	MinLC:     1,
 }
@@ -152,6 +143,15 @@ var ArchPPC64LE = &Arch{
 	MinLC:     4,
 }
 
+var ArchRISCV64 = &Arch{
+	Name:      "riscv64",
+	Family:    RISCV64,
+	ByteOrder: binary.LittleEndian,
+	PtrSize:   8,
+	RegSize:   8,
+	MinLC:     4,
+}
+
 var ArchS390X = &Arch{
 	Name:      "s390x",
 	Family:    S390X,
@@ -173,7 +173,6 @@ var ArchWasm = &Arch{
 var Archs = [...]*Arch{
 	Arch386,
 	ArchAMD64,
-	ArchAMD64P32,
 	ArchARM,
 	ArchARM64,
 	ArchMIPS,
@@ -182,6 +181,7 @@ var Archs = [...]*Arch{
 	ArchMIPS64LE,
 	ArchPPC64,
 	ArchPPC64LE,
+	ArchRISCV64,
 	ArchS390X,
 	ArchWasm,
 }

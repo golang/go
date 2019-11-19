@@ -54,8 +54,5 @@ const (
 	TFUNCARGS = types.TFUNCARGS
 	TCHANARGS = types.TCHANARGS
 
-	// pseudo-types for import/export
-	TDDDFIELD = types.TDDDFIELD // wrapper: contained type is a ... field
-
 	NTYPE = types.NTYPE
 )

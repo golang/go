@@ -6,10 +6,13 @@ package binary
 
 import (
 	"bytes"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"math"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -296,6 +299,58 @@ func TestBlankFields(t *testing.T) {
 	}
 }
 
+func TestSizeStructCache(t *testing.T) {
+	// Reset the cache, otherwise multiple test runs fail.
+	structSize = sync.Map{}
+
+	count := func() int {
+		var i int
+		structSize.Range(func(_, _ interface{}) bool {
+			i++
+			return true
+		})
+		return i
+	}
+
+	var total int
+	added := func() int {
+		delta := count() - total
+		total += delta
+		return delta
+	}
+
+	type foo struct {
+		A uint32
+	}
+
+	type bar struct {
+		A Struct
+		B foo
+		C Struct
+	}
+
+	testcases := []struct {
+		val  interface{}
+		want int
+	}{
+		{new(foo), 1},
+		{new(bar), 1},
+		{new(bar), 0},
+		{new(struct{ A Struct }), 1},
+		{new(struct{ A Struct }), 0},
+	}
+
+	for _, tc := range testcases {
+		if Size(tc.val) == -1 {
+			t.Fatalf("Can't get the size of %T", tc.val)
+		}
+
+		if n := added(); n != tc.want {
+			t.Errorf("Sizing %T added %d entries to the cache, want %d", tc.val, n, tc.want)
+		}
+	}
+}
+
 // An attempt to read into a struct with an unexported field will
 // panic. This is probably not the best choice, but at this point
 // anything else would be an API change.
@@ -397,6 +452,35 @@ func TestEarlyBoundsChecks(t *testing.T) {
 	}
 }
 
+func TestReadInvalidDestination(t *testing.T) {
+	testReadInvalidDestination(t, BigEndian)
+	testReadInvalidDestination(t, LittleEndian)
+}
+
+func testReadInvalidDestination(t *testing.T, order ByteOrder) {
+	destinations := []interface{}{
+		int8(0),
+		int16(0),
+		int32(0),
+		int64(0),
+
+		uint8(0),
+		uint16(0),
+		uint32(0),
+		uint64(0),
+
+		bool(false),
+	}
+
+	for _, dst := range destinations {
+		err := Read(bytes.NewReader([]byte{1, 2, 3, 4, 5, 6, 7, 8}), order, dst)
+		want := fmt.Sprintf("binary.Read: invalid type %T", dst)
+		if err == nil || err.Error() != want {
+			t.Fatalf("for type %T: got %q; want %q", dst, err, want)
+		}
+	}
+}
+
 type byteSliceReader struct {
 	remain []byte
 }
@@ -433,6 +517,14 @@ func BenchmarkReadStruct(b *testing.B) {
 	b.StopTimer()
 	if b.N > 0 && !reflect.DeepEqual(s, t) {
 		b.Fatalf("struct doesn't match:\ngot  %v;\nwant %v", t, s)
+	}
+}
+
+func BenchmarkWriteStruct(b *testing.B) {
+	b.SetBytes(int64(Size(&s)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Write(ioutil.Discard, BigEndian, &s)
 	}
 }
 
@@ -541,4 +633,76 @@ func BenchmarkLittleEndianPutUint64(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		LittleEndian.PutUint64(putbuf[:], uint64(i))
 	}
+}
+
+func BenchmarkReadFloats(b *testing.B) {
+	var ls Struct
+	bsr := &byteSliceReader{}
+	var r io.Reader = bsr
+	b.SetBytes(4 + 8)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bsr.remain = big[30:]
+		Read(r, BigEndian, &ls.Float32)
+		Read(r, BigEndian, &ls.Float64)
+	}
+	b.StopTimer()
+	want := s
+	want.Int8 = 0
+	want.Int16 = 0
+	want.Int32 = 0
+	want.Int64 = 0
+	want.Uint8 = 0
+	want.Uint16 = 0
+	want.Uint32 = 0
+	want.Uint64 = 0
+	want.Complex64 = 0
+	want.Complex128 = 0
+	want.Array = [4]uint8{0, 0, 0, 0}
+	want.Bool = false
+	want.BoolArray = [4]bool{false, false, false, false}
+	if b.N > 0 && !reflect.DeepEqual(ls, want) {
+		b.Fatalf("struct doesn't match:\ngot  %v;\nwant %v", ls, want)
+	}
+}
+
+func BenchmarkWriteFloats(b *testing.B) {
+	buf := new(bytes.Buffer)
+	var w io.Writer = buf
+	b.SetBytes(4 + 8)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		Write(w, BigEndian, s.Float32)
+		Write(w, BigEndian, s.Float64)
+	}
+	b.StopTimer()
+	if b.N > 0 && !bytes.Equal(buf.Bytes(), big[30:30+4+8]) {
+		b.Fatalf("first half doesn't match: %x %x", buf.Bytes(), big[30:30+4+8])
+	}
+}
+
+func BenchmarkReadSlice1000Float32s(b *testing.B) {
+	bsr := &byteSliceReader{}
+	slice := make([]float32, 1000)
+	buf := make([]byte, len(slice)*4)
+	b.SetBytes(int64(len(buf)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bsr.remain = buf
+		Read(bsr, BigEndian, slice)
+	}
+}
+
+func BenchmarkWriteSlice1000Float32s(b *testing.B) {
+	slice := make([]float32, 1000)
+	buf := new(bytes.Buffer)
+	var w io.Writer = buf
+	b.SetBytes(4 * 1000)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		Write(w, BigEndian, slice)
+	}
+	b.StopTimer()
 }

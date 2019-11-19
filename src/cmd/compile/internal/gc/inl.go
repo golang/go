@@ -135,6 +135,12 @@ func caninl(fn *Node) {
 		return
 	}
 
+	// If marked "go:nocheckptr" and -d checkptr compilation, don't inline.
+	if Debug_checkptr != 0 && fn.Func.Pragma&NoCheckPtr != 0 {
+		reason = "marked go:nocheckptr"
+		return
+	}
+
 	// If marked "go:cgo_unsafe_args", don't inline, since the
 	// function makes assumptions about its argument frame layout.
 	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
@@ -580,6 +586,12 @@ func inlnode(n *Node, maxCost int32) *Node {
 	if n.Right != nil && n.Right.Op == OINLCALL {
 		if n.Op == OFOR || n.Op == OFORUNTIL {
 			inlconv2stmt(n.Right)
+		} else if n.Op == OAS2FUNC {
+			n.Rlist.Set(inlconv2list(n.Right))
+			n.Right = nil
+			n.Op = OAS2
+			n.SetTypecheck(0)
+			n = typecheck(n, ctxStmt)
 		} else {
 			n.Right = inlconv2expr(n.Right)
 		}
@@ -602,20 +614,13 @@ func inlnode(n *Node, maxCost int32) *Node {
 	}
 
 	inlnodelist(n.Rlist, maxCost)
-	if n.Op == OAS2FUNC && n.Rlist.First().Op == OINLCALL {
-		n.Rlist.Set(inlconv2list(n.Rlist.First()))
-		n.Op = OAS2
-		n.SetTypecheck(0)
-		n = typecheck(n, ctxStmt)
-	} else {
-		s := n.Rlist.Slice()
-		for i1, n1 := range s {
-			if n1.Op == OINLCALL {
-				if n.Op == OIF {
-					inlconv2stmt(n1)
-				} else {
-					s[i1] = inlconv2expr(s[i1])
-				}
+	s := n.Rlist.Slice()
+	for i1, n1 := range s {
+		if n1.Op == OINLCALL {
+			if n.Op == OIF {
+				inlconv2stmt(n1)
+			} else {
+				s[i1] = inlconv2expr(s[i1])
 			}
 		}
 	}
@@ -656,7 +661,7 @@ func inlnode(n *Node, maxCost int32) *Node {
 					// NB: this check is necessary to prevent indirect re-assignment of the variable
 					// having the address taken after the invocation or only used for reads is actually fine
 					// but we have no easy way to distinguish the safe cases
-					if d.Left.Addrtaken() {
+					if d.Left.Name.Addrtaken() {
 						if Debug['m'] > 1 {
 							fmt.Printf("%v: cannot inline escaping closure variable %v\n", n.Line(), n.Left)
 						}
@@ -920,9 +925,9 @@ func mkinlcall(n, fn *Node, maxCost int32) *Node {
 		if genDwarfInline > 0 {
 			inlf := inlvars[ln]
 			if ln.Class() == PPARAM {
-				inlf.SetInlFormal(true)
+				inlf.Name.SetInlFormal(true)
 			} else {
-				inlf.SetInlLocal(true)
+				inlf.Name.SetInlLocal(true)
 			}
 			inlf.Pos = ln.Pos
 			inlfvars = append(inlfvars, inlf)
@@ -948,7 +953,7 @@ func mkinlcall(n, fn *Node, maxCost int32) *Node {
 			// was manufactured by the inliner (e.g. "~R2"); such vars
 			// were not part of the original callee.
 			if !strings.HasPrefix(m.Sym.Name, "~R") {
-				m.SetInlFormal(true)
+				m.Name.SetInlFormal(true)
 				m.Pos = mpos
 				inlfvars = append(inlfvars, m)
 			}
@@ -1126,7 +1131,7 @@ func inlvar(var_ *Node) *Node {
 	n.SetClass(PAUTO)
 	n.Name.SetUsed(true)
 	n.Name.Curfn = Curfn // the calling function, not the called one
-	n.SetAddrtaken(var_.Addrtaken())
+	n.Name.SetAddrtaken(var_.Name.Addrtaken())
 
 	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
 	return n

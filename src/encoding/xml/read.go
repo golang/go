@@ -491,7 +491,7 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 					saveAny = finfo.value(sv)
 				}
 
-			case fInnerXml:
+			case fInnerXML:
 				if !saveXML.IsValid() {
 					saveXML = finfo.value(sv)
 					if d.saved == nil {

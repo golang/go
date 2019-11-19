@@ -66,6 +66,12 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr)-1)*sys.PtrSize, 0, &memstats.other_sys))
 	m.inter = inter
 	m._type = typ
+	// The hash is used in type switches. However, compiler statically generates itab's
+	// for all interface/type pairs used in switches (which are added to itabTable
+	// in itabsinit). The dynamically-generated itab's never participate in type switches,
+	// and thus the hash is irrelevant.
+	// Note: m.hash is _not_ the hash used for the runtime itabTable hash table.
+	m.hash = 0
 	m.init()
 	itabAdd(m)
 	unlock(&itabLock)
@@ -233,7 +239,6 @@ imethods:
 		return iname
 	}
 	m.fun[0] = uintptr(fun0)
-	m.hash = typ.hash
 	return ""
 }
 
@@ -295,11 +300,11 @@ var (
 	stringEface interface{} = stringInterfacePtr("")
 	sliceEface  interface{} = sliceInterfacePtr(nil)
 
-	uint16Type *_type = (*eface)(unsafe.Pointer(&uint16Eface))._type
-	uint32Type *_type = (*eface)(unsafe.Pointer(&uint32Eface))._type
-	uint64Type *_type = (*eface)(unsafe.Pointer(&uint64Eface))._type
-	stringType *_type = (*eface)(unsafe.Pointer(&stringEface))._type
-	sliceType  *_type = (*eface)(unsafe.Pointer(&sliceEface))._type
+	uint16Type *_type = efaceOf(&uint16Eface)._type
+	uint32Type *_type = efaceOf(&uint32Eface)._type
+	uint64Type *_type = efaceOf(&uint64Eface)._type
+	stringType *_type = efaceOf(&stringEface)._type
+	sliceType  *_type = efaceOf(&sliceEface)._type
 )
 
 // The conv and assert functions below do very similar things.

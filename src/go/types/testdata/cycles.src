@@ -71,6 +71,15 @@ type (
 	C0 chan C0
 )
 
+// test case for issue #34771
+type (
+	AA /* ERROR cycle */ B
+	B C
+	C [10]D
+	D E
+	E AA
+)
+
 func _() {
 	type (
 		t1 /* ERROR cycle */ t1
@@ -147,7 +156,7 @@ type (
 // test cases for issue 18643
 // (type cycle detection when non-type expressions are involved)
 type (
-	T14 /* ERROR cycle */ [len(T14{})]int
+	T14 [len(T14 /* ERROR cycle */ {})]int
 	T15 [][len(T15 /* ERROR cycle */ {})]int
 	T16 map[[len(T16 /* ERROR cycle */ {1:2})]int]int
 	T17 map[int][len(T17 /* ERROR cycle */ {1:2})]int

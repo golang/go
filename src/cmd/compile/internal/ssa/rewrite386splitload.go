@@ -24,7 +24,6 @@ func rewriteValue386splitload_Op386CMPBconstload_0(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (CMPBconstload {sym} [vo] ptr mem)
-	// cond:
 	// result: (CMPBconst (MOVBload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
 	for {
 		vo := v.AuxInt
@@ -46,7 +45,6 @@ func rewriteValue386splitload_Op386CMPBload_0(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (CMPBload {sym} [off] ptr x mem)
-	// cond:
 	// result: (CMPB (MOVBload {sym} [off] ptr mem) x)
 	for {
 		off := v.AuxInt
@@ -69,7 +67,6 @@ func rewriteValue386splitload_Op386CMPLconstload_0(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (CMPLconstload {sym} [vo] ptr mem)
-	// cond:
 	// result: (CMPLconst (MOVLload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
 	for {
 		vo := v.AuxInt
@@ -91,7 +88,6 @@ func rewriteValue386splitload_Op386CMPLload_0(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (CMPLload {sym} [off] ptr x mem)
-	// cond:
 	// result: (CMPL (MOVLload {sym} [off] ptr mem) x)
 	for {
 		off := v.AuxInt
@@ -114,7 +110,6 @@ func rewriteValue386splitload_Op386CMPWconstload_0(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (CMPWconstload {sym} [vo] ptr mem)
-	// cond:
 	// result: (CMPWconst (MOVWload {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
 	for {
 		vo := v.AuxInt
@@ -136,7 +131,6 @@ func rewriteValue386splitload_Op386CMPWload_0(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (CMPWload {sym} [off] ptr x mem)
-	// cond:
 	// result: (CMPW (MOVWload {sym} [off] ptr mem) x)
 	for {
 		off := v.AuxInt

@@ -128,11 +128,13 @@ type Pass struct {
 	// See comments for ExportObjectFact.
 	ExportPackageFact func(fact Fact)
 
-	// AllPackageFacts returns a new slice containing all package facts in unspecified order.
+	// AllPackageFacts returns a new slice containing all package facts of the analysis's FactTypes
+	// in unspecified order.
 	// WARNING: This is an experimental API and may change in the future.
 	AllPackageFacts func() []PackageFact
 
-	// AllObjectFacts returns a new slice containing all object facts in unspecified order.
+	// AllObjectFacts returns a new slice containing all object facts of the analysis's FactTypes
+	// in unspecified order.
 	// WARNING: This is an experimental API and may change in the future.
 	AllObjectFacts func() []ObjectFact
 
@@ -161,13 +163,19 @@ func (pass *Pass) Reportf(pos token.Pos, format string, args ...interface{}) {
 	pass.Report(Diagnostic{Pos: pos, Message: msg})
 }
 
-// reportNodef is a helper function that reports a Diagnostic using the
-// range denoted by the AST node.
-//
-// WARNING: This is an experimental API and may change in the future.
-func (pass *Pass) reportNodef(node ast.Node, format string, args ...interface{}) {
+// The Range interface provides a range. It's equivalent to and satisfied by
+// ast.Node.
+type Range interface {
+	Pos() token.Pos // position of first character belonging to the node
+	End() token.Pos // position of first character immediately after the node
+}
+
+// ReportRangef is a helper function that reports a Diagnostic using the
+// range provided. ast.Node values can be passed in as the range because
+// they satisfy the Range interface.
+func (pass *Pass) ReportRangef(rng Range, format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	pass.Report(Diagnostic{Pos: node.Pos(), End: node.End(), Message: msg})
+	pass.Report(Diagnostic{Pos: rng.Pos(), End: rng.End(), Message: msg})
 }
 
 func (pass *Pass) String() string {
@@ -210,19 +218,4 @@ func (pass *Pass) String() string {
 // A Fact should not be modified once exported.
 type Fact interface {
 	AFact() // dummy method to avoid type errors
-}
-
-// A Diagnostic is a message associated with a source location or range.
-//
-// An Analyzer may return a variety of diagnostics; the optional Category,
-// which should be a constant, may be used to classify them.
-// It is primarily intended to make it easy to look up documentation.
-//
-// If End is provided, the diagnostic is specified to apply to the range between
-// Pos and End.
-type Diagnostic struct {
-	Pos      token.Pos
-	End      token.Pos // optional
-	Category string    // optional
-	Message  string
 }

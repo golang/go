@@ -66,7 +66,11 @@ func testGetdirentries(t *testing.T, count int) {
 		}
 		data := buf[:n]
 		for len(data) > 0 {
-			dirent := (*syscall.Dirent)(unsafe.Pointer(&data[0]))
+			// If multiple Dirents are written into buf, sometimes when we reach the final one,
+			// we have cap(buf) < Sizeof(Dirent). So use an appropriate slice to copy from data.
+			var dirent syscall.Dirent
+			copy((*[unsafe.Sizeof(dirent)]byte)(unsafe.Pointer(&dirent))[:], data)
+
 			data = data[dirent.Reclen:]
 			name := make([]byte, dirent.Namlen)
 			for i := 0; i < int(dirent.Namlen); i++ {

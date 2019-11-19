@@ -38,7 +38,7 @@ func tSPPi() {
 	s := "cat"        // ERROR "moved to heap: s$"
 	ps := &s
 	pps := &ps
-	pu := &U{ps, pps} // ERROR "tSPPi &U literal does not escape$"
+	pu := &U{ps, pps} // ERROR "&U literal does not escape$"
 	Ssink = pu.SPPi()
 }
 
@@ -46,7 +46,7 @@ func tiSPP() {
 	s := "cat"        // ERROR "moved to heap: s$"
 	ps := &s
 	pps := &ps
-	pu := &U{ps, pps} // ERROR "tiSPP &U literal does not escape$"
+	pu := &U{ps, pps} // ERROR "&U literal does not escape$"
 	Ssink = *pu.SPP()
 }
 
@@ -55,7 +55,7 @@ func tSP() {
 	s := "cat"        // ERROR "moved to heap: s$"
 	ps := &s          // ERROR "moved to heap: ps$"
 	pps := &ps
-	pu := &U{ps, pps} // ERROR "tSP &U literal does not escape$"
+	pu := &U{ps, pps} // ERROR "&U literal does not escape$"
 	Ssink = pu.SP()
 }
 
@@ -123,9 +123,9 @@ func tUPiSPa() {
 	ps4 := &s4           // ERROR "moved to heap: ps4$"
 	ps6 := &s6           // ERROR "moved to heap: ps6$"
 	u1 := U{&s1, &ps2}
-	u2 := &U{&s3, &ps4}  // ERROR "tUPiSPa &U literal does not escape$"
+	u2 := &U{&s3, &ps4}  // ERROR "&U literal does not escape$"
 	u3 := &U{&s5, &ps6}  // ERROR "&U literal escapes to heap$"
-	v := &V{u1, u2, &u3} // ERROR "tUPiSPa &V literal does not escape$"
+	v := &V{u1, u2, &u3} // ERROR "&V literal does not escape$"
 	Ssink = v.UPiSPa()   // Ssink = &s3 (only &s3 really escapes)
 }
 
@@ -141,9 +141,9 @@ func tUPiSPb() {
 	ps4 := &s4           // ERROR "moved to heap: ps4$"
 	ps6 := &s6           // ERROR "moved to heap: ps6$"
 	u1 := U{&s1, &ps2}
-	u2 := &U{&s3, &ps4}  // ERROR "tUPiSPb &U literal does not escape$"
+	u2 := &U{&s3, &ps4}  // ERROR "&U literal does not escape$"
 	u3 := &U{&s5, &ps6}  // ERROR "&U literal escapes to heap$"
-	v := &V{u1, u2, &u3} // ERROR "tUPiSPb &V literal does not escape$"
+	v := &V{u1, u2, &u3} // ERROR "&V literal does not escape$"
 	Ssink = v.UPiSPb()   // Ssink = &s3 (only &s3 really escapes)
 }
 
@@ -159,9 +159,9 @@ func tUPiSPc() {
 	ps4 := &s4           // ERROR "moved to heap: ps4$"
 	ps6 := &s6           // ERROR "moved to heap: ps6$"
 	u1 := U{&s1, &ps2}
-	u2 := &U{&s3, &ps4}  // ERROR "tUPiSPc &U literal does not escape$"
+	u2 := &U{&s3, &ps4}  // ERROR "&U literal does not escape$"
 	u3 := &U{&s5, &ps6}  // ERROR "&U literal escapes to heap$"
-	v := &V{u1, u2, &u3} // ERROR "tUPiSPc &V literal does not escape$"
+	v := &V{u1, u2, &u3} // ERROR "&V literal does not escape$"
 	Ssink = v.UPiSPc()   // Ssink = &s3 (only &s3 really escapes)
 }
 
@@ -177,9 +177,9 @@ func tUPiSPd() {
 	ps4 := &s4           // ERROR "moved to heap: ps4$"
 	ps6 := &s6           // ERROR "moved to heap: ps6$"
 	u1 := U{&s1, &ps2}
-	u2 := &U{&s3, &ps4}  // ERROR "tUPiSPd &U literal does not escape$"
+	u2 := &U{&s3, &ps4}  // ERROR "&U literal does not escape$"
 	u3 := &U{&s5, &ps6}  // ERROR "&U literal escapes to heap$"
-	v := &V{u1, u2, &u3} // ERROR "tUPiSPd &V literal does not escape$"
+	v := &V{u1, u2, &u3} // ERROR "&V literal does not escape$"
 	Ssink = v.UPiSPd()   // Ssink = &s3 (only &s3 really escapes)
 }
 
@@ -211,9 +211,9 @@ func tUPiSPPia() {
 	ps4 := &s4
 	ps6 := &s6           // ERROR "moved to heap: ps6$"
 	u1 := U{&s1, &ps2}
-	u2 := &U{&s3, &ps4}  // ERROR "tUPiSPPia &U literal does not escape$"
-	u3 := &U{&s5, &ps6}  // ERROR "tUPiSPPia &U literal does not escape$"
-	v := &V{u1, u2, &u3} // ERROR "tUPiSPPia &V literal does not escape$"
+	u2 := &U{&s3, &ps4}  // ERROR "&U literal does not escape$"
+	u3 := &U{&s5, &ps6}  // ERROR "&U literal does not escape$"
+	v := &V{u1, u2, &u3} // ERROR "&V literal does not escape$"
 	Ssink = v.UPiSPPia() // Ssink = *&ps4 = &s4 (only &s4 really escapes)
 }
 
@@ -229,9 +229,9 @@ func tUPiSPPib() {
 	ps4 := &s4
 	ps6 := &s6           // ERROR "moved to heap: ps6$"
 	u1 := U{&s1, &ps2}
-	u2 := &U{&s3, &ps4}  // ERROR "tUPiSPPib &U literal does not escape$"
-	u3 := &U{&s5, &ps6}  // ERROR "tUPiSPPib &U literal does not escape$"
-	v := &V{u1, u2, &u3} // ERROR "tUPiSPPib &V literal does not escape$"
+	u2 := &U{&s3, &ps4}  // ERROR "&U literal does not escape$"
+	u3 := &U{&s5, &ps6}  // ERROR "&U literal does not escape$"
+	v := &V{u1, u2, &u3} // ERROR "&V literal does not escape$"
 	Ssink = v.UPiSPPib() // Ssink = *&ps4 = &s4 (only &s4 really escapes)
 }
 
@@ -247,9 +247,9 @@ func tUPiSPPic() {
 	ps4 := &s4
 	ps6 := &s6           // ERROR "moved to heap: ps6$"
 	u1 := U{&s1, &ps2}
-	u2 := &U{&s3, &ps4}  // ERROR "tUPiSPPic &U literal does not escape$"
-	u3 := &U{&s5, &ps6}  // ERROR "tUPiSPPic &U literal does not escape$"
-	v := &V{u1, u2, &u3} // ERROR "tUPiSPPic &V literal does not escape$"
+	u2 := &U{&s3, &ps4}  // ERROR "&U literal does not escape$"
+	u3 := &U{&s5, &ps6}  // ERROR "&U literal does not escape$"
+	v := &V{u1, u2, &u3} // ERROR "&V literal does not escape$"
 	Ssink = v.UPiSPPic() // Ssink = *&ps4 = &s4 (only &s4 really escapes)
 }
 
@@ -265,9 +265,9 @@ func tUPiSPPid() {
 	ps4 := &s4
 	ps6 := &s6           // ERROR "moved to heap: ps6$"
 	u1 := U{&s1, &ps2}
-	u2 := &U{&s3, &ps4}  // ERROR "tUPiSPPid &U literal does not escape$"
-	u3 := &U{&s5, &ps6}  // ERROR "tUPiSPPid &U literal does not escape$"
-	v := &V{u1, u2, &u3} // ERROR "tUPiSPPid &V literal does not escape$"
+	u2 := &U{&s3, &ps4}  // ERROR "&U literal does not escape$"
+	u3 := &U{&s5, &ps6}  // ERROR "&U literal does not escape$"
+	v := &V{u1, u2, &u3} // ERROR "&V literal does not escape$"
 	Ssink = v.UPiSPPid() // Ssink = *&ps4 = &s4 (only &s4 really escapes)
 }
 
@@ -291,8 +291,8 @@ func tUPPiSPPia() {
 	ps4 := &s4
 	ps6 := &s6
 	u1 := U{&s1, &ps2}
-	u2 := &U{&s3, &ps4}   // ERROR "tUPPiSPPia &U literal does not escape$"
-	u3 := &U{&s5, &ps6}   // ERROR "tUPPiSPPia &U literal does not escape$"
-	v := &V{u1, u2, &u3}  // ERROR "tUPPiSPPia &V literal does not escape$"
+	u2 := &U{&s3, &ps4}   // ERROR "&U literal does not escape$"
+	u3 := &U{&s5, &ps6}   // ERROR "&U literal does not escape$"
+	v := &V{u1, u2, &u3}  // ERROR "&V literal does not escape$"
 	Ssink = v.UPPiSPPia() // Ssink = *&ps6 = &s6 (only &s6 really escapes)
 }

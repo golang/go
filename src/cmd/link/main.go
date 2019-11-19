@@ -45,7 +45,7 @@ func main() {
 		os.Exit(2)
 	case "386":
 		arch, theArch = x86.Init()
-	case "amd64", "amd64p32":
+	case "amd64":
 		arch, theArch = amd64.Init()
 	case "arm":
 		arch, theArch = arm.Init()

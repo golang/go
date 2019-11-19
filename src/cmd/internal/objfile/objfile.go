@@ -76,7 +76,7 @@ func Open(name string) (*File, error) {
 	}
 	for _, try := range openers {
 		if raw, err := try(r); err == nil {
-			return &File{r, []*Entry{&Entry{raw: raw}}}, nil
+			return &File{r, []*Entry{{raw: raw}}}, nil
 		}
 	}
 	r.Close()

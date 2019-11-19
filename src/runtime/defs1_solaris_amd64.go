@@ -8,9 +8,12 @@ const (
 	_EBADF       = 0x9
 	_EFAULT      = 0xe
 	_EAGAIN      = 0xb
+	_EBUSY       = 0x10
+	_ETIME       = 0x3e
 	_ETIMEDOUT   = 0x91
 	_EWOULDBLOCK = 0xb
 	_EINPROGRESS = 0x96
+	_ENOSYS      = 0x59
 
 	_PROT_NONE  = 0x0
 	_PROT_READ  = 0x1
@@ -89,6 +92,7 @@ const (
 	_MAXHOSTNAMELEN = 0x100
 
 	_O_NONBLOCK = 0x80
+	_O_CLOEXEC  = 0x800000
 	_FD_CLOEXEC = 0x1
 	_F_GETFL    = 0x3
 	_F_SETFL    = 0x4
@@ -99,7 +103,9 @@ const (
 	_POLLHUP = 0x10
 	_POLLERR = 0x8
 
-	_PORT_SOURCE_FD = 0x4
+	_PORT_SOURCE_FD    = 0x4
+	_PORT_SOURCE_ALERT = 0x5
+	_PORT_ALERT_UPDATE = 0x2
 )
 
 type semt struct {

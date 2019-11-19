@@ -15,12 +15,11 @@ func _() {
 	_ = x[PPARAM-4]
 	_ = x[PPARAMOUT-5]
 	_ = x[PFUNC-6]
-	_ = x[PDISCARD-7]
 }
 
-const _Class_name = "PxxxPEXTERNPAUTOPAUTOHEAPPPARAMPPARAMOUTPFUNCPDISCARD"
+const _Class_name = "PxxxPEXTERNPAUTOPAUTOHEAPPPARAMPPARAMOUTPFUNC"
 
-var _Class_index = [...]uint8{0, 4, 11, 16, 25, 31, 40, 45, 53}
+var _Class_index = [...]uint8{0, 4, 11, 16, 25, 31, 40, 45}
 
 func (i Class) String() string {
 	if i >= Class(len(_Class_index)-1) {

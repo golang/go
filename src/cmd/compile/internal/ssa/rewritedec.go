@@ -34,7 +34,6 @@ func rewriteValuedec(v *Value) bool {
 }
 func rewriteValuedec_OpComplexImag_0(v *Value) bool {
 	// match: (ComplexImag (ComplexMake _ imag))
-	// cond:
 	// result: imag
 	for {
 		v_0 := v.Args[0]
@@ -51,7 +50,6 @@ func rewriteValuedec_OpComplexImag_0(v *Value) bool {
 }
 func rewriteValuedec_OpComplexReal_0(v *Value) bool {
 	// match: (ComplexReal (ComplexMake real _))
-	// cond:
 	// result: real
 	for {
 		v_0 := v.Args[0]
@@ -69,7 +67,6 @@ func rewriteValuedec_OpComplexReal_0(v *Value) bool {
 }
 func rewriteValuedec_OpIData_0(v *Value) bool {
 	// match: (IData (IMake _ data))
-	// cond:
 	// result: data
 	for {
 		v_0 := v.Args[0]
@@ -86,7 +83,6 @@ func rewriteValuedec_OpIData_0(v *Value) bool {
 }
 func rewriteValuedec_OpITab_0(v *Value) bool {
 	// match: (ITab (IMake itab _))
-	// cond:
 	// result: itab
 	for {
 		v_0 := v.Args[0]
@@ -237,7 +233,6 @@ func rewriteValuedec_OpLoad_0(v *Value) bool {
 }
 func rewriteValuedec_OpSliceCap_0(v *Value) bool {
 	// match: (SliceCap (SliceMake _ _ cap))
-	// cond:
 	// result: cap
 	for {
 		v_0 := v.Args[0]
@@ -254,7 +249,6 @@ func rewriteValuedec_OpSliceCap_0(v *Value) bool {
 }
 func rewriteValuedec_OpSliceLen_0(v *Value) bool {
 	// match: (SliceLen (SliceMake _ len _))
-	// cond:
 	// result: len
 	for {
 		v_0 := v.Args[0]
@@ -272,7 +266,6 @@ func rewriteValuedec_OpSliceLen_0(v *Value) bool {
 }
 func rewriteValuedec_OpSlicePtr_0(v *Value) bool {
 	// match: (SlicePtr (SliceMake ptr _ _))
-	// cond:
 	// result: ptr
 	for {
 		v_0 := v.Args[0]
@@ -355,7 +348,6 @@ func rewriteValuedec_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store dst (StringMake ptr len) mem)
-	// cond:
 	// result: (Store {typ.Int} (OffPtr <typ.IntPtr> [config.PtrSize] dst) len (Store {typ.BytePtr} dst ptr mem))
 	for {
 		mem := v.Args[2]
@@ -382,7 +374,6 @@ func rewriteValuedec_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store dst (SliceMake ptr len cap) mem)
-	// cond:
 	// result: (Store {typ.Int} (OffPtr <typ.IntPtr> [2*config.PtrSize] dst) cap (Store {typ.Int} (OffPtr <typ.IntPtr> [config.PtrSize] dst) len (Store {typ.BytePtr} dst ptr mem)))
 	for {
 		mem := v.Args[2]
@@ -418,7 +409,6 @@ func rewriteValuedec_OpStore_0(v *Value) bool {
 		return true
 	}
 	// match: (Store dst (IMake itab data) mem)
-	// cond:
 	// result: (Store {typ.BytePtr} (OffPtr <typ.BytePtrPtr> [config.PtrSize] dst) data (Store {typ.Uintptr} dst itab mem))
 	for {
 		mem := v.Args[2]
@@ -448,7 +438,6 @@ func rewriteValuedec_OpStore_0(v *Value) bool {
 }
 func rewriteValuedec_OpStringLen_0(v *Value) bool {
 	// match: (StringLen (StringMake _ len))
-	// cond:
 	// result: len
 	for {
 		v_0 := v.Args[0]
@@ -465,7 +454,6 @@ func rewriteValuedec_OpStringLen_0(v *Value) bool {
 }
 func rewriteValuedec_OpStringPtr_0(v *Value) bool {
 	// match: (StringPtr (StringMake ptr _))
-	// cond:
 	// result: ptr
 	for {
 		v_0 := v.Args[0]

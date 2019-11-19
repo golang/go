@@ -550,7 +550,7 @@ func (p *parser) typeDecl(group *Group) Decl {
 	d.Alias = p.gotAssign()
 	d.Type = p.typeOrNil()
 	if d.Type == nil {
-		d.Type = p.bad()
+		d.Type = p.badExpr()
 		p.syntaxError("in type declaration")
 		p.advance(_Semi, _Rparen)
 	}
@@ -867,7 +867,7 @@ func (p *parser) operand(keep_parens bool) Expr {
 		return p.type_() // othertype
 
 	default:
-		x := p.bad()
+		x := p.badExpr()
 		p.syntaxError("expecting expression")
 		p.advance(_Rparen, _Rbrack, _Rbrace)
 		return x
@@ -1083,7 +1083,7 @@ func (p *parser) type_() Expr {
 
 	typ := p.typeOrNil()
 	if typ == nil {
-		typ = p.bad()
+		typ = p.badExpr()
 		p.syntaxError("expecting type")
 		p.advance(_Comma, _Colon, _Semi, _Rparen, _Rbrack, _Rbrace)
 	}
@@ -1220,7 +1220,7 @@ func (p *parser) chanElem() Expr {
 
 	typ := p.typeOrNil()
 	if typ == nil {
-		typ = p.bad()
+		typ = p.badExpr()
 		p.syntaxError("missing channel element type")
 		// assume element type is simply absent - don't advance
 	}
@@ -1401,6 +1401,7 @@ func (p *parser) oliteral() *BasicLit {
 		b.pos = p.pos()
 		b.Value = p.lit
 		b.Kind = p.kind
+		b.Bad = p.bad
 		p.next()
 		return b
 	}
@@ -1515,7 +1516,7 @@ func (p *parser) dotsType() *DotsType {
 	p.want(_DotDotDot)
 	t.Elem = p.typeOrNil()
 	if t.Elem == nil {
-		t.Elem = p.bad()
+		t.Elem = p.badExpr()
 		p.syntaxError("final argument in variadic function missing type")
 	}
 
@@ -1572,7 +1573,7 @@ func (p *parser) paramList() (list []*Field) {
 			} else {
 				// par.Type == nil && typ == nil => we only have a par.Name
 				ok = false
-				t := p.bad()
+				t := p.badExpr()
 				t.pos = par.Name.Pos() // correct position
 				par.Type = t
 			}
@@ -1585,7 +1586,7 @@ func (p *parser) paramList() (list []*Field) {
 	return
 }
 
-func (p *parser) bad() *BadExpr {
+func (p *parser) badExpr() *BadExpr {
 	b := new(BadExpr)
 	b.pos = p.pos()
 	return b

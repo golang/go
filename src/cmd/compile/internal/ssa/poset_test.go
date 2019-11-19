@@ -146,9 +146,7 @@ func testPosetOps(t *testing.T, unsigned bool, ops []posetTestOp) {
 			po.DotDump(fmt.Sprintf("op%d.dot", idx), fmt.Sprintf("Last op: %v", op))
 		}
 
-		if err := po.CheckIntegrity(); err != nil {
-			t.Fatalf("op%d%v: integrity error: %v", idx, op, err)
-		}
+		po.CheckIntegrity()
 	}
 
 	// Check that the poset is completely empty
@@ -186,7 +184,7 @@ func TestPoset(t *testing.T) {
 		{OrderedOrEqual, 4, 12},
 		{OrderedOrEqual_Fail, 12, 4},
 		{OrderedOrEqual, 4, 7},
-		{OrderedOrEqual, 7, 4},
+		{OrderedOrEqual_Fail, 7, 4},
 
 		// Dag #1: 1<4<=7<12
 		{Checkpoint, 0, 0},
@@ -440,7 +438,127 @@ func TestPosetStrict(t *testing.T) {
 	})
 }
 
-func TestSetEqual(t *testing.T) {
+func TestPosetCollapse(t *testing.T) {
+	testPosetOps(t, false, []posetTestOp{
+		{Checkpoint, 0, 0},
+		// Create a complex graph of <= relations among nodes between 10 and 25.
+		{SetOrderOrEqual, 10, 15},
+		{SetOrderOrEqual, 15, 20},
+		{SetOrderOrEqual, 20, vconst(20)},
+		{SetOrderOrEqual, vconst(20), 25},
+		{SetOrderOrEqual, 10, 12},
+		{SetOrderOrEqual, 12, 16},
+		{SetOrderOrEqual, 16, vconst(20)},
+		{SetOrderOrEqual, 10, 17},
+		{SetOrderOrEqual, 17, 25},
+		{SetOrderOrEqual, 15, 18},
+		{SetOrderOrEqual, 18, vconst(20)},
+		{SetOrderOrEqual, 15, 19},
+		{SetOrderOrEqual, 19, 25},
+
+		// These are other paths not part of the main collapsing path
+		{SetOrderOrEqual, 10, 11},
+		{SetOrderOrEqual, 11, 26},
+		{SetOrderOrEqual, 13, 25},
+		{SetOrderOrEqual, 100, 25},
+		{SetOrderOrEqual, 101, 15},
+		{SetOrderOrEqual, 102, 10},
+		{SetOrderOrEqual, 25, 103},
+		{SetOrderOrEqual, 20, 104},
+
+		{Checkpoint, 0, 0},
+		// Collapse everything by setting 10 >= 25: this should make everything equal
+		{SetOrderOrEqual, 25, 10},
+
+		// Check that all nodes are pairwise equal now
+		{Equal, 10, 12},
+		{Equal, 10, 15},
+		{Equal, 10, 16},
+		{Equal, 10, 17},
+		{Equal, 10, 18},
+		{Equal, 10, 19},
+		{Equal, 10, vconst(20)},
+		{Equal, 10, vconst2(20)},
+		{Equal, 10, 25},
+
+		{Equal, 12, 15},
+		{Equal, 12, 16},
+		{Equal, 12, 17},
+		{Equal, 12, 18},
+		{Equal, 12, 19},
+		{Equal, 12, vconst(20)},
+		{Equal, 12, vconst2(20)},
+		{Equal, 12, 25},
+
+		{Equal, 15, 16},
+		{Equal, 15, 17},
+		{Equal, 15, 18},
+		{Equal, 15, 19},
+		{Equal, 15, vconst(20)},
+		{Equal, 15, vconst2(20)},
+		{Equal, 15, 25},
+
+		{Equal, 16, 17},
+		{Equal, 16, 18},
+		{Equal, 16, 19},
+		{Equal, 16, vconst(20)},
+		{Equal, 16, vconst2(20)},
+		{Equal, 16, 25},
+
+		{Equal, 17, 18},
+		{Equal, 17, 19},
+		{Equal, 17, vconst(20)},
+		{Equal, 17, vconst2(20)},
+		{Equal, 17, 25},
+
+		{Equal, 18, 19},
+		{Equal, 18, vconst(20)},
+		{Equal, 18, vconst2(20)},
+		{Equal, 18, 25},
+
+		{Equal, 19, vconst(20)},
+		{Equal, 19, vconst2(20)},
+		{Equal, 19, 25},
+
+		{Equal, vconst(20), vconst2(20)},
+		{Equal, vconst(20), 25},
+
+		{Equal, vconst2(20), 25},
+
+		// ... but not 11/26/100/101/102, which were on a different path
+		{Equal_Fail, 10, 11},
+		{Equal_Fail, 10, 26},
+		{Equal_Fail, 10, 100},
+		{Equal_Fail, 10, 101},
+		{Equal_Fail, 10, 102},
+		{OrderedOrEqual, 10, 26},
+		{OrderedOrEqual, 25, 26},
+		{OrderedOrEqual, 13, 25},
+		{OrderedOrEqual, 13, 10},
+
+		{Undo, 0, 0},
+		{OrderedOrEqual, 10, 25},
+		{Equal_Fail, 10, 12},
+		{Equal_Fail, 10, 15},
+		{Equal_Fail, 10, 25},
+
+		{Undo, 0, 0},
+	})
+
+	testPosetOps(t, false, []posetTestOp{
+		{Checkpoint, 0, 0},
+		{SetOrderOrEqual, 10, 15},
+		{SetOrderOrEqual, 15, 20},
+		{SetOrderOrEqual, 20, 25},
+		{SetOrder, 10, 16},
+		{SetOrderOrEqual, 16, 20},
+		// Check that we cannot collapse here because of the strict relation 10<16
+		{SetOrderOrEqual_Fail, 20, 10},
+		{Undo, 0, 0},
+	})
+}
+
+func TestPosetSetEqual(t *testing.T) {
 	testPosetOps(t, false, []posetTestOp{
 		// 10<=20<=30<40,  20<=100<110
 		{Checkpoint, 0, 0},
@@ -450,7 +568,7 @@ func TestSetEqual(t *testing.T) {
 		{SetOrderOrEqual, 20, 100},
 		{SetOrder, 100, 110},
 		{OrderedOrEqual, 10, 30},
-		{OrderedOrEqual, 30, 10},
+		{OrderedOrEqual_Fail, 30, 10},
 		{Ordered_Fail, 10, 30},
 		{Ordered_Fail, 30, 10},
 		{Ordered, 10, 40},

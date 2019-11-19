@@ -23,8 +23,13 @@ type LineReader struct {
 	// Original .debug_line section data. Used by Seek.
 	section []byte
 
+	str     []byte // .debug_str
+	lineStr []byte // .debug_line_str
+
 	// Header information
 	version              uint16
+	addrsize             int
+	segmentSelectorSize  int
 	minInstructionLength int
 	maxOpsPerInstruction int
 	defaultIsStmt        bool
@@ -158,10 +163,15 @@ func (d *Data) LineReader(cu *Entry) (*LineReader, error) {
 	u := &d.unit[d.offsetToUnit(cu.Offset)]
 	buf := makeBuf(d, u, "line", Offset(off), d.line[off:])
 	// The compilation directory is implicitly directories[0].
-	r := LineReader{buf: buf, section: d.line, directories: []string{compDir}}
+	r := LineReader{
+		buf:     buf,
+		section: d.line,
+		str:     d.str,
+		lineStr: d.lineStr,
+	}
 
 	// Read the header.
-	if err := r.readHeader(); err != nil {
+	if err := r.readHeader(compDir); err != nil {
 		return nil, err
 	}
 
@@ -173,7 +183,7 @@ func (d *Data) LineReader(cu *Entry) (*LineReader, error) {
 
 // readHeader reads the line number program header from r.buf and sets
 // all of the header fields in r.
-func (r *LineReader) readHeader() error {
+func (r *LineReader) readHeader(compDir string) error {
 	buf := &r.buf
 
 	// Read basic header fields [DWARF2 6.2.4].
@@ -184,13 +194,20 @@ func (r *LineReader) readHeader() error {
 		return DecodeError{"line", hdrOffset, fmt.Sprintf("line table end %d exceeds section size %d", r.endOffset, buf.off+Offset(len(buf.data)))}
 	}
 	r.version = buf.uint16()
-	if buf.err == nil && (r.version < 2 || r.version > 4) {
+	if buf.err == nil && (r.version < 2 || r.version > 5) {
 		// DWARF goes to all this effort to make new opcodes
 		// backward-compatible, and then adds fields right in
 		// the middle of the header in new versions, so we're
 		// picky about only supporting known line table
 		// versions.
 		return DecodeError{"line", hdrOffset, fmt.Sprintf("unknown line table version %d", r.version)}
+	}
+	if r.version >= 5 {
+		r.addrsize = int(buf.uint8())
+		r.segmentSelectorSize = int(buf.uint8())
+	} else {
+		r.addrsize = buf.format.addrsize()
+		r.segmentSelectorSize = 0
 	}
 	var headerLength Offset
 	if dwarf64 {
@@ -238,37 +255,168 @@ func (r *LineReader) readHeader() error {
 		}
 	}
 
-	// Read include directories table. The caller already set
-	// directories[0] to the compilation directory.
-	for {
-		directory := buf.string()
-		if buf.err != nil {
-			return buf.err
+	if r.version < 5 {
+		// Read include directories table.
+		r.directories = []string{compDir}
+		for {
+			directory := buf.string()
+			if buf.err != nil {
+				return buf.err
+			}
+			if len(directory) == 0 {
+				break
+			}
+			if !pathIsAbs(directory) {
+				// Relative paths are implicitly relative to
+				// the compilation directory.
+				directory = pathJoin(compDir, directory)
+			}
+			r.directories = append(r.directories, directory)
 		}
-		if len(directory) == 0 {
-			break
+
+		// Read file name list. File numbering starts with 1,
+		// so leave the first entry nil.
+		r.fileEntries = make([]*LineFile, 1)
+		for {
+			if done, err := r.readFileEntry(); err != nil {
+				return err
+			} else if done {
+				break
+			}
 		}
-		if !pathIsAbs(directory) {
-			// Relative paths are implicitly relative to
-			// the compilation directory.
-			directory = pathJoin(r.directories[0], directory)
+	} else {
+		dirFormat := r.readLNCTFormat()
+		c := buf.uint()
+		r.directories = make([]string, c)
+		for i := range r.directories {
+			dir, _, _, err := r.readLNCT(dirFormat, dwarf64)
+			if err != nil {
+				return err
+			}
+			r.directories[i] = dir
 		}
-		r.directories = append(r.directories, directory)
+		fileFormat := r.readLNCTFormat()
+		c = buf.uint()
+		r.fileEntries = make([]*LineFile, c)
+		for i := range r.fileEntries {
+			name, mtime, size, err := r.readLNCT(fileFormat, dwarf64)
+			if err != nil {
+				return err
+			}
+			r.fileEntries[i] = &LineFile{name, mtime, int(size)}
+		}
 	}
 
-	// Read file name list. File numbering starts with 1, so leave
-	// the first entry nil.
-	r.fileEntries = make([]*LineFile, 1)
-	for {
-		if done, err := r.readFileEntry(); err != nil {
-			return err
-		} else if done {
-			break
-		}
-	}
 	r.initialFileEntries = len(r.fileEntries)
 
 	return buf.err
+}
+
+// lnctForm is a pair of an LNCT code and a form. This represents an
+// entry in the directory name or file name description in the DWARF 5
+// line number program header.
+type lnctForm struct {
+	lnct int
+	form format
+}
+
+// readLNCTFormat reads an LNCT format description.
+func (r *LineReader) readLNCTFormat() []lnctForm {
+	c := r.buf.uint8()
+	ret := make([]lnctForm, c)
+	for i := range ret {
+		ret[i].lnct = int(r.buf.uint())
+		ret[i].form = format(r.buf.uint())
+	}
+	return ret
+}
+
+// readLNCT reads a sequence of LNCT entries and returns path information.
+func (r *LineReader) readLNCT(s []lnctForm, dwarf64 bool) (path string, mtime uint64, size uint64, err error) {
+	var dir string
+	for _, lf := range s {
+		var str string
+		var val uint64
+		switch lf.form {
+		case formString:
+			str = r.buf.string()
+		case formStrp, formLineStrp:
+			var off uint64
+			if dwarf64 {
+				off = r.buf.uint64()
+			} else {
+				off = uint64(r.buf.uint32())
+			}
+			if uint64(int(off)) != off {
+				return "", 0, 0, DecodeError{"line", r.buf.off, "strp/line_strp offset out of range"}
+			}
+			var b1 buf
+			if lf.form == formStrp {
+				b1 = makeBuf(r.buf.dwarf, r.buf.format, "str", 0, r.str)
+			} else {
+				b1 = makeBuf(r.buf.dwarf, r.buf.format, "line_str", 0, r.lineStr)
+			}
+			b1.skip(int(off))
+			str = b1.string()
+			if b1.err != nil {
+				return "", 0, 0, DecodeError{"line", r.buf.off, b1.err.Error()}
+			}
+		case formStrpSup:
+			// Supplemental sections not yet supported.
+			if dwarf64 {
+				r.buf.uint64()
+			} else {
+				r.buf.uint32()
+			}
+		case formStrx:
+			// .debug_line.dwo sections not yet supported.
+			r.buf.uint()
+		case formStrx1:
+			r.buf.uint8()
+		case formStrx2:
+			r.buf.uint16()
+		case formStrx3:
+			r.buf.uint24()
+		case formStrx4:
+			r.buf.uint32()
+		case formData1:
+			val = uint64(r.buf.uint8())
+		case formData2:
+			val = uint64(r.buf.uint16())
+		case formData4:
+			val = uint64(r.buf.uint32())
+		case formData8:
+			val = r.buf.uint64()
+		case formData16:
+			r.buf.bytes(16)
+		case formDwarfBlock:
+			r.buf.bytes(int(r.buf.uint()))
+		case formUdata:
+			val = r.buf.uint()
+		}
+
+		switch lf.lnct {
+		case lnctPath:
+			path = str
+		case lnctDirectoryIndex:
+			if val >= uint64(len(r.directories)) {
+				return "", 0, 0, DecodeError{"line", r.buf.off, "directory index out of range"}
+			}
+			dir = r.directories[val]
+		case lnctTimestamp:
+			mtime = val
+		case lnctSize:
+			size = val
+		case lnctMD5:
+			// Ignored.
+		}
+	}
+
+	if dir != "" && path != "" {
+		path = pathJoin(dir, path)
+	}
+
+	return path, mtime, size, nil
 }
 
 // readFileEntry reads a file entry from either the header or a
@@ -293,6 +441,19 @@ func (r *LineReader) readFileEntry() (bool, error) {
 	mtime := r.buf.uint()
 	length := int(r.buf.uint())
 
+	// If this is a dynamically added path and the cursor was
+	// backed up, we may have already added this entry. Avoid
+	// updating existing line table entries in this case. This
+	// avoids an allocation and potential racy access to the slice
+	// backing store if the user called Files.
+	if len(r.fileEntries) < cap(r.fileEntries) {
+		fe := r.fileEntries[:len(r.fileEntries)+1]
+		if fe[len(fe)-1] != nil {
+			// We already processed this addition.
+			r.fileEntries = fe
+			return false, nil
+		}
+	}
 	r.fileEntries = append(r.fileEntries, &LineFile{name, mtime, length})
 	return false, nil
 }
@@ -381,7 +542,18 @@ func (r *LineReader) step(entry *LineEntry) bool {
 			r.resetState()
 
 		case lneSetAddress:
-			r.state.Address = r.buf.addr()
+			switch r.addrsize {
+			case 1:
+				r.state.Address = uint64(r.buf.uint8())
+			case 2:
+				r.state.Address = uint64(r.buf.uint16())
+			case 4:
+				r.state.Address = uint64(r.buf.uint32())
+			case 8:
+				r.state.Address = r.buf.uint64()
+			default:
+				r.buf.error("unknown address size")
+			}
 
 		case lneDefineFile:
 			if done, err := r.readFileEntry(); err != nil {
@@ -533,6 +705,22 @@ func (r *LineReader) resetState() {
 	r.updateFile()
 }
 
+// Files returns the file name table of this compilation unit as of
+// the current position in the line table. The file name table may be
+// referenced from attributes in this compilation unit such as
+// AttrDeclFile.
+//
+// Entry 0 is always nil, since file index 0 represents "no file".
+//
+// The file name table of a compilation unit is not fixed. Files
+// returns the file table as of the current position in the line
+// table. This may contain more entries than the file table at an
+// earlier position in the line table, though existing entries never
+// change.
+func (r *LineReader) Files() []*LineFile {
+	return r.fileEntries
+}
+
 // ErrUnknownPC is the error returned by LineReader.ScanPC when the
 // seek PC is not covered by any entry in the line table.
 var ErrUnknownPC = errors.New("ErrUnknownPC")
@@ -618,7 +806,7 @@ func pathJoin(dirname, filename string) string {
 	// DOS-style path.
 	drive2, filename := splitDrive(filename)
 	if drive2 != "" {
-		if strings.ToLower(drive) != strings.ToLower(drive2) {
+		if !strings.EqualFold(drive, drive2) {
 			// Different drives. There's not much we can
 			// do here, so just ignore the directory.
 			return drive2 + filename

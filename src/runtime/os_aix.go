@@ -175,6 +175,7 @@ func miniterrno() {
 func minit() {
 	miniterrno()
 	minitSignals()
+	getg().m.procid = uint64(pthread_self())
 }
 
 func unminit() {
@@ -323,7 +324,7 @@ const (
 )
 
 //go:nosplit
-func nanotime() int64 {
+func nanotime1() int64 {
 	tp := &timespec{}
 	if clock_gettime(_CLOCK_REALTIME, tp) != 0 {
 		throw("syscall clock_gettime failed")
@@ -331,7 +332,7 @@ func nanotime() int64 {
 	return tp.tv_sec*1000000000 + tp.tv_nsec
 }
 
-func walltime() (sec int64, nsec int32) {
+func walltime1() (sec int64, nsec int32) {
 	ts := &timespec{}
 	if clock_gettime(_CLOCK_REALTIME, ts) != 0 {
 		throw("syscall clock_gettime failed")
@@ -356,4 +357,21 @@ func setupSystemConf() {
 	if impl&_IMPL_POWER9 != 0 {
 		cpu.HWCap2 |= cpu.PPC_FEATURE2_ARCH_3_00
 	}
+}
+
+//go:nosplit
+func fcntl(fd, cmd, arg int32) int32 {
+	r, _ := syscall3(&libc_fcntl, uintptr(fd), uintptr(cmd), uintptr(arg))
+	return int32(r)
+}
+
+//go:nosplit
+func closeonexec(fd int32) {
+	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
+}
+
+//go:nosplit
+func setNonblock(fd int32) {
+	flags := fcntl(fd, _F_GETFL, 0)
+	fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
 }

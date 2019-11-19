@@ -323,6 +323,8 @@ func (x *Int) Cmp(y *Int) (r int) {
 	// (-x) cmp y == y
 	// (-x) cmp (-y) == -(x cmp y)
 	switch {
+	case x == y:
+		// nothing to do
 	case x.neg == y.neg:
 		r = x.abs.cmp(y.abs)
 		if x.neg {
@@ -466,7 +468,7 @@ func (x *Int) TrailingZeroBits() uint {
 // If m == nil or m == 0, z = x**y unless y <= 0 then z = 1. If m > 0, y < 0,
 // and x and n are not relatively prime, z is unchanged and nil is returned.
 //
-// Modular exponentation of inputs of a particular size is not a
+// Modular exponentiation of inputs of a particular size is not a
 // cryptographically constant-time operation.
 func (z *Int) Exp(x, y, m *Int) *Int {
 	// See Knuth, volume 2, section 4.6.3.
@@ -500,18 +502,36 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 	return z
 }
 
-// GCD sets z to the greatest common divisor of a and b, which both must
-// be > 0, and returns z.
+// GCD sets z to the greatest common divisor of a and b and returns z.
 // If x or y are not nil, GCD sets their value such that z = a*x + b*y.
-// If either a or b is <= 0, GCD sets z = x = y = 0.
+// Regardless of the signs of a and b, z is always >= 0.
+// If a == b == 0, GCD sets z = x = y = 0.
+// If a == 0 and b != 0, GCD sets z = |b|, x = 0, y = sign(b) * 1.
+// If a != 0 and b == 0, GCD sets z = |a|, x = sign(a) * 1, y = 0.
 func (z *Int) GCD(x, y, a, b *Int) *Int {
-	if a.Sign() <= 0 || b.Sign() <= 0 {
-		z.SetInt64(0)
+	if len(a.abs) == 0 || len(b.abs) == 0 {
+		lenA, lenB, negA, negB := len(a.abs), len(b.abs), a.neg, b.neg
+		if lenA == 0 {
+			z.Set(b)
+		} else {
+			z.Set(a)
+		}
+		z.neg = false
 		if x != nil {
-			x.SetInt64(0)
+			if lenA == 0 {
+				x.SetUint64(0)
+			} else {
+				x.SetUint64(1)
+				x.neg = negA
+			}
 		}
 		if y != nil {
-			y.SetInt64(0)
+			if lenB == 0 {
+				y.SetUint64(0)
+			} else {
+				y.SetUint64(1)
+				y.neg = negB
+			}
 		}
 		return z
 	}
@@ -619,7 +639,7 @@ func euclidUpdate(A, B, Ua, Ub, q, r, s, t *Int, extended bool) {
 }
 
 // lehmerGCD sets z to the greatest common divisor of a and b,
-// which both must be > 0, and returns z.
+// which both must be != 0, and returns z.
 // If x or y are not nil, their values are set such that z = a*x + b*y.
 // See Knuth, The Art of Computer Programming, Vol. 2, Section 4.5.2, Algorithm L.
 // This implementation uses the improved condition by Collins requiring only one
@@ -631,8 +651,8 @@ func euclidUpdate(A, B, Ua, Ub, q, r, s, t *Int, extended bool) {
 func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
 	var A, B, Ua, Ub *Int
 
-	A = new(Int).Set(a)
-	B = new(Int).Set(b)
+	A = new(Int).Abs(a)
+	B = new(Int).Abs(b)
 
 	extended := x != nil || y != nil
 
@@ -718,7 +738,7 @@ func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
 			A.abs[0] = aWord
 		}
 	}
-
+	negA := a.neg
 	if y != nil {
 		// avoid aliasing b needed in the division below
 		if y == b {
@@ -728,12 +748,18 @@ func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
 		}
 		// y = (z - a*x)/b
 		y.Mul(a, Ua) // y can safely alias a
+		if negA {
+			y.neg = !y.neg
+		}
 		y.Sub(A, y)
 		y.Div(y, B)
 	}
 
 	if x != nil {
 		*x = *Ua
+		if negA {
+			x.neg = !x.neg
+		}
 	}
 
 	*z = *A

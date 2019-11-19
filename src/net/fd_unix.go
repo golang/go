@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package net
 
@@ -248,7 +248,7 @@ func (fd *netFD) accept() (netfd *netFD, err error) {
 		return nil, err
 	}
 	if err = netfd.init(); err != nil {
-		fd.Close()
+		netfd.Close()
 		return nil, err
 	}
 	lsa, _ := syscall.Getsockname(netfd.pfd.Sysfd)

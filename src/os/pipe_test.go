@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Test broken pipes on Unix systems.
-// +build !plan9,!nacl,!js
+// +build !plan9,!js
 
 package os_test
 
@@ -428,7 +428,7 @@ func TestFdReadRace(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		var buf [10]byte
-		r.SetReadDeadline(time.Now().Add(time.Second))
+		r.SetReadDeadline(time.Now().Add(time.Minute))
 		c <- true
 		if _, err := r.Read(buf[:]); os.IsTimeout(err) {
 			t.Error("read timed out")

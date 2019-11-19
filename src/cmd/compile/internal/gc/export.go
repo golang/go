@@ -71,7 +71,7 @@ func dumpexport(bout *bio.Writer) {
 	exportf(bout, "\n$$\n")
 
 	if Debug_export != 0 {
-		fmt.Printf("export data size = %d bytes\n", size)
+		fmt.Printf("BenchmarkExportSize:%s 1 %d bytes\n", myimportpath, size)
 	}
 }
 

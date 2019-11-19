@@ -229,3 +229,9 @@ TEXT runtime∕internal∕atomic·And8(SB), NOSPLIT, $0-5
 	LOCK
 	ANDB	BX, (AX)
 	RET
+
+TEXT runtime∕internal∕atomic·Store8(SB), NOSPLIT, $0-5
+	MOVL	ptr+0(FP), BX
+	MOVB	val+4(FP), AX
+	XCHGB	AX, 0(BX)
+	RET

@@ -5,15 +5,17 @@
 package modcmd
 
 import (
-	"cmd/go/internal/cfg"
 	"encoding/json"
 	"os"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/module"
 	"cmd/go/internal/par"
+	"cmd/go/internal/work"
+
+	"golang.org/x/mod/module"
 )
 
 var cmdDownload = &base.Command{
@@ -43,7 +45,6 @@ corresponding to this Go struct:
         Dir      string // absolute path to cached source root directory
         Sum      string // checksum for path, version (as in go.sum)
         GoModSum string // checksum for go.mod (as in go.sum)
-        Latest   bool   // would @latest resolve to this version?
     }
 
 See 'go help modules' for more about module queries.
@@ -54,6 +55,8 @@ var downloadJSON = cmdDownload.Flag.Bool("json", false, "")
 
 func init() {
 	cmdDownload.Run = runDownload // break init cycle
+
+	work.AddModCommonFlags(cmdDownload)
 }
 
 type moduleJSON struct {
@@ -66,7 +69,6 @@ type moduleJSON struct {
 	Dir      string `json:",omitempty"`
 	Sum      string `json:",omitempty"`
 	GoModSum string `json:",omitempty"`
-	Latest   bool   `json:",omitempty"`
 }
 
 func runDownload(cmd *base.Command, args []string) {
@@ -79,6 +81,17 @@ func runDownload(cmd *base.Command, args []string) {
 	}
 	if len(args) == 0 {
 		args = []string{"all"}
+	} else if modload.HasModRoot() {
+		modload.InitMod() // to fill Target
+		targetAtLatest := modload.Target.Path + "@latest"
+		targetAtUpgrade := modload.Target.Path + "@upgrade"
+		targetAtPatch := modload.Target.Path + "@patch"
+		for _, arg := range args {
+			switch arg {
+			case modload.Target.Path, targetAtLatest, targetAtUpgrade, targetAtPatch:
+				os.Stderr.WriteString("go mod download: skipping argument " + arg + " that resolves to the main module\n")
+			}
+		}
 	}
 
 	var mods []*moduleJSON
@@ -90,7 +103,8 @@ func runDownload(cmd *base.Command, args []string) {
 			info = info.Replace
 		}
 		if info.Version == "" && info.Error == nil {
-			// main module
+			// main module or module replaced with file path.
+			// Nothing to download.
 			continue
 		}
 		m := &moduleJSON{
@@ -103,31 +117,6 @@ func runDownload(cmd *base.Command, args []string) {
 			continue
 		}
 		work.Add(m)
-	}
-
-	latest := map[string]string{} // path → version
-	if *downloadJSON {
-		// We need to populate the Latest field, but if the main module depends on a
-		// version newer than latest — or if the version requested on the command
-		// line is itself newer than latest — that's not trivial to determine from
-		// the info returned by ListModules. Instead, we issue a separate
-		// ListModules request for "latest", which should be inexpensive relative to
-		// downloading the modules.
-		var latestArgs []string
-		for _, m := range mods {
-			if m.Error != "" {
-				continue
-			}
-			latestArgs = append(latestArgs, m.Path+"@latest")
-		}
-
-		if len(latestArgs) > 0 {
-			for _, info := range modload.ListModules(latestArgs, listU, listVersions) {
-				if info.Version != "" {
-					latest[info.Path] = info.Version
-				}
-			}
-		}
 	}
 
 	work.Do(10, func(item interface{}) {
@@ -159,9 +148,6 @@ func runDownload(cmd *base.Command, args []string) {
 		if err != nil {
 			m.Error = err.Error()
 			return
-		}
-		if latest[m.Path] == m.Version {
-			m.Latest = true
 		}
 	})
 

@@ -124,6 +124,157 @@ func TestDateParsing(t *testing.T) {
 	}
 }
 
+func TestDateParsingCFWS(t *testing.T) {
+	tests := []struct {
+		dateStr string
+		exp     time.Time
+		valid   bool
+	}{
+		// FWS-only. No date.
+		{
+			"   ",
+			// nil is not allowed
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+			false,
+		},
+		// FWS is allowed before optional day of week.
+		{
+			"   Fri, 21 Nov 1997 09:55:06 -0600",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+			true,
+		},
+		{
+			"21 Nov 1997 09:55:06 -0600",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+			true,
+		},
+		{
+			"Fri 21 Nov 1997 09:55:06 -0600",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+			false, // missing ,
+		},
+		// FWS is allowed before day of month but HTAB fails.
+		{
+			"Fri,        21 Nov 1997 09:55:06 -0600",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+			true,
+		},
+		// FWS is allowed before and after year but HTAB fails.
+		{
+			"Fri, 21 Nov       1997     09:55:06 -0600",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+			true,
+		},
+		// FWS is allowed before zone but HTAB is not handled. Obsolete timezone is handled.
+		{
+			"Fri, 21 Nov 1997 09:55:06           CST",
+			time.Time{},
+			true,
+		},
+		// FWS is allowed after date and a CRLF is already replaced.
+		{
+			"Fri, 21 Nov 1997 09:55:06           CST (no leading FWS and a trailing CRLF) \r\n",
+			time.Time{},
+			true,
+		},
+		// CFWS is a reduced set of US-ASCII where space and accentuated are obsolete. No error.
+		{
+			"Fri, 21    Nov 1997    09:55:06 -0600 (MDT and non-US-ASCII signs éèç )",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+			true,
+		},
+		// CFWS is allowed after zone including a nested comment.
+		// Trailing FWS is allowed.
+		{
+			"Fri, 21 Nov 1997 09:55:06 -0600    \r\n (thisisa(valid)cfws)   \t ",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+			true,
+		},
+		// CRLF is incomplete and misplaced.
+		{
+			"Fri, 21 Nov 1997 \r 09:55:06 -0600    \r\n (thisisa(valid)cfws)   \t ",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+			false,
+		},
+		// CRLF is complete but misplaced. No error is returned.
+		{
+			"Fri, 21 Nov 199\r\n7  09:55:06 -0600    \r\n (thisisa(valid)cfws)   \t ",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+			true, // should be false in the strict interpretation of RFC 5322.
+		},
+		// Invalid ASCII in date.
+		{
+			"Fri, 21 Nov 1997 ù 09:55:06 -0600    \r\n (thisisa(valid)cfws)   \t ",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+			false,
+		},
+		// CFWS chars () in date.
+		{
+			"Fri, 21 Nov () 1997 09:55:06 -0600    \r\n (thisisa(valid)cfws)   \t ",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+			false,
+		},
+		// Timezone is invalid but T is found in comment.
+		{
+			"Fri, 21 Nov 1997 09:55:06 -060    \r\n (Thisisa(valid)cfws)   \t ",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+			false,
+		},
+		// Date has no month.
+		{
+			"Fri, 21  1997 09:55:06 -0600",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+			false,
+		},
+		// Invalid month : OCT iso Oct
+		{
+			"Fri, 21 OCT 1997 09:55:06 CST",
+			time.Time{},
+			false,
+		},
+		// A too short time zone.
+		{
+			"Fri, 21 Nov 1997 09:55:06 -060",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+			false,
+		},
+		// A too short obsolete time zone.
+		{
+			"Fri, 21  1997 09:55:06 GT",
+			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+			false,
+		},
+	}
+	for _, test := range tests {
+		hdr := Header{
+			"Date": []string{test.dateStr},
+		}
+		date, err := hdr.Date()
+		if err != nil && test.valid {
+			t.Errorf("Header(Date: %s).Date(): %v", test.dateStr, err)
+		} else if err == nil && test.exp.IsZero() {
+			// OK.  Used when exact result depends on the
+			// system's local zoneinfo.
+		} else if err == nil && !date.Equal(test.exp) && test.valid {
+			t.Errorf("Header(Date: %s).Date() = %+v, want %+v", test.dateStr, date, test.exp)
+		} else if err == nil && !test.valid { // an invalid expression was tested
+			t.Errorf("Header(Date: %s).Date() did not return an error but %v", test.dateStr, date)
+		}
+
+		date, err = ParseDate(test.dateStr)
+		if err != nil && test.valid {
+			t.Errorf("ParseDate(%s): %v", test.dateStr, err)
+		} else if err == nil && test.exp.IsZero() {
+			// OK.  Used when exact result depends on the
+			// system's local zoneinfo.
+		} else if err == nil && !test.valid { // an invalid expression was tested
+			t.Errorf("ParseDate(%s) did not return an error but %v", test.dateStr, date)
+		} else if err == nil && test.valid && !date.Equal(test.exp) {
+			t.Errorf("ParseDate(%s) = %+v, want %+v", test.dateStr, date, test.exp)
+		}
+	}
+}
+
 func TestAddressParsingError(t *testing.T) {
 	mustErrTestCases := [...]struct {
 		text        string

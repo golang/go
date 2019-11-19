@@ -59,6 +59,23 @@ var Register = map[string]int16{
 	"F14": REG_F14,
 	"F15": REG_F15,
 
+	"F16": REG_F16,
+	"F17": REG_F17,
+	"F18": REG_F18,
+	"F19": REG_F19,
+	"F20": REG_F20,
+	"F21": REG_F21,
+	"F22": REG_F22,
+	"F23": REG_F23,
+	"F24": REG_F24,
+	"F25": REG_F25,
+	"F26": REG_F26,
+	"F27": REG_F27,
+	"F28": REG_F28,
+	"F29": REG_F29,
+	"F30": REG_F30,
+	"F31": REG_F31,
+
 	"PC_B": REG_PC_B,
 }
 
@@ -112,6 +129,7 @@ var (
 	morestackNoCtxt *obj.LSym
 	gcWriteBarrier  *obj.LSym
 	sigpanic        *obj.LSym
+	sigpanic0       *obj.LSym
 	deferreturn     *obj.LSym
 	jmpdefer        *obj.LSym
 )
@@ -126,6 +144,7 @@ func instinit(ctxt *obj.Link) {
 	morestackNoCtxt = ctxt.Lookup("runtime.morestack_noctxt")
 	gcWriteBarrier = ctxt.Lookup("runtime.gcWriteBarrier")
 	sigpanic = ctxt.LookupABI("runtime.sigpanic", obj.ABIInternal)
+	sigpanic0 = ctxt.LookupABI("runtime.sigpanic", 0) // sigpanic called from assembly, which has ABI0
 	deferreturn = ctxt.LookupABI("runtime.deferreturn", obj.ABIInternal)
 	// jmpdefer is defined in assembly as ABI0, but what we're
 	// looking for is the *call* to jmpdefer from the Go function
@@ -474,7 +493,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			}
 
 			// return value of call is on the top of the stack, indicating whether to unwind the WebAssembly stack
-			if call.As == ACALLNORESUME && call.To.Sym != sigpanic { // sigpanic unwinds the stack, but it never resumes
+			if call.As == ACALLNORESUME && call.To.Sym != sigpanic && call.To.Sym != sigpanic0 { // sigpanic unwinds the stack, but it never resumes
 				// trying to unwind WebAssembly stack but call has no resume point, terminate with error
 				p = appendp(p, AIf)
 				p = appendp(p, obj.AUNDEF)
@@ -760,34 +779,6 @@ func regAddr(reg int16) obj.Addr {
 	return obj.Addr{Type: obj.TYPE_REG, Reg: reg}
 }
 
-// countRegisters returns the number of integer and float registers used by s.
-// It does so by looking for the maximum I* and R* registers.
-func countRegisters(s *obj.LSym) (numI, numF int16) {
-	for p := s.Func.Text; p != nil; p = p.Link {
-		var reg int16
-		switch p.As {
-		case AGet:
-			reg = p.From.Reg
-		case ASet:
-			reg = p.To.Reg
-		case ATee:
-			reg = p.To.Reg
-		default:
-			continue
-		}
-		if reg >= REG_R0 && reg <= REG_R15 {
-			if n := reg - REG_R0 + 1; numI < n {
-				numI = n
-			}
-		} else if reg >= REG_F0 && reg <= REG_F15 {
-			if n := reg - REG_F0 + 1; numF < n {
-				numF = n
-			}
-		}
-	}
-	return
-}
-
 // Most of the Go functions has a single parameter (PC_B) in
 // Wasm ABI. This is a list of exceptions.
 var notUsePC_B = map[string]bool{
@@ -809,57 +800,95 @@ var notUsePC_B = map[string]bool{
 }
 
 func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
-	w := new(bytes.Buffer)
+	type regVar struct {
+		global bool
+		index  uint64
+	}
+
+	type varDecl struct {
+		count uint64
+		typ   valueType
+	}
 
 	hasLocalSP := false
-	hasPC_B := false
-	var r0, f0 int16
+	regVars := [MAXREG - MINREG]*regVar{
+		REG_SP - MINREG:    {true, 0},
+		REG_CTXT - MINREG:  {true, 1},
+		REG_g - MINREG:     {true, 2},
+		REG_RET0 - MINREG:  {true, 3},
+		REG_RET1 - MINREG:  {true, 4},
+		REG_RET2 - MINREG:  {true, 5},
+		REG_RET3 - MINREG:  {true, 6},
+		REG_PAUSE - MINREG: {true, 7},
+	}
+	var varDecls []*varDecl
+	useAssemblyRegMap := func() {
+		for i := int16(0); i < 16; i++ {
+			regVars[REG_R0+i-MINREG] = &regVar{false, uint64(i)}
+		}
+	}
 
 	// Function starts with declaration of locals: numbers and types.
 	// Some functions use a special calling convention.
 	switch s.Name {
 	case "_rt0_wasm_js", "wasm_export_run", "wasm_export_resume", "wasm_export_getsp", "wasm_pc_f_loop",
 		"runtime.wasmMove", "runtime.wasmZero", "runtime.wasmDiv", "runtime.wasmTruncS", "runtime.wasmTruncU", "memeqbody":
-		writeUleb128(w, 0) // number of sets of locals
+		varDecls = []*varDecl{}
+		useAssemblyRegMap()
 	case "memchr", "memcmp":
-		writeUleb128(w, 1) // number of sets of locals
-		writeUleb128(w, 2) // number of locals
-		w.WriteByte(0x7F)  // i32
+		varDecls = []*varDecl{{count: 2, typ: i32}}
+		useAssemblyRegMap()
 	case "cmpbody":
-		writeUleb128(w, 1) // number of sets of locals
-		writeUleb128(w, 2) // number of locals
-		w.WriteByte(0x7E)  // i64
+		varDecls = []*varDecl{{count: 2, typ: i64}}
+		useAssemblyRegMap()
 	case "runtime.gcWriteBarrier":
-		writeUleb128(w, 1) // number of sets of locals
-		writeUleb128(w, 4) // number of locals
-		w.WriteByte(0x7E)  // i64
+		varDecls = []*varDecl{{count: 4, typ: i64}}
+		useAssemblyRegMap()
 	default:
-		// Normal calling convention: No WebAssembly parameters. First local variable is local SP cache.
+		// Normal calling convention: PC_B as WebAssembly parameter. First local variable is local SP cache.
+		regVars[REG_PC_B-MINREG] = &regVar{false, 0}
 		hasLocalSP = true
-		hasPC_B = true
-		numI, numF := countRegisters(s)
-		r0 = 2
-		f0 = 2 + numI
 
-		numTypes := 1
-		if numI > 0 {
-			numTypes++
-		}
-		if numF > 0 {
-			numTypes++
+		var regUsed [MAXREG - MINREG]bool
+		for p := s.Func.Text; p != nil; p = p.Link {
+			if p.From.Reg != 0 {
+				regUsed[p.From.Reg-MINREG] = true
+			}
+			if p.To.Reg != 0 {
+				regUsed[p.To.Reg-MINREG] = true
+			}
 		}
 
-		writeUleb128(w, uint64(numTypes))
-		writeUleb128(w, 1) // number of locals (SP)
-		w.WriteByte(0x7F)  // i32
-		if numI > 0 {
-			writeUleb128(w, uint64(numI)) // number of locals
-			w.WriteByte(0x7E)             // i64
+		regs := []int16{REG_SP}
+		for reg := int16(REG_R0); reg <= REG_F31; reg++ {
+			if regUsed[reg-MINREG] {
+				regs = append(regs, reg)
+			}
 		}
-		if numF > 0 {
-			writeUleb128(w, uint64(numF)) // number of locals
-			w.WriteByte(0x7C)             // f64
+
+		var lastDecl *varDecl
+		for i, reg := range regs {
+			t := regType(reg)
+			if lastDecl == nil || lastDecl.typ != t {
+				lastDecl = &varDecl{
+					count: 0,
+					typ:   t,
+				}
+				varDecls = append(varDecls, lastDecl)
+			}
+			lastDecl.count++
+			if reg != REG_SP {
+				regVars[reg-MINREG] = &regVar{false, 1 + uint64(i)}
+			}
 		}
+	}
+
+	w := new(bytes.Buffer)
+
+	writeUleb128(w, uint64(len(varDecls)))
+	for _, decl := range varDecls {
+		writeUleb128(w, decl.count)
+		w.WriteByte(byte(decl.typ))
 	}
 
 	if hasLocalSP {
@@ -874,28 +903,21 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				panic("bad Get: argument is not a register")
 			}
 			reg := p.From.Reg
-			switch {
-			case reg == REG_SP && hasLocalSP:
-				w.WriteByte(0x20)  // local.get
-				writeUleb128(w, 1) // local SP
-			case reg >= REG_SP && reg <= REG_PAUSE:
-				w.WriteByte(0x23) // global.get
-				writeUleb128(w, uint64(reg-REG_SP))
-			case reg == REG_PC_B:
-				if !hasPC_B {
-					panic(fmt.Sprintf("PC_B is not used in %s", s.Name))
-				}
-				w.WriteByte(0x20)  // local.get (i32)
-				writeUleb128(w, 0) // local PC_B
-			case reg >= REG_R0 && reg <= REG_R15:
-				w.WriteByte(0x20) // local.get (i64)
-				writeUleb128(w, uint64(r0+(reg-REG_R0)))
-			case reg >= REG_F0 && reg <= REG_F15:
-				w.WriteByte(0x20) // local.get (f64)
-				writeUleb128(w, uint64(f0+(reg-REG_F0)))
-			default:
+			v := regVars[reg-MINREG]
+			if v == nil {
 				panic("bad Get: invalid register")
 			}
+			if reg == REG_SP && hasLocalSP {
+				writeOpcode(w, ALocalGet)
+				writeUleb128(w, 1) // local SP
+				continue
+			}
+			if v.global {
+				writeOpcode(w, AGlobalGet)
+			} else {
+				writeOpcode(w, ALocalGet)
+			}
+			writeUleb128(w, v.index)
 			continue
 
 		case ASet:
@@ -903,34 +925,25 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				panic("bad Set: argument is not a register")
 			}
 			reg := p.To.Reg
-			switch {
-			case reg >= REG_SP && reg <= REG_PAUSE:
-				if reg == REG_SP && hasLocalSP {
-					w.WriteByte(0x22)  // local.tee
-					writeUleb128(w, 1) // local SP
-				}
-				w.WriteByte(0x24) // global.set
-				writeUleb128(w, uint64(reg-REG_SP))
-			case reg >= REG_R0 && reg <= REG_PC_B:
-				if p.Link.As == AGet && p.Link.From.Reg == reg {
-					w.WriteByte(0x22) // local.tee
-					p = p.Link
-				} else {
-					w.WriteByte(0x21) // local.set
-				}
-				if reg == REG_PC_B {
-					if !hasPC_B {
-						panic(fmt.Sprintf("PC_B is not used in %s", s.Name))
-					}
-					writeUleb128(w, 0) // local PC_B
-				} else if reg <= REG_R15 {
-					writeUleb128(w, uint64(r0+(reg-REG_R0)))
-				} else {
-					writeUleb128(w, uint64(f0+(reg-REG_F0)))
-				}
-			default:
+			v := regVars[reg-MINREG]
+			if v == nil {
 				panic("bad Set: invalid register")
 			}
+			if reg == REG_SP && hasLocalSP {
+				writeOpcode(w, ALocalTee)
+				writeUleb128(w, 1) // local SP
+			}
+			if v.global {
+				writeOpcode(w, AGlobalSet)
+			} else {
+				if p.Link.As == AGet && p.Link.From.Reg == reg {
+					writeOpcode(w, ALocalTee)
+					p = p.Link
+				} else {
+					writeOpcode(w, ALocalSet)
+				}
+			}
+			writeUleb128(w, v.index)
 			continue
 
 		case ATee:
@@ -938,30 +951,20 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				panic("bad Tee: argument is not a register")
 			}
 			reg := p.To.Reg
-			switch {
-			case reg == REG_PC_B:
-				if !hasPC_B {
-					panic(fmt.Sprintf("PC_B is not used in %s", s.Name))
-				}
-				w.WriteByte(0x22)  // local.tee (i32)
-				writeUleb128(w, 0) // local PC_B
-			case reg >= REG_R0 && reg <= REG_R15:
-				w.WriteByte(0x22) // local.tee (i64)
-				writeUleb128(w, uint64(r0+(reg-REG_R0)))
-			case reg >= REG_F0 && reg <= REG_F15:
-				w.WriteByte(0x22) // local.tee (f64)
-				writeUleb128(w, uint64(f0+(reg-REG_F0)))
-			default:
+			v := regVars[reg-MINREG]
+			if v == nil {
 				panic("bad Tee: invalid register")
 			}
+			writeOpcode(w, ALocalTee)
+			writeUleb128(w, v.index)
 			continue
 
 		case ANot:
-			w.WriteByte(0x45) // i32.eqz
+			writeOpcode(w, AI32Eqz)
 			continue
 
 		case obj.AUNDEF:
-			w.WriteByte(0x00) // unreachable
+			writeOpcode(w, AUnreachable)
 			continue
 
 		case obj.ANOP, obj.ATEXT, obj.AFUNCDATA, obj.APCDATA:
@@ -969,23 +972,7 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			continue
 		}
 
-		switch {
-		case p.As < AUnreachable:
-			panic(fmt.Sprintf("unexpected assembler op: %s", p.As))
-		case p.As < AEnd:
-			w.WriteByte(byte(p.As - AUnreachable + 0x00))
-		case p.As < ADrop:
-			w.WriteByte(byte(p.As - AEnd + 0x0B))
-		case p.As < AI32Load:
-			w.WriteByte(byte(p.As - ADrop + 0x1A))
-		case p.As < AI32TruncSatF32S:
-			w.WriteByte(byte(p.As - AI32Load + 0x28))
-		case p.As < ALast:
-			w.WriteByte(0xFC)
-			w.WriteByte(byte(p.As - AI32TruncSatF32S + 0x00))
-		default:
-			panic(fmt.Sprintf("unexpected assembler op: %s", p.As))
-		}
+		writeOpcode(w, p.As)
 
 		switch p.As {
 		case ABlock, ALoop, AIf:
@@ -1054,6 +1041,11 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			}
 			writeSleb128(w, p.From.Offset)
 
+		case AF32Const:
+			b := make([]byte, 4)
+			binary.LittleEndian.PutUint32(b, math.Float32bits(float32(p.From.Val.(float64))))
+			w.Write(b)
+
 		case AF64Const:
 			b := make([]byte, 8)
 			binary.LittleEndian.PutUint64(b, math.Float64bits(p.From.Val.(float64)))
@@ -1094,10 +1086,56 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 }
 
 func updateLocalSP(w *bytes.Buffer) {
-	w.WriteByte(0x23)  // global.get
+	writeOpcode(w, AGlobalGet)
 	writeUleb128(w, 0) // global SP
-	w.WriteByte(0x21)  // local.set
+	writeOpcode(w, ALocalSet)
 	writeUleb128(w, 1) // local SP
+}
+
+func writeOpcode(w *bytes.Buffer, as obj.As) {
+	switch {
+	case as < AUnreachable:
+		panic(fmt.Sprintf("unexpected assembler op: %s", as))
+	case as < AEnd:
+		w.WriteByte(byte(as - AUnreachable + 0x00))
+	case as < ADrop:
+		w.WriteByte(byte(as - AEnd + 0x0B))
+	case as < ALocalGet:
+		w.WriteByte(byte(as - ADrop + 0x1A))
+	case as < AI32Load:
+		w.WriteByte(byte(as - ALocalGet + 0x20))
+	case as < AI32TruncSatF32S:
+		w.WriteByte(byte(as - AI32Load + 0x28))
+	case as < ALast:
+		w.WriteByte(0xFC)
+		w.WriteByte(byte(as - AI32TruncSatF32S + 0x00))
+	default:
+		panic(fmt.Sprintf("unexpected assembler op: %s", as))
+	}
+}
+
+type valueType byte
+
+const (
+	i32 valueType = 0x7F
+	i64 valueType = 0x7E
+	f32 valueType = 0x7D
+	f64 valueType = 0x7C
+)
+
+func regType(reg int16) valueType {
+	switch {
+	case reg == REG_SP:
+		return i32
+	case reg >= REG_R0 && reg <= REG_R15:
+		return i64
+	case reg >= REG_F0 && reg <= REG_F15:
+		return f32
+	case reg >= REG_F16 && reg <= REG_F31:
+		return f64
+	default:
+		panic("invalid register")
+	}
 }
 
 func align(as obj.As) uint64 {
@@ -1116,6 +1154,10 @@ func align(as obj.As) uint64 {
 }
 
 func writeUleb128(w io.ByteWriter, v uint64) {
+	if v < 128 {
+		w.WriteByte(uint8(v))
+		return
+	}
 	more := true
 	for more {
 		c := uint8(v & 0x7f)

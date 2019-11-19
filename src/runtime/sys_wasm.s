@@ -17,10 +17,9 @@ loop:
 		Get R2
 		I32Const $1
 		I32Sub
-		Set R2
+		Tee R2
 
 		// n == 0
-		Get R2
 		I32Eqz
 		If
 			Return
@@ -54,10 +53,9 @@ loop:
 		Get R1
 		I32Const $1
 		I32Sub
-		Set R1
+		Tee R1
 
 		// n == 0
-		Get R1
 		I32Eqz
 		If
 			Return
@@ -171,6 +169,10 @@ TEXT runtime·growMemory(SB), NOSPLIT, $0
 	I32Store ret+8(FP)
 	RET
 
+TEXT ·resetMemoryDataView(SB), NOSPLIT, $0
+	CallImport
+	RET
+
 TEXT ·wasmExit(SB), NOSPLIT, $0
 	CallImport
 	RET
@@ -179,11 +181,11 @@ TEXT ·wasmWrite(SB), NOSPLIT, $0
 	CallImport
 	RET
 
-TEXT ·nanotime(SB), NOSPLIT, $0
+TEXT ·nanotime1(SB), NOSPLIT, $0
 	CallImport
 	RET
 
-TEXT ·walltime(SB), NOSPLIT, $0
+TEXT ·walltime1(SB), NOSPLIT, $0
 	CallImport
 	RET
 

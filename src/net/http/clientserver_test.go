@@ -76,7 +76,16 @@ var optQuietLog = func(ts *httptest.Server) {
 	ts.Config.ErrorLog = quietLog
 }
 
+func optWithServerLog(lg *log.Logger) func(*httptest.Server) {
+	return func(ts *httptest.Server) {
+		ts.Config.ErrorLog = lg
+	}
+}
+
 func newClientServerTest(t *testing.T, h2 bool, h Handler, opts ...interface{}) *clientServerTest {
+	if h2 {
+		CondSkipHTTP2(t)
+	}
 	cst := &clientServerTest{
 		t:  t,
 		h2: h2,

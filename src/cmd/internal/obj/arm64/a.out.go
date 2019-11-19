@@ -195,22 +195,12 @@ const (
 
 // Special registers, after subtracting obj.RBaseARM64, bit 12 indicates
 // a special register and the low bits select the register.
+// SYSREG_END is the last item in the automatically generated system register
+// declaration, and it is defined in the sysRegEnc.go file.
 const (
-	REG_SPECIAL = obj.RBaseARM64 + 1<<12 + iota
-	REG_DAIF
-	REG_NZCV
-	REG_FPSR
-	REG_FPCR
-	REG_SPSR_EL1
-	REG_ELR_EL1
-	REG_SPSR_EL2
-	REG_ELR_EL2
-	REG_CurrentEL
-	REG_SP_EL0
-	REG_SPSel
-	REG_DAIFSet
+	REG_SPECIAL = obj.RBaseARM64 + 1<<12
+	REG_DAIFSet = SYSREG_END + iota
 	REG_DAIFClr
-	REG_DCZID_EL0
 	REG_PLDL1KEEP
 	REG_PLDL1STRM
 	REG_PLDL2KEEP
@@ -711,6 +701,7 @@ const (
 	ANGCS
 	ANGCSW
 	ANGCW
+	ANOOP
 	AORN
 	AORNW
 	AORR
@@ -963,10 +954,20 @@ const (
 	AVEOR
 	AVMOV
 	AVLD1
+	AVLD2
+	AVLD3
+	AVLD4
+	AVLD1R
+	AVLD2R
+	AVLD3R
+	AVLD4R
 	AVORR
 	AVREV32
 	AVREV64
 	AVST1
+	AVST2
+	AVST3
+	AVST4
 	AVDUP
 	AVADDV
 	AVMOVI

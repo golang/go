@@ -153,7 +153,6 @@ func removeAllFrom(parent *File, base string) error {
 
 	// Remove the directory itself.
 	unlinkError := unix.Unlinkat(parentFd, base, unix.AT_REMOVEDIR)
-	unlinkError = removeAllTestHook(unlinkError)
 	if unlinkError == nil || IsNotExist(unlinkError) {
 		return nil
 	}

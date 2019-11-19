@@ -106,17 +106,6 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 4096
 		}
 
-	case objabi.Hnacl:
-		ld.Elfinit(ctxt)
-		ld.HEADR = 0x10000
-		ld.Funcalign = 32
-		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = 0x20000
-		}
-		if *ld.FlagRound == -1 {
-			*ld.FlagRound = 0x10000
-		}
-
 	case objabi.Hwindows: /* PE executable */
 		// ld.HEADR, ld.FlagTextAddr, ld.FlagRound are set in ld.Peinit
 		return

@@ -11,6 +11,7 @@ import (
 	"cmd/internal/obj/arm64"
 	"cmd/internal/obj/mips"
 	"cmd/internal/obj/ppc64"
+	"cmd/internal/obj/riscv"
 	"cmd/internal/obj/s390x"
 	"cmd/internal/obj/wasm"
 	"cmd/internal/obj/x86"
@@ -55,40 +56,26 @@ func Set(GOARCH string) *Arch {
 		return archX86(&x86.Link386)
 	case "amd64":
 		return archX86(&x86.Linkamd64)
-	case "amd64p32":
-		return archX86(&x86.Linkamd64p32)
 	case "arm":
 		return archArm()
 	case "arm64":
 		return archArm64()
 	case "mips":
-		a := archMips()
-		a.LinkArch = &mips.Linkmips
-		return a
+		return archMips(&mips.Linkmips)
 	case "mipsle":
-		a := archMips()
-		a.LinkArch = &mips.Linkmipsle
-		return a
+		return archMips(&mips.Linkmipsle)
 	case "mips64":
-		a := archMips64()
-		a.LinkArch = &mips.Linkmips64
-		return a
+		return archMips64(&mips.Linkmips64)
 	case "mips64le":
-		a := archMips64()
-		a.LinkArch = &mips.Linkmips64le
-		return a
+		return archMips64(&mips.Linkmips64le)
 	case "ppc64":
-		a := archPPC64()
-		a.LinkArch = &ppc64.Linkppc64
-		return a
+		return archPPC64(&ppc64.Linkppc64)
 	case "ppc64le":
-		a := archPPC64()
-		a.LinkArch = &ppc64.Linkppc64le
-		return a
+		return archPPC64(&ppc64.Linkppc64le)
+	case "riscv64":
+		return archRISCV64()
 	case "s390x":
-		a := archS390x()
-		a.LinkArch = &s390x.Links390x
-		return a
+		return archS390x()
 	case "wasm":
 		return archWasm()
 	}
@@ -97,6 +84,14 @@ func Set(GOARCH string) *Arch {
 
 func jumpX86(word string) bool {
 	return word[0] == 'J' || word == "CALL" || strings.HasPrefix(word, "LOOP") || word == "XBEGIN"
+}
+
+func jumpRISCV(word string) bool {
+	switch word {
+	case "BEQ", "BNE", "BLT", "BGE", "BLTU", "BGEU", "CALL", "JAL", "JALR", "JMP":
+		return true
+	}
+	return false
 }
 
 func jumpWasm(word string) bool {
@@ -267,21 +262,15 @@ func archArm64() *Arch {
 	for i := arm64.REG_V0; i <= arm64.REG_V31; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}
+
+	// System registers.
+	for i := 0; i < len(arm64.SystemReg); i++ {
+		register[arm64.SystemReg[i].Name] = arm64.SystemReg[i].Reg
+	}
+
 	register["LR"] = arm64.REGLINK
-	register["DAIF"] = arm64.REG_DAIF
-	register["NZCV"] = arm64.REG_NZCV
-	register["FPSR"] = arm64.REG_FPSR
-	register["FPCR"] = arm64.REG_FPCR
-	register["SPSR_EL1"] = arm64.REG_SPSR_EL1
-	register["ELR_EL1"] = arm64.REG_ELR_EL1
-	register["SPSR_EL2"] = arm64.REG_SPSR_EL2
-	register["ELR_EL2"] = arm64.REG_ELR_EL2
-	register["CurrentEL"] = arm64.REG_CurrentEL
-	register["SP_EL0"] = arm64.REG_SP_EL0
-	register["SPSel"] = arm64.REG_SPSel
 	register["DAIFSet"] = arm64.REG_DAIFSet
 	register["DAIFClr"] = arm64.REG_DAIFClr
-	register["DCZID_EL0"] = arm64.REG_DCZID_EL0
 	register["PLDL1KEEP"] = arm64.REG_PLDL1KEEP
 	register["PLDL1STRM"] = arm64.REG_PLDL1STRM
 	register["PLDL2KEEP"] = arm64.REG_PLDL2KEEP
@@ -358,7 +347,7 @@ func archArm64() *Arch {
 
 }
 
-func archPPC64() *Arch {
+func archPPC64(linkArch *obj.LinkArch) *Arch {
 	register := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
 	// Note that there is no list of names as there is for x86.
@@ -414,7 +403,7 @@ func archPPC64() *Arch {
 	instructions["BL"] = ppc64.ABL
 
 	return &Arch{
-		LinkArch:       &ppc64.Linkppc64,
+		LinkArch:       linkArch,
 		Instructions:   instructions,
 		Register:       register,
 		RegisterPrefix: registerPrefix,
@@ -423,7 +412,7 @@ func archPPC64() *Arch {
 	}
 }
 
-func archMips() *Arch {
+func archMips(linkArch *obj.LinkArch) *Arch {
 	register := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
 	// Note that there is no list of names as there is for x86.
@@ -470,7 +459,7 @@ func archMips() *Arch {
 	instructions["JAL"] = mips.AJAL
 
 	return &Arch{
-		LinkArch:       &mips.Linkmipsle,
+		LinkArch:       linkArch,
 		Instructions:   instructions,
 		Register:       register,
 		RegisterPrefix: registerPrefix,
@@ -479,7 +468,7 @@ func archMips() *Arch {
 	}
 }
 
-func archMips64() *Arch {
+func archMips64(linkArch *obj.LinkArch) *Arch {
 	register := make(map[string]int16)
 	// Create maps for easy lookup of instruction names etc.
 	// Note that there is no list of names as there is for x86.
@@ -527,12 +516,123 @@ func archMips64() *Arch {
 	instructions["JAL"] = mips.AJAL
 
 	return &Arch{
-		LinkArch:       &mips.Linkmips64,
+		LinkArch:       linkArch,
 		Instructions:   instructions,
 		Register:       register,
 		RegisterPrefix: registerPrefix,
 		RegisterNumber: mipsRegisterNumber,
 		IsJump:         jumpMIPS,
+	}
+}
+
+func archRISCV64() *Arch {
+	register := make(map[string]int16)
+
+	// Standard register names.
+	for i := riscv.REG_X0; i <= riscv.REG_X31; i++ {
+		name := fmt.Sprintf("X%d", i-riscv.REG_X0)
+		register[name] = int16(i)
+	}
+	for i := riscv.REG_F0; i <= riscv.REG_F31; i++ {
+		name := fmt.Sprintf("F%d", i-riscv.REG_F0)
+		register[name] = int16(i)
+	}
+
+	// General registers with ABI names.
+	register["ZERO"] = riscv.REG_ZERO
+	register["RA"] = riscv.REG_RA
+	register["SP"] = riscv.REG_SP
+	register["GP"] = riscv.REG_GP
+	register["TP"] = riscv.REG_TP
+	register["T0"] = riscv.REG_T0
+	register["T1"] = riscv.REG_T1
+	register["T2"] = riscv.REG_T2
+	register["S0"] = riscv.REG_S0
+	register["S1"] = riscv.REG_S1
+	register["A0"] = riscv.REG_A0
+	register["A1"] = riscv.REG_A1
+	register["A2"] = riscv.REG_A2
+	register["A3"] = riscv.REG_A3
+	register["A4"] = riscv.REG_A4
+	register["A5"] = riscv.REG_A5
+	register["A6"] = riscv.REG_A6
+	register["A7"] = riscv.REG_A7
+	register["S2"] = riscv.REG_S2
+	register["S3"] = riscv.REG_S3
+	register["S4"] = riscv.REG_S4
+	register["S5"] = riscv.REG_S5
+	register["S6"] = riscv.REG_S6
+	register["S7"] = riscv.REG_S7
+	register["S8"] = riscv.REG_S8
+	register["S9"] = riscv.REG_S9
+	register["S10"] = riscv.REG_S10
+	register["S11"] = riscv.REG_S11
+	register["T3"] = riscv.REG_T3
+	register["T4"] = riscv.REG_T4
+	register["T5"] = riscv.REG_T5
+	register["T6"] = riscv.REG_T6
+
+	// Go runtime register names.
+	register["g"] = riscv.REG_G
+	register["CTXT"] = riscv.REG_CTXT
+	register["TMP"] = riscv.REG_TMP
+
+	// ABI names for floating point register.
+	register["FT0"] = riscv.REG_FT0
+	register["FT1"] = riscv.REG_FT1
+	register["FT2"] = riscv.REG_FT2
+	register["FT3"] = riscv.REG_FT3
+	register["FT4"] = riscv.REG_FT4
+	register["FT5"] = riscv.REG_FT5
+	register["FT6"] = riscv.REG_FT6
+	register["FT7"] = riscv.REG_FT7
+	register["FS0"] = riscv.REG_FS0
+	register["FS1"] = riscv.REG_FS1
+	register["FA0"] = riscv.REG_FA0
+	register["FA1"] = riscv.REG_FA1
+	register["FA2"] = riscv.REG_FA2
+	register["FA3"] = riscv.REG_FA3
+	register["FA4"] = riscv.REG_FA4
+	register["FA5"] = riscv.REG_FA5
+	register["FA6"] = riscv.REG_FA6
+	register["FA7"] = riscv.REG_FA7
+	register["FS2"] = riscv.REG_FS2
+	register["FS3"] = riscv.REG_FS3
+	register["FS4"] = riscv.REG_FS4
+	register["FS5"] = riscv.REG_FS5
+	register["FS6"] = riscv.REG_FS6
+	register["FS7"] = riscv.REG_FS7
+	register["FS8"] = riscv.REG_FS8
+	register["FS9"] = riscv.REG_FS9
+	register["FS10"] = riscv.REG_FS10
+	register["FS11"] = riscv.REG_FS11
+	register["FT8"] = riscv.REG_FT8
+	register["FT9"] = riscv.REG_FT9
+	register["FT10"] = riscv.REG_FT10
+	register["FT11"] = riscv.REG_FT11
+
+	// Pseudo-registers.
+	register["SB"] = RSB
+	register["FP"] = RFP
+	register["PC"] = RPC
+
+	instructions := make(map[string]obj.As)
+	for i, s := range obj.Anames {
+		instructions[s] = obj.As(i)
+	}
+	for i, s := range riscv.Anames {
+		if obj.As(i) >= obj.A_ARCHSPECIFIC {
+			instructions[s] = obj.As(i) + obj.ABaseRISCV
+		}
+	}
+
+	return &Arch{
+		LinkArch:       &riscv.LinkRISCV64,
+		Instructions:   instructions,
+		Register:       register,
+		RegisterPrefix: nil,
+		RegisterNumber: nilRegisterNumber,
+		IsJump:         jumpRISCV,
 	}
 }
 

@@ -23,7 +23,12 @@ func (sd *sysDialer) dialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPCo
 
 func (sd *sysDialer) doDialTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {
 	switch sd.network {
-	case "tcp", "tcp4", "tcp6":
+	case "tcp4":
+		// Plan 9 doesn't complain about [::]:0->127.0.0.1, so it's up to us.
+		if laddr != nil && len(laddr.IP) != 0 && laddr.IP.To4() == nil {
+			return nil, &AddrError{Err: "non-IPv4 local address", Addr: laddr.String()}
+		}
+	case "tcp", "tcp6":
 	default:
 		return nil, UnknownNetworkError(sd.network)
 	}

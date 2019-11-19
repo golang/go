@@ -114,6 +114,8 @@ Flags:
 		Treat a command (package main) like a regular package.
 		Otherwise package main's exported symbols are hidden
 		when showing the package's top-level documentation.
+	-short
+		One-line representation for each symbol.
 	-src
 		Show the full source code for the symbol. This will
 		display the full Go source of its declaration and

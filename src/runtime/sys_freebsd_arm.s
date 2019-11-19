@@ -20,6 +20,7 @@
 #define SYS_close (SYS_BASE + 6)
 #define SYS_getpid (SYS_BASE + 20)
 #define SYS_kill (SYS_BASE + 37)
+#define SYS_pipe (SYS_BASE + 42)
 #define SYS_sigaltstack (SYS_BASE + 53)
 #define SYS_munmap (SYS_BASE + 73)
 #define SYS_madvise (SYS_BASE + 75)
@@ -40,6 +41,7 @@
 #define SYS_thr_new (SYS_BASE + 455)
 #define SYS_mmap (SYS_BASE + 477)
 #define SYS_cpuset_getaffinity (SYS_BASE + 487)
+#define SYS_pipe2 (SYS_BASE + 542)
 
 TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
 	MOVW addr+0(FP), R0
@@ -115,17 +117,43 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
 	MOVW n+8(FP), R2	// arg 3 count
 	MOVW $SYS_read, R7
 	SWI $0
-	MOVW.CS	$-1, R0
+	RSB.CS	$0, R0		// caller expects negative errno
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT|NOFRAME,$0
+// func pipe() (r, w int32, errno int32)
+TEXT runtime·pipe(SB),NOSPLIT,$0-12
+	MOVW	$SYS_pipe, R7
+	SWI	$0
+	BCC	ok
+	MOVW	$0, R1
+	MOVW	R1, r+0(FP)
+	MOVW	R1, w+4(FP)
+	MOVW	R0, errno+8(FP)
+	RET
+ok:
+	MOVW	R0, r+0(FP)
+	MOVW	R1, w+4(FP)
+	MOVW	$0, R1
+	MOVW	R1, errno+8(FP)
+	RET
+
+// func pipe2(flags int32) (r, w int32, errno int32)
+TEXT runtime·pipe2(SB),NOSPLIT,$0-16
+	MOVW	$r+4(FP), R0
+	MOVW	flags+0(FP), R1
+	MOVW	$SYS_pipe2, R7
+	SWI	$0
+	MOVW	R0, errno+12(FP)
+	RET
+
+TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0
 	MOVW fd+0(FP), R0	// arg 1 fd
 	MOVW p+4(FP), R1	// arg 2 buf
 	MOVW n+8(FP), R2	// arg 3 count
 	MOVW $SYS_write, R7
 	SWI $0
-	MOVW.CS	$-1, R0
+	RSB.CS	$0, R0		// caller expects negative errno
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -137,14 +165,17 @@ TEXT runtime·closefd(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R0, ret+4(FP)
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$8
-	// thr_self(&4(R13))
-	MOVW $4(R13), R0 // arg 1 &4(R13)
+TEXT runtime·thr_self(SB),NOSPLIT,$0-4
+	// thr_self(&0(FP))
+	MOVW $ret+0(FP), R0 // arg 1
 	MOVW $SYS_thr_self, R7
 	SWI $0
-	// thr_kill(self, SIGPIPE)
-	MOVW 4(R13), R0	// arg 1 id
-	MOVW sig+0(FP), R1	// arg 2 - signal
+	RET
+
+TEXT runtime·thr_kill(SB),NOSPLIT,$0-8
+	// thr_kill(tid, sig)
+	MOVW tid+0(FP), R0	// arg 1 id
+	MOVW sig+4(FP), R1	// arg 2 signal
 	MOVW $SYS_thr_kill, R7
 	SWI $0
 	RET
@@ -215,7 +246,11 @@ TEXT runtime·asmSigaction(SB),NOSPLIT|NOFRAME,$0
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$12
+TEXT runtime·sigtramp(SB),NOSPLIT,$0
+	// Reserve space for callee-save registers and arguments.
+	MOVM.DB.W [R4-R11], (R13)
+	SUB	$16, R13
+
 	// this might be called in external code context,
 	// where g is not set.
 	// first save R0, because runtime·load_g will clobber it
@@ -227,6 +262,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
 	MOVW	R1, 8(R13)
 	MOVW	R2, 12(R13)
 	BL	runtime·sigtrampgo(SB)
+
+	// Restore callee-save registers.
+	ADD	$16, R13
+	MOVM.IA.W (R13), [R4-R11]
+
 	RET
 
 TEXT runtime·mmap(SB),NOSPLIT,$16
@@ -369,6 +409,20 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVW $1, R2	// FD_CLOEXEC
 	MOVW $SYS_fcntl, R7
 	SWI $0
+	RET
+
+// func runtime·setNonblock(fd int32)
+TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
+	MOVW	fd+0(FP), R0	// fd
+	MOVW	$3, R1	// F_GETFL
+	MOVW	$0, R2
+	MOVW	$SYS_fcntl, R7
+	SWI	$0
+	ORR	$0x4, R0, R2	// O_NONBLOCK
+	MOVW	fd+0(FP), R0	// fd
+	MOVW	$4, R1	// F_SETFL
+	MOVW	$SYS_fcntl, R7
+	SWI	$0
 	RET
 
 // TODO: this is only valid for ARMv7+

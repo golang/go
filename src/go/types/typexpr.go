@@ -142,16 +142,6 @@ func (check *Checker) definedType(e ast.Expr, def *Named) (T Type) {
 	return
 }
 
-// indirectType is like typ but it also breaks the (otherwise) infinite size of recursive
-// types by introducing an indirection. It should be called for components of types that
-// are not laid out in place in memory, such as pointer base types, slice or map element
-// types, function parameter types, etc.
-func (check *Checker) indirectType(e ast.Expr) Type {
-	check.push(indir)
-	defer check.pop()
-	return check.definedType(e, nil)
-}
-
 // funcType type-checks a function or method type.
 func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast.FuncType) {
 	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function")
@@ -273,7 +263,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		} else {
 			typ := new(Slice)
 			def.setUnderlying(typ)
-			typ.elem = check.indirectType(e.Elt)
+			typ.elem = check.typ(e.Elt)
 			return typ
 		}
 
@@ -286,7 +276,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 	case *ast.StarExpr:
 		typ := new(Pointer)
 		def.setUnderlying(typ)
-		typ.base = check.indirectType(e.X)
+		typ.base = check.typ(e.X)
 		return typ
 
 	case *ast.FuncType:
@@ -305,8 +295,8 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		typ := new(Map)
 		def.setUnderlying(typ)
 
-		typ.key = check.indirectType(e.Key)
-		typ.elem = check.indirectType(e.Value)
+		typ.key = check.typ(e.Key)
+		typ.elem = check.typ(e.Value)
 
 		// spec: "The comparison operators == and != must be fully defined
 		// for operands of the key type; thus the key type must not be a
@@ -340,7 +330,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		}
 
 		typ.dir = dir
-		typ.elem = check.indirectType(e.Value)
+		typ.elem = check.typ(e.Value)
 		return typ
 
 	default:
@@ -421,7 +411,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 				// ignore ... and continue
 			}
 		}
-		typ := check.indirectType(ftype)
+		typ := check.typ(ftype)
 		// The parser ensures that f.Tag is nil and we don't
 		// care if a constructed AST contains a non-nil tag.
 		if len(field.Names) > 0 {
@@ -483,7 +473,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 				continue // ignore
 			}
 
-			typ := check.indirectType(f.Type)
+			typ := check.typ(f.Type)
 			sig, _ := typ.(*Signature)
 			if sig == nil {
 				if typ != Typ[Invalid] {
@@ -508,8 +498,9 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			// it if it's a valid interface.
 			typ := check.typ(f.Type)
 
-			if _, ok := underlying(typ).(*Interface); !ok {
-				if typ != Typ[Invalid] {
+			utyp := check.underlying(typ)
+			if _, ok := utyp.(*Interface); !ok {
+				if utyp != Typ[Invalid] {
 					check.errorf(f.Type.Pos(), "%s is not an interface", typ)
 				}
 				continue
@@ -538,10 +529,10 @@ func (check *Checker) completeInterface(ityp *Interface) {
 		return
 	}
 
-	// completeInterface may be called via the LookupFieldOrMethod or
-	// MissingMethod external API in which case check will be nil. In
-	// this case, type-checking must be finished and all interfaces
-	// should have been completed.
+	// completeInterface may be called via the LookupFieldOrMethod,
+	// MissingMethod, Identical, or IdenticalIgnoreTags external API
+	// in which case check will be nil. In this case, type-checking
+	// must be finished and all interfaces should have been completed.
 	if check == nil {
 		panic("internal error: incomplete interface")
 	}
@@ -555,41 +546,64 @@ func (check *Checker) completeInterface(ityp *Interface) {
 		}()
 	}
 
-	ityp.allMethods = markComplete // avoid infinite recursion
+	// An infinitely expanding interface (due to a cycle) is detected
+	// elsewhere (Checker.validType), so here we simply assume we only
+	// have valid interfaces. Mark the interface as complete to avoid
+	// infinite recursion if the validType check occurs later for some
+	// reason.
+	ityp.allMethods = markComplete
 
-	var methods []*Func
+	// Methods of embedded interfaces are collected unchanged; i.e., the identity
+	// of a method I.m's Func Object of an interface I is the same as that of
+	// the method m in an interface that embeds interface I. On the other hand,
+	// if a method is embedded via multiple overlapping embedded interfaces, we
+	// don't provide a guarantee which "original m" got chosen for the embedding
+	// interface. See also issue #34421.
+	//
+	// If we don't care to provide this identity guarantee anymore, instead of
+	// reusing the original method in embeddings, we can clone the method's Func
+	// Object and give it the position of a corresponding embedded interface. Then
+	// we can get rid of the mpos map below and simply use the cloned method's
+	// position.
+
 	var seen objset
-	addMethod := func(m *Func, explicit bool) {
+	var methods []*Func
+	mpos := make(map[*Func]token.Pos) // method specification or method embedding position, for good error messages
+	addMethod := func(pos token.Pos, m *Func, explicit bool) {
 		switch other := seen.insert(m); {
 		case other == nil:
 			methods = append(methods, m)
+			mpos[m] = pos
 		case explicit:
-			check.errorf(m.pos, "duplicate method %s", m.name)
-			check.reportAltDecl(other)
+			check.errorf(pos, "duplicate method %s", m.name)
+			check.errorf(mpos[other.(*Func)], "\tother declaration of %s", m.name) // secondary error, \t indented
 		default:
 			// check method signatures after all types are computed (issue #33656)
 			check.atEnd(func() {
-				if !Identical(m.typ, other.Type()) {
-					check.errorf(m.pos, "duplicate method %s", m.name)
-					check.reportAltDecl(other)
+				if !check.identical(m.typ, other.Type()) {
+					check.errorf(pos, "duplicate method %s", m.name)
+					check.errorf(mpos[other.(*Func)], "\tother declaration of %s", m.name) // secondary error, \t indented
 				}
 			})
 		}
 	}
 
 	for _, m := range ityp.methods {
-		addMethod(m, true)
+		addMethod(m.pos, m, true)
 	}
 
 	posList := check.posMap[ityp]
 	for i, typ := range ityp.embeddeds {
 		pos := posList[i] // embedding position
-		typ := underlying(typ).(*Interface)
+		typ, ok := check.underlying(typ).(*Interface)
+		if !ok {
+			// An error was reported when collecting the embedded types.
+			// Ignore it.
+			continue
+		}
 		check.completeInterface(typ)
 		for _, m := range typ.allMethods {
-			copy := *m
-			copy.pos = pos // preserve embedding position
-			addMethod(&copy, false)
+			addMethod(pos, m, false) // use embedding position pos rather than m.pos
 		}
 	}
 

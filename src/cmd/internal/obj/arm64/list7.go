@@ -112,34 +112,10 @@ func rconv(r int) string {
 		return strcond[r-COND_EQ]
 	case r == REGSP:
 		return "RSP"
-	case r == REG_DAIF:
-		return "DAIF"
-	case r == REG_NZCV:
-		return "NZCV"
-	case r == REG_FPSR:
-		return "FPSR"
-	case r == REG_FPCR:
-		return "FPCR"
-	case r == REG_SPSR_EL1:
-		return "SPSR_EL1"
-	case r == REG_ELR_EL1:
-		return "ELR_EL1"
-	case r == REG_SPSR_EL2:
-		return "SPSR_EL2"
-	case r == REG_ELR_EL2:
-		return "ELR_EL2"
-	case r == REG_CurrentEL:
-		return "CurrentEL"
-	case r == REG_SP_EL0:
-		return "SP_EL0"
-	case r == REG_SPSel:
-		return "SPSel"
 	case r == REG_DAIFSet:
 		return "DAIFSet"
 	case r == REG_DAIFClr:
 		return "DAIFClr"
-	case r == REG_DCZID_EL0:
-		return "DCZID_EL0"
 	case r == REG_PLDL1KEEP:
 		return "PLDL1KEEP"
 	case r == REG_PLDL1STRM:
@@ -231,6 +207,11 @@ func rconv(r int) string {
 		return fmt.Sprintf("V%d.%s", r&31, arrange((r>>5)&15))
 	case REG_ELEM <= r && r < REG_ELEM_END:
 		return fmt.Sprintf("V%d.%s", r&31, arrange((r>>5)&15))
+	}
+	// Return system register name.
+	name, _, _ := SysRegEnc(int16(r))
+	if name != "" {
+		return name
 	}
 	return fmt.Sprintf("badreg(%d)", r)
 }

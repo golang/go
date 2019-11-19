@@ -340,10 +340,10 @@ func main() {
 	}
 }
 
-func varDeclCoordsAndSubrogramDeclFile(t *testing.T, testpoint string, expectFile int, expectLine int, directive string) {
+func varDeclCoordsAndSubrogramDeclFile(t *testing.T, testpoint string, expectFile string, expectLine int, directive string) {
 	t.Parallel()
 
-	prog := fmt.Sprintf("package main\n\nfunc main() {\n%s\nvar i int\ni = i\n}\n", directive)
+	prog := fmt.Sprintf("package main\n%s\nfunc main() {\n\nvar i int\ni = i\n}\n", directive)
 
 	dir, err := ioutil.TempDir("", testpoint)
 	if err != nil {
@@ -399,9 +399,14 @@ func varDeclCoordsAndSubrogramDeclFile(t *testing.T, testpoint string, expectFil
 		t.Errorf("DW_AT_decl_line for i is %v, want %d", line, expectLine)
 	}
 
-	file := maindie.Val(dwarf.AttrDeclFile)
-	if file == nil || file.(int64) != 1 {
-		t.Errorf("DW_AT_decl_file for main is %v, want %d", file, expectFile)
+	fileIdx, fileIdxOK := maindie.Val(dwarf.AttrDeclFile).(int64)
+	if !fileIdxOK {
+		t.Errorf("missing or invalid DW_AT_decl_file for main")
+	}
+	file := ex.FileRef(t, d, mainIdx, fileIdx)
+	base := filepath.Base(file)
+	if base != expectFile {
+		t.Errorf("DW_AT_decl_file for main is %v, want %v", base, expectFile)
 	}
 }
 
@@ -412,7 +417,7 @@ func TestVarDeclCoordsAndSubrogramDeclFile(t *testing.T) {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
 	}
 
-	varDeclCoordsAndSubrogramDeclFile(t, "TestVarDeclCoords", 1, 5, "")
+	varDeclCoordsAndSubrogramDeclFile(t, "TestVarDeclCoords", "test.go", 5, "")
 }
 
 func TestVarDeclCoordsWithLineDirective(t *testing.T) {
@@ -423,7 +428,7 @@ func TestVarDeclCoordsWithLineDirective(t *testing.T) {
 	}
 
 	varDeclCoordsAndSubrogramDeclFile(t, "TestVarDeclCoordsWithLineDirective",
-		2, 200, "//line /foobar.go:200")
+		"foobar.go", 202, "//line /foobar.go:200")
 }
 
 // Helper class for supporting queries on DIEs within a DWARF .debug_info
@@ -553,6 +558,49 @@ func (ex *examiner) Parent(idx int) *dwarf.Entry {
 		return nil
 	}
 	return ex.entryFromIdx(p)
+}
+
+// ParentCU returns the enclosing compilation unit DIE for the DIE
+// with a given index, or nil if for some reason we can't establish a
+// parent.
+func (ex *examiner) ParentCU(idx int) *dwarf.Entry {
+	for {
+		parentDie := ex.Parent(idx)
+		if parentDie == nil {
+			return nil
+		}
+		if parentDie.Tag == dwarf.TagCompileUnit {
+			return parentDie
+		}
+		idx = ex.idxFromOffset(parentDie.Offset)
+	}
+}
+
+// FileRef takes a given DIE by index and a numeric file reference
+// (presumably from a decl_file or call_file attribute), looks up the
+// reference in the .debug_line file table, and returns the proper
+// string for it. We need to know which DIE is making the reference
+// so as find the right compilation unit.
+func (ex *examiner) FileRef(t *testing.T, dw *dwarf.Data, dieIdx int, fileRef int64) string {
+
+	// Find the parent compilation unit DIE for the specified DIE.
+	cuDie := ex.ParentCU(dieIdx)
+	if cuDie == nil {
+		t.Fatalf("no parent CU DIE for DIE with idx %d?", dieIdx)
+		return ""
+	}
+	// Construct a line reader and then use it to get the file string.
+	lr, lrerr := dw.LineReader(cuDie)
+	if lrerr != nil {
+		t.Fatal("d.LineReader: ", lrerr)
+		return ""
+	}
+	files := lr.Files()
+	if fileRef < 0 || int(fileRef) > len(files)-1 {
+		t.Fatalf("examiner.FileRef: malformed file reference %d", fileRef)
+		return ""
+	}
+	return files[fileRef].Name
 }
 
 // Return a list of all DIEs with name 'name'. When searching for DIEs
@@ -690,6 +738,22 @@ func main() {
 				}
 			}
 			exCount++
+
+			// Verify that the call_file attribute for the inlined
+			// instance is ok. In this case it should match the file
+			// for the main routine. To do this we need to locate the
+			// compilation unit DIE that encloses what we're looking
+			// at; this can be done with the examiner.
+			cf, cfOK := child.Val(dwarf.AttrCallFile).(int64)
+			if !cfOK {
+				t.Fatalf("no call_file attr for inlined subroutine at offset %v", child.Offset)
+			}
+			file := ex.FileRef(t, d, mainIdx, cf)
+			base := filepath.Base(file)
+			if base != "test.go" {
+				t.Errorf("bad call_file attribute, found '%s', want '%s'",
+					file, "test.go")
+			}
 
 			omap := make(map[dwarf.Offset]bool)
 

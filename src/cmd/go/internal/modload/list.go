@@ -11,10 +11,12 @@ import (
 	"strings"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/cfg"
 	"cmd/go/internal/modinfo"
-	"cmd/go/internal/module"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
+
+	"golang.org/x/mod/module"
 )
 
 func ListModules(args []string, listU, listVersions bool) []*modinfo.ModulePublic {
@@ -54,6 +56,9 @@ func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
 		}
 		if search.IsRelativePath(arg) {
 			base.Fatalf("go: cannot use relative path %s to specify module", arg)
+		}
+		if !HasModRoot() && arg == "all" {
+			base.Fatalf(`go: cannot match "all": working directory is not part of a module`)
 		}
 		if i := strings.Index(arg, "@"); i >= 0 {
 			path := arg[:i]
@@ -121,10 +126,20 @@ func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
 					}
 					continue
 				}
-				mods = append(mods, &modinfo.ModulePublic{
-					Path:  arg,
-					Error: modinfoError(arg, "", errors.New("not a known dependency")),
-				})
+				if cfg.BuildMod == "vendor" {
+					// In vendor mode, we can't determine whether a missing module is “a
+					// known dependency” because the module graph is incomplete.
+					// Give a more explicit error message.
+					mods = append(mods, &modinfo.ModulePublic{
+						Path:  arg,
+						Error: modinfoError(arg, "", errors.New("can't resolve module using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)")),
+					})
+				} else {
+					mods = append(mods, &modinfo.ModulePublic{
+						Path:  arg,
+						Error: modinfoError(arg, "", errors.New("not a known dependency")),
+					})
+				}
 			} else {
 				fmt.Fprintf(os.Stderr, "warning: pattern %q matched no module dependencies\n", arg)
 			}

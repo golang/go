@@ -26,7 +26,7 @@ type Error struct {
 }
 
 func (e *Error) Unwrap() error { return e.Err }
-func (e *Error) Error() string { return e.Op + " " + e.URL + ": " + e.Err.Error() }
+func (e *Error) Error() string { return fmt.Sprintf("%s %q: %s", e.Op, e.URL, e.Err) }
 
 func (e *Error) Timeout() bool {
 	t, ok := e.Err.(interface {
@@ -41,6 +41,8 @@ func (e *Error) Temporary() bool {
 	})
 	return ok && t.Temporary()
 }
+
+const upperhex = "0123456789ABCDEF"
 
 func ishex(c byte) bool {
 	switch {
@@ -324,8 +326,8 @@ func escape(s string, mode encoding) string {
 			j++
 		case shouldEscape(c, mode):
 			t[j] = '%'
-			t[j+1] = "0123456789ABCDEF"[c>>4]
-			t[j+2] = "0123456789ABCDEF"[c&15]
+			t[j+1] = upperhex[c>>4]
+			t[j+2] = upperhex[c&15]
 			j += 3
 		default:
 			t[j] = s[i]
@@ -449,16 +451,16 @@ func getscheme(rawurl string) (scheme, path string, err error) {
 	return "", rawurl, nil
 }
 
-// Maybe s is of the form t c u.
-// If so, return t, c u (or t, u if cutc == true).
-// If not, return s, "".
-func split(s string, c string, cutc bool) (string, string) {
-	i := strings.Index(s, c)
+// split slices s into two substrings separated by the first occurrence of
+// sep. If cutc is true then sep is included with the second substring.
+// If sep does not occur in s then s and the empty string is returned.
+func split(s string, sep byte, cutc bool) (string, string) {
+	i := strings.IndexByte(s, sep)
 	if i < 0 {
 		return s, ""
 	}
 	if cutc {
-		return s[:i], s[i+len(c):]
+		return s[:i], s[i+1:]
 	}
 	return s[:i], s[i:]
 }
@@ -471,7 +473,7 @@ func split(s string, c string, cutc bool) (string, string) {
 // error, due to parsing ambiguities.
 func Parse(rawurl string) (*URL, error) {
 	// Cut off #frag
-	u, frag := split(rawurl, "#", true)
+	u, frag := split(rawurl, '#', true)
 	url, err := parse(u, false)
 	if err != nil {
 		return nil, &Error{"parse", u, err}
@@ -531,7 +533,7 @@ func parse(rawurl string, viaRequest bool) (*URL, error) {
 		url.ForceQuery = true
 		rest = rest[:len(rest)-1]
 	} else {
-		rest, url.RawQuery = split(rest, "?", true)
+		rest, url.RawQuery = split(rest, '?', true)
 	}
 
 	if !strings.HasPrefix(rest, "/") {
@@ -560,7 +562,7 @@ func parse(rawurl string, viaRequest bool) (*URL, error) {
 
 	if (url.Scheme != "" || !viaRequest && !strings.HasPrefix(rest, "///")) && strings.HasPrefix(rest, "//") {
 		var authority string
-		authority, rest = split(rest[2:], "/", false)
+		authority, rest = split(rest[2:], '/', false)
 		url.User, url.Host, err = parseAuthority(authority)
 		if err != nil {
 			return nil, err
@@ -599,7 +601,7 @@ func parseAuthority(authority string) (user *Userinfo, host string, err error) {
 		}
 		user = User(userinfo)
 	} else {
-		username, password := split(userinfo, ":", true)
+		username, password := split(userinfo, ':', true)
 		if username, err = unescape(username, encodeUserPassword); err != nil {
 			return nil, "", err
 		}
@@ -948,8 +950,8 @@ func resolvePath(base, ref string) string {
 	if full == "" {
 		return ""
 	}
-	var dst []string
 	src := strings.Split(full, "/")
+	dst := make([]string, 0, len(src))
 	for _, elem := range src {
 		switch elem {
 		case ".":

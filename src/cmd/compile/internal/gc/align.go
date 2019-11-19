@@ -34,7 +34,7 @@ func expandiface(t *types.Type) {
 		switch prev := seen[m.Sym]; {
 		case prev == nil:
 			seen[m.Sym] = m
-		case !explicit && types.Identical(m.Type, prev.Type):
+		case langSupported(1, 14, t.Pkg()) && !explicit && types.Identical(m.Type, prev.Type):
 			return
 		default:
 			yyerrorl(m.Pos, "duplicate method %s", m.Sym.Name)
@@ -178,6 +178,11 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 // have not already been calculated, it calls Fatal.
 // This is used to prevent data races in the back end.
 func dowidth(t *types.Type) {
+	// Calling dowidth when typecheck tracing enabled is not safe.
+	// See issue #33658.
+	if enableTrace && skipDowidthForTracing {
+		return
+	}
 	if Widthptr == 0 {
 		Fatalf("dowidth without betypeinit")
 	}
@@ -189,16 +194,7 @@ func dowidth(t *types.Type) {
 	if t.Width == -2 {
 		if !t.Broke() {
 			t.SetBroke(true)
-			// t.Nod should not be nil here, but in some cases is appears to be
-			// (see issue #23823). For now (temporary work-around) at a minimum
-			// don't crash and provide a meaningful error message.
-			// TODO(gri) determine the correct fix during a regular devel cycle
-			// (see issue #31872).
-			if t.Nod == nil {
-				yyerror("invalid recursive type %v", t)
-			} else {
-				yyerrorl(asNode(t.Nod).Pos, "invalid recursive type %v", t)
-			}
+			yyerrorl(asNode(t.Nod).Pos, "invalid recursive type %v", t)
 		}
 
 		t.Width = 0
@@ -226,7 +222,7 @@ func dowidth(t *types.Type) {
 	}
 
 	// defer checkwidth calls until after we're done
-	defercalc++
+	defercheckwidth()
 
 	lno := lineno
 	if asNode(t.Nod) != nil {
@@ -333,13 +329,6 @@ func dowidth(t *types.Type) {
 		if t.Elem() == nil {
 			break
 		}
-		if t.IsDDDArray() {
-			if !t.Broke() {
-				yyerror("use of [...] array outside of array literal")
-				t.SetBroke(true)
-			}
-			break
-		}
 
 		dowidth(t.Elem())
 		if t.Elem().Width != 0 {
@@ -355,7 +344,7 @@ func dowidth(t *types.Type) {
 		if t.Elem() == nil {
 			break
 		}
-		w = int64(sizeof_Array)
+		w = int64(sizeof_Slice)
 		checkwidth(t.Elem())
 		t.Align = uint8(Widthptr)
 
@@ -400,11 +389,7 @@ func dowidth(t *types.Type) {
 
 	lineno = lno
 
-	if defercalc == 1 {
-		resumecheckwidth()
-	} else {
-		defercalc--
-	}
+	resumecheckwidth()
 }
 
 // when a type's width should be known, we call checkwidth
@@ -449,24 +434,18 @@ func checkwidth(t *types.Type) {
 }
 
 func defercheckwidth() {
-	// we get out of sync on syntax errors, so don't be pedantic.
-	if defercalc != 0 && nerrors == 0 {
-		Fatalf("defercheckwidth")
-	}
-	defercalc = 1
+	defercalc++
 }
 
 func resumecheckwidth() {
-	if defercalc == 0 {
-		Fatalf("resumecheckwidth")
+	if defercalc == 1 {
+		for len(deferredTypeStack) > 0 {
+			t := deferredTypeStack[len(deferredTypeStack)-1]
+			deferredTypeStack = deferredTypeStack[:len(deferredTypeStack)-1]
+			t.SetDeferwidth(false)
+			dowidth(t)
+		}
 	}
 
-	for len(deferredTypeStack) > 0 {
-		t := deferredTypeStack[len(deferredTypeStack)-1]
-		deferredTypeStack = deferredTypeStack[:len(deferredTypeStack)-1]
-		t.SetDeferwidth(false)
-		dowidth(t)
-	}
-
-	defercalc = 0
+	defercalc--
 }

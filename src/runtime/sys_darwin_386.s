@@ -64,6 +64,12 @@ TEXT runtime·read_trampoline(SB),NOSPLIT,$0
 	MOVL	8(CX), AX		// arg 3 count
 	MOVL	AX, 8(SP)
 	CALL	libc_read(SB)
+	TESTL	AX, AX
+	JGE	noerr
+	CALL	libc_error(SB)
+	MOVL	(AX), AX
+	NEGL	AX			// caller expects negative errno value
+noerr:
 	MOVL	BP, SP
 	POPL	BP
 	RET
@@ -80,6 +86,12 @@ TEXT runtime·write_trampoline(SB),NOSPLIT,$0
 	MOVL	8(CX), AX		// arg 3 count
 	MOVL	AX, 8(SP)
 	CALL	libc_write(SB)
+	TESTL	AX, AX
+	JGE	noerr
+	CALL	libc_error(SB)
+	MOVL	(AX), AX
+	NEGL	AX			// caller expects negative errno value
+noerr:
 	MOVL	BP, SP
 	POPL	BP
 	RET
@@ -637,6 +649,31 @@ TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
 	MOVL	0(CX), AX	// arg 1 cond
 	MOVL	AX, 0(SP)
 	CALL	libc_pthread_cond_signal(SB)
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	NOP	SP	// hide SP from vet
+	CALL	libc_pthread_self(SB)
+	MOVL	8(SP), CX
+	MOVL	AX, 0(CX)		// return value
+	MOVL	BP, SP
+	POPL	BP
+	RET
+
+TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
+	PUSHL	BP
+	MOVL	SP, BP
+	SUBL	$8, SP
+	MOVL	16(SP), CX
+	MOVL	0(CX), AX	// arg 1 thread
+	MOVL	AX, 0(SP)
+	MOVL	4(CX), AX	// arg 2 sig
+	MOVL	AX, 4(SP)
+	CALL	libc_pthread_kill(SB)
 	MOVL	BP, SP
 	POPL	BP
 	RET

@@ -60,6 +60,11 @@ func instrumentInit() {
 	mode := "race"
 	if cfg.BuildMSan {
 		mode = "msan"
+		// MSAN does not support non-PIE binaries on ARM64.
+		// See issue #33712 for details.
+		if cfg.Goos == "linux" && cfg.Goarch == "arm64" && cfg.BuildBuildmode == "default" {
+			cfg.BuildBuildmode = "pie"
+		}
 	}
 	modeFlag := "-" + mode
 
@@ -195,8 +200,7 @@ func buildModeInit() {
 			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/s390x", "linux/ppc64le",
 				"android/amd64", "android/arm", "android/arm64", "android/386":
 			case "darwin/amd64":
-				// Skip DWARF generation due to #21647
-				forcedLdflags = append(forcedLdflags, "-w")
+			case "freebsd/amd64":
 			default:
 				base.Fatalf("-buildmode=plugin not supported on %s\n", platform)
 			}
@@ -218,6 +222,7 @@ func buildModeInit() {
 				base.Fatalf("-linkshared not supported on %s\n", platform)
 			}
 			codegenArg = "-dynlink"
+			forcedGcflags = append(forcedGcflags, "-linkshared")
 			// TODO(mwhudson): remove -w when that gets fixed in linker.
 			forcedLdflags = append(forcedLdflags, "-linkshared", "-w")
 		}
@@ -241,12 +246,20 @@ func buildModeInit() {
 	switch cfg.BuildMod {
 	case "":
 		// ok
-	case "readonly", "vendor":
-		if load.ModLookup == nil && !inGOFLAGS("-mod") {
+	case "readonly", "vendor", "mod":
+		if !cfg.ModulesEnabled && !inGOFLAGS("-mod") {
 			base.Fatalf("build flag -mod=%s only valid when using modules", cfg.BuildMod)
 		}
 	default:
-		base.Fatalf("-mod=%s not supported (can be '', 'readonly', or 'vendor')", cfg.BuildMod)
+		base.Fatalf("-mod=%s not supported (can be '', 'mod', 'readonly', or 'vendor')", cfg.BuildMod)
+	}
+	if !cfg.ModulesEnabled {
+		if cfg.ModCacheRW && !inGOFLAGS("-modcacherw") {
+			base.Fatalf("build flag -modcacherw only valid when using modules")
+		}
+		if cfg.ModFile != "" && !inGOFLAGS("-mod") {
+			base.Fatalf("build flag -modfile only valid when using modules")
+		}
 	}
 }
 

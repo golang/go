@@ -56,7 +56,7 @@ func (dec *Decoder) Decode(v interface{}) error {
 	}
 
 	if !dec.tokenValueAllowed() {
-		return &SyntaxError{msg: "not at beginning of value", Offset: dec.offset()}
+		return &SyntaxError{msg: "not at beginning of value", Offset: dec.InputOffset()}
 	}
 
 	// Read whole value into buffer.
@@ -102,6 +102,10 @@ Input:
 			dec.scan.bytes++
 			switch dec.scan.step(&dec.scan, c) {
 			case scanEnd:
+				// scanEnd is delayed one byte so we decrement
+				// the scanner bytes count by 1 to ensure that
+				// this value is correct in the next call of Decode.
+				dec.scan.bytes--
 				break Input
 			case scanEndObject, scanEndArray:
 				// scanEnd is delayed one byte.
@@ -310,7 +314,7 @@ func (dec *Decoder) tokenPrepareForDecode() error {
 			return err
 		}
 		if c != ',' {
-			return &SyntaxError{"expected comma after array element", dec.offset()}
+			return &SyntaxError{"expected comma after array element", dec.InputOffset()}
 		}
 		dec.scanp++
 		dec.tokenState = tokenArrayValue
@@ -320,7 +324,7 @@ func (dec *Decoder) tokenPrepareForDecode() error {
 			return err
 		}
 		if c != ':' {
-			return &SyntaxError{"expected colon after object key", dec.offset()}
+			return &SyntaxError{"expected colon after object key", dec.InputOffset()}
 		}
 		dec.scanp++
 		dec.tokenState = tokenObjectValue
@@ -473,7 +477,7 @@ func (dec *Decoder) tokenError(c byte) (Token, error) {
 	case tokenObjectComma:
 		context = " after object key:value pair"
 	}
-	return nil, &SyntaxError{"invalid character " + quoteChar(c) + context, dec.offset()}
+	return nil, &SyntaxError{"invalid character " + quoteChar(c) + context, dec.InputOffset()}
 }
 
 // More reports whether there is another element in the
@@ -502,6 +506,9 @@ func (dec *Decoder) peek() (byte, error) {
 	}
 }
 
-func (dec *Decoder) offset() int64 {
+// InputOffset returns the input stream byte offset of the current decoder position.
+// The offset gives the location of the end of the most recently returned token
+// and the beginning of the next token.
+func (dec *Decoder) InputOffset() int64 {
 	return dec.scanned + int64(dec.scanp)
 }

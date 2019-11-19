@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/testenv"
 	"math"
 	"net"
 	"runtime"
@@ -356,6 +357,17 @@ func TestPreemptionGC(t *testing.T) {
 	atomic.StoreUint32(&stop, 1)
 }
 
+func TestAsyncPreempt(t *testing.T) {
+	if !runtime.PreemptMSupported {
+		t.Skip("asynchronous preemption not supported on this platform")
+	}
+	output := runTestProg(t, "testprog", "AsyncPreempt")
+	want := "OK\n"
+	if output != want {
+		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}
+
 func TestGCFairness(t *testing.T) {
 	output := runTestProg(t, "testprog", "GCFairness")
 	want := "OK\n"
@@ -411,6 +423,7 @@ func TestPingPongHog(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in -short mode")
 	}
+	testenv.SkipFlaky(t, 35271)
 
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	done := make(chan bool)
@@ -980,4 +993,43 @@ func TestPreemptionAfterSyscall(t *testing.T) {
 
 func TestGetgThreadSwitch(t *testing.T) {
 	runtime.RunGetgThreadSwitchTest()
+}
+
+// TestNetpollBreak tests that netpollBreak can break a netpoll.
+// This test is not particularly safe since the call to netpoll
+// will pick up any stray files that are ready, but it should work
+// OK as long it is not run in parallel.
+func TestNetpollBreak(t *testing.T) {
+	if runtime.GOMAXPROCS(0) == 1 {
+		t.Skip("skipping: GOMAXPROCS=1")
+	}
+
+	// Make sure that netpoll is initialized.
+	runtime.NetpollGenericInit()
+
+	start := time.Now()
+	c := make(chan bool, 2)
+	go func() {
+		c <- true
+		runtime.Netpoll(10 * time.Second.Nanoseconds())
+		c <- true
+	}()
+	<-c
+	// Loop because the break might get eaten by the scheduler.
+	// Break twice to break both the netpoll we started and the
+	// scheduler netpoll.
+loop:
+	for {
+		runtime.Usleep(100)
+		runtime.NetpollBreak()
+		runtime.NetpollBreak()
+		select {
+		case <-c:
+			break loop
+		default:
+		}
+	}
+	if dur := time.Since(start); dur > 5*time.Second {
+		t.Errorf("netpollBreak did not interrupt netpoll: slept for: %v", dur)
+	}
 }

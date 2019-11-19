@@ -384,3 +384,9 @@ func TestSetsockoptString(t *testing.T) {
 		t.Fatalf("SetsockoptString: did not fail")
 	}
 }
+
+func TestENFILETemporary(t *testing.T) {
+	if !syscall.ENFILE.Temporary() {
+		t.Error("ENFILE is not treated as a temporary error")
+	}
+}

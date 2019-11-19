@@ -36,6 +36,7 @@ type opInfo struct {
 	usesScratch       bool      // this op requires scratch memory space
 	hasSideEffects    bool      // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
 	zeroWidth         bool      // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
+	unsafePoint       bool      // this op is an unsafe point, i.e. not safe for async preemption
 	symEffect         SymEffect // effect this op has on symbol in aux
 	scale             uint8     // amd64/386 indexed load scale
 }
@@ -83,8 +84,7 @@ const (
 	auxTyp                  // aux is a type
 	auxTypSize              // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
 	auxCCop                 // aux is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
-
-	auxSymInt32 // aux is a symbol, auxInt is a 32-bit integer
+	auxArchSpecific         // aux type is specific to a particular backend (see the relevant op for the actual type)
 )
 
 // A SymEffect describes the effect that an SSA Value has on the variable
