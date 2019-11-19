@@ -123,6 +123,7 @@ var globTests = []struct {
 	{"mat?h.go", "match.go"},
 	{"*", "match.go"},
 	{"../*/match.go", "../filepath/match.go"},
+	{"../../*/filepath/", "../../path/filepath"},
 }
 
 func TestGlob(t *testing.T) {

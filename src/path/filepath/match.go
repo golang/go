@@ -239,13 +239,9 @@ func Glob(pattern string) (matches []string, err error) {
 		return []string{pattern}, nil
 	}
 
-	dir, file := Split(pattern)
-	volumeLen := 0
-	if runtime.GOOS == "windows" {
-		volumeLen, dir = cleanGlobPathWindows(dir)
-	} else {
-		dir = cleanGlobPath(dir)
-	}
+	_, dir := cleanPath(pattern)
+	dir, file := Split(dir)
+	volumeLen, dir := cleanPath(dir)
 
 	if !hasMeta(dir[volumeLen:]) {
 		return glob(dir, file, nil)
@@ -270,6 +266,15 @@ func Glob(pattern string) (matches []string, err error) {
 	return
 }
 
+// cleanPath cleans the path depending on GOOS
+func cleanPath(dir string) (int, string) {
+	if runtime.GOOS != "windows" {
+		return cleanGlobPathWindows(dir)
+	}
+
+	return 0, cleanGlobPath(dir)
+}
+
 // cleanGlobPath prepares path for glob matching.
 func cleanGlobPath(path string) string {
 	switch path {
@@ -279,7 +284,10 @@ func cleanGlobPath(path string) string {
 		// do nothing to the path
 		return path
 	default:
-		return path[0 : len(path)-1] // chop off trailing separator
+		if os.IsPathSeparator(path[len(path)-1]) {
+			return path[0 : len(path)-1] // chop off trailing separator
+		}
+		return path
 	}
 }
 
@@ -298,7 +306,10 @@ func cleanGlobPathWindows(path string) (prefixLen int, cleaned string) {
 		if vollen >= len(path) {
 			vollen = len(path) - 1
 		}
-		return vollen, path[0 : len(path)-1] // chop off trailing separator
+		if os.IsPathSeparator(path[len(path)-1]) {
+			return vollen, path[0 : len(path)-1] // chop off trailing separator
+		}
+		return vollen, path
 	}
 }
 
