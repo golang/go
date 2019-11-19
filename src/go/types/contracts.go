@@ -26,9 +26,8 @@ func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
 		tparams[index] = tpar
 	}
 
-	// each type parameter's constraints are represented by an interface
+	// each type parameter's constraints are represented by a (lazily allocated) interface
 	ifaces := make(map[*TypeName]*Interface)
-
 	ifaceFor := func(tpar *TypeName) *Interface {
 		iface := ifaces[tpar]
 		if iface == nil {

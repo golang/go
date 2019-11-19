@@ -111,6 +111,11 @@ var tests = [][]string{
 	{"testdata/chans.go2"},
 	{"testdata/map.go2"},
 	{"testdata/map2.go2"},
+
+	// Go 2 prototype examples
+	// {"examples/contracts.go2"}, // TODO(gri) enable
+	{"examples/functions.go2"},
+	{"examples/types.go2"},
 }
 
 var fset = token.NewFileSet()

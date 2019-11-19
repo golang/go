@@ -474,7 +474,7 @@ type (
 type Constraint struct {
 	Param  *Ident   // constrained type parameter; or nil (for embedded contracts)
 	MNames []*Ident // list of method names; or nil (for embedded contracts or type constraints)
-	Types  []Expr   // embedded contract (single *CallExpr), list of types, or list of method types (*FuncType)
+	Types  []Expr   // embedded contract (single *CallExpr), list of types, or list of method signatures (*FuncType)
 }
 
 // Pos and End implementations for expression/type nodes.

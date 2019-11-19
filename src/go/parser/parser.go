@@ -1098,21 +1098,22 @@ func (p *parser) parseTypeParams(scope *ast.Scope) *ast.FieldList {
 		p.expect(token.TYPE)
 	}
 
-	f := new(ast.Field)
-	if p.tok != token.RBRACK && p.tok != token.RPAREN {
-		f.Names = p.parseIdentList()
+	fields := p.parseParameterList(scope, false)
+	// determine which form we have (list of type parameters with optional
+	// contract, or type parameters, all with interfaces as type bounds)
+	for _, f := range fields {
+		if len(f.Names) == 0 {
+			assert(f.Type != nil, "expected non-nil type")
+			f.Names = []*ast.Ident{f.Type.(*ast.Ident)}
+			f.Type = nil
+		}
 	}
-	if p.tok == token.IDENT {
-		// contract
-		f.Type = p.parseTypeName(nil)
-	}
-	p.declare(f, nil, scope, ast.Typ, f.Names...)
 
 	if lbrack.IsValid() {
 		rbrack = p.expect(token.RBRACK)
 	}
 
-	return &ast.FieldList{Opening: lbrack, List: []*ast.Field{f}, Closing: rbrack}
+	return &ast.FieldList{Opening: lbrack, List: fields, Closing: rbrack}
 }
 
 func (p *parser) parseParameters(scope *ast.Scope, typeParamsOk, ellipsisOk bool) (tparams, params *ast.FieldList) {

@@ -51,7 +51,7 @@ var valids = []string{
 	`package p; type T (*int)`,
 	`package p; type T(type P) struct { P }`,
 	`package p; type T(type P comparable) struct { P }`,
-	// `package p; type T(type P comparable(P)) struct { P }`,
+	`package p; type T(type P comparable(P)) struct { P }`,
 	`package p; type T(type P1, P2) struct { P1; f []P2 }`,
 	// `package p; type T[type] struct { P }`,
 	// `package p; type T[type P] struct { P }`,
@@ -68,7 +68,7 @@ var valids = []string{
 	`package p; func _((T(P1, P2, P3)))`,
 	`package p; func _(type A, B)(a A) B`,
 	`package p; func _(type A, B C)(a A) B`,
-	// `package p; func _(type A, B C(A, B))(a A) B`,
+	`package p; func _(type A, B C(A, B))(a A) B`,
 	// `package p; type _ struct { T[P] }`,
 	// `package p; type _ struct { T []E }`,
 	// `package p; type _ struct { T [P]E }`,
@@ -95,6 +95,8 @@ var valids = []string{
 	`package p; type C contract(T){ T (m(x, int)); }`,
 	`package p; type C contract(T){ T int; T imported.T; T chan<-int; T m(x int) float64; C0(); imported.C1(int, T,) }`,
 	`package p; type C contract(T){ T int, imported.T, chan<-int; T m(x int) float64; C0(); imported.C1(int, T,) }`,
+	`package p; func _(type T1, T2 interface{})(x T1) T2`,
+	`package p; func _(type T1 interface{ m() }, T2, T3 interface{})(x T1, y T3) T2`,
 }
 
 func TestValid(t *testing.T) {

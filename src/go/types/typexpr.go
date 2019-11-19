@@ -273,6 +273,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		}
 
 	case *ast.CallExpr:
+		// We may have a parameterized type or an "instantiated" contract.
 		typ := new(Parameterized)
 		def.setUnderlying(typ)
 		if check.parameterizedType(typ, e) {
