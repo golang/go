@@ -145,6 +145,11 @@ func finishsweep_m() {
 		}
 	}
 
+	// Sweeping is done, so if the scavenger isn't already awake,
+	// wake it up. There's definitely work for it to do at this
+	// point.
+	wakeScavenger()
+
 	nextMarkBitArenaEpoch()
 }
 
@@ -241,6 +246,27 @@ func sweepone() uintptr {
 	// Decrement the number of active sweepers and if this is the
 	// last one print trace information.
 	if atomic.Xadd(&mheap_.sweepers, -1) == 0 && atomic.Load(&mheap_.sweepdone) != 0 {
+		// Since the sweeper is done, reset the scavenger's pointer
+		// into the heap and wake it if necessary.
+		//
+		// The scavenger is signaled by the last sweeper because once
+		// sweeping is done, we will definitely have useful work for
+		// the scavenger to do, since the scavenger only runs over the
+		// heap once per GC cyle. This update is not done during sweep
+		// termination because in some cases there may be a long delay
+		// between sweep done and sweep termination (e.g. not enough
+		// allocations to trigger a GC) which would be nice to fill in
+		// with scavenging work.
+		systemstack(func() {
+			lock(&mheap_.lock)
+			mheap_.pages.resetScavengeAddr()
+			unlock(&mheap_.lock)
+		})
+		// Since we might sweep in an allocation path, it's not possible
+		// for us to wake the scavenger directly via wakeScavenger, since
+		// it could allocate. Ask sysmon to do it for us instead.
+		readyForScavenger()
+
 		if debug.gcpacertrace > 0 {
 			print("pacer: sweep done at heap size ", memstats.heap_live>>20, "MB; allocated ", (memstats.heap_live-mheap_.sweepHeapLiveBasis)>>20, "MB during sweep; swept ", mheap_.pagesSwept, " pages at ", sweepRatio, " pages/byte\n")
 		}
