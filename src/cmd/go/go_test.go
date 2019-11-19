@@ -3308,7 +3308,17 @@ func TestGoTestRaceInstallCgo(t *testing.T) {
 	cgo := strings.TrimSpace(tg.stdout.String())
 	old, err := os.Stat(cgo)
 	tg.must(err)
-	tg.run("test", "-race", "-i", "runtime/race")
+
+	// For this test, we don't actually care whether 'go test -race -i' succeeds.
+	// It may fail, for example, if GOROOT was installed from source as root and
+	// is now read-only.
+	// We only care that — regardless of whether it succeeds — it does not
+	// overwrite cmd/cgo.
+	runArgs := []string{"test", "-race", "-i", "runtime/race"}
+	if status := tg.doRun(runArgs); status != nil {
+		tg.t.Logf("go %v failure ignored: %v", runArgs, status)
+	}
+
 	new, err := os.Stat(cgo)
 	tg.must(err)
 	if !new.ModTime().Equal(old.ModTime()) {
