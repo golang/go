@@ -143,6 +143,8 @@ func tstart_stdcall(newm *m)
 func ctrlhandler()
 
 type mOS struct {
+	thread uintptr // thread handle; accessed atomically
+
 	waitsema   uintptr // semaphore for parking on locks
 	resumesema uintptr // semaphore to indicate suspend/resume
 }
