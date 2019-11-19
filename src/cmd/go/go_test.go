@@ -1376,48 +1376,6 @@ func TestGoGetTestOnlyPkg(t *testing.T) {
 	tg.run("get", "-t", "golang.org/x/tour/content...")
 }
 
-func TestInstalls(t *testing.T) {
-	if testing.Short() {
-		t.Skip("don't install into GOROOT in short mode")
-	}
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.tempDir("gobin")
-	tg.setenv("GOPATH", tg.path("."))
-	goroot := runtime.GOROOT()
-	tg.setenv("GOROOT", goroot)
-
-	// cmd/fix installs into tool
-	tg.run("env", "GOOS")
-	goos := strings.TrimSpace(tg.getStdout())
-	tg.setenv("GOOS", goos)
-	tg.run("env", "GOARCH")
-	goarch := strings.TrimSpace(tg.getStdout())
-	tg.setenv("GOARCH", goarch)
-	fixbin := filepath.Join(goroot, "pkg", "tool", goos+"_"+goarch, "fix") + exeSuffix
-	tg.must(robustio.RemoveAll(fixbin))
-	tg.run("install", "cmd/fix")
-	tg.wantExecutable(fixbin, "did not install cmd/fix to $GOROOT/pkg/tool")
-	tg.must(os.Remove(fixbin))
-	tg.setenv("GOBIN", tg.path("gobin"))
-	tg.run("install", "cmd/fix")
-	tg.wantExecutable(fixbin, "did not install cmd/fix to $GOROOT/pkg/tool with $GOBIN set")
-	tg.unsetenv("GOBIN")
-
-	// gopath program installs into GOBIN
-	tg.tempFile("src/progname/p.go", `package main; func main() {}`)
-	tg.setenv("GOBIN", tg.path("gobin"))
-	tg.run("install", "progname")
-	tg.unsetenv("GOBIN")
-	tg.wantExecutable(tg.path("gobin/progname")+exeSuffix, "did not install progname to $GOBIN/progname")
-
-	// gopath program installs into GOPATH/bin
-	tg.run("install", "progname")
-	tg.wantExecutable(tg.path("bin/progname")+exeSuffix, "did not install progname to $GOPATH/bin/progname")
-}
-
 // Issue 4104.
 func TestGoTestWithPackageListedMultipleTimes(t *testing.T) {
 	tooSlow(t)

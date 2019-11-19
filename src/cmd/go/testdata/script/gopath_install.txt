@@ -33,6 +33,17 @@ env GOBIN=$WORK/bin1
 go install go-cmd-test/helloworld.go
 exists $GOBIN/helloworld$GOEXE
 
+# We can't assume that we can write to GOROOT, because it may not be writable.
+# However, we can check its install location using 'go list'.
+# cmd/fix should be installed to GOROOT/pkg, not GOPATH/bin.
+env GOPATH=$PWD
+go list -f '{{.Target}}' cmd/fix
+stdout $GOROOT'[/\\]pkg[/\\]tool[/\\]'$GOOS'_'$GOARCH'[/\\]fix'$GOEXE'$'
+
+# GOBIN should not affect toolchain install locations.
+env GOBIN=$WORK/bin1
+go list -f '{{.Target}}' cmd/fix
+stdout $GOROOT'[/\\]pkg[/\\]tool[/\\]'$GOOS'_'$GOARCH'[/\\]fix'$GOEXE'$'
 
 -- go-cmd-test/helloworld.go --
 package main
