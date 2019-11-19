@@ -19,7 +19,7 @@ import (
 	"golang.org/x/tools/internal/gopathwalk"
 	"golang.org/x/tools/internal/module"
 	"golang.org/x/tools/internal/testenv"
-	"golang.org/x/tools/internal/txtar"
+	"golang.org/x/tools/txtar"
 )
 
 // Tests that we can find packages in the stdlib.
