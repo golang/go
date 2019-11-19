@@ -201,7 +201,7 @@ func (s *Server) DocumentSymbol(ctx context.Context, params *protocol.DocumentSy
 	return s.documentSymbol(ctx, params)
 }
 
-func (s *Server) CodeAction(ctx context.Context, params *protocol.CodeActionParams) (interface{}, error) {
+func (s *Server) CodeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
 	return s.codeAction(ctx, params)
 }
 

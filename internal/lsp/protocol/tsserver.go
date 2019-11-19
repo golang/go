@@ -3,7 +3,7 @@ package protocol
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
 // commit: 635ab1fe6f8c57ce9402e573d007f24d6d290fd3
-// last fetched Sun Oct 13 2019 10:14:32 GMT-0400 (Eastern Daylight Time)
+// last fetched Mon Oct 14 2019 09:09:30 GMT-0400 (Eastern Daylight Time)
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
 
@@ -27,7 +27,6 @@ type Server interface {
 	DidSave(context.Context, *DidSaveTextDocumentParams) error
 	WillSave(context.Context, *WillSaveTextDocumentParams) error
 	DidChangeWatchedFiles(context.Context, *DidChangeWatchedFilesParams) error
-	CancelRequest(context.Context, *CancelParams) error
 	Progress(context.Context, *ProgressParams) error
 	SetTraceNotification(context.Context, *SetTraceParams) error
 	LogTraceNotification(context.Context, *LogTraceParams) error
@@ -49,7 +48,7 @@ type Server interface {
 	References(context.Context, *ReferenceParams) ([]Location /*Location[] | null*/, error)
 	DocumentHighlight(context.Context, *DocumentHighlightParams) ([]DocumentHighlight /*DocumentHighlight[] | null*/, error)
 	DocumentSymbol(context.Context, *DocumentSymbolParams) ([]DocumentSymbol /*SymbolInformation[] | DocumentSymbol[] | null*/, error)
-	CodeAction(context.Context, *CodeActionParams) (interface{} /*Command | CodeAction*/ /*(Command | CodeAction)[] | null*/, error)
+	CodeAction(context.Context, *CodeActionParams) ([]CodeAction /*(Command | CodeAction)[] | null*/, error)
 	Symbol(context.Context, *WorkspaceSymbolParams) ([]SymbolInformation /*SymbolInformation[] | null*/, error)
 	CodeLens(context.Context, *CodeLensParams) ([]CodeLens /*CodeLens[] | null*/, error)
 	ResolveCodeLens(context.Context, *CodeLens) (*CodeLens, error)
@@ -165,16 +164,6 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 			return true
 		}
 		if err := h.server.DidChangeWatchedFiles(ctx, &params); err != nil {
-			log.Error(ctx, "", err)
-		}
-		return true
-	case "$/cancelRequest": // notif
-		var params CancelParams
-		if err := json.Unmarshal(*r.Params, &params); err != nil {
-			sendParseError(ctx, r, err)
-			return true
-		}
-		if err := h.server.CancelRequest(ctx, &params); err != nil {
 			log.Error(ctx, "", err)
 		}
 		return true
@@ -587,10 +576,6 @@ func (s *serverDispatcher) DidChangeWatchedFiles(ctx context.Context, params *Di
 	return s.Conn.Notify(ctx, "workspace/didChangeWatchedFiles", params)
 }
 
-func (s *serverDispatcher) CancelRequest(ctx context.Context, params *CancelParams) error {
-	return s.Conn.Notify(ctx, "$/cancelRequest", params)
-}
-
 func (s *serverDispatcher) Progress(ctx context.Context, params *ProgressParams) error {
 	return s.Conn.Notify(ctx, "$/progress", params)
 }
@@ -742,8 +727,8 @@ func (s *serverDispatcher) DocumentSymbol(ctx context.Context, params *DocumentS
 	return result, nil
 }
 
-func (s *serverDispatcher) CodeAction(ctx context.Context, params *CodeActionParams) (interface{} /*Command | CodeAction*/ /*(Command | CodeAction)[] | null*/, error) {
-	var result interface{} /*Command | CodeAction*/ /*(Command | CodeAction)[] | null*/
+func (s *serverDispatcher) CodeAction(ctx context.Context, params *CodeActionParams) ([]CodeAction /*(Command | CodeAction)[] | null*/, error) {
+	var result []CodeAction /*(Command | CodeAction)[] | null*/
 	if err := s.Conn.Call(ctx, "textDocument/codeAction", params, &result); err != nil {
 		return nil, err
 	}

@@ -314,9 +314,8 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 		t.Fatal(err)
 	}
 	got := string(m.Content)
-	xact := actions.([]protocol.CodeAction)
-	if len(xact) > 0 {
-		res, err := applyWorkspaceEdits(r, xact[0].Edit)
+	if len(actions) > 0 {
+		res, err := applyWorkspaceEdits(r, actions[0].Edit)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -355,11 +354,10 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 		t.Fatal(err)
 	}
 	// TODO: This test should probably be able to handle multiple code actions.
-	xact := actions.([]protocol.CodeAction)
-	if len(xact) > 1 {
+	if len(actions) > 1 {
 		t.Fatal("expected only 1 code action")
 	}
-	res, err := applyWorkspaceEdits(r, xact[0].Edit)
+	res, err := applyWorkspaceEdits(r, actions[0].Edit)
 	if err != nil {
 		t.Fatal(err)
 	}
