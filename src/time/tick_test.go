@@ -6,6 +6,7 @@ package time_test
 
 import (
 	"fmt"
+	"runtime"
 	"testing"
 	. "time"
 )
@@ -16,8 +17,14 @@ func TestTicker(t *testing.T) {
 	// want to use lengthy times. This makes the test inherently flaky.
 	// So only report an error if it fails five times in a row.
 
-	const count = 10
+	count := 10
 	delta := 20 * Millisecond
+
+	// On Darwin ARM64 the tick frequency seems limited. Issue 35692.
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+		count = 5
+		delta = 100 * Millisecond
+	}
 
 	var errs []string
 	logErrs := func() {
@@ -35,7 +42,7 @@ func TestTicker(t *testing.T) {
 		ticker.Stop()
 		t1 := Now()
 		dt := t1.Sub(t0)
-		target := delta * count
+		target := delta * Duration(count)
 		slop := target * 2 / 10
 		if dt < target-slop || dt > target+slop {
 			errs = append(errs, fmt.Sprintf("%d %s ticks took %s, expected [%s,%s]", count, delta, dt, target-slop, target+slop))
