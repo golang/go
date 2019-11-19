@@ -6043,6 +6043,9 @@ func genssa(f *ssa.Func, pp *Progs) {
 			p.Pos = p.Pos.WithIsStmt()
 			if b.Pos == src.NoXPos {
 				b.Pos = p.Pos // It needs a file, otherwise a no-file non-zero line causes confusion.  See #35652.
+				if b.Pos == src.NoXPos {
+					b.Pos = pp.Text.Pos // Sometimes p.Pos is empty.  See #35695.
+				}
 			}
 			b.Pos = b.Pos.WithBogusLine() // Debuggers are not good about infinite loops, force a change in line number
 		}
