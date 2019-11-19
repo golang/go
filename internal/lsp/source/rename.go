@@ -168,7 +168,7 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 	return result, nil
 }
 
-// getPkgName gets the pkg name associated with an identifer representing
+// getPkgName gets the pkg name associated with an identifier representing
 // the import path in an import spec.
 func (i *IdentifierInfo) getPkgName(ctx context.Context) (*IdentifierInfo, error) {
 	ph, err := i.pkg.File(i.URI())

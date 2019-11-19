@@ -288,7 +288,7 @@ func foreachLine(in []byte, fn func(line []byte)) {
 var commentPrefix = []byte(`<span class="comment">// `)
 
 // linkedField determines whether the given line starts with an
-// identifer in the provided ids map (mapping from identifier to the
+// identifier in the provided ids map (mapping from identifier to the
 // same identifier). The line can start with either an identifier or
 // an identifier in a comment. If one matches, it returns the
 // identifier that matched. Otherwise it returns the empty string.
