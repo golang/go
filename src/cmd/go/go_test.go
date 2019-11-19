@@ -1315,23 +1315,6 @@ func TestRelativeGOBINFail(t *testing.T) {
 	tg.grepStderr("cannot install, GOBIN must be an absolute path", "go install must fail if $GOBIN is a relative path")
 }
 
-func TestPackageMainTestImportsArchiveNotBinary(t *testing.T) {
-	tooSlow(t)
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	gobin := filepath.Join(tg.pwd(), "testdata", "bin")
-	tg.creatingTemp(gobin)
-	tg.setenv("GOBIN", gobin)
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.must(os.Chtimes("./testdata/src/main_test/m.go", time.Now(), time.Now()))
-	tg.sleep()
-	tg.run("test", "main_test")
-	tg.run("install", "main_test")
-	tg.wantNotStale("main_test", "", "after go install, main listed as stale")
-	tg.run("test", "main_test")
-}
-
 func TestPackageMainTestCompilerFlags(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
