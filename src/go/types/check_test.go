@@ -113,7 +113,7 @@ var tests = [][]string{
 	{"testdata/map2.go2"},
 
 	// Go 2 prototype examples
-	// {"examples/contracts.go2"}, // TODO(gri) enable
+	{"examples/contracts.go2"},
 	{"examples/functions.go2"},
 	{"examples/types.go2"},
 }

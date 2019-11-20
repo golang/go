@@ -60,7 +60,7 @@ contract _() {
 // Contract implementation
 
 // Type parameter type must be a contract.
-type _(type T int /* ERROR not a contract */ ) struct{}
+type _(type T int /* ERROR not an interface or contract */ ) struct{}
 
 // The number of type parameters must match the number of contract parameters.
 contract C0() {}

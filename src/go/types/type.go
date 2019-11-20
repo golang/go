@@ -250,7 +250,6 @@ type Interface struct {
 
 	allMethods []*Func // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
 
-	// for contracts
 	types []Type // for contracts
 }
 
@@ -547,12 +546,12 @@ func (c *Contract) ifaceAt(index int) *Interface {
 type TypeParam struct {
 	obj   *TypeName
 	index int
-	contr *Contract // nil if no contract
+	bound Type // either an *Interface or a *Contract
 }
 
 // NewTypeParam returns a new TypeParam.
-func NewTypeParam(obj *TypeName, index int, contr *Contract) *TypeParam {
-	typ := &TypeParam{obj, index, contr}
+func NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
+	typ := &TypeParam{obj, index, bound}
 	if obj.typ == nil {
 		obj.typ = typ
 	}
@@ -564,7 +563,16 @@ func NewTypeParam(obj *TypeName, index int, contr *Contract) *TypeParam {
 // the result is the empty interface.
 // TODO(gri) should this be Underlying instead?
 func (t *TypeParam) Interface() *Interface {
-	return t.contr.ifaceAt(t.index)
+	switch b := t.bound.(type) {
+	case nil:
+		return &emptyInterface
+	case *Interface:
+		return b
+	case *Contract:
+		return b.ifaceAt(t.index)
+	default:
+		panic("type parameter bound must be an interface or contract")
+	}
 }
 
 // Implementations for Type methods.

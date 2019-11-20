@@ -684,7 +684,7 @@ func applyTypeFunc(f func(Type) Type, x Type) Type {
 			TParams: []*TypeName{tpar},
 			IFaces:  map[*TypeName]*Interface{tpar: iface},
 		}
-		resTyp.contr = contr
+		resTyp.bound = contr
 
 		return resTyp
 	}

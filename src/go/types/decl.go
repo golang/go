@@ -599,34 +599,58 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 }
 
 func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeName) {
+	// Declare type parameters up-front.
+	// If we use interfaces as type bounds, the scope of type parameters starts at
+	// the beginning of the type parameter list (so we can have mutually recursive
+	// parameterized interfaces). If we use contracts, it doesn't matter that the
+	// type parameters are all declared early (it's not observable).
+	index := 0
 	for _, f := range list.List {
-		var contr *Contract
+		for _, name := range f.Names {
+			tparams = append(tparams, check.declareTypeParam(name, index, nil))
+			index++
+		}
+	}
+
+	index = 0
+	for _, f := range list.List {
+		var bound Type
 		if f.Type != nil {
 			typ := check.typ(f.Type)
 			if typ != Typ[Invalid] {
-				if contr, _ = typ.Underlying().(*Contract); contr != nil {
-					if len(f.Names) != len(contr.TParams) {
+				switch b := typ.Underlying().(type) {
+				case *Interface:
+					bound = b
+				case *Contract:
+					if len(f.Names) != len(b.TParams) {
 						// TODO(gri) improve error message
-						check.errorf(f.Type.Pos(), "%d type parameters but contract expects %d", len(f.Names), len(contr.TParams))
-						contr = nil // cannot use this contract
+						check.errorf(f.Type.Pos(), "%d type parameters but contract expects %d", len(f.Names), len(b.TParams))
+						break // cannot use this contract
 					}
-				} else {
-					check.errorf(f.Type.Pos(), "%s is not a contract", typ)
+					bound = b
+				default:
+					check.errorf(f.Type.Pos(), "%s is not an interface or contract", typ)
 				}
 			}
 		}
 
-		for _, name := range f.Names {
-			tparams = append(tparams, check.declareTypeParam(name, len(tparams), contr))
+		// set the type parameter's bound
+		if bound != nil {
+			for _, name := range f.Names {
+				tname := tparams[index]
+				assert(name.Name == tname.name)
+				tname.typ.(*TypeParam).bound = bound
+				index++
+			}
 		}
 	}
 
 	return tparams
 }
 
-func (check *Checker) declareTypeParam(name *ast.Ident, index int, contr *Contract) *TypeName {
+func (check *Checker) declareTypeParam(name *ast.Ident, index int, bound Type) *TypeName {
 	tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-	NewTypeParam(tpar, index, contr)                        // assigns type to tpar as a side-effect
+	NewTypeParam(tpar, index, bound)                        // assigns type to tpar as a side-effect
 	check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
 	return tpar
 }

@@ -269,7 +269,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 			}
 			buf.WriteString(p.name)
 		}
-		buf.WriteString("){}")
+		buf.WriteString("){...}")
 		// TODO write contract body
 
 	case *TypeParam:

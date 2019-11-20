@@ -495,10 +495,19 @@ func (check *Checker) parameterizedType(typ *Parameterized, e *ast.CallExpr) boo
 	// lends itself more easily to a design where we just use interfaces
 	// rather than contracts.
 	assert(len(tname.tparams) > 0)
-	contr := tname.tparams[0].typ.(*TypeParam).contr
-	if !check.satisfyContract(contr, args) {
-		// TODO(gri) need to put in some work for really good error messages here
-		check.errorf(e.Pos(), "contract for %s is not satisfied", tname)
+	bound := tname.tparams[0].typ.(*TypeParam).bound // TODO(gri) This is incorrect (index 0) in general. FIX THIS.
+	switch b := bound.(type) {
+	case nil:
+		// nothing to do (no bound)
+	case *Interface:
+		panic("unimplemented")
+	case *Contract:
+		if !check.satisfyContract(b, args) {
+			// TODO(gri) need to put in some work for really good error messages here
+			check.errorf(e.Pos(), "contract for %s is not satisfied", tname)
+		}
+	default:
+		unreachable()
 	}
 
 	// complete parameterized type

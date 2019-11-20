@@ -106,7 +106,15 @@ func (s *subster) typ(typ Type) (res Type) {
 		}
 
 	case *Interface:
-		panic("subst not implemented for interfaces")
+		// for now ignore embeddeds and types
+		// TODO(gri) decide what to do
+		assert(len(t.embeddeds) == 0)
+		assert(len(t.types) == 0)
+		if methods, copied := s.funcList(t.methods); copied {
+			iface := &Interface{methods: methods}
+			iface.Complete()
+			return iface
+		}
 
 	case *Map:
 		key := s.typ(t.key)
@@ -217,6 +225,36 @@ func (s *subster) varList(in []*Var) (out []*Var, copied bool) {
 				copied = true
 			}
 			out[i] = w
+		}
+	}
+	return
+}
+
+func (s *subster) func_(f *Func) *Func {
+	assert(len(f.tparams) == 0)
+	if f != nil {
+		if typ := s.typ(f.typ); typ != f.typ {
+			copy := *f
+			copy.typ = typ
+			return &copy
+		}
+	}
+	return f
+}
+
+func (s *subster) funcList(in []*Func) (out []*Func, copied bool) {
+	out = in
+	for i, f := range in {
+		if g := s.func_(f); g != f {
+			if !copied {
+				// first function that got substituted => allocate new out slice
+				// and copy all functions
+				new := make([]*Func, len(in))
+				copy(new, out)
+				out = new
+				copied = true
+			}
+			out[i] = g
 		}
 	}
 	return

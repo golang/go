@@ -247,7 +247,9 @@ func (check *Checker) satisfyContract(contr *Contract, targs []Type) bool {
 		// with the respective type arguments.
 		// TODO(gri) fix this
 		if IsParameterized(iface) {
-			panic("unimplemented")
+			// check.dump("BEFORE iface(%s) => %s (%s)", targ, iface, fmt.Sprintf("%p", iface))
+			iface = check.subst(iface, contr.TParams, targs).(*Interface)
+			// check.dump("AFTER  iface(%s) => %s (%s)", targ, iface, fmt.Sprintf("%p", iface))
 		}
 		// use interface type of type parameter, if any
 		// targ must implement iface
