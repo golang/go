@@ -6,10 +6,14 @@ package tls
 
 import (
 	"crypto/ecdsa"
+	"crypto/internal/boring"
 	"crypto/internal/boring/fipstls"
 	"crypto/rsa"
 	"crypto/x509"
 )
+
+// boringEnabled is an alias of boring.Enabled to avoid a new import in common.go.
+const boringEnabled = boring.Enabled
 
 // needFIPS returns fipstls.Required(); it avoids a new import in common.go.
 func needFIPS() bool {

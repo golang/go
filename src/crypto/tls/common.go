@@ -26,8 +26,6 @@ import (
 	"time"
 )
 
-import "crypto/internal/boring"
-
 const (
 	VersionTLS10 = 0x0301
 	VersionTLS11 = 0x0302
@@ -1319,7 +1317,7 @@ func initDefaultCipherSuites() {
 		hasGCMAsm = hasGCMAsmAMD64 || hasGCMAsmARM64 || hasGCMAsmS390X
 	)
 
-	if hasGCMAsm || boring.Enabled {
+	if hasGCMAsm || boringEnabled {
 		// If BoringCrypto is enabled, always prioritize AES-GCM.
 		// If AES-GCM hardware is provided then prioritise AES-GCM
 		// cipher suites.
