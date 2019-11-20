@@ -154,7 +154,8 @@ func legacyTypeAndHashFromPublicKey(pub crypto.PublicKey) (sigType uint8, hash c
 }
 
 // signatureSchemesForCertificate returns the list of supported SignatureSchemes
-// for a given certificate, based on the public key and the protocol version.
+// for a given certificate, based on the public key and the protocol version,
+// and optionally filtered by its explicit SupportedSignatureAlgorithms.
 //
 // This function must be kept in sync with supportedSignatureAlgorithms.
 func signatureSchemesForCertificate(version uint16, cert *Certificate) []SignatureScheme {
@@ -163,52 +164,65 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 		return nil
 	}
 
+	var sigAlgs []SignatureScheme
 	switch pub := priv.Public().(type) {
 	case *ecdsa.PublicKey:
 		if version != VersionTLS13 {
 			// In TLS 1.2 and earlier, ECDSA algorithms are not
 			// constrained to a single curve.
-			return []SignatureScheme{
+			sigAlgs = []SignatureScheme{
 				ECDSAWithP256AndSHA256,
 				ECDSAWithP384AndSHA384,
 				ECDSAWithP521AndSHA512,
 				ECDSAWithSHA1,
 			}
+			break
 		}
 		switch pub.Curve {
 		case elliptic.P256():
-			return []SignatureScheme{ECDSAWithP256AndSHA256}
+			sigAlgs = []SignatureScheme{ECDSAWithP256AndSHA256}
 		case elliptic.P384():
-			return []SignatureScheme{ECDSAWithP384AndSHA384}
+			sigAlgs = []SignatureScheme{ECDSAWithP384AndSHA384}
 		case elliptic.P521():
-			return []SignatureScheme{ECDSAWithP521AndSHA512}
+			sigAlgs = []SignatureScheme{ECDSAWithP521AndSHA512}
 		default:
 			return nil
 		}
 	case *rsa.PublicKey:
 		if version != VersionTLS13 {
-			return []SignatureScheme{
-				// Temporarily disable RSA-PSS in TLS 1.2, see Issue 32425.
-				// PSSWithSHA256,
-				// PSSWithSHA384,
-				// PSSWithSHA512,
+			sigAlgs = []SignatureScheme{
+				PSSWithSHA256,
+				PSSWithSHA384,
+				PSSWithSHA512,
 				PKCS1WithSHA256,
 				PKCS1WithSHA384,
 				PKCS1WithSHA512,
 				PKCS1WithSHA1,
 			}
+			break
 		}
 		// TLS 1.3 dropped support for PKCS#1 v1.5 in favor of RSA-PSS.
-		return []SignatureScheme{
+		sigAlgs = []SignatureScheme{
 			PSSWithSHA256,
 			PSSWithSHA384,
 			PSSWithSHA512,
 		}
 	case ed25519.PublicKey:
-		return []SignatureScheme{Ed25519}
+		sigAlgs = []SignatureScheme{Ed25519}
 	default:
 		return nil
 	}
+
+	if cert.SupportedSignatureAlgorithms != nil {
+		var filteredSigAlgs []SignatureScheme
+		for _, sigAlg := range sigAlgs {
+			if isSupportedSignatureAlgorithm(sigAlg, cert.SupportedSignatureAlgorithms) {
+				filteredSigAlgs = append(filteredSigAlgs, sigAlg)
+			}
+		}
+		return filteredSigAlgs
+	}
+	return sigAlgs
 }
 
 // selectSignatureScheme picks a SignatureScheme from the peer's preference list
@@ -216,7 +230,7 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
 // versions that support signature algorithms, so TLS 1.2 and 1.3.
 func selectSignatureScheme(vers uint16, c *Certificate, peerAlgs []SignatureScheme) (SignatureScheme, error) {
 	supportedAlgs := signatureSchemesForCertificate(vers, c)
-	if supportedAlgs == nil {
+	if len(supportedAlgs) == 0 {
 		return 0, unsupportedCertificateError(c)
 	}
 	if len(peerAlgs) == 0 && vers == VersionTLS12 {
@@ -267,6 +281,10 @@ func unsupportedCertificateError(cert *Certificate) error {
 	case ed25519.PublicKey:
 	default:
 		return fmt.Errorf("tls: unsupported certificate key (%T)", pub)
+	}
+
+	if cert.SupportedSignatureAlgorithms != nil {
+		return fmt.Errorf("tls: peer doesn't support the certificate custom signature algorithms")
 	}
 
 	return fmt.Errorf("tls: internal error: unsupported key (%T)", cert.PrivateKey)

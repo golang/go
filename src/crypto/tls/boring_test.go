@@ -221,10 +221,7 @@ func TestBoringServerSignatureAndHash(t *testing.T) {
 			serverConfig.BuildNameToCertificate()
 			// PKCS#1 v1.5 signature algorithms can't be used standalone in TLS
 			// 1.3, and the ECDSA ones bind to the curve used.
-			// RSA-PSS signatures are not supported in TLS 1.2. Issue 32425.
-			if sigType != signatureRSAPSS {
-				serverConfig.MaxVersion = VersionTLS12
-			}
+			serverConfig.MaxVersion = VersionTLS12
 
 			clientErr, serverErr := boringHandshake(t, testConfig, serverConfig)
 			if clientErr != nil {
@@ -236,8 +233,7 @@ func TestBoringServerSignatureAndHash(t *testing.T) {
 				fipstls.Force()
 				defer fipstls.Abandon()
 				clientErr, _ := boringHandshake(t, testConfig, serverConfig)
-				// RSA-PSS is only supported in TLS 1.3, prohibited by forcing fipstls. Issue 32425.
-				if isBoringSignatureScheme(sigHash) && sigType != signatureRSAPSS {
+				if isBoringSignatureScheme(sigHash) {
 					if clientErr != nil {
 						t.Fatalf("expected handshake with %#x to succeed; err=%v", sigHash, clientErr)
 					}

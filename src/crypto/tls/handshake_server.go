@@ -227,7 +227,11 @@ func (hs *serverHandshakeState) processClientHello() error {
 
 	hs.cert, err = c.config.getCertificate(clientHelloInfo(c, hs.clientHello))
 	if err != nil {
-		c.sendAlert(alertInternalError)
+		if err == errNoCertificates {
+			c.sendAlert(alertUnrecognizedName)
+		} else {
+			c.sendAlert(alertInternalError)
+		}
 		return err
 	}
 	if hs.clientHello.scts {
@@ -488,7 +492,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
 		}
 		if c.vers >= VersionTLS12 {
 			certReq.hasSignatureAlgorithm = true
-			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithmsTLS12()
+			certReq.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
 		}
 
 		// An empty list of certificateAuthorities signals to
@@ -803,5 +807,6 @@ func clientHelloInfo(c *Conn, clientHello *clientHelloMsg) *ClientHelloInfo {
 		SupportedProtos:   clientHello.alpnProtocols,
 		SupportedVersions: supportedVersions,
 		Conn:              c.conn,
+		config:            c.config,
 	}
 }
