@@ -1,5 +1,5 @@
 -- summary --
-CompletionsCount = 215
+CompletionsCount = 216
 CompletionSnippetCount = 51
 UnimportedCompletionsCount = 3
 DeepCompletionsCount = 5
@@ -11,7 +11,7 @@ FoldingRangesCount = 2
 FormatCount = 6
 ImportCount = 7
 SuggestedFixCount = 1
-DefinitionsCount = 37
+DefinitionsCount = 38
 TypeDefinitionsCount = 2
 HighlightsCount = 22
 ReferencesCount = 7
