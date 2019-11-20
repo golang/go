@@ -88,6 +88,7 @@ var (
 	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
 	FlagDebugTramp  = flag.Int("debugtramp", 0, "debug trampolines")
 	FlagStrictDups  = flag.Int("strictdups", 0, "sanity check duplicate symbol contents during object file reading (1=warn 2=err).")
+	FlagNewDw       = flag.Bool("newdw", true, "DWARF gen with new loader")
 
 	FlagRound       = flag.Int("R", -1, "set address rounding `quantum`")
 	FlagTextAddr    = flag.Int64("T", -1, "set text segment `address`")
@@ -241,11 +242,31 @@ func Main(arch *sys.Arch, theArch Arch) {
 		fieldtrack(ctxt.Arch, ctxt.loader)
 	}
 
+	if *FlagNewDw {
+		bench.Start("dwarfGenerateDebugInfo")
+
+		// DWARF-gen requires that the unit Textp2 slices be populated,
+		// so that it can walk the functions in each unit. Call into
+		// the loader to do this (requires that we collect the set of
+		// internal libraries first). NB: might be simpler if we moved
+		// isRuntimeDepPkg to cmd/internal and then did the test
+		// in loader.AssignTextSymbolOrder.
+		ctxt.Library = postorder(ctxt.Library)
+		intlibs := []bool{}
+		for _, lib := range ctxt.Library {
+			intlibs = append(intlibs, isRuntimeDepPkg(lib.Pkg))
+		}
+		ctxt.loader.AssignTextSymbolOrder(ctxt.Library, intlibs)
+		dwarfGenerateDebugInfo(ctxt)
+	}
+
 	bench.Start("loadlibfull")
 	ctxt.loadlibfull() // XXX do it here for now
 
-	bench.Start("dwarfGenerateDebugInfo")
-	dwarfGenerateDebugInfo(ctxt)
+	if !*FlagNewDw {
+		bench.Start("dwarfGenerateDebugInfo")
+		dwarfGenerateDebugInfo(ctxt)
+	}
 
 	bench.Start("mangleTypeSym")
 	ctxt.mangleTypeSym()

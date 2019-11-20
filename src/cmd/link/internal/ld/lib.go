@@ -2620,6 +2620,13 @@ func (ctxt *Link) loadlibfull() {
 	// Pull the symbols out.
 	ctxt.loader.ExtractSymbols(ctxt.Syms, ctxt.Reachparent)
 
+	// If -newdw is in effect, then we generated dwarf DIE objects
+	// with embedded loader.Sym refs as opposed to sym.Symbol refs.
+	// Call a helper to rewrite the former to the latter in all DIEs
+	if *FlagNewDw {
+		dwarfConvertSymbols(ctxt)
+	}
+
 	setupdynexp(ctxt)
 
 	// Drop the cgodata reference.
