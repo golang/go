@@ -635,13 +635,12 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 		}
 
 		// set the type parameter's bound
-		if bound != nil {
-			for _, name := range f.Names {
-				tname := tparams[index]
-				assert(name.Name == tname.name)
-				tname.typ.(*TypeParam).bound = bound
-				index++
-			}
+		// (do this even if bound == nil to make sure index is correctly increasing)
+		for _, name := range f.Names {
+			tname := tparams[index]
+			assert(name.Name == tname.name) // keep - this assertion caught index errors
+			tname.typ.(*TypeParam).bound = bound
+			index++
 		}
 	}
 
