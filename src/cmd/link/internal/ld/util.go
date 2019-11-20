@@ -5,6 +5,7 @@
 package ld
 
 import (
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
@@ -38,6 +39,18 @@ func Exitf(format string, a ...interface{}) {
 	Exit(2)
 }
 
+// afterErrorAction updates 'nerrors' on error and invokes exit or
+// panics in the proper circumstances.
+func afterErrorAction() {
+	nerrors++
+	if *flagH {
+		panic("error")
+	}
+	if nerrors > 20 {
+		Exitf("too many errors")
+	}
+}
+
 // Errorf logs an error message.
 //
 // If more than 20 errors have been printed, exit with an error.
@@ -50,13 +63,25 @@ func Errorf(s *sym.Symbol, format string, args ...interface{}) {
 	}
 	format += "\n"
 	fmt.Fprintf(os.Stderr, format, args...)
-	nerrors++
-	if *flagH {
-		panic("error")
+	afterErrorAction()
+}
+
+// Errorf method logs an error message.
+//
+// If more than 20 errors have been printed, exit with an error.
+//
+// Logging an error means that on exit cmd/link will delete any
+// output file and return a non-zero error code.
+func (ctxt *Link) Errorf(s loader.Sym, format string, args ...interface{}) {
+	if s != 0 && ctxt.loader != nil {
+		sn := ctxt.loader.SymName(s)
+		format = sn + ": " + format
+	} else {
+		format = fmt.Sprintf("sym %d: %s", s, format)
 	}
-	if nerrors > 20 {
-		Exitf("too many errors")
-	}
+	format += "\n"
+	fmt.Fprintf(os.Stderr, format, args...)
+	afterErrorAction()
 }
 
 func artrim(x []byte) string {
