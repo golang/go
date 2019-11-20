@@ -432,19 +432,6 @@ func (v *view) mapFile(uri span.URI, f viewFile) {
 	}
 }
 
-func (v *view) openFiles(ctx context.Context, uris []span.URI) (results []source.File) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-
-	for _, uri := range uris {
-		// Call unlocked version of getFile since we hold the lock on the view.
-		if f, err := v.getFile(ctx, uri, source.Go); err == nil && v.session.IsOpen(uri) {
-			results = append(results, f)
-		}
-	}
-	return results
-}
-
 func (v *view) FindPosInPackage(searchpkg source.Package, pos token.Pos) (*ast.File, *protocol.ColumnMapper, source.Package, error) {
 	tok := v.session.cache.fset.File(pos)
 	if tok == nil {

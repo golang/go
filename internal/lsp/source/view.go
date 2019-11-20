@@ -20,13 +20,11 @@ import (
 
 // Snapshot represents the current state for the given view.
 type Snapshot interface {
-	ID() uint64
+	// View returns the View associated with this snapshot.
+	View() View
 
 	// Handle returns the FileHandle for the given file.
 	Handle(ctx context.Context, f File) FileHandle
-
-	// View returns the View associated with this snapshot.
-	View() View
 
 	// Analyze runs the analyses for the given package at this snapshot.
 	Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) ([]*Error, error)
@@ -35,9 +33,16 @@ type Snapshot interface {
 	// This is used to get the SuggestedFixes associated with that error.
 	FindAnalysisError(ctx context.Context, id string, diag protocol.Diagnostic) (*Error, error)
 
-	// PackageHandles returns the PackageHandles for the packages
+	// PackageHandle returns the CheckPackageHandle for the given package ID.
+	PackageHandle(ctx context.Context, id string) (CheckPackageHandle, error)
+
+	// PackageHandles returns the CheckPackageHandles for the packages
 	// that this file belongs to.
 	PackageHandles(ctx context.Context, f File) ([]CheckPackageHandle, error)
+
+	// GetActiveReverseDeps returns the active files belonging to the reverse
+	// dependencies of this file's package.
+	GetReverseDependencies(id string) []string
 
 	// KnownImportPaths returns all the imported packages loaded in this snapshot,
 	// indexed by their import path.
@@ -118,10 +123,6 @@ type View interface {
 	// added to the session. If so the new view will be returned, otherwise the
 	// original one will be.
 	SetOptions(context.Context, Options) (View, error)
-
-	// GetActiveReverseDeps returns the active files belonging to the reverse
-	// dependencies of this file's package.
-	GetActiveReverseDeps(ctx context.Context, f File) []CheckPackageHandle
 
 	// FindFileInPackage returns the AST and type information for a file that may
 	// belong to or be part of a dependency of the given package.

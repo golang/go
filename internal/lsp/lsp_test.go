@@ -356,6 +356,9 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 		t.Fatal(err)
 	}
 	// TODO: This test should probably be able to handle multiple code actions.
+	if len(actions) == 0 {
+		t.Fatal("no code actions returned")
+	}
 	if len(actions) > 1 {
 		t.Fatal("expected only 1 code action")
 	}

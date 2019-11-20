@@ -66,13 +66,11 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, f File, disabledAnalyse
 		log.Error(ctx, "no package for file", err)
 		return singleDiagnostic(fh.Identity(), "%s is not part of a package", f.URI()), "", nil
 	}
-
 	// Prepare the reports we will send for the files in this package.
 	reports := make(map[FileIdentity][]Diagnostic)
 	for _, fh := range pkg.CompiledGoFiles() {
 		clearReports(snapshot, reports, fh.File().Identity())
 	}
-
 	// Prepare any additional reports for the errors in this package.
 	for _, e := range pkg.GetErrors() {
 		if e.Kind != ListError {
@@ -80,7 +78,6 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, f File, disabledAnalyse
 		}
 		clearReports(snapshot, reports, e.File)
 	}
-
 	// Run diagnostics for the package that this URI belongs to.
 	if !diagnostics(ctx, snapshot, pkg, reports) {
 		// If we don't have any list, parse, or type errors, run analyses.
@@ -89,8 +86,11 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, f File, disabledAnalyse
 		}
 	}
 	// Updates to the diagnostics for this package may need to be propagated.
-	revDeps := snapshot.View().GetActiveReverseDeps(ctx, f)
-	for _, cph := range revDeps {
+	for _, id := range snapshot.GetReverseDependencies(pkg.ID()) {
+		cph, err := snapshot.PackageHandle(ctx, id)
+		if err != nil {
+			return nil, warningMsg, err
+		}
 		pkg, err := cph.Check(ctx)
 		if err != nil {
 			return nil, warningMsg, err

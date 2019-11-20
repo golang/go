@@ -10,6 +10,7 @@ import (
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
+	errors "golang.org/x/xerrors"
 )
 
 type snapshot struct {
@@ -59,6 +60,131 @@ func (s *snapshot) View() source.View {
 	return s.view
 }
 
+func (s *snapshot) PackageHandles(ctx context.Context, f source.File) ([]source.CheckPackageHandle, error) {
+	ctx = telemetry.File.With(ctx, f.URI())
+
+	fh := s.Handle(ctx, f)
+	metadata := s.getMetadataForURI(fh.Identity().URI)
+
+	// Determine if we need to type-check the package.
+	cphs, load, check := s.shouldCheck(metadata)
+
+	// We may need to re-load package metadata.
+	// We only need to this if it has been invalidated, and is therefore unvailable.
+	if load {
+		var err error
+		m, err := s.load(ctx, source.FileURI(f.URI()))
+		if err != nil {
+			return nil, err
+		}
+		// If metadata was returned, from the load call, use it.
+		if m != nil {
+			metadata = m
+		}
+	}
+	if check {
+		var results []source.CheckPackageHandle
+		for _, m := range metadata {
+			cph, err := s.checkPackageHandle(ctx, m.id, source.ParseFull)
+			if err != nil {
+				return nil, err
+			}
+			results = append(results, cph)
+		}
+		cphs = results
+	}
+	if len(cphs) == 0 {
+		return nil, errors.Errorf("no CheckPackageHandles for %s", f)
+	}
+	return cphs, nil
+}
+
+func (s *snapshot) PackageHandle(ctx context.Context, id string) (source.CheckPackageHandle, error) {
+	ctx = telemetry.Package.With(ctx, id)
+
+	m := s.getMetadata(packageID(id))
+	if m == nil {
+		return nil, errors.Errorf("no known metadata for %s", id)
+	}
+	// Determine if we need to type-check the package.
+	cphs, load, check := s.shouldCheck([]*metadata{m})
+	if load {
+		return nil, errors.Errorf("outdated metadata for %s, needs re-load", id)
+	}
+	if check {
+		return s.checkPackageHandle(ctx, m.id, source.ParseFull)
+	}
+	if len(cphs) == 0 {
+		return nil, errors.Errorf("no check package handle for %s", id)
+	}
+	if len(cphs) > 1 {
+		return nil, errors.Errorf("multiple check package handles for a single id: %s", id)
+	}
+	return cphs[0], nil
+}
+
+// shouldCheck determines if the packages provided by the metadata
+// need to be re-loaded or re-type-checked.
+func (s *snapshot) shouldCheck(m []*metadata) (cphs []source.CheckPackageHandle, load, check bool) {
+	// No metadata. Re-load and re-check.
+	if len(m) == 0 {
+		return nil, true, true
+	}
+	// We expect to see a checked package for each package ID,
+	// and it should be parsed in full mode.
+	// If a single CheckPackageHandle is missing, re-check all of them.
+	// TODO: Optimize this by only checking the necessary packages.
+	for _, metadata := range m {
+		cph := s.getPackage(metadata.id, source.ParseFull)
+		if cph == nil {
+			return nil, false, true
+		}
+		cphs = append(cphs, cph)
+	}
+	// If the metadata for the package had missing dependencies,
+	// we _may_ need to re-check. If the missing dependencies haven't changed
+	// since previous load, we will not check again.
+	if len(cphs) < len(m) {
+		for _, m := range m {
+			if len(m.missingDeps) != 0 {
+				return nil, true, true
+			}
+		}
+	}
+	return cphs, false, false
+}
+
+func (s *snapshot) GetReverseDependencies(id string) []string {
+	ids := make(map[packageID]struct{})
+	s.transitiveReverseDependencies(packageID(id), ids)
+
+	// Make sure to delete the original package ID from the map.
+	delete(ids, packageID(id))
+
+	var results []string
+	for id := range ids {
+		results = append(results, string(id))
+	}
+	return results
+}
+
+// transitiveReverseDependencies populates the uris map with file URIs
+// belonging to the provided package and its transitive reverse dependencies.
+func (s *snapshot) transitiveReverseDependencies(id packageID, ids map[packageID]struct{}) {
+	if _, ok := ids[id]; ok {
+		return
+	}
+	m := s.getMetadata(id)
+	if m == nil {
+		return
+	}
+	ids[id] = struct{}{}
+	importedBy := s.getImportedBy(id)
+	for _, parentID := range importedBy {
+		s.transitiveReverseDependencies(parentID, ids)
+	}
+}
+
 func (s *snapshot) getImportedBy(id packageID) []packageID {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -82,25 +208,6 @@ func (s *snapshot) addPackage(cph *checkPackageHandle) {
 		return
 	}
 	s.packages[cph.packageKey()] = cph
-}
-
-func (s *snapshot) getPackages(uri source.FileURI, m source.ParseMode) (cphs []source.CheckPackageHandle) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if ids, ok := s.ids[uri.URI()]; ok {
-		for _, id := range ids {
-			key := packageKey{
-				id:   id,
-				mode: m,
-			}
-			cph, ok := s.packages[key]
-			if ok {
-				cphs = append(cphs, cph)
-			}
-		}
-	}
-	return cphs
 }
 
 // checkWorkspacePackages checks the initial set of packages loaded when
@@ -445,14 +552,20 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, kind source
 		}
 		originalFH = nil
 	}
-
 	if len(ids) == 0 {
 		return false
 	}
 
 	// Remove the package and all of its reverse dependencies from the cache.
+	reverseDependencies := make(map[packageID]struct{})
 	for id := range ids {
-		v.snapshot.reverseDependencies(id, withoutTypes, map[packageID]struct{}{})
+		v.snapshot.transitiveReverseDependencies(id, reverseDependencies)
+	}
+	for id := range reverseDependencies {
+		m := v.snapshot.getMetadata(id)
+		for _, uri := range m.compiledGoFiles {
+			withoutTypes[uri] = struct{}{}
+		}
 	}
 
 	// Make sure to clear out the content if there has been a deletion.
@@ -474,26 +587,6 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, kind source
 	uri := f.URI()
 	v.snapshot = v.snapshot.clone(ctx, &uri, withoutTypes, withoutMetadata)
 	return true
-}
-
-// reverseDependencies populates the uris map with file URIs belonging to the
-// provided package and its transitive reverse dependencies.
-func (s *snapshot) reverseDependencies(id packageID, uris map[span.URI]struct{}, seen map[packageID]struct{}) {
-	if _, ok := seen[id]; ok {
-		return
-	}
-	m := s.getMetadata(id)
-	if m == nil {
-		return
-	}
-	seen[id] = struct{}{}
-	importedBy := s.getImportedBy(id)
-	for _, parentID := range importedBy {
-		s.reverseDependencies(parentID, uris, seen)
-	}
-	for _, uri := range m.compiledGoFiles {
-		uris[uri] = struct{}{}
-	}
 }
 
 func (s *snapshot) clearAndRebuildImportGraph() {
