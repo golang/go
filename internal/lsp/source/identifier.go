@@ -46,8 +46,8 @@ type Declaration struct {
 
 // Identifier returns identifier information for a position
 // in a file, accounting for a potentially incomplete selector.
-func Identifier(ctx context.Context, view View, f File, pos protocol.Position) (*IdentifierInfo, error) {
-	snapshot, cphs, err := view.CheckPackageHandles(ctx, f)
+func Identifier(ctx context.Context, snapshot Snapshot, f File, pos protocol.Position) (*IdentifierInfo, error) {
+	cphs, err := snapshot.PackageHandles(ctx, f)
 	if err != nil {
 		return nil, err
 	}

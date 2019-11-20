@@ -18,11 +18,12 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 	if err != nil {
 		return nil, err
 	}
+	snapshot := view.Snapshot()
 	f, err := view.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
-	ident, err := source.Identifier(ctx, view, f, params.Position)
+	ident, err := source.Identifier(ctx, snapshot, f, params.Position)
 	if err != nil {
 		return nil, err
 	}
@@ -50,11 +51,12 @@ func (s *Server) prepareRename(ctx context.Context, params *protocol.PrepareRena
 	if err != nil {
 		return nil, err
 	}
+	snapshot := view.Snapshot()
 	f, err := view.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
-	ident, err := source.Identifier(ctx, view, f, params.Position)
+	ident, err := source.Identifier(ctx, snapshot, f, params.Position)
 	if err != nil {
 		return nil, nil // ignore errors
 	}

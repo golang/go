@@ -101,7 +101,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 				},
 			},
 			Workspace: protocol.WorkspaceGn{
-				protocol.WorkspaceFoldersGn{
+				WorkspaceFolders: protocol.WorkspaceFoldersGn{
 					Supported:           true,
 					ChangeNotifications: "workspace/didChangeWorkspaceFolders",
 				},
@@ -163,7 +163,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 			viewErrors[uri] = err
 			continue
 		}
-		s.diagnoseView(view, workspacePackages)
+		s.diagnoseSnapshot(view.Snapshot(), workspacePackages)
 	}
 	if len(viewErrors) > 0 {
 		errMsg := fmt.Sprintf("Error loading workspace folders (expected %v, got %v)\n", len(s.pendingFolders), len(s.session.Views()))

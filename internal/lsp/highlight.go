@@ -20,7 +20,12 @@ func (s *Server) documentHighlight(ctx context.Context, params *protocol.Documen
 	if err != nil {
 		return nil, err
 	}
-	rngs, err := source.Highlight(ctx, view, uri, params.Position)
+	snapshot := view.Snapshot()
+	f, err := view.GetFile(ctx, uri)
+	if err != nil {
+		return nil, err
+	}
+	rngs, err := source.Highlight(ctx, snapshot, f, params.Position)
 	if err != nil {
 		log.Error(ctx, "no highlight", err, telemetry.URI.Of(uri))
 	}

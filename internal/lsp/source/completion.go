@@ -132,9 +132,6 @@ type completer struct {
 	qf   types.Qualifier
 	opts CompletionOptions
 
-	// view is the View associated with this completion request.
-	view View
-
 	// ctx is the context associated with this completion request.
 	ctx context.Context
 
@@ -259,7 +256,7 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 		cursor:  c.pos,
 		mappedRange: mappedRange{
 			// Overwrite the prefix only.
-			spanRange: span.NewRange(c.view.Session().Cache().FileSet(), ident.Pos(), c.pos),
+			spanRange: span.NewRange(c.snapshot.View().Session().Cache().FileSet(), ident.Pos(), c.pos),
 			m:         c.mapper,
 		},
 	}
@@ -279,7 +276,7 @@ func (c *completer) getSurrounding() *Selection {
 			content: "",
 			cursor:  c.pos,
 			mappedRange: mappedRange{
-				spanRange: span.NewRange(c.view.Session().Cache().FileSet(), c.pos, c.pos),
+				spanRange: span.NewRange(c.snapshot.View().Session().Cache().FileSet(), c.pos, c.pos),
 				m:         c.mapper,
 			},
 		}
@@ -397,13 +394,13 @@ func (e ErrIsDefinition) Error() string {
 // The selection is computed based on the preceding identifier and can be used by
 // the client to score the quality of the completion. For instance, some clients
 // may tolerate imperfect matches as valid completion results, since users may make typos.
-func Completion(ctx context.Context, view View, f File, pos protocol.Position, opts CompletionOptions) ([]CompletionItem, *Selection, error) {
+func Completion(ctx context.Context, snapshot Snapshot, f File, pos protocol.Position, opts CompletionOptions) ([]CompletionItem, *Selection, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Completion")
 	defer done()
 
 	startTime := time.Now()
 
-	snapshot, cphs, err := view.CheckPackageHandles(ctx, f)
+	cphs, err := snapshot.PackageHandles(ctx, f)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -452,7 +449,6 @@ func Completion(ctx context.Context, view View, f File, pos protocol.Position, o
 		pkg:                       pkg,
 		snapshot:                  snapshot,
 		qf:                        qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo()),
-		view:                      view,
 		ctx:                       ctx,
 		filename:                  f.URI().Filename(),
 		file:                      file,
@@ -586,7 +582,7 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 
 	// Try unimported packages.
 	if id, ok := sel.X.(*ast.Ident); ok {
-		pkgExports, err := PackageExports(c.ctx, c.view, id.Name, c.filename)
+		pkgExports, err := PackageExports(c.ctx, c.snapshot.View(), id.Name, c.filename)
 		if err != nil {
 			return err
 		}
@@ -736,7 +732,7 @@ func (c *completer) lexical() error {
 
 	if c.opts.Unimported {
 		// Suggest packages that have not been imported yet.
-		pkgs, err := CandidateImports(c.ctx, c.view, c.filename)
+		pkgs, err := CandidateImports(c.ctx, c.snapshot.View(), c.filename)
 		if err != nil {
 			return err
 		}

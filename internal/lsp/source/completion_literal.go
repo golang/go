@@ -104,7 +104,7 @@ func (c *completer) literal(literalType types.Type, imp *importInfo) {
 				// If we are in a selector we must place the "&" before the selector.
 				// For example, "foo.B<>" must complete to "&foo.Bar{}", not
 				// "foo.&Bar{}".
-				edits, err := referenceEdit(c.view.Session().Cache().FileSet(), c.mapper, sel)
+				edits, err := referenceEdit(c.snapshot.View().Session().Cache().FileSet(), c.mapper, sel)
 				if err != nil {
 					log.Error(c.ctx, "error making edit for literal pointer completion", err)
 					return

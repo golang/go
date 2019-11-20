@@ -22,13 +22,14 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	if err != nil {
 		return nil, err
 	}
+	snapshot := view.Snapshot()
 	options := view.Options()
 	f, err := view.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
 	options.Completion.FullDocumentation = options.HoverKind == source.FullDocumentation
-	candidates, surrounding, err := source.Completion(ctx, view, f, params.Position, options.Completion)
+	candidates, surrounding, err := source.Completion(ctx, snapshot, f, params.Position, options.Completion)
 	if err != nil {
 		log.Print(ctx, "no completions found", tag.Of("At", params.Position), tag.Of("Failure", err))
 	}

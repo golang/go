@@ -18,97 +18,34 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-// FileIdentity uniquely identifies a file at a version from a FileSystem.
-type FileIdentity struct {
-	URI span.URI
+// Snapshot represents the current state for the given view.
+type Snapshot interface {
+	ID() uint64
 
-	// Version is the version of the file, as specified by the client.
-	Version float64
+	// Handle returns the FileHandle for the given file.
+	Handle(ctx context.Context, f File) FileHandle
 
-	// Identifier represents a unique identifier for the file.
-	// It could be a file's modification time or its SHA1 hash if it is not on disk.
-	Identifier string
+	// View returns the View associated with this snapshot.
+	View() View
 
-	// Kind is the file's kind.
-	Kind FileKind
+	// Analyze runs the analyses for the given package at this snapshot.
+	Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) ([]*Error, error)
+
+	// FindAnalysisError returns the analysis error represented by the diagnostic.
+	// This is used to get the SuggestedFixes associated with that error.
+	FindAnalysisError(ctx context.Context, id string, diag protocol.Diagnostic) (*Error, error)
+
+	// PackageHandles returns the PackageHandles for the packages
+	// that this file belongs to.
+	PackageHandles(ctx context.Context, f File) ([]CheckPackageHandle, error)
+
+	// KnownImportPaths returns all the imported packages loaded in this snapshot,
+	// indexed by their import path.
+	KnownImportPaths() map[string]Package
+
+	// KnownPackages returns all the packages loaded in this snapshot.
+	KnownPackages(ctx context.Context) []Package
 }
-
-func (identity FileIdentity) String() string {
-	return fmt.Sprintf("%s%f%s%s", identity.URI, identity.Version, identity.Identifier, identity.Kind)
-}
-
-// FileHandle represents a handle to a specific version of a single file from
-// a specific file system.
-type FileHandle interface {
-	// FileSystem returns the file system this handle was acquired from.
-	FileSystem() FileSystem
-
-	// Identity returns the FileIdentity for the file.
-	Identity() FileIdentity
-
-	// Read reads the contents of a file and returns it along with its hash value.
-	// If the file is not available, returns a nil slice and an error.
-	Read(ctx context.Context) ([]byte, string, error)
-}
-
-// FileSystem is the interface to something that provides file contents.
-type FileSystem interface {
-	// GetFile returns a handle for the specified file.
-	GetFile(uri span.URI, kind FileKind) FileHandle
-}
-
-// File represents a source file of any type.
-type File interface {
-	URI() span.URI
-	Kind() FileKind
-}
-
-// FileKind describes the kind of the file in question.
-// It can be one of Go, mod, or sum.
-type FileKind int
-
-const (
-	Go = FileKind(iota)
-	Mod
-	Sum
-	UnknownKind
-)
-
-// ParseGoHandle represents a handle to the AST for a file.
-type ParseGoHandle interface {
-	// File returns a file handle for which to get the AST.
-	File() FileHandle
-
-	// Mode returns the parse mode of this handle.
-	Mode() ParseMode
-
-	// Parse returns the parsed AST for the file.
-	// If the file is not available, returns nil and an error.
-	Parse(ctx context.Context) (*ast.File, *protocol.ColumnMapper, error, error)
-
-	// Cached returns the AST for this handle, if it has already been stored.
-	Cached() (*ast.File, *protocol.ColumnMapper, error, error)
-}
-
-// ParseMode controls the content of the AST produced when parsing a source file.
-type ParseMode int
-
-const (
-	// ParseHeader specifies that the main package declaration and imports are needed.
-	// This is the mode used when attempting to examine the package graph structure.
-	ParseHeader = ParseMode(iota)
-
-	// ParseExported specifies that the public symbols are needed, but things like
-	// private symbols and function bodies are not.
-	// This mode is used for things where a package is being consumed only as a
-	// dependency.
-	ParseExported
-
-	// ParseFull specifies the full AST is needed.
-	// This is used for files of direct interest where the entire contents must
-	// be considered.
-	ParseFull
-)
 
 // CheckPackageHandle represents a handle to a specific version of a package.
 // It is uniquely defined by the file handles that make up the package.
@@ -129,25 +66,69 @@ type CheckPackageHandle interface {
 	MissingDependencies() []string
 }
 
-// Cache abstracts the core logic of dealing with the environment from the
-// higher level logic that processes the information to produce results.
-// The cache provides access to files and their contents, so the source
-// package does not directly access the file system.
-// A single cache is intended to be process wide, and is the primary point of
-// sharing between all consumers.
-// A cache may have many active sessions at any given time.
-type Cache interface {
-	// A FileSystem that reads file contents from external storage.
-	FileSystem
+// View represents a single workspace.
+// This is the level at which we maintain configuration like working directory
+// and build tags.
+type View interface {
+	// Session returns the session that created this view.
+	Session() Session
 
-	// NewSession creates a new Session manager and returns it.
-	NewSession(ctx context.Context) Session
+	// Name returns the name this view was constructed with.
+	Name() string
 
-	// FileSet returns the shared fileset used by all files in the system.
-	FileSet() *token.FileSet
+	// Folder returns the root folder for this view.
+	Folder() span.URI
 
-	// ParseGoHandle returns a ParseGoHandle for the given file handle.
-	ParseGoHandle(fh FileHandle, mode ParseMode) ParseGoHandle
+	// BuiltinPackage returns the type information for the special "builtin" package.
+	BuiltinPackage() BuiltinPackage
+
+	// GetFile returns the file object for a given URI, initializing it
+	// if it is not already part of the view.
+	GetFile(ctx context.Context, uri span.URI) (File, error)
+
+	// FindFile returns the file object for a given URI if it is
+	// already part of the view.
+	FindFile(ctx context.Context, uri span.URI) File
+
+	// Called to set the effective contents of a file from this view.
+	SetContent(ctx context.Context, uri span.URI, version float64, content []byte) (wasFirstChange bool, err error)
+
+	// BackgroundContext returns a context used for all background processing
+	// on behalf of this view.
+	BackgroundContext() context.Context
+
+	// Shutdown closes this view, and detaches it from it's session.
+	Shutdown(ctx context.Context)
+
+	// Ignore returns true if this file should be ignored by this view.
+	Ignore(span.URI) bool
+
+	// Config returns the configuration for the view.
+	Config(ctx context.Context) *packages.Config
+
+	// RunProcessEnvFunc runs fn with the process env for this view inserted into opts.
+	// Note: the process env contains cached module and filesystem state.
+	RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error, opts *imports.Options) error
+
+	// Options returns a copy of the Options for this view.
+	Options() Options
+
+	// SetOptions sets the options of this view to new values.
+	// Calling this may cause the view to be invalidated and a replacement view
+	// added to the session. If so the new view will be returned, otherwise the
+	// original one will be.
+	SetOptions(context.Context, Options) (View, error)
+
+	// GetActiveReverseDeps returns the active files belonging to the reverse
+	// dependencies of this file's package.
+	GetActiveReverseDeps(ctx context.Context, f File) []CheckPackageHandle
+
+	// FindFileInPackage returns the AST and type information for a file that may
+	// belong to or be part of a dependency of the given package.
+	FindPosInPackage(pkg Package, pos token.Pos) (*ast.File, *protocol.ColumnMapper, Package, error)
+
+	// Snapshot returns the current snapshot for the view.
+	Snapshot() Snapshot
 }
 
 // Session represents a single connection from a client.
@@ -214,103 +195,118 @@ const (
 	UnknownFileAction
 )
 
-// View represents a single workspace.
-// This is the level at which we maintain configuration like working directory
-// and build tags.
-type View interface {
-	// Session returns the session that created this view.
-	Session() Session
+// Cache abstracts the core logic of dealing with the environment from the
+// higher level logic that processes the information to produce results.
+// The cache provides access to files and their contents, so the source
+// package does not directly access the file system.
+// A single cache is intended to be process wide, and is the primary point of
+// sharing between all consumers.
+// A cache may have many active sessions at any given time.
+type Cache interface {
+	// A FileSystem that reads file contents from external storage.
+	FileSystem
 
-	// Name returns the name this view was constructed with.
-	Name() string
+	// NewSession creates a new Session manager and returns it.
+	NewSession(ctx context.Context) Session
 
-	// Folder returns the root folder for this view.
-	Folder() span.URI
+	// FileSet returns the shared fileset used by all files in the system.
+	FileSet() *token.FileSet
 
-	// BuiltinPackage returns the type information for the special "builtin" package.
-	BuiltinPackage() BuiltinPackage
-
-	// GetFile returns the file object for a given URI, initializing it
-	// if it is not already part of the view.
-	GetFile(ctx context.Context, uri span.URI) (File, error)
-
-	// FindFile returns the file object for a given URI if it is
-	// already part of the view.
-	FindFile(ctx context.Context, uri span.URI) File
-
-	// Called to set the effective contents of a file from this view.
-	SetContent(ctx context.Context, uri span.URI, version float64, content []byte) (wasFirstChange bool, err error)
-
-	// BackgroundContext returns a context used for all background processing
-	// on behalf of this view.
-	BackgroundContext() context.Context
-
-	// Shutdown closes this view, and detaches it from it's session.
-	Shutdown(ctx context.Context)
-
-	// Ignore returns true if this file should be ignored by this view.
-	Ignore(span.URI) bool
-
-	// Config returns the configuration for the view.
-	Config(ctx context.Context) *packages.Config
-
-	// RunProcessEnvFunc runs fn with the process env for this view inserted into opts.
-	// Note: the process env contains cached module and filesystem state.
-	RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error, opts *imports.Options) error
-
-	// Options returns a copy of the Options for this view.
-	Options() Options
-
-	// SetOptions sets the options of this view to new values.
-	// Calling this may cause the view to be invalidated and a replacement view
-	// added to the session. If so the new view will be returned, otherwise the
-	// original one will be.
-	SetOptions(context.Context, Options) (View, error)
-
-	// CheckPackageHandles returns the CheckPackageHandles for the packages
-	// that this file belongs to.
-	CheckPackageHandles(ctx context.Context, f File) (Snapshot, []CheckPackageHandle, error)
-
-	// GetActiveReverseDeps returns the active files belonging to the reverse
-	// dependencies of this file's package.
-	GetActiveReverseDeps(ctx context.Context, f File) []CheckPackageHandle
-
-	// FindFileInPackage returns the AST and type information for a file that may
-	// belong to or be part of a dependency of the given package.
-	FindPosInPackage(pkg Package, pos token.Pos) (*ast.File, *protocol.ColumnMapper, Package, error)
-
-	// Snapshot returns the current snapshot for the view.
-	Snapshot() Snapshot
+	// ParseGoHandle returns a ParseGoHandle for the given file handle.
+	ParseGoHandle(fh FileHandle, mode ParseMode) ParseGoHandle
 }
 
-// Snapshot represents the current state for the given view.
-type Snapshot interface {
-	ID() uint64
-
-	// Handle returns the FileHandle for the given file.
-	Handle(ctx context.Context, f File) FileHandle
-
-	// View returns the View associated with this snapshot.
-	View() View
-
-	// Analyze runs the analyses for the given package at this snapshot.
-	Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) ([]*Error, error)
-
-	// FindAnalysisError returns the analysis error represented by the diagnostic.
-	// This is used to get the SuggestedFixes associated with that error.
-	FindAnalysisError(ctx context.Context, id string, diag protocol.Diagnostic) (*Error, error)
-
-	// CheckPackageHandles returns the CheckPackageHandles for the packages
-	// that this file belongs to.
-	CheckPackageHandles(ctx context.Context, f File) ([]CheckPackageHandle, error)
-
-	// KnownImportPaths returns all the imported packages loaded in this snapshot,
-	// indexed by their import path.
-	KnownImportPaths() map[string]Package
-
-	// KnownPackages returns all the packages loaded in this snapshot.
-	KnownPackages(ctx context.Context) []Package
+// FileSystem is the interface to something that provides file contents.
+type FileSystem interface {
+	// GetFile returns a handle for the specified file.
+	GetFile(uri span.URI, kind FileKind) FileHandle
 }
+
+// ParseGoHandle represents a handle to the AST for a file.
+type ParseGoHandle interface {
+	// File returns a file handle for which to get the AST.
+	File() FileHandle
+
+	// Mode returns the parse mode of this handle.
+	Mode() ParseMode
+
+	// Parse returns the parsed AST for the file.
+	// If the file is not available, returns nil and an error.
+	Parse(ctx context.Context) (*ast.File, *protocol.ColumnMapper, error, error)
+
+	// Cached returns the AST for this handle, if it has already been stored.
+	Cached() (*ast.File, *protocol.ColumnMapper, error, error)
+}
+
+// ParseMode controls the content of the AST produced when parsing a source file.
+type ParseMode int
+
+const (
+	// ParseHeader specifies that the main package declaration and imports are needed.
+	// This is the mode used when attempting to examine the package graph structure.
+	ParseHeader = ParseMode(iota)
+
+	// ParseExported specifies that the public symbols are needed, but things like
+	// private symbols and function bodies are not.
+	// This mode is used for things where a package is being consumed only as a
+	// dependency.
+	ParseExported
+
+	// ParseFull specifies the full AST is needed.
+	// This is used for files of direct interest where the entire contents must
+	// be considered.
+	ParseFull
+)
+
+// FileHandle represents a handle to a specific version of a single file from
+// a specific file system.
+type FileHandle interface {
+	// FileSystem returns the file system this handle was acquired from.
+	FileSystem() FileSystem
+
+	// Identity returns the FileIdentity for the file.
+	Identity() FileIdentity
+
+	// Read reads the contents of a file and returns it along with its hash value.
+	// If the file is not available, returns a nil slice and an error.
+	Read(ctx context.Context) ([]byte, string, error)
+}
+
+// FileIdentity uniquely identifies a file at a version from a FileSystem.
+type FileIdentity struct {
+	URI span.URI
+
+	// Version is the version of the file, as specified by the client.
+	Version float64
+
+	// Identifier represents a unique identifier for the file.
+	// It could be a file's modification time or its SHA1 hash if it is not on disk.
+	Identifier string
+
+	// Kind is the file's kind.
+	Kind FileKind
+}
+
+func (identity FileIdentity) String() string {
+	return fmt.Sprintf("%s%f%s%s", identity.URI, identity.Version, identity.Identifier, identity.Kind)
+}
+
+// File represents a source file of any type.
+type File interface {
+	URI() span.URI
+	Kind() FileKind
+}
+
+// FileKind describes the kind of the file in question.
+// It can be one of Go, mod, or sum.
+type FileKind int
+
+const (
+	Go = FileKind(iota)
+	Mod
+	Sum
+	UnknownKind
+)
 
 type FileURI span.URI
 

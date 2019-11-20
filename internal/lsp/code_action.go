@@ -72,7 +72,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			},
 		})
 	case source.Go:
-		edits, editsPerFix, err := source.AllImportsFixes(ctx, view, f)
+		edits, editsPerFix, err := source.AllImportsFixes(ctx, snapshot, f)
 		if err != nil {
 			return nil, err
 		}
@@ -204,9 +204,9 @@ func importDiagnostics(fix *imports.ImportFix, diagnostics []protocol.Diagnostic
 	return results
 }
 
-func quickFixes(ctx context.Context, s source.Snapshot, f source.File, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
+func quickFixes(ctx context.Context, snapshot source.Snapshot, f source.File, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
 	var codeActions []protocol.CodeAction
-	cphs, err := s.CheckPackageHandles(ctx, f)
+	cphs, err := snapshot.PackageHandles(ctx, f)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +217,7 @@ func quickFixes(ctx context.Context, s source.Snapshot, f source.File, diagnosti
 		return nil, err
 	}
 	for _, diag := range diagnostics {
-		srcErr, err := s.FindAnalysisError(ctx, cph.ID(), diag)
+		srcErr, err := snapshot.FindAnalysisError(ctx, cph.ID(), diag)
 		if err != nil {
 			continue
 		}
@@ -229,12 +229,12 @@ func quickFixes(ctx context.Context, s source.Snapshot, f source.File, diagnosti
 				Edit:        protocol.WorkspaceEdit{},
 			}
 			for uri, edits := range fix.Edits {
-				f, err := s.View().GetFile(ctx, uri)
+				f, err := snapshot.View().GetFile(ctx, uri)
 				if err != nil {
 					log.Error(ctx, "no file", err, telemetry.URI.Of(uri))
 					continue
 				}
-				fh := s.Handle(ctx, f)
+				fh := snapshot.Handle(ctx, f)
 				action.Edit.DocumentChanges = append(action.Edit.DocumentChanges, documentChanges(fh, edits)...)
 			}
 			codeActions = append(codeActions, action)

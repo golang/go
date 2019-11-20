@@ -13,21 +13,7 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-func (v *view) CheckPackageHandles(ctx context.Context, f source.File) (source.Snapshot, []source.CheckPackageHandle, error) {
-	// Get the snapshot that will be used for type-checking.
-	s := v.getSnapshot()
-
-	cphs, err := s.CheckPackageHandles(ctx, f)
-	if err != nil {
-		return nil, nil, err
-	}
-	if len(cphs) == 0 {
-		return nil, nil, errors.Errorf("no CheckPackageHandles for %s", f.URI())
-	}
-	return s, cphs, nil
-}
-
-func (s *snapshot) CheckPackageHandles(ctx context.Context, f source.File) ([]source.CheckPackageHandle, error) {
+func (s *snapshot) PackageHandles(ctx context.Context, f source.File) ([]source.CheckPackageHandle, error) {
 	ctx = telemetry.File.With(ctx, f.URI())
 
 	fh := s.Handle(ctx, f)
@@ -109,7 +95,7 @@ func (v *view) GetActiveReverseDeps(ctx context.Context, f source.File) (results
 		if _, ok := seen[f.URI()]; ok {
 			continue
 		}
-		cphs, err := s.CheckPackageHandles(ctx, f)
+		cphs, err := s.PackageHandles(ctx, f)
 		if err != nil {
 			continue
 		}

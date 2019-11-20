@@ -23,11 +23,11 @@ import (
 )
 
 // Format formats a file with a given range.
-func Format(ctx context.Context, view View, f File) ([]protocol.TextEdit, error) {
+func Format(ctx context.Context, snapshot Snapshot, f File) ([]protocol.TextEdit, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Format")
 	defer done()
 
-	snapshot, cphs, err := view.CheckPackageHandles(ctx, f)
+	cphs, err := snapshot.PackageHandles(ctx, f)
 	if err != nil {
 		return nil, err
 	}
@@ -61,10 +61,10 @@ func Format(ctx context.Context, view View, f File) ([]protocol.TextEdit, error)
 		if err != nil {
 			return nil, err
 		}
-		return computeTextEdits(ctx, view, ph.File(), m, string(formatted))
+		return computeTextEdits(ctx, snapshot.View(), ph.File(), m, string(formatted))
 	}
 
-	fset := view.Session().Cache().FileSet()
+	fset := snapshot.View().Session().Cache().FileSet()
 	buf := &bytes.Buffer{}
 
 	// format.Node changes slightly from one release to another, so the version
@@ -74,7 +74,7 @@ func Format(ctx context.Context, view View, f File) ([]protocol.TextEdit, error)
 	if err := format.Node(buf, fset, file); err != nil {
 		return nil, err
 	}
-	return computeTextEdits(ctx, view, ph.File(), m, buf.String())
+	return computeTextEdits(ctx, snapshot.View(), ph.File(), m, buf.String())
 }
 
 func formatSource(ctx context.Context, s Snapshot, f File) ([]byte, error) {
@@ -97,11 +97,11 @@ type ImportFix struct {
 // In addition to returning the result of applying all edits,
 // it returns a list of fixes that could be applied to the file, with the
 // corresponding TextEdits that would be needed to apply that fix.
-func AllImportsFixes(ctx context.Context, view View, f File) (allFixEdits []protocol.TextEdit, editsPerFix []*ImportFix, err error) {
+func AllImportsFixes(ctx context.Context, snapshot Snapshot, f File) (allFixEdits []protocol.TextEdit, editsPerFix []*ImportFix, err error) {
 	ctx, done := trace.StartSpan(ctx, "source.AllImportsFixes")
 	defer done()
 
-	_, cphs, err := view.CheckPackageHandles(ctx, f)
+	cphs, err := snapshot.PackageHandles(ctx, f)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -135,8 +135,8 @@ func AllImportsFixes(ctx context.Context, view View, f File) (allFixEdits []prot
 		TabIndent:  true,
 		TabWidth:   8,
 	}
-	err = view.RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
-		allFixEdits, editsPerFix, err = computeImportEdits(ctx, view, ph, opts)
+	err = snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+		allFixEdits, editsPerFix, err = computeImportEdits(ctx, snapshot.View(), ph, opts)
 		return err
 	}, options)
 	if err != nil {

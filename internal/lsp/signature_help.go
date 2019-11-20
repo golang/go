@@ -20,11 +20,12 @@ func (s *Server) signatureHelp(ctx context.Context, params *protocol.SignatureHe
 	if err != nil {
 		return nil, err
 	}
+	snapshot := view.Snapshot()
 	f, err := view.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
-	info, err := source.SignatureHelp(ctx, view, f, params.Position)
+	info, err := source.SignatureHelp(ctx, snapshot, f, params.Position)
 	if err != nil {
 		log.Print(ctx, "no signature help", tag.Of("At", params.Position), tag.Of("Failure", err))
 		return nil, nil

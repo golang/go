@@ -28,7 +28,7 @@ func (s *Server) changeFolders(ctx context.Context, event protocol.WorkspaceFold
 		if err != nil {
 			return err
 		}
-		go s.diagnoseView(view, cphs)
+		go s.diagnoseSnapshot(view.Snapshot(), cphs)
 	}
 	return nil
 }

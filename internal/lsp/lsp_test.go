@@ -78,7 +78,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnosti
 	if err != nil {
 		t.Fatalf("no file for %s: %v", f, err)
 	}
-	results, _, err := source.Diagnostics(r.ctx, v, f, nil)
+	results, _, err := source.Diagnostics(r.ctx, v.Snapshot(), f, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -336,7 +336,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	diagnostics, _, err := source.Diagnostics(r.ctx, view, f, nil)
+	diagnostics, _, err := source.Diagnostics(r.ctx, view.Snapshot(), f, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

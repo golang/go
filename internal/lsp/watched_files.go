@@ -34,7 +34,7 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 				if s.session.DidChangeOutOfBand(ctx, uri, action) {
 					// If we had been tracking the given file,
 					// recompute diagnostics to reflect updated file contents.
-					go s.diagnostics(view, uri)
+					go s.diagnostics(view.Snapshot(), uri)
 				}
 			case source.Delete:
 				f := view.FindFile(ctx, uri)
@@ -42,7 +42,7 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 				if f == nil {
 					continue
 				}
-				_, cphs, err := view.CheckPackageHandles(ctx, f)
+				cphs, err := view.Snapshot().PackageHandles(ctx, f)
 				if err != nil {
 					log.Error(ctx, "didChangeWatchedFiles: CheckPackageHandles", err, telemetry.File)
 					continue
@@ -77,7 +77,7 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 				}
 
 				// Refresh diagnostics for the package the file belonged to.
-				go s.diagnostics(view, otherFile.URI())
+				go s.diagnostics(view.Snapshot(), otherFile.URI())
 			}
 		}
 	}

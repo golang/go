@@ -18,9 +18,10 @@ func (s *Server) formatting(ctx context.Context, params *protocol.DocumentFormat
 	if err != nil {
 		return nil, err
 	}
+	snapshot := view.Snapshot()
 	f, err := view.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
-	return source.Format(ctx, view, f)
+	return source.Format(ctx, snapshot, f)
 }

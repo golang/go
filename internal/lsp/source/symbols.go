@@ -14,11 +14,11 @@ import (
 	"golang.org/x/tools/internal/telemetry/trace"
 )
 
-func DocumentSymbols(ctx context.Context, view View, f File) ([]protocol.DocumentSymbol, error) {
+func DocumentSymbols(ctx context.Context, snapshot Snapshot, f File) ([]protocol.DocumentSymbol, error) {
 	ctx, done := trace.StartSpan(ctx, "source.DocumentSymbols")
 	defer done()
 
-	_, cphs, err := view.CheckPackageHandles(ctx, f)
+	cphs, err := snapshot.PackageHandles(ctx, f)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func DocumentSymbols(ctx context.Context, view View, f File) ([]protocol.Documen
 		switch decl := decl.(type) {
 		case *ast.FuncDecl:
 			if obj := info.ObjectOf(decl.Name); obj != nil {
-				if fs := funcSymbol(ctx, view, m, decl, obj, q); fs.Kind == protocol.Method {
+				if fs := funcSymbol(ctx, snapshot.View(), m, decl, obj, q); fs.Kind == protocol.Method {
 					// Store methods separately, as we want them to appear as children
 					// of the corresponding type (which we may not have seen yet).
 					rtype := obj.Type().(*types.Signature).Recv().Type()
@@ -63,14 +63,14 @@ func DocumentSymbols(ctx context.Context, view View, f File) ([]protocol.Documen
 				switch spec := spec.(type) {
 				case *ast.TypeSpec:
 					if obj := info.ObjectOf(spec.Name); obj != nil {
-						ts := typeSymbol(ctx, view, m, info, spec, obj, q)
+						ts := typeSymbol(ctx, snapshot.View(), m, info, spec, obj, q)
 						symbols = append(symbols, ts)
 						symbolsToReceiver[obj.Type()] = len(symbols) - 1
 					}
 				case *ast.ValueSpec:
 					for _, name := range spec.Names {
 						if obj := info.ObjectOf(name); obj != nil {
-							symbols = append(symbols, varSymbol(ctx, view, m, decl, name, obj, q))
+							symbols = append(symbols, varSymbol(ctx, snapshot.View(), m, decl, name, obj, q))
 						}
 					}
 				}

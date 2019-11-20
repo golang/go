@@ -33,9 +33,10 @@ func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocume
 	if err != nil {
 		return err
 	}
+	snapshot := view.Snapshot()
 
 	// Run diagnostics on the newly-changed file.
-	go s.diagnostics(view, uri)
+	go s.diagnostics(snapshot, uri)
 
 	return nil
 }
@@ -71,6 +72,8 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 	if err != nil {
 		return err
 	}
+	snapshot := view.Snapshot()
+
 	wasFirstChange, err := view.SetContent(ctx, uri, params.TextDocument.Version, []byte(text))
 	if err != nil {
 		return err
@@ -86,7 +89,7 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 	}
 
 	// Run diagnostics on the newly-changed file.
-	go s.diagnostics(view, uri)
+	go s.diagnostics(snapshot, uri)
 
 	return nil
 }
@@ -169,7 +172,7 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 		log.Error(ctx, "no file", err, telemetry.URI)
 		return nil
 	}
-	_, cphs, err := view.CheckPackageHandles(ctx, f)
+	cphs, err := view.Snapshot().PackageHandles(ctx, f)
 	if err != nil {
 		log.Error(ctx, "no CheckPackageHandles", err, telemetry.URI.Of(uri))
 		return nil

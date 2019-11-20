@@ -16,7 +16,7 @@ import (
 	"golang.org/x/tools/internal/telemetry/trace"
 )
 
-func (s *Server) diagnoseView(view source.View, cphs []source.CheckPackageHandle) {
+func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, cphs []source.CheckPackageHandle) {
 	for _, cph := range cphs {
 		if len(cph.CompiledGoFiles()) == 0 {
 			continue
@@ -24,24 +24,24 @@ func (s *Server) diagnoseView(view source.View, cphs []source.CheckPackageHandle
 		f := cph.CompiledGoFiles()[0]
 
 		// Run diagnostics on the workspace package.
-		go func(view source.View, uri span.URI) {
-			s.diagnostics(view, uri)
-		}(view, f.File().Identity().URI)
+		go func(snapshot source.Snapshot, uri span.URI) {
+			s.diagnostics(snapshot, uri)
+		}(snapshot, f.File().Identity().URI)
 	}
 }
 
-func (s *Server) diagnostics(view source.View, uri span.URI) error {
-	ctx := view.BackgroundContext()
+func (s *Server) diagnostics(snapshot source.Snapshot, uri span.URI) error {
+	ctx := snapshot.View().BackgroundContext()
 	ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
 	defer done()
 
 	ctx = telemetry.File.With(ctx, uri)
 
-	f, err := view.GetFile(ctx, uri)
+	f, err := snapshot.View().GetFile(ctx, uri)
 	if err != nil {
 		return err
 	}
-	reports, warningMsg, err := source.Diagnostics(ctx, view, f, view.Options().DisabledAnalyses)
+	reports, warningMsg, err := source.Diagnostics(ctx, snapshot, f, snapshot.View().Options().DisabledAnalyses)
 	if err != nil {
 		return err
 	}

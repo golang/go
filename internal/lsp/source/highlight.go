@@ -10,20 +10,15 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/trace"
 	errors "golang.org/x/xerrors"
 )
 
-func Highlight(ctx context.Context, view View, uri span.URI, pos protocol.Position) ([]protocol.Range, error) {
+func Highlight(ctx context.Context, snapshot Snapshot, f File, pos protocol.Position) ([]protocol.Range, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Highlight")
 	defer done()
 
-	f, err := view.GetFile(ctx, uri)
-	if err != nil {
-		return nil, err
-	}
-	_, cphs, err := view.CheckPackageHandles(ctx, f)
+	cphs, err := snapshot.PackageHandles(ctx, f)
 	if err != nil {
 		return nil, err
 	}
@@ -79,13 +74,11 @@ func Highlight(ctx context.Context, view View, uri span.URI, pos protocol.Positi
 		if n.Obj != id.Obj {
 			return true
 		}
-
 		nodeObj := pkg.GetTypesInfo().ObjectOf(n)
 		if nodeObj != idObj {
 			return false
 		}
-
-		if rng, err := nodeToProtocolRange(ctx, view, m, n); err == nil {
+		if rng, err := nodeToProtocolRange(ctx, snapshot.View(), m, n); err == nil {
 			result = append(result, rng)
 		}
 		return true

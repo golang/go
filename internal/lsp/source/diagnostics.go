@@ -39,11 +39,11 @@ type RelatedInformation struct {
 	Message string
 }
 
-func Diagnostics(ctx context.Context, view View, f File, disabledAnalyses map[string]struct{}) (map[span.URI][]Diagnostic, string, error) {
+func Diagnostics(ctx context.Context, snapshot Snapshot, f File, disabledAnalyses map[string]struct{}) (map[span.URI][]Diagnostic, string, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Diagnostics", telemetry.File.Of(f.URI()))
 	defer done()
 
-	snapshot, cphs, err := view.CheckPackageHandles(ctx, f)
+	cphs, err := snapshot.PackageHandles(ctx, f)
 	if err != nil {
 		return nil, "", err
 	}
@@ -56,7 +56,7 @@ func Diagnostics(ctx context.Context, view View, f File, disabledAnalyses map[st
 	// not correctly configured. Report errors, if possible.
 	var warningMsg string
 	if len(cph.MissingDependencies()) > 0 {
-		warningMsg, err = checkCommonErrors(ctx, view, f.URI())
+		warningMsg, err = checkCommonErrors(ctx, snapshot.View(), f.URI())
 		if err != nil {
 			log.Error(ctx, "error checking common errors", err, telemetry.File.Of(f.URI))
 		}
@@ -70,7 +70,7 @@ func Diagnostics(ctx context.Context, view View, f File, disabledAnalyses map[st
 	// Prepare the reports we will send for the files in this package.
 	reports := make(map[span.URI][]Diagnostic)
 	for _, fh := range pkg.CompiledGoFiles() {
-		clearReports(view, reports, fh.File().Identity().URI)
+		clearReports(snapshot, reports, fh.File().Identity().URI)
 	}
 
 	// Prepare any additional reports for the errors in this package.
@@ -78,27 +78,27 @@ func Diagnostics(ctx context.Context, view View, f File, disabledAnalyses map[st
 		if err.Kind != ListError {
 			continue
 		}
-		clearReports(view, reports, err.URI)
+		clearReports(snapshot, reports, err.URI)
 	}
 
 	// Run diagnostics for the package that this URI belongs to.
-	if !diagnostics(ctx, view, pkg, reports) {
+	if !diagnostics(ctx, pkg, reports) {
 		// If we don't have any list, parse, or type errors, run analyses.
 		if err := analyses(ctx, snapshot, cph, disabledAnalyses, reports); err != nil {
 			log.Error(ctx, "failed to run analyses", err, telemetry.File.Of(f.URI()))
 		}
 	}
 	// Updates to the diagnostics for this package may need to be propagated.
-	revDeps := view.GetActiveReverseDeps(ctx, f)
+	revDeps := snapshot.View().GetActiveReverseDeps(ctx, f)
 	for _, cph := range revDeps {
 		pkg, err := cph.Check(ctx)
 		if err != nil {
 			return nil, warningMsg, err
 		}
 		for _, fh := range pkg.CompiledGoFiles() {
-			clearReports(view, reports, fh.File().Identity().URI)
+			clearReports(snapshot, reports, fh.File().Identity().URI)
 		}
-		diagnostics(ctx, view, pkg, reports)
+		diagnostics(ctx, pkg, reports)
 	}
 	return reports, warningMsg, nil
 }
@@ -107,7 +107,7 @@ type diagnosticSet struct {
 	listErrors, parseErrors, typeErrors []*Diagnostic
 }
 
-func diagnostics(ctx context.Context, view View, pkg Package, reports map[span.URI][]Diagnostic) bool {
+func diagnostics(ctx context.Context, pkg Package, reports map[span.URI][]Diagnostic) bool {
 	ctx, done := trace.StartSpan(ctx, "source.diagnostics", telemetry.Package.Of(pkg.ID()))
 	_ = ctx // circumvent SA4006
 	defer done()
@@ -181,7 +181,7 @@ func analyses(ctx context.Context, snapshot Snapshot, cph CheckPackageHandle, di
 		if onlyDeletions(e.SuggestedFixes) {
 			tags = append(tags, protocol.Unnecessary)
 		}
-		addReport(snapshot.View(), reports, Diagnostic{
+		addReport(snapshot, reports, Diagnostic{
 			URI:            e.URI,
 			Range:          e.Range,
 			Message:        e.Message,
@@ -195,15 +195,15 @@ func analyses(ctx context.Context, snapshot Snapshot, cph CheckPackageHandle, di
 	return nil
 }
 
-func clearReports(v View, reports map[span.URI][]Diagnostic, uri span.URI) {
-	if v.Ignore(uri) {
+func clearReports(snapshot Snapshot, reports map[span.URI][]Diagnostic, uri span.URI) {
+	if snapshot.View().Ignore(uri) {
 		return
 	}
 	reports[uri] = []Diagnostic{}
 }
 
-func addReport(v View, reports map[span.URI][]Diagnostic, diagnostic Diagnostic) {
-	if v.Ignore(diagnostic.URI) {
+func addReport(snapshot Snapshot, reports map[span.URI][]Diagnostic, diagnostic Diagnostic) {
+	if snapshot.View().Ignore(diagnostic.URI) {
 		return
 	}
 	if _, ok := reports[diagnostic.URI]; ok {

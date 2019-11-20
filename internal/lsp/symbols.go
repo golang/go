@@ -22,9 +22,10 @@ func (s *Server) documentSymbol(ctx context.Context, params *protocol.DocumentSy
 	if err != nil {
 		return nil, err
 	}
+	snapshot := view.Snapshot()
 	f, err := view.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
-	return source.DocumentSymbols(ctx, view, f)
+	return source.DocumentSymbols(ctx, snapshot, f)
 }

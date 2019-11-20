@@ -139,7 +139,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	if !c.opts.Documentation {
 		return item, nil
 	}
-	pos := c.view.Session().Cache().FileSet().Position(obj.Pos())
+	pos := c.snapshot.View().Session().Cache().FileSet().Position(obj.Pos())
 
 	// We ignore errors here, because some types, like "unsafe" or "error",
 	// may not have valid positions that we can use to get documentation.
@@ -154,7 +154,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	if cand.imp != nil && cand.imp.pkg != nil {
 		searchPkg = cand.imp.pkg
 	}
-	file, _, pkg, err := c.view.FindPosInPackage(searchPkg, obj.Pos())
+	file, _, pkg, err := c.snapshot.View().FindPosInPackage(searchPkg, obj.Pos())
 	if err != nil {
 		log.Error(c.ctx, "error finding file in package", err, telemetry.URI.Of(uri), telemetry.Package.Of(searchPkg.ID()))
 		return item, nil
@@ -193,7 +193,7 @@ func (c *completer) importEdits(imp *importInfo) ([]protocol.TextEdit, error) {
 		return nil, errors.Errorf("no ParseGoHandle for %s", c.filename)
 	}
 
-	return computeOneImportFixEdits(c.ctx, c.view, ph, &imports.ImportFix{
+	return computeOneImportFixEdits(c.ctx, c.snapshot.View(), ph, &imports.ImportFix{
 		StmtInfo: imports.ImportInfo{
 			ImportPath: imp.importPath,
 			Name:       imp.name,
@@ -215,7 +215,7 @@ func (c *completer) formatBuiltin(cand candidate) CompletionItem {
 		item.Kind = protocol.ConstantCompletion
 	case *types.Builtin:
 		item.Kind = protocol.FunctionCompletion
-		builtin := c.view.BuiltinPackage().Lookup(obj.Name())
+		builtin := c.snapshot.View().BuiltinPackage().Lookup(obj.Name())
 		if obj == nil {
 			break
 		}
@@ -223,8 +223,8 @@ func (c *completer) formatBuiltin(cand candidate) CompletionItem {
 		if !ok {
 			break
 		}
-		params, _ := formatFieldList(c.ctx, c.view, decl.Type.Params)
-		results, writeResultParens := formatFieldList(c.ctx, c.view, decl.Type.Results)
+		params, _ := formatFieldList(c.ctx, c.snapshot.View(), decl.Type.Params)
+		results, writeResultParens := formatFieldList(c.ctx, c.snapshot.View(), decl.Type.Results)
 		item.Label = obj.Name()
 		item.Detail = "func" + formatFunction(params, results, writeResultParens)
 		item.snippet = c.functionCallSnippet(obj.Name(), params)
