@@ -97,7 +97,7 @@ func fullChange(changes []protocol.TextDocumentContentChangeEvent) (string, bool
 	}
 	// The length of the changes must be 1 at this point.
 	// TODO: This breaks if you insert a character at the beginning of the file.
-	if (changes[0].Range == protocol.Range{} && changes[0].RangeLength == 0) {
+	if changes[0].Range == nil && changes[0].RangeLength == 0 {
 		return changes[0].Text, true
 	}
 
@@ -118,7 +118,7 @@ func (s *Server) applyChanges(ctx context.Context, uri span.URI, changes []proto
 			Content:   content,
 		}
 
-		spn, err := m.RangeSpan(change.Range)
+		spn, err := m.RangeSpan(*change.Range) // Could Range be nil here?
 		if err != nil {
 			return "", err
 		}
