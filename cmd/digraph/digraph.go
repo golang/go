@@ -526,7 +526,7 @@ func digraph(cmd string, args []string) error {
 			}
 		}
 
-		edgesSorted := make([]string, len(edges))
+		edgesSorted := make([]string, 0, len(edges))
 		for e := range edges {
 			edgesSorted = append(edgesSorted, e)
 		}
