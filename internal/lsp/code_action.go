@@ -205,7 +205,9 @@ func importDiagnostics(fix *imports.ImportFix, diagnostics []protocol.Diagnostic
 
 func quickFixes(ctx context.Context, snapshot source.Snapshot, f source.File, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
 	var codeActions []protocol.CodeAction
-	cphs, err := snapshot.PackageHandles(ctx, f)
+
+	fh := snapshot.Handle(ctx, f)
+	cphs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
 		return nil, err
 	}

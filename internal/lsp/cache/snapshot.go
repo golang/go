@@ -61,10 +61,9 @@ func (s *snapshot) View() source.View {
 	return s.view
 }
 
-func (s *snapshot) PackageHandles(ctx context.Context, f source.File) ([]source.CheckPackageHandle, error) {
-	ctx = telemetry.File.With(ctx, f.URI())
+func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]source.CheckPackageHandle, error) {
+	ctx = telemetry.File.With(ctx, fh.Identity().URI)
 
-	fh := s.Handle(ctx, f)
 	metadata := s.getMetadataForURI(fh.Identity().URI)
 
 	// Determine if we need to type-check the package.
@@ -74,7 +73,7 @@ func (s *snapshot) PackageHandles(ctx context.Context, f source.File) ([]source.
 	// We only need to this if it has been invalidated, and is therefore unvailable.
 	if load {
 		var err error
-		m, err := s.load(ctx, source.FileURI(f.URI()))
+		m, err := s.load(ctx, source.FileURI(fh.Identity().URI))
 		if err != nil {
 			return nil, err
 		}
@@ -95,7 +94,7 @@ func (s *snapshot) PackageHandles(ctx context.Context, f source.File) ([]source.
 		cphs = results
 	}
 	if len(cphs) == 0 {
-		return nil, errors.Errorf("no CheckPackageHandles for %s", f.URI())
+		return nil, errors.Errorf("no CheckPackageHandles for %s", fh.Identity().URI)
 	}
 	return cphs, nil
 }
@@ -508,14 +507,6 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, kind source
 	// This should be the only time we hold the view's snapshot lock for any period of time.
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock()
-
-	// TODO: Handle the possibility of opening a file outside of the current view.
-	// For now, return early if we open a file. Clone the snapshot so that the file's version is updated.
-	// We assume that we are already tracking any files within the given view.
-	if action == source.Open {
-		v.snapshot = v.snapshot.clone(ctx, f.URI(), nil, nil)
-		return true
-	}
 
 	// Collect all of the package IDs that correspond to the given file.
 	for _, id := range v.snapshot.getIDs(f.URI()) {

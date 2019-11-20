@@ -38,7 +38,7 @@ type Snapshot interface {
 
 	// PackageHandles returns the CheckPackageHandles for the packages
 	// that this file belongs to.
-	PackageHandles(ctx context.Context, f File) ([]CheckPackageHandle, error)
+	PackageHandles(ctx context.Context, fh FileHandle) ([]CheckPackageHandle, error)
 
 	// GetActiveReverseDeps returns the active files belonging to the reverse
 	// dependencies of this file's package.
@@ -291,7 +291,9 @@ type FileIdentity struct {
 }
 
 func (fileID FileIdentity) String() string {
-	return fmt.Sprintf("%s%f%s%s", fileID.URI, fileID.Version, fileID.Identifier, fileID.Kind)
+	// Version is not part of the FileIdentity string,
+	// as it can remain change even if the file does not.
+	return fmt.Sprintf("%s%s%s", fileID.URI, fileID.Identifier, fileID.Kind)
 }
 
 // File represents a source file of any type.

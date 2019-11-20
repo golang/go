@@ -18,7 +18,8 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, f File) ([]protocol
 	ctx, done := trace.StartSpan(ctx, "source.DocumentSymbols")
 	defer done()
 
-	cphs, err := snapshot.PackageHandles(ctx, f)
+	fh := snapshot.Handle(ctx, f)
+	cphs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
 		return nil, err
 	}

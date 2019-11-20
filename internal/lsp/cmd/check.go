@@ -56,7 +56,7 @@ func (c *check) Run(ctx context.Context, args ...string) error {
 		checking[uri] = file
 	}
 	// now wait for results
-	//TODO: maybe conn.ExecuteCommand(ctx, &protocol.ExecuteCommandParams{Command: "gopls-wait-idle"})
+	// TODO: maybe conn.ExecuteCommand(ctx, &protocol.ExecuteCommandParams{Command: "gopls-wait-idle"})
 	for _, file := range checking {
 		select {
 		case <-file.hasDiagnostics:

@@ -27,7 +27,8 @@ func Format(ctx context.Context, snapshot Snapshot, f File) ([]protocol.TextEdit
 	ctx, done := trace.StartSpan(ctx, "source.Format")
 	defer done()
 
-	cphs, err := snapshot.PackageHandles(ctx, f)
+	fh := snapshot.Handle(ctx, f)
+	cphs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +102,8 @@ func AllImportsFixes(ctx context.Context, snapshot Snapshot, f File) (allFixEdit
 	ctx, done := trace.StartSpan(ctx, "source.AllImportsFixes")
 	defer done()
 
-	cphs, err := snapshot.PackageHandles(ctx, f)
+	fh := snapshot.Handle(ctx, f)
+	cphs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
 		return nil, nil, err
 	}

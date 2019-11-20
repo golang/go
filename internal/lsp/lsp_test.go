@@ -61,8 +61,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	}
 	r := &runner{
 		server: &Server{
-			session:     session,
-			undelivered: make(map[source.FileIdentity][]source.Diagnostic),
+			session: session,
 		},
 		data: data,
 		ctx:  ctx,
@@ -79,7 +78,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnosti
 		t.Fatalf("no file for %s: %v", f, err)
 	}
 	identity := v.Snapshot().Handle(r.ctx, f).Identity()
-	results, _, err := source.Diagnostics(r.ctx, v.Snapshot(), f, nil)
+	results, _, err := source.Diagnostics(r.ctx, v.Snapshot(), f, true, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -339,7 +338,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 	}
 	snapshot := view.Snapshot()
 	fileID := snapshot.Handle(r.ctx, f).Identity()
-	diagnostics, _, err := source.Diagnostics(r.ctx, snapshot, f, nil)
+	diagnostics, _, err := source.Diagnostics(r.ctx, snapshot, f, true, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

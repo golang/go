@@ -73,7 +73,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnosti
 	}
 	snapshot := r.view.Snapshot()
 	fileID := snapshot.Handle(r.ctx, f).Identity()
-	results, _, err := source.Diagnostics(r.ctx, snapshot, f, nil)
+	results, _, err := source.Diagnostics(r.ctx, snapshot, f, true, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -39,12 +39,12 @@ type RelatedInformation struct {
 	Message string
 }
 
-func Diagnostics(ctx context.Context, snapshot Snapshot, f File, disabledAnalyses map[string]struct{}) (map[FileIdentity][]Diagnostic, string, error) {
+func Diagnostics(ctx context.Context, snapshot Snapshot, f File, withAnalysis bool, disabledAnalyses map[string]struct{}) (map[FileIdentity][]Diagnostic, string, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Diagnostics", telemetry.File.Of(f.URI()))
 	defer done()
 
 	fh := snapshot.Handle(ctx, f)
-	cphs, err := snapshot.PackageHandles(ctx, f)
+	cphs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
 		return nil, "", err
 	}
@@ -79,7 +79,7 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, f File, disabledAnalyse
 		clearReports(snapshot, reports, e.File)
 	}
 	// Run diagnostics for the package that this URI belongs to.
-	if !diagnostics(ctx, snapshot, pkg, reports) {
+	if !diagnostics(ctx, snapshot, pkg, reports) && withAnalysis {
 		// If we don't have any list, parse, or type errors, run analyses.
 		if err := analyses(ctx, snapshot, cph, disabledAnalyses, reports); err != nil {
 			log.Error(ctx, "failed to run analyses", err, telemetry.File.Of(f.URI()))

@@ -124,8 +124,9 @@ func (r *runner) RunGoplsCmd(t testing.TB, args ...string) (string, string) {
 	}()
 	os.Stdout = wStdout
 	os.Stderr = wStderr
+	app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Exported.Config.Env, r.options)
 	err = tool.Run(tests.Context(t),
-		cmd.New("gopls-test", r.data.Config.Dir, r.data.Exported.Config.Env, r.options),
+		app,
 		append([]string{"-remote=internal"}, args...))
 	if err != nil {
 		fmt.Fprint(os.Stderr, err)

@@ -323,17 +323,22 @@ func (c *cmdClient) ApplyEdit(ctx context.Context, p *protocol.ApplyWorkspaceEdi
 }
 
 func (c *cmdClient) PublishDiagnostics(ctx context.Context, p *protocol.PublishDiagnosticsParams) error {
+	// Don't worry about diagnostics without versions.
+	if p.Version == 0 {
+		return nil
+	}
+
 	c.filesMu.Lock()
 	defer c.filesMu.Unlock()
+
 	uri := span.URI(p.URI)
 	file := c.getFile(ctx, uri)
+
 	file.diagnosticsMu.Lock()
 	defer file.diagnosticsMu.Unlock()
+
 	hadDiagnostics := file.diagnostics != nil
 	file.diagnostics = p.Diagnostics
-	if file.diagnostics == nil {
-		file.diagnostics = []protocol.Diagnostic{}
-	}
 	if !hadDiagnostics {
 		close(file.hasDiagnostics)
 	}
@@ -384,10 +389,14 @@ func (c *connection) AddFile(ctx context.Context, uri span.URI) *cmdFile {
 		return file
 	}
 	file.added = true
-	p := &protocol.DidOpenTextDocumentParams{}
-	p.TextDocument.URI = string(uri)
-	p.TextDocument.Text = string(file.mapper.Content)
-	p.TextDocument.LanguageID = source.DetectLanguage("", file.uri.Filename()).String()
+	p := &protocol.DidOpenTextDocumentParams{
+		TextDocument: protocol.TextDocumentItem{
+			URI:        protocol.NewURI(uri),
+			LanguageID: source.DetectLanguage("", file.uri.Filename()).String(),
+			Version:    1,
+			Text:       string(file.mapper.Content),
+		},
+	}
 	if err := c.Server.DidOpen(ctx, p); err != nil {
 		file.err = errors.Errorf("%v: %v", uri, err)
 	}

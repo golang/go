@@ -32,8 +32,10 @@ func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocume
 	if err != nil {
 		return err
 	}
-	// Run diagnostics on the newly-changed file.
-	go s.diagnostics(view.BackgroundContext(), view.Snapshot(), uri)
+	snapshot := view.Snapshot()
+
+	// Run diagnostics on the newly-opened file.
+	go s.diagnoseFile(snapshot, uri)
 
 	return nil
 }
@@ -78,9 +80,8 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 			Type:    protocol.Warning,
 		})
 	}
-
 	// Run diagnostics on the newly-changed file.
-	go s.diagnostics(view.BackgroundContext(), view.Snapshot(), uri)
+	go s.diagnoseFile(view.Snapshot(), uri)
 
 	return nil
 }

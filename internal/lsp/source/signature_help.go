@@ -31,7 +31,8 @@ func SignatureHelp(ctx context.Context, snapshot Snapshot, f File, pos protocol.
 	ctx, done := trace.StartSpan(ctx, "source.SignatureHelp")
 	defer done()
 
-	cphs, err := snapshot.PackageHandles(ctx, f)
+	fh := snapshot.Handle(ctx, f)
+	cphs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
 		return nil, err
 	}

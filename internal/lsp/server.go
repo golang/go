@@ -79,11 +79,6 @@ type Server struct {
 
 	session source.Session
 
-	// undelivered is a cache of any diagnostics that the server
-	// failed to deliver for some reason.
-	undeliveredMu sync.Mutex
-	undelivered   map[source.FileIdentity][]source.Diagnostic
-
 	// changedFiles tracks files for which there has been a textDocument/didChange.
 	changedFiles map[span.URI]struct{}
 
