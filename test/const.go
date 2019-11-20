@@ -24,6 +24,10 @@ const (
 
 	ctrue  = true
 	cfalse = !ctrue
+
+	// Issue #34563
+	_ = string(int(123))
+	_ = string(rune(456))
 )
 
 const (

@@ -46,6 +46,7 @@ import (
 var (
 	pkglistfornote []byte
 	windowsgui     bool // writes a "GUI binary" instead of a "console binary"
+	ownTmpDir      bool // set to true if tmp dir created by linker (e.g. no -tmpdir)
 )
 
 func init() {
@@ -86,6 +87,7 @@ var (
 	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
 	FlagDebugTramp  = flag.Int("debugtramp", 0, "debug trampolines")
 	FlagStrictDups  = flag.Int("strictdups", 0, "sanity check duplicate symbol contents during object file reading (1=warn 2=err).")
+	flagNewobj      = flag.Bool("newobj", false, "use new object file format")
 
 	FlagRound       = flag.Int("R", -1, "set address rounding `quantum`")
 	FlagTextAddr    = flag.Int64("T", -1, "set text segment `address`")
@@ -207,8 +209,13 @@ func Main(arch *sys.Arch, theArch Arch) {
 	}
 	ctxt.loadlib()
 
-	ctxt.dostrdata()
 	deadcode(ctxt)
+	if *flagNewobj {
+		ctxt.loadlibfull() // XXX do it here for now
+	}
+	ctxt.linksetup()
+	ctxt.dostrdata()
+
 	dwarfGenerateDebugInfo(ctxt)
 	if objabi.Fieldtrack_enabled != 0 {
 		fieldtrack(ctxt)
@@ -272,14 +279,12 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	ctxt.undef()
 	ctxt.hostlink()
-	ctxt.archive()
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f cpu time\n", Cputime())
 		ctxt.Logf("%d symbols\n", len(ctxt.Syms.Allsym))
 		ctxt.Logf("%d liveness data\n", liveness)
 	}
-
 	ctxt.Bso.Flush()
+	ctxt.archive()
 
 	errorexit()
 }

@@ -19,37 +19,37 @@ func init() {
 }
 
 func signalInVDSO() {
-        f, err := ioutil.TempFile("", "timeprofnow")
-        if err != nil {
+	f, err := ioutil.TempFile("", "timeprofnow")
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
-        }
+	}
 
-        if err := pprof.StartCPUProfile(f); err != nil {
+	if err := pprof.StartCPUProfile(f); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
-        }
+	}
 
-        t0 := time.Now()
-        t1 := t0
-        // We should get a profiling signal 100 times a second,
-        // so running for 1 second should be sufficient.
-        for t1.Sub(t0) < time.Second {
-                t1 = time.Now()
-        }
+	t0 := time.Now()
+	t1 := t0
+	// We should get a profiling signal 100 times a second,
+	// so running for 1 second should be sufficient.
+	for t1.Sub(t0) < time.Second {
+		t1 = time.Now()
+	}
 
-        pprof.StopCPUProfile()
+	pprof.StopCPUProfile()
 
-        name := f.Name()
-        if err := f.Close(); err != nil {
+	name := f.Name()
+	if err := f.Close(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
-        }
+	}
 
-        if err := os.Remove(name); err != nil {
+	if err := os.Remove(name); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
-        }
+	}
 
-	fmt.Println("success");
+	fmt.Println("success")
 }

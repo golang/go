@@ -27,6 +27,7 @@ var (
 	BuildBuildmode         string // -buildmode flag
 	BuildContext           = defaultContext()
 	BuildMod               string             // -mod flag
+	BuildModReason         string             // reason -mod flag is set, if set by default
 	BuildI                 bool               // -i flag
 	BuildLinkshared        bool               // -linkshared flag
 	BuildMSan              bool               // -msan flag
@@ -43,6 +44,9 @@ var (
 	BuildV                 bool // -v flag
 	BuildWork              bool // -work flag
 	BuildX                 bool // -x flag
+
+	ModCacheRW bool   // -modcacherw flag
+	ModFile    string // -modfile flag
 
 	CmdName string // "build", "install", "list", "mod tidy", etc.
 
@@ -241,11 +245,12 @@ var (
 	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", objabi.GOPPC64))
 	GOWASM   = envOr("GOWASM", fmt.Sprint(objabi.GOWASM))
 
-	GOPROXY   = envOr("GOPROXY", "https://proxy.golang.org,direct")
-	GOSUMDB   = envOr("GOSUMDB", "sum.golang.org")
-	GOPRIVATE = Getenv("GOPRIVATE")
-	GONOPROXY = envOr("GONOPROXY", GOPRIVATE)
-	GONOSUMDB = envOr("GONOSUMDB", GOPRIVATE)
+	GOPROXY    = envOr("GOPROXY", "https://proxy.golang.org,direct")
+	GOSUMDB    = envOr("GOSUMDB", "sum.golang.org")
+	GOPRIVATE  = Getenv("GOPRIVATE")
+	GONOPROXY  = envOr("GONOPROXY", GOPRIVATE)
+	GONOSUMDB  = envOr("GONOSUMDB", GOPRIVATE)
+	GOINSECURE = Getenv("GOINSECURE")
 )
 
 // GetArchEnv returns the name and setting of the

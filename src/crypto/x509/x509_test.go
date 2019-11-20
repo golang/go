@@ -975,6 +975,49 @@ func TestVerifyCertificateWithDSASignature(t *testing.T) {
 	}
 }
 
+const dsaCert1024WithSha256 = `-----BEGIN CERTIFICATE-----
+MIIDKzCCAumgAwIBAgIUOXWPK4gTRZVVY7OSXTU00QEWQU8wCwYJYIZIAWUDBAMC
+MEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJ
+bnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwIBcNMTkxMDAxMDYxODUyWhgPMzAxOTAy
+MDEwNjE4NTJaMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEw
+HwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwggG4MIIBLAYHKoZIzjgE
+ATCCAR8CgYEAr79m/1ypU1aUbbLX1jikTyX7w2QYP+EkxNtXUiiTuxkC1KBqqxT3
+0Aht2vxFR47ODEK4B79rHO+UevhaqDaAHSH7Z/9umS0h0aS32KLDLb+LI5AneCrn
+eW5YbVhfD03N7uR4kKUCKOnWj5hAk9xiE3y7oFR0bBXzqrrHJF9LMd0CFQCB6lSj
+HSW0rGmNxIZsBl72u7JFLQKBgQCOFd1PGEQmddn0cdFgby5QQfjrqmoD1zNlFZEt
+L0x1EbndFwelLlF1ChNh3NPNUkjwRbla07FDlONs1GMJq6w4vW11ns+pUvAZ2+RM
+EVFjugip8az2ncn3UujGTVdFxnSTLBsRlMP/tFDK3ky//8zn/5ha9SKKw4v1uv6M
+JuoIbwOBhQACgYEAoeKeR90nwrnoPi5MOUPBLQvuzB87slfr+3kL8vFCmgjA6MtB
+7TxQKoBTOo5aVgWDp0lMIMxLd6btzBrm6r3VdRlh/cL8/PtbxkFwBa+Upe4o5NAh
+ISCe2/f2leT1PxtF8xxYjz/fszeUeHsJbVMilE2cuB2SYrR5tMExiqy+QpqjUzBR
+MB0GA1UdDgQWBBQDMIEL8Z3jc1d9wCxWtksUWc8RkjAfBgNVHSMEGDAWgBQDMIEL
+8Z3jc1d9wCxWtksUWc8RkjAPBgNVHRMBAf8EBTADAQH/MAsGCWCGSAFlAwQDAgMv
+ADAsAhQFehZgI4OyKBGpfnXvyJ0Z/0a6nAIUTO265Ane87LfJuQr3FrqvuCI354=
+-----END CERTIFICATE-----
+`
+
+func TestVerifyCertificateWithDSATooLongHash(t *testing.T) {
+	pemBlock, _ := pem.Decode([]byte(dsaCert1024WithSha256))
+	cert, err := ParseCertificate(pemBlock.Bytes)
+	if err != nil {
+		t.Fatalf("Failed to parse certificate: %s", err)
+	}
+
+	// test cert is self-signed
+	if err = cert.CheckSignatureFrom(cert); err != nil {
+		t.Fatalf("DSA Certificate self-signature verification failed: %s", err)
+	}
+
+	signed := []byte("A wild Gopher appears!\n")
+	signature, _ := hex.DecodeString("302c0214417aca7ff458f5b566e43e7b82f994953da84be50214625901e249e33f4e4838f8b5966020c286dd610e")
+
+	// This signature is using SHA256, but only has 1024 DSA key. The hash has to be truncated
+	// in CheckSignature, otherwise it won't pass.
+	if err = cert.CheckSignature(DSAWithSHA256, signed, signature); err != nil {
+		t.Fatalf("DSA signature verification failed: %s", err)
+	}
+}
+
 var rsaPSSSelfSignedPEM = `-----BEGIN CERTIFICATE-----
 MIIGHjCCA9KgAwIBAgIBdjBBBgkqhkiG9w0BAQowNKAPMA0GCWCGSAFlAwQCAQUA
 oRwwGgYJKoZIhvcNAQEIMA0GCWCGSAFlAwQCAQUAogMCASAwbjELMAkGA1UEBhMC
@@ -1150,11 +1193,77 @@ KVcg7fBd484ht/sS+l0dsB4KDOSpd8JzVDMF8OZqlaydizoJO0yWr9GbCN1+OKq5
 EhLrEqU=
 -----END CERTIFICATE-----`
 
+const ed25519CRLCertificate = `
+Certificate:
+Data:
+	Version: 3 (0x2)
+	Serial Number:
+		7a:07:a0:9d:14:04:16:fc:1f:d8:e5:fe:d1:1d:1f:8d
+	Signature Algorithm: ED25519
+	Issuer: CN = Ed25519 CRL Test CA
+	Validity
+		Not Before: Oct 30 01:20:20 2019 GMT
+		Not After : Dec 31 23:59:59 9999 GMT
+	Subject: CN = Ed25519 CRL Test CA
+	Subject Public Key Info:
+		Public Key Algorithm: ED25519
+			ED25519 Public-Key:
+			pub:
+				95:73:3b:b0:06:2a:31:5a:b6:a7:a6:6e:ef:71:df:
+				ac:6f:6b:39:03:85:5e:63:4b:f8:a6:0f:68:c6:6f:
+				75:21
+	X509v3 extensions:
+		X509v3 Key Usage: critical
+			Digital Signature, Certificate Sign, CRL Sign
+		X509v3 Extended Key Usage: 
+			TLS Web Client Authentication, TLS Web Server Authentication, OCSP Signing
+		X509v3 Basic Constraints: critical
+			CA:TRUE
+		X509v3 Subject Key Identifier: 
+			B7:17:DA:16:EA:C5:ED:1F:18:49:44:D3:D2:E3:A0:35:0A:81:93:60
+		X509v3 Authority Key Identifier: 
+			keyid:B7:17:DA:16:EA:C5:ED:1F:18:49:44:D3:D2:E3:A0:35:0A:81:93:60
+
+Signature Algorithm: ED25519
+	 fc:3e:14:ea:bb:70:c2:6f:38:34:70:bc:c8:a7:f4:7c:0d:1e:
+	 28:d7:2a:9f:22:8a:45:e8:02:76:84:1e:2d:64:2d:1e:09:b5:
+	 29:71:1f:95:8a:4e:79:87:51:60:9a:e7:86:40:f6:60:c7:d1:
+	 ee:68:76:17:1d:90:cc:92:93:07
+-----BEGIN CERTIFICATE-----
+MIIBijCCATygAwIBAgIQegegnRQEFvwf2OX+0R0fjTAFBgMrZXAwHjEcMBoGA1UE
+AxMTRWQyNTUxOSBDUkwgVGVzdCBDQTAgFw0xOTEwMzAwMTIwMjBaGA85OTk5MTIz
+MTIzNTk1OVowHjEcMBoGA1UEAxMTRWQyNTUxOSBDUkwgVGVzdCBDQTAqMAUGAytl
+cAMhAJVzO7AGKjFatqembu9x36xvazkDhV5jS/imD2jGb3Uho4GNMIGKMA4GA1Ud
+DwEB/wQEAwIBhjAnBgNVHSUEIDAeBggrBgEFBQcDAgYIKwYBBQUHAwEGCCsGAQUF
+BwMJMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0OBBYEFLcX2hbqxe0fGElE09LjoDUK
+gZNgMB8GA1UdIwQYMBaAFLcX2hbqxe0fGElE09LjoDUKgZNgMAUGAytlcANBAPw+
+FOq7cMJvODRwvMin9HwNHijXKp8iikXoAnaEHi1kLR4JtSlxH5WKTnmHUWCa54ZA
+9mDH0e5odhcdkMySkwc=
+-----END CERTIFICATE-----`
+
+const ed25519CRLKey = `-----BEGIN PRIVATE KEY-----
+MC4CAQAwBQYDK2VwBCIEINdKh2096vUBYu4EIFpjShsUSh3vimKya1sQ1YTT4RZG
+-----END PRIVATE KEY-----`
+
 func TestCRLCreation(t *testing.T) {
 	block, _ := pem.Decode([]byte(pemPrivateKey))
-	priv, _ := ParsePKCS1PrivateKey(block.Bytes)
+	privRSA, _ := ParsePKCS1PrivateKey(block.Bytes)
 	block, _ = pem.Decode([]byte(pemCertificate))
-	cert, _ := ParseCertificate(block.Bytes)
+	certRSA, _ := ParseCertificate(block.Bytes)
+
+	block, _ = pem.Decode([]byte(ed25519CRLKey))
+	privEd25519, _ := ParsePKCS8PrivateKey(block.Bytes)
+	block, _ = pem.Decode([]byte(ed25519CRLCertificate))
+	certEd25519, _ := ParseCertificate(block.Bytes)
+
+	tests := []struct {
+		name string
+		priv interface{}
+		cert *Certificate
+	}{
+		{"RSA CA", privRSA, certRSA},
+		{"Ed25519 CA", privEd25519, certEd25519},
+	}
 
 	loc := time.FixedZone("Oz/Atlantis", int((2 * time.Hour).Seconds()))
 
@@ -1184,18 +1293,20 @@ func TestCRLCreation(t *testing.T) {
 		},
 	}
 
-	crlBytes, err := cert.CreateCRL(rand.Reader, priv, revokedCerts, now, expiry)
-	if err != nil {
-		t.Errorf("error creating CRL: %s", err)
-	}
+	for _, test := range tests {
+		crlBytes, err := test.cert.CreateCRL(rand.Reader, test.priv, revokedCerts, now, expiry)
+		if err != nil {
+			t.Errorf("%s: error creating CRL: %s", test.name, err)
+		}
 
-	parsedCRL, err := ParseDERCRL(crlBytes)
-	if err != nil {
-		t.Errorf("error reparsing CRL: %s", err)
-	}
-	if !reflect.DeepEqual(parsedCRL.TBSCertList.RevokedCertificates, expectedCerts) {
-		t.Errorf("RevokedCertificates mismatch: got %v; want %v.",
-			parsedCRL.TBSCertList.RevokedCertificates, expectedCerts)
+		parsedCRL, err := ParseDERCRL(crlBytes)
+		if err != nil {
+			t.Errorf("%s: error reparsing CRL: %s", test.name, err)
+		}
+		if !reflect.DeepEqual(parsedCRL.TBSCertList.RevokedCertificates, expectedCerts) {
+			t.Errorf("%s: RevokedCertificates mismatch: got %v; want %v.", test.name,
+				parsedCRL.TBSCertList.RevokedCertificates, expectedCerts)
+		}
 	}
 }
 

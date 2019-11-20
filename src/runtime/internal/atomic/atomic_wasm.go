@@ -143,6 +143,12 @@ func StoreRel(ptr *uint32, val uint32) {
 
 //go:nosplit
 //go:noinline
+func Store8(ptr *uint8, val uint8) {
+	*ptr = val
+}
+
+//go:nosplit
+//go:noinline
 func Store64(ptr *uint64, val uint64) {
 	*ptr = val
 }

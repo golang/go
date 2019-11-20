@@ -73,7 +73,7 @@ type RouteMessage struct {
 	Version int     // message version
 	Type    int     // message type
 	Flags   int     // route flags
-	Index   int     // interface index when atatched
+	Index   int     // interface index when attached
 	ID      uintptr // sender's identifier; usually process ID
 	Seq     int     // sequence number
 	Err     error   // error on requested operation

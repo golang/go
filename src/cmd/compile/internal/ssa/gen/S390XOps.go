@@ -83,6 +83,8 @@ var regNamesS390X = []string{
 	"F14",
 	"F15",
 
+	// If you add registers, update asyncPreempt in runtime.
+
 	//pseudo-registers
 	"SB",
 }
@@ -168,6 +170,7 @@ func init() {
 		gpstoreidx   = regInfo{inputs: []regMask{ptrsp, ptrsp, gpsp, 0}}
 		gpstorebr    = regInfo{inputs: []regMask{ptrsp, gpsp, 0}}
 		gpstorelaa   = regInfo{inputs: []regMask{ptrspsb, gpsp, 0}, outputs: gponly}
+		gpstorelab   = regInfo{inputs: []regMask{r1, gpsp, 0}, clobbers: r1}
 
 		gpmvc = regInfo{inputs: []regMask{ptrsp, ptrsp, 0}}
 
@@ -345,6 +348,27 @@ func init() {
 		{name: "RLLGconst", argLength: 1, reg: gp11, asm: "RLLG", aux: "Int8"}, // arg0 rotate left auxint, rotate amount 0-63
 		{name: "RLLconst", argLength: 1, reg: gp11, asm: "RLL", aux: "Int8"},   // arg0 rotate left auxint, rotate amount 0-31
 
+		// Rotate then (and|or|xor|insert) selected bits instructions.
+		//
+		// Aux is an s390x.RotateParams struct containing Start, End and rotation
+		// Amount fields.
+		//
+		// arg1 is rotated left by the rotation amount then the bits from the start
+		// bit to the end bit (inclusive) are combined with arg0 using the logical
+		// operation specified. Bit indices are specified from left to right - the
+		// MSB is 0 and the LSB is 63.
+		//
+		// Examples:
+		//               |          aux         |
+		// | instruction | start | end | amount |          arg0         |          arg1         |         result        |
+		// +-------------+-------+-----+--------+-----------------------+-----------------------+-----------------------+
+		// | RXSBG (XOR) |     0 |   1 |      0 | 0xffff_ffff_ffff_ffff | 0xffff_ffff_ffff_ffff | 0x3fff_ffff_ffff_ffff |
+		// | RXSBG (XOR) |    62 |  63 |      0 | 0xffff_ffff_ffff_ffff | 0xffff_ffff_ffff_ffff | 0xffff_ffff_ffff_fffc |
+		// | RXSBG (XOR) |     0 |  47 |     16 | 0xffff_ffff_ffff_ffff | 0x0000_0000_0000_ffff | 0xffff_ffff_0000_ffff |
+		// +-------------+-------+-----+--------+-----------------------+-----------------------+-----------------------+
+		//
+		{name: "RXSBG", argLength: 2, reg: gp21, asm: "RXSBG", resultInArg0: true, aux: "ArchSpecific", clobberFlags: true}, // rotate then xor selected bits
+
 		// unary ops
 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG", clobberFlags: true},   // -arg0
 		{name: "NEGW", argLength: 1, reg: gp11, asm: "NEGW", clobberFlags: true}, // -arg0
@@ -354,18 +378,9 @@ func init() {
 
 		{name: "FSQRT", argLength: 1, reg: fp11, asm: "FSQRT"}, // sqrt(arg0)
 
-		{name: "MOVDEQ", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "MOVDEQ"}, // extract == condition from arg0
-		{name: "MOVDNE", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "MOVDNE"}, // extract != condition from arg0
-		{name: "MOVDLT", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "MOVDLT"}, // extract signed < condition from arg0
-		{name: "MOVDLE", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "MOVDLE"}, // extract signed <= condition from arg0
-		{name: "MOVDGT", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "MOVDGT"}, // extract signed > condition from arg0
-		{name: "MOVDGE", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "MOVDGE"}, // extract signed >= condition from arg0
-
-		// Different rules for floating point conditions because
-		// any comparison involving a NaN is always false and thus
-		// the patterns for inverting conditions cannot be used.
-		{name: "MOVDGTnoinv", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "MOVDGT"}, // extract floating > condition from arg0
-		{name: "MOVDGEnoinv", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "MOVDGE"}, // extract floating >= condition from arg0
+		// Conditional register-register moves.
+		// The aux for these values is an s390x.CCMask value representing the condition code mask.
+		{name: "LOCGR", argLength: 3, reg: gp2flags1, resultInArg0: true, asm: "LOCGR", aux: "ArchSpecific"}, // load arg1 into arg0 if the condition code in arg2 matches a masked bit in aux.
 
 		{name: "MOVBreg", argLength: 1, reg: gp11sp, asm: "MOVB", typ: "Int64"},    // sign extend arg0 from int8 to int64
 		{name: "MOVBZreg", argLength: 1, reg: gp11sp, asm: "MOVBZ", typ: "UInt64"}, // zero extend arg0 from int8 to int64
@@ -504,6 +519,7 @@ func init() {
 
 		// Atomic stores. These are just normal stores.
 		// store arg1 to arg0+auxint+aux. arg2=mem.
+		{name: "MOVBatomicstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "Write"},
 		{name: "MOVWatomicstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "Write"},
 		{name: "MOVDatomicstore", argLength: 3, reg: gpstore, asm: "MOVD", aux: "SymOff", typ: "Mem", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "Write"},
 
@@ -514,6 +530,12 @@ func init() {
 		{name: "LAAG", argLength: 3, reg: gpstorelaa, asm: "LAAG", typ: "(UInt64,Mem)", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, symEffect: "RdWr"},
 		{name: "AddTupleFirst32", argLength: 2}, // arg1=tuple <x,y>.  Returns <x+arg0,y>.
 		{name: "AddTupleFirst64", argLength: 2}, // arg1=tuple <x,y>.  Returns <x+arg0,y>.
+
+		// Atomic bitwise operations.
+		// Note: 'floor' operations round the pointer down to the nearest word boundary
+		// which reflects how they are used in the runtime.
+		{name: "LAOfloor", argLength: 3, reg: gpstorelab, asm: "LAO", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *(floor(arg0, 4)) |= arg1. arg2 = mem.
+		{name: "LANfloor", argLength: 3, reg: gpstorelab, asm: "LAN", typ: "Mem", clobberFlags: true, hasSideEffects: true}, // *(floor(arg0, 4)) &= arg1. arg2 = mem.
 
 		// Compare and swap.
 		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory.
@@ -716,15 +738,41 @@ func init() {
 		},
 	}
 
+	// All blocks on s390x have their condition code mask (s390x.CCMask) as the Aux value.
+	// The condition code mask is a 4-bit mask where each bit corresponds to a condition
+	// code value. If the value of the condition code matches a bit set in the condition
+	// code mask then the first successor is executed. Otherwise the second successor is
+	// executed.
+	//
+	// | condition code value |  mask bit  |
+	// +----------------------+------------+
+	// | 0 (equal)            | 0b1000 (8) |
+	// | 1 (less than)        | 0b0100 (4) |
+	// | 2 (greater than)     | 0b0010 (2) |
+	// | 3 (unordered)        | 0b0001 (1) |
+	//
+	// Note: that compare-and-branch instructions must not have bit 3 (0b0001) set.
 	var S390Xblocks = []blockData{
-		{name: "EQ"},
-		{name: "NE"},
-		{name: "LT"},
-		{name: "LE"},
-		{name: "GT"},
-		{name: "GE"},
-		{name: "GTF"}, // FP comparison
-		{name: "GEF"}, // FP comparison
+		// branch on condition
+		{name: "BRC", controls: 1}, // condition code value (flags) is Controls[0]
+
+		// compare-and-branch (register-register)
+		//  - integrates comparison of Controls[0] with Controls[1]
+		//  - both control values must be in general purpose registers
+		{name: "CRJ", controls: 2},   // signed 32-bit integer comparison
+		{name: "CGRJ", controls: 2},  // signed 64-bit integer comparison
+		{name: "CLRJ", controls: 2},  // unsigned 32-bit integer comparison
+		{name: "CLGRJ", controls: 2}, // unsigned 64-bit integer comparison
+
+		// compare-and-branch (register-immediate)
+		//  - integrates comparison of Controls[0] with AuxInt
+		//  - control value must be in a general purpose register
+		//  - the AuxInt value is sign-extended for signed comparisons
+		//    and zero-extended for unsigned comparisons
+		{name: "CIJ", controls: 1, auxint: "Int8"},    // signed 32-bit integer comparison
+		{name: "CGIJ", controls: 1, auxint: "Int8"},   // signed 64-bit integer comparison
+		{name: "CLIJ", controls: 1, auxint: "UInt8"},  // unsigned 32-bit integer comparison
+		{name: "CLGIJ", controls: 1, auxint: "UInt8"}, // unsigned 64-bit integer comparison
 	}
 
 	archs = append(archs, arch{
@@ -738,5 +786,8 @@ func init() {
 		fpregmask:       fp,
 		framepointerreg: -1, // not used
 		linkreg:         int8(num["R14"]),
+		imports: []string{
+			"cmd/internal/obj/s390x",
+		},
 	})
 }

@@ -16,7 +16,6 @@
 package reflect
 
 import (
-	"runtime"
 	"strconv"
 	"sync"
 	"unicode"
@@ -1009,7 +1008,7 @@ func (t *funcType) in() []*rtype {
 	if t.inCount == 0 {
 		return nil
 	}
-	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "t.inCount > 0"))[:t.inCount]
+	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "t.inCount > 0"))[:t.inCount:t.inCount]
 }
 
 func (t *funcType) out() []*rtype {
@@ -1021,7 +1020,7 @@ func (t *funcType) out() []*rtype {
 	if outCount == 0 {
 		return nil
 	}
-	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "outCount > 0"))[t.inCount : t.inCount+outCount]
+	return (*[1 << 20]*rtype)(add(unsafe.Pointer(t), uadd, "outCount > 0"))[t.inCount : t.inCount+outCount : t.inCount+outCount]
 }
 
 // add returns p+x.
@@ -1543,6 +1542,18 @@ func implements(T, V *rtype) bool {
 	return false
 }
 
+// specialChannelAssignability reports whether a value x of channel type V
+// can be directly assigned (using memmove) to another channel type T.
+// https://golang.org/doc/go_spec.html#Assignability
+// T and V must be both of Chan kind.
+func specialChannelAssignability(T, V *rtype) bool {
+	// Special case:
+	// x is a bidirectional channel value, T is a channel type,
+	// x's type V and T have identical element types,
+	// and at least one of V or T is not a defined type.
+	return V.ChanDir() == BothDir && (T.Name() == "" || V.Name() == "") && haveIdenticalType(T.Elem(), V.Elem(), true)
+}
+
 // directlyAssignable reports whether a value x of type V can be directly
 // assigned (using memmove) to a value of type T.
 // https://golang.org/doc/go_spec.html#Assignability
@@ -1560,7 +1571,11 @@ func directlyAssignable(T, V *rtype) bool {
 		return false
 	}
 
-	// x's type T and V must  have identical underlying types.
+	if T.Kind() == Chan && specialChannelAssignability(T, V) {
+		return true
+	}
+
+	// x's type T and V must have identical underlying types.
 	return haveIdenticalUnderlyingType(T, V, true)
 }
 
@@ -1598,14 +1613,6 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 		return T.Len() == V.Len() && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
 
 	case Chan:
-		// Special case:
-		// x is a bidirectional channel value, T is a channel type,
-		// and x's type V and T have identical element types.
-		if V.ChanDir() == BothDir && haveIdenticalType(T.Elem(), V.Elem(), cmpTags) {
-			return true
-		}
-
-		// Otherwise continue test for identical underlying type.
 		return V.ChanDir() == T.ChanDir() && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
 
 	case Func:
@@ -2168,11 +2175,6 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 	var ptrdata uintptr
 	var overflowPad uintptr
 
-	// On NaCl, pad if needed to make overflow end at the proper struct alignment.
-	// On other systems, align > ptrSize is not possible.
-	if runtime.GOARCH == "amd64p32" && (ktyp.align > ptrSize || etyp.align > ptrSize) {
-		overflowPad = ptrSize
-	}
 	size := bucketSize*(1+ktyp.size+etyp.size) + overflowPad + ptrSize
 	if size&uintptr(ktyp.align-1) != 0 || size&uintptr(etyp.align-1) != 0 {
 		panic("reflect: bad size computation in MapOf")
@@ -2184,34 +2186,12 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 		base := bucketSize / ptrSize
 
 		if ktyp.ptrdata != 0 {
-			if ktyp.kind&kindGCProg != 0 {
-				panic("reflect: unexpected GC program in MapOf")
-			}
-			kmask := (*[16]byte)(unsafe.Pointer(ktyp.gcdata))
-			for i := uintptr(0); i < ktyp.ptrdata/ptrSize; i++ {
-				if (kmask[i/8]>>(i%8))&1 != 0 {
-					for j := uintptr(0); j < bucketSize; j++ {
-						word := base + j*ktyp.size/ptrSize + i
-						mask[word/8] |= 1 << (word % 8)
-					}
-				}
-			}
+			emitGCMask(mask, base, ktyp, bucketSize)
 		}
 		base += bucketSize * ktyp.size / ptrSize
 
 		if etyp.ptrdata != 0 {
-			if etyp.kind&kindGCProg != 0 {
-				panic("reflect: unexpected GC program in MapOf")
-			}
-			emask := (*[16]byte)(unsafe.Pointer(etyp.gcdata))
-			for i := uintptr(0); i < etyp.ptrdata/ptrSize; i++ {
-				if (emask[i/8]>>(i%8))&1 != 0 {
-					for j := uintptr(0); j < bucketSize; j++ {
-						word := base + j*etyp.size/ptrSize + i
-						mask[word/8] |= 1 << (word % 8)
-					}
-				}
-			}
+			emitGCMask(mask, base, etyp, bucketSize)
 		}
 		base += bucketSize * etyp.size / ptrSize
 		base += overflowPad / ptrSize
@@ -2240,6 +2220,55 @@ func bucketOf(ktyp, etyp *rtype) *rtype {
 	s := "bucket(" + ktyp.String() + "," + etyp.String() + ")"
 	b.str = resolveReflectName(newName(s, "", false))
 	return b
+}
+
+func (t *rtype) gcSlice(begin, end uintptr) []byte {
+	return (*[1 << 30]byte)(unsafe.Pointer(t.gcdata))[begin:end:end]
+}
+
+// emitGCMask writes the GC mask for [n]typ into out, starting at bit
+// offset base.
+func emitGCMask(out []byte, base uintptr, typ *rtype, n uintptr) {
+	if typ.kind&kindGCProg != 0 {
+		panic("reflect: unexpected GC program")
+	}
+	ptrs := typ.ptrdata / ptrSize
+	words := typ.size / ptrSize
+	mask := typ.gcSlice(0, (ptrs+7)/8)
+	for j := uintptr(0); j < ptrs; j++ {
+		if (mask[j/8]>>(j%8))&1 != 0 {
+			for i := uintptr(0); i < n; i++ {
+				k := base + i*words + j
+				out[k/8] |= 1 << (k % 8)
+			}
+		}
+	}
+}
+
+// appendGCProg appends the GC program for the first ptrdata bytes of
+// typ to dst and returns the extended slice.
+func appendGCProg(dst []byte, typ *rtype) []byte {
+	if typ.kind&kindGCProg != 0 {
+		// Element has GC program; emit one element.
+		n := uintptr(*(*uint32)(unsafe.Pointer(typ.gcdata)))
+		prog := typ.gcSlice(4, 4+n-1)
+		return append(dst, prog...)
+	}
+
+	// Element is small with pointer mask; use as literal bits.
+	ptrs := typ.ptrdata / ptrSize
+	mask := typ.gcSlice(0, (ptrs+7)/8)
+
+	// Emit 120-bit chunks of full bytes (max is 127 but we avoid using partial bytes).
+	for ; ptrs > 120; ptrs -= 120 {
+		dst = append(dst, 120)
+		dst = append(dst, mask[:15]...)
+		mask = mask[15:]
+	}
+
+	dst = append(dst, byte(ptrs))
+	dst = append(dst, mask...)
+	return dst
 }
 
 // SliceOf returns the slice type with element type t.
@@ -2672,25 +2701,7 @@ func StructOf(fields []StructField) Type {
 				off = ft.offset()
 			}
 
-			elemGC := (*[1 << 30]byte)(unsafe.Pointer(ft.typ.gcdata))[:]
-			elemPtrs := ft.typ.ptrdata / ptrSize
-			if ft.typ.kind&kindGCProg == 0 {
-				// Element is small with pointer mask; use as literal bits.
-				mask := elemGC
-				// Emit 120-bit chunks of full bytes (max is 127 but we avoid using partial bytes).
-				var n uintptr
-				for n = elemPtrs; n > 120; n -= 120 {
-					prog = append(prog, 120)
-					prog = append(prog, mask[:15]...)
-					mask = mask[15:]
-				}
-				prog = append(prog, byte(n))
-				prog = append(prog, mask[:(n+7)/8]...)
-			} else {
-				// Element has GC program; emit one element.
-				elemProg := elemGC[4 : 4+*(*uint32)(unsafe.Pointer(&elemGC[0]))-1]
-				prog = append(prog, elemProg...)
-			}
+			prog = appendGCProg(prog, ft.typ)
 			off += ft.typ.ptrdata
 		}
 		prog = append(prog, 0)
@@ -2731,15 +2742,18 @@ func StructOf(fields []StructField) Type {
 }
 
 func runtimeStructField(field StructField) structField {
-	if field.PkgPath != "" {
-		panic("reflect.StructOf: StructOf does not allow unexported fields")
+	if field.Anonymous && field.PkgPath != "" {
+		panic("reflect.StructOf: field \"" + field.Name + "\" is anonymous but has PkgPath set")
 	}
 
-	// Best-effort check for misuse.
-	// Since PkgPath is empty, not much harm done if Unicode lowercase slips through.
-	c := field.Name[0]
-	if 'a' <= c && c <= 'z' || c == '_' {
-		panic("reflect.StructOf: field \"" + field.Name + "\" is unexported but missing PkgPath")
+	exported := field.PkgPath == ""
+	if exported {
+		// Best-effort check for misuse.
+		// Since this field will be treated as exported, not much harm done if Unicode lowercase slips through.
+		c := field.Name[0]
+		if 'a' <= c && c <= 'z' || c == '_' {
+			panic("reflect.StructOf: field \"" + field.Name + "\" is unexported but missing PkgPath")
+		}
 	}
 
 	offsetEmbed := uintptr(0)
@@ -2749,7 +2763,7 @@ func runtimeStructField(field StructField) structField {
 
 	resolveReflectType(field.Type.common()) // install in runtime
 	return structField{
-		name:        newName(field.Name, string(field.Tag), true),
+		name:        newName(field.Name, string(field.Tag), exported),
 		typ:         field.Type.common(),
 		offsetEmbed: offsetEmbed,
 	}
@@ -2853,42 +2867,16 @@ func ArrayOf(count int, elem Type) Type {
 		// Create direct pointer mask by turning each 1 bit in elem
 		// into count 1 bits in larger mask.
 		mask := make([]byte, (array.ptrdata/ptrSize+7)/8)
-		elemMask := (*[1 << 30]byte)(unsafe.Pointer(typ.gcdata))[:]
-		elemWords := typ.size / ptrSize
-		for j := uintptr(0); j < typ.ptrdata/ptrSize; j++ {
-			if (elemMask[j/8]>>(j%8))&1 != 0 {
-				for i := uintptr(0); i < array.len; i++ {
-					k := i*elemWords + j
-					mask[k/8] |= 1 << (k % 8)
-				}
-			}
-		}
+		emitGCMask(mask, 0, typ, array.len)
 		array.gcdata = &mask[0]
 
 	default:
 		// Create program that emits one element
 		// and then repeats to make the array.
 		prog := []byte{0, 0, 0, 0} // will be length of prog
-		elemGC := (*[1 << 30]byte)(unsafe.Pointer(typ.gcdata))[:]
-		elemPtrs := typ.ptrdata / ptrSize
-		if typ.kind&kindGCProg == 0 {
-			// Element is small with pointer mask; use as literal bits.
-			mask := elemGC
-			// Emit 120-bit chunks of full bytes (max is 127 but we avoid using partial bytes).
-			var n uintptr
-			for n = elemPtrs; n > 120; n -= 120 {
-				prog = append(prog, 120)
-				prog = append(prog, mask[:15]...)
-				mask = mask[15:]
-			}
-			prog = append(prog, byte(n))
-			prog = append(prog, mask[:(n+7)/8]...)
-		} else {
-			// Element has GC program; emit one element.
-			elemProg := elemGC[4 : 4+*(*uint32)(unsafe.Pointer(&elemGC[0]))-1]
-			prog = append(prog, elemProg...)
-		}
+		prog = appendGCProg(prog, typ)
 		// Pad from ptrdata to size.
+		elemPtrs := typ.ptrdata / ptrSize
 		elemWords := typ.size / ptrSize
 		if elemPtrs < elemWords {
 			// Emit literal 0 bit, then repeat as needed.
@@ -3017,9 +3005,6 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, argSize, retOffset 
 		offset += arg.size
 	}
 	argSize = offset
-	if runtime.GOARCH == "amd64p32" {
-		offset += -offset & (8 - 1)
-	}
 	offset += -offset & (ptrSize - 1)
 	retOffset = offset
 	for _, res := range t.out() {
@@ -3034,9 +3019,6 @@ func funcLayout(t *funcType, rcvr *rtype) (frametype *rtype, argSize, retOffset 
 		align:   ptrSize,
 		size:    offset,
 		ptrdata: uintptr(ptrmap.n) * ptrSize,
-	}
-	if runtime.GOARCH == "amd64p32" {
-		x.align = 8
 	}
 	if ptrmap.n > 0 {
 		x.gcdata = &ptrmap.data[0]

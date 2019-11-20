@@ -34,6 +34,7 @@ const (
 //go:cgo_import_dynamic runtime._GetThreadContext GetThreadContext%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryA LoadLibraryA%1 "kernel32.dll"
+//go:cgo_import_dynamic runtime._PostQueuedCompletionStatus PostQueuedCompletionStatus%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._ResumeThread ResumeThread%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetConsoleCtrlHandler SetConsoleCtrlHandler%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._SetErrorMode SetErrorMode%1 "kernel32.dll"
@@ -80,6 +81,7 @@ var (
 	_GetThreadContext,
 	_LoadLibraryW,
 	_LoadLibraryA,
+	_PostQueuedCompletionStatus,
 	_QueryPerformanceCounter,
 	_QueryPerformanceFrequency,
 	_ResumeThread,
@@ -277,13 +279,11 @@ func monitorSuspendResume() {
 		return // Running on Windows 7, where we don't need it anyway.
 	}
 	var fn interface{} = func(context uintptr, changeType uint32, setting uintptr) uintptr {
-		lock(&allglock)
-		for _, gp := range allgs {
-			if gp.m != nil && gp.m.resumesema != 0 {
-				stdcall1(_SetEvent, gp.m.resumesema)
+		for mp := (*m)(atomic.Loadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
+			if mp.resumesema != 0 {
+				stdcall1(_SetEvent, mp.resumesema)
 			}
 		}
-		unlock(&allglock)
 		return 0
 	}
 	params := _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS{
@@ -1061,4 +1061,12 @@ func setThreadCPUProfiler(hz int32) {
 	}
 	stdcall6(_SetWaitableTimer, profiletimer, uintptr(unsafe.Pointer(&due)), uintptr(ms), 0, 0, 0)
 	atomic.Store((*uint32)(unsafe.Pointer(&getg().m.profilehz)), uint32(hz))
+}
+
+const preemptMSupported = false
+
+func preemptM(mp *m) {
+	// Not currently supported.
+	//
+	// TODO: Use SuspendThread/GetThreadContext/ResumeThread
 }

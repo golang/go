@@ -9,6 +9,8 @@ import (
 	"go/parser"
 	"strings"
 	"testing"
+
+	"cmd/internal/diff"
 )
 
 type testCase struct {
@@ -74,6 +76,7 @@ func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string, mustB
 
 func TestRewrite(t *testing.T) {
 	for _, tt := range testCases {
+		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			// Apply fix: should get tt.Out.
@@ -123,7 +126,7 @@ func TestRewrite(t *testing.T) {
 }
 
 func tdiff(t *testing.T, a, b string) {
-	data, err := diff([]byte(a), []byte(b))
+	data, err := diff.Diff("go-fix-test", []byte(a), []byte(b))
 	if err != nil {
 		t.Error(err)
 		return

@@ -24,7 +24,7 @@ import (
 // It returns an error if the initial slurp of all bytes fails. It does not attempt
 // to make the returned ReadClosers have identical error-matching behavior.
 func drainBody(b io.ReadCloser) (r1, r2 io.ReadCloser, err error) {
-	if b == http.NoBody {
+	if b == nil || b == http.NoBody {
 		// No copying needed. Preserve the magic sentinel meaning of NoBody.
 		return http.NoBody, http.NoBody, nil
 	}
@@ -60,16 +60,28 @@ func (b neverEnding) Read(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+// outGoingLength is a copy of the unexported
+// (*http.Request).outgoingLength method.
+func outgoingLength(req *http.Request) int64 {
+	if req.Body == nil || req.Body == http.NoBody {
+		return 0
+	}
+	if req.ContentLength != 0 {
+		return req.ContentLength
+	}
+	return -1
+}
+
 // DumpRequestOut is like DumpRequest but for outgoing client requests. It
 // includes any headers that the standard http.Transport adds, such as
 // User-Agent.
 func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 	save := req.Body
 	dummyBody := false
-	if !body || req.Body == nil {
-		req.Body = nil
-		if req.ContentLength != 0 {
-			req.Body = ioutil.NopCloser(io.LimitReader(neverEnding('x'), req.ContentLength))
+	if !body {
+		contentLength := outgoingLength(req)
+		if contentLength != 0 {
+			req.Body = ioutil.NopCloser(io.LimitReader(neverEnding('x'), contentLength))
 			dummyBody = true
 		}
 	} else {

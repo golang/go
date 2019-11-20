@@ -578,13 +578,14 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
 		// Nothing to do
 	case sym.STYPERELRO:
 		if ctxt.UseRelro() && (ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) {
-			outerSymSize["typerel.*"] = size
+			// runtime.types size must be removed, as it's a real symbol.
+			outerSymSize["typerel.*"] = size - ctxt.Syms.ROLookup("runtime.types", 0).Size
 			return
 		}
 		fallthrough
 	case sym.STYPE:
 		if !ctxt.DynlinkingGo() {
-			// runtime.types size must be removed.
+			// runtime.types size must be removed, as it's a real symbol.
 			outerSymSize["type.*"] = size - ctxt.Syms.ROLookup("runtime.types", 0).Size
 		}
 	case sym.SGOSTRING:
@@ -955,7 +956,7 @@ func putaixsym(ctxt *Link, x *sym.Symbol, str string, t SymbolType, addr int64, 
 		syms = append(syms, a4)
 
 	case UndefinedSym:
-		if x.Type != sym.SDYNIMPORT && x.Type != sym.SHOSTOBJ {
+		if x.Type != sym.SDYNIMPORT && x.Type != sym.SHOSTOBJ && x.Type != sym.SUNDEFEXT {
 			return
 		}
 		s := &XcoffSymEnt64{

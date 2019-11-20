@@ -83,15 +83,41 @@ TEXT runtime·read(SB),NOSPLIT,$-4
 	MOVL	$SYS_read, AX
 	INT	$0x80
 	JAE	2(PC)
-	MOVL	$-1, AX
+	NEGL	AX			// caller expects negative errno
 	MOVL	AX, ret+12(FP)
+	RET
+
+// func pipe() (r, w int32, errno int32)
+TEXT runtime·pipe(SB),NOSPLIT,$0-12
+	MOVL	$42, AX
+	INT	$0x80
+	JCC	pipeok
+	MOVL	$-1, r+0(FP)
+	MOVL	$-1, w+4(FP)
+	MOVL	AX, errno+8(FP)
+	RET
+pipeok:
+	MOVL	AX, r+0(FP)
+	MOVL	DX, w+4(FP)
+	MOVL	$0, errno+8(FP)
+	RET
+
+// func pipe2(flags int32) (r, w int32, errno int32)
+TEXT runtime·pipe2(SB),NOSPLIT,$12-16
+	MOVL	$453, AX
+	LEAL	r+4(FP), BX
+	MOVL	BX, 4(SP)
+	MOVL	flags+0(FP), BX
+	MOVL	BX, 8(SP)
+	INT	$0x80
+	MOVL	AX, errno+12(FP)
 	RET
 
 TEXT runtime·write1(SB),NOSPLIT,$-4
 	MOVL	$SYS_write, AX
 	INT	$0x80
 	JAE	2(PC)
-	MOVL	$-1, AX
+	NEGL	AX			// caller expects negative errno
 	MOVL	AX, ret+12(FP)
 	RET
 
@@ -114,12 +140,11 @@ TEXT runtime·usleep(SB),NOSPLIT,$24
 	INT	$0x80
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$12
-	MOVL	$SYS__lwp_self, AX
-	INT	$0x80
+TEXT runtime·lwp_kill(SB),NOSPLIT,$12-8
 	MOVL	$0, 0(SP)
+	MOVL	tid+0(FP), AX
 	MOVL	AX, 4(SP)		// arg 1 - target
-	MOVL	sig+0(FP), AX
+	MOVL	sig+4(FP), AX
 	MOVL	AX, 8(SP)		// arg 2 - signo
 	MOVL	$SYS__lwp_kill, AX
 	INT	$0x80
@@ -454,4 +479,21 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$32
 	INT	$0x80
 	JAE	2(PC)
 	NEGL	AX
+	RET
+
+// func runtime·setNonblock(fd int32)
+TEXT runtime·setNonblock(SB),NOSPLIT,$16-4
+	MOVL	$92, AX // fcntl
+	MOVL	fd+0(FP), BX // fd
+	MOVL	BX, 4(SP)
+	MOVL	$3, 8(SP) // F_GETFL
+	MOVL	$0, 12(SP)
+	INT	$0x80
+	MOVL	fd+0(FP), BX // fd
+	MOVL	BX, 4(SP)
+	MOVL	$4, 8(SP) // F_SETFL
+	ORL	$4, AX // O_NONBLOCK
+	MOVL	AX, 12(SP)
+	MOVL	$92, AX // fcntl
+	INT	$0x80
 	RET

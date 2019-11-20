@@ -11,6 +11,7 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
 	"encoding/binary"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -253,15 +254,25 @@ func (ctxt *Link) pclntab() {
 				// set the resumption point to PC_B.
 				lastWasmAddr = uint32(r.Add)
 			}
-			if r.Type.IsDirectJump() && r.Sym != nil && r.Sym.Name == "runtime.deferreturn" {
+			if r.Type.IsDirectCall() && r.Sym != nil && r.Sym.Name == "runtime.deferreturn" {
 				if ctxt.Arch.Family == sys.Wasm {
-					deferreturn = lastWasmAddr
+					deferreturn = lastWasmAddr - 1
 				} else {
 					// Note: the relocation target is in the call instruction, but
 					// is not necessarily the whole instruction (for instance, on
 					// x86 the relocation applies to bytes [1:5] of the 5 byte call
 					// instruction).
 					deferreturn = uint32(r.Off)
+					switch ctxt.Arch.Family {
+					case sys.AMD64, sys.I386:
+						deferreturn--
+					case sys.PPC64, sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64, sys.RISCV64:
+						// no change
+					case sys.S390X:
+						deferreturn -= 2
+					default:
+						panic(fmt.Sprint("Unhandled architecture:", ctxt.Arch.Family))
+					}
 				}
 				break // only need one
 			}
@@ -294,10 +305,10 @@ func (ctxt *Link) pclntab() {
 				// appears in the Pcfile table. In that case, this assigns
 				// the outer file a number.
 				numberfile(ctxt, call.File)
-				nameoff := nameToOffset(call.Func.Name)
+				nameoff := nameToOffset(call.Func)
 
 				inlTreeSym.SetUint16(ctxt.Arch, int64(i*20+0), uint16(call.Parent))
-				inlTreeSym.SetUint8(ctxt.Arch, int64(i*20+2), uint8(objabi.GetFuncID(call.Func.Name, call.Func.File)))
+				inlTreeSym.SetUint8(ctxt.Arch, int64(i*20+2), uint8(objabi.GetFuncID(call.Func, "")))
 				// byte 3 is unused
 				inlTreeSym.SetUint32(ctxt.Arch, int64(i*20+4), uint32(call.File.Value))
 				inlTreeSym.SetUint32(ctxt.Arch, int64(i*20+8), uint32(call.Line))
@@ -382,7 +393,7 @@ func (ctxt *Link) pclntab() {
 	ftab.Size = int64(len(ftab.P))
 
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f pclntab=%d bytes, funcdata total %d bytes\n", Cputime(), ftab.Size, funcdataBytes)
+		ctxt.Logf("pclntab=%d bytes, funcdata total %d bytes\n", ftab.Size, funcdataBytes)
 	}
 }
 

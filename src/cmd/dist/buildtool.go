@@ -41,6 +41,7 @@ var bootstrapDirs = []string{
 	"cmd/compile/internal/arm",
 	"cmd/compile/internal/arm64",
 	"cmd/compile/internal/gc",
+	"cmd/compile/internal/logopt",
 	"cmd/compile/internal/mips",
 	"cmd/compile/internal/mips64",
 	"cmd/compile/internal/ppc64",
@@ -54,6 +55,7 @@ var bootstrapDirs = []string{
 	"cmd/internal/gcprog",
 	"cmd/internal/dwarf",
 	"cmd/internal/edit",
+	"cmd/internal/goobj2",
 	"cmd/internal/objabi",
 	"cmd/internal/obj",
 	"cmd/internal/obj/arm",
@@ -72,6 +74,7 @@ var bootstrapDirs = []string{
 	"cmd/link/internal/arm64",
 	"cmd/link/internal/ld",
 	"cmd/link/internal/loadelf",
+	"cmd/link/internal/loader",
 	"cmd/link/internal/loadmacho",
 	"cmd/link/internal/loadpe",
 	"cmd/link/internal/loadxcoff",
@@ -79,6 +82,7 @@ var bootstrapDirs = []string{
 	"cmd/link/internal/mips64",
 	"cmd/link/internal/objfile",
 	"cmd/link/internal/ppc64",
+	"cmd/link/internal/riscv64",
 	"cmd/link/internal/s390x",
 	"cmd/link/internal/sym",
 	"cmd/link/internal/x86",
@@ -250,6 +254,9 @@ func isUnneededSSARewriteFile(srcFile string) (archCaps string, unneeded bool) {
 	archCaps = fileArch
 	fileArch = strings.ToLower(fileArch)
 	fileArch = strings.TrimSuffix(fileArch, "splitload")
+	if fileArch == os.Getenv("GOHOSTARCH") {
+		return "", false
+	}
 	if fileArch == strings.TrimSuffix(runtime.GOARCH, "le") {
 		return "", false
 	}

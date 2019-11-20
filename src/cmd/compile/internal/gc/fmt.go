@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 	"fmt"
 	"io"
 	"strconv"
@@ -275,9 +276,11 @@ func (o fmtOpTypeId) Format(s fmt.State, verb rune)     { Op(o).format(s, verb, 
 func (o fmtOpTypeIdName) Format(s fmt.State, verb rune) { Op(o).format(s, verb, FTypeIdName) }
 func (o Op) Format(s fmt.State, verb rune)              { o.format(s, verb, FErr) }
 
-func (t *fmtTypeErr) Format(s fmt.State, verb rune)    { typeFormat((*types.Type)(t), s, verb, FErr) }
-func (t *fmtTypeDbg) Format(s fmt.State, verb rune)    { typeFormat((*types.Type)(t), s, verb, FDbg) }
-func (t *fmtTypeTypeId) Format(s fmt.State, verb rune) { typeFormat((*types.Type)(t), s, verb, FTypeId) }
+func (t *fmtTypeErr) Format(s fmt.State, verb rune) { typeFormat((*types.Type)(t), s, verb, FErr) }
+func (t *fmtTypeDbg) Format(s fmt.State, verb rune) { typeFormat((*types.Type)(t), s, verb, FDbg) }
+func (t *fmtTypeTypeId) Format(s fmt.State, verb rune) {
+	typeFormat((*types.Type)(t), s, verb, FTypeId)
+}
 func (t *fmtTypeTypeIdName) Format(s fmt.State, verb rune) {
 	typeFormat((*types.Type)(t), s, verb, FTypeIdName)
 }
@@ -414,16 +417,19 @@ func (n *Node) format(s fmt.State, verb rune, mode fmtMode) {
 func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 	c := flag & FmtShort
 
-	if c == 0 && n.Addable() {
-		fmt.Fprintf(s, " a(%v)", n.Addable())
-	}
-
 	if c == 0 && n.Name != nil && n.Name.Vargen != 0 {
 		fmt.Fprintf(s, " g(%d)", n.Name.Vargen)
 	}
 
 	if n.Pos.IsKnown() {
-		fmt.Fprintf(s, " l(%d)", n.Pos.Line())
+		pfx := ""
+		switch n.Pos.IsStmt() {
+		case src.PosNotStmt:
+			pfx = "_" // "-" would be confusing
+		case src.PosIsStmt:
+			pfx = "+"
+		}
+		fmt.Fprintf(s, " l(%s%d)", pfx, n.Pos.Line())
 	}
 
 	if c == 0 && n.Xoffset != BADWIDTH {
@@ -477,12 +483,13 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
 		fmt.Fprintf(s, " embedded")
 	}
 
-	if n.Addrtaken() {
-		fmt.Fprint(s, " addrtaken")
-	}
-
-	if n.Assigned() {
-		fmt.Fprint(s, " assigned")
+	if n.Op == ONAME {
+		if n.Name.Addrtaken() {
+			fmt.Fprint(s, " addrtaken")
+		}
+		if n.Name.Assigned() {
+			fmt.Fprint(s, " assigned")
+		}
 	}
 	if n.Bounded() {
 		fmt.Fprint(s, " bounded")
@@ -718,9 +725,6 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 		return "*" + tmodeString(t.Elem(), mode, depth)
 
 	case TARRAY:
-		if t.IsDDDArray() {
-			return "[...]" + tmodeString(t.Elem(), mode, depth)
-		}
 		return "[" + strconv.FormatInt(t.NumElem(), 10) + "]" + tmodeString(t.Elem(), mode, depth)
 
 	case TSLICE:
@@ -946,7 +950,7 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 		fallthrough
 
 	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
-		mode.Fprintf(s, "%.v = %.v", n.List, n.Rlist)
+		mode.Fprintf(s, "%.v = %v", n.List, n.Right)
 
 	case ORETURN:
 		mode.Fprintf(s, "return %.v", n.List)
@@ -1302,12 +1306,8 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
 
 	case OCOMPLIT:
 		if mode == FErr {
-			if n.Right != nil && n.Right.Type != nil && !n.Implicit() {
-				if n.Right.Implicit() && n.Right.Type.IsPtr() {
-					mode.Fprintf(s, "&%v literal", n.Right.Type.Elem())
-					return
-				}
-				mode.Fprintf(s, "%v literal", n.Right.Type)
+			if n.Right != nil {
+				mode.Fprintf(s, "%v literal", n.Right)
 				return
 			}
 

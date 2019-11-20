@@ -60,10 +60,6 @@ var declare_typegen int
 // declare records that Node n declares symbol n.Sym in the specified
 // declaration context.
 func declare(n *Node, ctxt Class) {
-	if ctxt == PDISCARD {
-		return
-	}
-
 	if n.isBlank() {
 		return
 	}
@@ -207,7 +203,6 @@ func newnoname(s *types.Sym) *Node {
 	}
 	n := nod(ONONAME, nil, nil)
 	n.Sym = s
-	n.SetAddable(true)
 	n.Xoffset = 0
 	return n
 }
@@ -283,10 +278,9 @@ func oldname(s *types.Sym) *Node {
 			// Do not have a closure var for the active closure yet; make one.
 			c = newname(s)
 			c.SetClass(PAUTOHEAP)
-			c.SetIsClosureVar(true)
+			c.Name.SetIsClosureVar(true)
 			c.SetIsDDD(n.IsDDD())
 			c.Name.Defn = n
-			c.SetAddable(false)
 
 			// Link into list of active closure variables.
 			// Popped from list in func closurebody.

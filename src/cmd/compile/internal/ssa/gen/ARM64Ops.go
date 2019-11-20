@@ -96,6 +96,8 @@ var regNamesARM64 = []string{
 	"F30",
 	"F31",
 
+	// If you add registers, update asyncPreempt in runtime.
+
 	// pseudo-registers
 	"SB",
 }
@@ -611,6 +613,7 @@ func init() {
 
 		// atomic stores.
 		// store arg1 to arg0. arg2=mem. returns memory. auxint must be zero.
+		{name: "STLRB", argLength: 3, reg: gpstore, asm: "STLRB", faultOnNilArg0: true, hasSideEffects: true},
 		{name: "STLR", argLength: 3, reg: gpstore, asm: "STLR", faultOnNilArg0: true, hasSideEffects: true},
 		{name: "STLRW", argLength: 3, reg: gpstore, asm: "STLRW", faultOnNilArg0: true, hasSideEffects: true},
 
@@ -619,8 +622,8 @@ func init() {
 		// LDAXR	(Rarg0), Rout
 		// STLXR	Rarg1, (Rarg0), Rtmp
 		// CBNZ		Rtmp, -2(PC)
-		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
-		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 
 		// atomic add.
 		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.
@@ -628,8 +631,8 @@ func init() {
 		// ADD		Rarg1, Rout
 		// STLXR	Rout, (Rarg0), Rtmp
 		// CBNZ		Rtmp, -3(PC)
-		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
-		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 
 		// atomic add variant.
 		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.
@@ -652,8 +655,8 @@ func init() {
 		// STLXR	Rarg2, (Rarg0), Rtmp
 		// CBNZ		Rtmp, -4(PC)
 		// CSET		EQ, Rout
-		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
-		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, clobberFlags: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 
 		// atomic and/or.
 		// *arg0 &= (|=) arg1. arg2=mem. returns <new content of *arg0, memory>. auxint must be zero.
@@ -661,8 +664,8 @@ func init() {
 		// AND/OR	Rarg1, Rout
 		// STLXRB	Rout, (Rarg0), Rtmp
 		// CBNZ		Rtmp, -3(PC)
-		{name: "LoweredAtomicAnd8", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "AND", typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true},
-		{name: "LoweredAtomicOr8", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "ORR", typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicAnd8", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "AND", typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicOr8", argLength: 3, reg: gpxchg, resultNotInArgs: true, asm: "ORR", typ: "(UInt8,Mem)", faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 
 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
 		// It saves all GP registers if necessary,
@@ -678,26 +681,26 @@ func init() {
 	}
 
 	blocks := []blockData{
-		{name: "EQ"},
-		{name: "NE"},
-		{name: "LT"},
-		{name: "LE"},
-		{name: "GT"},
-		{name: "GE"},
-		{name: "ULT"},
-		{name: "ULE"},
-		{name: "UGT"},
-		{name: "UGE"},
-		{name: "Z"},    // Control == 0 (take a register instead of flags)
-		{name: "NZ"},   // Control != 0
-		{name: "ZW"},   // Control == 0, 32-bit
-		{name: "NZW"},  // Control != 0, 32-bit
-		{name: "TBZ"},  // Control & (1 << Aux.(int64)) == 0
-		{name: "TBNZ"}, // Control & (1 << Aux.(int64)) != 0
-		{name: "FLT"},
-		{name: "FLE"},
-		{name: "FGT"},
-		{name: "FGE"},
+		{name: "EQ", controls: 1},
+		{name: "NE", controls: 1},
+		{name: "LT", controls: 1},
+		{name: "LE", controls: 1},
+		{name: "GT", controls: 1},
+		{name: "GE", controls: 1},
+		{name: "ULT", controls: 1},
+		{name: "ULE", controls: 1},
+		{name: "UGT", controls: 1},
+		{name: "UGE", controls: 1},
+		{name: "Z", controls: 1},    // Control == 0 (take a register instead of flags)
+		{name: "NZ", controls: 1},   // Control != 0
+		{name: "ZW", controls: 1},   // Control == 0, 32-bit
+		{name: "NZW", controls: 1},  // Control != 0, 32-bit
+		{name: "TBZ", controls: 1},  // Control & (1 << Aux.(int64)) == 0
+		{name: "TBNZ", controls: 1}, // Control & (1 << Aux.(int64)) != 0
+		{name: "FLT", controls: 1},
+		{name: "FLE", controls: 1},
+		{name: "FGT", controls: 1},
+		{name: "FGE", controls: 1},
 	}
 
 	archs = append(archs, arch{

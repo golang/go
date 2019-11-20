@@ -186,6 +186,7 @@ const (
 	// mark flags
 	LEAF = 1 << iota
 	BRANCH
+	USETMP // generated code of this Prog uses REGTMP
 )
 
 const ( // comments from func aclass in asmz.go
@@ -268,6 +269,8 @@ const (
 	AMOVDLE
 	AMOVDLT
 	AMOVDNE
+	ALOCR
+	ALOCGR
 
 	// find leftmost one
 	AFLOGR
@@ -384,6 +387,9 @@ const (
 	// insert program mask
 	AIPM
 
+	// set program mask
+	ASPM
+
 	// compare and swap
 	ACS
 	ACSG
@@ -394,6 +400,7 @@ const (
 	// branch
 	ABC
 	ABCL
+	ABRC
 	ABEQ
 	ABGE
 	ABGT
@@ -406,7 +413,19 @@ const (
 	ABVS
 	ASYSCALL
 
+	// branch on count
+	ABRCT
+	ABRCTG
+
 	// compare and branch
+	ACRJ
+	ACGRJ
+	ACLRJ
+	ACLGRJ
+	ACIJ
+	ACGIJ
+	ACLIJ
+	ACLGIJ
 	ACMPBEQ
 	ACMPBGE
 	ACMPBGT

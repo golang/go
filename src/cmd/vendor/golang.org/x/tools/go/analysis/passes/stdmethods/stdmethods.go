@@ -141,7 +141,7 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident) {
 		actual = strings.TrimPrefix(actual, "func")
 		actual = id.Name + actual
 
-		pass.Reportf(id.Pos(), "method %s should have signature %s", actual, expectFmt)
+		pass.ReportRangef(id, "method %s should have signature %s", actual, expectFmt)
 	}
 }
 

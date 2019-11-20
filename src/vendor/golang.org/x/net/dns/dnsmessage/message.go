@@ -1660,7 +1660,7 @@ func (h *ResourceHeader) fixLen(msg []byte, lenOff int, preLen int) error {
 	return nil
 }
 
-// EDNS(0) wire costants.
+// EDNS(0) wire constants.
 const (
 	edns0Version = 0
 

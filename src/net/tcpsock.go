@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// BUG(mikio): On JS, NaCl and Windows, the File method of TCPConn and
+// BUG(mikio): On JS and Windows, the File method of TCPConn and
 // TCPListener is not implemented.
 
 // TCPAddr represents the address of a TCP end point.

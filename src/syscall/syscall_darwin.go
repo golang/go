@@ -337,6 +337,7 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
 //sysnb ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_ioctl
 //sysnb execve(path *byte, argv **byte, envp **byte) (err error)
 //sysnb exit(res int) (err error)
+//sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error)
 //sys	fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) = SYS_fcntl
 //sys   unlinkat(fd int, path string, flags int) (err error)
 //sys   openat(fd int, path string, flags int, perm uint32) (fdret int, err error)
@@ -379,8 +380,6 @@ func writelen(fd int, buf *byte, nbuf int) (n int, err error) {
 
 func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 	// Simulate Getdirentries using fdopendir/readdir_r/closedir.
-	const ptrSize = unsafe.Sizeof(uintptr(0))
-
 	// We store the number of entries to skip in the seek
 	// offset of fd. See issue #31368.
 	// It's not the full required semantics, but should handle the case

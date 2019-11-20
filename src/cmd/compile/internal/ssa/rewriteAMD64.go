@@ -646,6 +646,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpAtomicStore32_0(v)
 	case OpAtomicStore64:
 		return rewriteValueAMD64_OpAtomicStore64_0(v)
+	case OpAtomicStore8:
+		return rewriteValueAMD64_OpAtomicStore8_0(v)
 	case OpAtomicStorePtrNoWB:
 		return rewriteValueAMD64_OpAtomicStorePtrNoWB_0(v)
 	case OpAvg64u:
@@ -766,6 +768,8 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpEqB_0(v)
 	case OpEqPtr:
 		return rewriteValueAMD64_OpEqPtr_0(v)
+	case OpFMA:
+		return rewriteValueAMD64_OpFMA_0(v)
 	case OpFloor:
 		return rewriteValueAMD64_OpFloor_0(v)
 	case OpGeq16:
@@ -824,10 +828,6 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpHmul64_0(v)
 	case OpHmul64u:
 		return rewriteValueAMD64_OpHmul64u_0(v)
-	case OpInt64Hi:
-		return rewriteValueAMD64_OpInt64Hi_0(v)
-	case OpInt64Lo:
-		return rewriteValueAMD64_OpInt64Lo_0(v)
 	case OpInterCall:
 		return rewriteValueAMD64_OpInterCall_0(v)
 	case OpIsInBounds:
@@ -990,8 +990,6 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpOrB_0(v)
 	case OpPanicBounds:
 		return rewriteValueAMD64_OpPanicBounds_0(v)
-	case OpPanicExtend:
-		return rewriteValueAMD64_OpPanicExtend_0(v)
 	case OpPopCount16:
 		return rewriteValueAMD64_OpPopCount16_0(v)
 	case OpPopCount32:
@@ -3298,10 +3296,7 @@ func rewriteValueAMD64_OpAMD64ADDSSload_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64ANDL_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (ANDL (NOTL (SHLL (MOVLconst [1]) y)) x)
-	// cond: !config.nacl
 	// result: (BTRL x y)
 	for {
 		x := v.Args[1]
@@ -3315,7 +3310,7 @@ func rewriteValueAMD64_OpAMD64ANDL_0(v *Value) bool {
 		}
 		y := v_0_0.Args[1]
 		v_0_0_0 := v_0_0.Args[0]
-		if v_0_0_0.Op != OpAMD64MOVLconst || v_0_0_0.AuxInt != 1 || !(!config.nacl) {
+		if v_0_0_0.Op != OpAMD64MOVLconst || v_0_0_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64BTRL)
@@ -3324,7 +3319,6 @@ func rewriteValueAMD64_OpAMD64ANDL_0(v *Value) bool {
 		return true
 	}
 	// match: (ANDL x (NOTL (SHLL (MOVLconst [1]) y)))
-	// cond: !config.nacl
 	// result: (BTRL x y)
 	for {
 		_ = v.Args[1]
@@ -3339,7 +3333,7 @@ func rewriteValueAMD64_OpAMD64ANDL_0(v *Value) bool {
 		}
 		y := v_1_0.Args[1]
 		v_1_0_0 := v_1_0.Args[0]
-		if v_1_0_0.Op != OpAMD64MOVLconst || v_1_0_0.AuxInt != 1 || !(!config.nacl) {
+		if v_1_0_0.Op != OpAMD64MOVLconst || v_1_0_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64BTRL)
@@ -3348,7 +3342,7 @@ func rewriteValueAMD64_OpAMD64ANDL_0(v *Value) bool {
 		return true
 	}
 	// match: (ANDL (MOVLconst [c]) x)
-	// cond: isUint32PowerOfTwo(^c) && uint64(^c) >= 128 && !config.nacl
+	// cond: isUint32PowerOfTwo(^c) && uint64(^c) >= 128
 	// result: (BTRLconst [log2uint32(^c)] x)
 	for {
 		x := v.Args[1]
@@ -3357,7 +3351,7 @@ func rewriteValueAMD64_OpAMD64ANDL_0(v *Value) bool {
 			break
 		}
 		c := v_0.AuxInt
-		if !(isUint32PowerOfTwo(^c) && uint64(^c) >= 128 && !config.nacl) {
+		if !(isUint32PowerOfTwo(^c) && uint64(^c) >= 128) {
 			break
 		}
 		v.reset(OpAMD64BTRLconst)
@@ -3366,7 +3360,7 @@ func rewriteValueAMD64_OpAMD64ANDL_0(v *Value) bool {
 		return true
 	}
 	// match: (ANDL x (MOVLconst [c]))
-	// cond: isUint32PowerOfTwo(^c) && uint64(^c) >= 128 && !config.nacl
+	// cond: isUint32PowerOfTwo(^c) && uint64(^c) >= 128
 	// result: (BTRLconst [log2uint32(^c)] x)
 	for {
 		_ = v.Args[1]
@@ -3376,7 +3370,7 @@ func rewriteValueAMD64_OpAMD64ANDL_0(v *Value) bool {
 			break
 		}
 		c := v_1.AuxInt
-		if !(isUint32PowerOfTwo(^c) && uint64(^c) >= 128 && !config.nacl) {
+		if !(isUint32PowerOfTwo(^c) && uint64(^c) >= 128) {
 			break
 		}
 		v.reset(OpAMD64BTRLconst)
@@ -3477,15 +3471,13 @@ func rewriteValueAMD64_OpAMD64ANDL_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64ANDLconst_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (ANDLconst [c] x)
-	// cond: isUint32PowerOfTwo(^c) && uint64(^c) >= 128 && !config.nacl
+	// cond: isUint32PowerOfTwo(^c) && uint64(^c) >= 128
 	// result: (BTRLconst [log2uint32(^c)] x)
 	for {
 		c := v.AuxInt
 		x := v.Args[0]
-		if !(isUint32PowerOfTwo(^c) && uint64(^c) >= 128 && !config.nacl) {
+		if !(isUint32PowerOfTwo(^c) && uint64(^c) >= 128) {
 			break
 		}
 		v.reset(OpAMD64BTRLconst)
@@ -3771,10 +3763,7 @@ func rewriteValueAMD64_OpAMD64ANDLmodify_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64ANDQ_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (ANDQ (NOTQ (SHLQ (MOVQconst [1]) y)) x)
-	// cond: !config.nacl
 	// result: (BTRQ x y)
 	for {
 		x := v.Args[1]
@@ -3788,7 +3777,7 @@ func rewriteValueAMD64_OpAMD64ANDQ_0(v *Value) bool {
 		}
 		y := v_0_0.Args[1]
 		v_0_0_0 := v_0_0.Args[0]
-		if v_0_0_0.Op != OpAMD64MOVQconst || v_0_0_0.AuxInt != 1 || !(!config.nacl) {
+		if v_0_0_0.Op != OpAMD64MOVQconst || v_0_0_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64BTRQ)
@@ -3797,7 +3786,6 @@ func rewriteValueAMD64_OpAMD64ANDQ_0(v *Value) bool {
 		return true
 	}
 	// match: (ANDQ x (NOTQ (SHLQ (MOVQconst [1]) y)))
-	// cond: !config.nacl
 	// result: (BTRQ x y)
 	for {
 		_ = v.Args[1]
@@ -3812,7 +3800,7 @@ func rewriteValueAMD64_OpAMD64ANDQ_0(v *Value) bool {
 		}
 		y := v_1_0.Args[1]
 		v_1_0_0 := v_1_0.Args[0]
-		if v_1_0_0.Op != OpAMD64MOVQconst || v_1_0_0.AuxInt != 1 || !(!config.nacl) {
+		if v_1_0_0.Op != OpAMD64MOVQconst || v_1_0_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64BTRQ)
@@ -3821,7 +3809,7 @@ func rewriteValueAMD64_OpAMD64ANDQ_0(v *Value) bool {
 		return true
 	}
 	// match: (ANDQ (MOVQconst [c]) x)
-	// cond: isUint64PowerOfTwo(^c) && uint64(^c) >= 128 && !config.nacl
+	// cond: isUint64PowerOfTwo(^c) && uint64(^c) >= 128
 	// result: (BTRQconst [log2(^c)] x)
 	for {
 		x := v.Args[1]
@@ -3830,7 +3818,7 @@ func rewriteValueAMD64_OpAMD64ANDQ_0(v *Value) bool {
 			break
 		}
 		c := v_0.AuxInt
-		if !(isUint64PowerOfTwo(^c) && uint64(^c) >= 128 && !config.nacl) {
+		if !(isUint64PowerOfTwo(^c) && uint64(^c) >= 128) {
 			break
 		}
 		v.reset(OpAMD64BTRQconst)
@@ -3839,7 +3827,7 @@ func rewriteValueAMD64_OpAMD64ANDQ_0(v *Value) bool {
 		return true
 	}
 	// match: (ANDQ x (MOVQconst [c]))
-	// cond: isUint64PowerOfTwo(^c) && uint64(^c) >= 128 && !config.nacl
+	// cond: isUint64PowerOfTwo(^c) && uint64(^c) >= 128
 	// result: (BTRQconst [log2(^c)] x)
 	for {
 		_ = v.Args[1]
@@ -3849,7 +3837,7 @@ func rewriteValueAMD64_OpAMD64ANDQ_0(v *Value) bool {
 			break
 		}
 		c := v_1.AuxInt
-		if !(isUint64PowerOfTwo(^c) && uint64(^c) >= 128 && !config.nacl) {
+		if !(isUint64PowerOfTwo(^c) && uint64(^c) >= 128) {
 			break
 		}
 		v.reset(OpAMD64BTRQconst)
@@ -3958,15 +3946,13 @@ func rewriteValueAMD64_OpAMD64ANDQ_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64ANDQconst_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (ANDQconst [c] x)
-	// cond: isUint64PowerOfTwo(^c) && uint64(^c) >= 128 && !config.nacl
+	// cond: isUint64PowerOfTwo(^c) && uint64(^c) >= 128
 	// result: (BTRQconst [log2(^c)] x)
 	for {
 		c := v.AuxInt
 		x := v.Args[0]
-		if !(isUint64PowerOfTwo(^c) && uint64(^c) >= 128 && !config.nacl) {
+		if !(isUint64PowerOfTwo(^c) && uint64(^c) >= 128) {
 			break
 		}
 		v.reset(OpAMD64BTRQconst)
@@ -23748,10 +23734,7 @@ func rewriteValueAMD64_OpAMD64NOTQ_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64ORL_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (ORL (SHLL (MOVLconst [1]) y) x)
-	// cond: !config.nacl
 	// result: (BTSL x y)
 	for {
 		x := v.Args[1]
@@ -23761,7 +23744,7 @@ func rewriteValueAMD64_OpAMD64ORL_0(v *Value) bool {
 		}
 		y := v_0.Args[1]
 		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpAMD64MOVLconst || v_0_0.AuxInt != 1 || !(!config.nacl) {
+		if v_0_0.Op != OpAMD64MOVLconst || v_0_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64BTSL)
@@ -23770,7 +23753,6 @@ func rewriteValueAMD64_OpAMD64ORL_0(v *Value) bool {
 		return true
 	}
 	// match: (ORL x (SHLL (MOVLconst [1]) y))
-	// cond: !config.nacl
 	// result: (BTSL x y)
 	for {
 		_ = v.Args[1]
@@ -23781,7 +23763,7 @@ func rewriteValueAMD64_OpAMD64ORL_0(v *Value) bool {
 		}
 		y := v_1.Args[1]
 		v_1_0 := v_1.Args[0]
-		if v_1_0.Op != OpAMD64MOVLconst || v_1_0.AuxInt != 1 || !(!config.nacl) {
+		if v_1_0.Op != OpAMD64MOVLconst || v_1_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64BTSL)
@@ -23790,7 +23772,7 @@ func rewriteValueAMD64_OpAMD64ORL_0(v *Value) bool {
 		return true
 	}
 	// match: (ORL (MOVLconst [c]) x)
-	// cond: isUint32PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl
+	// cond: isUint32PowerOfTwo(c) && uint64(c) >= 128
 	// result: (BTSLconst [log2uint32(c)] x)
 	for {
 		x := v.Args[1]
@@ -23799,7 +23781,7 @@ func rewriteValueAMD64_OpAMD64ORL_0(v *Value) bool {
 			break
 		}
 		c := v_0.AuxInt
-		if !(isUint32PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl) {
+		if !(isUint32PowerOfTwo(c) && uint64(c) >= 128) {
 			break
 		}
 		v.reset(OpAMD64BTSLconst)
@@ -23808,7 +23790,7 @@ func rewriteValueAMD64_OpAMD64ORL_0(v *Value) bool {
 		return true
 	}
 	// match: (ORL x (MOVLconst [c]))
-	// cond: isUint32PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl
+	// cond: isUint32PowerOfTwo(c) && uint64(c) >= 128
 	// result: (BTSLconst [log2uint32(c)] x)
 	for {
 		_ = v.Args[1]
@@ -23818,7 +23800,7 @@ func rewriteValueAMD64_OpAMD64ORL_0(v *Value) bool {
 			break
 		}
 		c := v_1.AuxInt
-		if !(isUint32PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl) {
+		if !(isUint32PowerOfTwo(c) && uint64(c) >= 128) {
 			break
 		}
 		v.reset(OpAMD64BTSLconst)
@@ -30486,15 +30468,13 @@ func rewriteValueAMD64_OpAMD64ORL_130(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64ORLconst_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (ORLconst [c] x)
-	// cond: isUint32PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl
+	// cond: isUint32PowerOfTwo(c) && uint64(c) >= 128
 	// result: (BTSLconst [log2uint32(c)] x)
 	for {
 		c := v.AuxInt
 		x := v.Args[0]
-		if !(isUint32PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl) {
+		if !(isUint32PowerOfTwo(c) && uint64(c) >= 128) {
 			break
 		}
 		v.reset(OpAMD64BTSLconst)
@@ -30758,10 +30738,7 @@ func rewriteValueAMD64_OpAMD64ORLmodify_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64ORQ_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (ORQ (SHLQ (MOVQconst [1]) y) x)
-	// cond: !config.nacl
 	// result: (BTSQ x y)
 	for {
 		x := v.Args[1]
@@ -30771,7 +30748,7 @@ func rewriteValueAMD64_OpAMD64ORQ_0(v *Value) bool {
 		}
 		y := v_0.Args[1]
 		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpAMD64MOVQconst || v_0_0.AuxInt != 1 || !(!config.nacl) {
+		if v_0_0.Op != OpAMD64MOVQconst || v_0_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64BTSQ)
@@ -30780,7 +30757,6 @@ func rewriteValueAMD64_OpAMD64ORQ_0(v *Value) bool {
 		return true
 	}
 	// match: (ORQ x (SHLQ (MOVQconst [1]) y))
-	// cond: !config.nacl
 	// result: (BTSQ x y)
 	for {
 		_ = v.Args[1]
@@ -30791,7 +30767,7 @@ func rewriteValueAMD64_OpAMD64ORQ_0(v *Value) bool {
 		}
 		y := v_1.Args[1]
 		v_1_0 := v_1.Args[0]
-		if v_1_0.Op != OpAMD64MOVQconst || v_1_0.AuxInt != 1 || !(!config.nacl) {
+		if v_1_0.Op != OpAMD64MOVQconst || v_1_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64BTSQ)
@@ -30800,7 +30776,7 @@ func rewriteValueAMD64_OpAMD64ORQ_0(v *Value) bool {
 		return true
 	}
 	// match: (ORQ (MOVQconst [c]) x)
-	// cond: isUint64PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl
+	// cond: isUint64PowerOfTwo(c) && uint64(c) >= 128
 	// result: (BTSQconst [log2(c)] x)
 	for {
 		x := v.Args[1]
@@ -30809,7 +30785,7 @@ func rewriteValueAMD64_OpAMD64ORQ_0(v *Value) bool {
 			break
 		}
 		c := v_0.AuxInt
-		if !(isUint64PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl) {
+		if !(isUint64PowerOfTwo(c) && uint64(c) >= 128) {
 			break
 		}
 		v.reset(OpAMD64BTSQconst)
@@ -30818,7 +30794,7 @@ func rewriteValueAMD64_OpAMD64ORQ_0(v *Value) bool {
 		return true
 	}
 	// match: (ORQ x (MOVQconst [c]))
-	// cond: isUint64PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl
+	// cond: isUint64PowerOfTwo(c) && uint64(c) >= 128
 	// result: (BTSQconst [log2(c)] x)
 	for {
 		_ = v.Args[1]
@@ -30828,7 +30804,7 @@ func rewriteValueAMD64_OpAMD64ORQ_0(v *Value) bool {
 			break
 		}
 		c := v_1.AuxInt
-		if !(isUint64PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl) {
+		if !(isUint64PowerOfTwo(c) && uint64(c) >= 128) {
 			break
 		}
 		v.reset(OpAMD64BTSQconst)
@@ -39477,15 +39453,13 @@ func rewriteValueAMD64_OpAMD64ORQ_160(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64ORQconst_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (ORQconst [c] x)
-	// cond: isUint64PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl
+	// cond: isUint64PowerOfTwo(c) && uint64(c) >= 128
 	// result: (BTSQconst [log2(c)] x)
 	for {
 		c := v.AuxInt
 		x := v.Args[0]
-		if !(isUint64PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl) {
+		if !(isUint64PowerOfTwo(c) && uint64(c) >= 128) {
 			break
 		}
 		v.reset(OpAMD64BTSQconst)
@@ -42168,9 +42142,7 @@ func rewriteValueAMD64_OpAMD64SETBstore_0(v *Value) bool {
 }
 func rewriteValueAMD64_OpAMD64SETEQ_0(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	// match: (SETEQ (TESTL (SHLL (MOVLconst [1]) x) y))
-	// cond: !config.nacl
 	// result: (SETAE (BTL x y))
 	for {
 		v_0 := v.Args[0]
@@ -42184,7 +42156,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_0(v *Value) bool {
 		}
 		x := v_0_0.Args[1]
 		v_0_0_0 := v_0_0.Args[0]
-		if v_0_0_0.Op != OpAMD64MOVLconst || v_0_0_0.AuxInt != 1 || !(!config.nacl) {
+		if v_0_0_0.Op != OpAMD64MOVLconst || v_0_0_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64SETAE)
@@ -42195,7 +42167,6 @@ func rewriteValueAMD64_OpAMD64SETEQ_0(v *Value) bool {
 		return true
 	}
 	// match: (SETEQ (TESTL y (SHLL (MOVLconst [1]) x)))
-	// cond: !config.nacl
 	// result: (SETAE (BTL x y))
 	for {
 		v_0 := v.Args[0]
@@ -42210,7 +42181,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_0(v *Value) bool {
 		}
 		x := v_0_1.Args[1]
 		v_0_1_0 := v_0_1.Args[0]
-		if v_0_1_0.Op != OpAMD64MOVLconst || v_0_1_0.AuxInt != 1 || !(!config.nacl) {
+		if v_0_1_0.Op != OpAMD64MOVLconst || v_0_1_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64SETAE)
@@ -42221,7 +42192,6 @@ func rewriteValueAMD64_OpAMD64SETEQ_0(v *Value) bool {
 		return true
 	}
 	// match: (SETEQ (TESTQ (SHLQ (MOVQconst [1]) x) y))
-	// cond: !config.nacl
 	// result: (SETAE (BTQ x y))
 	for {
 		v_0 := v.Args[0]
@@ -42235,7 +42205,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_0(v *Value) bool {
 		}
 		x := v_0_0.Args[1]
 		v_0_0_0 := v_0_0.Args[0]
-		if v_0_0_0.Op != OpAMD64MOVQconst || v_0_0_0.AuxInt != 1 || !(!config.nacl) {
+		if v_0_0_0.Op != OpAMD64MOVQconst || v_0_0_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64SETAE)
@@ -42246,7 +42216,6 @@ func rewriteValueAMD64_OpAMD64SETEQ_0(v *Value) bool {
 		return true
 	}
 	// match: (SETEQ (TESTQ y (SHLQ (MOVQconst [1]) x)))
-	// cond: !config.nacl
 	// result: (SETAE (BTQ x y))
 	for {
 		v_0 := v.Args[0]
@@ -42261,7 +42230,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_0(v *Value) bool {
 		}
 		x := v_0_1.Args[1]
 		v_0_1_0 := v_0_1.Args[0]
-		if v_0_1_0.Op != OpAMD64MOVQconst || v_0_1_0.AuxInt != 1 || !(!config.nacl) {
+		if v_0_1_0.Op != OpAMD64MOVQconst || v_0_1_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64SETAE)
@@ -42272,7 +42241,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_0(v *Value) bool {
 		return true
 	}
 	// match: (SETEQ (TESTLconst [c] x))
-	// cond: isUint32PowerOfTwo(c) && !config.nacl
+	// cond: isUint32PowerOfTwo(c)
 	// result: (SETAE (BTLconst [log2uint32(c)] x))
 	for {
 		v_0 := v.Args[0]
@@ -42281,7 +42250,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_0(v *Value) bool {
 		}
 		c := v_0.AuxInt
 		x := v_0.Args[0]
-		if !(isUint32PowerOfTwo(c) && !config.nacl) {
+		if !(isUint32PowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAMD64SETAE)
@@ -42292,7 +42261,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_0(v *Value) bool {
 		return true
 	}
 	// match: (SETEQ (TESTQconst [c] x))
-	// cond: isUint64PowerOfTwo(c) && !config.nacl
+	// cond: isUint64PowerOfTwo(c)
 	// result: (SETAE (BTQconst [log2(c)] x))
 	for {
 		v_0 := v.Args[0]
@@ -42301,7 +42270,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_0(v *Value) bool {
 		}
 		c := v_0.AuxInt
 		x := v_0.Args[0]
-		if !(isUint64PowerOfTwo(c) && !config.nacl) {
+		if !(isUint64PowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAMD64SETAE)
@@ -42312,7 +42281,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_0(v *Value) bool {
 		return true
 	}
 	// match: (SETEQ (TESTQ (MOVQconst [c]) x))
-	// cond: isUint64PowerOfTwo(c) && !config.nacl
+	// cond: isUint64PowerOfTwo(c)
 	// result: (SETAE (BTQconst [log2(c)] x))
 	for {
 		v_0 := v.Args[0]
@@ -42325,7 +42294,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_0(v *Value) bool {
 			break
 		}
 		c := v_0_0.AuxInt
-		if !(isUint64PowerOfTwo(c) && !config.nacl) {
+		if !(isUint64PowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAMD64SETAE)
@@ -42336,7 +42305,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_0(v *Value) bool {
 		return true
 	}
 	// match: (SETEQ (TESTQ x (MOVQconst [c])))
-	// cond: isUint64PowerOfTwo(c) && !config.nacl
+	// cond: isUint64PowerOfTwo(c)
 	// result: (SETAE (BTQconst [log2(c)] x))
 	for {
 		v_0 := v.Args[0]
@@ -42350,7 +42319,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_0(v *Value) bool {
 			break
 		}
 		c := v_0_1.AuxInt
-		if !(isUint64PowerOfTwo(c) && !config.nacl) {
+		if !(isUint64PowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAMD64SETAE)
@@ -42400,9 +42369,8 @@ func rewriteValueAMD64_OpAMD64SETEQ_0(v *Value) bool {
 }
 func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	// match: (SETEQ (TESTQ z1:(SHLQconst [63] (SHRQconst [63] x)) z2))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAE (BTQconst [63] x))
 	for {
 		v_0 := v.Args[0]
@@ -42419,7 +42387,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAE)
@@ -42430,7 +42398,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 		return true
 	}
 	// match: (SETEQ (TESTQ z2 z1:(SHLQconst [63] (SHRQconst [63] x))))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAE (BTQconst [63] x))
 	for {
 		v_0 := v.Args[0]
@@ -42448,7 +42416,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAE)
@@ -42459,7 +42427,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 		return true
 	}
 	// match: (SETEQ (TESTL z1:(SHLLconst [31] (SHRQconst [31] x)) z2))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAE (BTQconst [31] x))
 	for {
 		v_0 := v.Args[0]
@@ -42476,7 +42444,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAE)
@@ -42487,7 +42455,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 		return true
 	}
 	// match: (SETEQ (TESTL z2 z1:(SHLLconst [31] (SHRQconst [31] x))))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAE (BTQconst [31] x))
 	for {
 		v_0 := v.Args[0]
@@ -42505,7 +42473,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAE)
@@ -42516,7 +42484,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 		return true
 	}
 	// match: (SETEQ (TESTQ z1:(SHRQconst [63] (SHLQconst [63] x)) z2))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAE (BTQconst [0] x))
 	for {
 		v_0 := v.Args[0]
@@ -42533,7 +42501,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAE)
@@ -42544,7 +42512,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 		return true
 	}
 	// match: (SETEQ (TESTQ z2 z1:(SHRQconst [63] (SHLQconst [63] x))))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAE (BTQconst [0] x))
 	for {
 		v_0 := v.Args[0]
@@ -42562,7 +42530,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAE)
@@ -42573,7 +42541,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 		return true
 	}
 	// match: (SETEQ (TESTL z1:(SHRLconst [31] (SHLLconst [31] x)) z2))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAE (BTLconst [0] x))
 	for {
 		v_0 := v.Args[0]
@@ -42590,7 +42558,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAE)
@@ -42601,7 +42569,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 		return true
 	}
 	// match: (SETEQ (TESTL z2 z1:(SHRLconst [31] (SHLLconst [31] x))))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAE (BTLconst [0] x))
 	for {
 		v_0 := v.Args[0]
@@ -42619,7 +42587,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAE)
@@ -42630,7 +42598,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 		return true
 	}
 	// match: (SETEQ (TESTQ z1:(SHRQconst [63] x) z2))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAE (BTQconst [63] x))
 	for {
 		v_0 := v.Args[0]
@@ -42643,7 +42611,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 			break
 		}
 		x := z1.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAE)
@@ -42654,7 +42622,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 		return true
 	}
 	// match: (SETEQ (TESTQ z2 z1:(SHRQconst [63] x)))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAE (BTQconst [63] x))
 	for {
 		v_0 := v.Args[0]
@@ -42668,7 +42636,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 			break
 		}
 		x := z1.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAE)
@@ -42682,9 +42650,8 @@ func rewriteValueAMD64_OpAMD64SETEQ_10(v *Value) bool {
 }
 func rewriteValueAMD64_OpAMD64SETEQ_20(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	// match: (SETEQ (TESTL z1:(SHRLconst [31] x) z2))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAE (BTLconst [31] x))
 	for {
 		v_0 := v.Args[0]
@@ -42697,7 +42664,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_20(v *Value) bool {
 			break
 		}
 		x := z1.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAE)
@@ -42708,7 +42675,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_20(v *Value) bool {
 		return true
 	}
 	// match: (SETEQ (TESTL z2 z1:(SHRLconst [31] x)))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAE (BTLconst [31] x))
 	for {
 		v_0 := v.Args[0]
@@ -42722,7 +42689,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_20(v *Value) bool {
 			break
 		}
 		x := z1.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAE)
@@ -42803,9 +42770,7 @@ func rewriteValueAMD64_OpAMD64SETEQ_20(v *Value) bool {
 }
 func rewriteValueAMD64_OpAMD64SETEQstore_0(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	// match: (SETEQstore [off] {sym} ptr (TESTL (SHLL (MOVLconst [1]) x) y) mem)
-	// cond: !config.nacl
 	// result: (SETAEstore [off] {sym} ptr (BTL x y) mem)
 	for {
 		off := v.AuxInt
@@ -42823,7 +42788,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_0(v *Value) bool {
 		}
 		x := v_1_0.Args[1]
 		v_1_0_0 := v_1_0.Args[0]
-		if v_1_0_0.Op != OpAMD64MOVLconst || v_1_0_0.AuxInt != 1 || !(!config.nacl) {
+		if v_1_0_0.Op != OpAMD64MOVLconst || v_1_0_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
@@ -42838,7 +42803,6 @@ func rewriteValueAMD64_OpAMD64SETEQstore_0(v *Value) bool {
 		return true
 	}
 	// match: (SETEQstore [off] {sym} ptr (TESTL y (SHLL (MOVLconst [1]) x)) mem)
-	// cond: !config.nacl
 	// result: (SETAEstore [off] {sym} ptr (BTL x y) mem)
 	for {
 		off := v.AuxInt
@@ -42857,7 +42821,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_0(v *Value) bool {
 		}
 		x := v_1_1.Args[1]
 		v_1_1_0 := v_1_1.Args[0]
-		if v_1_1_0.Op != OpAMD64MOVLconst || v_1_1_0.AuxInt != 1 || !(!config.nacl) {
+		if v_1_1_0.Op != OpAMD64MOVLconst || v_1_1_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
@@ -42872,7 +42836,6 @@ func rewriteValueAMD64_OpAMD64SETEQstore_0(v *Value) bool {
 		return true
 	}
 	// match: (SETEQstore [off] {sym} ptr (TESTQ (SHLQ (MOVQconst [1]) x) y) mem)
-	// cond: !config.nacl
 	// result: (SETAEstore [off] {sym} ptr (BTQ x y) mem)
 	for {
 		off := v.AuxInt
@@ -42890,7 +42853,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_0(v *Value) bool {
 		}
 		x := v_1_0.Args[1]
 		v_1_0_0 := v_1_0.Args[0]
-		if v_1_0_0.Op != OpAMD64MOVQconst || v_1_0_0.AuxInt != 1 || !(!config.nacl) {
+		if v_1_0_0.Op != OpAMD64MOVQconst || v_1_0_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
@@ -42905,7 +42868,6 @@ func rewriteValueAMD64_OpAMD64SETEQstore_0(v *Value) bool {
 		return true
 	}
 	// match: (SETEQstore [off] {sym} ptr (TESTQ y (SHLQ (MOVQconst [1]) x)) mem)
-	// cond: !config.nacl
 	// result: (SETAEstore [off] {sym} ptr (BTQ x y) mem)
 	for {
 		off := v.AuxInt
@@ -42924,7 +42886,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_0(v *Value) bool {
 		}
 		x := v_1_1.Args[1]
 		v_1_1_0 := v_1_1.Args[0]
-		if v_1_1_0.Op != OpAMD64MOVQconst || v_1_1_0.AuxInt != 1 || !(!config.nacl) {
+		if v_1_1_0.Op != OpAMD64MOVQconst || v_1_1_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
@@ -42939,7 +42901,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_0(v *Value) bool {
 		return true
 	}
 	// match: (SETEQstore [off] {sym} ptr (TESTLconst [c] x) mem)
-	// cond: isUint32PowerOfTwo(c) && !config.nacl
+	// cond: isUint32PowerOfTwo(c)
 	// result: (SETAEstore [off] {sym} ptr (BTLconst [log2uint32(c)] x) mem)
 	for {
 		off := v.AuxInt
@@ -42952,7 +42914,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_0(v *Value) bool {
 		}
 		c := v_1.AuxInt
 		x := v_1.Args[0]
-		if !(isUint32PowerOfTwo(c) && !config.nacl) {
+		if !(isUint32PowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
@@ -42967,7 +42929,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_0(v *Value) bool {
 		return true
 	}
 	// match: (SETEQstore [off] {sym} ptr (TESTQconst [c] x) mem)
-	// cond: isUint64PowerOfTwo(c) && !config.nacl
+	// cond: isUint64PowerOfTwo(c)
 	// result: (SETAEstore [off] {sym} ptr (BTQconst [log2(c)] x) mem)
 	for {
 		off := v.AuxInt
@@ -42980,7 +42942,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_0(v *Value) bool {
 		}
 		c := v_1.AuxInt
 		x := v_1.Args[0]
-		if !(isUint64PowerOfTwo(c) && !config.nacl) {
+		if !(isUint64PowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
@@ -42995,7 +42957,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_0(v *Value) bool {
 		return true
 	}
 	// match: (SETEQstore [off] {sym} ptr (TESTQ (MOVQconst [c]) x) mem)
-	// cond: isUint64PowerOfTwo(c) && !config.nacl
+	// cond: isUint64PowerOfTwo(c)
 	// result: (SETAEstore [off] {sym} ptr (BTQconst [log2(c)] x) mem)
 	for {
 		off := v.AuxInt
@@ -43012,7 +42974,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_0(v *Value) bool {
 			break
 		}
 		c := v_1_0.AuxInt
-		if !(isUint64PowerOfTwo(c) && !config.nacl) {
+		if !(isUint64PowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
@@ -43027,7 +42989,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_0(v *Value) bool {
 		return true
 	}
 	// match: (SETEQstore [off] {sym} ptr (TESTQ x (MOVQconst [c])) mem)
-	// cond: isUint64PowerOfTwo(c) && !config.nacl
+	// cond: isUint64PowerOfTwo(c)
 	// result: (SETAEstore [off] {sym} ptr (BTQconst [log2(c)] x) mem)
 	for {
 		off := v.AuxInt
@@ -43045,7 +43007,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_0(v *Value) bool {
 			break
 		}
 		c := v_1_1.AuxInt
-		if !(isUint64PowerOfTwo(c) && !config.nacl) {
+		if !(isUint64PowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
@@ -43115,9 +43077,8 @@ func rewriteValueAMD64_OpAMD64SETEQstore_0(v *Value) bool {
 }
 func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	// match: (SETEQstore [off] {sym} ptr (TESTQ z1:(SHLQconst [63] (SHRQconst [63] x)) z2) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAEstore [off] {sym} ptr (BTQconst [63] x) mem)
 	for {
 		off := v.AuxInt
@@ -43138,7 +43099,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
@@ -43153,7 +43114,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 		return true
 	}
 	// match: (SETEQstore [off] {sym} ptr (TESTQ z2 z1:(SHLQconst [63] (SHRQconst [63] x))) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAEstore [off] {sym} ptr (BTQconst [63] x) mem)
 	for {
 		off := v.AuxInt
@@ -43175,7 +43136,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
@@ -43190,7 +43151,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 		return true
 	}
 	// match: (SETEQstore [off] {sym} ptr (TESTL z1:(SHLLconst [31] (SHRLconst [31] x)) z2) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAEstore [off] {sym} ptr (BTLconst [31] x) mem)
 	for {
 		off := v.AuxInt
@@ -43211,7 +43172,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
@@ -43226,7 +43187,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 		return true
 	}
 	// match: (SETEQstore [off] {sym} ptr (TESTL z2 z1:(SHLLconst [31] (SHRLconst [31] x))) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAEstore [off] {sym} ptr (BTLconst [31] x) mem)
 	for {
 		off := v.AuxInt
@@ -43248,7 +43209,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
@@ -43263,7 +43224,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 		return true
 	}
 	// match: (SETEQstore [off] {sym} ptr (TESTQ z1:(SHRQconst [63] (SHLQconst [63] x)) z2) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAEstore [off] {sym} ptr (BTQconst [0] x) mem)
 	for {
 		off := v.AuxInt
@@ -43284,7 +43245,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
@@ -43299,7 +43260,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 		return true
 	}
 	// match: (SETEQstore [off] {sym} ptr (TESTQ z2 z1:(SHRQconst [63] (SHLQconst [63] x))) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAEstore [off] {sym} ptr (BTQconst [0] x) mem)
 	for {
 		off := v.AuxInt
@@ -43321,7 +43282,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
@@ -43336,7 +43297,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 		return true
 	}
 	// match: (SETEQstore [off] {sym} ptr (TESTL z1:(SHRLconst [31] (SHLLconst [31] x)) z2) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAEstore [off] {sym} ptr (BTLconst [0] x) mem)
 	for {
 		off := v.AuxInt
@@ -43357,7 +43318,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
@@ -43372,7 +43333,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 		return true
 	}
 	// match: (SETEQstore [off] {sym} ptr (TESTL z2 z1:(SHRLconst [31] (SHLLconst [31] x))) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAEstore [off] {sym} ptr (BTLconst [0] x) mem)
 	for {
 		off := v.AuxInt
@@ -43394,7 +43355,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
@@ -43409,7 +43370,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 		return true
 	}
 	// match: (SETEQstore [off] {sym} ptr (TESTQ z1:(SHRQconst [63] x) z2) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAEstore [off] {sym} ptr (BTQconst [63] x) mem)
 	for {
 		off := v.AuxInt
@@ -43426,7 +43387,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 			break
 		}
 		x := z1.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
@@ -43441,7 +43402,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 		return true
 	}
 	// match: (SETEQstore [off] {sym} ptr (TESTQ z2 z1:(SHRQconst [63] x)) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAEstore [off] {sym} ptr (BTQconst [63] x) mem)
 	for {
 		off := v.AuxInt
@@ -43459,7 +43420,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 			break
 		}
 		x := z1.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
@@ -43477,10 +43438,9 @@ func rewriteValueAMD64_OpAMD64SETEQstore_10(v *Value) bool {
 }
 func rewriteValueAMD64_OpAMD64SETEQstore_20(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (SETEQstore [off] {sym} ptr (TESTL z1:(SHRLconst [31] x) z2) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAEstore [off] {sym} ptr (BTLconst [31] x) mem)
 	for {
 		off := v.AuxInt
@@ -43497,7 +43457,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_20(v *Value) bool {
 			break
 		}
 		x := z1.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
@@ -43512,7 +43472,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_20(v *Value) bool {
 		return true
 	}
 	// match: (SETEQstore [off] {sym} ptr (TESTL z2 z1:(SHRLconst [31] x)) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETAEstore [off] {sym} ptr (BTLconst [31] x) mem)
 	for {
 		off := v.AuxInt
@@ -43530,7 +43490,7 @@ func rewriteValueAMD64_OpAMD64SETEQstore_20(v *Value) bool {
 			break
 		}
 		x := z1.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETAEstore)
@@ -44728,9 +44688,7 @@ func rewriteValueAMD64_OpAMD64SETLstore_0(v *Value) bool {
 }
 func rewriteValueAMD64_OpAMD64SETNE_0(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	// match: (SETNE (TESTL (SHLL (MOVLconst [1]) x) y))
-	// cond: !config.nacl
 	// result: (SETB (BTL x y))
 	for {
 		v_0 := v.Args[0]
@@ -44744,7 +44702,7 @@ func rewriteValueAMD64_OpAMD64SETNE_0(v *Value) bool {
 		}
 		x := v_0_0.Args[1]
 		v_0_0_0 := v_0_0.Args[0]
-		if v_0_0_0.Op != OpAMD64MOVLconst || v_0_0_0.AuxInt != 1 || !(!config.nacl) {
+		if v_0_0_0.Op != OpAMD64MOVLconst || v_0_0_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64SETB)
@@ -44755,7 +44713,6 @@ func rewriteValueAMD64_OpAMD64SETNE_0(v *Value) bool {
 		return true
 	}
 	// match: (SETNE (TESTL y (SHLL (MOVLconst [1]) x)))
-	// cond: !config.nacl
 	// result: (SETB (BTL x y))
 	for {
 		v_0 := v.Args[0]
@@ -44770,7 +44727,7 @@ func rewriteValueAMD64_OpAMD64SETNE_0(v *Value) bool {
 		}
 		x := v_0_1.Args[1]
 		v_0_1_0 := v_0_1.Args[0]
-		if v_0_1_0.Op != OpAMD64MOVLconst || v_0_1_0.AuxInt != 1 || !(!config.nacl) {
+		if v_0_1_0.Op != OpAMD64MOVLconst || v_0_1_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64SETB)
@@ -44781,7 +44738,6 @@ func rewriteValueAMD64_OpAMD64SETNE_0(v *Value) bool {
 		return true
 	}
 	// match: (SETNE (TESTQ (SHLQ (MOVQconst [1]) x) y))
-	// cond: !config.nacl
 	// result: (SETB (BTQ x y))
 	for {
 		v_0 := v.Args[0]
@@ -44795,7 +44751,7 @@ func rewriteValueAMD64_OpAMD64SETNE_0(v *Value) bool {
 		}
 		x := v_0_0.Args[1]
 		v_0_0_0 := v_0_0.Args[0]
-		if v_0_0_0.Op != OpAMD64MOVQconst || v_0_0_0.AuxInt != 1 || !(!config.nacl) {
+		if v_0_0_0.Op != OpAMD64MOVQconst || v_0_0_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64SETB)
@@ -44806,7 +44762,6 @@ func rewriteValueAMD64_OpAMD64SETNE_0(v *Value) bool {
 		return true
 	}
 	// match: (SETNE (TESTQ y (SHLQ (MOVQconst [1]) x)))
-	// cond: !config.nacl
 	// result: (SETB (BTQ x y))
 	for {
 		v_0 := v.Args[0]
@@ -44821,7 +44776,7 @@ func rewriteValueAMD64_OpAMD64SETNE_0(v *Value) bool {
 		}
 		x := v_0_1.Args[1]
 		v_0_1_0 := v_0_1.Args[0]
-		if v_0_1_0.Op != OpAMD64MOVQconst || v_0_1_0.AuxInt != 1 || !(!config.nacl) {
+		if v_0_1_0.Op != OpAMD64MOVQconst || v_0_1_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64SETB)
@@ -44832,7 +44787,7 @@ func rewriteValueAMD64_OpAMD64SETNE_0(v *Value) bool {
 		return true
 	}
 	// match: (SETNE (TESTLconst [c] x))
-	// cond: isUint32PowerOfTwo(c) && !config.nacl
+	// cond: isUint32PowerOfTwo(c)
 	// result: (SETB (BTLconst [log2uint32(c)] x))
 	for {
 		v_0 := v.Args[0]
@@ -44841,7 +44796,7 @@ func rewriteValueAMD64_OpAMD64SETNE_0(v *Value) bool {
 		}
 		c := v_0.AuxInt
 		x := v_0.Args[0]
-		if !(isUint32PowerOfTwo(c) && !config.nacl) {
+		if !(isUint32PowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAMD64SETB)
@@ -44852,7 +44807,7 @@ func rewriteValueAMD64_OpAMD64SETNE_0(v *Value) bool {
 		return true
 	}
 	// match: (SETNE (TESTQconst [c] x))
-	// cond: isUint64PowerOfTwo(c) && !config.nacl
+	// cond: isUint64PowerOfTwo(c)
 	// result: (SETB (BTQconst [log2(c)] x))
 	for {
 		v_0 := v.Args[0]
@@ -44861,7 +44816,7 @@ func rewriteValueAMD64_OpAMD64SETNE_0(v *Value) bool {
 		}
 		c := v_0.AuxInt
 		x := v_0.Args[0]
-		if !(isUint64PowerOfTwo(c) && !config.nacl) {
+		if !(isUint64PowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAMD64SETB)
@@ -44872,7 +44827,7 @@ func rewriteValueAMD64_OpAMD64SETNE_0(v *Value) bool {
 		return true
 	}
 	// match: (SETNE (TESTQ (MOVQconst [c]) x))
-	// cond: isUint64PowerOfTwo(c) && !config.nacl
+	// cond: isUint64PowerOfTwo(c)
 	// result: (SETB (BTQconst [log2(c)] x))
 	for {
 		v_0 := v.Args[0]
@@ -44885,7 +44840,7 @@ func rewriteValueAMD64_OpAMD64SETNE_0(v *Value) bool {
 			break
 		}
 		c := v_0_0.AuxInt
-		if !(isUint64PowerOfTwo(c) && !config.nacl) {
+		if !(isUint64PowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAMD64SETB)
@@ -44896,7 +44851,7 @@ func rewriteValueAMD64_OpAMD64SETNE_0(v *Value) bool {
 		return true
 	}
 	// match: (SETNE (TESTQ x (MOVQconst [c])))
-	// cond: isUint64PowerOfTwo(c) && !config.nacl
+	// cond: isUint64PowerOfTwo(c)
 	// result: (SETB (BTQconst [log2(c)] x))
 	for {
 		v_0 := v.Args[0]
@@ -44910,7 +44865,7 @@ func rewriteValueAMD64_OpAMD64SETNE_0(v *Value) bool {
 			break
 		}
 		c := v_0_1.AuxInt
-		if !(isUint64PowerOfTwo(c) && !config.nacl) {
+		if !(isUint64PowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAMD64SETB)
@@ -44960,9 +44915,8 @@ func rewriteValueAMD64_OpAMD64SETNE_0(v *Value) bool {
 }
 func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	// match: (SETNE (TESTQ z1:(SHLQconst [63] (SHRQconst [63] x)) z2))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETB (BTQconst [63] x))
 	for {
 		v_0 := v.Args[0]
@@ -44979,7 +44933,7 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETB)
@@ -44990,7 +44944,7 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 		return true
 	}
 	// match: (SETNE (TESTQ z2 z1:(SHLQconst [63] (SHRQconst [63] x))))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETB (BTQconst [63] x))
 	for {
 		v_0 := v.Args[0]
@@ -45008,7 +44962,7 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETB)
@@ -45019,7 +44973,7 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 		return true
 	}
 	// match: (SETNE (TESTL z1:(SHLLconst [31] (SHRQconst [31] x)) z2))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETB (BTQconst [31] x))
 	for {
 		v_0 := v.Args[0]
@@ -45036,7 +44990,7 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETB)
@@ -45047,7 +45001,7 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 		return true
 	}
 	// match: (SETNE (TESTL z2 z1:(SHLLconst [31] (SHRQconst [31] x))))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETB (BTQconst [31] x))
 	for {
 		v_0 := v.Args[0]
@@ -45065,7 +45019,7 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETB)
@@ -45076,7 +45030,7 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 		return true
 	}
 	// match: (SETNE (TESTQ z1:(SHRQconst [63] (SHLQconst [63] x)) z2))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETB (BTQconst [0] x))
 	for {
 		v_0 := v.Args[0]
@@ -45093,7 +45047,7 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETB)
@@ -45104,7 +45058,7 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 		return true
 	}
 	// match: (SETNE (TESTQ z2 z1:(SHRQconst [63] (SHLQconst [63] x))))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETB (BTQconst [0] x))
 	for {
 		v_0 := v.Args[0]
@@ -45122,7 +45076,7 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETB)
@@ -45133,7 +45087,7 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 		return true
 	}
 	// match: (SETNE (TESTL z1:(SHRLconst [31] (SHLLconst [31] x)) z2))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETB (BTLconst [0] x))
 	for {
 		v_0 := v.Args[0]
@@ -45150,7 +45104,7 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETB)
@@ -45161,7 +45115,7 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 		return true
 	}
 	// match: (SETNE (TESTL z2 z1:(SHRLconst [31] (SHLLconst [31] x))))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETB (BTLconst [0] x))
 	for {
 		v_0 := v.Args[0]
@@ -45179,7 +45133,7 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETB)
@@ -45190,7 +45144,7 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 		return true
 	}
 	// match: (SETNE (TESTQ z1:(SHRQconst [63] x) z2))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETB (BTQconst [63] x))
 	for {
 		v_0 := v.Args[0]
@@ -45203,7 +45157,7 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 			break
 		}
 		x := z1.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETB)
@@ -45214,7 +45168,7 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 		return true
 	}
 	// match: (SETNE (TESTQ z2 z1:(SHRQconst [63] x)))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETB (BTQconst [63] x))
 	for {
 		v_0 := v.Args[0]
@@ -45228,7 +45182,7 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 			break
 		}
 		x := z1.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETB)
@@ -45242,9 +45196,8 @@ func rewriteValueAMD64_OpAMD64SETNE_10(v *Value) bool {
 }
 func rewriteValueAMD64_OpAMD64SETNE_20(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	// match: (SETNE (TESTL z1:(SHRLconst [31] x) z2))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETB (BTLconst [31] x))
 	for {
 		v_0 := v.Args[0]
@@ -45257,7 +45210,7 @@ func rewriteValueAMD64_OpAMD64SETNE_20(v *Value) bool {
 			break
 		}
 		x := z1.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETB)
@@ -45268,7 +45221,7 @@ func rewriteValueAMD64_OpAMD64SETNE_20(v *Value) bool {
 		return true
 	}
 	// match: (SETNE (TESTL z2 z1:(SHRLconst [31] x)))
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETB (BTLconst [31] x))
 	for {
 		v_0 := v.Args[0]
@@ -45282,7 +45235,7 @@ func rewriteValueAMD64_OpAMD64SETNE_20(v *Value) bool {
 			break
 		}
 		x := z1.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETB)
@@ -45363,9 +45316,7 @@ func rewriteValueAMD64_OpAMD64SETNE_20(v *Value) bool {
 }
 func rewriteValueAMD64_OpAMD64SETNEstore_0(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	// match: (SETNEstore [off] {sym} ptr (TESTL (SHLL (MOVLconst [1]) x) y) mem)
-	// cond: !config.nacl
 	// result: (SETBstore [off] {sym} ptr (BTL x y) mem)
 	for {
 		off := v.AuxInt
@@ -45383,7 +45334,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_0(v *Value) bool {
 		}
 		x := v_1_0.Args[1]
 		v_1_0_0 := v_1_0.Args[0]
-		if v_1_0_0.Op != OpAMD64MOVLconst || v_1_0_0.AuxInt != 1 || !(!config.nacl) {
+		if v_1_0_0.Op != OpAMD64MOVLconst || v_1_0_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
@@ -45398,7 +45349,6 @@ func rewriteValueAMD64_OpAMD64SETNEstore_0(v *Value) bool {
 		return true
 	}
 	// match: (SETNEstore [off] {sym} ptr (TESTL y (SHLL (MOVLconst [1]) x)) mem)
-	// cond: !config.nacl
 	// result: (SETBstore [off] {sym} ptr (BTL x y) mem)
 	for {
 		off := v.AuxInt
@@ -45417,7 +45367,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_0(v *Value) bool {
 		}
 		x := v_1_1.Args[1]
 		v_1_1_0 := v_1_1.Args[0]
-		if v_1_1_0.Op != OpAMD64MOVLconst || v_1_1_0.AuxInt != 1 || !(!config.nacl) {
+		if v_1_1_0.Op != OpAMD64MOVLconst || v_1_1_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
@@ -45432,7 +45382,6 @@ func rewriteValueAMD64_OpAMD64SETNEstore_0(v *Value) bool {
 		return true
 	}
 	// match: (SETNEstore [off] {sym} ptr (TESTQ (SHLQ (MOVQconst [1]) x) y) mem)
-	// cond: !config.nacl
 	// result: (SETBstore [off] {sym} ptr (BTQ x y) mem)
 	for {
 		off := v.AuxInt
@@ -45450,7 +45399,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_0(v *Value) bool {
 		}
 		x := v_1_0.Args[1]
 		v_1_0_0 := v_1_0.Args[0]
-		if v_1_0_0.Op != OpAMD64MOVQconst || v_1_0_0.AuxInt != 1 || !(!config.nacl) {
+		if v_1_0_0.Op != OpAMD64MOVQconst || v_1_0_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
@@ -45465,7 +45414,6 @@ func rewriteValueAMD64_OpAMD64SETNEstore_0(v *Value) bool {
 		return true
 	}
 	// match: (SETNEstore [off] {sym} ptr (TESTQ y (SHLQ (MOVQconst [1]) x)) mem)
-	// cond: !config.nacl
 	// result: (SETBstore [off] {sym} ptr (BTQ x y) mem)
 	for {
 		off := v.AuxInt
@@ -45484,7 +45432,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_0(v *Value) bool {
 		}
 		x := v_1_1.Args[1]
 		v_1_1_0 := v_1_1.Args[0]
-		if v_1_1_0.Op != OpAMD64MOVQconst || v_1_1_0.AuxInt != 1 || !(!config.nacl) {
+		if v_1_1_0.Op != OpAMD64MOVQconst || v_1_1_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
@@ -45499,7 +45447,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_0(v *Value) bool {
 		return true
 	}
 	// match: (SETNEstore [off] {sym} ptr (TESTLconst [c] x) mem)
-	// cond: isUint32PowerOfTwo(c) && !config.nacl
+	// cond: isUint32PowerOfTwo(c)
 	// result: (SETBstore [off] {sym} ptr (BTLconst [log2uint32(c)] x) mem)
 	for {
 		off := v.AuxInt
@@ -45512,7 +45460,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_0(v *Value) bool {
 		}
 		c := v_1.AuxInt
 		x := v_1.Args[0]
-		if !(isUint32PowerOfTwo(c) && !config.nacl) {
+		if !(isUint32PowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
@@ -45527,7 +45475,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_0(v *Value) bool {
 		return true
 	}
 	// match: (SETNEstore [off] {sym} ptr (TESTQconst [c] x) mem)
-	// cond: isUint64PowerOfTwo(c) && !config.nacl
+	// cond: isUint64PowerOfTwo(c)
 	// result: (SETBstore [off] {sym} ptr (BTQconst [log2(c)] x) mem)
 	for {
 		off := v.AuxInt
@@ -45540,7 +45488,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_0(v *Value) bool {
 		}
 		c := v_1.AuxInt
 		x := v_1.Args[0]
-		if !(isUint64PowerOfTwo(c) && !config.nacl) {
+		if !(isUint64PowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
@@ -45555,7 +45503,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_0(v *Value) bool {
 		return true
 	}
 	// match: (SETNEstore [off] {sym} ptr (TESTQ (MOVQconst [c]) x) mem)
-	// cond: isUint64PowerOfTwo(c) && !config.nacl
+	// cond: isUint64PowerOfTwo(c)
 	// result: (SETBstore [off] {sym} ptr (BTQconst [log2(c)] x) mem)
 	for {
 		off := v.AuxInt
@@ -45572,7 +45520,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_0(v *Value) bool {
 			break
 		}
 		c := v_1_0.AuxInt
-		if !(isUint64PowerOfTwo(c) && !config.nacl) {
+		if !(isUint64PowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
@@ -45587,7 +45535,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_0(v *Value) bool {
 		return true
 	}
 	// match: (SETNEstore [off] {sym} ptr (TESTQ x (MOVQconst [c])) mem)
-	// cond: isUint64PowerOfTwo(c) && !config.nacl
+	// cond: isUint64PowerOfTwo(c)
 	// result: (SETBstore [off] {sym} ptr (BTQconst [log2(c)] x) mem)
 	for {
 		off := v.AuxInt
@@ -45605,7 +45553,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_0(v *Value) bool {
 			break
 		}
 		c := v_1_1.AuxInt
-		if !(isUint64PowerOfTwo(c) && !config.nacl) {
+		if !(isUint64PowerOfTwo(c)) {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
@@ -45675,9 +45623,8 @@ func rewriteValueAMD64_OpAMD64SETNEstore_0(v *Value) bool {
 }
 func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	// match: (SETNEstore [off] {sym} ptr (TESTQ z1:(SHLQconst [63] (SHRQconst [63] x)) z2) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETBstore [off] {sym} ptr (BTQconst [63] x) mem)
 	for {
 		off := v.AuxInt
@@ -45698,7 +45645,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
@@ -45713,7 +45660,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 		return true
 	}
 	// match: (SETNEstore [off] {sym} ptr (TESTQ z2 z1:(SHLQconst [63] (SHRQconst [63] x))) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETBstore [off] {sym} ptr (BTQconst [63] x) mem)
 	for {
 		off := v.AuxInt
@@ -45735,7 +45682,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
@@ -45750,7 +45697,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 		return true
 	}
 	// match: (SETNEstore [off] {sym} ptr (TESTL z1:(SHLLconst [31] (SHRLconst [31] x)) z2) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETBstore [off] {sym} ptr (BTLconst [31] x) mem)
 	for {
 		off := v.AuxInt
@@ -45771,7 +45718,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
@@ -45786,7 +45733,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 		return true
 	}
 	// match: (SETNEstore [off] {sym} ptr (TESTL z2 z1:(SHLLconst [31] (SHRLconst [31] x))) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETBstore [off] {sym} ptr (BTLconst [31] x) mem)
 	for {
 		off := v.AuxInt
@@ -45808,7 +45755,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
@@ -45823,7 +45770,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 		return true
 	}
 	// match: (SETNEstore [off] {sym} ptr (TESTQ z1:(SHRQconst [63] (SHLQconst [63] x)) z2) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETBstore [off] {sym} ptr (BTQconst [0] x) mem)
 	for {
 		off := v.AuxInt
@@ -45844,7 +45791,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
@@ -45859,7 +45806,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 		return true
 	}
 	// match: (SETNEstore [off] {sym} ptr (TESTQ z2 z1:(SHRQconst [63] (SHLQconst [63] x))) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETBstore [off] {sym} ptr (BTQconst [0] x) mem)
 	for {
 		off := v.AuxInt
@@ -45881,7 +45828,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
@@ -45896,7 +45843,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 		return true
 	}
 	// match: (SETNEstore [off] {sym} ptr (TESTL z1:(SHRLconst [31] (SHLLconst [31] x)) z2) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETBstore [off] {sym} ptr (BTLconst [0] x) mem)
 	for {
 		off := v.AuxInt
@@ -45917,7 +45864,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
@@ -45932,7 +45879,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 		return true
 	}
 	// match: (SETNEstore [off] {sym} ptr (TESTL z2 z1:(SHRLconst [31] (SHLLconst [31] x))) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETBstore [off] {sym} ptr (BTLconst [0] x) mem)
 	for {
 		off := v.AuxInt
@@ -45954,7 +45901,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 			break
 		}
 		x := z1_0.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
@@ -45969,7 +45916,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 		return true
 	}
 	// match: (SETNEstore [off] {sym} ptr (TESTQ z1:(SHRQconst [63] x) z2) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETBstore [off] {sym} ptr (BTQconst [63] x) mem)
 	for {
 		off := v.AuxInt
@@ -45986,7 +45933,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 			break
 		}
 		x := z1.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
@@ -46001,7 +45948,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 		return true
 	}
 	// match: (SETNEstore [off] {sym} ptr (TESTQ z2 z1:(SHRQconst [63] x)) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETBstore [off] {sym} ptr (BTQconst [63] x) mem)
 	for {
 		off := v.AuxInt
@@ -46019,7 +45966,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 			break
 		}
 		x := z1.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
@@ -46037,10 +45984,9 @@ func rewriteValueAMD64_OpAMD64SETNEstore_10(v *Value) bool {
 }
 func rewriteValueAMD64_OpAMD64SETNEstore_20(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (SETNEstore [off] {sym} ptr (TESTL z1:(SHRLconst [31] x) z2) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETBstore [off] {sym} ptr (BTLconst [31] x) mem)
 	for {
 		off := v.AuxInt
@@ -46057,7 +46003,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_20(v *Value) bool {
 			break
 		}
 		x := z1.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
@@ -46072,7 +46018,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_20(v *Value) bool {
 		return true
 	}
 	// match: (SETNEstore [off] {sym} ptr (TESTL z2 z1:(SHRLconst [31] x)) mem)
-	// cond: z1==z2 && !config.nacl
+	// cond: z1==z2
 	// result: (SETBstore [off] {sym} ptr (BTLconst [31] x) mem)
 	for {
 		off := v.AuxInt
@@ -46090,7 +46036,7 @@ func rewriteValueAMD64_OpAMD64SETNEstore_20(v *Value) bool {
 			break
 		}
 		x := z1.Args[0]
-		if !(z1 == z2 && !config.nacl) {
+		if !(z1 == z2) {
 			break
 		}
 		v.reset(OpAMD64SETBstore)
@@ -46505,10 +46451,7 @@ func rewriteValueAMD64_OpAMD64SHLL_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64SHLLconst_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (SHLLconst [1] (SHRLconst [1] x))
-	// cond: !config.nacl
 	// result: (BTRLconst [0] x)
 	for {
 		if v.AuxInt != 1 {
@@ -46519,9 +46462,6 @@ func rewriteValueAMD64_OpAMD64SHLLconst_0(v *Value) bool {
 			break
 		}
 		x := v_0.Args[0]
-		if !(!config.nacl) {
-			break
-		}
 		v.reset(OpAMD64BTRLconst)
 		v.AuxInt = 0
 		v.AddArg(x)
@@ -46764,10 +46704,7 @@ func rewriteValueAMD64_OpAMD64SHLQ_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64SHLQconst_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (SHLQconst [1] (SHRQconst [1] x))
-	// cond: !config.nacl
 	// result: (BTRQconst [0] x)
 	for {
 		if v.AuxInt != 1 {
@@ -46778,9 +46715,6 @@ func rewriteValueAMD64_OpAMD64SHLQconst_0(v *Value) bool {
 			break
 		}
 		x := v_0.Args[0]
-		if !(!config.nacl) {
-			break
-		}
 		v.reset(OpAMD64BTRQconst)
 		v.AuxInt = 0
 		v.AddArg(x)
@@ -47113,10 +47047,7 @@ func rewriteValueAMD64_OpAMD64SHRL_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64SHRLconst_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (SHRLconst [1] (SHLLconst [1] x))
-	// cond: !config.nacl
 	// result: (BTRLconst [31] x)
 	for {
 		if v.AuxInt != 1 {
@@ -47127,9 +47058,6 @@ func rewriteValueAMD64_OpAMD64SHRLconst_0(v *Value) bool {
 			break
 		}
 		x := v_0.Args[0]
-		if !(!config.nacl) {
-			break
-		}
 		v.reset(OpAMD64BTRLconst)
 		v.AuxInt = 31
 		v.AddArg(x)
@@ -47372,10 +47300,7 @@ func rewriteValueAMD64_OpAMD64SHRQ_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64SHRQconst_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (SHRQconst [1] (SHLQconst [1] x))
-	// cond: !config.nacl
 	// result: (BTRQconst [63] x)
 	for {
 		if v.AuxInt != 1 {
@@ -47386,9 +47311,6 @@ func rewriteValueAMD64_OpAMD64SHRQconst_0(v *Value) bool {
 			break
 		}
 		x := v_0.Args[0]
-		if !(!config.nacl) {
-			break
-		}
 		v.reset(OpAMD64BTRQconst)
 		v.AuxInt = 63
 		v.AddArg(x)
@@ -48834,10 +48756,7 @@ func rewriteValueAMD64_OpAMD64XCHGQ_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64XORL_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (XORL (SHLL (MOVLconst [1]) y) x)
-	// cond: !config.nacl
 	// result: (BTCL x y)
 	for {
 		x := v.Args[1]
@@ -48847,7 +48766,7 @@ func rewriteValueAMD64_OpAMD64XORL_0(v *Value) bool {
 		}
 		y := v_0.Args[1]
 		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpAMD64MOVLconst || v_0_0.AuxInt != 1 || !(!config.nacl) {
+		if v_0_0.Op != OpAMD64MOVLconst || v_0_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64BTCL)
@@ -48856,7 +48775,6 @@ func rewriteValueAMD64_OpAMD64XORL_0(v *Value) bool {
 		return true
 	}
 	// match: (XORL x (SHLL (MOVLconst [1]) y))
-	// cond: !config.nacl
 	// result: (BTCL x y)
 	for {
 		_ = v.Args[1]
@@ -48867,7 +48785,7 @@ func rewriteValueAMD64_OpAMD64XORL_0(v *Value) bool {
 		}
 		y := v_1.Args[1]
 		v_1_0 := v_1.Args[0]
-		if v_1_0.Op != OpAMD64MOVLconst || v_1_0.AuxInt != 1 || !(!config.nacl) {
+		if v_1_0.Op != OpAMD64MOVLconst || v_1_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64BTCL)
@@ -48876,7 +48794,7 @@ func rewriteValueAMD64_OpAMD64XORL_0(v *Value) bool {
 		return true
 	}
 	// match: (XORL (MOVLconst [c]) x)
-	// cond: isUint32PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl
+	// cond: isUint32PowerOfTwo(c) && uint64(c) >= 128
 	// result: (BTCLconst [log2uint32(c)] x)
 	for {
 		x := v.Args[1]
@@ -48885,7 +48803,7 @@ func rewriteValueAMD64_OpAMD64XORL_0(v *Value) bool {
 			break
 		}
 		c := v_0.AuxInt
-		if !(isUint32PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl) {
+		if !(isUint32PowerOfTwo(c) && uint64(c) >= 128) {
 			break
 		}
 		v.reset(OpAMD64BTCLconst)
@@ -48894,7 +48812,7 @@ func rewriteValueAMD64_OpAMD64XORL_0(v *Value) bool {
 		return true
 	}
 	// match: (XORL x (MOVLconst [c]))
-	// cond: isUint32PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl
+	// cond: isUint32PowerOfTwo(c) && uint64(c) >= 128
 	// result: (BTCLconst [log2uint32(c)] x)
 	for {
 		_ = v.Args[1]
@@ -48904,7 +48822,7 @@ func rewriteValueAMD64_OpAMD64XORL_0(v *Value) bool {
 			break
 		}
 		c := v_1.AuxInt
-		if !(isUint32PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl) {
+		if !(isUint32PowerOfTwo(c) && uint64(c) >= 128) {
 			break
 		}
 		v.reset(OpAMD64BTCLconst)
@@ -49155,15 +49073,13 @@ func rewriteValueAMD64_OpAMD64XORL_10(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64XORLconst_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (XORLconst [c] x)
-	// cond: isUint32PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl
+	// cond: isUint32PowerOfTwo(c) && uint64(c) >= 128
 	// result: (BTCLconst [log2uint32(c)] x)
 	for {
 		c := v.AuxInt
 		x := v.Args[0]
-		if !(isUint32PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl) {
+		if !(isUint32PowerOfTwo(c) && uint64(c) >= 128) {
 			break
 		}
 		v.reset(OpAMD64BTCLconst)
@@ -49568,10 +49484,7 @@ func rewriteValueAMD64_OpAMD64XORLmodify_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64XORQ_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (XORQ (SHLQ (MOVQconst [1]) y) x)
-	// cond: !config.nacl
 	// result: (BTCQ x y)
 	for {
 		x := v.Args[1]
@@ -49581,7 +49494,7 @@ func rewriteValueAMD64_OpAMD64XORQ_0(v *Value) bool {
 		}
 		y := v_0.Args[1]
 		v_0_0 := v_0.Args[0]
-		if v_0_0.Op != OpAMD64MOVQconst || v_0_0.AuxInt != 1 || !(!config.nacl) {
+		if v_0_0.Op != OpAMD64MOVQconst || v_0_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64BTCQ)
@@ -49590,7 +49503,6 @@ func rewriteValueAMD64_OpAMD64XORQ_0(v *Value) bool {
 		return true
 	}
 	// match: (XORQ x (SHLQ (MOVQconst [1]) y))
-	// cond: !config.nacl
 	// result: (BTCQ x y)
 	for {
 		_ = v.Args[1]
@@ -49601,7 +49513,7 @@ func rewriteValueAMD64_OpAMD64XORQ_0(v *Value) bool {
 		}
 		y := v_1.Args[1]
 		v_1_0 := v_1.Args[0]
-		if v_1_0.Op != OpAMD64MOVQconst || v_1_0.AuxInt != 1 || !(!config.nacl) {
+		if v_1_0.Op != OpAMD64MOVQconst || v_1_0.AuxInt != 1 {
 			break
 		}
 		v.reset(OpAMD64BTCQ)
@@ -49610,7 +49522,7 @@ func rewriteValueAMD64_OpAMD64XORQ_0(v *Value) bool {
 		return true
 	}
 	// match: (XORQ (MOVQconst [c]) x)
-	// cond: isUint64PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl
+	// cond: isUint64PowerOfTwo(c) && uint64(c) >= 128
 	// result: (BTCQconst [log2(c)] x)
 	for {
 		x := v.Args[1]
@@ -49619,7 +49531,7 @@ func rewriteValueAMD64_OpAMD64XORQ_0(v *Value) bool {
 			break
 		}
 		c := v_0.AuxInt
-		if !(isUint64PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl) {
+		if !(isUint64PowerOfTwo(c) && uint64(c) >= 128) {
 			break
 		}
 		v.reset(OpAMD64BTCQconst)
@@ -49628,7 +49540,7 @@ func rewriteValueAMD64_OpAMD64XORQ_0(v *Value) bool {
 		return true
 	}
 	// match: (XORQ x (MOVQconst [c]))
-	// cond: isUint64PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl
+	// cond: isUint64PowerOfTwo(c) && uint64(c) >= 128
 	// result: (BTCQconst [log2(c)] x)
 	for {
 		_ = v.Args[1]
@@ -49638,7 +49550,7 @@ func rewriteValueAMD64_OpAMD64XORQ_0(v *Value) bool {
 			break
 		}
 		c := v_1.AuxInt
-		if !(isUint64PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl) {
+		if !(isUint64PowerOfTwo(c) && uint64(c) >= 128) {
 			break
 		}
 		v.reset(OpAMD64BTCQconst)
@@ -49797,15 +49709,13 @@ func rewriteValueAMD64_OpAMD64XORQ_10(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpAMD64XORQconst_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (XORQconst [c] x)
-	// cond: isUint64PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl
+	// cond: isUint64PowerOfTwo(c) && uint64(c) >= 128
 	// result: (BTCQconst [log2(c)] x)
 	for {
 		c := v.AuxInt
 		x := v.Args[0]
-		if !(isUint64PowerOfTwo(c) && uint64(c) >= 128 && !config.nacl) {
+		if !(isUint64PowerOfTwo(c) && uint64(c) >= 128) {
 			break
 		}
 		v.reset(OpAMD64BTCQconst)
@@ -50127,70 +50037,28 @@ func rewriteValueAMD64_OpAdd8_0(v *Value) bool {
 	}
 }
 func rewriteValueAMD64_OpAddPtr_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (AddPtr x y)
-	// cond: config.PtrSize == 8
 	// result: (ADDQ x y)
 	for {
 		y := v.Args[1]
 		x := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64ADDQ)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true
 	}
-	// match: (AddPtr x y)
-	// cond: config.PtrSize == 4
-	// result: (ADDL x y)
-	for {
-		y := v.Args[1]
-		x := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64ADDL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpAddr_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (Addr {sym} base)
-	// cond: config.PtrSize == 8
 	// result: (LEAQ {sym} base)
 	for {
 		sym := v.Aux
 		base := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64LEAQ)
 		v.Aux = sym
 		v.AddArg(base)
 		return true
 	}
-	// match: (Addr {sym} base)
-	// cond: config.PtrSize == 4
-	// result: (LEAL {sym} base)
-	for {
-		sym := v.Aux
-		base := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64LEAL)
-		v.Aux = sym
-		v.AddArg(base)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpAnd16_0(v *Value) bool {
 	// match: (And16 x y)
@@ -50401,37 +50269,16 @@ func rewriteValueAMD64_OpAtomicLoad8_0(v *Value) bool {
 	}
 }
 func rewriteValueAMD64_OpAtomicLoadPtr_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (AtomicLoadPtr ptr mem)
-	// cond: config.PtrSize == 8
 	// result: (MOVQatomicload ptr mem)
 	for {
 		mem := v.Args[1]
 		ptr := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64MOVQatomicload)
 		v.AddArg(ptr)
 		v.AddArg(mem)
 		return true
 	}
-	// match: (AtomicLoadPtr ptr mem)
-	// cond: config.PtrSize == 4
-	// result: (MOVLatomicload ptr mem)
-	for {
-		mem := v.Args[1]
-		ptr := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64MOVLatomicload)
-		v.AddArg(ptr)
-		v.AddArg(mem)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpAtomicOr8_0(v *Value) bool {
 	// match: (AtomicOr8 ptr val mem)
@@ -50483,20 +50330,33 @@ func rewriteValueAMD64_OpAtomicStore64_0(v *Value) bool {
 		return true
 	}
 }
+func rewriteValueAMD64_OpAtomicStore8_0(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (AtomicStore8 ptr val mem)
+	// result: (Select1 (XCHGB <types.NewTuple(typ.UInt8,types.TypeMem)> val ptr mem))
+	for {
+		mem := v.Args[2]
+		ptr := v.Args[0]
+		val := v.Args[1]
+		v.reset(OpSelect1)
+		v0 := b.NewValue0(v.Pos, OpAMD64XCHGB, types.NewTuple(typ.UInt8, types.TypeMem))
+		v0.AddArg(val)
+		v0.AddArg(ptr)
+		v0.AddArg(mem)
+		v.AddArg(v0)
+		return true
+	}
+}
 func rewriteValueAMD64_OpAtomicStorePtrNoWB_0(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (AtomicStorePtrNoWB ptr val mem)
-	// cond: config.PtrSize == 8
 	// result: (Select1 (XCHGQ <types.NewTuple(typ.BytePtr,types.TypeMem)> val ptr mem))
 	for {
 		mem := v.Args[2]
 		ptr := v.Args[0]
 		val := v.Args[1]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpSelect1)
 		v0 := b.NewValue0(v.Pos, OpAMD64XCHGQ, types.NewTuple(typ.BytePtr, types.TypeMem))
 		v0.AddArg(val)
@@ -50505,25 +50365,6 @@ func rewriteValueAMD64_OpAtomicStorePtrNoWB_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (AtomicStorePtrNoWB ptr val mem)
-	// cond: config.PtrSize == 4
-	// result: (Select1 (XCHGL <types.NewTuple(typ.BytePtr,types.TypeMem)> val ptr mem))
-	for {
-		mem := v.Args[2]
-		ptr := v.Args[0]
-		val := v.Args[1]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpSelect1)
-		v0 := b.NewValue0(v.Pos, OpAMD64XCHGL, types.NewTuple(typ.BytePtr, types.TypeMem))
-		v0.AddArg(val)
-		v0.AddArg(ptr)
-		v0.AddArg(mem)
-		v.AddArg(v0)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpAvg64u_0(v *Value) bool {
 	// match: (Avg64u x y)
@@ -51846,31 +51687,13 @@ func rewriteValueAMD64_OpConstBool_0(v *Value) bool {
 	}
 }
 func rewriteValueAMD64_OpConstNil_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (ConstNil)
-	// cond: config.PtrSize == 8
 	// result: (MOVQconst [0])
 	for {
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64MOVQconst)
 		v.AuxInt = 0
 		return true
 	}
-	// match: (ConstNil)
-	// cond: config.PtrSize == 4
-	// result: (MOVLconst [0])
-	for {
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64MOVLconst)
-		v.AuxInt = 0
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpCtz16_0(v *Value) bool {
 	b := v.Block
@@ -52375,16 +52198,11 @@ func rewriteValueAMD64_OpEqB_0(v *Value) bool {
 }
 func rewriteValueAMD64_OpEqPtr_0(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	// match: (EqPtr x y)
-	// cond: config.PtrSize == 8
 	// result: (SETEQ (CMPQ x y))
 	for {
 		y := v.Args[1]
 		x := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64SETEQ)
 		v0 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
 		v0.AddArg(x)
@@ -52392,23 +52210,20 @@ func rewriteValueAMD64_OpEqPtr_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (EqPtr x y)
-	// cond: config.PtrSize == 4
-	// result: (SETEQ (CMPL x y))
+}
+func rewriteValueAMD64_OpFMA_0(v *Value) bool {
+	// match: (FMA x y z)
+	// result: (VFMADD231SD z x y)
 	for {
-		y := v.Args[1]
+		z := v.Args[2]
 		x := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64SETEQ)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPL, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
+		y := v.Args[1]
+		v.reset(OpAMD64VFMADD231SD)
+		v.AddArg(z)
+		v.AddArg(x)
+		v.AddArg(y)
 		return true
 	}
-	return false
 }
 func rewriteValueAMD64_OpFloor_0(v *Value) bool {
 	// match: (Floor x)
@@ -52803,28 +52618,6 @@ func rewriteValueAMD64_OpHmul64u_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpInt64Hi_0(v *Value) bool {
-	// match: (Int64Hi x)
-	// result: (SHRQconst [32] x)
-	for {
-		x := v.Args[0]
-		v.reset(OpAMD64SHRQconst)
-		v.AuxInt = 32
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValueAMD64_OpInt64Lo_0(v *Value) bool {
-	// match: (Int64Lo x)
-	// result: x
-	for {
-		x := v.Args[0]
-		v.reset(OpCopy)
-		v.Type = x.Type
-		v.AddArg(x)
-		return true
-	}
-}
 func rewriteValueAMD64_OpInterCall_0(v *Value) bool {
 	// match: (InterCall [argwid] entry mem)
 	// result: (CALLinter [argwid] entry mem)
@@ -52841,16 +52634,11 @@ func rewriteValueAMD64_OpInterCall_0(v *Value) bool {
 }
 func rewriteValueAMD64_OpIsInBounds_0(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	// match: (IsInBounds idx len)
-	// cond: config.PtrSize == 8
 	// result: (SETB (CMPQ idx len))
 	for {
 		len := v.Args[1]
 		idx := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64SETB)
 		v0 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
 		v0.AddArg(idx)
@@ -52858,35 +52646,13 @@ func rewriteValueAMD64_OpIsInBounds_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (IsInBounds idx len)
-	// cond: config.PtrSize == 4
-	// result: (SETB (CMPL idx len))
-	for {
-		len := v.Args[1]
-		idx := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64SETB)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPL, types.TypeFlags)
-		v0.AddArg(idx)
-		v0.AddArg(len)
-		v.AddArg(v0)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpIsNonNil_0(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	// match: (IsNonNil p)
-	// cond: config.PtrSize == 8
 	// result: (SETNE (TESTQ p p))
 	for {
 		p := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64SETNE)
 		v0 := b.NewValue0(v.Pos, OpAMD64TESTQ, types.TypeFlags)
 		v0.AddArg(p)
@@ -52894,35 +52660,14 @@ func rewriteValueAMD64_OpIsNonNil_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (IsNonNil p)
-	// cond: config.PtrSize == 4
-	// result: (SETNE (TESTL p p))
-	for {
-		p := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64SETNE)
-		v0 := b.NewValue0(v.Pos, OpAMD64TESTL, types.TypeFlags)
-		v0.AddArg(p)
-		v0.AddArg(p)
-		v.AddArg(v0)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpIsSliceInBounds_0(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	// match: (IsSliceInBounds idx len)
-	// cond: config.PtrSize == 8
 	// result: (SETBE (CMPQ idx len))
 	for {
 		len := v.Args[1]
 		idx := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64SETBE)
 		v0 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
 		v0.AddArg(idx)
@@ -52930,23 +52675,6 @@ func rewriteValueAMD64_OpIsSliceInBounds_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (IsSliceInBounds idx len)
-	// cond: config.PtrSize == 4
-	// result: (SETBE (CMPL idx len))
-	for {
-		len := v.Args[1]
-		idx := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64SETBE)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPL, types.TypeFlags)
-		v0.AddArg(idx)
-		v0.AddArg(len)
-		v.AddArg(v0)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpLeq16_0(v *Value) bool {
 	b := v.Block
@@ -53249,16 +52977,14 @@ func rewriteValueAMD64_OpLess8U_0(v *Value) bool {
 	}
 }
 func rewriteValueAMD64_OpLoad_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (Load <t> ptr mem)
-	// cond: (is64BitInt(t) || isPtr(t) && config.PtrSize == 8)
+	// cond: (is64BitInt(t) || isPtr(t))
 	// result: (MOVQload ptr mem)
 	for {
 		t := v.Type
 		mem := v.Args[1]
 		ptr := v.Args[0]
-		if !(is64BitInt(t) || isPtr(t) && config.PtrSize == 8) {
+		if !(is64BitInt(t) || isPtr(t)) {
 			break
 		}
 		v.reset(OpAMD64MOVQload)
@@ -53267,13 +52993,13 @@ func rewriteValueAMD64_OpLoad_0(v *Value) bool {
 		return true
 	}
 	// match: (Load <t> ptr mem)
-	// cond: (is32BitInt(t) || isPtr(t) && config.PtrSize == 4)
+	// cond: is32BitInt(t)
 	// result: (MOVLload ptr mem)
 	for {
 		t := v.Type
 		mem := v.Args[1]
 		ptr := v.Args[0]
-		if !(is32BitInt(t) || isPtr(t) && config.PtrSize == 4) {
+		if !(is32BitInt(t)) {
 			break
 		}
 		v.reset(OpAMD64MOVLload)
@@ -53344,39 +53070,17 @@ func rewriteValueAMD64_OpLoad_0(v *Value) bool {
 	return false
 }
 func rewriteValueAMD64_OpLocalAddr_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (LocalAddr {sym} base _)
-	// cond: config.PtrSize == 8
 	// result: (LEAQ {sym} base)
 	for {
 		sym := v.Aux
 		_ = v.Args[1]
 		base := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64LEAQ)
 		v.Aux = sym
 		v.AddArg(base)
 		return true
 	}
-	// match: (LocalAddr {sym} base _)
-	// cond: config.PtrSize == 4
-	// result: (LEAL {sym} base)
-	for {
-		sym := v.Aux
-		_ = v.Args[1]
-		base := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64LEAL)
-		v.Aux = sym
-		v.AddArg(base)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpLsh16x16_0(v *Value) bool {
 	b := v.Block
@@ -55039,16 +54743,11 @@ func rewriteValueAMD64_OpNeqB_0(v *Value) bool {
 }
 func rewriteValueAMD64_OpNeqPtr_0(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	// match: (NeqPtr x y)
-	// cond: config.PtrSize == 8
 	// result: (SETNE (CMPQ x y))
 	for {
 		y := v.Args[1]
 		x := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64SETNE)
 		v0 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
 		v0.AddArg(x)
@@ -55056,23 +54755,6 @@ func rewriteValueAMD64_OpNeqPtr_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	// match: (NeqPtr x y)
-	// cond: config.PtrSize == 4
-	// result: (SETNE (CMPL x y))
-	for {
-		y := v.Args[1]
-		x := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64SETNE)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPL, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpNilCheck_0(v *Value) bool {
 	// match: (NilCheck ptr mem)
@@ -55099,15 +54781,14 @@ func rewriteValueAMD64_OpNot_0(v *Value) bool {
 }
 func rewriteValueAMD64_OpOffPtr_0(v *Value) bool {
 	b := v.Block
-	config := b.Func.Config
 	typ := &b.Func.Config.Types
 	// match: (OffPtr [off] ptr)
-	// cond: config.PtrSize == 8 && is32Bit(off)
+	// cond: is32Bit(off)
 	// result: (ADDQconst [off] ptr)
 	for {
 		off := v.AuxInt
 		ptr := v.Args[0]
-		if !(config.PtrSize == 8 && is32Bit(off)) {
+		if !(is32Bit(off)) {
 			break
 		}
 		v.reset(OpAMD64ADDQconst)
@@ -55116,14 +54797,10 @@ func rewriteValueAMD64_OpOffPtr_0(v *Value) bool {
 		return true
 	}
 	// match: (OffPtr [off] ptr)
-	// cond: config.PtrSize == 8
 	// result: (ADDQ (MOVQconst [off]) ptr)
 	for {
 		off := v.AuxInt
 		ptr := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64ADDQ)
 		v0 := b.NewValue0(v.Pos, OpAMD64MOVQconst, typ.UInt64)
 		v0.AuxInt = off
@@ -55131,21 +54808,6 @@ func rewriteValueAMD64_OpOffPtr_0(v *Value) bool {
 		v.AddArg(ptr)
 		return true
 	}
-	// match: (OffPtr [off] ptr)
-	// cond: config.PtrSize == 4
-	// result: (ADDLconst [off] ptr)
-	for {
-		off := v.AuxInt
-		ptr := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64ADDLconst)
-		v.AuxInt = off
-		v.AddArg(ptr)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpOr16_0(v *Value) bool {
 	// match: (Or16 x y)
@@ -55258,69 +54920,6 @@ func rewriteValueAMD64_OpPanicBounds_0(v *Value) bool {
 		v.reset(OpAMD64LoweredPanicBoundsC)
 		v.AuxInt = kind
 		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(mem)
-		return true
-	}
-	return false
-}
-func rewriteValueAMD64_OpPanicExtend_0(v *Value) bool {
-	// match: (PanicExtend [kind] hi lo y mem)
-	// cond: boundsABI(kind) == 0
-	// result: (LoweredPanicExtendA [kind] hi lo y mem)
-	for {
-		kind := v.AuxInt
-		mem := v.Args[3]
-		hi := v.Args[0]
-		lo := v.Args[1]
-		y := v.Args[2]
-		if !(boundsABI(kind) == 0) {
-			break
-		}
-		v.reset(OpAMD64LoweredPanicExtendA)
-		v.AuxInt = kind
-		v.AddArg(hi)
-		v.AddArg(lo)
-		v.AddArg(y)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (PanicExtend [kind] hi lo y mem)
-	// cond: boundsABI(kind) == 1
-	// result: (LoweredPanicExtendB [kind] hi lo y mem)
-	for {
-		kind := v.AuxInt
-		mem := v.Args[3]
-		hi := v.Args[0]
-		lo := v.Args[1]
-		y := v.Args[2]
-		if !(boundsABI(kind) == 1) {
-			break
-		}
-		v.reset(OpAMD64LoweredPanicExtendB)
-		v.AuxInt = kind
-		v.AddArg(hi)
-		v.AddArg(lo)
-		v.AddArg(y)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (PanicExtend [kind] hi lo y mem)
-	// cond: boundsABI(kind) == 2
-	// result: (LoweredPanicExtendC [kind] hi lo y mem)
-	for {
-		kind := v.AuxInt
-		mem := v.Args[3]
-		hi := v.Args[0]
-		lo := v.Args[1]
-		y := v.Args[2]
-		if !(boundsABI(kind) == 2) {
-			break
-		}
-		v.reset(OpAMD64LoweredPanicExtendC)
-		v.AuxInt = kind
-		v.AddArg(hi)
-		v.AddArg(lo)
 		v.AddArg(y)
 		v.AddArg(mem)
 		return true
@@ -57366,37 +56965,16 @@ func rewriteValueAMD64_OpSub8_0(v *Value) bool {
 	}
 }
 func rewriteValueAMD64_OpSubPtr_0(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
 	// match: (SubPtr x y)
-	// cond: config.PtrSize == 8
 	// result: (SUBQ x y)
 	for {
 		y := v.Args[1]
 		x := v.Args[0]
-		if !(config.PtrSize == 8) {
-			break
-		}
 		v.reset(OpAMD64SUBQ)
 		v.AddArg(x)
 		v.AddArg(y)
 		return true
 	}
-	// match: (SubPtr x y)
-	// cond: config.PtrSize == 4
-	// result: (SUBL x y)
-	for {
-		y := v.Args[1]
-		x := v.Args[0]
-		if !(config.PtrSize == 4) {
-			break
-		}
-		v.reset(OpAMD64SUBL)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-	return false
 }
 func rewriteValueAMD64_OpTrunc_0(v *Value) bool {
 	// match: (Trunc x)
@@ -58099,183 +57677,178 @@ func rewriteValueAMD64_OpZeroExt8to64_0(v *Value) bool {
 	}
 }
 func rewriteBlockAMD64(b *Block) bool {
-	config := b.Func.Config
-	v := b.Control
 	switch b.Kind {
 	case BlockAMD64EQ:
 		// match: (EQ (TESTL (SHLL (MOVLconst [1]) x) y))
-		// cond: !config.nacl
 		// result: (UGE (BTL x y))
-		for v.Op == OpAMD64TESTL {
-			y := v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SHLL {
-				break
-			}
-			x := v_0.Args[1]
+		for b.Controls[0].Op == OpAMD64TESTL {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpAMD64MOVLconst || v_0_0.AuxInt != 1 || !(!config.nacl) {
+			if v_0_0.Op != OpAMD64SHLL {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			v0 := b.NewValue0(v.Pos, OpAMD64BTL, types.TypeFlags)
+			x := v_0_0.Args[1]
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpAMD64MOVLconst || v_0_0_0.AuxInt != 1 {
+				break
+			}
+			b.Reset(BlockAMD64UGE)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTL, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (EQ (TESTL y (SHLL (MOVLconst [1]) x)))
-		// cond: !config.nacl
 		// result: (UGE (BTL x y))
-		for v.Op == OpAMD64TESTL {
-			_ = v.Args[1]
-			y := v.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SHLL {
+		for b.Controls[0].Op == OpAMD64TESTL {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			y := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SHLL {
 				break
 			}
-			x := v_1.Args[1]
-			v_1_0 := v_1.Args[0]
-			if v_1_0.Op != OpAMD64MOVLconst || v_1_0.AuxInt != 1 || !(!config.nacl) {
+			x := v_0_1.Args[1]
+			v_0_1_0 := v_0_1.Args[0]
+			if v_0_1_0.Op != OpAMD64MOVLconst || v_0_1_0.AuxInt != 1 {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			v0 := b.NewValue0(v.Pos, OpAMD64BTL, types.TypeFlags)
+			b.Reset(BlockAMD64UGE)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTL, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (EQ (TESTQ (SHLQ (MOVQconst [1]) x) y))
-		// cond: !config.nacl
 		// result: (UGE (BTQ x y))
-		for v.Op == OpAMD64TESTQ {
-			y := v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SHLQ {
-				break
-			}
-			x := v_0.Args[1]
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpAMD64MOVQconst || v_0_0.AuxInt != 1 || !(!config.nacl) {
+			if v_0_0.Op != OpAMD64SHLQ {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQ, types.TypeFlags)
+			x := v_0_0.Args[1]
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpAMD64MOVQconst || v_0_0_0.AuxInt != 1 {
+				break
+			}
+			b.Reset(BlockAMD64UGE)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQ, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (EQ (TESTQ y (SHLQ (MOVQconst [1]) x)))
-		// cond: !config.nacl
 		// result: (UGE (BTQ x y))
-		for v.Op == OpAMD64TESTQ {
-			_ = v.Args[1]
-			y := v.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SHLQ {
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			y := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SHLQ {
 				break
 			}
-			x := v_1.Args[1]
-			v_1_0 := v_1.Args[0]
-			if v_1_0.Op != OpAMD64MOVQconst || v_1_0.AuxInt != 1 || !(!config.nacl) {
+			x := v_0_1.Args[1]
+			v_0_1_0 := v_0_1.Args[0]
+			if v_0_1_0.Op != OpAMD64MOVQconst || v_0_1_0.AuxInt != 1 {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQ, types.TypeFlags)
+			b.Reset(BlockAMD64UGE)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQ, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (EQ (TESTLconst [c] x))
-		// cond: isUint32PowerOfTwo(c) && !config.nacl
+		// cond: isUint32PowerOfTwo(c)
 		// result: (UGE (BTLconst [log2uint32(c)] x))
-		for v.Op == OpAMD64TESTLconst {
-			c := v.AuxInt
-			x := v.Args[0]
-			if !(isUint32PowerOfTwo(c) && !config.nacl) {
+		for b.Controls[0].Op == OpAMD64TESTLconst {
+			v_0 := b.Controls[0]
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			if !(isUint32PowerOfTwo(c)) {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			v0 := b.NewValue0(v.Pos, OpAMD64BTLconst, types.TypeFlags)
+			b.Reset(BlockAMD64UGE)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTLconst, types.TypeFlags)
 			v0.AuxInt = log2uint32(c)
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (EQ (TESTQconst [c] x))
-		// cond: isUint64PowerOfTwo(c) && !config.nacl
+		// cond: isUint64PowerOfTwo(c)
 		// result: (UGE (BTQconst [log2(c)] x))
-		for v.Op == OpAMD64TESTQconst {
-			c := v.AuxInt
-			x := v.Args[0]
-			if !(isUint64PowerOfTwo(c) && !config.nacl) {
+		for b.Controls[0].Op == OpAMD64TESTQconst {
+			v_0 := b.Controls[0]
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			if !(isUint64PowerOfTwo(c)) {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64UGE)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = log2(c)
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (EQ (TESTQ (MOVQconst [c]) x))
-		// cond: isUint64PowerOfTwo(c) && !config.nacl
+		// cond: isUint64PowerOfTwo(c)
 		// result: (UGE (BTQconst [log2(c)] x))
-		for v.Op == OpAMD64TESTQ {
-			x := v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64MOVQconst {
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			x := v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64MOVQconst {
 				break
 			}
-			c := v_0.AuxInt
-			if !(isUint64PowerOfTwo(c) && !config.nacl) {
+			c := v_0_0.AuxInt
+			if !(isUint64PowerOfTwo(c)) {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64UGE)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = log2(c)
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (EQ (TESTQ x (MOVQconst [c])))
-		// cond: isUint64PowerOfTwo(c) && !config.nacl
+		// cond: isUint64PowerOfTwo(c)
 		// result: (UGE (BTQconst [log2(c)] x))
-		for v.Op == OpAMD64TESTQ {
-			_ = v.Args[1]
-			x := v.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64MOVQconst {
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64MOVQconst {
 				break
 			}
-			c := v_1.AuxInt
-			if !(isUint64PowerOfTwo(c) && !config.nacl) {
+			c := v_0_1.AuxInt
+			if !(isUint64PowerOfTwo(c)) {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64UGE)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = log2(c)
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (EQ (TESTQ z1:(SHLQconst [63] (SHRQconst [63] x)) z2))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (UGE (BTQconst [63] x))
-		for v.Op == OpAMD64TESTQ {
-			z2 := v.Args[1]
-			z1 := v.Args[0]
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			z2 := v_0.Args[1]
+			z1 := v_0.Args[0]
 			if z1.Op != OpAMD64SHLQconst || z1.AuxInt != 63 {
 				break
 			}
@@ -58284,24 +57857,24 @@ func rewriteBlockAMD64(b *Block) bool {
 				break
 			}
 			x := z1_0.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64UGE)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = 63
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (EQ (TESTQ z2 z1:(SHLQconst [63] (SHRQconst [63] x))))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (UGE (BTQconst [63] x))
-		for v.Op == OpAMD64TESTQ {
-			_ = v.Args[1]
-			z2 := v.Args[0]
-			z1 := v.Args[1]
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			z2 := v_0.Args[0]
+			z1 := v_0.Args[1]
 			if z1.Op != OpAMD64SHLQconst || z1.AuxInt != 63 {
 				break
 			}
@@ -58310,23 +57883,23 @@ func rewriteBlockAMD64(b *Block) bool {
 				break
 			}
 			x := z1_0.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64UGE)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = 63
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (EQ (TESTL z1:(SHLLconst [31] (SHRQconst [31] x)) z2))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (UGE (BTQconst [31] x))
-		for v.Op == OpAMD64TESTL {
-			z2 := v.Args[1]
-			z1 := v.Args[0]
+		for b.Controls[0].Op == OpAMD64TESTL {
+			v_0 := b.Controls[0]
+			z2 := v_0.Args[1]
+			z1 := v_0.Args[0]
 			if z1.Op != OpAMD64SHLLconst || z1.AuxInt != 31 {
 				break
 			}
@@ -58335,24 +57908,24 @@ func rewriteBlockAMD64(b *Block) bool {
 				break
 			}
 			x := z1_0.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64UGE)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = 31
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (EQ (TESTL z2 z1:(SHLLconst [31] (SHRQconst [31] x))))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (UGE (BTQconst [31] x))
-		for v.Op == OpAMD64TESTL {
-			_ = v.Args[1]
-			z2 := v.Args[0]
-			z1 := v.Args[1]
+		for b.Controls[0].Op == OpAMD64TESTL {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			z2 := v_0.Args[0]
+			z1 := v_0.Args[1]
 			if z1.Op != OpAMD64SHLLconst || z1.AuxInt != 31 {
 				break
 			}
@@ -58361,23 +57934,23 @@ func rewriteBlockAMD64(b *Block) bool {
 				break
 			}
 			x := z1_0.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64UGE)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = 31
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (EQ (TESTQ z1:(SHRQconst [63] (SHLQconst [63] x)) z2))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (UGE (BTQconst [0] x))
-		for v.Op == OpAMD64TESTQ {
-			z2 := v.Args[1]
-			z1 := v.Args[0]
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			z2 := v_0.Args[1]
+			z1 := v_0.Args[0]
 			if z1.Op != OpAMD64SHRQconst || z1.AuxInt != 63 {
 				break
 			}
@@ -58386,24 +57959,24 @@ func rewriteBlockAMD64(b *Block) bool {
 				break
 			}
 			x := z1_0.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64UGE)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = 0
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (EQ (TESTQ z2 z1:(SHRQconst [63] (SHLQconst [63] x))))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (UGE (BTQconst [0] x))
-		for v.Op == OpAMD64TESTQ {
-			_ = v.Args[1]
-			z2 := v.Args[0]
-			z1 := v.Args[1]
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			z2 := v_0.Args[0]
+			z1 := v_0.Args[1]
 			if z1.Op != OpAMD64SHRQconst || z1.AuxInt != 63 {
 				break
 			}
@@ -58412,23 +57985,23 @@ func rewriteBlockAMD64(b *Block) bool {
 				break
 			}
 			x := z1_0.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64UGE)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = 0
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (EQ (TESTL z1:(SHRLconst [31] (SHLLconst [31] x)) z2))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (UGE (BTLconst [0] x))
-		for v.Op == OpAMD64TESTL {
-			z2 := v.Args[1]
-			z1 := v.Args[0]
+		for b.Controls[0].Op == OpAMD64TESTL {
+			v_0 := b.Controls[0]
+			z2 := v_0.Args[1]
+			z1 := v_0.Args[0]
 			if z1.Op != OpAMD64SHRLconst || z1.AuxInt != 31 {
 				break
 			}
@@ -58437,24 +58010,24 @@ func rewriteBlockAMD64(b *Block) bool {
 				break
 			}
 			x := z1_0.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			v0 := b.NewValue0(v.Pos, OpAMD64BTLconst, types.TypeFlags)
+			b.Reset(BlockAMD64UGE)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTLconst, types.TypeFlags)
 			v0.AuxInt = 0
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (EQ (TESTL z2 z1:(SHRLconst [31] (SHLLconst [31] x))))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (UGE (BTLconst [0] x))
-		for v.Op == OpAMD64TESTL {
-			_ = v.Args[1]
-			z2 := v.Args[0]
-			z1 := v.Args[1]
+		for b.Controls[0].Op == OpAMD64TESTL {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			z2 := v_0.Args[0]
+			z1 := v_0.Args[1]
 			if z1.Op != OpAMD64SHRLconst || z1.AuxInt != 31 {
 				break
 			}
@@ -58463,1084 +58036,1029 @@ func rewriteBlockAMD64(b *Block) bool {
 				break
 			}
 			x := z1_0.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			v0 := b.NewValue0(v.Pos, OpAMD64BTLconst, types.TypeFlags)
+			b.Reset(BlockAMD64UGE)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTLconst, types.TypeFlags)
 			v0.AuxInt = 0
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (EQ (TESTQ z1:(SHRQconst [63] x) z2))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (UGE (BTQconst [63] x))
-		for v.Op == OpAMD64TESTQ {
-			z2 := v.Args[1]
-			z1 := v.Args[0]
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			z2 := v_0.Args[1]
+			z1 := v_0.Args[0]
 			if z1.Op != OpAMD64SHRQconst || z1.AuxInt != 63 {
 				break
 			}
 			x := z1.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64UGE)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = 63
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (EQ (TESTQ z2 z1:(SHRQconst [63] x)))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (UGE (BTQconst [63] x))
-		for v.Op == OpAMD64TESTQ {
-			_ = v.Args[1]
-			z2 := v.Args[0]
-			z1 := v.Args[1]
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			z2 := v_0.Args[0]
+			z1 := v_0.Args[1]
 			if z1.Op != OpAMD64SHRQconst || z1.AuxInt != 63 {
 				break
 			}
 			x := z1.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64UGE)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = 63
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (EQ (TESTL z1:(SHRLconst [31] x) z2))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (UGE (BTLconst [31] x))
-		for v.Op == OpAMD64TESTL {
-			z2 := v.Args[1]
-			z1 := v.Args[0]
+		for b.Controls[0].Op == OpAMD64TESTL {
+			v_0 := b.Controls[0]
+			z2 := v_0.Args[1]
+			z1 := v_0.Args[0]
 			if z1.Op != OpAMD64SHRLconst || z1.AuxInt != 31 {
 				break
 			}
 			x := z1.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			v0 := b.NewValue0(v.Pos, OpAMD64BTLconst, types.TypeFlags)
+			b.Reset(BlockAMD64UGE)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTLconst, types.TypeFlags)
 			v0.AuxInt = 31
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (EQ (TESTL z2 z1:(SHRLconst [31] x)))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (UGE (BTLconst [31] x))
-		for v.Op == OpAMD64TESTL {
-			_ = v.Args[1]
-			z2 := v.Args[0]
-			z1 := v.Args[1]
+		for b.Controls[0].Op == OpAMD64TESTL {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			z2 := v_0.Args[0]
+			z1 := v_0.Args[1]
 			if z1.Op != OpAMD64SHRLconst || z1.AuxInt != 31 {
 				break
 			}
 			x := z1.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			v0 := b.NewValue0(v.Pos, OpAMD64BTLconst, types.TypeFlags)
+			b.Reset(BlockAMD64UGE)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTLconst, types.TypeFlags)
 			v0.AuxInt = 31
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (EQ (InvertFlags cmp) yes no)
 		// result: (EQ cmp yes no)
-		for v.Op == OpAMD64InvertFlags {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64EQ
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64InvertFlags {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64EQ)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (EQ (FlagEQ) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagEQ {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagEQ {
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (EQ (FlagLT_ULT) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagLT_ULT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagLT_ULT {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (EQ (FlagLT_UGT) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagLT_UGT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagLT_UGT {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (EQ (FlagGT_ULT) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagGT_ULT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagGT_ULT {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (EQ (FlagGT_UGT) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagGT_UGT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagGT_UGT {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 	case BlockAMD64GE:
 		// match: (GE (InvertFlags cmp) yes no)
 		// result: (LE cmp yes no)
-		for v.Op == OpAMD64InvertFlags {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64LE
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64InvertFlags {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64LE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (GE (FlagEQ) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagEQ {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagEQ {
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (GE (FlagLT_ULT) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagLT_ULT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagLT_ULT {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (GE (FlagLT_UGT) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagLT_UGT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagLT_UGT {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (GE (FlagGT_ULT) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagGT_ULT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagGT_ULT {
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (GE (FlagGT_UGT) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagGT_UGT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagGT_UGT {
+			b.Reset(BlockFirst)
 			return true
 		}
 	case BlockAMD64GT:
 		// match: (GT (InvertFlags cmp) yes no)
 		// result: (LT cmp yes no)
-		for v.Op == OpAMD64InvertFlags {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64LT
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64InvertFlags {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64LT)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (GT (FlagEQ) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagEQ {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagEQ {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (GT (FlagLT_ULT) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagLT_ULT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagLT_ULT {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (GT (FlagLT_UGT) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagLT_UGT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagLT_UGT {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (GT (FlagGT_ULT) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagGT_ULT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagGT_ULT {
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (GT (FlagGT_UGT) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagGT_UGT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagGT_UGT {
+			b.Reset(BlockFirst)
 			return true
 		}
 	case BlockIf:
 		// match: (If (SETL cmp) yes no)
 		// result: (LT cmp yes no)
-		for v.Op == OpAMD64SETL {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64LT
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64SETL {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64LT)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (If (SETLE cmp) yes no)
 		// result: (LE cmp yes no)
-		for v.Op == OpAMD64SETLE {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64LE
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64SETLE {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64LE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (If (SETG cmp) yes no)
 		// result: (GT cmp yes no)
-		for v.Op == OpAMD64SETG {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64GT
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64SETG {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64GT)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (If (SETGE cmp) yes no)
 		// result: (GE cmp yes no)
-		for v.Op == OpAMD64SETGE {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64GE
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64SETGE {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64GE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (If (SETEQ cmp) yes no)
 		// result: (EQ cmp yes no)
-		for v.Op == OpAMD64SETEQ {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64EQ
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64SETEQ {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64EQ)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (If (SETNE cmp) yes no)
 		// result: (NE cmp yes no)
-		for v.Op == OpAMD64SETNE {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64NE
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64SETNE {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64NE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (If (SETB cmp) yes no)
 		// result: (ULT cmp yes no)
-		for v.Op == OpAMD64SETB {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64ULT
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64SETB {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64ULT)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (If (SETBE cmp) yes no)
 		// result: (ULE cmp yes no)
-		for v.Op == OpAMD64SETBE {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64ULE
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64SETBE {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64ULE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (If (SETA cmp) yes no)
 		// result: (UGT cmp yes no)
-		for v.Op == OpAMD64SETA {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64UGT
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64SETA {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64UGT)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (If (SETAE cmp) yes no)
 		// result: (UGE cmp yes no)
-		for v.Op == OpAMD64SETAE {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64UGE
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64SETAE {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64UGE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (If (SETO cmp) yes no)
 		// result: (OS cmp yes no)
-		for v.Op == OpAMD64SETO {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64OS
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64SETO {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64OS)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (If (SETGF cmp) yes no)
 		// result: (UGT cmp yes no)
-		for v.Op == OpAMD64SETGF {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64UGT
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64SETGF {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64UGT)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (If (SETGEF cmp) yes no)
 		// result: (UGE cmp yes no)
-		for v.Op == OpAMD64SETGEF {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64UGE
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64SETGEF {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64UGE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (If (SETEQF cmp) yes no)
 		// result: (EQF cmp yes no)
-		for v.Op == OpAMD64SETEQF {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64EQF
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64SETEQF {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64EQF)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (If (SETNEF cmp) yes no)
 		// result: (NEF cmp yes no)
-		for v.Op == OpAMD64SETNEF {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64NEF
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64SETNEF {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64NEF)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (If cond yes no)
 		// result: (NE (TESTB cond cond) yes no)
 		for {
-			cond := b.Control
-			b.Kind = BlockAMD64NE
-			v0 := b.NewValue0(v.Pos, OpAMD64TESTB, types.TypeFlags)
+			cond := b.Controls[0]
+			b.Reset(BlockAMD64NE)
+			v0 := b.NewValue0(cond.Pos, OpAMD64TESTB, types.TypeFlags)
 			v0.AddArg(cond)
 			v0.AddArg(cond)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 	case BlockAMD64LE:
 		// match: (LE (InvertFlags cmp) yes no)
 		// result: (GE cmp yes no)
-		for v.Op == OpAMD64InvertFlags {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64GE
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64InvertFlags {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64GE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (LE (FlagEQ) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagEQ {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagEQ {
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (LE (FlagLT_ULT) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagLT_ULT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagLT_ULT {
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (LE (FlagLT_UGT) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagLT_UGT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagLT_UGT {
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (LE (FlagGT_ULT) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagGT_ULT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagGT_ULT {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (LE (FlagGT_UGT) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagGT_UGT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagGT_UGT {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 	case BlockAMD64LT:
 		// match: (LT (InvertFlags cmp) yes no)
 		// result: (GT cmp yes no)
-		for v.Op == OpAMD64InvertFlags {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64GT
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64InvertFlags {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64GT)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (LT (FlagEQ) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagEQ {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagEQ {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (LT (FlagLT_ULT) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagLT_ULT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagLT_ULT {
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (LT (FlagLT_UGT) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagLT_UGT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagLT_UGT {
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (LT (FlagGT_ULT) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagGT_ULT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagGT_ULT {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (LT (FlagGT_UGT) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagGT_UGT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagGT_UGT {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 	case BlockAMD64NE:
 		// match: (NE (TESTB (SETL cmp) (SETL cmp)) yes no)
 		// result: (LT cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETL {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETL {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETL || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETL || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64LT
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64LT)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETL cmp) (SETL cmp)) yes no)
 		// result: (LT cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETL {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETL {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETL || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETL || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64LT
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64LT)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETLE cmp) (SETLE cmp)) yes no)
 		// result: (LE cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETLE {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETLE {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETLE || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETLE || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64LE
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64LE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETLE cmp) (SETLE cmp)) yes no)
 		// result: (LE cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETLE {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETLE {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETLE || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETLE || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64LE
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64LE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETG cmp) (SETG cmp)) yes no)
 		// result: (GT cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETG {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETG {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETG || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETG || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64GT
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64GT)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETG cmp) (SETG cmp)) yes no)
 		// result: (GT cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETG {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETG {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETG || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETG || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64GT
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64GT)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETGE cmp) (SETGE cmp)) yes no)
 		// result: (GE cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETGE {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETGE {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETGE || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETGE || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64GE
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64GE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETGE cmp) (SETGE cmp)) yes no)
 		// result: (GE cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETGE {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETGE {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETGE || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETGE || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64GE
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64GE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETEQ cmp) (SETEQ cmp)) yes no)
 		// result: (EQ cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETEQ {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETEQ {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETEQ || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETEQ || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64EQ
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64EQ)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETEQ cmp) (SETEQ cmp)) yes no)
 		// result: (EQ cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETEQ {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETEQ {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETEQ || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETEQ || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64EQ
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64EQ)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETNE cmp) (SETNE cmp)) yes no)
 		// result: (NE cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETNE {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETNE {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETNE || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETNE || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64NE
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64NE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETNE cmp) (SETNE cmp)) yes no)
 		// result: (NE cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETNE {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETNE {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETNE || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETNE || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64NE
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64NE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETB cmp) (SETB cmp)) yes no)
 		// result: (ULT cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETB {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETB {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETB || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETB || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64ULT)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETB cmp) (SETB cmp)) yes no)
 		// result: (ULT cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETB {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETB {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETB || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETB || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64ULT)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETBE cmp) (SETBE cmp)) yes no)
 		// result: (ULE cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETBE {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETBE {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETBE || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETBE || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64ULE
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64ULE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETBE cmp) (SETBE cmp)) yes no)
 		// result: (ULE cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETBE {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETBE {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETBE || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETBE || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64ULE
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64ULE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETA cmp) (SETA cmp)) yes no)
 		// result: (UGT cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETA {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETA {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETA || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETA || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64UGT
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64UGT)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETA cmp) (SETA cmp)) yes no)
 		// result: (UGT cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETA {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETA {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETA || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETA || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64UGT
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64UGT)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no)
 		// result: (UGE cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETAE {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETAE {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETAE || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETAE || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64UGE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no)
 		// result: (UGE cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETAE {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETAE {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETAE || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETAE || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64UGE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETO cmp) (SETO cmp)) yes no)
 		// result: (OS cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETO {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETO {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETO || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETO || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64OS
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64OS)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETO cmp) (SETO cmp)) yes no)
 		// result: (OS cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETO {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETO {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETO || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETO || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64OS
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64OS)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTL (SHLL (MOVLconst [1]) x) y))
-		// cond: !config.nacl
 		// result: (ULT (BTL x y))
-		for v.Op == OpAMD64TESTL {
-			y := v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SHLL {
-				break
-			}
-			x := v_0.Args[1]
+		for b.Controls[0].Op == OpAMD64TESTL {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpAMD64MOVLconst || v_0_0.AuxInt != 1 || !(!config.nacl) {
+			if v_0_0.Op != OpAMD64SHLL {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			v0 := b.NewValue0(v.Pos, OpAMD64BTL, types.TypeFlags)
+			x := v_0_0.Args[1]
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpAMD64MOVLconst || v_0_0_0.AuxInt != 1 {
+				break
+			}
+			b.Reset(BlockAMD64ULT)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTL, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (NE (TESTL y (SHLL (MOVLconst [1]) x)))
-		// cond: !config.nacl
 		// result: (ULT (BTL x y))
-		for v.Op == OpAMD64TESTL {
-			_ = v.Args[1]
-			y := v.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SHLL {
+		for b.Controls[0].Op == OpAMD64TESTL {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			y := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SHLL {
 				break
 			}
-			x := v_1.Args[1]
-			v_1_0 := v_1.Args[0]
-			if v_1_0.Op != OpAMD64MOVLconst || v_1_0.AuxInt != 1 || !(!config.nacl) {
+			x := v_0_1.Args[1]
+			v_0_1_0 := v_0_1.Args[0]
+			if v_0_1_0.Op != OpAMD64MOVLconst || v_0_1_0.AuxInt != 1 {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			v0 := b.NewValue0(v.Pos, OpAMD64BTL, types.TypeFlags)
+			b.Reset(BlockAMD64ULT)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTL, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (NE (TESTQ (SHLQ (MOVQconst [1]) x) y))
-		// cond: !config.nacl
 		// result: (ULT (BTQ x y))
-		for v.Op == OpAMD64TESTQ {
-			y := v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SHLQ {
-				break
-			}
-			x := v_0.Args[1]
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			y := v_0.Args[1]
 			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != OpAMD64MOVQconst || v_0_0.AuxInt != 1 || !(!config.nacl) {
+			if v_0_0.Op != OpAMD64SHLQ {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQ, types.TypeFlags)
+			x := v_0_0.Args[1]
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpAMD64MOVQconst || v_0_0_0.AuxInt != 1 {
+				break
+			}
+			b.Reset(BlockAMD64ULT)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQ, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (NE (TESTQ y (SHLQ (MOVQconst [1]) x)))
-		// cond: !config.nacl
 		// result: (ULT (BTQ x y))
-		for v.Op == OpAMD64TESTQ {
-			_ = v.Args[1]
-			y := v.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SHLQ {
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			y := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SHLQ {
 				break
 			}
-			x := v_1.Args[1]
-			v_1_0 := v_1.Args[0]
-			if v_1_0.Op != OpAMD64MOVQconst || v_1_0.AuxInt != 1 || !(!config.nacl) {
+			x := v_0_1.Args[1]
+			v_0_1_0 := v_0_1.Args[0]
+			if v_0_1_0.Op != OpAMD64MOVQconst || v_0_1_0.AuxInt != 1 {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQ, types.TypeFlags)
+			b.Reset(BlockAMD64ULT)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQ, types.TypeFlags)
 			v0.AddArg(x)
 			v0.AddArg(y)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (NE (TESTLconst [c] x))
-		// cond: isUint32PowerOfTwo(c) && !config.nacl
+		// cond: isUint32PowerOfTwo(c)
 		// result: (ULT (BTLconst [log2uint32(c)] x))
-		for v.Op == OpAMD64TESTLconst {
-			c := v.AuxInt
-			x := v.Args[0]
-			if !(isUint32PowerOfTwo(c) && !config.nacl) {
+		for b.Controls[0].Op == OpAMD64TESTLconst {
+			v_0 := b.Controls[0]
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			if !(isUint32PowerOfTwo(c)) {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			v0 := b.NewValue0(v.Pos, OpAMD64BTLconst, types.TypeFlags)
+			b.Reset(BlockAMD64ULT)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTLconst, types.TypeFlags)
 			v0.AuxInt = log2uint32(c)
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (NE (TESTQconst [c] x))
-		// cond: isUint64PowerOfTwo(c) && !config.nacl
+		// cond: isUint64PowerOfTwo(c)
 		// result: (ULT (BTQconst [log2(c)] x))
-		for v.Op == OpAMD64TESTQconst {
-			c := v.AuxInt
-			x := v.Args[0]
-			if !(isUint64PowerOfTwo(c) && !config.nacl) {
+		for b.Controls[0].Op == OpAMD64TESTQconst {
+			v_0 := b.Controls[0]
+			c := v_0.AuxInt
+			x := v_0.Args[0]
+			if !(isUint64PowerOfTwo(c)) {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64ULT)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = log2(c)
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (NE (TESTQ (MOVQconst [c]) x))
-		// cond: isUint64PowerOfTwo(c) && !config.nacl
+		// cond: isUint64PowerOfTwo(c)
 		// result: (ULT (BTQconst [log2(c)] x))
-		for v.Op == OpAMD64TESTQ {
-			x := v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64MOVQconst {
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			x := v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64MOVQconst {
 				break
 			}
-			c := v_0.AuxInt
-			if !(isUint64PowerOfTwo(c) && !config.nacl) {
+			c := v_0_0.AuxInt
+			if !(isUint64PowerOfTwo(c)) {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64ULT)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = log2(c)
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (NE (TESTQ x (MOVQconst [c])))
-		// cond: isUint64PowerOfTwo(c) && !config.nacl
+		// cond: isUint64PowerOfTwo(c)
 		// result: (ULT (BTQconst [log2(c)] x))
-		for v.Op == OpAMD64TESTQ {
-			_ = v.Args[1]
-			x := v.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64MOVQconst {
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			x := v_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64MOVQconst {
 				break
 			}
-			c := v_1.AuxInt
-			if !(isUint64PowerOfTwo(c) && !config.nacl) {
+			c := v_0_1.AuxInt
+			if !(isUint64PowerOfTwo(c)) {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64ULT)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = log2(c)
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (NE (TESTQ z1:(SHLQconst [63] (SHRQconst [63] x)) z2))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (ULT (BTQconst [63] x))
-		for v.Op == OpAMD64TESTQ {
-			z2 := v.Args[1]
-			z1 := v.Args[0]
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			z2 := v_0.Args[1]
+			z1 := v_0.Args[0]
 			if z1.Op != OpAMD64SHLQconst || z1.AuxInt != 63 {
 				break
 			}
@@ -59549,24 +59067,24 @@ func rewriteBlockAMD64(b *Block) bool {
 				break
 			}
 			x := z1_0.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64ULT)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = 63
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (NE (TESTQ z2 z1:(SHLQconst [63] (SHRQconst [63] x))))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (ULT (BTQconst [63] x))
-		for v.Op == OpAMD64TESTQ {
-			_ = v.Args[1]
-			z2 := v.Args[0]
-			z1 := v.Args[1]
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			z2 := v_0.Args[0]
+			z1 := v_0.Args[1]
 			if z1.Op != OpAMD64SHLQconst || z1.AuxInt != 63 {
 				break
 			}
@@ -59575,23 +59093,23 @@ func rewriteBlockAMD64(b *Block) bool {
 				break
 			}
 			x := z1_0.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64ULT)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = 63
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (NE (TESTL z1:(SHLLconst [31] (SHRQconst [31] x)) z2))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (ULT (BTQconst [31] x))
-		for v.Op == OpAMD64TESTL {
-			z2 := v.Args[1]
-			z1 := v.Args[0]
+		for b.Controls[0].Op == OpAMD64TESTL {
+			v_0 := b.Controls[0]
+			z2 := v_0.Args[1]
+			z1 := v_0.Args[0]
 			if z1.Op != OpAMD64SHLLconst || z1.AuxInt != 31 {
 				break
 			}
@@ -59600,24 +59118,24 @@ func rewriteBlockAMD64(b *Block) bool {
 				break
 			}
 			x := z1_0.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64ULT)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = 31
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (NE (TESTL z2 z1:(SHLLconst [31] (SHRQconst [31] x))))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (ULT (BTQconst [31] x))
-		for v.Op == OpAMD64TESTL {
-			_ = v.Args[1]
-			z2 := v.Args[0]
-			z1 := v.Args[1]
+		for b.Controls[0].Op == OpAMD64TESTL {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			z2 := v_0.Args[0]
+			z1 := v_0.Args[1]
 			if z1.Op != OpAMD64SHLLconst || z1.AuxInt != 31 {
 				break
 			}
@@ -59626,23 +59144,23 @@ func rewriteBlockAMD64(b *Block) bool {
 				break
 			}
 			x := z1_0.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64ULT)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = 31
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (NE (TESTQ z1:(SHRQconst [63] (SHLQconst [63] x)) z2))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (ULT (BTQconst [0] x))
-		for v.Op == OpAMD64TESTQ {
-			z2 := v.Args[1]
-			z1 := v.Args[0]
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			z2 := v_0.Args[1]
+			z1 := v_0.Args[0]
 			if z1.Op != OpAMD64SHRQconst || z1.AuxInt != 63 {
 				break
 			}
@@ -59651,24 +59169,24 @@ func rewriteBlockAMD64(b *Block) bool {
 				break
 			}
 			x := z1_0.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64ULT)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = 0
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (NE (TESTQ z2 z1:(SHRQconst [63] (SHLQconst [63] x))))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (ULT (BTQconst [0] x))
-		for v.Op == OpAMD64TESTQ {
-			_ = v.Args[1]
-			z2 := v.Args[0]
-			z1 := v.Args[1]
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			z2 := v_0.Args[0]
+			z1 := v_0.Args[1]
 			if z1.Op != OpAMD64SHRQconst || z1.AuxInt != 63 {
 				break
 			}
@@ -59677,23 +59195,23 @@ func rewriteBlockAMD64(b *Block) bool {
 				break
 			}
 			x := z1_0.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64ULT)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = 0
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (NE (TESTL z1:(SHRLconst [31] (SHLLconst [31] x)) z2))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (ULT (BTLconst [0] x))
-		for v.Op == OpAMD64TESTL {
-			z2 := v.Args[1]
-			z1 := v.Args[0]
+		for b.Controls[0].Op == OpAMD64TESTL {
+			v_0 := b.Controls[0]
+			z2 := v_0.Args[1]
+			z1 := v_0.Args[0]
 			if z1.Op != OpAMD64SHRLconst || z1.AuxInt != 31 {
 				break
 			}
@@ -59702,24 +59220,24 @@ func rewriteBlockAMD64(b *Block) bool {
 				break
 			}
 			x := z1_0.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			v0 := b.NewValue0(v.Pos, OpAMD64BTLconst, types.TypeFlags)
+			b.Reset(BlockAMD64ULT)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTLconst, types.TypeFlags)
 			v0.AuxInt = 0
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (NE (TESTL z2 z1:(SHRLconst [31] (SHLLconst [31] x))))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (ULT (BTLconst [0] x))
-		for v.Op == OpAMD64TESTL {
-			_ = v.Args[1]
-			z2 := v.Args[0]
-			z1 := v.Args[1]
+		for b.Controls[0].Op == OpAMD64TESTL {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			z2 := v_0.Args[0]
+			z1 := v_0.Args[1]
 			if z1.Op != OpAMD64SHRLconst || z1.AuxInt != 31 {
 				break
 			}
@@ -59728,504 +59246,453 @@ func rewriteBlockAMD64(b *Block) bool {
 				break
 			}
 			x := z1_0.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			v0 := b.NewValue0(v.Pos, OpAMD64BTLconst, types.TypeFlags)
+			b.Reset(BlockAMD64ULT)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTLconst, types.TypeFlags)
 			v0.AuxInt = 0
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (NE (TESTQ z1:(SHRQconst [63] x) z2))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (ULT (BTQconst [63] x))
-		for v.Op == OpAMD64TESTQ {
-			z2 := v.Args[1]
-			z1 := v.Args[0]
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			z2 := v_0.Args[1]
+			z1 := v_0.Args[0]
 			if z1.Op != OpAMD64SHRQconst || z1.AuxInt != 63 {
 				break
 			}
 			x := z1.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64ULT)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = 63
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (NE (TESTQ z2 z1:(SHRQconst [63] x)))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (ULT (BTQconst [63] x))
-		for v.Op == OpAMD64TESTQ {
-			_ = v.Args[1]
-			z2 := v.Args[0]
-			z1 := v.Args[1]
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			z2 := v_0.Args[0]
+			z1 := v_0.Args[1]
 			if z1.Op != OpAMD64SHRQconst || z1.AuxInt != 63 {
 				break
 			}
 			x := z1.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			v0 := b.NewValue0(v.Pos, OpAMD64BTQconst, types.TypeFlags)
+			b.Reset(BlockAMD64ULT)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTQconst, types.TypeFlags)
 			v0.AuxInt = 63
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (NE (TESTL z1:(SHRLconst [31] x) z2))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (ULT (BTLconst [31] x))
-		for v.Op == OpAMD64TESTL {
-			z2 := v.Args[1]
-			z1 := v.Args[0]
+		for b.Controls[0].Op == OpAMD64TESTL {
+			v_0 := b.Controls[0]
+			z2 := v_0.Args[1]
+			z1 := v_0.Args[0]
 			if z1.Op != OpAMD64SHRLconst || z1.AuxInt != 31 {
 				break
 			}
 			x := z1.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			v0 := b.NewValue0(v.Pos, OpAMD64BTLconst, types.TypeFlags)
+			b.Reset(BlockAMD64ULT)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTLconst, types.TypeFlags)
 			v0.AuxInt = 31
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (NE (TESTL z2 z1:(SHRLconst [31] x)))
-		// cond: z1==z2 && !config.nacl
+		// cond: z1==z2
 		// result: (ULT (BTLconst [31] x))
-		for v.Op == OpAMD64TESTL {
-			_ = v.Args[1]
-			z2 := v.Args[0]
-			z1 := v.Args[1]
+		for b.Controls[0].Op == OpAMD64TESTL {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			z2 := v_0.Args[0]
+			z1 := v_0.Args[1]
 			if z1.Op != OpAMD64SHRLconst || z1.AuxInt != 31 {
 				break
 			}
 			x := z1.Args[0]
-			if !(z1 == z2 && !config.nacl) {
+			if !(z1 == z2) {
 				break
 			}
-			b.Kind = BlockAMD64ULT
-			v0 := b.NewValue0(v.Pos, OpAMD64BTLconst, types.TypeFlags)
+			b.Reset(BlockAMD64ULT)
+			v0 := b.NewValue0(v_0.Pos, OpAMD64BTLconst, types.TypeFlags)
 			v0.AuxInt = 31
 			v0.AddArg(x)
-			b.SetControl(v0)
-			b.Aux = nil
+			b.AddControl(v0)
 			return true
 		}
 		// match: (NE (TESTB (SETGF cmp) (SETGF cmp)) yes no)
 		// result: (UGT cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETGF {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETGF {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETGF || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETGF || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64UGT
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64UGT)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETGF cmp) (SETGF cmp)) yes no)
 		// result: (UGT cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETGF {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETGF {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETGF || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETGF || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64UGT
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64UGT)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETGEF cmp) (SETGEF cmp)) yes no)
 		// result: (UGE cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETGEF {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETGEF {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETGEF || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETGEF || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64UGE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETGEF cmp) (SETGEF cmp)) yes no)
 		// result: (UGE cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETGEF {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETGEF {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETGEF || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETGEF || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64UGE
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64UGE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETEQF cmp) (SETEQF cmp)) yes no)
 		// result: (EQF cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETEQF {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETEQF {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETEQF || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETEQF || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64EQF
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64EQF)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETEQF cmp) (SETEQF cmp)) yes no)
 		// result: (EQF cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETEQF {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETEQF {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETEQF || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETEQF || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64EQF
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64EQF)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETNEF cmp) (SETNEF cmp)) yes no)
 		// result: (NEF cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETNEF {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETNEF {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETNEF || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETNEF || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64NEF
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64NEF)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (TESTB (SETNEF cmp) (SETNEF cmp)) yes no)
 		// result: (NEF cmp yes no)
-		for v.Op == OpAMD64TESTB {
-			_ = v.Args[1]
-			v_0 := v.Args[0]
-			if v_0.Op != OpAMD64SETNEF {
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			_ = v_0.Args[1]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpAMD64SETNEF {
 				break
 			}
-			cmp := v_0.Args[0]
-			v_1 := v.Args[1]
-			if v_1.Op != OpAMD64SETNEF || cmp != v_1.Args[0] {
+			cmp := v_0_0.Args[0]
+			v_0_1 := v_0.Args[1]
+			if v_0_1.Op != OpAMD64SETNEF || cmp != v_0_1.Args[0] {
 				break
 			}
-			b.Kind = BlockAMD64NEF
-			b.SetControl(cmp)
-			b.Aux = nil
+			b.Reset(BlockAMD64NEF)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (InvertFlags cmp) yes no)
 		// result: (NE cmp yes no)
-		for v.Op == OpAMD64InvertFlags {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64NE
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64InvertFlags {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64NE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (NE (FlagEQ) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagEQ {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagEQ {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (NE (FlagLT_ULT) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagLT_ULT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagLT_ULT {
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (NE (FlagLT_UGT) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagLT_UGT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagLT_UGT {
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (NE (FlagGT_ULT) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagGT_ULT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagGT_ULT {
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (NE (FlagGT_UGT) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagGT_UGT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagGT_UGT {
+			b.Reset(BlockFirst)
 			return true
 		}
 	case BlockAMD64UGE:
 		// match: (UGE (InvertFlags cmp) yes no)
 		// result: (ULE cmp yes no)
-		for v.Op == OpAMD64InvertFlags {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64ULE
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64InvertFlags {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64ULE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (UGE (FlagEQ) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagEQ {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagEQ {
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (UGE (FlagLT_ULT) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagLT_ULT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagLT_ULT {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (UGE (FlagLT_UGT) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagLT_UGT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagLT_UGT {
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (UGE (FlagGT_ULT) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagGT_ULT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagGT_ULT {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (UGE (FlagGT_UGT) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagGT_UGT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagGT_UGT {
+			b.Reset(BlockFirst)
 			return true
 		}
 	case BlockAMD64UGT:
 		// match: (UGT (InvertFlags cmp) yes no)
 		// result: (ULT cmp yes no)
-		for v.Op == OpAMD64InvertFlags {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64ULT
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64InvertFlags {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64ULT)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (UGT (FlagEQ) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagEQ {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagEQ {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (UGT (FlagLT_ULT) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagLT_ULT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagLT_ULT {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (UGT (FlagLT_UGT) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagLT_UGT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagLT_UGT {
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (UGT (FlagGT_ULT) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagGT_ULT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagGT_ULT {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (UGT (FlagGT_UGT) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagGT_UGT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagGT_UGT {
+			b.Reset(BlockFirst)
 			return true
 		}
 	case BlockAMD64ULE:
 		// match: (ULE (InvertFlags cmp) yes no)
 		// result: (UGE cmp yes no)
-		for v.Op == OpAMD64InvertFlags {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64UGE
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64InvertFlags {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64UGE)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (ULE (FlagEQ) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagEQ {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagEQ {
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (ULE (FlagLT_ULT) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagLT_ULT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagLT_ULT {
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (ULE (FlagLT_UGT) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagLT_UGT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagLT_UGT {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (ULE (FlagGT_ULT) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagGT_ULT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagGT_ULT {
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (ULE (FlagGT_UGT) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagGT_UGT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagGT_UGT {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 	case BlockAMD64ULT:
 		// match: (ULT (InvertFlags cmp) yes no)
 		// result: (UGT cmp yes no)
-		for v.Op == OpAMD64InvertFlags {
-			cmp := v.Args[0]
-			b.Kind = BlockAMD64UGT
-			b.SetControl(cmp)
-			b.Aux = nil
+		for b.Controls[0].Op == OpAMD64InvertFlags {
+			v_0 := b.Controls[0]
+			cmp := v_0.Args[0]
+			b.Reset(BlockAMD64UGT)
+			b.AddControl(cmp)
 			return true
 		}
 		// match: (ULT (FlagEQ) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagEQ {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagEQ {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (ULT (FlagLT_ULT) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagLT_ULT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagLT_ULT {
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (ULT (FlagLT_UGT) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagLT_UGT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagLT_UGT {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}
 		// match: (ULT (FlagGT_ULT) yes no)
-		// result: (First nil yes no)
-		for v.Op == OpAMD64FlagGT_ULT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64FlagGT_ULT {
+			b.Reset(BlockFirst)
 			return true
 		}
 		// match: (ULT (FlagGT_UGT) yes no)
-		// result: (First nil no yes)
-		for v.Op == OpAMD64FlagGT_UGT {
-			b.Kind = BlockFirst
-			b.SetControl(nil)
-			b.Aux = nil
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64FlagGT_UGT {
+			b.Reset(BlockFirst)
 			b.swapSuccessors()
 			return true
 		}

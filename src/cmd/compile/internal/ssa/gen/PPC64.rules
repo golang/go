@@ -68,6 +68,7 @@
 (Round x) -> (FROUND x)
 (Copysign x y) -> (FCPSGN y x)
 (Abs x) -> (FABS x)
+(FMA x y z) -> (FMADD x y z)
 
 // Lowering constants
 (Const(64|32|16|8)  [val]) -> (MOVDconst [val])
@@ -447,29 +448,29 @@
 (NE (CMPWconst [0] (ANDconst [c] x)) yes no) -> (NE (ANDCCconst [c] x) yes no)
 
 // absorb flag constants into branches
-(EQ (FlagEQ) yes no) -> (First nil yes no)
-(EQ (FlagLT) yes no) -> (First nil no yes)
-(EQ (FlagGT) yes no) -> (First nil no yes)
+(EQ (FlagEQ) yes no) -> (First yes no)
+(EQ (FlagLT) yes no) -> (First no yes)
+(EQ (FlagGT) yes no) -> (First no yes)
 
-(NE (FlagEQ) yes no) -> (First nil no yes)
-(NE (FlagLT) yes no) -> (First nil yes no)
-(NE (FlagGT) yes no) -> (First nil yes no)
+(NE (FlagEQ) yes no) -> (First no yes)
+(NE (FlagLT) yes no) -> (First yes no)
+(NE (FlagGT) yes no) -> (First yes no)
 
-(LT (FlagEQ) yes no) -> (First nil no yes)
-(LT (FlagLT) yes no) -> (First nil yes no)
-(LT (FlagGT) yes no) -> (First nil no yes)
+(LT (FlagEQ) yes no) -> (First no yes)
+(LT (FlagLT) yes no) -> (First yes no)
+(LT (FlagGT) yes no) -> (First no yes)
 
-(LE (FlagEQ) yes no) -> (First nil yes no)
-(LE (FlagLT) yes no) -> (First nil yes no)
-(LE (FlagGT) yes no) -> (First nil no yes)
+(LE (FlagEQ) yes no) -> (First yes no)
+(LE (FlagLT) yes no) -> (First yes no)
+(LE (FlagGT) yes no) -> (First no yes)
 
-(GT (FlagEQ) yes no) -> (First nil no yes)
-(GT (FlagLT) yes no) -> (First nil no yes)
-(GT (FlagGT) yes no) -> (First nil yes no)
+(GT (FlagEQ) yes no) -> (First no yes)
+(GT (FlagLT) yes no) -> (First no yes)
+(GT (FlagGT) yes no) -> (First yes no)
 
-(GE (FlagEQ) yes no) -> (First nil yes no)
-(GE (FlagLT) yes no) -> (First nil no yes)
-(GE (FlagGT) yes no) -> (First nil yes no)
+(GE (FlagEQ) yes no) -> (First yes no)
+(GE (FlagLT) yes no) -> (First no yes)
+(GE (FlagGT) yes no) -> (First yes no)
 
 // absorb InvertFlags into branches
 (LT (InvertFlags cmp) yes no) -> (GT cmp yes no)
@@ -930,7 +931,7 @@
 (AtomicLoad(8|32|64|Ptr)  ptr mem) -> (LoweredAtomicLoad(8|32|64|Ptr) [1] ptr mem)
 (AtomicLoadAcq32        ptr mem) -> (LoweredAtomicLoad32 [0] ptr mem)
 
-(AtomicStore(32|64)      ptr val mem) -> (LoweredAtomicStore(32|64) [1] ptr val mem)
+(AtomicStore(8|32|64)    ptr val mem) -> (LoweredAtomicStore(8|32|64) [1] ptr val mem)
 (AtomicStoreRel32        ptr val mem) -> (LoweredAtomicStore32 [0] ptr val mem)
 //(AtomicStorePtrNoWB ptr val mem) -> (STLR  ptr val mem)
 
@@ -1348,7 +1349,7 @@
 
 // The 2 byte store appears after the 4 byte store so that the
 // match for the 2 byte store is not done first.
-// If the 4 byte store is based on the 2 byte store then there are 
+// If the 4 byte store is based on the 2 byte store then there are
 // variations on the MOVDaddr subrule that would require additional
 // rules to be written.
 

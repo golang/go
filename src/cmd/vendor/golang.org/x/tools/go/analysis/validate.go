@@ -9,13 +9,10 @@ import (
 // Validate reports an error if any of the analyzers are misconfigured.
 // Checks include:
 // that the name is a valid identifier;
-// that analyzer names are unique;
-// that the Requires graph is acylic;
+// that the Requires graph is acyclic;
 // that analyzer fact types are unique;
 // that each fact type is a pointer.
 func Validate(analyzers []*Analyzer) error {
-	names := make(map[string]bool)
-
 	// Map each fact type to its sole generating analyzer.
 	factTypes := make(map[reflect.Type]*Analyzer)
 
@@ -39,10 +36,6 @@ func Validate(analyzers []*Analyzer) error {
 			if !validIdent(a.Name) {
 				return fmt.Errorf("invalid analyzer name %q", a)
 			}
-			if names[a.Name] {
-				return fmt.Errorf("duplicate analyzer name %q", a)
-			}
-			names[a.Name] = true
 
 			if a.Doc == "" {
 				return fmt.Errorf("analyzer %q is undocumented", a)

@@ -60,7 +60,7 @@ func libcCall(fn, arg unsafe.Pointer) int32 {
 //go:nosplit
 //go:cgo_unsafe_args
 func syscall_syscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
-	entersyscallblock()
+	entersyscall()
 	libcCall(unsafe.Pointer(funcPC(syscall)), unsafe.Pointer(&fn))
 	exitsyscall()
 	return
@@ -71,7 +71,7 @@ func syscall()
 //go:nosplit
 //go:cgo_unsafe_args
 func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
-	entersyscallblock()
+	entersyscall()
 	libcCall(unsafe.Pointer(funcPC(syscall6)), unsafe.Pointer(&fn))
 	exitsyscall()
 	return
@@ -82,7 +82,7 @@ func syscall6()
 //go:nosplit
 //go:cgo_unsafe_args
 func syscall_syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
-	entersyscallblock()
+	entersyscall()
 	libcCall(unsafe.Pointer(funcPC(syscall6X)), unsafe.Pointer(&fn))
 	exitsyscall()
 	return
@@ -93,7 +93,7 @@ func syscall6X()
 //go:nosplit
 //go:cgo_unsafe_args
 func syscall_syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
-	entersyscallblock()
+	entersyscall()
 	libcCall(unsafe.Pointer(funcPC(syscallPtr)), unsafe.Pointer(&fn))
 	exitsyscall()
 	return
@@ -161,6 +161,14 @@ func pthread_self() (t pthread) {
 	return
 }
 func pthread_self_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func pthread_kill(t pthread, sig uint32) {
+	libcCall(unsafe.Pointer(funcPC(pthread_kill_trampoline)), unsafe.Pointer(&t))
+	return
+}
+func pthread_kill_trampoline()
 
 func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
 	args := struct {
@@ -415,6 +423,8 @@ func setNonblock(fd int32) {
 //go:cgo_import_dynamic libc_pthread_attr_getstacksize pthread_attr_getstacksize "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_create pthread_create "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_self pthread_self "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_kill pthread_kill "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_exit exit "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_raise raise "/usr/lib/libSystem.B.dylib"
 

@@ -103,7 +103,7 @@ func testMain(m *testing.M) int {
 		// TODO(crawshaw): can we do better?
 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
 	case "android":
-		cc = append(cc, "-pie", "-fuse-ld=gold")
+		cc = append(cc, "-pie")
 	}
 	libgodir := GOOS + "_" + GOARCH
 	switch GOOS {

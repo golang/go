@@ -112,27 +112,6 @@ func bmap(t *types.Type) *types.Type {
 	elems := makefield("elems", arr)
 	field = append(field, elems)
 
-	// Make sure the overflow pointer is the last memory in the struct,
-	// because the runtime assumes it can use size-ptrSize as the
-	// offset of the overflow pointer. We double-check that property
-	// below once the offsets and size are computed.
-	//
-	// BUCKETSIZE is 8, so the struct is aligned to 64 bits to this point.
-	// On 32-bit systems, the max alignment is 32-bit, and the
-	// overflow pointer will add another 32-bit field, and the struct
-	// will end with no padding.
-	// On 64-bit systems, the max alignment is 64-bit, and the
-	// overflow pointer will add another 64-bit field, and the struct
-	// will end with no padding.
-	// On nacl/amd64p32, however, the max alignment is 64-bit,
-	// but the overflow pointer will add only a 32-bit field,
-	// so if the struct needs 64-bit padding (because a key or elem does)
-	// then it would end with an extra 32-bit padding field.
-	// Preempt that by emitting the padding here.
-	if int(elemtype.Align) > Widthptr || int(keytype.Align) > Widthptr {
-		field = append(field, makefield("pad", types.Types[TUINTPTR]))
-	}
-
 	// If keys and elems have no pointers, the map implementation
 	// can keep a list of overflow pointers on the side so that
 	// buckets can be marked as having no pointers.
@@ -196,7 +175,7 @@ func bmap(t *types.Type) *types.Type {
 	}
 
 	// Double-check that overflow field is final memory in struct,
-	// with no padding at end. See comment above.
+	// with no padding at end.
 	if overflow.Offset != bucket.Width-int64(Widthptr) {
 		Fatalf("bad offset of overflow in bmap for %v", t)
 	}
@@ -338,6 +317,7 @@ func deferstruct(stksize int64) *types.Type {
 		makefield("siz", types.Types[TUINT32]),
 		makefield("started", types.Types[TBOOL]),
 		makefield("heap", types.Types[TBOOL]),
+		makefield("openDefer", types.Types[TBOOL]),
 		makefield("sp", types.Types[TUINTPTR]),
 		makefield("pc", types.Types[TUINTPTR]),
 		// Note: the types here don't really matter. Defer structures
@@ -346,6 +326,9 @@ func deferstruct(stksize int64) *types.Type {
 		makefield("fn", types.Types[TUINTPTR]),
 		makefield("_panic", types.Types[TUINTPTR]),
 		makefield("link", types.Types[TUINTPTR]),
+		makefield("framepc", types.Types[TUINTPTR]),
+		makefield("varp", types.Types[TUINTPTR]),
+		makefield("fd", types.Types[TUINTPTR]),
 		makefield("args", argtype),
 	}
 
@@ -1024,7 +1007,6 @@ func typename(t *types.Type) *Node {
 
 	n := nod(OADDR, asNode(s.Def), nil)
 	n.Type = types.NewPtr(asNode(s.Def).Type)
-	n.SetAddable(true)
 	n.SetTypecheck(1)
 	return n
 }
@@ -1045,7 +1027,6 @@ func itabname(t, itype *types.Type) *Node {
 
 	n := nod(OADDR, asNode(s.Def), nil)
 	n.Type = types.NewPtr(asNode(s.Def).Type)
-	n.SetAddable(true)
 	n.SetTypecheck(1)
 	return n
 }
@@ -1886,7 +1867,6 @@ func zeroaddr(size int64) *Node {
 	}
 	z := nod(OADDR, asNode(s.Def), nil)
 	z.Type = types.NewPtr(types.Types[TUINT8])
-	z.SetAddable(true)
 	z.SetTypecheck(1)
 	return z
 }

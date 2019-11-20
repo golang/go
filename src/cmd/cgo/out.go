@@ -1313,8 +1313,10 @@ func gccgoPkgpathToSymbolNew(ppath string) string {
 	for _, c := range []byte(ppath) {
 		switch {
 		case 'A' <= c && c <= 'Z', 'a' <= c && c <= 'z',
-			'0' <= c && c <= '9', c == '_', c == '.':
+			'0' <= c && c <= '9', c == '_':
 			bsl = append(bsl, c)
+		case c == '.':
+			bsl = append(bsl, ".x2e"...)
 		default:
 			changed = true
 			encbytes := []byte(fmt.Sprintf("..z%02x", c))
@@ -1631,14 +1633,14 @@ func _cgo_runtime_cgocall(unsafe.Pointer, uintptr) int32
 func _cgo_runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr, uintptr)
 
 //go:linkname _cgoCheckPointer runtime.cgoCheckPointer
-func _cgoCheckPointer(interface{}, ...interface{})
+func _cgoCheckPointer(interface{}, interface{})
 
 //go:linkname _cgoCheckResult runtime.cgoCheckResult
 func _cgoCheckResult(interface{})
 `
 
 const gccgoGoProlog = `
-func _cgoCheckPointer(interface{}, ...interface{})
+func _cgoCheckPointer(interface{}, interface{})
 
 func _cgoCheckResult(interface{})
 `
@@ -1825,16 +1827,16 @@ typedef struct __go_empty_interface {
 	void *__object;
 } Eface;
 
-extern void runtimeCgoCheckPointer(Eface, Slice)
+extern void runtimeCgoCheckPointer(Eface, Eface)
 	__asm__("runtime.cgoCheckPointer")
 	__attribute__((weak));
 
-extern void localCgoCheckPointer(Eface, Slice)
+extern void localCgoCheckPointer(Eface, Eface)
 	__asm__("GCCGOSYMBOLPREF._cgoCheckPointer");
 
-void localCgoCheckPointer(Eface ptr, Slice args) {
+void localCgoCheckPointer(Eface ptr, Eface arg) {
 	if(runtimeCgoCheckPointer) {
-		runtimeCgoCheckPointer(ptr, args);
+		runtimeCgoCheckPointer(ptr, arg);
 	}
 }
 

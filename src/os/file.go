@@ -475,8 +475,6 @@ func UserHomeDir() (string, error) {
 	}
 	// On some geese the home directory is not always defined.
 	switch runtime.GOOS {
-	case "nacl":
-		return "/", nil
 	case "android":
 		return "/sdcard", nil
 	case "darwin":

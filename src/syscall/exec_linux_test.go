@@ -34,6 +34,14 @@ func isLXC() bool {
 }
 
 func skipInContainer(t *testing.T) {
+	// TODO: the callers of this func are using this func to skip
+	// tests when running as some sort of "fake root" that's uid 0
+	// but lacks certain Linux capabilities. Most of the Go builds
+	// run in privileged containers, though, where root is much
+	// closer (if not identical) to the real root. We should test
+	// for what we need exactly (which capabilities are active?),
+	// instead of just assuming "docker == bad". Then we'd get more test
+	// coverage on a bunch of builders too.
 	if isDocker() {
 		t.Skip("skip this test in Docker container")
 	}
@@ -309,6 +317,7 @@ func TestGroupCleanupUserNamespace(t *testing.T) {
 		"uid=0(root) gid=0(root) groups=0(root),65534(nogroup)",
 		"uid=0(root) gid=0(root) groups=0(root),65534",
 		"uid=0(root) gid=0(root) groups=0(root),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody)", // Alpine; see https://golang.org/issue/19938
+		"uid=0(root) gid=0(root) groups=0(root) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023",                                                                               // CentOS with SELinux context, see https://golang.org/issue/34547
 	}
 	for _, e := range expected {
 		if strOut == e {
@@ -338,14 +347,6 @@ func TestUnshareMountNameSpace(t *testing.T) {
 	// and create a network namespace.
 	if os.Getuid() != 0 {
 		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
-	}
-
-	// When running under the Go continuous build, skip tests for
-	// now when under Kubernetes. (where things are root but not quite)
-	// Both of these are our own environment variables.
-	// See Issue 12815.
-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
 	}
 
 	d, err := ioutil.TempDir("", "unshare")
@@ -388,14 +389,6 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
 	// and create a network namespace.
 	if os.Getuid() != 0 {
 		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
-	}
-
-	// When running under the Go continuous build, skip tests for
-	// now when under Kubernetes. (where things are root but not quite)
-	// Both of these are our own environment variables.
-	// See Issue 12815.
-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
 	}
 
 	d, err := ioutil.TempDir("", "unshare")
@@ -584,14 +577,6 @@ func TestAmbientCapsUserns(t *testing.T) {
 func testAmbientCaps(t *testing.T, userns bool) {
 	skipInContainer(t)
 	mustSupportAmbientCaps(t)
-
-	// When running under the Go continuous build, skip tests for
-	// now when under Kubernetes. (where things are root but not quite)
-	// Both of these are our own environment variables.
-	// See Issue 12815.
-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
-	}
 
 	skipUnprivilegedUserClone(t)
 

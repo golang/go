@@ -659,14 +659,6 @@ func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
 }
 
 func asmb(ctxt *ld.Link) {
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f asmb\n", ld.Cputime())
-	}
-
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f codeblk\n", ld.Cputime())
-	}
-
 	if ctxt.IsELF {
 		ld.Asmbelfsetup()
 	}
@@ -681,22 +673,12 @@ func asmb(ctxt *ld.Link) {
 	}
 
 	if ld.Segrodata.Filelen > 0 {
-		if ctxt.Debugvlog != 0 {
-			ctxt.Logf("%5.2f rodatblk\n", ld.Cputime())
-		}
 		ctxt.Out.SeekSet(int64(ld.Segrodata.Fileoff))
 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
 	}
 	if ld.Segrelrodata.Filelen > 0 {
-		if ctxt.Debugvlog != 0 {
-			ctxt.Logf("%5.2f relrodatblk\n", ld.Cputime())
-		}
 		ctxt.Out.SeekSet(int64(ld.Segrelrodata.Fileoff))
 		ld.Datblk(ctxt, int64(ld.Segrelrodata.Vaddr), int64(ld.Segrelrodata.Filelen))
-	}
-
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f datblk\n", ld.Cputime())
 	}
 
 	ctxt.Out.SeekSet(int64(ld.Segdata.Fileoff))
@@ -731,8 +713,7 @@ func asmb2(ctxt *ld.Link) {
 		objabi.Hsolaris:
 		ld.Flag8 = true /* 64-bit addresses */
 
-	case objabi.Hnacl,
-		objabi.Hwindows:
+	case objabi.Hwindows:
 		break
 	}
 
@@ -741,9 +722,6 @@ func asmb2(ctxt *ld.Link) {
 	ld.Lcsize = 0
 	symo := int64(0)
 	if !*ld.FlagS {
-		if ctxt.Debugvlog != 0 {
-			ctxt.Logf("%5.2f sym\n", ld.Cputime())
-		}
 		switch ctxt.HeadType {
 		default:
 		case objabi.Hplan9:
@@ -758,8 +736,7 @@ func asmb2(ctxt *ld.Link) {
 			objabi.Hnetbsd,
 			objabi.Hopenbsd,
 			objabi.Hdragonfly,
-			objabi.Hsolaris,
-			objabi.Hnacl:
+			objabi.Hsolaris:
 			symo = int64(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
 			symo = ld.Rnd(symo, int64(*ld.FlagRound))
 
@@ -776,10 +753,6 @@ func asmb2(ctxt *ld.Link) {
 				ld.Asmelfsym(ctxt)
 				ctxt.Out.Flush()
 				ctxt.Out.Write(ld.Elfstrdat)
-
-				if ctxt.Debugvlog != 0 {
-					ctxt.Logf("%5.2f dwarf\n", ld.Cputime())
-				}
 
 				if ctxt.LinkMode == ld.LinkExternal {
 					ld.Elfemitreloc(ctxt)
@@ -798,9 +771,7 @@ func asmb2(ctxt *ld.Link) {
 			}
 
 		case objabi.Hwindows:
-			if ctxt.Debugvlog != 0 {
-				ctxt.Logf("%5.2f dwarf\n", ld.Cputime())
-			}
+			// Do nothing
 
 		case objabi.Hdarwin:
 			if ctxt.LinkMode == ld.LinkExternal {
@@ -809,9 +780,6 @@ func asmb2(ctxt *ld.Link) {
 		}
 	}
 
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f headr\n", ld.Cputime())
-	}
 	ctxt.Out.SeekSet(0)
 	switch ctxt.HeadType {
 	default:
@@ -838,8 +806,7 @@ func asmb2(ctxt *ld.Link) {
 		objabi.Hnetbsd,
 		objabi.Hopenbsd,
 		objabi.Hdragonfly,
-		objabi.Hsolaris,
-		objabi.Hnacl:
+		objabi.Hsolaris:
 		ld.Asmbelf(ctxt, symo)
 
 	case objabi.Hwindows:

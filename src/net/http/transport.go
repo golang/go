@@ -89,7 +89,7 @@ const DefaultMaxIdleConnsPerHost = 2
 // Request.GetBody defined. HTTP requests are considered idempotent if
 // they have HTTP methods GET, HEAD, OPTIONS, or TRACE; or if their
 // Header map contains an "Idempotency-Key" or "X-Idempotency-Key"
-// entry. If the idempotency key value is an zero-length slice, the
+// entry. If the idempotency key value is a zero-length slice, the
 // request is treated as idempotent but the header is not sent on the
 // wire.
 type Transport struct {
@@ -142,15 +142,24 @@ type Transport struct {
 	// If both are set, DialContext takes priority.
 	Dial func(network, addr string) (net.Conn, error)
 
-	// DialTLS specifies an optional dial function for creating
+	// DialTLSContext specifies an optional dial function for creating
 	// TLS connections for non-proxied HTTPS requests.
 	//
-	// If DialTLS is nil, Dial and TLSClientConfig are used.
+	// If DialTLSContext is nil (and the deprecated DialTLS below is also nil),
+	// DialContext and TLSClientConfig are used.
 	//
-	// If DialTLS is set, the Dial hook is not used for HTTPS
+	// If DialTLSContext is set, the Dial and DialContext hooks are not used for HTTPS
 	// requests and the TLSClientConfig and TLSHandshakeTimeout
 	// are ignored. The returned net.Conn is assumed to already be
 	// past the TLS handshake.
+	DialTLSContext func(ctx context.Context, network, addr string) (net.Conn, error)
+
+	// DialTLS specifies an optional dial function for creating
+	// TLS connections for non-proxied HTTPS requests.
+	//
+	// Deprecated: Use DialTLSContext instead, which allows the transport
+	// to cancel dials as soon as they are no longer needed.
+	// If both are set, DialTLSContext takes priority.
 	DialTLS func(network, addr string) (net.Conn, error)
 
 	// TLSClientConfig specifies the TLS configuration to use with
@@ -218,7 +227,7 @@ type Transport struct {
 	ExpectContinueTimeout time.Duration
 
 	// TLSNextProto specifies how the Transport switches to an
-	// alternate protocol (such as HTTP/2) after a TLS NPN/ALPN
+	// alternate protocol (such as HTTP/2) after a TLS ALPN
 	// protocol negotiation. If Transport dials an TLS connection
 	// with a non-empty protocol name and TLSNextProto contains a
 	// map entry for that key (such as "h2"), then the func is
@@ -286,7 +295,7 @@ func (t *Transport) Clone() *Transport {
 		DialContext:            t.DialContext,
 		Dial:                   t.Dial,
 		DialTLS:                t.DialTLS,
-		TLSClientConfig:        t.TLSClientConfig.Clone(),
+		DialTLSContext:         t.DialTLSContext,
 		TLSHandshakeTimeout:    t.TLSHandshakeTimeout,
 		DisableKeepAlives:      t.DisableKeepAlives,
 		DisableCompression:     t.DisableCompression,
@@ -301,6 +310,9 @@ func (t *Transport) Clone() *Transport {
 		ForceAttemptHTTP2:      t.ForceAttemptHTTP2,
 		WriteBufferSize:        t.WriteBufferSize,
 		ReadBufferSize:         t.ReadBufferSize,
+	}
+	if t.TLSClientConfig != nil {
+		t2.TLSClientConfig = t.TLSClientConfig.Clone()
 	}
 	if !t.tlsNextProtoWasNil {
 		npm := map[string]func(authority string, c *tls.Conn) RoundTripper{}
@@ -320,6 +332,10 @@ func (t *Transport) Clone() *Transport {
 // namespace used by x/tools/cmd/bundle for h2_bundle.go.
 type h2Transport interface {
 	CloseIdleConnections()
+}
+
+func (t *Transport) hasCustomTLSDialer() bool {
+	return t.DialTLS != nil || t.DialTLSContext != nil
 }
 
 // onceSetNextProtoDefaults initializes TLSNextProto.
@@ -350,13 +366,16 @@ func (t *Transport) onceSetNextProtoDefaults() {
 		// Transport.
 		return
 	}
-	if !t.ForceAttemptHTTP2 && (t.TLSClientConfig != nil || t.Dial != nil || t.DialTLS != nil || t.DialContext != nil) {
+	if !t.ForceAttemptHTTP2 && (t.TLSClientConfig != nil || t.Dial != nil || t.DialContext != nil || t.hasCustomTLSDialer()) {
 		// Be conservative and don't automatically enable
 		// http2 if they've specified a custom TLS config or
 		// custom dialers. Let them opt-in themselves via
 		// http2.ConfigureTransport so we don't surprise them
 		// by modifying their tls.Config. Issue 14275.
 		// However, if ForceAttemptHTTP2 is true, it overrides the above checks.
+		return
+	}
+	if omitBundledHTTP2 {
 		return
 	}
 	t2, err := http2configureTransport(t)
@@ -469,10 +488,12 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 	if isHTTP {
 		for k, vv := range req.Header {
 			if !httpguts.ValidHeaderFieldName(k) {
+				req.closeBody()
 				return nil, fmt.Errorf("net/http: invalid header field name %q", k)
 			}
 			for _, v := range vv {
 				if !httpguts.ValidHeaderFieldValue(v) {
+					req.closeBody()
 					return nil, fmt.Errorf("net/http: invalid header field value %q for key %v", v, k)
 				}
 			}
@@ -492,6 +513,7 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		return nil, &badStringError{"unsupported protocol scheme", scheme}
 	}
 	if req.Method != "" && !validMethod(req.Method) {
+		req.closeBody()
 		return nil, fmt.Errorf("net/http: invalid method %q", req.Method)
 	}
 	if req.URL.Host == "" {
@@ -537,9 +559,16 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		if err == nil {
 			return resp, nil
 		}
-		if http2isNoCachedConnError(err) {
-			t.removeIdleConn(pconn)
-		} else if !pconn.shouldRetryRequest(req, err) {
+
+		// Failed. Clean up and determine whether to retry.
+
+		_, isH2DialError := pconn.alt.(http2erringRoundTripper)
+		if http2isNoCachedConnError(err) || isH2DialError {
+			if t.removeIdleConn(pconn) {
+				t.decConnsPerHost(pconn.cacheKey)
+			}
+		}
+		if !pconn.shouldRetryRequest(req, err) {
 			// Issue 16465: return underlying net.Conn.Read error from peek,
 			// as we've historically done.
 			if e, ok := err.(transportReadFromServerError); ok {
@@ -949,26 +978,28 @@ func (t *Transport) queueForIdleConn(w *wantConn) (delivered bool) {
 }
 
 // removeIdleConn marks pconn as dead.
-func (t *Transport) removeIdleConn(pconn *persistConn) {
+func (t *Transport) removeIdleConn(pconn *persistConn) bool {
 	t.idleMu.Lock()
 	defer t.idleMu.Unlock()
-	t.removeIdleConnLocked(pconn)
+	return t.removeIdleConnLocked(pconn)
 }
 
 // t.idleMu must be held.
-func (t *Transport) removeIdleConnLocked(pconn *persistConn) {
+func (t *Transport) removeIdleConnLocked(pconn *persistConn) bool {
 	if pconn.idleTimer != nil {
 		pconn.idleTimer.Stop()
 	}
 	t.idleLRU.remove(pconn)
 	key := pconn.cacheKey
 	pconns := t.idleConn[key]
+	var removed bool
 	switch len(pconns) {
 	case 0:
 		// Nothing
 	case 1:
 		if pconns[0] == pconn {
 			delete(t.idleConn, key)
+			removed = true
 		}
 	default:
 		for i, v := range pconns {
@@ -979,9 +1010,11 @@ func (t *Transport) removeIdleConnLocked(pconn *persistConn) {
 			// conns at the end.
 			copy(pconns[i:], pconns[i+1:])
 			t.idleConn[key] = pconns[:len(pconns)-1]
+			removed = true
 			break
 		}
 	}
+	return removed
 }
 
 func (t *Transport) setReqCanceler(r *Request, fn func(error)) {
@@ -1164,6 +1197,18 @@ func (q *wantConnQueue) cleanFront() (cleaned bool) {
 		q.popFront()
 		cleaned = true
 	}
+}
+
+func (t *Transport) customDialTLS(ctx context.Context, network, addr string) (conn net.Conn, err error) {
+	if t.DialTLSContext != nil {
+		conn, err = t.DialTLSContext(ctx, network, addr)
+	} else {
+		conn, err = t.DialTLS(network, addr)
+	}
+	if conn == nil && err == nil {
+		err = errors.New("net/http: Transport.DialTLS or DialTLSContext returned (nil, nil)")
+	}
+	return
 }
 
 // getConn dials and creates a new persistConn to the target as
@@ -1416,14 +1461,11 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		}
 		return err
 	}
-	if cm.scheme() == "https" && t.DialTLS != nil {
+	if cm.scheme() == "https" && t.hasCustomTLSDialer() {
 		var err error
-		pconn.conn, err = t.DialTLS("tcp", cm.addr())
+		pconn.conn, err = t.customDialTLS(ctx, "tcp", cm.addr())
 		if err != nil {
 			return nil, wrapErr(err)
-		}
-		if pconn.conn == nil {
-			return nil, wrapErr(errors.New("net/http: Transport.DialTLS returned (nil, nil)"))
 		}
 		if tc, ok := pconn.conn.(*tls.Conn); ok {
 			// Handshake here, in case DialTLS didn't. TLSNextProto below

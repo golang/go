@@ -150,7 +150,7 @@ func appendIndexed(dst []byte, i uint64) []byte {
 // extended buffer.
 //
 // If f.Sensitive is true, "Never Indexed" representation is used. If
-// f.Sensitive is false and indexing is true, "Inremental Indexing"
+// f.Sensitive is false and indexing is true, "Incremental Indexing"
 // representation is used.
 func appendNewName(dst []byte, f HeaderField, indexing bool) []byte {
 	dst = append(dst, encodeTypeByte(indexing, f.Sensitive))

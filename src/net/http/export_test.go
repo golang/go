@@ -60,6 +60,12 @@ func init() {
 	}
 }
 
+func CondSkipHTTP2(t *testing.T) {
+	if omitBundledHTTP2 {
+		t.Skip("skipping HTTP/2 test when nethttpomithttp2 build tag in use")
+	}
+}
+
 var (
 	SetEnterRoundTripHook = hookSetter(&testHookEnterRoundTrip)
 	SetRoundTripRetried   = hookSetter(&testHookRoundTripRetried)

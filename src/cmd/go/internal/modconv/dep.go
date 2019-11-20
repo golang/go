@@ -12,9 +12,9 @@ import (
 	"strconv"
 	"strings"
 
-	"cmd/go/internal/modfile"
-	"cmd/go/internal/module"
-	"cmd/go/internal/semver"
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
 func ParseGopkgLock(file string, data []byte) (*modfile.File, error) {

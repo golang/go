@@ -12,6 +12,8 @@ import "unsafe"
 
 var (
 	kq int32 = -1
+
+	netpollBreakRd, netpollBreakWr uintptr // for netpollBreak
 )
 
 func netpollinit() {
@@ -21,10 +23,27 @@ func netpollinit() {
 		throw("runtime: netpollinit failed")
 	}
 	closeonexec(kq)
+	r, w, errno := nonblockingPipe()
+	if errno != 0 {
+		println("runtime: pipe failed with", -errno)
+		throw("runtime: pipe failed")
+	}
+	ev := keventt{
+		filter: _EVFILT_READ,
+		flags:  _EV_ADD,
+	}
+	*(*uintptr)(unsafe.Pointer(&ev.ident)) = uintptr(r)
+	n := kevent(kq, &ev, 1, nil, 0, nil)
+	if n < 0 {
+		println("runtime: kevent failed with", -n)
+		throw("runtime: kevent failed")
+	}
+	netpollBreakRd = uintptr(r)
+	netpollBreakWr = uintptr(w)
 }
 
-func netpolldescriptor() uintptr {
-	return uintptr(kq)
+func netpollIsPollDescriptor(fd uintptr) bool {
+	return fd == uintptr(kq) || fd == netpollBreakRd || fd == netpollBreakWr
 }
 
 func netpollopen(fd uintptr, pd *pollDesc) int32 {
@@ -57,15 +76,43 @@ func netpollarm(pd *pollDesc, mode int) {
 	throw("runtime: unused")
 }
 
-// Polls for ready network connections.
+// netpollBreak interrupts an epollwait.
+func netpollBreak() {
+	for {
+		var b byte
+		n := write(netpollBreakWr, unsafe.Pointer(&b), 1)
+		if n == 1 || n == -_EAGAIN {
+			break
+		}
+		if n == -_EINTR {
+			continue
+		}
+		println("runtime: netpollBreak write failed with", -n)
+		throw("runtime: netpollBreak write failed")
+	}
+}
+
+// netpoll checks for ready network connections.
 // Returns list of goroutines that become runnable.
-func netpoll(block bool) gList {
+// delay < 0: blocks indefinitely
+// delay == 0: does not block, just polls
+// delay > 0: block for up to that many nanoseconds
+func netpoll(delay int64) gList {
 	if kq == -1 {
 		return gList{}
 	}
 	var tp *timespec
 	var ts timespec
-	if !block {
+	if delay < 0 {
+		tp = nil
+	} else if delay == 0 {
+		tp = &ts
+	} else {
+		ts.setNsec(delay)
+		if ts.tv_sec > 1e6 {
+			// Darwin returns EINVAL if the sleep time is too long.
+			ts.tv_sec = 1e6
+		}
 		tp = &ts
 	}
 	var events [64]keventt
@@ -76,11 +123,32 @@ retry:
 			println("runtime: kevent on fd", kq, "failed with", -n)
 			throw("runtime: netpoll failed")
 		}
+		// If a timed sleep was interrupted, just return to
+		// recalculate how long we should sleep now.
+		if delay > 0 {
+			return gList{}
+		}
 		goto retry
 	}
 	var toRun gList
 	for i := 0; i < int(n); i++ {
 		ev := &events[i]
+
+		if uintptr(ev.ident) == netpollBreakRd {
+			if ev.filter != _EVFILT_READ {
+				println("runtime: netpoll: break fd ready for", ev.filter)
+				throw("runtime: netpoll: break fd ready for something unexpected")
+			}
+			if delay != 0 {
+				// netpollBreak could be picked up by a
+				// nonblocking poll. Only read the byte
+				// if blocking.
+				var tmp [16]byte
+				read(int32(netpollBreakRd), noescape(unsafe.Pointer(&tmp[0])), int32(len(tmp)))
+			}
+			continue
+		}
+
 		var mode int32
 		switch ev.filter {
 		case _EVFILT_READ:
@@ -109,9 +177,6 @@ retry:
 			}
 			netpollready(&toRun, pd, mode)
 		}
-	}
-	if block && toRun.empty() {
-		goto retry
 	}
 	return toRun
 }

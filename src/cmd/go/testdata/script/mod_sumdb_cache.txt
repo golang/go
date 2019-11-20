@@ -37,7 +37,14 @@ env GOPROXY=$proxy/sumdb-504
 ! go get -d rsc.io/quote@v1.5.2
 stderr 504
 
+# GOINSECURE does not bypass checksum lookup
+env GOINSECURE=rsc.io
+env GOPROXY=$proxy/sumdb-504
+! go get -d rsc.io/quote@v1.5.2
+stderr 504
+
 # but -insecure bypasses the checksum lookup entirely
+env GOINSECURE=
 go get -d -insecure rsc.io/quote@v1.5.2
 
 # and then it is in go.sum again

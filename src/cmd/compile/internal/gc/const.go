@@ -552,7 +552,7 @@ func tostr(v Val) Val {
 
 func consttype(n *Node) Ctype {
 	if n == nil || n.Op != OLITERAL {
-		return 0
+		return CTxxx
 	}
 	return n.Val().Ctype()
 }
@@ -591,7 +591,7 @@ func evconst(n *Node) {
 			setconst(n, shiftOp(nl.Val(), op, nr.Val()))
 		}
 
-	case OCONV:
+	case OCONV, ORUNESTR:
 		if okforconst[n.Type.Etype] && nl.Op == OLITERAL {
 			setconst(n, convertVal(nl.Val(), n.Type, true))
 		}

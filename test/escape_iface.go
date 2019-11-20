@@ -220,8 +220,8 @@ type T2 struct {
 func dotTypeEscape() *T2 { // #11931
 	var x interface{}
 	x = &T1{p: new(int)} // ERROR "new\(int\) escapes to heap" "&T1 literal does not escape"
-	return &T2{
-		T1: *(x.(*T1)), // ERROR "&T2 literal escapes to heap"
+	return &T2{          // ERROR "&T2 literal escapes to heap"
+		T1: *(x.(*T1)),
 	}
 }
 

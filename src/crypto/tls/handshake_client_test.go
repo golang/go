@@ -499,21 +499,15 @@ func peekError(conn net.Conn) error {
 }
 
 func runClientTestForVersion(t *testing.T, template *clientTest, version, option string) {
-	t.Run(version, func(t *testing.T) {
-		// Make a deep copy of the template before going parallel.
-		test := *template
-		if template.config != nil {
-			test.config = template.config.Clone()
-		}
+	// Make a deep copy of the template before going parallel.
+	test := *template
+	if template.config != nil {
+		test.config = template.config.Clone()
+	}
+	test.name = version + "-" + test.name
+	test.args = append([]string{option}, test.args...)
 
-		if !*update {
-			t.Parallel()
-		}
-
-		test.name = version + "-" + test.name
-		test.args = append([]string{option}, test.args...)
-		test.run(t, *update)
-	})
+	runTestAndUpdateIfNeeded(t, version, test.run, false)
 }
 
 func runClientTestTLS10(t *testing.T, template *clientTest) {
@@ -843,19 +837,8 @@ func TestHandshakeClientCertRSAPSS(t *testing.T) {
 		cert:   testRSAPSSCertificate,
 		key:    testRSAPrivateKey,
 	}
-	runClientTestTLS13(t, test)
-
-	// In our TLS 1.2 client, RSA-PSS is only supported for server certificates.
-	// See Issue 32425.
-	test = &clientTest{
-		name: "ClientCert-RSA-RSAPSS",
-		args: []string{"-cipher", "AES128", "-Verify", "1", "-client_sigalgs",
-			"rsa_pkcs1_sha256", "-sigalgs", "rsa_pss_rsae_sha256"},
-		config: config,
-		cert:   testRSAPSSCertificate,
-		key:    testRSAPrivateKey,
-	}
 	runClientTestTLS12(t, test)
+	runClientTestTLS13(t, test)
 }
 
 func TestHandshakeClientCertRSAPKCS1v15(t *testing.T) {

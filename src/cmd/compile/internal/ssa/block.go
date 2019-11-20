@@ -40,23 +40,29 @@ type Block struct {
 	// arguments by block id and have this field computed explicitly when needed?
 	Preds []Edge
 
-	// A value that determines how the block is exited. Its value depends on the kind
-	// of the block. For instance, a BlockIf has a boolean control value and BlockExit
-	// has a memory control value.
-	Control *Value
+	// A list of values that determine how the block is exited. The number
+	// and type of control values depends on the Kind of the block. For
+	// instance, a BlockIf has a single boolean control value and BlockExit
+	// has a single memory control value.
+	//
+	// The ControlValues() method may be used to get a slice with the non-nil
+	// control values that can be ranged over.
+	//
+	// Controls[1] must be nil if Controls[0] is nil.
+	Controls [2]*Value
 
 	// Auxiliary info for the block. Its value depends on the Kind.
-	Aux interface{}
+	Aux    interface{}
+	AuxInt int64
 
 	// The unordered set of Values that define the operation of this block.
-	// The list must include the control value, if any. (TODO: need this last condition?)
 	// After the scheduling pass, this list is ordered.
 	Values []*Value
 
 	// The containing function
 	Func *Func
 
-	// Storage for Succs, Preds, and Values
+	// Storage for Succs, Preds and Values.
 	succstorage [2]Edge
 	predstorage [4]Edge
 	valstorage  [9]*Value
@@ -96,12 +102,12 @@ func (e Edge) Index() int {
 	return e.i
 }
 
-//     kind           control    successors
+//     kind          controls        successors
 //   ------------------------------------------
-//     Exit        return mem                []
-//    Plain               nil            [next]
-//       If   a boolean Value      [then, else]
-//    Defer               mem  [nopanic, panic]  (control opcode should be OpStaticCall to runtime.deferproc)
+//     Exit      [return mem]                []
+//    Plain                []            [next]
+//       If   [boolean Value]      [then, else]
+//    Defer             [mem]  [nopanic, panic]  (control opcode should be OpStaticCall to runtime.deferproc)
 type BlockKind int8
 
 // short form print
@@ -113,10 +119,20 @@ func (b *Block) String() string {
 func (b *Block) LongString() string {
 	s := b.Kind.String()
 	if b.Aux != nil {
-		s += fmt.Sprintf(" %s", b.Aux)
+		s += fmt.Sprintf(" {%s}", b.Aux)
 	}
-	if b.Control != nil {
-		s += fmt.Sprintf(" %s", b.Control)
+	if t := b.Kind.AuxIntType(); t != "" {
+		switch t {
+		case "Int8":
+			s += fmt.Sprintf(" [%v]", int8(b.AuxInt))
+		case "UInt8":
+			s += fmt.Sprintf(" [%v]", uint8(b.AuxInt))
+		default:
+			s += fmt.Sprintf(" [%v]", b.AuxInt)
+		}
+	}
+	for _, c := range b.ControlValues() {
+		s += fmt.Sprintf(" %s", c)
 	}
 	if len(b.Succs) > 0 {
 		s += " ->"
@@ -133,14 +149,87 @@ func (b *Block) LongString() string {
 	return s
 }
 
+// NumControls returns the number of non-nil control values the
+// block has.
+func (b *Block) NumControls() int {
+	if b.Controls[0] == nil {
+		return 0
+	}
+	if b.Controls[1] == nil {
+		return 1
+	}
+	return 2
+}
+
+// ControlValues returns a slice containing the non-nil control
+// values of the block. The index of each control value will be
+// the same as it is in the Controls property and can be used
+// in ReplaceControl calls.
+func (b *Block) ControlValues() []*Value {
+	if b.Controls[0] == nil {
+		return b.Controls[:0]
+	}
+	if b.Controls[1] == nil {
+		return b.Controls[:1]
+	}
+	return b.Controls[:2]
+}
+
+// SetControl removes all existing control values and then adds
+// the control value provided. The number of control values after
+// a call to SetControl will always be 1.
 func (b *Block) SetControl(v *Value) {
-	if w := b.Control; w != nil {
-		w.Uses--
+	b.ResetControls()
+	b.Controls[0] = v
+	v.Uses++
+}
+
+// ResetControls sets the number of controls for the block to 0.
+func (b *Block) ResetControls() {
+	if b.Controls[0] != nil {
+		b.Controls[0].Uses--
 	}
-	b.Control = v
-	if v != nil {
-		v.Uses++
+	if b.Controls[1] != nil {
+		b.Controls[1].Uses--
 	}
+	b.Controls = [2]*Value{} // reset both controls to nil
+}
+
+// AddControl appends a control value to the existing list of control values.
+func (b *Block) AddControl(v *Value) {
+	i := b.NumControls()
+	b.Controls[i] = v // panics if array is full
+	v.Uses++
+}
+
+// ReplaceControl exchanges the existing control value at the index provided
+// for the new value. The index must refer to a valid control value.
+func (b *Block) ReplaceControl(i int, v *Value) {
+	b.Controls[i].Uses--
+	b.Controls[i] = v
+	v.Uses++
+}
+
+// CopyControls replaces the controls for this block with those from the
+// provided block. The provided block is not modified.
+func (b *Block) CopyControls(from *Block) {
+	if b == from {
+		return
+	}
+	b.ResetControls()
+	for _, c := range from.ControlValues() {
+		b.AddControl(c)
+	}
+}
+
+// Reset sets the block to the provided kind and clears all the blocks control
+// and auxiliary values. Other properties of the block, such as its successors,
+// predecessors and values are left unmodified.
+func (b *Block) Reset(kind BlockKind) {
+	b.Kind = kind
+	b.ResetControls()
+	b.Aux = nil
+	b.AuxInt = 0
 }
 
 // AddEdgeTo adds an edge from block b to block c. Used during building of the

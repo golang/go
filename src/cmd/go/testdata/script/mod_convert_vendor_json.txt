@@ -10,7 +10,7 @@ stderr '\s*cd \.\. && go mod init'
 # The command we suggested should succeed.
 cd ..
 go mod init
-go list -m all
+go list -m
 stdout '^m$'
 
 -- $WORK/test/vendor/vendor.json --

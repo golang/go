@@ -30,6 +30,9 @@ func TestScanner(t *testing.T) {
 		if s.tok == _EOF {
 			break
 		}
+		if !testing.Verbose() {
+			continue
+		}
 		switch s.tok {
 		case _Name:
 			fmt.Println(s.line, s.tok, "=>", s.lit)

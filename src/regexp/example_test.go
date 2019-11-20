@@ -172,6 +172,34 @@ func ExampleRegexp_FindAllStringSubmatchIndex() {
 	// []
 }
 
+func ExampleRegexp_FindSubmatchIndex() {
+	re := regexp.MustCompile(`a(x*)b`)
+	// Indices:
+	//    01234567   012345678
+	//    -ab-axb-   -axxb-ab-
+	fmt.Println(re.FindSubmatchIndex([]byte("-ab-")))
+	fmt.Println(re.FindSubmatchIndex([]byte("-axxb-")))
+	fmt.Println(re.FindSubmatchIndex([]byte("-ab-axb-")))
+	fmt.Println(re.FindSubmatchIndex([]byte("-axxb-ab-")))
+	fmt.Println(re.FindSubmatchIndex([]byte("-foo-")))
+	// Output:
+	// [1 3 2 2]
+	// [1 5 2 4]
+	// [1 3 2 2]
+	// [1 5 2 4]
+	// []
+}
+
+func ExampleRegexp_Longest() {
+	re := regexp.MustCompile(`a(|b)`)
+	fmt.Println(re.FindString("ab"))
+	re.Longest()
+	fmt.Println(re.FindString("ab"))
+	// Output:
+	// a
+	// ab
+}
+
 func ExampleRegexp_MatchString() {
 	re := regexp.MustCompile(`(gopher){2}`)
 	fmt.Println(re.MatchString("gopher"))

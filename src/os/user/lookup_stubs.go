@@ -35,15 +35,8 @@ func current() (*User, error) {
 		Name:     "", // ignored
 		HomeDir:  homeDir,
 	}
-	// On NaCL and Android, return a dummy user instead of failing.
+	// On Android, return a dummy user instead of failing.
 	switch runtime.GOOS {
-	case "nacl":
-		if u.Uid == "" {
-			u.Uid = "1"
-		}
-		if u.Username == "" {
-			u.Username = "nacl"
-		}
 	case "android":
 		if u.Uid == "" {
 			u.Uid = "1"

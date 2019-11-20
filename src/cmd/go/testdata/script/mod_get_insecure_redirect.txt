@@ -11,3 +11,24 @@ env GOSUMDB=off
 stderr 'redirected .* to insecure URL'
 
 go get -d -insecure vcs-test.golang.org/insecure/go/insecure
+
+# insecure host
+env GOINSECURE=vcs-test.golang.org
+go clean -modcache
+go get -d vcs-test.golang.org/insecure/go/insecure
+
+# insecure glob host
+env GOINSECURE=*.golang.org
+go clean -modcache
+go get -d vcs-test.golang.org/insecure/go/insecure
+
+# insecure multiple host
+env GOINSECURE=somewhere-else.com,*.golang.org
+go clean -modcache
+go get -d vcs-test.golang.org/insecure/go/insecure
+
+# different insecure host does not fetch
+env GOINSECURE=somewhere-else.com
+go clean -modcache
+! go get -d vcs-test.golang.org/insecure/go/insecure
+stderr 'redirected .* to insecure URL'

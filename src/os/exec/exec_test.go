@@ -30,6 +30,45 @@ import (
 	"time"
 )
 
+// haveUnexpectedFDs is set at init time to report whether any
+// file descriptors were open at program start.
+var haveUnexpectedFDs bool
+
+// unfinalizedFiles holds files that should not be finalized,
+// because that would close the associated file descriptor,
+// which we don't want to do.
+var unfinalizedFiles []*os.File
+
+func init() {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		return
+	}
+	if runtime.GOOS == "windows" {
+		return
+	}
+	for fd := uintptr(3); fd <= 100; fd++ {
+		if poll.IsPollDescriptor(fd) {
+			continue
+		}
+		// We have no good portable way to check whether an FD is open.
+		// We use NewFile to create a *os.File, which lets us
+		// know whether it is open, but then we have to cope with
+		// the finalizer on the *os.File.
+		f := os.NewFile(fd, "")
+		if _, err := f.Stat(); err != nil {
+			// Close the file to clear the finalizer.
+			// We expect the Close to fail.
+			f.Close()
+		} else {
+			fmt.Printf("fd %d open at test start\n", fd)
+			haveUnexpectedFDs = true
+			// Use a global variable to avoid running
+			// the finalizer, which would close the FD.
+			unfinalizedFiles = append(unfinalizedFiles, f)
+		}
+	}
+}
+
 func helperCommandContext(t *testing.T, ctx context.Context, s ...string) (cmd *exec.Cmd) {
 	testenv.MustHaveExec(t)
 
@@ -40,7 +79,7 @@ func helperCommandContext(t *testing.T, ctx context.Context, s ...string) (cmd *
 	} else {
 		cmd = exec.Command(os.Args[0], cs...)
 	}
-	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	return cmd
 }
 
@@ -449,17 +488,15 @@ func numOpenFDsAndroid(t *testing.T) (n int, lsof []byte) {
 	return bytes.Count(lsof, []byte("\n")), lsof
 }
 
-var testedAlreadyLeaked = false
-
 // basefds returns the number of expected file descriptors
 // to be present in a process at start.
-// stdin, stdout, stderr, epoll/kqueue, maybe testlog
+// stdin, stdout, stderr, epoll/kqueue, epoll/kqueue pipe, maybe testlog
 func basefds() uintptr {
 	n := os.Stderr.Fd() + 1
 	// The poll (epoll/kqueue) descriptor can be numerically
 	// either between stderr and the testlog-fd, or after
 	// testlog-fd.
-	if poll.IsPollDescriptor(n) {
+	for poll.IsPollDescriptor(n) {
 		n++
 	}
 	for _, arg := range os.Args {
@@ -470,29 +507,9 @@ func basefds() uintptr {
 	return n
 }
 
-func closeUnexpectedFds(t *testing.T, m string) {
-	for fd := basefds(); fd <= 101; fd++ {
-		if poll.IsPollDescriptor(fd) {
-			continue
-		}
-		err := os.NewFile(fd, "").Close()
-		if err == nil {
-			t.Logf("%s: Something already leaked - closed fd %d", m, fd)
-		}
-	}
-}
-
 func TestExtraFilesFDShuffle(t *testing.T) {
 	t.Skip("flaky test; see https://golang.org/issue/5780")
 	switch runtime.GOOS {
-	case "darwin":
-		// TODO(cnicolaou): https://golang.org/issue/2603
-		// leads to leaked file descriptors in this test when it's
-		// run from a builder.
-		closeUnexpectedFds(t, "TestExtraFilesFDShuffle")
-	case "netbsd":
-		// https://golang.org/issue/3955
-		closeUnexpectedFds(t, "TestExtraFilesFDShuffle")
 	case "windows":
 		t.Skip("no operating system support; skipping")
 	}
@@ -587,17 +604,27 @@ func TestExtraFilesFDShuffle(t *testing.T) {
 }
 
 func TestExtraFiles(t *testing.T) {
+	if haveUnexpectedFDs {
+		// The point of this test is to make sure that any
+		// descriptors we open are marked close-on-exec.
+		// If haveUnexpectedFDs is true then there were other
+		// descriptors open when we started the test,
+		// so those descriptors are clearly not close-on-exec,
+		// and they will confuse the test. We could modify
+		// the test to expect those descriptors to remain open,
+		// but since we don't know where they came from or what
+		// they are doing, that seems fragile. For example,
+		// perhaps they are from the startup code on this
+		// system for some reason. Also, this test is not
+		// system-specific; as long as most systems do not skip
+		// the test, we will still be testing what we care about.
+		t.Skip("skipping test because test was run with FDs open")
+	}
+
 	testenv.MustHaveExec(t)
 
 	if runtime.GOOS == "windows" {
 		t.Skipf("skipping test on %q", runtime.GOOS)
-	}
-
-	// Ensure that file descriptors have not already been leaked into
-	// our environment.
-	if !testedAlreadyLeaked {
-		testedAlreadyLeaked = true
-		closeUnexpectedFds(t, "TestExtraFiles")
 	}
 
 	// Force network usage, to verify the epoll (or whatever) fd
@@ -656,7 +683,7 @@ func TestExtraFiles(t *testing.T) {
 	c.ExtraFiles = []*os.File{tf}
 	err = c.Run()
 	if err != nil {
-		t.Fatalf("Run: %v; stdout %q, stderr %q", err, stdout.Bytes(), stderr.Bytes())
+		t.Fatalf("Run: %v\n--- stdout:\n%s--- stderr:\n%s", err, stdout.Bytes(), stderr.Bytes())
 	}
 	if stdout.String() != text {
 		t.Errorf("got stdout %q, stderr %q; want %q on stdout", stdout.String(), stderr.String(), text)
@@ -821,55 +848,40 @@ func TestHelperProcess(*testing.T) {
 			fmt.Printf("ReadAll from fd 3: %v", err)
 			os.Exit(1)
 		}
-		switch runtime.GOOS {
-		case "dragonfly":
-			// TODO(jsing): Determine why DragonFly is leaking
-			// file descriptors...
-		case "darwin":
-			// TODO(bradfitz): broken? Sometimes.
-			// https://golang.org/issue/2603
-			// Skip this additional part of the test for now.
-		case "netbsd":
-			// TODO(jsing): This currently fails on NetBSD due to
-			// the cloned file descriptors that result from opening
-			// /dev/urandom.
-			// https://golang.org/issue/3955
-		case "illumos", "solaris":
-			// TODO(aram): This fails on Solaris because libc opens
-			// its own files, as it sees fit. Darwin does the same,
-			// see: https://golang.org/issue/2603
-		default:
-			// Now verify that there are no other open fds.
-			var files []*os.File
-			for wantfd := basefds() + 1; wantfd <= 100; wantfd++ {
-				if poll.IsPollDescriptor(wantfd) {
-					continue
+		// Now verify that there are no other open fds.
+		var files []*os.File
+		for wantfd := basefds() + 1; wantfd <= 100; wantfd++ {
+			if poll.IsPollDescriptor(wantfd) {
+				continue
+			}
+			f, err := os.Open(os.Args[0])
+			if err != nil {
+				fmt.Printf("error opening file with expected fd %d: %v", wantfd, err)
+				os.Exit(1)
+			}
+			if got := f.Fd(); got != wantfd {
+				fmt.Printf("leaked parent file. fd = %d; want %d\n", got, wantfd)
+				var args []string
+				switch runtime.GOOS {
+				case "plan9":
+					args = []string{fmt.Sprintf("/proc/%d/fd", os.Getpid())}
+				case "aix":
+					args = []string{fmt.Sprint(os.Getpid())}
+				default:
+					args = []string{"-p", fmt.Sprint(os.Getpid())}
 				}
-				f, err := os.Open(os.Args[0])
+				cmd := exec.Command(ofcmd, args...)
+				out, err := cmd.CombinedOutput()
 				if err != nil {
-					fmt.Printf("error opening file with expected fd %d: %v", wantfd, err)
-					os.Exit(1)
+					fmt.Fprintf(os.Stderr, "%s failed: %v\n", strings.Join(cmd.Args, " "), err)
 				}
-				if got := f.Fd(); got != wantfd {
-					fmt.Printf("leaked parent file. fd = %d; want %d\n", got, wantfd)
-					var args []string
-					switch runtime.GOOS {
-					case "plan9":
-						args = []string{fmt.Sprintf("/proc/%d/fd", os.Getpid())}
-					case "aix":
-						args = []string{fmt.Sprint(os.Getpid())}
-					default:
-						args = []string{"-p", fmt.Sprint(os.Getpid())}
-					}
-					out, _ := exec.Command(ofcmd, args...).CombinedOutput()
-					fmt.Print(string(out))
-					os.Exit(1)
-				}
-				files = append(files, f)
+				fmt.Printf("%s", out)
+				os.Exit(1)
 			}
-			for _, f := range files {
-				f.Close()
-			}
+			files = append(files, f)
+		}
+		for _, f := range files {
+			f.Close()
 		}
 		// Referring to fd3 here ensures that it is not
 		// garbage collected, and therefore closed, while

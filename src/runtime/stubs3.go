@@ -4,7 +4,6 @@
 
 // +build !plan9
 // +build !solaris
-// +build !nacl
 // +build !freebsd
 // +build !darwin
 // +build !aix

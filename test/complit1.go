@@ -46,8 +46,8 @@ var (
 	_ = &T{0, 0, "", nil}               // ok
 	_ = &T{i: 0, f: 0, s: "", next: {}} // ERROR "missing type in composite literal|omit types within composite literal"
 	_ = &T{0, 0, "", {}}                // ERROR "missing type in composite literal|omit types within composite literal"
-	_ = TP{i: 0, f: 0, s: "", next: {}} // ERROR "invalid pointer type"
-	_ = &Ti{}                           // ERROR "invalid pointer type"
+	_ = TP{i: 0, f: 0, s: "", next: {}} // ERROR "invalid composite literal type TP"
+	_ = &Ti{}                           // ERROR "invalid composite literal type Ti"
 )
 
 type M map[T]T

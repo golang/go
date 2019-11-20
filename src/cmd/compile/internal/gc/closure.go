@@ -101,7 +101,7 @@ func typecheckclosure(clo *Node, top int) {
 			// Ignore assignments to the variable in straightline code
 			// preceding the first capturing by a closure.
 			if n.Name.Decldepth == decldepth {
-				n.SetAssigned(false)
+				n.Name.SetAssigned(false)
 			}
 		}
 	}
@@ -192,10 +192,10 @@ func capturevars(xfunc *Node) {
 		outermost := v.Name.Defn
 
 		// out parameters will be assigned to implicitly upon return.
-		if outermost.Class() != PPARAMOUT && !outermost.Addrtaken() && !outermost.Assigned() && v.Type.Width <= 128 {
+		if outermost.Class() != PPARAMOUT && !outermost.Name.Addrtaken() && !outermost.Name.Assigned() && v.Type.Width <= 128 {
 			v.Name.SetByval(true)
 		} else {
-			outermost.SetAddrtaken(true)
+			outermost.Name.SetAddrtaken(true)
 			outer = nod(OADDR, outer, nil)
 		}
 
@@ -208,7 +208,7 @@ func capturevars(xfunc *Node) {
 			if v.Name.Byval() {
 				how = "value"
 			}
-			Warnl(v.Pos, "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, outermost.Addrtaken(), outermost.Assigned(), int32(v.Type.Width))
+			Warnl(v.Pos, "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, outermost.Name.Addrtaken(), outermost.Name.Assigned(), int32(v.Type.Width))
 		}
 
 		outer = typecheck(outer, ctxExpr)
@@ -345,7 +345,7 @@ func closuredebugruntimecheck(clo *Node) {
 		}
 	}
 	if compiling_runtime && clo.Esc == EscHeap {
-		yyerrorl(clo.Pos, "heap-allocated closure, not allowed in runtime.")
+		yyerrorl(clo.Pos, "heap-allocated closure, not allowed in runtime")
 	}
 }
 
@@ -395,17 +395,15 @@ func walkclosure(clo *Node, init *Nodes) *Node {
 
 	typ := closureType(clo)
 
-	clos := nod(OCOMPLIT, nil, nod(ODEREF, typenod(typ), nil))
+	clos := nod(OCOMPLIT, nil, typenod(typ))
 	clos.Esc = clo.Esc
-	clos.Right.SetImplicit(true)
 	clos.List.Set(append([]*Node{nod(OCFUNC, xfunc.Func.Nname, nil)}, clo.Func.Enter.Slice()...))
+
+	clos = nod(OADDR, clos, nil)
+	clos.Esc = clo.Esc
 
 	// Force type conversion from *struct to the func type.
 	clos = convnop(clos, clo.Type)
-
-	// typecheck will insert a PTRLIT node under CONVNOP,
-	// tag it with escape analysis result.
-	clos.Left.Esc = clo.Esc
 
 	// non-escaping temp to use, if any.
 	if x := prealloc[clo]; x != nil {
@@ -547,17 +545,15 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
 
 	typ := partialCallType(n)
 
-	clos := nod(OCOMPLIT, nil, nod(ODEREF, typenod(typ), nil))
+	clos := nod(OCOMPLIT, nil, typenod(typ))
 	clos.Esc = n.Esc
-	clos.Right.SetImplicit(true)
 	clos.List.Set2(nod(OCFUNC, n.Func.Nname, nil), n.Left)
+
+	clos = nod(OADDR, clos, nil)
+	clos.Esc = n.Esc
 
 	// Force type conversion from *struct to the func type.
 	clos = convnop(clos, n.Type)
-
-	// The typecheck inside convnop will insert a PTRLIT node under CONVNOP.
-	// Tag it with escape analysis result.
-	clos.Left.Esc = n.Esc
 
 	// non-escaping temp to use, if any.
 	if x := prealloc[n]; x != nil {

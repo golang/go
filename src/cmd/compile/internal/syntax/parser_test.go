@@ -96,7 +96,7 @@ func walkDirs(t *testing.T, dir string, action func(string)) {
 			}
 		} else if fi.IsDir() && fi.Name() != "testdata" {
 			path := filepath.Join(dir, fi.Name())
-			if !strings.HasSuffix(path, "/test") {
+			if !strings.HasSuffix(path, string(filepath.Separator)+"test") {
 				dirs = append(dirs, path)
 			}
 		}

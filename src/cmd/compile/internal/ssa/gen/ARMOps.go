@@ -60,6 +60,8 @@ var regNamesARM = []string{
 	"F14",
 	"F15", // tmp
 
+	// If you add registers, update asyncPreempt in runtime.
+
 	// pseudo-registers
 	"SB",
 }
@@ -154,7 +156,7 @@ func init() {
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R1"), buildReg("R0")},
 				outputs:  []regMask{buildReg("R0"), buildReg("R1")},
-				clobbers: buildReg("R2 R3 R14"), // also clobbers R12 on NaCl (modified in ../config.go)
+				clobbers: buildReg("R2 R3 R14"),
 			},
 			clobberFlags: true,
 			typ:          "(UInt32,UInt32)",
@@ -191,6 +193,10 @@ func init() {
 		{name: "MULAD", argLength: 3, reg: fp31, asm: "MULAD", resultInArg0: true}, // arg0 + (arg1 * arg2)
 		{name: "MULSF", argLength: 3, reg: fp31, asm: "MULSF", resultInArg0: true}, // arg0 - (arg1 * arg2)
 		{name: "MULSD", argLength: 3, reg: fp31, asm: "MULSD", resultInArg0: true}, // arg0 - (arg1 * arg2)
+
+		// FMULAD only exists on platforms with the VFPv4 instruction set.
+		// Any use must be preceded by a successful check of runtime.arm_support_vfpv4.
+		{name: "FMULAD", argLength: 3, reg: fp31, asm: "FMULAD", resultInArg0: true}, // arg0 + (arg1 * arg2)
 
 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0 & arg1
 		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int32"}, // arg0 & auxInt
@@ -568,16 +574,16 @@ func init() {
 	}
 
 	blocks := []blockData{
-		{name: "EQ"},
-		{name: "NE"},
-		{name: "LT"},
-		{name: "LE"},
-		{name: "GT"},
-		{name: "GE"},
-		{name: "ULT"},
-		{name: "ULE"},
-		{name: "UGT"},
-		{name: "UGE"},
+		{name: "EQ", controls: 1},
+		{name: "NE", controls: 1},
+		{name: "LT", controls: 1},
+		{name: "LE", controls: 1},
+		{name: "GT", controls: 1},
+		{name: "GE", controls: 1},
+		{name: "ULT", controls: 1},
+		{name: "ULE", controls: 1},
+		{name: "UGT", controls: 1},
+		{name: "UGE", controls: 1},
 	}
 
 	archs = append(archs, arch{

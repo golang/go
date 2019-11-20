@@ -27,15 +27,15 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
-	dirsInit(Dir{"testdata", testdataDir}, Dir{"testdata/nested", filepath.Join(testdataDir, "nested")}, Dir{"testdata/nested/nested", filepath.Join(testdataDir, "nested", "nested")})
+	dirsInit(
+		Dir{importPath: "testdata", dir: testdataDir},
+		Dir{importPath: "testdata/nested", dir: filepath.Join(testdataDir, "nested")},
+		Dir{importPath: "testdata/nested/nested", dir: filepath.Join(testdataDir, "nested", "nested")})
 
 	os.Exit(m.Run())
 }
 
 func maybeSkip(t *testing.T) {
-	if strings.HasPrefix(runtime.GOOS, "nacl") {
-		t.Skip("nacl does not have a full file tree")
-	}
 	if runtime.GOOS == "darwin" && strings.HasPrefix(runtime.GOARCH, "arm") {
 		t.Skip("darwin/arm does not have a full file tree")
 	}
@@ -176,6 +176,7 @@ var tests = []test{
 			`Comment about block of variables`,
 			`VarFive = 5`,
 			`var ExportedVariable = 1`,
+			`var ExportedVarOfUnExported unexportedType`,
 			`var LongLine = newLongLine\(`,
 			`var MultiLineVar = map\[struct {`,
 			`FUNCTIONS`,
@@ -209,6 +210,13 @@ var tests = []test{
 			`unexportedField`,
 			`func \(unexportedType\)`,
 		},
+	},
+	// Package with just the package declaration. Issue 31457.
+	{
+		"only package declaration",
+		[]string{"-all", p + "/nested/empty"},
+		[]string{`package empty .*import`},
+		nil,
 	},
 	// Package dump -short
 	{

@@ -3634,6 +3634,13 @@ type MyRunes []int32
 type MyFunc func()
 type MyByte byte
 
+type IntChan chan int
+type IntChanRecv <-chan int
+type IntChanSend chan<- int
+type BytesChan chan []byte
+type BytesChanRecv <-chan []byte
+type BytesChanSend chan<- []byte
+
 var convertTests = []struct {
 	in  Value
 	out Value
@@ -3995,10 +4002,6 @@ var convertTests = []struct {
 	{V((***byte)(nil)), V((***byte)(nil))},
 	{V((***int32)(nil)), V((***int32)(nil))},
 	{V((***int64)(nil)), V((***int64)(nil))},
-	{V((chan int)(nil)), V((<-chan int)(nil))},
-	{V((chan int)(nil)), V((chan<- int)(nil))},
-	{V((chan string)(nil)), V((<-chan string)(nil))},
-	{V((chan string)(nil)), V((chan<- string)(nil))},
 	{V((chan byte)(nil)), V((chan byte)(nil))},
 	{V((chan MyByte)(nil)), V((chan MyByte)(nil))},
 	{V((map[int]bool)(nil)), V((map[int]bool)(nil))},
@@ -4009,6 +4012,40 @@ var convertTests = []struct {
 	{V(new(interface{})), V(new(interface{}))},
 	{V(new(io.Reader)), V(new(io.Reader))},
 	{V(new(io.Writer)), V(new(io.Writer))},
+
+	// channels
+	{V(IntChan(nil)), V((chan<- int)(nil))},
+	{V(IntChan(nil)), V((<-chan int)(nil))},
+	{V((chan int)(nil)), V(IntChanRecv(nil))},
+	{V((chan int)(nil)), V(IntChanSend(nil))},
+	{V(IntChanRecv(nil)), V((<-chan int)(nil))},
+	{V((<-chan int)(nil)), V(IntChanRecv(nil))},
+	{V(IntChanSend(nil)), V((chan<- int)(nil))},
+	{V((chan<- int)(nil)), V(IntChanSend(nil))},
+	{V(IntChan(nil)), V((chan int)(nil))},
+	{V((chan int)(nil)), V(IntChan(nil))},
+	{V((chan int)(nil)), V((<-chan int)(nil))},
+	{V((chan int)(nil)), V((chan<- int)(nil))},
+	{V(BytesChan(nil)), V((chan<- []byte)(nil))},
+	{V(BytesChan(nil)), V((<-chan []byte)(nil))},
+	{V((chan []byte)(nil)), V(BytesChanRecv(nil))},
+	{V((chan []byte)(nil)), V(BytesChanSend(nil))},
+	{V(BytesChanRecv(nil)), V((<-chan []byte)(nil))},
+	{V((<-chan []byte)(nil)), V(BytesChanRecv(nil))},
+	{V(BytesChanSend(nil)), V((chan<- []byte)(nil))},
+	{V((chan<- []byte)(nil)), V(BytesChanSend(nil))},
+	{V(BytesChan(nil)), V((chan []byte)(nil))},
+	{V((chan []byte)(nil)), V(BytesChan(nil))},
+	{V((chan []byte)(nil)), V((<-chan []byte)(nil))},
+	{V((chan []byte)(nil)), V((chan<- []byte)(nil))},
+
+	// cannot convert other instances (channels)
+	{V(IntChan(nil)), V(IntChan(nil))},
+	{V(IntChanRecv(nil)), V(IntChanRecv(nil))},
+	{V(IntChanSend(nil)), V(IntChanSend(nil))},
+	{V(BytesChan(nil)), V(BytesChan(nil))},
+	{V(BytesChanRecv(nil)), V(BytesChanRecv(nil))},
+	{V(BytesChanSend(nil)), V(BytesChanSend(nil))},
 
 	// interfaces
 	{V(int(1)), EmptyInterfaceV(int(1))},
@@ -4733,17 +4770,14 @@ func TestStructOfExportRules(t *testing.T) {
 			mustPanic: true,
 		},
 		{
-			field:     StructField{Name: "s2", Type: TypeOf(int(0)), PkgPath: "other/pkg"},
-			mustPanic: true,
+			field: StructField{Name: "s2", Type: TypeOf(int(0)), PkgPath: "other/pkg"},
 		},
 		{
-			field:     StructField{Name: "s2", Type: TypeOf(int(0)), PkgPath: "other/pkg"},
-			mustPanic: true,
+			field: StructField{Name: "s2", Type: TypeOf(int(0)), PkgPath: "other/pkg"},
 		},
 		{
-			field:     StructField{Name: "S", Type: TypeOf(S1{})},
-			mustPanic: false,
-			exported:  true,
+			field:    StructField{Name: "S", Type: TypeOf(S1{})},
+			exported: true,
 		},
 		{
 			field:    StructField{Name: "S", Type: TypeOf((*S1)(nil))},
@@ -4774,20 +4808,16 @@ func TestStructOfExportRules(t *testing.T) {
 			mustPanic: true,
 		},
 		{
-			field:     StructField{Name: "s", Type: TypeOf(S1{}), PkgPath: "other/pkg"},
-			mustPanic: true, // TODO(sbinet): creating a name with a package path
+			field: StructField{Name: "s", Type: TypeOf(S1{}), PkgPath: "other/pkg"},
 		},
 		{
-			field:     StructField{Name: "s", Type: TypeOf((*S1)(nil)), PkgPath: "other/pkg"},
-			mustPanic: true, // TODO(sbinet): creating a name with a package path
+			field: StructField{Name: "s", Type: TypeOf((*S1)(nil)), PkgPath: "other/pkg"},
 		},
 		{
-			field:     StructField{Name: "s", Type: TypeOf(s2{}), PkgPath: "other/pkg"},
-			mustPanic: true, // TODO(sbinet): creating a name with a package path
+			field: StructField{Name: "s", Type: TypeOf(s2{}), PkgPath: "other/pkg"},
 		},
 		{
-			field:     StructField{Name: "s", Type: TypeOf((*s2)(nil)), PkgPath: "other/pkg"},
-			mustPanic: true, // TODO(sbinet): creating a name with a package path
+			field: StructField{Name: "s", Type: TypeOf((*s2)(nil)), PkgPath: "other/pkg"},
 		},
 		{
 			field:     StructField{Name: "", Type: TypeOf(ΦType{})},
@@ -6111,9 +6141,6 @@ var funcLayoutTests []funcLayoutTest
 
 func init() {
 	var argAlign uintptr = PtrSize
-	if runtime.GOARCH == "amd64p32" {
-		argAlign = 2 * PtrSize
-	}
 	roundup := func(x uintptr, a uintptr) uintptr {
 		return (x + a - 1) / a * a
 	}
@@ -6423,7 +6450,7 @@ func TestGCBits(t *testing.T) {
 		join(hdr, rep(8, lit(0, 1)), rep(8, lit(1)), lit(1)))
 	verifyMapBucket(t, Tint64, Tptr,
 		map[int64]Xptr(nil),
-		join(hdr, rep(8, rep(8/PtrSize, lit(0))), rep(8, lit(1)), naclpad(), lit(1)))
+		join(hdr, rep(8, rep(8/PtrSize, lit(0))), rep(8, lit(1)), lit(1)))
 	verifyMapBucket(t,
 		Tscalar, Tscalar,
 		map[Xscalar]Xscalar(nil),
@@ -6448,13 +6475,6 @@ func TestGCBits(t *testing.T) {
 		ArrayOf(64/PtrSize+1, Tscalarptr), ArrayOf(64/PtrSize+1, Tptrscalar),
 		map[[64/PtrSize + 1]Xscalarptr][64/PtrSize + 1]Xptrscalar(nil),
 		join(hdr, rep(8, lit(1)), rep(8, lit(1)), lit(1)))
-}
-
-func naclpad() []byte {
-	if runtime.GOARCH == "amd64p32" {
-		return lit(0)
-	}
-	return nil
 }
 
 func rep(n int, b []byte) []byte { return bytes.Repeat(b, n) }

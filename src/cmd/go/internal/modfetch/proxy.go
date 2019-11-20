@@ -22,9 +22,10 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/modfetch/codehost"
-	"cmd/go/internal/module"
-	"cmd/go/internal/semver"
 	"cmd/go/internal/web"
+
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
 var HelpGoproxy = &base.Command{
@@ -212,7 +213,7 @@ func newProxyRepo(baseURL, path string) (Repo, error) {
 		return nil, fmt.Errorf("invalid proxy URL scheme (must be https, http, file): %s", web.Redacted(base))
 	}
 
-	enc, err := module.EncodePath(path)
+	enc, err := module.EscapePath(path)
 	if err != nil {
 		return nil, err
 	}
@@ -351,7 +352,7 @@ func (p *proxyRepo) latest() (*RevInfo, error) {
 }
 
 func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
-	encRev, err := module.EncodeVersion(rev)
+	encRev, err := module.EscapeVersion(rev)
 	if err != nil {
 		return nil, p.versionError(rev, err)
 	}
@@ -392,7 +393,7 @@ func (p *proxyRepo) GoMod(version string) ([]byte, error) {
 		return nil, p.versionError(version, fmt.Errorf("internal error: version passed to GoMod is not canonical"))
 	}
 
-	encVer, err := module.EncodeVersion(version)
+	encVer, err := module.EscapeVersion(version)
 	if err != nil {
 		return nil, p.versionError(version, err)
 	}
@@ -408,7 +409,7 @@ func (p *proxyRepo) Zip(dst io.Writer, version string) error {
 		return p.versionError(version, fmt.Errorf("internal error: version passed to Zip is not canonical"))
 	}
 
-	encVer, err := module.EncodeVersion(version)
+	encVer, err := module.EscapeVersion(version)
 	if err != nil {
 		return p.versionError(version, err)
 	}

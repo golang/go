@@ -131,7 +131,6 @@ func os_sigpipe() {
 func cputicks() int64 {
 	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
-	// TODO: need more entropy to better seed fastrand.
 	return nanotime()
 }
 
@@ -143,3 +142,9 @@ func syscall_now() (sec int64, nsec int32) {
 
 // gsignalStack is unused on js.
 type gsignalStack struct{}
+
+const preemptMSupported = false
+
+func preemptM(mp *m) {
+	// No threads, so nothing to do.
+}

@@ -29,6 +29,8 @@ import (
 //go:cgo_import_dynamic libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "libc.so"
 //go:cgo_import_dynamic libc_pthread_attr_setstack pthread_attr_setstack "libc.so"
 //go:cgo_import_dynamic libc_pthread_create pthread_create "libc.so"
+//go:cgo_import_dynamic libc_pthread_self pthread_self "libc.so"
+//go:cgo_import_dynamic libc_pthread_kill pthread_kill "libc.so"
 //go:cgo_import_dynamic libc_raise raise "libc.so"
 //go:cgo_import_dynamic libc_read read "libc.so"
 //go:cgo_import_dynamic libc_select select "libc.so"
@@ -44,6 +46,8 @@ import (
 //go:cgo_import_dynamic libc_sysconf sysconf "libc.so"
 //go:cgo_import_dynamic libc_usleep usleep "libc.so"
 //go:cgo_import_dynamic libc_write write "libc.so"
+//go:cgo_import_dynamic libc_pipe pipe "libc.so"
+//go:cgo_import_dynamic libc_pipe2 pipe2 "libc.so"
 
 //go:linkname libc____errno libc____errno
 //go:linkname libc_clock_gettime libc_clock_gettime
@@ -61,6 +65,8 @@ import (
 //go:linkname libc_pthread_attr_setdetachstate libc_pthread_attr_setdetachstate
 //go:linkname libc_pthread_attr_setstack libc_pthread_attr_setstack
 //go:linkname libc_pthread_create libc_pthread_create
+//go:linkname libc_pthread_self libc_pthread_self
+//go:linkname libc_pthread_kill libc_pthread_kill
 //go:linkname libc_raise libc_raise
 //go:linkname libc_read libc_read
 //go:linkname libc_select libc_select
@@ -76,6 +82,8 @@ import (
 //go:linkname libc_sysconf libc_sysconf
 //go:linkname libc_usleep libc_usleep
 //go:linkname libc_write libc_write
+//go:linkname libc_pipe libc_pipe
+//go:linkname libc_pipe2 libc_pipe2
 
 var (
 	libc____errno,
@@ -94,6 +102,8 @@ var (
 	libc_pthread_attr_setdetachstate,
 	libc_pthread_attr_setstack,
 	libc_pthread_create,
+	libc_pthread_self,
+	libc_pthread_kill,
 	libc_raise,
 	libc_read,
 	libc_sched_yield,
@@ -108,18 +118,12 @@ var (
 	libc_sigprocmask,
 	libc_sysconf,
 	libc_usleep,
-	libc_write libcFunc
+	libc_write,
+	libc_pipe,
+	libc_pipe2 libcFunc
 )
 
 var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}}
-
-func getncpu() int32 {
-	n := int32(sysconf(__SC_NPROCESSORS_ONLN))
-	if n < 1 {
-		return 1
-	}
-	return n
-}
 
 func getPageSize() uintptr {
 	n := int32(sysconf(__SC_PAGESIZE))
@@ -214,6 +218,8 @@ func minit() {
 	asmcgocall(unsafe.Pointer(funcPC(miniterrno)), unsafe.Pointer(&libc____errno))
 
 	minitSignals()
+
+	getg().m.procid = uint64(pthread_self())
 }
 
 // Called from dropm to undo the effect of an minit.
@@ -393,11 +399,16 @@ func munmap(addr unsafe.Pointer, n uintptr) {
 	sysvicall2(&libc_munmap, uintptr(addr), uintptr(n))
 }
 
-func nanotime2()
+const (
+	_CLOCK_REALTIME  = 3
+	_CLOCK_MONOTONIC = 4
+)
 
 //go:nosplit
 func nanotime1() int64 {
-	return int64(sysvicall0((*libcFunc)(unsafe.Pointer(funcPC(nanotime2)))))
+	var ts mts
+	sysvicall2(&libc_clock_gettime, _CLOCK_MONOTONIC, uintptr(unsafe.Pointer(&ts)))
+	return ts.tv_sec*1e9 + ts.tv_nsec
 }
 
 //go:nosplit
@@ -429,6 +440,14 @@ func pthread_create(thread *pthread, attr *pthreadattr, fn uintptr, arg unsafe.P
 	return int32(sysvicall4(&libc_pthread_create, uintptr(unsafe.Pointer(thread)), uintptr(unsafe.Pointer(attr)), uintptr(fn), uintptr(arg)))
 }
 
+func pthread_self() pthread {
+	return pthread(sysvicall0(&libc_pthread_self))
+}
+
+func signalM(mp *m, sig int) {
+	sysvicall2(&libc_pthread_kill, uintptr(pthread(mp.procid)), uintptr(sig))
+}
+
 //go:nosplit
 //go:nowritebarrierrec
 func raise(sig uint32) /* int32 */ {
@@ -442,7 +461,11 @@ func raiseproc(sig uint32) /* int32 */ {
 
 //go:nosplit
 func read(fd int32, buf unsafe.Pointer, nbyte int32) int32 {
-	return int32(sysvicall3(&libc_read, uintptr(fd), uintptr(buf), uintptr(nbyte)))
+	r1, err := sysvicall3Err(&libc_read, uintptr(fd), uintptr(buf), uintptr(nbyte))
+	if c := int32(r1); c >= 0 {
+		return c
+	}
+	return -int32(err)
 }
 
 //go:nosplit
@@ -498,9 +521,44 @@ func usleep(µs uint32) {
 	usleep1(µs)
 }
 
+func walltime1() (sec int64, nsec int32) {
+	var ts mts
+	sysvicall2(&libc_clock_gettime, _CLOCK_REALTIME, uintptr(unsafe.Pointer(&ts)))
+	return ts.tv_sec, int32(ts.tv_nsec)
+}
+
 //go:nosplit
 func write1(fd uintptr, buf unsafe.Pointer, nbyte int32) int32 {
-	return int32(sysvicall3(&libc_write, uintptr(fd), uintptr(buf), uintptr(nbyte)))
+	r1, err := sysvicall3Err(&libc_write, fd, uintptr(buf), uintptr(nbyte))
+	if c := int32(r1); c >= 0 {
+		return c
+	}
+	return -int32(err)
+}
+
+//go:nosplit
+func pipe() (r, w int32, errno int32) {
+	var p [2]int32
+	_, e := sysvicall1Err(&libc_pipe, uintptr(noescape(unsafe.Pointer(&p))))
+	return p[0], p[1], int32(e)
+}
+
+//go:nosplit
+func pipe2(flags int32) (r, w int32, errno int32) {
+	var p [2]int32
+	_, e := sysvicall2Err(&libc_pipe2, uintptr(noescape(unsafe.Pointer(&p))), uintptr(flags))
+	return p[0], p[1], int32(e)
+}
+
+//go:nosplit
+func closeonexec(fd int32) {
+	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
+}
+
+//go:nosplit
+func setNonblock(fd int32) {
+	flags := fcntl(fd, _F_GETFL, 0)
+	fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
 }
 
 func osyield1()

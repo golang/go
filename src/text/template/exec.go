@@ -461,7 +461,8 @@ func (s *state) evalCommand(dot reflect.Value, cmd *parse.CommandNode, final ref
 		// Must be a function.
 		return s.evalFunction(dot, n, cmd, cmd.Args, final)
 	case *parse.PipeNode:
-		// Parenthesized pipeline. The arguments are all inside the pipeline; final is ignored.
+		// Parenthesized pipeline. The arguments are all inside the pipeline; final must be absent.
+		s.notAFunction(cmd.Args, final)
 		return s.evalPipeline(dot, n)
 	case *parse.VariableNode:
 		return s.evalVariableNode(dot, n, cmd.Args, final)
@@ -496,18 +497,27 @@ func (s *state) idealConstant(constant *parse.NumberNode) reflect.Value {
 	switch {
 	case constant.IsComplex:
 		return reflect.ValueOf(constant.Complex128) // incontrovertible.
-	case constant.IsFloat && !isHexInt(constant.Text) && strings.ContainsAny(constant.Text, ".eEpP"):
+
+	case constant.IsFloat &&
+		!isHexInt(constant.Text) && !isRuneInt(constant.Text) &&
+		strings.ContainsAny(constant.Text, ".eEpP"):
 		return reflect.ValueOf(constant.Float64)
+
 	case constant.IsInt:
 		n := int(constant.Int64)
 		if int64(n) != constant.Int64 {
 			s.errorf("%s overflows int", constant.Text)
 		}
 		return reflect.ValueOf(n)
+
 	case constant.IsUint:
 		s.errorf("%s overflows int", constant.Text)
 	}
 	return zero
+}
+
+func isRuneInt(s string) bool {
+	return len(s) > 0 && s[0] == '\''
 }
 
 func isHexInt(s string) bool {

@@ -457,7 +457,7 @@ func TestHtmlUnformatted(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(htmlUDir, "go.mod"), []byte("module htmlunformatted\n"), 0444); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(htmlUDir, "go.mod"), []byte("module htmlunformatted\n"), 0666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -540,7 +540,7 @@ func TestFuncWithDuplicateLines(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(lineDupDir, "go.mod"), []byte("module linedup\n"), 0444); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(lineDupDir, "go.mod"), []byte("module linedup\n"), 0666); err != nil {
 		t.Fatal(err)
 	}
 	if err := ioutil.WriteFile(lineDupGo, []byte(lineDupContents), 0444); err != nil {

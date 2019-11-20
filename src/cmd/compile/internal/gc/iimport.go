@@ -10,6 +10,7 @@ package gc
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/bio"
+	"cmd/internal/obj"
 	"cmd/internal/src"
 	"encoding/binary"
 	"fmt"
@@ -242,9 +243,10 @@ type importReader struct {
 	strings.Reader
 	p *iimporter
 
-	currPkg  *types.Pkg
-	prevBase *src.PosBase
-	prevLine int64
+	currPkg    *types.Pkg
+	prevBase   *src.PosBase
+	prevLine   int64
+	prevColumn int64
 }
 
 func (p *iimporter) newReader(off uint64, pkg *types.Pkg) *importReader {
@@ -446,16 +448,16 @@ func (r *importReader) qualifiedIdent() *types.Sym {
 
 func (r *importReader) pos() src.XPos {
 	delta := r.int64()
-	if delta != deltaNewFile {
-		r.prevLine += delta
-	} else if l := r.int64(); l == -1 {
-		r.prevLine += deltaNewFile
-	} else {
-		r.prevBase = r.posBase()
-		r.prevLine = l
+	r.prevColumn += delta >> 1
+	if delta&1 != 0 {
+		delta = r.int64()
+		r.prevLine += delta >> 1
+		if delta&1 != 0 {
+			r.prevBase = r.posBase()
+		}
 	}
 
-	if (r.prevBase == nil || r.prevBase.AbsFilename() == "") && r.prevLine == 0 {
+	if (r.prevBase == nil || r.prevBase.AbsFilename() == "") && r.prevLine == 0 && r.prevColumn == 0 {
 		// TODO(mdempsky): Remove once we reliably write
 		// position information for all nodes.
 		return src.NoXPos
@@ -464,7 +466,7 @@ func (r *importReader) pos() src.XPos {
 	if r.prevBase == nil {
 		Fatalf("missing posbase")
 	}
-	pos := src.MakePos(r.prevBase, uint(r.prevLine), 0)
+	pos := src.MakePos(r.prevBase, uint(r.prevLine), uint(r.prevColumn))
 	return Ctxt.PosTable.XPos(pos)
 }
 
@@ -650,10 +652,12 @@ func (r *importReader) byte() byte {
 
 func (r *importReader) varExt(n *Node) {
 	r.linkname(n.Sym)
+	r.symIdx(n.Sym)
 }
 
 func (r *importReader) funcExt(n *Node) {
 	r.linkname(n.Sym)
+	r.symIdx(n.Sym)
 
 	// Escape analysis.
 	for _, fs := range types.RecvsParams {
@@ -680,6 +684,20 @@ func (r *importReader) methExt(m *types.Field) {
 
 func (r *importReader) linkname(s *types.Sym) {
 	s.Linkname = r.string()
+}
+
+func (r *importReader) symIdx(s *types.Sym) {
+	if Ctxt.Flag_newobj {
+		lsym := s.Linksym()
+		idx := int32(r.int64())
+		if idx != -1 {
+			if s.Linkname != "" {
+				Fatalf("bad index for linknamed symbol: %v %d\n", lsym, idx)
+			}
+			lsym.SymIdx = idx
+			lsym.Set(obj.AttrIndexed, true)
+		}
+	}
 }
 
 func (r *importReader) doInline(n *Node) {
@@ -801,19 +819,8 @@ func (r *importReader) node() *Node {
 	// case OCLOSURE:
 	//	unimplemented
 
-	case OPTRLIT:
-		pos := r.pos()
-		n := npos(pos, r.expr())
-		if !r.bool() /* !implicit, i.e. '&' operator */ {
-			if n.Op == OCOMPLIT {
-				// Special case for &T{...}: turn into (*T){...}.
-				n.Right = nodl(pos, ODEREF, n.Right, nil)
-				n.Right.SetImplicit(true)
-			} else {
-				n = nodl(pos, OADDR, n, nil)
-			}
-		}
-		return n
+	// case OPTRLIT:
+	//	unreachable - mapped to case OADDR below by exporter
 
 	case OSTRUCTLIT:
 		// TODO(mdempsky): Export position information for OSTRUCTKEY nodes.

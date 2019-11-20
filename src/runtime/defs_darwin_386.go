@@ -8,6 +8,7 @@ import "unsafe"
 const (
 	_EINTR     = 0x4
 	_EFAULT    = 0xe
+	_EAGAIN    = 0x23
 	_ETIMEDOUT = 0x3c
 
 	_PROT_NONE  = 0x0

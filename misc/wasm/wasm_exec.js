@@ -30,6 +30,12 @@
 		global.fs = require("fs");
 	}
 
+	const enosys = () => {
+		const err = new Error("not implemented");
+		err.code = "ENOSYS";
+		return err;
+	};
+
 	if (!global.fs) {
 		let outputBuf = "";
 		global.fs = {
@@ -45,25 +51,51 @@
 			},
 			write(fd, buf, offset, length, position, callback) {
 				if (offset !== 0 || length !== buf.length || position !== null) {
-					throw new Error("not implemented");
+					callback(enosys());
+					return;
 				}
 				const n = this.writeSync(fd, buf);
 				callback(null, n);
 			},
-			open(path, flags, mode, callback) {
-				const err = new Error("not implemented");
-				err.code = "ENOSYS";
-				callback(err);
-			},
-			read(fd, buffer, offset, length, position, callback) {
-				const err = new Error("not implemented");
-				err.code = "ENOSYS";
-				callback(err);
-			},
-			fsync(fd, callback) {
-				callback(null);
-			},
+			chmod(path, mode, callback) { callback(enosys()); },
+			chown(path, uid, gid, callback) { callback(enosys()); },
+			close(fd, callback) { callback(enosys()); },
+			fchmod(fd, mode, callback) { callback(enosys()); },
+			fchown(fd, uid, gid, callback) { callback(enosys()); },
+			fstat(fd, callback) { callback(enosys()); },
+			fsync(fd, callback) { callback(null); },
+			ftruncate(fd, length, callback) { callback(enosys()); },
+			lchown(path, uid, gid, callback) { callback(enosys()); },
+			link(path, link, callback) { callback(enosys()); },
+			lstat(path, callback) { callback(enosys()); },
+			mkdir(path, perm, callback) { callback(enosys()); },
+			open(path, flags, mode, callback) { callback(enosys()); },
+			read(fd, buffer, offset, length, position, callback) { callback(enosys()); },
+			readdir(path, callback) { callback(enosys()); },
+			readlink(path, callback) { callback(enosys()); },
+			rename(from, to, callback) { callback(enosys()); },
+			rmdir(path, callback) { callback(enosys()); },
+			stat(path, callback) { callback(enosys()); },
+			symlink(path, link, callback) { callback(enosys()); },
+			truncate(path, length, callback) { callback(enosys()); },
+			unlink(path, callback) { callback(enosys()); },
+			utimes(path, atime, mtime, callback) { callback(enosys()); },
 		};
+	}
+
+	if (!global.process) {
+		global.process = {
+			getuid() { return -1; },
+			getgid() { return -1; },
+			geteuid() { return -1; },
+			getegid() { return -1; },
+			getgroups() { throw enosys(); },
+			pid: -1,
+			ppid: -1,
+			umask() { throw enosys(); },
+			cwd() { throw enosys(); },
+			chdir() { throw enosys(); },
+		}
 	}
 
 	if (!global.crypto) {
@@ -173,26 +205,31 @@
 						return;
 				}
 
-				let ref = this._refs.get(v);
-				if (ref === undefined) {
-					ref = this._values.length;
-					this._values.push(v);
-					this._refs.set(v, ref);
+				let id = this._ids.get(v);
+				if (id === undefined) {
+					id = this._idPool.pop();
+					if (id === undefined) {
+						id = this._values.length;
+					}
+					this._values[id] = v;
+					this._goRefCounts[id] = 0;
+					this._ids.set(v, id);
 				}
-				let typeFlag = 0;
+				this._goRefCounts[id]++;
+				let typeFlag = 1;
 				switch (typeof v) {
 					case "string":
-						typeFlag = 1;
-						break;
-					case "symbol":
 						typeFlag = 2;
 						break;
-					case "function":
+					case "symbol":
 						typeFlag = 3;
+						break;
+					case "function":
+						typeFlag = 4;
 						break;
 				}
 				this.mem.setUint32(addr + 4, nanHead | typeFlag, true);
-				this.mem.setUint32(addr, ref, true);
+				this.mem.setUint32(addr, id, true);
 			}
 
 			const loadSlice = (addr) => {
@@ -231,7 +268,9 @@
 						this.exited = true;
 						delete this._inst;
 						delete this._values;
-						delete this._refs;
+						delete this._goRefCounts;
+						delete this._ids;
+						delete this._idPool;
 						this.exit(code);
 					},
 
@@ -291,6 +330,18 @@
 						crypto.getRandomValues(loadSlice(sp + 8));
 					},
 
+					// func finalizeRef(v ref)
+					"syscall/js.finalizeRef": (sp) => {
+						const id = this.mem.getUint32(sp + 8, true);
+						this._goRefCounts[id]--;
+						if (this._goRefCounts[id] === 0) {
+							const v = this._values[id];
+							this._values[id] = null;
+							this._ids.delete(v);
+							this._idPool.push(id);
+						}
+					},
+
 					// func stringVal(value string) ref
 					"syscall/js.stringVal": (sp) => {
 						storeValue(sp + 24, loadString(sp + 8));
@@ -306,6 +357,11 @@
 					// func valueSet(v ref, p string, x ref)
 					"syscall/js.valueSet": (sp) => {
 						Reflect.set(loadValue(sp + 8), loadString(sp + 16), loadValue(sp + 32));
+					},
+
+					// func valueDelete(v ref, p string)
+					"syscall/js.valueDelete": (sp) => {
+						Reflect.deleteProperty(loadValue(sp + 8), loadString(sp + 16));
 					},
 
 					// func valueIndex(v ref, i int) ref
@@ -425,7 +481,7 @@
 		async run(instance) {
 			this._inst = instance;
 			this.mem = new DataView(this._inst.exports.mem.buffer);
-			this._values = [ // TODO: garbage collection
+			this._values = [ // JS values that Go currently has references to, indexed by reference id
 				NaN,
 				0,
 				null,
@@ -434,8 +490,10 @@
 				global,
 				this,
 			];
-			this._refs = new Map();
-			this.exited = false;
+			this._goRefCounts = []; // number of references that Go has to a JS value, indexed by reference id
+			this._ids = new Map();  // mapping from JS values to reference ids
+			this._idPool = [];      // unused ids that have been garbage collected
+			this.exited = false;    // whether the Go program has exited
 
 			// Pass command line arguments and environment variables to WebAssembly by writing them to the linear memory.
 			let offset = 4096;

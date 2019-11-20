@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd
+// +build darwin dragonfly freebsd linux netbsd openbsd
 
 package runtime
 
@@ -57,14 +57,21 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	sp := uintptr(c.esp())
 
 	if shouldPushSigpanic(gp, pc, *(*uintptr)(unsafe.Pointer(sp))) {
-		// Make it look like the faulting PC called sigpanic.
-		if sys.RegSize > sys.PtrSize {
-			sp -= sys.PtrSize
-			*(*uintptr)(unsafe.Pointer(sp)) = 0
-		}
-		sp -= sys.PtrSize
-		*(*uintptr)(unsafe.Pointer(sp)) = pc
-		c.set_esp(uint32(sp))
+		c.pushCall(funcPC(sigpanic))
+	} else {
+		// Not safe to push the call. Just clobber the frame.
+		c.set_eip(uint32(funcPC(sigpanic)))
 	}
-	c.set_eip(uint32(funcPC(sigpanic)))
+}
+
+const pushCallSupported = true
+
+func (c *sigctxt) pushCall(targetPC uintptr) {
+	// Make it look like the signaled instruction called target.
+	pc := uintptr(c.eip())
+	sp := uintptr(c.esp())
+	sp -= sys.PtrSize
+	*(*uintptr)(unsafe.Pointer(sp)) = pc
+	c.set_esp(uint32(sp))
+	c.set_eip(uint32(targetPC))
 }

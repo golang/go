@@ -41,6 +41,7 @@ type arch struct {
 	framepointerreg int8
 	linkreg         int8
 	generic         bool
+	imports         []string
 }
 
 type opData struct {
@@ -62,12 +63,15 @@ type opData struct {
 	usesScratch       bool   // this op requires scratch memory space
 	hasSideEffects    bool   // for "reasons", not to be eliminated.  E.g., atomic store, #19182.
 	zeroWidth         bool   // op never translates into any machine code. example: copy, which may sometimes translate to machine code, is not zero-width.
+	unsafePoint       bool   // this op is an unsafe point, i.e. not safe for async preemption
 	symEffect         string // effect this op has on symbol in aux
 	scale             uint8  // amd64/386 indexed load scale
 }
 
 type blockData struct {
-	name string
+	name     string // the suffix for this block ("EQ", "LT", etc.)
+	controls int    // the number of control values this type of block requires
+	auxint   string // the type of the AuxInt value, if any
 }
 
 type regInfo struct {
@@ -217,6 +221,21 @@ func genOp() {
 	fmt.Fprintln(w, "}")
 	fmt.Fprintln(w, "func (k BlockKind) String() string {return blockString[k]}")
 
+	// generate block kind auxint method
+	fmt.Fprintln(w, "func (k BlockKind) AuxIntType() string {")
+	fmt.Fprintln(w, "switch k {")
+	for _, a := range archs {
+		for _, b := range a.blocks {
+			if b.auxint == "" {
+				continue
+			}
+			fmt.Fprintf(w, "case Block%s%s: return \"%s\"\n", a.Name(), b.name, b.auxint)
+		}
+	}
+	fmt.Fprintln(w, "}")
+	fmt.Fprintln(w, "return \"\"")
+	fmt.Fprintln(w, "}")
+
 	// generate Op* declarations
 	fmt.Fprintln(w, "const (")
 	fmt.Fprintln(w, "OpInvalid Op = iota") // make sure OpInvalid is 0.
@@ -307,6 +326,9 @@ func genOp() {
 			if v.zeroWidth {
 				fmt.Fprintln(w, "zeroWidth: true,")
 			}
+			if v.unsafePoint {
+				fmt.Fprintln(w, "unsafePoint: true,")
+			}
 			needEffect := strings.HasPrefix(v.aux, "Sym")
 			if v.symEffect != "" {
 				if !needEffect {
@@ -383,6 +405,7 @@ func genOp() {
 
 	fmt.Fprintln(w, "func (o Op) SymEffect() SymEffect { return opcodeTable[o].symEffect }")
 	fmt.Fprintln(w, "func (o Op) IsCall() bool { return opcodeTable[o].call }")
+	fmt.Fprintln(w, "func (o Op) UnsafePoint() bool { return opcodeTable[o].unsafePoint }")
 
 	// generate registers
 	for _, a := range archs {

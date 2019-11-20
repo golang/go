@@ -101,7 +101,7 @@ func typecheckrangeExpr(n *Node) {
 		v2 = n.List.Second()
 	}
 
-	// this is not only a optimization but also a requirement in the spec.
+	// this is not only an optimization but also a requirement in the spec.
 	// "if the second iteration variable is the blank identifier, the range
 	// clause is equivalent to the same clause with only the first variable
 	// present."
@@ -216,7 +216,7 @@ func walkrange(n *Node) *Node {
 			return n
 		}
 
-		// orderstmt arranged for a copy of the array/slice variable if needed.
+		// order.stmt arranged for a copy of the array/slice variable if needed.
 		ha := a
 
 		hv1 := temp(types.Types[TINT])
@@ -291,7 +291,7 @@ func walkrange(n *Node) *Node {
 		n.List.Set1(a)
 
 	case TMAP:
-		// orderstmt allocated the iterator for us.
+		// order.stmt allocated the iterator for us.
 		// we only use a once, so no copy needed.
 		ha := a
 
@@ -327,7 +327,7 @@ func walkrange(n *Node) *Node {
 		}
 
 	case TCHAN:
-		// orderstmt arranged for a copy of the channel variable.
+		// order.stmt arranged for a copy of the channel variable.
 		ha := a
 
 		n.Left = nil
@@ -343,7 +343,7 @@ func walkrange(n *Node) *Node {
 		a := nod(OAS2RECV, nil, nil)
 		a.SetTypecheck(1)
 		a.List.Set2(hv1, hb)
-		a.Rlist.Set1(nod(ORECV, ha, nil))
+		a.Right = nod(ORECV, ha, nil)
 		n.Left.Ninit.Set1(a)
 		if v1 == nil {
 			body = nil
@@ -371,7 +371,7 @@ func walkrange(n *Node) *Node {
 		//   // original body
 		// }
 
-		// orderstmt arranged for a copy of the string variable.
+		// order.stmt arranged for a copy of the string variable.
 		ha := a
 
 		hv1 := temp(types.Types[TINT])

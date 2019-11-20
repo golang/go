@@ -14,6 +14,9 @@
 #define CLOCK_MONOTONIC		3
 #define FD_CLOEXEC		1
 #define F_SETFD			2
+#define F_GETFL			3
+#define F_SETFL			4
+#define O_NONBLOCK		4
 
 #define SYS_exit			1
 #define SYS_read			3
@@ -43,6 +46,7 @@
 #define SYS___clock_gettime50		427
 #define SYS___nanosleep50		430
 #define SYS___kevent50			435
+#define SYS_pipe2			453
 #define SYS_openat			468
 #define SYS____lwp_park60		478
 
@@ -141,9 +145,36 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
 	MOVW	n+16(FP), R2		// arg 3 - count
 	SVC	$SYS_read
 	BCC	ok
-	MOVW	$-1, R0
+	NEG	R0, R0
 ok:
 	MOVW	R0, ret+24(FP)
+	RET
+
+// func pipe() (r, w int32, errno int32)
+TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
+	MOVW	$0, R0
+	SVC	$SYS_pipe2
+	BCC	pipeok
+	MOVW	$-1,R1
+	MOVW	R1, r+0(FP)
+	MOVW	R1, w+4(FP)
+	NEG	R0, R0
+	MOVW	R0, errno+8(FP)
+	RET
+pipeok:
+	MOVW	R0, r+0(FP)
+	MOVW	R1, w+4(FP)
+	MOVW	ZR, errno+8(FP)
+	RET
+
+// func pipe2(flags int32) (r, w int32, errno int32)
+TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
+	ADD	$8, RSP, R0
+	MOVW	flags+0(FP), R1
+	SVC	$SYS_pipe2
+	BCC	2(PC)
+	NEG	R0, R0
+	MOVW	R0, errno+16(FP)
 	RET
 
 TEXT runtime·write1(SB),NOSPLIT,$-8
@@ -152,7 +183,7 @@ TEXT runtime·write1(SB),NOSPLIT,$-8
 	MOVW	n+16(FP), R2		// arg 3 - nbyte
 	SVC	$SYS_write
 	BCC	ok
-	MOVW	$-1, R0
+	NEG	R0, R0
 ok:
 	MOVW	R0, ret+24(FP)
 	RET
@@ -174,10 +205,9 @@ TEXT runtime·usleep(SB),NOSPLIT,$24-4
 	SVC	$SYS___nanosleep50
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$16
-	SVC	$SYS__lwp_self
-					// arg 1 - target (lwp_self)
-	MOVW	sig+0(FP), R1		// arg 2 - signo
+TEXT runtime·lwp_kill(SB),NOSPLIT,$0-16
+	MOVW	tid+0(FP), R0		// arg 1 - target
+	MOVD	sig+8(FP), R1		// arg 2 - signo
 	SVC	$SYS__lwp_kill
 	RET
 
@@ -429,5 +459,18 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVW	fd+0(FP), R0		// arg 1 - fd
 	MOVW	$F_SETFD, R1
 	MOVW	$FD_CLOEXEC, R2
+	SVC	$SYS_fcntl
+	RET
+
+// func runtime·setNonblock(int32 fd)
+TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
+	MOVW	fd+0(FP), R0		// arg 1 - fd
+	MOVD	$F_GETFL, R1		// arg 2 - cmd
+	MOVD	$0, R2			// arg 3
+	SVC	$SYS_fcntl
+	MOVD	$O_NONBLOCK, R2
+	EOR	R0, R2			// arg 3 - flags
+	MOVW	fd+0(FP), R0		// arg 1 - fd
+	MOVD	$F_SETFL, R1		// arg 2 - cmd
 	SVC	$SYS_fcntl
 	RET

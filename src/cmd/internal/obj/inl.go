@@ -108,6 +108,21 @@ func (ctxt *Link) InnermostPos(xpos src.XPos) src.Pos {
 	return ctxt.PosTable.Pos(xpos)
 }
 
+// AllPos returns a slice of the positions inlined at xpos, from
+// innermost (index zero) to outermost.  To avoid gratuitous allocation
+// the result is passed in and extended if necessary.
+func (ctxt *Link) AllPos(xpos src.XPos, result []src.Pos) []src.Pos {
+	pos := ctxt.InnermostPos(xpos)
+	result = result[:0]
+	result = append(result, ctxt.PosTable.Pos(xpos))
+	for ix := pos.Base().InliningIndex(); ix >= 0; {
+		call := ctxt.InlTree.nodes[ix]
+		ix = call.Parent
+		result = append(result, ctxt.PosTable.Pos(call.Pos))
+	}
+	return result
+}
+
 func dumpInlTree(ctxt *Link, tree InlTree) {
 	for i, call := range tree.nodes {
 		pos := ctxt.PosTable.Pos(call.Pos)

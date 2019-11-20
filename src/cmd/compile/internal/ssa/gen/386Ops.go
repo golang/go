@@ -45,6 +45,8 @@ var regNames386 = []string{
 	"X6",
 	"X7",
 
+	// If you add registers, update asyncPreempt in runtime
+
 	// pseudo-registers
 	"SB",
 }
@@ -564,22 +566,22 @@ func init() {
 	}
 
 	var _386blocks = []blockData{
-		{name: "EQ"},
-		{name: "NE"},
-		{name: "LT"},
-		{name: "LE"},
-		{name: "GT"},
-		{name: "GE"},
-		{name: "OS"},
-		{name: "OC"},
-		{name: "ULT"},
-		{name: "ULE"},
-		{name: "UGT"},
-		{name: "UGE"},
-		{name: "EQF"},
-		{name: "NEF"},
-		{name: "ORD"}, // FP, ordered comparison (parity zero)
-		{name: "NAN"}, // FP, unordered comparison (parity one)
+		{name: "EQ", controls: 1},
+		{name: "NE", controls: 1},
+		{name: "LT", controls: 1},
+		{name: "LE", controls: 1},
+		{name: "GT", controls: 1},
+		{name: "GE", controls: 1},
+		{name: "OS", controls: 1},
+		{name: "OC", controls: 1},
+		{name: "ULT", controls: 1},
+		{name: "ULE", controls: 1},
+		{name: "UGT", controls: 1},
+		{name: "UGE", controls: 1},
+		{name: "EQF", controls: 1},
+		{name: "NEF", controls: 1},
+		{name: "ORD", controls: 1}, // FP, ordered comparison (parity zero)
+		{name: "NAN", controls: 1}, // FP, unordered comparison (parity one)
 	}
 
 	archs = append(archs, arch{

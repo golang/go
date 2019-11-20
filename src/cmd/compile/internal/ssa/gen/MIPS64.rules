@@ -10,6 +10,7 @@
 
 (Mul(64|32|16|8) x y) -> (Select1 (MULVU x y))
 (Mul(32|64)F x y) -> (MUL(F|D) x y)
+(Mul64uhilo x y) -> (MULVU x y)
 
 (Hmul64 x y) -> (Select0 (MULV x y))
 (Hmul64u x y) -> (Select0 (MULVU x y))
@@ -402,6 +403,7 @@
 (AtomicLoad64  ptr mem) -> (LoweredAtomicLoad64 ptr mem)
 (AtomicLoadPtr ptr mem) -> (LoweredAtomicLoad64 ptr mem)
 
+(AtomicStore8       ptr val mem) -> (LoweredAtomicStore8  ptr val mem)
 (AtomicStore32      ptr val mem) -> (LoweredAtomicStore32 ptr val mem)
 (AtomicStore64      ptr val mem) -> (LoweredAtomicStore64 ptr val mem)
 (AtomicStorePtrNoWB ptr val mem) -> (LoweredAtomicStore64 ptr val mem)
@@ -694,15 +696,15 @@
 (SGTUconst [c] (SRLVconst _ [d])) && 0 < d && d <= 63 && 0xffffffffffffffff>>uint64(d) < uint64(c) -> (MOVVconst [1])
 
 // absorb constants into branches
-(EQ  (MOVVconst [0]) yes no) -> (First nil yes no)
-(EQ  (MOVVconst [c]) yes no) && c != 0 -> (First nil no yes)
-(NE  (MOVVconst [0]) yes no) -> (First nil no yes)
-(NE  (MOVVconst [c]) yes no) && c != 0 -> (First nil yes no)
-(LTZ (MOVVconst [c]) yes no) && c <  0 -> (First nil yes no)
-(LTZ (MOVVconst [c]) yes no) && c >= 0 -> (First nil no yes)
-(LEZ (MOVVconst [c]) yes no) && c <= 0 -> (First nil yes no)
-(LEZ (MOVVconst [c]) yes no) && c >  0 -> (First nil no yes)
-(GTZ (MOVVconst [c]) yes no) && c >  0 -> (First nil yes no)
-(GTZ (MOVVconst [c]) yes no) && c <= 0 -> (First nil no yes)
-(GEZ (MOVVconst [c]) yes no) && c >= 0 -> (First nil yes no)
-(GEZ (MOVVconst [c]) yes no) && c <  0 -> (First nil no yes)
+(EQ  (MOVVconst [0]) yes no) -> (First yes no)
+(EQ  (MOVVconst [c]) yes no) && c != 0 -> (First no yes)
+(NE  (MOVVconst [0]) yes no) -> (First no yes)
+(NE  (MOVVconst [c]) yes no) && c != 0 -> (First yes no)
+(LTZ (MOVVconst [c]) yes no) && c <  0 -> (First yes no)
+(LTZ (MOVVconst [c]) yes no) && c >= 0 -> (First no yes)
+(LEZ (MOVVconst [c]) yes no) && c <= 0 -> (First yes no)
+(LEZ (MOVVconst [c]) yes no) && c >  0 -> (First no yes)
+(GTZ (MOVVconst [c]) yes no) && c >  0 -> (First yes no)
+(GTZ (MOVVconst [c]) yes no) && c <= 0 -> (First no yes)
+(GEZ (MOVVconst [c]) yes no) && c >= 0 -> (First yes no)
+(GEZ (MOVVconst [c]) yes no) && c <  0 -> (First no yes)

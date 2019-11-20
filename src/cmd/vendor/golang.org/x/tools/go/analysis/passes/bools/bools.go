@@ -100,7 +100,7 @@ func (op boolOp) checkRedundant(pass *analysis.Pass, exprs []ast.Expr) {
 	for _, e := range exprs {
 		efmt := analysisutil.Format(pass.Fset, e)
 		if seen[efmt] {
-			pass.Reportf(e.Pos(), "redundant %s: %s %s %s", op.name, efmt, op.tok, efmt)
+			pass.ReportRangef(e, "redundant %s: %s %s %s", op.name, efmt, op.tok, efmt)
 		} else {
 			seen[efmt] = true
 		}
@@ -147,7 +147,7 @@ func (op boolOp) checkSuspect(pass *analysis.Pass, exprs []ast.Expr) {
 		if prev, found := seen[xfmt]; found {
 			// checkRedundant handles the case in which efmt == prev.
 			if efmt != prev {
-				pass.Reportf(e.Pos(), "suspect %s: %s %s %s", op.name, efmt, op.tok, prev)
+				pass.ReportRangef(e, "suspect %s: %s %s %s", op.name, efmt, op.tok, prev)
 			}
 		} else {
 			seen[xfmt] = efmt

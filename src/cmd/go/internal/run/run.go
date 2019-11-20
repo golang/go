@@ -33,7 +33,7 @@ If the -exec flag is given, 'go run' invokes the binary using xprog:
 If the -exec flag is not given, GOOS or GOARCH is different from the system
 default, and a program named go_$GOOS_$GOARCH_exec can be found
 on the current search path, 'go run' invokes the binary using that program,
-for example 'go_nacl_386_exec a.out arguments...'. This allows execution of
+for example 'go_js_wasm_exec a.out arguments...'. This allows execution of
 cross-compiled programs when a simulator or other execution method is
 available.
 
@@ -49,7 +49,7 @@ See also: go build.
 func init() {
 	CmdRun.Run = runRun // break init loop
 
-	work.AddBuildFlags(CmdRun)
+	work.AddBuildFlags(CmdRun, work.DefaultBuildFlags)
 	CmdRun.Flag.Var((*base.StringsFlag)(&work.ExecCmd), "exec", "")
 }
 

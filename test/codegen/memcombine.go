@@ -321,8 +321,8 @@ func fcall_uint32(a, b uint32) (uint32, uint32) {
 // We want to merge load+op in the first function, but not in the
 // second. See Issue 19595.
 func load_op_merge(p, q *int) {
-	x := *p
-	*q += x // amd64:`ADDQ\t\(`
+	x := *p // amd64:`ADDQ\t\(`
+	*q += x // The combined nilcheck and load would normally have this line number, but we want that combined operation to have the line number of the nil check instead (see #33724).
 }
 func load_op_no_merge(p, q *int) {
 	x := *p

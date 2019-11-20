@@ -38,6 +38,7 @@ Scripts also have access to these other environment variables:
 	TMPDIR=$WORK/tmp
 	devnull=<value of os.DevNull>
 	goversion=<current Go version; for example, 1.12>
+	:=<OS-specific path list separator>
 
 The scripts supporting files are unpacked relative to $GOPATH/src (aka $WORK/gopath/src)
 and then the script begins execution in that directory as well. Thus the example above runs
@@ -77,9 +78,12 @@ should only run when the condition is satisfied. The available conditions are:
    - [root] for os.Geteuid() == 0
    - [symlink] for testenv.HasSymlink()
    - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
+   - [GODEBUG:value] for whether value is one of the comma-separated entries in the GODEBUG variable
 
 A condition can be negated: [!short] means to run the rest of the line
-when testing.Short() is false.
+when testing.Short() is false. Multiple conditions may be given for a single
+command, for example, '[linux] [amd64] skip'. The command will run if all conditions
+are satisfied.
 
 The commands are:
 
@@ -105,13 +109,14 @@ The commands are:
   Like cmp, but environment variables are substituted in the file contents
   before the comparison. For example, $GOOS is replaced by the target GOOS.
 
-- cp src... dst
+- [!] cp src... dst
   Copy the listed files to the target file or existing directory.
   src can include "stdout" or "stderr" to use the standard output or standard error
   from the most recent exec or go command.
 
 - env [-r] [key=value...]
-  With no arguments, print the environment (useful for debugging).
+  With no arguments, print the environment to stdout
+  (useful for debugging and for verifying initial state).
   Otherwise add the listed key=value pairs to the environment.
   The -r flag causes the values to be escaped using regexp.QuoteMeta
   before being recorded.
@@ -160,7 +165,7 @@ The commands are:
 
 - [!] stdout [-count=N] pattern
   Apply the grep command (see above) to the standard output
-  from the most recent exec, go, or wait command.
+  from the most recent exec, go, wait, or env command.
 
 - stop [message]
   Stop the test early (marking it as passing), including the message if given.

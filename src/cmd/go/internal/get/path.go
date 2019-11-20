@@ -11,7 +11,7 @@ import (
 	"unicode/utf8"
 )
 
-// The following functions are copied verbatim from cmd/go/internal/module/module.go,
+// The following functions are copied verbatim from golang.org/x/mod/module/module.go,
 // with a change to additionally reject Windows short-names,
 // and one to accept arbitrary letters (golang.org/issue/29101).
 //
@@ -43,9 +43,6 @@ func checkPath(path string, fileName bool) error {
 	}
 	if path[0] == '-' {
 		return fmt.Errorf("leading dash")
-	}
-	if strings.Contains(path, "..") {
-		return fmt.Errorf("double dot")
 	}
 	if strings.Contains(path, "//") {
 		return fmt.Errorf("double slash")

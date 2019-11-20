@@ -227,7 +227,7 @@ func listenPlan9(ctx context.Context, net string, laddr Addr) (fd *netFD, err er
 	_, err = f.WriteString("announce " + dest)
 	if err != nil {
 		f.Close()
-		return nil, err
+		return nil, &OpError{Op: "announce", Net: net, Source: laddr, Addr: nil, Err: err}
 	}
 	laddr, err = readPlan9Addr(proto, netdir+"/"+proto+"/"+name+"/local")
 	if err != nil {

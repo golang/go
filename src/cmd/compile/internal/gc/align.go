@@ -34,7 +34,7 @@ func expandiface(t *types.Type) {
 		switch prev := seen[m.Sym]; {
 		case prev == nil:
 			seen[m.Sym] = m
-		case langSupported(1, 14) && !explicit && types.Identical(m.Type, prev.Type):
+		case langSupported(1, 14, t.Pkg()) && !explicit && types.Identical(m.Type, prev.Type):
 			return
 		default:
 			yyerrorl(m.Pos, "duplicate method %s", m.Sym.Name)
@@ -178,6 +178,11 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
 // have not already been calculated, it calls Fatal.
 // This is used to prevent data races in the back end.
 func dowidth(t *types.Type) {
+	// Calling dowidth when typecheck tracing enabled is not safe.
+	// See issue #33658.
+	if enableTrace && skipDowidthForTracing {
+		return
+	}
 	if Widthptr == 0 {
 		Fatalf("dowidth without betypeinit")
 	}
@@ -324,13 +329,6 @@ func dowidth(t *types.Type) {
 		if t.Elem() == nil {
 			break
 		}
-		if t.IsDDDArray() {
-			if !t.Broke() {
-				yyerror("use of [...] array outside of array literal")
-				t.SetBroke(true)
-			}
-			break
-		}
 
 		dowidth(t.Elem())
 		if t.Elem().Width != 0 {
@@ -346,7 +344,7 @@ func dowidth(t *types.Type) {
 		if t.Elem() == nil {
 			break
 		}
-		w = int64(sizeof_Array)
+		w = int64(sizeof_Slice)
 		checkwidth(t.Elem())
 		t.Align = uint8(Widthptr)
 

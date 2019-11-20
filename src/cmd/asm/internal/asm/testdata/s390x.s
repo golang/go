@@ -22,6 +22,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	MOVDLT	R8, R9                // b9e24098
 	MOVDNE	R10, R11              // b9e270ba
 
+	LOCR	$3, R2, R1            // b9f23012
+	LOCGR	$7, R5, R6            // b9e27065
+
 	MOVD	(R15), R1             // e310f0000004
 	MOVW	(R15), R2             // e320f0000014
 	MOVH	(R15), R3             // e330f0000015
@@ -198,6 +201,24 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	XORW	(R1), R2              // 57201000
 	XORW	-1(R1), R2            // e3201fffff57
 
+	// shift and rotate instructions
+	SRD	$4, R4, R7              // eb740004000c
+	SRD	R1, R4, R7              // eb741000000c
+	SRW	$4, R4, R7              // eb74000400de
+	SRW	R1, R4, R7              // eb74100000de
+	SLW	$4, R3, R6              // eb63000400df
+	SLW	R2, R3, R6              // eb63200000df
+	SLD	$4, R3, R6              // eb630004000d
+	SLD	R2, R3, R6              // eb632000000d
+	SRAD	$4, R5, R8              // eb850004000a
+	SRAD	R3, R5, R8              // eb853000000a
+	SRAW	$4, R5, R8              // eb85000400dc
+	SRAW	R3, R5, R8              // eb85300000dc
+	RLL	R1, R2, R3              // eb321000001d
+	RLL	$4, R2, R3              // eb320004001d
+	RLLG	R1, R2, R3              // eb321000001c
+	RLLG	$4, R2, R3              // eb320004001c
+
 	RNSBG	$0, $31, $32, R1, R2  // ec21001f2054
 	RXSBG	$17, $8, $16, R3, R4  // ec4311081057
 	ROSBG	$9, $24, $11, R5, R6  // ec6509180b56
@@ -223,6 +244,16 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	LAXG	R10, R11, (R12)       // ebbac00000e7
 	LAO	R1, R2, (R3)          // eb21300000f6
 	LAOG	R4, R5, (R6)          // eb54600000e6
+
+	// load and store multiple
+	LMG	n-8(SP), R3, R4         // eb34f0100004
+	LMG	-5(R5), R3, R4          // eb345ffbff04
+	LMY	n-8(SP), R3, R4         // 9834f010
+	LMY	4096(R1), R3, R4        // eb3410000198
+	STMG	R1, R2, n-8(SP)         // eb12f0100024
+	STMG	R1, R2, -5(R3)          // eb123ffbff24
+	STMY	R1, R2, n-8(SP)         // 9012f010
+	STMY	R1, R2, 4096(R3)        // eb1230000190
 
 	XC	$8, (R15), n-8(SP)       // d707f010f000
 	NC	$8, (R15), n-8(SP)       // d407f010f000
@@ -253,6 +284,10 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	IPM	R3                     // b2220030
 	IPM	R12                    // b22200c0
 
+	SPM	R1                     // 0410
+	SPM	R10                    // 04a0
+
+	BRC	$7, 0(PC)              // a7740000
 	BNE	0(PC)                  // a7740000
 	BEQ	0(PC)                  // a7840000
 	BLT	0(PC)                  // a7440000
@@ -261,6 +296,9 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	BGE	0(PC)                  // a7a40000
 	BLTU	0(PC)                  // a7540000
 	BLEU	0(PC)                  // a7d40000
+
+	BRCT	R1, 0(PC)              // a7160000
+	BRCTG	R2, 0(PC)              // a7270000
 
 	CMPBNE	R1, R2, 0(PC)          // ec1200007064
 	CMPBEQ	R3, R4, 0(PC)          // ec3400008064
@@ -289,6 +327,16 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	CMPUBLE	R7, $0, 0(PC)          // ec7c0000007d
 	CMPUBGT	R9, $256, 0(PC)        // ec920000007d
 	CMPUBGE	R2, $0, 0(PC)          // ec2a0000007d
+
+	CRJ	$15, R1, R2, 0(PC)     // ec120000f076
+	CGRJ	$12, R3, R4, 0(PC)     // ec340000c064
+	CLRJ	$3, R5, R6, 0(PC)      // ec5600003077
+	CLGRJ	$0, R7, R8, 0(PC)      // ec7800000065
+
+	CIJ	$4, R9, $127, 0(PC)    // ec9400007f7e
+	CGIJ	$8, R11, $-128, 0(PC)  // ecb80000807c
+	CLIJ	$1, R1, $255, 0(PC)    // ec110000ff7f
+	CLGIJ	$2, R3, $0, 0(PC)      // ec320000007d
 
 	LGDR	F1, R12                // b3cd00c1
 	LDGR	R2, F15                // b3c100f2
@@ -359,6 +407,29 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	UNDEF                          // 00000000
 	NOPH                           // 0700
 
+	// vector add and sub instructions
+	VAB	V3, V4, V4              // e743400000f3
+	VAH	V3, V4, V4              // e743400010f3
+	VAF	V3, V4, V4              // e743400020f3
+	VAG	V3, V4, V4              // e743400030f3
+	VAQ	V3, V4, V4              // e743400040f3
+	VAB	V1, V2                  // e721200000f3
+	VAH	V1, V2                  // e721200010f3
+	VAF	V1, V2                  // e721200020f3
+	VAG	V1, V2                  // e721200030f3
+	VAQ	V1, V2                  // e721200040f3
+	VSB	V3, V4, V4              // e744300000f7
+	VSH	V3, V4, V4              // e744300010f7
+	VSF	V3, V4, V4              // e744300020f7
+	VSG	V3, V4, V4              // e744300030f7
+	VSQ	V3, V4, V4              // e744300040f7
+	VSB	V1, V2                  // e722100000f7
+	VSH	V1, V2                  // e722100010f7
+	VSF	V1, V2                  // e722100020f7
+	VSG	V1, V2                  // e722100030f7
+	VSQ	V1, V2                  // e722100040f7
+
+	VCEQB	V1, V3, V3              // e731300000f8
 	VL	(R15), V1               // e710f0000006
 	VST	V1, (R15)               // e710f000000e
 	VL	(R15), V31              // e7f0f0000806
@@ -382,9 +453,16 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	VFEEZBS	V1, V2, V31             // e7f120300880
 	WFCHDBS	V22, V23, V4            // e746701836eb
 	VMNH	V1, V2, V30             // e7e1200018fe
-	VO	V2, V1, V0              // e7021000006a
 	VERLLVF	V2, V30, V27            // e7be20002c73
 	VSCBIB	V0, V23, V24            // e78700000cf5
+	VN	V2, V1, V0              // e70210000068
+	VNC	V2, V1, V0              // e70210000069
+	VO	V2, V1, V0              // e7021000006a
+	VX	V2, V1, V0              // e7021000006d
+	VN	V16, V1                 // e71010000468
+	VNC	V16, V1                 // e71010000469
+	VO	V16, V1                 // e7101000046a
+	VX	V16, V1                 // e7101000046d
 	VNOT	V16, V1                 // e7101000046b
 	VCLZF	V16, V17                // e71000002c53
 	VLVGP	R3, R4, V8              // e78340000062
@@ -421,6 +499,12 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	VMSLEG  V21, V22, V23, V24      // e78563807fb8
 	VMSLOG  V21, V22, V23, V24      // e78563407fb8
 	VMSLEOG V21, V22, V23, V24      // e78563c07fb8
+	VSUMGH	V1, V2, V3              // e73120001065
+	VSUMGF	V16, V17, V18           // e72010002e65
+	VSUMQF	V4, V5, V6              // e76450002067
+	VSUMQG	V19, V20, V21           // e75340003e67
+	VSUMB	V7, V8, V9              // e79780000064
+	VSUMH	V22, V23, V24           // e78670001e64
 
 	RET
 	RET	foo(SB)

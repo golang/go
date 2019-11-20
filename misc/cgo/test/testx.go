@@ -108,6 +108,17 @@ void callMulti(void);
 // issue 28772 part 2 - part 1 in issuex.go
 #define issue28772Constant2 2
 
+
+// issue 31891
+typedef struct {
+	long obj;
+} Issue31891A;
+
+typedef struct {
+	long obj;
+} Issue31891B;
+
+void callIssue31891(void);
 */
 import "C"
 
@@ -517,3 +528,15 @@ func test20910(t *testing.T) {
 // issue 28772 part 2
 
 const issue28772Constant2 = C.issue28772Constant2
+
+// issue 31891
+
+//export useIssue31891A
+func useIssue31891A(c *C.Issue31891A) {}
+
+//export useIssue31891B
+func useIssue31891B(c *C.Issue31891B) {}
+
+func test31891(t *testing.T) {
+	C.callIssue31891()
+}

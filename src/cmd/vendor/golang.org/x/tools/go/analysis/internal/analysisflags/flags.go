@@ -168,10 +168,10 @@ func printFlags() {
 	var flags []jsonFlag = nil
 	flag.VisitAll(func(f *flag.Flag) {
 		// Don't report {single,multi}checker debugging
-		// flags as these have no effect on unitchecker
+		// flags or fix as these have no effect on unitchecker
 		// (as invoked by 'go vet').
 		switch f.Name {
-		case "debug", "cpuprofile", "memprofile", "trace":
+		case "debug", "cpuprofile", "memprofile", "trace", "fix":
 			return
 		}
 
@@ -209,7 +209,7 @@ func (versionFlag) Set(s string) error {
 		log.Fatalf("unsupported flag value: -V=%s", s)
 	}
 
-	// This replicates the miminal subset of
+	// This replicates the minimal subset of
 	// cmd/internal/objabi.AddVersionFlag, which is private to the
 	// go tool yet forms part of our command-line interface.
 	// TODO(adonovan): clarify the contract.

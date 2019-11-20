@@ -22,13 +22,14 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/imports"
 	"cmd/go/internal/modfetch"
-	"cmd/go/internal/modfile"
-	"cmd/go/internal/module"
 	"cmd/go/internal/mvs"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
-	"cmd/go/internal/semver"
 	"cmd/go/internal/str"
+
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
 // buildList is the list of modules to use for building packages.
@@ -93,11 +94,11 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 				pkgs := m.Pkgs
 				m.Pkgs = m.Pkgs[:0]
 				for _, pkg := range pkgs {
-					dir := pkg
-					if !filepath.IsAbs(dir) {
-						dir = filepath.Join(cwd, pkg)
+					var dir string
+					if !filepath.IsAbs(pkg) {
+						dir = filepath.Join(base.Cwd, pkg)
 					} else {
-						dir = filepath.Clean(dir)
+						dir = filepath.Clean(pkg)
 					}
 
 					// golang.org/issue/32917: We should resolve a relative path to a
@@ -211,11 +212,17 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 
 	// One last pass to finalize wildcards.
 	updateMatches(matches, false)
+	checkMultiplePaths()
+	WriteGoMod()
 
-	// A given module path may be used as itself or as a replacement for another
-	// module, but not both at the same time. Otherwise, the aliasing behavior is
-	// too subtle (see https://golang.org/issue/26607), and we don't want to
-	// commit to a specific behavior at this point.
+	return matches
+}
+
+// checkMultiplePaths verifies that a given module path is used as itself
+// or as a replacement for another module, but not both at the same time.
+//
+// (See https://golang.org/issue/26607 and https://golang.org/issue/34650.)
+func checkMultiplePaths() {
 	firstPath := make(map[module.Version]string, len(buildList))
 	for _, mod := range buildList {
 		src := mod
@@ -229,9 +236,6 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 		}
 	}
 	base.ExitIfErrors()
-	WriteGoMod()
-
-	return matches
 }
 
 // pathInModuleCache returns the import path of the directory dir,
@@ -318,7 +322,7 @@ func DirImportPath(dir string) string {
 	}
 
 	if !filepath.IsAbs(dir) {
-		dir = filepath.Join(cwd, dir)
+		dir = filepath.Join(base.Cwd, dir)
 	} else {
 		dir = filepath.Clean(dir)
 	}
@@ -383,6 +387,7 @@ func loadAll(testAll bool) []string {
 	}
 	all := TargetPackages("...")
 	loaded.load(func() []string { return all })
+	checkMultiplePaths()
 	WriteGoMod()
 
 	var paths []string
@@ -401,6 +406,10 @@ func loadAll(testAll bool) []string {
 // matching pattern, which may be relative to the working directory, under all
 // build tag settings.
 func TargetPackages(pattern string) []string {
+	// TargetPackages is relative to the main module, so ensure that the main
+	// module is a thing that can contain packages.
+	ModRoot()
+
 	return matchPackages(pattern, imports.AnyTags(), false, []module.Version{Target})
 }
 
@@ -417,6 +426,37 @@ func BuildList() []module.Version {
 // SetBuildList does not retain a reference to the original list.
 func SetBuildList(list []module.Version) {
 	buildList = append([]module.Version{}, list...)
+}
+
+// TidyBuildList trims the build list to the minimal requirements needed to
+// retain the same versions of all packages from the preceding Load* or
+// ImportPaths* call.
+func TidyBuildList() {
+	used := map[module.Version]bool{Target: true}
+	for _, pkg := range loaded.pkgs {
+		used[pkg.mod] = true
+	}
+
+	keep := []module.Version{Target}
+	var direct []string
+	for _, m := range buildList[1:] {
+		if used[m] {
+			keep = append(keep, m)
+			if loaded.direct[m.Path] {
+				direct = append(direct, m.Path)
+			}
+		} else if cfg.BuildV {
+			if _, ok := index.require[m]; ok {
+				fmt.Fprintf(os.Stderr, "unused %s\n", m.Path)
+			}
+		}
+	}
+
+	min, err := mvs.Req(Target, direct, &mvsReqs{buildList: keep})
+	if err != nil {
+		base.Fatalf("go: %v", err)
+	}
+	buildList = append([]module.Version{Target}, min...)
 }
 
 // ImportMap returns the actual package import path
@@ -621,6 +661,7 @@ func (ld *loader) load(roots func() []string) {
 				added[pkg.path] = true
 				numAdded++
 				if !haveMod[err.Module] {
+					fmt.Fprintf(os.Stderr, "go: found %s in %s %s\n", pkg.path, err.Module.Path, err.Module.Version)
 					haveMod[err.Module] = true
 					modAddedBy[err.Module] = pkg
 					buildList = append(buildList, err.Module)
@@ -956,21 +997,15 @@ func WhyDepth(path string) int {
 // If there is no replacement for mod, Replacement returns
 // a module.Version with Path == "".
 func Replacement(mod module.Version) module.Version {
-	if modFile == nil {
-		// Happens during testing and if invoking 'go get' or 'go list' outside a module.
-		return module.Version{}
-	}
-
-	var found *modfile.Replace
-	for _, r := range modFile.Replace {
-		if r.Old.Path == mod.Path && (r.Old.Version == "" || r.Old.Version == mod.Version) {
-			found = r // keep going
+	if index != nil {
+		if r, ok := index.replace[mod]; ok {
+			return r
+		}
+		if r, ok := index.replace[module.Version{Path: mod.Path}]; ok {
+			return r
 		}
 	}
-	if found == nil {
-		return module.Version{}
-	}
-	return found.New
+	return module.Version{}
 }
 
 // mvsReqs implements mvs.Reqs for module semantic versions,
@@ -1003,15 +1038,17 @@ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
 			return cached{nil, err}
 		}
 		for i, mv := range list {
-			for excluded[mv] {
-				mv1, err := r.next(mv)
-				if err != nil {
-					return cached{nil, err}
+			if index != nil {
+				for index.exclude[mv] {
+					mv1, err := r.next(mv)
+					if err != nil {
+						return cached{nil, err}
+					}
+					if mv1.Version == "none" {
+						return cached{nil, fmt.Errorf("%s(%s) depends on excluded %s(%s) with no newer version available", mod.Path, mod.Version, mv.Path, mv.Version)}
+					}
+					mv = mv1
 				}
-				if mv1.Version == "none" {
-					return cached{nil, fmt.Errorf("%s(%s) depends on excluded %s(%s) with no newer version available", mod.Path, mod.Version, mv.Path, mv.Version)}
-				}
-				mv = mv1
 			}
 			list[i] = mv
 		}
@@ -1024,30 +1061,106 @@ func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
 
 var vendorOnce sync.Once
 
+type vendorMetadata struct {
+	Explicit    bool
+	Replacement module.Version
+}
+
 var (
-	vendorList []module.Version
-	vendorMap  map[string]module.Version
+	vendorList      []module.Version          // modules that contribute packages to the build, in order of appearance
+	vendorReplaced  []module.Version          // all replaced modules; may or may not also contribute packages
+	vendorVersion   map[string]string         // module path → selected version (if known)
+	vendorPkgModule map[string]module.Version // package → containing module
+	vendorMeta      map[module.Version]vendorMetadata
 )
 
 // readVendorList reads the list of vendored modules from vendor/modules.txt.
 func readVendorList() {
 	vendorOnce.Do(func() {
 		vendorList = nil
-		vendorMap = make(map[string]module.Version)
-		data, _ := ioutil.ReadFile(filepath.Join(ModRoot(), "vendor/modules.txt"))
-		var m module.Version
+		vendorPkgModule = make(map[string]module.Version)
+		vendorVersion = make(map[string]string)
+		vendorMeta = make(map[module.Version]vendorMetadata)
+		data, err := ioutil.ReadFile(filepath.Join(ModRoot(), "vendor/modules.txt"))
+		if err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				base.Fatalf("go: %s", err)
+			}
+			return
+		}
+
+		var mod module.Version
 		for _, line := range strings.Split(string(data), "\n") {
 			if strings.HasPrefix(line, "# ") {
 				f := strings.Fields(line)
-				m = module.Version{}
-				if len(f) == 3 && semver.IsValid(f[2]) {
-					m = module.Version{Path: f[1], Version: f[2]}
-					vendorList = append(vendorList, m)
+
+				if len(f) < 3 {
+					continue
 				}
-			} else if m.Path != "" {
-				f := strings.Fields(line)
-				if len(f) == 1 {
-					vendorMap[f[0]] = m
+				if semver.IsValid(f[2]) {
+					// A module, but we don't yet know whether it is in the build list or
+					// only included to indicate a replacement.
+					mod = module.Version{Path: f[1], Version: f[2]}
+					f = f[3:]
+				} else if f[2] == "=>" {
+					// A wildcard replacement found in the main module's go.mod file.
+					mod = module.Version{Path: f[1]}
+					f = f[2:]
+				} else {
+					// Not a version or a wildcard replacement.
+					// We don't know how to interpret this module line, so ignore it.
+					mod = module.Version{}
+					continue
+				}
+
+				if len(f) >= 2 && f[0] == "=>" {
+					meta := vendorMeta[mod]
+					if len(f) == 2 {
+						// File replacement.
+						meta.Replacement = module.Version{Path: f[1]}
+						vendorReplaced = append(vendorReplaced, mod)
+					} else if len(f) == 3 && semver.IsValid(f[2]) {
+						// Path and version replacement.
+						meta.Replacement = module.Version{Path: f[1], Version: f[2]}
+						vendorReplaced = append(vendorReplaced, mod)
+					} else {
+						// We don't understand this replacement. Ignore it.
+					}
+					vendorMeta[mod] = meta
+				}
+				continue
+			}
+
+			// Not a module line. Must be a package within a module or a metadata
+			// directive, either of which requires a preceding module line.
+			if mod.Path == "" {
+				continue
+			}
+
+			if strings.HasPrefix(line, "## ") {
+				// Metadata. Take the union of annotations across multiple lines, if present.
+				meta := vendorMeta[mod]
+				for _, entry := range strings.Split(strings.TrimPrefix(line, "## "), ";") {
+					entry = strings.TrimSpace(entry)
+					if entry == "explicit" {
+						meta.Explicit = true
+					}
+					// All other tokens are reserved for future use.
+				}
+				vendorMeta[mod] = meta
+				continue
+			}
+
+			if f := strings.Fields(line); len(f) == 1 && module.CheckImportPath(f[0]) == nil {
+				// A package within the current module.
+				vendorPkgModule[f[0]] = mod
+
+				// Since this module provides a package for the build, we know that it
+				// is in the build list and is the selected version of its path.
+				// If this information is new, record it.
+				if v, ok := vendorVersion[mod.Path]; !ok || semver.Compare(v, mod.Version) < 0 {
+					vendorList = append(vendorList, mod)
+					vendorVersion[mod.Path] = mod.Version
 				}
 			}
 		}
@@ -1076,19 +1189,6 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
 		// return the full list of modules from modules.txt.
 		readVendorList()
 		return append([]module.Version(nil), vendorList...), nil
-	}
-
-	if targetInGorootSrc {
-		// When inside "std" or "cmd", only fetch and read go.mod files if we're
-		// explicitly running a command that can change the module graph. If we have
-		// to resolve a new dependency, we might pick the wrong version, but 'go mod
-		// tidy' will fix it — and new standard-library dependencies should be rare
-		// anyway.
-		//
-		// TODO(golang.org/issue/30240): Drop this special-case.
-		if cfg.CmdName != "get" && !strings.HasPrefix(cfg.CmdName, "mod ") {
-			return nil, nil
-		}
 	}
 
 	origPath := mod.Path
@@ -1205,6 +1305,11 @@ func (*mvsReqs) next(m module.Version) (module.Version, error) {
 	return module.Version{Path: m.Path, Version: "none"}, nil
 }
 
+// fetch downloads the given module (or its replacement)
+// and returns its location.
+//
+// The isLocal return value reports whether the replacement,
+// if any, is local to the filesystem.
 func fetch(mod module.Version) (dir string, isLocal bool, err error) {
 	if mod == Target {
 		return ModRoot(), true, nil

@@ -10,6 +10,7 @@ import (
 	"math/bits"
 
 	"cmd/compile/internal/gc"
+	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
@@ -226,7 +227,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = r
 	case ssa.OpARMSRR:
 		genregshift(s, arm.AMOVW, 0, v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_RR)
-	case ssa.OpARMMULAF, ssa.OpARMMULAD, ssa.OpARMMULSF, ssa.OpARMMULSD:
+	case ssa.OpARMMULAF, ssa.OpARMMULAD, ssa.OpARMMULSF, ssa.OpARMMULSD, ssa.OpARMFMULAD:
 		r := v.Reg()
 		r0 := v.Args[0].Reg()
 		r1 := v.Args[1].Reg()
@@ -737,6 +738,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddAux(&p.From, v)
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = arm.REGTMP
+		if logopt.Enabled() {
+			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
+		}
 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
 			gc.Warnl(v.Pos, "generated nil check")
 		}
@@ -955,6 +959,6 @@ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
 		}
 
 	default:
-		b.Fatalf("branch not implemented: %s. Control: %s", b.LongString(), b.Control.LongString())
+		b.Fatalf("branch not implemented: %s", b.LongString())
 	}
 }

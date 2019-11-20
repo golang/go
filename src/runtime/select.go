@@ -75,6 +75,9 @@ func selunlock(scases []scase, lockorder []uint16) {
 }
 
 func selparkcommit(gp *g, _ unsafe.Pointer) bool {
+	// There are unlocked sudogs that point into gp's stack. Stack
+	// copying must lock the channels of those sudogs.
+	gp.activeStackChans = true
 	// This must not access gp's stack (see gopark). In
 	// particular, it must not access the *hselect. That's okay,
 	// because by the time this is called, gp.waiting has all
@@ -311,6 +314,7 @@ loop:
 	// wait for someone to wake us up
 	gp.param = nil
 	gopark(selparkcommit, nil, waitReasonSelect, traceEvGoBlockSelect, 1)
+	gp.activeStackChans = false
 
 	sellock(scases, lockorder)
 

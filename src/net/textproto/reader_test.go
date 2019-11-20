@@ -13,41 +13,6 @@ import (
 	"testing"
 )
 
-type canonicalHeaderKeyTest struct {
-	in, out string
-}
-
-var canonicalHeaderKeyTests = []canonicalHeaderKeyTest{
-	{"a-b-c", "A-B-C"},
-	{"a-1-c", "A-1-C"},
-	{"User-Agent", "User-Agent"},
-	{"uSER-aGENT", "User-Agent"},
-	{"user-agent", "User-Agent"},
-	{"USER-AGENT", "User-Agent"},
-
-	// Other valid tchar bytes in tokens:
-	{"foo-bar_baz", "Foo-Bar_baz"},
-	{"foo-bar$baz", "Foo-Bar$baz"},
-	{"foo-bar~baz", "Foo-Bar~baz"},
-	{"foo-bar*baz", "Foo-Bar*baz"},
-
-	// Non-ASCII or anything with spaces or non-token chars is unchanged:
-	{"üser-agenT", "üser-agenT"},
-	{"a B", "a B"},
-
-	// This caused a panic due to mishandling of a space:
-	{"C Ontent-Transfer-Encoding", "C Ontent-Transfer-Encoding"},
-	{"foo bar", "foo bar"},
-}
-
-func TestCanonicalMIMEHeaderKey(t *testing.T) {
-	for _, tt := range canonicalHeaderKeyTests {
-		if s := CanonicalMIMEHeaderKey(tt.in); s != tt.out {
-			t.Errorf("CanonicalMIMEHeaderKey(%q) = %q, want %q", tt.in, s, tt.out)
-		}
-	}
-}
-
 func reader(s string) *Reader {
 	return NewReader(bufio.NewReader(strings.NewReader(s)))
 }
@@ -188,11 +153,10 @@ func TestLargeReadMIMEHeader(t *testing.T) {
 	}
 }
 
-// Test that we read slightly-bogus MIME headers seen in the wild,
-// with spaces before colons, and spaces in keys.
+// TestReadMIMEHeaderNonCompliant checks that we don't normalize headers
+// with spaces before colons, and accept spaces in keys.
 func TestReadMIMEHeaderNonCompliant(t *testing.T) {
-	// Invalid HTTP response header as sent by an Axis security
-	// camera: (this is handled by IE, Firefox, Chrome, curl, etc.)
+	// These invalid headers will be rejected by net/http according to RFC 7230.
 	r := reader("Foo: bar\r\n" +
 		"Content-Language: en\r\n" +
 		"SID : 0\r\n" +
@@ -202,9 +166,9 @@ func TestReadMIMEHeaderNonCompliant(t *testing.T) {
 	want := MIMEHeader{
 		"Foo":              {"bar"},
 		"Content-Language": {"en"},
-		"Sid":              {"0"},
-		"Audio Mode":       {"None"},
-		"Privilege":        {"127"},
+		"SID ":             {"0"},
+		"Audio Mode ":      {"None"},
+		"Privilege ":       {"127"},
 	}
 	if !reflect.DeepEqual(m, want) || err != nil {
 		t.Fatalf("ReadMIMEHeader =\n%v, %v; want:\n%v", m, err, want)
@@ -219,6 +183,10 @@ func TestReadMIMEHeaderMalformed(t *testing.T) {
 		" First: line with leading space\r\nFoo: foo\r\n\r\n",
 		"\tFirst: line with leading tab\r\nFoo: foo\r\n\r\n",
 		"Foo: foo\r\nNo colon second line\r\n\r\n",
+		"Foo-\n\tBar: foo\r\n\r\n",
+		"Foo-\r\n\tBar: foo\r\n\r\n",
+		"Foo\r\n\t: foo\r\n\r\n",
+		"Foo-\n\tBar",
 	}
 
 	for _, input := range inputs {

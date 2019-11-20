@@ -448,7 +448,9 @@ func (c *Chan) Elem() Type { return c.elem }
 
 // A Named represents a named type.
 type Named struct {
+	info       typeInfo  // for cycle detection
 	obj        *TypeName // corresponding declared object
+	orig       Type      // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
 	underlying Type      // possibly a *Named during setup; never a *Named once set up completely
 	methods    []*Func   // methods declared for this type (not the method set of this type); signatures are type-checked lazily
 }
@@ -460,7 +462,7 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	if _, ok := underlying.(*Named); ok {
 		panic("types.NewNamed: underlying type must not be *Named")
 	}
-	typ := &Named{obj: obj, underlying: underlying, methods: methods}
+	typ := &Named{obj: obj, orig: underlying, underlying: underlying, methods: methods}
 	if obj.typ == nil {
 		obj.typ = typ
 	}

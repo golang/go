@@ -258,7 +258,10 @@ func determineLinkMode(ctxt *Link) {
 			Exitf("internal linking requested %sbut external linking required: %s", via, extReason)
 		}
 	case LinkExternal:
-		if objabi.GOARCH == "ppc64" && objabi.GOOS != "aix" {
+		switch {
+		case objabi.GOARCH == "riscv64":
+			Exitf("external linking not supported for %s/riscv64", objabi.GOOS)
+		case objabi.GOARCH == "ppc64" && objabi.GOOS != "aix":
 			Exitf("external linking not supported for %s/ppc64", objabi.GOOS)
 		}
 	}

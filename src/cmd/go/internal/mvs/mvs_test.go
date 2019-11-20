@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"cmd/go/internal/module"
+	"golang.org/x/mod/module"
 )
 
 var tests = `

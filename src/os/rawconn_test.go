@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Test use of raw connections.
-// +build !plan9,!nacl,!js
+// +build !plan9,!js
 
 package os_test
 

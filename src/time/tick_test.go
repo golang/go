@@ -5,34 +5,70 @@
 package time_test
 
 import (
+	"fmt"
+	"runtime"
 	"testing"
 	. "time"
 )
 
 func TestTicker(t *testing.T) {
-	const Count = 10
-	Delta := 100 * Millisecond
-	ticker := NewTicker(Delta)
-	t0 := Now()
-	for i := 0; i < Count; i++ {
-		<-ticker.C
+	// We want to test that a ticker takes as much time as expected.
+	// Since we don't want the test to run for too long, we don't
+	// want to use lengthy times. This makes the test inherently flaky.
+	// So only report an error if it fails five times in a row.
+
+	count := 10
+	delta := 20 * Millisecond
+
+	// On Darwin ARM64 the tick frequency seems limited. Issue 35692.
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+		count = 5
+		delta = 100 * Millisecond
 	}
-	ticker.Stop()
-	t1 := Now()
-	dt := t1.Sub(t0)
-	target := Delta * Count
-	slop := target * 2 / 10
-	if dt < target-slop || (!testing.Short() && dt > target+slop) {
-		t.Fatalf("%d %s ticks took %s, expected [%s,%s]", Count, Delta, dt, target-slop, target+slop)
+
+	var errs []string
+	logErrs := func() {
+		for _, e := range errs {
+			t.Log(e)
+		}
 	}
-	// Now test that the ticker stopped
-	Sleep(2 * Delta)
-	select {
-	case <-ticker.C:
-		t.Fatal("Ticker did not shut down")
-	default:
-		// ok
+
+	for i := 0; i < 5; i++ {
+		ticker := NewTicker(delta)
+		t0 := Now()
+		for i := 0; i < count; i++ {
+			<-ticker.C
+		}
+		ticker.Stop()
+		t1 := Now()
+		dt := t1.Sub(t0)
+		target := delta * Duration(count)
+		slop := target * 2 / 10
+		if dt < target-slop || dt > target+slop {
+			errs = append(errs, fmt.Sprintf("%d %s ticks took %s, expected [%s,%s]", count, delta, dt, target-slop, target+slop))
+			continue
+		}
+		// Now test that the ticker stopped.
+		Sleep(2 * delta)
+		select {
+		case <-ticker.C:
+			errs = append(errs, "Ticker did not shut down")
+			continue
+		default:
+			// ok
+		}
+
+		// Test passed, so all done.
+		if len(errs) > 0 {
+			t.Logf("saw %d errors, ignoring to avoid flakiness", len(errs))
+			logErrs()
+		}
+
+		return
 	}
+
+	t.Errorf("saw %d errors", len(errs))
+	logErrs()
 }
 
 // Issue 21874

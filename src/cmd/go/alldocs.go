@@ -145,11 +145,21 @@
 // 	-ldflags '[pattern=]arg list'
 // 		arguments to pass on each go tool link invocation.
 // 	-linkshared
-// 		link against shared libraries previously created with
-// 		-buildmode=shared.
+// 		build code that will be linked against shared libraries previously
+// 		created with -buildmode=shared.
 // 	-mod mode
-// 		module download mode to use: readonly or vendor.
+// 		module download mode to use: readonly, vendor, or mod.
 // 		See 'go help modules' for more.
+// 	-modcacherw
+// 		leave newly-created directories in the module cache read-write
+// 		instead of making them read-only.
+// 	-modfile file
+// 		in module aware mode, read (and possibly write) an alternate go.mod
+// 		file instead of the one in the module root directory. A file named
+// 		"go.mod" must still be present in order to determine the module root
+// 		directory, but it is not accessed. When -modfile is specified, an
+// 		alternate go.sum file is also used: its path is derived from the
+// 		-modfile flag by trimming the ".mod" extension and appending ".sum".
 // 	-pkgdir dir
 // 		install and load all packages from dir instead of the usual locations.
 // 		For example, when building with a non-standard configuration,
@@ -434,6 +444,9 @@
 //
 // The -n flag prints commands that would be executed.
 // The -x flag prints commands as they are executed.
+//
+// The -mod flag's value sets which module download mode
+// to use: readonly or vendor. See 'go help modules' for more.
 //
 // To run gofmt with specific options, run gofmt itself.
 //
@@ -1022,7 +1035,6 @@
 //         Dir      string // absolute path to cached source root directory
 //         Sum      string // checksum for path, version (as in go.sum)
 //         GoModSum string // checksum for go.mod (as in go.sum)
-//         Latest   bool   // would @latest resolve to this version?
 //     }
 //
 // See 'go help modules' for more about module queries.
@@ -1236,7 +1248,7 @@
 // If the -exec flag is not given, GOOS or GOARCH is different from the system
 // default, and a program named go_$GOOS_$GOARCH_exec can be found
 // on the current search path, 'go run' invokes the binary using that program,
-// for example 'go_nacl_386_exec a.out arguments...'. This allows execution of
+// for example 'go_js_wasm_exec a.out arguments...'. This allows execution of
 // cross-compiled programs when a simulator or other execution method is
 // available.
 //
@@ -1508,8 +1520,8 @@
 // extension will be passed to SWIG. Any file with a .swigcxx extension
 // will be passed to SWIG with the -c++ option.
 //
-// When either cgo or SWIG is used, go build will pass any .c, .m, .s,
-// or .S files to the C compiler, and any .cc, .cpp, .cxx files to the C++
+// When either cgo or SWIG is used, go build will pass any .c, .m, .s, .S
+// or .sx files to the C compiler, and any .cc, .cpp, .cxx files to the C++
 // compiler. The CC or CXX environment variables may be set to determine
 // the C or C++ compiler, respectively, to use.
 //
@@ -1592,6 +1604,10 @@
 // 		Because the entries are space-separated, flag values must
 // 		not contain spaces. Flags listed on the command line
 // 		are applied after this list and therefore override it.
+// 	GOINSECURE
+// 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
+// 		of module path prefixes that should always be fetched in an insecure
+// 		manner. Only applies to dependencies that are being fetched directly.
 // 	GOOS
 // 		The operating system for which to compile code.
 // 		Examples are linux, darwin, windows, netbsd.
@@ -1728,7 +1744,7 @@
 // 	.m
 // 		Objective-C source files. Only useful with cgo, and always
 // 		compiled with the OS-native compiler.
-// 	.s, .S
+// 	.s, .S, .sx
 // 		Assembler source files.
 // 		If the package uses cgo or SWIG, these will be assembled with the
 // 		OS-native assembler (typically gcc (sic)); otherwise they
@@ -2478,6 +2494,9 @@
 // If invoked with -mod=vendor, the go command assumes that the vendor
 // directory holds the correct copies of dependencies and ignores
 // the dependency descriptions in go.mod.
+//
+// If invoked with -mod=mod, the go command loads modules from the module cache
+// even if there is a vendor directory present.
 //
 // Pseudo-versions
 //

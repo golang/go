@@ -21,6 +21,7 @@ package main_test
 // An empty new format means that the format should remain unchanged.
 var knownFormats = map[string]string{
 	"*bytes.Buffer %s":                                "",
+	"*cmd/compile/internal/gc.EscLocation %v":         "",
 	"*cmd/compile/internal/gc.Mpflt %v":               "",
 	"*cmd/compile/internal/gc.Mpint %v":               "",
 	"*cmd/compile/internal/gc.Node %#v":               "",
@@ -160,6 +161,7 @@ var knownFormats = map[string]string{
 	"int64 %v":                                        "",
 	"int64 %x":                                        "",
 	"int8 %d":                                         "",
+	"int8 %v":                                         "",
 	"int8 %x":                                         "",
 	"interface{} %#v":                                 "",
 	"interface{} %T":                                  "",
@@ -170,6 +172,7 @@ var knownFormats = map[string]string{
 	"map[*cmd/compile/internal/gc.Node]*cmd/compile/internal/ssa.Value %v": "",
 	"map[*cmd/compile/internal/gc.Node][]*cmd/compile/internal/gc.Node %v": "",
 	"map[cmd/compile/internal/ssa.ID]uint32 %v":                            "",
+	"map[int64]uint32 %v":  "",
 	"math/big.Accuracy %s": "",
 	"reflect.Type %s":      "",
 	"rune %#U":             "",
@@ -195,6 +198,7 @@ var knownFormats = map[string]string{
 	"uint32 %v":            "",
 	"uint32 %x":            "",
 	"uint64 %08x":          "",
+	"uint64 %b":            "",
 	"uint64 %d":            "",
 	"uint64 %x":            "",
 	"uint8 %d":             "",

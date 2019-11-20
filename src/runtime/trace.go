@@ -54,7 +54,7 @@ const (
 	traceEvGoInSyscall       = 32 // denotes that goroutine is in syscall when tracing starts [timestamp, goroutine id]
 	traceEvHeapAlloc         = 33 // memstats.heap_live change [timestamp, heap_alloc]
 	traceEvNextGC            = 34 // memstats.next_gc change [timestamp, next_gc]
-	traceEvTimerGoroutine    = 35 // denotes timer goroutine [timer goroutine id]
+	traceEvTimerGoroutine    = 35 // not currently used; previously denoted timer goroutine [timer goroutine id]
 	traceEvFutileWakeup      = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
 	traceEvString            = 37 // string dictionary entry [ID, length, string]
 	traceEvGoStartLocal      = 38 // goroutine starts running on the same P as the last event [timestamp, goroutine id]
@@ -84,7 +84,7 @@ const (
 	// and ppc64le.
 	// Tracing won't work reliably for architectures where cputicks is emulated
 	// by nanotime, so the value doesn't matter for those architectures.
-	traceTickDiv = 16 + 48*(sys.Goarch386|sys.GoarchAmd64|sys.GoarchAmd64p32)
+	traceTickDiv = 16 + 48*(sys.Goarch386|sys.GoarchAmd64)
 	// Maximum number of PCs in a single stack trace.
 	// Since events contain only stack id rather than whole stack trace,
 	// we can allow quite large values here.
@@ -416,13 +416,6 @@ func ReadTrace() []byte {
 		var data []byte
 		data = append(data, traceEvFrequency|0<<traceArgCountShift)
 		data = traceAppend(data, uint64(freq))
-		for i := range timers {
-			tb := &timers[i]
-			if tb.gp != nil {
-				data = append(data, traceEvTimerGoroutine|0<<traceArgCountShift)
-				data = traceAppend(data, uint64(tb.gp.goid))
-			}
-		}
 		// This will emit a bunch of full buffers, we will pick them up
 		// on the next iteration.
 		trace.stackTab.dump()
@@ -932,7 +925,7 @@ func (p *traceAllocBlockPtr) set(x *traceAllocBlock) { *p = traceAllocBlockPtr(u
 
 // alloc allocates n-byte block.
 func (a *traceAlloc) alloc(n uintptr) unsafe.Pointer {
-	n = round(n, sys.PtrSize)
+	n = alignUp(n, sys.PtrSize)
 	if a.head == 0 || a.off+n > uintptr(len(a.head.ptr().data)) {
 		if n > uintptr(len(a.head.ptr().data)) {
 			throw("trace: alloc too large")

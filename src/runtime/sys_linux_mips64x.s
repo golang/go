@@ -21,7 +21,7 @@
 #define SYS_close		5003
 #define SYS_getpid		5038
 #define SYS_kill		5060
-#define SYS_fcntl		5080
+#define SYS_fcntl		5070
 #define SYS_mmap		5009
 #define SYS_munmap		5011
 #define SYS_setitimer		5036
@@ -46,6 +46,7 @@
 #define SYS_clock_gettime	5222
 #define SYS_epoll_create1	5285
 #define SYS_brk			5012
+#define SYS_pipe2		5287
 
 TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	code+0(FP), R4
@@ -95,7 +96,7 @@ TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0-28
 	MOVV	$SYS_write, R2
 	SYSCALL
 	BEQ	R7, 2(PC)
-	MOVW	$-1, R2
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+24(FP)
 	RET
 
@@ -106,8 +107,26 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	MOVV	$SYS_read, R2
 	SYSCALL
 	BEQ	R7, 2(PC)
-	MOVW	$-1, R2
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, ret+24(FP)
+	RET
+
+// func pipe() (r, w int32, errno int32)
+TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
+	MOVV	$r+0(FP), R4
+	MOVV	R0, R5
+	MOVV	$SYS_pipe2, R2
+	SYSCALL
+	MOVW	R2, errno+8(FP)
+	RET
+
+// func pipe2(flags int32) (r, w int32, errno int32)
+TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
+	MOVV	$r+8(FP), R4
+	MOVW	flags+0(FP), R5
+	MOVV	$SYS_pipe2, R2
+	SYSCALL
+	MOVW	R2, errno+16(FP)
 	RET
 
 TEXT runtime·usleep(SB),NOSPLIT,$16-4
@@ -158,6 +177,20 @@ TEXT runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
 	SYSCALL
 	RET
 
+TEXT ·getpid(SB),NOSPLIT|NOFRAME,$0-8
+	MOVV	$SYS_getpid, R2
+	SYSCALL
+	MOVV	R2, ret+0(FP)
+	RET
+
+TEXT ·tgkill(SB),NOSPLIT|NOFRAME,$0-24
+	MOVV	tgid+0(FP), R4
+	MOVV	tid+8(FP), R5
+	MOVV	sig+16(FP), R6
+	MOVV	$SYS_tgkill, R2
+	SYSCALL
+	RET
+
 TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
 	MOVW	mode+0(FP), R4
 	MOVV	new+8(FP), R5
@@ -178,23 +211,88 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 
 // func walltime1() (sec int64, nsec int32)
 TEXT runtime·walltime1(SB),NOSPLIT,$16
+	MOVV	R29, R16	// R16 is unchanged by C code
+	MOVV	R29, R1
+
+	MOVV	g_m(g), R17	// R17 = m
+
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVV	R31, m_vdsoPC(R17)
+	MOVV	R29, m_vdsoSP(R17)
+
+	MOVV	m_curg(R17), R4
+	MOVV	g, R5
+	BNE	R4, R5, noswitch
+
+	MOVV	m_g0(R17), R4
+	MOVV	(g_sched+gobuf_sp)(R4), R1	// Set SP to g0 stack
+
+noswitch:
+	SUBV	$16, R1
+	AND	$~15, R1	// Align for C code
+	MOVV	R1, R29
+
 	MOVW	$0, R4 // CLOCK_REALTIME
 	MOVV	$0(R29), R5
-	MOVV	$SYS_clock_gettime, R2
-	SYSCALL
+
+	MOVV	runtime·vdsoClockgettimeSym(SB), R25
+	BEQ	R25, fallback
+
+	JAL	(R25)
+
+finish:
 	MOVV	0(R29), R3	// sec
 	MOVV	8(R29), R5	// nsec
+
+	MOVV	R16, R29	// restore SP
+	MOVV	R0, m_vdsoSP(R17)	// clear vdsoSP
+
 	MOVV	R3, sec+0(FP)
 	MOVW	R5, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime1(SB),NOSPLIT,$16
-	MOVW	$1, R4 // CLOCK_MONOTONIC
-	MOVV	$0(R29), R5
+fallback:
 	MOVV	$SYS_clock_gettime, R2
 	SYSCALL
+	JMP finish
+
+TEXT runtime·nanotime1(SB),NOSPLIT,$16
+	MOVV	R29, R16	// R16 is unchanged by C code
+	MOVV	R29, R1
+
+	MOVV	g_m(g), R17	// R17 = m
+
+	// Set vdsoPC and vdsoSP for SIGPROF traceback.
+	MOVV	R31, m_vdsoPC(R17)
+	MOVV	R29, m_vdsoSP(R17)
+
+	MOVV	m_curg(R17), R4
+	MOVV	g, R5
+	BNE	R4, R5, noswitch
+
+	MOVV	m_g0(R17), R4
+	MOVV	(g_sched+gobuf_sp)(R4), R1	// Set SP to g0 stack
+
+noswitch:
+	SUBV	$16, R1
+	AND	$~15, R1	// Align for C code
+	MOVV	R1, R29
+
+	MOVW	$1, R4 // CLOCK_MONOTONIC
+	MOVV	$0(R29), R5
+
+	MOVV	runtime·vdsoClockgettimeSym(SB), R25
+	BEQ	R25, fallback
+
+	JAL	(R25)
+
+finish:
 	MOVV	0(R29), R3	// sec
 	MOVV	8(R29), R5	// nsec
+
+	MOVV	R16, R29	// restore SP
+	MOVV	R0, m_vdsoSP(R17)	// clear vdsoSP
+
 	// sec is in R3, nsec in R5
 	// return nsec in R3
 	MOVV	$1000000000, R4
@@ -203,6 +301,11 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16
 	ADDVU	R5, R3
 	MOVV	R3, ret+0(FP)
 	RET
+
+fallback:
+	MOVV	$SYS_clock_gettime, R2
+	SYSCALL
+	JMP	finish
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	how+0(FP), R4
@@ -450,6 +553,21 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
 	MOVW    fd+0(FP), R4  // fd
 	MOVV    $2, R5  // F_SETFD
 	MOVV    $1, R6  // FD_CLOEXEC
+	MOVV	$SYS_fcntl, R2
+	SYSCALL
+	RET
+
+// func runtime·setNonblock(int32 fd)
+TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
+	MOVW	fd+0(FP), R4 // fd
+	MOVV	$3, R5	// F_GETFL
+	MOVV	$0, R6
+	MOVV	$SYS_fcntl, R2
+	SYSCALL
+	MOVW	$0x80, R6 // O_NONBLOCK
+	OR	R2, R6
+	MOVW	fd+0(FP), R4 // fd
+	MOVV	$4, R5	// F_SETFL
 	MOVV	$SYS_fcntl, R2
 	SYSCALL
 	RET

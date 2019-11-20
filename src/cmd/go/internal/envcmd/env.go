@@ -8,6 +8,7 @@ package envcmd
 import (
 	"encoding/json"
 	"fmt"
+	"go/build"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -75,6 +76,7 @@ func MkEnv() []cfg.EnvVar {
 		{Name: "GOFLAGS", Value: cfg.Getenv("GOFLAGS")},
 		{Name: "GOHOSTARCH", Value: runtime.GOARCH},
 		{Name: "GOHOSTOS", Value: runtime.GOOS},
+		{Name: "GOINSECURE", Value: cfg.GOINSECURE},
 		{Name: "GONOPROXY", Value: cfg.GONOPROXY},
 		{Name: "GONOSUMDB", Value: cfg.GONOSUMDB},
 		{Name: "GOOS", Value: cfg.Goos},
@@ -237,7 +239,7 @@ func runEnv(cmd *base.Command, args []string) {
 				base.Fatalf("go env -w: arguments must be KEY=VALUE: invalid argument: %s", arg)
 			}
 			key, val := arg[:i], arg[i+1:]
-			if err := checkEnvWrite(key, val, env); err != nil {
+			if err := checkEnvWrite(key, val); err != nil {
 				base.Fatalf("go env -w: %v", err)
 			}
 			if _, ok := add[key]; ok {
@@ -248,6 +250,21 @@ func runEnv(cmd *base.Command, args []string) {
 				fmt.Fprintf(os.Stderr, "warning: go env -w %s=... does not override conflicting OS environment variable\n", key)
 			}
 		}
+
+		goos, okGOOS := add["GOOS"]
+		goarch, okGOARCH := add["GOARCH"]
+		if okGOOS || okGOARCH {
+			if !okGOOS {
+				goos = cfg.Goos
+			}
+			if !okGOARCH {
+				goarch = cfg.Goarch
+			}
+			if err := work.CheckGOOSARCHPair(goos, goarch); err != nil {
+				base.Fatalf("go env -w: %v", err)
+			}
+		}
+
 		updateEnvFile(add, nil)
 		return
 	}
@@ -259,10 +276,28 @@ func runEnv(cmd *base.Command, args []string) {
 		}
 		del := make(map[string]bool)
 		for _, arg := range args {
-			if err := checkEnvWrite(arg, "", env); err != nil {
+			if err := checkEnvWrite(arg, ""); err != nil {
 				base.Fatalf("go env -u: %v", err)
 			}
 			del[arg] = true
+		}
+		if del["GOOS"] || del["GOARCH"] {
+			goos, goarch := cfg.Goos, cfg.Goarch
+			if del["GOOS"] {
+				goos = getOrigEnv("GOOS")
+				if goos == "" {
+					goos = build.Default.GOOS
+				}
+			}
+			if del["GOARCH"] {
+				goarch = getOrigEnv("GOARCH")
+				if goarch == "" {
+					goarch = build.Default.GOARCH
+				}
+			}
+			if err := work.CheckGOOSARCHPair(goos, goarch); err != nil {
+				base.Fatalf("go env -u: %v", err)
+			}
 		}
 		updateEnvFile(nil, del)
 		return
@@ -330,7 +365,16 @@ func printEnvAsJSON(env []cfg.EnvVar) {
 	}
 }
 
-func checkEnvWrite(key, val string, env []cfg.EnvVar) error {
+func getOrigEnv(key string) string {
+	for _, v := range cfg.OrigEnv {
+		if strings.HasPrefix(v, key+"=") {
+			return strings.TrimPrefix(v, key+"=")
+		}
+	}
+	return ""
+}
+
+func checkEnvWrite(key, val string) error {
 	switch key {
 	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOTOOLDIR":
 		return fmt.Errorf("%s cannot be modified", key)
@@ -341,6 +385,25 @@ func checkEnvWrite(key, val string, env []cfg.EnvVar) error {
 	// To catch typos and the like, check that we know the variable.
 	if !cfg.CanGetenv(key) {
 		return fmt.Errorf("unknown go command variable %s", key)
+	}
+
+	// Some variables can only have one of a few valid values. If set to an
+	// invalid value, the next cmd/go invocation might fail immediately,
+	// even 'go env -w' itself.
+	switch key {
+	case "GO111MODULE":
+		switch val {
+		case "", "auto", "on", "off":
+		default:
+			return fmt.Errorf("invalid %s value %q", key, val)
+		}
+	case "GOPATH":
+		if strings.HasPrefix(val, "~") {
+			return fmt.Errorf("GOPATH entry cannot start with shell metacharacter '~': %q", val)
+		}
+		if !filepath.IsAbs(val) && val != "" {
+			return fmt.Errorf("GOPATH entry is relative; must be absolute path: %q", val)
+		}
 	}
 
 	if !utf8.ValidString(val) {

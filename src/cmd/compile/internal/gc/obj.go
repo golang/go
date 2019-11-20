@@ -111,21 +111,7 @@ func dumpCompilerObj(bout *bio.Writer) {
 	dumpexport(bout)
 }
 
-func dumpLinkerObj(bout *bio.Writer) {
-	printObjHeader(bout)
-
-	if len(pragcgobuf) != 0 {
-		// write empty export section; must be before cgo section
-		fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
-		fmt.Fprintf(bout, "\n$$  // cgo\n")
-		if err := json.NewEncoder(bout).Encode(pragcgobuf); err != nil {
-			Fatalf("serializing pragcgobuf: %v", err)
-		}
-		fmt.Fprintf(bout, "\n$$\n\n")
-	}
-
-	fmt.Fprintf(bout, "\n!\n")
-
+func dumpdata() {
 	externs := len(externdcl)
 
 	dumpglobls()
@@ -163,8 +149,24 @@ func dumpLinkerObj(bout *bio.Writer) {
 	}
 
 	addGCLocals()
+}
 
-	obj.WriteObjFile(Ctxt, bout.Writer, myimportpath)
+func dumpLinkerObj(bout *bio.Writer) {
+	printObjHeader(bout)
+
+	if len(pragcgobuf) != 0 {
+		// write empty export section; must be before cgo section
+		fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
+		fmt.Fprintf(bout, "\n$$  // cgo\n")
+		if err := json.NewEncoder(bout).Encode(pragcgobuf); err != nil {
+			Fatalf("serializing pragcgobuf: %v", err)
+		}
+		fmt.Fprintf(bout, "\n$$\n\n")
+	}
+
+	fmt.Fprintf(bout, "\n!\n")
+
+	obj.WriteObjFile(Ctxt, bout, myimportpath)
 }
 
 func addptabs() {
@@ -293,6 +295,9 @@ func addGCLocals() {
 				attr |= obj.DUPOK
 			}
 			ggloblsym(x, int32(len(x.P)), attr)
+		}
+		if x := s.Func.OpenCodedDeferInfo; x != nil {
+			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
 		}
 	}
 }

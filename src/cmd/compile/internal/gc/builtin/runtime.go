@@ -235,7 +235,21 @@ func racewriterange(addr, size uintptr)
 func msanread(addr, size uintptr)
 func msanwrite(addr, size uintptr)
 
+func checkptrAlignment(unsafe.Pointer, *byte, uintptr)
+func checkptrArithmetic(unsafe.Pointer, []unsafe.Pointer)
+
+func libfuzzerTraceCmp1(uint8, uint8)
+func libfuzzerTraceCmp2(uint16, uint16)
+func libfuzzerTraceCmp4(uint32, uint32)
+func libfuzzerTraceCmp8(uint64, uint64)
+func libfuzzerTraceConstCmp1(uint8, uint8)
+func libfuzzerTraceConstCmp2(uint16, uint16)
+func libfuzzerTraceConstCmp4(uint32, uint32)
+func libfuzzerTraceConstCmp8(uint64, uint64)
+
 // architecture variants
 var x86HasPOPCNT bool
 var x86HasSSE41 bool
+var x86HasFMA bool
+var armHasVFPv4 bool
 var arm64HasATOMICS bool

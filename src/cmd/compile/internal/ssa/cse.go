@@ -155,7 +155,7 @@ func cse(f *Func) {
 		}
 	}
 
-	sdom := f.sdom()
+	sdom := f.Sdom()
 
 	// Compute substitutions we would like to do. We substitute v for w
 	// if v and w are in the same equivalence class and v dominates w.
@@ -179,7 +179,7 @@ func cse(f *Func) {
 				if w == nil {
 					continue
 				}
-				if sdom.isAncestorEq(v.Block, w.Block) {
+				if sdom.IsAncestorEq(v.Block, w.Block) {
 					rewrite[w.ID] = v
 					e[j] = nil
 				} else {
@@ -248,14 +248,14 @@ func cse(f *Func) {
 				}
 			}
 		}
-		if v := b.Control; v != nil {
+		for i, v := range b.ControlValues() {
 			if x := rewrite[v.ID]; x != nil {
 				if v.Op == OpNilCheck {
 					// nilcheck pass will remove the nil checks and log
 					// them appropriately, so don't mess with them here.
 					continue
 				}
-				b.SetControl(x)
+				b.ReplaceControl(i, x)
 			}
 		}
 	}

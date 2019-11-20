@@ -260,8 +260,8 @@
 (Sub8  x (Const8  <t> [c])) && x.Op != OpConst8  -> (Add8  (Const8  <t> [int64(int8(-c))]) x)
 
 // fold negation into comparison operators
-(Not (Eq(64|32|16|8|B) x y)) -> (Neq(64|32|16|8|B) x y)
-(Not (Neq(64|32|16|8|B) x y)) -> (Eq(64|32|16|8|B) x y)
+(Not (Eq(64|32|16|8|B|Ptr|64F|32F) x y)) -> (Neq(64|32|16|8|B|Ptr|64F|32F) x y)
+(Not (Neq(64|32|16|8|B|Ptr|64F|32F) x y)) -> (Eq(64|32|16|8|B|Ptr|64F|32F) x y)
 
 (Not (Greater(64|32|16|8) x y)) -> (Leq(64|32|16|8) x y)
 (Not (Greater(64|32|16|8)U x y)) -> (Leq(64|32|16|8)U x y)
@@ -272,7 +272,6 @@
 (Not (Less(64|32|16|8)U x y)) -> (Geq(64|32|16|8)U x y)
 (Not (Leq(64|32|16|8) x y)) -> (Greater(64|32|16|8) x y)
 (Not (Leq(64|32|16|8)U x y)) -> (Greater(64|32|16|8)U x y)
-
 
 // Distribute multiplication c * (d+x) -> c*d + c*x. Useful for:
 // a[i].b = ...; a[i+1].b = ...
@@ -542,14 +541,6 @@
 (Slicemask (Const64 [x])) && x > 0 -> (Const64 [-1])
 (Slicemask (Const64 [0]))          -> (Const64 [0])
 
-// Rewrite AND of consts as shifts if possible, slightly faster for 64 bit operands
-// leading zeros can be shifted left, then right
-(And64 <t> (Const64 [y]) x) && nlz(y) + nto(y) == 64 && nto(y) >= 32
-  -> (Rsh64Ux64 (Lsh64x64 <t> x (Const64 <t> [nlz(y)])) (Const64 <t> [nlz(y)]))
-// trailing zeros can be shifted right, then left
-(And64 <t> (Const64 [y]) x) && nlo(y) + ntz(y) == 64 && ntz(y) >= 32
-  -> (Lsh64x64 (Rsh64Ux64 <t> x (Const64 <t> [ntz(y)])) (Const64 <t> [ntz(y)]))
-
 // simplifications often used for lengths.  e.g. len(s[i:i+5])==5
 (Sub(64|32|16|8) (Add(64|32|16|8) x y) x) -> y
 (Sub(64|32|16|8) (Add(64|32|16|8) x y) y) -> x
@@ -811,7 +802,7 @@
 
 // Putting struct{*byte} and similar into direct interfaces.
 (IMake typ (StructMake1 val)) -> (IMake typ val)
-(StructSelect [0] x:(IData _)) -> x
+(StructSelect [0] (IData x)) -> (IData x)
 
 // un-SSAable values use mem->mem copies
 (Store {t} dst (Load src mem) mem) && !fe.CanSSA(t.(*types.Type)) ->
@@ -831,9 +822,9 @@
 (Store _ (ArrayMake0) mem) -> mem
 (Store dst (ArrayMake1 e) mem) -> (Store {e.Type} dst e mem)
 
-// Putting [1]{*byte} and similar into direct interfaces.
+// Putting [1]*byte and similar into direct interfaces.
 (IMake typ (ArrayMake1 val)) -> (IMake typ val)
-(ArraySelect [0] x:(IData _)) -> x
+(ArraySelect [0] (IData x)) -> (IData x)
 
 // string ops
 // Decomposing StringMake and lowering of StringPtr and StringLen
@@ -887,8 +878,8 @@
 (NilCheck (GetG mem) mem) -> mem
 
 (If (Not cond) yes no) -> (If cond no yes)
-(If (ConstBool [c]) yes no) && c == 1 -> (First nil yes no)
-(If (ConstBool [c]) yes no) && c == 0 -> (First nil no yes)
+(If (ConstBool [c]) yes no) && c == 1 -> (First yes no)
+(If (ConstBool [c]) yes no) && c == 0 -> (First no yes)
 
 // Get rid of Convert ops for pointer arithmetic on unsafe.Pointer.
 (Convert (Add(64|32) (Convert ptr mem) off) mem) -> (Add(64|32) ptr off)
@@ -1189,7 +1180,7 @@
 
 // Divisibility checks x%c == 0 convert to multiply and rotate.
 // Note, x%c == 0 is rewritten as x == c*(x/c) during the opt pass
-// where (x/c) is peformed using multiplication with magic constants.
+// where (x/c) is performed using multiplication with magic constants.
 // To rewrite x%c == 0 requires pattern matching the rewritten expression
 // and checking that the division by the same constant wasn't already calculated.
 // This check is made by counting uses of the magic constant multiplication.
@@ -1706,37 +1697,37 @@
 // Divisibility check for signed integers for power of two constant are simple mask.
 // However, we must match against the rewritten n%c == 0 -> n - c*(n/c) == 0 -> n == c*(n/c)
 // where n/c contains fixup code to handle signed n.
-(Eq8 n (Lsh8x64
+((Eq8|Neq8) n (Lsh8x64
   (Rsh8x64
     (Add8  <t> n (Rsh8Ux64  <t> (Rsh8x64  <t> n (Const64 <typ.UInt64> [ 7])) (Const64 <typ.UInt64> [kbar])))
     (Const64 <typ.UInt64> [k]))
 	(Const64 <typ.UInt64> [k]))
 ) && k > 0 && k < 7 && kbar == 8 - k
-  -> (Eq8 (And8 <t> n (Const8 <t> [int64(1<<uint(k)-1)])) (Const8 <t> [0]))
+  -> ((Eq8|Neq8) (And8 <t> n (Const8 <t> [int64(1<<uint(k)-1)])) (Const8 <t> [0]))
 
-(Eq16 n (Lsh16x64
+((Eq16|Neq16) n (Lsh16x64
   (Rsh16x64
     (Add16 <t> n (Rsh16Ux64 <t> (Rsh16x64 <t> n (Const64 <typ.UInt64> [15])) (Const64 <typ.UInt64> [kbar])))
     (Const64 <typ.UInt64> [k]))
 	(Const64 <typ.UInt64> [k]))
 ) && k > 0 && k < 15 && kbar == 16 - k
-  -> (Eq16 (And16 <t> n (Const16 <t> [int64(1<<uint(k)-1)])) (Const16 <t> [0]))
+  -> ((Eq16|Neq16) (And16 <t> n (Const16 <t> [int64(1<<uint(k)-1)])) (Const16 <t> [0]))
 
-(Eq32 n (Lsh32x64
+((Eq32|Neq32) n (Lsh32x64
   (Rsh32x64
     (Add32 <t> n (Rsh32Ux64 <t> (Rsh32x64 <t> n (Const64 <typ.UInt64> [31])) (Const64 <typ.UInt64> [kbar])))
     (Const64 <typ.UInt64> [k]))
 	(Const64 <typ.UInt64> [k]))
 ) && k > 0 && k < 31 && kbar == 32 - k
-  -> (Eq32 (And32 <t> n (Const32 <t> [int64(1<<uint(k)-1)])) (Const32 <t> [0]))
+  -> ((Eq32|Neq32) (And32 <t> n (Const32 <t> [int64(1<<uint(k)-1)])) (Const32 <t> [0]))
 
-(Eq64 n (Lsh64x64
+((Eq64|Neq64) n (Lsh64x64
   (Rsh64x64
     (Add64 <t> n (Rsh64Ux64 <t> (Rsh64x64 <t> n (Const64 <typ.UInt64> [63])) (Const64 <typ.UInt64> [kbar])))
     (Const64 <typ.UInt64> [k]))
 	(Const64 <typ.UInt64> [k]))
 ) && k > 0 && k < 63 && kbar == 64 - k
-  -> (Eq64 (And64 <t> n (Const64 <t> [int64(1<<uint(k)-1)])) (Const64 <t> [0]))
+  -> ((Eq64|Neq64) (And64 <t> n (Const64 <t> [int64(1<<uint(k)-1)])) (Const64 <t> [0]))
 
 (Eq(8|16|32|64)  s:(Sub(8|16|32|64) x y) (Const(8|16|32|64) [0])) && s.Uses == 1 -> (Eq(8|16|32|64)  x y)
 (Neq(8|16|32|64) s:(Sub(8|16|32|64) x y) (Const(8|16|32|64) [0])) && s.Uses == 1 -> (Neq(8|16|32|64) x y)

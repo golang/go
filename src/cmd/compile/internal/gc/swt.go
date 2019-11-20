@@ -32,7 +32,7 @@ func typecheckTypeSwitch(n *Node) {
 	// declaration itself. So if there are no cases, we won't
 	// notice that it went unused.
 	if v := n.Left.Left; v != nil && !v.isBlank() && n.List.Len() == 0 {
-		yyerrorl(v.Pos, "%v declared and not used", v.Sym)
+		yyerrorl(v.Pos, "%v declared but not used", v.Sym)
 	}
 
 	var defCase, nilCase *Node
@@ -268,7 +268,6 @@ func walkExprSwitch(sw *Node) {
 		exprname: cond,
 	}
 
-	br := nod(OBREAK, nil, nil)
 	var defaultGoto *Node
 	var body Nodes
 	for _, ncase := range sw.List.Slice() {
@@ -290,13 +289,17 @@ func walkExprSwitch(sw *Node) {
 		// Process body.
 		body.Append(npos(ncase.Pos, nodSym(OLABEL, nil, label)))
 		body.Append(ncase.Nbody.Slice()...)
-		if !hasFall(ncase.Nbody.Slice()) {
+		if fall, pos := hasFall(ncase.Nbody.Slice()); !fall {
+			br := nod(OBREAK, nil, nil)
+			br.Pos = pos
 			body.Append(br)
 		}
 	}
 	sw.List.Set(nil)
 
 	if defaultGoto == nil {
+		br := nod(OBREAK, nil, nil)
+		br.Pos = br.Pos.WithNotStmt()
 		defaultGoto = br
 	}
 
@@ -469,7 +472,7 @@ func allCaseExprsAreSideEffectFree(sw *Node) bool {
 }
 
 // hasFall reports whether stmts ends with a "fallthrough" statement.
-func hasFall(stmts []*Node) bool {
+func hasFall(stmts []*Node) (bool, src.XPos) {
 	// Search backwards for the index of the fallthrough
 	// statement. Do not assume it'll be in the last
 	// position, since in some cases (e.g. when the statement
@@ -480,7 +483,10 @@ func hasFall(stmts []*Node) bool {
 	for i >= 0 && stmts[i].Op == OVARKILL {
 		i--
 	}
-	return i >= 0 && stmts[i].Op == OFALL
+	if i < 0 {
+		return false, src.NoXPos
+	}
+	return stmts[i].Op == OFALL, stmts[i].Pos
 }
 
 // walkTypeSwitch generates an AST that implements sw, where sw is a
@@ -507,6 +513,7 @@ func walkTypeSwitch(sw *Node) {
 	// Use a similar strategy for non-empty interfaces.
 	ifNil := nod(OIF, nil, nil)
 	ifNil.Left = nod(OEQ, itab, nodnil())
+	lineno = lineno.WithNotStmt() // disable statement marks after the first check.
 	ifNil.Left = typecheck(ifNil.Left, ctxExpr)
 	ifNil.Left = defaultlit(ifNil.Left, nil)
 	// ifNil.Nbody assigned at end.
@@ -581,20 +588,10 @@ func walkTypeSwitch(sw *Node) {
 	if defaultGoto == nil {
 		defaultGoto = br
 	}
-
-	if nilGoto != nil {
-		ifNil.Nbody.Set1(nilGoto)
-	} else {
-		// TODO(mdempsky): Just use defaultGoto directly.
-
-		// Jump to default case.
-		label := autolabel(".s")
-		ifNil.Nbody.Set1(nodSym(OGOTO, nil, label))
-		// Wrap default case with label.
-		blk := nod(OBLOCK, nil, nil)
-		blk.List.Set2(nodSym(OLABEL, nil, label), defaultGoto)
-		defaultGoto = blk
+	if nilGoto == nil {
+		nilGoto = defaultGoto
 	}
+	ifNil.Nbody.Set1(nilGoto)
 
 	s.Emit(&sw.Nbody)
 	sw.Nbody.Append(defaultGoto)
@@ -719,6 +716,7 @@ func binarySearch(n int, out *Nodes, less func(i int) *Node, base func(i int, ni
 			for i := lo; i < hi; i++ {
 				nif := nod(OIF, nil, nil)
 				base(i, nif)
+				lineno = lineno.WithNotStmt()
 				nif.Left = typecheck(nif.Left, ctxExpr)
 				nif.Left = defaultlit(nif.Left, nil)
 				out.Append(nif)
@@ -730,6 +728,7 @@ func binarySearch(n int, out *Nodes, less func(i int) *Node, base func(i int, ni
 		half := lo + n/2
 		nif := nod(OIF, nil, nil)
 		nif.Left = less(half)
+		lineno = lineno.WithNotStmt()
 		nif.Left = typecheck(nif.Left, ctxExpr)
 		nif.Left = defaultlit(nif.Left, nil)
 		do(lo, half, &nif.Nbody)

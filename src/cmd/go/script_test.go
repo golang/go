@@ -117,6 +117,7 @@ func (ts *testScript) setup() {
 		"GOSUMDB=" + testSumDBVerifierKey,
 		"GONOPROXY=",
 		"GONOSUMDB=",
+		"PWD=" + ts.cd,
 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
 		"devnull=" + os.DevNull,
 		"goversion=" + goVersion(ts),
@@ -291,6 +292,17 @@ Script:
 					}).(bool)
 					break
 				}
+				if strings.HasPrefix(cond.tag, "GODEBUG:") {
+					value := strings.TrimPrefix(cond.tag, "GODEBUG:")
+					parts := strings.Split(os.Getenv("GODEBUG"), ",")
+					for _, p := range parts {
+						if strings.TrimSpace(p) == value {
+							ok = true
+							break
+						}
+					}
+					break
+				}
 				if !imports.KnownArch[cond.tag] && !imports.KnownOS[cond.tag] && cond.tag != "gc" && cond.tag != "gccgo" {
 					ts.fatalf("unknown condition %q", cond.tag)
 				}
@@ -414,6 +426,7 @@ func (ts *testScript) cmdCd(neg bool, args []string) {
 		ts.fatalf("%s is not a directory", dir)
 	}
 	ts.cd = dir
+	ts.envMap["PWD"] = dir
 	fmt.Fprintf(&ts.log, "%s\n", ts.cd)
 }
 
@@ -429,7 +442,11 @@ func (ts *testScript) cmdChmod(neg bool, args []string) {
 	if err != nil || perm&uint64(os.ModePerm) != perm {
 		ts.fatalf("invalid mode: %s", args[0])
 	}
-	for _, path := range args[1:] {
+	for _, arg := range args[1:] {
+		path := arg
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(ts.cd, arg)
+		}
 		err := os.Chmod(path, os.FileMode(perm))
 		ts.check(err)
 	}
@@ -502,9 +519,6 @@ func (ts *testScript) doCmdCmp(args []string, env, quiet bool) {
 
 // cp copies files, maybe eventually directories.
 func (ts *testScript) cmdCp(neg bool, args []string) {
-	if neg {
-		ts.fatalf("unsupported: ! cp")
-	}
 	if len(args) < 2 {
 		ts.fatalf("usage: cp src... dst")
 	}
@@ -543,7 +557,14 @@ func (ts *testScript) cmdCp(neg bool, args []string) {
 		if dstDir {
 			targ = filepath.Join(dst, filepath.Base(src))
 		}
-		ts.check(ioutil.WriteFile(targ, data, mode))
+		err := ioutil.WriteFile(targ, data, mode)
+		if neg {
+			if err == nil {
+				ts.fatalf("unexpected command success")
+			}
+		} else {
+			ts.check(err)
+		}
 	}
 }
 
@@ -559,26 +580,31 @@ func (ts *testScript) cmdEnv(neg bool, args []string) {
 		args = args[1:]
 	}
 
+	var out strings.Builder
 	if len(args) == 0 {
 		printed := make(map[string]bool) // env list can have duplicates; only print effective value (from envMap) once
 		for _, kv := range ts.env {
 			k := kv[:strings.Index(kv, "=")]
 			if !printed[k] {
-				fmt.Fprintf(&ts.log, "%s=%s\n", k, ts.envMap[k])
+				fmt.Fprintf(&out, "%s=%s\n", k, ts.envMap[k])
 			}
 		}
-		return
-	}
-	for _, env := range args {
-		i := strings.Index(env, "=")
-		if i < 0 {
-			// Display value instead of setting it.
-			fmt.Fprintf(&ts.log, "%s=%s\n", env, ts.envMap[env])
-			continue
+	} else {
+		for _, env := range args {
+			i := strings.Index(env, "=")
+			if i < 0 {
+				// Display value instead of setting it.
+				fmt.Fprintf(&out, "%s=%s\n", env, ts.envMap[env])
+				continue
+			}
+			key, val := env[:i], conv(env[i+1:])
+			ts.env = append(ts.env, key+"="+val)
+			ts.envMap[key] = val
 		}
-		key, val := env[:i], conv(env[i+1:])
-		ts.env = append(ts.env, key+"="+val)
-		ts.envMap[key] = val
+	}
+	if out.Len() > 0 || len(args) > 0 {
+		ts.stdout = out.String()
+		ts.log.WriteString(out.String())
 	}
 }
 

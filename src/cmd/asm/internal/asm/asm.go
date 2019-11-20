@@ -450,8 +450,19 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 			target = &a[2]
 			break
 		}
-
-		fallthrough
+		p.errorf("wrong number of arguments to %s instruction", op)
+		return
+	case 4:
+		if p.arch.Family == sys.S390X {
+			// 4-operand compare-and-branch.
+			prog.From = a[0]
+			prog.Reg = p.getRegister(prog, op, &a[1])
+			prog.SetFrom3(a[2])
+			target = &a[3]
+			break
+		}
+		p.errorf("wrong number of arguments to %s instruction", op)
+		return
 	default:
 		p.errorf("wrong number of arguments to %s instruction", op)
 		return

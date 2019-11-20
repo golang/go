@@ -73,6 +73,14 @@ func fninit(n []*Node) {
 	// Record user init functions.
 	for i := 0; i < renameinitgen; i++ {
 		s := lookupN("init.", i)
+		fn := asNode(s.Def).Name.Defn
+		// Skip init functions with empty bodies.
+		// noder.go doesn't allow external init functions, and
+		// order.go has already removed any OEMPTY nodes, so
+		// checking Len() == 0 is sufficient here.
+		if fn.Nbody.Len() == 0 {
+			continue
+		}
 		fns = append(fns, s.Linksym())
 	}
 
