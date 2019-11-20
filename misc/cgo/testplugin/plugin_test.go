@@ -70,7 +70,7 @@ func testMain(m *testing.M) int {
 
 	os.Setenv("LD_LIBRARY_PATH", modRoot)
 
-	goCmd(nil, "build", "-i", "-buildmode=plugin", "./plugin1")
+	goCmd(nil, "build", "-buildmode=plugin", "./plugin1")
 	goCmd(nil, "build", "-buildmode=plugin", "./plugin2")
 	so, err := ioutil.ReadFile("plugin2.so")
 	if err != nil {
