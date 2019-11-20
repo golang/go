@@ -1215,6 +1215,90 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
 	}
 }
 
+func TestCipherSuites(t *testing.T) {
+	var lastID uint16
+	for _, c := range CipherSuites() {
+		if lastID > c.ID {
+			t.Errorf("CipherSuites are not ordered by ID: got %#04x after %#04x", c.ID, lastID)
+		} else {
+			lastID = c.ID
+		}
+
+		if c.Insecure {
+			t.Errorf("%#04x: Insecure CipherSuite returned by CipherSuites()", c.ID)
+		}
+	}
+	lastID = 0
+	for _, c := range InsecureCipherSuites() {
+		if lastID > c.ID {
+			t.Errorf("InsecureCipherSuites are not ordered by ID: got %#04x after %#04x", c.ID, lastID)
+		} else {
+			lastID = c.ID
+		}
+
+		if !c.Insecure {
+			t.Errorf("%#04x: not Insecure CipherSuite returned by InsecureCipherSuites()", c.ID)
+		}
+	}
+
+	cipherSuiteByID := func(id uint16) *CipherSuite {
+		for _, c := range CipherSuites() {
+			if c.ID == id {
+				return c
+			}
+		}
+		for _, c := range InsecureCipherSuites() {
+			if c.ID == id {
+				return c
+			}
+		}
+		return nil
+	}
+
+	for _, c := range cipherSuites {
+		cc := cipherSuiteByID(c.id)
+		if cc == nil {
+			t.Errorf("%#04x: no CipherSuite entry", c.id)
+			continue
+		}
+
+		if defaultOff := c.flags&suiteDefaultOff != 0; defaultOff != cc.Insecure {
+			t.Errorf("%#04x: Insecure %v, expected %v", c.id, cc.Insecure, defaultOff)
+		}
+		if tls12Only := c.flags&suiteTLS12 != 0; tls12Only && len(cc.SupportedVersions) != 1 {
+			t.Errorf("%#04x: suite is TLS 1.2 only, but SupportedVersions is %v", c.id, cc.SupportedVersions)
+		} else if !tls12Only && len(cc.SupportedVersions) != 3 {
+			t.Errorf("%#04x: suite TLS 1.0-1.2, but SupportedVersions is %v", c.id, cc.SupportedVersions)
+		}
+
+		if got := CipherSuiteName(c.id); got != cc.Name {
+			t.Errorf("%#04x: unexpected CipherSuiteName: got %q, expected %q", c.id, got, cc.Name)
+		}
+	}
+	for _, c := range cipherSuitesTLS13 {
+		cc := cipherSuiteByID(c.id)
+		if cc == nil {
+			t.Errorf("%#04x: no CipherSuite entry", c.id)
+			continue
+		}
+
+		if cc.Insecure {
+			t.Errorf("%#04x: Insecure %v, expected false", c.id, cc.Insecure)
+		}
+		if len(cc.SupportedVersions) != 1 || cc.SupportedVersions[0] != VersionTLS13 {
+			t.Errorf("%#04x: suite is TLS 1.3 only, but SupportedVersions is %v", c.id, cc.SupportedVersions)
+		}
+
+		if got := CipherSuiteName(c.id); got != cc.Name {
+			t.Errorf("%#04x: unexpected CipherSuiteName: got %q, expected %q", c.id, got, cc.Name)
+		}
+	}
+
+	if got := CipherSuiteName(0xabc); got != "0x0ABC" {
+		t.Errorf("unexpected fallback CipherSuiteName: got %q, expected 0x0ABC", got)
+	}
+}
+
 type brokenSigner struct{ crypto.Signer }
 
 func (s brokenSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error) {
