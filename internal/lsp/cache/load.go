@@ -20,14 +20,14 @@ import (
 )
 
 type metadata struct {
-	id          packageID
-	pkgPath     packagePath
-	name        string
-	files       []span.URI
-	typesSizes  types.Sizes
-	errors      []packages.Error
-	deps        []packageID
-	missingDeps map[packagePath]struct{}
+	id              packageID
+	pkgPath         packagePath
+	name            string
+	compiledGoFiles []span.URI
+	typesSizes      types.Sizes
+	errors          []packages.Error
+	deps            []packageID
+	missingDeps     map[packagePath]struct{}
 
 	// config is the *packages.Config associated with the loaded package.
 	config *packages.Config
@@ -213,7 +213,7 @@ func (s *snapshot) updateImports(ctx context.Context, pkgPath packagePath, pkg *
 	seen[id] = struct{}{}
 	for _, filename := range pkg.CompiledGoFiles {
 		uri := span.FileURI(filename)
-		m.files = append(m.files, uri)
+		m.compiledGoFiles = append(m.compiledGoFiles, uri)
 
 		s.addID(uri, m.id)
 	}

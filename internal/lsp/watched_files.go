@@ -55,7 +55,7 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 				// Find a different file in the same package we can use to trigger diagnostics.
 				// TODO(rstambler): Allow diagnostics to be called per-package to avoid this.
 				var otherFile source.File
-				for _, ph := range cph.Files() {
+				for _, ph := range cph.CompiledGoFiles() {
 					if ph.File().Identity().URI == f.URI() {
 						continue
 					}

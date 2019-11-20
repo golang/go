@@ -478,7 +478,7 @@ func (v *view) FindPosInPackage(searchpkg source.Package, pos token.Pos) (*ast.F
 
 func (v *view) findIgnoredFile(uri span.URI) (source.ParseGoHandle, source.Package, error) {
 	// Check the builtin package.
-	for _, h := range v.BuiltinPackage().Files() {
+	for _, h := range v.BuiltinPackage().CompiledGoFiles() {
 		if h.File().Identity().URI == uri {
 			return h, nil, nil
 		}
@@ -495,7 +495,7 @@ func findFileInPackage(pkg source.Package, uri span.URI) (source.ParseGoHandle, 
 		queue = queue[1:]
 		seen[pkg.ID()] = true
 
-		for _, ph := range pkg.Files() {
+		for _, ph := range pkg.CompiledGoFiles() {
 			if ph.File().Identity().URI == uri {
 				return ph, pkg, nil
 			}

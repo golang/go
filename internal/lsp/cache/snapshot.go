@@ -175,7 +175,7 @@ func (s *snapshot) KnownImportPaths() map[string]source.Package {
 		for importPath, newPkg := range cachedPkg.imports {
 			if oldPkg, ok := results[string(importPath)]; ok {
 				// Using the same trick as NarrowestPackageHandle, prefer non-variants.
-				if len(newPkg.files) < len(oldPkg.(*pkg).files) {
+				if len(newPkg.compiledGoFiles) < len(oldPkg.(*pkg).compiledGoFiles) {
 					results[string(importPath)] = newPkg
 				}
 			} else {
@@ -491,7 +491,7 @@ func (s *snapshot) reverseDependencies(id packageID, uris map[span.URI]struct{},
 	for _, parentID := range importedBy {
 		s.reverseDependencies(parentID, uris, seen)
 	}
-	for _, uri := range m.files {
+	for _, uri := range m.compiledGoFiles {
 		uris[uri] = struct{}{}
 	}
 }

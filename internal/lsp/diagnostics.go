@@ -18,10 +18,10 @@ import (
 
 func (s *Server) diagnoseView(view source.View, cphs []source.CheckPackageHandle) {
 	for _, cph := range cphs {
-		if len(cph.Files()) == 0 {
+		if len(cph.CompiledGoFiles()) == 0 {
 			continue
 		}
-		f := cph.Files()[0]
+		f := cph.CompiledGoFiles()[0]
 
 		// Run diagnostics on the workspace package.
 		go func(view source.View, uri span.URI) {

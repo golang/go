@@ -21,7 +21,7 @@ func (b *builtinPkg) Lookup(name string) *ast.Object {
 	return b.pkg.Scope.Lookup(name)
 }
 
-func (b *builtinPkg) Files() []source.ParseGoHandle {
+func (b *builtinPkg) CompiledGoFiles() []source.ParseGoHandle {
 	return b.files
 }
 

@@ -27,8 +27,8 @@ import (
 type checkPackageHandle struct {
 	handle *memoize.Handle
 
-	// files are the ParseGoHandles that compose the package.
-	files []source.ParseGoHandle
+	// compiledGoFiles are the ParseGoHandles that compose the package.
+	compiledGoFiles []source.ParseGoHandle
 
 	// mode is the mode the the files were parsed in.
 	mode source.ParseMode
@@ -77,7 +77,7 @@ func (s *snapshot) checkPackageHandle(ctx context.Context, id packageID, mode so
 	//
 
 	m := cph.m
-	files := cph.files
+	files := cph.compiledGoFiles
 	key := cph.key
 	fset := s.view.session.cache.fset
 
@@ -106,14 +106,14 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 	if m == nil {
 		return nil, nil, errors.Errorf("no metadata for %s", id)
 	}
-	phs, err := s.parseGoHandles(ctx, m, mode)
+	phs, err := s.compiledParseGoHandles(ctx, m, mode)
 	if err != nil {
 		return nil, nil, err
 	}
 	cph := &checkPackageHandle{
-		m:     m,
-		files: phs,
-		mode:  mode,
+		m:               m,
+		compiledGoFiles: phs,
+		mode:            mode,
 	}
 
 	// Make sure all of the depList are sorted.
@@ -139,7 +139,7 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 		deps[depHandle.m.pkgPath] = depHandle
 		depKeys = append(depKeys, depHandle.key)
 	}
-	cph.key = checkPackageKey(cph.m.id, cph.files, m.config, depKeys)
+	cph.key = checkPackageKey(cph.m.id, cph.compiledGoFiles, m.config, depKeys)
 	return cph, deps, nil
 }
 
@@ -177,8 +177,8 @@ func (cph *checkPackageHandle) check(ctx context.Context) (*pkg, error) {
 	return data.pkg, data.err
 }
 
-func (cph *checkPackageHandle) Files() []source.ParseGoHandle {
-	return cph.files
+func (cph *checkPackageHandle) CompiledGoFiles() []source.ParseGoHandle {
+	return cph.compiledGoFiles
 }
 
 func (cph *checkPackageHandle) ID() string {
@@ -206,9 +206,9 @@ func (cph *checkPackageHandle) cached() (*pkg, error) {
 	return data.pkg, data.err
 }
 
-func (s *snapshot) parseGoHandles(ctx context.Context, m *metadata, mode source.ParseMode) ([]source.ParseGoHandle, error) {
-	phs := make([]source.ParseGoHandle, 0, len(m.files))
-	for _, uri := range m.files {
+func (s *snapshot) compiledParseGoHandles(ctx context.Context, m *metadata, mode source.ParseMode) ([]source.ParseGoHandle, error) {
+	phs := make([]source.ParseGoHandle, 0, len(m.compiledGoFiles))
+	for _, uri := range m.compiledGoFiles {
 		f, err := s.view.GetFile(ctx, uri)
 		if err != nil {
 			return nil, err
@@ -229,12 +229,12 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 	}
 
 	pkg := &pkg{
-		id:         m.id,
-		pkgPath:    m.pkgPath,
-		mode:       mode,
-		files:      phs,
-		imports:    make(map[packagePath]*pkg),
-		typesSizes: m.typesSizes,
+		id:              m.id,
+		pkgPath:         m.pkgPath,
+		mode:            mode,
+		compiledGoFiles: phs,
+		imports:         make(map[packagePath]*pkg),
+		typesSizes:      m.typesSizes,
 		typesInfo: &types.Info{
 			Types:      make(map[ast.Expr]types.TypeAndValue),
 			Defs:       make(map[*ast.Ident]types.Object),
@@ -245,11 +245,11 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 		},
 	}
 	var (
-		files       = make([]*ast.File, len(pkg.files))
-		parseErrors = make([]error, len(pkg.files))
+		files       = make([]*ast.File, len(pkg.compiledGoFiles))
+		parseErrors = make([]error, len(pkg.compiledGoFiles))
 		wg          sync.WaitGroup
 	)
-	for i, ph := range pkg.files {
+	for i, ph := range pkg.compiledGoFiles {
 		wg.Add(1)
 		go func(i int, ph source.ParseGoHandle) {
 			defer wg.Done()

@@ -22,12 +22,12 @@ type pkg struct {
 	pkgPath packagePath
 	mode    source.ParseMode
 
-	files      []source.ParseGoHandle
-	errors     []*source.Error
-	imports    map[packagePath]*pkg
-	types      *types.Package
-	typesInfo  *types.Info
-	typesSizes types.Sizes
+	compiledGoFiles []source.ParseGoHandle
+	errors          []*source.Error
+	imports         map[packagePath]*pkg
+	types           *types.Package
+	typesInfo       *types.Info
+	typesSizes      types.Sizes
 }
 
 // Declare explicit types for package paths and IDs to ensure that we never use
@@ -44,12 +44,12 @@ func (p *pkg) PkgPath() string {
 	return string(p.pkgPath)
 }
 
-func (p *pkg) Files() []source.ParseGoHandle {
-	return p.files
+func (p *pkg) CompiledGoFiles() []source.ParseGoHandle {
+	return p.compiledGoFiles
 }
 
 func (p *pkg) File(uri span.URI) (source.ParseGoHandle, error) {
-	for _, ph := range p.Files() {
+	for _, ph := range p.CompiledGoFiles() {
 		if ph.File().Identity().URI == uri {
 			return ph, nil
 		}
@@ -59,7 +59,7 @@ func (p *pkg) File(uri span.URI) (source.ParseGoHandle, error) {
 
 func (p *pkg) GetSyntax() []*ast.File {
 	var syntax []*ast.File
-	for _, ph := range p.files {
+	for _, ph := range p.compiledGoFiles {
 		file, _, _, err := ph.Cached()
 		if err == nil {
 			syntax = append(syntax, file)

@@ -117,7 +117,7 @@ func (v *view) GetActiveReverseDeps(ctx context.Context, f source.File) (results
 		if err != nil {
 			continue
 		}
-		for _, ph := range cph.Files() {
+		for _, ph := range cph.CompiledGoFiles() {
 			seen[ph.File().Identity().URI] = struct{}{}
 		}
 		results = append(results, cph)
@@ -135,7 +135,7 @@ func transitiveReverseDependencies(ctx context.Context, uri span.URI, s *snapsho
 	metadata := s.getMetadataForURI(uri)
 
 	for _, m := range metadata {
-		for _, uri := range m.files {
+		for _, uri := range m.compiledGoFiles {
 			topLevelURIs[uri] = struct{}{}
 		}
 		s.reverseDependencies(m.id, uris, seen)

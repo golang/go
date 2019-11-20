@@ -110,7 +110,7 @@ func identifier(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.F
 	view := snapshot.View()
 	uri := span.FileURI(view.Session().Cache().FileSet().Position(pos).Filename)
 	var ph ParseGoHandle
-	for _, h := range pkg.Files() {
+	for _, h := range pkg.CompiledGoFiles() {
 		if h.File().Identity().URI == uri {
 			ph = h
 		}
@@ -285,7 +285,7 @@ func importSpec(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.F
 	}
 	uri := span.FileURI(snapshot.View().Session().Cache().FileSet().Position(pos).Filename)
 	var ph ParseGoHandle
-	for _, h := range pkg.Files() {
+	for _, h := range pkg.CompiledGoFiles() {
 		if h.File().Identity().URI == uri {
 			ph = h
 		}

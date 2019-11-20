@@ -36,7 +36,7 @@ func Highlight(ctx context.Context, view View, uri span.URI, pos protocol.Positi
 		return nil, err
 	}
 	var ph ParseGoHandle
-	for _, file := range pkg.Files() {
+	for _, file := range pkg.CompiledGoFiles() {
 		if file.File().Identity().URI == f.URI() {
 			ph = file
 		}

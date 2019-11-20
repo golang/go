@@ -117,7 +117,7 @@ type CheckPackageHandle interface {
 	ID() string
 
 	// ParseGoHandle returns a ParseGoHandle for which to get the package.
-	Files() []ParseGoHandle
+	CompiledGoFiles() []ParseGoHandle
 
 	// Check returns the type-checked Package for the CheckPackageHandle.
 	Check(ctx context.Context) (Package, error)
@@ -333,7 +333,7 @@ type Scope interface {
 type Package interface {
 	ID() string
 	PkgPath() string
-	Files() []ParseGoHandle
+	CompiledGoFiles() []ParseGoHandle
 	File(uri span.URI) (ParseGoHandle, error)
 	GetSyntax() []*ast.File
 	GetErrors() []*Error
@@ -371,5 +371,5 @@ func (e *Error) Error() string {
 
 type BuiltinPackage interface {
 	Lookup(name string) *ast.Object
-	Files() []ParseGoHandle
+	CompiledGoFiles() []ParseGoHandle
 }

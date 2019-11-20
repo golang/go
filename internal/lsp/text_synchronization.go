@@ -175,7 +175,7 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 		return nil
 	}
 	for _, cph := range cphs {
-		for _, ph := range cph.Files() {
+		for _, ph := range cph.CompiledGoFiles() {
 			// If other files from this package are open, don't clear.
 			if s.session.IsOpen(ph.File().Identity().URI) {
 				clear = nil

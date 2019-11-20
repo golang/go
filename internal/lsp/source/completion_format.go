@@ -184,7 +184,7 @@ func (c *completer) importEdits(imp *importInfo) ([]protocol.TextEdit, error) {
 
 	uri := span.FileURI(c.filename)
 	var ph ParseGoHandle
-	for _, h := range c.pkg.Files() {
+	for _, h := range c.pkg.CompiledGoFiles() {
 		if h.File().Identity().URI == uri {
 			ph = h
 		}

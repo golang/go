@@ -62,7 +62,7 @@ func NarrowestCheckPackageHandle(handles []CheckPackageHandle) (CheckPackageHand
 	}
 	result := handles[0]
 	for _, handle := range handles[1:] {
-		if result == nil || len(handle.Files()) < len(result.Files()) {
+		if result == nil || len(handle.CompiledGoFiles()) < len(result.CompiledGoFiles()) {
 			result = handle
 		}
 	}
@@ -82,7 +82,7 @@ func WidestCheckPackageHandle(handles []CheckPackageHandle) (CheckPackageHandle,
 	}
 	result := handles[0]
 	for _, handle := range handles[1:] {
-		if result == nil || len(handle.Files()) > len(result.Files()) {
+		if result == nil || len(handle.CompiledGoFiles()) > len(result.CompiledGoFiles()) {
 			result = handle
 		}
 	}

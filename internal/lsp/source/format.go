@@ -117,7 +117,7 @@ func AllImportsFixes(ctx context.Context, view View, f File) (allFixEdits []prot
 		return nil, nil, errors.Errorf("%s has list errors, not running goimports", f.URI())
 	}
 	var ph ParseGoHandle
-	for _, h := range pkg.Files() {
+	for _, h := range pkg.CompiledGoFiles() {
 		if h.File().Identity().URI == f.URI() {
 			ph = h
 		}

@@ -69,7 +69,7 @@ func Diagnostics(ctx context.Context, view View, f File, disabledAnalyses map[st
 
 	// Prepare the reports we will send for the files in this package.
 	reports := make(map[span.URI][]Diagnostic)
-	for _, fh := range pkg.Files() {
+	for _, fh := range pkg.CompiledGoFiles() {
 		clearReports(view, reports, fh.File().Identity().URI)
 	}
 
@@ -95,7 +95,7 @@ func Diagnostics(ctx context.Context, view View, f File, disabledAnalyses map[st
 		if err != nil {
 			return nil, warningMsg, err
 		}
-		for _, fh := range pkg.Files() {
+		for _, fh := range pkg.CompiledGoFiles() {
 			clearReports(view, reports, fh.File().Identity().URI)
 		}
 		diagnostics(ctx, view, pkg, reports)
