@@ -786,7 +786,7 @@ func importPath(s *ast.ImportSpec) string {
 }
 
 func nodeContains(n ast.Node, pos token.Pos) bool {
-	return n != nil && n.Pos() <= pos && pos < n.End()
+	return n != nil && n.Pos() <= pos && pos <= n.End()
 }
 
 func (c *completer) inConstDecl() bool {

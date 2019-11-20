@@ -1,0 +1,19 @@
+package keywords
+
+// non-matching candidate - shouldn't show up as completion
+var apple = "apple"
+
+func _() {
+	variance := 123 //@item(kwVariance, "variance", "int", "var")
+	println(var) //@complete(")", kwVariance)
+}
+
+func _() {
+	var s struct { variance int } //@item(kwVarianceField, "variance", "int", "field")
+	s.var //@complete(" //", kwVarianceField)
+}
+
+func _() {
+	var typeName string //@item(kwTypeName, "typeName", "string", "var")
+	type //@complete(" //", kwTypeName)
+}
