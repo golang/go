@@ -125,13 +125,4 @@ func supportedSignatureAlgorithms() []SignatureScheme {
 	return fipsSupportedSignatureAlgorithms
 }
 
-// supportedSignatureAlgorithmsTLS12 returns the supported signature algorithms
-// for TLS 1.2. Issue 32425.
-func supportedSignatureAlgorithmsTLS12() []SignatureScheme {
-	if !needFIPS() {
-		return defaultSupportedSignatureAlgorithmsTLS12
-	}
-	return fipsSupportedSignatureAlgorithms[3:]
-}
-
 var testingOnlyForceClientHelloSignatureAlgorithms []SignatureScheme

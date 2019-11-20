@@ -6,6 +6,7 @@ package tls
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/x509"
 	"encoding/json"
 	"errors"
@@ -1045,3 +1046,205 @@ func TestBuildNameToCertificate_doesntModifyCertificates(t *testing.T) {
 }
 
 func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }
+
+func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
+	rsaCert := &Certificate{
+		Certificate: [][]byte{testRSACertificate},
+		PrivateKey:  testRSAPrivateKey,
+	}
+	pkcs1Cert := &Certificate{
+		Certificate:                  [][]byte{testRSACertificate},
+		PrivateKey:                   testRSAPrivateKey,
+		SupportedSignatureAlgorithms: []SignatureScheme{PKCS1WithSHA1, PKCS1WithSHA256},
+	}
+	ecdsaCert := &Certificate{
+		// ECDSA P-256 certificate
+		Certificate: [][]byte{testP256Certificate},
+		PrivateKey:  testP256PrivateKey,
+	}
+	ed25519Cert := &Certificate{
+		Certificate: [][]byte{testEd25519Certificate},
+		PrivateKey:  testEd25519PrivateKey,
+	}
+
+	tests := []struct {
+		c       *Certificate
+		chi     *ClientHelloInfo
+		wantErr string
+	}{
+		{rsaCert, &ClientHelloInfo{
+			ServerName:        "example.golang",
+			SignatureSchemes:  []SignatureScheme{PSSWithSHA256},
+			SupportedVersions: []uint16{VersionTLS13},
+		}, ""},
+		{ecdsaCert, &ClientHelloInfo{
+			SignatureSchemes:  []SignatureScheme{PSSWithSHA256, ECDSAWithP256AndSHA256},
+			SupportedVersions: []uint16{VersionTLS13, VersionTLS12},
+		}, ""},
+		{rsaCert, &ClientHelloInfo{
+			ServerName:        "example.com",
+			SignatureSchemes:  []SignatureScheme{PSSWithSHA256},
+			SupportedVersions: []uint16{VersionTLS13},
+		}, "not valid for requested server name"},
+		{ecdsaCert, &ClientHelloInfo{
+			SignatureSchemes:  []SignatureScheme{ECDSAWithP384AndSHA384},
+			SupportedVersions: []uint16{VersionTLS13},
+		}, "signature algorithms"},
+		{pkcs1Cert, &ClientHelloInfo{
+			SignatureSchemes:  []SignatureScheme{PSSWithSHA256, ECDSAWithP256AndSHA256},
+			SupportedVersions: []uint16{VersionTLS13},
+		}, "signature algorithms"},
+
+		{rsaCert, &ClientHelloInfo{
+			CipherSuites:      []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
+			SignatureSchemes:  []SignatureScheme{PKCS1WithSHA1},
+			SupportedVersions: []uint16{VersionTLS13, VersionTLS12},
+		}, "signature algorithms"},
+		{rsaCert, &ClientHelloInfo{
+			CipherSuites:      []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
+			SignatureSchemes:  []SignatureScheme{PKCS1WithSHA1},
+			SupportedVersions: []uint16{VersionTLS13, VersionTLS12},
+			config: &Config{
+				MaxVersion: VersionTLS12,
+			},
+		}, ""}, // Check that mutual version selection works.
+
+		{ecdsaCert, &ClientHelloInfo{
+			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
+			SupportedCurves:   []CurveID{CurveP256},
+			SupportedPoints:   []uint8{pointFormatUncompressed},
+			SignatureSchemes:  []SignatureScheme{ECDSAWithP256AndSHA256},
+			SupportedVersions: []uint16{VersionTLS12},
+		}, ""},
+		{ecdsaCert, &ClientHelloInfo{
+			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
+			SupportedCurves:   []CurveID{CurveP256},
+			SupportedPoints:   []uint8{pointFormatUncompressed},
+			SignatureSchemes:  []SignatureScheme{ECDSAWithP384AndSHA384},
+			SupportedVersions: []uint16{VersionTLS12},
+		}, ""}, // TLS 1.2 does not restrict curves based on the SignatureScheme.
+		{ecdsaCert, &ClientHelloInfo{
+			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
+			SupportedCurves:   []CurveID{CurveP256},
+			SupportedPoints:   []uint8{pointFormatUncompressed},
+			SignatureSchemes:  nil,
+			SupportedVersions: []uint16{VersionTLS12},
+		}, ""}, // TLS 1.2 comes with default signature schemes.
+		{ecdsaCert, &ClientHelloInfo{
+			CipherSuites:      []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
+			SupportedCurves:   []CurveID{CurveP256},
+			SupportedPoints:   []uint8{pointFormatUncompressed},
+			SignatureSchemes:  []SignatureScheme{ECDSAWithP256AndSHA256},
+			SupportedVersions: []uint16{VersionTLS12},
+		}, "cipher suite"},
+		{ecdsaCert, &ClientHelloInfo{
+			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
+			SupportedCurves:   []CurveID{CurveP256},
+			SupportedPoints:   []uint8{pointFormatUncompressed},
+			SignatureSchemes:  []SignatureScheme{ECDSAWithP256AndSHA256},
+			SupportedVersions: []uint16{VersionTLS12},
+			config: &Config{
+				CipherSuites: []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
+			},
+		}, "cipher suite"},
+		{ecdsaCert, &ClientHelloInfo{
+			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
+			SupportedCurves:   []CurveID{CurveP384},
+			SupportedPoints:   []uint8{pointFormatUncompressed},
+			SignatureSchemes:  []SignatureScheme{ECDSAWithP256AndSHA256},
+			SupportedVersions: []uint16{VersionTLS12},
+		}, "certificate curve"},
+		{ecdsaCert, &ClientHelloInfo{
+			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
+			SupportedCurves:   []CurveID{CurveP256},
+			SupportedPoints:   []uint8{1},
+			SignatureSchemes:  []SignatureScheme{ECDSAWithP256AndSHA256},
+			SupportedVersions: []uint16{VersionTLS12},
+		}, "doesn't support ECDHE"},
+		{ecdsaCert, &ClientHelloInfo{
+			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
+			SupportedCurves:   []CurveID{CurveP256},
+			SupportedPoints:   []uint8{pointFormatUncompressed},
+			SignatureSchemes:  []SignatureScheme{PSSWithSHA256},
+			SupportedVersions: []uint16{VersionTLS12},
+		}, "signature algorithms"},
+
+		{ed25519Cert, &ClientHelloInfo{
+			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
+			SupportedCurves:   []CurveID{CurveP256}, // only relevant for ECDHE support
+			SupportedPoints:   []uint8{pointFormatUncompressed},
+			SignatureSchemes:  []SignatureScheme{Ed25519},
+			SupportedVersions: []uint16{VersionTLS12},
+		}, ""},
+		{ed25519Cert, &ClientHelloInfo{
+			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
+			SupportedCurves:   []CurveID{CurveP256}, // only relevant for ECDHE support
+			SupportedPoints:   []uint8{pointFormatUncompressed},
+			SignatureSchemes:  []SignatureScheme{Ed25519},
+			SupportedVersions: []uint16{VersionTLS10},
+		}, "doesn't support Ed25519"},
+		{ed25519Cert, &ClientHelloInfo{
+			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
+			SupportedCurves:   []CurveID{},
+			SupportedPoints:   []uint8{pointFormatUncompressed},
+			SignatureSchemes:  []SignatureScheme{Ed25519},
+			SupportedVersions: []uint16{VersionTLS12},
+		}, "doesn't support ECDHE"},
+
+		{rsaCert, &ClientHelloInfo{
+			CipherSuites:      []uint16{TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA},
+			SupportedCurves:   []CurveID{CurveP256}, // only relevant for ECDHE support
+			SupportedPoints:   []uint8{pointFormatUncompressed},
+			SupportedVersions: []uint16{VersionTLS10},
+		}, ""},
+		{rsaCert, &ClientHelloInfo{
+			CipherSuites:      []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256},
+			SupportedVersions: []uint16{VersionTLS12},
+		}, ""}, // static RSA fallback
+	}
+	for i, tt := range tests {
+		err := tt.chi.SupportsCertificate(tt.c)
+		switch {
+		case tt.wantErr == "" && err != nil:
+			t.Errorf("%d: unexpected error: %v", i, err)
+		case tt.wantErr != "" && err == nil:
+			t.Errorf("%d: unexpected success", i)
+		case tt.wantErr != "" && !strings.Contains(err.Error(), tt.wantErr):
+			t.Errorf("%d: got error %q, expected %q", i, err, tt.wantErr)
+		}
+	}
+}
+
+type brokenSigner struct{ crypto.Signer }
+
+func (s brokenSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error) {
+	// Replace opts with opts.HashFunc(), so rsa.PSSOptions are discarded.
+	return s.Signer.Sign(rand, digest, opts.HashFunc())
+}
+
+// TestPKCS1OnlyCert uses a client certificate with a broken crypto.Signer that
+// always makes PKCS#1 v1.5 signatures, so can't be used with RSA-PSS.
+func TestPKCS1OnlyCert(t *testing.T) {
+	clientConfig := testConfig.Clone()
+	clientConfig.Certificates = []Certificate{{
+		Certificate: [][]byte{testRSACertificate},
+		PrivateKey:  brokenSigner{testRSAPrivateKey},
+	}}
+	serverConfig := testConfig.Clone()
+	serverConfig.MaxVersion = VersionTLS12 // TLS 1.3 doesn't support PKCS#1 v1.5
+	serverConfig.ClientAuth = RequireAnyClientCert
+
+	// If RSA-PSS is selected, the handshake should fail.
+	if _, _, err := testHandshake(t, clientConfig, serverConfig); err == nil {
+		t.Fatal("expected broken certificate to cause connection to fail")
+	}
+
+	clientConfig.Certificates[0].SupportedSignatureAlgorithms =
+		[]SignatureScheme{PKCS1WithSHA1, PKCS1WithSHA256}
+
+	// But if the certificate restricts supported algorithms, RSA-PSS should not
+	// be selected, and the handshake should succeed.
+	if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
+		t.Error(err)
+	}
+}

@@ -14,6 +14,11 @@ func TestSignatureSelection(t *testing.T) {
 		Certificate: [][]byte{testRSACertificate},
 		PrivateKey:  testRSAPrivateKey,
 	}
+	pkcs1Cert := &Certificate{
+		Certificate:                  [][]byte{testRSACertificate},
+		PrivateKey:                   testRSAPrivateKey,
+		SupportedSignatureAlgorithms: []SignatureScheme{PKCS1WithSHA1, PKCS1WithSHA256},
+	}
 	ecdsaCert := &Certificate{
 		Certificate: [][]byte{testP256Certificate},
 		PrivateKey:  testP256PrivateKey,
@@ -34,7 +39,8 @@ func TestSignatureSelection(t *testing.T) {
 	}{
 		{rsaCert, []SignatureScheme{PKCS1WithSHA1, PKCS1WithSHA256}, VersionTLS12, PKCS1WithSHA1, signaturePKCS1v15, crypto.SHA1},
 		{rsaCert, []SignatureScheme{PKCS1WithSHA512, PKCS1WithSHA1}, VersionTLS12, PKCS1WithSHA512, signaturePKCS1v15, crypto.SHA512},
-		{rsaCert, []SignatureScheme{PSSWithSHA256, PKCS1WithSHA256}, VersionTLS12, PKCS1WithSHA256, signaturePKCS1v15, crypto.SHA256},
+		{rsaCert, []SignatureScheme{PSSWithSHA256, PKCS1WithSHA256}, VersionTLS12, PSSWithSHA256, signatureRSAPSS, crypto.SHA256},
+		{pkcs1Cert, []SignatureScheme{PSSWithSHA256, PKCS1WithSHA256}, VersionTLS12, PKCS1WithSHA256, signaturePKCS1v15, crypto.SHA256},
 		{rsaCert, []SignatureScheme{PSSWithSHA384, PKCS1WithSHA1}, VersionTLS13, PSSWithSHA384, signatureRSAPSS, crypto.SHA384},
 		{ecdsaCert, []SignatureScheme{ECDSAWithSHA1}, VersionTLS12, ECDSAWithSHA1, signatureECDSA, crypto.SHA1},
 		{ecdsaCert, []SignatureScheme{ECDSAWithP256AndSHA256}, VersionTLS12, ECDSAWithP256AndSHA256, signatureECDSA, crypto.SHA256},
@@ -70,6 +76,12 @@ func TestSignatureSelection(t *testing.T) {
 		}
 	}
 
+	brokenCert := &Certificate{
+		Certificate:                  [][]byte{testRSACertificate},
+		PrivateKey:                   testRSAPrivateKey,
+		SupportedSignatureAlgorithms: []SignatureScheme{Ed25519},
+	}
+
 	badTests := []struct {
 		cert        *Certificate
 		peerSigAlgs []SignatureScheme
@@ -80,6 +92,8 @@ func TestSignatureSelection(t *testing.T) {
 		{rsaCert, []SignatureScheme{0}, VersionTLS12},
 		{ed25519Cert, []SignatureScheme{ECDSAWithP256AndSHA256, ECDSAWithSHA1}, VersionTLS12},
 		{ecdsaCert, []SignatureScheme{Ed25519}, VersionTLS12},
+		{brokenCert, []SignatureScheme{Ed25519}, VersionTLS12},
+		{brokenCert, []SignatureScheme{PKCS1WithSHA256}, VersionTLS12},
 		// RFC 5246, Section 7.4.1.4.1, says to only consider {sha1,ecdsa} as
 		// default when the extension is missing, and RFC 8422 does not update
 		// it. Anyway, if a stack supports Ed25519 it better support sigalgs.
@@ -92,6 +106,7 @@ func TestSignatureSelection(t *testing.T) {
 		{ecdsaCert, []SignatureScheme{ECDSAWithP384AndSHA384}, VersionTLS13},
 		// TLS 1.3 does not support PKCS1v1.5 or SHA-1.
 		{rsaCert, []SignatureScheme{PKCS1WithSHA256}, VersionTLS13},
+		{pkcs1Cert, []SignatureScheme{PSSWithSHA256, PKCS1WithSHA256}, VersionTLS13},
 		{ecdsaCert, []SignatureScheme{ECDSAWithSHA1}, VersionTLS13},
 	}
 

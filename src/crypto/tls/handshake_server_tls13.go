@@ -365,16 +365,13 @@ func (hs *serverHandshakeStateTLS13) pickCertificate() error {
 		return c.sendAlert(alertMissingExtension)
 	}
 
-	// This implements a very simplistic certificate selection strategy for now:
-	// getCertificate delegates to the application Config.GetCertificate, or
-	// selects based on the server_name only. If the selected certificate's
-	// public key does not match the client signature_algorithms, the handshake
-	// is aborted. No attention is given to signature_algorithms_cert, and it is
-	// not passed to the application Config.GetCertificate. This will need to
-	// improve according to RFC 8446, sections 4.4.2.2 and 4.2.3.
 	certificate, err := c.config.getCertificate(clientHelloInfo(c, hs.clientHello))
 	if err != nil {
-		c.sendAlert(alertInternalError)
+		if err == errNoCertificates {
+			c.sendAlert(alertUnrecognizedName)
+		} else {
+			c.sendAlert(alertInternalError)
+		}
 		return err
 	}
 	hs.sigAlg, err = selectSignatureScheme(c.vers, certificate, hs.clientHello.supportedSignatureAlgorithms)
