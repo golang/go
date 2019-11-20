@@ -64,7 +64,7 @@ type Timer struct {
 // 	}
 //
 // This cannot be done concurrent to other receives from the Timer's
-// channel.
+// channel or other calls to the Timer's Stop method.
 //
 // For a timer created with AfterFunc(d, f), if t.Stop returns false, then the timer
 // has already expired and the function f has been started in its own goroutine;
