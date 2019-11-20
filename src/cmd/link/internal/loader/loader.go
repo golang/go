@@ -227,7 +227,7 @@ type Loader struct {
 }
 
 const (
-	pkgDef    = iota
+	pkgDef = iota
 	nonPkgDef
 	nonPkgRef
 )
@@ -1239,6 +1239,56 @@ func (l *Loader) AuxSym(i Sym, j int) Sym {
 	return l.resolve(r, a.Sym)
 }
 
+// GetFuncDwarfAuxSyms collects and returns the auxiliary DWARF
+// symbols associated with a given function symbol.  Prior to the
+// introduction of the loader, this was done purely using name
+// lookups, e.f. for function with name XYZ we would then look up
+// go.info.XYZ, etc.
+// FIXME: once all of dwarfgen is converted over to the loader,
+// it would save some space to make these aux symbols nameless.
+func (l *Loader) GetFuncDwarfAuxSyms(fnSymIdx Sym) (auxDwarfInfo, auxDwarfLoc, auxDwarfRanges, auxDwarfLines Sym) {
+	if l.SymType(fnSymIdx) != sym.STEXT {
+		log.Fatalf("error: non-function sym %d/%s t=%s passed to GetFuncDwarfAuxSyms", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
+	}
+	if l.IsExternal(fnSymIdx) {
+		// Current expectation is that any external function will
+		// not have auxsyms.
+		return
+	}
+	naux := l.NAux(fnSymIdx)
+	if naux == 0 {
+		return
+	}
+	r, li := l.toLocal(fnSymIdx)
+	for i := 0; i < naux; i++ {
+		a := goobj2.Aux{}
+		a.Read(r.Reader, r.AuxOff(li, i))
+		switch a.Type {
+		case goobj2.AuxDwarfInfo:
+			auxDwarfInfo = l.resolve(r, a.Sym)
+			if l.SymType(auxDwarfInfo) != sym.SDWARFINFO {
+				panic("aux dwarf info sym with wrong type")
+			}
+		case goobj2.AuxDwarfLoc:
+			auxDwarfLoc = l.resolve(r, a.Sym)
+			if l.SymType(auxDwarfLoc) != sym.SDWARFLOC {
+				panic("aux dwarf loc sym with wrong type")
+			}
+		case goobj2.AuxDwarfRanges:
+			auxDwarfRanges = l.resolve(r, a.Sym)
+			if l.SymType(auxDwarfRanges) != sym.SDWARFRANGE {
+				panic("aux dwarf ranges sym with wrong type")
+			}
+		case goobj2.AuxDwarfLines:
+			auxDwarfLines = l.resolve(r, a.Sym)
+			if l.SymType(auxDwarfLines) != sym.SDWARFLINES {
+				panic("aux dwarf lines sym with wrong type")
+			}
+		}
+	}
+	return
+}
+
 // ReadAuxSyms reads the aux symbol ids for the specified symbol into the
 // slice passed as a parameter. If the slice capacity is not large enough, a new
 // larger slice will be allocated. Final slice is returned.
@@ -1545,6 +1595,7 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
 			}
 		}
 		if strings.HasPrefix(name, "go.string.") ||
+			strings.HasPrefix(name, "gclocals·") ||
 			strings.HasPrefix(name, "runtime.gcbits.") {
 			l.SetAttrNotInSymbolTable(gi, true)
 		}
@@ -2019,7 +2070,6 @@ func loadObjFull(l *Loader, r *oReader) {
 				s := l.Syms[gi]
 				if s.Type == sym.STEXT {
 					lib.DupTextSyms = append(lib.DupTextSyms, s)
-					lib.DupTextSyms2 = append(lib.DupTextSyms2, sym.LoaderSym(gi))
 				}
 			}
 			continue
@@ -2211,12 +2261,10 @@ func loadObjFull(l *Loader, r *oReader) {
 			}
 			s.Attr.Set(sym.AttrOnList, true)
 			lib.Textp = append(lib.Textp, s)
-			lib.Textp2 = append(lib.Textp2, sym.LoaderSym(isym))
 		} else {
 			// there may be a dup in another package
 			// put into a temp list and add to text later
 			lib.DupTextSyms = append(lib.DupTextSyms, s)
-			lib.DupTextSyms2 = append(lib.DupTextSyms2, sym.LoaderSym(isym))
 		}
 	}
 }
@@ -2322,6 +2370,83 @@ func (l *Loader) UndefinedRelocTargets(limit int) []Sym {
 	return result
 }
 
+// AssignTextSymbolOrder populates the Textp2 slices within each
+// library and compilation unit, insuring that packages are laid down
+// in dependency order (internal first, then everything else).
+func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool) {
+
+	// Library Textp2 lists should be empty at this point.
+	for _, lib := range libs {
+		if len(lib.Textp2) != 0 {
+			panic("expected empty Textp2 slice for library")
+		}
+		if len(lib.DupTextSyms2) != 0 {
+			panic("expected empty DupTextSyms2 slice for library")
+		}
+	}
+
+	// Used to record which dupok symbol we've assigned to a unit.
+	// Can't use the onlist attribute here because it will need to
+	// clear for the later assignment of the sym.Symbol to a unit.
+	// NB: we can convert to using onList once we no longer have to
+	// call the regular addToTextp.
+	assignedToUnit := makeBitmap(l.NSym() + 1)
+
+	// Walk through all text symbols from Go object files and append
+	// them to their corresponding library's textp2 list.
+	for _, o := range l.objs[1:] {
+		r := o.r
+		lib := r.unit.Lib
+		for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
+			gi := l.toGlobal(r, i)
+			osym := goobj2.Sym{}
+			osym.ReadWithoutName(r.Reader, r.SymOff(i))
+			st := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]
+			if st != sym.STEXT {
+				continue
+			}
+			// check for dupok
+			if r2, i2 := l.toLocal(gi); r2 != r || i2 != i {
+				if l.attrReachable.has(gi) {
+					// A dupok symbol is resolved to another package.
+					// We still need to record its presence in the
+					// current package, as the trampoline pass expects
+					// packages are laid out in dependency order.
+					lib.DupTextSyms2 = append(lib.DupTextSyms2, sym.LoaderSym(gi))
+				}
+				continue // symbol in different object
+			}
+
+			lib.Textp2 = append(lib.Textp2, sym.LoaderSym(gi))
+		}
+	}
+
+	// Now redo the assignment of text symbols to libs/units.
+	for _, doInternal := range [2]bool{true, false} {
+		for idx, lib := range libs {
+			if intlibs[idx] != doInternal {
+				continue
+			}
+			libtextp2 := []sym.LoaderSym{}
+			tpls := [2][]sym.LoaderSym{lib.Textp2, lib.DupTextSyms2}
+			for _, textp2 := range tpls {
+				for _, s := range textp2 {
+					sym := Sym(s)
+					if l.attrReachable.has(sym) && !assignedToUnit.has(sym) {
+						libtextp2 = append(libtextp2, s)
+						unit := l.SymUnit(sym)
+						if unit != nil {
+							unit.Textp2 = append(unit.Textp2, s)
+							assignedToUnit.set(sym)
+						}
+					}
+				}
+			}
+			lib.Textp2 = libtextp2
+		}
+	}
+}
+
 // For debugging.
 func (l *Loader) Dump() {
 	fmt.Println("objs")
@@ -2333,7 +2458,7 @@ func (l *Loader) Dump() {
 	fmt.Println("extStart:", l.extStart)
 	fmt.Println("Nsyms:", len(l.objSyms))
 	fmt.Println("syms")
-	for i := Sym(1); i <= Sym(len(l.objSyms)); i++ {
+	for i := Sym(1); i < Sym(len(l.objSyms)); i++ {
 		pi := interface{}("")
 		if l.IsExternal(i) {
 			pi = fmt.Sprintf("<ext %d>", l.extIndex(i))

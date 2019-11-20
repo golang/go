@@ -6,6 +6,8 @@ package sym
 
 import "cmd/internal/dwarf"
 
+// LoaderSym holds a loader.Sym value. We can't refer to this
+// type from the sym package since loader imports sym.
 type LoaderSym int
 
 // CompilationUnit is an abstraction used by DWARF to represent a chunk of
