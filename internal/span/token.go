@@ -64,7 +64,7 @@ func (r Range) Span() (Span, error) {
 	if f == nil {
 		return Span{}, fmt.Errorf("file not found in FileSet")
 	}
-	s := Span{v: span{URI: FileURI(f.Name())}}
+	s := Span{}
 	var err error
 	s.v.Start.Offset, err = offset(f, r.Start)
 	if err != nil {
@@ -76,6 +76,16 @@ func (r Range) Span() (Span, error) {
 			return Span{}, err
 		}
 	}
+	// In the presence of line directives, a single File can have sections from
+	// multiple file names.
+	filename := f.Position(r.Start).Filename
+	if r.End.IsValid() {
+		if endFilename := f.Position(r.End).Filename; filename != endFilename {
+			return Span{}, fmt.Errorf("span begins in file %q but ends in %q", filename, endFilename)
+		}
+	}
+	s.v.URI = FileURI(filename)
+
 	s.v.Start.clean()
 	s.v.End.clean()
 	s.v.clean()

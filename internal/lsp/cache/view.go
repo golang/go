@@ -450,7 +450,7 @@ func (v *view) FindPosInPackage(searchpkg source.Package, pos token.Pos) (*ast.F
 	if tok == nil {
 		return nil, nil, nil, errors.Errorf("no file for pos in package %s", searchpkg.ID())
 	}
-	uri := span.FileURI(tok.Name())
+	uri := span.FileURI(tok.Position(pos).Filename)
 
 	// Special case for ignored files.
 	var (
