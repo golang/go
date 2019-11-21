@@ -36,43 +36,6 @@ func explode(s string, n int) []string {
 	return a
 }
 
-// primeRK is the prime base used in Rabin-Karp algorithm.
-const primeRK = 16777619
-
-// hashStr returns the hash and the appropriate multiplicative
-// factor for use in Rabin-Karp algorithm.
-func hashStr(sep string) (uint32, uint32) {
-	hash := uint32(0)
-	for i := 0; i < len(sep); i++ {
-		hash = hash*primeRK + uint32(sep[i])
-	}
-	var pow, sq uint32 = 1, primeRK
-	for i := len(sep); i > 0; i >>= 1 {
-		if i&1 != 0 {
-			pow *= sq
-		}
-		sq *= sq
-	}
-	return hash, pow
-}
-
-// hashStrRev returns the hash of the reverse of sep and the
-// appropriate multiplicative factor for use in Rabin-Karp algorithm.
-func hashStrRev(sep string) (uint32, uint32) {
-	hash := uint32(0)
-	for i := len(sep) - 1; i >= 0; i-- {
-		hash = hash*primeRK + uint32(sep[i])
-	}
-	var pow, sq uint32 = 1, primeRK
-	for i := len(sep); i > 0; i >>= 1 {
-		if i&1 != 0 {
-			pow *= sq
-		}
-		sq *= sq
-	}
-	return hash, pow
-}
-
 // Count counts the number of non-overlapping instances of substr in s.
 // If substr is an empty string, Count returns 1 + the number of Unicode code points in s.
 func Count(s, substr string) int {
@@ -126,17 +89,17 @@ func LastIndex(s, substr string) int {
 		return -1
 	}
 	// Rabin-Karp search from the end of the string
-	hashss, pow := hashStrRev(substr)
+	hashss, pow := bytealg.HashStrRev(substr)
 	last := len(s) - n
 	var h uint32
 	for i := len(s) - 1; i >= last; i-- {
-		h = h*primeRK + uint32(s[i])
+		h = h*bytealg.PrimeRK + uint32(s[i])
 	}
 	if h == hashss && s[last:] == substr {
 		return last
 	}
 	for i := last - 1; i >= 0; i-- {
-		h *= primeRK
+		h *= bytealg.PrimeRK
 		h += uint32(s[i])
 		h -= pow * uint32(s[i+n])
 		if h == hashss && s[i:i+n] == substr {
@@ -1095,34 +1058,11 @@ func Index(s, substr string) int {
 		fails++
 		if fails >= 4+i>>4 && i < t {
 			// See comment in ../bytes/bytes.go.
-			j := indexRabinKarp(s[i:], substr)
+			j := bytealg.IndexRabinKarp(s[i:], substr)
 			if j < 0 {
 				return -1
 			}
 			return i + j
-		}
-	}
-	return -1
-}
-
-func indexRabinKarp(s, substr string) int {
-	// Rabin-Karp search
-	hashss, pow := hashStr(substr)
-	n := len(substr)
-	var h uint32
-	for i := 0; i < n; i++ {
-		h = h*primeRK + uint32(s[i])
-	}
-	if h == hashss && s[:n] == substr {
-		return 0
-	}
-	for i := n; i < len(s); {
-		h *= primeRK
-		h += uint32(s[i])
-		h -= pow * uint32(s[i-n])
-		i++
-		if h == hashss && s[i-n:i] == substr {
-			return i - n
 		}
 	}
 	return -1

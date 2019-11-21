@@ -141,9 +141,10 @@ var indexTests = []BinOpTest{
 	{"barfoobarfooyyyzzzyyyzzzyyyzzzyyyxxxzzzyyy", "x", 33},
 	{"foofyfoobarfoobar", "y", 4},
 	{"oooooooooooooooooooooo", "r", -1},
-	// test fallback to Rabin-Karp.
 	{"oxoxoxoxoxoxoxoxoxoxoxoy", "oy", 22},
 	{"oxoxoxoxoxoxoxoxoxoxoxox", "oy", -1},
+	// test fallback to Rabin-Karp.
+	{"000000000000000000000000000000000000000000000000000000000000000000000001", "0000000000000000000000000000000000000000000000000000000000000000001", 5},
 }
 
 var lastIndexTests = []BinOpTest{
@@ -208,6 +209,27 @@ func runIndexTests(t *testing.T, f func(s, sep []byte) int, funcName string, tes
 		if actual != test.i {
 			t.Errorf("%s(%q,%q) = %v; want %v", funcName, a, b, actual, test.i)
 		}
+	}
+	var allocTests = []struct {
+		a []byte
+		b []byte
+		i int
+	}{
+		// case for function Index.
+		{[]byte("000000000000000000000000000000000000000000000000000000000000000000000001"), []byte("0000000000000000000000000000000000000000000000000000000000000000001"), 5},
+		// case for function LastIndex.
+		{[]byte("000000000000000000000000000000000000000000000000000000000000000010000"), []byte("00000000000000000000000000000000000000000000000000000000000001"), 3},
+	}
+	allocs := testing.AllocsPerRun(100, func() {
+		if i := Index(allocTests[1].a, allocTests[1].b); i != allocTests[1].i {
+			t.Errorf("Index([]byte(%q), []byte(%q)) = %v; want %v", allocTests[1].a, allocTests[1].b, i, allocTests[1].i)
+		}
+		if i := LastIndex(allocTests[0].a, allocTests[0].b); i != allocTests[0].i {
+			t.Errorf("LastIndex([]byte(%q), []byte(%q)) = %v; want %v", allocTests[0].a, allocTests[0].b, i, allocTests[0].i)
+		}
+	})
+	if allocs != 0 {
+		t.Errorf("expected no allocations, got %f", allocs)
 	}
 }
 
