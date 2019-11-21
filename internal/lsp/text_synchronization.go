@@ -72,8 +72,6 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 	if err != nil {
 		return err
 	}
-	snapshot := view.Snapshot()
-
 	wasFirstChange, err := view.SetContent(ctx, uri, params.TextDocument.Version, []byte(text))
 	if err != nil {
 		return err
@@ -89,7 +87,7 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 	}
 
 	// Run diagnostics on the newly-changed file.
-	go s.diagnostics(snapshot, uri)
+	go s.diagnostics(view.Snapshot(), uri)
 
 	return nil
 }
