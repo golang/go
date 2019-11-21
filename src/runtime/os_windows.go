@@ -270,7 +270,10 @@ func loadOptionalSyscalls() {
 }
 
 func monitorSuspendResume() {
-	const _DEVICE_NOTIFY_CALLBACK = 2
+	const (
+		_DEVICE_NOTIFY_CALLBACK = 2
+		_ERROR_FILE_NOT_FOUND   = 2
+	)
 	type _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS struct {
 		callback uintptr
 		context  uintptr
@@ -296,10 +299,20 @@ func monitorSuspendResume() {
 		callback: compileCallback(*efaceOf(&fn), true),
 	}
 	handle := uintptr(0)
-	if stdcall3(powerRegisterSuspendResumeNotification, _DEVICE_NOTIFY_CALLBACK,
-		uintptr(unsafe.Pointer(&params)),
-		uintptr(unsafe.Pointer(&handle))) != 0 {
-		throw("PowerRegisterSuspendResumeNotification failure")
+	ret := stdcall3(powerRegisterSuspendResumeNotification, _DEVICE_NOTIFY_CALLBACK,
+		uintptr(unsafe.Pointer(&params)), uintptr(unsafe.Pointer(&handle)))
+	// This function doesn't use GetLastError(), so we use the return value directly.
+	switch ret {
+	case 0:
+		return // Successful, nothing more to do.
+	case _ERROR_FILE_NOT_FOUND:
+		// Systems without access to the suspend/resume notifier
+		// also have their clock on "program time", and therefore
+		// don't want or need this anyway.
+		return
+	default:
+		println("runtime: PowerRegisterSuspendResumeNotification failed with errno=", ret)
+		throw("runtime: PowerRegisterSuspendResumeNotification failure")
 	}
 }
 
