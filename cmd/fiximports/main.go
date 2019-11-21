@@ -126,7 +126,7 @@ func main() {
 	flag.Parse()
 
 	if len(flag.Args()) == 0 {
-		fmt.Fprintf(stderr, usage)
+		fmt.Fprint(stderr, usage)
 		os.Exit(1)
 	}
 	if !fiximports(flag.Args()...) {

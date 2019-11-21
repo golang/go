@@ -312,9 +312,7 @@ func linkedField(line []byte, ids map[string]string) string {
 	//
 	// TODO: do this better, so it works for all
 	// comments, including unconventional ones.
-	if bytes.HasPrefix(line, commentPrefix) {
-		line = line[len(commentPrefix):]
-	}
+	line = bytes.TrimPrefix(line, commentPrefix)
 	id := scanIdentifier(line)
 	if len(id) == 0 {
 		// No leading identifier. Avoid map lookup for

@@ -133,7 +133,7 @@ func (p *printer) writeTypeInternal(this *types.Package, typ types.Type, visited
 				p.print("\n")
 			}
 			for i, n := 0, t.NumEmbeddeds(); i < n; i++ {
-				typ := t.Embedded(i)
+				typ := t.EmbeddedType(i)
 				p.writeTypeInternal(this, typ, visited)
 				p.print("\n")
 			}

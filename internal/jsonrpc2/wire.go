@@ -104,7 +104,7 @@ func (VersionTag) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	if version != "2.0" {
-		return fmt.Errorf("Invalid RPC version %v", version)
+		return fmt.Errorf("invalid RPC version %v", version)
 	}
 	return nil
 }

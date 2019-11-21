@@ -47,7 +47,7 @@ func TestMap(t *testing.T) {
 	tmap.At(tPStr1)
 	tmap.Delete(tPStr1)
 	tmap.KeysString()
-	tmap.String()
+	_ = tmap.String()
 
 	tmap = new(typeutil.Map)
 

@@ -78,7 +78,7 @@ func Connect(config *Config) export.Exporter {
 		exporter.config.Rate = 2 * time.Second
 	}
 	go func() {
-		for _ = range time.Tick(exporter.config.Rate) {
+		for range time.Tick(exporter.config.Rate) {
 			exporter.Flush()
 		}
 	}()
@@ -170,7 +170,6 @@ func (e *exporter) send(endpoint string, message interface{}) {
 	if res.Body != nil {
 		res.Body.Close()
 	}
-	return
 }
 
 func errorInExport(message string, args ...interface{}) {
@@ -191,10 +190,10 @@ func toTruncatableString(s string) *wire.TruncatableString {
 
 func convertSpan(span *telemetry.Span) *wire.Span {
 	result := &wire.Span{
-		TraceId:                 span.ID.TraceID[:],
-		SpanId:                  span.ID.SpanID[:],
+		TraceID:                 span.ID.TraceID[:],
+		SpanID:                  span.ID.SpanID[:],
 		TraceState:              nil, //TODO?
-		ParentSpanId:            span.ParentID[:],
+		ParentSpanID:            span.ParentID[:],
 		Name:                    toTruncatableString(span.Name),
 		Kind:                    wire.UnspecifiedSpanKind,
 		StartTime:               convertTimestamp(span.Start),

@@ -332,8 +332,8 @@ func hasThirdParty(list []DirEntry) bool {
 // If filter is set, only the directory entries whose paths match the filter
 // are included.
 //
-func (root *Directory) listing(skipRoot bool, filter func(string) bool) *DirList {
-	if root == nil {
+func (dir *Directory) listing(skipRoot bool, filter func(string) bool) *DirList {
+	if dir == nil {
 		return nil
 	}
 
@@ -341,7 +341,7 @@ func (root *Directory) listing(skipRoot bool, filter func(string) bool) *DirList
 	n := 0
 	minDepth := 1 << 30 // infinity
 	maxDepth := 0
-	for d := range root.iter(skipRoot) {
+	for d := range dir.iter(skipRoot) {
 		n++
 		if minDepth > d.Depth {
 			minDepth = d.Depth
@@ -358,7 +358,7 @@ func (root *Directory) listing(skipRoot bool, filter func(string) bool) *DirList
 
 	// create list
 	list := make([]DirEntry, 0, n)
-	for d := range root.iter(skipRoot) {
+	for d := range dir.iter(skipRoot) {
 		if filter != nil && !filter(d.Path) {
 			continue
 		}
@@ -368,7 +368,7 @@ func (root *Directory) listing(skipRoot bool, filter func(string) bool) *DirList
 		// the path is relative to root.Path - remove the root.Path
 		// prefix (the prefix should always be present but avoid
 		// crashes and check)
-		path := strings.TrimPrefix(d.Path, root.Path)
+		path := strings.TrimPrefix(d.Path, dir.Path)
 		// remove leading separator if any - path must be relative
 		path = strings.TrimPrefix(path, "/")
 		p.Path = path

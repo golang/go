@@ -58,7 +58,7 @@ var (
 	tString     = types.Typ[types.String]
 	tUntypedNil = types.Typ[types.UntypedNil]
 	tRangeIter  = &opaqueType{nil, "iter"} // the type of all "range" iterators
-	tEface      = types.NewInterface(nil, nil).Complete()
+	tEface      = types.NewInterfaceType(nil, nil).Complete()
 
 	// SSA Value constants.
 	vZero = intConst(0)

@@ -402,7 +402,7 @@ func parseSections(ctx *Context, name string, lines *Lines, number []int) ([]Sec
 				}
 				parser := parsers[args[0]]
 				if parser == nil {
-					return nil, fmt.Errorf("%s:%d: unknown command %q\n", name, lines.line, text)
+					return nil, fmt.Errorf("%s:%d: unknown command %q", name, lines.line, text)
 				}
 				t, err := parser(ctx, name, lines.line, text)
 				if err != nil {

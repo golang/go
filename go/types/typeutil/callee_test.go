@@ -63,7 +63,7 @@ func noncalls() {
 		Uses:       make(map[*ast.Ident]types.Object),
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
 	}
-	cfg := &types.Config{Importer: importer.For("source", nil)}
+	cfg := &types.Config{Importer: importer.ForCompiler(fset, "source", nil)}
 	if _, err := cfg.Check("p", fset, []*ast.File{f}, info); err != nil {
 		t.Fatal(err)
 	}

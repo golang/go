@@ -344,7 +344,7 @@ func (p *parser) expectKeyword(keyword string) {
 
 // PackageId = string_lit .
 //
-func (p *parser) parsePackageId() string {
+func (p *parser) parsePackageID() string {
 	id, err := strconv.Unquote(p.expect(scanner.String))
 	if err != nil {
 		p.error(err)
@@ -384,7 +384,7 @@ func (p *parser) parseDotIdent() string {
 //
 func (p *parser) parseQualifiedName() (id, name string) {
 	p.expect('@')
-	id = p.parsePackageId()
+	id = p.parsePackageID()
 	p.expect('.')
 	// Per rev f280b8a485fd (10/2/2013), qualified names may be used for anonymous fields.
 	if p.tok == '?' {
@@ -696,7 +696,7 @@ func (p *parser) parseInterfaceType(parent *types.Package) types.Type {
 
 	// Complete requires the type's embedded interfaces to be fully defined,
 	// but we do not define any
-	return types.NewInterface(methods, nil).Complete()
+	return types.NewInterfaceType(methods, nil).Complete()
 }
 
 // ChanType = ( "chan" [ "<-" ] | "<-" "chan" ) Type .
@@ -785,7 +785,7 @@ func (p *parser) parseType(parent *types.Package) types.Type {
 func (p *parser) parseImportDecl() {
 	p.expectKeyword("import")
 	name := p.parsePackageName()
-	p.getPkg(p.parsePackageId(), name)
+	p.getPkg(p.parsePackageID(), name)
 }
 
 // int_lit = [ "+" | "-" ] { "0" ... "9" } .

@@ -2665,7 +2665,7 @@ func _() {
 				defer wg.Done()
 				_, err := t.process("foo.com", "p/first.go", nil, nil)
 				if err != nil {
-					t.Fatal(err)
+					t.Error(err)
 				}
 			}()
 		}

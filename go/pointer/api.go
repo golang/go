@@ -230,11 +230,11 @@ func (s PointsToSet) DynamicTypes() *typeutil.Map {
 	if s.pts != nil {
 		var space [50]int
 		for _, x := range s.pts.AppendTo(space[:0]) {
-			ifaceObjId := nodeid(x)
-			if !s.a.isTaggedObject(ifaceObjId) {
+			ifaceObjID := nodeid(x)
+			if !s.a.isTaggedObject(ifaceObjID) {
 				continue // !CanHaveDynamicTypes(tDyn)
 			}
-			tDyn, v, indirect := s.a.taggedValue(ifaceObjId)
+			tDyn, v, indirect := s.a.taggedValue(ifaceObjID)
 			if indirect {
 				panic("indirect tagged object") // implement later
 			}
@@ -251,13 +251,13 @@ func (s PointsToSet) DynamicTypes() *typeutil.Map {
 
 // Intersects reports whether this points-to set and the
 // argument points-to set contain common members.
-func (x PointsToSet) Intersects(y PointsToSet) bool {
-	if x.pts == nil || y.pts == nil {
+func (s PointsToSet) Intersects(y PointsToSet) bool {
+	if s.pts == nil || y.pts == nil {
 		return false
 	}
 	// This takes Θ(|x|+|y|) time.
 	var z intsets.Sparse
-	z.Intersection(&x.pts.Sparse, &y.pts.Sparse)
+	z.Intersection(&s.pts.Sparse, &y.pts.Sparse)
 	return !z.IsEmpty()
 }
 

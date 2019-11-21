@@ -184,7 +184,7 @@ func TestFastWalk_SkipFiles(t *testing.T) {
 				mu.Lock()
 				defer mu.Unlock()
 				want["/src/"+filepath.Base(path)] = 0
-				return fastwalk.SkipFiles
+				return fastwalk.ErrSkipFiles
 			}
 			return nil
 		},
@@ -208,7 +208,7 @@ func TestFastWalk_TraverseSymlink(t *testing.T) {
 	},
 		func(path string, typ os.FileMode) error {
 			if typ == os.ModeSymlink {
-				return fastwalk.TraverseLink
+				return fastwalk.ErrTraverseLink
 			}
 			return nil
 		},

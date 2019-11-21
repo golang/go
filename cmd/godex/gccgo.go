@@ -8,11 +8,12 @@ package main
 
 import (
 	"go/importer"
+	"go/token"
 	"go/types"
 )
 
 func init() {
-	register("gccgo", importer.For("gccgo", nil))
+	register("gccgo", importer.ForCompiler(token.NewFileSet(), "gccgo", nil))
 }
 
 // Print the extra gccgo compiler data for this package, if it exists.

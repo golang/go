@@ -55,7 +55,7 @@ func (DoubleAttribute) tagAttribute() {}
 
 type StackTrace struct {
 	StackFrames      *StackFrames `json:"stack_frames,omitempty"`
-	StackTraceHashId uint64       `json:"stack_trace_hash_id,omitempty"`
+	StackTraceHashID uint64       `json:"stack_trace_hash_id,omitempty"`
 }
 
 type StackFrames struct {
@@ -75,7 +75,7 @@ type StackFrame struct {
 
 type Module struct {
 	Module  *TruncatableString `json:"module,omitempty"`
-	BuildId *TruncatableString `json:"build_id,omitempty"`
+	BuildID *TruncatableString `json:"build_id,omitempty"`
 }
 
 type ProcessIdentifier struct {

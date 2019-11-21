@@ -246,7 +246,7 @@ func goList(dir string) (*Pkg, error) {
 	var pkg Pkg
 	out, err := exec.Command(*flagGoCmd, "list", "-json", dir).Output()
 	if err != nil {
-		return nil, fmt.Errorf("go list -json %s: %v\n", dir, err)
+		return nil, fmt.Errorf("go list -json %s: %v", dir, err)
 	}
 	if err := json.Unmarshal(out, &pkg); err != nil {
 		return nil, fmt.Errorf("go list -json %s: unmarshal: %v", dir, err)

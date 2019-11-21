@@ -27,7 +27,7 @@ func TestStaticIsUpToDate(t *testing.T) {
 		t.Errorf("error while generating static.go: %v\n", err)
 	}
 
-	if bytes.Compare(oldBuf, newBuf) != 0 {
+	if !bytes.Equal(oldBuf, newBuf) {
 		t.Error(`static.go is stale.  Run:
   $ go generate golang.org/x/tools/godoc/static
   $ git diff

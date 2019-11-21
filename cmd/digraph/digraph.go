@@ -417,7 +417,7 @@ func digraph(cmd string, args []string) error {
 
 	case "succs", "preds":
 		if len(args) == 0 {
-			return fmt.Errorf("usage: digraph %s <node> ...", cmd)
+			return fmt.Errorf("usage: digraph %s <node> ... ", cmd)
 		}
 		g := g
 		if cmd == "preds" {
@@ -435,7 +435,7 @@ func digraph(cmd string, args []string) error {
 
 	case "forward", "reverse":
 		if len(args) == 0 {
-			return fmt.Errorf("usage: digraph %s <node> ...", cmd)
+			return fmt.Errorf("usage: digraph %s <node> ... ", cmd)
 		}
 		roots := make(nodeset)
 		for _, root := range args {

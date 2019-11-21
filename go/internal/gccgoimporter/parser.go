@@ -1025,7 +1025,7 @@ func (p *parser) skipInlineBody() {
 func (p *parser) parseTypes(pkg *types.Package) {
 	maxp1 := p.parseInt()
 	exportedp1 := p.parseInt()
-	p.typeList = make([]types.Type, maxp1, maxp1)
+	p.typeList = make([]types.Type, maxp1)
 
 	type typeOffset struct {
 		offset int

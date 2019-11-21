@@ -23,9 +23,9 @@ var (
 
 // lists of registered sources and corresponding importers
 var (
-	sources      []string
-	importers    []types.Importer
-	importFailed = errors.New("import failed")
+	sources         []string
+	importers       []types.Importer
+	errImportFailed = errors.New("import failed")
 )
 
 func usage() {
@@ -154,7 +154,7 @@ func (p *protector) Import(path string) (pkg *types.Package, err error) {
 	defer func() {
 		if recover() != nil {
 			pkg = nil
-			err = importFailed
+			err = errImportFailed
 		}
 	}()
 	return p.imp.Import(path)

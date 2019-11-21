@@ -34,8 +34,8 @@ func (a *analysis) renumber() {
 	}
 
 	N := nodeid(len(a.nodes))
-	newNodes := make([]*node, N, N)
-	renumbering := make([]nodeid, N, N) // maps old to new
+	newNodes := make([]*node, N)
+	renumbering := make([]nodeid, N) // maps old to new
 
 	var i, j nodeid
 

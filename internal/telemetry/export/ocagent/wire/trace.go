@@ -11,10 +11,10 @@ type ExportTraceServiceRequest struct {
 }
 
 type Span struct {
-	TraceId                 []byte             `json:"trace_id,omitempty"`
-	SpanId                  []byte             `json:"span_id,omitempty"`
+	TraceID                 []byte             `json:"trace_id,omitempty"`
+	SpanID                  []byte             `json:"span_id,omitempty"`
 	TraceState              *TraceState        `json:"tracestate,omitempty"`
-	ParentSpanId            []byte             `json:"parent_span_id,omitempty"`
+	ParentSpanID            []byte             `json:"parent_span_id,omitempty"`
 	Name                    *TruncatableString `json:"name,omitempty"`
 	Kind                    SpanKind           `json:"kind,omitempty"`
 	StartTime               Timestamp          `json:"start_time,omitempty"`
@@ -65,7 +65,7 @@ type Annotation struct {
 
 type MessageEvent struct {
 	Type             MessageEventType `json:"type,omitempty"`
-	Id               uint64           `json:"id,omitempty"`
+	ID               uint64           `json:"id,omitempty"`
 	UncompressedSize uint64           `json:"uncompressed_size,omitempty"`
 	CompressedSize   uint64           `json:"compressed_size,omitempty"`
 }
@@ -91,8 +91,8 @@ type Links struct {
 }
 
 type Link struct {
-	TraceId    []byte      `json:"trace_id,omitempty"`
-	SpanId     []byte      `json:"span_id,omitempty"`
+	TraceID    []byte      `json:"trace_id,omitempty"`
+	SpanID     []byte      `json:"span_id,omitempty"`
 	Type       LinkType    `json:"type,omitempty"`
 	Attributes *Attributes `json:"attributes,omitempty"`
 	TraceState *TraceState `json:"tracestate,omitempty"`

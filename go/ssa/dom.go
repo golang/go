@@ -53,7 +53,7 @@ func (a byDomPreorder) Less(i, j int) bool { return a[i].dom.pre < a[j].dom.pre 
 //
 func (f *Function) DomPreorder() []*BasicBlock {
 	n := len(f.Blocks)
-	order := make(byDomPreorder, n, n)
+	order := make(byDomPreorder, n)
 	copy(order, f.Blocks)
 	sort.Sort(order)
 	return order
@@ -123,7 +123,7 @@ func buildDomTree(f *Function) {
 	n := len(f.Blocks)
 	// Allocate space for 5 contiguous [n]*BasicBlock arrays:
 	// sdom, parent, ancestor, preorder, buckets.
-	space := make([]*BasicBlock, 5*n, 5*n)
+	space := make([]*BasicBlock, 5*n)
 	lt := ltState{
 		sdom:     space[0:n],
 		parent:   space[n : 2*n],

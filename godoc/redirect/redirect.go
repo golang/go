@@ -156,7 +156,7 @@ func Handler(target string) http.Handler {
 	})
 }
 
-var validId = regexp.MustCompile(`^[A-Za-z0-9-]*/?$`)
+var validID = regexp.MustCompile(`^[A-Za-z0-9-]*/?$`)
 
 func PrefixHandler(prefix, baseURL string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -166,7 +166,7 @@ func PrefixHandler(prefix, baseURL string) http.Handler {
 			return
 		}
 		id := r.URL.Path[len(prefix):]
-		if !validId.MatchString(id) {
+		if !validID.MatchString(id) {
 			http.Error(w, "Not found", http.StatusNotFound)
 			return
 		}
@@ -192,7 +192,7 @@ func clHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Path[len(prefix):]
 	// support /cl/152700045/, which is used in commit 0edafefc36.
 	id = strings.TrimSuffix(id, "/")
-	if !validId.MatchString(id) {
+	if !validID.MatchString(id) {
 		http.Error(w, "Not found", http.StatusNotFound)
 		return
 	}

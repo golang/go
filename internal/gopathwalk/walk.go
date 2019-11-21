@@ -189,14 +189,14 @@ func (w *walker) walk(path string, typ os.FileMode) error {
 		if dir == w.root.Path && (w.root.Type == RootGOROOT || w.root.Type == RootGOPATH) {
 			// Doesn't make sense to have regular files
 			// directly in your $GOPATH/src or $GOROOT/src.
-			return fastwalk.SkipFiles
+			return fastwalk.ErrSkipFiles
 		}
 		if !strings.HasSuffix(path, ".go") {
 			return nil
 		}
 
 		w.add(w.root, dir)
-		return fastwalk.SkipFiles
+		return fastwalk.ErrSkipFiles
 	}
 	if typ == os.ModeDir {
 		base := filepath.Base(path)
@@ -224,7 +224,7 @@ func (w *walker) walk(path string, typ os.FileMode) error {
 			return nil
 		}
 		if w.shouldTraverse(dir, fi) {
-			return fastwalk.TraverseLink
+			return fastwalk.ErrTraverseLink
 		}
 	}
 	return nil

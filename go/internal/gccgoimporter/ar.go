@@ -84,7 +84,7 @@ func standardArExportData(archive io.ReadSeeker) (io.ReadSeeker, error) {
 		}
 		off += arHdrSize
 
-		if bytes.Compare(hdrBuf[arFmagOff:arFmagOff+arFmagSize], []byte(arfmag)) != 0 {
+		if !bytes.Equal(hdrBuf[arFmagOff:arFmagOff+arFmagSize], []byte(arfmag)) {
 			return nil, fmt.Errorf("archive header format header (%q)", hdrBuf[:])
 		}
 
@@ -94,7 +94,7 @@ func standardArExportData(archive io.ReadSeeker) (io.ReadSeeker, error) {
 		}
 
 		fn := hdrBuf[arNameOff : arNameOff+arNameSize]
-		if fn[0] == '/' && (fn[1] == ' ' || fn[1] == '/' || bytes.Compare(fn[:8], []byte("/SYM64/ ")) == 0) {
+		if fn[0] == '/' && (fn[1] == ' ' || fn[1] == '/' || bytes.Equal(fn[:8], []byte("/SYM64/ "))) {
 			// Archive symbol table or extended name table,
 			// which we don't care about.
 		} else {

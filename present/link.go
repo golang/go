@@ -78,19 +78,19 @@ func parseInlineLink(s string) (link string, length int) {
 		return
 	}
 	if urlEnd == end {
-		simpleUrl := ""
+		simpleURL := ""
 		url, err := url.Parse(rawURL)
 		if err == nil {
 			// If the URL is http://foo.com, drop the http://
 			// In other words, render [[http://golang.org]] as:
 			//   <a href="http://golang.org">golang.org</a>
 			if strings.HasPrefix(rawURL, url.Scheme+"://") {
-				simpleUrl = strings.TrimPrefix(rawURL, url.Scheme+"://")
+				simpleURL = strings.TrimPrefix(rawURL, url.Scheme+"://")
 			} else if strings.HasPrefix(rawURL, url.Scheme+":") {
-				simpleUrl = strings.TrimPrefix(rawURL, url.Scheme+":")
+				simpleURL = strings.TrimPrefix(rawURL, url.Scheme+":")
 			}
 		}
-		return renderLink(rawURL, simpleUrl), end + 2
+		return renderLink(rawURL, simpleURL), end + 2
 	}
 	if s[urlEnd:urlEnd+2] != "][" {
 		return
