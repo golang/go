@@ -55,18 +55,18 @@ func (s *Server) diagnostics(snapshot source.Snapshot, uri span.URI) error {
 	s.undeliveredMu.Lock()
 	defer s.undeliveredMu.Unlock()
 
-	for uri, diagnostics := range reports {
-		if err := s.publishDiagnostics(ctx, uri, diagnostics); err != nil {
+	for fileID, diagnostics := range reports {
+		if err := s.publishDiagnostics(ctx, fileID, diagnostics); err != nil {
 			if s.undelivered == nil {
-				s.undelivered = make(map[span.URI][]source.Diagnostic)
+				s.undelivered = make(map[source.FileIdentity][]source.Diagnostic)
 			}
-			s.undelivered[uri] = diagnostics
+			s.undelivered[fileID] = diagnostics
 
 			log.Error(ctx, "failed to deliver diagnostic (will retry)", err, telemetry.File)
 			continue
 		}
 		// In case we had old, undelivered diagnostics.
-		delete(s.undelivered, uri)
+		delete(s.undelivered, fileID)
 	}
 	// Anytime we compute diagnostics, make sure to also send along any
 	// undelivered ones (only for remaining URIs).
@@ -81,10 +81,11 @@ func (s *Server) diagnostics(snapshot source.Snapshot, uri span.URI) error {
 	return nil
 }
 
-func (s *Server) publishDiagnostics(ctx context.Context, uri span.URI, diagnostics []source.Diagnostic) error {
+func (s *Server) publishDiagnostics(ctx context.Context, fileID source.FileIdentity, diagnostics []source.Diagnostic) error {
 	s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
 		Diagnostics: toProtocolDiagnostics(ctx, diagnostics),
-		URI:         protocol.NewURI(uri),
+		URI:         protocol.NewURI(fileID.URI),
+		Version:     fileID.Version,
 	})
 	return nil
 }

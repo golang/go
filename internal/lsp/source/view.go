@@ -287,8 +287,8 @@ type FileIdentity struct {
 	Kind FileKind
 }
 
-func (identity FileIdentity) String() string {
-	return fmt.Sprintf("%s%f%s%s", identity.URI, identity.Version, identity.Identifier, identity.Kind)
+func (fileID FileIdentity) String() string {
+	return fmt.Sprintf("%s%f%s%s", fileID.URI, fileID.Version, fileID.Identifier, fileID.Kind)
 }
 
 // File represents a source file of any type.
@@ -342,7 +342,7 @@ type Package interface {
 }
 
 type Error struct {
-	URI            span.URI
+	File           FileIdentity
 	Range          protocol.Range
 	Kind           ErrorKind
 	Message        string
@@ -362,7 +362,7 @@ const (
 )
 
 func (e *Error) Error() string {
-	return fmt.Sprintf("%s:%s: %s", e.URI, e.Range, e.Message)
+	return fmt.Sprintf("%s:%s: %s", e.File, e.Range, e.Message)
 }
 
 type BuiltinPackage interface {

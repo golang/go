@@ -71,11 +71,13 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnosti
 	if err != nil {
 		t.Fatal(err)
 	}
-	results, _, err := source.Diagnostics(r.ctx, r.view.Snapshot(), f, nil)
+	snapshot := r.view.Snapshot()
+	fileID := snapshot.Handle(r.ctx, f).Identity()
+	results, _, err := source.Diagnostics(r.ctx, snapshot, f, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := results[uri]
+	got := results[fileID]
 	// A special case to test that there are no diagnostics for a file.
 	if len(want) == 1 && want[0].Source == "no_diagnostics" {
 		if len(got) != 0 {

@@ -62,7 +62,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	r := &runner{
 		server: &Server{
 			session:     session,
-			undelivered: make(map[span.URI][]source.Diagnostic),
+			undelivered: make(map[source.FileIdentity][]source.Diagnostic),
 		},
 		data: data,
 		ctx:  ctx,
@@ -78,11 +78,12 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnosti
 	if err != nil {
 		t.Fatalf("no file for %s: %v", f, err)
 	}
+	identity := v.Snapshot().Handle(r.ctx, f).Identity()
 	results, _, err := source.Diagnostics(r.ctx, v.Snapshot(), f, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := results[uri]
+	got := results[identity]
 	// A special case to test that there are no diagnostics for a file.
 	if len(want) == 1 && want[0].Source == "no_diagnostics" {
 		if len(got) != 0 {
@@ -336,7 +337,9 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	diagnostics, _, err := source.Diagnostics(r.ctx, view.Snapshot(), f, nil)
+	snapshot := view.Snapshot()
+	fileID := snapshot.Handle(r.ctx, f).Identity()
+	diagnostics, _, err := source.Diagnostics(r.ctx, snapshot, f, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -346,7 +349,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 		},
 		Context: protocol.CodeActionContext{
 			Only:        []protocol.CodeActionKind{protocol.QuickFix},
-			Diagnostics: toProtocolDiagnostics(r.ctx, diagnostics[uri]),
+			Diagnostics: toProtocolDiagnostics(r.ctx, diagnostics[fileID]),
 		},
 	})
 	if err != nil {

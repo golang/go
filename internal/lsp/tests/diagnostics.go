@@ -32,7 +32,7 @@ func DiffDiagnostics(want, got []source.Diagnostic) string {
 			return summarizeDiagnostics(i, want, got, "incorrect Source got %v want %v", g.Source, w.Source)
 		}
 		// Don't check the range on the badimport test.
-		if strings.Contains(string(g.URI), "badimport") {
+		if strings.Contains(string(g.File.URI), "badimport") {
 			continue
 		}
 		if protocol.ComparePosition(w.Range.Start, g.Range.Start) != 0 {
@@ -54,7 +54,7 @@ func sortDiagnostics(d []source.Diagnostic) {
 }
 
 func compareDiagnostic(a, b source.Diagnostic) int {
-	if r := span.CompareURI(a.URI, b.URI); r != 0 {
+	if r := span.CompareURI(a.File.URI, b.File.URI); r != 0 {
 		return r
 	}
 	if r := protocol.CompareRange(a.Range, b.Range); r != 0 {
@@ -80,11 +80,11 @@ func summarizeDiagnostics(i int, want []source.Diagnostic, got []source.Diagnost
 	fmt.Fprintf(msg, reason, args...)
 	fmt.Fprint(msg, ":\nexpected:\n")
 	for _, d := range want {
-		fmt.Fprintf(msg, "  %s:%v: %s\n", d.URI, d.Range, d.Message)
+		fmt.Fprintf(msg, "  %s:%v: %s\n", d.File.URI, d.Range, d.Message)
 	}
 	fmt.Fprintf(msg, "got:\n")
 	for _, d := range got {
-		fmt.Fprintf(msg, "  %s:%v: %s\n", d.URI, d.Range, d.Message)
+		fmt.Fprintf(msg, "  %s:%v: %s\n", d.File.URI, d.Range, d.Message)
 	}
 	return msg.String()
 }

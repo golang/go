@@ -381,8 +381,8 @@ func PackageExports(ctx context.Context, view View, pkg, filename string) ([]imp
 
 // hasParseErrors returns true if the given file has parse errors.
 func hasParseErrors(pkg Package, uri span.URI) bool {
-	for _, err := range pkg.GetErrors() {
-		if err.URI == uri && err.Kind == ParseError {
+	for _, e := range pkg.GetErrors() {
+		if e.File.URI == uri && e.Kind == ParseError {
 			return true
 		}
 	}
