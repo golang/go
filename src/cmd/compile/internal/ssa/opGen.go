@@ -26944,7 +26944,6 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
-		clobberFlags: true,
 		asm:          s390x.AFADDS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -26961,7 +26960,6 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
-		clobberFlags: true,
 		asm:          s390x.AFADD,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -26977,7 +26975,6 @@ var opcodeTable = [...]opInfo{
 		name:         "FSUBS",
 		argLen:       2,
 		resultInArg0: true,
-		clobberFlags: true,
 		asm:          s390x.AFSUBS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -26993,7 +26990,6 @@ var opcodeTable = [...]opInfo{
 		name:         "FSUB",
 		argLen:       2,
 		resultInArg0: true,
-		clobberFlags: true,
 		asm:          s390x.AFSUB,
 		reg: regInfo{
 			inputs: []inputInfo{
