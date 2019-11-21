@@ -246,8 +246,8 @@ func sweepone() uintptr {
 	// Decrement the number of active sweepers and if this is the
 	// last one print trace information.
 	if atomic.Xadd(&mheap_.sweepers, -1) == 0 && atomic.Load(&mheap_.sweepdone) != 0 {
-		// Since the sweeper is done, reset the scavenger's pointer
-		// into the heap and wake it if necessary.
+		// Since the sweeper is done, move the scavenge gen forward (signalling
+		// that there's new work to do) and wake the scavenger.
 		//
 		// The scavenger is signaled by the last sweeper because once
 		// sweeping is done, we will definitely have useful work for
@@ -259,7 +259,7 @@ func sweepone() uintptr {
 		// with scavenging work.
 		systemstack(func() {
 			lock(&mheap_.lock)
-			mheap_.pages.resetScavengeAddr()
+			mheap_.pages.scavengeStartGen()
 			unlock(&mheap_.lock)
 		})
 		// Since we might sweep in an allocation path, it's not possible
