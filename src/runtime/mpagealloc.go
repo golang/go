@@ -88,11 +88,6 @@ const (
 	// value in the shifted address space, but searchAddr is stored as a regular
 	// memory address. See arenaBaseOffset for details.
 	maxSearchAddr = ^uintptr(0) - arenaBaseOffset
-
-	// Minimum scavAddr value, which indicates that the scavenger is done.
-	//
-	// minScavAddr + arenaBaseOffset == 0
-	minScavAddr = (^arenaBaseOffset + 1) & uintptrMask
 )
 
 // Global chunk index.
@@ -239,15 +234,6 @@ type pageAlloc struct {
 	// space on architectures with segmented address spaces.
 	searchAddr uintptr
 
-	// The address to start a scavenge candidate search with. It
-	// need not point to memory contained in inUse.
-	scavAddr uintptr
-
-	// The amount of memory scavenged since the last scavtrace print.
-	//
-	// Read and updated atomically.
-	scavReleased uintptr
-
 	// start and end represent the chunk indices
 	// which pageAlloc knows about. It assumes
 	// chunks in the range [start, end) are
@@ -266,6 +252,25 @@ type pageAlloc struct {
 	//
 	// All access is protected by the mheapLock.
 	inUse addrRanges
+
+	// scav stores the scavenger state.
+	//
+	// All fields are protected by mheapLock.
+	scav struct {
+		// inUse is a slice of ranges of address space which have not
+		// yet been looked at by the scavenger.
+		inUse addrRanges
+
+		// gen is the scavenge generation number.
+		gen uint32
+
+		// reservationBytes is how large of a reservation should be made
+		// in bytes of address space for each scavenge iteration.
+		reservationBytes uintptr
+
+		// released is the amount of memory released this generation.
+		released uintptr
+	}
 
 	// mheap_.lock. This level of indirection makes it possible
 	// to test pageAlloc indepedently of the runtime allocator.
@@ -298,9 +303,6 @@ func (s *pageAlloc) init(mheapLock *mutex, sysStat *uint64) {
 
 	// Start with the searchAddr in a state indicating there's no free memory.
 	s.searchAddr = maxSearchAddr
-
-	// Start with the scavAddr in a state indicating there's nothing more to do.
-	s.scavAddr = minScavAddr
 
 	// Set the mheapLock.
 	s.mheapLock = mheapLock

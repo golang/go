@@ -735,9 +735,12 @@ func (p *PageAlloc) Free(base, npages uintptr) {
 func (p *PageAlloc) Bounds() (ChunkIdx, ChunkIdx) {
 	return ChunkIdx((*pageAlloc)(p).start), ChunkIdx((*pageAlloc)(p).end)
 }
-func (p *PageAlloc) Scavenge(nbytes uintptr, locked bool) (r uintptr) {
+func (p *PageAlloc) Scavenge(nbytes uintptr, mayUnlock bool) (r uintptr) {
+	pp := (*pageAlloc)(p)
 	systemstack(func() {
-		r = (*pageAlloc)(p).scavenge(nbytes, locked)
+		lock(pp.mheapLock)
+		r = pp.scavenge(nbytes, mayUnlock)
+		unlock(pp.mheapLock)
 	})
 	return
 }
@@ -819,7 +822,6 @@ func NewPageAlloc(chunks, scav map[ChunkIdx][]BitRange) *PageAlloc {
 				}
 			}
 		}
-		p.resetScavengeAddr()
 
 		// Apply alloc state.
 		for _, s := range init {
@@ -833,6 +835,11 @@ func NewPageAlloc(chunks, scav map[ChunkIdx][]BitRange) *PageAlloc {
 		// Update heap metadata for the allocRange calls above.
 		p.update(addr, pallocChunkPages, false, false)
 	}
+	systemstack(func() {
+		lock(p.mheapLock)
+		p.scavengeStartGen()
+		unlock(p.mheapLock)
+	})
 	return (*PageAlloc)(p)
 }
 

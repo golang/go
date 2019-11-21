@@ -65,6 +65,10 @@ type addrRanges struct {
 	// ranges is a slice of ranges sorted by base.
 	ranges []addrRange
 
+	// totalBytes is the total amount of address space in bytes counted by
+	// this addrRanges.
+	totalBytes uintptr
+
 	// sysStat is the stat to track allocations by this type
 	sysStat *uint64
 }
@@ -75,6 +79,7 @@ func (a *addrRanges) init(sysStat *uint64) {
 	ranges.cap = 16
 	ranges.array = (*notInHeap)(persistentalloc(unsafe.Sizeof(addrRange{})*uintptr(ranges.cap), sys.PtrSize, sysStat))
 	a.sysStat = sysStat
+	a.totalBytes = 0
 }
 
 // findSucc returns the first index in a such that base is
@@ -158,4 +163,68 @@ func (a *addrRanges) add(r addrRange) {
 		}
 		a.ranges[i] = r
 	}
+	a.totalBytes += r.size()
+}
+
+// removeLast removes and returns the highest-addressed contiguous range
+// of a, or the last nBytes of that range, whichever is smaller. If a is
+// empty, it returns an empty range.
+func (a *addrRanges) removeLast(nBytes uintptr) addrRange {
+	if len(a.ranges) == 0 {
+		return addrRange{}
+	}
+	r := a.ranges[len(a.ranges)-1]
+	size := r.size()
+	if size > nBytes {
+		newLimit := r.limit - nBytes
+		a.ranges[len(a.ranges)-1].limit = newLimit
+		a.totalBytes -= nBytes
+		return addrRange{newLimit, r.limit}
+	}
+	a.ranges = a.ranges[:len(a.ranges)-1]
+	a.totalBytes -= size
+	return r
+}
+
+// removeGreaterEqual removes the ranges of a which are above addr, and additionally
+// splits any range containing addr.
+func (a *addrRanges) removeGreaterEqual(addr uintptr) {
+	pivot := a.findSucc(addr)
+	if pivot == 0 {
+		// addr is before all ranges in a.
+		a.totalBytes = 0
+		a.ranges = a.ranges[:0]
+		return
+	}
+	removed := uintptr(0)
+	for _, r := range a.ranges[pivot:] {
+		removed += r.size()
+	}
+	if r := a.ranges[pivot-1]; r.contains(addr) {
+		removed += r.size()
+		r = r.subtract(addrRange{addr, maxSearchAddr})
+		if r.size() == 0 {
+			pivot--
+		} else {
+			removed -= r.size()
+			a.ranges[pivot-1] = r
+		}
+	}
+	a.ranges = a.ranges[:pivot]
+	a.totalBytes -= removed
+}
+
+// cloneInto makes a deep clone of a's state into b, re-using
+// b's ranges if able.
+func (a *addrRanges) cloneInto(b *addrRanges) {
+	if len(a.ranges) > cap(b.ranges) {
+		// Grow the array.
+		ranges := (*notInHeapSlice)(unsafe.Pointer(&b.ranges))
+		ranges.len = 0
+		ranges.cap = cap(a.ranges)
+		ranges.array = (*notInHeap)(persistentalloc(unsafe.Sizeof(addrRange{})*uintptr(ranges.cap), sys.PtrSize, b.sysStat))
+	}
+	b.ranges = b.ranges[:len(a.ranges)]
+	b.totalBytes = a.totalBytes
+	copy(b.ranges, a.ranges)
 }
