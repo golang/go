@@ -145,6 +145,7 @@ func (app *Application) commands() []tool.Application {
 		&foldingRanges{app: app},
 		&format{app: app},
 		&links{app: app},
+		&implementation{app: app},
 		&imports{app: app},
 		&query{app: app},
 		&references{app: app},

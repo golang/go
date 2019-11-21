@@ -103,10 +103,6 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 	//TODO: add command line prepare rename tests when it works
 }
 
-func (r *runner) Implementation(t *testing.T, spn span.Span, imp tests.Implementations) {
-	//TODO: add implements tests when it works
-}
-
 func (r *runner) RunGoplsCmd(t testing.TB, args ...string) (string, string) {
 	rStdout, wStdout, err := os.Pipe()
 	if err != nil {
