@@ -2920,16 +2920,17 @@ func (srv *Server) Serve(l net.Listener) error {
 			}
 			return err
 		}
+		connCtx := ctx
 		if cc := srv.ConnContext; cc != nil {
-			ctx = cc(ctx, rw)
-			if ctx == nil {
+			connCtx = cc(connCtx, rw)
+			if connCtx == nil {
 				panic("ConnContext returned nil")
 			}
 		}
 		tempDelay = 0
 		c := srv.newConn(rw)
 		c.setState(c.rwc, StateNew) // before Serve can return
-		go c.serve(ctx)
+		go c.serve(connCtx)
 	}
 }
 
