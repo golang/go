@@ -14,7 +14,6 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry/log"
 	errors "golang.org/x/xerrors"
 )
 
@@ -152,39 +151,6 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 	if err != nil {
 		return err
 	}
-	if _, err := view.SetContent(ctx, uri, -1, nil); err != nil {
-		return err
-	}
-	clear := []span.URI{uri} // by default, clear the closed URI
-	defer func() {
-		for _, uri := range clear {
-			if err := s.publishDiagnostics(ctx, uri, []source.Diagnostic{}); err != nil {
-				log.Error(ctx, "failed to clear diagnostics", err, telemetry.File)
-			}
-		}
-	}()
-	// If the current file was the only open file for its package,
-	// clear out all diagnostics for the package.
-	f, err := view.GetFile(ctx, uri)
-	if err != nil {
-		log.Error(ctx, "no file", err, telemetry.URI)
-		return nil
-	}
-	cphs, err := view.Snapshot().PackageHandles(ctx, f)
-	if err != nil {
-		log.Error(ctx, "no CheckPackageHandles", err, telemetry.URI.Of(uri))
-		return nil
-	}
-	for _, cph := range cphs {
-		for _, ph := range cph.CompiledGoFiles() {
-			// If other files from this package are open, don't clear.
-			if s.session.IsOpen(ph.File().Identity().URI) {
-				clear = nil
-				return nil
-			}
-			clear = append(clear, ph.File().Identity().URI)
-		}
-	}
-
-	return nil
+	_, err = view.SetContent(ctx, uri, -1, nil)
+	return err
 }
