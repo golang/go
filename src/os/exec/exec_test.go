@@ -974,11 +974,6 @@ func (delayedInfiniteReader) Read(b []byte) (int, error) {
 func TestIgnorePipeErrorOnSuccess(t *testing.T) {
 	testenv.MustHaveExec(t)
 
-	// We really only care about testing this on Unixy and Windowsy things.
-	if runtime.GOOS == "plan9" {
-		t.Skipf("skipping test on %q", runtime.GOOS)
-	}
-
 	testWith := func(r io.Reader) func(*testing.T) {
 		return func(t *testing.T) {
 			cmd := helperCommand(t, "echo", "foo")
