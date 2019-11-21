@@ -6,6 +6,8 @@ package sym
 
 import "cmd/internal/dwarf"
 
+type LoaderSym int
+
 // CompilationUnit is an abstraction used by DWARF to represent a chunk of
 // debug-related data. We create a CompilationUnit per Object file in a
 // library (so, one for all the Go code, one for each assembly file, etc.).
@@ -20,4 +22,10 @@ type CompilationUnit struct {
 	RangeSyms      []*Symbol     // Symbols for debug_range
 	Textp          []*Symbol     // Text symbols in this CU
 	DWARFFileTable []string      // The file table used to generate the .debug_lines
+
+	Consts2    LoaderSym   // Package constants DIEs (loader)
+	FuncDIEs2  []LoaderSym // Function DIE subtrees (loader)
+	AbsFnDIEs2 []LoaderSym // Abstract function DIE subtrees (loader)
+	RangeSyms2 []LoaderSym // Symbols for debug_range (loader)
+	Textp2     []LoaderSym // Text symbols in this CU (loader)
 }
