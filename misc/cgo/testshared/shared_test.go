@@ -34,6 +34,8 @@ var gopathInstallDir, gorootInstallDir, suffix string
 var minpkgs = []string{"runtime", "sync/atomic"}
 var soname = "libruntime,sync-atomic.so"
 
+var testX = flag.Bool("testx", false, "if true, pass -x to 'go' subcommands invoked by the test")
+
 // run runs a command and calls t.Errorf if it fails.
 func run(t *testing.T, msg string, args ...string) {
 	c := exec.Command(args[0], args[1:]...)
@@ -46,23 +48,19 @@ func run(t *testing.T, msg string, args ...string) {
 // t.Fatalf if the command fails.
 func goCmd(t *testing.T, args ...string) string {
 	newargs := []string{args[0], "-installsuffix=" + suffix}
-	if testing.Verbose() {
+	if *testX {
 		newargs = append(newargs, "-x")
 	}
 	newargs = append(newargs, args[1:]...)
 	c := exec.Command("go", newargs...)
-
 	stderr := new(strings.Builder)
-	var output []byte
-	var err error
-	if testing.Verbose() {
-		fmt.Printf("+ go %s\n", strings.Join(args, " "))
+	c.Stderr = stderr
+
+	if testing.Verbose() && t == nil {
+		fmt.Fprintf(os.Stderr, "+ go %s\n", strings.Join(args, " "))
 		c.Stderr = os.Stderr
-		stderr.WriteString("(output above)")
-	} else {
-		c.Stderr = stderr
 	}
-	output, err = c.Output()
+	output, err := c.Output()
 
 	if err != nil {
 		if t != nil {
@@ -70,6 +68,12 @@ func goCmd(t *testing.T, args ...string) string {
 			t.Fatalf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, stderr)
 		} else {
 			log.Fatalf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, stderr)
+		}
+	}
+	if testing.Verbose() && t != nil {
+		t.Logf("go %s", strings.Join(args, " "))
+		if stderr.Len() > 0 {
+			t.Logf("%s", stderr)
 		}
 	}
 	return string(bytes.TrimSpace(output))
