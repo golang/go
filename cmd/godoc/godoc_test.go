@@ -473,7 +473,7 @@ func TestNoMainModule(t *testing.T) {
 	cmd.Stderr = &stderr
 	err = cmd.Run()
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("godoc command failed: %v\nstderr=%q", err, stderr.String())
 	}
 	if strings.Contains(stderr.String(), "go mod download") {
 		t.Errorf("stderr contains 'go mod download', is that intentional?\nstderr=%q", stderr.String())

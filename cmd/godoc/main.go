@@ -222,7 +222,7 @@ func main() {
 		fillModuleCache(os.Stderr, goModFile)
 
 		// Determine modules in the build list.
-		mods, err := buildList()
+		mods, err := buildList(goModFile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "failed to determine the build list of the main module: %v", err)
 			os.Exit(1)
@@ -456,7 +456,12 @@ func fillModuleCache(w io.Writer, goMod string) {
 // in module mode.
 //
 // See https://golang.org/cmd/go/#hdr-The_main_module_and_the_build_list.
-func buildList() ([]mod, error) {
+func buildList(goMod string) ([]mod, error) {
+	if goMod == os.DevNull {
+		// Empty build list.
+		return nil, nil
+	}
+
 	out, err := exec.Command("go", "list", "-m", "-json", "all").Output()
 	if ee := (*exec.ExitError)(nil); xerrors.As(err, &ee) {
 		return nil, fmt.Errorf("go command exited unsuccessfully: %v\n%s", ee.ProcessState.String(), ee.Stderr)
