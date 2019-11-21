@@ -3,7 +3,6 @@ package tests
 import (
 	"bytes"
 	"fmt"
-	"sort"
 	"strings"
 
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -14,8 +13,8 @@ import (
 // DiffDiagnostics prints the diff between expected and actual diagnostics test
 // results.
 func DiffDiagnostics(uri span.URI, want, got []source.Diagnostic) string {
-	sortDiagnostics(want)
-	sortDiagnostics(got)
+	source.SortDiagnostics(want)
+	source.SortDiagnostics(got)
 
 	if len(got) != len(want) {
 		return summarizeDiagnostics(-1, uri, want, got, "different lengths got %v want %v", len(got), len(want))
@@ -45,26 +44,6 @@ func DiffDiagnostics(uri span.URI, want, got []source.Diagnostic) string {
 		}
 	}
 	return ""
-}
-
-func sortDiagnostics(d []source.Diagnostic) {
-	sort.Slice(d, func(i int, j int) bool {
-		return compareDiagnostic(d[i], d[j]) < 0
-	})
-}
-
-func compareDiagnostic(a, b source.Diagnostic) int {
-	if r := protocol.CompareRange(a.Range, b.Range); r != 0 {
-		return r
-	}
-	if a.Message < b.Message {
-		return -1
-	}
-	if a.Message == b.Message {
-		return 0
-	} else {
-		return 1
-	}
 }
 
 func summarizeDiagnostics(i int, uri span.URI, want []source.Diagnostic, got []source.Diagnostic, reason string, args ...interface{}) string {

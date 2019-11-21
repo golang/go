@@ -21,15 +21,18 @@ import (
 func NewClientServer(ctx context.Context, cache source.Cache, client protocol.Client) (context.Context, *Server) {
 	ctx = protocol.WithClient(ctx, client)
 	return ctx, &Server{
-		client:  client,
-		session: cache.NewSession(ctx),
+		client:    client,
+		session:   cache.NewSession(ctx),
+		delivered: make(map[span.URI]sentDiagnostics),
 	}
 }
 
 // NewServer starts an LSP server on the supplied stream, and waits until the
 // stream is closed.
 func NewServer(ctx context.Context, cache source.Cache, stream jsonrpc2.Stream) (context.Context, *Server) {
-	s := &Server{}
+	s := &Server{
+		delivered: make(map[span.URI]sentDiagnostics),
+	}
 	ctx, s.Conn, s.client = protocol.NewServer(ctx, stream, s)
 	s.session = cache.NewSession(ctx)
 	return ctx, s
@@ -85,6 +88,17 @@ type Server struct {
 	// folders is only valid between initialize and initialized, and holds the
 	// set of folders to build views for when we are ready
 	pendingFolders []protocol.WorkspaceFolder
+
+	// delivered is a cache of the diagnostics that the server has sent.
+	deliveredMu sync.Mutex
+	delivered   map[span.URI]sentDiagnostics
+}
+
+// sentDiagnostics is used to cache diagnostics that have been sent for a given file.
+type sentDiagnostics struct {
+	version    float64
+	identifier string
+	sorted     []source.Diagnostic
 }
 
 // General

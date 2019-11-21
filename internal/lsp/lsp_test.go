@@ -73,7 +73,8 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	}
 	r := &runner{
 		server: &Server{
-			session: session,
+			session:   session,
+			delivered: map[span.URI]sentDiagnostics{},
 		},
 		data: data,
 		ctx:  ctx,

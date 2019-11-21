@@ -13,6 +13,7 @@ import (
 	"go/types"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -589,4 +590,23 @@ func formatFunction(params []string, results []string, writeResultParens bool) s
 	}
 
 	return detail.String()
+}
+
+func SortDiagnostics(d []Diagnostic) {
+	sort.Slice(d, func(i int, j int) bool {
+		return CompareDiagnostic(d[i], d[j]) < 0
+	})
+}
+
+func CompareDiagnostic(a, b Diagnostic) int {
+	if r := protocol.CompareRange(a.Range, b.Range); r != 0 {
+		return r
+	}
+	if a.Message < b.Message {
+		return -1
+	}
+	if a.Message == b.Message {
+		return 0
+	}
+	return 1
 }

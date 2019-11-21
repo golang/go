@@ -90,6 +90,9 @@ func (s *Server) publishReports(ctx context.Context, reports map[source.FileIden
 		return
 	}
 
+	s.deliveredMu.Lock()
+	defer s.deliveredMu.Unlock()
+
 	for fileID, diagnostics := range reports {
 		// Don't deliver diagnostics if the context has already been canceled.
 		if ctx.Err() != nil {
@@ -99,6 +102,26 @@ func (s *Server) publishReports(ctx context.Context, reports map[source.FileIden
 		if len(diagnostics) == 0 && !publishEmpty {
 			continue
 		}
+		// Pre-sort diagnostics to avoid extra work when we compare them.
+		source.SortDiagnostics(diagnostics)
+		toSend := sentDiagnostics{
+			version:    fileID.Version,
+			identifier: fileID.Identifier,
+			sorted:     diagnostics,
+		}
+
+		if delivered, ok := s.delivered[fileID.URI]; ok {
+			// We only reuse cached diagnostics in two cases:
+			//   1. This file is at a greater version than that of the previously sent diagnostics.
+			//   2. There are no known versions for the file.
+			greaterVersion := fileID.Version > delivered.version && delivered.version > 0
+			noVersions := (fileID.Version == 0 && delivered.version == 0) && delivered.identifier == fileID.Identifier
+			if (greaterVersion || noVersions) && equalDiagnostics(delivered.sorted, diagnostics) {
+				// Update the delivered map even if we reuse cached diagnostics.
+				s.delivered[fileID.URI] = toSend
+				continue
+			}
+		}
 		if err := s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
 			Diagnostics: toProtocolDiagnostics(ctx, diagnostics),
 			URI:         protocol.NewURI(fileID.URI),
@@ -107,7 +130,23 @@ func (s *Server) publishReports(ctx context.Context, reports map[source.FileIden
 			log.Error(ctx, "failed to deliver diagnostic", err, telemetry.File)
 			continue
 		}
+		// Update the delivered map.
+		s.delivered[fileID.URI] = toSend
 	}
+}
+
+// equalDiagnostics returns true if the 2 lists of diagnostics are equal.
+// It assumes that both a and b are already sorted.
+func equalDiagnostics(a, b []source.Diagnostic) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := 0; i < len(a); i++ {
+		if source.CompareDiagnostic(a[i], b[i]) != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func toProtocolDiagnostics(ctx context.Context, diagnostics []source.Diagnostic) []protocol.Diagnostic {
