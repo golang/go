@@ -1087,6 +1087,21 @@ opswitch:
 		}
 
 	case OINDEXMAP:
+		// x = m[key]; 
+		// if m is a map literal and key is a literal, 
+		// and key is defined in m, immediately return the literal
+		if n.Left.Op == OMAPLIT && n.Right.Op == OLITERAL {
+			key := n.Right
+			lit := n.Left
+
+			// Check if the key is defined
+			for _, element := range lit.List.Slice() {
+				if element.Left.E == key.E {
+					return element.Right
+				}
+			}
+		}
+		
 		// Replace m[k] with *map{access1,assign}(maptype, m, &k)
 		n.Left = walkexpr(n.Left, init)
 		n.Right = walkexpr(n.Right, init)
