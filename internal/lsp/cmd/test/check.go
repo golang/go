@@ -51,12 +51,12 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnosti
 		got[l] = struct{}{}
 	}
 	for _, diag := range want {
-		expect := fmt.Sprintf("%v:%v:%v: %v", diag.File.URI.Filename(), diag.Range.Start.Line+1, diag.Range.Start.Character+1, diag.Message)
+		expect := fmt.Sprintf("%v:%v:%v: %v", uri.Filename(), diag.Range.Start.Line+1, diag.Range.Start.Character+1, diag.Message)
 		if diag.Range.Start.Character == 0 {
-			expect = fmt.Sprintf("%v:%v: %v", diag.File.URI.Filename(), diag.Range.Start.Line+1, diag.Message)
+			expect = fmt.Sprintf("%v:%v: %v", uri.Filename(), diag.Range.Start.Line+1, diag.Message)
 		}
 		// Skip the badimport test for now, until we do a better job with diagnostic ranges.
-		if strings.Contains(diag.File.URI.Filename(), "badimport") {
+		if strings.Contains(uri.Filename(), "badimport") {
 			continue
 		}
 		_, found := got[expect]

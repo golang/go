@@ -704,9 +704,6 @@ func (data *Data) collectDiagnostics(spn span.Span, msgSource, msg string) {
 	// This is not the correct way to do this,
 	// but it seems excessive to do the full conversion here.
 	want := source.Diagnostic{
-		File: source.FileIdentity{
-			URI: spn.URI(),
-		},
 		Range: protocol.Range{
 			Start: protocol.Position{
 				Line:      float64(spn.Start().Line()) - 1,

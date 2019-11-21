@@ -14,10 +14,10 @@ import (
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/trace"
+	errors "golang.org/x/xerrors"
 )
 
 type Diagnostic struct {
-	File     FileIdentity
 	Range    protocol.Range
 	Message  string
 	Source   string
@@ -82,7 +82,7 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, f File, disabledAnalyse
 	}
 
 	// Run diagnostics for the package that this URI belongs to.
-	if !diagnostics(ctx, pkg, reports) {
+	if !diagnostics(ctx, snapshot, pkg, reports) {
 		// If we don't have any list, parse, or type errors, run analyses.
 		if err := analyses(ctx, snapshot, cph, disabledAnalyses, reports); err != nil {
 			log.Error(ctx, "failed to run analyses", err, telemetry.File.Of(f.URI()))
@@ -98,7 +98,7 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, f File, disabledAnalyse
 		for _, fh := range pkg.CompiledGoFiles() {
 			clearReports(snapshot, reports, fh.File().Identity())
 		}
-		diagnostics(ctx, pkg, reports)
+		diagnostics(ctx, snapshot, pkg, reports)
 	}
 	return reports, warningMsg, nil
 }
@@ -107,7 +107,7 @@ type diagnosticSet struct {
 	listErrors, parseErrors, typeErrors []*Diagnostic
 }
 
-func diagnostics(ctx context.Context, pkg Package, reports map[FileIdentity][]Diagnostic) bool {
+func diagnostics(ctx context.Context, snapshot Snapshot, pkg Package, reports map[FileIdentity][]Diagnostic) bool {
 	ctx, done := trace.StartSpan(ctx, "source.diagnostics", telemetry.Package.Of(pkg.ID()))
 	_ = ctx // circumvent SA4006
 	defer done()
@@ -115,7 +115,6 @@ func diagnostics(ctx context.Context, pkg Package, reports map[FileIdentity][]Di
 	diagSets := make(map[FileIdentity]*diagnosticSet)
 	for _, e := range pkg.GetErrors() {
 		diag := &Diagnostic{
-			File:     e.File,
 			Message:  e.Message,
 			Range:    e.Range,
 			Severity: protocol.SeverityError,
@@ -149,11 +148,7 @@ func diagnostics(ctx context.Context, pkg Package, reports map[FileIdentity][]Di
 		if len(diags) > 0 {
 			nonEmptyDiagnostics = true
 		}
-		for _, diag := range diags {
-			if _, ok := reports[fileID]; ok {
-				reports[fileID] = append(reports[fileID], *diag)
-			}
-		}
+		addReports(ctx, reports, snapshot, fileID, diags...)
 	}
 	return nonEmptyDiagnostics
 }
@@ -181,8 +176,7 @@ func analyses(ctx context.Context, snapshot Snapshot, cph CheckPackageHandle, di
 		if onlyDeletions(e.SuggestedFixes) {
 			tags = append(tags, protocol.Unnecessary)
 		}
-		addReport(ctx, snapshot, reports, Diagnostic{
-			File:           e.File,
+		addReports(ctx, reports, snapshot, e.File, &Diagnostic{
 			Range:          e.Range,
 			Message:        e.Message,
 			Source:         e.Category,
@@ -202,25 +196,32 @@ func clearReports(snapshot Snapshot, reports map[FileIdentity][]Diagnostic, file
 	reports[fileID] = []Diagnostic{}
 }
 
-func addReport(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]Diagnostic, diagnostic Diagnostic) error {
-	if snapshot.View().Ignore(diagnostic.File.URI) {
+func addReports(ctx context.Context, reports map[FileIdentity][]Diagnostic, snapshot Snapshot, fileID FileIdentity, diagnostics ...*Diagnostic) error {
+	if snapshot.View().Ignore(fileID.URI) {
 		return nil
 	}
-	if _, ok := reports[diagnostic.File]; ok {
-		reports[diagnostic.File] = append(reports[diagnostic.File], diagnostic)
+	if _, ok := reports[fileID]; !ok {
+		return errors.Errorf("diagnostics for unexpected file %s", fileID.URI)
+	}
+	for _, diag := range diagnostics {
+		if diag == nil {
+			continue
+		}
+		reports[fileID] = append(reports[fileID], *diag)
 	}
 	return nil
 }
 
 func singleDiagnostic(fileID FileIdentity, format string, a ...interface{}) map[FileIdentity][]Diagnostic {
 	return map[FileIdentity][]Diagnostic{
-		fileID: []Diagnostic{{
-			File:     fileID,
-			Source:   "gopls",
-			Range:    protocol.Range{},
-			Message:  fmt.Sprintf(format, a...),
-			Severity: protocol.SeverityError,
-		}},
+		fileID: []Diagnostic{
+			{
+				Source:   "gopls",
+				Range:    protocol.Range{},
+				Message:  fmt.Sprintf(format, a...),
+				Severity: protocol.SeverityError,
+			},
+		},
 	}
 }
 
