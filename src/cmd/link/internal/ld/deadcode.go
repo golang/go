@@ -54,6 +54,18 @@ func addToTextp(ctxt *Link) {
 		}
 	}
 
+	// Append the sym.Symbol's that correspond to the reachable
+	// loader.Sym's created by the new host object loader.
+	// FIXME: is this the right way to do this? Or should there be
+	// some way to associated a given host object symbol with the Go
+	// package that refers to it?
+	for _, s := range ctxt.Textp2 {
+		if !ctxt.loader.AttrReachable(s) {
+			continue
+		}
+		textp = append(textp, ctxt.loader.Syms[s])
+	}
+
 	// Put reachable text symbols into Textp.
 	// do it in postorder so that packages are laid down in dependency order
 	// internal first, then everything else
@@ -64,21 +76,23 @@ func addToTextp(ctxt *Link) {
 				continue
 			}
 			libtextp := lib.Textp[:0]
-			for _, s := range lib.Textp {
+			for idx, s := range lib.Textp {
 				if s.Attr.Reachable() {
 					textp = append(textp, s)
 					libtextp = append(libtextp, s)
 					if s.Unit != nil {
 						s.Unit.Textp = append(s.Unit.Textp, s)
+						s.Unit.Textp2 = append(s.Unit.Textp2, lib.Textp2[idx])
 					}
 				}
 			}
-			for _, s := range lib.DupTextSyms {
+			for idx, s := range lib.DupTextSyms {
 				if s.Attr.Reachable() && !s.Attr.OnList() {
 					textp = append(textp, s)
 					libtextp = append(libtextp, s)
 					if s.Unit != nil {
 						s.Unit.Textp = append(s.Unit.Textp, s)
+						s.Unit.Textp2 = append(s.Unit.Textp2, lib.DupTextSyms2[idx])
 					}
 					s.Attr |= sym.AttrOnList
 					// dupok symbols may be defined in multiple packages. its
