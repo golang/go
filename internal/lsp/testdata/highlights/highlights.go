@@ -36,3 +36,35 @@ func toProtocolHighlight(rngs []protocol.Range) []protocol.DocumentHighlight { /
 	}
 	return result
 }
+
+func testForLoops() {
+	for i := 0; i < 10; i++ { //@mark(forDecl1, "for"),highlight(forDecl1, forDecl1, brk1, cont1)
+		if i > 8 {
+			break //@mark(brk1, "break"),highlight(brk1, forDecl1, brk1, cont1)
+		}
+		if i < 2 {
+			for j := 1; j < 10; j++ { //@mark(forDecl2, "for"),highlight(forDecl2, forDecl2, cont2)
+				if j < 3 {
+					for k := 1; k < 10; k++ { //@mark(forDecl3, "for"),highlight(forDecl3, forDecl3, cont3)
+						if k < 3 {
+							continue //@mark(cont3, "continue"),highlight(cont3, forDecl3, cont3)
+						}
+					}
+					continue //@mark(cont2, "continue"),highlight(cont2, forDecl2, cont2)
+				}
+			}
+			continue //@mark(cont1, "continue"),highlight(cont1, forDecl1, brk1, cont1)
+		}
+	}
+
+	arr := []int{}
+
+	for i := range arr { //@mark(forDecl4, "for"),highlight(forDecl4, forDecl4, brk4, cont4)
+		if i > 8 {
+			break //@mark(brk4, "break"),highlight(brk4, forDecl4, brk4, cont4)
+		}
+		if i < 4 {
+			continue //@mark(cont4, "continue"),highlight(cont4, forDecl4, brk4, cont4)
+		}
+	}
+}
