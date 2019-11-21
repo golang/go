@@ -104,7 +104,7 @@ type Options struct {
 
 	ComputeEdits diff.ComputeEdits
 
-	Analyzers []*analysis.Analyzer
+	Analyzers map[string]*analysis.Analyzer
 
 	// LocalPrefix is used to specify goimports's -local behavior.
 	LocalPrefix string
@@ -338,30 +338,31 @@ func (r *OptionResult) setBool(b *bool) {
 	}
 }
 
-var defaultAnalyzers = []*analysis.Analyzer{
+var defaultAnalyzers = map[string]*analysis.Analyzer{
 	// The traditional vet suite:
-	asmdecl.Analyzer,
-	assign.Analyzer,
-	atomic.Analyzer,
-	atomicalign.Analyzer,
-	bools.Analyzer,
-	buildtag.Analyzer,
-	cgocall.Analyzer,
-	composite.Analyzer,
-	copylock.Analyzer,
-	httpresponse.Analyzer,
-	loopclosure.Analyzer,
-	lostcancel.Analyzer,
-	nilfunc.Analyzer,
-	printf.Analyzer,
-	shift.Analyzer,
-	stdmethods.Analyzer,
-	structtag.Analyzer,
-	tests.Analyzer,
-	unmarshal.Analyzer,
-	unreachable.Analyzer,
-	unsafeptr.Analyzer,
-	unusedresult.Analyzer,
+	asmdecl.Analyzer.Name:      asmdecl.Analyzer,
+	assign.Analyzer.Name:       assign.Analyzer,
+	atomic.Analyzer.Name:       atomic.Analyzer,
+	atomicalign.Analyzer.Name:  atomicalign.Analyzer,
+	bools.Analyzer.Name:        bools.Analyzer,
+	buildtag.Analyzer.Name:     buildtag.Analyzer,
+	cgocall.Analyzer.Name:      cgocall.Analyzer,
+	composite.Analyzer.Name:    composite.Analyzer,
+	copylock.Analyzer.Name:     copylock.Analyzer,
+	httpresponse.Analyzer.Name: httpresponse.Analyzer,
+	loopclosure.Analyzer.Name:  loopclosure.Analyzer,
+	lostcancel.Analyzer.Name:   lostcancel.Analyzer,
+	nilfunc.Analyzer.Name:      nilfunc.Analyzer,
+	printf.Analyzer.Name:       printf.Analyzer,
+	shift.Analyzer.Name:        shift.Analyzer,
+	stdmethods.Analyzer.Name:   stdmethods.Analyzer,
+	structtag.Analyzer.Name:    structtag.Analyzer,
+	tests.Analyzer.Name:        tests.Analyzer,
+	unmarshal.Analyzer.Name:    unmarshal.Analyzer,
+	unreachable.Analyzer.Name:  unreachable.Analyzer,
+	unsafeptr.Analyzer.Name:    unsafeptr.Analyzer,
+	unusedresult.Analyzer.Name: unusedresult.Analyzer,
+
 	// Non-vet analyzers
-	sortslice.Analyzer,
+	sortslice.Analyzer.Name: sortslice.Analyzer,
 }

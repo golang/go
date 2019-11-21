@@ -17,6 +17,7 @@ type snapshot struct {
 	id   uint64
 	view *view
 
+	// mu guards all of the maps in the snapshot.
 	mu sync.Mutex
 
 	// ids maps file URIs to package IDs.
@@ -304,20 +305,7 @@ func (s *snapshot) getPackage(id packageID, m source.ParseMode) *checkPackageHan
 	return s.packages[key]
 }
 
-func (s *snapshot) getActionHandles(id packageID, m source.ParseMode) []*actionHandle {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	var acts []*actionHandle
-	for k, v := range s.actions {
-		if k.pkg.id == id && k.pkg.mode == m {
-			acts = append(acts, v)
-		}
-	}
-	return acts
-}
-
-func (s *snapshot) getAction(id packageID, m source.ParseMode, a *analysis.Analyzer) *actionHandle {
+func (s *snapshot) getActionHandle(id packageID, m source.ParseMode, a *analysis.Analyzer) *actionHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -331,7 +319,7 @@ func (s *snapshot) getAction(id packageID, m source.ParseMode, a *analysis.Analy
 	return s.actions[key]
 }
 
-func (s *snapshot) addAction(ah *actionHandle) {
+func (s *snapshot) addActionHandle(ah *actionHandle) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -421,7 +409,7 @@ func (s *snapshot) Handle(ctx context.Context, f source.File) source.FileHandle 
 	return s.files[f.URI()]
 }
 
-func (s *snapshot) clone(ctx context.Context, withoutURI *span.URI, withoutTypes, withoutMetadata map[span.URI]struct{}) *snapshot {
+func (s *snapshot) clone(ctx context.Context, withoutURI span.URI, withoutTypes, withoutMetadata map[span.URI]struct{}) *snapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -438,7 +426,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURI *span.URI, withoutTypes
 	}
 	// Copy all of the FileHandles except for the one that was invalidated.
 	for k, v := range s.files {
-		if withoutURI != nil && k == *withoutURI {
+		if k == withoutURI {
 			continue
 		}
 		result.files[k] = v
@@ -492,7 +480,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURI *span.URI, withoutTypes
 		}
 		result.metadata[k] = v
 	}
-	// Copy the set of initally loaded packages
+	// Copy the set of initally loaded packages.
 	for k, v := range s.workspacePackages {
 		result.workspacePackages[k] = v
 	}
@@ -508,13 +496,9 @@ func (s *snapshot) ID() uint64 {
 // invalidateContent invalidates the content of a Go file,
 // including any position and type information that depends on it.
 // It returns true if we were already tracking the given file, false otherwise.
+//
+// Note: The logic in this function is convoluted. Do not change without significant thought.
 func (v *view) invalidateContent(ctx context.Context, f source.File, kind source.FileKind, action source.FileAction) bool {
-	// TODO: Handle the possibility of opening a file outside of the current view.
-	// For now, return early if we open a file.
-	// We assume that we are already tracking any files within the given view.
-	if action == source.Open {
-		return true
-	}
 	var (
 		withoutTypes    = make(map[span.URI]struct{})
 		withoutMetadata = make(map[span.URI]struct{})
@@ -525,6 +509,15 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, kind source
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock()
 
+	// TODO: Handle the possibility of opening a file outside of the current view.
+	// For now, return early if we open a file. Clone the snapshot so that the file's version is updated.
+	// We assume that we are already tracking any files within the given view.
+	if action == source.Open {
+		v.snapshot = v.snapshot.clone(ctx, f.URI(), nil, nil)
+		return true
+	}
+
+	// Collect all of the package IDs that correspond to the given file.
 	for _, id := range v.snapshot.getIDs(f.URI()) {
 		ids[id] = struct{}{}
 	}
@@ -532,13 +525,12 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, kind source
 	// Get the original FileHandle for the URI, if it exists.
 	originalFH := v.snapshot.getFile(f.URI())
 
-	switch action {
-	case source.Create:
-		// If this is a file we don't yet know about,
-		// then we do not yet know what packages it should belong to.
-		// Make a rough estimate of what metadata to invalidate by finding the package IDs
-		// of all of the files in the same directory as this one.
-		// TODO(rstambler): Speed this up by mapping directories to filenames.
+	// If this is a file we don't yet know about,
+	// then we do not yet know what packages it should belong to.
+	// Make a rough estimate of what metadata to invalidate by finding the package IDs
+	// of all of the files in the same directory as this one.
+	// TODO(rstambler): Speed this up by mapping directories to filenames.
+	if action == source.Create {
 		if dirStat, err := os.Stat(dir(f.URI().Filename())); err == nil {
 			for uri := range v.snapshot.files {
 				if fdirStat, err := os.Stat(dir(uri.Filename())); err == nil {
@@ -550,9 +542,13 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, kind source
 				}
 			}
 		}
+		// Make sure that the original FileHandle is nil.
 		originalFH = nil
 	}
-	if len(ids) == 0 {
+
+	// If there is no known FileHandle and no known IDs for the given file,
+	// there is nothing to invalidate.
+	if len(ids) == 0 && originalFH == nil {
 		return false
 	}
 
@@ -568,7 +564,7 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, kind source
 		}
 	}
 
-	// Make sure to clear out the content if there has been a deletion.
+	// If we are deleting a file, make sure to clear out the overlay.
 	if action == source.Delete {
 		v.session.clearOverlay(f.URI())
 	}
@@ -584,8 +580,7 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, kind source
 		// TODO: If a package's name has changed,
 		// we should invalidate the metadata for the new package name (if it exists).
 	}
-	uri := f.URI()
-	v.snapshot = v.snapshot.clone(ctx, &uri, withoutTypes, withoutMetadata)
+	v.snapshot = v.snapshot.clone(ctx, f.URI(), withoutTypes, withoutMetadata)
 	return true
 }
 

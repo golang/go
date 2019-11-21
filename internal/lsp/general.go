@@ -155,18 +155,27 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	debug.PrintVersionInfo(buf, true, debug.PlainText)
 	log.Print(ctx, buf.String())
 
+	s.addFolders(ctx, s.pendingFolders)
+	s.pendingFolders = nil
+
+	return nil
+}
+
+func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFolder) {
+	originalViews := len(s.session.Views())
 	viewErrors := make(map[span.URI]error)
-	for _, folder := range s.pendingFolders {
+
+	for _, folder := range folders {
 		uri := span.NewURI(folder.URI)
 		view, workspacePackages, err := s.addView(ctx, folder.Name, span.NewURI(folder.URI))
 		if err != nil {
 			viewErrors[uri] = err
 			continue
 		}
-		s.diagnoseSnapshot(view.Snapshot(), workspacePackages)
+		go s.diagnoseSnapshot(ctx, view.Snapshot(), workspacePackages)
 	}
 	if len(viewErrors) > 0 {
-		errMsg := fmt.Sprintf("Error loading workspace folders (expected %v, got %v)\n", len(s.pendingFolders), len(s.session.Views()))
+		errMsg := fmt.Sprintf("Error loading workspace folders (expected %v, got %v)\n", len(folders), len(s.session.Views())-originalViews)
 		for uri, err := range viewErrors {
 			errMsg += fmt.Sprintf("failed to load view for %s: %v\n", uri, err)
 		}
@@ -175,9 +184,6 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 			Message: errMsg,
 		})
 	}
-	s.pendingFolders = nil
-
-	return nil
 }
 
 func (s *Server) fetchConfig(ctx context.Context, name string, folder span.URI, o *source.Options) error {

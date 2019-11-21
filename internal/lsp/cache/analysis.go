@@ -76,9 +76,9 @@ type packageFactKey struct {
 }
 
 func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.ParseMode, a *analysis.Analyzer) (*actionHandle, error) {
-	ah := s.getAction(id, mode, a)
-	if ah != nil {
-		return ah, nil
+	act := s.getActionHandle(id, mode, a)
+	if act != nil {
+		return act, nil
 	}
 	cph := s.getPackage(id, mode)
 	if cph == nil {
@@ -91,7 +91,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.P
 	if err != nil {
 		return nil, err
 	}
-	ah = &actionHandle{
+	act = &actionHandle{
 		analyzer: a,
 		pkg:      pkg,
 	}
@@ -139,10 +139,10 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.P
 		}
 		return runAnalysis(ctx, fset, a, pkg, results)
 	})
-	ah.handle = h
+	act.handle = h
 
-	s.addAction(ah)
-	return ah, nil
+	s.addActionHandle(act)
+	return act, nil
 }
 
 func (act *actionHandle) analyze(ctx context.Context) ([]*source.Error, interface{}, error) {

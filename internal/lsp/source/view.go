@@ -31,7 +31,7 @@ type Snapshot interface {
 
 	// FindAnalysisError returns the analysis error represented by the diagnostic.
 	// This is used to get the SuggestedFixes associated with that error.
-	FindAnalysisError(ctx context.Context, id string, diag protocol.Diagnostic) (*Error, error)
+	FindAnalysisError(ctx context.Context, pkgID, analyzerName, msg string, rng protocol.Range) (*Error, error)
 
 	// PackageHandle returns the CheckPackageHandle for the given package ID.
 	PackageHandle(ctx context.Context, id string) (CheckPackageHandle, error)

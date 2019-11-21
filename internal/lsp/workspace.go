@@ -22,14 +22,7 @@ func (s *Server) changeFolders(ctx context.Context, event protocol.WorkspaceFold
 			return errors.Errorf("view %s for %v not found", folder.Name, folder.URI)
 		}
 	}
-
-	for _, folder := range event.Added {
-		view, cphs, err := s.addView(ctx, folder.Name, span.NewURI(folder.URI))
-		if err != nil {
-			return err
-		}
-		go s.diagnoseSnapshot(view.Snapshot(), cphs)
-	}
+	s.addFolders(ctx, event.Added)
 	return nil
 }
 

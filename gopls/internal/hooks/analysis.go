@@ -14,13 +14,13 @@ import (
 func updateAnalyzers(options *source.Options) {
 	if options.StaticCheck {
 		for _, a := range simple.Analyzers {
-			options.Analyzers = append(options.Analyzers, a)
+			options.Analyzers[a.Name] = a
 		}
 		for _, a := range staticcheck.Analyzers {
-			options.Analyzers = append(options.Analyzers, a)
+			options.Analyzers[a.Name] = a
 		}
 		for _, a := range stylecheck.Analyzers {
-			options.Analyzers = append(options.Analyzers, a)
+			options.Analyzers[a.Name] = a
 		}
 	}
 }

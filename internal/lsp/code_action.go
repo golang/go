@@ -29,7 +29,6 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	if err != nil {
 		return nil, err
 	}
-
 	snapshot := view.Snapshot()
 	fh := snapshot.Handle(ctx, f)
 
@@ -217,7 +216,9 @@ func quickFixes(ctx context.Context, snapshot source.Snapshot, f source.File, di
 		return nil, err
 	}
 	for _, diag := range diagnostics {
-		srcErr, err := snapshot.FindAnalysisError(ctx, cph.ID(), diag)
+		// This code assumes that the analyzer name is the Source of the diagnostic.
+		// If this ever changes, this will need to be addressed.
+		srcErr, err := snapshot.FindAnalysisError(ctx, cph.ID(), diag.Source, diag.Message, diag.Range)
 		if err != nil {
 			continue
 		}
