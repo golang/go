@@ -6126,6 +6126,39 @@ func TestServerContextsHTTP2(t *testing.T) {
 	}
 }
 
+// Issue 35750: check ConnContext not modifying context for other connections
+func TestConnContextNotModifyingAllContexts(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	type connKey struct{}
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(rw ResponseWriter, r *Request) {
+		rw.Header().Set("Connection", "close")
+	}))
+	ts.Config.ConnContext = func(ctx context.Context, c net.Conn) context.Context {
+		if got := ctx.Value(connKey{}); got != nil {
+			t.Errorf("in ConnContext, unexpected context key = %#v", got)
+		}
+		return context.WithValue(ctx, connKey{}, "conn")
+	}
+	ts.Start()
+	defer ts.Close()
+
+	var res *Response
+	var err error
+
+	res, err = ts.Client().Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+
+	res, err = ts.Client().Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+}
+
 // Issue 30710: ensure that as per the spec, a server responds
 // with 501 Not Implemented for unsupported transfer-encodings.
 func TestUnsupportedTransferEncodingsReturn501(t *testing.T) {
