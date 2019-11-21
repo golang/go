@@ -22,6 +22,7 @@ type pkg struct {
 	pkgPath packagePath
 	mode    source.ParseMode
 
+	goFiles         []source.ParseGoHandle
 	compiledGoFiles []source.ParseGoHandle
 	errors          []*source.Error
 	imports         map[packagePath]*pkg
@@ -49,7 +50,12 @@ func (p *pkg) CompiledGoFiles() []source.ParseGoHandle {
 }
 
 func (p *pkg) File(uri span.URI) (source.ParseGoHandle, error) {
-	for _, ph := range p.CompiledGoFiles() {
+	for _, ph := range p.compiledGoFiles {
+		if ph.File().Identity().URI == uri {
+			return ph, nil
+		}
+	}
+	for _, ph := range p.goFiles {
 		if ph.File().Identity().URI == uri {
 			return ph, nil
 		}

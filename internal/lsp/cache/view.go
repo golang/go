@@ -432,12 +432,12 @@ func (v *view) mapFile(uri span.URI, f viewFile) {
 	}
 }
 
-func (v *view) FindPosInPackage(searchpkg source.Package, pos token.Pos) (*ast.File, *protocol.ColumnMapper, source.Package, error) {
+func (v *view) FindPosInPackage(searchpkg source.Package, pos token.Pos) (*ast.File, source.Package, error) {
 	tok := v.session.cache.fset.File(pos)
 	if tok == nil {
-		return nil, nil, nil, errors.Errorf("no file for pos in package %s", searchpkg.ID())
+		return nil, nil, errors.Errorf("no file for pos in package %s", searchpkg.ID())
 	}
-	uri := span.FileURI(tok.Position(pos).Filename)
+	uri := span.FileURI(tok.Name())
 
 	// Special case for ignored files.
 	var (
@@ -451,16 +451,37 @@ func (v *view) FindPosInPackage(searchpkg source.Package, pos token.Pos) (*ast.F
 		ph, pkg, err = findFileInPackage(searchpkg, uri)
 	}
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
-	file, m, _, err := ph.Cached()
+	file, _, _, err := ph.Cached()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
 	if !(file.Pos() <= pos && pos <= file.End()) {
-		return nil, nil, nil, err
+		return nil, nil, fmt.Errorf("pos %v, apparently in file %q, is not between %v and %v", pos, ph.File().Identity().URI, file.Pos(), file.End())
 	}
-	return file, m, pkg, nil
+	return file, pkg, nil
+}
+
+func (v *view) FindMapperInPackage(searchpkg source.Package, uri span.URI) (*protocol.ColumnMapper, error) {
+	// Special case for ignored files.
+	var (
+		ph  source.ParseGoHandle
+		err error
+	)
+	if v.Ignore(uri) {
+		ph, _, err = v.findIgnoredFile(uri)
+	} else {
+		ph, _, err = findFileInPackage(searchpkg, uri)
+	}
+	if err != nil {
+		return nil, err
+	}
+	_, m, _, err := ph.Cached()
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func (v *view) findIgnoredFile(uri span.URI) (source.ParseGoHandle, source.Package, error) {
@@ -482,10 +503,8 @@ func findFileInPackage(pkg source.Package, uri span.URI) (source.ParseGoHandle, 
 		queue = queue[1:]
 		seen[pkg.ID()] = true
 
-		for _, ph := range pkg.CompiledGoFiles() {
-			if ph.File().Identity().URI == uri {
-				return ph, pkg, nil
-			}
+		if f, err := pkg.File(uri); err == nil {
+			return f, pkg, nil
 		}
 		for _, dep := range pkg.Imports() {
 			if !seen[dep.ID()] {

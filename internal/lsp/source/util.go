@@ -169,7 +169,8 @@ func nodeToMappedRange(view View, m *protocol.ColumnMapper, n ast.Node) (mappedR
 }
 
 func posToMappedRange(v View, pkg Package, pos, end token.Pos) (mappedRange, error) {
-	_, m, _, err := v.FindPosInPackage(pkg, pos)
+	logicalFilename := v.Session().Cache().FileSet().File(pos).Position(pos).Filename
+	m, err := v.FindMapperInPackage(pkg, span.FileURI(logicalFilename))
 	if err != nil {
 		return mappedRange{}, err
 	}

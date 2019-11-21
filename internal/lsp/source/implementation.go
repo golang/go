@@ -65,7 +65,7 @@ func (i *IdentifierInfo) Implementation(ctx context.Context) ([]protocol.Locatio
 		if pkgs[obj] == nil || len(pkg.CompiledGoFiles()) == 0 {
 			continue
 		}
-		file, _, _, err := i.Snapshot.View().FindPosInPackage(pkgs[obj], obj.Pos())
+		file, _, err := i.Snapshot.View().FindPosInPackage(pkgs[obj], obj.Pos())
 		if err != nil {
 			return nil, err
 		}

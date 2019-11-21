@@ -23,6 +23,7 @@ type metadata struct {
 	id              packageID
 	pkgPath         packagePath
 	name            string
+	goFiles         []span.URI
 	compiledGoFiles []span.URI
 	typesSizes      types.Sizes
 	errors          []packages.Error
@@ -210,14 +211,19 @@ func (s *snapshot) updateImports(ctx context.Context, pkgPath packagePath, pkg *
 		errors:     pkg.Errors,
 		config:     cfg,
 	}
-	seen[id] = struct{}{}
+
 	for _, filename := range pkg.CompiledGoFiles {
 		uri := span.FileURI(filename)
 		m.compiledGoFiles = append(m.compiledGoFiles, uri)
-
+		s.addID(uri, m.id)
+	}
+	for _, filename := range pkg.GoFiles {
+		uri := span.FileURI(filename)
+		m.goFiles = append(m.goFiles, uri)
 		s.addID(uri, m.id)
 	}
 
+	seen[id] = struct{}{}
 	copied := make(map[packageID]struct{})
 	for k, v := range seen {
 		copied[k] = v
