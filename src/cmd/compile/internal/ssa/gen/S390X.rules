@@ -5,13 +5,13 @@
 // Lowering arithmetic
 (Add(64|Ptr) ...) -> (ADD ...)
 (Add(32|16|8) ...) -> (ADDW ...)
-(Add32F ...) -> (FADDS ...)
-(Add64F ...) -> (FADD ...)
+(Add32F x y) -> (Select0 (FADDS x y))
+(Add64F x y) -> (Select0 (FADD x y))
 
 (Sub(64|Ptr) ...) -> (SUB ...)
 (Sub(32|16|8) ...) -> (SUBW ...)
-(Sub32F ...) -> (FSUBS ...)
-(Sub64F ...) -> (FSUB ...)
+(Sub32F x y) -> (Select0 (FSUBS x y))
+(Sub64F x y) -> (Select0 (FSUB x y))
 
 (Mul64 ...) -> (MULLD ...)
 (Mul(32|16|8) ...) -> (MULLW ...)
@@ -1209,16 +1209,19 @@
   -> (SUBE x y c)
 
 // fused multiply-add
-(FADD (FMUL y z) x) -> (FMADD x y z)
-(FADDS (FMULS y z) x) -> (FMADDS x y z)
-(FSUB (FMUL y z) x) -> (FMSUB x y z)
-(FSUBS (FMULS y z) x) -> (FMSUBS x y z)
+(Select0 (F(ADD|SUB) (FMUL y z) x)) -> (FM(ADD|SUB) x y z)
+(Select0 (F(ADDS|SUBS) (FMULS y z) x)) -> (FM(ADDS|SUBS) x y z)
 
 // Convert floating point comparisons against zero into 'load and test' instructions.
 (FCMP x (FMOVDconst [c])) && auxTo64F(c) == 0 -> (LTDBR x)
 (FCMPS x (FMOVSconst [c])) && auxTo32F(c) == 0 -> (LTEBR x)
 (FCMP (FMOVDconst [c]) x) && auxTo64F(c) == 0 -> (InvertFlags (LTDBR <v.Type> x))
 (FCMPS (FMOVSconst [c]) x) && auxTo32F(c) == 0 -> (InvertFlags (LTEBR <v.Type> x))
+
+// FSUB, FSUBS, FADD, FADDS now produce a flag, so when a comparison against zero instruction (e.g: LTDBR) is following
+// one of those instructions, we can use the generated flag and remove the comparison instruction.
+(LTDBR (Select0 x:(F(ADD|SUB) _ _)))  -> (Select1 x)
+(LTEBR (Select0 x:(F(ADDS|SUBS) _ _))) -> (Select1 x)
 
 // Fold memory operations into operations.
 // Exclude global data (SB) because these instructions cannot handle relative addresses.

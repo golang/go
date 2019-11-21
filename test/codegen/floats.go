@@ -132,6 +132,18 @@ func CmpZero32(f float32) bool {
 	return f <= 0
 }
 
+func CmpWithSub(a float64, b float64) bool {
+	f := a - b
+	// s390x:-"LTDBR"
+	return f <= 0
+}
+
+func CmpWithAdd(a float64, b float64) bool {
+	f := a + b
+	// s390x:-"LTDBR"
+	return f <= 0
+}
+
 // ---------------- //
 //    Non-floats    //
 // ---------------- //
