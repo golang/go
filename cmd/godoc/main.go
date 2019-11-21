@@ -159,10 +159,6 @@ func main() {
 	flag.Usage = usage
 	flag.Parse()
 
-	if certInit != nil {
-		certInit()
-	}
-
 	// Check usage.
 	if flag.NArg() > 0 {
 		fmt.Fprintln(os.Stderr, `Unexpected arguments. Use "go doc" for command-line help output instead. For example, "go doc fmt.Printf".`)
@@ -361,20 +357,9 @@ func main() {
 		go analysis.Run(pointerAnalysis, &corpus.Analysis)
 	}
 
-	if runHTTPS != nil {
-		go func() {
-			if err := runHTTPS(handler); err != nil {
-				log.Fatalf("ListenAndServe TLS: %v", err)
-			}
-		}()
-	}
-
 	// Start http server.
 	if *verbose {
 		log.Println("starting HTTP server")
-	}
-	if wrapHTTPMux != nil {
-		handler = wrapHTTPMux(handler)
 	}
 	if err := http.ListenAndServe(*httpAddr, handler); err != nil {
 		log.Fatalf("ListenAndServe %s: %v", *httpAddr, err)
@@ -523,11 +508,3 @@ func (moduleFS) RootType(path string) vfs.RootType {
 	}
 }
 func (fs moduleFS) String() string { return "module(" + fs.FileSystem.String() + ")" }
-
-// Hooks that are set non-nil in autocert.go if the "autocert" build tag
-// is used.
-var (
-	certInit    func()
-	runHTTPS    func(http.Handler) error
-	wrapHTTPMux func(http.Handler) http.Handler
-)
