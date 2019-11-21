@@ -147,9 +147,20 @@ func GCPhys() {
 		size    = 4 << 20
 		split   = 64 << 10
 		objects = 2
+
+		// The page cache could hide 64 8-KiB pages from the scavenger today.
+		maxPageCache = (8 << 10) * 64
 	)
 	// Set GOGC so that this test operates under consistent assumptions.
 	debug.SetGCPercent(100)
+	// Reduce GOMAXPROCS down to 4 if it's greater. We need to bound the amount
+	// of memory held in the page cache because the scavenger can't reach it.
+	// The page cache will hold at most maxPageCache of memory per-P, so this
+	// bounds the amount of memory hidden from the scavenger to 4*maxPageCache.
+	procs := runtime.GOMAXPROCS(-1)
+	if procs > 4 {
+		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+	}
 	// Save objects which we want to survive, and condemn objects which we don't.
 	// Note that we condemn objects in this way and release them all at once in
 	// order to avoid having the GC start freeing up these objects while the loop
@@ -197,10 +208,22 @@ func GCPhys() {
 	// Since the runtime should scavenge the entirety of the remaining holes,
 	// theoretically there should be no more free and unscavenged memory. However due
 	// to other allocations that happen during this test we may still see some physical
-	// memory over-use. 10% here is an arbitrary but very conservative threshold which
-	// should easily account for any other allocations this test may have done.
+	// memory over-use.
 	overuse := (float64(heapBacked) - float64(stats.HeapAlloc)) / float64(stats.HeapAlloc)
-	if overuse <= 0.10 {
+	// Compute the threshold.
+	//
+	// In theory, this threshold should just be zero, but that's not possible in practice.
+	// Firstly, the runtime's page cache can hide up to maxPageCache of free memory from the
+	// scavenger per P. To account for this, we increase the threshold by the ratio between the
+	// total amount the runtime could hide from the scavenger to the amount of memory we expect
+	// to be able to scavenge here, which is (size-split)*objects. This computation is the crux
+	// GOMAXPROCS above; if GOMAXPROCS is too high the threshold just becomes 100%+ since the
+	// amount of memory being allocated is fixed. Then we add 5% to account for noise, such as
+	// other allocations this test may have performed that we don't explicitly account for The
+	// baseline threshold here is around 11% for GOMAXPROCS=1, capping out at around 30% for
+	// GOMAXPROCS=4.
+	threshold := 0.05 + float64(procs)*maxPageCache/float64((size-split)*objects)
+	if overuse <= threshold {
 		fmt.Println("OK")
 		return
 	}
@@ -210,8 +233,8 @@ func GCPhys() {
 	// In the context of this test, this indicates a large amount of
 	// fragmentation with physical pages that are otherwise unused but not
 	// returned to the OS.
-	fmt.Printf("exceeded physical memory overuse threshold of 10%%: %3.2f%%\n"+
-		"(alloc: %d, goal: %d, sys: %d, rel: %d, objs: %d)\n", overuse*100,
+	fmt.Printf("exceeded physical memory overuse threshold of %3.2f%%: %3.2f%%\n"+
+		"(alloc: %d, goal: %d, sys: %d, rel: %d, objs: %d)\n", threshold*100, overuse*100,
 		stats.HeapAlloc, stats.NextGC, stats.HeapSys, stats.HeapReleased, len(saved))
 	runtime.KeepAlive(saved)
 }
