@@ -1090,14 +1090,14 @@ opswitch:
 		// x = m[key]; 
 		// if m is a map literal and key is a literal, 
 		// and key is defined in m, immediately return the literal
-		if n.Left.Op == OMAPLIT && n.Right.Op == OLITERAL {
+		if n.Left.Op == OMAPLIT && isStaticCompositeLiteral(n.Right){
 			key := n.Right
-			lit := n.Left
-
+			maplit := n.Left
 			// Check if the key is defined
-			for _, element := range lit.List.Slice() {
-				if element.Left.E == key.E {
-					return element.Right
+			for _, element := range maplit.List.Slice() {
+				if element.Left.Val() == key.Val() {
+					n = walkexpr(element.Right, init)
+					break opswitch
 				}
 			}
 		}
