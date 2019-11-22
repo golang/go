@@ -1087,10 +1087,10 @@ opswitch:
 		}
 
 	case OINDEXMAP:
-		// x = m[key]; 
-		// if m is a map literal and key is a literal, 
+		// x = m[key];
+		// if m is a map literal and key is a literal,
 		// and key is defined in m, immediately return the literal
-		if n.Left.Op == OMAPLIT && isStaticCompositeLiteral(n.Right){
+		if n.Left.Op == OMAPLIT && isStaticCompositeLiteral(n.Right) {
 			key := n.Right
 			maplit := n.Left
 			// Check if the key is defined
@@ -1101,7 +1101,7 @@ opswitch:
 				}
 			}
 		}
-		
+
 		// Replace m[k] with *map{access1,assign}(maptype, m, &k)
 		n.Left = walkexpr(n.Left, init)
 		n.Right = walkexpr(n.Right, init)
