@@ -44,7 +44,7 @@ func TestMarshalJSON(t *testing.T) {
 								Count: 2,
 							},
 						},
-						BucketOptions: BucketOptionsExplicit{
+						BucketOptions: &BucketOptionsExplicit{
 							Bounds: []float64{
 								0, 5,
 							},
@@ -52,7 +52,7 @@ func TestMarshalJSON(t *testing.T) {
 					},
 				},
 			},
-			`{"distributionValue":{"count":3,"sum":10,"bucket_options":{"bounds":[0,5]},"buckets":[{"count":1},{"count":2}]}}`,
+			`{"distributionValue":{"count":3,"sum":10,"bucket_options":{"explicit":{"bounds":[0,5]}},"buckets":[{"count":1},{"count":2}]}}`,
 		},
 		{
 			"nil point",

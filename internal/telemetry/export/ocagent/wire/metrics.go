@@ -148,6 +148,24 @@ type BucketOptions interface {
 
 func (BucketOptionsExplicit) tagBucketOptions() {}
 
+// Declared for the purpose of custom JSON marshalling without cycles.
+type bucketOptionsExplicitAlias BucketOptionsExplicit
+
+// MarshalJSON creates JSON formatted the same way as jsonpb so that the
+// OpenCensus service can correctly determine the underlying value type.
+// This custom MarshalJSON exists because,
+// by default BucketOptionsExplicit is JSON marshalled as:
+//     {"bounds":[1,2,3]}
+// but it should be marshalled as:
+//     {"explicit":{"bounds":[1,2,3]}}
+func (be *BucketOptionsExplicit) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		Explicit *bucketOptionsExplicitAlias `json:"explicit,omitempty"`
+	}{
+		Explicit: (*bucketOptionsExplicitAlias)(be),
+	})
+}
+
 type Bucket struct {
 	Count    int64     `json:"count,omitempty"`
 	Exemplar *Exemplar `json:"exemplar,omitempty"`
