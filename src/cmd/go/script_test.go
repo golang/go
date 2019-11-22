@@ -30,6 +30,7 @@ import (
 	"cmd/go/internal/robustio"
 	"cmd/go/internal/txtar"
 	"cmd/go/internal/work"
+	"cmd/internal/sys"
 )
 
 // TestScript runs the tests in testdata/script/*.txt.
@@ -301,6 +302,11 @@ Script:
 							break
 						}
 					}
+					break
+				}
+				if strings.HasPrefix(cond.tag, "buildmode:") {
+					value := strings.TrimPrefix(cond.tag, "buildmode:")
+					ok = sys.BuildModeSupported(runtime.Compiler, value, runtime.GOOS, runtime.GOARCH)
 					break
 				}
 				if !imports.KnownArch[cond.tag] && !imports.KnownOS[cond.tag] && cond.tag != "gc" && cond.tag != "gccgo" {
