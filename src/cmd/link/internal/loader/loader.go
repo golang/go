@@ -130,6 +130,9 @@ const (
 	FlagStrictDups = 1 << iota
 )
 
+// anonVersion is used to tag symbols created by loader.Create.
+const anonVersion = -1
+
 func NewLoader(flags uint32) *Loader {
 	nbuiltin := goobj2.NBuiltin()
 	return &Loader{
@@ -842,13 +845,15 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
 		l.Syms[oldI] = nil
 	}
 
-	// For now, add all symbols to ctxt.Syms.
+	// Add symbols to the ctxt.Syms lookup table. This explicitly
+	// skips things created via loader.Create (marked with
+	// anonVersion), since if we tried to add these we'd wind up with
+	// collisions.
 	for _, s := range l.Syms {
-		if s != nil && s.Name != "" {
+		if s != nil && s.Name != "" && s.Version != anonVersion {
 			syms.Add(s)
 		}
 	}
-
 }
 
 // addNewSym adds a new sym.Symbol to the i-th index in the list of symbols.
@@ -976,6 +981,28 @@ func (l *Loader) LookupOrCreate(name string, version int, syms *sym.Symbols) *sy
 	}
 	i = l.AddExtSym(name, version)
 	s := syms.Newsym(name, version)
+	l.Syms[i] = s
+	return s
+}
+
+// Create creates a symbol with the specified name, but does not
+// insert it into any lookup table (hence it is possible to create a
+// symbol name with name X when there is already an existing symbol
+// named X entered into the loader). This method is intended for
+// static/hidden symbols discovered while loading host objects.
+func (l *Loader) Create(name string, syms *sym.Symbols) *sym.Symbol {
+	i := l.max + 1
+	l.max++
+	if l.extStart == 0 {
+		l.extStart = i
+	}
+
+	// Note the use of anonVersion -- this is to mark the symbol so that
+	// it can be skipped when ExtractSymbols is adding ext syms to the
+	// sym.Symbols hash.
+	l.extSyms = append(l.extSyms, nameVer{name, anonVersion})
+	l.growSyms(int(i))
+	s := syms.Newsym(name, -1)
 	l.Syms[i] = s
 	return s
 }

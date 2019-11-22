@@ -454,9 +454,12 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) (found bool, ehdrFlags 
 
 func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string, flags uint32) ([]*sym.Symbol, uint32, error) {
 	newSym := func(name string, version int) *sym.Symbol {
+		return l.Create(name, syms)
+	}
+	lookup := func(name string, version int) *sym.Symbol {
 		return l.LookupOrCreate(name, version, syms)
 	}
-	return load(arch, syms.IncVersion(), newSym, newSym, f, pkg, length, pn, flags)
+	return load(arch, syms.IncVersion(), newSym, lookup, f, pkg, length, pn, flags)
 }
 
 func LoadOld(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string, flags uint32) ([]*sym.Symbol, uint32, error) {
@@ -1101,6 +1104,9 @@ func readelfsym(newSym, lookup lookupFunc, arch *sys.Arch, elfobj *ElfObj, i int
 				// local names and hidden global names are unique
 				// and should only be referenced by their index, not name, so we
 				// don't bother to add them into the hash table
+				// FIXME: pass empty string here for name? This would
+				// reduce mem use, but also (possibly) make it harder
+				// to debug problems.
 				s = newSym(elfsym.name, localSymVersion)
 
 				s.Attr |= sym.AttrVisibilityHidden
