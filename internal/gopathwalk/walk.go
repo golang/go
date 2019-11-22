@@ -77,6 +77,7 @@ func WalkSkip(roots []Root, add func(root Root, dir string), skip func(root Root
 	}
 }
 
+// walkDir creates a walker and starts fastwalk with this walker.
 func walkDir(root Root, add func(Root, string), skip func(root Root, dir string) bool, opts Options) {
 	if _, err := os.Stat(root.Path); os.IsNotExist(err) {
 		if opts.Debug {
@@ -114,7 +115,7 @@ type walker struct {
 	ignoredDirs []os.FileInfo // The ignored directories, loaded from .goimportsignore files.
 }
 
-// init initializes the walker based on its Options.
+// init initializes the walker based on its Options
 func (w *walker) init() {
 	var ignoredPaths []string
 	if w.root.Type == RootModuleCache {
@@ -167,6 +168,7 @@ func (w *walker) getIgnoredDirs(path string) []string {
 	return ignoredDirs
 }
 
+// shouldSkipDir reports whether the file should be skipped or not.
 func (w *walker) shouldSkipDir(fi os.FileInfo, dir string) bool {
 	for _, ignoredDir := range w.ignoredDirs {
 		if os.SameFile(fi, ignoredDir) {
@@ -180,6 +182,7 @@ func (w *walker) shouldSkipDir(fi os.FileInfo, dir string) bool {
 	return false
 }
 
+// walk walks through the given path.
 func (w *walker) walk(path string, typ os.FileMode) error {
 	dir := filepath.Dir(path)
 	if typ.IsRegular() {
