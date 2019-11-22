@@ -190,7 +190,7 @@ func distributionToPoints(counts []int64, count int64, sum float64, bucketBounds
 					Sum:   sum,
 					// TODO: SumOfSquaredDeviation?
 					Buckets: buckets,
-					BucketOptions: wire.BucketOptionsExplicit{
+					BucketOptions: &wire.BucketOptionsExplicit{
 						Bounds: bucketBounds,
 					},
 				},

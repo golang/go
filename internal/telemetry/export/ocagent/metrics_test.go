@@ -451,7 +451,7 @@ func TestDataToTimeseries(t *testing.T) {
 											Count: 3,
 										},
 									},
-									BucketOptions: wire.BucketOptionsExplicit{
+									BucketOptions: &wire.BucketOptionsExplicit{
 										Bounds: []float64{
 											0, 5, 10,
 										},
@@ -502,7 +502,7 @@ func TestDataToTimeseries(t *testing.T) {
 											Count: 2,
 										},
 									},
-									BucketOptions: wire.BucketOptionsExplicit{
+									BucketOptions: &wire.BucketOptionsExplicit{
 										Bounds: []float64{
 											0, 5,
 										},
@@ -753,7 +753,7 @@ func TestDataToPoints(t *testing.T) {
 									Count: 3,
 								},
 							},
-							BucketOptions: wire.BucketOptionsExplicit{
+							BucketOptions: &wire.BucketOptionsExplicit{
 								Bounds: []float64{
 									0, 5, 10,
 								},
@@ -785,7 +785,7 @@ func TestDataToPoints(t *testing.T) {
 									Count: 6,
 								},
 							},
-							BucketOptions: wire.BucketOptionsExplicit{
+							BucketOptions: &wire.BucketOptionsExplicit{
 								Bounds: []float64{
 									0, 5, 10,
 								},
@@ -817,7 +817,7 @@ func TestDataToPoints(t *testing.T) {
 									Count: 3,
 								},
 							},
-							BucketOptions: wire.BucketOptionsExplicit{
+							BucketOptions: &wire.BucketOptionsExplicit{
 								Bounds: []float64{
 									0, 5, 10,
 								},
@@ -849,7 +849,7 @@ func TestDataToPoints(t *testing.T) {
 									Count: 9,
 								},
 							},
-							BucketOptions: wire.BucketOptionsExplicit{
+							BucketOptions: &wire.BucketOptionsExplicit{
 								Bounds: []float64{
 									0, 5, 10,
 								},
@@ -916,7 +916,7 @@ func TestDistributionToPoints(t *testing.T) {
 									Count: 3,
 								},
 							},
-							BucketOptions: wire.BucketOptionsExplicit{
+							BucketOptions: &wire.BucketOptionsExplicit{
 								Bounds: []float64{
 									0, 5, 10,
 								},
