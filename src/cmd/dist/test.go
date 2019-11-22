@@ -692,7 +692,7 @@ func (t *tester) registerTests() {
 			t.registerTest("testplugin", "../misc/cgo/testplugin", t.goTest(), t.timeout(600), ".")
 		}
 		if gohostos == "linux" && goarch == "amd64" {
-			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
+			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", ".")
 		}
 		if mSanSupported(goos, goarch) {
 			t.registerHostTest("testsanitizers/msan", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
@@ -701,7 +701,7 @@ func (t *tester) registerTests() {
 			t.registerHostTest("cgo_errors", "../misc/cgo/errors", "misc/cgo/errors", ".")
 		}
 		if gohostos == "linux" && t.extLink() {
-			t.registerTest("testsigfwd", "../misc/cgo/testsigfwd", "go", "run", "main.go")
+			t.registerTest("testsigfwd", "../misc/cgo/testsigfwd", "go", "run", ".")
 		}
 	}
 
