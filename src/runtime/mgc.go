@@ -1368,6 +1368,13 @@ func gcStart(trigger gcTrigger) {
 		work.pauseNS += now - work.pauseStart
 		work.tMark = now
 	})
+
+	// Release the world sema before Gosched() in STW mode
+	// because we will need to reacquire it later but before
+	// this goroutine becomes runnable again, and we could
+	// self-deadlock otherwise.
+	semrelease(&worldsema)
+
 	// In STW mode, we could block the instant systemstack
 	// returns, so don't do anything important here. Make sure we
 	// block rather than returning to user code.
@@ -1375,7 +1382,6 @@ func gcStart(trigger gcTrigger) {
 		Gosched()
 	}
 
-	semrelease(&worldsema)
 	semrelease(&work.startSema)
 }
 
