@@ -96,7 +96,7 @@ type View interface {
 	FindFile(ctx context.Context, uri span.URI) File
 
 	// Called to set the effective contents of a file from this view.
-	SetContent(ctx context.Context, uri span.URI, version float64, content []byte) (wasFirstChange bool, err error)
+	SetContent(ctx context.Context, uri span.URI, version float64, content []byte)
 
 	// BackgroundContext returns a context used for all background processing
 	// on behalf of this view.
@@ -172,7 +172,7 @@ type Session interface {
 	IsOpen(uri span.URI) bool
 
 	// Called to set the effective contents of a file from this session.
-	SetOverlay(uri span.URI, kind FileKind, version float64, data []byte) (wasFirstChange bool)
+	SetOverlay(uri span.URI, kind FileKind, version float64, data []byte)
 
 	// DidChangeOutOfBand is called when a file under the root folder changes.
 	// If the file was open in the editor, it returns true.

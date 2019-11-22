@@ -324,21 +324,21 @@ func (v *view) getSnapshot() *snapshot {
 }
 
 // SetContent sets the overlay contents for a file.
-func (v *view) SetContent(ctx context.Context, uri span.URI, version float64, content []byte) (bool, error) {
+func (v *view) SetContent(ctx context.Context, uri span.URI, version float64, content []byte) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
+
+	if v.Ignore(uri) {
+		return
+	}
 
 	// Cancel all still-running previous requests, since they would be
 	// operating on stale data.
 	v.cancel()
 	v.backgroundCtx, v.cancel = context.WithCancel(v.baseCtx)
 
-	if v.Ignore(uri) {
-		return false, nil
-	}
-
 	kind := source.DetectLanguage("", uri.Filename())
-	return v.session.SetOverlay(uri, kind, version, content), nil
+	v.session.SetOverlay(uri, kind, version, content)
 }
 
 // FindFile returns the file if the given URI is already a part of the view.

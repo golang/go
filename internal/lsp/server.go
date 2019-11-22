@@ -14,6 +14,7 @@ import (
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/span"
 )
 
 // NewClientServer
@@ -82,6 +83,9 @@ type Server struct {
 	// failed to deliver for some reason.
 	undeliveredMu sync.Mutex
 	undelivered   map[source.FileIdentity][]source.Diagnostic
+
+	// changedFiles tracks files for which there has been a textDocument/didChange.
+	changedFiles map[span.URI]struct{}
 
 	// folders is only valid between initialize and initialized, and holds the
 	// set of folders to build views for when we are ready
