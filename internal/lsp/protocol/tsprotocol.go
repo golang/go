@@ -2477,7 +2477,7 @@ type ServerCapabilities = struct {
 	 * specified if the client states that it supports
 	 * `prepareSupport` in its initial `initialize` request.
 	 */
-	RenameProvider RenameOptions/*boolean | RenameOptions*/ `json:"renameProvider,omitempty"`
+	RenameProvider interface{}/*boolean | RenameOptions*/ `json:"renameProvider,omitempty"`
 	/**
 	 * The server provides folding provider support.
 	 */
