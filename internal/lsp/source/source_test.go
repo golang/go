@@ -617,13 +617,23 @@ func (r *runner) Highlight(t *testing.T, src span.Span, locations []span.Span) {
 	if len(highlights) != len(locations) {
 		t.Errorf("got %d highlights for highlight at %v:%v:%v, expected %d", len(highlights), src.URI().Filename(), src.Start().Line(), src.Start().Column(), len(locations))
 	}
-	for i, got := range highlights {
-		want, err := m.Range(locations[i])
+	// Check to make sure highlights have a valid range.
+	var results []span.Span
+	for i := range highlights {
+		h, err := m.RangeSpan(highlights[i])
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("failed for %v: %v", highlights[i], err)
 		}
-		if got != want {
-			t.Errorf("want %v, got %v\n", want, got)
+		results = append(results, h)
+	}
+	// Sort results to make tests deterministic since DocumentHighlight uses a map.
+	sort.SliceStable(results, func(i, j int) bool {
+		return span.Compare(results[i], results[j]) == -1
+	})
+	// Check to make sure all the expected highlights are found.
+	for i := range results {
+		if results[i] != locations[i] {
+			t.Errorf("want %v, got %v\n", locations[i], results[i])
 		}
 	}
 }

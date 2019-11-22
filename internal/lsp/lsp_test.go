@@ -495,11 +495,11 @@ func (r *runner) Implementation(t *testing.T, spn span.Span, m tests.Implementat
 }
 
 func (r *runner) Highlight(t *testing.T, src span.Span, locations []span.Span) {
-	m, err := r.data.Mapper(locations[0].URI())
+	m, err := r.data.Mapper(src.URI())
 	if err != nil {
 		t.Fatal(err)
 	}
-	loc, err := m.Location(locations[0])
+	loc, err := m.Location(src)
 	if err != nil {
 		t.Fatalf("failed for %v: %v", locations[0], err)
 	}
@@ -517,11 +517,23 @@ func (r *runner) Highlight(t *testing.T, src span.Span, locations []span.Span) {
 	if len(highlights) != len(locations) {
 		t.Fatalf("got %d highlights for highlight at %v:%v:%v, expected %d", len(highlights), src.URI().Filename(), src.Start().Line(), src.Start().Column(), len(locations))
 	}
+	// Check to make sure highlights have a valid range.
+	var results []span.Span
 	for i := range highlights {
-		if h, err := m.RangeSpan(highlights[i].Range); err != nil {
+		h, err := m.RangeSpan(highlights[i].Range)
+		if err != nil {
 			t.Fatalf("failed for %v: %v", highlights[i], err)
-		} else if h != locations[i] {
-			t.Errorf("want %v, got %v\n", locations[i], h)
+		}
+		results = append(results, h)
+	}
+	// Sort results to make tests deterministic since DocumentHighlight uses a map.
+	sort.SliceStable(results, func(i, j int) bool {
+		return span.Compare(results[i], results[j]) == -1
+	})
+	// Check to make sure all the expected highlights are found.
+	for i := range results {
+		if results[i] != locations[i] {
+			t.Errorf("want %v, got %v\n", locations[i], results[i])
 		}
 	}
 }

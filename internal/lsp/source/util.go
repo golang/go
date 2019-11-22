@@ -222,6 +222,19 @@ func (k FileKind) String() string {
 	}
 }
 
+// Returns the index and the node whose position is contained inside the node list.
+func nodeAtPos(nodes []ast.Node, pos token.Pos) (ast.Node, int) {
+	if nodes == nil {
+		return nil, -1
+	}
+	for i, node := range nodes {
+		if node.Pos() <= pos && pos <= node.End() {
+			return node, i
+		}
+	}
+	return nil, -1
+}
+
 // indexExprAtPos returns the index of the expression containing pos.
 func indexExprAtPos(pos token.Pos, args []ast.Expr) int {
 	for i, expr := range args {

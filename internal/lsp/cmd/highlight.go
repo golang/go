@@ -8,6 +8,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"sort"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
@@ -68,14 +69,22 @@ func (r *highlight) Run(ctx context.Context, args ...string) error {
 		return err
 	}
 
+	var results []span.Span
 	for _, h := range highlights {
 		l := protocol.Location{Range: h.Range}
 		s, err := file.mapper.Span(l)
 		if err != nil {
 			return err
 		}
+		results = append(results, s)
+	}
+	// Sort results to make tests deterministic since DocumentHighlight uses a map.
+	sort.SliceStable(results, func(i, j int) bool {
+		return span.Compare(results[i], results[j]) == -1
+	})
+
+	for _, s := range results {
 		fmt.Println(s)
 	}
-
 	return nil
 }

@@ -2,6 +2,7 @@ package highlights
 
 import (
 	"fmt"
+	"sort"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 )
@@ -25,7 +26,7 @@ func testFunctions() {
 	Print()                 //@mark(printTest, "Print"),highlight(printTest, printFunc, printTest)
 }
 
-func toProtocolHighlight(rngs []protocol.Range) []protocol.DocumentHighlight { //@mark(doc1, "DocumentHighlight"),highlight(doc1, doc1, doc2, doc3)
+func toProtocolHighlight(rngs []protocol.Range) []protocol.DocumentHighlight { //@mark(doc1, "DocumentHighlight"),mark(docRet1, "[]protocol.DocumentHighlight"),highlight(doc1, docRet1, doc1, doc2, doc3, result)
 	result := make([]protocol.DocumentHighlight, 0, len(rngs)) //@mark(doc2, "DocumentHighlight"),highlight(doc2, doc1, doc2, doc3)
 	kind := protocol.Text
 	for _, rng := range rngs {
@@ -34,7 +35,7 @@ func toProtocolHighlight(rngs []protocol.Range) []protocol.DocumentHighlight { /
 			Range: rng,
 		})
 	}
-	return result
+	return result //@mark(result, "result")
 }
 
 func testForLoops() {
@@ -58,7 +59,6 @@ func testForLoops() {
 	}
 
 	arr := []int{}
-
 	for i := range arr { //@mark(forDecl4, "for"),highlight(forDecl4, forDecl4, brk4, cont4)
 		if i > 8 {
 			break //@mark(brk4, "break"),highlight(brk4, forDecl4, brk4, cont4)
@@ -67,4 +67,31 @@ func testForLoops() {
 			continue //@mark(cont4, "continue"),highlight(cont4, forDecl4, brk4, cont4)
 		}
 	}
+}
+
+func testReturn() bool { //@mark(func1, "func"),mark(bool1, "bool"),highlight(func1, func1, fullRet11, fullRet12),highlight(bool1, bool1, false1, bool2, true1)
+	if 1 < 2 {
+		return false //@mark(ret11, "return"),mark(fullRet11, "return false"),mark(false1, "false"),highlight(ret11, func1, fullRet11, fullRet12)
+	}
+	candidates := []int{}
+	sort.SliceStable(candidates, func(i, j int) bool { //@mark(func2, "func"),mark(bool2, "bool"),highlight(func2, func2, fullRet2)
+		return candidates[i] > candidates[j] //@mark(ret2, "return"),mark(fullRet2, "return candidates[i] > candidates[j]"),highlight(ret2, func2, fullRet2)
+	})
+	return true //@mark(ret12, "return"),mark(fullRet12, "return true"),mark(true1, "true"),highlight(ret12, func1, fullRet11, fullRet12)
+}
+
+func testReturnFields() float64 { //@mark(retVal1, "float64"),highlight(retVal1, retVal1, retVal11, retVal21)
+	if 1 < 2 {
+		return 20.1 //@mark(retVal11, "20.1"),highlight(retVal11, retVal1, retVal11, retVal21)
+	}
+	z := 4.3 //@mark(zDecl, "z")
+	return z //@mark(retVal21, "z"),highlight(retVal21, retVal1, retVal11, zDecl, retVal21)
+}
+
+func testReturnMultipleFields() (float32, string) { //@mark(retVal31, "float32"),mark(retVal32, "string"),highlight(retVal31, retVal31, retVal41, retVal51),highlight(retVal32, retVal32, retVal42, retVal52)
+	y := "im a var" //@mark(yDecl, "y"),
+	if 1 < 2 {
+		return 20.1, y //@mark(retVal41, "20.1"),mark(retVal42, "y"),highlight(retVal41, retVal31, retVal41, retVal51),highlight(retVal42, retVal32, yDecl, retVal42, retVal52)
+	}
+	return 4.9, "test" //@mark(retVal51, "4.9"),mark(retVal52, "\"test\""),highlight(retVal51, retVal31, retVal41, retVal51),highlight(retVal52, retVal32, retVal42, retVal52)
 }
