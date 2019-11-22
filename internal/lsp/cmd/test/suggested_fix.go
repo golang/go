@@ -7,19 +7,13 @@ package cmdtest
 import (
 	"testing"
 
-	"golang.org/x/tools/internal/lsp/cmd"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/tool"
 )
 
 func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 	uri := spn.URI()
 	filename := uri.Filename()
-	args := []string{"-remote=internal", "fix", "-a", filename}
-	app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Exported.Config.Env, r.options)
-	got := CaptureStdOut(t, func() {
-		_ = tool.Run(r.ctx, app, args)
-	})
+	got, _ := r.NormalizeGoplsCmd(t, "fix", "-a", filename)
 	want := string(r.data.Golden("suggestedfix", filename, func() ([]byte, error) {
 		return []byte(got), nil
 	}))

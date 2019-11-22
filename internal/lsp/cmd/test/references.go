@@ -9,9 +9,6 @@ import (
 	"sort"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp/cmd"
-	"golang.org/x/tools/internal/tool"
-
 	"golang.org/x/tools/internal/span"
 )
 
@@ -25,20 +22,12 @@ func (r *runner) References(t *testing.T, spn span.Span, itemList []span.Span) {
 	for _, i := range itemStrings {
 		expect += i + "\n"
 	}
+	expect = r.Normalize(expect)
 
 	uri := spn.URI()
 	filename := uri.Filename()
 	target := filename + fmt.Sprintf(":%v:%v", spn.Start().Line(), spn.Start().Column())
-
-	app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Config.Env, r.options)
-	got := CaptureStdOut(t, func() {
-		err := tool.Run(r.ctx, app, append([]string{"-remote=internal", "references"}, target))
-		if err != nil {
-			fmt.Println(spn.Start().Line())
-			fmt.Println(err)
-		}
-	})
-
+	got, _ := r.NormalizeGoplsCmd(t, "references", target)
 	if expect != got {
 		t.Errorf("references failed for %s expected:\n%s\ngot:\n%s", target, expect, got)
 	}

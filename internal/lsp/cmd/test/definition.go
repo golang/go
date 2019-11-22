@@ -10,10 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp/cmd"
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/tool"
 )
 
 const (
@@ -40,7 +38,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	}
 	d.Src = span.New(d.Src.URI(), span.NewPoint(0, 0, d.Src.Start().Offset()), span.Point{})
 	for _, mode := range godefModes {
-		args := []string{"-remote=internal", "query"}
+		args := []string{"query"}
 		tag := d.Name + "-definition"
 		if mode&jsonGoDef != 0 {
 			tag += "-json"
@@ -49,11 +47,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 		args = append(args, "definition")
 		uri := d.Src.URI()
 		args = append(args, fmt.Sprint(d.Src))
-		got := CaptureStdOut(t, func() {
-			app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Exported.Config.Env, r.options)
-			_ = tool.Run(r.ctx, app, args)
-		})
-		got = normalizePaths(r.data, got)
+		got, _ := r.NormalizeGoplsCmd(t, args...)
 		if mode&jsonGoDef != 0 && runtime.GOOS == "windows" {
 			got = strings.Replace(got, "file:///", "file://", -1)
 		}

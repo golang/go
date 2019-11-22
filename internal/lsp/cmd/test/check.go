@@ -10,10 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp/cmd"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/tool"
 )
 
 func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnostic) {
@@ -21,11 +19,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnosti
 		return
 	}
 	fname := uri.Filename()
-	args := []string{"-remote=internal", "check", fname}
-	app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Exported.Config.Env, r.options)
-	out := CaptureStdOut(t, func() {
-		_ = tool.Run(r.ctx, app, args)
-	})
+	out, _ := r.RunGoplsCmd(t, "check", fname)
 	// parse got into a collection of reports
 	got := map[string]struct{}{}
 	for _, l := range strings.Split(out, "\n") {
@@ -48,13 +42,14 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnosti
 			}
 			l = fmt.Sprintf("%s: %s", s, strings.TrimSpace(bits[1]))
 		}
-		got[l] = struct{}{}
+		got[r.NormalizePrefix(l)] = struct{}{}
 	}
 	for _, diag := range want {
 		expect := fmt.Sprintf("%v:%v:%v: %v", uri.Filename(), diag.Range.Start.Line+1, diag.Range.Start.Character+1, diag.Message)
 		if diag.Range.Start.Character == 0 {
 			expect = fmt.Sprintf("%v:%v: %v", uri.Filename(), diag.Range.Start.Line+1, diag.Message)
 		}
+		expect = r.NormalizePrefix(expect)
 		// Skip the badimport test for now, until we do a better job with diagnostic ranges.
 		if strings.Contains(uri.Filename(), "badimport") {
 			continue
