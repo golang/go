@@ -5,10 +5,10 @@
 package ocagent_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-	"reflect"
 	"testing"
 
 	"golang.org/x/tools/internal/telemetry"
@@ -207,18 +207,20 @@ func TestConvert_annotation(t *testing.T) {
 			checkJSON(t, got, []byte(tt.want))
 		})
 	}
+
 }
 
 func checkJSON(t *testing.T, got, want []byte) {
-	// compare the decoded form, to allow for formatting differences
-	var g, w map[string]interface{}
-	if err := json.Unmarshal(got, &g); err != nil {
+	// compare the compact form, to allow for formatting differences
+	g := &bytes.Buffer{}
+	if err := json.Compact(g, got); err != nil {
 		t.Fatal(err)
 	}
-	if err := json.Unmarshal(want, &w); err != nil {
+	w := &bytes.Buffer{}
+	if err := json.Compact(w, want); err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(g, w) {
+	if g.String() != w.String() {
 		t.Fatalf("Got:\n%s\nWant:\n%s", got, want)
 	}
 }
