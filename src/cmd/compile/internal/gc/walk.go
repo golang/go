@@ -434,29 +434,6 @@ func convFuncName(from, to *types.Type) (fnname string, needsaddr bool) {
 	panic("unreachable")
 }
 
-// The result of walklit MUST be assigned back to n, e.g.
-// 	n.Left = walklit(n.Left, init)
-func walklit(n *Node, init *Nodes) *Node {
-	if isStaticCompositeLiteral(n) && !canSSAType(n.Type) {
-		// n can be directly represented in the read-only data section.
-		// Make direct reference to the static data. See issue 12841.
-		vstat := staticname(n.Type)
-		vstat.Name.SetReadonly(true)
-		fixedlit(inInitFunction, initKindStatic, n, vstat, init)
-		n = vstat
-		n = typecheck(n, ctxExpr)
-		return n
-	}
-
-	if n.Op == OLITERAL {
-		return n
-	}
-
-	var_ := temp(n.Type)
-	anylit(n, var_, init)
-	return var_
-}
-
 // The result of walkexpr MUST be assigned back to n, e.g.
 // 	n.Left = walkexpr(n.Left, init)
 func walkexpr(n *Node, init *Nodes) *Node {
@@ -1113,14 +1090,14 @@ opswitch:
 		// x = m[key]; 
 		// if m is a map literal and key is a literal, 
 		// and key is defined in m, immediately return the literal
-		if n.Left.Op == OMAPLIT && isStaticCompositeLiteral(n.Right) {
+		if n.Left.Op == OMAPLIT && n.Right.Op == OLITERAL {
 			key := n.Right
 			lit := n.Left
+
 			// Check if the key is defined
 			for _, element := range lit.List.Slice() {
 				if element.Left.E == key.E {
-					n = walklit(element.Right, init)
-					break opswitch
+					return element.Right
 				}
 			}
 		}
@@ -1512,7 +1489,19 @@ opswitch:
 		n = mkcall("stringtoslicerune", n.Type, init, a, conv(n.Left, types.Types[TSTRING]))
 
 	case OARRAYLIT, OSLICELIT, OMAPLIT, OSTRUCTLIT, OPTRLIT:
-		n = walklit(n, init)
+		if isStaticCompositeLiteral(n) && !canSSAType(n.Type) {
+			// n can be directly represented in the read-only data section.
+			// Make direct reference to the static data. See issue 12841.
+			vstat := staticname(n.Type)
+			vstat.Name.SetReadonly(true)
+			fixedlit(inInitFunction, initKindStatic, n, vstat, init)
+			n = vstat
+			n = typecheck(n, ctxExpr)
+			break
+		}
+		var_ := temp(n.Type)
+		anylit(n, var_, init)
+		n = var_
 
 	case OSEND:
 		n1 := n.Right
