@@ -1036,7 +1036,7 @@ func (b *Builder) vet(a *Action) error {
 		// There's too much unsafe.Pointer code
 		// that vet doesn't like in low-level packages
 		// like runtime, sync, and reflect.
-		vetFlags = []string{"-unsafeptr=false"}
+		vetFlags = append(vetFlags, string("-unsafeptr=false"))
 	}
 
 	// Note: We could decide that vet should compute export data for

@@ -1,0 +1,8 @@
+env GO111MODULE=off
+
+# Issue 35837. Verify that "go vet -<analyzer> <std package>" works if 'pwd' is not $GOROOT/src
+# we utilize the package runtime/testdata/testprog as the issue is specific to vetting standard package
+
+go vet -n -unreachable=false runtime/testdata/testprog
+stderr '-unreachable=false'
+stderr '-unsafeptr=false'
