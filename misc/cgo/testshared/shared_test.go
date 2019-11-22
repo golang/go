@@ -9,25 +9,24 @@ import (
 	"bytes"
 	"debug/elf"
 	"encoding/binary"
-	"errors"
 	"flag"
 	"fmt"
 	"go/build"
 	"io"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 	"time"
 )
 
-var gopathInstallDir, gorootInstallDir, suffix string
+var gopathInstallDir, gorootInstallDir string
 
 // This is the smallest set of packages we can link into a shared
 // library (runtime/cgo is built implicitly).
@@ -35,6 +34,7 @@ var minpkgs = []string{"runtime", "sync/atomic"}
 var soname = "libruntime,sync-atomic.so"
 
 var testX = flag.Bool("testx", false, "if true, pass -x to 'go' subcommands invoked by the test")
+var testWork = flag.Bool("testwork", false, "if true, log and do not delete the temporary working directory")
 
 // run runs a command and calls t.Errorf if it fails.
 func run(t *testing.T, msg string, args ...string) {
@@ -47,7 +47,7 @@ func run(t *testing.T, msg string, args ...string) {
 // goCmd invokes the go tool with the installsuffix set up by TestMain. It calls
 // t.Fatalf if the command fails.
 func goCmd(t *testing.T, args ...string) string {
-	newargs := []string{args[0], "-installsuffix=" + suffix}
+	newargs := []string{args[0]}
 	if *testX {
 		newargs = append(newargs, "-x")
 	}
@@ -67,7 +67,8 @@ func goCmd(t *testing.T, args ...string) string {
 			t.Helper()
 			t.Fatalf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, stderr)
 		} else {
-			log.Fatalf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, stderr)
+			// Panic instead of using log.Fatalf so that deferred cleanup may run in testMain.
+			log.Panicf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, stderr)
 		}
 	}
 	if testing.Verbose() && t != nil {
@@ -81,73 +82,61 @@ func goCmd(t *testing.T, args ...string) string {
 
 // TestMain calls testMain so that the latter can use defer (TestMain exits with os.Exit).
 func testMain(m *testing.M) (int, error) {
-	// Because go install -buildmode=shared $standard_library_package always
-	// installs into $GOROOT, here are some gymnastics to come up with a unique
-	// installsuffix to use in this test that we can clean up afterwards.
+	workDir, err := ioutil.TempDir("", "shared_test")
+	if err != nil {
+		return 0, err
+	}
+	if *testWork || testing.Verbose() {
+		fmt.Printf("+ mkdir -p %s\n", workDir)
+	}
+	if !*testWork {
+		defer os.RemoveAll(workDir)
+	}
+
+	// Some tests need to edit the source in GOPATH, so copy this directory to a
+	// temporary directory and chdir to that.
+	gopath := filepath.Join(workDir, "gopath")
+	modRoot, err := cloneTestdataModule(gopath)
+	if err != nil {
+		return 0, err
+	}
+	if testing.Verbose() {
+		fmt.Printf("+ export GOPATH=%s\n", gopath)
+		fmt.Printf("+ cd %s\n", modRoot)
+	}
+	os.Setenv("GOPATH", gopath)
+	os.Chdir(modRoot)
+	os.Setenv("PWD", modRoot)
+
+	// The test also needs to install libraries into GOROOT/pkg, so copy the
+	// subset of GOROOT that we need.
+	//
+	// TODO(golang.org/issue/28553): Rework -buildmode=shared so that it does not
+	// need to write to GOROOT.
+	goroot := filepath.Join(workDir, "goroot")
+	if err := cloneGOROOTDeps(goroot); err != nil {
+		return 0, err
+	}
+	if testing.Verbose() {
+		fmt.Fprintf(os.Stderr, "+ export GOROOT=%s\n", goroot)
+	}
+	os.Setenv("GOROOT", goroot)
+
 	myContext := build.Default
+	myContext.GOROOT = goroot
+	myContext.GOPATH = gopath
 	runtimeP, err := myContext.Import("runtime", ".", build.ImportComment)
 	if err != nil {
 		return 0, fmt.Errorf("import failed: %v", err)
 	}
-	for i := 0; i < 10000; i++ {
-		try := fmt.Sprintf("%s_%d_dynlink", runtimeP.PkgTargetRoot, rand.Int63())
-		err = os.Mkdir(try, 0700)
-		if os.IsExist(err) {
-			continue
-		}
-		if err == nil {
-			gorootInstallDir = try
-		}
-		break
-	}
-	if err != nil {
-		return 0, fmt.Errorf("can't create temporary directory: %v", err)
-	}
-	if gorootInstallDir == "" {
-		return 0, errors.New("could not create temporary directory after 10000 tries")
-	}
-	if testing.Verbose() {
-		fmt.Printf("+ mkdir -p %s\n", gorootInstallDir)
-	}
-	defer os.RemoveAll(gorootInstallDir)
-
-	// Some tests need to edit the source in GOPATH, so copy this directory to a
-	// temporary directory and chdir to that.
-	gopath, err := ioutil.TempDir("", "testshared")
-	if err != nil {
-		return 0, fmt.Errorf("TempDir failed: %v", err)
-	}
-	if testing.Verbose() {
-		fmt.Printf("+ mkdir -p %s\n", gopath)
-	}
-	defer os.RemoveAll(gopath)
-
-	modRoot := filepath.Join(gopath, "src", "testshared")
-	if err := overlayDir(modRoot, "testdata"); err != nil {
-		return 0, err
-	}
-	if testing.Verbose() {
-		fmt.Printf("+ cd %s\n", modRoot)
-	}
-	os.Chdir(modRoot)
-	os.Setenv("PWD", modRoot)
-	if err := ioutil.WriteFile("go.mod", []byte("module testshared\n"), 0666); err != nil {
-		return 0, err
-	}
-
-	os.Setenv("GOPATH", gopath)
-	if testing.Verbose() {
-		fmt.Printf("+ export GOPATH=%s\n", gopath)
-	}
-	myContext.GOPATH = gopath
+	gorootInstallDir = runtimeP.PkgTargetRoot + "_dynlink"
 
 	// All tests depend on runtime being built into a shared library. Because
 	// that takes a few seconds, do it here and have all tests use the version
 	// built here.
-	suffix = strings.Split(filepath.Base(gorootInstallDir), "_")[2]
 	goCmd(nil, append([]string{"install", "-buildmode=shared"}, minpkgs...)...)
 
-	myContext.InstallSuffix = suffix + "_dynlink"
+	myContext.InstallSuffix = "_dynlink"
 	depP, err := myContext.Import("./depBase", ".", build.ImportComment)
 	if err != nil {
 		return 0, fmt.Errorf("import failed: %v", err)
@@ -173,6 +162,75 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 	os.Exit(exitCode)
+}
+
+// cloneTestdataModule clones the packages from src/testshared into gopath.
+// It returns the directory within gopath at which the module root is located.
+func cloneTestdataModule(gopath string) (string, error) {
+	modRoot := filepath.Join(gopath, "src", "testshared")
+	if err := overlayDir(modRoot, "testdata"); err != nil {
+		return "", err
+	}
+	if err := ioutil.WriteFile(filepath.Join(modRoot, "go.mod"), []byte("module testshared\n"), 0644); err != nil {
+		return "", err
+	}
+	return modRoot, nil
+}
+
+// cloneGOROOTDeps copies (or symlinks) the portions of GOROOT/src and
+// GOROOT/pkg relevant to this test into the given directory.
+// It must be run from within the testdata module.
+func cloneGOROOTDeps(goroot string) error {
+	oldGOROOT := strings.TrimSpace(goCmd(nil, "env", "GOROOT"))
+	if oldGOROOT == "" {
+		return fmt.Errorf("go env GOROOT returned an empty string")
+	}
+
+	// Before we clone GOROOT, figure out which packages we need to copy over.
+	listArgs := []string{
+		"list",
+		"-deps",
+		"-f", "{{if and .Standard (not .ForTest)}}{{.ImportPath}}{{end}}",
+	}
+	stdDeps := goCmd(nil, append(listArgs, minpkgs...)...)
+	testdataDeps := goCmd(nil, append(listArgs, "-test", "./...")...)
+
+	pkgs := append(strings.Split(strings.TrimSpace(stdDeps), "\n"),
+		strings.Split(strings.TrimSpace(testdataDeps), "\n")...)
+	sort.Strings(pkgs)
+	var pkgRoots []string
+	for _, pkg := range pkgs {
+		parentFound := false
+		for _, prev := range pkgRoots {
+			if strings.HasPrefix(pkg, prev) {
+				// We will copy in the source for pkg when we copy in prev.
+				parentFound = true
+				break
+			}
+		}
+		if !parentFound {
+			pkgRoots = append(pkgRoots, pkg)
+		}
+	}
+
+	gorootDirs := []string{
+		"pkg/tool",
+		"pkg/include",
+	}
+	for _, pkg := range pkgRoots {
+		gorootDirs = append(gorootDirs, filepath.Join("src", pkg))
+	}
+
+	for _, dir := range gorootDirs {
+		if testing.Verbose() {
+			fmt.Fprintf(os.Stderr, "+ cp -r %s %s\n", filepath.Join(goroot, dir), filepath.Join(oldGOROOT, dir))
+		}
+		if err := overlayDir(filepath.Join(goroot, dir), filepath.Join(oldGOROOT, dir)); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // The shared library was built at the expected location.
@@ -223,6 +281,7 @@ func TestNoTextrel(t *testing.T) {
 }
 
 // The shared library does not contain symbols called ".dup"
+// (See golang.org/issue/14841.)
 func TestNoDupSymbols(t *testing.T) {
 	sopath := filepath.Join(gorootInstallDir, soname)
 	f, err := elf.Open(sopath)
@@ -699,7 +758,7 @@ func resetFileStamps() {
 	}
 	reset := func(path string) {
 		if err := filepath.Walk(path, chtime); err != nil {
-			log.Fatalf("resetFileStamps failed: %v", err)
+			log.Panicf("resetFileStamps failed: %v", err)
 		}
 
 	}
@@ -712,6 +771,7 @@ func resetFileStamps() {
 // touch changes path and returns a function that changes it back.
 // It also sets the time of the file, so that we can see if it is rewritten.
 func touch(t *testing.T, path string) (cleanup func()) {
+	t.Helper()
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -740,14 +800,32 @@ func touch(t *testing.T, path string) (cleanup func()) {
 		// assume it's a text file
 		data = append(data, '\n')
 	}
-	if err := ioutil.WriteFile(path, data, 0666); err != nil {
+
+	// If the file is still a symlink from an overlay, delete it so that we will
+	// replace it with a regular file instead of overwriting the symlinked one.
+	fi, err := os.Lstat(path)
+	if err == nil && !fi.Mode().IsRegular() {
+		fi, err = os.Stat(path)
+		if err := os.Remove(path); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// If we're replacing a symlink to a read-only file, make the new file
+	// user-writable.
+	perm := fi.Mode().Perm() | 0200
+
+	if err := ioutil.WriteFile(path, data, perm); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chtimes(path, nearlyNew, nearlyNew); err != nil {
 		t.Fatal(err)
 	}
 	return func() {
-		if err := ioutil.WriteFile(path, old, 0666); err != nil {
+		if err := ioutil.WriteFile(path, old, perm); err != nil {
 			t.Fatal(err)
 		}
 	}
