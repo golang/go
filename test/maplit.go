@@ -1,6 +1,6 @@
 // run
 
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -28,8 +28,8 @@ func main() {
 	}
 
 	v2 := map[int]string{
-		22323: "a",
 		4323:  "g",
+		22323: "a",
 	}[intlit]
 	if v2 != "a" {
 		panic(fmt.Sprintf("wanted %v got %v", "a", v2))
