@@ -21,9 +21,7 @@ func overlayDir(dstRoot, srcRoot string) error {
 		return err
 	}
 
-	// If we don't use the absolute path here, exec'ing make.bash fails with
-	// “too many levels of symbolic links”.
-	symBase, err := filepath.Abs(srcRoot)
+	srcRoot, err := filepath.Abs(srcRoot)
 	if err != nil {
 		return err
 	}
@@ -51,11 +49,11 @@ func overlayDir(dstRoot, srcRoot string) error {
 		// Always copy directories (don't symlink them).
 		// If we add a file in the overlay, we don't want to add it in the original.
 		if info.IsDir() {
-			return os.Mkdir(dstPath, perm|0200)
+			return os.MkdirAll(dstPath, perm|0200)
 		}
 
 		// If the OS supports symlinks, use them instead of copying bytes.
-		if err := os.Symlink(filepath.Join(symBase, suffix), dstPath); err == nil {
+		if err := os.Symlink(srcPath, dstPath); err == nil {
 			return nil
 		}
 
