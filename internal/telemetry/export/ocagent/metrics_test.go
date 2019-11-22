@@ -1,29 +1,27 @@
-package ocagent
+package ocagent_test
 
 import (
-	"reflect"
 	"testing"
 	"time"
 
 	"golang.org/x/tools/internal/telemetry"
-	"golang.org/x/tools/internal/telemetry/export/ocagent/wire"
+	"golang.org/x/tools/internal/telemetry/export/ocagent"
 	"golang.org/x/tools/internal/telemetry/metric"
 )
 
 func TestEncodeMetric(t *testing.T) {
-	epoch := time.Unix(0, 0)
-	epochTimestamp := epoch.Format(time.RFC3339Nano)
-	end := time.Unix(30, 0)
-	endTimestamp := end.Format(time.RFC3339Nano)
+	start, _ := time.Parse(time.RFC3339Nano, "1970-01-01T00:00:00Z")
+	end, _ := time.Parse(time.RFC3339Nano, "1970-01-01T00:00:30Z")
 
 	tests := []struct {
 		name  string
 		data  telemetry.MetricData
 		start time.Time
-		want  *wire.Metric
+		want  string
 	}{
 		{
 			name: "nil data",
+			want: `null`,
 		},
 		{
 			name: "Int64Data cumulative",
@@ -40,48 +38,48 @@ func TestEncodeMetric(t *testing.T) {
 				},
 				EndTime: &end,
 			},
-			start: epoch,
-			want: &wire.Metric{
-				MetricDescriptor: &wire.MetricDescriptor{
-					Name:        "int",
-					Description: "int metric",
-					Type:        wire.MetricDescriptor_CUMULATIVE_INT64,
-					LabelKeys: []*wire.LabelKey{
-						&wire.LabelKey{
-							Key: "hello",
-						},
-					},
+			start: start,
+			want: `{
+				"metric_descriptor": {
+					"name": "int",
+					"description": "int metric",
+					"type": 4,
+					"label_keys": [
+						{
+							"key": "hello"
+						}
+					]
 				},
-				Timeseries: []*wire.TimeSeries{
-					&wire.TimeSeries{
-						Points: []*wire.Point{
-							&wire.Point{
-								Value:     wire.PointInt64Value{Int64Value: 1},
-								Timestamp: &endTimestamp,
-							},
-						},
-						StartTimestamp: &epochTimestamp,
+				"timeseries": [
+					{
+						"start_timestamp": "1970-01-01T00:00:00Z",
+						"points": [
+							{
+								"timestamp": "1970-01-01T00:00:30Z",
+								"int64Value": 1
+							}
+						]
 					},
-					&wire.TimeSeries{
-						Points: []*wire.Point{
-							&wire.Point{
-								Value:     wire.PointInt64Value{Int64Value: 2},
-								Timestamp: &endTimestamp,
-							},
-						},
-						StartTimestamp: &epochTimestamp,
+					{
+						"start_timestamp": "1970-01-01T00:00:00Z",
+						"points": [
+							{
+								"timestamp": "1970-01-01T00:00:30Z",
+								"int64Value": 2
+							}
+						]
 					},
-					&wire.TimeSeries{
-						Points: []*wire.Point{
-							&wire.Point{
-								Value:     wire.PointInt64Value{Int64Value: 3},
-								Timestamp: &endTimestamp,
-							},
-						},
-						StartTimestamp: &epochTimestamp,
-					},
-				},
-			},
+					{
+						"start_timestamp": "1970-01-01T00:00:00Z",
+						"points": [
+							{
+								"timestamp": "1970-01-01T00:00:30Z",
+								"int64Value": 3
+							}
+						]
+					}
+				]
+			}`,
 		},
 		{
 			name: "Int64Data gauge",
@@ -93,20 +91,19 @@ func TestEncodeMetric(t *testing.T) {
 				},
 				IsGauge: true,
 			},
-			start: epoch,
-			want: &wire.Metric{
-				MetricDescriptor: &wire.MetricDescriptor{
-					Name:        "int-gauge",
-					Description: "int metric gauge",
-					Type:        wire.MetricDescriptor_GAUGE_INT64,
-					LabelKeys: []*wire.LabelKey{
-						&wire.LabelKey{
-							Key: "hello",
-						},
-					},
-				},
-				Timeseries: []*wire.TimeSeries{},
-			},
+			start: start,
+			want: `{
+				"metric_descriptor": {
+					"name": "int-gauge",
+					"description": "int metric gauge",
+					"type": 1,
+					"label_keys": [
+						{
+							"key": "hello"
+						}
+					]
+				}
+			}`,
 		},
 		{
 			name: "Float64Data cumulative",
@@ -122,39 +119,39 @@ func TestEncodeMetric(t *testing.T) {
 				},
 				EndTime: &end,
 			},
-			start: epoch,
-			want: &wire.Metric{
-				MetricDescriptor: &wire.MetricDescriptor{
-					Name:        "float",
-					Description: "float metric",
-					Type:        wire.MetricDescriptor_CUMULATIVE_DOUBLE,
-					LabelKeys: []*wire.LabelKey{
-						&wire.LabelKey{
-							Key: "world",
-						},
-					},
+			start: start,
+			want: `{
+				"metric_descriptor": {
+					"name": "float",
+					"description": "float metric",
+					"type": 5,
+					"label_keys": [
+						{
+							"key": "world"
+						}
+					]
 				},
-				Timeseries: []*wire.TimeSeries{
-					&wire.TimeSeries{
-						Points: []*wire.Point{
-							&wire.Point{
-								Value:     wire.PointDoubleValue{DoubleValue: 1.5},
-								Timestamp: &endTimestamp,
-							},
-						},
-						StartTimestamp: &epochTimestamp,
+				"timeseries": [
+					{
+						"start_timestamp": "1970-01-01T00:00:00Z",
+						"points": [
+							{
+								"timestamp": "1970-01-01T00:00:30Z",
+								"doubleValue": 1.5
+							}
+						]
 					},
-					&wire.TimeSeries{
-						Points: []*wire.Point{
-							&wire.Point{
-								Value:     wire.PointDoubleValue{DoubleValue: 4.5},
-								Timestamp: &endTimestamp,
-							},
-						},
-						StartTimestamp: &epochTimestamp,
-					},
-				},
-			},
+					{
+						"start_timestamp": "1970-01-01T00:00:00Z",
+						"points": [
+							{
+								"timestamp": "1970-01-01T00:00:30Z",
+								"doubleValue": 4.5
+							}
+						]
+					}
+				]
+			}`,
 		},
 		{
 			name: "Float64Data gauge",
@@ -166,20 +163,19 @@ func TestEncodeMetric(t *testing.T) {
 				},
 				IsGauge: true,
 			},
-			start: epoch,
-			want: &wire.Metric{
-				MetricDescriptor: &wire.MetricDescriptor{
-					Name:        "float-gauge",
-					Description: "float metric gauge",
-					Type:        wire.MetricDescriptor_GAUGE_DOUBLE,
-					LabelKeys: []*wire.LabelKey{
-						&wire.LabelKey{
-							Key: "world",
-						},
-					},
-				},
-				Timeseries: []*wire.TimeSeries{},
-			},
+			start: start,
+			want: `{
+				"metric_descriptor": {
+					"name": "float-gauge",
+					"description": "float metric gauge",
+					"type": 2,
+					"label_keys": [
+						{
+							"key": "world"
+						}
+					]
+				}
+			}`,
 		},
 		{
 			name: "HistogramInt64",
@@ -205,51 +201,53 @@ func TestEncodeMetric(t *testing.T) {
 				},
 				EndTime: &end,
 			},
-			start: epoch,
-			want: &wire.Metric{
-				MetricDescriptor: &wire.MetricDescriptor{
-					Name:        "histogram int",
-					Description: "histogram int metric",
-					Type:        wire.MetricDescriptor_CUMULATIVE_DISTRIBUTION,
-					LabelKeys: []*wire.LabelKey{
-						&wire.LabelKey{
-							Key: "hello",
-						},
-					},
+			start: start,
+			want: `{
+				"metric_descriptor": {
+					"name": "histogram int",
+					"description": "histogram int metric",
+					"type": 6,
+					"label_keys": [
+						{
+							"key": "hello"
+						}
+					]
 				},
-				Timeseries: []*wire.TimeSeries{
-					&wire.TimeSeries{
-						Points: []*wire.Point{
-							&wire.Point{
-								Value: wire.PointDistributionValue{
-									DistributionValue: &wire.DistributionValue{
-										Count: 6,
-										Sum:   40,
-										Buckets: []*wire.Bucket{
-											{
-												Count: 1,
-											},
-											{
-												Count: 2,
-											},
-											{
-												Count: 3,
-											},
-										},
-										BucketOptions: &wire.BucketOptionsExplicit{
-											Bounds: []float64{
-												0, 5, 10,
-											},
-										},
+				"timeseries": [
+					{
+						"start_timestamp": "1970-01-01T00:00:00Z",
+						"points": [
+							{
+								"timestamp": "1970-01-01T00:00:30Z",
+								"distributionValue": {
+									"count": 6,
+									"sum": 40,
+									"bucket_options": {
+										"explicit": {
+											"bounds": [
+												0,
+												5,
+												10
+											]
+										}
 									},
-								},
-								Timestamp: &endTimestamp,
-							},
-						},
-						StartTimestamp: &epochTimestamp,
-					},
-				},
-			},
+									"buckets": [
+										{
+											"count": 1
+										},
+										{
+											"count": 2
+										},
+										{
+											"count": 3
+										}
+									]
+								}
+							}
+						]
+					}
+				]
+			}`,
 		},
 		{
 			name: "HistogramFloat64",
@@ -274,57 +272,59 @@ func TestEncodeMetric(t *testing.T) {
 				},
 				EndTime: &end,
 			},
-			start: epoch,
-			want: &wire.Metric{
-				MetricDescriptor: &wire.MetricDescriptor{
-					Name:        "histogram float",
-					Description: "histogram float metric",
-					Type:        wire.MetricDescriptor_CUMULATIVE_DISTRIBUTION,
-					LabelKeys: []*wire.LabelKey{
-						&wire.LabelKey{
-							Key: "hello",
-						},
-					},
+			start: start,
+			want: `{
+				"metric_descriptor": {
+					"name": "histogram float",
+					"description": "histogram float metric",
+					"type": 6,
+					"label_keys": [
+						{
+							"key": "hello"
+						}
+					]
 				},
-				Timeseries: []*wire.TimeSeries{
-					&wire.TimeSeries{
-						Points: []*wire.Point{
-							&wire.Point{
-								Value: wire.PointDistributionValue{
-									DistributionValue: &wire.DistributionValue{
-										Count: 3,
-										Sum:   10,
-										Buckets: []*wire.Bucket{
-											{
-												Count: 1,
-											},
-											{
-												Count: 2,
-											},
-										},
-										BucketOptions: &wire.BucketOptionsExplicit{
-											Bounds: []float64{
-												0, 5,
-											},
-										},
+				"timeseries": [
+					{
+						"start_timestamp": "1970-01-01T00:00:00Z",
+						"points": [
+							{
+								"timestamp": "1970-01-01T00:00:30Z",
+								"distributionValue": {
+									"count": 3,
+									"sum": 10,
+									"bucket_options": {
+										"explicit": {
+											"bounds": [
+												0,
+												5
+											]
+										}
 									},
-								},
-								Timestamp: &endTimestamp,
-							},
-						},
-						StartTimestamp: &epochTimestamp,
-					},
-				},
-			},
+									"buckets": [
+										{
+											"count": 1
+										},
+										{
+											"count": 2
+										}
+									]
+								}
+							}
+						]
+					}
+				]
+			}`,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := convertMetric(tt.data, tt.start)
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Fatalf("Got:\n%#v\nWant:\n%#v", got, tt.want)
+			got, err := ocagent.EncodeMetric(tt.data, tt.start)
+			if err != nil {
+				t.Fatal(err)
 			}
+			checkJSON(t, got, []byte(tt.want))
 		})
 	}
 }

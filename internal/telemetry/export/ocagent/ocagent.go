@@ -148,6 +148,10 @@ func EncodeAnnotation(a telemetry.Event) ([]byte, error) {
 	return json.Marshal(convertAnnotation(a))
 }
 
+func EncodeMetric(m telemetry.MetricData, at time.Time) ([]byte, error) {
+	return json.Marshal(convertMetric(m, at))
+}
+
 func (e *exporter) send(endpoint string, message interface{}) {
 	blob, err := json.Marshal(message)
 	if err != nil {
