@@ -112,7 +112,7 @@ FindCall:
 	}
 
 	qf := qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo())
-	params := formatParams(sig.Params(), sig.Variadic(), qf)
+	params := formatParams(snapshot, pkg, sig, qf)
 	results, writeResultParens := formatResults(sig.Results(), qf)
 	activeParam := activeParameter(callExpr, sig.Params().Len(), sig.Variadic(), rng.Start)
 
@@ -121,11 +121,11 @@ FindCall:
 		comment *ast.CommentGroup
 	)
 	if obj != nil {
-		node, err := objToNode(ctx, snapshot.View(), pkg, obj)
+		node, err := objToNode(snapshot.View(), pkg, obj)
 		if err != nil {
 			return nil, err
 		}
-		rng, err := objToMappedRange(ctx, snapshot.View(), pkg, obj)
+		rng, err := objToMappedRange(snapshot.View(), pkg, obj)
 		if err != nil {
 			return nil, err
 		}

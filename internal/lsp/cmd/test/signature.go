@@ -25,8 +25,7 @@ func (r *runner) SignatureHelp(t *testing.T, spn span.Span, expectedSignature *s
 	expect := string(r.data.Golden(goldenTag, filename, func() ([]byte, error) {
 		return []byte(got), nil
 	}))
-
 	if expect != got {
-		t.Errorf("signature failed failed for %s expected:\n%s\ngot:\n%s", filename, expect, got)
+		t.Errorf("signature failed for %s expected:\n%q\ngot:\n%q'", filename, expect, got)
 	}
 }

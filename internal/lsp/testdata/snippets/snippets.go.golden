@@ -1,0 +1,5 @@
+-- -signature --
+
+-- baz(at AliasType, b bool)-signature --
+baz(at AliasType, b bool)
+

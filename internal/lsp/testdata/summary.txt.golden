@@ -1,6 +1,6 @@
 -- summary --
 CompletionsCount = 215
-CompletionSnippetCount = 47
+CompletionSnippetCount = 50
 UnimportedCompletionsCount = 3
 DeepCompletionsCount = 5
 FuzzyCompletionsCount = 7
@@ -18,6 +18,6 @@ ReferencesCount = 7
 RenamesCount = 22
 PrepareRenamesCount = 8
 SymbolsCount = 1
-SignaturesCount = 21
+SignaturesCount = 22
 LinksCount = 6
 

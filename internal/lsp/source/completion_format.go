@@ -47,7 +47,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	// expandFuncCall mutates the completion label, detail, and snippet
 	// to that of an invocation of sig.
 	expandFuncCall := func(sig *types.Signature) {
-		params := formatParams(sig.Params(), sig.Variadic(), c.qf)
+		params := formatParams(c.snapshot, c.pkg, sig, c.qf)
 		snip = c.functionCallSnippet(label, params)
 		results, writeParens := formatResults(sig.Results(), c.qf)
 		detail = "func" + formatFunction(params, results, writeParens)
@@ -66,6 +66,12 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	case *types.Var:
 		if _, ok := obj.Type().(*types.Struct); ok {
 			detail = "struct{...}" // for anonymous structs
+		} else if obj.IsField() {
+			var err error
+			detail, err = formatFieldType(c.snapshot, c.pkg, obj, c.qf)
+			if err != nil {
+				detail = types.TypeString(obj.Type(), c.qf)
+			}
 		}
 		if obj.IsField() {
 			kind = protocol.FieldCompletion
@@ -156,12 +162,10 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	}
 	file, _, pkg, err := c.snapshot.View().FindPosInPackage(searchPkg, obj.Pos())
 	if err != nil {
-		log.Error(c.ctx, "error finding file in package", err, telemetry.URI.Of(uri), telemetry.Package.Of(searchPkg.ID()))
 		return item, nil
 	}
-	ident, err := findIdentifier(c.ctx, c.snapshot, pkg, file, obj.Pos())
+	ident, err := findIdentifier(c.snapshot, pkg, file, obj.Pos())
 	if err != nil {
-		log.Error(c.ctx, "failed to findIdentifier", err, telemetry.URI.Of(uri))
 		return item, nil
 	}
 	hover, err := ident.Hover(c.ctx)

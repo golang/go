@@ -1,19 +1,27 @@
 package snippets
 
+type AliasType = int //@item(sigAliasType, "AliasType", "AliasType", "type")
+
 func foo(i int, b bool) {} //@item(snipFoo, "foo", "func(i int, b bool)", "func")
 func bar(fn func()) func()    {} //@item(snipBar, "bar", "func(fn func())", "func")
+func baz(at AliasType, b bool) {} //@item(snipBaz, "baz", "func(at AliasType, b bool)", "func")
 
 type Foo struct {
 	Bar int //@item(snipFieldBar, "Bar", "int", "field")
+	Func func(at AliasType) error //@item(snipFieldFunc, "Func", "func(at AliasType) error", "field")
 }
 
 func (Foo) Baz() func() {} //@item(snipMethodBaz, "Baz", "func() func()", "method")
 func (Foo) BazBar() func() {} //@item(snipMethodBazBar, "BazBar", "func() func()", "method")
+func (Foo) BazBaz(at AliasType) func() {} //@item(snipMethodBazBaz, "BazBaz", "func(at AliasType) func()", "method")
 
 func _() {
 	f //@snippet(" //", snipFoo, "foo(${1:})", "foo(${1:i int}, ${2:b bool})")
 
 	bar //@snippet(" //", snipBar, "bar(${1:})", "bar(${1:fn func()})")
+
+	baz //@snippet(" //", snipBaz, "baz(${1:})", "baz(${1:at AliasType}, ${2:b bool})")
+	baz() //@signature("(", "baz(at AliasType, b bool)", 0)
 
 	bar(nil) //@snippet("(", snipBar, "bar", "bar")
 	bar(ba) //@snippet(")", snipBar, "bar(${1:})", "bar(${1:fn func()})")
@@ -26,6 +34,10 @@ func _() {
 		B //@snippet(" //", snipFieldBar, "Bar: ${1:},", "Bar: ${1:int},")
 	}
 
+	Foo{
+		F //@snippet(" //", snipFieldFunc, "Func: ${1:},", "Func: ${1:func(at AliasType) error},")
+	}
+
 	Foo{B} //@snippet("}", snipFieldBar, "Bar: ${1:}", "Bar: ${1:int}")
 	Foo{} //@snippet("}", snipFieldBar, "Bar: ${1:}", "Bar: ${1:int}")
 
@@ -36,4 +48,6 @@ func _() {
 	f.Baz()     //@snippet("B", snipMethodBaz, "Baz()", "Baz()")
 
 	f.Baz()     //@snippet("(", snipMethodBazBar, "BazBar", "BazBar")
+
+	f.Baz()     //@snippet("B", snipMethodBazBaz, "BazBaz(${1:})", "BazBaz(${1:at AliasType})")
 }

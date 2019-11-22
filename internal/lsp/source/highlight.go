@@ -87,7 +87,7 @@ Outer:
 	var result []protocol.Range
 
 	// Add the for statement.
-	forStmt, err := posToRange(ctx, snapshot.View(), m, loop.Pos(), loop.Pos()+3)
+	forStmt, err := posToRange(snapshot.View(), m, loop.Pos(), loop.Pos()+3)
 	if err != nil {
 		return nil, err
 	}

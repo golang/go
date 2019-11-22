@@ -69,7 +69,7 @@ func (i *IdentifierInfo) Implementation(ctx context.Context) ([]protocol.Locatio
 		if err != nil {
 			return nil, err
 		}
-		ident, err := findIdentifier(ctx, i.Snapshot, pkg, file, obj.Pos())
+		ident, err := findIdentifier(i.Snapshot, pkg, file, obj.Pos())
 		if err != nil {
 			return nil, err
 		}
