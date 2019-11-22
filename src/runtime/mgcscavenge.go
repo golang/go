@@ -166,9 +166,15 @@ func wakeScavenger() {
 		stopTimer(scavenge.timer)
 
 		// Unpark the goroutine and tell it that there may have been a pacing
-		// change.
+		// change. Note that we skip the scheduler's runnext slot because we
+		// want to avoid having the scavenger interfere with the fair
+		// scheduling of user goroutines. In effect, this schedules the
+		// scavenger at a "lower priority" but that's OK because it'll
+		// catch up on the work it missed when it does get scheduled.
 		scavenge.parked = false
-		goready(scavenge.g, 0)
+		systemstack(func() {
+			ready(scavenge.g, 0, false)
+		})
 	}
 	unlock(&scavenge.lock)
 }
