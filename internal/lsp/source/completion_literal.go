@@ -14,7 +14,6 @@ import (
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
-	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
 )
 
@@ -159,11 +158,7 @@ func (c *completer) literal(literalType types.Type, imp *importInfo) {
 // referenceEdit produces text edits that prepend a "&" operator to the
 // specified node.
 func referenceEdit(fset *token.FileSet, m *protocol.ColumnMapper, node ast.Node) ([]protocol.TextEdit, error) {
-	rng := span.Range{
-		FileSet: fset,
-		Start:   node.Pos(),
-		End:     node.Pos(),
-	}
+	rng := newMappedRange(fset, m, node.Pos(), node.Pos())
 	spn, err := rng.Span()
 	if err != nil {
 		return nil, err

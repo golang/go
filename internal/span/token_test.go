@@ -7,6 +7,7 @@ package span_test
 import (
 	"fmt"
 	"go/token"
+	"path"
 	"testing"
 
 	"golang.org/x/tools/internal/span"
@@ -48,16 +49,18 @@ func TestToken(t *testing.T) {
 	for _, test := range tokenTests {
 		f := files[test.URI()]
 		c := span.NewTokenConverter(fset, f)
-		checkToken(t, c, span.New(
-			test.URI(),
-			span.NewPoint(test.Start().Line(), test.Start().Column(), 0),
-			span.NewPoint(test.End().Line(), test.End().Column(), 0),
-		), test)
-		checkToken(t, c, span.New(
-			test.URI(),
-			span.NewPoint(0, 0, test.Start().Offset()),
-			span.NewPoint(0, 0, test.End().Offset()),
-		), test)
+		t.Run(path.Base(f.Name()), func(t *testing.T) {
+			checkToken(t, c, span.New(
+				test.URI(),
+				span.NewPoint(test.Start().Line(), test.Start().Column(), 0),
+				span.NewPoint(test.End().Line(), test.End().Column(), 0),
+			), test)
+			checkToken(t, c, span.New(
+				test.URI(),
+				span.NewPoint(0, 0, test.Start().Offset()),
+				span.NewPoint(0, 0, test.End().Offset()),
+			), test)
+		})
 	}
 }
 

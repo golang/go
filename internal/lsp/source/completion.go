@@ -18,7 +18,6 @@ import (
 	"golang.org/x/tools/internal/lsp/fuzzy"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
-	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/trace"
 	errors "golang.org/x/xerrors"
 )
@@ -254,11 +253,8 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 	c.surrounding = &Selection{
 		content: ident.Name,
 		cursor:  c.pos,
-		mappedRange: mappedRange{
-			// Overwrite the prefix only.
-			spanRange: span.NewRange(c.snapshot.View().Session().Cache().FileSet(), ident.Pos(), c.pos),
-			m:         c.mapper,
-		},
+		// Overwrite the prefix only.
+		mappedRange: newMappedRange(c.snapshot.View().Session().Cache().FileSet(), c.mapper, ident.Pos(), ident.End()),
 	}
 
 	if c.opts.FuzzyMatching {
@@ -273,12 +269,9 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 func (c *completer) getSurrounding() *Selection {
 	if c.surrounding == nil {
 		c.surrounding = &Selection{
-			content: "",
-			cursor:  c.pos,
-			mappedRange: mappedRange{
-				spanRange: span.NewRange(c.snapshot.View().Session().Cache().FileSet(), c.pos, c.pos),
-				m:         c.mapper,
-			},
+			content:     "",
+			cursor:      c.pos,
+			mappedRange: newMappedRange(c.snapshot.View().Session().Cache().FileSet(), c.mapper, c.pos, c.pos),
 		}
 	}
 	return c.surrounding

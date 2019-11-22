@@ -7,7 +7,6 @@ import (
 	"sort"
 
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/span"
 )
 
 type FoldingRangeInfo struct {
@@ -83,11 +82,8 @@ func foldingRange(fset *token.FileSet, m *protocol.ColumnMapper, n ast.Node) *Fo
 		return nil
 	}
 	return &FoldingRangeInfo{
-		mappedRange: mappedRange{
-			m:         m,
-			spanRange: span.NewRange(fset, start, end),
-		},
-		Kind: kind,
+		mappedRange: newMappedRange(fset, m, start, end),
+		Kind:        kind,
 	}
 }
 
@@ -171,11 +167,8 @@ func lineFoldingRange(fset *token.FileSet, m *protocol.ColumnMapper, n ast.Node)
 		return nil
 	}
 	return &FoldingRangeInfo{
-		mappedRange: mappedRange{
-			m:         m,
-			spanRange: span.NewRange(fset, start, end),
-		},
-		Kind: kind,
+		mappedRange: newMappedRange(fset, m, start, end),
+		Kind:        kind,
 	}
 }
 
@@ -189,12 +182,9 @@ func commentsFoldingRange(fset *token.FileSet, m *protocol.ColumnMapper, file *a
 			continue
 		}
 		comments = append(comments, &FoldingRangeInfo{
-			mappedRange: mappedRange{
-				m: m,
-				// Fold from the end of the first line comment to the end of the comment block.
-				spanRange: span.NewRange(fset, commentGrp.List[0].End(), commentGrp.End()),
-			},
-			Kind: protocol.Comment,
+			// Fold from the end of the first line comment to the end of the comment block.
+			mappedRange: newMappedRange(fset, m, commentGrp.List[0].End(), commentGrp.End()),
+			Kind:        protocol.Comment,
 		})
 	}
 	return comments

@@ -30,6 +30,18 @@ type mappedRange struct {
 	protocolRange *protocol.Range
 }
 
+func newMappedRange(fset *token.FileSet, m *protocol.ColumnMapper, start, end token.Pos) mappedRange {
+	return mappedRange{
+		spanRange: span.Range{
+			FileSet:   fset,
+			Start:     start,
+			End:       end,
+			Converter: m.Converter,
+		},
+		m: m,
+	}
+}
+
 func (s mappedRange) Range() (protocol.Range, error) {
 	if s.protocolRange == nil {
 		spn, err := s.spanRange.Span()
@@ -171,10 +183,7 @@ func posToRange(view View, m *protocol.ColumnMapper, pos, end token.Pos) (mapped
 	if !end.IsValid() {
 		return mappedRange{}, errors.Errorf("invalid position for %v", end)
 	}
-	return mappedRange{
-		m:         m,
-		spanRange: span.NewRange(view.Session().Cache().FileSet(), pos, end),
-	}, nil
+	return newMappedRange(view.Session().Cache().FileSet(), m, pos, end), nil
 }
 
 // Matches cgo generated comment as well as the proposed standard:
