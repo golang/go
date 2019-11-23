@@ -1093,10 +1093,17 @@ opswitch:
 		if n.Left.Op == OMAPLIT && isStaticCompositeLiteral(n.Right) {
 			key := n.Right
 			maplit := n.Left
+
+			if !key.HasVal() {
+				yyerror("literal has no value")
+			}
+
 			// Check if the key is defined
 			for _, element := range maplit.List.Slice() {
-				if element.Left.Val() == key.Val() {
-					n = walkexpr(element.Right, init)
+				elementKey := element.Left
+				elementValue := element.Right
+				if eqval(elementKey.Val(), key.Val()) {
+					n = walkexpr(elementValue, init)
 					break opswitch
 				}
 			}
