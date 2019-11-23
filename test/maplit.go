@@ -35,19 +35,28 @@ func main() {
 		panic(fmt.Sprintf("wanted %v got %v", "a", v2))
 	}
 
-	v3 := map[float64]S{
-		34.3423: S{a: 1},
-		2.33:    S{a: 2},
-	}[float64lit]
-	if v3 != (S{a: 1}) {
+	v3 := map[string]S{
+		"f":  S{a: 3},
+		"a":  S{a: 2231},
+		"bb": S{a: 2},
+	}[stringlit]
+	if v3 != (S{a: 2231}) {
 		panic(fmt.Sprintf("wanted %#v got %#v", S{a: 1}, v3))
 	}
 
 	v4 := map[float64]S{
 		34.3423: S{a: 1},
 		2.33:    S{a: 2},
-	}[34.34] // Literal not defined on the map lit
-	if v4 != (S{a: 0}) {
-		panic(fmt.Sprintf("wanted %#v got %#v", S{a: 0}, v4))
+	}[float64lit]
+	if v4 != (S{a: 1}) {
+		panic(fmt.Sprintf("wanted %#v got %#v", S{a: 1}, v4))
+	}
+
+	v5 := map[string]S{
+		"f": S{a: 1},
+		"v": S{a: 2},
+	}["not_defined"] // Literal not defined on the map lit, should return type zero value.
+	if v5 != (S{a: 0}) {
+		panic(fmt.Sprintf("wanted %#v got %#v", S{a: 0}, v5))
 	}
 }
