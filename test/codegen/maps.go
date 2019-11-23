@@ -122,3 +122,37 @@ func MapClearSideEffect(m map[int]int) int {
 	}
 	return k
 }
+
+// --------------------- //
+//  Map literal lookup   //
+// --------------------- //
+
+// Optimization of lookups on map literals (Issue #35763)
+
+func MapLitLookupStringLit() int{
+	v := map[string]int{
+		"a": 33333, // amd64:-".*mapassign"
+		"b": 66666,
+		"c": 99999,
+	}["b"] // amd64:-".*mapaccess"
+	return v
+}
+
+func MapLitLookupStringLitStructLitVal() int {
+	type S struct {a int}
+	v := map[string]S{
+		"a": S{42344}, // amd64:-".*mapassign"
+		"b": S{a:33242}, // amd64:-".*mapassign"
+		"c": S{},
+	}["b"] // amd64:-".*mapaccess"
+	return v.a
+}
+
+func MapLitLookupUndefinedLit() int {
+	v := map[string]int{
+		"a": 33333,
+		"b": 66666,
+		"c": 99999,
+	}["X"] // amd64:".*mapaccess"
+	return v
+}
