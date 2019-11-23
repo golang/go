@@ -4,6 +4,7 @@ env GOPROXY=$GOPROXY/quiet
 # download with version should print nothing
 go mod download rsc.io/quote@v1.5.0
 ! stdout .
+! stderr .
 
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.info
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
@@ -105,6 +106,12 @@ rm go.mod
 rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.2.1.zip
 go mod download rsc.io/quote@v1.2.1
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.2.1.zip
+
+# download -x with version should print
+# the underlying commands such as contacting GOPROXY.
+go mod download -x rsc.io/quote@v1.0.0
+! stdout .
+stderr 'get '$GOPROXY
 
 -- go.mod --
 module m
