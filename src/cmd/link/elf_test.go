@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -132,11 +133,17 @@ int Cfunc2() { return blah(); }
 // TestMinusRSymsWithSameName tests a corner case in the new
 // loader. Prior to the fix this failed with the error 'loadelf:
 // $WORK/b001/_pkg_.a(ldr.syso): duplicate symbol reference: blah in
-// both main(.text) and main(.text)'
+// both main(.text) and main(.text)'. See issue #35779.
 func TestMinusRSymsWithSameName(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
 	t.Parallel()
+
+	// Skip this test on MIPS for the time being since it seems to trigger
+	// problems with unknown relocations.
+	if strings.Contains(runtime.GOARCH, "mips") {
+		testenv.SkipFlaky(t, 35779)
+	}
 
 	dir, err := ioutil.TempDir("", "go-link-TestMinusRSymsWithSameName")
 	if err != nil {
@@ -197,7 +204,6 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 	cmd := exec.Command(goTool, "build")
 	cmd.Dir = dir
 	cmd.Env = env
-	t.Logf("%s build", goTool)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
