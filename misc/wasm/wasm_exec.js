@@ -26,8 +26,11 @@
 		global.require = require;
 	}
 
-	if (!global.fs && global.require && typeof __webpack_public_path__ === "undefined")) {
-		global.fs = require("fs");
+	if (!global.fs && global.require) {
+		const tempFs = require("fs");
+		if (Object.keys(tempFs) !== 0) {
+			global.fs = tempFs;
+		}
 	}
 
 	const enosys = () => {
