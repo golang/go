@@ -376,25 +376,3 @@ b1:
 
 	MOVD $0, R3
 	BR   multiply
-
-TEXT ·hasVectorFacility(SB), NOSPLIT, $24-1
-	MOVD  $x-24(SP), R1
-	XC    $24, 0(R1), 0(R1) // clear the storage
-	MOVD  $2, R0            // R0 is the number of double words stored -1
-	WORD  $0xB2B01000       // STFLE 0(R1)
-	XOR   R0, R0            // reset the value of R0
-	MOVBZ z-8(SP), R1
-	AND   $0x40, R1
-	BEQ   novector
-
-vectorinstalled:
-	// check if the vector instruction has been enabled
-	VLEIB  $0, $0xF, V16
-	VLGVB  $0, V16, R1
-	CMPBNE R1, $0xF, novector
-	MOVB   $1, ret+0(FP)      // have vx
-	RET
-
-novector:
-	MOVB $0, ret+0(FP) // no vx
-	RET

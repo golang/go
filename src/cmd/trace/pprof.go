@@ -358,7 +358,7 @@ func buildProfile(prof map[uint64]Record) *profile.Profile {
 					ID:      uint64(len(p.Location) + 1),
 					Address: frame.PC,
 					Line: []profile.Line{
-						profile.Line{
+						{
 							Function: fn,
 							Line:     int64(frame.Line),
 						},

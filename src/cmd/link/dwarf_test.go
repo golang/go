@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	cmddwarf "cmd/internal/dwarf"
 	"cmd/internal/objfile"
 	"debug/dwarf"
@@ -86,6 +87,24 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 				}
 				exe = filepath.Join(tmpDir, "go.o")
 			}
+
+			if runtime.GOOS == "darwin" {
+				if _, err = exec.LookPath("symbols"); err == nil {
+					// Ensure Apple's tooling can parse our object for symbols.
+					out, err = exec.Command("symbols", exe).CombinedOutput()
+					if err != nil {
+						t.Fatalf("symbols %v: %v: %s", filepath.Base(exe), err, out)
+					} else {
+						if bytes.HasPrefix(out, []byte("Unable to find file")) {
+							// This failure will cause the App Store to reject our binaries.
+							t.Fatalf("symbols %v: failed to parse file", filepath.Base(exe))
+						} else if bytes.Contains(out, []byte(", Empty]")) {
+							t.Fatalf("symbols %v: parsed as empty", filepath.Base(exe))
+						}
+					}
+				}
+			}
+
 			f, err := objfile.Open(exe)
 			if err != nil {
 				t.Fatal(err)
@@ -148,6 +167,14 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 
 func TestDWARF(t *testing.T) {
 	testDWARF(t, "", true)
+	if !testing.Short() {
+		if runtime.GOOS == "windows" {
+			t.Skip("skipping Windows/c-archive; see Issue 35512 for more.")
+		}
+		t.Run("c-archive", func(t *testing.T) {
+			testDWARF(t, "c-archive", true)
+		})
+	}
 }
 
 func TestDWARFiOS(t *testing.T) {

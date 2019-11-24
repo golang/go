@@ -82,7 +82,7 @@ type webArgs struct {
 	FlameGraph  template.JS
 }
 
-func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options) error {
+func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options, disableBrowser bool) error {
 	host, port, err := getHostAndPort(hostport)
 	if err != nil {
 		return err
@@ -117,8 +117,12 @@ func serveWebInterface(hostport string, p *profile.Profile, o *plugin.Options) e
 		},
 	}
 
-	if o.UI.WantBrowser() {
-		go openBrowser("http://"+args.Hostport, o)
+	url := "http://" + args.Hostport
+
+	o.UI.Print("Serving web UI on ", url)
+
+	if o.UI.WantBrowser() && !disableBrowser {
+		go openBrowser(url, o)
 	}
 	return server(args)
 }
@@ -330,7 +334,7 @@ func dotToSvg(dot []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	// Fix dot bug related to unquoted amperands.
+	// Fix dot bug related to unquoted ampersands.
 	svg := bytes.Replace(out.Bytes(), []byte("&;"), []byte("&amp;;"), -1)
 
 	// Cleanup for embedding by dropping stuff before the <svg> start.

@@ -32,15 +32,24 @@ type Func struct {
 	Type   *types.Type // type signature of the function.
 	Blocks []*Block    // unordered set of all basic blocks (note: not indexable by ID)
 	Entry  *Block      // the entry basic block
-	bid    idAlloc     // block ID allocator
-	vid    idAlloc     // value ID allocator
+
+	// If we are using open-coded defers, this is the first call to a deferred
+	// function in the final defer exit sequence that we generated. This call
+	// should be after all defer statements, and will have all args, etc. of
+	// all defer calls as live. The liveness info of this call will be used
+	// for the deferreturn/ret segment generated for functions with open-coded
+	// defers.
+	LastDeferExit *Value
+	bid           idAlloc // block ID allocator
+	vid           idAlloc // value ID allocator
 
 	// Given an environment variable used for debug hash match,
 	// what file (if any) receives the yes/no logging?
 	logfiles       map[string]writeSyncer
-	HTMLWriter     *HTMLWriter // html writer, for debugging
-	DebugTest      bool        // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
-	PrintOrHtmlSSA bool        // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.
+	HTMLWriter     *HTMLWriter    // html writer, for debugging
+	DebugTest      bool           // default true unless $GOSSAHASH != ""; as a debugging aid, make new code conditional on this and use GOSSAHASH to binary search for failing cases
+	PrintOrHtmlSSA bool           // true if GOSSAFUNC matches, true even if fe.Log() (spew phase results to stdout) is false.
+	ruleMatches    map[string]int // number of times countRule was called during compilation for any given string
 
 	scheduled bool // Values in Blocks are in final order
 	laidout   bool // Blocks are ordered
@@ -64,11 +73,11 @@ type Func struct {
 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
 	freeBlocks *Block // free Blocks linked by succstorage[0].b.  All other fields except ID are 0/nil.
 
-	cachedPostorder  []*Block         // cached postorder traversal
-	cachedIdom       []*Block         // cached immediate dominators
-	cachedSdom       SparseTree       // cached dominator tree
-	cachedLoopnest   *loopnest        // cached loop nest information
-	cachedLineStarts *biasedSparseMap // cached map/set of line numbers to integers
+	cachedPostorder  []*Block   // cached postorder traversal
+	cachedIdom       []*Block   // cached immediate dominators
+	cachedSdom       SparseTree // cached dominator tree
+	cachedLoopnest   *loopnest  // cached loop nest information
+	cachedLineStarts *xposmap   // cached map/set of xpos to integers
 
 	auxmap    auxmap             // map from aux values to opaque ids used by CSE
 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
@@ -638,7 +647,7 @@ func (f *Func) Idom() []*Block {
 
 // sdom returns a sparse tree representing the dominator relationships
 // among the blocks of f.
-func (f *Func) sdom() SparseTree {
+func (f *Func) Sdom() SparseTree {
 	if f.cachedSdom == nil {
 		f.cachedSdom = newSparseTree(f, f.Idom())
 	}

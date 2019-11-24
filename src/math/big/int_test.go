@@ -533,6 +533,9 @@ var expTests = []struct {
 	{"1", "0", "", "1"},
 	{"-10", "0", "", "1"},
 	{"1234", "-1", "", "1"},
+	{"1234", "-1", "0", "1"},
+	{"17", "-100", "1234", "865"},
+	{"2", "-100", "1234", ""},
 
 	// m == 1
 	{"0", "0", "1", "0"},
@@ -605,10 +608,15 @@ func TestExp(t *testing.T) {
 	for i, test := range expTests {
 		x, ok1 := new(Int).SetString(test.x, 0)
 		y, ok2 := new(Int).SetString(test.y, 0)
-		out, ok3 := new(Int).SetString(test.out, 0)
 
-		var ok4 bool
-		var m *Int
+		var ok3, ok4 bool
+		var out, m *Int
+
+		if len(test.out) == 0 {
+			out, ok3 = nil, true
+		} else {
+			out, ok3 = new(Int).SetString(test.out, 0)
+		}
 
 		if len(test.m) == 0 {
 			m, ok4 = nil, true
@@ -622,10 +630,10 @@ func TestExp(t *testing.T) {
 		}
 
 		z1 := new(Int).Exp(x, y, m)
-		if !isNormalized(z1) {
+		if z1 != nil && !isNormalized(z1) {
 			t.Errorf("#%d: %v is not normalized", i, *z1)
 		}
-		if z1.Cmp(out) != 0 {
+		if !(z1 == nil && out == nil || z1.Cmp(out) == 0) {
 			t.Errorf("#%d: got %x want %x", i, z1, out)
 		}
 
@@ -749,11 +757,13 @@ var gcdTests = []struct {
 }{
 	// a <= 0 || b <= 0
 	{"0", "0", "0", "0", "0"},
-	{"0", "0", "0", "0", "7"},
-	{"0", "0", "0", "11", "0"},
-	{"0", "0", "0", "-77", "35"},
-	{"0", "0", "0", "64515", "-24310"},
-	{"0", "0", "0", "-64515", "-24310"},
+	{"7", "0", "1", "0", "7"},
+	{"7", "0", "-1", "0", "-7"},
+	{"11", "1", "0", "11", "0"},
+	{"7", "-1", "-2", "-77", "35"},
+	{"935", "-3", "8", "64515", "24310"},
+	{"935", "-3", "-8", "64515", "-24310"},
+	{"935", "3", "-8", "-64515", "-24310"},
 
 	{"1", "-9", "47", "120", "23"},
 	{"7", "1", "-2", "77", "35"},
@@ -1059,6 +1069,20 @@ func TestCmpAbs(t *testing.T) {
 					t.Errorf("absCmp |%s|, |%s|: got %d; want %d", &a, &b, got, want)
 				}
 			}
+		}
+	}
+}
+
+func TestIntCmpSelf(t *testing.T) {
+	for _, s := range cmpAbsTests {
+		x, ok := new(Int).SetString(s, 0)
+		if !ok {
+			t.Fatalf("SetString(%s, 0) failed", s)
+		}
+		got := x.Cmp(x)
+		want := 0
+		if got != want {
+			t.Errorf("x = %s: x.Cmp(x): got %d; want %d", x, got, want)
 		}
 	}
 }
@@ -1805,8 +1829,11 @@ func benchmarkDiv(b *testing.B, aSize, bSize int) {
 }
 
 func BenchmarkDiv(b *testing.B) {
-	min, max, step := 10, 100000, 10
-	for i := min; i <= max; i *= step {
+	sizes := []int{
+		10, 20, 50, 100, 200, 500, 1000,
+		1e4, 1e5, 1e6, 1e7,
+	}
+	for _, i := range sizes {
 		j := 2 * i
 		b.Run(fmt.Sprintf("%d/%d", j, i), func(b *testing.B) {
 			benchmarkDiv(b, j, i)

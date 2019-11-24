@@ -51,6 +51,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Archreloc:        archreloc,
 		Archrelocvariant: archrelocvariant,
 		Asmb:             asmb,
+		Asmb2:            asmb2,
 		Elfreloc1:        elfreloc1,
 		Elfsetupplt:      elfsetupplt,
 		Gentext:          gentext,
@@ -58,9 +59,9 @@ func Init() (*sys.Arch, ld.Arch) {
 
 		Linuxdynld: "/lib/ld-linux-aarch64.so.1",
 
-		Freebsddynld:   "XXX",
-		Openbsddynld:   "XXX",
-		Netbsddynld:    "XXX",
+		Freebsddynld:   "/usr/libexec/ld-elf.so.1",
+		Openbsddynld:   "/usr/libexec/ld.so",
+		Netbsddynld:    "/libexec/ld.elf_so",
 		Dragonflydynld: "XXX",
 		Solarisdynld:   "XXX",
 	}
@@ -83,7 +84,10 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 4096
 		}
 
-	case objabi.Hlinux: /* arm64 elf */
+	case objabi.Hlinux, /* arm64 elf */
+		objabi.Hfreebsd,
+		objabi.Hnetbsd,
+		objabi.Hopenbsd:
 		ld.Elfinit(ctxt)
 		ld.HEADR = ld.ELFRESERVE
 		if *ld.FlagTextAddr == -1 {
@@ -100,17 +104,6 @@ func archinit(ctxt *ld.Link) {
 		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 4096
-		}
-
-	case objabi.Hnacl:
-		ld.Elfinit(ctxt)
-		ld.HEADR = 0x10000
-		ld.Funcalign = 16
-		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = 0x20000
-		}
-		if *ld.FlagRound == -1 {
-			*ld.FlagRound = 0x10000
 		}
 	}
 }

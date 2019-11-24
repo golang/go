@@ -584,6 +584,21 @@ func TestUnknownChunkLengthUnderflow(t *testing.T) {
 	}
 }
 
+func TestPaletted8OutOfRangePixel(t *testing.T) {
+	// IDAT contains a reference to a palette index that does not exist in the file.
+	img, err := readPNG("testdata/invalid-palette.png")
+	if err != nil {
+		t.Errorf("decoding invalid-palette.png: unexpected error %v", err)
+		return
+	}
+
+	// Expect that the palette is extended with opaque black.
+	want := color.RGBA{0x00, 0x00, 0x00, 0xff}
+	if got := img.At(15, 15); got != want {
+		t.Errorf("got %F %v, expected %T %v", got, got, want, want)
+	}
+}
+
 func TestGray8Transparent(t *testing.T) {
 	// These bytes come from https://golang.org/issues/19553
 	m, err := Decode(bytes.NewReader([]byte{

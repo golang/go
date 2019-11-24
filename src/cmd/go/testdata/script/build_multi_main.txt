@@ -7,6 +7,14 @@ go build -o $WORK/bin ./cmd/c1 ./cmd/c2
 ! go build -o $WORK/bin ./pkg1 ./pkg1
 stderr 'no main packages'
 
+! go build ./cmd/c1
+stderr 'already exists and is a directory'
+
+# Verify build -o output correctly local packages
+mkdir $WORK/local
+go build -o $WORK/local ./exec.go
+exists $WORK/local/exec$GOEXE
+
 -- go.mod --
 module exmod
 
@@ -25,3 +33,11 @@ package pkg1
 
 -- pkg2/pkg2.go --
 package pkg2
+
+-- exec.go --
+package main
+
+func main() {}
+
+-- c1$GOEXE/keep.txt --
+Create c1 directory.

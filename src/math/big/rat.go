@@ -22,7 +22,9 @@ import (
 // of Rats are not supported and may lead to errors.
 type Rat struct {
 	// To make zero values for Rat work w/o initialization,
-	// a zero value of b (len(b) == 0) acts like b == 1.
+	// a zero value of b (len(b) == 0) acts like b == 1. At
+	// the earliest opportunity (when an assignment to the Rat
+	// is made), such uninitialized denominators are set to 1.
 	// a.neg determines the sign of the Rat, b.neg is ignored.
 	a, b Int
 }
@@ -271,7 +273,7 @@ func quotToFloat64(a, b nat) (f float64, exact bool) {
 func (x *Rat) Float32() (f float32, exact bool) {
 	b := x.b.abs
 	if len(b) == 0 {
-		b = b.set(natOne) // materialize denominator
+		b = natOne
 	}
 	f, exact = quotToFloat32(x.a.abs, b)
 	if x.a.neg {
@@ -287,7 +289,7 @@ func (x *Rat) Float32() (f float32, exact bool) {
 func (x *Rat) Float64() (f float64, exact bool) {
 	b := x.b.abs
 	if len(b) == 0 {
-		b = b.set(natOne) // materialize denominator
+		b = natOne
 	}
 	f, exact = quotToFloat64(x.a.abs, b)
 	if x.a.neg {
@@ -297,6 +299,7 @@ func (x *Rat) Float64() (f float64, exact bool) {
 }
 
 // SetFrac sets z to a/b and returns z.
+// If b == 0, SetFrac panics.
 func (z *Rat) SetFrac(a, b *Int) *Rat {
 	z.a.neg = a.neg != b.neg
 	babs := b.abs
@@ -312,11 +315,12 @@ func (z *Rat) SetFrac(a, b *Int) *Rat {
 }
 
 // SetFrac64 sets z to a/b and returns z.
+// If b == 0, SetFrac64 panics.
 func (z *Rat) SetFrac64(a, b int64) *Rat {
-	z.a.SetInt64(a)
 	if b == 0 {
 		panic("division by zero")
 	}
+	z.a.SetInt64(a)
 	if b < 0 {
 		b = -b
 		z.a.neg = !z.a.neg
@@ -328,21 +332,21 @@ func (z *Rat) SetFrac64(a, b int64) *Rat {
 // SetInt sets z to x (by making a copy of x) and returns z.
 func (z *Rat) SetInt(x *Int) *Rat {
 	z.a.Set(x)
-	z.b.abs = z.b.abs[:0]
+	z.b.abs = z.b.abs.setWord(1)
 	return z
 }
 
 // SetInt64 sets z to x and returns z.
 func (z *Rat) SetInt64(x int64) *Rat {
 	z.a.SetInt64(x)
-	z.b.abs = z.b.abs[:0]
+	z.b.abs = z.b.abs.setWord(1)
 	return z
 }
 
 // SetUint64 sets z to x and returns z.
 func (z *Rat) SetUint64(x uint64) *Rat {
 	z.a.SetUint64(x)
-	z.b.abs = z.b.abs[:0]
+	z.b.abs = z.b.abs.setWord(1)
 	return z
 }
 
@@ -351,6 +355,9 @@ func (z *Rat) Set(x *Rat) *Rat {
 	if z != x {
 		z.a.Set(&x.a)
 		z.b.Set(&x.b)
+	}
+	if len(z.b.abs) == 0 {
+		z.b.abs = z.b.abs.setWord(1)
 	}
 	return z
 }
@@ -370,20 +377,13 @@ func (z *Rat) Neg(x *Rat) *Rat {
 }
 
 // Inv sets z to 1/x and returns z.
+// If x == 0, Inv panics.
 func (z *Rat) Inv(x *Rat) *Rat {
 	if len(x.a.abs) == 0 {
 		panic("division by zero")
 	}
 	z.Set(x)
-	a := z.b.abs
-	if len(a) == 0 {
-		a = a.set(natOne) // materialize numerator
-	}
-	b := z.a.abs
-	if b.cmp(natOne) == 0 {
-		b = b[:0] // normalize denominator
-	}
-	z.a.abs, z.b.abs = a, b // sign doesn't change
+	z.a.abs, z.b.abs = z.b.abs, z.a.abs
 	return z
 }
 
@@ -411,12 +411,19 @@ func (x *Rat) Num() *Int {
 }
 
 // Denom returns the denominator of x; it is always > 0.
-// The result is a reference to x's denominator; it
+// The result is a reference to x's denominator, unless
+// x is an uninitialized (zero value) Rat, in which case
+// the result is a new Int of value 1. (To initialize x,
+// any operation that sets x will do, including x.Set(x).)
+// If the result is a reference to x's denominator it
 // may change if a new value is assigned to x, and vice versa.
 func (x *Rat) Denom() *Int {
 	x.b.neg = false // the result is always >= 0
 	if len(x.b.abs) == 0 {
-		x.b.abs = x.b.abs.set(natOne) // materialize denominator
+		// Note: If this proves problematic, we could
+		//       panic instead and require the Rat to
+		//       be explicitly initialized.
+		return &Int{abs: nat{1}}
 	}
 	return &x.b
 }
@@ -424,25 +431,20 @@ func (x *Rat) Denom() *Int {
 func (z *Rat) norm() *Rat {
 	switch {
 	case len(z.a.abs) == 0:
-		// z == 0 - normalize sign and denominator
+		// z == 0; normalize sign and denominator
 		z.a.neg = false
-		z.b.abs = z.b.abs[:0]
+		fallthrough
 	case len(z.b.abs) == 0:
-		// z is normalized int - nothing to do
-	case z.b.abs.cmp(natOne) == 0:
-		// z is int - normalize denominator
-		z.b.abs = z.b.abs[:0]
+		// z is integer; normalize denominator
+		z.b.abs = z.b.abs.setWord(1)
 	default:
+		// z is fraction; normalize numerator and denominator
 		neg := z.a.neg
 		z.a.neg = false
 		z.b.neg = false
 		if f := NewInt(0).lehmerGCD(nil, nil, &z.a, &z.b); f.Cmp(intOne) != 0 {
 			z.a.abs, _ = z.a.abs.div(nil, z.a.abs, f.abs)
 			z.b.abs, _ = z.b.abs.div(nil, z.b.abs, f.abs)
-			if z.b.abs.cmp(natOne) == 0 {
-				// z is int - normalize denominator
-				z.b.abs = z.b.abs[:0]
-			}
 		}
 		z.a.neg = neg
 	}
@@ -454,6 +456,8 @@ func (z *Rat) norm() *Rat {
 // returns z.
 func mulDenom(z, x, y nat) nat {
 	switch {
+	case len(x) == 0 && len(y) == 0:
+		return z.setWord(1)
 	case len(x) == 0:
 		return z.set(y)
 	case len(y) == 0:
@@ -462,16 +466,15 @@ func mulDenom(z, x, y nat) nat {
 	return z.mul(x, y)
 }
 
-// scaleDenom computes x*f.
-// If f == 0 (zero value of denominator), the result is (a copy of) x.
-func scaleDenom(x *Int, f nat) *Int {
-	var z Int
+// scaleDenom sets z to the product x*f.
+// If f == 0 (zero value of denominator), z is set to (a copy of) x.
+func (z *Int) scaleDenom(x *Int, f nat) {
 	if len(f) == 0 {
-		return z.Set(x)
+		z.Set(x)
+		return
 	}
 	z.abs = z.abs.mul(x.abs, f)
 	z.neg = x.neg
-	return &z
 }
 
 // Cmp compares x and y and returns:
@@ -481,23 +484,28 @@ func scaleDenom(x *Int, f nat) *Int {
 //   +1 if x >  y
 //
 func (x *Rat) Cmp(y *Rat) int {
-	return scaleDenom(&x.a, y.b.abs).Cmp(scaleDenom(&y.a, x.b.abs))
+	var a, b Int
+	a.scaleDenom(&x.a, y.b.abs)
+	b.scaleDenom(&y.a, x.b.abs)
+	return a.Cmp(&b)
 }
 
 // Add sets z to the sum x+y and returns z.
 func (z *Rat) Add(x, y *Rat) *Rat {
-	a1 := scaleDenom(&x.a, y.b.abs)
-	a2 := scaleDenom(&y.a, x.b.abs)
-	z.a.Add(a1, a2)
+	var a1, a2 Int
+	a1.scaleDenom(&x.a, y.b.abs)
+	a2.scaleDenom(&y.a, x.b.abs)
+	z.a.Add(&a1, &a2)
 	z.b.abs = mulDenom(z.b.abs, x.b.abs, y.b.abs)
 	return z.norm()
 }
 
 // Sub sets z to the difference x-y and returns z.
 func (z *Rat) Sub(x, y *Rat) *Rat {
-	a1 := scaleDenom(&x.a, y.b.abs)
-	a2 := scaleDenom(&y.a, x.b.abs)
-	z.a.Sub(a1, a2)
+	var a1, a2 Int
+	a1.scaleDenom(&x.a, y.b.abs)
+	a2.scaleDenom(&y.a, x.b.abs)
+	z.a.Sub(&a1, &a2)
 	z.b.abs = mulDenom(z.b.abs, x.b.abs, y.b.abs)
 	return z.norm()
 }
@@ -505,10 +513,14 @@ func (z *Rat) Sub(x, y *Rat) *Rat {
 // Mul sets z to the product x*y and returns z.
 func (z *Rat) Mul(x, y *Rat) *Rat {
 	if x == y {
-		// a squared Rat is positive and can't be reduced
+		// a squared Rat is positive and can't be reduced (no need to call norm())
 		z.a.neg = false
 		z.a.abs = z.a.abs.sqr(x.a.abs)
-		z.b.abs = z.b.abs.sqr(x.b.abs)
+		if len(x.b.abs) == 0 {
+			z.b.abs = z.b.abs.setWord(1)
+		} else {
+			z.b.abs = z.b.abs.sqr(x.b.abs)
+		}
 		return z
 	}
 	z.a.Mul(&x.a, &y.a)
@@ -517,13 +529,14 @@ func (z *Rat) Mul(x, y *Rat) *Rat {
 }
 
 // Quo sets z to the quotient x/y and returns z.
-// If y == 0, a division-by-zero run-time panic occurs.
+// If y == 0, Quo panics.
 func (z *Rat) Quo(x, y *Rat) *Rat {
 	if len(y.a.abs) == 0 {
 		panic("division by zero")
 	}
-	a := scaleDenom(&x.a, y.b.abs)
-	b := scaleDenom(&y.a, x.b.abs)
+	var a, b Int
+	a.scaleDenom(&x.a, y.b.abs)
+	b.scaleDenom(&y.a, x.b.abs)
 	z.a.abs = a.abs
 	z.b.abs = b.abs
 	z.a.neg = a.neg != b.neg

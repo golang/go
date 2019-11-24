@@ -1,3 +1,5 @@
+[short] skip
+
 # go list with path to directory should work
 
 env GO111MODULE=off
@@ -10,9 +12,10 @@ stdout ^math$
 go list -f '{{.ImportPath}}' .
 stdout ^x$
 ! go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
-stderr 'unknown import path "rsc.io/quote": cannot find package'
+stderr '^can.t load package: package '$WORK'[/\\]gopath[/\\]pkg[/\\]mod[/\\]rsc.io[/\\]quote@v1.5.2: can only use path@version syntax with .go get.'
+
 go list -e -f '{{with .Error}}{{.}}{{end}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
-stdout 'unknown import path "rsc.io/quote": cannot find package'
+stdout '^package '$WORK'[/\\]gopath[/\\]pkg[/\\]mod[/\\]rsc.io[/\\]quote@v1.5.2: can only use path@version syntax with .go get.'
 go mod download rsc.io/quote@v1.5.2
 go list -f '{{.ImportPath}}' $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
 stdout '^rsc.io/quote$'

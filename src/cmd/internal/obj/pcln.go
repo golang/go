@@ -5,21 +5,9 @@
 package obj
 
 import (
-	"cmd/internal/src"
+	"encoding/binary"
 	"log"
 )
-
-const (
-	PrologueEnd   = 2 + iota // overload "is_stmt" to include prologue_end
-	EpilogueBegin            // overload "is_stmt" to include epilogue_end
-)
-
-func addvarint(d *Pcdata, v uint32) {
-	for ; v >= 0x80; v >>= 7 {
-		d.P = append(d.P, uint8(v|0x80))
-	}
-	d.P = append(d.P, uint8(v))
-}
 
 // funcpctab writes to dst a pc-value table mapping the code in func to the values
 // returned by valfunc parameterized by arg. The invocation of valfunc to update the
@@ -52,8 +40,8 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		ctxt.Logf("%6x %6d %v\n", uint64(pc), val, func_.Func.Text)
 	}
 
+	buf := make([]byte, binary.MaxVarintLen32)
 	started := false
-	var delta uint32
 	for p := func_.Func.Text; p != nil; p = p.Link {
 		// Update val. If it's not changing, keep going.
 		val = valfunc(ctxt, func_, val, p, 0, arg)
@@ -97,17 +85,15 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		}
 
 		if started {
-			addvarint(dst, uint32((p.Pc-pc)/int64(ctxt.Arch.MinLC)))
+			pcdelta := (p.Pc - pc) / int64(ctxt.Arch.MinLC)
+			n := binary.PutUvarint(buf, uint64(pcdelta))
+			dst.P = append(dst.P, buf[:n]...)
 			pc = p.Pc
 		}
 
-		delta = uint32(val) - uint32(oldval)
-		if delta>>31 != 0 {
-			delta = 1 | ^(delta << 1)
-		} else {
-			delta <<= 1
-		}
-		addvarint(dst, delta)
+		delta := val - oldval
+		n := binary.PutVarint(buf, int64(delta))
+		dst.P = append(dst.P, buf[:n]...)
 		oldval = val
 		started = true
 		val = valfunc(ctxt, func_, val, p, 1, arg)
@@ -117,8 +103,14 @@ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*
 		if dbg {
 			ctxt.Logf("%6x done\n", uint64(func_.Func.Text.Pc+func_.Size))
 		}
-		addvarint(dst, uint32((func_.Size-pc)/int64(ctxt.Arch.MinLC)))
-		addvarint(dst, 0) // terminator
+		v := (func_.Size - pc) / int64(ctxt.Arch.MinLC)
+		if v < 0 {
+			ctxt.Diag("negative pc offset: %v", v)
+		}
+		n := binary.PutUvarint(buf, uint64(v))
+		dst.P = append(dst.P, buf[:n]...)
+		// add terminating varint-encoded 0, which is just 0
+		dst.P = append(dst.P, 0)
 	}
 
 	if dbg {
@@ -251,34 +243,6 @@ func pctospadj(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg in
 	return oldval + p.Spadj
 }
 
-// pctostmt returns either,
-// if phase==0, then whether the current instruction is a step-target (Dwarf is_stmt)
-//     bit-or'd with whether the current statement is a prologue end or epilogue begin
-// else (phase == 1), zero.
-//
-func pctostmt(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg interface{}) int32 {
-	if phase == 1 {
-		return 0 // Ignored; also different from initial value of -1, if that ever matters.
-	}
-	s := p.Pos.IsStmt()
-	l := p.Pos.Xlogue()
-
-	var is_stmt int32
-
-	// PrologueEnd, at least, is passed to the next instruction
-	switch l {
-	case src.PosPrologueEnd:
-		is_stmt = PrologueEnd
-	case src.PosEpilogueBegin:
-		is_stmt = EpilogueBegin
-	}
-
-	if s != src.PosNotStmt {
-		is_stmt |= 1 // either PosDefaultStmt from asm, or PosIsStmt from go
-	}
-	return is_stmt
-}
-
 // pctopcdata computes the pcdata value in effect at p.
 // A PCDATA instruction sets the value in effect at future
 // non-PCDATA instructions.
@@ -295,13 +259,6 @@ func pctopcdata(ctxt *Link, sym *LSym, oldval int32, p *Prog, phase int32, arg i
 	}
 
 	return int32(p.To.Offset)
-}
-
-// stmtData writes out pc-linked is_stmt data for eventual use in the DWARF line numbering table.
-func stmtData(ctxt *Link, cursym *LSym) {
-	var pctostmtData Pcdata
-	funcpctab(ctxt, &pctostmtData, cursym, "pctostmt", pctostmt, nil)
-	cursym.Func.dwarfIsStmtSym.P = pctostmtData.P
 }
 
 func linkpcln(ctxt *Link, cursym *LSym) {
@@ -385,4 +342,70 @@ func linkpcln(ctxt *Link, cursym *LSym) {
 			}
 		}
 	}
+}
+
+// PCIter iterates over encoded pcdata tables.
+type PCIter struct {
+	p       []byte
+	PC      uint32
+	NextPC  uint32
+	PCScale uint32
+	Value   int32
+	start   bool
+	Done    bool
+}
+
+// newPCIter creates a PCIter with a scale factor for the PC step size.
+func NewPCIter(pcScale uint32) *PCIter {
+	it := new(PCIter)
+	it.PCScale = pcScale
+	return it
+}
+
+// Next advances it to the Next pc.
+func (it *PCIter) Next() {
+	it.PC = it.NextPC
+	if it.Done {
+		return
+	}
+	if len(it.p) == 0 {
+		it.Done = true
+		return
+	}
+
+	// Value delta
+	val, n := binary.Varint(it.p)
+	if n <= 0 {
+		log.Fatalf("bad Value varint in pciterNext: read %v", n)
+	}
+	it.p = it.p[n:]
+
+	if val == 0 && !it.start {
+		it.Done = true
+		return
+	}
+
+	it.start = false
+	it.Value += int32(val)
+
+	// pc delta
+	pc, n := binary.Uvarint(it.p)
+	if n <= 0 {
+		log.Fatalf("bad pc varint in pciterNext: read %v", n)
+	}
+	it.p = it.p[n:]
+
+	it.NextPC = it.PC + uint32(pc)*it.PCScale
+}
+
+// init prepares it to iterate over p,
+// and advances it to the first pc.
+func (it *PCIter) Init(p []byte) {
+	it.p = p
+	it.PC = 0
+	it.NextPC = 0
+	it.Value = -1
+	it.start = true
+	it.Done = false
+	it.Next()
 }

@@ -10,8 +10,6 @@ package ast
 import (
 	"go/token"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 )
 
 // ----------------------------------------------------------------------------
@@ -523,18 +521,13 @@ func (*ChanType) exprNode()      {}
 //
 func NewIdent(name string) *Ident { return &Ident{token.NoPos, name, nil} }
 
-// IsExported reports whether name is an exported Go symbol
-// (that is, whether it begins with an upper-case letter).
+// IsExported reports whether name starts with an upper-case letter.
 //
-func IsExported(name string) bool {
-	ch, _ := utf8.DecodeRuneInString(name)
-	return unicode.IsUpper(ch)
-}
+func IsExported(name string) bool { return token.IsExported(name) }
 
-// IsExported reports whether id is an exported Go symbol
-// (that is, whether it begins with an uppercase letter).
+// IsExported reports whether id starts with an upper-case letter.
 //
-func (id *Ident) IsExported() bool { return IsExported(id.Name) }
+func (id *Ident) IsExported() bool { return token.IsExported(id.Name) }
 
 func (id *Ident) String() string {
 	if id != nil {
@@ -641,7 +634,7 @@ type (
 	BlockStmt struct {
 		Lbrace token.Pos // position of "{"
 		List   []Stmt
-		Rbrace token.Pos // position of "}"
+		Rbrace token.Pos // position of "}", if any (may be absent due to syntax error)
 	}
 
 	// An IfStmt node represents an if statement.
@@ -764,7 +757,15 @@ func (s *BranchStmt) End() token.Pos {
 	}
 	return token.Pos(int(s.TokPos) + len(s.Tok.String()))
 }
-func (s *BlockStmt) End() token.Pos { return s.Rbrace + 1 }
+func (s *BlockStmt) End() token.Pos {
+	if s.Rbrace.IsValid() {
+		return s.Rbrace + 1
+	}
+	if n := len(s.List); n > 0 {
+		return s.List[n-1].End()
+	}
+	return s.Lbrace + 1
+}
 func (s *IfStmt) End() token.Pos {
 	if s.Else != nil {
 		return s.Else.End()

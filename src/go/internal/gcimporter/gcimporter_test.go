@@ -26,10 +26,7 @@ import (
 // import.
 func skipSpecialPlatforms(t *testing.T) {
 	switch platform := runtime.GOOS + "-" + runtime.GOARCH; platform {
-	case "nacl-amd64p32",
-		"nacl-386",
-		"nacl-arm",
-		"darwin-arm",
+	case "darwin-arm",
 		"darwin-arm64":
 		t.Skipf("no compiled packages available for import on %s", platform)
 	}
@@ -140,7 +137,7 @@ func TestImportTestdata(t *testing.T) {
 }
 
 func TestVersionHandling(t *testing.T) {
-	skipSpecialPlatforms(t) // we really only need to exclude nacl platforms, but this is fine
+	skipSpecialPlatforms(t)
 
 	// This package only handles gc export data.
 	if runtime.Compiler != "gc" {

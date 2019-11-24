@@ -25,11 +25,8 @@ type declInfo struct {
 	alias bool          // type alias declaration
 
 	// The deps field tracks initialization expression dependencies.
-	deps objSet // lazily initialized
+	deps map[Object]bool // lazily initialized
 }
-
-// An objSet is simply a set of objects.
-type objSet map[Object]bool
 
 // hasInitializer reports whether the declared object has an initialization
 // expression or function body.
@@ -41,7 +38,7 @@ func (d *declInfo) hasInitializer() bool {
 func (d *declInfo) addDep(obj Object) {
 	m := d.deps
 	if m == nil {
-		m = make(objSet)
+		m = make(map[Object]bool)
 		d.deps = m
 	}
 	m[obj] = true
@@ -301,15 +298,15 @@ func (check *Checker) collectObjects() {
 								// A package scope may contain non-exported objects,
 								// do not import them!
 								if obj.Exported() {
-									// TODO(gri) When we import a package, we create
-									// a new local package object. We should do the
-									// same for each dot-imported object. That way
-									// they can have correct position information.
-									// (We must not modify their existing position
-									// information because the same package - found
-									// via Config.Packages - may be dot-imported in
-									// another package!)
-									check.declare(fileScope, nil, obj, token.NoPos)
+									// declare dot-imported object
+									// (Do not use check.declare because it modifies the object
+									// via Object.setScopePos, which leads to a race condition;
+									// the object may be imported into more than one file scope
+									// concurrently. See issue #32154.)
+									if alt := fileScope.Insert(obj); alt != nil {
+										check.errorf(s.Name.Pos(), "%s redeclared in this block", obj.Name())
+										check.reportAltDecl(alt)
+									}
 								}
 							}
 							// add position to set of dot-import positions for this file
@@ -317,6 +314,7 @@ func (check *Checker) collectObjects() {
 							check.addUnusedDotImport(fileScope, imp, s.Pos())
 						} else {
 							// declare imported package object in file scope
+							// (no need to provide s.Name since we called check.recordDef earlier)
 							check.declare(fileScope, nil, obj, token.NoPos)
 						}
 
@@ -481,7 +479,7 @@ func (check *Checker) resolveBaseTypeName(typ ast.Expr) (ptr bool, base *TypeNam
 	// non-alias type name. If we encounter anything but pointer types or
 	// parentheses we're done. If we encounter more than one pointer type
 	// we're done.
-	var path []*TypeName
+	var seen map[*TypeName]bool
 	for {
 		typ = unparen(typ)
 
@@ -495,7 +493,7 @@ func (check *Checker) resolveBaseTypeName(typ ast.Expr) (ptr bool, base *TypeNam
 			typ = unparen(pexpr.X) // continue with pointer base type
 		}
 
-		// typ must be the name
+		// typ must be a name
 		name, _ := typ.(*ast.Ident)
 		if name == nil {
 			return false, nil
@@ -515,7 +513,7 @@ func (check *Checker) resolveBaseTypeName(typ ast.Expr) (ptr bool, base *TypeNam
 		}
 
 		// ... which we have not seen before
-		if check.cycle(tname, path, false) {
+		if seen[tname] {
 			return false, nil
 		}
 
@@ -528,28 +526,11 @@ func (check *Checker) resolveBaseTypeName(typ ast.Expr) (ptr bool, base *TypeNam
 
 		// otherwise, continue resolving
 		typ = tdecl.typ
-		path = append(path, tname)
-	}
-}
-
-// cycle reports whether obj appears in path or not.
-// If it does, and report is set, it also reports a cycle error.
-func (check *Checker) cycle(obj *TypeName, path []*TypeName, report bool) bool {
-	// (it's ok to iterate forward because each named type appears at most once in path)
-	for i, prev := range path {
-		if prev == obj {
-			if report {
-				check.errorf(obj.pos, "illegal cycle in declaration of %s", obj.name)
-				// print cycle
-				for _, obj := range path[i:] {
-					check.errorf(obj.Pos(), "\t%s refers to", obj.Name()) // secondary error, \t indented
-				}
-				check.errorf(obj.Pos(), "\t%s", obj.Name())
-			}
-			return true
+		if seen == nil {
+			seen = make(map[*TypeName]bool)
 		}
+		seen[tname] = true
 	}
-	return false
 }
 
 // packageObjects typechecks all package objects, but not function bodies.
@@ -605,16 +586,6 @@ type inSourceOrder []Object
 func (a inSourceOrder) Len() int           { return len(a) }
 func (a inSourceOrder) Less(i, j int) bool { return a[i].order() < a[j].order() }
 func (a inSourceOrder) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-
-// processDelayed processes all delayed actions pushed after top.
-func (check *Checker) processDelayed(top int) {
-	for len(check.delayed) > top {
-		i := len(check.delayed) - 1
-		f := check.delayed[i]
-		check.delayed = check.delayed[:i]
-		f() // may append to check.delayed
-	}
-}
 
 // unusedImports checks for unused imports.
 func (check *Checker) unusedImports() {

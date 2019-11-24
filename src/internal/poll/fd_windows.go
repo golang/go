@@ -258,7 +258,7 @@ func (s *ioSrv) ExecIO(o *operation, submit func(o *operation) error) (int, erro
 		s.req <- ioSrvReq{o, nil}
 		<-o.errc
 	}
-	// Wait for cancelation to complete.
+	// Wait for cancellation to complete.
 	fd.pd.waitCanceled(int(o.mode))
 	if o.errno != 0 {
 		err = syscall.Errno(o.errno)
@@ -267,8 +267,8 @@ func (s *ioSrv) ExecIO(o *operation, submit func(o *operation) error) (int, erro
 		}
 		return 0, err
 	}
-	// We issued a cancelation request. But, it seems, IO operation succeeded
-	// before the cancelation request run. We need to treat the IO operation as
+	// We issued a cancellation request. But, it seems, IO operation succeeded
+	// before the cancellation request run. We need to treat the IO operation as
 	// succeeded (the bytes are actually sent/recv from network).
 	return int(o.qty), nil
 }

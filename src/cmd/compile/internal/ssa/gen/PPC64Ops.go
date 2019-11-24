@@ -83,6 +83,8 @@ var regNamesPPC64 = []string{
 	"F30",
 	"F31",
 
+	// If you add registers, update asyncPreempt in runtime.
+
 	// "CR0",
 	// "CR1",
 	// "CR2",
@@ -136,9 +138,12 @@ func init() {
 		gp11        = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
 		gp21        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp}}
 		gp22        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
+		gp32        = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb, gp | sp | sb}, outputs: []regMask{gp, gp}}
 		gp1cr       = regInfo{inputs: []regMask{gp | sp | sb}}
 		gp2cr       = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}}
 		crgp        = regInfo{inputs: nil, outputs: []regMask{gp}}
+		crgp11      = regInfo{inputs: []regMask{gp}, outputs: []regMask{gp}}
+		crgp21      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
 		gpload      = regInfo{inputs: []regMask{gp | sp | sb}, outputs: []regMask{gp}}
 		gploadidx   = regInfo{inputs: []regMask{gp | sp | sb, gp}, outputs: []regMask{gp}}
 		gpstore     = regInfo{inputs: []regMask{gp | sp | sb, gp | sp | sb}}
@@ -199,6 +204,7 @@ func init() {
 		{name: "ROTL", argLength: 2, reg: gp21, asm: "ROTL"},   // arg0 rotate left by arg1 mod 64
 		{name: "ROTLW", argLength: 2, reg: gp21, asm: "ROTLW"}, // uint32(arg0) rotate left by arg1 mod 32
 
+		{name: "LoweredAdd64Carry", argLength: 3, reg: gp32, resultNotInArgs: true},                                                                     // arg0 + arg1 + carry, returns (sum, carry)
 		{name: "ADDconstForCarry", argLength: 1, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: tmp}, aux: "Int16", asm: "ADDC", typ: "Flags"}, // _, carry := arg0 + aux
 		{name: "MaskIfNotCarry", argLength: 1, reg: crgp, asm: "ADDME", typ: "Int64"},                                                                   // carry - 1 (if carry then 0 else -1)
 
@@ -220,7 +226,7 @@ func init() {
 
 		{name: "POPCNTD", argLength: 1, reg: gp11, asm: "POPCNTD"}, // number of set bits in arg0
 		{name: "POPCNTW", argLength: 1, reg: gp11, asm: "POPCNTW"}, // number of set bits in each word of arg0 placed in corresponding word
-		{name: "POPCNTB", argLength: 1, reg: gp11, asm: "POPCNTB"}, // number of set bits in each byte of arg0 placed in corresonding byte
+		{name: "POPCNTB", argLength: 1, reg: gp11, asm: "POPCNTB"}, // number of set bits in each byte of arg0 placed in corresponding byte
 
 		{name: "FDIV", argLength: 2, reg: fp21, asm: "FDIV"},   // arg0/arg1
 		{name: "FDIVS", argLength: 2, reg: fp21, asm: "FDIVS"}, // arg0/arg1
@@ -248,27 +254,27 @@ func init() {
 		{name: "MFVSRD", argLength: 1, reg: fpgp, asm: "MFVSRD", typ: "Int64"},   // move 64 bits of F register into G register
 		{name: "MTVSRD", argLength: 1, reg: gpfp, asm: "MTVSRD", typ: "Float64"}, // move 64 bits of G register into F register
 
-		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},                   // arg0&arg1
-		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                                    // arg0&^arg1
-		{name: "ANDCC", argLength: 2, reg: gp21, asm: "ANDCC", commutative: true, typ: "Flags"}, // arg0&arg1 sets CC
-		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},                     // arg0|arg1
-		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                                      // arg0|^arg1
-		{name: "ORCC", argLength: 2, reg: gp21, asm: "ORCC", commutative: true, typ: "Flags"},   // arg0|arg1 sets CC
-		{name: "NOR", argLength: 2, reg: gp21, asm: "NOR", commutative: true},                   // ^(arg0|arg1)
-		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", typ: "Int64", commutative: true},     // arg0^arg1
-		{name: "XORCC", argLength: 2, reg: gp21, asm: "XORCC", commutative: true, typ: "Flags"}, // arg0^arg1 sets CC
-		{name: "EQV", argLength: 2, reg: gp21, asm: "EQV", typ: "Int64", commutative: true},     // arg0^^arg1
-		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                      // -arg0 (integer)
-		{name: "FNEG", argLength: 1, reg: fp11, asm: "FNEG"},                                    // -arg0 (floating point)
-		{name: "FSQRT", argLength: 1, reg: fp11, asm: "FSQRT"},                                  // sqrt(arg0) (floating point)
-		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"},                                // sqrt(arg0) (floating point, single precision)
-		{name: "FFLOOR", argLength: 1, reg: fp11, asm: "FRIM"},                                  // floor(arg0), float64
-		{name: "FCEIL", argLength: 1, reg: fp11, asm: "FRIP"},                                   // ceil(arg0), float64
-		{name: "FTRUNC", argLength: 1, reg: fp11, asm: "FRIZ"},                                  // trunc(arg0), float64
-		{name: "FROUND", argLength: 1, reg: fp11, asm: "FRIN"},                                  // round(arg0), float64
-		{name: "FABS", argLength: 1, reg: fp11, asm: "FABS"},                                    // abs(arg0), float64
-		{name: "FNABS", argLength: 1, reg: fp11, asm: "FNABS"},                                  // -abs(arg0), float64
-		{name: "FCPSGN", argLength: 2, reg: fp21, asm: "FCPSGN"},                                // copysign arg0 -> arg1, float64
+		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true},                    // arg0&arg1
+		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                                     // arg0&^arg1
+		{name: "ANDCC", argLength: 2, reg: gp2cr, asm: "ANDCC", commutative: true, typ: "Flags"}, // arg0&arg1 sets CC
+		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true},                      // arg0|arg1
+		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                                       // arg0|^arg1
+		{name: "ORCC", argLength: 2, reg: gp2cr, asm: "ORCC", commutative: true, typ: "Flags"},   // arg0|arg1 sets CC
+		{name: "NOR", argLength: 2, reg: gp21, asm: "NOR", commutative: true},                    // ^(arg0|arg1)
+		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", typ: "Int64", commutative: true},      // arg0^arg1
+		{name: "XORCC", argLength: 2, reg: gp2cr, asm: "XORCC", commutative: true, typ: "Flags"}, // arg0^arg1 sets CC
+		{name: "EQV", argLength: 2, reg: gp21, asm: "EQV", typ: "Int64", commutative: true},      // arg0^^arg1
+		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                       // -arg0 (integer)
+		{name: "FNEG", argLength: 1, reg: fp11, asm: "FNEG"},                                     // -arg0 (floating point)
+		{name: "FSQRT", argLength: 1, reg: fp11, asm: "FSQRT"},                                   // sqrt(arg0) (floating point)
+		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"},                                 // sqrt(arg0) (floating point, single precision)
+		{name: "FFLOOR", argLength: 1, reg: fp11, asm: "FRIM"},                                   // floor(arg0), float64
+		{name: "FCEIL", argLength: 1, reg: fp11, asm: "FRIP"},                                    // ceil(arg0), float64
+		{name: "FTRUNC", argLength: 1, reg: fp11, asm: "FRIZ"},                                   // trunc(arg0), float64
+		{name: "FROUND", argLength: 1, reg: fp11, asm: "FRIN"},                                   // round(arg0), float64
+		{name: "FABS", argLength: 1, reg: fp11, asm: "FABS"},                                     // abs(arg0), float64
+		{name: "FNABS", argLength: 1, reg: fp11, asm: "FNABS"},                                   // -abs(arg0), float64
+		{name: "FCPSGN", argLength: 2, reg: fp21, asm: "FCPSGN"},                                 // copysign arg0 -> arg1, float64
 
 		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int64"},                                                                                     // arg0|aux
 		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64"},                                                                                   // arg0^aux
@@ -363,6 +369,12 @@ func init() {
 		{name: "CMPWconst", argLength: 1, reg: gp1cr, asm: "CMPW", aux: "Int32", typ: "Flags"},
 		{name: "CMPWUconst", argLength: 1, reg: gp1cr, asm: "CMPWU", aux: "Int32", typ: "Flags"},
 
+		// ISEL auxInt values 0=LT 1=GT 2=EQ   arg2 ? arg0 : arg1
+		// ISEL auxInt values 4=GE 5=LE 6=NE   arg2 ? arg1 : arg0
+		// ISELB special case where arg0, arg1 values are 0, 1 for boolean result
+		{name: "ISEL", argLength: 3, reg: crgp21, asm: "ISEL", aux: "Int32", typ: "Int32"},  // see above
+		{name: "ISELB", argLength: 2, reg: crgp11, asm: "ISEL", aux: "Int32", typ: "Int32"}, // see above
+
 		// pseudo-ops
 		{name: "Equal", argLength: 1, reg: crgp},         // bool, true flags encode x==y false otherwise.
 		{name: "NotEqual", argLength: 1, reg: crgp},      // bool, true flags encode x!=y false otherwise.
@@ -406,13 +418,13 @@ func init() {
 		// a loop is generated when there is more than one iteration
 		// needed to clear 4 doublewords
 		//
+		//	XXLXOR	VS32,VS32,VS32
 		// 	MOVD	$len/32,R31
 		//	MOVD	R31,CTR
+		//	MOVD	$16,R31
 		//	loop:
-		//	MOVD	R0,(R3)
-		//	MOVD	R0,8(R3)
-		//	MOVD	R0,16(R3)
-		//	MOVD	R0,24(R3)
+		//	STXVD2X VS32,(R0)(R3)
+		//	STXVD2X	VS32,(R31),R3)
 		//	ADD	R3,32
 		//	BC	loop
 
@@ -437,34 +449,40 @@ func init() {
 			clobberFlags:   true,
 			typ:            "Mem",
 			faultOnNilArg0: true,
+			unsafePoint:    true,
 		},
+		// R31 is temp register
 		// Loop code:
-		//	MOVD len/32,REG_TMP  only for loop
-		//	MOVD REG_TMP,CTR     only for loop
+		//	MOVD len/32,R31		set up loop ctr
+		//	MOVD R31,CTR
+		//	MOVD $16,R31		index register
 		// loop:
-		//	MOVD (R4),R7
-		//	MOVD 8(R4),R8
-		//	MOVD 16(R4),R9
-		//	MOVD 24(R4),R10
-		//	ADD  R4,$32          only with loop
-		//	MOVD R7,(R3)
-		//	MOVD R8,8(R3)
-		//	MOVD R9,16(R3)
-		//	MOVD R10,24(R3)
-		//	ADD  R3,$32          only with loop
-		//	BC 16,0,loop         only with loop
+		//	LXVD2X (R0)(R4),VS32
+		//	LXVD2X (R31)(R4),VS33
+		//	ADD  R4,$32          increment src
+		//	STXVD2X VS32,(R0)(R3)
+		//	STXVD2X VS33,(R31)(R3)
+		//	ADD  R3,$32          increment dst
+		//	BC 16,0,loop         branch ctr
+		// For this purpose, VS32 and VS33 are treated as
+		// scratch registers. Since regalloc does not
+		// track vector registers, even if it could be marked
+		// as clobbered it would have no effect.
+		// TODO: If vector registers are managed by regalloc
+		// mark these as clobbered.
+		//
 		// Bytes not moved by this loop are moved
 		// with a combination of the following instructions,
 		// starting with the largest sizes and generating as
 		// many as needed, using the appropriate offset value.
-		//	MOVD  n(R4),R7
-		//	MOVD  R7,n(R3)
-		//	MOVW  n1(R4),R7
-		//	MOVW  R7,n1(R3)
-		//	MOVH  n2(R4),R7
-		//	MOVH  R7,n2(R3)
-		//	MOVB  n3(R4),R7
-		//	MOVB  R7,n3(R3)
+		//	MOVD  n(R4),R14
+		//	MOVD  R14,n(R3)
+		//	MOVW  n1(R4),R14
+		//	MOVW  R14,n1(R3)
+		//	MOVH  n2(R4),R14
+		//	MOVH  R14,n2(R3)
+		//	MOVB  n3(R4),R14
+		//	MOVB  R14,n3(R3)
 
 		{
 			name:      "LoweredMove",
@@ -472,17 +490,20 @@ func init() {
 			argLength: 3,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R3"), buildReg("R4")},
-				clobbers: buildReg("R3 R4 R7 R8 R9 R10"),
+				clobbers: buildReg("R3 R4 R14"),
 			},
 			clobberFlags:   true,
 			typ:            "Mem",
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
+			unsafePoint:    true,
 		},
 
+		{name: "LoweredAtomicStore8", argLength: 3, reg: gpstore, typ: "Mem", aux: "Int64", faultOnNilArg0: true, hasSideEffects: true},
 		{name: "LoweredAtomicStore32", argLength: 3, reg: gpstore, typ: "Mem", aux: "Int64", faultOnNilArg0: true, hasSideEffects: true},
 		{name: "LoweredAtomicStore64", argLength: 3, reg: gpstore, typ: "Mem", aux: "Int64", faultOnNilArg0: true, hasSideEffects: true},
 
+		{name: "LoweredAtomicLoad8", argLength: 2, reg: gpload, typ: "UInt8", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},
 		{name: "LoweredAtomicLoad32", argLength: 2, reg: gpload, typ: "UInt32", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},
 		{name: "LoweredAtomicLoad64", argLength: 2, reg: gpload, typ: "Int64", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},
 		{name: "LoweredAtomicLoadPtr", argLength: 2, reg: gpload, typ: "Int64", aux: "Int64", clobberFlags: true, faultOnNilArg0: true},
@@ -574,16 +595,16 @@ func init() {
 	}
 
 	blocks := []blockData{
-		{name: "EQ"},
-		{name: "NE"},
-		{name: "LT"},
-		{name: "LE"},
-		{name: "GT"},
-		{name: "GE"},
-		{name: "FLT"},
-		{name: "FLE"},
-		{name: "FGT"},
-		{name: "FGE"},
+		{name: "EQ", controls: 1},
+		{name: "NE", controls: 1},
+		{name: "LT", controls: 1},
+		{name: "LE", controls: 1},
+		{name: "GT", controls: 1},
+		{name: "GE", controls: 1},
+		{name: "FLT", controls: 1},
+		{name: "FLE", controls: 1},
+		{name: "FGT", controls: 1},
+		{name: "FGE", controls: 1},
 	}
 
 	archs = append(archs, arch{

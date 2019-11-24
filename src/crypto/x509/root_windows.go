@@ -61,15 +61,15 @@ func extractSimpleChain(simpleChain **syscall.CertSimpleChain, count int) (chain
 		return nil, errors.New("x509: invalid simple chain")
 	}
 
-	simpleChains := (*[1 << 20]*syscall.CertSimpleChain)(unsafe.Pointer(simpleChain))[:]
+	simpleChains := (*[1 << 20]*syscall.CertSimpleChain)(unsafe.Pointer(simpleChain))[:count:count]
 	lastChain := simpleChains[count-1]
-	elements := (*[1 << 20]*syscall.CertChainElement)(unsafe.Pointer(lastChain.Elements))[:]
+	elements := (*[1 << 20]*syscall.CertChainElement)(unsafe.Pointer(lastChain.Elements))[:lastChain.NumElements:lastChain.NumElements]
 	for i := 0; i < int(lastChain.NumElements); i++ {
 		// Copy the buf, since ParseCertificate does not create its own copy.
 		cert := elements[i].CertContext
-		encodedCert := (*[1 << 20]byte)(unsafe.Pointer(cert.EncodedCert))[:]
+		encodedCert := (*[1 << 20]byte)(unsafe.Pointer(cert.EncodedCert))[:cert.Length:cert.Length]
 		buf := make([]byte, cert.Length)
-		copy(buf, encodedCert[:])
+		copy(buf, encodedCert)
 		parsedCert, err := ParseCertificate(buf)
 		if err != nil {
 			return nil, err
@@ -229,7 +229,11 @@ func loadSystemRoots() (*CertPool, error) {
 	// TODO: restore this functionality on Windows. We tried to do
 	// it in Go 1.8 but had to revert it. See Issue 18609.
 	// Returning (nil, nil) was the old behavior, prior to CL 30578.
-	return nil, nil
+	// The if statement here avoids vet complaining about
+	// unreachable code below.
+	if true {
+		return nil, nil
+	}
 
 	const CRYPT_E_NOT_FOUND = 0x80092004
 
@@ -255,7 +259,7 @@ func loadSystemRoots() (*CertPool, error) {
 			break
 		}
 		// Copy the buf, since ParseCertificate does not create its own copy.
-		buf := (*[1 << 20]byte)(unsafe.Pointer(cert.EncodedCert))[:]
+		buf := (*[1 << 20]byte)(unsafe.Pointer(cert.EncodedCert))[:cert.Length:cert.Length]
 		buf2 := make([]byte, cert.Length)
 		copy(buf2, buf)
 		if c, err := ParseCertificate(buf2); err == nil {

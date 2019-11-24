@@ -46,6 +46,7 @@ import (
 var (
 	pkglistfornote []byte
 	windowsgui     bool // writes a "GUI binary" instead of a "console binary"
+	ownTmpDir      bool // set to true if tmp dir created by linker (e.g. no -tmpdir)
 )
 
 func init() {
@@ -86,6 +87,7 @@ var (
 	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
 	FlagDebugTramp  = flag.Int("debugtramp", 0, "debug trampolines")
 	FlagStrictDups  = flag.Int("strictdups", 0, "sanity check duplicate symbol contents during object file reading (1=warn 2=err).")
+	flagNewobj      = flag.Bool("newobj", false, "use new object file format")
 
 	FlagRound       = flag.Int("R", -1, "set address rounding `quantum`")
 	FlagTextAddr    = flag.Int64("T", -1, "set text segment `address`")
@@ -207,8 +209,13 @@ func Main(arch *sys.Arch, theArch Arch) {
 	}
 	ctxt.loadlib()
 
-	ctxt.dostrdata()
 	deadcode(ctxt)
+	if *flagNewobj {
+		ctxt.loadlibfull() // XXX do it here for now
+	}
+	ctxt.linksetup()
+	ctxt.dostrdata()
+
 	dwarfGenerateDebugInfo(ctxt)
 	if objabi.Fieldtrack_enabled != 0 {
 		fieldtrack(ctxt)
@@ -237,22 +244,47 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.findfunctab()
 	ctxt.typelink()
 	ctxt.symtab()
+	ctxt.buildinfo()
 	ctxt.dodata()
 	order := ctxt.address()
-	ctxt.reloc()
 	dwarfcompress(ctxt)
-	ctxt.layout(order)
-	thearch.Asmb(ctxt)
+	filesize := ctxt.layout(order)
+
+	// Write out the output file.
+	// It is split into two parts (Asmb and Asmb2). The first
+	// part writes most of the content (sections and segments),
+	// for which we have computed the size and offset, in a
+	// mmap'd region. The second part writes more content, for
+	// which we don't know the size.
+	var outputMmapped bool
+	if ctxt.Arch.Family != sys.Wasm {
+		// Don't mmap if we're building for Wasm. Wasm file
+		// layout is very different so filesize is meaningless.
+		err := ctxt.Out.Mmap(filesize)
+		outputMmapped = err == nil
+	}
+	if outputMmapped {
+		// Asmb will redirect symbols to the output file mmap, and relocations
+		// will be applied directly there.
+		thearch.Asmb(ctxt)
+		ctxt.reloc()
+		ctxt.Out.Munmap()
+	} else {
+		// If we don't mmap, we need to apply relocations before
+		// writing out.
+		ctxt.reloc()
+		thearch.Asmb(ctxt)
+	}
+	thearch.Asmb2(ctxt)
+
 	ctxt.undef()
 	ctxt.hostlink()
-	ctxt.archive()
 	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f cpu time\n", Cputime())
 		ctxt.Logf("%d symbols\n", len(ctxt.Syms.Allsym))
 		ctxt.Logf("%d liveness data\n", liveness)
 	}
-
 	ctxt.Bso.Flush()
+	ctxt.archive()
 
 	errorexit()
 }
@@ -292,8 +324,13 @@ func startProfile() {
 			log.Fatalf("%v", err)
 		}
 		AtExit(func() {
-			runtime.GC() // profile all outstanding allocations
-			if err := pprof.WriteHeapProfile(f); err != nil {
+			// Profile all outstanding allocations.
+			runtime.GC()
+			// compilebench parses the memory profile to extract memstats,
+			// which are only written in the legacy pprof format.
+			// See golang.org/issue/18641 and runtime/pprof/pprof.go:writeHeap.
+			const writeLegacyFormat = 1
+			if err := pprof.Lookup("heap").WriteTo(f, writeLegacyFormat); err != nil {
 				log.Fatalf("%v", err)
 			}
 		})

@@ -70,10 +70,11 @@
 // To distinguish build constraints from package documentation, a series of
 // build constraints must be followed by a blank line.
 //
-// A build constraint is evaluated as the OR of space-separated options;
-// each option evaluates as the AND of its comma-separated terms;
-// and each term is an alphanumeric word or, preceded by !, its negation.
-// That is, the build constraint:
+// A build constraint is evaluated as the OR of space-separated options.
+// Each option evaluates as the AND of its comma-separated terms.
+// Each term consists of letters, digits, underscores, and dots.
+// A term may be negated with a preceding !.
+// For example, the build constraint:
 //
 //	// +build linux,386 darwin,!cgo
 //
@@ -110,6 +111,7 @@
 //	- "go1.11", from Go version 1.11 onward
 //	- "go1.12", from Go version 1.12 onward
 //	- "go1.13", from Go version 1.13 onward
+//	- "go1.14", from Go version 1.14 onward
 //	- any additional words listed in ctxt.BuildTags
 //
 // There are no build tags for beta or minor releases.
@@ -146,6 +148,9 @@
 //
 // Using GOOS=android matches build tags and files as for GOOS=linux
 // in addition to android tags and files.
+//
+// Using GOOS=illumos matches build tags and files as for GOOS=solaris
+// in addition to illumos tags and files.
 //
 // Binary-Only Packages
 //

@@ -15,7 +15,6 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/load"
 	"cmd/go/internal/str"
 	"cmd/internal/buildid"
 )
@@ -159,7 +158,7 @@ func hashToString(h [cache.HashSize]byte) string {
 // which influences the action ID half of the build ID, is based on the content ID,
 // then the Linux compiler binary and Mac compiler binary will have different tool IDs
 // and therefore produce executables with different action IDs.
-// To avoids this problem, for releases we use the release version string instead
+// To avoid this problem, for releases we use the release version string instead
 // of the compiler binary's content hash. This assumes that all compilers built
 // on all different systems are semantically equivalent, which is of course only true
 // modulo bugs. (Producing the exact same executables also requires that the different
@@ -203,8 +202,9 @@ func (b *Builder) toolID(name string) string {
 		// On the development branch, use the content ID part of the build ID.
 		id = contentID(f[len(f)-1])
 	} else {
-		// For a release, the output is like: "compile version go1.9.1". Use the whole line.
-		id = f[2]
+		// For a release, the output is like: "compile version go1.9.1 X:framepointer".
+		// Use the whole line.
+		id = strings.TrimSpace(line)
 	}
 
 	b.id.Lock()
@@ -215,7 +215,7 @@ func (b *Builder) toolID(name string) string {
 }
 
 // gccToolID returns the unique ID to use for a tool that is invoked
-// by the GCC driver. This is in particular gccgo, but this can also
+// by the GCC driver. This is used particularly for gccgo, but this can also
 // be used for gcc, g++, gfortran, etc.; those tools all use the GCC
 // driver under different names. The approach used here should also
 // work for sufficiently new versions of clang. Unlike toolID, the
@@ -291,14 +291,19 @@ func (b *Builder) gccgoToolID(name, language string) (string, error) {
 				exe = lp
 			}
 		}
-		if _, err := os.Stat(exe); err != nil {
-			return "", fmt.Errorf("%s: can not find compiler %q: %v; output %q", name, exe, err, out)
+		id, err = buildid.ReadFile(exe)
+		if err != nil {
+			return "", err
 		}
-		id = b.fileHash(exe)
+
+		// If we can't find a build ID, use a hash.
+		if id == "" {
+			id = b.fileHash(exe)
+		}
 	}
 
 	b.id.Lock()
-	b.toolIDCache[name] = id
+	b.toolIDCache[key] = id
 	b.id.Unlock()
 
 	return id, nil
@@ -326,7 +331,7 @@ func (b *Builder) gccgoBuildIDFile(a *Action) (string, error) {
 	var buf bytes.Buffer
 	if cfg.Goos == "aix" {
 		fmt.Fprintf(&buf, "\t.csect .go.buildid[XO]\n")
-	} else if cfg.Goos != "solaris" || assemblerIsGas() {
+	} else if (cfg.Goos != "solaris" && cfg.Goos != "illumos") || assemblerIsGas() {
 		fmt.Fprintf(&buf, "\t"+`.section .go.buildid,"e"`+"\n")
 	} else if cfg.Goarch == "sparc" || cfg.Goarch == "sparc64" {
 		fmt.Fprintf(&buf, "\t"+`.section ".go.buildid",#exclude`+"\n")
@@ -345,7 +350,7 @@ func (b *Builder) gccgoBuildIDFile(a *Action) (string, error) {
 		fmt.Fprintf(&buf, "%#02x", a.buildID[i])
 	}
 	fmt.Fprintf(&buf, "\n")
-	if cfg.Goos != "solaris" && cfg.Goos != "aix" {
+	if cfg.Goos != "solaris" && cfg.Goos != "illumos" && cfg.Goos != "aix" {
 		secType := "@progbits"
 		if cfg.Goarch == "arm" {
 			secType = "%progbits"
@@ -415,7 +420,7 @@ func (b *Builder) fileHash(file string) string {
 // during a's work. The caller should defer b.flushOutput(a), to make sure
 // that flushOutput is eventually called regardless of whether the action
 // succeeds. The flushOutput call must happen after updateBuildID.
-func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID, target string) bool {
+func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string) bool {
 	// The second half of the build ID here is a placeholder for the content hash.
 	// It's important that the overall buildID be unlikely verging on impossible
 	// to appear in the output by chance, but that should be taken care of by
@@ -423,6 +428,9 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 	// engineered 96-bit partial SHA256 collision.
 	a.actionID = actionHash
 	actionID := hashToString(actionHash)
+	if a.json != nil {
+		a.json.ActionID = actionID
+	}
 	contentID := actionID // temporary placeholder, likely unique
 	a.buildID = actionID + buildIDSeparator + contentID
 
@@ -440,6 +448,9 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 		buildID, _ = buildid.ReadFile(target)
 		if strings.HasPrefix(buildID, actionID+buildIDSeparator) {
 			a.buildID = buildID
+			if a.json != nil {
+				a.json.BuildID = a.buildID
+			}
 			a.built = target
 			// Poison a.Target to catch uses later in the build.
 			a.Target = "DO NOT USE - " + a.Mode
@@ -482,6 +493,9 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 					// Poison a.Target to catch uses later in the build.
 					a.Target = "DO NOT USE - main build pseudo-cache Target"
 					a.built = "DO NOT USE - main build pseudo-cache built"
+					if a.json != nil {
+						a.json.BuildID = a.buildID
+					}
 					return true
 				}
 				// Otherwise restore old build ID for main build.
@@ -549,6 +563,9 @@ func (b *Builder) useCache(a *Action, p *load.Package, actionHash cache.ActionID
 						a.built = file
 						a.Target = "DO NOT USE - using cache"
 						a.buildID = buildID
+						if a.json != nil {
+							a.json.BuildID = a.buildID
+						}
 						if p := a.Package; p != nil {
 							// Clearer than explaining that something else is stale.
 							p.StaleReason = "not installed but available in build cache"
@@ -644,6 +661,9 @@ func (b *Builder) updateBuildID(a *Action, target string, rewrite bool) error {
 
 	// Replace with new content-based ID.
 	a.buildID = newID
+	if a.json != nil {
+		a.json.BuildID = a.buildID
+	}
 	if len(matches) == 0 {
 		// Assume the user specified -buildid= to override what we were going to choose.
 		return nil

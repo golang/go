@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 )
 
@@ -96,13 +97,13 @@ func finishArchiveEntry(bout *bio.Writer, start int64, name string) {
 	if size&1 != 0 {
 		bout.WriteByte(0)
 	}
-	bout.Seek(start-ArhdrSize, 0)
+	bout.MustSeek(start-ArhdrSize, 0)
 
 	var arhdr [ArhdrSize]byte
 	formathdr(arhdr[:], name, size)
 	bout.Write(arhdr[:])
 	bout.Flush()
-	bout.Seek(start+size+(size&1), 0)
+	bout.MustSeek(start+size+(size&1), 0)
 }
 
 func dumpCompilerObj(bout *bio.Writer) {
@@ -110,21 +111,7 @@ func dumpCompilerObj(bout *bio.Writer) {
 	dumpexport(bout)
 }
 
-func dumpLinkerObj(bout *bio.Writer) {
-	printObjHeader(bout)
-
-	if len(pragcgobuf) != 0 {
-		// write empty export section; must be before cgo section
-		fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
-		fmt.Fprintf(bout, "\n$$  // cgo\n")
-		if err := json.NewEncoder(bout).Encode(pragcgobuf); err != nil {
-			Fatalf("serializing pragcgobuf: %v", err)
-		}
-		fmt.Fprintf(bout, "\n$$\n\n")
-	}
-
-	fmt.Fprintf(bout, "\n!\n")
-
+func dumpdata() {
 	externs := len(externdcl)
 
 	dumpglobls()
@@ -162,8 +149,24 @@ func dumpLinkerObj(bout *bio.Writer) {
 	}
 
 	addGCLocals()
+}
 
-	obj.WriteObjFile(Ctxt, bout.Writer)
+func dumpLinkerObj(bout *bio.Writer) {
+	printObjHeader(bout)
+
+	if len(pragcgobuf) != 0 {
+		// write empty export section; must be before cgo section
+		fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
+		fmt.Fprintf(bout, "\n$$  // cgo\n")
+		if err := json.NewEncoder(bout).Encode(pragcgobuf); err != nil {
+			Fatalf("serializing pragcgobuf: %v", err)
+		}
+		fmt.Fprintf(bout, "\n$$\n\n")
+	}
+
+	fmt.Fprintf(bout, "\n!\n")
+
+	obj.WriteObjFile(Ctxt, bout, myimportpath)
 }
 
 func addptabs() {
@@ -259,7 +262,7 @@ func dumpglobls() {
 		}
 	}
 
-	obj.SortSlice(funcsyms, func(i, j int) bool {
+	sort.Slice(funcsyms, func(i, j int) bool {
 		return funcsyms[i].LinksymName() < funcsyms[j].LinksymName()
 	})
 	for _, s := range funcsyms {
@@ -287,7 +290,14 @@ func addGCLocals() {
 			}
 		}
 		if x := s.Func.StackObjects; x != nil {
-			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.LOCAL)
+			attr := int16(obj.RODATA)
+			if s.DuplicateOK() {
+				attr |= obj.DUPOK
+			}
+			ggloblsym(x, int32(len(x.P)), attr)
+		}
+		if x := s.Func.OpenCodedDeferInfo; x != nil {
+			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
 		}
 	}
 }

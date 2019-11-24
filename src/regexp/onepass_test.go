@@ -223,13 +223,3 @@ func TestRunOnePass(t *testing.T) {
 		}
 	}
 }
-
-func BenchmarkCompileOnepass(b *testing.B) {
-	b.ReportAllocs()
-	const re = `^a.[l-nA-Cg-j]?e$`
-	for i := 0; i < b.N; i++ {
-		if _, err := Compile(re); err != nil {
-			b.Fatal(err)
-		}
-	}
-}

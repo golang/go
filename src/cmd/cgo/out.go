@@ -268,6 +268,35 @@ func (p *Package) writeDefs() {
 	}
 }
 
+// elfImportedSymbols is like elf.File.ImportedSymbols, but it
+// includes weak symbols.
+//
+// A bug in some versions of LLD (at least LLD 8) cause it to emit
+// several pthreads symbols as weak, but we need to import those. See
+// issue #31912 or https://bugs.llvm.org/show_bug.cgi?id=42442.
+//
+// When doing external linking, we hand everything off to the external
+// linker, which will create its own dynamic symbol tables. For
+// internal linking, this may turn weak imports into strong imports,
+// which could cause dynamic linking to fail if a symbol really isn't
+// defined. However, the standard library depends on everything it
+// imports, and this is the primary use of dynamic symbol tables with
+// internal linking.
+func elfImportedSymbols(f *elf.File) []elf.ImportedSymbol {
+	syms, _ := f.DynamicSymbols()
+	var imports []elf.ImportedSymbol
+	for _, s := range syms {
+		if (elf.ST_BIND(s.Info) == elf.STB_GLOBAL || elf.ST_BIND(s.Info) == elf.STB_WEAK) && s.Section == elf.SHN_UNDEF {
+			imports = append(imports, elf.ImportedSymbol{
+				Name:    s.Name,
+				Library: s.Library,
+				Version: s.Version,
+			})
+		}
+	}
+	return imports
+}
+
 func dynimport(obj string) {
 	stdout := os.Stdout
 	if *dynout != "" {
@@ -290,7 +319,7 @@ func dynimport(obj string) {
 				}
 			}
 		}
-		sym, _ := f.ImportedSymbols()
+		sym := elfImportedSymbols(f)
 		for _, s := range sym {
 			targ := s.Name
 			if s.Version != "" {
@@ -1284,8 +1313,10 @@ func gccgoPkgpathToSymbolNew(ppath string) string {
 	for _, c := range []byte(ppath) {
 		switch {
 		case 'A' <= c && c <= 'Z', 'a' <= c && c <= 'z',
-			'0' <= c && c <= '9', c == '_', c == '.':
+			'0' <= c && c <= '9', c == '_':
 			bsl = append(bsl, c)
+		case c == '.':
+			bsl = append(bsl, ".x2e"...)
 		default:
 			changed = true
 			encbytes := []byte(fmt.Sprintf("..z%02x", c))
@@ -1367,19 +1398,19 @@ func c(repr string, args ...interface{}) *TypeRepr {
 
 // Map predeclared Go types to Type.
 var goTypes = map[string]*Type{
-	"bool":       {Size: 1, Align: 1, C: c("uint8_t")},
-	"byte":       {Size: 1, Align: 1, C: c("uint8_t")},
+	"bool":       {Size: 1, Align: 1, C: c("GoUint8")},
+	"byte":       {Size: 1, Align: 1, C: c("GoUint8")},
 	"int":        {Size: 0, Align: 0, C: c("GoInt")},
 	"uint":       {Size: 0, Align: 0, C: c("GoUint")},
-	"rune":       {Size: 4, Align: 4, C: c("int32_t")},
-	"int8":       {Size: 1, Align: 1, C: c("int8_t")},
-	"uint8":      {Size: 1, Align: 1, C: c("uint8_t")},
-	"int16":      {Size: 2, Align: 2, C: c("int16_t")},
-	"uint16":     {Size: 2, Align: 2, C: c("uint16_t")},
-	"int32":      {Size: 4, Align: 4, C: c("int32_t")},
-	"uint32":     {Size: 4, Align: 4, C: c("uint32_t")},
-	"int64":      {Size: 8, Align: 8, C: c("int64_t")},
-	"uint64":     {Size: 8, Align: 8, C: c("uint64_t")},
+	"rune":       {Size: 4, Align: 4, C: c("GoInt32")},
+	"int8":       {Size: 1, Align: 1, C: c("GoInt8")},
+	"uint8":      {Size: 1, Align: 1, C: c("GoUint8")},
+	"int16":      {Size: 2, Align: 2, C: c("GoInt16")},
+	"uint16":     {Size: 2, Align: 2, C: c("GoUint16")},
+	"int32":      {Size: 4, Align: 4, C: c("GoInt32")},
+	"uint32":     {Size: 4, Align: 4, C: c("GoUint32")},
+	"int64":      {Size: 8, Align: 8, C: c("GoInt64")},
+	"uint64":     {Size: 8, Align: 8, C: c("GoUint64")},
 	"float32":    {Size: 4, Align: 4, C: c("GoFloat32")},
 	"float64":    {Size: 8, Align: 8, C: c("GoFloat64")},
 	"complex64":  {Size: 8, Align: 4, C: c("GoComplex64")},
@@ -1602,14 +1633,14 @@ func _cgo_runtime_cgocall(unsafe.Pointer, uintptr) int32
 func _cgo_runtime_cgocallback(unsafe.Pointer, unsafe.Pointer, uintptr, uintptr)
 
 //go:linkname _cgoCheckPointer runtime.cgoCheckPointer
-func _cgoCheckPointer(interface{}, ...interface{})
+func _cgoCheckPointer(interface{}, interface{})
 
 //go:linkname _cgoCheckResult runtime.cgoCheckResult
 func _cgoCheckResult(interface{})
 `
 
 const gccgoGoProlog = `
-func _cgoCheckPointer(interface{}, ...interface{})
+func _cgoCheckPointer(interface{}, interface{})
 
 func _cgoCheckResult(interface{})
 `
@@ -1796,16 +1827,16 @@ typedef struct __go_empty_interface {
 	void *__object;
 } Eface;
 
-extern void runtimeCgoCheckPointer(Eface, Slice)
+extern void runtimeCgoCheckPointer(Eface, Eface)
 	__asm__("runtime.cgoCheckPointer")
 	__attribute__((weak));
 
-extern void localCgoCheckPointer(Eface, Slice)
+extern void localCgoCheckPointer(Eface, Eface)
 	__asm__("GCCGOSYMBOLPREF._cgoCheckPointer");
 
-void localCgoCheckPointer(Eface ptr, Slice args) {
+void localCgoCheckPointer(Eface ptr, Eface arg) {
 	if(runtimeCgoCheckPointer) {
-		runtimeCgoCheckPointer(ptr, args);
+		runtimeCgoCheckPointer(ptr, arg);
 	}
 }
 
@@ -1871,10 +1902,16 @@ const gccExportHeaderProlog = `
 #ifndef GO_CGO_PROLOGUE_H
 #define GO_CGO_PROLOGUE_H
 
-#include <stdint.h>
-
-typedef intGOINTBITS_t GoInt;
-typedef uintGOINTBITS_t GoUint;
+typedef signed char GoInt8;
+typedef unsigned char GoUint8;
+typedef short GoInt16;
+typedef unsigned short GoUint16;
+typedef int GoInt32;
+typedef unsigned int GoUint32;
+typedef long long GoInt64;
+typedef unsigned long long GoUint64;
+typedef GoIntGOINTBITS GoInt;
+typedef GoUintGOINTBITS GoUint;
 typedef __SIZE_TYPE__ GoUintptr;
 typedef float GoFloat32;
 typedef double GoFloat64;

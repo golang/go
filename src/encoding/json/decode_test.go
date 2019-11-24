@@ -145,23 +145,15 @@ func (u8 *u8marshal) UnmarshalText(b []byte) error {
 var _ encoding.TextUnmarshaler = (*u8marshal)(nil)
 
 var (
-	um0, um1 unmarshaler // target2 of unmarshaling
-	ump      = &um1
 	umtrue   = unmarshaler{true}
 	umslice  = []unmarshaler{{true}}
-	umslicep = new([]unmarshaler)
 	umstruct = ustruct{unmarshaler{true}}
 
-	um0T, um1T   unmarshalerText // target2 of unmarshaling
-	umpType      = &um1T
-	umtrueXY     = unmarshalerText{"x", "y"}
-	umsliceXY    = []unmarshalerText{{"x", "y"}}
-	umslicepType = new([]unmarshalerText)
-	umstructType = new(ustructText)
-	umstructXY   = ustructText{unmarshalerText{"x", "y"}}
+	umtrueXY   = unmarshalerText{"x", "y"}
+	umsliceXY  = []unmarshalerText{{"x", "y"}}
+	umstructXY = ustructText{unmarshalerText{"x", "y"}}
 
-	ummapType = map[unmarshalerText]bool{}
-	ummapXY   = map[unmarshalerText]bool{{"x", "y"}: true}
+	ummapXY = map[unmarshalerText]bool{{"x", "y"}: true}
 )
 
 // Test data structures for anonymous fields.
@@ -278,9 +270,6 @@ type XYZ struct {
 type unexportedWithMethods struct{}
 
 func (unexportedWithMethods) F() {}
-
-func sliceAddr(x []int) *[]int                 { return &x }
-func mapAddr(x map[string]int) *map[string]int { return &x }
 
 type byteWithMarshalJSON byte
 
@@ -400,7 +389,7 @@ type mapStringToStringData struct {
 
 type unmarshalTest struct {
 	in                    string
-	ptr                   interface{}
+	ptr                   interface{} // new(type)
 	out                   interface{}
 	err                   error
 	useNumber             bool
@@ -410,6 +399,11 @@ type unmarshalTest struct {
 
 type B struct {
 	B bool `json:",string"`
+}
+
+type DoublePtr struct {
+	I **int
+	J **int
 }
 
 var unmarshalTests = []unmarshalTest{
@@ -459,6 +453,7 @@ var unmarshalTests = []unmarshalTest{
 	{in: `[1, 2, 3+]`, err: &SyntaxError{"invalid character '+' after array element", 9}},
 	{in: `{"X":12x}`, err: &SyntaxError{"invalid character 'x' after object key:value pair", 8}, useNumber: true},
 	{in: `[2, 3`, err: &SyntaxError{msg: "unexpected end of JSON input", Offset: 5}},
+	{in: `{"F3": -}`, ptr: new(V), out: V{F3: Number("-")}, err: &SyntaxError{msg: "invalid character '}' in numeric literal", Offset: 9}},
 
 	// raw value errors
 	{in: "\x01 42", err: &SyntaxError{"invalid character '\\x01' looking for beginning of value", 1}},
@@ -493,18 +488,18 @@ var unmarshalTests = []unmarshalTest{
 	{in: pallValueCompact, ptr: new(*All), out: &pallValue},
 
 	// unmarshal interface test
-	{in: `{"T":false}`, ptr: &um0, out: umtrue}, // use "false" so test will fail if custom unmarshaler is not called
-	{in: `{"T":false}`, ptr: &ump, out: &umtrue},
-	{in: `[{"T":false}]`, ptr: &umslice, out: umslice},
-	{in: `[{"T":false}]`, ptr: &umslicep, out: &umslice},
-	{in: `{"M":{"T":"x:y"}}`, ptr: &umstruct, out: umstruct},
+	{in: `{"T":false}`, ptr: new(unmarshaler), out: umtrue}, // use "false" so test will fail if custom unmarshaler is not called
+	{in: `{"T":false}`, ptr: new(*unmarshaler), out: &umtrue},
+	{in: `[{"T":false}]`, ptr: new([]unmarshaler), out: umslice},
+	{in: `[{"T":false}]`, ptr: new(*[]unmarshaler), out: &umslice},
+	{in: `{"M":{"T":"x:y"}}`, ptr: new(ustruct), out: umstruct},
 
 	// UnmarshalText interface test
-	{in: `"x:y"`, ptr: &um0T, out: umtrueXY},
-	{in: `"x:y"`, ptr: &umpType, out: &umtrueXY},
-	{in: `["x:y"]`, ptr: &umsliceXY, out: umsliceXY},
-	{in: `["x:y"]`, ptr: &umslicepType, out: &umsliceXY},
-	{in: `{"M":"x:y"}`, ptr: umstructType, out: umstructXY},
+	{in: `"x:y"`, ptr: new(unmarshalerText), out: umtrueXY},
+	{in: `"x:y"`, ptr: new(*unmarshalerText), out: &umtrueXY},
+	{in: `["x:y"]`, ptr: new([]unmarshalerText), out: umsliceXY},
+	{in: `["x:y"]`, ptr: new(*[]unmarshalerText), out: &umsliceXY},
+	{in: `{"M":"x:y"}`, ptr: new(ustructText), out: umstructXY},
 
 	// integer-keyed map test
 	{
@@ -579,15 +574,9 @@ var unmarshalTests = []unmarshalTest{
 	},
 
 	// Map keys can be encoding.TextUnmarshalers.
-	{in: `{"x:y":true}`, ptr: &ummapType, out: ummapXY},
+	{in: `{"x:y":true}`, ptr: new(map[unmarshalerText]bool), out: ummapXY},
 	// If multiple values for the same key exists, only the most recent value is used.
-	{in: `{"x:y":false,"x:y":true}`, ptr: &ummapType, out: ummapXY},
-
-	// Overwriting of data.
-	// This is different from package xml, but it's what we've always done.
-	// Now documented and tested.
-	{in: `[2]`, ptr: sliceAddr([]int{1}), out: []int{2}},
-	{in: `{"key": 2}`, ptr: mapAddr(map[string]int{"old": 0, "key": 1}), out: map[string]int{"key": 2}},
+	{in: `{"x:y":false,"x:y":true}`, ptr: new(map[unmarshalerText]bool), out: ummapXY},
 
 	{
 		in: `{
@@ -672,6 +661,11 @@ var unmarshalTests = []unmarshalTest{
 		err:                   fmt.Errorf("json: unknown field \"X\""),
 		disallowUnknownFields: true,
 	},
+	{
+		in:  `{"I": 0, "I": null, "J": null}`,
+		ptr: new(DoublePtr),
+		out: DoublePtr{I: nil, J: nil},
+	},
 
 	// invalid UTF-8 is coerced to valid UTF-8.
 	{
@@ -713,19 +707,19 @@ var unmarshalTests = []unmarshalTest{
 	// Used to be issue 8305, but time.Time implements encoding.TextUnmarshaler so this works now.
 	{
 		in:  `{"2009-11-10T23:00:00Z": "hello world"}`,
-		ptr: &map[time.Time]string{},
+		ptr: new(map[time.Time]string),
 		out: map[time.Time]string{time.Date(2009, 11, 10, 23, 0, 0, 0, time.UTC): "hello world"},
 	},
 
 	// issue 8305
 	{
 		in:  `{"2009-11-10T23:00:00Z": "hello world"}`,
-		ptr: &map[Point]string{},
+		ptr: new(map[Point]string),
 		err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeOf(map[Point]string{}), Offset: 1},
 	},
 	{
 		in:  `{"asdf": "hello world"}`,
-		ptr: &map[unmarshaler]string{},
+		ptr: new(map[unmarshaler]string),
 		err: &UnmarshalTypeError{Value: "object", Type: reflect.TypeOf(map[unmarshaler]string{}), Offset: 1},
 	},
 
@@ -955,6 +949,37 @@ var unmarshalTests = []unmarshalTest{
 			Offset: 29,
 		},
 	},
+	// #14702
+	{
+		in:  `invalid`,
+		ptr: new(Number),
+		err: &SyntaxError{
+			msg:    "invalid character 'i' looking for beginning of value",
+			Offset: 1,
+		},
+	},
+	{
+		in:  `"invalid"`,
+		ptr: new(Number),
+		err: fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
+	},
+	{
+		in:  `{"A":"invalid"}`,
+		ptr: new(struct{ A Number }),
+		err: fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
+	},
+	{
+		in: `{"A":"invalid"}`,
+		ptr: new(struct {
+			A Number `json:",string"`
+		}),
+		err: fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into json.Number", `invalid`),
+	},
+	{
+		in:  `{"A":"invalid"}`,
+		ptr: new(map[string]Number),
+		err: fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
+	},
 }
 
 func TestMarshal(t *testing.T) {
@@ -1077,8 +1102,27 @@ func TestUnmarshal(t *testing.T) {
 			continue
 		}
 
+		typ := reflect.TypeOf(tt.ptr)
+		if typ.Kind() != reflect.Ptr {
+			t.Errorf("#%d: unmarshalTest.ptr %T is not a pointer type", i, tt.ptr)
+			continue
+		}
+		typ = typ.Elem()
+
 		// v = new(right-type)
-		v := reflect.New(reflect.TypeOf(tt.ptr).Elem())
+		v := reflect.New(typ)
+
+		if !reflect.DeepEqual(tt.ptr, v.Interface()) {
+			// There's no reason for ptr to point to non-zero data,
+			// as we decode into new(right-type), so the data is
+			// discarded.
+			// This can easily mean tests that silently don't test
+			// what they should. To test decoding into existing
+			// data, see TestPrefilled.
+			t.Errorf("#%d: unmarshalTest.ptr %#v is not a pointer to a zero value", i, tt.ptr)
+			continue
+		}
+
 		dec := NewDecoder(bytes.NewReader(in))
 		if tt.useNumber {
 			dec.UseNumber()
@@ -1250,6 +1294,8 @@ var wrongStringTests = []wrongStringTest{
 	{`{"result":"foo"}`, `json: invalid use of ,string struct tag, trying to unmarshal "foo" into string`},
 	{`{"result":"123"}`, `json: invalid use of ,string struct tag, trying to unmarshal "123" into string`},
 	{`{"result":123}`, `json: invalid use of ,string struct tag, trying to unmarshal unquoted value into string`},
+	{`{"result":"\""}`, `json: invalid use of ,string struct tag, trying to unmarshal "\"" into string`},
+	{`{"result":"\"foo"}`, `json: invalid use of ,string struct tag, trying to unmarshal "\"foo" into string`},
 }
 
 // If people misuse the ,string modifier, the error message should be
@@ -1739,41 +1785,6 @@ type NullTest struct {
 	Struct struct{}
 }
 
-type NullTestStrings struct {
-	Bool      bool              `json:",string"`
-	Int       int               `json:",string"`
-	Int8      int8              `json:",string"`
-	Int16     int16             `json:",string"`
-	Int32     int32             `json:",string"`
-	Int64     int64             `json:",string"`
-	Uint      uint              `json:",string"`
-	Uint8     uint8             `json:",string"`
-	Uint16    uint16            `json:",string"`
-	Uint32    uint32            `json:",string"`
-	Uint64    uint64            `json:",string"`
-	Float32   float32           `json:",string"`
-	Float64   float64           `json:",string"`
-	String    string            `json:",string"`
-	PBool     *bool             `json:",string"`
-	Map       map[string]string `json:",string"`
-	Slice     []string          `json:",string"`
-	Interface interface{}       `json:",string"`
-
-	PRaw    *RawMessage           `json:",string"`
-	PTime   *time.Time            `json:",string"`
-	PBigInt *big.Int              `json:",string"`
-	PText   *MustNotUnmarshalText `json:",string"`
-	PBuffer *bytes.Buffer         `json:",string"`
-	PStruct *struct{}             `json:",string"`
-
-	Raw    RawMessage           `json:",string"`
-	Time   time.Time            `json:",string"`
-	BigInt big.Int              `json:",string"`
-	Text   MustNotUnmarshalText `json:",string"`
-	Buffer bytes.Buffer         `json:",string"`
-	Struct struct{}             `json:",string"`
-}
-
 // JSON null values should be ignored for primitives and string values instead of resulting in an error.
 // Issue 2540
 func TestUnmarshalNulls(t *testing.T) {
@@ -2084,11 +2095,10 @@ func TestSkipArrayObjects(t *testing.T) {
 	}
 }
 
-// Test semantics of pre-filled struct fields and pre-filled map fields.
-// Issue 4900.
+// Test semantics of pre-filled data, such as struct fields, map elements,
+// slices, and arrays.
+// Issues 4900 and 8837, among others.
 func TestPrefilled(t *testing.T) {
-	ptrToMap := func(m map[string]interface{}) *map[string]interface{} { return &m }
-
 	// Values here change, cannot reuse table across runs.
 	var prefillTests = []struct {
 		in  string
@@ -2102,8 +2112,28 @@ func TestPrefilled(t *testing.T) {
 		},
 		{
 			in:  `{"X": 1, "Y": 2}`,
-			ptr: ptrToMap(map[string]interface{}{"X": float32(3), "Y": int16(4), "Z": 1.5}),
-			out: ptrToMap(map[string]interface{}{"X": float64(1), "Y": float64(2), "Z": 1.5}),
+			ptr: &map[string]interface{}{"X": float32(3), "Y": int16(4), "Z": 1.5},
+			out: &map[string]interface{}{"X": float64(1), "Y": float64(2), "Z": 1.5},
+		},
+		{
+			in:  `[2]`,
+			ptr: &[]int{1},
+			out: &[]int{2},
+		},
+		{
+			in:  `[2, 3]`,
+			ptr: &[]int{1},
+			out: &[]int{2, 3},
+		},
+		{
+			in:  `[2, 3]`,
+			ptr: &[...]int{1},
+			out: &[...]int{2},
+		},
+		{
+			in:  `[3]`,
+			ptr: &[...]int{1, 2},
+			out: &[...]int{3, 0},
 		},
 	}
 
@@ -2321,6 +2351,41 @@ func TestUnmarshalEmbeddedUnexported(t *testing.T) {
 	}
 }
 
+func TestUnmarshalErrorAfterMultipleJSON(t *testing.T) {
+	tests := []struct {
+		in  string
+		err error
+	}{{
+		in:  `1 false null :`,
+		err: &SyntaxError{"invalid character ':' looking for beginning of value", 14},
+	}, {
+		in:  `1 [] [,]`,
+		err: &SyntaxError{"invalid character ',' looking for beginning of value", 7},
+	}, {
+		in:  `1 [] [true:]`,
+		err: &SyntaxError{"invalid character ':' after array element", 11},
+	}, {
+		in:  `1  {}    {"x"=}`,
+		err: &SyntaxError{"invalid character '=' after object key", 14},
+	}, {
+		in:  `falsetruenul#`,
+		err: &SyntaxError{"invalid character '#' in literal null (expecting 'l')", 13},
+	}}
+	for i, tt := range tests {
+		dec := NewDecoder(strings.NewReader(tt.in))
+		var err error
+		for {
+			var v interface{}
+			if err = dec.Decode(&v); err != nil {
+				break
+			}
+		}
+		if !reflect.DeepEqual(err, tt.err) {
+			t.Errorf("#%d: got %#v, want %#v", i, err, tt.err)
+		}
+	}
+}
+
 type unmarshalPanic struct{}
 
 func (unmarshalPanic) UnmarshalJSON([]byte) error { panic(0xdead) }
@@ -2333,4 +2398,36 @@ func TestUnmarshalPanic(t *testing.T) {
 	}()
 	Unmarshal([]byte("{}"), &unmarshalPanic{})
 	t.Fatalf("Unmarshal should have panicked")
+}
+
+// The decoder used to hang if decoding into an interface pointing to its own address.
+// See golang.org/issues/31740.
+func TestUnmarshalRecursivePointer(t *testing.T) {
+	var v interface{}
+	v = &v
+	data := []byte(`{"a": "b"}`)
+
+	if err := Unmarshal(data, v); err != nil {
+		t.Fatal(err)
+	}
+}
+
+type textUnmarshalerString string
+
+func (m *textUnmarshalerString) UnmarshalText(text []byte) error {
+	*m = textUnmarshalerString(strings.ToLower(string(text)))
+	return nil
+}
+
+// Test unmarshal to a map, with map key is a user defined type.
+// See golang.org/issues/34437.
+func TestUnmarshalMapWithTextUnmarshalerStringKey(t *testing.T) {
+	var p map[textUnmarshalerString]string
+	if err := Unmarshal([]byte(`{"FOO": "1"}`), &p); err != nil {
+		t.Fatalf("Unmarshal unexpected error: %v", err)
+	}
+
+	if _, ok := p["foo"]; !ok {
+		t.Errorf(`Key "foo" is not existed in map: %v`, p)
+	}
 }

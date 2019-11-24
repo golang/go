@@ -10,6 +10,7 @@
 package http
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"errors"
@@ -18,6 +19,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/url"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -100,7 +102,7 @@ type Client struct {
 	// For compatibility, the Client will also use the deprecated
 	// CancelRequest method on Transport if found. New
 	// RoundTripper implementations should use the Request's Context
-	// for cancelation instead of implementing CancelRequest.
+	// for cancellation instead of implementing CancelRequest.
 	Timeout time.Duration
 }
 
@@ -238,7 +240,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
 		username := u.Username()
 		password, _ := u.Password()
 		forkReq()
-		req.Header = ireq.Header.clone()
+		req.Header = cloneOrMakeHeader(ireq.Header)
 		req.Header.Set("Authorization", "Basic "+basicAuth(username, password))
 	}
 
@@ -273,46 +275,95 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
 	return resp, nil, nil
 }
 
-// setRequestCancel sets the Cancel field of req, if deadline is
-// non-zero. The RoundTripper's type is used to determine whether the legacy
-// CancelRequest behavior should be used.
+// timeBeforeContextDeadline reports whether the non-zero Time t is
+// before ctx's deadline, if any. If ctx does not have a deadline, it
+// always reports true (the deadline is considered infinite).
+func timeBeforeContextDeadline(t time.Time, ctx context.Context) bool {
+	d, ok := ctx.Deadline()
+	if !ok {
+		return true
+	}
+	return t.Before(d)
+}
+
+// knownRoundTripperImpl reports whether rt is a RoundTripper that's
+// maintained by the Go team and known to implement the latest
+// optional semantics (notably contexts).
+func knownRoundTripperImpl(rt RoundTripper) bool {
+	switch rt.(type) {
+	case *Transport, *http2Transport:
+		return true
+	}
+	// There's a very minor chance of a false positive with this.
+	// Insted of detecting our golang.org/x/net/http2.Transport,
+	// it might detect a Transport type in a different http2
+	// package. But I know of none, and the only problem would be
+	// some temporarily leaked goroutines if the transport didn't
+	// support contexts. So this is a good enough heuristic:
+	if reflect.TypeOf(rt).String() == "*http2.Transport" {
+		return true
+	}
+	return false
+}
+
+// setRequestCancel sets req.Cancel and adds a deadline context to req
+// if deadline is non-zero. The RoundTripper's type is used to
+// determine whether the legacy CancelRequest behavior should be used.
 //
 // As background, there are three ways to cancel a request:
 // First was Transport.CancelRequest. (deprecated)
-// Second was Request.Cancel (this mechanism).
+// Second was Request.Cancel.
 // Third was Request.Context.
+// This function populates the second and third, and uses the first if it really needs to.
 func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTimer func(), didTimeout func() bool) {
 	if deadline.IsZero() {
 		return nop, alwaysFalse
 	}
+	knownTransport := knownRoundTripperImpl(rt)
+	oldCtx := req.Context()
 
+	if req.Cancel == nil && knownTransport {
+		// If they already had a Request.Context that's
+		// expiring sooner, do nothing:
+		if !timeBeforeContextDeadline(deadline, oldCtx) {
+			return nop, alwaysFalse
+		}
+
+		var cancelCtx func()
+		req.ctx, cancelCtx = context.WithDeadline(oldCtx, deadline)
+		return cancelCtx, func() bool { return time.Now().After(deadline) }
+	}
 	initialReqCancel := req.Cancel // the user's original Request.Cancel, if any
+
+	var cancelCtx func()
+	if oldCtx := req.Context(); timeBeforeContextDeadline(deadline, oldCtx) {
+		req.ctx, cancelCtx = context.WithDeadline(oldCtx, deadline)
+	}
 
 	cancel := make(chan struct{})
 	req.Cancel = cancel
 
 	doCancel := func() {
-		// The newer way (the second way in the func comment):
+		// The second way in the func comment above:
 		close(cancel)
-
-		// The legacy compatibility way, used only
-		// for RoundTripper implementations written
-		// before Go 1.5 or Go 1.6.
-		type canceler interface {
-			CancelRequest(*Request)
-		}
-		switch v := rt.(type) {
-		case *Transport, *http2Transport:
-			// Do nothing. The net/http package's transports
-			// support the new Request.Cancel channel
-		case canceler:
+		// The first way, used only for RoundTripper
+		// implementations written before Go 1.5 or Go 1.6.
+		type canceler interface{ CancelRequest(*Request) }
+		if v, ok := rt.(canceler); ok {
 			v.CancelRequest(req)
 		}
 	}
 
 	stopTimerCh := make(chan struct{})
 	var once sync.Once
-	stopTimer = func() { once.Do(func() { close(stopTimerCh) }) }
+	stopTimer = func() {
+		once.Do(func() {
+			close(stopTimerCh)
+			if cancelCtx != nil {
+				cancelCtx()
+			}
+		})
+	}
 
 	timer := time.NewTimer(time.Until(deadline))
 	var timedOut atomicBool
@@ -383,8 +434,8 @@ func Get(url string) (resp *Response, err error) {
 // An error is returned if the Client's CheckRedirect function fails
 // or if there was an HTTP protocol error. A non-2xx response doesn't
 // cause an error. Any returned error will be of type *url.Error. The
-// url.Error value's Timeout method will report true if request timed
-// out or was canceled.
+// url.Error value's Timeout method will report true if the request
+// timed out.
 //
 // When err is nil, resp always contains a non-nil resp.Body.
 // Caller should close resp.Body when done reading from it.
@@ -643,7 +694,7 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
 			reqBodyClosed = true
 			if !deadline.IsZero() && didTimeout() {
 				err = &httpError{
-					// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancelation/
+					// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancellation/
 					err:     err.Error() + " (Client.Timeout exceeded while awaiting headers)",
 					timeout: true,
 				}
@@ -668,7 +719,7 @@ func (c *Client) makeHeadersCopier(ireq *Request) func(*Request) {
 	// The headers to copy are from the very initial request.
 	// We use a closured callback to keep a reference to these original headers.
 	var (
-		ireqhdr  = ireq.Header.clone()
+		ireqhdr  = cloneOrMakeHeader(ireq.Header)
 		icookies map[string][]*Cookie
 	)
 	if c.Jar != nil && ireq.Header.Get("Cookie") != "" {
@@ -870,8 +921,7 @@ func (b *cancelTimerBody) Read(p []byte) (n int, err error) {
 	}
 	if b.reqDidTimeout() {
 		err = &httpError{
-			// TODO: early in cycle: s/Client.Timeout exceeded/timeout or context cancelation/
-			err:     err.Error() + " (Client.Timeout exceeded while reading body)",
+			err:     err.Error() + " (Client.Timeout or context cancellation while reading body)",
 			timeout: true,
 		}
 	}
@@ -926,10 +976,9 @@ func isDomainOrSubdomain(sub, parent string) bool {
 }
 
 func stripPassword(u *url.URL) string {
-	pass, passSet := u.User.Password()
+	_, passSet := u.User.Password()
 	if passSet {
-		return strings.Replace(u.String(), pass+"@", "***@", 1)
+		return strings.Replace(u.String(), u.User.String()+"@", u.User.Username()+":***@", 1)
 	}
-
 	return u.String()
 }

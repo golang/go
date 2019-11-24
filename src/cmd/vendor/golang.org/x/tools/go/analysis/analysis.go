@@ -128,8 +128,32 @@ type Pass struct {
 	// See comments for ExportObjectFact.
 	ExportPackageFact func(fact Fact)
 
+	// AllPackageFacts returns a new slice containing all package facts of the analysis's FactTypes
+	// in unspecified order.
+	// WARNING: This is an experimental API and may change in the future.
+	AllPackageFacts func() []PackageFact
+
+	// AllObjectFacts returns a new slice containing all object facts of the analysis's FactTypes
+	// in unspecified order.
+	// WARNING: This is an experimental API and may change in the future.
+	AllObjectFacts func() []ObjectFact
+
 	/* Further fields may be added in future. */
 	// For example, suggested or applied refactorings.
+}
+
+// PackageFact is a package together with an associated fact.
+// WARNING: This is an experimental API and may change in the future.
+type PackageFact struct {
+	Package *types.Package
+	Fact    Fact
+}
+
+// ObjectFact is an object together with an associated fact.
+// WARNING: This is an experimental API and may change in the future.
+type ObjectFact struct {
+	Object types.Object
+	Fact   Fact
 }
 
 // Reportf is a helper function that reports a Diagnostic using the
@@ -137,6 +161,21 @@ type Pass struct {
 func (pass *Pass) Reportf(pos token.Pos, format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	pass.Report(Diagnostic{Pos: pos, Message: msg})
+}
+
+// The Range interface provides a range. It's equivalent to and satisfied by
+// ast.Node.
+type Range interface {
+	Pos() token.Pos // position of first character belonging to the node
+	End() token.Pos // position of first character immediately after the node
+}
+
+// ReportRangef is a helper function that reports a Diagnostic using the
+// range provided. ast.Node values can be passed in as the range because
+// they satisfy the Range interface.
+func (pass *Pass) ReportRangef(rng Range, format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	pass.Report(Diagnostic{Pos: rng.Pos(), End: rng.End(), Message: msg})
 }
 
 func (pass *Pass) String() string {
@@ -179,15 +218,4 @@ func (pass *Pass) String() string {
 // A Fact should not be modified once exported.
 type Fact interface {
 	AFact() // dummy method to avoid type errors
-}
-
-// A Diagnostic is a message associated with a source location.
-//
-// An Analyzer may return a variety of diagnostics; the optional Category,
-// which should be a constant, may be used to classify them.
-// It is primarily intended to make it easy to look up documentation.
-type Diagnostic struct {
-	Pos      token.Pos
-	Category string // optional
-	Message  string
 }

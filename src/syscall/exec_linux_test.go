@@ -34,11 +34,40 @@ func isLXC() bool {
 }
 
 func skipInContainer(t *testing.T) {
+	// TODO: the callers of this func are using this func to skip
+	// tests when running as some sort of "fake root" that's uid 0
+	// but lacks certain Linux capabilities. Most of the Go builds
+	// run in privileged containers, though, where root is much
+	// closer (if not identical) to the real root. We should test
+	// for what we need exactly (which capabilities are active?),
+	// instead of just assuming "docker == bad". Then we'd get more test
+	// coverage on a bunch of builders too.
 	if isDocker() {
 		t.Skip("skip this test in Docker container")
 	}
 	if isLXC() {
 		t.Skip("skip this test in LXC container")
+	}
+}
+
+func skipNoUserNamespaces(t *testing.T) {
+	if _, err := os.Stat("/proc/self/ns/user"); err != nil {
+		if os.IsNotExist(err) {
+			t.Skip("kernel doesn't support user namespaces")
+		}
+		if os.IsPermission(err) {
+			t.Skip("unable to test user namespaces due to permissions")
+		}
+		t.Fatalf("Failed to stat /proc/self/ns/user: %v", err)
+	}
+}
+
+func skipUnprivilegedUserClone(t *testing.T) {
+	// Skip the test if the sysctl that prevents unprivileged user
+	// from creating user namespaces is enabled.
+	data, errRead := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
+	if errRead != nil || len(data) < 1 || data[0] == '0' {
+		t.Skip("kernel prohibits user namespace in unprivileged process")
 	}
 }
 
@@ -55,15 +84,7 @@ func isChrooted(t *testing.T) bool {
 
 func checkUserNS(t *testing.T) {
 	skipInContainer(t)
-	if _, err := os.Stat("/proc/self/ns/user"); err != nil {
-		if os.IsNotExist(err) {
-			t.Skip("kernel doesn't support user namespaces")
-		}
-		if os.IsPermission(err) {
-			t.Skip("unable to test user namespaces due to permissions")
-		}
-		t.Fatalf("Failed to stat /proc/self/ns/user: %v", err)
-	}
+	skipNoUserNamespaces(t)
 	if isChrooted(t) {
 		// create_user_ns in the kernel (see
 		// https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/kernel/user_namespace.c)
@@ -72,10 +93,7 @@ func checkUserNS(t *testing.T) {
 	}
 	// On some systems, there is a sysctl setting.
 	if os.Getuid() != 0 {
-		data, errRead := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
-		if errRead == nil && data[0] == '0' {
-			t.Skip("kernel prohibits user namespace in unprivileged process")
-		}
+		skipUnprivilegedUserClone(t)
 	}
 	// On Centos 7 make sure they set the kernel parameter user_namespace=1
 	// See issue 16283 and 20796.
@@ -299,6 +317,7 @@ func TestGroupCleanupUserNamespace(t *testing.T) {
 		"uid=0(root) gid=0(root) groups=0(root),65534(nogroup)",
 		"uid=0(root) gid=0(root) groups=0(root),65534",
 		"uid=0(root) gid=0(root) groups=0(root),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody),65534(nobody)", // Alpine; see https://golang.org/issue/19938
+		"uid=0(root) gid=0(root) groups=0(root) context=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023",                                                                               // CentOS with SELinux context, see https://golang.org/issue/34547
 	}
 	for _, e := range expected {
 		if strOut == e {
@@ -328,14 +347,6 @@ func TestUnshareMountNameSpace(t *testing.T) {
 	// and create a network namespace.
 	if os.Getuid() != 0 {
 		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
-	}
-
-	// When running under the Go continuous build, skip tests for
-	// now when under Kubernetes. (where things are root but not quite)
-	// Both of these are our own environment variables.
-	// See Issue 12815.
-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
 	}
 
 	d, err := ioutil.TempDir("", "unshare")
@@ -378,14 +389,6 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
 	// and create a network namespace.
 	if os.Getuid() != 0 {
 		t.Skip("kernel prohibits unshare in unprivileged process, unless using user namespace")
-	}
-
-	// When running under the Go continuous build, skip tests for
-	// now when under Kubernetes. (where things are root but not quite)
-	// Both of these are our own environment variables.
-	// See Issue 12815.
-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
 	}
 
 	d, err := ioutil.TempDir("", "unshare")
@@ -567,6 +570,7 @@ func TestAmbientCaps(t *testing.T) {
 }
 
 func TestAmbientCapsUserns(t *testing.T) {
+	checkUserNS(t)
 	testAmbientCaps(t, true)
 }
 
@@ -574,20 +578,7 @@ func testAmbientCaps(t *testing.T, userns bool) {
 	skipInContainer(t)
 	mustSupportAmbientCaps(t)
 
-	// When running under the Go continuous build, skip tests for
-	// now when under Kubernetes. (where things are root but not quite)
-	// Both of these are our own environment variables.
-	// See Issue 12815.
-	if os.Getenv("GO_BUILDER_NAME") != "" && os.Getenv("IN_KUBERNETES") == "1" {
-		t.Skip("skipping test on Kubernetes-based builders; see Issue 12815")
-	}
-
-	// Skip the test if the sysctl that prevents unprivileged user
-	// from creating user namespaces is enabled.
-	data, errRead := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
-	if errRead == nil && data[0] == '0' {
-		t.Skip("kernel prohibits user namespace in unprivileged process")
-	}
+	skipUnprivilegedUserClone(t)
 
 	// skip on android, due to lack of lookup support
 	if runtime.GOOS == "android" {

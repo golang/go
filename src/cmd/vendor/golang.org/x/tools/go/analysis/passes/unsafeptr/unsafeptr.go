@@ -45,7 +45,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		if hasBasicType(pass.TypesInfo, x.Fun, types.UnsafePointer) &&
 			hasBasicType(pass.TypesInfo, x.Args[0], types.Uintptr) &&
 			!isSafeUintptr(pass.TypesInfo, x.Args[0]) {
-			pass.Reportf(x.Pos(), "possible misuse of unsafe.Pointer")
+			pass.ReportRangef(x, "possible misuse of unsafe.Pointer")
 		}
 	})
 	return nil, nil

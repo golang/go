@@ -60,28 +60,24 @@ func main() {
 		// uname -m doesn't work under AIX
 		gohostarch = "ppc64"
 	case "darwin":
-		// Even on 64-bit platform, darwin uname -m prints i386.
-		// We don't support any of the OS X versions that run on 32-bit-only hardware anymore.
-		gohostarch = "amd64"
 		// macOS 10.9 and later require clang
 		defaultclang = true
 	case "freebsd":
 		// Since FreeBSD 10 gcc is no longer part of the base system.
 		defaultclang = true
 	case "openbsd":
-		// The gcc available on OpenBSD armv7 is old/inadequate (for example, lacks
-		// __sync_fetch_and_*/__sync_*_and_fetch) and will likely be removed in the
-		// not-to-distant future - use clang instead.
-		if runtime.GOARCH == "arm" {
-			defaultclang = true
-		}
+		// OpenBSD ships with GCC 4.2, which is now quite old.
+		defaultclang = true
 	case "plan9":
 		gohostarch = os.Getenv("objtype")
 		if gohostarch == "" {
 			fatalf("$objtype is unset")
 		}
-	case "solaris":
-		// Even on 64-bit platform, solaris uname -m prints i86pc.
+	case "solaris", "illumos":
+		// Solaris and illumos systems have multi-arch userlands, and
+		// "uname -m" reports the machine hardware name; e.g.,
+		// "i86pc" on both 32- and 64-bit x86 systems.  Check for the
+		// native (widest) instruction set on the running kernel:
 		out := run("", CheckExit, "isainfo", "-n")
 		if strings.Contains(out, "amd64") {
 			gohostarch = "amd64"
@@ -103,10 +99,15 @@ func main() {
 			gohostarch = "amd64"
 		case strings.Contains(out, "86"):
 			gohostarch = "386"
+			if gohostos == "darwin" {
+				// Even on 64-bit platform, some versions of macOS uname -m prints i386.
+				// We don't support any of the OS X versions that run on 32-bit-only hardware anymore.
+				gohostarch = "amd64"
+			}
+		case strings.Contains(out, "aarch64"), strings.Contains(out, "arm64"):
+			gohostarch = "arm64"
 		case strings.Contains(out, "arm"):
 			gohostarch = "arm"
-		case strings.Contains(out, "aarch64"):
-			gohostarch = "arm64"
 		case strings.Contains(out, "ppc64le"):
 			gohostarch = "ppc64le"
 		case strings.Contains(out, "ppc64"):
@@ -124,8 +125,8 @@ func main() {
 		case strings.Contains(out, "s390x"):
 			gohostarch = "s390x"
 		case gohostos == "darwin":
-			if strings.Contains(run("", CheckExit, "uname", "-v"), "RELEASE_ARM_") {
-				gohostarch = "arm"
+			if strings.Contains(run("", CheckExit, "uname", "-v"), "RELEASE_ARM64_") {
+				gohostarch = "arm64"
 			}
 		default:
 			fatalf("unknown architecture: %s", out)

@@ -22,10 +22,12 @@
 //
 // The file format is:
 //
-//	- magic header: "\x00go112ld"
+//	- magic header: "\x00go114ld"
 //	- byte 1 - version number
 //	- sequence of strings giving dependencies (imported packages)
 //	- empty string (marks end of sequence)
+//	- number of entries in the following sequence
+//	- sequence of filename strings to generate debug information
 //	- sequence of symbol references used by the defined symbols
 //	- byte 0xff (marks end of sequence)
 //	- sequence of integer lengths:
@@ -38,7 +40,7 @@
 //	- data, the content of the defined symbols
 //	- sequence of defined symbols
 //	- byte 0xff (marks end of sequence)
-//	- magic footer: "\xffgo112ld"
+//	- magic footer: "\xffgo114ld"
 //
 // All integers are stored in a zigzag varint format.
 // See golang.org/s/go12symtab for a definition.

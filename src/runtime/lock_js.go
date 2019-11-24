@@ -11,8 +11,6 @@ import (
 )
 
 // js/wasm has no support for threads yet. There is no preemption.
-// Waiting for a mutex is implemented by allowing other goroutines
-// to run until the mutex gets unlocked.
 
 const (
 	mutex_unlocked = 0
@@ -28,15 +26,27 @@ const (
 )
 
 func lock(l *mutex) {
-	for l.key == mutex_locked {
-		mcall(gosched_m)
+	if l.key == mutex_locked {
+		// js/wasm is single-threaded so we should never
+		// observe this.
+		throw("self deadlock")
 	}
+	gp := getg()
+	if gp.m.locks < 0 {
+		throw("lock count")
+	}
+	gp.m.locks++
 	l.key = mutex_locked
 }
 
 func unlock(l *mutex) {
 	if l.key == mutex_unlocked {
 		throw("unlock of unlocked lock")
+	}
+	gp := getg()
+	gp.m.locks--
+	if gp.m.locks < 0 {
+		throw("lock count")
 	}
 	l.key = mutex_unlocked
 }
@@ -101,6 +111,8 @@ func notetsleepg(n *note, ns int64) bool {
 		gopark(nil, nil, waitReasonSleep, traceEvNone, 1)
 
 		clearTimeoutEvent(id) // note might have woken early, clear timeout
+		clearIdleID()
+
 		mp = acquirem()
 		delete(notes, n)
 		delete(notesWithTimeout, n)
@@ -134,31 +146,63 @@ func checkTimeouts() {
 	}
 }
 
-var returnedEventHandler *g
+// events is a stack of calls from JavaScript into Go.
+var events []*event
 
-func init() {
-	// At the toplevel we need an extra goroutine that handles asynchronous events.
-	initg := getg()
-	go func() {
-		returnedEventHandler = getg()
-		goready(initg, 1)
-
-		gopark(nil, nil, waitReasonZero, traceEvNone, 1)
-		returnedEventHandler = nil
-
-		pause(getcallersp() - 16)
-	}()
-	gopark(nil, nil, waitReasonZero, traceEvNone, 1)
+type event struct {
+	// g was the active goroutine when the call from JavaScript occurred.
+	// It needs to be active when returning to JavaScript.
+	gp *g
+	// returned reports whether the event handler has returned.
+	// When all goroutines are idle and the event handler has returned,
+	// then g gets resumed and returns the execution to JavaScript.
+	returned bool
 }
 
+// The timeout event started by beforeIdle.
+var idleID int32
+
 // beforeIdle gets called by the scheduler if no goroutine is awake.
-// We resume the event handler (if available) which will pause the execution.
-func beforeIdle() bool {
-	if returnedEventHandler != nil {
-		goready(returnedEventHandler, 1)
+// If we are not already handling an event, then we pause for an async event.
+// If an event handler returned, we resume it and it will pause the execution.
+func beforeIdle(delay int64) bool {
+	if delay > 0 {
+		clearIdleID()
+		if delay < 1e6 {
+			delay = 1
+		} else if delay < 1e15 {
+			delay = delay / 1e6
+		} else {
+			// An arbitrary cap on how long to wait for a timer.
+			// 1e9 ms == ~11.5 days.
+			delay = 1e9
+		}
+		idleID = scheduleTimeoutEvent(delay)
+	}
+
+	if len(events) == 0 {
+		go handleAsyncEvent()
+		return true
+	}
+
+	e := events[len(events)-1]
+	if e.returned {
+		goready(e.gp, 1)
 		return true
 	}
 	return false
+}
+
+func handleAsyncEvent() {
+	pause(getcallersp() - 16)
+}
+
+// clearIdleID clears our record of the timeout started by beforeIdle.
+func clearIdleID() {
+	if idleID != 0 {
+		clearTimeoutEvent(idleID)
+		idleID = 0
+	}
 }
 
 // pause sets SP to newsp and pauses the execution of Go's WebAssembly code until an event is triggered.
@@ -171,18 +215,29 @@ func scheduleTimeoutEvent(ms int64) int32
 // clearTimeoutEvent clears a timeout event scheduled by scheduleTimeoutEvent.
 func clearTimeoutEvent(id int32)
 
+// handleEvent gets invoked on a call from JavaScript into Go. It calls the event handler of the syscall/js package
+// and then parks the handler goroutine to allow other goroutines to run before giving execution back to JavaScript.
+// When no other goroutine is awake any more, beforeIdle resumes the handler goroutine. Now that the same goroutine
+// is running as was running when the call came in from JavaScript, execution can be safely passed back to JavaScript.
 func handleEvent() {
-	prevReturnedEventHandler := returnedEventHandler
-	returnedEventHandler = nil
+	e := &event{
+		gp:       getg(),
+		returned: false,
+	}
+	events = append(events, e)
 
-	checkTimeouts()
 	eventHandler()
 
-	returnedEventHandler = getg()
+	clearIdleID()
+
+	// wait until all goroutines are idle
+	e.returned = true
 	gopark(nil, nil, waitReasonZero, traceEvNone, 1)
 
-	returnedEventHandler = prevReturnedEventHandler
+	events[len(events)-1] = nil
+	events = events[:len(events)-1]
 
+	// return execution to JavaScript
 	pause(getcallersp() - 16)
 }
 

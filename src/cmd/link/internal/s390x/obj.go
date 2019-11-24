@@ -50,7 +50,8 @@ func Init() (*sys.Arch, ld.Arch) {
 		Archinit:         archinit,
 		Archreloc:        archreloc,
 		Archrelocvariant: archrelocvariant,
-		Asmb:             asmb, // in asm.go
+		Asmb:             asmb,  // in asm.go
+		Asmb2:            asmb2, // in asm.go
 		Elfreloc1:        elfreloc1,
 		Elfsetupplt:      elfsetupplt,
 		Gentext:          gentext,

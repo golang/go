@@ -7,7 +7,9 @@ package ld
 import (
 	"bufio"
 	"cmd/internal/sys"
+	"cmd/link/internal/sym"
 	"encoding/binary"
+	"log"
 	"os"
 )
 
@@ -20,10 +22,18 @@ import (
 //
 // Second, it provides a very cheap offset counter that doesn't require
 // any system calls to read the value.
+//
+// It also mmaps the output file (if available). The intended usage is:
+// - Mmap the output file
+// - Write the content
+// - possibly apply any edits in the output buffer
+// - Munmap the output file
+// - possibly write more content to the file, which will not be edited later.
 type OutBuf struct {
 	arch   *sys.Arch
 	off    int64
 	w      *bufio.Writer
+	buf    []byte // backing store of mmap'd output file
 	f      *os.File
 	encbuf [8]byte // temp buffer used by WriteN methods
 }
@@ -32,9 +42,11 @@ func (out *OutBuf) SeekSet(p int64) {
 	if p == out.off {
 		return
 	}
-	out.Flush()
-	if _, err := out.f.Seek(p, 0); err != nil {
-		Exitf("seeking to %d in %s: %v", p, out.f.Name(), err)
+	if out.buf == nil {
+		out.Flush()
+		if _, err := out.f.Seek(p, 0); err != nil {
+			Exitf("seeking to %d in %s: %v", p, out.f.Name(), err)
+		}
 	}
 	out.off = p
 }
@@ -49,12 +61,22 @@ func (out *OutBuf) Offset() int64 {
 // to explicitly handle the returned error as long as Flush is
 // eventually called.
 func (out *OutBuf) Write(v []byte) (int, error) {
+	if out.buf != nil {
+		n := copy(out.buf[out.off:], v)
+		out.off += int64(n)
+		return n, nil
+	}
 	n, err := out.w.Write(v)
 	out.off += int64(n)
 	return n, err
 }
 
 func (out *OutBuf) Write8(v uint8) {
+	if out.buf != nil {
+		out.buf[out.off] = v
+		out.off++
+		return
+	}
 	if err := out.w.WriteByte(v); err == nil {
 		out.off++
 	}
@@ -92,6 +114,14 @@ func (out *OutBuf) Write64b(v uint64) {
 }
 
 func (out *OutBuf) WriteString(s string) {
+	if out.buf != nil {
+		n := copy(out.buf[out.off:], s)
+		if n != len(s) {
+			log.Fatalf("WriteString truncated. buffer size: %d, offset: %d, len(s)=%d", len(out.buf), out.off, len(s))
+		}
+		out.off += int64(n)
+		return
+	}
 	n, _ := out.w.WriteString(s)
 	out.off += int64(n)
 }
@@ -119,8 +149,29 @@ func (out *OutBuf) WriteStringPad(s string, n int, pad []byte) {
 	}
 }
 
+// WriteSym writes the content of a Symbol, then changes the Symbol's content
+// to point to the output buffer that we just wrote, so we can apply further
+// edit to the symbol content.
+// If the output file is not Mmap'd, just writes the content.
+func (out *OutBuf) WriteSym(s *sym.Symbol) {
+	if out.buf != nil {
+		start := out.off
+		out.Write(s.P)
+		s.P = out.buf[start:out.off]
+		s.Attr.Set(sym.AttrReadOnly, false)
+	} else {
+		out.Write(s.P)
+	}
+}
+
 func (out *OutBuf) Flush() {
-	if err := out.w.Flush(); err != nil {
+	var err error
+	if out.buf != nil {
+		err = out.Msync()
+	} else {
+		err = out.w.Flush()
+	}
+	if err != nil {
 		Exitf("flushing %s: %v", out.f.Name(), err)
 	}
 }

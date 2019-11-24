@@ -35,15 +35,8 @@ func current() (*User, error) {
 		Name:     "", // ignored
 		HomeDir:  homeDir,
 	}
-	// On NaCL and Android, return a dummy user instead of failing.
+	// On Android, return a dummy user instead of failing.
 	switch runtime.GOOS {
-	case "nacl":
-		if u.Uid == "" {
-			u.Uid = "1"
-		}
-		if u.Username == "" {
-			u.Username = "nacl"
-		}
 	case "android":
 		if u.Uid == "" {
 			u.Uid = "1"
@@ -57,12 +50,22 @@ func current() (*User, error) {
 	if u.Uid != "" && u.Username != "" && u.HomeDir != "" {
 		return u, nil
 	}
-	return u, fmt.Errorf("user: Current not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
+	var missing string
+	if u.Username == "" {
+		missing = "$USER"
+	}
+	if u.HomeDir == "" {
+		if missing != "" {
+			missing += ", "
+		}
+		missing += "$HOME"
+	}
+	return u, fmt.Errorf("user: Current requires cgo or %s set in environment", missing)
 }
 
 func listGroups(*User) ([]string, error) {
 	if runtime.GOOS == "android" || runtime.GOOS == "aix" {
-		return nil, errors.New(fmt.Sprintf("user: GroupIds not implemented on %s", runtime.GOOS))
+		return nil, fmt.Errorf("user: GroupIds not implemented on %s", runtime.GOOS)
 	}
 	return nil, errors.New("user: GroupIds requires cgo")
 }

@@ -555,15 +555,11 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool) {
 	// Copy results back into argument frame.
 	if numOut > 0 {
 		off += -off & (ptrSize - 1)
-		if runtime.GOARCH == "amd64p32" {
-			off = align(off, 8)
-		}
 		for i, typ := range ftyp.out() {
 			v := out[i]
-			if v.typ != typ {
+			if v.typ == nil {
 				panic("reflect: function created by MakeFunc using " + funcName(f) +
-					" returned wrong type: have " +
-					out[i].typ.String() + " for " + typ.String())
+					" returned zero Value")
 			}
 			if v.flag&flagRO != 0 {
 				panic("reflect: function created by MakeFunc using " + funcName(f) +
@@ -574,6 +570,12 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool) {
 				continue
 			}
 			addr := add(ptr, off, "typ.size > 0")
+
+			// Convert v to type typ if v is assignable to a variable
+			// of type t in the language spec.
+			// See issue 28761.
+			v = v.assignTo("reflect.MakeFunc", typ, addr)
+
 			// We are writing to stack. No write barrier.
 			if v.flag&flagIndir != 0 {
 				memmove(addr, v.ptr, typ.size)
@@ -691,10 +693,15 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool) {
 	scratch := framePool.Get().(unsafe.Pointer)
 
 	// Copy in receiver and rest of args.
-	// Avoid constructing out-of-bounds pointers if there are no args.
 	storeRcvr(rcvr, scratch)
-	if argSize-ptrSize > 0 {
-		typedmemmovepartial(frametype, add(scratch, ptrSize, "argSize > ptrSize"), frame, ptrSize, argSize-ptrSize)
+	// Align the first arg. The alignment can't be larger than ptrSize.
+	argOffset := uintptr(ptrSize)
+	if len(t.in()) > 0 {
+		argOffset = align(argOffset, uintptr(t.in()[0].align))
+	}
+	// Avoid constructing out-of-bounds pointers if there are no args.
+	if argSize-argOffset > 0 {
+		typedmemmovepartial(frametype, add(scratch, argOffset, "argSize > argOffset"), frame, argOffset, argSize-argOffset)
 	}
 
 	// Call.
@@ -702,17 +709,11 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer, retValid *bool) {
 	// and then copies the results back into scratch.
 	call(frametype, fn, scratch, uint32(frametype.size), uint32(retOffset))
 
-	// Copy return values. On amd64p32, the beginning of return values
-	// is 64-bit aligned, so the caller's frame layout (which doesn't have
-	// a receiver) is different from the layout of the fn call, which has
-	// a receiver.
+	// Copy return values.
 	// Ignore any changes to args and just copy return values.
 	// Avoid constructing out-of-bounds pointers if there are no return values.
 	if frametype.size-retOffset > 0 {
-		callerRetOffset := retOffset - ptrSize
-		if runtime.GOARCH == "amd64p32" {
-			callerRetOffset = align(argSize-ptrSize, 8)
-		}
+		callerRetOffset := retOffset - argOffset
 		// This copies to the stack. Write barriers are not needed.
 		memmove(add(frame, callerRetOffset, "frametype.size > retOffset"),
 			add(scratch, retOffset, "frametype.size > retOffset"),
@@ -1065,10 +1066,50 @@ func (v Value) IsNil() bool {
 // IsValid reports whether v represents a value.
 // It returns false if v is the zero Value.
 // If IsValid returns false, all other methods except String panic.
-// Most functions and methods never return an invalid value.
+// Most functions and methods never return an invalid Value.
 // If one does, its documentation states the conditions explicitly.
 func (v Value) IsValid() bool {
 	return v.flag != 0
+}
+
+// IsZero reports whether v is the zero value for its type.
+// It panics if the argument is invalid.
+func (v Value) IsZero() bool {
+	switch v.kind() {
+	case Bool:
+		return !v.Bool()
+	case Int, Int8, Int16, Int32, Int64:
+		return v.Int() == 0
+	case Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
+		return v.Uint() == 0
+	case Float32, Float64:
+		return math.Float64bits(v.Float()) == 0
+	case Complex64, Complex128:
+		c := v.Complex()
+		return math.Float64bits(real(c)) == 0 && math.Float64bits(imag(c)) == 0
+	case Array:
+		for i := 0; i < v.Len(); i++ {
+			if !v.Index(i).IsZero() {
+				return false
+			}
+		}
+		return true
+	case Chan, Func, Interface, Map, Ptr, Slice, UnsafePointer:
+		return v.IsNil()
+	case String:
+		return v.Len() == 0
+	case Struct:
+		for i := 0; i < v.NumField(); i++ {
+			if !v.Field(i).IsZero() {
+				return false
+			}
+		}
+		return true
+	default:
+		// This should never happens, but will act as a safeguard for
+		// later, as a default value doesn't makes sense here.
+		panic(&ValueError{"reflect.Value.IsZero", v.Kind()})
+	}
 }
 
 // Kind returns v's Kind.
@@ -1197,7 +1238,7 @@ func (it *MapIter) Value() Value {
 
 	t := (*mapType)(unsafe.Pointer(it.m.typ))
 	vtype := t.elem
-	return copyVal(vtype, it.m.flag.ro()|flag(vtype.Kind()), mapitervalue(it.it))
+	return copyVal(vtype, it.m.flag.ro()|flag(vtype.Kind()), mapiterelem(it.it))
 }
 
 // Next advances the map iterator and reports whether there is another
@@ -1365,6 +1406,11 @@ func (v Value) OverflowUint(x uint64) bool {
 	}
 	panic(&ValueError{"reflect.Value.OverflowUint", v.kind()})
 }
+
+//go:nocheckptr
+// This prevents inlining Value.Pointer when -d=checkptr is enabled,
+// which ensures cmd/compile can recognize unsafe.Pointer(v.Pointer())
+// and make an exception.
 
 // Pointer returns v's value as a uintptr.
 // It returns uintptr instead of unsafe.Pointer so that
@@ -1595,13 +1641,13 @@ func (v Value) SetCap(n int) {
 	s.Cap = n
 }
 
-// SetMapIndex sets the value associated with key in the map v to val.
+// SetMapIndex sets the element associated with key in the map v to elem.
 // It panics if v's Kind is not Map.
-// If val is the zero Value, SetMapIndex deletes the key from the map.
+// If elem is the zero Value, SetMapIndex deletes the key from the map.
 // Otherwise if v holds a nil map, SetMapIndex will panic.
-// As in Go, key's value must be assignable to the map's key type,
-// and val's value must be assignable to the map's value type.
-func (v Value) SetMapIndex(key, val Value) {
+// As in Go, key's elem must be assignable to the map's key type,
+// and elem's value must be assignable to the map's elem type.
+func (v Value) SetMapIndex(key, elem Value) {
 	v.mustBe(Map)
 	v.mustBeExported()
 	key.mustBeExported()
@@ -1613,17 +1659,17 @@ func (v Value) SetMapIndex(key, val Value) {
 	} else {
 		k = unsafe.Pointer(&key.ptr)
 	}
-	if val.typ == nil {
+	if elem.typ == nil {
 		mapdelete(v.typ, v.pointer(), k)
 		return
 	}
-	val.mustBeExported()
-	val = val.assignTo("reflect.Value.SetMapIndex", tt.elem, nil)
+	elem.mustBeExported()
+	elem = elem.assignTo("reflect.Value.SetMapIndex", tt.elem, nil)
 	var e unsafe.Pointer
-	if val.flag&flagIndir != 0 {
-		e = val.ptr
+	if elem.flag&flagIndir != 0 {
+		e = elem.ptr
 	} else {
-		e = unsafe.Pointer(&val.ptr)
+		e = unsafe.Pointer(&elem.ptr)
 	}
 	mapassign(v.typ, v.pointer(), k, e)
 }
@@ -1872,6 +1918,11 @@ func (v Value) Uint() uint64 {
 	}
 	panic(&ValueError{"reflect.Value.Uint", v.kind()})
 }
+
+//go:nocheckptr
+// This prevents inlining Value.UnsafeAddr when -d=checkptr is enabled,
+// which ensures cmd/compile can recognize unsafe.Pointer(v.UnsafeAddr())
+// and make an exception.
 
 // UnsafeAddr returns a pointer to v's data.
 // It is for advanced clients that also import the "unsafe" package.
@@ -2425,6 +2476,11 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
 				return cvtRunesString
 			}
 		}
+
+	case Chan:
+		if dst.Kind() == Chan && specialChannelAssignability(dst, src) {
+			return cvtDirect
+		}
 	}
 
 	// dst and src have same underlying type.
@@ -2668,7 +2724,7 @@ func mapiterinit(t *rtype, m unsafe.Pointer) unsafe.Pointer
 func mapiterkey(it unsafe.Pointer) (key unsafe.Pointer)
 
 //go:noescape
-func mapitervalue(it unsafe.Pointer) (value unsafe.Pointer)
+func mapiterelem(it unsafe.Pointer) (elem unsafe.Pointer)
 
 //go:noescape
 func mapiternext(it unsafe.Pointer)
@@ -2713,6 +2769,9 @@ func typedmemclrpartial(t *rtype, ptr unsafe.Pointer, off, size uintptr)
 // returning the number of elements copied.
 //go:noescape
 func typedslicecopy(elemType *rtype, dst, src sliceHeader) int
+
+//go:noescape
+func typehash(t *rtype, p unsafe.Pointer, h uintptr) uintptr
 
 // Dummy annotation marking that the value x escapes,
 // for use in cases where the reflect code is so clever that

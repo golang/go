@@ -1,7 +1,6 @@
-# File system pattern searches should skip sub-modules and vendor directories.
-
 env GO111MODULE=on
 
+# File system pattern searches should skip sub-modules and vendor directories.
 cd x
 
 # all packages
@@ -34,11 +33,29 @@ stderr 'import lookup disabled'
 
 ! go build -mod=readonly ./nonexist
 ! stderr 'import lookup disabled'
-stderr 'unknown import path "m/nonexist": cannot find package'
+stderr '^can.t load package: package ./nonexist: cannot find package "." in:\n\t'$WORK'[/\\]gopath[/\\]src[/\\]x[/\\]nonexist$'
 
 ! go build -mod=readonly ./go.mod
 ! stderr 'import lookup disabled'
-stderr 'unknown import path "m/go.mod": cannot find package'
+stderr 'can.t load package: package ./go.mod: cannot find package'
+
+
+# File system paths and patterns should allow the '@' character.
+cd ../@at
+go list $PWD
+stdout '^at$'
+go list $PWD/...
+stdout '^at$'
+
+# The '@' character is not allowed in directory paths that are part of
+# a package path.
+cd ../badat/bad@
+! go list .
+stderr 'directory . outside available modules'
+! go list $PWD
+stderr 'directory . outside available modules'
+! go list $PWD/...
+stderr 'directory . outside available modules'
 
 -- x/go.mod --
 module m
@@ -64,3 +81,17 @@ package z
 
 -- x/y/z/w/w.go --
 package w
+
+-- @at/go.mod --
+module at
+
+go 1.14
+-- @at/at.go --
+package at
+
+-- badat/go.mod --
+module badat
+
+go 1.14
+-- badat/bad@/bad.go --
+package bad

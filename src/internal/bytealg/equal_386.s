@@ -5,24 +5,6 @@
 #include "go_asm.h"
 #include "textflag.h"
 
-TEXT ·Equal(SB),NOSPLIT,$0-25
-	MOVL	a_len+4(FP), BX
-	MOVL	b_len+16(FP), CX
-	CMPL	BX, CX
-	JNE	neq
-	MOVL	a_base+0(FP), SI
-	MOVL	b_base+12(FP), DI
-	CMPL	SI, DI
-	JEQ	eq
-	LEAL	ret+24(FP), AX
-	JMP	memeqbody<>(SB)
-neq:
-	MOVB	$0, ret+24(FP)
-	RET
-eq:
-	MOVB	$1, ret+24(FP)
-	RET
-
 // memequal(a, b unsafe.Pointer, size uintptr) bool
 TEXT runtime·memequal(SB),NOSPLIT,$0-13
 	MOVL	a+0(FP), SI

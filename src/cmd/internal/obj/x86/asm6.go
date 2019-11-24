@@ -961,7 +961,6 @@ var optab =
 	{ABSRL, yml_rl, Pm, opBytes{0xbd}},
 	{ABSRQ, yml_rl, Pw, opBytes{0x0f, 0xbd}},
 	{ABSRW, yml_rl, Pq, opBytes{0xbd}},
-	{ABSWAPW, ybswap, Pe, opBytes{0x0f, 0xc8}},
 	{ABSWAPL, ybswap, Px, opBytes{0x0f, 0xc8}},
 	{ABSWAPQ, ybswap, Pw, opBytes{0x0f, 0xc8}},
 	{ABTCL, ybtl, Pm, opBytes{0xba, 07, 0xbb}},
@@ -984,10 +983,12 @@ var optab =
 	{ACLAC, ynone, Pm, opBytes{01, 0xca}},
 	{ACLC, ynone, Px, opBytes{0xf8}},
 	{ACLD, ynone, Px, opBytes{0xfc}},
+	{ACLDEMOTE, yclflush, Pm, opBytes{0x1c, 00}},
 	{ACLFLUSH, yclflush, Pm, opBytes{0xae, 07}},
 	{ACLFLUSHOPT, yclflush, Pq, opBytes{0xae, 07}},
 	{ACLI, ynone, Px, opBytes{0xfa}},
 	{ACLTS, ynone, Pm, opBytes{0x06}},
+	{ACLWB, yclflush, Pq, opBytes{0xae, 06}},
 	{ACMC, ynone, Px, opBytes{0xf5}},
 	{ACMOVLCC, yml_rl, Pm, opBytes{0x43}},
 	{ACMOVLCS, yml_rl, Pm, opBytes{0x42}},
@@ -1501,6 +1502,7 @@ var optab =
 	{ATESTL, ytestl, Px, opBytes{0xa9, 0xf7, 00, 0x85, 0x85}},
 	{ATESTQ, ytestl, Pw, opBytes{0xa9, 0xf7, 00, 0x85, 0x85}},
 	{ATESTW, ytestl, Pe, opBytes{0xa9, 0xf7, 00, 0x85, 0x85}},
+	{ATPAUSE, ywrfsbase, Pq, opBytes{0xae, 06}},
 	{obj.ATEXT, ytext, Px, opBytes{}},
 	{AUCOMISD, yxm, Pe, opBytes{0x2e}},
 	{AUCOMISS, yxm, Pm, opBytes{0x2e}},
@@ -1508,6 +1510,7 @@ var optab =
 	{AUNPCKHPS, yxm, Pm, opBytes{0x15}},
 	{AUNPCKLPD, yxm, Pe, opBytes{0x14}},
 	{AUNPCKLPS, yxm, Pm, opBytes{0x14}},
+	{AUMONITOR, ywrfsbase, Pf3, opBytes{0xae, 06}},
 	{AVERR, ydivl, Pm, opBytes{0x00, 04}},
 	{AVERW, ydivl, Pm, opBytes{0x00, 05}},
 	{AWAIT, ynone, Px, opBytes{0x9b}},
@@ -1692,11 +1695,11 @@ var optab =
 	{AMOVDDUP, yxm, Pf2, opBytes{0x12}},
 	{AMOVSHDUP, yxm, Pf3, opBytes{0x16}},
 	{AMOVSLDUP, yxm, Pf3, opBytes{0x12}},
-
 	{ARDTSCP, ynone, Pm, opBytes{0x01, 0xf9, 0}},
 	{ASTAC, ynone, Pm, opBytes{0x01, 0xcb, 0}},
 	{AUD1, ynone, Pm, opBytes{0xb9, 0}},
 	{AUD2, ynone, Pm, opBytes{0x0b, 0}},
+	{AUMWAIT, ywrfsbase, Pf2, opBytes{0xae, 06}},
 	{ASYSENTER, ynone, Px, opBytes{0x0f, 0x34, 0}},
 	{ASYSENTER64, ynone, Pw, opBytes{0x0f, 0x34, 0}},
 	{ASYSEXIT, ynone, Px, opBytes{0x0f, 0x35, 0}},
@@ -1835,12 +1838,6 @@ func fillnop(p []byte, n int) {
 	}
 }
 
-func naclpad(ctxt *obj.Link, s *obj.LSym, c int32, pad int32) int32 {
-	s.Grow(int64(c) + int64(pad))
-	fillnop(s.P[c:], int(pad))
-	return c + pad
-}
-
 func spadjop(ctxt *obj.Link, l, q obj.As) obj.As {
 	if ctxt.Arch.Family != sys.AMD64 || ctxt.Arch.PtrSize == 4 {
 		return l
@@ -1906,39 +1903,6 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		s.P = s.P[:0]
 		c = 0
 		for p := s.Func.Text; p != nil; p = p.Link {
-			if ctxt.Headtype == objabi.Hnacl && p.Isize > 0 {
-				// pad everything to avoid crossing 32-byte boundary
-				if c>>5 != (c+int32(p.Isize)-1)>>5 {
-					c = naclpad(ctxt, s, c, -c&31)
-				}
-
-				// pad call deferreturn to start at 32-byte boundary
-				// so that subtracting 5 in jmpdefer will jump back
-				// to that boundary and rerun the call.
-				if p.As == obj.ACALL && p.To.Sym == deferreturn {
-					c = naclpad(ctxt, s, c, -c&31)
-				}
-
-				// pad call to end at 32-byte boundary
-				if p.As == obj.ACALL {
-					c = naclpad(ctxt, s, c, -(c+int32(p.Isize))&31)
-				}
-
-				// the linker treats REP and STOSQ as different instructions
-				// but in fact the REP is a prefix on the STOSQ.
-				// make sure REP has room for 2 more bytes, so that
-				// padding will not be inserted before the next instruction.
-				if (p.As == AREP || p.As == AREPN) && c>>5 != (c+3-1)>>5 {
-					c = naclpad(ctxt, s, c, -c&31)
-				}
-
-				// same for LOCK.
-				// various instructions follow; the longest is 4 bytes.
-				// give ourselves 8 bytes so as to avoid surprises.
-				if p.As == ALOCK && c>>5 != (c+8-1)>>5 {
-					c = naclpad(ctxt, s, c, -c&31)
-				}
-			}
 
 			if (p.Back&branchLoopHead != 0) && c&(loopAlign-1) != 0 {
 				// pad with NOPs
@@ -1979,11 +1943,6 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			m := ab.Len()
 			if int(p.Isize) != m {
 				p.Isize = uint8(m)
-				// When building for NaCl, we currently need
-				// at least 2 rounds to ensure proper 32-byte alignment.
-				if ctxt.Headtype == objabi.Hnacl {
-					reAssemble = true
-				}
 			}
 
 			s.Grow(p.Pc + int64(m))
@@ -2002,10 +1961,6 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		if ctxt.Errors > errors {
 			return
 		}
-	}
-
-	if ctxt.Headtype == objabi.Hnacl {
-		c = naclpad(ctxt, s, c, -c&31)
 	}
 
 	s.Size = int64(c)
@@ -2029,6 +1984,22 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			fmt.Printf(" rel %#.4x/%d %s%+d\n", uint32(r.Off), r.Siz, r.Sym.Name, r.Add)
 		}
 	}
+
+	// Mark nonpreemptible instruction sequences.
+	// The 2-instruction TLS access sequence
+	//	MOVQ TLS, BX
+	//	MOVQ 0(BX)(TLS*1), BX
+	// is not async preemptible, as if it is preempted and resumed on
+	// a different thread, the TLS address may become invalid.
+	if !CanUse1InsnTLS(ctxt) {
+		useTLS := func(p *obj.Prog) bool {
+			// Only need to mark the second instruction, which has
+			// REG_TLS as Index. (It is okay to interrupt and restart
+			// the first instruction.)
+			return p.From.Index == REG_TLS
+		}
+		obj.MarkUnsafePoints(ctxt, s.Func.Text, newprog, useTLS)
+	}
 }
 
 func instinit(ctxt *obj.Link) {
@@ -2042,8 +2013,6 @@ func instinit(ctxt *obj.Link) {
 	switch ctxt.Headtype {
 	case objabi.Hplan9:
 		plan9privates = ctxt.Lookup("_privates")
-	case objabi.Hnacl:
-		deferreturn = ctxt.LookupABI("runtime.deferreturn", obj.ABIInternal)
 	}
 
 	for i := range avxOptab {
@@ -2345,17 +2314,14 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 	if ctxt.Arch.Family == sys.I386 {
 		if a.Index == REG_TLS && ctxt.Flag_shared {
 			// When building for inclusion into a shared library, an instruction of the form
-			//     MOVL 0(CX)(TLS*1), AX
+			//     MOVL off(CX)(TLS*1), AX
 			// becomes
-			//     mov %gs:(%ecx), %eax
+			//     mov %gs:off(%ecx), %eax
 			// which assumes that the correct TLS offset has been loaded into %ecx (today
 			// there is only one TLS variable -- g -- so this is OK). When not building for
 			// a shared library the instruction it becomes
-			//     mov 0x0(%ecx), $eax
+			//     mov 0x0(%ecx), %eax
 			// and a R_TLS_LE relocation, and so does not require a prefix.
-			if a.Offset != 0 {
-				ctxt.Diag("cannot handle non-0 offsets to TLS")
-			}
 			return 0x65 // GS
 		}
 		return 0
@@ -2374,15 +2340,12 @@ func prefixof(ctxt *obj.Link, a *obj.Addr) int {
 	case REG_TLS:
 		if ctxt.Flag_shared && ctxt.Headtype != objabi.Hwindows {
 			// When building for inclusion into a shared library, an instruction of the form
-			//     MOV 0(CX)(TLS*1), AX
+			//     MOV off(CX)(TLS*1), AX
 			// becomes
-			//     mov %fs:(%rcx), %rax
+			//     mov %fs:off(%rcx), %rax
 			// which assumes that the correct TLS offset has been loaded into %rcx (today
 			// there is only one TLS variable -- g -- so this is OK). When not building for
 			// a shared library the instruction does not require a prefix.
-			if a.Offset != 0 {
-				log.Fatalf("cannot handle non-0 offsets to TLS")
-			}
 			return 0x64
 		}
 
@@ -3062,7 +3025,7 @@ func (ab *AsmBuf) Put(b []byte) {
 }
 
 // PutOpBytesLit writes zero terminated sequence of bytes from op,
-// starting at specified offsed (e.g. z counter value).
+// starting at specified offset (e.g. z counter value).
 // Trailing 0 is not written.
 //
 // Intended to be used for literal Z cases.
@@ -3521,7 +3484,7 @@ func (ab *AsmBuf) asmandsz(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj
 	}
 
 	if REG_AX <= base && base <= REG_R15 {
-		if a.Index == REG_TLS && !ctxt.Flag_shared {
+		if a.Index == REG_TLS && !ctxt.Flag_shared && !isAndroid {
 			rel = obj.Reloc{}
 			rel.Type = objabi.R_TLS_LE
 			rel.Siz = 4
@@ -4885,8 +4848,7 @@ func (ab *AsmBuf) doasm(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 						default:
 							log.Fatalf("unknown TLS base location for %v", ctxt.Headtype)
 
-						case objabi.Hlinux,
-							objabi.Hnacl, objabi.Hfreebsd:
+						case objabi.Hlinux, objabi.Hfreebsd:
 							if ctxt.Flag_shared {
 								// Note that this is not generating the same insns as the other cases.
 								//     MOV TLS, dst
@@ -5121,7 +5083,6 @@ bad:
 	}
 
 	ctxt.Diag("invalid instruction: %v", p)
-	//	ctxt.Diag("doasm: notfound ft=%d tt=%d %v %d %d", p.Ft, p.Tt, p, oclass(ctxt, p, &p.From), oclass(ctxt, p, &p.To))
 }
 
 // byteswapreg returns a byte-addressable register (AX, BX, CX, DX)
@@ -5183,165 +5144,8 @@ func isbadbyte(a *obj.Addr) bool {
 	return a.Type == obj.TYPE_REG && (REG_BP <= a.Reg && a.Reg <= REG_DI || REG_BPB <= a.Reg && a.Reg <= REG_DIB)
 }
 
-var naclret = []uint8{
-	0x5e, // POPL SI
-	// 0x8b, 0x7d, 0x00, // MOVL (BP), DI - catch return to invalid address, for debugging
-	0x83,
-	0xe6,
-	0xe0, // ANDL $~31, SI
-	0x4c,
-	0x01,
-	0xfe, // ADDQ R15, SI
-	0xff,
-	0xe6, // JMP SI
-}
-
-var naclret8 = []uint8{
-	0x5d, // POPL BP
-	// 0x8b, 0x7d, 0x00, // MOVL (BP), DI - catch return to invalid address, for debugging
-	0x83,
-	0xe5,
-	0xe0, // ANDL $~31, BP
-	0xff,
-	0xe5, // JMP BP
-}
-
-var naclspfix = []uint8{0x4c, 0x01, 0xfc} // ADDQ R15, SP
-
-var naclbpfix = []uint8{0x4c, 0x01, 0xfd} // ADDQ R15, BP
-
-var naclmovs = []uint8{
-	0x89,
-	0xf6, // MOVL SI, SI
-	0x49,
-	0x8d,
-	0x34,
-	0x37, // LEAQ (R15)(SI*1), SI
-	0x89,
-	0xff, // MOVL DI, DI
-	0x49,
-	0x8d,
-	0x3c,
-	0x3f, // LEAQ (R15)(DI*1), DI
-}
-
-var naclstos = []uint8{
-	0x89,
-	0xff, // MOVL DI, DI
-	0x49,
-	0x8d,
-	0x3c,
-	0x3f, // LEAQ (R15)(DI*1), DI
-}
-
-func (ab *AsmBuf) nacltrunc(ctxt *obj.Link, reg int) {
-	if reg >= REG_R8 {
-		ab.Put1(0x45)
-	}
-	reg = (reg - REG_AX) & 7
-	ab.Put2(0x89, byte(3<<6|reg<<3|reg))
-}
-
 func (ab *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 	ab.Reset()
-
-	if ctxt.Headtype == objabi.Hnacl && ctxt.Arch.Family == sys.I386 {
-		switch p.As {
-		case obj.ARET:
-			ab.Put(naclret8)
-			return
-
-		case obj.ACALL,
-			obj.AJMP:
-			if p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_DI {
-				ab.Put3(0x83, byte(0xe0|(p.To.Reg-REG_AX)), 0xe0)
-			}
-
-		case AINT:
-			ab.Put1(0xf4)
-			return
-		}
-	}
-
-	if ctxt.Headtype == objabi.Hnacl && ctxt.Arch.Family == sys.AMD64 {
-		if p.As == AREP {
-			ab.rep = true
-			return
-		}
-
-		if p.As == AREPN {
-			ab.repn = true
-			return
-		}
-
-		if p.As == ALOCK {
-			ab.lock = true
-			return
-		}
-
-		if p.As != ALEAQ && p.As != ALEAL {
-			if p.From.Index != REG_NONE && p.From.Scale > 0 {
-				ab.nacltrunc(ctxt, int(p.From.Index))
-			}
-			if p.To.Index != REG_NONE && p.To.Scale > 0 {
-				ab.nacltrunc(ctxt, int(p.To.Index))
-			}
-		}
-
-		switch p.As {
-		case obj.ARET:
-			ab.Put(naclret)
-			return
-
-		case obj.ACALL,
-			obj.AJMP:
-			if p.To.Type == obj.TYPE_REG && REG_AX <= p.To.Reg && p.To.Reg <= REG_DI {
-				// ANDL $~31, reg
-				ab.Put3(0x83, byte(0xe0|(p.To.Reg-REG_AX)), 0xe0)
-				// ADDQ R15, reg
-				ab.Put3(0x4c, 0x01, byte(0xf8|(p.To.Reg-REG_AX)))
-			}
-
-			if p.To.Type == obj.TYPE_REG && REG_R8 <= p.To.Reg && p.To.Reg <= REG_R15 {
-				// ANDL $~31, reg
-				ab.Put4(0x41, 0x83, byte(0xe0|(p.To.Reg-REG_R8)), 0xe0)
-				// ADDQ R15, reg
-				ab.Put3(0x4d, 0x01, byte(0xf8|(p.To.Reg-REG_R8)))
-			}
-
-		case AINT:
-			ab.Put1(0xf4)
-			return
-
-		case ASCASB,
-			ASCASW,
-			ASCASL,
-			ASCASQ,
-			ASTOSB,
-			ASTOSW,
-			ASTOSL,
-			ASTOSQ:
-			ab.Put(naclstos)
-
-		case AMOVSB, AMOVSW, AMOVSL, AMOVSQ:
-			ab.Put(naclmovs)
-		}
-
-		if ab.rep {
-			ab.Put1(0xf3)
-			ab.rep = false
-		}
-
-		if ab.repn {
-			ab.Put1(0xf2)
-			ab.repn = false
-		}
-
-		if ab.lock {
-			ab.Put1(0xf0)
-			ab.lock = false
-		}
-	}
 
 	ab.rexflag = 0
 	ab.vexflag = false
@@ -5400,15 +5204,6 @@ func (ab *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
 			r.Add += int64(r.Off) - p.Pc + int64(r.Siz)
 		}
 
-	}
-
-	if ctxt.Arch.Family == sys.AMD64 && ctxt.Headtype == objabi.Hnacl && p.As != ACMPL && p.As != ACMPQ && p.To.Type == obj.TYPE_REG {
-		switch p.To.Reg {
-		case REG_SP:
-			ab.Put(naclspfix)
-		case REG_BP:
-			ab.Put(naclbpfix)
-		}
 	}
 }
 

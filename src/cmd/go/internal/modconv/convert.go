@@ -13,10 +13,11 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/modfetch"
-	"cmd/go/internal/modfile"
-	"cmd/go/internal/module"
 	"cmd/go/internal/par"
-	"cmd/go/internal/semver"
+
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
 // ConvertLegacyConfig converts legacy config to modfile.
@@ -41,19 +42,29 @@ func ConvertLegacyConfig(f *modfile.File, file string, data []byte) error {
 
 	// Convert requirements block, which may use raw SHA1 hashes as versions,
 	// to valid semver requirement list, respecting major versions.
-	var work par.Work
+	var (
+		work    par.Work
+		mu      sync.Mutex
+		need    = make(map[string]string)
+		replace = make(map[string]*modfile.Replace)
+	)
+
+	for _, r := range mf.Replace {
+		replace[r.New.Path] = r
+		replace[r.Old.Path] = r
+	}
 	for _, r := range mf.Require {
 		m := r.Mod
 		if m.Path == "" {
 			continue
 		}
+		if re, ok := replace[m.Path]; ok {
+			work.Add(re.New)
+			continue
+		}
 		work.Add(r.Mod)
 	}
 
-	var (
-		mu   sync.Mutex
-		need = make(map[string]string)
-	)
 	work.Do(10, func(item interface{}) {
 		r := item.(module.Version)
 		repo, info, err := modfetch.ImportRepoRev(r.Path, r.Version)
@@ -76,15 +87,15 @@ func ConvertLegacyConfig(f *modfile.File, file string, data []byte) error {
 	}
 	sort.Strings(paths)
 	for _, path := range paths {
+		if re, ok := replace[path]; ok {
+			err := f.AddReplace(re.Old.Path, re.Old.Version, path, need[path])
+			if err != nil {
+				return fmt.Errorf("add replace: %v", err)
+			}
+		}
 		f.AddNewRequire(path, need[path], false)
 	}
 
-	for _, r := range mf.Replace {
-		err := f.AddReplace(r.Old.Path, r.Old.Version, r.New.Path, r.New.Version)
-		if err != nil {
-			return fmt.Errorf("add replace: %v", err)
-		}
-	}
 	f.Cleanup()
 	return nil
 }

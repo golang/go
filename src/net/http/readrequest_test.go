@@ -133,7 +133,7 @@ var reqTests = []reqTest{
 		nil,
 		noBodyStr,
 		noTrailer,
-		"parse ../../../../etc/passwd: invalid URI for request",
+		`parse "../../../../etc/passwd": invalid URI for request`,
 	},
 
 	// Tests missing URL:
@@ -143,7 +143,7 @@ var reqTests = []reqTest{
 		nil,
 		noBodyStr,
 		noTrailer,
-		"parse : empty url",
+		`parse "": empty url`,
 	},
 
 	// Tests chunked body with trailer:

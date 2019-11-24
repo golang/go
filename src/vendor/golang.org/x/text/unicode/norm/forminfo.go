@@ -4,6 +4,8 @@
 
 package norm
 
+import "encoding/binary"
+
 // This file contains Form-specific logic and wrappers for data in tables.go.
 
 // Rune info is stored in a separate trie per composing form. A composing form
@@ -178,6 +180,17 @@ func (p Properties) TrailCCC() uint8 {
 	return ccc[p.tccc]
 }
 
+func buildRecompMap() {
+	recompMap = make(map[uint32]rune, len(recompMapPacked)/8)
+	var buf [8]byte
+	for i := 0; i < len(recompMapPacked); i += 8 {
+		copy(buf[:], recompMapPacked[i:i+8])
+		key := binary.BigEndian.Uint32(buf[:4])
+		val := binary.BigEndian.Uint32(buf[4:])
+		recompMap[key] = rune(val)
+	}
+}
+
 // Recomposition
 // We use 32-bit keys instead of 64-bit for the two codepoint keys.
 // This clips off the bits of three entries, but we know this will not
@@ -186,8 +199,14 @@ func (p Properties) TrailCCC() uint8 {
 // Note that the recomposition map for NFC and NFKC are identical.
 
 // combine returns the combined rune or 0 if it doesn't exist.
+//
+// The caller is responsible for calling
+// recompMapOnce.Do(buildRecompMap) sometime before this is called.
 func combine(a, b rune) rune {
 	key := uint32(uint16(a))<<16 + uint32(uint16(b))
+	if recompMap == nil {
+		panic("caller error") // see func comment
+	}
 	return recompMap[key]
 }
 

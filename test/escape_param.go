@@ -27,7 +27,7 @@ func caller0a() {
 
 func caller0b() {
 	i := 0            // ERROR "moved to heap: i$"
-	sink = param0(&i) // ERROR "param0\(&i\) escapes to heap"
+	sink = param0(&i)
 }
 
 // in, in -> out, out
@@ -42,7 +42,7 @@ func caller1() {
 }
 
 // in -> other in
-func param2(p1 *int, p2 **int) { // ERROR "leaking param: p1$" "param2 p2 does not escape$"
+func param2(p1 *int, p2 **int) { // ERROR "leaking param: p1$" "p2 does not escape$"
 	*p2 = p1
 }
 
@@ -57,7 +57,7 @@ func caller2b() {
 	i := 0 // ERROR "moved to heap: i$"
 	var p *int
 	param2(&i, &p)
-	sink = p       // ERROR "p escapes to heap$"
+	sink = p
 }
 
 func paramArraySelfAssign(p *PairOfPairs) { // ERROR "p does not escape"
@@ -88,27 +88,27 @@ func leakParam(x interface{}) { // ERROR "leaking param: x"
 
 func sinkAfterSelfAssignment1(box *BoxedPair) { // ERROR "leaking param content: box"
 	box.pair.p1 = box.pair.p2 // ERROR "ignoring self-assignment in box.pair.p1 = box.pair.p2"
-	sink = box.pair.p2        // ERROR "box.pair.p2 escapes to heap"
+	sink = box.pair.p2
 }
 
 func sinkAfterSelfAssignment2(box *BoxedPair) { // ERROR "leaking param content: box"
 	box.pair.p1 = box.pair.p2 // ERROR "ignoring self-assignment in box.pair.p1 = box.pair.p2"
-	sink = box.pair           // ERROR "box.pair escapes to heap"
+	sink = box.pair
 }
 
 func sinkAfterSelfAssignment3(box *BoxedPair) { // ERROR "leaking param content: box"
 	box.pair.p1 = box.pair.p2 // ERROR "ignoring self-assignment in box.pair.p1 = box.pair.p2"
-	leakParam(box.pair.p2)    // ERROR "box.pair.p2 escapes to heap"
+	leakParam(box.pair.p2)
 }
 
 func sinkAfterSelfAssignment4(box *BoxedPair) { // ERROR "leaking param content: box"
 	box.pair.p1 = box.pair.p2 // ERROR "ignoring self-assignment in box.pair.p1 = box.pair.p2"
-	leakParam(box.pair)       // ERROR "box.pair escapes to heap"
+	leakParam(box.pair)
 }
 
 func selfAssignmentAndUnrelated(box1, box2 *BoxedPair) { // ERROR "leaking param content: box2" "box1 does not escape"
 	box1.pair.p1 = box1.pair.p2 // ERROR "ignoring self-assignment in box1.pair.p1 = box1.pair.p2"
-	leakParam(box2.pair.p2)     // ERROR "box2.pair.p2 escapes to heap"
+	leakParam(box2.pair.p2)
 }
 
 func notSelfAssignment1(box1, box2 *BoxedPair) { // ERROR "leaking param content: box2" "box1 does not escape"
@@ -137,7 +137,7 @@ type Pair struct {
 	p2 *int
 }
 
-func param3(p *Pair) { // ERROR "param3 p does not escape"
+func param3(p *Pair) { // ERROR "p does not escape"
 	p.p1 = p.p2 // ERROR "param3 ignoring self-assignment in p.p1 = p.p2"
 }
 
@@ -158,7 +158,7 @@ func caller3b() {
 }
 
 // in -> rcvr
-func (p *Pair) param4(i *int) { // ERROR "\(\*Pair\).param4 p does not escape$" "leaking param: i$"
+func (p *Pair) param4(i *int) { // ERROR "p does not escape$" "leaking param: i$"
 	p.p1 = i
 }
 
@@ -178,7 +178,7 @@ func caller4b() {
 
 // in -> heap
 func param5(i *int) { // ERROR "leaking param: i$"
-	sink = i // ERROR "i escapes to heap$"
+	sink = i
 }
 
 func caller5() {
@@ -188,7 +188,7 @@ func caller5() {
 
 // *in -> heap
 func param6(i ***int) { // ERROR "leaking param content: i$"
-	sink = *i // ERROR "\*i escapes to heap$"
+	sink = *i
 }
 
 func caller6a() {
@@ -200,18 +200,18 @@ func caller6a() {
 
 // **in -> heap
 func param7(i ***int) { // ERROR "leaking param content: i$"
-	sink = **i // ERROR "\* \(\*i\) escapes to heap"
+	sink = **i
 }
 
 func caller7() {
 	i := 0      // ERROR "moved to heap: i$"
-	p := &i     // ERROR "moved to heap: p$"
+	p := &i
 	p2 := &p
 	param7(&p2)
 }
 
 // **in -> heap
-func param8(i **int) { // ERROR "param8 i does not escape$"
+func param8(i **int) { // ERROR "i does not escape$"
 	sink = **i // ERROR "\* \(\*i\) escapes to heap"
 }
 
@@ -237,7 +237,7 @@ func caller9b() {
 	i := 0             // ERROR "moved to heap: i$"
 	p := &i            // ERROR "moved to heap: p$"
 	p2 := &p
-	sink = param9(&p2) // ERROR  "param9\(&p2\) escapes to heap"
+	sink = param9(&p2)
 }
 
 // **in -> out
@@ -256,7 +256,7 @@ func caller10b() {
 	i := 0              // ERROR "moved to heap: i$"
 	p := &i
 	p2 := &p
-	sink = param10(&p2) // ERROR "param10\(&p2\) escapes to heap"
+	sink = param10(&p2)
 }
 
 // in escapes to heap (address of param taken and returned)
@@ -273,20 +273,20 @@ func caller11a() {
 func caller11b() {
 	i := 0             // ERROR "moved to heap: i$"
 	p := &i            // ERROR "moved to heap: p$"
-	sink = param11(&p) // ERROR "param11\(&p\) escapes to heap"
+	sink = param11(&p)
 }
 
 func caller11c() { // GOOD
 	i := 0              // ERROR "moved to heap: i$"
 	p := &i             // ERROR "moved to heap: p"
-	sink = *param11(&p) // ERROR "\*param11\(&p\) escapes to heap"
+	sink = *param11(&p)
 }
 
 func caller11d() {
 	i := 0             // ERROR "moved to heap: i$"
 	p := &i            // ERROR "moved to heap: p"
 	p2 := &p
-	sink = param11(p2) // ERROR "param11\(p2\) escapes to heap"
+	sink = param11(p2)
 }
 
 // &in -> rcvr
@@ -294,7 +294,7 @@ type Indir struct {
 	p ***int
 }
 
-func (r *Indir) param12(i **int) { // ERROR "\(\*Indir\).param12 r does not escape$" "moved to heap: i$"
+func (r *Indir) param12(i **int) { // ERROR "r does not escape$" "moved to heap: i$"
 	r.p = &i
 }
 
@@ -309,7 +309,7 @@ func caller12a() {
 func caller12b() {
 	i := 0        // ERROR "moved to heap: i$"
 	p := &i       // ERROR "moved to heap: p$"
-	r := &Indir{} // ERROR "caller12b &Indir literal does not escape$"
+	r := &Indir{} // ERROR "&Indir literal does not escape$"
 	r.param12(&p)
 	_ = r
 }
@@ -319,7 +319,7 @@ func caller12c() {
 	p := &i // ERROR "moved to heap: p$"
 	r := Indir{}
 	r.param12(&p)
-	sink = r      // ERROR "r escapes to heap$"
+	sink = r
 }
 
 func caller12d() {
@@ -327,7 +327,7 @@ func caller12d() {
 	p := &i // ERROR "moved to heap: p$"
 	r := Indir{}
 	r.param12(&p)
-	sink = **r.p  // ERROR "\* \(\*r\.p\) escapes to heap"
+	sink = **r.p
 }
 
 // in -> value rcvr
@@ -335,7 +335,7 @@ type Val struct {
 	p **int
 }
 
-func (v Val) param13(i *int) { // ERROR "Val.param13 v does not escape$" "leaking param: i$"
+func (v Val) param13(i *int) { // ERROR "v does not escape$" "leaking param: i$"
 	*v.p = i
 }
 
@@ -359,7 +359,7 @@ func caller13b() {
 func caller13c() {
 	i := 0 // ERROR "moved to heap: i$"
 	var p *int
-	v := &Val{&p} // ERROR "caller13c &Val literal does not escape$"
+	v := &Val{&p} // ERROR "&Val literal does not escape$"
 	v.param13(&i)
 	_ = v
 }
@@ -370,7 +370,7 @@ func caller13d() {
 	var v Val
 	v.p = &p
 	v.param13(&i)
-	sink = v      // ERROR "v escapes to heap$"
+	sink = v
 }
 
 func caller13e() {
@@ -378,7 +378,7 @@ func caller13e() {
 	var p *int    // ERROR "moved to heap: p$"
 	v := Val{&p}
 	v.param13(&i)
-	sink = v      // ERROR "v escapes to heap$"
+	sink = v
 }
 
 func caller13f() {
@@ -386,7 +386,7 @@ func caller13f() {
 	var p *int    // ERROR "moved to heap: p$"
 	v := &Val{&p} // ERROR "&Val literal escapes to heap$"
 	v.param13(&i)
-	sink = v      // ERROR "v escapes to heap$"
+	sink = v
 }
 
 func caller13g() {
@@ -394,13 +394,13 @@ func caller13g() {
 	var p *int
 	v := Val{&p}
 	v.param13(&i)
-	sink = *v.p   // ERROR "\*v\.p escapes to heap"
+	sink = *v.p
 }
 
 func caller13h() {
 	i := 0 // ERROR "moved to heap: i$"
 	var p *int
-	v := &Val{&p} // ERROR "caller13h &Val literal does not escape$"
+	v := &Val{&p} // ERROR "&Val literal does not escape$"
 	v.param13(&i)
 	sink = **v.p  // ERROR "\* \(\*v\.p\) escapes to heap"
 }
@@ -415,12 +415,12 @@ func f(x *Node) { // ERROR "leaking param content: x"
 	Sink = &Node{x.p} // ERROR "&Node literal escapes to heap"
 }
 
-func g(x *Node) *Node { // ERROR "leaking param: x to result ~r1 level=0"
+func g(x *Node) *Node { // ERROR "leaking param content: x"
 	return &Node{x.p} // ERROR "&Node literal escapes to heap"
 }
 
 func h(x *Node) { // ERROR "leaking param: x"
-	y := &Node{x} // ERROR "h &Node literal does not escape"
+	y := &Node{x} // ERROR "&Node literal does not escape"
 	Sink = g(y)
 	f(y)
 }
@@ -437,5 +437,5 @@ func param14a(x [4]*int) interface{} { // ERROR "leaking param: x$"
 // Convert to a direct interface, does not need an allocation.
 // So x only leaks to result.
 func param14b(x *int) interface{} { // ERROR "leaking param: x to result ~r1 level=0"
-	return x // ERROR "x escapes to heap"
+	return x
 }

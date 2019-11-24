@@ -138,6 +138,9 @@ func matchTag(name string, tags map[string]bool, want bool) bool {
 	if name == "linux" {
 		have = have || tags["android"]
 	}
+	if name == "solaris" {
+		have = have || tags["illumos"]
+	}
 	return have == want
 }
 
@@ -152,7 +155,9 @@ func matchTag(name string, tags map[string]bool, want bool) bool {
 //     name_$(GOARCH)_test.*
 //     name_$(GOOS)_$(GOARCH)_test.*
 //
-// An exception: if GOOS=android, then files with GOOS=linux are also matched.
+// Exceptions:
+//     if GOOS=android, then files with GOOS=linux are also matched.
+//     if GOOS=illumos, then files with GOOS=solaris are also matched.
 //
 // If tags["*"] is true, then MatchFile will consider all possible
 // GOOS and GOARCH to be available and will consequently
@@ -202,9 +207,10 @@ var KnownOS = map[string]bool{
 	"dragonfly": true,
 	"freebsd":   true,
 	"hurd":      true,
+	"illumos":   true,
 	"js":        true,
 	"linux":     true,
-	"nacl":      true,
+	"nacl":      true, // legacy; don't remove
 	"netbsd":    true,
 	"openbsd":   true,
 	"plan9":     true,
@@ -216,7 +222,7 @@ var KnownOS = map[string]bool{
 var KnownArch = map[string]bool{
 	"386":         true,
 	"amd64":       true,
-	"amd64p32":    true,
+	"amd64p32":    true, // legacy; don't remove
 	"arm":         true,
 	"armbe":       true,
 	"arm64":       true,

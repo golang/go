@@ -7,6 +7,7 @@ package x509
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rsa"
 	"encoding/hex"
@@ -39,6 +40,9 @@ var pkcs8P384PrivateKeyHex = `3081b6020100301006072a8648ce3d020106052b8104002204
 // regenerate this you may, randomly, find that it's a byte shorter than
 // expected and the Go test will fail to recreate it exactly.
 var pkcs8P521PrivateKeyHex = `3081ee020100301006072a8648ce3d020106052b810400230481d63081d3020101044200cfe0b87113a205cf291bb9a8cd1a74ac6c7b2ebb8199aaa9a5010d8b8012276fa3c22ac913369fa61beec2a3b8b4516bc049bde4fb3b745ac11b56ab23ac52e361a1818903818600040138f75acdd03fbafa4f047a8e4b272ba9d555c667962b76f6f232911a5786a0964e5edea6bd21a6f8725720958de049c6e3e6661c1c91b227cebee916c0319ed6ca003db0a3206d372229baf9dd25d868bf81140a518114803ce40c1855074d68c4e9dab9e65efba7064c703b400f1767f217dac82715ac1f6d88c74baf47a7971de4ea`
+
+// From RFC 8410, Section 7.
+var pkcs8Ed25519PrivateKeyHex = `302e020100300506032b657004220420d4ee72dbf913584ad5b6d8f1f769f8ad3afe7c28cbf1d4fbe097a88f44755842`
 
 func TestPKCS8(t *testing.T) {
 	tests := []struct {
@@ -76,6 +80,11 @@ func TestPKCS8(t *testing.T) {
 			keyType: reflect.TypeOf(&ecdsa.PrivateKey{}),
 			curve:   elliptic.P521(),
 		},
+		{
+			name:    "Ed25519 private key",
+			keyHex:  pkcs8Ed25519PrivateKeyHex,
+			keyType: reflect.TypeOf(ed25519.PrivateKey{}),
+		},
 	}
 
 	for _, test := range tests {
@@ -103,7 +112,7 @@ func TestPKCS8(t *testing.T) {
 			continue
 		}
 		if !bytes.Equal(derBytes, reserialised) {
-			t.Errorf("%s: marshalled PKCS#8 didn't match original: got %x, want %x", test.name, reserialised, derBytes)
+			t.Errorf("%s: marshaled PKCS#8 didn't match original: got %x, want %x", test.name, reserialised, derBytes)
 			continue
 		}
 	}

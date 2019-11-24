@@ -138,3 +138,6 @@ TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0
 	RET
 
 // TODO: Implement runtime·duffcopy.
+TEXT runtime·duffcopy(SB),NOSPLIT|NOFRAME,$0-0
+	MOVD	R0, 0(R0)
+	RET

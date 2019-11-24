@@ -28,12 +28,18 @@ type ecPrivateKey struct {
 	PublicKey     asn1.BitString        `asn1:"optional,explicit,tag:1"`
 }
 
-// ParseECPrivateKey parses an ASN.1 Elliptic Curve Private Key Structure.
+// ParseECPrivateKey parses an EC private key in SEC 1, ASN.1 DER form.
+//
+// This kind of key is commonly encoded in PEM blocks of type "EC PRIVATE KEY".
 func ParseECPrivateKey(der []byte) (*ecdsa.PrivateKey, error) {
 	return parseECPrivateKey(nil, der)
 }
 
-// MarshalECPrivateKey marshals an EC private key into ASN.1, DER format.
+// MarshalECPrivateKey converts an EC private key to SEC 1, ASN.1 DER form.
+//
+// This kind of key is commonly encoded in PEM blocks of type "EC PRIVATE KEY".
+// For a more flexible key format which is not EC specific, use
+// MarshalPKCS8PrivateKey.
 func MarshalECPrivateKey(key *ecdsa.PrivateKey) ([]byte, error) {
 	oid, ok := oidFromNamedCurve(key.Curve)
 	if !ok {

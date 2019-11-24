@@ -8,8 +8,6 @@
 
 package cgotest
 
-import "C"
-
 import (
 	"bytes"
 	"crypto/md5"

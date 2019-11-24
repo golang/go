@@ -30,18 +30,20 @@
 package work
 
 import (
-	"cmd/go/internal/load"
 	"fmt"
 	"internal/lazyregexp"
-	"os"
 	"regexp"
 	"strings"
+
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
 )
 
 var re = lazyregexp.New
 
 var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-D([A-Za-z_].*)`),
+	re(`-U([A-Za-z_]*)`),
 	re(`-F([^@\-].*)`),
 	re(`-I([^@\-].*)`),
 	re(`-O`),
@@ -50,6 +52,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-W([^@,]+)`), // -Wall but not -Wa,-foo.
 	re(`-Wa,-mbig-obj`),
 	re(`-Wp,-D([A-Za-z_].*)`),
+	re(`-Wp, -U([A-Za-z_]*)`),
 	re(`-ansi`),
 	re(`-f(no-)?asynchronous-unwind-tables`),
 	re(`-f(no-)?blocks`),
@@ -126,6 +129,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 var validCompilerFlagsWithNextArg = []string{
 	"-arch",
 	"-D",
+	"-U",
 	"-I",
 	"-framework",
 	"-isysroot",
@@ -183,6 +187,8 @@ var validLinkerFlags = []*lazyregexp.Regexp{
 	re(`-Wl,-framework,[^,@\-][^,]+`),
 	re(`-Wl,-headerpad_max_install_names`),
 	re(`-Wl,--no-undefined`),
+	re(`-Wl,-R([^@\-][^,@]*$)`),
+	re(`-Wl,--just-symbols[=,]([^,@\-][^,@]+)`),
 	re(`-Wl,-rpath(-link)?[=,]([^,@\-][^,]+)`),
 	re(`-Wl,-s`),
 	re(`-Wl,-search_paths_first`),
@@ -212,6 +218,8 @@ var validLinkerFlagsWithNextArg = []string{
 	"-target",
 	"-Wl,-framework",
 	"-Wl,-rpath",
+	"-Wl,-R",
+	"-Wl,--just-symbols",
 	"-Wl,-undefined",
 }
 
@@ -229,14 +237,14 @@ func checkFlags(name, source string, list []string, valid []*lazyregexp.Regexp, 
 		allow    *regexp.Regexp
 		disallow *regexp.Regexp
 	)
-	if env := os.Getenv("CGO_" + name + "_ALLOW"); env != "" {
+	if env := cfg.Getenv("CGO_" + name + "_ALLOW"); env != "" {
 		r, err := regexp.Compile(env)
 		if err != nil {
 			return fmt.Errorf("parsing $CGO_%s_ALLOW: %v", name, err)
 		}
 		allow = r
 	}
-	if env := os.Getenv("CGO_" + name + "_DISALLOW"); env != "" {
+	if env := cfg.Getenv("CGO_" + name + "_DISALLOW"); env != "" {
 		r, err := regexp.Compile(env)
 		if err != nil {
 			return fmt.Errorf("parsing $CGO_%s_DISALLOW: %v", name, err)
@@ -273,6 +281,15 @@ Args:
 					!strings.Contains(list[i+1][4:], ",") {
 					i++
 					continue Args
+				}
+
+				// Permit -I= /path, -I $SYSROOT.
+				if i+1 < len(list) && arg == "-I" {
+					if (strings.HasPrefix(list[i+1], "=") || strings.HasPrefix(list[i+1], "$SYSROOT")) &&
+						load.SafeArg(list[i+1][1:]) {
+						i++
+						continue Args
+					}
 				}
 
 				if i+1 < len(list) {

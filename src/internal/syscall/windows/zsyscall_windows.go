@@ -58,6 +58,8 @@ var (
 	procNetShareAdd                  = modnetapi32.NewProc("NetShareAdd")
 	procNetShareDel                  = modnetapi32.NewProc("NetShareDel")
 	procGetFinalPathNameByHandleW    = modkernel32.NewProc("GetFinalPathNameByHandleW")
+	procCreateEnvironmentBlock       = moduserenv.NewProc("CreateEnvironmentBlock")
+	procDestroyEnvironmentBlock      = moduserenv.NewProc("DestroyEnvironmentBlock")
 	procImpersonateSelf              = modadvapi32.NewProc("ImpersonateSelf")
 	procRevertToSelf                 = modadvapi32.NewProc("RevertToSelf")
 	procOpenThreadToken              = modadvapi32.NewProc("OpenThreadToken")
@@ -211,6 +213,36 @@ func GetFinalPathNameByHandle(file syscall.Handle, filePath *uint16, filePathSiz
 	r0, _, e1 := syscall.Syscall6(procGetFinalPathNameByHandleW.Addr(), 4, uintptr(file), uintptr(unsafe.Pointer(filePath)), uintptr(filePathSize), uintptr(flags), 0, 0)
 	n = uint32(r0)
 	if n == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func CreateEnvironmentBlock(block **uint16, token syscall.Token, inheritExisting bool) (err error) {
+	var _p0 uint32
+	if inheritExisting {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r1, _, e1 := syscall.Syscall(procCreateEnvironmentBlock.Addr(), 3, uintptr(unsafe.Pointer(block)), uintptr(token), uintptr(_p0))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func DestroyEnvironmentBlock(block *uint16) (err error) {
+	r1, _, e1 := syscall.Syscall(procDestroyEnvironmentBlock.Addr(), 1, uintptr(unsafe.Pointer(block)), 0, 0)
+	if r1 == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)
 		} else {

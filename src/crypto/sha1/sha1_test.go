@@ -168,12 +168,12 @@ type unmarshalTest struct {
 
 var largeUnmarshalTests = []unmarshalTest{
 	// Data length: 7_102_415_735
-	unmarshalTest{
+	{
 		state: "sha\x01\x13\xbc\xfe\x83\x8c\xbd\xdfP\x1f\xd8ڿ<\x9eji8t\xe1\xa5@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuv\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\xa7VCw",
 		sum:   "bc6245c9959cc33e1c2592e5c9ea9b5d0431246c",
 	},
 	// Data length: 6_565_544_823
-	unmarshalTest{
+	{
 		state: "sha\x01m;\x16\xa6R\xbe@\xa9nĈ\xf9S\x03\x00B\xc2\xdcv\xcf@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuv\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x87VCw",
 		sum:   "8f2d1c0e4271768f35feb918bfe21ea1387a2072",
 	},

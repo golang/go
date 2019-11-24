@@ -111,10 +111,17 @@ func openDir(name string) (file *File, err error) {
 
 	path := fixLongPath(name)
 
-	if len(path) == 2 && path[1] == ':' || (len(path) > 0 && path[len(path)-1] == '\\') { // it is a drive letter, like C:
+	if len(path) == 2 && path[1] == ':' { // it is a drive letter, like C:
 		mask = path + `*`
+	} else if len(path) > 0 {
+		lc := path[len(path)-1]
+		if lc == '/' || lc == '\\' {
+			mask = path + `*`
+		} else {
+			mask = path + `\*`
+		}
 	} else {
-		mask = path + `\*`
+		mask = `\*`
 	}
 	maskp, e := syscall.UTF16PtrFromString(mask)
 	if e != nil {
@@ -178,6 +185,7 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 // Close closes the File, rendering it unusable for I/O.
 // On files that support SetDeadline, any pending I/O operations will
 // be canceled and return immediately with an error.
+// Close will return an error if it has already been called.
 func (file *File) Close() error {
 	if file == nil {
 		return ErrInvalid

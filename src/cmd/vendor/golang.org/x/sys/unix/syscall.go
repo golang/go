@@ -50,5 +50,4 @@ func BytePtrFromString(s string) (*byte, error) {
 }
 
 // Single-word zero for use when we need a valid pointer to 0 bytes.
-// See mkunix.pl.
 var _zero uintptr

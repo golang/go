@@ -71,9 +71,25 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
 	v.nodeID[n] = id
 	v.visitgen++
 	min := v.visitgen
-
 	v.stack = append(v.stack, n)
-	min = v.visitcodelist(n.Nbody, min)
+
+	inspectList(n.Nbody, func(n *Node) bool {
+		switch n.Op {
+		case OCALLFUNC, OCALLMETH:
+			fn := asNode(n.Left.Type.Nname())
+			if fn != nil && fn.Op == ONAME && fn.Class() == PFUNC && fn.Name.Defn != nil {
+				if m := v.visit(fn.Name.Defn); m < min {
+					min = m
+				}
+			}
+		case OCLOSURE:
+			if m := v.visit(n.Func.Closure); m < min {
+				min = m
+			}
+		}
+		return true
+	})
+
 	if (min == id || min == id+1) && !n.Func.IsHiddenClosure() {
 		// This node is the root of a strongly connected component.
 
@@ -100,45 +116,6 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
 		// Run escape analysis on this set of functions.
 		v.stack = v.stack[:i]
 		v.analyze(block, recursive)
-	}
-
-	return min
-}
-
-func (v *bottomUpVisitor) visitcodelist(l Nodes, min uint32) uint32 {
-	for _, n := range l.Slice() {
-		min = v.visitcode(n, min)
-	}
-	return min
-}
-
-func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
-	if n == nil {
-		return min
-	}
-
-	min = v.visitcodelist(n.Ninit, min)
-	min = v.visitcode(n.Left, min)
-	min = v.visitcode(n.Right, min)
-	min = v.visitcodelist(n.List, min)
-	min = v.visitcodelist(n.Nbody, min)
-	min = v.visitcodelist(n.Rlist, min)
-
-	switch n.Op {
-	case OCALLFUNC, OCALLMETH:
-		fn := asNode(n.Left.Type.Nname())
-		if fn != nil && fn.Op == ONAME && fn.Class() == PFUNC && fn.Name.Defn != nil {
-			m := v.visit(fn.Name.Defn)
-			if m < min {
-				min = m
-			}
-		}
-
-	case OCLOSURE:
-		m := v.visit(n.Func.Closure)
-		if m < min {
-			min = m
-		}
 	}
 
 	return min

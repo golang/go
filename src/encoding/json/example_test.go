@@ -170,7 +170,6 @@ func ExampleDecoder_Decode_stream() {
 	// Sam: Go fmt who?
 	// Ed: Go fmt yourself!
 	// json.Delim: ]
-
 }
 
 // This example uses RawMessage to delay parsing part of a JSON message.

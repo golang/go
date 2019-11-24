@@ -1077,6 +1077,12 @@ func (state *debugState) writePendingEntry(varID VarID, endBlock, endValue ID) {
 // PutLocationList adds list (a location list in its intermediate representation) to listSym.
 func (debugInfo *FuncDebug) PutLocationList(list []byte, ctxt *obj.Link, listSym, startPC *obj.LSym) {
 	getPC := debugInfo.GetPC
+
+	if ctxt.UseBASEntries {
+		listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, ^0)
+		listSym.WriteAddr(ctxt, listSym.Size, ctxt.Arch.PtrSize, startPC, 0)
+	}
+
 	// Re-read list, translating its address from block/value ID to PC.
 	for i := 0; i < len(list); {
 		begin := getPC(decodeValue(ctxt, readPtr(ctxt, list[i:])))
@@ -1090,17 +1096,21 @@ func (debugInfo *FuncDebug) PutLocationList(list []byte, ctxt *obj.Link, listSym
 			end = 1
 		}
 
-		writePtr(ctxt, list[i:], uint64(begin))
-		writePtr(ctxt, list[i+ctxt.Arch.PtrSize:], uint64(end))
+		if ctxt.UseBASEntries {
+			listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, int64(begin))
+			listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, int64(end))
+		} else {
+			listSym.WriteCURelativeAddr(ctxt, listSym.Size, startPC, int64(begin))
+			listSym.WriteCURelativeAddr(ctxt, listSym.Size, startPC, int64(end))
+		}
+
 		i += 2 * ctxt.Arch.PtrSize
-		i += 2 + int(ctxt.Arch.ByteOrder.Uint16(list[i:]))
+		datalen := 2 + int(ctxt.Arch.ByteOrder.Uint16(list[i:]))
+		listSym.WriteBytes(ctxt, listSym.Size, list[i:i+datalen]) // copy datalen and location encoding
+		i += datalen
 	}
 
-	// Base address entry.
-	listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, ^0)
-	listSym.WriteAddr(ctxt, listSym.Size, ctxt.Arch.PtrSize, startPC, 0)
 	// Location list contents, now with real PCs.
-	listSym.WriteBytes(ctxt, listSym.Size, list)
 	// End entry.
 	listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, 0)
 	listSym.WriteInt(ctxt, listSym.Size, ctxt.Arch.PtrSize, 0)

@@ -7,17 +7,12 @@ package tls
 import (
 	"bytes"
 	"crypto"
-	"crypto/ecdsa"
 	"crypto/elliptic"
-	"crypto/rsa"
 	"crypto/x509"
-	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"math/big"
 	"net"
 	"os"
 	"os/exec"
@@ -26,52 +21,6 @@ import (
 	"testing"
 	"time"
 )
-
-// zeroSource is an io.Reader that returns an unlimited number of zero bytes.
-type zeroSource struct{}
-
-func (zeroSource) Read(b []byte) (n int, err error) {
-	for i := range b {
-		b[i] = 0
-	}
-
-	return len(b), nil
-}
-
-var testConfig *Config
-
-func allCipherSuites() []uint16 {
-	ids := make([]uint16, len(cipherSuites))
-	for i, suite := range cipherSuites {
-		ids[i] = suite.id
-	}
-
-	return ids
-}
-
-func init() {
-	testConfig = &Config{
-		Time:               func() time.Time { return time.Unix(0, 0) },
-		Rand:               zeroSource{},
-		Certificates:       make([]Certificate, 2),
-		InsecureSkipVerify: true,
-		MinVersion:         VersionSSL30,
-		MaxVersion:         VersionTLS13,
-		CipherSuites:       allCipherSuites(),
-	}
-	testConfig.Certificates[0].Certificate = [][]byte{testRSACertificate}
-	testConfig.Certificates[0].PrivateKey = testRSAPrivateKey
-	testConfig.Certificates[1].Certificate = [][]byte{testSNICertificate}
-	testConfig.Certificates[1].PrivateKey = testRSAPrivateKey
-	testConfig.BuildNameToCertificate()
-	if keyFile := os.Getenv("SSLKEYLOGFILE"); keyFile != "" {
-		f, err := os.OpenFile(keyFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			panic("failed to open SSLKEYLOGFILE: " + err.Error())
-		}
-		testConfig.KeyLogWriter = f
-	}
-}
 
 func testClientHello(t *testing.T, serverConfig *Config, m handshakeMessage) {
 	testClientHelloFailure(t, serverConfig, m, "")
@@ -113,16 +62,18 @@ func TestSimpleError(t *testing.T) {
 	testClientHelloFailure(t, testConfig, &serverHelloDoneMsg{}, "unexpected handshake message")
 }
 
-var badProtocolVersions = []uint16{0x0000, 0x0005, 0x0100, 0x0105, 0x0200, 0x0205}
+var badProtocolVersions = []uint16{0x0000, 0x0005, 0x0100, 0x0105, 0x0200, 0x0205, VersionSSL30}
 
 func TestRejectBadProtocolVersion(t *testing.T) {
+	config := testConfig.Clone()
+	config.MinVersion = VersionSSL30
 	for _, v := range badProtocolVersions {
-		testClientHelloFailure(t, testConfig, &clientHelloMsg{
+		testClientHelloFailure(t, config, &clientHelloMsg{
 			vers:   v,
 			random: make([]byte, 32),
 		}, "unsupported versions")
 	}
-	testClientHelloFailure(t, testConfig, &clientHelloMsg{
+	testClientHelloFailure(t, config, &clientHelloMsg{
 		vers:              VersionTLS12,
 		supportedVersions: badProtocolVersions,
 		random:            make([]byte, 32),
@@ -322,6 +273,79 @@ func TestTLS12OnlyCipherSuites(t *testing.T) {
 	}
 }
 
+func TestTLSPointFormats(t *testing.T) {
+	// Test that a Server returns the ec_point_format extension when ECC is
+	// negotiated, and not returned on RSA handshake.
+	tests := []struct {
+		name                string
+		cipherSuites        []uint16
+		supportedCurves     []CurveID
+		supportedPoints     []uint8
+		wantSupportedPoints bool
+	}{
+		{"ECC", []uint16{TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA}, []CurveID{CurveP256}, []uint8{compressionNone}, true},
+		{"RSA", []uint16{TLS_RSA_WITH_AES_256_GCM_SHA384}, nil, nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clientHello := &clientHelloMsg{
+				vers:               VersionTLS12,
+				random:             make([]byte, 32),
+				cipherSuites:       tt.cipherSuites,
+				compressionMethods: []uint8{compressionNone},
+				supportedCurves:    tt.supportedCurves,
+				supportedPoints:    tt.supportedPoints,
+			}
+
+			c, s := localPipe(t)
+			replyChan := make(chan interface{})
+			go func() {
+				cli := Client(c, testConfig)
+				cli.vers = clientHello.vers
+				cli.writeRecord(recordTypeHandshake, clientHello.marshal())
+				reply, err := cli.readHandshake()
+				c.Close()
+				if err != nil {
+					replyChan <- err
+				} else {
+					replyChan <- reply
+				}
+			}()
+			config := testConfig.Clone()
+			config.CipherSuites = clientHello.cipherSuites
+			Server(s, config).Handshake()
+			s.Close()
+			reply := <-replyChan
+			if err, ok := reply.(error); ok {
+				t.Fatal(err)
+			}
+			serverHello, ok := reply.(*serverHelloMsg)
+			if !ok {
+				t.Fatalf("didn't get ServerHello message in reply. Got %v\n", reply)
+			}
+			if tt.wantSupportedPoints {
+				if len(serverHello.supportedPoints) < 1 {
+					t.Fatal("missing ec_point_format extension from server")
+				}
+				found := false
+				for _, p := range serverHello.supportedPoints {
+					if p == pointFormatUncompressed {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Fatal("missing uncompressed format in ec_point_format extension from server")
+				}
+			} else {
+				if len(serverHello.supportedPoints) != 0 {
+					t.Fatalf("unexcpected ec_point_format extension from server: %v", serverHello.supportedPoints)
+				}
+			}
+		})
+	}
+}
+
 func TestAlertForwarding(t *testing.T) {
 	c, s := localPipe(t)
 	go func() {
@@ -345,46 +369,6 @@ func TestClose(t *testing.T) {
 	if err != io.EOF {
 		t.Errorf("Got error: %s; expected: %s", err, io.EOF)
 	}
-}
-
-func testHandshake(t *testing.T, clientConfig, serverConfig *Config) (serverState, clientState ConnectionState, err error) {
-	c, s := localPipe(t)
-	errChan := make(chan error)
-	go func() {
-		cli := Client(c, clientConfig)
-		err := cli.Handshake()
-		if err != nil {
-			errChan <- fmt.Errorf("client: %v", err)
-			c.Close()
-			return
-		}
-		defer cli.Close()
-		clientState = cli.ConnectionState()
-		buf, err := ioutil.ReadAll(cli)
-		if err != nil {
-			t.Errorf("failed to call cli.Read: %v", err)
-		}
-		if got := string(buf); got != opensslSentinel {
-			t.Errorf("read %q from TLS connection, but expected %q", got, opensslSentinel)
-		}
-		errChan <- nil
-	}()
-	server := Server(s, serverConfig)
-	err = server.Handshake()
-	if err == nil {
-		serverState = server.ConnectionState()
-		if _, err := io.WriteString(server, opensslSentinel); err != nil {
-			t.Errorf("failed to call server.Write: %v", err)
-		}
-		if err := server.Close(); err != nil {
-			t.Errorf("failed to call server.Close: %v", err)
-		}
-		err = <-errChan
-	} else {
-		s.Close()
-		<-errChan
-	}
-	return
 }
 
 func TestVersion(t *testing.T) {
@@ -632,8 +616,6 @@ func (test *serverTest) loadData() (flows [][]byte, err error) {
 }
 
 func (test *serverTest) run(t *testing.T, write bool) {
-	checkOpenSSLVersion(t)
-
 	var clientConn, serverConn net.Conn
 	var recordingConn *recordingConn
 	var childProcess *exec.Cmd
@@ -684,12 +666,20 @@ func (test *serverTest) run(t *testing.T, write bool) {
 		}
 		for i, b := range flows {
 			if i%2 == 0 {
-				clientConn.SetWriteDeadline(time.Now().Add(1 * time.Minute))
+				if *fast {
+					clientConn.SetWriteDeadline(time.Now().Add(1 * time.Second))
+				} else {
+					clientConn.SetWriteDeadline(time.Now().Add(1 * time.Minute))
+				}
 				clientConn.Write(b)
 				continue
 			}
 			bb := make([]byte, len(b))
-			clientConn.SetReadDeadline(time.Now().Add(1 * time.Minute))
+			if *fast {
+				clientConn.SetReadDeadline(time.Now().Add(1 * time.Second))
+			} else {
+				clientConn.SetReadDeadline(time.Now().Add(1 * time.Minute))
+			}
 			n, err := io.ReadFull(clientConn, bb)
 			if err != nil {
 				t.Fatalf("%s #%d: %s\nRead %d, wanted %d, got %x, wanted %x\n", test.name, i+1, err, n, len(bb), bb[:n], b)
@@ -740,29 +730,19 @@ func (test *serverTest) run(t *testing.T, write bool) {
 }
 
 func runServerTestForVersion(t *testing.T, template *serverTest, version, option string) {
-	t.Run(version, func(t *testing.T) {
-		// Make a deep copy of the template before going parallel.
-		test := *template
-		if template.config != nil {
-			test.config = template.config.Clone()
-		}
+	// Make a deep copy of the template before going parallel.
+	test := *template
+	if template.config != nil {
+		test.config = template.config.Clone()
+	}
+	test.name = version + "-" + test.name
+	if len(test.command) == 0 {
+		test.command = defaultClientCommand
+	}
+	test.command = append([]string(nil), test.command...)
+	test.command = append(test.command, option)
 
-		if !*update && !template.wait {
-			t.Parallel()
-		}
-
-		test.name = version + "-" + test.name
-		if len(test.command) == 0 {
-			test.command = defaultClientCommand
-		}
-		test.command = append([]string(nil), test.command...)
-		test.command = append(test.command, option)
-		test.run(t, *update)
-	})
-}
-
-func runServerTestSSLv3(t *testing.T, template *serverTest) {
-	runServerTestForVersion(t, template, "SSLv3", "-ssl3")
+	runTestAndUpdateIfNeeded(t, version, test.run, test.wait)
 }
 
 func runServerTestTLS10(t *testing.T, template *serverTest) {
@@ -786,7 +766,6 @@ func TestHandshakeServerRSARC4(t *testing.T) {
 		name:    "RSA-RC4",
 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "RC4-SHA"},
 	}
-	runServerTestSSLv3(t, test)
 	runServerTestTLS10(t, test)
 	runServerTestTLS11(t, test)
 	runServerTestTLS12(t, test)
@@ -797,7 +776,6 @@ func TestHandshakeServerRSA3DES(t *testing.T) {
 		name:    "RSA-3DES",
 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "DES-CBC3-SHA"},
 	}
-	runServerTestSSLv3(t, test)
 	runServerTestTLS10(t, test)
 	runServerTestTLS12(t, test)
 }
@@ -807,7 +785,6 @@ func TestHandshakeServerRSAAES(t *testing.T) {
 		name:    "RSA-AES",
 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA"},
 	}
-	runServerTestSSLv3(t, test)
 	runServerTestTLS10(t, test)
 	runServerTestTLS12(t, test)
 }
@@ -1203,9 +1180,35 @@ func TestHandshakeServerRSAPKCS1v15(t *testing.T) {
 }
 
 func TestHandshakeServerRSAPSS(t *testing.T) {
+	// We send rsa_pss_rsae_sha512 first, as the test key won't fit, and we
+	// verify the server implementation will disregard the client preference in
+	// that case. See Issue 29793.
 	test := &serverTest{
 		name:    "RSA-RSAPSS",
-		command: []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha256"},
+		command: []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha512:rsa_pss_rsae_sha256"},
+	}
+	runServerTestTLS12(t, test)
+	runServerTestTLS13(t, test)
+
+	test = &serverTest{
+		name:                          "RSA-RSAPSS-TooSmall",
+		command:                       []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha512"},
+		expectHandshakeErrorIncluding: "peer doesn't support any of the certificate's signature algorithms",
+	}
+	runServerTestTLS13(t, test)
+}
+
+func TestHandshakeServerEd25519(t *testing.T) {
+	config := testConfig.Clone()
+	config.Certificates = make([]Certificate, 1)
+	config.Certificates[0].Certificate = [][]byte{testEd25519Certificate}
+	config.Certificates[0].PrivateKey = testEd25519PrivateKey
+	config.BuildNameToCertificate()
+
+	test := &serverTest{
+		name:    "Ed25519",
+		command: []string{"openssl", "s_client", "-no_ticket"},
+		config:  config,
 	}
 	runServerTestTLS12(t, test)
 	runServerTestTLS13(t, test)
@@ -1319,67 +1322,8 @@ func BenchmarkHandshakeServer(b *testing.B) {
 	})
 }
 
-const clientCertificatePEM = `
------BEGIN CERTIFICATE-----
-MIIB7zCCAVigAwIBAgIQXBnBiWWDVW/cC8m5k5/pvDANBgkqhkiG9w0BAQsFADAS
-MRAwDgYDVQQKEwdBY21lIENvMB4XDTE2MDgxNzIxNTIzMVoXDTE3MDgxNzIxNTIz
-MVowEjEQMA4GA1UEChMHQWNtZSBDbzCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkC
-gYEAum+qhr3Pv5/y71yUYHhv6BPy0ZZvzdkybiI3zkH5yl0prOEn2mGi7oHLEMff
-NFiVhuk9GeZcJ3NgyI14AvQdpJgJoxlwaTwlYmYqqyIjxXuFOE8uCXMyp70+m63K
-hAfmDzr/d8WdQYUAirab7rCkPy1MTOZCPrtRyN1IVPQMjkcCAwEAAaNGMEQwDgYD
-VR0PAQH/BAQDAgWgMBMGA1UdJQQMMAoGCCsGAQUFBwMBMAwGA1UdEwEB/wQCMAAw
-DwYDVR0RBAgwBocEfwAAATANBgkqhkiG9w0BAQsFAAOBgQBGq0Si+yhU+Fpn+GKU
-8ZqyGJ7ysd4dfm92lam6512oFmyc9wnTN+RLKzZ8Aa1B0jLYw9KT+RBrjpW5LBeK
-o0RIvFkTgxYEiKSBXCUNmAysEbEoVr4dzWFihAm/1oDGRY2CLLTYg5vbySK3KhIR
-e/oCO8HJ/+rJnahJ05XX1Q7lNQ==
------END CERTIFICATE-----`
-
-const clientKeyPEM = `
------BEGIN RSA PRIVATE KEY-----
-MIICXQIBAAKBgQC6b6qGvc+/n/LvXJRgeG/oE/LRlm/N2TJuIjfOQfnKXSms4Sfa
-YaLugcsQx980WJWG6T0Z5lwnc2DIjXgC9B2kmAmjGXBpPCViZiqrIiPFe4U4Ty4J
-czKnvT6brcqEB+YPOv93xZ1BhQCKtpvusKQ/LUxM5kI+u1HI3UhU9AyORwIDAQAB
-AoGAEJZ03q4uuMb7b26WSQsOMeDsftdatT747LGgs3pNRkMJvTb/O7/qJjxoG+Mc
-qeSj0TAZXp+PXXc3ikCECAc+R8rVMfWdmp903XgO/qYtmZGCorxAHEmR80SrfMXv
-PJnznLQWc8U9nphQErR+tTESg7xWEzmFcPKwnZd1xg8ERYkCQQDTGtrFczlB2b/Z
-9TjNMqUlMnTLIk/a/rPE2fLLmAYhK5sHnJdvDURaH2mF4nso0EGtENnTsh6LATnY
-dkrxXGm9AkEA4hXHG2q3MnhgK1Z5hjv+Fnqd+8bcbII9WW4flFs15EKoMgS1w/PJ
-zbsySaSy5IVS8XeShmT9+3lrleed4sy+UwJBAJOOAbxhfXP5r4+5R6ql66jES75w
-jUCVJzJA5ORJrn8g64u2eGK28z/LFQbv9wXgCwfc72R468BdawFSLa/m2EECQGbZ
-rWiFla26IVXV0xcD98VWJsTBZMlgPnSOqoMdM1kSEd4fUmlAYI/dFzV1XYSkOmVr
-FhdZnklmpVDeu27P4c0CQQCuCOup0FlJSBpWY1TTfun/KMBkBatMz0VMA3d7FKIU
-csPezl677Yjo8u1r/KzeI6zLg87Z8E6r6ZWNc9wBSZK6
------END RSA PRIVATE KEY-----`
-
-const clientECDSACertificatePEM = `
------BEGIN CERTIFICATE-----
-MIIB/DCCAV4CCQCaMIRsJjXZFzAJBgcqhkjOPQQBMEUxCzAJBgNVBAYTAkFVMRMw
-EQYDVQQIEwpTb21lLVN0YXRlMSEwHwYDVQQKExhJbnRlcm5ldCBXaWRnaXRzIFB0
-eSBMdGQwHhcNMTIxMTE0MTMyNTUzWhcNMjIxMTEyMTMyNTUzWjBBMQswCQYDVQQG
-EwJBVTEMMAoGA1UECBMDTlNXMRAwDgYDVQQHEwdQeXJtb250MRIwEAYDVQQDEwlK
-b2VsIFNpbmcwgZswEAYHKoZIzj0CAQYFK4EEACMDgYYABACVjJF1FMBexFe01MNv
-ja5oHt1vzobhfm6ySD6B5U7ixohLZNz1MLvT/2XMW/TdtWo+PtAd3kfDdq0Z9kUs
-jLzYHQFMH3CQRnZIi4+DzEpcj0B22uCJ7B0rxE4wdihBsmKo+1vx+U56jb0JuK7q
-ixgnTy5w/hOWusPTQBbNZU6sER7m8TAJBgcqhkjOPQQBA4GMADCBiAJCAOAUxGBg
-C3JosDJdYUoCdFzCgbkWqD8pyDbHgf9stlvZcPE4O1BIKJTLCRpS8V3ujfK58PDa
-2RU6+b0DeoeiIzXsAkIBo9SKeDUcSpoj0gq+KxAxnZxfvuiRs9oa9V2jI/Umi0Vw
-jWVim34BmT0Y9hCaOGGbLlfk+syxis7iI6CH8OFnUes=
------END CERTIFICATE-----`
-
-const clientECDSAKeyPEM = `
------BEGIN EC PARAMETERS-----
-BgUrgQQAIw==
------END EC PARAMETERS-----
------BEGIN EC PRIVATE KEY-----
-MIHcAgEBBEIBkJN9X4IqZIguiEVKMqeBUP5xtRsEv4HJEtOpOGLELwO53SD78Ew8
-k+wLWoqizS3NpQyMtrU8JFdWfj+C57UNkOugBwYFK4EEACOhgYkDgYYABACVjJF1
-FMBexFe01MNvja5oHt1vzobhfm6ySD6B5U7ixohLZNz1MLvT/2XMW/TdtWo+PtAd
-3kfDdq0Z9kUsjLzYHQFMH3CQRnZIi4+DzEpcj0B22uCJ7B0rxE4wdihBsmKo+1vx
-+U56jb0JuK7qixgnTy5w/hOWusPTQBbNZU6sER7m8Q==
------END EC PRIVATE KEY-----`
-
 func TestClientAuth(t *testing.T) {
-	var certPath, keyPath, ecdsaCertPath, ecdsaKeyPath string
+	var certPath, keyPath, ecdsaCertPath, ecdsaKeyPath, ed25519CertPath, ed25519KeyPath string
 
 	if *update {
 		certPath = tempFile(clientCertificatePEM)
@@ -1390,6 +1334,10 @@ func TestClientAuth(t *testing.T) {
 		defer os.Remove(ecdsaCertPath)
 		ecdsaKeyPath = tempFile(clientECDSAKeyPEM)
 		defer os.Remove(ecdsaKeyPath)
+		ed25519CertPath = tempFile(clientEd25519CertificatePEM)
+		defer os.Remove(ed25519CertPath)
+		ed25519KeyPath = tempFile(clientEd25519KeyPEM)
+		defer os.Remove(ed25519KeyPath)
 	} else {
 		t.Parallel()
 	}
@@ -1408,7 +1356,7 @@ func TestClientAuth(t *testing.T) {
 	test = &serverTest{
 		name: "ClientAuthRequestedAndGiven",
 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
-			"-cert", certPath, "-key", keyPath, "-sigalgs", "rsa_pss_rsae_sha256"},
+			"-cert", certPath, "-key", keyPath, "-client_sigalgs", "rsa_pss_rsae_sha256"},
 		config:            config,
 		expectedPeerCerts: []string{clientCertificatePEM},
 	}
@@ -1426,9 +1374,19 @@ func TestClientAuth(t *testing.T) {
 	runServerTestTLS13(t, test)
 
 	test = &serverTest{
+		name: "ClientAuthRequestedAndEd25519Given",
+		command: []string{"openssl", "s_client", "-no_ticket",
+			"-cert", ed25519CertPath, "-key", ed25519KeyPath},
+		config:            config,
+		expectedPeerCerts: []string{clientEd25519CertificatePEM},
+	}
+	runServerTestTLS12(t, test)
+	runServerTestTLS13(t, test)
+
+	test = &serverTest{
 		name: "ClientAuthRequestedAndPKCS1v15Given",
 		command: []string{"openssl", "s_client", "-no_ticket", "-cipher", "AES128-SHA",
-			"-cert", certPath, "-key", keyPath, "-sigalgs", "rsa_pkcs1_sha256"},
+			"-cert", certPath, "-key", keyPath, "-client_sigalgs", "rsa_pkcs1_sha256"},
 		config:            config,
 		expectedPeerCerts: []string{clientCertificatePEM},
 	}
@@ -1620,55 +1578,6 @@ func TestGetConfigForClient(t *testing.T) {
 	}
 }
 
-func bigFromString(s string) *big.Int {
-	ret := new(big.Int)
-	ret.SetString(s, 10)
-	return ret
-}
-
-func fromHex(s string) []byte {
-	b, _ := hex.DecodeString(s)
-	return b
-}
-
-var testRSACertificate = fromHex("3082024b308201b4a003020102020900e8f09d3fe25beaa6300d06092a864886f70d01010b0500301f310b3009060355040a1302476f3110300e06035504031307476f20526f6f74301e170d3136303130313030303030305a170d3235303130313030303030305a301a310b3009060355040a1302476f310b300906035504031302476f30819f300d06092a864886f70d010101050003818d0030818902818100db467d932e12270648bc062821ab7ec4b6a25dfe1e5245887a3647a5080d92425bc281c0be97799840fb4f6d14fd2b138bc2a52e67d8d4099ed62238b74a0b74732bc234f1d193e596d9747bf3589f6c613cc0b041d4d92b2b2423775b1c3bbd755dce2054cfa163871d1e24c4f31d1a508baab61443ed97a77562f414c852d70203010001a38193308190300e0603551d0f0101ff0404030205a0301d0603551d250416301406082b0601050507030106082b06010505070302300c0603551d130101ff0402300030190603551d0e041204109f91161f43433e49a6de6db680d79f60301b0603551d230414301280104813494d137e1631bba301d5acab6e7b30190603551d1104123010820e6578616d706c652e676f6c616e67300d06092a864886f70d01010b0500038181009d30cc402b5b50a061cbbae55358e1ed8328a9581aa938a495a1ac315a1a84663d43d32dd90bf297dfd320643892243a00bccf9c7db74020015faad3166109a276fd13c3cce10c5ceeb18782f16c04ed73bbb343778d0c1cf10fa1d8408361c94c722b9daedb4606064df4c1b33ec0d1bd42d4dbfe3d1360845c21d33be9fae7")
-
-var testRSACertificateIssuer = fromHex("3082021930820182a003020102020900ca5e4e811a965964300d06092a864886f70d01010b0500301f310b3009060355040a1302476f3110300e06035504031307476f20526f6f74301e170d3136303130313030303030305a170d3235303130313030303030305a301f310b3009060355040a1302476f3110300e06035504031307476f20526f6f7430819f300d06092a864886f70d010101050003818d0030818902818100d667b378bb22f34143b6cd2008236abefaf2852adf3ab05e01329e2c14834f5105df3f3073f99dab5442d45ee5f8f57b0111c8cb682fbb719a86944eebfffef3406206d898b8c1b1887797c9c5006547bb8f00e694b7a063f10839f269f2c34fff7a1f4b21fbcd6bfdfb13ac792d1d11f277b5c5b48600992203059f2a8f8cc50203010001a35d305b300e0603551d0f0101ff040403020204301d0603551d250416301406082b0601050507030106082b06010505070302300f0603551d130101ff040530030101ff30190603551d0e041204104813494d137e1631bba301d5acab6e7b300d06092a864886f70d01010b050003818100c1154b4bab5266221f293766ae4138899bd4c5e36b13cee670ceeaa4cbdf4f6679017e2fe649765af545749fe4249418a56bd38a04b81e261f5ce86b8d5c65413156a50d12449554748c59a30c515bc36a59d38bddf51173e899820b282e40aa78c806526fd184fb6b4cf186ec728edffa585440d2b3225325f7ab580e87dd76")
-
-// testRSAPSSCertificate has signatureAlgorithm rsassaPss, and subjectPublicKeyInfo
-// algorithm rsaEncryption, for use with the rsa_pss_rsae_* SignatureSchemes.
-// See also TestRSAPSSKeyError. testRSAPSSCertificate is self-signed.
-var testRSAPSSCertificate = fromHex("308202583082018da003020102021100f29926eb87ea8a0db9fcc247347c11b0304106092a864886f70d01010a3034a00f300d06096086480165030402010500a11c301a06092a864886f70d010108300d06096086480165030402010500a20302012030123110300e060355040a130741636d6520436f301e170d3137313132333136313631305a170d3138313132333136313631305a30123110300e060355040a130741636d6520436f30819f300d06092a864886f70d010101050003818d0030818902818100db467d932e12270648bc062821ab7ec4b6a25dfe1e5245887a3647a5080d92425bc281c0be97799840fb4f6d14fd2b138bc2a52e67d8d4099ed62238b74a0b74732bc234f1d193e596d9747bf3589f6c613cc0b041d4d92b2b2423775b1c3bbd755dce2054cfa163871d1e24c4f31d1a508baab61443ed97a77562f414c852d70203010001a3463044300e0603551d0f0101ff0404030205a030130603551d25040c300a06082b06010505070301300c0603551d130101ff04023000300f0603551d110408300687047f000001304106092a864886f70d01010a3034a00f300d06096086480165030402010500a11c301a06092a864886f70d010108300d06096086480165030402010500a20302012003818100cdac4ef2ce5f8d79881042707f7cbf1b5a8a00ef19154b40151771006cd41626e5496d56da0c1a139fd84695593cb67f87765e18aa03ea067522dd78d2a589b8c92364e12838ce346c6e067b51f1a7e6f4b37ffab13f1411896679d18e880e0ba09e302ac067efca460288e9538122692297ad8093d4f7dd701424d7700a46a1")
-
-var testECDSACertificate = fromHex("3082020030820162020900b8bf2d47a0d2ebf4300906072a8648ce3d04013045310b3009060355040613024155311330110603550408130a536f6d652d53746174653121301f060355040a1318496e7465726e6574205769646769747320507479204c7464301e170d3132313132323135303633325a170d3232313132303135303633325a3045310b3009060355040613024155311330110603550408130a536f6d652d53746174653121301f060355040a1318496e7465726e6574205769646769747320507479204c746430819b301006072a8648ce3d020106052b81040023038186000400c4a1edbe98f90b4873367ec316561122f23d53c33b4d213dcd6b75e6f6b0dc9adf26c1bcb287f072327cb3642f1c90bcea6823107efee325c0483a69e0286dd33700ef0462dd0da09c706283d881d36431aa9e9731bd96b068c09b23de76643f1a5c7fe9120e5858b65f70dd9bd8ead5d7f5d5ccb9b69f30665b669a20e227e5bffe3b300906072a8648ce3d040103818c0030818802420188a24febe245c5487d1bacf5ed989dae4770c05e1bb62fbdf1b64db76140d311a2ceee0b7e927eff769dc33b7ea53fcefa10e259ec472d7cacda4e970e15a06fd00242014dfcbe67139c2d050ebd3fa38c25c13313830d9406bbd4377af6ec7ac9862eddd711697f857c56defb31782be4c7780daecbbe9e4e3624317b6a0f399512078f2a")
-
-var testSNICertificate = fromHex("0441883421114c81480804c430820237308201a0a003020102020900e8f09d3fe25beaa6300d06092a864886f70d01010b0500301f310b3009060355040a1302476f3110300e06035504031307476f20526f6f74301e170d3136303130313030303030305a170d3235303130313030303030305a3023310b3009060355040a1302476f311430120603550403130b736e69746573742e636f6d30819f300d06092a864886f70d010101050003818d0030818902818100db467d932e12270648bc062821ab7ec4b6a25dfe1e5245887a3647a5080d92425bc281c0be97799840fb4f6d14fd2b138bc2a52e67d8d4099ed62238b74a0b74732bc234f1d193e596d9747bf3589f6c613cc0b041d4d92b2b2423775b1c3bbd755dce2054cfa163871d1e24c4f31d1a508baab61443ed97a77562f414c852d70203010001a3773075300e0603551d0f0101ff0404030205a0301d0603551d250416301406082b0601050507030106082b06010505070302300c0603551d130101ff0402300030190603551d0e041204109f91161f43433e49a6de6db680d79f60301b0603551d230414301280104813494d137e1631bba301d5acab6e7b300d06092a864886f70d01010b0500038181007beeecff0230dbb2e7a334af65430b7116e09f327c3bbf918107fc9c66cb497493207ae9b4dbb045cb63d605ec1b5dd485bb69124d68fa298dc776699b47632fd6d73cab57042acb26f083c4087459bc5a3bb3ca4d878d7fe31016b7bc9a627438666566e3389bfaeebe6becc9a0093ceed18d0f9ac79d56f3a73f18188988ed")
-
-var testP256Certificate = fromHex("308201693082010ea00302010202105012dc24e1124ade4f3e153326ff27bf300a06082a8648ce3d04030230123110300e060355040a130741636d6520436f301e170d3137303533313232343934375a170d3138303533313232343934375a30123110300e060355040a130741636d6520436f3059301306072a8648ce3d020106082a8648ce3d03010703420004c02c61c9b16283bbcc14956d886d79b358aa614596975f78cece787146abf74c2d5dc578c0992b4f3c631373479ebf3892efe53d21c4f4f1cc9a11c3536b7f75a3463044300e0603551d0f0101ff0404030205a030130603551d25040c300a06082b06010505070301300c0603551d130101ff04023000300f0603551d1104083006820474657374300a06082a8648ce3d0403020349003046022100963712d6226c7b2bef41512d47e1434131aaca3ba585d666c924df71ac0448b3022100f4d05c725064741aef125f243cdbccaa2a5d485927831f221c43023bd5ae471a")
-
-var testRSAPrivateKey = &rsa.PrivateKey{
-	PublicKey: rsa.PublicKey{
-		N: bigFromString("153980389784927331788354528594524332344709972855165340650588877572729725338415474372475094155672066328274535240275856844648695200875763869073572078279316458648124537905600131008790701752441155668003033945258023841165089852359980273279085783159654751552359397986180318708491098942831252291841441726305535546071"),
-		E: 65537,
-	},
-	D: bigFromString("7746362285745539358014631136245887418412633787074173796862711588221766398229333338511838891484974940633857861775630560092874987828057333663969469797013996401149696897591265769095952887917296740109742927689053276850469671231961384712725169432413343763989564437170644270643461665184965150423819594083121075825"),
-	Primes: []*big.Int{
-		bigFromString("13299275414352936908236095374926261633419699590839189494995965049151460173257838079863316944311313904000258169883815802963543635820059341150014695560313417"),
-		bigFromString("11578103692682951732111718237224894755352163854919244905974423810539077224889290605729035287537520656160688625383765857517518932447378594964220731750802463"),
-	},
-}
-
-var testECDSAPrivateKey = &ecdsa.PrivateKey{
-	PublicKey: ecdsa.PublicKey{
-		Curve: elliptic.P521(),
-		X:     bigFromString("2636411247892461147287360222306590634450676461695221912739908880441342231985950069527906976759812296359387337367668045707086543273113073382714101597903639351"),
-		Y:     bigFromString("3204695818431246682253994090650952614555094516658732116404513121125038617915183037601737180082382202488628239201196033284060130040574800684774115478859677243"),
-	},
-	D: bigFromString("5477294338614160138026852784385529180817726002953041720191098180813046231640184669647735805135001309477695746518160084669446643325196003346204701381388769751"),
-}
-
-var testP256PrivateKey, _ = x509.ParseECPrivateKey(fromHex("30770201010420012f3b52bc54c36ba3577ad45034e2e8efe1e6999851284cb848725cfe029991a00a06082a8648ce3d030107a14403420004c02c61c9b16283bbcc14956d886d79b358aa614596975f78cece787146abf74c2d5dc578c0992b4f3c631373479ebf3892efe53d21c4f4f1cc9a11c3536b7f75"))
-
 func TestCloseServerConnectionOnIdleClient(t *testing.T) {
 	clientConn, serverConn := localPipe(t)
 	server := Server(serverConn, testConfig.Clone())
@@ -1698,9 +1607,15 @@ func TestCloneHash(t *testing.T) {
 	}
 }
 
+func expectError(t *testing.T, err error, sub string) {
+	if err == nil {
+		t.Errorf(`expected error %q, got nil`, sub)
+	} else if !strings.Contains(err.Error(), sub) {
+		t.Errorf(`expected error %q, got %q`, sub, err)
+	}
+}
+
 func TestKeyTooSmallForRSAPSS(t *testing.T) {
-	clientConn, serverConn := localPipe(t)
-	client := Client(clientConn, testConfig)
 	cert, err := X509KeyPair([]byte(`-----BEGIN CERTIFICATE-----
 MIIBcTCCARugAwIBAgIQGjQnkCFlUqaFlt6ixyz/tDANBgkqhkiG9w0BAQsFADAS
 MRAwDgYDVQQKEwdBY21lIENvMB4XDTE5MDExODIzMjMyOFoXDTIwMDExODIzMjMy
@@ -1710,7 +1625,7 @@ nIPhKls4T0hFoLvjJnXpAgMBAAGjTTBLMA4GA1UdDwEB/wQEAwIFoDATBgNVHSUE
 DDAKBggrBgEFBQcDATAMBgNVHRMBAf8EAjAAMBYGA1UdEQQPMA2CC2V4YW1wbGUu
 Y29tMA0GCSqGSIb3DQEBCwUAA0EAxDuUS+BrrS3c+h+k+fQPOmOScy6yTX9mHw0Q
 KbucGamXYEy0URIwOdO0tQ3LHPc1YGvYSPwkDjkjqECs2Vm/AA==
------END CERTIFICATE-----`), []byte(`-----BEGIN RSA PRIVATE KEY-----
+-----END CERTIFICATE-----`), []byte(testingKey(`-----BEGIN RSA TESTING KEY-----
 MIIBOgIBAAJBAN17PWsVQPBrHYdPFtycVQ/0CFyAQYwdVXaefhVURYUkHojwL82T
 HRfLJCWuYVgHMRCcg+EqWzhPSEWgu+MmdekCAwEAAQJBALjQYNTdXF4CFBbXwUz/
 yt9QFDYT9B5WT/12jeGAe653gtYS6OOi/+eAkGmzg1GlRnw6fOfn+HYNFDORST7z
@@ -1718,10 +1633,13 @@ yt9QFDYT9B5WT/12jeGAe653gtYS6OOi/+eAkGmzg1GlRnw6fOfn+HYNFDORST7z
 nKpbtU22+PbIMSJ+e80fmY9LIPx5N4HTAiAthGSimMR9bloz0EY3GyuUEyqoDgMd
 hXxjuno2WesoJQIgemilbcALXpxsLmZLgcQ2KSmaVr7jb5ECx9R+hYKTw1sCIG4s
 T+E0J8wlH24pgwQHzy7Ko2qLwn1b5PW8ecrlvP1g
------END RSA PRIVATE KEY-----`))
+-----END RSA TESTING KEY-----`)))
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	clientConn, serverConn := localPipe(t)
+	client := Client(clientConn, testConfig)
 	done := make(chan struct{})
 	go func() {
 		config := testConfig.Clone()
@@ -1729,14 +1647,33 @@ T+E0J8wlH24pgwQHzy7Ko2qLwn1b5PW8ecrlvP1g
 		config.MinVersion = VersionTLS13
 		server := Server(serverConn, config)
 		err := server.Handshake()
-		if !strings.Contains(err.Error(), "key size too small for PSS signature") {
-			t.Errorf(`expected "key size too small for PSS signature", got %q`, err)
-		}
+		expectError(t, err, "key size too small")
 		close(done)
 	}()
 	err = client.Handshake()
-	if !strings.Contains(err.Error(), "handshake failure") {
-		t.Errorf(`expected "handshake failure", got %q`, err)
-	}
+	expectError(t, err, "handshake failure")
 	<-done
+}
+
+func TestMultipleCertificates(t *testing.T) {
+	clientConfig := testConfig.Clone()
+	clientConfig.CipherSuites = []uint16{TLS_RSA_WITH_AES_128_GCM_SHA256}
+	clientConfig.MaxVersion = VersionTLS12
+
+	serverConfig := testConfig.Clone()
+	serverConfig.Certificates = []Certificate{{
+		Certificate: [][]byte{testECDSACertificate},
+		PrivateKey:  testECDSAPrivateKey,
+	}, {
+		Certificate: [][]byte{testRSACertificate},
+		PrivateKey:  testRSAPrivateKey,
+	}}
+
+	_, clientState, err := testHandshake(t, clientConfig, serverConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := clientState.PeerCertificates[0].PublicKeyAlgorithm; got != x509.RSA {
+		t.Errorf("expected RSA certificate, got %v", got)
+	}
 }

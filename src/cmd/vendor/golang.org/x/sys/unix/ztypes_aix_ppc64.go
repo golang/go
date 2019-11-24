@@ -103,7 +103,6 @@ type Stat_t struct {
 	Gid      uint32
 	Rdev     uint64
 	Ssize    int32
-	_        [4]byte
 	Atim     StTimespec
 	Mtim     StTimespec
 	Ctim     StTimespec
@@ -205,10 +204,8 @@ type Linger struct {
 type Msghdr struct {
 	Name       *byte
 	Namelen    uint32
-	_          [4]byte
 	Iov        *Iovec
 	Iovlen     int32
-	_          [4]byte
 	Control    *byte
 	Controllen uint32
 	Flags      int32
@@ -339,7 +336,6 @@ type Statfs_t struct {
 	Ffree     uint64
 	Fsid      Fsid64_t
 	Vfstype   int32
-	_         [4]byte
 	Fsize     uint64
 	Vfsnumber int32
 	Vfsoff    int32

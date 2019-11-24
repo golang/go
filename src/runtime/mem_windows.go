@@ -60,25 +60,38 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
 }
 
 func sysUsed(v unsafe.Pointer, n uintptr) {
-	r := stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
-	if r != 0 {
+	p := stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
+	if p == uintptr(v) {
 		return
 	}
 
 	// Commit failed. See SysUnused.
-	for n > 0 {
-		small := n
+	// Hold on to n here so we can give back a better error message
+	// for certain cases.
+	k := n
+	for k > 0 {
+		small := k
 		for small >= 4096 && stdcall4(_VirtualAlloc, uintptr(v), small, _MEM_COMMIT, _PAGE_READWRITE) == 0 {
 			small /= 2
 			small &^= 4096 - 1
 		}
 		if small < 4096 {
-			print("runtime: VirtualAlloc of ", small, " bytes failed with errno=", getlasterror(), "\n")
-			throw("runtime: failed to commit pages")
+			errno := getlasterror()
+			switch errno {
+			case _ERROR_NOT_ENOUGH_MEMORY, _ERROR_COMMITMENT_LIMIT:
+				print("runtime: VirtualAlloc of ", n, " bytes failed with errno=", errno, "\n")
+				throw("out of memory")
+			default:
+				print("runtime: VirtualAlloc of ", small, " bytes failed with errno=", errno, "\n")
+				throw("runtime: failed to commit pages")
+			}
 		}
 		v = add(v, small)
-		n -= small
+		k -= small
 	}
+}
+
+func sysHugePage(v unsafe.Pointer, n uintptr) {
 }
 
 // Don't split the stack as this function may be invoked without a valid G,
@@ -113,15 +126,4 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
 
 func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
 	mSysStatInc(sysStat, n)
-	p := stdcall4(_VirtualAlloc, uintptr(v), n, _MEM_COMMIT, _PAGE_READWRITE)
-	if p != uintptr(v) {
-		errno := getlasterror()
-		print("runtime: VirtualAlloc of ", n, " bytes failed with errno=", errno, "\n")
-		switch errno {
-		case _ERROR_NOT_ENOUGH_MEMORY, _ERROR_COMMITMENT_LIMIT:
-			throw("out of memory")
-		default:
-			throw("runtime: cannot map pages in arena address space")
-		}
-	}
 }

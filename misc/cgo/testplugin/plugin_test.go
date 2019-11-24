@@ -7,13 +7,13 @@ package plugin_test
 import (
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -22,6 +22,11 @@ import (
 var gcflags string = os.Getenv("GO_GCFLAGS")
 
 func TestMain(m *testing.M) {
+	flag.Parse()
+	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+		fmt.Printf("SKIP - short mode and $GO_BUILDER_NAME not set\n")
+		os.Exit(0)
+	}
 	log.SetFlags(log.Lshortfile)
 	os.Exit(testMain(m))
 }
@@ -65,7 +70,7 @@ func testMain(m *testing.M) int {
 
 	os.Setenv("LD_LIBRARY_PATH", modRoot)
 
-	goCmd(nil, "build", "-i", "-buildmode=plugin", "./plugin1")
+	goCmd(nil, "build", "-buildmode=plugin", "./plugin1")
 	goCmd(nil, "build", "-buildmode=plugin", "./plugin2")
 	so, err := ioutil.ReadFile("plugin2.so")
 	if err != nil {
@@ -108,11 +113,7 @@ func run(t *testing.T, bin string, args ...string) string {
 
 func TestDWARFSections(t *testing.T) {
 	// test that DWARF sections are emitted for plugins and programs importing "plugin"
-	if runtime.GOOS != "darwin" {
-		// On macOS, for some reason, the linker doesn't add debug sections to .so,
-		// see issue #27502.
-		goCmd(t, "run", "./checkdwarf/main.go", "plugin2.so", "plugin2.UnexportedNameReuse")
-	}
+	goCmd(t, "run", "./checkdwarf/main.go", "plugin2.so", "plugin2.UnexportedNameReuse")
 	goCmd(t, "run", "./checkdwarf/main.go", "./host.exe", "main.main")
 }
 

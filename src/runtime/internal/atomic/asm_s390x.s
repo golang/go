@@ -4,6 +4,38 @@
 
 #include "textflag.h"
 
+// func Store(ptr *uint32, val uint32)
+TEXT ·Store(SB), NOSPLIT, $0
+	MOVD	ptr+0(FP), R2
+	MOVWZ	val+8(FP), R3
+	MOVW	R3, 0(R2)
+	SYNC
+	RET
+
+// func Store8(ptr *uint8, val uint8)
+TEXT ·Store8(SB), NOSPLIT, $0
+	MOVD	ptr+0(FP), R2
+	MOVB	val+8(FP), R3
+	MOVB	R3, 0(R2)
+	SYNC
+	RET
+
+// func Store64(ptr *uint64, val uint64)
+TEXT ·Store64(SB), NOSPLIT, $0
+	MOVD	ptr+0(FP), R2
+	MOVD	val+8(FP), R3
+	MOVD	R3, 0(R2)
+	SYNC
+	RET
+
+// func StorepNoWB(ptr unsafe.Pointer, val unsafe.Pointer)
+TEXT ·StorepNoWB(SB), NOSPLIT, $0
+	MOVD	ptr+0(FP), R2
+	MOVD	val+8(FP), R3
+	MOVD	R3, 0(R2)
+	SYNC
+	RET
+
 // func Cas(ptr *uint32, old, new uint32) bool
 // Atomically:
 //	if *ptr == old {
@@ -144,37 +176,27 @@ TEXT ·Xchguintptr(SB), NOSPLIT, $0-24
 TEXT ·Or8(SB), NOSPLIT, $0-9
 	MOVD    ptr+0(FP), R3
 	MOVBZ   val+8(FP), R4
-	// Calculate shift.
-	MOVD	R3, R5
-	AND	$3, R5
-	XOR	$3, R5 // big endian - flip direction
-	SLD	$3, R5 // MUL $8, R5
-	SLD	R5, R4
-	// Align ptr down to 4 bytes so we can use 32-bit load/store.
-	AND	$-4, R3
-	MOVWZ	0(R3), R6
-again:
-	OR	R4, R6, R7
-	CS	R6, R7, 0(R3) // if R6==(R3) then (R3)=R7 else R6=(R3)
-	BNE	again
+	// We don't have atomic operations that work on individual bytes so we
+	// need to align addr down to a word boundary and create a mask
+	// containing v to OR with the entire word atomically.
+	MOVD	$(3<<3), R5
+	RXSBG	$59, $60, $3, R3, R5 // R5 = 24 - ((addr % 4) * 8) = ((addr & 3) << 3) ^ (3 << 3)
+	ANDW	$~3, R3              // R3 = floor(addr, 4) = addr &^ 3
+	SLW	R5, R4               // R4 = uint32(v) << R5
+	LAO	R4, R6, 0(R3)        // R6 = *R3; *R3 |= R4; (atomic)
 	RET
 
 // func And8(addr *uint8, v uint8)
 TEXT ·And8(SB), NOSPLIT, $0-9
 	MOVD    ptr+0(FP), R3
 	MOVBZ   val+8(FP), R4
-	// Calculate shift.
-	MOVD	R3, R5
-	AND	$3, R5
-	XOR	$3, R5 // big endian - flip direction
-	SLD	$3, R5 // MUL $8, R5
-	OR	$-256, R4 // create 0xffffffffffffffxx
-	RLLG	R5, R4
-	// Align ptr down to 4 bytes so we can use 32-bit load/store.
-	AND	$-4, R3
-	MOVWZ	0(R3), R6
-again:
-	AND	R4, R6, R7
-	CS	R6, R7, 0(R3) // if R6==(R3) then (R3)=R7 else R6=(R3)
-	BNE	again
+	// We don't have atomic operations that work on individual bytes so we
+	// need to align addr down to a word boundary and create a mask
+	// containing v to AND with the entire word atomically.
+	ORW	$~0xff, R4           // R4 = uint32(v) | 0xffffff00
+	MOVD	$(3<<3), R5
+	RXSBG	$59, $60, $3, R3, R5 // R5 = 24 - ((addr % 4) * 8) = ((addr & 3) << 3) ^ (3 << 3)
+	ANDW	$~3, R3              // R3 = floor(addr, 4) = addr &^ 3
+	RLL	R5, R4, R4           // R4 = rotl(R4, R5)
+	LAN	R4, R6, 0(R3)        // R6 = *R3; *R3 &= R4; (atomic)
 	RET

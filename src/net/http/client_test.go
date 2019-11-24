@@ -221,27 +221,27 @@ func TestClientRedirects(t *testing.T) {
 
 	c := ts.Client()
 	_, err := c.Get(ts.URL)
-	if e, g := "Get /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
+	if e, g := `Get "/?n=10": stopped after 10 redirects`, fmt.Sprintf("%v", err); e != g {
 		t.Errorf("with default client Get, expected error %q, got %q", e, g)
 	}
 
 	// HEAD request should also have the ability to follow redirects.
 	_, err = c.Head(ts.URL)
-	if e, g := "Head /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
+	if e, g := `Head "/?n=10": stopped after 10 redirects`, fmt.Sprintf("%v", err); e != g {
 		t.Errorf("with default client Head, expected error %q, got %q", e, g)
 	}
 
 	// Do should also follow redirects.
 	greq, _ := NewRequest("GET", ts.URL, nil)
 	_, err = c.Do(greq)
-	if e, g := "Get /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
+	if e, g := `Get "/?n=10": stopped after 10 redirects`, fmt.Sprintf("%v", err); e != g {
 		t.Errorf("with default client Do, expected error %q, got %q", e, g)
 	}
 
 	// Requests with an empty Method should also redirect (Issue 12705)
 	greq.Method = ""
 	_, err = c.Do(greq)
-	if e, g := "Get /?n=10: stopped after 10 redirects", fmt.Sprintf("%v", err); e != g {
+	if e, g := `Get "/?n=10": stopped after 10 redirects`, fmt.Sprintf("%v", err); e != g {
 		t.Errorf("with default client Do and empty Method, expected error %q, got %q", e, g)
 	}
 
@@ -317,8 +317,7 @@ func TestClientRedirectContext(t *testing.T) {
 			return errors.New("redirected request's context never expired after root request canceled")
 		}
 	}
-	req, _ := NewRequest("GET", ts.URL, nil)
-	req = req.WithContext(ctx)
+	req, _ := NewRequestWithContext(ctx, "GET", ts.URL, nil)
 	_, err := c.Do(req)
 	ue, ok := err.(*url.Error)
 	if !ok {
@@ -1173,17 +1172,22 @@ func TestStripPasswordFromError(t *testing.T) {
 		{
 			desc: "Strip password from error message",
 			in:   "http://user:password@dummy.faketld/",
-			out:  "Get http://user:***@dummy.faketld/: dummy impl",
+			out:  `Get "http://user:***@dummy.faketld/": dummy impl`,
 		},
 		{
 			desc: "Don't Strip password from domain name",
 			in:   "http://user:password@password.faketld/",
-			out:  "Get http://user:***@password.faketld/: dummy impl",
+			out:  `Get "http://user:***@password.faketld/": dummy impl`,
 		},
 		{
 			desc: "Don't Strip password from path",
 			in:   "http://user:password@dummy.faketld/password",
-			out:  "Get http://user:***@dummy.faketld/password: dummy impl",
+			out:  `Get "http://user:***@dummy.faketld/password": dummy impl`,
+		},
+		{
+			desc: "Strip escaped password",
+			in:   "http://user:pa%2Fssword@dummy.faketld/",
+			out:  `Get "http://user:***@dummy.faketld/": dummy impl`,
 		},
 	}
 	for _, tC := range testCases {
@@ -1270,7 +1274,7 @@ func testClientTimeout(t *testing.T, h2 bool) {
 		} else if !ne.Timeout() {
 			t.Errorf("net.Error.Timeout = false; want true")
 		}
-		if got := ne.Error(); !strings.Contains(got, "Client.Timeout exceeded") {
+		if got := ne.Error(); !strings.Contains(got, "(Client.Timeout") {
 			t.Errorf("error string = %q; missing timeout substring", got)
 		}
 	case <-time.After(failTime):
@@ -1288,7 +1292,7 @@ func testClientTimeout_Headers(t *testing.T, h2 bool) {
 	donec := make(chan bool, 1)
 	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
 		<-donec
-	}))
+	}), optQuietLog)
 	defer cst.close()
 	// Note that we use a channel send here and not a close.
 	// The race detector doesn't know that we're waiting for a timeout
@@ -1911,5 +1915,79 @@ func TestClientCloseIdleConnections(t *testing.T) {
 	c.CloseIdleConnections()
 	if !closed {
 		t.Error("not closed")
+	}
+}
+
+func TestClientPropagatesTimeoutToContext(t *testing.T) {
+	errDial := errors.New("not actually dialing")
+	c := &Client{
+		Timeout: 5 * time.Second,
+		Transport: &Transport{
+			DialContext: func(ctx context.Context, netw, addr string) (net.Conn, error) {
+				deadline, ok := ctx.Deadline()
+				if !ok {
+					t.Error("no deadline")
+				} else {
+					t.Logf("deadline in %v", deadline.Sub(time.Now()).Round(time.Second/10))
+				}
+				return nil, errDial
+			},
+		},
+	}
+	c.Get("https://example.tld/")
+}
+
+func TestClientDoCanceledVsTimeout_h1(t *testing.T) {
+	testClientDoCanceledVsTimeout(t, h1Mode)
+}
+
+func TestClientDoCanceledVsTimeout_h2(t *testing.T) {
+	testClientDoCanceledVsTimeout(t, h2Mode)
+}
+
+// Issue 33545: lock-in the behavior promised by Client.Do's
+// docs about request cancelation vs timing out.
+func testClientDoCanceledVsTimeout(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.Write([]byte("Hello, World!"))
+	}))
+	defer cst.close()
+
+	cases := []string{"timeout", "canceled"}
+
+	for _, name := range cases {
+		t.Run(name, func(t *testing.T) {
+			var ctx context.Context
+			var cancel func()
+			if name == "timeout" {
+				ctx, cancel = context.WithTimeout(context.Background(), -time.Nanosecond)
+			} else {
+				ctx, cancel = context.WithCancel(context.Background())
+				cancel()
+			}
+			defer cancel()
+
+			req, _ := NewRequestWithContext(ctx, "GET", cst.ts.URL, nil)
+			_, err := cst.c.Do(req)
+			if err == nil {
+				t.Fatal("Unexpectedly got a nil error")
+			}
+
+			ue := err.(*url.Error)
+
+			var wantIsTimeout bool
+			var wantErr error = context.Canceled
+			if name == "timeout" {
+				wantErr = context.DeadlineExceeded
+				wantIsTimeout = true
+			}
+			if g, w := ue.Timeout(), wantIsTimeout; g != w {
+				t.Fatalf("url.Timeout() = %t, want %t", g, w)
+			}
+			if g, w := ue.Err, wantErr; g != w {
+				t.Errorf("url.Error.Err = %v; want %v", g, w)
+			}
+		})
 	}
 }

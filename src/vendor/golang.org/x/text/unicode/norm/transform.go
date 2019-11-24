@@ -18,7 +18,6 @@ func (Form) Reset() {}
 // Users should either catch ErrShortDst and allow dst to grow or have dst be at
 // least of size MaxTransformChunkSize to be guaranteed of progress.
 func (f Form) Transform(dst, src []byte, atEOF bool) (nDst, nSrc int, err error) {
-	n := 0
 	// Cap the maximum number of src bytes to check.
 	b := src
 	eof := atEOF
@@ -27,13 +26,14 @@ func (f Form) Transform(dst, src []byte, atEOF bool) (nDst, nSrc int, err error)
 		eof = false
 		b = b[:ns]
 	}
-	i, ok := formTable[f].quickSpan(inputBytes(b), n, len(b), eof)
-	n += copy(dst[n:], b[n:i])
+	i, ok := formTable[f].quickSpan(inputBytes(b), 0, len(b), eof)
+	n := copy(dst, b[:i])
 	if !ok {
 		nDst, nSrc, err = f.transform(dst[n:], src[n:], atEOF)
 		return nDst + n, nSrc + n, err
 	}
-	if n < len(src) && !atEOF {
+
+	if err == nil && n < len(src) && !atEOF {
 		err = transform.ErrShortSrc
 	}
 	return n, n, err
@@ -79,7 +79,7 @@ func (f Form) transform(dst, src []byte, atEOF bool) (nDst, nSrc int, err error)
 		nSrc += n
 		nDst += n
 		if ok {
-			if n < rb.nsrc && !atEOF {
+			if err == nil && n < rb.nsrc && !atEOF {
 				err = transform.ErrShortSrc
 			}
 			return nDst, nSrc, err

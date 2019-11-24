@@ -242,7 +242,7 @@ func BenchmarkCodeUnmarshalReuse(b *testing.B) {
 			}
 		}
 	})
-	// TODO(bcmills): Is there a missing b.SetBytes here?
+	b.SetBytes(int64(len(codeJSON)))
 }
 
 func BenchmarkUnmarshalString(b *testing.B) {
@@ -291,6 +291,22 @@ func BenchmarkIssue10335(b *testing.B) {
 		var s struct{}
 		for pb.Next() {
 			if err := Unmarshal(j, &s); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+}
+
+func BenchmarkIssue34127(b *testing.B) {
+	b.ReportAllocs()
+	j := struct {
+		Bar string `json:"bar,string"`
+	}{
+		Bar: `foobar`,
+	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			if _, err := Marshal(&j); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -372,4 +388,23 @@ func BenchmarkTypeFieldsCache(b *testing.B) {
 			})
 		})
 	}
+}
+
+func BenchmarkEncodeMarshaler(b *testing.B) {
+	b.ReportAllocs()
+
+	m := struct {
+		A int
+		B RawMessage
+	}{}
+
+	b.RunParallel(func(pb *testing.PB) {
+		enc := NewEncoder(ioutil.Discard)
+
+		for pb.Next() {
+			if err := enc.Encode(&m); err != nil {
+				b.Fatal("Encode:", err)
+			}
+		}
+	})
 }

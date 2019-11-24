@@ -6,7 +6,6 @@ package tls
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
@@ -25,18 +24,6 @@ import (
 	"testing"
 	"time"
 )
-
-func init() {
-	// TLS 1.3 cipher suites preferences are not configurable and change based
-	// on the architecture. Force them to the version with AES acceleration for
-	// test consistency.
-	once.Do(initDefaultCipherSuites)
-	varDefaultCipherSuitesTLS13 = []uint16{
-		TLS_AES_128_GCM_SHA256,
-		TLS_CHACHA20_POLY1305_SHA256,
-		TLS_AES_256_GCM_SHA384,
-	}
-}
 
 // Note: see comment in handshake_test.go for details of how the reference
 // tests work.
@@ -142,7 +129,7 @@ type clientTest struct {
 	// cert, if not empty, contains a DER-encoded certificate for the
 	// reference server.
 	cert []byte
-	// key, if not nil, contains either a *rsa.PrivateKey or
+	// key, if not nil, contains either a *rsa.PrivateKey, ed25519.PrivateKey or
 	// *ecdsa.PrivateKey which is the private key for the reference server.
 	key interface{}
 	// extensions, if not nil, contains a list of extension data to be returned
@@ -185,25 +172,13 @@ func (test *clientTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
 	if test.key != nil {
 		key = test.key
 	}
-	var pemType string
-	var derBytes []byte
-	switch key := key.(type) {
-	case *rsa.PrivateKey:
-		pemType = "RSA"
-		derBytes = x509.MarshalPKCS1PrivateKey(key)
-	case *ecdsa.PrivateKey:
-		pemType = "EC"
-		var err error
-		derBytes, err = x509.MarshalECPrivateKey(key)
-		if err != nil {
-			panic(err)
-		}
-	default:
-		panic("unknown key type")
+	derBytes, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		panic(err)
 	}
 
 	var pemOut bytes.Buffer
-	pem.Encode(&pemOut, &pem.Block{Type: pemType + " PRIVATE KEY", Bytes: derBytes})
+	pem.Encode(&pemOut, &pem.Block{Type: "PRIVATE KEY", Bytes: derBytes})
 
 	keyPath := tempFile(pemOut.String())
 	defer os.Remove(keyPath)
@@ -300,8 +275,6 @@ func (test *clientTest) loadData() (flows [][]byte, err error) {
 }
 
 func (test *clientTest) run(t *testing.T, write bool) {
-	checkOpenSSLVersion(t)
-
 	var clientConn, serverConn net.Conn
 	var recordingConn *recordingConn
 	var childProcess *exec.Cmd
@@ -463,12 +436,20 @@ func (test *clientTest) run(t *testing.T, write bool) {
 		}
 		for i, b := range flows {
 			if i%2 == 1 {
-				serverConn.SetWriteDeadline(time.Now().Add(1 * time.Minute))
+				if *fast {
+					serverConn.SetWriteDeadline(time.Now().Add(1 * time.Second))
+				} else {
+					serverConn.SetWriteDeadline(time.Now().Add(1 * time.Minute))
+				}
 				serverConn.Write(b)
 				continue
 			}
 			bb := make([]byte, len(b))
-			serverConn.SetReadDeadline(time.Now().Add(1 * time.Minute))
+			if *fast {
+				serverConn.SetReadDeadline(time.Now().Add(1 * time.Second))
+			} else {
+				serverConn.SetReadDeadline(time.Now().Add(1 * time.Minute))
+			}
 			_, err := io.ReadFull(serverConn, bb)
 			if err != nil {
 				t.Fatalf("%s, flow %d: %s", test.name, i+1, err)
@@ -518,21 +499,15 @@ func peekError(conn net.Conn) error {
 }
 
 func runClientTestForVersion(t *testing.T, template *clientTest, version, option string) {
-	t.Run(version, func(t *testing.T) {
-		// Make a deep copy of the template before going parallel.
-		test := *template
-		if template.config != nil {
-			test.config = template.config.Clone()
-		}
+	// Make a deep copy of the template before going parallel.
+	test := *template
+	if template.config != nil {
+		test.config = template.config.Clone()
+	}
+	test.name = version + "-" + test.name
+	test.args = append([]string{option}, test.args...)
 
-		if !*update {
-			t.Parallel()
-		}
-
-		test.name = version + "-" + test.name
-		test.args = append([]string{option}, test.args...)
-		test.run(t, *update)
-	})
+	runTestAndUpdateIfNeeded(t, version, test.run, false)
 }
 
 func runClientTestTLS10(t *testing.T, template *clientTest) {
@@ -745,6 +720,29 @@ func TestHandshakeClientECDSATLS13(t *testing.T) {
 	runClientTestTLS13(t, test)
 }
 
+func TestHandshakeClientEd25519(t *testing.T) {
+	test := &clientTest{
+		name: "Ed25519",
+		cert: testEd25519Certificate,
+		key:  testEd25519PrivateKey,
+	}
+	runClientTestTLS12(t, test)
+	runClientTestTLS13(t, test)
+
+	config := testConfig.Clone()
+	cert, _ := X509KeyPair([]byte(clientEd25519CertificatePEM), []byte(clientEd25519KeyPEM))
+	config.Certificates = []Certificate{cert}
+
+	test = &clientTest{
+		name:   "ClientCert-Ed25519",
+		args:   []string{"-Verify", "1"},
+		config: config,
+	}
+
+	runClientTestTLS12(t, test)
+	runClientTestTLS13(t, test)
+}
+
 func TestHandshakeClientCertRSA(t *testing.T) {
 	config := testConfig.Clone()
 	cert, _ := X509KeyPair([]byte(clientCertificatePEM), []byte(clientKeyPEM))
@@ -809,22 +807,26 @@ func TestHandshakeClientCertECDSA(t *testing.T) {
 	runClientTestTLS12(t, test)
 }
 
-// TestHandshakeClientCertRSAPSS tests a few separate things:
-//  * that our client can serve a PSS-signed certificate
-//  * that our client can validate a PSS-signed certificate
-//  * that our client can use rsa_pss_rsae_sha256 in its CertificateVerify
-//  * that our client can accpet rsa_pss_rsae_sha256 in the server CertificateVerify
+// TestHandshakeClientCertRSAPSS tests rsa_pss_rsae_sha256 signatures from both
+// client and server certificates. It also serves from both sides a certificate
+// signed itself with RSA-PSS, mostly to check that crypto/x509 chain validation
+// works.
 func TestHandshakeClientCertRSAPSS(t *testing.T) {
-	issuer, err := x509.ParseCertificate(testRSAPSSCertificate)
+	cert, err := x509.ParseCertificate(testRSAPSSCertificate)
 	if err != nil {
 		panic(err)
 	}
 	rootCAs := x509.NewCertPool()
-	rootCAs.AddCert(issuer)
+	rootCAs.AddCert(cert)
 
 	config := testConfig.Clone()
-	cert, _ := X509KeyPair([]byte(clientCertificatePEM), []byte(clientKeyPEM))
-	config.Certificates = []Certificate{cert}
+	// Use GetClientCertificate to bypass the client certificate selection logic.
+	config.GetClientCertificate = func(*CertificateRequestInfo) (*Certificate, error) {
+		return &Certificate{
+			Certificate: [][]byte{testRSAPSSCertificate},
+			PrivateKey:  testRSAPrivateKey,
+		}, nil
+	}
 	config.RootCAs = rootCAs
 
 	test := &clientTest{
@@ -835,7 +837,6 @@ func TestHandshakeClientCertRSAPSS(t *testing.T) {
 		cert:   testRSAPSSCertificate,
 		key:    testRSAPrivateKey,
 	}
-
 	runClientTestTLS12(t, test)
 	runClientTestTLS13(t, test)
 }
@@ -870,6 +871,9 @@ func TestResumption(t *testing.T) {
 }
 
 func testResumption(t *testing.T, version uint16) {
+	if testing.Short() {
+		t.Skip("skipping in -short mode")
+	}
 	serverConfig := &Config{
 		MaxVersion:   version,
 		CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
@@ -1717,6 +1721,9 @@ func TestAlertFlushing(t *testing.T) {
 }
 
 func TestHandshakeRace(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in -short mode")
+	}
 	t.Parallel()
 	// This test races a Read and Write to try and complete a handshake in
 	// order to provide some evidence that there are no races or deadlocks

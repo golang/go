@@ -136,7 +136,9 @@ nocpuinfo:
 	MOVQ	$setg_gcc<>(SB), SI // arg 2: setg_gcc
 #ifdef GOOS_android
 	MOVQ	$runtime·tls_g(SB), DX 	// arg 3: &tls_g
-	MOVQ	0(TLS), CX	// arg 4: TLS base, stored in the first slot (TLS_SLOT_SELF).
+	// arg 4: TLS base, stored in slot 0 (Android's TLS_SLOT_SELF).
+	// Compensate for tls_g (+16).
+	MOVQ	-16(TLS), CX
 #else
 	MOVQ	$0, DX	// arg 3, 4: not used when using platform's TLS
 	MOVQ	$0, CX
@@ -167,6 +169,10 @@ needtls:
 #endif
 #ifdef GOOS_solaris
 	// skip TLS setup on Solaris
+	JMP ok
+#endif
+#ifdef GOOS_illumos
+	// skip TLS setup on illumos
 	JMP ok
 #endif
 #ifdef GOOS_darwin
@@ -418,6 +424,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$0-0
 
 	// Called from f.
 	// Set m->morebuf to f's caller.
+	NOP	SP	// tell vet SP changed - stop checking offsets
 	MOVQ	8(SP), AX	// f's caller's PC
 	MOVQ	AX, (m_morebuf+gobuf_pc)(BX)
 	LEAQ	16(SP), AX	// f's caller's SP
@@ -878,26 +885,34 @@ done:
 	MOVQ	AX, ret+0(FP)
 	RET
 
-// func aeshash(p unsafe.Pointer, h, s uintptr) uintptr
+// func memhash(p unsafe.Pointer, h, s uintptr) uintptr
 // hash function using AES hardware instructions
-TEXT runtime·aeshash(SB),NOSPLIT,$0-32
+TEXT runtime·memhash(SB),NOSPLIT,$0-32
+	CMPB	runtime·useAeshash(SB), $0
+	JEQ	noaes
 	MOVQ	p+0(FP), AX	// ptr to data
 	MOVQ	s+16(FP), CX	// size
 	LEAQ	ret+24(FP), DX
-	JMP	runtime·aeshashbody(SB)
+	JMP	aeshashbody<>(SB)
+noaes:
+	JMP	runtime·memhashFallback(SB)
 
-// func aeshashstr(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·aeshashstr(SB),NOSPLIT,$0-24
+// func strhash(p unsafe.Pointer, h uintptr) uintptr
+TEXT runtime·strhash(SB),NOSPLIT,$0-24
+	CMPB	runtime·useAeshash(SB), $0
+	JEQ	noaes
 	MOVQ	p+0(FP), AX	// ptr to string struct
 	MOVQ	8(AX), CX	// length of string
 	MOVQ	(AX), AX	// string data
 	LEAQ	ret+16(FP), DX
-	JMP	runtime·aeshashbody(SB)
+	JMP	aeshashbody<>(SB)
+noaes:
+	JMP	runtime·strhashFallback(SB)
 
 // AX: data
 // CX: length
 // DX: address to put return value
-TEXT runtime·aeshashbody(SB),NOSPLIT,$0-0
+TEXT aeshashbody<>(SB),NOSPLIT,$0-0
 	// Fill an SSE register with our seeds.
 	MOVQ	h+8(FP), X0			// 64 bits of per-table hash seed
 	PINSRW	$4, CX, X0			// 16 bits of length
@@ -1225,8 +1240,11 @@ aesloop:
 	MOVQ	X8, (DX)
 	RET
 
-// func aeshash32(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·aeshash32(SB),NOSPLIT,$0-24
+// func memhash32(p unsafe.Pointer, h uintptr) uintptr
+TEXT runtime·memhash32(SB),NOSPLIT,$0-24
+	CMPB	runtime·useAeshash(SB), $0
+	JEQ	noaes
+	JMP	runtime·memhash32Fallback(SB)
 	MOVQ	p+0(FP), AX	// ptr to data
 	MOVQ	h+8(FP), X0	// seed
 	PINSRD	$2, (AX), X0	// data
@@ -1235,9 +1253,14 @@ TEXT runtime·aeshash32(SB),NOSPLIT,$0-24
 	AESENC	runtime·aeskeysched+32(SB), X0
 	MOVQ	X0, ret+16(FP)
 	RET
+noaes:
+	JMP	runtime·memhash32Fallback(SB)
 
-// func aeshash64(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·aeshash64(SB),NOSPLIT,$0-24
+// func memhash64(p unsafe.Pointer, h uintptr) uintptr
+TEXT runtime·memhash64(SB),NOSPLIT,$0-24
+	CMPB	runtime·useAeshash(SB), $0
+	JEQ	noaes
+	JMP	runtime·memhash64Fallback(SB)
 	MOVQ	p+0(FP), AX	// ptr to data
 	MOVQ	h+8(FP), X0	// seed
 	PINSRQ	$1, (AX), X0	// data
@@ -1246,6 +1269,8 @@ TEXT runtime·aeshash64(SB),NOSPLIT,$0-24
 	AESENC	runtime·aeskeysched+32(SB), X0
 	MOVQ	X0, ret+16(FP)
 	RET
+noaes:
+	JMP	runtime·memhash64Fallback(SB)
 
 // simple mask to get rid of data in the high part of the register.
 DATA masks<>+0x00(SB)/8, $0x0000000000000000
@@ -1610,6 +1635,8 @@ restore:
 
 	RET
 
+// runtime.debugCallCheck assumes that functions defined with the
+// DEBUG_CALL_FN macro are safe points to inject calls.
 #define DEBUG_CALL_FN(NAME,MAXSIZE)		\
 TEXT NAME(SB),WRAPPER,$MAXSIZE-0;		\
 	NO_LOCAL_POINTERS;			\
@@ -1713,5 +1740,8 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
 	JMP	runtime·goPanicSlice3CU(SB)
 
 #ifdef GOOS_android
+// Use the free TLS_SLOT_APP slot #2 on Android Q.
+// Earlier androids are set up in gcc_android.c.
+DATA runtime·tls_g+0(SB)/8, $16
 GLOBL runtime·tls_g+0(SB), NOPTR, $8
 #endif

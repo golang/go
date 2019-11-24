@@ -85,35 +85,37 @@ func TestParseFormQueryMethods(t *testing.T) {
 	}
 }
 
-type stringMap map[string][]string
-type parseContentTypeTest struct {
-	shouldError bool
-	contentType stringMap
-}
-
-var parseContentTypeTests = []parseContentTypeTest{
-	{false, stringMap{"Content-Type": {"text/plain"}}},
-	// Empty content type is legal - may be treated as
-	// application/octet-stream (RFC 7231, section 3.1.1.5)
-	{false, stringMap{}},
-	{true, stringMap{"Content-Type": {"text/plain; boundary="}}},
-	{false, stringMap{"Content-Type": {"application/unknown"}}},
-}
-
 func TestParseFormUnknownContentType(t *testing.T) {
-	for i, test := range parseContentTypeTests {
-		req := &Request{
-			Method: "POST",
-			Header: Header(test.contentType),
-			Body:   ioutil.NopCloser(strings.NewReader("body")),
-		}
-		err := req.ParseForm()
-		switch {
-		case err == nil && test.shouldError:
-			t.Errorf("test %d should have returned error", i)
-		case err != nil && !test.shouldError:
-			t.Errorf("test %d should not have returned error, got %v", i, err)
-		}
+	for _, test := range []struct {
+		name        string
+		wantErr     string
+		contentType Header
+	}{
+		{"text", "", Header{"Content-Type": {"text/plain"}}},
+		// Empty content type is legal - may be treated as
+		// application/octet-stream (RFC 7231, section 3.1.1.5)
+		{"empty", "", Header{}},
+		{"boundary", "mime: invalid media parameter", Header{"Content-Type": {"text/plain; boundary="}}},
+		{"unknown", "", Header{"Content-Type": {"application/unknown"}}},
+	} {
+		t.Run(test.name,
+			func(t *testing.T) {
+				req := &Request{
+					Method: "POST",
+					Header: test.contentType,
+					Body:   ioutil.NopCloser(strings.NewReader("body")),
+				}
+				err := req.ParseForm()
+				switch {
+				case err == nil && test.wantErr != "":
+					t.Errorf("unexpected success; want error %q", test.wantErr)
+				case err != nil && test.wantErr == "":
+					t.Errorf("want success, got error: %v", err)
+				case test.wantErr != "" && test.wantErr != fmt.Sprint(err):
+					t.Errorf("got error %q; want %q", err, test.wantErr)
+				}
+			},
+		)
 	}
 }
 
@@ -823,6 +825,34 @@ func TestWithContextDeepCopiesURL(t *testing.T) {
 	reqCopy = req.WithContext(context.Background())
 	if reqCopy.URL != nil {
 		t.Error("expected nil URL in cloned request")
+	}
+}
+
+func TestNoPanicOnRoundTripWithBasicAuth_h1(t *testing.T) {
+	testNoPanicWithBasicAuth(t, h1Mode)
+}
+
+func TestNoPanicOnRoundTripWithBasicAuth_h2(t *testing.T) {
+	testNoPanicWithBasicAuth(t, h2Mode)
+}
+
+// Issue 34878: verify we don't panic when including basic auth (Go 1.13 regression)
+func testNoPanicWithBasicAuth(t *testing.T, h2 bool) {
+	defer afterTest(t)
+	cst := newClientServerTest(t, h2, HandlerFunc(func(w ResponseWriter, r *Request) {}))
+	defer cst.close()
+
+	u, err := url.Parse(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u.User = url.UserPassword("foo", "bar")
+	req := &Request{
+		URL:    u,
+		Method: "GET",
+	}
+	if _, err := cst.c.Do(req); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
 	}
 }
 

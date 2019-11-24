@@ -264,7 +264,7 @@ TEXT ·shlVU(SB),NOSPLIT,$0
 	MOVQ s+48(FP), CX
 	MOVQ (R8)(BX*8), AX	// w1 = x[n-1]
 	MOVQ $0, DX
-	SHLQ CX, DX:AX		// w1>>ŝ
+	SHLQ CX, AX, DX		// w1>>ŝ
 	MOVQ DX, c+56(FP)
 
 	CMPQ BX, $0
@@ -273,7 +273,7 @@ TEXT ·shlVU(SB),NOSPLIT,$0
 	// i > 0
 L8:	MOVQ AX, DX		// w = w1
 	MOVQ -8(R8)(BX*8), AX	// w1 = x[i-1]
-	SHLQ CX, DX:AX		// w<<s | w1>>ŝ
+	SHLQ CX, AX, DX		// w<<s | w1>>ŝ
 	MOVQ DX, (R10)(BX*8)	// z[i] = w<<s | w1>>ŝ
 	SUBQ $1, BX		// i--
 	JG L8			// i > 0
@@ -299,7 +299,7 @@ TEXT ·shrVU(SB),NOSPLIT,$0
 	MOVQ s+48(FP), CX
 	MOVQ (R8), AX		// w1 = x[0]
 	MOVQ $0, DX
-	SHRQ CX, DX:AX		// w1<<ŝ
+	SHRQ CX, AX, DX		// w1<<ŝ
 	MOVQ DX, c+56(FP)
 
 	MOVQ $0, BX		// i = 0
@@ -308,7 +308,7 @@ TEXT ·shrVU(SB),NOSPLIT,$0
 	// i < n-1
 L9:	MOVQ AX, DX		// w = w1
 	MOVQ 8(R8)(BX*8), AX	// w1 = x[i+1]
-	SHRQ CX, DX:AX		// w>>s | w1<<ŝ
+	SHRQ CX, AX, DX		// w>>s | w1<<ŝ
 	MOVQ DX, (R10)(BX*8)	// z[i] = w>>s | w1<<ŝ
 	ADDQ $1, BX		// i++
 

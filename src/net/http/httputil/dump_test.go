@@ -17,6 +17,12 @@ import (
 	"testing"
 )
 
+type eofReader struct{}
+
+func (n eofReader) Close() error { return nil }
+
+func (n eofReader) Read([]byte) (int, error) { return 0, io.EOF }
+
 type dumpTest struct {
 	// Either Req or GetReq can be set/nil but not both.
 	Req    *http.Request
@@ -26,6 +32,7 @@ type dumpTest struct {
 
 	WantDump    string
 	WantDumpOut string
+	MustError   bool // if true, the test is expected to throw an error
 	NoBody      bool // if true, set DumpRequest{,Out} body to false
 }
 
@@ -203,9 +210,42 @@ var dumpTests = []dumpTest{
 			"Content-Length: 0\r\n" +
 			"Accept-Encoding: gzip\r\n\r\n",
 	},
+
+	// Issue 34504: a non-nil Body without ContentLength set should be chunked
+	{
+		Req: &http.Request{
+			Method: "PUT",
+			URL: &url.URL{
+				Scheme: "http",
+				Host:   "post.tld",
+				Path:   "/test",
+			},
+			ContentLength: 0,
+			Proto:         "HTTP/1.1",
+			ProtoMajor:    1,
+			ProtoMinor:    1,
+			Body:          &eofReader{},
+		},
+		NoBody: true,
+		WantDumpOut: "PUT /test HTTP/1.1\r\n" +
+			"Host: post.tld\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"Transfer-Encoding: chunked\r\n" +
+			"Accept-Encoding: gzip\r\n\r\n",
+	},
 }
 
 func TestDumpRequest(t *testing.T) {
+	// Make a copy of dumpTests and add 10 new cases with an empty URL
+	// to test that no goroutines are leaked. See golang.org/issue/32571.
+	// 10 seems to be a decent number which always triggers the failure.
+	dumpTests := dumpTests[:]
+	for i := 0; i < 10; i++ {
+		dumpTests = append(dumpTests, dumpTest{
+			Req:       mustNewRequest("GET", "", nil),
+			MustError: true,
+		})
+	}
 	numg0 := runtime.NumGoroutine()
 	for i, tt := range dumpTests {
 		if tt.Req != nil && tt.GetReq != nil || tt.Req == nil && tt.GetReq == nil {
@@ -248,6 +288,15 @@ func TestDumpRequest(t *testing.T) {
 				t.Errorf("DumpRequest %d, expecting:\n%s\nGot:\n%s\n", i, tt.WantDump, string(dump))
 				continue
 			}
+		}
+
+		if tt.MustError {
+			req := freshReq(tt)
+			_, err := DumpRequestOut(req, !tt.NoBody)
+			if err == nil {
+				t.Errorf("DumpRequestOut #%d: expected an error, got nil", i)
+			}
+			continue
 		}
 
 		if tt.WantDumpOut != "" {

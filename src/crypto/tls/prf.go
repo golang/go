@@ -74,39 +74,6 @@ func prf12(hashFunc func() hash.Hash) func(result, secret, label, seed []byte) {
 	}
 }
 
-// prf30 implements the SSL 3.0 pseudo-random function, as defined in
-// www.mozilla.org/projects/security/pki/nss/ssl/draft302.txt section 6.
-func prf30(result, secret, label, seed []byte) {
-	hashSHA1 := sha1.New()
-	hashMD5 := md5.New()
-
-	done := 0
-	i := 0
-	// RFC 5246 section 6.3 says that the largest PRF output needed is 128
-	// bytes. Since no more ciphersuites will be added to SSLv3, this will
-	// remain true. Each iteration gives us 16 bytes so 10 iterations will
-	// be sufficient.
-	var b [11]byte
-	for done < len(result) {
-		for j := 0; j <= i; j++ {
-			b[j] = 'A' + byte(i)
-		}
-
-		hashSHA1.Reset()
-		hashSHA1.Write(b[:i+1])
-		hashSHA1.Write(secret)
-		hashSHA1.Write(seed)
-		digest := hashSHA1.Sum(nil)
-
-		hashMD5.Reset()
-		hashMD5.Write(secret)
-		hashMD5.Write(digest)
-
-		done += copy(result[done:], hashMD5.Sum(nil))
-		i++
-	}
-}
-
 const (
 	masterSecretLength   = 48 // Length of a master secret in TLS 1.1.
 	finishedVerifyLength = 12 // Length of verify_data in a Finished message.
@@ -119,8 +86,6 @@ var serverFinishedLabel = []byte("server finished")
 
 func prfAndHashForVersion(version uint16, suite *cipherSuite) (func(result, secret, label, seed []byte), crypto.Hash) {
 	switch version {
-	case VersionSSL30:
-		return prf30, crypto.Hash(0)
 	case VersionTLS10, VersionTLS11:
 		return prf10, crypto.Hash(0)
 	case VersionTLS12:
@@ -175,26 +140,9 @@ func keysFromMasterSecret(version uint16, suite *cipherSuite, masterSecret, clie
 	return
 }
 
-// hashFromSignatureScheme returns the corresponding crypto.Hash for a given
-// hash from a TLS SignatureScheme.
-func hashFromSignatureScheme(signatureAlgorithm SignatureScheme) (crypto.Hash, error) {
-	switch signatureAlgorithm {
-	case PKCS1WithSHA1, ECDSAWithSHA1:
-		return crypto.SHA1, nil
-	case PKCS1WithSHA256, PSSWithSHA256, ECDSAWithP256AndSHA256:
-		return crypto.SHA256, nil
-	case PKCS1WithSHA384, PSSWithSHA384, ECDSAWithP384AndSHA384:
-		return crypto.SHA384, nil
-	case PKCS1WithSHA512, PSSWithSHA512, ECDSAWithP521AndSHA512:
-		return crypto.SHA512, nil
-	default:
-		return 0, fmt.Errorf("tls: unsupported signature algorithm: %#04x", signatureAlgorithm)
-	}
-}
-
 func newFinishedHash(version uint16, cipherSuite *cipherSuite) finishedHash {
 	var buffer []byte
-	if version == VersionSSL30 || version >= VersionTLS12 {
+	if version >= VersionTLS12 {
 		buffer = []byte{}
 	}
 
@@ -249,48 +197,9 @@ func (h finishedHash) Sum() []byte {
 	return h.client.Sum(out)
 }
 
-// finishedSum30 calculates the contents of the verify_data member of a SSLv3
-// Finished message given the MD5 and SHA1 hashes of a set of handshake
-// messages.
-func finishedSum30(md5, sha1 hash.Hash, masterSecret []byte, magic []byte) []byte {
-	md5.Write(magic)
-	md5.Write(masterSecret)
-	md5.Write(ssl30Pad1[:])
-	md5Digest := md5.Sum(nil)
-
-	md5.Reset()
-	md5.Write(masterSecret)
-	md5.Write(ssl30Pad2[:])
-	md5.Write(md5Digest)
-	md5Digest = md5.Sum(nil)
-
-	sha1.Write(magic)
-	sha1.Write(masterSecret)
-	sha1.Write(ssl30Pad1[:40])
-	sha1Digest := sha1.Sum(nil)
-
-	sha1.Reset()
-	sha1.Write(masterSecret)
-	sha1.Write(ssl30Pad2[:40])
-	sha1.Write(sha1Digest)
-	sha1Digest = sha1.Sum(nil)
-
-	ret := make([]byte, len(md5Digest)+len(sha1Digest))
-	copy(ret, md5Digest)
-	copy(ret[len(md5Digest):], sha1Digest)
-	return ret
-}
-
-var ssl3ClientFinishedMagic = [4]byte{0x43, 0x4c, 0x4e, 0x54}
-var ssl3ServerFinishedMagic = [4]byte{0x53, 0x52, 0x56, 0x52}
-
 // clientSum returns the contents of the verify_data member of a client's
 // Finished message.
 func (h finishedHash) clientSum(masterSecret []byte) []byte {
-	if h.version == VersionSSL30 {
-		return finishedSum30(h.clientMD5, h.client, masterSecret, ssl3ClientFinishedMagic[:])
-	}
-
 	out := make([]byte, finishedVerifyLength)
 	h.prf(out, masterSecret, clientFinishedLabel, h.Sum())
 	return out
@@ -299,44 +208,33 @@ func (h finishedHash) clientSum(masterSecret []byte) []byte {
 // serverSum returns the contents of the verify_data member of a server's
 // Finished message.
 func (h finishedHash) serverSum(masterSecret []byte) []byte {
-	if h.version == VersionSSL30 {
-		return finishedSum30(h.serverMD5, h.server, masterSecret, ssl3ServerFinishedMagic[:])
-	}
-
 	out := make([]byte, finishedVerifyLength)
 	h.prf(out, masterSecret, serverFinishedLabel, h.Sum())
 	return out
 }
 
-// hashForClientCertificate returns a digest over the handshake messages so far,
-// suitable for signing by a TLS client certificate.
-func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Hash, masterSecret []byte) ([]byte, error) {
-	if (h.version == VersionSSL30 || h.version >= VersionTLS12) && h.buffer == nil {
-		panic("a handshake hash for a client-certificate was requested after discarding the handshake buffer")
+// hashForClientCertificate returns the handshake messages so far, pre-hashed if
+// necessary, suitable for signing by a TLS client certificate.
+func (h finishedHash) hashForClientCertificate(sigType uint8, hashAlg crypto.Hash, masterSecret []byte) []byte {
+	if (h.version >= VersionTLS12 || sigType == signatureEd25519) && h.buffer == nil {
+		panic("tls: handshake hash for a client certificate requested after discarding the handshake buffer")
 	}
 
-	if h.version == VersionSSL30 {
-		if sigType != signaturePKCS1v15 {
-			return nil, errors.New("tls: unsupported signature type for client certificate")
-		}
-
-		md5Hash := md5.New()
-		md5Hash.Write(h.buffer)
-		sha1Hash := sha1.New()
-		sha1Hash.Write(h.buffer)
-		return finishedSum30(md5Hash, sha1Hash, masterSecret, nil), nil
+	if sigType == signatureEd25519 {
+		return h.buffer
 	}
+
 	if h.version >= VersionTLS12 {
 		hash := hashAlg.New()
 		hash.Write(h.buffer)
-		return hash.Sum(nil), nil
+		return hash.Sum(nil)
 	}
 
 	if sigType == signatureECDSA {
-		return h.server.Sum(nil), nil
+		return h.server.Sum(nil)
 	}
 
-	return h.Sum(), nil
+	return h.Sum()
 }
 
 // discardHandshakeBuffer is called when there is no more need to
@@ -346,7 +244,7 @@ func (h *finishedHash) discardHandshakeBuffer() {
 }
 
 // noExportedKeyingMaterial is used as a value of
-// ConnectionState.ekm when renegotation is enabled and thus
+// ConnectionState.ekm when renegotiation is enabled and thus
 // we wish to fail all key-material export requests.
 func noExportedKeyingMaterial(label string, context []byte, length int) ([]byte, error) {
 	return nil, errors.New("crypto/tls: ExportKeyingMaterial is unavailable when renegotiation is enabled")

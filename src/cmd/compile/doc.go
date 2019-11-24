@@ -216,11 +216,15 @@ not include a stack overflow check. This is most commonly used by low-level
 runtime sources invoked at times when it is unsafe for the calling goroutine to be
 preempted.
 
-	//go:linkname localname importpath.name
+	//go:linkname localname [importpath.name]
 
 The //go:linkname directive instructs the compiler to use ``importpath.name'' as the
 object file symbol name for the variable or function declared as ``localname'' in the
-source code. Because this directive can subvert the type system and package
+source code.
+If the ``importpath.name'' argument is omitted, the directive uses the
+symbol's default object file symbol name and only has the effect of making
+the symbol accessible to other packages.
+Because this directive can subvert the type system and package
 modularity, it is only enabled in files that have imported "unsafe".
 */
 package main

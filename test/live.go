@@ -367,16 +367,19 @@ func f24() {
 	m2[[2]string{"x", "y"}] = nil
 }
 
-// defer should not cause spurious ambiguously live variables
-
+// Non-open-coded defers should not cause autotmps.  (Open-coded defers do create extra autotmps).
 func f25(b bool) {
-	defer g25()
+	for i := 0; i < 2; i++ {
+		// Put in loop to make sure defer is not open-coded
+		defer g25()
+	}
 	if b {
 		return
 	}
 	var x string
 	x = g14()
 	printstring(x)
+	return
 }
 
 func g25()
@@ -417,7 +420,8 @@ func f27defer(b bool) {
 		defer call27(func() { x++ }) // ERROR "stack object .autotmp_[0-9]+ struct \{"
 	}
 	defer call27(func() { x++ }) // ERROR "stack object .autotmp_[0-9]+ struct \{"
-	printnl()
+	printnl()                    // ERROR "live at call to printnl: .autotmp_[0-9]+ .autotmp_[0-9]+"
+	return                       // ERROR "live at call to call27: .autotmp_[0-9]+"
 }
 
 // and newproc (go) escapes to the heap
@@ -659,7 +663,7 @@ func bad40() {
 
 func good40() {
 	ret := T40{}              // ERROR "stack object ret T40$"
-	ret.m = make(map[int]int) // ERROR "live at call to fastrand: .autotmp_[0-9]+ ret$" "stack object .autotmp_[0-9]+ map.hdr\[int\]int$"
+	ret.m = make(map[int]int) // ERROR "live at call to fastrand: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ map.hdr\[int\]int$"
 	t := &ret
 	printnl() // ERROR "live at call to printnl: ret$"
 	// Note: ret is live at the printnl because the compiler moves &ret
@@ -687,12 +691,12 @@ type R struct{ *T } // ERRORAUTO "live at entry to \(\*R\)\.Foo: \.this ptr" "li
 // In particular, at printint r must be live.
 func f41(p, q *int) (r *int) { // ERROR "live at entry to f41: p q$"
 	r = p
-	defer func() { // ERROR "live at call to deferproc: q r$" "live at call to deferreturn: r$"
+	defer func() {
 		recover()
 	}()
-	printint(0) // ERROR "live at call to printint: q r$"
+	printint(0) // ERROR "live at call to printint: q r .autotmp_[0-9]+$"
 	r = q
-	return // ERROR "live at call to deferreturn: r$"
+	return // ERROR "live at call to f41.func1: r .autotmp_[0-9]+$"
 }
 
 func f42() {
@@ -704,3 +708,14 @@ func f42() {
 
 //go:noescape
 func f43(a []*int)
+
+// Assigning to a sub-element that makes up an entire local variable
+// should clobber that variable.
+func f44(f func() [2]*int) interface{} { // ERROR "live at entry to f44: f"
+	type T struct {
+		s [1][2]*int
+	}
+	ret := T{}
+	ret.s[0] = f()
+	return ret // ERROR "stack object .autotmp_5 T"
+}

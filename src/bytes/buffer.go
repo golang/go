@@ -21,9 +21,6 @@ type Buffer struct {
 	buf      []byte // contents are the bytes buf[off : len(buf)]
 	off      int    // read at &buf[off], write at &buf[len(buf)]
 	lastRead readOp // last read operation, so that Unread* can work correctly.
-
-	// FIXME: it would be advisable to align Buffer to cachelines to avoid false
-	// sharing.
 }
 
 // The readOp constants describe the last action performed on

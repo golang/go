@@ -117,6 +117,11 @@ func FusedSub64_b(x, y, z float64) float64 {
 	return z - x*y
 }
 
+func Cmp(f float64) bool {
+	// arm64:"FCMPD","BLE",-"CSET\tGT",-"CBZ"
+	return f > 4 || f < -4
+}
+
 // ---------------- //
 //    Non-floats    //
 // ---------------- //

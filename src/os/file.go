@@ -34,6 +34,10 @@
 //	}
 //	fmt.Printf("read %d bytes: %q\n", count, data[:count])
 //
+// Note: The maximum number of concurrent operations on a File may be limited by
+// the OS or the system. The number should be high, but exceeding it may degrade
+// performance or cause other issues.
+//
 package os
 
 import (
@@ -224,6 +228,9 @@ func (f *File) WriteString(s string) (n int, err error) {
 // bits (before umask).
 // If there is an error, it will be of type *PathError.
 func Mkdir(name string, perm FileMode) error {
+	if runtime.GOOS == "windows" && isWindowsNulName(name) {
+		return &PathError{"mkdir", name, syscall.ENOTDIR}
+	}
 	e := syscall.Mkdir(fixLongPath(name), syscallMode(perm))
 
 	if e != nil {
@@ -243,7 +250,7 @@ func Mkdir(name string, perm FileMode) error {
 	return nil
 }
 
-// setStickyBit adds ModeSticky to the permision bits of path, non atomic.
+// setStickyBit adds ModeSticky to the permission bits of path, non atomic.
 func setStickyBit(name string) error {
 	fi, err := Stat(name)
 	if err != nil {
@@ -406,7 +413,7 @@ func UserCacheDir() (string, error) {
 // On Unix systems, it returns $XDG_CONFIG_HOME as specified by
 // https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html if
 // non-empty, else $HOME/.config.
-// On Darwin, it returns $HOME/Library/Preferences.
+// On Darwin, it returns $HOME/Library/Application Support.
 // On Windows, it returns %AppData%.
 // On Plan 9, it returns $home/lib.
 //
@@ -427,7 +434,7 @@ func UserConfigDir() (string, error) {
 		if dir == "" {
 			return "", errors.New("$HOME is not defined")
 		}
-		dir += "/Library/Preferences"
+		dir += "/Library/Application Support"
 
 	case "plan9":
 		dir = Getenv("home")
@@ -468,8 +475,6 @@ func UserHomeDir() (string, error) {
 	}
 	// On some geese the home directory is not always defined.
 	switch runtime.GOOS {
-	case "nacl":
-		return "/", nil
 	case "android":
 		return "/sdcard", nil
 	case "darwin":
@@ -490,11 +495,11 @@ func UserHomeDir() (string, error) {
 // On Unix, the mode's permission bits, ModeSetuid, ModeSetgid, and
 // ModeSticky are used.
 //
-// On Windows, the mode must be non-zero but otherwise only the 0200
-// bit (owner writable) of mode is used; it controls whether the
-// file's read-only attribute is set or cleared. attribute. The other
-// bits are currently unused. Use mode 0400 for a read-only file and
-// 0600 for a readable+writable file.
+// On Windows, only the 0200 bit (owner writable) of mode is used; it
+// controls whether the file's read-only attribute is set or cleared.
+// The other bits are currently unused. For compatibility with Go 1.12
+// and earlier, use a non-zero mode. Use mode 0400 for a read-only
+// file and 0600 for a readable+writable file.
 //
 // On Plan 9, the mode's permission bits, ModeAppend, ModeExclusive,
 // and ModeTemporary are used.
@@ -555,4 +560,22 @@ func (f *File) SyscallConn() (syscall.RawConn, error) {
 		return nil, err
 	}
 	return newRawConn(f)
+}
+
+// isWindowsNulName reports whether name is os.DevNull ('NUL') on Windows.
+// True is returned if name is 'NUL' whatever the case.
+func isWindowsNulName(name string) bool {
+	if len(name) != 3 {
+		return false
+	}
+	if name[0] != 'n' && name[0] != 'N' {
+		return false
+	}
+	if name[1] != 'u' && name[1] != 'U' {
+		return false
+	}
+	if name[2] != 'l' && name[2] != 'L' {
+		return false
+	}
+	return true
 }

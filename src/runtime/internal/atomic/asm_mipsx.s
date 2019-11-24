@@ -32,12 +32,28 @@ TEXT ·Store(SB),NOSPLIT,$0-8
 	SYNC
 	RET
 
+TEXT ·Store8(SB),NOSPLIT,$0-5
+	MOVW	ptr+0(FP), R1
+	MOVB	val+4(FP), R2
+	SYNC
+	MOVB	R2, 0(R1)
+	SYNC
+	RET
+
 TEXT ·Load(SB),NOSPLIT,$0-8
 	MOVW	ptr+0(FP), R1
 	SYNC
 	MOVW	0(R1), R1
 	SYNC
 	MOVW	R1, ret+4(FP)
+	RET
+
+TEXT ·Load8(SB),NOSPLIT,$0-5
+	MOVW	ptr+0(FP), R1
+	SYNC
+	MOVB	0(R1), R1
+	SYNC
+	MOVB	R1, ret+4(FP)
 	RET
 
 TEXT ·Xadd(SB),NOSPLIT,$0-12

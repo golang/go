@@ -9,6 +9,7 @@ package assign
 // methods that are on T instead of *T.
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"reflect"
@@ -59,7 +60,14 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			le := analysisutil.Format(pass.Fset, lhs)
 			re := analysisutil.Format(pass.Fset, rhs)
 			if le == re {
-				pass.Reportf(stmt.Pos(), "self-assignment of %s to %s", re, le)
+				pass.Report(analysis.Diagnostic{
+					Pos: stmt.Pos(), Message: fmt.Sprintf("self-assignment of %s to %s", re, le),
+					SuggestedFixes: []analysis.SuggestedFix{
+						{Message: "Remove", TextEdits: []analysis.TextEdit{
+							{Pos: stmt.Pos(), End: stmt.End(), NewText: []byte{}},
+						}},
+					},
+				})
 			}
 		}
 	})

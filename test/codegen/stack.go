@@ -98,3 +98,23 @@ func check_asmout(a, b int) int {
 	// arm:`.*b\+4\(FP\)`
 	return b
 }
+
+// Check that simple functions get promoted to nosplit, even when
+// they might panic in various ways. See issue 31219.
+// amd64:"TEXT\t.*NOSPLIT.*"
+func MightPanic(a []int, i, j, k, s int) {
+	_ = a[i]     // panicIndex
+	_ = a[i:j]   // panicSlice
+	_ = a[i:j:k] // also panicSlice
+	_ = i << s   // panicShift
+	_ = i / j    // panicDivide
+}
+
+// Put a defer in a loop, so second defer is not open-coded
+func Defer() {
+	for i := 0; i < 2; i++ {
+		defer func() {}()
+	}
+	// amd64:`CALL\truntime\.deferprocStack`
+	defer func() {}()
+}

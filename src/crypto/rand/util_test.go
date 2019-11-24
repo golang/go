@@ -84,6 +84,9 @@ func TestIntMask(t *testing.T) {
 	for max := 1; max <= 256; max++ {
 		t.Run(fmt.Sprintf("max=%d", max), func(t *testing.T) {
 			for i := 0; i < max; i++ {
+				if testing.Short() && i == 0 {
+					i = max - 1
+				}
 				var b bytes.Buffer
 				b.WriteByte(byte(i))
 				n, err := rand.Int(&b, big.NewInt(int64(max)))

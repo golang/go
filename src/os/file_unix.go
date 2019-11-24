@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build aix darwin dragonfly freebsd js,wasm linux nacl netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd js,wasm linux netbsd openbsd solaris
 
 package os
 
@@ -27,13 +27,17 @@ func rename(oldname, newname string) error {
 		// At this point we've determined the newname is bad.
 		// But just in case oldname is also bad, prioritize returning
 		// the oldname error because that's what we did historically.
-		if _, err := Lstat(oldname); err != nil {
+		// However, if the old name and new name are not the same, yet
+		// they refer to the same file, it implies a case-only
+		// rename on a case-insensitive filesystem, which is ok.
+		if ofi, err := Lstat(oldname); err != nil {
 			if pe, ok := err.(*PathError); ok {
 				err = pe.Err
 			}
 			return &LinkError{"rename", oldname, newname, err}
+		} else if newname == oldname || !SameFile(fi, ofi) {
+			return &LinkError{"rename", oldname, newname, syscall.EEXIST}
 		}
-		return &LinkError{"rename", oldname, newname, syscall.EEXIST}
 	}
 	err = syscall.Rename(oldname, newname)
 	if err != nil {
@@ -122,25 +126,27 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
 	// we assume they know what they are doing so we allow it to be
 	// used with kqueue.
 	if kind == kindOpenFile {
-		var st syscall.Stat_t
 		switch runtime.GOOS {
-		case "dragonfly", "freebsd", "netbsd", "openbsd":
+		case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd":
+			var st syscall.Stat_t
+			err := syscall.Fstat(fdi, &st)
+			typ := st.Mode & syscall.S_IFMT
 			// Don't try to use kqueue with regular files on *BSDs.
 			// On FreeBSD a regular file is always
 			// reported as ready for writing.
 			// On Dragonfly, NetBSD and OpenBSD the fd is signaled
 			// only once as ready (both read and write).
 			// Issue 19093.
-			if err := syscall.Fstat(fdi, &st); err == nil && st.Mode&syscall.S_IFMT == syscall.S_IFREG {
+			// Also don't add directories to the netpoller.
+			if err == nil && (typ == syscall.S_IFREG || typ == syscall.S_IFDIR) {
 				pollable = false
 			}
 
-		case "darwin":
 			// In addition to the behavior described above for regular files,
 			// on Darwin, kqueue does not work properly with fifos:
 			// closing the last writer does not cause a kqueue event
 			// for any readers. See issue #24164.
-			if err := syscall.Fstat(fdi, &st); err == nil && (st.Mode&syscall.S_IFMT == syscall.S_IFIFO || st.Mode&syscall.S_IFMT == syscall.S_IFREG) {
+			if runtime.GOOS == "darwin" && typ == syscall.S_IFIFO {
 				pollable = false
 			}
 		}
@@ -223,6 +229,7 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 // Close closes the File, rendering it unusable for I/O.
 // On files that support SetDeadline, any pending I/O operations will
 // be canceled and return immediately with an error.
+// Close will return an error if it has already been called.
 func (f *File) Close() error {
 	if f == nil {
 		return ErrInvalid

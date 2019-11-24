@@ -47,7 +47,7 @@ inittls(void **tlsg, void **tlsbase)
 {
 	pthread_key_t k;
 	int i, err;
-	void *handle, *get_ver;
+	void *handle, *get_ver, *off;
 
 	// Check for Android Q where we can use the free TLS_SLOT_APP slot.
 	handle = dlopen("libc.so", RTLD_LAZY);
@@ -60,7 +60,11 @@ inittls(void **tlsg, void **tlsbase)
 	get_ver = dlsym(handle, "android_get_device_api_level");
 	dlclose(handle);
 	if (get_ver != NULL) {
-		*tlsg = (void *)(TLS_SLOT_APP*sizeof(void *));
+		off = (void *)(TLS_SLOT_APP*sizeof(void *));
+		// tlsg is initialized to Q's free TLS slot. Verify it while we're here.
+		if (*tlsg != off) {
+			fatalf("tlsg offset wrong, got %ld want %ld\n", *tlsg, off);
+		}
 		return;
 	}
 

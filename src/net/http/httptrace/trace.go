@@ -133,8 +133,8 @@ type ClientTrace struct {
 	ConnectDone func(network, addr string, err error)
 
 	// TLSHandshakeStart is called when the TLS handshake is started. When
-	// connecting to a HTTPS site via a HTTP proxy, the handshake happens after
-	// the CONNECT request is processed by the proxy.
+	// connecting to an HTTPS site via an HTTP proxy, the handshake happens
+	// after the CONNECT request is processed by the proxy.
 	TLSHandshakeStart func()
 
 	// TLSHandshakeDone is called after the TLS handshake with either the

@@ -9,7 +9,9 @@
 // runtime scheduler.
 package poll
 
-import "errors"
+import (
+	"errors"
+)
 
 // ErrNetClosing is returned when a network descriptor is used after
 // it has been closed. Keep this string consistent because of issue

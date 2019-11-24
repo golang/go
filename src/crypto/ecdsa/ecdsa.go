@@ -5,13 +5,23 @@
 // Package ecdsa implements the Elliptic Curve Digital Signature Algorithm, as
 // defined in FIPS 186-3.
 //
-// This implementation  derives the nonce from an AES-CTR CSPRNG keyed by
-// ChopMD(256, SHA2-512(priv.D || entropy || hash)). The CSPRNG key is IRO by
-// a result of Coron; the AES-CTR stream is IRO under standard assumptions.
+// This implementation derives the nonce from an AES-CTR CSPRNG keyed by:
+//
+// SHA2-512(priv.D || entropy || hash)[:32]
+//
+// The CSPRNG key is indifferentiable from a random oracle as shown in
+// [Coron], the AES-CTR stream is indifferentiable from a random oracle
+// under standard cryptographic assumptions (see [Larsson] for examples).
+//
+// References:
+//   [Coron]
+//     https://cs.nyu.edu/~dodis/ps/merkle.pdf
+//   [Larsson]
+//     https://www.nada.kth.se/kurser/kth/2D1441/semteo03/lecturenotes/assump.pdf
 package ecdsa
 
-// References:
-//   [NSA]: Suite B implementer's guide to FIPS 186-3,
+// Further references:
+//   [NSA]: Suite B implementer's guide to FIPS 186-3
 //     https://apps.nsa.gov/iaarchive/library/ia-guidance/ia-solutions-for-classified/algorithm-guidance/suite-b-implementers-guide-to-fips-186-3-ecdsa.cfm
 //   [SECG]: SECG, SEC1
 //     http://www.secg.org/sec1-v2.pdf
@@ -21,13 +31,12 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/elliptic"
+	"crypto/internal/randutil"
 	"crypto/sha512"
 	"encoding/asn1"
 	"errors"
 	"io"
 	"math/big"
-
-	"crypto/internal/randutil"
 )
 
 // A invertible implements fast inverse mod Curve.Params().N

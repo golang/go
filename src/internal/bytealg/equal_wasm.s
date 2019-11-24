@@ -5,26 +5,6 @@
 #include "go_asm.h"
 #include "textflag.h"
 
-TEXT ·Equal(SB), NOSPLIT, $0-49
-	MOVD a_len+8(FP), R0
-	MOVD b_len+32(FP), R1
-	Get R0
-	Get R1
-	I64Eq
-	If
-		Get SP
-		I64Load a+0(FP)
-		I64Load b+24(FP)
-		Get R0
-		Call memeqbody<>(SB)
-		I64Store8 ret+48(FP)
-	Else
-		Get SP
-		I64Const $0
-		I64Store8 ret+48(FP)
-	End
-	RET
-
 // memequal(p, q unsafe.Pointer, size uintptr) bool
 TEXT runtime·memequal(SB), NOSPLIT, $0-25
 	Get SP

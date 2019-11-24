@@ -99,6 +99,7 @@ func machoCombineDwarf(ctxt *Link, exef *os.File, exem *macho.File, dsym, outexe
 	if err != nil {
 		return err
 	}
+	defer dwarff.Close()
 	outf, err := os.Create(outexe)
 	if err != nil {
 		return err
@@ -244,7 +245,7 @@ func machoCombineDwarf(ctxt *Link, exef *os.File, exem *macho.File, dsym, outexe
 		}
 	}
 	// Do the final update of the DWARF segment's load command.
-	return machoUpdateDwarfHeader(&reader, ctxt.BuildMode, compressedSects)
+	return machoUpdateDwarfHeader(&reader, compressedSects, dwarfsize)
 }
 
 // machoCompressSections tries to compress the DWARF segments in dwarfm,
@@ -389,7 +390,7 @@ func machoUpdateSections(r loadCmdReader, seg, sect reflect.Value, deltaOffset, 
 }
 
 // machoUpdateDwarfHeader updates the DWARF segment load command.
-func machoUpdateDwarfHeader(r *loadCmdReader, buildmode BuildMode, compressedSects []*macho.Section) error {
+func machoUpdateDwarfHeader(r *loadCmdReader, compressedSects []*macho.Section, dwarfsize uint64) error {
 	var seg, sect interface{}
 	cmd, err := r.Next()
 	if err != nil {
@@ -407,7 +408,6 @@ func machoUpdateDwarfHeader(r *loadCmdReader, buildmode BuildMode, compressedSec
 	}
 	segv := reflect.ValueOf(seg).Elem()
 	segv.FieldByName("Offset").SetUint(uint64(dwarfstart))
-	segv.FieldByName("Addr").SetUint(uint64(dwarfaddr))
 
 	if compressedSects != nil {
 		var segSize uint64
@@ -415,23 +415,27 @@ func machoUpdateDwarfHeader(r *loadCmdReader, buildmode BuildMode, compressedSec
 			segSize += newSect.Size
 		}
 		segv.FieldByName("Filesz").SetUint(segSize)
-		segv.FieldByName("Memsz").SetUint(uint64(Rnd(int64(segSize), 1<<pageAlign)))
+	} else {
+		segv.FieldByName("Filesz").SetUint(dwarfsize)
 	}
 
 	deltaOffset := uint64(dwarfstart) - realdwarf.Offset
 	deltaAddr := uint64(dwarfaddr) - realdwarf.Addr
 
-	// If we set Memsz to 0 (and might as well set Addr too),
-	// then the xnu kernel will bail out halfway through load_segment
-	// and not apply further sanity checks that we might fail in the future.
-	// We don't need the DWARF information actually available in memory.
-	// But if we do this for buildmode=c-shared then the user-space
-	// dynamic loader complains about memsz < filesz. Sigh.
-	if buildmode != BuildModeCShared {
-		segv.FieldByName("Addr").SetUint(0)
-		segv.FieldByName("Memsz").SetUint(0)
-		deltaAddr = 0
-	}
+	// We want the DWARF segment to be considered non-loadable, so
+	// force vmaddr and vmsize to zero. In addition, set the initial
+	// protection to zero so as to make the dynamic loader happy,
+	// since otherwise it may complain that that the vm size and file
+	// size don't match for the segment. See issues 21647 and 32673
+	// for more context. Also useful to refer to the Apple dynamic
+	// loader source, specifically ImageLoaderMachO::sniffLoadCommands
+	// in ImageLoaderMachO.cpp (various versions can be found online, see
+	// https://opensource.apple.com/source/dyld/dyld-519.2.2/src/ImageLoaderMachO.cpp.auto.html
+	// as one example).
+	segv.FieldByName("Addr").SetUint(0)
+	segv.FieldByName("Memsz").SetUint(0)
+	segv.FieldByName("Prot").SetUint(0)
+	deltaAddr = 0
 
 	if err := r.WriteAt(0, seg); err != nil {
 		return err

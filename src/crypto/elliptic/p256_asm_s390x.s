@@ -2465,7 +2465,7 @@ TEXT ·p256PointDoubleAsm(SB), NOSPLIT, $0
 #define PL    V30
 #define PH    V31
 /*
- * https://choucroutage.com/Papers/SideChannelAttacks/ctrsa-2011-brown.pdf "Software Implementation of the NIST Elliptic Curves Over Prime Fields"
+ * https://delta.cs.cinvestav.mx/~francisco/arith/julio.pdf "Software Implementation of the NIST Elliptic Curves Over Prime Fields"
  *
  * A = X₁×Z₂²
  * B = Y₁×Z₂³

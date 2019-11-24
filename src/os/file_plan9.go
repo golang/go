@@ -111,7 +111,7 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 		fd, e = syscall.Create(name, flag, syscallMode(perm))
 	} else {
 		fd, e = syscall.Open(name, flag)
-		if e != nil && create {
+		if IsNotExist(e) && create {
 			var e1 error
 			fd, e1 = syscall.Create(name, flag, syscallMode(perm))
 			if e1 == nil {
@@ -136,6 +136,7 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 // Close closes the File, rendering it unusable for I/O.
 // On files that support SetDeadline, any pending I/O operations will
 // be canceled and return immediately with an error.
+// Close will return an error if it has already been called.
 func (f *File) Close() error {
 	if err := f.checkValid("close"); err != nil {
 		return err

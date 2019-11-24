@@ -90,8 +90,11 @@
 (Round x) -> (FRINTAD x)
 (RoundToEven x) -> (FRINTND x)
 (Trunc x) -> (FRINTZD x)
+(FMA x y z) -> (FMADDD z x y)
 
 // lowering rotates
+(RotateLeft8 <t> x (MOVDconst [c])) -> (Or8 (Lsh8x64 <t> x (MOVDconst [c&7])) (Rsh8Ux64 <t> x (MOVDconst [-c&7])))
+(RotateLeft16 <t> x (MOVDconst [c])) -> (Or16 (Lsh16x64 <t> x (MOVDconst [c&15])) (Rsh16Ux64 <t> x (MOVDconst [-c&15])))
 (RotateLeft32 x y) -> (RORW x (NEG <y.Type> y))
 (RotateLeft64 x y) -> (ROR x (NEG <y.Type> y))
 
@@ -147,6 +150,10 @@
 // 64-bit addition with carry.
 (Select0 (Add64carry x y c)) -> (Select0 <typ.UInt64> (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] c))))
 (Select1 (Add64carry x y c)) -> (ADCzerocarry <typ.UInt64> (Select1 <types.TypeFlags> (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] c)))))
+
+// 64-bit subtraction with borrowing.
+(Select0 (Sub64borrow x y bo)) -> (Select0 <typ.UInt64> (SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags bo))))
+(Select1 (Sub64borrow x y bo)) -> (NEG <typ.UInt64> (NGCzerocarry <typ.UInt64> (Select1 <types.TypeFlags> (SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags bo))))))
 
 // boolean ops -- booleans are represented with 0=false, 1=true
 (AndB x y) -> (AND x y)
@@ -352,7 +359,7 @@
 (Geq32U x y) -> (GreaterEqualU (CMPW x y))
 (Geq64U x y) -> (GreaterEqualU (CMP x y))
 
-// Optimize comparision between a floating-point value and 0.0 with "FCMP $(0.0), Fn"
+// Optimize comparison between a floating-point value and 0.0 with "FCMP $(0.0), Fn"
 (FCMPS x (FMOVSconst [0])) -> (FCMPS0 x)
 (FCMPS (FMOVSconst [0]) x) -> (InvertFlags (FCMPS0 x))
 (FCMPD x (FMOVDconst [0])) -> (FCMPD0 x)
@@ -577,10 +584,12 @@
 
 // atomic intrinsics
 // Note: these ops do not accept offset.
+(AtomicLoad8   ptr mem) -> (LDARB ptr mem)
 (AtomicLoad32  ptr mem) -> (LDARW ptr mem)
 (AtomicLoad64  ptr mem) -> (LDAR  ptr mem)
 (AtomicLoadPtr ptr mem) -> (LDAR  ptr mem)
 
+(AtomicStore8       ptr val mem) -> (STLRB ptr val mem)
 (AtomicStore32      ptr val mem) -> (STLRW ptr val mem)
 (AtomicStore64      ptr val mem) -> (STLR  ptr val mem)
 (AtomicStorePtrNoWB ptr val mem) -> (STLR  ptr val mem)
@@ -623,8 +632,8 @@
 (NZ (GreaterEqualU cc) yes no) -> (UGE cc yes no)
 (NZ (LessThanF cc) yes no) -> (FLT cc yes no)
 (NZ (LessEqualF cc) yes no) -> (FLE cc yes no)
-(NZ (GreaterThan cc) yes no) -> (FGT cc yes no)
-(NZ (GreaterEqual cc) yes no) -> (FGE cc yes no)
+(NZ (GreaterThanF cc) yes no) -> (FGT cc yes no)
+(NZ (GreaterEqualF cc) yes no) -> (FGE cc yes no)
 
 (EQ (CMPWconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (EQ (TSTWconst [c] y) yes no)
 (NE (CMPWconst [0] x:(ANDconst [c] y)) yes no) && x.Uses == 1 -> (NE (TSTWconst [c] y) yes no)
@@ -1206,9 +1215,11 @@
 (ADD a l:(MNEGW x y)) && a.Type.Size() != 8 && l.Uses==1 && clobber(l) -> (MSUBW a x y)
 (SUB a l:(MNEGW x y)) && a.Type.Size() != 8 && l.Uses==1 && clobber(l) -> (MADDW a x y)
 
-// optimize ADCSflags and friends
+// optimize ADCSflags, SBCSflags and friends
 (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] (ADCzerocarry <typ.UInt64> c)))) -> (ADCSflags x y c)
 (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] (MOVDconst [0])))) -> (ADDSflags x y)
+(SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags (NEG <typ.UInt64> (NGCzerocarry <typ.UInt64> bo))))) -> (SBCSflags x y bo)
+(SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags (MOVDconst [0])))) -> (SUBSflags x y)
 
 // mul by constant
 (MUL x (MOVDconst [-1])) -> (NEG x)
@@ -1472,74 +1483,74 @@
 (CMPWconst (MOVHUreg _) [c]) && 0xffff < int32(c) -> (FlagLT_ULT)
 
 // absorb flag constants into branches
-(EQ (FlagEQ) yes no) -> (First nil yes no)
-(EQ (FlagLT_ULT) yes no) -> (First nil no yes)
-(EQ (FlagLT_UGT) yes no) -> (First nil no yes)
-(EQ (FlagGT_ULT) yes no) -> (First nil no yes)
-(EQ (FlagGT_UGT) yes no) -> (First nil no yes)
+(EQ (FlagEQ) yes no) -> (First yes no)
+(EQ (FlagLT_ULT) yes no) -> (First no yes)
+(EQ (FlagLT_UGT) yes no) -> (First no yes)
+(EQ (FlagGT_ULT) yes no) -> (First no yes)
+(EQ (FlagGT_UGT) yes no) -> (First no yes)
 
-(NE (FlagEQ) yes no) -> (First nil no yes)
-(NE (FlagLT_ULT) yes no) -> (First nil yes no)
-(NE (FlagLT_UGT) yes no) -> (First nil yes no)
-(NE (FlagGT_ULT) yes no) -> (First nil yes no)
-(NE (FlagGT_UGT) yes no) -> (First nil yes no)
+(NE (FlagEQ) yes no) -> (First no yes)
+(NE (FlagLT_ULT) yes no) -> (First yes no)
+(NE (FlagLT_UGT) yes no) -> (First yes no)
+(NE (FlagGT_ULT) yes no) -> (First yes no)
+(NE (FlagGT_UGT) yes no) -> (First yes no)
 
-(LT (FlagEQ) yes no) -> (First nil no yes)
-(LT (FlagLT_ULT) yes no) -> (First nil yes no)
-(LT (FlagLT_UGT) yes no) -> (First nil yes no)
-(LT (FlagGT_ULT) yes no) -> (First nil no yes)
-(LT (FlagGT_UGT) yes no) -> (First nil no yes)
+(LT (FlagEQ) yes no) -> (First no yes)
+(LT (FlagLT_ULT) yes no) -> (First yes no)
+(LT (FlagLT_UGT) yes no) -> (First yes no)
+(LT (FlagGT_ULT) yes no) -> (First no yes)
+(LT (FlagGT_UGT) yes no) -> (First no yes)
 
-(LE (FlagEQ) yes no) -> (First nil yes no)
-(LE (FlagLT_ULT) yes no) -> (First nil yes no)
-(LE (FlagLT_UGT) yes no) -> (First nil yes no)
-(LE (FlagGT_ULT) yes no) -> (First nil no yes)
-(LE (FlagGT_UGT) yes no) -> (First nil no yes)
+(LE (FlagEQ) yes no) -> (First yes no)
+(LE (FlagLT_ULT) yes no) -> (First yes no)
+(LE (FlagLT_UGT) yes no) -> (First yes no)
+(LE (FlagGT_ULT) yes no) -> (First no yes)
+(LE (FlagGT_UGT) yes no) -> (First no yes)
 
-(GT (FlagEQ) yes no) -> (First nil no yes)
-(GT (FlagLT_ULT) yes no) -> (First nil no yes)
-(GT (FlagLT_UGT) yes no) -> (First nil no yes)
-(GT (FlagGT_ULT) yes no) -> (First nil yes no)
-(GT (FlagGT_UGT) yes no) -> (First nil yes no)
+(GT (FlagEQ) yes no) -> (First no yes)
+(GT (FlagLT_ULT) yes no) -> (First no yes)
+(GT (FlagLT_UGT) yes no) -> (First no yes)
+(GT (FlagGT_ULT) yes no) -> (First yes no)
+(GT (FlagGT_UGT) yes no) -> (First yes no)
 
-(GE (FlagEQ) yes no) -> (First nil yes no)
-(GE (FlagLT_ULT) yes no) -> (First nil no yes)
-(GE (FlagLT_UGT) yes no) -> (First nil no yes)
-(GE (FlagGT_ULT) yes no) -> (First nil yes no)
-(GE (FlagGT_UGT) yes no) -> (First nil yes no)
+(GE (FlagEQ) yes no) -> (First yes no)
+(GE (FlagLT_ULT) yes no) -> (First no yes)
+(GE (FlagLT_UGT) yes no) -> (First no yes)
+(GE (FlagGT_ULT) yes no) -> (First yes no)
+(GE (FlagGT_UGT) yes no) -> (First yes no)
 
-(ULT (FlagEQ) yes no) -> (First nil no yes)
-(ULT (FlagLT_ULT) yes no) -> (First nil yes no)
-(ULT (FlagLT_UGT) yes no) -> (First nil no yes)
-(ULT (FlagGT_ULT) yes no) -> (First nil yes no)
-(ULT (FlagGT_UGT) yes no) -> (First nil no yes)
+(ULT (FlagEQ) yes no) -> (First no yes)
+(ULT (FlagLT_ULT) yes no) -> (First yes no)
+(ULT (FlagLT_UGT) yes no) -> (First no yes)
+(ULT (FlagGT_ULT) yes no) -> (First yes no)
+(ULT (FlagGT_UGT) yes no) -> (First no yes)
 
-(ULE (FlagEQ) yes no) -> (First nil yes no)
-(ULE (FlagLT_ULT) yes no) -> (First nil yes no)
-(ULE (FlagLT_UGT) yes no) -> (First nil no yes)
-(ULE (FlagGT_ULT) yes no) -> (First nil yes no)
-(ULE (FlagGT_UGT) yes no) -> (First nil no yes)
+(ULE (FlagEQ) yes no) -> (First yes no)
+(ULE (FlagLT_ULT) yes no) -> (First yes no)
+(ULE (FlagLT_UGT) yes no) -> (First no yes)
+(ULE (FlagGT_ULT) yes no) -> (First yes no)
+(ULE (FlagGT_UGT) yes no) -> (First no yes)
 
-(UGT (FlagEQ) yes no) -> (First nil no yes)
-(UGT (FlagLT_ULT) yes no) -> (First nil no yes)
-(UGT (FlagLT_UGT) yes no) -> (First nil yes no)
-(UGT (FlagGT_ULT) yes no) -> (First nil no yes)
-(UGT (FlagGT_UGT) yes no) -> (First nil yes no)
+(UGT (FlagEQ) yes no) -> (First no yes)
+(UGT (FlagLT_ULT) yes no) -> (First no yes)
+(UGT (FlagLT_UGT) yes no) -> (First yes no)
+(UGT (FlagGT_ULT) yes no) -> (First no yes)
+(UGT (FlagGT_UGT) yes no) -> (First yes no)
 
-(UGE (FlagEQ) yes no) -> (First nil yes no)
-(UGE (FlagLT_ULT) yes no) -> (First nil no yes)
-(UGE (FlagLT_UGT) yes no) -> (First nil yes no)
-(UGE (FlagGT_ULT) yes no) -> (First nil no yes)
-(UGE (FlagGT_UGT) yes no) -> (First nil yes no)
+(UGE (FlagEQ) yes no) -> (First yes no)
+(UGE (FlagLT_ULT) yes no) -> (First no yes)
+(UGE (FlagLT_UGT) yes no) -> (First yes no)
+(UGE (FlagGT_ULT) yes no) -> (First no yes)
+(UGE (FlagGT_UGT) yes no) -> (First yes no)
 
-(Z (MOVDconst [0]) yes no) -> (First nil yes no)
-(Z (MOVDconst [c]) yes no) && c != 0 -> (First nil no yes)
-(NZ (MOVDconst [0]) yes no) -> (First nil no yes)
-(NZ (MOVDconst [c]) yes no) && c != 0 -> (First nil yes no)
-(ZW (MOVDconst [c]) yes no) && int32(c) == 0 -> (First nil yes no)
-(ZW (MOVDconst [c]) yes no) && int32(c) != 0 -> (First nil no yes)
-(NZW (MOVDconst [c]) yes no) && int32(c) == 0 -> (First nil no yes)
-(NZW (MOVDconst [c]) yes no) && int32(c) != 0 -> (First nil yes no)
+(Z (MOVDconst [0]) yes no) -> (First yes no)
+(Z (MOVDconst [c]) yes no) && c != 0 -> (First no yes)
+(NZ (MOVDconst [0]) yes no) -> (First no yes)
+(NZ (MOVDconst [c]) yes no) && c != 0 -> (First yes no)
+(ZW (MOVDconst [c]) yes no) && int32(c) == 0 -> (First yes no)
+(ZW (MOVDconst [c]) yes no) && int32(c) != 0 -> (First no yes)
+(NZW (MOVDconst [c]) yes no) && int32(c) == 0 -> (First no yes)
+(NZW (MOVDconst [c]) yes no) && int32(c) != 0 -> (First yes no)
 
 // absorb InvertFlags into branches
 (LT (InvertFlags cmp) yes no) -> (GT cmp yes no)
@@ -1854,9 +1865,8 @@
 (XORshiftLL <t> [c] (UBFX [bfc] x) x2) && c < 32 && t.Size() == 4 && bfc == armBFAuxInt(32-c, c)
 	-> (EXTRWconst [32-c] x2 x)
 
-// Generic rules rewrite certain AND to a pair of shifts.
-// However, on ARM64 the bitmask can fit into an instruction.
-// Rewrite it back to AND.
+// Rewrite special pairs of shifts to AND.
+// On ARM64 the bitmask can fit into an instruction.
 (SRLconst [c] (SLLconst [c] x)) && 0 < c && c < 64 -> (ANDconst [1<<uint(64-c)-1] x) // mask out high bits
 (SLLconst [c] (SRLconst [c] x)) && 0 < c && c < 64 -> (ANDconst [^(1<<uint(c)-1)] x) // mask out low bits
 
@@ -1962,6 +1972,8 @@
 	-> (BFXIL [bfc] y x)
 (ORshiftLL [sc] (UBFX [bfc] x) (SRLconst [sc] y)) && sc == getARM64BFwidth(bfc)
 	-> (BFXIL [bfc] y x)
+(ORshiftRL [rc] (ANDconst [ac] y) (SLLconst [lc] x)) && lc < rc && ac == ^((1<<uint(64-rc)-1))
+	-> (BFXIL [armBFAuxInt(rc-lc, 64-rc)] y x)
 
 // do combined loads
 // little endian loads

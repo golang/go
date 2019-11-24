@@ -108,6 +108,12 @@
 (Rsh8x16 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <typ.UInt32> (ZeroExt16to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt16to32 y))))
 (Rsh8x8 x y) -> (SRA (SignExt16to32 x) ( CMOVZ <typ.UInt32> (ZeroExt8to32 y) (MOVWconst [-1]) (SGTUconst [32] (ZeroExt8to32 y))))
 
+// rotates
+(RotateLeft8 <t> x (MOVWconst [c])) -> (Or8 (Lsh8x32 <t> x (MOVWconst [c&7])) (Rsh8Ux32 <t> x (MOVWconst [-c&7])))
+(RotateLeft16 <t> x (MOVWconst [c])) -> (Or16 (Lsh16x32 <t> x (MOVWconst [c&15])) (Rsh16Ux32 <t> x (MOVWconst [-c&15])))
+(RotateLeft32 <t> x (MOVWconst [c])) -> (Or32 (Lsh32x32 <t> x (MOVWconst [c&31])) (Rsh32Ux32 <t> x (MOVWconst [-c&31])))
+(RotateLeft64 <t> x (MOVWconst [c])) -> (Or64 (Lsh64x32 <t> x (MOVWconst [c&63])) (Rsh64Ux32 <t> x (MOVWconst [-c&63])))
+
 // unary ops
 (Neg(32|16|8) x) -> (NEG x)
 (Neg(32|64)F x) -> (NEG(F|D) x)
@@ -345,11 +351,11 @@
 (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
 
 // atomic intrinsics
-(AtomicLoad32  ptr mem) -> (LoweredAtomicLoad ptr mem)
-(AtomicLoadPtr ptr mem) -> (LoweredAtomicLoad  ptr mem)
+(AtomicLoad(8|32) ptr mem) -> (LoweredAtomicLoad(8|32) ptr mem)
+(AtomicLoadPtr    ptr mem) -> (LoweredAtomicLoad32     ptr mem)
 
-(AtomicStore32      ptr val mem) -> (LoweredAtomicStore ptr val mem)
-(AtomicStorePtrNoWB ptr val mem) -> (LoweredAtomicStore  ptr val mem)
+(AtomicStore(8|32)  ptr val mem) -> (LoweredAtomicStore(8|32) ptr val mem)
+(AtomicStorePtrNoWB ptr val mem) -> (LoweredAtomicStore32     ptr val mem)
 
 (AtomicExchange32 ptr val mem) -> (LoweredAtomicExchange ptr val mem)
 (AtomicAdd32 ptr val mem) -> (LoweredAtomicAdd ptr val mem)
@@ -681,18 +687,18 @@
 (SGTUconst [c] (SRLconst _ [d])) && uint32(d) <= 31 && 0xffffffff>>uint32(d) < uint32(c) -> (MOVWconst [1])
 
 // absorb constants into branches
-(EQ  (MOVWconst [0]) yes no) -> (First nil yes no)
-(EQ  (MOVWconst [c]) yes no) && c != 0 -> (First nil no yes)
-(NE  (MOVWconst [0]) yes no) -> (First nil no yes)
-(NE  (MOVWconst [c]) yes no) && c != 0 -> (First nil yes no)
-(LTZ (MOVWconst [c]) yes no) && int32(c) <  0 -> (First nil yes no)
-(LTZ (MOVWconst [c]) yes no) && int32(c) >= 0 -> (First nil no yes)
-(LEZ (MOVWconst [c]) yes no) && int32(c) <= 0 -> (First nil yes no)
-(LEZ (MOVWconst [c]) yes no) && int32(c) >  0 -> (First nil no yes)
-(GTZ (MOVWconst [c]) yes no) && int32(c) >  0 -> (First nil yes no)
-(GTZ (MOVWconst [c]) yes no) && int32(c) <= 0 -> (First nil no yes)
-(GEZ (MOVWconst [c]) yes no) && int32(c) >= 0 -> (First nil yes no)
-(GEZ (MOVWconst [c]) yes no) && int32(c) <  0 -> (First nil no yes)
+(EQ  (MOVWconst [0]) yes no) -> (First yes no)
+(EQ  (MOVWconst [c]) yes no) && c != 0 -> (First no yes)
+(NE  (MOVWconst [0]) yes no) -> (First no yes)
+(NE  (MOVWconst [c]) yes no) && c != 0 -> (First yes no)
+(LTZ (MOVWconst [c]) yes no) && int32(c) <  0 -> (First yes no)
+(LTZ (MOVWconst [c]) yes no) && int32(c) >= 0 -> (First no yes)
+(LEZ (MOVWconst [c]) yes no) && int32(c) <= 0 -> (First yes no)
+(LEZ (MOVWconst [c]) yes no) && int32(c) >  0 -> (First no yes)
+(GTZ (MOVWconst [c]) yes no) && int32(c) >  0 -> (First yes no)
+(GTZ (MOVWconst [c]) yes no) && int32(c) <= 0 -> (First no yes)
+(GEZ (MOVWconst [c]) yes no) && int32(c) >= 0 -> (First yes no)
+(GEZ (MOVWconst [c]) yes no) && int32(c) <  0 -> (First no yes)
 
 // conditional move
 (CMOVZ _ f (MOVWconst [0])) -> f
@@ -702,6 +708,6 @@
 (CMOVZ a (MOVWconst [0]) c) -> (CMOVZzero a c)
 
 // atomic
-(LoweredAtomicStore ptr (MOVWconst [0]) mem) -> (LoweredAtomicStorezero ptr mem)
+(LoweredAtomicStore32 ptr (MOVWconst [0]) mem) -> (LoweredAtomicStorezero ptr mem)
 (LoweredAtomicAdd ptr (MOVWconst [c]) mem) && is16Bit(c) -> (LoweredAtomicAddconst [c] ptr mem)
 

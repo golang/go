@@ -23,7 +23,6 @@ import (
 	"internal/xcoff"
 	"math"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
@@ -794,10 +793,10 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 	params := name.FuncType.Params
 	args := call.Call.Args
 
-	// Avoid a crash if the number of arguments is
-	// less than the number of parameters.
+	// Avoid a crash if the number of arguments doesn't match
+	// the number of parameters.
 	// This will be caught when the generated file is compiled.
-	if len(args) < len(params) {
+	if len(args) != len(params) {
 		return "", false
 	}
 
@@ -817,7 +816,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 	// Rewrite C.f(p) to
 	//    func() {
 	//            _cgo0 := p
-	//            _cgoCheckPointer(_cgo0)
+	//            _cgoCheckPointer(_cgo0, nil)
 	//            C.f(_cgo0)
 	//    }()
 	// Using a function literal like this lets us evaluate the
@@ -835,7 +834,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 	//    defer func() func() {
 	//            _cgo0 := p
 	//            return func() {
-	//                    _cgoCheckPointer(_cgo0)
+	//                    _cgoCheckPointer(_cgo0, nil)
 	//                    C.f(_cgo0)
 	//            }
 	//    }()()
@@ -922,7 +921,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
 		}
 
 		fmt.Fprintf(&sb, "_cgo%d := %s; ", i, gofmtPos(arg, origArg.Pos()))
-		fmt.Fprintf(&sbCheck, "_cgoCheckPointer(_cgo%d); ", i)
+		fmt.Fprintf(&sbCheck, "_cgoCheckPointer(_cgo%d, nil); ", i)
 	}
 
 	if call.Deferred {
@@ -1240,6 +1239,8 @@ func (p *Package) isType(t ast.Expr) bool {
 		if strings.HasPrefix(t.Name, "_Ctype_") {
 			return true
 		}
+	case *ast.ParenExpr:
+		return p.isType(t.X)
 	case *ast.StarExpr:
 		return p.isType(t.X)
 	case *ast.ArrayType, *ast.StructType, *ast.FuncType, *ast.InterfaceType,
@@ -1257,6 +1258,8 @@ func (p *Package) isVariable(x ast.Expr) bool {
 		return true
 	case *ast.SelectorExpr:
 		return p.isVariable(x.X)
+	case *ast.IndexExpr:
+		return true
 	}
 	return false
 }
@@ -2047,8 +2050,6 @@ type typeConv struct {
 
 	ptrSize int64
 	intSize int64
-
-	exactWidthIntegerTypes map[string]*Type
 }
 
 var tagGen int
@@ -2090,21 +2091,6 @@ func (c *typeConv) Init(ptrSize, intSize int64) {
 		c.goVoidPtr = &ast.StarExpr{X: c.byte}
 	} else {
 		c.goVoidPtr = c.Ident("unsafe.Pointer")
-	}
-
-	c.exactWidthIntegerTypes = make(map[string]*Type)
-	for _, t := range []ast.Expr{
-		c.int8, c.int16, c.int32, c.int64,
-		c.uint8, c.uint16, c.uint32, c.uint64,
-	} {
-		name := t.(*ast.Ident).Name
-		u := new(Type)
-		*u = *goTypes[name]
-		if u.Align > ptrSize {
-			u.Align = ptrSize
-		}
-		u.Go = t
-		c.exactWidthIntegerTypes[name] = u
 	}
 }
 
@@ -2203,6 +2189,11 @@ func (c *typeConv) FinishType(pos token.Pos) {
 // Type returns a *Type with the same memory layout as
 // dtype when used as the type of a variable or a struct field.
 func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+	return c.loadType(dtype, pos, "")
+}
+
+// loadType recursively loads the requested dtype and its dependency graph.
+func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Type {
 	// Always recompute bad pointer typedefs, as the set of such
 	// typedefs changes as we see more types.
 	checkCache := true
@@ -2210,7 +2201,9 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		checkCache = false
 	}
 
-	key := dtype.String()
+	// The cache key should be relative to its parent.
+	// See issue https://golang.org/issue/31891
+	key := parent + " > " + dtype.String()
 
 	if checkCache {
 		if t, ok := c.m[key]; ok {
@@ -2250,7 +2243,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			// Translate to zero-length array instead.
 			count = 0
 		}
-		sub := c.Type(dt.Type, pos)
+		sub := c.loadType(dt.Type, pos, key)
 		t.Align = sub.Align
 		t.Go = &ast.ArrayType{
 			Len: c.intExpr(count),
@@ -2395,7 +2388,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 		c.ptrs[key] = append(c.ptrs[key], t)
 
 	case *dwarf.QualType:
-		t1 := c.Type(dt.Type, pos)
+		t1 := c.loadType(dt.Type, pos, key)
 		t.Size = t1.Size
 		t.Align = t1.Align
 		t.Go = t1.Go
@@ -2477,29 +2470,9 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 			t.Align = c.ptrSize
 			break
 		}
-		// Exact-width integer types.  These are always compatible with
-		// the corresponding Go types since the C standard requires
-		// them to have no padding bit and use the two’s complement
-		// representation.
-		if exactWidthIntegerType.MatchString(dt.Name) {
-			sub := c.Type(dt.Type, pos)
-			goname := strings.TrimPrefix(dt.Name, "__")
-			goname = strings.TrimSuffix(goname, "_t")
-			u := c.exactWidthIntegerTypes[goname]
-			if sub.Size != u.Size {
-				fatalf("%s: unexpected size: %d vs. %d – %s", lineno(pos), sub.Size, u.Size, dtype)
-			}
-			if sub.Align != u.Align {
-				fatalf("%s: unexpected alignment: %d vs. %d – %s", lineno(pos), sub.Align, u.Align, dtype)
-			}
-			t.Size = u.Size
-			t.Align = u.Align
-			t.Go = u.Go
-			break
-		}
 		name := c.Ident("_Ctype_" + dt.Name)
 		goIdent[name.Name] = name
-		sub := c.Type(dt.Type, pos)
+		sub := c.loadType(dt.Type, pos, key)
 		if c.badPointerTypedef(dt) {
 			// Treat this typedef as a uintptr.
 			s := *sub
@@ -2631,8 +2604,6 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
 
 	return t
 }
-
-var exactWidthIntegerType = regexp.MustCompile(`^(__)?u?int(8|16|32|64)_t$`)
 
 // isStructUnionClass reports whether the type described by the Go syntax x
 // is a struct, union, or class with a tag.

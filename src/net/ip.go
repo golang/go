@@ -31,7 +31,10 @@ const (
 // be an IPv4 address.
 type IP []byte
 
-// An IP mask is an IP address.
+// An IPMask is a bitmask that can be used to manipulate
+// IP addresses for IP addressing and routing.
+//
+// See type IPNet and func ParseCIDR for details.
 type IPMask []byte
 
 // An IPNet represents an IP network.
@@ -65,8 +68,8 @@ func IPv4Mask(a, b, c, d byte) IPMask {
 	return p
 }
 
-// CIDRMask returns an IPMask consisting of `ones' 1 bits
-// followed by 0s up to a total length of `bits' bits.
+// CIDRMask returns an IPMask consisting of 'ones' 1 bits
+// followed by 0s up to a total length of 'bits' bits.
 // For a mask of this form, CIDRMask is the inverse of IPMask.Size.
 func CIDRMask(ones, bits int) IPMask {
 	if bits != 8*IPv4len && bits != 8*IPv6len {
@@ -513,12 +516,12 @@ func (n *IPNet) Contains(ip IP) bool {
 // Network returns the address's network name, "ip+net".
 func (n *IPNet) Network() string { return "ip+net" }
 
-// String returns the CIDR notation of n like "192.0.2.1/24"
+// String returns the CIDR notation of n like "192.0.2.0/24"
 // or "2001:db8::/48" as defined in RFC 4632 and RFC 4291.
 // If the mask is not in the canonical form, it returns the
 // string which consists of an IP address, followed by a slash
 // character and a mask expressed as hexadecimal form with no
-// punctuation like "198.51.100.1/c000ff00".
+// punctuation like "198.51.100.0/c000ff00".
 func (n *IPNet) String() string {
 	nn, m := networkNumberAndMask(n)
 	if nn == nil || m == nil {
@@ -565,7 +568,7 @@ func parseIPv6Zone(s string) (IP, string) {
 	return parseIPv6(s), zone
 }
 
-// parseIPv6Zone parses s as a literal IPv6 address described in RFC 4291
+// parseIPv6 parses s as a literal IPv6 address described in RFC 4291
 // and RFC 5952.
 func parseIPv6(s string) (ip IP) {
 	ip = make(IP, IPv6len)

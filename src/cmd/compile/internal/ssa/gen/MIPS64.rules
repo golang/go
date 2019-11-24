@@ -10,6 +10,7 @@
 
 (Mul(64|32|16|8) x y) -> (Select1 (MULVU x y))
 (Mul(32|64)F x y) -> (MUL(F|D) x y)
+(Mul64uhilo x y) -> (MULVU x y)
 
 (Hmul64 x y) -> (Select0 (MULV x y))
 (Hmul64u x y) -> (Select0 (MULVU x y))
@@ -104,6 +105,12 @@
 (Rsh8x32 <t> x y) -> (SRAV (SignExt8to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt32to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt32to64 y)))
 (Rsh8x16 <t> x y) -> (SRAV (SignExt8to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt16to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt16to64 y)))
 (Rsh8x8  <t> x y) -> (SRAV (SignExt8to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt8to64  y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt8to64  y)))
+
+// rotates
+(RotateLeft8 <t> x (MOVVconst [c])) -> (Or8 (Lsh8x64 <t> x (MOVVconst [c&7])) (Rsh8Ux64 <t> x (MOVVconst [-c&7])))
+(RotateLeft16 <t> x (MOVVconst [c])) -> (Or16 (Lsh16x64 <t> x (MOVVconst [c&15])) (Rsh16Ux64 <t> x (MOVVconst [-c&15])))
+(RotateLeft32 <t> x (MOVVconst [c])) -> (Or32 (Lsh32x64 <t> x (MOVVconst [c&31])) (Rsh32Ux64 <t> x (MOVVconst [-c&31])))
+(RotateLeft64 <t> x (MOVVconst [c])) -> (Or64 (Lsh64x64 <t> x (MOVVconst [c&63])) (Rsh64Ux64 <t> x (MOVVconst [-c&63])))
 
 // unary ops
 (Neg(64|32|16|8) x) -> (NEGV x)
@@ -364,6 +371,18 @@
 		(MOVVstore [8] dst (MOVVload [8] src mem)
 			(MOVVstore dst (MOVVload src mem) mem)))
 
+// medium move uses a duff device
+(Move [s] {t} dst src mem)
+	&& s%8 == 0 && s >= 24 && s <= 8*128 && t.(*types.Type).Alignment()%8 == 0
+	&& !config.noDuffDevice ->
+	(DUFFCOPY [16 * (128 - s/8)] dst src mem)
+// 16 and 128 are magic constants.  16 is the number of bytes to encode:
+//	MOVV	(R1), R23
+//	ADDV	$8, R1
+//	MOVV	R23, (R2)
+//	ADDV	$8, R2
+// and 128 is the number of such blocks. See runtime/duff_mips64.s:duffcopy.
+
 // large or unaligned move uses a loop
 (Move [s] {t} dst src mem)
 	&& s > 24 || t.(*types.Type).Alignment()%8 != 0 ->
@@ -379,10 +398,12 @@
 (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
 
 // atomic intrinsics
+(AtomicLoad8   ptr mem) -> (LoweredAtomicLoad8  ptr mem)
 (AtomicLoad32  ptr mem) -> (LoweredAtomicLoad32 ptr mem)
 (AtomicLoad64  ptr mem) -> (LoweredAtomicLoad64 ptr mem)
 (AtomicLoadPtr ptr mem) -> (LoweredAtomicLoad64 ptr mem)
 
+(AtomicStore8       ptr val mem) -> (LoweredAtomicStore8  ptr val mem)
 (AtomicStore32      ptr val mem) -> (LoweredAtomicStore32 ptr val mem)
 (AtomicStore64      ptr val mem) -> (LoweredAtomicStore64 ptr val mem)
 (AtomicStorePtrNoWB ptr val mem) -> (LoweredAtomicStore64 ptr val mem)
@@ -675,15 +696,15 @@
 (SGTUconst [c] (SRLVconst _ [d])) && 0 < d && d <= 63 && 0xffffffffffffffff>>uint64(d) < uint64(c) -> (MOVVconst [1])
 
 // absorb constants into branches
-(EQ  (MOVVconst [0]) yes no) -> (First nil yes no)
-(EQ  (MOVVconst [c]) yes no) && c != 0 -> (First nil no yes)
-(NE  (MOVVconst [0]) yes no) -> (First nil no yes)
-(NE  (MOVVconst [c]) yes no) && c != 0 -> (First nil yes no)
-(LTZ (MOVVconst [c]) yes no) && c <  0 -> (First nil yes no)
-(LTZ (MOVVconst [c]) yes no) && c >= 0 -> (First nil no yes)
-(LEZ (MOVVconst [c]) yes no) && c <= 0 -> (First nil yes no)
-(LEZ (MOVVconst [c]) yes no) && c >  0 -> (First nil no yes)
-(GTZ (MOVVconst [c]) yes no) && c >  0 -> (First nil yes no)
-(GTZ (MOVVconst [c]) yes no) && c <= 0 -> (First nil no yes)
-(GEZ (MOVVconst [c]) yes no) && c >= 0 -> (First nil yes no)
-(GEZ (MOVVconst [c]) yes no) && c <  0 -> (First nil no yes)
+(EQ  (MOVVconst [0]) yes no) -> (First yes no)
+(EQ  (MOVVconst [c]) yes no) && c != 0 -> (First no yes)
+(NE  (MOVVconst [0]) yes no) -> (First no yes)
+(NE  (MOVVconst [c]) yes no) && c != 0 -> (First yes no)
+(LTZ (MOVVconst [c]) yes no) && c <  0 -> (First yes no)
+(LTZ (MOVVconst [c]) yes no) && c >= 0 -> (First no yes)
+(LEZ (MOVVconst [c]) yes no) && c <= 0 -> (First yes no)
+(LEZ (MOVVconst [c]) yes no) && c >  0 -> (First no yes)
+(GTZ (MOVVconst [c]) yes no) && c >  0 -> (First yes no)
+(GTZ (MOVVconst [c]) yes no) && c <= 0 -> (First no yes)
+(GEZ (MOVVconst [c]) yes no) && c >= 0 -> (First yes no)
+(GEZ (MOVVconst [c]) yes no) && c <  0 -> (First no yes)

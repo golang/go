@@ -22,13 +22,13 @@ func _() {
 
 	t.f(t)
 	t.f(u)
-	
+
 	u.f(t)
 	u.f(u)
 }
 
 
-// Test case for issue 6589.
+// Test case for issues #6589, #33656.
 
 type A interface {
 	a() interface {
@@ -45,26 +45,28 @@ type B interface {
 type AB interface {
 	a() interface {
 		A
-		B /* ERROR a redeclared */
+		B
 	}
 	b() interface {
 		A
-		B /* ERROR a redeclared */
+		B
 	}
 }
 
 var x AB
 var y interface {
 	A
-	B /* ERROR a redeclared */
+	B
 }
+
+// TODO(gri) This should be a valid compare. See #33656.
 var _ = x /* ERROR cannot compare */ == y
 
 
 // Test case for issue 6638.
 
 type T interface {
-	m() [T /* ERROR no value */ (nil).m()[0]]int
+	m() [T(nil).m /* ERROR undefined */ ()[0]]int
 }
 
 // Variations of this test case.

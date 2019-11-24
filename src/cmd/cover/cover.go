@@ -16,7 +16,6 @@ import (
 	"log"
 	"os"
 	"sort"
-	"unicode"
 
 	"cmd/internal/edit"
 	"cmd/internal/objabi"
@@ -117,7 +116,7 @@ func parseFlags() error {
 		return fmt.Errorf("too many options")
 	}
 
-	if *varVar != "" && !isValidIdentifier(*varVar) {
+	if *varVar != "" && !token.IsIdentifier(*varVar) {
 		return fmt.Errorf("-var: %q is not a valid identifier", *varVar)
 	}
 
@@ -387,6 +386,9 @@ func (f *File) addCounters(pos, insertPos, blockEnd token.Pos, list []ast.Stmt, 
 		f.edit.Insert(f.offset(insertPos), f.newCounter(insertPos, blockEnd, 0)+";")
 		return
 	}
+	// Make a copy of the list, as we may mutate it and should leave the
+	// existing list intact.
+	list = append([]ast.Stmt(nil), list...)
 	// We have a block (statement list), but it may have several basic blocks due to the
 	// appearance of statements that affect the flow of control.
 	for {
@@ -683,22 +685,6 @@ func (f *File) addVariables(w io.Writer) {
 	if *mode == "atomic" {
 		fmt.Fprintf(w, "var _ = %s.LoadUint32\n", atomicPackageName)
 	}
-}
-
-func isValidIdentifier(ident string) bool {
-	if len(ident) == 0 {
-		return false
-	}
-	for i, c := range ident {
-		if i > 0 && unicode.IsDigit(c) {
-			continue
-		}
-		if c == '_' || unicode.IsLetter(c) {
-			continue
-		}
-		return false
-	}
-	return true
 }
 
 // It is possible for positions to repeat when there is a line

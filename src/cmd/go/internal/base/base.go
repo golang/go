@@ -132,6 +132,10 @@ func SetExitStatus(n int) {
 	exitMu.Unlock()
 }
 
+func GetExitStatus() int {
+	return exitStatus
+}
+
 // Run runs the command, with stdout and stderr
 // connected to the go command's own stdout and stderr.
 // If the command fails, Run reports the error using Errorf.

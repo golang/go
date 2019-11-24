@@ -32,6 +32,13 @@ TEXT runtime·write_trampoline(SB),NOSPLIT,$0
 	MOVW	8(R0), R2	// arg 3 count
 	MOVW	0(R0), R0	// arg 1 fd
 	BL	libc_write(SB)
+	MOVW	$-1, R1
+	CMP	R0, R1
+	BNE	noerr
+	BL	libc_error(SB)
+	MOVW	(R0), R0
+	RSB	$0, R0, R0	// caller expects negative errno value
+noerr:
 	RET
 
 TEXT runtime·read_trampoline(SB),NOSPLIT,$0
@@ -39,6 +46,21 @@ TEXT runtime·read_trampoline(SB),NOSPLIT,$0
 	MOVW	8(R0), R2	// arg 3 count
 	MOVW	0(R0), R0	// arg 1 fd
 	BL	libc_read(SB)
+	MOVW	$-1, R1
+	CMP	R0, R1
+	BNE	noerr
+	BL	libc_error(SB)
+	MOVW	(R0), R0
+	RSB	$0, R0, R0	// caller expects negative errno value
+noerr:
+	RET
+
+TEXT runtime·pipe_trampoline(SB),NOSPLIT,$0
+	BL	libc_pipe(SB)	// pointer already in R0
+	CMP	$0, R0
+	BEQ	3(PC)
+	BL	libc_error(SB)	// return negative errno value
+	RSB	$0, R0, R0
 	RET
 
 TEXT runtime·exit_trampoline(SB),NOSPLIT|NOFRAME,$0
@@ -160,14 +182,8 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
 
 TEXT runtime·sigtramp(SB),NOSPLIT,$0
 	// Reserve space for callee-save registers and arguments.
-	SUB	$36, R13
-
-	MOVW	R4, 12(R13)
-	MOVW	R5, 16(R13)
-	MOVW	R6, 20(R13)
-	MOVW	R7, 24(R13)
-	MOVW	R8, 28(R13)
-	MOVW	R11, 32(R13)
+	MOVM.DB.W [R4-R11], (R13)
+	SUB	$16, R13
 
 	// Save arguments.
 	MOVW	R0, 4(R13)	// sig
@@ -216,14 +232,8 @@ nog:
 	MOVW	R5, R13
 
 	// Restore callee-save registers.
-	MOVW	12(R13), R4
-	MOVW	16(R13), R5
-	MOVW	20(R13), R6
-	MOVW	24(R13), R7
-	MOVW	28(R13), R8
-	MOVW	32(R13), R11
-
-	ADD $36, R13
+	ADD	$16, R13
+	MOVM.IA.W (R13), [R4-R11]
 
 	RET
 
@@ -323,7 +333,7 @@ TEXT runtime·pthread_attr_init_trampoline(SB),NOSPLIT,$0
 	BL	libc_exit(SB)
 	RET
 
-TEXT runtime·pthread_attr_setstacksize_trampoline(SB),NOSPLIT,$0
+TEXT runtime·pthread_attr_getstacksize_trampoline(SB),NOSPLIT,$0
 	MOVW	$46, R0
 	BL	libc_exit(SB)
 	RET
@@ -383,6 +393,18 @@ TEXT runtime·pthread_cond_signal_trampoline(SB),NOSPLIT,$0
 	BL	libc_pthread_cond_signal(SB)
 	RET
 
+TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0
+	MOVW	R0, R4		// R4 is callee-save
+	BL	libc_pthread_self(SB)
+	MOVW	R0, 0(R4)	// return value
+	RET
+
+TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
+	MOVW	4(R0), R1	// arg 2 sig
+	MOVW	0(R0), R0	// arg 1 thread
+	BL	libc_pthread_kill(SB)
+	RET
+
 // syscall calls a function in libc on behalf of the syscall package.
 // syscall takes a pointer to a struct like:
 // struct {
@@ -418,7 +440,7 @@ ok:
 	RET
 
 // syscallPtr is like syscall except the libc function reports an
-// error by returning NULL.
+// error by returning NULL and setting errno.
 TEXT runtime·syscallPtr(SB),NOSPLIT,$0
 	MOVW.W	R0, -4(R13)	// push structure pointer
 	MOVW	0(R0), R12	// fn

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/printer"
 	"go/token"
@@ -99,8 +100,16 @@ func test(t *testing.T, mode Mode) {
 
 	// test packages
 	for _, pkg := range pkgs {
-		importpath := dataDir + "/" + pkg.Name
-		doc := New(pkg, importpath, mode)
+		importPath := dataDir + "/" + pkg.Name
+		var files []*ast.File
+		for _, f := range pkg.Files {
+			files = append(files, f)
+		}
+		doc, err := NewFromFiles(fset, files, importPath, mode)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
 
 		// golden files always use / in filenames - canonicalize them
 		for i, filename := range doc.Filenames {

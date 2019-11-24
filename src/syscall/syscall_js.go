@@ -44,6 +44,12 @@ const PathMax = 256
 //	if errno != 0 {
 //		err = errno
 //	}
+//
+// Errno values can be tested against error values from the os package
+// using errors.Is. For example:
+//
+//	_, _, err := syscall.Syscall(...)
+//	if errors.Is(err, os.ErrNotExist) ...
 type Errno uintptr
 
 func (e Errno) Error() string {
@@ -58,10 +64,6 @@ func (e Errno) Error() string {
 
 func (e Errno) Is(target error) bool {
 	switch target {
-	case oserror.ErrTemporary:
-		return e.Temporary()
-	case oserror.ErrTimeout:
-		return e.Timeout()
 	case oserror.ErrPermission:
 		return e == EACCES || e == EPERM
 	case oserror.ErrExist:
@@ -301,9 +303,10 @@ func Getegid() int {
 	return jsProcess.Call("getegid").Int()
 }
 
-func Getgroups() ([]int, error) {
+func Getgroups() (groups []int, err error) {
+	defer recoverErr(&err)
 	array := jsProcess.Call("getgroups")
-	groups := make([]int, array.Length())
+	groups = make([]int, array.Length())
 	for i := range groups {
 		groups[i] = array.Index(i).Int()
 	}

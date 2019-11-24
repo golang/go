@@ -449,6 +449,9 @@ var optab = []Optab{
 	{AVCMPGT, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0},   /* vector compare greater than, vc-form */
 	{AVCMPNEZB, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0}, /* vector compare not equal, vx-form */
 
+	/* Vector merge */
+	{AVMRGOW, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0}, /* vector merge odd word, vx-form */
+
 	/* Vector permute */
 	{AVPERM, C_VREG, C_VREG, C_VREG, C_VREG, 83, 4, 0}, /* vector permute, va-form */
 
@@ -473,10 +476,12 @@ var optab = []Optab{
 	{AVSHASIGMA, C_ANDCON, C_VREG, C_ANDCON, C_VREG, 82, 4, 0}, /* vector SHA sigma, vx-form */
 
 	/* VSX vector load */
-	{ALXV, C_SOREG, C_NONE, C_NONE, C_VSREG, 87, 4, 0}, /* vsx vector load, xx1-form */
+	{ALXVD2X, C_SOREG, C_NONE, C_NONE, C_VSREG, 87, 4, 0}, /* vsx vector load, xx1-form */
+	{ALXV, C_SOREG, C_NONE, C_NONE, C_VSREG, 96, 4, 0},    /* vsx vector load, dq-form */
 
 	/* VSX vector store */
-	{ASTXV, C_VSREG, C_NONE, C_NONE, C_SOREG, 86, 4, 0}, /* vsx vector store, xx1-form */
+	{ASTXVD2X, C_VSREG, C_NONE, C_NONE, C_SOREG, 86, 4, 0}, /* vsx vector store, xx1-form */
+	{ASTXV, C_VSREG, C_NONE, C_NONE, C_SOREG, 97, 4, 0},    /* vsx vector store, dq-form */
 
 	/* VSX scalar load */
 	{ALXS, C_SOREG, C_NONE, C_NONE, C_VSREG, 87, 4, 0}, /* vsx scalar load, xx1-form */
@@ -1354,6 +1359,9 @@ func buildop(ctxt *obj.Link) {
 			opset(AVANDC, r0)
 			opset(AVNAND, r0)
 
+		case AVMRGOW: /* vmrgew, vmrgow */
+			opset(AVMRGEW, r0)
+
 		case AVOR: /* vor, vorc, vxor, vnor, veqv */
 			opset(AVOR, r0)
 			opset(AVORC, r0)
@@ -1536,14 +1544,22 @@ func buildop(ctxt *obj.Link) {
 			opset(AVSHASIGMAW, r0)
 			opset(AVSHASIGMAD, r0)
 
-		case ALXV: /* lxvd2x, lxvdsx, lxvw4x */
-			opset(ALXVD2X, r0)
+		case ALXVD2X: /* lxvd2x, lxvdsx, lxvw4x, lxvh8x, lxvb16x */
 			opset(ALXVDSX, r0)
 			opset(ALXVW4X, r0)
+			opset(ALXVH8X, r0)
+			opset(ALXVB16X, r0)
 
-		case ASTXV: /* stxvd2x, stxvdsx, stxvw4x */
-			opset(ASTXVD2X, r0)
+		case ALXV: /* lxv */
+			opset(ALXV, r0)
+
+		case ASTXVD2X: /* stxvd2x, stxvdsx, stxvw4x, stxvh8x, stxvb16x */
 			opset(ASTXVW4X, r0)
+			opset(ASTXVH8X, r0)
+			opset(ASTXVB16X, r0)
+
+		case ASTXV: /* stxv */
+			opset(ASTXV, r0)
 
 		case ALXS: /* lxsdx  */
 			opset(ALXSDX, r0)
@@ -1975,6 +1991,10 @@ func OPVXX4(o uint32, xo uint32, oe uint32) uint32 {
 	return o<<26 | xo<<4 | oe<<11
 }
 
+func OPDQ(o uint32, xo uint32, oe uint32) uint32 {
+	return o<<26 | xo | oe<<4
+}
+
 func OPVX(o uint32, xo uint32, oe uint32, rc uint32) uint32 {
 	return o<<26 | xo | oe<<11 | rc&1
 }
@@ -2072,6 +2092,21 @@ func AOP_XX4(op uint32, d uint32, a uint32, b uint32, c uint32) uint32 {
 	xb := b - REG_VS0
 	xc := c - REG_VS0
 	return op | (xt&31)<<21 | (xa&31)<<16 | (xb&31)<<11 | (xc&31)<<6 | (xc&32)>>2 | (xa&32)>>3 | (xb&32)>>4 | (xt&32)>>5
+}
+
+/* DQ-form, VSR register, register + offset operands */
+func AOP_DQ(op uint32, d uint32, a uint32, b uint32) uint32 {
+	/* For the DQ-form encodings, we need the VSX register number to be exactly */
+	/* between 0-63, so we can properly set the SX bit. */
+	r := d - REG_VS0
+	/* The EA for this instruction form is (RA) + DQ << 4, where DQ is a 12-bit signed integer. */
+	/* In order to match the output of the GNU objdump (and make the usage in Go asm easier), the */
+	/* instruction is called using the sign extended value (i.e. a valid offset would be -32752 or 32752, */
+	/* not -2047 or 2047), so 'b' needs to be adjusted to the expected 12-bit DQ value. Bear in mind that */
+	/* bits 0 to 3 in 'dq' need to be zero, otherwise this will generate an illegal instruction. */
+	/* If in doubt how this instruction form is encoded, refer to ISA 3.0b, pages 492 and 507. */
+	dq := b >> 4
+	return op | (r&31)<<21 | (a&31)<<16 | (dq&4095)<<4 | (r&32)>>2
 }
 
 /* Z23-form, 3-register operands + CY field */
@@ -3680,6 +3715,24 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		rel.Siz = 8
 		rel.Sym = p.From.Sym
 		rel.Type = objabi.R_ADDRPOWER_TOCREL_DS
+
+	case 96: /* VSX load, DQ-form */
+		/* reg imm reg */
+		/* operand order: (RA)(DQ), XT */
+		dq := int16(c.regoff(&p.From))
+		if (dq & 15) != 0 {
+			c.ctxt.Diag("invalid offset for DQ form load/store %v", dq)
+		}
+		o1 = AOP_DQ(c.opload(p.As), uint32(p.To.Reg), uint32(p.From.Reg), uint32(dq))
+
+	case 97: /* VSX store, DQ-form */
+		/* reg imm reg */
+		/* operand order: XT, (RA)(DQ) */
+		dq := int16(c.regoff(&p.To))
+		if (dq & 15) != 0 {
+			c.ctxt.Diag("invalid offset for DQ form load/store %v", dq)
+		}
+		o1 = AOP_DQ(c.opstore(p.As), uint32(p.From.Reg), uint32(p.To.Reg), uint32(dq))
 	}
 
 	out[0] = o1
@@ -4406,6 +4459,11 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 	case AVRLD:
 		return OPVX(4, 196, 0, 0) /* vrld - v2.07 */
 
+	case AVMRGOW:
+		return OPVX(4, 1676, 0, 0) /* vmrgow - v2.07 */
+	case AVMRGEW:
+		return OPVX(4, 1932, 0, 0) /* vmrgew - v2.07 */
+
 	case AVSLB:
 		return OPVX(4, 260, 0, 0) /* vslh - v2.03 */
 	case AVSLH:
@@ -4877,6 +4935,8 @@ func (c *ctxt9) opload(a obj.As) uint32 {
 		return OPVCC(33, 0, 0, 0) /* lwzu */
 	case AMOVW:
 		return OPVCC(58, 0, 0, 0) | 1<<1 /* lwa */
+	case ALXV:
+		return OPDQ(61, 1, 0) /* lxv - ISA v3.00 */
 
 		/* no AMOVWU */
 	case AMOVB, AMOVBZ:
@@ -4996,14 +5056,16 @@ func (c *ctxt9) oploadx(a obj.As) uint32 {
 	/* ISA 2.06 enables these for POWER7. */
 	case ALXVD2X:
 		return OPVXX1(31, 844, 0) /* lxvd2x - v2.06 */
-	case ALXVDSX:
-		return OPVXX1(31, 332, 0) /* lxvdsx - v2.06 */
 	case ALXVW4X:
 		return OPVXX1(31, 780, 0) /* lxvw4x - v2.06 */
-
+	case ALXVH8X:
+		return OPVXX1(31, 812, 0) /* lxvh8x - v3.00 */
+	case ALXVB16X:
+		return OPVXX1(31, 876, 0) /* lxvb16x - v3.00 */
+	case ALXVDSX:
+		return OPVXX1(31, 332, 0) /* lxvdsx - v2.06 */
 	case ALXSDX:
 		return OPVXX1(31, 588, 0) /* lxsdx - v2.06 */
-
 	case ALXSIWAX:
 		return OPVXX1(31, 76, 0) /* lxsiwax - v2.07 */
 	case ALXSIWZX:
@@ -5054,6 +5116,8 @@ func (c *ctxt9) opstore(a obj.As) uint32 {
 		return OPVCC(62, 0, 0, 0) /* std */
 	case AMOVDU:
 		return OPVCC(62, 0, 0, 1) /* stdu */
+	case ASTXV:
+		return OPDQ(61, 5, 0) /* stxv */
 	}
 
 	c.ctxt.Diag("unknown store opcode %v", a)
@@ -5134,12 +5198,17 @@ func (c *ctxt9) opstorex(a obj.As) uint32 {
 		return OPVXX1(31, 972, 0) /* stxvd2x - v2.06 */
 	case ASTXVW4X:
 		return OPVXX1(31, 908, 0) /* stxvw4x - v2.06 */
+	case ASTXVH8X:
+		return OPVXX1(31, 940, 0) /* stxvh8x - v3.00 */
+	case ASTXVB16X:
+		return OPVXX1(31, 1004, 0) /* stxvb16x - v3.00 */
 
 	case ASTXSDX:
 		return OPVXX1(31, 716, 0) /* stxsdx - v2.06 */
 
 	case ASTXSIWX:
 		return OPVXX1(31, 140, 0) /* stxsiwx - v2.07 */
+
 		/* End of vector scalar instructions */
 
 	}

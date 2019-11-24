@@ -76,15 +76,11 @@ L2:
 	WFMSDB  V0, V4, V2, V4
 	MOVD    $tanhtab<>+0(SB), R3
 	LGDR    F4, R2
-	WORD    $0xEC4239BC     //risbg %r4,%r2,57,128+60,3
-	BYTE    $0x03
-	BYTE    $0x55
+	RISBGZ	$57, $60, $3, R2, R4
 	WORD    $0xED105058     //cdb %f1,.L19-.L18(%r5)
 	BYTE    $0x00
 	BYTE    $0x19
-	WORD    $0xEC12000F     //risbgn %r1,%r2,64-64+0,64-64+0+16-1,64-0-16
-	BYTE    $0x30
-	BYTE    $0x59
+	RISBGN	$0, $15, $48, R2, R1
 	WORD    $0x68543000     //ld %f5,0(%r4,%r3)
 	LDGR    R1, F6
 	BLT     L3

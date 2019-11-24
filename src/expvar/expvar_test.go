@@ -6,6 +6,7 @@ package expvar
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -299,6 +300,26 @@ func BenchmarkMapSetDifferent(b *testing.B) {
 	})
 }
 
+// BenchmarkMapSetDifferentRandom simulates such a case where the concerned
+// keys of Map.Set are generated dynamically and as a result insertion is
+// out of order and the number of the keys may be large.
+func BenchmarkMapSetDifferentRandom(b *testing.B) {
+	keys := make([]string, 100)
+	for i := range keys {
+		keys[i] = fmt.Sprintf("%x", sha1.Sum([]byte(fmt.Sprint(i))))
+	}
+
+	v := new(Int)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m := new(Map).Init()
+		for _, k := range keys {
+			m.Set(k, v)
+		}
+	}
+}
+
 func BenchmarkMapSetString(b *testing.B) {
 	m := new(Map).Init()
 
@@ -348,6 +369,25 @@ func BenchmarkMapAddDifferent(b *testing.B) {
 			}
 		}
 	})
+}
+
+// BenchmarkMapAddDifferentRandom simulates such a case where that the concerned
+// keys of Map.Add are generated dynamically and as a result insertion is out of
+// order and the number of the keys may be large.
+func BenchmarkMapAddDifferentRandom(b *testing.B) {
+	keys := make([]string, 100)
+	for i := range keys {
+		keys[i] = fmt.Sprintf("%x", sha1.Sum([]byte(fmt.Sprint(i))))
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		m := new(Map).Init()
+		for _, k := range keys {
+			m.Add(k, 1)
+		}
+	}
 }
 
 func BenchmarkMapAddSameSteadyState(b *testing.B) {

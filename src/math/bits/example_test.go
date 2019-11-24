@@ -59,6 +59,12 @@ func ExampleTrailingZeros64() {
 	// TrailingZeros64(0000000000000000000000000000000000000000000000000000000000001110) = 1
 }
 
+func ExampleOnesCount() {
+	fmt.Printf("OnesCount(%b) = %d\n", 14, bits.OnesCount(14))
+	// Output:
+	// OnesCount(1110) = 3
+}
+
 func ExampleOnesCount8() {
 	fmt.Printf("OnesCount8(%08b) = %d\n", 14, bits.OnesCount8(14))
 	// Output:

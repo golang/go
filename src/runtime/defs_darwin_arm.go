@@ -10,6 +10,7 @@ import "unsafe"
 const (
 	_EINTR     = 0x4
 	_EFAULT    = 0xe
+	_EAGAIN    = 0x23
 	_ETIMEDOUT = 0x3c
 
 	_PROT_NONE  = 0x0
@@ -96,7 +97,11 @@ const (
 	_PTHREAD_CREATE_DETACHED = 0x2
 
 	_F_SETFD    = 0x2
+	_F_GETFL    = 0x3
+	_F_SETFL    = 0x4
 	_FD_CLOEXEC = 0x1
+
+	_O_NONBLOCK = 4
 )
 
 type stackt struct {

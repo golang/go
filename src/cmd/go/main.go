@@ -71,8 +71,9 @@ func init() {
 		help.HelpImportPath,
 		modload.HelpModules,
 		modget.HelpModuleGet,
+		modfetch.HelpModuleAuth,
+		modfetch.HelpModulePrivate,
 		help.HelpPackages,
-		modfetch.HelpSum,
 		test.HelpTestflag,
 		test.HelpTestfunc,
 	}
@@ -90,7 +91,7 @@ func main() {
 	}
 
 	if args[0] == "get" || args[0] == "help" {
-		if modload.Init(); !modload.Enabled() {
+		if !modload.WillBeEnabled() {
 			// Replace module-aware get with GOPATH get if appropriate.
 			*modget.CmdGet = *get.CmdGet
 		}
@@ -122,45 +123,20 @@ func main() {
 				os.Exit(2)
 			}
 			if !filepath.IsAbs(p) {
-				fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nFor more details see: 'go help gopath'\n", p)
-				os.Exit(2)
+				if cfg.Getenv("GOPATH") == "" {
+					// We inferred $GOPATH from $HOME and did a bad job at it.
+					// Instead of dying, uninfer it.
+					cfg.BuildContext.GOPATH = ""
+				} else {
+					fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nFor more details see: 'go help gopath'\n", p)
+					os.Exit(2)
+				}
 			}
 		}
 	}
 
 	if fi, err := os.Stat(cfg.GOROOT); err != nil || !fi.IsDir() {
 		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: %v\n", cfg.GOROOT)
-		os.Exit(2)
-	}
-
-	// TODO(rsc): Remove all these helper prints in Go 1.12.
-	switch args[0] {
-	case "mod":
-		if len(args) >= 2 {
-			flag := args[1]
-			if strings.HasPrefix(flag, "--") {
-				flag = flag[1:]
-			}
-			if i := strings.Index(flag, "="); i >= 0 {
-				flag = flag[:i]
-			}
-			switch flag {
-			case "-sync", "-fix":
-				fmt.Fprintf(os.Stderr, "go: go mod %s is now go mod tidy\n", flag)
-				os.Exit(2)
-			case "-init", "-graph", "-vendor", "-verify":
-				fmt.Fprintf(os.Stderr, "go: go mod %s is now go mod %s\n", flag, flag[1:])
-				os.Exit(2)
-			case "-fmt", "-json", "-module", "-require", "-droprequire", "-replace", "-dropreplace", "-exclude", "-dropexclude":
-				fmt.Fprintf(os.Stderr, "go: go mod %s is now go mod edit %s\n", flag, flag)
-				os.Exit(2)
-			}
-		}
-	case "vendor":
-		fmt.Fprintf(os.Stderr, "go: vgo vendor is now go mod vendor\n")
-		os.Exit(2)
-	case "verify":
-		fmt.Fprintf(os.Stderr, "go: vgo verify is now go mod verify\n")
 		os.Exit(2)
 	}
 

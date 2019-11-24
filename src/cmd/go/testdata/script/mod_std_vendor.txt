@@ -20,7 +20,7 @@ stdout ^vendor/golang.org/x/crypto # dep of .TestImports
 # Modules outside the standard library should not use the packages vendored there...
 cd broken
 ! go build -mod=readonly
-stderr 'updates to go.mod needed'
+stderr 'disabled by -mod=readonly'
 ! go build -mod=vendor
 stderr 'cannot find package'
 stderr 'hpack'

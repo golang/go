@@ -42,7 +42,7 @@ func NewScope(parent *Scope, pos, end token.Pos, comment string) *Scope {
 // Parent returns the scope's containing (parent) scope.
 func (s *Scope) Parent() *Scope { return s.parent }
 
-// Len() returns the number of scope elements.
+// Len returns the number of scope elements.
 func (s *Scope) Len() int { return len(s.elems) }
 
 // Names returns the scope's element names in sorted order.
@@ -57,7 +57,7 @@ func (s *Scope) Names() []string {
 	return names
 }
 
-// NumChildren() returns the number of scopes nested in s.
+// NumChildren returns the number of scopes nested in s.
 func (s *Scope) NumChildren() int { return len(s.children) }
 
 // Child returns the i'th child scope for 0 <= i < NumChildren().
@@ -77,7 +77,7 @@ func (s *Scope) Lookup(name string) Object {
 //
 // Note that obj.Parent() may be different from the returned scope if the
 // object was inserted into the scope and already had a parent at that
-// time (see Insert, below). This can only happen for dot-imported objects
+// time (see Insert). This can only happen for dot-imported objects
 // whose scope is the scope of the package that exported them.
 func (s *Scope) LookupParent(name string, pos token.Pos) (*Scope, Object) {
 	for ; s != nil; s = s.parent {

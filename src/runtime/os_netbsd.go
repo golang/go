@@ -24,8 +24,6 @@ const (
 
 	// From <sys/lwp.h>
 	_LWP_DETACHED = 0x00000040
-
-	_EAGAIN = 35
 )
 
 type mOS struct {
@@ -49,8 +47,9 @@ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, nds
 
 func lwp_tramp()
 
-func raise(sig uint32)
 func raiseproc(sig uint32)
+
+func lwp_kill(tid int32, sig int)
 
 //go:noescape
 func getcontext(ctxt unsafe.Pointer)
@@ -72,7 +71,11 @@ func kqueue() int32
 
 //go:noescape
 func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
+
+func pipe() (r, w int32, errno int32)
+func pipe2(flags int32) (r, w int32, errno int32)
 func closeonexec(fd int32)
+func setNonblock(fd int32)
 
 const (
 	_ESRCH     = 3
@@ -361,4 +364,18 @@ func sysauxv(auxv []uintptr) {
 			physPageSize = val
 		}
 	}
+}
+
+// raise sends signal to the calling thread.
+//
+// It must be nosplit because it is used by the signal handler before
+// it definitely has a Go stack.
+//
+//go:nosplit
+func raise(sig uint32) {
+	lwp_kill(lwp_self(), int(sig))
+}
+
+func signalM(mp *m, sig int) {
+	lwp_kill(int32(mp.procid), sig)
 }

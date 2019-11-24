@@ -11,14 +11,14 @@ func Sleep(d Duration)
 // Interface to timers implemented in package runtime.
 // Must be in sync with ../runtime/time.go:/^type timer
 type runtimeTimer struct {
-	tb uintptr
-	i  int
-
-	when   int64
-	period int64
-	f      func(interface{}, uintptr) // NOTE: must not be closure
-	arg    interface{}
-	seq    uintptr
+	pp       uintptr
+	when     int64
+	period   int64
+	f        func(interface{}, uintptr) // NOTE: must not be closure
+	arg      interface{}
+	seq      uintptr
+	nextwhen int64
+	status   uint32
 }
 
 // when is a helper function for setting the 'when' field of a runtimeTimer.
@@ -38,6 +38,7 @@ func when(d Duration) int64 {
 
 func startTimer(*runtimeTimer)
 func stopTimer(*runtimeTimer) bool
+func resetTimer(*runtimeTimer, int64)
 
 // The Timer type represents a single event.
 // When the Timer expires, the current time will be sent on C,
@@ -54,8 +55,8 @@ type Timer struct {
 // Stop does not close the channel, to prevent a read from the channel succeeding
 // incorrectly.
 //
-// To prevent a timer created with NewTimer from firing after a call to Stop,
-// check the return value and drain the channel.
+// To ensure the channel is empty after a call to Stop, check the
+// return value and drain the channel.
 // For example, assuming the program has not received from t.C already:
 //
 // 	if !t.Stop() {
@@ -97,10 +98,9 @@ func NewTimer(d Duration) *Timer {
 // It returns true if the timer had been active, false if the timer had
 // expired or been stopped.
 //
-// Resetting a timer must take care not to race with the send into t.C
-// that happens when the current timer expires.
+// Reset should be invoked only on stopped or expired timers with drained channels.
 // If a program has already received a value from t.C, the timer is known
-// to have expired, and t.Reset can be used directly.
+// to have expired and the channel drained, so t.Reset can be used directly.
 // If a program has not yet received a value from t.C, however,
 // the timer must be stopped and—if Stop reports that the timer expired
 // before being stopped—the channel explicitly drained:
@@ -123,8 +123,7 @@ func (t *Timer) Reset(d Duration) bool {
 	}
 	w := when(d)
 	active := stopTimer(&t.r)
-	t.r.when = w
-	startTimer(&t.r)
+	resetTimer(&t.r, w)
 	return active
 }
 

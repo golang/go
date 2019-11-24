@@ -89,6 +89,10 @@ label:
 loop:
 	LOOP	loop // LOOP
 
+// Tests for TLS reference.
+	MOVL    (TLS), AX
+	MOVL    8(TLS), DX
+
 // LTYPE0 nonnon	{ outcode(int($1), &$2); }
 	RET
 	RET	foo(SB)

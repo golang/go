@@ -107,7 +107,7 @@ func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(t
 // cgo files of a package (those that import "C"). Such files are not
 // Go, so there may be gaps in type information around C.f references.
 //
-// This checker was initially written in vet to inpect raw cgo source
+// This checker was initially written in vet to inspect raw cgo source
 // files using partial type information. However, Analyzers in the new
 // analysis API are presented with the type-checked, "cooked" Go ASTs
 // resulting from cgo-processing files, so we must choose between
@@ -133,7 +133,7 @@ func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(t
 //	func (T) f(int) string { ... }
 //
 // we synthesize a new ast.File, shown below, that dot-imports the
-// orginal "cooked" package using a special name ("·this·"), so that all
+// original "cooked" package using a special name ("·this·"), so that all
 // references to package members resolve correctly. (References to
 // unexported names cause an "unexported" error, which we ignore.)
 //

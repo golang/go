@@ -31,18 +31,40 @@ const (
 )
 
 type Package struct {
-	writer               io.Writer    // Destination for output.
-	name                 string       // Package name, json for encoding/json.
-	userPath             string       // String the user used to find this package.
-	pkg                  *ast.Package // Parsed package.
-	file                 *ast.File    // Merged from all files in the package
-	doc                  *doc.Package
-	build                *build.Package
-	typedValue           map[*doc.Value]bool // Consts and vars related to types.
-	constructor          map[*doc.Func]bool  // Constructors.
-	packageClausePrinted bool                // Prevent repeated package clauses.
-	fs                   *token.FileSet      // Needed for printing.
-	buf                  bytes.Buffer
+	writer      io.Writer    // Destination for output.
+	name        string       // Package name, json for encoding/json.
+	userPath    string       // String the user used to find this package.
+	pkg         *ast.Package // Parsed package.
+	file        *ast.File    // Merged from all files in the package
+	doc         *doc.Package
+	build       *build.Package
+	typedValue  map[*doc.Value]bool // Consts and vars related to types.
+	constructor map[*doc.Func]bool  // Constructors.
+	fs          *token.FileSet      // Needed for printing.
+	buf         pkgBuffer
+}
+
+// pkgBuffer is a wrapper for bytes.Buffer that prints a package clause the
+// first time Write is called.
+type pkgBuffer struct {
+	pkg     *Package
+	printed bool // Prevent repeated package clauses.
+	bytes.Buffer
+}
+
+func (pb *pkgBuffer) Write(p []byte) (int, error) {
+	pb.packageClause()
+	return pb.Buffer.Write(p)
+}
+
+func (pb *pkgBuffer) packageClause() {
+	if !pb.printed {
+		pb.printed = true
+		// Only show package clause for commands if requested explicitly.
+		if pb.pkg.pkg.Name != "main" || showCmd {
+			pb.pkg.packageClause()
+		}
+	}
 }
 
 type PackageError string // type returned by pkg.Fatalf.
@@ -129,7 +151,10 @@ func parsePackage(writer io.Writer, pkg *build.Package, userPath string) *Packag
 		log.Fatal(err)
 	}
 	// Make sure they are all in one package.
-	if len(pkgs) != 1 {
+	if len(pkgs) == 0 {
+		log.Fatalf("no source-code package in directory %s", pkg.Dir)
+	}
+	if len(pkgs) > 1 {
 		log.Fatalf("multiple packages in directory %s", pkg.Dir)
 	}
 	astPkg := pkgs[pkg.Name]
@@ -151,24 +176,24 @@ func parsePackage(writer io.Writer, pkg *build.Package, userPath string) *Packag
 	constructor := make(map[*doc.Func]bool)
 	for _, typ := range docPkg.Types {
 		docPkg.Consts = append(docPkg.Consts, typ.Consts...)
-		for _, value := range typ.Consts {
-			typedValue[value] = true
-		}
 		docPkg.Vars = append(docPkg.Vars, typ.Vars...)
-		for _, value := range typ.Vars {
-			typedValue[value] = true
-		}
 		docPkg.Funcs = append(docPkg.Funcs, typ.Funcs...)
-		for _, fun := range typ.Funcs {
-			// We don't count it as a constructor bound to the type
-			// if the type itself is not exported.
-			if isExported(typ.Name) {
+		if isExported(typ.Name) {
+			for _, value := range typ.Consts {
+				typedValue[value] = true
+			}
+			for _, value := range typ.Vars {
+				typedValue[value] = true
+			}
+			for _, fun := range typ.Funcs {
+				// We don't count it as a constructor bound to the type
+				// if the type itself is not exported.
 				constructor[fun] = true
 			}
 		}
 	}
 
-	return &Package{
+	p := &Package{
 		writer:      writer,
 		name:        pkg.Name,
 		userPath:    userPath,
@@ -180,6 +205,8 @@ func parsePackage(writer io.Writer, pkg *build.Package, userPath string) *Packag
 		build:       pkg,
 		fs:          fs,
 	}
+	p.buf.pkg = p
+	return p
 }
 
 func (pkg *Package) Printf(format string, args ...interface{}) {
@@ -187,6 +214,8 @@ func (pkg *Package) Printf(format string, args ...interface{}) {
 }
 
 func (pkg *Package) flush() {
+	// Print the package clause in case it wasn't written already.
+	pkg.buf.packageClause()
 	_, err := pkg.writer.Write(pkg.buf.Bytes())
 	if err != nil {
 		log.Fatal(err)
@@ -423,9 +452,6 @@ func joinStrings(ss []string) string {
 // allDoc prints all the docs for the package.
 func (pkg *Package) allDoc() {
 	defer pkg.flush()
-	if pkg.showInternals() {
-		pkg.packageClause(false)
-	}
 
 	doc.ToText(&pkg.buf, pkg.doc.Doc, "", indent, indentedWidth)
 	pkg.newlines(1)
@@ -486,49 +512,35 @@ func (pkg *Package) allDoc() {
 // packageDoc prints the docs for the package (package doc plus one-liners of the rest).
 func (pkg *Package) packageDoc() {
 	defer pkg.flush()
-	if pkg.showInternals() {
-		pkg.packageClause(false)
+
+	if !short {
+		doc.ToText(&pkg.buf, pkg.doc.Doc, "", indent, indentedWidth)
+		pkg.newlines(1)
 	}
 
-	doc.ToText(&pkg.buf, pkg.doc.Doc, "", indent, indentedWidth)
-	pkg.newlines(1)
-
-	if !pkg.showInternals() {
+	if pkg.pkg.Name == "main" && !showCmd {
 		// Show only package docs for commands.
 		return
 	}
 
-	pkg.newlines(2) // Guarantee blank line before the components.
+	if !short {
+		pkg.newlines(2) // Guarantee blank line before the components.
+	}
+
 	pkg.valueSummary(pkg.doc.Consts, false)
 	pkg.valueSummary(pkg.doc.Vars, false)
 	pkg.funcSummary(pkg.doc.Funcs, false)
 	pkg.typeSummary()
-	pkg.bugs()
-}
-
-// showInternals reports whether we should show the internals
-// of a package as opposed to just the package docs.
-// Used to decide whether to suppress internals for commands.
-// Called only by Package.packageDoc.
-func (pkg *Package) showInternals() bool {
-	return pkg.pkg.Name != "main" || showCmd
+	if !short {
+		pkg.bugs()
+	}
 }
 
 // packageClause prints the package clause.
-// The argument boolean, if true, suppresses the output if the
-// user's argument is identical to the actual package path or
-// is empty, meaning it's the current directory.
-func (pkg *Package) packageClause(checkUserPath bool) {
-	if pkg.packageClausePrinted {
+func (pkg *Package) packageClause() {
+	if short {
 		return
 	}
-
-	if checkUserPath {
-		if pkg.userPath == "" || pkg.userPath == pkg.build.ImportPath {
-			return
-		}
-	}
-
 	importPath := pkg.build.ImportComment
 	if importPath == "" {
 		importPath = pkg.build.ImportPath
@@ -560,7 +572,6 @@ func (pkg *Package) packageClause(checkUserPath bool) {
 	if !usingModules && importPath != pkg.build.ImportPath {
 		pkg.Printf("WARNING: package source is installed in %q\n", pkg.build.ImportPath)
 	}
-	pkg.packageClausePrinted = true
 }
 
 // valueSummary prints a one-line summary for each set of values and constants.
@@ -698,9 +709,6 @@ func (pkg *Package) symbolDoc(symbol string) bool {
 	found := false
 	// Functions.
 	for _, fun := range pkg.findFuncs(symbol) {
-		if !found {
-			pkg.packageClause(true)
-		}
 		// Symbol is a function.
 		decl := fun.Decl
 		pkg.emit(fun.Doc, decl)
@@ -914,8 +922,8 @@ func trimUnexportedFields(fields *ast.FieldList, isInterface bool) *ast.FieldLis
 }
 
 // printMethodDoc prints the docs for matches of symbol.method.
-// If symbol is empty, it prints all methods that match the name.
-// It reports whether it found any methods.
+// If symbol is empty, it prints all methods for any concrete type
+// that match the name. It reports whether it found any methods.
 func (pkg *Package) printMethodDoc(symbol, method string) bool {
 	defer pkg.flush()
 	types := pkg.findTypes(symbol)
@@ -935,6 +943,9 @@ func (pkg *Package) printMethodDoc(symbol, method string) bool {
 					found = true
 				}
 			}
+			continue
+		}
+		if symbol == "" {
 			continue
 		}
 		// Type may be an interface. The go/doc package does not attach

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:generate bundle -o=h2_bundle.go -prefix=http2 -tags=!nethttpomithttp2 golang.org/x/net/http2
+
 package http
 
 import (
@@ -19,8 +21,13 @@ import (
 const maxInt64 = 1<<63 - 1
 
 // aLongTimeAgo is a non-zero time, far in the past, used for
-// immediate cancelation of network operations.
+// immediate cancellation of network operations.
 var aLongTimeAgo = time.Unix(1, 0)
+
+// omitBundledHTTP2 is set by omithttp2.go when the nethttpomithttp2
+// build tag is set. That means h2_bundle.go isn't compiled in and we
+// shouldn't try to use it.
+var omitBundledHTTP2 bool
 
 // TODO(bradfitz): move common stuff here. The other files have accumulated
 // generic http stuff in random places.

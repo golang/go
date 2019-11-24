@@ -1,0 +1,24 @@
+env GO111MODULE=on
+[short] skip
+
+# Check that 'go version' and 'go version -m' work on a binary built in module mode.
+go build -o fortune.exe rsc.io/fortune
+go version fortune.exe
+stdout '^fortune.exe: .+'
+go version -m fortune.exe
+stdout '^\tpath\trsc.io/fortune'
+stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+
+# Repeat the test with -buildmode=pie.
+# TODO(golang.org/issue/27144): don't skip after -buildmode=pie is implemented
+# on Windows.
+[windows] skip # -buildmode=pie not supported
+go build -buildmode=pie -o external.exe rsc.io/fortune
+go version external.exe
+stdout '^external.exe: .+'
+go version -m external.exe
+stdout '^\tpath\trsc.io/fortune'
+stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+
+-- go.mod --
+module m

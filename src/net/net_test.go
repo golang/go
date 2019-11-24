@@ -72,7 +72,7 @@ func TestCloseRead(t *testing.T) {
 
 func TestCloseWrite(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "plan9":
+	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
@@ -285,7 +285,6 @@ func TestPacketConnClose(t *testing.T) {
 	}
 }
 
-// nacl was previous failing to reuse an address.
 func TestListenCloseListen(t *testing.T) {
 	const maxTries = 10
 	for tries := 0; tries < maxTries; tries++ {
@@ -302,7 +301,7 @@ func TestListenCloseListen(t *testing.T) {
 		}
 		ln, err = Listen("tcp", addr)
 		if err == nil {
-			// Success. nacl couldn't do this before.
+			// Success. (This test didn't always make it here earlier.)
 			ln.Close()
 			return
 		}
@@ -525,6 +524,9 @@ func TestNotTemporaryRead(t *testing.T) {
 	if runtime.GOOS == "freebsd" {
 		testenv.SkipFlaky(t, 25289)
 	}
+	if runtime.GOOS == "aix" {
+		testenv.SkipFlaky(t, 29685)
+	}
 	t.Parallel()
 	server := func(cs *TCPConn) error {
 		cs.SetLinger(0)
@@ -538,7 +540,7 @@ func TestNotTemporaryRead(t *testing.T) {
 		if err == nil {
 			return errors.New("Read succeeded unexpectedly")
 		} else if err == io.EOF {
-			// This happens on NaCl and Plan 9.
+			// This happens on Plan 9.
 			return nil
 		} else if ne, ok := err.(Error); !ok {
 			return fmt.Errorf("unexpected error %v", err)

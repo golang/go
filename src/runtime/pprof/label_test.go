@@ -24,7 +24,7 @@ func (s labelSorter) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 func (s labelSorter) Less(i, j int) bool { return s[i].key < s[j].key }
 
 func TestContextLabels(t *testing.T) {
-	// Background context starts with no lablels.
+	// Background context starts with no labels.
 	ctx := context.Background()
 	labels := labelsSorted(ctx)
 	if len(labels) != 0 {

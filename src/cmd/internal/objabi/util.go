@@ -34,6 +34,11 @@ var (
 	Version  = version
 )
 
+const (
+	ElfRelocOffset   = 256
+	MachoRelocOffset = 2048 // reserve enough space for ELF relocations
+)
+
 func goarm() int {
 	switch v := envOr("GOARM", defaultGOARM); v {
 	case "5":
@@ -79,10 +84,14 @@ func goppc64() int {
 
 type gowasmFeatures struct {
 	SignExt bool
+	SatConv bool
 }
 
-func (f *gowasmFeatures) String() string {
+func (f gowasmFeatures) String() string {
 	var flags []string
+	if f.SatConv {
+		flags = append(flags, "satconv")
+	}
 	if f.SignExt {
 		flags = append(flags, "signext")
 	}
@@ -92,6 +101,8 @@ func (f *gowasmFeatures) String() string {
 func gowasm() (f gowasmFeatures) {
 	for _, opt := range strings.Split(envOr("GOWASM", ""), ",") {
 		switch opt {
+		case "satconv":
+			f.SatConv = true
 		case "signext":
 			f.SignExt = true
 		case "":
@@ -116,7 +127,7 @@ func init() {
 }
 
 func Framepointer_enabled(goos, goarch string) bool {
-	return framepointer_enabled != 0 && (goarch == "amd64" && goos != "nacl" || goarch == "arm64" && goos == "linux")
+	return framepointer_enabled != 0 && (goarch == "amd64" || goarch == "arm64" && goos == "linux")
 }
 
 func addexp(s string) {

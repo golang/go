@@ -1,4 +1,5 @@
 env GO111MODULE=off
+[short] skip
 
 # go clean -testcache
 # should work (see golang.org/issue/29757).

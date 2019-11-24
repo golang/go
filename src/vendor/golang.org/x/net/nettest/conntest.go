@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package nettest provides utilities for network testing.
 package nettest
 
 import (
@@ -18,11 +17,6 @@ import (
 	"time"
 )
 
-var (
-	aLongTimeAgo = time.Unix(233431200, 0)
-	neverTimeout = time.Time{}
-)
-
 // MakePipe creates a connection between two endpoints and returns the pair
 // as c1 and c2, such that anything written to c1 is read by c2 and vice-versa.
 // The stop function closes all resources, including c1, c2, and the underlying
@@ -35,12 +29,23 @@ type MakePipe func() (c1, c2 net.Conn, stop func(), err error)
 // run multiple times. For maximal effectiveness, run the tests under the
 // race detector.
 func TestConn(t *testing.T, mp MakePipe) {
-	testConn(t, mp)
+	t.Run("BasicIO", func(t *testing.T) { timeoutWrapper(t, mp, testBasicIO) })
+	t.Run("PingPong", func(t *testing.T) { timeoutWrapper(t, mp, testPingPong) })
+	t.Run("RacyRead", func(t *testing.T) { timeoutWrapper(t, mp, testRacyRead) })
+	t.Run("RacyWrite", func(t *testing.T) { timeoutWrapper(t, mp, testRacyWrite) })
+	t.Run("ReadTimeout", func(t *testing.T) { timeoutWrapper(t, mp, testReadTimeout) })
+	t.Run("WriteTimeout", func(t *testing.T) { timeoutWrapper(t, mp, testWriteTimeout) })
+	t.Run("PastTimeout", func(t *testing.T) { timeoutWrapper(t, mp, testPastTimeout) })
+	t.Run("PresentTimeout", func(t *testing.T) { timeoutWrapper(t, mp, testPresentTimeout) })
+	t.Run("FutureTimeout", func(t *testing.T) { timeoutWrapper(t, mp, testFutureTimeout) })
+	t.Run("CloseTimeout", func(t *testing.T) { timeoutWrapper(t, mp, testCloseTimeout) })
+	t.Run("ConcurrentMethods", func(t *testing.T) { timeoutWrapper(t, mp, testConcurrentMethods) })
 }
 
 type connTester func(t *testing.T, c1, c2 net.Conn)
 
 func timeoutWrapper(t *testing.T, mp MakePipe, f connTester) {
+	t.Helper()
 	c1, c2, stop, err := mp()
 	if err != nil {
 		t.Fatalf("unable to make pipe: %v", err)
@@ -85,7 +90,7 @@ func testBasicIO(t *testing.T, c1, c2 net.Conn) {
 	}()
 
 	if got := <-dataCh; !bytes.Equal(got, want) {
-		t.Errorf("transmitted data differs")
+		t.Error("transmitted data differs")
 	}
 }
 
@@ -239,7 +244,7 @@ func testPastTimeout(t *testing.T, c1, c2 net.Conn) {
 	testRoundtrip(t, c1)
 }
 
-// testPresentTimeout tests that a deadline set while there are pending
+// testPresentTimeout tests that a past deadline set while there are pending
 // Read and Write operations immediately times out those operations.
 func testPresentTimeout(t *testing.T, c1, c2 net.Conn) {
 	var wg sync.WaitGroup
@@ -390,6 +395,7 @@ func testConcurrentMethods(t *testing.T, c1, c2 net.Conn) {
 // checkForTimeoutError checks that the error satisfies the Error interface
 // and that Timeout returns true.
 func checkForTimeoutError(t *testing.T, err error) {
+	t.Helper()
 	if nerr, ok := err.(net.Error); ok {
 		if !nerr.Timeout() {
 			t.Errorf("err.Timeout() = false, want true")
@@ -402,6 +408,7 @@ func checkForTimeoutError(t *testing.T, err error) {
 // testRoundtrip writes something into c and reads it back.
 // It assumes that everything written into c is echoed back to itself.
 func testRoundtrip(t *testing.T, c net.Conn) {
+	t.Helper()
 	if err := c.SetDeadline(neverTimeout); err != nil {
 		t.Errorf("roundtrip SetDeadline error: %v", err)
 	}
@@ -423,6 +430,7 @@ func testRoundtrip(t *testing.T, c net.Conn) {
 // It assumes that everything written into c is echoed back to itself.
 // It assumes that 0xff is not currently on the wire or in the read buffer.
 func resyncConn(t *testing.T, c net.Conn) {
+	t.Helper()
 	c.SetDeadline(neverTimeout)
 	errCh := make(chan error)
 	go func() {

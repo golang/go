@@ -33,6 +33,9 @@ func sysUsed(v unsafe.Pointer, n uintptr) {
 	madvise(v, n, _MADV_FREE_REUSE)
 }
 
+func sysHugePage(v unsafe.Pointer, n uintptr) {
+}
+
 // Don't split the stack as this function may be invoked without a valid G,
 // which prevents us from allocating more stack.
 //go:nosplit
@@ -46,19 +49,7 @@ func sysFault(v unsafe.Pointer, n uintptr) {
 }
 
 func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
-	flags := int32(_MAP_ANON | _MAP_PRIVATE)
-	if raceenabled {
-		// Currently the race detector expects memory to live within a certain
-		// range, and on Darwin 10.10 mmap is prone to ignoring hints, moreso
-		// than later versions and other BSDs (#26475). So, even though it's
-		// potentially dangerous to MAP_FIXED, we do it in the race detection
-		// case because it'll help maintain the race detector's invariants.
-		//
-		// TODO(mknyszek): Drop this once support for Darwin 10.10 is dropped,
-		// and reconsider this when #24133 is addressed.
-		flags |= _MAP_FIXED
-	}
-	p, err := mmap(v, n, _PROT_NONE, flags, -1, 0)
+	p, err := mmap(v, n, _PROT_NONE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
 	if err != 0 {
 		return nil
 	}

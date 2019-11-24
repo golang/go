@@ -46,9 +46,10 @@
 // If 'Index' is present, matches and submatches are identified by byte index
 // pairs within the input string: result[2*n:2*n+1] identifies the indexes of
 // the nth submatch. The pair for n==0 identifies the match of the entire
-// expression. If 'Index' is not present, the match is identified by the
-// text of the match/submatch. If an index is negative, it means that
-// subexpression did not match any string in the input.
+// expression. If 'Index' is not present, the match is identified by the text
+// of the match/submatch. If an index is negative or text is nil, it means that
+// subexpression did not match any string in the input. For 'String' versions
+// an empty string means either no match or an empty match.
 //
 // There is also a subset of the methods that can be applied to text read
 // from a RuneReader:
@@ -93,6 +94,7 @@ type Regexp struct {
 	matchcap       int            // size of recorded match lengths
 	prefixComplete bool           // prefix is the entire regexp
 	cond           syntax.EmptyOp // empty-width conditions required at start of match
+	minInputLen    int            // minimum length of the input in bytes
 
 	// This field can be modified by the Longest method,
 	// but it is otherwise read-only.
@@ -190,6 +192,7 @@ func compile(expr string, mode syntax.Flags, longest bool) (*Regexp, error) {
 		cond:        prog.StartCond(),
 		longest:     longest,
 		matchcap:    matchcap,
+		minInputLen: minInputLen(re),
 	}
 	if regexp.onepass == nil {
 		regexp.prefix, regexp.prefixComplete = prog.Prefix()
@@ -261,6 +264,42 @@ func (re *Regexp) put(m *machine) {
 	m.p = nil
 	m.inputs.clear()
 	matchPool[re.mpool].Put(m)
+}
+
+// minInputLen walks the regexp to find the minimum length of any matchable input
+func minInputLen(re *syntax.Regexp) int {
+	switch re.Op {
+	default:
+		return 0
+	case syntax.OpAnyChar, syntax.OpAnyCharNotNL, syntax.OpCharClass:
+		return 1
+	case syntax.OpLiteral:
+		l := 0
+		for _, r := range re.Rune {
+			l += utf8.RuneLen(r)
+		}
+		return l
+	case syntax.OpCapture, syntax.OpPlus:
+		return minInputLen(re.Sub[0])
+	case syntax.OpRepeat:
+		return re.Min * minInputLen(re.Sub[0])
+	case syntax.OpConcat:
+		l := 0
+		for _, sub := range re.Sub {
+			l += minInputLen(sub)
+		}
+		return l
+	case syntax.OpAlternate:
+		l := minInputLen(re.Sub[0])
+		var lnext int
+		for _, sub := range re.Sub[1:] {
+			lnext = minInputLen(sub)
+			if lnext < l {
+				l = lnext
+			}
+		}
+		return l
+	}
 }
 
 // MustCompile is like Compile but panics if the expression cannot be parsed.

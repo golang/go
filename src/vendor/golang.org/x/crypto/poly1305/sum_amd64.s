@@ -54,24 +54,17 @@
 	ADCQ  t3, h1;                  \
 	ADCQ  $0, h2
 
-DATA ·poly1305Mask<>+0x00(SB)/8, $0x0FFFFFFC0FFFFFFF
-DATA ·poly1305Mask<>+0x08(SB)/8, $0x0FFFFFFC0FFFFFFC
-GLOBL ·poly1305Mask<>(SB), RODATA, $16
+// func update(state *[7]uint64, msg []byte)
+TEXT ·update(SB), $0-32
+	MOVQ state+0(FP), DI
+	MOVQ msg_base+8(FP), SI
+	MOVQ msg_len+16(FP), R15
 
-// func poly1305(out *[16]byte, m *byte, mlen uint64, key *[32]key)
-TEXT ·poly1305(SB), $0-32
-	MOVQ out+0(FP), DI
-	MOVQ m+8(FP), SI
-	MOVQ mlen+16(FP), R15
-	MOVQ key+24(FP), AX
-
-	MOVQ 0(AX), R11
-	MOVQ 8(AX), R12
-	ANDQ ·poly1305Mask<>(SB), R11   // r0
-	ANDQ ·poly1305Mask<>+8(SB), R12 // r1
-	XORQ R8, R8                    // h0
-	XORQ R9, R9                    // h1
-	XORQ R10, R10                  // h2
+	MOVQ 0(DI), R8   // h0
+	MOVQ 8(DI), R9   // h1
+	MOVQ 16(DI), R10 // h2
+	MOVQ 24(DI), R11 // r0
+	MOVQ 32(DI), R12 // r1
 
 	CMPQ R15, $16
 	JB   bytes_between_0_and_15
@@ -109,17 +102,7 @@ flush_buffer:
 	JMP  multiply
 
 done:
-	MOVQ    R8, AX
-	MOVQ    R9, BX
-	SUBQ    $0xFFFFFFFFFFFFFFFB, AX
-	SBBQ    $0xFFFFFFFFFFFFFFFF, BX
-	SBBQ    $3, R10
-	CMOVQCS R8, AX
-	CMOVQCS R9, BX
-	MOVQ    key+24(FP), R8
-	ADDQ    16(R8), AX
-	ADCQ    24(R8), BX
-
-	MOVQ AX, 0(DI)
-	MOVQ BX, 8(DI)
+	MOVQ R8, 0(DI)
+	MOVQ R9, 8(DI)
+	MOVQ R10, 16(DI)
 	RET

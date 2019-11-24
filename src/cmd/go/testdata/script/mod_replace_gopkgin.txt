@@ -1,0 +1,28 @@
+# Regression test for golang.org/issue/34254:
+# a clone of gopkg.in/[…].vN should be replaceable by
+# a fork hosted at corp.example.com/[…]/vN,
+# even if there is an explicit go.mod file containing the
+# gopkg.in path.
+
+[short] skip
+[!net] skip
+[!exec:git] skip
+
+env GO111MODULE=on
+env GOPROXY=direct
+env GOSUMDB=off
+
+# Replacing gopkg.in/[…].vN with a repository with a root go.mod file
+# specifying […].vN and a compatible version should succeed, even if
+# the replacement path is not a gopkg.in path.
+cd dot-to-dot
+go list gopkg.in/src-d/go-git.v4
+
+-- dot-to-dot/go.mod --
+module golang.org/issue/34254
+
+go 1.13
+
+require gopkg.in/src-d/go-git.v4 v4.13.1
+
+replace gopkg.in/src-d/go-git.v4 v4.13.1 => github.com/src-d/go-git/v4 v4.13.1

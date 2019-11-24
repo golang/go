@@ -1,4 +1,5 @@
 env GO111MODULE=on
+[short] skip
 
 cp go.mod go.mod.orig
 
@@ -36,6 +37,20 @@ go build -o a5.exe ./usenewmodule
 grep 'not-rsc.io/quote/v3 v3.1.0' go.mod
 exec ./a5.exe
 stdout 'Concurrency is not parallelism.'
+
+# Error messages for modules not found in replacements should
+# indicate the replacement module.
+cp go.mod.orig go.mod
+go mod edit -replace=rsc.io/quote/v3=./local/rsc.io/quote/v3
+! go get -d rsc.io/quote/v3/missing-package
+stderr 'module rsc.io/quote/v3@upgrade found \(v3.0.0, replaced by ./local/rsc.io/quote/v3\), but does not contain package'
+
+# The reported Dir and GoMod for a replaced module should be accurate.
+cp go.mod.orig go.mod
+go mod edit -replace=rsc.io/quote/v3=not-rsc.io/quote@v0.1.0-nomod
+go mod download
+go list -m -f '{{.Path}} {{.Version}} {{.Dir}} {{.GoMod}}{{with .Replace}} => {{.Path}} {{.Version}} {{.Dir}} {{.GoMod}}{{end}}' rsc.io/quote/v3
+stdout '^rsc.io/quote/v3 v3.0.0 '$GOPATH'[/\\]pkg[/\\]mod[/\\]not-rsc.io[/\\]quote@v0.1.0-nomod '$GOPATH'[/\\]pkg[/\\]mod[/\\]cache[/\\]download[/\\]not-rsc.io[/\\]quote[/\\]@v[/\\]v0.1.0-nomod.mod => not-rsc.io/quote v0.1.0-nomod '$GOPATH'[/\\]pkg[/\\]mod[/\\]not-rsc.io[/\\]quote@v0.1.0-nomod '$GOPATH'[/\\]pkg[/\\]mod[/\\]cache[/\\]download[/\\]not-rsc.io[/\\]quote[/\\]@v[/\\]v0.1.0-nomod.mod$'
 
 -- go.mod --
 module quoter

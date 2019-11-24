@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"internal/obscuretestdata"
 	"io"
 	"io/ioutil"
 	"os"
@@ -19,11 +20,12 @@ import (
 )
 
 type ZipTest struct {
-	Name    string
-	Source  func() (r io.ReaderAt, size int64) // if non-nil, used instead of testdata/<Name> file
-	Comment string
-	File    []ZipTestFile
-	Error   error // the error that Opening this file should return
+	Name     string
+	Source   func() (r io.ReaderAt, size int64) // if non-nil, used instead of testdata/<Name> file
+	Comment  string
+	File     []ZipTestFile
+	Obscured bool  // needed for Apple notarization (golang.org/issue/34986)
+	Error    error // the error that Opening this file should return
 }
 
 type ZipTestFile struct {
@@ -189,8 +191,12 @@ var tests = []ZipTest{
 	},
 	{
 		// created by Go, before we wrote the "optional" data
-		// descriptor signatures (which are required by OS X)
-		Name: "go-no-datadesc-sig.zip",
+		// descriptor signatures (which are required by macOS).
+		// Use obscured file to avoid Apple’s notarization service
+		// rejecting the toolchain due to an inability to unzip this archive.
+		// See golang.org/issue/34986
+		Name:     "go-no-datadesc-sig.zip.base64",
+		Obscured: true,
 		File: []ZipTestFile{
 			{
 				Name:     "foo.txt",
@@ -208,7 +214,7 @@ var tests = []ZipTest{
 	},
 	{
 		// created by Go, after we wrote the "optional" data
-		// descriptor signatures (which are required by OS X)
+		// descriptor signatures (which are required by macOS)
 		Name: "go-with-datadesc-sig.zip",
 		File: []ZipTestFile{
 			{
@@ -496,8 +502,18 @@ func readTestZip(t *testing.T, zt ZipTest) {
 		rat, size := zt.Source()
 		z, err = NewReader(rat, size)
 	} else {
+		path := filepath.Join("testdata", zt.Name)
+		if zt.Obscured {
+			tf, err := obscuretestdata.DecodeToTempFile(path)
+			if err != nil {
+				t.Errorf("obscuretestdata.DecodeToTempFile(%s): %v", path, err)
+				return
+			}
+			defer os.Remove(tf)
+			path = tf
+		}
 		var rc *ReadCloser
-		rc, err = OpenReader(filepath.Join("testdata", zt.Name))
+		rc, err = OpenReader(path)
 		if err == nil {
 			defer rc.Close()
 			z = &rc.Reader
@@ -981,15 +997,17 @@ func TestIssue10957(t *testing.T) {
 	}
 }
 
-// Verify the number of files is sane.
+// Verify that this particular malformed zip file is rejected.
 func TestIssue10956(t *testing.T) {
 	data := []byte("PK\x06\x06PK\x06\a0000\x00\x00\x00\x00\x00\x00\x00\x00" +
 		"0000PK\x05\x06000000000000" +
 		"0000\v\x00000\x00\x00\x00\x00\x00\x00\x000")
-	_, err := NewReader(bytes.NewReader(data), int64(len(data)))
-	const want = "TOC declares impossible 3472328296227680304 files in 57 byte"
-	if err == nil && !strings.Contains(err.Error(), want) {
-		t.Errorf("error = %v; want %q", err, want)
+	r, err := NewReader(bytes.NewReader(data), int64(len(data)))
+	if err == nil {
+		t.Errorf("got nil error, want ErrFormat")
+	}
+	if r != nil {
+		t.Errorf("got non-nil Reader, want nil")
 	}
 }
 

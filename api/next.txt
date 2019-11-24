@@ -1,3 +1,5 @@
-pkg text/scanner, const AllowNumberbars = 1024
-pkg text/scanner, const AllowNumberbars ideal-int
-pkg text/scanner, const GoTokens = 2036
+pkg unicode, const Version = "12.0.0"
+pkg unicode, var Elymaic *RangeTable
+pkg unicode, var Nandinagari *RangeTable
+pkg unicode, var Nyiakeng_Puachue_Hmong *RangeTable
+pkg unicode, var Wancho *RangeTable

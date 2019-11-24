@@ -15,6 +15,4 @@ var (
 	ErrExist      = errors.New("file already exists")
 	ErrNotExist   = errors.New("file does not exist")
 	ErrClosed     = errors.New("file already closed")
-	ErrTemporary  = errors.New("temporary error")
-	ErrTimeout    = errors.New("deadline exceeded")
 )

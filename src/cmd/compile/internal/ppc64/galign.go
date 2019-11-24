@@ -19,9 +19,8 @@ func Init(arch *gc.Arch) {
 	arch.MAXWIDTH = 1 << 60
 
 	arch.ZeroRange = zerorange
-	arch.ZeroAuto = zeroAuto
 	arch.Ginsnop = ginsnop
-	arch.Ginsnopdefer = ginsnop2
+	arch.Ginsnopdefer = ginsnopdefer
 
 	arch.SSAMarkMoves = ssaMarkMoves
 	arch.SSAGenValue = ssaGenValue

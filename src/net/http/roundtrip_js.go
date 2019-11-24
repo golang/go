@@ -11,11 +11,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"strconv"
-	"strings"
 	"syscall/js"
 )
+
+var uint8Array = js.Global().Get("Uint8Array")
 
 // jsFetchMode is a Request.Header map key that, if present,
 // signals that the map entry is actually an option to the Fetch API mode setting.
@@ -41,14 +41,16 @@ const jsFetchCreds = "js.fetch:credentials"
 // Reference: https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch#Parameters
 const jsFetchRedirect = "js.fetch:redirect"
 
+var useFakeNetwork = js.Global().Get("fetch").IsUndefined()
+
 // RoundTrip implements the RoundTripper interface using the WHATWG Fetch API.
 func (t *Transport) RoundTrip(req *Request) (*Response, error) {
-	if useFakeNetwork() {
+	if useFakeNetwork {
 		return t.roundTrip(req)
 	}
 
 	ac := js.Global().Get("AbortController")
-	if ac != js.Undefined() {
+	if !ac.IsUndefined() {
 		// Some browsers that support WASM don't necessarily support
 		// the AbortController. See
 		// https://developer.mozilla.org/en-US/docs/Web/API/AbortController#Browser_compatibility.
@@ -72,7 +74,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		opt.Set("redirect", h)
 		req.Header.Del(jsFetchRedirect)
 	}
-	if ac != js.Undefined() {
+	if !ac.IsUndefined() {
 		opt.Set("signal", ac.Get("signal"))
 	}
 	headers := js.Global().Get("Headers").New()
@@ -96,9 +98,9 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 			return nil, err
 		}
 		req.Body.Close()
-		a := js.TypedArrayOf(body)
-		defer a.Release()
-		opt.Set("body", a)
+		buf := uint8Array.New(len(body))
+		js.CopyBytesToJS(buf, body)
+		opt.Set("body", buf)
 	}
 	respPromise := js.Global().Call("fetch", req.URL.String(), opt)
 	var (
@@ -130,7 +132,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 		var body io.ReadCloser
 		// The body is undefined when the browser does not support streaming response bodies (Firefox),
 		// and null in certain error cases, i.e. when the request is blocked because of CORS settings.
-		if b != js.Undefined() && b != js.Null() {
+		if !b.IsUndefined() && !b.IsNull() {
 			body = &streamReader{stream: b.Call("getReader")}
 		} else {
 			// Fall back to using ArrayBuffer
@@ -138,10 +140,11 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 			body = &arrayReader{arrayPromise: result.Call("arrayBuffer")}
 		}
 
+		code := result.Get("status").Int()
 		select {
 		case respCh <- &Response{
-			Status:        result.Get("status").String() + " " + StatusText(result.Get("status").Int()),
-			StatusCode:    result.Get("status").Int(),
+			Status:        fmt.Sprintf("%d %s", code, StatusText(code)),
+			StatusCode:    code,
 			Header:        header,
 			ContentLength: contentLength,
 			Body:          body,
@@ -165,7 +168,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	respPromise.Call("then", success, failure)
 	select {
 	case <-req.Context().Done():
-		if ac != js.Undefined() {
+		if !ac.IsUndefined() {
 			// Abort the Fetch request
 			ac.Call("abort")
 		}
@@ -178,12 +181,6 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 }
 
 var errClosed = errors.New("net/http: reader is closed")
-
-// useFakeNetwork is used to determine whether the request is made
-// by a test and should be made to use the fake in-memory network.
-func useFakeNetwork() bool {
-	return len(os.Args) > 0 && strings.HasSuffix(os.Args[0], ".test")
-}
 
 // streamReader implements an io.ReadCloser wrapper for ReadableStream.
 // See https://fetch.spec.whatwg.org/#readablestream for more information.
@@ -209,9 +206,7 @@ func (r *streamReader) Read(p []byte) (n int, err error) {
 				return nil
 			}
 			value := make([]byte, result.Get("value").Get("byteLength").Int())
-			a := js.TypedArrayOf(value)
-			a.Call("set", result.Get("value"))
-			a.Release()
+			js.CopyBytesToGo(value, result.Get("value"))
 			bCh <- value
 			return nil
 		})
@@ -272,11 +267,9 @@ func (r *arrayReader) Read(p []byte) (n int, err error) {
 		)
 		success := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 			// Wrap the input ArrayBuffer with a Uint8Array
-			uint8arrayWrapper := js.Global().Get("Uint8Array").New(args[0])
+			uint8arrayWrapper := uint8Array.New(args[0])
 			value := make([]byte, uint8arrayWrapper.Get("byteLength").Int())
-			a := js.TypedArrayOf(value)
-			a.Call("set", uint8arrayWrapper)
-			a.Release()
+			js.CopyBytesToGo(value, uint8arrayWrapper)
 			bCh <- value
 			return nil
 		})

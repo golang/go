@@ -1,4 +1,5 @@
 env GO111MODULE=on
+[short] skip
 
 cd m
 
@@ -29,16 +30,18 @@ stdout 'cmd/pprof: \[\.\.\.\]'
 
 stderr -count=1 '^go: warning: "./xyz..." matched no packages$'
 
-env CGO_ENABLED=0
-go list -f '{{.ImportPath}}: {{.Match}}' all ... example.com/m/... ./... ./xyz...
-! stdout example.com/m/useC
-
 # 'go list ./...' should not try to resolve the main module.
 cd ../empty
 go list -deps ./...
 ! stdout .
 ! stderr 'finding'
 stderr -count=1 '^go: warning: "./..." matched no packages'
+
+# disabling cgo should drop useC
+[short] skip
+env CGO_ENABLED=0
+go list -f '{{.ImportPath}}: {{.Match}}' all ... example.com/m/... ./... ./xyz...
+! stdout example.com/m/useC
 
 -- m/go.mod --
 module example.com/m

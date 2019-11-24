@@ -29,7 +29,7 @@ func openGoFile(r *os.File) (*File, error) {
 	}
 	rf := &goobjFile{goobj: f, f: r}
 	if len(f.Native) == 0 {
-		return &File{r, []*Entry{&Entry{raw: rf}}}, nil
+		return &File{r, []*Entry{{raw: rf}}}, nil
 	}
 	entries := make([]*Entry, len(f.Native)+1)
 	entries[0] = &Entry{

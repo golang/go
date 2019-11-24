@@ -81,7 +81,7 @@ var debug = flag.Bool("debug", false, "keep rewritten files for debugging")
 // We use TestMain to set up a temporary directory and remove it when
 // the tests are done.
 func TestMain(m *testing.M) {
-	dir, err := ioutil.TempDir("", "gotestcover")
+	dir, err := ioutil.TempDir("", "go-testcover")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -457,7 +457,7 @@ func TestHtmlUnformatted(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(htmlUDir, "go.mod"), []byte("module htmlunformatted\n"), 0444); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(htmlUDir, "go.mod"), []byte("module htmlunformatted\n"), 0666); err != nil {
 		t.Fatal(err)
 	}
 
@@ -540,7 +540,7 @@ func TestFuncWithDuplicateLines(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := ioutil.WriteFile(filepath.Join(lineDupDir, "go.mod"), []byte("module linedup\n"), 0444); err != nil {
+	if err := ioutil.WriteFile(filepath.Join(lineDupDir, "go.mod"), []byte("module linedup\n"), 0666); err != nil {
 		t.Fatal(err)
 	}
 	if err := ioutil.WriteFile(lineDupGo, []byte(lineDupContents), 0444); err != nil {

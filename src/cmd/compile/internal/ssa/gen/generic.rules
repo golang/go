@@ -146,6 +146,8 @@
 (Div64u (Const64 [c])  (Const64 [d])) && d != 0 -> (Const64 [int64(uint64(c)/uint64(d))])
 (Div32F (Const32F [c]) (Const32F [d])) -> (Const32F [auxFrom32F(auxTo32F(c) / auxTo32F(d))])
 (Div64F (Const64F [c]) (Const64F [d])) -> (Const64F [auxFrom64F(auxTo64F(c) / auxTo64F(d))])
+(Select0 (Div128u (Const64 [0]) lo y)) -> (Div64u lo y)
+(Select1 (Div128u (Const64 [0]) lo y)) -> (Mod64u lo y)
 
 (Not (ConstBool [c])) -> (ConstBool [1-c])
 
@@ -258,8 +260,8 @@
 (Sub8  x (Const8  <t> [c])) && x.Op != OpConst8  -> (Add8  (Const8  <t> [int64(int8(-c))]) x)
 
 // fold negation into comparison operators
-(Not (Eq(64|32|16|8|B) x y)) -> (Neq(64|32|16|8|B) x y)
-(Not (Neq(64|32|16|8|B) x y)) -> (Eq(64|32|16|8|B) x y)
+(Not (Eq(64|32|16|8|B|Ptr|64F|32F) x y)) -> (Neq(64|32|16|8|B|Ptr|64F|32F) x y)
+(Not (Neq(64|32|16|8|B|Ptr|64F|32F) x y)) -> (Eq(64|32|16|8|B|Ptr|64F|32F) x y)
 
 (Not (Greater(64|32|16|8) x y)) -> (Leq(64|32|16|8) x y)
 (Not (Greater(64|32|16|8)U x y)) -> (Leq(64|32|16|8)U x y)
@@ -270,7 +272,6 @@
 (Not (Less(64|32|16|8)U x y)) -> (Geq(64|32|16|8)U x y)
 (Not (Leq(64|32|16|8) x y)) -> (Greater(64|32|16|8) x y)
 (Not (Leq(64|32|16|8)U x y)) -> (Greater(64|32|16|8)U x y)
-
 
 // Distribute multiplication c * (d+x) -> c*d + c*x. Useful for:
 // a[i].b = ...; a[i+1].b = ...
@@ -331,6 +332,12 @@
 (Lsh(64|32|16|8)x64  x (Const64 [0])) -> x
 (Rsh(64|32|16|8)x64  x (Const64 [0])) -> x
 (Rsh(64|32|16|8)Ux64 x (Const64 [0])) -> x
+
+// rotates by multiples of register width
+(RotateLeft64 x (Const64 [c])) && c%64 == 0 -> x
+(RotateLeft32 x (Const32 [c])) && c%32 == 0 -> x
+(RotateLeft16 x (Const16 [c])) && c%16 == 0 -> x
+(RotateLeft8 x (Const8 [c])) && c%8 == 0 -> x
 
 // zero shifted
 (Lsh64x(64|32|16|8)  (Const64 [0]) _) -> (Const64 [0])
@@ -482,7 +489,15 @@
 
 (Neg(64|32|16|8) (Sub(64|32|16|8) x y)) -> (Sub(64|32|16|8) y x)
 
+// ^(x-1) == ^x+1 == -x
 (Add(64|32|16|8) (Const(64|32|16|8) [1]) (Com(64|32|16|8) x)) -> (Neg(64|32|16|8) x)
+(Com(64|32|16|8) (Add(64|32|16|8) (Const(64|32|16|8) [-1]) x)) -> (Neg(64|32|16|8) x)
+
+// -(-x) == x
+(Neg(64|32|16|8) (Neg(64|32|16|8) x)) -> x
+
+// -^x == x+1
+(Neg(64|32|16|8) <t> (Com(64|32|16|8) x)) -> (Add(64|32|16|8) (Const(64|32|16|8) <t> [1]) x)
 
 (And(64|32|16|8) x (And(64|32|16|8) x y)) -> (And(64|32|16|8) x y)
 (Or(64|32|16|8) x (Or(64|32|16|8) x y)) -> (Or(64|32|16|8) x y)
@@ -525,14 +540,6 @@
 (Slicemask (Const32 [0]))          -> (Const32 [0])
 (Slicemask (Const64 [x])) && x > 0 -> (Const64 [-1])
 (Slicemask (Const64 [0]))          -> (Const64 [0])
-
-// Rewrite AND of consts as shifts if possible, slightly faster for 64 bit operands
-// leading zeros can be shifted left, then right
-(And64 <t> (Const64 [y]) x) && nlz(y) + nto(y) == 64 && nto(y) >= 32
-  -> (Rsh64Ux64 (Lsh64x64 <t> x (Const64 <t> [nlz(y)])) (Const64 <t> [nlz(y)]))
-// trailing zeros can be shifted right, then left
-(And64 <t> (Const64 [y]) x) && nlo(y) + ntz(y) == 64 && ntz(y) >= 32
-  -> (Lsh64x64 (Rsh64Ux64 <t> x (Const64 <t> [ntz(y)])) (Const64 <t> [ntz(y)]))
 
 // simplifications often used for lengths.  e.g. len(s[i:i+5])==5
 (Sub(64|32|16|8) (Add(64|32|16|8) x y) x) -> y
@@ -795,7 +802,7 @@
 
 // Putting struct{*byte} and similar into direct interfaces.
 (IMake typ (StructMake1 val)) -> (IMake typ val)
-(StructSelect [0] x:(IData _)) -> x
+(StructSelect [0] (IData x)) -> (IData x)
 
 // un-SSAable values use mem->mem copies
 (Store {t} dst (Load src mem) mem) && !fe.CanSSA(t.(*types.Type)) ->
@@ -815,9 +822,9 @@
 (Store _ (ArrayMake0) mem) -> mem
 (Store dst (ArrayMake1 e) mem) -> (Store {e.Type} dst e mem)
 
-// Putting [1]{*byte} and similar into direct interfaces.
+// Putting [1]*byte and similar into direct interfaces.
 (IMake typ (ArrayMake1 val)) -> (IMake typ val)
-(ArraySelect [0] x:(IData _)) -> x
+(ArraySelect [0] (IData x)) -> (IData x)
 
 // string ops
 // Decomposing StringMake and lowering of StringPtr and StringLen
@@ -871,8 +878,8 @@
 (NilCheck (GetG mem) mem) -> mem
 
 (If (Not cond) yes no) -> (If cond no yes)
-(If (ConstBool [c]) yes no) && c == 1 -> (First nil yes no)
-(If (ConstBool [c]) yes no) && c == 0 -> (First nil no yes)
+(If (ConstBool [c]) yes no) && c == 1 -> (First yes no)
+(If (ConstBool [c]) yes no) && c == 0 -> (First no yes)
 
 // Get rid of Convert ops for pointer arithmetic on unsafe.Pointer.
 (Convert (Add(64|32) (Convert ptr mem) off) mem) -> (Add(64|32) ptr off)
@@ -1152,7 +1159,7 @@
   -> (Sub32 x (Mul32 <t> (Div32  <t> x (Const32 <t> [c])) (Const32 <t> [c])))
 (Mod64  <t> x (Const64 [c])) && x.Op != OpConst64 && (c > 0 || c == -1<<63)
   -> (Sub64 x (Mul64 <t> (Div64  <t> x (Const64 <t> [c])) (Const64 <t> [c])))
-(Mod8u  <t> x (Const8  [c])) && x.Op != OpConst8  && c > 0 && umagicOK(8 ,c)
+(Mod8u  <t> x (Const8  [c])) && x.Op != OpConst8  && c > 0 && umagicOK(8, c)
   -> (Sub8  x (Mul8  <t> (Div8u  <t> x (Const8  <t> [c])) (Const8  <t> [c])))
 (Mod16u <t> x (Const16 [c])) && x.Op != OpConst16 && c > 0 && umagicOK(16,c)
   -> (Sub16 x (Mul16 <t> (Div16u <t> x (Const16 <t> [c])) (Const16 <t> [c])))
@@ -1161,8 +1168,575 @@
 (Mod64u <t> x (Const64 [c])) && x.Op != OpConst64 && c > 0 && umagicOK(64,c)
   -> (Sub64 x (Mul64 <t> (Div64u <t> x (Const64 <t> [c])) (Const64 <t> [c])))
 
+// For architectures without rotates on less than 32-bits, promote these checks to 32-bit.
+(Eq8 (Mod8u x (Const8  [c])) (Const8 [0])) && x.Op != OpConst8 && udivisibleOK(8,c) && !hasSmallRotate(config) ->
+	(Eq32 (Mod32u <typ.UInt32> (ZeroExt8to32 <typ.UInt32> x) (Const32 <typ.UInt32> [c&0xff])) (Const32 <typ.UInt32> [0]))
+(Eq16 (Mod16u x (Const16  [c])) (Const16 [0])) && x.Op != OpConst16 && udivisibleOK(16,c) && !hasSmallRotate(config) ->
+	(Eq32 (Mod32u <typ.UInt32> (ZeroExt16to32 <typ.UInt32> x) (Const32 <typ.UInt32> [c&0xffff])) (Const32 <typ.UInt32> [0]))
+(Eq8 (Mod8 x (Const8  [c])) (Const8 [0])) && x.Op != OpConst8 && sdivisibleOK(8,c) && !hasSmallRotate(config) ->
+	(Eq32 (Mod32 <typ.Int32> (SignExt8to32 <typ.Int32> x) (Const32 <typ.Int32> [c])) (Const32 <typ.Int32> [0]))
+(Eq16 (Mod16 x (Const16  [c])) (Const16 [0])) && x.Op != OpConst16 && sdivisibleOK(16,c) && !hasSmallRotate(config) ->
+	(Eq32 (Mod32 <typ.Int32> (SignExt16to32 <typ.Int32> x) (Const32 <typ.Int32> [c])) (Const32 <typ.Int32> [0]))
+
+// Divisibility checks x%c == 0 convert to multiply and rotate.
+// Note, x%c == 0 is rewritten as x == c*(x/c) during the opt pass
+// where (x/c) is performed using multiplication with magic constants.
+// To rewrite x%c == 0 requires pattern matching the rewritten expression
+// and checking that the division by the same constant wasn't already calculated.
+// This check is made by counting uses of the magic constant multiplication.
+// Note that if there were an intermediate opt pass, this rule could be applied
+// directly on the Div op and magic division rewrites could be delayed to late opt.
+
+// Unsigned divisibility checks convert to multiply and rotate.
+(Eq8 x (Mul8 (Const8 [c])
+  (Trunc32to8
+    (Rsh32Ux64
+      mul:(Mul32
+        (Const32 [m])
+        (ZeroExt8to32 x))
+      (Const64 [s])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(1<<8+umagic(8,c).m) && s == 8+umagic(8,c).s
+  && x.Op != OpConst8 && udivisibleOK(8,c)
+ -> (Leq8U
+			(RotateLeft8 <typ.UInt8>
+				(Mul8 <typ.UInt8>
+					(Const8 <typ.UInt8> [int64(int8(udivisible(8,c).m))])
+					x)
+				(Const8 <typ.UInt8> [int64(8-udivisible(8,c).k)])
+				)
+			(Const8 <typ.UInt8> [int64(int8(udivisible(8,c).max))])
+		)
+
+(Eq16 x (Mul16 (Const16 [c])
+  (Trunc64to16
+    (Rsh64Ux64
+      mul:(Mul64
+        (Const64 [m])
+        (ZeroExt16to64 x))
+      (Const64 [s])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(1<<16+umagic(16,c).m) && s == 16+umagic(16,c).s
+  && x.Op != OpConst16 && udivisibleOK(16,c)
+ -> (Leq16U
+			(RotateLeft16 <typ.UInt16>
+				(Mul16 <typ.UInt16>
+					(Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))])
+					x)
+				(Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)])
+				)
+			(Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))])
+		)
+
+(Eq16 x (Mul16 (Const16 [c])
+  (Trunc32to16
+    (Rsh32Ux64
+      mul:(Mul32
+        (Const32 [m])
+        (ZeroExt16to32 x))
+      (Const64 [s])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(1<<15+umagic(16,c).m/2) && s == 16+umagic(16,c).s-1
+  && x.Op != OpConst16 && udivisibleOK(16,c)
+ -> (Leq16U
+			(RotateLeft16 <typ.UInt16>
+				(Mul16 <typ.UInt16>
+					(Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))])
+					x)
+				(Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)])
+				)
+			(Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))])
+		)
+
+(Eq16 x (Mul16 (Const16 [c])
+  (Trunc32to16
+    (Rsh32Ux64
+      mul:(Mul32
+        (Const32 [m])
+        (Rsh32Ux64 (ZeroExt16to32 x) (Const64 [1])))
+      (Const64 [s])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(1<<15+(umagic(16,c).m+1)/2) && s == 16+umagic(16,c).s-2
+  && x.Op != OpConst16 && udivisibleOK(16,c)
+ -> (Leq16U
+			(RotateLeft16 <typ.UInt16>
+				(Mul16 <typ.UInt16>
+					(Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))])
+					x)
+				(Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)])
+				)
+			(Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))])
+		)
+
+(Eq16 x (Mul16 (Const16 [c])
+  (Trunc32to16
+    (Rsh32Ux64
+      (Avg32u
+        (Lsh32x64 (ZeroExt16to32 x) (Const64 [16]))
+        mul:(Mul32
+          (Const32 [m])
+          (ZeroExt16to32 x)))
+      (Const64 [s])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(umagic(16,c).m) && s == 16+umagic(16,c).s-1
+  && x.Op != OpConst16 && udivisibleOK(16,c)
+ -> (Leq16U
+			(RotateLeft16 <typ.UInt16>
+				(Mul16 <typ.UInt16>
+					(Const16 <typ.UInt16> [int64(int16(udivisible(16,c).m))])
+					x)
+				(Const16 <typ.UInt16> [int64(16-udivisible(16,c).k)])
+				)
+			(Const16 <typ.UInt16> [int64(int16(udivisible(16,c).max))])
+		)
+
+(Eq32 x (Mul32 (Const32 [c])
+	(Rsh32Ux64
+		mul:(Hmul32u
+			(Const32 [m])
+			x)
+		(Const64 [s]))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(int32(1<<31+umagic(32,c).m/2)) && s == umagic(32,c).s-1
+	&& x.Op != OpConst32 && udivisibleOK(32,c)
+ -> (Leq32U
+			(RotateLeft32 <typ.UInt32>
+				(Mul32 <typ.UInt32>
+					(Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))])
+					x)
+				(Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)])
+				)
+			(Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))])
+		)
+
+(Eq32 x (Mul32 (Const32 [c])
+  (Rsh32Ux64
+    mul:(Hmul32u
+      (Const32 <typ.UInt32> [m])
+      (Rsh32Ux64 x (Const64 [1])))
+    (Const64 [s]))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(int32(1<<31+(umagic(32,c).m+1)/2)) && s == umagic(32,c).s-2
+	&& x.Op != OpConst32 && udivisibleOK(32,c)
+ -> (Leq32U
+			(RotateLeft32 <typ.UInt32>
+				(Mul32 <typ.UInt32>
+					(Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))])
+					x)
+				(Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)])
+				)
+			(Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))])
+		)
+
+(Eq32 x (Mul32 (Const32 [c])
+  (Rsh32Ux64
+    (Avg32u
+      x
+      mul:(Hmul32u
+        (Const32 [m])
+        x))
+    (Const64 [s]))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(int32(umagic(32,c).m)) && s == umagic(32,c).s-1
+	&& x.Op != OpConst32 && udivisibleOK(32,c)
+ -> (Leq32U
+			(RotateLeft32 <typ.UInt32>
+				(Mul32 <typ.UInt32>
+					(Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))])
+					x)
+				(Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)])
+				)
+			(Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))])
+		)
+
+(Eq32 x (Mul32 (Const32 [c])
+  (Trunc64to32
+    (Rsh64Ux64
+      mul:(Mul64
+        (Const64 [m])
+        (ZeroExt32to64 x))
+      (Const64 [s])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(1<<31+umagic(32,c).m/2) && s == 32+umagic(32,c).s-1
+	&& x.Op != OpConst32 && udivisibleOK(32,c)
+ -> (Leq32U
+			(RotateLeft32 <typ.UInt32>
+				(Mul32 <typ.UInt32>
+					(Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))])
+					x)
+				(Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)])
+				)
+			(Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))])
+		)
+
+(Eq32 x (Mul32 (Const32 [c])
+  (Trunc64to32
+    (Rsh64Ux64
+      mul:(Mul64
+        (Const64 [m])
+        (Rsh64Ux64 (ZeroExt32to64 x) (Const64 [1])))
+      (Const64 [s])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(1<<31+(umagic(32,c).m+1)/2) && s == 32+umagic(32,c).s-2
+	&& x.Op != OpConst32 && udivisibleOK(32,c)
+ -> (Leq32U
+			(RotateLeft32 <typ.UInt32>
+				(Mul32 <typ.UInt32>
+					(Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))])
+					x)
+				(Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)])
+				)
+			(Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))])
+		)
+
+(Eq32 x (Mul32 (Const32 [c])
+  (Trunc64to32
+    (Rsh64Ux64
+      (Avg64u
+        (Lsh64x64 (ZeroExt32to64 x) (Const64 [32]))
+        mul:(Mul64
+          (Const64 [m])
+          (ZeroExt32to64 x)))
+      (Const64 [s])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(umagic(32,c).m) && s == 32+umagic(32,c).s-1
+	&& x.Op != OpConst32 && udivisibleOK(32,c)
+ -> (Leq32U
+			(RotateLeft32 <typ.UInt32>
+				(Mul32 <typ.UInt32>
+					(Const32 <typ.UInt32> [int64(int32(udivisible(32,c).m))])
+					x)
+				(Const32 <typ.UInt32> [int64(32-udivisible(32,c).k)])
+				)
+			(Const32 <typ.UInt32> [int64(int32(udivisible(32,c).max))])
+		)
+
+(Eq64 x (Mul64 (Const64 [c])
+	(Rsh64Ux64
+		mul:(Hmul64u
+			(Const64 [m])
+			x)
+		(Const64 [s]))
+	)
+) && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(1<<63+umagic(64,c).m/2) && s == umagic(64,c).s-1
+  && x.Op != OpConst64 && udivisibleOK(64,c)
+ -> (Leq64U
+			(RotateLeft64 <typ.UInt64>
+				(Mul64 <typ.UInt64>
+					(Const64 <typ.UInt64> [int64(udivisible(64,c).m)])
+					x)
+				(Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)])
+				)
+			(Const64 <typ.UInt64> [int64(udivisible(64,c).max)])
+		)
+(Eq64 x (Mul64 (Const64 [c])
+	(Rsh64Ux64
+		mul:(Hmul64u
+			(Const64 [m])
+			(Rsh64Ux64 x (Const64 [1])))
+		(Const64 [s]))
+	)
+) && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(1<<63+(umagic(64,c).m+1)/2) && s == umagic(64,c).s-2
+  && x.Op != OpConst64 && udivisibleOK(64,c)
+ -> (Leq64U
+			(RotateLeft64 <typ.UInt64>
+				(Mul64 <typ.UInt64>
+					(Const64 <typ.UInt64> [int64(udivisible(64,c).m)])
+					x)
+				(Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)])
+				)
+			(Const64 <typ.UInt64> [int64(udivisible(64,c).max)])
+		)
+(Eq64 x (Mul64 (Const64 [c])
+	(Rsh64Ux64
+		(Avg64u
+			x
+			mul:(Hmul64u
+				(Const64 [m])
+				x))
+		(Const64 [s]))
+	)
+) && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(umagic(64,c).m) && s == umagic(64,c).s-1
+  && x.Op != OpConst64 && udivisibleOK(64,c)
+ -> (Leq64U
+			(RotateLeft64 <typ.UInt64>
+				(Mul64 <typ.UInt64>
+					(Const64 <typ.UInt64> [int64(udivisible(64,c).m)])
+					x)
+				(Const64 <typ.UInt64> [int64(64-udivisible(64,c).k)])
+				)
+			(Const64 <typ.UInt64> [int64(udivisible(64,c).max)])
+		)
+
+// Signed divisibility checks convert to multiply, add and rotate.
+(Eq8 x (Mul8 (Const8 [c])
+  (Sub8
+    (Rsh32x64
+      mul:(Mul32
+        (Const32 [m])
+        (SignExt8to32 x))
+      (Const64 [s]))
+    (Rsh32x64
+      (SignExt8to32 x)
+      (Const64 [31])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(smagic(8,c).m) && s == 8+smagic(8,c).s
+	&& x.Op != OpConst8 && sdivisibleOK(8,c)
+ -> (Leq8U
+			(RotateLeft8 <typ.UInt8>
+				(Add8 <typ.UInt8>
+					(Mul8 <typ.UInt8>
+						(Const8 <typ.UInt8> [int64(int8(sdivisible(8,c).m))])
+						x)
+					(Const8 <typ.UInt8> [int64(int8(sdivisible(8,c).a))])
+				)
+				(Const8 <typ.UInt8> [int64(8-sdivisible(8,c).k)])
+			)
+			(Const8 <typ.UInt8> [int64(int8(sdivisible(8,c).max))])
+		)
+
+(Eq16 x (Mul16 (Const16 [c])
+  (Sub16
+    (Rsh32x64
+      mul:(Mul32
+        (Const32 [m])
+        (SignExt16to32 x))
+      (Const64 [s]))
+    (Rsh32x64
+      (SignExt16to32 x)
+      (Const64 [31])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(smagic(16,c).m) && s == 16+smagic(16,c).s
+	&& x.Op != OpConst16 && sdivisibleOK(16,c)
+ -> (Leq16U
+			(RotateLeft16 <typ.UInt16>
+				(Add16 <typ.UInt16>
+					(Mul16 <typ.UInt16>
+						(Const16 <typ.UInt16> [int64(int16(sdivisible(16,c).m))])
+						x)
+					(Const16 <typ.UInt16> [int64(int16(sdivisible(16,c).a))])
+				)
+				(Const16 <typ.UInt16> [int64(16-sdivisible(16,c).k)])
+			)
+			(Const16 <typ.UInt16> [int64(int16(sdivisible(16,c).max))])
+		)
+
+(Eq32 x (Mul32 (Const32 [c])
+  (Sub32
+    (Rsh64x64
+      mul:(Mul64
+        (Const64 [m])
+        (SignExt32to64 x))
+      (Const64 [s]))
+    (Rsh64x64
+      (SignExt32to64 x)
+      (Const64 [63])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(smagic(32,c).m) && s == 32+smagic(32,c).s
+	&& x.Op != OpConst32 && sdivisibleOK(32,c)
+ -> (Leq32U
+			(RotateLeft32 <typ.UInt32>
+				(Add32 <typ.UInt32>
+					(Mul32 <typ.UInt32>
+						(Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).m))])
+						x)
+					(Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).a))])
+				)
+				(Const32 <typ.UInt32> [int64(32-sdivisible(32,c).k)])
+			)
+			(Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).max))])
+		)
+
+(Eq32 x (Mul32 (Const32 [c])
+  (Sub32
+    (Rsh32x64
+      mul:(Hmul32
+        (Const32 [m])
+        x)
+      (Const64 [s]))
+    (Rsh32x64
+      x
+      (Const64 [31])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(int32(smagic(32,c).m/2)) && s == smagic(32,c).s-1
+	&& x.Op != OpConst32 && sdivisibleOK(32,c)
+ -> (Leq32U
+			(RotateLeft32 <typ.UInt32>
+				(Add32 <typ.UInt32>
+					(Mul32 <typ.UInt32>
+						(Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).m))])
+						x)
+					(Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).a))])
+				)
+				(Const32 <typ.UInt32> [int64(32-sdivisible(32,c).k)])
+			)
+			(Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).max))])
+		)
+
+(Eq32 x (Mul32 (Const32 [c])
+  (Sub32
+    (Rsh32x64
+      (Add32
+        mul:(Hmul32
+          (Const32 [m])
+          x)
+        x)
+      (Const64 [s]))
+    (Rsh32x64
+      x
+      (Const64 [31])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(int32(smagic(32,c).m)) && s == smagic(32,c).s
+	&& x.Op != OpConst32 && sdivisibleOK(32,c)
+ -> (Leq32U
+			(RotateLeft32 <typ.UInt32>
+				(Add32 <typ.UInt32>
+					(Mul32 <typ.UInt32>
+						(Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).m))])
+						x)
+					(Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).a))])
+				)
+				(Const32 <typ.UInt32> [int64(32-sdivisible(32,c).k)])
+			)
+			(Const32 <typ.UInt32> [int64(int32(sdivisible(32,c).max))])
+		)
+
+(Eq64 x (Mul64 (Const64 [c])
+  (Sub64
+    (Rsh64x64
+      mul:(Hmul64
+        (Const64 [m])
+        x)
+      (Const64 [s]))
+    (Rsh64x64
+      x
+      (Const64 [63])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(smagic(64,c).m/2) && s == smagic(64,c).s-1
+	&& x.Op != OpConst64 && sdivisibleOK(64,c)
+ -> (Leq64U
+			(RotateLeft64 <typ.UInt64>
+				(Add64 <typ.UInt64>
+					(Mul64 <typ.UInt64>
+						(Const64 <typ.UInt64> [int64(sdivisible(64,c).m)])
+						x)
+					(Const64 <typ.UInt64> [int64(sdivisible(64,c).a)])
+				)
+				(Const64 <typ.UInt64> [int64(64-sdivisible(64,c).k)])
+			)
+			(Const64 <typ.UInt64> [int64(sdivisible(64,c).max)])
+		)
+
+(Eq64 x (Mul64 (Const64 [c])
+  (Sub64
+    (Rsh64x64
+      (Add64
+        mul:(Hmul64
+          (Const64 [m])
+          x)
+        x)
+      (Const64 [s]))
+    (Rsh64x64
+      x
+      (Const64 [63])))
+	)
+)
+  && v.Block.Func.pass.name != "opt" && mul.Uses == 1
+  && m == int64(smagic(64,c).m) && s == smagic(64,c).s
+	&& x.Op != OpConst64 && sdivisibleOK(64,c)
+ -> (Leq64U
+			(RotateLeft64 <typ.UInt64>
+				(Add64 <typ.UInt64>
+					(Mul64 <typ.UInt64>
+						(Const64 <typ.UInt64> [int64(sdivisible(64,c).m)])
+						x)
+					(Const64 <typ.UInt64> [int64(sdivisible(64,c).a)])
+				)
+				(Const64 <typ.UInt64> [int64(64-sdivisible(64,c).k)])
+			)
+			(Const64 <typ.UInt64> [int64(sdivisible(64,c).max)])
+		)
+
+// Divisibility check for signed integers for power of two constant are simple mask.
+// However, we must match against the rewritten n%c == 0 -> n - c*(n/c) == 0 -> n == c*(n/c)
+// where n/c contains fixup code to handle signed n.
+((Eq8|Neq8) n (Lsh8x64
+  (Rsh8x64
+    (Add8  <t> n (Rsh8Ux64  <t> (Rsh8x64  <t> n (Const64 <typ.UInt64> [ 7])) (Const64 <typ.UInt64> [kbar])))
+    (Const64 <typ.UInt64> [k]))
+	(Const64 <typ.UInt64> [k]))
+) && k > 0 && k < 7 && kbar == 8 - k
+  -> ((Eq8|Neq8) (And8 <t> n (Const8 <t> [int64(1<<uint(k)-1)])) (Const8 <t> [0]))
+
+((Eq16|Neq16) n (Lsh16x64
+  (Rsh16x64
+    (Add16 <t> n (Rsh16Ux64 <t> (Rsh16x64 <t> n (Const64 <typ.UInt64> [15])) (Const64 <typ.UInt64> [kbar])))
+    (Const64 <typ.UInt64> [k]))
+	(Const64 <typ.UInt64> [k]))
+) && k > 0 && k < 15 && kbar == 16 - k
+  -> ((Eq16|Neq16) (And16 <t> n (Const16 <t> [int64(1<<uint(k)-1)])) (Const16 <t> [0]))
+
+((Eq32|Neq32) n (Lsh32x64
+  (Rsh32x64
+    (Add32 <t> n (Rsh32Ux64 <t> (Rsh32x64 <t> n (Const64 <typ.UInt64> [31])) (Const64 <typ.UInt64> [kbar])))
+    (Const64 <typ.UInt64> [k]))
+	(Const64 <typ.UInt64> [k]))
+) && k > 0 && k < 31 && kbar == 32 - k
+  -> ((Eq32|Neq32) (And32 <t> n (Const32 <t> [int64(1<<uint(k)-1)])) (Const32 <t> [0]))
+
+((Eq64|Neq64) n (Lsh64x64
+  (Rsh64x64
+    (Add64 <t> n (Rsh64Ux64 <t> (Rsh64x64 <t> n (Const64 <typ.UInt64> [63])) (Const64 <typ.UInt64> [kbar])))
+    (Const64 <typ.UInt64> [k]))
+	(Const64 <typ.UInt64> [k]))
+) && k > 0 && k < 63 && kbar == 64 - k
+  -> ((Eq64|Neq64) (And64 <t> n (Const64 <t> [int64(1<<uint(k)-1)])) (Const64 <t> [0]))
+
 (Eq(8|16|32|64)  s:(Sub(8|16|32|64) x y) (Const(8|16|32|64) [0])) && s.Uses == 1 -> (Eq(8|16|32|64)  x y)
 (Neq(8|16|32|64) s:(Sub(8|16|32|64) x y) (Const(8|16|32|64) [0])) && s.Uses == 1 -> (Neq(8|16|32|64) x y)
+
+// Optimize bitsets
+(Eq(8|16|32|64) (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [y])) (Const(8|16|32|64) <t> [y])) && isPowerOfTwo(y)
+  -> (Neq(8|16|32|64) (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [y])) (Const(8|16|32|64) <t> [0]))
+(Neq(8|16|32|64) (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [y])) (Const(8|16|32|64) <t> [y])) && isPowerOfTwo(y)
+  -> (Eq(8|16|32|64) (And(8|16|32|64) <t> x (Const(8|16|32|64) <t> [y])) (Const(8|16|32|64) <t> [0]))
 
 // Reassociate expressions involving
 // constants such that constants come first,
@@ -1329,9 +1903,17 @@
 (EqPtr  x x) -> (ConstBool [1])
 (NeqPtr x x) -> (ConstBool [0])
 (EqPtr  (Addr {a} _) (Addr {b} _)) -> (ConstBool [b2i(a == b)])
+(EqPtr  (Addr {a} _) (OffPtr [o] (Addr {b} _))) -> (ConstBool [b2i(a == b && o == 0)])
+(EqPtr  (OffPtr [o1] (Addr {a} _)) (OffPtr [o2] (Addr {b} _))) -> (ConstBool [b2i(a == b && o1 == o2)])
 (NeqPtr (Addr {a} _) (Addr {b} _)) -> (ConstBool [b2i(a != b)])
+(NeqPtr (Addr {a} _) (OffPtr [o] (Addr {b} _))) -> (ConstBool [b2i(a != b || o != 0)])
+(NeqPtr (OffPtr [o1] (Addr {a} _)) (OffPtr [o2] (Addr {b} _))) -> (ConstBool [b2i(a != b || o1 != o2)])
 (EqPtr  (LocalAddr {a} _ _) (LocalAddr {b} _ _)) -> (ConstBool [b2i(a == b)])
+(EqPtr  (LocalAddr {a} _ _) (OffPtr [o] (LocalAddr {b} _ _))) -> (ConstBool [b2i(a == b && o == 0)])
+(EqPtr  (OffPtr [o1] (LocalAddr {a} _ _)) (OffPtr [o2] (LocalAddr {b} _ _))) -> (ConstBool [b2i(a == b && o1 == o2)])
 (NeqPtr (LocalAddr {a} _ _) (LocalAddr {b} _ _)) -> (ConstBool [b2i(a != b)])
+(NeqPtr (LocalAddr {a} _ _) (OffPtr [o] (LocalAddr {b} _ _))) -> (ConstBool [b2i(a != b || o != 0)])
+(NeqPtr (OffPtr [o1] (LocalAddr {a} _ _)) (OffPtr [o2] (LocalAddr {b} _ _))) -> (ConstBool [b2i(a != b || o1 != o2)])
 (EqPtr  (OffPtr [o1] p1) p2) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 == 0)])
 (NeqPtr (OffPtr [o1] p1) p2) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 != 0)])
 (EqPtr  (OffPtr [o1] p1) (OffPtr [o2] p2)) && isSamePtr(p1, p2) -> (ConstBool [b2i(o1 == o2)])
@@ -1340,9 +1922,13 @@
 (NeqPtr (Const(32|64) [c]) (Const(32|64) [d])) -> (ConstBool [b2i(c != d)])
 
 (EqPtr  (LocalAddr _ _) (Addr _)) -> (ConstBool [0])
+(EqPtr  (OffPtr (LocalAddr _ _)) (Addr _)) -> (ConstBool [0])
+(EqPtr  (LocalAddr _ _) (OffPtr (Addr _))) -> (ConstBool [0])
+(EqPtr  (OffPtr (LocalAddr _ _)) (OffPtr (Addr _))) -> (ConstBool [0])
 (NeqPtr (LocalAddr _ _) (Addr _)) -> (ConstBool [1])
-(EqPtr  (Addr _) (LocalAddr _ _)) -> (ConstBool [0])
-(NeqPtr (Addr _) (LocalAddr _ _)) -> (ConstBool [1])
+(NeqPtr (OffPtr (LocalAddr _ _)) (Addr _)) -> (ConstBool [1])
+(NeqPtr (LocalAddr _ _) (OffPtr (Addr _))) -> (ConstBool [1])
+(NeqPtr (OffPtr (LocalAddr _ _)) (OffPtr (Addr _))) -> (ConstBool [1])
 
 // Simplify address comparisons.
 (EqPtr  (AddPtr p1 o1) p2) && isSamePtr(p1, p2) -> (Not (IsNonNil o1))

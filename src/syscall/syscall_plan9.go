@@ -20,6 +20,12 @@ const ImplementsGetwd = true
 const bitSize16 = 2
 
 // ErrorString implements Error's String method by returning itself.
+//
+// ErrorString values can be tested against error values from the os package
+// using errors.Is. For example:
+//
+//	_, _, err := syscall.Syscall(...)
+//	if errors.Is(err, os.ErrNotExist) ...
 type ErrorString string
 
 func (e ErrorString) Error() string { return string(e) }
@@ -29,10 +35,6 @@ func NewError(s string) error { return ErrorString(s) }
 
 func (e ErrorString) Is(target error) bool {
 	switch target {
-	case oserror.ErrTemporary:
-		return e.Temporary()
-	case oserror.ErrTimeout:
-		return e.Timeout()
 	case oserror.ErrPermission:
 		return checkErrMessageContent(e, "permission denied")
 	case oserror.ErrExist:
@@ -165,6 +167,14 @@ func Read(fd int, p []byte) (n int, err error) {
 }
 
 func Write(fd int, p []byte) (n int, err error) {
+	if faketime && (fd == 1 || fd == 2) {
+		n = faketimeWrite(fd, p)
+		if n < 0 {
+			return 0, ErrorString("error")
+		}
+		return n, nil
+	}
+
 	return Pwrite(fd, p, -1)
 }
 

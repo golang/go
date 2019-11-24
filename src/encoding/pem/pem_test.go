@@ -285,7 +285,7 @@ func BenchmarkDecode(b *testing.B) {
 	}
 }
 
-var pemData = `verify return:0
+var pemData = testingKey(`verify return:0
 -----BEGIN CERTIFICATE-----
 sdlfkjskldfj
   -----BEGIN CERTIFICATE-----
@@ -296,13 +296,13 @@ Certificate chain
 -----BEGIN CERTIFICATE-----
 testing
 -----BEGIN CERTIFICATE-----
------BEGIN CERTIFICATE----- 
+-----BEGIN CERTIFICATE-----
 MIID6TCCA1ICAQEwDQYJKoZIhvcNAQEFBQAwgYsxCzAJBgNVBAYTAlVTMRMwEQYD
 VQQIEwpDYWxpZm9ybmlhMRYwFAYDVQQHEw1TYW4gRnJhbmNpc2NvMRQwEgYDVQQK
-EwtHb29nbGUgSW5jLjEMMAoGA1UECxMDRW5nMQwwCgYDVQQDEwNhZ2wxHTAbBgkq 
-hkiG9w0BCQEWDmFnbEBnb29nbGUuY29tMB4XDTA5MDkwOTIyMDU0M1oXDTEwMDkw  
-OTIyMDU0M1owajELMAkGA1UEBhMCQVUxEzARBgNVBAgTClNvbWUtU3RhdGUxITAf  	  
-BgNVBAoTGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDEjMCEGA1UEAxMaZXVyb3Bh		  
+EwtHb29nbGUgSW5jLjEMMAoGA1UECxMDRW5nMQwwCgYDVQQDEwNhZ2wxHTAbBgkq
+hkiG9w0BCQEWDmFnbEBnb29nbGUuY29tMB4XDTA5MDkwOTIyMDU0M1oXDTEwMDkw
+OTIyMDU0M1owajELMAkGA1UEBhMCQVUxEzARBgNVBAgTClNvbWUtU3RhdGUxITAf
+BgNVBAoTGEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDEjMCEGA1UEAxMaZXVyb3Bh
 LnNmby5jb3JwLmdvb2dsZS5jb20wggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIK
 AoICAQC6pgYt7/EibBDumASF+S0qvqdL/f+nouJw2T1Qc8GmXF/iiUcrsgzh/Fd8
 pDhz/T96Qg9IyR4ztuc2MXrmPra+zAuSf5bevFReSqvpIt8Duv0HbDbcqs/XKPfB
@@ -318,15 +318,15 @@ Pomjn71GNTtDeWAXibjCgdL6iHACCF6Htbl0zGlG0OAK+bdn0QIDAQABMA0GCSqG
 SIb3DQEBBQUAA4GBAOKnQDtqBV24vVqvesL5dnmyFpFPXBn3WdFfwD6DzEb21UVG
 5krmJiu+ViipORJPGMkgoL6BjU21XI95VQbun5P8vvg8Z+FnFsvRFY3e1CCzAVQY
 ZsUkLw2I7zI/dNlWdB8Xp7v+3w9sX5N3J/WuJ1KOO5m26kRlHQo7EzT3974g
------END CERTIFICATE-----   
+-----END CERTIFICATE-----
  1 s:/C=ZA/O=Ca Inc./CN=CA Inc
 
------BEGIN RSA PRIVATE KEY-----   	
-Proc-Type: 4,ENCRYPTED	  
-DEK-Info: DES-EDE3-CBC,80C7C7A09690757A  	
-  	
+-----BEGIN RSA TESTING KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: DES-EDE3-CBC,80C7C7A09690757A
+
 eQp5ZkH6CyHBz7BZfUPxyLCCmftsBJ7HlqGb8Ld21cSwnzWZ4/SIlhyrUtsfw7VR
-2TTwA+odo9ex7GdxOTaH8oZFumIRoiEjHsk8U7Bhntp+ekkPP79xunnN7hb7hkhr   
+2TTwA+odo9ex7GdxOTaH8oZFumIRoiEjHsk8U7Bhntp+ekkPP79xunnN7hb7hkhr
 yGDQZgA7s2cQHQ71v3gwT2BACAft26jCjbM1wgNzBnJ8M0Rzn68YWqaPtdBu8qb/
 zVR5JB1mnqvTSbFsfF5yMc6o2WQ9jJCl6KypnMl+BpL+dlvdjYVK4l9lYsB1Hs3d
 +zDBbWxos818zzhS8/y6eIfiSG27cqrbhURbmgiSfDXjncK4m/pLcQ7mmBL6mFOr
@@ -338,7 +338,7 @@ BTiHcL3s3KrJu1vDVrshvxfnz71KTeNnZH8UbOqT5i7fPGyXtY1XJddcbI/Q6tXf
 wHFsZc20TzSdsVLBtwksUacpbDogcEVMctnNrB8FIrB3vZEv9Q0Z1VeY7nmTpF+6
 a+z2P7acL7j6A6Pr3+q8P9CPiPC7zFonVzuVPyB8GchGR2hytyiOVpuD9+k8hcuw
 ZWAaUoVtWIQ52aKS0p19G99hhb+IVANC4akkdHV4SP8i7MVNZhfUmg==
------END RSA PRIVATE KEY-----
+-----END RSA TESTING KEY-----
 
 
 -----BEGIN EMPTY-----
@@ -363,7 +363,7 @@ Header: 1
 -----BEGIN HEADERS-----
 Header: 1
 
------END HEADERS-----`
+-----END HEADERS-----`)
 
 var certificate = &Block{Type: "CERTIFICATE",
 	Headers: map[string]string{},
@@ -582,7 +582,7 @@ var privateKey2 = &Block{
 	},
 }
 
-var pemPrivateKey2 = `-----BEGIN RSA PRIVATE KEY-----
+var pemPrivateKey2 = testingKey(`-----BEGIN RSA TESTING KEY-----
 Proc-Type: 4,ENCRYPTED
 Content-Domain: RFC822
 DEK-Info: AES-128-CBC,BFCD243FEDBB40A4AA6DDAA1335473A4
@@ -594,8 +594,8 @@ y9QEsXO5czLWesYpJaXaF5N6EOhB+6UXIPhO6eOPUSATu963k64TivYJ9KZB4CtR
 GjA4DbE7Z4dk9coyZ9HIpT0jcsQGr497Jqw8dZGhABPGXEnVPOeyspng1SX64hKA
 N4XPksobn/NO2IDvPM7N9ZCe+aeyDEkE8QmP6mPScLuGvzSrsgOxWTMWF7Dbdzj0
 tJQLJRZ+ItT5Irl4owSEBNLahC1j3fhQavbj9WVAfKk=
------END RSA PRIVATE KEY-----
-`
+-----END RSA TESTING KEY-----
+`)
 
 func TestBadEncode(t *testing.T) {
 	b := &Block{Type: "BAD", Headers: map[string]string{"X:Y": "Z"}}
@@ -610,3 +610,5 @@ func TestBadEncode(t *testing.T) {
 		t.Fatalf("EncodeToMemory returned non-nil data")
 	}
 }
+
+func testingKey(s string) string { return strings.ReplaceAll(s, "TESTING KEY", "PRIVATE KEY") }

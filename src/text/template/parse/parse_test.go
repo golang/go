@@ -304,7 +304,8 @@ var parseTests = []parseTest{
 }
 
 var builtins = map[string]interface{}{
-	"printf": fmt.Sprintf,
+	"printf":   fmt.Sprintf,
+	"contains": strings.Contains,
 }
 
 func testParse(doCopy bool, t *testing.T) {
@@ -551,5 +552,54 @@ func BenchmarkParseLarge(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
+	}
+}
+
+var sinkv, sinkl string
+
+func BenchmarkVariableString(b *testing.B) {
+	v := &VariableNode{
+		Ident: []string{"$", "A", "BB", "CCC", "THIS_IS_THE_VARIABLE_BEING_PROCESSED"},
+	}
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		sinkv = v.String()
+	}
+	if sinkv == "" {
+		b.Fatal("Benchmark was not run")
+	}
+}
+
+func BenchmarkListString(b *testing.B) {
+	text := `
+{{(printf .Field1.Field2.Field3).Value}}
+{{$x := (printf .Field1.Field2.Field3).Value}}
+{{$y := (printf $x.Field1.Field2.Field3).Value}}
+{{$z := $y.Field1.Field2.Field3}}
+{{if contains $y $z}}
+	{{printf "%q" $y}}
+{{else}}
+	{{printf "%q" $x}}
+{{end}}
+{{with $z.Field1 | contains "boring"}}
+	{{printf "%q" . | printf "%s"}}
+{{else}}
+	{{printf "%d %d %d" 11 11 11}}
+	{{printf "%d %d %s" 22 22 $x.Field1.Field2.Field3 | printf "%s"}}
+	{{printf "%v" (contains $z.Field1.Field2 $y)}}
+{{end}}
+`
+	tree, err := New("bench").Parse(text, "", "", make(map[string]*Tree), builtins)
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		sinkl = tree.Root.String()
+	}
+	if sinkl == "" {
+		b.Fatal("Benchmark was not run")
 	}
 }

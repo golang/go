@@ -5,9 +5,7 @@
 package errors_test
 
 import (
-	"errors"
 	"fmt"
-	"os"
 	"time"
 )
 
@@ -33,17 +31,4 @@ func Example() {
 		fmt.Println(err)
 	}
 	// Output: 1989-03-15 22:30:00 +0000 UTC: the file system has gone away
-}
-
-func ExampleAs() {
-	_, err := os.Open("non-existing")
-	if err != nil {
-		var pathError *os.PathError
-		if errors.As(err, &pathError) {
-			fmt.Println("Failed at path:", pathError.Path)
-		}
-	}
-
-	// Output:
-	// Failed at path: non-existing
 }

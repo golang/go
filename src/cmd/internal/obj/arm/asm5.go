@@ -329,8 +329,6 @@ var optab = []Optab{
 	{obj.ANOP, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0, 0, 0},
 	{obj.ADUFFZERO, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0, 0}, // same as ABL
 	{obj.ADUFFCOPY, C_NONE, C_NONE, C_SBRA, 5, 4, 0, 0, 0, 0}, // same as ABL
-	{ADATABUNDLE, C_NONE, C_NONE, C_NONE, 100, 4, 0, 0, 0, 0},
-	{ADATABUNDLEEND, C_NONE, C_NONE, C_NONE, 100, 0, 0, 0, 0, 0},
 	{obj.AXXX, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0, 0, 0},
 }
 
@@ -364,276 +362,6 @@ var (
 // but XOR'ed with C_SCOND_XOR, so that C_SCOND_NONE == 0.
 // The code that shifts the value << 28 has the responsibility
 // for XORing with C_SCOND_XOR too.
-
-// asmoutnacl assembles the instruction p. It replaces asmout for NaCl.
-// It returns the total number of bytes put in out, and it can change
-// p->pc if extra padding is necessary.
-// In rare cases, asmoutnacl might split p into two instructions.
-// origPC is the PC for this Prog (no padding is taken into account).
-func (c *ctxt5) asmoutnacl(origPC int32, p *obj.Prog, o *Optab, out []uint32) int {
-	size := int(o.size)
-
-	// instruction specific
-	switch p.As {
-	default:
-		if out != nil {
-			c.asmout(p, o, out)
-		}
-
-	case ADATABUNDLE, // align to 16-byte boundary
-		ADATABUNDLEEND: // zero width instruction, just to align next instruction to 16-byte boundary
-		p.Pc = (p.Pc + 15) &^ 15
-
-		if out != nil {
-			c.asmout(p, o, out)
-		}
-
-	case obj.AUNDEF,
-		APLD:
-		size = 4
-		if out != nil {
-			switch p.As {
-			case obj.AUNDEF:
-				out[0] = 0xe7fedef0 // NACL_INSTR_ARM_ABORT_NOW (UDF #0xEDE0)
-
-			case APLD:
-				out[0] = 0xe1a01001 // (MOVW R1, R1)
-			}
-		}
-
-	case AB, ABL:
-		if p.To.Type != obj.TYPE_MEM {
-			if out != nil {
-				c.asmout(p, o, out)
-			}
-		} else {
-			if p.To.Offset != 0 || size != 4 || p.To.Reg > REG_R15 || p.To.Reg < REG_R0 {
-				c.ctxt.Diag("unsupported instruction: %v", p)
-			}
-			if p.Pc&15 == 12 {
-				p.Pc += 4
-			}
-			if out != nil {
-				out[0] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x03c0013f | (uint32(p.To.Reg)&15)<<12 | (uint32(p.To.Reg)&15)<<16 // BIC $0xc000000f, Rx
-				if p.As == AB {
-					out[1] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x012fff10 | (uint32(p.To.Reg)&15)<<0 // BX Rx
-				} else { // ABL
-					out[1] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x012fff30 | (uint32(p.To.Reg)&15)<<0 // BLX Rx
-				}
-			}
-
-			size = 8
-		}
-
-		// align the last instruction (the actual BL) to the last instruction in a bundle
-		if p.As == ABL {
-			if p.To.Sym == deferreturn {
-				p.Pc = ((int64(origPC) + 15) &^ 15) + 16 - int64(size)
-			} else {
-				p.Pc += (16 - ((p.Pc + int64(size)) & 15)) & 15
-			}
-		}
-
-	case ALDREX,
-		ALDREXD,
-		AMOVB,
-		AMOVBS,
-		AMOVBU,
-		AMOVD,
-		AMOVF,
-		AMOVH,
-		AMOVHS,
-		AMOVHU,
-		AMOVM,
-		AMOVW,
-		ASTREX,
-		ASTREXD:
-		if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_R15 && p.From.Reg == REG_R13 { // MOVW.W x(R13), PC
-			if out != nil {
-				c.asmout(p, o, out)
-			}
-			if size == 4 {
-				if out != nil {
-					// Note: 5c and 5g reg.c know that DIV/MOD smashes R12
-					// so that this return instruction expansion is valid.
-					out[0] = out[0] &^ 0x3000                                         // change PC to R12
-					out[1] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x03ccc13f // BIC $0xc000000f, R12
-					out[2] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x012fff1c // BX R12
-				}
-
-				size += 8
-				if (p.Pc+int64(size))&15 == 4 {
-					p.Pc += 4
-				}
-				break
-			} else {
-				// if the instruction used more than 4 bytes, then it must have used a very large
-				// offset to update R13, so we need to additionally mask R13.
-				if out != nil {
-					out[size/4-1] &^= 0x3000                                                 // change PC to R12
-					out[size/4] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x03cdd103   // BIC $0xc0000000, R13
-					out[size/4+1] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x03ccc13f // BIC $0xc000000f, R12
-					out[size/4+2] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x012fff1c // BX R12
-				}
-
-				// p->pc+size is only ok at 4 or 12 mod 16.
-				if (p.Pc+int64(size))%8 == 0 {
-					p.Pc += 4
-				}
-				size += 12
-				break
-			}
-		}
-
-		if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_R15 {
-			c.ctxt.Diag("unsupported instruction (move to another register and use indirect jump instead): %v", p)
-		}
-
-		if p.To.Type == obj.TYPE_MEM && p.To.Reg == REG_R13 && (p.Scond&C_WBIT != 0) && size > 4 {
-			// function prolog with very large frame size: MOVW.W R14,-100004(R13)
-			// split it into two instructions:
-			// 	ADD $-100004, R13
-			// 	MOVW R14, 0(R13)
-			q := c.newprog()
-
-			p.Scond &^= C_WBIT
-			*q = *p
-			a := &p.To
-			var a2 *obj.Addr
-			if p.To.Type == obj.TYPE_MEM {
-				a2 = &q.To
-			} else {
-				a2 = &q.From
-			}
-			nocache(q)
-			nocache(p)
-
-			// insert q after p
-			q.Link = p.Link
-
-			p.Link = q
-			q.Pcond = nil
-
-			// make p into ADD $X, R13
-			p.As = AADD
-
-			p.From = *a
-			p.From.Reg = 0
-			p.From.Type = obj.TYPE_CONST
-			p.To = obj.Addr{}
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = REG_R13
-
-			// make q into p but load/store from 0(R13)
-			q.Spadj = 0
-
-			*a2 = obj.Addr{}
-			a2.Type = obj.TYPE_MEM
-			a2.Reg = REG_R13
-			a2.Sym = nil
-			a2.Offset = 0
-			size = int(c.oplook(p).size)
-			break
-		}
-
-		if (p.To.Type == obj.TYPE_MEM && p.To.Reg != REG_R9) || // MOVW Rx, X(Ry), y != 9
-			(p.From.Type == obj.TYPE_MEM && p.From.Reg != REG_R9) { // MOVW X(Rx), Ry, x != 9
-			var a *obj.Addr
-			if p.To.Type == obj.TYPE_MEM {
-				a = &p.To
-			} else {
-				a = &p.From
-			}
-			reg := int(a.Reg)
-			if size == 4 {
-				// if addr.reg == 0, then it is probably load from x(FP) with small x, no need to modify.
-				if reg == 0 {
-					if out != nil {
-						c.asmout(p, o, out)
-					}
-				} else {
-					if out != nil {
-						out[0] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x03c00103 | (uint32(reg)&15)<<16 | (uint32(reg)&15)<<12 // BIC $0xc0000000, Rx
-					}
-					if p.Pc&15 == 12 {
-						p.Pc += 4
-					}
-					size += 4
-					if out != nil {
-						c.asmout(p, o, out[1:])
-					}
-				}
-
-				break
-			} else {
-				// if a load/store instruction takes more than 1 word to implement, then
-				// we need to separate the instruction into two:
-				// 1. explicitly load the address into R11.
-				// 2. load/store from R11.
-				// This won't handle .W/.P, so we should reject such code.
-				if p.Scond&(C_PBIT|C_WBIT) != 0 {
-					c.ctxt.Diag("unsupported instruction (.P/.W): %v", p)
-				}
-				q := c.newprog()
-				*q = *p
-				var a2 *obj.Addr
-				if p.To.Type == obj.TYPE_MEM {
-					a2 = &q.To
-				} else {
-					a2 = &q.From
-				}
-				nocache(q)
-				nocache(p)
-
-				// insert q after p
-				q.Link = p.Link
-
-				p.Link = q
-				q.Pcond = nil
-
-				// make p into MOVW $X(R), R11
-				p.As = AMOVW
-
-				p.From = *a
-				p.From.Type = obj.TYPE_ADDR
-				p.To = obj.Addr{}
-				p.To.Type = obj.TYPE_REG
-				p.To.Reg = REG_R11
-
-				// make q into p but load/store from 0(R11)
-				*a2 = obj.Addr{}
-
-				a2.Type = obj.TYPE_MEM
-				a2.Reg = REG_R11
-				a2.Sym = nil
-				a2.Offset = 0
-				size = int(c.oplook(p).size)
-				break
-			}
-		} else if out != nil {
-			c.asmout(p, o, out)
-		}
-	}
-
-	// destination register specific
-	if p.To.Type == obj.TYPE_REG {
-		switch p.To.Reg {
-		case REG_R9:
-			c.ctxt.Diag("invalid instruction, cannot write to R9: %v", p)
-
-		case REG_R13:
-			if out != nil {
-				out[size/4] = 0xe3cdd103 // BIC $0xc0000000, R13
-			}
-			if (p.Pc+int64(size))&15 == 0 {
-				p.Pc += 4
-			}
-			size += 4
-		}
-	}
-
-	return size
-}
 
 func checkSuffix(c *ctxt5, p *obj.Prog, o *Optab) {
 	if p.Scond&C_SBIT != 0 && o.scond&C_SBIT == 0 {
@@ -685,13 +413,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		p.Pc = int64(pc)
 		o = c.oplook(p)
-		if ctxt.Headtype != objabi.Hnacl {
-			m = int(o.size)
-		} else {
-			m = c.asmoutnacl(pc, p, o, nil)
-			pc = int32(p.Pc) // asmoutnacl might change pc for alignment
-			o = c.oplook(p)  // asmoutnacl might change p in rare cases
-		}
+		m = int(o.size)
 
 		if m%4 != 0 || p.Pc%4 != 0 {
 			ctxt.Diag("!pc invalid: %v size=%d", p, m)
@@ -710,7 +432,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			}
 		}
 
-		if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != ADATABUNDLEEND && p.As != obj.ANOP) {
+		if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != obj.ANOP) {
 			ctxt.Diag("zero-width instruction\n%v", p)
 			continue
 		}
@@ -783,12 +505,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			}
 			*/
 			opc = int32(p.Pc)
-
-			if ctxt.Headtype != objabi.Hnacl {
-				m = int(o.size)
-			} else {
-				m = c.asmoutnacl(pc, p, o, nil)
-			}
+			m = int(o.size)
 			if p.Pc != int64(opc) {
 				bflag = 1
 			}
@@ -803,7 +520,7 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if m/4 > len(out) {
 				ctxt.Diag("instruction size too large: %d > %d", m/4, len(out))
 			}
-			if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != ADATABUNDLEEND && p.As != obj.ANOP) {
+			if m == 0 && (p.As != obj.AFUNCDATA && p.As != obj.APCDATA && p.As != obj.ANOP) {
 				if p.As == obj.ATEXT {
 					c.autosize = p.To.Offset + 4
 					continue
@@ -844,15 +561,8 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		c.pc = p.Pc
 		o = c.oplook(p)
 		opc = int32(p.Pc)
-		if ctxt.Headtype != objabi.Hnacl {
-			c.asmout(p, o, out[:])
-			m = int(o.size)
-		} else {
-			m = c.asmoutnacl(pc, p, o, out[:])
-			if int64(opc) != p.Pc {
-				ctxt.Diag("asmoutnacl broken: pc changed (%d->%d) in last stage: %v", opc, int32(p.Pc), p)
-			}
-		}
+		c.asmout(p, o, out[:])
+		m = int(o.size)
 
 		if m%4 != 0 || p.Pc%4 != 0 {
 			ctxt.Diag("final stage: pc invalid: %v size=%d", p, m)
@@ -903,7 +613,6 @@ func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 func (c *ctxt5) checkpool(p *obj.Prog, nextpc int32) bool {
 	poolLast := nextpc
 	poolLast += 4                      // the AB instruction to jump around the pool
-	poolLast += 12                     // the maximum nacl alignment padding for ADATABUNDLE
 	poolLast += int32(c.pool.size) - 4 // the offset of the last pool entry
 
 	refPC := int32(c.pool.start) // PC of the first pool reference
@@ -931,16 +640,8 @@ func (c *ctxt5) flushpool(p *obj.Prog, skip int, force int) bool {
 			q.Link = c.blitrl
 			q.Pos = p.Pos
 			c.blitrl = q
-		} else if force == 0 && (p.Pc+int64(12+c.pool.size)-int64(c.pool.start) < 2048) { // 12 take into account the maximum nacl literal pool alignment padding size
+		} else if force == 0 && (p.Pc+int64(c.pool.size)-int64(c.pool.start) < 2048) {
 			return false
-		}
-		if c.ctxt.Headtype == objabi.Hnacl && c.pool.size%16 != 0 {
-			// if pool is not multiple of 16 bytes, add an alignment marker
-			q := c.newprog()
-
-			q.As = ADATABUNDLEEND
-			c.elitrl.Link = q
-			c.elitrl = q
 		}
 
 		// The line number for constant pool entries doesn't really matter.
@@ -1000,22 +701,6 @@ func (c *ctxt5) addpool(p *obj.Prog, a *obj.Addr) {
 				return
 			}
 		}
-	}
-
-	if c.ctxt.Headtype == objabi.Hnacl && c.pool.size%16 == 0 {
-		// start a new data bundle
-		q := c.newprog()
-		q.As = ADATABUNDLE
-		q.Pc = int64(c.pool.size)
-		c.pool.size += 4
-		if c.blitrl == nil {
-			c.blitrl = q
-			c.pool.start = uint32(p.Pc)
-		} else {
-			c.elitrl.Link = q
-		}
-
-		c.elitrl = q
 	}
 
 	q := c.newprog()
@@ -1286,15 +971,11 @@ func (c *ctxt5) aclass(a *obj.Addr) int {
 			if uint32(c.instoffset) <= 0xffff && objabi.GOARM == 7 {
 				return C_SCON
 			}
-			if c.ctxt.Headtype != objabi.Hnacl {
-				// Don't split instructions on NaCl. The validator is not
-				// happy with it. See Issue 20595.
-				if x, y := immrot2a(uint32(c.instoffset)); x != 0 && y != 0 {
-					return C_RCON2A
-				}
-				if y, x := immrot2s(uint32(c.instoffset)); x != 0 && y != 0 {
-					return C_RCON2S
-				}
+			if x, y := immrot2a(uint32(c.instoffset)); x != 0 && y != 0 {
+				return C_RCON2A
+			}
+			if y, x := immrot2s(uint32(c.instoffset)); x != 0 && y != 0 {
+				return C_RCON2S
 			}
 			return C_LCON
 
@@ -1740,9 +1421,7 @@ func buildop(ctxt *obj.Link) {
 			obj.AUNDEF,
 			obj.AFUNCDATA,
 			obj.APCDATA,
-			obj.ANOP,
-			ADATABUNDLE,
-			ADATABUNDLEEND:
+			obj.ANOP:
 			break
 		}
 	}
@@ -2796,13 +2475,6 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		o1 |= (uint32(p.From.Reg) & 15) << 8
 		o1 |= (uint32(p.Reg) & 15) << 0
 		o1 |= uint32((p.To.Offset & 15) << 12)
-
-	// DATABUNDLE: BKPT $0x5be0, signify the start of NaCl data bundle;
-	// DATABUNDLEEND: zero width alignment marker
-	case 100:
-		if p.As == ADATABUNDLE {
-			o1 = 0xe125be70
-		}
 
 	case 105: /* divhw r,[r,]r */
 		o1 = c.oprrr(p, p.As, int(p.Scond))

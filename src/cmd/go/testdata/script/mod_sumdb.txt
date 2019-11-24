@@ -1,0 +1,33 @@
+env GO111MODULE=on
+env sumdb=$GOSUMDB
+env proxy=$GOPROXY
+env GOPROXY GONOPROXY GOSUMDB GONOSUMDB
+env dbname=localhost.localdev/sumdb
+
+# disagreeing with the sumdb produces security errors
+# (this also populates tiles on the sumdb server).
+cp go.mod.orig go.mod
+env GOSUMDB=$sumdb' '$proxy/sumdb-wrong
+! go get -d rsc.io/quote
+stderr 'go get rsc.io/quote: rsc.io/quote@v1.5.2: verifying module: checksum mismatch'
+stderr 'downloaded: h1:3fEy'
+stderr 'localhost.localdev/sumdb: h1:wrong'
+stderr 'SECURITY ERROR\nThis download does NOT match the one reported by the checksum server.'
+! go get -d rsc.io/sampler
+! go get -d golang.org/x/text
+rm go.sum
+
+# switching to truthful sumdb detects timeline inconsistency
+cp go.mod.orig go.mod
+env GOSUMDB=$sumdb
+! go get -d rsc.io/fortune
+stderr 'SECURITY ERROR\ngo.sum database server misbehavior detected!'
+stderr 'proof of misbehavior:'
+
+# removing the cached wrong tree head and cached tiles clears the bad data
+rm $GOPATH/pkg/sumdb/$dbname/latest
+go clean -modcache
+go get -d rsc.io/fortune
+
+-- go.mod.orig --
+module m

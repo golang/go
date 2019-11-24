@@ -116,7 +116,14 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) []Spec {
 	begSpecs := pos[0].Start
 	endSpecs := pos[len(pos)-1].End
 	beg := fset.File(begSpecs).LineStart(lineAt(fset, begSpecs))
-	end := fset.File(endSpecs).LineStart(lineAt(fset, endSpecs) + 1) // beginning of next line
+	endLine := lineAt(fset, endSpecs)
+	endFile := fset.File(endSpecs)
+	var end token.Pos
+	if endLine == endFile.LineCount() {
+		end = endSpecs
+	} else {
+		end = endFile.LineStart(endLine + 1) // beginning of next line
+	}
 	first := len(f.Comments)
 	last := -1
 	for i, g := range f.Comments {

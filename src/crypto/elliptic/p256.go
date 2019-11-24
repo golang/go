@@ -85,7 +85,7 @@ func (p256Curve) ScalarMult(bigX, bigY *big.Int, scalar []byte) (x, y *big.Int) 
 
 // Field elements are represented as nine, unsigned 32-bit words.
 //
-// The value of an field element is:
+// The value of a field element is:
 //   x[0] + (x[1] * 2**29) + (x[2] * 2**57) + ... + (x[8] * 2**228)
 //
 // That is, each limb is alternately 29 or 28-bits wide in little-endian

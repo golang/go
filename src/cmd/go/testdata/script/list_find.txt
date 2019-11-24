@@ -12,6 +12,7 @@ stdout '^false \[\]'
 # should be identical. "go build" derives action IDs (which are used as cache
 # keys) from dependencies' action IDs. "go list -find" won't know what the
 # dependencies are, so it's can't construct the same action IDs.
+[short] skip
 go list -find -compiled net
 go list -find -compiled -x net
 ! stderr 'cgo'

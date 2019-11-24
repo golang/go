@@ -1,4 +1,5 @@
 env GO111MODULE=off
+[short] skip
 
 # Set up fresh GOCACHE.
 env GOCACHE=$WORK/gocache
@@ -15,9 +16,9 @@ go build -o $devnull -x main.go
 stderr '(link|gccgo)( |\.exe)'
 
 # ... but the output binary can serve as a cache.
-go build -o main$exe -x main.go
+go build -o main$GOEXE -x main.go
 stderr '(link|gccgo)( |\.exe)'
-go build -o main$exe -x main.go
+go build -o main$GOEXE -x main.go
 ! stderr '(link|gccgo)( |\.exe)'
 
 -- main.go --

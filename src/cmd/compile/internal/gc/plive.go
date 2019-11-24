@@ -126,6 +126,19 @@ type Liveness struct {
 	regMaps     []liveRegMask
 
 	cache progeffectscache
+
+	// These are only populated if open-coded defers are being used.
+	// List of vars/stack slots storing defer args
+	openDeferVars []openDeferVarInfo
+	// Map from defer arg OpVarDef to the block where the OpVarDef occurs.
+	openDeferVardefToBlockMap map[*Node]*ssa.Block
+	// Map of blocks that cannot reach a return or exit (panic)
+	nonReturnBlocks map[*ssa.Block]bool
+}
+
+type openDeferVarInfo struct {
+	n         *Node // Var/stack slot storing a defer arg
+	varsIndex int   // Index of variable in lv.vars
 }
 
 // LivenessMap maps from *ssa.Value to LivenessIndex.
@@ -304,7 +317,7 @@ func (lv *Liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
 	var effect liveEffect
 	// Read is a read, obviously.
 	//
-	// Addr is a read also, as any subseqent holder of the pointer must be able
+	// Addr is a read also, as any subsequent holder of the pointer must be able
 	// to see all the values (including initialization) written so far.
 	// This also prevents a variable from "coming back from the dead" and presenting
 	// stale pointers to the garbage collector. See issue 28445.
@@ -639,6 +652,15 @@ func (lv *Liveness) markUnsafePoints() {
 
 	lv.unsafePoints = bvalloc(int32(lv.f.NumValues()))
 
+	// Mark architecture-specific unsafe points.
+	for _, b := range lv.f.Blocks {
+		for _, v := range b.Values {
+			if v.Op.UnsafePoint() {
+				lv.unsafePoints.Set(int32(v.ID))
+			}
+		}
+	}
+
 	// Mark write barrier unsafe points.
 	for _, wbBlock := range lv.f.WBLoads {
 		if wbBlock.Kind == ssa.BlockPlain && len(wbBlock.Values) == 0 {
@@ -670,7 +692,7 @@ func (lv *Liveness) markUnsafePoints() {
 		// single op that does the memory load from the flag
 		// address, so we look for that.
 		var load *ssa.Value
-		v := wbBlock.Control
+		v := wbBlock.Controls[0]
 		for {
 			if sym, ok := v.Aux.(*obj.LSym); ok && sym == writeBarrier {
 				load = v
@@ -810,12 +832,58 @@ func (lv *Liveness) issafepoint(v *ssa.Value) bool {
 func (lv *Liveness) prologue() {
 	lv.initcache()
 
+	if lv.fn.Func.HasDefer() && !lv.fn.Func.OpenCodedDeferDisallowed() {
+		lv.openDeferVardefToBlockMap = make(map[*Node]*ssa.Block)
+		for i, n := range lv.vars {
+			if n.Name.OpenDeferSlot() {
+				lv.openDeferVars = append(lv.openDeferVars, openDeferVarInfo{n: n, varsIndex: i})
+			}
+		}
+
+		// Find any blocks that cannot reach a return or a BlockExit
+		// (panic) -- these must be because of an infinite loop.
+		reachesRet := make(map[ssa.ID]bool)
+		blockList := make([]*ssa.Block, 0, 256)
+
+		for _, b := range lv.f.Blocks {
+			if b.Kind == ssa.BlockRet || b.Kind == ssa.BlockRetJmp || b.Kind == ssa.BlockExit {
+				blockList = append(blockList, b)
+			}
+		}
+
+		for len(blockList) > 0 {
+			b := blockList[0]
+			blockList = blockList[1:]
+			if reachesRet[b.ID] {
+				continue
+			}
+			reachesRet[b.ID] = true
+			for _, e := range b.Preds {
+				blockList = append(blockList, e.Block())
+			}
+		}
+
+		lv.nonReturnBlocks = make(map[*ssa.Block]bool)
+		for _, b := range lv.f.Blocks {
+			if !reachesRet[b.ID] {
+				lv.nonReturnBlocks[b] = true
+				//fmt.Println("No reach ret", lv.f.Name, b.ID, b.Kind)
+			}
+		}
+	}
+
 	for _, b := range lv.f.Blocks {
 		be := lv.blockEffects(b)
 
 		// Walk the block instructions backward and update the block
 		// effects with the each prog effects.
 		for j := len(b.Values) - 1; j >= 0; j-- {
+			if b.Values[j].Op == ssa.OpVarDef {
+				n := b.Values[j].Aux.(*Node)
+				if n.Name.OpenDeferSlot() {
+					lv.openDeferVardefToBlockMap[n] = b
+				}
+			}
 			pos, e := lv.valueEffects(b.Values[j])
 			regUevar, regKill := lv.regEffects(b.Values[j])
 			if e&varkill != 0 {
@@ -828,6 +896,20 @@ func (lv *Liveness) prologue() {
 				be.uevar.vars.Set(pos)
 			}
 			be.uevar.regs |= regUevar
+		}
+	}
+}
+
+// markDeferVarsLive marks each variable storing an open-coded defer arg as
+// specially live in block b if the variable definition dominates block b.
+func (lv *Liveness) markDeferVarsLive(b *ssa.Block, newliveout *varRegVec) {
+	// Only force computation of dominators if we have a block where we need
+	// to specially mark defer args live.
+	sdom := lv.f.Sdom()
+	for _, info := range lv.openDeferVars {
+		defB := lv.openDeferVardefToBlockMap[info.n]
+		if sdom.IsAncestorEq(defB, b) {
+			newliveout.vars.Set(int32(info.varsIndex))
 		}
 	}
 }
@@ -875,6 +957,23 @@ func (lv *Liveness) solve() {
 				}
 			}
 
+			if lv.fn.Func.HasDefer() && !lv.fn.Func.OpenCodedDeferDisallowed() &&
+				(b.Kind == ssa.BlockExit || lv.nonReturnBlocks[b]) {
+				// Open-coded defer args slots must be live
+				// everywhere in a function, since a panic can
+				// occur (almost) anywhere. Force all appropriate
+				// defer arg slots to be live in BlockExit (panic)
+				// blocks and in blocks that do not reach a return
+				// (because of infinite loop).
+				//
+				// We are assuming that the defer exit code at
+				// BlockReturn/BlockReturnJmp accesses all of the
+				// defer args (with pointers), and so keeps them
+				// live. This analysis may have to be adjusted if
+				// that changes (because of optimizations).
+				lv.markDeferVarsLive(b, &newliveout)
+			}
+
 			if !be.liveout.Eq(newliveout) {
 				change = true
 				be.liveout.Copy(newliveout)
@@ -908,7 +1007,7 @@ func (lv *Liveness) epilogue() {
 	if lv.fn.Func.HasDefer() {
 		for i, n := range lv.vars {
 			if n.Class() == PPARAMOUT {
-				if n.IsOutputParamHeapAddr() {
+				if n.Name.IsOutputParamHeapAddr() {
 					// Just to be paranoid.  Heap addresses are PAUTOs.
 					Fatalf("variable %v both output param and heap output param", n)
 				}
@@ -920,7 +1019,7 @@ func (lv *Liveness) epilogue() {
 				// Note: zeroing is handled by zeroResults in walk.go.
 				livedefer.Set(int32(i))
 			}
-			if n.IsOutputParamHeapAddr() {
+			if n.Name.IsOutputParamHeapAddr() {
 				// This variable will be overwritten early in the function
 				// prologue (from the result of a mallocgc) but we need to
 				// zero it in case that malloc causes a stack scan.
@@ -1448,4 +1547,41 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
 	p.To.Sym = ls.Func.GCRegs
 
 	return lv.livenessMap
+}
+
+// isfat reports whether a variable of type t needs multiple assignments to initialize.
+// For example:
+//
+// 	type T struct { x, y int }
+// 	x := T{x: 0, y: 1}
+//
+// Then we need:
+//
+// 	var t T
+// 	t.x = 0
+// 	t.y = 1
+//
+// to fully initialize t.
+func isfat(t *types.Type) bool {
+	if t != nil {
+		switch t.Etype {
+		case TSLICE, TSTRING,
+			TINTER: // maybe remove later
+			return true
+		case TARRAY:
+			// Array of 1 element, check if element is fat
+			if t.NumElem() == 1 {
+				return isfat(t.Elem())
+			}
+			return true
+		case TSTRUCT:
+			// Struct with 1 field, check if field is fat
+			if t.NumFields() == 1 {
+				return isfat(t.Field(0).Type)
+			}
+			return true
+		}
+	}
+
+	return false
 }

@@ -84,6 +84,7 @@ func (pkg *Pkg) Lookup(name string) *Sym {
 	return s
 }
 
+// List of .inittask entries in imported packages, in source code order.
 var InitSyms []*Sym
 
 // LookupOK looks up name in pkg and reports whether it previously existed.
@@ -100,7 +101,7 @@ func (pkg *Pkg) LookupOK(name string) (s *Sym, existed bool) {
 		Name: name,
 		Pkg:  pkg,
 	}
-	if name == "init" {
+	if name == ".inittask" {
 		InitSyms = append(InitSyms, s)
 	}
 	pkg.Syms[name] = s

@@ -271,6 +271,12 @@ func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value)
 	// Otherwise copy.
 	switch p := pattern; p.Kind() {
 	case reflect.Slice:
+		if p.IsNil() {
+			// Do not turn nil slices into empty slices. go/ast
+			// guarantees that certain lists will be nil if not
+			// populated.
+			return reflect.Zero(p.Type())
+		}
 		v := reflect.MakeSlice(p.Type(), p.Len(), p.Len())
 		for i := 0; i < p.Len(); i++ {
 			v.Index(i).Set(subst(m, p.Index(i), pos))

@@ -383,10 +383,6 @@ func xsamefile(f1, f2 string) bool {
 }
 
 func xgetgoarm() string {
-	if goos == "nacl" {
-		// NaCl guarantees VFPv3 and is always cross-compiled.
-		return "7"
-	}
 	if goos == "darwin" || goos == "android" {
 		// Assume all darwin/arm and android devices have VFPv3.
 		// These ports are also mostly cross-compiled, so it makes little
@@ -395,10 +391,6 @@ func xgetgoarm() string {
 	}
 	if gohostarch != "arm" || goos != gohostos {
 		// Conservative default for cross-compilation.
-		return "5"
-	}
-	if goos == "freebsd" {
-		// FreeBSD has broken VFP support.
 		return "5"
 	}
 

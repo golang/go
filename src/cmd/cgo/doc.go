@@ -55,7 +55,7 @@ For example:
 
 The default pkg-config tool may be changed by setting the PKG_CONFIG environment variable.
 
-For security reasons, only a limited set of flags are allowed, notably -D, -I, and -l.
+For security reasons, only a limited set of flags are allowed, notably -D, -U, -I, and -l.
 To allow additional flags, set CGO_CFLAGS_ALLOW to a regular expression
 matching the new flags. To disallow flags that would otherwise be allowed,
 set CGO_CFLAGS_DISALLOW to a regular expression matching arguments
@@ -99,7 +99,7 @@ Will be expanded to:
 
 When the Go tool sees that one or more Go files use the special import
 "C", it will look for other non-Go files in the directory and compile
-them as part of the Go package. Any .c, .s, or .S files will be
+them as part of the Go package. Any .c, .s, .S or .sx files will be
 compiled with the C compiler. Any .cc, .cpp, or .cxx files will be
 compiled with the C++ compiler. Any .f, .F, .for or .f90 files will be
 compiled with the fortran compiler. Any .h, .hh, .hpp, or .hxx files will
@@ -148,8 +148,6 @@ C.long, C.ulong (unsigned long), C.longlong (long long),
 C.ulonglong (unsigned long long), C.float, C.double,
 C.complexfloat (complex float), and C.complexdouble (complex double).
 The C type void* is represented by Go's unsafe.Pointer.
-The C sized integer types (int8_t, uint8_t, …) are represented by their Go
-counterparts (int8, uint8, …).
 The C types __int128_t and __uint128_t are represented by [16]byte.
 
 A few special C types which would normally be represented by a pointer
@@ -298,7 +296,7 @@ Go functions can be exported for use by C code in the following way:
 
 They will be available in the C code as:
 
-	extern int64_t MyFunction(int arg1, int arg2, GoString arg3);
+	extern GoInt64 MyFunction(int arg1, int arg2, GoString arg3);
 	extern struct MyFunction2_return MyFunction2(int arg1, int arg2, GoString arg3);
 
 found in the _cgo_export.h generated header, after any preambles

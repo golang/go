@@ -33,11 +33,6 @@
 //       runtime.mcall assumes this function only clobbers R0 and R11.
 // Returns with g in R0.
 TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0
-#ifdef GOOS_nacl
-	// nothing to do as nacl/arm does not use TLS at all.
-	MOVW	g, R0 // preserve R0 across call to setg<>
-	RET
-#else
 	// If the host does not support MRC the linker will replace it with
 	// a call to runtime.read_tls_fallback which jumps to __kuser_get_tls.
 	// The replacement function saves LR in R11 over the call to read_tls_fallback.
@@ -48,16 +43,11 @@ TEXT runtime·save_g(SB),NOSPLIT|NOFRAME,$0
 	MOVW	g, 0(R0)
 	MOVW	g, R0 // preserve R0 across call to setg<>
 	RET
-#endif
 
 // load_g loads the g register from pthread-provided
 // thread-local memory, for use after calling externally compiled
 // ARM code that overwrote those registers.
 TEXT runtime·load_g(SB),NOSPLIT,$0
-#ifdef GOOS_nacl
-	// nothing to do as nacl/arm does not use TLS at all.
-	RET
-#else
 	// See save_g
 	MRC	15, 0, R0, C13, C0, 3 // fetch TLS base pointer
 	BIC $3, R0 // Darwin/ARM might return unaligned pointer
@@ -65,7 +55,6 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
 	ADD	R11, R0
 	MOVW	0(R0), g
 	RET
-#endif
 
 // This is called from rt0_go, which runs on the system stack
 // using the initial stack allocated by the OS.
@@ -78,7 +67,6 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
 // Declare a dummy word ($4, not $0) to make sure the
 // frame is 8 bytes and stays 8-byte-aligned.
 TEXT runtime·_initcgo(SB),NOSPLIT,$4
-#ifndef GOOS_nacl
 	// if there is an _cgo_init, call it.
 	MOVW	_cgo_init(SB), R4
 	CMP	$0, R4
@@ -88,12 +76,11 @@ TEXT runtime·_initcgo(SB),NOSPLIT,$4
 #ifdef TLSG_IS_VARIABLE
 	MOVW 	$runtime·tls_g(SB), R2 	// arg 2: &tls_g
 #else
-        MOVW	$0, R2			// arg 2: not used when using platform tls
+	MOVW	$0, R2			// arg 2: not used when using platform tls
 #endif
 	MOVW	$setg_gcc<>(SB), R1 	// arg 1: setg
 	MOVW	g, R0 			// arg 0: G
 	BL	(R4) // will clobber R0-R3
-#endif
 nocgo:
 	RET
 
@@ -103,6 +90,11 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0
 	B		runtime·save_g(SB)
 
 #ifdef TLSG_IS_VARIABLE
+#ifdef GOOS_android
+// Use the free TLS_SLOT_APP slot #2 on Android Q.
+// Earlier androids are set up in gcc_android.c.
+DATA runtime·tls_g+0(SB)/4, $8
+#endif
 GLOBL runtime·tls_g+0(SB), NOPTR, $4
 #else
 GLOBL runtime·tls_g+0(SB), TLSBSS, $4

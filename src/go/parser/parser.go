@@ -63,7 +63,6 @@ type parser struct {
 	topScope   *ast.Scope        // top-most scope; may be pkgScope
 	unresolved []*ast.Ident      // unresolved identifiers
 	imports    []*ast.ImportSpec // list of imports
-	inStruct   bool              // if set, parser is parsing a struct or interface (for comment collection)
 
 	// Label scopes
 	// (maintained by open/close LabelScope)
@@ -338,15 +337,7 @@ func (p *parser) next() {
 		// consume successor comments, if any
 		endline = -1
 		for p.tok == token.COMMENT {
-			n := 1
-			// When inside a struct (or interface), we don't want to lose comments
-			// separated from individual field (or method) documentation by empty
-			// lines. Allow for some white space in this case and collect those
-			// comments as a group. See issue #10858 for details.
-			if p.inStruct {
-				n = 2
-			}
-			comment, endline = p.consumeCommentGroup(n)
+			comment, endline = p.consumeCommentGroup(1)
 		}
 
 		if endline+1 == p.file.Line(p.pos) {
@@ -404,6 +395,18 @@ func (p *parser) expect(tok token.Token) token.Pos {
 	}
 	p.next() // make progress
 	return pos
+}
+
+// expect2 is like expect, but it returns an invalid position
+// if the expected token is not found.
+func (p *parser) expect2(tok token.Token) (pos token.Pos) {
+	if p.tok == tok {
+		pos = p.pos
+	} else {
+		p.errorExpected(p.pos, "'"+tok.String()+"'")
+	}
+	p.next() // make progress
+	return
 }
 
 // expectClosing is like expect but provides a better error message
@@ -757,7 +760,6 @@ func (p *parser) parseStructType() *ast.StructType {
 	}
 
 	pos := p.expect(token.STRUCT)
-	p.inStruct = true
 	lbrace := p.expect(token.LBRACE)
 	scope := ast.NewScope(nil) // struct scope
 	var list []*ast.Field
@@ -768,7 +770,6 @@ func (p *parser) parseStructType() *ast.StructType {
 		list = append(list, p.parseFieldDecl(scope))
 	}
 	rbrace := p.expect(token.RBRACE)
-	p.inStruct = false
 
 	return &ast.StructType{
 		Struct: pos,
@@ -970,7 +971,6 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 	}
 
 	pos := p.expect(token.INTERFACE)
-	p.inStruct = true
 	lbrace := p.expect(token.LBRACE)
 	scope := ast.NewScope(nil) // interface scope
 	var list []*ast.Field
@@ -978,7 +978,6 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 		list = append(list, p.parseMethodSpec(scope))
 	}
 	rbrace := p.expect(token.RBRACE)
-	p.inStruct = false
 
 	return &ast.InterfaceType{
 		Interface: pos,
@@ -1095,7 +1094,7 @@ func (p *parser) parseBody(scope *ast.Scope) *ast.BlockStmt {
 	list := p.parseStmtList()
 	p.closeLabelScope()
 	p.closeScope()
-	rbrace := p.expect(token.RBRACE)
+	rbrace := p.expect2(token.RBRACE)
 
 	return &ast.BlockStmt{Lbrace: lbrace, List: list, Rbrace: rbrace}
 }
@@ -1109,7 +1108,7 @@ func (p *parser) parseBlockStmt() *ast.BlockStmt {
 	p.openScope()
 	list := p.parseStmtList()
 	p.closeScope()
-	rbrace := p.expect(token.RBRACE)
+	rbrace := p.expect2(token.RBRACE)
 
 	return &ast.BlockStmt{Lbrace: lbrace, List: list, Rbrace: rbrace}
 }
@@ -1459,7 +1458,6 @@ func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
 	switch t := unparen(x).(type) {
 	case *ast.ParenExpr:
 		panic("unreachable")
-	case *ast.UnaryExpr:
 	case *ast.ArrayType:
 		if len, isEllipsis := t.Len.(*ast.Ellipsis); isEllipsis {
 			p.error(len.Pos(), "expected array length, found '...'")
@@ -2452,8 +2450,18 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	var body *ast.BlockStmt
 	if p.tok == token.LBRACE {
 		body = p.parseBody(scope)
+		p.expectSemi()
+	} else if p.tok == token.SEMICOLON {
+		p.next()
+		if p.tok == token.LBRACE {
+			// opening { of function declaration on next line
+			p.error(p.pos, "unexpected semicolon or newline before {")
+			body = p.parseBody(scope)
+			p.expectSemi()
+		}
+	} else {
+		p.expectSemi()
 	}
-	p.expectSemi()
 
 	decl := &ast.FuncDecl{
 		Doc:  doc,

@@ -29,7 +29,7 @@ func newBiasedSparseMap(first, last int) *biasedSparseMap {
 
 // cap returns one more than the largest key valid for s
 func (s *biasedSparseMap) cap() int {
-	if s.s == nil {
+	if s == nil || s.s == nil {
 		return 0
 	}
 	return s.s.cap() + int(s.first)
@@ -37,7 +37,7 @@ func (s *biasedSparseMap) cap() int {
 
 // size returns the number of entries stored in s
 func (s *biasedSparseMap) size() int {
-	if s.s == nil {
+	if s == nil || s.s == nil {
 		return 0
 	}
 	return s.s.size()
@@ -45,7 +45,7 @@ func (s *biasedSparseMap) size() int {
 
 // contains reports whether x is a key in s
 func (s *biasedSparseMap) contains(x uint) bool {
-	if s.s == nil {
+	if s == nil || s.s == nil {
 		return false
 	}
 	if int(x) < s.first {
@@ -60,7 +60,7 @@ func (s *biasedSparseMap) contains(x uint) bool {
 // get returns the value s maps for key x, or -1 if
 // x is not mapped or is out of range for s.
 func (s *biasedSparseMap) get(x uint) int32 {
-	if s.s == nil {
+	if s == nil || s.s == nil {
 		return -1
 	}
 	if int(x) < s.first {

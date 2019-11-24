@@ -257,7 +257,7 @@ func (t Time) Before(u Time) bool {
 
 // Equal reports whether t and u represent the same time instant.
 // Two times can be equal even if they are in different locations.
-// For example, 6:00 +0200 CEST and 4:00 UTC are Equal.
+// For example, 6:00 +0200 and 4:00 UTC are Equal.
 // See the documentation on the Time type for the pitfalls of using == with
 // Time values; most code should use Equal instead.
 func (t Time) Equal(u Time) bool {
@@ -906,33 +906,16 @@ func (t Time) Sub(u Time) Duration {
 		}
 		return d
 	}
-
-	ts, us := t.sec(), u.sec()
-
-	var sec, nsec, d int64
-
-	ssub := ts - us
-	if (ssub < ts) != (us > 0) {
-		goto overflow
-	}
-
-	if ssub < int64(minDuration/Second) || ssub > int64(maxDuration/Second) {
-		goto overflow
-	}
-	sec = ssub * int64(Second)
-
-	nsec = int64(t.nsec() - u.nsec())
-	d = sec + nsec
-	if (d > sec) != (nsec > 0) {
-		goto overflow
-	}
-	return Duration(d)
-
-overflow:
-	if t.Before(u) {
+	d := Duration(t.sec()-u.sec())*Second + Duration(t.nsec()-u.nsec())
+	// Check for overflow or underflow.
+	switch {
+	case u.Add(d).Equal(t):
+		return d // d is correct
+	case t.Before(u):
 		return minDuration // t - u is negative out of range
+	default:
+		return maxDuration // t - u is positive out of range
 	}
-	return maxDuration // t - u is positive out of range
 }
 
 // Since returns the time elapsed since t.
@@ -940,7 +923,7 @@ overflow:
 func Since(t Time) Duration {
 	var now Time
 	if t.wall&hasMonotonic != 0 {
-		// Common case optimization: if t has monotomic time, then Sub will use only it.
+		// Common case optimization: if t has monotonic time, then Sub will use only it.
 		now = Time{hasMonotonic, runtimeNano() - startNano, nil}
 	} else {
 		now = Now()
@@ -953,7 +936,7 @@ func Since(t Time) Duration {
 func Until(t Time) Duration {
 	var now Time
 	if t.wall&hasMonotonic != 0 {
-		// Common case optimization: if t has monotomic time, then Sub will use only it.
+		// Common case optimization: if t has monotonic time, then Sub will use only it.
 		now = Time{hasMonotonic, runtimeNano() - startNano, nil}
 	} else {
 		now = Now()

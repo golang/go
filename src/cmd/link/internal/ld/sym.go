@@ -70,38 +70,23 @@ func (ctxt *Link) computeTLSOffset() {
 	case objabi.Hplan9, objabi.Hwindows, objabi.Hjs, objabi.Haix:
 		break
 
-		/*
-		 * ELF uses TLS offset negative from FS.
-		 * Translate 0(FS) and 8(FS) into -16(FS) and -8(FS).
-		 * Known to low-level assembly in package runtime and runtime/cgo.
-		 */
 	case objabi.Hlinux,
 		objabi.Hfreebsd,
 		objabi.Hnetbsd,
 		objabi.Hopenbsd,
 		objabi.Hdragonfly,
 		objabi.Hsolaris:
+		/*
+		 * ELF uses TLS offset negative from FS.
+		 * Translate 0(FS) and 8(FS) into -16(FS) and -8(FS).
+		 * Known to low-level assembly in package runtime and runtime/cgo.
+		 */
 		ctxt.Tlsoffset = -1 * ctxt.Arch.PtrSize
 
-	case objabi.Hnacl:
-		switch ctxt.Arch.Family {
-		default:
-			log.Fatalf("unknown thread-local storage offset for nacl/%s", ctxt.Arch.Name)
-
-		case sys.ARM:
-			ctxt.Tlsoffset = 0
-
-		case sys.AMD64:
-			ctxt.Tlsoffset = 0
-
-		case sys.I386:
-			ctxt.Tlsoffset = -8
-		}
-
+	case objabi.Hdarwin:
 		/*
 		 * OS X system constants - offset from 0(GS) to our TLS.
 		 */
-	case objabi.Hdarwin:
 		switch ctxt.Arch.Family {
 		default:
 			log.Fatalf("unknown thread-local storage offset for darwin/%s", ctxt.Arch.Name)

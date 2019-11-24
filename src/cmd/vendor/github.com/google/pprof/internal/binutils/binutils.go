@@ -322,7 +322,7 @@ func (b *binrep) openELF(name string, start, limit, offset uint64) (plugin.ObjFi
 		// someone passes a kernel path that doesn't contain "vmlinux" AND
 		// (2) _stext is page-aligned AND (3) _stext is not at Vaddr
 		symbols, err := ef.Symbols()
-		if err != nil {
+		if err != nil && err != elf.ErrNoSymbols {
 			return nil, err
 		}
 		for _, s := range symbols {

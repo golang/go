@@ -38,9 +38,6 @@ import (
 
 func Init() (*sys.Arch, ld.Arch) {
 	arch := sys.ArchAMD64
-	if objabi.GOARCH == "amd64p32" {
-		arch = sys.ArchAMD64P32
-	}
 
 	theArch := ld.Arch{
 		Funcalign:  funcAlign,
@@ -54,6 +51,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Archreloc:        archreloc,
 		Archrelocvariant: archrelocvariant,
 		Asmb:             asmb,
+		Asmb2:            asmb2,
 		Elfreloc1:        elfreloc1,
 		Elfsetupplt:      elfsetupplt,
 		Gentext:          gentext,
@@ -110,18 +108,6 @@ func archinit(ctxt *ld.Link) {
 		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 4096
-		}
-
-	case objabi.Hnacl:
-		ld.Elfinit(ctxt)
-		*ld.FlagW = true // disable dwarf, which gets confused and is useless anyway
-		ld.HEADR = 0x10000
-		ld.Funcalign = 32
-		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = 0x20000
-		}
-		if *ld.FlagRound == -1 {
-			*ld.FlagRound = 0x10000
 		}
 
 	case objabi.Hwindows: /* PE executable */

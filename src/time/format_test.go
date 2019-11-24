@@ -710,3 +710,49 @@ func TestUnderscoreTwoThousand(t *testing.T) {
 		t.Errorf("Incorrect minute, got %d", m)
 	}
 }
+
+// Issue 29918, 29916
+func TestStd0xParseError(t *testing.T) {
+	tests := []struct {
+		format, value, valueElemPrefix string
+	}{
+		{"01 MST", "0 MST", "0"},
+		{"01 MST", "1 MST", "1"},
+		{RFC850, "Thursday, 04-Feb-1 21:00:57 PST", "1"},
+	}
+	for _, tt := range tests {
+		_, err := Parse(tt.format, tt.value)
+		if err == nil {
+			t.Errorf("Parse(%q, %q) did not fail as expected", tt.format, tt.value)
+		} else if perr, ok := err.(*ParseError); !ok {
+			t.Errorf("Parse(%q, %q) returned error type %T, expected ParseError", tt.format, tt.value, perr)
+		} else if !strings.Contains(perr.Error(), "cannot parse") || !strings.HasPrefix(perr.ValueElem, tt.valueElemPrefix) {
+			t.Errorf("Parse(%q, %q) returned wrong parsing error message: %v", tt.format, tt.value, perr)
+		}
+	}
+}
+
+var monthOutOfRangeTests = []struct {
+	value string
+	ok    bool
+}{
+	{"00-01", false},
+	{"13-01", false},
+	{"01-01", true},
+}
+
+func TestParseMonthOutOfRange(t *testing.T) {
+	for _, test := range monthOutOfRangeTests {
+		_, err := Parse("01-02", test.value)
+		switch {
+		case !test.ok && err != nil:
+			if !strings.Contains(err.Error(), "month out of range") {
+				t.Errorf("%q: expected 'month' error, got %v", test.value, err)
+			}
+		case test.ok && err != nil:
+			t.Errorf("%q: unexpected error: %v", test.value, err)
+		case !test.ok && err == nil:
+			t.Errorf("%q: expected 'month' error, got none", test.value)
+		}
+	}
+}

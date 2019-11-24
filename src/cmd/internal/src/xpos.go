@@ -35,6 +35,11 @@ func (p XPos) SameFile(q XPos) bool {
 	return p.index == q.index
 }
 
+// SameFileAndLine reports whether p and q are positions on the same line in the same file.
+func (p XPos) SameFileAndLine(q XPos) bool {
+	return p.index == q.index && p.lico.SameLine(q.lico)
+}
+
 // After reports whether the position p comes after q in the source.
 // For positions with different bases, ordering is by base index.
 func (p XPos) After(q XPos) bool {
@@ -66,6 +71,10 @@ func (p XPos) WithIsStmt() XPos {
 // gdb chooses not to display the bogus line; delve shows it with a complaint, but the
 // alternative behavior is to hang.
 func (p XPos) WithBogusLine() XPos {
+	if p.index == 0 {
+		// See #35652
+		panic("Assigning a bogus line to XPos with no file will cause mysterious downstream failures.")
+	}
 	p.lico = makeBogusLico()
 	return p
 }
@@ -76,11 +85,19 @@ func (p XPos) WithXlogue(x PosXlogue) XPos {
 	return p
 }
 
+// LineNumber returns a string for the line number, "?" if it is not known.
 func (p XPos) LineNumber() string {
 	if !p.IsKnown() {
 		return "?"
 	}
 	return p.lico.lineNumber()
+}
+
+// FileIndex returns a smallish non-negative integer corresponding to the
+// file for this source position.  Smallish is relative; it can be thousands
+// large, but not millions.
+func (p XPos) FileIndex() int32 {
+	return p.index
 }
 
 func (p XPos) LineNumberHTML() string {
@@ -101,6 +118,7 @@ func (p XPos) AtColumn1() XPos {
 type PosTable struct {
 	baseList []*PosBase
 	indexMap map[*PosBase]int
+	nameMap  map[string]int // Maps file symbol name to index for debug information.
 }
 
 // XPos returns the corresponding XPos for the given pos,
@@ -113,12 +131,16 @@ func (t *PosTable) XPos(pos Pos) XPos {
 		t.baseList = append(t.baseList, nil)
 		m = map[*PosBase]int{nil: 0}
 		t.indexMap = m
+		t.nameMap = make(map[string]int)
 	}
 	i, ok := m[pos.base]
 	if !ok {
 		i = len(t.baseList)
 		t.baseList = append(t.baseList, pos.base)
 		t.indexMap[pos.base] = i
+		if _, ok := t.nameMap[pos.base.symFilename]; !ok {
+			t.nameMap[pos.base.symFilename] = len(t.nameMap)
+		}
 	}
 	return XPos{int32(i), pos.lico}
 }
@@ -131,4 +153,24 @@ func (t *PosTable) Pos(p XPos) Pos {
 		base = t.baseList[p.index]
 	}
 	return Pos{base, p.lico}
+}
+
+// FileIndex returns the index of the given filename(symbol) in the PosTable, or -1 if not found.
+func (t *PosTable) FileIndex(filename string) int {
+	if v, ok := t.nameMap[filename]; ok {
+		return v
+	}
+	return -1
+}
+
+// DebugLinesFiles returns the file table for the debug_lines DWARF section.
+func (t *PosTable) DebugLinesFileTable() []string {
+	// Create a LUT of the global package level file indices. This table is what
+	// is written in the debug_lines header, the file[N] will be referenced as
+	// N+1 in the debug_lines table.
+	fileLUT := make([]string, len(t.nameMap))
+	for str, i := range t.nameMap {
+		fileLUT[i] = str
+	}
+	return fileLUT
 }

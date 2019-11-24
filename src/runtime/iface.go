@@ -66,6 +66,12 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.mhdr)-1)*sys.PtrSize, 0, &memstats.other_sys))
 	m.inter = inter
 	m._type = typ
+	// The hash is used in type switches. However, compiler statically generates itab's
+	// for all interface/type pairs used in switches (which are added to itabTable
+	// in itabsinit). The dynamically-generated itab's never participate in type switches,
+	// and thus the hash is irrelevant.
+	// Note: m.hash is _not_ the hash used for the runtime itabTable hash table.
+	m.hash = 0
 	m.init()
 	itabAdd(m)
 	unlock(&itabLock)
@@ -195,6 +201,8 @@ func (m *itab) init() string {
 	nt := int(x.mcount)
 	xmhdr := (*[1 << 16]method)(add(unsafe.Pointer(x), uintptr(x.moff)))[:nt:nt]
 	j := 0
+	methods := (*[1 << 16]unsafe.Pointer)(unsafe.Pointer(&m.fun[0]))[:ni:ni]
+	var fun0 unsafe.Pointer
 imethods:
 	for k := 0; k < ni; k++ {
 		i := &inter.mhdr[k]
@@ -216,7 +224,11 @@ imethods:
 				if tname.isExported() || pkgPath == ipkg {
 					if m != nil {
 						ifn := typ.textOff(t.ifn)
-						*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*sys.PtrSize)) = ifn
+						if k == 0 {
+							fun0 = ifn // we'll set m.fun[0] at the end
+						} else {
+							methods[k] = ifn
+						}
 					}
 					continue imethods
 				}
@@ -226,7 +238,7 @@ imethods:
 		m.fun[0] = 0
 		return iname
 	}
-	m.hash = typ.hash
+	m.fun[0] = uintptr(fun0)
 	return ""
 }
 
@@ -288,11 +300,11 @@ var (
 	stringEface interface{} = stringInterfacePtr("")
 	sliceEface  interface{} = sliceInterfacePtr(nil)
 
-	uint16Type *_type = (*eface)(unsafe.Pointer(&uint16Eface))._type
-	uint32Type *_type = (*eface)(unsafe.Pointer(&uint32Eface))._type
-	uint64Type *_type = (*eface)(unsafe.Pointer(&uint64Eface))._type
-	stringType *_type = (*eface)(unsafe.Pointer(&stringEface))._type
-	sliceType  *_type = (*eface)(unsafe.Pointer(&sliceEface))._type
+	uint16Type *_type = efaceOf(&uint16Eface)._type
+	uint32Type *_type = efaceOf(&uint32Eface)._type
+	uint64Type *_type = efaceOf(&uint64Eface)._type
+	stringType *_type = efaceOf(&stringEface)._type
+	sliceType  *_type = efaceOf(&sliceEface)._type
 )
 
 // The conv and assert functions below do very similar things.

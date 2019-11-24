@@ -154,14 +154,17 @@ func yyerrorl(pos src.XPos, format string, args ...interface{}) {
 	}
 }
 
+func yyerrorv(lang string, format string, args ...interface{}) {
+	what := fmt.Sprintf(format, args...)
+	yyerrorl(lineno, "%s requires %s or later (-lang was set to %s; check go.mod)", what, lang, flag_lang)
+}
+
 func yyerror(format string, args ...interface{}) {
 	yyerrorl(lineno, format, args...)
 }
 
 func Warn(fmt_ string, args ...interface{}) {
-	adderr(lineno, fmt_, args...)
-
-	hcrash()
+	Warnl(lineno, fmt_, args...)
 }
 
 func Warnl(line src.XPos, fmt_ string, args ...interface{}) {
@@ -196,30 +199,37 @@ func Fatalf(fmt_ string, args ...interface{}) {
 	errorexit()
 }
 
-func setlineno(n *Node) src.XPos {
-	lno := lineno
-	if n != nil {
-		switch n.Op {
-		case ONAME, OPACK:
-			break
-
-		case OLITERAL, OTYPE:
-			if n.Sym != nil {
-				break
-			}
-			fallthrough
-
-		default:
-			lineno = n.Pos
-			if !lineno.IsKnown() {
-				if Debug['K'] != 0 {
-					Warn("setlineno: unknown position (line 0)")
-				}
-				lineno = lno
-			}
+// hasUniquePos reports whether n has a unique position that can be
+// used for reporting error messages.
+//
+// It's primarily used to distinguish references to named objects,
+// whose Pos will point back to their declaration position rather than
+// their usage position.
+func hasUniquePos(n *Node) bool {
+	switch n.Op {
+	case ONAME, OPACK:
+		return false
+	case OLITERAL, OTYPE:
+		if n.Sym != nil {
+			return false
 		}
 	}
 
+	if !n.Pos.IsKnown() {
+		if Debug['K'] != 0 {
+			Warn("setlineno: unknown position (line 0)")
+		}
+		return false
+	}
+
+	return true
+}
+
+func setlineno(n *Node) src.XPos {
+	lno := lineno
+	if n != nil && hasUniquePos(n) {
+		lineno = n.Pos
+	}
 	return lno
 }
 
@@ -306,20 +316,20 @@ func nodl(pos src.XPos, op Op, nleft, nright *Node) *Node {
 	switch op {
 	case OCLOSURE, ODCLFUNC:
 		var x struct {
-			Node
-			Func
+			n Node
+			f Func
 		}
-		n = &x.Node
-		n.Func = &x.Func
+		n = &x.n
+		n.Func = &x.f
 	case ONAME:
 		Fatalf("use newname instead")
 	case OLABEL, OPACK:
 		var x struct {
-			Node
-			Name
+			n Node
+			m Name
 		}
-		n = &x.Node
-		n.Name = &x.Name
+		n = &x.n
+		n.Name = &x.m
 	default:
 		n = new(Node)
 	}
@@ -347,20 +357,19 @@ func newnamel(pos src.XPos, s *types.Sym) *Node {
 	}
 
 	var x struct {
-		Node
-		Name
-		Param
+		n Node
+		m Name
+		p Param
 	}
-	n := &x.Node
-	n.Name = &x.Name
-	n.Name.Param = &x.Param
+	n := &x.n
+	n.Name = &x.m
+	n.Name.Param = &x.p
 
 	n.Op = ONAME
 	n.Pos = pos
 	n.Orig = n
 
 	n.Sym = s
-	n.SetAddable(true)
 	return n
 }
 
@@ -416,12 +425,6 @@ func nodintconst(v int64) *Node {
 	return nodlit(Val{u})
 }
 
-func nodfltconst(v *Mpflt) *Node {
-	u := newMpflt()
-	u.Set(v)
-	return nodlit(Val{u})
-}
-
 func nodnil() *Node {
 	return nodlit(Val{new(NilVal)})
 }
@@ -435,10 +438,9 @@ func nodstr(s string) *Node {
 }
 
 // treecopy recursively copies n, with the exception of
-// ONAME, OLITERAL, OTYPE, and non-iota ONONAME leaves.
-// Copies of iota ONONAME nodes are assigned the current
-// value of iota_. If pos.IsKnown(), it sets the source
-// position of newly allocated nodes to pos.
+// ONAME, OLITERAL, OTYPE, and ONONAME leaves.
+// If pos.IsKnown(), it sets the source position of newly
+// allocated nodes to pos.
 func treecopy(n *Node, pos src.XPos) *Node {
 	if n == nil {
 		return nil
@@ -800,11 +802,10 @@ func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
 		yyerror("use of untyped nil")
 	}
 
-	old := n
-	od := old.Diag()
-	old.SetDiag(true) // silence errors about n; we'll issue one below
-	n = defaultlit(n, t)
-	old.SetDiag(od)
+	n = convlit1(n, t, false, context)
+	if n.Type == nil {
+		return n
+	}
 	if t.Etype == TBLANK {
 		return n
 	}
@@ -828,9 +829,7 @@ func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
 	var why string
 	op := assignop(n.Type, t, &why)
 	if op == 0 {
-		if !old.Diag() {
-			yyerror("cannot use %L as type %v in %s%s", n, t, context(), why)
-		}
+		yyerror("cannot use %L as type %v in %s%s", n, t, context(), why)
 		op = OCONV
 	}
 
@@ -1189,7 +1188,12 @@ func lookdot0(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) 
 		}
 	}
 
-	u = methtype(t)
+	u = t
+	if t.Sym != nil && t.IsPtr() && !t.Elem().IsPtr() {
+		// If t is a defined pointer type, then x.m is shorthand for (*x).m.
+		u = t.Elem()
+	}
+	u = methtype(u)
 	if u != nil {
 		for _, f := range u.Methods().Slice() {
 			if f.Embedded == 0 && (f.Sym == s || (ignorecase && strings.EqualFold(f.Sym.Name, s.Name))) {
@@ -1288,7 +1292,7 @@ func dotpath(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool) (
 // will give shortest unique addressing.
 // modify the tree with missing type names.
 func adddot(n *Node) *Node {
-	n.Left = typecheck(n.Left, Etype|ctxExpr)
+	n.Left = typecheck(n.Left, ctxType|ctxExpr)
 	if n.Left.Diag() {
 		n.SetDiag(true)
 	}
@@ -1581,7 +1585,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
 	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type && rcvr.Elem().Sym != nil {
 		inlcalls(fn)
 	}
-	escAnalyze([]*Node{fn}, false)
+	escapeFuncs([]*Node{fn}, false)
 
 	Curfn = nil
 	funccompile(fn)

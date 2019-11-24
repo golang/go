@@ -10,6 +10,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
@@ -321,9 +322,7 @@ func macholoadrel(m *ldMachoObj, sect *ldMachoSect) int {
 	rel := make([]ldMachoRel, sect.nreloc)
 	n := int(sect.nreloc * 8)
 	buf := make([]byte, n)
-	if m.f.Seek(m.base+int64(sect.reloff), 0) < 0 {
-		return -1
-	}
+	m.f.MustSeek(m.base+int64(sect.reloff), 0)
 	if _, err := io.ReadFull(m.f, buf); err != nil {
 		return -1
 	}
@@ -367,9 +366,7 @@ func macholoaddsym(m *ldMachoObj, d *ldMachoDysymtab) int {
 	n := int(d.nindirectsyms)
 
 	p := make([]byte, n*4)
-	if m.f.Seek(m.base+int64(d.indirectsymoff), 0) < 0 {
-		return -1
-	}
+	m.f.MustSeek(m.base+int64(d.indirectsymoff), 0)
 	if _, err := io.ReadFull(m.f, p); err != nil {
 		return -1
 	}
@@ -387,9 +384,7 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
 	}
 
 	strbuf := make([]byte, symtab.strsize)
-	if m.f.Seek(m.base+int64(symtab.stroff), 0) < 0 {
-		return -1
-	}
+	m.f.MustSeek(m.base+int64(symtab.stroff), 0)
 	if _, err := io.ReadFull(m.f, strbuf); err != nil {
 		return -1
 	}
@@ -400,9 +395,7 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
 	}
 	n := int(symtab.nsym * uint32(symsize))
 	symbuf := make([]byte, n)
-	if m.f.Seek(m.base+int64(symtab.symoff), 0) < 0 {
-		return -1
-	}
+	m.f.MustSeek(m.base+int64(symtab.symoff), 0)
 	if _, err := io.ReadFull(m.f, symbuf); err != nil {
 		return -1
 	}
@@ -431,14 +424,24 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
 	return 0
 }
 
-// Load loads the Mach-O file pn from f.
+func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) ([]*sym.Symbol, error) {
+	newSym := func(name string, version int) *sym.Symbol {
+		return l.LookupOrCreate(name, version, syms)
+	}
+	return load(arch, syms.IncVersion(), newSym, f, pkg, length, pn)
+}
+
+func LoadOld(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
+	return load(arch, syms.IncVersion(), syms.Lookup, f, pkg, length, pn)
+}
+
+// load the Mach-O file pn from f.
 // Symbols are written into syms, and a slice of the text symbols is returned.
-func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
+func load(arch *sys.Arch, localSymVersion int, lookup func(string, int) *sym.Symbol, f *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
 	errorf := func(str string, args ...interface{}) ([]*sym.Symbol, error) {
 		return nil, fmt.Errorf("loadmacho: %v: %v", pn, fmt.Sprintf(str, args...))
 	}
 
-	localSymVersion := syms.IncVersion()
 	base := f.Offset()
 
 	var hdr [7 * 4]uint8
@@ -463,7 +466,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 	}
 
 	if is64 {
-		f.Seek(4, 1) // skip reserved word in header
+		f.MustSeek(4, 1) // skip reserved word in header
 	}
 
 	m := &ldMachoObj{
@@ -555,9 +558,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 		return errorf("load segment out of range")
 	}
 
-	if f.Seek(m.base+int64(c.seg.fileoff), 0) < 0 {
-		return errorf("cannot load object data: seek failed")
-	}
+	f.MustSeek(m.base+int64(c.seg.fileoff), 0)
 	dat := make([]byte, c.seg.filesz)
 	if _, err := io.ReadFull(f, dat); err != nil {
 		return errorf("cannot load object data: %v", err)
@@ -572,7 +573,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 			continue
 		}
 		name := fmt.Sprintf("%s(%s/%s)", pkg, sect.segname, sect.name)
-		s := syms.Lookup(name, localSymVersion)
+		s := lookup(name, localSymVersion)
 		if s.Type != 0 {
 			return errorf("duplicate %s/%s", sect.segname, sect.name)
 		}
@@ -620,7 +621,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 		if machsym.type_&N_EXT == 0 {
 			v = localSymVersion
 		}
-		s := syms.Lookup(name, v)
+		s := lookup(name, v)
 		if machsym.type_&N_EXT == 0 {
 			s.Attr |= sym.AttrDuplicateOK
 		}
@@ -771,7 +772,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 							// handle reference to __IMPORT/__pointers.
 							// how much worse can this get?
 							// why are we supporting 386 on the mac anyway?
-							rp.Type = 512 + MACHO_FAKE_GOTPCREL
+							rp.Type = objabi.MachoRelocOffset + MACHO_FAKE_GOTPCREL
 
 							// figure out which pointer this is a reference to.
 							k = int(uint64(ks.res1) + (uint64(rel.value)-ks.addr)/4)
@@ -805,7 +806,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 			}
 
 			rp.Siz = rel.length
-			rp.Type = 512 + (objabi.RelocType(rel.type_) << 1) + objabi.RelocType(rel.pcrel)
+			rp.Type = objabi.MachoRelocOffset + (objabi.RelocType(rel.type_) << 1) + objabi.RelocType(rel.pcrel)
 			rp.Off = int32(rel.addr)
 
 			// Handle X86_64_RELOC_SIGNED referencing a section (rel->extrn == 0).

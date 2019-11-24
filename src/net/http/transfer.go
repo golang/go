@@ -7,6 +7,7 @@ package http
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
@@ -466,6 +467,34 @@ func suppressedHeaders(status int) []string {
 	return nil
 }
 
+// proxyingReadCloser is a composite type that accepts and proxies
+// io.Read and io.Close calls to its respective Reader and Closer.
+//
+// It is composed of:
+// a) a top-level reader e.g. the result of decompression
+// b) a symbolic Closer e.g. the result of decompression, the
+//    original body and the connection itself.
+type proxyingReadCloser struct {
+	io.Reader
+	io.Closer
+}
+
+// multiCloser implements io.Closer and allows a bunch of io.Closer values
+// to all be closed once.
+// Example usage is with proxyingReadCloser if we are decompressing a response
+// body on the fly and would like to close both *gzip.Reader and underlying body.
+type multiCloser []io.Closer
+
+func (mc multiCloser) Close() error {
+	var err error
+	for _, c := range mc {
+		if err1 := c.Close(); err1 != nil && err == nil {
+			err = err1
+		}
+	}
+	return err
+}
+
 // msg is *Request or *Response.
 func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 	t := &transferReader{RequestMethod: "GET"}
@@ -543,7 +572,7 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 	// Prepare body reader. ContentLength < 0 means chunked encoding
 	// or close connection when finished, since multipart is not supported yet
 	switch {
-	case chunked(t.TransferEncoding):
+	case chunked(t.TransferEncoding) || implicitlyChunked(t.TransferEncoding):
 		if noResponseBodyExpected(t.RequestMethod) || !bodyAllowedForStatus(t.StatusCode) {
 			t.Body = NoBody
 		} else {
@@ -561,6 +590,21 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 		} else {
 			// Persistent connection (i.e. HTTP/1.1)
 			t.Body = NoBody
+		}
+	}
+
+	// Finally if "gzip" was one of the requested transfer-encodings,
+	// we'll unzip the concatenated body/payload of the request.
+	// TODO: As we support more transfer-encodings, extract
+	// this code and apply the un-codings in reverse.
+	if t.Body != NoBody && gzipped(t.TransferEncoding) {
+		zr, err := gzip.NewReader(t.Body)
+		if err != nil {
+			return fmt.Errorf("http: failed to gunzip body: %v", err)
+		}
+		t.Body = &proxyingReadCloser{
+			Reader: zr,
+			Closer: multiCloser{zr, t.Body},
 		}
 	}
 
@@ -583,11 +627,60 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err error) {
 	return nil
 }
 
-// Checks whether chunked is part of the encodings stack
-func chunked(te []string) bool { return len(te) > 0 && te[0] == "chunked" }
+// Checks whether chunked is the last part of the encodings stack
+func chunked(te []string) bool { return len(te) > 0 && te[len(te)-1] == "chunked" }
+
+// implicitlyChunked is a helper to check for implicity of chunked, because
+// RFC 7230 Section 3.3.1 says that the sender MUST apply chunked as the final
+// payload body to ensure that the message is framed for both the request
+// and the body. Since "identity" is incompatible with any other transformational
+// encoding cannot co-exist, the presence of "identity" will cause implicitlyChunked
+// to return false.
+func implicitlyChunked(te []string) bool {
+	if len(te) == 0 { // No transfer-encodings passed in, so not implicitly chunked.
+		return false
+	}
+	for _, tei := range te {
+		if tei == "identity" {
+			return false
+		}
+	}
+	return true
+}
+
+func isGzipTransferEncoding(tei string) bool {
+	// RFC 7230 4.2.3 requests that "x-gzip" SHOULD be considered the same as "gzip".
+	return tei == "gzip" || tei == "x-gzip"
+}
+
+// Checks where either of "gzip" or "x-gzip" are contained in transfer encodings.
+func gzipped(te []string) bool {
+	for _, tei := range te {
+		if isGzipTransferEncoding(tei) {
+			return true
+		}
+	}
+	return false
+}
 
 // Checks whether the encoding is explicitly "identity".
 func isIdentity(te []string) bool { return len(te) == 1 && te[0] == "identity" }
+
+// unsupportedTEError reports unsupported transfer-encodings.
+type unsupportedTEError struct {
+	err string
+}
+
+func (uste *unsupportedTEError) Error() string {
+	return uste.err
+}
+
+// isUnsupportedTEError checks if the error is of type
+// unsupportedTEError. It is usually invoked with a non-nil err.
+func isUnsupportedTEError(err error) bool {
+	_, ok := err.(*unsupportedTEError)
+	return ok
+}
 
 // fixTransferEncoding sanitizes t.TransferEncoding, if needed.
 func (t *transferReader) fixTransferEncoding() error {
@@ -604,25 +697,47 @@ func (t *transferReader) fixTransferEncoding() error {
 
 	encodings := strings.Split(raw[0], ",")
 	te := make([]string, 0, len(encodings))
-	// TODO: Even though we only support "identity" and "chunked"
-	// encodings, the loop below is designed with foresight. One
-	// invariant that must be maintained is that, if present,
-	// chunked encoding must always come first.
-	for _, encoding := range encodings {
+
+	// When adding new encodings, please maintain the invariant:
+	//   if chunked encoding is present, it must always
+	//   come last and it must be applied only once.
+	// See RFC 7230 Section 3.3.1 Transfer-Encoding.
+	for i, encoding := range encodings {
 		encoding = strings.ToLower(strings.TrimSpace(encoding))
-		// "identity" encoding is not recorded
+
 		if encoding == "identity" {
+			// "identity" should not be mixed with other transfer-encodings/compressions
+			// because it means "no compression, no transformation".
+			if len(encodings) != 1 {
+				return &badStringError{`"identity" when present must be the only transfer encoding`, strings.Join(encodings, ",")}
+			}
+			// "identity" is not recorded.
 			break
 		}
-		if encoding != "chunked" {
-			return &badStringError{"unsupported transfer encoding", encoding}
+
+		switch {
+		case encoding == "chunked":
+			// "chunked" MUST ALWAYS be the last
+			// encoding as per the  loop invariant.
+			// That is:
+			//     Invalid: [chunked, gzip]
+			//     Valid:   [gzip, chunked]
+			if i+1 != len(encodings) {
+				return &badStringError{"chunked must be applied only once, as the last encoding", strings.Join(encodings, ",")}
+			}
+			// Supported otherwise.
+
+		case isGzipTransferEncoding(encoding):
+			// Supported
+
+		default:
+			return &unsupportedTEError{fmt.Sprintf("unsupported transfer encoding: %q", encoding)}
 		}
+
 		te = te[0 : len(te)+1]
 		te[len(te)-1] = encoding
 	}
-	if len(te) > 1 {
-		return &badStringError{"too many transfer encodings", strings.Join(te, ",")}
-	}
+
 	if len(te) > 0 {
 		// RFC 7230 3.3.2 says "A sender MUST NOT send a
 		// Content-Length header field in any message that

@@ -39,7 +39,7 @@ garbage collection, or at least some sort of safe automatic memory management wa
 
 <p>
 These considerations led to
-<a href="https://commandcenter.blogspot.com/2017/09/go-ten-years-and-climbing.html">a 
+<a href="https://commandcenter.blogspot.com/2017/09/go-ten-years-and-climbing.html">a
 series of discussions</a> from which Go arose, first as a set of ideas and
 desiderata, then as a language.
 An overarching goal was that Go do more to help the working programmer
@@ -1282,7 +1282,7 @@ Why does "go get" use HTTPS when cloning a repository?</h3>
 
 <p>
 Companies often permit outgoing traffic only on the standard TCP ports 80 (HTTP)
-and 443 (HTTPS), blocking outgoing traffic on other ports, including TCP port 9418 
+and 443 (HTTPS), blocking outgoing traffic on other ports, including TCP port 9418
 (git) and TCP port 22 (SSH).
 When using HTTPS instead of HTTP, <code>git</code> enforces certificate validation by
 default, providing protection against man-in-the-middle, eavesdropping and tampering attacks.
@@ -2082,8 +2082,8 @@ At the beginning of the project we considered using LLVM for
 our performance goals.
 More important in retrospect, starting with LLVM would have made it
 harder to introduce some of the ABI and related changes, such as
-stack management, that Go requires but not are not part of the
-standard C setup.
+stack management, that Go requires but are not part of the standard
+C setup.
 A new <a href="https://go.googlesource.com/gollvm/">LLVM implementation</a>
 is starting to come together now, however.
 </p>

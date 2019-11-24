@@ -385,7 +385,7 @@ func invokeDot(format string) PostProcessor {
 		cmd := exec.Command("dot", "-T"+format)
 		cmd.Stdin, cmd.Stdout, cmd.Stderr = input, output, os.Stderr
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("Failed to execute dot. Is Graphviz installed? Error: %v", err)
+			return fmt.Errorf("failed to execute dot. Is Graphviz installed? Error: %v", err)
 		}
 		return nil
 	}

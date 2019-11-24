@@ -274,24 +274,19 @@ func extractPadding(payload []byte) (toRemove int, good byte) {
 	good &= good << 1
 	good = uint8(int8(good) >> 7)
 
+	// Zero the padding length on error. This ensures any unchecked bytes
+	// are included in the MAC. Otherwise, an attacker that could
+	// distinguish MAC failures from padding failures could mount an attack
+	// similar to POODLE in SSL 3.0: given a good ciphertext that uses a
+	// full block's worth of padding, replace the final block with another
+	// block. If the MAC check passed but the padding check failed, the
+	// last byte of that block decrypted to the block size.
+	//
+	// See also macAndPaddingGood logic below.
+	paddingLen &= good
+
 	toRemove = int(paddingLen) + 1
 	return
-}
-
-// extractPaddingSSL30 is a replacement for extractPadding in the case that the
-// protocol version is SSLv3. In this version, the contents of the padding
-// are random and cannot be checked.
-func extractPaddingSSL30(payload []byte) (toRemove int, good byte) {
-	if len(payload) < 1 {
-		return 0, 0
-	}
-
-	paddingLen := int(payload[len(payload)-1]) + 1
-	if paddingLen > len(payload) {
-		return 0, 0
-	}
-
-	return paddingLen, 255
 }
 
 func roundUp(a, b int) int {
@@ -371,11 +366,7 @@ func (hc *halfConn) decrypt(record []byte) ([]byte, recordType, error) {
 			// computing the digest. This makes the MAC roughly constant time as
 			// long as the digest computation is constant time and does not
 			// affect the subsequent write, modulo cache effects.
-			if hc.version == VersionSSL30 {
-				paddingLen, paddingGood = extractPaddingSSL30(payload)
-			} else {
-				paddingLen, paddingGood = extractPadding(payload)
-			}
+			paddingLen, paddingGood = extractPadding(payload)
 		default:
 			panic("unknown cipher type")
 		}
@@ -416,7 +407,15 @@ func (hc *halfConn) decrypt(record []byte) ([]byte, recordType, error) {
 		remoteMAC := payload[n : n+macSize]
 		localMAC := hc.mac.MAC(hc.seq[0:], record[:recordHeaderLen], payload[:n], payload[n+macSize:])
 
-		if subtle.ConstantTimeCompare(localMAC, remoteMAC) != 1 || paddingGood != 255 {
+		// This is equivalent to checking the MACs and paddingGood
+		// separately, but in constant-time to prevent distinguishing
+		// padding failures from MAC failures. Depending on what value
+		// of paddingLen was returned on bad padding, distinguishing
+		// bad MAC from bad padding can lead to an attack.
+		//
+		// See also the logic at the end of extractPadding.
+		macAndPaddingGood := subtle.ConstantTimeCompare(localMAC, remoteMAC) & int(paddingGood)
+		if macAndPaddingGood != 1 {
 			return nil, 0, alertBadRecordMAC
 		}
 
@@ -1028,8 +1027,6 @@ func (c *Conn) readHandshake() (interface{}, error) {
 		m = &certificateVerifyMsg{
 			hasSignatureAlgorithm: c.vers >= VersionTLS12,
 		}
-	case typeNextProtocol:
-		m = new(nextProtoMsg)
 	case typeFinished:
 		m = new(finishedMsg)
 	case typeEncryptedExtensions:
@@ -1067,10 +1064,10 @@ func (c *Conn) Write(b []byte) (int, error) {
 			return 0, errClosed
 		}
 		if atomic.CompareAndSwapInt32(&c.activeCall, x, x+2) {
-			defer atomic.AddInt32(&c.activeCall, -2)
 			break
 		}
 	}
+	defer atomic.AddInt32(&c.activeCall, -2)
 
 	if err := c.Handshake(); err != nil {
 		return 0, err
@@ -1091,7 +1088,7 @@ func (c *Conn) Write(b []byte) (int, error) {
 		return 0, errShutdown
 	}
 
-	// SSL 3.0 and TLS 1.0 are susceptible to a chosen-plaintext
+	// TLS 1.0 is susceptible to a chosen-plaintext
 	// attack when using block mode ciphers due to predictable IVs.
 	// This can be prevented by splitting each Application Data
 	// record into two records, effectively randomizing the IV.
@@ -1101,7 +1098,7 @@ func (c *Conn) Write(b []byte) (int, error) {
 	// https://www.imperialviolet.org/2012/01/15/beastfollowup.html
 
 	var m int
-	if len(b) > 1 && c.vers <= VersionTLS10 {
+	if len(b) > 1 && c.vers == VersionTLS10 {
 		if _, ok := c.out.cipher.(cipher.BlockMode); ok {
 			n, err := c.writeRecordLocked(recordTypeApplicationData, b[:1])
 			if err != nil {

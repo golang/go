@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !nacl
-
 package ssa
 
 import (
@@ -23,7 +21,7 @@ func TestSizeof(t *testing.T) {
 		_64bit uintptr     // size on 64bit platforms
 	}{
 		{Value{}, 72, 112},
-		{Block{}, 152, 288},
+		{Block{}, 164, 304},
 		{LocalSlot{}, 32, 48},
 		{valState{}, 28, 40},
 	}

@@ -8,8 +8,8 @@
 // packet routing facilities on BSD variants.
 //
 // The package supports any version of Darwin, any version of
-// DragonFly BSD, FreeBSD 7 through 11, NetBSD 6 and above, and
-// OpenBSD 5.6 and above.
+// DragonFly BSD, FreeBSD 7 and above, NetBSD 6 and above, and OpenBSD
+// 5.6 and above.
 package route
 
 import (
@@ -73,7 +73,7 @@ type RouteMessage struct {
 	Version int     // message version
 	Type    int     // message type
 	Flags   int     // route flags
-	Index   int     // interface index when atatched
+	Index   int     // interface index when attached
 	ID      uintptr // sender's identifier; usually process ID
 	Seq     int     // sequence number
 	Err     error   // error on requested operation

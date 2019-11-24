@@ -91,20 +91,26 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 // The caller is expected to have checked that len(p.TestGoFiles)+len(p.XTestGoFiles) > 0,
 // or else there's no point in any of this.
 func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *Package) {
+	pre := newPreload()
+	defer pre.flush()
+	allImports := append([]string{}, p.TestImports...)
+	allImports = append(allImports, p.XTestImports...)
+	pre.preloadImports(allImports, p.Internal.Build)
+
 	var ptestErr, pxtestErr *PackageError
 	var imports, ximports []*Package
 	var stk ImportStack
 	stk.Push(p.ImportPath + " (test)")
 	rawTestImports := str.StringList(p.TestImports)
 	for i, path := range p.TestImports {
-		p1 := LoadImport(path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
+		p1 := loadImport(pre, path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
 		if str.Contains(p1.Deps, p.ImportPath) || p1.ImportPath == p.ImportPath {
 			// Same error that loadPackage returns (via reusePackage) in pkg.go.
 			// Can't change that code, because that code is only for loading the
 			// non-test copy of a package.
 			ptestErr = &PackageError{
 				ImportStack:   testImportStack(stk[0], p1, p.ImportPath),
-				Err:           "import cycle not allowed in test",
+				Err:           errors.New("import cycle not allowed in test"),
 				IsImportCycle: true,
 			}
 		}
@@ -116,7 +122,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
 	pxtestNeedsPtest := false
 	rawXTestImports := str.StringList(p.XTestImports)
 	for i, path := range p.XTestImports {
-		p1 := LoadImport(path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], ResolveImport)
+		p1 := loadImport(pre, path, p.Dir, p, &stk, p.Internal.Build.XTestImportPos[path], ResolveImport)
 		if p1.ImportPath == p.ImportPath {
 			pxtestNeedsPtest = true
 		} else {
@@ -176,6 +182,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
 				ImportPath: p.ImportPath + "_test",
 				Root:       p.Root,
 				Dir:        p.Dir,
+				Goroot:     p.Goroot,
 				GoFiles:    p.XTestGoFiles,
 				Imports:    p.XTestImports,
 				ForTest:    p.ImportPath,
@@ -232,7 +239,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
 		if dep == ptest.ImportPath {
 			pmain.Internal.Imports = append(pmain.Internal.Imports, ptest)
 		} else {
-			p1 := LoadImport(dep, "", nil, &stk, nil, 0)
+			p1 := loadImport(pre, dep, "", nil, &stk, nil, 0)
 			pmain.Internal.Imports = append(pmain.Internal.Imports, p1)
 		}
 	}
@@ -264,7 +271,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
 	// afterward that gathers t.Cover information.
 	t, err := loadTestFuncs(ptest)
 	if err != nil && pmain.Error == nil {
-		pmain.Error = &PackageError{Err: err.Error()}
+		pmain.Error = &PackageError{Err: err}
 	}
 	t.Cover = cover
 	if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
@@ -315,7 +322,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
 
 	data, err := formatTestmain(t)
 	if err != nil && pmain.Error == nil {
-		pmain.Error = &PackageError{Err: err.Error()}
+		pmain.Error = &PackageError{Err: err}
 	}
 	if data != nil {
 		pmain.Internal.TestmainGo = &data
@@ -347,9 +354,10 @@ Search:
 // preal, packages that import the package under test should get ptest instead
 // of preal. This is particularly important if pxtest depends on functionality
 // exposed in test sources in ptest. Second, if there is a main package
-// (other than pmain) anywhere, we need to clear p.Internal.BuildInfo in
-// the test copy to prevent link conflicts. This may happen if both -coverpkg
-// and the command line patterns include multiple main packages.
+// (other than pmain) anywhere, we need to set p.Internal.ForceLibrary and
+// clear p.Internal.BuildInfo in the test copy to prevent link conflicts.
+// This may happen if both -coverpkg and the command line patterns include
+// multiple main packages.
 func recompileForTest(pmain, preal, ptest, pxtest *Package) {
 	// The "test copy" of preal is ptest.
 	// For each package that depends on preal, make a "test copy"
@@ -380,6 +388,7 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) {
 			p = p1
 			p.Target = ""
 			p.Internal.BuildInfo = ""
+			p.Internal.ForceLibrary = true
 		}
 
 		// Update p.Internal.Imports to use test copies.
@@ -390,10 +399,13 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) {
 			}
 		}
 
-		// Don't compile build info from a main package. This can happen
-		// if -coverpkg patterns include main packages, since those packages
-		// are imported by pmain. See golang.org/issue/30907.
-		if p.Internal.BuildInfo != "" && p != pmain {
+		// Force main packages the test imports to be built as libraries.
+		// Normal imports of main packages are forbidden by the package loader,
+		// but this can still happen if -coverpkg patterns include main packages:
+		// covered packages are imported by pmain. Linking multiple packages
+		// compiled with '-p main' causes duplicate symbol errors.
+		// See golang.org/issue/30907, golang.org/issue/34114.
+		if p.Name == "main" && p != pmain && p != ptest {
 			split()
 		}
 	}
@@ -595,6 +607,8 @@ func checkTestFunc(fn *ast.FuncDecl, arg string) error {
 }
 
 var testmainTmpl = lazytemplate.New("main", `
+// Code generated by 'go test'. DO NOT EDIT.
+
 package main
 
 import (

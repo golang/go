@@ -81,10 +81,10 @@ func TestImportStdLib(t *testing.T) {
 		t.Skip("no source code available")
 	}
 
-	dt := maxTime
 	if testing.Short() && testenv.Builder() == "" {
-		dt = 500 * time.Millisecond
+		t.Skip("skipping in -short mode")
 	}
+	dt := maxTime
 	nimports, _ := walkDir(t, "", time.Now().Add(dt)) // installed packages
 	t.Logf("tested %d imports", nimports)
 }

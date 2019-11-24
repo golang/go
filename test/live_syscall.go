@@ -15,7 +15,7 @@ import (
 	"unsafe"
 )
 
-func f(uintptr) // ERROR "f assuming arg#1 is unsafe uintptr"
+func f(uintptr) // ERROR "assuming arg#1 is unsafe uintptr"
 
 func g() { // ERROR "can inline g"
 	var t int

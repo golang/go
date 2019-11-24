@@ -60,6 +60,11 @@ func instrumentInit() {
 	mode := "race"
 	if cfg.BuildMSan {
 		mode = "msan"
+		// MSAN does not support non-PIE binaries on ARM64.
+		// See issue #33712 for details.
+		if cfg.Goos == "linux" && cfg.Goarch == "arm64" && cfg.BuildBuildmode == "default" {
+			cfg.BuildBuildmode = "pie"
+		}
 	}
 	modeFlag := "-" + mode
 
@@ -81,7 +86,11 @@ func instrumentInit() {
 func buildModeInit() {
 	gccgo := cfg.BuildToolchainName == "gccgo"
 	var codegenArg string
-	platform := cfg.Goos + "/" + cfg.Goarch
+
+	// Configure the build mode first, then verify that it is supported.
+	// That way, if the flag is completely bogus we will prefer to error out with
+	// "-buildmode=%s not supported" instead of naming the specific platform.
+
 	switch cfg.BuildBuildmode {
 	case "archive":
 		pkgsFilter = pkgsNotMain
@@ -90,20 +99,18 @@ func buildModeInit() {
 		if gccgo {
 			codegenArg = "-fPIC"
 		} else {
-			switch platform {
-			case "darwin/arm", "darwin/arm64":
-				codegenArg = "-shared"
-			default:
-				switch cfg.Goos {
-				case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
-					if platform == "linux/ppc64" {
-						base.Fatalf("-buildmode=c-archive not supported on %s\n", platform)
-					}
-					// Use -shared so that the result is
-					// suitable for inclusion in a PIE or
-					// shared library.
+			switch cfg.Goos {
+			case "darwin":
+				switch cfg.Goarch {
+				case "arm", "arm64":
 					codegenArg = "-shared"
 				}
+
+			case "dragonfly", "freebsd", "illumos", "linux", "netbsd", "openbsd", "solaris":
+				// Use -shared so that the result is
+				// suitable for inclusion in a PIE or
+				// shared library.
+				codegenArg = "-shared"
 			}
 		}
 		cfg.ExeSuffix = ".a"
@@ -113,27 +120,25 @@ func buildModeInit() {
 		if gccgo {
 			codegenArg = "-fPIC"
 		} else {
-			switch platform {
-			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/ppc64le", "linux/s390x",
-				"android/amd64", "android/arm", "android/arm64", "android/386",
-				"freebsd/amd64":
+			switch cfg.Goos {
+			case "linux", "android", "freebsd":
 				codegenArg = "-shared"
-			case "darwin/amd64", "darwin/386":
-			case "windows/amd64", "windows/386":
+			case "windows":
 				// Do not add usual .exe suffix to the .dll file.
 				cfg.ExeSuffix = ""
-			default:
-				base.Fatalf("-buildmode=c-shared not supported on %s\n", platform)
 			}
 		}
 		ldBuildmode = "c-shared"
 	case "default":
-		switch platform {
-		case "android/arm", "android/arm64", "android/amd64", "android/386":
+		switch cfg.Goos {
+		case "android":
 			codegenArg = "-shared"
 			ldBuildmode = "pie"
-		case "darwin/arm", "darwin/arm64":
-			codegenArg = "-shared"
+		case "darwin":
+			switch cfg.Goarch {
+			case "arm", "arm64":
+				codegenArg = "-shared"
+			}
 			fallthrough
 		default:
 			ldBuildmode = "exe"
@@ -156,18 +161,8 @@ func buildModeInit() {
 		}
 		if gccgo {
 			codegenArg = "-fPIE"
-		} else {
-			switch platform {
-			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
-				"android/amd64", "android/arm", "android/arm64", "android/386",
-				"freebsd/amd64":
-				codegenArg = "-shared"
-			case "darwin/amd64":
-				codegenArg = "-shared"
-			case "aix/ppc64":
-			default:
-				base.Fatalf("-buildmode=pie not supported on %s\n", platform)
-			}
+		} else if cfg.Goos != "aix" {
+			codegenArg = "-shared"
 		}
 		ldBuildmode = "pie"
 	case "shared":
@@ -175,11 +170,6 @@ func buildModeInit() {
 		if gccgo {
 			codegenArg = "-fPIC"
 		} else {
-			switch platform {
-			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x":
-			default:
-				base.Fatalf("-buildmode=shared not supported on %s\n", platform)
-			}
 			codegenArg = "-dynlink"
 		}
 		if cfg.BuildO != "" {
@@ -191,15 +181,6 @@ func buildModeInit() {
 		if gccgo {
 			codegenArg = "-fPIC"
 		} else {
-			switch platform {
-			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/s390x", "linux/ppc64le",
-				"android/amd64", "android/arm", "android/arm64", "android/386":
-			case "darwin/amd64":
-				// Skip DWARF generation due to #21647
-				forcedLdflags = append(forcedLdflags, "-w")
-			default:
-				base.Fatalf("-buildmode=plugin not supported on %s\n", platform)
-			}
 			codegenArg = "-dynlink"
 		}
 		cfg.ExeSuffix = ".so"
@@ -207,17 +188,21 @@ func buildModeInit() {
 	default:
 		base.Fatalf("buildmode=%s not supported", cfg.BuildBuildmode)
 	}
+
+	if !sys.BuildModeSupported(cfg.BuildToolchainName, cfg.BuildBuildmode, cfg.Goos, cfg.Goarch) {
+		base.Fatalf("-buildmode=%s not supported on %s/%s\n", cfg.BuildBuildmode, cfg.Goos, cfg.Goarch)
+	}
+
 	if cfg.BuildLinkshared {
+		if !sys.BuildModeSupported(cfg.BuildToolchainName, "shared", cfg.Goos, cfg.Goarch) {
+			base.Fatalf("-linkshared not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
+		}
 		if gccgo {
 			codegenArg = "-fPIC"
 		} else {
-			switch platform {
-			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x":
-				forcedAsmflags = append(forcedAsmflags, "-D=GOBUILDMODE_shared=1")
-			default:
-				base.Fatalf("-linkshared not supported on %s\n", platform)
-			}
+			forcedAsmflags = append(forcedAsmflags, "-D=GOBUILDMODE_shared=1")
 			codegenArg = "-dynlink"
+			forcedGcflags = append(forcedGcflags, "-linkshared")
 			// TODO(mwhudson): remove -w when that gets fixed in linker.
 			forcedLdflags = append(forcedLdflags, "-linkshared", "-w")
 		}
@@ -241,12 +226,20 @@ func buildModeInit() {
 	switch cfg.BuildMod {
 	case "":
 		// ok
-	case "readonly", "vendor":
-		if load.ModLookup == nil && !inGOFLAGS("-mod") {
+	case "readonly", "vendor", "mod":
+		if !cfg.ModulesEnabled && !inGOFLAGS("-mod") {
 			base.Fatalf("build flag -mod=%s only valid when using modules", cfg.BuildMod)
 		}
 	default:
-		base.Fatalf("-mod=%s not supported (can be '', 'readonly', or 'vendor')", cfg.BuildMod)
+		base.Fatalf("-mod=%s not supported (can be '', 'mod', 'readonly', or 'vendor')", cfg.BuildMod)
+	}
+	if !cfg.ModulesEnabled {
+		if cfg.ModCacheRW && !inGOFLAGS("-modcacherw") {
+			base.Fatalf("build flag -modcacherw only valid when using modules")
+		}
+		if cfg.ModFile != "" && !inGOFLAGS("-mod") {
+			base.Fatalf("build flag -modfile only valid when using modules")
+		}
 	}
 }
 

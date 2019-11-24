@@ -120,13 +120,13 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 
 	switch r.Type {
 	default:
-		if r.Type >= 256 {
+		if r.Type >= objabi.ElfRelocOffset {
 			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type))
 			return false
 		}
 
 		// Handle relocations found in ELF object files.
-	case 256 + objabi.RelocType(elf.R_ARM_PLT32):
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_PLT32):
 		r.Type = objabi.R_CALLARM
 
 		if targ.Type == sym.SDYNIMPORT {
@@ -137,11 +137,11 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 
 		return true
 
-	case 256 + objabi.RelocType(elf.R_ARM_THM_PC22): // R_ARM_THM_CALL
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_THM_PC22): // R_ARM_THM_CALL
 		ld.Exitf("R_ARM_THM_CALL, are you using -marm?")
 		return false
 
-	case 256 + objabi.RelocType(elf.R_ARM_GOT32): // R_ARM_GOT_BREL
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_GOT32): // R_ARM_GOT_BREL
 		if targ.Type != sym.SDYNIMPORT {
 			addgotsyminternal(ctxt, targ)
 		} else {
@@ -153,7 +153,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		r.Add += int64(targ.Got())
 		return true
 
-	case 256 + objabi.RelocType(elf.R_ARM_GOT_PREL): // GOT(nil) + A - nil
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_GOT_PREL): // GOT(nil) + A - nil
 		if targ.Type != sym.SDYNIMPORT {
 			addgotsyminternal(ctxt, targ)
 		} else {
@@ -165,19 +165,19 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		r.Add += int64(targ.Got()) + 4
 		return true
 
-	case 256 + objabi.RelocType(elf.R_ARM_GOTOFF): // R_ARM_GOTOFF32
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_GOTOFF): // R_ARM_GOTOFF32
 		r.Type = objabi.R_GOTOFF
 
 		return true
 
-	case 256 + objabi.RelocType(elf.R_ARM_GOTPC): // R_ARM_BASE_PREL
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_GOTPC): // R_ARM_BASE_PREL
 		r.Type = objabi.R_PCREL
 
 		r.Sym = ctxt.Syms.Lookup(".got", 0)
 		r.Add += 4
 		return true
 
-	case 256 + objabi.RelocType(elf.R_ARM_CALL):
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_CALL):
 		r.Type = objabi.R_CALLARM
 		if targ.Type == sym.SDYNIMPORT {
 			addpltsym(ctxt, targ)
@@ -187,13 +187,13 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 
 		return true
 
-	case 256 + objabi.RelocType(elf.R_ARM_REL32): // R_ARM_REL32
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_REL32): // R_ARM_REL32
 		r.Type = objabi.R_PCREL
 
 		r.Add += 4
 		return true
 
-	case 256 + objabi.RelocType(elf.R_ARM_ABS32):
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_ABS32):
 		if targ.Type == sym.SDYNIMPORT {
 			ld.Errorf(s, "unexpected R_ARM_ABS32 relocation for dynamic symbol %s", targ.Name)
 		}
@@ -201,7 +201,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		return true
 
 		// we can just ignore this, because we are targeting ARM V5+ anyway
-	case 256 + objabi.RelocType(elf.R_ARM_V4BX):
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_V4BX):
 		if r.Sym != nil {
 			// R_ARM_V4BX is ABS relocation, so this symbol is a dummy symbol, ignore it
 			r.Sym.Type = 0
@@ -210,8 +210,8 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		r.Sym = nil
 		return true
 
-	case 256 + objabi.RelocType(elf.R_ARM_PC24),
-		256 + objabi.RelocType(elf.R_ARM_JUMP24):
+	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_PC24),
+		objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_JUMP24):
 		r.Type = objabi.R_CALLARM
 		if targ.Type == sym.SDYNIMPORT {
 			addpltsym(ctxt, targ)
@@ -613,7 +613,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 				rs = rs.Outer
 			}
 
-			if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Sect == nil {
+			if rs.Type != sym.SHOSTOBJ && rs.Type != sym.SDYNIMPORT && rs.Type != sym.SUNDEFEXT && rs.Sect == nil {
 				ld.Errorf(s, "missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
@@ -760,10 +760,6 @@ func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
 }
 
 func asmb(ctxt *ld.Link) {
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f asmb\n", ld.Cputime())
-	}
-
 	if ctxt.IsELF {
 		ld.Asmbelfsetup()
 	}
@@ -777,22 +773,12 @@ func asmb(ctxt *ld.Link) {
 	}
 
 	if ld.Segrodata.Filelen > 0 {
-		if ctxt.Debugvlog != 0 {
-			ctxt.Logf("%5.2f rodatblk\n", ld.Cputime())
-		}
 		ctxt.Out.SeekSet(int64(ld.Segrodata.Fileoff))
 		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
 	}
 	if ld.Segrelrodata.Filelen > 0 {
-		if ctxt.Debugvlog != 0 {
-			ctxt.Logf("%5.2f relrodatblk\n", ld.Cputime())
-		}
 		ctxt.Out.SeekSet(int64(ld.Segrelrodata.Fileoff))
 		ld.Datblk(ctxt, int64(ld.Segrelrodata.Vaddr), int64(ld.Segrelrodata.Filelen))
-	}
-
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f datblk\n", ld.Cputime())
 	}
 
 	ctxt.Out.SeekSet(int64(ld.Segdata.Fileoff))
@@ -800,7 +786,9 @@ func asmb(ctxt *ld.Link) {
 
 	ctxt.Out.SeekSet(int64(ld.Segdwarf.Fileoff))
 	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
+}
 
+func asmb2(ctxt *ld.Link) {
 	machlink := uint32(0)
 	if ctxt.HeadType == objabi.Hdarwin {
 		machlink = uint32(ld.Domacholink(ctxt))
@@ -813,9 +801,6 @@ func asmb(ctxt *ld.Link) {
 	symo := uint32(0)
 	if !*ld.FlagS {
 		// TODO: rationalize
-		if ctxt.Debugvlog != 0 {
-			ctxt.Logf("%5.2f sym\n", ld.Cputime())
-		}
 		switch ctxt.HeadType {
 		default:
 			if ctxt.IsELF {
@@ -838,9 +823,6 @@ func asmb(ctxt *ld.Link) {
 		switch ctxt.HeadType {
 		default:
 			if ctxt.IsELF {
-				if ctxt.Debugvlog != 0 {
-					ctxt.Logf("%5.2f elfsym\n", ld.Cputime())
-				}
 				ld.Asmelfsym(ctxt)
 				ctxt.Out.Flush()
 				ctxt.Out.Write(ld.Elfstrdat)
@@ -862,9 +844,7 @@ func asmb(ctxt *ld.Link) {
 			}
 
 		case objabi.Hwindows:
-			if ctxt.Debugvlog != 0 {
-				ctxt.Logf("%5.2f dwarf\n", ld.Cputime())
-			}
+			// Do nothing
 
 		case objabi.Hdarwin:
 			if ctxt.LinkMode == ld.LinkExternal {
@@ -873,9 +853,6 @@ func asmb(ctxt *ld.Link) {
 		}
 	}
 
-	if ctxt.Debugvlog != 0 {
-		ctxt.Logf("%5.2f header\n", ld.Cputime())
-	}
 	ctxt.Out.SeekSet(0)
 	switch ctxt.HeadType {
 	default:
@@ -892,8 +869,7 @@ func asmb(ctxt *ld.Link) {
 	case objabi.Hlinux,
 		objabi.Hfreebsd,
 		objabi.Hnetbsd,
-		objabi.Hopenbsd,
-		objabi.Hnacl:
+		objabi.Hopenbsd:
 		ld.Asmbelf(ctxt, int64(symo))
 
 	case objabi.Hdarwin:

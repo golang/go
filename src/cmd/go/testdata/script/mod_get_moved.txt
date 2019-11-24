@@ -1,4 +1,6 @@
 env GO111MODULE=on
+env GOPROXY=$GOPROXY/quiet
+[short] skip
 
 # A 'go get' that worked at a previous version should continue to work at that version,
 # even if the package was subsequently moved into a submodule.

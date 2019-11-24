@@ -30,6 +30,8 @@ along with their dependencies, but it does not install the results.
 If the arguments to build are a list of .go files from a single directory,
 build treats them as a list of source files specifying a single package.
 
+When compiling packages, build ignores files that end in '_test.go'.
+
 When compiling a single main package, build writes
 the resulting executable to an output file named after
 the first source file ('go build ed.go rx.go' writes 'ed' or 'ed.exe')
@@ -39,8 +41,6 @@ The '.exe' suffix is added when writing a Windows executable.
 When compiling multiple packages or a single non-main package,
 build compiles the packages but discards the resulting object,
 serving only as a check that the packages can be built.
-
-When compiling packages, build ignores files that end in '_test.go'.
 
 The -o flag forces build to write the resulting executable or object
 to the named output file or directory, instead of the default behavior described
@@ -62,11 +62,13 @@ and test commands:
 		The default is the number of CPUs available.
 	-race
 		enable data race detection.
-		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
+		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, windows/amd64,
+		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
 	-msan
 		enable interoperation with memory sanitizer.
 		Supported only on linux/amd64, linux/arm64
 		and only with Clang/LLVM as the host C compiler.
+		On linux/arm64, pie build mode will be used.
 	-v
 		print the names of packages as they are compiled.
 	-work
@@ -95,19 +97,37 @@ and test commands:
 	-ldflags '[pattern=]arg list'
 		arguments to pass on each go tool link invocation.
 	-linkshared
-		link against shared libraries previously created with
-		-buildmode=shared.
+		build code that will be linked against shared libraries previously
+		created with -buildmode=shared.
 	-mod mode
-		module download mode to use: readonly or vendor.
+		module download mode to use: readonly, vendor, or mod.
 		See 'go help modules' for more.
+	-modcacherw
+		leave newly-created directories in the module cache read-write
+		instead of making them read-only.
+	-modfile file
+		in module aware mode, read (and possibly write) an alternate go.mod
+		file instead of the one in the module root directory. A file named
+		"go.mod" must still be present in order to determine the module root
+		directory, but it is not accessed. When -modfile is specified, an
+		alternate go.sum file is also used: its path is derived from the
+		-modfile flag by trimming the ".mod" extension and appending ".sum".
 	-pkgdir dir
 		install and load all packages from dir instead of the usual locations.
 		For example, when building with a non-standard configuration,
 		use -pkgdir to keep generated packages in a separate location.
-	-tags 'tag list'
-		a space-separated list of build tags to consider satisfied during the
+	-tags tag,list
+		a comma-separated list of build tags to consider satisfied during the
 		build. For more information about build tags, see the description of
 		build constraints in the documentation for the go/build package.
+		(Earlier versions of Go used a space-separated list, and that form
+		is deprecated but still recognized.)
+	-trimpath
+		remove all file system paths from the resulting executable.
+		Instead of absolute file system paths, the recorded file names
+		will begin with either "go" (for the standard library),
+		or a module path@version (when using modules),
+		or a plain import path (when using GOPATH).
 	-toolexec 'cmd args'
 		a program to use to invoke toolchain programs like vet and asm.
 		For example, instead of running asm, the go command will run
@@ -157,8 +177,8 @@ func init() {
 
 	CmdInstall.Flag.BoolVar(&cfg.BuildI, "i", false, "")
 
-	AddBuildFlags(CmdBuild)
-	AddBuildFlags(CmdInstall)
+	AddBuildFlags(CmdBuild, DefaultBuildFlags)
+	AddBuildFlags(CmdInstall, DefaultBuildFlags)
 }
 
 // Note that flags consulted by other parts of the code
@@ -206,9 +226,17 @@ func init() {
 	}
 }
 
-// addBuildFlags adds the flags common to the build, clean, get,
+type BuildFlagMask int
+
+const (
+	DefaultBuildFlags BuildFlagMask = 0
+	OmitModFlag       BuildFlagMask = 1 << iota
+	OmitModCommonFlags
+)
+
+// AddBuildFlags adds the flags common to the build, clean, get,
 // install, list, run, and test commands.
-func AddBuildFlags(cmd *base.Command) {
+func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.BoolVar(&cfg.BuildA, "a", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildN, "n", false, "")
 	cmd.Flag.IntVar(&cfg.BuildP, "p", cfg.BuildP, "")
@@ -220,19 +248,55 @@ func AddBuildFlags(cmd *base.Command) {
 	cmd.Flag.StringVar(&cfg.BuildBuildmode, "buildmode", "default", "")
 	cmd.Flag.Var(&load.BuildGcflags, "gcflags", "")
 	cmd.Flag.Var(&load.BuildGccgoflags, "gccgoflags", "")
-	cmd.Flag.StringVar(&cfg.BuildMod, "mod", "", "")
+	if mask&OmitModFlag == 0 {
+		cmd.Flag.StringVar(&cfg.BuildMod, "mod", "", "")
+	}
+	if mask&OmitModCommonFlags == 0 {
+		AddModCommonFlags(cmd)
+	}
 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
 	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "")
 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "")
 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")
-	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildContext.BuildTags), "tags", "")
+	cmd.Flag.Var((*tagsFlag)(&cfg.BuildContext.BuildTags), "tags", "")
 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "")
+	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildWork, "work", false, "")
 
 	// Undocumented, unstable debugging flags.
 	cmd.Flag.StringVar(&cfg.DebugActiongraph, "debug-actiongraph", "", "")
+}
+
+// AddModCommonFlags adds the module-related flags common to build commands
+// and 'go mod' subcommands.
+func AddModCommonFlags(cmd *base.Command) {
+	cmd.Flag.BoolVar(&cfg.ModCacheRW, "modcacherw", false, "")
+	cmd.Flag.StringVar(&cfg.ModFile, "modfile", "", "")
+}
+
+// tagsFlag is the implementation of the -tags flag.
+type tagsFlag []string
+
+func (v *tagsFlag) Set(s string) error {
+	// For compatibility with Go 1.12 and earlier, allow "-tags='a b c'" or even just "-tags='a'".
+	if strings.Contains(s, " ") || strings.Contains(s, "'") {
+		return (*base.StringsFlag)(v).Set(s)
+	}
+
+	// Split on commas, ignore empty strings.
+	*v = []string{}
+	for _, s := range strings.Split(s, ",") {
+		if s != "" {
+			*v = append(*v, s)
+		}
+	}
+	return nil
+}
+
+func (v *tagsFlag) String() string {
+	return "<TagsFlag>"
 }
 
 // fileExtSplit expects a filename and returns the name
@@ -283,8 +347,10 @@ func runBuild(cmd *base.Command, args []string) {
 
 	pkgs := load.PackagesForBuild(args)
 
+	explicitO := len(cfg.BuildO) > 0
+
 	if len(pkgs) == 1 && pkgs[0].Name == "main" && cfg.BuildO == "" {
-		cfg.BuildO = load.DefaultExecName(pkgs[0].ImportPath)
+		cfg.BuildO = pkgs[0].DefaultExecName()
 		cfg.BuildO += cfg.ExeSuffix
 	}
 
@@ -320,12 +386,16 @@ func runBuild(cmd *base.Command, args []string) {
 		// write all main packages to that directory.
 		// Otherwise require only a single package be built.
 		if fi, err := os.Stat(cfg.BuildO); err == nil && fi.IsDir() {
+			if !explicitO {
+				base.Fatalf("go build: build output %q already exists and is a directory", cfg.BuildO)
+			}
 			a := &Action{Mode: "go build"}
 			for _, p := range pkgs {
 				if p.Name != "main" {
 					continue
 				}
-				p.Target = filepath.Join(cfg.BuildO, load.DefaultExecName(p.ImportPath))
+
+				p.Target = filepath.Join(cfg.BuildO, p.DefaultExecName())
 				p.Target += cfg.ExeSuffix
 				p.Stale = true
 				p.StaleReason = "build -o flag in use"
@@ -366,6 +436,15 @@ var CmdInstall = &base.Command{
 	Short:     "compile and install packages and dependencies",
 	Long: `
 Install compiles and installs the packages named by the import paths.
+
+Executables are installed in the directory named by the GOBIN environment
+variable, which defaults to $GOPATH/bin or $HOME/go/bin if the GOPATH
+environment variable is not set. Executables in $GOROOT
+are installed in $GOROOT/bin or $GOTOOLDIR instead of $GOBIN.
+
+When module-aware mode is disabled, other packages are installed in the
+directory $GOPATH/pkg/$GOOS_$GOARCH. When module-aware mode is enabled,
+other packages are built and cached but not installed.
 
 The -i flag installs the dependencies of the named packages as well.
 
@@ -538,7 +617,7 @@ func InstallPackages(patterns []string, pkgs []*load.Package) {
 	if len(patterns) == 0 && len(pkgs) == 1 && pkgs[0].Name == "main" {
 		// Compute file 'go build' would have created.
 		// If it exists and is an executable file, remove it.
-		targ := load.DefaultExecName(pkgs[0].ImportPath)
+		targ := pkgs[0].DefaultExecName()
 		targ += cfg.ExeSuffix
 		if filepath.Join(pkgs[0].Dir, targ) != pkgs[0].Target { // maybe $GOBIN is the current directory
 			fi, err := os.Stat(targ)

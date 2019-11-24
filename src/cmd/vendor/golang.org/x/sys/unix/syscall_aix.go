@@ -444,8 +444,6 @@ func IoctlGetTermios(fd int, req uint) (*Termios, error) {
 //sysnb	Times(tms *Tms) (ticks uintptr, err error)
 //sysnb	Umask(mask int) (oldmask int)
 //sysnb	Uname(buf *Utsname) (err error)
-//TODO umount
-// //sys	Unmount(target string, flags int) (err error) = umount
 //sys   Unlink(path string) (err error)
 //sys   Unlinkat(dirfd int, path string, flags int) (err error)
 //sys	Ustat(dev int, ubuf *Ustat_t) (err error)
@@ -470,8 +468,7 @@ func IoctlGetTermios(fd int, req uint) (*Termios, error) {
 //sys	Pause() (err error)
 //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = pread64
 //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = pwrite64
-//TODO Select
-// //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error)
+//sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error)
 //sys	Pselect(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *Sigset_t) (n int, err error)
 //sysnb	Setregid(rgid int, egid int) (err error)
 //sysnb	Setreuid(ruid int, euid int) (err error)
@@ -493,8 +490,10 @@ func IoctlGetTermios(fd int, req uint) (*Termios, error) {
 //sysnb	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (err error)
 //sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, err error)
 //sys	sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error)
-//sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error)
-//sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error)
+
+// In order to use msghdr structure with Control, Controllen, nrecvmsg and nsendmsg must be used.
+//sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error) = nrecvmsg
+//sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error) = nsendmsg
 
 //sys	munmap(addr uintptr, length uintptr) (err error)
 
@@ -547,3 +546,12 @@ func Poll(fds []PollFd, timeout int) (n int, err error) {
 //sys	Utime(path string, buf *Utimbuf) (err error)
 
 //sys	Getsystemcfg(label int) (n uint64)
+
+//sys	umount(target string) (err error)
+func Unmount(target string, flags int) (err error) {
+	if flags != 0 {
+		// AIX doesn't have any flags for umount.
+		return ENOSYS
+	}
+	return umount(target)
+}

@@ -12,6 +12,7 @@ import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/src"
+	"sort"
 )
 
 // A Node is a single node in the syntax tree.
@@ -43,10 +44,11 @@ type Node struct {
 
 	// Various. Usually an offset into a struct. For example:
 	// - ONAME nodes that refer to local variables use it to identify their stack frame position.
-	// - ODOT, ODOTPTR, and OINDREGSP use it to indicate offset relative to their base address.
+	// - ODOT, ODOTPTR, and ORESULT use it to indicate offset relative to their base address.
 	// - OSTRUCTKEY uses it to store the named field's offset.
 	// - Named OLITERALs use it to store their ambient iota value.
 	// - OINLMARK stores an index into the inlTree data structure.
+	// - OCLOSURE uses it to store ambient iota value, if any.
 	// Possibly still more uses. If you find any, document them.
 	Xoffset int64
 
@@ -139,26 +141,19 @@ const (
 	nodeInitorder, _                   // tracks state during init1; two bits
 	_, _                               // second nodeInitorder bit
 	_, nodeHasBreak
-	_, nodeIsClosureVar
-	_, nodeIsOutputParamHeapAddr
-	_, nodeNoInline  // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
-	_, nodeAssigned  // is the variable ever assigned to
-	_, nodeAddrtaken // address taken, even if not moved to heap
+	_, nodeNoInline // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
 	_, nodeImplicit
 	_, nodeIsDDD     // is the argument variadic
 	_, nodeDiag      // already printed error about this
 	_, nodeColas     // OAS resulting from :=
 	_, nodeNonNil    // guaranteed to be non-nil
-	_, nodeNoescape  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
+	_, nodeTransient // storage can be reused immediately after this statement
 	_, nodeBounded   // bounds check unnecessary
-	_, nodeAddable   // addressable
 	_, nodeHasCall   // expression contains a function call
 	_, nodeLikely    // if statement condition likely
 	_, nodeHasVal    // node.E contains a Val
 	_, nodeHasOpt    // node.E contains an Opt
 	_, nodeEmbedded  // ODCLFIELD embedded type
-	_, nodeInlFormal // OPAUTO created by inliner, derived from callee formal
-	_, nodeInlLocal  // OPAUTO created by inliner, derived from callee local
 )
 
 func (n *Node) Class() Class     { return Class(n.flags.get3(nodeClass)) }
@@ -166,54 +161,40 @@ func (n *Node) Walkdef() uint8   { return n.flags.get2(nodeWalkdef) }
 func (n *Node) Typecheck() uint8 { return n.flags.get2(nodeTypecheck) }
 func (n *Node) Initorder() uint8 { return n.flags.get2(nodeInitorder) }
 
-func (n *Node) HasBreak() bool              { return n.flags&nodeHasBreak != 0 }
-func (n *Node) IsClosureVar() bool          { return n.flags&nodeIsClosureVar != 0 }
-func (n *Node) NoInline() bool              { return n.flags&nodeNoInline != 0 }
-func (n *Node) IsOutputParamHeapAddr() bool { return n.flags&nodeIsOutputParamHeapAddr != 0 }
-func (n *Node) Assigned() bool              { return n.flags&nodeAssigned != 0 }
-func (n *Node) Addrtaken() bool             { return n.flags&nodeAddrtaken != 0 }
-func (n *Node) Implicit() bool              { return n.flags&nodeImplicit != 0 }
-func (n *Node) IsDDD() bool                 { return n.flags&nodeIsDDD != 0 }
-func (n *Node) Diag() bool                  { return n.flags&nodeDiag != 0 }
-func (n *Node) Colas() bool                 { return n.flags&nodeColas != 0 }
-func (n *Node) NonNil() bool                { return n.flags&nodeNonNil != 0 }
-func (n *Node) Noescape() bool              { return n.flags&nodeNoescape != 0 }
-func (n *Node) Bounded() bool               { return n.flags&nodeBounded != 0 }
-func (n *Node) Addable() bool               { return n.flags&nodeAddable != 0 }
-func (n *Node) HasCall() bool               { return n.flags&nodeHasCall != 0 }
-func (n *Node) Likely() bool                { return n.flags&nodeLikely != 0 }
-func (n *Node) HasVal() bool                { return n.flags&nodeHasVal != 0 }
-func (n *Node) HasOpt() bool                { return n.flags&nodeHasOpt != 0 }
-func (n *Node) Embedded() bool              { return n.flags&nodeEmbedded != 0 }
-func (n *Node) InlFormal() bool             { return n.flags&nodeInlFormal != 0 }
-func (n *Node) InlLocal() bool              { return n.flags&nodeInlLocal != 0 }
+func (n *Node) HasBreak() bool  { return n.flags&nodeHasBreak != 0 }
+func (n *Node) NoInline() bool  { return n.flags&nodeNoInline != 0 }
+func (n *Node) Implicit() bool  { return n.flags&nodeImplicit != 0 }
+func (n *Node) IsDDD() bool     { return n.flags&nodeIsDDD != 0 }
+func (n *Node) Diag() bool      { return n.flags&nodeDiag != 0 }
+func (n *Node) Colas() bool     { return n.flags&nodeColas != 0 }
+func (n *Node) NonNil() bool    { return n.flags&nodeNonNil != 0 }
+func (n *Node) Transient() bool { return n.flags&nodeTransient != 0 }
+func (n *Node) Bounded() bool   { return n.flags&nodeBounded != 0 }
+func (n *Node) HasCall() bool   { return n.flags&nodeHasCall != 0 }
+func (n *Node) Likely() bool    { return n.flags&nodeLikely != 0 }
+func (n *Node) HasVal() bool    { return n.flags&nodeHasVal != 0 }
+func (n *Node) HasOpt() bool    { return n.flags&nodeHasOpt != 0 }
+func (n *Node) Embedded() bool  { return n.flags&nodeEmbedded != 0 }
 
 func (n *Node) SetClass(b Class)     { n.flags.set3(nodeClass, uint8(b)) }
 func (n *Node) SetWalkdef(b uint8)   { n.flags.set2(nodeWalkdef, b) }
 func (n *Node) SetTypecheck(b uint8) { n.flags.set2(nodeTypecheck, b) }
 func (n *Node) SetInitorder(b uint8) { n.flags.set2(nodeInitorder, b) }
 
-func (n *Node) SetHasBreak(b bool)              { n.flags.set(nodeHasBreak, b) }
-func (n *Node) SetIsClosureVar(b bool)          { n.flags.set(nodeIsClosureVar, b) }
-func (n *Node) SetNoInline(b bool)              { n.flags.set(nodeNoInline, b) }
-func (n *Node) SetIsOutputParamHeapAddr(b bool) { n.flags.set(nodeIsOutputParamHeapAddr, b) }
-func (n *Node) SetAssigned(b bool)              { n.flags.set(nodeAssigned, b) }
-func (n *Node) SetAddrtaken(b bool)             { n.flags.set(nodeAddrtaken, b) }
-func (n *Node) SetImplicit(b bool)              { n.flags.set(nodeImplicit, b) }
-func (n *Node) SetIsDDD(b bool)                 { n.flags.set(nodeIsDDD, b) }
-func (n *Node) SetDiag(b bool)                  { n.flags.set(nodeDiag, b) }
-func (n *Node) SetColas(b bool)                 { n.flags.set(nodeColas, b) }
-func (n *Node) SetNonNil(b bool)                { n.flags.set(nodeNonNil, b) }
-func (n *Node) SetNoescape(b bool)              { n.flags.set(nodeNoescape, b) }
-func (n *Node) SetBounded(b bool)               { n.flags.set(nodeBounded, b) }
-func (n *Node) SetAddable(b bool)               { n.flags.set(nodeAddable, b) }
-func (n *Node) SetHasCall(b bool)               { n.flags.set(nodeHasCall, b) }
-func (n *Node) SetLikely(b bool)                { n.flags.set(nodeLikely, b) }
-func (n *Node) SetHasVal(b bool)                { n.flags.set(nodeHasVal, b) }
-func (n *Node) SetHasOpt(b bool)                { n.flags.set(nodeHasOpt, b) }
-func (n *Node) SetEmbedded(b bool)              { n.flags.set(nodeEmbedded, b) }
-func (n *Node) SetInlFormal(b bool)             { n.flags.set(nodeInlFormal, b) }
-func (n *Node) SetInlLocal(b bool)              { n.flags.set(nodeInlLocal, b) }
+func (n *Node) SetHasBreak(b bool)  { n.flags.set(nodeHasBreak, b) }
+func (n *Node) SetNoInline(b bool)  { n.flags.set(nodeNoInline, b) }
+func (n *Node) SetImplicit(b bool)  { n.flags.set(nodeImplicit, b) }
+func (n *Node) SetIsDDD(b bool)     { n.flags.set(nodeIsDDD, b) }
+func (n *Node) SetDiag(b bool)      { n.flags.set(nodeDiag, b) }
+func (n *Node) SetColas(b bool)     { n.flags.set(nodeColas, b) }
+func (n *Node) SetNonNil(b bool)    { n.flags.set(nodeNonNil, b) }
+func (n *Node) SetTransient(b bool) { n.flags.set(nodeTransient, b) }
+func (n *Node) SetBounded(b bool)   { n.flags.set(nodeBounded, b) }
+func (n *Node) SetHasCall(b bool)   { n.flags.set(nodeHasCall, b) }
+func (n *Node) SetLikely(b bool)    { n.flags.set(nodeLikely, b) }
+func (n *Node) SetHasVal(b bool)    { n.flags.set(nodeHasVal, b) }
+func (n *Node) SetHasOpt(b bool)    { n.flags.set(nodeHasOpt, b) }
+func (n *Node) SetEmbedded(b bool)  { n.flags.set(nodeEmbedded, b) }
 
 // Val returns the Val for the node.
 func (n *Node) Val() Val {
@@ -280,12 +261,41 @@ func (n *Node) isMethodExpression() bool {
 	return n.Op == ONAME && n.Left != nil && n.Left.Op == OTYPE && n.Right != nil && n.Right.Op == ONAME
 }
 
-// funcname returns the name of the function n.
+// funcname returns the name (without the package) of the function n.
 func (n *Node) funcname() string {
 	if n == nil || n.Func == nil || n.Func.Nname == nil {
 		return "<nil>"
 	}
 	return n.Func.Nname.Sym.Name
+}
+
+// pkgFuncName returns the name of the function referenced by n, with package prepended.
+// This differs from the compiler's internal convention where local functions lack a package
+// because the ultimate consumer of this is a human looking at an IDE; package is only empty
+// if the compilation package is actually the empty string.
+func (n *Node) pkgFuncName() string {
+	var s *types.Sym
+	if n == nil {
+		return "<nil>"
+	}
+	if n.Op == ONAME {
+		s = n.Sym
+	} else {
+		if n.Func == nil || n.Func.Nname == nil {
+			return "<nil>"
+		}
+		s = n.Func.Nname.Sym
+	}
+	pkg := s.Pkg
+
+	p := myimportpath
+	if pkg != nil && pkg.Path != "" {
+		p = pkg.Path
+	}
+	if p == "" {
+		return s.Name
+	}
+	return p + "." + s.Name
 }
 
 // Name holds Node fields used only by named nodes (ONAME, OTYPE, OPACK, OLABEL, some OLITERAL).
@@ -297,34 +307,58 @@ type Name struct {
 	Param     *Param     // additional fields for ONAME, OTYPE
 	Decldepth int32      // declaration loop depth, increased for every loop or label
 	Vargen    int32      // unique name for ONAME within a function.  Function outputs are numbered starting at one.
-	flags     bitset8
+	flags     bitset16
 }
 
 const (
 	nameCaptured = 1 << iota // is the variable captured by a closure
 	nameReadonly
-	nameByval     // is the variable captured by value or by reference
-	nameNeedzero  // if it contains pointers, needs to be zeroed on function entry
-	nameKeepalive // mark value live across unknown assembly call
-	nameAutoTemp  // is the variable a temporary (implies no dwarf info. reset if escapes to heap)
-	nameUsed      // for variable declared and not used error
+	nameByval                 // is the variable captured by value or by reference
+	nameNeedzero              // if it contains pointers, needs to be zeroed on function entry
+	nameKeepalive             // mark value live across unknown assembly call
+	nameAutoTemp              // is the variable a temporary (implies no dwarf info. reset if escapes to heap)
+	nameUsed                  // for variable declared and not used error
+	nameIsClosureVar          // PAUTOHEAP closure pseudo-variable; original at n.Name.Defn
+	nameIsOutputParamHeapAddr // pointer to a result parameter's heap copy
+	nameAssigned              // is the variable ever assigned to
+	nameAddrtaken             // address taken, even if not moved to heap
+	nameInlFormal             // PAUTO created by inliner, derived from callee formal
+	nameInlLocal              // PAUTO created by inliner, derived from callee local
+	nameOpenDeferSlot         // if temporary var storing info for open-coded defers
+	nameLibfuzzerExtraCounter // if PEXTERN should be assigned to __libfuzzer_extra_counters section
 )
 
-func (n *Name) Captured() bool  { return n.flags&nameCaptured != 0 }
-func (n *Name) Readonly() bool  { return n.flags&nameReadonly != 0 }
-func (n *Name) Byval() bool     { return n.flags&nameByval != 0 }
-func (n *Name) Needzero() bool  { return n.flags&nameNeedzero != 0 }
-func (n *Name) Keepalive() bool { return n.flags&nameKeepalive != 0 }
-func (n *Name) AutoTemp() bool  { return n.flags&nameAutoTemp != 0 }
-func (n *Name) Used() bool      { return n.flags&nameUsed != 0 }
+func (n *Name) Captured() bool              { return n.flags&nameCaptured != 0 }
+func (n *Name) Readonly() bool              { return n.flags&nameReadonly != 0 }
+func (n *Name) Byval() bool                 { return n.flags&nameByval != 0 }
+func (n *Name) Needzero() bool              { return n.flags&nameNeedzero != 0 }
+func (n *Name) Keepalive() bool             { return n.flags&nameKeepalive != 0 }
+func (n *Name) AutoTemp() bool              { return n.flags&nameAutoTemp != 0 }
+func (n *Name) Used() bool                  { return n.flags&nameUsed != 0 }
+func (n *Name) IsClosureVar() bool          { return n.flags&nameIsClosureVar != 0 }
+func (n *Name) IsOutputParamHeapAddr() bool { return n.flags&nameIsOutputParamHeapAddr != 0 }
+func (n *Name) Assigned() bool              { return n.flags&nameAssigned != 0 }
+func (n *Name) Addrtaken() bool             { return n.flags&nameAddrtaken != 0 }
+func (n *Name) InlFormal() bool             { return n.flags&nameInlFormal != 0 }
+func (n *Name) InlLocal() bool              { return n.flags&nameInlLocal != 0 }
+func (n *Name) OpenDeferSlot() bool         { return n.flags&nameOpenDeferSlot != 0 }
+func (n *Name) LibfuzzerExtraCounter() bool { return n.flags&nameLibfuzzerExtraCounter != 0 }
 
-func (n *Name) SetCaptured(b bool)  { n.flags.set(nameCaptured, b) }
-func (n *Name) SetReadonly(b bool)  { n.flags.set(nameReadonly, b) }
-func (n *Name) SetByval(b bool)     { n.flags.set(nameByval, b) }
-func (n *Name) SetNeedzero(b bool)  { n.flags.set(nameNeedzero, b) }
-func (n *Name) SetKeepalive(b bool) { n.flags.set(nameKeepalive, b) }
-func (n *Name) SetAutoTemp(b bool)  { n.flags.set(nameAutoTemp, b) }
-func (n *Name) SetUsed(b bool)      { n.flags.set(nameUsed, b) }
+func (n *Name) SetCaptured(b bool)              { n.flags.set(nameCaptured, b) }
+func (n *Name) SetReadonly(b bool)              { n.flags.set(nameReadonly, b) }
+func (n *Name) SetByval(b bool)                 { n.flags.set(nameByval, b) }
+func (n *Name) SetNeedzero(b bool)              { n.flags.set(nameNeedzero, b) }
+func (n *Name) SetKeepalive(b bool)             { n.flags.set(nameKeepalive, b) }
+func (n *Name) SetAutoTemp(b bool)              { n.flags.set(nameAutoTemp, b) }
+func (n *Name) SetUsed(b bool)                  { n.flags.set(nameUsed, b) }
+func (n *Name) SetIsClosureVar(b bool)          { n.flags.set(nameIsClosureVar, b) }
+func (n *Name) SetIsOutputParamHeapAddr(b bool) { n.flags.set(nameIsOutputParamHeapAddr, b) }
+func (n *Name) SetAssigned(b bool)              { n.flags.set(nameAssigned, b) }
+func (n *Name) SetAddrtaken(b bool)             { n.flags.set(nameAddrtaken, b) }
+func (n *Name) SetInlFormal(b bool)             { n.flags.set(nameInlFormal, b) }
+func (n *Name) SetInlLocal(b bool)              { n.flags.set(nameInlLocal, b) }
+func (n *Name) SetOpenDeferSlot(b bool)         { n.flags.set(nameOpenDeferSlot, b) }
+func (n *Name) SetLibfuzzerExtraCounter(b bool) { n.flags.set(nameLibfuzzerExtraCounter, b) }
 
 type Param struct {
 	Ntype    *Node
@@ -492,7 +526,9 @@ type Func struct {
 
 	Pragma syntax.Pragma // go:xxx function annotations
 
-	flags bitset16
+	flags      bitset16
+	numDefers  int // number of defer calls in the function
+	numReturns int // number of explicit returns in the function
 
 	// nwbrCalls records the LSyms of functions called by this
 	// function for go:nowritebarrierrec analysis. Only filled in
@@ -528,34 +564,37 @@ const (
 	funcNeedctxt                  // function uses context register (has closure variables)
 	funcReflectMethod             // function calls reflect.Type.Method or MethodByName
 	funcIsHiddenClosure
-	funcHasDefer            // contains a defer statement
-	funcNilCheckDisabled    // disable nil checks when compiling this function
-	funcInlinabilityChecked // inliner has already determined whether the function is inlinable
-	funcExportInline        // include inline body in export data
-	funcInstrumentBody      // add race/msan instrumentation during SSA construction
+	funcHasDefer                 // contains a defer statement
+	funcNilCheckDisabled         // disable nil checks when compiling this function
+	funcInlinabilityChecked      // inliner has already determined whether the function is inlinable
+	funcExportInline             // include inline body in export data
+	funcInstrumentBody           // add race/msan instrumentation during SSA construction
+	funcOpenCodedDeferDisallowed // can't do open-coded defers
 )
 
-func (f *Func) Dupok() bool               { return f.flags&funcDupok != 0 }
-func (f *Func) Wrapper() bool             { return f.flags&funcWrapper != 0 }
-func (f *Func) Needctxt() bool            { return f.flags&funcNeedctxt != 0 }
-func (f *Func) ReflectMethod() bool       { return f.flags&funcReflectMethod != 0 }
-func (f *Func) IsHiddenClosure() bool     { return f.flags&funcIsHiddenClosure != 0 }
-func (f *Func) HasDefer() bool            { return f.flags&funcHasDefer != 0 }
-func (f *Func) NilCheckDisabled() bool    { return f.flags&funcNilCheckDisabled != 0 }
-func (f *Func) InlinabilityChecked() bool { return f.flags&funcInlinabilityChecked != 0 }
-func (f *Func) ExportInline() bool        { return f.flags&funcExportInline != 0 }
-func (f *Func) InstrumentBody() bool      { return f.flags&funcInstrumentBody != 0 }
+func (f *Func) Dupok() bool                    { return f.flags&funcDupok != 0 }
+func (f *Func) Wrapper() bool                  { return f.flags&funcWrapper != 0 }
+func (f *Func) Needctxt() bool                 { return f.flags&funcNeedctxt != 0 }
+func (f *Func) ReflectMethod() bool            { return f.flags&funcReflectMethod != 0 }
+func (f *Func) IsHiddenClosure() bool          { return f.flags&funcIsHiddenClosure != 0 }
+func (f *Func) HasDefer() bool                 { return f.flags&funcHasDefer != 0 }
+func (f *Func) NilCheckDisabled() bool         { return f.flags&funcNilCheckDisabled != 0 }
+func (f *Func) InlinabilityChecked() bool      { return f.flags&funcInlinabilityChecked != 0 }
+func (f *Func) ExportInline() bool             { return f.flags&funcExportInline != 0 }
+func (f *Func) InstrumentBody() bool           { return f.flags&funcInstrumentBody != 0 }
+func (f *Func) OpenCodedDeferDisallowed() bool { return f.flags&funcOpenCodedDeferDisallowed != 0 }
 
-func (f *Func) SetDupok(b bool)               { f.flags.set(funcDupok, b) }
-func (f *Func) SetWrapper(b bool)             { f.flags.set(funcWrapper, b) }
-func (f *Func) SetNeedctxt(b bool)            { f.flags.set(funcNeedctxt, b) }
-func (f *Func) SetReflectMethod(b bool)       { f.flags.set(funcReflectMethod, b) }
-func (f *Func) SetIsHiddenClosure(b bool)     { f.flags.set(funcIsHiddenClosure, b) }
-func (f *Func) SetHasDefer(b bool)            { f.flags.set(funcHasDefer, b) }
-func (f *Func) SetNilCheckDisabled(b bool)    { f.flags.set(funcNilCheckDisabled, b) }
-func (f *Func) SetInlinabilityChecked(b bool) { f.flags.set(funcInlinabilityChecked, b) }
-func (f *Func) SetExportInline(b bool)        { f.flags.set(funcExportInline, b) }
-func (f *Func) SetInstrumentBody(b bool)      { f.flags.set(funcInstrumentBody, b) }
+func (f *Func) SetDupok(b bool)                    { f.flags.set(funcDupok, b) }
+func (f *Func) SetWrapper(b bool)                  { f.flags.set(funcWrapper, b) }
+func (f *Func) SetNeedctxt(b bool)                 { f.flags.set(funcNeedctxt, b) }
+func (f *Func) SetReflectMethod(b bool)            { f.flags.set(funcReflectMethod, b) }
+func (f *Func) SetIsHiddenClosure(b bool)          { f.flags.set(funcIsHiddenClosure, b) }
+func (f *Func) SetHasDefer(b bool)                 { f.flags.set(funcHasDefer, b) }
+func (f *Func) SetNilCheckDisabled(b bool)         { f.flags.set(funcNilCheckDisabled, b) }
+func (f *Func) SetInlinabilityChecked(b bool)      { f.flags.set(funcInlinabilityChecked, b) }
+func (f *Func) SetExportInline(b bool)             { f.flags.set(funcExportInline, b) }
+func (f *Func) SetInstrumentBody(b bool)           { f.flags.set(funcInstrumentBody, b) }
+func (f *Func) SetOpenCodedDeferDisallowed(b bool) { f.flags.set(funcOpenCodedDeferDisallowed, b) }
 
 func (f *Func) setWBPos(pos src.XPos) {
 	if Debug_wb != 0 {
@@ -598,10 +637,10 @@ const (
 	OSTR2RUNES    // Type(Left) (Type is []rune, Left is a string)
 	OAS           // Left = Right or (if Colas=true) Left := Right
 	OAS2          // List = Rlist (x, y, z = a, b, c)
-	OAS2FUNC      // List = Rlist (x, y = f())
-	OAS2RECV      // List = Rlist (x, ok = <-c)
-	OAS2MAPR      // List = Rlist (x, ok = m["foo"])
-	OAS2DOTTYPE   // List = Rlist (x, ok = I.(int))
+	OAS2DOTTYPE   // List = Right (x, ok = I.(int))
+	OAS2FUNC      // List = Right (x, y = f())
+	OAS2MAPR      // List = Right (x, ok = m["foo"])
+	OAS2RECV      // List = Right (x, ok = <-c)
 	OASOP         // Left Etype= Right (x += y)
 	OCALL         // Left(List) (function call, method call or type conversion)
 
@@ -690,7 +729,7 @@ const (
 	ORECV        // <-Left
 	ORUNESTR     // Type(Left) (Type is string, Left is rune)
 	OSELRECV     // Left = <-Right.Left: (appears as .Left of OCASE; Right.Op == ORECV)
-	OSELRECV2    // List = <-Right.Left: (apperas as .Left of OCASE; count(List) == 2, Right.Op == ORECV)
+	OSELRECV2    // List = <-Right.Left: (appears as .Left of OCASE; count(List) == 2, Right.Op == ORECV)
 	OIOTA        // iota
 	OREAL        // real(Left)
 	OIMAG        // imag(Left)
@@ -702,8 +741,7 @@ const (
 	// statements
 	OBLOCK    // { List } (block of code)
 	OBREAK    // break [Sym]
-	OCASE     // case Left or List[0]..List[1]: Nbody (select case after processing; Left==nil and List==nil means default)
-	OXCASE    // case List: Nbody (select case before processing; List==nil means default)
+	OCASE     // case List: Nbody (List==nil means default)
 	OCONTINUE // continue [Sym]
 	ODEFER    // defer Left (Left must be call)
 	OEMPTY    // no-op (empty statement)
@@ -725,8 +763,8 @@ const (
 	OGO     // go Left (Left must be call)
 	ORANGE  // for List = range Right { Nbody }
 	ORETURN // return List
-	OSELECT // select { List } (List is list of OXCASE or OCASE)
-	OSWITCH // switch Ninit; Left { List } (List is a list of OXCASE or OCASE)
+	OSELECT // select { List } (List is list of OCASE)
+	OSWITCH // switch Ninit; Left { List } (List is a list of OCASE)
 	OTYPESW // Left = Right.(type) (appears as .Left of OSWITCH)
 
 	// types
@@ -751,7 +789,7 @@ const (
 	OVARDEF     // variable is about to be fully initialized
 	OVARKILL    // variable is dead
 	OVARLIVE    // variable is alive
-	OINDREGSP   // offset plus indirect of REGSP, such as 8(SP).
+	ORESULT     // result of a function call; Xoffset is stack offset
 	OINLMARK    // start of an inlined body, with file/line of caller. Xoffset is an index into the inline tree.
 
 	// arch-specific opcodes
@@ -969,4 +1007,31 @@ func (q *nodeQueue) popLeft() *Node {
 	n := q.ring[q.head%len(q.ring)]
 	q.head++
 	return n
+}
+
+// NodeSet is a set of Nodes.
+type NodeSet map[*Node]struct{}
+
+// Has reports whether s contains n.
+func (s NodeSet) Has(n *Node) bool {
+	_, isPresent := s[n]
+	return isPresent
+}
+
+// Add adds n to s.
+func (s *NodeSet) Add(n *Node) {
+	if *s == nil {
+		*s = make(map[*Node]struct{})
+	}
+	(*s)[n] = struct{}{}
+}
+
+// Sorted returns s sorted according to less.
+func (s NodeSet) Sorted(less func(*Node, *Node) bool) []*Node {
+	var res []*Node
+	for n := range s {
+		res = append(res, n)
+	}
+	sort.Slice(res, func(i, j int) bool { return less(res[i], res[j]) })
+	return res
 }

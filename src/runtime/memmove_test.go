@@ -15,6 +15,9 @@ import (
 )
 
 func TestMemmove(t *testing.T) {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
 	t.Parallel()
 	size := 256
 	if testing.Short() {
@@ -54,6 +57,9 @@ func TestMemmove(t *testing.T) {
 }
 
 func TestMemmoveAlias(t *testing.T) {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
 	t.Parallel()
 	size := 256
 	if testing.Short() {

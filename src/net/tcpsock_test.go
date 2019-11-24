@@ -476,10 +476,6 @@ func TestTCPReadWriteAllocs(t *testing.T) {
 		// I/O on Plan 9 allocates memory.
 		// See net/fd_io_plan9.go.
 		t.Skipf("not supported on %s", runtime.GOOS)
-	case "nacl":
-		// NaCl needs to allocate pseudo file descriptor
-		// stuff. See syscall/fd_nacl.go.
-		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
 	ln, err := Listen("tcp", "127.0.0.1:0")
@@ -651,7 +647,7 @@ func TestTCPSelfConnect(t *testing.T) {
 		n = 1000
 	}
 	switch runtime.GOOS {
-	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd", "plan9", "solaris", "windows":
+	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd", "plan9", "illumos", "solaris", "windows":
 		// Non-Linux systems take a long time to figure
 		// out that there is nothing listening on localhost.
 		n = 100

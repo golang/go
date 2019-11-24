@@ -77,6 +77,10 @@ var writeSetCookiesTests = []struct {
 		&Cookie{Name: "cookie-14", Value: "samesite-strict", SameSite: SameSiteStrictMode},
 		"cookie-14=samesite-strict; SameSite=Strict",
 	},
+	{
+		&Cookie{Name: "cookie-15", Value: "samesite-none", SameSite: SameSiteNoneMode},
+		"cookie-15=samesite-none; SameSite=None",
+	},
 	// The "special" cookies have values containing commas or spaces which
 	// are disallowed by RFC 6265 but are common in the wild.
 	{
@@ -125,6 +129,22 @@ var writeSetCookiesTests = []struct {
 	},
 	{
 		&Cookie{Name: "\t"},
+		``,
+	},
+	{
+		&Cookie{Name: "\r"},
+		``,
+	},
+	{
+		&Cookie{Name: "a\nb", Value: "v"},
+		``,
+	},
+	{
+		&Cookie{Name: "a\nb", Value: "v"},
+		``,
+	},
+	{
+		&Cookie{Name: "a\rb", Value: "v"},
 		``,
 	},
 }
@@ -278,6 +298,15 @@ var readSetCookiesTests = []struct {
 			Value:    "foo",
 			SameSite: SameSiteStrictMode,
 			Raw:      "samesitestrict=foo; SameSite=Strict",
+		}},
+	},
+	{
+		Header{"Set-Cookie": {"samesitenone=foo; SameSite=None"}},
+		[]*Cookie{{
+			Name:     "samesitenone",
+			Value:    "foo",
+			SameSite: SameSiteNoneMode,
+			Raw:      "samesitenone=foo; SameSite=None",
 		}},
 	},
 	// Make sure we can properly read back the Set-Cookie headers we create

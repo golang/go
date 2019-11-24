@@ -5,10 +5,10 @@
 package errors_test
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -16,8 +16,6 @@ func TestIs(t *testing.T) {
 	err1 := errors.New("1")
 	erra := wrapped{"wrap 2", err1}
 	errb := wrapped{"wrap 3", erra}
-	erro := errors.Opaque(err1)
-	errco := wrapped{"opaque", erro}
 
 	err3 := errors.New("3")
 
@@ -35,9 +33,6 @@ func TestIs(t *testing.T) {
 		{err1, err1, true},
 		{erra, err1, true},
 		{errb, err1, true},
-		{errco, erro, true},
-		{errco, err1, false},
-		{erro, erro, true},
 		{err1, err3, false},
 		{erra, err3, false},
 		{errb, err3, false},
@@ -45,8 +40,12 @@ func TestIs(t *testing.T) {
 		{poser, err3, true},
 		{poser, erra, false},
 		{poser, errb, false},
-		{poser, erro, false},
-		{poser, errco, false},
+		{errorUncomparable{}, errorUncomparable{}, true},
+		{errorUncomparable{}, &errorUncomparable{}, false},
+		{&errorUncomparable{}, errorUncomparable{}, true},
+		{&errorUncomparable{}, &errorUncomparable{}, false},
+		{errorUncomparable{}, err1, false},
+		{&errorUncomparable{}, err1, false},
 	}
 	for _, tc := range testCases {
 		t.Run("", func(t *testing.T) {
@@ -62,6 +61,8 @@ type poser struct {
 	f   func(error) bool
 }
 
+var poserPathErr = &os.PathError{Op: "poser"}
+
 func (p *poser) Error() string     { return p.msg }
 func (p *poser) Is(err error) bool { return p.f(err) }
 func (p *poser) As(err interface{}) bool {
@@ -69,9 +70,9 @@ func (p *poser) As(err interface{}) bool {
 	case **poser:
 		*x = p
 	case *errorT:
-		*x = errorT{}
+		*x = errorT{"poser"}
 	case **os.PathError:
-		*x = &os.PathError{}
+		*x = poserPathErr
 	default:
 		return false
 	}
@@ -84,58 +85,74 @@ func TestAs(t *testing.T) {
 	var timeout interface{ Timeout() bool }
 	var p *poser
 	_, errF := os.Open("non-existing")
+	poserErr := &poser{"oh no", nil}
 
 	testCases := []struct {
 		err    error
 		target interface{}
 		match  bool
+		want   interface{} // value of target on match
 	}{{
-		wrapped{"pittied the fool", errorT{}},
+		nil,
+		&errP,
+		false,
+		nil,
+	}, {
+		wrapped{"pitied the fool", errorT{"T"}},
 		&errT,
 		true,
+		errorT{"T"},
 	}, {
 		errF,
 		&errP,
 		true,
-	}, {
-		errors.Opaque(errT),
-		&errT,
-		false,
+		errF,
 	}, {
 		errorT{},
 		&errP,
 		false,
+		nil,
 	}, {
 		wrapped{"wrapped", nil},
 		&errT,
 		false,
+		nil,
 	}, {
 		&poser{"error", nil},
 		&errT,
 		true,
+		errorT{"poser"},
 	}, {
 		&poser{"path", nil},
 		&errP,
 		true,
+		poserPathErr,
 	}, {
-		&poser{"oh no", nil},
+		poserErr,
 		&p,
 		true,
+		poserErr,
 	}, {
 		errors.New("err"),
 		&timeout,
 		false,
+		nil,
 	}, {
 		errF,
 		&timeout,
 		true,
+		errF,
 	}, {
 		wrapped{"path error", errF},
 		&timeout,
 		true,
+		errF,
 	}}
 	for i, tc := range testCases {
 		name := fmt.Sprintf("%d:As(Errorf(..., %v), %v)", i, tc.err, tc.target)
+		// Clear the target pointer, in case it was set in a previous test.
+		rtarget := reflect.ValueOf(tc.target)
+		rtarget.Elem().Set(reflect.Zero(reflect.TypeOf(tc.target).Elem()))
 		t.Run(name, func(t *testing.T) {
 			match := errors.As(tc.err, tc.target)
 			if match != tc.match {
@@ -144,8 +161,8 @@ func TestAs(t *testing.T) {
 			if !match {
 				return
 			}
-			if tc.target == nil {
-				t.Fatalf("non-nil result after match")
+			if got := rtarget.Elem().Interface(); got != tc.want {
+				t.Fatalf("got %#v, want %#v", got, tc.want)
 			}
 		})
 	}
@@ -177,7 +194,6 @@ func TestAsValidation(t *testing.T) {
 func TestUnwrap(t *testing.T) {
 	err1 := errors.New("1")
 	erra := wrapped{"wrap 2", err1}
-	erro := errors.Opaque(err1)
 
 	testCases := []struct {
 		err  error
@@ -188,9 +204,6 @@ func TestUnwrap(t *testing.T) {
 		{err1, nil},
 		{erra, err1},
 		{wrapped{"wrap 3", erra}, erra},
-
-		{erro, nil},
-		{wrapped{"opaque", erro}, erro},
 	}
 	for _, tc := range testCases {
 		if got := errors.Unwrap(tc.err); got != tc.want {
@@ -199,42 +212,9 @@ func TestUnwrap(t *testing.T) {
 	}
 }
 
-func TestOpaque(t *testing.T) {
-	someError := errors.New("some error")
-	testCases := []struct {
-		err  error
-		next error
-	}{
-		{errorT{}, nil},
-		{wrapped{"b", nil}, nil},
-		{wrapped{"c", someError}, someError},
-	}
-	for _, tc := range testCases {
-		t.Run("", func(t *testing.T) {
-			opaque := errors.Opaque(tc.err)
+type errorT struct{ s string }
 
-			f, ok := opaque.(errors.Formatter)
-			if !ok {
-				t.Fatal("Opaque error does not implement Formatter")
-			}
-			var p printer
-			next := f.FormatError(&p)
-			if next != tc.next {
-				t.Errorf("next was %v; want %v", next, tc.next)
-			}
-			if got, want := p.buf.String(), tc.err.Error(); got != want {
-				t.Errorf("error was %q; want %q", got, want)
-			}
-			if got := errors.Unwrap(opaque); got != nil {
-				t.Errorf("Unwrap returned non-nil error (%v)", got)
-			}
-		})
-	}
-}
-
-type errorT struct{}
-
-func (errorT) Error() string { return "errorT" }
+func (e errorT) Error() string { return fmt.Sprintf("errorT(%s)", e.s) }
 
 type wrapped struct {
 	msg string
@@ -245,14 +225,29 @@ func (e wrapped) Error() string { return e.msg }
 
 func (e wrapped) Unwrap() error { return e.err }
 
-func (e wrapped) FormatError(p errors.Printer) error {
-	p.Print(e.msg)
-	return e.err
+type errorUncomparable struct {
+	f []string
 }
 
-type printer struct {
-	errors.Printer
-	buf bytes.Buffer
+func (errorUncomparable) Error() string {
+	return "uncomparable error"
 }
 
-func (p *printer) Print(args ...interface{}) { fmt.Fprint(&p.buf, args...) }
+func (errorUncomparable) Is(target error) bool {
+	_, ok := target.(errorUncomparable)
+	return ok
+}
+
+func ExampleAs() {
+	if _, err := os.Open("non-existing"); err != nil {
+		var pathError *os.PathError
+		if errors.As(err, &pathError) {
+			fmt.Println("Failed at path:", pathError.Path)
+		} else {
+			fmt.Println(err)
+		}
+	}
+
+	// Output:
+	// Failed at path: non-existing
+}

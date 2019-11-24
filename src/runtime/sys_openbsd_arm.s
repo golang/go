@@ -55,17 +55,34 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
 	MOVW	n+8(FP), R2		// arg 3 - nbyte
 	MOVW	$3, R12			// sys_read
 	SWI	$0
-	MOVW.CS	$-1, R0
+	RSB.CS	$0, R0		// caller expects negative errno
 	MOVW	R0, ret+12(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT|NOFRAME,$0
+// func pipe() (r, w int32, errno int32)
+TEXT runtime·pipe(SB),NOSPLIT,$0-12
+	MOVW	$r+0(FP), R0
+	MOVW	$263, R12
+	SWI	$0
+	MOVW	R0, errno+8(FP)
+	RET
+
+// func pipe2(flags int32) (r, w int32, errno int32)
+TEXT runtime·pipe2(SB),NOSPLIT,$0-16
+	MOVW	$r+4(FP), R0
+	MOVW	flags+0(FP), R1
+	MOVW	$101, R12
+	SWI	$0
+	MOVW	R0, errno+12(FP)
+	RET
+
+TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0
 	MOVW	fd+0(FP), R0		// arg 1 - fd
 	MOVW	p+4(FP), R1		// arg 2 - buf
 	MOVW	n+8(FP), R2		// arg 3 - nbyte
 	MOVW	$4, R12			// sys_write
 	SWI	$0
-	MOVW.CS	$-1, R0
+	RSB.CS	$0, R0		// caller expects negative errno
 	MOVW	R0, ret+12(FP)
 	RET
 
@@ -85,11 +102,15 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
 	SWI	$0
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$12
-	MOVW	$0x12B, R12
-	SWI	$0			// sys_getthrid
-					// arg 1 - tid, already in R0
-	MOVW	sig+0(FP), R1		// arg 2 - signum
+TEXT runtime·getthrid(SB),NOSPLIT,$0-4
+	MOVW	$299, R12		// sys_getthrid
+	SWI	$0
+	MOVW	R0, ret+0(FP)
+	RET
+
+TEXT runtime·thrkill(SB),NOSPLIT,$0-8
+	MOVW	tid+0(FP), R0		// arg 1 - tid
+	MOVW	sig+4(FP), R1		// arg 2 - signum
 	MOVW	$0, R2			// arg 3 - tcb
 	MOVW	$119, R12		// sys_thrkill
 	SWI	$0
@@ -155,8 +176,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$0
 	SWI	$0
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB), NOSPLIT, $32
+// func walltime1() (sec int64, nsec int32)
+TEXT runtime·walltime1(SB), NOSPLIT, $32
 	MOVW	CLOCK_REALTIME, R0	// arg 1 - clock_id
 	MOVW	$8(R13), R1		// arg 2 - tp
 	MOVW	$87, R12		// sys_clock_gettime
@@ -172,9 +193,9 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 
 	RET
 
-// int64 nanotime(void) so really
-// void nanotime(int64 *nsec)
-TEXT runtime·nanotime(SB),NOSPLIT,$32
+// int64 nanotime1(void) so really
+// void nanotime1(int64 *nsec)
+TEXT runtime·nanotime1(SB),NOSPLIT,$32
 	MOVW	CLOCK_MONOTONIC, R0	// arg 1 - clock_id
 	MOVW	$8(R13), R1		// arg 2 - tp
 	MOVW	$87, R12		// sys_clock_gettime
@@ -226,7 +247,11 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
 	MOVW	R4, R13
 	RET
 
-TEXT runtime·sigtramp(SB),NOSPLIT,$12
+TEXT runtime·sigtramp(SB),NOSPLIT,$0
+	// Reserve space for callee-save registers and arguments.
+	MOVM.DB.W [R4-R11], (R13)
+	SUB	$16, R13
+
 	// If called from an external code context, g will not be set.
 	// Save R0, since runtime·load_g will clobber it.
 	MOVW	R0, 4(R13)		// signum
@@ -237,6 +262,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$12
 	MOVW	R1, 8(R13)
 	MOVW	R2, 12(R13)
 	BL	runtime·sigtrampgo(SB)
+
+	// Restore callee-save registers.
+	ADD	$16, R13
+	MOVM.IA.W (R13), [R4-R11]
+
 	RET
 
 // int32 tfork(void *param, uintptr psize, M *mp, G *gp, void (*fn)(void));
@@ -365,6 +395,20 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
 	MOVW	$2, R1			// arg 2 - cmd (F_SETFD)
 	MOVW	$1, R2			// arg 3 - arg (FD_CLOEXEC)
 	MOVW	$92, R12		// sys_fcntl
+	SWI	$0
+	RET
+
+// func runtime·setNonblock(fd int32)
+TEXT runtime·setNonblock(SB),NOSPLIT,$0-4
+	MOVW	fd+0(FP), R0	// fd
+	MOVW	$3, R1	// F_GETFL
+	MOVW	$0, R2
+	MOVW	$92, R12
+	SWI	$0
+	ORR	$0x4, R0, R2	// O_NONBLOCK
+	MOVW	fd+0(FP), R0	// fd
+	MOVW	$4, R1	// F_SETFL
+	MOVW	$92, R12
 	SWI	$0
 	RET
 

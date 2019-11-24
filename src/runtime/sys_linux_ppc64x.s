@@ -21,6 +21,7 @@
 #define SYS_close		  6
 #define SYS_getpid		 20
 #define SYS_kill		 37
+#define SYS_pipe		 42
 #define SYS_brk			 45
 #define SYS_fcntl		 55
 #define SYS_mmap		 90
@@ -45,6 +46,7 @@
 #define SYS_clock_gettime	246
 #define SYS_tgkill		250
 #define SYS_epoll_create1	315
+#define SYS_pipe2		317
 
 TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	code+0(FP), R3
@@ -80,13 +82,13 @@ TEXT runtime·closefd(SB),NOSPLIT|NOFRAME,$0-12
 	MOVW	R3, ret+8(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT|NOFRAME,$0-28
+TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0-28
 	MOVD	fd+0(FP), R3
 	MOVD	p+8(FP), R4
 	MOVW	n+16(FP), R5
 	SYSCALL	$SYS_write
 	BVC	2(PC)
-	MOVW	$-1, R3
+	NEG	R3	// caller expects negative errno
 	MOVW	R3, ret+24(FP)
 	RET
 
@@ -96,8 +98,23 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	n+16(FP), R5
 	SYSCALL	$SYS_read
 	BVC	2(PC)
-	MOVW	$-1, R3
+	NEG	R3	// caller expects negative errno
 	MOVW	R3, ret+24(FP)
+	RET
+
+// func pipe() (r, w int32, errno int32)
+TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
+	ADD	$FIXED_FRAME, R1, R3
+	SYSCALL	$SYS_pipe
+	MOVW	R3, errno+8(FP)
+	RET
+
+// func pipe2(flags int32) (r, w int32, errno int32)
+TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
+	ADD	$FIXED_FRAME+8, R1, R3
+	MOVW	flags+0(FP), R4
+	SYSCALL	$SYS_pipe2
+	MOVW	R3, errno+16(FP)
 	RET
 
 TEXT runtime·usleep(SB),NOSPLIT,$16-4
@@ -139,6 +156,18 @@ TEXT runtime·raiseproc(SB),NOSPLIT|NOFRAME,$0
 	SYSCALL	$SYS_kill
 	RET
 
+TEXT ·getpid(SB),NOSPLIT|NOFRAME,$0-8
+	SYSCALL $SYS_getpid
+	MOVD	R3, ret+0(FP)
+	RET
+
+TEXT ·tgkill(SB),NOSPLIT|NOFRAME,$0-24
+	MOVD	tgid+0(FP), R3
+	MOVD	tid+8(FP), R4
+	MOVD	sig+16(FP), R5
+	SYSCALL $SYS_tgkill
+	RET
+
 TEXT runtime·setitimer(SB),NOSPLIT|NOFRAME,$0-24
 	MOVW	mode+0(FP), R3
 	MOVD	new+8(FP), R4
@@ -155,8 +184,8 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
 	MOVW	R3, ret+24(FP)
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB),NOSPLIT,$16
+// func walltime1() (sec int64, nsec int32)
+TEXT runtime·walltime1(SB),NOSPLIT,$16
 	MOVD	R1, R15		// R15 is unchanged by C code
 	MOVD	g_m(g), R21	// R21 = m
 
@@ -203,7 +232,7 @@ fallback:
 	MOVD	40(R1), R5
 	JMP	finish
 
-TEXT runtime·nanotime(SB),NOSPLIT,$16
+TEXT runtime·nanotime1(SB),NOSPLIT,$16
 	MOVD	$1, R3		// CLOCK_MONOTONIC
 
 	MOVD	R1, R15		// R15 is unchanged by C code
@@ -285,16 +314,19 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVD	24(R1), R2
 	RET
 
+TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+	RET
+
 #ifdef GOARCH_ppc64le
 // ppc64le doesn't need function descriptors
 TEXT runtime·sigtramp(SB),NOSPLIT,$64
 #else
 // function descriptor for the real sigtramp
 TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0
-	DWORD	$runtime·_sigtramp(SB)
+	DWORD	$sigtramp<>(SB)
 	DWORD	$0
 	DWORD	$0
-TEXT runtime·_sigtramp(SB),NOSPLIT,$64
+TEXT sigtramp<>(SB),NOSPLIT,$64
 #endif
 	// initialize essential registers (just in case)
 	BL	runtime·reginit(SB)
@@ -410,11 +442,11 @@ sigtrampnog:
 #else
 // function descriptor for the real sigtramp
 TEXT runtime·cgoSigtramp(SB),NOSPLIT|NOFRAME,$0
-	DWORD	$runtime·_cgoSigtramp(SB)
+	DWORD	$cgoSigtramp<>(SB)
 	DWORD	$0
 	DWORD	$0
-TEXT runtime·_cgoSigtramp(SB),NOSPLIT,$0
-	JMP	runtime·_sigtramp(SB)
+TEXT cgoSigtramp<>(SB),NOSPLIT,$0
+	JMP	sigtramp<>(SB)
 #endif
 
 TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0
@@ -609,10 +641,37 @@ TEXT runtime·closeonexec(SB),NOSPLIT|NOFRAME,$0
 	SYSCALL	$SYS_fcntl
 	RET
 
+// func runtime·setNonblock(int32 fd)
+TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
+	MOVW	fd+0(FP), R3 // fd
+	MOVD	$3, R4	// F_GETFL
+	MOVD	$0, R5
+	SYSCALL	$SYS_fcntl
+	OR	$0x800, R3, R5 // O_NONBLOCK
+	MOVW	fd+0(FP), R3 // fd
+	MOVD	$4, R4	// F_SETFL
+	SYSCALL	$SYS_fcntl
+	RET
+
 // func sbrk0() uintptr
 TEXT runtime·sbrk0(SB),NOSPLIT|NOFRAME,$0
 	// Implemented as brk(NULL).
 	MOVD	$0, R3
 	SYSCALL	$SYS_brk
 	MOVD	R3, ret+0(FP)
+	RET
+
+TEXT runtime·access(SB),$0-20
+	MOVD	R0, 0(R0) // unimplemented, only needed for android; declared in stubs_linux.go
+	MOVW	R0, ret+16(FP) // for vet
+	RET
+
+TEXT runtime·connect(SB),$0-28
+	MOVD	R0, 0(R0) // unimplemented, only needed for android; declared in stubs_linux.go
+	MOVW	R0, ret+24(FP) // for vet
+	RET
+
+TEXT runtime·socket(SB),$0-20
+	MOVD	R0, 0(R0) // unimplemented, only needed for android; declared in stubs_linux.go
+	MOVW	R0, ret+16(FP) // for vet
 	RET

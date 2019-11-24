@@ -1,5 +1,5 @@
 env GO111MODULE=on
-env GOPROXY=
+env GOPROXY=direct
 
 # Testing that git export-subst is disabled
 [!net] skip

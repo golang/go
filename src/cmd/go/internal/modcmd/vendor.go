@@ -11,12 +11,17 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/imports"
 	"cmd/go/internal/modload"
-	"cmd/go/internal/module"
+	"cmd/go/internal/work"
+
+	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 )
 
 var cmdVendor = &base.Command{
@@ -35,6 +40,7 @@ modules and packages to standard error.
 
 func init() {
 	cmdVendor.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+	work.AddModCommonFlags(cmdVendor)
 }
 
 func runVendor(cmd *base.Command, args []string) {
@@ -57,20 +63,33 @@ func runVendor(cmd *base.Command, args []string) {
 		modpkgs[m] = append(modpkgs[m], pkg)
 	}
 
+	includeAllReplacements := false
+	isExplicit := map[module.Version]bool{}
+	if gv := modload.ModFile().Go; gv != nil && semver.Compare("v"+gv.Version, "v1.14") >= 0 {
+		// If the Go version is at least 1.14, annotate all explicit 'require' and
+		// 'replace' targets found in the go.mod file so that we can perform a
+		// stronger consistency check when -mod=vendor is set.
+		for _, r := range modload.ModFile().Require {
+			isExplicit[r.Mod] = true
+		}
+		includeAllReplacements = true
+	}
+
 	var buf bytes.Buffer
 	for _, m := range modload.BuildList()[1:] {
-		if pkgs := modpkgs[m]; len(pkgs) > 0 {
-			repl := ""
-			if r := modload.Replacement(m); r.Path != "" {
-				repl = " => " + r.Path
-				if r.Version != "" {
-					repl += " " + r.Version
+		if pkgs := modpkgs[m]; len(pkgs) > 0 || isExplicit[m] {
+			line := moduleLine(m, modload.Replacement(m))
+			buf.WriteString(line)
+			if cfg.BuildV {
+				os.Stderr.WriteString(line)
+			}
+			if isExplicit[m] {
+				buf.WriteString("## explicit\n")
+				if cfg.BuildV {
+					os.Stderr.WriteString("## explicit\n")
 				}
 			}
-			fmt.Fprintf(&buf, "# %s %s%s\n", m.Path, m.Version, repl)
-			if cfg.BuildV {
-				fmt.Fprintf(os.Stderr, "# %s %s%s\n", m.Path, m.Version, repl)
-			}
+			sort.Strings(pkgs)
 			for _, pkg := range pkgs {
 				fmt.Fprintf(&buf, "%s\n", pkg)
 				if cfg.BuildV {
@@ -80,6 +99,26 @@ func runVendor(cmd *base.Command, args []string) {
 			}
 		}
 	}
+
+	if includeAllReplacements {
+		// Record unused and wildcard replacements at the end of the modules.txt file:
+		// without access to the complete build list, the consumer of the vendor
+		// directory can't otherwise determine that those replacements had no effect.
+		for _, r := range modload.ModFile().Replace {
+			if len(modpkgs[r.Old]) > 0 {
+				// We we already recorded this replacement in the entry for the replaced
+				// module with the packages it provides.
+				continue
+			}
+
+			line := moduleLine(r.Old, r.New)
+			buf.WriteString(line)
+			if cfg.BuildV {
+				os.Stderr.WriteString(line)
+			}
+		}
+	}
+
 	if buf.Len() == 0 {
 		fmt.Fprintf(os.Stderr, "go: no dependencies to vendor\n")
 		return
@@ -87,6 +126,26 @@ func runVendor(cmd *base.Command, args []string) {
 	if err := ioutil.WriteFile(filepath.Join(vdir, "modules.txt"), buf.Bytes(), 0666); err != nil {
 		base.Fatalf("go mod vendor: %v", err)
 	}
+}
+
+func moduleLine(m, r module.Version) string {
+	b := new(strings.Builder)
+	b.WriteString("# ")
+	b.WriteString(m.Path)
+	if m.Version != "" {
+		b.WriteString(" ")
+		b.WriteString(m.Version)
+	}
+	if r.Path != "" {
+		b.WriteString(" => ")
+		b.WriteString(r.Path)
+		if r.Version != "" {
+			b.WriteString(" ")
+			b.WriteString(r.Version)
+		}
+	}
+	b.WriteString("\n")
+	return b.String()
 }
 
 func vendorPkg(vdir, pkg string) {
@@ -100,7 +159,7 @@ func vendorPkg(vdir, pkg string) {
 	if src == "" {
 		fmt.Fprintf(os.Stderr, "internal error: no pkg for %s -> %s\n", pkg, realPath)
 	}
-	copyDir(dst, src, matchNonTest)
+	copyDir(dst, src, matchPotentialSourceFile)
 	if m := modload.PackageModule(realPath); m.Path != "" {
 		copyMetadata(m.Path, realPath, dst, src)
 	}
@@ -153,7 +212,7 @@ var metaPrefixes = []string{
 }
 
 // matchMetadata reports whether info is a metadata file.
-func matchMetadata(info os.FileInfo) bool {
+func matchMetadata(dir string, info os.FileInfo) bool {
 	name := info.Name()
 	for _, p := range metaPrefixes {
 		if strings.HasPrefix(name, p) {
@@ -163,13 +222,34 @@ func matchMetadata(info os.FileInfo) bool {
 	return false
 }
 
-// matchNonTest reports whether info is any non-test file (including non-Go files).
-func matchNonTest(info os.FileInfo) bool {
-	return !strings.HasSuffix(info.Name(), "_test.go")
+// matchPotentialSourceFile reports whether info may be relevant to a build operation.
+func matchPotentialSourceFile(dir string, info os.FileInfo) bool {
+	if strings.HasSuffix(info.Name(), "_test.go") {
+		return false
+	}
+	if strings.HasSuffix(info.Name(), ".go") {
+		f, err := os.Open(filepath.Join(dir, info.Name()))
+		if err != nil {
+			base.Fatalf("go mod vendor: %v", err)
+		}
+		defer f.Close()
+
+		content, err := imports.ReadImports(f, false, nil)
+		if err == nil && !imports.ShouldBuild(content, imports.AnyTags()) {
+			// The file is explicitly tagged "ignore", so it can't affect the build.
+			// Leave it out.
+			return false
+		}
+		return true
+	}
+
+	// We don't know anything about this file, so optimistically assume that it is
+	// needed.
+	return true
 }
 
 // copyDir copies all regular files satisfying match(info) from src to dst.
-func copyDir(dst, src string, match func(os.FileInfo) bool) {
+func copyDir(dst, src string, match func(dir string, info os.FileInfo) bool) {
 	files, err := ioutil.ReadDir(src)
 	if err != nil {
 		base.Fatalf("go mod vendor: %v", err)
@@ -178,7 +258,7 @@ func copyDir(dst, src string, match func(os.FileInfo) bool) {
 		base.Fatalf("go mod vendor: %v", err)
 	}
 	for _, file := range files {
-		if file.IsDir() || !file.Mode().IsRegular() || !match(file) {
+		if file.IsDir() || !file.Mode().IsRegular() || !match(src, file) {
 			continue
 		}
 		r, err := os.Open(filepath.Join(src, file.Name()))

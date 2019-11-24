@@ -1,8 +1,0 @@
-// aix/ppc64-specific vet whitelist. See readme.txt for details.
-
-runtime/asm_ppc64x.s: [ppc64] sigreturn: function sigreturn missing Go declaration
-runtime/sys_aix_ppc64.s: [ppc64] callCfunction: function callCfunction missing Go declaration
-runtime/sys_aix_ppc64.s: [ppc64] _asmsyscall6: function _asmsyscall6 missing Go declaration
-runtime/sys_aix_ppc64.s: [ppc64] _sigtramp: function _sigtramp missing Go declaration
-runtime/sys_aix_ppc64.s: [ppc64] _sigtramp: use of 16(R1) points beyond argument frame
-runtime/sys_aix_ppc64.s: [ppc64] _tstart: function _tstart missing Go declaration

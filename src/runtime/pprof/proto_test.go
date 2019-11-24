@@ -116,9 +116,9 @@ func TestConvertCPUProfile(t *testing.T) {
 
 	b := []uint64{
 		3, 0, 500, // hz = 500
-		5, 0, 10, uint64(addr1), uint64(addr1 + 2), // 10 samples in addr1
-		5, 0, 40, uint64(addr2), uint64(addr2 + 2), // 40 samples in addr2
-		5, 0, 10, uint64(addr1), uint64(addr1 + 2), // 10 samples in addr1
+		5, 0, 10, uint64(addr1 + 1), uint64(addr1 + 2), // 10 samples in addr1
+		5, 0, 40, uint64(addr2 + 1), uint64(addr2 + 2), // 40 samples in addr2
+		5, 0, 10, uint64(addr1 + 1), uint64(addr1 + 2), // 10 samples in addr1
 	}
 	p, err := translateCPUProfile(b)
 	if err != nil {
@@ -207,11 +207,11 @@ ffffffffff600000-ffffffffff601000 r-xp 00000090 00:00 0                  [vsysca
 7ffc34343000 7ffc34345000 00000000 [vdso]
 ffffffffff600000 ffffffffff601000 00000090 [vsyscall]
 
-00400000-07000000 r-xp 00000000 00:00 0 
+00400000-07000000 r-xp 00000000 00:00 0
 07000000-07093000 r-xp 06c00000 00:2e 536754                             /path/to/gobench_server_main
 07093000-0722d000 rw-p 06c92000 00:2e 536754                             /path/to/gobench_server_main
-0722d000-07b21000 rw-p 00000000 00:00 0 
-c000000000-c000036000 rw-p 00000000 00:00 0 
+0722d000-07b21000 rw-p 00000000 00:00 0
+c000000000-c000036000 rw-p 00000000 00:00 0
 ->
 07000000 07093000 06c00000 /path/to/gobench_server_main
 `
@@ -301,7 +301,7 @@ func TestProcSelfMaps(t *testing.T) {
 	})
 }
 
-// TestMapping checkes the mapping section of CPU profiles
+// TestMapping checks the mapping section of CPU profiles
 // has the HasFunctions field set correctly. If all PCs included
 // in the samples are successfully symbolized, the corresponding
 // mapping entry (in this test case, only one entry) should have
@@ -356,6 +356,17 @@ func TestMapping(t *testing.T) {
 				if !miss[m] && hit[m] && !m.HasFunctions {
 					t.Errorf("mapping %+v has HasFunctions=false, but all referenced locations from this lapping were symbolized successfully", m)
 					continue
+				}
+			}
+
+			if traceback == "Go+C" {
+				// The test code was arranged to have PCs from C and
+				// they are not symbolized.
+				// Check no Location containing those unsymbolized PCs contains multiple lines.
+				for i, loc := range prof.Location {
+					if !symbolized(loc) && len(loc.Line) > 1 {
+						t.Errorf("Location[%d] contains unsymbolized PCs and multiple lines: %v", i, loc)
+					}
 				}
 			}
 		})

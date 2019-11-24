@@ -110,7 +110,6 @@ func ldpkg(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, filename s
 			return
 		}
 		p1 += p0
-
 		loadcgo(ctxt, filename, objabi.PathToPrefix(lib.Pkg), data[p0:p1])
 	}
 }
@@ -123,6 +122,39 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 		return
 	}
 
+	// Find cgo_export symbols. They are roots in the deadcode pass.
+	for _, f := range directives {
+		switch f[0] {
+		case "cgo_export_static", "cgo_export_dynamic":
+			if len(f) < 2 || len(f) > 3 {
+				continue
+			}
+			local := f[1]
+			switch ctxt.BuildMode {
+			case BuildModeCShared, BuildModeCArchive, BuildModePlugin:
+				if local == "main" {
+					continue
+				}
+			}
+			local = expandpkg(local, pkg)
+			if f[0] == "cgo_export_static" {
+				ctxt.cgo_export_static[local] = true
+			} else {
+				ctxt.cgo_export_dynamic[local] = true
+			}
+		}
+	}
+
+	if *flagNewobj {
+		// Record the directives. We'll process them later after Symbols are created.
+		ctxt.cgodata = append(ctxt.cgodata, cgodata{file, pkg, directives})
+	} else {
+		setCgoAttr(ctxt, ctxt.Syms.Lookup, file, pkg, directives)
+	}
+}
+
+// Set symbol attributes or flags based on cgo directives.
+func setCgoAttr(ctxt *Link, lookup func(string, int) *sym.Symbol, file string, pkg string, directives [][]string) {
 	for _, f := range directives {
 		switch f[0] {
 		case "cgo_import_dynamic":
@@ -164,8 +196,8 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			if i := strings.Index(remote, "#"); i >= 0 {
 				remote, q = remote[:i], remote[i+1:]
 			}
-			s := ctxt.Syms.Lookup(local, 0)
-			if s.Type == 0 || s.Type == sym.SXREF || s.Type == sym.SHOSTOBJ {
+			s := lookup(local, 0)
+			if s.Type == 0 || s.Type == sym.SXREF || s.Type == sym.SBSS || s.Type == sym.SNOPTRBSS || s.Type == sym.SHOSTOBJ {
 				s.SetDynimplib(lib)
 				s.SetExtname(remote)
 				s.SetDynimpvers(q)
@@ -183,7 +215,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			}
 			local := f[1]
 
-			s := ctxt.Syms.Lookup(local, 0)
+			s := lookup(local, 0)
 			s.Type = sym.SHOSTOBJ
 			s.Size = 0
 			continue
@@ -204,11 +236,11 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 			// functions. Link.loadlib will resolve any
 			// ABI aliases we find here (since we may not
 			// yet know it's an alias).
-			s := ctxt.Syms.Lookup(local, 0)
+			s := lookup(local, 0)
 
 			switch ctxt.BuildMode {
 			case BuildModeCShared, BuildModeCArchive, BuildModePlugin:
-				if s == ctxt.Syms.Lookup("main", 0) {
+				if s == lookup("main", 0) {
 					continue
 				}
 			}
@@ -223,7 +255,6 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 
 			if !s.Attr.CgoExport() {
 				s.SetExtname(remote)
-				dynexp = append(dynexp, s)
 			} else if s.Extname() != remote {
 				fmt.Fprintf(os.Stderr, "%s: conflicting cgo_export directives: %s as %s and %s\n", os.Args[0], s.Name, s.Extname(), remote)
 				nerrors++
@@ -334,6 +365,24 @@ func fieldtrack(ctxt *Link) {
 }
 
 func (ctxt *Link) addexport() {
+	// Track undefined external symbols during external link.
+	if ctxt.LinkMode == LinkExternal {
+		for _, s := range ctxt.Syms.Allsym {
+			if !s.Attr.Reachable() || s.Attr.Special() || s.Attr.SubSymbol() {
+				continue
+			}
+			if s.Type != sym.STEXT {
+				continue
+			}
+			for i := range s.R {
+				r := &s.R[i]
+				if r.Sym != nil && r.Sym.Type == sym.Sxxx {
+					r.Sym.Type = sym.SUNDEFEXT
+				}
+			}
+		}
+	}
+
 	// TODO(aix)
 	if ctxt.HeadType == objabi.Hdarwin || ctxt.HeadType == objabi.Haix {
 		return

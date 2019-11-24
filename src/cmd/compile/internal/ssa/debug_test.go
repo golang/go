@@ -22,24 +22,27 @@ import (
 	"time"
 )
 
-var update = flag.Bool("u", false, "update test reference files")
-var verbose = flag.Bool("v", false, "print debugger interactions (very verbose)")
-var dryrun = flag.Bool("n", false, "just print the command line and first debugging bits")
-var useDelve = flag.Bool("d", false, "use Delve (dlv) instead of gdb, use dlv reverence files")
-var force = flag.Bool("f", false, "force run under not linux-amd64; also do not use tempdir")
+var (
+	update  = flag.Bool("u", false, "update test reference files")
+	verbose = flag.Bool("v", false, "print debugger interactions (very verbose)")
+	dryrun  = flag.Bool("n", false, "just print the command line and first debugging bits")
+	useGdb  = flag.Bool("g", false, "use Gdb instead of Delve (dlv), use gdb reference files")
+	force   = flag.Bool("f", false, "force run under not linux-amd64; also do not use tempdir")
+	repeats = flag.Bool("r", false, "detect repeats in debug steps and don't ignore them")
+	inlines = flag.Bool("i", false, "do inlining for gdb (makes testing flaky till inlining info is correct)")
+)
 
-var repeats = flag.Bool("r", false, "detect repeats in debug steps and don't ignore them")
-var inlines = flag.Bool("i", false, "do inlining for gdb (makes testing flaky till inlining info is correct)")
-
-var hexRe = regexp.MustCompile("0x[a-zA-Z0-9]+")
-var numRe = regexp.MustCompile("-?[0-9]+")
-var stringRe = regexp.MustCompile("\"([^\\\"]|(\\.))*\"")
-var leadingDollarNumberRe = regexp.MustCompile("^[$][0-9]+")
-var optOutGdbRe = regexp.MustCompile("[<]optimized out[>]")
-var numberColonRe = regexp.MustCompile("^ *[0-9]+:")
+var (
+	hexRe                 = regexp.MustCompile("0x[a-zA-Z0-9]+")
+	numRe                 = regexp.MustCompile("-?[0-9]+")
+	stringRe              = regexp.MustCompile("\"([^\\\"]|(\\.))*\"")
+	leadingDollarNumberRe = regexp.MustCompile("^[$][0-9]+")
+	optOutGdbRe           = regexp.MustCompile("[<]optimized out[>]")
+	numberColonRe         = regexp.MustCompile("^ *[0-9]+:")
+)
 
 var gdb = "gdb"      // Might be "ggdb" on Darwin, because gdb no longer part of XCode
-var debugger = "gdb" // For naming files, etc.
+var debugger = "dlv" // For naming files, etc.
 
 var gogcflags = os.Getenv("GO_GCFLAGS")
 
@@ -98,23 +101,18 @@ func TestNexting(t *testing.T) {
 	}
 	testenv.MustHaveGoBuild(t)
 
-	if !*useDelve && !*force && !(runtime.GOOS == "linux" && runtime.GOARCH == "amd64") {
+	if *useGdb && !*force && !(runtime.GOOS == "linux" && runtime.GOARCH == "amd64") {
 		// Running gdb on OSX/darwin is very flaky.
 		// Sometimes it is called ggdb, depending on how it is installed.
 		// It also sometimes requires an admin password typed into a dialog box.
 		// Various architectures tend to differ slightly sometimes, and keeping them
 		// all in sync is a pain for people who don't have them all at hand,
 		// so limit testing to amd64 (for now)
-		skipReasons += "not run unless linux-amd64 or -d (delve) or -f (force); "
+		skipReasons += "not run when testing gdb (-g) unless forced (-f) or linux-amd64"
 	}
 
-	if *useDelve {
-		debugger = "dlv"
-		_, err := exec.LookPath("dlv")
-		if err != nil {
-			skipReasons += "not run because dlv (requested by -d option) not on path; "
-		}
-	} else {
+	if *useGdb {
+		debugger = "gdb"
 		_, err := exec.LookPath(gdb)
 		if err != nil {
 			if runtime.GOOS != "darwin" {
@@ -123,11 +121,17 @@ func TestNexting(t *testing.T) {
 				// On Darwin, MacPorts installs gdb as "ggdb".
 				_, err = exec.LookPath("ggdb")
 				if err != nil {
-					skipReasons += "not run because gdb (and also ggdb) not on path; "
+					skipReasons += "not run because gdb (and also ggdb) request by -g option not on path; "
 				} else {
 					gdb = "ggdb"
 				}
 			}
+		}
+	} else { // Delve
+		debugger = "dlv"
+		_, err := exec.LookPath("dlv")
+		if err != nil {
+			skipReasons += "not run because dlv not on path; "
 		}
 	}
 
@@ -137,14 +141,14 @@ func TestNexting(t *testing.T) {
 
 	optFlags := "" // Whatever flags are needed to test debugging of optimized code.
 	dbgFlags := "-N -l"
-	if !*useDelve && !*inlines {
+	if *useGdb && !*inlines {
 		// For gdb (default), disable inlining so that a compiler test does not depend on library code.
-		// TODO: Technically not necessary in 1.10, but it causes a largish regression that needs investigation.
+		// TODO: Technically not necessary in 1.10 and later, but it causes a largish regression that needs investigation.
 		optFlags += " -l"
 	}
 
 	moreargs := []string{}
-	if !*useDelve && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
+	if *useGdb && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
 		// gdb and lldb on Darwin do not deal with compressed dwarf.
 		// also, Windows.
 		moreargs = append(moreargs, "-ldflags=-compressdwarf=false")
@@ -158,14 +162,33 @@ func TestNexting(t *testing.T) {
 
 	optSubTest(t, debugger+"-opt", "hist", optFlags, 1000, moreargs...)
 	optSubTest(t, debugger+"-opt", "scopes", optFlags, 1000, moreargs...)
-	optSubTest(t, debugger+"-opt", "infloop", optFlags, 10, moreargs...)
+
+	// Was optSubtest, this test is observed flaky on Linux in Docker on (busy) macOS, probably because of timing
+	// glitches in this harness.
+	// TODO get rid of timing glitches in this harness.
+	skipSubTest(t, debugger+"-opt", "infloop", optFlags, 10, moreargs...)
+
 }
 
 // subTest creates a subtest that compiles basename.go with the specified gcflags and additional compiler arguments,
 // then runs the debugger on the resulting binary, with any comment-specified actions matching tag triggered.
 func subTest(t *testing.T, tag string, basename string, gcflags string, moreargs ...string) {
 	t.Run(tag+"-"+basename, func(t *testing.T) {
+		if t.Name() == "TestNexting/gdb-dbg-i22558" {
+			testenv.SkipFlaky(t, 31263)
+		}
 		testNexting(t, basename, tag, gcflags, 1000, moreargs...)
+	})
+}
+
+// skipSubTest is the same as subTest except that it skips the test if execution is not forced (-f)
+func skipSubTest(t *testing.T, tag string, basename string, gcflags string, count int, moreargs ...string) {
+	t.Run(tag+"-"+basename, func(t *testing.T) {
+		if *force {
+			testNexting(t, basename, tag, gcflags, count, moreargs...)
+		} else {
+			t.Skip("skipping flaky test becaused not forced (-f)")
+		}
 	})
 }
 
@@ -215,10 +238,10 @@ func testNexting(t *testing.T, base, tag, gcflags string, count int, moreArgs ..
 	nextlog := testbase + ".nexts"
 	tmplog := tmpbase + ".nexts"
 	var dbg dbgr
-	if *useDelve {
-		dbg = newDelve(tag, exe)
-	} else {
+	if *useGdb {
 		dbg = newGdb(tag, exe)
+	} else {
+		dbg = newDelve(tag, exe)
 	}
 	h1 := runDbgr(dbg, count)
 	if *dryrun {
@@ -536,7 +559,7 @@ func (s *delveState) start() {
 		panic(fmt.Sprintf("There was an error [start] running '%s', %v\n", line, err))
 	}
 	s.ioState.readExpecting(-1, 5000, "Type 'help' for list of commands.")
-	expect("Breakpoint [0-9]+ set at ", s.ioState.writeReadExpect("b main.test\n", "[(]dlv[)] "))
+	s.ioState.writeReadExpect("b main.test\n", "[(]dlv[)] ")
 	s.stepnext("c")
 }
 
@@ -595,7 +618,7 @@ func (s *gdbState) start() {
 		line := asCommandLine("", s.cmd)
 		panic(fmt.Sprintf("There was an error [start] running '%s', %v\n", line, err))
 	}
-	s.ioState.readExpecting(-1, -1, "[(]gdb[)] ")
+	s.ioState.readSimpleExpecting("[(]gdb[)] ")
 	x := s.ioState.writeReadExpect("b main.test\n", "[(]gdb[)] ")
 	expect("Breakpoint [0-9]+ at", x)
 	s.stepnext(run)
@@ -837,7 +860,7 @@ func (s *ioState) writeReadExpect(ss, expectRE string) tstring {
 	if err != nil {
 		panic(fmt.Sprintf("There was an error writing '%s', %v\n", ss, err))
 	}
-	return s.readExpecting(-1, -1, expectRE)
+	return s.readSimpleExpecting(expectRE)
 }
 
 func (s *ioState) readExpecting(millis, interlineTimeout int, expectedRE string) tstring {
@@ -884,6 +907,40 @@ loop:
 	return s.last
 }
 
+func (s *ioState) readSimpleExpecting(expectedRE string) tstring {
+	s.last = tstring{}
+	var re *regexp.Regexp
+	if expectedRE != "" {
+		re = regexp.MustCompile(expectedRE)
+	}
+	for {
+		select {
+		case x, ok := <-s.outChan:
+			if !ok {
+				s.outChan = nil
+			}
+			s.last.o += x
+		case x, ok := <-s.errChan:
+			if !ok {
+				s.errChan = nil
+			}
+			s.last.e += x
+		}
+		if re != nil {
+			if re.MatchString(s.last.o) {
+				break
+			}
+			if re.MatchString(s.last.e) {
+				break
+			}
+		}
+	}
+	if *verbose {
+		fmt.Printf("<= %s%s", s.last.o, s.last.e)
+	}
+	return s.last
+}
+
 // replaceEnv returns a new environment derived from env
 // by removing any existing definition of ev and adding ev=evv.
 func replaceEnv(env []string, ev string, evv string) []string {
@@ -902,7 +959,7 @@ func replaceEnv(env []string, ev string, evv string) []string {
 }
 
 // asCommandLine renders cmd as something that could be copy-and-pasted into a command line
-// If cwd is not empty and different from the command's directory, prepend an approprirate "cd"
+// If cwd is not empty and different from the command's directory, prepend an appropriate "cd"
 func asCommandLine(cwd string, cmd *exec.Cmd) string {
 	s := "("
 	if cmd.Dir != "" && cmd.Dir != cwd {

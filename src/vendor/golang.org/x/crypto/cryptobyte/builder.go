@@ -50,8 +50,14 @@ func NewFixedBuilder(buffer []byte) *Builder {
 	}
 }
 
+// SetError sets the value to be returned as the error from Bytes. Writes
+// performed after calling SetError are ignored.
+func (b *Builder) SetError(err error) {
+	b.err = err
+}
+
 // Bytes returns the bytes written by the builder or an error if one has
-// occurred during during building.
+// occurred during building.
 func (b *Builder) Bytes() ([]byte, error) {
 	if b.err != nil {
 		return nil, b.err
@@ -94,7 +100,7 @@ func (b *Builder) AddBytes(v []byte) {
 	b.add(v...)
 }
 
-// BuilderContinuation is continuation-passing interface for building
+// BuilderContinuation is a continuation-passing interface for building
 // length-prefixed byte sequences. Builder methods for length-prefixed
 // sequences (AddUint8LengthPrefixed etc) will invoke the BuilderContinuation
 // supplied to them. The child builder passed to the continuation can be used
@@ -268,9 +274,11 @@ func (b *Builder) flushChild() {
 		return
 	}
 
-	if !b.fixedSize {
-		b.result = child.result // In case child reallocated result.
+	if b.fixedSize && &b.result[0] != &child.result[0] {
+		panic("cryptobyte: BuilderContinuation reallocated a fixed-size buffer")
 	}
+
+	b.result = child.result
 }
 
 func (b *Builder) add(bytes ...byte) {
@@ -278,7 +286,7 @@ func (b *Builder) add(bytes ...byte) {
 		return
 	}
 	if b.child != nil {
-		panic("attempted write while child is pending")
+		panic("cryptobyte: attempted write while child is pending")
 	}
 	if len(b.result)+len(bytes) < len(bytes) {
 		b.err = errors.New("cryptobyte: length overflow")
@@ -288,6 +296,26 @@ func (b *Builder) add(bytes ...byte) {
 		return
 	}
 	b.result = append(b.result, bytes...)
+}
+
+// Unwrite rolls back n bytes written directly to the Builder. An attempt by a
+// child builder passed to a continuation to unwrite bytes from its parent will
+// panic.
+func (b *Builder) Unwrite(n int) {
+	if b.err != nil {
+		return
+	}
+	if b.child != nil {
+		panic("cryptobyte: attempted unwrite while child is pending")
+	}
+	length := len(b.result) - b.pendingLenLen - b.offset
+	if length < 0 {
+		panic("cryptobyte: internal error")
+	}
+	if n > length {
+		panic("cryptobyte: attempted to unwrite more than was written")
+	}
+	b.result = b.result[:len(b.result)-n]
 }
 
 // A MarshalingValue marshals itself into a Builder.

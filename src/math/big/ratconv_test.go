@@ -574,3 +574,18 @@ func TestFloat64SpecialCases(t *testing.T) {
 		}
 	}
 }
+
+func TestIssue31184(t *testing.T) {
+	var x Rat
+	for _, want := range []string{
+		"-213.090",
+		"8.192",
+		"16.000",
+	} {
+		x.SetString(want)
+		got := x.FloatString(3)
+		if got != want {
+			t.Errorf("got %s, want %s", got, want)
+		}
+	}
+}

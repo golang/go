@@ -7,6 +7,7 @@ package testing
 import (
 	"bytes"
 	"fmt"
+	"reflect"
 	"regexp"
 	"runtime"
 	"strings"
@@ -16,7 +17,7 @@ import (
 )
 
 func init() {
-	// Make benchmark tests run 10* faster.
+	// Make benchmark tests run 10x faster.
 	benchTime.d = 100 * time.Millisecond
 }
 
@@ -434,6 +435,31 @@ func TestTRun(t *T) {
 			<-ch
 			t.Errorf("error")
 		},
+	}, {
+		// A chatty test should always log with fmt.Print, even if the
+		// parent test has completed.
+		// TODO(deklerk) Capture the log of fmt.Print and assert that the
+		// subtest message is not lost.
+		desc:   "log in finished sub test with chatty",
+		ok:     false,
+		chatty: true,
+		output: `
+		--- FAIL: log in finished sub test with chatty (N.NNs)`,
+		maxPar: 1,
+		f: func(t *T) {
+			ch := make(chan bool)
+			t.Run("sub", func(t2 *T) {
+				go func() {
+					<-ch
+					t2.Log("message1")
+					ch <- true
+				}()
+			})
+			t.Log("message2")
+			ch <- true
+			<-ch
+			t.Errorf("error")
+		},
 	}}
 	for _, tc := range testCases {
 		ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
@@ -521,13 +547,6 @@ func TestBRun(t *T) {
 		chatty: true,
 		output: "--- SKIP: root",
 		f:      func(b *B) { b.SkipNow() },
-	}, {
-		desc:   "skipping with message, chatty",
-		chatty: true,
-		output: `
---- SKIP: root
-    sub_test.go:NNN: skipping`,
-		f: func(b *B) { b.Skip("skipping") },
 	}, {
 		desc:   "chatty with recursion",
 		chatty: true,
@@ -756,6 +775,9 @@ func TestLogAfterComplete(t *T) {
 }
 
 func TestBenchmark(t *T) {
+	if Short() {
+		t.Skip("skipping in short mode")
+	}
 	res := Benchmark(func(b *B) {
 		for i := 0; i < 5; i++ {
 			b.Run("", func(b *B) {
@@ -767,5 +789,69 @@ func TestBenchmark(t *T) {
 	})
 	if res.NsPerOp() < 4000000 {
 		t.Errorf("want >5ms; got %v", time.Duration(res.NsPerOp()))
+	}
+}
+
+func TestCleanup(t *T) {
+	var cleanups []int
+	t.Run("test", func(t *T) {
+		t.Cleanup(func() { cleanups = append(cleanups, 1) })
+		t.Cleanup(func() { cleanups = append(cleanups, 2) })
+	})
+	if got, want := cleanups, []int{2, 1}; !reflect.DeepEqual(got, want) {
+		t.Errorf("unexpected cleanup record; got %v want %v", got, want)
+	}
+}
+
+func TestConcurrentCleanup(t *T) {
+	cleanups := 0
+	t.Run("test", func(t *T) {
+		done := make(chan struct{})
+		for i := 0; i < 2; i++ {
+			i := i
+			go func() {
+				t.Cleanup(func() {
+					cleanups |= 1 << i
+				})
+				done <- struct{}{}
+			}()
+		}
+		<-done
+		<-done
+	})
+	if cleanups != 1|2 {
+		t.Errorf("unexpected cleanup; got %d want 3", cleanups)
+	}
+}
+
+func TestCleanupCalledEvenAfterGoexit(t *T) {
+	cleanups := 0
+	t.Run("test", func(t *T) {
+		t.Cleanup(func() {
+			cleanups++
+		})
+		t.Cleanup(func() {
+			runtime.Goexit()
+		})
+	})
+	if cleanups != 1 {
+		t.Errorf("unexpected cleanup count; got %d want 1", cleanups)
+	}
+}
+
+func TestRunCleanup(t *T) {
+	outerCleanup := 0
+	innerCleanup := 0
+	t.Run("test", func(t *T) {
+		t.Cleanup(func() { outerCleanup++ })
+		t.Run("x", func(t *T) {
+			t.Cleanup(func() { innerCleanup++ })
+		})
+	})
+	if innerCleanup != 1 {
+		t.Errorf("unexpected inner cleanup count; got %d want 1", innerCleanup)
+	}
+	if outerCleanup != 1 {
+		t.Errorf("unexpected outer cleanup count; got %d want 0", outerCleanup)
 	}
 }

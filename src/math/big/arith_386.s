@@ -136,7 +136,7 @@ TEXT ·shlVU(SB),NOSPLIT,$0
 	MOVL s+24(FP), CX
 	MOVL (SI)(BX*4), AX	// w1 = x[n-1]
 	MOVL $0, DX
-	SHLL CX, DX:AX		// w1>>ŝ
+	SHLL CX, AX, DX		// w1>>ŝ
 	MOVL DX, c+28(FP)
 
 	CMPL BX, $0
@@ -145,7 +145,7 @@ TEXT ·shlVU(SB),NOSPLIT,$0
 	// i > 0
 L8:	MOVL AX, DX		// w = w1
 	MOVL -4(SI)(BX*4), AX	// w1 = x[i-1]
-	SHLL CX, DX:AX		// w<<s | w1>>ŝ
+	SHLL CX, AX, DX		// w<<s | w1>>ŝ
 	MOVL DX, (DI)(BX*4)	// z[i] = w<<s | w1>>ŝ
 	SUBL $1, BX		// i--
 	JG L8			// i > 0
@@ -171,7 +171,7 @@ TEXT ·shrVU(SB),NOSPLIT,$0
 	MOVL s+24(FP), CX
 	MOVL (SI), AX		// w1 = x[0]
 	MOVL $0, DX
-	SHRL CX, DX:AX		// w1<<ŝ
+	SHRL CX, AX, DX		// w1<<ŝ
 	MOVL DX, c+28(FP)
 
 	MOVL $0, BX		// i = 0
@@ -180,7 +180,7 @@ TEXT ·shrVU(SB),NOSPLIT,$0
 	// i < n-1
 L9:	MOVL AX, DX		// w = w1
 	MOVL 4(SI)(BX*4), AX	// w1 = x[i+1]
-	SHRL CX, DX:AX		// w>>s | w1<<ŝ
+	SHRL CX, AX, DX		// w>>s | w1<<ŝ
 	MOVL DX, (DI)(BX*4)	// z[i] = w>>s | w1<<ŝ
 	ADDL $1, BX		// i++
 

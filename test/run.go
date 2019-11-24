@@ -34,6 +34,7 @@ var (
 	keep           = flag.Bool("k", false, "keep. keep temporary directory.")
 	numParallel    = flag.Int("n", runtime.NumCPU(), "number of parallel tests to run")
 	summary        = flag.Bool("summary", false, "show summary of results")
+	allCodegen     = flag.Bool("all_codegen", defaultAllCodeGen(), "run all goos/goarch for codegen")
 	showSkips      = flag.Bool("show_skips", false, "show skipped tests")
 	runSkips       = flag.Bool("run_skips", false, "run skipped tests (ignore skip and build tags)")
 	linkshared     = flag.Bool("linkshared", false, "")
@@ -44,12 +45,20 @@ var (
 	shards = flag.Int("shards", 0, "number of shards. If 0, all tests are run. This is used by the continuous build.")
 )
 
+// defaultAllCodeGen returns the default value of the -all_codegen
+// flag. By default, we prefer to be fast (returning false), except on
+// the linux-amd64 builder that's already very fast, so we get more
+// test coverage on trybots. See https://golang.org/issue/34297.
+func defaultAllCodeGen() bool {
+	return os.Getenv("GO_BUILDER_NAME") == "linux-amd64"
+}
+
 var (
 	goos, goarch string
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
-	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen"}
+	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime"}
 
 	// ratec controls the max number of tests running at a time.
 	ratec chan bool
@@ -521,7 +530,7 @@ func (t *test) run() {
 
 	// TODO: Clean up/simplify this switch statement.
 	switch action {
-	case "compile", "compiledir", "build", "builddir", "buildrundir", "run", "buildrun", "runoutput", "rundir", "asmcheck":
+	case "compile", "compiledir", "build", "builddir", "buildrundir", "run", "buildrun", "runoutput", "rundir", "runindir", "asmcheck":
 		// nothing to do
 	case "errorcheckandrundir":
 		wantError = false // should be no error if also will run
@@ -602,16 +611,19 @@ func (t *test) run() {
 	}
 
 	useTmp := true
+	runInDir := false
 	runcmd := func(args ...string) ([]byte, error) {
 		cmd := exec.Command(args[0], args[1:]...)
 		var buf bytes.Buffer
 		cmd.Stdout = &buf
 		cmd.Stderr = &buf
+		cmd.Env = os.Environ()
 		if useTmp {
 			cmd.Dir = t.tempDir
 			cmd.Env = envForDir(cmd.Dir)
-		} else {
-			cmd.Env = os.Environ()
+		}
+		if runInDir {
+			cmd.Dir = t.goDirName()
 		}
 
 		var err error
@@ -653,13 +665,22 @@ func (t *test) run() {
 		// Compile Go file and match the generated assembly
 		// against a set of regexps in comments.
 		ops := t.wantedAsmOpcodes(long)
+		self := runtime.GOOS + "/" + runtime.GOARCH
 		for _, env := range ops.Envs() {
+			// Only run checks relevant to the current GOOS/GOARCH,
+			// to avoid triggering a cross-compile of the runtime.
+			if string(env) != self && !strings.HasPrefix(string(env), self+"/") && !*allCodegen {
+				continue
+			}
 			// -S=2 forces outermost line numbers when disassembling inlined code.
 			cmdline := []string{"build", "-gcflags", "-S=2"}
 			cmdline = append(cmdline, flags...)
 			cmdline = append(cmdline, long)
 			cmd := exec.Command(goTool(), cmdline...)
 			cmd.Env = append(os.Environ(), env.Environ()...)
+			if len(flags) > 0 && flags[0] == "-race" {
+				cmd.Env = append(cmd.Env, "CGO_ENABLED=1")
+			}
 
 			var buf bytes.Buffer
 			cmd.Stdout, cmd.Stderr = &buf, &buf
@@ -822,6 +843,28 @@ func (t *test) run() {
 					t.err = fmt.Errorf("incorrect output\n%s", out)
 				}
 			}
+		}
+
+	case "runindir":
+		// run "go run ." in t.goDirName()
+		// It's used when test requires go build and run the binary success.
+		// Example when long import path require (see issue29612.dir) or test
+		// contains assembly file (see issue15609.dir).
+		// Verify the expected output.
+		useTmp = false
+		runInDir = true
+		cmd := []string{goTool(), "run", goGcflags()}
+		if *linkshared {
+			cmd = append(cmd, "-linkshared")
+		}
+		cmd = append(cmd, ".")
+		out, err := runcmd(cmd...)
+		if err != nil {
+			t.err = err
+			return
+		}
+		if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
+			t.err = fmt.Errorf("incorrect output\n%s", out)
 		}
 
 	case "build":

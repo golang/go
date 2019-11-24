@@ -46,15 +46,35 @@ TEXT runtime·read(SB),NOSPLIT,$-4
 	MOVL	$3, AX
 	INT	$0x80
 	JAE	2(PC)
-	MOVL	$-1, AX
+	NEGL	AX			// caller expects negative errno
 	MOVL	AX, ret+12(FP)
 	RET
 
-TEXT runtime·write(SB),NOSPLIT,$-4
+// func pipe() (r, w int32, errno int32)
+TEXT runtime·pipe(SB),NOSPLIT,$8-12
+	MOVL	$263, AX
+	LEAL	r+0(FP), BX
+	MOVL	BX, 4(SP)
+	INT	$0x80
+	MOVL	AX, errno+8(FP)
+	RET
+
+// func pipe2(flags int32) (r, w int32, errno int32)
+TEXT runtime·pipe2(SB),NOSPLIT,$12-16
+	MOVL	$101, AX
+	LEAL	r+4(FP), BX
+	MOVL	BX, 4(SP)
+	MOVL	flags+0(FP), BX
+	MOVL	BX, 8(SP)
+	INT	$0x80
+	MOVL	AX, errno+12(FP)
+	RET
+
+TEXT runtime·write1(SB),NOSPLIT,$-4
 	MOVL	$4, AX			// sys_write
 	INT	$0x80
 	JAE	2(PC)
-	MOVL	$-1, AX
+	NEGL	AX			// caller expects negative errno
 	MOVL	AX, ret+12(FP)
 	RET
 
@@ -77,12 +97,17 @@ TEXT runtime·usleep(SB),NOSPLIT,$24
 	INT	$0x80
 	RET
 
-TEXT runtime·raise(SB),NOSPLIT,$16
+TEXT runtime·getthrid(SB),NOSPLIT,$0-4
 	MOVL	$299, AX		// sys_getthrid
 	INT	$0x80
+	MOVL	AX, ret+0(FP)
+	RET
+
+TEXT runtime·thrkill(SB),NOSPLIT,$16-8
 	MOVL	$0, 0(SP)
+	MOVL	tid+0(FP), AX
 	MOVL	AX, 4(SP)		// arg 1 - tid
-	MOVL	sig+0(FP), AX
+	MOVL	sig+4(FP), AX
 	MOVL	AX, 8(SP)		// arg 2 - signum
 	MOVL	$0, 12(SP)		// arg 3 - tcb
 	MOVL	$119, AX		// sys_thrkill
@@ -145,8 +170,8 @@ TEXT runtime·setitimer(SB),NOSPLIT,$-4
 	INT	$0x80
 	RET
 
-// func walltime() (sec int64, nsec int32)
-TEXT runtime·walltime(SB), NOSPLIT, $32
+// func walltime1() (sec int64, nsec int32)
+TEXT runtime·walltime1(SB), NOSPLIT, $32
 	LEAL	12(SP), BX
 	MOVL	$0, 4(SP)		// arg 1 - clock_id
 	MOVL	BX, 8(SP)		// arg 2 - tp
@@ -162,9 +187,9 @@ TEXT runtime·walltime(SB), NOSPLIT, $32
 	MOVL	BX, nsec+8(FP)
 	RET
 
-// int64 nanotime(void) so really
-// void nanotime(int64 *nsec)
-TEXT runtime·nanotime(SB),NOSPLIT,$32
+// int64 nanotime1(void) so really
+// void nanotime1(int64 *nsec)
+TEXT runtime·nanotime1(SB),NOSPLIT,$32
 	LEAL	12(SP), BX
 	MOVL	CLOCK_MONOTONIC, 4(SP)	// arg 1 - clock_id
 	MOVL	BX, 8(SP)		// arg 2 - tp
@@ -218,7 +243,9 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$12-16
 	MOVL	AX, SP
 	RET
 
+// Called by OS using C ABI.
 TEXT runtime·sigtramp(SB),NOSPLIT,$28
+	NOP	SP	// tell vet SP changed - stop checking offsets
 	// Save callee-saved C registers, since the caller may be a C signal handler.
 	MOVL	BX, bx-4(SP)
 	MOVL	BP, bp-8(SP)
@@ -227,11 +254,11 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$28
 	// We don't save mxcsr or the x87 control word because sigtrampgo doesn't
 	// modify them.
 
-	MOVL	signo+0(FP), BX
+	MOVL	32(SP), BX // signo
 	MOVL	BX, 0(SP)
-	MOVL	info+4(FP), BX
+	MOVL	36(SP), BX // info
 	MOVL	BX, 4(SP)
-	MOVL	context+8(FP), BX
+	MOVL	40(SP), BX // context
 	MOVL	BX, 8(SP)
 	CALL	runtime·sigtrampgo(SB)
 
@@ -292,7 +319,7 @@ TEXT runtime·tfork(SB),NOSPLIT,$12
 	LEAL	m_tls(BX), BP
 	PUSHAL				// save registers
 	PUSHL	BP
-	CALL	runtime·settls(SB)
+	CALL	set_tcb<>(SB)
 	POPL	AX
 	POPAL
 
@@ -329,12 +356,12 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
 
 TEXT runtime·setldt(SB),NOSPLIT,$4
 	// Under OpenBSD we set the GS base instead of messing with the LDT.
-	MOVL	tls0+4(FP), AX
+	MOVL	base+4(FP), AX
 	MOVL	AX, 0(SP)
-	CALL	runtime·settls(SB)
+	CALL	set_tcb<>(SB)
 	RET
 
-TEXT runtime·settls(SB),NOSPLIT,$8
+TEXT set_tcb<>(SB),NOSPLIT,$8
 	// adjust for ELF: wants to use -4(GS) for g
 	MOVL	tlsbase+0(FP), CX
 	ADDL	$4, CX
@@ -412,6 +439,23 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$32
 	INT	$0x80
 	JAE	2(PC)
 	NEGL	AX
+	RET
+
+// func runtime·setNonblock(fd int32)
+TEXT runtime·setNonblock(SB),NOSPLIT,$16-4
+	MOVL	$92, AX // fcntl
+	MOVL	fd+0(FP), BX // fd
+	MOVL	BX, 4(SP)
+	MOVL	$3, 8(SP) // F_GETFL
+	MOVL	$0, 12(SP)
+	INT	$0x80
+	MOVL	fd+0(FP), BX // fd
+	MOVL	BX, 4(SP)
+	MOVL	$4, 8(SP) // F_SETFL
+	ORL	$4, AX // O_NONBLOCK
+	MOVL	AX, 12(SP)
+	MOVL	$92, AX // fcntl
+	INT	$0x80
 	RET
 
 GLOBL runtime·tlsoffset(SB),NOPTR,$4

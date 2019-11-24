@@ -113,6 +113,20 @@ func ExampleDuration_Hours() {
 	// Output: I've got 4.5 hours of work left.
 }
 
+func ExampleDuration_Microseconds() {
+	u, _ := time.ParseDuration("1s")
+	fmt.Printf("One second is %d microseconds.\n", u.Microseconds())
+	// Output:
+	// One second is 1000000 microseconds.
+}
+
+func ExampleDuration_Milliseconds() {
+	u, _ := time.ParseDuration("1s")
+	fmt.Printf("One second is %d milliseconds.\n", u.Milliseconds())
+	// Output:
+	// One second is 1000 milliseconds.
+}
+
 func ExampleDuration_Minutes() {
 	m, _ := time.ParseDuration("1h30m")
 	fmt.Printf("The movie is %.0f minutes long.", m.Minutes())
@@ -153,8 +167,8 @@ func statusUpdate() string { return "" }
 
 func ExampleTick() {
 	c := time.Tick(5 * time.Second)
-	for now := range c {
-		fmt.Printf("%v %s\n", now, statusUpdate())
+	for next := range c {
+		fmt.Printf("%v %s\n", next, statusUpdate())
 	}
 }
 
@@ -349,6 +363,7 @@ func ExampleParse() {
 func ExampleParseInLocation() {
 	loc, _ := time.LoadLocation("Europe/Berlin")
 
+	// This will look for the name CEST in the Europe/Berlin time zone.
 	const longForm = "Jan 2, 2006 at 3:04pm (MST)"
 	t, _ := time.ParseInLocation(longForm, "Jul 9, 2012 at 5:02am (CEST)", loc)
 	fmt.Println(t)

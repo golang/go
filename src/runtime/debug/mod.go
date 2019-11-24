@@ -8,21 +8,21 @@ import (
 	"strings"
 )
 
-// set using cmd/go/internal/modload.ModInfoProg
-var modinfo string
+// exported from runtime
+func modinfo() string
 
 // ReadBuildInfo returns the build information embedded
 // in the running binary. The information is available only
 // in binaries built with module support.
 func ReadBuildInfo() (info *BuildInfo, ok bool) {
-	return readBuildInfo(modinfo)
+	return readBuildInfo(modinfo())
 }
 
 // BuildInfo represents the build information read from
 // the running binary.
 type BuildInfo struct {
 	Path string    // The main package path
-	Main Module    // The main module information
+	Main Module    // The module containing the main package
 	Deps []*Module // Module dependencies
 }
 

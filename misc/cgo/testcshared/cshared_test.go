@@ -7,12 +7,14 @@ package cshared_test
 import (
 	"bytes"
 	"debug/elf"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -35,6 +37,11 @@ func TestMain(m *testing.M) {
 
 func testMain(m *testing.M) int {
 	log.SetFlags(log.Lshortfile)
+	flag.Parse()
+	if testing.Short() && os.Getenv("GO_BUILDER_NAME") == "" {
+		fmt.Printf("SKIP - short mode and $GO_BUILDER_NAME not set\n")
+		os.Exit(0)
+	}
 
 	GOOS = goEnv("GOOS")
 	GOARCH = goEnv("GOARCH")
@@ -45,8 +52,8 @@ func testMain(m *testing.M) int {
 	}
 
 	androiddir = fmt.Sprintf("/data/local/tmp/testcshared-%d", os.Getpid())
-	if GOOS == "android" {
-		args := append(adbCmd(), "shell", "mkdir", "-p", androiddir)
+	if runtime.GOOS != GOOS && GOOS == "android" {
+		args := append(adbCmd(), "exec-out", "mkdir", "-p", androiddir)
 		cmd := exec.Command(args[0], args[1:]...)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
@@ -96,7 +103,7 @@ func testMain(m *testing.M) int {
 		// TODO(crawshaw): can we do better?
 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
 	case "android":
-		cc = append(cc, "-pie", "-fuse-ld=gold")
+		cc = append(cc, "-pie")
 	}
 	libgodir := GOOS + "_" + GOARCH
 	switch GOOS {
@@ -104,7 +111,7 @@ func testMain(m *testing.M) int {
 		if GOARCH == "arm" || GOARCH == "arm64" {
 			libgodir += "_shared"
 		}
-	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+	case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris", "illumos":
 		libgodir += "_shared"
 	}
 	cc = append(cc, "-I", filepath.Join("pkg", libgodir))
@@ -123,8 +130,6 @@ func testMain(m *testing.M) int {
 	defer os.RemoveAll(GOPATH)
 	os.Setenv("GOPATH", GOPATH)
 
-	// Copy testdata into GOPATH/src/testarchive, along with a go.mod file
-	// declaring the same path.
 	modRoot := filepath.Join(GOPATH, "src", "testcshared")
 	if err := overlayDir(modRoot, "testdata"); err != nil {
 		log.Panic(err)
@@ -177,7 +182,7 @@ func adbCmd() []string {
 }
 
 func adbPush(t *testing.T, filename string) {
-	if GOOS != "android" {
+	if runtime.GOOS == GOOS || GOOS != "android" {
 		return
 	}
 	args := append(adbCmd(), "push", filename, fmt.Sprintf("%s/%s", androiddir, filename))
@@ -191,7 +196,7 @@ func adbRun(t *testing.T, env []string, adbargs ...string) string {
 	if GOOS != "android" {
 		t.Fatalf("trying to run adb command when operating system is not android.")
 	}
-	args := append(adbCmd(), "shell")
+	args := append(adbCmd(), "exec-out")
 	// Propagate LD_LIBRARY_PATH to the adb shell invocation.
 	for _, e := range env {
 		if strings.Index(e, "LD_LIBRARY_PATH=") != -1 {
@@ -236,7 +241,7 @@ func run(t *testing.T, extraEnv []string, args ...string) string {
 
 func runExe(t *testing.T, extraEnv []string, args ...string) string {
 	t.Helper()
-	if GOOS == "android" {
+	if runtime.GOOS != GOOS && GOOS == "android" {
 		return adbRun(t, append(os.Environ(), extraEnv...), args...)
 	}
 	return run(t, extraEnv, args...)
@@ -250,10 +255,34 @@ func runCC(t *testing.T, args ...string) string {
 }
 
 func createHeaders() error {
-	args := []string{"go", "install", "-i", "-buildmode=c-shared",
-		"-installsuffix", "testcshared", "./libgo"}
+	// The 'cgo' command generates a number of additional artifacts,
+	// but we're only interested in the header.
+	// Shunt the rest of the outputs to a temporary directory.
+	objDir, err := ioutil.TempDir("", "testcshared_obj")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(objDir)
+
+	// Generate a C header file for p, which is a non-main dependency
+	// of main package libgo.
+	//
+	// TODO(golang.org/issue/35715): This should be simpler.
+	args := []string{"go", "tool", "cgo",
+		"-objdir", objDir,
+		"-exportheader", "p.h",
+		filepath.Join(".", "p", "p.go")}
 	cmd := exec.Command(args[0], args[1:]...)
 	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("command failed: %v\n%v\n%s\n", args, err, out)
+	}
+
+	// Generate a C header file for libgo itself.
+	args = []string{"go", "install", "-buildmode=c-shared",
+		"-installsuffix", "testcshared", "./libgo"}
+	cmd = exec.Command(args[0], args[1:]...)
+	out, err = cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("command failed: %v\n%v\n%s\n", args, err, out)
 	}
@@ -268,7 +297,7 @@ func createHeaders() error {
 		return fmt.Errorf("command failed: %v\n%v\n%s\n", args, err, out)
 	}
 
-	if GOOS == "android" {
+	if runtime.GOOS != GOOS && GOOS == "android" {
 		args = append(adbCmd(), "push", libgoname, fmt.Sprintf("%s/%s", androiddir, libgoname))
 		cmd = exec.Command(args[0], args[1:]...)
 		out, err = cmd.CombinedOutput()
@@ -298,7 +327,7 @@ func cleanupAndroid() {
 	if GOOS != "android" {
 		return
 	}
-	args := append(adbCmd(), "shell", "rm", "-rf", androiddir)
+	args := append(adbCmd(), "exec-out", "rm", "-rf", androiddir)
 	cmd := exec.Command(args[0], args[1:]...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -515,7 +544,7 @@ func TestPIE(t *testing.T) {
 	}
 }
 
-// Test that installing a second time recreates the header files.
+// Test that installing a second time recreates the header file.
 func TestCachedInstall(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "cshared")
 	if err != nil {
@@ -529,7 +558,7 @@ func TestCachedInstall(t *testing.T) {
 
 	env := append(os.Environ(), "GOPATH="+tmpdir, "GOBIN="+filepath.Join(tmpdir, "bin"))
 
-	buildcmd := []string{"go", "install", "-x", "-i", "-buildmode=c-shared", "-installsuffix", "testcshared", "./libgo"}
+	buildcmd := []string{"go", "install", "-x", "-buildmode=c-shared", "-installsuffix", "testcshared", "./libgo"}
 
 	cmd := exec.Command(buildcmd[0], buildcmd[1:]...)
 	cmd.Dir = filepath.Join(tmpdir, "src", "testcshared")
@@ -570,14 +599,8 @@ func TestCachedInstall(t *testing.T) {
 	if libgoh == "" {
 		t.Fatal("libgo.h not installed")
 	}
-	if ph == "" {
-		t.Fatal("p.h not installed")
-	}
 
 	if err := os.Remove(libgoh); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Remove(ph); err != nil {
 		t.Fatal(err)
 	}
 
@@ -593,9 +616,6 @@ func TestCachedInstall(t *testing.T) {
 
 	if _, err := os.Stat(libgoh); err != nil {
 		t.Errorf("libgo.h not installed in second run: %v", err)
-	}
-	if _, err := os.Stat(ph); err != nil {
-		t.Errorf("p.h not installed in second run: %v", err)
 	}
 }
 

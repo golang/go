@@ -46,13 +46,14 @@ if x%4==x--no-local goto nolocal
 setlocal
 :nolocal
 
+set GOENV=off
 set GOBUILDFAIL=0
 set GOFLAGS=
 set GO111MODULE=
 
 if exist make.bat goto ok
 echo Must run make.bat from Go src directory.
-goto fail 
+goto fail
 :ok
 
 :: Clean old generated file that will cause problems in the build.

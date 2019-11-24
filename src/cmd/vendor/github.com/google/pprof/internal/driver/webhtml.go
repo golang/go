@@ -14,10 +14,12 @@
 
 package driver
 
-import "html/template"
+import (
+	"html/template"
 
-import "github.com/google/pprof/third_party/d3"
-import "github.com/google/pprof/third_party/d3flamegraph"
+	"github.com/google/pprof/third_party/d3"
+	"github.com/google/pprof/third_party/d3flamegraph"
+)
 
 // addTemplates adds a set of template definitions to templates.
 func addTemplates(templates *template.Template) {
@@ -91,7 +93,7 @@ a {
   text-align: left;
 }
 .header input {
-  background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' style='pointer-events:none;display:block;width:100%25;height:100%25;fill:#757575'%3E%3Cpath d='M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61.0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E") no-repeat 4px center/20px 20px;
+  background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' style='pointer-events:none;display:block;width:100%25;height:100%25;fill:%23757575'%3E%3Cpath d='M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61.0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E") no-repeat 4px center/20px 20px;
   border: 1px solid #d1d2d3;
   border-radius: 2px 0 0 2px;
   padding: 0.25em;
@@ -610,8 +612,9 @@ function viewer(baseUrl, nodes) {
 
   function handleKey(e) {
     if (e.keyCode != 13) return;
-    window.location.href =
-        updateUrl(new URL(window.location.href), 'f');
+    setHrefParams(window.location, function (params) {
+      params.set('f', search.value);
+    });
     e.preventDefault();
   }
 
@@ -650,9 +653,11 @@ function viewer(baseUrl, nodes) {
     })
 
     // add matching items that are not currently selected.
-    for (let n = 0; n < nodes.length; n++) {
-      if (!selected.has(n) && match(nodes[n])) {
-        select(n, document.getElementById('node' + n));
+    if (nodes) {
+      for (let n = 0; n < nodes.length; n++) {
+        if (!selected.has(n) && match(nodes[n])) {
+          select(n, document.getElementById('node' + n));
+        }
       }
     }
 
@@ -853,7 +858,7 @@ function viewer(baseUrl, nodes) {
     toptable.addEventListener('touchstart', handleTopClick);
   }
 
-  const ids = ['topbtn', 'graphbtn', 'peek', 'list', 'disasm',
+  const ids = ['topbtn', 'graphbtn', 'flamegraph', 'peek', 'list', 'disasm',
                'focus', 'ignore', 'hide', 'show', 'show-from'];
   ids.forEach(makeSearchLinkDynamic);
 
@@ -1089,6 +1094,7 @@ function viewer(baseUrl, nodes) {
       .transitionDuration(750)
       .transitionEase(d3.easeCubic)
       .inverted(true)
+      .sort(true)
       .title('')
       .tooltip(false)
       .details(document.getElementById('flamegraphdetails'));

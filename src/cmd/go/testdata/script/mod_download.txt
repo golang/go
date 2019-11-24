@@ -1,4 +1,5 @@
 env GO111MODULE=on
+env GOPROXY=$GOPROXY/quiet
 
 # download with version should print nothing
 go mod download rsc.io/quote@v1.5.0
@@ -9,6 +10,7 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.mod
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.0.zip
 
 # download of an invalid path should report the error
+[short] skip
 ! go mod download this.domain.is.invalid/somemodule@v1.0.0
 stderr 'this.domain.is.invalid'
 ! go mod download -json this.domain.is.invalid/somemodule@v1.0.0
@@ -80,6 +82,29 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.3-pre1.zip
 # download will not follow replacements for explicit module queries
 go mod download -json rsc.io/quote@v1.5.1
 exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.zip
+
+# download reports errors encountered when locating modules
+! go mod download bad/path
+stderr '^module bad/path: not a known dependency$'
+! go mod download bad/path@latest
+stderr '^bad/path@latest: malformed module path "bad/path": missing dot in first path element$'
+! go mod download rsc.io/quote@v1.999.999
+stderr '^rsc.io/quote@v1.999.999: reading .*/v1.999.999.info: 404 Not Found$'
+! go mod download -json bad/path
+stdout '^\t"Error": "module bad/path: not a known dependency"'
+
+# download main module returns an error
+go mod download m
+stderr '^go mod download: skipping argument m that resolves to the main module\n'
+go mod download m@latest
+stderr '^go mod download: skipping argument m@latest that resolves to the main module\n'
+
+# allow go mod download without go.mod
+env GO111MODULE=auto
+rm go.mod
+rm $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.2.1.zip
+go mod download rsc.io/quote@v1.2.1
+exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.2.1.zip
 
 -- go.mod --
 module m

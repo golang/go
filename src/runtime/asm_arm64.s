@@ -445,8 +445,11 @@ CALLFN(·call268435456, 268435464 )
 CALLFN(·call536870912, 536870920 )
 CALLFN(·call1073741824, 1073741832 )
 
-// func aeshash32(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-24
+// func memhash32(p unsafe.Pointer, h uintptr) uintptr
+TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
+	MOVB	runtime·useAeshash(SB), R0
+	CMP	$0, R0
+	BEQ	noaes
 	MOVD	p+0(FP), R0
 	MOVD	h+8(FP), R1
 	MOVD	$ret+16(FP), R2
@@ -465,9 +468,14 @@ TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-24
 
 	VST1	[V0.D1], (R2)
 	RET
+noaes:
+	B	runtime·memhash32Fallback(SB)
 
-// func aeshash64(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-24
+// func memhash64(p unsafe.Pointer, h uintptr) uintptr
+TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
+	MOVB	runtime·useAeshash(SB), R0
+	CMP	$0, R0
+	BEQ	noaes
 	MOVD	p+0(FP), R0
 	MOVD	h+8(FP), R1
 	MOVD	$ret+16(FP), R2
@@ -486,31 +494,43 @@ TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-24
 
 	VST1	[V0.D1], (R2)
 	RET
+noaes:
+	B	runtime·memhash64Fallback(SB)
 
-// func aeshash(p unsafe.Pointer, h, size uintptr) uintptr
-TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-32
+// func memhash(p unsafe.Pointer, h, size uintptr) uintptr
+TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
+	MOVB	runtime·useAeshash(SB), R0
+	CMP	$0, R0
+	BEQ	noaes
 	MOVD	p+0(FP), R0
 	MOVD	s+16(FP), R1
-	MOVWU	h+8(FP), R3
+	MOVD	h+8(FP), R3
 	MOVD	$ret+24(FP), R2
 	B	aeshashbody<>(SB)
+noaes:
+	B	runtime·memhashFallback(SB)
 
-// func aeshashstr(p unsafe.Pointer, h uintptr) uintptr
-TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-24
+// func strhash(p unsafe.Pointer, h uintptr) uintptr
+TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-24
+	MOVB	runtime·useAeshash(SB), R0
+	CMP	$0, R0
+	BEQ	noaes
 	MOVD	p+0(FP), R10 // string pointer
 	LDP	(R10), (R0, R1) //string data/ length
-	MOVWU	h+8(FP), R3
+	MOVD	h+8(FP), R3
 	MOVD	$ret+16(FP), R2 // return adddress
 	B	aeshashbody<>(SB)
+noaes:
+	B	runtime·strhashFallback(SB)
 
 // R0: data
-// R1: length (maximum 32 bits)
+// R1: length
 // R2: address to put return value
 // R3: seed data
 TEXT aeshashbody<>(SB),NOSPLIT|NOFRAME,$0
 	VEOR	V30.B16, V30.B16, V30.B16
-	VMOV	R3, V30.S[0]
-	VMOV	R1, V30.S[1] // load length into seed
+	VMOV	R3, V30.D[0]
+	VMOV	R1, V30.D[1] // load length into seed
 
 	MOVD	$runtime·aeskeysched+0(SB), R4
 	VLD1.P	16(R4), [V0.B16]
@@ -1124,12 +1144,9 @@ TEXT runtime·return0(SB), NOSPLIT, $0
 
 // The top-most function running on a goroutine
 // returns to goexit+PCQuantum.
-TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
+TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
 	MOVD	R0, R0	// NOP
 	BL	runtime·goexit1(SB)	// does not return
-
-TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
-	RET
 
 // This is called from .init_array and follows the platform, not Go, ABI.
 TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0

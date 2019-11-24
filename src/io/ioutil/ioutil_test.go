@@ -5,7 +5,9 @@
 package ioutil
 
 import (
+	"bytes"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -61,6 +63,38 @@ func TestWriteFile(t *testing.T) {
 	// cleanup
 	f.Close()
 	os.Remove(filename) // ignore error
+}
+
+func TestReadOnlyWriteFile(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skipf("Root can write to read-only files anyway, so skip the read-only test.")
+	}
+
+	// We don't want to use TempFile directly, since that opens a file for us as 0600.
+	tempDir, err := TempDir("", t.Name())
+	if err != nil {
+		t.Fatalf("TempDir %s: %v", t.Name(), err)
+	}
+	defer os.RemoveAll(tempDir)
+	filename := filepath.Join(tempDir, "blurp.txt")
+
+	shmorp := []byte("shmorp")
+	florp := []byte("florp")
+	err = WriteFile(filename, shmorp, 0444)
+	if err != nil {
+		t.Fatalf("WriteFile %s: %v", filename, err)
+	}
+	err = WriteFile(filename, florp, 0444)
+	if err == nil {
+		t.Fatalf("Expected an error when writing to read-only file %s", filename)
+	}
+	got, err := ReadFile(filename)
+	if err != nil {
+		t.Fatalf("ReadFile %s: %v", filename, err)
+	}
+	if !bytes.Equal(got, shmorp) {
+		t.Fatalf("want %s, got %s", shmorp, got)
+	}
 }
 
 func TestReadDir(t *testing.T) {

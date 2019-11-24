@@ -329,18 +329,40 @@ func TestIssue3521(t *testing.T) {
 		t.Errorf("0) got %s want %s", zero.Denom(), one)
 	}
 
-	// 1a) a zero value remains zero independent of denominator
-	x := new(Rat)
-	x.Denom().Set(new(Int).Neg(b))
-	if x.Cmp(zero) != 0 {
-		t.Errorf("1a) got %s want %s", x, zero)
+	// 1a) the denominator of an (uninitialized) zero value is not shared with the value
+	s := &zero.b
+	d := zero.Denom()
+	if d == s {
+		t.Errorf("1a) got %s (%p) == %s (%p) want different *Int values", d, d, s, s)
 	}
 
-	// 1b) a zero value may have a denominator != 0 and != 1
+	// 1b) the denominator of an (uninitialized) value is a new 1 each time
+	d1 := zero.Denom()
+	d2 := zero.Denom()
+	if d1 == d2 {
+		t.Errorf("1b) got %s (%p) == %s (%p) want different *Int values", d1, d1, d2, d2)
+	}
+
+	// 1c) the denominator of an initialized zero value is shared with the value
+	x := new(Rat)
+	x.Set(x) // initialize x (any operation that sets x explicitly will do)
+	s = &x.b
+	d = x.Denom()
+	if d != s {
+		t.Errorf("1c) got %s (%p) != %s (%p) want identical *Int values", d, d, s, s)
+	}
+
+	// 1d) a zero value remains zero independent of denominator
+	x.Denom().Set(new(Int).Neg(b))
+	if x.Cmp(zero) != 0 {
+		t.Errorf("1d) got %s want %s", x, zero)
+	}
+
+	// 1e) a zero value may have a denominator != 0 and != 1
 	x.Num().Set(a)
 	qab := new(Rat).SetFrac(a, b)
 	if x.Cmp(qab) != 0 {
-		t.Errorf("1b) got %s want %s", x, qab)
+		t.Errorf("1e) got %s want %s", x, qab)
 	}
 
 	// 2a) an integral value becomes a fraction depending on denominator
@@ -668,6 +690,39 @@ func TestRatSetUint64(t *testing.T) {
 		got := num.Uint64()
 		if got != want {
 			t.Errorf("#%d: Rat.SetUint64(%d) = %d, but expected %d", i, want, got, want)
+		}
+	}
+}
+
+func BenchmarkRatCmp(b *testing.B) {
+	x, y := NewRat(4, 1), NewRat(7, 2)
+	for i := 0; i < b.N; i++ {
+		x.Cmp(y)
+	}
+}
+
+// TestIssue34919 verifies that a Rat's denominator is not modified
+// when simply accessing the Rat value.
+func TestIssue34919(t *testing.T) {
+	for _, acc := range []struct {
+		name string
+		f    func(*Rat)
+	}{
+		{"Float32", func(x *Rat) { x.Float32() }},
+		{"Float64", func(x *Rat) { x.Float64() }},
+		{"Inv", func(x *Rat) { new(Rat).Inv(x) }},
+		{"Sign", func(x *Rat) { x.Sign() }},
+		{"IsInt", func(x *Rat) { x.IsInt() }},
+		{"Num", func(x *Rat) { x.Num() }},
+		// {"Denom", func(x *Rat) { x.Denom() }}, TODO(gri) should we change the API? See issue #33792.
+	} {
+		// A denominator of length 0 is interpreted as 1. Make sure that
+		// "materialization" of the denominator doesn't lead to setting
+		// the underlying array element 0 to 1.
+		r := &Rat{Int{abs: nat{991}}, Int{abs: make(nat, 0, 1)}}
+		acc.f(r)
+		if d := r.b.abs[:1][0]; d != 0 {
+			t.Errorf("%s modified denominator: got %d, want 0", acc.name, d)
 		}
 	}
 }

@@ -6,17 +6,53 @@
 
 package poly1305
 
-// This function is implemented in sum_amd64.s
 //go:noescape
-func poly1305(out *[16]byte, m *byte, mlen uint64, key *[32]byte)
+func update(state *macState, msg []byte)
 
-// Sum generates an authenticator for m using a one-time key and puts the
-// 16-byte result into out. Authenticating two different messages with the same
-// key allows an attacker to forge messages at will.
-func Sum(out *[16]byte, m []byte, key *[32]byte) {
-	var mPtr *byte
-	if len(m) > 0 {
-		mPtr = &m[0]
+func sum(out *[16]byte, m []byte, key *[32]byte) {
+	h := newMAC(key)
+	h.Write(m)
+	h.Sum(out)
+}
+
+func newMAC(key *[32]byte) (h mac) {
+	initialize(key, &h.r, &h.s)
+	return
+}
+
+// mac is a wrapper for macGeneric that redirects calls that would have gone to
+// updateGeneric to update.
+//
+// Its Write and Sum methods are otherwise identical to the macGeneric ones, but
+// using function pointers would carry a major performance cost.
+type mac struct{ macGeneric }
+
+func (h *mac) Write(p []byte) (int, error) {
+	nn := len(p)
+	if h.offset > 0 {
+		n := copy(h.buffer[h.offset:], p)
+		if h.offset+n < TagSize {
+			h.offset += n
+			return nn, nil
+		}
+		p = p[n:]
+		h.offset = 0
+		update(&h.macState, h.buffer[:])
 	}
-	poly1305(out, mPtr, uint64(len(m)), key)
+	if n := len(p) - (len(p) % TagSize); n > 0 {
+		update(&h.macState, p[:n])
+		p = p[n:]
+	}
+	if len(p) > 0 {
+		h.offset += copy(h.buffer[h.offset:], p)
+	}
+	return nn, nil
+}
+
+func (h *mac) Sum(out *[16]byte) {
+	state := h.macState
+	if h.offset > 0 {
+		update(&state, h.buffer[:h.offset])
+	}
+	finalize(out, &state.h, &state.s)
 }

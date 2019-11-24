@@ -25,6 +25,10 @@ cmpenv go.mod $WORK/go.mod.edit2
 go mod edit -json
 cmpenv stdout $WORK/go.mod.json
 
+# go mod edit -json (empty mod file)
+go mod edit -json $WORK/go.mod.empty
+cmp stdout $WORK/go.mod.empty.json
+
 # go mod edit -replace
 go mod edit -replace=x.1@v1.3.0=y.1/v2@v2.3.5 -replace=x.1@v1.4.0=y.1/v2@v2.3.5
 cmpenv go.mod $WORK/go.mod.edit3
@@ -169,3 +173,13 @@ require x.3   v1.99.0
 module x.x/y/z
 
 go $goversion
+-- $WORK/go.mod.empty --
+-- $WORK/go.mod.empty.json --
+{
+	"Module": {
+		"Path": ""
+	},
+	"Require": null,
+	"Exclude": null,
+	"Replace": null
+}

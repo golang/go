@@ -41,13 +41,6 @@ func NumGoroutine() {
 	// Test that there are just the expected number of goroutines
 	// running. Specifically, test that the spare M's goroutine
 	// doesn't show up.
-	//
-	// On non-Windows platforms there's a signal handling thread
-	// started by os/signal.init in addition to the main
-	// goroutine.
-	if runtime.GOOS != "windows" {
-		baseGoroutines = 1
-	}
 	if _, ok := checkNumGoroutine("first", 1+baseGoroutines); !ok {
 		return
 	}

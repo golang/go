@@ -463,7 +463,8 @@ func (z nat) mul(x, y nat) nat {
 	// be a larger valid threshold contradicting the assumption about k.
 	//
 	if k < n || m != n {
-		var t nat
+		tp := getNat(3 * k)
+		t := *tp
 
 		// add x0*y1*b
 		x0 := x0.norm()
@@ -484,6 +485,8 @@ func (z nat) mul(x, y nat) nat {
 			t = t.mul(xi, y1)
 			addAt(z, t, i+k)
 		}
+
+		putNat(tp)
 	}
 
 	return z.norm()
@@ -495,7 +498,9 @@ func (z nat) mul(x, y nat) nat {
 // The (non-normalized) result is placed in z.
 func basicSqr(z, x nat) {
 	n := len(x)
-	t := make(nat, 2*n)            // temporary variable to hold the products
+	tp := getNat(2 * n)
+	t := *tp // temporary variable to hold the products
+	t.clear()
 	z[1], z[0] = mulWW(x[0], x[0]) // the initial square
 	for i := 1; i < n; i++ {
 		d := x[i]
@@ -506,6 +511,7 @@ func basicSqr(z, x nat) {
 	}
 	t[2*n-1] = shlVU(t[1:2*n-1], t[1:2*n-1], 1) // double the j < i products
 	addVV(z, z, t)                              // combine the result
+	putNat(tp)
 }
 
 // karatsubaSqr squares x and leaves the result in z.
@@ -592,7 +598,8 @@ func (z nat) sqr(x nat) nat {
 	z[2*k:].clear()
 
 	if k < n {
-		var t nat
+		tp := getNat(2 * k)
+		t := *tp
 		x0 := x0.norm()
 		x1 := x[k:]
 		t = t.mul(x0, x1)
@@ -600,6 +607,7 @@ func (z nat) sqr(x nat) nat {
 		addAt(z, t, k) // z = 2*x1*x0*b + x0^2
 		t = t.sqr(x1)
 		addAt(z, t, 2*k) // z = x1^2*b^2 + 2*x1*x0*b + x0^2
+		putNat(tp)
 	}
 
 	return z.norm()
@@ -685,7 +693,7 @@ func putNat(x *nat) {
 
 var natPool sync.Pool
 
-// q = (uIn-r)/vIn, with 0 <= r < y
+// q = (uIn-r)/vIn, with 0 <= r < vIn
 // Uses z as storage for q, and u as storage for r if possible.
 // See Knuth, Volume 2, section 4.3.1, Algorithm D.
 // Preconditions:
@@ -713,6 +721,30 @@ func (z nat) divLarge(u, uIn, vIn nat) (q, r nat) {
 	}
 	q = z.make(m + 1)
 
+	if n < divRecursiveThreshold {
+		q.divBasic(u, v)
+	} else {
+		q.divRecursive(u, v)
+	}
+	putNat(vp)
+
+	q = q.norm()
+	shrVU(u, u, shift)
+	r = u.norm()
+
+	return q, r
+}
+
+// divBasic performs word-by-word division of u by v.
+// The quotient is written in pre-allocated q.
+// The remainder overwrites input u.
+//
+// Precondition:
+// - len(q) >= len(u)-len(v)
+func (q nat) divBasic(u, v nat) {
+	n := len(v)
+	m := len(u) - n
+
 	qhatvp := getNat(n + 1)
 	qhatv := *qhatvp
 
@@ -721,7 +753,11 @@ func (z nat) divLarge(u, uIn, vIn nat) (q, r nat) {
 	for j := m; j >= 0; j-- {
 		// D3.
 		qhat := Word(_M)
-		if ujn := u[j+n]; ujn != vn1 {
+		var ujn Word
+		if j+n < len(u) {
+			ujn = u[j+n]
+		}
+		if ujn != vn1 {
 			var rhat Word
 			qhat, rhat = divWW(ujn, u[j+n-1], vn1)
 
@@ -744,25 +780,175 @@ func (z nat) divLarge(u, uIn, vIn nat) (q, r nat) {
 
 		// D4.
 		qhatv[n] = mulAddVWW(qhatv[0:n], v, qhat, 0)
-
-		c := subVV(u[j:j+len(qhatv)], u[j:], qhatv)
+		qhl := len(qhatv)
+		if j+qhl > len(u) && qhatv[n] == 0 {
+			qhl--
+		}
+		c := subVV(u[j:j+qhl], u[j:], qhatv)
 		if c != 0 {
 			c := addVV(u[j:j+n], u[j:], v)
 			u[j+n] += c
 			qhat--
 		}
 
+		if j == m && m == len(q) && qhat == 0 {
+			continue
+		}
 		q[j] = qhat
 	}
 
-	putNat(vp)
 	putNat(qhatvp)
+}
 
-	q = q.norm()
-	shrVU(u, u, shift)
-	r = u.norm()
+const divRecursiveThreshold = 100
 
-	return q, r
+// divRecursive performs word-by-word division of u by v.
+// The quotient is written in pre-allocated z.
+// The remainder overwrites input u.
+//
+// Precondition:
+// - len(z) >= len(u)-len(v)
+//
+// See Burnikel, Ziegler, "Fast Recursive Division", Algorithm 1 and 2.
+func (z nat) divRecursive(u, v nat) {
+	// Recursion depth is less than 2 log2(len(v))
+	// Allocate a slice of temporaries to be reused across recursion.
+	recDepth := 2 * bits.Len(uint(len(v)))
+	// large enough to perform Karatsuba on operands as large as v
+	tmp := getNat(3 * len(v))
+	temps := make([]*nat, recDepth)
+	z.clear()
+	z.divRecursiveStep(u, v, 0, tmp, temps)
+	for _, n := range temps {
+		if n != nil {
+			putNat(n)
+		}
+	}
+	putNat(tmp)
+}
+
+func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
+	u = u.norm()
+	v = v.norm()
+
+	if len(u) == 0 {
+		z.clear()
+		return
+	}
+	n := len(v)
+	if n < divRecursiveThreshold {
+		z.divBasic(u, v)
+		return
+	}
+	m := len(u) - n
+	if m < 0 {
+		return
+	}
+
+	// Produce the quotient by blocks of B words.
+	// Division by v (length n) is done using a length n/2 division
+	// and a length n/2 multiplication for each block. The final
+	// complexity is driven by multiplication complexity.
+	B := n / 2
+
+	// Allocate a nat for qhat below.
+	if temps[depth] == nil {
+		temps[depth] = getNat(n)
+	} else {
+		*temps[depth] = temps[depth].make(B + 1)
+	}
+
+	j := m
+	for j > B {
+		// Divide u[j-B:j+n] by vIn. Keep remainder in u
+		// for next block.
+		//
+		// The following property will be used (Lemma 2):
+		// if u = u1 << s + u0
+		//    v = v1 << s + v0
+		// then floor(u1/v1) >= floor(u/v)
+		//
+		// Moreover, the difference is at most 2 if len(v1) >= len(u/v)
+		// We choose s = B-1 since len(v)-B >= B+1 >= len(u/v)
+		s := (B - 1)
+		// Except for the first step, the top bits are always
+		// a division remainder, so the quotient length is <= n.
+		uu := u[j-B:]
+
+		qhat := *temps[depth]
+		qhat.clear()
+		qhat.divRecursiveStep(uu[s:B+n], v[s:], depth+1, tmp, temps)
+		qhat = qhat.norm()
+		// Adjust the quotient:
+		//    u = u_h << s + u_l
+		//    v = v_h << s + v_l
+		//  u_h = q̂ v_h + rh
+		//    u = q̂ (v - v_l) + rh << s + u_l
+		// After the above step, u contains a remainder:
+		//    u = rh << s + u_l
+		// and we need to subtract q̂ v_l
+		//
+		// But it may be a bit too large, in which case q̂ needs to be smaller.
+		qhatv := tmp.make(3 * n)
+		qhatv.clear()
+		qhatv = qhatv.mul(qhat, v[:s])
+		for i := 0; i < 2; i++ {
+			e := qhatv.cmp(uu.norm())
+			if e <= 0 {
+				break
+			}
+			subVW(qhat, qhat, 1)
+			c := subVV(qhatv[:s], qhatv[:s], v[:s])
+			if len(qhatv) > s {
+				subVW(qhatv[s:], qhatv[s:], c)
+			}
+			addAt(uu[s:], v[s:], 0)
+		}
+		if qhatv.cmp(uu.norm()) > 0 {
+			panic("impossible")
+		}
+		c := subVV(uu[:len(qhatv)], uu[:len(qhatv)], qhatv)
+		if c > 0 {
+			subVW(uu[len(qhatv):], uu[len(qhatv):], c)
+		}
+		addAt(z, qhat, j-B)
+		j -= B
+	}
+
+	// Now u < (v<<B), compute lower bits in the same way.
+	// Choose shift = B-1 again.
+	s := B
+	qhat := *temps[depth]
+	qhat.clear()
+	qhat.divRecursiveStep(u[s:].norm(), v[s:], depth+1, tmp, temps)
+	qhat = qhat.norm()
+	qhatv := tmp.make(3 * n)
+	qhatv.clear()
+	qhatv = qhatv.mul(qhat, v[:s])
+	// Set the correct remainder as before.
+	for i := 0; i < 2; i++ {
+		if e := qhatv.cmp(u.norm()); e > 0 {
+			subVW(qhat, qhat, 1)
+			c := subVV(qhatv[:s], qhatv[:s], v[:s])
+			if len(qhatv) > s {
+				subVW(qhatv[s:], qhatv[s:], c)
+			}
+			addAt(u[s:], v[s:], 0)
+		}
+	}
+	if qhatv.cmp(u.norm()) > 0 {
+		panic("impossible")
+	}
+	c := subVV(u[0:len(qhatv)], u[0:len(qhatv)], qhatv)
+	if c > 0 {
+		c = subVW(u[len(qhatv):], u[len(qhatv):], c)
+	}
+	if c > 0 {
+		panic("impossible")
+	}
+
+	// Done!
+	addAt(z, qhat.norm(), 0)
 }
 
 // Length of x in bits. x must be normalized.

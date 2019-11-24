@@ -383,11 +383,11 @@ func isJSType(mimeType string) bool {
 	//   https://tools.ietf.org/html/rfc7231#section-3.1.1
 	//   https://tools.ietf.org/html/rfc4329#section-3
 	//   https://www.ietf.org/rfc/rfc4627.txt
-	mimeType = strings.ToLower(mimeType)
 	// discard parameters
 	if i := strings.Index(mimeType, ";"); i >= 0 {
 		mimeType = mimeType[:i]
 	}
+	mimeType = strings.ToLower(mimeType)
 	mimeType = strings.TrimSpace(mimeType)
 	switch mimeType {
 	case
@@ -397,6 +397,7 @@ func isJSType(mimeType string) bool {
 		"application/ld+json",
 		"application/x-ecmascript",
 		"application/x-javascript",
+		"module",
 		"text/ecmascript",
 		"text/javascript",
 		"text/javascript1.0",

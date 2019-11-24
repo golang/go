@@ -184,3 +184,11 @@ import (
 	"errors"
 	"fmt"
 )
+
+// End an import declaration in the same line
+// as the last import. See golang.org/issue/33538.
+// Note: Must be the last (or 2nd last) line of the file.
+import (
+	"fmt"
+	"math"
+)

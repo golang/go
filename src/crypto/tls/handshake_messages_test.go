@@ -26,7 +26,6 @@ var tests = []interface{}{
 	},
 	&certificateStatusMsg{},
 	&clientKeyExchangeMsg{},
-	&nextProtoMsg{},
 	&newSessionTicketMsg{},
 	&sessionState{},
 	&sessionStateTLS13{},
@@ -128,9 +127,6 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	}
 	m.compressionMethods = randomBytes(rand.Intn(63)+1, rand)
 	if rand.Intn(10) > 5 {
-		m.nextProtoNeg = true
-	}
-	if rand.Intn(10) > 5 {
 		m.serverName = randomString(rand.Intn(255), rand)
 		for strings.HasSuffix(m.serverName, ".") {
 			m.serverName = m.serverName[:len(m.serverName)-1]
@@ -205,13 +201,7 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m.sessionId = randomBytes(rand.Intn(32), rand)
 	m.cipherSuite = uint16(rand.Int31())
 	m.compressionMethod = uint8(rand.Intn(256))
-
-	if rand.Intn(10) > 5 {
-		m.nextProtoNeg = true
-		for i := 0; i < rand.Intn(10); i++ {
-			m.nextProtos = append(m.nextProtos, randomString(20, rand))
-		}
-	}
+	m.supportedPoints = randomBytes(rand.Intn(5)+1, rand)
 
 	if rand.Intn(10) > 5 {
 		m.ocspStapling = true
@@ -305,12 +295,6 @@ func (*clientKeyExchangeMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 func (*finishedMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	m := &finishedMsg{}
 	m.verifyData = randomBytes(12, rand)
-	return reflect.ValueOf(m)
-}
-
-func (*nextProtoMsg) Generate(rand *rand.Rand, size int) reflect.Value {
-	m := &nextProtoMsg{}
-	m.proto = randomString(rand.Intn(255), rand)
 	return reflect.ValueOf(m)
 }
 

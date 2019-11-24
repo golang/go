@@ -4,6 +4,8 @@
 
 package ssa
 
+import "cmd/internal/src"
+
 // branchelim tries to eliminate branches by
 // generating CondSelect instructions.
 //
@@ -20,7 +22,7 @@ package ssa
 func branchelim(f *Func) {
 	// FIXME: add support for lowering CondSelects on more architectures
 	switch f.Config.arch {
-	case "arm64", "amd64":
+	case "arm64", "amd64", "wasm":
 		// implemented
 	default:
 		return
@@ -33,7 +35,7 @@ func branchelim(f *Func) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			switch v.Op {
-			case OpLoad, OpAtomicLoad32, OpAtomicLoad64, OpAtomicLoadPtr, OpAtomicLoadAcq32:
+			case OpLoad, OpAtomicLoad8, OpAtomicLoad32, OpAtomicLoad64, OpAtomicLoadPtr, OpAtomicLoadAcq32:
 				loadAddr.add(v.Args[0].ID)
 			case OpMove:
 				loadAddr.add(v.Args[1].ID)
@@ -160,13 +162,13 @@ func elimIf(f *Func, loadAddr *sparseSet, dom *Block) bool {
 		if swap {
 			v.Args[0], v.Args[1] = v.Args[1], v.Args[0]
 		}
-		v.AddArg(dom.Control)
+		v.AddArg(dom.Controls[0])
 	}
 
 	// Put all of the instructions into 'dom'
 	// and update the CFG appropriately.
 	dom.Kind = post.Kind
-	dom.SetControl(post.Control)
+	dom.CopyControls(post)
 	dom.Aux = post.Aux
 	dom.Succs = append(dom.Succs[:0], post.Succs...)
 	for i := range dom.Succs {
@@ -174,12 +176,98 @@ func elimIf(f *Func, loadAddr *sparseSet, dom *Block) bool {
 		e.b.Preds[e.i].b = dom
 	}
 
-	for i := range simple.Values {
-		simple.Values[i].Block = dom
+	// Try really hard to preserve statement marks attached to blocks.
+	simplePos := simple.Pos
+	postPos := post.Pos
+	simpleStmt := simplePos.IsStmt() == src.PosIsStmt
+	postStmt := postPos.IsStmt() == src.PosIsStmt
+
+	for _, v := range simple.Values {
+		v.Block = dom
 	}
-	for i := range post.Values {
-		post.Values[i].Block = dom
+	for _, v := range post.Values {
+		v.Block = dom
 	}
+
+	// findBlockPos determines if b contains a stmt-marked value
+	// that has the same line number as the Pos for b itself.
+	// (i.e. is the position on b actually redundant?)
+	findBlockPos := func(b *Block) bool {
+		pos := b.Pos
+		for _, v := range b.Values {
+			// See if there is a stmt-marked value already that matches simple.Pos (and perhaps post.Pos)
+			if pos.SameFileAndLine(v.Pos) && v.Pos.IsStmt() == src.PosIsStmt {
+				return true
+			}
+		}
+		return false
+	}
+	if simpleStmt {
+		simpleStmt = !findBlockPos(simple)
+		if !simpleStmt && simplePos.SameFileAndLine(postPos) {
+			postStmt = false
+		}
+
+	}
+	if postStmt {
+		postStmt = !findBlockPos(post)
+	}
+
+	// If simpleStmt and/or postStmt are still true, then try harder
+	// to find the corresponding statement marks new homes.
+
+	// setBlockPos determines if b contains a can-be-statement value
+	// that has the same line number as the Pos for b itself, and
+	// puts a statement mark on it, and returns whether it succeeded
+	// in this operation.
+	setBlockPos := func(b *Block) bool {
+		pos := b.Pos
+		for _, v := range b.Values {
+			if pos.SameFileAndLine(v.Pos) && !isPoorStatementOp(v.Op) {
+				v.Pos = v.Pos.WithIsStmt()
+				return true
+			}
+		}
+		return false
+	}
+	// If necessary and possible, add a mark to a value in simple
+	if simpleStmt {
+		if setBlockPos(simple) && simplePos.SameFileAndLine(postPos) {
+			postStmt = false
+		}
+	}
+	// If necessary and possible, add a mark to a value in post
+	if postStmt {
+		postStmt = !setBlockPos(post)
+	}
+
+	// Before giving up (this was added because it helps), try the end of "dom", and if that is not available,
+	// try the values in the successor block if it is uncomplicated.
+	if postStmt {
+		if dom.Pos.IsStmt() != src.PosIsStmt {
+			dom.Pos = postPos
+		} else {
+			// Try the successor block
+			if len(dom.Succs) == 1 && len(dom.Succs[0].Block().Preds) == 1 {
+				succ := dom.Succs[0].Block()
+				for _, v := range succ.Values {
+					if isPoorStatementOp(v.Op) {
+						continue
+					}
+					if postPos.SameFileAndLine(v.Pos) {
+						v.Pos = v.Pos.WithIsStmt()
+					}
+					postStmt = false
+					break
+				}
+				// If postStmt still true, tag the block itself if possible
+				if postStmt && succ.Pos.IsStmt() != src.PosIsStmt {
+					succ.Pos = postPos
+				}
+			}
+		}
+	}
+
 	dom.Values = append(dom.Values, simple.Values...)
 	dom.Values = append(dom.Values, post.Values...)
 
@@ -201,7 +289,7 @@ func clobberBlock(b *Block) {
 	b.Preds = nil
 	b.Succs = nil
 	b.Aux = nil
-	b.SetControl(nil)
+	b.ResetControls()
 	b.Likely = BranchUnknown
 	b.Kind = BlockInvalid
 }
@@ -259,13 +347,13 @@ func elimIfElse(f *Func, loadAddr *sparseSet, b *Block) bool {
 		if swap {
 			v.Args[0], v.Args[1] = v.Args[1], v.Args[0]
 		}
-		v.AddArg(b.Control)
+		v.AddArg(b.Controls[0])
 	}
 
 	// Move the contents of all of these
 	// blocks into 'b' and update CFG edges accordingly
 	b.Kind = post.Kind
-	b.SetControl(post.Control)
+	b.CopyControls(post)
 	b.Aux = post.Aux
 	b.Succs = append(b.Succs[:0], post.Succs...)
 	for i := range b.Succs {
@@ -319,7 +407,7 @@ func shouldElimIfElse(no, yes, post *Block, arch string) bool {
 		cost := phi * 1
 		if phi > 1 {
 			// If we have more than 1 phi and some values in post have args
-			// in yes or no blocks, we may have to recalucalte condition, because
+			// in yes or no blocks, we may have to recalculate condition, because
 			// those args may clobber flags. For now assume that all operations clobber flags.
 			cost += other * 1
 		}

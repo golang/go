@@ -141,7 +141,7 @@ const (
 	LC_SUB_LIBRARY              = 0x15
 	LC_TWOLEVEL_HINTS           = 0x16
 	LC_PREBIND_CKSUM            = 0x17
-	LC_LOAD_WEAK_DYLIB          = 0x18
+	LC_LOAD_WEAK_DYLIB          = 0x80000018
 	LC_SEGMENT_64               = 0x19
 	LC_ROUTINES_64              = 0x1a
 	LC_UUID                     = 0x1b
@@ -196,6 +196,8 @@ const (
 var machohdr MachoHdr
 
 var load []MachoLoad
+
+var machoPlatform MachoPlatform
 
 var seg [16]MachoSeg
 
@@ -388,6 +390,43 @@ func (ctxt *Link) domacho() {
 		return
 	}
 
+	// Copy platform load command.
+	for _, h := range hostobj {
+		load, err := hostobjMachoPlatform(&h)
+		if err != nil {
+			Exitf("%v", err)
+		}
+		if load != nil {
+			machoPlatform = load.platform
+			ml := newMachoLoad(ctxt.Arch, load.cmd.type_, uint32(len(load.cmd.data)))
+			copy(ml.data, load.cmd.data)
+			break
+		}
+	}
+	if machoPlatform == 0 {
+		switch ctxt.Arch.Family {
+		default:
+			machoPlatform = PLATFORM_MACOS
+			if ctxt.LinkMode == LinkInternal {
+				// For lldb, must say LC_VERSION_MIN_MACOSX or else
+				// it won't know that this Mach-O binary is from OS X
+				// (could be iOS or WatchOS instead).
+				// Go on iOS uses linkmode=external, and linkmode=external
+				// adds this itself. So we only need this code for linkmode=internal
+				// and we can assume OS X.
+				//
+				// See golang.org/issues/12941.
+				//
+				// The version must be at least 10.9; see golang.org/issues/30488.
+				ml := newMachoLoad(ctxt.Arch, LC_VERSION_MIN_MACOSX, 2)
+				ml.data[0] = 10<<16 | 9<<8 | 0<<0 // OS X version 10.9.0
+				ml.data[1] = 10<<16 | 9<<8 | 0<<0 // SDK 10.9.0
+			}
+		case sys.ARM, sys.ARM64:
+			machoPlatform = PLATFORM_IOS
+		}
+	}
+
 	// empirically, string table must begin with " \x00".
 	s := ctxt.Syms.Lookup(".machosymstr", 0)
 
@@ -454,9 +493,9 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) 
 
 	var msect *MachoSect
 	if sect.Rwx&1 == 0 && segname != "__DWARF" && (ctxt.Arch.Family == sys.ARM64 ||
-		(ctxt.Arch.Family == sys.AMD64 && ctxt.BuildMode != BuildModeExe) ||
-		(ctxt.Arch.Family == sys.ARM && ctxt.BuildMode != BuildModeExe)) {
-		// Darwin external linker on arm64 and on amd64 and arm in c-shared/c-archive buildmode
+		ctxt.Arch.Family == sys.ARM ||
+		(ctxt.Arch.Family == sys.AMD64 && ctxt.BuildMode != BuildModeExe)) {
+		// Darwin external linker on arm and arm64, and on amd64 in c-shared/c-archive buildmode
 		// complains about absolute relocs in __TEXT, so if the section is not
 		// executable, put it in __DATA segment.
 		msect = newMachoSect(mseg, buf, "__DATA")
@@ -560,12 +599,8 @@ func Asmbmacho(ctxt *Link) {
 		ms = newMachoSeg("", 40)
 
 		ms.fileoffset = Segtext.Fileoff
-		if ctxt.Arch.Family == sys.ARM || ctxt.BuildMode == BuildModeCArchive {
-			ms.filesize = Segdata.Fileoff + Segdata.Filelen - Segtext.Fileoff
-		} else {
-			ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
-			ms.vsize = Segdwarf.Vaddr + Segdwarf.Length - Segtext.Vaddr
-		}
+		ms.filesize = Segdwarf.Fileoff + Segdwarf.Filelen - Segtext.Fileoff
+		ms.vsize = Segdwarf.Vaddr + Segdwarf.Length - Segtext.Vaddr
 	}
 
 	/* segment for zero page */
@@ -694,32 +729,6 @@ func Asmbmacho(ctxt *Link) {
 			}
 		}
 	}
-	foundLoad := false
-	for _, h := range hostobj {
-		load, err := hostobjMachoPlatform(&h)
-		if err != nil {
-			Exitf("%v", err)
-		}
-		if load != nil {
-			ml := newMachoLoad(ctxt.Arch, load.cmd.type_, uint32(len(load.cmd.data)))
-			copy(ml.data, load.cmd.data)
-			foundLoad = true
-			break
-		}
-	}
-	if !foundLoad && ctxt.LinkMode == LinkInternal {
-		// For lldb, must say LC_VERSION_MIN_MACOSX or else
-		// it won't know that this Mach-O binary is from OS X
-		// (could be iOS or WatchOS instead).
-		// Go on iOS uses linkmode=external, and linkmode=external
-		// adds this itself. So we only need this code for linkmode=internal
-		// and we can assume OS X.
-		//
-		// See golang.org/issues/12941.
-		ml := newMachoLoad(ctxt.Arch, LC_VERSION_MIN_MACOSX, 2)
-		ml.data[0] = 10<<16 | 7<<8 | 0<<0 // OS X version 10.7.0
-		ml.data[1] = 10<<16 | 7<<8 | 0<<0 // SDK 10.7.0
-	}
 
 	a := machowrite(ctxt.Arch, ctxt.Out, ctxt.LinkMode)
 	if int32(a) > HEADR {
@@ -784,7 +793,28 @@ func (x machoscmp) Less(i, j int) bool {
 func machogenasmsym(ctxt *Link) {
 	genasmsym(ctxt, addsym)
 	for _, s := range ctxt.Syms.Allsym {
-		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ {
+		// Some 64-bit functions have a "$INODE64" or "$INODE64$UNIX2003" suffix.
+		if s.Type == sym.SDYNIMPORT && s.Dynimplib() == "/usr/lib/libSystem.B.dylib" {
+			// But only on macOS.
+			if machoPlatform == PLATFORM_MACOS {
+				switch n := s.Extname(); n {
+				case "fdopendir":
+					switch objabi.GOARCH {
+					case "amd64":
+						s.SetExtname(n + "$INODE64")
+					case "386":
+						s.SetExtname(n + "$INODE64$UNIX2003")
+					}
+				case "readdir_r", "getfsstat":
+					switch objabi.GOARCH {
+					case "amd64", "386":
+						s.SetExtname(n + "$INODE64")
+					}
+				}
+			}
+		}
+
+		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ || s.Type == sym.SUNDEFEXT {
 			if s.Attr.Reachable() {
 				addsym(ctxt, s, "", DataSym, 0, nil)
 			}
@@ -832,7 +862,7 @@ func machoShouldExport(ctxt *Link, s *sym.Symbol) bool {
 	if strings.HasPrefix(s.Name, "go.link.pkghash") {
 		return true
 	}
-	return s.Type >= sym.SELFSECT // only writable sections
+	return s.Type >= sym.SFirstWritable // only writable sections
 }
 
 func machosymtab(ctxt *Link) {
@@ -844,6 +874,7 @@ func machosymtab(ctxt *Link) {
 		symtab.AddUint32(ctxt.Arch, uint32(symstr.Size))
 
 		export := machoShouldExport(ctxt, s)
+		isGoSymbol := strings.Contains(s.Extname(), ".")
 
 		// In normal buildmodes, only add _ to C symbols, as
 		// Go symbols have dot in the name.
@@ -852,15 +883,15 @@ func machosymtab(ctxt *Link) {
 		// symbols like crosscall2 are in pclntab and end up
 		// pointing at the host binary, breaking unwinding.
 		// See Issue #18190.
-		cexport := !strings.Contains(s.Extname(), ".") && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(s))
-		if cexport || export {
+		cexport := !isGoSymbol && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(s))
+		if cexport || export || isGoSymbol {
 			symstr.AddUint8('_')
 		}
 
 		// replace "·" as ".", because DTrace cannot handle it.
 		Addstring(symstr, strings.Replace(s.Extname(), "·", ".", -1))
 
-		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ {
+		if s.Type == sym.SDYNIMPORT || s.Type == sym.SHOSTOBJ || s.Type == sym.SUNDEFEXT {
 			symtab.AddUint8(0x01)                             // type N_EXT, external symbol
 			symtab.AddUint8(0)                                // no section
 			symtab.AddUint16(ctxt.Arch, 0)                    // desc

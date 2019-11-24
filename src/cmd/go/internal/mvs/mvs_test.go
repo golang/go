@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"cmd/go/internal/module"
+	"golang.org/x/mod/module"
 )
 
 var tests = `
@@ -29,7 +29,7 @@ D5: E2
 G1: C4
 A2: B1 C4 D4
 build A: A B1 C2 D4 E2 F1
-upgrade* A: A B1 C4 D5 E2 G1
+upgrade* A: A B1 C4 D5 E2 F1 G1
 upgrade A C4: A B1 C4 D4 E2 F1 G1
 downgrade A2 D2: A2 C4 D2
 
@@ -38,7 +38,7 @@ A: B1 C2
 B1: D3
 C2: B2
 B2:
-build A: A B2 C2
+build A: A B2 C2 D3
 
 # Cross-dependency between D and E.
 # No matter how it arises, should get result of merging all build lists via max,
@@ -157,7 +157,18 @@ D1: E2
 E1: D2
 build A: A B C D2 E2
 
-# Upgrade from B1 to B2 should drop the transitive dep on D.
+# golang.org/issue/31248:
+# Even though we select X2, the requirement on I1
+# via X1 should be preserved.
+name: cross8
+M: A1 B1
+A1: X1
+B1: X2
+X1: I1
+X2: 
+build M: M A1 B1 I1 X2
+
+# Upgrade from B1 to B2 should not drop the transitive dep on D.
 name: drop
 A: B1 C1
 B1: D1
@@ -165,14 +176,14 @@ B2:
 C2:
 D2:
 build A: A B1 C1 D1
-upgrade* A: A B2 C2
+upgrade* A: A B2 C2 D2
 
 name: simplify
 A: B1 C1
 B1: C2
 C1: D1
 C2:
-build A: A B1 C2
+build A: A B1 C2 D1
 
 name: up1
 A: B1 C1
@@ -254,8 +265,9 @@ build A: A B1
 upgrade A B2: A B2
 upgrade* A: A B3
 
+# golang.org/issue/29773:
 # Requirements of older versions of the target
-# must not be carried over.
+# must be carried over.
 name: cycle2
 A: B1
 A1: C1
@@ -265,8 +277,22 @@ B2: A2
 C1: A2
 C2:
 D2:
-build A: A B1
-upgrade* A: A B2
+build A: A B1 C1 D1
+upgrade* A: A B2 C2 D2
+
+# Cycles with multiple possible solutions.
+# (golang.org/issue/34086)
+name: cycle3
+M: A1 C2
+A1: B1
+B1: C1
+B2: C2
+C1:
+C2: B2
+build M: M A1 B2 C2
+req M: A1 B2
+req M A: A1 B2
+req M C: A1 C2
 
 # Requirement minimization.
 
@@ -283,6 +309,14 @@ H1: G1
 req A: G1
 req A G: G1
 req A H: H1
+
+name: req3
+M: A1 B1
+A1: X1
+B1: X2
+X1: I1
+X2: 
+req M: A1 B1
 `
 
 func Test(t *testing.T) {
@@ -370,7 +404,15 @@ func Test(t *testing.T) {
 			fns = append(fns, func(t *testing.T) {
 				list, err := Upgrade(m(kf[1]), reqs, ms(kf[2:])...)
 				if err == nil {
-					list, err = Req(m(kf[1]), list, nil, reqs)
+					// Copy the reqs map, but substitute the upgraded requirements in
+					// place of the target's original requirements.
+					upReqs := make(reqsMap, len(reqs))
+					for m, r := range reqs {
+						upReqs[m] = r
+					}
+					upReqs[m(kf[1])] = list
+
+					list, err = Req(m(kf[1]), nil, upReqs)
 				}
 				checkList(t, key, list, err, val)
 			})
@@ -398,11 +440,7 @@ func Test(t *testing.T) {
 				t.Fatalf("req takes at least one argument: %q", line)
 			}
 			fns = append(fns, func(t *testing.T) {
-				list, err := BuildList(m(kf[1]), reqs)
-				if err != nil {
-					t.Fatal(err)
-				}
-				list, err = Req(m(kf[1]), list, kf[2:], reqs)
+				list, err := Req(m(kf[1]), kf[2:], reqs)
 				checkList(t, key, list, err, val)
 			})
 			continue

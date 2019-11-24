@@ -34,11 +34,6 @@ type fmtFlags struct {
 	// different, flagless formats set at the top level.
 	plusV  bool
 	sharpV bool
-
-	// error-related flags.
-	inDetail    bool
-	needNewline bool
-	needColon   bool
 }
 
 // A fmt is the raw formatter used by Printf etc.
@@ -94,17 +89,17 @@ func (f *fmt) writePadding(n int) {
 // pad appends b to f.buf, padded on left (!f.minus) or right (f.minus).
 func (f *fmt) pad(b []byte) {
 	if !f.widPresent || f.wid == 0 {
-		f.buf.Write(b)
+		f.buf.write(b)
 		return
 	}
 	width := f.wid - utf8.RuneCount(b)
 	if !f.minus {
 		// left padding
 		f.writePadding(width)
-		f.buf.Write(b)
+		f.buf.write(b)
 	} else {
 		// right padding
-		f.buf.Write(b)
+		f.buf.write(b)
 		f.writePadding(width)
 	}
 }
@@ -112,17 +107,17 @@ func (f *fmt) pad(b []byte) {
 // padString appends s to f.buf, padded on left (!f.minus) or right (f.minus).
 func (f *fmt) padString(s string) {
 	if !f.widPresent || f.wid == 0 {
-		f.buf.WriteString(s)
+		f.buf.writeString(s)
 		return
 	}
 	width := f.wid - utf8.RuneCountInString(s)
 	if !f.minus {
 		// left padding
 		f.writePadding(width)
-		f.buf.WriteString(s)
+		f.buf.writeString(s)
 	} else {
 		// right padding
-		f.buf.WriteString(s)
+		f.buf.writeString(s)
 		f.writePadding(width)
 	}
 }
@@ -574,9 +569,9 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 		// If we're zero padding to the left we want the sign before the leading zeros.
 		// Achieve this by writing the sign out and then padding the unsigned number.
 		if f.zero && f.widPresent && f.wid > len(num) {
-			f.buf.WriteByte(num[0])
+			f.buf.writeByte(num[0])
 			f.writePadding(f.wid - len(num))
-			f.buf.Write(num[1:])
+			f.buf.write(num[1:])
 			return
 		}
 		f.pad(num)

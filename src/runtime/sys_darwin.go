@@ -60,7 +60,7 @@ func libcCall(fn, arg unsafe.Pointer) int32 {
 //go:nosplit
 //go:cgo_unsafe_args
 func syscall_syscall(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
-	entersyscallblock()
+	entersyscall()
 	libcCall(unsafe.Pointer(funcPC(syscall)), unsafe.Pointer(&fn))
 	exitsyscall()
 	return
@@ -71,7 +71,7 @@ func syscall()
 //go:nosplit
 //go:cgo_unsafe_args
 func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
-	entersyscallblock()
+	entersyscall()
 	libcCall(unsafe.Pointer(funcPC(syscall6)), unsafe.Pointer(&fn))
 	exitsyscall()
 	return
@@ -82,12 +82,23 @@ func syscall6()
 //go:nosplit
 //go:cgo_unsafe_args
 func syscall_syscall6X(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
-	entersyscallblock()
+	entersyscall()
 	libcCall(unsafe.Pointer(funcPC(syscall6X)), unsafe.Pointer(&fn))
 	exitsyscall()
 	return
 }
 func syscall6X()
+
+//go:linkname syscall_syscallPtr syscall.syscallPtr
+//go:nosplit
+//go:cgo_unsafe_args
+func syscall_syscallPtr(fn, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+	entersyscall()
+	libcCall(unsafe.Pointer(funcPC(syscallPtr)), unsafe.Pointer(&fn))
+	exitsyscall()
+	return
+}
+func syscallPtr()
 
 //go:linkname syscall_rawSyscall syscall.rawSyscall
 //go:nosplit
@@ -117,10 +128,10 @@ func pthread_attr_init_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func pthread_attr_setstacksize(attr *pthreadattr, size uintptr) int32 {
-	return libcCall(unsafe.Pointer(funcPC(pthread_attr_setstacksize_trampoline)), unsafe.Pointer(&attr))
+func pthread_attr_getstacksize(attr *pthreadattr, size *uintptr) int32 {
+	return libcCall(unsafe.Pointer(funcPC(pthread_attr_getstacksize_trampoline)), unsafe.Pointer(&attr))
 }
-func pthread_attr_setstacksize_trampoline()
+func pthread_attr_getstacksize_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
@@ -150,6 +161,14 @@ func pthread_self() (t pthread) {
 	return
 }
 func pthread_self_trampoline()
+
+//go:nosplit
+//go:cgo_unsafe_args
+func pthread_kill(t pthread, sig uint32) {
+	libcCall(unsafe.Pointer(funcPC(pthread_kill_trampoline)), unsafe.Pointer(&t))
+	return
+}
+func pthread_kill_trampoline()
 
 func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
 	args := struct {
@@ -186,6 +205,13 @@ func read(fd int32, p unsafe.Pointer, n int32) int32 {
 }
 func read_trampoline()
 
+func pipe() (r, w int32, errno int32) {
+	var p [2]int32
+	errno = libcCall(unsafe.Pointer(funcPC(pipe_trampoline)), noescape(unsafe.Pointer(&p)))
+	return p[0], p[1], errno
+}
+func pipe_trampoline()
+
 //go:nosplit
 //go:cgo_unsafe_args
 func closefd(fd int32) int32 {
@@ -195,6 +221,9 @@ func close_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
+//
+// This is exported via linkname to assembly in runtime/cgo.
+//go:linkname exit
 func exit(code int32) {
 	libcCall(unsafe.Pointer(funcPC(exit_trampoline)), unsafe.Pointer(&code))
 }
@@ -209,7 +238,7 @@ func usleep_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func write(fd uintptr, p unsafe.Pointer, n int32) int32 {
+func write1(fd uintptr, p unsafe.Pointer, n int32) int32 {
 	return libcCall(unsafe.Pointer(funcPC(write_trampoline)), unsafe.Pointer(&fd))
 }
 func write_trampoline()
@@ -223,7 +252,7 @@ func open_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func nanotime() int64 {
+func nanotime1() int64 {
 	var r struct {
 		t            int64  // raw timer
 		numer, denom uint32 // conversion factors. nanoseconds = t * numer / denom.
@@ -245,7 +274,7 @@ func nanotime_trampoline()
 
 //go:nosplit
 //go:cgo_unsafe_args
-func walltime() (int64, int32) {
+func walltime1() (int64, int32) {
 	var t timeval
 	libcCall(unsafe.Pointer(funcPC(walltime_trampoline)), unsafe.Pointer(&t))
 	return int64(t.tv_sec), 1000 * t.tv_usec
@@ -381,13 +410,21 @@ func closeonexec(fd int32) {
 	fcntl(fd, _F_SETFD, _FD_CLOEXEC)
 }
 
+//go:nosplit
+func setNonblock(fd int32) {
+	flags := fcntl(fd, _F_GETFL, 0)
+	fcntl(fd, _F_SETFL, flags|_O_NONBLOCK)
+}
+
 // Tell the linker that the libc_* functions are to be found
 // in a system library, with the libc_ prefix missing.
 
 //go:cgo_import_dynamic libc_pthread_attr_init pthread_attr_init "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_pthread_attr_setstacksize pthread_attr_setstacksize "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_attr_getstacksize pthread_attr_getstacksize "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_create pthread_create "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_self pthread_self "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pthread_kill pthread_kill "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_exit exit "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_raise raise "/usr/lib/libSystem.B.dylib"
 
@@ -395,6 +432,7 @@ func closeonexec(fd int32) {
 //go:cgo_import_dynamic libc_close close "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_read read "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_write write "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_pipe pipe "/usr/lib/libSystem.B.dylib"
 
 //go:cgo_import_dynamic libc_mmap mmap "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_munmap munmap "/usr/lib/libSystem.B.dylib"

@@ -417,7 +417,7 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 			prog.Reg = reg
 			break
 		}
-		if p.arch.Family == sys.MIPS || p.arch.Family == sys.MIPS64 {
+		if p.arch.Family == sys.MIPS || p.arch.Family == sys.MIPS64 || p.arch.Family == sys.RISCV64 {
 			// 3-operand jumps.
 			// First two must be registers
 			target = &a[2]
@@ -450,8 +450,19 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 			target = &a[2]
 			break
 		}
-
-		fallthrough
+		p.errorf("wrong number of arguments to %s instruction", op)
+		return
+	case 4:
+		if p.arch.Family == sys.S390X {
+			// 4-operand compare-and-branch.
+			prog.From = a[0]
+			prog.Reg = p.getRegister(prog, op, &a[1])
+			prog.SetFrom3(a[2])
+			target = &a[3]
+			break
+		}
+		p.errorf("wrong number of arguments to %s instruction", op)
+		return
 	default:
 		p.errorf("wrong number of arguments to %s instruction", op)
 		return
@@ -579,7 +590,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 		prog.To = a[1]
 	case 3:
 		switch p.arch.Family {
-		case sys.MIPS, sys.MIPS64:
+		case sys.MIPS, sys.MIPS64, sys.RISCV64:
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
 			prog.To = a[2]
@@ -784,6 +795,12 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 			break
 		}
 		if p.arch.Family == sys.AMD64 {
+			prog.From = a[0]
+			prog.RestArgs = []obj.Addr{a[1], a[2], a[3]}
+			prog.To = a[4]
+			break
+		}
+		if p.arch.Family == sys.S390X {
 			prog.From = a[0]
 			prog.RestArgs = []obj.Addr{a[1], a[2], a[3]}
 			prog.To = a[4]

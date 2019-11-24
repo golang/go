@@ -11,6 +11,7 @@ import "unsafe"
 var (
 	nativeEndian binaryByteOrder
 	kernelAlign  int
+	rtmVersion   byte
 	wireFormats  map[int]*wireFormat
 )
 
@@ -22,6 +23,8 @@ func init() {
 	} else {
 		nativeEndian = bigEndian
 	}
+	// might get overridden in probeRoutingStack
+	rtmVersion = sysRTM_VERSION
 	kernelAlign, wireFormats = probeRoutingStack()
 }
 
@@ -29,7 +32,7 @@ func roundup(l int) int {
 	if l == 0 {
 		return kernelAlign
 	}
-	return (l + kernelAlign - 1) & ^(kernelAlign - 1)
+	return (l + kernelAlign - 1) &^ (kernelAlign - 1)
 }
 
 type wireFormat struct {

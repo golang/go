@@ -211,7 +211,7 @@ TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
 TEXT runtime·systemstack_switch(SB), NOSPLIT, $0-0
 	// We have several undefs here so that 16 bytes past
 	// $runtime·systemstack_switch lies within them whether or not the
-        // instructions that derive r2 from r12 are there.
+	// instructions that derive r2 from r12 are there.
 	UNDEF
 	UNDEF
 	UNDEF
@@ -833,14 +833,14 @@ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
 	RET
 
 // AES hashing not implemented for ppc64
-TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-0
-	MOVW	(R0), R1
-TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-0
-	MOVW	(R0), R1
-TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
-	MOVW	(R0), R1
-TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
-	MOVW	(R0), R1
+TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
+	JMP	runtime·memhashFallback(SB)
+TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-24
+	JMP	runtime·strhashFallback(SB)
+TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
+	JMP	runtime·memhash32Fallback(SB)
+TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
+	JMP	runtime·memhash64Fallback(SB)
 
 TEXT runtime·return0(SB), NOSPLIT, $0
 	MOVW	$0, R3
@@ -880,23 +880,20 @@ TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
 // pointer in the correct place).
 // goexit+_PCQuantum is halfway through the usual global entry point prologue
 // that derives r2 from r12 which is a bit silly, but not harmful.
-TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
+TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
 	MOVD	24(R1), R2
 	BL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit
 	MOVD	R0, R0	// NOP
-
-TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
-	RET
 
 // prepGoExitFrame saves the current TOC pointer (i.e. the TOC pointer for the
 // module containing runtime) to the frame that goexit will execute in when
 // the goroutine exits. It's implemented in assembly mainly because that's the
 // easiest way to get access to R2.
 TEXT runtime·prepGoExitFrame(SB),NOSPLIT,$0-8
-      MOVD    sp+0(FP), R3
-      MOVD    R2, 24(R3)
-      RET
+	MOVD    sp+0(FP), R3
+	MOVD    R2, 24(R3)
+	RET
 
 TEXT runtime·addmoduledata(SB),NOSPLIT|NOFRAME,$0-0
 	ADD	$-8, R1

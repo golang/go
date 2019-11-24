@@ -108,7 +108,7 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
 		if id == TLS_FALLBACK_SCSV {
 			// Use c.vers instead of max(supported_versions) because an attacker
 			// could defeat this by adding an arbitrary high version otherwise.
-			if c.vers < c.config.maxSupportedVersion(false) {
+			if c.vers < c.config.maxSupportedVersion() {
 				c.sendAlert(alertInappropriateFallback)
 				return errors.New("tls: client using inappropriate protocol fallback")
 			}
@@ -356,36 +356,26 @@ func (hs *serverHandshakeStateTLS13) pickCertificate() error {
 		return nil
 	}
 
-	// This implements a very simplistic certificate selection strategy for now:
-	// getCertificate delegates to the application Config.GetCertificate, or
-	// selects based on the server_name only. If the selected certificate's
-	// public key does not match the client signature_algorithms, the handshake
-	// is aborted. No attention is given to signature_algorithms_cert, and it is
-	// not passed to the application Config.GetCertificate. This will need to
-	// improve according to RFC 8446, sections 4.4.2.2 and 4.2.3.
+	// signature_algorithms is required in TLS 1.3. See RFC 8446, Section 4.2.3.
+	if len(hs.clientHello.supportedSignatureAlgorithms) == 0 {
+		return c.sendAlert(alertMissingExtension)
+	}
+
 	certificate, err := c.config.getCertificate(clientHelloInfo(c, hs.clientHello))
 	if err != nil {
-		c.sendAlert(alertInternalError)
+		if err == errNoCertificates {
+			c.sendAlert(alertUnrecognizedName)
+		} else {
+			c.sendAlert(alertInternalError)
+		}
 		return err
 	}
-	supportedAlgs := signatureSchemesForCertificate(c.vers, certificate)
-	if supportedAlgs == nil {
-		c.sendAlert(alertInternalError)
-		return unsupportedCertificateError(certificate)
-	}
-	// Pick signature scheme in client preference order, as the server
-	// preference order is not configurable.
-	for _, preferredAlg := range hs.clientHello.supportedSignatureAlgorithms {
-		if isSupportedSignatureAlgorithm(preferredAlg, supportedAlgs) {
-			hs.sigAlg = preferredAlg
-			break
-		}
-	}
-	if hs.sigAlg == 0 {
-		// getCertificate returned a certificate incompatible with the
-		// ClientHello supported signature algorithms.
+	hs.sigAlg, err = selectSignatureScheme(c.vers, certificate, hs.clientHello.supportedSignatureAlgorithms)
+	if err != nil {
+		// getCertificate returned a certificate that is unsupported or
+		// incompatible with the client's signature algorithms.
 		c.sendAlert(alertHandshakeFailure)
-		return errors.New("tls: client doesn't support selected certificate")
+		return err
 	}
 	hs.cert = certificate
 
@@ -510,7 +500,6 @@ func illegalClientHelloChange(ch, ch1 *clientHelloMsg) bool {
 		!bytes.Equal(ch.random, ch1.random) ||
 		!bytes.Equal(ch.sessionId, ch1.sessionId) ||
 		!bytes.Equal(ch.compressionMethods, ch1.compressionMethods) ||
-		ch.nextProtoNeg != ch1.nextProtoNeg ||
 		ch.serverName != ch1.serverName ||
 		ch.ocspStapling != ch1.ocspStapling ||
 		!bytes.Equal(ch.supportedPoints, ch1.supportedPoints) ||
@@ -621,19 +610,17 @@ func (hs *serverHandshakeStateTLS13) sendServerCertificate() error {
 	certVerifyMsg.hasSignatureAlgorithm = true
 	certVerifyMsg.signatureAlgorithm = hs.sigAlg
 
-	sigType := signatureFromSignatureScheme(hs.sigAlg)
-	sigHash, err := hashFromSignatureScheme(hs.sigAlg)
-	if sigType == 0 || err != nil {
+	sigType, sigHash, err := typeAndHashFromSignatureScheme(hs.sigAlg)
+	if err != nil {
 		return c.sendAlert(alertInternalError)
 	}
-	h := sigHash.New()
-	writeSignedMessage(h, serverSignatureContext, hs.transcript)
 
+	signed := signedMessage(sigHash, serverSignatureContext, hs.transcript)
 	signOpts := crypto.SignerOpts(sigHash)
 	if sigType == signatureRSAPSS {
 		signOpts = &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash, Hash: sigHash}
 	}
-	sig, err := hs.cert.PrivateKey.(crypto.Signer).Sign(c.config.rand(), h.Sum(nil), signOpts)
+	sig, err := hs.cert.PrivateKey.(crypto.Signer).Sign(c.config.rand(), signed, signOpts)
 	if err != nil {
 		public := hs.cert.PrivateKey.(crypto.Signer).Public()
 		if rsaKey, ok := public.(*rsa.PublicKey); ok && sigType == signatureRSAPSS &&
@@ -803,24 +790,21 @@ func (hs *serverHandshakeStateTLS13) readClientCertificate() error {
 		// See RFC 8446, Section 4.4.3.
 		if !isSupportedSignatureAlgorithm(certVerify.signatureAlgorithm, supportedSignatureAlgorithms) {
 			c.sendAlert(alertIllegalParameter)
-			return errors.New("tls: invalid certificate signature algorithm")
+			return errors.New("tls: client certificate used with invalid signature algorithm")
 		}
-		sigType := signatureFromSignatureScheme(certVerify.signatureAlgorithm)
-		sigHash, err := hashFromSignatureScheme(certVerify.signatureAlgorithm)
-		if sigType == 0 || err != nil {
-			c.sendAlert(alertInternalError)
-			return err
+		sigType, sigHash, err := typeAndHashFromSignatureScheme(certVerify.signatureAlgorithm)
+		if err != nil {
+			return c.sendAlert(alertInternalError)
 		}
 		if sigType == signaturePKCS1v15 || sigHash == crypto.SHA1 {
 			c.sendAlert(alertIllegalParameter)
-			return errors.New("tls: invalid certificate signature algorithm")
+			return errors.New("tls: client certificate used with invalid signature algorithm")
 		}
-		h := sigHash.New()
-		writeSignedMessage(h, clientSignatureContext, hs.transcript)
+		signed := signedMessage(sigHash, clientSignatureContext, hs.transcript)
 		if err := verifyHandshakeSignature(sigType, c.peerCertificates[0].PublicKey,
-			sigHash, h.Sum(nil), certVerify.signature); err != nil {
+			sigHash, signed, certVerify.signature); err != nil {
 			c.sendAlert(alertDecryptError)
-			return errors.New("tls: invalid certificate signature")
+			return errors.New("tls: invalid signature by the client certificate: " + err.Error())
 		}
 
 		hs.transcript.Write(certVerify.marshal())

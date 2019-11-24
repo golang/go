@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// PE (Portable Executable) file writing
+// https://www.microsoft.com/whdc/system/platform/firmware/PECOFF.mspx
+
 package ld
 
 import (
@@ -54,45 +57,46 @@ var (
 )
 
 const (
-	IMAGE_FILE_MACHINE_I386               = 0x14c
-	IMAGE_FILE_MACHINE_AMD64              = 0x8664
-	IMAGE_FILE_MACHINE_ARM                = 0x1c0
-	IMAGE_FILE_MACHINE_ARMNT              = 0x1c4
-	IMAGE_FILE_RELOCS_STRIPPED            = 0x0001
-	IMAGE_FILE_EXECUTABLE_IMAGE           = 0x0002
-	IMAGE_FILE_LINE_NUMS_STRIPPED         = 0x0004
-	IMAGE_FILE_LARGE_ADDRESS_AWARE        = 0x0020
-	IMAGE_FILE_32BIT_MACHINE              = 0x0100
-	IMAGE_FILE_DEBUG_STRIPPED             = 0x0200
-	IMAGE_SCN_CNT_CODE                    = 0x00000020
-	IMAGE_SCN_CNT_INITIALIZED_DATA        = 0x00000040
-	IMAGE_SCN_CNT_UNINITIALIZED_DATA      = 0x00000080
-	IMAGE_SCN_MEM_EXECUTE                 = 0x20000000
-	IMAGE_SCN_MEM_READ                    = 0x40000000
-	IMAGE_SCN_MEM_WRITE                   = 0x80000000
-	IMAGE_SCN_MEM_DISCARDABLE             = 0x2000000
-	IMAGE_SCN_LNK_NRELOC_OVFL             = 0x1000000
-	IMAGE_SCN_ALIGN_32BYTES               = 0x600000
-	IMAGE_DIRECTORY_ENTRY_EXPORT          = 0
-	IMAGE_DIRECTORY_ENTRY_IMPORT          = 1
-	IMAGE_DIRECTORY_ENTRY_RESOURCE        = 2
-	IMAGE_DIRECTORY_ENTRY_EXCEPTION       = 3
-	IMAGE_DIRECTORY_ENTRY_SECURITY        = 4
-	IMAGE_DIRECTORY_ENTRY_BASERELOC       = 5
-	IMAGE_DIRECTORY_ENTRY_DEBUG           = 6
-	IMAGE_DIRECTORY_ENTRY_COPYRIGHT       = 7
-	IMAGE_DIRECTORY_ENTRY_ARCHITECTURE    = 7
-	IMAGE_DIRECTORY_ENTRY_GLOBALPTR       = 8
-	IMAGE_DIRECTORY_ENTRY_TLS             = 9
-	IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG     = 10
-	IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT    = 11
-	IMAGE_DIRECTORY_ENTRY_IAT             = 12
-	IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT    = 13
-	IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR  = 14
-	IMAGE_SUBSYSTEM_WINDOWS_GUI           = 2
-	IMAGE_SUBSYSTEM_WINDOWS_CUI           = 3
-	IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE = 0x0040
-	IMAGE_DLLCHARACTERISTICS_NX_COMPAT    = 0x0100
+	IMAGE_FILE_MACHINE_I386                        = 0x14c
+	IMAGE_FILE_MACHINE_AMD64                       = 0x8664
+	IMAGE_FILE_MACHINE_ARM                         = 0x1c0
+	IMAGE_FILE_MACHINE_ARMNT                       = 0x1c4
+	IMAGE_FILE_RELOCS_STRIPPED                     = 0x0001
+	IMAGE_FILE_EXECUTABLE_IMAGE                    = 0x0002
+	IMAGE_FILE_LINE_NUMS_STRIPPED                  = 0x0004
+	IMAGE_FILE_LARGE_ADDRESS_AWARE                 = 0x0020
+	IMAGE_FILE_32BIT_MACHINE                       = 0x0100
+	IMAGE_FILE_DEBUG_STRIPPED                      = 0x0200
+	IMAGE_SCN_CNT_CODE                             = 0x00000020
+	IMAGE_SCN_CNT_INITIALIZED_DATA                 = 0x00000040
+	IMAGE_SCN_CNT_UNINITIALIZED_DATA               = 0x00000080
+	IMAGE_SCN_MEM_EXECUTE                          = 0x20000000
+	IMAGE_SCN_MEM_READ                             = 0x40000000
+	IMAGE_SCN_MEM_WRITE                            = 0x80000000
+	IMAGE_SCN_MEM_DISCARDABLE                      = 0x2000000
+	IMAGE_SCN_LNK_NRELOC_OVFL                      = 0x1000000
+	IMAGE_SCN_ALIGN_32BYTES                        = 0x600000
+	IMAGE_DIRECTORY_ENTRY_EXPORT                   = 0
+	IMAGE_DIRECTORY_ENTRY_IMPORT                   = 1
+	IMAGE_DIRECTORY_ENTRY_RESOURCE                 = 2
+	IMAGE_DIRECTORY_ENTRY_EXCEPTION                = 3
+	IMAGE_DIRECTORY_ENTRY_SECURITY                 = 4
+	IMAGE_DIRECTORY_ENTRY_BASERELOC                = 5
+	IMAGE_DIRECTORY_ENTRY_DEBUG                    = 6
+	IMAGE_DIRECTORY_ENTRY_COPYRIGHT                = 7
+	IMAGE_DIRECTORY_ENTRY_ARCHITECTURE             = 7
+	IMAGE_DIRECTORY_ENTRY_GLOBALPTR                = 8
+	IMAGE_DIRECTORY_ENTRY_TLS                      = 9
+	IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG              = 10
+	IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT             = 11
+	IMAGE_DIRECTORY_ENTRY_IAT                      = 12
+	IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT             = 13
+	IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR           = 14
+	IMAGE_SUBSYSTEM_WINDOWS_GUI                    = 2
+	IMAGE_SUBSYSTEM_WINDOWS_CUI                    = 3
+	IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE          = 0x0040
+	IMAGE_DLLCHARACTERISTICS_NX_COMPAT             = 0x0100
+	IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE = 0x8000
 )
 
 // TODO(crawshaw): add these constants to debug/pe.
@@ -124,12 +128,10 @@ const (
 	IMAGE_REL_BASED_HIGHLOW = 3
 )
 
-// Copyright 2009 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-// PE (Portable Executable) file writing
-// https://www.microsoft.com/whdc/system/platform/firmware/PECOFF.mspx
+const (
+	PeMinimumTargetMajorVersion = 6
+	PeMinimumTargetMinorVersion = 1
+)
 
 // DOS stub that prints out
 // "This program cannot be run in DOS mode."
@@ -295,7 +297,7 @@ type peStringTable struct {
 	stringsLen int
 }
 
-// size resturns size of string table t.
+// size returns size of string table t.
 func (t *peStringTable) size() int {
 	// string table starts with 4-byte length at the beginning
 	return t.stringsLen + 4
@@ -683,7 +685,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 		// Only windows/386 requires underscore prefix on external symbols.
 		if ctxt.Arch.Family == sys.I386 &&
 			ctxt.LinkMode == LinkExternal &&
-			(s.Type == sym.SHOSTOBJ || s.Attr.CgoExport()) {
+			(s.Type == sym.SHOSTOBJ || s.Type == sym.SUNDEFEXT || s.Attr.CgoExport()) {
 			s.Name = "_" + s.Name
 		}
 
@@ -833,18 +835,18 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	oh.SectionAlignment = uint32(PESECTALIGN)
 	oh64.FileAlignment = uint32(PEFILEALIGN)
 	oh.FileAlignment = uint32(PEFILEALIGN)
-	oh64.MajorOperatingSystemVersion = 4
-	oh.MajorOperatingSystemVersion = 4
-	oh64.MinorOperatingSystemVersion = 0
-	oh.MinorOperatingSystemVersion = 0
+	oh64.MajorOperatingSystemVersion = PeMinimumTargetMajorVersion
+	oh.MajorOperatingSystemVersion = PeMinimumTargetMajorVersion
+	oh64.MinorOperatingSystemVersion = PeMinimumTargetMinorVersion
+	oh.MinorOperatingSystemVersion = PeMinimumTargetMinorVersion
 	oh64.MajorImageVersion = 1
 	oh.MajorImageVersion = 1
 	oh64.MinorImageVersion = 0
 	oh.MinorImageVersion = 0
-	oh64.MajorSubsystemVersion = 4
-	oh.MajorSubsystemVersion = 4
-	oh64.MinorSubsystemVersion = 0
-	oh.MinorSubsystemVersion = 0
+	oh64.MajorSubsystemVersion = PeMinimumTargetMajorVersion
+	oh.MajorSubsystemVersion = PeMinimumTargetMajorVersion
+	oh64.MinorSubsystemVersion = PeMinimumTargetMinorVersion
+	oh.MinorSubsystemVersion = PeMinimumTargetMinorVersion
 	oh64.SizeOfImage = f.nextSectOffset
 	oh.SizeOfImage = f.nextSectOffset
 	oh64.SizeOfHeaders = uint32(PEFILEHEADR)
@@ -859,9 +861,17 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 
 	switch ctxt.Arch.Family {
 	case sys.ARM:
-		oh64.DllCharacteristics = IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE | IMAGE_DLLCHARACTERISTICS_NX_COMPAT
-		oh.DllCharacteristics = IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE | IMAGE_DLLCHARACTERISTICS_NX_COMPAT
+		oh64.DllCharacteristics = IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
+		oh.DllCharacteristics = IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
 	}
+
+	// Mark as having awareness of terminal services, to avoid ancient compatibility hacks.
+	oh64.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE
+	oh.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE
+
+	// Enable DEP
+	oh64.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_NX_COMPAT
+	oh.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_NX_COMPAT
 
 	// Disable stack growth as we don't want Windows to
 	// fiddle with the thread stack limits, which we set
@@ -1401,7 +1411,7 @@ func addPEBaseRelocSym(ctxt *Link, s *sym.Symbol, rt *peBaseRelocTable) {
 		if !r.Sym.Attr.Reachable() {
 			continue
 		}
-		if r.Type >= 256 {
+		if r.Type >= objabi.ElfRelocOffset {
 			continue
 		}
 		if r.Siz == 0 { // informational relocation

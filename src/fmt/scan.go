@@ -457,7 +457,7 @@ func (s *ss) token(skipSpace bool, f func(rune) bool) []byte {
 			s.UnreadRune()
 			break
 		}
-		s.buf.WriteRune(r)
+		s.buf.writeRune(r)
 	}
 	return s.buf
 }
@@ -483,7 +483,7 @@ func (s *ss) consume(ok string, accept bool) bool {
 	}
 	if indexRune(ok, r) >= 0 {
 		if accept {
-			s.buf.WriteRune(r)
+			s.buf.writeRune(r)
 		}
 		return true
 	}
@@ -609,7 +609,7 @@ func (s *ss) scanRune(bitSize int) int64 {
 	return r
 }
 
-// scanBasePrefix reports whether the integer begins with a bas prefix
+// scanBasePrefix reports whether the integer begins with a base prefix
 // and returns the base, digit string, and whether a zero was found.
 // It is called only if the verb is %v.
 func (s *ss) scanBasePrefix() (base int, digits string, zeroFound bool) {
@@ -850,20 +850,20 @@ func (s *ss) quotedString() string {
 			if r == quote {
 				break
 			}
-			s.buf.WriteRune(r)
+			s.buf.writeRune(r)
 		}
 		return string(s.buf)
 	case '"':
 		// Double-quoted: Include the quotes and let strconv.Unquote do the backslash escapes.
-		s.buf.WriteByte('"')
+		s.buf.writeByte('"')
 		for {
 			r := s.mustReadRune()
-			s.buf.WriteRune(r)
+			s.buf.writeRune(r)
 			if r == '\\' {
 				// In a legal backslash escape, no matter how long, only the character
 				// immediately after the escape can itself be a backslash or quote.
 				// Thus we only need to protect the first character after the backslash.
-				s.buf.WriteRune(s.mustReadRune())
+				s.buf.writeRune(s.mustReadRune())
 			} else if r == '"' {
 				break
 			}
@@ -922,7 +922,7 @@ func (s *ss) hexString() string {
 		if !ok {
 			break
 		}
-		s.buf.WriteByte(b)
+		s.buf.writeByte(b)
 	}
 	if len(s.buf) == 0 {
 		s.errorString("no hex data for %x string")
@@ -939,6 +939,15 @@ const (
 	intBits     = 32 << (^uint(0) >> 63)
 	uintptrBits = 32 << (^uintptr(0) >> 63)
 )
+
+// scanPercent scans a literal percent character.
+func (s *ss) scanPercent() {
+	s.SkipSpace()
+	s.notEOF()
+	if !s.accept("%") {
+		s.errorString("missing literal %")
+	}
+}
 
 // scanOne scans a single value, deriving the scanner from the type of the argument.
 func (s *ss) scanOne(verb rune, arg interface{}) {
@@ -1202,6 +1211,10 @@ func (s *ss) doScanf(format string, a []interface{}) (numProcessed int, err erro
 
 		if c != 'c' {
 			s.SkipSpace()
+		}
+		if c == '%' {
+			s.scanPercent()
+			continue // Do not consume an argument.
 		}
 		s.argLimit = s.limit
 		if f := s.count + s.maxWid; f < s.argLimit {

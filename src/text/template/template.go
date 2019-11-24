@@ -50,6 +50,10 @@ func (t *Template) Name() string {
 // New allocates a new, undefined template associated with the given one and with the same
 // delimiters. The association, which is transitive, allows one template to
 // invoke another with a {{template}} action.
+//
+// Because associated templates share underlying data, template construction
+// cannot be done safely in parallel. Once the templates are constructed, they
+// can be executed in parallel.
 func (t *Template) New(name string) *Template {
 	t.init()
 	nt := &Template{
@@ -106,12 +110,13 @@ func (t *Template) Clone() (*Template, error) {
 
 // copy returns a shallow copy of t, with common set to the argument.
 func (t *Template) copy(c *common) *Template {
-	nt := New(t.name)
-	nt.Tree = t.Tree
-	nt.common = c
-	nt.leftDelim = t.leftDelim
-	nt.rightDelim = t.rightDelim
-	return nt
+	return &Template{
+		name:       t.name,
+		Tree:       t.Tree,
+		common:     c,
+		leftDelim:  t.leftDelim,
+		rightDelim: t.rightDelim,
+	}
 }
 
 // AddParseTree adds parse tree for template with given name and associates it with t.

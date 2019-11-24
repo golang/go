@@ -116,6 +116,13 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident) {
 	args := sign.Params()
 	results := sign.Results()
 
+	// Special case: WriteTo with more than one argument,
+	// not trying at all to implement io.WriterTo,
+	// comes up often enough to skip.
+	if id.Name == "WriteTo" && args.Len() > 1 {
+		return
+	}
+
 	// Do the =s (if any) all match?
 	if !matchParams(pass, expect.args, args, "=") || !matchParams(pass, expect.results, results, "=") {
 		return
@@ -134,7 +141,7 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident) {
 		actual = strings.TrimPrefix(actual, "func")
 		actual = id.Name + actual
 
-		pass.Reportf(id.Pos(), "method %s should have signature %s", actual, expectFmt)
+		pass.ReportRangef(id, "method %s should have signature %s", actual, expectFmt)
 	}
 }
 

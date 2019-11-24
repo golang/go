@@ -58,6 +58,9 @@ func Test(t *testing.T) {
 			for _, r := range out.Require {
 				fmt.Fprintf(&buf, "%s %s\n", r.Mod.Path, r.Mod.Version)
 			}
+			for _, r := range out.Replace {
+				fmt.Fprintf(&buf, "replace: %s %s %s %s\n", r.Old.Path, r.Old.Version, r.New.Path, r.New.Version)
+			}
 			if !bytes.Equal(buf.Bytes(), want) {
 				t.Errorf("have:\n%s\nwant:\n%s", buf.Bytes(), want)
 			}

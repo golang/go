@@ -82,6 +82,10 @@ func (check *Checker) err(pos token.Pos, msg string, soft bool) {
 		check.firstErr = err
 	}
 
+	if trace {
+		check.trace(pos, "ERROR: %s", msg)
+	}
+
 	f := check.conf.Error
 	if f == nil {
 		panic(bailout{}) // report only first error

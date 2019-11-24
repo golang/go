@@ -80,7 +80,7 @@ func (e CertificateInvalidError) Error() string {
 	case NotAuthorizedToSign:
 		return "x509: certificate is not authorized to sign other certificates"
 	case Expired:
-		return "x509: certificate has expired or is not yet valid"
+		return "x509: certificate has expired or is not yet valid: " + e.Detail
 	case CANotAuthorizedForThisName:
 		return "x509: a root or intermediate certificate is not authorized to sign for this name: " + e.Detail
 	case CANotAuthorizedForExtKeyUsage:
@@ -369,7 +369,7 @@ func domainToReverseLabels(domain string) (reverseLabels []string, ok bool) {
 			reverseLabels = append(reverseLabels, domain)
 			domain = ""
 		} else {
-			reverseLabels = append(reverseLabels, domain[i+1:len(domain)])
+			reverseLabels = append(reverseLabels, domain[i+1:])
 			domain = domain[:i]
 		}
 	}
@@ -576,8 +576,18 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 	if now.IsZero() {
 		now = time.Now()
 	}
-	if now.Before(c.NotBefore) || now.After(c.NotAfter) {
-		return CertificateInvalidError{c, Expired, ""}
+	if now.Before(c.NotBefore) {
+		return CertificateInvalidError{
+			Cert:   c,
+			Reason: Expired,
+			Detail: fmt.Sprintf("current time %s is before %s", now.Format(time.RFC3339), c.NotBefore.Format(time.RFC3339)),
+		}
+	} else if now.After(c.NotAfter) {
+		return CertificateInvalidError{
+			Cert:   c,
+			Reason: Expired,
+			Detail: fmt.Sprintf("current time %s is after %s", now.Format(time.RFC3339), c.NotAfter.Format(time.RFC3339)),
+		}
 	}
 
 	maxConstraintComparisons := opts.MaxConstraintComparisions

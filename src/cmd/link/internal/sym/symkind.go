@@ -81,6 +81,8 @@ const (
 	SPCLNTAB
 
 	// Writable sections.
+	SFirstWritable
+	SBUILDINFO
 	SELFSECT
 	SMACHO
 	SMACHOGOT
@@ -92,6 +94,7 @@ const (
 	SXCOFFTOC
 	SBSS
 	SNOPTRBSS
+	SLIBFUZZER_EXTRA_COUNTER
 	STLSBSS
 	SXREF
 	SMACHOSYMSTR
@@ -102,13 +105,14 @@ const (
 	SCONST
 	SDYNIMPORT
 	SHOSTOBJ
+	SUNDEFEXT // Undefined symbol for resolution by external linker
 
 	// Sections for debugging information
 	SDWARFSECT
 	SDWARFINFO
 	SDWARFRANGE
 	SDWARFLOC
-	SDWARFMISC // Not really a section; informs/affects other DWARF section generation
+	SDWARFLINES
 
 	// ABI aliases (these never appear in the output)
 	SABIALIAS
@@ -128,8 +132,9 @@ var AbiSymKindToSymKind = [...]SymKind{
 	SDWARFINFO,
 	SDWARFRANGE,
 	SDWARFLOC,
-	SDWARFMISC,
+	SDWARFLINES,
 	SABIALIAS,
+	SLIBFUZZER_EXTRA_COUNTER,
 }
 
 // ReadOnly are the symbol kinds that form read-only sections. In some
@@ -155,4 +160,9 @@ var RelROMap = map[SymKind]SymKind{
 	SGCBITS:   SGCBITSRELRO,
 	SRODATA:   SRODATARELRO,
 	SFUNCTAB:  SFUNCTABRELRO,
+}
+
+// IsData returns true if the type is a data type.
+func (t SymKind) IsData() bool {
+	return t == SDATA || t == SNOPTRDATA || t == SBSS || t == SNOPTRBSS
 }

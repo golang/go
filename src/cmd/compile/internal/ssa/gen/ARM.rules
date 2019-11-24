@@ -56,6 +56,7 @@
 (Com(32|16|8) x) -> (MVN x)
 
 (Sqrt x) -> (SQRTD x)
+(Abs x) -> (ABSD x)
 
 // TODO: optimize this for ARMv5 and ARMv6
 (Ctz32NonZero x) -> (Ctz32 x)
@@ -208,6 +209,9 @@
 (Cvt64Fto32F x) -> (MOVDF x)
 
 (Round(32|64)F x) -> x
+
+// fused-multiply-add
+(FMA x y z) -> (FMULAD z x y)
 
 // comparisons
 (Eq8 x y)  -> (Equal (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
@@ -646,65 +650,65 @@
 (CMPconst (SRLconst _ [c]) [n]) && 0 <= n && 0 < c && c <= 32 && (1<<uint32(32-c)) <= uint32(n) -> (FlagLT_ULT)
 
 // absorb flag constants into branches
-(EQ (FlagEQ) yes no) -> (First nil yes no)
-(EQ (FlagLT_ULT) yes no) -> (First nil no yes)
-(EQ (FlagLT_UGT) yes no) -> (First nil no yes)
-(EQ (FlagGT_ULT) yes no) -> (First nil no yes)
-(EQ (FlagGT_UGT) yes no) -> (First nil no yes)
+(EQ (FlagEQ) yes no) -> (First yes no)
+(EQ (FlagLT_ULT) yes no) -> (First no yes)
+(EQ (FlagLT_UGT) yes no) -> (First no yes)
+(EQ (FlagGT_ULT) yes no) -> (First no yes)
+(EQ (FlagGT_UGT) yes no) -> (First no yes)
 
-(NE (FlagEQ) yes no) -> (First nil no yes)
-(NE (FlagLT_ULT) yes no) -> (First nil yes no)
-(NE (FlagLT_UGT) yes no) -> (First nil yes no)
-(NE (FlagGT_ULT) yes no) -> (First nil yes no)
-(NE (FlagGT_UGT) yes no) -> (First nil yes no)
+(NE (FlagEQ) yes no) -> (First no yes)
+(NE (FlagLT_ULT) yes no) -> (First yes no)
+(NE (FlagLT_UGT) yes no) -> (First yes no)
+(NE (FlagGT_ULT) yes no) -> (First yes no)
+(NE (FlagGT_UGT) yes no) -> (First yes no)
 
-(LT (FlagEQ) yes no) -> (First nil no yes)
-(LT (FlagLT_ULT) yes no) -> (First nil yes no)
-(LT (FlagLT_UGT) yes no) -> (First nil yes no)
-(LT (FlagGT_ULT) yes no) -> (First nil no yes)
-(LT (FlagGT_UGT) yes no) -> (First nil no yes)
+(LT (FlagEQ) yes no) -> (First no yes)
+(LT (FlagLT_ULT) yes no) -> (First yes no)
+(LT (FlagLT_UGT) yes no) -> (First yes no)
+(LT (FlagGT_ULT) yes no) -> (First no yes)
+(LT (FlagGT_UGT) yes no) -> (First no yes)
 
-(LE (FlagEQ) yes no) -> (First nil yes no)
-(LE (FlagLT_ULT) yes no) -> (First nil yes no)
-(LE (FlagLT_UGT) yes no) -> (First nil yes no)
-(LE (FlagGT_ULT) yes no) -> (First nil no yes)
-(LE (FlagGT_UGT) yes no) -> (First nil no yes)
+(LE (FlagEQ) yes no) -> (First yes no)
+(LE (FlagLT_ULT) yes no) -> (First yes no)
+(LE (FlagLT_UGT) yes no) -> (First yes no)
+(LE (FlagGT_ULT) yes no) -> (First no yes)
+(LE (FlagGT_UGT) yes no) -> (First no yes)
 
-(GT (FlagEQ) yes no) -> (First nil no yes)
-(GT (FlagLT_ULT) yes no) -> (First nil no yes)
-(GT (FlagLT_UGT) yes no) -> (First nil no yes)
-(GT (FlagGT_ULT) yes no) -> (First nil yes no)
-(GT (FlagGT_UGT) yes no) -> (First nil yes no)
+(GT (FlagEQ) yes no) -> (First no yes)
+(GT (FlagLT_ULT) yes no) -> (First no yes)
+(GT (FlagLT_UGT) yes no) -> (First no yes)
+(GT (FlagGT_ULT) yes no) -> (First yes no)
+(GT (FlagGT_UGT) yes no) -> (First yes no)
 
-(GE (FlagEQ) yes no) -> (First nil yes no)
-(GE (FlagLT_ULT) yes no) -> (First nil no yes)
-(GE (FlagLT_UGT) yes no) -> (First nil no yes)
-(GE (FlagGT_ULT) yes no) -> (First nil yes no)
-(GE (FlagGT_UGT) yes no) -> (First nil yes no)
+(GE (FlagEQ) yes no) -> (First yes no)
+(GE (FlagLT_ULT) yes no) -> (First no yes)
+(GE (FlagLT_UGT) yes no) -> (First no yes)
+(GE (FlagGT_ULT) yes no) -> (First yes no)
+(GE (FlagGT_UGT) yes no) -> (First yes no)
 
-(ULT (FlagEQ) yes no) -> (First nil no yes)
-(ULT (FlagLT_ULT) yes no) -> (First nil yes no)
-(ULT (FlagLT_UGT) yes no) -> (First nil no yes)
-(ULT (FlagGT_ULT) yes no) -> (First nil yes no)
-(ULT (FlagGT_UGT) yes no) -> (First nil no yes)
+(ULT (FlagEQ) yes no) -> (First no yes)
+(ULT (FlagLT_ULT) yes no) -> (First yes no)
+(ULT (FlagLT_UGT) yes no) -> (First no yes)
+(ULT (FlagGT_ULT) yes no) -> (First yes no)
+(ULT (FlagGT_UGT) yes no) -> (First no yes)
 
-(ULE (FlagEQ) yes no) -> (First nil yes no)
-(ULE (FlagLT_ULT) yes no) -> (First nil yes no)
-(ULE (FlagLT_UGT) yes no) -> (First nil no yes)
-(ULE (FlagGT_ULT) yes no) -> (First nil yes no)
-(ULE (FlagGT_UGT) yes no) -> (First nil no yes)
+(ULE (FlagEQ) yes no) -> (First yes no)
+(ULE (FlagLT_ULT) yes no) -> (First yes no)
+(ULE (FlagLT_UGT) yes no) -> (First no yes)
+(ULE (FlagGT_ULT) yes no) -> (First yes no)
+(ULE (FlagGT_UGT) yes no) -> (First no yes)
 
-(UGT (FlagEQ) yes no) -> (First nil no yes)
-(UGT (FlagLT_ULT) yes no) -> (First nil no yes)
-(UGT (FlagLT_UGT) yes no) -> (First nil yes no)
-(UGT (FlagGT_ULT) yes no) -> (First nil no yes)
-(UGT (FlagGT_UGT) yes no) -> (First nil yes no)
+(UGT (FlagEQ) yes no) -> (First no yes)
+(UGT (FlagLT_ULT) yes no) -> (First no yes)
+(UGT (FlagLT_UGT) yes no) -> (First yes no)
+(UGT (FlagGT_ULT) yes no) -> (First no yes)
+(UGT (FlagGT_UGT) yes no) -> (First yes no)
 
-(UGE (FlagEQ) yes no) -> (First nil yes no)
-(UGE (FlagLT_ULT) yes no) -> (First nil no yes)
-(UGE (FlagLT_UGT) yes no) -> (First nil yes no)
-(UGE (FlagGT_ULT) yes no) -> (First nil no yes)
-(UGE (FlagGT_UGT) yes no) -> (First nil yes no)
+(UGE (FlagEQ) yes no) -> (First yes no)
+(UGE (FlagLT_ULT) yes no) -> (First no yes)
+(UGE (FlagLT_UGT) yes no) -> (First yes no)
+(UGE (FlagGT_ULT) yes no) -> (First no yes)
+(UGE (FlagGT_UGT) yes no) -> (First yes no)
 
 // absorb InvertFlags into branches
 (LT (InvertFlags cmp) yes no) -> (GT cmp yes no)
@@ -1233,6 +1237,11 @@
 ( ORshiftRL [c] (SLLconst x [32-c]) x) -> (SRRconst [   c] x)
 (XORshiftRL [c] (SLLconst x [32-c]) x) -> (SRRconst [   c] x)
 
+(RotateLeft32 x (MOVWconst [c])) -> (SRRconst [-c&31] x)
+(RotateLeft16 <t> x (MOVWconst [c])) -> (Or16 (Lsh16x32 <t> x (MOVWconst [c&15])) (Rsh16Ux32 <t> x (MOVWconst [-c&15])))
+(RotateLeft8 <t> x (MOVWconst [c])) -> (Or8 (Lsh8x32 <t> x (MOVWconst [c&7])) (Rsh8Ux32 <t> x (MOVWconst [-c&7])))
+(RotateLeft32 x y) -> (SRR x (RSBconst [0] <y.Type> y))
+
 // ((x>>8) | (x<<8)) -> (REV16 x), the type of x is uint16, "|" can also be "^" or "+".
 // UBFX instruction is supported by ARMv6T2, ARMv7 and above versions, REV16 is supported by
 // ARMv6 and above versions. So for ARMv6, we need to match SLLconst, SRLconst and ORshiftLL.
@@ -1240,20 +1249,20 @@
 ((ADDshiftLL|ORshiftLL|XORshiftLL) <typ.UInt16> [8] (SRLconst <typ.UInt16> [24] (SLLconst [16] x)) x) && objabi.GOARM>=6 -> (REV16 x)
 
 // use indexed loads and stores
-(MOVWload [0] {sym} (ADD ptr idx) mem) && sym == nil && !config.nacl -> (MOVWloadidx ptr idx mem)
-(MOVWstore [0] {sym} (ADD ptr idx) val mem) && sym == nil && !config.nacl -> (MOVWstoreidx ptr idx val mem)
-(MOVWload [0] {sym} (ADDshiftLL ptr idx [c]) mem) && sym == nil && !config.nacl -> (MOVWloadshiftLL ptr idx [c] mem)
-(MOVWload [0] {sym} (ADDshiftRL ptr idx [c]) mem) && sym == nil && !config.nacl -> (MOVWloadshiftRL ptr idx [c] mem)
-(MOVWload [0] {sym} (ADDshiftRA ptr idx [c]) mem) && sym == nil && !config.nacl -> (MOVWloadshiftRA ptr idx [c] mem)
-(MOVWstore [0] {sym} (ADDshiftLL ptr idx [c]) val mem) && sym == nil && !config.nacl -> (MOVWstoreshiftLL ptr idx [c] val mem)
-(MOVWstore [0] {sym} (ADDshiftRL ptr idx [c]) val mem) && sym == nil && !config.nacl -> (MOVWstoreshiftRL ptr idx [c] val mem)
-(MOVWstore [0] {sym} (ADDshiftRA ptr idx [c]) val mem) && sym == nil && !config.nacl -> (MOVWstoreshiftRA ptr idx [c] val mem)
-(MOVBUload [0] {sym} (ADD ptr idx) mem) && sym == nil && !config.nacl -> (MOVBUloadidx ptr idx mem)
-(MOVBload [0] {sym} (ADD ptr idx) mem) && sym == nil && !config.nacl -> (MOVBloadidx ptr idx mem)
-(MOVBstore [0] {sym} (ADD ptr idx) val mem) && sym == nil && !config.nacl -> (MOVBstoreidx ptr idx val mem)
-(MOVHUload [0] {sym} (ADD ptr idx) mem) && sym == nil && !config.nacl -> (MOVHUloadidx ptr idx mem)
-(MOVHload [0] {sym} (ADD ptr idx) mem) && sym == nil && !config.nacl -> (MOVHloadidx ptr idx mem)
-(MOVHstore [0] {sym} (ADD ptr idx) val mem) && sym == nil && !config.nacl -> (MOVHstoreidx ptr idx val mem)
+(MOVWload [0] {sym} (ADD ptr idx) mem) && sym == nil -> (MOVWloadidx ptr idx mem)
+(MOVWstore [0] {sym} (ADD ptr idx) val mem) && sym == nil -> (MOVWstoreidx ptr idx val mem)
+(MOVWload [0] {sym} (ADDshiftLL ptr idx [c]) mem) && sym == nil -> (MOVWloadshiftLL ptr idx [c] mem)
+(MOVWload [0] {sym} (ADDshiftRL ptr idx [c]) mem) && sym == nil -> (MOVWloadshiftRL ptr idx [c] mem)
+(MOVWload [0] {sym} (ADDshiftRA ptr idx [c]) mem) && sym == nil -> (MOVWloadshiftRA ptr idx [c] mem)
+(MOVWstore [0] {sym} (ADDshiftLL ptr idx [c]) val mem) && sym == nil -> (MOVWstoreshiftLL ptr idx [c] val mem)
+(MOVWstore [0] {sym} (ADDshiftRL ptr idx [c]) val mem) && sym == nil -> (MOVWstoreshiftRL ptr idx [c] val mem)
+(MOVWstore [0] {sym} (ADDshiftRA ptr idx [c]) val mem) && sym == nil -> (MOVWstoreshiftRA ptr idx [c] val mem)
+(MOVBUload [0] {sym} (ADD ptr idx) mem) && sym == nil -> (MOVBUloadidx ptr idx mem)
+(MOVBload [0] {sym} (ADD ptr idx) mem) && sym == nil -> (MOVBloadidx ptr idx mem)
+(MOVBstore [0] {sym} (ADD ptr idx) val mem) && sym == nil -> (MOVBstoreidx ptr idx val mem)
+(MOVHUload [0] {sym} (ADD ptr idx) mem) && sym == nil -> (MOVHUloadidx ptr idx mem)
+(MOVHload [0] {sym} (ADD ptr idx) mem) && sym == nil -> (MOVHloadidx ptr idx mem)
+(MOVHstore [0] {sym} (ADD ptr idx) val mem) && sym == nil -> (MOVHstoreidx ptr idx val mem)
 
 // constant folding in indexed loads and stores
 (MOVWloadidx ptr (MOVWconst [c]) mem) -> (MOVWload [c] ptr mem)

@@ -31,6 +31,19 @@ func ExampleScanner_lines() {
 	}
 }
 
+// Return the most recent call to Scan as a []byte.
+func ExampleScanner_Bytes() {
+	scanner := bufio.NewScanner(strings.NewReader("gopher"))
+	for scanner.Scan() {
+		fmt.Println(len(scanner.Bytes()) == 6)
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, "shouldn't see an error scanning a string")
+	}
+	// Output:
+	// true
+}
+
 // Use a Scanner to implement a simple word-count utility by scanning the
 // input as a sequence of space-delimited tokens.
 func ExampleScanner_words() {

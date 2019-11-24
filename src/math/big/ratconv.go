@@ -123,7 +123,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	// Multiplications are commutative, so we can apply them in any
 	// order. We only have powers of 2 and 10, and we split powers
 	// of 10 into the product of the same powers of 2 and 5. This
-	// may reduce the the size of shift/multiplication factors or
+	// may reduce the size of shift/multiplication factors or
 	// divisors required to create the final fraction, depending
 	// on the actual floating-point value.
 
@@ -162,36 +162,31 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
 	}
 	// exp consumed - not needed anymore
 
-	// compute pow5 if needed
-	pow5 := z.b.abs
+	// apply exp5 contributions
+	// (start with exp5 so the numbers to multiply are smaller)
 	if exp5 != 0 {
 		n := exp5
 		if n < 0 {
 			n = -n
 		}
-		pow5 = pow5.expNN(natFive, nat(nil).setWord(Word(n)), nil)
+		pow5 := z.b.abs.expNN(natFive, nat(nil).setWord(Word(n)), nil) // use underlying array of z.b.abs
+		if exp5 > 0 {
+			z.a.abs = z.a.abs.mul(z.a.abs, pow5)
+			z.b.abs = z.b.abs.setWord(1)
+		} else {
+			z.b.abs = pow5
+		}
+	} else {
+		z.b.abs = z.b.abs.setWord(1)
 	}
 
-	// apply dividend contributions of exponents
-	// (start with exp5 so the numbers to multiply are smaller)
-	if exp5 > 0 {
-		z.a.abs = z.a.abs.mul(z.a.abs, pow5)
-		exp5 = 0
-	}
+	// apply exp2 contributions
 	if exp2 > 0 {
 		if int64(uint(exp2)) != exp2 {
 			panic("exponent too large")
 		}
 		z.a.abs = z.a.abs.shl(z.a.abs, uint(exp2))
-		exp2 = 0
-	}
-
-	// apply divisor contributions of exponents
-	z.b.abs = z.b.abs.setWord(1)
-	if exp5 < 0 {
-		z.b.abs = pow5
-	}
-	if exp2 < 0 {
+	} else if exp2 < 0 {
 		if int64(uint(-exp2)) != -exp2 {
 			panic("exponent too large")
 		}

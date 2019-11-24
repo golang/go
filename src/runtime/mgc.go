@@ -139,6 +139,10 @@ const (
 	_ConcurrentSweep = true
 	_FinBlockSize    = 4 * 1024
 
+	// debugScanConservative enables debug logging for stack
+	// frames that are scanned conservatively.
+	debugScanConservative = false
+
 	// sweepMinHeapDistance is a lower bound on the heap distance
 	// (in bytes) reserved for concurrent sweeping between GC
 	// cycles.
@@ -202,26 +206,35 @@ func readgogc() int32 {
 
 // gcenable is called after the bulk of the runtime initialization,
 // just before we're about to start letting user code run.
-// It kicks off the background sweeper goroutine and enables GC.
+// It kicks off the background sweeper goroutine, the background
+// scavenger goroutine, and enables GC.
 func gcenable() {
-	c := make(chan int, 1)
+	// Kick off sweeping and scavenging.
+	c := make(chan int, 2)
 	go bgsweep(c)
+	go bgscavenge(c)
+	<-c
 	<-c
 	memstats.enablegc = true // now that runtime is initialized, GC is okay
 }
 
 //go:linkname setGCPercent runtime/debug.setGCPercent
 func setGCPercent(in int32) (out int32) {
-	lock(&mheap_.lock)
-	out = gcpercent
-	if in < 0 {
-		in = -1
-	}
-	gcpercent = in
-	heapminimum = defaultHeapMinimum * uint64(gcpercent) / 100
-	// Update pacing in response to gcpercent change.
-	gcSetTriggerRatio(memstats.triggerRatio)
-	unlock(&mheap_.lock)
+	// Run on the system stack since we grab the heap lock.
+	systemstack(func() {
+		lock(&mheap_.lock)
+		out = gcpercent
+		if in < 0 {
+			in = -1
+		}
+		gcpercent = in
+		heapminimum = defaultHeapMinimum * uint64(gcpercent) / 100
+		// Update pacing in response to gcpercent change.
+		gcSetTriggerRatio(memstats.triggerRatio)
+		unlock(&mheap_.lock)
+	})
+	// Pacing changed, so the scavenger should be awoken.
+	wakeScavenger()
 
 	// If we just disabled GC, wait for any concurrent GC mark to
 	// finish so we always return with no GC running.
@@ -481,25 +494,25 @@ func (c *gcControllerState) revise() {
 	}
 	live := atomic.Load64(&memstats.heap_live)
 
-	var heapGoal, scanWorkExpected int64
-	if live <= memstats.next_gc {
-		// We're under the soft goal. Pace GC to complete at
-		// next_gc assuming the heap is in steady-state.
-		heapGoal = int64(memstats.next_gc)
+	// Assume we're under the soft goal. Pace GC to complete at
+	// next_gc assuming the heap is in steady-state.
+	heapGoal := int64(memstats.next_gc)
 
-		// Compute the expected scan work remaining.
-		//
-		// This is estimated based on the expected
-		// steady-state scannable heap. For example, with
-		// GOGC=100, only half of the scannable heap is
-		// expected to be live, so that's what we target.
-		//
-		// (This is a float calculation to avoid overflowing on
-		// 100*heap_scan.)
-		scanWorkExpected = int64(float64(memstats.heap_scan) * 100 / float64(100+gcpercent))
-	} else {
-		// We're past the soft goal. Pace GC so that in the
-		// worst case it will complete by the hard goal.
+	// Compute the expected scan work remaining.
+	//
+	// This is estimated based on the expected
+	// steady-state scannable heap. For example, with
+	// GOGC=100, only half of the scannable heap is
+	// expected to be live, so that's what we target.
+	//
+	// (This is a float calculation to avoid overflowing on
+	// 100*heap_scan.)
+	scanWorkExpected := int64(float64(memstats.heap_scan) * 100 / float64(100+gcpercent))
+
+	if live > memstats.next_gc || c.scanWork > scanWorkExpected {
+		// We're past the soft goal, or we've already done more scan
+		// work than we expected. Pace GC so that in the worst case it
+		// will complete by the hard goal.
 		const maxOvershoot = 1.1
 		heapGoal = int64(float64(memstats.next_gc) * maxOvershoot)
 
@@ -511,7 +524,7 @@ func (c *gcControllerState) revise() {
 	//
 	// Note that we currently count allocations during GC as both
 	// scannable heap (heap_scan) and scan work completed
-	// (scanWork), so allocation will change this difference will
+	// (scanWork), so allocation will change this difference
 	// slowly in the soft regime and not at all in the hard
 	// regime.
 	scanWorkRemaining := scanWorkExpected - c.scanWork
@@ -756,11 +769,25 @@ func gcSetTriggerRatio(triggerRatio float64) {
 		goal = memstats.heap_marked + memstats.heap_marked*uint64(gcpercent)/100
 	}
 
+	// If we let triggerRatio go too low, then if the application
+	// is allocating very rapidly we might end up in a situation
+	// where we're allocating black during a nearly always-on GC.
+	// The result of this is a growing heap and ultimately an
+	// increase in RSS. By capping us at a point >0, we're essentially
+	// saying that we're OK using more CPU during the GC to prevent
+	// this growth in RSS.
+	//
+	// The current constant was chosen empirically: given a sufficiently
+	// fast/scalable allocator with 48 Ps that could drive the trigger ratio
+	// to <0.05, this constant causes applications to retain the same peak
+	// RSS compared to not having this allocator.
+	const minTriggerRatio = 0.6
+
 	// Set the trigger ratio, capped to reasonable bounds.
-	if triggerRatio < 0 {
+	if triggerRatio < minTriggerRatio {
 		// This can happen if the mutator is allocating very
 		// quickly or the GC is scanning very slowly.
-		triggerRatio = 0
+		triggerRatio = minTriggerRatio
 	} else if gcpercent >= 0 {
 		// Ensure there's always a little margin so that the
 		// mutator assist ratio isn't infinity.
@@ -838,7 +865,8 @@ func gcSetTriggerRatio(triggerRatio float64) {
 			heapDistance = _PageSize
 		}
 		pagesSwept := atomic.Load64(&mheap_.pagesSwept)
-		sweepDistancePages := int64(mheap_.pagesInUse) - int64(pagesSwept)
+		pagesInUse := atomic.Load64(&mheap_.pagesInUse)
+		sweepDistancePages := int64(pagesInUse) - int64(pagesSwept)
 		if sweepDistancePages <= 0 {
 			mheap_.sweepPagesPerByte = 0
 		} else {
@@ -850,6 +878,8 @@ func gcSetTriggerRatio(triggerRatio float64) {
 			atomic.Store64(&mheap_.pagesSweptBasis, pagesSwept)
 		}
 	}
+
+	gcPaceScavenger()
 }
 
 // gcEffectiveGrowthRatio returns the current effective heap growth
@@ -1239,6 +1269,7 @@ func gcStart(trigger gcTrigger) {
 	}
 
 	// Ok, we're doing it! Stop everybody else
+	semacquire(&gcsema)
 	semacquire(&worldsema)
 
 	if trace.enabled {
@@ -1255,7 +1286,7 @@ func gcStart(trigger gcTrigger) {
 
 	gcBgMarkStartWorkers()
 
-	gcResetMarkState()
+	systemstack(gcResetMarkState)
 
 	work.stwprocs, work.maxprocs = gomaxprocs, gomaxprocs
 	if work.stwprocs > ncpu {
@@ -1337,6 +1368,13 @@ func gcStart(trigger gcTrigger) {
 		work.pauseNS += now - work.pauseStart
 		work.tMark = now
 	})
+
+	// Release the world sema before Gosched() in STW mode
+	// because we will need to reacquire it later but before
+	// this goroutine becomes runnable again, and we could
+	// self-deadlock otherwise.
+	semrelease(&worldsema)
+
 	// In STW mode, we could block the instant systemstack
 	// returns, so don't do anything important here. Make sure we
 	// block rather than returning to user code.
@@ -1406,6 +1444,10 @@ top:
 		return
 	}
 
+	// forEachP needs worldsema to execute, and we'll need it to
+	// stop the world later, so acquire worldsema now.
+	semacquire(&worldsema)
+
 	// Flush all local buffers and collect flushedWork flags.
 	gcMarkDoneFlushed = 0
 	systemstack(func() {
@@ -1466,6 +1508,7 @@ top:
 		// work to do. Keep going. It's possible the
 		// transition condition became true again during the
 		// ragged barrier, so re-check it.
+		semrelease(&worldsema)
 		goto top
 	}
 
@@ -1542,6 +1585,7 @@ top:
 				now := startTheWorldWithSema(true)
 				work.pauseNS += now - work.pauseStart
 			})
+			semrelease(&worldsema)
 			goto top
 		}
 	}
@@ -1640,8 +1684,15 @@ func gcMarkTermination(nextTriggerRatio float64) {
 		throw("gc done but gcphase != _GCoff")
 	}
 
+	// Record next_gc and heap_inuse for scavenger.
+	memstats.last_next_gc = memstats.next_gc
+	memstats.last_heap_inuse = memstats.heap_inuse
+
 	// Update GC trigger and pacing for the next cycle.
 	gcSetTriggerRatio(nextTriggerRatio)
+
+	// Pacing changed, so the scavenger should be awoken.
+	wakeScavenger()
 
 	// Update timing memstats
 	now := nanotime()
@@ -1752,6 +1803,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
 	}
 
 	semrelease(&worldsema)
+	semrelease(&gcsema)
 	// Careful: another GC cycle may start now.
 
 	releasem(mp)
@@ -1985,7 +2037,6 @@ func gcMarkWorkAvailable(p *p) bool {
 // gcMark runs the mark (or, for concurrent GC, mark termination)
 // All gcWork caches must be empty.
 // STW is in effect at this point.
-//TODO go:nowritebarrier
 func gcMark(start_time int64) {
 	if debug.allocfreetrace > 0 {
 		tracegc()
@@ -2073,6 +2124,9 @@ func gcMark(start_time int64) {
 	}
 }
 
+// gcSweep must be called on the system stack because it acquires the heap
+// lock. See mheap for details.
+//go:systemstack
 func gcSweep(mode gcMode) {
 	if gcphase != _GCoff {
 		throw("gcSweep being done but phase is not GCoff")
@@ -2129,13 +2183,17 @@ func gcSweep(mode gcMode) {
 //
 // This is safe to do without the world stopped because any Gs created
 // during or after this will start out in the reset state.
+//
+// gcResetMarkState must be called on the system stack because it acquires
+// the heap lock. See mheap for details.
+//
+//go:systemstack
 func gcResetMarkState() {
 	// This may be called during a concurrent phase, so make sure
 	// allgs doesn't change.
 	lock(&allglock)
 	for _, gp := range allgs {
-		gp.gcscandone = false  // set to true in gcphasework
-		gp.gcscanvalid = false // stack has not been scanned
+		gp.gcscandone = false // set to true in gcphasework
 		gp.gcAssistBytes = 0
 	}
 	unlock(&allglock)

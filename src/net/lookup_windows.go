@@ -56,7 +56,12 @@ func lookupProtocol(ctx context.Context, name string) (int, error) {
 			if proto, err := lookupProtocolMap(name); err == nil {
 				return proto, nil
 			}
-			r.err = &DNSError{Err: r.err.Error(), Name: name}
+
+			dnsError := &DNSError{Err: r.err.Error(), Name: name}
+			if r.err == errNoSuchHost {
+				dnsError.IsNotFound = true
+			}
+			r.err = dnsError
 		}
 		return r.proto, r.err
 	case <-ctx.Done():
@@ -96,9 +101,18 @@ func (r *Resolver) lookupIP(ctx context.Context, network, name string) ([]IPAddr
 			Protocol: syscall.IPPROTO_IP,
 		}
 		var result *syscall.AddrinfoW
-		e := syscall.GetAddrInfoW(syscall.StringToUTF16Ptr(name), nil, &hints, &result)
+		name16p, err := syscall.UTF16PtrFromString(name)
+		if err != nil {
+			return nil, &DNSError{Name: name, Err: err.Error()}
+		}
+		e := syscall.GetAddrInfoW(name16p, nil, &hints, &result)
 		if e != nil {
-			return nil, &DNSError{Err: winError("getaddrinfow", e).Error(), Name: name}
+			err := winError("getaddrinfow", e)
+			dnsError := &DNSError{Err: err.Error(), Name: name}
+			if err == errNoSuchHost {
+				dnsError.IsNotFound = true
+			}
+			return nil, dnsError
 		}
 		defer syscall.FreeAddrInfoW(result)
 		addrs := make([]IPAddr, 0, 5)
@@ -124,11 +138,14 @@ func (r *Resolver) lookupIP(ctx context.Context, network, name string) ([]IPAddr
 		err   error
 	}
 
-	ch := make(chan ret, 1)
-	go func() {
-		addr, err := getaddr()
-		ch <- ret{addrs: addr, err: err}
-	}()
+	var ch chan ret
+	if ctx.Err() == nil {
+		ch = make(chan ret, 1)
+		go func() {
+			addr, err := getaddr()
+			ch <- ret{addrs: addr, err: err}
+		}()
+	}
 
 	select {
 	case r := <-ch:
@@ -176,7 +193,12 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
 		if port, err := lookupPortMap(network, service); err == nil {
 			return port, nil
 		}
-		return 0, &DNSError{Err: winError("getaddrinfow", e).Error(), Name: network + "/" + service}
+		err := winError("getaddrinfow", e)
+		dnsError := &DNSError{Err: err.Error(), Name: network + "/" + service}
+		if err == errNoSuchHost {
+			dnsError.IsNotFound = true
+		}
+		return 0, dnsError
 	}
 	defer syscall.FreeAddrInfoW(result)
 	if result == nil {
@@ -336,7 +358,8 @@ func validRecs(r *syscall.DNSRecord, dnstype uint16, name string) []*syscall.DNS
 	}
 	rec := make([]*syscall.DNSRecord, 0, 10)
 	for p := r; p != nil; p = p.Next {
-		if p.Dw&dnsSectionMask != syscall.DnsSectionAnswer {
+		// in case of a local machine, DNS records are returned with DNSREC_QUESTION flag instead of DNS_ANSWER
+		if p.Dw&dnsSectionMask != syscall.DnsSectionAnswer && p.Dw&dnsSectionMask != syscall.DnsSectionQuestion {
 			continue
 		}
 		if p.Type != dnstype {
@@ -352,7 +375,7 @@ func validRecs(r *syscall.DNSRecord, dnstype uint16, name string) []*syscall.DNS
 
 // returns the last CNAME in chain
 func resolveCNAME(name *uint16, r *syscall.DNSRecord) *uint16 {
-	// limit cname resolving to 10 in case of a infinite CNAME loop
+	// limit cname resolving to 10 in case of an infinite CNAME loop
 Cname:
 	for cnameloop := 0; cnameloop < 10; cnameloop++ {
 		for p := r; p != nil; p = p.Next {

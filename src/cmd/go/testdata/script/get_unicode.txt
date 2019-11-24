@@ -1,6 +1,7 @@
 env GO111MODULE=off
 
 [!exec:git] skip
+[short] skip
 
 # Construct a repository that imports a non-ASCII path.
 cd $WORK/_origin/example.com/unicode

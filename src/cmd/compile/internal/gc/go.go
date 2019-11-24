@@ -14,17 +14,27 @@ import (
 
 const (
 	BADWIDTH = types.BADWIDTH
+)
 
+var (
 	// maximum size variable which we will allocate on the stack.
 	// This limit is for explicit variable declarations like "var x T" or "x := ...".
-	maxStackVarSize = 10 * 1024 * 1024
+	// Note: the flag smallframes can update this value.
+	maxStackVarSize = int64(10 * 1024 * 1024)
 
 	// maximum size of implicit variables that we will allocate on the stack.
 	//   p := new(T)          allocating T on the stack
 	//   p := &T{}            allocating T on the stack
 	//   s := make([]T, n)    allocating [n]T on the stack
 	//   s := []byte("...")   allocating [n]byte on the stack
-	maxImplicitStackVarSize = 64 * 1024
+	// Note: the flag smallframes can update this value.
+	maxImplicitStackVarSize = int64(64 * 1024)
+
+	// smallArrayBytes is the maximum size of an array which is considered small.
+	// Small arrays will be initialized directly with a sequence of constant stores.
+	// Large arrays will be initialized by copying from a static temp.
+	// 256 bytes was chosen to minimize generated code + statictmp size.
+	smallArrayBytes = int64(256)
 )
 
 // isRuntimePkg reports whether p is package runtime.
@@ -50,33 +60,26 @@ const (
 	PPARAMOUT              // output results
 	PFUNC                  // global function
 
-	PDISCARD // discard during parse of duplicate import
 	// Careful: Class is stored in three bits in Node.flags.
-	// Adding a new Class will overflow that.
+	_ = uint((1 << 3) - iota) // static assert for iota <= (1 << 3)
 )
 
-func init() {
-	if PDISCARD != 7 {
-		panic("PDISCARD changed; does all Class values still fit in three bits?")
-	}
-}
-
 // note this is the runtime representation
-// of the compilers arrays.
+// of the compilers slices.
 //
 // typedef	struct
 // {				// must not move anything
 // 	uchar	array[8];	// pointer to data
 // 	uchar	nel[4];		// number of elements
 // 	uchar	cap[4];		// allocated number of elements
-// } Array;
-var array_array int // runtime offsetof(Array,array) - same for String
+// } Slice;
+var slice_array int // runtime offsetof(Slice,array) - same for String
 
-var array_nel int // runtime offsetof(Array,nel) - same for String
+var slice_nel int // runtime offsetof(Slice,nel) - same for String
 
-var array_cap int // runtime offsetof(Array,cap)
+var slice_cap int // runtime offsetof(Slice,cap)
 
-var sizeof_Array int // runtime sizeof(Array)
+var sizeof_Slice int // runtime sizeof(Slice)
 
 // note this is the runtime representation
 // of the compilers strings.
@@ -237,8 +240,6 @@ var Ctxt *obj.Link
 
 var writearchive bool
 
-var Nacl bool
-
 var nodfp *Node
 
 var disable_checknil int
@@ -255,8 +256,12 @@ type Arch struct {
 	Use387    bool // should 386 backend use 387 FP instructions instead of sse2.
 	SoftFloat bool
 
-	PadFrame     func(int64) int64
-	ZeroRange    func(*Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
+	PadFrame func(int64) int64
+
+	// ZeroRange zeroes a range of memory on stack. It is only inserted
+	// at function entry, and it is ok to clobber registers.
+	ZeroRange func(*Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
+
 	Ginsnop      func(*Progs) *obj.Prog
 	Ginsnopdefer func(*Progs) *obj.Prog // special ginsnop for deferreturn
 
@@ -269,11 +274,6 @@ type Arch struct {
 	// SSAGenBlock emits end-of-block Progs. SSAGenValue should be called
 	// for all values in the block before SSAGenBlock.
 	SSAGenBlock func(s *SSAGenState, b, next *ssa.Block)
-
-	// ZeroAuto emits code to zero the given auto stack variable.
-	// ZeroAuto must not use any non-temporary registers.
-	// ZeroAuto will only be called for variables which contain a pointer.
-	ZeroAuto func(*Progs, *Node)
 }
 
 var thearch Arch
@@ -287,6 +287,7 @@ var (
 	assertI2I,
 	assertI2I2,
 	deferproc,
+	deferprocStack,
 	Deferreturn,
 	Duffcopy,
 	Duffzero,
@@ -309,6 +310,8 @@ var (
 	racewriterange,
 	x86HasPOPCNT,
 	x86HasSSE41,
+	x86HasFMA,
+	armHasVFPv4,
 	arm64HasATOMICS,
 	typedmemclr,
 	typedmemmove,

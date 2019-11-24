@@ -194,87 +194,97 @@ len0:
 	MOVD	R2, c+56(FP)
 	RET
 
-
 // func shlVU(z, x []Word, s uint) (c Word)
+// This implementation handles the shift operation from the high word to the low word,
+// which may be an error for the case where the low word of x overlaps with the high
+// word of z. When calling this function directly, you need to pay attention to this
+// situation.
 TEXT ·shlVU(SB),NOSPLIT,$0
-	// Disable assembly for now - it is subtly incorrect.
-	// See #31084 for a test that fails using this code.
-	B	·shlVU_g(SB)
-
-	MOVD	z+0(FP), R0
-	MOVD	z_len+8(FP), R1
+	LDP	z+0(FP), (R0, R1)	// R0 = z.ptr, R1 = len(z)
 	MOVD	x+24(FP), R2
 	MOVD	s+48(FP), R3
-	MOVD	$0, R8		// in order not to affect the first element, R8 is initialized to zero
-	MOVD	$64, R4
-	SUB	R3, R4
+	ADD	R1<<3, R0	// R0 = &z[n]
+	ADD	R1<<3, R2	// R2 = &x[n]
 	CBZ	R1, len0
 	CBZ	R3, copy	// if the number of shift is 0, just copy x to z
-
-	TBZ	$0, R1, two
-	MOVD.P	8(R2), R6
-	LSR	R4, R6, R8
-	LSL	R3, R6
-	MOVD.P	R6, 8(R0)
+	MOVD	$64, R4
+	SUB	R3, R4
+	// handling the most significant element x[n-1]
+	MOVD.W	-8(R2), R6
+	LSR	R4, R6, R5	// return value
+	LSL	R3, R6, R8	// x[i] << s
 	SUB	$1, R1
+one:	TBZ	$0, R1, two
+	MOVD.W	-8(R2), R6
+	LSR	R4, R6, R7
+	ORR	R8, R7
+	LSL	R3, R6, R8
+	SUB	$1, R1
+	MOVD.W	R7, -8(R0)
 two:
 	TBZ	$1, R1, loop
-	LDP.P	16(R2), (R6, R7)
-	LSR	R4, R6, R9
-	LSL	R3, R6
-	ORR	R8, R6
-	LSR	R4, R7, R8
+	LDP.W	-16(R2), (R6, R7)
+	LSR	R4, R7, R10
+	ORR	R8, R10
 	LSL	R3, R7
-	ORR	R9, R7
-	STP.P	(R6, R7), 16(R0)
+	LSR	R4, R6, R9
+	ORR	R7, R9
+	LSL	R3, R6, R8
 	SUB	$2, R1
+	STP.W	(R9, R10), -16(R0)
 loop:
 	CBZ	R1, done
-	LDP.P	32(R2), (R10, R11)
-	LDP	-16(R2), (R12, R13)
-	LSR	R4, R10, R20
-	LSL	R3, R10
-	ORR	R8, R10		// z[i] = (x[i] << s) | (x[i-1] >> (64 - s))
-	LSR	R4, R11, R21
-	LSL	R3, R11
-	ORR	R20, R11
-	LSR	R4, R12, R22
-	LSL	R3, R12
-	ORR	R21, R12
-	LSR	R4, R13, R8
+	LDP.W	-32(R2), (R10, R11)
+	LDP	16(R2), (R12, R13)
+	LSR	R4, R13, R23
+	ORR	R8, R23		// z[i] = (x[i] << s) | (x[i-1] >> (64 - s))
 	LSL	R3, R13
-	ORR	R22, R13
-	STP.P	(R10, R11), 32(R0)
-	STP	(R12, R13), -16(R0)
+	LSR	R4, R12, R22
+	ORR	R13, R22
+	LSL	R3, R12
+	LSR	R4, R11, R21
+	ORR	R12, R21
+	LSL	R3, R11
+	LSR	R4, R10, R20
+	ORR	R11, R20
+	LSL	R3, R10, R8
+	STP.W	(R20, R21), -32(R0)
+	STP	(R22, R23), 16(R0)
 	SUB	$4, R1
 	B	loop
 done:
-	MOVD	R8, c+56(FP)	// the part moved out from the last element
+	MOVD.W	R8, -8(R0)	// the first element x[0]
+	MOVD	R5, c+56(FP)	// the part moved out from x[n-1]
 	RET
 copy:
+	CMP	R0, R2
+	BEQ	len0
 	TBZ	$0, R1, ctwo
-	MOVD.P	8(R2), R3
-	MOVD.P	R3, 8(R0)
+	MOVD.W	-8(R2), R4
+	MOVD.W	R4, -8(R0)
 	SUB	$1, R1
 ctwo:
 	TBZ	$1, R1, cloop
-	LDP.P	16(R2), (R4, R5)
-	STP.P	(R4, R5), 16(R0)
+	LDP.W	-16(R2), (R4, R5)
+	STP.W	(R4, R5), -16(R0)
 	SUB	$2, R1
 cloop:
 	CBZ	R1, len0
-	LDP.P	32(R2), (R4, R5)
-	LDP	-16(R2), (R6, R7)
-	STP.P	(R4, R5), 32(R0)
-	STP	(R6, R7), -16(R0)
+	LDP.W	-32(R2), (R4, R5)
+	LDP	16(R2), (R6, R7)
+	STP.W	(R4, R5), -32(R0)
+	STP	(R6, R7), 16(R0)
 	SUB	$4, R1
 	B	cloop
 len0:
 	MOVD	$0, c+56(FP)
 	RET
 
-
 // func shrVU(z, x []Word, s uint) (c Word)
+// This implementation handles the shift operation from the low word to the high word,
+// which may be an error for the case where the high word of x overlaps with the low
+// word of z. When calling this function directly, you need to pay attention to this
+// situation.
 TEXT ·shrVU(SB),NOSPLIT,$0
 	MOVD	z+0(FP), R0
 	MOVD	z_len+8(FP), R1
@@ -334,6 +344,8 @@ done:
 	MOVD	R8, (R0)	// deal with the last element
 	RET
 copy:
+	CMP	R0, R2
+	BEQ	len0
 	TBZ	$0, R1, ctwo
 	MOVD.P	8(R2), R3
 	MOVD.P	R3, 8(R0)
@@ -363,16 +375,51 @@ TEXT ·mulAddVWW(SB),NOSPLIT,$0
 	MOVD	x+24(FP), R2
 	MOVD	y+48(FP), R3
 	MOVD	r+56(FP), R4
+	// c, z = x * y + r
+	TBZ	$0, R0, two
+	MOVD.P	8(R2), R5
+	MUL	R3, R5, R7
+	UMULH	R3, R5, R8
+	ADDS	R4, R7
+	ADC	$0, R8, R4	// c, z[i] = x[i] * y +  r
+	MOVD.P	R7, 8(R1)
+	SUB	$1, R0
+two:
+	TBZ	$1, R0, loop
+	LDP.P	16(R2), (R5, R6)
+	MUL	R3, R5, R10
+	UMULH	R3, R5, R11
+	ADDS	R4, R10
+	MUL	R3, R6, R12
+	UMULH	R3, R6, R13
+	ADCS	R12, R11
+	ADC	$0, R13, R4
+
+	STP.P	(R10, R11), 16(R1)
+	SUB	$2, R0
 loop:
 	CBZ	R0, done
-	MOVD.P	8(R2), R5
-	UMULH	R5, R3, R7
-	MUL	R5, R3, R6
-	ADDS	R4, R6
-	ADC	$0, R7
-	MOVD.P	R6, 8(R1)
-	MOVD	R7, R4
-	SUB	$1, R0
+	LDP.P	32(R2), (R5, R6)
+	LDP	-16(R2), (R7, R8)
+
+	MUL	R3, R5, R10
+	UMULH	R3, R5, R11
+	ADDS	R4, R10
+	MUL	R3, R6, R12
+	UMULH	R3, R6, R13
+	ADCS	R11, R12
+
+	MUL	R3, R7, R14
+	UMULH	R3, R7, R15
+	ADCS	R13, R14
+	MUL	R3, R8, R16
+	UMULH	R3, R8, R17
+	ADCS	R15, R16
+	ADC	$0, R17, R4
+
+	STP.P	(R10, R12), 32(R1)
+	STP	(R14, R16), -16(R1)
+	SUB	$4, R0
 	B	loop
 done:
 	MOVD	R4, c+64(FP)

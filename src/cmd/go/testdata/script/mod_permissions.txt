@@ -1,0 +1,57 @@
+# Regression test for golang.org/issue/34634: permissions for the go.sum and
+# go.mod files should be preserved when overwriting them.
+
+env GO111MODULE=on
+[short] skip
+
+# Skip platforms that do not have Unix-style file permissions.
+[windows] skip
+[plan9] skip
+
+chmod 0640 go.mod
+chmod 0604 go.sum
+go mod edit -module=golang.org/issue/34634
+
+go build .
+cmp go.mod go.mod.want
+cmp go.sum go.sum.want
+
+go run .
+stdout 'go.mod: 0640'
+stdout 'go.sum: 0604'
+
+-- read_perm.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	_ "rsc.io/sampler"
+)
+
+func main() {
+	for _, name := range []string{"go.mod", "go.sum"} {
+		fi, err := os.Stat(name)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", err)
+			continue
+		}
+		fmt.Printf("%s: 0%o\n", name, fi.Mode().Perm())
+	}
+}
+-- go.mod --
+module TODO
+
+go 1.14
+-- go.sum --
+-- go.mod.want --
+module golang.org/issue/34634
+
+go 1.14
+
+require rsc.io/sampler v1.99.99
+-- go.sum.want --
+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw=
+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+rsc.io/sampler v1.99.99 h1:iMG9lbEG/8MdeR4lgL+Q8IcwbLNw7ijW7fTiK8Miqts=
+rsc.io/sampler v1.99.99/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=

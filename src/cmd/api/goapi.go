@@ -77,6 +77,8 @@ var contexts = []*build.Context{
 	{GOOS: "netbsd", GOARCH: "amd64"},
 	{GOOS: "netbsd", GOARCH: "arm", CgoEnabled: true},
 	{GOOS: "netbsd", GOARCH: "arm"},
+	{GOOS: "netbsd", GOARCH: "arm64", CgoEnabled: true},
+	{GOOS: "netbsd", GOARCH: "arm64"},
 	{GOOS: "openbsd", GOARCH: "386", CgoEnabled: true},
 	{GOOS: "openbsd", GOARCH: "386"},
 	{GOOS: "openbsd", GOARCH: "amd64", CgoEnabled: true},
@@ -142,7 +144,7 @@ func main() {
 	} else {
 		stds, err := exec.Command(goCmd(), "list", "std").Output()
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("go list std: %v\n%s", err, stds)
 		}
 		for _, pkg := range strings.Fields(string(stds)) {
 			if !internalPkg.MatchString(pkg) {
@@ -151,10 +153,25 @@ func main() {
 		}
 	}
 
+	importDir, importMap := loadImports()
+
+	// The code below assumes that the import map can vary
+	// by package, so that an import in one package (directory) might mean
+	// something different from the same import in another.
+	// While this can happen in GOPATH mode with vendoring,
+	// it is not possible in the standard library: the one importMap
+	// returned by loadImports applies to all packages.
+	// Construct a per-directory importMap that resolves to
+	// that single map for all packages.
+	importMapForDir := make(map[string]map[string]string)
+	for _, dir := range importDir {
+		importMapForDir[dir] = importMap
+	}
 	var featureCtx = make(map[string]map[string]bool) // feature -> context name -> true
 	for _, context := range contexts {
 		w := NewWalker(context, filepath.Join(build.Default.GOROOT, "src"))
-		w.loadImports(pkgNames, w.context)
+		w.importDir = importDir
+		w.importMap = importMapForDir
 
 		for _, name := range pkgNames {
 			// Vendored packages do not contribute to our
@@ -241,7 +258,7 @@ func (w *Walker) export(pkg *types.Package) {
 	w.current = pkg
 	scope := pkg.Scope()
 	for _, name := range scope.Names() {
-		if ast.IsExported(name) {
+		if token.IsExported(name) {
 			w.emitObj(scope.Lookup(name))
 		}
 	}
@@ -438,58 +455,58 @@ func tagKey(dir string, context *build.Context, tags []string) string {
 	return key
 }
 
-func (w *Walker) loadImports(paths []string, context *build.Context) {
-	if context == nil {
-		context = &build.Default
-	}
-
-	var (
-		tags       = context.BuildTags
-		cgoEnabled = "0"
-	)
-	if context.CgoEnabled {
-		tags = append(tags[:len(tags):len(tags)], "cgo")
-		cgoEnabled = "1"
-	}
-
-	// TODO(golang.org/issue/29666): Request only the fields that we need.
-	cmd := exec.Command(goCmd(), "list", "-e", "-deps", "-json")
-	if len(tags) > 0 {
-		cmd.Args = append(cmd.Args, "-tags", strings.Join(tags, " "))
-	}
-	cmd.Args = append(cmd.Args, paths...)
-
-	cmd.Env = append(os.Environ(),
-		"GOOS="+context.GOOS,
-		"GOARCH="+context.GOARCH,
-		"CGO_ENABLED="+cgoEnabled,
-	)
-
-	stdout := new(bytes.Buffer)
-	cmd.Stdout = stdout
-	cmd.Stderr = new(strings.Builder)
-	err := cmd.Run()
+// loadImports returns information about the packages in the standard library
+// and the packages they themselves import.
+// importDir maps expanded import path to the directory containing that package.
+// importMap maps source import path to expanded import path.
+// The source import path and expanded import path are identical except for vendored packages.
+// For example, on return:
+//
+//	importMap["math"] = "math"
+//	importDir["math"] = "<goroot>/src/math"
+//
+//	importMap["golang.org/x/net/route"] = "vendor/golang.org/x/net/route"
+//	importDir["vendor/golang.org/x/net/route"] = "<goroot>/src/vendor/golang.org/x/net/route"
+//
+// There are a few imports that only appear on certain platforms,
+// including it turns out x/net/route, and we add those explicitly.
+func loadImports() (importDir map[string]string, importMap map[string]string) {
+	out, err := exec.Command(goCmd(), "list", "-e", "-deps", "-json", "std").CombinedOutput()
 	if err != nil {
-		log.Fatalf("%s failed: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
+		log.Fatalf("loading imports: %v\n%s", err, out)
 	}
 
-	w.importDir = make(map[string]string)
-	w.importMap = make(map[string]map[string]string)
-	dec := json.NewDecoder(stdout)
+	importDir = make(map[string]string)
+	importMap = make(map[string]string)
+	dec := json.NewDecoder(bytes.NewReader(out))
 	for {
 		var pkg struct {
 			ImportPath, Dir string
 			ImportMap       map[string]string
 		}
-		if err := dec.Decode(&pkg); err == io.EOF {
+		err := dec.Decode(&pkg)
+		if err == io.EOF {
 			break
-		} else if err != nil {
-			log.Fatalf("%s: invalid output: %v", strings.Join(cmd.Args, " "), err)
+		}
+		if err != nil {
+			log.Fatalf("go list: invalid output: %v", err)
 		}
 
-		w.importDir[pkg.ImportPath] = pkg.Dir
-		w.importMap[pkg.Dir] = pkg.ImportMap
+		importDir[pkg.ImportPath] = pkg.Dir
+		for k, v := range pkg.ImportMap {
+			importMap[k] = v
+		}
 	}
+
+	// Fixup for vendor packages listed in args above.
+	fixup := []string{
+		"vendor/golang.org/x/net/route",
+	}
+	for _, pkg := range fixup {
+		importDir[pkg] = filepath.Join(build.Default.GOROOT, "src", pkg)
+		importMap[strings.TrimPrefix(pkg, "vendor/")] = pkg
+	}
+	return
 }
 
 // Importing is a sentinel taking the place in Walker.imported
@@ -521,7 +538,7 @@ func (w *Walker) ImportFrom(fromPath, fromDir string, mode types.ImportMode) (*t
 		dir = filepath.Join(w.root, filepath.FromSlash(name))
 	}
 	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
-		log.Fatalf("no source in tree for import %q: %v", name, err)
+		log.Fatalf("no source in tree for import %q (from import %s in %s): %v", name, fromPath, fromDir, err)
 	}
 
 	context := w.context

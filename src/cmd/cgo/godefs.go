@@ -136,21 +136,31 @@ func gofmt(n interface{}) string {
 // (due to the printer possibly inserting newlines because of position
 // information) operators.
 var gofmtLineReplacer = strings.NewReplacer(
-	"{\n", "{",
-	",\n", ",",
+	// Want to replace \n without ; after everything from
+	// https://golang.org/ref/spec#Operators_and_punctuation
+	// EXCEPT ++ -- ) ] }
 	"++\n", "++;",
 	"--\n", "--;",
-	"+\n", "+",
-	"-\n", "-",
-	"*\n", "*",
-	"/\n", "/",
-	"%\n", "%",
-	"&\n", "&",
-	"|\n", "|",
-	"^\n", "^",
-	"<\n", "<",
-	">\n", ">",
-	"=\n", "=",
+
+	"+\n", "+ ",
+	"-\n", "- ",
+	"*\n", "* ",
+	"/\n", "/ ",
+	"%\n", "% ",
+	"&\n", "& ",
+	"|\n", "| ",
+	"^\n", "^ ",
+	"<\n", "< ",
+	">\n", "> ",
+	"=\n", "= ",
+	"!\n", "! ", // not possible in gofmt today
+	"(\n", "(",
+	"[\n", "[", // not possible in gofmt today
+	"{\n", "{",
+	",\n", ",",
+	".\n", ". ",
+	":\n", ": ", // not possible in gofmt today
+
 	"\n", ";",
 )
 

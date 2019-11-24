@@ -8,6 +8,7 @@
 #include "go_tls.h"
 #include "funcdata.h"
 #include "textflag.h"
+#include "asm_ppc64x.h"
 
 // The following functions allow calling the clang-compiled race runtime directly
 // from Go code without going all the way through cgo.
@@ -97,11 +98,11 @@ TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
 	MOVD    size+8(FP), R5
 	MOVD    pc+16(FP), R6
 	ADD	$4, R6		// tsan wants return addr
-        // void __tsan_read_range(ThreadState *thr, void *addr, uintptr size, void *pc);
-        MOVD    $__tsan_read_range(SB), R8
-        BR	racecalladdr<>(SB)
+	// void __tsan_read_range(ThreadState *thr, void *addr, uintptr size, void *pc);
+	MOVD    $__tsan_read_range(SB), R8
+	BR	racecalladdr<>(SB)
 
-TEXT    runtime·RaceReadRange(SB), NOSPLIT, $0-24
+TEXT    runtime·RaceReadRange(SB), NOSPLIT, $0-16
 	BR	runtime·racereadrange(SB)
 
 // func runtime·RaceWriteRange(addr, size uintptr)
@@ -384,8 +385,8 @@ racecallatomic_ignore:
 	MOVD	R17, R6 // restore arg list addr
 	// Call the atomic function.
 	// racecall will call LLVM race code which might clobber r30 (g)
-	MOVD    runtime·tls_g(SB), R10
-        MOVD    0(R13)(R10*1), g
+	MOVD	runtime·tls_g(SB), R10
+	MOVD	0(R13)(R10*1), g
 
 	MOVD	g_racectx(g), R3
 	MOVD	R8, R4		// pc being called same TODO as above
@@ -467,9 +468,9 @@ rest:
 	MOVD	R10, 16(R1)
 	MOVW	CR, R10
 	MOVW	R10, 8(R1)
-	MOVDU   R1, -336(R1) // Allocate frame needed for register save area
+	MOVDU   R1, -336(R1) // Allocate frame needed for outargs and register save area
 
-	MOVD    R14, 40(R1)
+	MOVD    R14, 328(R1)
 	MOVD    R15, 48(R1)
 	MOVD    R16, 56(R1)
 	MOVD    R17, 64(R1)
@@ -506,21 +507,30 @@ rest:
 	FMOVD   F30, 312(R1)
 	FMOVD   F31, 320(R1)
 
+	MOVD	R3, FIXED_FRAME+0(R1)
+	MOVD	R4, FIXED_FRAME+8(R1)
+
 	MOVD    runtime·tls_g(SB), R10
 	MOVD    0(R13)(R10*1), g
 
 	MOVD	g_m(g), R7
-	MOVD	m_g0(R7), g // set g = m-> g0
-	MOVD	R3, cmd+0(FP) // can't use R1 here ?? use input args and assumer caller expects those?
-	MOVD	R4, ctx+8(FP) // can't use R1 here ??
+	MOVD	m_g0(R7), R8
+	CMP	g, R8
+	BEQ	noswitch
+
+	MOVD	R8, g // set g = m-> g0
+
 	BL	runtime·racecallback(SB)
+
 	// All registers are clobbered after Go code, reload.
 	MOVD    runtime·tls_g(SB), R10
-        MOVD    0(R13)(R10*1), g
+	MOVD    0(R13)(R10*1), g
 
 	MOVD	g_m(g), R7
 	MOVD	m_curg(R7), g // restore g = m->curg
-	MOVD    40(R1), R14
+
+ret:
+	MOVD    328(R1), R14
 	MOVD    48(R1), R15
 	MOVD    56(R1), R16
 	MOVD    64(R1), R17
@@ -563,6 +573,10 @@ rest:
 	MOVD    16(R1), R10	// needed?
 	MOVD    R10, LR
 	RET
+
+noswitch:
+	BL      runtime·racecallback(SB)
+	JMP     ret
 
 // tls_g, g value for each thread in TLS
 GLOBL runtime·tls_g+0(SB), TLSBSS+DUPOK, $8

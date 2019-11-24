@@ -113,10 +113,10 @@ try_zva:
 	MOVW	block_size<>(SB), R5
 	TBNZ	$31, R5, no_zva
 	CBNZ	R5, zero_by_line
-        // DCZID_EL0 bit assignments
-        // [63:5] Reserved
-        // [4]    DZP, if bit set DC ZVA instruction is prohibited, else permitted
-        // [3:0]  log2 of the block size in words, eg. if it returns 0x4 then block size is 16 words
+	// DCZID_EL0 bit assignments
+	// [63:5] Reserved
+	// [4]    DZP, if bit set DC ZVA instruction is prohibited, else permitted
+	// [3:0]  log2 of the block size in words, eg. if it returns 0x4 then block size is 16 words
 	MRS	DCZID_EL0, R3
 	TBZ	$4, R3, init
 	// ZVA not available

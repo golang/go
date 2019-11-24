@@ -7,6 +7,7 @@ package http
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"crypto/rand"
 	"fmt"
 	"io"
@@ -61,7 +62,6 @@ func TestFinalChunkedBodyReadEOF(t *testing.T) {
 	buf := make([]byte, len(want))
 	n, err := res.Body.Read(buf)
 	if n != len(want) || err != io.EOF {
-		t.Logf("body = %#v", res.Body)
 		t.Errorf("Read = %v, %v; want %d, EOF", n, err, len(want))
 	}
 	if string(buf) != want {
@@ -276,5 +276,317 @@ func TestTransferWriterWriteBodyReaderTypes(t *testing.T) {
 				t.Fatal("did not invoke Write")
 			}
 		})
+	}
+}
+
+func TestFixTransferEncoding(t *testing.T) {
+	tests := []struct {
+		hdr     Header
+		wantErr error
+	}{
+		{
+			hdr:     Header{"Transfer-Encoding": {"fugazi"}},
+			wantErr: &unsupportedTEError{`unsupported transfer encoding: "fugazi"`},
+		},
+		{
+			hdr:     Header{"Transfer-Encoding": {"chunked, chunked", "identity", "chunked"}},
+			wantErr: &badStringError{"chunked must be applied only once, as the last encoding", "chunked, chunked"},
+		},
+		{
+			hdr:     Header{"Transfer-Encoding": {"chunked"}},
+			wantErr: nil,
+		},
+	}
+
+	for i, tt := range tests {
+		tr := &transferReader{
+			Header:     tt.hdr,
+			ProtoMajor: 1,
+			ProtoMinor: 1,
+		}
+		gotErr := tr.fixTransferEncoding()
+		if !reflect.DeepEqual(gotErr, tt.wantErr) {
+			t.Errorf("%d.\ngot error:\n%v\nwant error:\n%v\n\n", i, gotErr, tt.wantErr)
+		}
+	}
+}
+
+func gzipIt(s string) string {
+	buf := new(bytes.Buffer)
+	gw := gzip.NewWriter(buf)
+	gw.Write([]byte(s))
+	gw.Close()
+	return buf.String()
+}
+
+func TestUnitTestProxyingReadCloserClosesBody(t *testing.T) {
+	var checker closeChecker
+	buf := new(bytes.Buffer)
+	buf.WriteString("Hello, Gophers!")
+	prc := &proxyingReadCloser{
+		Reader: buf,
+		Closer: &checker,
+	}
+	prc.Close()
+
+	read, err := ioutil.ReadAll(prc)
+	if err != nil {
+		t.Fatalf("Read error: %v", err)
+	}
+	if g, w := string(read), "Hello, Gophers!"; g != w {
+		t.Errorf("Read mismatch: got %q want %q", g, w)
+	}
+
+	if checker.closed != true {
+		t.Fatal("closeChecker.Close was never invoked")
+	}
+}
+
+func TestGzipTransferEncoding_request(t *testing.T) {
+	helloWorldGzipped := gzipIt("Hello, World!")
+
+	tests := []struct {
+		payload  string
+		wantErr  string
+		wantBody string
+	}{
+
+		{
+			// The case of "chunked" properly applied as the last encoding
+			// and a gzipped request payload that is streamed in 3 parts.
+			payload: `POST / HTTP/1.1
+Host: golang.org
+Transfer-Encoding: gzip, chunked
+Content-Type: text/html; charset=UTF-8
+
+` + fmt.Sprintf("%02x\r\n%s\r\n%02x\r\n%s\r\n%02x\r\n%s\r\n0\r\n\r\n",
+				3, helloWorldGzipped[:3],
+				5, helloWorldGzipped[3:8],
+				len(helloWorldGzipped)-8, helloWorldGzipped[8:]),
+			wantBody: `Hello, World!`,
+		},
+
+		{
+			// The request specifies "Transfer-Encoding: chunked" so its body must be left untouched.
+			payload: `PUT / HTTP/1.1
+Host: golang.org
+Transfer-Encoding: chunked
+Connection: close
+Content-Type: text/html; charset=UTF-8
+
+` + fmt.Sprintf("%0x\r\n%s\r\n0\r\n\r\n", len(helloWorldGzipped), helloWorldGzipped),
+			// We want that payload as it was sent.
+			wantBody: helloWorldGzipped,
+		},
+
+		{
+			// Valid request, the body doesn't have "Transfer-Encoding: chunked" but implicitly encoded
+			// for chunking as per the advisory from RFC 7230 3.3.1 which advises for cases where.
+			payload: `POST / HTTP/1.1
+Host: localhost
+Transfer-Encoding: gzip
+Content-Type: text/html; charset=UTF-8
+
+` + fmt.Sprintf("%0x\r\n%s\r\n0\r\n\r\n", len(helloWorldGzipped), helloWorldGzipped),
+			wantBody: `Hello, World!`,
+		},
+
+		{
+			// Invalid request, the body isn't chunked nor is the connection terminated immediately
+			// hence invalid as per the advisory from RFC 7230 3.3.1 which advises for cases where
+			// a Transfer-Encoding that isn't finally chunked is provided.
+			payload: `PUT / HTTP/1.1
+Host: golang.org
+Transfer-Encoding: gzip
+Content-Length: 0
+Connection: close
+Content-Type: text/html; charset=UTF-8
+
+`,
+			wantErr: `EOF`,
+		},
+
+		{
+			// The case of chunked applied before another encoding.
+			payload: `PUT / HTTP/1.1
+Location: golang.org
+Transfer-Encoding: chunked, gzip
+Content-Length: 0
+Connection: close
+Content-Type: text/html; charset=UTF-8
+
+`,
+			wantErr: `chunked must be applied only once, as the last encoding "chunked, gzip"`,
+		},
+
+		{
+			// The case of chunked properly applied as the
+			// last encoding BUT with a bad "Content-Length".
+			payload: `POST / HTTP/1.1
+Host: golang.org
+Transfer-Encoding: gzip, chunked
+Content-Length: 10
+Connection: close
+Content-Type: text/html; charset=UTF-8
+
+` + "0\r\n\r\n",
+			wantErr: "EOF",
+		},
+	}
+
+	for i, tt := range tests {
+		req, err := ReadRequest(bufio.NewReader(strings.NewReader(tt.payload)))
+		if tt.wantErr != "" {
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("test %d. Error mismatch\nGot:  %v\nWant: %s", i, err, tt.wantErr)
+			}
+			continue
+		}
+
+		if err != nil {
+			t.Errorf("test %d. Unexpected ReadRequest error: %v\nPayload:\n%s", i, err, tt.payload)
+			continue
+		}
+
+		got, err := ioutil.ReadAll(req.Body)
+		req.Body.Close()
+		if err != nil {
+			t.Errorf("test %d. Failed to read response body: %v", i, err)
+		}
+		if g, w := string(got), tt.wantBody; g != w {
+			t.Errorf("test %d. Request body mimsatch\nGot:\n%s\n\nWant:\n%s", i, g, w)
+		}
+	}
+}
+
+func TestGzipTransferEncoding_response(t *testing.T) {
+	helloWorldGzipped := gzipIt("Hello, World!")
+
+	tests := []struct {
+		payload  string
+		wantErr  string
+		wantBody string
+	}{
+
+		{
+			// The case of "chunked" properly applied as the last encoding
+			// and a gzipped payload that is streamed in 3 parts.
+			payload: `HTTP/1.1 302 Found
+Location: https://golang.org/
+Transfer-Encoding: gzip, chunked
+Connection: close
+Content-Type: text/html; charset=UTF-8
+
+` + fmt.Sprintf("%02x\r\n%s\r\n%02x\r\n%s\r\n%02x\r\n%s\r\n0\r\n\r\n",
+				3, helloWorldGzipped[:3],
+				5, helloWorldGzipped[3:8],
+				len(helloWorldGzipped)-8, helloWorldGzipped[8:]),
+			wantBody: `Hello, World!`,
+		},
+
+		{
+			// The response specifies "Transfer-Encoding: chunked" so response body must be left untouched.
+			payload: `HTTP/1.1 302 Found
+Location: https://golang.org/
+Transfer-Encoding: chunked
+Connection: close
+Content-Type: text/html; charset=UTF-8
+
+` + fmt.Sprintf("%0x\r\n%s\r\n0\r\n\r\n", len(helloWorldGzipped), helloWorldGzipped),
+			// We want that payload as it was sent.
+			wantBody: helloWorldGzipped,
+		},
+
+		{
+			// Valid response, the body doesn't have "Transfer-Encoding: chunked" but implicitly encoded
+			// for chunking as per the advisory from RFC 7230 3.3.1 which advises for cases where.
+			payload: `HTTP/1.1 302 Found
+Location: https://golang.org/
+Transfer-Encoding: gzip
+Connection: close
+Content-Type: text/html; charset=UTF-8
+
+` + fmt.Sprintf("%0x\r\n%s\r\n0\r\n\r\n", len(helloWorldGzipped), helloWorldGzipped),
+			wantBody: `Hello, World!`,
+		},
+
+		{
+			// Invalid response, the body isn't chunked nor is the connection terminated immediately
+			// hence invalid as per the advisory from RFC 7230 3.3.1 which advises for cases where
+			// a Transfer-Encoding that isn't finally chunked is provided.
+			payload: `HTTP/1.1 302 Found
+Location: https://golang.org/
+Transfer-Encoding: gzip
+Content-Length: 0
+Connection: close
+Content-Type: text/html; charset=UTF-8
+
+`,
+			wantErr: `EOF`,
+		},
+
+		{
+			// The case of chunked applied before another encoding.
+			payload: `HTTP/1.1 302 Found
+Location: https://golang.org/
+Transfer-Encoding: chunked, gzip
+Content-Length: 0
+Connection: close
+Content-Type: text/html; charset=UTF-8
+
+`,
+			wantErr: `chunked must be applied only once, as the last encoding "chunked, gzip"`,
+		},
+
+		{
+			// The case of chunked properly applied as the
+			// last encoding BUT with a bad "Content-Length".
+			payload: `HTTP/1.1 302 Found
+Location: https://golang.org/
+Transfer-Encoding: gzip, chunked
+Content-Length: 10
+Connection: close
+Content-Type: text/html; charset=UTF-8
+
+` + "0\r\n\r\n",
+			wantErr: "EOF",
+		},
+
+		{
+			// Including "identity" more than once.
+			payload: `HTTP/1.1 200 OK
+Location: https://golang.org/
+Transfer-Encoding: identity, identity
+Content-Length: 0
+Connection: close
+Content-Type: text/html; charset=UTF-8
+
+` + "0\r\n\r\n",
+			wantErr: `"identity" when present must be the only transfer encoding "identity, identity"`,
+		},
+	}
+
+	for i, tt := range tests {
+		res, err := ReadResponse(bufio.NewReader(strings.NewReader(tt.payload)), nil)
+		if tt.wantErr != "" {
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("test %d. Error mismatch\nGot:  %v\nWant: %s", i, err, tt.wantErr)
+			}
+			continue
+		}
+
+		if err != nil {
+			t.Errorf("test %d. Unexpected ReadResponse error: %v\nPayload:\n%s", i, err, tt.payload)
+			continue
+		}
+
+		got, err := ioutil.ReadAll(res.Body)
+		res.Body.Close()
+		if err != nil {
+			t.Errorf("test %d. Failed to read response body: %v", i, err)
+		}
+		if g, w := string(got), tt.wantBody; g != w {
+			t.Errorf("test %d. Response body mimsatch\nGot:\n%s\n\nWant:\n%s", i, g, w)
+		}
 	}
 }

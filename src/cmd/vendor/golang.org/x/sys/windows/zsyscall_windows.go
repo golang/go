@@ -86,6 +86,7 @@ var (
 	procFindNextFileW                      = modkernel32.NewProc("FindNextFileW")
 	procFindClose                          = modkernel32.NewProc("FindClose")
 	procGetFileInformationByHandle         = modkernel32.NewProc("GetFileInformationByHandle")
+	procGetFileInformationByHandleEx       = modkernel32.NewProc("GetFileInformationByHandleEx")
 	procGetCurrentDirectoryW               = modkernel32.NewProc("GetCurrentDirectoryW")
 	procSetCurrentDirectoryW               = modkernel32.NewProc("SetCurrentDirectoryW")
 	procCreateDirectoryW                   = modkernel32.NewProc("CreateDirectoryW")
@@ -762,6 +763,18 @@ func FindClose(handle Handle) (err error) {
 
 func GetFileInformationByHandle(handle Handle, data *ByHandleFileInformation) (err error) {
 	r1, _, e1 := syscall.Syscall(procGetFileInformationByHandle.Addr(), 2, uintptr(handle), uintptr(unsafe.Pointer(data)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetFileInformationByHandleEx(handle Handle, class uint32, outBuffer *byte, outBufferLen uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procGetFileInformationByHandleEx.Addr(), 4, uintptr(handle), uintptr(class), uintptr(unsafe.Pointer(outBuffer)), uintptr(outBufferLen), 0, 0)
 	if r1 == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)

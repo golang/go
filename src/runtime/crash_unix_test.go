@@ -15,9 +15,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
+	"sync"
 	"syscall"
 	"testing"
+	"time"
+	"unsafe"
 )
 
 // sigquit is the signal to send to kill a hanging testdata program.
@@ -33,9 +35,36 @@ func init() {
 	}
 }
 
+func TestBadOpen(t *testing.T) {
+	// make sure we get the correct error code if open fails. Same for
+	// read/write/close on the resulting -1 fd. See issue 10052.
+	nonfile := []byte("/notreallyafile")
+	fd := runtime.Open(&nonfile[0], 0, 0)
+	if fd != -1 {
+		t.Errorf("open(%q)=%d, want -1", nonfile, fd)
+	}
+	var buf [32]byte
+	r := runtime.Read(-1, unsafe.Pointer(&buf[0]), int32(len(buf)))
+	if got, want := r, -int32(syscall.EBADF); got != want {
+		t.Errorf("read()=%d, want %d", got, want)
+	}
+	w := runtime.Write(^uintptr(0), unsafe.Pointer(&buf[0]), int32(len(buf)))
+	if got, want := w, -int32(syscall.EBADF); got != want {
+		t.Errorf("write()=%d, want %d", got, want)
+	}
+	c := runtime.Close(-1)
+	if c != -1 {
+		t.Errorf("close()=%d, want -1", c)
+	}
+}
+
 func TestCrashDumpsAllThreads(t *testing.T) {
+	if *flagQuick {
+		t.Skip("-quick")
+	}
+
 	switch runtime.GOOS {
-	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "illumos", "solaris":
 	default:
 		t.Skipf("skipping; not supported on %v", runtime.GOOS)
 	}
@@ -48,8 +77,6 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 	// program while it is running.
 
 	testenv.MustHaveGoBuild(t)
-
-	checkStaleRuntime(t)
 
 	t.Parallel()
 
@@ -72,18 +99,17 @@ func TestCrashDumpsAllThreads(t *testing.T) {
 
 	cmd = exec.Command(filepath.Join(dir, "a.exe"))
 	cmd = testenv.CleanCmdEnv(cmd)
-	cmd.Env = append(cmd.Env, "GOTRACEBACK=crash")
-
-	// Set GOGC=off. Because of golang.org/issue/10958, the tight
-	// loops in the test program are not preemptible. If GC kicks
-	// in, it may lock up and prevent main from saying it's ready.
-	newEnv := []string{}
-	for _, s := range cmd.Env {
-		if !strings.HasPrefix(s, "GOGC=") {
-			newEnv = append(newEnv, s)
-		}
-	}
-	cmd.Env = append(newEnv, "GOGC=off")
+	cmd.Env = append(cmd.Env,
+		"GOTRACEBACK=crash",
+		// Set GOGC=off. Because of golang.org/issue/10958, the tight
+		// loops in the test program are not preemptible. If GC kicks
+		// in, it may lock up and prevent main from saying it's ready.
+		"GOGC=off",
+		// Set GODEBUG=asyncpreemptoff=1. If a thread is preempted
+		// when it receives SIGQUIT, it won't show the expected
+		// stack trace. See issue 35356.
+		"GODEBUG=asyncpreemptoff=1",
+	)
 
 	var outbuf bytes.Buffer
 	cmd.Stdout = &outbuf
@@ -279,5 +305,49 @@ func TestSignalDuringExec(t *testing.T) {
 	want := "OK\n"
 	if output != want {
 		t.Fatalf("want %s, got %s\n", want, output)
+	}
+}
+
+func TestSignalM(t *testing.T) {
+	r, w, errno := runtime.Pipe()
+	if errno != 0 {
+		t.Fatal(syscall.Errno(errno))
+	}
+	defer func() {
+		runtime.Close(r)
+		runtime.Close(w)
+	}()
+	runtime.Closeonexec(r)
+	runtime.Closeonexec(w)
+
+	var want, got int64
+	var wg sync.WaitGroup
+	ready := make(chan *runtime.M)
+	wg.Add(1)
+	go func() {
+		runtime.LockOSThread()
+		want, got = runtime.WaitForSigusr1(r, w, func(mp *runtime.M) {
+			ready <- mp
+		})
+		runtime.UnlockOSThread()
+		wg.Done()
+	}()
+	waitingM := <-ready
+	runtime.SendSigusr1(waitingM)
+
+	timer := time.AfterFunc(time.Second, func() {
+		// Write 1 to tell WaitForSigusr1 that we timed out.
+		bw := byte(1)
+		if n := runtime.Write(uintptr(w), unsafe.Pointer(&bw), 1); n != 1 {
+			t.Errorf("pipe write failed: %d", n)
+		}
+	})
+	defer timer.Stop()
+
+	wg.Wait()
+	if got == -1 {
+		t.Fatal("signalM signal not received")
+	} else if want != got {
+		t.Fatalf("signal sent to M %d, but received on M %d", want, got)
 	}
 }

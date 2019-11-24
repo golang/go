@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"cmd/go/internal/robustio"
 )
 
 func TestAbsolutePath(t *testing.T) {
@@ -21,7 +23,7 @@ func TestAbsolutePath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmp)
+	defer robustio.RemoveAll(tmp)
 
 	file := filepath.Join(tmp, "a.go")
 	err = ioutil.WriteFile(file, []byte{}, 0644)

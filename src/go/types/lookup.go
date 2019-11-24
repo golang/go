@@ -6,11 +6,6 @@
 
 package types
 
-// Internal use of LookupFieldOrMethod: If the obj result is a method
-// associated with a concrete (non-interface) type, the method's signature
-// may not be fully set up. Call Checker.objDecl(obj, nil) before accessing
-// the method's type.
-
 // LookupFieldOrMethod looks up a field or method with given package and name
 // in T and returns the corresponding *Var or *Func, an index sequence, and a
 // bool indicating if there were any pointer indirections on the path to the
@@ -38,6 +33,19 @@ package types
 //	the method's formal receiver base type, nor was the receiver addressable.
 //
 func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+	return (*Checker)(nil).LookupFieldOrMethod(T, addressable, pkg, name)
+}
+
+// Internal use of Checker.LookupFieldOrMethod: If the obj result is a method
+// associated with a concrete (non-interface) type, the method's signature
+// may not be fully set up. Call Checker.objDecl(obj, nil) before accessing
+// the method's type.
+// TODO(gri) Now that we provide the *Checker, we can probably remove this
+// caveat by calling Checker.objDecl from LookupFieldOrMethod. Investigate.
+
+// LookupFieldOrMethod is like the external version but completes interfaces
+// as necessary.
+func (check *Checker) LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
 	// Methods cannot be associated to a named pointer type
 	// (spec: "The type denoted by T is called the receiver base type;
 	// it must not be a pointer or interface type and it must be declared
@@ -47,7 +55,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 	// not have found it for T (see also issue 8590).
 	if t, _ := T.(*Named); t != nil {
 		if p, _ := t.underlying.(*Pointer); p != nil {
-			obj, index, indirect = lookupFieldOrMethod(p, false, pkg, name)
+			obj, index, indirect = check.lookupFieldOrMethod(p, false, pkg, name)
 			if _, ok := obj.(*Func); ok {
 				return nil, nil, false
 			}
@@ -55,7 +63,7 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 		}
 	}
 
-	return lookupFieldOrMethod(T, addressable, pkg, name)
+	return check.lookupFieldOrMethod(T, addressable, pkg, name)
 }
 
 // TODO(gri) The named type consolidation and seen maps below must be
@@ -63,7 +71,8 @@ func LookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 //           types always have only one representation (even when imported
 //           indirectly via different packages.)
 
-func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
+// lookupFieldOrMethod should only be called by LookupFieldOrMethod and missingMethod.
+func (check *Checker) lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (obj Object, index []int, indirect bool) {
 	// WARNING: The code in this function is extremely subtle - do not modify casually!
 	//          This function and NewMethodSet should be kept in sync.
 
@@ -166,6 +175,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 			case *Interface:
 				// look for a matching method
 				// TODO(gri) t.allMethods is sorted - use binary search
+				check.completeInterface(t)
 				if i, m := lookupMethod(t.allMethods, pkg, name); m != nil {
 					assert(m.typ != nil)
 					index = concat(e.index, i)
@@ -190,7 +200,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
 			return
 		}
 
-		current = consolidateMultiples(next)
+		current = check.consolidateMultiples(next)
 	}
 
 	return nil, nil, false // not found
@@ -207,7 +217,7 @@ type embeddedType struct {
 // consolidateMultiples collects multiple list entries with the same type
 // into a single entry marked as containing multiples. The result is the
 // consolidated list.
-func consolidateMultiples(list []embeddedType) []embeddedType {
+func (check *Checker) consolidateMultiples(list []embeddedType) []embeddedType {
 	if len(list) <= 1 {
 		return list // at most one entry - nothing to do
 	}
@@ -215,7 +225,7 @@ func consolidateMultiples(list []embeddedType) []embeddedType {
 	n := 0                     // number of entries w/ unique type
 	prev := make(map[Type]int) // index at which type was previously seen
 	for _, e := range list {
-		if i, found := lookupType(prev, e.typ); found {
+		if i, found := check.lookupType(prev, e.typ); found {
 			list[i].multiples = true
 			// ignore this entry
 		} else {
@@ -227,14 +237,14 @@ func consolidateMultiples(list []embeddedType) []embeddedType {
 	return list[:n]
 }
 
-func lookupType(m map[Type]int, typ Type) (int, bool) {
+func (check *Checker) lookupType(m map[Type]int, typ Type) (int, bool) {
 	// fast path: maybe the types are equal
 	if i, found := m[typ]; found {
 		return i, true
 	}
 
 	for t, i := range m {
-		if Identical(t, typ) {
+		if check.identical(t, typ) {
 			return i, true
 		}
 	}
@@ -261,14 +271,15 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 // an exported API call (such as MissingMethod), i.e., when all
 // methods have been type-checked.
 func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
+	check.completeInterface(T)
+
 	// fast path for common case
 	if T.Empty() {
 		return
 	}
 
-	// TODO(gri) Consider using method sets here. Might be more efficient.
-
 	if ityp, _ := V.Underlying().(*Interface); ityp != nil {
+		check.completeInterface(ityp)
 		// TODO(gri) allMethods is sorted - can do this more efficiently
 		for _, m := range T.allMethods {
 			_, obj := lookupMethod(ityp.allMethods, m.pkg, m.name)
@@ -277,7 +288,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method *
 				if static {
 					return m, false
 				}
-			case !Identical(obj.Type(), m.typ):
+			case !check.identical(obj.Type(), m.typ):
 				return m, true
 			}
 		}
@@ -286,7 +297,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method *
 
 	// A concrete type implements T if it implements all methods of T.
 	for _, m := range T.allMethods {
-		obj, _, _ := lookupFieldOrMethod(V, false, m.pkg, m.name)
+		obj, _, _ := check.lookupFieldOrMethod(V, false, m.pkg, m.name)
 
 		// we must have a method (not a field of matching function type)
 		f, _ := obj.(*Func)
@@ -299,7 +310,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method *
 			check.objDecl(f, nil)
 		}
 
-		if !Identical(f.typ, m.typ) {
+		if !check.identical(f.typ, m.typ) {
 			return m, true
 		}
 	}

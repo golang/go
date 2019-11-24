@@ -30,7 +30,7 @@
 
 package objabi
 
-type RelocType int32
+type RelocType int16
 
 //go:generate stringer -type=RelocType
 const (
@@ -64,6 +64,8 @@ const (
 	// R_CALLMIPS (only used on mips64) resolves to non-PC-relative target address
 	// of a CALL (JAL) instruction, by encoding the address into the instruction.
 	R_CALLMIPS
+	// R_CALLRISCV marks RISC-V CALLs for stack checking.
+	R_CALLRISCV
 	R_CONST
 	R_PCREL
 	// R_TLS_LE, used on 386, amd64, and ARM, resolves to the offset of the
@@ -132,6 +134,26 @@ const (
 	// slot of the referenced symbol.
 	R_ARM64_GOTPCREL
 
+	// R_ARM64_GOT resolves a GOT-relative instruction sequence, usually an adrp
+	// followed by another ld instruction.
+	R_ARM64_GOT
+
+	// R_ARM64_PCREL resolves a PC-relative addresses instruction sequence, usually an
+	// adrp followed by another add instruction.
+	R_ARM64_PCREL
+
+	// R_ARM64_LDST8 sets a LD/ST immediate value to bits [11:0] of a local address.
+	R_ARM64_LDST8
+
+	// R_ARM64_LDST32 sets a LD/ST immediate value to bits [11:2] of a local address.
+	R_ARM64_LDST32
+
+	// R_ARM64_LDST64 sets a LD/ST immediate value to bits [11:3] of a local address.
+	R_ARM64_LDST64
+
+	// R_ARM64_LDST128 sets a LD/ST immediate value to bits [11:4] of a local address.
+	R_ARM64_LDST128
+
 	// PPC64.
 
 	// R_POWER_TLS_LE is used to implement the "local exec" model for tls
@@ -180,6 +202,16 @@ const (
 	// relocated symbol rather than the symbol's address.
 	R_ADDRPOWER_TOCREL_DS
 
+	// RISC-V.
+
+	// R_RISCV_PCREL_ITYPE resolves a 32-bit PC-relative address using an
+	// AUIPC + I-type instruction pair.
+	R_RISCV_PCREL_ITYPE
+
+	// R_RISCV_PCREL_STYPE resolves a 32-bit PC-relative address using an
+	// AUIPC + S-type instruction pair.
+	R_RISCV_PCREL_STYPE
+
 	// R_PCRELDBL relocates s390x 2-byte aligned PC-relative addresses.
 	// TODO(mundaym): remove once variants can be serialized - see issue 14218.
 	R_PCRELDBL
@@ -190,6 +222,7 @@ const (
 	// R_ADDRMIPSTLS (only used on mips64) resolves to the low 16 bits of a TLS
 	// address (offset from thread pointer), by encoding it into the instruction.
 	R_ADDRMIPSTLS
+
 	// R_ADDRCUOFF resolves to a pointer-sized offset from the start of the
 	// symbol's DWARF compile unit.
 	R_ADDRCUOFF
@@ -203,16 +236,34 @@ const (
 	R_XCOFFREF
 )
 
-// IsDirectJump reports whether r is a relocation for a direct jump.
-// A direct jump is a CALL or JMP instruction that takes the target address
-// as immediate. The address is embedded into the instruction, possibly
-// with limited width.
-// An indirect jump is a CALL or JMP instruction that takes the target address
-// in register or memory.
-func (r RelocType) IsDirectJump() bool {
+// IsDirectCall reports whether r is a relocation for a direct call.
+// A direct call is a CALL instruction that takes the target address
+// as an immediate. The address is embedded into the instruction, possibly
+// with limited width. An indirect call is a CALL instruction that takes
+// the target address in register or memory.
+func (r RelocType) IsDirectCall() bool {
 	switch r {
-	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLPOWER, R_CALLMIPS, R_JMPMIPS:
+	case R_CALL, R_CALLARM, R_CALLARM64, R_CALLMIPS, R_CALLPOWER, R_CALLRISCV:
 		return true
 	}
 	return false
+}
+
+// IsDirectJump reports whether r is a relocation for a direct jump.
+// A direct jump is a JMP instruction that takes the target address
+// as an immediate. The address is embedded into the instruction, possibly
+// with limited width. An indirect jump is a JMP instruction that takes
+// the target address in register or memory.
+func (r RelocType) IsDirectJump() bool {
+	switch r {
+	case R_JMPMIPS:
+		return true
+	}
+	return false
+}
+
+// IsDirectCallOrJump reports whether r is a relocation for a direct
+// call or a direct jump.
+func (r RelocType) IsDirectCallOrJump() bool {
+	return r.IsDirectCall() || r.IsDirectJump()
 }

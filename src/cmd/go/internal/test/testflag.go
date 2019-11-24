@@ -65,7 +65,7 @@ var testFlagDefn = []*cmdflag.Defn{
 func init() {
 	cmdflag.AddKnownFlags("test", testFlagDefn)
 	var cmd base.Command
-	work.AddBuildFlags(&cmd)
+	work.AddBuildFlags(&cmd, work.DefaultBuildFlags)
 	cmd.Flag.VisitAll(func(f *flag.Flag) {
 		if f.Name == "v" {
 			// test overrides the build -v flag
@@ -202,6 +202,7 @@ func testFlags(usage func(), args []string) (packageNames, passToTest []string) 
 		}
 	}
 
+	testVetExplicit = testVetList != ""
 	if testVetList != "" && testVetList != "off" {
 		if strings.Contains(testVetList, "=") {
 			base.Fatalf("-vet argument cannot contain equal signs")

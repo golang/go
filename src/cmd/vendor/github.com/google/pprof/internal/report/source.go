@@ -59,7 +59,7 @@ func printSource(w io.Writer, rpt *Report) error {
 	if sourcePath == "" {
 		wd, err := os.Getwd()
 		if err != nil {
-			return fmt.Errorf("Could not stat current dir: %v", err)
+			return fmt.Errorf("could not stat current dir: %v", err)
 		}
 		sourcePath = wd
 	}
@@ -142,7 +142,7 @@ func PrintWebList(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFiles int) er
 	if sourcePath == "" {
 		wd, err := os.Getwd()
 		if err != nil {
-			return fmt.Errorf("Could not stat current dir: %v", err)
+			return fmt.Errorf("could not stat current dir: %v", err)
 		}
 		sourcePath = wd
 	}
@@ -180,7 +180,7 @@ func PrintWebList(w io.Writer, rpt *Report, obj plugin.ObjTool, maxFiles int) er
 	}
 
 	if len(fileNodes) == 0 {
-		return fmt.Errorf("No source information for %s", o.Symbol.String())
+		return fmt.Errorf("no source information for %s", o.Symbol.String())
 	}
 
 	sourceFiles := make(graph.Nodes, 0, len(fileNodes))
@@ -598,7 +598,7 @@ func openSourceFile(path, searchPath, trim string) (*os.File, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("Could not find file %s on path %s", path, searchPath)
+	return nil, fmt.Errorf("could not find file %s on path %s", path, searchPath)
 }
 
 // trimPath cleans up a path by removing prefixes that are commonly

@@ -35,6 +35,7 @@ import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"fmt"
@@ -67,6 +68,7 @@ type Link struct {
 	linkShared    bool // link against installed Go shared libraries
 	LinkMode      LinkMode
 	BuildMode     BuildMode
+	canUsePlugins bool // initialized when Loaded is set to true
 	compressDWARF bool
 
 	Tlsg         *sym.Symbol
@@ -91,8 +93,22 @@ type Link struct {
 	// Used to implement field tracking.
 	Reachparent map[*sym.Symbol]*sym.Symbol
 
-	compUnits         []*compilationUnit // DWARF compilation units
-	compUnitByPackage map[*sym.Library]*compilationUnit
+	compUnits []*sym.CompilationUnit // DWARF compilation units
+	runtimeCU *sym.CompilationUnit   // One of the runtime CUs, the last one seen.
+
+	relocbuf []byte // temporary buffer for applying relocations
+
+	loader  *loader.Loader
+	cgodata []cgodata // cgo directives to load, three strings are args for loadcgo
+
+	cgo_export_static  map[string]bool
+	cgo_export_dynamic map[string]bool
+}
+
+type cgodata struct {
+	file       string
+	pkg        string
+	directives [][]string
 }
 
 type unresolvedSymKey struct {
@@ -168,15 +184,4 @@ func addImports(ctxt *Link, l *sym.Library, pn string) {
 		}
 	}
 	l.ImportStrings = nil
-}
-
-type Pciter struct {
-	d       sym.Pcdata
-	p       []byte
-	pc      uint32
-	nextpc  uint32
-	pcscale uint32
-	value   int32
-	start   int
-	done    int
 }

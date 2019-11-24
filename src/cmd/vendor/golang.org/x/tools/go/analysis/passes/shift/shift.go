@@ -94,6 +94,6 @@ func checkLongShift(pass *analysis.Pass, node ast.Node, x, y ast.Expr) {
 	size := 8 * pass.TypesSizes.Sizeof(t)
 	if amt >= size {
 		ident := analysisutil.Format(pass.Fset, x)
-		pass.Reportf(node.Pos(), "%s (%d bits) too small for shift of %d", ident, size, amt)
+		pass.ReportRangef(node, "%s (%d bits) too small for shift of %d", ident, size, amt)
 	}
 }

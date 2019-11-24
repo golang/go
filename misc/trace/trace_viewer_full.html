@@ -397,7 +397,7 @@
     <span id="content"></span>
 
     <span id="significance">
-      
+
       <svg id="insignificant" viewBox="0 0 128 128">
         <circle cx="64" cy="64" r="60"></circle>
         <circle cx="44" cy="44" r="4"></circle>
@@ -405,7 +405,7 @@
         <line x1="36" x2="92" y1="80" y2="80"></line>
       </svg>
 
-      
+
       <svg id="significantly_better" viewBox="0 0 128 128">
         <circle cx="64" cy="64" r="60"></circle>
         <circle cx="44" cy="44" r="4"></circle>
@@ -413,7 +413,7 @@
         <path d="M 28 64 Q 64 128 100 64"></path>
       </svg>
 
-      
+
       <svg id="significantly_worse" viewBox="0 0 128 128">
         <circle cx="64" cy="64" r="60"></circle>
         <circle cx="44" cy="44" r="4"></circle>
@@ -677,7 +677,7 @@
 
   <div id="header"></div>
   <input id="stacking-distance-slider" max="400" min="1" step="1" type="range"/>
-  
+
   <canvas id="canvas"></canvas>
   <img id="chrome-left"/>
   <img id="chrome-mid"/>
@@ -815,7 +815,7 @@
     <label id="label"></label>
   </template>
 </dom-module><template id="chart-base-template">
-  <svg> 
+  <svg>
     <g id="chart-area" xmlns="http://www.w3.org/2000/svg">
       <g class="x axis"></g>
       <g class="y axis"></g>
@@ -1185,7 +1185,7 @@
       <div id="label">Heap details</div>
       <div id="view_mode_container">
         <span>View mode:</span>
-        
+
       </div>
     </div>
     <div id="contents">
@@ -1392,11 +1392,11 @@
         font-size: 15px;
       }
     </style>
-    
+
     <div id="label"></div>
     <div id="aggregation_mode_container">
       <span>Metric aggregation:</span>
-      
+
     </div>
   </template>
 </dom-module><dom-module id="tr-ui-a-stacked-pane-view">
@@ -1450,7 +1450,7 @@
     </style>
     <tr-ui-b-table id="table">
     </tr-ui-b-table>
-    
+
   </template>
 </dom-module><dom-module id="tr-ui-a-selection-summary-table">
   <template>
@@ -1466,7 +1466,7 @@
     </style>
     <tr-ui-b-table id="table">
     </tr-ui-b-table>
-    
+
   </template>
 </dom-module><dom-module id="tr-ui-b-radio-picker">
   <template>
@@ -6307,7 +6307,7 @@ function define(className,opt_parentConstructor,opt_tagNS){if(typeof className==
 className=className.toLowerCase();if(opt_parentConstructor&&!opt_parentConstructor.tagName){throw new Error('opt_parentConstructor was not '+'created by tr.ui.b.define');}
 let tagName=className;let tagNS=undefined;if(opt_parentConstructor){if(opt_tagNS){throw new Error('Must not specify tagNS if parentConstructor is given');}
 let parent=opt_parentConstructor;while(parent&&parent.tagName){tagName=parent.tagName;tagNS=parent.tagNS;parent=parent.parentConstructor;}}else{tagNS=opt_tagNS;}
-function f(){if(opt_parentConstructor&&f.prototype.__proto__!==opt_parentConstructor.prototype){throw new Error(className+' prototye\'s __proto__ field is messed up. '+'It MUST be the prototype of '+opt_parentConstructor.tagName);}
+function f(){if(opt_parentConstructor&&f.prototype.__proto__!==opt_parentConstructor.prototype){throw new Error(className+' prototype\'s __proto__ field is messed up. '+'It MUST be the prototype of '+opt_parentConstructor.tagName);}
 let el;if(tagNS===undefined){el=tr.doc.createElement(tagName);}else{el=tr.doc.createElementNS(tagNS,tagName);}
 f.decorate.call(this,el,arguments);return el;}
 f.decorate=function(el){el.__proto__=f.prototype;el.decorate.apply(el,arguments[1]);el.constructor=f;};f.className=className;f.tagName=tagName;f.tagNS=tagNS;f.parentConstructor=(opt_parentConstructor?opt_parentConstructor:undefined);f.toString=function(){if(!f.parentConstructor){return f.tagName;}

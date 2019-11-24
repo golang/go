@@ -1,4 +1,5 @@
 env GO111MODULE=on
+[short] skip
 
 # golang.org/issue/30166: 'go mod tidy' should not crash if a replaced module is
 # involved in a cycle.
@@ -46,6 +47,12 @@ grep 'rsc.io/sampler v1.2.0' go.mod
 cd outside
 go list -m all
 stdout 'rsc.io/sampler v1.3.0'
+cd ..
+
+# The same module can't be used as two different paths.
+cd multiple-paths
+! go mod tidy
+stderr 'rsc.io/quote/v3@v3.0.0 used for two different module paths \(not-rsc.io/quote/v3 and rsc.io/quote/v3\)'
 
 -- go.mod --
 module example.com/tidy
@@ -108,3 +115,23 @@ package b
 module golang.org/issue/30166/b
 
 require golang.org/issue/30166/a v0.0.0
+-- multiple-paths/main.go --
+package main
+
+import (
+	"fmt"
+	"rsc.io/quote/v3"
+)
+
+func main() {
+	fmt.Println(quote.GoV3())
+}
+-- multiple-paths/go.mod --
+module quoter
+
+require (
+	rsc.io/quote/v3 v3.0.0
+	not-rsc.io/quote/v3 v3.0.0
+)
+
+replace not-rsc.io/quote/v3 => rsc.io/quote/v3 v3.0.0
