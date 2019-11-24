@@ -26,7 +26,7 @@
 		global.require = require;
 	}
 
-	if (!global.fs && global.require) {
+	if (!global.fs && global.require && typeof __webpack_public_path__ === "undefined")) {
 		global.fs = require("fs");
 	}
 
