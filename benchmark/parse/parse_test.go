@@ -152,3 +152,57 @@ func TestParseSet(t *testing.T) {
 		t.Errorf("parsed bench set incorrectly, want %v have %v", want, have)
 	}
 }
+
+func TestString(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  *Benchmark
+		wanted string
+	}{
+		{
+			name: "nsTest",
+			input: &Benchmark{
+				Name: "BenchmarkTest",
+				N:    100000000, NsPerOp: 19.6,
+				Measured: NsPerOp,
+			},
+			wanted: "BenchmarkTest 100000000 19.60 ns/op",
+		},
+		{
+			name: "mbTest",
+			input: &Benchmark{
+				Name: "BenchmarkTest",
+				N:    100000000, MBPerS: 19.6,
+				Measured: MBPerS,
+			},
+			wanted: "BenchmarkTest 100000000 19.60 MB/s",
+		},
+		{
+			name: "allocatedBytesTest",
+			input: &Benchmark{
+				Name: "BenchmarkTest",
+				N:    100000000, AllocedBytesPerOp: 5,
+				Measured: AllocedBytesPerOp,
+			},
+			wanted: "BenchmarkTest 100000000 5 B/op",
+		},
+		{
+			name: "allocsTest",
+			input: &Benchmark{
+				Name: "BenchmarkTest",
+				N:    100000000, AllocsPerOp: 5,
+				Measured: AllocsPerOp,
+			},
+			wanted: "BenchmarkTest 100000000 5 allocs/op",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.input.String()
+			if result != tt.wanted {
+				t.Errorf("String() is called, want %q, have %q", tt.wanted, result)
+			}
+		})
+	}
+}
