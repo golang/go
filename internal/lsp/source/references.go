@@ -10,6 +10,8 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/types/objectpath"
+	"golang.org/x/tools/internal/lsp/telemetry"
+	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/trace"
 	errors "golang.org/x/xerrors"
 )
@@ -73,12 +75,22 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 	var searchpkgs []Package
 	if i.Declaration.obj.Exported() {
 		// Only search all packages if the identifier is exported.
-		// TODO(matloob): This only needs to look into reverse-dependencies.
-		// Avoid checking types of other packages.
-		searchpkgs = i.Snapshot.KnownPackages(ctx)
-	} else {
-		searchpkgs = []Package{i.pkg}
+		for _, id := range i.Snapshot.GetReverseDependencies(i.pkg.ID()) {
+			cph, err := i.Snapshot.PackageHandle(ctx, id)
+			if err != nil {
+				log.Error(ctx, "References: no CheckPackageHandle", err, telemetry.Package.Of(id))
+				continue
+			}
+			pkg, err := cph.Check(ctx)
+			if err != nil {
+				log.Error(ctx, "References: no Package", err, telemetry.Package.Of(id))
+				continue
+			}
+			searchpkgs = append(searchpkgs, pkg)
+		}
 	}
+	// Add the package in which the identifier is declared.
+	searchpkgs = append(searchpkgs, i.pkg)
 	for _, pkg := range searchpkgs {
 		for ident, obj := range pkg.GetTypesInfo().Uses {
 			if obj == nil || !(sameObj(obj, i.Declaration.obj)) {

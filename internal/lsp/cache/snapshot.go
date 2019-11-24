@@ -94,7 +94,7 @@ func (s *snapshot) PackageHandles(ctx context.Context, f source.File) ([]source.
 		cphs = results
 	}
 	if len(cphs) == 0 {
-		return nil, errors.Errorf("no CheckPackageHandles for %s", f)
+		return nil, errors.Errorf("no CheckPackageHandles for %s", f.URI())
 	}
 	return cphs, nil
 }
