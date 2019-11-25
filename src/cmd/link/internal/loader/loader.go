@@ -111,6 +111,8 @@ type Loader struct {
 
 	Syms []*sym.Symbol // indexed symbols. XXX we still make sym.Symbol for now.
 
+	anonVersion int // most recently assigned ext static sym pseudo-version
+
 	Reachable bitmap // bitmap of reachable symbols, indexed by global index
 
 	// Used to implement field tracking; created during deadcode if
@@ -129,9 +131,6 @@ const (
 	// Loader.flags
 	FlagStrictDups = 1 << iota
 )
-
-// anonVersion is used to tag symbols created by loader.Create.
-const anonVersion = -1
 
 func NewLoader(flags uint32) *Loader {
 	nbuiltin := goobj2.NBuiltin()
@@ -350,7 +349,7 @@ func (l *Loader) resolve(r *oReader, s goobj2.SymRef) Sym {
 // This is more like Syms.ROLookup than Lookup -- it doesn't create
 // new symbol.
 func (l *Loader) Lookup(name string, ver int) Sym {
-	if ver >= sym.SymVerStatic {
+	if ver >= sym.SymVerStatic || ver < 0 {
 		return l.extStaticSyms[nameVer{name, ver}]
 	}
 	return l.symsByName[ver][name]
@@ -846,12 +845,21 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
 	}
 
 	// Add symbols to the ctxt.Syms lookup table. This explicitly
-	// skips things created via loader.Create (marked with
-	// anonVersion), since if we tried to add these we'd wind up with
-	// collisions.
+	// skips things created via loader.Create (marked with versions
+	// less than zero), since if we tried to add these we'd wind up
+	// with collisions. Along the way, update the version from the
+	// negative anon version to something larger than sym.SymVerStatic
+	// (needed so that sym.symbol.IsFileLocal() works properly).
+	anonVerReplacement := syms.IncVersion()
 	for _, s := range l.Syms {
-		if s != nil && s.Name != "" && s.Version != anonVersion {
+		if s == nil {
+			continue
+		}
+		if s.Name != "" && s.Version >= 0 {
 			syms.Add(s)
+		}
+		if s.Version < 0 {
+			s.Version = int16(anonVerReplacement)
 		}
 	}
 }
@@ -985,11 +993,14 @@ func (l *Loader) LookupOrCreate(name string, version int, syms *sym.Symbols) *sy
 	return s
 }
 
-// Create creates a symbol with the specified name, but does not
-// insert it into any lookup table (hence it is possible to create a
-// symbol name with name X when there is already an existing symbol
-// named X entered into the loader). This method is intended for
-// static/hidden symbols discovered while loading host objects.
+// Create creates a symbol with the specified name, returning a
+// sym.Symbol object for it. This method is intended for static/hidden
+// symbols discovered while loading host objects. We can see more than
+// one instance of a given static symbol with the same name/version,
+// so we can't add them to the lookup tables "as is". Instead assign
+// them fictitious (unique) versions, starting at -1 and decreasing by
+// one for each newly created symbol, and record them in the
+// extStaticSyms hash.
 func (l *Loader) Create(name string, syms *sym.Symbols) *sym.Symbol {
 	i := l.max + 1
 	l.max++
@@ -997,13 +1008,17 @@ func (l *Loader) Create(name string, syms *sym.Symbols) *sym.Symbol {
 		l.extStart = i
 	}
 
-	// Note the use of anonVersion -- this is to mark the symbol so that
-	// it can be skipped when ExtractSymbols is adding ext syms to the
-	// sym.Symbols hash.
-	l.extSyms = append(l.extSyms, nameVer{name, anonVersion})
+	// Assign a new unique negative version -- this is to mark the
+	// symbol so that it can be skipped when ExtractSymbols is adding
+	// ext syms to the sym.Symbols hash.
+	l.anonVersion--
+	ver := l.anonVersion
+	l.extSyms = append(l.extSyms, nameVer{name, ver})
 	l.growSyms(int(i))
-	s := syms.Newsym(name, -1)
+	s := syms.Newsym(name, ver)
 	l.Syms[i] = s
+	l.extStaticSyms[nameVer{name, ver}] = i
+
 	return s
 }
 
