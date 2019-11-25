@@ -187,7 +187,154 @@ repositories](#compatibility-with-non-module-repositories) for more information.
 ## Retrieving modules
 
 <a id="goproxy-protocol"></a>
-### GOPROXY protocol
+### `GOPROXY` protocol
+
+A [*module proxy*](#glos-module-proxy) is an HTTP server that can respond to
+`GET` requests for paths specified below. The requests have no query parameters,
+and no specific headers are required, so even a site serving from a fixed file
+system (including a `file://` URL) can be a module proxy.
+
+Successful HTTP responses must have the status code 200 (OK). Redirects (3xx)
+are followed. Responses with status codes 4xx and 5xx are treated as errors.
+The error codes 404 (Not Found) and 410 (Gone) indicate that the
+requested module or version is not available on the proxy, but it may be found
+elsewhere. Error responses should have content type `text/plain` with
+`charset` either `utf-8` or `us-ascii`.
+
+The `go` command may be configured to contact proxies or source control servers
+using the `GOPROXY` environment variable, which is a comma-separated list of
+URLs or the keywords `direct` or `off` (see [Environment
+variables](#environment-variables) for details). When the `go` command receives
+a 404 or 410 response from a proxy, it falls back to later proxies in the
+list. The `go` command does not fall back to later proxies in response to other
+4xx and 5xx errors. This allows a proxy to act as a gatekeeper, for example, by
+responding with error 403 (Forbidden) for modules not on an approved list.
+
+The table below specifies queries that a module proxy must respond to. For each
+path, `$base` is the path portion of a proxy URL,`$module` is a module path, and
+`$version` is a version. For example, if the proxy URL is
+`https://example.com/mod`, and the client is requesting the `go.mod` file for
+the module `golang.org/x/text` at version `v0.3.2`, the client would send a
+`GET` request for `https://example.com/mod/golang.org/x/text/@v/v0.3.2.mod`.
+
+To avoid ambiguity when serving from case-insensitive file systems,
+the `$module` and `$version` elements are case-encoded by replacing every
+uppercase letter with an exclamation mark followed by the corresponding
+lower-case letter. This allows modules `example.com/M` and `example.com/m` to
+both be stored on disk, since the former is encoded as `example.com/!m`.
+
+<!-- TODO(jayconrod): This table has multi-line cells, and GitHub Flavored
+Markdown doesn't have syntax for that, so we use raw HTML. Gitiles doesn't
+include this table in the rendered HTML. Once x/website has a Markdown renderer,
+ensure this table is readable. If the cells are too large, and it's difficult
+to scan, use paragraphs or sections below.
+-->
+
+<table>
+  <thead>
+    <tr>
+      <th>Path</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>$base/$module/@v/list</code></td>
+      <td>
+        Returns a list of known versions of the given module in plain text, one
+        per line. This list should not include pseudo-versions.
+      </td>
+    </tr>
+    <tr>
+      <td><code>$base/$module/@v/$version.info</code></td>
+      <td>
+        <p>
+          Returns JSON-formatted metadata about a specific version of a module.
+          The response must be a JSON object that corresponds to the Go data
+          structure below:
+        </p>
+        <pre>
+type Info struct {
+    Version string    // version string
+    Time    time.Time // commit time
+}
+        </pre>
+        <p>
+          The <code>Version</code> field is required and must contain a valid,
+          <a href="#glos-canonical-version">canonical version</a> (see
+          <a href="#versions">Versions</a>). The <code>$version</code> in the
+          request path does not need to be the same version or even a valid
+          version; this endpoint may be used to find versions for branch names
+          or revision identifiers. However, if <code>$version</code> is a
+          canonical version with a major version compatible with
+          <code>$module</code>, the <code>Version</code> field in a successful
+          response must be the same.
+        </p>
+        <p>
+          The <code>Time</code> field is optional. If present, it must be a
+          string in RFC 3339 format. It indicates the time when the version
+          was created.
+        </p>
+        <p>
+          More fields may be added in the future, so other names are reserved.
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td><code>$base/$module/@v/$version.mod</code></td>
+      <td>
+        Returns the <code>go.mod</code> file for a specific version of a
+        module. If the module does not have a <code>go.mod</code> file at the
+        requested version, a file containing only a <code>module</code>
+        statement with the requested module path must be returned. Otherwise,
+        the original, unmodified <code>go.mod</code> file must be returned.
+      </td>
+    </tr>
+    <tr>
+      <td><code>$base/$module/@v/$version.zip</code></td>
+      <td>
+        Returns a zip file containing the contents of a specific version of
+        a module. See <a href="#zip-format">Module zip format</a> for details
+        on how this zip file must be formatted.
+      </td>
+    </tr>
+    <tr>
+      <td><code>$base/$module/@latest</code></td>
+      <td>
+        Returns JSON-formatted metadata about the latest known version of a
+        module in the same format as
+        <code>$base/$module/@v/$version.info</code>. The latest version should
+        be the version of the module that the <code>go</code> command should use
+        if <code>$base/$module/@v/list</code> is empty or no listed version is
+        suitable. This endpoint is optional, and module proxies are not required
+        to implement it.
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+When resolving the latest version of a module, the `go` command will request
+`$base/$module/@v/list`, then, if no suitable versions are found,
+`$base/$module/@latest`. The `go` command prefers, in order: the semantically
+highest release version, the semantically highest pre-release version, and the
+chronologically most recent pseudo-version. In Go 1.12 and earlier, the `go`
+command considered pseudo-versions in `$base/$module/@v/list` to be pre-release
+versions, but this is no longer true since Go 1.13.
+
+A module proxy must always serve the same content for successful
+responses for `$base/$module/$version.mod` and `$base/$module/$version.zip`
+queries. This content is [cryptographically authenticated](#authenticating)
+using [`go.sum` files](#go.sum-file-format) and, by default, the
+[checksum database](#checksum-database).
+
+The `go` command caches most content it downloads from module proxies in its
+module cache in `$GOPATH/pkg/mod/cache/download`. Even when downloading directly
+from version control systems, the `go` command synthesizes explicit `info`,
+`mod`, and `zip` files and stores them in this directory, the same as if it had
+downloaded them directly from a proxy. The cache layout is the same as the proxy
+URL space, so serving `$GOPATH/pkg/mod/cache/download` at (or copying it to)
+`https://example.com/proxy` would let users access cached module versions by
+setting `GOPROXY` to `https://example.com/proxy`.
 
 <a id="communicating-with-proxies"></a>
 ### Communicating with proxies
@@ -235,6 +382,11 @@ file](#glos-go.mod-file) and `go.mod` files in transitively required modules
 using [minimal version selection](#glos-minimal-version-selection). The build
 list contains versions for all modules in the [module
 graph](#glos-module-graph), not just those relevant to a specific command.
+
+<a id="glos-canonical-version">
+**canonical version:** A correctly formatted [version](#glos-version) without
+a build metadata suffix other than `+incompatible`. For example, `v1.2.3`
+is a canonical version, but `v1.2.3+meta` is not.
 
 <a id="glos-go.mod-file"></a>
 **`go.mod` file:** The file that defines a module's path, requirements, and
@@ -284,6 +436,11 @@ version from a `require` statement in a `go.mod` file (subject to `replace` and
 <a id="glos-module-path"></a>
 **module path:** A path that identifies a module and acts as a prefix for
 package import paths within the module. For example, `"golang.org/x/net"`.
+
+<a id="glos-module-proxy"></a>
+**module proxy:** A web server that implements the [`GOPROXY`
+protocol](#goproxy-protocol). The `go` command downloads version information,
+`go.mod` files, and module zip files from module proxies.
 
 <a id="glos-module-root-directory"></a>
 **module root directory:** The directory that contains the `go.mod` file that
