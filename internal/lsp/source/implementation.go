@@ -77,6 +77,10 @@ func (i *IdentifierInfo) Implementation(ctx context.Context) ([]protocol.Locatio
 		if err != nil {
 			return nil, err
 		}
+		// Do not add interface itself to the list.
+		if ident.Declaration.spanRange == i.Declaration.spanRange {
+			continue
+		}
 		locations = append(locations, protocol.Location{
 			URI:   protocol.NewURI(ident.Declaration.URI()),
 			Range: decRange,
