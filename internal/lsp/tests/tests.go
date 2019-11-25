@@ -14,6 +14,7 @@ import (
 	"go/token"
 	"io/ioutil"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -197,6 +198,8 @@ func DefaultOptions() source.Options {
 	return o
 }
 
+var haveCgo = false
+
 func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 	t.Helper()
 
@@ -351,6 +354,9 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			for i, e := range exp {
 				t.Run(spanName(src)+"_"+strconv.Itoa(i), func(t *testing.T) {
 					t.Helper()
+					if (!haveCgo || runtime.GOOS == "android") && strings.Contains(t.Name(), "cgo") {
+						t.Skip("test requires cgo, not supported")
+					}
 					test(t, src, e, data.CompletionItems)
 				})
 			}
@@ -462,6 +468,9 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		for spn, d := range data.Definitions {
 			t.Run(spanName(spn), func(t *testing.T) {
 				t.Helper()
+				if (!haveCgo || runtime.GOOS == "android") && strings.Contains(t.Name(), "cgo") {
+					t.Skip("test requires cgo, not supported")
+				}
 				tests.Definition(t, spn, d)
 			})
 		}
