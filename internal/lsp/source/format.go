@@ -285,8 +285,13 @@ func trimToImports(fset *token.FileSet, f *ast.File, src []byte) ([]byte, int) {
 	if firstImport == nil {
 		return nil, 0
 	}
+	tok := fset.File(f.Pos())
 	start := firstImport.Pos()
-	end := fset.File(f.Pos()).LineStart(fset.Position(lastImport.End()).Line + 1)
+	end := lastImport.End()
+	if tok.LineCount() > fset.Position(end).Line {
+		end = fset.File(f.Pos()).LineStart(fset.Position(lastImport.End()).Line + 1)
+	}
+
 	startLineOffset := fset.Position(start).Line - 1 // lines are 1-indexed.
 	return src[fset.Position(firstImport.Pos()).Offset:fset.Position(end).Offset], startLineOffset
 }
