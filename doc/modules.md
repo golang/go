@@ -141,6 +141,72 @@ repositories](#compatibility-with-non-module-repositories) for more information.
 <a id="resolve-pkg-mod"></a>
 ### Resolving a package to a module
 
+When the `go` command loads a package using a [package
+path](#glos-package-path), it needs to determine which module provides the
+package.
+
+The `go` command starts by searching the [build list](#glos-build-list) for
+modules with paths that are prefixes of the package path. For example, if the
+package `example.com/a/b` is imported, and the module `example.com/a` is in the
+build list, the `go` command will check whether `example.com/a` contains the
+package, in the directory `b`. At least one file with the `.go` extension must
+be present in a directory for it to be considered a package. [Build
+constraints](/pkg/go/build/#hdr-Build_Constraints) are not applied for this
+purpose. If exactly one module in the build list provides the package, that
+module is used. If two or more modules provide the package, an error is
+reported. If no modules provide the package, the `go` command will attempt to
+find a new module (unless the flags `-mod=readonly` or `-mod=vendor` are used,
+in which case, an error is reported).
+
+<!-- NOTE(golang.org/issue/27899): the go command reports an error when two
+or more modules provide a package with the same path as above. In the future,
+we may try to upgrade one (or all) of the colliding modules.
+-->
+
+When the `go` command looks up a new module for a package path, it checks the
+`GOPROXY` environment variable, which is a comma-separated list of proxy URLs or
+the keywords `direct` or `off`. A proxy URL indicates the `go` command should
+contact a [module proxy](#glos-module-proxy) using the [`GOPROXY`
+protocol](#goproxy-protocol). `direct` indicates that the `go` command should
+[communicate with a version control system](#communicating-with-vcs). `off`
+indicates that no communication should be attempted. The `GOPRIVATE` and
+`GONOPROXY` [environment variables](#environment-variables) can also be used to
+control this behavior.
+
+For each entry in the `GOPROXY` list, the `go` command requests the latest
+version of each module path that might provide the package (that is, each prefix
+of the package path). For each successfully requested module path, the `go`
+command will download the module at the latest version and check whether the
+module contains the requested package. If one or more modules contain the
+requested package, the module with the longest path is used. If one or more
+modules are found but none contain the requested package, an error is
+reported. If no modules are found, the `go` command tries the next entry in the
+`GOPROXY` list. If no entries are left, an error is reported.
+
+For example, suppose the `go` command is looking for a module that provides the
+package `golang.org/x/net/html`, and `GOPROXY` is set to
+`https://corp.example.com,https://proxy.golang.org`. The `go` command may make
+the following requests:
+
+* To `https://corp.example.com/` (in parallel):
+  * Request for latest version of `golang.org/x/net/html`
+  * Request for latest version of `golang.org/x/net`
+  * Request for latest version of `golang.org/x`
+  * Request for latest version of `golang.org`
+* To `https://proxy.golang.org/`, if all requests to `https://corp.example.com/`
+  have failed with 404 or 410:
+  * Request for latest version of `golang.org/x/net/html`
+  * Request for latest version of `golang.org/x/net`
+  * Request for latest version of `golang.org/x`
+  * Request for latest version of `golang.org`
+
+After a suitable module has been found, the `go` command will add a new
+requirement with the new module's path and version to the main module's `go.mod`
+file. This ensures that when the same package is loaded in the future, the same
+module will be used at the same version. If the resolved package is not imported
+by a package in the main module, the new requirement will have an `// indirect`
+comment.
+
 <a id="go.mod-files"></a>
 ## `go.mod` files
 
