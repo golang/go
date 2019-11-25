@@ -425,7 +425,7 @@ func formatParams(s Snapshot, pkg Package, sig *types.Signature, qf types.Qualif
 }
 
 func formatFieldType(s Snapshot, srcpkg Package, obj types.Object, qf types.Qualifier) (string, error) {
-	file, _, pkg, err := s.View().FindPosInPackage(srcpkg, obj.Pos())
+	file, pkg, err := s.View().FindPosInPackage(srcpkg, obj.Pos())
 	if err != nil {
 		return "", err
 	}
