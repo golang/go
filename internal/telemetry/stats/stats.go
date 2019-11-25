@@ -9,6 +9,7 @@ package stats
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"golang.org/x/tools/internal/telemetry/unit"
@@ -19,6 +20,7 @@ type Int64Measure struct {
 	name        string
 	description string
 	unit        unit.Unit
+	mu          sync.Mutex
 	subscribers []Int64Subscriber
 }
 
@@ -27,6 +29,7 @@ type Float64Measure struct {
 	name        string
 	description string
 	unit        unit.Unit
+	mu          sync.Mutex
 	subscribers []Float64Subscriber
 }
 
@@ -66,16 +69,20 @@ func (m *Int64Measure) Description() string { return m.description }
 func (m *Int64Measure) Unit() unit.Unit { return m.unit }
 
 // Subscribe adds a new subscriber to this measure.
-func (m *Int64Measure) Subscribe(s Int64Subscriber) { m.subscribers = append(m.subscribers, s) }
+func (m *Int64Measure) Subscribe(s Int64Subscriber) {
+	m.mu.Lock()
+	m.subscribers = append(m.subscribers, s)
+	m.mu.Unlock()
+}
 
 // Record delivers a new value to the subscribers of this measure.
 func (m *Int64Measure) Record(ctx context.Context, value int64) {
 	at := time.Now()
-	do(func() {
-		for _, s := range m.subscribers {
-			s(ctx, m, value, at)
-		}
-	})
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, s := range m.subscribers {
+		s(ctx, m, value, at)
+	}
 }
 
 // Name returns the name this measure was given on construction.
@@ -88,14 +95,18 @@ func (m *Float64Measure) Description() string { return m.description }
 func (m *Float64Measure) Unit() unit.Unit { return m.unit }
 
 // Subscribe adds a new subscriber to this measure.
-func (m *Float64Measure) Subscribe(s Float64Subscriber) { m.subscribers = append(m.subscribers, s) }
+func (m *Float64Measure) Subscribe(s Float64Subscriber) {
+	m.mu.Lock()
+	m.subscribers = append(m.subscribers, s)
+	m.mu.Unlock()
+}
 
 // Record delivers a new value to the subscribers of this measure.
 func (m *Float64Measure) Record(ctx context.Context, value float64) {
 	at := time.Now()
-	do(func() {
-		for _, s := range m.subscribers {
-			s(ctx, m, value, at)
-		}
-	})
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, s := range m.subscribers {
+		s(ctx, m, value, at)
+	}
 }
