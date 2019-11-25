@@ -263,7 +263,7 @@
 				<th class="pkg-synopsis">Synopsis</th>
 			</tr>
 
-			{{if not ((eq $.Dirname "/src/cmd") $.DirFlat)}}
+			{{if not (or (eq $.Dirname "/src/cmd") $.DirFlat)}}
 			<tr>
 				<td colspan="2"><a href="..">..</a></td>
 			</tr>
