@@ -128,7 +128,7 @@ func formatGenDecl(node *ast.GenDecl, obj types.Object, typ types.Type) (*HoverI
 	// If we have a field or method.
 	switch obj.(type) {
 	case *types.Var, *types.Const, *types.Func:
-		return formatVar(spec, obj)
+		return formatVar(spec, obj, node), nil
 	}
 	// Handle types.
 	switch spec := spec.(type) {
@@ -147,7 +147,7 @@ func formatGenDecl(node *ast.GenDecl, obj types.Object, typ types.Type) (*HoverI
 	return nil, errors.Errorf("unable to format spec %v (%T)", spec, spec)
 }
 
-func formatVar(node ast.Spec, obj types.Object) (*HoverInformation, error) {
+func formatVar(node ast.Spec, obj types.Object, decl *ast.GenDecl) *HoverInformation {
 	var fieldList *ast.FieldList
 	if spec, ok := node.(*ast.TypeSpec); ok {
 		switch t := spec.Type.(type) {
@@ -164,13 +164,19 @@ func formatVar(node ast.Spec, obj types.Object) (*HoverInformation, error) {
 			field := fieldList.List[i]
 			if field.Pos() <= obj.Pos() && obj.Pos() <= field.End() {
 				if field.Doc.Text() != "" {
-					return &HoverInformation{source: obj, comment: field.Doc}, nil
+					return &HoverInformation{source: obj, comment: field.Doc}
 				} else if field.Comment.Text() != "" {
-					return &HoverInformation{source: obj, comment: field.Comment}, nil
+					return &HoverInformation{source: obj, comment: field.Comment}
 				}
 			}
 		}
 	}
+	// If we have a package level variable that does have a
+	// comment group attached to it but not in the ast.spec.
+	if decl.Doc.Text() != "" {
+		return &HoverInformation{source: obj, comment: decl.Doc}
+	}
+
 	// If we weren't able to find documentation for the object.
-	return &HoverInformation{source: obj}, nil
+	return &HoverInformation{source: obj}
 }
