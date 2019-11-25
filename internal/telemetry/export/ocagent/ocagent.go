@@ -48,7 +48,7 @@ type exporter struct {
 	config  Config
 	node    *wire.Node
 	spans   []*telemetry.Span
-	metrics []*wire.Metric
+	metrics []telemetry.MetricData
 }
 
 // Connect creates a process specific exporter with the specified
@@ -114,7 +114,7 @@ func (e *exporter) Log(context.Context, telemetry.Event) {}
 func (e *exporter) Metric(ctx context.Context, data telemetry.MetricData) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.metrics = append(e.metrics, convertMetric(data, e.config.Start))
+	e.metrics = append(e.metrics, data)
 }
 
 func (e *exporter) Flush() {
@@ -125,7 +125,10 @@ func (e *exporter) Flush() {
 		spans[i] = convertSpan(s)
 	}
 	e.spans = nil
-	metrics := e.metrics
+	metrics := make([]*wire.Metric, len(e.metrics))
+	for i, m := range e.metrics {
+		metrics[i] = convertMetric(m, e.config.Start)
+	}
 	e.metrics = nil
 
 	if len(spans) > 0 {
