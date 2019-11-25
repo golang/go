@@ -411,7 +411,7 @@ func UserCacheDir() (string, error) {
 // subdirectory within this one and use that.
 //
 // On Unix systems, it returns $XDG_CONFIG_HOME as specified by
-// https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html if
+// https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html if
 // non-empty, else $HOME/.config.
 // On Darwin, it returns $HOME/Library/Application Support.
 // On Windows, it returns %AppData%.
