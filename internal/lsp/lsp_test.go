@@ -466,16 +466,30 @@ func (r *runner) Implementation(t *testing.T, spn span.Span, m tests.Implementat
 	if len(locs) != len(m.Implementations) {
 		t.Fatalf("got %d locations for implementation, expected %d", len(locs), len(m.Implementations))
 	}
+
+	var results []span.Span
 	for i := range locs {
 		locURI := span.NewURI(locs[i].URI)
 		lm, err := r.data.Mapper(locURI)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if imp, err := lm.Span(locs[i]); err != nil {
+		imp, err := lm.Span(locs[i])
+		if err != nil {
 			t.Fatalf("failed for %v: %v", locs[i], err)
-		} else if imp != m.Implementations[i] {
-			t.Errorf("for %dth implementation of %v got %v want %v", i, m.Src, imp, m.Implementations[i])
+		}
+		results = append(results, imp)
+	}
+	// Sort results and expected to make tests deterministic.
+	sort.SliceStable(results, func(i, j int) bool {
+		return span.Compare(results[i], results[j]) == -1
+	})
+	sort.SliceStable(m.Implementations, func(i, j int) bool {
+		return span.Compare(m.Implementations[i], m.Implementations[j]) == -1
+	})
+	for i := range results {
+		if results[i] != m.Implementations[i] {
+			t.Errorf("for %dth implementation of %v got %v want %v", i, m.Src, results[i], m.Implementations[i])
 		}
 	}
 }
