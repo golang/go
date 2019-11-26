@@ -385,7 +385,7 @@ func runGet(cmd *base.Command, args []string) {
 
 			first := path
 			if i := strings.IndexByte(first, '/'); i >= 0 {
-				first = path
+				first = path[:i]
 			}
 			if !strings.Contains(first, ".") {
 				// The path doesn't have a dot in the first component and cannot be
