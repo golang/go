@@ -349,6 +349,16 @@ func preemptM(mp *m) {
 		// yet, so doSigPreempt won't work.
 		return
 	}
+	if GOOS == "darwin" && (GOARCH == "arm" || GOARCH == "arm64") && !iscgo {
+		// On darwin, we use libc calls, and cgo is required on ARM and ARM64
+		// so we have TLS set up to save/restore G during C calls. If cgo is
+		// absent, we cannot save/restore G in TLS, and if a signal is
+		// received during C execution we cannot get the G. Therefore don't
+		// send signals.
+		// This can only happen in the go_bootstrap program (otherwise cgo is
+		// required).
+		return
+	}
 	signalM(mp, sigPreempt)
 }
 
