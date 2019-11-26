@@ -46,7 +46,6 @@ func Discover() *Config {
 type exporter struct {
 	mu      sync.Mutex
 	config  Config
-	node    *wire.Node
 	spans   []*telemetry.Span
 	metrics []telemetry.MetricData
 }
@@ -77,21 +76,6 @@ func Connect(config *Config) export.Exporter {
 	}
 	if exporter.config.Rate == 0 {
 		exporter.config.Rate = 2 * time.Second
-	}
-	exporter.node = &wire.Node{
-		Identifier: &wire.ProcessIdentifier{
-			HostName:       exporter.config.Host,
-			Pid:            exporter.config.Process,
-			StartTimestamp: convertTimestamp(exporter.config.Start),
-		},
-		LibraryInfo: &wire.LibraryInfo{
-			Language:           wire.LanguageGo,
-			ExporterVersion:    "0.0.1",
-			CoreLibraryVersion: "x/tools",
-		},
-		ServiceInfo: &wire.ServiceInfo{
-			Name: exporter.config.Service,
-		},
 	}
 	go func() {
 		for _ = range time.Tick(exporter.config.Rate) {
@@ -133,17 +117,35 @@ func (e *exporter) Flush() {
 
 	if len(spans) > 0 {
 		e.send("/v1/trace", &wire.ExportTraceServiceRequest{
-			Node:  e.node,
+			Node:  e.buildNode(),
 			Spans: spans,
 			//TODO: Resource?
 		})
 	}
 	if len(metrics) > 0 {
 		e.send("/v1/metrics", &wire.ExportMetricsServiceRequest{
-			Node:    e.node,
+			Node:    e.buildNode(),
 			Metrics: metrics,
 			//TODO: Resource?
 		})
+	}
+}
+
+func (e *exporter) buildNode() *wire.Node {
+	return &wire.Node{
+		Identifier: &wire.ProcessIdentifier{
+			HostName:       e.config.Host,
+			Pid:            e.config.Process,
+			StartTimestamp: convertTimestamp(e.config.Start),
+		},
+		LibraryInfo: &wire.LibraryInfo{
+			Language:           wire.LanguageGo,
+			ExporterVersion:    "0.0.1",
+			CoreLibraryVersion: "x/tools",
+		},
+		ServiceInfo: &wire.ServiceInfo{
+			Name: e.config.Service,
+		},
 	}
 }
 
