@@ -227,6 +227,18 @@
 (Cvt64Fto32 ...) -> (CFDBRA ...)
 (Cvt64Fto64 ...) -> (CGDBRA ...)
 
+// Lowering float <-> uint
+(Cvt32Uto32F ...) -> (CELFBR ...)
+(Cvt32Uto64F ...) -> (CDLFBR ...)
+(Cvt64Uto32F ...) -> (CELGBR ...)
+(Cvt64Uto64F ...) -> (CDLGBR ...)
+
+(Cvt32Fto32U ...) -> (CLFEBR ...)
+(Cvt32Fto64U ...) -> (CLGEBR ...)
+(Cvt64Fto32U ...) -> (CLFDBR ...)
+(Cvt64Fto64U ...) -> (CLGDBR ...)
+
+// Lowering float32 <-> float64
 (Cvt32Fto64F ...) -> (LDEBR ...)
 (Cvt64Fto32F ...) -> (LEDBR ...)
 

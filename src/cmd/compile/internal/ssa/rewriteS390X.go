@@ -156,11 +156,23 @@ func rewriteValueS390X(v *Value) bool {
 	case OpCvt32Fto32:
 		v.Op = OpS390XCFEBRA
 		return true
+	case OpCvt32Fto32U:
+		v.Op = OpS390XCLFEBR
+		return true
 	case OpCvt32Fto64:
 		v.Op = OpS390XCGEBRA
 		return true
 	case OpCvt32Fto64F:
 		v.Op = OpS390XLDEBR
+		return true
+	case OpCvt32Fto64U:
+		v.Op = OpS390XCLGEBR
+		return true
+	case OpCvt32Uto32F:
+		v.Op = OpS390XCELFBR
+		return true
+	case OpCvt32Uto64F:
+		v.Op = OpS390XCDLFBR
 		return true
 	case OpCvt32to32F:
 		v.Op = OpS390XCEFBRA
@@ -174,8 +186,20 @@ func rewriteValueS390X(v *Value) bool {
 	case OpCvt64Fto32F:
 		v.Op = OpS390XLEDBR
 		return true
+	case OpCvt64Fto32U:
+		v.Op = OpS390XCLFDBR
+		return true
 	case OpCvt64Fto64:
 		v.Op = OpS390XCGDBRA
+		return true
+	case OpCvt64Fto64U:
+		v.Op = OpS390XCLGDBR
+		return true
+	case OpCvt64Uto32F:
+		v.Op = OpS390XCELGBR
+		return true
+	case OpCvt64Uto64F:
+		v.Op = OpS390XCDLGBR
 		return true
 	case OpCvt64to32F:
 		v.Op = OpS390XCEGBRA
