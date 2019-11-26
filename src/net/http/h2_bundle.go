@@ -3467,6 +3467,7 @@ type http2pipe struct {
 	mu       sync.Mutex
 	c        sync.Cond       // c.L lazily initialized to &p.mu
 	b        http2pipeBuffer // nil when done reading
+	unread   int             // bytes unread when done
 	err      error           // read error once empty. non-nil means closed.
 	breakErr error           // immediate read error (caller doesn't see rest of b)
 	donec    chan struct{}   // closed on error
@@ -3483,7 +3484,7 @@ func (p *http2pipe) Len() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.b == nil {
-		return 0
+		return p.unread
 	}
 	return p.b.Len()
 }
@@ -3530,6 +3531,7 @@ func (p *http2pipe) Write(d []byte) (n int, err error) {
 		return 0, http2errClosedPipeWrite
 	}
 	if p.breakErr != nil {
+		p.unread += len(d)
 		return len(d), nil // discard when there is no reader
 	}
 	return p.b.Write(d)
@@ -3567,6 +3569,9 @@ func (p *http2pipe) closeWithError(dst *error, err error, fn func()) {
 	}
 	p.readFn = fn
 	if dst == &p.breakErr {
+		if p.b != nil {
+			p.unread += p.b.Len()
+		}
 		p.b = nil
 	}
 	*dst = err
@@ -3813,7 +3818,7 @@ func http2ConfigureServer(s *Server, conf *http2Server) error {
 			}
 		}
 		if !haveRequired {
-			return fmt.Errorf("http2: TLSConfig.CipherSuites is missing an HTTP/2-required AES_128_GCM_SHA256 cipher.")
+			return fmt.Errorf("http2: TLSConfig.CipherSuites is missing an HTTP/2-required AES_128_GCM_SHA256 cipher (need at least one of TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 or TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256).")
 		}
 	}
 
@@ -6721,6 +6726,7 @@ type http2ClientConn struct {
 	br              *bufio.Reader
 	fr              *http2Framer
 	lastActive      time.Time
+	lastIdle        time.Time // time last idle
 	// Settings from peer: (also guarded by mu)
 	maxFrameSize          uint32
 	maxConcurrentStreams  uint32
@@ -7098,7 +7104,7 @@ func (t *http2Transport) expectContinueTimeout() time.Duration {
 }
 
 func (t *http2Transport) NewClientConn(c net.Conn) (*http2ClientConn, error) {
-	return t.newClientConn(c, false)
+	return t.newClientConn(c, t.disableKeepAlives())
 }
 
 func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2ClientConn, error) {
@@ -7231,7 +7237,8 @@ func (cc *http2ClientConn) idleStateLocked() (st http2clientConnIdleState) {
 	}
 
 	st.canTakeNewRequest = cc.goAway == nil && !cc.closed && !cc.closing && maxConcurrentOkay &&
-		int64(cc.nextStreamID)+2*int64(cc.pendingRequests) < math.MaxInt32
+		int64(cc.nextStreamID)+2*int64(cc.pendingRequests) < math.MaxInt32 &&
+		!cc.tooIdleLocked()
 	st.freshConn = cc.nextStreamID == 1 && st.canTakeNewRequest
 	return
 }
@@ -7239,6 +7246,16 @@ func (cc *http2ClientConn) idleStateLocked() (st http2clientConnIdleState) {
 func (cc *http2ClientConn) canTakeNewRequestLocked() bool {
 	st := cc.idleStateLocked()
 	return st.canTakeNewRequest
+}
+
+// tooIdleLocked reports whether this connection has been been sitting idle
+// for too much wall time.
+func (cc *http2ClientConn) tooIdleLocked() bool {
+	// The Round(0) strips the monontonic clock reading so the
+	// times are compared based on their wall time. We don't want
+	// to reuse a connection that's been sitting idle during
+	// VM/laptop suspend if monotonic time was also frozen.
+	return cc.idleTimeout != 0 && !cc.lastIdle.IsZero() && time.Since(cc.lastIdle.Round(0)) > cc.idleTimeout
 }
 
 // onIdleTimeout is called from a time.AfterFunc goroutine. It will
@@ -7645,6 +7662,7 @@ func (cc *http2ClientConn) awaitOpenSlotForRequest(req *Request) error {
 			}
 			return http2errClientConnUnusable
 		}
+		cc.lastIdle = time.Time{}
 		if int64(len(cc.streams))+1 <= int64(cc.maxConcurrentStreams) {
 			if waitingForConn != nil {
 				close(waitingForConn)
@@ -7973,7 +7991,29 @@ func (cc *http2ClientConn) encodeHeaders(req *Request, addGzipHeader bool, trail
 				if vv[0] == "" {
 					continue
 				}
-
+			} else if strings.EqualFold(k, "cookie") {
+				// Per 8.1.2.5 To allow for better compression efficiency, the
+				// Cookie header field MAY be split into separate header fields,
+				// each with one or more cookie-pairs.
+				for _, v := range vv {
+					for {
+						p := strings.IndexByte(v, ';')
+						if p < 0 {
+							break
+						}
+						f("cookie", v[:p])
+						p++
+						// strip space after semicolon if any.
+						for p+1 <= len(v) && v[p] == ' ' {
+							p++
+						}
+						v = v[p:]
+					}
+					if len(v) > 0 {
+						f("cookie", v)
+					}
+				}
+				continue
 			}
 
 			for _, v := range vv {
@@ -8111,6 +8151,7 @@ func (cc *http2ClientConn) streamByID(id uint32, andRemove bool) *http2clientStr
 		delete(cc.streams, id)
 		if len(cc.streams) == 0 && cc.idleTimer != nil {
 			cc.idleTimer.Reset(cc.idleTimeout)
+			cc.lastIdle = time.Now()
 		}
 		close(cs.done)
 		// Wake up checkResetOrDone via clientStream.awaitFlowControl and
