@@ -96,13 +96,17 @@ func (c *cache) shouldLoad(ctx context.Context, s *snapshot, originalFH, current
 	if original.Name.Name != current.Name.Name {
 		return true
 	}
-	// If the package's imports have changed, re-run `go list`.
-	if len(original.Imports) != len(current.Imports) {
+	// If the package's imports have increased, definitely re-run `go list`.
+	if len(original.Imports) < len(current.Imports) {
 		return true
 	}
-	for i, importSpec := range original.Imports {
-		// TODO: Handle the case where the imports have just been re-ordered.
-		if importSpec.Path.Value != current.Imports[i].Path.Value {
+	importSet := make(map[string]struct{})
+	for _, importSpec := range original.Imports {
+		importSet[importSpec.Path.Value] = struct{}{}
+	}
+	// If any of the current imports were not in the original imports.
+	for _, importSpec := range current.Imports {
+		if _, ok := importSet[importSpec.Path.Value]; !ok {
 			return true
 		}
 	}
