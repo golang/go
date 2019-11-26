@@ -1374,7 +1374,7 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 	if rest, err := asn1.Unmarshal(in.TBSCertificate.Issuer.FullBytes, &issuer); err != nil {
 		return nil, err
 	} else if len(rest) != 0 {
-		return nil, errors.New("x509: trailing data after X.509 subject")
+		return nil, errors.New("x509: trailing data after X.509 issuer")
 	}
 
 	out.Issuer.FillFromRDNSequence(&issuer)
