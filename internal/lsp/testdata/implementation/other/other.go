@@ -13,3 +13,9 @@ func (ImpS) Laugh() { //@mark(OtherLaughS, "Laugh")
 type ImpI interface { //@mark(OtherImpI, "ImpI")
 	Laugh() //@mark(OtherLaughI, "Laugh")
 }
+
+type Foo struct {
+}
+
+func (Foo) U() { //@mark(ImpU, "U")
+}

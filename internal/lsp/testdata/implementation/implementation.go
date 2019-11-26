@@ -1,5 +1,7 @@
 package implementation
 
+import "implementation/other"
+
 type ImpP struct{} //@ImpP
 
 func (*ImpP) Laugh() { //@mark(LaughP, "Laugh")
@@ -16,4 +18,12 @@ type ImpI interface { //@ImpI
 
 type Laugher interface { //@Laugher,implementations("augher", ImpP),implementations("augher", OtherImpP),implementations("augher", ImpI),implementations("augher", ImpS),implementations("augher", OtherImpI),implementations("augher", OtherImpS),
 	Laugh() //@mark(LaughL, "Laugh"),implementations("augh", LaughP),implementations("augh", OtherLaughP),implementations("augh", LaughI),implementations("augh", LaughS),implementations("augh", OtherLaughI),implementations("augh", OtherLaughS)
+}
+
+type Foo struct {
+	other.Foo
+}
+
+type U interface {
+	U() //@mark(IntU, "U"),implementations("U", ImpU),
 }

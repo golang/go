@@ -17,24 +17,25 @@ import (
 
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/lsp/telemetry"
+	"golang.org/x/tools/internal/telemetry/log"
 )
 
 func (i *IdentifierInfo) Implementation(ctx context.Context) ([]protocol.Location, error) {
+	ctx = telemetry.Package.With(ctx, i.pkg.ID())
+
 	res, err := i.implementations(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	var objs []types.Object
-	pkgs := map[types.Object]Package{}
-	// To ensure that we get one object per position, the seen map tracks object positions.
-	var seen map[token.Pos]bool
+	pkgs := map[token.Pos]Package{}
 
 	if res.toMethod != nil {
-		seen = make(map[token.Pos]bool, len(res.toMethod))
 		// If we looked up a method, results are in toMethod.
 		for _, s := range res.toMethod {
-			if seen[s.Obj().Pos()] {
+			if pkgs[s.Obj().Pos()] != nil {
 				continue
 			}
 			// Determine package of receiver.
@@ -44,14 +45,12 @@ func (i *IdentifierInfo) Implementation(ctx context.Context) ([]protocol.Locatio
 			}
 			if n, ok := recv.(*types.Named); ok {
 				pkg := res.pkgs[n]
-				pkgs[s.Obj()] = pkg
+				pkgs[s.Obj().Pos()] = pkg
 			}
 			// Add object to objs.
 			objs = append(objs, s.Obj())
-			seen[s.Obj().Pos()] = true
 		}
 	} else {
-		seen = make(map[token.Pos]bool, len(res.to))
 		// Otherwise, the results are in to.
 		for _, t := range res.to {
 			// We'll provide implementations that are named types and pointers to named types.
@@ -59,34 +58,36 @@ func (i *IdentifierInfo) Implementation(ctx context.Context) ([]protocol.Locatio
 				t = p.Elem()
 			}
 			if n, ok := t.(*types.Named); ok {
-				if seen[n.Obj().Pos()] {
+				if pkgs[n.Obj().Pos()] != nil {
 					continue
 				}
 				pkg := res.pkgs[n]
-				pkgs[n.Obj()] = pkg
+				pkgs[n.Obj().Pos()] = pkg
 				objs = append(objs, n.Obj())
-				seen[n.Obj().Pos()] = true
 			}
 		}
 	}
 
 	var locations []protocol.Location
 	for _, obj := range objs {
-		pkg := pkgs[obj]
-		if pkgs[obj] == nil || len(pkg.CompiledGoFiles()) == 0 {
+		pkg := pkgs[obj.Pos()]
+		if pkgs[obj.Pos()] == nil || len(pkg.CompiledGoFiles()) == 0 {
 			continue
 		}
-		file, _, err := i.Snapshot.View().FindPosInPackage(pkgs[obj], obj.Pos())
+		file, _, err := i.Snapshot.View().FindPosInPackage(pkgs[obj.Pos()], obj.Pos())
 		if err != nil {
-			return nil, err
+			log.Error(ctx, "Error getting file for object", err)
+			continue
 		}
 		ident, err := findIdentifier(i.Snapshot, pkg, file, obj.Pos())
 		if err != nil {
-			return nil, err
+			log.Error(ctx, "Error getting ident for object", err)
+			continue
 		}
 		decRange, err := ident.Declaration.Range()
 		if err != nil {
-			return nil, err
+			log.Error(ctx, "Error getting range for object", err)
+			continue
 		}
 		// Do not add interface itself to the list.
 		if ident.Declaration.spanRange == i.Declaration.spanRange {
@@ -136,7 +137,6 @@ func (i *IdentifierInfo) implementations(ctx context.Context) (implementsResult,
 			}
 		}
 	}
-
 	allNamed = append(allNamed, types.Universe.Lookup("error").Type().(*types.Named))
 
 	var msets typeutil.MethodSetCache
