@@ -7,6 +7,8 @@
 package main
 
 import (
+	"cmd/internal/sys"
+	"debug/elf"
 	"fmt"
 	"internal/testenv"
 	"io/ioutil"
@@ -15,7 +17,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
+	"text/template"
 )
 
 func getCCAndCCFLAGS(t *testing.T, env []string) (string, []string) {
@@ -207,5 +211,197 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("%s", out)
 		t.Fatal(err)
+	}
+}
+
+const pieSourceTemplate = `
+package main
+
+import "fmt"
+
+// Force the creation of a lot of type descriptors that will go into
+// the .data.rel.ro section.
+{{range $index, $element := .}}var V{{$index}} interface{} = [{{$index}}]int{}
+{{end}}
+
+func main() {
+{{range $index, $element := .}}	fmt.Println(V{{$index}})
+{{end}}
+}
+`
+
+func TestPIESize(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	if !sys.BuildModeSupported(runtime.Compiler, "pie", runtime.GOOS, runtime.GOARCH) {
+		t.Skip("-buildmode=pie not supported")
+	}
+
+	tmpl := template.Must(template.New("pie").Parse(pieSourceTemplate))
+
+	writeGo := func(t *testing.T, dir string) {
+		f, err := os.Create(filepath.Join(dir, "pie.go"))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Passing a 100-element slice here will cause
+		// pieSourceTemplate to create 100 variables with
+		// different types.
+		if err := tmpl.Execute(f, make([]byte, 100)); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := f.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for _, external := range []bool{false, true} {
+		external := external
+
+		name := "TestPieSize-"
+		if external {
+			name += "external"
+		} else {
+			name += "internal"
+		}
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			dir, err := ioutil.TempDir("", "go-link-"+name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(dir)
+
+			writeGo(t, dir)
+
+			binexe := filepath.Join(dir, "exe")
+			binpie := filepath.Join(dir, "pie")
+			if external {
+				binexe += "external"
+				binpie += "external"
+			}
+
+			build := func(bin, mode string) error {
+				cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", bin, "-buildmode="+mode)
+				if external {
+					cmd.Args = append(cmd.Args, "-ldflags=-linkmode=external")
+				}
+				cmd.Args = append(cmd.Args, "pie.go")
+				cmd.Dir = dir
+				t.Logf("%v", cmd.Args)
+				out, err := cmd.CombinedOutput()
+				if len(out) > 0 {
+					t.Logf("%s", out)
+				}
+				if err != nil {
+					t.Error(err)
+				}
+				return err
+			}
+
+			var errexe, errpie error
+			var wg sync.WaitGroup
+			wg.Add(2)
+			go func() {
+				defer wg.Done()
+				errexe = build(binexe, "exe")
+			}()
+			go func() {
+				defer wg.Done()
+				errpie = build(binpie, "pie")
+			}()
+			wg.Wait()
+			if errexe != nil || errpie != nil {
+				t.Fatal("link failed")
+			}
+
+			var sizeexe, sizepie uint64
+			if fi, err := os.Stat(binexe); err != nil {
+				t.Fatal(err)
+			} else {
+				sizeexe = uint64(fi.Size())
+			}
+			if fi, err := os.Stat(binpie); err != nil {
+				t.Fatal(err)
+			} else {
+				sizepie = uint64(fi.Size())
+			}
+
+			elfexe, err := elf.Open(binexe)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer elfexe.Close()
+
+			elfpie, err := elf.Open(binpie)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer elfpie.Close()
+
+			// The difference in size between exe and PIE
+			// should be approximately the difference in
+			// size of the .text section plus the size of
+			// the PIE dynamic data sections plus the
+			// difference in size of the .got and .plt
+			// sections if they exist.
+			// We ignore unallocated sections.
+
+			textsize := func(ef *elf.File, name string) uint64 {
+				for _, s := range ef.Sections {
+					if s.Name == ".text" {
+						return s.Size
+					}
+				}
+				t.Fatalf("%s: no .text section", name)
+				return 0
+			}
+			textexe := textsize(elfexe, binexe)
+			textpie := textsize(elfpie, binpie)
+
+			dynsize := func(ef *elf.File) uint64 {
+				var ret uint64
+				for _, s := range ef.Sections {
+					if s.Flags&elf.SHF_ALLOC == 0 {
+						continue
+					}
+					switch s.Type {
+					case elf.SHT_DYNSYM, elf.SHT_STRTAB, elf.SHT_REL, elf.SHT_RELA, elf.SHT_HASH, elf.SHT_GNU_HASH, elf.SHT_GNU_VERDEF, elf.SHT_GNU_VERNEED, elf.SHT_GNU_VERSYM:
+						ret += s.Size
+					}
+					if s.Flags&elf.SHF_WRITE != 0 && (strings.Contains(s.Name, ".got") || strings.Contains(s.Name, ".plt")) {
+						ret += s.Size
+					}
+				}
+				return ret
+			}
+
+			dynexe := dynsize(elfexe)
+			dynpie := dynsize(elfpie)
+
+			extrasize := func(ef *elf.File) uint64 {
+				var ret uint64
+				for _, s := range ef.Sections {
+					if s.Flags&elf.SHF_ALLOC == 0 {
+						ret += s.Size
+					}
+				}
+				return ret
+			}
+
+			extraexe := extrasize(elfexe)
+			extrapie := extrasize(elfpie)
+
+			diffReal := (sizepie - extrapie) - (sizeexe - extraexe)
+			diffExpected := (textpie + dynpie) - (textexe + dynexe)
+
+			t.Logf("real size difference %#x, expected %#x", diffReal, diffExpected)
+
+			if diffReal > (diffExpected + diffExpected/10) {
+				t.Errorf("PIE unexpectedly large: got difference of %d (%d - %d), expected difference %d", diffReal, sizepie, sizeexe, diffExpected)
+			}
+		})
 	}
 }
