@@ -122,6 +122,16 @@ func Cmp(f float64) bool {
 	return f > 4 || f < -4
 }
 
+func CmpZero64(f float64) bool {
+	// s390x:"LTDBR",-"FCMPU"
+	return f <= 0
+}
+
+func CmpZero32(f float32) bool {
+	// s390x:"LTEBR",-"CEBR"
+	return f <= 0
+}
+
 // ---------------- //
 //    Non-floats    //
 // ---------------- //
