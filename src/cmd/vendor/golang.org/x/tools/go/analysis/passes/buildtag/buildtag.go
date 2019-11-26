@@ -16,9 +16,11 @@ import (
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 )
 
+const Doc = "check that +build tags are well-formed and correctly located"
+
 var Analyzer = &analysis.Analyzer{
 	Name: "buildtag",
-	Doc:  "check that +build tags are well-formed and correctly located",
+	Doc:  Doc,
 	Run:  runBuildTag,
 }
 

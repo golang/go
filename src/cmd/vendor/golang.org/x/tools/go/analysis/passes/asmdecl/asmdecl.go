@@ -22,9 +22,11 @@ import (
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 )
 
+const Doc = "report mismatches between assembly files and Go declarations"
+
 var Analyzer = &analysis.Analyzer{
 	Name: "asmdecl",
-	Doc:  "report mismatches between assembly files and Go declarations",
+	Doc:  Doc,
 	Run:  run,
 }
 

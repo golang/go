@@ -123,8 +123,12 @@ type Version struct {
 	Version string `json:",omitempty"`
 }
 
-// String returns the module version syntax Path@Version.
+// String returns a representation of the Version suitable for logging
+// (Path@Version, or just Path if Version is empty).
 func (m Version) String() string {
+	if m.Version == "" {
+		return m.Path
+	}
 	return m.Path + "@" + m.Version
 }
 

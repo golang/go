@@ -313,8 +313,8 @@ func isIndirect(line *Line) bool {
 	if len(line.Suffix) == 0 {
 		return false
 	}
-	f := strings.Fields(line.Suffix[0].Token)
-	return (len(f) == 2 && f[1] == "indirect" || len(f) > 2 && f[1] == "indirect;") && f[0] == "//"
+	f := strings.Fields(strings.TrimPrefix(line.Suffix[0].Token, string(slashSlash)))
+	return (len(f) == 1 && f[0] == "indirect" || len(f) > 1 && f[0] == "indirect;")
 }
 
 // setIndirect sets line to have (or not have) a "// indirect" comment.
@@ -329,13 +329,17 @@ func setIndirect(line *Line, indirect bool) {
 			line.Suffix = []Comment{{Token: "// indirect", Suffix: true}}
 			return
 		}
-		// Insert at beginning of existing comment.
+
 		com := &line.Suffix[0]
-		space := " "
-		if len(com.Token) > 2 && com.Token[2] == ' ' || com.Token[2] == '\t' {
-			space = ""
+		text := strings.TrimSpace(strings.TrimPrefix(com.Token, string(slashSlash)))
+		if text == "" {
+			// Empty comment.
+			com.Token = "// indirect"
+			return
 		}
-		com.Token = "// indirect;" + space + com.Token[2:]
+
+		// Insert at beginning of existing comment.
+		com.Token = "// indirect; " + text
 		return
 	}
 
