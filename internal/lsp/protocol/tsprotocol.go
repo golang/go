@@ -1882,7 +1882,7 @@ type InnerServerCapabilities struct {
 	 * specified if the client states that it supports
 	 * `prepareSupport` in its initial `initialize` request.
 	 */
-	RenameProvider RenameOptions/*boolean | RenameOptions*/ `json:"renameProvider,omitempty"`
+	RenameProvider interface{}/*boolean | RenameOptions*/ `json:"renameProvider,omitempty"`
 	/**
 	 * The server provides folding provider support.
 	 */
@@ -3685,7 +3685,7 @@ const (
 	WatchDelete WatchKind = 4
 )
 
-// Types created to avoid struct in formal parameters and embedded structs
+// Types created to name formal parameters and embedded structs
 type ParamConfiguration struct {
 	ConfigurationParams
 	PartialResultParams
