@@ -438,7 +438,7 @@ func (check *Checker) collectObjects() {
 					// - a receiver type parameter is like any other type parameter, except that it is passed implicitly (via the receiver)
 					// - the receiver specification is effectively the declaration of that type parameter
 					// - if the receiver type is parameterized but we don't need the parameters, we permit leaving them away
-					// - this is a effectively a declaration, and thus a receiver type parameter may be the blank identifier (_)
+					// - this is effectively a declaration, and thus a receiver type parameter may be the blank identifier (_)
 					// - since methods cannot have other type parameters, we store receiver type parameters where function type parameters would be
 					ptr, recv, _ := check.unpackRecv(d.Recv.List[0].Type, false)
 					// (Methods with invalid receiver cannot be associated to a type, and
@@ -509,6 +509,7 @@ L: // unpack receiver type
 		case *ast.ParenExpr:
 			rtyp = t.X
 		case *ast.StarExpr:
+			// TODO(gri) this is incorrect - we shouldn't permit say ***T as a receiver here
 			rtyp = t.X
 		default:
 			break L

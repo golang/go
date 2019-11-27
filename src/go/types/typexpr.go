@@ -151,7 +151,7 @@ func (check *Checker) instantiatedType(e ast.Expr) Type {
 	// A parameterized type where all type arguments are known
 	// (i.e., not type parameters themselves) can be instantiated.
 	if ptyp, _ := typ.(*Parameterized); ptyp != nil && !IsParameterized(ptyp) {
-		typ = check.inst(ptyp.tname, ptyp.targs)
+		typ = check.instantiate2(e.Pos(), ptyp.tname.typ.(*Named), ptyp.targs)
 		// TODO(gri) can this ever be nil? comment.
 		if typ == nil {
 			return Typ[Invalid] // error was reported by check.instatiate
@@ -273,19 +273,77 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		}
 
 	case *ast.CallExpr:
-		// We may have a parameterized type or an "instantiated" contract.
-		typ := new(Parameterized)
+		typ := check.typ(e.Fun) // TODO(gri) what about cycles?
+		if typ == Typ[Invalid] {
+			return typ // error already reported
+		}
+
+		named, _ := typ.(*Named)
+		if named == nil || named.obj == nil || !named.obj.IsParameterized() || named.targs != nil {
+			check.errorf(e.Pos(), "%s is not a parametrized type", typ)
+			return Typ[Invalid]
+		}
+
+		// the number of supplied types must match the number of type parameters
+		// TODO(gri) fold into code below - we want to eval args always
+		tname := named.obj
+		if len(e.Args) != len(tname.tparams) {
+			// TODO(gri) provide better error message
+			check.errorf(e.Pos(), "got %d arguments but %d type parameters", len(e.Args), len(tname.tparams))
+			return Typ[Invalid]
+		}
+
+		// evaluate arguments
+		targs := check.typeList(e.Args)
+		if targs == nil {
+			return Typ[Invalid]
+		}
+		assert(len(targs) == len(tname.tparams))
+
+		// substitute type bound parameters with arguments
+		// and check if each argument satisfies its bound
+		for i, tpar := range tname.tparams {
+			pos := e.Args[i].Pos()
+			pos = e.Pos()                        // TODO(gri) remove in favor of more accurate pos on prev. line?
+			bound := tpar.typ.(*TypeParam).bound // interface or contract or nil
+			switch b := bound.(type) {
+			case nil:
+				// nothing to do (no bound)
+			case *Interface:
+				iface := check.subst(token.NoPos, b, tname.tparams, targs).(*Interface)
+				if !check.satisfyBound(pos, tpar, targs[i], iface) {
+					return Typ[Invalid]
+				}
+			case *Contract:
+				iface := check.subst(token.NoPos, b.ifaceAt(i), tname.tparams, targs).(*Interface)
+				if !check.satisfyBound(pos, tpar, targs[i], iface) {
+					return Typ[Invalid]
+				}
+			default:
+				unreachable()
+			}
+		}
+
+		// instantiate parameterized type
+		typ = check.instantiate2(e.Pos(), named, targs)
 		def.setUnderlying(typ)
-		if check.parameterizedType(typ, e) {
-			if IsParameterizedList(typ.targs) {
+		return typ
+
+		/*
+			// We may have a parameterized type or an "instantiated" contract.
+			typ := new(Parameterized)
+			def.setUnderlying(typ)
+			if check.parameterizedType(typ, e) {
+				if IsParameterizedList(typ.targs) {
+					return typ
+				}
+				typ := check.inst(typ.tname, typ.targs)
+				def.setUnderlying(typ) // TODO(gri) do we need this?
 				return typ
 			}
-			typ := check.inst(typ.tname, typ.targs)
-			def.setUnderlying(typ) // TODO(gri) do we need this?
-			return typ
-		}
-		// TODO(gri) If we have a cycle and we reach here, "leafs" of
-		// the cycle may refer to a not fully set up Parameterized typ.
+			// TODO(gri) If we have a cycle and we reach here, "leafs" of
+			// the cycle may refer to a not fully set up Parameterized typ.
+		*/
 
 	case *ast.ParenExpr:
 		return check.definedType(e.X, def)
@@ -483,6 +541,27 @@ func (check *Checker) parameterizedType(typ *Parameterized, e *ast.CallExpr) boo
 	if args == nil {
 		return false
 	}
+	assert(len(args) == len(tname.tparams))
+
+	// substitute type bound parameters with arguments
+	// and check if each argument satisfies its bound
+	for i, tpar := range tname.tparams {
+		pos := e.Args[i].Pos()
+		pos = e.Pos()                        // TODO(gri) remove in favor of more accurate pos on prev. line?
+		bound := tpar.typ.(*TypeParam).bound // interface or contract or nil
+		switch b := bound.(type) {
+		case nil:
+			// nothing to do (no bound)
+		case *Interface:
+			iface := check.subst(e.Pos(), b, tname.tparams, args).(*Interface)
+			check.satisfyBound(pos, tpar, args[i], iface)
+		case *Contract:
+			panic("unimplemented")
+		default:
+			unreachable()
+		}
+
+	}
 
 	// TODO(gri) quick hack - clean this up
 	// Also, it looks like contract should be part of the parameterized type,
@@ -494,25 +573,55 @@ func (check *Checker) parameterizedType(typ *Parameterized, e *ast.CallExpr) boo
 	// the current approach may be the right one. The current approach also
 	// lends itself more easily to a design where we just use interfaces
 	// rather than contracts.
-	assert(len(tname.tparams) > 0)
-	bound := tname.tparams[0].typ.(*TypeParam).bound // TODO(gri) This is incorrect (index 0) in general. FIX THIS.
-	switch b := bound.(type) {
-	case nil:
-		// nothing to do (no bound)
-	case *Interface:
-		panic("unimplemented")
-	case *Contract:
-		if !check.satisfyContract(b, args) {
-			// TODO(gri) need to put in some work for really good error messages here
-			check.errorf(e.Pos(), "contract for %s is not satisfied", tname)
+	/*
+		assert(len(tname.tparams) > 0)
+		bound := tname.tparams[0].typ.(*TypeParam).bound // TODO(gri) This is incorrect (index 0) in general. FIX THIS.
+		switch b := bound.(type) {
+		case nil:
+			// nothing to do (no bound)
+		case *Interface:
+			panic("unimplemented")
+		case *Contract:
+			if !check.satisfyContract(b, args) {
+				// TODO(gri) need to put in some work for really good error messages here
+				check.errorf(e.Pos(), "contract for %s is not satisfied", tname)
+			}
+		default:
+			unreachable()
 		}
-	default:
-		unreachable()
-	}
+	*/
 
 	// complete parameterized type
 	typ.tname = tname
 	typ.targs = args
+	return true
+}
+
+func (check *Checker) satisfyBound(pos token.Pos, tname *TypeName, arg Type, bound *Interface) bool {
+	// use interface type of type parameter, if any
+	// targ must implement iface
+	if m, _ := check.missingMethod(arg, bound, true); m != nil {
+		check.errorf(pos, "constraint for %s is not satisfied", tname)
+		// check.dump("missing %s (%s, %s)", m, arg, bound)
+		return false
+	}
+	// arg's underlying type must also be one of the bound interface types listed, if any
+	if len(bound.types) > 0 {
+		utyp := arg.Underlying()
+		// TODO(gri) Cannot handle a type argument that is itself parameterized for now
+		switch utyp.(type) {
+		case *Interface, *Contract:
+			panic("unimplemented")
+		}
+		for _, t := range bound.types {
+			// if we find one matching type, we're ok
+			if Identical(utyp, t) {
+				return true
+			}
+		}
+		check.errorf(pos, "constraint for %s is not satisfied (not an enumerated type)", tname)
+		return false
+	}
 	return true
 }
 

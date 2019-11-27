@@ -278,7 +278,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			}
 			return nil
 		}
-		resTyp := applyTypeFunc(f, x.typ)
+		resTyp := check.applyTypeFunc(f, x.typ)
 		if resTyp == nil {
 			check.invalidArg(x.pos(), "arguments have type %s, expected floating-point", x.typ)
 			return
@@ -396,7 +396,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			}
 			return nil
 		}
-		resTyp := applyTypeFunc(f, x.typ)
+		resTyp := check.applyTypeFunc(f, x.typ)
 		if resTyp == nil {
 			check.invalidArg(x.pos(), "argument has type %s, expected complex type", x.typ)
 			return
@@ -654,7 +654,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 // constraints of x. If any of these applications of f return
 // nil, applyTypeFunc returns nil.
 // If x is not a type parameter, the result is f(x).
-func applyTypeFunc(f func(Type) Type, x Type) Type {
+func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 	if tp, _ := x.Underlying().(*TypeParam); tp != nil {
 		// Test if t satisfies the requirements for the argument
 		// type and collect possible result types at the same time.
@@ -676,7 +676,7 @@ func applyTypeFunc(f func(Type) Type, x Type) Type {
 
 		// construct a suitable new type parameter
 		tpar := NewTypeName(token.NoPos, nil /* = Universe pkg */, "<type parameter literal>", nil)
-		resTyp := NewTypeParam(tpar, 0, nil) // assigns type to tpar as a side-effect
+		resTyp := check.NewTypeParam(tpar, 0, nil) // assigns type to tpar as a side-effect
 
 		// construct a corresponding interface and contract
 		iface := &Interface{allMethods: markComplete, types: resTypes}

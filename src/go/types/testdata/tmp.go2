@@ -16,6 +16,7 @@ type Iterator(type K) struct {
 	r Receiver(Pair(K))
 }
 
+/*
 func (r Receiver(T)) Values() T {
 	return r.values
 }
@@ -29,3 +30,4 @@ func (it Iterator(K)) Next() K {
         var x Pair(K) //= (r.Values)()
 	return x.key
 }
+*/

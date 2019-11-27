@@ -275,9 +275,9 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 	case *TypeParam:
 		var s string
 		if t.obj != nil {
-			s = t.obj.name
+			s = fmt.Sprintf("%s.%d", t.obj.name, t.id)
 		} else {
-			s = fmt.Sprintf("TypeParam[%d]", t.index)
+			s = fmt.Sprintf("TypeParam.%d[%d]", t.id, t.index)
 		}
 		buf.WriteString(s)
 

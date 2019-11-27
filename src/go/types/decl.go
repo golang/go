@@ -649,7 +649,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 
 func (check *Checker) declareTypeParam(name *ast.Ident, index int, bound Type) *TypeName {
 	tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-	NewTypeParam(tpar, index, bound)                        // assigns type to tpar as a side-effect
+	check.NewTypeParam(tpar, index, bound)                  // assigns type to tpar as a side-effect
 	check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
 	return tpar
 }
@@ -728,6 +728,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 			// (check that number of parameters match is done when type-checking the receiver expression)
 			check.openScope(fdecl, "receiver type parameters")
 			defer check.closeScope()
+			// TODO(gri) can we use (an adjusted version of) collectTypeParams here?
 			for i, name := range tparams {
 				obj.tparams = append(obj.tparams, check.declareTypeParam(name, i, nil))
 			}
@@ -740,7 +741,18 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 
 	sig := new(Signature)
 	obj.typ = sig // guard against cycles
+
+	// Avoid cycle error when referring to method while type-checking the signature.
+	// This avoids a nuisance in the best case (non-parameterized receiver type) and
+	// since the method is not a type, we get an error. If we have a parameterized
+	// receiver type, instantiating the receiver type leads to the instantiation of
+	// its methods, and we don't want a cycle error in that case.
+	// TODO(gri) review if this is correct for the latter case
+	saved := obj.color_
+	obj.color_ = black
 	check.funcType(sig, fdecl.Recv, fdecl.Type)
+	obj.color_ = saved
+
 	if !fdecl.IsMethod() {
 		// only functions can have type parameters that need to be passed
 		// (the obj.tparams for methods are the receiver parameters)

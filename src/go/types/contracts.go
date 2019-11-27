@@ -8,6 +8,7 @@ package types
 
 import (
 	"go/ast"
+	"go/token"
 )
 
 // TODO(gri) Handling a contract like a type is problematic because it
@@ -21,7 +22,7 @@ func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
 	tparams := make([]*TypeName, len(e.TParams))
 	for index, name := range e.TParams {
 		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-		NewTypeParam(tpar, index, nil) // assigns type to tpar as a side-effect
+		check.NewTypeParam(tpar, index, nil) // assigns type to tpar as a side-effect
 		check.declare(check.scope, name, tpar, check.scope.pos)
 		tparams[index] = tpar
 	}
@@ -248,7 +249,7 @@ func (check *Checker) satisfyContract(contr *Contract, targs []Type) bool {
 		// TODO(gri) fix this
 		if IsParameterized(iface) {
 			// check.dump("BEFORE iface(%s) => %s (%s)", targ, iface, fmt.Sprintf("%p", iface))
-			iface = check.subst(iface, contr.TParams, targs).(*Interface)
+			iface = check.subst(token.NoPos, iface, contr.TParams, targs).(*Interface)
 			// check.dump("AFTER  iface(%s) => %s (%s)", targ, iface, fmt.Sprintf("%p", iface))
 		}
 		// use interface type of type parameter, if any

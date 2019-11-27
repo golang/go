@@ -34,7 +34,7 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 			if isTyped(arg.typ) {
 				if !check.identical0(par.typ, arg.typ, true, nil, targs) {
 					check.errorf(arg.pos(), "type %s for %s does not match %s = %s",
-						arg.typ, arg.expr, par.typ, check.subst(par.typ, tparams, targs),
+						arg.typ, arg.expr, par.typ, check.subst(pos, par.typ, tparams, targs),
 					)
 					return nil
 				}
@@ -71,7 +71,7 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 		// nil by making sure all default argument types are typed.
 		if isTyped(targ) && !check.identical0(par.typ, targ, true, nil, targs) {
 			check.errorf(arg.pos(), "default type %s for %s does not match %s = %s",
-				Default(arg.typ), arg.expr, par.typ, check.subst(par.typ, tparams, targs),
+				Default(arg.typ), arg.expr, par.typ, check.subst(pos, par.typ, tparams, targs),
 			)
 			return nil
 		}

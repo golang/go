@@ -467,6 +467,7 @@ type Named struct {
 	obj        *TypeName // corresponding declared object
 	orig       Type      // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
 	underlying Type      // possibly a *Named during setup; never a *Named once set up completely
+	targs      []Type    // type arguments after instantiation
 	methods    []*Func   // methods declared for this type (not the method set of this type); signatures are type-checked lazily
 }
 
@@ -544,14 +545,16 @@ func (c *Contract) ifaceAt(index int) *Interface {
 
 // A TypeParam represents a type parameter type.
 type TypeParam struct {
+	id    uint64 // unique id
 	obj   *TypeName
-	index int
+	index int  // parameter index
 	bound Type // either an *Interface or a *Contract
 }
 
 // NewTypeParam returns a new TypeParam.
-func NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
-	typ := &TypeParam{obj, index, bound}
+func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
+	typ := &TypeParam{check.nextId, obj, index, bound}
+	check.nextId++
 	if obj.typ == nil {
 		obj.typ = typ
 	}

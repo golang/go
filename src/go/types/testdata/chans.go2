@@ -15,7 +15,7 @@ func Ranger(type T)() (*Sender(T), *Receiver(T)) {
 	d := make(chan bool)
 	s := &Sender(T){values: c, done: d}
 	r := &Receiver(T){values: c, done: d}
-	runtime.SetFinalizer(r, r /* ERROR not implemented */ .finalize)
+	runtime.SetFinalizer(r, r.finalize)
 	return s, r
 }
 

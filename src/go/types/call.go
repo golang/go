@@ -26,7 +26,9 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 		// conversion or type instantiation
 		T := x.typ
 		x.mode = invalid
-		if named, _ := T.(*Named); named != nil && named.obj != nil && named.obj.IsParameterized() {
+		// A parameterized type is only instantiated if it doesn't have an instantiation already (see named.targs).
+		// TODO(gri) This seems a bit subtle. Can we do better?
+		if named, _ := T.(*Named); named != nil && named.obj != nil && named.obj.IsParameterized() && named.targs == nil {
 			// type instantiation
 			x.typ = check.instantiatedType(e)
 			if x.typ != Typ[Invalid] {
@@ -187,7 +189,7 @@ func (check *Checker) instantiate(typ Type, tparams []*TypeName, args []*operand
 		targs[i] = a.typ
 	}
 	// result is instantiated typ
-	return check.subst(typ, tparams, targs)
+	return check.subst(token.NoPos, typ, tparams, targs)
 }
 
 func (check *Checker) exprList(elist []ast.Expr, allowCommaOk bool) (xlist []*operand, commaOk bool) {
@@ -312,8 +314,8 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 		if targs == nil {
 			return
 		}
-		rsig = check.subst(sig, sig.tparams, targs).(*Signature)
-		params = check.subst(params, sig.tparams, targs).(*Tuple)
+		rsig = check.subst(call.Pos(), sig, sig.tparams, targs).(*Signature)
+		params = check.subst(call.Pos(), params, sig.tparams, targs).(*Tuple)
 		// TODO(gri) Optimization: We don't need to check arguments
 		//           from which we inferred parameter types.
 	}

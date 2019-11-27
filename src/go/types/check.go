@@ -75,6 +75,7 @@ type Checker struct {
 	fset *token.FileSet
 	pkg  *Package
 	*Info
+	nextId uint64                     // unique Id for type parameters (first valid Id is 1)
 	objMap map[Object]*declInfo       // maps package-level objects and (non-interface) methods to declaration info
 	impMap map[importKey]*Package     // maps (import path, source directory) to (complete or fake) package
 	posMap map[*Interface][]token.Pos // maps interface types to lists of embedded interface positions
@@ -188,6 +189,7 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
 		fset:   fset,
 		pkg:    pkg,
 		Info:   info,
+		nextId: 1,
 		objMap: make(map[Object]*declInfo),
 		impMap: make(map[importKey]*Package),
 		posMap: make(map[*Interface][]token.Pos),
