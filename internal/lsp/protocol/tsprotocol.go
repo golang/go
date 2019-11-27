@@ -126,7 +126,7 @@ type CodeAction struct {
 	 * provides a edit and a command, first the edit is
 	 * executed and then the command.
 	 */
-	Command Command `json:"command,omitempty"`
+	Command *Command `json:"command,omitempty"`
 }
 
 /**

@@ -62,7 +62,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		codeActions = append(codeActions, protocol.CodeAction{
 			Title: "Tidy",
 			Kind:  protocol.SourceOrganizeImports,
-			Command: protocol.Command{
+			Command: &protocol.Command{
 				Title:   "Tidy",
 				Command: "tidy",
 				Arguments: []interface{}{

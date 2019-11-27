@@ -79,11 +79,27 @@ func TestCapabilities(t *testing.T) {
 		ContentChanges: []protocol.TextDocumentContentChangeEvent{
 			{
 				Range: nil,
-				Text:  `package main; func main() {}; func main2() {};`,
+				Text:  `package main; func main() { fmt.Println("") }`,
 			},
 		},
 	}); err != nil {
 		t.Fatal(err)
+	}
+
+	// Send a code action request to validate expected types.
+	actions, err := c.Server.CodeAction(ctx, &protocol.CodeActionParams{
+		TextDocument: protocol.TextDocumentIdentifier{
+			URI: uri,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, action := range actions {
+		// Validate that an empty command is sent along with import organization responses.
+		if action.Kind == protocol.SourceOrganizeImports && action.Command != nil {
+			t.Errorf("unexpected command for import organization")
+		}
 	}
 }
 

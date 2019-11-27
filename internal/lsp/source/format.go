@@ -315,7 +315,9 @@ func trimToFirstNonImport(fset *token.FileSet, f *ast.File, src []byte, err erro
 	}
 	end := f.End()
 	if firstDecl != nil {
-		end = tok.LineStart(fset.Position(firstDecl.Pos()).Line - 1)
+		if firstDeclLine := fset.Position(firstDecl.Pos()).Line; firstDeclLine > 1 {
+			end = tok.LineStart(firstDeclLine - 1)
+		}
 	}
 	// Any errors in the file must be after the part of the file that we care about.
 	switch err := err.(type) {
