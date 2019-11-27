@@ -14,6 +14,7 @@ If you use `gopls` with an editor that is not on this list, please let us know b
 * [Emacs](emacs.md)
 * [Acme](acme.md)
 * [Sublime Text](subl.md)
+* [Atom](atom.md)
 
 ## Installation
 
