@@ -149,20 +149,6 @@ func (cfg *Config) buildNode() *wire.Node {
 	}
 }
 
-func EncodeSpan(cfg Config, span *telemetry.Span) ([]byte, error) {
-	return json.Marshal(&wire.ExportTraceServiceRequest{
-		Node:  cfg.buildNode(),
-		Spans: []*wire.Span{convertSpan(span)},
-	})
-}
-
-func EncodeMetric(cfg Config, m telemetry.MetricData) ([]byte, error) {
-	return json.Marshal(&wire.ExportMetricsServiceRequest{
-		Node:    cfg.buildNode(),
-		Metrics: []*wire.Metric{convertMetric(m, cfg.Start)},
-	})
-}
-
 func (e *exporter) send(endpoint string, message interface{}) {
 	blob, err := json.Marshal(message)
 	if err != nil {

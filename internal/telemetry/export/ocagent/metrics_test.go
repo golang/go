@@ -1,11 +1,11 @@
 package ocagent_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"golang.org/x/tools/internal/telemetry"
-	"golang.org/x/tools/internal/telemetry/export/ocagent"
 	"golang.org/x/tools/internal/telemetry/metric"
 )
 
@@ -312,12 +312,12 @@ func TestEncodeMetric(t *testing.T) {
 		},
 	}
 
+	ctx := context.TODO()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ocagent.EncodeMetric(cfg, tt.data)
-			if err != nil {
-				t.Fatal(err)
-			}
+			exporter.Metric(ctx, tt.data)
+			exporter.Flush()
+			got := sent.get("/v1/metrics")
 			checkJSON(t, got, []byte(tt.want))
 		})
 	}
