@@ -460,13 +460,12 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) (found bool, ehdrFlags 
 // parameter initEhdrFlags contains the current header flags for the output
 // object, and the returned ehdrFlags contains what this Load function computes.
 // TODO: find a better place for this logic.
-func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string, initEhdrFlags uint32) (textp []*sym.Symbol, ehdrFlags uint32, err error) {
-	localSymVersion := syms.IncVersion()
+func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, pkg string, length int64, pn string, initEhdrFlags uint32) (textp []*sym.Symbol, ehdrFlags uint32, err error) {
 	newSym := func(name string, version int) *sym.Symbol {
-		return l.Create(name, syms)
+		return l.Create(name)
 	}
 	lookup := func(name string, version int) *sym.Symbol {
-		return l.LookupOrCreate(name, version, syms)
+		return l.LookupOrCreate(name, version)
 	}
 	errorf := func(str string, args ...interface{}) ([]*sym.Symbol, uint32, error) {
 		return nil, 0, fmt.Errorf("loadelf: %s: %v", pn, fmt.Sprintf(str, args...))

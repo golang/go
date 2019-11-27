@@ -148,11 +148,10 @@ func (f *peBiobuf) ReadAt(p []byte, off int64) (int, error) {
 // Load loads the PE file pn from input.
 // Symbols are written into syms, and a slice of the text symbols is returned.
 // If an .rsrc section is found, its symbol is returned as rsrc.
-func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, rsrc *sym.Symbol, err error) {
+func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, rsrc *sym.Symbol, err error) {
 	lookup := func(name string, version int) *sym.Symbol {
-		return l.LookupOrCreate(name, version, syms)
+		return l.LookupOrCreate(name, version)
 	}
-	localSymVersion := syms.IncVersion()
 	sectsyms := make(map[*pe.Section]*sym.Symbol)
 	sectdata := make(map[*pe.Section][]byte)
 

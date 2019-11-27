@@ -104,7 +104,10 @@ func hostArchive(ctxt *Link, name string) {
 	any := true
 	for any {
 		var load []uint64
-		for _, s := range ctxt.Syms.Allsym {
+		for _, s := range ctxt.loader.Syms {
+			if s == nil {
+				continue
+			}
 			for i := range s.R {
 				r := &s.R[i] // Copying sym.Reloc has measurable impact on performance
 				if r.Sym != nil && r.Sym.Type == sym.SXREF {

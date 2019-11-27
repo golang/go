@@ -423,8 +423,7 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
 
 // Load the Mach-O file pn from f.
 // Symbols are written into syms, and a slice of the text symbols is returned.
-func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
-	localSymVersion := syms.IncVersion()
+func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
 	errorf := func(str string, args ...interface{}) ([]*sym.Symbol, error) {
 		return nil, fmt.Errorf("loadmacho: %v: %v", pn, fmt.Sprintf(str, args...))
 	}
@@ -560,7 +559,7 @@ func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pk
 			continue
 		}
 		name := fmt.Sprintf("%s(%s/%s)", pkg, sect.segname, sect.name)
-		s := l.LookupOrCreate(name, localSymVersion, syms)
+		s := l.LookupOrCreate(name, localSymVersion)
 		if s.Type != 0 {
 			return errorf("duplicate %s/%s", sect.segname, sect.name)
 		}
@@ -609,7 +608,7 @@ func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pk
 		if machsym.type_&N_EXT == 0 {
 			v = localSymVersion
 		}
-		s := l.LookupOrCreate(name, v, syms)
+		s := l.LookupOrCreate(name, v)
 		if machsym.type_&N_EXT == 0 {
 			s.Attr |= sym.AttrDuplicateOK
 		}
