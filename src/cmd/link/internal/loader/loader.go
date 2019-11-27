@@ -109,7 +109,8 @@ type Loader struct {
 
 	objByPkg map[string]*oReader // map package path to its Go object reader
 
-	Syms []*sym.Symbol // indexed symbols. XXX we still make sym.Symbol for now.
+	Syms     []*sym.Symbol // indexed symbols. XXX we still make sym.Symbol for now.
+	symBatch []sym.Symbol  // batch of symbols.
 
 	anonVersion int // most recently assigned ext static sym pseudo-version
 
@@ -805,7 +806,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 		}
 		nv := l.extSyms[i-l.extStart]
 		if l.Reachable.Has(i) || strings.HasPrefix(nv.name, "gofile..") { // XXX file symbols are used but not marked
-			s := syms.Newsym(nv.name, nv.v)
+			s := l.allocSym(nv.name, nv.v)
 			preprocess(arch, s)
 			s.Attr.Set(sym.AttrReachable, l.Reachable.Has(i))
 			l.Syms[i] = s
@@ -844,12 +845,14 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
 		l.Syms[oldI] = nil
 	}
 
-	// Add symbols to the ctxt.Syms lookup table. This explicitly
-	// skips things created via loader.Create (marked with versions
-	// less than zero), since if we tried to add these we'd wind up
-	// with collisions. Along the way, update the version from the
-	// negative anon version to something larger than sym.SymVerStatic
-	// (needed so that sym.symbol.IsFileLocal() works properly).
+	// Add symbols to the ctxt.Syms lookup table. This explicitly skips things
+	// created via loader.Create (marked with versions less than zero), since
+	// if we tried to add these we'd wind up with collisions. We do, however,
+	// add these symbols to the list of global symbols so that other future
+	// steps (like pclntab generation) can find these symbols if neceassary.
+	// Along the way, update the version from the negative anon version to
+	// something larger than sym.SymVerStatic (needed so that
+	// sym.symbol.IsFileLocal() works properly).
 	anonVerReplacement := syms.IncVersion()
 	for _, s := range l.Syms {
 		if s == nil {
@@ -857,6 +860,8 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
 		}
 		if s.Name != "" && s.Version >= 0 {
 			syms.Add(s)
+		} else {
+			syms.Allsym = append(syms.Allsym, s)
 		}
 		if s.Version < 0 {
 			s.Version = int16(anonVerReplacement)
@@ -864,9 +869,25 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
 	}
 }
 
+// allocSym allocates a new symbol backing.
+func (l *Loader) allocSym(name string, version int) *sym.Symbol {
+	batch := l.symBatch
+	if len(batch) == 0 {
+		batch = make([]sym.Symbol, 1000)
+	}
+	s := &batch[0]
+	l.symBatch = batch[1:]
+
+	s.Dynid = -1
+	s.Name = name
+	s.Version = int16(version)
+
+	return s
+}
+
 // addNewSym adds a new sym.Symbol to the i-th index in the list of symbols.
-func (l *Loader) addNewSym(i Sym, syms *sym.Symbols, name string, ver int, unit *sym.CompilationUnit, t sym.SymKind) *sym.Symbol {
-	s := syms.Newsym(name, ver)
+func (l *Loader) addNewSym(i Sym, name string, ver int, unit *sym.CompilationUnit, t sym.SymKind) *sym.Symbol {
+	s := l.allocSym(name, ver)
 	if s.Type != 0 && s.Type != sym.SXREF {
 		fmt.Println("symbol already processed:", unit.Lib, i, s)
 		panic("symbol already processed")
@@ -921,7 +942,7 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 			continue
 		}
 
-		s := l.addNewSym(istart+Sym(i), syms, name, ver, r.unit, t)
+		s := l.addNewSym(istart+Sym(i), name, ver, r.unit, t)
 		s.Attr.Set(sym.AttrReachable, l.Reachable.Has(istart+Sym(i)))
 		nr += r.NReloc(i)
 	}
@@ -947,10 +968,9 @@ type funcAllocInfo struct {
 	fdOff   uint32 // number of int64's needed in all Funcdataoff slices
 }
 
-// LoadSymbol loads a single symbol by name.
-// This function should only be used by the host object loaders.
+// loadSymbol loads a single symbol by name.
 // NB: This function does NOT set the symbol as reachable.
-func (l *Loader) LoadSymbol(name string, version int, syms *sym.Symbols) *sym.Symbol {
+func (l *Loader) loadSymbol(name string, version int) *sym.Symbol {
 	global := l.Lookup(name, version)
 
 	// If we're already loaded, bail.
@@ -968,27 +988,27 @@ func (l *Loader) LoadSymbol(name string, version int, syms *sym.Symbols) *sym.Sy
 		return nil
 	}
 
-	return l.addNewSym(istart+Sym(i), syms, name, version, r.unit, sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)])
+	return l.addNewSym(istart+Sym(i), name, version, r.unit, sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)])
 }
 
 // LookupOrCreate looks up a symbol by name, and creates one if not found.
 // Either way, it will also create a sym.Symbol for it, if not already.
 // This should only be called when interacting with parts of the linker
 // that still works on sym.Symbols (i.e. internal cgo linking, for now).
-func (l *Loader) LookupOrCreate(name string, version int, syms *sym.Symbols) *sym.Symbol {
+func (l *Loader) LookupOrCreate(name string, version int) *sym.Symbol {
 	i := l.Lookup(name, version)
 	if i != 0 {
 		// symbol exists
 		if int(i) < len(l.Syms) && l.Syms[i] != nil {
-			return l.Syms[i] // already loaded
+			return l.Syms[i]
 		}
 		if l.IsExternal(i) {
 			panic("Can't load an external symbol.")
 		}
-		return l.LoadSymbol(name, version, syms)
+		return l.loadSymbol(name, version)
 	}
 	i = l.AddExtSym(name, version)
-	s := syms.Newsym(name, version)
+	s := l.allocSym(name, version)
 	l.Syms[i] = s
 	return s
 }
@@ -1001,7 +1021,7 @@ func (l *Loader) LookupOrCreate(name string, version int, syms *sym.Symbols) *sy
 // them fictitious (unique) versions, starting at -1 and decreasing by
 // one for each newly created symbol, and record them in the
 // extStaticSyms hash.
-func (l *Loader) Create(name string, syms *sym.Symbols) *sym.Symbol {
+func (l *Loader) Create(name string) *sym.Symbol {
 	i := l.max + 1
 	l.max++
 	if l.extStart == 0 {
@@ -1015,7 +1035,7 @@ func (l *Loader) Create(name string, syms *sym.Symbols) *sym.Symbol {
 	ver := l.anonVersion
 	l.extSyms = append(l.extSyms, nameVer{name, ver})
 	l.growSyms(int(i))
-	s := syms.Newsym(name, ver)
+	s := l.allocSym(name, ver)
 	l.Syms[i] = s
 	l.extStaticSyms[nameVer{name, ver}] = i
 

@@ -461,16 +461,15 @@ func (ctxt *Link) loadlib() {
 		// the host object loaders still work with sym.Symbols (for now),
 		// and they need cgo attributes set to work properly. So process
 		// them now.
-		lookup := func(name string, ver int) *sym.Symbol { return ctxt.loader.LookupOrCreate(name, ver, ctxt.Syms) }
 		for _, d := range ctxt.cgodata {
-			setCgoAttr(ctxt, lookup, d.file, d.pkg, d.directives)
+			setCgoAttr(ctxt, ctxt.loader.LookupOrCreate, d.file, d.pkg, d.directives)
 		}
 		ctxt.cgodata = nil
 
 		// Drop all the cgo_import_static declarations.
 		// Turns out we won't be needing them.
-		for _, s := range ctxt.Syms.Allsym {
-			if s.Type == sym.SHOSTOBJ {
+		for _, s := range ctxt.loader.Syms {
+			if s != nil && s.Type == sym.SHOSTOBJ {
 				// If a symbol was marked both
 				// cgo_import_static and cgo_import_dynamic,
 				// then we want to make it cgo_import_dynamic
@@ -495,7 +494,10 @@ func (ctxt *Link) loadlib() {
 		// If we have any undefined symbols in external
 		// objects, try to read them from the libgcc file.
 		any := false
-		for _, s := range ctxt.Syms.Allsym {
+		for _, s := range ctxt.loader.Syms {
+			if s == nil {
+				continue
+			}
 			for i := range s.R {
 				r := &s.R[i] // Copying sym.Reloc has measurable impact on performance
 				if r.Sym != nil && r.Sym.Type == sym.SXREF && r.Sym.Name != ".got" {
@@ -1674,7 +1676,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
 	if magic == 0x7f454c46 { // \x7F E L F
 		ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-			textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.Syms, f, pkg, length, pn, ehdr.flags)
+			textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn, ehdr.flags)
 			if err != nil {
 				Errorf(nil, "%v", err)
 				return
@@ -1687,7 +1689,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 
 	if magic&^1 == 0xfeedface || magic&^0x01000000 == 0xcefaedfe {
 		ldmacho := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-			textp, err := loadmacho.Load(ctxt.loader, ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
+			textp, err := loadmacho.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn)
 			if err != nil {
 				Errorf(nil, "%v", err)
 				return
@@ -1699,7 +1701,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 
 	if c1 == 0x4c && c2 == 0x01 || c1 == 0x64 && c2 == 0x86 {
 		ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-			textp, rsrc, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
+			textp, rsrc, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn)
 			if err != nil {
 				Errorf(nil, "%v", err)
 				return
@@ -1714,7 +1716,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 
 	if c1 == 0x01 && (c2 == 0xD7 || c2 == 0xF7) {
 		ldxcoff := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-			textp, err := loadxcoff.Load(ctxt.loader, ctxt.Arch, ctxt.Syms, f, pkg, length, pn)
+			textp, err := loadxcoff.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn)
 			if err != nil {
 				Errorf(nil, "%v", err)
 				return
@@ -1960,12 +1962,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			ver = sym.SymVerABIInternal
 		}
 
-		i := ctxt.loader.AddExtSym(elfsym.Name, ver)
-		if i == 0 {
-			continue
-		}
-		lsym := ctxt.Syms.Newsym(elfsym.Name, ver)
-		ctxt.loader.Syms[i] = lsym
+		lsym := ctxt.loader.LookupOrCreate(elfsym.Name, ver)
 
 		// Because loadlib above loads all .a files before loading any shared
 		// libraries, any non-dynimport symbols we find that duplicate symbols
@@ -1995,12 +1992,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		// mangle Go function names in the .so to include the
 		// ABI.
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
-			i := ctxt.loader.AddExtSym(elfsym.Name, sym.SymVerABIInternal)
-			if i == 0 {
-				continue
-			}
-			alias := ctxt.Syms.Newsym(elfsym.Name, sym.SymVerABIInternal)
-			ctxt.loader.Syms[i] = alias
+			alias := ctxt.loader.LookupOrCreate(elfsym.Name, sym.SymVerABIInternal)
 			if alias.Type != 0 {
 				continue
 			}

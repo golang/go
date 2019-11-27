@@ -95,6 +95,7 @@ func (syms *Symbols) Add(s *Symbol) {
 		panic(name + " already added")
 	}
 	m[name] = s
+	syms.Allsym = append(syms.Allsym, s)
 }
 
 // Allocate a new version (i.e. symbol namespace).

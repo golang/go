@@ -40,9 +40,8 @@ func (f *xcoffBiobuf) ReadAt(p []byte, off int64) (int, error) {
 }
 
 // loads the Xcoff file pn from f.
-// Symbols are written into syms, and a slice of the text symbols is returned.
-func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
-	localSymVersion := syms.IncVersion()
+// Symbols are written into loader, and a slice of the text symbols is returned.
+func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
 	errorf := func(str string, args ...interface{}) ([]*sym.Symbol, error) {
 		return nil, fmt.Errorf("loadxcoff: %v: %v", pn, fmt.Sprintf(str, args...))
 	}
@@ -63,7 +62,7 @@ func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader
 		lds := new(ldSection)
 		lds.Section = *sect
 		name := fmt.Sprintf("%s(%s)", pkg, lds.Name)
-		s := l.LookupOrCreate(name, localSymVersion, syms)
+		s := l.LookupOrCreate(name, localSymVersion)
 
 		switch lds.Type {
 		default:
@@ -90,7 +89,7 @@ func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader
 	}
 
 	// sx = symbol from file
-	// s = symbol for syms
+	// s = symbol for loader
 	for _, sx := range f.Symbols {
 		// get symbol type
 		stype, errmsg := getSymbolType(f, sx)
@@ -101,7 +100,7 @@ func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader
 			continue
 		}
 
-		s := l.LookupOrCreate(sx.Name, 0, syms)
+		s := l.LookupOrCreate(sx.Name, 0)
 
 		// Text symbol
 		if s.Type == sym.STEXT {
@@ -123,7 +122,7 @@ func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader
 		for i, rx := range sect.Relocs {
 			r := &rs[i]
 
-			r.Sym = l.LookupOrCreate(rx.Symbol.Name, 0, syms)
+			r.Sym = l.LookupOrCreate(rx.Symbol.Name, 0)
 			if uint64(int32(rx.VirtualAddress)) != rx.VirtualAddress {
 				return errorf("virtual address of a relocation is too big: 0x%x", rx.VirtualAddress)
 			}
@@ -157,7 +156,7 @@ func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader
 }
 
 // Convert symbol xcoff type to sym.SymKind
-// Returns nil if this shouldn't be added into syms (like .file or .dw symbols )
+// Returns nil if this shouldn't be added into loader (like .file or .dw symbols )
 func getSymbolType(f *xcoff.File, s *xcoff.Symbol) (stype sym.SymKind, err string) {
 	// .file symbol
 	if s.SectionNumber == -2 {
