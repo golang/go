@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 )
 
 // A Qualifier controls how named package-level objects are printed in
@@ -262,9 +263,9 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 	case *TypeParam:
 		var s string
 		if t.obj != nil {
-			s = fmt.Sprintf("%s.%d", t.obj.name, t.id)
+			s = fmt.Sprintf("%s%s", t.obj.name, subscript(t.id))
 		} else {
-			s = fmt.Sprintf("TypeParam.%d[%d]", t.id, t.index)
+			s = fmt.Sprintf("TypeParam%d[%d]", subscript(t.id), t.index)
 		}
 		buf.WriteString(s)
 
@@ -369,4 +370,20 @@ func embeddedFieldName(typ Type) string {
 		}
 	}
 	return "" // not a (pointer to) a defined type
+}
+
+// subscript returns the decimal (utf8) representation of x using subscript digits.
+func subscript(x uint64) []byte {
+	const w = len("₀") // all digits 0...9 have the same utf8 width
+	var buf [32 * w]byte
+	i := len(buf)
+	for {
+		i -= w
+		utf8.EncodeRune(buf[i:], '₀'+rune(x%10)) // '₀' == U+2080
+		x /= 10
+		if x == 0 {
+			break
+		}
+	}
+	return buf[i:]
 }
