@@ -30,7 +30,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 		// TODO(gri) This seems a bit subtle. Can we do better?
 		if named, _ := T.(*Named); named != nil && named.obj != nil && named.obj.IsParameterized() && named.targs == nil {
 			// type instantiation
-			x.typ = check.instantiatedType(e)
+			x.typ = check.typ(e)
 			if x.typ != Typ[Invalid] {
 				x.mode = typexpr
 			}

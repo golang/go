@@ -512,14 +512,6 @@ func (t *Named) AddMethod(m *Func) {
 	}
 }
 
-// A Parameterized represents a type name instantiated with type arguments;
-// e.g., myType(P, int) where P might be a (yet to be instantiated) type parameter.
-// A Parameterized is similar to an *ast.CallExpr, but for types.
-type Parameterized struct {
-	tname *TypeName // instantiated type
-	targs []Type    // len(targs) == len(tname.tparams)
-}
-
 // A Contract represents a contract.
 // TODO(gri) Do we need the ability to represent unnamed type parameter literals?
 //           For instance, when creating (result) type parameters out of whole cloth
@@ -580,32 +572,30 @@ func (t *TypeParam) Interface() *Interface {
 
 // Implementations for Type methods.
 
-func (b *Basic) Underlying() Type         { return b }
-func (a *Array) Underlying() Type         { return a }
-func (s *Slice) Underlying() Type         { return s }
-func (s *Struct) Underlying() Type        { return s }
-func (p *Pointer) Underlying() Type       { return p }
-func (t *Tuple) Underlying() Type         { return t }
-func (s *Signature) Underlying() Type     { return s }
-func (t *Interface) Underlying() Type     { return t }
-func (m *Map) Underlying() Type           { return m }
-func (c *Chan) Underlying() Type          { return c }
-func (t *Named) Underlying() Type         { return t.underlying }
-func (p *Parameterized) Underlying() Type { return p.tname.typ.Underlying() }
-func (c *Contract) Underlying() Type      { return c }
-func (t *TypeParam) Underlying() Type     { return t } // TODO(gri) should this return t.Interface() instead?
+func (b *Basic) Underlying() Type     { return b }
+func (a *Array) Underlying() Type     { return a }
+func (s *Slice) Underlying() Type     { return s }
+func (s *Struct) Underlying() Type    { return s }
+func (p *Pointer) Underlying() Type   { return p }
+func (t *Tuple) Underlying() Type     { return t }
+func (s *Signature) Underlying() Type { return s }
+func (t *Interface) Underlying() Type { return t }
+func (m *Map) Underlying() Type       { return m }
+func (c *Chan) Underlying() Type      { return c }
+func (t *Named) Underlying() Type     { return t.underlying }
+func (c *Contract) Underlying() Type  { return c }
+func (t *TypeParam) Underlying() Type { return t } // TODO(gri) should this return t.Interface() instead?
 
-func (b *Basic) String() string         { return TypeString(b, nil) }
-func (a *Array) String() string         { return TypeString(a, nil) }
-func (s *Slice) String() string         { return TypeString(s, nil) }
-func (s *Struct) String() string        { return TypeString(s, nil) }
-func (p *Pointer) String() string       { return TypeString(p, nil) }
-func (t *Tuple) String() string         { return TypeString(t, nil) }
-func (s *Signature) String() string     { return TypeString(s, nil) }
-func (t *Interface) String() string     { return TypeString(t, nil) }
-func (m *Map) String() string           { return TypeString(m, nil) }
-func (c *Chan) String() string          { return TypeString(c, nil) }
-func (t *Named) String() string         { return TypeString(t, nil) }
-func (p *Parameterized) String() string { return TypeString(p, nil) }
-func (c *Contract) String() string      { return TypeString(c, nil) }
-func (t *TypeParam) String() string     { return TypeString(t, nil) }
+func (b *Basic) String() string     { return TypeString(b, nil) }
+func (a *Array) String() string     { return TypeString(a, nil) }
+func (s *Slice) String() string     { return TypeString(s, nil) }
+func (s *Struct) String() string    { return TypeString(s, nil) }
+func (p *Pointer) String() string   { return TypeString(p, nil) }
+func (t *Tuple) String() string     { return TypeString(t, nil) }
+func (s *Signature) String() string { return TypeString(s, nil) }
+func (t *Interface) String() string { return TypeString(t, nil) }
+func (m *Map) String() string       { return TypeString(m, nil) }
+func (c *Chan) String() string      { return TypeString(c, nil) }
+func (t *Named) String() string     { return TypeString(t, nil) }
+func (c *Contract) String() string  { return TypeString(c, nil) }
+func (t *TypeParam) String() string { return TypeString(t, nil) }

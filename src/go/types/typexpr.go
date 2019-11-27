@@ -142,24 +142,6 @@ func (check *Checker) definedType(e ast.Expr, def *Named) (T Type) {
 	return
 }
 
-// instantiatedType is like typ but it ensures that a Parametrized type is
-// fully instantiated if all type parameters are known.
-// (When we type-check a parameterized function body, parameterized types
-// whose type parameters are incoming parameters cannot be instantiated.)
-func (check *Checker) instantiatedType(e ast.Expr) Type {
-	typ := check.typ(e)
-	// A parameterized type where all type arguments are known
-	// (i.e., not type parameters themselves) can be instantiated.
-	if ptyp, _ := typ.(*Parameterized); ptyp != nil && !IsParameterized(ptyp) {
-		typ = check.instantiate2(e.Pos(), ptyp.tname.typ.(*Named), ptyp.targs)
-		// TODO(gri) can this ever be nil? comment.
-		if typ == nil {
-			return Typ[Invalid] // error was reported by check.instatiate
-		}
-	}
-	return typ
-}
-
 // funcType type-checks a function or method type.
 func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast.FuncType) {
 	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function")
@@ -190,11 +172,6 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		// (ignore invalid types - error was reported before)
 		if t, _ := deref(recv.typ); t != Typ[Invalid] {
 			var err string
-			// TODO(gri) Unpacking a parameterized receiver here is a bit of a party trick
-			// and probably not very robust. Rethink this code.
-			if p, _ := t.(*Parameterized); p != nil {
-				t = p.tname.typ
-			}
 			if T, _ := t.(*Named); T != nil {
 				// spec: "The type denoted by T is called the receiver base type; it must not
 				// be a pointer or interface type and it must be declared in the same package
@@ -513,88 +490,6 @@ func (check *Checker) typeList(list []ast.Expr) []Type {
 
 	}
 	return nil
-}
-
-func (check *Checker) parameterizedType(typ *Parameterized, e *ast.CallExpr) bool {
-	t := check.typ(e.Fun)
-	if t == Typ[Invalid] {
-		return false // error already reported
-	}
-
-	named, _ := t.(*Named)
-	if named == nil || named.obj == nil || !named.obj.IsParameterized() {
-		check.errorf(e.Pos(), "%s is not a parametrized type", t)
-		return false
-	}
-
-	// the number of supplied types must match the number of type parameters
-	// TODO(gri) fold into code below - we want to eval args always
-	tname := named.obj
-	if len(e.Args) != len(tname.tparams) {
-		// TODO(gri) provide better error message
-		check.errorf(e.Pos(), "got %d arguments but %d type parameters", len(e.Args), len(tname.tparams))
-		return false
-	}
-
-	// evaluate arguments
-	args := check.typeList(e.Args)
-	if args == nil {
-		return false
-	}
-	assert(len(args) == len(tname.tparams))
-
-	// substitute type bound parameters with arguments
-	// and check if each argument satisfies its bound
-	for i, tpar := range tname.tparams {
-		pos := e.Args[i].Pos()
-		pos = e.Pos()                        // TODO(gri) remove in favor of more accurate pos on prev. line?
-		bound := tpar.typ.(*TypeParam).bound // interface or contract or nil
-		switch b := bound.(type) {
-		case nil:
-			// nothing to do (no bound)
-		case *Interface:
-			iface := check.subst(e.Pos(), b, tname.tparams, args).(*Interface)
-			check.satisfyBound(pos, tpar, args[i], iface)
-		case *Contract:
-			panic("unimplemented")
-		default:
-			unreachable()
-		}
-
-	}
-
-	// TODO(gri) quick hack - clean this up
-	// Also, it looks like contract should be part of the parameterized type,
-	// not its individual type parameters, at least as long as we only permit
-	// one contract. If we permit multiple contracts C1, C2 as in
-	//
-	//	type _(type A, B C1, B C2, ...)
-	//
-	// the current approach may be the right one. The current approach also
-	// lends itself more easily to a design where we just use interfaces
-	// rather than contracts.
-	/*
-		assert(len(tname.tparams) > 0)
-		bound := tname.tparams[0].typ.(*TypeParam).bound // TODO(gri) This is incorrect (index 0) in general. FIX THIS.
-		switch b := bound.(type) {
-		case nil:
-			// nothing to do (no bound)
-		case *Interface:
-			panic("unimplemented")
-		case *Contract:
-			if !check.satisfyContract(b, args) {
-				// TODO(gri) need to put in some work for really good error messages here
-				check.errorf(e.Pos(), "contract for %s is not satisfied", tname)
-			}
-		default:
-			unreachable()
-		}
-	*/
-
-	// complete parameterized type
-	typ.tname = tname
-	typ.targs = args
-	return true
 }
 
 func (check *Checker) satisfyBound(pos token.Pos, tname *TypeName, arg Type, bound *Interface) bool {

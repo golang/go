@@ -159,9 +159,6 @@ func isParameterized(typ Type, seen map[Type]bool) (res bool) {
 	case *Chan:
 		return isParameterized(t.elem, seen)
 
-	case *Parameterized:
-		return isParameterizedList(t.targs, seen)
-
 	case *TypeParam:
 		return true
 

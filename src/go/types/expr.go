@@ -1044,7 +1044,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		}
 
 	case *ast.FuncLit:
-		if sig, ok := check.instantiatedType(e.Type).(*Signature); ok {
+		if sig, ok := check.typ(e.Type).(*Signature); ok {
 			// Anonymous functions are considered part of the
 			// init expression/func declaration which contains
 			// them: use existing package-level declaration info.
@@ -1077,12 +1077,12 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					// We have an "open" [...]T array type.
 					// Create a new ArrayType with unknown length (-1)
 					// and finish setting it up after analyzing the literal.
-					typ = &Array{len: -1, elem: check.instantiatedType(atyp.Elt)}
+					typ = &Array{len: -1, elem: check.typ(atyp.Elt)}
 					base = typ
 					break
 				}
 			}
-			typ = check.instantiatedType(e.Type)
+			typ = check.typ(e.Type)
 			base = typ
 
 		case hint != nil:
@@ -1459,7 +1459,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			check.invalidAST(e.Pos(), "use of .(type) outside type switch")
 			goto Error
 		}
-		T := check.instantiatedType(e.Type)
+		T := check.typ(e.Type)
 		if T == Typ[Invalid] {
 			goto Error
 		}

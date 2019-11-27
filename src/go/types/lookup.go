@@ -360,12 +360,8 @@ func deref(typ Type) (Type, bool) {
 // and parameterized types.
 func derefUnpack(typ Type) (Type, bool) {
 	typ, ptr := deref(typ)
-	// TODO(gri) do we need to iterate/recurse here for unpacking?
-	switch t := typ.(type) {
-	case *Parameterized:
-		typ = t.tname.typ
-	case *TypeParam:
-		typ = t.Interface()
+	if tpar, _ := typ.(*TypeParam); tpar != nil {
+		typ = tpar.Interface()
 	}
 	return typ, ptr
 }

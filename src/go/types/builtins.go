@@ -424,7 +424,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// make(T, n, m)
 		// (no argument evaluated yet)
 		arg0 := call.Args[0]
-		T := check.instantiatedType(arg0)
+		T := check.typ(arg0)
 		if T == Typ[Invalid] {
 			return
 		}
@@ -465,7 +465,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _New:
 		// new(T)
 		// (no argument evaluated yet)
-		T := check.instantiatedType(call.Args[0])
+		T := check.typ(call.Args[0])
 		if T == Typ[Invalid] {
 			return
 		}
