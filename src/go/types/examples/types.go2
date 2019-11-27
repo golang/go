@@ -35,3 +35,49 @@ var root2 Tree(List(int))
 // type with a parameterized elements type [](List(int)).
 var _ List(List(int)) = [](List(int)){}
 var _ List(List(List(Tree(int)))) = [](List(List(Tree(int)))){}
+
+// Type parameters act like type aliases. Given the declarations:
+type T1(type P) struct {
+	f P
+}
+
+type T2(type P) struct {
+	f struct {
+		g P
+	}
+}
+
+var x1 T1(struct{ g int })
+var x2 T2(int)
+
+func _() {
+	// This assignment is invalid because the types of x1, x2 are T1(...)
+	// and T2(...) respectively, which are two different defined types.
+	x1 = x2 // ERROR assignment
+
+	// This assignment is valid because the types of x1.f and x2.f are
+	// both struct { g int }; the type parameters act like type aliases
+	// and their actual names don't come into play here.
+	x1.f = x2.f
+}
+
+// We can verify this behavior using type aliases instead:
+type T1a struct {
+	f A1
+}
+type A1 = struct { g int }
+
+type T2a struct {
+	f struct {
+		g A2
+	}
+}
+type A2 = int
+
+var x1a T1a
+var x2a T2a
+
+func _() {
+	x1a = x2a // ERROR assignment
+	x1a.f = x2a.f
+}
