@@ -10,34 +10,92 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	"golang.org/x/tools/internal/telemetry"
 	"golang.org/x/tools/internal/telemetry/export/ocagent"
 	"golang.org/x/tools/internal/telemetry/tag"
 )
 
-func TestConvert_annotation(t *testing.T) {
+var (
+	cfg = ocagent.Config{
+		Host:    "tester",
+		Process: 1,
+		Service: "ocagent-tests",
+	}
+	start time.Time
+	at    time.Time
+	end   time.Time
+)
+
+func init() {
+	cfg.Start, _ = time.Parse(time.RFC3339Nano, "1970-01-01T00:00:00Z")
+}
+
+const testNodeStr = `{
+	"node":{
+		"identifier":{
+			"host_name":"tester",
+			"pid":1,
+			"start_timestamp":"1970-01-01T00:00:00Z"
+		},
+		"library_info":{
+			"language":4,
+			"exporter_version":"0.0.1",
+			"core_library_version":"x/tools"
+		},
+		"service_info":{
+			"name":"ocagent-tests"
+		}
+	},`
+
+func TestEvents(t *testing.T) {
+	start, _ := time.Parse(time.RFC3339Nano, "1970-01-01T00:00:30Z")
+	at, _ := time.Parse(time.RFC3339Nano, "1970-01-01T00:00:40Z")
+	end, _ := time.Parse(time.RFC3339Nano, "1970-01-01T00:00:50Z")
+	const prefix = testNodeStr + `
+		"spans":[{
+			"trace_id":"AAAAAAAAAAAAAAAAAAAAAA==",
+			"span_id":"AAAAAAAAAAA=",
+			"parent_span_id":"AAAAAAAAAAA=",
+			"name":{"value":"event span"},
+			"start_time":"1970-01-01T00:00:30Z",
+			"end_time":"1970-01-01T00:00:50Z",
+			"time_events":{
+	`
+	const suffix = `
+			},
+			"same_process_as_parent_span":true
+		}]
+	}`
 	tests := []struct {
 		name  string
 		event func(ctx context.Context) telemetry.Event
 		want  string
 	}{
 		{
-			name:  "no tags",
-			event: func(ctx context.Context) telemetry.Event { return telemetry.Event{} },
-			want:  "null",
+			name: "no tags",
+			event: func(ctx context.Context) telemetry.Event {
+				return telemetry.Event{
+					At: at,
+				}
+			},
+			want: prefix + `
+						"timeEvent":[{"time":"1970-01-01T00:00:40Z"}]
+			` + suffix,
 		},
 		{
 			name: "description no error",
 			event: func(ctx context.Context) telemetry.Event {
 				return telemetry.Event{
+					At:      at,
 					Message: "cache miss",
 					Tags: telemetry.TagList{
 						tag.Of("db", "godb"),
 					},
 				}
 			},
-			want: `{
+			want: prefix + `"timeEvent":[{"time":"1970-01-01T00:00:40Z","annotation":{
   "description": {
     "value": "cache miss"
   },
@@ -50,13 +108,14 @@ func TestConvert_annotation(t *testing.T) {
       }
     }
   }
-}`,
+}}]` + suffix,
 		},
 
 		{
 			name: "description and error",
 			event: func(ctx context.Context) telemetry.Event {
 				return telemetry.Event{
+					At:      at,
 					Message: "cache miss",
 					Error:   errors.New("no network connectivity"),
 					Tags: telemetry.TagList{
@@ -64,7 +123,7 @@ func TestConvert_annotation(t *testing.T) {
 					},
 				}
 			},
-			want: `{
+			want: prefix + `"timeEvent":[{"time":"1970-01-01T00:00:40Z","annotation":{
   "description": {
     "value": "cache miss"
   },
@@ -82,19 +141,20 @@ func TestConvert_annotation(t *testing.T) {
       }
     }
   }
-}`,
+	}}]` + suffix,
 		},
 		{
 			name: "no description, but error",
 			event: func(ctx context.Context) telemetry.Event {
 				return telemetry.Event{
+					At:    at,
 					Error: errors.New("no network connectivity"),
 					Tags: telemetry.TagList{
 						tag.Of("db", "godb"),
 					},
 				}
 			},
-			want: `{
+			want: prefix + `"timeEvent":[{"time":"1970-01-01T00:00:40Z","annotation":{
   "description": {
     "value": "no network connectivity"
   },
@@ -107,12 +167,13 @@ func TestConvert_annotation(t *testing.T) {
       }
     }
   }
-}`,
+	}}]` + suffix,
 		},
 		{
 			name: "enumerate all attribute types",
 			event: func(ctx context.Context) telemetry.Event {
 				return telemetry.Event{
+					At:      at,
 					Message: "cache miss",
 					Tags: telemetry.TagList{
 						tag.Of("db", "godb"),
@@ -138,7 +199,7 @@ func TestConvert_annotation(t *testing.T) {
 					},
 				}
 			},
-			want: `{
+			want: prefix + `"timeEvent":[{"time":"1970-01-01T00:00:40Z","annotation":{
   "description": {
     "value": "cache miss"
   },
@@ -194,13 +255,19 @@ func TestConvert_annotation(t *testing.T) {
       }
     }
   }
-}`,
+}}]` + suffix,
 		},
 	}
 	ctx := context.TODO()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ocagent.EncodeAnnotation(tt.event(ctx))
+			span := &telemetry.Span{
+				Name:   "event span",
+				Start:  start,
+				Finish: end,
+				Events: []telemetry.Event{tt.event(ctx)},
+			}
+			got, err := ocagent.EncodeSpan(cfg, span)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -221,6 +288,6 @@ func checkJSON(t *testing.T, got, want []byte) {
 		t.Fatal(err)
 	}
 	if g.String() != w.String() {
-		t.Fatalf("Got:\n%s\nWant:\n%s", got, want)
+		t.Fatalf("Got:\n%s\nWant:\n%s", g, w)
 	}
 }

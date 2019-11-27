@@ -117,26 +117,26 @@ func (e *exporter) Flush() {
 
 	if len(spans) > 0 {
 		e.send("/v1/trace", &wire.ExportTraceServiceRequest{
-			Node:  e.buildNode(),
+			Node:  e.config.buildNode(),
 			Spans: spans,
 			//TODO: Resource?
 		})
 	}
 	if len(metrics) > 0 {
 		e.send("/v1/metrics", &wire.ExportMetricsServiceRequest{
-			Node:    e.buildNode(),
+			Node:    e.config.buildNode(),
 			Metrics: metrics,
 			//TODO: Resource?
 		})
 	}
 }
 
-func (e *exporter) buildNode() *wire.Node {
+func (cfg *Config) buildNode() *wire.Node {
 	return &wire.Node{
 		Identifier: &wire.ProcessIdentifier{
-			HostName:       e.config.Host,
-			Pid:            e.config.Process,
-			StartTimestamp: convertTimestamp(e.config.Start),
+			HostName:       cfg.Host,
+			Pid:            cfg.Process,
+			StartTimestamp: convertTimestamp(cfg.Start),
 		},
 		LibraryInfo: &wire.LibraryInfo{
 			Language:           wire.LanguageGo,
@@ -144,17 +144,23 @@ func (e *exporter) buildNode() *wire.Node {
 			CoreLibraryVersion: "x/tools",
 		},
 		ServiceInfo: &wire.ServiceInfo{
-			Name: e.config.Service,
+			Name: cfg.Service,
 		},
 	}
 }
 
-func EncodeAnnotation(a telemetry.Event) ([]byte, error) {
-	return json.Marshal(convertAnnotation(a))
+func EncodeSpan(cfg Config, span *telemetry.Span) ([]byte, error) {
+	return json.Marshal(&wire.ExportTraceServiceRequest{
+		Node:  cfg.buildNode(),
+		Spans: []*wire.Span{convertSpan(span)},
+	})
 }
 
-func EncodeMetric(m telemetry.MetricData, at time.Time) ([]byte, error) {
-	return json.Marshal(convertMetric(m, at))
+func EncodeMetric(cfg Config, m telemetry.MetricData) ([]byte, error) {
+	return json.Marshal(&wire.ExportMetricsServiceRequest{
+		Node:    cfg.buildNode(),
+		Metrics: []*wire.Metric{convertMetric(m, cfg.Start)},
+	})
 }
 
 func (e *exporter) send(endpoint string, message interface{}) {
