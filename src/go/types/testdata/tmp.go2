@@ -4,6 +4,16 @@
 
 package p
 
+type T(type P) struct {}
+
+func (_ T(P)) m1() T(P)
+
+func (m T(P)) m2() {
+	// TODO(gri) this should be valid
+	var _ T(P) = m /* ERROR cannot use */ .m1()
+}
+
+/*
 type Pair(type K) struct {
 	key K
 }
@@ -16,7 +26,6 @@ type Iterator(type K) struct {
 	r Receiver(Pair(K))
 }
 
-/*
 func (r Receiver(T)) Values() T {
 	return r.values
 }

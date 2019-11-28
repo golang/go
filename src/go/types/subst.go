@@ -14,7 +14,7 @@ import (
 	"strings"
 )
 
-func (check *Checker) instantiate2(pos token.Pos, named *Named, targs []Type) (res Type) {
+func (check *Checker) instantiate(pos token.Pos, named *Named, targs []Type) (res Type) {
 	tname := named.obj
 	if check.conf.Trace {
 		check.trace(pos, "-- instantiating %s with %s", tname, typeListString(targs))

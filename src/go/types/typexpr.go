@@ -302,7 +302,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		}
 
 		// instantiate parameterized type
-		typ = check.instantiate2(e.Pos(), named, targs)
+		typ = check.instantiate(e.Pos(), named, targs)
 		def.setUnderlying(typ)
 		return typ
 

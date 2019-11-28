@@ -81,13 +81,32 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 		args, _ := check.exprOrTypeList(e.Args)
 
 		// instantiate function if needed
-		if n := len(args); len(sig.tparams) > 0 && n > 0 && args[0].mode == typexpr {
+		if n := len(args); n > 0 && len(sig.tparams) > 0 && args[0].mode == typexpr {
 			// if the first argument is a type, assume we have explicit type arguments
-			x.mode = value
-			x.typ = check.instantiate(sig, sig.tparams, args)
-			if x.typ == nil {
+
+			// we must have the correct number of type parameters
+			if n != len(sig.tparams) {
+				check.errorf(args[n-1].pos(), "got %d type arguments but want %d", n, len(sig.tparams))
 				x.mode = invalid
+				x.expr = e
+				return expression
 			}
+
+			// collect types
+			targs := make([]Type, n)
+			for i, a := range args {
+				if a.mode != typexpr {
+					// error was reported earlier
+					x.mode = invalid
+					x.expr = e
+					return expression
+				}
+				targs[i] = a.typ
+			}
+
+			// instantiate function signature
+			x.typ = check.subst(x.pos(), sig, sig.tparams, targs)
+			x.mode = value
 			x.expr = e
 			return expression
 		}
@@ -170,26 +189,6 @@ func (check *Checker) exprOrTypeList(elist []ast.Expr) (xlist []*operand, ok boo
 	}
 
 	return
-}
-
-func (check *Checker) instantiate(typ Type, tparams []*TypeName, args []*operand) Type {
-	assert(typ != nil)
-	n := len(args)
-	if n != len(tparams) {
-		check.errorf(args[n-1].pos(), "got %d type arguments but want %d", n, len(tparams))
-		return nil
-	}
-	// collect types
-	targs := make([]Type, n)
-	for i, a := range args {
-		if a.mode != typexpr {
-			// error was reported earlier
-			return nil
-		}
-		targs[i] = a.typ
-	}
-	// result is instantiated typ
-	return check.subst(token.NoPos, typ, tparams, targs)
 }
 
 func (check *Checker) exprList(elist []ast.Expr, allowCommaOk bool) (xlist []*operand, commaOk bool) {
