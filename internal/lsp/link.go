@@ -6,6 +6,7 @@ package lsp
 
 import (
 	"context"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"regexp"
@@ -47,7 +48,7 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 			if target == "" {
 				return false
 			}
-			target = "https://godoc.org/" + target
+			target = fmt.Sprintf("https://%s/%s", view.Options().LinkTarget, target)
 			l, err := toProtocolLink(view, m, target, n.Path.Pos()+1, n.Path.End()-1)
 			if err != nil {
 				log.Error(ctx, "cannot initialize DocumentLink", err, tag.Of("Path", n.Path.Value))

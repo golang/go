@@ -69,6 +69,7 @@ var (
 		ComputeEdits: myers.ComputeEdits,
 		Analyzers:    defaultAnalyzers,
 		GoDiff:       true,
+		LinkTarget:   "pkg.go.dev",
 	}
 )
 
@@ -110,6 +111,8 @@ type Options struct {
 	LocalPrefix string
 
 	VerboseOutput bool
+
+	LinkTarget string
 }
 
 type CompletionOptions struct {
@@ -163,6 +166,8 @@ const (
 	OptionDeprecated
 	OptionUnexpected
 )
+
+type LinkTarget string
 
 func SetOptions(options *Options, opts interface{}) OptionResults {
 	var results OptionResults
@@ -264,6 +269,14 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 		default:
 			result.errorf("Unsupported hover kind", tag.Of("HoverKind", hoverKind))
 		}
+
+	case "linkTarget":
+		linkTarget, ok := value.(string)
+		if !ok {
+			result.errorf("invalid type %T for string option %q", value, name)
+			break
+		}
+		o.LinkTarget = linkTarget
 
 	case "experimentalDisabledAnalyses":
 		disabledAnalyses, ok := value.([]interface{})

@@ -46,6 +46,16 @@ If true, then completion responses may contain placeholders for function paramet
 
 Default: `false`.
 
+### **linkTarget** *string*
+
+This controls where points documentation for given package in `textDocument/documentLink`.
+It might be one of:
+* `"godoc.org"`   
+* `"pkg.go.dev"`
+If company chooses to use its own `godoc.org`, it's address can be used as well.
+
+Default: `"pkg.go.dev"`.
+
 ## Experimental
 
 The below settings are considered experimental. They may be deprecated or changed in the future. They are typically used to test experimental opt-in features or to disable features.
