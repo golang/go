@@ -81,3 +81,21 @@ func _() {
 	x1a = x2a // ERROR assignment
 	x1a.f = x2a.f
 }
+
+// Another interesting corner case is parameterized types that don't use
+// their type arguments. For instance:
+type T(type P) struct{}
+
+var xint T(int)
+var xbool T(bool)
+
+// Are these two variables of the same type? After all, their underlying
+// types are identical. We consider them to be different because each type
+// instantiation creates a new named type, in this case T<int> and T<bool>
+// even if their underlying types are identical. This is sensible because
+// we might still have methods that have different signatures or behave
+// differently depending on the type arguments, and thus we can't possibly
+// consider such types identical. Consequently:
+func _() {
+	xint = xbool // ERROR assignment
+}

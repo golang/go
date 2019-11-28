@@ -194,16 +194,18 @@ func (subst *subster) typ(typ Type) Type {
 		dump(">>> subst %s(%s) with %s (new: %s)", t.underlying, subst.tpars, subst.targs, new_targs)
 		named.underlying = subst.typ(t.underlying)
 
+		named.methods = t.methods // for now
+		// TODO(gri) how much work do we really need to do here?
 		// instantiate custom methods as necessary
-		for _, m := range t.methods {
-			// methods may not have a fully set up signature yet
-			dump(">>> instantiate %s", m)
-			subst.check.objDecl(m, nil)
-			sig := subst.check.subst(m.pos, m.typ, subst.tpars /*m.tparams*/, subst.targs).(*Signature)
-			m1 := NewFunc(m.pos, m.pkg, m.name, sig)
-			dump(">>> %s: method %s => %s", name, m, m1)
-			named.methods = append(named.methods, m1)
-		}
+		// for _, m := range t.methods {
+		// 	// methods may not have a fully set up signature yet
+		// 	dump(">>> instantiate %s", m)
+		// 	subst.check.objDecl(m, nil)
+		// 	sig := subst.check.subst(m.pos, m.typ, subst.tpars /*m.tparams*/, subst.targs).(*Signature)
+		// 	m1 := NewFunc(m.pos, m.pkg, m.name, sig)
+		// 	dump(">>> %s: method %s => %s", name, m, m1)
+		// 	named.methods = append(named.methods, m1)
+		// }
 		// TODO(gri) update the method receivers?
 		return named
 
