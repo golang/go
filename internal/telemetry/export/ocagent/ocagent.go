@@ -296,7 +296,7 @@ func convertAnnotation(event telemetry.Event) *wire.Annotation {
 	}
 	tags := event.Tags
 	if event.Error != nil {
-		tags = append(tags, tag.Of("Error", event.Error))
+		tags = append(tags, tag.Of("error", event.Error))
 	}
 	if description == "" && len(tags) == 0 {
 		return nil

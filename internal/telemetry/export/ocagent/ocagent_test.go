@@ -105,16 +105,10 @@ func TestEvents(t *testing.T) {
 				}
 			},
 			want: prefix + `"timeEvent":[{"time":"1970-01-01T00:00:40Z","annotation":{
-  "description": {
-    "value": "cache miss"
-  },
+  "description": { "value": "cache miss" },
   "attributes": {
     "attributeMap": {
-      "db": {
-        "stringValue": {
-          "value": "godb"
-        }
-      }
+      "db": { "stringValue": { "value": "godb" } }
     }
   }
 }}]` + suffix,
@@ -128,26 +122,16 @@ func TestEvents(t *testing.T) {
 					Message: "cache miss",
 					Error:   errors.New("no network connectivity"),
 					Tags: telemetry.TagList{
-						tag.Of("db", "godb"),
+						tag.Of("db", "godb"), // must come before e
 					},
 				}
 			},
 			want: prefix + `"timeEvent":[{"time":"1970-01-01T00:00:40Z","annotation":{
-  "description": {
-    "value": "cache miss"
-  },
+  "description": { "value": "cache miss" },
   "attributes": {
     "attributeMap": {
-      "Error": {
-        "stringValue": {
-          "value": "no network connectivity"
-        }
-      },
-      "db": {
-        "stringValue": {
-          "value": "godb"
-        }
-      }
+      "db": { "stringValue": { "value": "godb" } },
+      "error": { "stringValue": { "value": "no network connectivity" } }
     }
   }
 	}}]` + suffix,
@@ -164,16 +148,10 @@ func TestEvents(t *testing.T) {
 				}
 			},
 			want: prefix + `"timeEvent":[{"time":"1970-01-01T00:00:40Z","annotation":{
-  "description": {
-    "value": "no network connectivity"
-  },
+  "description": { "value": "no network connectivity" },
   "attributes": {
     "attributeMap": {
-      "db": {
-        "stringValue": {
-          "value": "godb"
-        }
-      }
+      "db": { "stringValue": { "value": "godb" } }
     }
   }
 	}}]` + suffix,
@@ -185,83 +163,49 @@ func TestEvents(t *testing.T) {
 					At:      at,
 					Message: "cache miss",
 					Tags: telemetry.TagList{
-						tag.Of("db", "godb"),
+						tag.Of("1_db", "godb"),
 
-						tag.Of("age", 0.456), // Constant converted into "float64"
-						tag.Of("ttl", float32(5000)),
-						tag.Of("expiry_ms", float64(1e3)),
+						tag.Of("2a_age", 0.456), // Constant converted into "float64"
+						tag.Of("2b_ttl", float32(5000)),
+						tag.Of("2c_expiry_ms", float64(1e3)),
 
-						tag.Of("retry", false),
-						tag.Of("stale", true),
+						tag.Of("3a_retry", false),
+						tag.Of("3b_stale", true),
 
-						tag.Of("max", 0x7fff), // Constant converted into "int"
-						tag.Of("opcode", int8(0x7e)),
-						tag.Of("base", int16(1<<9)),
-						tag.Of("checksum", int32(0x11f7e294)),
-						tag.Of("mode", int64(0644)),
+						tag.Of("4a_max", 0x7fff), // Constant converted into "int"
+						tag.Of("4b_opcode", int8(0x7e)),
+						tag.Of("4c_base", int16(1<<9)),
+						tag.Of("4e_checksum", int32(0x11f7e294)),
+						tag.Of("4f_mode", int64(0644)),
 
-						tag.Of("min", uint(1)),
-						tag.Of("mix", uint8(44)),
-						tag.Of("port", uint16(55678)),
-						tag.Of("min_hops", uint32(1<<9)),
-						tag.Of("max_hops", uint64(0xffffff)),
+						tag.Of("5a_min", uint(1)),
+						tag.Of("5b_mix", uint8(44)),
+						tag.Of("5c_port", uint16(55678)),
+						tag.Of("5d_min_hops", uint32(1<<9)),
+						tag.Of("5e_max_hops", uint64(0xffffff)),
 					},
 				}
 			},
 			want: prefix + `"timeEvent":[{"time":"1970-01-01T00:00:40Z","annotation":{
-  "description": {
-    "value": "cache miss"
-  },
+  "description": { "value": "cache miss" },
   "attributes": {
     "attributeMap": {
-      "age": {
-        "doubleValue": 0.456
-      },
-      "base": {
-        "intValue": 512
-      },
-      "checksum": {
-        "intValue": 301458068
-      },
-      "db": {
-        "stringValue": {
-          "value": "godb"
-        }
-      },
-      "expiry_ms": {
-        "doubleValue": 1000
-      },
-      "max": {
-        "intValue": 32767
-      },
-      "max_hops": {
-        "intValue": 16777215
-      },
-      "min": {
-        "intValue": 1
-      },
-      "min_hops": {
-        "intValue": 512
-      },
-      "mix": {
-        "intValue": 44
-      },
-      "mode": {
-        "intValue": 420
-      },
-      "opcode": {
-        "intValue": 126
-      },
-      "port": {
-        "intValue": 55678
-      },
-      "retry": {},
-      "stale": {
-        "boolValue": true
-      },
-      "ttl": {
-        "doubleValue": 5000
-      }
+      "1_db": { "stringValue": { "value": "godb" } },
+      "2a_age": { "doubleValue": 0.456 },
+      "2b_ttl": { "doubleValue": 5000 },
+      "2c_expiry_ms": { "doubleValue": 1000 },
+      "3a_retry": {},
+			"3b_stale": { "boolValue": true },
+      "4a_max": { "intValue": 32767 },
+      "4b_opcode": { "intValue": 126 },
+      "4c_base": { "intValue": 512 },
+      "4e_checksum": { "intValue": 301458068 },
+      "4f_mode": { "intValue": 420 },
+      "5a_min": { "intValue": 1 },
+      "5b_mix": { "intValue": 44 },
+      "5c_port": { "intValue": 55678 },
+      "5d_min_hops": { "intValue": 512 },
+      "5e_max_hops": { "intValue": 16777215 }
     }
   }
 }}]` + suffix,
