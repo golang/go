@@ -2195,24 +2195,24 @@ func (pc *persistConn) waitForContinue(continueCh <-chan struct{}) func() bool {
 }
 
 func newReadWriteCloserBody(br *bufio.Reader, rwc io.ReadWriteCloser) io.ReadWriteCloser {
-	body := &readWriteCloserBody{ReadWriteCloser: rwc}
+	body := &ReadWriteCloserBody{ReadWriteCloser: rwc}
 	if br.Buffered() != 0 {
 		body.br = br
 	}
 	return body
 }
 
-// readWriteCloserBody is the Response.Body type used when we want to
+// ReadWriteCloserBody is the Response.Body type used when we want to
 // give users write access to the Body through the underlying
 // connection (TCP, unless using custom dialers). This is then
 // the concrete type for a Response.Body on the 101 Switching
 // Protocols response, as used by WebSockets, h2c, etc.
-type readWriteCloserBody struct {
+type ReadWriteCloserBody struct {
 	br *bufio.Reader // used until empty
 	io.ReadWriteCloser
 }
 
-func (b *readWriteCloserBody) Read(p []byte) (n int, err error) {
+func (b *ReadWriteCloserBody) Read(p []byte) (n int, err error) {
 	if b.br != nil {
 		if n := b.br.Buffered(); len(p) > n {
 			p = p[:n]
@@ -2224,6 +2224,14 @@ func (b *readWriteCloserBody) Read(p []byte) (n int, err error) {
 		return n, err
 	}
 	return b.ReadWriteCloser.Read(p)
+}
+
+func (b *ReadWriteCloserBody) CloseWrite() error {
+	if closeWriter, ok := b.ReadWriteCloser.(net.CloseWriter); ok {
+		return closeWriter.CloseWrite()
+	}
+
+	return nil
 }
 
 // nothingWrittenError wraps a write errors which ended up writing zero bytes.

@@ -1158,6 +1158,84 @@ func TestReverseProxyWebSocket(t *testing.T) {
 	}
 }
 
+// Issue 35892: support TCP half-close when HTTP is upgraded in ReverseProxy
+func TestReverseProxyWebSocketCloseWrite(t *testing.T) {
+	reqDone := make(chan struct{})
+	backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer close(reqDone)
+		if upgradeType(r.Header) != "websocket" {
+			t.Error("unexpected backend request")
+			http.Error(w, "unexpected request", 400)
+			return
+		}
+		c, _, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		io.WriteString(c, "HTTP/1.1 101 Switching Protocols\r\nConnection: upgrade\r\nUpgrade: WebSocket\r\n\r\n")
+
+		if tcpc, ok := c.(interface {
+			CloseWrite() error
+		}); ok {
+			tcpc.CloseWrite()
+		} else if closer, ok := c.(io.Closer); ok {
+			closer.Close()
+			return
+		}
+
+		bs := bufio.NewScanner(c)
+		if !bs.Scan() {
+			t.Errorf("backend failed to read line from client: %v", bs.Err())
+			return
+		}
+
+		got := bs.Text()
+		want := "Hello"
+		if got != want {
+			t.Errorf("got %#q, want %#q", got, want)
+		}
+	}))
+	defer backendServer.Close()
+
+	backURL, _ := url.Parse(backendServer.URL)
+	rproxy := NewSingleHostReverseProxy(backURL)
+	rproxy.ErrorLog = log.New(ioutil.Discard, "", 0) // quiet for tests
+
+	frontendProxy := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		rproxy.ServeHTTP(rw, req)
+	}))
+
+	defer frontendProxy.Close()
+
+	req, _ := http.NewRequest("GET", frontendProxy.URL, nil)
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Upgrade", "websocket")
+
+	c := frontendProxy.Client()
+	res, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.StatusCode != 101 {
+		t.Fatalf("status = %v; want 101", res.Status)
+	}
+
+	if upgradeType(res.Header) != "websocket" {
+		t.Fatalf("not websocket upgrade; got %#v", res.Header)
+	}
+	rwc, ok := res.Body.(io.ReadWriteCloser)
+	if !ok {
+		t.Fatalf("response body is of type %T; does not implement ReadWriteCloser", res.Body)
+	}
+	defer rwc.Close()
+
+	ioutil.ReadAll(rwc)
+	io.WriteString(rwc, "Hello\n")
+	<-reqDone
+}
+
 func TestUnannouncedTrailer(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

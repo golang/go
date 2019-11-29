@@ -706,3 +706,8 @@ func (v *Buffers) consume(n int64) {
 		*v = (*v)[1:]
 	}
 }
+
+// CloseWriter is the interface that wraps the basic CloseWrite method.
+type CloseWriter interface {
+	CloseWrite() error
+}
