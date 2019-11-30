@@ -165,12 +165,12 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 
 	for _, folder := range folders {
 		uri := span.NewURI(folder.URI)
-		view, workspacePackages, err := s.addView(ctx, folder.Name, span.NewURI(folder.URI))
+		_, snapshot, err := s.addView(ctx, folder.Name, span.NewURI(folder.URI))
 		if err != nil {
 			viewErrors[uri] = err
 			continue
 		}
-		go s.diagnoseSnapshot(view.Snapshot(), workspacePackages)
+		go s.diagnoseSnapshot(snapshot)
 	}
 	if len(viewErrors) > 0 {
 		errMsg := fmt.Sprintf("Error loading workspace folders (expected %v, got %v)\n", len(folders), len(s.session.Views())-originalViews)

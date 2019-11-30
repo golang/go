@@ -16,12 +16,17 @@ import (
 	"golang.org/x/tools/internal/telemetry/trace"
 )
 
-func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, phs []source.PackageHandle) {
+func (s *Server) diagnoseSnapshot(snapshot source.Snapshot) {
 	ctx := snapshot.View().BackgroundContext()
 	ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
 	defer done()
 
-	for _, ph := range phs {
+	for _, id := range snapshot.WorkspacePackageIDs(ctx) {
+		ph, err := snapshot.PackageHandle(ctx, id)
+		if err != nil {
+			log.Error(ctx, "diagnoseSnapshot: no PackageHandle for workspace package", err, telemetry.Package.Of(id))
+			continue
+		}
 		if len(ph.CompiledGoFiles()) == 0 {
 			continue
 		}

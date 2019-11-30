@@ -76,20 +76,20 @@ func (s *session) Cache() source.Cache {
 	return s.cache
 }
 
-func (s *session) NewView(ctx context.Context, name string, folder span.URI, options source.Options) (source.View, []source.PackageHandle, error) {
+func (s *session) NewView(ctx context.Context, name string, folder span.URI, options source.Options) (source.View, source.Snapshot, error) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
-	v, phs, err := s.createView(ctx, name, folder, options)
+	v, snapshot, err := s.createView(ctx, name, folder, options)
 	if err != nil {
 		return nil, nil, err
 	}
 	s.views = append(s.views, v)
 	// we always need to drop the view map
 	s.viewMap = make(map[span.URI]source.View)
-	return v, phs, nil
+	return v, snapshot, nil
 }
 
-func (s *session) createView(ctx context.Context, name string, folder span.URI, options source.Options) (*view, []source.PackageHandle, error) {
+func (s *session) createView(ctx context.Context, name string, folder span.URI, options source.Options) (*view, *snapshot, error) {
 	index := atomic.AddInt64(&viewIndex, 1)
 	// We want a true background context and not a detached context here
 	// the spans need to be unrelated and no tag values should pollute it.
@@ -131,8 +131,6 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 	// Preemptively load everything in this directory.
 	// TODO(matloob): Determine if this can be done in parallel with something else.
 	// Perhaps different calls to NewView can be run in parallel?
-	// TODO(matloob): By default when a new file is opened, its data is invalidated
-	// and it's loaded again. Determine if the redundant reload can be avoided.
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock() // The code after the snapshot is used isn't expensive.
 	m, err := v.snapshot.load(ctx, source.DirectoryURI(folder))
@@ -141,19 +139,17 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 		log.Error(ctx, "failed to load snapshot", err, telemetry.Directory.Of(folder))
 		return v, nil, nil
 	}
-
 	// Prepare CheckPackageHandles for every package that's been loaded.
 	// (*snapshot).CheckPackageHandle makes the assumption that every package that's
 	// been loaded has an existing checkPackageHandle.
-	phs, err := v.snapshot.checkWorkspacePackages(ctx, m)
-	if err != nil {
+	if _, err := v.snapshot.checkWorkspacePackages(ctx, m); err != nil {
 		// Suppress all errors.
 		log.Error(ctx, "failed to check snapshot", err, telemetry.Directory.Of(folder))
 		return v, nil, nil
 	}
 
 	debug.AddView(debugView{v})
-	return v, phs, nil
+	return v, v.snapshot, nil
 }
 
 // View returns the view by name.
@@ -248,14 +244,14 @@ func (s *session) removeView(ctx context.Context, view *view) error {
 	return nil
 }
 
-func (s *session) updateView(ctx context.Context, view *view, options source.Options) (*view, []source.PackageHandle, error) {
+func (s *session) updateView(ctx context.Context, view *view, options source.Options) (*view, *snapshot, error) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 	i, err := s.dropView(ctx, view)
 	if err != nil {
 		return nil, nil, err
 	}
-	v, phs, err := s.createView(ctx, view.name, view.folder, options)
+	v, snapshot, err := s.createView(ctx, view.name, view.folder, options)
 	if err != nil {
 		// we have dropped the old view, but could not create the new one
 		// this should not happen and is very bad, but we still need to clean
@@ -266,7 +262,7 @@ func (s *session) updateView(ctx context.Context, view *view, options source.Opt
 	}
 	// substitute the new view into the array where the old view was
 	s.views[i] = v
-	return v, phs, nil
+	return v, snapshot, nil
 }
 
 func (s *session) dropView(ctx context.Context, view *view) (int, error) {

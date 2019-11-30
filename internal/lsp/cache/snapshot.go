@@ -250,6 +250,16 @@ func (s *snapshot) checkWorkspacePackages(ctx context.Context, m []*metadata) ([
 	return phs, nil
 }
 
+func (s *snapshot) WorkspacePackageIDs(ctx context.Context) (ids []string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for id := range s.workspacePackages {
+		ids = append(ids, string(id))
+	}
+	return ids
+}
+
 func (s *snapshot) KnownPackages(ctx context.Context) []source.Package {
 	// TODO(matloob): This function exists because KnownImportPaths can't
 	// determine the import paths of all packages. Remove this function

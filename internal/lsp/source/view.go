@@ -40,6 +40,10 @@ type Snapshot interface {
 	// that this file belongs to.
 	PackageHandles(ctx context.Context, fh FileHandle) ([]PackageHandle, error)
 
+	// WorkspacePackageIDs returns the ids of the packages at the top-level
+	// of the snapshot's view.
+	WorkspacePackageIDs(ctx context.Context) []string
+
 	// GetActiveReverseDeps returns the active files belonging to the reverse
 	// dependencies of this file's package.
 	GetReverseDependencies(id string) []string
@@ -128,6 +132,8 @@ type View interface {
 	// belong to or be part of a dependency of the given package.
 	FindPosInPackage(pkg Package, pos token.Pos) (*ast.File, Package, error)
 
+	// FindMapperInPackage returns the mapper associated with a file that may belong to
+	// the given package or one of its dependencies.
 	FindMapperInPackage(pkg Package, uri span.URI) (*protocol.ColumnMapper, error)
 
 	// Snapshot returns the current snapshot for the view.
@@ -140,7 +146,7 @@ type View interface {
 // A session may have many active views at any given time.
 type Session interface {
 	// NewView creates a new View and returns it.
-	NewView(ctx context.Context, name string, folder span.URI, options Options) (View, []PackageHandle, error)
+	NewView(ctx context.Context, name string, folder span.URI, options Options) (View, Snapshot, error)
 
 	// Cache returns the cache that created this session.
 	Cache() Cache
