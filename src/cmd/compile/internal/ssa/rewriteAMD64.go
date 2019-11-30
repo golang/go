@@ -9829,6 +9829,23 @@ func rewriteValueAMD64_OpAMD64LEAQ1(v *Value) bool {
 		}
 		break
 	}
+	// match: (LEAQ1 [0] x y)
+	// cond: v.Aux == nil
+	// result: (ADDQ x y)
+	for {
+		if v.AuxInt != 0 {
+			break
+		}
+		x := v_0
+		y := v_1
+		if !(v.Aux == nil) {
+			break
+		}
+		v.reset(OpAMD64ADDQ)
+		v.AddArg(x)
+		v.AddArg(y)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64LEAQ2(v *Value) bool {

@@ -1513,6 +1513,9 @@
 (TESTWconst [-1] x) && x.Op != OpAMD64MOVLconst -> (TESTW x x)
 (TESTBconst [-1] x) && x.Op != OpAMD64MOVLconst -> (TESTB x x)
 
+// Convert LEAQ1 back to ADDQ if we can
+(LEAQ1 [0] x y) && v.Aux == nil -> (ADDQ x y)
+
 // Combining byte loads into larger (unaligned) loads.
 // There are many ways these combinations could occur.  This is
 // designed to match the way encoding/binary.LittleEndian does it.
