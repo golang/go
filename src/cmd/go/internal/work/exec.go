@@ -1352,7 +1352,10 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, 
 			return nil, nil, errPrintedOutput
 		}
 		if len(out) > 0 {
-			ldflags = strings.Fields(string(out))
+			ldflags, err = splitPkgConfigOutput(out)
+			if err != nil {
+				return nil, nil, err
+			}
 			if err := checkLinkerFlags("LDFLAGS", "pkg-config --libs", ldflags); err != nil {
 				return nil, nil, err
 			}
@@ -1875,6 +1878,9 @@ func (b *Builder) processOutput(out []byte) string {
 	return messages
 }
 
+// a mockable reference to exec.Command, to allow us to test getPkgConfigFlags, and potentially others
+var runOutExecCommand = exec.Command
+
 // runOut runs the command given by cmdline in the directory dir.
 // It returns the command output and any errors that occurred.
 // It accumulates execution time in a.
@@ -1911,14 +1917,18 @@ func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...interfa
 	}
 
 	var buf bytes.Buffer
-	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+	cmd := runOutExecCommand(cmdline[0], cmdline[1:]...)
 	cmd.Stdout = &buf
 	cmd.Stderr = &buf
 	cleanup := passLongArgsInResponseFiles(cmd)
 	defer cleanup()
 	cmd.Dir = dir
+
+	//the mocked command in tests adds some env values, so make sure they make it into the final command
+	env = append(env, cmd.Env...)
 	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
 	cmd.Env = append(cmd.Env, env...)
+
 	start := time.Now()
 	err := cmd.Run()
 	if a != nil && a.json != nil {
