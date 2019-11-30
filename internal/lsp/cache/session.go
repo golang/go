@@ -6,7 +6,6 @@ package cache
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -18,6 +17,7 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/trace"
 	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
@@ -136,9 +136,10 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock() // The code after the snapshot is used isn't expensive.
 	m, err := v.snapshot.load(ctx, source.DirectoryURI(folder))
-	var loadErr error
-	if err != nil && err != errNoPackagesFound {
-		loadErr = fmt.Errorf("error loading packages: %v", err)
+	if err != nil {
+		// Suppress all errors.
+		log.Error(ctx, "failed to load snapshot", err, telemetry.Directory.Of(folder))
+		return v, nil, nil
 	}
 
 	// Prepare CheckPackageHandles for every package that's been loaded.
@@ -146,11 +147,13 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 	// been loaded has an existing checkPackageHandle.
 	phs, err := v.snapshot.checkWorkspacePackages(ctx, m)
 	if err != nil {
-		return nil, nil, err
+		// Suppress all errors.
+		log.Error(ctx, "failed to check snapshot", err, telemetry.Directory.Of(folder))
+		return v, nil, nil
 	}
 
 	debug.AddView(debugView{v})
-	return v, phs, loadErr
+	return v, phs, nil
 }
 
 // View returns the view by name.

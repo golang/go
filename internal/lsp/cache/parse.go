@@ -47,6 +47,10 @@ type parseGoData struct {
 	err        error
 }
 
+func (pgh *parseGoHandle) String() string {
+	return pgh.File().Identity().URI.Filename()
+}
+
 func (c *cache) ParseGoHandle(fh source.FileHandle, mode source.ParseMode) source.ParseGoHandle {
 	key := parseKey{
 		file: fh.Identity(),
@@ -65,27 +69,27 @@ func (c *cache) ParseGoHandle(fh source.FileHandle, mode source.ParseMode) sourc
 	}
 }
 
-func (h *parseGoHandle) File() source.FileHandle {
-	return h.file
+func (pgh *parseGoHandle) File() source.FileHandle {
+	return pgh.file
 }
 
-func (h *parseGoHandle) Mode() source.ParseMode {
-	return h.mode
+func (pgh *parseGoHandle) Mode() source.ParseMode {
+	return pgh.mode
 }
 
-func (h *parseGoHandle) Parse(ctx context.Context) (*ast.File, *protocol.ColumnMapper, error, error) {
-	v := h.handle.Get(ctx)
+func (pgh *parseGoHandle) Parse(ctx context.Context) (*ast.File, *protocol.ColumnMapper, error, error) {
+	v := pgh.handle.Get(ctx)
 	if v == nil {
-		return nil, nil, nil, errors.Errorf("no parsed file for %s", h.File().Identity().URI)
+		return nil, nil, nil, errors.Errorf("no parsed file for %s", pgh.File().Identity().URI)
 	}
 	data := v.(*parseGoData)
 	return data.ast, data.mapper, data.parseError, data.err
 }
 
-func (h *parseGoHandle) Cached() (*ast.File, *protocol.ColumnMapper, error, error) {
-	v := h.handle.Cached()
+func (pgh *parseGoHandle) Cached() (*ast.File, *protocol.ColumnMapper, error, error) {
+	v := pgh.handle.Cached()
 	if v == nil {
-		return nil, nil, nil, errors.Errorf("no cached AST for %s", h.file.Identity().URI)
+		return nil, nil, nil, errors.Errorf("no cached AST for %s", pgh.file.Identity().URI)
 	}
 	data := v.(*parseGoData)
 	return data.ast, data.mapper, data.parseError, data.err

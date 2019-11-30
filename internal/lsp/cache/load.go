@@ -34,8 +34,6 @@ type metadata struct {
 	config *packages.Config
 }
 
-var errNoPackagesFound = errors.New("no packages found for query")
-
 func (s *snapshot) load(ctx context.Context, scope source.Scope) ([]*metadata, error) {
 	uri := scope.URI()
 	var query string
@@ -67,7 +65,7 @@ func (s *snapshot) load(ctx context.Context, scope source.Scope) ([]*metadata, e
 	log.Print(ctx, "go/packages.Load", tag.Of("packages", len(pkgs)))
 	if len(pkgs) == 0 {
 		if err == nil {
-			err = errNoPackagesFound
+			err = errors.Errorf("no packages found for query %s", query)
 		}
 	}
 	if err != nil {
