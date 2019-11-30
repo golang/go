@@ -3,6 +3,7 @@
 The analysis package defines the interface between a modular static
 analysis and an analysis driver program.
 
+
 Background
 
 A static analysis is a function that inspects a package of Go code and
@@ -41,16 +42,15 @@ the go/analysis/passes/ subdirectory:
 	package unusedresult
 
 	var Analyzer = &analysis.Analyzer{
-		Name:	"unusedresult",
-		Doc:	"check for unused results of calls to some functions",
-		Run:    run,
+		Name: "unusedresult",
+		Doc:  "check for unused results of calls to some functions",
+		Run:  run,
 		...
 	}
 
 	func run(pass *analysis.Pass) (interface{}, error) {
 		...
 	}
-
 
 An analysis driver is a program such as vet that runs a set of
 analyses and prints the diagnostics that they report.
@@ -107,14 +107,14 @@ multiple analyzers. It is based on the multichecker package
 The Analyzer type has more fields besides those shown above:
 
 	type Analyzer struct {
-		Name			string
-		Doc			string
-		Flags			flag.FlagSet
-		Run			func(*Pass) (interface{}, error)
-		RunDespiteErrors	bool
-		ResultType		reflect.Type
-		Requires		[]*Analyzer
-		FactTypes		[]Fact
+		Name             string
+		Doc              string
+		Flags            flag.FlagSet
+		Run              func(*Pass) (interface{}, error)
+		RunDespiteErrors bool
+		ResultType       reflect.Type
+		Requires         []*Analyzer
+		FactTypes        []Fact
 	}
 
 The Flags field declares a set of named (global) flag variables that
@@ -154,13 +154,13 @@ package being analyzed, and provides operations to the Run function for
 reporting diagnostics and other information back to the driver.
 
 	type Pass struct {
-		Fset   		*token.FileSet
-		Files		[]*ast.File
-		OtherFiles	[]string
-		Pkg		*types.Package
-		TypesInfo	*types.Info
-		ResultOf	map[*Analyzer]interface{}
-		Report		func(Diagnostic)
+		Fset       *token.FileSet
+		Files      []*ast.File
+		OtherFiles []string
+		Pkg        *types.Package
+		TypesInfo  *types.Info
+		ResultOf   map[*Analyzer]interface{}
+		Report     func(Diagnostic)
 		...
 	}
 
@@ -245,7 +245,7 @@ package.
 An Analyzer that uses facts must declare their types:
 
 	var Analyzer = &analysis.Analyzer{
-		Name:       "printf",
+		Name:      "printf",
 		FactTypes: []analysis.Fact{new(isWrapper)},
 		...
 	}
@@ -329,8 +329,6 @@ entirety as:
 
 A tool that provides multiple analyzers can use multichecker in a
 similar way, giving it the list of Analyzers.
-
-
 
 */
 package analysis
