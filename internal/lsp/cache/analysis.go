@@ -80,14 +80,14 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.P
 	if act != nil {
 		return act, nil
 	}
-	cph := s.getPackage(id, mode)
-	if cph == nil {
+	ph := s.getPackage(id, mode)
+	if ph == nil {
 		return nil, errors.Errorf("no CheckPackageHandle for %s:%v", id, mode == source.ParseExported)
 	}
-	if len(cph.key) == 0 {
+	if len(ph.key) == 0 {
 		return nil, errors.Errorf("no key for CheckPackageHandle %s", id)
 	}
-	pkg, err := cph.check(ctx)
+	pkg, err := ph.check(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -112,8 +112,8 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.P
 		// An analysis that consumes/produces facts
 		// must run on the package's dependencies too.
 		if len(a.FactTypes) > 0 {
-			importIDs := make([]string, 0, len(cph.m.deps))
-			for _, importID := range cph.m.deps {
+			importIDs := make([]string, 0, len(ph.m.deps))
+			for _, importID := range ph.m.deps {
 				importIDs = append(importIDs, string(importID))
 			}
 			sort.Strings(importIDs) // for determinism
@@ -129,7 +129,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.P
 
 	fset := s.view.session.cache.fset
 
-	h := s.view.session.cache.store.Bind(buildActionKey(a, cph), func(ctx context.Context) interface{} {
+	h := s.view.session.cache.store.Bind(buildActionKey(a, ph), func(ctx context.Context) interface{} {
 		// Analyze dependencies first.
 		results, err := execAll(ctx, fset, deps)
 		if err != nil {
@@ -175,8 +175,8 @@ func (act *actionHandle) cached() ([]*source.Error, interface{}, error) {
 	return data.diagnostics, data.result, data.err
 }
 
-func buildActionKey(a *analysis.Analyzer, cph *checkPackageHandle) string {
-	return hashContents([]byte(fmt.Sprintf("%p %s", a, string(cph.key))))
+func buildActionKey(a *analysis.Analyzer, ph *packageHandle) string {
+	return hashContents([]byte(fmt.Sprintf("%p %s", a, string(ph.key))))
 }
 
 func (act *actionHandle) String() string {

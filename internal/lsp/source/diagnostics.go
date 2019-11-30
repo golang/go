@@ -44,24 +44,24 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, f File, withAnalysis bo
 	defer done()
 
 	fh := snapshot.Handle(ctx, f)
-	cphs, err := snapshot.PackageHandles(ctx, fh)
+	phs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
 		return nil, "", err
 	}
-	cph, err := WidestCheckPackageHandle(cphs)
+	ph, err := WidestCheckPackageHandle(phs)
 	if err != nil {
 		return nil, "", err
 	}
 	// If we are missing dependencies, it may because the user's workspace is
 	// not correctly configured. Report errors, if possible.
 	var warningMsg string
-	if len(cph.MissingDependencies()) > 0 {
+	if len(ph.MissingDependencies()) > 0 {
 		warningMsg, err = checkCommonErrors(ctx, snapshot.View(), f.URI())
 		if err != nil {
 			log.Error(ctx, "error checking common errors", err, telemetry.File.Of(f.URI))
 		}
 	}
-	pkg, err := cph.Check(ctx)
+	pkg, err := ph.Check(ctx)
 	if err != nil {
 		log.Error(ctx, "no package for file", err)
 		return singleDiagnostic(fh.Identity(), "%s is not part of a package", f.URI()), "", nil
@@ -81,17 +81,17 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, f File, withAnalysis bo
 	// Run diagnostics for the package that this URI belongs to.
 	if !diagnostics(ctx, snapshot, pkg, reports) && withAnalysis {
 		// If we don't have any list, parse, or type errors, run analyses.
-		if err := analyses(ctx, snapshot, cph, disabledAnalyses, reports); err != nil {
+		if err := analyses(ctx, snapshot, ph, disabledAnalyses, reports); err != nil {
 			log.Error(ctx, "failed to run analyses", err, telemetry.File.Of(f.URI()))
 		}
 	}
 	// Updates to the diagnostics for this package may need to be propagated.
 	for _, id := range snapshot.GetReverseDependencies(pkg.ID()) {
-		cph, err := snapshot.PackageHandle(ctx, id)
+		ph, err := snapshot.PackageHandle(ctx, id)
 		if err != nil {
 			return nil, warningMsg, err
 		}
-		pkg, err := cph.Check(ctx)
+		pkg, err := ph.Check(ctx)
 		if err != nil {
 			return nil, warningMsg, err
 		}
@@ -153,7 +153,7 @@ func diagnostics(ctx context.Context, snapshot Snapshot, pkg Package, reports ma
 	return nonEmptyDiagnostics
 }
 
-func analyses(ctx context.Context, snapshot Snapshot, cph CheckPackageHandle, disabledAnalyses map[string]struct{}, reports map[FileIdentity][]Diagnostic) error {
+func analyses(ctx context.Context, snapshot Snapshot, ph PackageHandle, disabledAnalyses map[string]struct{}, reports map[FileIdentity][]Diagnostic) error {
 	var analyzers []*analysis.Analyzer
 	for _, a := range snapshot.View().Options().Analyzers {
 		if _, ok := disabledAnalyses[a.Name]; ok {
@@ -162,7 +162,7 @@ func analyses(ctx context.Context, snapshot Snapshot, cph CheckPackageHandle, di
 		analyzers = append(analyzers, a)
 	}
 
-	diagnostics, err := snapshot.Analyze(ctx, cph.ID(), analyzers)
+	diagnostics, err := snapshot.Analyze(ctx, ph.ID(), analyzers)
 	if err != nil {
 		return err
 	}

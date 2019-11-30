@@ -24,8 +24,8 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-// checkPackageHandle implements source.CheckPackageHandle.
-type checkPackageHandle struct {
+// packageHandle implements source.CheckPackageHandle.
+type packageHandle struct {
 	handle *memoize.Handle
 
 	goFiles []source.ParseGoHandle
@@ -43,69 +43,69 @@ type checkPackageHandle struct {
 	key []byte
 }
 
-func (cph *checkPackageHandle) packageKey() packageKey {
+func (ph *packageHandle) packageKey() packageKey {
 	return packageKey{
-		id:   cph.m.id,
-		mode: cph.mode,
+		id:   ph.m.id,
+		mode: ph.mode,
 	}
 }
 
-// checkPackageData contains the data produced by type-checking a package.
-type checkPackageData struct {
+// packageData contains the data produced by type-checking a package.
+type packageData struct {
 	memoize.NoCopy
 
 	pkg *pkg
 	err error
 }
 
-// checkPackageHandle returns a source.CheckPackageHandle for a given package and config.
-func (s *snapshot) checkPackageHandle(ctx context.Context, id packageID, mode source.ParseMode) (*checkPackageHandle, error) {
+// packageHandle returns a source.CheckPackageHandle for a given package and config.
+func (s *snapshot) packageHandle(ctx context.Context, id packageID, mode source.ParseMode) (*packageHandle, error) {
 	// Check if we already have this CheckPackageHandle cached.
-	if cph := s.getPackage(id, mode); cph != nil {
-		return cph, nil
+	if ph := s.getPackage(id, mode); ph != nil {
+		return ph, nil
 	}
 
 	// Build the CheckPackageHandle for this ID and its dependencies.
-	cph, deps, err := s.buildKey(ctx, id, mode)
+	ph, deps, err := s.buildKey(ctx, id, mode)
 	if err != nil {
 		return nil, err
 	}
 
-	// Do not close over the checkPackageHandle or the snapshot in the Bind function.
+	// Do not close over the packageHandle or the snapshot in the Bind function.
 	// This creates a cycle, which causes the finalizers to never run on the handles.
 	// The possible cycles are:
 	//
-	//     checkPackageHandle.h.function -> checkPackageHandle
-	//     checkPackageHandle.h.function -> snapshot -> checkPackageHandle
+	//     packageHandle.h.function -> packageHandle
+	//     packageHandle.h.function -> snapshot -> packageHandle
 	//
 
-	m := cph.m
-	goFiles := cph.goFiles
-	compiledGoFiles := cph.compiledGoFiles
-	key := cph.key
+	m := ph.m
+	goFiles := ph.goFiles
+	compiledGoFiles := ph.compiledGoFiles
+	key := ph.key
 	fset := s.view.session.cache.fset
 
 	h := s.view.session.cache.store.Bind(string(key), func(ctx context.Context) interface{} {
 		// Begin loading the direct dependencies, in parallel.
 		for _, dep := range deps {
-			go func(dep *checkPackageHandle) {
+			go func(dep *packageHandle) {
 				dep.check(ctx)
 			}(dep)
 		}
-		data := &checkPackageData{}
+		data := &packageData{}
 		data.pkg, data.err = typeCheck(ctx, fset, m, mode, goFiles, compiledGoFiles, deps)
 		return data
 	})
-	cph.handle = h
+	ph.handle = h
 
 	// Cache the CheckPackageHandle in the snapshot.
-	s.addPackage(cph)
+	s.addPackage(ph)
 
-	return cph, nil
+	return ph, nil
 }
 
 // buildKey computes the checkPackageKey for a given checkPackageHandle.
-func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.ParseMode) (*checkPackageHandle, map[packagePath]*checkPackageHandle, error) {
+func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.ParseMode) (*packageHandle, map[packagePath]*packageHandle, error) {
 	m := s.getMetadata(id)
 	if m == nil {
 		return nil, nil, errors.Errorf("no metadata for %s", id)
@@ -118,7 +118,7 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 	if err != nil {
 		return nil, nil, err
 	}
-	cph := &checkPackageHandle{
+	ph := &packageHandle{
 		m:               m,
 		goFiles:         goFiles,
 		compiledGoFiles: compiledGoFiles,
@@ -131,12 +131,12 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 		return depList[i] < depList[j]
 	})
 
-	deps := make(map[packagePath]*checkPackageHandle)
+	deps := make(map[packagePath]*packageHandle)
 
 	// Begin computing the key by getting the depKeys for all dependencies.
 	var depKeys [][]byte
 	for _, depID := range depList {
-		depHandle, err := s.checkPackageHandle(ctx, depID, source.ParseExported)
+		depHandle, err := s.packageHandle(ctx, depID, source.ParseExported)
 		if err != nil {
 			log.Error(ctx, "no dep handle", err, telemetry.Package.Of(depID))
 
@@ -148,12 +148,12 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 		deps[depHandle.m.pkgPath] = depHandle
 		depKeys = append(depKeys, depHandle.key)
 	}
-	cph.key = checkPackageKey(cph.m.id, cph.compiledGoFiles, m.config, depKeys)
-	return cph, deps, nil
+	ph.key = checkPackageKey(ph.m.id, ph.compiledGoFiles, m.config, depKeys)
+	return ph, deps, nil
 }
 
-func checkPackageKey(id packageID, phs []source.ParseGoHandle, cfg *packages.Config, deps [][]byte) []byte {
-	return []byte(hashContents([]byte(fmt.Sprintf("%s%s%s%s", id, hashParseKeys(phs), hashConfig(cfg), hashContents(bytes.Join(deps, nil))))))
+func checkPackageKey(id packageID, pghs []source.ParseGoHandle, cfg *packages.Config, deps [][]byte) []byte {
+	return []byte(hashContents([]byte(fmt.Sprintf("%s%s%s%s", id, hashParseKeys(pghs), hashConfig(cfg), hashContents(bytes.Join(deps, nil))))))
 }
 
 // hashConfig returns the hash for the *packages.Config.
@@ -173,45 +173,45 @@ func hashConfig(config *packages.Config) string {
 	return hashContents(b.Bytes())
 }
 
-func (cph *checkPackageHandle) Check(ctx context.Context) (source.Package, error) {
-	return cph.check(ctx)
+func (ph *packageHandle) Check(ctx context.Context) (source.Package, error) {
+	return ph.check(ctx)
 }
 
-func (cph *checkPackageHandle) check(ctx context.Context) (*pkg, error) {
-	v := cph.handle.Get(ctx)
+func (ph *packageHandle) check(ctx context.Context) (*pkg, error) {
+	v := ph.handle.Get(ctx)
 	if v == nil {
-		return nil, errors.Errorf("no package for %s", cph.m.id)
+		return nil, errors.Errorf("no package for %s", ph.m.id)
 	}
-	data := v.(*checkPackageData)
+	data := v.(*packageData)
 	return data.pkg, data.err
 }
 
-func (cph *checkPackageHandle) CompiledGoFiles() []source.ParseGoHandle {
-	return cph.compiledGoFiles
+func (ph *packageHandle) CompiledGoFiles() []source.ParseGoHandle {
+	return ph.compiledGoFiles
 }
 
-func (cph *checkPackageHandle) ID() string {
-	return string(cph.m.id)
+func (ph *packageHandle) ID() string {
+	return string(ph.m.id)
 }
 
-func (cph *checkPackageHandle) MissingDependencies() []string {
+func (ph *packageHandle) MissingDependencies() []string {
 	var md []string
-	for i := range cph.m.missingDeps {
+	for i := range ph.m.missingDeps {
 		md = append(md, string(i))
 	}
 	return md
 }
 
-func (cph *checkPackageHandle) Cached() (source.Package, error) {
-	return cph.cached()
+func (ph *packageHandle) Cached() (source.Package, error) {
+	return ph.cached()
 }
 
-func (cph *checkPackageHandle) cached() (*pkg, error) {
-	v := cph.handle.Cached()
+func (ph *packageHandle) cached() (*pkg, error) {
+	v := ph.handle.Cached()
 	if v == nil {
-		return nil, errors.Errorf("no cached type information for %s", cph.m.pkgPath)
+		return nil, errors.Errorf("no cached type information for %s", ph.m.pkgPath)
 	}
-	data := v.(*checkPackageData)
+	data := v.(*packageData)
 	return data.pkg, data.err
 }
 
@@ -228,7 +228,7 @@ func (s *snapshot) parseGoHandles(ctx context.Context, files []span.URI, mode so
 	return phs, nil
 }
 
-func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode source.ParseMode, goFiles []source.ParseGoHandle, compiledGoFiles []source.ParseGoHandle, deps map[packagePath]*checkPackageHandle) (*pkg, error) {
+func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode source.ParseMode, goFiles []source.ParseGoHandle, compiledGoFiles []source.ParseGoHandle, deps map[packagePath]*packageHandle) (*pkg, error) {
 	ctx, done := trace.StartSpan(ctx, "cache.importer.typeCheck", telemetry.Package.Of(m.id))
 	defer done()
 

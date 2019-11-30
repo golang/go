@@ -207,20 +207,20 @@ func quickFixes(ctx context.Context, snapshot source.Snapshot, f source.File, di
 	var codeActions []protocol.CodeAction
 
 	fh := snapshot.Handle(ctx, f)
-	cphs, err := snapshot.PackageHandles(ctx, fh)
+	phs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
 		return nil, err
 	}
 	// We get the package that source.Diagnostics would've used. This is hack.
 	// TODO(golang/go#32443): The correct solution will be to cache diagnostics per-file per-snapshot.
-	cph, err := source.WidestCheckPackageHandle(cphs)
+	ph, err := source.WidestCheckPackageHandle(phs)
 	if err != nil {
 		return nil, err
 	}
 	for _, diag := range diagnostics {
 		// This code assumes that the analyzer name is the Source of the diagnostic.
 		// If this ever changes, this will need to be addressed.
-		srcErr, err := snapshot.FindAnalysisError(ctx, cph.ID(), diag.Source, diag.Message, diag.Range)
+		srcErr, err := snapshot.FindAnalysisError(ctx, ph.ID(), diag.Source, diag.Message, diag.Range)
 		if err != nil {
 			continue
 		}

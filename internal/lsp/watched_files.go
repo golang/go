@@ -44,12 +44,12 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 				}
 				snapshot := view.Snapshot()
 				fh := snapshot.Handle(ctx, f)
-				cphs, err := snapshot.PackageHandles(ctx, fh)
+				phs, err := snapshot.PackageHandles(ctx, fh)
 				if err != nil {
 					log.Error(ctx, "didChangeWatchedFiles: CheckPackageHandles", err, telemetry.File)
 					continue
 				}
-				cph, err := source.WidestCheckPackageHandle(cphs)
+				ph, err := source.WidestCheckPackageHandle(phs)
 				if err != nil {
 					log.Error(ctx, "didChangeWatchedFiles: WidestCheckPackageHandle", err, telemetry.File)
 					continue
@@ -57,11 +57,11 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 				// Find a different file in the same package we can use to trigger diagnostics.
 				// TODO(rstambler): Allow diagnostics to be called per-package to avoid this.
 				var otherFile source.File
-				for _, ph := range cph.CompiledGoFiles() {
-					if ph.File().Identity().URI == f.URI() {
+				for _, pgh := range ph.CompiledGoFiles() {
+					if pgh.File().Identity().URI == f.URI() {
 						continue
 					}
-					if f := view.FindFile(ctx, ph.File().Identity().URI); f != nil && s.session.IsOpen(f.URI()) {
+					if f := view.FindFile(ctx, pgh.File().Identity().URI); f != nil && s.session.IsOpen(f.URI()) {
 						otherFile = f
 						break
 					}

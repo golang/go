@@ -34,11 +34,11 @@ type Snapshot interface {
 	FindAnalysisError(ctx context.Context, pkgID, analyzerName, msg string, rng protocol.Range) (*Error, error)
 
 	// PackageHandle returns the CheckPackageHandle for the given package ID.
-	PackageHandle(ctx context.Context, id string) (CheckPackageHandle, error)
+	PackageHandle(ctx context.Context, id string) (PackageHandle, error)
 
 	// PackageHandles returns the CheckPackageHandles for the packages
 	// that this file belongs to.
-	PackageHandles(ctx context.Context, fh FileHandle) ([]CheckPackageHandle, error)
+	PackageHandles(ctx context.Context, fh FileHandle) ([]PackageHandle, error)
 
 	// GetActiveReverseDeps returns the active files belonging to the reverse
 	// dependencies of this file's package.
@@ -52,13 +52,13 @@ type Snapshot interface {
 	KnownPackages(ctx context.Context) []Package
 }
 
-// CheckPackageHandle represents a handle to a specific version of a package.
+// PackageHandle represents a handle to a specific version of a package.
 // It is uniquely defined by the file handles that make up the package.
-type CheckPackageHandle interface {
+type PackageHandle interface {
 	// ID returns the ID of the package associated with the CheckPackageHandle.
 	ID() string
 
-	// ParseGoHandle returns a ParseGoHandle for which to get the package.
+	// CompiledGoFiles returns the ParseGoHandles composing the package.
 	CompiledGoFiles() []ParseGoHandle
 
 	// Check returns the type-checked Package for the CheckPackageHandle.
@@ -140,7 +140,7 @@ type View interface {
 // A session may have many active views at any given time.
 type Session interface {
 	// NewView creates a new View and returns it.
-	NewView(ctx context.Context, name string, folder span.URI, options Options) (View, []CheckPackageHandle, error)
+	NewView(ctx context.Context, name string, folder span.URI, options Options) (View, []PackageHandle, error)
 
 	// Cache returns the cache that created this session.
 	Cache() Cache

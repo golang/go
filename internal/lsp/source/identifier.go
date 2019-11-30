@@ -51,23 +51,23 @@ func Identifier(ctx context.Context, snapshot Snapshot, f File, pos protocol.Pos
 	defer done()
 
 	fh := snapshot.Handle(ctx, f)
-	cphs, err := snapshot.PackageHandles(ctx, fh)
+	phs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
 		return nil, err
 	}
-	cph, err := WidestCheckPackageHandle(cphs)
+	ph, err := WidestCheckPackageHandle(phs)
 	if err != nil {
 		return nil, err
 	}
-	pkg, err := cph.Check(ctx)
+	pkg, err := ph.Check(ctx)
 	if err != nil {
 		return nil, err
 	}
-	ph, err := pkg.File(f.URI())
+	pgh, err := pkg.File(f.URI())
 	if err != nil {
 		return nil, err
 	}
-	file, m, _, err := ph.Cached()
+	file, m, _, err := pgh.Cached()
 	if err != nil {
 		return nil, err
 	}

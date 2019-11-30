@@ -28,28 +28,28 @@ func Format(ctx context.Context, snapshot Snapshot, f File) ([]protocol.TextEdit
 	defer done()
 
 	fh := snapshot.Handle(ctx, f)
-	cphs, err := snapshot.PackageHandles(ctx, fh)
+	phs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
 		return nil, err
 	}
-	cph, err := NarrowestCheckPackageHandle(cphs)
+	ph, err := NarrowestCheckPackageHandle(phs)
 	if err != nil {
 		return nil, err
 	}
-	pkg, err := cph.Check(ctx)
+	pkg, err := ph.Check(ctx)
 	if err != nil {
 		return nil, err
 	}
-	ph, err := pkg.File(f.URI())
+	pgh, err := pkg.File(f.URI())
 	if err != nil {
 		return nil, err
 	}
 	// Be extra careful that the file's ParseMode is correct,
 	// otherwise we might replace the user's code with a trimmed AST.
-	if ph.Mode() != ParseFull {
-		return nil, errors.Errorf("%s was parsed in the incorrect mode", ph.File().Identity().URI)
+	if pgh.Mode() != ParseFull {
+		return nil, errors.Errorf("%s was parsed in the incorrect mode", pgh.File().Identity().URI)
 	}
-	file, m, _, err := ph.Parse(ctx)
+	file, m, _, err := pgh.Parse(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func Format(ctx context.Context, snapshot Snapshot, f File) ([]protocol.TextEdit
 		if err != nil {
 			return nil, err
 		}
-		return computeTextEdits(ctx, snapshot.View(), ph.File(), m, string(formatted))
+		return computeTextEdits(ctx, snapshot.View(), pgh.File(), m, string(formatted))
 	}
 
 	fset := snapshot.View().Session().Cache().FileSet()
@@ -75,7 +75,7 @@ func Format(ctx context.Context, snapshot Snapshot, f File) ([]protocol.TextEdit
 	if err := format.Node(buf, fset, file); err != nil {
 		return nil, err
 	}
-	return computeTextEdits(ctx, snapshot.View(), ph.File(), m, buf.String())
+	return computeTextEdits(ctx, snapshot.View(), pgh.File(), m, buf.String())
 }
 
 func formatSource(ctx context.Context, s Snapshot, f File) ([]byte, error) {
@@ -103,31 +103,25 @@ func AllImportsFixes(ctx context.Context, snapshot Snapshot, f File) (allFixEdit
 	defer done()
 
 	fh := snapshot.Handle(ctx, f)
-	cphs, err := snapshot.PackageHandles(ctx, fh)
+	phs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
 		return nil, nil, err
 	}
-	cph, err := NarrowestCheckPackageHandle(cphs)
+	ph, err := NarrowestCheckPackageHandle(phs)
 	if err != nil {
 		return nil, nil, err
 	}
-	pkg, err := cph.Check(ctx)
+	pkg, err := ph.Check(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 	if hasListErrors(pkg) {
 		return nil, nil, errors.Errorf("%s has list errors, not running goimports", f.URI())
 	}
-	var ph ParseGoHandle
-	for _, h := range pkg.CompiledGoFiles() {
-		if h.File().Identity().URI == f.URI() {
-			ph = h
-		}
+	pgh, err := pkg.File(f.URI())
+	if err != nil {
+		return nil, nil, err
 	}
-	if ph == nil {
-		return nil, nil, errors.Errorf("no ParseGoHandle for %s", f.URI())
-	}
-
 	options := &imports.Options{
 		// Defaults.
 		AllErrors:  true,
@@ -138,7 +132,7 @@ func AllImportsFixes(ctx context.Context, snapshot Snapshot, f File) (allFixEdit
 		TabWidth:   8,
 	}
 	err = snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
-		allFixEdits, editsPerFix, err = computeImportEdits(ctx, snapshot.View(), ph, opts)
+		allFixEdits, editsPerFix, err = computeImportEdits(ctx, snapshot.View(), pgh, opts)
 		return err
 	}, options)
 	if err != nil {

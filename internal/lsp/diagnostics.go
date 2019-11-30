@@ -16,17 +16,17 @@ import (
 	"golang.org/x/tools/internal/telemetry/trace"
 )
 
-func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, cphs []source.CheckPackageHandle) {
+func (s *Server) diagnoseSnapshot(snapshot source.Snapshot, phs []source.PackageHandle) {
 	ctx := snapshot.View().BackgroundContext()
 	ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
 	defer done()
 
-	for _, cph := range cphs {
-		if len(cph.CompiledGoFiles()) == 0 {
+	for _, ph := range phs {
+		if len(ph.CompiledGoFiles()) == 0 {
 			continue
 		}
 		// Find a file on which to call diagnostics.
-		uri := cph.CompiledGoFiles()[0].File().Identity().URI
+		uri := ph.CompiledGoFiles()[0].File().Identity().URI
 		f, err := snapshot.View().GetFile(ctx, uri)
 		if err != nil {
 			log.Error(ctx, "no file", err, telemetry.URI.Of(uri))

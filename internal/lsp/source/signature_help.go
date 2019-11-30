@@ -32,23 +32,23 @@ func SignatureHelp(ctx context.Context, snapshot Snapshot, f File, pos protocol.
 	defer done()
 
 	fh := snapshot.Handle(ctx, f)
-	cphs, err := snapshot.PackageHandles(ctx, fh)
+	phs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
 		return nil, err
 	}
-	cph, err := NarrowestCheckPackageHandle(cphs)
+	ph, err := NarrowestCheckPackageHandle(phs)
 	if err != nil {
 		return nil, err
 	}
-	pkg, err := cph.Check(ctx)
+	pkg, err := ph.Check(ctx)
 	if err != nil {
 		return nil, err
 	}
-	ph, err := pkg.File(f.URI())
+	pgh, err := pkg.File(f.URI())
 	if err != nil {
 		return nil, err
 	}
-	file, m, _, err := ph.Cached()
+	file, m, _, err := pgh.Cached()
 	if err != nil {
 		return nil, err
 	}

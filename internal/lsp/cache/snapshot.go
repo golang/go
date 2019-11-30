@@ -37,7 +37,7 @@ type snapshot struct {
 
 	// packages maps a packageKey to a set of CheckPackageHandles to which that file belongs.
 	// It may be invalidated when a file's content changes.
-	packages map[packageKey]*checkPackageHandle
+	packages map[packageKey]*packageHandle
 
 	// actions maps an actionkey to its actionHandle.
 	actions map[actionKey]*actionHandle
@@ -61,13 +61,13 @@ func (s *snapshot) View() source.View {
 	return s.view
 }
 
-func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]source.CheckPackageHandle, error) {
+func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]source.PackageHandle, error) {
 	ctx = telemetry.File.With(ctx, fh.Identity().URI)
 
 	metadata := s.getMetadataForURI(fh.Identity().URI)
 
 	// Determine if we need to type-check the package.
-	cphs, load, check := s.shouldCheck(metadata)
+	phs, load, check := s.shouldCheck(metadata)
 
 	// We may need to re-load package metadata.
 	// We only need to this if it has been invalidated, and is therefore unvailable.
@@ -83,23 +83,23 @@ func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]
 		}
 	}
 	if check {
-		var results []source.CheckPackageHandle
+		var results []source.PackageHandle
 		for _, m := range metadata {
-			cph, err := s.checkPackageHandle(ctx, m.id, source.ParseFull)
+			ph, err := s.packageHandle(ctx, m.id, source.ParseFull)
 			if err != nil {
 				return nil, err
 			}
-			results = append(results, cph)
+			results = append(results, ph)
 		}
-		cphs = results
+		phs = results
 	}
-	if len(cphs) == 0 {
+	if len(phs) == 0 {
 		return nil, errors.Errorf("no CheckPackageHandles for %s", fh.Identity().URI)
 	}
-	return cphs, nil
+	return phs, nil
 }
 
-func (s *snapshot) PackageHandle(ctx context.Context, id string) (source.CheckPackageHandle, error) {
+func (s *snapshot) PackageHandle(ctx context.Context, id string) (source.PackageHandle, error) {
 	ctx = telemetry.Package.With(ctx, id)
 
 	m := s.getMetadata(packageID(id))
@@ -107,25 +107,25 @@ func (s *snapshot) PackageHandle(ctx context.Context, id string) (source.CheckPa
 		return nil, errors.Errorf("no known metadata for %s", id)
 	}
 	// Determine if we need to type-check the package.
-	cphs, load, check := s.shouldCheck([]*metadata{m})
+	phs, load, check := s.shouldCheck([]*metadata{m})
 	if load {
 		return nil, errors.Errorf("outdated metadata for %s, needs re-load", id)
 	}
 	if check {
-		return s.checkPackageHandle(ctx, m.id, source.ParseFull)
+		return s.packageHandle(ctx, m.id, source.ParseFull)
 	}
-	if len(cphs) == 0 {
+	if len(phs) == 0 {
 		return nil, errors.Errorf("no check package handle for %s", id)
 	}
-	if len(cphs) > 1 {
+	if len(phs) > 1 {
 		return nil, errors.Errorf("multiple check package handles for a single id: %s", id)
 	}
-	return cphs[0], nil
+	return phs[0], nil
 }
 
 // shouldCheck determines if the packages provided by the metadata
 // need to be re-loaded or re-type-checked.
-func (s *snapshot) shouldCheck(m []*metadata) (cphs []source.CheckPackageHandle, load, check bool) {
+func (s *snapshot) shouldCheck(m []*metadata) (phs []source.PackageHandle, load, check bool) {
 	// No metadata. Re-load and re-check.
 	if len(m) == 0 {
 		return nil, true, true
@@ -135,23 +135,23 @@ func (s *snapshot) shouldCheck(m []*metadata) (cphs []source.CheckPackageHandle,
 	// If a single CheckPackageHandle is missing, re-check all of them.
 	// TODO: Optimize this by only checking the necessary packages.
 	for _, metadata := range m {
-		cph := s.getPackage(metadata.id, source.ParseFull)
-		if cph == nil {
+		ph := s.getPackage(metadata.id, source.ParseFull)
+		if ph == nil {
 			return nil, false, true
 		}
-		cphs = append(cphs, cph)
+		phs = append(phs, ph)
 	}
 	// If the metadata for the package had missing dependencies,
 	// we _may_ need to re-check. If the missing dependencies haven't changed
 	// since previous load, we will not check again.
-	if len(cphs) < len(m) {
+	if len(phs) < len(m) {
 		for _, m := range m {
 			if len(m.missingDeps) != 0 {
 				return nil, true, true
 			}
 		}
 	}
-	return cphs, false, false
+	return phs, false, false
 }
 
 func (s *snapshot) GetReverseDependencies(id string) []string {
@@ -197,34 +197,34 @@ func (s *snapshot) getImportedBy(id packageID) []packageID {
 	return s.importedBy[id]
 }
 
-func (s *snapshot) addPackage(cph *checkPackageHandle) {
+func (s *snapshot) addPackage(ph *packageHandle) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	// TODO: We should make sure not to compute duplicate CheckPackageHandles,
 	// and instead panic here. This will be hard to do because we may encounter
 	// the same package multiple times in the dependency tree.
-	if _, ok := s.packages[cph.packageKey()]; ok {
+	if _, ok := s.packages[ph.packageKey()]; ok {
 		return
 	}
-	s.packages[cph.packageKey()] = cph
+	s.packages[ph.packageKey()] = ph
 }
 
 // checkWorkspacePackages checks the initial set of packages loaded when
 // the view is created. This is needed because
 // (*snapshot).CheckPackageHandle makes the assumption that every package that's
 // been loaded has an existing checkPackageHandle.
-func (s *snapshot) checkWorkspacePackages(ctx context.Context, m []*metadata) ([]source.CheckPackageHandle, error) {
-	var cphs []source.CheckPackageHandle
+func (s *snapshot) checkWorkspacePackages(ctx context.Context, m []*metadata) ([]source.PackageHandle, error) {
+	var phs []source.PackageHandle
 	for _, m := range m {
-		cph, err := s.checkPackageHandle(ctx, m.id, source.ParseFull)
+		ph, err := s.packageHandle(ctx, m.id, source.ParseFull)
 		if err != nil {
 			return nil, err
 		}
 		s.workspacePackages[m.id] = true
-		cphs = append(cphs, cph)
+		phs = append(phs, ph)
 	}
-	return cphs, nil
+	return phs, nil
 }
 
 func (s *snapshot) KnownPackages(ctx context.Context) []source.Package {
@@ -251,14 +251,14 @@ func (s *snapshot) KnownPackages(ctx context.Context) []source.Package {
 			// Any package in our workspace should be loaded with ParseFull.
 			mode = source.ParseFull
 		}
-		cph, err := s.checkPackageHandle(ctx, pkgID, mode)
+		ph, err := s.packageHandle(ctx, pkgID, mode)
 		if err != nil {
 			log.Error(ctx, "failed to create CheckPackageHandle", err, telemetry.Package.Of(pkgID))
 			continue
 		}
 		// Check the package now if it's not checked yet.
 		// TODO(matloob): is this too slow?
-		pkg, err := cph.check(ctx)
+		pkg, err := ph.check(ctx)
 		if err != nil {
 			log.Error(ctx, "failed to check package", err, telemetry.Package.Of(pkgID))
 			continue
@@ -274,8 +274,8 @@ func (s *snapshot) KnownImportPaths() map[string]source.Package {
 	defer s.mu.Unlock()
 
 	results := map[string]source.Package{}
-	for _, cph := range s.packages {
-		cachedPkg, err := cph.cached()
+	for _, ph := range s.packages {
+		cachedPkg, err := ph.cached()
 		if err != nil {
 			continue
 		}
@@ -293,7 +293,7 @@ func (s *snapshot) KnownImportPaths() map[string]source.Package {
 	return results
 }
 
-func (s *snapshot) getPackage(id packageID, m source.ParseMode) *checkPackageHandle {
+func (s *snapshot) getPackage(id packageID, m source.ParseMode) *packageHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -418,7 +418,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURI span.URI, withoutTypes,
 		ids:               make(map[span.URI][]packageID),
 		importedBy:        make(map[packageID][]packageID),
 		metadata:          make(map[packageID]*metadata),
-		packages:          make(map[packageKey]*checkPackageHandle),
+		packages:          make(map[packageKey]*packageHandle),
 		actions:           make(map[actionKey]*actionHandle),
 		files:             make(map[span.URI]source.FileHandle),
 		workspacePackages: make(map[packageID]bool),

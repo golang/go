@@ -20,28 +20,23 @@ func Highlight(ctx context.Context, snapshot Snapshot, f File, pos protocol.Posi
 	defer done()
 
 	fh := snapshot.Handle(ctx, f)
-	cphs, err := snapshot.PackageHandles(ctx, fh)
+	phs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
 		return nil, err
 	}
-	cph, err := WidestCheckPackageHandle(cphs)
+	ph, err := WidestCheckPackageHandle(phs)
 	if err != nil {
 		return nil, err
 	}
-	pkg, err := cph.Check(ctx)
+	pkg, err := ph.Check(ctx)
 	if err != nil {
 		return nil, err
 	}
-	var ph ParseGoHandle
-	for _, file := range pkg.CompiledGoFiles() {
-		if file.File().Identity().URI == f.URI() {
-			ph = file
-		}
+	pgh, err := pkg.File(f.URI())
+	if err != nil {
+		return nil, err
 	}
-	if ph == nil {
-		return nil, errors.Errorf("no ParseGoHandle for %s", f.URI())
-	}
-	file, m, _, err := ph.Parse(ctx)
+	file, m, _, err := pgh.Parse(ctx)
 	if err != nil {
 		return nil, err
 	}

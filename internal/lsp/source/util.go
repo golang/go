@@ -70,7 +70,7 @@ func (s mappedRange) URI() span.URI {
 // By "narrowest" package, we mean the package with the fewest number of files
 // that includes the given file. This solves the problem of test variants,
 // as the test will have more files than the non-test package.
-func NarrowestCheckPackageHandle(handles []CheckPackageHandle) (CheckPackageHandle, error) {
+func NarrowestCheckPackageHandle(handles []PackageHandle) (PackageHandle, error) {
 	if len(handles) < 1 {
 		return nil, errors.Errorf("no CheckPackageHandles")
 	}
@@ -90,7 +90,7 @@ func NarrowestCheckPackageHandle(handles []CheckPackageHandle) (CheckPackageHand
 //
 // This is useful for something like diagnostics, where we'd prefer to offer diagnostics
 // for as many files as possible.
-func WidestCheckPackageHandle(handles []CheckPackageHandle) (CheckPackageHandle, error) {
+func WidestCheckPackageHandle(handles []PackageHandle) (PackageHandle, error) {
 	if len(handles) < 1 {
 		return nil, errors.Errorf("no CheckPackageHandles")
 	}
