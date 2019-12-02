@@ -90,16 +90,25 @@ func ApplyFixes(fixes []*ImportFix, filename string, src []byte, opt *Options) (
 		return nil, err
 	}
 
+	// Don't use parse() -- we don't care about fragments or statement lists
+	// here, and we need to work with unparseable files.
 	fileSet := token.NewFileSet()
-	file, adjust, err := parse(fileSet, filename, src, opt)
-	if err != nil {
+	parserMode := parser.Mode(0)
+	if opt.Comments {
+		parserMode |= parser.ParseComments
+	}
+	if opt.AllErrors {
+		parserMode |= parser.AllErrors
+	}
+	file, err := parser.ParseFile(fileSet, filename, src, parserMode)
+	if file == nil {
 		return nil, err
 	}
 
 	// Apply the fixes to the file.
 	apply(fileSet, file, fixes)
 
-	return formatFile(fileSet, file, src, adjust, opt)
+	return formatFile(fileSet, file, src, nil, opt)
 }
 
 // GetAllCandidates gets all of the standard library candidate packages to import in
