@@ -369,6 +369,8 @@ func lookExtensions(path, dir string) (string, error) {
 
 // Start starts the specified command but does not wait for it to complete.
 //
+// If Start returns successfully, the c.Process field will be set.
+//
 // The Wait method will return the exit code and release associated resources
 // once the command exits.
 func (c *Cmd) Start() error {
