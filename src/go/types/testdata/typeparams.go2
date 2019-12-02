@@ -129,3 +129,38 @@ type T struct {}
 func (T) m1() {}
 func (T) m2( /* ERROR method must have no type parameters */ type)() {}
 func (T) m3( /* ERROR method must have no type parameters */ type P)() {}
+
+// type inference across parameterized types
+
+type S1(type P) struct { f P }
+
+func f9(type P)(x S1(P))
+
+func _() {
+        f9(int)(S1(int){42})
+	f9(S1(int){42})
+}
+
+type S2(type A, B, C) struct{}
+
+func f10(type X, Y, Z)(a S2(X, int, Z), b S2(X, Y, bool))
+
+func _(type P)() {
+        f10(int, float32, string)(S2(int, int, string){}, S2(int, float32, bool){})
+        f10(S2(int, int, string){}, S2(int, float32, bool){})
+        f10(S2(P, int, P){}, S2(P, float32, bool){})
+}
+
+// method expressions
+
+func (_ S1(P)) m()
+
+func _() {
+	m := S1(int).m
+	m(struct { f int }{42})
+}
+
+func _(type T) (x T) {
+        m := S1(T).m
+        m(S1(T){x})
+}

@@ -108,7 +108,7 @@ func isParameterized(typ Type, seen map[Type]bool) (res bool) {
 	}()
 
 	switch t := typ.(type) {
-	case nil, *Basic, *Named: // TODO(gri) should nil be handled here?
+	case nil, *Basic: // TODO(gri) should nil be handled here?
 		break
 
 	case *Array:
@@ -158,6 +158,9 @@ func isParameterized(typ Type, seen map[Type]bool) (res bool) {
 
 	case *Chan:
 		return isParameterized(t.elem, seen)
+
+	case *Named:
+		return isParameterizedList(t.targs, seen)
 
 	case *TypeParam:
 		return true

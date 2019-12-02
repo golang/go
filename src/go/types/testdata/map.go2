@@ -53,8 +53,7 @@ func (m *Map(K, V)) Insert(key K, val V) bool {
 		(*pn).val = val
 		return false
 	}
-	// TODO(gri) investigate assignment
-        // *pn = &node(K, V){key: key, val: val}
+        *pn = &node(K, V){key: key, val: val}
 	return true
 }
 
@@ -86,8 +85,7 @@ func (m *Map(K, V)) InOrder() *Iterator(K, V) {
 		// Stop sending values if sender.Send returns false,
 		// meaning that nothing is listening at the receiver end.
 		return f(n.left) &&
-                        // TODO
-			// sender.Send(keyValue(K, V){n.key, n.val}) &&
+                        sender.Send(keyValue(K, V){n.key, n.val}) &&
 			f(n.right)
 	}
 	go func() {

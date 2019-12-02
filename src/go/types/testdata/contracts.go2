@@ -157,7 +157,7 @@ func _(type F, C FloatComplex)(c C) {
         _ = imag(c)
         re := real(c)
         im := imag(c)
-        var _ F = re // TODO(gri) why does this work? (no type conversion needed?)
-        var _ F = im // TODO(gri) why does this work? (no type conversion needed?)
-        c = C(complex(re, im))
+        var fre F = F(re)
+        var fim F = F(im)
+        c = C(complex(fre, fim))
 }

@@ -53,8 +53,7 @@ func (m *Map(K, V)) Insert(key K, val V) bool {
 		(*pn).val = val
 		return false
 	}
-	// TODO(gri) look into this assignment
-        // *pn = &node(K, V){key: key, val: val}
+	*pn = &node(K, V){key: key, val: val}
 	return true
 }
 
@@ -86,8 +85,7 @@ func (m *Map(K, V)) InOrder() *Iterator(K, V) {
 		// Stop sending values if sender.Send returns false,
 		// meaning that nothing is listening at the receiver end.
 		return f(n.left) &&
-                        // TODO
-			// sender.Send(keyValue(K, V){n.key, n.val}) &&
+                        sender.Send(keyValue(K, V){n.key, n.val}) &&
 			f(n.right)
 	}
 	go func() {
@@ -96,9 +94,7 @@ func (m *Map(K, V)) InOrder() *Iterator(K, V) {
 	}()
 	// TODO(gri) The design draft doesn't require that we repeat
 	// the type parameters here. Fix the implementation.
-        _ = receiver
-        panic(0)
-	//return &Iterator(K, V){receiver}
+	return &Iterator(K, V){receiver}
 	// return &Iterator{receiver}
 }
 
@@ -116,12 +112,7 @@ func (it *Iterator(K, V)) Next() (K, V, bool) {
 		var zerov V
 		return zerok, zerov, false
 	}
-	// TODO(gri) investigate return
-	// return keyval.key, keyval.val, true
-	_ = keyval
-	var k K
-	var v V
-	return k, v, true
+	return keyval.key, keyval.val, true
 }
 
 // chans
@@ -132,6 +123,15 @@ func chans_Ranger(type T)() (*chans_Sender(T), *chans_Receiver(T))
 type chans_Sender(type T) struct {
 	values chan<- T
 	done <-chan bool
+}
+
+func (s *chans_Sender(T)) Send(v T) bool {
+	select {
+	case s.values <- v:
+		return true
+	case <-s.done:
+		return false
+	}
 }
 
 func (s *chans_Sender(T)) Close() {

@@ -118,16 +118,10 @@ func (p *ifacePair) identical(q *ifacePair) bool {
 	return p.x == q.x && p.y == q.y || p.x == q.y && p.y == q.x
 }
 
+// If a non-nil tparams is provided, type inference is done for type parameters in x.
 func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams []Type) bool {
 	if x == y {
 		return true
-	}
-
-	// make sure type parameter is in x if we have one
-	// TODO(gri) this may not be needed: we should only be inferring in one direction,
-	//           from (given) argument types, to possibly free parameter types
-	if _, ok := x.(*TypeParam); !ok {
-		x, y = y, x
 	}
 
 	switch x := x.(type) {
@@ -283,19 +277,40 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams 
 	case *Named:
 		// Two named types are identical if their type names originate
 		// in the same type declaration.
+		// if y, ok := y.(*Named); ok {
+		// 	return x.obj == y.obj
+		// }
 		if y, ok := y.(*Named); ok {
-			return x.obj == y.obj
+			// Without type inference, type parameters (if any) must match
+			// exactly and thus the type names must match exactly as well.
+			if tparams == nil {
+				// TODO(gri) Why is x == y not sufficient? And if it is,
+				//           we can just return false here because x == y
+				//           is caught in the very beginning of this function.
+				return x.obj == y.obj
+			}
+
+			// TODO(gri) This is not always correct: two types may have the same names
+			//           in the same package if one of them is nested in a function.
+			//           Extremely unlikely but we need an always correct solution.
+			if x.obj.pkg == y.obj.pkg && stripArgNames(x.obj.name) == stripArgNames(y.obj.name) {
+				assert(len(x.targs) == len(y.targs))
+				for i, x := range x.targs {
+					if !check.identical0(x, y.targs[i], cmpTags, p, tparams) {
+						return false
+					}
+				}
+				return true
+			}
 		}
 
 	case *TypeParam:
-		if y, ok := y.(*TypeParam); ok {
-			// TODO(gri) do we need to look at type names here?
-			// - consider type-checking a generic function calling another generic function
-			// - what about self-recursive calls?
-			return x.index == y.index
-		}
+		// TODO(gri) do we need to look at type names here?
+		// - consider type-checking a generic function calling another generic function
+		// - what about self-recursive calls?
+		// (may need a map keyed by type parameters with the values the respective inferred types)
 		if tparams == nil {
-			return false
+			return false // x and y being equal is caught in the very beginning of this function
 		}
 		if x := tparams[x.index]; x != nil {
 			return check.identical0(x, y, cmpTags, p, tparams)

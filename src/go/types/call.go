@@ -344,6 +344,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		obj      Object
 		index    []int
 		indirect bool
+		madeCopy bool // for debugging purposes only
 	)
 
 	sel := e.Sel.Name
@@ -471,10 +472,21 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 	// methods may not have a fully set up signature yet
 	if m, _ := obj.(*Func); m != nil {
 		check.objDecl(m, nil)
-		// TODO(gri) fix this
-		if IsParameterized(x.typ) {
-			check.errorf(x.pos(), "method expressions/values/calls with parameterized receiver types not implemented yet")
-			goto Error
+		// If m has a parameterized receiver type, infer the type parameter
+		// values from the actual receiver provided and then substitute the
+		// type parameters in the signature accordingly.
+		if len(m.tparams) > 0 {
+			// check.dump("### recv typ = %s", x.typ)
+			// check.dump("### method = %s tparams = %s", m, m.tparams)
+			recv := m.typ.(*Signature).recv
+			targs := check.infer(recv.pos, m.tparams, NewTuple(recv), []*operand{x})
+			// check.dump("### inferred targs = %s", targs)
+			// Don't modify m. Instead - for now - make a copy of m and use that instead.
+			// (If we modify m, some tests will fail; possibly because the m is in use.)
+			copy := *m
+			copy.typ = check.subst(e.Pos(), m.typ, m.tparams, targs)
+			obj = &copy
+			madeCopy = true // if we made a copy, the method set verification below can't work
 		}
 	}
 
@@ -522,7 +534,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			// addressability, should we report the type &(x.typ) instead?
 			check.recordSelection(e, MethodVal, x.typ, obj, index, indirect)
 
-			if debug {
+			if debug && !madeCopy {
 				// Verify that LookupFieldOrMethod and MethodSet.Lookup agree.
 				// TODO(gri) This only works because we call LookupFieldOrMethod
 				// _before_ calling NewMethodSet: LookupFieldOrMethod completes

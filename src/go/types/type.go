@@ -537,7 +537,7 @@ func (c *Contract) ifaceAt(index int) *Interface {
 
 // A TypeParam represents a type parameter type.
 type TypeParam struct {
-	id    uint64 // unique id
+	id    uint64 // unique id (TODO should this be with the object? all objects?)
 	obj   *TypeName
 	index int  // parameter index
 	bound Type // either an *Interface or a *Contract
