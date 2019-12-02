@@ -526,7 +526,7 @@ func Main(archInit func(*Arch)) {
 	}
 	types.FmtLeft = int(FmtLeft)
 	types.FmtUnsigned = int(FmtUnsigned)
-	types.FErr = FErr
+	types.FErr = int(FErr)
 	types.Ctxt = Ctxt
 
 	initUniverse()
