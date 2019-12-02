@@ -43,6 +43,8 @@ var PhysHugePageSize = physHugePageSize
 
 var NetpollGenericInit = netpollGenericInit
 
+var ParseRelease = parseRelease
+
 const PreemptMSupported = preemptMSupported
 
 type LFNode struct {
