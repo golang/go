@@ -33,8 +33,10 @@
 #define SYS_clone		56
 #define SYS_exit		60
 #define SYS_kill		62
+#define SYS_uname		63
 #define SYS_fcntl		72
 #define SYS_sigaltstack 	131
+#define SYS_mlock		149
 #define SYS_arch_prctl		158
 #define SYS_gettid		186
 #define SYS_futex		202
@@ -763,4 +765,21 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-8
 	MOVL	$SYS_brk, AX
 	SYSCALL
 	MOVQ	AX, ret+0(FP)
+	RET
+
+// func uname(utsname *new_utsname) int
+TEXT ·uname(SB),NOSPLIT,$0-16
+	MOVQ    utsname+0(FP), DI
+	MOVL    $SYS_uname, AX
+	SYSCALL
+	MOVQ	AX, ret+8(FP)
+	RET
+
+// func mlock(addr, len uintptr) int
+TEXT ·mlock(SB),NOSPLIT,$0-24
+	MOVQ    addr+0(FP), DI
+	MOVQ    len+8(FP), SI
+	MOVL    $SYS_mlock, AX
+	SYSCALL
+	MOVQ	AX, ret+16(FP)
 	RET

@@ -27,6 +27,8 @@ func archauxv(tag, val uintptr) {
 	}
 }
 
+func osArchInit() {}
+
 //go:nosplit
 func cputicks() int64 {
 	// Currently cputicks() is used in blocking profiler and to seed fastrand().
