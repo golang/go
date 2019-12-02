@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"path"
+	"strconv"
 	"strings"
 )
 
@@ -25,8 +25,13 @@ func unreachable() {
 }
 
 func (check *Checker) qualifier(pkg *Package) string {
+	// Qualify the package unless it's the package being type-checked.
 	if pkg != check.pkg {
-		return path.Base(pkg.path) // avoid excessively long path names in error messages
+		// If the same package name was used by multiple packages, display the full path.
+		if check.pkgCnt[pkg.name] > 1 {
+			return strconv.Quote(pkg.path)
+		}
+		return pkg.name
 	}
 	return ""
 }
