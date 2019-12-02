@@ -119,7 +119,7 @@ var formatTests = []FormatTest{
 }
 
 func TestFormat(t *testing.T) {
-	// The numeric time represents Thu Feb  4 21:00:57.012345600 PST 2010
+	// The numeric time represents Thu Feb  4 21:00:57.012345600 PST 2009
 	time := Unix(0, 1233810057012345600)
 	for _, test := range formatTests {
 		result := time.Format(test.format)
