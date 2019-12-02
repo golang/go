@@ -805,10 +805,11 @@ func runtimer(pp *p, now int64) int64 {
 //go:systemstack
 func runOneTimer(pp *p, t *timer, now int64) {
 	if raceenabled {
-		if pp.timerRaceCtx == 0 {
-			pp.timerRaceCtx = racegostart(funcPC(runtimer) + sys.PCQuantum)
+		ppcur := getg().m.p.ptr()
+		if ppcur.timerRaceCtx == 0 {
+			ppcur.timerRaceCtx = racegostart(funcPC(runtimer) + sys.PCQuantum)
 		}
-		raceacquirectx(pp.timerRaceCtx, unsafe.Pointer(t))
+		raceacquirectx(ppcur.timerRaceCtx, unsafe.Pointer(t))
 	}
 
 	f := t.f
@@ -836,12 +837,12 @@ func runOneTimer(pp *p, t *timer, now int64) {
 	}
 
 	if raceenabled {
-		// Temporarily use the P's racectx for g0.
+		// Temporarily use the current P's racectx for g0.
 		gp := getg()
 		if gp.racectx != 0 {
 			throw("runOneTimer: unexpected racectx")
 		}
-		gp.racectx = pp.timerRaceCtx
+		gp.racectx = gp.m.p.ptr().timerRaceCtx
 	}
 
 	unlock(&pp.timersLock)
