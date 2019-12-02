@@ -91,6 +91,10 @@ Outer:
 			inReturnList = inReturnList || path[0] != returnStmt
 		}
 	}
+	// Cursor is not in a function.
+	if enclosingFunc == nil {
+		return nil, nil
+	}
 	// If the cursor is on a "return" or "func" keyword, we should highlight all of the exit
 	// points of the function, including the "return" and "func" keywords.
 	highlightAllReturnsAndFunc := path[0] == returnStmt || path[0] == enclosingFunc
