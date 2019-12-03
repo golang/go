@@ -56,6 +56,13 @@ stderr 'go: cannot match "all": working directory is not part of a module'
 stderr 'go: cannot match "all": working directory is not part of a module'
 ! stdout 'example.com/version'
 
+# 'go list -m' with wildcards should fail. Wildcards match modules in the
+# build list, so they aren't meaningful outside a module.
+! go list -m ...
+stderr 'go: cannot match "...": working directory is not part of a module'
+! go list -m rsc.io/quote/...
+stderr 'go: cannot match "rsc.io/quote/...": working directory is not part of a module'
+
 
 # 'go clean' should skip the current directory if it isn't in a module.
 go clean -n

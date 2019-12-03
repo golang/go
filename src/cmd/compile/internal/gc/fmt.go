@@ -94,7 +94,7 @@ func fmtFlag(s fmt.State, verb rune) FmtFlag {
 
 // *types.Sym, *types.Type, and *Node types use the flags below to set the format mode
 const (
-	FErr = iota
+	FErr fmtMode = iota
 	FDbg
 	FTypeId
 	FTypeIdName // same as FTypeId, but use package name instead of prefix

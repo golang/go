@@ -1584,7 +1584,10 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 		p.Target = ""
 	} else {
 		p.Target = p.Internal.Build.PkgObj
-		if cfg.BuildLinkshared {
+		if cfg.BuildLinkshared && p.Target != "" {
+			// TODO(bcmills): The reliance on p.Target implies that -linkshared does
+			// not work for any package that lacks a Target — such as a non-main
+			// package in module mode. We should probably fix that.
 			shlibnamefile := p.Target[:len(p.Target)-2] + ".shlibname"
 			shlib, err := ioutil.ReadFile(shlibnamefile)
 			if err != nil && !os.IsNotExist(err) {

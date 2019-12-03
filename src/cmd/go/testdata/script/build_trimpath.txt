@@ -1,64 +1,92 @@
 [short] skip
-env GO111MODULE=on
 
-# A binary built without -trimpath should contain the current workspace
+# Set up two identical directories that can be used as GOPATH.
+env GO111MODULE=on
+mkdir $WORK/a/src/paths $WORK/b/src/paths
+cp paths.go $WORK/a/src/paths
+cp paths.go $WORK/b/src/paths
+cp go.mod $WORK/a/src/paths/
+cp go.mod $WORK/b/src/paths/
+
+
+# A binary built without -trimpath should contain the module root dir
 # and GOROOT for debugging and stack traces.
-cd a
-go build -o $WORK/paths-a.exe paths.go
-exec $WORK/paths-a.exe $WORK/paths-a.exe
-stdout 'binary contains GOPATH: true'
+cd $WORK/a/src/paths
+go build -o $WORK/paths-dbg.exe .
+exec $WORK/paths-dbg.exe $WORK/paths-dbg.exe
+stdout 'binary contains module root: true'
 stdout 'binary contains GOROOT: true'
 
 # A binary built with -trimpath should not contain the current workspace
 # or GOROOT.
-go build -trimpath -o $WORK/paths-a.exe paths.go
+go build -trimpath -o $WORK/paths-a.exe .
 exec $WORK/paths-a.exe $WORK/paths-a.exe
-stdout 'binary contains GOPATH: false'
+stdout 'binary contains module root: false'
 stdout 'binary contains GOROOT: false'
 
 # A binary from an external module built with -trimpath should not contain
 # the current workspace or GOROOT.
-cd $WORK
 go get -trimpath rsc.io/fortune
 exec $WORK/paths-a.exe $GOPATH/bin/fortune$GOEXE
-stdout 'binary contains GOPATH: false'
+stdout 'binary contains module root: false'
 stdout 'binary contains GOROOT: false'
+go mod edit -droprequire rsc.io/fortune
 
 # Two binaries built from identical packages in different directories
 # should be identical.
-# TODO(golang.org/issue/35435): at the moment, they are not.
-#mkdir $GOPATH/src/b
-#cp $GOPATH/src/a/go.mod $GOPATH/src/b/go.mod
-#cp $GOPATH/src/a/paths.go $GOPATH/src/b/paths.go
-#cd $GOPATH/src/b
-#go build -trimpath -o $WORK/paths-b.exe .
-#cmp -q $WORK/paths-a.exe $WORK/paths-b.exe
+cd $WORK/b/src/paths
+go build -trimpath -o $WORK/paths-b.exe
+cmp -q $WORK/paths-a.exe $WORK/paths-b.exe
 
+
+# Same sequence of tests but in GOPATH mode.
+# A binary built without -trimpath should contain GOPATH and GOROOT.
+env GO111MODULE=off
+cd $WORK
+env GOPATH=$WORK/a
+go build -o paths-dbg.exe paths
+exec ./paths-dbg.exe paths-dbg.exe
+stdout 'binary contains GOPATH: true'
+stdout 'binary contains GOROOT: true'
+
+# A binary built with -trimpath should not contain GOPATH or GOROOT.
+go build -trimpath -o paths-a.exe paths
+exec ./paths-a.exe paths-a.exe
+stdout 'binary contains GOPATH: false'
+stdout 'binary contains GOROOT: false'
+
+# Two binaries built from identical packages in different GOPATH roots
+# should be identical.
+env GOPATH=$WORK/b
+go build -trimpath -o paths-b.exe paths
+cmp -q paths-a.exe paths-b.exe
+
+
+# Same sequence of tests but with gccgo.
+# gccgo does not support builds in module mode.
 [!exec:gccgo] stop
+env GOPATH=$WORK/a
 
 # A binary built with gccgo without -trimpath should contain the current
 # GOPATH and GOROOT.
-env GO111MODULE=off # The current released gccgo does not support builds in module mode.
-cd $GOPATH/src/a
-go build -compiler=gccgo -o $WORK/gccgo-paths-a.exe .
-exec $WORK/gccgo-paths-a.exe $WORK/gccgo-paths-a.exe
+go build -compiler=gccgo -o paths-dbg.exe paths
+exec ./paths-dbg.exe paths-dbg.exe
 stdout 'binary contains GOPATH: true'
 stdout 'binary contains GOROOT: false' # gccgo doesn't load std from GOROOT.
 
 # A binary built with gccgo with -trimpath should not contain GOPATH or GOROOT.
-go build -compiler=gccgo -trimpath -o $WORK/gccgo-paths-b.exe .
-exec $WORK/gccgo-paths-a.exe $WORK/gccgo-paths-b.exe
+go build -compiler=gccgo -trimpath -o paths-a.exe paths
+exec ./paths-a.exe paths-a.exe
 stdout 'binary contains GOPATH: false'
 stdout 'binary contains GOROOT: false'
 
 # Two binaries built from identical packages in different directories
 # should be identical.
-# TODO(golang.org/issue/35435): at the moment, they are not.
-#cd ../b
-#go build -compiler=gccgo -trimpath -o $WORK/gccgo-paths-b.exe .
-#cmp -q $WORK/gccgo-paths-a.exe $WORK/gccgo-paths-b.exe
+env GOPATH=$WORK/b
+go build -compiler=gccgo -trimpath -o paths-b.exe paths
+cmp -q paths-a.exe paths-b.exe
 
--- $GOPATH/src/a/paths.go --
+-- paths.go --
 package main
 
 import (
@@ -67,7 +95,9 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 func main() {
@@ -77,17 +107,26 @@ func main() {
 		log.Fatal(err)
 	}
 
-	gopath := []byte(filepath.ToSlash(os.Getenv("GOPATH")))
-	if len(gopath) == 0 {
-		log.Fatal("GOPATH not set")
+	if os.Getenv("GO111MODULE") == "on" {
+		out, err := exec.Command("go", "env", "GOMOD").Output()
+		if err != nil {
+			log.Fatal(err)
+		}
+		modRoot := filepath.Dir(strings.TrimSpace(string(out)))
+		check(data, "module root", modRoot)
+	} else {
+		check(data, "GOPATH", os.Getenv("GOPATH"))
 	}
-	fmt.Printf("binary contains GOPATH: %v\n", bytes.Contains(data, gopath))
-
-	goroot := []byte(filepath.ToSlash(os.Getenv("GOROOT")))
-	if len(goroot) == 0 {
-		log.Fatal("GOROOT not set")
-	}
-	fmt.Printf("binary contains GOROOT: %v\n", bytes.Contains(data, goroot))
+	check(data, "GOROOT", os.Getenv("GOROOT"))
 }
--- $GOPATH/src/a/go.mod --
-module example.com/a
+
+func check(data []byte, desc, dir string) {
+	containsDir := bytes.Contains(data, []byte(dir))
+	containsSlashDir := bytes.Contains(data, []byte(filepath.ToSlash(dir)))
+	fmt.Printf("binary contains %s: %v\n", desc, containsDir || containsSlashDir)
+}
+
+-- go.mod --
+module paths
+
+go 1.14

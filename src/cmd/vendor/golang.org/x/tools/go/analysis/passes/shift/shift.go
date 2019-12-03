@@ -21,9 +21,11 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
+const Doc = "check for shifts that equal or exceed the width of the integer"
+
 var Analyzer = &analysis.Analyzer{
 	Name:     "shift",
-	Doc:      "check for shifts that equal or exceed the width of the integer",
+	Doc:      Doc,
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

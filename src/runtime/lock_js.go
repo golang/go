@@ -146,9 +146,18 @@ func checkTimeouts() {
 	}
 }
 
-var isHandlingEvent = false
-var nextEventIsAsync = false
-var returnedEventHandler *g
+// events is a stack of calls from JavaScript into Go.
+var events []*event
+
+type event struct {
+	// g was the active goroutine when the call from JavaScript occurred.
+	// It needs to be active when returning to JavaScript.
+	gp *g
+	// returned reports whether the event handler has returned.
+	// When all goroutines are idle and the event handler has returned,
+	// then g gets resumed and returns the execution to JavaScript.
+	returned bool
+}
 
 // The timeout event started by beforeIdle.
 var idleID int32
@@ -170,16 +179,22 @@ func beforeIdle(delay int64) bool {
 		}
 		idleID = scheduleTimeoutEvent(delay)
 	}
-	if !isHandlingEvent {
-		nextEventIsAsync = true
-		pause(getcallersp() - 16)
+
+	if len(events) == 0 {
+		go handleAsyncEvent()
 		return true
 	}
-	if returnedEventHandler != nil {
-		goready(returnedEventHandler, 1)
+
+	e := events[len(events)-1]
+	if e.returned {
+		goready(e.gp, 1)
 		return true
 	}
 	return false
+}
+
+func handleAsyncEvent() {
+	pause(getcallersp() - 16)
 }
 
 // clearIdleID clears our record of the timeout started by beforeIdle.
@@ -200,38 +215,30 @@ func scheduleTimeoutEvent(ms int64) int32
 // clearTimeoutEvent clears a timeout event scheduled by scheduleTimeoutEvent.
 func clearTimeoutEvent(id int32)
 
+// handleEvent gets invoked on a call from JavaScript into Go. It calls the event handler of the syscall/js package
+// and then parks the handler goroutine to allow other goroutines to run before giving execution back to JavaScript.
+// When no other goroutine is awake any more, beforeIdle resumes the handler goroutine. Now that the same goroutine
+// is running as was running when the call came in from JavaScript, execution can be safely passed back to JavaScript.
 func handleEvent() {
-	if nextEventIsAsync {
-		nextEventIsAsync = false
-		checkTimeouts()
-		go handleAsyncEvent()
-		return
+	e := &event{
+		gp:       getg(),
+		returned: false,
 	}
-
-	prevIsHandlingEvent := isHandlingEvent
-	isHandlingEvent = true
-	prevReturnedEventHandler := returnedEventHandler
-	returnedEventHandler = nil
+	events = append(events, e)
 
 	eventHandler()
 
 	clearIdleID()
 
 	// wait until all goroutines are idle
-	returnedEventHandler = getg()
+	e.returned = true
 	gopark(nil, nil, waitReasonZero, traceEvNone, 1)
 
-	isHandlingEvent = prevIsHandlingEvent
-	returnedEventHandler = prevReturnedEventHandler
+	events[len(events)-1] = nil
+	events = events[:len(events)-1]
 
+	// return execution to JavaScript
 	pause(getcallersp() - 16)
-}
-
-func handleAsyncEvent() {
-	isHandlingEvent = true
-	eventHandler()
-	clearIdleID()
-	isHandlingEvent = false
 }
 
 var eventHandler func()

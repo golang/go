@@ -17,9 +17,11 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
+const Doc = "check for common mistakes involving boolean operators"
+
 var Analyzer = &analysis.Analyzer{
 	Name:     "bools",
-	Doc:      "check for common mistakes involving boolean operators",
+	Doc:      Doc,
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }

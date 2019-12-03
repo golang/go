@@ -1183,6 +1183,32 @@ func TestTryAdd(t *testing.T) {
 			{Value: []int64{30, 30 * period}, Location: []*profile.Location{{ID: 1}, {ID: 1}}},
 			{Value: []int64{40, 40 * period}, Location: []*profile.Location{{ID: 1}}},
 		},
+	}, {
+		name: "truncated_stack_trace_later",
+		input: []uint64{
+			3, 0, 500, // hz = 500. Must match the period.
+			5, 0, 50, inlinedCalleePtr, inlinedCallerPtr,
+			4, 0, 60, inlinedCalleePtr,
+		},
+		wantLocs: [][]string{{"runtime/pprof.inlinedCallee", "runtime/pprof.inlinedCaller"}},
+		wantSamples: []*profile.Sample{
+			{Value: []int64{50, 50 * period}, Location: []*profile.Location{{ID: 1}}},
+			{Value: []int64{60, 60 * period}, Location: []*profile.Location{{ID: 1}}},
+		},
+	}, {
+		name: "truncated_stack_trace_first",
+		input: []uint64{
+			3, 0, 500, // hz = 500. Must match the period.
+			4, 0, 70, inlinedCalleePtr,
+			5, 0, 80, inlinedCalleePtr, inlinedCallerPtr,
+		},
+		wantLocs: [][]string{ // the inline info is screwed up, but better than a crash.
+			{"runtime/pprof.inlinedCallee"},
+			{"runtime/pprof.inlinedCaller"}},
+		wantSamples: []*profile.Sample{
+			{Value: []int64{70, 70 * period}, Location: []*profile.Location{{ID: 1}}},
+			{Value: []int64{80, 80 * period}, Location: []*profile.Location{{ID: 1}, {ID: 2}}},
+		},
 	}}
 
 	for _, tc := range testCases {

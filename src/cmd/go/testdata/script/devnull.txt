@@ -1,0 +1,26 @@
+env GO111MODULE=off
+
+# Issue 28035: go test -c -o NUL should work.
+# Issue 28549: go test -c -o /dev/null should not overwrite /dev/null when run as root.
+cd x
+cmp $devnull $WORK/empty.txt
+go test -o=$devnull -c
+! exists x.test$GOEXE
+cmp $devnull $WORK/empty.txt
+
+# Issue 12407: go build -o /dev/null should succeed.
+cd ..
+go build -o $devnull y
+cmp $devnull $WORK/empty.txt
+
+-- x/x_test.go --
+package x_test
+import (
+    "testing"
+)
+func TestNUL(t *testing.T) {
+}
+-- y/y.go --
+package y
+func main() {}
+-- $WORK/empty.txt --
