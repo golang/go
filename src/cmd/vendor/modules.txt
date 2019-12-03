@@ -29,7 +29,7 @@ golang.org/x/arch/x86/x86asm
 golang.org/x/crypto/ed25519
 golang.org/x/crypto/ed25519/internal/edwards25519
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/mod v0.1.1-0.20191105210325-c90efee705ee
+# golang.org/x/mod v0.1.1-0.20191126161957-788aebd06792
 ## explicit
 golang.org/x/mod/internal/lazyregexp
 golang.org/x/mod/modfile
@@ -44,7 +44,7 @@ golang.org/x/mod/zip
 ## explicit
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/tools v0.0.0-20191104222624-6b7b8b79ae80
+# golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e
 ## explicit
 golang.org/x/tools/go/analysis
 golang.org/x/tools/go/analysis/internal/analysisflags

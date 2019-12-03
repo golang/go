@@ -462,6 +462,9 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) (found bool, ehdrFlags 
 // TODO: find a better place for this logic.
 func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string, initEhdrFlags uint32) (textp []*sym.Symbol, ehdrFlags uint32, err error) {
 	localSymVersion := syms.IncVersion()
+	newSym := func(name string, version int) *sym.Symbol {
+		return l.Create(name, syms)
+	}
 	lookup := func(name string, version int) *sym.Symbol {
 		return l.LookupOrCreate(name, version, syms)
 	}
@@ -758,7 +761,7 @@ func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pk
 
 	for i := 1; i < elfobj.nsymtab; i++ {
 		var elfsym ElfSym
-		if err := readelfsym(lookup, arch, elfobj, i, &elfsym, 1, localSymVersion); err != nil {
+		if err := readelfsym(newSym, lookup, arch, elfobj, i, &elfsym, 1, localSymVersion); err != nil {
 			return errorf("%s: malformed elf file: %v", pn, err)
 		}
 		symbols[i] = elfsym.sym
@@ -929,7 +932,7 @@ func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pk
 				rp.Sym = nil
 			} else {
 				var elfsym ElfSym
-				if err := readelfsym(lookup, arch, elfobj, int(info>>32), &elfsym, 0, 0); err != nil {
+				if err := readelfsym(newSym, lookup, arch, elfobj, int(info>>32), &elfsym, 0, 0); err != nil {
 					return errorf("malformed elf file: %v", err)
 				}
 				elfsym.sym = symbols[info>>32]
@@ -1006,7 +1009,7 @@ func elfmap(elfobj *ElfObj, sect *ElfSect) (err error) {
 	return nil
 }
 
-func readelfsym(lookup func(string, int) *sym.Symbol, arch *sys.Arch, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, localSymVersion int) (err error) {
+func readelfsym(newSym, lookup func(string, int) *sym.Symbol, arch *sys.Arch, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, localSymVersion int) (err error) {
 	if i >= elfobj.nsymtab || i < 0 {
 		err = fmt.Errorf("invalid elf symbol index")
 		return err
@@ -1092,7 +1095,10 @@ func readelfsym(lookup func(string, int) *sym.Symbol, arch *sys.Arch, elfobj *El
 				// local names and hidden global names are unique
 				// and should only be referenced by their index, not name, so we
 				// don't bother to add them into the hash table
-				s = lookup(elfsym.name, localSymVersion)
+				// FIXME: pass empty string here for name? This would
+				// reduce mem use, but also (possibly) make it harder
+				// to debug problems.
+				s = newSym(elfsym.name, localSymVersion)
 
 				s.Attr |= sym.AttrVisibilityHidden
 			}

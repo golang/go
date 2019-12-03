@@ -171,6 +171,16 @@ TODO
 TODO
 </p>
 
+<p><!-- CL 171844 and many others -->
+  Internal timers, used by
+  <a href="/pkg/time/#After"><code>time.After</code></a>,
+  <a href="/pkg/time/#Tick"><code>time.Tick</code></a>,
+  <a href="/pkg/net/#Conn"><code>net.Conn.SetDeadline</code></a>,
+  and friends, are more efficient, with less lock contention and fewer
+  context switches.
+  This is a performance improvement that should not cause any user
+  visible changes.
+</p>
 
 <h2 id="library">Core library</h2>
 

@@ -522,8 +522,7 @@ type m struct {
 	waittraceskip int
 	startingtrace bool
 	syscalltick   uint32
-	thread        uintptr // thread handle
-	freelink      *m      // on sched.freem
+	freelink      *m // on sched.freem
 
 	// these are here because they are too large to be on the stack
 	// of low-level NOSPLIT functions.

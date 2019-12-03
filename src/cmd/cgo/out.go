@@ -1313,8 +1313,10 @@ func gccgoPkgpathToSymbolNew(ppath string) string {
 	for _, c := range []byte(ppath) {
 		switch {
 		case 'A' <= c && c <= 'Z', 'a' <= c && c <= 'z',
-			'0' <= c && c <= '9', c == '_', c == '.':
+			'0' <= c && c <= '9', c == '_':
 			bsl = append(bsl, c)
+		case c == '.':
+			bsl = append(bsl, ".x2e"...)
 		default:
 			changed = true
 			encbytes := []byte(fmt.Sprintf("..z%02x", c))

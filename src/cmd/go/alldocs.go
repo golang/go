@@ -1010,7 +1010,7 @@
 //
 // Usage:
 //
-// 	go mod download [-json] [modules]
+// 	go mod download [-x] [-json] [modules]
 //
 // Download downloads the named modules, which can be module patterns selecting
 // dependencies of the main module or module queries of the form path@version.
@@ -1036,6 +1036,8 @@
 //         Sum      string // checksum for path, version (as in go.sum)
 //         GoModSum string // checksum for go.mod (as in go.sum)
 //     }
+//
+// The -x flag causes download to print the commands download executes.
 //
 // See 'go help modules' for more about module queries.
 //

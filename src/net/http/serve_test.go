@@ -2632,7 +2632,7 @@ func TestRedirect(t *testing.T) {
 
 // Test that Redirect sets Content-Type header for GET and HEAD requests
 // and writes a short HTML body, unless the request already has a Content-Type header.
-func TestRedirect_contentTypeAndBody(t *testing.T) {
+func TestRedirectContentTypeAndBody(t *testing.T) {
 	type ctHeader struct {
 		Values []string
 	}
@@ -2911,7 +2911,7 @@ func TestStripPrefix(t *testing.T) {
 }
 
 // https://golang.org/issue/18952.
-func TestStripPrefix_notModifyRequest(t *testing.T) {
+func TestStripPrefixNotModifyRequest(t *testing.T) {
 	h := StripPrefix("/foo", NotFoundHandler())
 	req := httptest.NewRequest("GET", "/foo/bar", nil)
 	h.ServeHTTP(httptest.NewRecorder(), req)
@@ -6124,6 +6124,39 @@ func TestServerContextsHTTP2(t *testing.T) {
 	if got, want := ctx.Value(connKey{}), "conn"; got != want {
 		t.Errorf("conn context key = %#v; want %q", got, want)
 	}
+}
+
+// Issue 35750: check ConnContext not modifying context for other connections
+func TestConnContextNotModifyingAllContexts(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	type connKey struct{}
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(rw ResponseWriter, r *Request) {
+		rw.Header().Set("Connection", "close")
+	}))
+	ts.Config.ConnContext = func(ctx context.Context, c net.Conn) context.Context {
+		if got := ctx.Value(connKey{}); got != nil {
+			t.Errorf("in ConnContext, unexpected context key = %#v", got)
+		}
+		return context.WithValue(ctx, connKey{}, "conn")
+	}
+	ts.Start()
+	defer ts.Close()
+
+	var res *Response
+	var err error
+
+	res, err = ts.Client().Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+
+	res, err = ts.Client().Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
 }
 
 // Issue 30710: ensure that as per the spec, a server responds

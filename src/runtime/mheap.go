@@ -1424,6 +1424,8 @@ func (h *mheap) scavengeAll() {
 	gp := getg()
 	gp.m.mallocing++
 	lock(&h.lock)
+	// Reset the scavenger address so we have access to the whole heap.
+	h.pages.resetScavengeAddr()
 	released := h.pages.scavenge(^uintptr(0), true)
 	unlock(&h.lock)
 	gp.m.mallocing--

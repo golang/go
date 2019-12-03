@@ -118,6 +118,7 @@ func suspendG(gp *g) suspendGState {
 	stopped := false
 	var asyncM *m
 	var asyncGen uint32
+	var nextPreemptM int64
 	for i := 0; ; i++ {
 		switch s := readgstatus(gp); s {
 		default:
@@ -205,14 +206,32 @@ func suspendG(gp *g) suspendGState {
 			gp.preempt = true
 			gp.stackguard0 = stackPreempt
 
-			// Send asynchronous preemption.
-			asyncM = gp.m
-			asyncGen = atomic.Load(&asyncM.preemptGen)
-			if preemptMSupported && debug.asyncpreemptoff == 0 {
-				preemptM(asyncM)
-			}
+			// Prepare for asynchronous preemption.
+			asyncM2 := gp.m
+			asyncGen2 := atomic.Load(&asyncM2.preemptGen)
+			needAsync := asyncM != asyncM2 || asyncGen != asyncGen2
+			asyncM = asyncM2
+			asyncGen = asyncGen2
 
 			casfrom_Gscanstatus(gp, _Gscanrunning, _Grunning)
+
+			// Send asynchronous preemption. We do this
+			// after CASing the G back to _Grunning
+			// because preemptM may be synchronous and we
+			// don't want to catch the G just spinning on
+			// its status.
+			if preemptMSupported && debug.asyncpreemptoff == 0 && needAsync {
+				// Rate limit preemptM calls. This is
+				// particularly important on Windows
+				// where preemptM is actually
+				// synchronous and the spin loop here
+				// can lead to live-lock.
+				now := nanotime()
+				if now >= nextPreemptM {
+					nextPreemptM = now + yieldDelay/2
+					preemptM(asyncM)
+				}
+			}
 		}
 
 		// TODO: Don't busy wait. This loop should really only
@@ -374,7 +393,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) bool {
 		// use the LR for unwinding, which will be bad.
 		return false
 	}
-	smi := pcdatavalue(f, _PCDATA_StackMapIndex, pc, nil)
+	smi := pcdatavalue(f, _PCDATA_RegMapIndex, pc, nil)
 	if smi == -2 {
 		// Unsafe-point marked by compiler. This includes
 		// atomic sequences (e.g., write barrier) and nosplit

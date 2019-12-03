@@ -1,0 +1,117 @@
+env GO111MODULE=off  # Relative imports only work in GOPATH mode.
+
+[short] skip
+
+# Imports should be resolved relative to the source file.
+go build testdata/local/easy.go
+exec ./easy$GOEXE
+stdout '^easysub\.Hello'
+
+# Ignored files should be able to import the package built from
+# non-ignored files in the same directory.
+go build -o easysub$GOEXE testdata/local/easysub/main.go
+exec ./easysub$GOEXE
+stdout '^easysub\.Hello'
+
+# Files in relative-imported packages should be able to
+# use relative imports themselves.
+go build testdata/local/hard.go
+exec ./hard$GOEXE
+stdout '^sub\.Hello'
+
+# Explicit source files listed on the command line should not install without
+# GOBIN set, since individual source files aren't part of the containing GOPATH.
+! go install testdata/local/easy.go
+stderr '^go install: no install location for \.go files listed on command line \(GOBIN not set\)$'
+
+[windows] stop  # Windows does not allow the ridiculous directory name we're about to use.
+
+env BAD_DIR_NAME='#$%:, &()*;<=>?\^{}'
+
+mkdir -p testdata/$BAD_DIR_NAME/easysub
+mkdir -p testdata/$BAD_DIR_NAME/sub/sub
+
+cp testdata/local/easy.go testdata/$BAD_DIR_NAME/easy.go
+cp testdata/local/easysub/easysub.go testdata/$BAD_DIR_NAME/easysub/easysub.go
+cp testdata/local/easysub/main.go testdata/$BAD_DIR_NAME/easysub/main.go
+cp testdata/local/hard.go testdata/$BAD_DIR_NAME/hard.go
+cp testdata/local/sub/sub.go testdata/$BAD_DIR_NAME/sub/sub.go
+cp testdata/local/sub/sub/subsub.go testdata/$BAD_DIR_NAME/sub/sub/subsub.go
+
+# Imports should be resolved relative to the source file.
+go build testdata/$BAD_DIR_NAME/easy.go
+exec ./easy$GOEXE
+stdout '^easysub\.Hello'
+
+# Ignored files should be able to import the package built from
+# non-ignored files in the same directory.
+go build -o easysub$GOEXE testdata/$BAD_DIR_NAME/easysub/main.go
+exec ./easysub$GOEXE
+stdout '^easysub\.Hello'
+
+# Files in relative-imported packages should be able to
+# use relative imports themselves.
+go build testdata/$BAD_DIR_NAME/hard.go
+exec ./hard$GOEXE
+stdout '^sub\.Hello'
+
+# Explicit source files listed on the command line should not install without
+# GOBIN set, since individual source files aren't part of the containing GOPATH.
+! go install testdata/$BAD_DIR_NAME/easy.go
+stderr '^go install: no install location for \.go files listed on command line \(GOBIN not set\)$'
+
+-- testdata/local/easy.go --
+package main
+
+import "./easysub"
+
+func main() {
+	easysub.Hello()
+}
+-- testdata/local/easysub/easysub.go --
+package easysub
+
+import "fmt"
+
+func Hello() {
+	fmt.Println("easysub.Hello")
+}
+-- testdata/local/easysub/main.go --
+// +build ignore
+
+package main
+
+import "."
+
+func main() {
+	easysub.Hello()
+}
+-- testdata/local/hard.go --
+package main
+
+import "./sub"
+
+func main() {
+	sub.Hello()
+}
+-- testdata/local/sub/sub.go --
+package sub
+
+import (
+	"fmt"
+
+	subsub "./sub"
+)
+
+func Hello() {
+	fmt.Println("sub.Hello")
+	subsub.Hello()
+}
+-- testdata/local/sub/sub/subsub.go --
+package subsub
+
+import "fmt"
+
+func Hello() {
+	fmt.Println("subsub.Hello")
+}

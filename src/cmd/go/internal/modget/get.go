@@ -458,7 +458,9 @@ func runGet(cmd *base.Command, args []string) {
 	modOnly := make(map[string]*query)
 	for _, q := range queries {
 		if q.m.Version == "none" {
+			modOnlyMu.Lock()
 			modOnly[q.m.Path] = q
+			modOnlyMu.Unlock()
 			continue
 		}
 		if q.path == q.m.Path {

@@ -692,7 +692,7 @@ func (t *tester) registerTests() {
 			t.registerTest("testplugin", "../misc/cgo/testplugin", t.goTest(), t.timeout(600), ".")
 		}
 		if gohostos == "linux" && goarch == "amd64" {
-			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", "main.go")
+			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", ".")
 		}
 		if mSanSupported(goos, goarch) {
 			t.registerHostTest("testsanitizers/msan", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
@@ -701,7 +701,7 @@ func (t *tester) registerTests() {
 			t.registerHostTest("cgo_errors", "../misc/cgo/errors", "misc/cgo/errors", ".")
 		}
 		if gohostos == "linux" && t.extLink() {
-			t.registerTest("testsigfwd", "../misc/cgo/testsigfwd", "go", "run", "main.go")
+			t.registerTest("testsigfwd", "../misc/cgo/testsigfwd", "go", "run", ".")
 		}
 	}
 
@@ -1327,7 +1327,6 @@ func (t *tester) runFlag(rx string) string {
 }
 
 func (t *tester) raceTest(dt *distTest) error {
-	t.addCmd(dt, "src", t.goTest(), "-race", "-i", "runtime/race", "flag", "os", "os/exec")
 	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("Output"), "runtime/race")
 	t.addCmd(dt, "src", t.goTest(), "-race", t.runFlag("TestParse|TestEcho|TestStdinCloseRace|TestClosedPipeRace|TestTypeRace|TestFdRace|TestFdReadRace|TestFileCloseRace"), "flag", "net", "os", "os/exec", "encoding/gob")
 	// We don't want the following line, because it
@@ -1449,7 +1448,25 @@ func (t *tester) makeGOROOTUnwritable() (undo func()) {
 		}
 	}
 
+	gocache := os.Getenv("GOCACHE")
+	if gocache == "" {
+		panic("GOCACHE not set")
+	}
+	gocacheSubdir, _ := filepath.Rel(dir, gocache)
+
 	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if suffix := strings.TrimPrefix(path, dir+string(filepath.Separator)); suffix != "" {
+			if suffix == gocacheSubdir {
+				// Leave GOCACHE writable: we may need to write test binaries into it.
+				return filepath.SkipDir
+			}
+			if suffix == ".git" {
+				// Leave Git metadata in whatever state it was in. It may contain a lot
+				// of files, and it is highly unlikely that a test will try to modify
+				// anything within that directory.
+				return filepath.SkipDir
+			}
+		}
 		if err == nil {
 			mode := info.Mode()
 			if mode&0222 != 0 && (mode.IsDir() || mode.IsRegular()) {

@@ -420,6 +420,11 @@ func TestStrictDup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	src = filepath.Join(tmpdir, "go.mod")
+	err = ioutil.WriteFile(src, []byte("module teststrictdup\n"), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cmd := exec.Command(testenv.GoToolPath(t), "build", "-ldflags=-strictdups=1")
 	cmd.Dir = tmpdir
