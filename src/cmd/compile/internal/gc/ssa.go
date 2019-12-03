@@ -5968,23 +5968,22 @@ func genssa(f *ssa.Func, pp *Progs) {
 	// Emit basic blocks
 	for i, b := range f.Blocks {
 		s.bstart[b.ID] = s.pp.next
-		s.pp.nextLive = LivenessInvalid
 		s.lineRunStart = nil
+
+		// Attach a "default" liveness info. Normally this will be
+		// overwritten in the Values loop below for each Value. But
+		// for an empty block this will be used for its control
+		// instruction. We won't use the actual liveness map on a
+		// control instruction. Just mark it something that is
+		// preemptible.
+		s.pp.nextLive = LivenessIndex{-1, -1}
 
 		// Emit values in block
 		thearch.SSAMarkMoves(&s, b)
 		for _, v := range b.Values {
 			x := s.pp.next
 			s.DebugFriendlySetPosFrom(v)
-			// Attach this safe point to the next
-			// instruction.
-			s.pp.nextLive = s.livenessMap.Get(v)
 
-			// Remember the liveness index of the first defer call of
-			// the last defer exit
-			if v.Block.Func.LastDeferExit != nil && v == v.Block.Func.LastDeferExit {
-				s.lastDeferLiveness = s.pp.nextLive
-			}
 			switch v.Op {
 			case ssa.OpInitMem:
 				// memory arg needs no code
@@ -6018,12 +6017,22 @@ func genssa(f *ssa.Func, pp *Progs) {
 				inlMarksByPos[pos] = append(inlMarksByPos[pos], p)
 
 			default:
-				// let the backend handle it
+				// Attach this safe point to the next
+				// instruction.
+				s.pp.nextLive = s.livenessMap.Get(v)
+
+				// Remember the liveness index of the first defer call of
+				// the last defer exit
+				if v.Block.Func.LastDeferExit != nil && v == v.Block.Func.LastDeferExit {
+					s.lastDeferLiveness = s.pp.nextLive
+				}
+
 				// Special case for first line in function; move it to the start.
 				if firstPos != src.NoXPos {
 					s.SetPos(firstPos)
 					firstPos = src.NoXPos
 				}
+				// let the backend handle it
 				thearch.SSAGenValue(&s, v)
 			}
 
