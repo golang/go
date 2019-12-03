@@ -541,216 +541,93 @@ E1:
 	RET
 
 TEXT ·addVW(SB), NOSPLIT, $0
-	MOVD addwvectorfacility+0x00(SB), R1
-	BR   (R1)
+	MOVD z_len+8(FP), R5 // length of z
+	MOVD x+24(FP), R6
+	MOVD y+48(FP), R7    // c = y
+	MOVD z+0(FP), R8
 
-TEXT ·addVW_check(SB), NOSPLIT, $0
-	MOVB   ·hasVX(SB), R1
-	CMPBEQ R1, $1, vectorimpl               // vectorfacility = 1, vector supported
-	MOVD   $addwvectorfacility+0x00(SB), R1
-	MOVD   $·addVW_novec(SB), R2
-	MOVD   R2, 0(R1)
+	CMPBEQ R5, $0, returnC // if len(z) == 0, we can have an early return
 
-	// MOVD	$·addVW_novec(SB), 0(R1)
-	BR ·addVW_novec(SB)
+	// Add the first two words, and determine which path (copy path or loop path) to take based on the carry flag.
+	ADDC   0(R6), R7
+	MOVD   R7, 0(R8)
+	CMPBEQ R5, $1, returnResult // len(z) == 1
+	MOVD   $0, R9
+	ADDE   8(R6), R9
+	MOVD   R9, 8(R8)
+	CMPBEQ R5, $2, returnResult // len(z) == 2
 
-vectorimpl:
-	MOVD $addwvectorfacility+0x00(SB), R1
-	MOVD $·addVW_vec(SB), R2
-	MOVD R2, 0(R1)
+	// Update the counters
+	MOVD $16, R12    // i = 2
+	MOVD $-2(R5), R5 // n = n - 2
 
-	// MOVD	$·addVW_vec(SB), 0(R1)
-	BR ·addVW_vec(SB)
+loopOverEachWord:
+	BRC  $12, copySetup // carry = 0, copy the rest
+	MOVD $1, R9
 
-GLOBL addwvectorfacility+0x00(SB), NOPTR, $8
-DATA addwvectorfacility+0x00(SB)/8, $·addVW_check(SB)
+	// Originally we used the carry flag generated in the previous iteration
+	// (i.e: ADDE could be used here to do the addition).  However, since we
+	// already know carry is 1 (otherwise we will go to copy section), we can use
+	// ADDC here so the current iteration does not depend on the carry flag
+	// generated in the previous iteration. This could be useful when branch prediction happens.
+	ADDC 0(R6)(R12*1), R9
+	MOVD R9, 0(R8)(R12*1) // z[i] = x[i] + c
 
-// func addVW_vec(z, x []Word, y Word) (c Word)
-TEXT ·addVW_vec(SB), NOSPLIT, $0
-	MOVD z_len+8(FP), R3
-	MOVD x+24(FP), R8
-	MOVD y+48(FP), R4    // c = y
-	MOVD z+0(FP), R2
+	MOVD  $8(R12), R12         // i++
+	BRCTG R5, loopOverEachWord // n--
 
-	MOVD $0, R0  // make sure it's zero
-	MOVD $0, R10 // i = 0
-	MOVD R8, R5
-	MOVD R2, R7
-
-	// s/JL/JMP/ below to disable the unrolled loop
-	SUB $4, R3  // n -= 4
-	BLT v10     // if n < 0 goto v10
-	SUB $12, R3
-	BLT A10
-
-	// n >= 0
-	// regular loop body unrolled 16x
-
-	VZERO V0         // prepare V0 to be final carry register
-	VZERO V9         // to ensure upper half is zero
-	VLVGG $1, R4, V9
-
-UU1:
-	VLM  0(R5), V1, V4    // 64-bytes into V1..V4
-	ADD  $64, R5
-	VPDI $0x4, V1, V1, V1 // flip the doublewords to big-endian order
-	VPDI $0x4, V2, V2, V2 // flip the doublewords to big-endian order
-
-	VACCCQ V1, V9, V0, V25
-	VACQ   V1, V9, V0, V17
-	VZERO  V9
-	VACCCQ V2, V9, V25, V26
-	VACQ   V2, V9, V25, V18
-
-	VLM 0(R5), V5, V6 // 32-bytes into V5..V6
-	ADD $32, R5
-
-	VPDI $0x4, V3, V3, V3 // flip the doublewords to big-endian order
-	VPDI $0x4, V4, V4, V4 // flip the doublewords to big-endian order
-
-	VACCCQ V3, V9, V26, V27
-	VACQ   V3, V9, V26, V19
-	VACCCQ V4, V9, V27, V28
-	VACQ   V4, V9, V27, V20
-
-	VLM 0(R5), V7, V8 // 32-bytes into V7..V8
-	ADD $32, R5
-
-	VPDI $0x4, V5, V5, V5 // flip the doublewords to big-endian order
-	VPDI $0x4, V6, V6, V6 // flip the doublewords to big-endian order
-
-	VACCCQ V5, V9, V28, V29
-	VACQ   V5, V9, V28, V21
-	VACCCQ V6, V9, V29, V30
-	VACQ   V6, V9, V29, V22
-
-	VPDI $0x4, V7, V7, V7 // flip the doublewords to big-endian order
-	VPDI $0x4, V8, V8, V8 // flip the doublewords to big-endian order
-
-	VACCCQ V7, V9, V30, V31
-	VACQ   V7, V9, V30, V23
-	VACCCQ V8, V9, V31, V0  // V0 has carry-over
-	VACQ   V8, V9, V31, V24
-
-	VPDI  $0x4, V17, V17, V17 // flip the doublewords to big-endian order
-	VPDI  $0x4, V18, V18, V18 // flip the doublewords to big-endian order
-	VPDI  $0x4, V19, V19, V19 // flip the doublewords to big-endian order
-	VPDI  $0x4, V20, V20, V20 // flip the doublewords to big-endian order
-	VPDI  $0x4, V21, V21, V21 // flip the doublewords to big-endian order
-	VPDI  $0x4, V22, V22, V22 // flip the doublewords to big-endian order
-	VPDI  $0x4, V23, V23, V23 // flip the doublewords to big-endian order
-	VPDI  $0x4, V24, V24, V24 // flip the doublewords to big-endian order
-	VSTM  V17, V24, 0(R7)     // 128-bytes into z
-	ADD   $128, R7
-	ADD   $128, R10           // i += 16
-	SUB   $16, R3             // n -= 16
-	BGE   UU1                 // if n >= 0 goto U1
-	VLGVG $1, V0, R4          // put cf into R4 in case we branch to v10
-
-A10:
-	ADD $12, R3 // n += 16
-
-	// s/JL/JMP/ below to disable the unrolled loop
-
-	BLT v10 // if n < 0 goto v10
-
-U4:  // n >= 0
-	// regular loop body unrolled 4x
-	MOVD 0(R8)(R10*1), R5
-	MOVD 8(R8)(R10*1), R6
-	MOVD 16(R8)(R10*1), R7
-	MOVD 24(R8)(R10*1), R1
-	ADDC R4, R5
-	ADDE R0, R6
-	ADDE R0, R7
-	ADDE R0, R1
+// Return the current carry value
+returnResult:
+	MOVD $0, R0
 	ADDE R0, R0
-	MOVD R0, R4            // save CF
-	SUB  R0, R0
-	MOVD R5, 0(R2)(R10*1)
-	MOVD R6, 8(R2)(R10*1)
-	MOVD R7, 16(R2)(R10*1)
-	MOVD R1, 24(R2)(R10*1)
-
-	ADD $32, R10 // i += 4 -> i +=32
-	SUB $4, R3   // n -= 4
-	BGE U4       // if n >= 0 goto U4
-
-v10:
-	ADD $4, R3 // n += 4
-	BLE E10    // if n <= 0 goto E4
-
-L4:  // n > 0
-	MOVD 0(R8)(R10*1), R5
-	ADDC R4, R5
-	ADDE R0, R0
-	MOVD R0, R4           // save CF
-	SUB  R0, R0
-	MOVD R5, 0(R2)(R10*1)
-
-	ADD $8, R10 // i++
-	SUB $1, R3  // n--
-	BGT L4      // if n > 0 goto L4
-
-E10:
-	MOVD R4, c+56(FP) // return c
-
+	MOVD R0, c+56(FP)
 	RET
 
-TEXT ·addVW_novec(SB), NOSPLIT, $0
-	// DI = R3, CX = R4, SI = r10, r8 = r8, r10 = r2 , r11 = r5, r12 = r6, r13 = r7, r14 = r1 (R0 set to 0)
-	MOVD z_len+8(FP), R3
-	MOVD x+24(FP), R8
-	MOVD y+48(FP), R4    // c = y
-	MOVD z+0(FP), R2
-	MOVD $0, R0          // make sure it's 0
-	MOVD $0, R10         // i = 0
+// Update position of x(R6) and z(R8) based on the current counter value and perform copying.
+// With the assumption that x and z will not overlap with each other or x and z will
+// point to same memory region, we can use a faster version of copy using only MVC here.
+// In the following implementation, we have three copy loops, each copying a word, 4 words, and
+// 32 words at a time.  Via benchmarking, this implementation is faster than calling runtime·memmove.
+copySetup:
+	ADD R12, R6
+	ADD R12, R8
 
-	// s/JL/JMP/ below to disable the unrolled loop
-	SUB $4, R3 // n -= 4
-	BLT v4     // if n < 4 goto v4
+	CMPBGE R5, $4, mediumLoop
 
-U4:  // n >= 0
-	// regular loop body unrolled 4x
-	MOVD 0(R8)(R10*1), R5
-	MOVD 8(R8)(R10*1), R6
-	MOVD 16(R8)(R10*1), R7
-	MOVD 24(R8)(R10*1), R1
-	ADDC R4, R5
-	ADDE R0, R6
-	ADDE R0, R7
-	ADDE R0, R1
-	ADDE R0, R0
-	MOVD R0, R4            // save CF
-	SUB  R0, R0
-	MOVD R5, 0(R2)(R10*1)
-	MOVD R6, 8(R2)(R10*1)
-	MOVD R7, 16(R2)(R10*1)
-	MOVD R1, 24(R2)(R10*1)
+smallLoop:  // does a loop unrolling to copy word when n < 4
+	CMPBEQ R5, $0, returnZero
+	MVC    $8, 0(R6), 0(R8)
+	CMPBEQ R5, $1, returnZero
+	MVC    $8, 8(R6), 8(R8)
+	CMPBEQ R5, $2, returnZero
+	MVC    $8, 16(R6), 16(R8)
 
-	ADD $32, R10 // i += 4 -> i +=32
-	SUB $4, R3   // n -= 4
-	BGE U4       // if n >= 0 goto U4
+returnZero:
+	MOVD $0, c+56(FP) // return 0 as carry
+	RET
 
-v4:
-	ADD $4, R3 // n += 4
-	BLE E4     // if n <= 0 goto E4
+mediumLoop:
+	CMPBLT R5, $4, smallLoop
+	CMPBLT R5, $32, mediumLoopBody
 
-L4:  // n > 0
-	MOVD 0(R8)(R10*1), R5
-	ADDC R4, R5
-	ADDE R0, R0
-	MOVD R0, R4           // save CF
-	SUB  R0, R0
-	MOVD R5, 0(R2)(R10*1)
+largeLoop:  // Copying 256 bytes at a time.
+	MVC    $256, 0(R6), 0(R8)
+	MOVD   $256(R6), R6
+	MOVD   $256(R8), R8
+	MOVD   $-32(R5), R5
+	CMPBGE R5, $32, largeLoop
+	BR     mediumLoop
 
-	ADD $8, R10 // i++
-	SUB $1, R3  // n--
-	BGT L4      // if n > 0 goto L4
+mediumLoopBody:  // Copying 32 bytes at a time
+	MVC    $32, 0(R6), 0(R8)
+	MOVD   $32(R6), R6
+	MOVD   $32(R8), R8
+	MOVD   $-4(R5), R5
+	CMPBGE R5, $4, mediumLoopBody
+	BR     smallLoop
 
-E4:
-	MOVD R4, c+56(FP) // return c
-
+returnC:
+	MOVD R7, c+56(FP)
 	RET
 
 TEXT ·subVW(SB), NOSPLIT, $0
