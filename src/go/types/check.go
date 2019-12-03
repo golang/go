@@ -271,7 +271,7 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
 	print("== collectObjects ==")
 	check.collectObjects()
 
-	print("== packagetObjects ==")
+	print("== packageObjects ==")
 	check.packageObjects()
 
 	print("== processDelayed ==")

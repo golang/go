@@ -307,22 +307,6 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		def.setUnderlying(typ)
 		return typ
 
-		/*
-			// We may have a parameterized type or an "instantiated" contract.
-			typ := new(Parameterized)
-			def.setUnderlying(typ)
-			if check.parameterizedType(typ, e) {
-				if IsParameterizedList(typ.targs) {
-					return typ
-				}
-				typ := check.inst(typ.tname, typ.targs)
-				def.setUnderlying(typ) // TODO(gri) do we need this?
-				return typ
-			}
-			// TODO(gri) If we have a cycle and we reach here, "leafs" of
-			// the cycle may refer to a not fully set up Parameterized typ.
-		*/
-
 	case *ast.ParenExpr:
 		return check.definedType(e.X, def)
 
@@ -649,10 +633,10 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	sort.Sort(byUniqueMethodName(ityp.methods))
 	sort.Stable(byUniqueTypeName(ityp.embeddeds))
 
-	check.later(func() { check.completeInterface(ityp) })
+	check.later(func() { check.completeInterface(iface.Pos(), ityp) })
 }
 
-func (check *Checker) completeInterface(ityp *Interface) {
+func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
 	if ityp.allMethods != nil {
 		return
 	}
@@ -666,11 +650,18 @@ func (check *Checker) completeInterface(ityp *Interface) {
 	}
 
 	if check.conf.Trace {
-		check.trace(token.NoPos, "complete %s", ityp)
+		// Types don't generally have position information.
+		// If we don't have a valid pos provided, try to use
+		// one close enough.
+		if !pos.IsValid() && len(ityp.methods) > 0 {
+			pos = ityp.methods[0].pos
+		}
+
+		check.trace(pos, "complete %s", ityp)
 		check.indent++
 		defer func() {
 			check.indent--
-			check.trace(token.NoPos, "=> %s", ityp)
+			check.trace(pos, "=> %s", ityp)
 		}()
 	}
 
@@ -729,7 +720,7 @@ func (check *Checker) completeInterface(ityp *Interface) {
 			// Ignore it.
 			continue
 		}
-		check.completeInterface(typ)
+		check.completeInterface(pos, typ)
 		for _, m := range typ.allMethods {
 			addMethod(pos, m, false) // use embedding position pos rather than m.pos
 		}

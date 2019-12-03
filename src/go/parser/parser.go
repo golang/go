@@ -1288,7 +1288,7 @@ func (p *parser) parseChanType(typeContext bool) *ast.ChanType {
 
 // ContractType = "(" [ IdentList [ "," ] ] ")" "{" { Constraint ";" } "}" .
 // (The "contract" keyword is already consumed.)
-func (p *parser) parseContractType() *ast.ContractType {
+func (p *parser) parseContractType(pos token.Pos) *ast.ContractType {
 	if p.trace {
 		defer un(trace(p, "ContractType"))
 	}
@@ -1314,7 +1314,7 @@ func (p *parser) parseContractType() *ast.ContractType {
 	}
 	rbrace := p.expect(token.RBRACE)
 
-	return &ast.ContractType{TParams: params, Lbrace: lbrace, Constraints: constraints, Rbrace: rbrace}
+	return &ast.ContractType{Contract: pos, TParams: params, Lbrace: lbrace, Constraints: constraints, Rbrace: rbrace}
 }
 
 // Constraint       = TypeParam TypeOrMethod { "," TypeOrMethod } | ContractTypeName "(" [ TypeList [ "," ] ] ")" .
@@ -1408,8 +1408,7 @@ func (p *parser) tryIdentOrType(typeContext bool) ast.Expr {
 		if p.lit == "contract" {
 			pos := p.pos
 			p.next()
-			typ := p.parseContractType()
-			typ.Contract = pos // set keyword position
+			typ := p.parseContractType(pos)
 			return typ
 		}
 		typ := p.parseTypeName(nil)
@@ -2655,7 +2654,7 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 // ----------------------------------------------------------------------------
 // Declarations
 
-type parseSpecFunction func(doc *ast.CommentGroup, keyword token.Token, iota int) ast.Spec
+type parseSpecFunction func(doc *ast.CommentGroup, pos token.Pos, keyword token.Token, iota int) ast.Spec
 
 func isValidImport(lit string) bool {
 	const illegalChars = `!"#$%&'()*,:;<=>?[\]^{|}` + "`\uFFFD"
@@ -2668,7 +2667,7 @@ func isValidImport(lit string) bool {
 	return s != ""
 }
 
-func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.Spec {
+func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token, _ int) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "ImportSpec"))
 	}
@@ -2707,7 +2706,7 @@ func (p *parser) parseImportSpec(doc *ast.CommentGroup, _ token.Token, _ int) as
 	return spec
 }
 
-func (p *parser) parseValueSpec(doc *ast.CommentGroup, keyword token.Token, iota int) ast.Spec {
+func (p *parser) parseValueSpec(doc *ast.CommentGroup, _ token.Pos, keyword token.Token, iota int) ast.Spec {
 	if p.trace {
 		defer un(trace(p, keyword.String()+"Spec"))
 	}
@@ -2754,7 +2753,7 @@ func (p *parser) parseValueSpec(doc *ast.CommentGroup, keyword token.Token, iota
 	return spec
 }
 
-func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.Spec {
+func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token, _ int) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "TypeSpec"))
 	}
@@ -2835,7 +2834,7 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.
 	return spec
 }
 
-func (p *parser) parseContractSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.Spec {
+func (p *parser) parseContractSpec(doc *ast.CommentGroup, pos token.Pos, _ token.Token, _ int) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "ContractSpec"))
 	}
@@ -2843,7 +2842,7 @@ func (p *parser) parseContractSpec(doc *ast.CommentGroup, _ token.Token, _ int) 
 	// For now we represent a contract specification like a type representation.
 	// They cannot have "outer" type parameters, though.
 	ident := p.parseIdent()
-	typ := p.parseContractType()
+	typ := p.parseContractType(pos)
 	spec := &ast.TypeSpec{Doc: doc, Name: ident, Type: typ}
 	p.declare(spec, nil, p.topScope, ast.Typ, ident)
 	p.expectSemi() // call before accessing p.linecomment
@@ -2865,12 +2864,12 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
 		lparen = p.pos
 		p.next()
 		for iota := 0; p.tok != token.RPAREN && p.tok != token.EOF; iota++ {
-			list = append(list, f(p.leadComment, keyword, iota))
+			list = append(list, f(p.leadComment, pos, keyword, iota))
 		}
 		rparen = p.expect(token.RPAREN)
 		p.expectSemi()
 	} else {
-		list = append(list, f(nil, keyword, 0))
+		list = append(list, f(nil, pos, keyword, 0))
 	}
 
 	return &ast.GenDecl{

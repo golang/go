@@ -6,7 +6,10 @@
 
 package types
 
-import "sort"
+import (
+	"go/token"
+	"sort"
+)
 
 func isNamed(typ Type) bool {
 	if _, ok := typ.(*Basic); ok {
@@ -212,8 +215,8 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams 
 			// that case, interfaces are expected to be complete and lazy completion
 			// here is not needed.
 			if check != nil {
-				check.completeInterface(x)
-				check.completeInterface(y)
+				check.completeInterface(token.NoPos, x)
+				check.completeInterface(token.NoPos, y)
 			}
 			a := x.allMethods
 			b := y.allMethods

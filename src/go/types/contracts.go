@@ -153,7 +153,7 @@ func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
 		if iface == nil {
 			ifaces[tpar] = &emptyInterface
 		} else {
-			check.completeInterface(iface)
+			check.completeInterface(e.Pos(), iface)
 		}
 	}
 

@@ -247,7 +247,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 				return Vb.kind == UntypedBool && isBoolean(Tu)
 			}
 		case *Interface:
-			check.completeInterface(t)
+			check.completeInterface(token.NoPos, t)
 			return x.isNil() || t.Empty()
 		case *Pointer, *Signature, *Slice, *Map, *Chan:
 			return x.isNil()

@@ -558,7 +558,7 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 			target = Typ[UntypedNil]
 		} else {
 			// cannot assign untyped values to non-empty interfaces
-			check.completeInterface(t)
+			check.completeInterface(token.NoPos, t)
 			if !t.Empty() {
 				goto Error
 			}
