@@ -97,6 +97,10 @@ var valids = []string{
 	`package p; type C contract(T){ T int, imported.T, chan<-int; T m(x int) float64; C0(); imported.C1(int, T,) }`,
 	`package p; func _(type T1, T2 interface{})(x T1) T2`,
 	`package p; func _(type T1 interface{ m() }, T2, T3 interface{})(x T1, y T3) T2`,
+
+	// interfaces as contracts (experimental)
+	`package p; type _ interface{type int}`,
+	`package p; type _ interface{type int, float32; type bool; m(); type string;}`,
 }
 
 func TestValid(t *testing.T) {

@@ -201,11 +201,14 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 			if !empty && len(t.types) > 0 {
 				buf.WriteString("; ")
 			}
-			for i, typ := range t.types {
-				if i > 0 {
-					buf.WriteString(", ")
+			if len(t.types) > 0 {
+				buf.WriteString("type ")
+				for i, typ := range t.types {
+					if i > 0 {
+						buf.WriteString(", ")
+					}
+					writeType(buf, typ, qf, visited)
 				}
-				writeType(buf, typ, qf, visited)
 				empty = false
 			}
 			if !empty && len(t.embeddeds) > 0 {

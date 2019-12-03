@@ -1231,9 +1231,20 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 	pos := p.expect(token.INTERFACE)
 	lbrace := p.expect(token.LBRACE)
 	scope := ast.NewScope(nil) // interface scope
-	var list []*ast.Field
-	for p.tok == token.IDENT {
-		list = append(list, p.parseMethodSpec(scope))
+	var mlist []*ast.Field
+	var tlist []ast.Expr
+L:
+	for {
+		switch p.tok {
+		case token.IDENT:
+			mlist = append(mlist, p.parseMethodSpec(scope))
+		case token.TYPE:
+			p.next()
+			tlist = append(tlist, p.parseTypeList()...)
+			p.expectSemi()
+		default:
+			break L
+		}
 	}
 	rbrace := p.expect(token.RBRACE)
 
@@ -1241,9 +1252,10 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 		Interface: pos,
 		Methods: &ast.FieldList{
 			Opening: lbrace,
-			List:    list,
+			List:    mlist,
 			Closing: rbrace,
 		},
+		Types: tlist,
 	}
 }
 

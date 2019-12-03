@@ -623,6 +623,9 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 		}
 	}
 
+	// type constraints
+	ityp.types = check.collectTypeConstraints(iface.Pos(), ityp.types, iface.Types)
+
 	if len(ityp.methods) == 0 && len(ityp.embeddeds) == 0 {
 		// empty interface
 		ityp.allMethods = markComplete

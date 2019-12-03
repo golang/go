@@ -440,9 +440,11 @@ type (
 	}
 
 	// An InterfaceType node represents an interface type.
+	// The Types list is an experimental extension for interfaces that serve as type bounds (like contracts).
 	InterfaceType struct {
 		Interface  token.Pos  // position of "interface" keyword
 		Methods    *FieldList // list of methods
+		Types      []Expr     // list of types (TODO(gri) for now they are all lumped together, loosing syntax info)
 		Incomplete bool       // true if (source) methods are missing in the Methods list
 	}
 

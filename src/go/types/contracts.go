@@ -79,24 +79,7 @@ func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
 			switch nmethods {
 			case 0:
 				// type constraints
-				for _, texpr := range c.Types {
-					if texpr == nil {
-						check.invalidAST(pos, "missing type constraint")
-						continue
-					}
-					typ := check.typ(texpr)
-					// A type constraint may be a predeclared type or a
-					// composite type composed only of predeclared types.
-					// TODO(gri) should we keep this restriction?
-					var why string
-					if !check.typeConstraint(typ, &why) {
-						check.errorf(texpr.Pos(), "invalid type constraint %s (%s)", typ, why)
-						continue
-					}
-					// add type
-					iface.types = append(iface.types, typ)
-
-				}
+				iface.types = check.collectTypeConstraints(pos, iface.types, c.Types)
 
 			case 1:
 				// method constraint
@@ -161,6 +144,27 @@ func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
 	contr.IFaces = ifaces
 }
 
+func (check *Checker) collectTypeConstraints(pos token.Pos, list []Type, types []ast.Expr) []Type {
+	for _, texpr := range types {
+		if texpr == nil {
+			check.invalidAST(pos, "missing type constraint")
+			continue
+		}
+		typ := check.typ(texpr)
+		// A type constraint may be a predeclared type or a
+		// composite type composed only of predeclared types.
+		// TODO(gri) should we keep this restriction?
+		var why string
+		if !check.typeConstraint(typ, &why) {
+			check.errorf(texpr.Pos(), "invalid type constraint %s (%s)", typ, why)
+			continue
+		}
+		// add type
+		list = append(list, typ)
+	}
+	return list
+}
+
 // TODO(gri) does this simply check for the absence of defined types?
 //           (if so, should choose a better name)
 func (check *Checker) typeConstraint(typ Type, why *string) bool {
@@ -213,7 +217,8 @@ func (check *Checker) typeConstraint(typ Type, why *string) bool {
 		*why = check.sprintf("%s is not a type", t)
 		return false
 	case *TypeParam:
-		// ok
+		// TODO(gri) should this be ok? need a good use case
+		// ok for now
 	default:
 		unreachable()
 	}
