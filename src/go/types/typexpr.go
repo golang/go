@@ -292,6 +292,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 					return Typ[Invalid]
 				}
 			case *Contract:
+				// check.dump("### iface = %s, tparams = %s, targs = %s", b.ifaceAt(i), tname.tparams, targs)
 				iface := check.subst(token.NoPos, b.ifaceAt(i), tname.tparams, targs).(*Interface)
 				if !check.satisfyBound(pos, tpar, targs[i], iface) {
 					return Typ[Invalid]
@@ -493,6 +494,7 @@ func (check *Checker) typeList(list []ast.Expr) []Type {
 }
 
 func (check *Checker) satisfyBound(pos token.Pos, tname *TypeName, arg Type, bound *Interface) bool {
+	// check.dump("### satisfyBound: tname = %s, arg = %s, bound = %s", tname, arg, bound)
 	// use interface type of type parameter, if any
 	// targ must implement iface
 	if m, _ := check.missingMethod(arg, bound, true); m != nil {

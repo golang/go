@@ -178,6 +178,16 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 				writeSignature(buf, m.typ.(*Signature), qf, visited)
 				empty = false
 			}
+			if !empty && len(t.types) > 0 {
+				buf.WriteString("; ")
+			}
+			for i, typ := range t.types {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				writeType(buf, typ, qf, visited)
+				empty = false
+			}
 		} else {
 			// print explicit interface methods and embedded types
 			for i, m := range t.methods {
@@ -188,8 +198,21 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 				writeSignature(buf, m.typ.(*Signature), qf, visited)
 				empty = false
 			}
+			if !empty && len(t.types) > 0 {
+				buf.WriteString("; ")
+			}
+			for i, typ := range t.types {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				writeType(buf, typ, qf, visited)
+				empty = false
+			}
+			if !empty && len(t.embeddeds) > 0 {
+				buf.WriteString("; ")
+			}
 			for i, typ := range t.embeddeds {
-				if i > 0 || len(t.methods) > 0 {
+				if i > 0 {
 					buf.WriteString("; ")
 				}
 				writeType(buf, typ, qf, visited)
@@ -251,14 +274,24 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 
 	case *Contract:
 		buf.WriteString("contract(")
-		for i, p := range t.TParams {
+		for i, tpar := range t.TParams {
 			if i > 0 {
 				buf.WriteString(", ")
 			}
-			buf.WriteString(p.name)
+			buf.WriteString(tpar.name)
 		}
-		buf.WriteString("){...}")
-		// TODO write contract body
+		buf.WriteString("){")
+		i := 0
+		for tpar, iface := range t.IFaces {
+			if i > 0 {
+				buf.WriteString("; ")
+			}
+			buf.WriteString(tpar.name)
+			buf.WriteByte(' ')
+			writeType(buf, iface, qf, visited)
+			i++
+		}
+		buf.WriteByte('}')
 
 	case *TypeParam:
 		var s string

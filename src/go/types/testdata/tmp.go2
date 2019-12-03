@@ -4,10 +4,10 @@
 
 package p
 
-type T(type P) struct {}
-
-func (_ T(P)) m1() T(P)
-
-func (m T(P)) m2() {
-	var _ T(P) = m.m1()
+contract C(T) {
+	T int
 }
+
+type Cm(type T C) T
+
+func (a Cm /* ERROR not satisfied */ (T)) m() T

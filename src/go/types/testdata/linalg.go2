@@ -30,7 +30,13 @@ func DotProduct(type T Numeric)(s1, s2 []T) T {
 
 // NumericAbs matches numeric types with an Abs method.
 contract NumericAbs(T) {
-	Numeric(T)
+	// TODO(gri) implement contract embedding
+	// Numeric(T)
+	T int; T int8; T int16; T int32; T int64
+	T uint; T uint8; T uint16; T uint32; T uint64; T uintptr
+	T float32; T float64
+	T complex64; T complex128
+
 	T Abs() T
 }
 
@@ -38,7 +44,9 @@ contract NumericAbs(T) {
 // a and b, where the absolute value is determined by the Abs method.
 func AbsDifference(type T NumericAbs)(a, b T) T {
 	d := a - b
-	return d.Abs()
+	//TODO(gri) fix this
+	//return d.Abs()
+	return d
 }
 
 // OrderedNumeric matches numeric types that support the < operator.
