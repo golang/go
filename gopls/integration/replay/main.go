@@ -475,7 +475,6 @@ func (l *logmsg) unmarshal(p interface{}) (interface{}, error) {
 		if l.rest == "{}" {
 			return nil, nil
 		}
-		//log.Fatalf("%s/%s %T %q %v", l.method, l.id, p, l.rest, err)
 		return nil, err
 	}
 	return p, nil

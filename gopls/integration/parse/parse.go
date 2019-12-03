@@ -146,7 +146,6 @@ func parselog(first, rest string) *Logmsg {
 		ans.Dir = Toclient
 		ans.Method = flds[6][1 : len(flds[6])-2]
 	case strings.HasPrefix(first, "[Error - "):
-		//log.Printf("%s %s %v", first, rest, flds)
 		ans.Dir = Reporterr
 		both := flds[5]
 		idx := strings.Index(both, "#") // relies on ID.Number
