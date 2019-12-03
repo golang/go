@@ -905,6 +905,11 @@ Found:
 		}
 
 		// Record imports and information about cgo.
+		type importPos struct {
+			path string
+			pos  token.Pos
+		}
+		var fileImports []importPos
 		isCgo := false
 		for _, decl := range pf.Decls {
 			d, ok := decl.(*ast.GenDecl)
@@ -921,13 +926,7 @@ Found:
 				if err != nil {
 					log.Panicf("%s: parser returned invalid quoted string: <%s>", filename, quoted)
 				}
-				if isXTest {
-					xTestImported[path] = append(xTestImported[path], fset.Position(spec.Pos()))
-				} else if isTest {
-					testImported[path] = append(testImported[path], fset.Position(spec.Pos()))
-				} else {
-					imported[path] = append(imported[path], fset.Position(spec.Pos()))
-				}
+				fileImports = append(fileImports, importPos{path, spec.Pos()})
 				if path == "C" {
 					if isTest {
 						badFile(fmt.Errorf("use of cgo in test %s not supported", filename))
@@ -946,21 +945,37 @@ Found:
 				}
 			}
 		}
-		if isCgo {
+
+		var fileList *[]string
+		var importMap map[string][]token.Position
+		switch {
+		case isCgo:
 			allTags["cgo"] = true
 			if ctxt.CgoEnabled {
-				p.CgoFiles = append(p.CgoFiles, name)
+				fileList = &p.CgoFiles
+				importMap = imported
 			} else {
-				p.IgnoredGoFiles = append(p.IgnoredGoFiles, name)
+				// Ignore imports from cgo files if cgo is disabled.
+				fileList = &p.IgnoredGoFiles
 			}
-		} else if isXTest {
-			p.XTestGoFiles = append(p.XTestGoFiles, name)
-		} else if isTest {
-			p.TestGoFiles = append(p.TestGoFiles, name)
-		} else {
-			p.GoFiles = append(p.GoFiles, name)
+		case isXTest:
+			fileList = &p.XTestGoFiles
+			importMap = xTestImported
+		case isTest:
+			fileList = &p.TestGoFiles
+			importMap = testImported
+		default:
+			fileList = &p.GoFiles
+			importMap = imported
+		}
+		*fileList = append(*fileList, name)
+		if importMap != nil {
+			for _, imp := range fileImports {
+				importMap[imp.path] = append(importMap[imp.path], fset.Position(imp.pos))
+			}
 		}
 	}
+
 	if badGoError != nil {
 		return p, badGoError
 	}

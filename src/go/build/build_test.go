@@ -526,3 +526,20 @@ func TestMissingImportErrorRepetition(t *testing.T) {
 		t.Fatalf("package path %q appears in error %d times; should appear once\nerror: %v", pkgPath, n, err)
 	}
 }
+
+// TestCgoImportsIgnored checks that imports in cgo files are not included
+// in the imports list when cgo is disabled.
+// Verifies golang.org/issue/35946.
+func TestCgoImportsIgnored(t *testing.T) {
+	ctxt := Default
+	ctxt.CgoEnabled = false
+	p, err := ctxt.ImportDir("testdata/cgo_disabled", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range p.Imports {
+		if path == "should/be/ignored" {
+			t.Errorf("found import %q in ignored cgo file", path)
+		}
+	}
+}
