@@ -1,0 +1,7 @@
+TODO
+- satisfyBounds is not working correctly
+- allow recursive type parameterization without need to repeat type parameters
+- if type parameters are repeated in recursive instantiation, they must be the same order
+- implement contract embedding
+- interface embedding doesn't take care of literal type constraints yet
+  (need an allTypes list, like we have an allMethods list?)
