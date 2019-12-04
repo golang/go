@@ -1099,51 +1099,6 @@ func testNewPackagesInOverlay(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
-func TestContainsInOverlays(t *testing.T) { packagestest.TestAll(t, testcontainsInOverlays) }
-func testcontainsInOverlays(t *testing.T, exporter packagestest.Exporter) {
-	// This test checks a specific case where a file is empty on disk.
-	// In this case, `go list` will return the package golang.org/fake/c
-	// with only c.go as a GoFile, with an error message for c2.go.
-	// Since there is only one possible package for c2.go to be a part of,
-	// go/packages will parse the filename out of error and add it to GoFiles and CompiledGoFiles.
-	exported := packagestest.Export(t, exporter, []packagestest.Module{{
-		Name: "golang.org/fake",
-		Files: map[string]interface{}{
-			"c/c.go":  `package c; const C = "c"`,
-			"c/c2.go": ``,
-		}}})
-	defer exported.Cleanup()
-
-	dir := filepath.Dir(exported.File("golang.org/fake", "c/c.go"))
-
-	for _, test := range []struct {
-		overlay map[string][]byte
-		want    string
-	}{
-		{
-			overlay: map[string][]byte{filepath.Join(dir, "c2.go"): []byte(`nonsense`)},
-			want:    "golang.org/fake/c",
-		},
-	} {
-		exported.Config.Overlay = test.overlay
-		exported.Config.Mode = packages.LoadImports
-		exported.Config.Logf = t.Logf
-		for filename := range exported.Config.Overlay {
-			initial, err := packages.Load(exported.Config, "file="+filename)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(initial) == 0 {
-				t.Fatalf("no packages for %s", filename)
-			}
-			pkg := initial[0]
-			if pkg.PkgPath != test.want {
-				t.Errorf("got %s, want %s", pkg.PkgPath, test.want)
-			}
-		}
-	}
-}
-
 func TestAdHocPackagesBadImport(t *testing.T) {
 	// This test doesn't use packagestest because we are testing ad-hoc packages,
 	// which are outside of $GOPATH and outside of a module.
@@ -1210,36 +1165,38 @@ const A = 1
 
 	// Make sure that the user's value of GO111MODULE does not affect test results.
 	for _, go111module := range []string{"off", "auto", "on"} {
-		config := &packages.Config{
-			Dir:  tmp,
-			Env:  append(os.Environ(), "GOPACKAGESDRIVER=off", fmt.Sprintf("GO111MODULE=%s", go111module)),
-			Mode: packages.LoadAllSyntax,
-			Overlay: map[string][]byte{
-				filename: content,
-			},
-			Logf: t.Logf,
-		}
-		initial, err := packages.Load(config, fmt.Sprintf("file=%s", filename))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(initial) == 0 {
-			t.Fatalf("no packages for %s with GO111MODULE=%s", filename, go111module)
-		}
-		// Check value of a.A.
-		a := initial[0]
-		if a.Errors != nil {
-			t.Fatalf("a: got errors %+v, want no error", err)
-		}
-		aA := constant(a, "A")
-		if aA == nil {
-			t.Errorf("a.A: got nil")
-			return
-		}
-		got := aA.Val().String()
-		if want := "1"; got != want {
-			t.Errorf("a.A: got %s, want %s", got, want)
-		}
+		t.Run("GO111MODULE="+go111module, func(t *testing.T) {
+			config := &packages.Config{
+				Dir:  tmp,
+				Env:  append(os.Environ(), "GOPACKAGESDRIVER=off", fmt.Sprintf("GO111MODULE=%s", go111module)),
+				Mode: packages.LoadAllSyntax,
+				Overlay: map[string][]byte{
+					filename: content,
+				},
+				Logf: t.Logf,
+			}
+			initial, err := packages.Load(config, fmt.Sprintf("file=%s", filename))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(initial) == 0 {
+				t.Fatalf("no packages for %s", filename)
+			}
+			// Check value of a.A.
+			a := initial[0]
+			if a.Errors != nil {
+				t.Fatalf("a: got errors %+v, want no error", err)
+			}
+			aA := constant(a, "A")
+			if aA == nil {
+				t.Errorf("a.A: got nil")
+				return
+			}
+			got := aA.Val().String()
+			if want := "1"; got != want {
+				t.Errorf("a.A: got %s, want %s", got, want)
+			}
+		})
 	}
 }
 
@@ -2273,13 +2230,9 @@ func testAdHocContains(t *testing.T, exporter packagestest.Exporter) {
 	}()
 
 	exported.Config.Mode = packages.NeedImports | packages.NeedFiles
-	exported.Config.Logf = t.Logf
 	pkgs, err := packages.Load(exported.Config, "file="+filename)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if len(pkgs) == 0 {
-		t.Fatalf("no packages for %s", filename)
 	}
 	if len(pkgs) != 1 && pkgs[0].PkgPath != "command-line-arguments" {
 		t.Fatalf("packages.Load: want [command-line-arguments], got %v", pkgs)

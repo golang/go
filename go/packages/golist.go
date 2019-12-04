@@ -26,7 +26,6 @@ import (
 	"golang.org/x/tools/go/internal/packagesdriver"
 	"golang.org/x/tools/internal/gopathwalk"
 	"golang.org/x/tools/internal/semver"
-	"golang.org/x/tools/internal/span"
 )
 
 // debug controls verbose logging.
@@ -284,42 +283,43 @@ func runContainsQueries(cfg *Config, driver driver, response *responseDeduper, q
 			return fmt.Errorf("could not determine absolute path of file= query path %q: %v", query, err)
 		}
 		dirResponse, err := driver(cfg, pattern)
-		if err != nil {
+		if err != nil || (len(dirResponse.Packages) == 1 && len(dirResponse.Packages[0].Errors) == 1) {
+			// There was an error loading the package. Try to load the file as an ad-hoc package.
+			// Usually the error will appear in a returned package, but may not if we're in modules mode
+			// and the ad-hoc is located outside a module.
 			var queryErr error
-			if dirResponse, queryErr = adHocPackage(cfg, driver, pattern, query); queryErr != nil {
-				return err // return the original error
+			dirResponse, queryErr = driver(cfg, query)
+			if queryErr != nil {
+				// Return the original error if the attempt to fall back failed.
+				return err
 			}
-		}
-		// `go list` can report errors for files that are not listed as part of a package's GoFiles.
-		// In the case of an invalid Go file, we should assume that it is part of package if only
-		// one package is in the response. The file may have valid contents in an overlay.
-		if len(dirResponse.Packages) == 1 {
-			pkg := dirResponse.Packages[0]
-			for i, err := range pkg.Errors {
-				s := errorSpan(err)
-				if !s.IsValid() {
-					break
-				}
-				if len(pkg.CompiledGoFiles) == 0 {
-					break
-				}
-				dir := filepath.Dir(pkg.CompiledGoFiles[0])
-				filename := filepath.Join(dir, filepath.Base(s.URI().Filename()))
-				if info, err := os.Stat(filename); err != nil || info.IsDir() {
-					break
-				}
-				if !contains(pkg.CompiledGoFiles, filename) {
-					pkg.CompiledGoFiles = append(pkg.CompiledGoFiles, filename)
-					pkg.GoFiles = append(pkg.GoFiles, filename)
-					pkg.Errors = append(pkg.Errors[:i], pkg.Errors[i+1:]...)
-				}
+			// If we get nothing back from `go list`, try to make this file into its own ad-hoc package.
+			if len(dirResponse.Packages) == 0 && queryErr == nil {
+				dirResponse.Packages = append(dirResponse.Packages, &Package{
+					ID:              "command-line-arguments",
+					PkgPath:         query,
+					GoFiles:         []string{query},
+					CompiledGoFiles: []string{query},
+					Imports:         make(map[string]*Package),
+				})
+				dirResponse.Roots = append(dirResponse.Roots, "command-line-arguments")
 			}
-		}
-		// A final attempt to construct an ad-hoc package.
-		if len(dirResponse.Packages) == 1 && len(dirResponse.Packages[0].Errors) == 1 {
-			var queryErr error
-			if dirResponse, queryErr = adHocPackage(cfg, driver, pattern, query); queryErr != nil {
-				return err // return the original error
+			// Special case to handle issue #33482:
+			// If this is a file= query for ad-hoc packages where the file only exists on an overlay,
+			// and exists outside of a module, add the file in for the package.
+			if len(dirResponse.Packages) == 1 && (dirResponse.Packages[0].ID == "command-line-arguments" ||
+				filepath.ToSlash(dirResponse.Packages[0].PkgPath) == filepath.ToSlash(query)) {
+				if len(dirResponse.Packages[0].GoFiles) == 0 {
+					filename := filepath.Join(pattern, filepath.Base(query)) // avoid recomputing abspath
+					// TODO(matloob): check if the file is outside of a root dir?
+					for path := range cfg.Overlay {
+						if path == filename {
+							dirResponse.Packages[0].Errors = nil
+							dirResponse.Packages[0].GoFiles = []string{path}
+							dirResponse.Packages[0].CompiledGoFiles = []string{path}
+						}
+					}
+				}
 			}
 		}
 		isRoot := make(map[string]bool, len(dirResponse.Roots))
@@ -345,75 +345,6 @@ func runContainsQueries(cfg *Config, driver driver, response *responseDeduper, q
 		}
 	}
 	return nil
-}
-
-// adHocPackage attempts to construct an ad-hoc package given a query that failed.
-func adHocPackage(cfg *Config, driver driver, pattern, query string) (*driverResponse, error) {
-	// There was an error loading the package. Try to load the file as an ad-hoc package.
-	// Usually the error will appear in a returned package, but may not if we're in modules mode
-	// and the ad-hoc is located outside a module.
-	dirResponse, err := driver(cfg, query)
-	if err != nil {
-		return nil, err
-	}
-	// If we get nothing back from `go list`, try to make this file into its own ad-hoc package.
-	if len(dirResponse.Packages) == 0 && err == nil {
-		dirResponse.Packages = append(dirResponse.Packages, &Package{
-			ID:              "command-line-arguments",
-			PkgPath:         query,
-			GoFiles:         []string{query},
-			CompiledGoFiles: []string{query},
-			Imports:         make(map[string]*Package),
-		})
-		dirResponse.Roots = append(dirResponse.Roots, "command-line-arguments")
-	}
-	// Special case to handle issue #33482:
-	// If this is a file= query for ad-hoc packages where the file only exists on an overlay,
-	// and exists outside of a module, add the file in for the package.
-	if len(dirResponse.Packages) == 1 && (dirResponse.Packages[0].ID == "command-line-arguments" ||
-		filepath.ToSlash(dirResponse.Packages[0].PkgPath) == filepath.ToSlash(query)) {
-		if len(dirResponse.Packages[0].GoFiles) == 0 {
-			filename := filepath.Join(pattern, filepath.Base(query)) // avoid recomputing abspath
-			// TODO(matloob): check if the file is outside of a root dir?
-			for path := range cfg.Overlay {
-				if path == filename {
-					dirResponse.Packages[0].Errors = nil
-					dirResponse.Packages[0].GoFiles = []string{path}
-					dirResponse.Packages[0].CompiledGoFiles = []string{path}
-				}
-			}
-		}
-	}
-	return dirResponse, nil
-}
-
-func contains(files []string, filename string) bool {
-	for _, f := range files {
-		if f == filename {
-			return true
-		}
-	}
-	return false
-}
-
-// errorSpan attempts to parse a standard `go list` error message
-// by stripping off the trailing error message.
-//
-// It works only on errors whose message is prefixed by colon,
-// followed by a space (": "). For example:
-//
-//   attributes.go:13:1: expected 'package', found 'type'
-//
-func errorSpan(err Error) span.Span {
-	if err.Pos == "" {
-		input := strings.TrimSpace(err.Msg)
-		msgIndex := strings.Index(input, ": ")
-		if msgIndex < 0 {
-			return span.Parse(input)
-		}
-		return span.Parse(input[:msgIndex])
-	}
-	return span.Parse(err.Pos)
 }
 
 // modCacheRegexp splits a path in a module cache into module, module version, and package.
