@@ -326,12 +326,11 @@ func textsectionmap(ctxt *Link) uint32 {
 }
 
 func (ctxt *Link) symtab() {
-	switch ctxt.BuildMode {
-	case BuildModeCArchive, BuildModeCShared:
-		for _, s := range ctxt.Syms.Allsym {
-			// Create a new entry in the .init_array section that points to the
-			// library initializer function.
-			if s.Name == *flagEntrySymbol && ctxt.HeadType != objabi.Haix {
+	if ctxt.HeadType != objabi.Haix {
+		switch ctxt.BuildMode {
+		case BuildModeCArchive, BuildModeCShared:
+			s := ctxt.Syms.ROLookup(*flagEntrySymbol, sym.SymVerABI0)
+			if s != nil {
 				addinitarrdata(ctxt, s)
 			}
 		}
