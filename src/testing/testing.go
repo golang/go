@@ -99,7 +99,7 @@
 // line order:
 //
 //     func ExamplePerm() {
-//         for _, value := range Perm(4) {
+//         for _, value := range Perm(5) {
 //             fmt.Println(value)
 //         }
 //         // Unordered output: 4
