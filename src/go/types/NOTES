@@ -5,3 +5,6 @@ TODO
 - implement contract embedding
 - interface embedding doesn't take care of literal type constraints yet
   (need an allTypes list, like we have an allMethods list?)
+
+OPEN ISSUES
+- do we allow parenthesized generic uninstantiated types?

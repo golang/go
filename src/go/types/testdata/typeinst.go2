@@ -25,8 +25,8 @@ type A1( /* ERROR cannot be parameterized */ type P) = P /* ERROR undeclared */
 var x int
 type _ x /* ERROR not a type */ (int)
 
-type _ int /* ERROR not a parametrized type */ ()
-type _ myInt /* ERROR not a parametrized type */ ()
+type _ int /* ERROR not a generic type */ ()
+type _ myInt /* ERROR not a generic type */ ()
 
 // TODO(gri) better error messages
 type _ T1 /* ERROR got 0 arguments but 1 type parameters */ ()

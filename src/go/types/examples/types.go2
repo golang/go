@@ -18,7 +18,8 @@ var _ List(byte) = []byte{}
 
 // A generic binary tree might be declared as follows.
 type Tree(type E) struct {
-	left, right *Tree
+	// TODO(gri) should be able to use Tree w/o repeating type args
+	left, right *Tree(E)
 	payload E
 }
 
@@ -99,3 +100,9 @@ var xbool T(bool)
 func _() {
 	xint = xbool // ERROR assignment
 }
+
+// Parameterized types cannot be used without instantiation.
+var _ T // ERROR cannot use generic type T
+
+// TODO(gri) Should we allow parentheses around generic, uninstantiated types?
+// var _ (T)(int)

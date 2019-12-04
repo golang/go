@@ -182,6 +182,4 @@ func adderSum(type T Adder(T))(data []T) T {
         return s
 }
 
-// TODO(gri) Report an error if we use parameterized interface type bound
-//           and we forget to pass the type argument.
-func buggySig(type T Adder)(data []T) T
+func _(type T Adder /* ERROR cannot use generic type Adder */)(data []T) T

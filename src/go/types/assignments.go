@@ -50,9 +50,9 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 	}
 	// x.typ is typed
 
-	// A generic (non-instantiated) value cannot be assigned to a variable.
-	if isGeneric(x.typ) {
-		check.errorf(x.pos(), "cannot use generic %s in %s", x, context)
+	// A generic (non-instantiated) function value cannot be assigned to a variable.
+	if sig, _ := x.typ.Underlying().(*Signature); sig != nil && len(sig.tparams) > 0 {
+		check.errorf(x.pos(), "cannot use generic function %s without instantiation in %s", x, context)
 	}
 
 	// spec: "If a left-hand side is the blank identifier, any typed or

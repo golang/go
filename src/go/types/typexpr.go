@@ -116,6 +116,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 }
 
 // typ type-checks the type expression e and returns its type, or Typ[Invalid].
+// The type must not be an (uninstantiated) generic type.
 func (check *Checker) typ(e ast.Expr) Type {
 	return check.definedType(e, nil)
 }
@@ -125,21 +126,28 @@ func (check *Checker) typ(e ast.Expr) Type {
 // in a type declaration, and def.underlying will be set to the type of e before
 // any components of e are type-checked.
 //
-func (check *Checker) definedType(e ast.Expr, def *Named) (T Type) {
-	if check.conf.Trace {
-		check.trace(e.Pos(), "%s", e)
-		check.indent++
-		defer func() {
-			check.indent--
-			check.trace(e.Pos(), "=> %s", T)
-		}()
+func (check *Checker) definedType(e ast.Expr, def *Named) Type {
+	typ := check.typInternal(e, def)
+	assert(isTyped(typ))
+	if isGeneric(typ) {
+		check.errorf(e.Pos(), "cannot use generic type %s without instantiation", typ)
+		typ = Typ[Invalid]
 	}
+	check.recordTypeAndValue(e, typexpr, typ, nil)
+	return typ
+}
 
-	T = check.typInternal(e, def)
-	assert(isTyped(T))
-	check.recordTypeAndValue(e, typexpr, T, nil)
-
-	return
+// generic us like typ bit the type must be an (uninstantiated) generic type.
+func (check *Checker) genericType(e ast.Expr) Type {
+	typ := check.typInternal(e, nil)
+	assert(isTyped(typ))
+	if typ != Typ[Invalid] && !isGeneric(typ) {
+		check.errorf(e.Pos(), "%s is not a generic type", typ)
+		typ = Typ[Invalid]
+	}
+	// TODO(gri) what is the correct call below?
+	check.recordTypeAndValue(e, typexpr, typ, nil)
+	return typ
 }
 
 // funcType type-checks a function or method type.
@@ -208,9 +216,18 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 }
 
 // typInternal drives type checking of types.
-// Must only be called by definedType.
+// Must only be called by definedType or genericType.
 //
-func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
+func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
+	if check.conf.Trace {
+		check.trace(e.Pos(), "expr %s", e)
+		check.indent++
+		defer func() {
+			check.indent--
+			check.trace(e.Pos(), "=> %s", T)
+		}()
+	}
+
 	switch e := e.(type) {
 	case *ast.BadExpr:
 		// ignore - error reported before
@@ -250,19 +267,14 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		}
 
 	case *ast.CallExpr:
-		typ := check.typ(e.Fun) // TODO(gri) what about cycles?
+		typ := check.genericType(e.Fun) // TODO(gri) what about cycles?
 		if typ == Typ[Invalid] {
 			return typ // error already reported
 		}
 
-		named, _ := typ.(*Named)
-		if named == nil || named.obj == nil || !named.obj.IsParameterized() || named.targs != nil {
-			check.errorf(e.Pos(), "%s is not a parametrized type", typ)
-			return Typ[Invalid]
-		}
-
 		// the number of supplied types must match the number of type parameters
 		// TODO(gri) fold into code below - we want to eval args always
+		named, _ := typ.(*Named) // generic types are defined (= Named) types
 		tname := named.obj
 		if len(e.Args) != len(tname.tparams) {
 			// TODO(gri) provide better error message
@@ -309,6 +321,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 		return typ
 
 	case *ast.ParenExpr:
+		// TODO(gri) should we allow parenthesized generic (uninstantiated) types?
 		return check.definedType(e.X, def)
 
 	case *ast.ArrayType:

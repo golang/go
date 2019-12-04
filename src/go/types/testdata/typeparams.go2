@@ -21,7 +21,7 @@ func reverse(type T)(list []T) []T {
         return rlist
 }
 
-var _ = reverse /* ERROR cannot use generic reverse */
+var _ = reverse /* ERROR cannot use generic function reverse */
 var _ = reverse(int, float32 /* ERROR got 2 type arguments */ ) ([]int{1, 2, 3})
 var _ = reverse(int)([ /* ERROR cannot use */ ]float32{1, 2, 3})
 var f = reverse(chan int)
@@ -52,7 +52,7 @@ func new(type T)() *T {
         return &x
 }
 
-var _ = new /* ERROR cannot use generic new */
+var _ = new /* ERROR cannot use generic function new */
 var _ *int = new(int)()
 
 func _(type T)(map[T /* ERROR invalid map key type */]int) // w/o contract we don't know if T is comparable

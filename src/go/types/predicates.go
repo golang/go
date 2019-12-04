@@ -19,6 +19,13 @@ func isNamed(typ Type) bool {
 	return ok
 }
 
+// isGeneric reports whether a type is a generic, uninstantiated type
+// (generic signatures are not included).
+func isGeneric(typ Type) bool {
+	named, _ := typ.(*Named)
+	return named != nil && named.obj != nil && named.obj.IsParameterized() && named.targs == nil
+}
+
 func is(typ Type, what BasicInfo) bool {
 	switch t := typ.Underlying().(type) {
 	case *Basic:
@@ -58,12 +65,6 @@ func isConstType(typ Type) bool {
 func IsInterface(typ Type) bool {
 	_, ok := typ.Underlying().(*Interface)
 	return ok
-}
-
-func isGeneric(typ Type) bool {
-	// TODO(gri) can a defined type ever be generic?
-	t, ok := typ.Underlying().(*Signature)
-	return ok && len(t.tparams) > 0
 }
 
 // Comparable reports whether values of type T are comparable.
