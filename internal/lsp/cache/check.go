@@ -136,7 +136,11 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 	// Begin computing the key by getting the depKeys for all dependencies.
 	var depKeys [][]byte
 	for _, depID := range depList {
-		depHandle, err := s.packageHandle(ctx, depID, source.ParseExported)
+		mode := source.ParseExported
+		if s.workspacePackages[depID] {
+			mode = source.ParseFull
+		}
+		depHandle, err := s.packageHandle(ctx, depID, mode)
 		if err != nil {
 			log.Error(ctx, "no dep handle", err, telemetry.Package.Of(depID))
 
