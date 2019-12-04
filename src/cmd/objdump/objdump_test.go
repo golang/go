@@ -176,10 +176,8 @@ func TestDisasm(t *testing.T) {
 
 func TestDisasmCode(t *testing.T) {
 	switch runtime.GOARCH {
-	case "mips", "mipsle", "mips64", "mips64le":
-		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
-	case "s390x":
-		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
+	case "mips", "mipsle", "mips64", "mips64le", "s390x":
+		t.Skipf("skipping on %s, issue 19160", runtime.GOARCH)
 	}
 	testDisasm(t, true)
 }
