@@ -63,28 +63,28 @@ func (s *snapshot) View() source.View {
 
 func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]source.PackageHandle, error) {
 	ctx = telemetry.File.With(ctx, fh.Identity().URI)
-
-	metadata := s.getMetadataForURI(fh.Identity().URI)
-
+	meta := s.getMetadataForURI(fh.Identity().URI)
 	// Determine if we need to type-check the package.
-	phs, load, check := s.shouldCheck(metadata)
+	phs, load, check := s.shouldCheck(meta)
 
 	// We may need to re-load package metadata.
 	// We only need to this if it has been invalidated, and is therefore unvailable.
 	if load {
-		var err error
-		m, err := s.load(ctx, source.FileURI(fh.Identity().URI))
+		newMeta, err := s.load(ctx, source.FileURI(fh.Identity().URI))
 		if err != nil {
 			return nil, err
 		}
-		// If metadata was returned, from the load call, use it.
-		if m != nil {
-			metadata = m
+		newMissing := missingImports(newMeta)
+		if len(newMissing) != 0 {
+			// Type checking a package with the same missing imports over and over
+			// is futile. Don't re-check unless something has changed.
+			check = check && !sameSet(missingImports(meta), newMissing)
 		}
+		meta = newMeta
 	}
 	if check {
 		var results []source.PackageHandle
-		for _, m := range metadata {
+		for _, m := range meta {
 			ph, err := s.packageHandle(ctx, m.id, source.ParseFull)
 			if err != nil {
 				return nil, err
@@ -96,7 +96,30 @@ func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]
 	if len(phs) == 0 {
 		return nil, errors.Errorf("no CheckPackageHandles for %s", fh.Identity().URI)
 	}
+
 	return phs, nil
+}
+
+func missingImports(metadata []*metadata) map[packagePath]struct{} {
+	result := map[packagePath]struct{}{}
+	for _, m := range metadata {
+		for path := range m.missingDeps {
+			result[path] = struct{}{}
+		}
+	}
+	return result
+}
+
+func sameSet(x, y map[packagePath]struct{}) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	for k := range x {
+		if _, ok := y[k]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *snapshot) PackageHandle(ctx context.Context, id string) (source.PackageHandle, error) {
