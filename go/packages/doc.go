@@ -60,8 +60,7 @@ causes Load to run in LoadFiles mode, collecting minimal information.
 See the documentation for type Config for details.
 
 As noted earlier, the Config.Mode controls the amount of detail
-reported about the loaded packages, with each mode returning all the data of the
-previous mode with some extra added. See the documentation for type LoadMode
+reported about the loaded packages. See the documentation for type LoadMode
 for details.
 
 Most tools should pass their command-line arguments (after any flags)
