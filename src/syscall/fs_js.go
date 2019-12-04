@@ -34,6 +34,7 @@ var (
 type jsFile struct {
 	path    string
 	entries []string
+	dirIdx  int // entries[:dirIdx] have already been returned in ReadDirent
 	pos     int64
 	seeked  bool
 }
@@ -141,8 +142,8 @@ func ReadDirent(fd int, buf []byte) (int, error) {
 	}
 
 	n := 0
-	for len(f.entries) > 0 {
-		entry := f.entries[0]
+	for f.dirIdx < len(f.entries) {
+		entry := f.entries[f.dirIdx]
 		l := 2 + len(entry)
 		if l > len(buf) {
 			break
@@ -152,7 +153,7 @@ func ReadDirent(fd int, buf []byte) (int, error) {
 		copy(buf[2:], entry)
 		buf = buf[l:]
 		n += l
-		f.entries = f.entries[1:]
+		f.dirIdx++
 	}
 
 	return n, nil
@@ -470,6 +471,7 @@ func Seek(fd int, offset int64, whence int) (int64, error) {
 	}
 
 	f.seeked = true
+	f.dirIdx = 0 // Reset directory read position. See issue 35767.
 	f.pos = newPos
 	return newPos, nil
 }
