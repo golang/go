@@ -3,6 +3,7 @@
 
 # Linux and cgo files should be included when building in that configuration.
 env GOOS=linux
+env GOARCH=amd64
 env CGO_ENABLED=1
 go list -f '{{range .GoFiles}}{{.}} {{end}}'
 stdout '^cgotag.go empty.go suffix_linux.go tag.go $'
