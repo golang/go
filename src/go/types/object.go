@@ -397,8 +397,8 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 		writeFuncName(buf, obj, qf)
 		// Func.tparams is used for functions and methods; but for methods
 		// these are the receiver parameters. Don't print them twice.
-		// TODO(gri) receiver and type parameters should be in the Func
-		// object, not the signature. That should simplify things throughout.
+		// TODO(gri) Consider putting receiver and type parameters in the Func
+		//           object, not the signature. That might simplify things.
 		if len(obj.tparams) > 0 && (typ == nil || typ.(*Signature).recv == nil) {
 			buf.WriteString("(type ")
 			for i, tname := range obj.tparams {
@@ -406,6 +406,12 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 					buf.WriteString(", ")
 				}
 				buf.WriteString(tname.name)
+				if tname.typ != nil && tname.typ.(*TypeParam).bound != nil {
+					// TODO(gri) Instead of writing the bound with each type
+					//           parameter, consider bundling them up.
+					buf.WriteByte(' ')
+					WriteType(buf, tname.typ.(*TypeParam).bound, nil)
+				}
 			}
 			buf.WriteByte(')')
 		}

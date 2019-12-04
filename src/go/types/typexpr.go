@@ -283,9 +283,10 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) Type {
 			pos := e.Args[i].Pos()
 			pos = e.Pos()                        // TODO(gri) remove in favor of more accurate pos on prev. line?
 			bound := tpar.typ.(*TypeParam).bound // interface or contract or nil
-			switch b := bound.(type) {
-			case nil:
-				// nothing to do (no bound)
+			if bound == nil {
+				continue // nothing to do
+			}
+			switch b := bound.Underlying().(type) {
 			case *Interface:
 				iface := check.subst(token.NoPos, b, tname.tparams, targs).(*Interface)
 				if !check.satisfyBound(pos, tpar, targs[i], iface) {

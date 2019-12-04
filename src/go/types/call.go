@@ -344,7 +344,6 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		obj      Object
 		index    []int
 		indirect bool
-		madeCopy bool // for debugging purposes only
 	)
 
 	sel := e.Sel.Name
@@ -486,7 +485,6 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			copy := *m
 			copy.typ = check.subst(e.Pos(), m.typ, m.tparams, targs)
 			obj = &copy
-			madeCopy = true // if we made a copy, the method set verification below can't work
 		}
 	}
 
@@ -534,7 +532,14 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			// addressability, should we report the type &(x.typ) instead?
 			check.recordSelection(e, MethodVal, x.typ, obj, index, indirect)
 
-			if debug && !madeCopy {
+			// TODO(gri) The verification pass below is disabled for now because
+			//           method sets don't match method lookup in some cases.
+			//           For instance, if we made a copy above when creating a
+			//           custom method for a parameterized received type, the
+			//           method set method doesn't match (no copy there). There
+			///          may be other situations.
+			disabled := true
+			if !disabled && debug {
 				// Verify that LookupFieldOrMethod and MethodSet.Lookup agree.
 				// TODO(gri) This only works because we call LookupFieldOrMethod
 				// _before_ calling NewMethodSet: LookupFieldOrMethod completes

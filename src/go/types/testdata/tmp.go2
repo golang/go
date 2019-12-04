@@ -11,3 +11,14 @@ contract C(T) {
 type Cm(type T C) T
 
 func (a Cm /* ERROR not satisfied */ (T)) m() T
+
+// TODO(gri) make this work
+/*
+type C interface {
+	type int
+}
+
+type Cm(type T C) T
+
+func (a Cm(T)) m() T
+*/

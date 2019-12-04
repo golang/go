@@ -174,12 +174,14 @@ type Adder(type T) interface {
         Add(T) T
 }
 
-func adderSum(type T Adder)(data []T) T {
+func adderSum(type T Adder(T))(data []T) T {
         var s T
         for _, x := range data {
-                // TODO(gri) make this work
-                // s = s.Add(x)
-                _ = x
+                s = s.Add(x)
         }
         return s
 }
+
+// TODO(gri) Report an error if we use parameterized interface type bound
+//           and we forget to pass the type argument.
+func buggySig(type T Adder)(data []T) T

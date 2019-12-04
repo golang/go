@@ -620,14 +620,14 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 			if typ != Typ[Invalid] {
 				switch b := typ.Underlying().(type) {
 				case *Interface:
-					bound = b
+					bound = typ
 				case *Contract:
 					if len(f.Names) != len(b.TParams) {
 						// TODO(gri) improve error message
 						check.errorf(f.Type.Pos(), "%d type parameters but contract expects %d", len(f.Names), len(b.TParams))
 						break // cannot use this contract
 					}
-					bound = b
+					bound = typ
 				default:
 					check.errorf(f.Type.Pos(), "%s is not an interface or contract", typ)
 				}
