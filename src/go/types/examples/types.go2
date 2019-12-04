@@ -83,7 +83,7 @@ func _() {
 	x1a.f = x2a.f
 }
 
-// Another interesting corner case is parameterized types that don't use
+// Another interesting corner case are generic types that don't use
 // their type arguments. For instance:
 type T(type P) struct{}
 
@@ -101,8 +101,9 @@ func _() {
 	xint = xbool // ERROR assignment
 }
 
-// Parameterized types cannot be used without instantiation.
+// Generic types cannot be used without instantiation.
 var _ T // ERROR cannot use generic type T
 
-// TODO(gri) Should we allow parentheses around generic, uninstantiated types?
-// var _ (T)(int)
+// In type context, parameterized (generic) types cannot use instantiation syntax.
+// See also NOTES entry from 12/4/2019.
+var _ (T /* ERROR cannot use generic type T */ )( /* ERROR expected ';' */ int)

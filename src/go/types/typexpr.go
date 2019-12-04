@@ -321,7 +321,8 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 		return typ
 
 	case *ast.ParenExpr:
-		// TODO(gri) should we allow parenthesized generic (uninstantiated) types?
+		// Generic types must be instantiated before they can be used in any form.
+		// Consequently, generic types cannot be parenthesized.
 		return check.definedType(e.X, def)
 
 	case *ast.ArrayType:

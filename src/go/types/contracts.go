@@ -249,7 +249,7 @@ func (check *Checker) satisfyContract(contr *Contract, targs []Type) bool {
 
 	for i, targ := range targs {
 		iface := contr.ifaceAt(i)
-		// If iface is parameterized, we need to replace the type parameters
+		// If iface is generic, we need to replace the type parameters
 		// with the respective type arguments.
 		// TODO(gri) fix this
 		if IsParameterized(iface) {

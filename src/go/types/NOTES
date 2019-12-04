@@ -7,4 +7,10 @@ TODO
   (need an allTypes list, like we have an allMethods list?)
 
 OPEN ISSUES
-- do we allow parenthesized generic uninstantiated types?
+
+DESIGN DECISIONS
+- 12/4/2019: do not allow parenthesized generic uninstantiated types (unless instantiated implicitly)
+  In other words: generic types must always be instantiated before they can be used in any form
+  More generally: Only permit type instantiation T(x) in type context, when the type is a named type.
+  Do not permit in in general in type context: e.g., disallow []T(x) because we consider that a
+  conversion, in general. Same for ([]T)(x).
