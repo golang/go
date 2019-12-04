@@ -65,6 +65,26 @@ func (s mappedRange) URI() span.URI {
 	return s.m.URI
 }
 
+// getParsedFile is a convenience function that extracts the Package and ParseGoHandle for a File in a Snapshot.
+// selectPackage is typically Narrowest/WidestCheckPackageHandle below.
+func getParsedFile(ctx context.Context, snapshot Snapshot, f File, selectPackage func([]PackageHandle) (PackageHandle, error)) (Package, ParseGoHandle, error) {
+	fh := snapshot.Handle(ctx, f)
+	phs, err := snapshot.PackageHandles(ctx, fh)
+	if err != nil {
+		return nil, nil, err
+	}
+	ph, err := selectPackage(phs)
+	if err != nil {
+		return nil, nil, err
+	}
+	pkg, err := ph.Check(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	pgh, err := pkg.File(f.URI())
+	return pkg, pgh, err
+}
+
 // NarrowestCheckPackageHandle picks the "narrowest" package for a given file.
 //
 // By "narrowest" package, we mean the package with the fewest number of files

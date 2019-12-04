@@ -6,6 +6,7 @@ package source
 
 import (
 	"context"
+	"fmt"
 	"go/ast"
 	"go/token"
 
@@ -20,22 +21,9 @@ func Highlight(ctx context.Context, snapshot Snapshot, f File, pos protocol.Posi
 	ctx, done := trace.StartSpan(ctx, "source.Highlight")
 	defer done()
 
-	fh := snapshot.Handle(ctx, f)
-	phs, err := snapshot.PackageHandles(ctx, fh)
+	pkg, pgh, err := getParsedFile(ctx, snapshot, f, WidestCheckPackageHandle)
 	if err != nil {
-		return nil, err
-	}
-	ph, err := WidestCheckPackageHandle(phs)
-	if err != nil {
-		return nil, err
-	}
-	pkg, err := ph.Check(ctx)
-	if err != nil {
-		return nil, err
-	}
-	pgh, err := pkg.File(f.URI())
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getting file for Highlight: %v", err)
 	}
 	file, m, _, err := pgh.Parse(ctx)
 	if err != nil {

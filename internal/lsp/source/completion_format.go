@@ -194,7 +194,7 @@ func (c *completer) importEdits(imp *importInfo) ([]protocol.TextEdit, error) {
 		}
 	}
 	if ph == nil {
-		return nil, errors.Errorf("no ParseGoHandle for %s", c.filename)
+		return nil, errors.Errorf("building import completion for %v: no ParseGoHandle for %s", imp.importPath, c.filename)
 	}
 
 	return computeOneImportFixEdits(c.ctx, c.snapshot.View(), ph, &imports.ImportFix{

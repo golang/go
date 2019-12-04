@@ -7,6 +7,7 @@ package source
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"go/ast"
 	"go/format"
 	"go/token"
@@ -182,7 +183,7 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 func (i *IdentifierInfo) getPkgName(ctx context.Context) (*IdentifierInfo, error) {
 	ph, err := i.pkg.File(i.URI())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("finding file for identifier %v: %v", i.Name, err)
 	}
 	file, _, _, err := ph.Cached()
 	if err != nil {

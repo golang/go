@@ -8,6 +8,7 @@ package source
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"go/ast"
 	"go/format"
 	"go/parser"
@@ -27,23 +28,11 @@ func Format(ctx context.Context, snapshot Snapshot, f File) ([]protocol.TextEdit
 	ctx, done := trace.StartSpan(ctx, "source.Format")
 	defer done()
 
-	fh := snapshot.Handle(ctx, f)
-	phs, err := snapshot.PackageHandles(ctx, fh)
+	pkg, pgh, err := getParsedFile(ctx, snapshot, f, NarrowestCheckPackageHandle)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getting file for Format: %v", err)
 	}
-	ph, err := NarrowestCheckPackageHandle(phs)
-	if err != nil {
-		return nil, err
-	}
-	pkg, err := ph.Check(ctx)
-	if err != nil {
-		return nil, err
-	}
-	pgh, err := pkg.File(f.URI())
-	if err != nil {
-		return nil, err
-	}
+
 	// Be extra careful that the file's ParseMode is correct,
 	// otherwise we might replace the user's code with a trimmed AST.
 	if pgh.Mode() != ParseFull {
@@ -102,25 +91,12 @@ func AllImportsFixes(ctx context.Context, snapshot Snapshot, f File) (allFixEdit
 	ctx, done := trace.StartSpan(ctx, "source.AllImportsFixes")
 	defer done()
 
-	fh := snapshot.Handle(ctx, f)
-	phs, err := snapshot.PackageHandles(ctx, fh)
+	pkg, pgh, err := getParsedFile(ctx, snapshot, f, NarrowestCheckPackageHandle)
 	if err != nil {
-		return nil, nil, err
-	}
-	ph, err := NarrowestCheckPackageHandle(phs)
-	if err != nil {
-		return nil, nil, err
-	}
-	pkg, err := ph.Check(ctx)
-	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("getting file for AllImportsFixes: %v", err)
 	}
 	if hasListErrors(pkg) {
 		return nil, nil, errors.Errorf("%s has list errors, not running goimports", f.URI())
-	}
-	pgh, err := pkg.File(f.URI())
-	if err != nil {
-		return nil, nil, err
 	}
 	options := &imports.Options{
 		// Defaults.
