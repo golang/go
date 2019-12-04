@@ -193,12 +193,27 @@ type Session interface {
 	SetOptions(Options)
 }
 
+// FileModification represents a modification to a file.
+type FileModification struct {
+	URI    span.URI
+	Action FileAction
+
+	// Version will be -1 and Text will be nil when they are not supplied,
+	// specifically on textDocument/didClose.
+	Version float64
+	Text    []byte
+
+	// LanguageID is only sent from the language client on textDocument/didOpen.
+	LanguageID string
+}
+
 type FileAction int
 
 const (
 	Open = FileAction(iota)
-	Close
 	Change
+	Close
+	Save
 	Create
 	Delete
 	UnknownFileAction
