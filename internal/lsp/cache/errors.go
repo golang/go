@@ -38,6 +38,14 @@ func sourceError(ctx context.Context, fset *token.FileSet, pkg *pkg, e interface
 		msg = e.Msg
 		kind = toSourceErrorKind(e.Kind)
 
+		// If the range can't be derived from the parseGoListError function, then we do not have a valid position.
+		if _, err := spanToRange(ctx, pkg, spn); err != nil && e.Pos == "" {
+			return &source.Error{
+				Message: msg,
+				Kind:    kind,
+			}, nil
+		}
+
 	case *scanner.Error:
 		msg = e.Msg
 		kind = source.ParseError

@@ -71,8 +71,13 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, f File, withAnalysis bo
 	}
 	// Prepare any additional reports for the errors in this package.
 	for _, e := range pkg.GetErrors() {
-		if e.Kind != ListError {
+		// We only need to handle lower-level errors.
+		if !(e.Kind == UnknownError || e.Kind == ListError) {
 			continue
+		}
+		// If no file is associated with the error, default to the current file.
+		if e.File.URI.Filename() == "" {
+			e.File = fh.Identity()
 		}
 		clearReports(snapshot, reports, e.File)
 	}
@@ -133,7 +138,7 @@ func diagnostics(ctx context.Context, snapshot Snapshot, pkg Package, reports ma
 		case TypeError:
 			set.typeErrors = append(set.typeErrors, diag)
 			diag.Source = "compiler"
-		case ListError:
+		case ListError, UnknownError:
 			set.listErrors = append(set.listErrors, diag)
 			diag.Source = "go list"
 		}

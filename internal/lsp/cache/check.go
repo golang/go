@@ -331,18 +331,15 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 		return nil, ctx.Err()
 	}
 
-	// We don't care about a package's errors unless we have parsed it in full.
-	if mode == source.ParseFull {
-		for _, e := range rawErrors {
-			srcErr, err := sourceError(ctx, fset, pkg, e)
-			if err != nil {
-				log.Error(ctx, "unable to compute error positions", err, telemetry.Package.Of(pkg.ID()))
-				continue
-			}
-			pkg.errors = append(pkg.errors, srcErr)
+	// TODO(golang/go#35964): Propagate `go list` errors here when go/packages supports it.
+	for _, e := range rawErrors {
+		srcErr, err := sourceError(ctx, fset, pkg, e)
+		if err != nil {
+			log.Error(ctx, "unable to compute error positions", err, telemetry.Package.Of(pkg.ID()))
+			continue
 		}
+		pkg.errors = append(pkg.errors, srcErr)
 	}
-
 	return pkg, nil
 }
 
