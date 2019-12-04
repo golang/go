@@ -26,7 +26,7 @@ func ToProtocolCompletionItem(item source.CompletionItem) protocol.CompletionIte
 		Detail:        item.Detail,
 		Documentation: item.Documentation,
 		InsertText:    item.InsertText,
-		TextEdit: protocol.TextEdit{
+		TextEdit: &protocol.TextEdit{
 			NewText: item.Snippet(),
 		},
 		// Negate score so best score has lowest sort text like real API.

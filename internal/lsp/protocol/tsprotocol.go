@@ -552,7 +552,7 @@ type CompletionItem struct {
 	 * *Note:* The text edit's range must be a [single line] and it must contain the position
 	 * at which completion has been requested.
 	 */
-	TextEdit TextEdit `json:"textEdit,omitempty"`
+	TextEdit *TextEdit `json:"textEdit,omitempty"`
 	/**
 	 * An optional array of additional [text edits](#TextEdit) that are applied when
 	 * selecting this completion. Edits must not overlap (including the same insert position)
@@ -574,7 +574,7 @@ type CompletionItem struct {
 	 * additional modifications to the current document should be described with the
 	 * [additionalTextEdits](#CompletionItem.additionalTextEdits)-property.
 	 */
-	Command Command `json:"command,omitempty"`
+	Command *Command `json:"command,omitempty"`
 	/**
 	 * An data entry field that is preserved on a completion item between
 	 * a [CompletionRequest](#CompletionRequest) and a [CompletionResolveRequest]
