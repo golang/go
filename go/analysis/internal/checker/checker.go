@@ -13,6 +13,8 @@ import (
 	"encoding/gob"
 	"flag"
 	"fmt"
+	"go/format"
+	"go/parser"
 	"go/token"
 	"go/types"
 	"io/ioutil"
@@ -341,6 +343,7 @@ func applyFixes(roots []*action) {
 
 	visitAll(roots)
 
+	fset := token.NewFileSet() // Shared by parse calls below
 	// Now we've got a set of valid edits for each file. Get the new file contents.
 	for f, tree := range editsForFile {
 		contents, err := ioutil.ReadFile(f.Name())
@@ -373,6 +376,15 @@ func applyFixes(roots []*action) {
 		// Write out the rest of the file.
 		if cur < len(contents) {
 			out.Write(contents[cur:])
+		}
+
+		// Try to format the file.
+		ff, err := parser.ParseFile(fset, f.Name(), out.Bytes(), parser.ParseComments)
+		if err == nil {
+			var buf bytes.Buffer
+			if err = format.Node(&buf, fset, ff); err == nil {
+				out = buf
+			}
 		}
 
 		ioutil.WriteFile(f.Name(), out.Bytes(), 0644)
