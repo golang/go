@@ -59,5 +59,13 @@ func osArchInit() {
 }
 
 func mlockGsignal(gsignal *g) {
-	mlock(gsignal.stack.hi-physPageSize, physPageSize)
+	if err := mlock(gsignal.stack.hi-physPageSize, physPageSize); err < 0 {
+		printlock()
+		println("runtime: mlock of signal stack failed:", -err)
+		if err == -_ENOMEM {
+			println("runtime: increase the mlock limit (ulimit -l) or")
+		}
+		println("runtime: update your kernel to 5.4.2 or later")
+		throw("mlock failed")
+	}
 }
