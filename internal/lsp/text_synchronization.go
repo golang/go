@@ -106,7 +106,15 @@ func (s *Server) didModifyFile(ctx context.Context, c source.FileModification) e
 	// We should run diagnostics after opening or changing a file.
 	switch c.Action {
 	case source.Open, source.Change:
-		go s.diagnoseFile(view.Snapshot(), c.URI)
+		f, err := view.GetFile(ctx, c.URI)
+		if err != nil {
+			return err
+		}
+		if f.Kind() == source.Mod {
+			go s.diagnoseSnapshot(view.Snapshot())
+		} else {
+			go s.diagnoseFile(view.Snapshot(), c.URI)
+		}
 	}
 	return nil
 }

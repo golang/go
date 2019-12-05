@@ -537,7 +537,7 @@ func (s *snapshot) ID() uint64 {
 // It returns true if we were already tracking the given file, false otherwise.
 //
 // Note: The logic in this function is convoluted. Do not change without significant thought.
-func (v *view) invalidateContent(ctx context.Context, f source.File, kind source.FileKind, action source.FileAction) bool {
+func (v *view) invalidateContent(ctx context.Context, f source.File, action source.FileAction) bool {
 	var (
 		withoutTypes    = make(map[span.URI]struct{})
 		withoutMetadata = make(map[span.URI]struct{})
@@ -551,6 +551,13 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, kind source
 	// Collect all of the package IDs that correspond to the given file.
 	for _, id := range v.snapshot.getIDs(f.URI()) {
 		ids[id] = struct{}{}
+	}
+
+	// If we are invalidating a go.mod file then we should invalidate all of the packages in the module
+	if f.Kind() == source.Mod {
+		for id := range v.snapshot.workspacePackages {
+			ids[id] = struct{}{}
+		}
 	}
 
 	// Get the original FileHandle for the URI, if it exists.

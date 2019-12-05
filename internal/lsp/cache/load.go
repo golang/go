@@ -80,6 +80,9 @@ func (c *cache) shouldLoad(ctx context.Context, s *snapshot, originalFH, current
 	if originalFH == nil {
 		return true
 	}
+	if originalFH.Identity().Kind == currentFH.Identity().Kind && currentFH.Identity().Kind == source.Mod {
+		return true
+	}
 
 	// Get the original and current parsed files in order to check package name and imports.
 	original, _, _, originalErr := c.ParseGoHandle(originalFH, source.ParseHeader).Parse(ctx)
