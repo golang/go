@@ -461,7 +461,15 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 				if i > 0 {
 					fmt.Fprint(buf, ", ")
 				}
-				fmt.Fprintf(buf, "%s", p.name)
+				buf.WriteString(p.name)
+				if p.typ != nil {
+					if ptyp, _ := p.typ.(*TypeParam); ptyp != nil && ptyp.bound != nil {
+						buf.WriteByte(' ')
+						WriteType(buf, ptyp.bound, qf)
+						// TODO(gri) if this is a generic type bound, we should print
+						// the type parameters
+					}
+				}
 			}
 			fmt.Fprint(buf, ")")
 		}

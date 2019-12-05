@@ -220,7 +220,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 //
 func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 	if check.conf.Trace {
-		check.trace(e.Pos(), "expr %s", e)
+		check.trace(e.Pos(), "type %s", e)
 		check.indent++
 		defer func() {
 			check.indent--
@@ -272,28 +272,25 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 			return typ // error already reported
 		}
 
+		// evaluate arguments (always)
+		targs := check.typeList(e.Args)
+		if targs == nil {
+			return Typ[Invalid]
+		}
+
 		// the number of supplied types must match the number of type parameters
-		// TODO(gri) fold into code below - we want to eval args always
 		named, _ := typ.(*Named) // generic types are defined (= Named) types
 		tname := named.obj
-		if len(e.Args) != len(tname.tparams) {
+		if len(targs) != len(tname.tparams) {
 			// TODO(gri) provide better error message
 			check.errorf(e.Pos(), "got %d arguments but %d type parameters", len(e.Args), len(tname.tparams))
 			return Typ[Invalid]
 		}
 
-		// evaluate arguments
-		targs := check.typeList(e.Args)
-		if targs == nil {
-			return Typ[Invalid]
-		}
-		assert(len(targs) == len(tname.tparams))
-
 		// substitute type bound parameters with arguments
 		// and check if each argument satisfies its bound
 		for i, tpar := range tname.tparams {
 			pos := e.Args[i].Pos()
-			pos = e.Pos()                        // TODO(gri) remove in favor of more accurate pos on prev. line?
 			bound := tpar.typ.(*TypeParam).bound // interface or contract or nil
 			if bound == nil {
 				continue // nothing to do
@@ -477,19 +474,16 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
 // If an error occured, the result is nil, but all list elements were type-checked.
 func (check *Checker) typeList(list []ast.Expr) []Type {
 	res := make([]Type, len(list)) // res != nil even if len(list) == 0
-	ok := true
 	for i, x := range list {
 		t := check.typ(x)
 		if t == Typ[Invalid] {
-			ok = false
+			res = nil
 		}
-		res[i] = t
+		if res != nil {
+			res[i] = t
+		}
 	}
-	if ok {
-		return res
-
-	}
-	return nil
+	return res
 }
 
 func (check *Checker) satisfyBound(pos token.Pos, tname *TypeName, arg Type, bound *Interface) bool {

@@ -6,7 +6,33 @@ TODO
 - interface embedding doesn't take care of literal type constraints yet
   (need an allTypes list, like we have an allMethods list?)
 
+
 OPEN ISSUES
+- type constraints are not verified in some cases:
+
+package p
+
+type B interface{type int}
+
+func f(type P B)(x P) {}
+
+func _() {
+	f(string)("foo") // this should be invalid
+	f("foo")         // this should be invalid
+}
+
+- incorrect constraint errors:
+
+package p
+
+contract B(T) {
+	T int
+}
+
+type T(type P B) P
+
+func f(type P B)(x T(P)) // this should be valid
+
 
 DESIGN DECISIONS
 - 12/4/2019: do not allow parenthesized generic uninstantiated types (unless instantiated implicitly)
