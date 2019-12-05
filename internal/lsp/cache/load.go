@@ -114,21 +114,6 @@ func (c *cache) shouldLoad(ctx context.Context, s *snapshot, originalFH, current
 }
 
 func (s *snapshot) updateMetadata(ctx context.Context, uri source.Scope, pkgs []*packages.Package, cfg *packages.Config) ([]*metadata, error) {
-	// Clear metadata since we are re-running go/packages.
-	var m []*metadata
-	switch uri.(type) {
-	case source.FileURI:
-		m = s.getMetadataForURI(uri.URI())
-	case source.DirectoryURI:
-		for _, pkg := range pkgs {
-			if pkgMetadata := s.getMetadata(packageID(pkg.ID)); pkgMetadata != nil {
-				m = append(m, pkgMetadata)
-			}
-		}
-	default:
-		panic(fmt.Errorf("unsupported Scope type %T", uri))
-	}
-
 	var results []*metadata
 	for _, pkg := range pkgs {
 		log.Print(ctx, "go/packages.Load", tag.Of("package", pkg.PkgPath), tag.Of("files", pkg.CompiledGoFiles))
