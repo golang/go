@@ -2556,6 +2556,36 @@ func TestLoadModeStrings(t *testing.T) {
 	}
 }
 
+func TestCycleImportStack(t *testing.T) {
+	packagestest.TestAll(t, testCycleImportStack)
+}
+func testCycleImportStack(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+		Files: map[string]interface{}{
+			"a/a.go": `package a; import _ "golang.org/fake/b"`,
+			"b/b.go": `package b; import _ "golang.org/fake/a"`,
+		}}})
+	defer exported.Cleanup()
+
+	exported.Config.Mode = packages.NeedName | packages.NeedImports
+	pkgs, err := packages.Load(exported.Config, "golang.org/fake/a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pkgs) != 1 {
+		t.Fatalf("Expected 1 package, got %v", pkgs)
+	}
+	pkg := pkgs[0]
+	if len(pkg.Errors) != 1 {
+		t.Fatalf("Expected one error in package, got %v", pkg.Errors)
+	}
+	expected := "import cycle not allowed: import stack: [golang.org/fake/a golang.org/fake/b golang.org/fake/a]"
+	if pkg.Errors[0].Msg != expected {
+		t.Fatalf("Expected error %q, got %q", expected, pkg.Errors[0].Msg)
+	}
+}
+
 func errorMessages(errors []packages.Error) []string {
 	var msgs []string
 	for _, err := range errors {
