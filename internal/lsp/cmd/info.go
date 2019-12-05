@@ -48,7 +48,7 @@ func (b *bug) DetailedHelp(f *flag.FlagSet) {
 	f.PrintDefaults()
 }
 
-const goplsBugPrefix = "gopls: "
+const goplsBugPrefix = "x/tools/gopls: "
 const goplsBugHeader = `Please answer these questions before submitting your issue. Thanks!
 
 #### What did you do?
