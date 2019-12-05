@@ -279,8 +279,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 		}
 
 		// the number of supplied types must match the number of type parameters
-		named, _ := typ.(*Named) // generic types are defined (= Named) types
-		tname := named.obj
+		tname := typ.(*Named).obj // generic types are defined (= Named) types
 		if len(targs) != len(tname.tparams) {
 			// TODO(gri) provide better error message
 			check.errorf(e.Pos(), "got %d arguments but %d type parameters", len(e.Args), len(tname.tparams))
@@ -313,7 +312,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 		}
 
 		// instantiate parameterized type
-		typ = check.instantiate(e.Pos(), named, targs)
+		typ = check.instantiate(e.Pos(), typ, targs)
 		def.setUnderlying(typ)
 		return typ
 

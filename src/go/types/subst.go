@@ -14,10 +14,9 @@ import (
 	"strings"
 )
 
-func (check *Checker) instantiate(pos token.Pos, named *Named, targs []Type) (res Type) {
-	tname := named.obj
+func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type) (res Type) {
 	if check.conf.Trace {
-		check.trace(pos, "-- instantiating %s with %s", tname, typeListString(targs))
+		check.trace(pos, "-- instantiating %s with %s", typ, typeListString(targs))
 		check.indent++
 		defer func() {
 			check.indent--
@@ -29,8 +28,18 @@ func (check *Checker) instantiate(pos token.Pos, named *Named, targs []Type) (re
 		}()
 	}
 
-	// TODO(gri) What is better here: work with TypeParams, or work with TypeNames?
-	return check.subst(pos, named, tname.tparams, targs)
+	// TODO(gri) need to do a satisfy bounds check here
+
+	switch typ := typ.(type) {
+	case *Named:
+		// TODO(gri) What is better here: work with TypeParams, or work with TypeNames?
+		return check.subst(pos, typ, typ.obj.tparams, targs)
+
+	case *Signature:
+		return check.subst(pos, typ, typ.tparams, targs)
+	}
+
+	panic("unreachable") // only defined types and (defined) functions can be generic
 }
 
 // subst returns the type typ with its type parameters tparams replaced by

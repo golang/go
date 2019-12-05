@@ -105,7 +105,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 			}
 
 			// instantiate function signature
-			x.typ = check.subst(x.pos(), sig, sig.tparams, targs)
+			x.typ = check.instantiate(x.pos(), sig, targs)
 			x.mode = value
 			x.expr = e
 			return expression
@@ -313,7 +313,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 		if targs == nil {
 			return
 		}
-		rsig = check.subst(call.Pos(), sig, sig.tparams, targs).(*Signature)
+		rsig = check.instantiate(call.Pos(), sig, targs).(*Signature)
 		params = check.subst(call.Pos(), params, sig.tparams, targs).(*Tuple)
 		// TODO(gri) Optimization: We don't need to check arguments
 		//           from which we inferred parameter types.
