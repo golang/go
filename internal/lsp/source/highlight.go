@@ -62,6 +62,9 @@ Outer:
 	// Reverse walk the path till we get to the func block.
 	for _, n := range path {
 		switch node := n.(type) {
+		case *ast.KeyValueExpr:
+			// If cursor is in a key: value expr, we don't want control flow highlighting
+			return nil, nil
 		case *ast.Field:
 			inReturnList = true
 		case *ast.FuncLit:
@@ -232,7 +235,7 @@ func highlightIdentifiers(ctx context.Context, snapshot Snapshot, m *protocol.Co
 		if !ok {
 			return true
 		}
-		if n.Name != id.Name || n.Obj != id.Obj {
+		if n.Name != id.Name {
 			return false
 		}
 		if nObj := pkg.GetTypesInfo().ObjectOf(n); nObj != idObj {

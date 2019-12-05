@@ -7,9 +7,15 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 )
 
-type F struct{ bar int }
+type F struct{ bar int } //@mark(barDeclaration, "bar"),highlight(barDeclaration, barDeclaration, bar1, bar2, bar3)
 
-var foo = F{bar: 52} //@mark(fooDeclaration, "foo"),highlight(fooDeclaration, fooDeclaration, fooUse)
+func _() F {
+	return F{
+		bar: 123, //@mark(bar1, "bar"),highlight(bar1, barDeclaration, bar1, bar2, bar3)
+	}
+}
+
+var foo = F{bar: 52} //@mark(fooDeclaration, "foo"),mark(bar2, "bar"),highlight(fooDeclaration, fooDeclaration, fooUse),highlight(bar2, barDeclaration, bar1, bar2, bar3)
 
 func Print() { //@mark(printFunc, "Print"),highlight(printFunc, printFunc, printTest)
 	fmt.Println(foo) //@mark(fooUse, "foo"),highlight(fooUse, fooDeclaration, fooUse)
@@ -17,7 +23,7 @@ func Print() { //@mark(printFunc, "Print"),highlight(printFunc, printFunc, print
 }
 
 func (x *F) Inc() { //@mark(xDeclaration, "x"),highlight(xDeclaration, xDeclaration, xUse)
-	x.bar++ //@mark(xUse, "x"),highlight(xUse, xDeclaration, xUse)
+	x.bar++ //@mark(xUse, "x"),mark(bar3, "bar"),highlight(xUse, xDeclaration, xUse),highlight(bar3, barDeclaration, bar1, bar2, bar3)
 }
 
 func testFunctions() {
