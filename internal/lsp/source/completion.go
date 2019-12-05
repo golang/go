@@ -547,6 +547,9 @@ func (c *completer) wantTypeName() bool {
 	return c.expectedType.typeName.wantTypeName
 }
 
+// See https://golang.org/issue/36001. Unimported completions are expensive.
+const maxUnimported = 20
+
 // selector finds completions for the specified selector expression.
 func (c *completer) selector(sel *ast.SelectorExpr) error {
 	// Is sel a qualified identifier?
@@ -570,7 +573,11 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 			return err
 		}
 		known := c.snapshot.KnownImportPaths()
+		startingItems := len(c.items)
 		for _, pkgExport := range pkgExports {
+			if len(c.items)-startingItems >= maxUnimported {
+				break
+			}
 			// If we've seen this import path, use the fully-typed version.
 			if knownPkg, ok := known[pkgExport.Fix.StmtInfo.ImportPath]; ok {
 				c.packageMembers(knownPkg.GetTypes(), &importInfo{
@@ -726,7 +733,12 @@ func (c *completer) lexical() error {
 		score := stdScore
 		// Rank unimported packages significantly lower than other results.
 		score *= 0.07
+
+		startingItems := len(c.items)
 		for _, pkg := range pkgs {
+			if len(c.items)-startingItems >= maxUnimported {
+				break
+			}
 			if _, ok := seen[pkg.IdentName]; !ok {
 				// Do not add the unimported packages to seen, since we can have
 				// multiple packages of the same name as completion suggestions, since
