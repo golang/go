@@ -976,13 +976,6 @@ Found:
 		}
 	}
 
-	if badGoError != nil {
-		return p, badGoError
-	}
-	if len(p.GoFiles)+len(p.CgoFiles)+len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
-		return p, &NoGoError{p.Dir}
-	}
-
 	for tag := range allTags {
 		p.AllTags = append(p.AllTags, tag)
 	}
@@ -1000,6 +993,12 @@ Found:
 		sort.Strings(p.SFiles)
 	}
 
+	if badGoError != nil {
+		return p, badGoError
+	}
+	if len(p.GoFiles)+len(p.CgoFiles)+len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
+		return p, &NoGoError{p.Dir}
+	}
 	return p, pkgerr
 }
 
