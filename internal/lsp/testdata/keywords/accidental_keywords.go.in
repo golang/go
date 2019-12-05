@@ -4,16 +4,22 @@ package keywords
 var apple = "apple"
 
 func _() {
+	foo.bar() // insert some extra statements to excercise our AST surgery
 	variance := 123 //@item(kwVariance, "variance", "int", "var")
+	foo.bar()
 	println(var) //@complete(")", kwVariance)
 }
 
 func _() {
+	foo.bar()
 	var s struct { variance int } //@item(kwVarianceField, "variance", "int", "field")
+	foo.bar()
 	s.var //@complete(" //", kwVarianceField)
 }
 
 func _() {
+	foo.bar()
 	var typeName string //@item(kwTypeName, "typeName", "string", "var")
+	foo.bar()
 	type //@complete(" //", kwTypeName)
 }
