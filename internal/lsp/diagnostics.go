@@ -50,7 +50,7 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot) {
 	}
 }
 
-func (s *Server) diagnoseFile(snapshot source.Snapshot, uri span.URI) error {
+func (s *Server) diagnoseFile(snapshot source.Snapshot, uri span.URI) {
 	ctx := snapshot.View().BackgroundContext()
 	ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
 	defer done()
@@ -59,57 +59,51 @@ func (s *Server) diagnoseFile(snapshot source.Snapshot, uri span.URI) error {
 
 	f, err := snapshot.View().GetFile(ctx, uri)
 	if err != nil {
-		return err
+		log.Error(ctx, "diagnoseFile: no file", err)
+		return
 	}
 	reports, warningMsg, err := source.Diagnostics(ctx, snapshot, f, true, snapshot.View().Options().DisabledAnalyses)
-	if err != nil {
-		return err
-	}
+	// Check the warning message first.
 	if warningMsg != "" {
 		s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
 			Type:    protocol.Info,
 			Message: warningMsg,
 		})
 	}
+	if err != nil {
+		if err != context.Canceled {
+			log.Error(ctx, "diagnoseFile: could not generate diagnostics", err)
+		}
+		return
+	}
 	// Publish empty diagnostics for files.
 	s.publishReports(ctx, reports, true)
-	return nil
 }
 
 func (s *Server) publishReports(ctx context.Context, reports map[source.FileIdentity][]source.Diagnostic, publishEmpty bool) {
-	undelivered := make(map[source.FileIdentity][]source.Diagnostic)
+	// Check for context cancellation before publishing diagnostics.
+	if ctx.Err() != nil {
+		return
+	}
+
 	for fileID, diagnostics := range reports {
+		// Don't deliver diagnostics if the context has already been canceled.
+		if ctx.Err() != nil {
+			break
+		}
 		// Don't publish empty diagnostics unless specified.
 		if len(diagnostics) == 0 && !publishEmpty {
 			continue
 		}
-		if err := s.publishDiagnostics(ctx, fileID, diagnostics); err != nil {
-			undelivered[fileID] = diagnostics
-
-			log.Error(ctx, "failed to deliver diagnostic (will retry)", err, telemetry.File)
+		if err := s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
+			Diagnostics: toProtocolDiagnostics(ctx, diagnostics),
+			URI:         protocol.NewURI(fileID.URI),
+			Version:     fileID.Version,
+		}); err != nil {
+			log.Error(ctx, "failed to deliver diagnostic", err, telemetry.File)
 			continue
 		}
-		// In case we had old, undelivered diagnostics.
-		delete(undelivered, fileID)
 	}
-	// Any time we compute diagnostics, make sure to also send along any
-	// undelivered ones (only for remaining URIs).
-	for uri, diagnostics := range undelivered {
-		if err := s.publishDiagnostics(ctx, uri, diagnostics); err != nil {
-			log.Error(ctx, "failed to deliver diagnostic for (will not retry)", err, telemetry.File)
-		}
-
-		// If we fail to deliver the same diagnostics twice, just give up.
-		delete(undelivered, uri)
-	}
-}
-
-func (s *Server) publishDiagnostics(ctx context.Context, fileID source.FileIdentity, diagnostics []source.Diagnostic) error {
-	return s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
-		Diagnostics: toProtocolDiagnostics(ctx, diagnostics),
-		URI:         protocol.NewURI(fileID.URI),
-		Version:     fileID.Version,
-	})
 }
 
 func toProtocolDiagnostics(ctx context.Context, diagnostics []source.Diagnostic) []protocol.Diagnostic {

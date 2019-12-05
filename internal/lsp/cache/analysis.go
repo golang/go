@@ -38,8 +38,7 @@ func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*analysis
 	for _, ah := range roots {
 		diagnostics, _, err := ah.analyze(ctx)
 		if err != nil {
-			log.Error(ctx, "no results", err)
-			continue
+			return nil, err
 		}
 		results = append(results, diagnostics...)
 	}
@@ -148,7 +147,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.P
 func (act *actionHandle) analyze(ctx context.Context) ([]*source.Error, interface{}, error) {
 	v := act.handle.Get(ctx)
 	if v == nil {
-		return nil, nil, errors.Errorf("no analyses for %s", act.pkg.ID())
+		return nil, nil, ctx.Err()
 	}
 	data, ok := v.(*actionData)
 	if !ok {
@@ -156,21 +155,6 @@ func (act *actionHandle) analyze(ctx context.Context) ([]*source.Error, interfac
 	}
 	if data == nil {
 		return nil, nil, errors.Errorf("unexpected nil analysis for %s:%s", act.pkg.ID(), act.analyzer.Name)
-	}
-	return data.diagnostics, data.result, data.err
-}
-
-func (act *actionHandle) cached() ([]*source.Error, interface{}, error) {
-	v := act.handle.Cached()
-	if v == nil {
-		return nil, nil, errors.Errorf("no cached analyses for %s", act.pkg.ID())
-	}
-	data, ok := v.(*actionData)
-	if !ok {
-		return nil, nil, errors.Errorf("unexpected type for cached analysis %s:%s", act.pkg.ID(), act.analyzer.Name)
-	}
-	if data == nil {
-		return nil, nil, errors.Errorf("unexpected nil cached analysis for %s:%s", act.pkg.ID(), act.analyzer.Name)
 	}
 	return data.diagnostics, data.result, data.err
 }

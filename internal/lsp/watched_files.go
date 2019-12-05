@@ -72,9 +72,10 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 
 				// If this was the only file in the package, clear its diagnostics.
 				if otherFile == nil {
-					if err := s.publishDiagnostics(ctx, source.FileIdentity{
-						URI: uri,
-					}, []source.Diagnostic{}); err != nil {
+					if err := s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
+						URI:     protocol.NewURI(uri),
+						Version: fh.Identity().Version,
+					}); err != nil {
 						log.Error(ctx, "failed to clear diagnostics", err, telemetry.URI.Of(uri))
 					}
 					return nil

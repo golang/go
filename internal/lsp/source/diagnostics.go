@@ -56,15 +56,13 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, f File, withAnalysis bo
 	// not correctly configured. Report errors, if possible.
 	var warningMsg string
 	if len(ph.MissingDependencies()) > 0 {
-		warningMsg, err = checkCommonErrors(ctx, snapshot.View(), f.URI())
-		if err != nil {
+		if warningMsg, err = checkCommonErrors(ctx, snapshot.View(), f.URI()); err != nil {
 			log.Error(ctx, "error checking common errors", err, telemetry.File.Of(f.URI))
 		}
 	}
 	pkg, err := ph.Check(ctx)
 	if err != nil {
-		log.Error(ctx, "no package for file", err)
-		return singleDiagnostic(fh.Identity(), "%s is not part of a package", f.URI()), "", nil
+		return nil, "", err
 	}
 	// Prepare the reports we will send for the files in this package.
 	reports := make(map[FileIdentity][]Diagnostic)
@@ -82,6 +80,10 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, f File, withAnalysis bo
 	if !diagnostics(ctx, snapshot, pkg, reports) && withAnalysis {
 		// If we don't have any list, parse, or type errors, run analyses.
 		if err := analyses(ctx, snapshot, ph, disabledAnalyses, reports); err != nil {
+			// Exit early if the context has been canceled.
+			if err == context.Canceled {
+				return nil, "", err
+			}
 			log.Error(ctx, "failed to run analyses", err, telemetry.File.Of(f.URI()))
 		}
 	}
