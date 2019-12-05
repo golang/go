@@ -5,7 +5,6 @@
 package cmdtest
 
 import (
-	"os/exec"
 	"testing"
 
 	"golang.org/x/tools/internal/span"
@@ -16,9 +15,7 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 	filename := uri.Filename()
 	got, _ := r.NormalizeGoplsCmd(t, "imports", filename)
 	want := string(r.data.Golden("goimports", filename, func() ([]byte, error) {
-		cmd := exec.Command("goimports", filename)
-		out, _ := cmd.Output() // ignore error, sometimes we have intentionally ungofmt-able files
-		return out, nil
+		return []byte(got), nil
 	}))
 	if want != got {
 		t.Errorf("imports failed for %s, expected:\n%q\ngot:\n%q", filename, want, got)

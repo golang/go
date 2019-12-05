@@ -291,22 +291,13 @@ func (r *runner) Format(t *testing.T, spn span.Span) {
 func (r *runner) Import(t *testing.T, spn span.Span) {
 	uri := spn.URI()
 	filename := uri.Filename()
-	goimported := string(r.data.Golden("goimports", filename, func() ([]byte, error) {
-		cmd := exec.Command("goimports", filename)
-		out, _ := cmd.Output() // ignore error, sometimes we have intentionally ungofmt-able files
-		return out, nil
-	}))
-
 	actions, err := r.server.CodeAction(r.ctx, &protocol.CodeActionParams{
 		TextDocument: protocol.TextDocumentIdentifier{
 			URI: protocol.NewURI(uri),
 		},
 	})
 	if err != nil {
-		if goimported != "" {
-			t.Error(err)
-		}
-		return
+		t.Fatal(err)
 	}
 	m, err := r.data.Mapper(uri)
 	if err != nil {
@@ -320,8 +311,11 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 		}
 		got = res[uri]
 	}
-	if goimported != got {
-		t.Errorf("import failed for %s, expected:\n%v\ngot:\n%v", filename, goimported, got)
+	want := string(r.data.Golden("goimports", filename, func() ([]byte, error) {
+		return []byte(got), nil
+	}))
+	if want != got {
+		t.Errorf("import failed for %s, expected:\n%v\ngot:\n%v", filename, want, got)
 	}
 }
 
