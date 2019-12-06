@@ -68,7 +68,7 @@ func mlockGsignal(gsignal *g) {
 		if err == -_ENOMEM {
 			println("runtime: increase the mlock limit (ulimit -l) or")
 		}
-		println("runtime: update your kernel to 5.4.2 or later")
+		println("runtime: update your kernel to 5.3.15+, 5.4.2+, or 5.5+")
 		throw("mlock failed")
 	}
 }
