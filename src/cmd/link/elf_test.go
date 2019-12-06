@@ -15,7 +15,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -142,12 +141,6 @@ func TestMinusRSymsWithSameName(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	testenv.MustHaveCGO(t)
 	t.Parallel()
-
-	// Skip this test on MIPS for the time being since it seems to trigger
-	// problems with unknown relocations.
-	if strings.Contains(runtime.GOARCH, "mips") {
-		testenv.SkipFlaky(t, 35779)
-	}
 
 	dir, err := ioutil.TempDir("", "go-link-TestMinusRSymsWithSameName")
 	if err != nil {
