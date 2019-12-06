@@ -10,8 +10,8 @@ type ImpS struct{} //@mark(OtherImpS, "ImpS")
 func (ImpS) Laugh() { //@mark(OtherLaughS, "Laugh")
 }
 
-type ImpI interface { //@mark(OtherImpI, "ImpI")
-	Laugh() //@mark(OtherLaughI, "Laugh")
+type ImpI interface {
+	Laugh()
 }
 
 type Foo struct {
