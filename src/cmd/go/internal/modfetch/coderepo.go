@@ -359,7 +359,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 				Path: r.modPath,
 				Err: &module.InvalidVersionError{
 					Version: info2.Version,
-					Err:     notExistError(err.Error()),
+					Err:     notExistError{err: err},
 				},
 			}
 		}

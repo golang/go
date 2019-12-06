@@ -43,6 +43,9 @@ func (e *ImportMissingError) Error() string {
 		if str.HasPathPrefix(e.Path, "cmd") {
 			return fmt.Sprintf("package %s is not in GOROOT (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
 		}
+		if i := load.ImportPathError(nil); errors.As(e.QueryErr, &i) {
+			return fmt.Sprintf("cannot find module: %v", e.QueryErr)
+		}
 		if e.QueryErr != nil {
 			return fmt.Sprintf("cannot find module providing package %s: %v", e.Path, e.QueryErr)
 		}
