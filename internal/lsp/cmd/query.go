@@ -23,8 +23,9 @@ const (
 
 // query implements the query command.
 type query struct {
-	JSON    bool   `flag:"json" help:"emit output in JSON format"`
-	Emulate string `flag:"emulate" help:"compatibility mode, causes gopls to emulate another tool.\nvalues depend on the operation being performed"`
+	JSON              bool   `flag:"json" help:"emit output in JSON format"`
+	MarkdownSupported bool   `flag:"markdown" help:"support markdown in responses"`
+	Emulate           string `flag:"emulate" help:"compatibility mode, causes gopls to emulate another tool.\nvalues depend on the operation being performed"`
 
 	app *Application
 }

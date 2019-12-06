@@ -2,7 +2,10 @@
 
 package a
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 type A string //@A
 
@@ -16,4 +19,7 @@ func AStuff() { //@AStuff
 
 	var y string       //@string,hover("string", string)
 	_ = make([]int, 0) //@make,hover("make", make)
+
+	var mu sync.Mutex
+	mu.Lock() //@Lock,hover("Lock", Lock)
 }

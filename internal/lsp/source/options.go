@@ -46,7 +46,7 @@ var (
 		TextDocumentSyncKind:   protocol.Incremental,
 		HoverKind:              SynopsisDocumentation,
 		InsertTextFormat:       protocol.PlainTextTextFormat,
-		PreferredContentFormat: protocol.PlainText,
+		PreferredContentFormat: protocol.Markdown,
 		SupportedCodeActions: map[FileKind]map[protocol.CodeActionKind]bool{
 			Go: {
 				protocol.SourceOrganizeImports: true,

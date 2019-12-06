@@ -388,12 +388,16 @@ func isPointer(T types.Type) bool {
 	return ok
 }
 
-// deref returns a pointer's element type; otherwise it returns typ.
+// deref returns a pointer's element type, traversing as many levels as needed.
+// Otherwise it returns typ.
 func deref(typ types.Type) types.Type {
-	if p, ok := typ.Underlying().(*types.Pointer); ok {
-		return p.Elem()
+	for {
+		p, ok := typ.Underlying().(*types.Pointer)
+		if !ok {
+			return typ
+		}
+		typ = p.Elem()
 	}
-	return typ
 }
 
 func isTypeName(obj types.Object) bool {

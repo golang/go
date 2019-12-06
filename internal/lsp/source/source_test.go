@@ -519,12 +519,10 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	if err != nil {
 		t.Fatalf("failed for %v: %v", d.Src, err)
 	}
-	var hover string
-	if h.Synopsis != "" {
-		hover += h.Synopsis + "\n"
+	hover, err := source.FormatHover(h, r.view.Options())
+	if err != nil {
+		t.Fatal(err)
 	}
-	hover += h.Signature
-	hover += "\n" + h.DocumentationLink(r.view.Options())
 	rng, err := ident.Declaration.Range()
 	if err != nil {
 		t.Fatal(err)

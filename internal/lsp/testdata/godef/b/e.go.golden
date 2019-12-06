@@ -1,6 +1,11 @@
 -- Member-definition --
-godef/a/d.go:6:2-8: defined here as @Member
+godef/a/d.go:6:2-8: defined here as \@Member
+
+[`(a.Thing).Member` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing.Member)
+
+```go
 field Member string
+```
 -- Member-definition-json --
 {
 	"span": {
@@ -16,16 +21,23 @@ field Member string
 			"offset": 61
 		}
 	},
-	"description": "@Member\nfield Member string"
+	"description": "\\@Member\n\n[`(a.Thing).Member` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing.Member)\n\n```go\nfield Member string\n```"
 }
 
 -- Member-hover --
-@Member
-field Member string
+\@Member
 
+[`(a.Thing).Member` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing.Member)
+
+```go
+field Member string
+```
 -- Other-definition --
-godef/a/d.go:9:5-10: defined here as var a.Other a.Thing
-[Other on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)
+godef/a/d.go:9:5-10: defined here as [`a.Other` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)
+
+```go
+var a.Other a.Thing
+```
 -- Other-definition-json --
 {
 	"span": {
@@ -41,17 +53,23 @@ godef/a/d.go:9:5-10: defined here as var a.Other a.Thing
 			"offset": 91
 		}
 	},
-	"description": "var a.Other a.Thing\n[Other on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)"
+	"description": "[`a.Other` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)\n\n```go\nvar a.Other a.Thing\n```"
 }
 
 -- Other-hover --
+[`a.Other` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)
+
+```go
 var a.Other a.Thing
-[Other on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Other)
+```
 -- Thing-definition --
-godef/a/d.go:5:6-11: defined here as Thing struct {
+godef/a/d.go:5:6-11: defined here as [`a.Thing` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing)
+
+```go
+Thing struct {
 	Member string //@Member
 }
-[Thing on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing)
+```
 -- Thing-definition-json --
 {
 	"span": {
@@ -67,17 +85,23 @@ godef/a/d.go:5:6-11: defined here as Thing struct {
 			"offset": 35
 		}
 	},
-	"description": "Thing struct {\n\tMember string //@Member\n}\n[Thing on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing)"
+	"description": "[`a.Thing` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing)\n\n```go\nThing struct {\n\tMember string //@Member\n}\n```"
 }
 
 -- Thing-hover --
+[`a.Thing` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing)
+
+```go
 Thing struct {
 	Member string //@Member
 }
-[Thing on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Thing)
+```
 -- Things-definition --
-godef/a/d.go:11:6-12: defined here as func a.Things(val []string) []a.Thing
-[Things on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Things)
+godef/a/d.go:11:6-12: defined here as [`a.Things` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Things)
+
+```go
+func a.Things(val []string) []a.Thing
+```
 -- Things-definition-json --
 {
 	"span": {
@@ -93,9 +117,12 @@ godef/a/d.go:11:6-12: defined here as func a.Things(val []string) []a.Thing
 			"offset": 119
 		}
 	},
-	"description": "func a.Things(val []string) []a.Thing\n[Things on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Things)"
+	"description": "[`a.Things` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Things)\n\n```go\nfunc a.Things(val []string) []a.Thing\n```"
 }
 
 -- Things-hover --
+[`a.Things` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Things)
+
+```go
 func a.Things(val []string) []a.Thing
-[Things on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Things)
+```

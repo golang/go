@@ -168,7 +168,7 @@ func (app *Application) connect(ctx context.Context) (*connection, error) {
 	case "":
 		connection := newConnection(app)
 		ctx, connection.Server = lsp.NewClientServer(ctx, cache.New(app.options), connection.Client)
-		return connection, connection.initialize(ctx)
+		return connection, connection.initialize(ctx, app.options)
 	case "internal":
 		internalMu.Lock()
 		defer internalMu.Unlock()
@@ -186,7 +186,7 @@ func (app *Application) connect(ctx context.Context) (*connection, error) {
 			ctx, srv := lsp.NewServer(ctx, cache.New(app.options), jsonrpc2.NewHeaderStream(sr, sw))
 			srv.Run(ctx)
 		}()
-		if err := connection.initialize(ctx); err != nil {
+		if err := connection.initialize(ctx, app.options); err != nil {
 			return nil, err
 		}
 		internalConnections[app.wd] = connection
@@ -201,17 +201,24 @@ func (app *Application) connect(ctx context.Context) (*connection, error) {
 		var jc *jsonrpc2.Conn
 		ctx, jc, connection.Server = protocol.NewClient(ctx, stream, connection.Client)
 		go jc.Run(ctx)
-		return connection, connection.initialize(ctx)
+		return connection, connection.initialize(ctx, app.options)
 	}
 }
 
-func (c *connection) initialize(ctx context.Context) error {
+func (c *connection) initialize(ctx context.Context, options func(*source.Options)) error {
 	params := &protocol.ParamInitialize{}
 	params.RootURI = string(span.FileURI(c.Client.app.wd))
 	params.Capabilities.Workspace.Configuration = true
-	params.Capabilities.TextDocument.Hover = protocol.HoverClientCapabilities{
-		ContentFormat: []protocol.MarkupKind{protocol.PlainText},
+
+	// Make sure to respect configured options when sending initialize request.
+	opts := source.DefaultOptions
+	if options != nil {
+		options(&opts)
 	}
+	params.Capabilities.TextDocument.Hover = protocol.HoverClientCapabilities{
+		ContentFormat: []protocol.MarkupKind{opts.PreferredContentFormat},
+	}
+
 	if _, err := c.Server.Initialize(ctx, params); err != nil {
 		return err
 	}

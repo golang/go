@@ -1,6 +1,17 @@
+-- Lock-hover --
+Lock locks m\.
+
+[`(sync.Mutex).Lock` on pkg.go.dev](https://pkg.go.dev/sync#Mutex.Lock)
+
+```go
+func (*sync.Mutex).Lock()
+```
 -- Random-definition --
-godef/a/random.go:3:6-12: defined here as func Random() int
-[Random on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random)
+godef/a/random.go:3:6-12: defined here as [`a.Random` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random)
+
+```go
+func Random() int
+```
 -- Random-definition-json --
 {
 	"span": {
@@ -16,15 +27,21 @@ godef/a/random.go:3:6-12: defined here as func Random() int
 			"offset": 22
 		}
 	},
-	"description": "func Random() int\n[Random on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random)"
+	"description": "[`a.Random` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random)\n\n```go\nfunc Random() int\n```"
 }
 
 -- Random-hover --
+[`a.Random` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random)
+
+```go
 func Random() int
-[Random on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random)
+```
 -- Random2-definition --
-godef/a/random.go:8:6-13: defined here as func Random2(y int) int
-[Random2 on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random2)
+godef/a/random.go:8:6-13: defined here as [`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random2)
+
+```go
+func Random2(y int) int
+```
 -- Random2-definition-json --
 {
 	"span": {
@@ -40,39 +57,50 @@ godef/a/random.go:8:6-13: defined here as func Random2(y int) int
 			"offset": 78
 		}
 	},
-	"description": "func Random2(y int) int\n[Random2 on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random2)"
+	"description": "[`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random2)\n\n```go\nfunc Random2(y int) int\n```"
 }
 
 -- Random2-hover --
+[`a.Random2` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random2)
+
+```go
 func Random2(y int) int
-[Random2 on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random2)
+```
 -- err-definition --
-godef/a/a.go:14:6-9: defined here as var err error
+godef/a/a.go:17:6-9: defined here as ```go
+var err error
+```
 -- err-definition-json --
 {
 	"span": {
 		"uri": "file://godef/a/a.go",
 		"start": {
-			"line": 14,
+			"line": 17,
 			"column": 6,
-			"offset": 203
+			"offset": 216
 		},
 		"end": {
-			"line": 14,
+			"line": 17,
 			"column": 9,
-			"offset": 206
+			"offset": 219
 		}
 	},
-	"description": "var err error"
+	"description": "```go\nvar err error\n```"
 }
 
 -- err-hover --
+```go
 var err error
-
+```
 -- make-hover --
-The make built-in function allocates and initializes an object of type slice, map, or chan (only).
+The make built\-in function allocates and initializes an object of type slice, map, or chan \(only\)\.
+
+[`make` on pkg.go.dev](https://pkg.go.dev/builtin#make)
+
+```go
 func(t Type, size ...IntegerType) Type
-
+```
 -- string-hover --
+```go
 string
-
+```

@@ -33,9 +33,11 @@ type IdentifierInfo struct {
 
 	Declaration Declaration
 
-	pkg   Package
-	ident *ast.Ident
-	qf    types.Qualifier
+	ident    *ast.Ident
+	selector *ast.SelectorExpr
+
+	pkg Package
+	qf  types.Qualifier
 }
 
 type Declaration struct {
@@ -123,7 +125,9 @@ func identifier(s Snapshot, pkg Package, file *ast.File, pos token.Pos) (*Identi
 		qf:       qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo()),
 		pkg:      pkg,
 		ident:    searchForIdent(path[0]),
+		selector: searchForSelector(path),
 	}
+
 	// No identifier at the given position.
 	if result.ident == nil {
 		return nil, nil
@@ -224,6 +228,16 @@ func searchForIdent(n ast.Node) *ast.Ident {
 		return node.Sel
 	case *ast.StarExpr:
 		return searchForIdent(node.X)
+	}
+	return nil
+}
+
+func searchForSelector(path []ast.Node) *ast.SelectorExpr {
+	for _, n := range path {
+		switch node := n.(type) {
+		case *ast.SelectorExpr:
+			return node
+		}
 	}
 	return nil
 }
