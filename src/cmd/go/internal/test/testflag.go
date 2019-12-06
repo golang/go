@@ -88,7 +88,8 @@ func init() {
 //	go test fmt -custom-flag-for-fmt-test
 //	go test -x math
 func testFlags(usage func(), args []string) (packageNames, passToTest []string) {
-	args = str.StringList(cmdflag.FindGOFLAGS(testFlagDefn), args)
+	goflags := cmdflag.FindGOFLAGS(testFlagDefn)
+	args = str.StringList(goflags, args)
 	inPkg := false
 	var explicitArgs []string
 	for i := 0; i < len(args); i++ {
@@ -126,6 +127,9 @@ func testFlags(usage func(), args []string) (packageNames, passToTest []string) 
 			}
 			passToTest = append(passToTest, args[i])
 			continue
+		}
+		if i < len(goflags) {
+			f.Present = false // Not actually present on the command line.
 		}
 		if f.Value != nil {
 			if err := f.Value.Set(value); err != nil {
