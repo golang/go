@@ -137,7 +137,7 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 	if err != nil {
 		// Suppress all errors.
 		log.Error(ctx, "failed to load snapshot", err, telemetry.Directory.Of(folder))
-		return v, nil, nil
+		return v, v.snapshot, nil
 	}
 	// Prepare CheckPackageHandles for every package that's been loaded.
 	// (*snapshot).CheckPackageHandle makes the assumption that every package that's
@@ -145,7 +145,7 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 	if _, err := v.snapshot.checkWorkspacePackages(ctx, m); err != nil {
 		// Suppress all errors.
 		log.Error(ctx, "failed to check snapshot", err, telemetry.Directory.Of(folder))
-		return v, nil, nil
+		return v, v.snapshot, nil
 	}
 
 	debug.AddView(debugView{v})
