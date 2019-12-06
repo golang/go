@@ -348,6 +348,9 @@ func TestPIESize(t *testing.T) {
 			// difference in size of the .got and .plt
 			// sections if they exist.
 			// We ignore unallocated sections.
+			// There may be gaps between non-writeable and
+			// writable PT_LOAD segments. We also skip those
+			// gaps (see issue #36023).
 
 			textsize := func(ef *elf.File, name string) uint64 {
 				for _, s := range ef.Sections {
@@ -383,9 +386,21 @@ func TestPIESize(t *testing.T) {
 
 			extrasize := func(ef *elf.File) uint64 {
 				var ret uint64
+				// skip unallocated sections
 				for _, s := range ef.Sections {
 					if s.Flags&elf.SHF_ALLOC == 0 {
 						ret += s.Size
+					}
+				}
+				// also skip gaps between PT_LOAD segments
+				for i := range ef.Progs {
+					if i == 0 {
+						continue
+					}
+					p1 := ef.Progs[i-1]
+					p2 := ef.Progs[i]
+					if p1.Type == elf.PT_LOAD && p2.Type == elf.PT_LOAD {
+						ret += p2.Off - p1.Off - p1.Filesz
 					}
 				}
 				return ret
