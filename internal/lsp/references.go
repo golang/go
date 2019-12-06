@@ -56,27 +56,18 @@ func (s *Server) references(ctx context.Context, params *protocol.ReferenceParam
 			Range: refRange,
 		})
 	}
-	// The declaration of this identifier may not be in the
-	// scope that we search for references, so make sure
-	// it is added to the beginning of the list if IncludeDeclaration
-	// was specified.
+	// Only add the identifier's declaration if the client requests it.
 	if params.Context.IncludeDeclaration {
-		decSpan, err := ident.Declaration.Span()
+		rng, err := ident.Declaration.Range()
 		if err != nil {
 			return nil, err
 		}
-		if !seen[decSpan] {
-			rng, err := ident.Declaration.Range()
-			if err != nil {
-				return nil, err
-			}
-			locations = append([]protocol.Location{
-				{
-					URI:   protocol.NewURI(ident.Declaration.URI()),
-					Range: rng,
-				},
-			}, locations...)
-		}
+		locations = append([]protocol.Location{
+			{
+				URI:   protocol.NewURI(ident.Declaration.URI()),
+				Range: rng,
+			},
+		}, locations...)
 	}
 	return locations, nil
 }

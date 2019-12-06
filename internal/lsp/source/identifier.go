@@ -45,6 +45,17 @@ type Declaration struct {
 	wasImplicit bool
 }
 
+func (i *IdentifierInfo) DeclarationReferenceInfo() *ReferenceInfo {
+	return &ReferenceInfo{
+		Name:          i.Declaration.obj.Name(),
+		mappedRange:   i.Declaration.mappedRange,
+		obj:           i.Declaration.obj,
+		ident:         i.ident,
+		pkg:           i.pkg,
+		isDeclaration: true,
+	}
+}
+
 // Identifier returns identifier information for a position
 // in a file, accounting for a potentially incomplete selector.
 func Identifier(ctx context.Context, snapshot Snapshot, f File, pos protocol.Position) (*IdentifierInfo, error) {

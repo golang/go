@@ -541,7 +541,6 @@ func (r *runner) References(t *testing.T, src span.Span, itemList []span.Span) {
 	if err != nil {
 		t.Fatalf("failed for %v: %v", src, err)
 	}
-
 	want := make(map[protocol.Location]bool)
 	for _, pos := range itemList {
 		m, err := r.data.Mapper(pos.URI())
@@ -558,6 +557,9 @@ func (r *runner) References(t *testing.T, src span.Span, itemList []span.Span) {
 		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
 			TextDocument: protocol.TextDocumentIdentifier{URI: loc.URI},
 			Position:     loc.Range.Start,
+		},
+		Context: protocol.ReferenceContext{
+			IncludeDeclaration: true,
 		},
 	}
 	got, err := r.server.References(r.ctx, params)

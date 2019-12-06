@@ -120,6 +120,9 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 		return nil, err
 	}
 
+	// Make sure to add the declaration of the identifier.
+	refs = append(refs, i.DeclarationReferenceInfo())
+
 	r := renamer{
 		ctx:          ctx,
 		fset:         i.Snapshot.View().Session().Cache().FileSet(),

@@ -653,17 +653,16 @@ func (r *runner) References(t *testing.T, src span.Span, itemList []span.Span) {
 	if err != nil {
 		t.Fatalf("failed for %v: %v", src, err)
 	}
-
 	want := make(map[span.Span]bool)
 	for _, pos := range itemList {
 		want[pos] = true
 	}
-
 	refs, err := ident.References(ctx)
 	if err != nil {
 		t.Fatalf("failed for %v: %v", src, err)
 	}
-
+	// Add the item's declaration, since References omits it.
+	refs = append([]*source.ReferenceInfo{ident.DeclarationReferenceInfo()}, refs...)
 	got := make(map[span.Span]bool)
 	for _, refInfo := range refs {
 		refSpan, err := refInfo.Span()
@@ -672,11 +671,9 @@ func (r *runner) References(t *testing.T, src span.Span, itemList []span.Span) {
 		}
 		got[refSpan] = true
 	}
-
 	if len(got) != len(want) {
 		t.Errorf("references failed: different lengths got %v want %v", len(got), len(want))
 	}
-
 	for spn := range got {
 		if !want[spn] {
 			t.Errorf("references failed: incorrect references got %v want locations %v", got, want)
