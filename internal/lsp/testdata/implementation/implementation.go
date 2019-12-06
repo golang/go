@@ -25,7 +25,7 @@ type Foo struct {
 }
 
 type U interface {
-	U() //TODO: fix flaky @implementations("U", ImpU)
+	U() //@implementations("U", ImpU)
 }
 
 type cryer int

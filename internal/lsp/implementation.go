@@ -50,7 +50,7 @@ func (s *Server) implementation(ctx context.Context, params *protocol.Implementa
 
 		locs, err := ident.Implementation(ctx)
 		if err != nil {
-			if err == source.ErrNotAMethod {
+			if err == source.ErrNotAnInterface {
 				return nil, err
 			}
 			log.Error(ctx, "failed to find Implemenation", err)
