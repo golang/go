@@ -15,6 +15,7 @@ func (r *runner) Completion(t *testing.T, src span.Span, test tests.Completion, 
 		Deep:          false,
 		FuzzyMatching: false,
 		Documentation: true,
+		Literal:       strings.Contains(string(src.URI()), "literal"),
 	})
 	if !strings.Contains(string(src.URI()), "builtins") {
 		got = tests.FilterBuiltins(got)
@@ -30,6 +31,7 @@ func (r *runner) CompletionSnippet(t *testing.T, src span.Span, expected tests.C
 		Placeholders:  placeholders,
 		Deep:          true,
 		FuzzyMatching: true,
+		Literal:       true,
 	})
 	got := tests.FindItem(list, *items[expected.CompletionItem])
 	want := expected.PlainSnippet
@@ -99,6 +101,7 @@ func (r *runner) RankCompletion(t *testing.T, src span.Span, test tests.Completi
 	got := r.callCompletion(t, src, source.CompletionOptions{
 		FuzzyMatching: true,
 		Deep:          true,
+		Literal:       true,
 	})
 	want := expected(t, test, items)
 	if msg := tests.CheckCompletionOrder(want, got, true); msg != "" {

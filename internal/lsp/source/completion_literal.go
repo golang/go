@@ -20,6 +20,10 @@ import (
 // literal generates composite literal, function literal, and make()
 // completion items.
 func (c *completer) literal(literalType types.Type, imp *importInfo) {
+	if !c.opts.Literal {
+		return
+	}
+
 	expType := c.expectedType.objType
 
 	if c.expectedType.variadic {
@@ -124,8 +128,9 @@ func (c *completer) literal(literalType types.Type, imp *importInfo) {
 		case *types.Basic, *types.Signature:
 			// Add a literal completion for basic types that implement our
 			// expected interface (e.g. named string type http.Dir
-			// implements http.FileSystem).
-			if isInterface(expType) {
+			// implements http.FileSystem), or are identical to our expected
+			// type (i.e. yielding a type conversion such as "float64()").
+			if isInterface(expType) || types.Identical(expType, literalType) {
 				c.basicLiteral(t, typeName, float64(score), addlEdits)
 			}
 		}

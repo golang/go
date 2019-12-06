@@ -322,7 +322,11 @@ func (c *completer) found(obj types.Object, score float64, imp *importInfo) {
 	} else if isTypeName(obj) {
 		// If obj is a *types.TypeName that didn't otherwise match, check
 		// if a literal object of this type makes a good candidate.
-		c.literal(obj.Type(), imp)
+
+		// We only care about named types (i.e. don't want builtin types).
+		if _, isNamed := obj.Type().(*types.Named); isNamed {
+			c.literal(obj.Type(), imp)
+		}
 	}
 
 	// Favor shallow matches by lowering weight according to depth.

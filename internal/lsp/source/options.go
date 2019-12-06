@@ -64,6 +64,7 @@ var (
 			Documentation: true,
 			Deep:          true,
 			FuzzyMatching: true,
+			Literal:       true,
 			Budget:        100 * time.Millisecond,
 		},
 		ComputeEdits: myers.ComputeEdits,
@@ -123,6 +124,7 @@ type CompletionOptions struct {
 	Documentation     bool
 	FullDocumentation bool
 	Placeholders      bool
+	Literal           bool
 
 	// Budget is the soft latency goal for completion requests. Most
 	// requests finish in a couple milliseconds, but in some cases deep
