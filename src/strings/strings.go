@@ -1094,7 +1094,7 @@ func Index(s, substr string) int {
 		i++
 		fails++
 		if fails >= 4+i>>4 && i < t {
-			// See comment in ../bytes/bytes_generic.go.
+			// See comment in ../bytes/bytes.go.
 			j := indexRabinKarp(s[i:], substr)
 			if j < 0 {
 				return -1
