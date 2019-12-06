@@ -424,6 +424,17 @@ func (s *snapshot) getIDs(uri span.URI) []packageID {
 	return s.ids[uri]
 }
 
+func (s *snapshot) getFileURIs() []span.URI {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var uris []span.URI
+	for uri := range s.files {
+		uris = append(uris, uri)
+	}
+	return uris
+}
+
 func (s *snapshot) getFile(uri span.URI) source.FileHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -556,7 +567,7 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, kind source
 	// TODO(rstambler): Speed this up by mapping directories to filenames.
 	if action == source.Create {
 		if dirStat, err := os.Stat(dir(f.URI().Filename())); err == nil {
-			for uri := range v.snapshot.files {
+			for _, uri := range v.snapshot.getFileURIs() {
 				if fdirStat, err := os.Stat(dir(uri.Filename())); err == nil {
 					if os.SameFile(dirStat, fdirStat) {
 						for _, id := range v.snapshot.ids[uri] {
