@@ -5,9 +5,7 @@
 package source
 
 import (
-	"bytes"
 	"context"
-	"fmt"
 	"go/ast"
 	"go/printer"
 	"go/token"
@@ -320,24 +318,42 @@ func fieldSelections(T types.Type) (fields []*types.Var) {
 	return fields
 }
 
+// typeIsValid reports whether typ doesn't contain any Invalid types.
+func typeIsValid(typ types.Type) bool {
+	switch typ := typ.Underlying().(type) {
+	case *types.Basic:
+		return typ.Kind() != types.Invalid
+	case *types.Array:
+		return typeIsValid(typ.Elem())
+	case *types.Slice:
+		return typeIsValid(typ.Elem())
+	case *types.Pointer:
+		return typeIsValid(typ.Elem())
+	case *types.Map:
+		return typeIsValid(typ.Key()) && typeIsValid(typ.Elem())
+	case *types.Chan:
+		return typeIsValid(typ.Elem())
+	case *types.Signature:
+		return typeIsValid(typ.Params()) && typeIsValid(typ.Results())
+	case *types.Tuple:
+		for i := 0; i < typ.Len(); i++ {
+			if !typeIsValid(typ.At(i).Type()) {
+				return false
+			}
+		}
+		return true
+	case *types.Struct, *types.Interface, *types.Named:
+		// Don't bother checking structs, interfaces, or named types for validity.
+		return true
+	default:
+		return false
+	}
+}
+
 // resolveInvalid traverses the node of the AST that defines the scope
 // containing the declaration of obj, and attempts to find a user-friendly
 // name for its invalid type. The resulting Object and its Type are fake.
-func resolveInvalid(obj types.Object, node ast.Node, info *types.Info) types.Object {
-	// Construct a fake type for the object and return a fake object with this type.
-	formatResult := func(expr ast.Expr) types.Object {
-		var typename string
-		switch t := expr.(type) {
-		case *ast.SelectorExpr:
-			typename = fmt.Sprintf("%s.%s", t.X, t.Sel)
-		case *ast.Ident:
-			typename = t.String()
-		default:
-			return nil
-		}
-		typ := types.NewNamed(types.NewTypeName(token.NoPos, obj.Pkg(), typename, nil), types.Typ[types.Invalid], nil)
-		return types.NewVar(obj.Pos(), obj.Pkg(), obj.Name(), typ)
-	}
+func resolveInvalid(fset *token.FileSet, obj types.Object, node ast.Node, info *types.Info) types.Object {
 	var resultExpr ast.Expr
 	ast.Inspect(node, func(node ast.Node) bool {
 		switch n := node.(type) {
@@ -355,12 +371,14 @@ func resolveInvalid(obj types.Object, node ast.Node, info *types.Info) types.Obj
 				}
 			}
 			return false
-		// TODO(rstambler): Handle range statements.
 		default:
 			return true
 		}
 	})
-	return formatResult(resultExpr)
+	// Construct a fake type for the object and return a fake object with this type.
+	typename := formatNode(fset, resultExpr)
+	typ := types.NewNamed(types.NewTypeName(token.NoPos, obj.Pkg(), typename, nil), types.Typ[types.Invalid], nil)
+	return types.NewVar(obj.Pos(), obj.Pkg(), obj.Name(), typ)
 }
 
 func isPointer(T types.Type) bool {
@@ -489,12 +507,15 @@ func formatFieldType(s Snapshot, srcpkg Package, obj types.Object, qf types.Qual
 	if !ok {
 		return "", errors.Errorf("ident %s is not a field type", ident.Name)
 	}
-	var typeNameBuf bytes.Buffer
-	fset := s.View().Session().Cache().FileSet()
-	if err := printer.Fprint(&typeNameBuf, fset, f.Type); err != nil {
-		return "", err
+	return formatNode(s.View().Session().Cache().FileSet(), f.Type), nil
+}
+
+func formatNode(fset *token.FileSet, n ast.Node) string {
+	var buf strings.Builder
+	if err := printer.Fprint(&buf, fset, n); err != nil {
+		return ""
 	}
-	return typeNameBuf.String(), nil
+	return buf.String()
 }
 
 func formatResults(tup *types.Tuple, qf types.Qualifier) ([]string, bool) {

@@ -714,7 +714,7 @@ func (c *completer) lexical() error {
 			}
 			// If obj's type is invalid, find the AST node that defines the lexical block
 			// containing the declaration of obj. Don't resolve types for packages.
-			if _, ok := obj.(*types.PkgName); !ok && obj.Type() == types.Typ[types.Invalid] {
+			if _, ok := obj.(*types.PkgName); !ok && !typeIsValid(obj.Type()) {
 				// Match the scope to its ast.Node. If the scope is the package scope,
 				// use the *ast.File as the starting node.
 				var node ast.Node
@@ -724,7 +724,8 @@ func (c *completer) lexical() error {
 					node = c.path[i-1]
 				}
 				if node != nil {
-					if resolved := resolveInvalid(obj, node, c.pkg.GetTypesInfo()); resolved != nil {
+					fset := c.snapshot.View().Session().Cache().FileSet()
+					if resolved := resolveInvalid(fset, obj, node, c.pkg.GetTypesInfo()); resolved != nil {
 						obj = resolved
 					}
 				}
