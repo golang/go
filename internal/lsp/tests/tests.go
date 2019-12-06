@@ -53,7 +53,7 @@ type Formats []span.Span
 type Imports []span.Span
 type SuggestedFixes []span.Span
 type Definitions map[span.Span]Definition
-type Implementationses map[span.Span]Implementations
+type Implementations map[span.Span][]span.Span
 type Highlights map[span.Span][]span.Span
 type References map[span.Span][]span.Span
 type Renames map[span.Span]string
@@ -80,7 +80,7 @@ type Data struct {
 	Imports                  Imports
 	SuggestedFixes           SuggestedFixes
 	Definitions              Definitions
-	Implementationses        Implementationses
+	Implementations          Implementations
 	Highlights               Highlights
 	References               References
 	Renames                  Renames
@@ -113,7 +113,7 @@ type Tests interface {
 	Import(*testing.T, span.Span)
 	SuggestedFix(*testing.T, span.Span)
 	Definition(*testing.T, span.Span, Definition)
-	Implementation(*testing.T, span.Span, Implementations)
+	Implementation(*testing.T, span.Span, []span.Span)
 	Highlight(*testing.T, span.Span, []span.Span)
 	References(*testing.T, span.Span, []span.Span)
 	Rename(*testing.T, span.Span, string)
@@ -128,11 +128,6 @@ type Definition struct {
 	IsType    bool
 	OnlyHover bool
 	Src, Def  span.Span
-}
-
-type Implementations struct {
-	Src             span.Span
-	Implementations []span.Span
 }
 
 type CompletionTestType int
@@ -214,7 +209,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		RankCompletions:          make(RankCompletions),
 		CaseSensitiveCompletions: make(CaseSensitiveCompletions),
 		Definitions:              make(Definitions),
-		Implementationses:        make(Implementationses),
+		Implementations:          make(Implementations),
 		Highlights:               make(Highlights),
 		References:               make(References),
 		Renames:                  make(Renames),
@@ -478,7 +473,7 @@ func Run(t *testing.T, tests Tests, data *Data) {
 
 	t.Run("Implementation", func(t *testing.T) {
 		t.Helper()
-		for spn, m := range data.Implementationses {
+		for spn, m := range data.Implementations {
 			t.Run(spanName(spn), func(t *testing.T) {
 				t.Helper()
 				tests.Implementation(t, spn, m)
@@ -624,6 +619,7 @@ func checkData(t *testing.T, data *Data) {
 	fmt.Fprintf(buf, "SymbolsCount = %v\n", len(data.Symbols))
 	fmt.Fprintf(buf, "SignaturesCount = %v\n", len(data.Signatures))
 	fmt.Fprintf(buf, "LinksCount = %v\n", linksCount)
+	fmt.Fprintf(buf, "ImplementationsCount = %v\n", len(data.Implementations))
 
 	want := string(data.Golden("summary", "summary.txt", func() ([]byte, error) {
 		return buf.Bytes(), nil
@@ -804,12 +800,8 @@ func (data *Data) collectDefinitions(src, target span.Span) {
 	}
 }
 
-func (data *Data) collectImplementations(src, target span.Span) {
-	// Add target to the list of expected implementations for src
-	imps := data.Implementationses[src]
-	imps.Src = src // Src is already set if imps already exists, but then we're setting it to the same thing.
-	imps.Implementations = append(imps.Implementations, target)
-	data.Implementationses[src] = imps
+func (data *Data) collectImplementations(src span.Span, targets []span.Span) {
+	data.Implementations[src] = targets
 }
 
 func (data *Data) collectHoverDefinitions(src, target span.Span) {

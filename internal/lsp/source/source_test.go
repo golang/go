@@ -548,31 +548,31 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	}
 }
 
-func (r *runner) Implementation(t *testing.T, spn span.Span, m tests.Implementations) {
+func (r *runner) Implementation(t *testing.T, spn span.Span, impls []span.Span) {
 	ctx := r.ctx
-	f, err := r.view.GetFile(ctx, m.Src.URI())
+	f, err := r.view.GetFile(ctx, spn.URI())
 	if err != nil {
-		t.Fatalf("failed for %v: %v", m.Src, err)
+		t.Fatalf("failed for %v: %v", spn, err)
 	}
-	sm, err := r.data.Mapper(m.Src.URI())
+	sm, err := r.data.Mapper(spn.URI())
 	if err != nil {
 		t.Fatal(err)
 	}
-	loc, err := sm.Location(m.Src)
+	loc, err := sm.Location(spn)
 	if err != nil {
-		t.Fatalf("failed for %v: %v", m.Src, err)
+		t.Fatalf("failed for %v: %v", spn, err)
 	}
 	ident, err := source.Identifier(ctx, r.view.Snapshot(), f, loc.Range.Start)
 	if err != nil {
-		t.Fatalf("failed for %v: %v", m.Src, err)
+		t.Fatalf("failed for %v: %v", spn, err)
 	}
 	var locs []protocol.Location
 	locs, err = ident.Implementation(r.ctx)
 	if err != nil {
-		t.Fatalf("failed for %v: %v", m.Src, err)
+		t.Fatalf("failed for %v: %v", spn, err)
 	}
-	if len(locs) != len(m.Implementations) {
-		t.Fatalf("got %d locations for implementation, expected %d", len(locs), len(m.Implementations))
+	if len(locs) != len(impls) {
+		t.Fatalf("got %d locations for implementation, expected %d", len(locs), len(impls))
 	}
 	var results []span.Span
 	for i := range locs {
@@ -591,12 +591,12 @@ func (r *runner) Implementation(t *testing.T, spn span.Span, m tests.Implementat
 	sort.SliceStable(results, func(i, j int) bool {
 		return span.Compare(results[i], results[j]) == -1
 	})
-	sort.SliceStable(m.Implementations, func(i, j int) bool {
-		return span.Compare(m.Implementations[i], m.Implementations[j]) == -1
+	sort.SliceStable(impls, func(i, j int) bool {
+		return span.Compare(impls[i], impls[j]) == -1
 	})
 	for i := range results {
-		if results[i] != m.Implementations[i] {
-			t.Errorf("for %dth implementation of %v got %v want %v", i, m.Src, results[i], m.Implementations[i])
+		if results[i] != impls[i] {
+			t.Errorf("for %dth implementation of %v got %v want %v", i, spn, results[i], impls[i])
 		}
 	}
 }
