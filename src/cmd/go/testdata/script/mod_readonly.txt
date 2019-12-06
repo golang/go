@@ -6,13 +6,14 @@ env GOFLAGS=-mod=readonly
 go mod edit -fmt
 cp go.mod go.mod.empty
 ! go list all
-stderr 'import lookup disabled by -mod=readonly'
+stderr '^can''t load package: x.go:2:8: cannot find module providing package rsc\.io/quote: import lookup disabled by -mod=readonly'
 cmp go.mod go.mod.empty
 
 # -mod=readonly should be set implicitly if the go.mod file is read-only
 chmod 0400 go.mod
 env GOFLAGS=
 ! go list all
+stderr '^can''t load package: x.go:2:8: cannot find module providing package rsc\.io/quote: import lookup disabled by -mod=readonly\n\t\(go.mod file is read-only\.\)$'
 
 chmod 0600 go.mod
 env GOFLAGS=-mod=readonly
