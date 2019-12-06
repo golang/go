@@ -1442,6 +1442,61 @@ func TestTransportProxy(t *testing.T) {
 	}
 }
 
+// Issue 28012: verify that the Transport closes its TCP connection to http proxies
+// when they're slow to reply to HTTPS CONNECT responses.
+func TestTransportProxyHTTPSConnectTimeout(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+	ln := newLocalListener(t)
+	defer ln.Close()
+	listenerDone := make(chan struct{})
+	go func() {
+		defer close(listenerDone)
+		c, err := ln.Accept()
+		if err != nil {
+			t.Errorf("Accept: %v", err)
+			return
+		}
+		defer c.Close()
+		// Read the CONNECT request
+		br := bufio.NewReader(c)
+		cr, err := ReadRequest(br)
+		if err != nil {
+			t.Errorf("proxy server failed to read CONNECT request")
+			return
+		}
+		if cr.Method != "CONNECT" {
+			t.Errorf("unexpected method %q", cr.Method)
+			return
+		}
+		// now hang and never write a response; wait for the client to give up on us and
+		// close (prior to Issue 28012 being fixed, we never closed)
+		var buf [1]byte
+		_, err = br.Read(buf[:])
+		if err != io.EOF {
+			t.Errorf("proxy server Read err = %v; want EOF", err)
+		}
+		return
+	}()
+	tr := &Transport{
+		Proxy: func(*Request) (*url.URL, error) {
+			return url.Parse("http://" + ln.Addr().String())
+		},
+	}
+	c := &Client{Transport: tr, Timeout: 50 * time.Millisecond}
+	_, err := c.Get("https://golang.fake.tld/")
+	if err == nil {
+		t.Errorf("unexpected Get success")
+	}
+	timer := time.NewTimer(5 * time.Second)
+	defer timer.Stop()
+	select {
+	case <-listenerDone:
+	case <-timer.C:
+		t.Errorf("timeout waiting for Transport to close its connection to the proxy")
+	}
+}
+
 // Issue 16997: test transport dial preserves typed errors
 func TestTransportDialPreservesNetOpProxyError(t *testing.T) {
 	defer afterTest(t)
