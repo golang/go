@@ -515,14 +515,21 @@ func TestMissingImportErrorRepetition(t *testing.T) {
 	os.Setenv("GO111MODULE", "on")
 	defer os.Setenv("GOPROXY", os.Getenv("GOPROXY"))
 	os.Setenv("GOPROXY", "off")
+	defer os.Setenv("GONOPROXY", os.Getenv("GONOPROXY"))
+	os.Setenv("GONOPROXY", "none")
 
 	ctxt := Default
 	ctxt.WorkingDir = tmp
 
 	pkgPath := "example.com/hello"
-	if _, err = ctxt.Import(pkgPath, tmp, FindOnly); err == nil {
+	_, err = ctxt.Import(pkgPath, tmp, FindOnly)
+	if err == nil {
 		t.Fatal("unexpected success")
-	} else if n := strings.Count(err.Error(), pkgPath); n != 1 {
+	}
+	// Don't count the package path with a URL like https://...?go-get=1.
+	// See golang.org/issue/35986.
+	errStr := strings.ReplaceAll(err.Error(), "://"+pkgPath+"?go-get=1", "://...?go-get=1")
+	if n := strings.Count(errStr, pkgPath); n != 1 {
 		t.Fatalf("package path %q appears in error %d times; should appear once\nerror: %v", pkgPath, n, err)
 	}
 }
