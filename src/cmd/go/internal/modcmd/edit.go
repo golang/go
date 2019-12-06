@@ -164,7 +164,7 @@ func runEdit(cmd *base.Command, args []string) {
 	}
 
 	if *editModule != "" {
-		if err := module.CheckPath(*editModule); err != nil {
+		if err := module.CheckImportPath(*editModule); err != nil {
 			base.Fatalf("go mod: invalid -module: %v", err)
 		}
 	}
@@ -242,7 +242,7 @@ func parsePathVersion(flag, arg string) (path, version string) {
 		base.Fatalf("go mod: -%s=%s: need path@version", flag, arg)
 	}
 	path, version = strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
-	if err := module.CheckPath(path); err != nil {
+	if err := module.CheckImportPath(path); err != nil {
 		base.Fatalf("go mod: -%s=%s: invalid path: %v", flag, arg, err)
 	}
 
@@ -264,7 +264,7 @@ func parsePath(flag, arg string) (path string) {
 		base.Fatalf("go mod: -%s=%s: need just path, not path@version", flag, arg)
 	}
 	path = arg
-	if err := module.CheckPath(path); err != nil {
+	if err := module.CheckImportPath(path); err != nil {
 		base.Fatalf("go mod: -%s=%s: invalid path: %v", flag, arg, err)
 	}
 	return path
@@ -278,7 +278,7 @@ func parsePathVersionOptional(adj, arg string, allowDirPath bool) (path, version
 	} else {
 		path, version = strings.TrimSpace(arg[:i]), strings.TrimSpace(arg[i+1:])
 	}
-	if err := module.CheckPath(path); err != nil {
+	if err := module.CheckImportPath(path); err != nil {
 		if !allowDirPath || !modfile.IsDirectoryPath(path) {
 			return path, version, fmt.Errorf("invalid %s path: %v", adj, err)
 		}
