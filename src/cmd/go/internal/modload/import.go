@@ -183,13 +183,14 @@ func Import(path string) (m module.Version, dir string, err error) {
 	// Look up module containing the package, for addition to the build list.
 	// Goal is to determine the module, download it to dir, and return m, dir, ErrMissing.
 	if cfg.BuildMod == "readonly" {
-		if pathIsStd {
-			// 'import lookup disabled' would be confusing for standard-library paths,
-			// since the user probably isn't expecting us to look up a module for
-			// those anyway.
-			return module.Version{}, "", &ImportMissingError{Path: path}
+		var queryErr error
+		if !pathIsStd {
+			if cfg.BuildModReason == "" {
+				queryErr = fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
+			}
+			queryErr = fmt.Errorf("import lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
 		}
-		return module.Version{}, "", fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
+		return module.Version{}, "", &ImportMissingError{Path: path, QueryErr: queryErr}
 	}
 	if modRoot == "" && !allowMissingModuleImports {
 		return module.Version{}, "", &ImportMissingError{
