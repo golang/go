@@ -71,7 +71,7 @@ func _() {
 			t.Errorf("%s: %s", test.name, err.Error())
 		}
 
-		got, err = ApplyFixes(fixes, "", []byte(input), test.opt)
+		got, err = ApplyFixes(fixes, "", []byte(input), test.opt, 0)
 		if err != nil {
 			t.Errorf("%s: %s", test.name, err.Error())
 		}

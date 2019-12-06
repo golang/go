@@ -93,7 +93,7 @@ func AllImportsFixes(ctx context.Context, snapshot Snapshot, f File) (allFixEdit
 
 	pkg, pgh, err := getParsedFile(ctx, snapshot, f, NarrowestCheckPackageHandle)
 	if err != nil {
-		return nil, nil, fmt.Errorf("getting file for AllImportsFixes: %v", err)
+		return nil, nil, errors.Errorf("getting file for AllImportsFixes: %v", err)
 	}
 	if hasListErrors(pkg) {
 		return nil, nil, errors.Errorf("%s has list errors, not running goimports", f.URI())
@@ -112,7 +112,7 @@ func AllImportsFixes(ctx context.Context, snapshot Snapshot, f File) (allFixEdit
 		return err
 	}, options)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Errorf("computing fix edits: %v", err)
 	}
 
 	return allFixEdits, editsPerFix, nil
@@ -186,7 +186,8 @@ func computeFixEdits(view View, ph ParseGoHandle, options *imports.Options, orig
 	filename := ph.File().Identity().URI.Filename()
 	// Apply the fixes and re-parse the file so that we can locate the
 	// new imports.
-	fixedData, err := imports.ApplyFixes(fixes, filename, origData, options)
+	fixedData, err := imports.ApplyFixes(fixes, filename, origData, options, parser.ImportsOnly)
+	fixedData = append(fixedData, '\n') // ApplyFixes comes out missing the newline, go figure.
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +212,11 @@ func computeFixEdits(view View, ph ParseGoHandle, options *imports.Options, orig
 	// somewhere before that.
 	if origImportOffset == 0 || fixedImportsOffset == 0 {
 		left, _ = trimToFirstNonImport(view.Session().Cache().FileSet(), origAST, origData, nil)
-		// We need the whole AST here, not just the ImportsOnly AST we parsed above.
+		fixedData, err = imports.ApplyFixes(fixes, filename, origData, options, 0)
+		if err != nil {
+			return nil, err
+		}
+		// We need the whole file here, not just the ImportsOnly versions we made above.
 		fixedAST, err = parser.ParseFile(fixedFset, filename, fixedData, 0)
 		if fixedAST == nil {
 			return nil, err
