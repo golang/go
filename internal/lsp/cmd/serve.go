@@ -34,8 +34,8 @@ type Serve struct {
 	Mode    string `flag:"mode" help:"no effect"`
 	Port    int    `flag:"port" help:"port on which to run gopls for debugging purposes"`
 	Address string `flag:"listen" help:"address on which to listen for remote connections"`
-	Trace   bool   `flag:"rpc.trace" help:"Print the full rpc trace in lsp inspector format"`
-	Debug   string `flag:"debug" help:"Serve debug information on the supplied address"`
+	Trace   bool   `flag:"rpc.trace" help:"print the full rpc trace in lsp inspector format"`
+	Debug   string `flag:"debug" help:"serve debug information on the supplied address"`
 
 	app *Application
 }

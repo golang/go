@@ -102,6 +102,11 @@ func Main(ctx context.Context, app Application, args []string) {
 // error.
 func Run(ctx context.Context, app Application, args []string) error {
 	s := flag.NewFlagSet(app.Name(), flag.ExitOnError)
+	s.Usage = func() {
+		fmt.Fprint(s.Output(), app.ShortHelp())
+		fmt.Fprintf(s.Output(), "\n\nUsage: %v [flags] %v\n", app.Name(), app.Usage())
+		app.DetailedHelp(s)
+	}
 	p := addFlags(s, reflect.StructField{}, reflect.ValueOf(app))
 	s.Parse(args)
 
