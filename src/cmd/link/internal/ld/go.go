@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"encoding/json"
 	"fmt"
@@ -291,6 +292,166 @@ func setCgoAttr(ctxt *Link, lookup func(string, int) *sym.Symbol, file string, p
 		fmt.Fprintf(os.Stderr, "%s: %s: invalid cgo directive: %q\n", os.Args[0], file, f)
 		nerrors++
 	}
+}
+
+// Set symbol attributes or flags based on cgo directives.
+// This version works with loader.Sym and not sym.Symbol.
+// Any newly discovered HOSTOBJ syms are added to 'hostObjSyms'.
+func setCgoAttr2(ctxt *Link, lookup func(string, int) loader.Sym, file string, pkg string, directives [][]string, hostObjSyms map[loader.Sym]struct{}) {
+	l := ctxt.loader
+	for _, f := range directives {
+		switch f[0] {
+		case "cgo_import_dynamic":
+			if len(f) < 2 || len(f) > 4 {
+				break
+			}
+
+			local := f[1]
+			remote := local
+			if len(f) > 2 {
+				remote = f[2]
+			}
+			lib := ""
+			if len(f) > 3 {
+				lib = f[3]
+			}
+
+			if *FlagD {
+				fmt.Fprintf(os.Stderr, "%s: %s: cannot use dynamic imports with -d flag\n", os.Args[0], file)
+				nerrors++
+				return
+			}
+
+			if local == "_" && remote == "_" {
+				// allow #pragma dynimport _ _ "foo.so"
+				// to force a link of foo.so.
+				havedynamic = 1
+
+				if ctxt.HeadType == objabi.Hdarwin {
+					machoadddynlib(lib, ctxt.LinkMode)
+				} else {
+					dynlib = append(dynlib, lib)
+				}
+				continue
+			}
+
+			local = expandpkg(local, pkg)
+			q := ""
+			if i := strings.Index(remote, "#"); i >= 0 {
+				remote, q = remote[:i], remote[i+1:]
+			}
+			s := lookup(local, 0)
+			st := l.SymType(s)
+			if st == 0 || st == sym.SXREF || st == sym.SBSS || st == sym.SNOPTRBSS || st == sym.SHOSTOBJ {
+				l.SetSymDynimplib(s, lib)
+				l.SetSymExtname(s, remote)
+				l.SetSymDynimpvers(s, q)
+				if st != sym.SHOSTOBJ {
+					su, _ := l.MakeSymbolUpdater(s)
+					su.SetType(sym.SDYNIMPORT)
+				} else {
+					hostObjSyms[s] = struct{}{}
+				}
+				havedynamic = 1
+			}
+
+			continue
+
+		case "cgo_import_static":
+			if len(f) != 2 {
+				break
+			}
+			local := f[1]
+
+			su, s := l.MakeSymbolUpdater(lookup(local, 0))
+			su.SetType(sym.SHOSTOBJ)
+			su.SetSize(0)
+			hostObjSyms[s] = struct{}{}
+			continue
+
+		case "cgo_export_static", "cgo_export_dynamic":
+			if len(f) < 2 || len(f) > 3 {
+				break
+			}
+			local := f[1]
+			remote := local
+			if len(f) > 2 {
+				remote = f[2]
+			}
+			local = expandpkg(local, pkg)
+
+			// The compiler arranges for an ABI0 wrapper
+			// to be available for all cgo-exported
+			// functions. Link.loadlib will resolve any
+			// ABI aliases we find here (since we may not
+			// yet know it's an alias).
+			s := lookup(local, 0)
+
+			if l.SymType(s) == sym.SHOSTOBJ {
+				hostObjSyms[s] = struct{}{}
+			}
+
+			switch ctxt.BuildMode {
+			case BuildModeCShared, BuildModeCArchive, BuildModePlugin:
+				if s == lookup("main", 0) {
+					continue
+				}
+			}
+
+			// export overrides import, for openbsd/cgo.
+			// see issue 4878.
+			if l.SymDynimplib(s) != "" {
+				l.SetSymDynimplib(s, "")
+				l.SetSymDynimpvers(s, "")
+				l.SetSymExtname(s, "")
+				var su *loader.SymbolBuilder
+				su, s = l.MakeSymbolUpdater(s)
+				su.SetType(0)
+			}
+
+			if !(l.AttrCgoExportStatic(s) || l.AttrCgoExportDynamic(s)) {
+				l.SetSymExtname(s, remote)
+			} else if l.SymExtname(s) != remote {
+				fmt.Fprintf(os.Stderr, "%s: conflicting cgo_export directives: %s as %s and %s\n", os.Args[0], l.SymName(s), l.SymExtname(s), remote)
+				nerrors++
+				return
+			}
+
+			if f[0] == "cgo_export_static" {
+				l.SetAttrCgoExportStatic(s, true)
+			} else {
+				l.SetAttrCgoExportDynamic(s, true)
+			}
+			continue
+
+		case "cgo_dynamic_linker":
+			if len(f) != 2 {
+				break
+			}
+
+			if *flagInterpreter == "" {
+				if interpreter != "" && interpreter != f[1] {
+					fmt.Fprintf(os.Stderr, "%s: conflict dynlinker: %s and %s\n", os.Args[0], interpreter, f[1])
+					nerrors++
+					return
+				}
+
+				interpreter = f[1]
+			}
+			continue
+
+		case "cgo_ldflag":
+			if len(f) != 2 {
+				break
+			}
+			ldflag = append(ldflag, f[1])
+			continue
+		}
+
+		fmt.Fprintf(os.Stderr, "%s: %s: invalid cgo directive: %q\n", os.Args[0], file, f)
+		nerrors++
+	}
+	return
 }
 
 var seenlib = make(map[string]bool)
