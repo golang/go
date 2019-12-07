@@ -17,7 +17,7 @@ func _() {
 	case int:
 		b //@complete(" //", break)
 	case int32:
-		f //@complete(" //", fallthrough, for)
+		f //@complete(" //", for)
 		d //@complete(" //", default, defer)
 		r //@complete(" //", return)
 		c //@complete(" //", case, const)

@@ -55,14 +55,22 @@ func (c *completer) keyword() error {
 
 	// Filter out keywords depending on scope
 	// Skip the first one because we want to look at the enclosing scopes
-	for _, n := range c.path[1:] {
+	path := c.path[1:]
+	for i, n := range path {
 		switch node := n.(type) {
 		case *ast.CaseClause:
 			// only recommend "fallthrough" and "break" within the bodies of a case clause
 			if c.pos > node.Colon {
 				valid[BREAK] = stdScore
-				// TODO: "fallthrough" is only valid in switch statements
-				valid[FALLTHROUGH] = stdScore
+				// "fallthrough" is only valid in switch statements.
+				// A case clause is always nested within a block statement in a switch statement,
+				// that block statement is nested within either a TypeSwitchStmt or a SwitchStmt.
+				if i+2 >= len(path) {
+					continue
+				}
+				if _, ok := path[i+2].(*ast.SwitchStmt); ok {
+					valid[FALLTHROUGH] = stdScore
+				}
 			}
 		case *ast.CommClause:
 			if c.pos > node.Colon {
