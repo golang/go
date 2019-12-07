@@ -479,20 +479,16 @@ func (s *snapshot) clone(ctx context.Context, withoutURI span.URI, withoutTypes,
 	withoutTypesIDs := make(map[packageID]struct{})
 	for k, ids := range s.ids {
 		// Map URIs to IDs for exclusion.
-		if withoutTypes != nil {
-			if _, ok := withoutTypes[k]; ok {
-				for _, id := range ids {
-					withoutTypesIDs[id] = struct{}{}
-				}
+		if _, ok := withoutTypes[k]; ok {
+			for _, id := range ids {
+				withoutTypesIDs[id] = struct{}{}
 			}
 		}
-		if withoutMetadata != nil {
-			if _, ok := withoutMetadata[k]; ok {
-				for _, id := range ids {
-					withoutMetadataIDs[id] = struct{}{}
-				}
-				continue
+		if _, ok := withoutMetadata[k]; ok {
+			for _, id := range ids {
+				withoutMetadataIDs[id] = struct{}{}
 			}
+			continue
 		}
 		result.ids[k] = ids
 	}
@@ -608,13 +604,18 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, kind source
 	currentFH := v.session.GetFile(f.URI(), f.Kind())
 
 	// Check if the file's package name or imports have changed,
-	// and if so, invalidate metadata.
+	// and if so, invalidate this file's packages' metadata.
 	if v.session.cache.shouldLoad(ctx, v.snapshot, originalFH, currentFH) {
-		withoutMetadata = withoutTypes
+		for id := range ids {
+			for _, uri := range v.snapshot.getMetadata(id).compiledGoFiles {
+				withoutMetadata[uri] = struct{}{}
+			}
 
-		// TODO: If a package's name has changed,
-		// we should invalidate the metadata for the new package name (if it exists).
+			// TODO: If a package's name has changed,
+			// we should invalidate the metadata for the new package name (if it exists).
+		}
 	}
+
 	v.snapshot = v.snapshot.clone(ctx, f.URI(), withoutTypes, withoutMetadata)
 	return true
 }
