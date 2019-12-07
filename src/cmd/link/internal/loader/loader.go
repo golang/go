@@ -1663,7 +1663,9 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 		nr += len(pp.relocs)
 		// create and install the sym.Symbol here so that l.Syms will
 		// be fully populated when we do relocation processing and
-		// outer/sub processing below.
+		// outer/sub processing below. Note that once we do this,
+		// we'll need to get at the payload for a symbol with direct
+		// reference to l.payloads[] as opposed to calling l.getPayload().
 		s := l.allocSym(sname, 0)
 		l.installSym(i, s)
 		toConvert = append(toConvert, i)
@@ -1701,46 +1703,11 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 		// Copy data
 		s.P = pp.data
 
-		// Convert outer/sub relationships
-		if outer, ok := l.outer[i]; ok {
-			s.Outer = l.Syms[outer]
-		}
-		if sub, ok := l.sub[i]; ok {
-			s.Sub = l.Syms[sub]
-		}
+		// Transfer over attributes.
+		l.migrateAttributes(i, s)
 
-		// Preprocess symbol.
+		// Preprocess symbol. May set 'AttrLocal'.
 		preprocess(arch, s)
-
-		// Convert attributes.
-		// Note: this is an incomplete set; will be fixed up in
-		// a subsequent patch.
-		s.Attr.Set(sym.AttrReachable, l.attrReachable.has(i))
-		s.Attr.Set(sym.AttrOnList, l.attrOnList.has(i))
-		if l.attrLocal.has(i) {
-			s.Attr.Set(sym.AttrLocal, true)
-		}
-
-		// Set sub-symbol attribute. FIXME: would be better
-		// to do away with this and just use l.OuterSymbol() != 0
-		// elsewhere within the linker.
-		s.Attr.Set(sym.AttrSubSymbol, s.Outer != nil)
-
-		// Copy over dynimplib, dynimpvers, extname.
-		if l.SymExtname(i) != "" {
-			s.SetExtname(l.SymExtname(i))
-		}
-		if l.SymDynimplib(i) != "" {
-			s.SetDynimplib(l.SymDynimplib(i))
-		}
-		if l.SymDynimpvers(i) != "" {
-			s.SetDynimpvers(l.SymDynimpvers(i))
-		}
-
-		// Copy ELF type if set.
-		if et, ok := l.elfType[i]; ok {
-			s.SetElfType(et)
-		}
 	}
 
 	// load contents of defined symbols
@@ -1888,9 +1855,7 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 		}
 
 		s := l.addNewSym(istart+Sym(i), name, ver, r.unit, t)
-		// NB: this is an incomplete set of attributes; a more complete
-		// attribute migration appears in a subsequent patch.
-		s.Attr.Set(sym.AttrReachable, l.attrReachable.has(istart+Sym(i)))
+		l.migrateAttributes(istart+Sym(i), s)
 		nr += r.NReloc(i)
 	}
 	return nr
@@ -2038,14 +2003,87 @@ func (l *Loader) cloneToExternal(symIdx Sym) Sym {
 		l.symsByName[sver][sname] = ns
 	}
 
+	// Copy over selected attributes / properties. This is
+	// probably overkill for most of these attributes, but it's
+	// simpler just to copy everything.
+	l.copyAttributes(symIdx, ns)
+	if l.SymExtname(symIdx) != "" {
+		l.SetSymExtname(ns, l.SymExtname(symIdx))
+	}
+	if l.SymDynimplib(symIdx) != "" {
+		l.SetSymDynimplib(ns, l.SymDynimplib(symIdx))
+	}
+	if l.SymDynimpvers(symIdx) != "" {
+		l.SetSymDynimpvers(ns, l.SymDynimpvers(symIdx))
+	}
+
 	// Add an overwrite entry (in case there are relocations against
 	// the old symbol).
 	l.overwrite[symIdx] = ns
 
-	// FIXME: copy other attributes? reachable is the main one, and we
-	// don't expect it to be set at this point.
-
 	return ns
+}
+
+// copyAttributes copies over all of the attributes of symbol 'src' to
+// symbol 'dst'. The assumption is that 'dst' is an external symbol.
+func (l *Loader) copyAttributes(src Sym, dst Sym) {
+	l.SetAttrReachable(dst, l.AttrReachable(src))
+	l.SetAttrOnList(dst, l.AttrOnList(src))
+	l.SetAttrLocal(dst, l.AttrLocal(src))
+	l.SetAttrVisibilityHidden(dst, l.AttrVisibilityHidden(src))
+	l.SetAttrDuplicateOK(dst, l.AttrDuplicateOK(src))
+	l.SetAttrShared(dst, l.AttrShared(src))
+	l.SetAttrExternal(dst, l.AttrExternal(src))
+	l.SetAttrTopFrame(dst, l.AttrTopFrame(src))
+	l.SetAttrSpecial(dst, l.AttrSpecial(src))
+	l.SetAttrCgoExportDynamic(dst, l.AttrCgoExportDynamic(src))
+	l.SetAttrCgoExportStatic(dst, l.AttrCgoExportStatic(src))
+}
+
+// migrateAttributes copies over all of the attributes of symbol 'src' to
+// sym.Symbol 'dst'.
+func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {
+	src = l.getOverwrite(src)
+	dst.Attr.Set(sym.AttrReachable, l.AttrReachable(src))
+	dst.Attr.Set(sym.AttrOnList, l.AttrOnList(src))
+	dst.Attr.Set(sym.AttrLocal, l.AttrLocal(src))
+	dst.Attr.Set(sym.AttrVisibilityHidden, l.AttrVisibilityHidden(src))
+	dst.Attr.Set(sym.AttrDuplicateOK, l.AttrDuplicateOK(src))
+	dst.Attr.Set(sym.AttrShared, l.AttrShared(src))
+	dst.Attr.Set(sym.AttrExternal, l.AttrExternal(src))
+	dst.Attr.Set(sym.AttrTopFrame, l.AttrTopFrame(src))
+	dst.Attr.Set(sym.AttrSpecial, l.AttrSpecial(src))
+	dst.Attr.Set(sym.AttrCgoExportDynamic, l.AttrCgoExportDynamic(src))
+	dst.Attr.Set(sym.AttrCgoExportStatic, l.AttrCgoExportStatic(src))
+
+	// Convert outer/sub relationships
+	if outer, ok := l.outer[src]; ok {
+		dst.Outer = l.Syms[outer]
+	}
+	if sub, ok := l.sub[src]; ok {
+		dst.Sub = l.Syms[sub]
+	}
+
+	// Set sub-symbol attribute. FIXME: would be better to do away
+	// with this and just use l.OuterSymbol() != 0 elsewhere within
+	// the linker.
+	dst.Attr.Set(sym.AttrSubSymbol, dst.Outer != nil)
+
+	// Copy over dynimplib, dynimpvers, extname.
+	if l.SymExtname(src) != "" {
+		dst.SetExtname(l.SymExtname(src))
+	}
+	if l.SymDynimplib(src) != "" {
+		dst.SetDynimplib(l.SymDynimplib(src))
+	}
+	if l.SymDynimpvers(src) != "" {
+		dst.SetDynimpvers(l.SymDynimpvers(src))
+	}
+
+	// Copy ELF type if set.
+	if et, ok := l.elfType[src]; ok {
+		dst.SetElfType(et)
+	}
 }
 
 // CreateExtSym creates a new external symbol with the specified name
@@ -2394,6 +2432,36 @@ func patchDWARFName(s *sym.Symbol, r *oReader) {
 			r.Off += int32(delta)
 		}
 	}
+}
+
+// UndefinedRelocTargets iterates through the global symbol index
+// space, looking for symbols with relocations targeting undefined
+// references. The linker's loadlib method uses this to determine if
+// there are unresolved references to functions in system libraries
+// (for example, libgcc.a), presumably due to CGO code. Return
+// value is a list of loader.Sym's corresponding to the undefined
+// cross-refs. The "limit" param controls the maximum number of
+// results returned; if "limit" is -1, then all undefs are returned.
+func (l *Loader) UndefinedRelocTargets(limit int) []Sym {
+	result := []Sym{}
+	rslice := []Reloc{}
+	for si := Sym(1); si <= l.max; si++ {
+		if _, ok := l.overwrite[si]; ok {
+			continue
+		}
+		relocs := l.Relocs(si)
+		rslice = relocs.ReadAll(rslice)
+		for ri := 0; ri < relocs.Count; ri++ {
+			r := &rslice[ri]
+			if r.Sym != 0 && l.SymType(r.Sym) == sym.SXREF && l.RawSymName(r.Sym) != ".got" {
+				result = append(result, r.Sym)
+				if limit != -1 && len(result) >= limit {
+					break
+				}
+			}
+		}
+	}
+	return result
 }
 
 // For debugging.

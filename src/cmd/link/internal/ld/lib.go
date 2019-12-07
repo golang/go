@@ -38,6 +38,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loadelf"
+	"cmd/link/internal/loadelfold"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/loadmacho"
 	"cmd/link/internal/loadpe"
@@ -455,33 +456,8 @@ func (ctxt *Link) loadlib() {
 		}
 	}
 
-	if ctxt.LinkMode == LinkInternal && len(hostobj) != 0 {
-		// In newobj mode, we typically create sym.Symbols later therefore
-		// also set cgo attributes later. However, for internal cgo linking,
-		// the host object loaders still work with sym.Symbols (for now),
-		// and they need cgo attributes set to work properly. So process
-		// them now.
-		for _, d := range ctxt.cgodata {
-			setCgoAttr(ctxt, ctxt.loader.LookupOrCreate, d.file, d.pkg, d.directives)
-		}
-		ctxt.cgodata = nil
-
-		// Drop all the cgo_import_static declarations.
-		// Turns out we won't be needing them.
-		for _, s := range ctxt.loader.Syms {
-			if s != nil && s.Type == sym.SHOSTOBJ {
-				// If a symbol was marked both
-				// cgo_import_static and cgo_import_dynamic,
-				// then we want to make it cgo_import_dynamic
-				// now.
-				if s.Extname() != "" && s.Dynimplib() != "" && !s.Attr.CgoExport() {
-					s.Type = sym.SDYNIMPORT
-				} else {
-					s.Type = 0
-				}
-			}
-		}
-	}
+	// Process cgo directives (has to be done before host object loading).
+	ctxt.loadcgodirectives(ctxt.IsELF && *FlagNewLdElf)
 
 	// Conditionally load host objects, or setup for external linking.
 	hostobjs(ctxt)
@@ -494,15 +470,22 @@ func (ctxt *Link) loadlib() {
 		// If we have any undefined symbols in external
 		// objects, try to read them from the libgcc file.
 		any := false
-		for _, s := range ctxt.loader.Syms {
-			if s == nil {
-				continue
+		if ctxt.IsELF && *FlagNewLdElf {
+			undefs := ctxt.loader.UndefinedRelocTargets(1)
+			if len(undefs) > 0 {
+				any = true
 			}
-			for i := range s.R {
-				r := &s.R[i] // Copying sym.Reloc has measurable impact on performance
-				if r.Sym != nil && r.Sym.Type == sym.SXREF && r.Sym.Name != ".got" {
-					any = true
-					break
+		} else {
+			for _, s := range ctxt.loader.Syms {
+				if s == nil {
+					continue
+				}
+				for i := range s.R {
+					r := &s.R[i] // Copying sym.Reloc has measurable impact on performance
+					if r.Sym != nil && r.Sym.Type == sym.SXREF && r.Sym.Name != ".got" {
+						any = true
+						break
+					}
 				}
 			}
 		}
@@ -579,6 +562,67 @@ func setupdynexp(ctxt *Link) {
 
 	ctxt.cgo_export_static = nil
 	ctxt.cgo_export_dynamic = nil
+}
+
+// loadcgodirectives reads the previously discovered cgo directives,
+// creating symbols (either sym.Symbol or loader.Sym) in preparation
+// for host object loading or use later in the link.
+func (ctxt *Link) loadcgodirectives(useLoader bool) {
+	if useLoader {
+		l := ctxt.loader
+		hostObjSyms := make(map[loader.Sym]struct{})
+		for _, d := range ctxt.cgodata {
+			setCgoAttr2(ctxt, ctxt.loader.LookupOrCreateSym, d.file, d.pkg, d.directives, hostObjSyms)
+		}
+		ctxt.cgodata = nil
+
+		if ctxt.LinkMode == LinkInternal {
+			// Drop all the cgo_import_static declarations.
+			// Turns out we won't be needing them.
+			for symIdx := range hostObjSyms {
+				if l.SymType(symIdx) == sym.SHOSTOBJ {
+					// If a symbol was marked both
+					// cgo_import_static and cgo_import_dynamic,
+					// then we want to make it cgo_import_dynamic
+					// now.
+					su, _ := l.MakeSymbolUpdater(symIdx)
+					if l.SymExtname(symIdx) != "" && l.SymDynimplib(symIdx) != "" && !(l.AttrCgoExportStatic(symIdx) || l.AttrCgoExportDynamic(symIdx)) {
+						su.SetType(sym.SDYNIMPORT)
+					} else {
+						su.SetType(0)
+					}
+				}
+			}
+		}
+	} else {
+		// In newobj mode, we typically create sym.Symbols later therefore
+		// also set cgo attributes later. However, for internal cgo linking,
+		// the host object loaders still work with sym.Symbols (for now),
+		// and they need cgo attributes set to work properly. So process
+		// them now.
+		for _, d := range ctxt.cgodata {
+			setCgoAttr(ctxt, ctxt.loader.LookupOrCreate, d.file, d.pkg, d.directives)
+		}
+		ctxt.cgodata = nil
+
+		if ctxt.LinkMode == LinkInternal {
+			// Drop all the cgo_import_static declarations.
+			// Turns out we won't be needing them.
+			for _, s := range ctxt.loader.Syms {
+				if s != nil && s.Type == sym.SHOSTOBJ {
+					// If a symbol was marked both
+					// cgo_import_static and cgo_import_dynamic,
+					// then we want to make it cgo_import_dynamic
+					// now.
+					if s.Extname() != "" && s.Dynimplib() != "" && !s.Attr.CgoExport() {
+						s.Type = sym.SDYNIMPORT
+					} else {
+						s.Type = 0
+					}
+				}
+			}
+		}
+	}
 }
 
 // Set up flags and special symbols depending on the platform build mode.
@@ -1675,16 +1719,29 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 
 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
 	if magic == 0x7f454c46 { // \x7F E L F
-		ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-			textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn, ehdr.flags)
-			if err != nil {
-				Errorf(nil, "%v", err)
-				return
+		if *FlagNewLdElf {
+			ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+				textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn, ehdr.flags)
+				if err != nil {
+					Errorf(nil, "%v", err)
+					return
+				}
+				ehdr.flags = flags
+				ctxt.Textp2 = append(ctxt.Textp2, textp...)
 			}
-			ehdr.flags = flags
-			ctxt.Textp = append(ctxt.Textp, textp...)
+			return ldhostobj(ldelf, ctxt.HeadType, f, pkg, length, pn, file)
+		} else {
+			ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+				textp, flags, err := loadelfold.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn, ehdr.flags)
+				if err != nil {
+					Errorf(nil, "%v", err)
+					return
+				}
+				ehdr.flags = flags
+				ctxt.Textp = append(ctxt.Textp, textp...)
+			}
+			return ldhostobj(ldelf, ctxt.HeadType, f, pkg, length, pn, file)
 		}
-		return ldhostobj(ldelf, ctxt.HeadType, f, pkg, length, pn, file)
 	}
 
 	if magic&^1 == 0xfeedface || magic&^0x01000000 == 0xcefaedfe {
@@ -1950,6 +2007,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		return
 	}
 	gcdataLocations := make(map[uint64]*sym.Symbol)
+	gcdataLocations2 := make(map[uint64]loader.Sym)
 	for _, elfsym := range syms {
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_NOTYPE || elf.ST_TYPE(elfsym.Info) == elf.STT_SECTION {
 			continue
@@ -1962,45 +2020,103 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			ver = sym.SymVerABIInternal
 		}
 
-		lsym := ctxt.loader.LookupOrCreate(elfsym.Name, ver)
+		if *FlagNewLdElf {
+			l := ctxt.loader
+			symIdx := l.LookupOrCreateSym(elfsym.Name, ver)
 
-		// Because loadlib above loads all .a files before loading any shared
-		// libraries, any non-dynimport symbols we find that duplicate symbols
-		// already loaded should be ignored (the symbols from the .a files
-		// "win").
-		if lsym.Type != 0 && lsym.Type != sym.SDYNIMPORT {
-			continue
-		}
-		lsym.Type = sym.SDYNIMPORT
-		lsym.SetElfType(elf.ST_TYPE(elfsym.Info))
-		lsym.Size = int64(elfsym.Size)
-		if elfsym.Section != elf.SHN_UNDEF {
-			// Set .File for the library that actually defines the symbol.
-			lsym.File = libpath
-			// The decodetype_* functions in decodetype.go need access to
-			// the type data.
-			if strings.HasPrefix(lsym.Name, "type.") && !strings.HasPrefix(lsym.Name, "type..") {
-				lsym.P = readelfsymboldata(ctxt, f, &elfsym)
-				gcdataLocations[elfsym.Value+2*uint64(ctxt.Arch.PtrSize)+8+1*uint64(ctxt.Arch.PtrSize)] = lsym
-			}
-		}
-		// For function symbols, we don't know what ABI is
-		// available, so alias it under both ABIs.
-		//
-		// TODO(austin): This is almost certainly wrong once
-		// the ABIs are actually different. We might have to
-		// mangle Go function names in the .so to include the
-		// ABI.
-		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
-			alias := ctxt.loader.LookupOrCreate(elfsym.Name, sym.SymVerABIInternal)
-			if alias.Type != 0 {
+			// Because loadlib above loads all .a files before loading
+			// any shared libraries, any non-dynimport symbols we find
+			// that duplicate symbols already loaded should be ignored
+			// (the symbols from the .a files "win").
+			if l.SymType(symIdx) != 0 && l.SymType(symIdx) != sym.SDYNIMPORT {
 				continue
 			}
-			alias.Type = sym.SABIALIAS
-			alias.R = []sym.Reloc{{Sym: lsym}}
+			su, s := l.MakeSymbolUpdater(symIdx)
+			su.SetType(sym.SDYNIMPORT)
+			l.SetSymElfType(s, elf.ST_TYPE(elfsym.Info))
+			su.SetSize(int64(elfsym.Size))
+			if elfsym.Section != elf.SHN_UNDEF {
+				// If it's not undefined, mark the symbol as reachable
+				// so as to protect it from dead code elimination,
+				// even if there aren't any explicit references to it.
+				// Under the previous sym.Symbol based regime this
+				// wasn't necessary, but for the loader-based deadcode
+				// it is definitely needed.
+				//
+				// FIXME: have a more general/flexible mechanism for this?
+				//
+				l.SetAttrReachable(s, true)
+
+				// Set .File for the library that actually defines the symbol.
+				l.SetSymFile(s, libpath)
+
+				// The decodetype_* functions in decodetype.go need access to
+				// the type data.
+				sname := l.SymName(s)
+				if strings.HasPrefix(sname, "type.") && !strings.HasPrefix(sname, "type..") {
+					su.SetData(readelfsymboldata(ctxt, f, &elfsym))
+					gcdataLocations2[elfsym.Value+2*uint64(ctxt.Arch.PtrSize)+8+1*uint64(ctxt.Arch.PtrSize)] = s
+				}
+			}
+
+			// For function symbols, we don't know what ABI is
+			// available, so alias it under both ABIs.
+			//
+			// TODO(austin): This is almost certainly wrong once
+			// the ABIs are actually different. We might have to
+			// mangle Go function names in the .so to include the
+			// ABI.
+			if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
+				alias := ctxt.loader.LookupOrCreateSym(elfsym.Name, sym.SymVerABIInternal)
+				if l.SymType(alias) != 0 {
+					continue
+				}
+				su, _ := l.MakeSymbolUpdater(alias)
+				su.SetType(sym.SABIALIAS)
+				su.AddReloc(loader.Reloc{Sym: s})
+			}
+		} else {
+			lsym := ctxt.loader.LookupOrCreate(elfsym.Name, ver)
+
+			// Because loadlib above loads all .a files before loading any shared
+			// libraries, any non-dynimport symbols we find that duplicate symbols
+			// already loaded should be ignored (the symbols from the .a files
+			// "win").
+			if lsym.Type != 0 && lsym.Type != sym.SDYNIMPORT {
+				continue
+			}
+			lsym.Type = sym.SDYNIMPORT
+			lsym.SetElfType(elf.ST_TYPE(elfsym.Info))
+			lsym.Size = int64(elfsym.Size)
+			if elfsym.Section != elf.SHN_UNDEF {
+				// Set .File for the library that actually defines the symbol.
+				lsym.File = libpath
+				// The decodetype_* functions in decodetype.go need access to
+				// the type data.
+				if strings.HasPrefix(lsym.Name, "type.") && !strings.HasPrefix(lsym.Name, "type..") {
+					lsym.P = readelfsymboldata(ctxt, f, &elfsym)
+					gcdataLocations[elfsym.Value+2*uint64(ctxt.Arch.PtrSize)+8+1*uint64(ctxt.Arch.PtrSize)] = lsym
+				}
+			}
+			// For function symbols, we don't know what ABI is
+			// available, so alias it under both ABIs.
+			//
+			// TODO(austin): This is almost certainly wrong once
+			// the ABIs are actually different. We might have to
+			// mangle Go function names in the .so to include the
+			// ABI.
+			if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
+				alias := ctxt.loader.LookupOrCreate(elfsym.Name, sym.SymVerABIInternal)
+				if alias.Type != 0 {
+					continue
+				}
+				alias.Type = sym.SABIALIAS
+				alias.R = []sym.Reloc{{Sym: lsym}}
+			}
 		}
 	}
 	gcdataAddresses := make(map[*sym.Symbol]uint64)
+	gcdataAddresses2 := make(map[loader.Sym]uint64)
 	if ctxt.Arch.Family == sys.ARM64 {
 		for _, sect := range f.Sections {
 			if sect.Type == elf.SHT_RELA {
@@ -2018,15 +2134,21 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 					if t != elf.R_AARCH64_RELATIVE {
 						continue
 					}
-					if lsym, ok := gcdataLocations[rela.Off]; ok {
-						gcdataAddresses[lsym] = uint64(rela.Addend)
+					if *FlagNewLdElf {
+						if symIdx, ok := gcdataLocations2[rela.Off]; ok {
+							gcdataAddresses2[symIdx] = uint64(rela.Addend)
+						}
+					} else {
+						if lsym, ok := gcdataLocations[rela.Off]; ok {
+							gcdataAddresses[lsym] = uint64(rela.Addend)
+						}
 					}
 				}
 			}
 		}
 	}
 
-	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f, gcdataAddresses: gcdataAddresses})
+	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f, gcdataAddresses: gcdataAddresses, gcdataAddresses2: gcdataAddresses2})
 }
 
 func addsection(arch *sys.Arch, seg *sym.Segment, name string, rwx int) *sym.Section {
@@ -2594,11 +2716,6 @@ func (ctxt *Link) loadlibfull() {
 	// Pull the symbols out.
 	ctxt.loader.ExtractSymbols(ctxt.Syms)
 
-	// Load cgo directives.
-	for _, d := range ctxt.cgodata {
-		setCgoAttr(ctxt, ctxt.Syms.Lookup, d.file, d.pkg, d.directives)
-	}
-
 	setupdynexp(ctxt)
 
 	// Populate ctxt.Reachparent if appropriate.
@@ -2617,11 +2734,13 @@ func (ctxt *Link) loadlibfull() {
 		}
 	}
 
-	// Drop the reference.
-	ctxt.loader = nil
+	// Drop the cgodata reference.
 	ctxt.cgodata = nil
 
 	addToTextp(ctxt)
+
+	// Drop the loader.
+	ctxt.loader = nil
 }
 
 func (ctxt *Link) dumpsyms() {

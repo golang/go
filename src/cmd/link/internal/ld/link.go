@@ -42,11 +42,12 @@ import (
 )
 
 type Shlib struct {
-	Path            string
-	Hash            []byte
-	Deps            []string
-	File            *elf.File
-	gcdataAddresses map[*sym.Symbol]uint64
+	Path             string
+	Hash             []byte
+	Deps             []string
+	File             *elf.File
+	gcdataAddresses  map[*sym.Symbol]uint64
+	gcdataAddresses2 map[loader.Sym]uint64
 }
 
 // Link holds the context for writing object code from a compiler
