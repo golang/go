@@ -23,7 +23,7 @@ func (s *Server) definition(ctx context.Context, params *protocol.DefinitionPara
 	if err != nil {
 		return nil, err
 	}
-	ident, err := source.Identifier(ctx, snapshot, f, params.Position)
+	ident, err := source.Identifier(ctx, snapshot, f, params.Position, source.WidestCheckPackageHandle)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func (s *Server) typeDefinition(ctx context.Context, params *protocol.TypeDefini
 	if err != nil {
 		return nil, err
 	}
-	ident, err := source.Identifier(ctx, snapshot, f, params.Position)
+	ident, err := source.Identifier(ctx, snapshot, f, params.Position, source.WidestCheckPackageHandle)
 	if err != nil {
 		return nil, err
 	}

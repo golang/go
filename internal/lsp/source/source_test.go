@@ -499,7 +499,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ident, err := source.Identifier(ctx, r.view.Snapshot(), f, srcRng.Start)
+	ident, err := source.Identifier(ctx, r.view.Snapshot(), f, srcRng.Start, source.WidestCheckPackageHandle)
 	if err != nil {
 		t.Fatalf("failed for %v: %v", d.Src, err)
 	}
@@ -562,7 +562,7 @@ func (r *runner) Implementation(t *testing.T, spn span.Span, impls []span.Span) 
 	if err != nil {
 		t.Fatalf("failed for %v: %v", spn, err)
 	}
-	ident, err := source.Identifier(ctx, r.view.Snapshot(), f, loc.Range.Start)
+	ident, err := source.Identifier(ctx, r.view.Snapshot(), f, loc.Range.Start, source.WidestCheckPackageHandle)
 	if err != nil {
 		t.Fatalf("failed for %v: %v", spn, err)
 	}
@@ -649,7 +649,7 @@ func (r *runner) References(t *testing.T, src span.Span, itemList []span.Span) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ident, err := source.Identifier(ctx, r.view.Snapshot(), f, srcRng.Start)
+	ident, err := source.Identifier(ctx, r.view.Snapshot(), f, srcRng.Start, source.WidestCheckPackageHandle)
 	if err != nil {
 		t.Fatalf("failed for %v: %v", src, err)
 	}
@@ -693,7 +693,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ident, err := source.Identifier(r.ctx, r.view.Snapshot(), f, srcRng.Start)
+	ident, err := source.Identifier(r.ctx, r.view.Snapshot(), f, srcRng.Start, source.WidestCheckPackageHandle)
 	if err != nil {
 		t.Error(err)
 		return
@@ -782,7 +782,7 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 		t.Fatal(err)
 	}
 	// Find the identifier at the position.
-	ident, err := source.Identifier(ctx, r.view.Snapshot(), f, srcRng.Start)
+	ident, err := source.Identifier(ctx, r.view.Snapshot(), f, srcRng.Start, source.WidestCheckPackageHandle)
 	if err != nil {
 		if want.Text != "" { // expected an ident.
 			t.Errorf("prepare rename failed for %v: got error: %v", src, err)

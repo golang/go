@@ -67,7 +67,7 @@ func (s mappedRange) URI() span.URI {
 
 // getParsedFile is a convenience function that extracts the Package and ParseGoHandle for a File in a Snapshot.
 // selectPackage is typically Narrowest/WidestCheckPackageHandle below.
-func getParsedFile(ctx context.Context, snapshot Snapshot, f File, selectPackage func([]PackageHandle) (PackageHandle, error)) (Package, ParseGoHandle, error) {
+func getParsedFile(ctx context.Context, snapshot Snapshot, f File, selectPackage PackagePolicy) (Package, ParseGoHandle, error) {
 	fh := snapshot.Handle(ctx, f)
 	phs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
@@ -84,6 +84,8 @@ func getParsedFile(ctx context.Context, snapshot Snapshot, f File, selectPackage
 	pgh, err := pkg.File(f.URI())
 	return pkg, pgh, err
 }
+
+type PackagePolicy func([]PackageHandle) (PackageHandle, error)
 
 // NarrowestCheckPackageHandle picks the "narrowest" package for a given file.
 //
@@ -124,6 +126,20 @@ func WidestCheckPackageHandle(handles []PackageHandle) (PackageHandle, error) {
 		return nil, errors.Errorf("nil CheckPackageHandles have been returned")
 	}
 	return result, nil
+}
+
+// SpecificPackageHandle creates a PackagePolicy to select a
+// particular PackageHandle when you alread know the one you want.
+func SpecificPackageHandle(desiredID string) PackagePolicy {
+	return func(handles []PackageHandle) (PackageHandle, error) {
+		for _, h := range handles {
+			if h.ID() == desiredID {
+				return h, nil
+			}
+		}
+
+		return nil, fmt.Errorf("no package handle with expected id %q", desiredID)
+	}
 }
 
 func IsGenerated(ctx context.Context, view View, uri span.URI) bool {

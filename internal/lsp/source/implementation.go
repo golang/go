@@ -19,6 +19,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/telemetry/log"
+	errors "golang.org/x/xerrors"
 )
 
 func (i *IdentifierInfo) Implementation(ctx context.Context) ([]protocol.Location, error) {
@@ -101,6 +102,8 @@ func (i *IdentifierInfo) Implementation(ctx context.Context) ([]protocol.Locatio
 	return locations, nil
 }
 
+var ErrNotAMethod = errors.New("this function is not a method")
+
 func (i *IdentifierInfo) implementations(ctx context.Context) (implementsResult, error) {
 	var T types.Type
 	var method *types.Func
@@ -112,7 +115,7 @@ func (i *IdentifierInfo) implementations(ctx context.Context) (implementsResult,
 		}
 		recv := obj.Type().(*types.Signature).Recv()
 		if recv == nil {
-			return implementsResult{}, fmt.Errorf("this function is not a method")
+			return implementsResult{}, ErrNotAMethod
 		}
 		method = obj
 		T = recv.Type()
