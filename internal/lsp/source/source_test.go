@@ -490,7 +490,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rng, err := ident.Declaration.Range()
+	rng, err := ident.Declaration.MappedRange[0].Range()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -20,16 +20,21 @@ func (s *Server) definition(ctx context.Context, params *protocol.DefinitionPara
 	if err != nil {
 		return nil, err
 	}
-	decRange, err := ident.Declaration.Range()
-	if err != nil {
-		return nil, err
-	}
-	return []protocol.Location{
-		{
-			URI:   protocol.URIFromSpanURI(ident.Declaration.URI()),
+
+	var locations []protocol.Location
+	for _, ref := range ident.Declaration.MappedRange {
+		decRange, err := ref.Range()
+		if err != nil {
+			return nil, err
+		}
+
+		locations = append(locations, protocol.Location{
+			URI:   protocol.URIFromSpanURI(ref.URI()),
 			Range: decRange,
-		},
-	}, nil
+		})
+	}
+
+	return locations, nil
 }
 
 func (s *Server) typeDefinition(ctx context.Context, params *protocol.TypeDefinitionParams) ([]protocol.Location, error) {

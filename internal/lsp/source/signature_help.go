@@ -109,10 +109,10 @@ FindCall:
 			return nil, 0, err
 		}
 		decl := &Declaration{
-			obj:         obj,
-			mappedRange: rng,
-			node:        node,
+			obj:  obj,
+			node: node,
 		}
+		decl.MappedRange = append(decl.MappedRange, rng)
 		d, err := decl.hover(ctx)
 		if err != nil {
 			return nil, 0, err

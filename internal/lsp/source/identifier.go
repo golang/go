@@ -41,9 +41,9 @@ type IdentifierInfo struct {
 }
 
 type Declaration struct {
-	mappedRange
-	node ast.Node
-	obj  types.Object
+	MappedRange []mappedRange
+	node        ast.Node
+	obj         types.Object
 }
 
 // Identifier returns identifier information for a position
@@ -111,6 +111,7 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 	if result.mappedRange, err = posToMappedRange(view, pkg, result.ident.Pos(), result.ident.End()); err != nil {
 		return nil, err
 	}
+
 	result.Declaration.obj = pkg.GetTypesInfo().ObjectOf(result.ident)
 	if result.Declaration.obj == nil {
 		// If there was no types.Object for the declaration, there might be an implicit local variable
@@ -138,9 +139,13 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 			return nil, errors.Errorf("no declaration for %s", result.Name)
 		}
 		result.Declaration.node = decl
-		if result.Declaration.mappedRange, err = nameToMappedRange(view, pkg, decl.Pos(), result.Name); err != nil {
+
+		rng, err := nameToMappedRange(view, pkg, decl.Pos(), result.Name)
+		if err != nil {
 			return nil, err
 		}
+		result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
+
 		return result, nil
 	}
 
@@ -154,9 +159,12 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 		}
 	}
 
-	if result.Declaration.mappedRange, err = objToMappedRange(view, pkg, result.Declaration.obj); err != nil {
+	rng, err := objToMappedRange(view, pkg, result.Declaration.obj)
+	if err != nil {
 		return nil, err
 	}
+	result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
+
 	if result.Declaration.node, err = objToNode(s.View(), pkg, result.Declaration.obj); err != nil {
 		return nil, err
 	}
@@ -273,19 +281,20 @@ func importSpec(s Snapshot, pkg Package, file *ast.File, pos token.Pos) (*Identi
 	if importedPkg.GetSyntax() == nil {
 		return nil, errors.Errorf("no syntax for for %q", importPath)
 	}
-	// Heuristic: Jump to the longest (most "interesting") file of the package.
-	var dest *ast.File
-	for _, f := range importedPkg.GetSyntax() {
-		if dest == nil || f.End()-f.Pos() > dest.End()-dest.Pos() {
-			dest = f
-		}
-	}
-	if dest == nil {
+	// Return all of the files in the package as the definition of the import spec.
+	dest := pkg.GetSyntax()
+	if len(dest) == 0 {
 		return nil, errors.Errorf("package %q has no files", importPath)
 	}
-	if result.Declaration.mappedRange, err = posToMappedRange(s.View(), pkg, dest.Pos(), dest.End()); err != nil {
-		return nil, err
+
+	for _, dst := range importedPkg.GetSyntax() {
+		rng, err := posToMappedRange(s.View(), pkg, dst.Pos(), dst.End())
+		if err != nil {
+			return nil, err
+		}
+		result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
 	}
+
 	result.Declaration.node = imp
 	return result, nil
 }
