@@ -565,7 +565,7 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, kind source
 	// Make a rough estimate of what metadata to invalidate by finding the package IDs
 	// of all of the files in the same directory as this one.
 	// TODO(rstambler): Speed this up by mapping directories to filenames.
-	if action == source.Create {
+	if originalFH == nil {
 		if dirStat, err := os.Stat(dir(f.URI().Filename())); err == nil {
 			for _, uri := range v.snapshot.getFileURIs() {
 				if fdirStat, err := os.Stat(dir(uri.Filename())); err == nil {
