@@ -452,7 +452,7 @@ func (s *snapshot) Handle(ctx context.Context, f source.File) source.FileHandle 
 	return s.files[f.URI()]
 }
 
-func (s *snapshot) clone(ctx context.Context, withoutURI span.URI, withoutTypes, withoutMetadata map[span.URI]struct{}) *snapshot {
+func (s *snapshot) clone(ctx context.Context, withoutURI span.URI, withoutTypes, withoutMetadata map[packageID]struct{}) *snapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -475,46 +475,32 @@ func (s *snapshot) clone(ctx context.Context, withoutURI span.URI, withoutTypes,
 		result.files[k] = v
 	}
 	// Collect the IDs for the packages associated with the excluded URIs.
-	withoutMetadataIDs := make(map[packageID]struct{})
-	withoutTypesIDs := make(map[packageID]struct{})
 	for k, ids := range s.ids {
-		// Map URIs to IDs for exclusion.
-		if _, ok := withoutTypes[k]; ok {
-			for _, id := range ids {
-				withoutTypesIDs[id] = struct{}{}
-			}
-		}
-		if _, ok := withoutMetadata[k]; ok {
-			for _, id := range ids {
-				withoutMetadataIDs[id] = struct{}{}
-			}
-			continue
-		}
 		result.ids[k] = ids
 	}
 	// Copy the package type information.
 	for k, v := range s.packages {
-		if _, ok := withoutTypesIDs[k.id]; ok {
+		if _, ok := withoutTypes[k.id]; ok {
 			continue
 		}
-		if _, ok := withoutMetadataIDs[k.id]; ok {
+		if _, ok := withoutMetadata[k.id]; ok {
 			continue
 		}
 		result.packages[k] = v
 	}
 	// Copy the package analysis information.
 	for k, v := range s.actions {
-		if _, ok := withoutTypesIDs[k.pkg.id]; ok {
+		if _, ok := withoutTypes[k.pkg.id]; ok {
 			continue
 		}
-		if _, ok := withoutMetadataIDs[k.pkg.id]; ok {
+		if _, ok := withoutMetadata[k.pkg.id]; ok {
 			continue
 		}
 		result.actions[k] = v
 	}
 	// Copy the package metadata.
 	for k, v := range s.metadata {
-		if _, ok := withoutMetadataIDs[k]; ok {
+		if _, ok := withoutMetadata[k]; ok {
 			continue
 		}
 		result.metadata[k] = v
@@ -539,8 +525,8 @@ func (s *snapshot) ID() uint64 {
 // Note: The logic in this function is convoluted. Do not change without significant thought.
 func (v *view) invalidateContent(ctx context.Context, f source.File, action source.FileAction) bool {
 	var (
-		withoutTypes    = make(map[span.URI]struct{})
-		withoutMetadata = make(map[span.URI]struct{})
+		withoutTypes    = make(map[packageID]struct{})
+		withoutMetadata = make(map[packageID]struct{})
 		ids             = make(map[packageID]struct{})
 	)
 
@@ -591,15 +577,8 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, action sour
 	}
 
 	// Remove the package and all of its reverse dependencies from the cache.
-	reverseDependencies := make(map[packageID]struct{})
 	for id := range ids {
-		v.snapshot.transitiveReverseDependencies(id, reverseDependencies)
-	}
-	for id := range reverseDependencies {
-		m := v.snapshot.getMetadata(id)
-		for _, uri := range m.compiledGoFiles {
-			withoutTypes[uri] = struct{}{}
-		}
+		v.snapshot.transitiveReverseDependencies(id, withoutTypes)
 	}
 
 	// If we are deleting a file, make sure to clear out the overlay.
@@ -614,9 +593,7 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, action sour
 	// and if so, invalidate this file's packages' metadata.
 	if v.session.cache.shouldLoad(ctx, v.snapshot, originalFH, currentFH) {
 		for id := range ids {
-			for _, uri := range v.snapshot.getMetadata(id).compiledGoFiles {
-				withoutMetadata[uri] = struct{}{}
-			}
+			withoutMetadata[id] = struct{}{}
 
 			// TODO: If a package's name has changed,
 			// we should invalidate the metadata for the new package name (if it exists).
