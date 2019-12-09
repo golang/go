@@ -696,7 +696,10 @@ func (c *completer) lexical() error {
 	}
 	scopes = append(scopes, c.pkg.GetTypes().Scope(), types.Universe)
 
-	builtinIota := types.Universe.Lookup("iota")
+	var (
+		builtinIota = types.Universe.Lookup("iota")
+		builtinNil  = types.Universe.Lookup("nil")
+	)
 
 	// Track seen variables to avoid showing completions for shadowed variables.
 	// This works since we look at scopes from innermost to outermost.
@@ -736,10 +739,17 @@ func (c *completer) lexical() error {
 				continue
 			}
 
+			score := stdScore
+
+			// Dowrank "nil" a bit so it is ranked below more interesting candidates.
+			if obj == builtinNil {
+				score /= 2
+			}
+
 			// If we haven't already added a candidate for an object with this name.
 			if _, ok := seen[obj.Name()]; !ok {
 				seen[obj.Name()] = struct{}{}
-				c.found(obj, stdScore, nil)
+				c.found(obj, score, nil)
 			}
 		}
 	}
