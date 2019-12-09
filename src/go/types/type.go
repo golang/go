@@ -540,7 +540,7 @@ type TypeParam struct {
 	id    uint64 // unique id (TODO should this be with the object? all objects?)
 	obj   *TypeName
 	index int  // parameter index
-	bound Type // either an *Interface or a *Contract
+	bound Type // either an *Interface or a *Contract // TODO(gri) make this *Interface or nil only?
 }
 
 // NewTypeParam returns a new TypeParam.

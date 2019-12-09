@@ -9,19 +9,6 @@ TODO
 
 
 OPEN ISSUES
-- type constraints are not verified in some cases:
-
-package p
-
-type B interface{type int}
-
-func f(type P B)(x P) {}
-
-func _() {
-	f(string)("foo") // this should be invalid
-	f("foo")         // this should be invalid
-}
-
 - incorrect constraint errors:
 
 package p

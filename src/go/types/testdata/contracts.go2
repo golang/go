@@ -183,3 +183,17 @@ func adderSum(type T Adder(T))(data []T) T {
 }
 
 func _(type T Adder /* ERROR cannot use generic type Adder */)(data []T) T
+
+// --------------------------------------------------------------------------------------
+// Instantiations require bounds to be satisfied
+
+type B1 interface{type int}
+
+func f1(type P B1)(x P) {}
+
+func _() {
+	f1 /* ERROR string not found */ (string)("foo")
+        f1 /* ERROR string not found */ ("foo")
+        f1 /* ERROR float64 not found */ (1.2)
+        f1(42)
+}

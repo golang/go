@@ -28,24 +28,79 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type) (res Ty
 		}()
 	}
 
-	// TODO(gri) need to do a satisfy bounds check here
-
+	// TODO(gri) What is better here: work with TypeParams, or work with TypeNames?
+	var tparams []*TypeName
 	switch typ := typ.(type) {
 	case *Named:
-		// TODO(gri) What is better here: work with TypeParams, or work with TypeNames?
-		return check.subst(pos, typ, typ.obj.tparams, targs)
-
+		tparams = typ.obj.tparams
 	case *Signature:
-		return check.subst(pos, typ, typ.tparams, targs)
+		tparams = typ.tparams
+	default:
+		check.dump(">>> trying to instantiate %s", typ)
+		unreachable() // only defined types and (defined) functions can be generic
+
 	}
 
-	panic("unreachable") // only defined types and (defined) functions can be generic
+	// check bounds
+	for i, tname := range tparams {
+		tpar := tname.typ.(*TypeParam)
+		if tpar.bound == nil {
+			continue // no bound
+		}
+
+		// determine type parameter bound
+		var iface *Interface
+		switch bound := tpar.bound.Underlying().(type) {
+		case *Interface:
+			iface = bound
+		case *Contract:
+			iface = bound.ifaceAt(i)
+		default:
+			unreachable()
+		}
+
+		// use interface type of type parameter, if any
+		// targ must implement iface
+		targ := targs[i]
+		if m, _ := check.missingMethod(targ, iface, true); m != nil {
+			check.softErrorf(pos, "%s does not satisfy %s (missing method %s)", targ, tpar.bound, m)
+			break
+		}
+
+		// targ's underlying type must also be one of the interface types listed, if any
+		if len(iface.types) > 0 {
+			utyp := targ.Underlying()
+
+			// TODO(gri) Cannot handle a type argument that is itself parameterized for now
+			switch utyp.(type) {
+			case *Interface, *Contract:
+				panic("unimplemented")
+			}
+
+			// TODO(gri) factor this out as sep. function?
+			ok := false
+			for _, t := range iface.types {
+				// if we find one matching type, we're ok
+				if Identical(utyp, t) {
+					ok = true
+					break
+				}
+			}
+
+			if !ok {
+				check.softErrorf(pos, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ, iface)
+				break
+			}
+		}
+	}
+
+	return check.subst(pos, typ, tparams, targs)
 }
 
 // subst returns the type typ with its type parameters tparams replaced by
 // the corresponding type arguments targs, recursively.
 func (check *Checker) subst(pos token.Pos, typ Type, tpars []*TypeName, targs []Type) Type {
-	assert(len(tpars) == len(targs))
+	//assert(len(tpars) == len(targs)) // bounds may have only some type parameters
 	if len(tpars) == 0 {
 		return typ
 	}
