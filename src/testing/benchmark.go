@@ -69,8 +69,8 @@ var benchmarkLock sync.Mutex
 // Used for every benchmark for measuring memory.
 var memStats runtime.MemStats
 
-// An internal type but exported because it is cross-package; part of the implementation
-// of the "go test" command.
+// InternalBenchmark is an internal type but exported because it is cross-package;
+// it is part of the implementation of the "go test" command.
 type InternalBenchmark struct {
 	Name string
 	F    func(b *B)
@@ -342,7 +342,7 @@ func (b *B) ReportMetric(n float64, unit string) {
 	b.extra[unit] = n
 }
 
-// The results of a benchmark run.
+// BenchmarkResult contains the results of a benchmark run.
 type BenchmarkResult struct {
 	N         int           // The number of iterations.
 	T         time.Duration // The total time taken.
@@ -488,8 +488,8 @@ type benchContext struct {
 	extLen int // Maximum extension length.
 }
 
-// An internal function but exported because it is cross-package; part of the implementation
-// of the "go test" command.
+// RunBenchmarks is an internal function but exported because it is cross-package;
+// it is part of the implementation of the "go test" command.
 func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) {
 	runBenchmarks("", matchString, benchmarks)
 }
