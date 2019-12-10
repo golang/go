@@ -99,9 +99,6 @@ type View interface {
 	// already part of the view.
 	FindFile(ctx context.Context, uri span.URI) File
 
-	// Called to set the effective contents of a file from this view.
-	SetContent(ctx context.Context, uri span.URI, version float64, content []byte)
-
 	// BackgroundContext returns a context used for all background processing
 	// on behalf of this view.
 	BackgroundContext() context.Context
@@ -167,20 +164,11 @@ type Session interface {
 	// content from the underlying cache if no overlay is present.
 	FileSystem
 
-	// DidOpen is invoked each time a file is opened in the editor.
-	DidOpen(ctx context.Context, uri span.URI, kind FileKind, version float64, text []byte) error
-
-	// DidSave is invoked each time an open file is saved in the editor.
-	DidSave(uri span.URI, version float64)
-
-	// DidClose is invoked each time an open file is closed in the editor.
-	DidClose(uri span.URI)
-
 	// IsOpen returns whether the editor currently has a file open.
 	IsOpen(uri span.URI) bool
 
-	// Called to set the effective contents of a file from this session.
-	SetOverlay(uri span.URI, kind FileKind, version float64, data []byte)
+	// DidModifyFile reports a file modification to the session.
+	DidModifyFile(ctx context.Context, c FileModification) error
 
 	// DidChangeOutOfBand is called when a file under the root folder changes.
 	// If the file was open in the editor, it returns true.

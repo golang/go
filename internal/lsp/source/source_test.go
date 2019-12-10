@@ -61,7 +61,19 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 		ctx:  ctx,
 	}
 	for filename, content := range data.Config.Overlay {
-		session.SetOverlay(span.FileURI(filename), source.DetectLanguage("", filename), -1, content)
+		kind := source.DetectLanguage("", filename)
+		if kind != source.Go {
+			continue
+		}
+		if err := session.DidModifyFile(ctx, source.FileModification{
+			URI:        span.FileURI(filename),
+			Action:     source.Open,
+			Version:    -1,
+			Text:       content,
+			LanguageID: "go",
+		}); err != nil {
+			t.Fatal(err)
+		}
 	}
 	tests.Run(t, r, data)
 }

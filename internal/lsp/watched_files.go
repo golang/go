@@ -34,7 +34,11 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 				if s.session.DidChangeOutOfBand(ctx, uri, action) {
 					// If we had been tracking the given file,
 					// recompute diagnostics to reflect updated file contents.
-					go s.diagnoseFile(view.Snapshot(), uri)
+					f, err := view.GetFile(ctx, uri)
+					if err != nil {
+						return err
+					}
+					return s.diagnose(view.Snapshot(), f)
 				}
 			case source.Delete:
 				f := view.FindFile(ctx, uri)
@@ -82,7 +86,7 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 				}
 
 				// Refresh diagnostics for the package the file belonged to.
-				go s.diagnoseFile(view.Snapshot(), otherFile.URI())
+				go s.diagnoseFile(view.Snapshot(), otherFile)
 			}
 		}
 	}

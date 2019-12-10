@@ -11,10 +11,19 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
-	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/trace"
 )
+
+func (s *Server) diagnose(snapshot source.Snapshot, f source.File) error {
+	switch f.Kind() {
+	case source.Go:
+		go s.diagnoseFile(snapshot, f)
+	case source.Mod:
+		go s.diagnoseSnapshot(snapshot)
+	}
+	return nil
+}
 
 func (s *Server) diagnoseSnapshot(snapshot source.Snapshot) {
 	ctx := snapshot.View().BackgroundContext()
@@ -50,18 +59,13 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot) {
 	}
 }
 
-func (s *Server) diagnoseFile(snapshot source.Snapshot, uri span.URI) {
+func (s *Server) diagnoseFile(snapshot source.Snapshot, f source.File) {
 	ctx := snapshot.View().BackgroundContext()
 	ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
 	defer done()
 
-	ctx = telemetry.File.With(ctx, uri)
+	ctx = telemetry.File.With(ctx, f.URI())
 
-	f, err := snapshot.View().GetFile(ctx, uri)
-	if err != nil {
-		log.Error(ctx, "diagnoseFile: no file", err)
-		return
-	}
 	reports, warningMsg, err := source.Diagnostics(ctx, snapshot, f, true, snapshot.View().Options().DisabledAnalyses)
 	// Check the warning message first.
 	if warningMsg != "" {
