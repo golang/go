@@ -62,7 +62,7 @@ func (s *snapshot) load(ctx context.Context, scope source.Scope) ([]*metadata, e
 	if err == context.Canceled {
 		return nil, errors.Errorf("no metadata for %s: %v", uri, err)
 	}
-	log.Print(ctx, "go/packages.Load", tag.Of("packages", len(pkgs)))
+	log.Print(ctx, "go/packages.Load", tag.Of("query", query), tag.Of("packages", len(pkgs)))
 	if len(pkgs) == 0 {
 		if err == nil {
 			err = errors.Errorf("no packages found for query %s", query)
@@ -120,7 +120,9 @@ func (c *cache) shouldLoad(ctx context.Context, s *snapshot, originalFH, current
 func (s *snapshot) updateMetadata(ctx context.Context, uri source.Scope, pkgs []*packages.Package, cfg *packages.Config) ([]*metadata, error) {
 	var results []*metadata
 	for _, pkg := range pkgs {
-		log.Print(ctx, "go/packages.Load", tag.Of("package", pkg.PkgPath), tag.Of("files", pkg.CompiledGoFiles))
+		if _, isDir := uri.(source.DirectoryURI); !isDir || s.view.Options().VerboseOutput {
+			log.Print(ctx, "go/packages.Load", tag.Of("package", pkg.PkgPath), tag.Of("files", pkg.CompiledGoFiles))
+		}
 
 		// Set the metadata for this package.
 		if err := s.updateImports(ctx, packagePath(pkg.PkgPath), pkg, cfg, map[packageID]struct{}{}); err != nil {
