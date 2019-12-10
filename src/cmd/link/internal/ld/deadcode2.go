@@ -113,7 +113,7 @@ func (d *deadcodePass2) init() {
 	}
 
 	for _, name := range names {
-		// Mark symbol as an data/ABI0 symbol.
+		// Mark symbol as a data/ABI0 symbol.
 		d.mark(d.ldr.Lookup(name, 0), 0)
 		// Also mark any Go functions (internal ABI).
 		d.mark(d.ldr.Lookup(name, sym.SymVerABIInternal), 0)

@@ -486,7 +486,7 @@ func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
 	return unsafe.Pointer((*_type)(rtype).typeOff(typeOff(off)))
 }
 
-// reflect_resolveTextOff resolves an function pointer offset from a base type.
+// reflect_resolveTextOff resolves a function pointer offset from a base type.
 //go:linkname reflect_resolveTextOff reflect.resolveTextOff
 func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
 	return (*_type)(rtype).textOff(textOff(off))

@@ -344,7 +344,7 @@ func initAlgAES() {
 	getRandomData(aeskeysched[:])
 }
 
-// Note: These routines perform the read with an native endianness.
+// Note: These routines perform the read with a native endianness.
 func readUnaligned32(p unsafe.Pointer) uint32 {
 	q := (*[4]byte)(p)
 	if sys.BigEndian {

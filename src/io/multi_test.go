@@ -286,7 +286,7 @@ func TestMultiReaderSingleByteWithEOF(t *testing.T) {
 	}
 }
 
-// Test that a reader returning (n, EOF) at the end of an MultiReader
+// Test that a reader returning (n, EOF) at the end of a MultiReader
 // chain continues to return EOF on its final read, rather than
 // yielding a (0, EOF).
 func TestMultiReaderFinalEOF(t *testing.T) {
