@@ -28,8 +28,17 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	if err != nil {
 		return nil, err
 	}
-	options.Completion.FullDocumentation = options.HoverKind == source.FullDocumentation
-	candidates, surrounding, err := source.Completion(ctx, snapshot, f, params.Position, options.Completion)
+
+	var candidates []source.CompletionItem
+	var surrounding *source.Selection
+	switch f.Kind() {
+	case source.Go:
+		options.Completion.FullDocumentation = options.HoverKind == source.FullDocumentation
+		candidates, surrounding, err = source.Completion(ctx, snapshot, f, params.Position, options.Completion)
+	case source.Mod:
+		candidates, surrounding = nil, nil
+	}
+
 	if err != nil {
 		log.Print(ctx, "no completions found", tag.Of("At", params.Position), tag.Of("Failure", err))
 	}

@@ -29,7 +29,15 @@ func (s *Server) documentSymbol(ctx context.Context, params *protocol.DocumentSy
 	if err != nil {
 		return nil, err
 	}
-	symbols, err := source.DocumentSymbols(ctx, snapshot, f)
+
+	var symbols []protocol.DocumentSymbol
+	switch f.Kind() {
+	case source.Go:
+		symbols, err = source.DocumentSymbols(ctx, snapshot, f)
+	case source.Mod:
+		return []protocol.DocumentSymbol{}, nil
+	}
+
 	if err != nil {
 		log.Error(ctx, "DocumentSymbols failed", err, telemetry.URI.Of(uri))
 		return []protocol.DocumentSymbol{}, nil

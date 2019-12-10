@@ -25,7 +25,15 @@ func (s *Server) documentHighlight(ctx context.Context, params *protocol.Documen
 	if err != nil {
 		return nil, err
 	}
-	rngs, err := source.Highlight(ctx, snapshot, f, params.Position)
+
+	var rngs []protocol.Range
+	switch f.Kind() {
+	case source.Go:
+		rngs, err = source.Highlight(ctx, snapshot, f, params.Position)
+	case source.Mod:
+		return nil, nil
+	}
+
 	if err != nil {
 		log.Error(ctx, "no highlight", err, telemetry.URI.Of(uri))
 	}

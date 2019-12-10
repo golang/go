@@ -26,9 +26,12 @@ func (s *Server) references(ctx context.Context, params *protocol.ReferenceParam
 		return nil, err
 	}
 	// Find all references to the identifier at the position.
+	if f.Kind() != source.Go {
+		return nil, nil
+	}
 	ident, err := source.Identifier(ctx, snapshot, f, params.Position, source.WidestCheckPackageHandle)
 	if err != nil {
-		return nil, err
+		return nil, nil
 	}
 	references, err := ident.References(ctx)
 	if err != nil {

@@ -25,12 +25,13 @@ func (s *Server) implementation(ctx context.Context, params *protocol.Implementa
 	if err != nil {
 		return nil, err
 	}
-
+	if f.Kind() != source.Go {
+		return nil, nil
+	}
 	phs, err := snapshot.PackageHandles(ctx, snapshot.Handle(ctx, f))
 	if err != nil {
 		return nil, err
 	}
-
 	var (
 		allLocs []protocol.Location
 		seen    = make(map[protocol.Location]bool)

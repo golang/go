@@ -62,6 +62,11 @@ func (s *snapshot) View() source.View {
 }
 
 func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]source.PackageHandle, error) {
+	// If the file is a go.mod file, go.Packages.Load will always return 0 packages.
+	if fh.Identity().Kind == source.Mod {
+		return nil, errors.Errorf("attempting to get PackageHandles of .mod file %s", fh.Identity().URI)
+	}
+
 	ctx = telemetry.File.With(ctx, fh.Identity().URI)
 	meta := s.getMetadataForURI(fh.Identity().URI)
 	// Determine if we need to type-check the package.
