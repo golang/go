@@ -482,9 +482,15 @@ function goInterface(d: Data, nm: string) {
     // There's a difference between a nil Range and a zero Range (at the
     // beginning of files)
     if (d.name == 'TextDocumentContentChangeEvent' &&
-        n.name.getText() == 'range')
+        n.name.getText() == 'range') {
       gt = '*' + gt;
-    if (d.name == 'CodeAction' && n.name.getText() == 'command') gt = '*' + gt;
+    }
+    if (d.name == 'CodeAction' && n.name.getText() == 'command') {
+      gt = '*' + gt;
+    }
+    if (d.name == 'DidSaveTextDocumentParams' && n.name.getText() == 'text') {
+      gt = '*' + gt;
+    }
     ans = ans.concat(`${goName(n.name.getText())} ${gt}`, json, '\n')
   };
   d.properties.forEach(g)
