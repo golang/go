@@ -1,6 +1,6 @@
 # Replaying Logs
 
-The LSP log replayer takes a log from a gopls session, starts up an instance of goppls,
+The LSP log replayer takes a log from a gopls session, starts up an instance of gopls,
 and tries to replay the session. It produces a log from the replayed session and reports
 some comparative statistics of the two logs.
 
@@ -48,7 +48,7 @@ notifications *toserver* from the client, the same number from the server *tocli
 the same number of errors *reporterr*. (That's mysterious, but a look at the ends of the log files shows
 that the original session ended with several RPCs that don't show up, for whatever reason, in the new session.)
 
-Finally, there are counts of the various nofications seen, in the new log and the old log, and
+Finally, there are counts of the various notifications seen, in the new log and the old log, and
 which direction they went. (The 3 fewer notifications in the summary above can be seen here to be from cancels
 and a didChange.)
 ```

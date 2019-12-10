@@ -9,37 +9,37 @@ package parse
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"regexp"
 	"strings"
 )
 
-// Direction is the type of message,
-type Direction int
+// MsgType is the type of message.
+type MsgType int
 
 const (
-	// Clrequest from client to server has method and id
-	Clrequest Direction = iota
-	// Clresponse from server to client
-	Clresponse
-	// Svrequest from server to client, has method and id
-	Svrequest
-	// Svresponse from client to server
-	Svresponse
-	// Toserver notification has method, but no id
-	Toserver
-	// Toclient notification
-	Toclient
-	// Reporterr is an error message
-	Reporterr // errors have method and id
+	// ClRequest from client to server has method and id
+	ClRequest MsgType = iota
+	// ClResponse from server to client
+	ClResponse
+	// SvRequest from server to client, has method and id
+	SvRequest
+	// SvResponse from client to server
+	SvResponse
+	// ToServer notification has method, but no id
+	ToServer
+	// ToClient notification
+	ToClient
+	// ReportErr is an error message
+	ReportErr // errors have method and id
 )
 
-// Logmsg is the type of a parsed log entry
+// Logmsg is the type of a parsed log entry.
 type Logmsg struct {
-	Dir     Direction
+	Type    MsgType
 	Method  string
 	ID      string      // for requests/responses. Client and server request ids overlap
 	Elapsed string      // for responses
@@ -48,7 +48,7 @@ type Logmsg struct {
 	Body    interface{} // the parsed result
 }
 
-// ReadLogs from a file. Most users should use TRlog().
+// ReadLogs from a file. Most users should use ToRlog().
 func ReadLogs(fname string) ([]*Logmsg, error) {
 	byid := make(map[string]int)
 	msgs := []*Logmsg{}
@@ -56,39 +56,39 @@ func ReadLogs(fname string) ([]*Logmsg, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer fd.Close()
 	logrdr := bufio.NewScanner(fd)
 	logrdr.Buffer(nil, 1<<25) //  a large buffer, for safety
-	logrdr.Split(logRec)
+	logrdr.Split(scanLogs)
 	for i := 0; logrdr.Scan(); i++ {
 		flds := strings.SplitN(logrdr.Text(), "\n", 2)
 		if len(flds) == 1 {
 			flds = append(flds, "") // for Errors
 		}
-		msg := parselog(flds[0], flds[1])
-		if msg == nil {
-			log.Fatalf("failed to parse %q", logrdr.Text())
-			continue
+		msg, err := parselog(flds[0], flds[1])
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse %q: %v", logrdr.Text(), err)
 		}
-		switch msg.Dir {
-		case Clrequest, Svrequest:
+		switch msg.Type {
+		case ClRequest, SvRequest:
 			v, err := msg.unmarshal(Requests(msg.Method))
 			if err != nil {
-				log.Fatalf("%v for %s, %T", err, msg.Method, Requests(msg.Method))
+				return nil, fmt.Errorf("%v for %s, %T", err, msg.Method, Requests(msg.Method))
 			}
 			msg.Body = v
-		case Clresponse, Svresponse:
+		case ClResponse, SvResponse:
 			v, err := msg.doresponse()
 			if err != nil {
-				log.Fatalf("%v %s", err, msg.Method)
+				return nil, fmt.Errorf("%v %s", err, msg.Method)
 			}
 			msg.Body = v
-		case Toserver, Toclient:
+		case ToServer, ToClient:
 			v, err := msg.unmarshal(Notifs(msg.Method))
 			if err != nil && Notifs(msg.Method) != nil {
-				log.Fatalf("%s/%T: %v", msg.Method, Notifs(msg.Method), err)
+				return nil, fmt.Errorf("%s/%T: %v", msg.Method, Notifs(msg.Method), err)
 			}
 			msg.Body = v
-		case Reporterr:
+		case ReportErr:
 			msg.Body = msg.ID // cause?
 		}
 		byid[msg.ID]++
@@ -101,13 +101,13 @@ func ReadLogs(fname string) ([]*Logmsg, error) {
 }
 
 // parse a single log message, given first line, and the rest
-func parselog(first, rest string) *Logmsg {
+func parselog(first, rest string) (*Logmsg, error) {
 	if strings.HasPrefix(rest, "Params: ") {
 		rest = rest[8:]
 	} else if strings.HasPrefix(rest, "Result: ") {
 		rest = rest[8:]
 	}
-	ans := &Logmsg{Hdr: first, Rest: rest}
+	msg := &Logmsg{Hdr: first, Rest: rest}
 	fixid := func(s string) string {
 		// emacs does (n)., gopls does (n)'.
 		s = strings.Trim(s, "()'.{)")
@@ -118,45 +118,44 @@ func parselog(first, rest string) *Logmsg {
 	// gopls and emacs differ in how they report elapsed time
 	switch {
 	case chk("Sending request", 9):
-		ans.Dir = Clrequest
-		ans.Method = flds[6][1:]
-		ans.ID = fixid(flds[8][:len(flds[8])-2])
+		msg.Type = ClRequest
+		msg.Method = flds[6][1:]
+		msg.ID = fixid(flds[8][:len(flds[8])-2])
 	case chk("Received response", 11):
-		ans.Dir = Clresponse
-		ans.Method = flds[6][1:]
-		ans.ID = fixid(flds[8])
-		ans.Elapsed = flds[10]
+		msg.Type = ClResponse
+		msg.Method = flds[6][1:]
+		msg.ID = fixid(flds[8])
+		msg.Elapsed = flds[10]
 	case chk("Received request", 9):
-		ans.Dir = Svrequest
-		ans.Method = flds[6][1:]
-		ans.ID = fixid(flds[8])
+		msg.Type = SvRequest
+		msg.Method = flds[6][1:]
+		msg.ID = fixid(flds[8])
 	case chk("Sending response", 11), // gopls
 		chk("Sending response", 13): // emacs
-		ans.Dir = Svresponse
-		ans.Method = flds[6][1:]
-		ans.ID = fixid(flds[8][:len(flds[8])-1])
-		ans.Elapsed = flds[10]
+		msg.Type = SvResponse
+		msg.Method = flds[6][1:]
+		msg.ID = fixid(flds[8][:len(flds[8])-1])
+		msg.Elapsed = flds[10]
 	case chk("Sending notification", 7):
-		ans.Dir = Toserver
-		ans.Method = strings.Trim(flds[6], ".'")
+		msg.Type = ToServer
+		msg.Method = strings.Trim(flds[6], ".'")
 		if len(flds) == 9 {
-			log.Printf("len=%d method=%s %q", len(flds), ans.Method, first)
+			log.Printf("len=%d method=%s %q", len(flds), msg.Method, first)
 		}
 	case chk("Received notification", 7):
-		ans.Dir = Toclient
-		ans.Method = flds[6][1 : len(flds[6])-2]
+		msg.Type = ToClient
+		msg.Method = flds[6][1 : len(flds[6])-2]
 	case strings.HasPrefix(first, "[Error - "):
-		ans.Dir = Reporterr
+		msg.Type = ReportErr
 		both := flds[5]
 		idx := strings.Index(both, "#") // relies on ID.Number
-		ans.Method = both[:idx]
-		ans.ID = fixid(both[idx+1:])
-		ans.Rest = strings.Join(flds[6:], " ")
+		msg.Method = both[:idx]
+		msg.ID = fixid(both[idx+1:])
+		msg.Rest = strings.Join(flds[6:], " ")
 	default:
-		log.Fatalf("surprise, first=%q with %d flds", first, len(flds))
-		return nil
+		return nil, fmt.Errorf("surprise, first=%q with %d flds", first, len(flds))
 	}
-	return ans
+	return msg, nil
 }
 
 // unmarshal into a proposed type
@@ -197,33 +196,33 @@ func (l *Logmsg) doresponse() (interface{}, error) {
 var recSep = regexp.MustCompile("\n\n\n|\r\n\r\n\r\n")
 
 // return offset of start of next record, contents of record, error
-func logRec(b []byte, atEOF bool) (int, []byte, error) { //bufio.SplitFunc
+func scanLogs(b []byte, atEOF bool) (int, []byte, error) { //bufio.SplitFunc
 	got := recSep.FindIndex(b)
 	if got == nil {
-		if !atEOF {
-			return 0, nil, nil // need more
+		if atEOF && len(b) > 0 {
+			return 0, nil, errors.New("malformed log: all logs should end with a separator")
 		}
-		return 0, nil, io.EOF
+		return 0, nil, nil
 	}
 	return got[1], b[:got[0]], nil
 }
 
 // String returns a user-useful versin of a Direction
-func (d Direction) String() string {
+func (d MsgType) String() string {
 	switch d {
-	case Clrequest:
+	case ClRequest:
 		return "clrequest"
-	case Clresponse:
+	case ClResponse:
 		return "clresponse"
-	case Svrequest:
+	case SvRequest:
 		return "svrequest"
-	case Svresponse:
+	case SvResponse:
 		return "svresponse"
-	case Toserver:
+	case ToServer:
 		return "toserver"
-	case Toclient:
+	case ToClient:
 		return "toclient"
-	case Reporterr:
+	case ReportErr:
 		return "reporterr"
 	}
 	return fmt.Sprintf("dirname: %d unknown", d)

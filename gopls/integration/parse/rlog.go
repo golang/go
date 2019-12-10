@@ -50,28 +50,28 @@ func ToRlog(fname string) (*Rlog, error) {
 	}
 	ans := newRlog(x)
 	for _, l := range x {
-		switch l.Dir {
-		case Clrequest:
+		switch l.Type {
+		case ClRequest:
 			ans.ServerCall[l.ID] = l
-		case Clresponse:
+		case ClResponse:
 			ans.ServerReply[l.ID] = l
-			if l.Dir != Reporterr {
+			if l.Type != ReportErr {
 				n := 0
 				fmt.Sscanf(l.Elapsed, "%d", &n)
 				ans.Histogram.add(n)
 			}
-		case Svrequest:
+		case SvRequest:
 			ans.ClientCall[l.ID] = l
-		case Svresponse:
+		case SvResponse:
 			ans.ClientReply[l.ID] = l
-		case Toclient:
+		case ToClient:
 			ans.ClientNotifs = append(ans.ClientNotifs, l)
-		case Toserver:
+		case ToServer:
 			ans.ServerNotifs = append(ans.ServerNotifs, l)
-		case Reporterr:
+		case ReportErr:
 			ans.ServerReply[l.ID] = l
 		default:
-			log.Fatalf("eh? %s/%s (%s)", l.Dir, l.Method, l.ID)
+			log.Fatalf("eh? %s/%s (%s)", l.Type, l.Method, l.ID)
 		}
 	}
 	return ans, nil
