@@ -14,7 +14,7 @@ import (
 	"strings"
 )
 
-func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type) (res Type) {
+func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist []token.Pos) (res Type) {
 	if check.conf.Trace {
 		check.trace(pos, "-- instantiating %s with %s", typ, typeListString(targs))
 		check.indent++
@@ -27,6 +27,8 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type) (res Ty
 			check.trace(pos, "=> %s %s", res, under)
 		}()
 	}
+
+	assert(poslist == nil || len(poslist) == len(targs))
 
 	// TODO(gri) What is better here: work with TypeParams, or work with TypeNames?
 	var tparams []*TypeName
@@ -41,11 +43,24 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type) (res Ty
 
 	}
 
+	// the number of supplied types must match the number of type parameters
+	if len(targs) != len(tparams) {
+		// TODO(gri) provide better error message
+		check.errorf(pos, "got %d arguments but %d type parameters", len(targs), len(tparams))
+		return Typ[Invalid]
+	}
+
 	// check bounds
 	for i, tname := range tparams {
 		tpar := tname.typ.(*TypeParam)
 		if tpar.bound == nil {
 			continue // no bound
+		}
+
+		// best position for error reporting
+		pos := pos
+		if i < len(poslist) {
+			pos = poslist[i]
 		}
 
 		// determine type parameter bound

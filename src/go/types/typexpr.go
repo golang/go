@@ -278,41 +278,12 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 			return Typ[Invalid]
 		}
 
-		// the number of supplied types must match the number of type parameters
-		tname := typ.(*Named).obj // generic types are defined (= Named) types
-		if len(targs) != len(tname.tparams) {
-			// TODO(gri) provide better error message
-			check.errorf(e.Pos(), "got %d arguments but %d type parameters", len(e.Args), len(tname.tparams))
-			return Typ[Invalid]
-		}
-
-		// substitute type bound parameters with arguments
-		// and check if each argument satisfies its bound
-		for i, tpar := range tname.tparams {
-			pos := e.Args[i].Pos()
-			bound := tpar.typ.(*TypeParam).bound // interface or contract or nil
-			if bound == nil {
-				continue // nothing to do
-			}
-			switch b := bound.Underlying().(type) {
-			case *Interface:
-				iface := check.subst(token.NoPos, b, tname.tparams, targs).(*Interface)
-				if !check.satisfyBound(pos, tpar, targs[i], iface) {
-					return Typ[Invalid]
-				}
-			case *Contract:
-				// check.dump("### iface = %s, tparams = %s, targs = %s", b.ifaceAt(i), tname.tparams, targs)
-				iface := check.subst(token.NoPos, b.ifaceAt(i), tname.tparams, targs).(*Interface)
-				if !check.satisfyBound(pos, tpar, targs[i], iface) {
-					return Typ[Invalid]
-				}
-			default:
-				unreachable()
-			}
-		}
-
 		// instantiate parameterized type
-		typ = check.instantiate(e.Pos(), typ, targs)
+		poslist := make([]token.Pos, len(e.Args))
+		for i, arg := range e.Args {
+			poslist[i] = arg.Pos()
+		}
+		typ = check.instantiate(e.Pos(), typ, targs, poslist)
 		def.setUnderlying(typ)
 		return typ
 
@@ -483,35 +454,6 @@ func (check *Checker) typeList(list []ast.Expr) []Type {
 		}
 	}
 	return res
-}
-
-func (check *Checker) satisfyBound(pos token.Pos, tname *TypeName, arg Type, bound *Interface) bool {
-	// check.dump("### satisfyBound: tname = %s, arg = %s, bound = %s", tname, arg, bound)
-	// use interface type of type parameter, if any
-	// targ must implement iface
-	if m, _ := check.missingMethod(arg, bound, true); m != nil {
-		check.errorf(pos, "constraint for %s is not satisfied", tname)
-		// check.dump("missing %s (%s, %s)", m, arg, bound)
-		return false
-	}
-	// arg's underlying type must also be one of the bound interface types listed, if any
-	if len(bound.types) > 0 {
-		utyp := arg.Underlying()
-		// TODO(gri) Cannot handle a type argument that is itself parameterized for now
-		switch utyp.(type) {
-		case *Interface, *Contract:
-			panic("unimplemented")
-		}
-		for _, t := range bound.types {
-			// if we find one matching type, we're ok
-			if Identical(utyp, t) {
-				return true
-			}
-		}
-		check.errorf(pos, "constraint for %s is not satisfied (not an enumerated type)", tname)
-		return false
-	}
-	return true
 }
 
 func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, variadic bool) {

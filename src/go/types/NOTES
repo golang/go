@@ -1,6 +1,5 @@
 TODO
 - satisfyBounds is not working correctly
-- no bounds checks in instantiate call (see open issues below)
 - allow recursive type parameterization without need to repeat type parameters
 - if type parameters are repeated in recursive instantiation, they must be the same order
 - implement contract embedding

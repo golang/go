@@ -10,7 +10,7 @@ contract C(T) {
 
 type Cm(type T C) T
 
-func (a Cm(T /* ERROR not satisfied */ )) m() T
+func (a Cm(T /* ERROR does not satisfy */ )) m() T
 
 // TODO(gri) make this work
 /*

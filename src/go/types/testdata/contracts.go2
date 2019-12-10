@@ -83,7 +83,7 @@ type A struct{}
 
 func (A) a() {}
 
-var _ T1(int /* ERROR not satisfied */ , int)
+var _ T1(int /* ERROR does not satisfy */ , int)
 var _ T1(A, int)
 
 contract Stringer(T) {
@@ -96,7 +96,7 @@ type List(type T Stringer) struct{
 }
 
 var _ List(MyData)
-var _ List(int /* ERROR not satisfied */ )
+var _ List(int /* ERROR does not satisfy */ )
 
 type MyData string
 
@@ -110,10 +110,10 @@ contract C3(T) {
 
 type T2 (type _ C3) struct{}
 
-var _ T2(int8 /* ERROR not satisfied */ )
+var _ T2(int8 /* ERROR does not satisfy */ )
 var _ T2(int16)
 var _ T2(int32)
-var _ T2(int64 /* ERROR not satisfied */ )
+var _ T2(int64 /* ERROR does not satisfy */ )
 var _ T2(int)
 var _ T2(struct{x int})
 
@@ -192,7 +192,7 @@ type B1 interface{type int}
 func f1(type P B1)(x P) {}
 
 func _() {
-	f1 /* ERROR string not found */ (string)("foo")
+	f1(string /* ERROR string not found */ )("foo")
         f1 /* ERROR string not found */ ("foo")
         f1 /* ERROR float64 not found */ (1.2)
         f1(42)

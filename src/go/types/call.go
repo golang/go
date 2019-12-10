@@ -85,6 +85,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 			// if the first argument is a type, assume we have explicit type arguments
 
 			// we must have the correct number of type parameters
+			// TODO(gri) do this in the instantiate call?
 			if n != len(sig.tparams) {
 				check.errorf(args[n-1].pos(), "got %d type arguments but want %d", n, len(sig.tparams))
 				x.mode = invalid
@@ -94,6 +95,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 
 			// collect types
 			targs := make([]Type, n)
+			poslist := make([]token.Pos, n)
 			for i, a := range args {
 				if a.mode != typexpr {
 					// error was reported earlier
@@ -102,10 +104,11 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 					return expression
 				}
 				targs[i] = a.typ
+				poslist[i] = a.pos()
 			}
 
 			// instantiate function signature
-			x.typ = check.instantiate(x.pos(), sig, targs)
+			x.typ = check.instantiate(x.pos(), sig, targs, poslist)
 			x.mode = value
 			x.expr = e
 			return expression
@@ -309,11 +312,13 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 
 	// infer type arguments and instantiate signature if necessary
 	if len(sig.tparams) > 0 {
+		// TODO(gri) provide position information for targs so we can feed
+		//           it to the instantiate call for better error reporting
 		targs := check.infer(call.Rparen, sig.tparams, params, args)
 		if targs == nil {
 			return
 		}
-		rsig = check.instantiate(call.Pos(), sig, targs).(*Signature)
+		rsig = check.instantiate(call.Pos(), sig, targs, nil).(*Signature)
 		params = check.subst(call.Pos(), params, sig.tparams, targs).(*Tuple)
 		// TODO(gri) Optimization: We don't need to check arguments
 		//           from which we inferred parameter types.
