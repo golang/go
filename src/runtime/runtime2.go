@@ -528,6 +528,7 @@ type m struct {
 	ncgo          int32       // number of cgo calls currently in progress
 	cgoCallersUse uint32      // if non-zero, cgoCallers in use temporarily
 	cgoCallers    *cgoCallers // cgo traceback if crashing in cgo call
+	doesPark      bool        // non-P running threads: sysmon and newmHandoff never use .park
 	park          note
 	alllink       *m // on allm
 	schedlink     muintptr
@@ -543,6 +544,13 @@ type m struct {
 	startingtrace bool
 	syscalltick   uint32
 	freelink      *m // on sched.freem
+
+	// mFixup is used to synchronize OS related m state (credentials etc)
+	// use mutex to access.
+	mFixup struct {
+		lock mutex
+		fn   func(bool) bool
+	}
 
 	// these are here because they are too large to be on the stack
 	// of low-level NOSPLIT functions.
@@ -767,6 +775,10 @@ type schedt struct {
 	stopnote   note
 	sysmonwait uint32
 	sysmonnote note
+
+	// While true, sysmon not ready for mFixup calls.
+	// Accessed atomically.
+	sysmonStarting uint32
 
 	// safepointFn should be called on each P at the next GC
 	// safepoint if p.runSafePointFn is set.

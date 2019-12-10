@@ -93,6 +93,22 @@ import (
 // Length must match arg.Max in x_cgo_callers in runtime/cgo/gcc_traceback.c.
 type cgoCallers [32]uintptr
 
+// argset matches runtime/cgo/linux_syscall.c:argset_t
+type argset struct {
+	args   unsafe.Pointer
+	retval uintptr
+}
+
+// wrapper for syscall package to call cgocall for libc (cgo) calls.
+//go:linkname syscall_cgocaller syscall.cgocaller
+//go:nosplit
+//go:uintptrescapes
+func syscall_cgocaller(fn unsafe.Pointer, args ...uintptr) uintptr {
+	as := argset{args: unsafe.Pointer(&args[0])}
+	cgocall(fn, unsafe.Pointer(&as))
+	return as.retval
+}
+
 // Call from Go to C.
 //
 // This must be nosplit because it's used for syscalls on some
