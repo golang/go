@@ -417,12 +417,7 @@ func Completion(ctx context.Context, snapshot Snapshot, f File, pos protocol.Pos
 	if path == nil {
 		return nil, nil, errors.Errorf("cannot find node enclosing position")
 	}
-	// Skip completion inside comments.
-	for _, g := range file.Comments {
-		if g.Pos() <= rng.Start && rng.Start <= g.End() {
-			return nil, nil, nil
-		}
-	}
+
 	// Skip completion inside any kind of literal.
 	if _, ok := path[0].(*ast.BasicLit); ok {
 		return nil, nil, nil
@@ -459,6 +454,14 @@ func Completion(ctx context.Context, snapshot Snapshot, f File, pos protocol.Pos
 	}
 
 	c.expectedType = expectedType(c)
+
+	// If we're inside a comment return comment completions
+	for _, comment := range file.Comments {
+		if comment.Pos() <= rng.Start && rng.Start <= comment.End() {
+			c.populateCommentCompletions(comment)
+			return c.items, c.getSurrounding(), nil
+		}
+	}
 
 	// Struct literals are handled entirely separately.
 	if c.wantStructFieldCompletions() {
@@ -532,6 +535,48 @@ func Completion(ctx context.Context, snapshot Snapshot, f File, pos protocol.Pos
 	}
 
 	return c.items, c.getSurrounding(), nil
+}
+
+// populateCommentCompletions returns completions for an exported variable immediately preceeding comment
+func (c *completer) populateCommentCompletions(comment *ast.CommentGroup) {
+
+	// Using the comment position find the line after
+	fset := c.snapshot.View().Session().Cache().FileSet()
+	file := fset.File(comment.Pos())
+	if file == nil {
+		return
+	}
+
+	line := file.Line(comment.Pos())
+	nextLinePos := file.LineStart(line + 1)
+	if !nextLinePos.IsValid() {
+		return
+	}
+
+	// Using the next line pos, grab and parse the exported variable on that line
+	for _, n := range c.file.Decls {
+		if n.Pos() != nextLinePos {
+			continue
+		}
+		switch node := n.(type) {
+		case *ast.GenDecl:
+			if node.Tok != token.VAR {
+				return
+			}
+			for _, spec := range node.Specs {
+				if value, ok := spec.(*ast.ValueSpec); ok {
+					for _, name := range value.Names {
+						if name.Name == "_" || !name.IsExported() {
+							continue
+						}
+
+						exportedVar := c.pkg.GetTypesInfo().ObjectOf(name)
+						c.found(exportedVar, stdScore, nil)
+					}
+				}
+			}
+		}
+	}
 }
 
 func (c *completer) wantStructFieldCompletions() bool {
