@@ -124,7 +124,7 @@ func includesType(typ Type, iface *Interface) bool {
 // subst returns the type typ with its type parameters tparams replaced by
 // the corresponding type arguments targs, recursively.
 func (check *Checker) subst(pos token.Pos, typ Type, tpars []*TypeName, targs []Type) Type {
-	//assert(len(tpars) == len(targs)) // bounds may have only some type parameters
+	assert(len(tpars) == len(targs)) // bounds may have only some type parameters
 	if len(tpars) == 0 {
 		return typ
 	}
@@ -281,24 +281,10 @@ func (subst *subster) typ(typ Type) Type {
 		subst.cache[t] = named
 		dump(">>> subst %s(%s) with %s (new: %s)", t.underlying, subst.tpars, subst.targs, new_targs)
 		named.underlying = subst.typ(t.underlying)
-
-		named.methods = t.methods // for now
-		// TODO(gri) how much work do we really need to do here?
-		// instantiate custom methods as necessary
-		// for _, m := range t.methods {
-		// 	// methods may not have a fully set up signature yet
-		// 	dump(">>> instantiate %s", m)
-		// 	subst.check.objDecl(m, nil)
-		// 	sig := subst.check.subst(m.pos, m.typ, subst.tpars /*m.tparams*/, subst.targs).(*Signature)
-		// 	m1 := NewFunc(m.pos, m.pkg, m.name, sig)
-		// 	dump(">>> %s: method %s => %s", name, m, m1)
-		// 	named.methods = append(named.methods, m1)
-		// }
-		// TODO(gri) update the method receivers?
+		named.methods = t.methods // methods will be customized when used
 		return named
 
 	case *TypeParam:
-		assert(len(subst.tpars) == len(subst.targs)) // TODO(gri) don't need this?
 		// TODO(gri) Can we do this with direct indexing somehow? Or use a map instead?
 		for i, tpar := range subst.tpars {
 			if tpar.typ == t {
@@ -406,13 +392,8 @@ func (subst *subster) typeList(in []Type) (out []Type, copied bool) {
 	return
 }
 
-func typeListString(targs []Type) string {
+func typeListString(list []Type) string {
 	var buf bytes.Buffer
-	for i, arg := range targs {
-		if i > 0 {
-			buf.WriteString(", ")
-		}
-		WriteType(&buf, arg, nil)
-	}
+	writeTypeList(&buf, list, nil, nil)
 	return buf.String()
 }

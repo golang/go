@@ -203,12 +203,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 			}
 			if len(t.types) > 0 {
 				buf.WriteString("type ")
-				for i, typ := range t.types {
-					if i > 0 {
-						buf.WriteString(", ")
-					}
-					writeType(buf, typ, qf, visited)
-				}
+				writeTypeList(buf, t.types, qf, visited)
 				empty = false
 			}
 			if !empty && len(t.embeddeds) > 0 {
@@ -308,6 +303,15 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 	default:
 		// For externally defined implementations of Type.
 		buf.WriteString(t.String())
+	}
+}
+
+func writeTypeList(buf *bytes.Buffer, list []Type, qf Qualifier, visited []Type) {
+	for i, typ := range list {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		writeType(buf, typ, qf, visited)
 	}
 }
 

@@ -209,3 +209,14 @@ contract B2(T) {
 type T4(type P B2) P
 
 func _(type P B2)(x T4(P))
+
+// --------------------------------------------------------------------------------------
+// Type parameters may be from different parameterized objects
+
+func f2(type P)(x P) P {
+        type T(type Q) struct { x P; y Q }
+        v := T(int){x, 42}
+        return v.x
+}
+
+// TODO(gri) more complex examples such as this
