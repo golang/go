@@ -52,9 +52,17 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 
 	// check bounds
 	for i, tname := range tparams {
+		targ := targs[i]
+		if _, ok := targ.Underlying().(*Contract); ok {
+			panic("contract provided as type argument")
+		}
+
 		tpar := tname.typ.(*TypeParam)
+		// TODO(gri) decide if we want to keep this or standardize on the empty interface
+		//           (keeping it may make sense because it's a common scenario and it may
+		//           be more efficient to check)
 		if tpar.bound == nil {
-			continue // no bound
+			continue // no bound (optimization)
 		}
 
 		// best position for error reporting
@@ -64,45 +72,36 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		}
 
 		// determine type parameter bound
-		var iface *Interface
-		switch bound := tpar.bound.Underlying().(type) {
-		case *Interface:
-			iface = bound
-		case *Contract:
-			iface = bound.ifaceAt(i)
-		default:
-			unreachable()
-		}
+		iface := tpar.Interface()
 
-		// use interface type of type parameter, if any
-		// targ must implement iface
-		targ := targs[i]
+		// targ must implement iface (methods)
 		if m, _ := check.missingMethod(targ, iface, true); m != nil {
 			check.softErrorf(pos, "%s does not satisfy %s (missing method %s)", targ, tpar.bound, m)
 			break
 		}
 
 		// targ's underlying type must also be one of the interface types listed, if any
-		if len(iface.types) > 0 {
-			utyp := targ.Underlying()
+		if len(iface.types) == 0 {
+			break // nothing to do
+		}
 
-			// TODO(gri) Cannot handle a type argument that is itself parameterized for now
-			switch utyp.(type) {
-			case *Interface, *Contract:
-				panic("unimplemented")
-			}
-
-			// TODO(gri) factor this out as sep. function?
-			ok := false
+		// if targ is a type parameter, the list of iface types must be a subset of the
+		// list of targ types
+		if t, _ := targ.Underlying().(*TypeParam); t != nil {
+			targFace := t.Interface()
 			for _, t := range iface.types {
-				// if we find one matching type, we're ok
-				if Identical(utyp, t) {
-					ok = true
+				if !includesType(t, targFace) {
+					check.softErrorf(pos, "%s does not satisfy %s (missing type %s)", targ, tpar.bound, t)
 					break
 				}
 			}
+			break
+		}
 
-			if !ok {
+		// otherwise, targ's underlying type must also be one of the interface types listed, if any
+		if len(iface.types) > 0 {
+			// TODO(gri) must it be the underlying type, or should it just be the type? (spec question)
+			if !includesType(targ.Underlying(), iface) {
 				check.softErrorf(pos, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ, iface)
 				break
 			}
@@ -110,6 +109,16 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 	}
 
 	return check.subst(pos, typ, tparams, targs)
+}
+
+// includesType reports whether iface includes typ
+func includesType(typ Type, iface *Interface) bool {
+	for _, t := range iface.types {
+		if Identical(typ.Underlying(), t) {
+			return true
+		}
+	}
+	return false
 }
 
 // subst returns the type typ with its type parameters tparams replaced by

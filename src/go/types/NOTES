@@ -1,5 +1,4 @@
 TODO
-- satisfyBounds is not working correctly
 - allow recursive type parameterization without need to repeat type parameters
 - if type parameters are repeated in recursive instantiation, they must be the same order
 - implement contract embedding
@@ -8,17 +7,6 @@ TODO
 
 
 OPEN ISSUES
-- incorrect constraint errors:
-
-package p
-
-contract B(T) {
-	T int
-}
-
-type T(type P B) P
-
-func f(type P B)(x T(P)) // this should be valid
 
 
 DESIGN DECISIONS

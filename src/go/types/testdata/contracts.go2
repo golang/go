@@ -197,3 +197,15 @@ func _() {
         f1 /* ERROR float64 not found */ (1.2)
         f1(42)
 }
+
+type T3(type P B1) P
+
+func _(type P B1)(x T3(P))
+
+contract B2(T) {
+	T int
+}
+
+type T4(type P B2) P
+
+func _(type P B2)(x T4(P))

@@ -558,9 +558,10 @@ func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypePa
 // the result is the empty interface.
 // TODO(gri) should this be Underlying instead?
 func (t *TypeParam) Interface() *Interface {
-	switch b := t.bound.Underlying().(type) {
-	case nil:
+	if t.bound == nil {
 		return &emptyInterface
+	}
+	switch b := t.bound.Underlying().(type) {
 	case *Interface:
 		return b
 	case *Contract:
