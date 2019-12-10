@@ -646,7 +646,7 @@ func resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer
 // Implemented in the runtime package.
 func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
 
-// resolveTextOff resolves an function pointer offset from a base type.
+// resolveTextOff resolves a function pointer offset from a base type.
 // The (*rtype).textOff method is a convenience wrapper for this function.
 // Implemented in the runtime package.
 func resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
