@@ -783,7 +783,7 @@ func Stack(buf []byte, all bool) int {
 	}
 
 	n := 0
-	if len(buf) > 0 {
+	if cap(buf) > 0 {
 		gp := getg()
 		sp := getcallersp()
 		pc := getcallerpc()
@@ -793,7 +793,7 @@ func Stack(buf []byte, all bool) int {
 			// so that Stack's results are consistent.
 			// GOTRACEBACK is only about crash dumps.
 			g0.m.traceback = 1
-			g0.writebuf = buf[0:0:len(buf)]
+			g0.writebuf = buf[0:0:cap(buf)]
 			goroutineheader(gp)
 			traceback(pc, sp, 0, gp)
 			if all {
