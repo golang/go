@@ -1568,38 +1568,46 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		if pa := cm.proxyAuth(); pa != "" {
 			connectReq.Header.Set("Proxy-Authorization", pa)
 		}
-		didReadResponse := make(chan struct{}) // closed after reading CONNECT response
 
-		// If there's no deadline, at least set some (long) timeout here.
-		// This will make sure we don't block here forever and leak a goroutine
-		// if the connection stops replying after the TCP connect.
+		// If there's no done channel (no deadline or cancellation
+		// from the caller possible), at least set some (long)
+		// timeout here. This will make sure we don't block forever
+		// and leak a goroutine if the connection stops replying
+		// after the TCP connect.
 		connectCtx := ctx
-		if _, ok := ctx.Deadline(); !ok {
+		if ctx.Done() == nil {
 			newCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 			defer cancel()
 			connectCtx = newCtx
 		}
+
+		didReadResponse := make(chan struct{}) // closed after CONNECT write+read is done or fails
+		var (
+			resp *Response
+			err  error // write or read error
+		)
+		// Write the CONNECT request & read the response.
 		go func() {
-			select {
-			case <-connectCtx.Done():
-				conn.Close()
-			case <-didReadResponse:
+			defer close(didReadResponse)
+			err = connectReq.Write(conn)
+			if err != nil {
+				return
 			}
+			// Okay to use and discard buffered reader here, because
+			// TLS server will not speak until spoken to.
+			br := bufio.NewReader(conn)
+			resp, err = ReadResponse(br, connectReq)
 		}()
-
-		connectReq.Write(conn)
-
-		// Read response.
-		// Okay to use and discard buffered reader here, because
-		// TLS server will not speak until spoken to.
-		br := bufio.NewReader(conn)
-		resp, err := ReadResponse(br, connectReq)
-		close(didReadResponse)
+		select {
+		case <-connectCtx.Done():
+			conn.Close()
+			<-didReadResponse
+			return nil, connectCtx.Err()
+		case <-didReadResponse:
+			// resp or err now set
+		}
 		if err != nil {
 			conn.Close()
-			if err := connectCtx.Err(); err != nil {
-				return nil, err
-			}
 			return nil, err
 		}
 		if resp.StatusCode != 200 {
