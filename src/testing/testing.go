@@ -863,8 +863,8 @@ func (t *T) Parallel() {
 	t.raceErrors += -race.Errors()
 }
 
-// An internal type but exported because it is cross-package; part of the implementation
-// of the "go test" command.
+// InternalTest is an internal type but exported because it is cross-package;
+// it is part of the implementation of the "go test" command.
 type InternalTest struct {
 	Name string
 	F    func(*T)
@@ -1214,8 +1214,8 @@ func listTests(matchString func(pat, str string) (bool, error), tests []Internal
 	}
 }
 
-// An internal function but exported because it is cross-package; part of the implementation
-// of the "go test" command.
+// RunTests is an internal function but exported because it is cross-package;
+// it is part of the implementation of the "go test" command.
 func RunTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ok bool) {
 	ran, ok := runTests(matchString, tests)
 	if !ran && !haveExamples {
