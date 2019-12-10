@@ -1027,7 +1027,7 @@ type DidSaveTextDocumentParams struct {
 	 * Optional the content when saved. Depends on the includeText value
 	 * when the save notification was requested.
 	 */
-	Text string `json:"text,omitempty"`
+	Text *string `json:"text,omitempty"`
 }
 
 type DocumentColorClientCapabilities struct {

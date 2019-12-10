@@ -30,12 +30,15 @@ func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocume
 }
 
 func (s *Server) didSave(ctx context.Context, params *protocol.DidSaveTextDocumentParams) error {
-	return s.didModifyFile(ctx, source.FileModification{
+	c := source.FileModification{
 		URI:     span.NewURI(params.TextDocument.URI),
 		Action:  source.Save,
 		Version: params.TextDocument.Version,
-		Text:    []byte(params.Text),
-	})
+	}
+	if params.Text != nil {
+		c.Text = []byte(*params.Text)
+	}
+	return s.didModifyFile(ctx, c)
 }
 
 func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocumentParams) error {

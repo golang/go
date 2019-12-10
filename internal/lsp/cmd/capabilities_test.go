@@ -101,6 +101,19 @@ func TestCapabilities(t *testing.T) {
 			t.Errorf("unexpected command for import organization")
 		}
 	}
+
+	if err := c.Server.DidSave(ctx, &protocol.DidSaveTextDocumentParams{
+		TextDocument: protocol.VersionedTextDocumentIdentifier{
+			Version: 2,
+			TextDocumentIdentifier: protocol.TextDocumentIdentifier{
+				URI: uri,
+			},
+		},
+		// LSP specifies that a file can be saved with optional text, so this field must be nil.
+		Text: nil,
+	}); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func validateCapabilities(result *protocol.InitializeResult) error {
