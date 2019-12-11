@@ -561,6 +561,12 @@ func deferreturn(arg0 uintptr) {
 	d.fn = nil
 	gp._defer = d.link
 	freedefer(d)
+	// If the defer function pointer is nil, force the seg fault to happen
+	// here rather than in jmpdefer. gentraceback() throws an error if it is
+	// called with a callback on an LR architecture and jmpdefer is on the
+	// stack, because the stack trace can be incorrect in that case - see
+	// issue #8153).
+	_ = fn.fn
 	jmpdefer(fn, uintptr(unsafe.Pointer(&arg0)))
 }
 
