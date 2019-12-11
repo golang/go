@@ -50,6 +50,8 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		return Typ[Invalid]
 	}
 
+	// TODO(gri) should we check for len(tparams) == 0?
+
 	// check bounds
 	for i, tname := range tparams {
 		targ := targs[i]
@@ -62,7 +64,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		//           (keeping it may make sense because it's a common scenario and it may
 		//           be more efficient to check)
 		if tpar.bound == nil {
-			continue // no bound (optimization)
+			continue // no type bound (optimization)
 		}
 
 		// best position for error reporting
@@ -73,6 +75,16 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 
 		// determine type parameter bound
 		iface := tpar.Interface()
+
+		//check.dump(">>> %s: iface before: %s", pos, iface)
+		bound := check.subst(pos, tpar.bound, tparams, targs).Underlying()
+		switch b := bound.(type) {
+		case *Interface:
+			iface = b
+		case *Contract:
+			iface = b.ifaceAt(i)
+		}
+		//check.dump(">>> %s: iface after : %s", pos, iface)
 
 		// targ must implement iface (methods)
 		if m, _ := check.missingMethod(targ, iface, true); m != nil {
@@ -124,7 +136,7 @@ func includesType(typ Type, iface *Interface) bool {
 // subst returns the type typ with its type parameters tparams replaced by
 // the corresponding type arguments targs, recursively.
 func (check *Checker) subst(pos token.Pos, typ Type, tpars []*TypeName, targs []Type) Type {
-	assert(len(tpars) == len(targs)) // bounds may have only some type parameters
+	assert(len(tpars) == len(targs))
 	if len(tpars) == 0 {
 		return typ
 	}

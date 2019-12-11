@@ -5,8 +5,8 @@ TODO
 - interface embedding doesn't take care of literal type constraints yet
   (need an allTypes list, like we have an allMethods list?)
 
-
 OPEN ISSUES
+- contracts slip through in places where only types are permitted
 
 
 DESIGN DECISIONS

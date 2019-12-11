@@ -51,7 +51,7 @@ func New (type Node, Edge G) (nodes []Node) *Graph(Node, Edge) { panic("unimplem
 
 type AltGraph (type Node NodeFace(Edge), Edge EdgeFace(Node)) struct { }
 
-// func AltNew (type Node NodeFace(Edge), Edge EdgeFace(Node)) (nodes []Node) *AltGraph(Node, Edge) { panic("unimplemented") }
+func AltNew (type Node NodeFace(Edge), Edge EdgeFace(Node)) (nodes []Node) *AltGraph(Node, Edge) { panic("unimplemented") }
 
 type NodeFace(type Edge) interface {
 	Edges() []Edge
