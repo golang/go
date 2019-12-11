@@ -1691,8 +1691,7 @@ func lockextra(nilokay bool) *m {
 	for {
 		old := atomic.Loaduintptr(&extram)
 		if old == locked {
-			yield := osyield
-			yield()
+			osyield()
 			continue
 		}
 		if old == 0 && !nilokay {
@@ -1709,8 +1708,7 @@ func lockextra(nilokay bool) *m {
 		if atomic.Casuintptr(&extram, old, locked) {
 			return (*m)(unsafe.Pointer(old))
 		}
-		yield := osyield
-		yield()
+		osyield()
 		continue
 	}
 }
