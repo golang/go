@@ -110,3 +110,56 @@ func TestAddMaterializedSymbol(t *testing.T) {
 		}
 	}
 }
+
+func TestOuterSub(t *testing.T) {
+	ldr := NewLoader(0)
+	dummyOreader := oReader{version: -1}
+	or := &dummyOreader
+
+	// Populate loader with some symbols.
+	addDummyObjSym(t, ldr, or, "type.uint8")
+	es1 := ldr.AddExtSym("outer", 0)
+	es2 := ldr.AddExtSym("sub1", 0)
+	es3 := ldr.AddExtSym("sub2", 0)
+
+	// Should not have an outer sym initially
+	if ldr.OuterSym(es1) != 0 {
+		t.Errorf("es1 outer sym set ")
+	}
+	if ldr.SubSym(es2) != 0 {
+		t.Errorf("es2 outer sym set ")
+	}
+
+	// Establish first outer/sub relationship
+	ldr.PrependSub(es1, es2)
+	if ldr.OuterSym(es1) != 0 {
+		t.Errorf("ldr.OuterSym(es1) got %d wanted %d", ldr.OuterSym(es1), 0)
+	}
+	if ldr.OuterSym(es2) != es1 {
+		t.Errorf("ldr.OuterSym(es2) got %d wanted %d", ldr.OuterSym(es2), es1)
+	}
+	if ldr.SubSym(es1) != es2 {
+		t.Errorf("ldr.SubSym(es1) got %d wanted %d", ldr.SubSym(es1), es2)
+	}
+	if ldr.SubSym(es2) != 0 {
+		t.Errorf("ldr.SubSym(es2) got %d wanted %d", ldr.SubSym(es2), 0)
+	}
+
+	// Establish second outer/sub relationship
+	ldr.PrependSub(es1, es3)
+	if ldr.OuterSym(es1) != 0 {
+		t.Errorf("ldr.OuterSym(es1) got %d wanted %d", ldr.OuterSym(es1), 0)
+	}
+	if ldr.OuterSym(es2) != es1 {
+		t.Errorf("ldr.OuterSym(es2) got %d wanted %d", ldr.OuterSym(es2), es1)
+	}
+	if ldr.OuterSym(es3) != es1 {
+		t.Errorf("ldr.OuterSym(es3) got %d wanted %d", ldr.OuterSym(es3), es1)
+	}
+	if ldr.SubSym(es1) != es3 {
+		t.Errorf("ldr.SubSym(es1) got %d wanted %d", ldr.SubSym(es1), es3)
+	}
+	if ldr.SubSym(es3) != es2 {
+		t.Errorf("ldr.SubSym(es3) got %d wanted %d", ldr.SubSym(es3), es2)
+	}
+}
