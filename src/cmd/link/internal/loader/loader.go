@@ -185,6 +185,14 @@ type Loader struct {
 	attrCgoExportDynamic map[Sym]struct{} // "cgo_export_dynamic" symbols
 	attrCgoExportStatic  map[Sym]struct{} // "cgo_export_static" symbols
 
+	// Outer and Sub relations for symbols.
+	// TODO: figure out whether it's more efficient to just have these
+	// as fields on extSymPayload (note that this won't be a viable
+	// strategy if somewhere in the linker we set sub/outer for a
+	// non-external sym).
+	outer map[Sym]Sym
+	sub   map[Sym]Sym
+
 	// Used to implement field tracking; created during deadcode if
 	// field tracking is enabled. Reachparent[K] contains the index of
 	// the symbol that triggered the marking of symbol K as live.
@@ -220,6 +228,8 @@ func NewLoader(flags uint32) *Loader {
 		objs:          []objIdx{{nil, 0, 0}},
 		symsByName:    [2]map[string]Sym{make(map[string]Sym), make(map[string]Sym)},
 		objByPkg:      make(map[string]*oReader),
+		outer:         make(map[Sym]Sym),
+		sub:           make(map[Sym]Sym),
 		overwrite:     make(map[Sym]Sym),
 		itablink:      make(map[Sym]struct{}),
 		extStaticSyms: make(map[nameVer]Sym),
@@ -816,6 +826,34 @@ func (l *Loader) SetAttrCgoExportStatic(i Sym, v bool) {
 	}
 }
 
+// AttrSubSymbol returns true for symbols that are listed as a
+// sub-symbol of some other outer symbol. The sub/outer mechanism is
+// used when loading host objects (sections from the host object
+// become regular linker symbols and symbols go on the Sub list of
+// their section) and for constructing the global offset table when
+// internally linking a dynamic executable.
+func (l *Loader) AttrSubSymbol(i Sym) bool {
+	// we don't explicitly store this attribute any more -- return
+	// a value based on the sub-symbol setting.
+	return l.OuterSym(i) != 0
+}
+
+// AttrContainer returns true for symbols that are listed as a
+// sub-symbol of some other outer symbol. The sub/outer mechanism is
+// used when loading host objects (sections from the host object
+// become regular linker symbols and symbols go on the Sub list of
+// their section) and for constructing the global offset table when
+// internally linking a dynamic executable.
+func (l *Loader) AttrContainer(i Sym) bool {
+	// we don't explicitly store this attribute any more -- return
+	// a value based on the sub-symbol setting.
+	return l.SubSym(i) != 0
+}
+
+// Note that we don't have SetAttrSubSymbol' or 'SetAttrContainer' methods
+// in the loader; clients should just use methods like PrependSub
+// to establish these relationships
+
 // Returns whether the i-th symbol has ReflectMethod attribute set.
 func (l *Loader) IsReflectMethod(i Sym) bool {
 	return l.SymAttr(i)&goobj2.SymFlagReflectMethod != 0
@@ -916,6 +954,30 @@ func (l *Loader) ReadAuxSyms(symIdx Sym, dst []Sym) []Sym {
 	return dst
 }
 
+// PrependSub prepends 'sub' onto the sub list for outer symbol 'outer'.
+// Will panic if 'sub' already has an outer sym or sub sym.
+// FIXME: should this be instead a method on SymbolBuilder?
+func (l *Loader) PrependSub(outer Sym, sub Sym) {
+	if l.Syms[outer] != nil {
+		panic("not implemented for sym.Symbol based syms")
+	}
+	// NB: this presupposes that an outer sym can't be a sub symbol of
+	// some other outer-outer sym (I'm assuming this is true, but I
+	// haven't tested exhaustively).
+	if l.OuterSym(outer) != 0 {
+		panic("outer has outer itself")
+	}
+	if l.SubSym(sub) != 0 {
+		panic("sub set for subsym")
+	}
+	if l.OuterSym(sub) != 0 {
+		panic("outer already set for subsym")
+	}
+	l.sub[sub] = l.sub[outer]
+	l.sub[outer] = sub
+	l.outer[sub] = outer
+}
+
 // OuterSym gets the outer symbol for host object loaded symbols.
 func (l *Loader) OuterSym(i Sym) Sym {
 	sym := l.Syms[i]
@@ -923,7 +985,8 @@ func (l *Loader) OuterSym(i Sym) Sym {
 		outer := sym.Outer
 		return l.Lookup(outer.Name, int(outer.Version))
 	}
-	return 0
+	// FIXME: add check for isExternal?
+	return l.outer[i]
 }
 
 // SubSym gets the subsymbol for host object loaded symbols.
@@ -933,7 +996,9 @@ func (l *Loader) SubSym(i Sym) Sym {
 		sub := sym.Sub
 		return l.Lookup(sub.Name, int(sub.Version))
 	}
-	return 0
+	// NB: note -- no check for l.isExternal(), since I am pretty sure
+	// that later phases in the linker set subsym for "type." syms
+	return l.sub[i]
 }
 
 // Initialize Reachable bitmap and its siblings for running deadcode pass.
