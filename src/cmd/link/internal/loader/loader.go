@@ -211,7 +211,11 @@ type Loader struct {
 	flags uint32
 
 	strictDupMsgs int // number of strict-dup warning/errors, when FlagStrictDups is enabled
+
+	elfsetstring elfsetstringFunc
 }
+
+type elfsetstringFunc func(s *sym.Symbol, str string, off int)
 
 // extSymPayload holds the payload (data + relocations) for linker-synthesized
 // external symbols (note that symbol value is stored in a separate slice).
@@ -229,7 +233,7 @@ const (
 	FlagStrictDups = 1 << iota
 )
 
-func NewLoader(flags uint32) *Loader {
+func NewLoader(flags uint32, elfsetstring elfsetstringFunc) *Loader {
 	nbuiltin := goobj2.NBuiltin()
 	return &Loader{
 		start:                make(map[*oReader]Sym),
@@ -252,6 +256,7 @@ func NewLoader(flags uint32) *Loader {
 		extStaticSyms:        make(map[nameVer]Sym),
 		builtinSyms:          make([]Sym, nbuiltin),
 		flags:                flags,
+		elfsetstring:         elfsetstring,
 	}
 }
 
@@ -390,6 +395,21 @@ func (l *Loader) getPayload(i Sym) *extSymPayload {
 	}
 	pi := i - l.extStart
 	return &l.payloads[pi]
+}
+
+func (ms *extSymPayload) Grow(siz int64) {
+	if int64(int(siz)) != siz {
+		log.Fatalf("symgrow size %d too long", siz)
+	}
+	if int64(len(ms.data)) >= siz {
+		return
+	}
+	if cap(ms.data) < int(siz) {
+		cl := len(ms.data)
+		ms.data = append(ms.data, make([]byte, int(siz)+1-cl)...)
+		ms.data = ms.data[0:cl]
+	}
+	ms.data = ms.data[:siz]
 }
 
 // Ensure Syms slice has enough space, as well as growing the

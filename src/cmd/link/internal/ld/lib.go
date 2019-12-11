@@ -388,7 +388,7 @@ func (ctxt *Link) loadlib() {
 	default:
 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
 	}
-	ctxt.loader = loader.NewLoader(flags)
+	ctxt.loader = loader.NewLoader(flags, elfsetstring)
 
 	ctxt.cgo_export_static = make(map[string]bool)
 	ctxt.cgo_export_dynamic = make(map[string]bool)
