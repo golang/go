@@ -210,21 +210,68 @@ func (e *NoGoError) Error() string {
 	return "no Go files in " + e.Package.Dir
 }
 
-// rewordError returns a version of err with trivial layers removed and
-// (possibly-wrapped) instances of build.NoGoError replaced with load.NoGoError,
-// which more clearly distinguishes sub-cases.
-func (p *Package) rewordError(err error) error {
-	if mErr, ok := err.(*search.MatchError); ok && mErr.Match.IsLiteral() {
-		err = mErr.Err
+// setLoadPackageDataError presents an error found when loading package data
+// as a *PackageError. It has special cases for some common errors to improve
+// messages shown to users and reduce redundancy.
+//
+// setLoadPackageDataError returns true if it's safe to load information about
+// imported packages, for example, if there was a parse error loading imports
+// in one file, but other files are okay.
+//
+// TODO(jayconrod): we should probably return nothing and always try to load
+// imported packages.
+func (p *Package) setLoadPackageDataError(err error, path string, stk *ImportStack) (canLoadImports bool) {
+	// Include the path on the import stack unless the error includes it already.
+	errHasPath := false
+	if impErr, ok := err.(ImportPathError); ok && impErr.ImportPath() == path {
+		errHasPath = true
+	} else if matchErr, ok := err.(*search.MatchError); ok && matchErr.Match.Pattern() == path {
+		errHasPath = true
+		if matchErr.Match.IsLiteral() {
+			// The error has a pattern has a pattern similar to the import path.
+			// It may be slightly different (./foo matching example.com/foo),
+			// but close enough to seem redundant.
+			// Unwrap the error so we don't show the pattern.
+			err = matchErr.Err
+		}
 	}
-	var noGo *build.NoGoError
-	if errors.As(err, &noGo) {
-		if p.Dir == "" && noGo.Dir != "" {
-			p.Dir = noGo.Dir
+	var errStk []string
+	if errHasPath {
+		errStk = stk.Copy()
+	} else {
+		stk.Push(path)
+		errStk = stk.Copy()
+		stk.Pop()
+	}
+
+	// Replace (possibly wrapped) *build.NoGoError with *load.NoGoError.
+	// The latter is more specific about the cause.
+	var nogoErr *build.NoGoError
+	if errors.As(err, &nogoErr) {
+		if p.Dir == "" && nogoErr.Dir != "" {
+			p.Dir = nogoErr.Dir
 		}
 		err = &NoGoError{Package: p}
 	}
-	return err
+
+	// Take only the first error from a scanner.ErrorList. PackageError only
+	// has room for one position, so we report the first error with a position
+	// instead of all of the errors without a position.
+	var pos string
+	if scanErr, ok := err.(scanner.ErrorList); ok && len(scanErr) > 0 {
+		scanPos := scanErr[0].Pos
+		scanPos.Filename = base.ShortPath(scanPos.Filename)
+		pos = scanPos.String()
+		err = errors.New(scanErr[0].Msg)
+		canLoadImports = true
+	}
+
+	p.Error = &PackageError{
+		ImportStack: errStk,
+		Pos:         pos,
+		Err:         err,
+	}
+	return canLoadImports
 }
 
 // Resolve returns the resolved version of imports,
@@ -1554,21 +1601,10 @@ func (p *Package) load(path string, stk *ImportStack, bp *build.Package, err err
 
 	if err != nil {
 		p.Incomplete = true
-		// Report path in error stack unless err is an ImportPathError with path already set.
-		pushed := false
-		if e, ok := err.(ImportPathError); !ok || e.ImportPath() != path {
-			stk.Push(path)
-			pushed = true // Remember to pop after setError.
-		}
-		setError(base.ExpandScanner(p.rewordError(err)))
-		if pushed {
-			stk.Pop()
-		}
-		if _, isScanErr := err.(scanner.ErrorList); !isScanErr {
+		canLoadImports := p.setLoadPackageDataError(err, path, stk)
+		if !canLoadImports {
 			return
 		}
-		// Fall through if there was an error parsing a file. 'go list -e' should
-		// still report imports and other metadata.
 	}
 
 	useBindir := p.Name == "main"
@@ -2136,10 +2172,8 @@ func PackagesAndErrors(patterns []string) []*Package {
 			// Report it as a synthetic package.
 			p := new(Package)
 			p.ImportPath = m.Pattern()
-			p.Error = &PackageError{
-				ImportStack: nil, // The error arose from a pattern, not an import.
-				Err:         p.rewordError(m.Errs[0]),
-			}
+			var stk ImportStack // empty stack, since the error arose from a pattern, not an import
+			p.setLoadPackageDataError(m.Errs[0], m.Pattern(), &stk)
 			p.Incomplete = true
 			p.Match = append(p.Match, m.Pattern())
 			p.Internal.CmdlinePkg = true
