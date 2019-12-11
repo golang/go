@@ -1,8 +1,34 @@
-env GO111MODULE=off
+env GO111MODULE=on
 
-# Issue 35837. Verify that "go vet -<analyzer> <std package>" works if 'pwd' is not $GOROOT/src
-# we utilize the package runtime/testdata/testprog as the issue is specific to vetting standard package
-
-go vet -n -unreachable=false runtime/testdata/testprog
+# Regression test for issue 35837: "go vet -<analyzer> <std package>"
+# did not apply the requested analyzer.
+go vet -n -unreachable=false encoding/binary
 stderr '-unreachable=false'
-stderr '-unsafeptr=false'
+! stderr '-unsafeptr=false'
+
+[short] stop
+env GOCACHE=$WORK/gocache
+env GOTMPDIR=$WORK/tmp
+go env GOTMPDIR
+stdout '/tmp'
+
+# "go test" on a user package should by default enable an explicit whitelist of analyzers.
+go test -x -run=none .
+stderr '[/\\]vet'$GOEXE'["]? .* -errorsas .* ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
+
+# "go test" on a standard package should by default disable an explicit blacklist.
+go test -x -run=none encoding/binary
+stderr '[/\\]vet'$GOEXE'["]? -unsafeptr=false ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
+
+# Both should allow users to override via the -vet flag.
+go test -x -vet=unreachable -run=none .
+stderr '[/\\]vet'$GOEXE'["]? -unreachable ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
+go test -x -vet=unreachable -run=none encoding/binary
+stderr '[/\\]vet'$GOEXE'["]? -unreachable ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
+
+-- go.mod --
+module example.com/x
+-- x.go --
+package x
+-- x_test.go --
+package x
