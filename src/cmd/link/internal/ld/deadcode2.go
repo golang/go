@@ -195,9 +195,9 @@ func (d *deadcodePass2) flood() {
 }
 
 func (d *deadcodePass2) mark(symIdx, parent loader.Sym) {
-	if symIdx != 0 && !d.ldr.Reachable.Has(symIdx) {
+	if symIdx != 0 && !d.ldr.AttrReachable(symIdx) {
 		d.wq.push(symIdx)
-		d.ldr.Reachable.Set(symIdx)
+		d.ldr.SetAttrReachable(symIdx, true)
 		if d.ctxt.Reachparent != nil {
 			d.ldr.Reachparent[symIdx] = parent
 		}
@@ -239,7 +239,7 @@ func deadcode2(ctxt *Link) {
 		// Methods might be called via reflection. Give up on
 		// static analysis, mark all exported methods of
 		// all reachable types as reachable.
-		d.reflectSeen = d.reflectSeen || (callSym != 0 && ldr.Reachable.Has(callSym)) || (methSym != 0 && ldr.Reachable.Has(methSym))
+		d.reflectSeen = d.reflectSeen || (callSym != 0 && ldr.AttrReachable(callSym)) || (methSym != 0 && ldr.AttrReachable(methSym))
 
 		// Mark all methods that could satisfy a discovered
 		// interface as reachable. We recheck old marked interfaces
@@ -271,8 +271,8 @@ func deadcode2(ctxt *Link) {
 			s := loader.Sym(i)
 			if ldr.IsItabLink(s) {
 				relocs := ldr.Relocs(s)
-				if relocs.Count > 0 && ldr.Reachable.Has(relocs.At(0).Sym) {
-					ldr.Reachable.Set(s)
+				if relocs.Count > 0 && ldr.AttrReachable(relocs.At(0).Sym) {
+					ldr.SetAttrReachable(s, true)
 				}
 			}
 		}
