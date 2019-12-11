@@ -76,13 +76,19 @@ type nameVer struct {
 type bitmap []uint32
 
 // set the i-th bit.
-func (bm bitmap) Set(i Sym) {
+func (bm bitmap) set(i Sym) {
 	n, r := uint(i)/32, uint(i)%32
 	bm[n] |= 1 << r
 }
 
+// unset the i-th bit.
+func (bm bitmap) unset(i Sym) {
+	n, r := uint(i)/32, uint(i)%32
+	bm[n] &^= (1 << r)
+}
+
 // whether the i-th bit is set.
-func (bm bitmap) Has(i Sym) bool {
+func (bm bitmap) has(i Sym) bool {
 	n, r := uint(i)/32, uint(i)%32
 	return bm[n]&(1<<r) != 0
 }
@@ -100,7 +106,7 @@ func makeBitmap(n int) bitmap {
 func growBitmap(reqLen int, b bitmap) bitmap {
 	curLen := b.len()
 	if reqLen > curLen {
-		b = append(b, makeBitmap(reqLen-curLen)...)
+		b = append(b, makeBitmap(reqLen+1-curLen)...)
 	}
 	return b
 }
@@ -161,7 +167,22 @@ type Loader struct {
 
 	anonVersion int // most recently assigned ext static sym pseudo-version
 
-	Reachable bitmap // bitmap of reachable symbols, indexed by global index
+	// Bitmaps and other side structures used to store data used to store
+	// symbol flags/attributes; these are to be accessed via the
+	// corresponding loader "AttrXXX" and "SetAttrXXX" methods. Please
+	// visit the comments on these methods for more details on the
+	// semantics / interpretation of the specific flags or attribute.
+	attrReachable        bitmap // reachable symbols, indexed by global index
+	attrOnList           bitmap // "on list" symbols, indexed by global index
+	attrVisibilityHidden bitmap // hidden symbols, indexed by ext sym index
+	attrDuplicateOK      bitmap // dupOK symbols, indexed by ext sym index
+	attrShared           bitmap // shared symbols, indexed by ext sym index
+	attrExternal         bitmap // external symbols, indexed by ext sym index
+
+	attrTopFrame         map[Sym]struct{} // top frame symbols
+	attrSpecial          map[Sym]struct{} // "special" frame symbols
+	attrCgoExportDynamic map[Sym]struct{} // "cgo_export_dynamic" symbols
+	attrCgoExportStatic  map[Sym]struct{} // "cgo_export_static" symbols
 
 	// Used to implement field tracking; created during deadcode if
 	// field tracking is enabled. Reachparent[K] contains the index of
@@ -343,7 +364,8 @@ func (l *Loader) getPayload(i Sym) *extSymPayload {
 	return &l.payloads[pi]
 }
 
-// Ensure Syms slice has enough space.
+// Ensure Syms slice has enough space, as well as growing the
+// 'payloads' slice.
 func (l *Loader) growSyms(i int) {
 	n := len(l.Syms)
 	if n > i {
@@ -351,7 +373,7 @@ func (l *Loader) growSyms(i int) {
 	}
 	l.Syms = append(l.Syms, make([]*sym.Symbol, i+1-n)...)
 	l.payloads = append(l.payloads, make([]extSymPayload, i+1-n)...)
-	l.growReachable(int(i))
+	l.growAttrBitmaps(int(i) + 1)
 }
 
 // Convert a local index to a global index.
@@ -586,6 +608,212 @@ func (l *Loader) SymAttr(i Sym) uint8 {
 	return osym.Flag
 }
 
+// AttrReachable returns true for symbols that are transitively
+// referenced from the entry points. Unreachable symbols are not
+// written to the output.
+func (l *Loader) AttrReachable(i Sym) bool {
+	return l.attrReachable.has(i)
+}
+
+// SetAttrReachable sets the reachability property for a symbol (see
+// AttrReachable).
+func (l *Loader) SetAttrReachable(i Sym, v bool) {
+	if v {
+		l.attrReachable.set(i)
+	} else {
+		l.attrReachable.unset(i)
+	}
+}
+
+// AttrOnList returns true for symbols that are on some list (such as
+// the list of all text symbols, or one of the lists of data symbols)
+// and is consulted to avoid bugs where a symbol is put on a list
+// twice.
+func (l *Loader) AttrOnList(i Sym) bool {
+	return l.attrOnList.has(i)
+}
+
+// SetAttrOnList sets the "on list" property for a symbol (see
+// AttrOnList).
+func (l *Loader) SetAttrOnList(i Sym, v bool) {
+	if v {
+		l.attrOnList.set(i)
+	} else {
+		l.attrOnList.unset(i)
+	}
+}
+
+// AttrVisibilityHidden symbols returns true for ELF symbols with
+// visibility set to STV_HIDDEN. They become local symbols in
+// the final executable. Only relevant when internally linking
+// on an ELF platform.
+func (l *Loader) AttrVisibilityHidden(i Sym) bool {
+	if i < l.extStart {
+		return false
+	}
+	return l.attrVisibilityHidden.has(i - l.extStart)
+}
+
+// SetAttrVisibilityHidden sets the "hidden visibility" property for a
+// symbol (see AttrVisibilityHidden).
+func (l *Loader) SetAttrVisibilityHidden(i Sym, v bool) {
+	if i < l.extStart {
+		panic("tried to set visibility attr on non-external symbol")
+	}
+	if v {
+		l.attrVisibilityHidden.set(i - l.extStart)
+	} else {
+		l.attrVisibilityHidden.unset(i - l.extStart)
+	}
+}
+
+// AttrDuplicateOK returns true for a symbol that can be present in
+// multiple object files.
+func (l *Loader) AttrDuplicateOK(i Sym) bool {
+	if i < l.extStart {
+		// TODO: if this path winds up being taken frequently, it
+		// might make more sense to copy the flag value out of the object
+		// into a larger bitmap during preload.
+		r, li := l.toLocal(i)
+		osym := goobj2.Sym{}
+		osym.Read(r.Reader, r.SymOff(li))
+		return osym.Dupok()
+	}
+	return l.attrDuplicateOK.has(i - l.extStart)
+}
+
+// SetAttrDuplicateOK sets the "duplicate OK" property for an external
+// symbol (see AttrDuplicateOK).
+func (l *Loader) SetAttrDuplicateOK(i Sym, v bool) {
+	if i < l.extStart {
+		panic("tried to set dupok attr on non-external symbol")
+	}
+	if v {
+		l.attrDuplicateOK.set(i - l.extStart)
+	} else {
+		l.attrDuplicateOK.unset(i - l.extStart)
+	}
+}
+
+// AttrShared returns true for symbols compiled with the -shared option.
+func (l *Loader) AttrShared(i Sym) bool {
+	if i < l.extStart {
+		// TODO: if this path winds up being taken frequently, it
+		// might make more sense to copy the flag value out of the
+		// object into a larger bitmap during preload.
+		r, _ := l.toLocal(i)
+		return (r.Flags() & goobj2.ObjFlagShared) != 0
+	}
+	return l.attrShared.has(i - l.extStart)
+}
+
+// SetAttrShared sets the "shared" property for an external
+// symbol (see AttrShared).
+func (l *Loader) SetAttrShared(i Sym, v bool) {
+	if i < l.extStart {
+		panic("tried to set shared attr on non-external symbol")
+	}
+	if v {
+		l.attrShared.set(i - l.extStart)
+	} else {
+		l.attrShared.unset(i - l.extStart)
+	}
+}
+
+// AttrExternal returns true for function symbols loaded from host
+// object files.
+func (l *Loader) AttrExternal(i Sym) bool {
+	if i < l.extStart {
+		return false
+	}
+	return l.attrExternal.has(i - l.extStart)
+}
+
+// SetAttrExternal sets the "external" property for an host object
+// symbol (see AttrExternal).
+func (l *Loader) SetAttrExternal(i Sym, v bool) {
+	if i < l.extStart {
+		panic("tried to set external attr on non-external symbol")
+	}
+	if v {
+		l.attrExternal.set(i - l.extStart)
+	} else {
+		l.attrExternal.unset(i - l.extStart)
+	}
+}
+
+// AttrTopFrame returns true for a function symbol that is an entry
+// point, meaning that unwinders should stop when they hit this
+// function.
+func (l *Loader) AttrTopFrame(i Sym) bool {
+	_, ok := l.attrTopFrame[i]
+	return ok
+}
+
+// SetAttrTopFrame sets the "top frame" property for a symbol (see
+// AttrTopFrame).
+func (l *Loader) SetAttrTopFrame(i Sym, v bool) {
+	if v {
+		l.attrTopFrame[i] = struct{}{}
+	} else {
+		delete(l.attrTopFrame, i)
+	}
+}
+
+// AttrSpecial returns true for a symbols that do not have their
+// address (i.e. Value) computed by the usual mechanism of
+// data.go:dodata() & data.go:address().
+func (l *Loader) AttrSpecial(i Sym) bool {
+	_, ok := l.attrSpecial[i]
+	return ok
+}
+
+// SetAttrSpecial sets the "special" property for a symbol (see
+// AttrSpecial).
+func (l *Loader) SetAttrSpecial(i Sym, v bool) {
+	if v {
+		l.attrSpecial[i] = struct{}{}
+	} else {
+		delete(l.attrSpecial, i)
+	}
+}
+
+// AttrCgoExportDynamic returns true for a symbol that has been
+// specially marked via the "cgo_export_dynamic" compiler directive
+// written by cgo (in response to //export directives in the source).
+func (l *Loader) AttrCgoExportDynamic(i Sym) bool {
+	_, ok := l.attrCgoExportDynamic[i]
+	return ok
+}
+
+// SetAttrCgoExportDynamic sets the "cgo_export_dynamic" for a symbol
+// (see AttrCgoExportDynamic).
+func (l *Loader) SetAttrCgoExportDynamic(i Sym, v bool) {
+	if v {
+		l.attrCgoExportDynamic[i] = struct{}{}
+	} else {
+		delete(l.attrCgoExportDynamic, i)
+	}
+}
+
+// AttrCgoExportStatic returns true for a symbol that has been
+// specially marked via the "cgo_export_static" directive
+// written by cgo.
+func (l *Loader) AttrCgoExportStatic(i Sym) bool {
+	_, ok := l.attrCgoExportStatic[i]
+	return ok
+}
+
+// SetAttrCgoExportStatic sets the "cgo_export_dynamic" for a symbol
+// (see AttrCgoExportStatic).
+func (l *Loader) SetAttrCgoExportStatic(i Sym, v bool) {
+	if v {
+		l.attrCgoExportStatic[i] = struct{}{}
+	} else {
+		delete(l.attrCgoExportStatic, i)
+	}
+}
+
 // Returns whether the i-th symbol has ReflectMethod attribute set.
 func (l *Loader) IsReflectMethod(i Sym) bool {
 	return l.SymAttr(i)&goobj2.SymFlagReflectMethod != 0
@@ -688,15 +916,28 @@ func (l *Loader) SubSym(i Sym) Sym {
 	return 0
 }
 
-// Initialize Reachable bitmap for running deadcode pass.
+// Initialize Reachable bitmap and its siblings for running deadcode pass.
 func (l *Loader) InitReachable() {
-	l.growReachable(l.NSym())
+	l.growAttrBitmaps(l.NSym() + 1)
 }
 
-// Insure that reachable bitmap has enough size.
-func (l *Loader) growReachable(reqLen int) {
-	if reqLen > l.Reachable.len() {
-		l.Reachable = growBitmap(reqLen, l.Reachable)
+// Insure that reachable bitmap and its siblings have enough size.
+func (l *Loader) growAttrBitmaps(reqLen int) {
+	if reqLen > l.attrReachable.len() {
+		// These are indexed by global symbol
+		l.attrReachable = growBitmap(reqLen, l.attrReachable)
+		l.attrOnList = growBitmap(reqLen, l.attrReachable)
+	}
+	// These are indexed by external symbol offset (e.g. i - l.extStart)
+	if l.extStart == 0 {
+		return
+	}
+	extReqLen := reqLen - int(l.extStart)
+	if extReqLen > l.attrVisibilityHidden.len() {
+		l.attrVisibilityHidden = growBitmap(extReqLen, l.attrVisibilityHidden)
+		l.attrDuplicateOK = growBitmap(extReqLen, l.attrDuplicateOK)
+		l.attrShared = growBitmap(extReqLen, l.attrShared)
+		l.attrExternal = growBitmap(extReqLen, l.attrExternal)
 	}
 }
 
@@ -933,12 +1174,12 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 	// external symbols
 	for i := l.extStart; i <= l.max; i++ {
 		if s := l.Syms[i]; s != nil {
-			s.Attr.Set(sym.AttrReachable, l.Reachable.Has(i))
+			s.Attr.Set(sym.AttrReachable, l.attrReachable.has(i))
 			continue // already loaded from external object
 		}
 		sname := l.payloads[i-l.extStart].name
 		sver := l.payloads[i-l.extStart].ver
-		if l.Reachable.Has(i) || strings.HasPrefix(sname, "gofile..") { // XXX file symbols are used but not marked
+		if l.attrReachable.has(i) || strings.HasPrefix(sname, "gofile..") { // XXX file symbols are used but not marked
 			s := l.allocSym(sname, sver)
 			pp := l.getPayload(i)
 			if pp != nil {
@@ -950,7 +1191,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 				}
 			}
 			preprocess(arch, s)
-			s.Attr.Set(sym.AttrReachable, l.Reachable.Has(i))
+			s.Attr.Set(sym.AttrReachable, l.attrReachable.has(i))
 			l.installSym(i, s)
 		}
 	}
@@ -1033,7 +1274,7 @@ func (l *Loader) installSym(i Sym, s *sym.Symbol) {
 		panic("installSym nil symbol")
 	}
 	if l.Syms[i] != nil {
-		panic("sym already present in addNewSym")
+		panic("sym already present in installSym")
 	}
 	if l.IsExternal(i) {
 		// temporary sanity check: make sure that the payload
@@ -1074,7 +1315,7 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 		// If it's been previously loaded in host object loading, we don't need to do it again.
 		if s := l.Syms[istart+Sym(i)]; s != nil {
 			// Mark symbol as reachable as it wasn't marked as such before.
-			s.Attr.Set(sym.AttrReachable, l.Reachable.Has(istart+Sym(i)))
+			s.Attr.Set(sym.AttrReachable, l.attrReachable.has(istart+Sym(i)))
 			nr += r.NReloc(i)
 			continue
 		}
@@ -1096,7 +1337,7 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 		if t == 0 {
 			log.Fatalf("missing type for %s in %s", name, r.unit.Lib)
 		}
-		if !l.Reachable.Has(istart+Sym(i)) && !(t == sym.SRODATA && strings.HasPrefix(name, "type.")) && name != "runtime.addmoduledata" && name != "runtime.lastmoduledatap" {
+		if !l.attrReachable.has(istart+Sym(i)) && !(t == sym.SRODATA && strings.HasPrefix(name, "type.")) && name != "runtime.addmoduledata" && name != "runtime.lastmoduledatap" {
 			// No need to load unreachable symbols.
 			// XXX some type symbol's content may be needed in DWARF code, but they are not marked.
 			// XXX reference to runtime.addmoduledata may be generated later by the linker in plugin mode.
@@ -1104,7 +1345,7 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 		}
 
 		s := l.addNewSym(istart+Sym(i), name, ver, r.unit, t)
-		s.Attr.Set(sym.AttrReachable, l.Reachable.Has(istart+Sym(i)))
+		s.Attr.Set(sym.AttrReachable, l.attrReachable.has(istart+Sym(i)))
 		nr += r.NReloc(i)
 	}
 	return nr
@@ -1233,7 +1474,7 @@ func loadObjFull(l *Loader, r *oReader) {
 		dupok := osym.Dupok()
 		if dupok {
 			if dupsym := l.symsByName[ver][name]; dupsym != istart+Sym(i) {
-				if l.Reachable.Has(dupsym) {
+				if l.attrReachable.has(dupsym) {
 					// A dupok symbol is resolved to another package. We still need
 					// to record its presence in the current package, as the trampoline
 					// pass expects packages are laid out in dependency order.
@@ -1275,14 +1516,14 @@ func loadObjFull(l *Loader, r *oReader) {
 			sz := r.Size
 			rt := r.Type
 			if rt == objabi.R_METHODOFF {
-				if l.Reachable.Has(rs) {
+				if l.attrReachable.has(rs) {
 					rt = objabi.R_ADDROFF
 				} else {
 					sz = 0
 					rs = 0
 				}
 			}
-			if rt == objabi.R_WEAKADDROFF && !l.Reachable.Has(rs) {
+			if rt == objabi.R_WEAKADDROFF && !l.attrReachable.has(rs) {
 				rs = 0
 				sz = 0
 			}

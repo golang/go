@@ -6,6 +6,7 @@ package loader
 
 import (
 	"cmd/link/internal/sym"
+	"fmt"
 	"testing"
 )
 
@@ -51,5 +52,48 @@ func TestAddMaterializedSymbol(t *testing.T) {
 	es3 := ldr.CreateExtSym("")
 	if es3 == 0 {
 		t.Fatalf("CreateExtSym failed for nameless sym")
+	}
+
+	// New symbols should not initially be reachable.
+	if ldr.AttrReachable(es1) || ldr.AttrReachable(es2) || ldr.AttrReachable(es3) {
+		t.Errorf("newly materialized symbols should not be reachable")
+	}
+
+	// ... however it should be possible to set/unset their reachability.
+	ldr.SetAttrReachable(es3, true)
+	if !ldr.AttrReachable(es3) {
+		t.Errorf("expected reachable symbol after update")
+	}
+	ldr.SetAttrReachable(es3, false)
+	if ldr.AttrReachable(es3) {
+		t.Errorf("expected unreachable symbol after update")
+	}
+
+	// Test expansion of attr bitmaps
+	for idx := 0; idx < 36; idx++ {
+		es := ldr.AddExtSym(fmt.Sprintf("zext%d", idx), 0)
+		if ldr.AttrOnList(es) {
+			t.Errorf("expected OnList after creation")
+		}
+		ldr.SetAttrOnList(es, true)
+		if !ldr.AttrOnList(es) {
+			t.Errorf("expected !OnList after update")
+		}
+		if ldr.AttrDuplicateOK(es) {
+			t.Errorf("expected DupOK after creation")
+		}
+		ldr.SetAttrDuplicateOK(es, true)
+		if !ldr.AttrDuplicateOK(es) {
+			t.Errorf("expected !DupOK after update")
+		}
+	}
+
+	// Get/set a few other attributes
+	if ldr.AttrVisibilityHidden(es3) {
+		t.Errorf("expected initially not hidden")
+	}
+	ldr.SetAttrVisibilityHidden(es3, true)
+	if !ldr.AttrVisibilityHidden(es3) {
+		t.Errorf("expected hidden after update")
 	}
 }
