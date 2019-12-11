@@ -97,12 +97,11 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 			break // nothing to do
 		}
 
-		// if targ is a type parameter, the list of iface types must be a subset of the
-		// list of targ types
-		if t, _ := targ.Underlying().(*TypeParam); t != nil {
-			targFace := t.Interface()
-			for _, t := range iface.types {
-				if !includesType(t, targFace) {
+		// if targ is itself a type parameter, each of its possible types must be in the
+		// list of iface types (i.e., the targ type list must be a subset of the iface types)
+		if targ, _ := targ.Underlying().(*TypeParam); targ != nil {
+			for _, t := range targ.Interface().types {
+				if !includesType(t, iface) {
 					check.softErrorf(pos, "%s does not satisfy %s (missing type %s)", targ, tpar.bound, t)
 					break
 				}

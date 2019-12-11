@@ -3,22 +3,3 @@
 // license that can be found in the LICENSE file.
 
 package p
-
-contract C(T) {
-	T int
-}
-
-type Cm(type T C) T
-
-func (a Cm(T /* ERROR does not satisfy */ )) m() T
-
-// TODO(gri) make this work
-/*
-type C interface {
-	type int
-}
-
-type Cm(type T C) T
-
-func (a Cm(T)) m() T
-*/
