@@ -1444,9 +1444,13 @@ func TestTransportProxy(t *testing.T) {
 
 // Issue 28012: verify that the Transport closes its TCP connection to http proxies
 // when they're slow to reply to HTTPS CONNECT responses.
-func TestTransportProxyHTTPSConnectTimeout(t *testing.T) {
+func TestTransportProxyHTTPSConnectLeak(t *testing.T) {
 	setParallel(t)
 	defer afterTest(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	ln := newLocalListener(t)
 	defer ln.Close()
 	listenerDone := make(chan struct{})
@@ -1469,8 +1473,11 @@ func TestTransportProxyHTTPSConnectTimeout(t *testing.T) {
 			t.Errorf("unexpected method %q", cr.Method)
 			return
 		}
-		// now hang and never write a response; wait for the client to give up on us and
-		// close (prior to Issue 28012 being fixed, we never closed)
+
+		// Now hang and never write a response; instead, cancel the request and wait
+		// for the client to close.
+		// (Prior to Issue 28012 being fixed, we never closed.)
+		cancel()
 		var buf [1]byte
 		_, err = br.Read(buf[:])
 		if err != io.EOF {
@@ -1478,23 +1485,27 @@ func TestTransportProxyHTTPSConnectTimeout(t *testing.T) {
 		}
 		return
 	}()
-	tr := &Transport{
-		Proxy: func(*Request) (*url.URL, error) {
-			return url.Parse("http://" + ln.Addr().String())
+
+	c := &Client{
+		Transport: &Transport{
+			Proxy: func(*Request) (*url.URL, error) {
+				return url.Parse("http://" + ln.Addr().String())
+			},
 		},
 	}
-	c := &Client{Transport: tr, Timeout: 50 * time.Millisecond}
-	_, err := c.Get("https://golang.fake.tld/")
+	req, err := NewRequestWithContext(ctx, "GET", "https://golang.fake.tld/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.Do(req)
 	if err == nil {
 		t.Errorf("unexpected Get success")
 	}
-	timer := time.NewTimer(5 * time.Second)
-	defer timer.Stop()
-	select {
-	case <-listenerDone:
-	case <-timer.C:
-		t.Errorf("timeout waiting for Transport to close its connection to the proxy")
-	}
+
+	// Wait unconditionally for the listener goroutine to exit: this should never
+	// hang, so if it does we want a full goroutine dump — and that's exactly what
+	// the testing package will give us when the test run times out.
+	<-listenerDone
 }
 
 // Issue 16997: test transport dial preserves typed errors
