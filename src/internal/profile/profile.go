@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package profile provides a representation of profile.proto and
-// methods to encode/decode profiles in this format.
-//
-// This package is only for testing runtime/pprof.
-// It is not used by production Go programs.
+// Package profile provides a representation of
+// github.com/google/pprof/proto/profile.proto and
+// methods to encode/decode/merge profiles in this format.
 package profile
 
 import (
@@ -60,6 +58,7 @@ type Sample struct {
 	Value    []int64
 	Label    map[string][]string
 	NumLabel map[string][]int64
+	NumUnit  map[string][]string
 
 	locationIDX []uint64
 	labelX      []Label
@@ -92,10 +91,11 @@ type Mapping struct {
 
 // Location corresponds to Profile.Location
 type Location struct {
-	ID      uint64
-	Mapping *Mapping
-	Address uint64
-	Line    []Line
+	ID       uint64
+	Mapping  *Mapping
+	Address  uint64
+	Line     []Line
+	IsFolded bool
 
 	mappingIDX uint64
 }
@@ -574,4 +574,41 @@ func (p *Profile) Demangle(d Demangler) error {
 // Empty reports whether the profile contains no samples.
 func (p *Profile) Empty() bool {
 	return len(p.Sample) == 0
+}
+
+// Scale multiplies all sample values in a profile by a constant.
+func (p *Profile) Scale(ratio float64) {
+	if ratio == 1 {
+		return
+	}
+	ratios := make([]float64, len(p.SampleType))
+	for i := range p.SampleType {
+		ratios[i] = ratio
+	}
+	p.ScaleN(ratios)
+}
+
+// ScaleN multiplies each sample values in a sample by a different amount.
+func (p *Profile) ScaleN(ratios []float64) error {
+	if len(p.SampleType) != len(ratios) {
+		return fmt.Errorf("mismatched scale ratios, got %d, want %d", len(ratios), len(p.SampleType))
+	}
+	allOnes := true
+	for _, r := range ratios {
+		if r != 1 {
+			allOnes = false
+			break
+		}
+	}
+	if allOnes {
+		return nil
+	}
+	for _, s := range p.Sample {
+		for i, v := range s.Value {
+			if ratios[i] != 1 {
+				s.Value[i] = int64(float64(v) * ratios[i])
+			}
+		}
+	}
+	return nil
 }
