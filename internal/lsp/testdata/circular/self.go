@@ -1,12 +1,5 @@
-package circular //@diag("", "go list", "import cycle not allowed: import stack: [golang.org/x/tools/internal/lsp/circular golang.org/x/tools/internal/lsp/circular]")
+package circular
 
 import (
-	"golang.org/x/tools/internal/lsp/circular"
+	_ "golang.org/x/tools/internal/lsp/circular" //@diag("_ \"golang.org/x/tools/internal/lsp/circular\"", "go list", "import cycle not allowed")
 )
-
-func print() {
-	Test()
-}
-
-func Test() {
-}

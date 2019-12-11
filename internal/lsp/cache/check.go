@@ -331,7 +331,6 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 		return nil, ctx.Err()
 	}
 
-	// TODO(golang/go#35964): Propagate `go list` errors here when go/packages supports it.
 	for _, e := range rawErrors {
 		srcErr, err := sourceError(ctx, fset, pkg, e)
 		if err != nil {
