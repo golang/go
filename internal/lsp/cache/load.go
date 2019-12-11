@@ -80,6 +80,7 @@ func (c *cache) shouldLoad(ctx context.Context, s *snapshot, originalFH, current
 	if originalFH == nil {
 		return true
 	}
+	// If the file is a mod file, we should always load.
 	if originalFH.Identity().Kind == currentFH.Identity().Kind && currentFH.Identity().Kind == source.Mod {
 		return true
 	}

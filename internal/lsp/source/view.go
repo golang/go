@@ -11,6 +11,7 @@ import (
 	"go/token"
 	"go/types"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/imports"
@@ -224,6 +225,9 @@ type Cache interface {
 	// FileSet returns the shared fileset used by all files in the system.
 	FileSet() *token.FileSet
 
+	// ParseGoHandle returns a go.mod ParseGoHandle for the given file handle.
+	ParseModHandle(fh FileHandle) ParseModHandle
+
 	// ParseGoHandle returns a ParseGoHandle for the given file handle.
 	ParseGoHandle(fh FileHandle, mode ParseMode) ParseGoHandle
 }
@@ -248,6 +252,16 @@ type ParseGoHandle interface {
 
 	// Cached returns the AST for this handle, if it has already been stored.
 	Cached() (*ast.File, *protocol.ColumnMapper, error, error)
+}
+
+// ParseModHandle represents a handle to the modfile for a go.mod.
+type ParseModHandle interface {
+	// File returns a file handle for which to get the modfile.
+	File() FileHandle
+
+	// Parse returns the parsed modifle for the go.mod file.
+	// If the file is not available, returns nil and an error.
+	Parse(ctx context.Context) (*modfile.File, error)
 }
 
 // ParseMode controls the content of the AST produced when parsing a source file.

@@ -47,10 +47,6 @@ type parseGoData struct {
 	err        error
 }
 
-func (pgh *parseGoHandle) String() string {
-	return pgh.File().Identity().URI.Filename()
-}
-
 func (c *cache) ParseGoHandle(fh source.FileHandle, mode source.ParseMode) source.ParseGoHandle {
 	key := parseKey{
 		file: fh.Identity(),
@@ -67,6 +63,10 @@ func (c *cache) ParseGoHandle(fh source.FileHandle, mode source.ParseMode) sourc
 		file:   fh,
 		mode:   mode,
 	}
+}
+
+func (pgh *parseGoHandle) String() string {
+	return pgh.File().Identity().URI.Filename()
 }
 
 func (pgh *parseGoHandle) File() source.FileHandle {
