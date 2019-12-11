@@ -466,37 +466,76 @@ See the documentation of the testing package for more information.
 }
 
 var (
-	testC            bool            // -c flag
-	testCover        bool            // -cover flag
-	testCoverMode    string          // -covermode flag
-	testCoverPaths   []string        // -coverpkg flag
-	testCoverPkgs    []*load.Package // -coverpkg flag
-	testCoverProfile string          // -coverprofile flag
-	testOutputDir    string          // -outputdir flag
-	testO            string          // -o flag
-	testProfile      string          // profiling flag that limits test to one package
-	testNeedBinary   bool            // profile needs to keep binary around
-	testJSON         bool            // -json flag
-	testV            bool            // -v flag
-	testTimeout      string          // -timeout flag
-	testArgs         []string
-	testBench        bool
-	testList         bool
-	testShowPass     bool   // show passing output
-	testVetList      string // -vet flag
-	pkgArgs          []string
-	pkgs             []*load.Package
-
-	testActualTimeout = 10 * time.Minute                  // actual timeout which is passed to tests
-	testKillTimeout   = testActualTimeout + 1*time.Minute // backup alarm
-	testCacheExpire   time.Time                           // ignore cached test results before this time
+	testBench        string                            // -bench flag
+	testC            bool                              // -c flag
+	testCover        bool                              // -cover flag
+	testCoverMode    string                            // -covermode flag
+	testCoverPaths   []string                          // -coverpkg flag
+	testCoverPkgs    []*load.Package                   // -coverpkg flag
+	testCoverProfile string                            // -coverprofile flag
+	testJSON         bool                              // -json flag
+	testList         string                            // -list flag
+	testO            string                            // -o flag
+	testOutputDir    = base.Cwd                        // -outputdir flag
+	testTimeout      time.Duration                     // -timeout flag
+	testV            bool                              // -v flag
+	testVet          = vetFlag{flags: defaultVetFlags} // -vet flag
 )
 
-// testVetExplicit records whether testVetFlags were set by an explicit -vet.
-var testVetExplicit = false
+var (
+	testArgs []string
+	pkgArgs  []string
+	pkgs     []*load.Package
 
-// testVetFlags is the list of flags to pass to vet when invoked automatically during go test.
-var testVetFlags = []string{
+	testKillTimeout = 100 * 365 * 24 * time.Hour // backup alarm; defaults to about a century if no timeout is set
+	testCacheExpire time.Time                    // ignore cached test results before this time
+
+	testBlockProfile, testCPUProfile, testMemProfile, testMutexProfile, testTrace string // profiling flag that limits test to one package
+)
+
+// testProfile returns the name of an arbitrary single-package profiling flag
+// that is set, if any.
+func testProfile() string {
+	switch {
+	case testBlockProfile != "":
+		return "-blockprofile"
+	case testCPUProfile != "":
+		return "-cpuprofile"
+	case testMemProfile != "":
+		return "-memprofile"
+	case testMutexProfile != "":
+		return "-mutexprofile"
+	case testTrace != "":
+		return "-trace"
+	default:
+		return ""
+	}
+}
+
+// testNeedBinary reports whether the test needs to keep the binary around.
+func testNeedBinary() bool {
+	switch {
+	case testBlockProfile != "":
+		return true
+	case testCPUProfile != "":
+		return true
+	case testMemProfile != "":
+		return true
+	case testMutexProfile != "":
+		return true
+	case testO != "":
+		return true
+	default:
+		return false
+	}
+}
+
+// testShowPass reports whether the output for a passing test should be shown.
+func testShowPass() bool {
+	return testV || (testList != "")
+}
+
+var defaultVetFlags = []string{
 	// TODO(rsc): Decide which tests are enabled by default.
 	// See golang.org/issue/18085.
 	// "-asmdecl",
@@ -522,22 +561,16 @@ var testVetFlags = []string{
 	// "-unusedresult",
 }
 
-func testCmdUsage() {
-	fmt.Fprintf(os.Stderr, "usage: %s\n", CmdTest.UsageLine)
-	fmt.Fprintf(os.Stderr, "Run 'go help %s' and 'go help %s' for details.\n", CmdTest.LongName(), HelpTestflag.LongName())
-	os.Exit(2)
-}
-
 func runTest(cmd *base.Command, args []string) {
 	modload.LoadTests = true
 
-	pkgArgs, testArgs = testFlags(testCmdUsage, args)
+	pkgArgs, testArgs = testFlags(args)
 
 	work.FindExecCmd() // initialize cached result
 
 	work.BuildInit()
-	work.VetFlags = testVetFlags
-	work.VetExplicit = testVetExplicit
+	work.VetFlags = testVet.flags
+	work.VetExplicit = testVet.explicit
 
 	pkgs = load.PackagesForBuild(pkgArgs)
 	if len(pkgs) == 0 {
@@ -550,37 +583,19 @@ func runTest(cmd *base.Command, args []string) {
 	if testO != "" && len(pkgs) != 1 {
 		base.Fatalf("cannot use -o flag with multiple packages")
 	}
-	if testProfile != "" && len(pkgs) != 1 {
-		base.Fatalf("cannot use %s flag with multiple packages", testProfile)
+	if testProfile() != "" && len(pkgs) != 1 {
+		base.Fatalf("cannot use %s flag with multiple packages", testProfile())
 	}
 	initCoverProfile()
 	defer closeCoverProfile()
 
-	// If a test timeout was given and is parseable, set our kill timeout
+	// If a test timeout is finite, set our kill timeout
 	// to that timeout plus one minute. This is a backup alarm in case
 	// the test wedges with a goroutine spinning and its background
 	// timer does not get a chance to fire.
-	if dt, err := time.ParseDuration(testTimeout); err == nil && dt > 0 {
-		testActualTimeout = dt
-		testKillTimeout = testActualTimeout + 1*time.Minute
-	} else if err == nil && dt == 0 {
-		// An explicit zero disables the test timeout.
-		// No timeout is passed to tests.
-		// Let it have one century (almost) before we kill it.
-		testActualTimeout = -1
-		testKillTimeout = 100 * 365 * 24 * time.Hour
+	if testTimeout > 0 {
+		testKillTimeout = testTimeout + 1*time.Minute
 	}
-
-	// Pass timeout to tests if it exists.
-	// Prepend rather than appending so that it appears before positional arguments.
-	if testActualTimeout > 0 {
-		testArgs = append([]string{"-test.timeout=" + testActualTimeout.String()}, testArgs...)
-	}
-
-	// show passing test output (after buffering) with -v flag.
-	// must buffer because tests are running in parallel, and
-	// otherwise the output will get mixed.
-	testShowPass = testV || testList
 
 	// For 'go test -i -o x.test', we want to build x.test. Imply -c to make the logic easier.
 	if cfg.BuildI && testO != "" {
@@ -755,7 +770,7 @@ func runTest(cmd *base.Command, args []string) {
 	}
 
 	// Force benchmarks to run in serial.
-	if !testC && testBench {
+	if !testC && (testBench != "") {
 		// The first run must wait for all builds.
 		// Later runs must wait for the previous run's print.
 		for i, run := range runs {
@@ -839,7 +854,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 	}
 
 	pmain.Dir = testDir
-	pmain.Internal.OmitDebug = !testC && !testNeedBinary
+	pmain.Internal.OmitDebug = !testC && !testNeedBinary()
 
 	if !cfg.BuildN {
 		// writeTestmain writes _testmain.go,
@@ -887,7 +902,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 	}
 	buildAction = a
 	var installAction, cleanAction *work.Action
-	if testC || testNeedBinary {
+	if testC || testNeedBinary() {
 		// -c or profiling flag: create action to copy binary to ./test.out.
 		target := filepath.Join(base.Cwd, testBinary+cfg.ExeSuffix)
 		if testO != "" {
@@ -964,7 +979,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
 }
 
 func addTestVet(b *work.Builder, p *load.Package, runAction, installAction *work.Action) {
-	if testVetList == "off" {
+	if testVet.off {
 		return
 	}
 
@@ -1067,7 +1082,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 	}
 
 	var buf bytes.Buffer
-	if len(pkgArgs) == 0 || testBench {
+	if len(pkgArgs) == 0 || (testBench != "") {
 		// Stream test output (no buffering) when no package has
 		// been given on the command line (implicit current directory)
 		// or when benchmarking.
@@ -1087,7 +1102,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 		// possible even when multiple tests are being run: the JSON output
 		// events are attributed to specific package tests, so interlacing them
 		// is OK.
-		if testShowPass && (len(pkgs) == 1 || cfg.BuildP == 1) || testJSON {
+		if testShowPass() && (len(pkgs) == 1 || cfg.BuildP == 1) || testJSON {
 			// Write both to stdout and buf, for possible saving
 			// to cache, and for looking for the "no tests to run" message.
 			stdout = io.MultiWriter(stdout, &buf)
@@ -1209,7 +1224,7 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 
 	if err == nil {
 		norun := ""
-		if !testShowPass && !testJSON {
+		if !testShowPass() && !testJSON {
 			buf.Reset()
 		}
 		if bytes.HasPrefix(out, noTestsToRun[1:]) || bytes.Contains(out, noTestsToRun) {

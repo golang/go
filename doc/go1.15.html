@@ -47,6 +47,17 @@ TODO
 TODO
 </p>
 
+<h4 id="go-flag-parsing">Flag parsing</h4>
+
+<p><!-- https://golang.org/cl/211358 -->
+  Various flag parsing issues in <code>go</code> <code>test</code> and
+  <code>go</code> <code>vet</code> have been fixed. Notably, flags specified
+  in <code>GOFLAGS</code> are handled more consistently, and
+  the <code>-outputdir</code> flag now interprets relative paths relative to the
+  working directory of the <code>go</code> command (rather than the working
+  directory of each individual test).
+</p>
+
 <h2 id="runtime">Runtime</h2>
 
 <p>
