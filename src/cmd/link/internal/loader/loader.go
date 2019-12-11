@@ -36,7 +36,7 @@ type Relocs struct {
 	r  *oReader // object reader for containing package
 	l  *Loader  // loader
 
-	ext *sym.Symbol // external symbol if not nil
+	extIdx Sym // index of external symbol we're examining or 0
 }
 
 // Reloc contains the payload for a specific relocation.
@@ -87,23 +87,70 @@ func (bm bitmap) Has(i Sym) bool {
 	return bm[n]&(1<<r) != 0
 }
 
+// return current length of bitmap in bits.
+func (bm bitmap) len() int {
+	return len(bm) * 32
+}
 func makeBitmap(n int) bitmap {
 	return make(bitmap, (n+31)/32)
 }
 
+// growBitmap insures that the specified bitmap has enough capacity,
+// reallocating (doubling the size) if needed.
+func growBitmap(reqLen int, b bitmap) bitmap {
+	curLen := b.len()
+	if reqLen > curLen {
+		b = append(b, makeBitmap(reqLen-curLen)...)
+	}
+	return b
+}
+
 // A Loader loads new object files and resolves indexed symbol references.
+//
+// Notes on the layout of global symbol index space:
+//
+// - Go object files are read before host object files; each Go object
+//   read allocates a new chunk of global index space of size P + NP,
+//   where P is the number of package defined symbols in the object and
+//   NP is the number of non-package defined symbols.
+//
+// - In loader.LoadRefs(), the loader makes a sweep through all of the
+//   non-package references in each object file and allocates sym indices
+//   for any symbols that have not yet been defined (start of this space
+//   is marked by loader.extStart).
+//
+// - Host object file loading happens; the host object loader does a
+//   name/version lookup for each symbol it finds; this can wind up
+//   extending the external symbol index space range. The host object
+//   loader currently stores symbol payloads in sym.Symbol objects,
+//   which get handed off to the loader.
+//
+// - A given external symbol (Sym) either has a sym.Symbol acting as
+//   its backing store (this will continue to be the case until we
+//   finish rewriting the host object loader to work entirely with
+//   loader.Sym) or it has a "payload" backing store (represented by
+//   extSymPayload). Newly created external symbols (created by
+//   a call to AddExtSym or equivalent) start out in the "has payload"
+//   state, and continue until installSym is called for the sym
+//   index in question.
+//
+// - At some point (when the wayfront is pushed through all of the
+//   linker), all external symbols will be payload-based, and we can
+//   get rid of the loader.Syms array.
+//
 type Loader struct {
 	start       map[*oReader]Sym // map from object file to its start index
 	objs        []objIdx         // sorted by start index (i.e. objIdx.i)
 	max         Sym              // current max index
 	extStart    Sym              // from this index on, the symbols are externally defined
-	extSyms     []nameVer        // externally defined symbols
 	builtinSyms []Sym            // global index of builtin symbols
 	ocache      int              // index (into 'objs') of most recent lookup
 
 	symsByName    [2]map[string]Sym // map symbol name to index, two maps are for ABI0 and ABIInternal
 	extStaticSyms map[nameVer]Sym   // externally defined static symbols, keyed by name
 	overwrite     map[Sym]Sym       // overwrite[i]=j if symbol j overwrites symbol i
+
+	payloads []extSymPayload // contents of linker-materialized external syms
 
 	itablink map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
 
@@ -126,6 +173,18 @@ type Loader struct {
 	flags uint32
 
 	strictDupMsgs int // number of strict-dup warning/errors, when FlagStrictDups is enabled
+}
+
+// extSymPayload holds the payload (data + relocations) for linker-synthesized
+// external symbols.
+type extSymPayload struct {
+	name   string // TODO: would this be better as offset into str table?
+	size   int64
+	value  int64
+	ver    int
+	kind   sym.SymKind
+	relocs []Reloc
+	data   []byte
 }
 
 const (
@@ -215,36 +274,73 @@ func (l *Loader) AddSym(name string, ver int, i Sym, r *oReader, dupok bool, typ
 	return true
 }
 
+// newExtSym creates a new external sym with the specified
+// name/version.
+func (l *Loader) newExtSym(name string, ver int) Sym {
+	l.max++
+	i := l.max
+	if l.extStart == 0 {
+		l.extStart = i
+	}
+	l.growSyms(int(i))
+	pi := i - l.extStart
+	l.payloads[pi].name = name
+	l.payloads[pi].ver = ver
+	return i
+}
+
 // Add an external symbol (without index). Return the index of newly added
 // symbol, or 0 if not added.
 func (l *Loader) AddExtSym(name string, ver int) Sym {
-	static := ver >= sym.SymVerStatic
-	if static {
-		if _, ok := l.extStaticSyms[nameVer{name, ver}]; ok {
-			return 0
-		}
-	} else {
-		if _, ok := l.symsByName[ver][name]; ok {
-			return 0
-		}
+	i := l.Lookup(name, ver)
+	if i != 0 {
+		return 0
 	}
-	i := l.max + 1
+	i = l.newExtSym(name, ver)
+	static := ver >= sym.SymVerStatic || ver < 0
 	if static {
 		l.extStaticSyms[nameVer{name, ver}] = i
 	} else {
 		l.symsByName[ver][name] = i
 	}
-	l.max++
-	if l.extStart == 0 {
-		l.extStart = i
+	return i
+}
+
+// LookupOrCreateSym looks up the symbol with the specified name/version,
+// returning its Sym index if found. If the lookup fails, a new external
+// Sym will be created, entered into the lookup tables, and returned.
+func (l *Loader) LookupOrCreateSym(name string, ver int) Sym {
+	i := l.Lookup(name, ver)
+	if i != 0 {
+		return i
 	}
-	l.extSyms = append(l.extSyms, nameVer{name, ver})
-	l.growSyms(int(i))
+	i = l.newExtSym(name, ver)
+	static := ver >= sym.SymVerStatic || ver < 0
+	if static {
+		l.extStaticSyms[nameVer{name, ver}] = i
+	} else {
+		l.symsByName[ver][name] = i
+	}
 	return i
 }
 
 func (l *Loader) IsExternal(i Sym) bool {
 	return l.extStart != 0 && i >= l.extStart
+}
+
+// getPayload returns a pointer to the extSymPayload struct for an
+// external symbol if the symbol has a payload, or nil if the
+// data for the sym is being stored in a sym.Symbol. Will panic if
+// the symbol in question is bogus (zero or not an external sym).
+func (l *Loader) getPayload(i Sym) *extSymPayload {
+	if l.extStart == 0 || i < l.extStart {
+		panic(fmt.Sprintf("bogus symbol index %d in getPayload", i))
+	}
+	if l.Syms[i] != nil {
+		return nil
+	}
+	pi := i - l.extStart
+	return &l.payloads[pi]
 }
 
 // Ensure Syms slice has enough space.
@@ -254,6 +350,8 @@ func (l *Loader) growSyms(i int) {
 		return
 	}
 	l.Syms = append(l.Syms, make([]*sym.Symbol, i+1-n)...)
+	l.payloads = append(l.payloads, make([]extSymPayload, i+1-n)...)
+	l.growReachable(int(i))
 }
 
 // Convert a local index to a global index.
@@ -434,7 +532,8 @@ func (l *Loader) RawSymName(i Sym) string {
 		if s := l.Syms[i]; s != nil {
 			return s.Name
 		}
-		return ""
+		pp := l.getPayload(i)
+		return pp.name
 	}
 	r, li := l.toLocal(i)
 	osym := goobj2.Sym{}
@@ -448,7 +547,8 @@ func (l *Loader) SymName(i Sym) string {
 		if s := l.Syms[i]; s != nil {
 			return s.Name // external name should already be patched?
 		}
-		return ""
+		pp := l.getPayload(i)
+		return pp.name
 	}
 	r, li := l.toLocal(i)
 	osym := goobj2.Sym{}
@@ -461,6 +561,10 @@ func (l *Loader) SymType(i Sym) sym.SymKind {
 	if l.IsExternal(i) {
 		if s := l.Syms[i]; s != nil {
 			return s.Type
+		}
+		pp := l.getPayload(i)
+		if pp != nil {
+			return pp.kind
 		}
 		return 0
 	}
@@ -505,6 +609,10 @@ func (l *Loader) Data(i Sym) []byte {
 	if l.IsExternal(i) {
 		if s := l.Syms[i]; s != nil {
 			return s.P
+		}
+		pp := l.getPayload(i)
+		if pp != nil {
+			return pp.data
 		}
 		return nil
 	}
@@ -582,13 +690,20 @@ func (l *Loader) SubSym(i Sym) Sym {
 
 // Initialize Reachable bitmap for running deadcode pass.
 func (l *Loader) InitReachable() {
-	l.Reachable = makeBitmap(l.NSym())
+	l.growReachable(l.NSym())
+}
+
+// Insure that reachable bitmap has enough size.
+func (l *Loader) growReachable(reqLen int) {
+	if reqLen > l.Reachable.len() {
+		l.Reachable = growBitmap(reqLen, l.Reachable)
+	}
 }
 
 // At method returns the j-th reloc for a global symbol.
 func (relocs *Relocs) At(j int) Reloc {
-	if relocs.ext != nil {
-		rel := &relocs.ext.R[j]
+	if s := relocs.l.Syms[relocs.extIdx]; s != nil {
+		rel := s.R[j]
 		return Reloc{
 			Off:  rel.Off,
 			Size: rel.Siz,
@@ -596,6 +711,10 @@ func (relocs *Relocs) At(j int) Reloc {
 			Add:  rel.Add,
 			Sym:  relocs.l.Lookup(rel.Sym.Name, int(rel.Sym.Version)),
 		}
+	}
+	if relocs.extIdx != 0 {
+		pp := relocs.l.getPayload(relocs.extIdx)
+		return pp.relocs[j]
 	}
 	rel := goobj2.Reloc{}
 	rel.Read(relocs.r.Reader, relocs.r.RelocOff(relocs.li, j))
@@ -622,9 +741,9 @@ func (relocs *Relocs) ReadAll(dst []Reloc) []Reloc {
 	}
 	dst = dst[:0]
 
-	if relocs.ext != nil {
+	if s := relocs.l.Syms[relocs.extIdx]; s != nil {
 		for i := 0; i < relocs.Count; i++ {
-			erel := &relocs.ext.R[i]
+			erel := &s.R[i]
 			rel := Reloc{
 				Off:  erel.Off,
 				Size: erel.Siz,
@@ -634,6 +753,12 @@ func (relocs *Relocs) ReadAll(dst []Reloc) []Reloc {
 			}
 			dst = append(dst, rel)
 		}
+		return dst
+	}
+
+	if relocs.extIdx != 0 {
+		pp := relocs.l.getPayload(relocs.extIdx)
+		dst = append(dst, pp.relocs...)
 		return dst
 	}
 
@@ -658,11 +783,18 @@ func (relocs *Relocs) ReadAll(dst []Reloc) []Reloc {
 func (l *Loader) Relocs(i Sym) Relocs {
 	if l.IsExternal(i) {
 		if s := l.Syms[i]; s != nil {
-			return Relocs{Count: len(s.R), l: l, ext: s}
+			return Relocs{Count: len(s.R), l: l, extIdx: i}
+		}
+		pp := l.getPayload(i)
+		if pp != nil {
+			return Relocs{Count: len(pp.relocs), l: l, extIdx: i}
 		}
 		return Relocs{}
 	}
 	r, li := l.toLocal(i)
+	if r == nil {
+		panic(fmt.Sprintf("trying to get oreader for invalid sym %d\n\n", i))
+	}
 	return l.relocs(r, li)
 }
 
@@ -804,12 +936,22 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 			s.Attr.Set(sym.AttrReachable, l.Reachable.Has(i))
 			continue // already loaded from external object
 		}
-		nv := l.extSyms[i-l.extStart]
-		if l.Reachable.Has(i) || strings.HasPrefix(nv.name, "gofile..") { // XXX file symbols are used but not marked
-			s := l.allocSym(nv.name, nv.v)
+		sname := l.payloads[i-l.extStart].name
+		sver := l.payloads[i-l.extStart].ver
+		if l.Reachable.Has(i) || strings.HasPrefix(sname, "gofile..") { // XXX file symbols are used but not marked
+			s := l.allocSym(sname, sver)
+			pp := l.getPayload(i)
+			if pp != nil {
+				if pp.kind != sym.Sxxx || len(pp.relocs) != 0 || len(pp.data) != 0 {
+					// Unpack payload into sym. Currently there is nothing
+					// to do here, but eventually we'll need a real
+					// implementation.
+					panic("need to handle this")
+				}
+			}
 			preprocess(arch, s)
 			s.Attr.Set(sym.AttrReachable, l.Reachable.Has(i))
-			l.Syms[i] = s
+			l.installSym(i, s)
 		}
 	}
 
@@ -885,6 +1027,25 @@ func (l *Loader) allocSym(name string, version int) *sym.Symbol {
 	return s
 }
 
+// installSym sets the underlying sym.Symbol for the specified sym index.
+func (l *Loader) installSym(i Sym, s *sym.Symbol) {
+	if s == nil {
+		panic("installSym nil symbol")
+	}
+	if l.Syms[i] != nil {
+		panic("sym already present in addNewSym")
+	}
+	if l.IsExternal(i) {
+		// temporary sanity check: make sure that the payload
+		// is empty, e.g. nobody has added symbol content already.
+		pp := l.getPayload(i)
+		if pp != nil && (len(pp.relocs) != 0 || len(pp.data) != 0) {
+			panic("expected empty payload")
+		}
+	}
+	l.Syms[i] = s
+}
+
 // addNewSym adds a new sym.Symbol to the i-th index in the list of symbols.
 func (l *Loader) addNewSym(i Sym, name string, ver int, unit *sym.CompilationUnit, t sym.SymKind) *sym.Symbol {
 	s := l.allocSym(name, ver)
@@ -898,7 +1059,7 @@ func (l *Loader) addNewSym(i Sym, name string, ver int, unit *sym.CompilationUni
 	s.Type = t
 	s.Unit = unit
 	l.growSyms(int(i))
-	l.Syms[i] = s
+	l.installSym(i, s)
 	return s
 }
 
@@ -1013,6 +1174,12 @@ func (l *Loader) LookupOrCreate(name string, version int) *sym.Symbol {
 	return s
 }
 
+// CreateExtSym creates a new external symbol with the specified name
+// without adding it to any lookup tables, returning a Sym index for it.
+func (l *Loader) CreateExtSym(name string) Sym {
+	return l.newExtSym(name, sym.SymVerABI0)
+}
+
 // Create creates a symbol with the specified name, returning a
 // sym.Symbol object for it. This method is intended for static/hidden
 // symbols discovered while loading host objects. We can see more than
@@ -1033,10 +1200,9 @@ func (l *Loader) Create(name string) *sym.Symbol {
 	// ext syms to the sym.Symbols hash.
 	l.anonVersion--
 	ver := l.anonVersion
-	l.extSyms = append(l.extSyms, nameVer{name, ver})
 	l.growSyms(int(i))
 	s := l.allocSym(name, ver)
-	l.Syms[i] = s
+	l.installSym(i, s)
 	l.extStaticSyms[nameVer{name, ver}] = i
 
 	return s
@@ -1348,6 +1514,7 @@ func (l *Loader) Dump() {
 			fmt.Println(obj.i, obj.r.unit.Lib)
 		}
 	}
+	fmt.Println("extStart:", l.extStart)
 	fmt.Println("syms")
 	for i, s := range l.Syms {
 		if i == 0 {
