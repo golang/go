@@ -320,7 +320,7 @@ func (b *B) launch() {
 			b.runN(int(n))
 		}
 	}
-	b.result = BenchmarkResult{b.N, b.duration, b.bytes, b.netAllocs, b.netBytes, b.extra}
+	b.result = BenchmarkResult{b.N, b.duration, b.bytes, b.netAllocs, b.netBytes, b.chatty, b.extra}
 }
 
 // ReportMetric adds "n unit" to the reported benchmark results.
@@ -349,6 +349,7 @@ type BenchmarkResult struct {
 	Bytes     int64         // Bytes processed in one iteration.
 	MemAllocs uint64        // The total number of memory allocations.
 	MemBytes  uint64        // The total number of bytes allocated.
+	Chatty    bool          // Copy of the benchmark's chatty flag
 
 	// Extra records additional metrics reported by ReportMetric.
 	Extra map[string]float64
@@ -418,7 +419,7 @@ func (r BenchmarkResult) String() string {
 	}
 	if ns != 0 {
 		buf.WriteByte('\t')
-		prettyPrint(buf, ns, "ns/op")
+		prettyPrint(buf, ns, "ns/op", !r.Chatty)
 	}
 
 	if mbs := r.mbPerSec(); mbs != 0 {
@@ -439,12 +440,16 @@ func (r BenchmarkResult) String() string {
 	sort.Strings(extraKeys)
 	for _, k := range extraKeys {
 		buf.WriteByte('\t')
-		prettyPrint(buf, r.Extra[k], k)
+		prettyPrint(buf, r.Extra[k], k, !r.Chatty)
 	}
 	return buf.String()
 }
 
-func prettyPrint(w io.Writer, x float64, unit string) {
+func prettyPrint(w io.Writer, x float64, unit string, humanize bool) {
+	if !humanize {
+		fmt.Fprintf(w, "%17.6f %s", x, unit)
+		return
+	}
 	// Print all numbers with 10 places before the decimal point
 	// and small numbers with three sig figs.
 	var format string
