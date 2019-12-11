@@ -142,6 +142,9 @@ func syscall_forkx(flags uintptr) (pid uintptr, err uintptr) {
 		args: uintptr(unsafe.Pointer(&flags)),
 	}
 	asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&call))
+	if int(call.r1) != -1 {
+		call.err = 0
+	}
 	return call.r1, call.err
 }
 
