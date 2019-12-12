@@ -133,13 +133,7 @@ func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode)
 // first error encountered are returned.
 //
 func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, mode Mode) (pkgs map[string]*ast.Package, first error) {
-	fd, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer fd.Close()
-
-	list, err := fd.Readdir(-1)
+	list, err := ioutil.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}
