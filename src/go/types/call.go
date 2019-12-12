@@ -475,6 +475,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 
 	// methods may not have a fully set up signature yet
 	if m, _ := obj.(*Func); m != nil {
+		// check.dump("### found method %s", m)
 		check.objDecl(m, nil)
 		// If m has a parameterized receiver type, infer the type parameter
 		// values from the actual receiver provided and then substitute the
@@ -491,6 +492,8 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			copy.typ = check.subst(e.Pos(), m.typ, m.tparams, targs)
 			obj = &copy
 		}
+		// TODO(gri) we also need to do substitution for parameterized interface methods
+		//           (this breaks code in testdata/linalg.go2 at the moment)
 	}
 
 	if x.mode == typexpr {

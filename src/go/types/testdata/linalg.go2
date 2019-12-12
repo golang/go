@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO(gri) add this file to the test suite once it type-checks.
-
 package linalg
 
 import "math"
@@ -66,9 +64,10 @@ contract Complex(T) {
 type OrderedAbs(type T OrderedNumeric) T
 
 func (a OrderedAbs(T)) Abs() T {
-	if a < 0 {
-		return -a
-	}
+	// TODO(gri) implement conversions against parameterized types
+	// if a < 0 {
+	// 	return -a
+	// }
 	return a
 }
 
@@ -84,9 +83,13 @@ func (a ComplexAbs(T)) Abs() T {
 }
 
 func OrderedAbsDifference(type T OrderedNumeric)(a, b T) T {
-	return T(AbsDifference(OrderedAbs(T)(a), OrderedAbs(T)(b)))
+	// TODO(gri) fix this
+	// return T(AbsDifference(OrderedAbs(T)(a), OrderedAbs(T)(b)))
+	return a
 }
 
 func ComplexAbsDifference(type T Complex)(a, b T) T {
-	return T(AbsDifference(ComplexAbs(T)(a), ComplexAbs(T)(b)))
+	// TODO(gri) fix this
+	// return T(AbsDifference(ComplexAbs(T)(a), ComplexAbs(T)(b)))
+	return a
 }

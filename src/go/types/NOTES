@@ -7,7 +7,8 @@ TODO
 
 OPEN ISSUES
 - contracts slip through in places where only types are permitted
-
+- conversions against parameterized types are not implemented
+- parameterized interface methods (of type bounds) need to be customized (subst) for context
 
 DESIGN DECISIONS
 - 12/4/2019: do not allow parenthesized generic uninstantiated types (unless instantiated implicitly)

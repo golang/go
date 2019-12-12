@@ -3,3 +3,19 @@
 // license that can be found in the LICENSE file.
 
 package p
+
+contract C(T) {
+	T int
+	T Abs() T
+}
+
+type B(type T) interface {
+	type int
+	Abs() T
+}
+
+func AbsDifference(type T C)(a, b T) T {
+	d := a - b
+	// TODO(gri) make this work
+	return d /* ERROR cannot use */ .Abs()
+}

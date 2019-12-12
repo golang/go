@@ -111,6 +111,7 @@ var tests = [][]string{
 	{"testdata/chans.go2"},
 	{"testdata/map.go2"},
 	{"testdata/map2.go2"},
+	{"testdata/linalg.go2"},
 
 	// Go 2 prototype examples
 	{"examples/contracts.go2"},
