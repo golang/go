@@ -459,7 +459,7 @@ func (r *gitRepo) statLocal(version, rev string) (*RevInfo, error) {
 	info := &RevInfo{
 		Name:    hash,
 		Short:   ShortenSHA1(hash),
-		Time:    time.Unix(t, 0).UTC(),
+		Time:    time.Unix(t, 0).Local(),
 		Version: hash,
 	}
 
