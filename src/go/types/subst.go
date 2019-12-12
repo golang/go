@@ -76,6 +76,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		// determine type parameter bound
 		iface := tpar.Interface()
 
+		// TODO(gri) document/explain why the substitution below is correct
 		//check.dump(">>> %s: iface before: %s", pos, iface)
 		bound := check.subst(pos, tpar.bound, tparams, targs).Underlying()
 		switch b := bound.(type) {
@@ -102,6 +103,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		if targ, _ := targ.Underlying().(*TypeParam); targ != nil {
 			for _, t := range targ.Interface().types {
 				if !includesType(t, iface) {
+					// TODO(gri) match this error message with the one below (or vice versa)
 					check.softErrorf(pos, "%s does not satisfy %s (missing type %s)", targ, tpar.bound, t)
 					break
 				}
@@ -123,6 +125,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 }
 
 // includesType reports whether iface includes typ
+// TODO(gri) make this a method of *Interface
 func includesType(typ Type, iface *Interface) bool {
 	for _, t := range iface.types {
 		if Identical(typ.Underlying(), t) {
@@ -139,13 +142,28 @@ func (check *Checker) subst(pos token.Pos, typ Type, tpars []*TypeName, targs []
 	if len(tpars) == 0 {
 		return typ
 	}
-	subst := subster{pos, check, make(map[Type]Type), tpars, targs}
+
+	// common cases
+	switch t := typ.(type) {
+	case *Basic:
+		return typ // nothing to do
+	case *TypeParam:
+		for i, tpar := range tpars {
+			if tpar.typ == t {
+				return targs[i]
+			}
+		}
+		return typ
+	}
+
+	// general case
+	subst := subster{check, pos, make(map[Type]Type), tpars, targs}
 	return subst.typ(typ)
 }
 
 type subster struct {
-	pos   token.Pos
 	check *Checker
+	pos   token.Pos
 	cache map[Type]Type
 	tpars []*TypeName
 	targs []Type
@@ -302,6 +320,9 @@ func (subst *subster) typ(typ Type) Type {
 				return subst.targs[i]
 			}
 		}
+
+	case *Contract:
+		panic("unimplemented")
 
 	default:
 		panic("unimplemented")

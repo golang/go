@@ -730,15 +730,41 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 
 	fdecl := decl.fdecl
 	if fdecl.IsMethod() {
-		_, _, tparams := check.unpackRecv(fdecl.Recv.List[0].Type, true)
+		_, rname, tparams := check.unpackRecv(fdecl.Recv.List[0].Type, true)
 		if len(tparams) > 0 {
-			// TODO(gri) need to provide contract
-			// (check that number of parameters match is done when type-checking the receiver expression)
+			// declare the method's receiver type parameters
 			check.openScope(fdecl, "receiver type parameters")
 			defer check.closeScope()
-			// TODO(gri) can we use (an adjusted version of) collectTypeParams here?
-			for i, name := range tparams {
-				obj.tparams = append(obj.tparams, check.declareTypeParam(name, i, nil))
+			// collect and declare the type parameters
+			var list []Type // list of corresponding *TypeParams
+			for index, name := range tparams {
+				tpar := check.declareTypeParam(name, index, nil)
+				obj.tparams = append(obj.tparams, tpar)
+				list = append(list, tpar.typ)
+			}
+			// determine receiver type to get its type parameters
+			// and the respective type parameter bounds
+			var recvTParams []*TypeName
+			if rname != nil {
+				// recv should be a Named type (otherwise an error is reported elsewhere)
+				if recv, _ := check.genericType(rname).(*Named); recv != nil {
+					recvTParams = recv.obj.tparams
+				}
+			}
+			// provide type parameter bounds
+			// - only do this if we have the right number (otherwise an error is reported elsewhere)
+			if len(list) == len(recvTParams) {
+				assert(len(list) == len(obj.tparams))
+				for index, tname := range obj.tparams {
+					bound := recvTParams[index].typ.(*TypeParam).bound
+					// bound is (possibly) parameterized in the context of the
+					// receiver type declaration. Substitute parameters for the
+					// current context.
+					if bound != nil {
+						bound = check.subst(tname.pos, bound, recvTParams, list)
+						tname.typ.(*TypeParam).bound = bound
+					}
+				}
 			}
 		}
 	} else if fdecl.TParams != nil {

@@ -137,7 +137,7 @@ func (check *Checker) definedType(e ast.Expr, def *Named) Type {
 	return typ
 }
 
-// generic us like typ bit the type must be an (uninstantiated) generic type.
+// generic is like typ but the type must be an (uninstantiated) generic type.
 func (check *Checker) genericType(e ast.Expr) Type {
 	typ := check.typInternal(e, nil)
 	assert(isTyped(typ))

@@ -501,7 +501,7 @@ func (check *Checker) collectObjects() {
 // rtyp is a pointer receiver, rname is the receiver type name, and tparams are its
 // type parameters, if any. The type parameters are only unpacked if unpackParams is
 // set. If rname is nil, the receiver is unusable (i.e., the source has a bug which we
-// cannot easily work aound with).
+// cannot easily work around).
 func (check *Checker) unpackRecv(rtyp ast.Expr, unpackParams bool) (ptr bool, rname *ast.Ident, tparams []*ast.Ident) {
 L: // unpack receiver type
 	for {

@@ -43,17 +43,17 @@ contract G(Node, Edge) {
 
 type Graph (type Node, Edge G) struct { /* ... */ }
 
-func New (type Node, Edge G) (nodes []Node) *Graph(Node, Edge) { panic("unimplemented") }
+func New (type Node, Edge G) (nodes []Node) *Graph(Node, Edge)
 
-// func (g *Graph(N, E)) ShortestPath(from, to N) []E { panic("unimplemented") }
+func (g *Graph(N, E)) ShortestPath(from, to N) []E
 
 // Same Graph using interface bounds instead of a contract.
 
 type AltGraph (type Node NodeFace(Edge), Edge EdgeFace(Node)) struct { }
 
-func AltNew (type Node NodeFace(Edge), Edge EdgeFace(Node)) (nodes []Node) *AltGraph(Node, Edge) { panic("unimplemented") }
+func AltNew (type Node NodeFace(Edge), Edge EdgeFace(Node)) (nodes []Node) *AltGraph(Node, Edge)
 
-// func (g *AltGraph(N, E)) ShortestPath(from, to N) []E { panic("unimplemented") }
+func (g *AltGraph(N, E)) ShortestPath(from, to N) []E
 
 type NodeFace(type Edge) interface {
 	Edges() []Edge
