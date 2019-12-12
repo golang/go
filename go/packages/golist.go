@@ -253,12 +253,7 @@ func addNeededOverlayPackages(cfg *Config, driver driver, response *responseDedu
 	if len(pkgs) == 0 {
 		return nil
 	}
-	drivercfg := *cfg
-	if getGoInfo().env.modulesOn {
-		drivercfg.BuildFlags = append(drivercfg.BuildFlags, "-mod=readonly")
-	}
-	dr, err := driver(&drivercfg, pkgs...)
-
+	dr, err := driver(cfg, pkgs...)
 	if err != nil {
 		return err
 	}
