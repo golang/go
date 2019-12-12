@@ -131,7 +131,7 @@ func (a *addrRanges) add(r addrRange) {
 			// assumptions), this would waste at most 4 MiB of memory.
 			oldRanges := a.ranges
 			ranges := (*notInHeapSlice)(unsafe.Pointer(&a.ranges))
-			ranges.len = len(oldRanges)
+			ranges.len = len(oldRanges) + 1
 			ranges.cap = cap(oldRanges) * 2
 			ranges.array = (*notInHeap)(persistentalloc(unsafe.Sizeof(addrRange{})*uintptr(ranges.cap), sys.PtrSize, a.sysStat))
 
