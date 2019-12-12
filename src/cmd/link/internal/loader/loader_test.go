@@ -121,6 +121,9 @@ func TestOuterSub(t *testing.T) {
 	es1 := ldr.AddExtSym("outer", 0)
 	es2 := ldr.AddExtSym("sub1", 0)
 	es3 := ldr.AddExtSym("sub2", 0)
+	es4 := ldr.AddExtSym("sub3", 0)
+	es5 := ldr.AddExtSym("sub4", 0)
+	es6 := ldr.AddExtSym("sub5", 0)
 
 	// Should not have an outer sym initially
 	if ldr.OuterSym(es1) != 0 {
@@ -161,5 +164,37 @@ func TestOuterSub(t *testing.T) {
 	}
 	if ldr.SubSym(es3) != es2 {
 		t.Errorf("ldr.SubSym(es3) got %d wanted %d", ldr.SubSym(es3), es2)
+	}
+
+	// Some more
+	ldr.PrependSub(es1, es4)
+	ldr.PrependSub(es1, es5)
+	ldr.PrependSub(es1, es6)
+
+	// Set values.
+	ldr.SetSymValue(es2, 7)
+	ldr.SetSymValue(es3, 1)
+	ldr.SetSymValue(es4, 13)
+	ldr.SetSymValue(es5, 101)
+	ldr.SetSymValue(es6, 3)
+
+	// Sort
+	news := ldr.SortSub(es1)
+	if news != es3 {
+		t.Errorf("ldr.SortSub leader got %d wanted %d", news, es3)
+	}
+	pv := int64(-1)
+	count := 0
+	for ss := ldr.SubSym(es1); ss != 0; ss = ldr.SubSym(ss) {
+		v := ldr.SymValue(ss)
+		if v <= pv {
+			t.Errorf("ldr.SortSub sortfail at %d: val %d >= prev val %d",
+				ss, v, pv)
+		}
+		pv = v
+		count++
+	}
+	if count != 5 {
+		t.Errorf("expected %d in sub list got %d", 5, count)
 	}
 }
