@@ -196,6 +196,11 @@ type Loader struct {
 
 	align map[Sym]int32 // stores alignment for symbols
 
+	dynimplib  map[Sym]string // stores Dynimplib symbol attribute
+	dynimpvers map[Sym]string // stores Dynimpvers symbol attribute
+	localentry map[Sym]uint8  // stores Localentry symbol attribute
+	extname    map[Sym]string // stores Extname symbol attribute
+
 	// Used to implement field tracking; created during deadcode if
 	// field tracking is enabled. Reachparent[K] contains the index of
 	// the symbol that triggered the marking of symbol K as live.
@@ -941,6 +946,84 @@ func (l *Loader) SetSymAlign(i Sym, align int32) {
 			panic("bad alignment value")
 		}
 		l.align[i] = align
+	}
+}
+
+// SymDynImplib returns the "dynimplib" attribute for the specified
+// symbol, making up a portion of the info for a symbol specified
+// on a "cgo_import_dynamic" compiler directive.
+func (l *Loader) SymDynimplib(i Sym) string {
+	return l.dynimplib[i]
+}
+
+// SetSymDynimplib sets the "dynimplib" attribute for a symbol.
+func (l *Loader) SetSymDynimplib(i Sym, value string) {
+	// reject bad symbols
+	if i > l.max || i == 0 {
+		panic("bad symbol index in SetDynimplib")
+	}
+	if value == "" {
+		delete(l.dynimplib, i)
+	} else {
+		l.dynimplib[i] = value
+	}
+}
+
+// SymDynimpvers returns the "dynimpvers" attribute for the specified
+// symbol, making up a portion of the info for a symbol specified
+// on a "cgo_import_dynamic" compiler directive.
+func (l *Loader) SymDynimpvers(i Sym) string {
+	return l.dynimpvers[i]
+}
+
+// SetSymDynimpvers sets the "dynimpvers" attribute for a symbol.
+func (l *Loader) SetSymDynimpvers(i Sym, value string) {
+	// reject bad symbols
+	if i > l.max || i == 0 {
+		panic("bad symbol index in SetDynimpvers")
+	}
+	if value == "" {
+		delete(l.dynimpvers, i)
+	} else {
+		l.dynimpvers[i] = value
+	}
+}
+
+// SymExtname returns the "extname" value for the specified
+// symbol.
+func (l *Loader) SymExtname(i Sym) string {
+	return l.extname[i]
+}
+
+// SetSymExtname sets the  "extname" attribute for a symbol.
+func (l *Loader) SetSymExtname(i Sym, value string) {
+	// reject bad symbols
+	if i > l.max || i == 0 {
+		panic("bad symbol index in SetExtname")
+	}
+	if value == "" {
+		delete(l.extname, i)
+	} else {
+		l.extname[i] = value
+	}
+}
+
+// SymLocalentry returns the "local entry" value for the specified
+// symbol.
+func (l *Loader) SymLocalentry(i Sym) uint8 {
+	return l.localentry[i]
+}
+
+// SetSymExtname sets the "extname" attribute for a symbol.
+func (l *Loader) SetSymLocalentry(i Sym, value uint8) {
+	// reject bad symbols
+	if i > l.max || i == 0 {
+		panic("bad symbol index in SetExtname")
+	}
+	if value == 0 {
+		delete(l.localentry, i)
+	} else {
+		l.localentry[i] = value
 	}
 }
 
