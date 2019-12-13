@@ -60,11 +60,20 @@ func highlightFuncControlFlow(ctx context.Context, snapshot Snapshot, m *protoco
 	inReturnList := false
 Outer:
 	// Reverse walk the path till we get to the func block.
-	for _, n := range path {
+	for i, n := range path {
 		switch node := n.(type) {
 		case *ast.KeyValueExpr:
 			// If cursor is in a key: value expr, we don't want control flow highlighting
 			return nil, nil
+		case *ast.CallExpr:
+			// If cusor is an arg in a callExpr, we don't want control flow highlighting.
+			if i > 0 {
+				for _, arg := range node.Args {
+					if arg == path[i-1] {
+						return nil, nil
+					}
+				}
+			}
 		case *ast.Field:
 			inReturnList = true
 		case *ast.FuncLit:

@@ -101,3 +101,8 @@ func testReturnMultipleFields() (float32, string) { //@mark(retVal31, "float32")
 	}
 	return 4.9, "test" //@mark(retVal51, "4.9"),mark(retVal52, "\"test\""),highlight(retVal51, retVal31, retVal41, retVal51),highlight(retVal52, retVal32, retVal42, retVal52)
 }
+
+func testReturnFunc() int32 { //@mark(retCall, "int32")
+	mulch := 1          //@mark(mulchDec, "mulch"),highlight(mulchDec, mulchDec, mulchRet)
+	return int32(mulch) //@mark(mulchRet, "mulch"),mark(retFunc, "int32"),mark(retTotal, "int32(mulch)"),highlight(mulchRet, mulchDec, mulchRet),highlight(retFunc, retCall, retFunc, retTotal)
+}
