@@ -47,6 +47,14 @@ TODO
 TODO
 </p>
 
+<h4 id="go-test"><code>go</code> <code>test</code></h4>
+
+<p><!-- https://golang.org/issue/36134 -->
+  Changing the <code>-timeout</code> flag now invalidates cached test results. A
+  cached result for a test run with a long timeout will no longer count as
+  passing when <code>go</code> <code>test</code> is re-invoked with a short one.
+</p>
+
 <h4 id="go-flag-parsing">Flag parsing</h4>
 
 <p><!-- https://golang.org/cl/211358 -->

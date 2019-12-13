@@ -2431,30 +2431,6 @@ func TestTestCache(t *testing.T) {
 	tg.setenv("GOPATH", tg.tempdir)
 	tg.setenv("GOCACHE", tg.path("cache"))
 
-	if runtime.Compiler != "gccgo" {
-		// timeout here should not affect result being cached
-		// or being retrieved later.
-		tg.run("test", "-x", "-timeout=10s", "errors")
-		tg.grepStderr(`[\\/]compile|gccgo`, "did not run compiler")
-		tg.grepStderr(`[\\/]link|gccgo`, "did not run linker")
-		tg.grepStderr(`errors\.test`, "did not run test")
-
-		tg.run("test", "-x", "errors")
-		tg.grepStdout(`ok  \terrors\t\(cached\)`, "did not report cached result")
-		tg.grepStderrNot(`[\\/]compile|gccgo`, "incorrectly ran compiler")
-		tg.grepStderrNot(`[\\/]link|gccgo`, "incorrectly ran linker")
-		tg.grepStderrNot(`errors\.test`, "incorrectly ran test")
-		tg.grepStderrNot("DO NOT USE", "poisoned action status leaked")
-
-		// Even very low timeouts do not disqualify cached entries.
-		tg.run("test", "-timeout=1ns", "-x", "errors")
-		tg.grepStderrNot(`errors\.test`, "incorrectly ran test")
-
-		tg.run("clean", "-testcache")
-		tg.run("test", "-x", "errors")
-		tg.grepStderr(`errors\.test`, "did not run test")
-	}
-
 	// The -p=1 in the commands below just makes the -x output easier to read.
 
 	t.Log("\n\nINITIAL\n\n")
