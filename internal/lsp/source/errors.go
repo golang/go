@@ -47,7 +47,16 @@ func checkCommonErrors(ctx context.Context, view View, uri span.URI) (string, er
 
 	// Not inside of a module.
 	inAModule := modFile != ""
-	inGopath := strings.HasPrefix(uri.Filename(), filepath.Join(gopath, "src"))
+
+	// The user may have a multiple directories in their GOPATH.
+	var inGopath bool
+	for _, gp := range filepath.SplitList(gopath) {
+		if strings.HasPrefix(uri.Filename(), filepath.Join(gp, "src")) {
+			inGopath = true
+			break
+		}
+	}
+
 	moduleMode := os.Getenv("GO111MODULE")
 
 	var msg string
