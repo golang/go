@@ -762,7 +762,9 @@ func (data *Data) collectCompletions(typ CompletionTestType) func(span.Span, []t
 
 func (data *Data) collectCompletionItems(pos token.Pos, args []string) {
 	if len(args) < 3 {
-		return
+		loc := data.Exported.ExpectFileSet.Position(pos)
+		data.t.Fatalf("%s:%d: @item expects at least 3 args, got %d",
+			loc.Filename, loc.Line, len(args))
 	}
 	label, detail, kind := args[0], args[1], args[2]
 	var documentation string
