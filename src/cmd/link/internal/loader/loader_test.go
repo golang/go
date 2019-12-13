@@ -32,7 +32,7 @@ func TestAddMaterializedSymbol(t *testing.T) {
 
 	// Create some syms from a dummy object file symbol to get things going.
 	addDummyObjSym(t, ldr, or, "type.uint8")
-	addDummyObjSym(t, ldr, or, "mumble")
+	ts2 := addDummyObjSym(t, ldr, or, "mumble")
 	addDummyObjSym(t, ldr, or, "type.string")
 
 	// Create some external symbols.
@@ -95,5 +95,18 @@ func TestAddMaterializedSymbol(t *testing.T) {
 	ldr.SetAttrVisibilityHidden(es3, true)
 	if !ldr.AttrVisibilityHidden(es3) {
 		t.Errorf("expected hidden after update")
+	}
+
+	// Test get/set symbol value.
+	toTest := []Sym{ts2, es3}
+	for i, s := range toTest {
+		if v := ldr.SymValue(s); v != 0 {
+			t.Errorf("ldr.Value(%d): expected 0 got %d\n", s, v)
+		}
+		nv := int64(i + 101)
+		ldr.SetSymValue(s, nv)
+		if v := ldr.SymValue(s); v != nv {
+			t.Errorf("ldr.SetValue(%d,%d): expected %d got %d\n", s, nv, nv, v)
+		}
 	}
 }
