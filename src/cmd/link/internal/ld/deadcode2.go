@@ -318,7 +318,7 @@ func (d *deadcodePass2) decodeMethodSig2(ldr *loader.Loader, arch *sys.Arch, sym
 			if i > 0 {
 				buf.WriteString(", ")
 			}
-			a := d.decodetypeFuncInType2(ldr, arch, mtypSym, d.rtmp, i)
+			a := decodetypeFuncInType2(ldr, arch, mtypSym, d.rtmp, i)
 			buf.WriteString(ldr.SymName(a))
 		}
 		buf.WriteString(") (")
@@ -327,7 +327,7 @@ func (d *deadcodePass2) decodeMethodSig2(ldr *loader.Loader, arch *sys.Arch, sym
 			if i > 0 {
 				buf.WriteString(", ")
 			}
-			a := d.decodetypeFuncOutType2(ldr, arch, mtypSym, d.rtmp, i)
+			a := decodetypeFuncOutType2(ldr, arch, mtypSym, d.rtmp, i)
 			buf.WriteString(ldr.SymName(a))
 		}
 		buf.WriteRune(')')
@@ -389,47 +389,6 @@ func (d *deadcodePass2) decodetypeMethods2(ldr *loader.Loader, arch *sys.Arch, s
 	off += moff                // offset to array of reflect.method values
 	const sizeofMethod = 4 * 4 // sizeof reflect.method in program
 	return d.decodeMethodSig2(ldr, arch, symIdx, symRelocs, off, sizeofMethod, mcount)
-}
-
-func decodeReloc2(ldr *loader.Loader, symIdx loader.Sym, symRelocs []loader.Reloc, off int32) loader.Reloc {
-	for j := 0; j < len(symRelocs); j++ {
-		rel := symRelocs[j]
-		if rel.Off == off {
-			return rel
-		}
-	}
-	return loader.Reloc{}
-}
-
-func decodeRelocSym2(ldr *loader.Loader, symIdx loader.Sym, symRelocs []loader.Reloc, off int32) loader.Sym {
-	return decodeReloc2(ldr, symIdx, symRelocs, off).Sym
-}
-
-// decodetypeName2 decodes the name from a reflect.name.
-func decodetypeName2(ldr *loader.Loader, symIdx loader.Sym, symRelocs []loader.Reloc, off int) string {
-	r := decodeRelocSym2(ldr, symIdx, symRelocs, int32(off))
-	if r == 0 {
-		return ""
-	}
-
-	data := ldr.Data(r)
-	namelen := int(uint16(data[1])<<8 | uint16(data[2]))
-	return string(data[3 : 3+namelen])
-}
-
-func (d *deadcodePass2) decodetypeFuncInType2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, symRelocs []loader.Reloc, i int) loader.Sym {
-	uadd := commonsize(arch) + 4
-	if arch.PtrSize == 8 {
-		uadd += 4
-	}
-	if decodetypeHasUncommon(arch, ldr.Data(symIdx)) {
-		uadd += uncommonSize()
-	}
-	return decodeRelocSym2(ldr, symIdx, symRelocs, int32(uadd+i*arch.PtrSize))
-}
-
-func (d *deadcodePass2) decodetypeFuncOutType2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, symRelocs []loader.Reloc, i int) loader.Sym {
-	return d.decodetypeFuncInType2(ldr, arch, symIdx, symRelocs, i+decodetypeFuncInCount(arch, ldr.Data(symIdx)))
 }
 
 // readRelocs reads the relocations for the specified symbol into the
