@@ -216,7 +216,10 @@ func (s *snapshot) transitiveReverseDependencies(id packageID, ids map[packageID
 func (s *snapshot) getImportedBy(id packageID) []packageID {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.getImportedByLocked(id)
+}
 
+func (s *snapshot) getImportedByLocked(id packageID) []packageID {
 	// If we haven't rebuilt the import graph since creating the snapshot.
 	if len(s.importedBy) == 0 {
 		s.rebuildImportGraph()
@@ -457,9 +460,65 @@ func (s *snapshot) Handle(ctx context.Context, f source.File) source.FileHandle 
 	return s.files[f.URI()]
 }
 
-func (s *snapshot) clone(ctx context.Context, withoutURI span.URI, withoutTypes, withoutMetadata map[packageID]struct{}) *snapshot {
+func (s *snapshot) clone(ctx context.Context, withoutFile source.File) *snapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	toInvalidate := map[packageID]struct{}{}
+	// Collect all of the package IDs that correspond to the given file.
+	// TODO: if the file has moved into a new package, we should invalidate that too.
+	for _, id := range s.ids[withoutFile.URI()] {
+		toInvalidate[id] = struct{}{}
+	}
+
+	// If we are invalidating a go.mod file then we should invalidate all of the packages in the module
+	if withoutFile.Kind() == source.Mod {
+		for id := range s.workspacePackages {
+			toInvalidate[id] = struct{}{}
+		}
+	}
+
+	// Get the original FileHandle for the URI, if it exists.
+	originalFH := s.files[withoutFile.URI()]
+
+	// If this is a file we don't yet know about,
+	// then we do not yet know what packages it should belong to.
+	// Make a rough estimate of what metadata to invalidate by finding the package IDs
+	// of all of the files in the same directory as this one.
+	// TODO(rstambler): Speed this up by mapping directories to filenames.
+	if originalFH == nil {
+		if dirStat, err := os.Stat(dir(withoutFile.URI().Filename())); err == nil {
+			for uri := range s.files {
+				if fdirStat, err := os.Stat(dir(uri.Filename())); err == nil {
+					if os.SameFile(dirStat, fdirStat) {
+						for _, id := range s.ids[uri] {
+							toInvalidate[id] = struct{}{}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// If there is no known FileHandle and no known IDs for the given file,
+	// there is nothing to invalidate.
+	if len(toInvalidate) == 0 && originalFH == nil {
+		// TODO(heschi): clone anyway? Seems like this is just setting us up for trouble.
+		return s
+	}
+
+	// Invalidate reverse dependencies too.
+	// TODO(heschi): figure out the locking model and use transitiveReverseDeps?
+	var addRevDeps func(packageID)
+	addRevDeps = func(id packageID) {
+		toInvalidate[id] = struct{}{}
+		for _, rid := range s.getImportedByLocked(id) {
+			addRevDeps(rid)
+		}
+	}
+	for id := range toInvalidate {
+		addRevDeps(id)
+	}
 
 	result := &snapshot{
 		id:                s.id + 1,
@@ -474,7 +533,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURI span.URI, withoutTypes,
 	}
 	// Copy all of the FileHandles except for the one that was invalidated.
 	for k, v := range s.files {
-		if k == withoutURI {
+		if k == withoutFile.URI() {
 			continue
 		}
 		result.files[k] = v
@@ -485,34 +544,36 @@ func (s *snapshot) clone(ctx context.Context, withoutURI span.URI, withoutTypes,
 	}
 	// Copy the package type information.
 	for k, v := range s.packages {
-		if _, ok := withoutTypes[k.id]; ok {
-			continue
-		}
-		if _, ok := withoutMetadata[k.id]; ok {
+		if _, ok := toInvalidate[k.id]; ok {
 			continue
 		}
 		result.packages[k] = v
 	}
 	// Copy the package analysis information.
 	for k, v := range s.actions {
-		if _, ok := withoutTypes[k.pkg.id]; ok {
-			continue
-		}
-		if _, ok := withoutMetadata[k.pkg.id]; ok {
+		if _, ok := toInvalidate[k.pkg.id]; ok {
 			continue
 		}
 		result.actions[k] = v
 	}
-	// Copy the package metadata.
-	for k, v := range s.metadata {
-		if _, ok := withoutMetadata[k]; ok {
-			continue
-		}
-		result.metadata[k] = v
-	}
 	// Copy the set of initally loaded packages.
 	for k, v := range s.workspacePackages {
 		result.workspacePackages[k] = v
+	}
+
+	// Get the current FileHandle for the URI.
+	currentFH := s.view.session.GetFile(withoutFile.URI(), withoutFile.Kind())
+
+	// Check if the file's package name or imports have changed,
+	// and if so, invalidate this file's packages' metadata.
+	invalidateMetadata := s.view.session.cache.shouldLoad(ctx, s, originalFH, currentFH)
+
+	// Copy the package metadata.
+	for k, v := range s.metadata {
+		if _, ok := toInvalidate[k]; invalidateMetadata && ok {
+			continue
+		}
+		result.metadata[k] = v
 	}
 	// Don't bother copying the importedBy graph,
 	// as it changes each time we update metadata.
@@ -526,87 +587,17 @@ func (s *snapshot) ID() uint64 {
 // invalidateContent invalidates the content of a Go file,
 // including any position and type information that depends on it.
 // It returns true if we were already tracking the given file, false otherwise.
-//
-// Note: The logic in this function is convoluted. Do not change without significant thought.
-func (v *view) invalidateContent(ctx context.Context, f source.File, action source.FileAction) bool {
-	var (
-		withoutTypes    = make(map[packageID]struct{})
-		withoutMetadata = make(map[packageID]struct{})
-		ids             = make(map[packageID]struct{})
-	)
-
+func (v *view) invalidateContent(ctx context.Context, f source.File, action source.FileAction) {
 	// This should be the only time we hold the view's snapshot lock for any period of time.
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock()
-
-	// Collect all of the package IDs that correspond to the given file.
-	for _, id := range v.snapshot.getIDs(f.URI()) {
-		ids[id] = struct{}{}
-	}
-
-	// If we are invalidating a go.mod file then we should invalidate all of the packages in the module
-	if f.Kind() == source.Mod {
-		for id := range v.snapshot.workspacePackages {
-			ids[id] = struct{}{}
-		}
-	}
-
-	// Get the original FileHandle for the URI, if it exists.
-	originalFH := v.snapshot.getFile(f.URI())
-
-	// If this is a file we don't yet know about,
-	// then we do not yet know what packages it should belong to.
-	// Make a rough estimate of what metadata to invalidate by finding the package IDs
-	// of all of the files in the same directory as this one.
-	// TODO(rstambler): Speed this up by mapping directories to filenames.
-	if originalFH == nil {
-		if dirStat, err := os.Stat(dir(f.URI().Filename())); err == nil {
-			for _, uri := range v.snapshot.getFileURIs() {
-				if fdirStat, err := os.Stat(dir(uri.Filename())); err == nil {
-					if os.SameFile(dirStat, fdirStat) {
-						for _, id := range v.snapshot.ids[uri] {
-							ids[id] = struct{}{}
-						}
-					}
-				}
-			}
-		}
-		// Make sure that the original FileHandle is nil.
-		originalFH = nil
-	}
-
-	// If there is no known FileHandle and no known IDs for the given file,
-	// there is nothing to invalidate.
-	if len(ids) == 0 && originalFH == nil {
-		return false
-	}
-
-	// Remove the package and all of its reverse dependencies from the cache.
-	for id := range ids {
-		v.snapshot.transitiveReverseDependencies(id, withoutTypes)
-	}
 
 	// If we are deleting a file, make sure to clear out the overlay.
 	if action == source.Delete {
 		v.session.clearOverlay(f.URI())
 	}
 
-	// Get the current FileHandle for the URI.
-	currentFH := v.session.GetFile(f.URI(), f.Kind())
-
-	// Check if the file's package name or imports have changed,
-	// and if so, invalidate this file's packages' metadata.
-	if v.session.cache.shouldLoad(ctx, v.snapshot, originalFH, currentFH) {
-		for id := range ids {
-			withoutMetadata[id] = struct{}{}
-
-			// TODO: If a package's name has changed,
-			// we should invalidate the metadata for the new package name (if it exists).
-		}
-	}
-
-	v.snapshot = v.snapshot.clone(ctx, f.URI(), withoutTypes, withoutMetadata)
-	return true
+	v.snapshot = v.snapshot.clone(ctx, f)
 }
 
 func (s *snapshot) clearAndRebuildImportGraph() {
