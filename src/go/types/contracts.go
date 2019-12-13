@@ -14,7 +14,7 @@ import (
 // TODO(gri) Handling a contract like a type is problematic because it
 // won't exclude a contract where we only permit a type. Investigate.
 
-func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
+func (check *Checker) contractType(contr *Contract, name string, e *ast.ContractType) {
 	check.openScope(e, "contract")
 	defer check.closeScope()
 
@@ -27,15 +27,22 @@ func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
 		tparams[index] = tpar
 	}
 
-	// each type parameter's constraints are represented by a (lazily allocated) interface
-	ifaces := make(map[*TypeName]*Interface)
+	// TODO(gri) review this - we probably don't need lazy allocation anymore
+	// Each type parameter's constraints are represented by a (lazily allocated) named interface.
+	// Given a contract C(P1, P2, ... Pn) { ... } we construct named types C1(P1, P2, ... Pn),
+	// C2(P1, P2, ... Pn), ... Cn(P1, P2, ... Pn) with the respective underlying interfaces
+	// representing the type constraints for each of the type parameters (C1 for P1, C2 for P2, etc.).
+	bounds := make(map[*TypeName]*Named)
 	ifaceFor := func(tpar *TypeName) *Interface {
-		iface := ifaces[tpar]
-		if iface == nil {
-			iface = new(Interface)
-			ifaces[tpar] = iface
+		named := bounds[tpar]
+		if named == nil {
+			index := tpar.typ.(*TypeParam).index
+			tname := NewTypeName(e.Pos(), check.pkg, name+string(subscript(uint64(index))), nil)
+			tname.tparams = tparams
+			named = NewNamed(tname, new(Interface), nil)
+			bounds[tpar] = named
 		}
-		return iface
+		return named.underlying.(*Interface)
 	}
 
 	// collect constraints
@@ -131,17 +138,13 @@ func (check *Checker) contractType(contr *Contract, e *ast.ContractType) {
 		}
 	}
 
-	// cleanup/complete interfaces
-	for tpar, iface := range ifaces {
-		if iface == nil {
-			ifaces[tpar] = &emptyInterface
-		} else {
-			check.completeInterface(e.Pos(), iface)
-		}
+	// complete interfaces
+	for _, bound := range bounds {
+		check.completeInterface(e.Pos(), bound.underlying.(*Interface))
 	}
 
 	contr.TParams = tparams
-	contr.IFaces = ifaces
+	contr.Bounds = bounds
 }
 
 func (check *Checker) collectTypeConstraints(pos token.Pos, list []Type, types []ast.Expr) []Type {

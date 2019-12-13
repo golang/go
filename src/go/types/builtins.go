@@ -648,11 +648,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 }
 
 // applyTypeFunc applies f to x. If x is a type parameter,
-// the result is an anonymous type parameter constrained by
-// an unnamed contract. The type constraints of that contract
-// are computed by applying f to each of the contract type
-// constraints of x. If any of these applications of f return
-// nil, applyTypeFunc returns nil.
+// the result is a type parameter constrained by an new
+// interface bound. The type bounds for that interface
+// are computed by applying f to each of the type bounds
+// of x. If any of these applications of f return nil,
+// applyTypeFunc returns nil.
 // If x is not a type parameter, the result is f(x).
 func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 	if tp, _ := x.Underlying().(*TypeParam); tp != nil {
@@ -675,18 +675,11 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
 		//           define type and initialize a variable?
 
 		// construct a suitable new type parameter
-		tpar := NewTypeName(token.NoPos, nil /* = Universe pkg */, "<type parameter literal>", nil)
-		resTyp := check.NewTypeParam(tpar, 0, nil) // assigns type to tpar as a side-effect
+		tpar := NewTypeName(token.NoPos, nil /* = Universe pkg */, "<type parameter>", nil)
+		ptyp := check.NewTypeParam(tpar, 0, nil) // assigns type to tpar as a side-effect
+		ptyp.bound = &Interface{allMethods: markComplete, types: resTypes}
 
-		// construct a corresponding interface and contract
-		iface := &Interface{allMethods: markComplete, types: resTypes}
-		contr := &Contract{
-			TParams: []*TypeName{tpar},
-			IFaces:  map[*TypeName]*Interface{tpar: iface},
-		}
-		resTyp.bound = contr
-
-		return resTyp
+		return ptyp
 	}
 
 	return f(x)

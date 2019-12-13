@@ -78,13 +78,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 
 		// TODO(gri) document/explain why the substitution below is correct
 		//check.dump(">>> %s: iface before: %s", pos, iface)
-		bound := check.subst(pos, tpar.bound, tparams, targs).Underlying()
-		switch b := bound.(type) {
-		case *Interface:
-			iface = b
-		case *Contract:
-			iface = b.ifaceAt(i)
-		}
+		iface = check.subst(pos, iface, tparams, targs).(*Interface)
 		//check.dump(">>> %s: iface after : %s", pos, iface)
 
 		// targ must implement iface (methods)

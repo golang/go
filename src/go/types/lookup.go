@@ -363,7 +363,7 @@ func deref(typ Type) (Type, bool) {
 func derefUnpack(typ Type) (Type, bool) {
 	typ, ptr := deref(typ)
 	if tpar, _ := typ.(*TypeParam); tpar != nil {
-		typ = tpar.Interface()
+		typ = tpar.bound
 	}
 	return typ, ptr
 }

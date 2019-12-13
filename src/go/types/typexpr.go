@@ -376,7 +376,11 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 	case *ast.ContractType:
 		typ := new(Contract)
 		def.setUnderlying(typ)
-		check.contractType(typ, e)
+		name := "<contract>"
+		if def != nil {
+			name = def.obj.name
+		}
+		check.contractType(typ, name, e)
 		return typ
 
 	default:

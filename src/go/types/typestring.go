@@ -265,7 +265,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		// 		if i > 0 {
 		// 			buf.WriteString(", ")
 		// 		}
-		// 		writeTypeName(buf, tpar, qf)
+		// 		writeType(buf, tpar.typ, qf, visited)
 		// 	}
 		// 	buf.WriteByte(')')
 		// }
@@ -280,13 +280,15 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		}
 		buf.WriteString("){")
 		i := 0
-		for tpar, iface := range t.IFaces {
+		for tpar, bound := range t.Bounds {
 			if i > 0 {
 				buf.WriteString("; ")
 			}
 			writeType(buf, tpar.typ, qf, visited)
 			buf.WriteByte(' ')
-			writeType(buf, iface, qf, visited)
+			writeType(buf, bound, qf, visited)
+			buf.WriteString(" = ")
+			writeType(buf, bound.underlying, qf, visited)
 			i++
 		}
 		buf.WriteByte('}')

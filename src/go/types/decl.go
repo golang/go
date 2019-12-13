@@ -614,7 +614,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 
 	index = 0
 	for _, f := range list.List {
-		var bound Type
+		var bound Type = &emptyInterface
 		var isContract bool
 		if f.Type != nil {
 			typ := check.typ(f.Type)
@@ -641,10 +641,8 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 		for i, name := range f.Names {
 			tname := tparams[index]
 			assert(name.Name == tname.name) // catch index errors
-			// TODO(gri) enable the then branch to force interfaces for all
-			//           bounds and unpack the interface in the else branch
-			if false && isContract {
-				tname.typ.(*TypeParam).bound = bound.Underlying().(*Contract).ifaceAt(i)
+			if isContract {
+				tname.typ.(*TypeParam).bound = bound.Underlying().(*Contract).boundsAt(i)
 			} else {
 				tname.typ.(*TypeParam).bound = bound
 			}

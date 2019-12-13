@@ -513,34 +513,24 @@ func (t *Named) AddMethod(m *Func) {
 }
 
 // A Contract represents a contract.
-// TODO(gri) Do we need the ability to represent unnamed type parameter literals?
-//           For instance, when creating (result) type parameters out of whole cloth
-//           say for the result type of real/imag(x) where x is of a parameterized type.
 type Contract struct {
-	TParams []*TypeName
-	IFaces  map[*TypeName]*Interface
+	TParams []*TypeName          // type parameters in declaration order
+	Bounds  map[*TypeName]*Named // underlying type is always *Interface
 }
 
-// ifaceAt returns the interface matching for the respective
-// contract type parameter with the given index. If c is nil
-// the result is the empty interface.
-func (c *Contract) ifaceAt(index int) *Interface {
-	var iface *Interface
-	if c != nil {
-		iface = c.IFaces[c.TParams[index]]
-	}
-	if iface == nil {
-		iface = &emptyInterface
-	}
-	return iface
+// boundsAt returns the (named) interface for the respective
+// contract type parameter with the given index.
+// TODO(gri) we probably don't need this one
+func (c *Contract) boundsAt(index int) *Named {
+	return c.Bounds[c.TParams[index]]
 }
 
 // A TypeParam represents a type parameter type.
 type TypeParam struct {
-	id    uint64 // unique id (TODO should this be with the object? all objects?)
-	obj   *TypeName
-	index int  // parameter index
-	bound Type // either an *Interface or a *Contract // TODO(gri) make this *Interface or nil only?
+	id    uint64    // unique id (TODO should this be with the object? all objects?)
+	obj   *TypeName // corresponding type name
+	index int       // parameter index
+	bound Type      // *Named or *Interface; underlying type is always *Interface
 }
 
 // NewTypeParam returns a new TypeParam.
@@ -553,22 +543,8 @@ func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypePa
 	return typ
 }
 
-// Interface returns the type parameter's interface as
-// specified via its contract. If there is no contract,
-// the result is the empty interface.
-// TODO(gri) should this be Underlying instead?
 func (t *TypeParam) Interface() *Interface {
-	if t.bound == nil {
-		return &emptyInterface
-	}
-	switch b := t.bound.Underlying().(type) {
-	case *Interface:
-		return b
-	case *Contract:
-		return b.ifaceAt(t.index)
-	default:
-		panic("type parameter bound must be an interface or contract")
-	}
+	return t.bound.Underlying().(*Interface)
 }
 
 // Implementations for Type methods.
