@@ -1291,15 +1291,12 @@ func (c *runCache) tryCacheWithID(b *work.Builder, a *work.Action, id string) bo
 			"-test.parallel",
 			"-test.run",
 			"-test.short",
+			"-test.timeout",
 			"-test.v":
 			// These are cacheable.
 			// Note that this list is documented above,
 			// so if you add to this list, update the docs too.
 			cacheArgs = append(cacheArgs, arg)
-
-		case "-test.timeout":
-			// Special case: this is cacheable but ignored during the hash.
-			// Do not add to cacheArgs.
 
 		default:
 			// nothing else is cacheable
