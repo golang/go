@@ -449,7 +449,7 @@ using [minimal version selection](#glos-minimal-version-selection). The build
 list contains versions for all modules in the [module
 graph](#glos-module-graph), not just those relevant to a specific command.
 
-<a id="glos-canonical-version">
+<a id="glos-canonical-version"></a>
 **canonical version:** A correctly formatted [version](#glos-version) without
 a build metadata suffix other than `+incompatible`. For example, `v1.2.3`
 is a canonical version, but `v1.2.3+meta` is not.
