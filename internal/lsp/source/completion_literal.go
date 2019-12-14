@@ -125,7 +125,14 @@ func (c *completer) literal(literalType types.Type, imp *importInfo) {
 		switch t := literalType.Underlying().(type) {
 		case *types.Struct, *types.Array, *types.Slice, *types.Map:
 			c.compositeLiteral(t, typeName, float64(score), addlEdits)
-		case *types.Basic, *types.Signature:
+		case *types.Signature:
+			// Add a literal completion for a signature type that implements
+			// an interface. For example, offer "http.HandlerFunc()" when
+			// expected type is "http.Handler".
+			if isInterface(expType) {
+				c.basicLiteral(t, typeName, float64(score), addlEdits)
+			}
+		case *types.Basic:
 			// Add a literal completion for basic types that implement our
 			// expected interface (e.g. named string type http.Dir
 			// implements http.FileSystem), or are identical to our expected
