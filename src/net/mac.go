@@ -4,10 +4,20 @@
 
 package net
 
+import "internal/bytealg"
+
 const hexDigit = "0123456789abcdef"
 
 // A HardwareAddr represents a physical hardware address.
 type HardwareAddr []byte
+
+// Equal reports whether a and x are the same HardwareAddr address.
+func (a HardwareAddr) Equal(x HardwareAddr) bool {
+	if len(a) == len(x) {
+		return bytealg.Equal(a, x)
+	}
+	return false
+}
 
 func (a HardwareAddr) String() string {
 	if len(a) == 0 {
