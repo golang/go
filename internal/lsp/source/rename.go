@@ -108,7 +108,7 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 		return nil, errors.Errorf("cannot rename builtin %q", i.Name)
 	}
 	if i.pkg == nil || i.pkg.IsIllTyped() {
-		return nil, errors.Errorf("package for %s is ill typed", i.File.File().Identity().URI)
+		return nil, errors.Errorf("package for %s is ill typed", i.URI())
 	}
 	// Do not rename identifiers declared in another package.
 	if i.pkg.GetTypes() != i.Declaration.obj.Pkg() {
@@ -222,8 +222,7 @@ func (i *IdentifierInfo) getPkgName(ctx context.Context) (*IdentifierInfo, error
 // pkgName must be in the same package and file as ident.
 func getPkgNameIdentifier(ctx context.Context, ident *IdentifierInfo, pkgName *types.PkgName) (*IdentifierInfo, error) {
 	decl := Declaration{
-		obj:         pkgName,
-		wasImplicit: true,
+		obj: pkgName,
 	}
 	var err error
 	if decl.mappedRange, err = objToMappedRange(ident.Snapshot.View(), ident.pkg, decl.obj); err != nil {
@@ -236,7 +235,6 @@ func getPkgNameIdentifier(ctx context.Context, ident *IdentifierInfo, pkgName *t
 		Snapshot:    ident.Snapshot,
 		Name:        pkgName.Name(),
 		mappedRange: decl.mappedRange,
-		File:        ident.File,
 		Declaration: decl,
 		pkg:         ident.pkg,
 		qf:          ident.qf,
