@@ -22,8 +22,8 @@ func Print() { //@mark(printFunc, "Print"),highlight(printFunc, printFunc, print
 	fmt.Print("yo")  //@mark(printSep, "Print"),highlight(printSep, printSep, print1, print2)
 }
 
-func (x *F) Inc() { //@mark(xDeclaration, "x"),highlight(xDeclaration, xDeclaration, xUse)
-	x.bar++ //@mark(xUse, "x"),mark(bar3, "bar"),highlight(xUse, xDeclaration, xUse),highlight(bar3, barDeclaration, bar1, bar2, bar3)
+func (x *F) Inc() { //@mark(xRightDecl, "x"),mark(xLeftDecl, " *"),highlight(xRightDecl, xRightDecl, xUse),highlight(xLeftDecl, xRightDecl, xUse)
+	x.bar++ //@mark(xUse, "x"),mark(bar3, "bar"),highlight(xUse, xRightDecl, xUse),highlight(bar3, barDeclaration, bar1, bar2, bar3)
 }
 
 func testFunctions() {
