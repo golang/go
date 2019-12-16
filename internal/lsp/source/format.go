@@ -132,13 +132,13 @@ func computeImportEdits(ctx context.Context, view View, ph ParseGoHandle, option
 	if err != nil {
 		return nil, nil, err
 	}
-	origImports, origImportOffset := trimToImports(view.Session().Cache().FileSet(), origAST, origData)
 
 	allFixes, err := imports.FixImports(filename, origData, options)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	origImports, origImportOffset := trimToImports(view.Session().Cache().FileSet(), origAST, origData)
 	allFixEdits, err = computeFixEdits(view, ph, options, origData, origAST, origMapper, origImports, origImportOffset, allFixes)
 	if err != nil {
 		return nil, nil, err
