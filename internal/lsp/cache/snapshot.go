@@ -536,13 +536,19 @@ func (s *snapshot) clone(ctx context.Context, withoutFile source.File) *snapshot
 		files:             make(map[span.URI]source.FileHandle),
 		workspacePackages: make(map[packageID]bool),
 	}
-	// Copy all of the FileHandles except for the one that was invalidated.
+
+	// Copy all of the FileHandles.
 	for k, v := range s.files {
-		if k == withoutFile.URI() {
-			continue
-		}
 		result.files[k] = v
 	}
+	// Handle the invalidated file; it may have new contents or not exist.
+	currentFH := s.view.session.GetFile(withoutFile.URI(), withoutFile.Kind())
+	if _, _, err := currentFH.Read(ctx); os.IsNotExist(err) {
+		delete(result.files, withoutFile.URI())
+	} else {
+		result.files[withoutFile.URI()] = currentFH
+	}
+
 	// Collect the IDs for the packages associated with the excluded URIs.
 	for k, ids := range s.ids {
 		result.ids[k] = ids
@@ -565,9 +571,6 @@ func (s *snapshot) clone(ctx context.Context, withoutFile source.File) *snapshot
 	for k, v := range s.workspacePackages {
 		result.workspacePackages[k] = v
 	}
-
-	// Get the current FileHandle for the URI.
-	currentFH := s.view.session.GetFile(withoutFile.URI(), withoutFile.Kind())
 
 	// Check if the file's package name or imports have changed,
 	// and if so, invalidate this file's packages' metadata.
