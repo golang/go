@@ -42,9 +42,7 @@ contract NumericAbs(T) {
 // a and b, where the absolute value is determined by the Abs method.
 func AbsDifference(type T NumericAbs)(a, b T) T {
 	d := a - b
-	//TODO(gri) fix this
-	//return d.Abs()
-	return d
+	return d.Abs()
 }
 
 // OrderedNumeric matches numeric types that support the < operator.

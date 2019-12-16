@@ -7,8 +7,7 @@ TODO
 
 OPEN ISSUES
 - using a contract and enumerating type arguments currently leads to an error (e.g. func f(type T C(T)) (x T) ... )
-- the above problem is the underlying problem why contracts are not properly "instantiated" when used as type bounds
-- contracts slip through in places where only types are permitted
+git add - contracts slip through in places where only types are permitted
 - conversions against parameterized types are not implemented
 - parameterized interface methods (of type bounds) need to be customized (subst) for context
 

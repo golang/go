@@ -606,16 +606,15 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 	// type parameters are all declared early (it's not observable).
 	index := 0
 	for _, f := range list.List {
-		for _, name := range f.Names {
-			tparams = append(tparams, check.declareTypeParam(name, index, nil))
-			index++
+		for i, name := range f.Names {
+			tparams = append(tparams, check.declareTypeParam(name, index+i, nil))
 		}
+		index += len(f.Names)
 	}
 
 	index = 0
 	for _, f := range list.List {
 		var bound Type = &emptyInterface
-		var isContract bool
 		if f.Type != nil {
 			typ := check.typ(f.Type)
 			if typ != Typ[Invalid] {
@@ -629,7 +628,6 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 						break // cannot use this contract
 					}
 					bound = typ
-					isContract = true
 				default:
 					check.errorf(f.Type.Pos(), "%s is not an interface or contract", typ)
 				}
@@ -637,17 +635,32 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 		}
 
 		// set the type parameter's bound
-		// (do this even if bound == nil to make sure index is correctly increasing)
+		var targs []Type // only needed for contract instantiation; lazily allocated
 		for i, name := range f.Names {
-			tname := tparams[index]
-			assert(name.Name == tname.name) // catch index errors
-			if isContract {
-				tname.typ.(*TypeParam).bound = bound.Underlying().(*Contract).boundsAt(i)
-			} else {
-				tname.typ.(*TypeParam).bound = bound
+			assert(name.Name == tparams[index+i].name) // catch index errors
+			// If we have a contract, use its matching type parameter bound
+			// and instantiate it with the actual type parameters (== arguments)
+			// present.
+			bound := bound
+			if b, _ := bound.Underlying().(*Contract); b != nil {
+				// TODO(gri) eliminate this nil test by ensuring that all
+				//           contract parameters have an associated bound
+				if bat := b.boundsAt(i); bat != nil {
+					if targs == nil {
+						targs = make([]Type, len(f.Names))
+						for i, tparam := range tparams[index : index+len(f.Names)] {
+							targs[i] = tparam.typ
+						}
+					}
+					bound = check.instantiate(name.Pos(), bat, targs, nil)
+				} else {
+					bound = &emptyInterface
+				}
 			}
-			index++
+			tparams[index+i].typ.(*TypeParam).bound = bound
 		}
+
+		index += len(f.Names)
 	}
 
 	return tparams

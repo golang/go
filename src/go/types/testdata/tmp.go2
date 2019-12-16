@@ -16,6 +16,5 @@ type B(type T) interface {
 
 func AbsDifference(type T C)(a, b T) T {
 	d := a - b
-	// TODO(gri) make this work
-	return d /* ERROR cannot use */ .Abs()
+	return d.Abs()
 }
