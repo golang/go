@@ -62,7 +62,7 @@ func Examples(testFiles ...*ast.File) []*Example {
 			if !ok || f.Recv != nil {
 				continue
 			}
-			if params := f.Type.Params; params.List != nil {
+			if params := f.Type.Params; len(params.List) != 0 {
 				continue // function has params; not a valid example
 			}
 			numDecl++
