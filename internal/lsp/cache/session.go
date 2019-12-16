@@ -95,6 +95,11 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 	// the spans need to be unrelated and no tag values should pollute it.
 	baseCtx := trace.Detach(xcontext.Detach(ctx))
 	backgroundCtx, cancel := context.WithCancel(baseCtx)
+
+	modfiles, err := getModfiles(ctx, folder.Filename(), options.Env)
+	if err != nil {
+		log.Error(ctx, "error getting modfiles", err, telemetry.Directory.Of(folder))
+	}
 	v := &view{
 		session:       s,
 		id:            strconv.FormatInt(index, 10),
@@ -103,6 +108,7 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 		backgroundCtx: backgroundCtx,
 		cancel:        cancel,
 		name:          name,
+		modfiles:      modfiles,
 		folder:        folder,
 		filesByURI:    make(map[span.URI]viewFile),
 		filesByBase:   make(map[string][]viewFile),

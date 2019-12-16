@@ -36,7 +36,7 @@ func checkCommonErrors(ctx context.Context, view View, uri span.URI) (string, er
 
 	// Invoke `go env GOMOD` inside of the directory of the file.
 	fdir := filepath.Dir(uri.Filename())
-	b, err := invokeGo(ctx, fdir, cfg.Env, "env", "GOMOD")
+	b, err := InvokeGo(ctx, fdir, cfg.Env, "env", "GOMOD")
 	if err != nil {
 		return "", err
 	}
@@ -78,7 +78,7 @@ func checkCommonErrors(ctx context.Context, view View, uri span.URI) (string, er
 
 // invokeGo returns the stdout of a go command invocation.
 // Borrowed from golang.org/x/tools/go/packages/golist.go.
-func invokeGo(ctx context.Context, dir string, env []string, args ...string) (*bytes.Buffer, error) {
+func InvokeGo(ctx context.Context, dir string, env []string, args ...string) (*bytes.Buffer, error) {
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 	cmd := exec.CommandContext(ctx, "go", args...)
@@ -103,6 +103,7 @@ func invokeGo(ctx context.Context, dir string, env []string, args ...string) (*b
 			// - context cancellation
 			return nil, fmt.Errorf("couldn't exec 'go %v': %s %T", args, err, err)
 		}
+		return stdout, fmt.Errorf("%s", stderr)
 	}
 	return stdout, nil
 }

@@ -53,6 +53,9 @@ type view struct {
 	// Name is the user visible name of this view.
 	name string
 
+	// modfiles are the go.mod files attributed to this view.
+	modfiles *modfiles
+
 	// Folder is the root of this view.
 	folder span.URI
 
@@ -84,6 +87,11 @@ type view struct {
 	// ignoredURIs is the set of URIs of files that we ignore.
 	ignoredURIsMu sync.Mutex
 	ignoredURIs   map[span.URI]struct{}
+}
+
+// modfiles holds the real and temporary go.mod files that are attributed to a view.
+type modfiles struct {
+	real, temp string
 }
 
 func (v *view) Session() source.Session {
@@ -130,11 +138,18 @@ func (v *view) SetOptions(ctx context.Context, options source.Options) (source.V
 // go/packages API. It is shared across all views.
 func (v *view) Config(ctx context.Context) *packages.Config {
 	// TODO: Should we cache the config and/or overlay somewhere?
+
+	// We want to run the go commands with the -modfile flag if the version of go
+	// that we are using supports it.
+	buildFlags := v.options.BuildFlags
+	if v.modfiles != nil {
+		buildFlags = append(buildFlags, fmt.Sprintf("-modfile=%s", v.modfiles.temp))
+	}
 	return &packages.Config{
 		Dir:        v.folder.Filename(),
 		Context:    ctx,
 		Env:        v.options.Env,
-		BuildFlags: v.options.BuildFlags,
+		BuildFlags: buildFlags,
 		Mode: packages.NeedName |
 			packages.NeedFiles |
 			packages.NeedCompiledGoFiles |
