@@ -21,6 +21,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -145,8 +146,12 @@ func initialize(filename string, src []byte, opt *Options) ([]byte, *Options, er
 	// Set the env if the user has not provided it.
 	if opt.Env == nil {
 		opt.Env = &ProcessEnv{
-			GOPATH: build.Default.GOPATH,
-			GOROOT: build.Default.GOROOT,
+			GOPATH:      build.Default.GOPATH,
+			GOROOT:      build.Default.GOROOT,
+			GOFLAGS:     os.Getenv("GOFLAGS"),
+			GO111MODULE: os.Getenv("GO111MODULE"),
+			GOPROXY:     os.Getenv("GOPROXY"),
+			GOSUMDB:     os.Getenv("GOSUMDB"),
 		}
 	}
 
