@@ -62,10 +62,9 @@ contract Complex(T) {
 type OrderedAbs(type T OrderedNumeric) T
 
 func (a OrderedAbs(T)) Abs() T {
-	// TODO(gri) implement conversions against parameterized types
-	// if a < 0 {
-	// 	return -a
-	// }
+	if a < 0 {
+		return -a
+	}
 	return a
 }
 

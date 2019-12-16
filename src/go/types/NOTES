@@ -1,6 +1,6 @@
 TODO
 - allow recursive type parameterization without need to repeat type parameters
-- if type parameters are repeated in recursive instantiation, they must be the same order
+- if type parameters are repeated in recursive instantiation, they must be the same order (not yet checked)
 - implement contract embedding
 - interface embedding doesn't take care of literal type constraints yet
   (need an allTypes list, like we have an allMethods list?)
@@ -8,7 +8,6 @@ TODO
 OPEN ISSUES
 - using a contract and enumerating type arguments currently leads to an error (e.g. func f(type T C(T)) (x T) ... )
 git add - contracts slip through in places where only types are permitted
-- conversions against parameterized types are not implemented
 - parameterized interface methods (of type bounds) need to be customized (subst) for context
 
 DESIGN DECISIONS

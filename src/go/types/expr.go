@@ -510,6 +510,39 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 		return
 	}
 
+	// In case of a type parameter, conversion must succeed against
+	// all types enumerated by the the type parameter bound.
+	if t, _ := target.Underlying().(*TypeParam); t != nil {
+		types := t.Interface().types
+		if len(types) == 0 {
+			goto Error
+		}
+
+		for _, t := range t.Interface().types {
+			check.convertUntypedInternal(x, t)
+			if x.mode == invalid {
+				goto Error
+			}
+		}
+
+		x.typ = target
+		check.updateExprType(x.expr, target, true) // UntypedNils are final
+		return
+	}
+
+	check.convertUntypedInternal(x, target)
+	return
+
+Error:
+	// TODO(gri) better error message (explain cause)
+	check.errorf(x.pos(), "cannot convert %s to %s", x, target)
+	x.mode = invalid
+}
+
+// convertUntypedInternal should only be called by convertUntyped.
+func (check *Checker) convertUntypedInternal(x *operand, target Type) {
+	assert(isTyped(target))
+
 	// typed target
 	switch t := target.Underlying().(type) {
 	case *Basic:
