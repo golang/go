@@ -1,58 +1,116 @@
+go/*: GopherCon 2019 snapshot of go/* packages supporting contracts
+
+DO NOT REVIEW. DO NOT SUBMIT.
+
 This code contains changes to go/types and the go/* support libraries
 to type-check generic code as outlined in the latest contracts proposal
 and presented by Ian Lance Taylor at GopherCon 2019 in San Diego.
 
-CAUTION: EARLY PROTOTYPE. MISSING PIECES. THERE ARE BUGS.
+CAUTION: PROTOTYPE. THERE ARE KNOWN (AND UNKNOWN) BUGS.
 
-Read and use the code at your own risk.
+Read and use this code at your own risk.
 
-The go/parser and go/ast changes are working and pass tests
-including all the larger examples in the latest contracts design doc.
-Look for the *.go2 files in go/parser/testdata.
+STATUS
 
-gofmt works only partly with parameterized code.
+Significant progress has happened since the last update of this CL.
+With some exceptions (see below), most aspects of the contracts
+proposal have been implemented with at least a few tests (but expect
+bugs). Except for a small number of known issues documented in the
+respective files, go/types can now type-check all the *.go2 test
+files in the testdata and examples directories.
 
-The type-checker is starting to work but is not complete.
-I will update this CL from time to time as progress happens.
+ALTERNATIVE NOTATION
 
-Specifically, the following pieces (and more) are missing from type-
-checking or lead to unexpected behavior:
+To experiment with an alternative notation to contracts, this
+implementation permits the use of (possibly parameterized)
+interfaces instead of a contract. Specifically, the following
+notations are permitted and equivalent:
 
-- Importing of packages with type parameters or contracts.
-- Type-checking of contracts with type constraints shows initial
-  signs of life but is still work in progress.
+// Instead of a contract
 
-The following is "working" (as in: can be type-checked without errors):
+contract C(P1, P2) {
+        P1 m1(x P1)
+        P2 m2(x P1) P2
+        P2 int, float64
+}
 
-- Declaration and use of parameterized types.
-- Declaration and use (calls) of parameterized functions,
-  including type inference from function arguments.
-- Some larger tests pass mostly (see testdata/*.go2 files).
-- First contracts with type constraints and simple operators
-  (see end of testdata/contracts.go2 file for examples).
+// used in a generic function
 
-Some code may look like it's working, but it may simply not do anything.
+func f (type P1, P2 C) (x P1, y P2) P2
 
-Error messages, where present, are in usable condition but expect
-them to be significantly better in a more complete implementation.
+// one may use a pair of parameterized interfaces I1 and I2
+// describing the bounds (constraints) of the respective type
+// parameters P1 and P2:
 
-To play with this prototype:
+type I1(type P1) interface {
+        m1(x P1)
+}
+
+type I2(type P1, P2) interface {
+        m2(x P1) P2
+        type int, float64
+}
+
+The function f above can then be written:
+
+func f(type P1 I1(P1), P2 I2(P1, P2)) (x P1, y P2) P2
+
+Obviously, the interface notation is longer in general, but it
+doesn't require a fundamentally new mechanism (but for the ability
+to enumerate a list of types). In many (most?) cases, the interfaces
+may not need to be parameterized at all, in which case the typing
+overhead is not as big. Using interfaces as constraints also opens
+the door to using already existing interfaces (such as io.Reader)
+directly.
+
+Internally, the type checker "disassembles" a contract into its
+"component interfaces", one for each type parameter, each possibly
+parameterized by the type parameters of the contract. Allowing to
+use interfaces directly instead of contracts leads to a simpler
+implementation. In other words, the contract notation can be viewed
+as a form of syntactic sugar for type parameter bounds expressed as
+interfaces.
+
+KNOWN ISSUES
+
+- gofmt works only partly with parameterized code
+- importing of packages exporting generic code is not implemented
+  (and likely won't be implemented in this prototype)
+- error messages are reasonable expect them to be significantly
+  better in a real implementation
+- contract embedding is not implemented yet
+- embedding of interfaces ignores (the notationally new) type
+  lists in interfaces
+- various type-specific operations (such as indexing, sending a
+  message, etc.) on expressions of a generic type don't work
+  yet (but are relatively easy to implement, going forward)
+
+See also the NOTES file for a more up-to-date documentation of the
+current state and issues.
+
+TO PLAY WITH THIS PROTOTYPE
 
 - Cherry-pick this CL on top of tip (the cherry-pick was tested with
-  tip at 5650a53dac737):
+  tip at a3dc6da6d6):
 
   git fetch "https://go.googlesource.com/go" ... && git cherry-pick FETCH_HEAD
 
   (replace the ... with the respective information from Gerrit's CL page)
 
-- Build the gotype command:
+- In the go/types directory, build the gotype command:
 
-  go install go/types/gotype.go
+  go build gotype.go
 
-- Run it against a test case (assuming gotype was installed in a location that
-  is in your $PATH):
+- Run it against a test case (from the go/types directory):
 
-  gotype $GOROOT/src/go/types/examples/functions.go2
+  ./gotype examples/functions.go2
+
+- Alternatively, use the go/types test framework to get detailed type-checking
+  information. For instance:
+
+   go test -run Check$ -files testdata/contracts.go2 -v
+
+  (the -v option provides a type-checking trace)
 
 See also `gotype -h` for more information.
 
@@ -63,3 +121,6 @@ from touching them. We expect a proper implementation to keep using ".go".
 Update 8/04/2019: Several bugs around type inference and type instantiation fixed.
 Update 8/16/2019: Many issues around type instantiations and contracts with methods fixed.
 Update 10/8/2019: Contracts with type constraints starting to be usable.
+Update 12/15/2019: Significant progress with much of the functionality present.
+
+Change-Id: I29839b5e95d7050fce1dcb3334d3d324883cf76f
