@@ -17,7 +17,9 @@ func (t Thing) Method(i int) string { //@Method
 }
 
 func useThings() {
-	t := Thing{}        //@mark(aStructType, "ing")
+	t := Thing{ //@mark(aStructType, "ing")
+		Member: "string", //@mark(fMember, "ember")
+	}
 	fmt.Print(t.Member) //@mark(aMember, "ember")
 	fmt.Print(Other)    //@mark(aVar, "ther")
 	Things()            //@mark(aFunc, "ings")
@@ -30,6 +32,8 @@ godef(aMember, Member)
 godef(aVar, Other)
 godef(aFunc, Things)
 godef(aMethod, Method)
+godef(fMember, Member)
+godef(Member, Member)
 
 //param
 //package name

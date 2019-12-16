@@ -33,8 +33,10 @@ type IdentifierInfo struct {
 
 	Declaration Declaration
 
-	ident    *ast.Ident
-	selector *ast.SelectorExpr
+	ident *ast.Ident
+
+	// enclosing is an expression used to determine the link anchor for an identifier.
+	enclosing types.Type
 
 	pkg Package
 	qf  types.Qualifier
@@ -120,12 +122,12 @@ func identifier(s Snapshot, pkg Package, file *ast.File, pos token.Pos) (*Identi
 		}
 	}
 	result := &IdentifierInfo{
-		File:     ph,
-		Snapshot: s,
-		qf:       qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo()),
-		pkg:      pkg,
-		ident:    searchForIdent(path[0]),
-		selector: searchForSelector(path),
+		File:      ph,
+		Snapshot:  s,
+		qf:        qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo()),
+		pkg:       pkg,
+		ident:     searchForIdent(path[0]),
+		enclosing: searchForEnclosing(pkg, path),
 	}
 
 	// No identifier at the given position.
@@ -232,11 +234,23 @@ func searchForIdent(n ast.Node) *ast.Ident {
 	return nil
 }
 
-func searchForSelector(path []ast.Node) *ast.SelectorExpr {
+func searchForEnclosing(pkg Package, path []ast.Node) types.Type {
 	for _, n := range path {
-		switch node := n.(type) {
+		switch n := n.(type) {
 		case *ast.SelectorExpr:
-			return node
+			if selection, ok := pkg.GetTypesInfo().Selections[n]; ok {
+				return deref(selection.Recv())
+			}
+		case *ast.CompositeLit:
+			if t, ok := pkg.GetTypesInfo().Types[n]; ok {
+				return t.Type
+			}
+		case *ast.TypeSpec:
+			if _, ok := n.Type.(*ast.StructType); ok {
+				if t, ok := pkg.GetTypesInfo().Defs[n.Name]; ok {
+					return t.Type()
+				}
+			}
 		}
 	}
 	return nil

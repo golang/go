@@ -39,7 +39,7 @@ S1 struct {
 -- S1F1-definition --
 godef/b/b.go:9:2-4: defined here as \@mark\(S1F1, \"F1\"\)
 
-[`b.F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#F1)
+[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1.F1)
 
 ```go
 field F1 int
@@ -59,13 +59,13 @@ field F1 int
 			"offset": 214
 		}
 	},
-	"description": "\\@mark\\(S1F1, \\\"F1\\\"\\)\n\n[`b.F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#F1)\n\n```go\nfield F1 int\n```"
+	"description": "\\@mark\\(S1F1, \\\"F1\\\"\\)\n\n[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1.F1)\n\n```go\nfield F1 int\n```"
 }
 
 -- S1F1-hover --
 \@mark\(S1F1, \"F1\"\)
 
-[`b.F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#F1)
+[`(b.S1).F1` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/b#S1.F1)
 
 ```go
 field F1 int
