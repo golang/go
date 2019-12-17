@@ -124,6 +124,11 @@ TODO
   <a href="https://golang.org/issue/32502">caused the build to fail</a>.
 </p>
 
+<p><!-- golang.org/issue/33326 -->
+  <code>-mod=readonly</code> is now set by default when the <code>go.mod</code>
+  file is read-only and no top-level <code>vendor</code> directory is present.
+</p>
+
 <p><!-- golang.org/issue/31481 -->
   <code>-modcacherw</code> is a new flag that instructs the <code>go</code>
   command to leave newly-created directories in the module cache at their
@@ -157,6 +162,30 @@ TODO
   <code>go</code> <code>list</code> also omits incompatible major versions
   for such a module when fetching directly from version control, but may
   include them if reported by a proxy.
+</p>
+
+
+<h4 id="go.mod"><code>go.mod</code> file maintenance</h4>
+<!-- golang.org/issue/34822 -->
+
+<p>
+  <code>go</code> commands other than
+  <code>go</code> <code>mod</code> <code>tidy</code> no longer
+  remove a <code>require</code> directive that specifies a version of an indirect dependency
+  that is already implied by other (transitive) dependencies of the main
+  module.
+</p>
+
+<p>
+  <code>go</code> commands other than
+  <code>go</code> <code>mod</code> <code>tidy</code> no longer
+  edit the <code>go.mod</code> file if the changes are only cosmetic.
+</p>
+
+<p>
+  When <code>-mod=readonly</code> is set, <code>go</code> commands will no
+  longer fail due to a missing <code>go</code> directive or erroneous
+  <code>// indirect</code> comment.
 </p>
 
 <h4 id="module-downloading">Module downloading</h4>
