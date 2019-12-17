@@ -8,6 +8,11 @@ import (
 	"sync"
 )
 
+var (
+	// x is a variable.
+	x string //@x,hover("x", x)
+)
+
 type A string //@A
 
 func AStuff() { //@AStuff

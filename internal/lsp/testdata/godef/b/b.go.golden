@@ -1,5 +1,5 @@
 -- A-definition --
-godef/a/a.go:11:6-7: defined here as [`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#A)
+godef/a/a.go:16:6-7: defined here as [`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#A)
 
 ```go
 A string //@A
@@ -10,14 +10,14 @@ A string //@A
 	"span": {
 		"uri": "file://godef/a/a.go",
 		"start": {
-			"line": 11,
+			"line": 16,
 			"column": 6,
-			"offset": 100
+			"offset": 159
 		},
 		"end": {
-			"line": 11,
+			"line": 16,
 			"column": 7,
-			"offset": 101
+			"offset": 160
 		}
 	},
 	"description": "[`a.A` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#A)\n\n```go\nA string //@A\n\n```"
@@ -61,7 +61,7 @@ package a ("golang.org/x/tools/internal/lsp/godef/a")
 package a ("golang.org/x/tools/internal/lsp/godef/a")
 ```
 -- AStuff-definition --
-godef/a/a.go:13:6-12: defined here as [`a.AStuff` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#AStuff)
+godef/a/a.go:18:6-12: defined here as [`a.AStuff` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#AStuff)
 
 ```go
 func a.AStuff()
@@ -71,14 +71,14 @@ func a.AStuff()
 	"span": {
 		"uri": "file://godef/a/a.go",
 		"start": {
-			"line": 13,
+			"line": 18,
 			"column": 6,
-			"offset": 120
+			"offset": 179
 		},
 		"end": {
-			"line": 13,
+			"line": 18,
 			"column": 12,
-			"offset": 126
+			"offset": 185
 		}
 	},
 	"description": "[`a.AStuff` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#AStuff)\n\n```go\nfunc a.AStuff()\n```"

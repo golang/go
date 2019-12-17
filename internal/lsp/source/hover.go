@@ -212,13 +212,16 @@ func formatGenDecl(node *ast.GenDecl, obj types.Object, typ types.Type) (*HoverI
 
 func formatVar(node ast.Spec, obj types.Object, decl *ast.GenDecl) *HoverInformation {
 	var fieldList *ast.FieldList
-	if spec, ok := node.(*ast.TypeSpec); ok {
+	switch spec := node.(type) {
+	case *ast.TypeSpec:
 		switch t := spec.Type.(type) {
 		case *ast.StructType:
 			fieldList = t.Fields
 		case *ast.InterfaceType:
 			fieldList = t.Methods
 		}
+	case *ast.ValueSpec:
+		return &HoverInformation{source: obj, comment: spec.Doc}
 	}
 	// If we have a struct or interface declaration,
 	// we need to match the object to the corresponding field or method.
