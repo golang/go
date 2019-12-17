@@ -6,6 +6,14 @@ Lock locks m\.
 ```go
 func (*sync.Mutex).Lock()
 ```
+-- Name-hover --
+Name returns the object\'s \(package\-local, unqualified\) name\.
+
+[`(types.TypeName).Name` on pkg.go.dev](https://pkg.go.dev/go/types#TypeName.Name)
+
+```go
+func (*types.object).Name() string
+```
 -- Random-definition --
 godef/a/random.go:3:6-12: defined here as [`a.Random` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Random)
 
@@ -67,7 +75,7 @@ func Random2(y int) int
 func Random2(y int) int
 ```
 -- err-definition --
-godef/a/a.go:17:6-9: defined here as ```go
+godef/a/a.go:18:6-9: defined here as ```go
 var err error
 ```
 -- err-definition-json --
@@ -75,14 +83,14 @@ var err error
 	"span": {
 		"uri": "file://godef/a/a.go",
 		"start": {
-			"line": 17,
+			"line": 18,
 			"column": 6,
-			"offset": 216
+			"offset": 228
 		},
 		"end": {
-			"line": 17,
+			"line": 18,
 			"column": 9,
-			"offset": 219
+			"offset": 231
 		}
 	},
 	"description": "```go\nvar err error\n```"

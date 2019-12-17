@@ -110,7 +110,13 @@ func (i *IdentifierInfo) linkAndSymbolName() (string, string) {
 			case *types.Struct:
 				rTypeName = r.Name()
 			case *types.Named:
-				rTypeName = rtyp.Obj().Name()
+				if named, ok := i.enclosing.(*types.Named); ok {
+					rTypeName = named.Obj().Name()
+				} else if !rtyp.Obj().Exported() {
+					return "", ""
+				} else {
+					rTypeName = rtyp.Obj().Name()
+				}
 			}
 		}
 	}
