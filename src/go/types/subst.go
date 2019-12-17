@@ -81,8 +81,16 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		iface = check.subst(pos, iface, tparams, targs).(*Interface)
 		//check.dump(">>> %s: iface after : %s", pos, iface)
 
+		// update targ method signatures
+		update := func(typ Type) Type {
+			// check.dump(">>> %s: sig before: %s (tparams = %s)", pos, typ, typ.(*Signature).tparams)
+			typ = check.subst(pos, typ, tparams, targs)
+			// check.dump(">>> %s: sig after : %s", pos, typ)
+			return typ
+		}
+
 		// targ must implement iface (methods)
-		if m, _ := check.missingMethod(targ, iface, true); m != nil {
+		if m, _ := check.missingMethod(targ, iface, true, update); m != nil {
 			check.softErrorf(pos, "%s does not satisfy %s (missing method %s)", targ, tpar.bound, m)
 			break
 		}

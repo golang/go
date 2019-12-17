@@ -5,6 +5,7 @@
 package types
 
 import (
+	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/token"
@@ -53,6 +54,9 @@ func pathString(path []Object) string {
 // For the meaning of def, see Checker.definedType, in typexpr.go.
 func (check *Checker) objDecl(obj Object, def *Named) {
 	if check.conf.Trace && obj.Type() == nil {
+		if check.indent == 0 {
+			fmt.Println() // empty line between top-lebvel objects for readability
+		}
 		check.trace(obj.Pos(), "-- checking %s (%s, objPath = %s)", obj, obj.color(), pathString(check.objPath))
 		check.indent++
 		defer func() {

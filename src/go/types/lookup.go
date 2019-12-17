@@ -265,7 +265,7 @@ func (check *Checker) lookupType(m map[Type]int, typ Type) (int, bool) {
 // x is of interface type V).
 //
 func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
-	m, typ := (*Checker)(nil).missingMethod(V, T, static)
+	m, typ := (*Checker)(nil).missingMethod(V, T, static, nil)
 	return m, typ != nil
 }
 
@@ -273,11 +273,15 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 // The receiver may be nil if missingMethod is invoked through
 // an exported API call (such as MissingMethod), i.e., when all
 // methods have been type-checked.
+// If a non-nil update function is provided, it is used to update
+// the method types of V before comparing them with the methods
+// of V (usually be renaming type parameters so they can be
+// compared).
 // If the type has the correctly named method, but with the wrong
 // signature, the existing method is returned as well.
 // To improve error messages, also report the wrong signature
 // when the method exists on *V instead of V.
-func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, wrongType *Func) {
+func (check *Checker) missingMethod(V Type, T *Interface, static bool, update func(Type) Type) (method, wrongType *Func) {
 	check.completeInterface(token.NoPos, T)
 
 	// fast path for common case
@@ -289,16 +293,26 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		check.completeInterface(token.NoPos, ityp)
 		// TODO(gri) allMethods is sorted - can do this more efficiently
 		for _, m := range T.allMethods {
-			_, obj := lookupMethod(ityp.allMethods, m.pkg, m.name)
-			switch {
-			case obj == nil:
+			_, f := lookupMethod(ityp.allMethods, m.pkg, m.name)
+
+			if f == nil {
 				if static {
 					return m, nil
 				}
-			case !check.identical(obj.Type(), m.typ):
-				return m, obj
+				continue
+			}
+
+			// update (generic) method signatures before comparing them
+			ftyp := f.Type()
+			if update != nil {
+				ftyp = update(ftyp)
+			}
+
+			if !check.identical(ftyp, m.typ) {
+				return m, f
 			}
 		}
+
 		return
 	}
 
@@ -326,7 +340,13 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			check.objDecl(f, nil)
 		}
 
-		if !check.identical(f.typ, m.typ) {
+		// update (generic) method signatures before comparing them
+		ftyp := f.typ
+		if update != nil {
+			ftyp = update(ftyp)
+		}
+
+		if !check.identical(ftyp, m.typ) {
 			return m, f
 		}
 	}
@@ -346,7 +366,7 @@ func (check *Checker) assertableTo(V *Interface, T Type) (method, wrongType *Fun
 	if _, ok := T.Underlying().(*Interface); ok && !strict {
 		return
 	}
-	return check.missingMethod(T, V, false)
+	return check.missingMethod(T, V, false, nil)
 }
 
 // deref dereferences typ if it is a *Pointer and returns its base and true.

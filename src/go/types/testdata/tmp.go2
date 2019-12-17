@@ -4,17 +4,34 @@
 
 package p
 
-contract C(T) {
-	T int
-	T Abs() T
-}
-
-type B(type T) interface {
-	type int
+type NumericAbs(type T) interface {
 	Abs() T
 }
 
-func AbsDifference(type T C)(a, b T) T {
-	d := a - b
-	return d.Abs()
+func AbsDifference(type T NumericAbs(T))(x T)
+
+type OrderedAbs(type T) T
+
+func (a OrderedAbs(T)) Abs() T
+
+func OrderedAbsDifference(type T)(x T) {
+	// TODO(gri) this should work
+	AbsDifference /* ERROR does not satisfy */ (OrderedAbs(T)(x))
 }
+
+// TODO(gri) Once the code above works, check the code below.
+/*
+type NumericAbs(type T) interface {
+	Abs() T
+}
+
+func AbsDifference(type T NumericAbs(T))()
+
+type OrderedAbs(type T) T
+
+func (a OrderedAbs(T)) Abs() T
+
+func OrderedAbsDifference(type T)() {
+	AbsDifference(OrderedAbs(T))()
+}
+*/
