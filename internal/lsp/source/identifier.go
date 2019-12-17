@@ -59,11 +59,11 @@ func (i *IdentifierInfo) DeclarationReferenceInfo() *ReferenceInfo {
 
 // Identifier returns identifier information for a position
 // in a file, accounting for a potentially incomplete selector.
-func Identifier(ctx context.Context, snapshot Snapshot, f File, pos protocol.Position, selectPackage PackagePolicy) (*IdentifierInfo, error) {
+func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position, selectPackage PackagePolicy) (*IdentifierInfo, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Identifier")
 	defer done()
 
-	pkg, pgh, err := getParsedFile(ctx, snapshot, f, selectPackage)
+	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, selectPackage)
 	if err != nil {
 		return nil, fmt.Errorf("getting file for Identifier: %v", err)
 	}

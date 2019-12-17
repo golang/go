@@ -21,14 +21,14 @@ func (s *Server) implementation(ctx context.Context, params *protocol.Implementa
 		return nil, err
 	}
 	snapshot := view.Snapshot()
-	f, err := view.GetFile(ctx, uri)
+	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
-	if f.Kind() != source.Go {
+	if fh.Identity().Kind != source.Go {
 		return nil, nil
 	}
-	phs, err := snapshot.PackageHandles(ctx, snapshot.Handle(ctx, f))
+	phs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (s *Server) implementation(ctx context.Context, params *protocol.Implementa
 	for _, ph := range phs {
 		ctx := telemetry.Package.With(ctx, ph.ID())
 
-		ident, err := source.Identifier(ctx, snapshot, f, params.Position, source.SpecificPackageHandle(ph.ID()))
+		ident, err := source.Identifier(ctx, snapshot, fh, params.Position, source.SpecificPackageHandle(ph.ID()))
 		if err != nil {
 			if err == source.ErrNoIdentFound {
 				return nil, err

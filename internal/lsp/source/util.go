@@ -67,8 +67,7 @@ func (s mappedRange) URI() span.URI {
 
 // getParsedFile is a convenience function that extracts the Package and ParseGoHandle for a File in a Snapshot.
 // selectPackage is typically Narrowest/WidestCheckPackageHandle below.
-func getParsedFile(ctx context.Context, snapshot Snapshot, f File, selectPackage PackagePolicy) (Package, ParseGoHandle, error) {
-	fh := snapshot.Handle(ctx, f)
+func getParsedFile(ctx context.Context, snapshot Snapshot, fh FileHandle, selectPackage PackagePolicy) (Package, ParseGoHandle, error) {
 	phs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
 		return nil, nil, err
@@ -81,7 +80,7 @@ func getParsedFile(ctx context.Context, snapshot Snapshot, f File, selectPackage
 	if err != nil {
 		return nil, nil, err
 	}
-	pgh, err := pkg.File(f.URI())
+	pgh, err := pkg.File(fh.Identity().URI)
 	return pkg, pgh, err
 }
 
@@ -143,11 +142,11 @@ func SpecificPackageHandle(desiredID string) PackagePolicy {
 }
 
 func IsGenerated(ctx context.Context, view View, uri span.URI) bool {
-	f, err := view.GetFile(ctx, uri)
+	fh, err := view.Snapshot().GetFile(ctx, uri)
 	if err != nil {
 		return false
 	}
-	ph := view.Session().Cache().ParseGoHandle(view.Snapshot().Handle(ctx, f), ParseHeader)
+	ph := view.Session().Cache().ParseGoHandle(fh, ParseHeader)
 	parsed, _, _, err := ph.Parse(ctx)
 	if err != nil {
 		return false

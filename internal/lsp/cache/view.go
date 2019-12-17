@@ -75,8 +75,8 @@ type view struct {
 
 	// keep track of files by uri and by basename, a single file may be mapped
 	// to multiple uris, and the same basename may map to multiple files
-	filesByURI  map[span.URI]viewFile
-	filesByBase map[string][]viewFile
+	filesByURI  map[span.URI]*fileBase
+	filesByBase map[string][]*fileBase
 
 	snapshotMu sync.Mutex
 	snapshot   *snapshot
@@ -348,7 +348,7 @@ func (v *view) getSnapshot() *snapshot {
 // invalidateContent invalidates the content of a Go file,
 // including any position and type information that depends on it.
 // It returns true if we were already tracking the given file, false otherwise.
-func (v *view) invalidateContent(ctx context.Context, f source.File, action source.FileAction) source.Snapshot {
+func (v *view) invalidateContent(ctx context.Context, uri span.URI, kind source.FileKind, action source.FileAction) source.Snapshot {
 	// Cancel all still-running previous requests, since they would be
 	// operating on stale data.
 	switch action {
@@ -360,7 +360,7 @@ func (v *view) invalidateContent(ctx context.Context, f source.File, action sour
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock()
 
-	v.snapshot = v.snapshot.clone(ctx, f)
+	v.snapshot = v.snapshot.clone(ctx, uri, kind)
 	return v.snapshot
 }
 
@@ -373,9 +373,10 @@ func (v *view) cancelBackground() {
 }
 
 // FindFile returns the file if the given URI is already a part of the view.
-func (v *view) FindFile(ctx context.Context, uri span.URI) source.File {
+func (v *view) findFileLocked(ctx context.Context, uri span.URI) *fileBase {
 	v.mu.Lock()
 	defer v.mu.Unlock()
+
 	f, err := v.findFile(uri)
 	if err != nil {
 		return nil
@@ -383,9 +384,9 @@ func (v *view) FindFile(ctx context.Context, uri span.URI) source.File {
 	return f
 }
 
-// GetFile returns a File for the given URI. It will always succeed because it
+// getFileLocked returns a File for the given URI. It will always succeed because it
 // adds the file to the managed set if needed.
-func (v *view) GetFile(ctx context.Context, uri span.URI) (source.File, error) {
+func (v *view) getFileLocked(ctx context.Context, uri span.URI) (*fileBase, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
@@ -395,7 +396,7 @@ func (v *view) GetFile(ctx context.Context, uri span.URI) (source.File, error) {
 }
 
 // getFile is the unlocked internal implementation of GetFile.
-func (v *view) getFile(ctx context.Context, uri span.URI, kind source.FileKind) (viewFile, error) {
+func (v *view) getFile(ctx context.Context, uri span.URI, kind source.FileKind) (*fileBase, error) {
 	f, err := v.findFile(uri)
 	if err != nil {
 		return nil, err
@@ -415,7 +416,7 @@ func (v *view) getFile(ctx context.Context, uri span.URI, kind source.FileKind) 
 //
 // An error is only returned for an irreparable failure, for example, if the
 // filename in question does not exist.
-func (v *view) findFile(uri span.URI) (viewFile, error) {
+func (v *view) findFile(uri span.URI) (*fileBase, error) {
 	if f := v.filesByURI[uri]; f != nil {
 		// a perfect match
 		return f, nil
@@ -451,7 +452,7 @@ func (f *fileBase) addURI(uri span.URI) int {
 	return len(f.uris)
 }
 
-func (v *view) mapFile(uri span.URI, f viewFile) {
+func (v *view) mapFile(uri span.URI, f *fileBase) {
 	v.filesByURI[uri] = f
 	if f.addURI(uri) == 1 {
 		basename := basename(f.filename())

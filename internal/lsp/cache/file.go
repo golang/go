@@ -13,14 +13,6 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-// viewFile extends source.File with helper methods for the view package.
-type viewFile interface {
-	source.File
-
-	filename() string
-	addURI(uri span.URI) int
-}
-
 // fileBase holds the common functionality for all files.
 // It is intended to be embedded in the file implementations
 type fileBase struct {
@@ -41,10 +33,6 @@ func basename(filename string) string {
 
 func (f *fileBase) URI() span.URI {
 	return f.uris[0]
-}
-
-func (f *fileBase) Kind() source.FileKind {
-	return f.kind
 }
 
 func (f *fileBase) filename() string {

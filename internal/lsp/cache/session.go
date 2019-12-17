@@ -94,8 +94,8 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 		name:          name,
 		modfiles:      modfiles,
 		folder:        folder,
-		filesByURI:    make(map[span.URI]viewFile),
-		filesByBase:   make(map[string][]viewFile),
+		filesByURI:    make(map[span.URI]*fileBase),
+		filesByBase:   make(map[string][]*fileBase),
 		snapshot: &snapshot{
 			packages:          make(map[packageKey]*packageHandle),
 			ids:               make(map[span.URI][]packageID),
@@ -301,11 +301,11 @@ func (s *session) DidModifyFile(ctx context.Context, c source.FileModification) 
 			return nil, errors.Errorf("ignored file %v", c.URI)
 		}
 		// Set the content for the file, only for didChange and didClose events.
-		f, err := view.GetFile(ctx, c.URI)
+		f, err := view.getFileLocked(ctx, c.URI)
 		if err != nil {
 			return nil, err
 		}
-		snapshots = append(snapshots, view.invalidateContent(ctx, f, c.Action))
+		snapshots = append(snapshots, view.invalidateContent(ctx, c.URI, f.kind, c.Action))
 	}
 	return snapshots, nil
 }
@@ -328,10 +328,10 @@ func (s *session) DidChangeOutOfBand(ctx context.Context, uri span.URI, action s
 	if err != nil {
 		return false
 	}
-	f, err := view.GetFile(ctx, uri)
+	f, err := view.getFileLocked(ctx, uri)
 	if err != nil {
 		return false
 	}
-	view.invalidateContent(ctx, f, action)
+	view.invalidateContent(ctx, f.URI(), f.kind, action)
 	return true
 }

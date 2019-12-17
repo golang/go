@@ -447,43 +447,63 @@ func (s *snapshot) getFileURIs() []span.URI {
 	return uris
 }
 
-func (s *snapshot) getFile(uri span.URI) source.FileHandle {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+// FindFile returns the file if the given URI is already a part of the view.
+func (s *snapshot) FindFile(ctx context.Context, uri span.URI) source.FileHandle {
+	s.view.mu.Lock()
+	defer s.view.mu.Unlock()
 
-	return s.files[uri]
+	f, err := s.view.findFile(uri)
+	if f == nil || err != nil {
+		return nil
+	}
+	return s.getFileHandle(ctx, f)
 }
 
-func (s *snapshot) Handle(ctx context.Context, f source.File) source.FileHandle {
+// GetFile returns a File for the given URI. It will always succeed because it
+// adds the file to the managed set if needed.
+func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
+	s.view.mu.Lock()
+	defer s.view.mu.Unlock()
+
+	// TODO(rstambler): Should there be a version that provides a kind explicitly?
+	kind := source.DetectLanguage("", uri.Filename())
+	f, err := s.view.getFile(ctx, uri, kind)
+	if err != nil {
+		return nil, err
+	}
+	return s.getFileHandle(ctx, f), nil
+}
+
+func (s *snapshot) getFileHandle(ctx context.Context, f *fileBase) source.FileHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if _, ok := s.files[f.URI()]; !ok {
-		s.files[f.URI()] = s.view.session.GetFile(f.URI(), f.Kind())
+		s.files[f.URI()] = s.view.session.GetFile(f.URI(), f.kind)
 	}
 	return s.files[f.URI()]
 }
 
-func (s *snapshot) clone(ctx context.Context, withoutFile source.File) *snapshot {
+func (s *snapshot) clone(ctx context.Context, withoutURI span.URI, withoutFileKind source.FileKind) *snapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	directIDs := map[packageID]struct{}{}
 	// Collect all of the package IDs that correspond to the given file.
 	// TODO: if the file has moved into a new package, we should invalidate that too.
-	for _, id := range s.ids[withoutFile.URI()] {
+	for _, id := range s.ids[withoutURI] {
 		directIDs[id] = struct{}{}
 	}
 
 	// If we are invalidating a go.mod file then we should invalidate all of the packages in the module
-	if withoutFile.Kind() == source.Mod {
+	if withoutFileKind == source.Mod {
 		for id := range s.workspacePackages {
 			directIDs[id] = struct{}{}
 		}
 	}
 
 	// Get the original FileHandle for the URI, if it exists.
-	originalFH := s.files[withoutFile.URI()]
+	originalFH := s.files[withoutURI]
 
 	// If this is a file we don't yet know about,
 	// then we do not yet know what packages it should belong to.
@@ -491,7 +511,7 @@ func (s *snapshot) clone(ctx context.Context, withoutFile source.File) *snapshot
 	// of all of the files in the same directory as this one.
 	// TODO(rstambler): Speed this up by mapping directories to filenames.
 	if originalFH == nil {
-		if dirStat, err := os.Stat(dir(withoutFile.URI().Filename())); err == nil {
+		if dirStat, err := os.Stat(dir(withoutURI.Filename())); err == nil {
 			for uri := range s.files {
 				if fdirStat, err := os.Stat(dir(uri.Filename())); err == nil {
 					if os.SameFile(dirStat, fdirStat) {
@@ -546,11 +566,11 @@ func (s *snapshot) clone(ctx context.Context, withoutFile source.File) *snapshot
 		result.files[k] = v
 	}
 	// Handle the invalidated file; it may have new contents or not exist.
-	currentFH := s.view.session.GetFile(withoutFile.URI(), withoutFile.Kind())
+	currentFH := s.view.session.GetFile(withoutURI, withoutFileKind)
 	if _, _, err := currentFH.Read(ctx); os.IsNotExist(err) {
-		delete(result.files, withoutFile.URI())
+		delete(result.files, withoutURI)
 	} else {
-		result.files[withoutFile.URI()] = currentFH
+		result.files[withoutURI] = currentFH
 	}
 
 	// Collect the IDs for the packages associated with the excluded URIs.

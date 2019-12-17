@@ -222,11 +222,10 @@ func (ph *packageHandle) cached() (*pkg, error) {
 func (s *snapshot) parseGoHandles(ctx context.Context, files []span.URI, mode source.ParseMode) ([]source.ParseGoHandle, error) {
 	phs := make([]source.ParseGoHandle, 0, len(files))
 	for _, uri := range files {
-		f, err := s.view.GetFile(ctx, uri)
+		fh, err := s.GetFile(ctx, uri)
 		if err != nil {
 			return nil, err
 		}
-		fh := s.Handle(ctx, f)
 		phs = append(phs, s.view.session.cache.ParseGoHandle(fh, mode))
 	}
 	return phs, nil

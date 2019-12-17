@@ -19,14 +19,14 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 		return nil, err
 	}
 	snapshot := view.Snapshot()
-	f, err := view.GetFile(ctx, uri)
+	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
-	if f.Kind() != source.Go {
+	if fh.Identity().Kind != source.Go {
 		return nil, nil
 	}
-	ident, err := source.Identifier(ctx, snapshot, f, params.Position, source.WidestCheckPackageHandle)
+	ident, err := source.Identifier(ctx, snapshot, fh, params.Position, source.WidestCheckPackageHandle)
 	if err != nil {
 		return nil, nil
 	}
@@ -36,11 +36,10 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 	}
 	var docChanges []protocol.TextDocumentEdit
 	for uri, e := range edits {
-		f, err := view.GetFile(ctx, uri)
+		fh, err := snapshot.GetFile(ctx, uri)
 		if err != nil {
 			return nil, err
 		}
-		fh := ident.Snapshot.Handle(ctx, f)
 		docChanges = append(docChanges, documentChanges(fh, e)...)
 	}
 	return &protocol.WorkspaceEdit{
@@ -55,14 +54,14 @@ func (s *Server) prepareRename(ctx context.Context, params *protocol.PrepareRena
 		return nil, err
 	}
 	snapshot := view.Snapshot()
-	f, err := view.GetFile(ctx, uri)
+	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
-	if f.Kind() != source.Go {
+	if fh.Identity().Kind != source.Go {
 		return nil, nil
 	}
-	ident, err := source.Identifier(ctx, snapshot, f, params.Position, source.WidestCheckPackageHandle)
+	ident, err := source.Identifier(ctx, snapshot, fh, params.Position, source.WidestCheckPackageHandle)
 	if err != nil {
 		return nil, nil // ignore errors
 	}

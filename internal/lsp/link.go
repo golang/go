@@ -27,11 +27,10 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 	if err != nil {
 		return nil, err
 	}
-	f, err := view.GetFile(ctx, uri)
+	fh, err := view.Snapshot().GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
-	fh := view.Snapshot().Handle(ctx, f)
 	if fh.Identity().Kind == source.Mod {
 		return nil, nil
 	}

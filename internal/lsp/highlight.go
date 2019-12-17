@@ -21,15 +21,14 @@ func (s *Server) documentHighlight(ctx context.Context, params *protocol.Documen
 		return nil, err
 	}
 	snapshot := view.Snapshot()
-	f, err := view.GetFile(ctx, uri)
+	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
-
 	var rngs []protocol.Range
-	switch f.Kind() {
+	switch fh.Identity().Kind {
 	case source.Go:
-		rngs, err = source.Highlight(ctx, snapshot, f, params.Position)
+		rngs, err = source.Highlight(ctx, snapshot, fh, params.Position)
 	case source.Mod:
 		return nil, nil
 	}

@@ -24,8 +24,13 @@ type Snapshot interface {
 	// View returns the View associated with this snapshot.
 	View() View
 
-	// Handle returns the FileHandle for the given file.
-	Handle(ctx context.Context, f File) FileHandle
+	// GetFile returns the file object for a given URI, initializing it
+	// if it is not already part of the view.
+	GetFile(ctx context.Context, uri span.URI) (FileHandle, error)
+
+	// FindFile returns the file object for a given URI if it is
+	// already part of the view.
+	FindFile(ctx context.Context, uri span.URI) FileHandle
 
 	// Analyze runs the analyses for the given package at this snapshot.
 	Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) ([]*Error, error)
@@ -91,14 +96,6 @@ type View interface {
 
 	// BuiltinPackage returns the type information for the special "builtin" package.
 	BuiltinPackage() BuiltinPackage
-
-	// GetFile returns the file object for a given URI, initializing it
-	// if it is not already part of the view.
-	GetFile(ctx context.Context, uri span.URI) (File, error)
-
-	// FindFile returns the file object for a given URI if it is
-	// already part of the view.
-	FindFile(ctx context.Context, uri span.URI) File
 
 	// BackgroundContext returns a context used for all background processing
 	// on behalf of this view.
@@ -317,12 +314,6 @@ func (fileID FileIdentity) String() string {
 	// Version is not part of the FileIdentity string,
 	// as it can remain change even if the file does not.
 	return fmt.Sprintf("%s%s%s", fileID.URI, fileID.Identifier, fileID.Kind)
-}
-
-// File represents a source file of any type.
-type File interface {
-	URI() span.URI
-	Kind() FileKind
 }
 
 // FileKind describes the kind of the file in question.

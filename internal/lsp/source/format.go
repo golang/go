@@ -24,11 +24,11 @@ import (
 )
 
 // Format formats a file with a given range.
-func Format(ctx context.Context, snapshot Snapshot, f File) ([]protocol.TextEdit, error) {
+func Format(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.TextEdit, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Format")
 	defer done()
 
-	pkg, pgh, err := getParsedFile(ctx, snapshot, f, NarrowestCheckPackageHandle)
+	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestCheckPackageHandle)
 	if err != nil {
 		return nil, fmt.Errorf("getting file for Format: %v", err)
 	}
@@ -42,12 +42,12 @@ func Format(ctx context.Context, snapshot Snapshot, f File) ([]protocol.TextEdit
 	if err != nil {
 		return nil, err
 	}
-	if hasListErrors(pkg) || hasParseErrors(pkg, f.URI()) {
+	if hasListErrors(pkg) || hasParseErrors(pkg, fh.Identity().URI) {
 		// Even if this package has list or parse errors, this file may not
 		// have any parse errors and can still be formatted. Using format.Node
 		// on an ast with errors may result in code being added or removed.
 		// Attempt to format the source of this file instead.
-		formatted, err := formatSource(ctx, snapshot, f)
+		formatted, err := formatSource(ctx, snapshot, fh)
 		if err != nil {
 			return nil, err
 		}
@@ -67,11 +67,11 @@ func Format(ctx context.Context, snapshot Snapshot, f File) ([]protocol.TextEdit
 	return computeTextEdits(ctx, snapshot.View(), pgh.File(), m, buf.String())
 }
 
-func formatSource(ctx context.Context, s Snapshot, f File) ([]byte, error) {
+func formatSource(ctx context.Context, s Snapshot, fh FileHandle) ([]byte, error) {
 	ctx, done := trace.StartSpan(ctx, "source.formatSource")
 	defer done()
 
-	data, _, err := s.Handle(ctx, f).Read(ctx)
+	data, _, err := fh.Read(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -87,16 +87,16 @@ type ImportFix struct {
 // In addition to returning the result of applying all edits,
 // it returns a list of fixes that could be applied to the file, with the
 // corresponding TextEdits that would be needed to apply that fix.
-func AllImportsFixes(ctx context.Context, snapshot Snapshot, f File) (allFixEdits []protocol.TextEdit, editsPerFix []*ImportFix, err error) {
+func AllImportsFixes(ctx context.Context, snapshot Snapshot, fh FileHandle) (allFixEdits []protocol.TextEdit, editsPerFix []*ImportFix, err error) {
 	ctx, done := trace.StartSpan(ctx, "source.AllImportsFixes")
 	defer done()
 
-	pkg, pgh, err := getParsedFile(ctx, snapshot, f, NarrowestCheckPackageHandle)
+	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestCheckPackageHandle)
 	if err != nil {
 		return nil, nil, errors.Errorf("getting file for AllImportsFixes: %v", err)
 	}
 	if hasListErrors(pkg) {
-		return nil, nil, errors.Errorf("%s has list errors, not running goimports", f.URI())
+		return nil, nil, errors.Errorf("%s has list errors, not running goimports", fh.Identity().URI)
 	}
 	options := &imports.Options{
 		// Defaults.

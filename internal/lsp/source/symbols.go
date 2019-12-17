@@ -14,11 +14,11 @@ import (
 	"golang.org/x/tools/internal/telemetry/trace"
 )
 
-func DocumentSymbols(ctx context.Context, snapshot Snapshot, f File) ([]protocol.DocumentSymbol, error) {
+func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.DocumentSymbol, error) {
 	ctx, done := trace.StartSpan(ctx, "source.DocumentSymbols")
 	defer done()
 
-	pkg, pgh, err := getParsedFile(ctx, snapshot, f, NarrowestCheckPackageHandle)
+	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestCheckPackageHandle)
 	if err != nil {
 		return nil, fmt.Errorf("getting file for DocumentSymbols: %v", err)
 	}

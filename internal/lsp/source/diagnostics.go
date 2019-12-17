@@ -39,11 +39,10 @@ type RelatedInformation struct {
 	Message string
 }
 
-func Diagnostics(ctx context.Context, snapshot Snapshot, f File, withAnalysis bool, disabledAnalyses map[string]struct{}) (map[FileIdentity][]Diagnostic, string, error) {
-	ctx, done := trace.StartSpan(ctx, "source.Diagnostics", telemetry.File.Of(f.URI()))
+func Diagnostics(ctx context.Context, snapshot Snapshot, fh FileHandle, withAnalysis bool, disabledAnalyses map[string]struct{}) (map[FileIdentity][]Diagnostic, string, error) {
+	ctx, done := trace.StartSpan(ctx, "source.Diagnostics", telemetry.File.Of(fh.Identity().URI))
 	defer done()
 
-	fh := snapshot.Handle(ctx, f)
 	phs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
 		return nil, "", err
@@ -56,8 +55,8 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, f File, withAnalysis bo
 	// not correctly configured. Report errors, if possible.
 	var warningMsg string
 	if len(ph.MissingDependencies()) > 0 {
-		if warningMsg, err = checkCommonErrors(ctx, snapshot.View(), f.URI()); err != nil {
-			log.Error(ctx, "error checking common errors", err, telemetry.File.Of(f.URI))
+		if warningMsg, err = checkCommonErrors(ctx, snapshot.View(), fh.Identity().URI); err != nil {
+			log.Error(ctx, "error checking common errors", err, telemetry.File.Of(fh.Identity().URI))
 		}
 	}
 	pkg, err := ph.Check(ctx)
@@ -89,7 +88,7 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, f File, withAnalysis bo
 			if err == context.Canceled {
 				return nil, "", err
 			}
-			log.Error(ctx, "failed to run analyses", err, telemetry.File.Of(f.URI()))
+			log.Error(ctx, "failed to run analyses", err, telemetry.File.Of(fh.Identity().URI))
 		}
 	}
 	// Updates to the diagnostics for this package may need to be propagated.

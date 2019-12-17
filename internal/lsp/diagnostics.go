@@ -15,10 +15,10 @@ import (
 	"golang.org/x/tools/internal/telemetry/trace"
 )
 
-func (s *Server) diagnose(snapshot source.Snapshot, f source.File) error {
-	switch f.Kind() {
+func (s *Server) diagnose(snapshot source.Snapshot, fh source.FileHandle) error {
+	switch fh.Identity().Kind {
 	case source.Go:
-		go s.diagnoseFile(snapshot, f)
+		go s.diagnoseFile(snapshot, fh)
 	case source.Mod:
 		go s.diagnoseSnapshot(snapshot)
 	}
@@ -41,32 +41,31 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot) {
 		}
 		// Find a file on which to call diagnostics.
 		uri := ph.CompiledGoFiles()[0].File().Identity().URI
-		f, err := snapshot.View().GetFile(ctx, uri)
+		fh, err := snapshot.GetFile(ctx, uri)
 		if err != nil {
-			log.Error(ctx, "no file", err, telemetry.URI.Of(uri))
 			continue
 		}
 		// Run diagnostics on the workspace package.
-		go func(snapshot source.Snapshot, f source.File) {
-			reports, _, err := source.Diagnostics(ctx, snapshot, f, false, snapshot.View().Options().DisabledAnalyses)
+		go func(snapshot source.Snapshot, fh source.FileHandle) {
+			reports, _, err := source.Diagnostics(ctx, snapshot, fh, false, snapshot.View().Options().DisabledAnalyses)
 			if err != nil {
-				log.Error(ctx, "no diagnostics", err, telemetry.URI.Of(f.URI()))
+				log.Error(ctx, "no diagnostics", err, telemetry.URI.Of(fh.Identity().URI))
 				return
 			}
 			// Don't publish empty diagnostics.
 			s.publishReports(ctx, reports, false)
-		}(snapshot, f)
+		}(snapshot, fh)
 	}
 }
 
-func (s *Server) diagnoseFile(snapshot source.Snapshot, f source.File) {
+func (s *Server) diagnoseFile(snapshot source.Snapshot, fh source.FileHandle) {
 	ctx := snapshot.View().BackgroundContext()
 	ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
 	defer done()
 
-	ctx = telemetry.File.With(ctx, f.URI())
+	ctx = telemetry.File.With(ctx, fh.Identity().URI)
 
-	reports, warningMsg, err := source.Diagnostics(ctx, snapshot, f, true, snapshot.View().Options().DisabledAnalyses)
+	reports, warningMsg, err := source.Diagnostics(ctx, snapshot, fh, true, snapshot.View().Options().DisabledAnalyses)
 	// Check the warning message first.
 	if warningMsg != "" {
 		s.client.ShowMessage(ctx, &protocol.ShowMessageParams{

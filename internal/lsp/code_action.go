@@ -25,12 +25,11 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	if err != nil {
 		return nil, err
 	}
-	f, err := view.GetFile(ctx, uri)
+	snapshot := view.Snapshot()
+	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
-	snapshot := view.Snapshot()
-	fh := snapshot.Handle(ctx, f)
 
 	// Determine the supported actions for this file kind.
 	supportedCodeActions, ok := view.Options().SupportedCodeActions[fh.Identity().Kind]
@@ -63,21 +62,19 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			Title: "Tidy",
 			Kind:  protocol.SourceOrganizeImports,
 			Command: &protocol.Command{
-				Title:   "Tidy",
-				Command: "tidy",
-				Arguments: []interface{}{
-					f.URI(),
-				},
+				Title:     "Tidy",
+				Command:   "tidy",
+				Arguments: []interface{}{fh.Identity().URI},
 			},
 		})
 	case source.Go:
-		edits, editsPerFix, err := source.AllImportsFixes(ctx, snapshot, f)
+		edits, editsPerFix, err := source.AllImportsFixes(ctx, snapshot, fh)
 		if err != nil {
 			return nil, err
 		}
 		if diagnostics := params.Context.Diagnostics; wanted[protocol.QuickFix] && len(diagnostics) > 0 {
 			// First, add the quick fixes reported by go/analysis.
-			qf, err := quickFixes(ctx, snapshot, f, diagnostics)
+			qf, err := quickFixes(ctx, snapshot, fh, diagnostics)
 			if err != nil {
 				log.Error(ctx, "quick fixes failed", err, telemetry.File.Of(uri))
 			}
@@ -203,10 +200,9 @@ func importDiagnostics(fix *imports.ImportFix, diagnostics []protocol.Diagnostic
 	return results
 }
 
-func quickFixes(ctx context.Context, snapshot source.Snapshot, f source.File, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
+func quickFixes(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle, diagnostics []protocol.Diagnostic) ([]protocol.CodeAction, error) {
 	var codeActions []protocol.CodeAction
 
-	fh := snapshot.Handle(ctx, f)
 	phs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
 		return nil, err
@@ -232,12 +228,11 @@ func quickFixes(ctx context.Context, snapshot source.Snapshot, f source.File, di
 				Edit:        protocol.WorkspaceEdit{},
 			}
 			for uri, edits := range fix.Edits {
-				f, err := snapshot.View().GetFile(ctx, uri)
+				fh, err := snapshot.GetFile(ctx, uri)
 				if err != nil {
 					log.Error(ctx, "no file", err, telemetry.URI.Of(uri))
 					continue
 				}
-				fh := snapshot.Handle(ctx, f)
 				action.Edit.DocumentChanges = append(action.Edit.DocumentChanges, documentChanges(fh, edits)...)
 			}
 			codeActions = append(codeActions, action)

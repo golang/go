@@ -86,12 +86,12 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 // TODO: Actually test the LSP diagnostics function in this test.
 func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnostic) {
 	v := r.server.session.View(viewName)
-	f, err := v.GetFile(r.ctx, uri)
+	fh, err := v.Snapshot().GetFile(r.ctx, uri)
 	if err != nil {
-		t.Fatalf("no file for %s: %v", f, err)
+		t.Fatal(err)
 	}
-	identity := v.Snapshot().Handle(r.ctx, f).Identity()
-	results, _, err := source.Diagnostics(r.ctx, v.Snapshot(), f, true, nil)
+	identity := fh.Identity()
+	results, _, err := source.Diagnostics(r.ctx, v.Snapshot(), fh, true, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -339,13 +339,13 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f, err := view.GetFile(r.ctx, uri)
+	snapshot := view.Snapshot()
+	fh, err := snapshot.GetFile(r.ctx, spn.URI())
 	if err != nil {
 		t.Fatal(err)
 	}
-	snapshot := view.Snapshot()
-	fileID := snapshot.Handle(r.ctx, f).Identity()
-	diagnostics, _, err := source.Diagnostics(r.ctx, snapshot, f, true, nil)
+	fileID := fh.Identity()
+	diagnostics, _, err := source.Diagnostics(r.ctx, snapshot, fh, true, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

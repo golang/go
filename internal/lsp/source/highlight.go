@@ -17,11 +17,11 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-func Highlight(ctx context.Context, snapshot Snapshot, f File, pos protocol.Position) ([]protocol.Range, error) {
+func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) ([]protocol.Range, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Highlight")
 	defer done()
 
-	pkg, pgh, err := getParsedFile(ctx, snapshot, f, WidestCheckPackageHandle)
+	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, WidestCheckPackageHandle)
 	if err != nil {
 		return nil, fmt.Errorf("getting file for Highlight: %v", err)
 	}

@@ -25,15 +25,14 @@ func (s *Server) documentSymbol(ctx context.Context, params *protocol.DocumentSy
 		return nil, err
 	}
 	snapshot := view.Snapshot()
-	f, err := view.GetFile(ctx, uri)
+	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
-
 	var symbols []protocol.DocumentSymbol
-	switch f.Kind() {
+	switch fh.Identity().Kind {
 	case source.Go:
-		symbols, err = source.DocumentSymbols(ctx, snapshot, f)
+		symbols, err = source.DocumentSymbols(ctx, snapshot, fh)
 	case source.Mod:
 		return []protocol.DocumentSymbol{}, nil
 	}

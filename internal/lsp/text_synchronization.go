@@ -29,16 +29,16 @@ func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocume
 	if err != nil {
 		return err
 	}
-	snapshot, view, err := snapshotOf(s.session, uri, snapshots)
+	snapshot, _, err := snapshotOf(s.session, uri, snapshots)
 	if err != nil {
 		return err
 	}
-	f, err := view.GetFile(ctx, uri)
+	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
 		return err
 	}
 	// Always run diagnostics when a file is opened.
-	return s.diagnose(snapshot, f)
+	return s.diagnose(snapshot, fh)
 }
 
 func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDocumentParams) error {
@@ -68,12 +68,12 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 			Type:    protocol.Warning,
 		})
 	}
-	f, err := view.GetFile(ctx, uri)
+	fh, err := snapshot.GetFile(ctx, uri)
 	if err != nil {
 		return err
 	}
 	// Always update diagnostics after a file change.
-	return s.diagnose(snapshot, f)
+	return s.diagnose(snapshot, fh)
 }
 
 func (s *Server) didSave(ctx context.Context, params *protocol.DidSaveTextDocumentParams) error {

@@ -15,10 +15,9 @@ type FoldingRangeInfo struct {
 }
 
 // FoldingRange gets all of the folding range for f.
-func FoldingRange(ctx context.Context, snapshot Snapshot, f File, lineFoldingOnly bool) (ranges []*FoldingRangeInfo, err error) {
+func FoldingRange(ctx context.Context, snapshot Snapshot, fh FileHandle, lineFoldingOnly bool) (ranges []*FoldingRangeInfo, err error) {
 	// TODO(suzmue): consider limiting the number of folding ranges returned, and
 	// implement a way to prioritize folding ranges in that case.
-	fh := snapshot.Handle(ctx, f)
 	pgh := snapshot.View().Session().Cache().ParseGoHandle(fh, ParseFull)
 	file, m, _, err := pgh.Parse(ctx)
 	if err != nil {

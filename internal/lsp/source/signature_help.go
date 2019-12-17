@@ -28,11 +28,11 @@ type ParameterInformation struct {
 	Label string
 }
 
-func SignatureHelp(ctx context.Context, snapshot Snapshot, f File, pos protocol.Position) (*SignatureInformation, error) {
+func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) (*SignatureInformation, error) {
 	ctx, done := trace.StartSpan(ctx, "source.SignatureHelp")
 	defer done()
 
-	pkg, pgh, err := getParsedFile(ctx, snapshot, f, NarrowestCheckPackageHandle)
+	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestCheckPackageHandle)
 	if err != nil {
 		return nil, fmt.Errorf("getting file for SignatureHelp: %v", err)
 	}
