@@ -7,7 +7,6 @@ package cache
 import (
 	"context"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -38,19 +37,6 @@ type session struct {
 
 	openFiles     sync.Map
 	filesWatchMap *WatchMap
-}
-
-type overlay struct {
-	session *session
-	uri     span.URI
-	data    []byte
-	hash    string
-	version float64
-	kind    source.FileKind
-
-	// sameContentOnDisk is true if a file has been saved on disk,
-	// and therefore does not need to be part of the overlay sent to go/packages.
-	sameContentOnDisk bool
 }
 
 func (s *session) Options() source.Options {
@@ -377,155 +363,6 @@ func (s *session) GetFile(uri span.URI, kind source.FileKind) source.FileHandle 
 	return s.cache.GetFile(uri, kind)
 }
 
-func (s *session) setOverlay(f source.File, version float64, data []byte) {
-	s.overlayMu.Lock()
-	defer func() {
-		s.overlayMu.Unlock()
-		s.filesWatchMap.Notify(f.URI(), source.Change)
-	}()
-
-	if data == nil {
-		delete(s.overlays, f.URI())
-		return
-	}
-
-	s.overlays[f.URI()] = &overlay{
-		session: s,
-		uri:     f.URI(),
-		kind:    f.Kind(),
-		data:    data,
-		hash:    hashContents(data),
-		version: version,
-	}
-}
-
-func (s *session) clearOverlay(uri span.URI) {
-	s.overlayMu.Lock()
-	defer s.overlayMu.Unlock()
-
-	delete(s.overlays, uri)
-}
-
-// openOverlay adds the file content to the overlay.
-// It also checks if the provided content is equivalent to the file's content on disk.
-func (s *session) openOverlay(ctx context.Context, uri span.URI, kind source.FileKind, version float64, data []byte) {
-	s.overlayMu.Lock()
-	defer func() {
-		s.overlayMu.Unlock()
-		s.filesWatchMap.Notify(uri, source.Open)
-	}()
-	s.overlays[uri] = &overlay{
-		session: s,
-		uri:     uri,
-		kind:    kind,
-		data:    data,
-		hash:    hashContents(data),
-		version: version,
-	}
-	// If the file is on disk, check if its content is the same as the overlay.
-	if _, hash, err := s.cache.GetFile(uri, kind).Read(ctx); err == nil {
-		if hash == s.overlays[uri].hash {
-			s.overlays[uri].sameContentOnDisk = true
-		}
-	}
-}
-
-func (s *session) readOverlay(uri span.URI) *overlay {
-	s.overlayMu.Lock()
-	defer s.overlayMu.Unlock()
-
-	// We might have the content saved in an overlay.
-	if overlay, ok := s.overlays[uri]; ok {
-		return overlay
-	}
-	return nil
-}
-
-func (s *session) buildOverlay() map[string][]byte {
-	s.overlayMu.Lock()
-	defer s.overlayMu.Unlock()
-
-	overlays := make(map[string][]byte)
-	for uri, overlay := range s.overlays {
-		if overlay.sameContentOnDisk {
-			continue
-		}
-		overlays[uri.Filename()] = overlay.data
-	}
-	return overlays
-}
-
 func (s *session) DidChangeOutOfBand(ctx context.Context, uri span.URI, action source.FileAction) bool {
 	return s.filesWatchMap.Notify(uri, action)
-}
-
-func (o *overlay) FileSystem() source.FileSystem {
-	return o.session
-}
-
-func (o *overlay) Identity() source.FileIdentity {
-	return source.FileIdentity{
-		URI:        o.uri,
-		Identifier: o.hash,
-		Version:    o.version,
-		Kind:       o.kind,
-	}
-}
-func (o *overlay) Read(ctx context.Context) ([]byte, string, error) {
-	return o.data, o.hash, nil
-}
-
-type debugSession struct{ *session }
-
-func (s debugSession) ID() string         { return s.id }
-func (s debugSession) Cache() debug.Cache { return debugCache{s.cache} }
-func (s debugSession) Files() []*debug.File {
-	var files []*debug.File
-	seen := make(map[span.URI]*debug.File)
-	s.openFiles.Range(func(key interface{}, value interface{}) bool {
-		uri, ok := key.(span.URI)
-		if ok {
-			f := &debug.File{Session: s, URI: uri}
-			seen[uri] = f
-			files = append(files, f)
-		}
-		return true
-	})
-	s.overlayMu.Lock()
-	defer s.overlayMu.Unlock()
-	for _, overlay := range s.overlays {
-		f, ok := seen[overlay.uri]
-		if !ok {
-			f = &debug.File{Session: s, URI: overlay.uri}
-			seen[overlay.uri] = f
-			files = append(files, f)
-		}
-		f.Data = string(overlay.data)
-		f.Error = nil
-		f.Hash = overlay.hash
-	}
-	sort.Slice(files, func(i int, j int) bool {
-		return files[i].URI < files[j].URI
-	})
-	return files
-}
-
-func (s debugSession) File(hash string) *debug.File {
-	s.overlayMu.Lock()
-	defer s.overlayMu.Unlock()
-	for _, overlay := range s.overlays {
-		if overlay.hash == hash {
-			return &debug.File{
-				Session: s,
-				URI:     overlay.uri,
-				Data:    string(overlay.data),
-				Error:   nil,
-				Hash:    overlay.hash,
-			}
-		}
-	}
-	return &debug.File{
-		Session: s,
-		Hash:    hash,
-	}
 }

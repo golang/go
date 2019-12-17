@@ -529,8 +529,3 @@ func findFileInPackage(pkg source.Package, uri span.URI) (source.ParseGoHandle, 
 	}
 	return nil, nil, errors.Errorf("no file for %s in package %s", uri, pkg.ID())
 }
-
-type debugView struct{ *view }
-
-func (v debugView) ID() string             { return v.id }
-func (v debugView) Session() debug.Session { return debugSession{v.session} }
