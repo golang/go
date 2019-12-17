@@ -66,6 +66,33 @@ TODO
   64-bit <code>darwin/arm64</code> port.
 </p>
 
+<h3 id="windows">Windows</h3>
+
+<p><!-- CL 203601 -->
+  Go binaries on Windows now
+  have <a href="https://docs.microsoft.com/en-us/windows/win32/memory/data-execution-prevention">DEP
+  (Data Execution Prevention)</a> enabled.
+</p>
+
+<h3 id="wasm">WebAssembly</h3>
+
+<p><!-- CL 203600 -->
+  JavaScript values referenced from Go via <code>js.Value</code>
+  objects can now be garbage collected.
+</p>
+
+<p><!-- CL 203600 -->
+  <code>js.Value</code> values can no longer be compared using
+  the <code>==</code> operator, and instead must be compared using
+  their <code>Equal</code> method.
+</p>
+
+<p><!-- CL 203600 -->
+  <code>js.Value</code> now
+  has <code>IsUndefined</code>, <code>IsNull</code>,
+  and <code>IsNaN</code> methods.
+</p>
+
 <h3 id="freebsd">FreeBSD</h3>
 
 <p><!-- golang.org/issue/24715 -->
@@ -207,6 +234,30 @@ TODO
 TODO
 </p>
 
+<p><!-- CL 190098 -->
+  This release improves the performance of most uses
+  of <code>defer</code> to incur almost zero overhead compared to
+  calling the deferred function directly.
+  As a result, <code>defer</code> can now be used in
+  performance-critical code without overhead concerns.
+</p>
+
+<p><!-- CL 201760, CL 201762 and many others -->
+  Goroutines are now asynchronously preemptible.
+  As a result, loops without function calls no longer potentially
+  deadlock the scheduler or significantly delay garbage collection.
+  This is supported on all platforms except <code>windows/arm</code>,
+  <code>darwin/arm</code>, <code>js/wasm</code>, and
+  <code>plan9/*</code>.
+</p>
+
+<p><!-- CL 201765, CL 195701 and many others -->
+  The page allocator is more efficient and incurs significantly less
+  lock contention at high values of <code>GOMAXPROCS</code>.
+  This is most noticeable as lower latency and higher throughput for
+  large allocations being done in parallel and at a high rate.
+</p>
+
 <p><!-- CL 171844 and many others -->
   Internal timers, used by
   <a href="/pkg/time/#After"><code>time.After</code></a>,
@@ -216,6 +267,42 @@ TODO
   context switches.
   This is a performance improvement that should not cause any user
   visible changes.
+</p>
+
+<h2 id="compiler">Compiler</h2>
+
+<p><!-- CL 162237 -->
+  This release adds <code>-d=checkptr</code> as a compile-time option
+  for adding instrumentation to check that Go code is following
+  <code>unsafe.Pointer</code> safety rules dynamically.
+  This option is enabled by default with the <code>-race</code>
+  or <code>-msan</code> flags, and can be disabled
+  with <code>-gcflags=-all=-d=checkptr=0</code>.
+  Specifically, <code>-d=checkptr</code> checks the following:
+</p>
+
+<ol>
+  <li>
+    When converting <code>unsafe.Pointer</code> to <code>*T</code>,
+    the resulting pointer must be aligned appropriately
+    for <code>T</code>.
+  </li>
+  <li>
+    If the result of pointer arithmetic points into a Go heap object,
+    one of the <code>unsafe.Pointer</code>-typed operands must point
+    into the same object.
+  </li>
+</p>
+
+<p><!-- CL 196959 -->
+  Detailed escape analysis diagnostics (<code>-m=2</code>) now work again.
+  This had been dropped from the new escape analysis implementation in
+  the previous release.
+</p>
+
+<p><!-- CL 196217 -->
+  All Go symbols in macOS binaries now begin with an underscore,
+  following platform conventions.
 </p>
 
 <h2 id="library">Core library</h2>
@@ -303,6 +390,11 @@ TODO
 
 <dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
+    <p><!-- CL 200081 -->
+      <code>runtime.Goexit</code> can no longer be aborted by a
+      recursive <code>panic</code>/<code>recover</code>.
+    </p>
+
     <p><!-- CL 187739 -->
       TODO: <a href="https://golang.org/cl/187739">https://golang.org/cl/187739</a>: treat CTRL_CLOSE_EVENT, CTRL_LOGOFF_EVENT, CTRL_SHUTDOWN_EVENT as SIGTERM on Windows
     </p>
