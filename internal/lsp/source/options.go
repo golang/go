@@ -250,6 +250,10 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 		result.setBool(&o.Completion.CaseSensitive)
 	case "completeUnimported":
 		result.setBool(&o.Completion.Unimported)
+	case "completionTimeout":
+		if v, ok := result.asInt(); ok {
+			o.Completion.Budget = time.Duration(v) * time.Second
+		}
 
 	case "hoverKind":
 		hoverKind, ok := value.(string)
@@ -343,6 +347,15 @@ func (r *OptionResult) asBool() (bool, bool) {
 	if !ok {
 		r.errorf("Invalid type %T for bool option %q", r.Value, r.Name)
 		return false, false
+	}
+	return b, true
+}
+
+func (r *OptionResult) asInt() (int, bool) {
+	b, ok := r.Value.(int)
+	if !ok {
+		r.errorf("Invalid type %T for int option %q", r.Value, r.Name)
+		return 0, false
 	}
 	return b, true
 }
