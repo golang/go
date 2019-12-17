@@ -250,9 +250,9 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 		result.setBool(&o.Completion.CaseSensitive)
 	case "completeUnimported":
 		result.setBool(&o.Completion.Unimported)
-	case "completionTimeout":
+	case "completionBudget":
 		if v, ok := result.asInt(); ok {
-			o.Completion.Budget = time.Duration(v) * time.Second
+			o.Completion.Budget = time.Duration(v) * time.Millisecond
 		}
 
 	case "hoverKind":
