@@ -20,17 +20,10 @@ import (
 // This function will return the main go.mod file for this folder if it exists and whether the -modfile
 // flag exists for this version of go.
 func modfileFlagExists(ctx context.Context, folder string, env []string) (string, bool, error) {
-	var tempEnv []string
-	for i := range env {
-		tempEnv = append(tempEnv, env[i])
-		if strings.Contains(env[i], "GO111MODULE") {
-			tempEnv[i] = "GO111MODULE=off"
-		}
-	}
 	// Borrowed from (internal/imports/mod.go:620)
 	const format = `{{range context.ReleaseTags}}{{if eq . "go1.14"}}{{.}}{{end}}{{end}}`
 	// Check the go version by running "go list" with modules off.
-	stdout, err := source.InvokeGo(ctx, folder, tempEnv, "list", "-f", format)
+	stdout, err := source.InvokeGo(ctx, folder, append(env, "GO111MODULE=off"), "list", "-f", format)
 	if err != nil {
 		return "", false, err
 	}
@@ -66,12 +59,12 @@ func getModfiles(ctx context.Context, folder string, options source.Options) (*m
 	if modfile == "" || modfile == os.DevNull {
 		return nil, errors.Errorf("go env GOMOD cannot detect a go.mod file in this folder")
 	}
+	// Copy the current go.mod file into the temporary go.mod file.
 	tempFile, err := ioutil.TempFile("", "go.*.mod")
 	if err != nil {
 		return nil, err
 	}
 	defer tempFile.Close()
-	// Copy the current go.mod file into the temporary go.mod file.
 	origFile, err := os.Open(modfile)
 	if err != nil {
 		return nil, err
@@ -80,5 +73,20 @@ func getModfiles(ctx context.Context, folder string, options source.Options) (*m
 	if _, err := io.Copy(tempFile, origFile); err != nil {
 		return nil, err
 	}
+	copySumFile(modfile, tempFile.Name())
 	return &modfiles{real: modfile, temp: tempFile.Name()}, nil
+}
+
+func copySumFile(realFile, tempFile string) {
+	realSum := realFile[0:len(realFile)-3] + "sum"
+	tempSum := tempFile[0:len(tempFile)-3] + "sum"
+	stat, err := os.Stat(realSum)
+	if err != nil || !stat.Mode().IsRegular() {
+		return
+	}
+	contents, err := ioutil.ReadFile(realSum)
+	if err != nil {
+		return
+	}
+	ioutil.WriteFile(tempSum, contents, stat.Mode())
 }

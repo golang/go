@@ -39,6 +39,9 @@ type Snapshot interface {
 	// This is used to get the SuggestedFixes associated with that error.
 	FindAnalysisError(ctx context.Context, pkgID, analyzerName, msg string, rng protocol.Range) (*Error, error)
 
+	// ModFiles returns the FileHandles of the go.mod files attached to the view associated with this snapshot.
+	ModFiles(ctx context.Context) (FileHandle, FileHandle, error)
+
 	// PackageHandle returns the CheckPackageHandle for the given package ID.
 	PackageHandle(ctx context.Context, id string) (PackageHandle, error)
 

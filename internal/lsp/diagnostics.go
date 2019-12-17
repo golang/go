@@ -8,6 +8,7 @@ import (
 	"context"
 	"strings"
 
+	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
@@ -61,6 +62,8 @@ func (s *Server) diagnoseSnapshot(ctx context.Context, snapshot source.Snapshot)
 			s.publishReports(ctx, reports, false)
 		}(snapshot, fh)
 	}
+	// Run diagnostics on the go.mod file.
+	s.diagnoseModfile(snapshot)
 }
 
 func (s *Server) diagnoseFile(snapshot source.Snapshot, fh source.FileHandle) {
@@ -84,6 +87,23 @@ func (s *Server) diagnoseFile(snapshot source.Snapshot, fh source.FileHandle) {
 		}
 		return
 	}
+	// Publish empty diagnostics for files.
+	s.publishReports(ctx, reports, true)
+}
+
+func (s *Server) diagnoseModfile(snapshot source.Snapshot) {
+	ctx := snapshot.View().BackgroundContext()
+	ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
+	defer done()
+
+	f, diags, err := mod.Diagnostics(ctx, snapshot)
+	if err != nil {
+		if err != context.Canceled {
+			log.Error(ctx, "diagnoseModfile: could not generate diagnostics", err)
+		}
+		return
+	}
+	reports := map[source.FileIdentity][]source.Diagnostic{f: diags}
 	// Publish empty diagnostics for files.
 	s.publishReports(ctx, reports, true)
 }

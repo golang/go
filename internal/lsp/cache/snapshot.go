@@ -6,6 +6,7 @@ package cache
 
 import (
 	"context"
+	"io"
 	"os"
 	"sync"
 
@@ -63,6 +64,39 @@ type actionKey struct {
 
 func (s *snapshot) View() source.View {
 	return s.view
+}
+
+func (s *snapshot) ModFiles(ctx context.Context) (source.FileHandle, source.FileHandle, error) {
+	if s.view.modfiles == nil {
+		return nil, nil, nil
+	}
+	realfh, err := s.GetFile(ctx, span.FileURI(s.view.modfiles.real))
+	if err != nil {
+		return nil, nil, err
+	}
+	if realfh == nil {
+		return nil, nil, errors.Errorf("go.mod filehandle is nil")
+	}
+	// Copy the real go.mod file content into the temp go.mod file.
+	origFile, err := os.Open(s.view.modfiles.real)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer origFile.Close()
+	tempFile, err := os.OpenFile(s.view.modfiles.temp, os.O_WRONLY, os.ModePerm)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer tempFile.Close()
+	if _, err := io.Copy(tempFile, origFile); err != nil {
+		return nil, nil, err
+	}
+	// Go directly to disk to get the correct FileHandle, since we just copied the file without invalidating the snapshot.
+	tempfh := s.view.Session().Cache().GetFile(span.FileURI(s.view.modfiles.temp), source.Mod)
+	if tempfh == nil {
+		return nil, nil, errors.Errorf("temporary go.mod filehandle is nil")
+	}
+	return realfh, tempfh, nil
 }
 
 func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]source.PackageHandle, error) {

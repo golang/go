@@ -85,7 +85,15 @@ func (s *Server) didSave(ctx context.Context, params *protocol.DidSaveTextDocume
 	if params.Text != nil {
 		c.Text = []byte(*params.Text)
 	}
-	_, err := s.session.DidModifyFile(ctx, c)
+	snapshots, err := s.session.DidModifyFile(ctx, c)
+	if err != nil {
+		return err
+	}
+	snapshot, _, err := snapshotOf(s.session, c.URI, snapshots)
+	if err != nil {
+		return err
+	}
+	go s.diagnoseModfile(snapshot)
 	return err
 }
 

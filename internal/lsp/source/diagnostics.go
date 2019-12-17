@@ -43,6 +43,9 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, fh FileHandle, withAnal
 	ctx, done := trace.StartSpan(ctx, "source.Diagnostics", telemetry.File.Of(fh.Identity().URI))
 	defer done()
 
+	if fh.Identity().Kind != Go {
+		return nil, "", errors.Errorf("unexpected file type: %q", fh.Identity().URI.Filename)
+	}
 	phs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
 		return nil, "", err

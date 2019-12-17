@@ -28,11 +28,7 @@ type parseModData struct {
 }
 
 func (c *cache) ParseModHandle(fh source.FileHandle) source.ParseModHandle {
-	key := parseKey{
-		file: fh.Identity(),
-		mode: source.ParseFull,
-	}
-	h := c.store.Bind(key, func(ctx context.Context) interface{} {
+	h := c.store.Bind(fh.Identity(), func(ctx context.Context) interface{} {
 		data := &parseModData{}
 		data.modfile, data.err = parseMod(ctx, fh)
 		return data
