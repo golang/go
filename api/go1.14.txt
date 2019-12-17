@@ -144,7 +144,7 @@ pkg debug/dwarf, method (*Reader) ByteOrder() binary.ByteOrder
 pkg encoding/asn1, const TagBMPString = 30
 pkg encoding/asn1, const TagBMPString ideal-int
 pkg encoding/json, method (*Decoder) InputOffset() int64
-pkg go/build, type Context struct, WorkingDir string
+pkg go/build, type Context struct, Dir string
 pkg go/doc, func NewFromFiles(*token.FileSet, []*ast.File, string, ...interface{}) (*Package, error)
 pkg go/doc, type Example struct, Suffix string
 pkg go/doc, type Func struct, Examples []*Example

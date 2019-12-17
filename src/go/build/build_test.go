@@ -328,7 +328,7 @@ func TestImportDirNotExist(t *testing.T) {
 	defer os.RemoveAll(emptyDir)
 
 	ctxt.GOPATH = emptyDir
-	ctxt.WorkingDir = emptyDir
+	ctxt.Dir = emptyDir
 
 	tests := []struct {
 		label        string
@@ -459,7 +459,7 @@ func TestImportPackageOutsideModule(t *testing.T) {
 	os.Setenv("GOPATH", gopath)
 	ctxt := Default
 	ctxt.GOPATH = gopath
-	ctxt.WorkingDir = filepath.Join(gopath, "src/example.com/p")
+	ctxt.Dir = filepath.Join(gopath, "src/example.com/p")
 
 	want := "cannot find module providing package"
 	if _, err := ctxt.Import("example.com/p", gopath, FindOnly); err == nil {
@@ -519,7 +519,7 @@ func TestMissingImportErrorRepetition(t *testing.T) {
 	os.Setenv("GONOPROXY", "none")
 
 	ctxt := Default
-	ctxt.WorkingDir = tmp
+	ctxt.Dir = tmp
 
 	pkgPath := "example.com/hello"
 	_, err = ctxt.Import(pkgPath, tmp, FindOnly)

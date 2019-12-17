@@ -36,13 +36,13 @@ type Context struct {
 	GOROOT string // Go root
 	GOPATH string // Go path
 
-	// WorkingDir is the caller's working directory, or the empty string to use
+	// Dir is the caller's working directory, or the empty string to use
 	// the current directory of the running process. In module mode, this is used
 	// to locate the main module.
 	//
-	// If WorkingDir is non-empty, directories passed to Import and ImportDir must
+	// If Dir is non-empty, directories passed to Import and ImportDir must
 	// be absolute.
-	WorkingDir string
+	Dir string
 
 	CgoEnabled  bool   // whether cgo files are included
 	UseAllFiles bool   // use files regardless of +build lines, file names
@@ -1041,8 +1041,8 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 		var absSrcDir string
 		if filepath.IsAbs(srcDir) {
 			absSrcDir = srcDir
-		} else if ctxt.WorkingDir != "" {
-			return fmt.Errorf("go/build: WorkingDir is non-empty, so relative srcDir is not allowed: %v", srcDir)
+		} else if ctxt.Dir != "" {
+			return fmt.Errorf("go/build: Dir is non-empty, so relative srcDir is not allowed: %v", srcDir)
 		} else {
 			// Find the absolute source directory. hasSubdir does not handle
 			// relative paths (and can't because the callbacks don't support this).
@@ -1076,16 +1076,16 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 			parent string
 			err    error
 		)
-		if ctxt.WorkingDir == "" {
+		if ctxt.Dir == "" {
 			parent, err = os.Getwd()
 			if err != nil {
 				// A nonexistent working directory can't be in a module.
 				return errNoModules
 			}
 		} else {
-			parent, err = filepath.Abs(ctxt.WorkingDir)
+			parent, err = filepath.Abs(ctxt.Dir)
 			if err != nil {
-				// If the caller passed a bogus WorkingDir explicitly, that's materially
+				// If the caller passed a bogus Dir explicitly, that's materially
 				// different from not having modules enabled.
 				return err
 			}
@@ -1105,8 +1105,8 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 
 	cmd := exec.Command("go", "list", "-e", "-compiler="+ctxt.Compiler, "-tags="+strings.Join(ctxt.BuildTags, ","), "-installsuffix="+ctxt.InstallSuffix, "-f={{.Dir}}\n{{.ImportPath}}\n{{.Root}}\n{{.Goroot}}\n{{if .Error}}{{.Error}}{{end}}\n", "--", path)
 
-	if ctxt.WorkingDir != "" {
-		cmd.Dir = ctxt.WorkingDir
+	if ctxt.Dir != "" {
+		cmd.Dir = ctxt.Dir
 	}
 
 	var stdout, stderr strings.Builder
