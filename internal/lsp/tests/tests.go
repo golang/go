@@ -13,6 +13,7 @@ import (
 	"go/ast"
 	"go/token"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -186,7 +187,9 @@ func DefaultOptions() source.Options {
 			protocol.SourceOrganizeImports: true,
 			protocol.QuickFix:              true,
 		},
-		source.Mod: {},
+		source.Mod: {
+			protocol.SourceOrganizeImports: true,
+		},
 		source.Sum: {},
 	}
 	o.HoverKind = source.SynopsisDocumentation
@@ -919,4 +922,36 @@ func uriName(uri span.URI) string {
 
 func spanName(spn span.Span) string {
 	return fmt.Sprintf("%v_%v_%v", uriName(spn.URI()), spn.Start().Line(), spn.Start().Column())
+}
+
+func CopyFolderToTempDir(folder string) (string, error) {
+	if _, err := os.Stat(folder); err != nil {
+		return "", err
+	}
+	dst, err := ioutil.TempDir("", "modfile_test")
+	if err != nil {
+		return "", err
+	}
+	fds, err := ioutil.ReadDir(folder)
+	if err != nil {
+		return "", err
+	}
+	for _, fd := range fds {
+		srcfp := filepath.Join(folder, fd.Name())
+		stat, err := os.Stat(srcfp)
+		if err != nil {
+			return "", err
+		}
+		if !stat.Mode().IsRegular() {
+			return "", fmt.Errorf("cannot copy non regular file %s", srcfp)
+		}
+		contents, err := ioutil.ReadFile(srcfp)
+		if err != nil {
+			return "", err
+		}
+		if err := ioutil.WriteFile(filepath.Join(dst, fd.Name()), contents, stat.Mode()); err != nil {
+			return "", err
+		}
+	}
+	return dst, nil
 }

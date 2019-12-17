@@ -2,19 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package mod_test
+package mod
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"testing"
 
 	"golang.org/x/tools/internal/lsp/cache"
-	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
@@ -39,7 +36,7 @@ func TestModfileRemainsUnchanged(t *testing.T) {
 
 	// Make sure to copy the test directory to a temporary directory so we do not
 	// modify the test code or add go.sum files when we run the tests.
-	folder, err := copyToTempDir(filepath.Join("testdata", "unchanged"))
+	folder, err := tests.CopyFolderToTempDir(filepath.Join("testdata", "unchanged"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,11 +80,11 @@ func TestDiagnostics(t *testing.T) {
 			testdir: "indirect",
 			want: []source.Diagnostic{
 				{
-					Message: "golang.org/x/tools should not be an indirect dependency.",
+					Message: "golang.org/x/tools should be a direct dependency.",
 					Source:  "go mod tidy",
 					// TODO(golang/go#36091): When marker support gets added for go.mod files, we
 					// can remove these hard coded positions.
-					Range:    protocol.Range{Start: getPos(4, 0), End: getPos(4, 61)},
+					Range:    protocol.Range{Start: getRawPos(4, 62), End: getRawPos(4, 73)},
 					Severity: protocol.SeverityWarning,
 				},
 			},
@@ -98,7 +95,7 @@ func TestDiagnostics(t *testing.T) {
 				{
 					Message:  "golang.org/x/tools is not used in this module.",
 					Source:   "go mod tidy",
-					Range:    protocol.Range{Start: getPos(4, 0), End: getPos(4, 61)},
+					Range:    protocol.Range{Start: getRawPos(4, 0), End: getRawPos(4, 61)},
 					Severity: protocol.SeverityWarning,
 				},
 			},
@@ -109,7 +106,7 @@ func TestDiagnostics(t *testing.T) {
 				{
 					Message:  "usage: require module/path v1.2.3",
 					Source:   "syntax",
-					Range:    protocol.Range{Start: getPos(4, 0), End: getPos(4, 17)},
+					Range:    protocol.Range{Start: getRawPos(4, 0), End: getRawPos(4, 17)},
 					Severity: protocol.SeverityError,
 				},
 			},
@@ -120,7 +117,7 @@ func TestDiagnostics(t *testing.T) {
 				{
 					Message:  "usage: go 1.23",
 					Source:   "syntax",
-					Range:    protocol.Range{Start: getPos(2, 0), End: getPos(2, 4)},
+					Range:    protocol.Range{Start: getRawPos(2, 0), End: getRawPos(2, 4)},
 					Severity: protocol.SeverityError,
 				},
 			},
@@ -131,16 +128,16 @@ func TestDiagnostics(t *testing.T) {
 				{
 					Message:  "unknown directive: yo",
 					Source:   "syntax",
-					Range:    protocol.Range{Start: getPos(6, 0), End: getPos(6, 2)},
+					Range:    protocol.Range{Start: getRawPos(6, 0), End: getRawPos(6, 2)},
 					Severity: protocol.SeverityError,
 				},
 			},
 		},
 	} {
 		t.Run(tt.testdir, func(t *testing.T) {
-			// Make sure to copy the test directory to a temporary directory so we do not
-			// modify the test code or add go.sum files when we run the tests.
-			folder, err := copyToTempDir(filepath.Join("testdata", tt.testdir))
+			// TODO: Once we refactor this to work with go/packages/packagestest. We do not
+			// need to copy to a temporary directory.
+			folder, err := tests.CopyFolderToTempDir(filepath.Join("testdata", tt.testdir))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -153,7 +150,7 @@ func TestDiagnostics(t *testing.T) {
 			if !hasTempModfile(ctx, snapshot) {
 				return
 			}
-			reports, err := mod.Diagnostics(ctx, snapshot)
+			reports, err := Diagnostics(ctx, snapshot)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -174,38 +171,7 @@ func hasTempModfile(ctx context.Context, snapshot source.Snapshot) bool {
 	return t != nil
 }
 
-func copyToTempDir(folder string) (string, error) {
-	if _, err := os.Stat(folder); err != nil {
-		return "", err
-	}
-	dst, err := ioutil.TempDir("", "modfile_test")
-	if err != nil {
-		return "", err
-	}
-	fds, err := ioutil.ReadDir(folder)
-	if err != nil {
-		return "", err
-	}
-	for _, fd := range fds {
-		srcfp := path.Join(folder, fd.Name())
-		dstfp := path.Join(dst, fd.Name())
-		stat, err := os.Stat(srcfp)
-		if err != nil {
-			return "", err
-		}
-		if !stat.Mode().IsRegular() {
-			return "", fmt.Errorf("cannot copy non regular file %s", srcfp)
-		}
-		contents, err := ioutil.ReadFile(srcfp)
-		if err != nil {
-			return "", err
-		}
-		ioutil.WriteFile(dstfp, contents, stat.Mode())
-	}
-	return dst, nil
-}
-
-func getPos(line, character int) protocol.Position {
+func getRawPos(line, character int) protocol.Position {
 	return protocol.Position{
 		Line:      float64(line),
 		Character: float64(character),

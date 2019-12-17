@@ -9,9 +9,11 @@ import (
 	"context"
 	"fmt"
 	"go/token"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -19,6 +21,7 @@ import (
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/diff"
+	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
@@ -924,5 +927,101 @@ func TestBytesOffset(t *testing.T) {
 		if err == nil && got.Offset() != test.want {
 			t.Errorf("want %d for %q(Line:%d,Character:%d), but got %d", test.want, test.text, int(test.pos.Line), int(test.pos.Character), got.Offset())
 		}
+	}
+}
+
+// TODO(golang/go#36091): This function can be refactored to look like the rest of this file
+// when marker support gets added for go.mod files.
+func TestModfileSuggestedFixes(t *testing.T) {
+	if runtime.GOOS == "android" {
+		t.Skipf("this test cannot find mod/testdata files")
+	}
+
+	ctx := tests.Context(t)
+	cache := cache.New(nil)
+	session := cache.NewSession(ctx)
+	options := tests.DefaultOptions()
+	options.TempModfile = true
+	options.Env = append(os.Environ(), "GOPACKAGESDRIVER=off", "GOROOT=")
+
+	server := Server{
+		session:   session,
+		delivered: map[span.URI]sentDiagnostics{},
+	}
+
+	for _, tt := range []string{"indirect", "unused"} {
+		t.Run(tt, func(t *testing.T) {
+			folder, err := tests.CopyFolderToTempDir(filepath.Join("mod", "testdata", tt))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(folder)
+
+			_, snapshot, err := session.NewView(ctx, "suggested_fix_test", span.FileURI(folder), options)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// TODO: Add testing for when the -modfile flag is turned off and we still get diagnostics.
+			if _, t, _ := snapshot.ModFiles(ctx); t == nil {
+				return
+			}
+			reports, err := mod.Diagnostics(ctx, snapshot)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(reports) != 1 {
+				t.Errorf("expected 1 fileHandle, got %d", len(reports))
+			}
+			for fh, diags := range reports {
+				actions, err := server.CodeAction(ctx, &protocol.CodeActionParams{
+					TextDocument: protocol.TextDocumentIdentifier{
+						URI: protocol.NewURI(fh.URI),
+					},
+					Context: protocol.CodeActionContext{
+						Only:        []protocol.CodeActionKind{protocol.SourceOrganizeImports},
+						Diagnostics: toProtocolDiagnostics(ctx, diags),
+					},
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(actions) == 0 {
+					t.Fatal("no code actions returned")
+				}
+				if len(actions) > 1 {
+					t.Fatal("expected only 1 code action")
+				}
+
+				res := map[span.URI]string{}
+				for _, docEdits := range actions[0].Edit.DocumentChanges {
+					uri := span.URI(docEdits.TextDocument.URI)
+					content, err := ioutil.ReadFile(uri.Filename())
+					if err != nil {
+						t.Fatal(err)
+					}
+					res[uri] = string(content)
+
+					split := strings.Split(res[uri], "\n")
+					for i := len(docEdits.Edits) - 1; i >= 0; i-- {
+						edit := docEdits.Edits[i]
+						start := edit.Range.Start
+						end := edit.Range.End
+						tmp := split[int(start.Line)][0:int(start.Character)] + edit.NewText
+						split[int(end.Line)] = tmp + split[int(end.Line)][int(end.Character):]
+					}
+					res[uri] = strings.Join(split, "\n")
+				}
+				got := res[fh.URI]
+				golden := filepath.Join(folder, "go.mod.golden")
+				contents, err := ioutil.ReadFile(golden)
+				if err != nil {
+					t.Fatal(err)
+				}
+				want := string(contents)
+				if want != got {
+					t.Errorf("suggested fixes failed for %s, expected:\n%s\ngot:\n%s", fh.URI.Filename(), want, got)
+				}
+			}
+		})
 	}
 }

@@ -86,35 +86,149 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 		}
 		dep := req.Mod.Path
 
-		start, err := positionToPoint(m, req.Syntax.Start)
+		rng, err := getRangeFromPositions(m, realfh, req.Syntax.Start, req.Syntax.End)
 		if err != nil {
 			return nil, err
 		}
-		end, err := positionToPoint(m, req.Syntax.End)
-		if err != nil {
-			return nil, err
-		}
-		spn := span.New(realfh.Identity().URI, start, end)
-		rng, err := m.Range(spn)
-		if err != nil {
-			return nil, err
-		}
+		var diag *source.Diagnostic
 
-		diag := &source.Diagnostic{
-			Message:  fmt.Sprintf("%s is not used in this module.", dep),
-			Source:   "go mod tidy",
-			Range:    rng,
-			Severity: protocol.SeverityWarning,
-		}
 		if tempReqs[dep] != nil && req.Indirect != tempReqs[dep].Indirect {
-			diag.Message = fmt.Sprintf("%s should be an indirect dependency.", dep)
+			// Show diagnostics for dependencies that are incorrectly labeled indirect.
 			if req.Indirect {
-				diag.Message = fmt.Sprintf("%s should not be an indirect dependency.", dep)
+				var fix []source.SuggestedFix
+				// If the dependency should not be indirect, just highlight the // indirect.
+				if comments := req.Syntax.Comment(); comments != nil && len(comments.Suffix) > 0 {
+					end := comments.Suffix[0].Start
+					end.LineRune += len(comments.Suffix[0].Token)
+					end.Byte += len([]byte(comments.Suffix[0].Token))
+
+					rng, err = getRangeFromPositions(m, realfh, comments.Suffix[0].Start, end)
+					if err != nil {
+						return nil, err
+					}
+					fix = []source.SuggestedFix{
+						{
+							Title: "Remove indirect",
+							Edits: map[span.URI][]protocol.TextEdit{realfh.Identity().URI: []protocol.TextEdit{
+								{
+									Range:   rng,
+									NewText: "",
+								},
+							}},
+						},
+					}
+				}
+				diag = &source.Diagnostic{
+					Message:        fmt.Sprintf("%s should be a direct dependency.", dep),
+					Range:          rng,
+					SuggestedFixes: fix,
+					Source:         "go mod tidy",
+					Severity:       protocol.SeverityWarning,
+				}
+			} else {
+				diag = &source.Diagnostic{
+					Message:  fmt.Sprintf("%s should be an indirect dependency.", dep),
+					Range:    rng,
+					Source:   "go mod tidy",
+					Severity: protocol.SeverityWarning,
+				}
+			}
+		}
+		// Handle unused dependencies.
+		if tempReqs[dep] == nil {
+			diag = &source.Diagnostic{
+				Message: fmt.Sprintf("%s is not used in this module.", dep),
+				Range:   rng,
+				SuggestedFixes: []source.SuggestedFix{
+					{
+						Title: fmt.Sprintf("Remove %s.", dep),
+						Edits: map[span.URI][]protocol.TextEdit{realfh.Identity().URI: []protocol.TextEdit{
+							{
+								Range:   rng,
+								NewText: "",
+							},
+						}},
+					},
+				},
+				Source:   "go mod tidy",
+				Severity: protocol.SeverityWarning,
 			}
 		}
 		reports[realfh.Identity()] = append(reports[realfh.Identity()], *diag)
 	}
 	return reports, nil
+}
+
+// TODO: Add caching for go.mod diagnostics to be able to map them back to source.Diagnostics
+// and reuse the cached suggested fixes.
+func SuggestedFixes(fh source.FileHandle, diags []protocol.Diagnostic) []protocol.CodeAction {
+	var actions []protocol.CodeAction
+	for _, diag := range diags {
+		var title string
+		if strings.Contains(diag.Message, "is not used in this module") {
+			split := strings.Split(diag.Message, " ")
+			if len(split) < 1 {
+				continue
+			}
+			title = fmt.Sprintf("Remove dependency: %s", split[0])
+		}
+		if strings.Contains(diag.Message, "should be a direct dependency.") {
+			title = "Remove indirect"
+		}
+		if title == "" {
+			continue
+		}
+		actions = append(actions, protocol.CodeAction{
+			Title: title,
+			Kind:  protocol.QuickFix,
+			Edit: protocol.WorkspaceEdit{
+				DocumentChanges: []protocol.TextDocumentEdit{
+					{
+						TextDocument: protocol.VersionedTextDocumentIdentifier{
+							Version: fh.Identity().Version,
+							TextDocumentIdentifier: protocol.TextDocumentIdentifier{
+								URI: protocol.NewURI(fh.Identity().URI),
+							},
+						},
+						Edits: []protocol.TextEdit{protocol.TextEdit{Range: diag.Range, NewText: ""}},
+					},
+				},
+			},
+			Diagnostics: diags,
+		})
+	}
+	return actions
+}
+
+func getEndOfLine(req *modfile.Require, m *protocol.ColumnMapper) (span.Point, error) {
+	comments := req.Syntax.Comment()
+	if comments == nil {
+		return positionToPoint(m, req.Syntax.End)
+	}
+	suffix := comments.Suffix
+	if len(suffix) == 0 {
+		return positionToPoint(m, req.Syntax.End)
+	}
+	end := suffix[0].Start
+	end.LineRune += len(suffix[0].Token)
+	return positionToPoint(m, end)
+}
+
+func getRangeFromPositions(m *protocol.ColumnMapper, fh source.FileHandle, s, e modfile.Position) (protocol.Range, error) {
+	start, err := positionToPoint(m, s)
+	if err != nil {
+		return protocol.Range{}, err
+	}
+	end, err := positionToPoint(m, e)
+	if err != nil {
+		return protocol.Range{}, err
+	}
+	spn := span.New(fh.Identity().URI, start, end)
+	rng, err := m.Range(spn)
+	if err != nil {
+		return protocol.Range{}, err
+	}
+	return rng, nil
 }
 
 func positionToPoint(m *protocol.ColumnMapper, pos modfile.Position) (span.Point, error) {

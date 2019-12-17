@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/internal/imports"
+	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
@@ -56,17 +57,19 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	switch fh.Identity().Kind {
 	case source.Mod:
 		if !wanted[protocol.SourceOrganizeImports] {
-			return nil, nil
+			codeActions = append(codeActions, protocol.CodeAction{
+				Title: "Tidy",
+				Kind:  protocol.SourceOrganizeImports,
+				Command: &protocol.Command{
+					Title:     "Tidy",
+					Command:   "tidy",
+					Arguments: []interface{}{fh.Identity().URI},
+				},
+			})
 		}
-		codeActions = append(codeActions, protocol.CodeAction{
-			Title: "Tidy",
-			Kind:  protocol.SourceOrganizeImports,
-			Command: &protocol.Command{
-				Title:     "Tidy",
-				Command:   "tidy",
-				Arguments: []interface{}{fh.Identity().URI},
-			},
-		})
+		if diagnostics := params.Context.Diagnostics; len(diagnostics) > 0 {
+			codeActions = append(codeActions, mod.SuggestedFixes(fh, diagnostics)...)
+		}
 	case source.Go:
 		edits, editsPerFix, err := source.AllImportsFixes(ctx, snapshot, fh)
 		if err != nil {

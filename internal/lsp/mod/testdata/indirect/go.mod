@@ -1,4 +1,4 @@
-module invalidrequire
+module indirect
 
 go 1.12
 
