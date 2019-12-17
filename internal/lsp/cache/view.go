@@ -12,6 +12,7 @@ import (
 	"go/token"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -25,7 +26,6 @@ import (
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/tag"
-	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
 )
 
@@ -313,6 +313,13 @@ func (v *view) Ignore(uri span.URI) bool {
 	defer v.ignoredURIsMu.Unlock()
 
 	_, ok := v.ignoredURIs[uri]
+
+	// Files with _ prefixes are always ignored.
+	if !ok && strings.HasPrefix(filepath.Base(uri.Filename()), "_") {
+		v.ignoredURIs[uri] = struct{}{}
+		return true
+	}
+
 	return ok
 }
 
@@ -338,21 +345,31 @@ func (v *view) getSnapshot() *snapshot {
 	return v.snapshot
 }
 
-// setContent sets the overlay contents for a file.
-func (v *view) setContent(ctx context.Context, f source.File, version float64, content []byte) {
+// invalidateContent invalidates the content of a Go file,
+// including any position and type information that depends on it.
+// It returns true if we were already tracking the given file, false otherwise.
+func (v *view) invalidateContent(ctx context.Context, f source.File, action source.FileAction) source.Snapshot {
+	// Cancel all still-running previous requests, since they would be
+	// operating on stale data.
+	switch action {
+	case source.Change, source.Close:
+		v.cancelBackground()
+	}
+
+	// This should be the only time we hold the view's snapshot lock for any period of time.
+	v.snapshotMu.Lock()
+	defer v.snapshotMu.Unlock()
+
+	v.snapshot = v.snapshot.clone(ctx, f)
+	return v.snapshot
+}
+
+func (v *view) cancelBackground() {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	if v.Ignore(f.URI()) {
-		return
-	}
-
-	// Cancel all still-running previous requests, since they would be
-	// operating on stale data.
 	v.cancel()
 	v.backgroundCtx, v.cancel = context.WithCancel(v.baseCtx)
-
-	v.session.setOverlay(f, version, content)
 }
 
 // FindFile returns the file if the given URI is already a part of the view.
@@ -390,11 +407,6 @@ func (v *view) getFile(ctx context.Context, uri span.URI, kind source.FileKind) 
 		fname: uri.Filename(),
 		kind:  kind,
 	}
-	v.session.filesWatchMap.Watch(uri, func(action source.FileAction) bool {
-		ctx := xcontext.Detach(ctx)
-		v.invalidateContent(ctx, f, action)
-		return true // we're the only watcher
-	})
 	v.mapFile(uri, f)
 	return f, nil
 }

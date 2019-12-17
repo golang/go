@@ -169,7 +169,7 @@ type Session interface {
 	IsOpen(uri span.URI) bool
 
 	// DidModifyFile reports a file modification to the session.
-	DidModifyFile(ctx context.Context, c FileModification) error
+	DidModifyFile(ctx context.Context, c FileModification) ([]Snapshot, error)
 
 	// DidChangeOutOfBand is called when a file under the root folder changes.
 	// If the file was open in the editor, it returns true.

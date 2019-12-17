@@ -6,7 +6,6 @@ package cache
 
 import (
 	"context"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -35,8 +34,7 @@ type session struct {
 	overlayMu sync.Mutex
 	overlays  map[span.URI]*overlay
 
-	openFiles     sync.Map
-	filesWatchMap *WatchMap
+	openFiles sync.Map
 }
 
 func (s *session) Options() source.Options {
@@ -275,79 +273,41 @@ func (s *session) dropView(ctx context.Context, v *view) (int, error) {
 	return -1, errors.Errorf("view %s for %v not found", v.Name(), v.Folder())
 }
 
-func (s *session) DidModifyFile(ctx context.Context, c source.FileModification) error {
+func (s *session) DidModifyFile(ctx context.Context, c source.FileModification) ([]source.Snapshot, error) {
 	ctx = telemetry.URI.With(ctx, c.URI)
+
+	// Perform session-specific actions.
+	switch c.Action {
+	case source.Open:
+		if err := s.openOverlay(ctx, c.URI, c.LanguageID, c.Version, c.Text); err != nil {
+			return nil, err
+		}
+	case source.Change:
+		if err := s.setOverlay(c.URI, c.Version, c.Text); err != nil {
+			return nil, err
+		}
+	case source.Save:
+		if err := s.saveOverlay(c.URI, c.Version, c.Text); err != nil {
+			return nil, err
+		}
+	case source.Close:
+		if err := s.closeOverlay(c.URI); err != nil {
+			return nil, err
+		}
+	}
+	var snapshots []source.Snapshot
 	for _, view := range s.viewsOf(c.URI) {
-		switch c.Action {
-		case source.Open:
-			kind := source.DetectLanguage(c.LanguageID, c.URI.Filename())
-			if kind == source.UnknownKind {
-				return errors.Errorf("DidModifyFile: unknown file kind for %s", c.URI)
-			}
-			return s.didOpen(ctx, c.URI, kind, c.Version, c.Text)
-		case source.Save:
-			s.didSave(c.URI, c.Version)
-		case source.Close:
-			s.didClose(c.URI)
+		if view.Ignore(c.URI) {
+			return nil, errors.Errorf("ignored file %v", c.URI)
 		}
-
 		// Set the content for the file, only for didChange and didClose events.
-		switch c.Action {
-		case source.Change, source.Close:
-			f, err := view.GetFile(ctx, c.URI)
-			if err != nil {
-				return err
-			}
-			view.setContent(ctx, f, c.Version, c.Text)
+		f, err := view.GetFile(ctx, c.URI)
+		if err != nil {
+			return nil, err
 		}
+		snapshots = append(snapshots, view.invalidateContent(ctx, f, c.Action))
 	}
-	return nil
-}
-
-// TODO: Propagate the language ID through to the view.
-func (s *session) didOpen(ctx context.Context, uri span.URI, kind source.FileKind, version float64, text []byte) error {
-	ctx = telemetry.File.With(ctx, uri)
-
-	// Files with _ prefixes are ignored.
-	if strings.HasPrefix(filepath.Base(uri.Filename()), "_") {
-		for _, view := range s.views {
-			view.ignoredURIsMu.Lock()
-			view.ignoredURIs[uri] = struct{}{}
-			view.ignoredURIsMu.Unlock()
-		}
-		return nil
-	}
-
-	// Make sure that the file gets added to the session's file watch map.
-	view, err := s.bestView(uri)
-	if err != nil {
-		return err
-	}
-	if _, err := view.GetFile(ctx, uri); err != nil {
-		return err
-	}
-
-	// Mark the file as open.
-	s.openFiles.Store(uri, true)
-
-	// Read the file on disk and compare it to the text provided.
-	// If it is the same as on disk, we can avoid sending it as an overlay to go/packages.
-	s.openOverlay(ctx, uri, kind, version, text)
-	return nil
-}
-
-func (s *session) didSave(uri span.URI, version float64) {
-	s.overlayMu.Lock()
-	defer s.overlayMu.Unlock()
-
-	if overlay, ok := s.overlays[uri]; ok {
-		overlay.sameContentOnDisk = true
-		overlay.version = version
-	}
-}
-
-func (s *session) didClose(uri span.URI) {
-	s.openFiles.Delete(uri)
+	return snapshots, nil
 }
 
 func (s *session) IsOpen(uri span.URI) bool {
@@ -364,5 +324,14 @@ func (s *session) GetFile(uri span.URI, kind source.FileKind) source.FileHandle 
 }
 
 func (s *session) DidChangeOutOfBand(ctx context.Context, uri span.URI, action source.FileAction) bool {
-	return s.filesWatchMap.Notify(uri, action)
+	view, err := s.viewOf(uri)
+	if err != nil {
+		return false
+	}
+	f, err := view.GetFile(ctx, uri)
+	if err != nil {
+		return false
+	}
+	view.invalidateContent(ctx, f, action)
+	return true
 }

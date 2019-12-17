@@ -5,10 +5,12 @@
 package cache
 
 import (
+	"bytes"
 	"context"
 
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
+	errors "golang.org/x/xerrors"
 )
 
 type overlay struct {
@@ -40,43 +42,50 @@ func (o *overlay) Read(ctx context.Context) ([]byte, string, error) {
 	return o.data, o.hash, nil
 }
 
-func (s *session) setOverlay(f source.File, version float64, data []byte) {
+func (s *session) setOverlay(uri span.URI, version float64, data []byte) error {
 	s.overlayMu.Lock()
-	defer func() {
-		s.overlayMu.Unlock()
-		s.filesWatchMap.Notify(f.URI(), source.Change)
-	}()
+	defer s.overlayMu.Unlock()
 
-	if data == nil {
-		delete(s.overlays, f.URI())
-		return
+	o, ok := s.overlays[uri]
+	if !ok {
+		return errors.Errorf("setting overlay for unopened file %s", uri)
 	}
-
-	s.overlays[f.URI()] = &overlay{
+	s.overlays[uri] = &overlay{
 		session: s,
-		uri:     f.URI(),
-		kind:    f.Kind(),
+		uri:     uri,
+		kind:    o.kind,
 		data:    data,
 		hash:    hashContents(data),
 		version: version,
 	}
+	return nil
 }
 
-func (s *session) clearOverlay(uri span.URI) {
+func (s *session) closeOverlay(uri span.URI) error {
+	s.openFiles.Delete(uri)
+
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
 
+	_, ok := s.overlays[uri]
+	if !ok {
+		return errors.Errorf("closing unopened overlay %s", uri)
+	}
 	delete(s.overlays, uri)
+	return nil
 }
 
-// openOverlay adds the file content to the overlay.
-// It also checks if the provided content is equivalent to the file's content on disk.
-func (s *session) openOverlay(ctx context.Context, uri span.URI, kind source.FileKind, version float64, data []byte) {
+func (s *session) openOverlay(ctx context.Context, uri span.URI, languageID string, version float64, data []byte) error {
+	kind := source.DetectLanguage(languageID, uri.Filename())
+	if kind == source.UnknownKind {
+		return errors.Errorf("openOverlay: unknown file kind for %s", uri)
+	}
+
+	s.openFiles.Store(uri, true)
+
 	s.overlayMu.Lock()
-	defer func() {
-		s.overlayMu.Unlock()
-		s.filesWatchMap.Notify(uri, source.Open)
-	}()
+	defer s.overlayMu.Unlock()
+
 	s.overlays[uri] = &overlay{
 		session: s,
 		uri:     uri,
@@ -91,6 +100,30 @@ func (s *session) openOverlay(ctx context.Context, uri span.URI, kind source.Fil
 			s.overlays[uri].sameContentOnDisk = true
 		}
 	}
+	return nil
+}
+
+func (s *session) saveOverlay(uri span.URI, version float64, data []byte) error {
+	s.overlayMu.Lock()
+	defer s.overlayMu.Unlock()
+
+	o, ok := s.overlays[uri]
+	if !ok {
+		return errors.Errorf("saveOverlay: unopened overlay %s", uri)
+	}
+	if o.version != version {
+		return errors.Errorf("saveOverlay: saving %s at version %v, currently at %v", uri, version, o.version)
+	}
+	if data != nil {
+		if !bytes.Equal(o.data, data) {
+			return errors.Errorf("saveOverlay: overlay %s changed on save", uri)
+		}
+		o.data = data
+	}
+	o.sameContentOnDisk = true
+	o.version = version
+
+	return nil
 }
 
 func (s *session) readOverlay(uri span.URI) *overlay {
@@ -110,6 +143,7 @@ func (s *session) buildOverlay() map[string][]byte {
 
 	overlays := make(map[string][]byte)
 	for uri, overlay := range s.overlays {
+		// TODO(rstambler): Make sure not to send overlays outside of the current view.
 		if overlay.sameContentOnDisk {
 			continue
 		}

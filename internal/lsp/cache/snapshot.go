@@ -590,22 +590,6 @@ func (s *snapshot) ID() uint64 {
 	return s.id
 }
 
-// invalidateContent invalidates the content of a Go file,
-// including any position and type information that depends on it.
-// It returns true if we were already tracking the given file, false otherwise.
-func (v *view) invalidateContent(ctx context.Context, f source.File, action source.FileAction) {
-	// This should be the only time we hold the view's snapshot lock for any period of time.
-	v.snapshotMu.Lock()
-	defer v.snapshotMu.Unlock()
-
-	// If we are deleting a file, make sure to clear out the overlay.
-	if action == source.Delete {
-		v.session.clearOverlay(f.URI())
-	}
-
-	v.snapshot = v.snapshot.clone(ctx, f)
-}
-
 func (s *snapshot) clearAndRebuildImportGraph() {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -76,11 +76,10 @@ func (c *cache) GetFile(uri span.URI, kind source.FileKind) source.FileHandle {
 func (c *cache) NewSession(ctx context.Context) source.Session {
 	index := atomic.AddInt64(&sessionIndex, 1)
 	s := &session{
-		cache:         c,
-		id:            strconv.FormatInt(index, 10),
-		options:       source.DefaultOptions,
-		overlays:      make(map[span.URI]*overlay),
-		filesWatchMap: NewWatchMap(),
+		cache:    c,
+		id:       strconv.FormatInt(index, 10),
+		options:  source.DefaultOptions,
+		overlays: make(map[span.URI]*overlay),
 	}
 	debug.AddSession(debugSession{s})
 	return s

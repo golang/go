@@ -65,7 +65,7 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 		if kind != source.Go {
 			continue
 		}
-		if err := session.DidModifyFile(ctx, source.FileModification{
+		if _, err := session.DidModifyFile(ctx, source.FileModification{
 			URI:        span.FileURI(filename),
 			Action:     source.Open,
 			Version:    -1,
