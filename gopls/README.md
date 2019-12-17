@@ -29,12 +29,12 @@ In general you should not need to know anything about gopls, it should be integr
 
 To install for your specific editor you can follow the following instructions
 
-* [VSCode](vscode.md)
-* [Vim / Neovim](vim.md)
-* [Emacs](emacs.md)
-* [Acme](acme.md)
-* [Sublime Text](subl.md)
-* [Atom](atom.md)
+* [VSCode](doc/vscode.md)
+* [Vim / Neovim](doc/vim.md)
+* [Emacs](doc/emacs.md)
+* [Acme](doc/acme.md)
+* [Sublime Text](doc/subl.md)
+* [Atom](doc/atom.md)
 
 See the [user guide](doc/user.md) for more information, including the how to install gopls by hand if you need.
 
