@@ -784,12 +784,20 @@ func (e *ProcessEnv) buildContext() *build.Context {
 	ctx.GOROOT = e.GOROOT
 	ctx.GOPATH = e.GOPATH
 
-	// As of Go 1.14, build.Context has a WorkingDir field
+	// As of Go 1.14, build.Context has a Dir field
 	// (see golang.org/issue/34860).
 	// Populate it only if present.
-	if wd := reflect.ValueOf(&ctx).Elem().FieldByName("WorkingDir"); wd.IsValid() && wd.Kind() == reflect.String {
-		wd.SetString(e.WorkingDir)
+	rc := reflect.ValueOf(&ctx).Elem()
+	dir := rc.FieldByName("Dir")
+	if !dir.IsValid() {
+		// Working drafts of Go 1.14 named the field "WorkingDir" instead.
+		// TODO(bcmills): Remove this case after the Go 1.14 beta has been released.
+		dir = rc.FieldByName("WorkingDir")
 	}
+	if dir.IsValid() && dir.Kind() == reflect.String {
+		dir.SetString(e.WorkingDir)
+	}
+
 	return &ctx
 }
 
