@@ -563,12 +563,7 @@ func (r *runner) Implementation(t *testing.T, spn span.Span, impls []span.Span) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	ident, err := source.Identifier(r.ctx, r.view.Snapshot(), fh, loc.Range.Start, source.WidestCheckPackageHandle)
-	if err != nil {
-		t.Fatalf("failed for %v: %v", spn, err)
-	}
-	var locs []protocol.Location
-	locs, err = ident.Implementation(r.ctx)
+	locs, err := source.Implementation(r.ctx, r.view.Snapshot(), fh, loc.Range.Start)
 	if err != nil {
 		t.Fatalf("failed for %v: %v", spn, err)
 	}
