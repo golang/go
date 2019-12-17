@@ -9,6 +9,7 @@ package mod
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -36,10 +37,23 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (source.FileIden
 	cfg := snapshot.View().Config(ctx)
 	args := append([]string{"mod", "tidy"}, cfg.BuildFlags...)
 	if _, err := source.InvokeGo(ctx, snapshot.View().Folder().Filename(), cfg.Env, args...); err != nil {
-		return source.FileIdentity{}, nil, err
+		// Ignore parse errors here. They'll be handled below.
+		if !strings.Contains(err.Error(), "errors parsing go.mod") {
+			return source.FileIdentity{}, nil, err
+		}
 	}
 
 	realMod, err := snapshot.View().Session().Cache().ParseModHandle(realfh).Parse(ctx)
+	if err, ok := err.(*source.Error); ok {
+		return realfh.Identity(), []source.Diagnostic{
+			{
+				Message:  err.Message,
+				Source:   "go mod tidy",
+				Range:    err.Range,
+				Severity: protocol.SeverityError,
+			},
+		}, nil
+	}
 	if err != nil {
 		return source.FileIdentity{}, nil, err
 	}
@@ -48,8 +62,8 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (source.FileIden
 		return source.FileIdentity{}, nil, err
 	}
 
-	reports := []source.Diagnostic{}
 	// Check indirect vs direct, and removal of dependencies.
+	reports := []source.Diagnostic{}
 	realReqs := make(map[string]*modfile.Require, len(realMod.Require))
 	tempReqs := make(map[string]*modfile.Require, len(tempMod.Require))
 	for _, req := range realMod.Require {
@@ -84,7 +98,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (source.FileIden
 	return realfh.Identity(), reports, nil
 }
 
-// TODO: Check to see if we need to go through internal/span.
+// TODO: Check to see if we need to go through internal/span (for multiple byte characters).
 func getPos(pos modfile.Position) protocol.Position {
 	return protocol.Position{
 		Line:      float64(pos.Line - 1),

@@ -7,6 +7,7 @@ package cache
 import (
 	"context"
 	"go/ast"
+	"strings"
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/source"
@@ -35,6 +36,10 @@ func (b *builtinPkg) CompiledGoFiles() []source.ParseGoHandle {
 func (v *view) buildBuiltinPackage(ctx context.Context) error {
 	cfg := v.Config(ctx)
 	pkgs, err := packages.Load(cfg, "builtin")
+	// If the error is related to a go.mod parse error, we want to continue loading.
+	if err != nil && strings.Contains(err.Error(), ".mod:") {
+		return nil
+	}
 	if err != nil {
 		return err
 	}

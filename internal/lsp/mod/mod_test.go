@@ -27,6 +27,8 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// TODO(golang/go#36091): This file can be refactored to look like lsp_test.go
+// when marker support gets added for go.mod files.
 func TestModfileRemainsUnchanged(t *testing.T) {
 	ctx := tests.Context(t)
 	cache := cache.New(nil)
@@ -35,8 +37,6 @@ func TestModfileRemainsUnchanged(t *testing.T) {
 	options.TempModfile = true
 	options.Env = append(os.Environ(), "GOPACKAGESDRIVER=off", "GOROOT=")
 
-	// TODO: Once we refactor this to work with go/packages/packagestest. We do not
-	// need to copy to a temporary directory.
 	// Make sure to copy the test directory to a temporary directory so we do not
 	// modify the test code or add go.sum files when we run the tests.
 	folder, err := copyToTempDir(filepath.Join("testdata", "unchanged"))
@@ -65,6 +65,8 @@ func TestModfileRemainsUnchanged(t *testing.T) {
 	}
 }
 
+// TODO(golang/go#36091): This file can be refactored to look like lsp_test.go
+// when marker support gets added for go.mod files.
 func TestDiagnostics(t *testing.T) {
 	ctx := tests.Context(t)
 	cache := cache.New(nil)
@@ -81,8 +83,10 @@ func TestDiagnostics(t *testing.T) {
 			testdir: "indirect",
 			want: []source.Diagnostic{
 				{
-					Message:  "golang.org/x/tools should not be an indirect dependency.",
-					Source:   "go mod tidy",
+					Message: "golang.org/x/tools should not be an indirect dependency.",
+					Source:  "go mod tidy",
+					// TODO(golang/go#36091): When marker support gets added for go.mod files, we
+					// can remove these hard coded positions.
 					Range:    protocol.Range{Start: getPos(4, 0), End: getPos(4, 61)},
 					Severity: protocol.SeverityWarning,
 				},
@@ -99,10 +103,41 @@ func TestDiagnostics(t *testing.T) {
 				},
 			},
 		},
+		{
+			testdir: "invalidrequire",
+			want: []source.Diagnostic{
+				{
+					Message:  "usage: require module/path v1.2.3",
+					Source:   "go mod tidy",
+					Range:    protocol.Range{Start: getPos(4, 0), End: getPos(4, 17)},
+					Severity: protocol.SeverityError,
+				},
+			},
+		},
+		{
+			testdir: "invalidgo",
+			want: []source.Diagnostic{
+				{
+					Message:  "usage: go 1.23",
+					Source:   "go mod tidy",
+					Range:    protocol.Range{Start: getPos(2, 0), End: getPos(2, 4)},
+					Severity: protocol.SeverityError,
+				},
+			},
+		},
+		{
+			testdir: "unknowndirective",
+			want: []source.Diagnostic{
+				{
+					Message:  "unknown directive: yo",
+					Source:   "go mod tidy",
+					Range:    protocol.Range{Start: getPos(6, 0), End: getPos(6, 2)},
+					Severity: protocol.SeverityError,
+				},
+			},
+		},
 	} {
 		t.Run(tt.testdir, func(t *testing.T) {
-			// TODO: Once we refactor this to work with go/packages/packagestest. We do not
-			// need to copy to a temporary directory.
 			// Make sure to copy the test directory to a temporary directory so we do not
 			// modify the test code or add go.sum files when we run the tests.
 			folder, err := copyToTempDir(filepath.Join("testdata", tt.testdir))
