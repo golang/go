@@ -6,6 +6,7 @@ package packages
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"go/types"
@@ -40,16 +41,21 @@ type responseDeduper struct {
 	dr           *driverResponse
 }
 
-// init fills in r with a driverResponse.
-func (r *responseDeduper) init(dr *driverResponse) {
-	r.dr = dr
-	r.seenRoots = map[string]bool{}
-	r.seenPackages = map[string]*Package{}
+func newDeduper() *responseDeduper {
+	return &responseDeduper{
+		dr:           &driverResponse{},
+		seenRoots:    map[string]bool{},
+		seenPackages: map[string]*Package{},
+	}
+}
+
+// addAll fills in r with a driverResponse.
+func (r *responseDeduper) addAll(dr *driverResponse) {
 	for _, pkg := range dr.Packages {
-		r.seenPackages[pkg.ID] = pkg
+		r.addPackage(pkg)
 	}
 	for _, root := range dr.Roots {
-		r.seenRoots[root] = true
+		r.addRoot(root)
 	}
 }
 
@@ -69,25 +75,44 @@ func (r *responseDeduper) addRoot(id string) {
 	r.dr.Roots = append(r.dr.Roots, id)
 }
 
-// goInfo contains global information from the go tool.
-type goInfo struct {
-	rootDirs map[string]string
-	env      goEnv
+type golistState struct {
+	cfg *Config
+	ctx context.Context
+
+	envOnce    sync.Once
+	goEnvError error
+	goEnv      map[string]string
+
+	rootsOnce     sync.Once
+	rootDirsError error
+	rootDirs      map[string]string
 }
 
-type goEnv struct {
-	modulesOn bool
+// getEnv returns Go environment variables. Only specific variables are
+// populated -- computing all of them is slow.
+func (state *golistState) getEnv() (map[string]string, error) {
+	state.envOnce.Do(func() {
+		var b *bytes.Buffer
+		b, state.goEnvError = state.invokeGo("env", "-json", "GOMOD", "GOPATH")
+		if state.goEnvError != nil {
+			return
+		}
+
+		state.goEnv = make(map[string]string)
+		decoder := json.NewDecoder(b)
+		if state.goEnvError = decoder.Decode(&state.goEnv); state.goEnvError != nil {
+			return
+		}
+	})
+	return state.goEnv, state.goEnvError
 }
 
-func determineEnv(cfg *Config) goEnv {
-	buf, err := invokeGo(cfg, "env", "GOMOD")
+// mustGetEnv is a convenience function that can be used if getEnv has already succeeded.
+func (state *golistState) mustGetEnv() map[string]string {
+	env, err := state.getEnv()
 	if err != nil {
-		return goEnv{}
+		panic(fmt.Sprintf("mustGetEnv: %v", err))
 	}
-	gomod := bytes.TrimSpace(buf.Bytes())
-
-	env := goEnv{}
-	env.modulesOn = len(gomod) > 0
 	return env
 }
 
@@ -95,42 +120,33 @@ func determineEnv(cfg *Config) goEnv {
 // the build system package structure.
 // See driver for more details.
 func goListDriver(cfg *Config, patterns ...string) (*driverResponse, error) {
-	var sizes types.Sizes
+	// Make sure that any asynchronous go commands are killed when we return.
+	parentCtx := cfg.Context
+	if parentCtx == nil {
+		parentCtx = context.Background()
+	}
+	ctx, cancel := context.WithCancel(parentCtx)
+	defer cancel()
+
+	response := newDeduper()
+
+	// Fill in response.Sizes asynchronously if necessary.
 	var sizeserr error
 	var sizeswg sync.WaitGroup
 	if cfg.Mode&NeedTypesSizes != 0 || cfg.Mode&NeedTypes != 0 {
 		sizeswg.Add(1)
 		go func() {
-			sizes, sizeserr = getSizes(cfg)
+			var sizes types.Sizes
+			sizes, sizeserr = packagesdriver.GetSizesGolist(ctx, cfg.BuildFlags, cfg.Env, cfg.Dir, usesExportData(cfg))
+			// types.SizesFor always returns nil or a *types.StdSizes.
+			response.dr.Sizes, _ = sizes.(*types.StdSizes)
 			sizeswg.Done()
 		}()
 	}
-	defer sizeswg.Wait()
 
-	// start fetching rootDirs
-	var info goInfo
-	var rootDirsReady, envReady = make(chan struct{}), make(chan struct{})
-	go func() {
-		info.rootDirs = determineRootDirs(cfg)
-		close(rootDirsReady)
-	}()
-	go func() {
-		info.env = determineEnv(cfg)
-		close(envReady)
-	}()
-	getGoInfo := func() *goInfo {
-		<-rootDirsReady
-		<-envReady
-		return &info
-	}
-
-	// Ensure that we don't leak goroutines: Load is synchronous, so callers will
-	// not expect it to access the fields of cfg after the call returns.
-	defer getGoInfo()
-
-	// always pass getGoInfo to golistDriver
-	golistDriver := func(cfg *Config, patterns ...string) (*driverResponse, error) {
-		return golistDriver(cfg, getGoInfo, patterns...)
+	state := &golistState{
+		cfg: cfg,
+		ctx: ctx,
 	}
 
 	// Determine files requested in contains patterns
@@ -165,46 +181,34 @@ extractQueries:
 		}
 	}
 
-	response := &responseDeduper{}
-	var err error
-
 	// See if we have any patterns to pass through to go list. Zero initial
 	// patterns also requires a go list call, since it's the equivalent of
 	// ".".
 	if len(restPatterns) > 0 || len(patterns) == 0 {
-		dr, err := golistDriver(cfg, restPatterns...)
+		dr, err := state.createDriverResponse(restPatterns...)
 		if err != nil {
 			return nil, err
 		}
-		response.init(dr)
-	} else {
-		response.init(&driverResponse{})
+		response.addAll(dr)
 	}
-
-	sizeswg.Wait()
-	if sizeserr != nil {
-		return nil, sizeserr
-	}
-	// types.SizesFor always returns nil or a *types.StdSizes
-	response.dr.Sizes, _ = sizes.(*types.StdSizes)
-
-	var containsCandidates []string
 
 	if len(containFiles) != 0 {
-		if err := runContainsQueries(cfg, golistDriver, response, containFiles, getGoInfo); err != nil {
+		if err := state.runContainsQueries(response, containFiles); err != nil {
 			return nil, err
 		}
 	}
 
-	modifiedPkgs, needPkgs, err := processGolistOverlay(cfg, response, getGoInfo)
+	modifiedPkgs, needPkgs, err := state.processGolistOverlay(response)
 	if err != nil {
 		return nil, err
 	}
+
+	var containsCandidates []string
 	if len(containFiles) > 0 {
 		containsCandidates = append(containsCandidates, modifiedPkgs...)
 		containsCandidates = append(containsCandidates, needPkgs...)
 	}
-	if err := addNeededOverlayPackages(cfg, golistDriver, response, needPkgs, getGoInfo); err != nil {
+	if err := state.addNeededOverlayPackages(response, needPkgs); err != nil {
 		return nil, err
 	}
 	// Check candidate packages for containFiles.
@@ -233,28 +237,32 @@ extractQueries:
 		}
 	}
 
+	sizeswg.Wait()
+	if sizeserr != nil {
+		return nil, sizeserr
+	}
 	return response.dr, nil
 }
 
-func addNeededOverlayPackages(cfg *Config, driver driver, response *responseDeduper, pkgs []string, getGoInfo func() *goInfo) error {
+func (state *golistState) addNeededOverlayPackages(response *responseDeduper, pkgs []string) error {
 	if len(pkgs) == 0 {
 		return nil
 	}
-	dr, err := driver(cfg, pkgs...)
+	dr, err := state.createDriverResponse(pkgs...)
 	if err != nil {
 		return err
 	}
 	for _, pkg := range dr.Packages {
 		response.addPackage(pkg)
 	}
-	_, needPkgs, err := processGolistOverlay(cfg, response, getGoInfo)
+	_, needPkgs, err := state.processGolistOverlay(response)
 	if err != nil {
 		return err
 	}
-	return addNeededOverlayPackages(cfg, driver, response, needPkgs, getGoInfo)
+	return state.addNeededOverlayPackages(response, needPkgs)
 }
 
-func runContainsQueries(cfg *Config, driver driver, response *responseDeduper, queries []string, goInfo func() *goInfo) error {
+func (state *golistState) runContainsQueries(response *responseDeduper, queries []string) error {
 	for _, query := range queries {
 		// TODO(matloob): Do only one query per directory.
 		fdir := filepath.Dir(query)
@@ -264,13 +272,13 @@ func runContainsQueries(cfg *Config, driver driver, response *responseDeduper, q
 		if err != nil {
 			return fmt.Errorf("could not determine absolute path of file= query path %q: %v", query, err)
 		}
-		dirResponse, err := driver(cfg, pattern)
+		dirResponse, err := state.createDriverResponse(pattern)
 		if err != nil || (len(dirResponse.Packages) == 1 && len(dirResponse.Packages[0].Errors) == 1) {
 			// There was an error loading the package. Try to load the file as an ad-hoc package.
 			// Usually the error will appear in a returned package, but may not if we're in modules mode
 			// and the ad-hoc is located outside a module.
 			var queryErr error
-			dirResponse, queryErr = driver(cfg, query)
+			dirResponse, queryErr = state.createDriverResponse(query)
 			if queryErr != nil {
 				// Return the original error if the attempt to fall back failed.
 				return err
@@ -294,7 +302,7 @@ func runContainsQueries(cfg *Config, driver driver, response *responseDeduper, q
 				if len(dirResponse.Packages[0].GoFiles) == 0 {
 					filename := filepath.Join(pattern, filepath.Base(query)) // avoid recomputing abspath
 					// TODO(matloob): check if the file is outside of a root dir?
-					for path := range cfg.Overlay {
+					for path := range state.cfg.Overlay {
 						if path == filename {
 							dirResponse.Packages[0].Errors = nil
 							dirResponse.Packages[0].GoFiles = []string{path}
@@ -327,10 +335,6 @@ func runContainsQueries(cfg *Config, driver driver, response *responseDeduper, q
 		}
 	}
 	return nil
-}
-
-func getSizes(cfg *Config) (types.Sizes, error) {
-	return packagesdriver.GetSizesGolist(cfg.Context, cfg.BuildFlags, cfg.Env, cfg.Dir, usesExportData(cfg))
 }
 
 // Fields must match go list;
@@ -375,10 +379,9 @@ func otherFiles(p *jsonPackage) [][]string {
 	return [][]string{p.CFiles, p.CXXFiles, p.MFiles, p.HFiles, p.FFiles, p.SFiles, p.SwigFiles, p.SwigCXXFiles, p.SysoFiles}
 }
 
-// golistDriver uses the "go list" command to expand the pattern
-// words and return metadata for the specified packages. dir may be
-// "" and env may be nil, as per os/exec.Command.
-func golistDriver(cfg *Config, rootsDirs func() *goInfo, words ...string) (*driverResponse, error) {
+// createDriverResponse uses the "go list" command to expand the pattern
+// words and return a response for the specified packages.
+func (state *golistState) createDriverResponse(words ...string) (*driverResponse, error) {
 	// go list uses the following identifiers in ImportPath and Imports:
 	//
 	// 	"p"			-- importable package or main (command)
@@ -392,7 +395,7 @@ func golistDriver(cfg *Config, rootsDirs func() *goInfo, words ...string) (*driv
 
 	// Run "go list" for complete
 	// information on the specified packages.
-	buf, err := invokeGo(cfg, "list", golistargs(cfg, words)...)
+	buf, err := state.invokeGo("list", golistargs(state.cfg, words)...)
 	if err != nil {
 		return nil, err
 	}
@@ -427,7 +430,10 @@ func golistDriver(cfg *Config, rootsDirs func() *goInfo, words ...string) (*driv
 		// contained in a known module or GOPATH entry. This will allow the package to be
 		// properly "reclaimed" when overlays are processed.
 		if filepath.IsAbs(p.ImportPath) && p.Error != nil {
-			pkgPath, ok := getPkgPath(cfg, p.ImportPath, rootsDirs)
+			pkgPath, ok, err := state.getPkgPath(p.ImportPath)
+			if err != nil {
+				return nil, err
+			}
 			if ok {
 				p.ImportPath = pkgPath
 			}
@@ -544,22 +550,20 @@ func golistDriver(cfg *Config, rootsDirs func() *goInfo, words ...string) (*driv
 }
 
 // getPkgPath finds the package path of a directory if it's relative to a root directory.
-func getPkgPath(cfg *Config, dir string, goInfo func() *goInfo) (string, bool) {
+func (state *golistState) getPkgPath(dir string) (string, bool, error) {
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
-		cfg.Logf("error getting absolute path of %s: %v", dir, err)
-		return "", false
+		return "", false, err
 	}
-	for rdir, rpath := range goInfo().rootDirs {
-		absRdir, err := filepath.Abs(rdir)
-		if err != nil {
-			cfg.Logf("error getting absolute path of %s: %v", rdir, err)
-			continue
-		}
+	roots, err := state.determineRootDirs()
+	if err != nil {
+		return "", false, err
+	}
+
+	for rdir, rpath := range roots {
 		// Make sure that the directory is in the module,
 		// to avoid creating a path relative to another module.
-		if !strings.HasPrefix(absDir, absRdir) {
-			cfg.Logf("%s does not have prefix %s", absDir, absRdir)
+		if !strings.HasPrefix(absDir, rdir) {
 			continue
 		}
 		// TODO(matloob): This doesn't properly handle symlinks.
@@ -574,11 +578,11 @@ func getPkgPath(cfg *Config, dir string, goInfo func() *goInfo) (string, bool) {
 			// Once the file is saved, gopls, or the next invocation of the tool will get the correct
 			// result straight from golist.
 			// TODO(matloob): Implement module tiebreaking?
-			return path.Join(rpath, filepath.ToSlash(r)), true
+			return path.Join(rpath, filepath.ToSlash(r)), true, nil
 		}
-		return filepath.ToSlash(r), true
+		return filepath.ToSlash(r), true, nil
 	}
-	return "", false
+	return "", false, nil
 }
 
 // absJoin absolutizes and flattens the lists of files.
@@ -613,13 +617,15 @@ func golistargs(cfg *Config, words []string) []string {
 }
 
 // invokeGo returns the stdout of a go command invocation.
-func invokeGo(cfg *Config, verb string, args ...string) (*bytes.Buffer, error) {
+func (state *golistState) invokeGo(verb string, args ...string) (*bytes.Buffer, error) {
+	cfg := state.cfg
+
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 	goArgs := []string{verb}
 	goArgs = append(goArgs, cfg.BuildFlags...)
 	goArgs = append(goArgs, args...)
-	cmd := exec.CommandContext(cfg.Context, "go", goArgs...)
+	cmd := exec.CommandContext(state.ctx, "go", goArgs...)
 	// On darwin the cwd gets resolved to the real path, which breaks anything that
 	// expects the working directory to keep the original path, including the
 	// go command when dealing with modules.
@@ -631,7 +637,7 @@ func invokeGo(cfg *Config, verb string, args ...string) (*bytes.Buffer, error) {
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	defer func(start time.Time) {
-		cfg.Logf("%s for %v, stderr: <<%s>> stdout: <<%s>>\n", time.Since(start), cmdDebugStr(cmd, args...), stderr, stdout)
+		cfg.Logf("%s for %v, stderr: <<%s>> stdout: <<%s>>\n", time.Since(start), cmdDebugStr(cmd, goArgs...), stderr, stdout)
 	}(time.Now())
 
 	if err := cmd.Run(); err != nil {
