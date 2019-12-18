@@ -86,6 +86,9 @@ type golistState struct {
 	rootsOnce     sync.Once
 	rootDirsError error
 	rootDirs      map[string]string
+
+	// vendorDirs caches the (non)existence of vendor directories.
+	vendorDirs map[string]bool
 }
 
 // getEnv returns Go environment variables. Only specific variables are
@@ -145,8 +148,9 @@ func goListDriver(cfg *Config, patterns ...string) (*driverResponse, error) {
 	}
 
 	state := &golistState{
-		cfg: cfg,
-		ctx: ctx,
+		cfg:        cfg,
+		ctx:        ctx,
+		vendorDirs: map[string]bool{},
 	}
 
 	// Determine files requested in contains patterns
@@ -639,7 +643,9 @@ func (state *golistState) invokeGo(verb string, args ...string) (*bytes.Buffer, 
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 	goArgs := []string{verb}
-	goArgs = append(goArgs, cfg.BuildFlags...)
+	if verb != "env" {
+		goArgs = append(goArgs, cfg.BuildFlags...)
+	}
 	goArgs = append(goArgs, args...)
 	cmd := exec.CommandContext(state.ctx, "go", goArgs...)
 	// On darwin the cwd gets resolved to the real path, which breaks anything that
