@@ -30,6 +30,10 @@ Do not send CLs removing the interior tags from such phrases.
 TODO
 </p>
 
+<p><!-- CL 187519 -->
+  TODO: <a href="https://golang.org/cl/187519">https://golang.org/cl/187519</a>: allow embedding overlapping interfaces
+</p>
+
 <h2 id="ports">Ports</h2>
 
 <p>
@@ -95,7 +99,7 @@ TODO
 
 <h3 id="freebsd">FreeBSD</h3>
 
-<p><!-- golang.org/issue/24715 -->
+<p><!-- CL 199919 -->
   Go now supports the 64-bit ARM architecture on FreeBSD (the
   <code>freebsd/arm64</code> port).
 </p>
@@ -105,6 +109,13 @@ TODO
 <p><!-- golang.org/issue/30439 -->
   As <a href="go1.13#ports">announced</a> in the Go 1.13 release notes,
   Go 1.14 drops support for the Native Client platform (<code>GOOS=nacl</code>).
+</p>
+
+<p><!-- CL 203758 -->
+  The runtime now respects zone CPU caps
+  (the <code>zone.cpu-cap</code> resource control)
+  for <code>runtime.NumCPU</code> and the default value
+  of <code>GOMAXPROCS</code>.
 </p>
 
 <h2 id="tools">Tools</h2>
@@ -230,10 +241,6 @@ TODO
 
 <h2 id="runtime">Runtime</h2>
 
-<p>
-TODO
-</p>
-
 <p><!-- CL 190098 -->
   This release improves the performance of most uses
   of <code>defer</code> to incur almost zero overhead compared to
@@ -269,6 +276,8 @@ TODO
   visible changes.
 </p>
 
+<!-- TODO: Maybe CL 200439? -->
+
 <h2 id="compiler">Compiler</h2>
 
 <p><!-- CL 162237 -->
@@ -292,6 +301,12 @@ TODO
     one of the <code>unsafe.Pointer</code>-typed operands must point
     into the same object.
   </li>
+</ol>
+
+<p><!-- CL 204338 -->
+  The compiler can now emit machine-readable logs of key optimizations
+  using the <code>-json</code> flag, including inlining, escape
+  analysis, bounds-check elimination, and nil-check elimination
 </p>
 
 <p><!-- CL 196959 -->
@@ -303,6 +318,14 @@ TODO
 <p><!-- CL 196217 -->
   All Go symbols in macOS binaries now begin with an underscore,
   following platform conventions.
+</p>
+
+<p><!-- CL 202117 -->
+  This release includes experimental support for compiler-inserted
+  coverage instrumentation for fuzzing.
+  See <a href="https://golang.org/issue/14565">the issue</a> for more
+  details.
+  This API may change in future releases.
 </p>
 
 <h2 id="library">Core library</h2>
@@ -370,7 +393,7 @@ TODO
 <dl id="plugin"><dt><a href="/pkg/plugin/">plugin</a></dt>
   <dd>
     <p><!-- CL 191617 -->
-      TODO: <a href="https://golang.org/cl/191617">https://golang.org/cl/191617</a>: add freebsd/amd64 plugin support
+      The <code>plugin</code> package now supports <code>freebsd/amd64</code>.
     </p>
 
 </dl><!-- plugin -->
@@ -395,15 +418,27 @@ TODO
       recursive <code>panic</code>/<code>recover</code>.
     </p>
 
-    <p><!-- CL 187739 -->
-      TODO: <a href="https://golang.org/cl/187739">https://golang.org/cl/187739</a>: treat CTRL_CLOSE_EVENT, CTRL_LOGOFF_EVENT, CTRL_SHUTDOWN_EVENT as SIGTERM on Windows
-    </p>
-
-    <p><!-- CL 188297 -->
-      TODO: <a href="https://golang.org/cl/188297">https://golang.org/cl/188297</a>: don&#39;t forward SIGPIPE on macOS
+    <p><!-- CL 188297, CL 191785 -->
+      On macOS, <code>SIGPIPE</code> is no longer forwarded to signal
+      handlers installed before the Go runtime is initialized.
+      This is necessary because macOS delivers <code>SIGPIPE</code>
+      <a href="https://golang.org/issue/33384">to the main thread</a>
+      rather than the thread writing to the closed pipe.
     </p>
 
 </dl><!-- runtime -->
+
+<dl id="signal"><dt><a href="/pkg/signal/">signal</a></dt>
+  <dd>
+    <p><!-- CL 187739 -->
+      On Windows,
+      the <code>CTRL_CLOSE_EVENT</code>, <code>CTRL_LOGOFF_EVENT</code>,
+      and <code>CTRL_SHUTDOWN_EVENT</code> events now generate
+      a <code>syscall.SIGTERM</code> signal, similar to how Control-C
+      and Control-Break generate a <code>syscall.SIGINT</code> signal.
+    </p>
+
+</dl><!-- signal -->
 
 <dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
   <dd>
