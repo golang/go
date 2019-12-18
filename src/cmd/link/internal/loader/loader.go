@@ -232,18 +232,26 @@ const (
 func NewLoader(flags uint32) *Loader {
 	nbuiltin := goobj2.NBuiltin()
 	return &Loader{
-		start:         make(map[*oReader]Sym),
-		objs:          []objIdx{{nil, 0, 0}},
-		symsByName:    [2]map[string]Sym{make(map[string]Sym), make(map[string]Sym)},
-		objByPkg:      make(map[string]*oReader),
-		outer:         make(map[Sym]Sym),
-		sub:           make(map[Sym]Sym),
-		align:         make(map[Sym]int32),
-		overwrite:     make(map[Sym]Sym),
-		itablink:      make(map[Sym]struct{}),
-		extStaticSyms: make(map[nameVer]Sym),
-		builtinSyms:   make([]Sym, nbuiltin),
-		flags:         flags,
+		start:                make(map[*oReader]Sym),
+		objs:                 []objIdx{{nil, 0, 0}},
+		symsByName:           [2]map[string]Sym{make(map[string]Sym), make(map[string]Sym)},
+		objByPkg:             make(map[string]*oReader),
+		outer:                make(map[Sym]Sym),
+		sub:                  make(map[Sym]Sym),
+		align:                make(map[Sym]int32),
+		dynimplib:            make(map[Sym]string),
+		dynimpvers:           make(map[Sym]string),
+		localentry:           make(map[Sym]uint8),
+		extname:              make(map[Sym]string),
+		attrTopFrame:         make(map[Sym]struct{}),
+		attrSpecial:          make(map[Sym]struct{}),
+		attrCgoExportDynamic: make(map[Sym]struct{}),
+		attrCgoExportStatic:  make(map[Sym]struct{}),
+		overwrite:            make(map[Sym]Sym),
+		itablink:             make(map[Sym]struct{}),
+		extStaticSyms:        make(map[nameVer]Sym),
+		builtinSyms:          make([]Sym, nbuiltin),
+		flags:                flags,
 	}
 }
 
@@ -1173,7 +1181,7 @@ func (l *Loader) growAttrBitmaps(reqLen int) {
 	if reqLen > l.attrReachable.len() {
 		// These are indexed by global symbol
 		l.attrReachable = growBitmap(reqLen, l.attrReachable)
-		l.attrOnList = growBitmap(reqLen, l.attrReachable)
+		l.attrOnList = growBitmap(reqLen, l.attrOnList)
 	}
 	// These are indexed by external symbol offset (e.g. i - l.extStart)
 	if l.extStart == 0 {
@@ -1665,7 +1673,11 @@ func (l *Loader) LookupOrCreate(name string, version int) *sym.Symbol {
 // CreateExtSym creates a new external symbol with the specified name
 // without adding it to any lookup tables, returning a Sym index for it.
 func (l *Loader) CreateExtSym(name string) Sym {
-	return l.newExtSym(name, sym.SymVerABI0)
+	// Assign a new unique negative version -- this is to mark the
+	// symbol so that it can be skipped when ExtractSymbols is adding
+	// ext syms to the sym.Symbols hash.
+	l.anonVersion--
+	return l.newExtSym(name, l.anonVersion)
 }
 
 // Create creates a symbol with the specified name, returning a
