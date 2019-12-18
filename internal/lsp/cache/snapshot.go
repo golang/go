@@ -464,17 +464,17 @@ func (s *snapshot) clone(ctx context.Context, withoutFile source.File) *snapshot
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	toInvalidate := map[packageID]struct{}{}
+	directIDs := map[packageID]struct{}{}
 	// Collect all of the package IDs that correspond to the given file.
 	// TODO: if the file has moved into a new package, we should invalidate that too.
 	for _, id := range s.ids[withoutFile.URI()] {
-		toInvalidate[id] = struct{}{}
+		directIDs[id] = struct{}{}
 	}
 
 	// If we are invalidating a go.mod file then we should invalidate all of the packages in the module
 	if withoutFile.Kind() == source.Mod {
 		for id := range s.workspacePackages {
-			toInvalidate[id] = struct{}{}
+			directIDs[id] = struct{}{}
 		}
 	}
 
@@ -492,7 +492,7 @@ func (s *snapshot) clone(ctx context.Context, withoutFile source.File) *snapshot
 				if fdirStat, err := os.Stat(dir(uri.Filename())); err == nil {
 					if os.SameFile(dirStat, fdirStat) {
 						for _, id := range s.ids[uri] {
-							toInvalidate[id] = struct{}{}
+							directIDs[id] = struct{}{}
 						}
 					}
 				}
@@ -502,21 +502,22 @@ func (s *snapshot) clone(ctx context.Context, withoutFile source.File) *snapshot
 
 	// If there is no known FileHandle and no known IDs for the given file,
 	// there is nothing to invalidate.
-	if len(toInvalidate) == 0 && originalFH == nil {
+	if len(directIDs) == 0 && originalFH == nil {
 		// TODO(heschi): clone anyway? Seems like this is just setting us up for trouble.
 		return s
 	}
 
 	// Invalidate reverse dependencies too.
 	// TODO(heschi): figure out the locking model and use transitiveReverseDeps?
+	transitiveIDs := make(map[packageID]struct{})
 	var addRevDeps func(packageID)
 	addRevDeps = func(id packageID) {
-		toInvalidate[id] = struct{}{}
+		transitiveIDs[id] = struct{}{}
 		for _, rid := range s.getImportedByLocked(id) {
 			addRevDeps(rid)
 		}
 	}
-	for id := range toInvalidate {
+	for id := range directIDs {
 		addRevDeps(id)
 	}
 
@@ -544,14 +545,14 @@ func (s *snapshot) clone(ctx context.Context, withoutFile source.File) *snapshot
 	}
 	// Copy the package type information.
 	for k, v := range s.packages {
-		if _, ok := toInvalidate[k.id]; ok {
+		if _, ok := transitiveIDs[k.id]; ok {
 			continue
 		}
 		result.packages[k] = v
 	}
 	// Copy the package analysis information.
 	for k, v := range s.actions {
-		if _, ok := toInvalidate[k.pkg.id]; ok {
+		if _, ok := transitiveIDs[k.pkg.id]; ok {
 			continue
 		}
 		result.actions[k] = v
@@ -568,9 +569,10 @@ func (s *snapshot) clone(ctx context.Context, withoutFile source.File) *snapshot
 	// and if so, invalidate this file's packages' metadata.
 	invalidateMetadata := s.view.session.cache.shouldLoad(ctx, s, originalFH, currentFH)
 
-	// Copy the package metadata.
+	// Copy the package metadata. We only need to invalidate packages directly
+	// containing the affected file, and only if it changed in a relevant way.
 	for k, v := range s.metadata {
-		if _, ok := toInvalidate[k]; invalidateMetadata && ok {
+		if _, ok := directIDs[k]; invalidateMetadata && ok {
 			continue
 		}
 		result.metadata[k] = v
