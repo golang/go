@@ -33,7 +33,7 @@ func (check *Checker) contractType(contr *Contract, name string, e *ast.Contract
 	// C2(P1, P2, ... Pn), ... Cn(P1, P2, ... Pn) with the respective underlying interfaces
 	// representing the type constraints for each of the type parameters (C1 for P1, C2 for P2, etc.).
 	bounds := make(map[*TypeName]*Named)
-	ifaceFor := func(tpar *TypeName) *Interface {
+	ifaceFor := func(tpar *TypeName) *Named {
 		named := bounds[tpar]
 		if named == nil {
 			index := tpar.typ.(*TypeParam).index
@@ -42,7 +42,7 @@ func (check *Checker) contractType(contr *Contract, name string, e *ast.Contract
 			named = NewNamed(tname, new(Interface), nil)
 			bounds[tpar] = named
 		}
-		return named.underlying.(*Interface)
+		return named
 	}
 
 	// collect constraints
@@ -82,7 +82,8 @@ func (check *Checker) contractType(contr *Contract, name string, e *ast.Contract
 			}
 
 			tpar := obj.(*TypeName)
-			iface := ifaceFor(tpar)
+			ifaceName := ifaceFor(tpar)
+			iface := ifaceName.underlying.(*Interface)
 			switch nmethods {
 			case 0:
 				// type constraints
@@ -103,8 +104,7 @@ func (check *Checker) contractType(contr *Contract, name string, e *ast.Contract
 				// add receiver to signature
 				// (TODO(gri) verify that this matches what we do elsewhere, e.g., in NewInterfaceType)
 				assert(sig.recv == nil)
-				recvTyp := tpar.typ
-				sig.recv = NewVar(pos, check.pkg, "", recvTyp)
+				sig.recv = NewVar(pos, check.pkg, "_", ifaceName)
 				// add the method
 				mname := c.MNames[0]
 				m := NewFunc(mname.Pos(), check.pkg, mname.Name, sig)
