@@ -1,0 +1,17 @@
+# Copyright 2019 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+# Build the govim test harness that will be used to run govim integration tests
+# for gopls. See README.md for instructions on how to use this.
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/govim-harness',
+      # It is assumed that this build is running from the root directory of the
+      # tools repository.
+      '-f', 'gopls/integration/govim/Dockerfile',
+      # Use the integration test directory as build context: the test harness
+      # doesn't actually require any local files.
+      'gopls/integration/govim']
+images:
+  - gcr.io/$PROJECT_ID/govim-harness

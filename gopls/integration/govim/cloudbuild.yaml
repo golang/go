@@ -1,0 +1,23 @@
+# Copyright 2019 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+# Build gopls, and run the govim integration tests.  See README.md for
+# instructions on how to use this.
+steps:
+  - name: 'golang:1.13'
+    env: ['GOPROXY=https://proxy.golang.org']
+    dir: 'gopls'
+    args: ['go', 'build']
+  - name: 'gcr.io/$PROJECT_ID/govim-harness'
+    # Work in the dummy module created in the test harness, that requires a
+    # pinned version of github.com/govim/govim.
+    dir: '/src/mod'
+    # The below setting currently causes too much noise on STDERR.
+    # TODO(findleyr): look into govim changes that make it easier to capture
+    # individual logs as build artifacts.
+    # env: ['GOVIM_TESTSCRIPT_STDERR=true']
+    args: ['go', 'test',
+      'github.com/govim/govim/cmd/govim',
+      # Specify the path to the gopls binary built in step 0.
+      '-gopls', '/workspace/gopls/gopls']
