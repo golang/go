@@ -251,8 +251,13 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 	case "completeUnimported":
 		result.setBool(&o.Completion.Unimported)
 	case "completionBudget":
-		if v, ok := result.asInt(); ok {
-			o.Completion.Budget = time.Duration(v) * time.Millisecond
+		if v, ok := result.asString(); ok {
+			d, err := time.ParseDuration(v)
+			if err != nil {
+				result.errorf("failed to parse duration %q: %v", v, err)
+				break
+			}
+			o.Completion.Budget = d
 		}
 
 	case "hoverKind":
@@ -351,11 +356,11 @@ func (r *OptionResult) asBool() (bool, bool) {
 	return b, true
 }
 
-func (r *OptionResult) asInt() (int, bool) {
-	b, ok := r.Value.(int)
+func (r *OptionResult) asString() (string, bool) {
+	b, ok := r.Value.(string)
 	if !ok {
-		r.errorf("Invalid type %T for int option %q", r.Value, r.Name)
-		return 0, false
+		r.errorf("Invalid type %T for string option %q", r.Value, r.Name)
+		return "", false
 	}
 	return b, true
 }
