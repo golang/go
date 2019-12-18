@@ -411,9 +411,17 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) bool {
 		// locals pointer map, like empty frame functions?
 		return false
 	}
-	if hasPrefix(funcname(f), "runtime.") ||
-		hasPrefix(funcname(f), "runtime/internal/") ||
-		hasPrefix(funcname(f), "reflect.") {
+	name := funcname(f)
+	if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
+		inltree := (*[1 << 20]inlinedCall)(inldata)
+		ix := pcdatavalue(f, _PCDATA_InlTreeIndex, pc, nil)
+		if ix >= 0 {
+			name = funcnameFromNameoff(f, inltree[ix].func_)
+		}
+	}
+	if hasPrefix(name, "runtime.") ||
+		hasPrefix(name, "runtime/internal/") ||
+		hasPrefix(name, "reflect.") {
 		// For now we never async preempt the runtime or
 		// anything closely tied to the runtime. Known issues
 		// include: various points in the scheduler ("don't
