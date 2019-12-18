@@ -186,6 +186,7 @@ var validLinkerFlags = []*lazyregexp.Regexp{
 	re(`-Wl,--(no-)?export-dynamic`),
 	re(`-Wl,-E`),
 	re(`-Wl,-framework,[^,@\-][^,]+`),
+	re(`-Wl,--hash-style=(sysv|gnu|both)`),
 	re(`-Wl,-headerpad_max_install_names`),
 	re(`-Wl,--no-undefined`),
 	re(`-Wl,-R([^@\-][^,@]*$)`),
