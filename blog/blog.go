@@ -188,6 +188,9 @@ func (s *Server) loadDocs(root string) error {
 	// Read content into docs field.
 	const ext = ".article"
 	fn := func(p string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 		if filepath.Ext(p) != ext {
 			return nil
 		}
