@@ -362,6 +362,16 @@ func (t *Interface) Method(i int) *Func { t.assertCompleteness(); return t.allMe
 // The interface must have been completed.
 func (t *Interface) Empty() bool { t.assertCompleteness(); return len(t.allMethods) == 0 }
 
+// includes reports whether the interface t includes the type typ.
+func (t *Interface) includes(typ Type) bool {
+	for _, t := range t.types {
+		if Identical(t, typ) {
+			return true
+		}
+	}
+	return false
+}
+
 // Complete computes the interface's method set. It must be called by users of
 // NewInterfaceType and NewInterface after the interface's embedded types are
 // fully defined and before using the interface type in any way other than to
