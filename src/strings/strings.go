@@ -420,24 +420,24 @@ func FieldsFunc(s string, f func(rune) bool) []string {
 	return a
 }
 
-// Join concatenates the elements of a to create a single string. The separator string
-// sep is placed between elements in the resulting string.
-func Join(a []string, sep string) string {
-	switch len(a) {
+// Join concatenates the elements of its first argument to create a single string. The separator
+// string sep is placed between elements in the resulting string.
+func Join(elems []string, sep string) string {
+	switch len(elems) {
 	case 0:
 		return ""
 	case 1:
-		return a[0]
+		return elems[0]
 	}
-	n := len(sep) * (len(a) - 1)
-	for i := 0; i < len(a); i++ {
-		n += len(a[i])
+	n := len(sep) * (len(elems) - 1)
+	for i := 0; i < len(elems); i++ {
+		n += len(elems[i])
 	}
 
 	var b Builder
 	b.Grow(n)
-	b.WriteString(a[0])
-	for _, s := range a[1:] {
+	b.WriteString(elems[0])
+	for _, s := range elems[1:] {
 		b.WriteString(sep)
 		b.WriteString(s)
 	}
