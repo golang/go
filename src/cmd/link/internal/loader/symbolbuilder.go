@@ -41,9 +41,7 @@ func (l *Loader) MakeSymbolUpdater(symIdx Sym) (*SymbolBuilder, Sym) {
 	if symIdx == 0 {
 		panic("can't update the null symbol")
 	}
-	if ov, ok := l.overwrite[symIdx]; ok {
-		symIdx = ov
-	}
+	symIdx = l.getOverwrite(symIdx)
 	if !l.IsExternal(symIdx) {
 		// Create a clone with the same name/version/kind etc.
 		symIdx = l.cloneToExternal(symIdx)
