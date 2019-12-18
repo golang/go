@@ -7,6 +7,7 @@
 package types
 
 import (
+	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/token"
@@ -224,7 +225,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 		check.indent++
 		defer func() {
 			check.indent--
-			check.trace(e.Pos(), "=> %s", T)
+			check.trace(e.Pos(), "=> %s (%s)", T, fmt.Sprintf("%T", T))
 		}()
 	}
 
