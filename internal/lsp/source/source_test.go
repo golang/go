@@ -626,20 +626,14 @@ func (r *runner) References(t *testing.T, src span.Span, itemList []span.Span) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ident, err := source.Identifier(ctx, r.view.Snapshot(), fh, srcRng.Start, source.WidestPackageHandle)
-	if err != nil {
-		t.Fatalf("failed for %v: %v", src, err)
-	}
 	want := make(map[span.Span]bool)
 	for _, pos := range itemList {
 		want[pos] = true
 	}
-	refs, err := ident.References(ctx)
+	refs, err := source.References(ctx, r.view.Snapshot(), fh, srcRng.Start, true)
 	if err != nil {
 		t.Fatalf("failed for %v: %v", src, err)
 	}
-	// Add the item's declaration, since References omits it.
-	refs = append([]*source.ReferenceInfo{ident.DeclarationReferenceInfo()}, refs...)
 	got := make(map[span.Span]bool)
 	for _, refInfo := range refs {
 		refSpan, err := refInfo.Span()
@@ -670,12 +664,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ident, err := source.Identifier(r.ctx, r.view.Snapshot(), fh, srcRng.Start, source.WidestPackageHandle)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	changes, err := ident.Rename(r.ctx, newText)
+	changes, err := source.Rename(r.ctx, r.view.Snapshot(), fh, srcRng.Start, newText)
 	if err != nil {
 		renamed := string(r.data.Golden(tag, spn.URI().Filename(), func() ([]byte, error) {
 			return []byte(err.Error()), nil
@@ -757,14 +746,7 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 	if err != nil {
 		t.Fatal(err)
 	}
-	ident, err := source.Identifier(r.ctx, r.view.Snapshot(), fh, srcRng.Start, source.WidestPackageHandle)
-	if err != nil {
-		if want.Text != "" { // expected an ident.
-			t.Errorf("prepare rename failed for %v: got error: %v", src, err)
-		}
-		return
-	}
-	item, err := ident.PrepareRename(r.ctx)
+	item, err := source.PrepareRename(r.ctx, r.view.Snapshot(), fh, srcRng.Start)
 	if err != nil {
 		if want.Text != "" { // expected an ident.
 			t.Errorf("prepare rename failed for %v: got error: %v", src, err)

@@ -48,25 +48,25 @@ func Implementation(ctx context.Context, s Snapshot, f FileHandle, pp protocol.P
 
 var ErrNotAnInterface = errors.New("not an interface or interface method")
 
-func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position) ([]implementation, error) {
+func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position) ([]qualifiedObject, error) {
 	var (
-		impls []implementation
+		impls []qualifiedObject
 		seen  = make(map[token.Position]bool)
 		fset  = s.View().Session().Cache().FileSet()
 	)
 
-	objs, err := objectsAtProtocolPos(ctx, s, f, pp)
+	qos, err := qualifiedObjsAtProtocolPos(ctx, s, f, pp)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, obj := range objs {
+	for _, qo := range qos {
 		var (
 			T      *types.Interface
 			method *types.Func
 		)
 
-		switch obj := obj.(type) {
+		switch obj := qo.obj.(type) {
 		case *types.Func:
 			method = obj
 			if recv := obj.Type().(*types.Signature).Recv(); recv != nil {
@@ -141,7 +141,7 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 
 			seen[pos] = true
 
-			impls = append(impls, implementation{
+			impls = append(impls, qualifiedObject{
 				obj: obj,
 				pkg: pkgs[obj.Pkg()],
 			})
@@ -151,23 +151,29 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 	return impls, nil
 }
 
-type implementation struct {
-	// obj is the implementation, either a *types.TypeName or *types.Func.
+type qualifiedObject struct {
 	obj types.Object
 
 	// pkg is the Package that contains obj's definition.
 	pkg Package
+
+	// node is the *ast.Ident or *ast.ImportSpec we followed to find obj, if any.
+	node ast.Node
+
+	// sourcePkg is the Package that contains node, if any.
+	sourcePkg Package
 }
 
-// objectsAtProtocolPos returns all the type.Objects referenced at the given position.
-// An object will be returned for every package that the file belongs to.
-func objectsAtProtocolPos(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position) ([]types.Object, error) {
+// qualifiedObjsAtProtocolPos returns info for all the type.Objects
+// referenced at the given position. An object will be returned for
+// every package that the file belongs to.
+func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position) ([]qualifiedObject, error) {
 	phs, err := s.PackageHandles(ctx, f)
 	if err != nil {
 		return nil, err
 	}
 
-	var objs []types.Object
+	var qualifiedObjs []qualifiedObject
 
 	// Check all the packages that the file belongs to.
 	for _, ph := range phs {
@@ -181,22 +187,52 @@ func objectsAtProtocolPos(ctx context.Context, s Snapshot, f FileHandle, pp prot
 			return nil, err
 		}
 
-		path := pathEnclosingIdent(astFile, pos)
-		if len(path) == 0 {
+		path := pathEnclosingObjNode(astFile, pos)
+		if path == nil {
 			return nil, ErrNoIdentFound
 		}
 
-		ident := path[len(path)-1].(*ast.Ident)
-
-		obj := pkg.GetTypesInfo().ObjectOf(ident)
-		if obj == nil {
-			return nil, fmt.Errorf("no object for %q", ident.Name)
+		var objs []types.Object
+		switch leaf := path[0].(type) {
+		case *ast.Ident:
+			// If leaf represents an implicit type switch object or the type
+			// switch "assign" variable, expand to all of the type switch's
+			// implicit objects.
+			if implicits := typeSwitchImplicits(pkg, path); len(implicits) > 0 {
+				objs = append(objs, implicits...)
+			} else {
+				obj := pkg.GetTypesInfo().ObjectOf(leaf)
+				if obj == nil {
+					return nil, fmt.Errorf("no object for %q", leaf.Name)
+				}
+				objs = append(objs, obj)
+			}
+		case *ast.ImportSpec:
+			// Look up the implicit *types.PkgName.
+			obj := pkg.GetTypesInfo().Implicits[leaf]
+			if obj == nil {
+				return nil, fmt.Errorf("no object for import %q", importPath(leaf))
+			}
+			objs = append(objs, obj)
 		}
 
-		objs = append(objs, obj)
+		pkgs := make(map[*types.Package]Package)
+		pkgs[pkg.GetTypes()] = pkg
+		for _, imp := range pkg.Imports() {
+			pkgs[imp.GetTypes()] = imp
+		}
+
+		for _, obj := range objs {
+			qualifiedObjs = append(qualifiedObjs, qualifiedObject{
+				obj:       obj,
+				pkg:       pkgs[obj.Pkg()],
+				sourcePkg: pkg,
+				node:      path[0],
+			})
+		}
 	}
 
-	return objs, nil
+	return qualifiedObjs, nil
 }
 
 func getASTFile(pkg Package, f FileHandle, pos protocol.Position) (*ast.File, token.Pos, error) {
@@ -223,10 +259,11 @@ func getASTFile(pkg Package, f FileHandle, pos protocol.Position) (*ast.File, to
 	return file, rng.Start, nil
 }
 
-// pathEnclosingIdent returns the ast path to the node that contains pos.
-// It is similar to astutil.PathEnclosingInterval, but simpler, and it
-// matches *ast.Ident nodes if pos is equal to node.End().
-func pathEnclosingIdent(f *ast.File, pos token.Pos) []ast.Node {
+// pathEnclosingObjNode returns the AST path to the object-defining
+// node associated with pos. "Object-defining" means either an
+// *ast.Ident mapped directly to a types.Object or an ast.Node mapped
+// implicitly to a types.Object.
+func pathEnclosingObjNode(f *ast.File, pos token.Pos) []ast.Node {
 	var (
 		path  []ast.Node
 		found bool
@@ -242,15 +279,48 @@ func pathEnclosingIdent(f *ast.File, pos token.Pos) []ast.Node {
 			return false
 		}
 
+		path = append(path, n)
+
 		switch n := n.(type) {
 		case *ast.Ident:
+			// Include the position directly after identifier. This handles
+			// the common case where the cursor is right after the
+			// identifier the user is currently typing. Previously we
+			// handled this by calling astutil.PathEnclosingInterval twice,
+			// once for "pos" and once for "pos-1".
 			found = n.Pos() <= pos && pos <= n.End()
+		case *ast.ImportSpec:
+			if n.Path.Pos() <= pos && pos < n.Path.End() {
+				found = true
+				// If import spec has a name, add name to path even though
+				// position isn't in the name.
+				if n.Name != nil {
+					path = append(path, n.Name)
+				}
+			}
+		case *ast.StarExpr:
+			// Follow star expressions to the inner identifer.
+			if pos == n.Star {
+				pos = n.X.Pos()
+			}
+		case *ast.SelectorExpr:
+			// If pos is on the ".", move it into the selector.
+			if pos == n.X.End() {
+				pos = n.Sel.Pos()
+			}
 		}
-
-		path = append(path, n)
 
 		return !found
 	})
+
+	if len(path) == 0 {
+		return nil
+	}
+
+	// Reverse path so leaf is first element.
+	for i := 0; i < len(path)/2; i++ {
+		path[i], path[len(path)-1-i] = path[len(path)-1-i], path[i]
+	}
 
 	return path
 }

@@ -46,17 +46,6 @@ type Declaration struct {
 	obj  types.Object
 }
 
-func (i *IdentifierInfo) DeclarationReferenceInfo() *ReferenceInfo {
-	return &ReferenceInfo{
-		Name:          i.Declaration.obj.Name(),
-		mappedRange:   i.Declaration.mappedRange,
-		obj:           i.Declaration.obj,
-		ident:         i.ident,
-		pkg:           i.pkg,
-		isDeclaration: true,
-	}
-}
-
 // Identifier returns identifier information for a position
 // in a file, accounting for a potentially incomplete selector.
 func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position, selectPackage PackagePolicy) (*IdentifierInfo, error) {
@@ -84,46 +73,31 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 
 var ErrNoIdentFound = errors.New("no identifier found")
 
-func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
-	if result, err := identifier(ctx, snapshot, pkg, file, pos); err != nil || result != nil {
-		return result, err
-	}
-	// If the position is not an identifier but immediately follows
-	// an identifier or selector period (as is common when
-	// requesting a completion), use the path to the preceding node.
-	ident, err := identifier(ctx, snapshot, pkg, file, pos-1)
-	if ident == nil && err == nil {
-		err = ErrNoIdentFound
-	}
-	return ident, err
-}
-
-// identifier checks a single position for a potential identifier.
-func identifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
-	var err error
-
+func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
 	// Handle import specs separately, as there is no formal position for a package declaration.
 	if result, err := importSpec(s, pkg, file, pos); result != nil || err != nil {
 		return result, err
 	}
-	path, _ := astutil.PathEnclosingInterval(file, pos, pos)
+	path := pathEnclosingObjNode(file, pos)
 	if path == nil {
-		return nil, errors.Errorf("can't find node enclosing position")
+		return nil, ErrNoIdentFound
 	}
 
 	view := s.View()
+
+	ident, _ := path[0].(*ast.Ident)
+	if ident == nil {
+		return nil, ErrNoIdentFound
+	}
+
 	result := &IdentifierInfo{
 		Snapshot:  s,
 		qf:        qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo()),
 		pkg:       pkg,
-		ident:     searchForIdent(path[0]),
+		ident:     ident,
 		enclosing: searchForEnclosing(pkg, path),
 	}
 
-	// No identifier at the given position.
-	if result.ident == nil {
-		return nil, nil
-	}
 	var wasEmbeddedField bool
 	for _, n := range path[1:] {
 		if field, ok := n.(*ast.Field); ok {
@@ -131,7 +105,9 @@ func identifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File, po
 			break
 		}
 	}
+
 	result.Name = result.ident.Name
+	var err error
 	if result.mappedRange, err = posToMappedRange(view, pkg, result.ident.Pos(), result.ident.End()); err != nil {
 		return nil, err
 	}
@@ -139,7 +115,7 @@ func identifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File, po
 	if result.Declaration.obj == nil {
 		// If there was no types.Object for the declaration, there might be an implicit local variable
 		// declaration in a type switch.
-		if objs := typeSwitchVar(pkg.GetTypesInfo(), path); len(objs) > 0 {
+		if objs := typeSwitchImplicits(pkg, path); len(objs) > 0 {
 			// There is no types.Object for the declaration of an implicit local variable,
 			// but all of the types.Objects associated with the usages of this variable can be
 			// used to connect it back to the declaration.
@@ -200,18 +176,6 @@ func identifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File, po
 		}
 	}
 	return result, nil
-}
-
-func searchForIdent(n ast.Node) *ast.Ident {
-	switch node := n.(type) {
-	case *ast.Ident:
-		return node
-	case *ast.SelectorExpr:
-		return node.Sel
-	case *ast.StarExpr:
-		return searchForIdent(node.X)
-	}
-	return nil
 }
 
 func searchForEnclosing(pkg Package, path []ast.Node) types.Type {
@@ -326,31 +290,69 @@ func importSpec(s Snapshot, pkg Package, file *ast.File, pos token.Pos) (*Identi
 	return result, nil
 }
 
-// typeSwitchVar handles the special case of a local variable implicitly defined in a type switch.
-// In such cases, the definition of the implicit variable will not be recorded in the *types.Info.Defs map,
-// but rather in the *types.Info.Implicits map.
-func typeSwitchVar(info *types.Info, path []ast.Node) []types.Object {
-	if len(path) < 3 {
-		return nil
-	}
-	// Check for [Ident AssignStmt TypeSwitchStmt...]
-	if _, ok := path[0].(*ast.Ident); !ok {
-		return nil
-	}
-	if _, ok := path[1].(*ast.AssignStmt); !ok {
-		return nil
-	}
-	sw, ok := path[2].(*ast.TypeSwitchStmt)
-	if !ok {
+// typeSwitchImplicits returns all the implicit type switch objects
+// that correspond to the leaf *ast.Ident.
+func typeSwitchImplicits(pkg Package, path []ast.Node) []types.Object {
+	ident, _ := path[0].(*ast.Ident)
+	if ident == nil {
 		return nil
 	}
 
-	var res []types.Object
-	for _, stmt := range sw.Body.List {
-		obj := info.Implicits[stmt.(*ast.CaseClause)]
-		if obj != nil {
-			res = append(res, obj)
+	var (
+		ts     *ast.TypeSwitchStmt
+		assign *ast.AssignStmt
+		cc     *ast.CaseClause
+		obj    = pkg.GetTypesInfo().ObjectOf(ident)
+	)
+
+	// Walk our ancestors to determine if our leaf ident refers to a
+	// type switch variable, e.g. the "a" from "switch a := b.(type)".
+Outer:
+	for i := 1; i < len(path); i++ {
+		switch n := path[i].(type) {
+		case *ast.AssignStmt:
+			// Check if ident is the "a" in "a := foo.(type)". The "a" in
+			// this case has no types.Object, so check for ident equality.
+			if len(n.Lhs) == 1 && n.Lhs[0] == ident {
+				assign = n
+			}
+		case *ast.CaseClause:
+			// Check if ident is a use of "a" within a case clause. Each
+			// case clause implicitly maps "a" to a different types.Object,
+			// so check if ident's object is the case clause's implicit
+			// object.
+			if obj != nil && pkg.GetTypesInfo().Implicits[n] == obj {
+				cc = n
+			}
+		case *ast.TypeSwitchStmt:
+			// Look for the type switch that owns our previously found
+			// *ast.AssignStmt or *ast.CaseClause.
+
+			if n.Assign == assign {
+				ts = n
+				break Outer
+			}
+
+			for _, stmt := range n.Body.List {
+				if stmt == cc {
+					ts = n
+					break Outer
+				}
+			}
 		}
 	}
-	return res
+
+	if ts == nil {
+		return nil
+	}
+
+	// Our leaf ident refers to a type switch variable. Fan out to the
+	// type switch's implicit case clause objects.
+	var objs []types.Object
+	for _, cc := range ts.Body.List {
+		if ccObj := pkg.GetTypesInfo().Implicits[cc]; ccObj != nil {
+			objs = append(objs, ccObj)
+		}
+	}
+	return objs
 }
