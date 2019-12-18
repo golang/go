@@ -12,7 +12,9 @@ import (
 	"io/ioutil"
 	rtrace "runtime/trace"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 // stacks is a fake stack map populated for test.
@@ -232,4 +234,35 @@ func TestFoo(t *testing.T) {
 		t.Error("failed to find 'log after task ends'")
 	}
 
+}
+
+func TestDirectSemaphoreHandoff(t *testing.T) {
+	prog0 := func() {
+		var mu sync.Mutex
+		var wg sync.WaitGroup
+		mu.Lock()
+		// This is modeled after src/sync/mutex_test.go to trigger Mutex
+		// starvation mode, in which the goroutine that calls Unlock hands off
+		// both the semaphore and its remaining time slice. See issue 36186.
+		for i := 0; i < 2; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for i := 0; i < 100; i++ {
+					mu.Lock()
+					time.Sleep(100 * time.Microsecond)
+					mu.Unlock()
+				}
+			}()
+		}
+		mu.Unlock()
+		wg.Wait()
+	}
+	if err := traceProgram(t, prog0, "TestDirectSemaphoreHandoff"); err != nil {
+		t.Fatalf("failed to trace the program: %v", err)
+	}
+	_, err := parseTrace()
+	if err != nil {
+		t.Fatalf("failed to parse the trace: %v", err)
+	}
 }
