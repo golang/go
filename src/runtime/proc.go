@@ -2767,7 +2767,7 @@ func preemptPark(gp *g) {
 }
 
 // goyield is like Gosched, but it:
-// - does not emit a GoSched trace event
+// - emits a GoPreempt trace event instead of a GoSched trace event
 // - puts the current G on the runq of the current P instead of the globrunq
 func goyield() {
 	checkTimeouts()
@@ -2775,6 +2775,9 @@ func goyield() {
 }
 
 func goyield_m(gp *g) {
+	if trace.enabled {
+		traceGoPreempt()
+	}
 	pp := gp.m.p.ptr()
 	casgstatus(gp, _Grunning, _Grunnable)
 	dropg()
