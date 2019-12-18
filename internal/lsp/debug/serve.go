@@ -9,6 +9,7 @@ import (
 	"context"
 	"go/token"
 	"html/template"
+	stdlog "log"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -16,6 +17,7 @@ import (
 	"path"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 
 	"golang.org/x/tools/internal/span"
@@ -214,7 +216,12 @@ func Serve(ctx context.Context, addr string) error {
 	if err != nil {
 		return err
 	}
-	log.Print(ctx, "Debug serving", tag.Of("Port", listener.Addr().(*net.TCPAddr).Port))
+
+	port := listener.Addr().(*net.TCPAddr).Port
+	if strings.HasSuffix(addr, ":0") {
+		stdlog.Printf("debug server listening on port %d", port)
+	}
+	log.Print(ctx, "Debug serving", tag.Of("Port", port))
 	prometheus := prometheus.New()
 	rpcs := &rpcs{}
 	traces := &traces{}
