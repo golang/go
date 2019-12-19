@@ -312,6 +312,7 @@ overwrite:
 
 		pc.Args = r.readInt32()
 		pc.Locals = r.readInt32()
+		s.Align = r.readInt32()
 		if r.readUint8() != 0 {
 			s.Attr |= sym.AttrNoSplit
 		}
