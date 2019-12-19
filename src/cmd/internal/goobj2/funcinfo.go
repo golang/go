@@ -18,6 +18,7 @@ type FuncInfo struct {
 
 	Args   uint32
 	Locals uint32
+	Align  uint32
 
 	Pcsp        uint32
 	Pcfile      uint32
@@ -42,6 +43,7 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
 
 	writeUint32(a.Args)
 	writeUint32(a.Locals)
+	writeUint32(a.Align)
 
 	writeUint32(a.Pcsp)
 	writeUint32(a.Pcfile)
@@ -79,6 +81,7 @@ func (a *FuncInfo) Read(b []byte) {
 
 	a.Args = readUint32()
 	a.Locals = readUint32()
+	a.Align = readUint32()
 
 	a.Pcsp = readUint32()
 	a.Pcfile = readUint32()
