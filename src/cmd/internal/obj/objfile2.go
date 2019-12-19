@@ -374,6 +374,7 @@ func genFuncInfoSyms(ctxt *Link) {
 			NoSplit: nosplit,
 			Args:    uint32(s.Func.Args),
 			Locals:  uint32(s.Func.Locals),
+			Align:   uint32(s.Func.Align),
 		}
 		pc := &s.Func.Pcln
 		o.Pcsp = pcdataoff

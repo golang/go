@@ -886,25 +886,10 @@ const OP_NOOP = 0xd503201f
 
 // align code to a certain length by padding bytes.
 func pcAlignPadLength(pc int64, alignedValue int64, ctxt *obj.Link) int {
-	switch alignedValue {
-	case 8:
-		if pc%8 == 4 {
-			return 4
-		}
-	case 16:
-		switch pc % 16 {
-		case 4:
-			return 12
-		case 8:
-			return 8
-		case 12:
-			return 4
-		}
-	default:
-		ctxt.Diag("Unexpected alignment: %d for PCALIGN directive\n", alignedValue)
+	if !((alignedValue&(alignedValue-1) == 0) && 8 <= alignedValue && alignedValue <= 2048) {
+		ctxt.Diag("alignment value of an instruction must be a power of two and in the range [8, 2048], got %d\n", alignedValue)
 	}
-
-	return 0
+	return int(-pc & (alignedValue - 1))
 }
 
 func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
@@ -940,8 +925,12 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		if m == 0 {
 			switch p.As {
 			case obj.APCALIGN:
-				a := p.From.Offset
-				m = pcAlignPadLength(pc, a, ctxt)
+				alignedValue := p.From.Offset
+				m = pcAlignPadLength(pc, alignedValue, ctxt)
+				// Update the current text symbol ailgnment value.
+				if int32(alignedValue) > cursym.Func.Align {
+					cursym.Func.Align = int32(alignedValue)
+				}
 				break
 			case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
 				continue
@@ -1017,8 +1006,8 @@ func span7(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if m == 0 {
 				switch p.As {
 				case obj.APCALIGN:
-					a := p.From.Offset
-					m = pcAlignPadLength(pc, a, ctxt)
+					alignedValue := p.From.Offset
+					m = pcAlignPadLength(pc, alignedValue, ctxt)
 					break
 				case obj.ANOP, obj.AFUNCDATA, obj.APCDATA:
 					continue
