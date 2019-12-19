@@ -184,7 +184,7 @@ func (ph *packageHandle) Check(ctx context.Context) (source.Package, error) {
 func (ph *packageHandle) check(ctx context.Context) (*pkg, error) {
 	v := ph.handle.Get(ctx)
 	if v == nil {
-		return nil, errors.Errorf("no package for %s", ph.m.id)
+		return nil, ctx.Err()
 	}
 	data := v.(*packageData)
 	return data.pkg, data.err

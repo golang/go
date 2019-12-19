@@ -26,6 +26,7 @@ import (
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/tag"
+	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
 )
 
@@ -349,6 +350,9 @@ func (v *view) getSnapshot() *snapshot {
 // including any position and type information that depends on it.
 // It returns true if we were already tracking the given file, false otherwise.
 func (v *view) invalidateContent(ctx context.Context, uri span.URI, kind source.FileKind, action source.FileAction) source.Snapshot {
+	// Detach the context so that content invalidation cannot be canceled.
+	ctx = xcontext.Detach(ctx)
+
 	// Cancel all still-running previous requests, since they would be
 	// operating on stale data.
 	switch action {
