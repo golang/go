@@ -15,7 +15,7 @@ import (
 type overlay struct {
 	session *session
 	uri     span.URI
-	data    []byte
+	text    []byte
 	hash    string
 	version float64
 	kind    source.FileKind
@@ -38,7 +38,7 @@ func (o *overlay) Identity() source.FileIdentity {
 	}
 }
 func (o *overlay) Read(ctx context.Context) ([]byte, string, error) {
-	return o.data, o.hash, nil
+	return o.text, o.hash, nil
 }
 
 func (s *session) updateOverlay(ctx context.Context, c source.FileModification) error {
@@ -69,7 +69,11 @@ func (s *session) updateOverlay(ctx context.Context, c source.FileModification) 
 	}
 
 	// If the file is on disk, check if its content is the same as the overlay.
-	hash := hashContents(c.Text)
+	text := c.Text
+	if text == nil {
+		text = o.text
+	}
+	hash := hashContents(text)
 	var sameContentOnDisk bool
 	switch c.Action {
 	case source.Open:
@@ -88,8 +92,8 @@ func (s *session) updateOverlay(ctx context.Context, c source.FileModification) 
 	s.overlays[c.URI] = &overlay{
 		session:           s,
 		uri:               c.URI,
-		data:              c.Text,
 		version:           c.Version,
+		text:              text,
 		kind:              kind,
 		hash:              hash,
 		sameContentOnDisk: sameContentOnDisk,
@@ -118,7 +122,7 @@ func (s *session) buildOverlay() map[string][]byte {
 		if overlay.sameContentOnDisk {
 			continue
 		}
-		overlays[uri.Filename()] = overlay.data
+		overlays[uri.Filename()] = overlay.text
 	}
 	return overlays
 }

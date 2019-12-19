@@ -32,7 +32,7 @@ func (s debugSession) Files() []*debug.File {
 			seen[overlay.uri] = f
 			files = append(files, f)
 		}
-		f.Data = string(overlay.data)
+		f.Data = string(overlay.text)
 		f.Error = nil
 		f.Hash = overlay.hash
 	}
@@ -50,7 +50,7 @@ func (s debugSession) File(hash string) *debug.File {
 			return &debug.File{
 				Session: s,
 				URI:     overlay.uri,
-				Data:    string(overlay.data),
+				Data:    string(overlay.text),
 				Error:   nil,
 				Hash:    overlay.hash,
 			}
