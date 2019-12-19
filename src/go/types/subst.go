@@ -76,22 +76,36 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		// determine type parameter bound
 		iface := tpar.Interface()
 
-		// TODO(gri) document/explain why the substitution below is correct
-		//check.dump(">>> %s: iface before: %s", pos, iface)
+		// The type parameter bound is parameterized with the same type parameters
+		// as the instantiated type; before we can use it for bounds checking we
+		// need to instantiate it with the type arguments with which we instantiate
+		// the parameterized type.
 		iface = check.subst(pos, iface, tparams, targs).(*Interface)
-		//check.dump(">>> %s: iface after : %s", pos, iface)
 
 		// update targ method signatures
-		update := func(typ Type) Type {
-			// check.dump(">>> %s: sig before: %s (tparams = %s)", pos, typ, typ.(*Signature).tparams)
-			typ = check.subst(pos, typ, tparams, targs)
-			// check.dump(">>> %s: sig after : %s", pos, typ)
-			return typ
+		update := func(V Type, sig *Signature) *Signature {
+			V, _ = deref(V)
+			// check.dump(">>> %s: V = %s", pos, V)
+			var targs []Type
+			if vnamed, _ := V.(*Named); vnamed != nil {
+				targs = vnamed.targs
+			} else {
+				// nothing to do
+				return sig
+			}
+			// check.dump(">>> %s: targs = %s", pos, targs)
+			// check.dump(">>> %s: sig.mtparams = %s", pos, sig.mtparams)
+			// check.dump(">>> %s: sig before: %s, tparams = %s, targs = %s", pos, sig, sig.mtparams, targs)
+			sig = check.subst(pos, sig, sig.mtparams, targs).(*Signature)
+			// check.dump(">>> %s: sig after : %s", pos, sig)
+			return sig
 		}
 
 		// targ must implement iface (methods)
 		if m, _ := check.missingMethod(targ, iface, true, update); m != nil {
-			check.softErrorf(pos, "%s does not satisfy %s (missing method %s)", targ, tpar.bound, m)
+			// TODO(gri) needs to print updated name to avoid major confusion in error message!
+			//           (print warning for now)
+			check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", targ, tpar.bound, iface, m)
 			break
 		}
 
@@ -126,12 +140,25 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 	return check.subst(pos, typ, tparams, targs)
 }
 
-// subst returns the type typ with its type parameters tparams replaced by
+// subst returns the type typ with its type parameters tpars replaced by
 // the corresponding type arguments targs, recursively.
 func (check *Checker) subst(pos token.Pos, typ Type, tpars []*TypeName, targs []Type) Type {
 	assert(len(tpars) == len(targs))
 	if len(tpars) == 0 {
 		return typ
+	}
+
+	if debug {
+		for i, tpar := range tpars {
+			if tpar == nil {
+				check.dump("%s: tpars[%d] == nil", pos, i)
+				panic("nil type parameter")
+			}
+			if targs[i] == nil {
+				check.dump("%s: targ[%d] == nil", pos, i)
+				panic("nil type argument")
+			}
+		}
 	}
 
 	// common cases
@@ -162,6 +189,9 @@ type subster struct {
 
 func (subst *subster) typ(typ Type) Type {
 	switch t := typ.(type) {
+	case nil:
+		panic("nil typ")
+
 	case *Basic:
 		// nothing to do
 
@@ -253,7 +283,7 @@ func (subst *subster) typ(typ Type) Type {
 
 			// already instantiated
 			dump(">>> %s already instantiated", t)
-			assert(len(t.targs) == len(t.obj.tparams))
+			assert(len(t.targs) == len(t.targs))
 			// For each (existing) type argument targ, determine if it needs
 			// to be substituted; i.e., if it is or contains a type parameter
 			// that has a type argument for it.
@@ -301,7 +331,25 @@ func (subst *subster) typ(typ Type) Type {
 		subst.cache[t] = named
 		dump(">>> subst %s(%s) with %s (new: %s)", t.underlying, subst.tpars, subst.targs, new_targs)
 		named.underlying = subst.typ(t.underlying)
-		named.methods = t.methods // methods will be customized when used
+
+		// update all method signatures
+		named.methods = t.methods
+		/*
+			if len(t.methods) > 0 {
+				dump(">>> update method signatures:")
+				for _, m := range t.methods {
+					subst.check.objDecl(m, nil)
+					copy := *m
+					copy.typ = subst.typ(copy.typ)
+					dump(">>> - %s: %s -> %s", m, m.typ, copy.typ)
+					named.methods = append(named.methods, &copy)
+				}
+				dump(">>> done with methods")
+			} else {
+				dump(">>> no methods to update")
+			}
+		*/
+
 		return named
 
 	case *TypeParam:

@@ -4,6 +4,46 @@
 
 package p
 
+func f(type P interface{ m() P })(x P)
+
+type T(type P) P
+
+func (_ T(P)) m() P
+
+func _(type Q)(x Q) {
+	f(T /* ERROR does not satisfy */ (Q))(T(Q)(x))
+}
+
+// TODO(gri) Once the code above works, check the code below.
+/*
+type NumericAbs(type T) interface {
+	Abs() T
+}
+
+func AbsDifference(type T NumericAbs(T))()
+
+type OrderedAbs(type T) T
+
+func (a OrderedAbs(T)) Abs() T
+
+func OrderedAbsDifference(type T)() {
+	AbsDifference(OrderedAbs(T))()
+}
+*/
+
+/*
+package p
+
+type T(type _ interface { a() }, _ interface{}) struct{}
+
+type A(type P) struct{ x P }
+
+func (_ A(P)) a() {}
+
+var _ T(A(int), int)
+*/
+
+/*
 type NumericAbs(type T) interface {
 	Abs() T
 }
@@ -15,9 +55,9 @@ type OrderedAbs(type T) T
 func (a OrderedAbs(T)) Abs() T
 
 func OrderedAbsDifference(type T)(x T) {
-	// TODO(gri) this should work
-	AbsDifference /* ERROR does not satisfy */ (OrderedAbs(T)(x))
+	AbsDifference(OrderedAbs(T)(x))
 }
+*/
 
 // TODO(gri) Once the code above works, check the code below.
 /*

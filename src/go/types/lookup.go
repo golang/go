@@ -281,7 +281,7 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 // signature, the existing method is returned as well.
 // To improve error messages, also report the wrong signature
 // when the method exists on *V instead of V.
-func (check *Checker) missingMethod(V Type, T *Interface, static bool, update func(Type) Type) (method, wrongType *Func) {
+func (check *Checker) missingMethod(V Type, T *Interface, static bool, update func(V Type, sig *Signature) *Signature) (method, wrongType *Func) {
 	check.completeInterface(token.NoPos, T)
 
 	// fast path for common case
@@ -302,13 +302,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool, update fu
 				continue
 			}
 
-			// update (generic) method signatures before comparing them
-			ftyp := f.Type()
-			if update != nil {
-				ftyp = update(ftyp)
-			}
-
-			if !check.identical(ftyp, m.typ) {
+			if !check.identical(f.typ, m.typ) {
 				return m, f
 			}
 		}
@@ -341,9 +335,9 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool, update fu
 		}
 
 		// update (generic) method signatures before comparing them
-		ftyp := f.typ
+		ftyp := f.typ.(*Signature)
 		if update != nil {
-			ftyp = update(ftyp)
+			ftyp = update(V, ftyp)
 		}
 
 		if !check.identical(ftyp, m.typ) {

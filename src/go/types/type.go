@@ -204,6 +204,7 @@ type Signature struct {
 	// TODO(gri) do we need to keep tparams in the Signature, rather than the Func object?
 	// (how are they different from type parameters which we keep with the TypeName?)
 	tparams  []*TypeName // type parameters from left to right; or nil
+	mtparams []*TypeName // method type parameters
 	params   *Tuple      // (incoming) parameters from left to right; or nil
 	results  *Tuple      // (outgoing) results from left to right; or nil
 	variadic bool        // true if the last parameter's type is of the form ...T (or string, for append built-in only)
@@ -223,7 +224,7 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
 			panic("types.NewSignature: variadic parameter must be of unnamed slice type")
 		}
 	}
-	return &Signature{nil, recv, nil, params, results, variadic}
+	return &Signature{nil, recv, nil, nil, params, results, variadic}
 }
 
 // Recv returns the receiver of signature s (if a method), or nil if a

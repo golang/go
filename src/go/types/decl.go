@@ -798,13 +798,17 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	// since the method is not a type, we get an error. If we have a parameterized
 	// receiver type, instantiating the receiver type leads to the instantiation of
 	// its methods, and we don't want a cycle error in that case.
-	// TODO(gri) review if this is correct for the latter case
+	// TODO(gri) review if this is correct and/or whether we still need this?
 	saved := obj.color_
 	obj.color_ = black
 	check.funcType(sig, fdecl.Recv, fdecl.Type)
 	obj.color_ = saved
 
-	if !fdecl.IsMethod() {
+	// TODO(gri) we should just use one tparam list - clean up
+	if fdecl.IsMethod() {
+		// needed for updating methods during instantiation bounds checking
+		sig.mtparams = obj.tparams
+	} else {
 		// only functions can have type parameters that need to be passed
 		// (the obj.tparams for methods are the receiver parameters)
 		// TODO(gri) remove the need for storing tparams in signatures
