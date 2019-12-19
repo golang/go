@@ -55,7 +55,6 @@ func Implementation(ctx context.Context, s Snapshot, f FileHandle, pp protocol.P
 var ErrNotAnInterface = errors.New("not an interface or interface method")
 
 func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position) ([]implementation, error) {
-
 	var (
 		impls []implementation
 		seen  = make(map[token.Position]bool)
@@ -97,13 +96,16 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 			allNamed []*types.Named
 			pkgs     = make(map[*types.Package]Package)
 		)
-		for _, ph := range s.KnownPackages(ctx) {
+		knownPkgs, err := s.KnownPackages(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, ph := range knownPkgs {
 			pkg, err := ph.Check(ctx)
 			if err != nil {
 				return nil, err
 			}
 			pkgs[pkg.GetTypes()] = pkg
-
 			info := pkg.GetTypesInfo()
 			for _, obj := range info.Defs {
 				obj, ok := obj.(*types.TypeName)

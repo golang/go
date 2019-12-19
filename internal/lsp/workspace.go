@@ -48,10 +48,11 @@ func (s *Server) updateConfiguration(ctx context.Context, changed interface{}) e
 		if err := s.fetchConfig(ctx, view.Name(), view.Folder(), &options); err != nil {
 			return err
 		}
-		if _, err := view.SetOptions(ctx, options); err != nil {
+		view, err := view.SetOptions(ctx, options)
+		if err != nil {
 			return err
 		}
-		go s.diagnoseSnapshot(view.Snapshot())
+		go s.diagnoseSnapshot(ctx, view.Snapshot())
 	}
 	return nil
 }

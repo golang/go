@@ -197,7 +197,12 @@ func (s *snapshot) shouldCheck(m []*metadata) (phs []*packageHandle, load, check
 	return phs, false, false
 }
 
-func (s *snapshot) GetReverseDependencies(id string) []string {
+func (s *snapshot) GetReverseDependencies(ctx context.Context, id string) ([]string, error) {
+	// Do not return results until the view has been initialized.
+	if err := s.awaitInitialized(ctx); err != nil {
+		return nil, err
+	}
+
 	ids := make(map[packageID]struct{})
 	s.transitiveReverseDependencies(packageID(id), ids)
 
@@ -208,7 +213,7 @@ func (s *snapshot) GetReverseDependencies(id string) []string {
 	for id := range ids {
 		results = append(results, string(id))
 	}
-	return results
+	return results, nil
 }
 
 // transitiveReverseDependencies populates the uris map with file URIs
@@ -217,8 +222,7 @@ func (s *snapshot) transitiveReverseDependencies(id packageID, ids map[packageID
 	if _, ok := ids[id]; ok {
 		return
 	}
-	m := s.getMetadata(id)
-	if m == nil {
+	if s.getMetadata(id) == nil {
 		return
 	}
 	ids[id] = struct{}{}
@@ -239,8 +243,24 @@ func (s *snapshot) getImportedByLocked(id packageID) []packageID {
 	if len(s.importedBy) == 0 {
 		s.rebuildImportGraph()
 	}
-
 	return s.importedBy[id]
+}
+
+func (s *snapshot) clearAndRebuildImportGraph() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Completely invalidate the original map.
+	s.importedBy = make(map[packageID][]packageID)
+	s.rebuildImportGraph()
+}
+
+func (s *snapshot) rebuildImportGraph() {
+	for id, m := range s.metadata {
+		for _, importID := range m.deps {
+			s.importedBy[importID] = append(s.importedBy[importID], id)
+		}
+	}
 }
 
 func (s *snapshot) addPackage(ph *packageHandle) {
@@ -256,24 +276,7 @@ func (s *snapshot) addPackage(ph *packageHandle) {
 	s.packages[ph.packageKey()] = ph
 }
 
-// checkWorkspacePackages checks the initial set of packages loaded when
-// the view is created. This is needed because
-// (*snapshot).CheckPackageHandle makes the assumption that every package that's
-// been loaded has an existing checkPackageHandle.
-func (s *snapshot) checkWorkspacePackages(ctx context.Context, m []*metadata) ([]source.PackageHandle, error) {
-	var phs []source.PackageHandle
-	for _, m := range m {
-		ph, err := s.buildPackageHandle(ctx, m.id, source.ParseFull)
-		if err != nil {
-			return nil, err
-		}
-		s.workspacePackages[m.id] = true
-		phs = append(phs, ph)
-	}
-	return phs, nil
-}
-
-func (s *snapshot) WorkspacePackageIDs(ctx context.Context) (ids []string) {
+func (s *snapshot) workspacePackageIDs() (ids []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -283,7 +286,10 @@ func (s *snapshot) WorkspacePackageIDs(ctx context.Context) (ids []string) {
 	return ids
 }
 
-func (s *snapshot) KnownPackages(ctx context.Context) []source.PackageHandle {
+func (s *snapshot) KnownPackages(ctx context.Context) ([]source.PackageHandle, error) {
+	if err := s.awaitInitialized(ctx); err != nil {
+		return nil, err
+	}
 	// Collect PackageHandles for all of the workspace packages first.
 	// They may need to be reloaded if their metadata has been invalidated.
 	wsPackages := make(map[packageID]bool)
@@ -324,8 +330,7 @@ func (s *snapshot) KnownPackages(ctx context.Context) []source.PackageHandle {
 		}
 		results = append(results, ph)
 	}
-
-	return results
+	return results, nil
 }
 
 func (s *snapshot) KnownImportPaths() map[string]source.Package {
@@ -450,6 +455,21 @@ func (s *snapshot) getIDs(uri span.URI) []packageID {
 	return s.ids[uri]
 }
 
+func (s *snapshot) isWorkspacePackage(id packageID) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_, ok := s.workspacePackages[id]
+	return ok
+}
+
+func (s *snapshot) setWorkspacePackage(id packageID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.workspacePackages[id] = true
+}
+
 func (s *snapshot) getFileURIs() []span.URI {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -553,7 +573,6 @@ func (s *snapshot) clone(ctx context.Context, withoutURI span.URI, withoutFileKi
 		if _, seen := transitiveIDs[id]; seen {
 			return
 		}
-
 		transitiveIDs[id] = struct{}{}
 		for _, rid := range s.getImportedByLocked(id) {
 			addRevDeps(rid)
@@ -629,21 +648,4 @@ func (s *snapshot) clone(ctx context.Context, withoutURI span.URI, withoutFileKi
 
 func (s *snapshot) ID() uint64 {
 	return s.id
-}
-
-func (s *snapshot) clearAndRebuildImportGraph() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Completely invalidate the original map.
-	s.importedBy = make(map[packageID][]packageID)
-	s.rebuildImportGraph()
-}
-
-func (s *snapshot) rebuildImportGraph() {
-	for id, m := range s.metadata {
-		for _, importID := range m.deps {
-			s.importedBy[importID] = append(s.importedBy[importID], id)
-		}
-	}
 }

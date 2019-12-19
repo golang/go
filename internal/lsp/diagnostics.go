@@ -20,17 +20,22 @@ func (s *Server) diagnose(snapshot source.Snapshot, fh source.FileHandle) error 
 	case source.Go:
 		go s.diagnoseFile(snapshot, fh)
 	case source.Mod:
-		go s.diagnoseSnapshot(snapshot)
+		ctx := snapshot.View().BackgroundContext()
+		go s.diagnoseSnapshot(ctx, snapshot)
 	}
 	return nil
 }
 
-func (s *Server) diagnoseSnapshot(snapshot source.Snapshot) {
-	ctx := snapshot.View().BackgroundContext()
+func (s *Server) diagnoseSnapshot(ctx context.Context, snapshot source.Snapshot) {
 	ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
 	defer done()
 
-	for _, id := range snapshot.WorkspacePackageIDs(ctx) {
+	wsPackages, err := snapshot.View().WorkspacePackageIDs(ctx)
+	if err != nil {
+		log.Error(ctx, "diagnoseSnapshot: no workspace packages", err, telemetry.Directory.Of(snapshot.View().Folder))
+		return
+	}
+	for _, id := range wsPackages {
 		ph, err := snapshot.PackageHandle(ctx, id)
 		if err != nil {
 			log.Error(ctx, "diagnoseSnapshot: no PackageHandle for workspace package", err, telemetry.Package.Of(id))

@@ -88,6 +88,12 @@ type view struct {
 	// ignoredURIs is the set of URIs of files that we ignore.
 	ignoredURIsMu sync.Mutex
 	ignoredURIs   map[span.URI]struct{}
+
+	// initialized is closed when we have attempted to load the view's workspace packages.
+	// If we failed to load initially, we don't re-try to avoid too many go/packages calls.
+	initializeOnce      sync.Once
+	initialized         chan struct{}
+	initializationError error
 }
 
 // modfiles holds the real and temporary go.mod files that are attributed to a view.
@@ -221,7 +227,6 @@ func (v *view) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 			log.Print(context.Background(), "background refresh finished with err: ", tag.Of("err", nil))
 		}()
 	}
-
 	return nil
 }
 
@@ -359,6 +364,36 @@ func (v *view) getSnapshot() *snapshot {
 	return v.snapshot
 }
 
+func (v *view) WorkspacePackageIDs(ctx context.Context) ([]string, error) {
+	s := v.getSnapshot()
+
+	v.initializeOnce.Do(func() {
+		defer close(v.initialized)
+
+		// Do not cancel the call to go/packages.Load for the entire workspace.
+		meta, err := s.load(xcontext.Detach(ctx), directoryURI(v.folder))
+		if err != nil {
+			v.initializationError = err
+		}
+		for _, m := range meta {
+			s.setWorkspacePackage(m.id)
+		}
+	})
+	if v.initializationError != nil {
+		return nil, v.initializationError
+	}
+	return s.workspacePackageIDs(), nil
+}
+
+func (s *snapshot) awaitInitialized(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-s.view.initialized:
+	}
+	return s.view.initializationError
+}
+
 // invalidateContent invalidates the content of a Go file,
 // including any position and type information that depends on it.
 // It returns true if we were already tracking the given file, false otherwise.
@@ -372,6 +407,9 @@ func (v *view) invalidateContent(ctx context.Context, uri span.URI, kind source.
 	case source.Change, source.Close:
 		v.cancelBackground()
 	}
+
+	// Do not clone a snapshot until the workspace load has been completed.
+	<-v.initialized
 
 	// This should be the only time we hold the view's snapshot lock for any period of time.
 	v.snapshotMu.Lock()

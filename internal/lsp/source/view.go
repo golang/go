@@ -46,20 +46,16 @@ type Snapshot interface {
 	// that this file belongs to.
 	PackageHandles(ctx context.Context, fh FileHandle) ([]PackageHandle, error)
 
-	// WorkspacePackageIDs returns the ids of the packages at the top-level
-	// of the snapshot's view.
-	WorkspacePackageIDs(ctx context.Context) []string
-
 	// GetActiveReverseDeps returns the active files belonging to the reverse
 	// dependencies of this file's package.
-	GetReverseDependencies(id string) []string
+	GetReverseDependencies(ctx context.Context, id string) ([]string, error)
 
 	// KnownImportPaths returns all the imported packages loaded in this snapshot,
 	// indexed by their import path.
 	KnownImportPaths() map[string]Package
 
 	// KnownPackages returns all the packages loaded in this snapshot.
-	KnownPackages(ctx context.Context) []PackageHandle
+	KnownPackages(ctx context.Context) ([]PackageHandle, error)
 }
 
 // PackageHandle represents a handle to a specific version of a package.
@@ -130,6 +126,10 @@ type View interface {
 	// FindMapperInPackage returns the mapper associated with a file that may belong to
 	// the given package or one of its dependencies.
 	FindMapperInPackage(pkg Package, uri span.URI) (*protocol.ColumnMapper, error)
+
+	// WorkspacePackageIDs returns the ids of the packages at the top-level
+	// of the snapshot's view.
+	WorkspacePackageIDs(ctx context.Context) ([]string, error)
 
 	// Snapshot returns the current snapshot for the view.
 	Snapshot() Snapshot

@@ -53,7 +53,13 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	options := tests.DefaultOptions()
 	session.SetOptions(options)
 	options.Env = data.Config.Env
-	if _, _, err := session.NewView(ctx, viewName, span.FileURI(data.Config.Dir), options); err != nil {
+	view, _, err := session.NewView(ctx, viewName, span.FileURI(data.Config.Dir), options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Load the workspace packages, since this would normally happen when a view is initialized.
+	// Otherwise, tests that need to look at all workspace packages will fail.
+	if _, err := view.WorkspacePackageIDs(ctx); err != nil {
 		t.Fatal(err)
 	}
 	for filename, content := range data.Config.Overlay {
@@ -79,7 +85,6 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		data: data,
 		ctx:  ctx,
 	}
-
 	tests.Run(t, r, data)
 }
 

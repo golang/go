@@ -84,6 +84,7 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 	}
 	v := &view{
 		session:       s,
+		initialized:   make(chan struct{}),
 		id:            strconv.FormatInt(index, 10),
 		options:       options,
 		baseCtx:       baseCtx,
@@ -115,26 +116,6 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 	// Preemptively build the builtin package,
 	// so we immediately add builtin.go to the list of ignored files.
 	v.buildBuiltinPackage(ctx)
-
-	// Preemptively load everything in this directory.
-	// TODO(matloob): Determine if this can be done in parallel with something else.
-	// Perhaps different calls to NewView can be run in parallel?
-	v.snapshotMu.Lock()
-	defer v.snapshotMu.Unlock() // The code after the snapshot is used isn't expensive.
-	m, err := v.snapshot.load(ctx, directoryURI(folder))
-	if err != nil {
-		// Suppress all errors.
-		log.Error(ctx, "failed to load snapshot", err, telemetry.Directory.Of(folder))
-		return v, v.snapshot, nil
-	}
-	// Prepare CheckPackageHandles for every package that's been loaded.
-	// (*snapshot).CheckPackageHandle makes the assumption that every package that's
-	// been loaded has an existing checkPackageHandle.
-	if _, err := v.snapshot.checkWorkspacePackages(ctx, m); err != nil {
-		// Suppress all errors.
-		log.Error(ctx, "failed to check snapshot", err, telemetry.Directory.Of(folder))
-		return v, v.snapshot, nil
-	}
 
 	debug.AddView(debugView{v})
 	return v, v.snapshot, nil

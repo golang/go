@@ -92,7 +92,12 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, fh FileHandle, withAnal
 		}
 	}
 	// Updates to the diagnostics for this package may need to be propagated.
-	for _, id := range snapshot.GetReverseDependencies(pkg.ID()) {
+	reverseDeps, err := snapshot.GetReverseDependencies(ctx, pkg.ID())
+	if err != nil {
+		log.Error(ctx, "no reverse dependencies", err)
+		return reports, warningMsg, nil
+	}
+	for _, id := range reverseDeps {
 		ph, err := snapshot.PackageHandle(ctx, id)
 		if err != nil {
 			return nil, warningMsg, err

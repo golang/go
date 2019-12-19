@@ -124,7 +124,6 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 		compiledGoFiles: compiledGoFiles,
 		mode:            mode,
 	}
-
 	// Make sure all of the depList are sorted.
 	depList := append([]packageID{}, m.deps...)
 	sort.Slice(depList, func(i, j int) bool {
@@ -137,7 +136,7 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 	var depKeys [][]byte
 	for _, depID := range depList {
 		mode := source.ParseExported
-		if s.workspacePackages[depID] {
+		if s.isWorkspacePackage(depID) {
 			mode = source.ParseFull
 		}
 		depHandle, err := s.buildPackageHandle(ctx, depID, mode)

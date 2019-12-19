@@ -69,8 +69,6 @@ func (s *snapshot) load(ctx context.Context, scope interface{}) ([]*metadata, er
 		if err == nil {
 			err = errors.Errorf("no packages found for query %s", query)
 		}
-	}
-	if err != nil {
 		return nil, err
 	}
 	return s.updateMetadata(ctx, scope, pkgs, cfg)
