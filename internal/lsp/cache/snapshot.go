@@ -516,6 +516,10 @@ func (s *snapshot) clone(ctx context.Context, withoutFile source.File) *snapshot
 	transitiveIDs := make(map[packageID]struct{})
 	var addRevDeps func(packageID)
 	addRevDeps = func(id packageID) {
+		if _, seen := transitiveIDs[id]; seen {
+			return
+		}
+
 		transitiveIDs[id] = struct{}{}
 		for _, rid := range s.getImportedByLocked(id) {
 			addRevDeps(rid)
