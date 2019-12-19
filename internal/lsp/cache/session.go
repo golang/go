@@ -33,8 +33,6 @@ type session struct {
 
 	overlayMu sync.Mutex
 	overlays  map[span.URI]*overlay
-
-	openFiles sync.Map
 }
 
 func (s *session) Options() source.Options {
@@ -276,25 +274,11 @@ func (s *session) dropView(ctx context.Context, v *view) (int, error) {
 func (s *session) DidModifyFile(ctx context.Context, c source.FileModification) ([]source.Snapshot, error) {
 	ctx = telemetry.URI.With(ctx, c.URI)
 
-	// Perform session-specific actions.
-	switch c.Action {
-	case source.Open:
-		if err := s.openOverlay(ctx, c.URI, c.LanguageID, c.Version, c.Text); err != nil {
-			return nil, err
-		}
-	case source.Change:
-		if err := s.setOverlay(c.URI, c.Version, c.Text); err != nil {
-			return nil, err
-		}
-	case source.Save:
-		if err := s.saveOverlay(c.URI, c.Version, c.Text); err != nil {
-			return nil, err
-		}
-	case source.Close:
-		if err := s.closeOverlay(c.URI); err != nil {
-			return nil, err
-		}
+	// Perform the session-specific updates.
+	if err := s.updateOverlay(ctx, c); err != nil {
+		return nil, err
 	}
+
 	var snapshots []source.Snapshot
 	for _, view := range s.viewsOf(c.URI) {
 		if view.Ignore(c.URI) {
@@ -311,7 +295,10 @@ func (s *session) DidModifyFile(ctx context.Context, c source.FileModification) 
 }
 
 func (s *session) IsOpen(uri span.URI) bool {
-	_, open := s.openFiles.Load(uri)
+	s.overlayMu.Lock()
+	defer s.overlayMu.Unlock()
+
+	_, open := s.overlays[uri]
 	return open
 }
 

@@ -23,15 +23,6 @@ func (s debugSession) Cache() debug.Cache { return debugCache{s.cache} }
 func (s debugSession) Files() []*debug.File {
 	var files []*debug.File
 	seen := make(map[span.URI]*debug.File)
-	s.openFiles.Range(func(key interface{}, value interface{}) bool {
-		uri, ok := key.(span.URI)
-		if ok {
-			f := &debug.File{Session: s, URI: uri}
-			seen[uri] = f
-			files = append(files, f)
-		}
-		return true
-	})
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
 	for _, overlay := range s.overlays {

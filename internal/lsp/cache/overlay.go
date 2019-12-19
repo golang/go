@@ -5,7 +5,6 @@
 package cache
 
 import (
-	"bytes"
 	"context"
 
 	"golang.org/x/tools/internal/lsp/source"
@@ -42,87 +41,59 @@ func (o *overlay) Read(ctx context.Context) ([]byte, string, error) {
 	return o.data, o.hash, nil
 }
 
-func (s *session) setOverlay(uri span.URI, version float64, data []byte) error {
+func (s *session) updateOverlay(ctx context.Context, c source.FileModification) error {
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
 
-	o, ok := s.overlays[uri]
-	if !ok {
-		return errors.Errorf("setting overlay for unopened file %s", uri)
+	o, ok := s.overlays[c.URI]
+
+	// Determine the file kind on open, otherwise, assume it has been cached.
+	var kind source.FileKind
+	switch c.Action {
+	case source.Open:
+		kind = source.DetectLanguage(c.LanguageID, c.URI.Filename())
+	default:
+		if !ok {
+			return errors.Errorf("updateOverlay: modifying unopened overlay %v", c.URI)
+		}
+		kind = o.kind
 	}
-	s.overlays[uri] = &overlay{
-		session: s,
-		uri:     uri,
-		kind:    o.kind,
-		data:    data,
-		hash:    hashContents(data),
-		version: version,
-	}
-	return nil
-}
-
-func (s *session) closeOverlay(uri span.URI) error {
-	s.openFiles.Delete(uri)
-
-	s.overlayMu.Lock()
-	defer s.overlayMu.Unlock()
-
-	_, ok := s.overlays[uri]
-	if !ok {
-		return errors.Errorf("closing unopened overlay %s", uri)
-	}
-	delete(s.overlays, uri)
-	return nil
-}
-
-func (s *session) openOverlay(ctx context.Context, uri span.URI, languageID string, version float64, data []byte) error {
-	kind := source.DetectLanguage(languageID, uri.Filename())
 	if kind == source.UnknownKind {
-		return errors.Errorf("openOverlay: unknown file kind for %s", uri)
+		return errors.Errorf("updateOverlay: unknown file kind for %s", c.URI)
 	}
 
-	s.openFiles.Store(uri, true)
-
-	s.overlayMu.Lock()
-	defer s.overlayMu.Unlock()
-
-	s.overlays[uri] = &overlay{
-		session: s,
-		uri:     uri,
-		kind:    kind,
-		data:    data,
-		hash:    hashContents(data),
-		version: version,
+	// Closing a file just deletes its overlay.
+	if c.Action == source.Close {
+		delete(s.overlays, c.URI)
+		return nil
 	}
+
 	// If the file is on disk, check if its content is the same as the overlay.
-	if _, hash, err := s.cache.GetFile(uri, kind).Read(ctx); err == nil {
-		if hash == s.overlays[uri].hash {
-			s.overlays[uri].sameContentOnDisk = true
+	hash := hashContents(c.Text)
+	var sameContentOnDisk bool
+	switch c.Action {
+	case source.Open:
+		_, h, err := s.cache.GetFile(c.URI, kind).Read(ctx)
+		sameContentOnDisk = (err == nil && h == hash)
+	case source.Save:
+		// Make sure the version and content (if present) is the same.
+		if o.version != c.Version {
+			return errors.Errorf("updateOverlay: saving %s at version %v, currently at %v", c.URI, c.Version, o.version)
 		}
-	}
-	return nil
-}
-
-func (s *session) saveOverlay(uri span.URI, version float64, data []byte) error {
-	s.overlayMu.Lock()
-	defer s.overlayMu.Unlock()
-
-	o, ok := s.overlays[uri]
-	if !ok {
-		return errors.Errorf("saveOverlay: unopened overlay %s", uri)
-	}
-	if o.version != version {
-		return errors.Errorf("saveOverlay: saving %s at version %v, currently at %v", uri, version, o.version)
-	}
-	if data != nil {
-		if !bytes.Equal(o.data, data) {
-			return errors.Errorf("saveOverlay: overlay %s changed on save", uri)
+		if c.Text != nil && o.hash != hash {
+			return errors.Errorf("updateOverlay: overlay %s changed on save", c.URI)
 		}
-		o.data = data
+		sameContentOnDisk = true
 	}
-	o.sameContentOnDisk = true
-	o.version = version
-
+	s.overlays[c.URI] = &overlay{
+		session:           s,
+		uri:               c.URI,
+		data:              c.Text,
+		version:           c.Version,
+		kind:              kind,
+		hash:              hash,
+		sameContentOnDisk: sameContentOnDisk,
+	}
 	return nil
 }
 
