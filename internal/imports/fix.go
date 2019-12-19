@@ -643,6 +643,22 @@ func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, filena
 	return env.GetResolver().scan(ctx, scanFilter)
 }
 
+func PrimeCache(ctx context.Context, env *ProcessEnv) error {
+	// Fully scan the disk for directories, but don't actually read any Go files.
+	callback := &scanCallback{
+		rootFound: func(gopathwalk.Root) bool {
+			return true
+		},
+		dirFound: func(pkg *pkg) bool {
+			return false
+		},
+		packageNameLoaded: func(pkg *pkg) bool {
+			return false
+		},
+	}
+	return getCandidatePkgs(ctx, callback, "", "", env)
+}
+
 func candidateImportName(pkg *pkg) string {
 	if ImportPathToAssumedName(pkg.importPathShort) != pkg.packageName {
 		return pkg.packageName
@@ -735,6 +751,13 @@ type ProcessEnv struct {
 	Logf func(format string, args ...interface{})
 
 	resolver Resolver
+}
+
+// CopyConfig copies the env's configuration into a new env.
+func (e *ProcessEnv) CopyConfig() *ProcessEnv {
+	copy := *e
+	copy.resolver = nil
+	return &copy
 }
 
 func (e *ProcessEnv) env() []string {

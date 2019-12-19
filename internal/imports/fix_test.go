@@ -1660,8 +1660,7 @@ func (t *goimportTest) processNonModule(file string, contents []byte, opts *Opti
 		opts = &Options{Comments: true, TabIndent: true, TabWidth: 8}
 	}
 	// ProcessEnv is not safe for concurrent use. Make a copy.
-	env := *t.env
-	opts.Env = &env
+	opts.Env = t.env.CopyConfig()
 	return Process(file, contents, opts)
 }
 
