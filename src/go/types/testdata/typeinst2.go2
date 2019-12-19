@@ -78,3 +78,41 @@ func Values (type T) (r Receiver(T)) T {
 func (it Iterator(K)) Next() K {
         return Values(Pair(K))(it.r).key
 }
+
+// A more complex test case testing type bounds (extracted from linalg.go2 and reduced to essence)
+
+contract NumericAbs(T) {
+	T Abs() T
+}
+
+func AbsDifference(type T NumericAbs)(x T)
+
+type OrderedAbs(type T) T
+
+func (a OrderedAbs(T)) Abs() OrderedAbs(T)
+
+func OrderedAbsDifference(type T)(x T) {
+	AbsDifference(OrderedAbs(T)(x))
+}
+
+// same code, reduced to essence
+
+func g(type P interface{ m() P })(x P)
+
+type T4(type P) P
+
+func (_ T4(P)) m() T4(P)
+
+func _(type Q)(x Q) {
+	g(T4(Q)(x))
+}
+
+// Another test case that caused  problems in the past
+
+type T5(type _ interface { a() }, _ interface{}) struct{}
+
+type A(type P) struct{ x P }
+
+func (_ A(P)) a() {}
+
+var _ T5(A(int), int)

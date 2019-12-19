@@ -106,7 +106,9 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 			}
 
 			// instantiate function signature
-			x.typ = check.instantiate(x.pos(), sig, targs, poslist)
+			sig = check.instantiate(x.pos(), sig, targs, poslist).(*Signature)
+			sig.tparams = nil // signature is not generic anymore
+			x.typ = sig
 			x.mode = value
 			x.expr = e
 			return expression
@@ -260,7 +262,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 	ddd := call.Ellipsis.IsValid()
 
 	// set up parameters
-	params := sig.params
+	sig_params := sig.params
 	if sig.variadic {
 		if ddd {
 			// variadic_func(a, b, c...)
@@ -282,7 +284,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 				for len(vars) < nargs {
 					vars = append(vars, NewParam(last.pos, last.pkg, last.name, typ))
 				}
-				params = NewTuple(vars...)
+				sig_params = NewTuple(vars...)
 				npars = nargs
 			} else {
 				// nargs < npars-1
@@ -312,19 +314,20 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 	if len(sig.tparams) > 0 {
 		// TODO(gri) provide position information for targs so we can feed
 		//           it to the instantiate call for better error reporting
-		targs := check.infer(call.Rparen, sig.tparams, params, args)
+		targs := check.infer(call.Rparen, sig.tparams, sig_params, args)
 		if targs == nil {
 			return
 		}
 		rsig = check.instantiate(call.Pos(), sig, targs, nil).(*Signature)
-		params = check.subst(call.Pos(), params, sig.tparams, targs).(*Tuple)
+		rsig.tparams = nil // signature is not generic anymore
+		sig_params = check.subst(call.Pos(), sig_params, sig.tparams, targs).(*Tuple)
 		// TODO(gri) Optimization: We don't need to check arguments
 		//           from which we inferred parameter types.
 	}
 
 	// check arguments
 	for i, a := range args {
-		check.assignment(a, params.vars[i].typ, "argument")
+		check.assignment(a, sig_params.vars[i].typ, "argument")
 	}
 
 	return

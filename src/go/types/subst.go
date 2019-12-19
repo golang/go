@@ -230,7 +230,9 @@ func (subst *subster) typ(typ Type) Type {
 		results := subst.tuple(t.results)
 		if recv != t.recv || params != t.params || results != t.results {
 			copy := *t
-			copy.tparams = nil // TODO(gri) is this correct? (another indication that perhaps tparams belong to the function decl)
+			// note: we leave (copy.)tparams alone - if a caller instantiated a function
+			//       via instantiate (calling subst) it is the caller's responsibility
+			//       to nil out this field
 			copy.recv = recv
 			copy.params = params
 			copy.results = results

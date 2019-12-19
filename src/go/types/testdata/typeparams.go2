@@ -151,6 +151,27 @@ func _(type P)() {
         f10(S2(P, int, P){}, S2(P, float32, bool){})
 }
 
+// corner case for type inference
+// (was bug: after instanting f11, the type-checker didn't mark f11 as non-generic)
+
+func f11(type T)()
+
+func _() {
+	f11(int)()
+}
+
+// the previous example was extracted from
+
+func f12(type T interface{m() T})()
+
+type A(type T) T
+
+func (a A(T)) m() A(T)
+
+func _(type T)() {
+	f12(A(T))()
+}
+
 // method expressions
 
 func (_ S1(P)) m()
