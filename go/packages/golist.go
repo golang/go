@@ -811,8 +811,9 @@ func golistDriver(cfg *Config, rootsDirs func() *goInfo, words ...string) (*driv
 				msg += fmt.Sprintf(": import stack: %v", p.Error.ImportStack)
 			}
 			pkg.Errors = append(pkg.Errors, Error{
-				Pos: p.Error.Pos,
-				Msg: msg,
+				Pos:  p.Error.Pos,
+				Msg:  msg,
+				Kind: ListError,
 			})
 		}
 
