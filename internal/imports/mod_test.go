@@ -856,10 +856,11 @@ import _ "rsc.io/quote"
 		// Stdlib
 		{"bytes", "bytes"},
 		{"http", "net/http"},
-		// In scope modules
-		{"language", "golang.org/x/text/language"},
+		// Direct module deps
 		{"quote", "rsc.io/quote"},
+		// Indirect deps
 		{"rpackage", "example.com/rpackage"},
+		{"language", "golang.org/x/text/language"},
 		// Out of scope modules
 		{"quote", "rsc.io/quote/v2"},
 	}

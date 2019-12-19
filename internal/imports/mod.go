@@ -41,6 +41,7 @@ type ModuleJSON struct {
 	Path      string      // module path
 	Replace   *ModuleJSON // replaced by this module
 	Main      bool        // is this the main module?
+	Indirect  bool        // is this module only an indirect dependency of main module?
 	Dir       string      // directory holding files for this module, if any
 	GoMod     string      // path to go.mod file for this module, if any
 	GoVersion string      // go version used in module
@@ -433,10 +434,14 @@ func (r *ModuleResolver) canonicalize(info directoryPackageInfo) (*pkg, error) {
 	}
 
 	importPath := info.nonCanonicalImportPath
-	relevance := 2
+	relevance := 3
 	// Check if the directory is underneath a module that's in scope.
 	if mod := r.findModuleByDir(info.dir); mod != nil {
-		relevance = 1
+		if mod.Indirect {
+			relevance = 2
+		} else {
+			relevance = 1
+		}
 		// It is. If dir is the target of a replace directive,
 		// our guessed import path is wrong. Use the real one.
 		if mod.Dir == info.dir {
