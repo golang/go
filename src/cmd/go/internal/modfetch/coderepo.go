@@ -708,7 +708,7 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 		return "", "", nil, fmt.Errorf("reading %s/%s at revision %s: %v", r.pathPrefix, file1, rev, err1)
 	}
 	mpath1 := modfile.ModulePath(gomod1)
-	found1 := err1 == nil && isMajor(mpath1, r.pathMajor)
+	found1 := err1 == nil && (isMajor(mpath1, r.pathMajor) || r.canReplaceMismatchedVersionDueToBug(mpath1))
 
 	var file2 string
 	if r.pathMajor != "" && r.codeRoot != r.modPath && !strings.HasPrefix(r.pathMajor, ".") {
@@ -815,6 +815,17 @@ func isMajor(mpath, pathMajor string) bool {
 	// path might replace a module with path gopkg.in/foo.v2-unstable, and that's
 	// ok.
 	return pathMajor[1:] == mpathMajor[1:]
+}
+
+// canReplaceMismatchedVersionDueToBug reports whether versions of r
+// could replace versions of mpath with otherwise-mismatched major versions
+// due to a historical bug in the Go command (golang.org/issue/34254).
+func (r *codeRepo) canReplaceMismatchedVersionDueToBug(mpath string) bool {
+	// The bug caused us to erroneously accept unversioned paths as replacements
+	// for versioned gopkg.in paths.
+	unversioned := r.pathMajor == ""
+	replacingGopkgIn := strings.HasPrefix(mpath, "gopkg.in/")
+	return unversioned && replacingGopkgIn
 }
 
 func (r *codeRepo) GoMod(version string) (data []byte, err error) {
