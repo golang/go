@@ -41,6 +41,9 @@ func checkPageAlloc(t *testing.T, want, got *PageAlloc) {
 }
 
 func TestPageAllocGrow(t *testing.T) {
+	if GOOS == "openbsd" && testing.Short() {
+		t.Skip("skipping because virtual memory is limited; see #36210")
+	}
 	type test struct {
 		chunks []ChunkIdx
 		inUse  []AddrRange
@@ -216,6 +219,9 @@ func TestPageAllocGrow(t *testing.T) {
 }
 
 func TestPageAllocAlloc(t *testing.T) {
+	if GOOS == "openbsd" && testing.Short() {
+		t.Skip("skipping because virtual memory is limited; see #36210")
+	}
 	type hit struct {
 		npages, base, scav uintptr
 	}
@@ -589,6 +595,9 @@ func TestPageAllocAlloc(t *testing.T) {
 }
 
 func TestPageAllocExhaust(t *testing.T) {
+	if GOOS == "openbsd" && testing.Short() {
+		t.Skip("skipping because virtual memory is limited; see #36210")
+	}
 	for _, npages := range []uintptr{1, 2, 3, 4, 5, 8, 16, 64, 1024, 1025, 2048, 2049} {
 		npages := npages
 		t.Run(fmt.Sprintf("%d", npages), func(t *testing.T) {
@@ -638,6 +647,9 @@ func TestPageAllocExhaust(t *testing.T) {
 }
 
 func TestPageAllocFree(t *testing.T) {
+	if GOOS == "openbsd" && testing.Short() {
+		t.Skip("skipping because virtual memory is limited; see #36210")
+	}
 	tests := map[string]struct {
 		before map[ChunkIdx][]BitRange
 		after  map[ChunkIdx][]BitRange
@@ -867,6 +879,9 @@ func TestPageAllocFree(t *testing.T) {
 }
 
 func TestPageAllocAllocAndFree(t *testing.T) {
+	if GOOS == "openbsd" && testing.Short() {
+		t.Skip("skipping because virtual memory is limited; see #36210")
+	}
 	type hit struct {
 		alloc  bool
 		npages uintptr
