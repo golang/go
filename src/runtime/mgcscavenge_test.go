@@ -272,6 +272,9 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
 
 // Tests end-to-end scavenging on a pageAlloc.
 func TestPageAllocScavenge(t *testing.T) {
+	if GOOS == "openbsd" && testing.Short() {
+		t.Skip("skipping because virtual memory is limited; see #36210")
+	}
 	type test struct {
 		request, expect uintptr
 	}
