@@ -80,7 +80,7 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 	baseCtx := trace.Detach(xcontext.Detach(ctx))
 	backgroundCtx, cancel := context.WithCancel(baseCtx)
 
-	modfiles, err := getModfiles(ctx, folder.Filename(), options.Env)
+	modfiles, err := getModfiles(ctx, folder.Filename(), options)
 	if err != nil {
 		log.Error(ctx, "error getting modfiles", err, telemetry.Directory.Of(folder))
 	}

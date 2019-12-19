@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/telemetry"
+	"golang.org/x/tools/internal/telemetry/log"
 	errors "golang.org/x/xerrors"
 )
 
@@ -34,8 +36,12 @@ func modfileFlagExists(ctx context.Context, folder string, env []string) (string
 }
 
 // The function getModfiles will return the go.mod files associated with the directory that is passed in.
-func getModfiles(ctx context.Context, folder string, env []string) (*modfiles, error) {
-	modfile, flagExists, err := modfileFlagExists(ctx, folder, env)
+func getModfiles(ctx context.Context, folder string, options source.Options) (*modfiles, error) {
+	if options.DisableTempModfile {
+		log.Print(ctx, "using the -modfile flag is disabled", telemetry.Directory.Of(folder))
+		return nil, nil
+	}
+	modfile, flagExists, err := modfileFlagExists(ctx, folder, options.Env)
 	if err != nil {
 		return nil, err
 	}
