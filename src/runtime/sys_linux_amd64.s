@@ -205,7 +205,8 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-28
 	RET
 
 // func walltime1() (sec int64, nsec int32)
-TEXT runtime·walltime1(SB),NOSPLIT,$0-12
+// non-zero frame-size means bp is saved and restored
+TEXT runtime·walltime1(SB),NOSPLIT,$8-12
 	// We don't know how much stack space the VDSO code will need,
 	// so switch to g0.
 	// In particular, a kernel configured with CONFIG_OPTIMIZE_INLINING=n
@@ -262,7 +263,9 @@ fallback:
 	MOVL	DX, nsec+8(FP)
 	RET
 
-TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
+// func nanotime1() int64
+// non-zero frame-size means bp is saved and restored
+TEXT runtime·nanotime1(SB),NOSPLIT,$8-8
 	// Switch to g0 stack. See comment above in runtime·walltime.
 
 	MOVQ	SP, BP	// Save old SP; BP unchanged by C code.
