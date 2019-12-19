@@ -466,6 +466,13 @@ function toGo(d: Data, nm: string) {
         `more cases in toGo ${nm} ${d.as.length} ${d.generics.length} `)
 }
 
+// these fields need a *
+var starred: [string, string][] = [
+  ['TextDocumentContentChangeEvent', 'range'], ['CodeAction', 'command'],
+  ['DidSaveTextDocumentParams', 'text'], ['CompletionItem', 'command'],
+  ['CompletionItem', 'textEdit']
+];
+
 // generate Go code for an interface
 function goInterface(d: Data, nm: string) {
   let ans = `type ${goName(nm)} struct {\n`;
@@ -479,18 +486,10 @@ function goInterface(d: Data, nm: string) {
     // SelectionRange is a recursive type
     let gt = goType(n.type, n.name.getText());
     if (gt == d.name) gt = '*' + gt;  // avoid recursive types
-    // There's a difference between a nil Range and a zero Range (at the
-    // beginning of files)
-    if (d.name == 'TextDocumentContentChangeEvent' &&
-        n.name.getText() == 'range') {
-      gt = '*' + gt;
-    }
-    if (d.name == 'CodeAction' && n.name.getText() == 'command') {
-      gt = '*' + gt;
-    }
-    if (d.name == 'DidSaveTextDocumentParams' && n.name.getText() == 'text') {
-      gt = '*' + gt;
-    }
+    // there are several cases where a * is needed
+    starred.forEach(([a, b]) => {
+      if (d.name == a && n.name.getText() == b) gt = '*' + gt
+    });
     ans = ans.concat(`${goName(n.name.getText())} ${gt}`, json, '\n')
   };
   d.properties.forEach(g)
@@ -650,8 +649,8 @@ function goUnionType(n: ts.UnionTypeNode, nm: string): string {
       const bb = strKind(n.types[1])
       const cc = strKind(n.types[2])
       if (nm == 'DocumentFilter') {
-        // not really a union. the first is enough, up to a missing omitempty
-        // but avoid repetitious comments
+        // not really a union. the first is enough, up to a missing
+        // omitempty but avoid repetitious comments
         return `${goType(n.types[0], 'g')}`
       }
       if (nm == 'textDocument/documentSymbol') {
@@ -856,7 +855,8 @@ const notNil = `if r.Params != nil {
   return true
 }`;
 
-// Go code for notifications. Side is client or server, m is the request method
+// Go code for notifications. Side is client or server, m is the request
+// method
 function goNot(side: side, m: string) {
   if (m == '$/cancelRequest') return;  // handled specially in protocol.go
   const n = not.get(m);
