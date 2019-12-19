@@ -478,6 +478,7 @@
 (GetClosurePtr ...) -> (LoweredGetClosurePtr ...)
 (GetCallerPC ...) -> (LoweredGetCallerPC ...)
 (GetCallerSP ...) -> (LoweredGetCallerSP ...)
+(HasCPUFeature ...) -> (LoweredHasCPUFeature ...)
 (Addr ...) -> (LEAQ ...)
 (LocalAddr {sym} base _) -> (LEAQ {sym} base)
 

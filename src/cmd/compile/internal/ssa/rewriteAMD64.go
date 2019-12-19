@@ -786,6 +786,9 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpGreater32F(v)
 	case OpGreater64F:
 		return rewriteValueAMD64_OpGreater64F(v)
+	case OpHasCPUFeature:
+		v.Op = OpAMD64LoweredHasCPUFeature
+		return true
 	case OpHmul32:
 		v.Op = OpAMD64HMULL
 		return true

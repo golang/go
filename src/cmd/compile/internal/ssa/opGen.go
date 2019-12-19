@@ -885,6 +885,7 @@ const (
 	OpAMD64LoweredGetCallerSP
 	OpAMD64LoweredNilCheck
 	OpAMD64LoweredWB
+	OpAMD64LoweredHasCPUFeature
 	OpAMD64LoweredPanicBoundsA
 	OpAMD64LoweredPanicBoundsB
 	OpAMD64LoweredPanicBoundsC
@@ -2596,6 +2597,7 @@ const (
 	OpMoveWB
 	OpZeroWB
 	OpWB
+	OpHasCPUFeature
 	OpPanicBounds
 	OpPanicExtend
 	OpClosureCall
@@ -11648,6 +11650,18 @@ var opcodeTable = [...]opInfo{
 				{1, 879}, // AX CX DX BX BP SI R8 R9
 			},
 			clobbers: 4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+		},
+	},
+	{
+		name:              "LoweredHasCPUFeature",
+		auxType:           auxSym,
+		argLen:            0,
+		rematerializeable: true,
+		symEffect:         SymNone,
+		reg: regInfo{
+			outputs: []outputInfo{
+				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+			},
 		},
 	},
 	{
@@ -32976,6 +32990,13 @@ var opcodeTable = [...]opInfo{
 		name:      "WB",
 		auxType:   auxSym,
 		argLen:    3,
+		symEffect: SymNone,
+		generic:   true,
+	},
+	{
+		name:      "HasCPUFeature",
+		auxType:   auxSym,
+		argLen:    0,
 		symEffect: SymNone,
 		generic:   true,
 	},
