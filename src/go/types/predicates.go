@@ -19,9 +19,9 @@ func isNamed(typ Type) bool {
 	return ok
 }
 
-// isGeneric reports whether a type is a generic, uninstantiated type
-// (generic signatures are not included).
+// isGeneric reports whether a type is a generic, uninstantiated type (generic signatures are not included).
 func isGeneric(typ Type) bool {
+	// A parameterized type is only instantiated if it doesn't have an instantiation already.
 	named, _ := typ.(*Named)
 	return named != nil && named.obj != nil && named.obj.IsParameterized() && named.targs == nil
 }

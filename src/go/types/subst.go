@@ -83,6 +83,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		iface = check.subst(pos, iface, tparams, targs).(*Interface)
 
 		// update targ method signatures
+		// TODO(gri) This needs documentation and cleanups!
 		update := func(V Type, sig *Signature) *Signature {
 			V, _ = deref(V)
 			// check.dump(">>> %s: V = %s", pos, V)

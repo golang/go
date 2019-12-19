@@ -8,10 +8,10 @@ func f(type P interface{ m() P })(x P)
 
 type T(type P) P
 
-func (_ T(P)) m() P
+func (_ T(P)) m() T(P)
 
 func _(type Q)(x Q) {
-	f(T /* ERROR does not satisfy */ (Q))(T(Q)(x))
+	f(T(Q))(T(Q)(x))
 }
 
 // TODO(gri) Once the code above works, check the code below.
@@ -24,7 +24,7 @@ func AbsDifference(type T NumericAbs(T))()
 
 type OrderedAbs(type T) T
 
-func (a OrderedAbs(T)) Abs() T
+func (a OrderedAbs(T)) Abs() OrderedAbs(T)
 
 func OrderedAbsDifference(type T)() {
 	AbsDifference(OrderedAbs(T))()

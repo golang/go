@@ -26,9 +26,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 		// conversion or type instantiation
 		T := x.typ
 		x.mode = invalid
-		// A parameterized type is only instantiated if it doesn't have an instantiation already (see named.targs).
-		// TODO(gri) This seems a bit subtle. Can we do better?
-		if named, _ := T.(*Named); named != nil && named.obj != nil && named.obj.IsParameterized() && named.targs == nil {
+		if isGeneric(T) {
 			// type instantiation
 			x.typ = check.typ(e)
 			if x.typ != Typ[Invalid] {

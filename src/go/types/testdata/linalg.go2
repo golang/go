@@ -61,7 +61,7 @@ contract Complex(T) {
 // ordered numeric types.
 type OrderedAbs(type T OrderedNumeric) T
 
-func (a OrderedAbs(T)) Abs() T {
+func (a OrderedAbs(T)) Abs() OrderedAbs(T) {
 	if a < 0 {
 		return -a
 	}
@@ -72,7 +72,7 @@ func (a OrderedAbs(T)) Abs() T {
 // complex types.
 type ComplexAbs(type T Complex) T
 
-func (a ComplexAbs(T)) Abs() T {
+func (a ComplexAbs(T)) Abs() ComplexAbs(T) {
 	r := float64(real(a))
 	i := float64(imag(a))
 	d := math.Sqrt(r * r + i * i)
@@ -80,13 +80,9 @@ func (a ComplexAbs(T)) Abs() T {
 }
 
 func OrderedAbsDifference(type T OrderedNumeric)(a, b T) T {
-	// TODO(gri) fix this
-	// return T(AbsDifference(OrderedAbs(T)(a), OrderedAbs(T)(b)))
-	return a
+	return T(AbsDifference(OrderedAbs(T)(a), OrderedAbs(T)(b)))
 }
 
 func ComplexAbsDifference(type T Complex)(a, b T) T {
-	// TODO(gri) fix this
-	// return T(AbsDifference(ComplexAbs(T)(a), ComplexAbs(T)(b)))
-	return a
+	return T(AbsDifference(ComplexAbs(T)(a), ComplexAbs(T)(b)))
 }
