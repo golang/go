@@ -63,13 +63,16 @@ overhead is not as big. Using interfaces as constraints also opens
 the door to using already existing interfaces (such as io.Reader)
 directly.
 
-Internally, the type checker "disassembles" a contract into its
-"component interfaces", one for each type parameter, each possibly
+Internally, the type checker disassembles a contract into its
+component interfaces, one for each type parameter, each possibly
 parameterized by the type parameters of the contract. Allowing to
 use interfaces directly instead of contracts leads to a simpler
-implementation. In other words, the contract notation can be viewed
-as a form of syntactic sugar for type parameter bounds expressed as
-interfaces.
+implementation. In other words, the contract notation is simply
+a form of syntactic sugar for type parameter bounds expressed as
+interfaces. This approach also removes the conflict between contracts
+and interfaces and the question if they can be mixed and how.
+Interfaces are the fundamental underlying typing mechanism;
+contracts are syntactic sugar that may improve readability.
 
 KNOWN ISSUES
 
@@ -118,9 +121,11 @@ Note: Currently, files containing parameterized code have extension ".go2".
 This is solely to distinguish them from regular Go code and to prevent gofmt
 from touching them. We expect a proper implementation to keep using ".go".
 
-Update 8/04/2019: Several bugs around type inference and type instantiation fixed.
-Update 8/16/2019: Many issues around type instantiations and contracts with methods fixed.
-Update 10/8/2019: Contracts with type constraints starting to be usable.
-Update 12/15/2019: Significant progress with much of the functionality present.
+Updates:
+8/04/2019: Several bugs around type inference and type instantiation fixed.
+8/16/2019: Many issues around type instantiations and contracts with methods fixed.
+10/8/2019: Contracts with type constraints starting to be usable.
+12/15/2019: Significant progress with much of the functionality present.
+12/19/2019: Several bugs around type bounds checking fixed; more complex examples.
 
 Change-Id: I29839b5e95d7050fce1dcb3334d3d324883cf76f
