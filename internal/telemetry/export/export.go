@@ -10,8 +10,9 @@ package export
 import (
 	"context"
 	"os"
-	"sync"
+	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"golang.org/x/tools/internal/telemetry"
 )
@@ -29,40 +30,42 @@ type Exporter interface {
 }
 
 var (
-	exporterMu sync.Mutex
-	exporter   = LogWriter(os.Stderr, true)
+	exporter unsafe.Pointer
 )
 
+func init() {
+	SetExporter(LogWriter(os.Stderr, true))
+}
+
 func SetExporter(e Exporter) {
-	exporterMu.Lock()
-	defer exporterMu.Unlock()
-	exporter = e
+	p := unsafe.Pointer(&e)
+	if e == nil {
+		p = nil
+	}
+	atomic.StorePointer(&exporter, p)
 }
 
 func StartSpan(ctx context.Context, span *telemetry.Span, at time.Time) {
-	exporterMu.Lock()
-	defer exporterMu.Unlock()
-	if exporter == nil {
+	exporterPtr := (*Exporter)(atomic.LoadPointer(&exporter))
+	if exporterPtr == nil {
 		return
 	}
 	span.Start = at
-	exporter.StartSpan(ctx, span)
+	(*exporterPtr).StartSpan(ctx, span)
 }
 
 func FinishSpan(ctx context.Context, span *telemetry.Span, at time.Time) {
-	exporterMu.Lock()
-	defer exporterMu.Unlock()
-	if exporter == nil {
+	exporterPtr := (*Exporter)(atomic.LoadPointer(&exporter))
+	if exporterPtr == nil {
 		return
 	}
 	span.Finish = at
-	exporter.FinishSpan(ctx, span)
+	(*exporterPtr).FinishSpan(ctx, span)
 }
 
 func Tag(ctx context.Context, at time.Time, tags telemetry.TagList) {
-	exporterMu.Lock()
-	defer exporterMu.Unlock()
-	if exporter == nil {
+	exporterPtr := (*Exporter)(atomic.LoadPointer(&exporter))
+	if exporterPtr == nil {
 		return
 	}
 	// If context has a span we need to add the tags to it
@@ -83,9 +86,8 @@ func Tag(ctx context.Context, at time.Time, tags telemetry.TagList) {
 }
 
 func Log(ctx context.Context, event telemetry.Event) {
-	exporterMu.Lock()
-	defer exporterMu.Unlock()
-	if exporter == nil {
+	exporterPtr := (*Exporter)(atomic.LoadPointer(&exporter))
+	if exporterPtr == nil {
 		return
 	}
 	// If context has a span we need to add the event to it
@@ -94,14 +96,13 @@ func Log(ctx context.Context, event telemetry.Event) {
 		span.Events = append(span.Events, event)
 	}
 	// and now also hand the event of to the current observer
-	exporter.Log(ctx, event)
+	(*exporterPtr).Log(ctx, event)
 }
 
 func Metric(ctx context.Context, data telemetry.MetricData) {
-	exporterMu.Lock()
-	defer exporterMu.Unlock()
-	if exporter == nil {
+	exporterPtr := (*Exporter)(atomic.LoadPointer(&exporter))
+	if exporterPtr == nil {
 		return
 	}
-	exporter.Metric(ctx, data)
+	(*exporterPtr).Metric(ctx, data)
 }

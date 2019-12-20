@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/tools/internal/telemetry"
@@ -35,6 +36,7 @@ var traceTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 `))
 
 type traces struct {
+	mu         sync.Mutex
 	sets       map[string]*traceSet
 	unfinished map[telemetry.SpanContext]*traceData
 }
@@ -71,6 +73,8 @@ type traceEvent struct {
 }
 
 func (t *traces) StartSpan(ctx context.Context, span *telemetry.Span) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	if t.sets == nil {
 		t.sets = make(map[string]*traceSet)
 		t.unfinished = make(map[telemetry.SpanContext]*traceData)
@@ -99,6 +103,8 @@ func (t *traces) StartSpan(ctx context.Context, span *telemetry.Span) {
 }
 
 func (t *traces) FinishSpan(ctx context.Context, span *telemetry.Span) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	// finishing, must be already in the map
 	td, found := t.unfinished[span.ID]
 	if !found {
