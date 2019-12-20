@@ -37,7 +37,7 @@ func modfileFlagExists(ctx context.Context, folder string, env []string) (string
 
 // The function getModfiles will return the go.mod files associated with the directory that is passed in.
 func getModfiles(ctx context.Context, folder string, options source.Options) (*modfiles, error) {
-	if options.DisableTempModfile {
+	if !options.TempModfile {
 		log.Print(ctx, "using the -modfile flag is disabled", telemetry.Directory.Of(folder))
 		return nil, nil
 	}

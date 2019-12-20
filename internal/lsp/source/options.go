@@ -67,11 +67,11 @@ var (
 			Literal:       true,
 			Budget:        100 * time.Millisecond,
 		},
-		ComputeEdits:       myers.ComputeEdits,
-		Analyzers:          defaultAnalyzers,
-		GoDiff:             true,
-		LinkTarget:         "pkg.go.dev",
-		DisableTempModfile: true,
+		ComputeEdits: myers.ComputeEdits,
+		Analyzers:    defaultAnalyzers,
+		GoDiff:       true,
+		LinkTarget:   "pkg.go.dev",
+		TempModfile:  false,
 	}
 )
 
@@ -117,7 +117,7 @@ type Options struct {
 	// WARNING: This configuration will be changed in the future.
 	// It only exists while this feature is under development.
 	// Disable use of the -modfile flag in Go 1.14.
-	DisableTempModfile bool
+	TempModfile bool
 
 	LinkTarget string
 }
@@ -323,8 +323,8 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 	case "verboseOutput":
 		result.setBool(&o.VerboseOutput)
 
-	case "disableTempModfile":
-		result.setBool(&o.DisableTempModfile)
+	case "tempModfile":
+		result.setBool(&o.TempModfile)
 
 	// Deprecated settings.
 	case "wantSuggestedFixes":
