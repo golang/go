@@ -64,7 +64,7 @@ var queryTests = []struct {
 		git add go.mod
 		git commit -m v1 go.mod
 		git tag start
-		for i in v0.0.0-pre1 v0.0.0 v0.0.1 v0.0.2 v0.0.3 v0.1.0 v0.1.1 v0.1.2 v0.3.0 v1.0.0 v1.1.0 v1.9.0 v1.9.9 v1.9.10-pre1 v1.9.10-pre2+metadata; do
+		for i in v0.0.0-pre1 v0.0.0 v0.0.1 v0.0.2 v0.0.3 v0.1.0 v0.1.1 v0.1.2 v0.3.0 v1.0.0 v1.1.0 v1.9.0 v1.9.9 v1.9.10-pre1 v1.9.10-pre2+metadata unversioned; do
 			echo before $i >status
 			git add status
 			git commit -m "before $i" status
@@ -107,6 +107,7 @@ var queryTests = []struct {
 	{path: queryRepo, query: "v0.2", err: `no matching versions for query "v0.2"`},
 	{path: queryRepo, query: "v0.0", vers: "v0.0.3"},
 	{path: queryRepo, query: "v1.9.10-pre2+metadata", vers: "v1.9.10-pre2.0.20190513201126-42abcb6df8ee"},
+	{path: queryRepo, query: "ed5ffdaa", vers: "v1.9.10-pre2.0.20191220134614-ed5ffdaa1f5e"},
 
 	// golang.org/issue/29262: The major version for for a module without a suffix
 	// should be based on the most recent tag (v1 as appropriate, not v0
