@@ -98,6 +98,11 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 		}
 		x.mode = variable
 
+	case *Contract:
+		// TODO(gri) need better error message here
+		check.errorf(e.Pos(), "use of contract %s not in type parameter declaration", obj.name)
+		return
+
 	case *Func:
 		check.addDeclDep(obj)
 		x.mode = value
@@ -372,16 +377,6 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 
 		typ.dir = dir
 		typ.elem = check.typ(e.Value)
-		return typ
-
-	case *ast.ContractType:
-		typ := new(Contract)
-		def.setUnderlying(typ)
-		name := "<contract>"
-		if def != nil {
-			name = def.obj.name
-		}
-		check.contractType(typ, name, e)
 		return typ
 
 	default:

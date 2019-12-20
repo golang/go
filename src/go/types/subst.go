@@ -55,9 +55,6 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 	// check bounds
 	for i, tname := range tparams {
 		targ := targs[i]
-		if _, ok := targ.Underlying().(*Contract); ok {
-			panic("contract provided as type argument")
-		}
 
 		tpar := tname.typ.(*TypeParam)
 		// TODO(gri) decide if we want to keep this or standardize on the empty interface
@@ -334,24 +331,7 @@ func (subst *subster) typ(typ Type) Type {
 		subst.cache[t] = named
 		dump(">>> subst %s(%s) with %s (new: %s)", t.underlying, subst.tpars, subst.targs, new_targs)
 		named.underlying = subst.typ(t.underlying)
-
-		// update all method signatures
-		named.methods = t.methods
-		/*
-			if len(t.methods) > 0 {
-				dump(">>> update method signatures:")
-				for _, m := range t.methods {
-					subst.check.objDecl(m, nil)
-					copy := *m
-					copy.typ = subst.typ(copy.typ)
-					dump(">>> - %s: %s -> %s", m, m.typ, copy.typ)
-					named.methods = append(named.methods, &copy)
-				}
-				dump(">>> done with methods")
-			} else {
-				dump(">>> no methods to update")
-			}
-		*/
+		named.methods = t.methods // method signatures are updated lazily
 
 		return named
 
@@ -362,9 +342,6 @@ func (subst *subster) typ(typ Type) Type {
 				return subst.targs[i]
 			}
 		}
-
-	case *Contract:
-		panic("unimplemented")
 
 	default:
 		panic("unimplemented")

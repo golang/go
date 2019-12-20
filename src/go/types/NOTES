@@ -1,4 +1,6 @@
 TODO
+- use Underlying() to return a type parameter's bound? investigate!
+- better error message when declaring a contract local to a function (parser gets out of sync)
 - if type parameters are repeated in recursive instantiation, they must be the same order (not yet checked)
 - implement contract embedding
 - interface embedding doesn't take care of literal type constraints yet
@@ -10,7 +12,6 @@ TODO
 
 OPEN ISSUES
 - using a contract and enumerating type arguments currently leads to an error (e.g. func f(type T C(T)) (x T) ... )
-- contracts slip through in places where only types are permitted
 
 DESIGN/IMPLEMENTATION
 - 12/4/2019: do not allow parenthesized generic uninstantiated types (unless instantiated implicitly)
@@ -29,3 +30,5 @@ DESIGN/IMPLEMENTATION
   is not valid, no matter how T1 and T2 are instantiated (but if T1 and T2 were type aliases with
   both of them having type int, the return x would be valid). In fact, the type parameters act more
   like named types. With their underlying type being the interface by which they are bound.
+
+- 12/19/2019: rewrote contract handling: they are now treated as Objects not Types throughout

@@ -11,10 +11,18 @@ import (
 	"go/token"
 )
 
-// TODO(gri) Handling a contract like a type is problematic because it
-// won't exclude a contract where we only permit a type. Investigate.
+type contractType struct{}
 
-func (check *Checker) contractType(contr *Contract, name string, e *ast.ContractType) {
+func (contractType) String() string   { return "<contract type>" }
+func (contractType) Underlying() Type { panic("unreachable") }
+
+func (check *Checker) contractDecl(contr *Contract, e *ast.ContractSpec) {
+	assert(contr.typ == nil)
+
+	// contracts don't have types, but we need to set a type to
+	// detect recursive declrations and satisfy various assertions
+	contr.typ = new(contractType)
+
 	check.openScope(e, "contract")
 	defer check.closeScope()
 
@@ -37,7 +45,7 @@ func (check *Checker) contractType(contr *Contract, name string, e *ast.Contract
 		named := bounds[tpar]
 		if named == nil {
 			index := tpar.typ.(*TypeParam).index
-			tname := NewTypeName(e.Pos(), check.pkg, name+string(subscript(uint64(index))), nil)
+			tname := NewTypeName(e.Pos(), check.pkg, contr.name+string(subscript(uint64(index))), nil)
 			tname.tparams = tparams
 			named = NewNamed(tname, new(Interface), nil)
 			bounds[tpar] = named
@@ -214,10 +222,6 @@ func (check *Checker) typeConstraint(typ Type, why *string) bool {
 		return check.typeConstraint(t.elem, why)
 	case *Named:
 		*why = check.sprintf("%s is not a type literal", t)
-		return false
-	case *Contract:
-		// TODO(gri) we shouldn't reach here
-		*why = check.sprintf("%s is not a type", t)
 		return false
 	case *TypeParam:
 		// TODO(gri) should this be ok? need a good use case

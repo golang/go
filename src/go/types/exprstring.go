@@ -166,12 +166,6 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 		}
 		buf.WriteString(s)
 		WriteExpr(buf, x.Value)
-
-	case *ast.ContractType:
-		buf.WriteString("contract(")
-		writeIdentList(buf, x.TParams)
-		buf.WriteString("){...}")
-		// TODO(gri) fill in the rest
 	}
 }
 

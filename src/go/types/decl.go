@@ -197,6 +197,8 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 	case *Func:
 		// functions may be recursive - no need to track dependencies
 		check.funcDecl(obj, d)
+	case *Contract:
+		check.contractDecl(obj, d.cdecl)
 	default:
 		unreachable()
 	}
@@ -616,24 +618,38 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 		index += len(f.Names)
 	}
 
+	// TODO(gri) clean up this loop - can be written much more cleanly
 	index = 0
 	for _, f := range list.List {
+		var contr *Contract
 		var bound Type = &emptyInterface
 		if f.Type != nil {
-			typ := check.typ(f.Type)
-			if typ != Typ[Invalid] {
-				switch b := typ.Underlying().(type) {
-				case *Interface:
-					bound = typ
-				case *Contract:
-					if len(f.Names) != len(b.TParams) {
+			// If f.Type denotes a contract, handle everything here so we don't
+			// need to set up a special contract mode for operands just to carry
+			// its information through in form of some contract Type.
+			// TODO(gri) should we allow parenthesized contracts? what if there are contract arguments?
+			if ident, ok := f.Type.(*ast.Ident); ok {
+				obj := check.lookup(ident.Name)
+				if contr, _ = obj.(*Contract); contr != nil {
+					if len(f.Names) != len(contr.TParams) {
 						// TODO(gri) improve error message
-						check.errorf(f.Type.Pos(), "%d type parameters but contract expects %d", len(f.Names), len(b.TParams))
+						check.errorf(f.Type.Pos(), "%d type parameters but contract expects %d", len(f.Names), len(contr.TParams))
+						// TODO(gri) in this case we don't set any bound - make this uniform
 						break // cannot use this contract
 					}
-					bound = typ
-				default:
-					check.errorf(f.Type.Pos(), "%s is not an interface or contract", typ)
+				}
+			}
+
+			if contr == nil {
+				typ := check.typ(f.Type)
+				if typ != Typ[Invalid] {
+					if b, _ := typ.Underlying().(*Interface); b != nil {
+						bound = typ
+					} else {
+						// TODO(gri) same here: in this case we don't set any bound - make this uniform
+						check.errorf(f.Type.Pos(), "%s is not an interface or contract", typ)
+						break
+					}
 				}
 			}
 		}
@@ -645,11 +661,11 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 			// If we have a contract, use its matching type parameter bound
 			// and instantiate it with the actual type parameters (== arguments)
 			// present.
-			bound := bound
-			if b, _ := bound.Underlying().(*Contract); b != nil {
+			bound := bound // TODO(gri) this is confusing - rewrite
+			if contr != nil {
 				// TODO(gri) eliminate this nil test by ensuring that all
 				//           contract parameters have an associated bound
-				if bat := b.boundsAt(i); bat != nil {
+				if bat := contr.boundsAt(i); bat != nil {
 					if targs == nil {
 						targs = make([]Type, len(f.Names))
 						for i, tparam := range tparams[index : index+len(f.Names)] {

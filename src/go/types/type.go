@@ -523,19 +523,6 @@ func (t *Named) AddMethod(m *Func) {
 	}
 }
 
-// A Contract represents a contract.
-type Contract struct {
-	TParams []*TypeName          // type parameters in declaration order
-	Bounds  map[*TypeName]*Named // underlying type is always *Interface
-}
-
-// boundsAt returns the (named) interface for the respective
-// contract type parameter with the given index.
-// TODO(gri) we probably don't need this one
-func (c *Contract) boundsAt(index int) *Named {
-	return c.Bounds[c.TParams[index]]
-}
-
 // A TypeParam represents a type parameter type.
 type TypeParam struct {
 	id    uint64    // unique id (TODO should this be with the object? all objects?)
@@ -571,7 +558,6 @@ func (t *Interface) Underlying() Type { return t }
 func (m *Map) Underlying() Type       { return m }
 func (c *Chan) Underlying() Type      { return c }
 func (t *Named) Underlying() Type     { return t.underlying }
-func (c *Contract) Underlying() Type  { return c }
 func (t *TypeParam) Underlying() Type { return t } // TODO(gri) should this return t.Interface() instead?
 
 func (b *Basic) String() string     { return TypeString(b, nil) }
@@ -585,5 +571,4 @@ func (t *Interface) String() string { return TypeString(t, nil) }
 func (m *Map) String() string       { return TypeString(m, nil) }
 func (c *Chan) String() string      { return TypeString(c, nil) }
 func (t *Named) String() string     { return TypeString(t, nil) }
-func (c *Contract) String() string  { return TypeString(c, nil) }
 func (t *TypeParam) String() string { return TypeString(t, nil) }

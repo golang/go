@@ -270,29 +270,6 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		// 	buf.WriteByte(')')
 		// }
 
-	case *Contract:
-		buf.WriteString("contract(")
-		for i, tpar := range t.TParams {
-			if i > 0 {
-				buf.WriteString(", ")
-			}
-			writeType(buf, tpar.typ, qf, visited)
-		}
-		buf.WriteString("){")
-		i := 0
-		for tpar, bound := range t.Bounds {
-			if i > 0 {
-				buf.WriteString("; ")
-			}
-			writeType(buf, tpar.typ, qf, visited)
-			buf.WriteByte(' ')
-			writeType(buf, bound, qf, visited)
-			buf.WriteString(" = ")
-			writeType(buf, bound.underlying, qf, visited)
-			i++
-		}
-		buf.WriteByte('}')
-
 	case *TypeParam:
 		var s string
 		if t.obj != nil {
