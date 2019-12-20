@@ -451,7 +451,7 @@ var tryDupCloexec = int32(1)
 
 // DupCloseOnExec dups fd and marks it close-on-exec.
 func DupCloseOnExec(fd int) (int, string, error) {
-	if atomic.LoadInt32(&tryDupCloexec) == 1 {
+	if syscall.F_DUPFD_CLOEXEC != 0 && atomic.LoadInt32(&tryDupCloexec) == 1 {
 		r0, e1 := fcntl(fd, syscall.F_DUPFD_CLOEXEC, 0)
 		if e1 == nil {
 			return r0, "", nil
