@@ -713,7 +713,7 @@ func (ld *loader) loadPackage(lpkg *loaderPackage) {
 	// which would then require that such created packages be explicitly
 	// inserted back into the Import graph as a final step after export data loading.
 	// The Diamond test exercises this case.
-	if !lpkg.needtypes {
+	if !lpkg.needtypes && !lpkg.needsrc {
 		return
 	}
 	if !lpkg.needsrc {

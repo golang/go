@@ -2470,13 +2470,15 @@ func testIssue35331(t *testing.T, exporter packagestest.Exporter) {
 	if len(pkgs) != 1 {
 		t.Fatalf("Expected 1 package, got %v", pkgs)
 	}
-	pkg := pkgs[0]
-	if len(pkg.Errors) > 0 {
-		t.Fatalf("Expected no errors in package, got %v", pkg.Errors)
-	}
-	if len(pkg.Syntax) == 0 {
-		t.Fatalf("Expected syntax on package, got none.")
-	}
+	packages.Visit(pkgs, func(pkg *packages.Package) bool {
+		if len(pkg.Errors) > 0 {
+			t.Errorf("Expected no errors in package %q, got %v", pkg.ID, pkg.Errors)
+		}
+		if len(pkg.Syntax) == 0 && pkg.ID != "unsafe" {
+			t.Errorf("Expected syntax on package %q, got none.", pkg.ID)
+		}
+		return true
+	}, nil)
 }
 
 func TestLoadModeStrings(t *testing.T) {
