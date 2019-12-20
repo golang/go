@@ -35,6 +35,12 @@ var (
 	exporter   = LogWriter(os.Stderr, true)
 )
 
+func SetExporter(e Exporter) {
+	exporterMu.Lock()
+	defer exporterMu.Unlock()
+	exporter = e
+}
+
 func AddExporters(e ...Exporter) {
 	exporterMu.Lock()
 	defer exporterMu.Unlock()
