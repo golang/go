@@ -22,7 +22,7 @@ type Exporter interface {
 
 	// Log is a function that handles logging events.
 	// Observers may use information in the context to decide what to do with a
-	// given log event. They should return true if they choose to handle the
+	// given log event.
 	Log(context.Context, telemetry.Event)
 
 	Metric(context.Context, telemetry.MetricData)
