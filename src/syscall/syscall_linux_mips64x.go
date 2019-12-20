@@ -137,8 +137,8 @@ func Iopl(level int) (err error) {
 }
 
 type stat_t struct {
-	Dev        uint32
-	Pad0       [3]int32
+	Dev        uint64
+	Pad0       [3]int64
 	Ino        uint64
 	Mode       uint32
 	Nlink      uint32

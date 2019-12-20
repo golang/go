@@ -97,8 +97,8 @@ type Rlimit struct {
 type _Gid_t uint32
 
 type Stat_t struct {
-	Dev     uint32
-	Pad1    [3]int32
+	Dev     uint64
+	Pad1    [3]int64
 	Ino     uint64
 	Mode    uint32
 	Nlink   uint32
