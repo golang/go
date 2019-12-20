@@ -38,9 +38,8 @@ const (
 type pmode int
 
 const (
-	noExtraBlank      pmode = 1 << iota // disables extra blank after /*-style comment
-	noExtraLinebreak                    // disables extra line break after /*-style comment
-	noContractKeyword                   // disables printing of "contract" pseudo-keyword when printing a contract type
+	noExtraBlank     pmode = 1 << iota // disables extra blank after /*-style comment
+	noExtraLinebreak                   // disables extra line break after /*-style comment
 )
 
 type commentInfo struct {

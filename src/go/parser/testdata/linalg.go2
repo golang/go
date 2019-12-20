@@ -49,7 +49,7 @@ contract Complex(T) {
 // ordered numeric types.
 type OrderedAbs(type T OrderedNumeric) T
 
-func (a OrderedAbs(T)) Abs() T {
+func (a OrderedAbs(T)) Abs() OrderedAbs(T) {
 	if a < 0 {
 		return -a
 	}

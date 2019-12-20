@@ -192,7 +192,7 @@ func isDirective(c string) bool {
 type Field struct {
 	Doc     *CommentGroup // associated documentation; or nil
 	Names   []*Ident      // field/method/(type) parameter names; or nil
-	Type    Expr          // field/method/parameter type or contract; or nil
+	Type    Expr          // field/method/parameter type or contract name; or nil
 	Tag     *BasicLit     // field tag; or nil
 	Comment *CommentGroup // line comments; or nil
 }
@@ -440,7 +440,7 @@ type (
 	}
 
 	// An InterfaceType node represents an interface type.
-	// The Types list is an experimental extension for interfaces that serve as type bounds (like contracts).
+	// The Types list is an experimental extension for interfaces that serve as type bounds (as in contracts).
 	InterfaceType struct {
 		Interface  token.Pos  // position of "interface" keyword
 		Methods    *FieldList // list of methods
@@ -462,22 +462,7 @@ type (
 		Dir   ChanDir   // channel direction
 		Value Expr      // value type
 	}
-
-	// A ContractType node represents a contract.
-	ContractType struct {
-		Contract    token.Pos     // position of "contract" pseudo keyword
-		TParams     []*Ident      // list of (incoming) type parameters; or nil
-		Lbrace      token.Pos     // position of "{"
-		Constraints []*Constraint // list of constraints
-		Rbrace      token.Pos     // position of "}"
-	}
 )
-
-type Constraint struct {
-	Param  *Ident   // constrained type parameter; or nil (for embedded contracts)
-	MNames []*Ident // list of method names; or nil (for embedded contracts or type constraints)
-	Types  []Expr   // embedded contract (single *CallExpr), list of types, or list of method signatures (*FuncType)
-}
 
 // Pos and End implementations for expression/type nodes.
 
@@ -513,7 +498,6 @@ func (x *FuncType) Pos() token.Pos {
 func (x *InterfaceType) Pos() token.Pos { return x.Interface }
 func (x *MapType) Pos() token.Pos       { return x.Map }
 func (x *ChanType) Pos() token.Pos      { return x.Begin }
-func (x *ContractType) Pos() token.Pos  { return x.Contract }
 
 func (x *BadExpr) End() token.Pos { return x.To }
 func (x *Ident) End() token.Pos   { return token.Pos(int(x.NamePos) + len(x.Name)) }
@@ -547,7 +531,6 @@ func (x *FuncType) End() token.Pos {
 func (x *InterfaceType) End() token.Pos { return x.Methods.End() }
 func (x *MapType) End() token.Pos       { return x.Value.End() }
 func (x *ChanType) End() token.Pos      { return x.Value.End() }
-func (x *ContractType) End() token.Pos  { return x.Rbrace }
 
 // exprNode() ensures that only expression/type nodes can be
 // assigned to an Expr.
@@ -575,7 +558,6 @@ func (*FuncType) exprNode()      {}
 func (*InterfaceType) exprNode() {}
 func (*MapType) exprNode()       {}
 func (*ChanType) exprNode()      {}
-func (*ContractType) exprNode()  {}
 
 // ----------------------------------------------------------------------------
 // Convenience functions for Idents
@@ -921,7 +903,24 @@ type (
 		Type    Expr          // *Ident, *ParenExpr, *SelectorExpr, *StarExpr, or any of the *XxxTypes
 		Comment *CommentGroup // line comments; or nil
 	}
+
+	// A ContractSpec node represents a contract declaration.
+	ContractSpec struct {
+		Doc         *CommentGroup // associated documentation; or nil
+		Name        *Ident        // contract name
+		TParams     []*Ident      // list of (incoming) type parameters; or nil
+		Lbrace      token.Pos     // position of "{"
+		Constraints []*Constraint // list of constraints
+		Rbrace      token.Pos     // position of "}"
+		Comment     *CommentGroup // line comments; or nil
+	}
 )
+
+type Constraint struct {
+	Param  *Ident   // constrained type parameter; or nil (for embedded contracts)
+	MNames []*Ident // list of method names; or nil (for embedded contracts or type constraints)
+	Types  []Expr   // embedded contract (single *CallExpr), list of types, or list of method signatures (*FuncType)
+}
 
 // Pos and End implementations for spec nodes.
 
@@ -931,8 +930,9 @@ func (s *ImportSpec) Pos() token.Pos {
 	}
 	return s.Path.Pos()
 }
-func (s *ValueSpec) Pos() token.Pos { return s.Names[0].Pos() }
-func (s *TypeSpec) Pos() token.Pos  { return s.Name.Pos() }
+func (s *ValueSpec) Pos() token.Pos    { return s.Names[0].Pos() }
+func (s *TypeSpec) Pos() token.Pos     { return s.Name.Pos() }
+func (s *ContractSpec) Pos() token.Pos { return s.Name.Pos() }
 
 func (s *ImportSpec) End() token.Pos {
 	if s.EndPos != 0 {
@@ -950,14 +950,16 @@ func (s *ValueSpec) End() token.Pos {
 	}
 	return s.Names[len(s.Names)-1].End()
 }
-func (s *TypeSpec) End() token.Pos { return s.Type.End() }
+func (s *TypeSpec) End() token.Pos     { return s.Type.End() }
+func (s *ContractSpec) End() token.Pos { return s.Rbrace }
 
 // specNode() ensures that only spec nodes can be
 // assigned to a Spec.
 //
-func (*ImportSpec) specNode() {}
-func (*ValueSpec) specNode()  {}
-func (*TypeSpec) specNode()   {}
+func (*ImportSpec) specNode()   {}
+func (*ValueSpec) specNode()    {}
+func (*TypeSpec) specNode()     {}
+func (*ContractSpec) specNode() {}
 
 // A declaration is represented by one of the following declaration nodes.
 //
@@ -984,7 +986,7 @@ type (
 	GenDecl struct {
 		Doc    *CommentGroup // associated documentation; or nil
 		TokPos token.Pos     // position of Tok
-		Tok    token.Token   // IMPORT, CONST, TYPE, VAR
+		Tok    token.Token   // IMPORT, CONST, TYPE, VAR, or IDENT (for "contract" pseudo keyword)
 		Lparen token.Pos     // position of '(', if any
 		Specs  []Spec
 		Rparen token.Pos // position of ')', if any

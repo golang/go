@@ -90,11 +90,8 @@ var valids = []string{
 	}`,
 	`package p; contract C(T){ T m(int), n() float64, o(x string) rune }`,
 	`package p; contract C(T){ T int, m(int), float64, n() float64, o(x string) rune }`,
-	`package p; type C contract(){}`,
-	`package p; type C contract(T, S, R,){}`,
-	`package p; type C contract(T){ T (m(x, int)); }`,
-	`package p; type C contract(T){ T int; T imported.T; T chan<-int; T m(x int) float64; C0(); imported.C1(int, T,) }`,
-	`package p; type C contract(T){ T int, imported.T, chan<-int; T m(x int) float64; C0(); imported.C1(int, T,) }`,
+	`package p; contract C(T){ T int; T imported.T; T chan<-int; T m(x int) float64; C0(); imported.C1(int, T,) }`,
+	`package p; contract C(T){ T int, imported.T, chan<-int; T m(x int) float64; C0(); imported.C1(int, T,) }`,
 	`package p; func _(type T1, T2 interface{})(x T1) T2`,
 	`package p; func _(type T1 interface{ m() }, T2, T3 interface{})(x T1, y T3) T2`,
 
@@ -162,8 +159,8 @@ var invalids = []string{
 	`package p; func f() { defer func() {} /* ERROR HERE "function must be invoked" */ }`,
 	`package p; func f() { go func() { func() { f(x func /* ERROR "missing ','" */ (){}) } } }`,
 	//`package p; func f(x func(), u v func /* ERROR "missing ','" */ ()){}`,
-	`package p; type C contract(T, T /* ERROR "T redeclared" */ ) {}`,
-	`package p; type C contract(T) { imported /* ERROR "expected type parameter name" */ .T int }`,
+	`package p; contract C(T, T /* ERROR "T redeclared" */ ) {}`,
+	`package p; contract C(T) { imported /* ERROR "expected type parameter name" */ .T int }`,
 
 	// issue 8656
 	`package p; func f() (a b string /* ERROR "missing ','" */ , ok bool)`,

@@ -971,23 +971,6 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		p.print(blank)
 		p.expr(x.Value)
 
-	case *ast.ContractType:
-		if p.mode&noContractKeyword == 0 {
-			p.print(&ast.Ident{NamePos: x.Contract, Name: "contract"})
-		}
-		p.print(token.LPAREN)
-		for i, par := range x.TParams {
-			if i > 0 {
-				p.print(token.COMMA, blank)
-			}
-			p.print(par)
-		}
-		p.print(token.RPAREN, x.Lbrace, token.LBRACE)
-		for _, c := range x.Constraints {
-			p.constraint(c)
-		}
-		p.print(x.Rbrace, token.RBRACE)
-
 	default:
 		panic("unreachable")
 	}
@@ -1633,6 +1616,23 @@ func (p *printer) spec(spec ast.Spec, n int, doIndent bool) {
 		p.expr(s.Type)
 		p.setComment(s.Comment)
 
+	case *ast.ContractSpec:
+		p.setComment(s.Doc)
+		p.expr(s.Name)
+		p.print(token.LPAREN)
+		for i, par := range s.TParams {
+			if i > 0 {
+				p.print(token.COMMA, blank)
+			}
+			p.print(par)
+		}
+		p.print(token.RPAREN, s.Lbrace, token.LBRACE)
+		for _, c := range s.Constraints {
+			p.constraint(c)
+		}
+		p.print(s.Rbrace, token.RBRACE)
+		p.setComment(s.Comment)
+
 	default:
 		panic("unreachable")
 	}
@@ -1643,8 +1643,7 @@ func (p *printer) genDecl(d *ast.GenDecl) {
 	// Contract declarations rely on the pseudo-keyword (identifier) "contract";
 	// in the AST the respective token is ast.IDENT. Catch and correct this here.
 	if d.Tok == token.IDENT {
-		p.print(&ast.Ident{NamePos: d.Pos(), Name: "contract"}, noContractKeyword)
-		defer p.print(noContractKeyword)
+		p.print(&ast.Ident{NamePos: d.Pos(), Name: "contract"})
 	} else {
 		p.print(d.Pos(), d.Tok)
 	}

@@ -1298,37 +1298,6 @@ func (p *parser) parseChanType(typeContext bool) *ast.ChanType {
 	return &ast.ChanType{Begin: pos, Arrow: arrow, Dir: dir, Value: value}
 }
 
-// ContractType = "(" [ IdentList [ "," ] ] ")" "{" { Constraint ";" } "}" .
-// (The "contract" keyword is already consumed.)
-func (p *parser) parseContractType(pos token.Pos) *ast.ContractType {
-	if p.trace {
-		defer un(trace(p, "ContractType"))
-	}
-
-	var params []*ast.Ident
-	p.expect(token.LPAREN)
-	scope := ast.NewScope(nil) // contract scope
-	for p.tok != token.RPAREN && p.tok != token.EOF {
-		params = append(params, p.parseIdent())
-		if !p.atComma("contract parameter list", token.RPAREN) {
-			break
-		}
-		p.next()
-	}
-	p.declare(nil, nil, scope, ast.Typ, params...)
-	p.expect(token.RPAREN)
-
-	var constraints []*ast.Constraint
-	lbrace := p.expect(token.LBRACE)
-	for p.tok != token.RBRACE && p.tok != token.EOF {
-		constraints = append(constraints, p.parseConstraint())
-		p.expectSemi()
-	}
-	rbrace := p.expect(token.RBRACE)
-
-	return &ast.ContractType{Contract: pos, TParams: params, Lbrace: lbrace, Constraints: constraints, Rbrace: rbrace}
-}
-
 // Constraint       = TypeParam TypeOrMethod { "," TypeOrMethod } | ContractTypeName "(" [ TypeList [ "," ] ] ")" .
 // TypeParam        = Ident .
 // TypeOrMethod     = Type | MethodName Signature .
@@ -1416,13 +1385,6 @@ func (p *parser) parseTypeInstance(typ ast.Expr) *ast.CallExpr {
 func (p *parser) tryIdentOrType(typeContext bool) ast.Expr {
 	switch p.tok {
 	case token.IDENT:
-		// TODO(gri) we need to be smarter about this to avoid problems with existing code
-		if p.lit == "contract" {
-			pos := p.pos
-			p.next()
-			typ := p.parseContractType(pos)
-			return typ
-		}
 		typ := p.parseTypeName(nil)
 		if typeContext && (useBrackets && p.tok == token.LBRACK || p.tok == token.LPAREN) {
 			typ = p.parseTypeInstance(typ)
@@ -2846,6 +2808,7 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token
 	return spec
 }
 
+// ContractType = ident "(" [ IdentList [ "," ] ] ")" "{" { Constraint ";" } "}" .
 func (p *parser) parseContractSpec(doc *ast.CommentGroup, pos token.Pos, _ token.Token, _ int) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "ContractSpec"))
@@ -2854,10 +2817,31 @@ func (p *parser) parseContractSpec(doc *ast.CommentGroup, pos token.Pos, _ token
 	// For now we represent a contract specification like a type representation.
 	// They cannot have "outer" type parameters, though.
 	ident := p.parseIdent()
-	typ := p.parseContractType(pos)
-	spec := &ast.TypeSpec{Doc: doc, Name: ident, Type: typ}
-	p.declare(spec, nil, p.topScope, ast.Typ, ident)
-	p.expectSemi() // call before accessing p.linecomment
+
+	var tparams []*ast.Ident
+	p.expect(token.LPAREN)
+	scope := ast.NewScope(nil) // contract scope
+	for p.tok != token.RPAREN && p.tok != token.EOF {
+		tparams = append(tparams, p.parseIdent())
+		if !p.atComma("contract parameter list", token.RPAREN) {
+			break
+		}
+		p.next()
+	}
+	p.declare(nil, nil, scope, ast.Typ, tparams...) // TODO(gri) should really be something other that ast.Typ
+	p.expect(token.RPAREN)
+
+	var constraints []*ast.Constraint
+	lbrace := p.expect(token.LBRACE)
+	for p.tok != token.RBRACE && p.tok != token.EOF {
+		constraints = append(constraints, p.parseConstraint())
+		p.expectSemi()
+	}
+	rbrace := p.expect(token.RBRACE)
+
+	spec := &ast.ContractSpec{Doc: doc, Name: ident, TParams: tparams, Lbrace: lbrace, Constraints: constraints, Rbrace: rbrace}
+	p.declare(spec, nil, p.topScope, ast.Typ, ident) // TODO(gri) should really be something other that ast.Typ
+	p.expectSemi()                                   // call before accessing p.linecomment
 	spec.Comment = p.lineComment
 
 	return spec
