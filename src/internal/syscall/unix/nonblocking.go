@@ -8,8 +8,12 @@ package unix
 
 import "syscall"
 
+// FcntlSyscall is the number for the fcntl system call. This is
+// usually SYS_FCNTL, but can be overridden to SYS_FCNTL64.
+var FcntlSyscall uintptr = syscall.SYS_FCNTL
+
 func IsNonblock(fd int) (nonblocking bool, err error) {
-	flag, _, e1 := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd), uintptr(syscall.F_GETFL), 0)
+	flag, _, e1 := syscall.Syscall(FcntlSyscall, uintptr(fd), uintptr(syscall.F_GETFL), 0)
 	if e1 != 0 {
 		return false, e1
 	}
