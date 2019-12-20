@@ -2,13 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd
+// +build dragonfly freebsd linux netbsd openbsd
 
 package runtime_test
 
-import "syscall"
+import (
+	"internal/syscall/unix"
+	"syscall"
+)
 
 func fcntl(fd uintptr, cmd int, arg uintptr) (uintptr, syscall.Errno) {
-	res, _, err := syscall.Syscall(syscall.SYS_FCNTL, fd, uintptr(cmd), arg)
+	res, _, err := syscall.Syscall(unix.FcntlSyscall, fd, uintptr(cmd), arg)
 	return res, err
 }
