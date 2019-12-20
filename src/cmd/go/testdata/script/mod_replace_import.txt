@@ -54,6 +54,10 @@ replace (
 	example.com/v => ./v
 )
 
+replace (
+	example.com/i v2.0.0+incompatible => ./i2
+)
+
 -- m.go --
 package main
 import (
@@ -61,6 +65,7 @@ import (
 	_ "example.com/x/v3"
 	_ "example.com/y/z/w"
 	_ "example.com/v"
+	_ "example.com/i"
 )
 func main() {}
 
@@ -114,6 +119,11 @@ package v
 module v.localhost
 -- v/v.go --
 package v
+
+-- i2/go.mod --
+module example.com/i
+-- i2/i.go --
+package i
 
 -- fail/m.go --
 package main
