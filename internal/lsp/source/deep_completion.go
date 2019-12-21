@@ -140,10 +140,12 @@ func (c *completer) shouldPrune() bool {
 
 // deepSearch searches through obj's subordinate objects for more
 // completion items.
-func (c *completer) deepSearch(obj types.Object, imp *importInfo) {
+func (c *completer) deepSearch(cand candidate) {
 	if c.deepState.maxDepth == 0 {
 		return
 	}
+
+	obj := cand.obj
 
 	// If we are definitely completing a struct field name, deep completions
 	// don't make sense.
@@ -174,7 +176,7 @@ func (c *completer) deepSearch(obj types.Object, imp *importInfo) {
 			// the deep chain.
 			c.deepState.push(obj, true)
 			// The result of a function call is not addressable.
-			c.methodsAndFields(sig.Results().At(0).Type(), false, imp)
+			c.methodsAndFields(sig.Results().At(0).Type(), false, cand.imp)
 			c.deepState.pop()
 		}
 	}
@@ -184,11 +186,11 @@ func (c *completer) deepSearch(obj types.Object, imp *importInfo) {
 
 	switch obj := obj.(type) {
 	case *types.PkgName:
-		c.packageMembers(obj.Imported(), imp)
+		c.packageMembers(obj.Imported(), cand.imp)
 	default:
 		// For now it is okay to assume obj is addressable since we don't search beyond
 		// function calls.
-		c.methodsAndFields(obj.Type(), true, imp)
+		c.methodsAndFields(obj.Type(), true, cand.imp)
 	}
 
 	// Pop the object off our search stack.

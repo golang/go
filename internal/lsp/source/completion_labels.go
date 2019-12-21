@@ -56,7 +56,7 @@ func (c *completer) labels(lt labelType) {
 	addLabel := func(l *ast.LabeledStmt) {
 		labelObj := c.pkg.GetTypesInfo().ObjectOf(l.Label)
 		if labelObj != nil {
-			c.found(labelObj, highScore, nil)
+			c.found(candidate{obj: labelObj, score: highScore})
 		}
 	}
 

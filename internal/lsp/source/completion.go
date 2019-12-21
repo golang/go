@@ -281,7 +281,9 @@ func (c *completer) getSurrounding() *Selection {
 
 // found adds a candidate completion. We will also search through the object's
 // members for more candidates.
-func (c *completer) found(obj types.Object, score float64, imp *importInfo) {
+func (c *completer) found(cand candidate) {
+	obj := cand.obj
+
 	if obj.Pkg() != nil && obj.Pkg() != c.pkg.GetTypes() && !obj.Exported() {
 		// obj is not accessible because it lives in another package and is not
 		// exported. Don't treat it as a completion candidate.
@@ -311,12 +313,6 @@ func (c *completer) found(obj types.Object, score float64, imp *importInfo) {
 		return
 	}
 
-	cand := candidate{
-		obj:   obj,
-		score: score,
-		imp:   imp,
-	}
-
 	if c.matchingCandidate(&cand) {
 		cand.score *= highScore
 	} else if isTypeName(obj) {
@@ -325,7 +321,7 @@ func (c *completer) found(obj types.Object, score float64, imp *importInfo) {
 
 		// We only care about named types (i.e. don't want builtin types).
 		if _, isNamed := obj.Type().(*types.Named); isNamed {
-			c.literal(obj.Type(), imp)
+			c.literal(obj.Type(), cand.imp)
 		}
 	}
 
@@ -349,7 +345,7 @@ func (c *completer) found(obj types.Object, score float64, imp *importInfo) {
 		}
 	}
 
-	c.deepSearch(obj, imp)
+	c.deepSearch(cand)
 }
 
 // candidate represents a completion candidate.
@@ -575,7 +571,7 @@ func (c *completer) populateCommentCompletions(comment *ast.CommentGroup) {
 						}
 
 						exportedVar := c.pkg.GetTypesInfo().ObjectOf(name)
-						c.found(exportedVar, stdScore, nil)
+						c.found(candidate{obj: exportedVar, score: stdScore})
 					}
 				}
 			}
@@ -640,9 +636,13 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 			// Otherwise, continue with untyped proposals.
 			pkg := types.NewPackage(pkgExport.Fix.StmtInfo.ImportPath, pkgExport.Fix.IdentName)
 			for _, export := range pkgExport.Exports {
-				c.found(types.NewVar(0, pkg, export, nil), 0.07, &importInfo{
-					importPath: pkgExport.Fix.StmtInfo.ImportPath,
-					name:       pkgExport.Fix.StmtInfo.Name,
+				c.found(candidate{
+					obj:   types.NewVar(0, pkg, export, nil),
+					score: 0.07,
+					imp: &importInfo{
+						importPath: pkgExport.Fix.StmtInfo.ImportPath,
+						name:       pkgExport.Fix.StmtInfo.Name,
+					},
 				})
 			}
 		}
@@ -653,7 +653,11 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 func (c *completer) packageMembers(pkg *types.Package, imp *importInfo) {
 	scope := pkg.Scope()
 	for _, name := range scope.Names() {
-		c.found(scope.Lookup(name), stdScore, imp)
+		c.found(candidate{
+			obj:   scope.Lookup(name),
+			score: stdScore,
+			imp:   imp,
+		})
 	}
 }
 
@@ -671,12 +675,20 @@ func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *impo
 	}
 
 	for i := 0; i < mset.Len(); i++ {
-		c.found(mset.At(i).Obj(), stdScore, imp)
+		c.found(candidate{
+			obj:   mset.At(i).Obj(),
+			score: stdScore,
+			imp:   imp,
+		})
 	}
 
 	// Add fields of T.
 	for _, f := range fieldSelections(typ) {
-		c.found(f, stdScore, imp)
+		c.found(candidate{
+			obj:   f,
+			score: stdScore,
+			imp:   imp,
+		})
 	}
 	return nil
 }
@@ -765,7 +777,10 @@ func (c *completer) lexical() error {
 			// If we haven't already added a candidate for an object with this name.
 			if _, ok := seen[obj.Name()]; !ok {
 				seen[obj.Name()] = struct{}{}
-				c.found(obj, score, nil)
+				c.found(candidate{
+					obj:   obj,
+					score: score,
+				})
 			}
 		}
 	}
@@ -790,7 +805,11 @@ func (c *completer) lexical() error {
 					if imports.ImportPathToAssumedName(pkg.Path()) != pkg.Name() {
 						imp.name = pkg.Name()
 					}
-					c.found(obj, stdScore, imp)
+					c.found(candidate{
+						obj:   obj,
+						score: stdScore,
+						imp:   imp,
+					})
 				}
 			}
 		}
@@ -816,9 +835,13 @@ func (c *completer) lexical() error {
 				// multiple packages of the same name as completion suggestions, since
 				// only one will be chosen.
 				obj := types.NewPkgName(0, nil, pkg.IdentName, types.NewPackage(pkg.StmtInfo.ImportPath, pkg.IdentName))
-				c.found(obj, score, &importInfo{
-					importPath: pkg.StmtInfo.ImportPath,
-					name:       pkg.StmtInfo.Name,
+				c.found(candidate{
+					obj:   obj,
+					score: score,
+					imp: &importInfo{
+						importPath: pkg.StmtInfo.ImportPath,
+						name:       pkg.StmtInfo.Name,
+					},
 				})
 			}
 		}
@@ -898,7 +921,10 @@ func (c *completer) structLiteralFieldName() error {
 		for i := 0; i < t.NumFields(); i++ {
 			field := t.Field(i)
 			if !addedFields[field] {
-				c.found(field, highScore, nil)
+				c.found(candidate{
+					obj:   field,
+					score: highScore,
+				})
 			}
 		}
 
