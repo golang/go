@@ -11,6 +11,8 @@ TODO
 - use []*TypeParam for tparams in subst? (unclear)
 
 OPEN ISSUES
+- instantiating a parameterized function type w/o value or result parameters may have unexpected side-effects
+  (we don't make a copy of the signature in some cases) - investigate
 - using a contract and enumerating type arguments currently leads to an error (e.g. func f(type T C(T)) (x T) ... )
 
 DESIGN/IMPLEMENTATION
@@ -39,3 +41,6 @@ DESIGN/IMPLEMENTATION
 - 12/20/2019: Decided to start moving type parameters to types (from TypeName to Named), need to do the
   same for Func. This make more sense as in general any type (conceptually even literal types) could
   have type parameters. It's a property of the type, not the type name. It also simplified the code.
+
+- 12/20/2019: Type parameters may be part of type lists in contracts/interfaces. It just falls out
+  naturally. Added test cases.

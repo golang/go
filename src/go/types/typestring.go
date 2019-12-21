@@ -260,20 +260,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 	case *Named:
 		writeTypeName(buf, t.obj, qf)
 		if t.tparams != nil {
-			buf.WriteString("(type ")
-			for i, p := range t.tparams {
-				if i > 0 {
-					buf.WriteString(", ")
-				}
-				buf.WriteString(p.name)
-				if ptyp, _ := p.typ.(*TypeParam); ptyp != nil && ptyp.bound != nil {
-					buf.WriteByte(' ')
-					writeType(buf, ptyp.bound, qf, visited)
-					// TODO(gri) if this is a generic type bound, we should print
-					// the type parameters
-				}
-			}
-			buf.WriteByte(')')
+			writeTParamList(buf, t.tparams, qf, visited)
 		}
 
 	case *TypeParam:
@@ -298,6 +285,23 @@ func writeTypeList(buf *bytes.Buffer, list []Type, qf Qualifier, visited []Type)
 		}
 		writeType(buf, typ, qf, visited)
 	}
+}
+
+func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited []Type) {
+	buf.WriteString("(type ")
+	for i, p := range list {
+		if i > 0 {
+			buf.WriteString(", ")
+		}
+		buf.WriteString(p.name)
+		if ptyp, _ := p.typ.(*TypeParam); ptyp != nil && ptyp.bound != nil {
+			buf.WriteByte(' ')
+			writeType(buf, ptyp.bound, qf, visited)
+			// TODO(gri) if this is a generic type bound, we should print
+			// the type parameters
+		}
+	}
+	buf.WriteByte(')')
 }
 
 func writeTypeName(buf *bytes.Buffer, obj *TypeName, qf Qualifier) {
@@ -361,6 +365,10 @@ func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
 }
 
 func writeSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier, visited []Type) {
+	if sig.tparams != nil {
+		writeTParamList(buf, sig.tparams, qf, visited)
+	}
+
 	writeTuple(buf, sig.params, sig.variadic, qf, visited)
 
 	n := sig.results.Len()

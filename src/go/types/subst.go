@@ -24,7 +24,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 			if res != nil {
 				under = res.Underlying()
 			}
-			check.trace(pos, "=> %s %s", res, under)
+			check.trace(pos, "=> %s (under = %s)", res, under)
 		}()
 	}
 
@@ -32,11 +32,11 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 
 	// TODO(gri) What is better here: work with TypeParams, or work with TypeNames?
 	var tparams []*TypeName
-	switch typ := typ.(type) {
+	switch t := typ.(type) {
 	case *Named:
-		tparams = typ.tparams
+		tparams = t.tparams
 	case *Signature:
-		tparams = typ.tparams
+		tparams = t.tparams
 	default:
 		check.dump(">>> trying to instantiate %s", typ)
 		unreachable() // only defined types and (defined) functions can be generic
@@ -220,16 +220,20 @@ func (subst *subster) typ(typ Type) Type {
 		return subst.tuple(t)
 
 	case *Signature:
+		// TODO(gri) BUG: If we instantiate this signature but it has no value params, we don't get a copy!
+		//           We need to look at the actual type parameters of the signature as well.
 		// TODO(gri) rethink the recv situation with respect to methods on parameterized types
 		//recv := s.var_(t.recv) // not strictly needed (receivers cannot be parameterized) (?)
 		recv := t.recv
 		params := subst.tuple(t.params)
 		results := subst.tuple(t.results)
 		if recv != t.recv || params != t.params || results != t.results {
+			// TODO(gri) what do we need to do with t.scope, if anything?
 			copy := *t
-			// note: we leave (copy.)tparams alone - if a caller instantiated a function
-			//       via instantiate (calling subst) it is the caller's responsibility
-			//       to nil out this field
+			// TODO(gri) if we instantiate this signature, we need to set
+			// tparams to nil (the signature may be a field type of a struct)
+			// otherwise the signature remains parameterized which would be
+			// wrong. Investigate the correct approach.
 			copy.recv = recv
 			copy.params = params
 			copy.results = results

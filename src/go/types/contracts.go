@@ -13,14 +13,14 @@ import (
 
 type contractType struct{}
 
-func (contractType) String() string   { return "<contract type>" }
+func (contractType) String() string   { return "<dummy contract type>" }
 func (contractType) Underlying() Type { panic("unreachable") }
 
 func (check *Checker) contractDecl(contr *Contract, e *ast.ContractSpec) {
 	assert(contr.typ == nil)
 
 	// contracts don't have types, but we need to set a type to
-	// detect recursive declrations and satisfy various assertions
+	// detect recursive declarations and satisfy various assertions
 	contr.typ = new(contractType)
 
 	check.openScope(e, "contract")
@@ -224,8 +224,7 @@ func (check *Checker) typeConstraint(typ Type, why *string) bool {
 		*why = check.sprintf("%s is not a type literal", t)
 		return false
 	case *TypeParam:
-		// TODO(gri) should this be ok? need a good use case
-		// ok for now
+		// ok, e.g.: func f (type T interface { type T }) ()
 	default:
 		unreachable()
 	}

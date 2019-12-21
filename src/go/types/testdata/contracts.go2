@@ -186,6 +186,30 @@ func adderSum(type T Adder(T))(data []T) T {
 func _(type T Adder /* ERROR cannot use generic type Adder */)(data []T) T
 
 // --------------------------------------------------------------------------------------
+// Type lists may contain type parameters... :-)
+
+contract G1(T) { T T }
+contract G2(T, T2) { T T, int; T2 T, int }
+
+func g1 (type T G1) ()
+func g2 (type T, T2 G2) ()
+
+func h1 (type T interface{ type T }) ()
+func h2 (type T, T2 interface{ type T, int }) ()
+
+func _() {
+	g1(int)()
+	g1(string)()
+	g2(int, int)()
+	g2(int, string /* ERROR string does not satisfy */ )()
+
+	h1(int)()
+	h1(string)()
+	h2(int, int)()
+	h2(int, string /* ERROR string does not satisfy */ )()
+}
+
+// --------------------------------------------------------------------------------------
 // Instantiations require bounds to be satisfied
 
 type B1 interface{type int}
