@@ -46,8 +46,8 @@ func (check *Checker) contractDecl(contr *Contract, e *ast.ContractSpec) {
 		if named == nil {
 			index := tpar.typ.(*TypeParam).index
 			tname := NewTypeName(e.Pos(), check.pkg, contr.name+string(subscript(uint64(index))), nil)
-			tname.tparams = tparams
 			named = NewNamed(tname, new(Interface), nil)
+			named.tparams = tparams
 			bounds[tpar] = named
 		}
 		return named

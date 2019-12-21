@@ -572,7 +572,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 
 		if tdecl.TParams != nil {
 			check.openScope(tdecl, "type parameters")
-			obj.tparams = check.collectTypeParams(tdecl.TParams)
+			named.tparams = check.collectTypeParams(tdecl.TParams)
 		}
 
 		// determine underlying type of named
@@ -779,7 +779,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 			if rname != nil {
 				// recv should be a Named type (otherwise an error is reported elsewhere)
 				if recv, _ := check.genericType(rname).(*Named); recv != nil {
-					recvTParams = recv.obj.tparams
+					recvTParams = recv.tparams
 				}
 			}
 			// provide type parameter bounds

@@ -259,16 +259,22 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 
 	case *Named:
 		writeTypeName(buf, t.obj, qf)
-		// if t.obj != nil && len(t.obj.tparams) > 0 {
-		// 	buf.WriteByte('(')
-		// 	for i, tpar := range t.obj.tparams {
-		// 		if i > 0 {
-		// 			buf.WriteString(", ")
-		// 		}
-		// 		writeType(buf, tpar.typ, qf, visited)
-		// 	}
-		// 	buf.WriteByte(')')
-		// }
+		if t.tparams != nil {
+			buf.WriteString("(type ")
+			for i, p := range t.tparams {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				buf.WriteString(p.name)
+				if ptyp, _ := p.typ.(*TypeParam); ptyp != nil && ptyp.bound != nil {
+					buf.WriteByte(' ')
+					writeType(buf, ptyp.bound, qf, visited)
+					// TODO(gri) if this is a generic type bound, we should print
+					// the type parameters
+				}
+			}
+			buf.WriteByte(')')
+		}
 
 	case *TypeParam:
 		var s string

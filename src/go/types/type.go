@@ -474,12 +474,13 @@ func (c *Chan) Elem() Type { return c.elem }
 
 // A Named represents a named (defined) type.
 type Named struct {
-	info       typeInfo  // for cycle detection
-	obj        *TypeName // corresponding declared object
-	orig       Type      // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
-	underlying Type      // possibly a *Named during setup; never a *Named once set up completely
-	targs      []Type    // type arguments after instantiation
-	methods    []*Func   // methods declared for this type (not the method set of this type); signatures are type-checked lazily
+	info       typeInfo    // for cycle detection
+	obj        *TypeName   // corresponding declared object
+	orig       Type        // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
+	underlying Type        // possibly a *Named during setup; never a *Named once set up completely
+	tparams    []*TypeName // type parameters, or nil
+	targs      []Type      // type arguments (after instantiation), or nil
+	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
 }
 
 // NewNamed returns a new named type for the given type name, underlying type, and associated methods.

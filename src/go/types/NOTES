@@ -6,9 +6,9 @@ TODO
 - interface embedding doesn't take care of literal type constraints yet
   (need an allTypes list, like we have an allMethods list?)
 - type assertions on/against parameterized types
-- consolidate Signature.tparams and Signature.mtparams?
-- can we always set Named.targs?
-- use []*TypeParam for tparams in subst
+- move Func.tparams to Signature (as we have done for TypeName.tparams to Named)
+- distinguish more clearly between Signature.tparams and mtparams (the latter are solely for recv type params)
+- use []*TypeParam for tparams in subst? (unclear)
 
 OPEN ISSUES
 - using a contract and enumerating type arguments currently leads to an error (e.g. func f(type T C(T)) (x T) ... )
@@ -29,6 +29,13 @@ DESIGN/IMPLEMENTATION
 
   is not valid, no matter how T1 and T2 are instantiated (but if T1 and T2 were type aliases with
   both of them having type int, the return x would be valid). In fact, the type parameters act more
-  like named types. With their underlying type being the interface by which they are bound.
+  like named types with the methods described by their type bound. But type parameters are never
+  interfaces. To determine: Given a type parameter P, is P == underlying(P) (like for basic types),
+  or is the the underlying type of P something else (like for defined types). Is there an observable
+  difference?
 
-- 12/19/2019: rewrote contract handling: they are now treated as Objects not Types throughout
+- 12/19/2019: Rewrote contract handling: they are now treated as Objects (rather than Types) throughout.
+
+- 12/20/2019: Decided to start moving type parameters to types (from TypeName to Named), need to do the
+  same for Func. This make more sense as in general any type (conceptually even literal types) could
+  have type parameters. It's a property of the type, not the type name. It also simplified the code.

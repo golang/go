@@ -34,7 +34,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 	var tparams []*TypeName
 	switch typ := typ.(type) {
 	case *Named:
-		tparams = typ.obj.tparams
+		tparams = typ.tparams
 	case *Signature:
 		tparams = typ.tparams
 	default:
@@ -272,7 +272,7 @@ func (subst *subster) typ(typ Type) Type {
 			}
 		}
 
-		if len(t.obj.tparams) == 0 {
+		if t.tparams == nil {
 			dump(">>> %s is not parameterized", t)
 			return t // type is not parameterized
 		}
@@ -293,7 +293,7 @@ func (subst *subster) typ(typ Type) Type {
 				if new_targ != targ {
 					dump(">>> substituted %d targ %s => %s", i, targ, new_targ)
 					if new_targs == nil {
-						new_targs = make([]Type, len(t.obj.tparams))
+						new_targs = make([]Type, len(t.tparams))
 						copy(new_targs, t.targs)
 					}
 					new_targs[i] = new_targ
@@ -324,9 +324,9 @@ func (subst *subster) typ(typ Type) Type {
 
 		// create a new named type and populate caches to avoid endless recursion
 		tname := NewTypeName(subst.pos, subst.check.pkg, name, nil)
-		tname.tparams = t.obj.tparams // new type is still parameterized
 		subst.check.typMap[name] = tname
 		named := NewNamed(tname, nil, nil)
+		named.tparams = t.tparams // new type is still parameterized
 		named.targs = new_targs
 		subst.cache[t] = named
 		dump(">>> subst %s(%s) with %s (new: %s)", t.underlying, subst.tpars, subst.targs, new_targs)

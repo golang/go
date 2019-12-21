@@ -213,7 +213,6 @@ func (*Const) isDependency() {} // a constant may be a dependency of an initiali
 // A TypeName represents a name for a (defined or alias) type.
 type TypeName struct {
 	object
-	tparams []*TypeName // type parameters from left to right; or nil
 }
 
 // NewTypeName returns a new type name denoting the given typ.
@@ -224,12 +223,7 @@ type TypeName struct {
 // argument for NewNamed, which will set the TypeName's type as a side-
 // effect.
 func NewTypeName(pos token.Pos, pkg *Package, name string, typ Type) *TypeName {
-	return &TypeName{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, nil}
-}
-
-// IsParameterized reports whether obj is a parametrized type.
-func (obj *TypeName) IsParameterized() bool {
-	return len(obj.tparams) > 0
+	return &TypeName{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}}
 }
 
 // IsAlias reports whether obj is an alias name for a type.
@@ -254,17 +248,6 @@ func (obj *TypeName) IsAlias() bool {
 	default:
 		return true
 	}
-}
-
-// TypeParams returns the list if *TypeParam types for the type parameters of obj; or nil.
-func (obj *TypeName) TypeParams() (tparams []*TypeParam) {
-	if n := len(obj.tparams); n > 0 {
-		tparams = make([]*TypeParam, n)
-		for i, tpar := range obj.tparams {
-			tparams[i] = tpar.typ.(*TypeParam)
-		}
-	}
-	return
 }
 
 // A Variable represents a declared variable (including function parameters and results, and struct fields).
@@ -498,24 +481,6 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 		// are the same; see also comment in TypeName.IsAlias).
 		if _, ok := typ.(*Basic); ok {
 			return
-		}
-		if tname.IsParameterized() {
-			fmt.Fprint(buf, "(type ")
-			for i, p := range tname.tparams {
-				if i > 0 {
-					fmt.Fprint(buf, ", ")
-				}
-				buf.WriteString(p.name)
-				if p.typ != nil {
-					if ptyp, _ := p.typ.(*TypeParam); ptyp != nil && ptyp.bound != nil {
-						buf.WriteByte(' ')
-						WriteType(buf, ptyp.bound, qf)
-						// TODO(gri) if this is a generic type bound, we should print
-						// the type parameters
-					}
-				}
-			}
-			fmt.Fprint(buf, ")")
 		}
 		if tname.IsAlias() {
 			buf.WriteString(" =")
