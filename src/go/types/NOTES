@@ -1,3 +1,6 @@
+This file works as a sort of notebook/implementation log. It replaces my notebook based approach
+so we have a better track record. I only switched to this file recently, hence it is incomplete.
+
 TODO
 - use Underlying() to return a type parameter's bound? investigate!
 - better error message when declaring a contract local to a function (parser gets out of sync)

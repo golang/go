@@ -12,12 +12,10 @@ Read and use this code at your own risk.
 
 STATUS
 
-Significant progress has happened since the last update of this CL.
-With some exceptions (see below), most aspects of the contracts
-proposal have been implemented with at least a few tests (but expect
-bugs). Except for a small number of known issues documented in the
-respective files, go/types can now type-check all the *.go2 test
-files in the testdata and examples directories.
+With some exceptions (see below), the most complex aspects of the contracts
+proposal have been implemented and somewhat tested (but expect bugs).
+go/types can now type-check all the *.go2 test files in the testdata and
+examples directories.
 
 ALTERNATIVE NOTATION
 
@@ -79,8 +77,10 @@ KNOWN ISSUES
 - gofmt works only partly with parameterized code
 - importing of packages exporting generic code is not implemented
   (and likely won't be implemented in this prototype)
-- error messages are reasonable expect them to be significantly
-  better in a real implementation
+- error messages are reasonable but expect them to be significantly
+  better in a real implementation (the subscript numbers on type
+  parameters are there to visually identify different parameters
+  with the same name)
 - contract embedding is not implemented yet
 - embedding of interfaces ignores (the notationally new) type
   lists in interfaces
@@ -94,7 +94,7 @@ current state and issues.
 TO PLAY WITH THIS PROTOTYPE
 
 - Cherry-pick this CL on top of tip (the cherry-pick was tested with
-  tip at a3dc6da6d6):
+  tip at 4d5bb9c609):
 
   git fetch "https://go.googlesource.com/go" ... && git cherry-pick FETCH_HEAD
 
@@ -127,5 +127,6 @@ Updates:
 10/8/2019: Contracts with type constraints starting to be usable.
 12/15/2019: Significant progress with much of the functionality present.
 12/19/2019: Several bugs around type bounds checking fixed; more complex examples.
+12/20/2019: Treat contracts as objects, not types anymore. Various bug fixes and more examples.
 
 Change-Id: I29839b5e95d7050fce1dcb3334d3d324883cf76f
