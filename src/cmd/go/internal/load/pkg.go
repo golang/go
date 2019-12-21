@@ -739,7 +739,13 @@ func loadPackageData(path, parentPath, parentDir, parentRoot string, parentIsStd
 			}
 			data.p, data.err = cfg.BuildContext.Import(r.path, parentDir, buildMode)
 		}
-		data.p.ImportPath = r.path
+
+		// If no Go files were found in directory, set provided package path as ImportPath
+		if _, ok := data.err.(*build.NoGoError); ok {
+			data.p.ImportPath = path
+		} else {
+			data.p.ImportPath = r.path
+		}
 
 		// Set data.p.BinDir in cases where go/build.Context.Import
 		// may give us a path we don't want.
