@@ -1,0 +1,15 @@
+package assign
+
+func _() {
+	var (
+		myInt int //@item(assignInt, "myInt", "int", "var")
+		myStr string //@item(assignStr, "myStr", "string", "var")
+	)
+
+	var _ string = my //@rank(" //", assignStr, assignInt)
+	var _ string = //@rank(" //", assignStr, assignInt)
+}
+
+func _() {
+	var a string = a //@complete(" //")
+}

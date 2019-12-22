@@ -714,11 +714,14 @@ func (c *completer) lexical() error {
 		if scope == nil {
 			continue
 		}
+
+	Names:
 		for _, name := range scope.Names() {
 			declScope, obj := scope.LookupParent(name, c.pos)
 			if declScope != scope {
 				continue // Name was declared in some enclosing scope, or not at all.
 			}
+
 			// If obj's type is invalid, find the AST node that defines the lexical block
 			// containing the declaration of obj. Don't resolve types for packages.
 			if _, ok := obj.(*types.PkgName); !ok && !typeIsValid(obj.Type()) {
@@ -734,6 +737,15 @@ func (c *completer) lexical() error {
 					fset := c.snapshot.View().Session().Cache().FileSet()
 					if resolved := resolveInvalid(fset, obj, node, c.pkg.GetTypesInfo()); resolved != nil {
 						obj = resolved
+					}
+				}
+			}
+
+			// Don't use LHS of value spec in RHS.
+			if vs := enclosingValueSpec(c.path, c.pos); vs != nil {
+				for _, ident := range vs.Names {
+					if obj.Pos() == ident.Pos() {
+						continue Names
 					}
 				}
 			}
@@ -1160,6 +1172,11 @@ Nodes:
 				}
 			}
 			return inf
+		case *ast.ValueSpec:
+			if node.Type != nil && c.pos > node.Type.End() {
+				inf.objType = c.pkg.GetTypesInfo().TypeOf(node.Type)
+			}
+			break Nodes
 		case *ast.CallExpr:
 			// Only consider CallExpr args if position falls between parens.
 			if node.Lparen <= c.pos && c.pos <= node.Rparen {

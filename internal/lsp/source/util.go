@@ -441,6 +441,16 @@ func enclosingSelector(path []ast.Node, pos token.Pos) *ast.SelectorExpr {
 	return nil
 }
 
+func enclosingValueSpec(path []ast.Node, pos token.Pos) *ast.ValueSpec {
+	for _, n := range path {
+		if vs, ok := n.(*ast.ValueSpec); ok {
+			return vs
+		}
+	}
+
+	return nil
+}
+
 // typeConversion returns the type being converted to if call is a type
 // conversion expression.
 func typeConversion(call *ast.CallExpr, info *types.Info) types.Type {
