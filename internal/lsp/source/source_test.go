@@ -189,23 +189,12 @@ func (r *runner) FuzzyCompletion(t *testing.T, src span.Span, test tests.Complet
 	for _, pos := range test.CompletionItems {
 		want = append(want, tests.ToProtocolCompletionItem(*items[pos]))
 	}
-	prefix, list := r.callCompletion(t, src, source.CompletionOptions{
+	_, got := r.callCompletion(t, src, source.CompletionOptions{
 		FuzzyMatching: true,
 		Deep:          true,
 	})
 	if !strings.Contains(string(src.URI()), "builtins") {
-		list = tests.FilterBuiltins(list)
-	}
-	var fuzzyMatcher *fuzzy.Matcher
-	if prefix != "" {
-		fuzzyMatcher = fuzzy.NewMatcher(prefix)
-	}
-	var got []protocol.CompletionItem
-	for _, item := range list {
-		if fuzzyMatcher != nil && fuzzyMatcher.Score(item.Label) <= 0 {
-			continue
-		}
-		got = append(got, item)
+		got = tests.FilterBuiltins(got)
 	}
 	if msg := tests.DiffCompletionItems(want, got); msg != "" {
 		t.Errorf("%s: %s", src, msg)
@@ -233,19 +222,11 @@ func (r *runner) RankCompletion(t *testing.T, src span.Span, test tests.Completi
 	for _, pos := range test.CompletionItems {
 		want = append(want, tests.ToProtocolCompletionItem(*items[pos]))
 	}
-	prefix, list := r.callCompletion(t, src, source.CompletionOptions{
+	_, got := r.callCompletion(t, src, source.CompletionOptions{
 		FuzzyMatching: true,
 		Deep:          true,
 		Literal:       true,
 	})
-	fuzzyMatcher := fuzzy.NewMatcher(prefix)
-	var got []protocol.CompletionItem
-	for _, item := range list {
-		if fuzzyMatcher.Score(item.Label) <= 0 {
-			continue
-		}
-		got = append(got, item)
-	}
 	if msg := tests.CheckCompletionOrder(want, got, true); msg != "" {
 		t.Errorf("%s: %s", src, msg)
 	}

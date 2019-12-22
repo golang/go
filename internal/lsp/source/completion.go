@@ -363,6 +363,13 @@ type candidate struct {
 	// For example, expandFuncCall=true yields "foo()", expandFuncCall=false yields "foo".
 	expandFuncCall bool
 
+	// takeAddress is true if the completion should take a pointer to obj.
+	// For example, takeAddress=true yields "&foo", takeAddress=false yields "foo".
+	takeAddress bool
+
+	// addressable is true if a pointer can be taken to the candidate.
+	addressable bool
+
 	// imp is the import that needs to be added to this package in order
 	// for this candidate to be valid. nil if no import needed.
 	imp *importInfo
@@ -537,7 +544,8 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 	return c.items, c.getSurrounding(), nil
 }
 
-// populateCommentCompletions returns completions for an exported variable immediately preceeding comment
+// populateCommentCompletions yields completions for an exported
+// variable immediately preceding comment.
 func (c *completer) populateCommentCompletions(comment *ast.CommentGroup) {
 
 	// Using the comment position find the line after
@@ -653,10 +661,12 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 func (c *completer) packageMembers(pkg *types.Package, imp *importInfo) {
 	scope := pkg.Scope()
 	for _, name := range scope.Names() {
+		obj := scope.Lookup(name)
 		c.found(candidate{
-			obj:   scope.Lookup(name),
-			score: stdScore,
-			imp:   imp,
+			obj:         obj,
+			score:       stdScore,
+			imp:         imp,
+			addressable: isVar(obj),
 		})
 	}
 }
@@ -676,18 +686,20 @@ func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *impo
 
 	for i := 0; i < mset.Len(); i++ {
 		c.found(candidate{
-			obj:   mset.At(i).Obj(),
-			score: stdScore,
-			imp:   imp,
+			obj:         mset.At(i).Obj(),
+			score:       stdScore,
+			imp:         imp,
+			addressable: addressable || isPointer(typ),
 		})
 	}
 
 	// Add fields of T.
 	for _, f := range fieldSelections(typ) {
 		c.found(candidate{
-			obj:   f,
-			score: stdScore,
-			imp:   imp,
+			obj:         f,
+			score:       stdScore,
+			imp:         imp,
+			addressable: addressable || isPointer(typ),
 		})
 	}
 	return nil
@@ -778,8 +790,9 @@ func (c *completer) lexical() error {
 			if _, ok := seen[obj.Name()]; !ok {
 				seen[obj.Name()] = struct{}{}
 				c.found(candidate{
-					obj:   obj,
-					score: score,
+					obj:         obj,
+					score:       score,
+					addressable: isVar(obj),
 				})
 			}
 		}
@@ -1116,11 +1129,11 @@ type typeModifier struct {
 type typeMod int
 
 const (
-	star      typeMod = iota // dereference operator for expressions, pointer indicator for types
-	reference                // reference ("&") operator
-	chanRead                 // channel read ("<-") operator
-	slice                    // make a slice type ("[]" in "[]int")
-	array                    // make an array type ("[2]" in "[2]int")
+	star     typeMod = iota // pointer indirection for expressions, pointer indicator for types
+	address                 // address operator ("&")
+	chanRead                // channel read operator ("<-")
+	slice                   // make a slice type ("[]" in "[]int")
+	array                   // make an array type ("[2]" in "[2]int")
 )
 
 // typeInference holds information we have inferred about a type that can be
@@ -1347,7 +1360,7 @@ Nodes:
 		case *ast.UnaryExpr:
 			switch node.Op {
 			case token.AND:
-				inf.modifiers = append(inf.modifiers, typeModifier{mod: reference})
+				inf.modifiers = append(inf.modifiers, typeModifier{mod: address})
 			case token.ARROW:
 				inf.modifiers = append(inf.modifiers, typeModifier{mod: chanRead})
 			}
@@ -1362,22 +1375,36 @@ Nodes:
 }
 
 // applyTypeModifiers applies the list of type modifiers to a type.
-func (ti typeInference) applyTypeModifiers(typ types.Type) types.Type {
+// It returns nil if the modifiers could not be applied.
+func (ti typeInference) applyTypeModifiers(typ types.Type, addressable bool) types.Type {
 	for _, mod := range ti.modifiers {
 		switch mod.mod {
 		case star:
-			// For every "*" deref operator, remove a pointer layer from candidate type.
-			typ = deref(typ)
-		case reference:
-			// For every "&" ref operator, add another pointer layer to candidate type.
-			typ = types.NewPointer(typ)
+			// For every "*" indirection operator, remove a pointer layer
+			// from candidate type.
+			if ptr, ok := typ.Underlying().(*types.Pointer); ok {
+				typ = ptr.Elem()
+			} else {
+				return nil
+			}
+		case address:
+			// For every "&" address operator, add another pointer layer to
+			// candidate type, if the candidate is addressable.
+			if addressable {
+				typ = types.NewPointer(typ)
+			} else {
+				return nil
+			}
 		case chanRead:
 			// For every "<-" operator, remove a layer of channelness.
 			if ch, ok := typ.(*types.Chan); ok {
 				typ = ch.Elem()
+			} else {
+				return nil
 			}
 		}
 	}
+
 	return typ
 }
 
@@ -1544,10 +1571,8 @@ Nodes:
 	}
 }
 
-// matchingType reports whether a type matches the expected type.
-func (c *completer) matchingType(T types.Type) bool {
-	fakeObj := types.NewVar(token.NoPos, c.pkg.GetTypes(), "", T)
-	return c.matchingCandidate(&candidate{obj: fakeObj})
+func (c *completer) fakeObj(T types.Type) *types.Var {
+	return types.NewVar(token.NoPos, c.pkg.GetTypes(), "", T)
 }
 
 // matchingCandidate reports whether a candidate matches our type
@@ -1576,7 +1601,10 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 		}
 
 		// Take into account any type modifiers on the expected type.
-		candType = c.expectedType.applyTypeModifiers(candType)
+		candType = c.expectedType.applyTypeModifiers(candType, cand.addressable)
+		if candType == nil {
+			return false
+		}
 
 		// Handle untyped values specially since AssignableTo gives false negatives
 		// for them (see https://golang.org/issue/32146).
@@ -1629,8 +1657,15 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 		}
 	}
 
-	if c.expectedType.convertibleTo != nil {
-		return types.ConvertibleTo(candType, c.expectedType.convertibleTo)
+	if c.expectedType.convertibleTo != nil && types.ConvertibleTo(candType, c.expectedType.convertibleTo) {
+		return true
+	}
+
+	// Check if cand is addressable and a pointer to cand matches our type inference.
+	if cand.addressable && c.matchingCandidate(&candidate{obj: c.fakeObj(types.NewPointer(candType))}) {
+		// Mark the candidate so we know to prepend "&" when formatting.
+		cand.takeAddress = true
+		return true
 	}
 
 	return false

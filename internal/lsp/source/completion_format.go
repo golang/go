@@ -130,6 +130,30 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		}
 	}
 
+	// Prepend "&" operator if our candidate needs address taken.
+	if cand.takeAddress {
+		var (
+			sel *ast.SelectorExpr
+			ok  bool
+		)
+		if sel, ok = c.path[0].(*ast.SelectorExpr); !ok && len(c.path) > 1 {
+			sel, _ = c.path[1].(*ast.SelectorExpr)
+		}
+
+		// If we are in a selector, add an edit to place "&" before selector node.
+		if sel != nil {
+			edits, err := referenceEdit(c.snapshot.View().Session().Cache().FileSet(), c.mapper, sel)
+			if err != nil {
+				log.Error(c.ctx, "error generating reference edit", err)
+			} else {
+				protocolEdits = append(protocolEdits, edits...)
+			}
+		} else {
+			// If there is no selector, just stick the "&" at the start.
+			insert = "&" + insert
+		}
+	}
+
 	detail = strings.TrimPrefix(detail, "untyped ")
 	item := CompletionItem{
 		Label:               label,

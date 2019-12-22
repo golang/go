@@ -188,9 +188,7 @@ func (c *completer) deepSearch(cand candidate) {
 	case *types.PkgName:
 		c.packageMembers(obj.Imported(), cand.imp)
 	default:
-		// For now it is okay to assume obj is addressable since we don't search beyond
-		// function calls.
-		c.methodsAndFields(obj.Type(), true, cand.imp)
+		c.methodsAndFields(obj.Type(), cand.addressable, cand.imp)
 	}
 
 	// Pop the object off our search stack.

@@ -387,6 +387,11 @@ func isPointer(T types.Type) bool {
 	return ok
 }
 
+func isVar(obj types.Object) bool {
+	_, ok := obj.(*types.Var)
+	return ok
+}
+
 // deref returns a pointer's element type, traversing as many levels as needed.
 // Otherwise it returns typ.
 func deref(typ types.Type) types.Type {
