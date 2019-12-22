@@ -605,85 +605,75 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 }
 
 func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeName) {
-	// Declare type parameters up-front.
+	// Declare type parameters up-front, with empty interface as type bound.
 	// If we use interfaces as type bounds, the scope of type parameters starts at
 	// the beginning of the type parameter list (so we can have mutually recursive
 	// parameterized interfaces). If we use contracts, it doesn't matter that the
-	// type parameters are all declared early (it's not observable).
+	// type parameters are all declared early (it's not observable since a contract
+	// always applies to the type parameter names immediately preceeding it).
 	index := 0
 	for _, f := range list.List {
 		for i, name := range f.Names {
-			tparams = append(tparams, check.declareTypeParam(name, index+i, nil))
+			tparams = append(tparams, check.declareTypeParam(name, index+i, &emptyInterface))
 		}
 		index += len(f.Names)
 	}
 
-	// TODO(gri) clean up this loop - can be written much more cleanly
+	setBoundAt := func(at int, bound Type) {
+		assert(IsInterface(bound))
+		tparams[at].typ.(*TypeParam).bound = bound
+	}
+
 	index = 0
 	for _, f := range list.List {
-		var contr *Contract
-		var bound Type = &emptyInterface
-		if f.Type != nil {
-			// If f.Type denotes a contract, handle everything here so we don't
-			// need to set up a special contract mode for operands just to carry
-			// its information through in form of some contract Type.
-			// TODO(gri) should we allow parenthesized contracts? what if there are contract arguments?
-			if ident, ok := f.Type.(*ast.Ident); ok {
-				obj := check.lookup(ident.Name)
-				if contr, _ = obj.(*Contract); contr != nil {
-					if len(f.Names) != len(contr.TParams) {
-						// TODO(gri) improve error message
-						check.errorf(f.Type.Pos(), "%d type parameters but contract expects %d", len(f.Names), len(contr.TParams))
-						// TODO(gri) in this case we don't set any bound - make this uniform
-						break // cannot use this contract
-					}
-				}
-			}
+		if f.Type == nil {
+			goto next
+		}
 
-			if contr == nil {
-				typ := check.typ(f.Type)
-				if typ != Typ[Invalid] {
-					if b, _ := typ.Underlying().(*Interface); b != nil {
-						bound = typ
-					} else {
-						// TODO(gri) same here: in this case we don't set any bound - make this uniform
-						check.errorf(f.Type.Pos(), "%s is not an interface or contract", typ)
-						break
-					}
+		// If f.Type denotes a contract, handle everything here so we don't
+		// need to set up a special contract mode for operands just to carry
+		// its information through in form of some contract Type.
+		if ident, ok := unparen(f.Type).(*ast.Ident); ok {
+			if obj, _ := check.lookup(ident.Name).(*Contract); obj != nil {
+				if len(f.Names) != len(obj.TParams) {
+					check.errorf(f.Type.Pos(), "%d type parameters but contract expects %d", len(f.Names), len(obj.TParams))
+					goto next
 				}
+				// obj is a valid contract
+				// Use contract's matching type parameter bound and
+				// instantiate it with the actual type parameters
+				// (== targs) present.
+				targs := make([]Type, len(f.Names))
+				for i, tparam := range tparams[index : index+len(f.Names)] {
+					targs[i] = tparam.typ
+				}
+				for i, name := range f.Names {
+					bat := obj.boundsAt(i)
+					// TODO(gri) eliminate this nil test by ensuring that all
+					//           contract parameters have an associated bound
+					if bat == nil {
+						continue
+					}
+					setBoundAt(index+i, check.instantiate(name.Pos(), bat, targs, nil))
+				}
+				goto next
 			}
 		}
 
-		// set the type parameter's bound
-		var targs []Type // only needed for contract instantiation; lazily allocated
-		for i, name := range f.Names {
-			assert(name.Name == tparams[index+i].name) // catch index errors
-			// If we have a contract, use its matching type parameter bound
-			// and instantiate it with the actual type parameters (== arguments)
-			// present.
-			bound := bound // TODO(gri) this is confusing - rewrite
-			if contr != nil {
-				// TODO(gri) eliminate this nil test by ensuring that all
-				//           contract parameters have an associated bound
-				if bat := contr.boundsAt(i); bat != nil {
-					if targs == nil {
-						targs = make([]Type, len(f.Names))
-						for i, tparam := range tparams[index : index+len(f.Names)] {
-							targs[i] = tparam.typ
-						}
-					}
-					bound = check.instantiate(name.Pos(), bat, targs, nil)
-				} else {
-					bound = &emptyInterface
-				}
+		// otherwise, bound must be an interface
+		if bound := check.typ(f.Type); IsInterface(bound) {
+			for i, _ := range f.Names {
+				setBoundAt(index+i, bound)
 			}
-			tparams[index+i].typ.(*TypeParam).bound = bound
+		} else if bound != Typ[Invalid] {
+			check.errorf(f.Type.Pos(), "%s is not an interface or contract", bound)
 		}
 
+	next:
 		index += len(f.Names)
 	}
 
-	return tparams
+	return
 }
 
 func (check *Checker) declareTypeParam(name *ast.Ident, index int, bound Type) *TypeName {

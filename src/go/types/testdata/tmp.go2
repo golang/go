@@ -4,6 +4,4 @@
 
 package p
 
-type B(type T) interface {
-	m() B(T)
-}
+type _(type T int /* ERROR not an interface or contract */ ) struct{}
