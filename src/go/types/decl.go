@@ -611,12 +611,8 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 	// parameterized interfaces). If we use contracts, it doesn't matter that the
 	// type parameters are all declared early (it's not observable since a contract
 	// always applies to the type parameter names immediately preceeding it).
-	index := 0
 	for _, f := range list.List {
-		for i, name := range f.Names {
-			tparams = append(tparams, check.declareTypeParam(name, index+i, &emptyInterface))
-		}
-		index += len(f.Names)
+		tparams = check.declareTypeParams(tparams, f.Names, &emptyInterface)
 	}
 
 	setBoundAt := func(at int, bound Type) {
@@ -624,7 +620,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 		tparams[at].typ.(*TypeParam).bound = bound
 	}
 
-	index = 0
+	index := 0
 	for _, f := range list.List {
 		if f.Type == nil {
 			goto next
@@ -676,11 +672,14 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 	return
 }
 
-func (check *Checker) declareTypeParam(name *ast.Ident, index int, bound Type) *TypeName {
-	tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-	check.NewTypeParam(tpar, index, bound)                  // assigns type to tpar as a side-effect
-	check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
-	return tpar
+func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident, bound Type) []*TypeName {
+	for _, name := range names {
+		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
+		check.NewTypeParam(tpar, len(tparams), bound)           // assigns type to tpar as a side-effect
+		check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
+		tparams = append(tparams, tpar)
+	}
+	return tparams
 }
 
 func (check *Checker) addMethodDecls(obj *TypeName) {
@@ -757,12 +756,8 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 			check.openScope(fdecl, "receiver type parameters")
 			defer check.closeScope()
 			// collect and declare the type parameters
-			var list []Type // list of corresponding *TypeParams
-			for index, name := range tparams {
-				tpar := check.declareTypeParam(name, index, nil)
-				obj.tparams = append(obj.tparams, tpar)
-				list = append(list, tpar.typ)
-			}
+			// TODO(gri) should assign this to a specific recv tparam list
+			obj.tparams = check.declareTypeParams(nil, tparams, nil)
 			// determine receiver type to get its type parameters
 			// and the respective type parameter bounds
 			var recvTParams []*TypeName
@@ -774,10 +769,13 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 			}
 			// provide type parameter bounds
 			// - only do this if we have the right number (otherwise an error is reported elsewhere)
-			if len(list) == len(recvTParams) {
-				assert(len(list) == len(obj.tparams))
-				for index, tname := range obj.tparams {
-					bound := recvTParams[index].typ.(*TypeParam).bound
+			if len(obj.tparams) == len(recvTParams) {
+				list := make([]Type, len(obj.tparams))
+				for i, t := range obj.tparams {
+					list[i] = t.typ
+				}
+				for i, tname := range obj.tparams {
+					bound := recvTParams[i].typ.(*TypeParam).bound
 					// bound is (possibly) parameterized in the context of the
 					// receiver type declaration. Substitute parameters for the
 					// current context.

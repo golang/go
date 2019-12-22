@@ -26,14 +26,7 @@ func (check *Checker) contractDecl(contr *Contract, e *ast.ContractSpec) {
 	check.openScope(e, "contract")
 	defer check.closeScope()
 
-	// collect type parameters
-	tparams := make([]*TypeName, len(e.TParams))
-	for index, name := range e.TParams {
-		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-		check.NewTypeParam(tpar, index, nil) // assigns type to tpar as a side-effect
-		check.declare(check.scope, name, tpar, check.scope.pos)
-		tparams[index] = tpar
-	}
+	tparams := check.declareTypeParams(nil, e.TParams, nil)
 
 	// TODO(gri) review this - we probably don't need lazy allocation anymore
 	// Each type parameter's constraints are represented by a (lazily allocated) named interface.
