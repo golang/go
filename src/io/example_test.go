@@ -59,7 +59,7 @@ func ExampleCopyN() {
 func ExampleReadAtLeast() {
 	r := strings.NewReader("some io.Reader stream to be read\n")
 
-	buf := make([]byte, 33)
+	buf := make([]byte, 14)
 	if _, err := io.ReadAtLeast(r, buf, 4); err != nil {
 		log.Fatal(err)
 	}
@@ -78,10 +78,9 @@ func ExampleReadAtLeast() {
 	}
 
 	// Output:
-	// some io.Reader stream to be read
-	//
+	// some io.Reader
 	// error: short buffer
-	// error: EOF
+	// error: unexpected EOF
 }
 
 func ExampleReadFull() {
