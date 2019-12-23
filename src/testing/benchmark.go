@@ -86,7 +86,7 @@ type InternalBenchmark struct {
 // may be called simultaneously from multiple goroutines.
 //
 // Like in tests, benchmark logs are accumulated during execution
-// and dumped to standard error when done. Unlike in tests, benchmark logs
+// and dumped to standard output when done. Unlike in tests, benchmark logs
 // are always printed, so as not to hide output whose existence may be
 // affecting benchmark results.
 type B struct {
