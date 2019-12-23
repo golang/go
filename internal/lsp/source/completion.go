@@ -601,7 +601,7 @@ func (c *completer) wantTypeName() bool {
 }
 
 // See https://golang.org/issue/36001. Unimported completions are expensive.
-const maxUnimported = 20
+const unimportedTarget = 100
 
 // selector finds completions for the specified selector expression.
 func (c *completer) selector(sel *ast.SelectorExpr) error {
@@ -620,15 +620,14 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 	}
 
 	// Try unimported packages.
-	if id, ok := sel.X.(*ast.Ident); ok {
+	if id, ok := sel.X.(*ast.Ident); ok && c.opts.Unimported && len(c.items) < unimportedTarget {
 		pkgExports, err := PackageExports(c.ctx, c.snapshot.View(), id.Name, c.filename)
 		if err != nil {
 			return err
 		}
 		known := c.snapshot.KnownImportPaths()
-		startingItems := len(c.items)
 		for _, pkgExport := range pkgExports {
-			if len(c.items)-startingItems >= maxUnimported {
+			if len(c.items) >= unimportedTarget {
 				break
 			}
 			// If we've seen this import path, use the fully-typed version.
@@ -828,7 +827,7 @@ func (c *completer) lexical() error {
 		}
 	}
 
-	if c.opts.Unimported {
+	if c.opts.Unimported && len(c.items) < unimportedTarget {
 		// Suggest packages that have not been imported yet.
 		pkgs, err := CandidateImports(c.ctx, c.snapshot.View(), c.filename)
 		if err != nil {
@@ -838,9 +837,8 @@ func (c *completer) lexical() error {
 		// Rank unimported packages significantly lower than other results.
 		score *= 0.07
 
-		startingItems := len(c.items)
 		for _, pkg := range pkgs {
-			if len(c.items)-startingItems >= maxUnimported {
+			if len(c.items) >= unimportedTarget {
 				break
 			}
 			if _, ok := seen[pkg.IdentName]; !ok {
