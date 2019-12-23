@@ -16,10 +16,8 @@ Use the [VSCode-Go] plugin, with the following configuration:
 
     // Experimental settings
     "completeUnimported": true, // autocomplete unimported packages
-    "watchFileChanges": true,  // watch file changes outside of the editor
     "deepCompletion": true,     // enable deep completion
-},
-"files.eol": "\n", // formatting only supports LF line endings
+}
 ```
 
 VSCode will complain about the `"gopls"` settings, but they will still work. Once we have a consistent set of settings, we will make the changes in the VSCode plugin necessary to remove the errors.
