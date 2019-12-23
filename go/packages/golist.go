@@ -673,7 +673,7 @@ func golistDriver(cfg *Config, rootsDirs func() *goInfo, words ...string) (*driv
 
 	// Run "go list" for complete
 	// information on the specified packages.
-	buf, err := invokeGo(cfg, golistargs(cfg, words)...)
+	buf, err := invokeGo(cfg, "list", golistargs(cfg, words)...)
 	if err != nil {
 		return nil, err
 	}
@@ -877,7 +877,7 @@ func absJoin(dir string, fileses ...[]string) (res []string) {
 func golistargs(cfg *Config, words []string) []string {
 	const findFlags = NeedImports | NeedTypes | NeedSyntax | NeedTypesInfo
 	fullargs := []string{
-		"list", "-e", "-json",
+		"-e", "-json",
 		fmt.Sprintf("-compiled=%t", cfg.Mode&(NeedCompiledGoFiles|NeedSyntax|NeedTypesInfo|NeedTypesSizes) != 0),
 		fmt.Sprintf("-test=%t", cfg.Tests),
 		fmt.Sprintf("-export=%t", usesExportData(cfg)),
@@ -893,10 +893,13 @@ func golistargs(cfg *Config, words []string) []string {
 }
 
 // invokeGo returns the stdout of a go command invocation.
-func invokeGo(cfg *Config, args ...string) (*bytes.Buffer, error) {
+func invokeGo(cfg *Config, verb string, args ...string) (*bytes.Buffer, error) {
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
-	cmd := exec.CommandContext(cfg.Context, "go", args...)
+	goArgs := []string{verb}
+	goArgs = append(goArgs, cfg.BuildFlags...)
+	goArgs = append(goArgs, args...)
+	cmd := exec.CommandContext(cfg.Context, "go", goArgs...)
 	// On darwin the cwd gets resolved to the real path, which breaks anything that
 	// expects the working directory to keep the original path, including the
 	// go command when dealing with modules.

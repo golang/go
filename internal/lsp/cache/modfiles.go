@@ -17,14 +17,20 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-// Borrowed from (internal/imports/mod.go:620)
 // This function will return the main go.mod file for this folder if it exists and whether the -modfile
 // flag exists for this version of go.
 func modfileFlagExists(ctx context.Context, folder string, env []string) (string, bool, error) {
-	const format = `{{.GoMod}}
-{{range context.ReleaseTags}}{{if eq . "go1.14"}}{{.}}{{end}}{{end}}
-`
-	stdout, err := source.InvokeGo(ctx, folder, env, "list", "-m", "-f", format)
+	var tempEnv []string
+	for i := range env {
+		tempEnv = append(tempEnv, env[i])
+		if strings.Contains(env[i], "GO111MODULE") {
+			tempEnv[i] = "GO111MODULE=off"
+		}
+	}
+	// Borrowed from (internal/imports/mod.go:620)
+	const format = `{{range context.ReleaseTags}}{{if eq . "go1.14"}}{{.}}{{end}}{{end}}`
+	// Check the go version by running "go list" with modules off.
+	stdout, err := source.InvokeGo(ctx, folder, tempEnv, "list", "-f", format)
 	if err != nil {
 		return "", false, err
 	}
@@ -32,7 +38,16 @@ func modfileFlagExists(ctx context.Context, folder string, env []string) (string
 	if len(lines) < 2 {
 		return "", false, errors.Errorf("unexpected stdout: %q", stdout)
 	}
-	return lines[0], lines[1] == "go1.14", nil
+	// Get the go.mod file associated with this module.
+	b, err := source.InvokeGo(ctx, folder, env, "env", "GOMOD")
+	if err != nil {
+		return "", false, err
+	}
+	modfile := strings.TrimSpace(b.String())
+	if modfile == os.DevNull {
+		return "", false, errors.Errorf("go env GOMOD did not detect a go.mod file in this folder")
+	}
+	return modfile, lines[0] == "go1.14", nil
 }
 
 // The function getModfiles will return the go.mod files associated with the directory that is passed in.
@@ -51,22 +66,19 @@ func getModfiles(ctx context.Context, folder string, options source.Options) (*m
 	if modfile == "" || modfile == os.DevNull {
 		return nil, errors.Errorf("go env GOMOD cannot detect a go.mod file in this folder")
 	}
-	f, err := ioutil.TempFile("", "go.*.mod")
+	tempFile, err := ioutil.TempFile("", "go.*.mod")
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer tempFile.Close()
 	// Copy the current go.mod file into the temporary go.mod file.
 	origFile, err := os.Open(modfile)
 	if err != nil {
 		return nil, err
 	}
 	defer origFile.Close()
-	if _, err := io.Copy(f, origFile); err != nil {
+	if _, err := io.Copy(tempFile, origFile); err != nil {
 		return nil, err
 	}
-	if err := f.Close(); err != nil {
-		return nil, err
-	}
-	return &modfiles{real: modfile, temp: f.Name()}, nil
+	return &modfiles{real: modfile, temp: tempFile.Name()}, nil
 }
