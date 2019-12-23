@@ -2,6 +2,8 @@ This file works as a sort of notebook/implementation log. It replaces my noteboo
 so we have a better track record. I only switched to this file recently, hence it is incomplete.
 
 TODO
+- Are function type parameters in the same scope as other parameters? TBD.
+  (Right now they are in an enclosing scope.)
 - use Underlying() to return a type parameter's bound? investigate!
 - better error message when declaring a contract local to a function (parser gets out of sync)
 - if type parameters are repeated in recursive instantiation, they must be the same order (not yet checked)
@@ -9,8 +11,6 @@ TODO
 - interface embedding doesn't take care of literal type constraints yet
   (need an allTypes list, like we have an allMethods list?)
 - type assertions on/against parameterized types
-- move Func.tparams to Signature (as we have done for TypeName.tparams to Named)
-- distinguish more clearly between Signature.tparams and mtparams (the latter are solely for recv type params)
 - use []*TypeParam for tparams in subst? (unclear)
 
 OPEN ISSUES

@@ -293,8 +293,7 @@ func (*Var) isDependency() {} // a variable may be a dependency of an initializa
 // An abstract method may belong to many interfaces due to embedding.
 type Func struct {
 	object
-	hasPtrRecv bool        // only valid for methods that don't have a type yet
-	tparams    []*TypeName // type parameters from left to right (rcvr parameters for methods); or nil
+	hasPtrRecv bool // only valid for methods that don't have a type yet
 }
 
 // NewFunc returns a new function with the given signature, representing
@@ -305,7 +304,7 @@ func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
 	if sig != nil {
 		typ = sig
 	}
-	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, false, nil}
+	return &Func{object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, false}
 }
 
 // FullName returns the package- or receiver-type-qualified name of
@@ -396,26 +395,6 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 	case *Func:
 		buf.WriteString("func ")
 		writeFuncName(buf, obj, qf)
-		// Func.tparams is used for functions and methods; but for methods
-		// these are the receiver parameters. Don't print them twice.
-		// TODO(gri) Consider putting receiver and type parameters in the Func
-		//           object, not the signature. That might simplify things.
-		if len(obj.tparams) > 0 && (typ == nil || typ.(*Signature).recv == nil) {
-			buf.WriteString("(type ")
-			for i, tname := range obj.tparams {
-				if i > 0 {
-					buf.WriteString(", ")
-				}
-				buf.WriteString(tname.name)
-				if tname.typ != nil && tname.typ.(*TypeParam).bound != nil {
-					// TODO(gri) Instead of writing the bound with each type
-					//           parameter, consider bundling them up.
-					buf.WriteByte(' ')
-					WriteType(buf, tname.typ.(*TypeParam).bound, nil)
-				}
-			}
-			buf.WriteByte(')')
-		}
 		if typ != nil {
 			WriteSignature(buf, typ.(*Signature), qf)
 		}

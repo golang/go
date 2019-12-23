@@ -489,20 +489,21 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		// If m has a parameterized receiver type, infer the type parameter
 		// values from the actual receiver provided and then substitute the
 		// type parameters in the signature accordingly.
-		if len(m.tparams) > 0 {
+		sig := m.typ.(*Signature)
+		if len(sig.rparams) > 0 {
 			// check.dump("### recv typ = %s", x.typ)
-			// check.dump("### method = %s tparams = %s", m, m.tparams)
-			recv := m.typ.(*Signature).recv
-			targs := check.infer(recv.pos, m.tparams, NewTuple(recv), []*operand{x})
+			// check.dump("### method = %s tparams = %s", m, m.rparams)
+			targs := check.infer(sig.recv.pos, sig.rparams, NewTuple(sig.recv), []*operand{x})
 			// check.dump("### inferred targs = %s", targs)
 			// Don't modify m. Instead - for now - make a copy of m and use that instead.
 			// (If we modify m, some tests will fail; possibly because the m is in use.)
 			copy := *m
-			copy.typ = check.subst(e.Pos(), m.typ, m.tparams, targs)
+			copy.typ = check.subst(e.Pos(), m.typ, sig.rparams, targs)
 			obj = &copy
 		}
 		// TODO(gri) we also need to do substitution for parameterized interface methods
 		//           (this breaks code in testdata/linalg.go2 at the moment)
+		//           12/20/2019: Is this TODO still correct?
 	}
 
 	if x.mode == typexpr {

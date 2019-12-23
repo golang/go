@@ -80,7 +80,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		iface = check.subst(pos, iface, tparams, targs).(*Interface)
 
 		// update targ method signatures
-		// TODO(gri) This needs documentation and cleanups!
+		// TODO(gri) This needs documentation and clean up!
 		update := func(V Type, sig *Signature) *Signature {
 			V, _ = deref(V)
 			// check.dump(">>> %s: V = %s", pos, V)
@@ -94,7 +94,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 			// check.dump(">>> %s: targs = %s", pos, targs)
 			// check.dump(">>> %s: sig.mtparams = %s", pos, sig.mtparams)
 			// check.dump(">>> %s: sig before: %s, tparams = %s, targs = %s", pos, sig, sig.mtparams, targs)
-			sig = check.subst(pos, sig, sig.mtparams, targs).(*Signature)
+			sig = check.subst(pos, sig, sig.rparams, targs).(*Signature)
 			// check.dump(">>> %s: sig after : %s", pos, sig)
 			return sig
 		}
@@ -144,19 +144,6 @@ func (check *Checker) subst(pos token.Pos, typ Type, tpars []*TypeName, targs []
 	assert(len(tpars) == len(targs))
 	if len(tpars) == 0 {
 		return typ
-	}
-
-	if debug {
-		for i, tpar := range tpars {
-			if tpar == nil {
-				check.dump("%s: tpars[%d] == nil", pos, i)
-				panic("nil type parameter")
-			}
-			if targs[i] == nil {
-				check.dump("%s: targ[%d] == nil", pos, i)
-				panic("nil type argument")
-			}
-		}
 	}
 
 	// common cases
@@ -400,7 +387,6 @@ func (subst *subster) varList(in []*Var) (out []*Var, copied bool) {
 }
 
 func (subst *subster) func_(f *Func) *Func {
-	assert(len(f.tparams) == 0)
 	if f != nil {
 		if typ := subst.typ(f.typ); typ != f.typ {
 			copy := *f

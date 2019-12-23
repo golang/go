@@ -748,52 +748,6 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	// func declarations cannot use iota
 	assert(check.iota == nil)
 
-	fdecl := decl.fdecl
-	if fdecl.IsMethod() {
-		_, rname, tparams := check.unpackRecv(fdecl.Recv.List[0].Type, true)
-		if len(tparams) > 0 {
-			// declare the method's receiver type parameters
-			check.openScope(fdecl, "receiver type parameters")
-			defer check.closeScope()
-			// collect and declare the type parameters
-			// TODO(gri) should assign this to a specific recv tparam list
-			obj.tparams = check.declareTypeParams(nil, tparams, nil)
-			// determine receiver type to get its type parameters
-			// and the respective type parameter bounds
-			var recvTParams []*TypeName
-			if rname != nil {
-				// recv should be a Named type (otherwise an error is reported elsewhere)
-				if recv, _ := check.genericType(rname).(*Named); recv != nil {
-					recvTParams = recv.tparams
-				}
-			}
-			// provide type parameter bounds
-			// - only do this if we have the right number (otherwise an error is reported elsewhere)
-			if len(obj.tparams) == len(recvTParams) {
-				list := make([]Type, len(obj.tparams))
-				for i, t := range obj.tparams {
-					list[i] = t.typ
-				}
-				for i, tname := range obj.tparams {
-					bound := recvTParams[i].typ.(*TypeParam).bound
-					// bound is (possibly) parameterized in the context of the
-					// receiver type declaration. Substitute parameters for the
-					// current context.
-					// TODO(gri) should we assume now that bounds always exist?
-					//           (no bound == empty interface)
-					if bound != nil {
-						bound = check.subst(tname.pos, bound, recvTParams, list)
-						tname.typ.(*TypeParam).bound = bound
-					}
-				}
-			}
-		}
-	} else if fdecl.TParams != nil {
-		check.openScope(fdecl, "function type parameters")
-		defer check.closeScope()
-		obj.tparams = check.collectTypeParams(fdecl.TParams)
-	}
-
 	sig := new(Signature)
 	obj.typ = sig // guard against cycles
 
@@ -805,19 +759,9 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	// TODO(gri) review if this is correct and/or whether we still need this?
 	saved := obj.color_
 	obj.color_ = black
-	check.funcType(sig, fdecl.Recv, fdecl.Type)
+	fdecl := decl.fdecl
+	check.funcType(sig, fdecl.Recv, fdecl.TParams, fdecl.Type)
 	obj.color_ = saved
-
-	// TODO(gri) we should just use one tparam list - clean up
-	if fdecl.IsMethod() {
-		// needed for updating methods during instantiation bounds checking
-		sig.mtparams = obj.tparams
-	} else {
-		// only functions can have type parameters that need to be passed
-		// (the obj.tparams for methods are the receiver parameters)
-		// TODO(gri) remove the need for storing tparams in signatures
-		sig.tparams = obj.tparams
-	}
 
 	// function body must be type-checked after global declarations
 	// (functions implemented elsewhere have no body)

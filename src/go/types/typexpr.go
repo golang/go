@@ -157,7 +157,54 @@ func (check *Checker) genericType(e ast.Expr) Type {
 }
 
 // funcType type-checks a function or method type.
-func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast.FuncType) {
+func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftparams *ast.FieldList, ftyp *ast.FuncType) {
+	if recvPar != nil && len(recvPar.List) > 0 {
+		_, rname, rparams := check.unpackRecv(recvPar.List[0].Type, true)
+		if len(rparams) > 0 {
+			// declare the method's receiver type parameters
+			check.openScope(recvPar, "receiver type parameters")
+			defer check.closeScope()
+			// collect and declare the type parameters
+			sig.rparams = check.declareTypeParams(nil, rparams, nil)
+			// determine receiver type to get its type parameters
+			// and the respective type parameter bounds
+			var recvTParams []*TypeName
+			if rname != nil {
+				// recv should be a Named type (otherwise an error is reported elsewhere)
+				if recv, _ := check.genericType(rname).(*Named); recv != nil {
+					recvTParams = recv.tparams
+				}
+			}
+			// provide type parameter bounds
+			// - only do this if we have the right number (otherwise an error is reported elsewhere)
+			if len(sig.rparams) == len(recvTParams) {
+				list := make([]Type, len(sig.rparams))
+				for i, t := range sig.rparams {
+					list[i] = t.typ
+				}
+				for i, tname := range sig.rparams {
+					bound := recvTParams[i].typ.(*TypeParam).bound
+					// bound is (possibly) parameterized in the context of the
+					// receiver type declaration. Substitute parameters for the
+					// current context.
+					// TODO(gri) should we assume now that bounds always exist?
+					//           (no bound == empty interface)
+					if bound != nil {
+						bound = check.subst(tname.pos, bound, recvTParams, list)
+						tname.typ.(*TypeParam).bound = bound
+					}
+				}
+			}
+		}
+	}
+
+	if ftparams != nil {
+		// TODO(gri) should this be the same scope as for value parameters?
+		check.openScope(ftparams, "function type parameters")
+		defer check.closeScope()
+		sig.tparams = check.collectTypeParams(ftparams)
+	}
+
 	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function")
 	scope.isFunc = true
 	check.recordScope(ftyp, scope)
@@ -328,7 +375,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 	case *ast.FuncType:
 		typ := new(Signature)
 		def.setUnderlying(typ)
-		check.funcType(typ, nil, e)
+		check.funcType(typ, nil, nil, e)
 		return typ
 
 	case *ast.InterfaceType:

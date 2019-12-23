@@ -199,12 +199,10 @@ type Signature struct {
 	// and store it in the Func Object) because when type-checking a function
 	// literal we call the general type checker which returns a general Type.
 	// We then unpack the *Signature and use the scope for the literal body.
-	scope *Scope // function scope, present for package-local signatures
-	recv  *Var   // nil if not a method
-	// TODO(gri) do we need to keep tparams in the Signature, rather than the Func object?
-	// (how are they different from type parameters which we keep with the TypeName?)
+	scope    *Scope      // function scope, present for package-local signatures
+	recv     *Var        // nil if not a method
+	rparams  []*TypeName // reveiver type parameters from left to right; or nil
 	tparams  []*TypeName // type parameters from left to right; or nil
-	mtparams []*TypeName // method type parameters
 	params   *Tuple      // (incoming) parameters from left to right; or nil
 	results  *Tuple      // (outgoing) results from left to right; or nil
 	variadic bool        // true if the last parameter's type is of the form ...T (or string, for append built-in only)
