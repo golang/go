@@ -205,6 +205,9 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 // It returns the new offset and an error, if any.
 // The behavior of Seek on a file opened with O_APPEND is not specified.
 func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
+	if whence < 0 || 2 < whence {
+		return 0, errors.New("invalid whence")
+	}
 	if err := f.checkValid("seek"); err != nil {
 		return 0, err
 	}

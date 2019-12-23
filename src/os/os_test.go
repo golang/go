@@ -1445,6 +1445,14 @@ func TestSeekError(t *testing.T) {
 	if err == nil {
 		t.Fatal("Seek on pipe should fail")
 	}
+	_, err = w.Seek(0, -1)
+	if err == nil {
+		t.Fatal("Seek with invalid whence should fail")
+	}
+	_, err = w.Seek(0, 3)
+	if err == nil {
+		t.Fatal("Seek with invalid whence should fail")
+	}
 	if perr, ok := err.(*PathError); !ok || perr.Err != syscall.ESPIPE {
 		t.Errorf("Seek returned error %v, want &PathError{Err: syscall.ESPIPE}", err)
 	}
