@@ -96,10 +96,10 @@ func TestCgoOption(t *testing.T) {
 	// The test also loads the actual file to verify that the
 	// object is indeed defined at that location.
 	for _, test := range []struct {
-		pkg, name, genericFile string
+		pkg, declKeyword, name, genericFile string
 	}{
-		{"net", "cgoLookupHost", "cgo_stub.go"},
-		{"os/user", "current", "lookup_stubs.go"},
+		{"net", "type", "addrinfoErrno", "cgo_stub.go"},
+		{"os/user", "func", "current", "lookup_stubs.go"},
 	} {
 		cfg := &packages.Config{Mode: packages.LoadSyntax}
 		pkgs, err := packages.Load(cfg, test.pkg)
@@ -134,7 +134,7 @@ func TestCgoOption(t *testing.T) {
 		}
 		line := string(bytes.Split(b, []byte("\n"))[posn.Line-1])
 		// Don't assume posn.Column is accurate.
-		if !strings.Contains(line, "func "+test.name) {
+		if !strings.Contains(line, test.declKeyword+" "+test.name) {
 			t.Errorf("%s: %s not declared here (looking at %q)", posn, obj, line)
 		}
 	}
