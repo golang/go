@@ -158,13 +158,15 @@ func (check *Checker) genericType(e ast.Expr) Type {
 
 // funcType type-checks a function or method type.
 func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftparams *ast.FieldList, ftyp *ast.FuncType) {
+	check.openScope(ftyp, "function")
+	check.scope.isFunc = true
+	check.recordScope(ftyp, check.scope)
+	sig.scope = check.scope
+	defer check.closeScope()
+
 	if recvPar != nil && len(recvPar.List) > 0 {
 		_, rname, rparams := check.unpackRecv(recvPar.List[0].Type, true)
 		if len(rparams) > 0 {
-			// declare the method's receiver type parameters
-			check.openScope(recvPar, "receiver type parameters")
-			defer check.closeScope()
-			// collect and declare the type parameters
 			sig.rparams = check.declareTypeParams(nil, rparams, nil)
 			// determine receiver type to get its type parameters
 			// and the respective type parameter bounds
@@ -199,19 +201,20 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftparams 
 	}
 
 	if ftparams != nil {
-		// TODO(gri) should this be the same scope as for value parameters?
-		check.openScope(ftparams, "function type parameters")
-		defer check.closeScope()
 		sig.tparams = check.collectTypeParams(ftparams)
 	}
 
-	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function")
-	scope.isFunc = true
-	check.recordScope(ftyp, scope)
-
+	// Value (non-type) parameters' scope starts in the function body. Use a temporary scope for their
+	// declarations and the squash that scope into the parent scope (and report any redeclarations at
+	// at that time).
+	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function body (temp. scope)")
 	recvList, _ := check.collectParams(scope, recvPar, false)
 	params, variadic := check.collectParams(scope, ftyp.Params, true)
 	results, _ := check.collectParams(scope, ftyp.Results, false)
+	scope.Squash(func(obj, alt Object) {
+		check.errorf(obj.Pos(), "%s redeclared in this block", obj.Name())
+		check.reportAltDecl(alt)
+	})
 
 	if recvPar != nil {
 		// recv parameter list present (may be empty)
@@ -262,7 +265,6 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftparams 
 		sig.recv = recv
 	}
 
-	sig.scope = scope
 	sig.params = NewTuple(params...)
 	sig.results = NewTuple(results...)
 	sig.variadic = variadic

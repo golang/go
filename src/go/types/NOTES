@@ -2,8 +2,6 @@ This file works as a sort of notebook/implementation log. It replaces my noteboo
 so we have a better track record. I only switched to this file recently, hence it is incomplete.
 
 TODO
-- Are function type parameters in the same scope as other parameters? TBD.
-  (Right now they are in an enclosing scope.)
 - use Underlying() to return a type parameter's bound? investigate!
 - better error message when declaring a contract local to a function (parser gets out of sync)
 - if type parameters are repeated in recursive instantiation, they must be the same order (not yet checked)
@@ -51,3 +49,8 @@ DESIGN/IMPLEMENTATION
 
 - 12/20/2019: Type parameters may be part of type lists in contracts/interfaces. It just falls out
   naturally. Added test cases.
+
+- 12/23/2019: Decision: Type parameters and ordinary (value) parameters are in the same block, notably
+  the function block. The scope of type parameters starts at the 'type' keyword; the scope of ordinary
+  parameters starts with the (opening '{' of the) function body. Both scopes end with the closing '}'
+  of the function body (i.e., the end of the function block).

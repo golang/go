@@ -7,8 +7,7 @@ package p
 func identity(type T)(x T) T { return x }
 
 func _(type)(x int) int
-func _(type T)(T T) T { return T }
-func _(type T)(T T) T { var x T /* ERROR T.*is not a type */ ; return x }
+func _(type T)(T /* ERROR redeclared */ T)()
 func _(type T, T /* ERROR redeclared */ )()
 
 func reverse(type T)(list []T) []T {

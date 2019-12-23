@@ -524,7 +524,7 @@ func (t *Named) AddMethod(m *Func) {
 
 // A TypeParam represents a type parameter type.
 type TypeParam struct {
-	id    uint64    // unique id (TODO should this be with the object? all objects?)
+	id    uint64    // unique id
 	obj   *TypeName // corresponding type name
 	index int       // parameter index
 	bound Type      // *Named or *Interface; underlying type is always *Interface
