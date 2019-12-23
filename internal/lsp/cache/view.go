@@ -304,6 +304,9 @@ func (v *view) shutdown(context.Context) {
 		v.cancel()
 		v.cancel = nil
 	}
+	if v.modfiles != nil {
+		os.Remove(v.modfiles.temp)
+	}
 	debug.DropView(debugView{v})
 }
 
