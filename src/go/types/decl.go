@@ -644,13 +644,8 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 					targs[i] = tparam.typ
 				}
 				for i, name := range f.Names {
-					bat := obj.boundsAt(i)
-					// TODO(gri) eliminate this nil test by ensuring that all
-					//           contract parameters have an associated bound
-					if bat == nil {
-						continue
-					}
-					setBoundAt(index+i, check.instantiate(name.Pos(), bat, targs, nil))
+					bound := obj.boundsAt(i)
+					setBoundAt(index+i, check.instantiate(name.Pos(), bound, targs, nil))
 				}
 				goto next
 			}

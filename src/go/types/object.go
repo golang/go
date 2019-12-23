@@ -323,8 +323,8 @@ func (*Func) isDependency() {} // a function may be a dependency of an initializ
 // A Contract represents a declared contract.
 type Contract struct {
 	object
-	TParams []*TypeName          // type parameters in declaration order
-	Bounds  map[*TypeName]*Named // underlying type is always *Interface
+	TParams []*TypeName // type parameters in declaration order
+	Bounds  []*Named    // underlying type is always *Interface
 }
 
 // NewContract returns a new contract.
@@ -335,7 +335,7 @@ func NewContract(pos token.Pos, pkg *Package, name string) *Contract {
 // boundsAt returns the (named) interface for the respective
 // contract type parameter with the given index.
 func (c *Contract) boundsAt(index int) *Named {
-	return c.Bounds[c.TParams[index]]
+	return c.Bounds[index]
 }
 
 // A Label represents a declared label.
@@ -411,12 +411,11 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 			WriteType(buf, tpar.typ, qf)
 		}
 		buf.WriteString(") {")
-		i := 0
-		for tpar, bound := range obj.Bounds {
+		for i, bound := range obj.Bounds {
 			if i > 0 {
 				buf.WriteString("; ")
 			}
-			WriteType(buf, tpar.typ, qf)
+			WriteType(buf, obj.TParams[i].typ, qf)
 			buf.WriteByte(' ')
 			WriteType(buf, bound, qf)
 			buf.WriteString(" = ")

@@ -16,43 +16,37 @@ type contractType struct{}
 func (contractType) String() string   { return "<dummy contract type>" }
 func (contractType) Underlying() Type { panic("unreachable") }
 
-func (check *Checker) contractDecl(contr *Contract, e *ast.ContractSpec) {
-	assert(contr.typ == nil)
+func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
+	assert(obj.typ == nil)
 
 	// contracts don't have types, but we need to set a type to
 	// detect recursive declarations and satisfy various assertions
-	contr.typ = new(contractType)
+	obj.typ = new(contractType)
 
-	check.openScope(e, "contract")
+	check.openScope(cdecl, "contract")
 	defer check.closeScope()
 
-	tparams := check.declareTypeParams(nil, e.TParams, nil)
+	tparams := check.declareTypeParams(nil, cdecl.TParams, nil)
 
-	// TODO(gri) review this - we probably don't need lazy allocation anymore
-	// Each type parameter's constraints are represented by a (lazily allocated) named interface.
 	// Given a contract C(P1, P2, ... Pn) { ... } we construct named types C1(P1, P2, ... Pn),
 	// C2(P1, P2, ... Pn), ... Cn(P1, P2, ... Pn) with the respective underlying interfaces
-	// representing the type constraints for each of the type parameters (C1 for P1, C2 for P2, etc.).
-	bounds := make(map[*TypeName]*Named)
-	ifaceFor := func(tpar *TypeName) *Named {
-		named := bounds[tpar]
-		if named == nil {
-			index := tpar.typ.(*TypeParam).index
-			tname := NewTypeName(e.Pos(), check.pkg, contr.name+string(subscript(uint64(index))), nil)
-			named = NewNamed(tname, new(Interface), nil)
-			named.tparams = tparams
-			bounds[tpar] = named
-		}
-		return named
+	// representing the (possibly empty) type constraints for each of the type parameters
+	// (C1 for P1, C2 for P2, etc.).
+	bounds := make([]*Named, len(tparams))
+	for i, tpar := range tparams {
+		tname := NewTypeName(tpar.Pos(), check.pkg, obj.name+string(subscript(uint64(i))), nil)
+		named := NewNamed(tname, new(Interface), nil)
+		named.tparams = tparams
+		bounds[i] = named
 	}
 
 	// collect constraints
-	for _, c := range e.Constraints {
+	for _, c := range cdecl.Constraints {
 		if c.Param != nil {
 			// If a type name is present, it must be one of the contract's type parameters.
 			pos := c.Param.Pos()
-			obj := check.scope.Lookup(c.Param.Name)
-			if obj == nil {
+			tobj := check.scope.Lookup(c.Param.Name)
+			if tobj == nil {
 				check.errorf(pos, "%s not declared by contract", c.Param.Name)
 				continue
 			}
@@ -82,8 +76,8 @@ func (check *Checker) contractDecl(contr *Contract, e *ast.ContractSpec) {
 				}
 			}
 
-			tpar := obj.(*TypeName)
-			ifaceName := ifaceFor(tpar)
+			tpar := tobj.(*TypeName)
+			ifaceName := bounds[tpar.typ.(*TypeParam).index]
 			iface := ifaceName.underlying.(*Interface)
 			switch nmethods {
 			case 0:
@@ -124,7 +118,7 @@ func (check *Checker) contractDecl(contr *Contract, e *ast.ContractSpec) {
 				// ignore and continue
 			}
 			if len(c.Types) != 1 {
-				check.invalidAST(e.Pos(), "contract contains incorrect (possibly embedded contract) entry")
+				check.invalidAST(cdecl.Pos(), "contract contains incorrect (possibly embedded contract) entry")
 				continue
 			}
 			// TODO(gri) we can probably get away w/o checking this (even if the AST is broken)
@@ -141,11 +135,11 @@ func (check *Checker) contractDecl(contr *Contract, e *ast.ContractSpec) {
 
 	// complete interfaces
 	for _, bound := range bounds {
-		check.completeInterface(e.Pos(), bound.underlying.(*Interface))
+		check.completeInterface(cdecl.Pos(), bound.underlying.(*Interface))
 	}
 
-	contr.TParams = tparams
-	contr.Bounds = bounds
+	obj.TParams = tparams
+	obj.Bounds = bounds
 }
 
 func (check *Checker) collectTypeConstraints(pos token.Pos, list []Type, types []ast.Expr) []Type {
