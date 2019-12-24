@@ -12,6 +12,7 @@ TODO
 - use []*TypeParam for tparams in subst? (unclear)
 
 OPEN ISSUES
+- a contract that is used earlier than its declaration may not be set up yet
 - instantiating a parameterized function type w/o value or result parameters may have unexpected side-effects
   (we don't make a copy of the signature in some cases) - investigate
 - using a contract and enumerating type arguments currently leads to an error (e.g. func f(type T C(T)) (x T) ... )

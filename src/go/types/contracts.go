@@ -126,10 +126,42 @@ func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
 			if econtr == nil {
 				check.invalidAST(c.Types[0].Pos(), "invalid embedded contract %s", econtr)
 			}
-			etyp := check.typ(c.Types[0])
-			_ = etyp
-			// TODO(gri) complete this
-			check.errorf(c.Types[0].Pos(), "%s: contract embedding not yet implemented", c.Types[0])
+			// Handle contract lookup so we don't need to set up a special contract mode
+			// for operands just to carry its information through in form of some contract Type.
+			// TODO(gri) this code is also in collectTypeParams (decl.go) - factor out!
+			if ident, ok := unparen(econtr.Fun).(*ast.Ident); ok {
+				if eobj, _ := check.lookup(ident.Name).(*Contract); eobj != nil {
+					// TODO(gri) must set up contract if not yet done!
+					// eobj is a valid contract
+					// TODO(gri) look for contract cycles!
+					// contract arguments must match the embedded contract's parameters
+					if len(econtr.Args) != len(eobj.TParams) {
+						check.errorf(c.Types[0].Pos(), "%d type parameters but contract expects %d", len(econtr.Args), len(eobj.TParams))
+						continue
+					}
+					// contract arguments must be type parameters
+					// For now, they must be from the enclosing contract.
+					// TODO(gri) can we allow any type parameter?
+					targs := make([]Type, len(econtr.Args))
+					for i, arg := range econtr.Args {
+						targ := check.typ(arg)
+						if parg, _ := targ.(*TypeParam); parg != nil {
+							// TODO(gri) check that targ is a parameter from the enclosing contract
+							targs[i] = targ
+						} else {
+							check.errorf(arg.Pos(), "%s is not a type parameter", arg)
+						}
+					}
+					// TODO(gri) - implement the steps below
+					// - for each eobj type parameter, determine its (interface) bound
+					// - substitute that type parameter with the actual type argument in that interface
+					// - add the interface as am embedded interface to the bound matching the actual type argument
+					// - tests! (incl. overlapping methods, etc.)
+					check.errorf(c.Types[0].Pos(), "%s: contract embedding not yet implemented", c.Types[0])
+					continue
+				}
+			}
+			check.errorf(c.Types[0].Pos(), "%s is not a contract", c.Types[0])
 		}
 	}
 

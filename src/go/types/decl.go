@@ -636,6 +636,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 					goto next
 				}
 				// obj is a valid contract
+				// TODO(gri) must set up contract if not yet done!
 				// Use contract's matching type parameter bound and
 				// instantiate it with the actual type parameters
 				// (== targs) present.

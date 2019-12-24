@@ -3,3 +3,13 @@
 // license that can be found in the LICENSE file.
 
 package p
+
+contract C1(a, b, c) {
+        a a()
+        b b()
+        c c()
+}
+
+contract C2(a, b) {
+        C1 /* ERROR contract embedding */ (a, b, a)
+}
