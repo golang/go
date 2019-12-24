@@ -53,7 +53,7 @@ func NewReaderSize(rd io.Reader, size int) *Reader {
 		size = minReadBufferSize
 	}
 	r := new(Reader)
-	r.reset(make([]byte, size), rd)
+	r.resetReader(make([]byte, size), rd)
 	return r
 }
 
@@ -68,10 +68,10 @@ func (b *Reader) Size() int { return len(b.buf) }
 // Reset discards any buffered data, resets all state, and switches
 // the buffered reader to read from r.
 func (b *Reader) Reset(r io.Reader) {
-	b.reset(b.buf, r)
+	b.resetReader(b.buf, r)
 }
 
-func (b *Reader) reset(buf []byte, r io.Reader) {
+func (b *Reader) resetReader(buf []byte, r io.Reader) {
 	*b = Reader{
 		buf:          buf,
 		rd:           r,
@@ -558,8 +558,14 @@ func NewWriterSize(w io.Writer, size int) *Writer {
 	if size <= 0 {
 		size = defaultBufSize
 	}
-	return &Writer{
-		buf: make([]byte, size),
+	wr := new(Writer)
+	wr.resetWriter(make([]byte, size), w)
+	return wr
+}
+
+func (b *Writer) resetWriter(buf []byte, w io.Writer) {
+	*b = Writer{
+		buf: buf,
 		wr:  w,
 	}
 }
