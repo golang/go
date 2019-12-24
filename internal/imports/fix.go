@@ -27,7 +27,6 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/tools/go/ast/astutil"
-	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/gopathwalk"
 )
 
@@ -725,9 +724,6 @@ type ProcessEnv struct {
 	GOPATH, GOROOT, GO111MODULE, GOPROXY, GOFLAGS, GOSUMDB string
 	WorkingDir                                             string
 
-	// If true, use go/packages regardless of the environment.
-	ForceGoPackages bool
-
 	// Logf is the default logger for the ProcessEnv.
 	Logf func(format string, args ...interface{})
 
@@ -757,11 +753,6 @@ func (e *ProcessEnv) GetResolver() Resolver {
 	if e.resolver != nil {
 		return e.resolver
 	}
-	if e.ForceGoPackages {
-		e.resolver = &goPackagesResolver{env: e}
-		return e.resolver
-	}
-
 	out, err := e.invokeGo("env", "GOMOD")
 	if err != nil || len(bytes.TrimSpace(out.Bytes())) == 0 {
 		e.resolver = &gopathResolver{env: e}
@@ -769,14 +760,6 @@ func (e *ProcessEnv) GetResolver() Resolver {
 	}
 	e.resolver = &ModuleResolver{env: e}
 	return e.resolver
-}
-
-func (e *ProcessEnv) newPackagesConfig(mode packages.LoadMode) *packages.Config {
-	return &packages.Config{
-		Mode: mode,
-		Dir:  e.WorkingDir,
-		Env:  e.env(),
-	}
 }
 
 func (e *ProcessEnv) buildContext() *build.Context {
@@ -865,81 +848,6 @@ type Resolver interface {
 	loadExports(ctx context.Context, pkg *pkg) (string, []string, error)
 
 	ClearForNewScan()
-}
-
-// gopackagesResolver implements resolver for GOPATH and module workspaces using go/packages.
-type goPackagesResolver struct {
-	env *ProcessEnv
-}
-
-func (r *goPackagesResolver) ClearForNewScan() {}
-
-func (r *goPackagesResolver) loadPackageNames(importPaths []string, srcDir string) (map[string]string, error) {
-	if len(importPaths) == 0 {
-		return nil, nil
-	}
-	cfg := r.env.newPackagesConfig(packages.LoadFiles)
-	pkgs, err := packages.Load(cfg, importPaths...)
-	if err != nil {
-		return nil, err
-	}
-	names := map[string]string{}
-	for _, pkg := range pkgs {
-		names[VendorlessPath(pkg.PkgPath)] = pkg.Name
-	}
-	// We may not have found all the packages. Guess the rest.
-	for _, path := range importPaths {
-		if _, ok := names[path]; ok {
-			continue
-		}
-		names[path] = ImportPathToAssumedName(path)
-	}
-	return names, nil
-
-}
-
-func (r *goPackagesResolver) scan(refs references, _ bool, _ []gopathwalk.RootType) ([]*pkg, error) {
-	var loadQueries []string
-	for pkgName := range refs {
-		loadQueries = append(loadQueries, "iamashamedtousethedisabledqueryname="+pkgName)
-	}
-	sort.Strings(loadQueries)
-	cfg := r.env.newPackagesConfig(packages.LoadFiles)
-	goPackages, err := packages.Load(cfg, loadQueries...)
-	if err != nil {
-		return nil, err
-	}
-
-	var scan []*pkg
-	for _, goPackage := range goPackages {
-		scan = append(scan, &pkg{
-			dir:             filepath.Dir(goPackage.CompiledGoFiles[0]),
-			importPathShort: VendorlessPath(goPackage.PkgPath),
-			goPackage:       goPackage,
-			packageName:     goPackage.Name,
-		})
-	}
-	return scan, nil
-}
-
-func (r *goPackagesResolver) loadExports(ctx context.Context, pkg *pkg) (string, []string, error) {
-	if pkg.goPackage == nil {
-		return "", nil, fmt.Errorf("goPackage not set")
-	}
-	var exports []string
-	fset := token.NewFileSet()
-	for _, fname := range pkg.goPackage.CompiledGoFiles {
-		f, err := parser.ParseFile(fset, fname, nil, 0)
-		if err != nil {
-			return "", nil, fmt.Errorf("parsing %s: %v", fname, err)
-		}
-		for name := range f.Scope.Objects {
-			if ast.IsExported(name) {
-				exports = append(exports, name)
-			}
-		}
-	}
-	return pkg.goPackage.Name, exports, nil
 }
 
 func addExternalCandidates(pass *pass, refs references, filename string) error {
@@ -1138,7 +1046,6 @@ func packageDirToName(dir string) (packageName string, err error) {
 }
 
 type pkg struct {
-	goPackage       *packages.Package
 	dir             string // absolute file path to pkg directory ("/usr/lib/go/src/net/http")
 	importPathShort string // vendorless import path ("net/http", "a/b")
 	packageName     string // package name loaded from source if requested

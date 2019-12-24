@@ -1576,10 +1576,9 @@ var _ = bytes.Buffer
 }
 
 type testConfig struct {
-	gopathOnly             bool
-	goPackagesIncompatible bool
-	module                 packagestest.Module
-	modules                []packagestest.Module
+	gopathOnly bool
+	module     packagestest.Module
+	modules    []packagestest.Module
 }
 
 // fm is the type for a packagestest.Module's Files, abbreviated for shorter lines.
@@ -1592,36 +1591,11 @@ func (c testConfig) test(t *testing.T, fn func(*goimportTest)) {
 		c.modules = []packagestest.Module{c.module}
 	}
 
-	var kinds []string
 	for _, exporter := range packagestest.All {
-		kinds = append(kinds, exporter.Name())
-		kinds = append(kinds, exporter.Name()+"_GoPackages")
-	}
-	for _, kind := range kinds {
-		t.Run(kind, func(t *testing.T) {
+		t.Run(exporter.Name(), func(t *testing.T) {
 			t.Helper()
-
-			forceGoPackages := false
-			var exporter packagestest.Exporter
-			if c.gopathOnly && strings.HasPrefix(kind, "Modules") {
+			if c.gopathOnly && exporter.Name() == "Modules" {
 				t.Skip("test marked GOPATH-only")
-			}
-			if c.goPackagesIncompatible && strings.HasSuffix(kind, "_GoPackages") {
-				t.Skip("test marked go/packages-incompatible")
-			}
-			switch kind {
-			case "GOPATH":
-				exporter = packagestest.GOPATH
-			case "GOPATH_GoPackages":
-				exporter = packagestest.GOPATH
-				forceGoPackages = true
-			case "Modules":
-				exporter = packagestest.Modules
-			case "Modules_GoPackages":
-				exporter = packagestest.Modules
-				forceGoPackages = true
-			default:
-				panic("unknown test type")
 			}
 			exported := packagestest.Export(t, exporter, c.modules)
 			defer exported.Cleanup()
@@ -1636,14 +1610,13 @@ func (c testConfig) test(t *testing.T, fn func(*goimportTest)) {
 			it := &goimportTest{
 				T: t,
 				env: &ProcessEnv{
-					GOROOT:          env["GOROOT"],
-					GOPATH:          env["GOPATH"],
-					GO111MODULE:     env["GO111MODULE"],
-					GOSUMDB:         env["GOSUMDB"],
-					WorkingDir:      exported.Config.Dir,
-					ForceGoPackages: forceGoPackages,
-					Debug:           *testDebug,
-					Logf:            log.Printf,
+					GOROOT:      env["GOROOT"],
+					GOPATH:      env["GOPATH"],
+					GO111MODULE: env["GO111MODULE"],
+					GOSUMDB:     env["GOSUMDB"],
+					WorkingDir:  exported.Config.Dir,
+					Debug:       *testDebug,
+					Logf:        log.Printf,
 				},
 				exported: exported,
 			}
@@ -2459,7 +2432,6 @@ import "bytes"
 var _ = &bytes.Buffer{}
 `
 	testConfig{
-		goPackagesIncompatible: true,
 		module: packagestest.Module{
 			Name: "mycompany.net",
 		},
@@ -2540,7 +2512,6 @@ func TestGetCandidates(t *testing.T) {
 				Files: fm{"bar/bar.go": "package bar\n"},
 			},
 		},
-		goPackagesIncompatible: true, // getAllCandidates doesn't support the go/packages resolver.
 	}.test(t, func(t *goimportTest) {
 		candidates, err := getAllCandidates("x.go", t.env)
 		if err != nil {
@@ -2577,7 +2548,6 @@ func TestGetPackageCompletions(t *testing.T) {
 				Files: fm{"rand/bar.go": "package rand\nvar Bar int\n"},
 			},
 		},
-		goPackagesIncompatible: true, // getPackageCompletions doesn't support the go/packages resolver.
 	}.test(t, func(t *goimportTest) {
 		candidates, err := getPackageExports("rand", "x.go", t.env)
 		if err != nil {
