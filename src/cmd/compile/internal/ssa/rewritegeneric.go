@@ -19680,7 +19680,7 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
 	b := v.Block
 	config := b.Func.Config
 	// match: (StaticCall {sym} s1:(Store _ (Const64 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem))))
-	// cond: isSameSym(sym,"runtime.memmove") && t.(*types.Type).IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst,src,sz,config) && clobber(s1) && clobber(s2) && clobber(s3)
+	// cond: sz >= 0 && isSameSym(sym,"runtime.memmove") && t.(*types.Type).IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst,src,sz,config) && clobber(s1) && clobber(s2) && clobber(s3)
 	// result: (Move {t.(*types.Type).Elem()} [sz] dst src mem)
 	for {
 		sym := v.Aux
@@ -19707,7 +19707,7 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
 		t := s3.Aux
 		mem := s3.Args[2]
 		dst := s3.Args[1]
-		if !(isSameSym(sym, "runtime.memmove") && t.(*types.Type).IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(s1) && clobber(s2) && clobber(s3)) {
+		if !(sz >= 0 && isSameSym(sym, "runtime.memmove") && t.(*types.Type).IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(s1) && clobber(s2) && clobber(s3)) {
 			break
 		}
 		v.reset(OpMove)
@@ -19719,7 +19719,7 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
 		return true
 	}
 	// match: (StaticCall {sym} s1:(Store _ (Const32 [sz]) s2:(Store _ src s3:(Store {t} _ dst mem))))
-	// cond: isSameSym(sym,"runtime.memmove") && t.(*types.Type).IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst,src,sz,config) && clobber(s1) && clobber(s2) && clobber(s3)
+	// cond: sz >= 0 && isSameSym(sym,"runtime.memmove") && t.(*types.Type).IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst,src,sz,config) && clobber(s1) && clobber(s2) && clobber(s3)
 	// result: (Move {t.(*types.Type).Elem()} [sz] dst src mem)
 	for {
 		sym := v.Aux
@@ -19746,7 +19746,7 @@ func rewriteValuegeneric_OpStaticCall(v *Value) bool {
 		t := s3.Aux
 		mem := s3.Args[2]
 		dst := s3.Args[1]
-		if !(isSameSym(sym, "runtime.memmove") && t.(*types.Type).IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(s1) && clobber(s2) && clobber(s3)) {
+		if !(sz >= 0 && isSameSym(sym, "runtime.memmove") && t.(*types.Type).IsPtr() && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(s1) && clobber(s2) && clobber(s3)) {
 			break
 		}
 		v.reset(OpMove)
