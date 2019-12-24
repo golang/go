@@ -92,7 +92,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 				TriggerCharacters: []string{"(", ","},
 			},
 			TextDocumentSync: &protocol.TextDocumentSyncOptions{
-				Change:    options.TextDocumentSyncKind,
+				Change:    protocol.Incremental,
 				OpenClose: true,
 				Save: protocol.SaveOptions{
 					IncludeText: false,
@@ -130,7 +130,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 		)
 	}
 
-	if options.WatchFileChanges && options.DynamicWatchedFilesSupported {
+	if options.DynamicWatchedFilesSupported {
 		registrations = append(registrations, protocol.Registration{
 			ID:     "workspace/didChangeWatchedFiles",
 			Method: "workspace/didChangeWatchedFiles",

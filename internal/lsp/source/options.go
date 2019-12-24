@@ -43,11 +43,22 @@ import (
 
 var (
 	DefaultOptions = Options{
-		Env:                    os.Environ(),
-		TextDocumentSyncKind:   protocol.Incremental,
-		HoverKind:              SynopsisDocumentation,
-		InsertTextFormat:       protocol.PlainTextTextFormat,
-		PreferredContentFormat: protocol.Markdown,
+		ClientOptions:       DefaultClientOptions,
+		ServerOptions:       DefaultServerOptions,
+		UserOptions:         DefaultUserOptions,
+		DebuggingOptions:    DefaultDebuggingOptions,
+		ExperimentalOptions: DefaultExperimentalOptions,
+		Hooks:               DefaultHooks,
+	}
+	DefaultClientOptions = ClientOptions{
+		InsertTextFormat:              protocol.SnippetTextFormat,
+		PreferredContentFormat:        protocol.Markdown,
+		ConfigurationSupported:        true,
+		DynamicConfigurationSupported: true,
+		DynamicWatchedFilesSupported:  true,
+		LineFoldingOnly:               false,
+	}
+	DefaultServerOptions = ServerOptions{
 		SupportedCodeActions: map[FileKind]map[protocol.CodeActionKind]bool{
 			Go: {
 				protocol.SourceOrganizeImports: true,
@@ -61,6 +72,10 @@ var (
 		SupportedCommands: []string{
 			"tidy", // for go.mod files
 		},
+	}
+	DefaultUserOptions = UserOptions{
+		Env:       os.Environ(),
+		HoverKind: SynopsisDocumentation,
 		Completion: CompletionOptions{
 			Documentation: true,
 			Deep:          true,
@@ -68,61 +83,84 @@ var (
 			Literal:       true,
 			Budget:        100 * time.Millisecond,
 		},
+		LinkTarget: "pkg.go.dev",
+	}
+	DefaultHooks = Hooks{
 		ComputeEdits: myers.ComputeEdits,
 		URLRegexp:    regexp.MustCompile(`(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?`),
 		Analyzers:    defaultAnalyzers,
 		GoDiff:       true,
-		LinkTarget:   "pkg.go.dev",
-		TempModfile:  false,
 	}
+	DefaultExperimentalOptions = ExperimentalOptions{
+		TempModfile: false,
+	}
+	DefaultDebuggingOptions = DebuggingOptions{}
 )
 
 type Options struct {
-	// Env is the current set of environment overrides on this view.
-	Env []string
+	ClientOptions
+	ServerOptions
+	UserOptions
+	DebuggingOptions
+	ExperimentalOptions
+	Hooks
+}
 
-	// BuildFlags is used to adjust the build flags applied to the view.
-	BuildFlags []string
-
-	HoverKind        HoverKind
-	DisabledAnalyses map[string]struct{}
-
-	StaticCheck bool
-	GoDiff      bool
-
-	WatchFileChanges              bool
+type ClientOptions struct {
 	InsertTextFormat              protocol.InsertTextFormat
 	ConfigurationSupported        bool
 	DynamicConfigurationSupported bool
 	DynamicWatchedFilesSupported  bool
 	PreferredContentFormat        protocol.MarkupKind
 	LineFoldingOnly               bool
+}
 
+type ServerOptions struct {
 	SupportedCodeActions map[FileKind]map[protocol.CodeActionKind]bool
+	SupportedCommands    []string
+}
 
-	SupportedCommands []string
+type UserOptions struct {
+	// Env is the current set of environment overrides on this view.
+	Env []string
 
-	// TODO: Remove the option once we are certain there are no issues here.
-	TextDocumentSyncKind protocol.TextDocumentSyncKind
+	// BuildFlags is used to adjust the build flags applied to the view.
+	BuildFlags []string
 
-	Completion CompletionOptions
+	// HoverKind specifies the format of the content for hover requests.
+	HoverKind HoverKind
 
-	ComputeEdits diff.ComputeEdits
-	URLRegexp    *regexp.Regexp
+	// DisabledAnalyses specify analyses that the user would like to disable.
+	DisabledAnalyses map[string]struct{}
 
-	Analyzers map[string]*analysis.Analyzer
+	// StaticCheck enables additional analyses from staticcheck.io.
+	StaticCheck bool
+
+	// LinkTarget is the website used for documentation.
+	LinkTarget string
 
 	// LocalPrefix is used to specify goimports's -local behavior.
 	LocalPrefix string
 
-	VerboseOutput bool
+	Completion CompletionOptions
+}
 
+type Hooks struct {
+	GoDiff       bool
+	ComputeEdits diff.ComputeEdits
+	URLRegexp    *regexp.Regexp
+	Analyzers    map[string]*analysis.Analyzer
+}
+
+type ExperimentalOptions struct {
 	// WARNING: This configuration will be changed in the future.
 	// It only exists while this feature is under development.
 	// Disable use of the -modfile flag in Go 1.14.
 	TempModfile bool
+}
 
-	LinkTarget string
+type DebuggingOptions struct {
+	VerboseOutput bool
 }
 
 type CompletionOptions struct {
@@ -241,12 +279,6 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 		}
 		o.BuildFlags = flags
 
-	case "noIncrementalSync":
-		if v, ok := result.asBool(); ok && v {
-			o.TextDocumentSyncKind = protocol.Full
-		}
-	case "watchFileChanges":
-		result.setBool(&o.WatchFileChanges)
 	case "completionDocumentation":
 		result.setBool(&o.Completion.Documentation)
 	case "usePlaceholders":
@@ -312,9 +344,6 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 	case "staticcheck":
 		result.setBool(&o.StaticCheck)
 
-	case "go-diff":
-		result.setBool(&o.GoDiff)
-
 	case "local":
 		localPrefix, ok := value.(string)
 		if !ok {
@@ -348,6 +377,15 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 	case "wantUnimportedCompletions":
 		result.State = OptionDeprecated
 		result.Replacement = "completeUnimported"
+
+	case "noIncrementalSync":
+		result.State = OptionDeprecated
+
+	case "watchFileChanges":
+		result.State = OptionDeprecated
+
+	case "go-diff":
+		result.State = OptionDeprecated
 
 	default:
 		result.State = OptionUnexpected

@@ -132,11 +132,6 @@ func (s *Server) changedText(ctx context.Context, uri span.URI, changes []protoc
 		return []byte(changes[0].Text), nil
 	}
 
-	// We only accept an incremental change if that's what the server expects.
-	if s.session.Options().TextDocumentSyncKind == protocol.Full {
-		return nil, errors.Errorf("expected a full content change, received incremental changes for %s", uri)
-	}
-
 	return s.applyIncrementalChanges(ctx, uri, changes)
 }
 

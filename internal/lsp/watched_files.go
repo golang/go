@@ -20,9 +20,6 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 		ctx := telemetry.File.With(ctx, uri)
 
 		for _, view := range s.session.Views() {
-			if !view.Options().WatchFileChanges {
-				continue
-			}
 			action := toFileAction(change.Type)
 			switch action {
 			case source.Change, source.Create:
