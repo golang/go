@@ -9,16 +9,13 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
-	"regexp"
 	"strconv"
-	"sync"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/tag"
-	errors "golang.org/x/xerrors"
 )
 
 func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLinkParams) ([]protocol.DocumentLink, error) {
@@ -62,7 +59,7 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 			if n.Kind != token.STRING {
 				return false
 			}
-			l, err := findLinksInString(n.Value, n.Pos(), view, m)
+			l, err := findLinksInString(view, n.Value, n.Pos(), m)
 			if err != nil {
 				log.Error(ctx, "cannot find links in string", err)
 				return false
@@ -75,7 +72,7 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 
 	for _, commentGroup := range file.Comments {
 		for _, comment := range commentGroup.List {
-			l, err := findLinksInString(comment.Text, comment.Pos(), view, m)
+			l, err := findLinksInString(view, comment.Text, comment.Pos(), m)
 			if err != nil {
 				log.Error(ctx, "cannot find links in comment", err)
 				continue
@@ -87,14 +84,9 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 	return links, nil
 }
 
-func findLinksInString(src string, pos token.Pos, view source.View, mapper *protocol.ColumnMapper) ([]protocol.DocumentLink, error) {
+func findLinksInString(view source.View, src string, pos token.Pos, mapper *protocol.ColumnMapper) ([]protocol.DocumentLink, error) {
 	var links []protocol.DocumentLink
-	re, err := getURLRegexp()
-	if err != nil {
-		return nil, errors.Errorf("cannot create regexp for links: %s", err.Error())
-	}
-	indexUrl := re.FindAllIndex([]byte(src), -1)
-	for _, urlIndex := range indexUrl {
+	for _, urlIndex := range view.Options().URLRegexp.FindAllIndex([]byte(src), -1) {
 		var target string
 		start := urlIndex[0]
 		end := urlIndex[1]
@@ -108,21 +100,6 @@ func findLinksInString(src string, pos token.Pos, view source.View, mapper *prot
 		links = append(links, l)
 	}
 	return links, nil
-}
-
-const urlRegexpString = "((http|ftp|https)://)?([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:/~+#-]*[\\w@?^=%&/~+#-])?"
-
-var (
-	urlRegexp  *regexp.Regexp
-	regexpOnce sync.Once
-	regexpErr  error
-)
-
-func getURLRegexp() (*regexp.Regexp, error) {
-	regexpOnce.Do(func() {
-		urlRegexp, regexpErr = regexp.Compile(urlRegexpString)
-	})
-	return urlRegexp, regexpErr
 }
 
 func toProtocolLink(view source.View, mapper *protocol.ColumnMapper, target string, start, end token.Pos) (protocol.DocumentLink, error) {

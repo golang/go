@@ -9,11 +9,13 @@ package hooks // import "golang.org/x/tools/gopls/internal/hooks"
 
 import (
 	"golang.org/x/tools/internal/lsp/source"
+	"mvdan.cc/xurls/v2"
 )
 
 func Options(options *source.Options) {
 	if options.GoDiff {
 		options.ComputeEdits = ComputeEdits
 	}
+	options.URLRegexp = xurls.Relaxed()
 	updateAnalyzers(options)
 }

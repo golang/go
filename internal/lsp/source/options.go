@@ -7,6 +7,7 @@ package source
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"time"
 
 	"golang.org/x/tools/go/analysis"
@@ -68,6 +69,7 @@ var (
 			Budget:        100 * time.Millisecond,
 		},
 		ComputeEdits: myers.ComputeEdits,
+		URLRegexp:    regexp.MustCompile(`(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?`),
 		Analyzers:    defaultAnalyzers,
 		GoDiff:       true,
 		LinkTarget:   "pkg.go.dev",
@@ -106,6 +108,7 @@ type Options struct {
 	Completion CompletionOptions
 
 	ComputeEdits diff.ComputeEdits
+	URLRegexp    *regexp.Regexp
 
 	Analyzers map[string]*analysis.Analyzer
 
