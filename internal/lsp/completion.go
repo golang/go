@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -122,8 +123,12 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, rng protocol.
 			// This is a hack so that the client sorts completion results in the order
 			// according to their score. This can be removed upon the resolution of
 			// https://github.com/Microsoft/language-server-protocol/issues/348.
-			SortText:      fmt.Sprintf("%05d", i),
-			FilterText:    candidate.InsertText,
+			SortText: fmt.Sprintf("%05d", i),
+
+			// Trim address operator (VSCode doesn't like weird characters
+			// in filterText).
+			FilterText: strings.TrimLeft(candidate.InsertText, "&"),
+
 			Preselect:     i == 0,
 			Documentation: candidate.Documentation,
 		}

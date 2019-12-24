@@ -152,6 +152,8 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 			// If there is no selector, just stick the "&" at the start.
 			insert = "&" + insert
 		}
+
+		label = "&" + label
 	}
 
 	detail = strings.TrimPrefix(detail, "untyped ")
