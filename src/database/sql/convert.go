@@ -295,6 +295,8 @@ func convertAssignRows(dest, src interface{}, rows *Rows) error {
 		}
 	case nil:
 		switch d := dest.(type) {
+		case *string:
+			return nil
 		case *interface{}:
 			if d == nil {
 				return errNilPtr
