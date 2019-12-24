@@ -74,6 +74,10 @@ func netpollBreak() {
 // delay == 0: does not block, just polls
 // delay > 0: block for up to that many nanoseconds
 func netpoll(delay int64) gList {
+	if iocphandle == _INVALID_HANDLE_VALUE {
+		return gList{}
+	}
+
 	var entries [64]overlappedEntry
 	var wait, qty, key, flags, n, i uint32
 	var errno int32
@@ -82,9 +86,6 @@ func netpoll(delay int64) gList {
 
 	mp := getg().m
 
-	if iocphandle == _INVALID_HANDLE_VALUE {
-		return gList{}
-	}
 	if delay < 0 {
 		wait = _INFINITE
 	} else if delay == 0 {
