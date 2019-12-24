@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"sync"
+	"unsafe"
+)
 
 // Solaris runtime-integrated network poller.
 //
@@ -200,6 +203,12 @@ func netpollBreak() {
 	}
 }
 
+type eventBuf [128]portevent
+
+var eventBufPool = sync.Pool{New: func() interface{} {
+	return eventBuf{}
+}}
+
 // netpoll checks for ready network connections.
 // Returns list of goroutines that become runnable.
 // delay < 0: blocks indefinitely
@@ -226,7 +235,8 @@ func netpoll(delay int64) gList {
 		wait = &ts
 	}
 
-	var events [128]portevent
+	events := eventBufPool.Get().(eventBuf)
+	defer eventBufPool.Put(events)
 retry:
 	var n uint32 = 1
 	r := port_getn(portfd, &events[0], uint32(len(events)), &n, wait)

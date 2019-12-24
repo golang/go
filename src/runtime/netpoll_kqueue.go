@@ -8,7 +8,10 @@ package runtime
 
 // Integrated network poller (kqueue-based implementation).
 
-import "unsafe"
+import (
+	"sync"
+	"unsafe"
+)
 
 var (
 	kq int32 = -1
@@ -92,6 +95,12 @@ func netpollBreak() {
 	}
 }
 
+type eventBuf [64]keventt
+
+var eventBufPool = sync.Pool{New: func() interface{} {
+	return eventBuf{}
+}}
+
 // netpoll checks for ready network connections.
 // Returns list of goroutines that become runnable.
 // delay < 0: blocks indefinitely
@@ -115,7 +124,9 @@ func netpoll(delay int64) gList {
 		}
 		tp = &ts
 	}
-	var events [64]keventt
+
+	events := eventBufPool.Get().(eventBuf)
+	defer eventBufPool.Put(events)
 retry:
 	n := kevent(kq, nil, 0, &events[0], int32(len(events)), tp)
 	if n < 0 {

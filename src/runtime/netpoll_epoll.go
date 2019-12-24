@@ -6,7 +6,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"sync"
+	"unsafe"
+)
 
 func epollcreate(size int32) int32
 func epollcreate1(flags int32) int32
@@ -91,6 +94,12 @@ func netpollBreak() {
 	}
 }
 
+type eventBuf [128]epollevent
+
+var eventBufPool = sync.Pool{New: func() interface{} {
+	return eventBuf{}
+}}
+
 // netpoll checks for ready network connections.
 // Returns list of goroutines that become runnable.
 // delay < 0: blocks indefinitely
@@ -114,7 +123,9 @@ func netpoll(delay int64) gList {
 		// 1e9 ms == ~11.5 days.
 		waitms = 1e9
 	}
-	var events [128]epollevent
+
+	events := eventBufPool.Get().(eventBuf)
+	defer eventBufPool.Put(events)
 retry:
 	n := epollwait(epfd, &events[0], int32(len(events)), waitms)
 	if n < 0 {

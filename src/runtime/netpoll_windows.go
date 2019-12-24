@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"sync"
 	"unsafe"
 )
 
@@ -68,13 +69,18 @@ func netpollBreak() {
 	}
 }
 
+type entryBuf [64]overlappedEntry
+
+var entryBufPool = sync.Pool{New: func() interface{} {
+	return entryBuf{}
+}}
+
 // netpoll checks for ready network connections.
 // Returns list of goroutines that become runnable.
 // delay < 0: blocks indefinitely
 // delay == 0: does not block, just polls
 // delay > 0: block for up to that many nanoseconds
 func netpoll(delay int64) gList {
-	var entries [64]overlappedEntry
 	var wait, qty, key, flags, n, i uint32
 	var errno int32
 	var op *net_op
@@ -98,6 +104,9 @@ func netpoll(delay int64) gList {
 		// 1e9 ms == ~11.5 days.
 		wait = 1e9
 	}
+
+	entries := entryBufPool.Get().(entryBuf)
+	defer entryBufPool.Put(entries)
 
 	if _GetQueuedCompletionStatusEx != nil {
 		n = uint32(len(entries) / int(gomaxprocs))
