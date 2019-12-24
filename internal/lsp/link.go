@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"regexp"
 	"strconv"
+	"sync"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -80,20 +82,35 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 			links = append(links, l...)
 		}
 	}
-
 	return links, nil
 }
 
-func findLinksInString(view source.View, src string, pos token.Pos, mapper *protocol.ColumnMapper) ([]protocol.DocumentLink, error) {
+func findLinksInString(view source.View, src string, pos token.Pos, m *protocol.ColumnMapper) ([]protocol.DocumentLink, error) {
 	var links []protocol.DocumentLink
-	for _, urlIndex := range view.Options().URLRegexp.FindAllIndex([]byte(src), -1) {
-		var target string
-		start := urlIndex[0]
-		end := urlIndex[1]
+	for _, index := range view.Options().URLRegexp.FindAllIndex([]byte(src), -1) {
+		start, end := index[0], index[1]
 		startPos := token.Pos(int(pos) + start)
 		endPos := token.Pos(int(pos) + end)
-		target = src[start:end]
-		l, err := toProtocolLink(view, mapper, target, startPos, endPos)
+		target := src[start:end]
+		l, err := toProtocolLink(view, m, target, startPos, endPos)
+		if err != nil {
+			return nil, err
+		}
+		links = append(links, l)
+	}
+	// Handle golang/go#1234-style links.
+	r := getIssueRegexp()
+	for _, index := range r.FindAllIndex([]byte(src), -1) {
+		start, end := index[0], index[1]
+		startPos := token.Pos(int(pos) + start)
+		endPos := token.Pos(int(pos) + end)
+		matches := r.FindStringSubmatch(src)
+		if len(matches) < 4 {
+			continue
+		}
+		org, repo, number := matches[1], matches[2], matches[3]
+		target := fmt.Sprintf("https://github.com/%s/%s/issues/%s", org, repo, number)
+		l, err := toProtocolLink(view, m, target, startPos, endPos)
 		if err != nil {
 			return nil, err
 		}
@@ -102,12 +119,24 @@ func findLinksInString(view source.View, src string, pos token.Pos, mapper *prot
 	return links, nil
 }
 
-func toProtocolLink(view source.View, mapper *protocol.ColumnMapper, target string, start, end token.Pos) (protocol.DocumentLink, error) {
+func getIssueRegexp() *regexp.Regexp {
+	once.Do(func() {
+		issueRegexp = regexp.MustCompile(`(\w+)/([\w-]+)#([0-9]+)`)
+	})
+	return issueRegexp
+}
+
+var (
+	once        sync.Once
+	issueRegexp *regexp.Regexp
+)
+
+func toProtocolLink(view source.View, m *protocol.ColumnMapper, target string, start, end token.Pos) (protocol.DocumentLink, error) {
 	spn, err := span.NewRange(view.Session().Cache().FileSet(), start, end).Span()
 	if err != nil {
 		return protocol.DocumentLink{}, err
 	}
-	rng, err := mapper.Range(spn)
+	rng, err := m.Range(spn)
 	if err != nil {
 		return protocol.DocumentLink{}, err
 	}
