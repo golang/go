@@ -1223,16 +1223,16 @@ func parsePostForm(r *Request) (vs url.Values, err error) {
 // For all requests, ParseForm parses the raw query from the URL and updates
 // r.Form.
 //
-// For POST, PUT, and PATCH requests, it also parses the request body as a form
-// and puts the results into both r.PostForm and r.Form. Request body parameters
-// take precedence over URL query string values in r.Form.
+// For POST, PUT, and PATCH requests, it also reads the request body, parses it
+// as a form and puts the results into both r.PostForm and r.Form. Request body
+// parameters take precedence over URL query string values in r.Form.
+//
+// If the request Body's size has not already been limited by MaxBytesReader,
+// the size is capped at 10MB.
 //
 // For other HTTP methods, or when the Content-Type is not
 // application/x-www-form-urlencoded, the request Body is not read, and
 // r.PostForm is initialized to a non-nil, empty value.
-//
-// If the request Body's size has not already been limited by MaxBytesReader,
-// the size is capped at 10MB.
 //
 // ParseMultipartForm calls ParseForm automatically.
 // ParseForm is idempotent.
