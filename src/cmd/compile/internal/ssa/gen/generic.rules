@@ -1938,6 +1938,7 @@
 
 // Inline small or disjoint runtime.memmove calls with constant length.
 (StaticCall {sym} s1:(Store _ (Const(64|32) [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))
+	&& sz >= 0
 	&& isSameSym(sym,"runtime.memmove")
 	&& t.(*types.Type).IsPtr() // avoids TUINTPTR, see issue 30061
 	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
