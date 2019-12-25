@@ -106,7 +106,7 @@ language features. When no command is specified, gopls will default to the 'serv
 command. The language features can also be accessed via the gopls command-line interface.
 
 Available commands are:
-`, app.Name(), app.Name(), app.Serve.Name())
+`)
 	fmt.Fprint(f.Output(), `
 main:
 `)
