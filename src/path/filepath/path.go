@@ -366,12 +366,12 @@ func walk(path string, info os.FileInfo, walkFn WalkFunc) error {
 		// by walkFn. walkFn may ignore err and return nil.
 		// If walkFn returns SkipDir, it will be handled by the caller.
 		// So walk should return whatever walkFn returns.
+		// err1 != nil means walkFn want walk to skip this directory or stop walking.
+		// Therefore, if err1 isn't nil, walk will return
 		return err1
 	}
 	names, err := readDirNames(path)
 	// If err != nil, walk can't walk into this directory.
-	// err1 != nil means walkFn want walk to skip this directory or stop walking.
-	// Therefore, if one of err and err1 isn't nil, walk will return.
 	if err != nil {
 		return err
 	}
