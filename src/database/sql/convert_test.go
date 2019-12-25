@@ -73,6 +73,7 @@ func conversionTests() []conversionTest {
 		{s: someTime, d: &scantime, wanttime: someTime},
 
 		// To strings
+		{s: nil, d: &scanstr, wantstr: ""},
 		{s: "string", d: &scanstr, wantstr: "string"},
 		{s: []byte("byteslice"), d: &scanstr, wantstr: "byteslice"},
 		{s: 123, d: &scanstr, wantstr: "123"},
