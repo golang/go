@@ -447,7 +447,7 @@ func netpollunblock(pd *pollDesc, mode int32, ioready bool) *g {
 			new = pdReady
 		}
 		if atomic.Casuintptr(gpp, old, new) {
-			if old == pdReady || old == pdWait {
+			if old == pdWait {
 				old = 0
 			}
 			return (*g)(unsafe.Pointer(old))
