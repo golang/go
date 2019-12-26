@@ -413,7 +413,10 @@ func (s *pageAlloc) scavengeOne(max uintptr, locked bool) uintptr {
 
 	// Check the chunk containing the scav addr, starting at the addr
 	// and see if there are any free and unscavenged pages.
-	if s.summary[len(s.summary)-1][ci].max() >= uint(minPages) {
+	//
+	// Only check this if s.scavAddr is covered by any address range
+	// in s.inUse, so that we know our check of the summary is safe.
+	if s.inUse.contains(s.scavAddr) && s.summary[len(s.summary)-1][ci].max() >= uint(minPages) {
 		// We only bother looking for a candidate if there at least
 		// minPages free pages at all. It's important that we only
 		// continue if the summary says we can because that's how
