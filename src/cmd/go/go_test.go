@@ -2311,39 +2311,6 @@ func main() {
 	tg.grepStderrNot(`os.Stat .* no such file or directory`, "unexpected stat of archive file")
 }
 
-func TestCoverageWithCgo(t *testing.T) {
-	skipIfGccgo(t, "gccgo has no cover tool")
-	tooSlow(t)
-	if !canCgo {
-		t.Skip("skipping because cgo not enabled")
-	}
-
-	for _, dir := range []string{"cgocover", "cgocover2", "cgocover3", "cgocover4"} {
-		t.Run(dir, func(t *testing.T) {
-			tg := testgo(t)
-			tg.parallel()
-			defer tg.cleanup()
-			tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-			tg.run("test", "-short", "-cover", dir)
-			data := tg.getStdout() + tg.getStderr()
-			checkCoverage(tg, data)
-		})
-	}
-}
-
-func TestCgoAsmError(t *testing.T) {
-	if !canCgo {
-		t.Skip("skipping because cgo not enabled")
-	}
-
-	tg := testgo(t)
-	tg.parallel()
-	defer tg.cleanup()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.runFail("build", "cgoasm")
-	tg.grepBoth("package using cgo has Go assembly file", "did not detect Go assembly file")
-}
-
 func TestCgoDependsOnSyscall(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test that removes $GOROOT/pkg/*_race in short mode")
