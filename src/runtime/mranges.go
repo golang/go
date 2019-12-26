@@ -29,6 +29,11 @@ func (a addrRange) size() uintptr {
 	return a.limit - a.base
 }
 
+// contains returns whether or not the range contains a given address.
+func (a addrRange) contains(addr uintptr) bool {
+	return addr >= a.base && addr < a.limit
+}
+
 // subtract takes the addrRange toPrune and cuts out any overlap with
 // from, then returns the new range. subtract assumes that a and b
 // either don't overlap at all, only overlap on one side, or are equal.
@@ -85,6 +90,15 @@ func (a *addrRanges) findSucc(base uintptr) int {
 		}
 	}
 	return len(a.ranges)
+}
+
+// contains returns true if a covers the address addr.
+func (a *addrRanges) contains(addr uintptr) bool {
+	i := a.findSucc(addr)
+	if i == 0 {
+		return false
+	}
+	return a.ranges[i-1].contains(addr)
 }
 
 // add inserts a new address range to a.
