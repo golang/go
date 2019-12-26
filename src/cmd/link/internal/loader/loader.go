@@ -607,6 +607,21 @@ func (l *Loader) SymName(i Sym) string {
 	return strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
 }
 
+// Returns the version of the i-th symbol.
+func (l *Loader) SymVersion(i Sym) int {
+	if l.IsExternal(i) {
+		if s := l.Syms[i]; s != nil {
+			return int(s.Version)
+		}
+		pp := l.getPayload(i)
+		return pp.ver
+	}
+	r, li := l.toLocal(i)
+	osym := goobj2.Sym{}
+	osym.Read(r.Reader, r.SymOff(li))
+	return int(abiToVer(osym.ABI, r.version))
+}
+
 // Returns the type of the i-th symbol.
 func (l *Loader) SymType(i Sym) sym.SymKind {
 	if l.IsExternal(i) {
