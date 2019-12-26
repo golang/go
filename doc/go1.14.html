@@ -258,6 +258,23 @@ TODO
   <code>plan9/*</code>.
 </p>
 
+<p>
+  A consequence of the implementation of preemption is that on Unix
+  systems, including Linux and macOS systems, programs built with Go
+  1.14 will receive more signals than programs built with earlier
+  releases.
+  This means that programs that use packages
+  like <a href="/pkg/syscall/"><code>syscall</code></a>
+  or <a href="https://godoc.org/golang.org/x/sys/unix"><code>golang.org/x/sys/unix</code></a>
+  will see more slow system calls fail with <code>EINTR</code> errors.
+  Those programs will have to handle those errors in some way, most
+  likely looping to try the system call again.  For more
+  information about this
+  see <a href="http://man7.org/linux/man-pages/man7/signal.7.html"><code>man
+  7 signal</code></a> for Linux systems or similar documentation for
+  other systems.
+</p>
+
 <p><!-- CL 201765, CL 195701 and many others -->
   The page allocator is more efficient and incurs significantly less
   lock contention at high values of <code>GOMAXPROCS</code>.
