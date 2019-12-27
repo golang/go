@@ -97,7 +97,11 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 			allNamed []*types.Named
 			pkgs     = make(map[*types.Package]Package)
 		)
-		for _, pkg := range s.KnownPackages(ctx) {
+		for _, ph := range s.KnownPackages(ctx) {
+			pkg, err := ph.Check(ctx)
+			if err != nil {
+				return nil, err
+			}
 			pkgs[pkg.GetTypes()] = pkg
 
 			info := pkg.GetTypesInfo()

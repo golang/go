@@ -34,24 +34,25 @@ type metadata struct {
 	config *packages.Config
 }
 
-func (s *snapshot) load(ctx context.Context, scope source.Scope) ([]*metadata, error) {
-	uri := scope.URI()
+func (s *snapshot) load(ctx context.Context, scope interface{}) ([]*metadata, error) {
 	var query string
-	switch scope.(type) {
-	case source.FileURI:
-		query = fmt.Sprintf("file=%s", scope.URI().Filename())
-	case source.DirectoryURI:
-		query = fmt.Sprintf("%s/...", scope.URI().Filename())
+	switch scope := scope.(type) {
+	case packageID:
+		query = string(scope)
+	case fileURI:
+		query = fmt.Sprintf("file=%s", span.URI(scope).Filename())
+	case directoryURI:
+		filename := span.URI(scope).Filename()
+		query = fmt.Sprintf("%s/...", filename)
 		// Simplify the query if it will be run in the requested directory.
 		// This ensures compatibility with Go 1.12 that doesn't allow
 		// <directory>/... in GOPATH mode.
-		if s.view.folder.Filename() == scope.URI().Filename() {
+		if s.view.folder.Filename() == filename {
 			query = "./..."
 		}
-	default:
-		panic(fmt.Errorf("unsupported scope type %T", scope))
 	}
-	ctx, done := trace.StartSpan(ctx, "cache.view.load", telemetry.URI.Of(uri))
+
+	ctx, done := trace.StartSpan(ctx, "cache.view.load", telemetry.Query.Of(query))
 	defer done()
 
 	cfg := s.view.Config(ctx)
@@ -60,8 +61,9 @@ func (s *snapshot) load(ctx context.Context, scope source.Scope) ([]*metadata, e
 	// If the context was canceled, return early.
 	// Otherwise, we might be type-checking an incomplete result.
 	if err == context.Canceled {
-		return nil, errors.Errorf("no metadata for %s: %v", uri, err)
+		return nil, err
 	}
+
 	log.Print(ctx, "go/packages.Load", tag.Of("query", query), tag.Of("packages", len(pkgs)))
 	if len(pkgs) == 0 {
 		if err == nil {
@@ -117,13 +119,16 @@ func (c *cache) shouldLoad(ctx context.Context, s *snapshot, originalFH, current
 	return false
 }
 
-func (s *snapshot) updateMetadata(ctx context.Context, uri source.Scope, pkgs []*packages.Package, cfg *packages.Config) ([]*metadata, error) {
+func (s *snapshot) updateMetadata(ctx context.Context, scope interface{}, pkgs []*packages.Package, cfg *packages.Config) ([]*metadata, error) {
 	var results []*metadata
 	for _, pkg := range pkgs {
-		if _, isDir := uri.(source.DirectoryURI); !isDir || s.view.Options().VerboseOutput {
+		if _, isDir := scope.(directoryURI); !isDir || s.view.Options().VerboseOutput {
 			log.Print(ctx, "go/packages.Load", tag.Of("package", pkg.PkgPath), tag.Of("files", pkg.CompiledGoFiles))
 		}
-
+		// Handle golang/go#36292 by ignoring packages with no sources and no errors.
+		if len(pkg.GoFiles) == 0 && len(pkg.CompiledGoFiles) == 0 && len(pkg.Errors) == 0 {
+			continue
+		}
 		// Set the metadata for this package.
 		if err := s.updateImports(ctx, packagePath(pkg.PkgPath), pkg, cfg, map[packageID]struct{}{}); err != nil {
 			return nil, err
@@ -138,7 +143,7 @@ func (s *snapshot) updateMetadata(ctx context.Context, uri source.Scope, pkgs []
 	s.clearAndRebuildImportGraph()
 
 	if len(results) == 0 {
-		return nil, errors.Errorf("no metadata for %s", uri)
+		return nil, errors.Errorf("no metadata for %s", scope)
 	}
 	return results, nil
 }

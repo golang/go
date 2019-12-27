@@ -121,7 +121,7 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 	// Perhaps different calls to NewView can be run in parallel?
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock() // The code after the snapshot is used isn't expensive.
-	m, err := v.snapshot.load(ctx, source.DirectoryURI(folder))
+	m, err := v.snapshot.load(ctx, directoryURI(folder))
 	if err != nil {
 		// Suppress all errors.
 		log.Error(ctx, "failed to load snapshot", err, telemetry.Directory.Of(folder))

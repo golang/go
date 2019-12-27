@@ -58,8 +58,8 @@ type packageData struct {
 	err error
 }
 
-// packageHandle returns a source.CheckPackageHandle for a given package and config.
-func (s *snapshot) packageHandle(ctx context.Context, id packageID, mode source.ParseMode) (*packageHandle, error) {
+// buildPackageHandle returns a source.CheckPackageHandle for a given package and config.
+func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID, mode source.ParseMode) (*packageHandle, error) {
 	// Check if we already have this CheckPackageHandle cached.
 	if ph := s.getPackage(id, mode); ph != nil {
 		return ph, nil
@@ -140,7 +140,7 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 		if s.workspacePackages[depID] {
 			mode = source.ParseFull
 		}
-		depHandle, err := s.packageHandle(ctx, depID, mode)
+		depHandle, err := s.buildPackageHandle(ctx, depID, mode)
 		if err != nil {
 			log.Error(ctx, "no dep handle", err, telemetry.Package.Of(depID))
 

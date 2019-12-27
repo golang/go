@@ -59,7 +59,7 @@ type Snapshot interface {
 	KnownImportPaths() map[string]Package
 
 	// KnownPackages returns all the packages loaded in this snapshot.
-	KnownPackages(ctx context.Context) []Package
+	KnownPackages(ctx context.Context) []PackageHandle
 }
 
 // PackageHandle represents a handle to a specific version of a package.
@@ -326,22 +326,6 @@ const (
 	Sum
 	UnknownKind
 )
-
-type FileURI span.URI
-
-func (f FileURI) URI() span.URI {
-	return span.URI(f)
-}
-
-type DirectoryURI span.URI
-
-func (d DirectoryURI) URI() span.URI {
-	return span.URI(d)
-}
-
-type Scope interface {
-	URI() span.URI
-}
 
 // Package represents a Go package that has been type-checked. It maintains
 // only the relevant fields of a *go/packages.Package.

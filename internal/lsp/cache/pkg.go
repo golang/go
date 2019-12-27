@@ -37,6 +37,10 @@ type pkg struct {
 type packageID string
 type packagePath string
 
+// Declare explicit types for files and directories to distinguish between the two.
+type fileURI span.URI
+type directoryURI span.URI
+
 func (p *pkg) ID() string {
 	return string(p.id)
 }

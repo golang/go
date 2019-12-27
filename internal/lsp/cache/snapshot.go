@@ -73,13 +73,39 @@ func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]
 
 	ctx = telemetry.File.With(ctx, fh.Identity().URI)
 	meta := s.getMetadataForURI(fh.Identity().URI)
-	// Determine if we need to type-check the package.
-	phs, load, check := s.shouldCheck(meta)
 
-	// We may need to re-load package metadata.
-	// We only need to this if it has been invalidated, and is therefore unvailable.
+	phs, err := s.packageHandles(ctx, fileURI(fh.Identity().URI), meta)
+	if err != nil {
+		return nil, err
+	}
+	var results []source.PackageHandle
+	for _, ph := range phs {
+		results = append(results, ph)
+	}
+	return results, nil
+}
+
+func (s *snapshot) PackageHandle(ctx context.Context, pkgID string) (source.PackageHandle, error) {
+	id := packageID(pkgID)
+	var meta []*metadata
+	if m := s.getMetadata(id); m != nil {
+		meta = append(meta, m)
+	}
+	phs, err := s.packageHandles(ctx, id, meta)
+	if err != nil {
+		return nil, err
+	}
+	if len(phs) > 1 {
+		return nil, errors.Errorf("more than one package for %s", id)
+	}
+	return phs[0], nil
+}
+
+func (s *snapshot) packageHandles(ctx context.Context, scope interface{}, meta []*metadata) ([]*packageHandle, error) {
+	// First, determine if we need to reload or recheck the package.
+	phs, load, check := s.shouldCheck(meta)
 	if load {
-		newMeta, err := s.load(ctx, source.FileURI(fh.Identity().URI))
+		newMeta, err := s.load(ctx, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -91,22 +117,22 @@ func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]
 		}
 		meta = newMeta
 	}
+	var results []*packageHandle
 	if check {
-		var results []source.PackageHandle
 		for _, m := range meta {
-			ph, err := s.packageHandle(ctx, m.id, source.ParseFull)
+			ph, err := s.buildPackageHandle(ctx, m.id, source.ParseFull)
 			if err != nil {
 				return nil, err
 			}
 			results = append(results, ph)
 		}
-		phs = results
+	} else {
+		results = phs
 	}
-	if len(phs) == 0 {
-		return nil, errors.Errorf("no CheckPackageHandles for %s", fh.Identity().URI)
+	if len(results) == 0 {
+		return nil, errors.Errorf("packageHandles: no package handles for %v", scope)
 	}
-
-	return phs, nil
+	return results, nil
 }
 
 func missingImports(metadata []*metadata) map[packagePath]struct{} {
@@ -131,33 +157,9 @@ func sameSet(x, y map[packagePath]struct{}) bool {
 	return true
 }
 
-func (s *snapshot) PackageHandle(ctx context.Context, id string) (source.PackageHandle, error) {
-	ctx = telemetry.Package.With(ctx, id)
-
-	m := s.getMetadata(packageID(id))
-	if m == nil {
-		return nil, errors.Errorf("no known metadata for %s", id)
-	}
-	// Determine if we need to type-check the package.
-	phs, load, check := s.shouldCheck([]*metadata{m})
-	if load {
-		return nil, errors.Errorf("outdated metadata for %s, needs re-load", id)
-	}
-	if check {
-		return s.packageHandle(ctx, m.id, source.ParseFull)
-	}
-	if len(phs) == 0 {
-		return nil, errors.Errorf("no check package handle for %s", id)
-	}
-	if len(phs) > 1 {
-		return nil, errors.Errorf("multiple check package handles for a single id: %s", id)
-	}
-	return phs[0], nil
-}
-
 // shouldCheck determines if the packages provided by the metadata
 // need to be re-loaded or re-type-checked.
-func (s *snapshot) shouldCheck(m []*metadata) (phs []source.PackageHandle, load, check bool) {
+func (s *snapshot) shouldCheck(m []*metadata) (phs []*packageHandle, load, check bool) {
 	// No metadata. Re-load and re-check.
 	if len(m) == 0 {
 		return nil, true, true
@@ -252,7 +254,7 @@ func (s *snapshot) addPackage(ph *packageHandle) {
 func (s *snapshot) checkWorkspacePackages(ctx context.Context, m []*metadata) ([]source.PackageHandle, error) {
 	var phs []source.PackageHandle
 	for _, m := range m {
-		ph, err := s.packageHandle(ctx, m.id, source.ParseFull)
+		ph, err := s.buildPackageHandle(ctx, m.id, source.ParseFull)
 		if err != nil {
 			return nil, err
 		}
@@ -272,43 +274,46 @@ func (s *snapshot) WorkspacePackageIDs(ctx context.Context) (ids []string) {
 	return ids
 }
 
-func (s *snapshot) KnownPackages(ctx context.Context) []source.Package {
-	// TODO(matloob): This function exists because KnownImportPaths can't
-	// determine the import paths of all packages. Remove this function
-	// if KnownImportPaths gains that ability. That could happen if
-	// go list or go packages provide that information.
-	pkgIDs := make(map[packageID]bool)
+func (s *snapshot) KnownPackages(ctx context.Context) []source.PackageHandle {
+	// Collect PackageHandles for all of the workspace packages first.
+	// They may need to be reloaded if their metadata has been invalidated.
+	wsPackages := make(map[packageID]bool)
 	s.mu.Lock()
-	for _, m := range s.metadata {
-		pkgIDs[m.id] = true
-	}
-	// Add in all the workspacePackages in case the've been invalidated
-	// in the metadata since their initial load.
 	for id := range s.workspacePackages {
-		pkgIDs[id] = true
+		wsPackages[id] = true
 	}
 	s.mu.Unlock()
 
-	var results []source.Package
+	var results []source.PackageHandle
+	for pkgID := range wsPackages {
+		ph, err := s.PackageHandle(ctx, string(pkgID))
+		if err != nil {
+			log.Error(ctx, "KnownPackages: failed to create PackageHandle", err, telemetry.Package.Of(pkgID))
+			continue
+		}
+		results = append(results, ph)
+	}
+
+	// Once all workspace packages have been checked, the metadata will be up-to-date.
+	// Add all packages known in the workspace (that haven't already been added).
+	pkgIDs := make(map[packageID]bool)
+	s.mu.Lock()
+	for id := range s.metadata {
+		if !wsPackages[id] {
+			pkgIDs[id] = true
+		}
+	}
+	s.mu.Unlock()
+
 	for pkgID := range pkgIDs {
-		mode := source.ParseExported
-		if s.workspacePackages[pkgID] {
-			// Any package in our workspace should be loaded with ParseFull.
-			mode = source.ParseFull
-		}
-		ph, err := s.packageHandle(ctx, pkgID, mode)
+		// Metadata for these packages should already be up-to-date,
+		// so just build the package handle directly (without a reload).
+		ph, err := s.buildPackageHandle(ctx, pkgID, source.ParseExported)
 		if err != nil {
-			log.Error(ctx, "failed to create CheckPackageHandle", err, telemetry.Package.Of(pkgID))
+			log.Error(ctx, "KnownPackages: failed to create PackageHandle", err, telemetry.Package.Of(pkgID))
 			continue
 		}
-		// Check the package now if it's not checked yet.
-		// TODO(matloob): is this too slow?
-		pkg, err := ph.check(ctx)
-		if err != nil {
-			log.Error(ctx, "failed to check package", err, telemetry.Package.Of(pkgID))
-			continue
-		}
-		results = append(results, pkg)
+		results = append(results, ph)
 	}
 
 	return results
