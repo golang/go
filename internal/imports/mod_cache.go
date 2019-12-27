@@ -129,17 +129,17 @@ func (d *dirInfoCache) Keys() (keys []string) {
 	return keys
 }
 
-func (d *dirInfoCache) CachePackageName(info directoryPackageInfo) (directoryPackageInfo, error) {
+func (d *dirInfoCache) CachePackageName(info directoryPackageInfo) (string, error) {
 	if loaded, err := info.reachedStatus(nameLoaded); loaded {
-		return info, err
+		return info.packageName, err
 	}
 	if scanned, err := info.reachedStatus(directoryScanned); !scanned || err != nil {
-		return info, fmt.Errorf("cannot read package name, scan error: %v", err)
+		return "", fmt.Errorf("cannot read package name, scan error: %v", err)
 	}
 	info.packageName, info.err = packageDirToName(info.dir)
 	info.status = nameLoaded
 	d.Store(info.dir, info)
-	return info, info.err
+	return info.packageName, info.err
 }
 
 func (d *dirInfoCache) CacheExports(ctx context.Context, env *ProcessEnv, info directoryPackageInfo) (string, []string, error) {
@@ -150,7 +150,7 @@ func (d *dirInfoCache) CacheExports(ctx context.Context, env *ProcessEnv, info d
 		return "", nil, err
 	}
 	info.packageName, info.exports, info.err = loadExportsFromFiles(ctx, env, info.dir)
-	if info.err == context.Canceled {
+	if info.err == context.Canceled || info.err == context.DeadlineExceeded {
 		return info.packageName, info.exports, info.err
 	}
 	// The cache structure wants things to proceed linearly. We can skip a

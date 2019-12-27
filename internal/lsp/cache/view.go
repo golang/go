@@ -206,9 +206,9 @@ func (v *view) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 
 			log.Print(context.Background(), "background imports cache refresh starting")
 			v.processEnv.GetResolver().ClearForNewScan()
-			_, err := imports.GetAllCandidates("", opts)
+			// TODO(heschi): prime the cache
 			v.cacheRefreshTime = time.Now()
-			log.Print(context.Background(), "background refresh finished with err: ", tag.Of("err", err))
+			log.Print(context.Background(), "background refresh finished with err: ", tag.Of("err", nil))
 		}()
 	}
 

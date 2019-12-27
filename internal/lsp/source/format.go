@@ -313,7 +313,7 @@ func trimToFirstNonImport(fset *token.FileSet, f *ast.File, src []byte, err erro
 }
 
 // CandidateImports returns every import that could be added to filename.
-func CandidateImports(ctx context.Context, view View, filename string) ([]imports.ImportFix, error) {
+func CandidateImports(ctx context.Context, prefix string, view View, filename string) ([]imports.ImportFix, error) {
 	ctx, done := trace.StartSpan(ctx, "source.CandidateImports")
 	defer done()
 
@@ -330,7 +330,7 @@ func CandidateImports(ctx context.Context, view View, filename string) ([]import
 	var imps []imports.ImportFix
 	importFn := func(opts *imports.Options) error {
 		var err error
-		imps, err = imports.GetAllCandidates(filename, opts)
+		imps, err = imports.GetAllCandidates(ctx, prefix, filename, opts)
 		return err
 	}
 	err := view.RunProcessEnvFunc(ctx, importFn, options)
@@ -356,7 +356,7 @@ func PackageExports(ctx context.Context, view View, pkg, filename string) ([]imp
 	var pkgs []imports.PackageExport
 	importFn := func(opts *imports.Options) error {
 		var err error
-		pkgs, err = imports.GetPackageExports(pkg, filename, opts)
+		pkgs, err = imports.GetPackageExports(ctx, pkg, filename, opts)
 		return err
 	}
 	err := view.RunProcessEnvFunc(ctx, importFn, options)

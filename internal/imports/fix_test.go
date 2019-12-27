@@ -5,6 +5,7 @@
 package imports
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"go/build"
@@ -2310,7 +2311,8 @@ func TestPkgIsCandidate(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := pkgIsCandidate(tt.filename, tt.pkgIdent, tt.pkg)
+			refs := references{tt.pkgIdent: nil}
+			got := pkgIsCandidate(tt.filename, refs, tt.pkg)
 			if got != tt.want {
 				t.Errorf("test %d. pkgIsCandidate(%q, %q, %+v) = %v; want %v",
 					i, tt.filename, tt.pkgIdent, *tt.pkg, got, tt.want)
@@ -2513,7 +2515,7 @@ func TestGetCandidates(t *testing.T) {
 			},
 		},
 	}.test(t, func(t *goimportTest) {
-		candidates, err := getAllCandidates("x.go", t.env)
+		candidates, err := getAllCandidates(context.Background(), "", "x.go", t.env)
 		if err != nil {
 			t.Fatalf("GetAllCandidates() = %v", err)
 		}
@@ -2549,7 +2551,7 @@ func TestGetPackageCompletions(t *testing.T) {
 			},
 		},
 	}.test(t, func(t *goimportTest) {
-		candidates, err := getPackageExports("rand", "x.go", t.env)
+		candidates, err := getPackageExports(context.Background(), "rand", "x.go", t.env)
 		if err != nil {
 			t.Fatalf("getPackageCompletions() = %v", err)
 		}

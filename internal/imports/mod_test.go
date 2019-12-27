@@ -4,6 +4,7 @@ package imports
 
 import (
 	"archive/zip"
+	"context"
 	"fmt"
 	"go/build"
 	"io/ioutil"
@@ -89,7 +90,7 @@ package z
 
 	mt.assertFound("y", "y")
 
-	scan, err := mt.resolver.scan(nil, false, nil)
+	scan, err := scanToSlice(mt.resolver, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -572,7 +573,7 @@ func (t *modTest) assertFound(importPath, pkgName string) (string, *pkg) {
 
 func (t *modTest) assertScanFinds(importPath, pkgName string) *pkg {
 	t.Helper()
-	scan, err := t.resolver.scan(nil, true, nil)
+	scan, err := scanToSlice(t.resolver, nil)
 	if err != nil {
 		t.Errorf("scan failed: %v", err)
 	}
@@ -583,6 +584,26 @@ func (t *modTest) assertScanFinds(importPath, pkgName string) *pkg {
 	}
 	t.Errorf("scanning for %v did not find %v", pkgName, importPath)
 	return nil
+}
+
+func scanToSlice(resolver Resolver, exclude []gopathwalk.RootType) ([]*pkg, error) {
+	var mu sync.Mutex
+	var result []*pkg
+	filter := &scanCallback{
+		dirFound: func(pkg *pkg) bool {
+			return true
+		},
+		packageNameLoaded: func(pkg *pkg) bool {
+			mu.Lock()
+			defer mu.Unlock()
+			result = append(result, pkg)
+			return true
+		},
+		exportsLoaded: func(pkg *pkg, exports []string) {
+		},
+	}
+	err := resolver.scan(context.Background(), filter, exclude)
+	return result, err
 }
 
 // assertModuleFoundInDir is the same as assertFound, but also checks that the
@@ -829,7 +850,7 @@ func TestInvalidModCache(t *testing.T) {
 		WorkingDir:  dir,
 	}
 	resolver := &ModuleResolver{env: env}
-	resolver.scan(nil, true, nil)
+	scanToSlice(resolver, nil)
 }
 
 func TestGetCandidatesRanking(t *testing.T) {
@@ -864,7 +885,7 @@ import _ "rsc.io/quote"
 		// Out of scope modules
 		{"quote", "rsc.io/quote/v2"},
 	}
-	candidates, err := getAllCandidates("foo.go", mt.env)
+	candidates, err := getAllCandidates(context.Background(), "", "foo.go", mt.env)
 	if err != nil {
 		t.Fatalf("getAllCandidates() = %v", err)
 	}
@@ -889,10 +910,10 @@ func BenchmarkScanModCache(b *testing.B) {
 		Logf:   log.Printf,
 	}
 	exclude := []gopathwalk.RootType{gopathwalk.RootGOROOT}
-	env.GetResolver().scan(nil, true, exclude)
+	scanToSlice(env.GetResolver(), exclude)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		env.GetResolver().scan(nil, true, exclude)
+		scanToSlice(env.GetResolver(), exclude)
 		env.GetResolver().(*ModuleResolver).ClearForNewScan()
 	}
 }

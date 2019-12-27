@@ -828,8 +828,14 @@ func (c *completer) lexical() error {
 	}
 
 	if c.opts.Unimported && len(c.items) < unimportedTarget {
+		ctx, cancel := context.WithDeadline(c.ctx, c.startTime.Add(c.opts.Budget))
+		defer cancel()
 		// Suggest packages that have not been imported yet.
-		pkgs, err := CandidateImports(c.ctx, c.snapshot.View(), c.filename)
+		prefix := ""
+		if c.surrounding != nil {
+			prefix = c.surrounding.Prefix()
+		}
+		pkgs, err := CandidateImports(ctx, prefix, c.snapshot.View(), c.filename)
 		if err != nil {
 			return err
 		}

@@ -13,7 +13,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 
 	"golang.org/x/tools/internal/gopathwalk"
 	"golang.org/x/tools/internal/module"
@@ -212,7 +211,7 @@ func (r *ModuleResolver) cacheKeys() []string {
 }
 
 // cachePackageName caches the package name for a dir already in the cache.
-func (r *ModuleResolver) cachePackageName(info directoryPackageInfo) (directoryPackageInfo, error) {
+func (r *ModuleResolver) cachePackageName(info directoryPackageInfo) (string, error) {
 	if info.rootType == gopathwalk.RootModuleCache {
 		return r.moduleCacheCache.CachePackageName(info)
 	}
@@ -334,9 +333,9 @@ func (r *ModuleResolver) loadPackageNames(importPaths []string, srcDir string) (
 	return names, nil
 }
 
-func (r *ModuleResolver) scan(_ references, loadNames bool, exclude []gopathwalk.RootType) ([]*pkg, error) {
+func (r *ModuleResolver) scan(ctx context.Context, callback *scanCallback, exclude []gopathwalk.RootType) error {
 	if err := r.init(); err != nil {
-		return nil, err
+		return err
 	}
 
 	// Walk GOROOT, GOPATH/pkg/mod, and the main module.
@@ -360,15 +359,9 @@ func (r *ModuleResolver) scan(_ references, loadNames bool, exclude []gopathwalk
 
 	roots = filterRoots(roots, exclude)
 
-	var result []*pkg
-	var mu sync.Mutex
-
 	// We assume cached directories have not changed. We can skip them and their
 	// children.
 	skip := func(root gopathwalk.Root, dir string) bool {
-		mu.Lock()
-		defer mu.Unlock()
-
 		info, ok := r.cacheLoad(dir)
 		if !ok {
 			return false
@@ -382,9 +375,6 @@ func (r *ModuleResolver) scan(_ references, loadNames bool, exclude []gopathwalk
 
 	// Add anything new to the cache. We'll process everything in it below.
 	add := func(root gopathwalk.Root, dir string) {
-		mu.Lock()
-		defer mu.Unlock()
-
 		r.cacheStore(r.scanDirForPackage(root, dir))
 	}
 
@@ -402,22 +392,28 @@ func (r *ModuleResolver) scan(_ references, loadNames bool, exclude []gopathwalk
 			continue
 		}
 
-		// If we want package names, make sure the cache has them.
-		if loadNames {
+		pkg, err := r.canonicalize(info)
+		if err != nil {
+			continue
+		}
+
+		if callback.dirFound(pkg) {
 			var err error
-			if info, err = r.cachePackageName(info); err != nil {
+			pkg.packageName, err = r.cachePackageName(info)
+			if err != nil {
 				continue
 			}
 		}
 
-		res, err := r.canonicalize(info)
-		if err != nil {
-			continue
+		if callback.packageNameLoaded(pkg) {
+			_, exports, err := r.loadExports(ctx, pkg)
+			if err != nil {
+				continue
+			}
+			callback.exportsLoaded(pkg, exports)
 		}
-		result = append(result, res)
 	}
-
-	return result, nil
+	return nil
 }
 
 // canonicalize gets the result of canonicalizing the packages using the results

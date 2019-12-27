@@ -11,6 +11,7 @@ package imports
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"go/ast"
 	"go/build"
@@ -115,23 +116,23 @@ func ApplyFixes(fixes []*ImportFix, filename string, src []byte, opt *Options, e
 	return formatFile(fileSet, file, src, nil, opt)
 }
 
-// GetAllCandidates gets all of the standard library candidate packages to import in
-// sorted order on import path.
-func GetAllCandidates(filename string, opt *Options) (pkgs []ImportFix, err error) {
+// GetAllCandidates gets all of the packages starting with prefix that can be
+// imported by filename, sorted by import path.
+func GetAllCandidates(ctx context.Context, prefix string, filename string, opt *Options) (pkgs []ImportFix, err error) {
 	_, opt, err = initialize(filename, nil, opt)
 	if err != nil {
 		return nil, err
 	}
-	return getAllCandidates(filename, opt.Env)
+	return getAllCandidates(ctx, prefix, filename, opt.Env)
 }
 
 // GetPackageExports returns all known packages with name pkg and their exports.
-func GetPackageExports(pkg, filename string, opt *Options) (exports []PackageExport, err error) {
+func GetPackageExports(ctx context.Context, pkg, filename string, opt *Options) (exports []PackageExport, err error) {
 	_, opt, err = initialize(filename, nil, opt)
 	if err != nil {
 		return nil, err
 	}
-	return getPackageExports(pkg, filename, opt.Env)
+	return getPackageExports(ctx, pkg, filename, opt.Env)
 }
 
 // initialize sets the values for opt and src.
