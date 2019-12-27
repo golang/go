@@ -98,19 +98,10 @@ func AllImportsFixes(ctx context.Context, snapshot Snapshot, fh FileHandle) (all
 	if hasListErrors(pkg) {
 		return nil, nil, errors.Errorf("%s has list errors, not running goimports", fh.Identity().URI)
 	}
-	options := &imports.Options{
-		// Defaults.
-		AllErrors:  true,
-		Comments:   true,
-		Fragment:   true,
-		FormatOnly: false,
-		TabIndent:  true,
-		TabWidth:   8,
-	}
 	err = snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
 		allFixEdits, editsPerFix, err = computeImportEdits(ctx, snapshot.View(), pgh, opts)
 		return err
-	}, options)
+	})
 	if err != nil {
 		return nil, nil, errors.Errorf("computing fix edits: %v", err)
 	}
@@ -317,23 +308,13 @@ func CandidateImports(ctx context.Context, prefix string, view View, filename st
 	ctx, done := trace.StartSpan(ctx, "source.CandidateImports")
 	defer done()
 
-	options := &imports.Options{
-		// Defaults.
-		AllErrors:  true,
-		Comments:   true,
-		Fragment:   true,
-		FormatOnly: false,
-		TabIndent:  true,
-		TabWidth:   8,
-	}
-
 	var imps []imports.ImportFix
 	importFn := func(opts *imports.Options) error {
 		var err error
 		imps, err = imports.GetAllCandidates(ctx, prefix, filename, opts)
 		return err
 	}
-	err := view.RunProcessEnvFunc(ctx, importFn, options)
+	err := view.RunProcessEnvFunc(ctx, importFn)
 	return imps, err
 }
 
@@ -343,23 +324,13 @@ func PackageExports(ctx context.Context, view View, pkg, filename string) ([]imp
 	ctx, done := trace.StartSpan(ctx, "source.PackageExports")
 	defer done()
 
-	options := &imports.Options{
-		// Defaults.
-		AllErrors:  true,
-		Comments:   true,
-		Fragment:   true,
-		FormatOnly: false,
-		TabIndent:  true,
-		TabWidth:   8,
-	}
-
 	var pkgs []imports.PackageExport
 	importFn := func(opts *imports.Options) error {
 		var err error
 		pkgs, err = imports.GetPackageExports(ctx, pkg, filename, opts)
 		return err
 	}
-	err := view.RunProcessEnvFunc(ctx, importFn, options)
+	err := view.RunProcessEnvFunc(ctx, importFn)
 	return pkgs, err
 }
 

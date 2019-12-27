@@ -110,9 +110,9 @@ type View interface {
 	// Config returns the configuration for the view.
 	Config(ctx context.Context) *packages.Config
 
-	// RunProcessEnvFunc runs fn with the process env for this view inserted into opts.
+	// RunProcessEnvFunc runs fn with the process env for this view.
 	// Note: the process env contains cached module and filesystem state.
-	RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error, opts *imports.Options) error
+	RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error) error
 
 	// Options returns a copy of the Options for this view.
 	Options() Options

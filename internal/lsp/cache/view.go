@@ -171,7 +171,7 @@ func (v *view) Config(ctx context.Context) *packages.Config {
 	}
 }
 
-func (v *view) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error, opts *imports.Options) error {
+func (v *view) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	if v.processEnv == nil {
@@ -187,7 +187,17 @@ func (v *view) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 	}
 
 	// Run the user function.
-	opts.Env = v.processEnv
+	opts := &imports.Options{
+		// Defaults.
+		AllErrors:  true,
+		Comments:   true,
+		Fragment:   true,
+		FormatOnly: false,
+		TabIndent:  true,
+		TabWidth:   8,
+		Env:        v.processEnv,
+	}
+
 	if err := fn(opts); err != nil {
 		return err
 	}
