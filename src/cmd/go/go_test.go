@@ -2052,118 +2052,12 @@ func TestCoverageRuns(t *testing.T) {
 	checkCoverage(tg, data)
 }
 
-func TestCoverageDotImport(t *testing.T) {
-	skipIfGccgo(t, "gccgo has no cover tool")
-	tooSlow(t)
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.run("test", "-coverpkg=coverdot1,coverdot2", "coverdot2")
-	data := tg.getStdout() + tg.getStderr()
-	checkCoverage(tg, data)
-}
-
-func TestCoverageSyncAtomicImport(t *testing.T) {
-	skipIfGccgo(t, "gccgo has no cover tool")
-	tooSlow(t)
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.run("test", "-short", "-cover", "-covermode=atomic", "-coverpkg=coverdep/p1", "coverdep")
-}
-
-func TestCoverageDepLoop(t *testing.T) {
-	tooSlow(t)
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	// coverdep2/p1's xtest imports coverdep2/p2 which imports coverdep2/p1.
-	// Make sure that coverage on coverdep2/p2 recompiles coverdep2/p2.
-	tg.run("test", "-short", "-cover", "coverdep2/p1")
-	tg.grepStdout("coverage: 100.0% of statements", "expected 100.0% coverage")
-}
-
 func TestCoverageNoStatements(t *testing.T) {
 	tooSlow(t)
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.run("test", "-cover", "./testdata/testcover/pkg4")
 	tg.grepStdout("[no statements]", "expected [no statements] for pkg4")
-}
-
-func TestCoverageErrorLine(t *testing.T) {
-	skipIfGccgo(t, "gccgo has no cover tool")
-	tooSlow(t)
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.setenv("GOTMPDIR", tg.tempdir)
-
-	tg.runFail("test", "coverbad")
-	tg.grepStderr(`coverbad[\\/]p\.go:4`, "did not find coverbad/p.go:4")
-	if canCgo {
-		tg.grepStderr(`coverbad[\\/]p1\.go:6`, "did not find coverbad/p1.go:6")
-	}
-	tg.grepStderrNot(regexp.QuoteMeta(tg.tempdir), "found temporary directory in error")
-	stderr := tg.getStderr()
-
-	tg.runFail("test", "-cover", "coverbad")
-	stderr2 := tg.getStderr()
-
-	// It's OK that stderr2 drops the character position in the error,
-	// because of the //line directive (see golang.org/issue/22662).
-	stderr = strings.ReplaceAll(stderr, "p.go:4:2:", "p.go:4:")
-	if stderr != stderr2 {
-		t.Logf("test -cover changed error messages:\nbefore:\n%s\n\nafter:\n%s", stderr, stderr2)
-		t.Skip("golang.org/issue/22660")
-		t.FailNow()
-	}
-}
-
-func TestTestBuildFailureOutput(t *testing.T) {
-	tooSlow(t)
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-
-	// Doesn't build, -x output should not claim to run test.
-	tg.runFail("test", "-x", "coverbad")
-	tg.grepStderrNot(`[\\/]coverbad\.test( |$)`, "claimed to run test")
-}
-
-func TestCoverageFunc(t *testing.T) {
-	skipIfGccgo(t, "gccgo has no cover tool")
-	tooSlow(t)
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-
-	tg.run("test", "-outputdir="+tg.tempdir, "-coverprofile=cover.out", "coverasm")
-	tg.run("tool", "cover", "-func="+tg.path("cover.out"))
-	tg.grepStdout(`\tg\t*100.0%`, "did not find g 100% covered")
-	tg.grepStdoutNot(`\tf\t*[0-9]`, "reported coverage for assembly function f")
-}
-
-// Issue 24588.
-func TestCoverageDashC(t *testing.T) {
-	skipIfGccgo(t, "gccgo has no cover tool")
-	tooSlow(t)
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.run("test", "-c", "-o", tg.path("coverdep"), "-coverprofile="+tg.path("no/such/dir/cover.out"), "coverdep")
-	tg.wantExecutable(tg.path("coverdep"), "go -test -c -coverprofile did not create executable")
 }
 
 func TestTestEmpty(t *testing.T) {
