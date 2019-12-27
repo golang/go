@@ -240,6 +240,11 @@ type pageAlloc struct {
 	// The address to start a scavenge candidate search with.
 	scavAddr uintptr
 
+	// The amount of memory scavenged since the last scavtrace print.
+	//
+	// Read and updated atomically.
+	scavReleased uintptr
+
 	// start and end represent the chunk indices
 	// which pageAlloc knows about. It assumes
 	// chunks in the range [start, end) are
