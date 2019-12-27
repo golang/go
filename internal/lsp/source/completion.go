@@ -379,6 +379,9 @@ type candidate struct {
 	// addressable is true if a pointer can be taken to the candidate.
 	addressable bool
 
+	// makePointer is true if the candidate type name T should be made into *T.
+	makePointer bool
+
 	// imp is the import that needs to be added to this package in order
 	// for this candidate to be valid. nil if no import needed.
 	imp *importInfo
@@ -1535,7 +1538,7 @@ func findSwitchStmt(path []ast.Node, pos token.Pos, c *ast.CaseClause) ast.Stmt 
 // expect a function argument, not a composite literal value.
 func breaksExpectedTypeInference(n ast.Node) bool {
 	switch n.(type) {
-	case *ast.FuncLit, *ast.CallExpr, *ast.TypeAssertExpr, *ast.IndexExpr, *ast.SliceExpr, *ast.CompositeLit:
+	case *ast.FuncLit, *ast.CallExpr, *ast.IndexExpr, *ast.SliceExpr, *ast.CompositeLit:
 		return true
 	default:
 		return false
@@ -1758,39 +1761,52 @@ func (c *completer) matchingTypeName(cand *candidate) bool {
 		return false
 	}
 
-	// Take into account any type name modifier prefixes.
-	actual := c.expectedType.applyTypeNameModifiers(cand.obj.Type())
+	typeMatches := func(candType types.Type) bool {
+		// Take into account any type name modifier prefixes.
+		candType = c.expectedType.applyTypeNameModifiers(candType)
 
-	if c.expectedType.typeName.assertableFrom != nil {
-		// Don't suggest the starting type in type assertions. For example,
-		// if "foo" is an io.Writer, don't suggest "foo.(io.Writer)".
-		if types.Identical(c.expectedType.typeName.assertableFrom, actual) {
+		if from := c.expectedType.typeName.assertableFrom; from != nil {
+			// Don't suggest the starting type in type assertions. For example,
+			// if "foo" is an io.Writer, don't suggest "foo.(io.Writer)".
+			if types.Identical(from, candType) {
+				return false
+			}
+
+			if intf, ok := from.Underlying().(*types.Interface); ok {
+				if !types.AssertableTo(intf, candType) {
+					return false
+				}
+			}
+		}
+
+		if c.expectedType.typeName.wantComparable && !types.Comparable(candType) {
 			return false
 		}
 
-		if intf, ok := c.expectedType.typeName.assertableFrom.Underlying().(*types.Interface); ok {
-			if !types.AssertableTo(intf, actual) {
-				return false
-			}
+		// We can expect a type name and have an expected type in cases like:
+		//
+		//   var foo []int
+		//   foo = []i<>
+		//
+		// Where our expected type is "[]int", and we expect a type name.
+		if c.expectedType.objType != nil {
+			return types.AssignableTo(candType, c.expectedType.objType)
 		}
+
+		// Default to saying any type name is a match.
+		return true
 	}
 
-	if c.expectedType.typeName.wantComparable && !types.Comparable(actual) {
-		return false
+	if typeMatches(cand.obj.Type()) {
+		return true
 	}
 
-	// We can expect a type name and have an expected type in cases like:
-	//
-	//   var foo []int
-	//   foo = []i<>
-	//
-	// Where our expected type is "[]int", and we expect a type name.
-	if c.expectedType.objType != nil {
-		return types.AssignableTo(actual, c.expectedType.objType)
+	if typeMatches(types.NewPointer(cand.obj.Type())) {
+		cand.makePointer = true
+		return true
 	}
 
-	// Default to saying any type name is a match.
-	return true
+	return false
 }
 
 // candKind returns the objKind of candType, if any.

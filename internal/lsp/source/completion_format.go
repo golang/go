@@ -130,30 +130,29 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		}
 	}
 
-	// Prepend "&" operator if our candidate needs address taken.
+	// Prepend "&" or "*" operator as appropriate.
+	var prefixOp string
 	if cand.takeAddress {
-		var (
-			sel *ast.SelectorExpr
-			ok  bool
-		)
-		if sel, ok = c.path[0].(*ast.SelectorExpr); !ok && len(c.path) > 1 {
-			sel, _ = c.path[1].(*ast.SelectorExpr)
-		}
+		prefixOp = "&"
+	} else if cand.makePointer {
+		prefixOp = "*"
+	}
 
-		// If we are in a selector, add an edit to place "&" before selector node.
-		if sel != nil {
-			edits, err := referenceEdit(c.snapshot.View().Session().Cache().FileSet(), c.mapper, sel)
+	if prefixOp != "" {
+		// If we are in a selector, add an edit to place prefix before selector.
+		if sel := enclosingSelector(c.path, c.pos); sel != nil {
+			edits, err := prependEdit(c.snapshot.View().Session().Cache().FileSet(), c.mapper, sel, prefixOp)
 			if err != nil {
-				log.Error(c.ctx, "error generating reference edit", err)
+				log.Error(c.ctx, "error generating prefix edit", err)
 			} else {
 				protocolEdits = append(protocolEdits, edits...)
 			}
 		} else {
-			// If there is no selector, just stick the "&" at the start.
-			insert = "&" + insert
+			// If there is no selector, just stick the prefix at the start.
+			insert = prefixOp + insert
 		}
 
-		label = "&" + label
+		label = prefixOp + label
 	}
 
 	detail = strings.TrimPrefix(detail, "untyped ")

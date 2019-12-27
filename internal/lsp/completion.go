@@ -127,9 +127,9 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, rng protocol.
 			// https://github.com/Microsoft/language-server-protocol/issues/348.
 			SortText: fmt.Sprintf("%05d", i),
 
-			// Trim address operator (VSCode doesn't like weird characters
-			// in filterText).
-			FilterText: strings.TrimLeft(candidate.InsertText, "&"),
+			// Trim operators (VSCode doesn't like weird characters in
+			// filterText).
+			FilterText: strings.TrimLeft(candidate.InsertText, "&*"),
 
 			Preselect:     i == 0,
 			Documentation: candidate.Documentation,

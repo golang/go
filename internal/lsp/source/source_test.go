@@ -102,20 +102,13 @@ func (r *runner) Completion(t *testing.T, src span.Span, test tests.Completion, 
 	for _, pos := range test.CompletionItems {
 		want = append(want, tests.ToProtocolCompletionItem(*items[pos]))
 	}
-	prefix, list := r.callCompletion(t, src, func(opts *source.Options) {
-		opts.Matcher = source.Fuzzy
+	_, got := r.callCompletion(t, src, func(opts *source.Options) {
+		opts.Matcher = source.CaseInsensitive
 		opts.Literal = strings.Contains(string(src.URI()), "literal")
 		opts.DeepCompletion = false
 	})
 	if !strings.Contains(string(src.URI()), "builtins") {
-		list = tests.FilterBuiltins(list)
-	}
-	var got []protocol.CompletionItem
-	for _, item := range list {
-		if !strings.HasPrefix(strings.ToLower(item.Label), prefix) {
-			continue
-		}
-		got = append(got, item)
+		got = tests.FilterBuiltins(got)
 	}
 	if diff := tests.DiffCompletionItems(want, got); diff != "" {
 		t.Errorf("%s: %s", src, diff)

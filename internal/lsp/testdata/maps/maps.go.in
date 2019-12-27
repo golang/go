@@ -6,13 +6,13 @@ func _() {
 	// not comparabale
 	type aSlice []int     //@item(mapSliceType, "aSlice", "[]int", "type")
 
+	*aSlice     //@item(mapSliceTypePtr, "*aSlice", "[]int", "type")
+
 	// comparable
 	type aStruct struct{} //@item(mapStructType, "aStruct", "struct{...}", "struct")
 
-	map[]a{} //@complete("]", mapStructType, mapSliceType, mapVar)
+	map[]a{} //@complete("]", mapSliceTypePtr, mapStructType, mapVar)
 
-	map[a]a{} //@complete("]", mapStructType, mapSliceType, mapVar)
+	map[a]a{} //@complete("]", mapSliceTypePtr, mapStructType, mapVar)
 	map[a]a{} //@complete("{", mapSliceType, mapStructType, mapVar)
-
-	map[]a{} //@rank("]", int, mapSliceType)
 }

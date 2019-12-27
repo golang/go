@@ -116,7 +116,7 @@ func (c *completer) literal(literalType types.Type, imp *importInfo) {
 				// If we are in a selector we must place the "&" before the selector.
 				// For example, "foo.B<>" must complete to "&foo.Bar{}", not
 				// "foo.&Bar{}".
-				edits, err := referenceEdit(c.snapshot.View().Session().Cache().FileSet(), c.mapper, sel)
+				edits, err := prependEdit(c.snapshot.View().Session().Cache().FileSet(), c.mapper, sel, "&")
 				if err != nil {
 					log.Error(c.ctx, "error making edit for literal pointer completion", err)
 					return
@@ -173,9 +173,9 @@ func (c *completer) literal(literalType types.Type, imp *importInfo) {
 	}
 }
 
-// referenceEdit produces text edits that prepend a "&" operator to the
-// specified node.
-func referenceEdit(fset *token.FileSet, m *protocol.ColumnMapper, node ast.Node) ([]protocol.TextEdit, error) {
+// prependEdit produces text edits that preprend the specified prefix
+// to the specified node.
+func prependEdit(fset *token.FileSet, m *protocol.ColumnMapper, node ast.Node, prefix string) ([]protocol.TextEdit, error) {
 	rng := newMappedRange(fset, m, node.Pos(), node.Pos())
 	spn, err := rng.Span()
 	if err != nil {
@@ -183,7 +183,7 @@ func referenceEdit(fset *token.FileSet, m *protocol.ColumnMapper, node ast.Node)
 	}
 	return ToProtocolEdits(m, []diff.TextEdit{{
 		Span:    spn,
-		NewText: "&",
+		NewText: prefix,
 	}})
 }
 
