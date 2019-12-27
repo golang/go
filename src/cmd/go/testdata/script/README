@@ -134,9 +134,10 @@ The commands are:
   test. At the end of the test, any remaining background processes are
   terminated using os.Interrupt (if supported) or os.Kill.
 
-- [!] exists [-readonly] file...
+- [!] exists [-readonly] [-exec] file...
   Each of the listed files or directories must (or must not) exist.
   If -readonly is given, the files or directories must be unwritable.
+  If -exec is given, the files or directories must be executable.
 
 - [!] go args... [&]
   Run the (test copy of the) go command with the given arguments.
