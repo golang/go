@@ -663,11 +663,7 @@ func getAllCandidates(ctx context.Context, wrapped func(ImportFix), prefix strin
 			return false
 		},
 	}
-	err := getCandidatePkgs(ctx, callback, filename, env)
-	if err != nil {
-		return err
-	}
-	return nil
+	return getCandidatePkgs(ctx, callback, filename, env)
 }
 
 // A PackageExport is a package and its exports.
@@ -701,11 +697,7 @@ func getPackageExports(ctx context.Context, wrapped func(PackageExport), complet
 			})
 		},
 	}
-	err := getCandidatePkgs(ctx, callback, filename, env)
-	if err != nil {
-		return err
-	}
-	return nil
+	return getCandidatePkgs(ctx, callback, filename, env)
 }
 
 // ProcessEnv contains environment variables and settings that affect the use of
@@ -1146,6 +1138,10 @@ func (r *gopathResolver) scan(ctx context.Context, callback *scanCallback, exclu
 	roots := filterRoots(gopathwalk.SrcDirsRoots(r.env.buildContext()), exclude)
 	gopathwalk.Walk(roots, add, gopathwalk.Options{Debug: r.env.Debug, ModulesEnabled: false})
 	for _, dir := range r.cache.Keys() {
+		if ctx.Err() != nil {
+			return nil
+		}
+
 		info, ok := r.cache.Load(dir)
 		if !ok {
 			continue

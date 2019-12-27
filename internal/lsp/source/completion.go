@@ -663,7 +663,7 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 		}
 		if err := c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
 			return imports.GetPackageExports(ctx, add, id.Name, c.filename, opts)
-		}); err != nil && err != context.Canceled {
+		}); err != nil {
 			return err
 		}
 	}
@@ -886,7 +886,7 @@ func (c *completer) lexical() error {
 		}
 		if err := c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
 			return imports.GetAllCandidates(ctx, add, prefix, c.filename, opts)
-		}); err != nil && err != context.Canceled {
+		}); err != nil {
 			return err
 		}
 	}

@@ -22,9 +22,11 @@ import (
 // ModuleResolver implements resolver for modules using the go command as little
 // as feasible.
 type ModuleResolver struct {
-	env            *ProcessEnv
-	moduleCacheDir string
-	dummyVendorMod *ModuleJSON // If vendoring is enabled, the pseudo-module that represents the /vendor directory.
+	env             *ProcessEnv
+	moduleCacheDir  string
+	dummyVendorMod  *ModuleJSON // If vendoring is enabled, the pseudo-module that represents the /vendor directory.
+	roots           []gopathwalk.Root
+	walkedRootIndex int
 
 	Initialized   bool
 	Main          *ModuleJSON
@@ -85,6 +87,37 @@ func (r *ModuleResolver) init() error {
 		return count(j) < count(i) // descending order
 	})
 
+	r.roots = []gopathwalk.Root{
+		{filepath.Join(r.env.GOROOT, "/src"), gopathwalk.RootGOROOT},
+	}
+	if r.Main != nil {
+		r.roots = append(r.roots, gopathwalk.Root{r.Main.Dir, gopathwalk.RootCurrentModule})
+	}
+	if vendorEnabled {
+		r.roots = append(r.roots, gopathwalk.Root{r.dummyVendorMod.Dir, gopathwalk.RootOther})
+	} else {
+		addDep := func(mod *ModuleJSON) {
+			if mod.Replace == nil {
+				// This is redundant with the cache, but we'll skip it cheaply enough.
+				r.roots = append(r.roots, gopathwalk.Root{mod.Dir, gopathwalk.RootModuleCache})
+			} else {
+				r.roots = append(r.roots, gopathwalk.Root{mod.Dir, gopathwalk.RootOther})
+			}
+		}
+		// Walk dependent modules before scanning the full mod cache, direct deps first.
+		for _, mod := range r.ModsByModPath {
+			if !mod.Indirect {
+				addDep(mod)
+			}
+		}
+		for _, mod := range r.ModsByModPath {
+			if mod.Indirect {
+				addDep(mod)
+			}
+		}
+		r.roots = append(r.roots, gopathwalk.Root{r.moduleCacheDir, gopathwalk.RootModuleCache})
+	}
+
 	if r.moduleCacheCache == nil {
 		r.moduleCacheCache = &dirInfoCache{
 			dirs: map[string]*directoryPackageInfo{},
@@ -126,6 +159,7 @@ func (r *ModuleResolver) initAllMods() error {
 }
 
 func (r *ModuleResolver) ClearForNewScan() {
+	r.walkedRootIndex = 0
 	r.otherCache = &dirInfoCache{
 		dirs: map[string]*directoryPackageInfo{},
 	}
@@ -338,29 +372,49 @@ func (r *ModuleResolver) scan(ctx context.Context, callback *scanCallback, exclu
 		return err
 	}
 
-	// Walk GOROOT, GOPATH/pkg/mod, and the main module.
-	roots := []gopathwalk.Root{
-		{filepath.Join(r.env.GOROOT, "/src"), gopathwalk.RootGOROOT},
-	}
-	if r.Main != nil {
-		roots = append(roots, gopathwalk.Root{r.Main.Dir, gopathwalk.RootCurrentModule})
-	}
-	if r.dummyVendorMod != nil {
-		roots = append(roots, gopathwalk.Root{r.dummyVendorMod.Dir, gopathwalk.RootOther})
-	} else {
-		roots = append(roots, gopathwalk.Root{r.moduleCacheDir, gopathwalk.RootModuleCache})
-		// Walk replace targets, just in case they're not in any of the above.
-		for _, mod := range r.ModsByModPath {
-			if mod.Replace != nil {
-				roots = append(roots, gopathwalk.Root{mod.Dir, gopathwalk.RootOther})
+	processDir := func(info directoryPackageInfo) {
+		// Skip this directory if we were not able to get the package information successfully.
+		if scanned, err := info.reachedStatus(directoryScanned); !scanned || err != nil {
+			return
+		}
+
+		pkg, err := r.canonicalize(info)
+		if err != nil {
+			return
+		}
+
+		if callback.dirFound(pkg) {
+			var err error
+			pkg.packageName, err = r.cachePackageName(info)
+			if err != nil {
+				return
 			}
+		}
+
+		if callback.packageNameLoaded(pkg) {
+			_, exports, err := r.loadExports(ctx, pkg)
+			if err != nil {
+				return
+			}
+			callback.exportsLoaded(pkg, exports)
 		}
 	}
 
-	roots = filterRoots(roots, exclude)
+	// Everything we already had is in the cache. Process it now, in hopes we
+	// we don't need anything new.
+	for _, dir := range r.cacheKeys() {
+		if ctx.Err() != nil {
+			return nil
+		}
+		info, ok := r.cacheLoad(dir)
+		if !ok {
+			continue
+		}
+		processDir(info)
+	}
 
-	// We assume cached directories have not changed. We can skip them and their
-	// children.
+	// We assume cached directories are fully cached, including all their
+	// children, and have not changed. We can skip them.
 	skip := func(root gopathwalk.Root, dir string) bool {
 		info, ok := r.cacheLoad(dir)
 		if !ok {
@@ -373,45 +427,31 @@ func (r *ModuleResolver) scan(ctx context.Context, callback *scanCallback, exclu
 		return packageScanned
 	}
 
-	// Add anything new to the cache. We'll process everything in it below.
+	// Add anything new to the cache, and process it if we're still looking.
 	add := func(root gopathwalk.Root, dir string) {
-		r.cacheStore(r.scanDirForPackage(root, dir))
+		info := r.scanDirForPackage(root, dir)
+		r.cacheStore(info)
+		if ctx.Err() == nil {
+			processDir(info)
+		}
 	}
 
-	gopathwalk.WalkSkip(roots, add, skip, gopathwalk.Options{Debug: r.env.Debug, ModulesEnabled: true})
-
-	// Everything we already had, and everything new, is now in the cache.
-	for _, dir := range r.cacheKeys() {
-		info, ok := r.cacheLoad(dir)
-		if !ok {
-			continue
-		}
-
-		// Skip this directory if we were not able to get the package information successfully.
-		if scanned, err := info.reachedStatus(directoryScanned); !scanned || err != nil {
-			continue
-		}
-
-		pkg, err := r.canonicalize(info)
-		if err != nil {
-			continue
-		}
-
-		if callback.dirFound(pkg) {
-			var err error
-			pkg.packageName, err = r.cachePackageName(info)
-			if err != nil {
-				continue
+	// We can't cancel walks, because we need them to finish to have a usable
+	// cache. We can do them one by one and stop in between.
+	// TODO(heschi): Run asynchronously and detach on cancellation? Would risk
+	// racy callbacks.
+rootLoop:
+	for ; r.walkedRootIndex < len(r.roots); r.walkedRootIndex++ {
+		root := r.roots[r.walkedRootIndex]
+		for _, rt := range exclude {
+			if root.Type == rt {
+				continue rootLoop
 			}
 		}
-
-		if callback.packageNameLoaded(pkg) {
-			_, exports, err := r.loadExports(ctx, pkg)
-			if err != nil {
-				continue
-			}
-			callback.exportsLoaded(pkg, exports)
+		if ctx.Err() != nil {
+			return nil
 		}
+		gopathwalk.WalkSkip([]gopathwalk.Root{root}, add, skip, gopathwalk.Options{Debug: r.env.Debug, ModulesEnabled: true})
 	}
 	return nil
 }
