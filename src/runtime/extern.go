@@ -78,21 +78,6 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	If the line ends with "(forced)", this GC was forced by a
 	runtime.GC() call.
 
-	Setting gctrace to any value > 0 also causes the garbage collector
-	to emit a summary when memory is released back to the system.
-	This process of returning memory to the system is called scavenging.
-	The format of this summary is subject to change.
-	Currently it is:
-		scvg#: # MB released  printed only if non-zero
-		scvg#: inuse: # idle: # sys: # released: # consumed: # (MB)
-	where the fields are as follows:
-		scvg#        the scavenge cycle number, incremented at each scavenge
-		inuse: #     MB used or partially used spans
-		idle: #      MB spans pending scavenging
-		sys: #       MB mapped from the system
-		released: #  MB released to the system
-		consumed: #  MB allocated from the system
-
 	madvdontneed: setting madvdontneed=1 will use MADV_DONTNEED
 	instead of MADV_FREE on Linux when returning memory to the
 	kernel. This is less efficient, but causes RSS numbers to drop
@@ -113,6 +98,19 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	never reclaims any memory.
 
 	scavenge: scavenge=1 enables debugging mode of heap scavenger.
+
+	scavtrace: setting scavtrace=1 causes the runtime to emit a single line to standard
+	error, roughly once per GC cycle, summarizing the amount of work done by the
+	scavenger as well as the total amount of memory returned to the operating system
+	and an estimate of physical memory utilization. The format of this line is subject
+	to change, but currently it is:
+		scav # KiB work, # KiB total, #% util
+	where the fields are as follows:
+		# KiB work   the amount of memory returned to the OS since the last scav line
+		# KiB total  how much of the heap at this point in time has been released to the OS
+		#% util      the fraction of all unscavenged memory which is in-use
+	If the line ends with "(forced)", then scavenging was forced by a
+	debug.FreeOSMemory() call.
 
 	scheddetail: setting schedtrace=X and scheddetail=1 causes the scheduler to emit
 	detailed multiline info every X milliseconds, describing state of the scheduler,

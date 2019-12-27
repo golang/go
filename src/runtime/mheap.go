@@ -70,7 +70,7 @@ type mheap struct {
 	// on the swept stack.
 	sweepSpans [2]gcSweepBuf
 
-	_ uint32 // align uint64 fields on 32-bit for atomics
+	// _ uint32 // align uint64 fields on 32-bit for atomics
 
 	// Proportional sweep
 	//
@@ -1434,11 +1434,8 @@ func (h *mheap) scavengeAll() {
 	unlock(&h.lock)
 	gp.m.mallocing--
 
-	if debug.gctrace > 0 {
-		if released > 0 {
-			print("forced scvg: ", released>>20, " MB released\n")
-		}
-		print("forced scvg: inuse: ", memstats.heap_inuse>>20, ", idle: ", memstats.heap_idle>>20, ", sys: ", memstats.heap_sys>>20, ", released: ", memstats.heap_released>>20, ", consumed: ", (memstats.heap_sys-memstats.heap_released)>>20, " (MB)\n")
+	if debug.scavtrace > 0 {
+		printScavTrace(released, true)
 	}
 }
 
