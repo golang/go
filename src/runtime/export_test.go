@@ -45,6 +45,9 @@ var NetpollGenericInit = netpollGenericInit
 
 var ParseRelease = parseRelease
 
+var Memmove = memmove
+var MemclrNoHeapPointers = memclrNoHeapPointers
+
 const PreemptMSupported = preemptMSupported
 
 type LFNode struct {
