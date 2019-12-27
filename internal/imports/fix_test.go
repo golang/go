@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -2492,15 +2493,15 @@ var _ = bytes.Buffer{}
 // with correct priorities.
 func TestGetCandidates(t *testing.T) {
 	type res struct {
+		relevance  int
 		name, path string
 	}
 	want := []res{
-		{"bytes", "bytes"},
-		{"http", "net/http"},
-		{"rand", "crypto/rand"},
-		{"rand", "math/rand"},
-		{"bar", "bar.com/bar"},
-		{"foo", "foo.com/foo"},
+		{0, "bytes", "bytes"},
+		{0, "http", "net/http"},
+		{0, "rand", "crypto/rand"},
+		{0, "bar", "bar.com/bar"},
+		{0, "foo", "foo.com/foo"},
 	}
 
 	testConfig{
@@ -2515,17 +2516,30 @@ func TestGetCandidates(t *testing.T) {
 			},
 		},
 	}.test(t, func(t *goimportTest) {
-		candidates, err := getAllCandidates(context.Background(), "", "x.go", t.env)
-		if err != nil {
-			t.Fatalf("GetAllCandidates() = %v", err)
-		}
+		var mu sync.Mutex
 		var got []res
-		for _, c := range candidates {
+		add := func(c ImportFix) {
+			mu.Lock()
+			defer mu.Unlock()
 			for _, w := range want {
 				if c.StmtInfo.ImportPath == w.path {
-					got = append(got, res{c.IdentName, c.StmtInfo.ImportPath})
+					got = append(got, res{c.Relevance, c.IdentName, c.StmtInfo.ImportPath})
 				}
 			}
+		}
+		if err := getAllCandidates(context.Background(), add, "", "x.go", t.env); err != nil {
+			t.Fatalf("GetAllCandidates() = %v", err)
+		}
+		// Sort, then clear out relevance so it doesn't mess up the DeepEqual.
+		sort.Slice(got, func(i, j int) bool {
+			ri, rj := got[i], got[j]
+			if ri.relevance != rj.relevance {
+				return ri.relevance > rj.relevance // Highest first.
+			}
+			return ri.name < rj.name
+		})
+		for i := range got {
+			got[i].relevance = 0
 		}
 		if !reflect.DeepEqual(want, got) {
 			t.Errorf("wanted stdlib results in order %v, got %v", want, got)
@@ -2535,12 +2549,12 @@ func TestGetCandidates(t *testing.T) {
 
 func TestGetPackageCompletions(t *testing.T) {
 	type res struct {
+		relevance          int
 		name, path, symbol string
 	}
 	want := []res{
-		{"rand", "crypto/rand", "Prime"},
-		{"rand", "math/rand", "Seed"},
-		{"rand", "bar.com/rand", "Bar"},
+		{0, "rand", "math/rand", "Seed"},
+		{0, "rand", "bar.com/rand", "Bar"},
 	}
 
 	testConfig{
@@ -2551,19 +2565,32 @@ func TestGetPackageCompletions(t *testing.T) {
 			},
 		},
 	}.test(t, func(t *goimportTest) {
-		candidates, err := getPackageExports(context.Background(), "rand", "x.go", t.env)
-		if err != nil {
-			t.Fatalf("getPackageCompletions() = %v", err)
-		}
+		var mu sync.Mutex
 		var got []res
-		for _, c := range candidates {
+		add := func(c PackageExport) {
+			mu.Lock()
+			defer mu.Unlock()
 			for _, csym := range c.Exports {
 				for _, w := range want {
 					if c.Fix.StmtInfo.ImportPath == w.path && csym == w.symbol {
-						got = append(got, res{c.Fix.IdentName, c.Fix.StmtInfo.ImportPath, csym})
+						got = append(got, res{c.Fix.Relevance, c.Fix.IdentName, c.Fix.StmtInfo.ImportPath, csym})
 					}
 				}
 			}
+		}
+		if err := getPackageExports(context.Background(), add, "rand", "x.go", t.env); err != nil {
+			t.Fatalf("getPackageCompletions() = %v", err)
+		}
+		// Sort, then clear out relevance so it doesn't mess up the DeepEqual.
+		sort.Slice(got, func(i, j int) bool {
+			ri, rj := got[i], got[j]
+			if ri.relevance != rj.relevance {
+				return ri.relevance > rj.relevance // Highest first.
+			}
+			return ri.name < rj.name
+		})
+		for i := range got {
+			got[i].relevance = 0
 		}
 		if !reflect.DeepEqual(want, got) {
 			t.Errorf("wanted stdlib results in order %v, got %v", want, got)

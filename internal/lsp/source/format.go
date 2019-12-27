@@ -303,37 +303,6 @@ func trimToFirstNonImport(fset *token.FileSet, f *ast.File, src []byte, err erro
 	return src[0:fset.Position(end).Offset], true
 }
 
-// CandidateImports returns every import that could be added to filename.
-func CandidateImports(ctx context.Context, prefix string, view View, filename string) ([]imports.ImportFix, error) {
-	ctx, done := trace.StartSpan(ctx, "source.CandidateImports")
-	defer done()
-
-	var imps []imports.ImportFix
-	importFn := func(opts *imports.Options) error {
-		var err error
-		imps, err = imports.GetAllCandidates(ctx, prefix, filename, opts)
-		return err
-	}
-	err := view.RunProcessEnvFunc(ctx, importFn)
-	return imps, err
-}
-
-// PackageExports returns all the packages named pkg that could be imported by
-// filename, and their exports.
-func PackageExports(ctx context.Context, view View, pkg, filename string) ([]imports.PackageExport, error) {
-	ctx, done := trace.StartSpan(ctx, "source.PackageExports")
-	defer done()
-
-	var pkgs []imports.PackageExport
-	importFn := func(opts *imports.Options) error {
-		var err error
-		pkgs, err = imports.GetPackageExports(ctx, pkg, filename, opts)
-		return err
-	}
-	err := view.RunProcessEnvFunc(ctx, importFn)
-	return pkgs, err
-}
-
 // hasParseErrors returns true if the given file has parse errors.
 func hasParseErrors(pkg Package, uri span.URI) bool {
 	for _, e := range pkg.GetErrors() {

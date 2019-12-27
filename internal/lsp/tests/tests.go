@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"golang.org/x/tools/go/expect"
 	"golang.org/x/tools/go/packages"
@@ -190,6 +191,7 @@ func DefaultOptions() source.Options {
 	}
 	o.HoverKind = source.SynopsisDocumentation
 	o.InsertTextFormat = protocol.SnippetTextFormat
+	o.Completion.Budget = time.Minute
 	return o
 }
 

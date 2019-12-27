@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -871,32 +872,42 @@ import _ "rsc.io/quote"
 	}
 
 	type res struct {
+		relevance  int
 		name, path string
 	}
 	want := []res{
 		// Stdlib
-		{"bytes", "bytes"},
-		{"http", "net/http"},
+		{7, "bytes", "bytes"},
+		{7, "http", "net/http"},
 		// Direct module deps
-		{"quote", "rsc.io/quote"},
+		{6, "quote", "rsc.io/quote"},
+		{6, "rpackage", "example.com/rpackage"},
 		// Indirect deps
-		{"rpackage", "example.com/rpackage"},
-		{"language", "golang.org/x/text/language"},
+		{5, "language", "golang.org/x/text/language"},
 		// Out of scope modules
-		{"quote", "rsc.io/quote/v2"},
+		{4, "quote", "rsc.io/quote/v2"},
 	}
-	candidates, err := getAllCandidates(context.Background(), "", "foo.go", mt.env)
-	if err != nil {
-		t.Fatalf("getAllCandidates() = %v", err)
-	}
+	var mu sync.Mutex
 	var got []res
-	for _, c := range candidates {
+	add := func(c ImportFix) {
+		mu.Lock()
+		defer mu.Unlock()
 		for _, w := range want {
 			if c.StmtInfo.ImportPath == w.path {
-				got = append(got, res{c.IdentName, c.StmtInfo.ImportPath})
+				got = append(got, res{c.Relevance, c.IdentName, c.StmtInfo.ImportPath})
 			}
 		}
 	}
+	if err := getAllCandidates(context.Background(), add, "", "foo.go", mt.env); err != nil {
+		t.Fatalf("getAllCandidates() = %v", err)
+	}
+	sort.Slice(got, func(i, j int) bool {
+		ri, rj := got[i], got[j]
+		if ri.relevance != rj.relevance {
+			return ri.relevance > rj.relevance // Highest first.
+		}
+		return ri.name < rj.name
+	})
 	if !reflect.DeepEqual(want, got) {
 		t.Errorf("wanted candidates in order %v, got %v", want, got)
 	}

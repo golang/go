@@ -82,7 +82,7 @@ type ImportFix struct {
 	IdentName string
 	// FixType is the type of fix this is (AddImport, DeleteImport, SetImportName).
 	FixType   ImportFixType
-	relevance int // see pkg
+	Relevance int // see pkg
 }
 
 // An ImportInfo represents a single import statement.
@@ -585,6 +585,10 @@ func getFixes(fset *token.FileSet, f *ast.File, filename string, env *ProcessEnv
 	return fixes, nil
 }
 
+// Highest relevance, used for the standard library. Chosen arbitrarily to
+// match pre-existing gopls code.
+const MaxRelevance = 7
+
 // getCandidatePkgs returns the list of pkgs that are accessible from filename,
 // filtered to those that match pkgnameFilter.
 func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, filename string, env *ProcessEnv) error {
@@ -596,7 +600,7 @@ func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, filena
 			dir:             filepath.Join(env.GOROOT, "src", importPath),
 			importPathShort: importPath,
 			packageName:     path.Base(importPath),
-			relevance:       0,
+			relevance:       MaxRelevance,
 		}
 		if wrappedCallback.packageNameLoaded(p) {
 			wrappedCallback.exportsLoaded(p, exports)
@@ -630,17 +634,6 @@ func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, filena
 	return env.GetResolver().scan(ctx, scanFilter, exclude)
 }
 
-// Compare first by relevance, then by package name, with import path as a tiebreaker.
-func compareFix(fi, fj *ImportFix) bool {
-	if fi.relevance != fj.relevance {
-		return fi.relevance < fj.relevance
-	}
-	if fi.IdentName != fj.IdentName {
-		return fi.IdentName < fj.IdentName
-	}
-	return fi.StmtInfo.ImportPath < fj.StmtInfo.ImportPath
-}
-
 func candidateImportName(pkg *pkg) string {
 	if ImportPathToAssumedName(pkg.importPathShort) != pkg.packageName {
 		return pkg.packageName
@@ -649,39 +642,32 @@ func candidateImportName(pkg *pkg) string {
 }
 
 // getAllCandidates gets all of the candidates to be imported, regardless of if they are needed.
-func getAllCandidates(ctx context.Context, prefix string, filename string, env *ProcessEnv) ([]ImportFix, error) {
-	var mu sync.Mutex
-	var results []ImportFix
-	filter := &scanCallback{
+func getAllCandidates(ctx context.Context, wrapped func(ImportFix), prefix string, filename string, env *ProcessEnv) error {
+	callback := &scanCallback{
 		dirFound: func(pkg *pkg) bool {
 			// TODO(heschi): apply dir match heuristics like pkgIsCandidate
 			return true
 		},
 		packageNameLoaded: func(pkg *pkg) bool {
 			if strings.HasPrefix(pkg.packageName, prefix) {
-				mu.Lock()
-				defer mu.Unlock()
-				results = append(results, ImportFix{
+				wrapped(ImportFix{
 					StmtInfo: ImportInfo{
 						ImportPath: pkg.importPathShort,
 						Name:       candidateImportName(pkg),
 					},
 					IdentName: pkg.packageName,
 					FixType:   AddImport,
-					relevance: pkg.relevance,
+					Relevance: pkg.relevance,
 				})
 			}
 			return false
 		},
 	}
-	err := getCandidatePkgs(ctx, filter, filename, env)
+	err := getCandidatePkgs(ctx, callback, filename, env)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	sort.Slice(results, func(i, j int) bool {
-		return compareFix(&results[i], &results[j])
-	})
-	return results, nil
+	return nil
 }
 
 // A PackageExport is a package and its exports.
@@ -690,9 +676,7 @@ type PackageExport struct {
 	Exports []string
 }
 
-func getPackageExports(ctx context.Context, completePackage, filename string, env *ProcessEnv) ([]PackageExport, error) {
-	var mu sync.Mutex
-	var results []PackageExport
+func getPackageExports(ctx context.Context, wrapped func(PackageExport), completePackage, filename string, env *ProcessEnv) error {
 	callback := &scanCallback{
 		dirFound: func(pkg *pkg) bool {
 			// TODO(heschi): apply dir match heuristics like pkgIsCandidate
@@ -702,10 +686,8 @@ func getPackageExports(ctx context.Context, completePackage, filename string, en
 			return pkg.packageName == completePackage
 		},
 		exportsLoaded: func(pkg *pkg, exports []string) {
-			mu.Lock()
-			defer mu.Unlock()
 			sort.Strings(exports)
-			results = append(results, PackageExport{
+			wrapped(PackageExport{
 				Fix: &ImportFix{
 					StmtInfo: ImportInfo{
 						ImportPath: pkg.importPathShort,
@@ -713,7 +695,7 @@ func getPackageExports(ctx context.Context, completePackage, filename string, en
 					},
 					IdentName: pkg.packageName,
 					FixType:   AddImport,
-					relevance: pkg.relevance,
+					Relevance: pkg.relevance,
 				},
 				Exports: exports,
 			})
@@ -721,12 +703,9 @@ func getPackageExports(ctx context.Context, completePackage, filename string, en
 	}
 	err := getCandidatePkgs(ctx, callback, filename, env)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	sort.Slice(results, func(i, j int) bool {
-		return compareFix(results[i].Fix, results[j].Fix)
-	})
-	return results, nil
+	return nil
 }
 
 // ProcessEnv contains environment variables and settings that affect the use of
@@ -1175,10 +1154,10 @@ func (r *gopathResolver) scan(ctx context.Context, callback *scanCallback, exclu
 		p := &pkg{
 			importPathShort: info.nonCanonicalImportPath,
 			dir:             dir,
-			relevance:       1,
+			relevance:       MaxRelevance - 1,
 		}
 		if info.rootType == gopathwalk.RootGOROOT {
-			p.relevance = 0
+			p.relevance = MaxRelevance
 		}
 
 		if callback.dirFound(p) {

@@ -425,18 +425,18 @@ func (r *ModuleResolver) canonicalize(info directoryPackageInfo) (*pkg, error) {
 			importPathShort: info.nonCanonicalImportPath,
 			dir:             info.dir,
 			packageName:     path.Base(info.nonCanonicalImportPath),
-			relevance:       0,
+			relevance:       MaxRelevance,
 		}, nil
 	}
 
 	importPath := info.nonCanonicalImportPath
-	relevance := 3
+	relevance := MaxRelevance - 3
 	// Check if the directory is underneath a module that's in scope.
 	if mod := r.findModuleByDir(info.dir); mod != nil {
 		if mod.Indirect {
-			relevance = 2
+			relevance = MaxRelevance - 2
 		} else {
-			relevance = 1
+			relevance = MaxRelevance - 1
 		}
 		// It is. If dir is the target of a replace directive,
 		// our guessed import path is wrong. Use the real one.

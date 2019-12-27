@@ -14,6 +14,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/tools/go/ast/astutil"
@@ -243,6 +244,13 @@ func (p Selection) Prefix() string {
 
 func (p Selection) Suffix() string {
 	return p.content[p.cursor-p.spanRange.Start:]
+}
+
+func (c *completer) deepCompletionContext() (context.Context, context.CancelFunc) {
+	if c.opts.Budget == 0 {
+		return context.WithCancel(c.ctx)
+	}
+	return context.WithDeadline(c.ctx, c.startTime.Add(c.opts.Budget))
 }
 
 func (c *completer) setSurrounding(ident *ast.Ident) {
@@ -622,15 +630,11 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 
 	// Try unimported packages.
 	if id, ok := sel.X.(*ast.Ident); ok && c.opts.Unimported && len(c.items) < unimportedTarget {
-		pkgExports, err := PackageExports(c.ctx, c.snapshot.View(), id.Name, c.filename)
-		if err != nil {
-			return err
-		}
+		ctx, cancel := c.deepCompletionContext()
+		defer cancel()
+
 		known := c.snapshot.KnownImportPaths()
-		for _, pkgExport := range pkgExports {
-			if len(c.items) >= unimportedTarget {
-				break
-			}
+		add := func(pkgExport imports.PackageExport) {
 			// If we've seen this import path, use the fully-typed version.
 			if knownPkg, ok := known[pkgExport.Fix.StmtInfo.ImportPath]; ok {
 				c.packageMembers(knownPkg.GetTypes(), &importInfo{
@@ -638,21 +642,29 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 					name:       pkgExport.Fix.StmtInfo.Name,
 					pkg:        knownPkg,
 				})
-				continue
+			} else {
+				// Otherwise, continue with untyped proposals.
+				pkg := types.NewPackage(pkgExport.Fix.StmtInfo.ImportPath, pkgExport.Fix.IdentName)
+				for _, export := range pkgExport.Exports {
+					score := 0.01 * float64(pkgExport.Fix.Relevance)
+					c.found(candidate{
+						obj:   types.NewVar(0, pkg, export, nil),
+						score: score,
+						imp: &importInfo{
+							importPath: pkgExport.Fix.StmtInfo.ImportPath,
+							name:       pkgExport.Fix.StmtInfo.Name,
+						},
+					})
+				}
 			}
-
-			// Otherwise, continue with untyped proposals.
-			pkg := types.NewPackage(pkgExport.Fix.StmtInfo.ImportPath, pkgExport.Fix.IdentName)
-			for _, export := range pkgExport.Exports {
-				c.found(candidate{
-					obj:   types.NewVar(0, pkg, export, nil),
-					score: 0.07,
-					imp: &importInfo{
-						importPath: pkgExport.Fix.StmtInfo.ImportPath,
-						name:       pkgExport.Fix.StmtInfo.Name,
-					},
-				})
+			if len(c.items) >= unimportedTarget {
+				cancel()
 			}
+		}
+		if err := c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+			return imports.GetPackageExports(ctx, add, id.Name, c.filename, opts)
+		}); err != nil && err != context.Canceled {
+			return err
 		}
 	}
 	return nil
@@ -830,39 +842,52 @@ func (c *completer) lexical() error {
 	}
 
 	if c.opts.Unimported && len(c.items) < unimportedTarget {
-		ctx, cancel := context.WithDeadline(c.ctx, c.startTime.Add(c.opts.Budget))
+		ctx, cancel := c.deepCompletionContext()
 		defer cancel()
 		// Suggest packages that have not been imported yet.
 		prefix := ""
 		if c.surrounding != nil {
 			prefix = c.surrounding.Prefix()
 		}
-		pkgs, err := CandidateImports(ctx, prefix, c.snapshot.View(), c.filename)
-		if err != nil {
-			return err
-		}
-		score := stdScore
-		// Rank unimported packages significantly lower than other results.
-		score *= 0.07
+		var mu sync.Mutex
+		add := func(pkg imports.ImportFix) {
+			mu.Lock()
+			defer mu.Unlock()
+			if _, ok := seen[pkg.IdentName]; ok {
+				return
+			}
+			// Rank unimported packages significantly lower than other results.
+			score := 0.01 * float64(pkg.Relevance)
 
-		for _, pkg := range pkgs {
+			// Do not add the unimported packages to seen, since we can have
+			// multiple packages of the same name as completion suggestions, since
+			// only one will be chosen.
+			obj := types.NewPkgName(0, nil, pkg.IdentName, types.NewPackage(pkg.StmtInfo.ImportPath, pkg.IdentName))
+			c.found(candidate{
+				obj:   obj,
+				score: score,
+				imp: &importInfo{
+					importPath: pkg.StmtInfo.ImportPath,
+					name:       pkg.StmtInfo.Name,
+				},
+			})
+
 			if len(c.items) >= unimportedTarget {
-				break
+				cancel()
 			}
-			if _, ok := seen[pkg.IdentName]; !ok {
-				// Do not add the unimported packages to seen, since we can have
-				// multiple packages of the same name as completion suggestions, since
-				// only one will be chosen.
-				obj := types.NewPkgName(0, nil, pkg.IdentName, types.NewPackage(pkg.StmtInfo.ImportPath, pkg.IdentName))
-				c.found(candidate{
-					obj:   obj,
-					score: score,
-					imp: &importInfo{
-						importPath: pkg.StmtInfo.ImportPath,
-						name:       pkg.StmtInfo.Name,
-					},
-				})
-			}
+			c.found(candidate{
+				obj:   obj,
+				score: score,
+				imp: &importInfo{
+					importPath: pkg.StmtInfo.ImportPath,
+					name:       pkg.StmtInfo.Name,
+				},
+			})
+		}
+		if err := c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+			return imports.GetAllCandidates(ctx, add, prefix, c.filename, opts)
+		}); err != nil && err != context.Canceled {
+			return err
 		}
 	}
 
