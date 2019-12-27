@@ -38,6 +38,7 @@ const (
 
 // keyword looks at the current scope of an *ast.Ident and recommends keywords
 func (c *completer) keyword() error {
+	keywordScore := float64(0.9)
 	if _, ok := c.path[0].(*ast.Ident); !ok {
 		// TODO(golang/go#34009): Support keyword completion in any context
 		return errors.Errorf("keywords are currently only recommended for identifiers")
@@ -61,7 +62,7 @@ func (c *completer) keyword() error {
 		case *ast.CaseClause:
 			// only recommend "fallthrough" and "break" within the bodies of a case clause
 			if c.pos > node.Colon {
-				valid[BREAK] = stdScore
+				valid[BREAK] = keywordScore
 				// "fallthrough" is only valid in switch statements.
 				// A case clause is always nested within a block statement in a switch statement,
 				// that block statement is nested within either a TypeSwitchStmt or a SwitchStmt.
@@ -69,32 +70,32 @@ func (c *completer) keyword() error {
 					continue
 				}
 				if _, ok := path[i+2].(*ast.SwitchStmt); ok {
-					valid[FALLTHROUGH] = stdScore
+					valid[FALLTHROUGH] = keywordScore
 				}
 			}
 		case *ast.CommClause:
 			if c.pos > node.Colon {
-				valid[BREAK] = stdScore
+				valid[BREAK] = keywordScore
 			}
 		case *ast.TypeSwitchStmt, *ast.SelectStmt, *ast.SwitchStmt:
-			valid[CASE] = stdScore + lowScore
-			valid[DEFAULT] = stdScore + lowScore
+			valid[CASE] = keywordScore + lowScore
+			valid[DEFAULT] = keywordScore + lowScore
 		case *ast.ForStmt:
-			valid[BREAK] = stdScore
-			valid[CONTINUE] = stdScore
+			valid[BREAK] = keywordScore
+			valid[CONTINUE] = keywordScore
 		// This is a bit weak, functions allow for many keywords
 		case *ast.FuncDecl:
 			if node.Body != nil && c.pos > node.Body.Lbrace {
-				valid[DEFER] = stdScore - lowScore
-				valid[RETURN] = stdScore - lowScore
-				valid[FOR] = stdScore - lowScore
-				valid[GO] = stdScore - lowScore
-				valid[SWITCH] = stdScore - lowScore
-				valid[SELECT] = stdScore - lowScore
-				valid[IF] = stdScore - lowScore
-				valid[ELSE] = stdScore - lowScore
-				valid[VAR] = stdScore - lowScore
-				valid[CONST] = stdScore - lowScore
+				valid[DEFER] = keywordScore - lowScore
+				valid[RETURN] = keywordScore - lowScore
+				valid[FOR] = keywordScore - lowScore
+				valid[GO] = keywordScore - lowScore
+				valid[SWITCH] = keywordScore - lowScore
+				valid[SELECT] = keywordScore - lowScore
+				valid[IF] = keywordScore - lowScore
+				valid[ELSE] = keywordScore - lowScore
+				valid[VAR] = keywordScore - lowScore
+				valid[CONST] = keywordScore - lowScore
 			}
 		}
 	}

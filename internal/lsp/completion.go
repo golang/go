@@ -52,9 +52,12 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	if err != nil {
 		return nil, err
 	}
-	// Sort the candidates by score, since that is not supported by LSP yet.
+	// Sort the candidates by score, then label, since that is not supported by LSP yet.
 	sort.SliceStable(candidates, func(i, j int) bool {
-		return candidates[i].Score > candidates[j].Score
+		if candidates[i].Score != candidates[j].Score {
+			return candidates[i].Score > candidates[j].Score
+		}
+		return candidates[i].Label < candidates[j].Label
 	})
 
 	// When using deep completions/fuzzy matching, report results as incomplete so

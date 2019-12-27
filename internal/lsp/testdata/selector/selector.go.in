@@ -11,7 +11,7 @@ type S struct {
 }
 
 func _() {
-	_ = S{}.; //@complete(";", Bf, Af, Cf)
+	_ = S{}.; //@complete(";", Af, Bf, Cf)
 }
 
 type bob struct { a int } //@item(a, "a", "int", "field")

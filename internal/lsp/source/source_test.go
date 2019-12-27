@@ -251,7 +251,10 @@ func (r *runner) callCompletion(t *testing.T, src span.Span, options source.Comp
 	// TODO(rstambler): In testing this out, I noticed that scores are equal,
 	// even when they shouldn't be. This needs more investigation.
 	sort.SliceStable(list, func(i, j int) bool {
-		return list[i].Score > list[j].Score
+		if list[i].Score != list[j].Score {
+			return list[i].Score > list[j].Score
+		}
+		return list[i].Label < list[j].Label
 	})
 	var numDeepCompletionsSeen int
 	var items []source.CompletionItem

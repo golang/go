@@ -11,6 +11,7 @@ import (
 	"go/constant"
 	"go/token"
 	"go/types"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -696,7 +697,7 @@ func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *impo
 	for _, f := range fieldSelections(typ) {
 		c.found(candidate{
 			obj:         f,
-			score:       stdScore,
+			score:       stdScore - 0.01,
 			imp:         imp,
 			addressable: addressable || isPointer(typ),
 		})
@@ -778,7 +779,8 @@ func (c *completer) lexical() error {
 				continue
 			}
 
-			score := stdScore
+			// Rank outer scopes lower than inner.
+			score := stdScore * math.Pow(.99, float64(i))
 
 			// Dowrank "nil" a bit so it is ranked below more interesting candidates.
 			if obj == builtinNil {
