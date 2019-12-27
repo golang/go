@@ -10,7 +10,11 @@ import (
 
 func _() {
 	[]int{}        //@item(litIntSlice, "[]int{}", "", "var")
+	&[]int{}       //@item(litIntSliceAddr, "&[]int{}", "", "var")
 	make([]int, 0) //@item(makeIntSlice, "make([]int, 0)", "", "func")
+
+	var _ *[]int = in //@snippet(" //", litIntSliceAddr, "&[]int{$0\\}", "&[]int{$0\\}")
+	var _ **[]int = in //@complete(" //")
 
 	var slice []int
 	slice = i //@snippet(" //", litIntSlice, "[]int{$0\\}", "[]int{$0\\}")
@@ -163,6 +167,9 @@ func _() {
 
 func _() {
 	float64() //@item(litFloat64, "float64()", "float64", "var")
+
+	// don't complete to "&float64()"
+	var _ *float64 = float64 //@complete(" //")
 
 	var f float64
 	f = fl //@complete(" //", litFloat64),snippet(" //", litFloat64, "float64($0)", "float64($0)")

@@ -1,6 +1,6 @@
 -- summary --
-CompletionsCount = 223
-CompletionSnippetCount = 61
+CompletionsCount = 225
+CompletionSnippetCount = 62
 UnimportedCompletionsCount = 4
 DeepCompletionsCount = 5
 FuzzyCompletionsCount = 8

@@ -917,8 +917,9 @@ func (c *completer) lexical() error {
 		// if an object literal makes a good candidate. For example, if
 		// our expected type is "[]int", this will add a candidate of
 		// "[]int{}".
-		if _, named := deref(c.expectedType.objType).(*types.Named); !named {
-			c.literal(c.expectedType.objType, nil)
+		t := deref(c.expectedType.objType)
+		if _, named := t.(*types.Named); !named {
+			c.literal(t, nil)
 		}
 	}
 

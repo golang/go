@@ -65,9 +65,16 @@ func (c *completer) literal(literalType types.Type, imp *importInfo) {
 
 	// Check if an object of type literalType would match our expected type.
 	cand := candidate{
-		obj:         c.fakeObj(literalType),
-		addressable: true,
+		obj: c.fakeObj(literalType),
 	}
+
+	switch literalType.Underlying().(type) {
+	// These literal types are addressable (e.g. "&[]int{}"), others are
+	// not (e.g. can't do "&(func(){})").
+	case *types.Struct, *types.Array, *types.Slice, *types.Map:
+		cand.addressable = true
+	}
+
 	if !c.matchingCandidate(&cand) {
 		return
 	}
