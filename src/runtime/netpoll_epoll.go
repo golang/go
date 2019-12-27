@@ -22,6 +22,7 @@ var (
 	epfd int32 = -1 // epoll descriptor
 
 	netpollBreakRd, netpollBreakWr uintptr // for netpollBreak
+	netpollBreakData               [8]byte
 )
 
 func netpollinit() {
@@ -50,6 +51,7 @@ func netpollinit() {
 	}
 	netpollBreakRd = uintptr(r)
 	netpollBreakWr = uintptr(w)
+	netpollBreakData = ev.data
 }
 
 func netpollIsPollDescriptor(fd uintptr) bool {
@@ -136,7 +138,7 @@ retry:
 			continue
 		}
 
-		if *(**uintptr)(unsafe.Pointer(&ev.data)) == &netpollBreakRd {
+		if ev.data == netpollBreakData {
 			if ev.events != _EPOLLIN {
 				println("runtime: netpoll: break fd ready for", ev.events)
 				throw("runtime: netpoll: break fd ready for something unexpected")

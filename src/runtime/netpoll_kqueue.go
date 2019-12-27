@@ -14,6 +14,7 @@ var (
 	kq int32 = -1
 
 	netpollBreakRd, netpollBreakWr uintptr // for netpollBreak
+	netpollBreakIdent              uint64
 )
 
 func netpollinit() {
@@ -40,6 +41,7 @@ func netpollinit() {
 	}
 	netpollBreakRd = uintptr(r)
 	netpollBreakWr = uintptr(w)
+	netpollBreakIdent = ev.ident
 }
 
 func netpollIsPollDescriptor(fd uintptr) bool {
@@ -134,7 +136,7 @@ retry:
 	for i := 0; i < int(n); i++ {
 		ev := &events[i]
 
-		if uintptr(ev.ident) == netpollBreakRd {
+		if ev.ident == netpollBreakIdent {
 			if ev.filter != _EVFILT_READ {
 				println("runtime: netpoll: break fd ready for", ev.filter)
 				throw("runtime: netpoll: break fd ready for something unexpected")
