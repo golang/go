@@ -54,6 +54,15 @@ func main() {
 	// OK
 	println("hello, world") // want "call of println"
 
+	// OK /* */-form.
+	println("안녕, 세계") /* want "call of println" */
+
+	// OK  (nested comment)
+	println("Γειά σου, Κόσμε") // some comment // want "call of println"
+
+	// OK (nested comment in /**/)
+	println("你好，世界") /* some comment // want "call of println" */
+
 	// OK (multiple expectations on same line)
 	println(); println() // want "call of println(...)" "call of println(...)"
 }
