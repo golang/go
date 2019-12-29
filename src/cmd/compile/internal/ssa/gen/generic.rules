@@ -696,6 +696,19 @@
 	&& disjoint(p1, sizeof(t1), p4, sizeof(t4))
 	&& disjoint(p1, sizeof(t1), p5, sizeof(t5))
 	-> mem
+(Store {t1} 
+	(LocalAddr <t3> pb1 
+		mem1:(VarDef 
+			{var1} 
+			mem2:(VarKill 
+				{var1} 
+				memCall))) 
+	(Load 
+		<t1> 
+		(LocalAddr <t3> pb1 memCall) 
+		memCall) 
+	mem3) && mem1 == mem3 && mem1.Uses == 2 && mem2.Uses == 1
+	-> memCall
 
 // Don't Store zeros to cleared variables.
 (Store {t} (OffPtr [o] p1) x mem:(Zero [n] p2 _))

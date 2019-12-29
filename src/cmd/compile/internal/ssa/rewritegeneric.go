@@ -43449,7 +43449,6 @@ func rewriteValuegeneric_OpStaticCall_0(v *Value) bool {
 	return false
 }
 func rewriteValuegeneric_OpStore_0(v *Value) bool {
-	b := v.Block
 	// match: (Store {t1} p1 (Load <t2> p2 mem) mem)
 	// cond: isSamePtr(p1, p2) && t2.Size() == sizeof(t1)
 	// result: mem
@@ -43578,6 +43577,47 @@ func rewriteValuegeneric_OpStore_0(v *Value) bool {
 		v.reset(OpCopy)
 		v.Type = mem.Type
 		v.AddArg(mem)
+		return true
+	}
+	// match: (Store {t1} (LocalAddr <t3> pb1 mem1:(VarDef {var1} mem2:(VarKill {var1} memCall))) (Load <t1> (LocalAddr <t3> pb1 memCall) memCall) mem3)
+	// cond: mem1 == mem3 && mem1.Uses == 2 && mem2.Uses == 1
+	// result: memCall
+	for {
+		t1 := v.Aux
+		mem3 := v.Args[2]
+		v_0 := v.Args[0]
+		if v_0.Op != OpLocalAddr {
+			break
+		}
+		t3 := v_0.Type
+		_ = v_0.Args[1]
+		pb1 := v_0.Args[0]
+		mem1 := v_0.Args[1]
+		if mem1.Op != OpVarDef {
+			break
+		}
+		var1 := mem1.Aux
+		mem2 := mem1.Args[0]
+		if mem2.Op != OpVarKill || mem2.Aux != var1 {
+			break
+		}
+		memCall := mem2.Args[0]
+		v_1 := v.Args[1]
+		if v_1.Op != OpLoad || v_1.Type != t1 {
+			break
+		}
+		_ = v_1.Args[1]
+		v_1_0 := v_1.Args[0]
+		if v_1_0.Op != OpLocalAddr || v_1_0.Type != t3 {
+			break
+		}
+		_ = v_1_0.Args[1]
+		if pb1 != v_1_0.Args[0] || memCall != v_1_0.Args[1] || memCall != v_1.Args[1] || !(mem1 == mem3 && mem1.Uses == 2 && mem2.Uses == 1) {
+			break
+		}
+		v.reset(OpCopy)
+		v.Type = memCall.Type
+		v.AddArg(memCall)
 		return true
 	}
 	// match: (Store {t} (OffPtr [o] p1) x mem:(Zero [n] p2 _))
@@ -43747,6 +43787,12 @@ func rewriteValuegeneric_OpStore_0(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpStore_10(v *Value) bool {
+	b := v.Block
+	config := b.Func.Config
+	fe := b.Func.fe
 	// match: (Store dst (StructMake1 <t> f0) mem)
 	// result: (Store {t.FieldType(0)} (OffPtr <t.FieldType(0).PtrTo()> [0] dst) f0 mem)
 	for {
@@ -43768,12 +43814,6 @@ func rewriteValuegeneric_OpStore_0(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpStore_10(v *Value) bool {
-	b := v.Block
-	config := b.Func.Config
-	fe := b.Func.fe
 	// match: (Store dst (StructMake2 <t> f0 f1) mem)
 	// result: (Store {t.FieldType(1)} (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst) f1 (Store {t.FieldType(0)} (OffPtr <t.FieldType(0).PtrTo()> [0] dst) f0 mem))
 	for {
@@ -44037,6 +44077,10 @@ func rewriteValuegeneric_OpStore_10(v *Value) bool {
 		v.AddArg(mem)
 		return true
 	}
+	return false
+}
+func rewriteValuegeneric_OpStore_20(v *Value) bool {
+	b := v.Block
 	// match: (Store {t1} op1:(OffPtr [o1] p1) d1 m2:(Store {t2} op2:(OffPtr [0] p2) d2 m3:(Move [n] p3 _ mem)))
 	// cond: m2.Uses == 1 && m3.Uses == 1 && o1 == sizeof(t2) && n == sizeof(t2) + sizeof(t1) && isSamePtr(p1, p2) && isSamePtr(p2, p3) && clobber(m2) && clobber(m3)
 	// result: (Store {t1} op1 d1 (Store {t2} op2 d2 mem))
@@ -44084,10 +44128,6 @@ func rewriteValuegeneric_OpStore_10(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
-	return false
-}
-func rewriteValuegeneric_OpStore_20(v *Value) bool {
-	b := v.Block
 	// match: (Store {t1} op1:(OffPtr [o1] p1) d1 m2:(Store {t2} op2:(OffPtr [o2] p2) d2 m3:(Store {t3} op3:(OffPtr [0] p3) d3 m4:(Move [n] p4 _ mem))))
 	// cond: m2.Uses == 1 && m3.Uses == 1 && m4.Uses == 1 && o2 == sizeof(t3) && o1-o2 == sizeof(t2) && n == sizeof(t3) + sizeof(t2) + sizeof(t1) && isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && clobber(m2) && clobber(m3) && clobber(m4)
 	// result: (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 mem)))
