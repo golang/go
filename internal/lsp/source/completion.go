@@ -131,9 +131,8 @@ func (ipm insensitivePrefixMatcher) Score(candidateLabel string) float32 {
 type completer struct {
 	snapshot Snapshot
 	pkg      Package
-
-	qf   types.Qualifier
-	opts CompletionOptions
+	qf       types.Qualifier
+	opts     *completionOptions
 
 	// ctx is the context associated with this completion request.
 	ctx context.Context
@@ -247,10 +246,10 @@ func (p Selection) Suffix() string {
 }
 
 func (c *completer) deepCompletionContext() (context.Context, context.CancelFunc) {
-	if c.opts.Budget == 0 {
+	if c.opts.budget == 0 {
 		return context.WithCancel(c.ctx)
 	}
-	return context.WithDeadline(c.ctx, c.startTime.Add(c.opts.Budget))
+	return context.WithDeadline(c.ctx, c.startTime.Add(c.opts.budget))
 }
 
 func (c *completer) setSurrounding(ident *ast.Ident) {
@@ -268,11 +267,12 @@ func (c *completer) setSurrounding(ident *ast.Ident) {
 		mappedRange: newMappedRange(c.snapshot.View().Session().Cache().FileSet(), c.mapper, ident.Pos(), ident.End()),
 	}
 
-	if c.opts.FuzzyMatching {
+	switch c.opts.matcher {
+	case Fuzzy:
 		c.matcher = fuzzy.NewMatcher(c.surrounding.Prefix())
-	} else if c.opts.CaseSensitive {
+	case CaseSensitive:
 		c.matcher = prefixMatcher(c.surrounding.Prefix())
-	} else {
+	default:
 		c.matcher = insensitivePrefixMatcher(strings.ToLower(c.surrounding.Prefix()))
 	}
 }
@@ -405,7 +405,7 @@ func (e ErrIsDefinition) Error() string {
 // The selection is computed based on the preceding identifier and can be used by
 // the client to score the quality of the completion. For instance, some clients
 // may tolerate imperfect matches as valid completion results, since users may make typos.
-func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position, opts CompletionOptions) ([]CompletionItem, *Selection, error) {
+func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) ([]CompletionItem, *Selection, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Completion")
 	defer done()
 
@@ -439,6 +439,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 		return nil, nil, nil
 	}
 
+	opts := snapshot.View().Options()
 	c := &completer{
 		pkg:                       pkg,
 		snapshot:                  snapshot,
@@ -451,7 +452,16 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 		seen:                      make(map[types.Object]bool),
 		enclosingFunc:             enclosingFunction(path, rng.Start, pkg.GetTypesInfo()),
 		enclosingCompositeLiteral: enclosingCompositeLiteral(path, rng.Start, pkg.GetTypesInfo()),
-		opts:                      opts,
+		opts: &completionOptions{
+			matcher:           opts.Matcher,
+			deepCompletion:    opts.DeepCompletion,
+			unimported:        opts.UnimportedCompletion,
+			documentation:     opts.CompletionDocumentation,
+			fullDocumentation: opts.HoverKind == FullDocumentation,
+			placeholders:      opts.Placeholders,
+			literal:           opts.Literal,
+			budget:            opts.CompletionBudget,
+		},
 		// default to a matcher that always matches
 		matcher:        prefixMatcher(""),
 		methodSetCache: make(map[methodSetKey]*types.MethodSet),
@@ -459,7 +469,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 		startTime:      startTime,
 	}
 
-	if opts.Deep {
+	if c.opts.deepCompletion {
 		// Initialize max search depth to unlimited.
 		c.deepState.maxDepth = -1
 	}
@@ -629,7 +639,7 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 	}
 
 	// Try unimported packages.
-	if id, ok := sel.X.(*ast.Ident); ok && c.opts.Unimported && len(c.items) < unimportedTarget {
+	if id, ok := sel.X.(*ast.Ident); ok && c.opts.unimported && len(c.items) < unimportedTarget {
 		if err := c.unimportedMembers(id); err != nil {
 			return err
 		}
@@ -862,7 +872,7 @@ func (c *completer) lexical() error {
 		}
 	}
 
-	if c.opts.Unimported && len(c.items) < unimportedTarget {
+	if c.opts.unimported && len(c.items) < unimportedTarget {
 		ctx, cancel := c.deepCompletionContext()
 		defer cancel()
 		// Suggest packages that have not been imported yet.

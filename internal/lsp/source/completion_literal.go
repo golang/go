@@ -20,7 +20,7 @@ import (
 // literal generates composite literal, function literal, and make()
 // completion items.
 func (c *completer) literal(literalType types.Type, imp *importInfo) {
-	if !c.opts.Literal {
+	if !c.opts.literal {
 		return
 	}
 
@@ -213,7 +213,7 @@ func (c *completer) functionLiteral(sig *types.Signature, matchScore float64) {
 			// Our parameter names are guesses, so they must be placeholders
 			// for easy correction. If placeholders are disabled, don't
 			// offer the completion.
-			if !c.opts.Placeholders {
+			if !c.opts.placeholders {
 				return
 			}
 
@@ -367,7 +367,7 @@ func (c *completer) makeCall(typeName string, secondArg string, matchScore float
 	if secondArg != "" {
 		snip.WriteText(", ")
 		snip.WritePlaceholder(func(b *snippet.Builder) {
-			if c.opts.Placeholders {
+			if c.opts.placeholders {
 				b.WriteText(secondArg)
 			}
 		})

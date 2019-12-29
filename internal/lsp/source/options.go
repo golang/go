@@ -74,16 +74,13 @@ var (
 		},
 	}
 	DefaultUserOptions = UserOptions{
-		Env:       os.Environ(),
-		HoverKind: SynopsisDocumentation,
-		Completion: CompletionOptions{
-			Documentation: true,
-			Deep:          true,
-			FuzzyMatching: true,
-			Literal:       true,
-			Budget:        100 * time.Millisecond,
-		},
-		LinkTarget: "pkg.go.dev",
+		Env:                     os.Environ(),
+		HoverKind:               SynopsisDocumentation,
+		LinkTarget:              "pkg.go.dev",
+		Matcher:                 Fuzzy,
+		DeepCompletion:          true,
+		CompletionDocumentation: true,
+		Literal:                 true,
 	}
 	DefaultHooks = Hooks{
 		ComputeEdits: myers.ComputeEdits,
@@ -94,7 +91,9 @@ var (
 	DefaultExperimentalOptions = ExperimentalOptions{
 		TempModfile: false,
 	}
-	DefaultDebuggingOptions = DebuggingOptions{}
+	DefaultDebuggingOptions = DebuggingOptions{
+		CompletionBudget: 100 * time.Millisecond,
+	}
 )
 
 type Options struct {
@@ -142,7 +141,37 @@ type UserOptions struct {
 	// LocalPrefix is used to specify goimports's -local behavior.
 	LocalPrefix string
 
-	Completion CompletionOptions
+	// Matcher specifies the type of matcher to use for completion requests.
+	Matcher Matcher
+
+	// DeepCompletion allows completion to perform nested searches through
+	// possible candidates.
+	DeepCompletion bool
+
+	// UnimportedCompletion enables completion for unimported packages.
+	UnimportedCompletion bool
+
+	// CompletionDocumentation returns additional documentation with completion
+	// requests.
+	CompletionDocumentation bool
+
+	// Placeholders adds placeholders to parameters and structs in completion
+	// results.
+	Placeholders bool
+
+	// Literal enables completion for map, slice, and function literals.
+	Literal bool
+}
+
+type completionOptions struct {
+	deepCompletion    bool
+	unimported        bool
+	documentation     bool
+	fullDocumentation bool
+	placeholders      bool
+	literal           bool
+	matcher           Matcher
+	budget            time.Duration
 }
 
 type Hooks struct {
@@ -161,25 +190,22 @@ type ExperimentalOptions struct {
 
 type DebuggingOptions struct {
 	VerboseOutput bool
-}
 
-type CompletionOptions struct {
-	Deep              bool
-	FuzzyMatching     bool
-	CaseSensitive     bool
-	Unimported        bool
-	Documentation     bool
-	FullDocumentation bool
-	Placeholders      bool
-	Literal           bool
-
-	// Budget is the soft latency goal for completion requests. Most
+	// CompletionBudget is the soft latency goal for completion requests. Most
 	// requests finish in a couple milliseconds, but in some cases deep
 	// completions can take much longer. As we use up our budget we
 	// dynamically reduce the search scope to ensure we return timely
 	// results. Zero means unlimited.
-	Budget time.Duration
+	CompletionBudget time.Duration
 }
+
+type Matcher int
+
+const (
+	Fuzzy = Matcher(iota)
+	CaseInsensitive
+	CaseSensitive
+)
 
 type HoverKind int
 
@@ -280,17 +306,13 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 		o.BuildFlags = flags
 
 	case "completionDocumentation":
-		result.setBool(&o.Completion.Documentation)
+		result.setBool(&o.CompletionDocumentation)
 	case "usePlaceholders":
-		result.setBool(&o.Completion.Placeholders)
+		result.setBool(&o.Placeholders)
 	case "deepCompletion":
-		result.setBool(&o.Completion.Deep)
-	case "fuzzyMatching":
-		result.setBool(&o.Completion.FuzzyMatching)
-	case "caseSensitiveCompletion":
-		result.setBool(&o.Completion.CaseSensitive)
+		result.setBool(&o.DeepCompletion)
 	case "completeUnimported":
-		result.setBool(&o.Completion.Unimported)
+		result.setBool(&o.UnimportedCompletion)
 	case "completionBudget":
 		if v, ok := result.asString(); ok {
 			d, err := time.ParseDuration(v)
@@ -298,13 +320,26 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 				result.errorf("failed to parse duration %q: %v", v, err)
 				break
 			}
-			o.Completion.Budget = d
+			o.CompletionBudget = d
+		}
+
+	case "matcher":
+		matcher, ok := result.asString()
+		if !ok {
+			break
+		}
+		switch matcher {
+		case "fuzzy":
+			o.Matcher = Fuzzy
+		case "caseSensitive":
+			o.Matcher = CaseSensitive
+		default:
+			o.Matcher = CaseInsensitive
 		}
 
 	case "hoverKind":
-		hoverKind, ok := value.(string)
+		hoverKind, ok := result.asString()
 		if !ok {
-			result.errorf("invalid type %T for string option %q", value, name)
 			break
 		}
 		switch hoverKind {
@@ -377,6 +412,14 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 	case "wantUnimportedCompletions":
 		result.State = OptionDeprecated
 		result.Replacement = "completeUnimported"
+
+	case "fuzzyMatching":
+		result.State = OptionDeprecated
+		result.Replacement = "matcher"
+
+	case "caseSensitiveCompletion":
+		result.State = OptionDeprecated
+		result.Replacement = "matcher"
 
 	case "noIncrementalSync":
 		result.State = OptionDeprecated

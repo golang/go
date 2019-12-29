@@ -24,7 +24,6 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 		return nil, err
 	}
 	snapshot := view.Snapshot()
-	options := view.Options()
 	fh, err := snapshot.GetFile(uri)
 	if err != nil {
 		return nil, err
@@ -33,8 +32,7 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	var surrounding *source.Selection
 	switch fh.Identity().Kind {
 	case source.Go:
-		options.Completion.FullDocumentation = options.HoverKind == source.FullDocumentation
-		candidates, surrounding, err = source.Completion(ctx, snapshot, fh, params.Position, options.Completion)
+		candidates, surrounding, err = source.Completion(ctx, snapshot, fh, params.Position)
 	case source.Mod:
 		candidates, surrounding = nil, nil
 	}
@@ -62,7 +60,8 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 
 	// When using deep completions/fuzzy matching, report results as incomplete so
 	// client fetches updated completions after every key stroke.
-	incompleteResults := options.Completion.Deep || options.Completion.FuzzyMatching
+	options := view.Options()
+	incompleteResults := options.DeepCompletion || options.Matcher == source.Fuzzy
 
 	items := toProtocolCompletionItems(candidates, rng, options)
 
@@ -94,7 +93,7 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, rng protocol.
 		// Limit the number of deep completions to not overwhelm the user in cases
 		// with dozens of deep completion matches.
 		if candidate.Depth > 0 {
-			if !options.Completion.Deep {
+			if !options.DeepCompletion {
 				continue
 			}
 			if numDeepCompletionsSeen >= source.MaxDeepCompletions {

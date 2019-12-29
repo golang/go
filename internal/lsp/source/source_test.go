@@ -107,10 +107,10 @@ func (r *runner) Completion(t *testing.T, src span.Span, test tests.Completion, 
 	for _, pos := range test.CompletionItems {
 		want = append(want, tests.ToProtocolCompletionItem(*items[pos]))
 	}
-	prefix, list := r.callCompletion(t, src, source.CompletionOptions{
-		Documentation: true,
-		FuzzyMatching: true,
-		Literal:       strings.Contains(string(src.URI()), "literal"),
+	prefix, list := r.callCompletion(t, src, func(opts *source.Options) {
+		opts.Matcher = source.Fuzzy
+		opts.Literal = strings.Contains(string(src.URI()), "literal")
+		opts.DeepCompletion = false
 	})
 	if !strings.Contains(string(src.URI()), "builtins") {
 		list = tests.FilterBuiltins(list)
@@ -128,10 +128,10 @@ func (r *runner) Completion(t *testing.T, src span.Span, test tests.Completion, 
 }
 
 func (r *runner) CompletionSnippet(t *testing.T, src span.Span, expected tests.CompletionSnippet, placeholders bool, items tests.CompletionItems) {
-	_, list := r.callCompletion(t, src, source.CompletionOptions{
-		Placeholders: placeholders,
-		Deep:         true,
-		Literal:      true,
+	_, list := r.callCompletion(t, src, func(opts *source.Options) {
+		opts.Placeholders = placeholders
+		opts.DeepCompletion = true
+		opts.Literal = true
 	})
 	got := tests.FindItem(list, *items[expected.CompletionItem])
 	want := expected.PlainSnippet
@@ -148,8 +148,8 @@ func (r *runner) UnimportedCompletion(t *testing.T, src span.Span, test tests.Co
 	for _, pos := range test.CompletionItems {
 		want = append(want, tests.ToProtocolCompletionItem(*items[pos]))
 	}
-	_, got := r.callCompletion(t, src, source.CompletionOptions{
-		Unimported: true,
+	_, got := r.callCompletion(t, src, func(opts *source.Options) {
+		opts.UnimportedCompletion = true
 	})
 	if !strings.Contains(string(src.URI()), "builtins") {
 		got = tests.FilterBuiltins(got)
@@ -164,9 +164,9 @@ func (r *runner) DeepCompletion(t *testing.T, src span.Span, test tests.Completi
 	for _, pos := range test.CompletionItems {
 		want = append(want, tests.ToProtocolCompletionItem(*items[pos]))
 	}
-	prefix, list := r.callCompletion(t, src, source.CompletionOptions{
-		Deep:          true,
-		Documentation: true,
+	prefix, list := r.callCompletion(t, src, func(opts *source.Options) {
+		opts.DeepCompletion = true
+		opts.Matcher = source.CaseInsensitive
 	})
 	if !strings.Contains(string(src.URI()), "builtins") {
 		list = tests.FilterBuiltins(list)
@@ -189,9 +189,9 @@ func (r *runner) FuzzyCompletion(t *testing.T, src span.Span, test tests.Complet
 	for _, pos := range test.CompletionItems {
 		want = append(want, tests.ToProtocolCompletionItem(*items[pos]))
 	}
-	_, got := r.callCompletion(t, src, source.CompletionOptions{
-		FuzzyMatching: true,
-		Deep:          true,
+	_, got := r.callCompletion(t, src, func(opts *source.Options) {
+		opts.DeepCompletion = true
+		opts.Matcher = source.Fuzzy
 	})
 	if !strings.Contains(string(src.URI()), "builtins") {
 		got = tests.FilterBuiltins(got)
@@ -206,8 +206,8 @@ func (r *runner) CaseSensitiveCompletion(t *testing.T, src span.Span, test tests
 	for _, pos := range test.CompletionItems {
 		want = append(want, tests.ToProtocolCompletionItem(*items[pos]))
 	}
-	_, list := r.callCompletion(t, src, source.CompletionOptions{
-		CaseSensitive: true,
+	_, list := r.callCompletion(t, src, func(opts *source.Options) {
+		opts.Matcher = source.CaseSensitive
 	})
 	if !strings.Contains(string(src.URI()), "builtins") {
 		list = tests.FilterBuiltins(list)
@@ -222,25 +222,34 @@ func (r *runner) RankCompletion(t *testing.T, src span.Span, test tests.Completi
 	for _, pos := range test.CompletionItems {
 		want = append(want, tests.ToProtocolCompletionItem(*items[pos]))
 	}
-	_, got := r.callCompletion(t, src, source.CompletionOptions{
-		FuzzyMatching: true,
-		Deep:          true,
-		Literal:       true,
+	_, got := r.callCompletion(t, src, func(opts *source.Options) {
+		opts.DeepCompletion = true
+		opts.Matcher = source.Fuzzy
+		opts.Literal = true
 	})
 	if msg := tests.CheckCompletionOrder(want, got, true); msg != "" {
 		t.Errorf("%s: %s", src, msg)
 	}
 }
 
-func (r *runner) callCompletion(t *testing.T, src span.Span, options source.CompletionOptions) (string, []protocol.CompletionItem) {
+func (r *runner) callCompletion(t *testing.T, src span.Span, options func(*source.Options)) (string, []protocol.CompletionItem) {
 	fh, err := r.view.Snapshot().GetFile(src.URI())
 	if err != nil {
 		t.Fatal(err)
 	}
-	list, surrounding, err := source.Completion(r.ctx, r.view.Snapshot(), fh, protocol.Position{
+	original := r.view.Options()
+	modified := original
+	options(&modified)
+	view, err := r.view.SetOptions(r.ctx, modified)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.view.SetOptions(r.ctx, original)
+
+	list, surrounding, err := source.Completion(r.ctx, view.Snapshot(), fh, protocol.Position{
 		Line:      float64(src.Start().Line() - 1),
 		Character: float64(src.Start().Column() - 1),
-	}, options)
+	})
 	if err != nil && !errors.As(err, &source.ErrIsDefinition{}) {
 		t.Fatalf("failed for %v: %v", src, err)
 	}
@@ -261,7 +270,7 @@ func (r *runner) callCompletion(t *testing.T, src span.Span, options source.Comp
 	// Apply deep completion filtering.
 	for _, item := range list {
 		if item.Depth > 0 {
-			if !options.Deep {
+			if !modified.DeepCompletion {
 				continue
 			}
 			if numDeepCompletionsSeen >= source.MaxDeepCompletions {

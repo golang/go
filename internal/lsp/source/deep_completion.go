@@ -107,8 +107,8 @@ func (c *completer) shouldPrune() bool {
 	}
 
 	// Check our remaining budget every 100 candidates.
-	if c.opts.Budget > 0 && c.deepState.candidateCount%100 == 0 {
-		spent := float64(time.Since(c.startTime)) / float64(c.opts.Budget)
+	if c.opts.budget > 0 && c.deepState.candidateCount%100 == 0 {
+		spent := float64(time.Since(c.startTime)) / float64(c.opts.budget)
 
 		switch {
 		case spent >= 0.90:

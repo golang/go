@@ -191,7 +191,7 @@ func DefaultOptions() source.Options {
 	}
 	o.HoverKind = source.SynopsisDocumentation
 	o.InsertTextFormat = protocol.SnippetTextFormat
-	o.Completion.Budget = time.Minute
+	o.CompletionBudget = time.Minute
 	return o
 }
 

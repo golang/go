@@ -36,7 +36,7 @@ func (c *completer) structFieldSnippet(label, detail string) *snippet.Builder {
 	snip.WriteText(label + ": ")
 	snip.WritePlaceholder(func(b *snippet.Builder) {
 		// A placeholder snippet turns "Foo{Ba<>" into "Foo{Bar: <*int*>".
-		if c.opts.Placeholders {
+		if c.opts.placeholders {
 			b.WriteText(detail)
 		}
 	})
@@ -79,7 +79,7 @@ func (c *completer) functionCallSnippet(name string, params []string) *snippet.B
 	snip := &snippet.Builder{}
 	snip.WriteText(name + "(")
 
-	if c.opts.Placeholders {
+	if c.opts.placeholders {
 		// A placeholder snippet turns "someFun<>" into "someFunc(<*i int*>, *s string*)".
 		for i, p := range params {
 			if i > 0 {

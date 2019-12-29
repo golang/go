@@ -168,7 +168,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		snippet:             snip,
 	}
 	// If the user doesn't want documentation for completion items.
-	if !c.opts.Documentation {
+	if !c.opts.documentation {
 		return item, nil
 	}
 	pos := c.snapshot.View().Session().Cache().FileSet().Position(obj.Pos())
@@ -200,7 +200,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		return item, nil
 	}
 	item.Documentation = hover.Synopsis
-	if c.opts.FullDocumentation {
+	if c.opts.fullDocumentation {
 		item.Documentation = hover.FullDocumentation
 	}
 	return item, nil
