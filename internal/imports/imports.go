@@ -118,21 +118,21 @@ func ApplyFixes(fixes []*ImportFix, filename string, src []byte, opt *Options, e
 
 // GetAllCandidates gets all of the packages starting with prefix that can be
 // imported by filename, sorted by import path.
-func GetAllCandidates(ctx context.Context, callback func(ImportFix), prefix string, filename string, opt *Options) error {
+func GetAllCandidates(ctx context.Context, callback func(ImportFix), searchPrefix, filename, filePkg string, opt *Options) error {
 	_, opt, err := initialize(filename, nil, opt)
 	if err != nil {
 		return err
 	}
-	return getAllCandidates(ctx, callback, prefix, filename, opt.Env)
+	return getAllCandidates(ctx, callback, searchPrefix, filename, filePkg, opt.Env)
 }
 
 // GetPackageExports returns all known packages with name pkg and their exports.
-func GetPackageExports(ctx context.Context, callback func(PackageExport), pkg, filename string, opt *Options) error {
+func GetPackageExports(ctx context.Context, callback func(PackageExport), searchPkg, filename, filePkg string, opt *Options) error {
 	_, opt, err := initialize(filename, nil, opt)
 	if err != nil {
 		return err
 	}
-	return getPackageExports(ctx, callback, pkg, filename, opt.Env)
+	return getPackageExports(ctx, callback, searchPkg, filename, filePkg, opt.Env)
 }
 
 // initialize sets the values for opt and src.

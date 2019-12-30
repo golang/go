@@ -906,7 +906,7 @@ import _ "rsc.io/quote"
 			}
 		}
 	}
-	if err := getAllCandidates(context.Background(), add, "", "foo.go", mt.env); err != nil {
+	if err := getAllCandidates(context.Background(), add, "", "foo.go", "foo", mt.env); err != nil {
 		t.Fatalf("getAllCandidates() = %v", err)
 	}
 	sort.Slice(got, func(i, j int) bool {

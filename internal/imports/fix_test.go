@@ -2527,7 +2527,7 @@ func TestGetCandidates(t *testing.T) {
 				}
 			}
 		}
-		if err := getAllCandidates(context.Background(), add, "", "x.go", t.env); err != nil {
+		if err := getAllCandidates(context.Background(), add, "", "x.go", "x", t.env); err != nil {
 			t.Fatalf("GetAllCandidates() = %v", err)
 		}
 		// Sort, then clear out relevance so it doesn't mess up the DeepEqual.
@@ -2578,7 +2578,7 @@ func TestGetPackageCompletions(t *testing.T) {
 				}
 			}
 		}
-		if err := getPackageExports(context.Background(), add, "rand", "x.go", t.env); err != nil {
+		if err := getPackageExports(context.Background(), add, "rand", "x.go", "x", t.env); err != nil {
 			t.Fatalf("getPackageCompletions() = %v", err)
 		}
 		// Sort, then clear out relevance so it doesn't mess up the DeepEqual.

@@ -592,9 +592,10 @@ const MaxRelevance = 7
 // getCandidatePkgs works with the passed callback to find all acceptable packages.
 // It deduplicates by import path, and uses a cached stdlib rather than reading
 // from disk.
-func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, env *ProcessEnv) error {
-	// TODO(heschi): filter out current package. (Don't forget x_test can import x.)
-
+func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, filename, filePkg string, env *ProcessEnv) error {
+	notSelf := func(p *pkg) bool {
+		return p.packageName != filePkg || p.dir != filepath.Dir(filename)
+	}
 	// Start off with the standard library.
 	for importPath, exports := range stdlib {
 		p := &pkg{
@@ -603,7 +604,7 @@ func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, env *P
 			packageName:     path.Base(importPath),
 			relevance:       MaxRelevance,
 		}
-		if wrappedCallback.packageNameLoaded(p) {
+		if notSelf(p) && wrappedCallback.packageNameLoaded(p) {
 			wrappedCallback.exportsLoaded(p, exports)
 		}
 	}
@@ -625,7 +626,7 @@ func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, env *P
 				return false
 			}
 			dupCheck[pkg.importPathShort] = struct{}{}
-			return wrappedCallback.packageNameLoaded(pkg)
+			return notSelf(pkg) && wrappedCallback.packageNameLoaded(pkg)
 		},
 		exportsLoaded: func(pkg *pkg, exports []string) {
 			wrappedCallback.exportsLoaded(pkg, exports)
@@ -642,7 +643,7 @@ func candidateImportName(pkg *pkg) string {
 }
 
 // getAllCandidates gets all of the candidates to be imported, regardless of if they are needed.
-func getAllCandidates(ctx context.Context, wrapped func(ImportFix), prefix string, filename string, env *ProcessEnv) error {
+func getAllCandidates(ctx context.Context, wrapped func(ImportFix), searchPrefix, filename, filePkg string, env *ProcessEnv) error {
 	callback := &scanCallback{
 		rootFound: func(gopathwalk.Root) bool {
 			return true
@@ -653,25 +654,26 @@ func getAllCandidates(ctx context.Context, wrapped func(ImportFix), prefix strin
 			}
 			// Try the assumed package name first, then a simpler path match
 			// in case of packages named vN, which are not uncommon.
-			return strings.HasPrefix(ImportPathToAssumedName(pkg.importPathShort), prefix) ||
-				strings.HasPrefix(path.Base(pkg.importPathShort), prefix)
+			return strings.HasPrefix(ImportPathToAssumedName(pkg.importPathShort), searchPrefix) ||
+				strings.HasPrefix(path.Base(pkg.importPathShort), searchPrefix)
 		},
 		packageNameLoaded: func(pkg *pkg) bool {
-			if strings.HasPrefix(pkg.packageName, prefix) {
-				wrapped(ImportFix{
-					StmtInfo: ImportInfo{
-						ImportPath: pkg.importPathShort,
-						Name:       candidateImportName(pkg),
-					},
-					IdentName: pkg.packageName,
-					FixType:   AddImport,
-					Relevance: pkg.relevance,
-				})
+			if !strings.HasPrefix(pkg.packageName, searchPrefix) {
+				return false
 			}
+			wrapped(ImportFix{
+				StmtInfo: ImportInfo{
+					ImportPath: pkg.importPathShort,
+					Name:       candidateImportName(pkg),
+				},
+				IdentName: pkg.packageName,
+				FixType:   AddImport,
+				Relevance: pkg.relevance,
+			})
 			return false
 		},
 	}
-	return getCandidatePkgs(ctx, callback, env)
+	return getCandidatePkgs(ctx, callback, filename, filePkg, env)
 }
 
 // A PackageExport is a package and its exports.
@@ -680,16 +682,16 @@ type PackageExport struct {
 	Exports []string
 }
 
-func getPackageExports(ctx context.Context, wrapped func(PackageExport), completePackage, filename string, env *ProcessEnv) error {
+func getPackageExports(ctx context.Context, wrapped func(PackageExport), searchPkg, filename, filePkg string, env *ProcessEnv) error {
 	callback := &scanCallback{
 		rootFound: func(gopathwalk.Root) bool {
 			return true
 		},
 		dirFound: func(pkg *pkg) bool {
-			return pkgIsCandidate(filename, references{completePackage: nil}, pkg)
+			return pkgIsCandidate(filename, references{searchPkg: nil}, pkg)
 		},
 		packageNameLoaded: func(pkg *pkg) bool {
-			return pkg.packageName == completePackage
+			return pkg.packageName == searchPkg
 		},
 		exportsLoaded: func(pkg *pkg, exports []string) {
 			sort.Strings(exports)
@@ -707,7 +709,7 @@ func getPackageExports(ctx context.Context, wrapped func(PackageExport), complet
 			})
 		},
 	}
-	return getCandidatePkgs(ctx, callback, env)
+	return getCandidatePkgs(ctx, callback, filename, filePkg, env)
 }
 
 // ProcessEnv contains environment variables and settings that affect the use of

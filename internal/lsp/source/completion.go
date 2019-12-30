@@ -684,7 +684,7 @@ func (c *completer) unimportedMembers(id *ast.Ident) error {
 		}
 	}
 	return c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
-		return imports.GetPackageExports(ctx, add, id.Name, c.filename, opts)
+		return imports.GetPackageExports(ctx, add, id.Name, c.filename, c.pkg.GetTypes().Name(), opts)
 	})
 }
 
@@ -903,7 +903,7 @@ func (c *completer) lexical() error {
 			})
 		}
 		if err := c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
-			return imports.GetAllCandidates(ctx, add, prefix, c.filename, opts)
+			return imports.GetAllCandidates(ctx, add, prefix, c.filename, c.pkg.GetTypes().Name(), opts)
 		}); err != nil {
 			return err
 		}
