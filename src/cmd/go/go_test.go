@@ -2738,20 +2738,6 @@ func TestGoGenerateXTestPkgName(t *testing.T) {
 	}
 }
 
-func TestGoGenerateBadImports(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("skipping because windows has no echo command")
-	}
-
-	// This package has an invalid import causing an import cycle,
-	// but go generate is supposed to still run.
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.run("generate", "gencycle")
-	tg.grepStdout("hello world", "go generate gencycle did not run generator")
-}
-
 func TestGoGetCustomDomainWildcard(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExecPath(t, "git")
