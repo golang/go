@@ -186,7 +186,7 @@ func (c *completer) deepSearch(cand candidate) {
 
 	switch obj := obj.(type) {
 	case *types.PkgName:
-		c.packageMembers(obj.Imported(), cand.imp)
+		c.packageMembers(obj.Imported(), stdScore, cand.imp)
 	default:
 		c.methodsAndFields(obj.Type(), cand.addressable, cand.imp)
 	}

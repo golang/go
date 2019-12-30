@@ -617,7 +617,7 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 	// Is sel a qualified identifier?
 	if id, ok := sel.X.(*ast.Ident); ok {
 		if pkgname, ok := c.pkg.GetTypesInfo().Uses[id].(*types.PkgName); ok {
-			c.packageMembers(pkgname.Imported(), nil)
+			c.packageMembers(pkgname.Imported(), stdScore, nil)
 			return nil
 		}
 	}
@@ -630,53 +630,71 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 
 	// Try unimported packages.
 	if id, ok := sel.X.(*ast.Ident); ok && c.opts.Unimported && len(c.items) < unimportedTarget {
-		ctx, cancel := c.deepCompletionContext()
-		defer cancel()
-
-		known := c.snapshot.KnownImportPaths()
-		add := func(pkgExport imports.PackageExport) {
-			// If we've seen this import path, use the fully-typed version.
-			if knownPkg, ok := known[pkgExport.Fix.StmtInfo.ImportPath]; ok {
-				c.packageMembers(knownPkg.GetTypes(), &importInfo{
-					importPath: pkgExport.Fix.StmtInfo.ImportPath,
-					name:       pkgExport.Fix.StmtInfo.Name,
-					pkg:        knownPkg,
-				})
-			} else {
-				// Otherwise, continue with untyped proposals.
-				pkg := types.NewPackage(pkgExport.Fix.StmtInfo.ImportPath, pkgExport.Fix.IdentName)
-				for _, export := range pkgExport.Exports {
-					score := 0.01 * float64(pkgExport.Fix.Relevance)
-					c.found(candidate{
-						obj:   types.NewVar(0, pkg, export, nil),
-						score: score,
-						imp: &importInfo{
-							importPath: pkgExport.Fix.StmtInfo.ImportPath,
-							name:       pkgExport.Fix.StmtInfo.Name,
-						},
-					})
-				}
-			}
-			if len(c.items) >= unimportedTarget {
-				cancel()
-			}
-		}
-		if err := c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
-			return imports.GetPackageExports(ctx, add, id.Name, c.filename, opts)
-		}); err != nil {
+		if err := c.unimportedMembers(id); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (c *completer) packageMembers(pkg *types.Package, imp *importInfo) {
+func (c *completer) unimportedMembers(id *ast.Ident) error {
+	// Try loaded packages first. They're relevant, fast, and fully typed.
+	known := c.snapshot.KnownImportPaths()
+	for path, pkg := range known {
+		if pkg.GetTypes().Name() != id.Name {
+			continue
+		}
+		// We don't know what this is, so assign it the highest score.
+		score := 0.01 * imports.MaxRelevance
+		c.packageMembers(pkg.GetTypes(), score, &importInfo{
+			importPath: path,
+			name:       pkg.GetTypes().Name(),
+			pkg:        pkg,
+		})
+		if len(c.items) >= unimportedTarget {
+			return nil
+		}
+	}
+
+	ctx, cancel := c.deepCompletionContext()
+	defer cancel()
+	var mu sync.Mutex
+	add := func(pkgExport imports.PackageExport) {
+		mu.Lock()
+		defer mu.Unlock()
+		if _, ok := known[pkgExport.Fix.StmtInfo.ImportPath]; ok {
+			return // We got this one above.
+		}
+
+		// Continue with untyped proposals.
+		pkg := types.NewPackage(pkgExport.Fix.StmtInfo.ImportPath, pkgExport.Fix.IdentName)
+		for _, export := range pkgExport.Exports {
+			score := 0.01 * float64(pkgExport.Fix.Relevance)
+			c.found(candidate{
+				obj:   types.NewVar(0, pkg, export, nil),
+				score: score,
+				imp: &importInfo{
+					importPath: pkgExport.Fix.StmtInfo.ImportPath,
+					name:       pkgExport.Fix.StmtInfo.Name,
+				},
+			})
+		}
+		if len(c.items) >= unimportedTarget {
+			cancel()
+		}
+	}
+	return c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+		return imports.GetPackageExports(ctx, add, id.Name, c.filename, opts)
+	})
+}
+
+func (c *completer) packageMembers(pkg *types.Package, score float64, imp *importInfo) {
 	scope := pkg.Scope()
 	for _, name := range scope.Names() {
 		obj := scope.Lookup(name)
 		c.found(candidate{
 			obj:         obj,
-			score:       stdScore,
+			score:       score,
 			imp:         imp,
 			addressable: isVar(obj),
 		})
