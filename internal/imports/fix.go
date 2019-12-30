@@ -589,9 +589,10 @@ func getFixes(fset *token.FileSet, f *ast.File, filename string, env *ProcessEnv
 // match pre-existing gopls code.
 const MaxRelevance = 7
 
-// getCandidatePkgs returns the list of pkgs that are accessible from filename,
-// filtered to those that match pkgnameFilter.
-func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, filename string, env *ProcessEnv) error {
+// getCandidatePkgs works with the passed callback to find all acceptable packages.
+// It deduplicates by import path, and uses a cached stdlib rather than reading
+// from disk.
+func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, env *ProcessEnv) error {
 	// TODO(heschi): filter out current package. (Don't forget x_test can import x.)
 
 	// Start off with the standard library.
@@ -616,9 +617,7 @@ func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, filena
 			// and generally redundant with the in-memory version.
 			return root.Type != gopathwalk.RootGOROOT && wrappedCallback.rootFound(root)
 		},
-		dirFound: func(pkg *pkg) bool {
-			return canUse(filename, pkg.dir) && wrappedCallback.dirFound(pkg)
-		},
+		dirFound: wrappedCallback.dirFound,
 		packageNameLoaded: func(pkg *pkg) bool {
 			mu.Lock()
 			defer mu.Unlock()
@@ -649,8 +648,13 @@ func getAllCandidates(ctx context.Context, wrapped func(ImportFix), prefix strin
 			return true
 		},
 		dirFound: func(pkg *pkg) bool {
-			// TODO(heschi): apply dir match heuristics like pkgIsCandidate
-			return true
+			if !canUse(filename, pkg.dir) {
+				return false
+			}
+			// Try the assumed package name first, then a simpler path match
+			// in case of packages named vN, which are not uncommon.
+			return strings.HasPrefix(ImportPathToAssumedName(pkg.importPathShort), prefix) ||
+				strings.HasPrefix(path.Base(pkg.importPathShort), prefix)
 		},
 		packageNameLoaded: func(pkg *pkg) bool {
 			if strings.HasPrefix(pkg.packageName, prefix) {
@@ -667,7 +671,7 @@ func getAllCandidates(ctx context.Context, wrapped func(ImportFix), prefix strin
 			return false
 		},
 	}
-	return getCandidatePkgs(ctx, callback, filename, env)
+	return getCandidatePkgs(ctx, callback, env)
 }
 
 // A PackageExport is a package and its exports.
@@ -682,8 +686,7 @@ func getPackageExports(ctx context.Context, wrapped func(PackageExport), complet
 			return true
 		},
 		dirFound: func(pkg *pkg) bool {
-			// TODO(heschi): apply dir match heuristics like pkgIsCandidate
-			return true
+			return pkgIsCandidate(filename, references{completePackage: nil}, pkg)
 		},
 		packageNameLoaded: func(pkg *pkg) bool {
 			return pkg.packageName == completePackage
@@ -704,7 +707,7 @@ func getPackageExports(ctx context.Context, wrapped func(PackageExport), complet
 			})
 		},
 	}
-	return getCandidatePkgs(ctx, callback, filename, env)
+	return getCandidatePkgs(ctx, callback, env)
 }
 
 // ProcessEnv contains environment variables and settings that affect the use of
