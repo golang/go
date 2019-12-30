@@ -2281,20 +2281,6 @@ func TestCoverageDashC(t *testing.T) {
 	tg.wantExecutable(tg.path("coverdep"), "go -test -c -coverprofile did not create executable")
 }
 
-func TestPluginNonMain(t *testing.T) {
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	pkg := filepath.Join(wd, "testdata", "testdep", "p2")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-
-	tg.runFail("build", "-buildmode=plugin", pkg)
-}
-
 func TestTestEmpty(t *testing.T) {
 	if !canRace {
 		t.Skip("no race detector")
