@@ -2653,17 +2653,6 @@ func TestGoBuildTestOnly(t *testing.T) {
 	tg.run("install", "./testonly...")
 }
 
-func TestGoTestDetectsTestOnlyImportCycles(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.runFail("test", "-c", "testcycle/p3")
-	tg.grepStderr("import cycle not allowed in test", "go test testcycle/p3 produced unexpected error")
-
-	tg.runFail("test", "-c", "testcycle/q1")
-	tg.grepStderr("import cycle not allowed in test", "go test testcycle/q1 produced unexpected error")
-}
-
 func TestGoTestFooTestWorks(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
