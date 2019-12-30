@@ -73,6 +73,7 @@ type Link struct {
 	compressDWARF bool
 
 	Tlsg         *sym.Symbol
+	Tlsg2        loader.Sym
 	Libdir       []string
 	Library      []*sym.Library
 	LibraryByPkg map[string]*sym.Library
@@ -82,6 +83,7 @@ type Link struct {
 	Textp2       []loader.Sym
 	Filesyms     []*sym.Symbol
 	Moduledata   *sym.Symbol
+	Moduledata2  loader.Sym
 
 	PackageFile  map[string]string
 	PackageShlib map[string]string

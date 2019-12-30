@@ -210,11 +210,19 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.loadlib()
 
 	deadcode(ctxt)
-	ctxt.loadlibfull() // XXX do it here for now
-	ctxt.linksetup()
-	ctxt.dostrdata()
 
+	if *FlagNewLdElf {
+		ctxt.linksetup()
+	}
+
+	ctxt.loadlibfull() // XXX do it here for now
+
+	if !*FlagNewLdElf {
+		ctxt.linksetupold()
+	}
+	ctxt.dostrdata()
 	dwarfGenerateDebugInfo(ctxt)
+
 	if objabi.Fieldtrack_enabled != 0 {
 		fieldtrack(ctxt)
 	}
