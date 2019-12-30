@@ -626,7 +626,144 @@ func (ctxt *Link) loadcgodirectives(useLoader bool) {
 }
 
 // Set up flags and special symbols depending on the platform build mode.
+// This version works with loader.Loader.
 func (ctxt *Link) linksetup() {
+	if !*FlagNewLdElf {
+		panic("should not get here, -newldelf not on")
+	}
+	switch ctxt.BuildMode {
+	case BuildModeCShared, BuildModePlugin:
+		symIdx := ctxt.loader.LookupOrCreateSym("runtime.islibrary", 0)
+		sb, _ := ctxt.loader.MakeSymbolUpdater(symIdx)
+		sb.SetType(sym.SNOPTRDATA)
+		sb.AddUint8(1)
+	case BuildModeCArchive:
+		symIdx := ctxt.loader.LookupOrCreateSym("runtime.isarchive", 0)
+		sb, _ := ctxt.loader.MakeSymbolUpdater(symIdx)
+		sb.SetType(sym.SNOPTRDATA)
+		sb.AddUint8(1)
+	}
+
+	// Recalculate pe parameters now that we have ctxt.LinkMode set.
+	if ctxt.HeadType == objabi.Hwindows {
+		Peinit(ctxt)
+	}
+
+	if ctxt.HeadType == objabi.Hdarwin && ctxt.LinkMode == LinkExternal {
+		*FlagTextAddr = 0
+	}
+
+	// If there are no dynamic libraries needed, gcc disables dynamic linking.
+	// Because of this, glibc's dynamic ELF loader occasionally (like in version 2.13)
+	// assumes that a dynamic binary always refers to at least one dynamic library.
+	// Rather than be a source of test cases for glibc, disable dynamic linking
+	// the same way that gcc would.
+	//
+	// Exception: on OS X, programs such as Shark only work with dynamic
+	// binaries, so leave it enabled on OS X (Mach-O) binaries.
+	// Also leave it enabled on Solaris which doesn't support
+	// statically linked binaries.
+	if ctxt.BuildMode == BuildModeExe {
+		if havedynamic == 0 && ctxt.HeadType != objabi.Hdarwin && ctxt.HeadType != objabi.Hsolaris {
+			*FlagD = true
+		}
+	}
+
+	if ctxt.LinkMode == LinkExternal && ctxt.Arch.Family == sys.PPC64 && objabi.GOOS != "aix" {
+		toc := ctxt.loader.LookupOrCreateSym(".TOC.", 0)
+		sb, _ := ctxt.loader.MakeSymbolUpdater(toc)
+		sb.SetType(sym.SDYNIMPORT)
+	}
+
+	// The Android Q linker started to complain about underalignment of the our TLS
+	// section. We don't actually use the section on android, so don't
+	// generate it.
+	if objabi.GOOS != "android" {
+		symIdx := ctxt.loader.LookupOrCreateSym("runtime.tlsg", 0)
+		sb, tlsg := ctxt.loader.MakeSymbolUpdater(symIdx)
+
+		// runtime.tlsg is used for external linking on platforms that do not define
+		// a variable to hold g in assembly (currently only intel).
+		if sb.Type() == 0 {
+			sb.SetType(sym.STLSBSS)
+			sb.SetSize(int64(ctxt.Arch.PtrSize))
+		} else if sb.Type() != sym.SDYNIMPORT {
+			Errorf(nil, "runtime declared tlsg variable %v", sb.Type())
+		}
+		ctxt.loader.SetAttrReachable(tlsg, true)
+		ctxt.Tlsg2 = tlsg
+	}
+
+	var moduledata loader.Sym
+	var mdsb *loader.SymbolBuilder
+	if ctxt.BuildMode == BuildModePlugin {
+		pmd := ctxt.loader.LookupOrCreateSym("local.pluginmoduledata", 0)
+		mdsb, moduledata = ctxt.loader.MakeSymbolUpdater(pmd)
+		ctxt.loader.SetAttrLocal(moduledata, true)
+	} else {
+		fmd := ctxt.loader.LookupOrCreateSym("runtime.firstmoduledata", 0)
+		mdsb, moduledata = ctxt.loader.MakeSymbolUpdater(fmd)
+	}
+	if mdsb.Type() != 0 && mdsb.Type() != sym.SDYNIMPORT {
+		// If the module (toolchain-speak for "executable or shared
+		// library") we are linking contains the runtime package, it
+		// will define the runtime.firstmoduledata symbol and we
+		// truncate it back to 0 bytes so we can define its entire
+		// contents in symtab.go:symtab().
+		mdsb.SetSize(0)
+
+		// In addition, on ARM, the runtime depends on the linker
+		// recording the value of GOARM.
+		if ctxt.Arch.Family == sys.ARM {
+			goarm := ctxt.loader.LookupOrCreateSym("runtime.goarm", 0)
+			sb, _ := ctxt.loader.MakeSymbolUpdater(goarm)
+			sb.SetType(sym.SDATA)
+			sb.SetSize(0)
+			sb.AddUint8(uint8(objabi.GOARM))
+		}
+
+		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
+			fpe := ctxt.loader.LookupOrCreateSym("runtime.framepointer_enabled", 0)
+			sb, _ := ctxt.loader.MakeSymbolUpdater(fpe)
+			sb.SetType(sym.SNOPTRDATA)
+			sb.SetSize(0)
+			sb.AddUint8(1)
+		}
+	} else {
+		// If OTOH the module does not contain the runtime package,
+		// create a local symbol for the moduledata.
+		lmd := ctxt.loader.LookupOrCreateSym("local.moduledata", 0)
+		mdsb, moduledata = ctxt.loader.MakeSymbolUpdater(lmd)
+		ctxt.loader.SetAttrLocal(moduledata, true)
+	}
+	// In all cases way we mark the moduledata as noptrdata to hide it from
+	// the GC.
+	mdsb.SetType(sym.SNOPTRDATA)
+	ctxt.loader.SetAttrReachable(moduledata, true)
+	ctxt.Moduledata2 = moduledata
+
+	// If package versioning is required, generate a hash of the
+	// packages used in the link.
+	if ctxt.BuildMode == BuildModeShared || ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins() {
+		for _, lib := range ctxt.Library {
+			if lib.Shlib == "" {
+				genhash(ctxt, lib)
+			}
+		}
+	}
+
+	if ctxt.Arch == sys.Arch386 && ctxt.HeadType != objabi.Hwindows {
+		if (ctxt.BuildMode == BuildModeCArchive && ctxt.IsELF) || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
+			symIdx := ctxt.loader.LookupOrCreateSym("_GLOBAL_OFFSET_TABLE_", 0)
+			sb, got := ctxt.loader.MakeSymbolUpdater(symIdx)
+			sb.SetType(sym.SDYNIMPORT)
+			ctxt.loader.SetAttrReachable(got, true)
+		}
+	}
+}
+
+// Set up flags and special symbols depending on the platform build mode.
+func (ctxt *Link) linksetupold() {
 	switch ctxt.BuildMode {
 	case BuildModeCShared, BuildModePlugin:
 		s := ctxt.Syms.Lookup("runtime.islibrary", 0)
@@ -2712,6 +2849,12 @@ func dfs(lib *sym.Library, mark map[*sym.Library]markKind, order *[]*sym.Library
 func (ctxt *Link) loadlibfull() {
 	// Load full symbol contents, resolve indexed references.
 	ctxt.loader.LoadFull(ctxt.Arch, ctxt.Syms)
+
+	// Convert ctxt.Moduledata2 to ctxt.Moduledata, etc
+	if ctxt.Moduledata2 != 0 {
+		ctxt.Moduledata = ctxt.loader.Syms[ctxt.Moduledata2]
+		ctxt.Tlsg = ctxt.loader.Syms[ctxt.Tlsg2]
+	}
 
 	// Pull the symbols out.
 	ctxt.loader.ExtractSymbols(ctxt.Syms)
