@@ -1217,15 +1217,6 @@ func TestAccidentalGitCheckout(t *testing.T) {
 	}
 }
 
-func TestErrorMessageForSyntaxErrorInTestGoFileSaysFAIL(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.runFail("test", "syntaxerror")
-	tg.grepStderr("x_test.go:", "did not diagnose error")
-	tg.grepStdout("FAIL", "go test did not say FAIL")
-}
-
 func TestWildcardsDoNotLookInUselessDirectories(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -3810,16 +3801,6 @@ func TestMatchesNoTests(t *testing.T) {
 	// TODO: tg.parallel()
 	tg.run("test", "-run", "ThisWillNotMatch", "testdata/standalone_test.go")
 	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
-}
-
-func TestMatchesNoTestsDoesNotOverrideBuildFailure(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.runFail("test", "-run", "ThisWillNotMatch", "syntaxerror")
-	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
-	tg.grepBoth("FAIL", "go test did not say FAIL")
 }
 
 func TestMatchesNoBenchmarksIsOK(t *testing.T) {
