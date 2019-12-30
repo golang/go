@@ -32,7 +32,7 @@ func (e *emptyVFS) Open(path string) (ReadSeekCloser, error) {
 	return nil, os.ErrNotExist
 }
 
-// Stat returns os.FileInfo  for an empty directory if the path is
+// Stat returns os.FileInfo for an empty directory if the path is
 // is root "/" or error. os.FileInfo is implemented by emptyVFS
 func (e *emptyVFS) Stat(path string) (os.FileInfo, error) {
 	if path == "/" {

@@ -1194,7 +1194,7 @@ func (b *builder) compLit(fn *Function, addr Value, e *ast.CompositeLit, isZero 
 		for _, e := range e.Elts {
 			e := e.(*ast.KeyValueExpr)
 
-			// If a key expression in a map literal is  itself a
+			// If a key expression in a map literal is itself a
 			// composite literal, the type may be omitted.
 			// For example:
 			//	map[*struct{}]bool{{}: true}

@@ -160,7 +160,7 @@ type Config struct {
 	Tests bool
 
 	// Overlay provides a mapping of absolute file paths to file contents.
-	// If the file  with the given path already exists, the parser will use the
+	// If the file with the given path already exists, the parser will use the
 	// alternative file contents provided by the map.
 	//
 	// Overlays provide incomplete support for when a given file doesn't

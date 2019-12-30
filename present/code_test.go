@@ -157,7 +157,7 @@ func main() { // HLfunc
 			err:        "main.go:0: no match for function main",
 		},
 		{
-			name:       "all code with  numbers",
+			name:       "all code with numbers",
 			readFile:   read(helloTest, nil),
 			sourceFile: "main.go",
 			cmd:        ".code -numbers main.go",

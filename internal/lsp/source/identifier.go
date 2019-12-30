@@ -327,7 +327,7 @@ func importSpec(s Snapshot, pkg Package, file *ast.File, pos token.Pos) (*Identi
 }
 
 // typeSwitchVar handles the special case of a local variable implicitly defined in a type switch.
-// In such cases, the definition of the implicit variable will not be recorded in the *types.Info.Defs  map,
+// In such cases, the definition of the implicit variable will not be recorded in the *types.Info.Defs map,
 // but rather in the *types.Info.Implicits map.
 func typeSwitchVar(info *types.Info, path []ast.Node) []types.Object {
 	if len(path) < 3 {

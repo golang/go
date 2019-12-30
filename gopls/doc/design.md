@@ -177,7 +177,7 @@ There are some fundamental architecture decisions that affect much of the rest o
 
 ### Process lifetime: *managed by the editor*
 
-Processing a large code base to fully type check and then analyze it within the latency requirements is not feasible, and is one of the primary problems with the existing solutions. This remains true even if the computed information was cached  on disk, as running analyzers and type checkers ends up requiring the full AST of all files in the dependency graph.
+Processing a large code base to fully type check and then analyze it within the latency requirements is not feasible, and is one of the primary problems with the existing solutions. This remains true even if the computed information was cached on disk, as running analyzers and type checkers ends up requiring the full AST of all files in the dependency graph.
 It is theoretically possible to do better, but only with a major re-write of the existing parsing and type checking libraries, something that is not feasible at this time.
 
 This implies that gopls should be a long running process, that is able to cache and pre-calculate results in memory so that when a request arrives it can produce the answer much faster.
@@ -301,7 +301,7 @@ Previous  | [guru]
 These features suggest or apply edits to the code for the user, including refactoring features, for which there are many potential use cases.
 Refactoring is one of the places where Go tools could potentially be very strong, but have not been so far, and thus there is huge potential for improvements in the developer experience.
 There is not yet a clear understanding of the kinds of refactoring people need or how they should express them however, and there are weaknesses in the LSP protocol around this.
-This means it may be  much more of a research project.
+This means it may be much more of a research project.
 
 
 ---

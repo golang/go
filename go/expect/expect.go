@@ -68,7 +68,7 @@ type Note struct {
 	Args []interface{} // the arguments for the note
 }
 
-// ReadFile  is the type of a function that can provide file contents for a
+// ReadFile is the type of a function that can provide file contents for a
 // given filename.
 // This is used in MatchBefore to look up the content of the file in order to
 // find the line to match the pattern against.
