@@ -607,14 +607,15 @@ func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, filena
 		}
 	}
 
-	// Exclude goroot results -- getting them is relatively expensive, not cached,
-	// and generally redundant with the in-memory version.
-	exclude := []gopathwalk.RootType{gopathwalk.RootGOROOT}
-
 	var mu sync.Mutex
 	dupCheck := map[string]struct{}{}
 
 	scanFilter := &scanCallback{
+		rootFound: func(root gopathwalk.Root) bool {
+			// Exclude goroot results -- getting them is relatively expensive, not cached,
+			// and generally redundant with the in-memory version.
+			return root.Type != gopathwalk.RootGOROOT && wrappedCallback.rootFound(root)
+		},
 		dirFound: func(pkg *pkg) bool {
 			return canUse(filename, pkg.dir) && wrappedCallback.dirFound(pkg)
 		},
@@ -631,7 +632,7 @@ func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, filena
 			wrappedCallback.exportsLoaded(pkg, exports)
 		},
 	}
-	return env.GetResolver().scan(ctx, scanFilter, exclude)
+	return env.GetResolver().scan(ctx, scanFilter)
 }
 
 func candidateImportName(pkg *pkg) string {
@@ -644,6 +645,9 @@ func candidateImportName(pkg *pkg) string {
 // getAllCandidates gets all of the candidates to be imported, regardless of if they are needed.
 func getAllCandidates(ctx context.Context, wrapped func(ImportFix), prefix string, filename string, env *ProcessEnv) error {
 	callback := &scanCallback{
+		rootFound: func(gopathwalk.Root) bool {
+			return true
+		},
 		dirFound: func(pkg *pkg) bool {
 			// TODO(heschi): apply dir match heuristics like pkgIsCandidate
 			return true
@@ -674,6 +678,9 @@ type PackageExport struct {
 
 func getPackageExports(ctx context.Context, wrapped func(PackageExport), completePackage, filename string, env *ProcessEnv) error {
 	callback := &scanCallback{
+		rootFound: func(gopathwalk.Root) bool {
+			return true
+		},
 		dirFound: func(pkg *pkg) bool {
 			// TODO(heschi): apply dir match heuristics like pkgIsCandidate
 			return true
@@ -827,7 +834,7 @@ type Resolver interface {
 	// loadPackageNames loads the package names in importPaths.
 	loadPackageNames(importPaths []string, srcDir string) (map[string]string, error)
 	// scan works with callback to search for packages. See scanCallback for details.
-	scan(ctx context.Context, callback *scanCallback, exclude []gopathwalk.RootType) error
+	scan(ctx context.Context, callback *scanCallback) error
 	// loadExports returns the set of exported symbols in the package at dir.
 	// loadExports may be called concurrently.
 	loadExports(ctx context.Context, pkg *pkg) (string, []string, error)
@@ -839,6 +846,10 @@ type Resolver interface {
 // In general, minor errors will be silently discarded; a user should not
 // expect to receive a full series of calls for everything.
 type scanCallback struct {
+	// rootFound is called before scanning a new root dir. If it returns true,
+	// the root will be scanned. Returning false will not necessarily prevent
+	// directories from that root making it to dirFound.
+	rootFound func(gopathwalk.Root) bool
 	// dirFound is called when a directory is found that is possibly a Go package.
 	// pkg will be populated with everything except packageName.
 	// If it returns true, the package's name will be loaded.
@@ -854,6 +865,9 @@ func addExternalCandidates(pass *pass, refs references, filename string) error {
 	var mu sync.Mutex
 	found := make(map[string][]pkgDistance)
 	callback := &scanCallback{
+		rootFound: func(gopathwalk.Root) bool {
+			return true // We want everything.
+		},
 		dirFound: func(pkg *pkg) bool {
 			return pkgIsCandidate(filename, refs, pkg)
 		},
@@ -875,7 +889,7 @@ func addExternalCandidates(pass *pass, refs references, filename string) error {
 			return false // We'll do our own loading after we sort.
 		},
 	}
-	err := pass.env.GetResolver().scan(context.Background(), callback, nil)
+	err := pass.env.GetResolver().scan(context.Background(), callback)
 	if err != nil {
 		return err
 	}
@@ -1117,7 +1131,7 @@ func distance(basepath, targetpath string) int {
 	return strings.Count(p, string(filepath.Separator)) + 1
 }
 
-func (r *gopathResolver) scan(ctx context.Context, callback *scanCallback, exclude []gopathwalk.RootType) error {
+func (r *gopathResolver) scan(ctx context.Context, callback *scanCallback) error {
 	r.init()
 	add := func(root gopathwalk.Root, dir string) {
 		// We assume cached directories have not changed. We can skip them and their
@@ -1135,7 +1149,7 @@ func (r *gopathResolver) scan(ctx context.Context, callback *scanCallback, exclu
 		}
 		r.cache.Store(dir, info)
 	}
-	roots := filterRoots(gopathwalk.SrcDirsRoots(r.env.buildContext()), exclude)
+	roots := filterRoots(gopathwalk.SrcDirsRoots(r.env.buildContext()), callback.rootFound)
 	gopathwalk.Walk(roots, add, gopathwalk.Options{Debug: r.env.Debug, ModulesEnabled: false})
 	for _, dir := range r.cache.Keys() {
 		if ctx.Err() != nil {
@@ -1173,14 +1187,11 @@ func (r *gopathResolver) scan(ctx context.Context, callback *scanCallback, exclu
 	return nil
 }
 
-func filterRoots(roots []gopathwalk.Root, exclude []gopathwalk.RootType) []gopathwalk.Root {
+func filterRoots(roots []gopathwalk.Root, include func(gopathwalk.Root) bool) []gopathwalk.Root {
 	var result []gopathwalk.Root
-outer:
 	for _, root := range roots {
-		for _, i := range exclude {
-			if i == root.Type {
-				continue outer
-			}
+		if !include(root) {
+			continue
 		}
 		result = append(result, root)
 	}

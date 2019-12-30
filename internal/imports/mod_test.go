@@ -591,6 +591,14 @@ func scanToSlice(resolver Resolver, exclude []gopathwalk.RootType) ([]*pkg, erro
 	var mu sync.Mutex
 	var result []*pkg
 	filter := &scanCallback{
+		rootFound: func(root gopathwalk.Root) bool {
+			for _, rt := range exclude {
+				if root.Type == rt {
+					return false
+				}
+			}
+			return true
+		},
 		dirFound: func(pkg *pkg) bool {
 			return true
 		},
@@ -603,7 +611,7 @@ func scanToSlice(resolver Resolver, exclude []gopathwalk.RootType) ([]*pkg, erro
 		exportsLoaded: func(pkg *pkg, exports []string) {
 		},
 	}
-	err := resolver.scan(context.Background(), filter, exclude)
+	err := resolver.scan(context.Background(), filter)
 	return result, err
 }
 

@@ -22,11 +22,11 @@ import (
 // ModuleResolver implements resolver for modules using the go command as little
 // as feasible.
 type ModuleResolver struct {
-	env             *ProcessEnv
-	moduleCacheDir  string
-	dummyVendorMod  *ModuleJSON // If vendoring is enabled, the pseudo-module that represents the /vendor directory.
-	roots           []gopathwalk.Root
-	walkedRootIndex int
+	env            *ProcessEnv
+	moduleCacheDir string
+	dummyVendorMod *ModuleJSON // If vendoring is enabled, the pseudo-module that represents the /vendor directory.
+	roots          []gopathwalk.Root
+	scannedRoots   map[gopathwalk.Root]bool
 
 	Initialized   bool
 	Main          *ModuleJSON
@@ -118,6 +118,7 @@ func (r *ModuleResolver) init() error {
 		r.roots = append(r.roots, gopathwalk.Root{r.moduleCacheDir, gopathwalk.RootModuleCache})
 	}
 
+	r.scannedRoots = map[gopathwalk.Root]bool{}
 	if r.moduleCacheCache == nil {
 		r.moduleCacheCache = &dirInfoCache{
 			dirs: map[string]*directoryPackageInfo{},
@@ -159,7 +160,7 @@ func (r *ModuleResolver) initAllMods() error {
 }
 
 func (r *ModuleResolver) ClearForNewScan() {
-	r.walkedRootIndex = 0
+	r.scannedRoots = map[gopathwalk.Root]bool{}
 	r.otherCache = &dirInfoCache{
 		dirs: map[string]*directoryPackageInfo{},
 	}
@@ -367,7 +368,7 @@ func (r *ModuleResolver) loadPackageNames(importPaths []string, srcDir string) (
 	return names, nil
 }
 
-func (r *ModuleResolver) scan(ctx context.Context, callback *scanCallback, exclude []gopathwalk.RootType) error {
+func (r *ModuleResolver) scan(ctx context.Context, callback *scanCallback) error {
 	if err := r.init(); err != nil {
 		return err
 	}
@@ -440,18 +441,19 @@ func (r *ModuleResolver) scan(ctx context.Context, callback *scanCallback, exclu
 	// cache. We can do them one by one and stop in between.
 	// TODO(heschi): Run asynchronously and detach on cancellation? Would risk
 	// racy callbacks.
-rootLoop:
-	for ; r.walkedRootIndex < len(r.roots); r.walkedRootIndex++ {
-		root := r.roots[r.walkedRootIndex]
-		for _, rt := range exclude {
-			if root.Type == rt {
-				continue rootLoop
-			}
-		}
+	for _, root := range r.roots {
 		if ctx.Err() != nil {
 			return nil
 		}
+
+		if r.scannedRoots[root] {
+			continue
+		}
+		if !callback.rootFound(root) {
+			continue
+		}
 		gopathwalk.WalkSkip([]gopathwalk.Root{root}, add, skip, gopathwalk.Options{Debug: r.env.Debug, ModulesEnabled: true})
+		r.scannedRoots[root] = true
 	}
 	return nil
 }
