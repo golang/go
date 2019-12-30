@@ -177,6 +177,7 @@ type Loader struct {
 	// semantics / interpretation of the specific flags or attribute.
 	attrReachable        bitmap // reachable symbols, indexed by global index
 	attrOnList           bitmap // "on list" symbols, indexed by global index
+	attrLocal            bitmap // "local" symbols, indexed by global index
 	attrVisibilityHidden bitmap // hidden symbols, indexed by ext sym index
 	attrDuplicateOK      bitmap // dupOK symbols, indexed by ext sym index
 	attrShared           bitmap // shared symbols, indexed by ext sym index
@@ -780,6 +781,22 @@ func (l *Loader) SetAttrOnList(i Sym, v bool) {
 	}
 }
 
+// AttrLocal returns true for symbols that are only visible within the
+// module (executable or shared library) being linked. This attribute
+// is applied to thunks and certain other linker-generated symbols.
+func (l *Loader) AttrLocal(i Sym) bool {
+	return l.attrLocal.has(i)
+}
+
+// SetAttrLocal the "local" property for a symbol (see AttrLocal above).
+func (l *Loader) SetAttrLocal(i Sym, v bool) {
+	if v {
+		l.attrLocal.set(i)
+	} else {
+		l.attrLocal.unset(i)
+	}
+}
+
 // AttrVisibilityHidden symbols returns true for ELF symbols with
 // visibility set to STV_HIDDEN. They become local symbols in
 // the final executable. Only relevant when internally linking
@@ -1375,6 +1392,7 @@ func (l *Loader) growAttrBitmaps(reqLen int) {
 		// These are indexed by global symbol
 		l.attrReachable = growBitmap(reqLen, l.attrReachable)
 		l.attrOnList = growBitmap(reqLen, l.attrOnList)
+		l.attrLocal = growBitmap(reqLen, l.attrLocal)
 	}
 	// These are indexed by external symbol offset (e.g. i - l.extStart)
 	if l.extStart == 0 {
@@ -1691,10 +1709,17 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 			s.Sub = l.Syms[sub]
 		}
 
-		// Preprocess symbol and set reachability and onlist.
+		// Preprocess symbol.
 		preprocess(arch, s)
+
+		// Convert attributes.
+		// Note: this is an incomplete set; will be fixed up in
+		// a subsequent patch.
 		s.Attr.Set(sym.AttrReachable, l.attrReachable.has(i))
 		s.Attr.Set(sym.AttrOnList, l.attrOnList.has(i))
+		if l.attrLocal.has(i) {
+			s.Attr.Set(sym.AttrLocal, true)
+		}
 
 		// Set sub-symbol attribute. FIXME: would be better
 		// to do away with this and just use l.OuterSymbol() != 0
