@@ -2588,14 +2588,6 @@ func TestListTemplateContextFunction(t *testing.T) {
 	}
 }
 
-// cmd/go: "go test" should fail if package does not build
-func TestIssue7108(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.runFail("test", "notest")
-}
-
 func TestGoBuildTestOnly(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
