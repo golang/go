@@ -110,7 +110,7 @@ func (e *LinkError) Unwrap() error {
 // It returns the number of bytes read and any error encountered.
 // At end of file, Read returns 0, io.EOF.
 func (f *File) Read(b []byte) (n int, err error) {
-	if err := f.checkValid("read"); err != nil {
+	if err := f.checkValid(); err != nil {
 		return 0, err
 	}
 	n, e := f.read(b)
@@ -122,7 +122,7 @@ func (f *File) Read(b []byte) (n int, err error) {
 // ReadAt always returns a non-nil error when n < len(b).
 // At end of file, that error is io.EOF.
 func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
-	if err := f.checkValid("read"); err != nil {
+	if err := f.checkValid(); err != nil {
 		return 0, err
 	}
 
@@ -147,7 +147,7 @@ func (f *File) ReadAt(b []byte, off int64) (n int, err error) {
 // It returns the number of bytes written and an error, if any.
 // Write returns a non-nil error when n != len(b).
 func (f *File) Write(b []byte) (n int, err error) {
-	if err := f.checkValid("write"); err != nil {
+	if err := f.checkValid(); err != nil {
 		return 0, err
 	}
 	n, e := f.write(b)
@@ -175,7 +175,7 @@ var errWriteAtInAppendMode = errors.New("os: invalid use of WriteAt on file open
 //
 // If file was opened with the O_APPEND flag, WriteAt returns an error.
 func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
-	if err := f.checkValid("write"); err != nil {
+	if err := f.checkValid(); err != nil {
 		return 0, err
 	}
 	if f.appendMode {
@@ -205,7 +205,7 @@ func (f *File) WriteAt(b []byte, off int64) (n int, err error) {
 // It returns the new offset and an error, if any.
 // The behavior of Seek on a file opened with O_APPEND is not specified.
 func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
-	if err := f.checkValid("seek"); err != nil {
+	if err := f.checkValid(); err != nil {
 		return 0, err
 	}
 	r, e := f.seek(offset, whence)
@@ -556,7 +556,7 @@ func (f *File) SetWriteDeadline(t time.Time) error {
 // SyscallConn returns a raw file.
 // This implements the syscall.Conn interface.
 func (f *File) SyscallConn() (syscall.RawConn, error) {
-	if err := f.checkValid("SyscallConn"); err != nil {
+	if err := f.checkValid(); err != nil {
 		return nil, err
 	}
 	return newRawConn(f)

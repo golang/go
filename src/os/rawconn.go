@@ -16,7 +16,7 @@ type rawConn struct {
 }
 
 func (c *rawConn) Control(f func(uintptr)) error {
-	if err := c.file.checkValid("SyscallConn.Control"); err != nil {
+	if err := c.file.checkValid(); err != nil {
 		return err
 	}
 	err := c.file.pfd.RawControl(f)
@@ -25,7 +25,7 @@ func (c *rawConn) Control(f func(uintptr)) error {
 }
 
 func (c *rawConn) Read(f func(uintptr) bool) error {
-	if err := c.file.checkValid("SyscallConn.Read"); err != nil {
+	if err := c.file.checkValid(); err != nil {
 		return err
 	}
 	err := c.file.pfd.RawRead(f)
@@ -34,7 +34,7 @@ func (c *rawConn) Read(f func(uintptr) bool) error {
 }
 
 func (c *rawConn) Write(f func(uintptr) bool) error {
-	if err := c.file.checkValid("SyscallConn.Write"); err != nil {
+	if err := c.file.checkValid(); err != nil {
 		return err
 	}
 	err := c.file.pfd.RawWrite(f)

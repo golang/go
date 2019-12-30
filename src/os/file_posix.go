@@ -39,7 +39,7 @@ func chmod(name string, mode FileMode) error {
 
 // See docs in file.go:(*File).Chmod.
 func (f *File) chmod(mode FileMode) error {
-	if err := f.checkValid("chmod"); err != nil {
+	if err := f.checkValid(); err != nil {
 		return err
 	}
 	if e := f.pfd.Fchmod(syscallMode(mode)); e != nil {
@@ -81,7 +81,7 @@ func Lchown(name string, uid, gid int) error {
 // On Windows, it always returns the syscall.EWINDOWS error, wrapped
 // in *PathError.
 func (f *File) Chown(uid, gid int) error {
-	if err := f.checkValid("chown"); err != nil {
+	if err := f.checkValid(); err != nil {
 		return err
 	}
 	if e := f.pfd.Fchown(uid, gid); e != nil {
@@ -94,7 +94,7 @@ func (f *File) Chown(uid, gid int) error {
 // It does not change the I/O offset.
 // If there is an error, it will be of type *PathError.
 func (f *File) Truncate(size int64) error {
-	if err := f.checkValid("truncate"); err != nil {
+	if err := f.checkValid(); err != nil {
 		return err
 	}
 	if e := f.pfd.Ftruncate(size); e != nil {
@@ -107,7 +107,7 @@ func (f *File) Truncate(size int64) error {
 // Typically, this means flushing the file system's in-memory copy
 // of recently written data to disk.
 func (f *File) Sync() error {
-	if err := f.checkValid("sync"); err != nil {
+	if err := f.checkValid(); err != nil {
 		return err
 	}
 	if e := f.pfd.Fsync(); e != nil {
@@ -136,7 +136,7 @@ func Chtimes(name string, atime time.Time, mtime time.Time) error {
 // which must be a directory.
 // If there is an error, it will be of type *PathError.
 func (f *File) Chdir() error {
-	if err := f.checkValid("chdir"); err != nil {
+	if err := f.checkValid(); err != nil {
 		return err
 	}
 	if e := f.pfd.Fchdir(); e != nil {
@@ -147,7 +147,7 @@ func (f *File) Chdir() error {
 
 // setDeadline sets the read and write deadline.
 func (f *File) setDeadline(t time.Time) error {
-	if err := f.checkValid("SetDeadline"); err != nil {
+	if err := f.checkValid(); err != nil {
 		return err
 	}
 	return f.pfd.SetDeadline(t)
@@ -155,7 +155,7 @@ func (f *File) setDeadline(t time.Time) error {
 
 // setReadDeadline sets the read deadline.
 func (f *File) setReadDeadline(t time.Time) error {
-	if err := f.checkValid("SetReadDeadline"); err != nil {
+	if err := f.checkValid(); err != nil {
 		return err
 	}
 	return f.pfd.SetReadDeadline(t)
@@ -163,7 +163,7 @@ func (f *File) setReadDeadline(t time.Time) error {
 
 // setWriteDeadline sets the write deadline.
 func (f *File) setWriteDeadline(t time.Time) error {
-	if err := f.checkValid("SetWriteDeadline"); err != nil {
+	if err := f.checkValid(); err != nil {
 		return err
 	}
 	return f.pfd.SetWriteDeadline(t)
@@ -171,7 +171,7 @@ func (f *File) setWriteDeadline(t time.Time) error {
 
 // checkValid checks whether f is valid for use.
 // If not, it returns an appropriate error, perhaps incorporating the operation name op.
-func (f *File) checkValid(op string) error {
+func (f *File) checkValid() error {
 	if f == nil {
 		return ErrInvalid
 	}
