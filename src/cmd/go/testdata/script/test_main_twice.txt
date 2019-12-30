@@ -1,3 +1,10 @@
+[short] skip
+
+env GOCACHE=$TMPDIR
+go test -v multimain
+stdout -count=2 notwithstanding # check tests ran twice
+
+-- multimain/multimain_test.go --
 package multimain_test
 
 import "testing"
