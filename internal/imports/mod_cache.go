@@ -49,10 +49,6 @@ type directoryPackageInfo struct {
 	// nonCanonicalImportPath is the package's expected import path. It may
 	// not actually be importable at that path.
 	nonCanonicalImportPath string
-	// needsReplace is true if the nonCanonicalImportPath does not match the
-	// module's declared path, making it impossible to import without a
-	// replace directive.
-	needsReplace bool
 
 	// Module-related information.
 	moduleDir  string // The directory that is the module root of this dir.

@@ -488,14 +488,15 @@ func (r *ModuleResolver) canonicalize(info directoryPackageInfo) (*pkg, error) {
 			dirInMod := info.dir[len(mod.Dir)+len("/"):]
 			importPath = path.Join(mod.Path, filepath.ToSlash(dirInMod))
 		}
-	} else if info.needsReplace {
+	} else if !strings.HasPrefix(importPath, info.moduleName) {
+		// The module's name doesn't match the package's import path. It
+		// probably needs a replace directive we don't have.
 		return nil, fmt.Errorf("package in %q is not valid without a replace statement", info.dir)
 	}
 
 	res := &pkg{
 		importPathShort: importPath,
 		dir:             info.dir,
-		packageName:     info.packageName, // may not be populated if the caller didn't ask for it
 		relevance:       relevance,
 	}
 	// We may have discovered a package that has a different version
@@ -559,7 +560,6 @@ func (r *ModuleResolver) scanDirForPackage(root gopathwalk.Root, dir string) dir
 		dir:                    dir,
 		rootType:               root.Type,
 		nonCanonicalImportPath: importPath,
-		needsReplace:           false,
 		moduleDir:              modDir,
 		moduleName:             modName,
 	}
@@ -567,14 +567,6 @@ func (r *ModuleResolver) scanDirForPackage(root gopathwalk.Root, dir string) dir
 		// stdlib packages are always in scope, despite the confusing go.mod
 		return result
 	}
-	// Check that this package is not obviously impossible to import.
-	if !strings.HasPrefix(importPath, modName) {
-		// The module's declared path does not match
-		// its expected path. It probably needs a
-		// replace directive we don't have.
-		result.needsReplace = true
-	}
-
 	return result
 }
 

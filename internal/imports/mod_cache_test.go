@@ -68,7 +68,6 @@ func TestModCacheInfo(t *testing.T) {
 				status:                 directoryScanned,
 				dir:                    "mypackage",
 				nonCanonicalImportPath: "example.com/mypackage",
-				needsReplace:           false,
 			},
 		},
 		{
@@ -83,7 +82,6 @@ func TestModCacheInfo(t *testing.T) {
 			info: directoryPackageInfo{
 				dir:                    "mypackage/other",
 				nonCanonicalImportPath: "example.com/mypackage/other",
-				needsReplace:           false,
 			},
 		},
 	}
