@@ -406,6 +406,18 @@ func (c *cmdClient) getFile(ctx context.Context, uri span.URI) *cmdFile {
 	return file
 }
 
+func (file *cmdFile) waitForDiagnostics(ctx context.Context) ([]protocol.Diagnostic, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-file.hasDiagnostics:
+	}
+
+	file.diagnosticsMu.Lock()
+	defer file.diagnosticsMu.Unlock()
+	return file.diagnostics, nil
+}
+
 func (c *connection) AddFile(ctx context.Context, uri span.URI) *cmdFile {
 	c.Client.filesMu.Lock()
 	defer c.Client.filesMu.Unlock()

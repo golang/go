@@ -106,15 +106,19 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 
 			info := pkg.GetTypesInfo()
 			for _, obj := range info.Defs {
+				obj, ok := obj.(*types.TypeName)
 				// We ignore aliases 'type M = N' to avoid duplicate reporting
 				// of the Named type N.
-				if obj, ok := obj.(*types.TypeName); ok && !obj.IsAlias() {
-					// We skip interface types since we only want concrete
-					// implementations.
-					if named, ok := obj.Type().(*types.Named); ok && !isInterface(named) {
-						allNamed = append(allNamed, named)
-					}
+				if !ok || obj.IsAlias() {
+					continue
 				}
+				named, ok := obj.Type().(*types.Named)
+				// We skip interface types since we only want concrete
+				// implementations.
+				if !ok || isInterface(named) {
+					continue
+				}
+				allNamed = append(allNamed, named)
 			}
 		}
 

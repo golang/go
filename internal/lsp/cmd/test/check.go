@@ -18,6 +18,9 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnosti
 	if len(want) == 1 && want[0].Message == "" {
 		return
 	}
+	if strings.Contains(uri.Filename(), "circular") {
+		t.Skip("skipping circular diagnostics tests due to golang/go#36265")
+	}
 	fname := uri.Filename()
 	out, _ := r.RunGoplsCmd(t, "check", fname)
 	// parse got into a collection of reports

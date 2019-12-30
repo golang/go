@@ -57,15 +57,15 @@ func (c *check) Run(ctx context.Context, args ...string) error {
 	}
 	// now wait for results
 	// TODO: maybe conn.ExecuteCommand(ctx, &protocol.ExecuteCommandParams{Command: "gopls-wait-idle"})
+	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
+	defer cancel()
+
 	for _, file := range checking {
-		select {
-		case <-file.hasDiagnostics:
-		case <-time.After(30 * time.Second):
-			return errors.Errorf("timed out waiting for results from %v", file.uri)
+		diagnostics, err := file.waitForDiagnostics(ctx)
+		if err != nil {
+			return err
 		}
-		file.diagnosticsMu.Lock()
-		defer file.diagnosticsMu.Unlock()
-		for _, d := range file.diagnostics {
+		for _, d := range diagnostics {
 			spn, err := file.mapper.RangeSpan(d.Range)
 			if err != nil {
 				return errors.Errorf("Could not convert position %v for %q", d.Range, d.Message)
