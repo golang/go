@@ -3504,18 +3504,6 @@ func TestGoGetUpdateAllDoesNotTryToLoadDuplicates(t *testing.T) {
 	tg.grepStderrNot("duplicate loads of", "did not remove old packages from cache")
 }
 
-// Issue 17119 more duplicate load errors
-func TestIssue17119(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.runFail("build", "dupload")
-	tg.grepBothNot("duplicate load|internal error", "internal error")
-}
-
 func TestBinaryOnlyPackages(t *testing.T) {
 	tooSlow(t)
 
