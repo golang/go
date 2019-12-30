@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin
+// +build aix darwin solaris
 
 package unix
 
@@ -19,6 +19,6 @@ func IsNonblock(fd int) (nonblocking bool, err error) {
 	return flag&syscall.O_NONBLOCK != 0, nil
 }
 
-// Implemented in syscall/syscall_darwin.go.
+// Implemented in the syscall package.
 //go:linkname fcntl syscall.fcntl
 func fcntl(fd int, cmd int, arg int) (int, error)
