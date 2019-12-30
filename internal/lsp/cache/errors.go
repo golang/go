@@ -180,26 +180,31 @@ func toSourceErrorKind(kind packages.ErrorKind) source.ErrorKind {
 }
 
 func typeErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, pos token.Pos) (span.Span, error) {
-	spn, err := span.NewRange(fset, pos, pos).Span()
-	if err != nil {
-		return span.Span{}, err
-	}
 	posn := fset.Position(pos)
 	ph, _, err := findFileInPackage(pkg, span.FileURI(posn.Filename))
 	if err != nil {
-		return spn, nil // ignore errors
+		return span.Span{}, err
 	}
 	_, m, _, err := ph.Cached()
 	if err != nil {
-		return spn, nil
+		return span.Span{}, err
+	}
+	spn, err := span.Range{
+		FileSet:   fset,
+		Start:     pos,
+		End:       pos,
+		Converter: m.Converter,
+	}.Span()
+	if err != nil {
+		return span.Span{}, err
 	}
 	s, err := spn.WithOffset(m.Converter)
 	if err != nil {
-		return spn, nil // ignore errors
+		return span.Span{}, err
 	}
 	data, _, err := ph.File().Read(ctx)
 	if err != nil {
-		return spn, nil // ignore errors
+		return span.Span{}, err
 	}
 	start := s.Start()
 	offset := start.Offset()
