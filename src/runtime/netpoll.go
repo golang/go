@@ -93,7 +93,6 @@ type pollCache struct {
 }
 
 var (
-	netpollInitLock mutex
 	netpollInited   uint32
 
 	pollcache      pollCache
@@ -106,13 +105,8 @@ func poll_runtime_pollServerInit() {
 }
 
 func netpollGenericInit() {
-	if atomic.Load(&netpollInited) == 0 {
-		lock(&netpollInitLock)
-		if netpollInited == 0 {
-			netpollinit()
-			atomic.Store(&netpollInited, 1)
-		}
-		unlock(&netpollInitLock)
+	if atomic.Cas(&netpollInited, 0, 1) {
+		netpollinit()
 	}
 }
 
