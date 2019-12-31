@@ -1202,11 +1202,25 @@ const (
 	array                   // make an array type ("[2]" in "[2]int")
 )
 
+type objKind int
+
+const (
+	kindArray objKind = 1 << iota
+	kindSlice
+	kindChan
+	kindMap
+	kindStruct
+	kindString
+)
+
 // typeInference holds information we have inferred about a type that can be
 // used at the current position.
 type typeInference struct {
 	// objType is the desired type of an object used at the query position.
 	objType types.Type
+
+	// objKind is a mask of expected kinds of types such as "map", "slice", etc.
+	objKind objKind
 
 	// variadic is true if objType is a slice type from an initial
 	// variadic param.
@@ -1334,30 +1348,26 @@ Nodes:
 				}
 
 				if funIdent, ok := node.Fun.(*ast.Ident); ok {
-					switch c.pkg.GetTypesInfo().ObjectOf(funIdent) {
-					case types.Universe.Lookup("append"):
+					obj := c.pkg.GetTypesInfo().ObjectOf(funIdent)
+
+					if obj != nil && obj.Parent() == types.Universe {
+						inf.objKind |= c.builtinArgKind(obj, node)
+
+						if obj.Name() == "new" {
+							inf.typeName.wantTypeName = true
+						}
+
+						// Defer call to builtinArgType so we can provide it the
+						// inferred type from its parent node.
 						defer func() {
-							exprIdx := indexExprAtPos(c.pos, node.Args)
-
-							// Check if we are completing the variadic append()
-							// param. We defer this since we don't want to inherit
-							// variadicity from the next node.
-							inf.variadic = exprIdx == 1 && len(node.Args) <= 2
-
-							// If we are completing an individual element of the
-							// variadic param, "deslice" the expected type.
-							if !inf.variadic && exprIdx > 0 {
-								if slice, ok := inf.objType.(*types.Slice); ok {
-									inf.objType = slice.Elem()
-								}
-							}
+							inf.objType, inf.variadic = c.builtinArgType(obj, node, inf.objType)
 						}()
 
-						// The expected type of append() arguments is the expected
-						// type of the append() call itself. For example:
+						// The expected type of builtin arguments like append() is
+						// the expected type of the builtin call itself. For
+						// example:
 						//
-						// var foo []int
-						// foo = append(<>)
+						// var foo []int = append(<>)
 						//
 						// To find the expected type at <> we "skip" the append()
 						// node and get the expected type one level up, which is
@@ -1663,6 +1673,12 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 
 	typeMatches := func(expType, candType types.Type) bool {
 		if expType == nil {
+			// If we don't expect a specific type, check if we expect a particular
+			// kind of object (map, slice, etc).
+			if c.expectedType.objKind > 0 {
+				return c.expectedType.objKind&candKind(candType) > 0
+			}
+
 			return false
 		}
 
@@ -1775,4 +1791,30 @@ func (c *completer) matchingTypeName(cand *candidate) bool {
 
 	// Default to saying any type name is a match.
 	return true
+}
+
+// candKind returns the objKind of candType, if any.
+func candKind(candType types.Type) objKind {
+	switch t := candType.Underlying().(type) {
+	case *types.Array:
+		return kindArray
+	case *types.Slice:
+		return kindSlice
+	case *types.Chan:
+		return kindChan
+	case *types.Map:
+		return kindMap
+	case *types.Pointer:
+		// Some builtins handle array pointers as arrays, so just report a pointer
+		// to an array as an array.
+		if _, isArray := t.Elem().Underlying().(*types.Array); isArray {
+			return kindArray
+		}
+	case *types.Basic:
+		if t.Info()&types.IsString > 0 {
+			return kindString
+		}
+	}
+
+	return 0
 }
