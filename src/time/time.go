@@ -536,7 +536,7 @@ func absWeekday(abs uint64) Weekday {
 // the week immediately preceding the first calendar week of the next calendar year.
 // See https://www.iso.org/obp/ui#iso:std:iso:8601:-1:ed-1:v1:en:term:3.1.1.23 for details.
 func (t Time) ISOWeek() (year, week int) {
-	// begins on Monday and ends on Sunday
+	// weeks start with Monday
 	// Monday Tuesday Wednesday Thursday Friday Saturday Sunday
 	// 0      1       2         3        4      5        6
 	// +3     +2      +1        0       -1     -2       -3
