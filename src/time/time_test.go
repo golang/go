@@ -437,6 +437,15 @@ func TestISOWeek(t *testing.T) {
 	}
 }
 
+func BenchmarkISOWeek(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		for _, wt := range isoWeekTests {
+			dt := Date(wt.year, Month(wt.month), wt.day, 0, 0, 0, 0, UTC)
+			dt.ISOWeek()
+		}
+	}
+}
+
 type YearDayTest struct {
 	year, month, day int
 	yday             int
