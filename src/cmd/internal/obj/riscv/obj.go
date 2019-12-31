@@ -58,14 +58,14 @@ func jalrToSym(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, lr int16) *ob
 	p.Mark |= NEED_PCREL_ITYPE_RELOC
 	p = obj.Appendp(p, newprog)
 
-	// Leave p.To.Sym only for the CALL reloc in assemble.
+	// Leave Sym only for the CALL reloc in assemble.
 	p.As = AJALR
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = lr
+	p.From.Sym = to.Sym
 	p.Reg = 0
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_TMP
-	p.To.Sym = to.Sym
 	lowerJALR(p)
 
 	return p
