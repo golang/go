@@ -594,9 +594,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// Additional instruction rewriting. Any rewrites that change the number
 	// of instructions must occur here (before jump target resolution).
 	for p := cursym.Func.Text; p != nil; p = p.Link {
-		if p.As == obj.AGETCALLERPC {
-			// Handle AGETCALLERPC early so we can use AMOV, which is then
-			// rewritten below.
+		switch p.As {
+		case obj.AGETCALLERPC:
 			if cursym.Leaf() {
 				// MOV LR, Rd
 				p.As = AMOV
@@ -608,14 +607,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.From.Type = obj.TYPE_MEM
 				p.From.Reg = REG_SP
 			}
-		}
-
-		switch p.As {
-		case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
-			// Rewrite MOV pseudo-instructions. This cannot be done in
-			// progedit, as SP offsets need to be applied before we split
-			// up some of the Addrs.
-			rewriteMOV(ctxt, newprog, p)
 
 		case obj.ACALL:
 			switch p.To.Type {
@@ -663,6 +654,16 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.Reg = dst
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = dst
+		}
+	}
+
+	// Rewrite MOV pseudo-instructions. This cannot be done in
+	// progedit, as SP offsets need to be applied before we split
+	// up some of the Addrs.
+	for p := cursym.Func.Text; p != nil; p = p.Link {
+		switch p.As {
+		case AMOV, AMOVB, AMOVH, AMOVW, AMOVBU, AMOVHU, AMOVWU, AMOVF, AMOVD:
+			rewriteMOV(ctxt, newprog, p)
 		}
 	}
 
