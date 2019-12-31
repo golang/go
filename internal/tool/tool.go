@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package tool is an opinionated harness for writing Go tools.
+// Package tool is a harness for writing Go tools.
 package tool
 
 import (
@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-// This file is a very opinionated harness for writing your main function.
+// This file is a harness for writing your main function.
 // The original version of the file is in golang.org/x/tools/internal/tool.
 //
 // It adds a method to the Application type
