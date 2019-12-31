@@ -319,3 +319,33 @@ func BenchmarkMarshal(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkUnmarshal(b *testing.B) {
+	b.ReportAllocs()
+
+	var testData []struct {
+		in  []byte
+		out interface{}
+	}
+	for _, test := range unmarshalTestData {
+		pv := reflect.New(reflect.TypeOf(test.out).Elem())
+		inCopy := make([]byte, len(test.in))
+		copy(inCopy, test.in)
+		outCopy := pv.Interface()
+
+		testData = append(testData, struct {
+			in  []byte
+			out interface{}
+		}{
+			in:  inCopy,
+			out: outCopy,
+		})
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, testCase := range testData {
+			_, _ = Unmarshal(testCase.in, testCase.out)
+		}
+	}
+}
