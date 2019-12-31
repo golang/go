@@ -531,9 +531,9 @@ func absWeekday(abs uint64) Weekday {
 }
 
 // ISOWeek returns the ISO 8601 year and week number in which t occurs.
-// According to the rule that the first calendar week of a calendar year
-// is the week including the first Thursday of that year, and that the last one
-// is the week immediately preceding the first calendar week of the next calendar year.
+// According to the rule that the first calendar week of a calendar year is
+// the week including the first Thursday of that year, and that the last one is
+// the week immediately preceding the first calendar week of the next calendar year.
 // See https://www.iso.org/obp/ui#iso:std:iso:8601:-1:ed-1:v1:en:term:3.1.1.23 for details.
 func (t Time) ISOWeek() (year, week int) {
 	// begins on Monday and ends on Sunday
@@ -542,9 +542,8 @@ func (t Time) ISOWeek() (year, week int) {
 	// +3     +2      +1        0       -1     -2       -3
 	// the offset to Thursday
 	dd := 3 - (t.Weekday()+6)%7
-	// find the Thursday of calendar week
-	t = t.Add(Duration(dd) * 24 * Hour)
-	year, _, _, yday := t.date(false)
+	// find the Thursday of the calendar week
+	year, _, _, yday := t.Add(Duration(dd) * 24 * Hour).date(false)
 	return year, yday/7 + 1
 }
 
