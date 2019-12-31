@@ -3220,20 +3220,6 @@ func TestGoTestRaceFailures(t *testing.T) {
 	tg.grepBothNot("PASS", "something passed")
 }
 
-func TestGoTestImportErrorStack(t *testing.T) {
-	const out = `package testdep/p1 (test)
-	imports testdep/p2
-	imports testdep/p3: build constraints exclude all Go files `
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.runFail("test", "testdep/p1")
-	if !strings.Contains(tg.stderr.String(), out) {
-		t.Fatalf("did not give full import stack:\n\n%s", tg.stderr.String())
-	}
-}
-
 func TestGoGetUpdate(t *testing.T) {
 	// golang.org/issue/9224.
 	// The recursive updating was trying to walk to
