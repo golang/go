@@ -101,6 +101,11 @@ func (wg *WaitGroup) Done() {
 
 // Wait blocks until the WaitGroup counter is zero.
 func (wg *WaitGroup) Wait() {
+	wg.WaitUnlock(nil)
+}
+
+// if Locker is not nil, it will be Unlock immediately if no need to wait, or right before wait.
+func (wg *WaitGroup) WaitUnlock(l Locker) {
 	statep, semap := wg.state()
 	if race.Enabled {
 		_ = *statep // trigger nil deref early
@@ -116,6 +121,9 @@ func (wg *WaitGroup) Wait() {
 				race.Enable()
 				race.Acquire(unsafe.Pointer(wg))
 			}
+			if l != nil {
+				l.Unlock()
+			}
 			return
 		}
 		// Increment waiters count.
@@ -126,6 +134,9 @@ func (wg *WaitGroup) Wait() {
 				// As a consequence, can do the write only for the first waiter,
 				// otherwise concurrent Waits will race with each other.
 				race.Write(unsafe.Pointer(semap))
+			}
+			if l != nil {
+				l.Unlock()
 			}
 			runtime_Semacquire(semap)
 			if *statep != 0 {
