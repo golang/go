@@ -542,8 +542,8 @@ func (t Time) ISOWeek() (year, week int) {
 
 	// weeks start with Monday
 	// Monday Tuesday Wednesday Thursday Friday Saturday Sunday
-	// 0      1       2         3        4      5        6
-	// +3     +2      +1        0       -1     -2       -3
+	// 1      2       3         4        5      6        7
+	// +3     +2      +1        0        -1     -2       -3
 	// the offset to Thursday
 	abs := t.abs()
 	d := Thursday - absWeekday(abs)

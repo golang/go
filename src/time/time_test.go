@@ -438,10 +438,19 @@ func TestISOWeek(t *testing.T) {
 }
 
 func BenchmarkISOWeek(b *testing.B) {
+	// 7 days
+	tests := [...]Time{
+		Now().Add(1 * 24 * Hour),
+		Now().Add(2 * 24 * Hour),
+		Now().Add(3 * 24 * Hour),
+		Now().Add(4 * 24 * Hour),
+		Now().Add(5 * 24 * Hour),
+		Now().Add(6 * 24 * Hour),
+		Now().Add(7 * 24 * Hour),
+	}
 	for i := 0; i < b.N; i++ {
-		for _, wt := range isoWeekTests {
-			dt := Date(wt.year, Month(wt.month), wt.day, 0, 0, 0, 0, UTC)
-			dt.ISOWeek()
+		for _, tt := range tests {
+			tt.ISOWeek()
 		}
 	}
 }
