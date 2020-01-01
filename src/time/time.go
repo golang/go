@@ -541,10 +541,17 @@ func (t Time) ISOWeek() (year, week int) {
 	// 0      1       2         3        4      5        6
 	// +3     +2      +1        0       -1     -2       -3
 	// the offset to Thursday
-	dd := 3 - (t.Weekday()+6)%7
+	d := Thursday - t.Weekday()
+	// handle Sunday
+	if d == Thursday {
+		d = -3
+	}
 	// find the Thursday of the calendar week
-	year, _, _, yday := t.Add(Duration(dd) * 24 * Hour).date(false)
-	return year, yday/7 + 1
+	if d != 0 {
+		t.addSec(int64(d) * secondsPerDay)
+	}
+	year, _, _, week = t.date(false)
+	return year, week/7 + 1
 }
 
 // Clock returns the hour, minute, and second within the day specified by t.
