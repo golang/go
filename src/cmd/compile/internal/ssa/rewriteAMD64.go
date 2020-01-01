@@ -27249,6 +27249,62 @@ func rewriteValueAMD64_OpAMD64SETA(v *Value) bool {
 }
 func rewriteValueAMD64_OpAMD64SETAE(v *Value) bool {
 	v_0 := v.Args[0]
+	// match: (SETAE (TESTQ x x))
+	// result: (ConstBool [1])
+	for {
+		if v_0.Op != OpAMD64TESTQ {
+			break
+		}
+		x := v_0.Args[1]
+		if x != v_0.Args[0] {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (SETAE (TESTL x x))
+	// result: (ConstBool [1])
+	for {
+		if v_0.Op != OpAMD64TESTL {
+			break
+		}
+		x := v_0.Args[1]
+		if x != v_0.Args[0] {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (SETAE (TESTW x x))
+	// result: (ConstBool [1])
+	for {
+		if v_0.Op != OpAMD64TESTW {
+			break
+		}
+		x := v_0.Args[1]
+		if x != v_0.Args[0] {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
+	// match: (SETAE (TESTB x x))
+	// result: (ConstBool [1])
+	for {
+		if v_0.Op != OpAMD64TESTB {
+			break
+		}
+		x := v_0.Args[1]
+		if x != v_0.Args[0] {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 1
+		return true
+	}
 	// match: (SETAE (InvertFlags x))
 	// result: (SETBE x)
 	for {
@@ -27666,6 +27722,62 @@ func rewriteValueAMD64_OpAMD64SETAstore(v *Value) bool {
 }
 func rewriteValueAMD64_OpAMD64SETB(v *Value) bool {
 	v_0 := v.Args[0]
+	// match: (SETB (TESTQ x x))
+	// result: (ConstBool [0])
+	for {
+		if v_0.Op != OpAMD64TESTQ {
+			break
+		}
+		x := v_0.Args[1]
+		if x != v_0.Args[0] {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (SETB (TESTL x x))
+	// result: (ConstBool [0])
+	for {
+		if v_0.Op != OpAMD64TESTL {
+			break
+		}
+		x := v_0.Args[1]
+		if x != v_0.Args[0] {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (SETB (TESTW x x))
+	// result: (ConstBool [0])
+	for {
+		if v_0.Op != OpAMD64TESTW {
+			break
+		}
+		x := v_0.Args[1]
+		if x != v_0.Args[0] {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 0
+		return true
+	}
+	// match: (SETB (TESTB x x))
+	// result: (ConstBool [0])
+	for {
+		if v_0.Op != OpAMD64TESTB {
+			break
+		}
+		x := v_0.Args[1]
+		if x != v_0.Args[0] {
+			break
+		}
+		v.reset(OpConstBool)
+		v.AuxInt = 0
+		return true
+	}
 	// match: (SETB (InvertFlags x))
 	// result: (SETA x)
 	for {
@@ -33171,6 +33283,16 @@ func rewriteValueAMD64_OpAMD64TESTL(v *Value) bool {
 }
 func rewriteValueAMD64_OpAMD64TESTLconst(v *Value) bool {
 	v_0 := v.Args[0]
+	// match: (TESTLconst [c] (MOVLconst [c]))
+	// result: (FlagEQ)
+	for {
+		c := v.AuxInt
+		if v_0.Op != OpAMD64MOVLconst || v_0.AuxInt != c {
+			break
+		}
+		v.reset(OpAMD64FlagEQ)
+		return true
+	}
 	// match: (TESTLconst [-1] x)
 	// cond: x.Op != OpAMD64MOVLconst
 	// result: (TESTL x x)
@@ -33246,6 +33368,16 @@ func rewriteValueAMD64_OpAMD64TESTQ(v *Value) bool {
 }
 func rewriteValueAMD64_OpAMD64TESTQconst(v *Value) bool {
 	v_0 := v.Args[0]
+	// match: (TESTQconst [c] (MOVQconst [c]))
+	// result: (FlagEQ)
+	for {
+		c := v.AuxInt
+		if v_0.Op != OpAMD64MOVQconst || v_0.AuxInt != c {
+			break
+		}
+		v.reset(OpAMD64FlagEQ)
+		return true
+	}
 	// match: (TESTQconst [-1] x)
 	// cond: x.Op != OpAMD64MOVQconst
 	// result: (TESTQ x x)
@@ -41959,6 +42091,50 @@ func rewriteBlockAMD64(b *Block) bool {
 			return true
 		}
 	case BlockAMD64UGE:
+		// match: (UGE (TESTQ x x) yes no)
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			x := v_0.Args[1]
+			if x != v_0.Args[0] {
+				break
+			}
+			b.Reset(BlockFirst)
+			return true
+		}
+		// match: (UGE (TESTL x x) yes no)
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64TESTL {
+			v_0 := b.Controls[0]
+			x := v_0.Args[1]
+			if x != v_0.Args[0] {
+				break
+			}
+			b.Reset(BlockFirst)
+			return true
+		}
+		// match: (UGE (TESTW x x) yes no)
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64TESTW {
+			v_0 := b.Controls[0]
+			x := v_0.Args[1]
+			if x != v_0.Args[0] {
+				break
+			}
+			b.Reset(BlockFirst)
+			return true
+		}
+		// match: (UGE (TESTB x x) yes no)
+		// result: (First yes no)
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			x := v_0.Args[1]
+			if x != v_0.Args[0] {
+				break
+			}
+			b.Reset(BlockFirst)
+			return true
+		}
 		// match: (UGE (InvertFlags cmp) yes no)
 		// result: (ULE cmp yes no)
 		for b.Controls[0].Op == OpAMD64InvertFlags {
@@ -42086,6 +42262,54 @@ func rewriteBlockAMD64(b *Block) bool {
 			return true
 		}
 	case BlockAMD64ULT:
+		// match: (ULT (TESTQ x x) yes no)
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64TESTQ {
+			v_0 := b.Controls[0]
+			x := v_0.Args[1]
+			if x != v_0.Args[0] {
+				break
+			}
+			b.Reset(BlockFirst)
+			b.swapSuccessors()
+			return true
+		}
+		// match: (ULT (TESTL x x) yes no)
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64TESTL {
+			v_0 := b.Controls[0]
+			x := v_0.Args[1]
+			if x != v_0.Args[0] {
+				break
+			}
+			b.Reset(BlockFirst)
+			b.swapSuccessors()
+			return true
+		}
+		// match: (ULT (TESTW x x) yes no)
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64TESTW {
+			v_0 := b.Controls[0]
+			x := v_0.Args[1]
+			if x != v_0.Args[0] {
+				break
+			}
+			b.Reset(BlockFirst)
+			b.swapSuccessors()
+			return true
+		}
+		// match: (ULT (TESTB x x) yes no)
+		// result: (First no yes)
+		for b.Controls[0].Op == OpAMD64TESTB {
+			v_0 := b.Controls[0]
+			x := v_0.Args[1]
+			if x != v_0.Args[0] {
+				break
+			}
+			b.Reset(BlockFirst)
+			b.swapSuccessors()
+			return true
+		}
 		// match: (ULT (InvertFlags cmp) yes no)
 		// result: (UGT cmp yes no)
 		for b.Controls[0].Op == OpAMD64InvertFlags {
