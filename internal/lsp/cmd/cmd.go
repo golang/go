@@ -71,7 +71,7 @@ type Application struct {
 	PrepareOptions func(*source.Options)
 }
 
-// Returns a new Application ready to run.
+// New returns a new Application ready to run.
 func New(name, wd string, env []string, options func(*source.Options)) *Application {
 	if wd == "" {
 		wd, _ = os.Getwd()
