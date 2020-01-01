@@ -567,6 +567,12 @@
 (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no) -> (UGE cmp yes no)
 (NE (TESTB (SETO cmp) (SETO cmp)) yes no) -> (OS cmp yes no)
 
+// Unsigned comparisons to 0/1
+(ULT (TEST(Q|L|W|B) x x) yes no) -> (First no yes)
+(UGE (TEST(Q|L|W|B) x x) yes no) -> (First yes no)
+(SETB (TEST(Q|L|W|B) x x)) -> (ConstBool [0])
+(SETAE (TEST(Q|L|W|B) x x)) -> (ConstBool [1])
+
 // Recognize bit tests: a&(1<<b) != 0 for b suitably bounded
 // Note that BTx instructions use the carry bit, so we need to convert tests for zero flag
 // into tests for carry flags.
@@ -1310,6 +1316,8 @@
 (CMPLconst (ANDLconst _ [m]) [n]) && 0 <= int32(m) && int32(m) < int32(n) -> (FlagLT_ULT)
 (CMPWconst (ANDLconst _ [m]) [n]) && 0 <= int16(m) && int16(m) < int16(n) -> (FlagLT_ULT)
 (CMPBconst (ANDLconst _ [m]) [n]) && 0 <= int8(m) && int8(m) < int8(n) -> (FlagLT_ULT)
+
+(TEST(Q|L)const [c] (MOV(Q|L)const [c])) -> (FlagEQ)
 
 // TODO: DIVxU also.
 
