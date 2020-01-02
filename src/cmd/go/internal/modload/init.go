@@ -1012,6 +1012,18 @@ func indexModFile(data []byte, modFile *modfile.File, needsFix bool) *modFileInd
 		if prev, dup := i.replace[r.Old]; dup && prev != r.New {
 			base.Fatalf("go: conflicting replacements for %v:\n\t%v\n\t%v", r.Old, prev, r.New)
 		}
+
+		if r.Old.Path == modFile.Module.Mod.Path && r.Old.Version == "" {
+			base.Fatalf("go: %s:%d: the main module (%s) cannot be replaced",
+				modFile.Syntax.Name, r.Syntax.Start.Line, modFile.Module.Mod.Path)
+		}
+
+		if modfile.IsDirectoryPath(r.New.Path) && HasModRoot() && ((search.IsRelativePath(r.New.Path) && filepath.Join(ModRoot(), r.New.Path) == ModRoot()) ||
+			search.InDir(r.New.Path, ModRoot()) == ".") {
+			base.Fatalf("go: %s:%d: the main module root directory (%s) cannot be a replacement for another module",
+				modFile.Syntax.Name, r.Syntax.Start.Line, modFile.Module.Mod.Path)
+		}
+
 		i.replace[r.Old] = r.New
 	}
 

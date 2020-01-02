@@ -1,0 +1,38 @@
+env GO111MODULE=on
+[short] skip
+
+cd fail1
+! go list all
+stderr 'go: \$WORK\/gopath\/src\/fail1\/go\.mod:3: the main module root directory \(example\.com\/m\) cannot be a replacement for another module'
+
+cd ../fail2
+! go list all
+stderr 'go: \$WORK\/gopath\/src\/fail2\/go\.mod:3: the main module \(example\.com\/m\) cannot be replaced'
+
+# Different module version can be replaced
+cd ../success
+go list all
+stdout 'example.com/m'
+
+-- fail1/go.mod --
+module example.com/m
+
+replace example.com/m2 => ./.
+
+-- fail2/go.mod --
+module example.com/m
+
+replace example.com/m => example.com/m v1.1.1
+
+-- success/go.mod --
+module example.com/m
+
+replace example.com/m v1.1.1 => example.com/m v1.1.2
+
+-- fork/go.mod --
+module example.com/m
+
+-- success/m.go --
+package main
+
+func main() {}
