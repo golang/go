@@ -1175,18 +1175,20 @@ func (r *gopathResolver) scan(ctx context.Context, callback *scanCallback) error
 			p.relevance = MaxRelevance
 		}
 
-		if callback.dirFound(p) {
-			var err error
-			p.packageName, err = r.cache.CachePackageName(info)
-			if err != nil {
-				continue
-			}
+		if !callback.dirFound(p) {
+			continue
+		}
+		var err error
+		p.packageName, err = r.cache.CachePackageName(info)
+		if err != nil {
+			continue
 		}
 
-		if callback.packageNameLoaded(p) {
-			if _, exports, err := r.loadExports(ctx, p); err == nil {
-				callback.exportsLoaded(p, exports)
-			}
+		if !callback.packageNameLoaded(p) {
+			continue
+		}
+		if _, exports, err := r.loadExports(ctx, p); err == nil {
+			callback.exportsLoaded(p, exports)
 		}
 	}
 	return nil

@@ -378,27 +378,27 @@ func (r *ModuleResolver) scan(ctx context.Context, callback *scanCallback) error
 		if scanned, err := info.reachedStatus(directoryScanned); !scanned || err != nil {
 			return
 		}
-
 		pkg, err := r.canonicalize(info)
 		if err != nil {
 			return
 		}
 
-		if callback.dirFound(pkg) {
-			var err error
-			pkg.packageName, err = r.cachePackageName(info)
-			if err != nil {
-				return
-			}
+		if !callback.dirFound(pkg) {
+			return
+		}
+		pkg.packageName, err = r.cachePackageName(info)
+		if err != nil {
+			return
 		}
 
-		if callback.packageNameLoaded(pkg) {
-			_, exports, err := r.loadExports(ctx, pkg)
-			if err != nil {
-				return
-			}
-			callback.exportsLoaded(pkg, exports)
+		if !callback.packageNameLoaded(pkg) {
+			return
 		}
+		_, exports, err := r.loadExports(ctx, pkg)
+		if err != nil {
+			return
+		}
+		callback.exportsLoaded(pkg, exports)
 	}
 
 	// Everything we already had is in the cache. Process it now, in hopes we
