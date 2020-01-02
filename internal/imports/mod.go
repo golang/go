@@ -26,6 +26,7 @@ type ModuleResolver struct {
 	moduleCacheDir string
 	dummyVendorMod *ModuleJSON // If vendoring is enabled, the pseudo-module that represents the /vendor directory.
 	roots          []gopathwalk.Root
+	scanSema       chan struct{} // scanSema prevents concurrent scans and guards scannedRoots.
 	scannedRoots   map[gopathwalk.Root]bool
 
 	Initialized   bool
@@ -106,12 +107,12 @@ func (r *ModuleResolver) init() error {
 		}
 		// Walk dependent modules before scanning the full mod cache, direct deps first.
 		for _, mod := range r.ModsByModPath {
-			if !mod.Indirect {
+			if !mod.Indirect && !mod.Main {
 				addDep(mod)
 			}
 		}
 		for _, mod := range r.ModsByModPath {
-			if mod.Indirect {
+			if mod.Indirect && !mod.Main {
 				addDep(mod)
 			}
 		}
@@ -119,14 +120,20 @@ func (r *ModuleResolver) init() error {
 	}
 
 	r.scannedRoots = map[gopathwalk.Root]bool{}
+	if r.scanSema == nil {
+		r.scanSema = make(chan struct{}, 1)
+		r.scanSema <- struct{}{}
+	}
 	if r.moduleCacheCache == nil {
 		r.moduleCacheCache = &dirInfoCache{
-			dirs: map[string]*directoryPackageInfo{},
+			dirs:      map[string]*directoryPackageInfo{},
+			listeners: map[*int]cacheListener{},
 		}
 	}
 	if r.otherCache == nil {
 		r.otherCache = &dirInfoCache{
-			dirs: map[string]*directoryPackageInfo{},
+			dirs:      map[string]*directoryPackageInfo{},
+			listeners: map[*int]cacheListener{},
 		}
 	}
 	r.Initialized = true
@@ -160,18 +167,24 @@ func (r *ModuleResolver) initAllMods() error {
 }
 
 func (r *ModuleResolver) ClearForNewScan() {
+	<-r.scanSema
 	r.scannedRoots = map[gopathwalk.Root]bool{}
 	r.otherCache = &dirInfoCache{
 		dirs: map[string]*directoryPackageInfo{},
 	}
+	r.scanSema <- struct{}{}
 }
 
 func (r *ModuleResolver) ClearForNewMod() {
-	env := r.env
+	<-r.scanSema
 	*r = ModuleResolver{
-		env: env,
+		env:              r.env,
+		moduleCacheCache: r.moduleCacheCache,
+		otherCache:       r.otherCache,
+		scanSema:         r.scanSema,
 	}
 	r.init()
+	r.scanSema <- struct{}{}
 }
 
 // findPackage returns the module and directory that contains the package at
@@ -401,18 +414,12 @@ func (r *ModuleResolver) scan(ctx context.Context, callback *scanCallback) error
 		callback.exportsLoaded(pkg, exports)
 	}
 
-	// Everything we already had is in the cache. Process it now, in hopes we
-	// we don't need anything new.
-	for _, dir := range r.cacheKeys() {
-		if ctx.Err() != nil {
-			return nil
-		}
-		info, ok := r.cacheLoad(dir)
-		if !ok {
-			continue
-		}
-		processDir(info)
-	}
+	// Start processing everything in the cache, and listen for the new stuff
+	// we discover in the walk below.
+	stop1 := r.moduleCacheCache.ScanAndListen(ctx, processDir)
+	defer stop1()
+	stop2 := r.otherCache.ScanAndListen(ctx, processDir)
+	defer stop2()
 
 	// We assume cached directories are fully cached, including all their
 	// children, and have not changed. We can skip them.
@@ -428,32 +435,41 @@ func (r *ModuleResolver) scan(ctx context.Context, callback *scanCallback) error
 		return packageScanned
 	}
 
-	// Add anything new to the cache, and process it if we're still looking.
+	// Add anything new to the cache, and process it if we're still listening.
 	add := func(root gopathwalk.Root, dir string) {
-		info := r.scanDirForPackage(root, dir)
-		r.cacheStore(info)
-		if ctx.Err() == nil {
-			processDir(info)
-		}
+		r.cacheStore(r.scanDirForPackage(root, dir))
 	}
 
+	// r.roots and the callback are not necessarily safe to use in the
+	// goroutine below. Process them eagerly.
+	roots := filterRoots(r.roots, callback.rootFound)
 	// We can't cancel walks, because we need them to finish to have a usable
-	// cache. We can do them one by one and stop in between.
-	// TODO(heschi): Run asynchronously and detach on cancellation? Would risk
-	// racy callbacks.
-	for _, root := range r.roots {
-		if ctx.Err() != nil {
-			return nil
+	// cache. Instead, run them in a separate goroutine and detach.
+	scanDone := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			return
+		case <-r.scanSema:
 		}
+		defer func() { r.scanSema <- struct{}{} }()
+		// We have the lock on r.scannedRoots, and no other scans can run.
+		for _, root := range roots {
+			if ctx.Err() != nil {
+				return
+			}
 
-		if r.scannedRoots[root] {
-			continue
+			if r.scannedRoots[root] {
+				continue
+			}
+			gopathwalk.WalkSkip([]gopathwalk.Root{root}, add, skip, gopathwalk.Options{Debug: r.env.Debug, ModulesEnabled: true})
+			r.scannedRoots[root] = true
 		}
-		if !callback.rootFound(root) {
-			continue
-		}
-		gopathwalk.WalkSkip([]gopathwalk.Root{root}, add, skip, gopathwalk.Options{Debug: r.env.Debug, ModulesEnabled: true})
-		r.scannedRoots[root] = true
+		close(scanDone)
+	}()
+	select {
+	case <-ctx.Done():
+	case <-scanDone:
 	}
 	return nil
 }

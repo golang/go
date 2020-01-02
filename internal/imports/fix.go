@@ -992,20 +992,33 @@ func ImportPathToAssumedName(importPath string) string {
 
 // gopathResolver implements resolver for GOPATH workspaces.
 type gopathResolver struct {
-	env   *ProcessEnv
-	cache *dirInfoCache
+	env      *ProcessEnv
+	walked   bool
+	cache    *dirInfoCache
+	scanSema chan struct{} // scanSema prevents concurrent scans.
 }
 
 func (r *gopathResolver) init() {
 	if r.cache == nil {
 		r.cache = &dirInfoCache{
-			dirs: map[string]*directoryPackageInfo{},
+			dirs:      map[string]*directoryPackageInfo{},
+			listeners: map[*int]cacheListener{},
 		}
+	}
+	if r.scanSema == nil {
+		r.scanSema = make(chan struct{}, 1)
+		r.scanSema <- struct{}{}
 	}
 }
 
 func (r *gopathResolver) ClearForNewScan() {
-	r.cache = nil
+	<-r.scanSema
+	*r = gopathResolver{
+		env:      r.env,
+		scanSema: r.scanSema,
+	}
+	r.init()
+	r.scanSema <- struct{}{}
 }
 
 func (r *gopathResolver) loadPackageNames(importPaths []string, srcDir string) (map[string]string, error) {
@@ -1154,21 +1167,15 @@ func (r *gopathResolver) scan(ctx context.Context, callback *scanCallback) error
 		}
 		r.cache.Store(dir, info)
 	}
-	roots := filterRoots(gopathwalk.SrcDirsRoots(r.env.buildContext()), callback.rootFound)
-	gopathwalk.Walk(roots, add, gopathwalk.Options{Debug: r.env.Debug, ModulesEnabled: false})
-	for _, dir := range r.cache.Keys() {
-		if ctx.Err() != nil {
-			return nil
-		}
-
-		info, ok := r.cache.Load(dir)
-		if !ok {
-			continue
+	processDir := func(info directoryPackageInfo) {
+		// Skip this directory if we were not able to get the package information successfully.
+		if scanned, err := info.reachedStatus(directoryScanned); !scanned || err != nil {
+			return
 		}
 
 		p := &pkg{
 			importPathShort: info.nonCanonicalImportPath,
-			dir:             dir,
+			dir:             info.dir,
 			relevance:       MaxRelevance - 1,
 		}
 		if info.rootType == gopathwalk.RootGOROOT {
@@ -1176,20 +1183,41 @@ func (r *gopathResolver) scan(ctx context.Context, callback *scanCallback) error
 		}
 
 		if !callback.dirFound(p) {
-			continue
+			return
 		}
 		var err error
 		p.packageName, err = r.cache.CachePackageName(info)
 		if err != nil {
-			continue
+			return
 		}
 
 		if !callback.packageNameLoaded(p) {
-			continue
+			return
 		}
 		if _, exports, err := r.loadExports(ctx, p); err == nil {
 			callback.exportsLoaded(p, exports)
 		}
+	}
+	stop := r.cache.ScanAndListen(ctx, processDir)
+	defer stop()
+	// The callback is not necessarily safe to use in the goroutine below. Process roots eagerly.
+	roots := filterRoots(gopathwalk.SrcDirsRoots(r.env.buildContext()), callback.rootFound)
+	// We can't cancel walks, because we need them to finish to have a usable
+	// cache. Instead, run them in a separate goroutine and detach.
+	scanDone := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			return
+		case <-r.scanSema:
+		}
+		defer func() { r.scanSema <- struct{}{} }()
+		gopathwalk.Walk(roots, add, gopathwalk.Options{Debug: r.env.Debug, ModulesEnabled: false})
+		close(scanDone)
+	}()
+	select {
+	case <-ctx.Done():
+	case <-scanDone:
 	}
 	return nil
 }

@@ -151,7 +151,6 @@ import _ "example.com"
 
 	mt.assertScanFinds("example.com", "x")
 	mt.assertScanFinds("example.com", "x")
-
 }
 
 // Tests that scanning the module cache > 1 time is able to find the same module
@@ -211,12 +210,8 @@ import _ "rsc.io/quote"
 	}
 
 	// Uninitialize the go.mod dependent cached information and make sure it still finds the package.
-	mt.resolver.Initialized = false
-	mt.resolver.Main = nil
-	mt.resolver.ModsByModPath = nil
-	mt.resolver.ModsByDir = nil
+	mt.resolver.ClearForNewMod()
 	mt.assertScanFinds("rsc.io/quote", "quote")
-
 }
 
 // Tests that -mod=vendor works. Adapted from mod_vendor_build.txt.
@@ -606,9 +601,7 @@ func scanToSlice(resolver Resolver, exclude []gopathwalk.RootType) ([]*pkg, erro
 			mu.Lock()
 			defer mu.Unlock()
 			result = append(result, pkg)
-			return true
-		},
-		exportsLoaded: func(pkg *pkg, exports []string) {
+			return false
 		},
 	}
 	err := resolver.scan(context.Background(), filter)

@@ -93,15 +93,85 @@ func (info *directoryPackageInfo) reachedStatus(target directoryPackageStatus) (
 type dirInfoCache struct {
 	mu sync.Mutex
 	// dirs stores information about packages in directories, keyed by absolute path.
-	dirs map[string]*directoryPackageInfo
+	dirs      map[string]*directoryPackageInfo
+	listeners map[*int]cacheListener
+}
+
+type cacheListener func(directoryPackageInfo)
+
+// ScanAndListen calls listener on all the items in the cache, and on anything
+// newly added. The returned stop function waits for all in-flight callbacks to
+// finish and blocks new ones.
+func (d *dirInfoCache) ScanAndListen(ctx context.Context, listener cacheListener) func() {
+	ctx, cancel := context.WithCancel(ctx)
+
+	// Flushing out all the callbacks is tricky without knowing how many there
+	// are going to be. Setting an arbitrary limit makes it much easier.
+	const maxInFlight = 10
+	sema := make(chan struct{}, maxInFlight)
+	for i := 0; i < maxInFlight; i++ {
+		sema <- struct{}{}
+	}
+
+	cookie := new(int) // A unique ID we can use for the listener.
+
+	// We can't hold mu while calling the listener.
+	d.mu.Lock()
+	var keys []string
+	for key := range d.dirs {
+		keys = append(keys, key)
+	}
+	d.listeners[cookie] = func(info directoryPackageInfo) {
+		select {
+		case <-ctx.Done():
+			return
+		case <-sema:
+		}
+		listener(info)
+		sema <- struct{}{}
+	}
+	d.mu.Unlock()
+
+	// Process the pre-existing keys.
+	for _, k := range keys {
+		select {
+		case <-ctx.Done():
+			cancel()
+			return func() {}
+		default:
+		}
+		if v, ok := d.Load(k); ok {
+			listener(v)
+		}
+	}
+
+	return func() {
+		cancel()
+		d.mu.Lock()
+		delete(d.listeners, cookie)
+		d.mu.Unlock()
+		for i := 0; i < maxInFlight; i++ {
+			<-sema
+		}
+	}
 }
 
 // Store stores the package info for dir.
 func (d *dirInfoCache) Store(dir string, info directoryPackageInfo) {
 	d.mu.Lock()
-	defer d.mu.Unlock()
-	stored := info // defensive copy
-	d.dirs[dir] = &stored
+	_, old := d.dirs[dir]
+	d.dirs[dir] = &info
+	var listeners []cacheListener
+	for _, l := range d.listeners {
+		listeners = append(listeners, l)
+	}
+	d.mu.Unlock()
+
+	if !old {
+		for _, l := range listeners {
+			l(info)
+		}
+	}
 }
 
 // Load returns a copy of the directoryPackageInfo for absolute directory dir.
