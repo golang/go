@@ -70,6 +70,7 @@ func ToRlog(fname string) (*Rlog, error) {
 			ans.ServerNotifs = append(ans.ServerNotifs, l)
 		case ReportErr:
 			ans.ServerReply[l.ID] = l
+			l.Method = ans.ServerCall[l.ID].Method // Method not in log message
 		default:
 			log.Fatalf("eh? %s/%s (%s)", l.Type, l.Method, l.ID)
 		}

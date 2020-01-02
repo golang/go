@@ -89,7 +89,7 @@ func ReadLogs(fname string) ([]*Logmsg, error) {
 			}
 			msg.Body = v
 		case ReportErr:
-			msg.Body = msg.ID // cause?
+			msg.Body = msg.Rest // save cause
 		}
 		byid[msg.ID]++
 		msgs = append(msgs, msg)
@@ -152,6 +152,7 @@ func parselog(first, rest string) (*Logmsg, error) {
 		msg.Method = both[:idx]
 		msg.ID = fixid(both[idx+1:])
 		msg.Rest = strings.Join(flds[6:], " ")
+		msg.Rest = `"` + msg.Rest + `"`
 	default:
 		return nil, fmt.Errorf("surprise, first=%q with %d flds", first, len(flds))
 	}
