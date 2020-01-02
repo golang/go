@@ -1,3 +1,19 @@
+[short] skip
+[!race] skip
+
+go test testrace
+
+! go test -race testrace
+stdout 'FAIL: TestRace'
+! stdout 'PASS'
+! stderr 'PASS'
+
+! go test -race testrace -run XXX -bench .
+stdout 'FAIL: BenchmarkRace'
+! stdout 'PASS'
+! stderr 'PASS'
+
+-- testrace/race_test.go --
 package testrace
 
 import "testing"
