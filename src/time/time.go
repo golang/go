@@ -552,9 +552,10 @@ func (t Time) ISOWeek() (year, week int) {
 		d = -3
 	}
 	// find the Thursday of the calendar week
-	if d != 0 {
-		t.addSec(int64(d) * secondsPerDay)
-		abs = t.abs()
+	if d > 0 {
+		abs += uint64(d) * secondsPerDay
+	} else if d < 0 {
+		abs -= uint64(-d) * secondsPerDay
 	}
 	year, _, _, week = absDate(abs, false)
 	return year, week/7 + 1
