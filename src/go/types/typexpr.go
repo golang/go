@@ -37,6 +37,13 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 	}
 	check.recordUse(e, obj)
 
+	// If we have a contract, don't bother type-checking it and avoid a
+	// possible cycle error in favor of the more informative error below.
+	if obj, _ := obj.(*Contract); obj != nil {
+		check.errorf(e.Pos(), "use of contract %s not in type parameter declaration", obj.name)
+		return
+	}
+
 	// Type-check the object.
 	// Only call Checker.objDecl if the object doesn't have a type yet
 	// (in which case we must actually determine it) or the object is a
@@ -99,9 +106,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, wantType bool)
 		x.mode = variable
 
 	case *Contract:
-		// TODO(gri) need better error message here
-		check.errorf(e.Pos(), "use of contract %s not in type parameter declaration", obj.name)
-		return
+		unreachable() // handled earlier
 
 	case *Func:
 		check.addDeclDep(obj)

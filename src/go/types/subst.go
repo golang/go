@@ -228,13 +228,11 @@ func (subst *subster) typ(typ Type) Type {
 		}
 
 	case *Interface:
-		// for now ignore embeddeds
-		// TODO(gri) decide what to do
-		assert(len(t.embeddeds) == 0)
 		methods, mcopied := subst.funcList(t.methods)
+		embeddeds, ecopied := subst.typeList(t.embeddeds)
 		types, tcopied := subst.typeList(t.types)
-		if mcopied || tcopied {
-			iface := &Interface{methods: methods, types: types}
+		if mcopied || ecopied || tcopied {
+			iface := &Interface{methods: methods, embeddeds: embeddeds, types: types}
 			iface.Complete()
 			return iface
 		}

@@ -74,19 +74,18 @@ contracts are syntactic sugar that may improve readability.
 
 KNOWN ISSUES
 
-- gofmt works only partly with parameterized code
 - importing of packages exporting generic code is not implemented
-  (and likely won't be implemented in this prototype)
+  (and won't be implemented in this prototype)
 - error messages are reasonable but expect them to be significantly
   better in a real implementation (the subscript numbers on type
   parameters are there to visually identify different parameters
   with the same name)
-- contract embedding is not implemented yet
 - embedding of interfaces ignores (the notationally new) type
   lists in interfaces
 - various type-specific operations (such as indexing, sending a
   message, etc.) on expressions of a generic type don't work
   yet (but are relatively easy to implement, going forward)
+- gofmt works only partly with parameterized code
 
 See also the NOTES file for a more up-to-date documentation of the
 current state and issues.

@@ -13,7 +13,7 @@ contract _(A, B, A /* ERROR A redeclared */ ){}
 // method constraints
 contract _(A) { A } /* ERROR expected type */ // TODO(gri) investigate this error! looks wrong
 contract _(A) { A m(); A add(A) int }
-contract _(A) { B /* ERROR B not declared by contract */ m() }
+contract _(A) { B /* ERROR B is not a type parameter declared by the contract */ m() }
 contract _(A) { A m(); A m /* ERROR duplicate method */ () }
 contract _(A) {
         A m()
@@ -45,17 +45,59 @@ contract C(A) { A C /* ERROR use of contract */ }
 contract _(A) { A struct { f int } }
 contract _(A, B) { A B }
 
-// embedded contracts
-contract E() {}
-contract _() {
-//        E /* ERROR embedding not yet implemented */
-}
-
 // contract use in wrong places
 const _ E /* ERROR use of contract */ = 0
 type _ E /* ERROR use of contract */
 var _ E /* ERROR use of contract */
 var _ = E /* ERROR use of contract */
+contract E() {}
+
+// --------------------------------------------------------------------------------------
+// embedded contracts
+
+contract E0() {}
+contract _() {
+        E0()
+}
+
+contract E1 /* ERROR cycle */ () {
+        E1()
+}
+
+contract E2 /* ERROR cycle */ (a, b, c) {
+        E2(a, b) // no further errors here because of incorrect parameter count
+}
+
+contract _(T) {
+        E3 /* ERROR 0 type parameters */ ()
+        E3(T, int /* ERROR int is not a type parameter */)
+        E3(T, T)
+}
+
+contract E3(A, B) {
+        A a()
+        B b()
+}
+
+// E4 expects the methods T.a and T.b
+contract E4(T) {
+        E3(T, T)
+}
+
+func f(type T E4)()
+
+func _() {
+        f(myTa /* ERROR missing method */)()
+        f(myTab)()
+}
+
+type myTa struct{}
+
+func (myTa) a()
+
+type myTab struct{ myTa }
+
+func (myTab) b()
 
 // --------------------------------------------------------------------------------------
 // Contract satisfaction

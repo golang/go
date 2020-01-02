@@ -5,7 +5,6 @@ TODO
 - use Underlying() to return a type parameter's bound? investigate!
 - better error message when declaring a contract local to a function (parser gets out of sync)
 - if type parameters are repeated in recursive instantiation, they must be the same order (not yet checked)
-- implement contract embedding
 - interface embedding doesn't take care of literal type constraints yet
   (need an allTypes list, like we have an allMethods list?)
 - type assertions on/against parameterized types
@@ -55,3 +54,5 @@ DESIGN/IMPLEMENTATION
   the function block. The scope of type parameters starts at the 'type' keyword; the scope of ordinary
   parameters starts with the (opening '{' of the) function body. Both scopes end with the closing '}'
   of the function body (i.e., the end of the function block).
+
+- 1/2/2020: Implementation decision: contracts can only be declared at the package level.

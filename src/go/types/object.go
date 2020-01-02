@@ -332,12 +332,6 @@ func NewContract(pos token.Pos, pkg *Package, name string) *Contract {
 	return &Contract{object{nil, pos, pkg, name, nil, 0, white, token.NoPos}, nil, nil}
 }
 
-// boundsAt returns the (named) interface for the respective
-// contract type parameter with the given index.
-func (c *Contract) boundsAt(index int) *Named {
-	return c.Bounds[index]
-}
-
 // A Label represents a declared label.
 // Labels don't have a type.
 type Label struct {

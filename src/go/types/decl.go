@@ -158,6 +158,12 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 				// initialize a variable with the function.
 			}
 
+		case *Contract:
+			// TODO(gri) is there anything else we need to do here?
+			if check.cycle(obj) {
+				obj.typ = Typ[Invalid]
+			}
+
 		default:
 			unreachable()
 		}
@@ -249,6 +255,8 @@ func (check *Checker) cycle(obj Object) (isCycle bool) {
 			}
 		case *Func:
 			// ignored for now
+		case *Contract:
+			// TODO(gri) what do we need to do here, if anything?
 		default:
 			unreachable()
 		}
@@ -631,12 +639,18 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 		// its information through in form of some contract Type.
 		if ident, ok := unparen(f.Type).(*ast.Ident); ok {
 			if obj, _ := check.lookup(ident.Name).(*Contract); obj != nil {
+				// set up contract if not yet done
+				if obj.typ == nil {
+					check.objDecl(obj, nil)
+					if obj.typ == Typ[Invalid] {
+						goto next // don't use contract
+					}
+				}
 				if len(f.Names) != len(obj.TParams) {
 					check.errorf(f.Type.Pos(), "%d type parameters but contract expects %d", len(f.Names), len(obj.TParams))
 					goto next
 				}
 				// obj is a valid contract
-				// TODO(gri) must set up contract if not yet done!
 				// Use contract's matching type parameter bound and
 				// instantiate it with the actual type parameters
 				// (== targs) present.
@@ -645,7 +659,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 					targs[i] = tparam.typ
 				}
 				for i, name := range f.Names {
-					bound := obj.boundsAt(i)
+					bound := obj.Bounds[i]
 					setBoundAt(index+i, check.instantiate(name.Pos(), bound, targs, nil))
 				}
 				goto next

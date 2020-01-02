@@ -11,17 +11,8 @@ import (
 	"go/token"
 )
 
-type contractType struct{}
-
-func (contractType) String() string   { return "<dummy contract type>" }
-func (contractType) Underlying() Type { panic("unreachable") }
-
 func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
 	assert(obj.typ == nil)
-
-	// contracts don't have types, but we need to set a type to
-	// detect recursive declarations and satisfy various assertions
-	obj.typ = new(contractType)
 
 	check.openScope(cdecl, "contract")
 	defer check.closeScope()
@@ -47,7 +38,7 @@ func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
 			pos := c.Param.Pos()
 			tobj := check.scope.Lookup(c.Param.Name)
 			if tobj == nil {
-				check.errorf(pos, "%s not declared by contract", c.Param.Name)
+				check.errorf(pos, "%s is not a type parameter declared by the contract", c.Param.Name)
 				continue
 			}
 			if c.Types == nil {
@@ -76,8 +67,7 @@ func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
 				}
 			}
 
-			tpar := tobj.(*TypeName)
-			ifaceName := bounds[tpar.typ.(*TypeParam).index]
+			ifaceName := bounds[tobj.(*TypeName).typ.(*TypeParam).index]
 			iface := ifaceName.underlying.(*Interface)
 			switch nmethods {
 			case 0:
@@ -125,42 +115,68 @@ func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
 			econtr, _ := c.Types[0].(*ast.CallExpr)
 			if econtr == nil {
 				check.invalidAST(c.Types[0].Pos(), "invalid embedded contract %s", econtr)
+				continue
 			}
-			// Handle contract lookup so we don't need to set up a special contract mode
+
+			// Handle contract lookup here so we don't need to set up a special contract mode
 			// for operands just to carry its information through in form of some contract Type.
 			// TODO(gri) this code is also in collectTypeParams (decl.go) - factor out!
 			if ident, ok := unparen(econtr.Fun).(*ast.Ident); ok {
 				if eobj, _ := check.lookup(ident.Name).(*Contract); eobj != nil {
-					// TODO(gri) must set up contract if not yet done!
+					// set up contract if not yet done
+					if eobj.typ == nil {
+						check.objDecl(eobj, nil)
+						if eobj.typ == Typ[Invalid] {
+							continue // don't use contract
+						}
+					}
 					// eobj is a valid contract
-					// TODO(gri) look for contract cycles!
 					// contract arguments must match the embedded contract's parameters
-					if len(econtr.Args) != len(eobj.TParams) {
-						check.errorf(c.Types[0].Pos(), "%d type parameters but contract expects %d", len(econtr.Args), len(eobj.TParams))
+					n := len(econtr.Args)
+					if n != len(eobj.TParams) {
+						check.errorf(c.Types[0].Pos(), "%d type parameters but contract expects %d", n, len(eobj.TParams))
 						continue
 					}
-					// contract arguments must be type parameters
-					// For now, they must be from the enclosing contract.
-					// TODO(gri) can we allow any type parameter?
-					targs := make([]Type, len(econtr.Args))
-					for i, arg := range econtr.Args {
+
+					// contract arguments must be type parameters from the enclosing contract
+					var targs []Type
+					for _, arg := range econtr.Args {
 						targ := check.typ(arg)
 						if parg, _ := targ.(*TypeParam); parg != nil {
-							// TODO(gri) check that targ is a parameter from the enclosing contract
-							targs[i] = targ
-						} else {
+							// Contract declarations are only permitted at the package level,
+							// thus the only type parameters visible inside a contract are
+							// type parameters from the enclosing contract.
+							// The assertion below cannot fail unless we change the premise
+							// and permit contract declarations inside parameterized functions.
+							assert(tparams[parg.index] == parg.obj)
+							targs = append(targs, targ)
+						} else if targ != Typ[Invalid] {
 							check.errorf(arg.Pos(), "%s is not a type parameter", arg)
 						}
 					}
-					// TODO(gri) - implement the steps below
-					// - for each eobj type parameter, determine its (interface) bound
-					// - substitute that type parameter with the actual type argument in that interface
-					// - add the interface as am embedded interface to the bound matching the actual type argument
-					// - tests! (incl. overlapping methods, etc.)
-					check.errorf(c.Types[0].Pos(), "%s: contract embedding not yet implemented", c.Types[0])
-					continue
+					if len(targs) < n {
+						continue // some arguments were incorrect
+					}
+
+					// instantiate each (embedded) contract bound with contract arguments
+					assert(n == len(eobj.Bounds))
+					ebounds := make([]*Named, n)
+					for i, ebound := range eobj.Bounds {
+						ebounds[i] = check.instantiate(econtr.Args[i].Pos(), ebound, targs, nil).(*Named)
+					}
+
+					// add the instantiated bounds as embedded interfaces to the respective
+					// embedding (outer) contract bound
+					for i, ebound := range ebounds {
+						index := targs[i].(*TypeParam).index
+						iface := bounds[index].underlying.(*Interface)
+						iface.embeddeds = append(iface.embeddeds, ebound)
+						check.posMap[iface] = append(check.posMap[iface], econtr.Pos()) // satisfy completeInterface requirements
+					}
 				}
+				continue // success
 			}
+
 			check.errorf(c.Types[0].Pos(), "%s is not a contract", c.Types[0])
 		}
 	}
@@ -170,9 +186,17 @@ func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
 		check.completeInterface(cdecl.Pos(), bound.underlying.(*Interface))
 	}
 
+	obj.typ = new(contractType) // mark contract as fully set up
 	obj.TParams = tparams
 	obj.Bounds = bounds
 }
+
+// Contracts don't have types, but we need to set a type to
+// detect recursive declarations and satisfy assertions.
+type contractType struct{}
+
+func (contractType) String() string   { return "<dummy contract type>" }
+func (contractType) Underlying() Type { panic("unreachable") }
 
 func (check *Checker) collectTypeConstraints(pos token.Pos, list []Type, types []ast.Expr) []Type {
 	for _, texpr := range types {

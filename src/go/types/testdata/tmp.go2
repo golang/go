@@ -11,5 +11,28 @@ contract C1(a, b, c) {
 }
 
 contract C2(a, b) {
-        C1 /* ERROR contract embedding */ (a, b, a)
+        C1(a, b, b)
 }
+
+func f(type T, _ C2)(x T)
+
+type X struct{}
+
+func (X) a()
+//func (X) b()
+//func (X) c()
+
+func _() {
+        var x X
+        f(X, int)(x)
+}
+
+contract C3(x) {
+        C4(x)
+}
+
+contract C4(x) {
+//        C3(x)
+}
+
+contract C(A) { A C /* ERROR use of contract */ }

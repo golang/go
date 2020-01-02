@@ -28,12 +28,7 @@ func DotProduct(type T Numeric)(s1, s2 []T) T {
 
 // NumericAbs matches numeric types with an Abs method.
 contract NumericAbs(T) {
-	// TODO(gri) implement contract embedding
-	// Numeric(T)
-	T int; T int8; T int16; T int32; T int64
-	T uint; T uint8; T uint16; T uint32; T uint64; T uintptr
-	T float32; T float64
-	T complex64; T complex128
+	Numeric(T)
 
 	T Abs() T
 }
