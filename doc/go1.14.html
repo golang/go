@@ -457,6 +457,18 @@ TODO
 
 </dl><!-- signal -->
 
+<dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
+  <dd>
+    <p><!-- CL 200577 -->
+      Unlocking a highly contended <code>Mutex</code> now directly
+      yields the CPU to the next goroutine waiting for
+      that <code>Mutex</code>. This significantly improves the
+      performance of highly contended mutexes on high CPU count
+      machines.
+    </p>
+
+</dl><!-- sync -->
+
 <dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
   <dd>
     <p><!-- CL 201359 -->
