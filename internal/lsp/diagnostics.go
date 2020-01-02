@@ -97,10 +97,6 @@ func (s *Server) publishReports(ctx context.Context, reports map[source.FileIden
 		if ctx.Err() != nil {
 			break
 		}
-		// Don't publish empty diagnostics unless specified.
-		if len(diagnostics) == 0 && !publishEmpty {
-			continue
-		}
 		// Pre-sort diagnostics to avoid extra work when we compare them.
 		source.SortDiagnostics(diagnostics)
 		toSend := sentDiagnostics{
@@ -108,18 +104,24 @@ func (s *Server) publishReports(ctx context.Context, reports map[source.FileIden
 			identifier: fileID.Identifier,
 			sorted:     diagnostics,
 		}
-
-		if delivered, ok := s.delivered[fileID.URI]; ok {
-			// We only reuse cached diagnostics in two cases:
-			//   1. This file is at a greater version than that of the previously sent diagnostics.
-			//   2. There are no known versions for the file.
-			greaterVersion := fileID.Version > delivered.version && delivered.version > 0
+		delivered, ok := s.delivered[fileID.URI]
+		// Reuse equivalent cached diagnostics for subsequent file versions (if known),
+		// or identical files (if versions are not known).
+		if ok {
+			geqVersion := fileID.Version >= delivered.version && delivered.version > 0
 			noVersions := (fileID.Version == 0 && delivered.version == 0) && delivered.identifier == fileID.Identifier
-			if (greaterVersion || noVersions) && equalDiagnostics(delivered.sorted, diagnostics) {
+			if (geqVersion || noVersions) && equalDiagnostics(delivered.sorted, diagnostics) {
 				// Update the delivered map even if we reuse cached diagnostics.
 				s.delivered[fileID.URI] = toSend
 				continue
 			}
+		}
+		// If diagnostics are empty and not previously delivered,
+		// only send them if we are publishing empty diagnostics.
+		if !ok && len(diagnostics) == 0 && !publishEmpty {
+			// Update the delivered map to cache the diagnostics.
+			s.delivered[fileID.URI] = toSend
+			continue
 		}
 		if err := s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
 			Diagnostics: toProtocolDiagnostics(ctx, diagnostics),
