@@ -1665,10 +1665,10 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 					// This doesn't take into account the constant value, so there will be some
 					// false positives due to integer sign and overflow.
 					if candBasic.Info()&types.IsConstType == wantBasic.Info()&types.IsConstType {
-						// Lower candidate score if the types are not identical.
-						// This avoids ranking untyped integer constants above
-						// candidates with an exact type match.
-						if !types.Identical(candType, expType) {
+						// Lower candidate score if the types are not identical. This avoids
+						// ranking untyped constants above candidates with an exact type
+						// match. Don't lower score of builtin constants (e.g. "true").
+						if !types.Identical(candType, expType) && cand.obj.Parent() != types.Universe {
 							cand.score /= 2
 						}
 						return true

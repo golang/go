@@ -11,3 +11,9 @@ func _() {
 
 	iota //@complete(" //", iotaVar)
 }
+
+func _() {
+	var twoRedUpEnd bool //@item(TRUEVar, "twoRedUpEnd", "bool", "var")
+
+	var _ bool = true //@rank(" //", _true, TRUEVar)
+}
