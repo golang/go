@@ -2024,13 +2024,6 @@ func TestShadowingLogic(t *testing.T) {
 	}
 }
 
-// Only succeeds if source order is preserved.
-func TestSourceFileNameOrderPreserved(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("test", "testdata/example1_test.go", "testdata/example2_test.go")
-}
-
 // Check that coverage analysis works at all.
 // Don't worry about the exact numbers but require not 0.0%.
 func checkCoverage(tg *testgoData, data string) {
@@ -3396,15 +3389,6 @@ func TestMatchesNoBenchmarksIsOK(t *testing.T) {
 	defer tg.cleanup()
 	// TODO: tg.parallel()
 	tg.run("test", "-run", "^$", "-bench", "ThisWillNotMatch", "testdata/standalone_benchmark_test.go")
-	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
-	tg.grepBoth(okPattern, "go test did not say ok")
-}
-
-func TestMatchesOnlyExampleIsOK(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	// TODO: tg.parallel()
-	tg.run("test", "-run", "Example", "testdata/example1_test.go")
 	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
 	tg.grepBoth(okPattern, "go test did not say ok")
 }
