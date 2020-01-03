@@ -4,35 +4,10 @@
 
 package p
 
-contract C1(a, b, c) {
-        a a()
-        b b()
-        c c()
-}
+type B1 interface{type int}
 
-contract C2(a, b) {
-        C1(a, b, b)
-}
+type T3(type P B1) P
 
-func f(type T, _ C2)(x T)
+type B2 interface{type int, string}
 
-type X struct{}
-
-func (X) a()
-//func (X) b()
-//func (X) c()
-
-func _() {
-        var x X
-        f(X, int)(x)
-}
-
-contract C3(x) {
-        C4(x)
-}
-
-contract C4(x) {
-//        C3(x)
-}
-
-contract C(A) { A C /* ERROR use of contract */ }
+func _(type P B2)(x T3(P /* ERROR missing type string */ ))

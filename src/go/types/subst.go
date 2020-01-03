@@ -108,14 +108,14 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		}
 
 		// targ's underlying type must also be one of the interface types listed, if any
-		if len(iface.types) == 0 {
+		if len(iface.allTypes) == 0 {
 			break // nothing to do
 		}
 
 		// if targ is itself a type parameter, each of its possible types must be in the
 		// list of iface types (i.e., the targ type list must be a subset of the iface types)
 		if targ, _ := targ.Underlying().(*TypeParam); targ != nil {
-			for _, t := range targ.Interface().types {
+			for _, t := range targ.Interface().allTypes {
 				if !iface.includes(t.Underlying()) {
 					// TODO(gri) match this error message with the one below (or vice versa)
 					check.softErrorf(pos, "%s does not satisfy %s (missing type %s)", targ, tpar.bound, t)
@@ -126,7 +126,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		}
 
 		// otherwise, targ's underlying type must also be one of the interface types listed, if any
-		if len(iface.types) > 0 {
+		if len(iface.allTypes) > 0 {
 			// TODO(gri) must it be the underlying type, or should it just be the type? (spec question)
 			if !iface.includes(targ.Underlying()) {
 				check.softErrorf(pos, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ, iface)
@@ -229,11 +229,12 @@ func (subst *subster) typ(typ Type) Type {
 
 	case *Interface:
 		methods, mcopied := subst.funcList(t.methods)
-		embeddeds, ecopied := subst.typeList(t.embeddeds)
 		types, tcopied := subst.typeList(t.types)
-		if mcopied || ecopied || tcopied {
-			iface := &Interface{methods: methods, embeddeds: embeddeds, types: types}
-			iface.Complete()
+		embeddeds, ecopied := subst.typeList(t.embeddeds)
+		if mcopied || tcopied || ecopied {
+			iface := &Interface{methods: methods, types: types, embeddeds: embeddeds}
+			subst.check.posMap[iface] = subst.check.posMap[t] // satisfy completeInterface requirement
+			subst.check.completeInterface(token.NoPos, iface)
 			return iface
 		}
 

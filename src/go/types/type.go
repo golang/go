@@ -245,16 +245,16 @@ func (s *Signature) Variadic() bool { return s.variadic }
 // An Interface represents an interface type.
 type Interface struct {
 	methods   []*Func // ordered list of explicitly declared methods
+	types     []Type  // list of explicitly declared types (for contracts)
 	embeddeds []Type  // ordered list of explicitly embedded types
 
 	allMethods []*Func // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
-
-	types []Type // for contracts
+	allTypes   []Type  // list of types declared with or embedded in this interface
 }
 
 // is reports whether interface t represents types that all satisfy pred.
 func (t *Interface) is(pred func(Type) bool) bool {
-	for _, t := range t.types {
+	for _, t := range t.allTypes {
 		if !pred(t) {
 			return false
 		}
@@ -363,7 +363,7 @@ func (t *Interface) Empty() bool { t.assertCompleteness(); return len(t.allMetho
 
 // includes reports whether the interface t includes the type typ.
 func (t *Interface) includes(typ Type) bool {
-	for _, t := range t.types {
+	for _, t := range t.allTypes {
 		if Identical(t, typ) {
 			return true
 		}
@@ -403,12 +403,16 @@ func (t *Interface) Complete() *Interface {
 		addMethod(m, true)
 	}
 
+	var types []Type
+	types = append(types, t.types...)
+
 	for _, typ := range t.embeddeds {
 		typ := typ.Underlying().(*Interface)
 		typ.Complete()
 		for _, m := range typ.allMethods {
 			addMethod(m, false)
 		}
+		types = append(types, typ.types...)
 	}
 
 	for i := 0; i < len(todo); i += 2 {
@@ -423,6 +427,7 @@ func (t *Interface) Complete() *Interface {
 		sort.Sort(byUniqueMethodName(methods))
 		t.allMethods = methods
 	}
+	t.allTypes = types
 
 	return t
 }
@@ -541,7 +546,9 @@ func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypePa
 }
 
 func (t *TypeParam) Interface() *Interface {
-	return t.bound.Underlying().(*Interface)
+	iface := t.bound.Underlying().(*Interface)
+	iface.Complete() // TODO(gri) should we use check.completeInterface instead?
+	return iface
 }
 
 // Implementations for Type methods.

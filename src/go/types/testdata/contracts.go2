@@ -99,6 +99,19 @@ type myTab struct{ myTa }
 
 func (myTab) b()
 
+contract E5(T) {
+        T int
+}
+
+contract E6(T) {
+        E5(T)
+        E5(T)
+}
+
+func _(type T E6)(x T) T {
+        return x + 1
+}
+
 // --------------------------------------------------------------------------------------
 // Contract satisfaction
 

@@ -6,16 +6,15 @@ This code contains changes to go/types and the go/* support libraries
 to type-check generic code as outlined in the latest contracts proposal
 and presented by Ian Lance Taylor at GopherCon 2019 in San Diego.
 
-CAUTION: PROTOTYPE. THERE ARE KNOWN (AND UNKNOWN) BUGS.
+CAUTION: PROTOTYPE. THERE ARE KNOWN AND UNKNOWN BUGS.
 
 Read and use this code at your own risk.
 
 STATUS
 
-With some exceptions (see below), the most complex aspects of the contracts
-proposal have been implemented and somewhat tested (but expect bugs).
-go/types can now type-check all the *.go2 test files in the testdata and
-examples directories.
+Most aspects of the contracts proposal have been implemented and somewhat
+tested (but expect bugs). go/types can now type-check all the *.go2 test
+files in the testdata and examples directories.
 
 ALTERNATIVE NOTATION
 
@@ -72,19 +71,17 @@ and interfaces and the question if they can be mixed and how.
 Interfaces are the fundamental underlying typing mechanism;
 contracts are syntactic sugar that may improve readability.
 
-KNOWN ISSUES
+MAJOR KNOWN ISSUES
 
 - importing of packages exporting generic code is not implemented
   (and won't be implemented in this prototype)
+- various type-specific operations (such as indexing, sending a
+  message, type assertions, etc.) on expressions of a generic type
+  don't work yet (but are relatively easy to implement going forward)
 - error messages are reasonable but expect them to be significantly
   better in a real implementation (the subscript numbers on type
   parameters are there to visually identify different parameters
   with the same name)
-- embedding of interfaces ignores (the notationally new) type
-  lists in interfaces
-- various type-specific operations (such as indexing, sending a
-  message, etc.) on expressions of a generic type don't work
-  yet (but are relatively easy to implement, going forward)
 - gofmt works only partly with parameterized code
 
 See also the NOTES file for a more up-to-date documentation of the
@@ -93,11 +90,20 @@ current state and issues.
 TO PLAY WITH THIS PROTOTYPE
 
 - Cherry-pick this CL on top of tip (the cherry-pick was tested with
-  tip at 4d5bb9c609):
+  tip at bf26847240):
 
   git fetch "https://go.googlesource.com/go" ... && git cherry-pick FETCH_HEAD
 
   (replace the ... with the respective information from Gerrit's CL page)
+
+- In the go/types directory, verify that the tests run:
+
+  go test
+
+  (If this causes a vet error, run "go test -vet off" instead.)
+
+  Note: This version of go/types is built in "debug" mode (see check.go:17)
+  and does extra checks. As a consequence it may run a bit slower than usual.
 
 - In the go/types directory, build the gotype command:
 
@@ -127,5 +133,6 @@ Updates:
 12/15/2019: Significant progress with much of the functionality present.
 12/19/2019: Several bugs around type bounds checking fixed; more complex examples.
 12/20/2019: Treat contracts as objects, not types anymore. Various bug fixes and more examples.
+1/2/2020: Implemented contract embedding. Various bug fixes.
 
 Change-Id: I29839b5e95d7050fce1dcb3334d3d324883cf76f

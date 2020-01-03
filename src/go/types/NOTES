@@ -2,16 +2,14 @@ This file works as a sort of notebook/implementation log. It replaces my noteboo
 so we have a better track record. I only switched to this file recently, hence it is incomplete.
 
 TODO
+- type assertions on/against parameterized types
+- no need for error messages where a _ type parameter cannot be inferred (_ cannot be used)
 - use Underlying() to return a type parameter's bound? investigate!
 - better error message when declaring a contract local to a function (parser gets out of sync)
 - if type parameters are repeated in recursive instantiation, they must be the same order (not yet checked)
-- interface embedding doesn't take care of literal type constraints yet
-  (need an allTypes list, like we have an allMethods list?)
-- type assertions on/against parameterized types
 - use []*TypeParam for tparams in subst? (unclear)
 
 OPEN ISSUES
-- a contract that is used earlier than its declaration may not be set up yet
 - instantiating a parameterized function type w/o value or result parameters may have unexpected side-effects
   (we don't make a copy of the signature in some cases) - investigate
 - using a contract and enumerating type arguments currently leads to an error (e.g. func f(type T C(T)) (x T) ... )

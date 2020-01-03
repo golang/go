@@ -630,7 +630,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	// type constraints
 	ityp.types = check.collectTypeConstraints(iface.Pos(), ityp.types, iface.Types)
 
-	if len(ityp.methods) == 0 && len(ityp.embeddeds) == 0 {
+	if len(ityp.methods) == 0 && len(ityp.types) == 0 && len(ityp.embeddeds) == 0 {
 		// empty interface
 		ityp.allMethods = markComplete
 		return
@@ -668,7 +668,7 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
 		check.indent++
 		defer func() {
 			check.indent--
-			check.trace(pos, "=> %s", ityp)
+			check.trace(pos, "=> %s (methods = %v, types = %v)", ityp, ityp.allMethods, ityp.allTypes)
 		}()
 	}
 
@@ -718,6 +718,11 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
 		addMethod(m.pos, m, true)
 	}
 
+	// collect types
+	// TODO(gri) report error for multiply explicitly declared identical types
+	var types []Type
+	types = append(types, ityp.types...)
+
 	posList := check.posMap[ityp]
 	for i, typ := range ityp.embeddeds {
 		pos := posList[i] // embedding position
@@ -731,12 +736,14 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
 		for _, m := range typ.allMethods {
 			addMethod(pos, m, false) // use embedding position pos rather than m.pos
 		}
+		types = append(types, typ.allTypes...)
 	}
 
 	if methods != nil {
 		sort.Sort(byUniqueMethodName(methods))
 		ityp.allMethods = methods
 	}
+	ityp.allTypes = types
 }
 
 // byUniqueTypeName named type lists can be sorted by their unique type names.

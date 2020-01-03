@@ -178,10 +178,10 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 				writeSignature(buf, m.typ.(*Signature), qf, visited)
 				empty = false
 			}
-			if !empty && len(t.types) > 0 {
+			if !empty && len(t.allTypes) > 0 {
 				buf.WriteString("; ")
 			}
-			for i, typ := range t.types {
+			for i, typ := range t.allTypes {
 				if i > 0 {
 					buf.WriteString(", ")
 				}

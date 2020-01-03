@@ -513,12 +513,12 @@ func (check *Checker) convertUntyped(x *operand, target Type) {
 	// In case of a type parameter, conversion must succeed against
 	// all types enumerated by the the type parameter bound.
 	if t, _ := target.Underlying().(*TypeParam); t != nil {
-		types := t.Interface().types
+		types := t.Interface().allTypes
 		if len(types) == 0 {
 			goto Error
 		}
 
-		for _, t := range t.Interface().types {
+		for _, t := range types {
 			check.convertUntypedInternal(x, t)
 			if x.mode == invalid {
 				goto Error

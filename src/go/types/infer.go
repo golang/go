@@ -144,9 +144,7 @@ func isParameterized(typ Type, seen map[Type]bool) (res bool) {
 		return isParameterized(t.params, seen) || isParameterized(t.results, seen)
 
 	case *Interface:
-		if t.allMethods == nil {
-			panic("incomplete method")
-		}
+		t.assertCompleteness()
 		for _, m := range t.allMethods {
 			if isParameterized(m.typ, seen) {
 				return true

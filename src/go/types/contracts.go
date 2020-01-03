@@ -254,6 +254,7 @@ func (check *Checker) typeConstraint(typ Type, why *string) bool {
 			check.typeConstraint(t.params, why) &&
 			check.typeConstraint(t.results, why)
 	case *Interface:
+		t.assertCompleteness()
 		for _, m := range t.allMethods {
 			if !check.typeConstraint(m.typ, why) {
 				return false
