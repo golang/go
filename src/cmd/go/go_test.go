@@ -2602,14 +2602,6 @@ func TestGoTestMainTwice(t *testing.T) {
 	}
 }
 
-func TestGoTestFlagsAfterPackage(t *testing.T) {
-	tooSlow(t)
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("test", "testdata/flag_test.go", "-v", "-args", "-v=7") // Two distinct -v flags.
-	tg.run("test", "-v", "testdata/flag_test.go", "-args", "-v=7") // Two distinct -v flags.
-}
-
 func TestGoTestXtestonlyWorks(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -4765,14 +4757,6 @@ func TestInstallDeps(t *testing.T) {
 
 	tg.run("install", "-i", "p2")
 	tg.mustExist(p1)
-}
-
-func TestGoTestMinusN(t *testing.T) {
-	// Intent here is to verify that 'go test -n' works without crashing.
-	// This reuses flag_test.go, but really any test would do.
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("test", "testdata/flag_test.go", "-n", "-args", "-v=7")
 }
 
 func TestGoTestJSON(t *testing.T) {
