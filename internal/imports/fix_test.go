@@ -2489,6 +2489,40 @@ var _ = bytes.Buffer{}
 	}.processTest(t, "foo.com", "foo.go", nil, nil, want)
 }
 
+// Tests that an external test package will import the package under test if it
+// also uses symbols exported only in test files.
+// https://golang.org/issues/29979
+func TestExternalTest(t *testing.T) {
+	const input = `package a_test
+func TestX() {
+	a.X()
+	a.Y()
+}
+`
+	const want = `package a_test
+
+import "foo.com/a"
+
+func TestX() {
+	a.X()
+	a.Y()
+}
+`
+
+	testConfig{
+		modules: []packagestest.Module{
+			{
+				Name: "foo.com/a",
+				Files: fm{
+					"a.go":           "package a\n func X() {}",
+					"export_test.go": "package a\n func Y() {}",
+					"a_test.go":      input,
+				},
+			},
+		},
+	}.processTest(t, "foo.com/a", "a_test.go", nil, nil, want)
+}
+
 // TestStdLibGetCandidates tests that get packages finds std library packages
 // with correct priorities.
 func TestGetCandidates(t *testing.T) {

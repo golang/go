@@ -215,7 +215,7 @@ func (d *dirInfoCache) CacheExports(ctx context.Context, env *ProcessEnv, info d
 	if reached, err := info.reachedStatus(nameLoaded); reached && err != nil {
 		return "", nil, err
 	}
-	info.packageName, info.exports, info.err = loadExportsFromFiles(ctx, env, info.dir)
+	info.packageName, info.exports, info.err = loadExportsFromFiles(ctx, env, info.dir, false)
 	if info.err == context.Canceled || info.err == context.DeadlineExceeded {
 		return info.packageName, info.exports, info.err
 	}

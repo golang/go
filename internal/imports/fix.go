@@ -629,6 +629,14 @@ func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, filena
 			return notSelf(pkg) && wrappedCallback.packageNameLoaded(pkg)
 		},
 		exportsLoaded: func(pkg *pkg, exports []string) {
+			// If we're an x_test, load the package under test's test variant.
+			if strings.HasSuffix(filePkg, "_test") && pkg.dir == filepath.Dir(filename) {
+				var err error
+				_, exports, err = loadExportsFromFiles(ctx, env, pkg.dir, true)
+				if err != nil {
+					return
+				}
+			}
 			wrappedCallback.exportsLoaded(pkg, exports)
 		},
 	}
@@ -842,7 +850,7 @@ type Resolver interface {
 	scan(ctx context.Context, callback *scanCallback) error
 	// loadExports returns the set of exported symbols in the package at dir.
 	// loadExports may be called concurrently.
-	loadExports(ctx context.Context, pkg *pkg) (string, []string, error)
+	loadExports(ctx context.Context, pkg *pkg, includeTest bool) (string, []string, error)
 
 	ClearForNewScan()
 }
@@ -1192,7 +1200,7 @@ func (r *gopathResolver) scan(ctx context.Context, callback *scanCallback) error
 		if !callback.packageNameLoaded(p) {
 			return
 		}
-		if _, exports, err := r.loadExports(ctx, p); err == nil {
+		if _, exports, err := r.loadExports(ctx, p, false); err == nil {
 			callback.exportsLoaded(p, exports)
 		}
 	}
@@ -1231,11 +1239,11 @@ func filterRoots(roots []gopathwalk.Root, include func(gopathwalk.Root) bool) []
 	return result
 }
 
-func (r *gopathResolver) loadExports(ctx context.Context, pkg *pkg) (string, []string, error) {
-	if info, ok := r.cache.Load(pkg.dir); ok {
+func (r *gopathResolver) loadExports(ctx context.Context, pkg *pkg, includeTest bool) (string, []string, error) {
+	if info, ok := r.cache.Load(pkg.dir); ok && !includeTest {
 		return r.cache.CacheExports(ctx, r.env, info)
 	}
-	return loadExportsFromFiles(ctx, r.env, pkg.dir)
+	return loadExportsFromFiles(ctx, r.env, pkg.dir, includeTest)
 }
 
 // VendorlessPath returns the devendorized version of the import path ipath.
@@ -1251,7 +1259,7 @@ func VendorlessPath(ipath string) string {
 	return ipath
 }
 
-func loadExportsFromFiles(ctx context.Context, env *ProcessEnv, dir string) (string, []string, error) {
+func loadExportsFromFiles(ctx context.Context, env *ProcessEnv, dir string, includeTest bool) (string, []string, error) {
 	var exports []string
 
 	// Look for non-test, buildable .go files which could provide exports.
@@ -1262,7 +1270,7 @@ func loadExportsFromFiles(ctx context.Context, env *ProcessEnv, dir string) (str
 	var files []os.FileInfo
 	for _, fi := range all {
 		name := fi.Name()
-		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+		if !strings.HasSuffix(name, ".go") || (!includeTest && strings.HasSuffix(name, "_test.go")) {
 			continue
 		}
 		match, err := env.buildContext().MatchFile(dir, fi.Name())
@@ -1293,6 +1301,10 @@ func loadExportsFromFiles(ctx context.Context, env *ProcessEnv, dir string) (str
 		if f.Name.Name == "documentation" {
 			// Special case from go/build.ImportDir, not
 			// handled by MatchFile above.
+			continue
+		}
+		if includeTest && strings.HasSuffix(f.Name.Name, "_test") {
+			// x_test package. We want internal test files only.
 			continue
 		}
 		pkgName = f.Name.Name
@@ -1360,7 +1372,9 @@ func findImport(ctx context.Context, pass *pass, candidates []pkgDistance, pkgNa
 				if pass.env.Debug {
 					pass.env.Logf("loading exports in dir %s (seeking package %s)", c.pkg.dir, pkgName)
 				}
-				exports, err := loadExportsForPackage(ctx, pass.env, pkgName, c.pkg)
+				// If we're an x_test, load the package under test's test variant.
+				includeTest := strings.HasSuffix(pass.f.Name.Name, "_test") && c.pkg.dir == pass.srcDir
+				_, exports, err := pass.env.GetResolver().loadExports(ctx, c.pkg, includeTest)
 				if err != nil {
 					if pass.env.Debug {
 						pass.env.Logf("loading exports in dir %s (seeking package %s): %v", c.pkg.dir, pkgName, err)
@@ -1395,17 +1409,6 @@ func findImport(ctx context.Context, pass *pass, candidates []pkgDistance, pkgNa
 		return pkg, nil
 	}
 	return nil, nil
-}
-
-func loadExportsForPackage(ctx context.Context, env *ProcessEnv, expectPkg string, pkg *pkg) ([]string, error) {
-	pkgName, exports, err := env.GetResolver().loadExports(ctx, pkg)
-	if err != nil {
-		return nil, err
-	}
-	if expectPkg != pkgName {
-		return nil, fmt.Errorf("dir %v is package %v, wanted %v", pkg.dir, pkgName, expectPkg)
-	}
-	return exports, err
 }
 
 // pkgIsCandidate reports whether pkg is a candidate for satisfying the

@@ -413,7 +413,7 @@ func (r *ModuleResolver) scan(ctx context.Context, callback *scanCallback) error
 		if !callback.packageNameLoaded(pkg) {
 			return
 		}
-		_, exports, err := r.loadExports(ctx, pkg)
+		_, exports, err := r.loadExports(ctx, pkg, false)
 		if err != nil {
 			return
 		}
@@ -529,14 +529,14 @@ func (r *ModuleResolver) canonicalize(info directoryPackageInfo) (*pkg, error) {
 	return res, nil
 }
 
-func (r *ModuleResolver) loadExports(ctx context.Context, pkg *pkg) (string, []string, error) {
+func (r *ModuleResolver) loadExports(ctx context.Context, pkg *pkg, includeTest bool) (string, []string, error) {
 	if err := r.init(); err != nil {
 		return "", nil, err
 	}
-	if info, ok := r.cacheLoad(pkg.dir); ok {
+	if info, ok := r.cacheLoad(pkg.dir); ok && !includeTest {
 		return r.cacheExports(ctx, r.env, info)
 	}
-	return loadExportsFromFiles(ctx, r.env, pkg.dir)
+	return loadExportsFromFiles(ctx, r.env, pkg.dir, includeTest)
 }
 
 func (r *ModuleResolver) scanDirForPackage(root gopathwalk.Root, dir string) directoryPackageInfo {
