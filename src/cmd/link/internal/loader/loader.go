@@ -13,6 +13,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
+	"debug/elf"
 	"fmt"
 	"log"
 	"math/bits"
@@ -197,10 +198,11 @@ type Loader struct {
 
 	align map[Sym]int32 // stores alignment for symbols
 
-	dynimplib  map[Sym]string // stores Dynimplib symbol attribute
-	dynimpvers map[Sym]string // stores Dynimpvers symbol attribute
-	localentry map[Sym]uint8  // stores Localentry symbol attribute
-	extname    map[Sym]string // stores Extname symbol attribute
+	dynimplib  map[Sym]string      // stores Dynimplib symbol attribute
+	dynimpvers map[Sym]string      // stores Dynimpvers symbol attribute
+	localentry map[Sym]uint8       // stores Localentry symbol attribute
+	extname    map[Sym]string      // stores Extname symbol attribute
+	elfType    map[Sym]elf.SymType // stores elf type symbol property
 
 	// Used to implement field tracking; created during deadcode if
 	// field tracking is enabled. Reachparent[K] contains the index of
@@ -250,6 +252,7 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc) *Loader {
 		localentry:           make(map[Sym]uint8),
 		extname:              make(map[Sym]string),
 		attrReadOnly:         make(map[Sym]bool),
+		elfType:              make(map[Sym]elf.SymType),
 		attrTopFrame:         make(map[Sym]struct{}),
 		attrSpecial:          make(map[Sym]struct{}),
 		attrCgoExportDynamic: make(map[Sym]struct{}),
@@ -1137,6 +1140,30 @@ func (l *Loader) SetSymExtname(i Sym, value string) {
 	}
 }
 
+// SymElfType returns the previously recorded ELF type for a symbol
+// (used only for symbols read from shared libraries by ldshlibsyms).
+// It is not set for symbols defined by the packages being linked or
+// by symbols read by ldelf (and so is left as elf.STT_NOTYPE).
+func (l *Loader) SymElfType(i Sym) elf.SymType {
+	if et, ok := l.elfType[i]; ok {
+		return et
+	}
+	return elf.STT_NOTYPE
+}
+
+// SetSymElfType sets the  elf type attribute for a symbol.
+func (l *Loader) SetSymElfType(i Sym, et elf.SymType) {
+	// reject bad symbols
+	if i > l.max || i == 0 {
+		panic("bad symbol index in SetSymElfType")
+	}
+	if et == elf.STT_NOTYPE {
+		delete(l.elfType, i)
+	} else {
+		l.elfType[i] = et
+	}
+}
+
 // SymLocalentry returns the "local entry" value for the specified
 // symbol.
 func (l *Loader) SymLocalentry(i Sym) uint8 {
@@ -1633,6 +1660,11 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 		if l.SymDynimpvers(i) != "" {
 			s.SetDynimpvers(l.SymDynimpvers(i))
 		}
+
+		// Copy ELF type if set.
+		if et, ok := l.elfType[i]; ok {
+			s.SetElfType(et)
+		}
 	}
 
 	// load contents of defined symbols
@@ -1780,6 +1812,8 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 		}
 
 		s := l.addNewSym(istart+Sym(i), name, ver, r.unit, t)
+		// NB: this is an incomplete set of attributes; a more complete
+		// attribute migration appears in a subsequent patch.
 		s.Attr.Set(sym.AttrReachable, l.attrReachable.has(istart+Sym(i)))
 		nr += r.NReloc(i)
 	}
