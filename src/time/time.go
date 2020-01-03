@@ -548,7 +548,7 @@ func (t Time) ISOWeek() (year, week int) {
 	abs := t.abs()
 	d := Thursday - absWeekday(abs)
 	// handle Sunday
-	if d == Thursday {
+	if d == 4 {
 		d = -3
 	}
 	// find the Thursday of the calendar week
