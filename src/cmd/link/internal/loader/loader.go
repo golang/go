@@ -203,6 +203,7 @@ type Loader struct {
 	localentry map[Sym]uint8       // stores Localentry symbol attribute
 	extname    map[Sym]string      // stores Extname symbol attribute
 	elfType    map[Sym]elf.SymType // stores elf type symbol property
+	symFile    map[Sym]string      // stores file for shlib-derived syms
 
 	// Used to implement field tracking; created during deadcode if
 	// field tracking is enabled. Reachparent[K] contains the index of
@@ -227,7 +228,8 @@ type extSymPayload struct {
 	size   int64
 	ver    int
 	kind   sym.SymKind
-	gotype Sym // Gotype (0 if not present)
+	objidx uint32 // index of original object if sym made by cloneToExternal
+	gotype Sym    // Gotype (0 if not present)
 	relocs []Reloc
 	data   []byte
 }
@@ -253,6 +255,7 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc) *Loader {
 		extname:              make(map[Sym]string),
 		attrReadOnly:         make(map[Sym]bool),
 		elfType:              make(map[Sym]elf.SymType),
+		symFile:              make(map[Sym]string),
 		attrTopFrame:         make(map[Sym]struct{}),
 		attrSpecial:          make(map[Sym]struct{}),
 		attrCgoExportDynamic: make(map[Sym]struct{}),
@@ -1164,6 +1167,48 @@ func (l *Loader) SetSymElfType(i Sym, et elf.SymType) {
 	}
 }
 
+// SymFile returns the file for a symbol, which is normally the
+// package the symbol came from (for regular compiler-generated Go
+// symbols), but in the case of building with "-linkshared" (when a
+// symbol is read from a a shared library), will hold the library
+// name.
+func (l *Loader) SymFile(i Sym) string {
+	if l.IsExternal(i) {
+		if l.Syms[i] != nil {
+			return l.Syms[i].File
+		}
+		if f, ok := l.symFile[i]; ok {
+			return f
+		}
+		pp := l.getPayload(i)
+		if pp.objidx != 0 {
+			r := l.objs[pp.objidx].r
+			return r.unit.Lib.File
+		}
+		return ""
+	}
+	r, _ := l.toLocal(i)
+	return r.unit.Lib.File
+}
+
+// SetSymFile sets the file attribute for a symbol. This is
+// needed mainly for external symbols, specifically those imported
+// from shared libraries.
+func (l *Loader) SetSymFile(i Sym, file string) {
+	// reject bad symbols
+	if i > l.max || i == 0 {
+		panic("bad symbol index in SetSymFile")
+	}
+	if !l.IsExternal(i) {
+		panic("can't set file for non-external sym")
+	}
+	if l.Syms[i] != nil {
+		l.Syms[i].File = file
+		return
+	}
+	l.symFile[i] = file
+}
+
 // SymLocalentry returns the "local entry" value for the specified
 // symbol.
 func (l *Loader) SymLocalentry(i Sym) uint8 {
@@ -1622,6 +1667,12 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 		if pp.gotype != 0 {
 			s.Gotype = l.Syms[pp.gotype]
 		}
+		s.Value = l.values[i]
+		if f, ok := l.symFile[i]; ok {
+			s.File = f
+		} else if pp.objidx != 0 {
+			s.File = l.objs[pp.objidx].r.unit.Lib.File
+		}
 
 		// Copy relocations
 		batch := l.relocBatch
@@ -1910,6 +1961,7 @@ func (l *Loader) cloneToExternal(symIdx Sym) Sym {
 	pp.kind = skind
 	pp.ver = sver
 	pp.size = int64(osym.Siz)
+	pp.objidx = uint32(l.ocache)
 
 	// If this is a def, then copy the guts. We expect this case
 	// to be very rare (one case it may come up is with -X).
