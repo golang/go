@@ -646,11 +646,14 @@ func (c *completer) unimportedMembers(id *ast.Ident) error {
 		}
 		// We don't know what this is, so assign it the highest score.
 		score := 0.01 * imports.MaxRelevance
-		c.packageMembers(pkg.GetTypes(), score, &importInfo{
+		imp := &importInfo{
 			importPath: path,
-			name:       pkg.GetTypes().Name(),
 			pkg:        pkg,
-		})
+		}
+		if imports.ImportPathToAssumedName(path) != pkg.GetTypes().Name() {
+			imp.name = pkg.GetTypes().Name()
+		}
+		c.packageMembers(pkg.GetTypes(), score, imp)
 		if len(c.items) >= unimportedTarget {
 			return nil
 		}
