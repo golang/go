@@ -386,23 +386,13 @@ func (u *unusedInspector) exprs(list []ast.Expr) {
 	}
 }
 
-func (u *unusedInspector) stmts(list []ast.Stmt) {
-	for _, x := range list {
-		u.node(x)
-	}
-}
-
-func (u *unusedInspector) decls(list []ast.Decl) {
-	for _, x := range list {
-		u.node(x)
-	}
-}
-
 func (u *unusedInspector) node(node ast.Node) {
 	switch node := node.(type) {
 	case *ast.File:
 		defer u.scoped()()
-		u.decls(node.Decls)
+		for _, decl := range node.Decls {
+			u.node(decl)
+		}
 	case *ast.GenDecl:
 		for _, spec := range node.Specs {
 			u.node(spec)
@@ -437,7 +427,9 @@ func (u *unusedInspector) node(node ast.Node) {
 
 	case *ast.BlockStmt:
 		defer u.scoped()()
-		u.stmts(node.List)
+		for _, stmt := range node.List {
+			u.node(stmt)
+		}
 	case *ast.IfStmt:
 		if node.Init != nil {
 			u.node(node.Init)
@@ -469,7 +461,9 @@ func (u *unusedInspector) node(node ast.Node) {
 	case *ast.CaseClause:
 		u.exprs(node.List)
 		defer u.scoped()()
-		u.stmts(node.Body)
+		for _, stmt := range node.Body {
+			u.node(stmt)
+		}
 	case *ast.BranchStmt:
 	case *ast.ExprStmt:
 		u.node(node.X)
