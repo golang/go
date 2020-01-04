@@ -352,10 +352,16 @@ func (r *Response) bodyIsWritable() bool {
 	return ok
 }
 
-// isProtocolSwitch reports whether r is a response to a successful
-// protocol upgrade.
+// isProtocolSwitch reports whether the response code and header
+// indicate a successful protocol upgrade response.
 func (r *Response) isProtocolSwitch() bool {
-	return r.StatusCode == StatusSwitchingProtocols &&
-		r.Header.Get("Upgrade") != "" &&
-		httpguts.HeaderValuesContainsToken(r.Header["Connection"], "Upgrade")
+	return isProtocolSwitchResponse(r.StatusCode, r.Header)
+}
+
+// isProtocolSwitchResponse reports whether the response code and
+// response header indicate a successful protocol upgrade response.
+func isProtocolSwitchResponse(code int, h Header) bool {
+	return code == StatusSwitchingProtocols &&
+		h.Get("Upgrade") != "" &&
+		httpguts.HeaderValuesContainsToken(h["Connection"], "Upgrade")
 }
