@@ -50,6 +50,7 @@ package syscall
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <linux/icmpv6.h>
+#include <poll.h>
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
