@@ -168,6 +168,9 @@ func seekBack(l string, sep byte, end int, what string) (value int, nextSep int,
 			if err != nil {
 				return 0, 0, fmt.Errorf("couldn't parse %q: %v", what, err)
 			}
+			if i < 0 {
+				return 0, 0, fmt.Errorf("negative values are not allowed for %s, found %d", what, i)
+			}
 			return i, start, nil
 		}
 	}
