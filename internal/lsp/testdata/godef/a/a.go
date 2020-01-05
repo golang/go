@@ -13,7 +13,7 @@ var (
 	x string //@x,hover("x", x)
 )
 
-type A string //@A
+type A string //@mark(AString, "A")
 
 func AStuff() { //@AStuff
 	x := 5

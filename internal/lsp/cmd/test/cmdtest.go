@@ -18,6 +18,7 @@ import (
 
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/cmd"
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/span"
@@ -93,6 +94,10 @@ func (r *runner) CaseSensitiveCompletion(t *testing.T, src span.Span, test tests
 
 func (r *runner) RankCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
 	//TODO: add command line completions tests when it works
+}
+
+func (r *runner) WorkspaceSymbols(*testing.T, string, []protocol.SymbolInformation, map[string]struct{}) {
+	//TODO: add command line workspace symbol tests when it works
 }
 
 func (r *runner) RunGoplsCmd(t testing.TB, args ...string) (string, string) {

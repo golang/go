@@ -846,6 +846,21 @@ func summarizeSymbols(t *testing.T, i int, want, got []protocol.DocumentSymbol, 
 	return msg.String()
 }
 
+func (r *runner) WorkspaceSymbols(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
+	symbols, err := source.WorkspaceSymbols(r.ctx, []source.View{r.view}, query)
+	if err != nil {
+		t.Errorf("symbols failed: %v", err)
+	}
+	got := tests.FilterWorkspaceSymbols(symbols, dirs)
+	if len(got) != len(expectedSymbols) {
+		t.Errorf("want %d symbols, got %d", len(expectedSymbols), len(got))
+		return
+	}
+	if diff := tests.DiffWorkspaceSymbols(expectedSymbols, got); diff != "" {
+		t.Error(diff)
+	}
+}
+
 func (r *runner) SignatureHelp(t *testing.T, spn span.Span, expectedSignature *source.SignatureInformation) {
 	_, rng, err := spanToRange(r.data, spn)
 	if err != nil {

@@ -1,0 +1,5 @@
+-- symbols --
+WorkspaceSymbolVariableB Variable 3:5-3:29
+WorkspaceSymbolStructB Struct 5:6-5:28
+	Bar Field 6:2-6:5
+

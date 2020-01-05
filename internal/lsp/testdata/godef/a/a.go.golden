@@ -85,12 +85,12 @@ var err error
 		"start": {
 			"line": 23,
 			"column": 6,
-			"offset": 287
+			"offset": 304
 		},
 		"end": {
 			"line": 23,
 			"column": 9,
-			"offset": 290
+			"offset": 307
 		}
 	},
 	"description": "```go\nvar err error\n```"

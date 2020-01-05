@@ -192,8 +192,8 @@ func (s *Server) SignatureHelp(ctx context.Context, params *protocol.SignatureHe
 	return s.signatureHelp(ctx, params)
 }
 
-func (s *Server) Symbol(context.Context, *protocol.WorkspaceSymbolParams) ([]protocol.SymbolInformation, error) {
-	return nil, notImplemented("Symbol")
+func (s *Server) Symbol(ctx context.Context, params *protocol.WorkspaceSymbolParams) ([]protocol.SymbolInformation, error) {
+	return s.symbol(ctx, params)
 }
 
 func (s *Server) TypeDefinition(ctx context.Context, params *protocol.TypeDefinitionParams) (protocol.Definition, error) {

@@ -62,6 +62,8 @@ type Renames map[span.Span]string
 type PrepareRenames map[span.Span]*source.PrepareItem
 type Symbols map[span.URI][]protocol.DocumentSymbol
 type SymbolsChildren map[string][]protocol.DocumentSymbol
+type SymbolInformation map[span.Span]protocol.SymbolInformation
+type WorkspaceSymbols map[string][]protocol.SymbolInformation
 type Signatures map[span.Span]*source.SignatureInformation
 type Links map[span.URI][]Link
 
@@ -89,6 +91,8 @@ type Data struct {
 	PrepareRenames           PrepareRenames
 	Symbols                  Symbols
 	symbolsChildren          SymbolsChildren
+	symbolInformation        SymbolInformation
+	WorkspaceSymbols         WorkspaceSymbols
 	Signatures               Signatures
 	Links                    Links
 
@@ -121,6 +125,7 @@ type Tests interface {
 	Rename(*testing.T, span.Span, string)
 	PrepareRename(*testing.T, span.Span, *source.PrepareItem)
 	Symbols(*testing.T, span.URI, []protocol.DocumentSymbol)
+	WorkspaceSymbols(*testing.T, string, []protocol.SymbolInformation, map[string]struct{})
 	SignatureHelp(*testing.T, span.Span, *source.SignatureInformation)
 	Link(*testing.T, span.URI, []Link)
 }
@@ -221,6 +226,8 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		PrepareRenames:           make(PrepareRenames),
 		Symbols:                  make(Symbols),
 		symbolsChildren:          make(SymbolsChildren),
+		symbolInformation:        make(SymbolInformation),
+		WorkspaceSymbols:         make(WorkspaceSymbols),
 		Signatures:               make(Signatures),
 		Links:                    make(Links),
 
@@ -289,9 +296,12 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		panic("ParseFile should not be called")
 	}
 
-	// Do a first pass to collect special markers for completion.
+	// Do a first pass to collect special markers for completion and workspace symbols.
 	if err := data.Exported.Expect(map[string]interface{}{
 		"item": func(name string, r packagestest.Range, _ []string) {
+			data.Exported.Mark(name, r)
+		},
+		"symbol": func(name string, r packagestest.Range, _ []string) {
 			data.Exported.Mark(name, r)
 		},
 	}); err != nil {
@@ -335,8 +345,9 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 	}
 	// Collect names for the entries that require golden files.
 	if err := data.Exported.Expect(map[string]interface{}{
-		"godef": data.collectDefinitionNames,
-		"hover": data.collectDefinitionNames,
+		"godef":           data.collectDefinitionNames,
+		"hover":           data.collectDefinitionNames,
+		"workspacesymbol": data.collectWorkspaceSymbols,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -536,6 +547,27 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		}
 	})
 
+	t.Run("WorkspaceSymbols", func(t *testing.T) {
+		t.Helper()
+		for query, expectedSymbols := range data.WorkspaceSymbols {
+			name := query
+			if name == "" {
+				name = "EmptyQuery"
+			}
+			t.Run(name, func(t *testing.T) {
+				t.Helper()
+				dirs := make(map[string]struct{})
+				for _, si := range expectedSymbols {
+					d := filepath.Dir(si.Location.URI)
+					if _, ok := dirs[d]; !ok {
+						dirs[d] = struct{}{}
+					}
+				}
+				tests.WorkspaceSymbols(t, query, expectedSymbols, dirs)
+			})
+		}
+	})
+
 	t.Run("SignatureHelp", func(t *testing.T) {
 		t.Helper()
 		for spn, expectedSignature := range data.Signatures {
@@ -622,6 +654,7 @@ func checkData(t *testing.T, data *Data) {
 	fmt.Fprintf(buf, "RenamesCount = %v\n", len(data.Renames))
 	fmt.Fprintf(buf, "PrepareRenamesCount = %v\n", len(data.PrepareRenames))
 	fmt.Fprintf(buf, "SymbolsCount = %v\n", len(data.Symbols))
+	fmt.Fprintf(buf, "WorkspaceSymbolsCount = %v\n", len(data.WorkspaceSymbols))
 	fmt.Fprintf(buf, "SignaturesCount = %v\n", len(data.Signatures))
 	fmt.Fprintf(buf, "LinksCount = %v\n", linksCount)
 	fmt.Fprintf(buf, "ImplementationsCount = %v\n", len(data.Implementations))
@@ -890,6 +923,23 @@ func (data *Data) collectSymbols(name string, spn span.Span, kind string, parent
 		data.Symbols[spn.URI()] = append(data.Symbols[spn.URI()], sym)
 	} else {
 		data.symbolsChildren[parentName] = append(data.symbolsChildren[parentName], sym)
+	}
+
+	// Reuse @symbol in the workspace symbols tests.
+	si := protocol.SymbolInformation{
+		Name: sym.Name,
+		Kind: sym.Kind,
+		Location: protocol.Location{
+			URI:   protocol.NewURI(spn.URI()),
+			Range: sym.SelectionRange,
+		},
+	}
+	data.symbolInformation[spn] = si
+}
+
+func (data *Data) collectWorkspaceSymbols(query string, targets []span.Span) {
+	for _, target := range targets {
+		data.WorkspaceSymbols[query] = append(data.WorkspaceSymbols[query], data.symbolInformation[target])
 	}
 }
 
