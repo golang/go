@@ -95,10 +95,19 @@ func (s *snapshot) PackageHandle(ctx context.Context, pkgID string) (source.Pack
 	if err != nil {
 		return nil, err
 	}
-	if len(phs) > 1 {
-		return nil, errors.Errorf("more than one package for %s", id)
+	var result *packageHandle
+	for _, ph := range phs {
+		if ph.m.id == id {
+			if result != nil {
+				return nil, errors.Errorf("multiple package handles for the same ID: %s", id)
+			}
+			result = ph
+		}
 	}
-	return phs[0], nil
+	if result == nil {
+		return nil, errors.Errorf("no PackageHandle for %s", id)
+	}
+	return result, nil
 }
 
 func (s *snapshot) packageHandles(ctx context.Context, scope interface{}, meta []*metadata) ([]*packageHandle, error) {
