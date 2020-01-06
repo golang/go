@@ -129,6 +129,9 @@
 
 (Slicemask <t> x) -> (SARQconst (NEGQ <t> x) [63])
 
+(SpectreIndex <t> x y) -> (CMOVQCC x (MOVQconst [0]) (CMPQ x y))
+(SpectreSliceIndex <t> x y) -> (CMOVQHI x (MOVQconst [0]) (CMPQ x y))
+
 // Lowering truncation
 // Because we ignore high parts of registers, truncates are just copies.
 (Trunc16to8  ...) -> (Copy ...)

@@ -2606,7 +2606,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 					return s.newValue0(ssa.OpUnknown, n.Type)
 				}
 				len := s.constInt(types.Types[TINT], bound)
-				i = s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded())
+				s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded()) // checks i == 0
 				return s.newValue1I(ssa.OpArraySelect, n.Type, 0, a)
 			}
 			p := s.addr(n, false)
@@ -3009,7 +3009,7 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask) 
 			}
 			// Rewrite to a = [1]{v}
 			len := s.constInt(types.Types[TINT], 1)
-			i = s.boundsCheck(i, len, ssa.BoundsIndex, false)
+			s.boundsCheck(i, len, ssa.BoundsIndex, false) // checks i == 0
 			v := s.newValue1(ssa.OpArrayMake1, t, right)
 			s.assign(left.Left, v, false, 0)
 			return
@@ -4781,6 +4781,24 @@ func (s *state) boundsCheck(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bo
 	if bounded || Debug['B'] != 0 {
 		// If bounded or bounds checking is flag-disabled, then no check necessary,
 		// just return the extended index.
+		//
+		// Here, bounded == true if the compiler generated the index itself,
+		// such as in the expansion of a slice initializer. These indexes are
+		// compiler-generated, not Go program variables, so they cannot be
+		// attacker-controlled, so we can omit Spectre masking as well.
+		//
+		// Note that we do not want to omit Spectre masking in code like:
+		//
+		//	if 0 <= i && i < len(x) {
+		//		use(x[i])
+		//	}
+		//
+		// Lucky for us, bounded==false for that code.
+		// In that case (handled below), we emit a bound check (and Spectre mask)
+		// and then the prove pass will remove the bounds check.
+		// In theory the prove pass could potentially remove certain
+		// Spectre masks, but it's very delicate and probably better
+		// to be conservative and leave them all in.
 		return idx
 	}
 
@@ -4831,6 +4849,15 @@ func (s *state) boundsCheck(idx, len *ssa.Value, kind ssa.BoundsKind, bounded bo
 		s.endBlock().SetControl(mem)
 	}
 	s.startBlock(bNext)
+
+	// In Spectre index mode, apply an appropriate mask to avoid speculative out-of-bounds accesses.
+	if spectreIndex {
+		op := ssa.OpSpectreIndex
+		if kind != ssa.BoundsIndex && kind != ssa.BoundsIndexU {
+			op = ssa.OpSpectreSliceIndex
+		}
+		idx = s.newValue2(op, types.Types[TINT], idx, len)
+	}
 
 	return idx
 }
