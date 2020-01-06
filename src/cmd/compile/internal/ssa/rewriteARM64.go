@@ -176,7 +176,7 @@ func rewriteValueARM64(v *Value) bool {
 	case OpARM64MOVBreg:
 		return rewriteValueARM64_OpARM64MOVBreg_0(v)
 	case OpARM64MOVBstore:
-		return rewriteValueARM64_OpARM64MOVBstore_0(v) || rewriteValueARM64_OpARM64MOVBstore_10(v) || rewriteValueARM64_OpARM64MOVBstore_20(v) || rewriteValueARM64_OpARM64MOVBstore_30(v) || rewriteValueARM64_OpARM64MOVBstore_40(v)
+		return rewriteValueARM64_OpARM64MOVBstore_0(v) || rewriteValueARM64_OpARM64MOVBstore_10(v) || rewriteValueARM64_OpARM64MOVBstore_20(v) || rewriteValueARM64_OpARM64MOVBstore_30(v)
 	case OpARM64MOVBstoreidx:
 		return rewriteValueARM64_OpARM64MOVBstoreidx_0(v) || rewriteValueARM64_OpARM64MOVBstoreidx_10(v)
 	case OpARM64MOVBstorezero:
@@ -10278,85 +10278,6 @@ func rewriteValueARM64_OpARM64MOVBstore_30(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueARM64_OpARM64MOVBstore_40(v *Value) bool {
-	b := v.Block
-	// match: (MOVBstore [i] {s} ptr w x:(MOVBstore [i-1] {s} ptr (SRLconst [8] (MOVDreg w)) mem))
-	// cond: x.Uses == 1 && clobber(x)
-	// result: (MOVHstore [i-1] {s} ptr (REV16W <w.Type> w) mem)
-	for {
-		i := v.AuxInt
-		s := v.Aux
-		_ = v.Args[2]
-		ptr := v.Args[0]
-		w := v.Args[1]
-		x := v.Args[2]
-		if x.Op != OpARM64MOVBstore || x.AuxInt != i-1 || x.Aux != s {
-			break
-		}
-		mem := x.Args[2]
-		if ptr != x.Args[0] {
-			break
-		}
-		x_1 := x.Args[1]
-		if x_1.Op != OpARM64SRLconst || x_1.AuxInt != 8 {
-			break
-		}
-		x_1_0 := x_1.Args[0]
-		if x_1_0.Op != OpARM64MOVDreg || w != x_1_0.Args[0] || !(x.Uses == 1 && clobber(x)) {
-			break
-		}
-		v.reset(OpARM64MOVHstore)
-		v.AuxInt = i - 1
-		v.Aux = s
-		v.AddArg(ptr)
-		v0 := b.NewValue0(x.Pos, OpARM64REV16W, w.Type)
-		v0.AddArg(w)
-		v.AddArg(v0)
-		v.AddArg(mem)
-		return true
-	}
-	// match: (MOVBstore [1] {s} (ADD ptr1 idx1) w x:(MOVBstoreidx ptr0 idx0 (SRLconst [8] (MOVDreg w)) mem))
-	// cond: x.Uses == 1 && s == nil && (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1)) && clobber(x)
-	// result: (MOVHstoreidx ptr0 idx0 (REV16W <w.Type> w) mem)
-	for {
-		if v.AuxInt != 1 {
-			break
-		}
-		s := v.Aux
-		_ = v.Args[2]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARM64ADD {
-			break
-		}
-		idx1 := v_0.Args[1]
-		ptr1 := v_0.Args[0]
-		w := v.Args[1]
-		x := v.Args[2]
-		if x.Op != OpARM64MOVBstoreidx {
-			break
-		}
-		mem := x.Args[3]
-		ptr0 := x.Args[0]
-		idx0 := x.Args[1]
-		x_2 := x.Args[2]
-		if x_2.Op != OpARM64SRLconst || x_2.AuxInt != 8 {
-			break
-		}
-		x_2_0 := x_2.Args[0]
-		if x_2_0.Op != OpARM64MOVDreg || w != x_2_0.Args[0] || !(x.Uses == 1 && s == nil && (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1)) && clobber(x)) {
-			break
-		}
-		v.reset(OpARM64MOVHstoreidx)
-		v.AddArg(ptr0)
-		v.AddArg(idx0)
-		v0 := b.NewValue0(v.Pos, OpARM64REV16W, w.Type)
-		v0.AddArg(w)
-		v.AddArg(v0)
-		v.AddArg(mem)
-		return true
-	}
-	return false
-}
 func rewriteValueARM64_OpARM64MOVBstoreidx_0(v *Value) bool {
 	// match: (MOVBstoreidx ptr (MOVDconst [c]) val mem)
 	// result: (MOVBstore [c] ptr val mem)
@@ -14945,17 +14866,6 @@ func rewriteValueARM64_OpARM64MOVWreg_10(v *Value) bool {
 	for {
 		x := v.Args[0]
 		if x.Op != OpARM64MOVBUreg {
-			break
-		}
-		v.reset(OpARM64MOVDreg)
-		v.AddArg(x)
-		return true
-	}
-	// match: (MOVWreg x:(MOVHreg _))
-	// result: (MOVDreg x)
-	for {
-		x := v.Args[0]
-		if x.Op != OpARM64MOVHreg {
 			break
 		}
 		v.reset(OpARM64MOVDreg)

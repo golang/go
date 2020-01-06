@@ -9,7 +9,7 @@ import "cmd/compile/internal/types"
 func rewriteValueARM(v *Value) bool {
 	switch v.Op {
 	case OpARMADC:
-		return rewriteValueARM_OpARMADC_0(v) || rewriteValueARM_OpARMADC_10(v) || rewriteValueARM_OpARMADC_20(v)
+		return rewriteValueARM_OpARMADC_0(v) || rewriteValueARM_OpARMADC_10(v)
 	case OpARMADCconst:
 		return rewriteValueARM_OpARMADCconst_0(v)
 	case OpARMADCshiftLL:
@@ -872,38 +872,6 @@ func rewriteValueARM_OpARMADC_0(v *Value) bool {
 		v.AddArg(flags)
 		return true
 	}
-	// match: (ADC x (MOVWconst [c]) flags)
-	// result: (ADCconst [c] x flags)
-	for {
-		flags := v.Args[2]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_1.AuxInt
-		v.reset(OpARMADCconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (ADC (MOVWconst [c]) x flags)
-	// result: (ADCconst [c] x flags)
-	for {
-		flags := v.Args[2]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMMOVWconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		v.reset(OpARMADCconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		v.AddArg(flags)
-		return true
-	}
 	// match: (ADC x (SLLconst [c] y) flags)
 	// result: (ADCshiftLL x y [c] flags)
 	for {
@@ -933,42 +901,6 @@ func rewriteValueARM_OpARMADC_0(v *Value) bool {
 		c := v_0.AuxInt
 		y := v_0.Args[0]
 		x := v.Args[1]
-		v.reset(OpARMADCshiftLL)
-		v.AuxInt = c
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (ADC (SLLconst [c] y) x flags)
-	// result: (ADCshiftLL x y [c] flags)
-	for {
-		flags := v.Args[2]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSLLconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMADCshiftLL)
-		v.AuxInt = c
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (ADC x (SLLconst [c] y) flags)
-	// result: (ADCshiftLL x y [c] flags)
-	for {
-		flags := v.Args[2]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSLLconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
 		v.reset(OpARMADCshiftLL)
 		v.AuxInt = c
 		v.AddArg(x)
@@ -1012,45 +944,6 @@ func rewriteValueARM_OpARMADC_0(v *Value) bool {
 		v.AddArg(flags)
 		return true
 	}
-	return false
-}
-func rewriteValueARM_OpARMADC_10(v *Value) bool {
-	// match: (ADC (SRLconst [c] y) x flags)
-	// result: (ADCshiftRL x y [c] flags)
-	for {
-		flags := v.Args[2]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRLconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMADCshiftRL)
-		v.AuxInt = c
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (ADC x (SRLconst [c] y) flags)
-	// result: (ADCshiftRL x y [c] flags)
-	for {
-		flags := v.Args[2]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRLconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
-		v.reset(OpARMADCshiftRL)
-		v.AuxInt = c
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(flags)
-		return true
-	}
 	// match: (ADC x (SRAconst [c] y) flags)
 	// result: (ADCshiftRA x y [c] flags)
 	for {
@@ -1087,42 +980,6 @@ func rewriteValueARM_OpARMADC_10(v *Value) bool {
 		v.AddArg(flags)
 		return true
 	}
-	// match: (ADC (SRAconst [c] y) x flags)
-	// result: (ADCshiftRA x y [c] flags)
-	for {
-		flags := v.Args[2]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRAconst {
-			break
-		}
-		c := v_0.AuxInt
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMADCshiftRA)
-		v.AuxInt = c
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (ADC x (SRAconst [c] y) flags)
-	// result: (ADCshiftRA x y [c] flags)
-	for {
-		flags := v.Args[2]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRAconst {
-			break
-		}
-		c := v_1.AuxInt
-		y := v_1.Args[0]
-		v.reset(OpARMADCshiftRA)
-		v.AuxInt = c
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(flags)
-		return true
-	}
 	// match: (ADC x (SLL y z) flags)
 	// result: (ADCshiftLLreg x y z flags)
 	for {
@@ -1152,42 +1009,6 @@ func rewriteValueARM_OpARMADC_10(v *Value) bool {
 		z := v_0.Args[1]
 		y := v_0.Args[0]
 		x := v.Args[1]
-		v.reset(OpARMADCshiftLLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (ADC (SLL y z) x flags)
-	// result: (ADCshiftLLreg x y z flags)
-	for {
-		flags := v.Args[2]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSLL {
-			break
-		}
-		z := v_0.Args[1]
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMADCshiftLLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (ADC x (SLL y z) flags)
-	// result: (ADCshiftLLreg x y z flags)
-	for {
-		flags := v.Args[2]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSLL {
-			break
-		}
-		z := v_1.Args[1]
-		y := v_1.Args[0]
 		v.reset(OpARMADCshiftLLreg)
 		v.AddArg(x)
 		v.AddArg(y)
@@ -1197,7 +1018,7 @@ func rewriteValueARM_OpARMADC_10(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueARM_OpARMADC_20(v *Value) bool {
+func rewriteValueARM_OpARMADC_10(v *Value) bool {
 	// match: (ADC x (SRL y z) flags)
 	// result: (ADCshiftRLreg x y z flags)
 	for {
@@ -1234,42 +1055,6 @@ func rewriteValueARM_OpARMADC_20(v *Value) bool {
 		v.AddArg(flags)
 		return true
 	}
-	// match: (ADC (SRL y z) x flags)
-	// result: (ADCshiftRLreg x y z flags)
-	for {
-		flags := v.Args[2]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRL {
-			break
-		}
-		z := v_0.Args[1]
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMADCshiftRLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (ADC x (SRL y z) flags)
-	// result: (ADCshiftRLreg x y z flags)
-	for {
-		flags := v.Args[2]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRL {
-			break
-		}
-		z := v_1.Args[1]
-		y := v_1.Args[0]
-		v.reset(OpARMADCshiftRLreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		v.AddArg(flags)
-		return true
-	}
 	// match: (ADC x (SRA y z) flags)
 	// result: (ADCshiftRAreg x y z flags)
 	for {
@@ -1299,42 +1084,6 @@ func rewriteValueARM_OpARMADC_20(v *Value) bool {
 		z := v_0.Args[1]
 		y := v_0.Args[0]
 		x := v.Args[1]
-		v.reset(OpARMADCshiftRAreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (ADC (SRA y z) x flags)
-	// result: (ADCshiftRAreg x y z flags)
-	for {
-		flags := v.Args[2]
-		v_0 := v.Args[0]
-		if v_0.Op != OpARMSRA {
-			break
-		}
-		z := v_0.Args[1]
-		y := v_0.Args[0]
-		x := v.Args[1]
-		v.reset(OpARMADCshiftRAreg)
-		v.AddArg(x)
-		v.AddArg(y)
-		v.AddArg(z)
-		v.AddArg(flags)
-		return true
-	}
-	// match: (ADC x (SRA y z) flags)
-	// result: (ADCshiftRAreg x y z flags)
-	for {
-		flags := v.Args[2]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpARMSRA {
-			break
-		}
-		z := v_1.Args[1]
-		y := v_1.Args[0]
 		v.reset(OpARMADCshiftRAreg)
 		v.AddArg(x)
 		v.AddArg(y)

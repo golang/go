@@ -5498,44 +5498,6 @@ func rewriteValuePPC64_OpPPC64AND_10(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (AND x:(MOVBZload _ _) (MOVDconst [c]))
-	// result: (ANDconst [c&0xFF] x)
-	for {
-		_ = v.Args[1]
-		x := v.Args[0]
-		if x.Op != OpPPC64MOVBZload {
-			break
-		}
-		_ = x.Args[1]
-		v_1 := v.Args[1]
-		if v_1.Op != OpPPC64MOVDconst {
-			break
-		}
-		c := v_1.AuxInt
-		v.reset(OpPPC64ANDconst)
-		v.AuxInt = c & 0xFF
-		v.AddArg(x)
-		return true
-	}
-	// match: (AND (MOVDconst [c]) x:(MOVBZload _ _))
-	// result: (ANDconst [c&0xFF] x)
-	for {
-		_ = v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpPPC64MOVDconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		if x.Op != OpPPC64MOVBZload {
-			break
-		}
-		_ = x.Args[1]
-		v.reset(OpPPC64ANDconst)
-		v.AuxInt = c & 0xFF
-		v.AddArg(x)
-		return true
-	}
 	return false
 }
 func rewriteValuePPC64_OpPPC64ANDconst_0(v *Value) bool {

@@ -551,6 +551,7 @@ type object struct {
 func fprint(w io.Writer, n Node) {
 	switch n := n.(type) {
 	case *File:
+		seenRewrite := make(map[[3]string]string)
 		fmt.Fprintf(w, "// Code generated from gen/%s%s.rules; DO NOT EDIT.\n", n.arch.name, n.suffix)
 		fmt.Fprintf(w, "// generated with: cd gen; go run *.go\n")
 		fmt.Fprintf(w, "\npackage ssa\n")
@@ -569,6 +570,15 @@ func fprint(w io.Writer, n Node) {
 			fmt.Fprintf(w, "%c *%s) bool {\n", strings.ToLower(f.kind)[0], f.kind)
 			for _, n := range f.list {
 				fprint(w, n)
+
+				if rr, ok := n.(*RuleRewrite); ok {
+					k := [3]string{rr.match, rr.cond, rr.result}
+					if prev, ok := seenRewrite[k]; ok {
+						log.Fatalf("duplicate rule %s, previously seen at %s\n", rr.loc, prev)
+					} else {
+						seenRewrite[k] = rr.loc
+					}
+				}
 			}
 			fmt.Fprintf(w, "}\n")
 		}
