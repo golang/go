@@ -174,7 +174,7 @@ func dialClosedPort(t *testing.T) (actual, expected time.Duration) {
 	}
 	addr := l.Addr().String()
 	l.Close()
-	// On OpenBSD, interference from TestSelfConnect is mysteriously
+	// On OpenBSD, interference from TestTCPSelfConnect is mysteriously
 	// causing the first attempt to hang for a few seconds, so we throw
 	// away the first result and keep the second.
 	for i := 1; ; i++ {
