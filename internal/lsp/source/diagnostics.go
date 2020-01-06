@@ -7,6 +7,7 @@ package source
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -65,6 +66,14 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, fh FileHandle, withAnal
 	pkg, err := ph.Check(ctx)
 	if err != nil {
 		return nil, "", err
+	}
+	// If we have a package with a single file and errors about "undeclared" symbols,
+	// we may have an ad-hoc package with multiple files. Show a warning message.
+	// TODO(golang/go#36416): Remove this when golang.org/cl/202277 is merged.
+	if warningMsg == "" && len(pkg.CompiledGoFiles()) == 1 && hasUndeclaredErrors(pkg) {
+		if warningMsg, err = checkCommonErrors(ctx, snapshot.View(), fh.Identity().URI); err != nil {
+			log.Error(ctx, "error checking common errors", err, telemetry.File.Of(fh.Identity().URI))
+		}
 	}
 	// Prepare the reports we will send for the files in this package.
 	reports := make(map[FileIdentity][]Diagnostic)
@@ -254,4 +263,18 @@ func onlyDeletions(fixes []SuggestedFix) bool {
 		}
 	}
 	return true
+}
+
+// hasUndeclaredErrors returns true if a package has a type error
+// about an undeclared symbol.
+func hasUndeclaredErrors(pkg Package) bool {
+	for _, err := range pkg.GetErrors() {
+		if err.Kind != TypeError {
+			continue
+		}
+		if strings.Contains(err.Message, "undeclared name:") {
+			return true
+		}
+	}
+	return false
 }
