@@ -487,11 +487,17 @@ func DivisionNeedsFixUp(v *Value) bool {
 
 // auxFrom64F encodes a float64 value so it can be stored in an AuxInt.
 func auxFrom64F(f float64) int64 {
+	if f != f {
+		panic("can't encode a NaN in AuxInt field")
+	}
 	return int64(math.Float64bits(f))
 }
 
 // auxFrom32F encodes a float32 value so it can be stored in an AuxInt.
 func auxFrom32F(f float32) int64 {
+	if f != f {
+		panic("can't encode a NaN in AuxInt field")
+	}
 	return int64(math.Float64bits(extend32Fto64F(f)))
 }
 
