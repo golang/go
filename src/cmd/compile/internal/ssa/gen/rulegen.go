@@ -1361,26 +1361,7 @@ func commute1(m string, cnt map[string]int, arch arch) []string {
 	s := split(m[1 : len(m)-1])
 	op := s[0]
 
-	// Figure out if the op is commutative or not.
-	commutative := false
-	for _, x := range genericOps {
-		if op == x.name {
-			if x.commutative {
-				commutative = true
-			}
-			break
-		}
-	}
-	if arch.name != "generic" {
-		for _, x := range arch.ops {
-			if op == x.name {
-				if x.commutative {
-					commutative = true
-				}
-				break
-			}
-		}
-	}
+	commutative := opIsCommutative(op, arch)
 	var idx0, idx1 int
 	if commutative {
 		// Find indexes of two args we can swap.
@@ -1482,4 +1463,27 @@ func normalizeWhitespace(x string) string {
 	x = strings.Replace(x, " )", ")", -1)
 	x = strings.Replace(x, ")->", ") ->", -1)
 	return x
+}
+
+// opIsCommutative reports whether op s is commutative.
+func opIsCommutative(op string, arch arch) bool {
+	for _, x := range genericOps {
+		if op == x.name {
+			if x.commutative {
+				return true
+			}
+			break
+		}
+	}
+	if arch.name != "generic" {
+		for _, x := range arch.ops {
+			if op == x.name {
+				if x.commutative {
+					return true
+				}
+				break
+			}
+		}
+	}
+	return false
 }
