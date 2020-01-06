@@ -49,10 +49,13 @@ var valids = []string{
 	`package p; type T = int`,
 	`package p; type (T = p.T; _ = struct{}; x = *T)`,
 	`package p; type T (*int)`,
+
+	// type parameters
 	`package p; type T(type P) struct { P }`,
 	`package p; type T(type P comparable) struct { P }`,
 	`package p; type T(type P comparable(P)) struct { P }`,
 	`package p; type T(type P1, P2) struct { P1; f []P2 }`,
+
 	`package p; var _ = [](T(int)){}`,
 	`package p; var _ = func()T(nil)`,
 	`package p; func _(type)()`,
@@ -63,9 +66,19 @@ var valids = []string{
 	`package p; func _(T [P]E)`,
 	`package p; func _(x T(P1, P2, P3))`,
 	`package p; func _((T(P1, P2, P3)))`,
+
+	// method type parameters (if methodTypeParamsOk)
 	`package p; func _(type A, B)(a A) B`,
 	`package p; func _(type A, B C)(a A) B`,
 	`package p; func _(type A, B C(A, B))(a A) B`,
+	`package p; func (T) _(type A, B)(a A) B`,
+	`package p; func (T) _(type A, B C)(a A) B`,
+	`package p; func (T) _(type A, B C(A, B))(a A) B`,
+	`package p; type _ interface { _(type A, B)(a A) B }`,
+	`package p; type _ interface { _(type A, B C)(a A) B }`,
+	`package p; type _ interface { _(type A, B C(A, B))(a A) B }`,
+
+	// contracts
 	`package p; contract C(){}`,
 	`package p; contract C(T, S, R,){}`,
 	`package p; contract C(T){ T (m(x, int)); }`,
@@ -82,7 +95,7 @@ var valids = []string{
 	`package p; func _(type T1, T2 interface{})(x T1) T2`,
 	`package p; func _(type T1 interface{ m() }, T2, T3 interface{})(x T1, y T3) T2`,
 
-	// interfaces as contracts (experimental)
+	// interfaces with (contract) type lists
 	`package p; type _ interface{type int}`,
 	`package p; type _ interface{type int, float32; type bool; m(); type string;}`,
 }
@@ -146,6 +159,13 @@ var invalids = []string{
 	`package p; func f() { defer func() {} /* ERROR HERE "function must be invoked" */ }`,
 	`package p; func f() { go func() { func() { f(x func /* ERROR "missing ','" */ (){}) } } }`,
 	//`package p; func f(x func(), u v func /* ERROR "missing ','" */ ()){}`,
+
+	// type parameters
+	`package p; var _ func( /* ERROR "no type parameters" */ type T)(T)`,
+	`package p; func _() ( /* ERROR "no type parameters" */ type T)(T)`,
+	`package p; func ( /* ERROR "no type parameters" */ type T)(T) _()`,
+
+	// contracts
 	`package p; contract C(T, T /* ERROR "T redeclared" */ ) {}`,
 	`package p; contract C(T) { imported /* ERROR "expected type parameter name" */ .T int }`,
 

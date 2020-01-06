@@ -26,6 +26,8 @@ import (
 	"unicode"
 )
 
+const methodTypeParamsOk = typeParamsOk // set this to 0 to disallow type params in methods
+
 // The parser structure holds the parser's internal state.
 type parser struct {
 	file    *token.File
@@ -1132,7 +1134,7 @@ func (p *parser) parseMethodSpec(scope *ast.Scope) *ast.Field {
 		// method
 		idents = []*ast.Ident{ident}
 		scope := ast.NewScope(nil) // method scope
-		_, params := p.parseParameters(scope, variadicOk, "method")
+		_, params := p.parseParameters(scope, methodTypeParamsOk|variadicOk, "method")
 		results := p.parseResult(scope, true)
 		typ = &ast.FuncType{Func: token.NoPos, Params: params, Results: results}
 	} else {
@@ -1254,7 +1256,7 @@ func (p *parser) parseConstraint() *ast.Constraint {
 			// method
 			mname = ident
 			scope := ast.NewScope(nil) // method scope
-			_, params := p.parseParameters(scope, variadicOk, "method")
+			_, params := p.parseParameters(scope, methodTypeParamsOk|variadicOk, "method")
 			results := p.parseResult(scope, true)
 			typ = &ast.FuncType{Func: token.NoPos, Params: params, Results: results}
 		}
@@ -2785,7 +2787,7 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 
 	ident := p.parseIdent()
 
-	tparams, params := p.parseParameters(scope, mode, "method") // context string only used in methods
+	tparams, params := p.parseParameters(scope, mode|methodTypeParamsOk, "method") // context string only used in methods
 	results := p.parseResult(scope, true)
 
 	var body *ast.BlockStmt
