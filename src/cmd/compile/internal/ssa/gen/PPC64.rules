@@ -1081,7 +1081,6 @@
 
 // A particular pattern seen in cgo code:
 (AND (MOVDconst [c]) x:(MOVBZload _ _)) -> (ANDconst [c&0xFF] x)
-(AND x:(MOVBZload _ _) (MOVDconst [c])) -> (ANDconst [c&0xFF] x)
 
 // floating point negative abs
 (FNEG (FABS x)) -> (FNABS x)

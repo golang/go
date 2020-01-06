@@ -430,7 +430,6 @@
 (ADDL x (MOVLconst [c])) -> (ADDLconst [c] x)
 (ADDLcarry x (MOVLconst [c])) -> (ADDLconstcarry [c] x)
 (ADCL x (MOVLconst [c]) f) -> (ADCLconst [c] x f)
-(ADCL (MOVLconst [c]) x f) -> (ADCLconst [c] x f)
 
 (SUBL x (MOVLconst [c])) -> (SUBLconst x [c])
 (SUBL (MOVLconst [c]) x) -> (NEGL (SUBLconst <v.Type> x [c]))

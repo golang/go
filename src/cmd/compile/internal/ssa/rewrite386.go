@@ -740,38 +740,6 @@ func rewriteValue386_Op386ADCL_0(v *Value) bool {
 		v.AddArg(f)
 		return true
 	}
-	// match: (ADCL (MOVLconst [c]) x f)
-	// result: (ADCLconst [c] x f)
-	for {
-		f := v.Args[2]
-		v_0 := v.Args[0]
-		if v_0.Op != Op386MOVLconst {
-			break
-		}
-		c := v_0.AuxInt
-		x := v.Args[1]
-		v.reset(Op386ADCLconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		v.AddArg(f)
-		return true
-	}
-	// match: (ADCL x (MOVLconst [c]) f)
-	// result: (ADCLconst [c] x f)
-	for {
-		f := v.Args[2]
-		x := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != Op386MOVLconst {
-			break
-		}
-		c := v_1.AuxInt
-		v.reset(Op386ADCLconst)
-		v.AuxInt = c
-		v.AddArg(x)
-		v.AddArg(f)
-		return true
-	}
 	return false
 }
 func rewriteValue386_Op386ADDL_0(v *Value) bool {
