@@ -1096,6 +1096,10 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpSlicemask:
 		return rewriteValueAMD64_OpSlicemask(v)
+	case OpSpectreIndex:
+		return rewriteValueAMD64_OpSpectreIndex(v)
+	case OpSpectreSliceIndex:
+		return rewriteValueAMD64_OpSpectreSliceIndex(v)
 	case OpSqrt:
 		v.Op = OpAMD64SQRTSD
 		return true
@@ -33030,6 +33034,44 @@ func rewriteValueAMD64_OpSlicemask(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAMD64NEGQ, t)
 		v0.AddArg(x)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpSpectreIndex(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (SpectreIndex <t> x y)
+	// result: (CMOVQCC x (MOVQconst [0]) (CMPQ x y))
+	for {
+		x := v_0
+		y := v_1
+		v.reset(OpAMD64CMOVQCC)
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVQconst, typ.UInt64)
+		v0.AuxInt = 0
+		v1 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
+		v1.AddArg2(x, y)
+		v.AddArg3(x, v0, v1)
+		return true
+	}
+}
+func rewriteValueAMD64_OpSpectreSliceIndex(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (SpectreSliceIndex <t> x y)
+	// result: (CMOVQHI x (MOVQconst [0]) (CMPQ x y))
+	for {
+		x := v_0
+		y := v_1
+		v.reset(OpAMD64CMOVQHI)
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVQconst, typ.UInt64)
+		v0.AuxInt = 0
+		v1 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
+		v1.AddArg2(x, y)
+		v.AddArg3(x, v0, v1)
 		return true
 	}
 }

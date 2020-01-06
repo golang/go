@@ -2654,6 +2654,8 @@ const (
 	OpSignmask
 	OpZeromask
 	OpSlicemask
+	OpSpectreIndex
+	OpSpectreSliceIndex
 	OpCvt32Uto32F
 	OpCvt32Uto64F
 	OpCvt32Fto32U
@@ -33039,6 +33041,16 @@ var opcodeTable = [...]opInfo{
 	{
 		name:    "Slicemask",
 		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "SpectreIndex",
+		argLen:  2,
+		generic: true,
+	},
+	{
+		name:    "SpectreSliceIndex",
+		argLen:  2,
 		generic: true,
 	},
 	{
