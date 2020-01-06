@@ -688,7 +688,7 @@ TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
 	MOVD	$SYS_fcntl, R8
 	SVC
 	MOVD	$0x800, R2 // O_NONBLOCK
-	EOR	R0, R2
+	ORR	R0, R2
 	MOVW	fd+0(FP), R0 // fd
 	MOVD	$4, R1	// F_SETFL
 	MOVD	$SYS_fcntl, R8
