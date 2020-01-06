@@ -4,6 +4,8 @@
 
 #include "textflag.h"
 
+// See memmove Go doc for important implementation constraints.
+
 // void runtime·memmove(void*, void*, uintptr)
 TEXT runtime·memmove(SB),NOSPLIT,$-0-24
 	MOV	to+0(FP), T0
