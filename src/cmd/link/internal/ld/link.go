@@ -136,7 +136,7 @@ func (ctxt *Link) ErrorUnresolved(s *sym.Symbol, r *sym.Reloc) {
 				if v == -1 {
 					continue
 				}
-				if rs := ctxt.Syms.ROLookup(r.Sym.Name, v); rs != nil && rs.Type != sym.Sxxx && rs.Type != sym.SXREF {
+				if rs := ctxt.Syms.ROLookup(r.Sym.Name, v); rs != nil && rs.Type != sym.Sxxx {
 					haveABI = abi
 				}
 			}
