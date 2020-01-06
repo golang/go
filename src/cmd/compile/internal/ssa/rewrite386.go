@@ -22356,24 +22356,6 @@ func rewriteBlock386(b *Block) bool {
 			b.AddControl(cmp)
 			return true
 		}
-		// match: (NE (TESTB (SETL cmp) (SETL cmp)) yes no)
-		// result: (LT cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETL {
-				break
-			}
-			cmp := v_0_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETL || cmp != v_0_1.Args[0] {
-				break
-			}
-			b.Reset(Block386LT)
-			b.AddControl(cmp)
-			return true
-		}
 		// match: (NE (TESTB (SETLE cmp) (SETLE cmp)) yes no)
 		// result: (LE cmp yes no)
 		for b.Controls[0].Op == Op386TESTB {
@@ -22389,42 +22371,6 @@ func rewriteBlock386(b *Block) bool {
 				break
 			}
 			b.Reset(Block386LE)
-			b.AddControl(cmp)
-			return true
-		}
-		// match: (NE (TESTB (SETLE cmp) (SETLE cmp)) yes no)
-		// result: (LE cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETLE {
-				break
-			}
-			cmp := v_0_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETLE || cmp != v_0_1.Args[0] {
-				break
-			}
-			b.Reset(Block386LE)
-			b.AddControl(cmp)
-			return true
-		}
-		// match: (NE (TESTB (SETG cmp) (SETG cmp)) yes no)
-		// result: (GT cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETG {
-				break
-			}
-			cmp := v_0_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETG || cmp != v_0_1.Args[0] {
-				break
-			}
-			b.Reset(Block386GT)
 			b.AddControl(cmp)
 			return true
 		}
@@ -22464,24 +22410,6 @@ func rewriteBlock386(b *Block) bool {
 			b.AddControl(cmp)
 			return true
 		}
-		// match: (NE (TESTB (SETGE cmp) (SETGE cmp)) yes no)
-		// result: (GE cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETGE {
-				break
-			}
-			cmp := v_0_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETGE || cmp != v_0_1.Args[0] {
-				break
-			}
-			b.Reset(Block386GE)
-			b.AddControl(cmp)
-			return true
-		}
 		// match: (NE (TESTB (SETEQ cmp) (SETEQ cmp)) yes no)
 		// result: (EQ cmp yes no)
 		for b.Controls[0].Op == Op386TESTB {
@@ -22497,42 +22425,6 @@ func rewriteBlock386(b *Block) bool {
 				break
 			}
 			b.Reset(Block386EQ)
-			b.AddControl(cmp)
-			return true
-		}
-		// match: (NE (TESTB (SETEQ cmp) (SETEQ cmp)) yes no)
-		// result: (EQ cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETEQ {
-				break
-			}
-			cmp := v_0_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETEQ || cmp != v_0_1.Args[0] {
-				break
-			}
-			b.Reset(Block386EQ)
-			b.AddControl(cmp)
-			return true
-		}
-		// match: (NE (TESTB (SETNE cmp) (SETNE cmp)) yes no)
-		// result: (NE cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETNE {
-				break
-			}
-			cmp := v_0_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETNE || cmp != v_0_1.Args[0] {
-				break
-			}
-			b.Reset(Block386NE)
 			b.AddControl(cmp)
 			return true
 		}
@@ -22572,24 +22464,6 @@ func rewriteBlock386(b *Block) bool {
 			b.AddControl(cmp)
 			return true
 		}
-		// match: (NE (TESTB (SETB cmp) (SETB cmp)) yes no)
-		// result: (ULT cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETB {
-				break
-			}
-			cmp := v_0_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETB || cmp != v_0_1.Args[0] {
-				break
-			}
-			b.Reset(Block386ULT)
-			b.AddControl(cmp)
-			return true
-		}
 		// match: (NE (TESTB (SETBE cmp) (SETBE cmp)) yes no)
 		// result: (ULE cmp yes no)
 		for b.Controls[0].Op == Op386TESTB {
@@ -22605,42 +22479,6 @@ func rewriteBlock386(b *Block) bool {
 				break
 			}
 			b.Reset(Block386ULE)
-			b.AddControl(cmp)
-			return true
-		}
-		// match: (NE (TESTB (SETBE cmp) (SETBE cmp)) yes no)
-		// result: (ULE cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETBE {
-				break
-			}
-			cmp := v_0_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETBE || cmp != v_0_1.Args[0] {
-				break
-			}
-			b.Reset(Block386ULE)
-			b.AddControl(cmp)
-			return true
-		}
-		// match: (NE (TESTB (SETA cmp) (SETA cmp)) yes no)
-		// result: (UGT cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETA {
-				break
-			}
-			cmp := v_0_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETA || cmp != v_0_1.Args[0] {
-				break
-			}
-			b.Reset(Block386UGT)
 			b.AddControl(cmp)
 			return true
 		}
@@ -22680,24 +22518,6 @@ func rewriteBlock386(b *Block) bool {
 			b.AddControl(cmp)
 			return true
 		}
-		// match: (NE (TESTB (SETAE cmp) (SETAE cmp)) yes no)
-		// result: (UGE cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETAE {
-				break
-			}
-			cmp := v_0_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETAE || cmp != v_0_1.Args[0] {
-				break
-			}
-			b.Reset(Block386UGE)
-			b.AddControl(cmp)
-			return true
-		}
 		// match: (NE (TESTB (SETO cmp) (SETO cmp)) yes no)
 		// result: (OS cmp yes no)
 		for b.Controls[0].Op == Op386TESTB {
@@ -22713,42 +22533,6 @@ func rewriteBlock386(b *Block) bool {
 				break
 			}
 			b.Reset(Block386OS)
-			b.AddControl(cmp)
-			return true
-		}
-		// match: (NE (TESTB (SETO cmp) (SETO cmp)) yes no)
-		// result: (OS cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETO {
-				break
-			}
-			cmp := v_0_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETO || cmp != v_0_1.Args[0] {
-				break
-			}
-			b.Reset(Block386OS)
-			b.AddControl(cmp)
-			return true
-		}
-		// match: (NE (TESTB (SETGF cmp) (SETGF cmp)) yes no)
-		// result: (UGT cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETGF {
-				break
-			}
-			cmp := v_0_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETGF || cmp != v_0_1.Args[0] {
-				break
-			}
-			b.Reset(Block386UGT)
 			b.AddControl(cmp)
 			return true
 		}
@@ -22788,24 +22572,6 @@ func rewriteBlock386(b *Block) bool {
 			b.AddControl(cmp)
 			return true
 		}
-		// match: (NE (TESTB (SETGEF cmp) (SETGEF cmp)) yes no)
-		// result: (UGE cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETGEF {
-				break
-			}
-			cmp := v_0_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETGEF || cmp != v_0_1.Args[0] {
-				break
-			}
-			b.Reset(Block386UGE)
-			b.AddControl(cmp)
-			return true
-		}
 		// match: (NE (TESTB (SETEQF cmp) (SETEQF cmp)) yes no)
 		// result: (EQF cmp yes no)
 		for b.Controls[0].Op == Op386TESTB {
@@ -22821,42 +22587,6 @@ func rewriteBlock386(b *Block) bool {
 				break
 			}
 			b.Reset(Block386EQF)
-			b.AddControl(cmp)
-			return true
-		}
-		// match: (NE (TESTB (SETEQF cmp) (SETEQF cmp)) yes no)
-		// result: (EQF cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETEQF {
-				break
-			}
-			cmp := v_0_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETEQF || cmp != v_0_1.Args[0] {
-				break
-			}
-			b.Reset(Block386EQF)
-			b.AddControl(cmp)
-			return true
-		}
-		// match: (NE (TESTB (SETNEF cmp) (SETNEF cmp)) yes no)
-		// result: (NEF cmp yes no)
-		for b.Controls[0].Op == Op386TESTB {
-			v_0 := b.Controls[0]
-			_ = v_0.Args[1]
-			v_0_0 := v_0.Args[0]
-			if v_0_0.Op != Op386SETNEF {
-				break
-			}
-			cmp := v_0_0.Args[0]
-			v_0_1 := v_0.Args[1]
-			if v_0_1.Op != Op386SETNEF || cmp != v_0_1.Args[0] {
-				break
-			}
-			b.Reset(Block386NEF)
 			b.AddControl(cmp)
 			return true
 		}

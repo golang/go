@@ -1381,9 +1381,10 @@ func commute1(m string, cnt map[string]int, arch arch) []string {
 		if idx1 == 0 {
 			log.Fatalf("couldn't find first two args of commutative op %q", s[0])
 		}
-		if cnt[s[idx0]] == 1 && cnt[s[idx1]] == 1 || s[idx0] == s[idx1] && cnt[s[idx0]] == 2 {
+		if cnt[s[idx0]] == 1 && cnt[s[idx1]] == 1 || s[idx0] == s[idx1] {
 			// When we have (Add x y) with no other uses of x and y in the matching rule,
 			// then we can skip the commutative match (Add y x).
+			// Same for (Add x x), for any x.
 			commutative = false
 		}
 	}
