@@ -922,7 +922,7 @@ func (p *parser) parseParamDeclOrNil() (f field) {
 	return
 }
 
-func (p *parser) parseParameterList(scope *ast.Scope, ellipsisOk bool) (params []*ast.Field) {
+func (p *parser) parseParameterList(scope *ast.Scope, mode paramMode) (params []*ast.Field) {
 	if p.trace {
 		defer un(trace(p, "ParameterList"))
 	}
@@ -1028,7 +1028,7 @@ func (p *parser) parseTypeParams(scope *ast.Scope) *ast.FieldList {
 	}
 
 	p.expect(token.TYPE)
-	fields := p.parseParameterList(scope, false)
+	fields := p.parseParameterList(scope, 0)
 	// determine which form we have (list of type parameters with optional
 	// contract, or type parameters, all with interfaces as type bounds)
 	for _, f := range fields {
@@ -1042,7 +1042,14 @@ func (p *parser) parseTypeParams(scope *ast.Scope) *ast.FieldList {
 	return &ast.FieldList{List: fields}
 }
 
-func (p *parser) parseParameters(scope *ast.Scope, typeParamsOk, ellipsisOk bool, context string) (tparams, params *ast.FieldList) {
+type paramMode int
+
+const (
+	typeParamsOk paramMode = 1 << iota
+	variadicOk
+)
+
+func (p *parser) parseParameters(scope *ast.Scope, mode paramMode, context string) (tparams, params *ast.FieldList) {
 	if p.trace {
 		defer un(trace(p, "Parameters"))
 	}
@@ -1063,14 +1070,14 @@ func (p *parser) parseParameters(scope *ast.Scope, typeParamsOk, ellipsisOk bool
 		lparen = p.expect(token.LPAREN)
 	}
 
-	if tparams != nil && !typeParamsOk {
+	if tparams != nil && mode&typeParamsOk == 0 {
 		p.error(tparams.Opening, context+" must have no type parameters")
 		tparams = nil
 	}
 
 	var fields []*ast.Field
 	if p.tok != token.RPAREN {
-		fields = p.parseParameterList(scope, ellipsisOk)
+		fields = p.parseParameterList(scope, variadicOk)
 	}
 
 	rparen := p.expect(token.RPAREN)
@@ -1085,7 +1092,7 @@ func (p *parser) parseResult(scope *ast.Scope, typeContext bool) *ast.FieldList 
 	}
 
 	if p.tok == token.LPAREN {
-		_, results := p.parseParameters(scope, false, false, "result")
+		_, results := p.parseParameters(scope, 0, "result")
 		return results
 	}
 
@@ -1106,7 +1113,7 @@ func (p *parser) parseFuncType(typeContext bool) (*ast.FuncType, *ast.Scope) {
 
 	pos := p.expect(token.FUNC)
 	scope := ast.NewScope(p.topScope) // function scope
-	_, params := p.parseParameters(scope, false, true, "function type")
+	_, params := p.parseParameters(scope, variadicOk, "function type")
 	results := p.parseResult(scope, typeContext)
 
 	return &ast.FuncType{Func: pos, Params: params, Results: results}, scope
@@ -1125,7 +1132,7 @@ func (p *parser) parseMethodSpec(scope *ast.Scope) *ast.Field {
 		// method
 		idents = []*ast.Ident{ident}
 		scope := ast.NewScope(nil) // method scope
-		_, params := p.parseParameters(scope, false, true, "method")
+		_, params := p.parseParameters(scope, variadicOk, "method")
 		results := p.parseResult(scope, true)
 		typ = &ast.FuncType{Func: token.NoPos, Params: params, Results: results}
 	} else {
@@ -1247,7 +1254,7 @@ func (p *parser) parseConstraint() *ast.Constraint {
 			// method
 			mname = ident
 			scope := ast.NewScope(nil) // method scope
-			_, params := p.parseParameters(scope, false, true, "method")
+			_, params := p.parseParameters(scope, variadicOk, "method")
 			results := p.parseResult(scope, true)
 			typ = &ast.FuncType{Func: token.NoPos, Params: params, Results: results}
 		}
@@ -2769,14 +2776,16 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	pos := p.expect(token.FUNC)
 	scope := ast.NewScope(p.topScope) // function scope
 
+	mode := typeParamsOk | variadicOk
 	var recv *ast.FieldList
 	if p.tok == token.LPAREN {
-		_, recv = p.parseParameters(scope, false, false, "receiver")
+		_, recv = p.parseParameters(scope, 0, "receiver")
+		mode &^= typeParamsOk
 	}
 
 	ident := p.parseIdent()
 
-	tparams, params := p.parseParameters(scope, recv == nil, true, "method") // context string only used in methods
+	tparams, params := p.parseParameters(scope, mode, "method") // context string only used in methods
 	results := p.parseResult(scope, true)
 
 	var body *ast.BlockStmt
