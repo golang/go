@@ -4,4 +4,13 @@
 
 package p
 
-type S(type T) struct{}; func (S) _()
+type I interface{
+        m(type T)(T)
+}
+
+type S struct{}
+
+func (S) m(type T)(T)
+
+// TODO(gri) this should work
+var _ I = S /* ERROR wrong type for method m */ {}

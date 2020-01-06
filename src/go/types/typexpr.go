@@ -164,7 +164,7 @@ func (check *Checker) genericType(e ast.Expr, reportErr bool) Type {
 }
 
 // funcType type-checks a function or method type.
-func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftparams *ast.FieldList, ftyp *ast.FuncType) {
+func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast.FuncType) {
 	check.openScope(ftyp, "function")
 	check.scope.isFunc = true
 	check.recordScope(ftyp, check.scope)
@@ -214,8 +214,8 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftparams 
 		}
 	}
 
-	if ftparams != nil {
-		sig.tparams = check.collectTypeParams(ftparams)
+	if ftyp.TParams != nil {
+		sig.tparams = check.collectTypeParams(ftyp.TParams)
 	}
 
 	// Value (non-type) parameters' scope starts in the function body. Use a temporary scope for their
@@ -391,7 +391,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 	case *ast.FuncType:
 		typ := new(Signature)
 		def.setUnderlying(typ)
-		check.funcType(typ, nil, nil, e)
+		check.funcType(typ, nil, e)
 		return typ
 
 	case *ast.InterfaceType:

@@ -415,8 +415,8 @@ func (check *Checker) collectObjects() {
 						// treat as function
 					}
 					if name == "init" {
-						if d.TParams != nil {
-							check.softErrorf(d.TParams.Pos(), "func init must have no type parameters")
+						if d.Type.TParams != nil {
+							check.softErrorf(d.Type.TParams.Pos(), "func init must have no type parameters")
 						}
 						if t := d.Type; t.Params.NumFields() != 0 || t.Results != nil {
 							check.softErrorf(d.Pos(), "func init must have no arguments and no return values")
@@ -435,8 +435,8 @@ func (check *Checker) collectObjects() {
 				} else {
 					// method
 					// d.Recv != nil && len(d.Recv.List) > 0
-					if !methodTypeParamsOk && d.TParams != nil {
-						check.invalidAST(d.TParams.Pos(), "method must have no type parameters")
+					if !methodTypeParamsOk && d.Type.TParams != nil {
+						check.invalidAST(d.Type.TParams.Pos(), "method must have no type parameters")
 					}
 					ptr, recv, _ := check.unpackRecv(d.Recv.List[0].Type, false)
 					// (Methods with invalid receiver cannot be associated to a type, and

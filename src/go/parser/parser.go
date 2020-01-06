@@ -1134,9 +1134,9 @@ func (p *parser) parseMethodSpec(scope *ast.Scope) *ast.Field {
 		// method
 		idents = []*ast.Ident{ident}
 		scope := ast.NewScope(nil) // method scope
-		_, params := p.parseParameters(scope, methodTypeParamsOk|variadicOk, "method")
+		tparams, params := p.parseParameters(scope, methodTypeParamsOk|variadicOk, "method")
 		results := p.parseResult(scope, true)
-		typ = &ast.FuncType{Func: token.NoPos, Params: params, Results: results}
+		typ = &ast.FuncType{Func: token.NoPos, TParams: tparams, Params: params, Results: results}
 	} else {
 		// embedded interface
 		typ = x
@@ -1256,9 +1256,9 @@ func (p *parser) parseConstraint() *ast.Constraint {
 			// method
 			mname = ident
 			scope := ast.NewScope(nil) // method scope
-			_, params := p.parseParameters(scope, methodTypeParamsOk|variadicOk, "method")
+			tparams, params := p.parseParameters(scope, methodTypeParamsOk|variadicOk, "method")
 			results := p.parseResult(scope, true)
-			typ = &ast.FuncType{Func: token.NoPos, Params: params, Results: results}
+			typ = &ast.FuncType{Func: token.NoPos, TParams: tparams, Params: params, Results: results}
 		}
 		mnames = append(mnames, mname)
 		types = append(types, typ)
@@ -2807,12 +2807,12 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	}
 
 	decl := &ast.FuncDecl{
-		Doc:     doc,
-		Recv:    recv,
-		Name:    ident,
-		TParams: tparams,
+		Doc:  doc,
+		Recv: recv,
+		Name: ident,
 		Type: &ast.FuncType{
 			Func:    pos,
+			TParams: tparams,
 			Params:  params,
 			Results: results,
 		},

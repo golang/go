@@ -384,22 +384,26 @@ func (p *printer) parameters(isTypeParam bool, fields *ast.FieldList) {
 	p.print(fields.Closing, token.RPAREN)
 }
 
-func (p *printer) signature(params, result *ast.FieldList) {
-	if params != nil {
-		p.parameters(false, params)
+func (p *printer) signature(sig *ast.FuncType) {
+	if sig.TParams != nil {
+		p.parameters(true, sig.TParams)
+	}
+	if sig.Params != nil {
+		p.parameters(false, sig.Params)
 	} else {
 		p.print(token.LPAREN, token.RPAREN)
 	}
-	n := result.NumFields()
+	res := sig.Results
+	n := res.NumFields()
 	if n > 0 {
-		// result != nil
+		// res != nil
 		p.print(blank)
-		if n == 1 && result.List[0].Names == nil {
-			// single anonymous result; no ()'s
-			p.expr(stripParensAlways(result.List[0].Type))
+		if n == 1 && res.List[0].Names == nil {
+			// single anonymous res; no ()'s
+			p.expr(stripParensAlways(res.List[0].Type))
 			return
 		}
-		p.parameters(false, result)
+		p.parameters(false, res)
 	}
 }
 
@@ -472,7 +476,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 				if ftyp, isFtyp := f.Type.(*ast.FuncType); isFtyp {
 					// method
 					p.expr(f.Names[0])
-					p.signature(ftyp.Params, ftyp.Results)
+					p.signature(ftyp)
 				} else {
 					// embedded interface
 					p.expr(f.Type)
@@ -549,7 +553,7 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 			if ftyp, isFtyp := f.Type.(*ast.FuncType); isFtyp {
 				// method
 				p.expr(f.Names[0])
-				p.signature(ftyp.Params, ftyp.Results)
+				p.signature(ftyp)
 			} else {
 				// embedded interface
 				p.expr(f.Type)
@@ -802,7 +806,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		p.print(x.Type.Pos(), token.FUNC)
 		// See the comment in funcDecl about how the header size is computed.
 		startCol := p.out.Column - len("func")
-		p.signature(x.Type.Params, x.Type.Results)
+		p.signature(x.Type)
 		p.funcBody(p.distanceFrom(x.Type.Pos(), startCol), blank, x.Body)
 
 	case *ast.ParenExpr:
@@ -947,7 +951,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 
 	case *ast.FuncType:
 		p.print(token.FUNC)
-		p.signature(x.Params, x.Results)
+		p.signature(x)
 
 	case *ast.InterfaceType:
 		p.print(token.INTERFACE)
@@ -1075,7 +1079,7 @@ func (p *printer) constraint(x *ast.Constraint) {
 			for i, m := range x.MNames {
 				p.print(m)
 				t := x.Types[i].(*ast.FuncType)
-				p.signature(t.Params, t.Results)
+				p.signature(t)
 				//p.print(token.COMMA)
 			}
 		}
@@ -1821,10 +1825,7 @@ func (p *printer) funcDecl(d *ast.FuncDecl) {
 		p.print(blank)
 	}
 	p.expr(d.Name)
-	if d.TParams != nil {
-		p.parameters(true, d.TParams)
-	}
-	p.signature(d.Type.Params, d.Type.Results)
+	p.signature(d.Type)
 	p.funcBody(p.distanceFrom(d.Pos(), startCol), vtab, d.Body)
 }
 

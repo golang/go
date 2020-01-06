@@ -770,7 +770,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 	saved := obj.color_
 	obj.color_ = black
 	fdecl := decl.fdecl
-	check.funcType(sig, fdecl.Recv, fdecl.TParams, fdecl.Type)
+	check.funcType(sig, fdecl.Recv, fdecl.Type)
 	obj.color_ = saved
 
 	// function body must be type-checked after global declarations

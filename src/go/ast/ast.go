@@ -435,6 +435,7 @@ type (
 	// A FuncType node represents a function type.
 	FuncType struct {
 		Func    token.Pos  // position of "func" keyword (token.NoPos if there is no "func")
+		TParams *FieldList // type parameters; or nil
 		Params  *FieldList // (incoming) parameters; non-nil
 		Results *FieldList // (outgoing) results; or nil
 	}
@@ -994,12 +995,11 @@ type (
 
 	// A FuncDecl node represents a function declaration.
 	FuncDecl struct {
-		Doc     *CommentGroup // associated documentation; or nil
-		Recv    *FieldList    // receiver (methods); or nil (functions)
-		Name    *Ident        // function/method name
-		TParams *FieldList    // type parameters; or nil
-		Type    *FuncType     // function signature: parameters, results, and position of "func" keyword
-		Body    *BlockStmt    // function body; or nil for external (non-Go) function
+		Doc  *CommentGroup // associated documentation; or nil
+		Recv *FieldList    // receiver (methods); or nil (functions)
+		Name *Ident        // function/method name
+		Type *FuncType     // function signature: type and value parameters, results, and position of "func" keyword
+		Body *BlockStmt    // function body; or nil for external (non-Go) function
 	}
 )
 
