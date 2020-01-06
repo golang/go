@@ -4,10 +4,4 @@
 
 package p
 
-type B1 interface{type int}
-
-type T3(type P B1) P
-
-type B2 interface{type int, string}
-
-func _(type P B2)(x T3(P /* ERROR missing type string */ ))
+type S(type T) struct{}; func (S) _()

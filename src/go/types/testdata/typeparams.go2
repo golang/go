@@ -117,7 +117,7 @@ var _ = f8(int, float64)(1, 2.3, 3.4, 4)
 
 var _ = f8(int, float64)(0, 0, nil...) // test case for #18268
 
-// init functions and methods cannot have type parameters
+// init functions cannot have type parameters
 
 func init() {}
 func init(/* ERROR func init must have no type parameters */ type)() {}
@@ -126,8 +126,9 @@ func init(/* ERROR func init must have no type parameters */ type P)() {}
 type T struct {}
 
 func (T) m1() {}
-func (T) m2( /* ERROR method must have no type parameters */ type)() {}
-func (T) m3( /* ERROR method must have no type parameters */ type P)() {}
+// Experimental: We allow method type parameters.
+// func (T) m2( /* ERROR method must have no type parameters */ type)() {}
+// func (T) m3( /* ERROR method must have no type parameters */ type P)() {}
 
 // type inference across parameterized types
 
@@ -184,3 +185,47 @@ func _(type T) (x T) {
         m := S1(T).m
         m(S1(T){x})
 }
+
+// type parameters in methods (generalization)
+
+type R0 struct{}
+
+func (R0) _(type T)(x T)
+func (R0 /* ERROR invalid receiver */ ) _(type R0)() // scope of type parameters starts at "func"
+
+type R1(type A, B) struct{}
+
+func (_ R1(A, B)) m0(A, B)
+func (_ R1(A, B)) m1(type T)(A, B, T) T
+func (_ R1 /* ERROR not a generic type */ (R1, _)) _()
+func (_ R1(A, B)) _(type A /* ERROR redeclared */ )(B)
+
+func _() {
+        var r R1(int, string)
+        r.m1(rune)(42, "foo", 'a')
+        r.m1(rune)(42, "foo", 1.2 /* ERROR truncated to rune */)
+        r.m1(42, "foo", 1.2) // using type inferrence
+        var _ float64 = r.m1(42, "foo", 1.2)
+}
+
+type I1(type A) interface {
+        m1(A)
+}
+
+var _ I1(int) = r1(int){}
+
+type r1(type T) struct{}
+
+func (_ r1(T)) m1(T)
+
+type I2(type A, B) interface {
+        m1(A)
+        m2(A) B
+}
+
+var _ I2(int, float32) = R2(int, float32){}
+
+type R2(type P, Q) struct{}
+
+func (_ R2(X, Y)) m1(X)
+func (_ R2(X, Y)) m2(X) Y

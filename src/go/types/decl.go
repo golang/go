@@ -55,7 +55,7 @@ func pathString(path []Object) string {
 func (check *Checker) objDecl(obj Object, def *Named) {
 	if check.conf.Trace && obj.Type() == nil {
 		if check.indent == 0 {
-			fmt.Println() // empty line between top-lebvel objects for readability
+			fmt.Println() // empty line between top-level objects for readability
 		}
 		check.trace(obj.Pos(), "-- checking %s (%s, objPath = %s)", obj, obj.color(), pathString(check.objPath))
 		check.indent++

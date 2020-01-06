@@ -261,14 +261,33 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 
 	// x's type V and T have identical underlying types
 	// and at least one of V or T is not a named type
-	//check.dump("Vu = %s, Tu = %s, identical = %v", Vu, Tu, Identical(Vu, Tu))
 	if check.identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
 		return true
 	}
 
 	// T is an interface type and x implements T
 	if Ti, ok := Tu.(*Interface); ok {
-		if m, wrongType := check.missingMethod(V, Ti, true, nil); m != nil /* Implements(V, Ti) */ {
+		// update targ method signatures
+		// TODO(gri) This needs documentation and clean up!
+		update := func(V Type, sig *Signature) *Signature {
+			V, _ = deref(V)
+			pos := token.NoPos // TODO(gri) can we do better?
+			// check.dump(">>> %s: V = %s", pos, V)
+			var targs []Type
+			if vnamed, _ := V.(*Named); vnamed != nil {
+				targs = vnamed.targs
+			} else {
+				// nothing to do
+				return sig
+			}
+			// check.dump(">>> %s: targs = %s", pos, targs)
+			// check.dump(">>> %s: sig.rparams = %s", pos, sig.rparams)
+			// check.dump(">>> %s: sig before: %s, tparams = %s, targs = %s", pos, sig, sig.rparams, targs)
+			sig = check.subst(pos, sig, sig.rparams, targs).(*Signature)
+			// check.dump(">>> %s: sig after : %s", pos, sig)
+			return sig
+		}
+		if m, wrongType := check.missingMethod(V, Ti, true, update); m != nil /* Implements(V, Ti) */ {
 			if reason != nil {
 				if wrongType != nil {
 					if check.identical(m.typ, wrongType.typ) {

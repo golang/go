@@ -7,12 +7,17 @@ TODO
 - use Underlying() to return a type parameter's bound? investigate!
 - better error message when declaring a contract local to a function (parser gets out of sync)
 - if type parameters are repeated in recursive instantiation, they must be the same order (not yet checked)
+- debug (and error msg) printing of generic instantiated types needs some work
+- improve error messages!
 - use []*TypeParam for tparams in subst? (unclear)
 
 OPEN ISSUES
 - instantiating a parameterized function type w/o value or result parameters may have unexpected side-effects
   (we don't make a copy of the signature in some cases) - investigate
 - using a contract and enumerating type arguments currently leads to an error (e.g. func f(type T C(T)) (x T) ... )
+- leaving away unused receiver type parameters leads to an error; e.g.: "type S(type T) struct{}; func (S) _()"
+- allow parenthesized embedded interfaces so we can embed parameterized interfaces and they won't be confused
+  for methods
 
 DESIGN/IMPLEMENTATION
 - 11/19/2019: For type parameters with interface bounds to work, the scope of all type parameters in
@@ -54,3 +59,13 @@ DESIGN/IMPLEMENTATION
   of the function body (i.e., the end of the function block).
 
 - 1/2/2020: Implementation decision: contracts can only be declared at the package level.
+
+- 1/6/2020: Experimental: First steps towards permitting type parameters in methods as a generalization.
+  Type-checking problems ooccurring from this are likely to highlight general problematic areas.
+  First consequence: Scope of type parameters starts at "func" keyword which means that receiver type
+  name cannot be a type parameter name declared later (or by the receiver type specification). This
+  seems reasonable and should help avoid confusion which is possible otherwise.
+
+- 1/6/2020: Embedding a parameterized interface in an interface is not possible because it looks
+  like a method declaration. We probably need to find a away around this; maybe parenthesize the
+  embedded interface (which is currently not permitted, syntactically).

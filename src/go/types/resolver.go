@@ -435,16 +435,9 @@ func (check *Checker) collectObjects() {
 				} else {
 					// method
 					// d.Recv != nil && len(d.Recv.List) > 0
-					if d.TParams != nil {
-						// TODO(gri) should this be done in the parser (and this an invalidAST error)?
-						check.softErrorf(d.TParams.Pos(), "method must have no type parameters")
+					if !methodTypeParamsOk && d.TParams != nil {
+						check.invalidAST(d.TParams.Pos(), "method must have no type parameters")
 					}
-					// collect parameterized receiver type parameters, if any
-					// - a receiver type parameter is like any other type parameter, except that it is passed implicitly (via the receiver)
-					// - the receiver specification is effectively the declaration of that type parameter
-					// - if the receiver type is parameterized but we don't need the parameters, we permit leaving them away
-					// - this is effectively a declaration, and thus a receiver type parameter may be the blank identifier (_)
-					// - since methods cannot have other type parameters, we store receiver type parameters where function type parameters would be
 					ptr, recv, _ := check.unpackRecv(d.Recv.List[0].Type, false)
 					// (Methods with invalid receiver cannot be associated to a type, and
 					// methods with blank _ names are never found; no need to collect any

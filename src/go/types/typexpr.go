@@ -148,12 +148,14 @@ func (check *Checker) definedType(e ast.Expr, def *Named) Type {
 	return typ
 }
 
-// generic is like typ but the type must be an (uninstantiated) generic type.
-func (check *Checker) genericType(e ast.Expr) Type {
+// genericType is like typ but the type must be an (uninstantiated) generic type.
+func (check *Checker) genericType(e ast.Expr, reportErr bool) Type {
 	typ := check.typInternal(e, nil)
 	assert(isTyped(typ))
 	if typ != Typ[Invalid] && !isGeneric(typ) {
-		check.errorf(e.Pos(), "%s is not a generic type", typ)
+		if reportErr {
+			check.errorf(e.Pos(), "%s is not a generic type", typ)
+		}
 		typ = Typ[Invalid]
 	}
 	// TODO(gri) what is the correct call below?
@@ -170,6 +172,10 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftparams 
 	defer check.closeScope()
 
 	if recvPar != nil && len(recvPar.List) > 0 {
+		// collect parameterized receiver type parameters, if any
+		// - a receiver type parameter is like any other type parameter, except that it is passed implicitly (via the receiver)
+		// - the receiver specification acts as local declaration for its type parameters (which may be blank _)
+		// - if the receiver type is parameterized but we don't need the parameters, we permit leaving them away
 		_, rname, rparams := check.unpackRecv(recvPar.List[0].Type, true)
 		if len(rparams) > 0 {
 			sig.rparams = check.declareTypeParams(nil, rparams, nil)
@@ -178,7 +184,10 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftparams 
 			var recvTParams []*TypeName
 			if rname != nil {
 				// recv should be a Named type (otherwise an error is reported elsewhere)
-				if recv, _ := check.genericType(rname).(*Named); recv != nil {
+				// Also: Don't report an error via genericType since it will be reported
+				//       again when we type-check the signature.
+				// TODO(gri) maybe the receiver should be marked as invalid instead?
+				if recv, _ := check.genericType(rname, false).(*Named); recv != nil {
 					recvTParams = recv.tparams
 				}
 			}
@@ -210,7 +219,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftparams 
 	}
 
 	// Value (non-type) parameters' scope starts in the function body. Use a temporary scope for their
-	// declarations and the squash that scope into the parent scope (and report any redeclarations at
+	// declarations and then squash that scope into the parent scope (and report any redeclarations at
 	// at that time).
 	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function body (temp. scope)")
 	recvList, _ := check.collectParams(scope, recvPar, false)
@@ -327,7 +336,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 		}
 
 	case *ast.CallExpr:
-		typ := check.genericType(e.Fun) // TODO(gri) what about cycles?
+		typ := check.genericType(e.Fun, true) // TODO(gri) what about cycles?
 		if typ == Typ[Invalid] {
 			return typ // error already reported
 		}
