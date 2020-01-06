@@ -65,7 +65,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
 
 // func pipe() (r, w int32, errno int32)
 TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
-	MOVD	RSP, R0
+	MOVD	$r+0(FP), R0
 	MOVW	$0, R1
 	MOVD	$101, R8		// sys_pipe2
 	SVC
@@ -76,7 +76,7 @@ TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
 
 // func pipe2(flags int32) (r, w int32, errno int32)
 TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
-	ADD	$8, RSP, R0
+	MOVD	$r+8(FP), R0
 	MOVW	flags+0(FP), R1
 	MOVD	$101, R8		// sys_pipe2
 	SVC
@@ -86,7 +86,7 @@ TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
 	RET
 
 TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0
-	MOVW	fd+0(FP), R0		// arg 1 - fd
+	MOVD	fd+0(FP), R0		// arg 1 - fd
 	MOVD	p+8(FP), R1		// arg 2 - buf
 	MOVW	n+16(FP), R2		// arg 3 - nbyte
 	MOVD	$4, R8			// sys_write
@@ -428,8 +428,8 @@ TEXT runtime·setNonblock(SB),NOSPLIT|NOFRAME,$0-4
 	MOVD	$0, R2			// arg 3
 	MOVD	$92, R8			// sys_fcntl
 	SVC
-	MOVD	$0x800, R2		// O_NONBLOCK
-	EOR	R0, R2			// arg 3 - flags
+	MOVD	$4, R2			// O_NONBLOCK
+	ORR	R0, R2			// arg 3 - flags
 	MOVW	fd+0(FP), R0		// arg 1 - fd
 	MOVD	$4, R1			// arg 2 - cmd (F_SETFL)
 	MOVD	$92, R8			// sys_fcntl
