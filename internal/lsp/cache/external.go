@@ -27,11 +27,12 @@ type nativeFileHandle struct {
 	identity source.FileIdentity
 }
 
-func (fs *nativeFileSystem) GetFile(uri span.URI, kind source.FileKind) source.FileHandle {
+func (fs *nativeFileSystem) GetFile(uri span.URI) source.FileHandle {
 	identifier := "DOES NOT EXIST"
 	if fi, err := os.Stat(uri.Filename()); err == nil {
 		identifier = fi.ModTime().String()
 	}
+	kind := source.DetectLanguage("", uri.Filename())
 	return &nativeFileHandle{
 		fs: fs,
 		identity: source.FileIdentity{

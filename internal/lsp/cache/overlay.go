@@ -41,7 +41,7 @@ func (o *overlay) Read(ctx context.Context) ([]byte, string, error) {
 	return o.text, o.hash, nil
 }
 
-func (s *session) updateOverlay(ctx context.Context, c source.FileModification) error {
+func (s *session) updateOverlay(ctx context.Context, c source.FileModification) (source.FileKind, error) {
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
 
@@ -54,18 +54,18 @@ func (s *session) updateOverlay(ctx context.Context, c source.FileModification) 
 		kind = source.DetectLanguage(c.LanguageID, c.URI.Filename())
 	default:
 		if !ok {
-			return errors.Errorf("updateOverlay: modifying unopened overlay %v", c.URI)
+			return -1, errors.Errorf("updateOverlay: modifying unopened overlay %v", c.URI)
 		}
 		kind = o.kind
 	}
 	if kind == source.UnknownKind {
-		return errors.Errorf("updateOverlay: unknown file kind for %s", c.URI)
+		return -1, errors.Errorf("updateOverlay: unknown file kind for %s", c.URI)
 	}
 
 	// Closing a file just deletes its overlay.
 	if c.Action == source.Close {
 		delete(s.overlays, c.URI)
-		return nil
+		return kind, nil
 	}
 
 	// If the file is on disk, check if its content is the same as the overlay.
@@ -77,15 +77,15 @@ func (s *session) updateOverlay(ctx context.Context, c source.FileModification) 
 	var sameContentOnDisk bool
 	switch c.Action {
 	case source.Open:
-		_, h, err := s.cache.GetFile(c.URI, kind).Read(ctx)
+		_, h, err := s.cache.GetFile(c.URI).Read(ctx)
 		sameContentOnDisk = (err == nil && h == hash)
 	case source.Save:
 		// Make sure the version and content (if present) is the same.
 		if o.version != c.Version {
-			return errors.Errorf("updateOverlay: saving %s at version %v, currently at %v", c.URI, c.Version, o.version)
+			return -1, errors.Errorf("updateOverlay: saving %s at version %v, currently at %v", c.URI, c.Version, o.version)
 		}
 		if c.Text != nil && o.hash != hash {
-			return errors.Errorf("updateOverlay: overlay %s changed on save", c.URI)
+			return -1, errors.Errorf("updateOverlay: overlay %s changed on save", c.URI)
 		}
 		sameContentOnDisk = true
 	}
@@ -98,7 +98,7 @@ func (s *session) updateOverlay(ctx context.Context, c source.FileModification) 
 		hash:              hash,
 		sameContentOnDisk: sameContentOnDisk,
 	}
-	return nil
+	return kind, nil
 }
 
 func (s *session) readOverlay(uri span.URI) *overlay {

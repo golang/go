@@ -235,7 +235,7 @@ type Cache interface {
 // FileSystem is the interface to something that provides file contents.
 type FileSystem interface {
 	// GetFile returns a handle for the specified file.
-	GetFile(uri span.URI, kind FileKind) FileHandle
+	GetFile(uri span.URI) FileHandle
 }
 
 // ParseGoHandle represents a handle to the AST for a file.

@@ -96,6 +96,28 @@ type view struct {
 	initializationError error
 }
 
+// fileBase holds the common functionality for all files.
+// It is intended to be embedded in the file implementations
+type fileBase struct {
+	uris  []span.URI
+	fname string
+
+	view *view
+}
+
+func (f *fileBase) URI() span.URI {
+	return f.uris[0]
+}
+
+func (f *fileBase) filename() string {
+	return f.fname
+}
+
+func (f *fileBase) addURI(uri span.URI) int {
+	f.uris = append(f.uris, uri)
+	return len(f.uris)
+}
+
 // modfiles holds the real and temporary go.mod files that are attributed to a view.
 type modfiles struct {
 	real, temp string
@@ -278,7 +300,7 @@ func (v *view) modFilesChanged() bool {
 	// and modules included by a replace directive. Return true if
 	// any of these file versions do not match.
 	for filename, version := range v.modFileVersions {
-		if version != v.fileVersion(filename, source.Mod) {
+		if version != v.fileVersion(filename) {
 			return true
 		}
 	}
@@ -297,15 +319,99 @@ func (v *view) storeModFileVersions() {
 	// and modules included by a replace directive in the resolver.
 	for _, mod := range r.ModsByModPath {
 		if (mod.Main || mod.Replace != nil) && mod.GoMod != "" {
-			v.modFileVersions[mod.GoMod] = v.fileVersion(mod.GoMod, source.Mod)
+			v.modFileVersions[mod.GoMod] = v.fileVersion(mod.GoMod)
 		}
 	}
 }
 
-func (v *view) fileVersion(filename string, kind source.FileKind) string {
+func (v *view) fileVersion(filename string) string {
 	uri := span.FileURI(filename)
-	fh := v.session.GetFile(uri, kind)
+	fh := v.session.GetFile(uri)
 	return fh.Identity().String()
+}
+
+func (v *view) mapFile(uri span.URI, f *fileBase) {
+	v.filesByURI[uri] = f
+	if f.addURI(uri) == 1 {
+		basename := basename(f.filename())
+		v.filesByBase[basename] = append(v.filesByBase[basename], f)
+	}
+}
+
+func basename(filename string) string {
+	return strings.ToLower(filepath.Base(filename))
+}
+
+// FindFile returns the file if the given URI is already a part of the view.
+func (v *view) findFileLocked(ctx context.Context, uri span.URI) *fileBase {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	f, err := v.findFile(uri)
+	if err != nil {
+		return nil
+	}
+	return f
+}
+
+// getFileLocked returns a File for the given URI. It will always succeed because it
+// adds the file to the managed set if needed.
+func (v *view) getFileLocked(ctx context.Context, uri span.URI) (*fileBase, error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	return v.getFile(ctx, uri)
+}
+
+// getFile is the unlocked internal implementation of GetFile.
+func (v *view) getFile(ctx context.Context, uri span.URI) (*fileBase, error) {
+	f, err := v.findFile(uri)
+	if err != nil {
+		return nil, err
+	} else if f != nil {
+		return f, nil
+	}
+	f = &fileBase{
+		view:  v,
+		fname: uri.Filename(),
+	}
+	v.mapFile(uri, f)
+	return f, nil
+}
+
+// findFile checks the cache for any file matching the given uri.
+//
+// An error is only returned for an irreparable failure, for example, if the
+// filename in question does not exist.
+func (v *view) findFile(uri span.URI) (*fileBase, error) {
+	if f := v.filesByURI[uri]; f != nil {
+		// a perfect match
+		return f, nil
+	}
+	// no exact match stored, time to do some real work
+	// check for any files with the same basename
+	fname := uri.Filename()
+	basename := basename(fname)
+	if candidates := v.filesByBase[basename]; candidates != nil {
+		pathStat, err := os.Stat(fname)
+		if os.IsNotExist(err) {
+			return nil, err
+		}
+		if err != nil {
+			return nil, nil // the file may exist, return without an error
+		}
+		for _, c := range candidates {
+			if cStat, err := os.Stat(c.filename()); err == nil {
+				if os.SameFile(pathStat, cStat) {
+					// same file, map it
+					v.mapFile(uri, c)
+					return c, nil
+				}
+			}
+		}
+	}
+	// no file with a matching name was found, it wasn't in our cache
+	return nil, nil
 }
 
 func (v *view) Shutdown(ctx context.Context) {
@@ -425,94 +531,6 @@ func (v *view) cancelBackground() {
 
 	v.cancel()
 	v.backgroundCtx, v.cancel = context.WithCancel(v.baseCtx)
-}
-
-// FindFile returns the file if the given URI is already a part of the view.
-func (v *view) findFileLocked(ctx context.Context, uri span.URI) *fileBase {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-
-	f, err := v.findFile(uri)
-	if err != nil {
-		return nil
-	}
-	return f
-}
-
-// getFileLocked returns a File for the given URI. It will always succeed because it
-// adds the file to the managed set if needed.
-func (v *view) getFileLocked(ctx context.Context, uri span.URI) (*fileBase, error) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-
-	// TODO(rstambler): Should there be a version that provides a kind explicitly?
-	kind := source.DetectLanguage("", uri.Filename())
-	return v.getFile(ctx, uri, kind)
-}
-
-// getFile is the unlocked internal implementation of GetFile.
-func (v *view) getFile(ctx context.Context, uri span.URI, kind source.FileKind) (*fileBase, error) {
-	f, err := v.findFile(uri)
-	if err != nil {
-		return nil, err
-	} else if f != nil {
-		return f, nil
-	}
-	f = &fileBase{
-		view:  v,
-		fname: uri.Filename(),
-		kind:  kind,
-	}
-	v.mapFile(uri, f)
-	return f, nil
-}
-
-// findFile checks the cache for any file matching the given uri.
-//
-// An error is only returned for an irreparable failure, for example, if the
-// filename in question does not exist.
-func (v *view) findFile(uri span.URI) (*fileBase, error) {
-	if f := v.filesByURI[uri]; f != nil {
-		// a perfect match
-		return f, nil
-	}
-	// no exact match stored, time to do some real work
-	// check for any files with the same basename
-	fname := uri.Filename()
-	basename := basename(fname)
-	if candidates := v.filesByBase[basename]; candidates != nil {
-		pathStat, err := os.Stat(fname)
-		if os.IsNotExist(err) {
-			return nil, err
-		}
-		if err != nil {
-			return nil, nil // the file may exist, return without an error
-		}
-		for _, c := range candidates {
-			if cStat, err := os.Stat(c.filename()); err == nil {
-				if os.SameFile(pathStat, cStat) {
-					// same file, map it
-					v.mapFile(uri, c)
-					return c, nil
-				}
-			}
-		}
-	}
-	// no file with a matching name was found, it wasn't in our cache
-	return nil, nil
-}
-
-func (f *fileBase) addURI(uri span.URI) int {
-	f.uris = append(f.uris, uri)
-	return len(f.uris)
-}
-
-func (v *view) mapFile(uri span.URI, f *fileBase) {
-	v.filesByURI[uri] = f
-	if f.addURI(uri) == 1 {
-		basename := basename(f.filename())
-		v.filesByBase[basename] = append(v.filesByBase[basename], f)
-	}
 }
 
 func (v *view) FindPosInPackage(searchpkg source.Package, pos token.Pos) (*ast.File, source.Package, error) {

@@ -144,7 +144,7 @@ func (s *Server) changedText(ctx context.Context, uri span.URI, changes []protoc
 }
 
 func (s *Server) applyIncrementalChanges(ctx context.Context, uri span.URI, changes []protocol.TextDocumentContentChangeEvent) ([]byte, error) {
-	content, _, err := s.session.GetFile(uri, source.UnknownKind).Read(ctx)
+	content, _, err := s.session.GetFile(uri).Read(ctx)
 	if err != nil {
 		return nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInternalError, "file not found (%v)", err)
 	}

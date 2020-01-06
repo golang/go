@@ -256,7 +256,8 @@ func (s *session) DidModifyFile(ctx context.Context, c source.FileModification) 
 	ctx = telemetry.URI.With(ctx, c.URI)
 
 	// Perform the session-specific updates.
-	if err := s.updateOverlay(ctx, c); err != nil {
+	kind, err := s.updateOverlay(ctx, c)
+	if err != nil {
 		return nil, err
 	}
 
@@ -265,12 +266,11 @@ func (s *session) DidModifyFile(ctx context.Context, c source.FileModification) 
 		if view.Ignore(c.URI) {
 			return nil, errors.Errorf("ignored file %v", c.URI)
 		}
-		// Set the content for the file, only for didChange and didClose events.
-		f, err := view.getFileLocked(ctx, c.URI)
-		if err != nil {
+		// Make sure to add the file to the view.
+		if _, err := view.getFileLocked(ctx, c.URI); err != nil {
 			return nil, err
 		}
-		snapshots = append(snapshots, view.invalidateContent(ctx, c.URI, f.kind, c.Action))
+		snapshots = append(snapshots, view.invalidateContent(ctx, c.URI, kind, c.Action))
 	}
 	return snapshots, nil
 }
@@ -283,12 +283,12 @@ func (s *session) IsOpen(uri span.URI) bool {
 	return open
 }
 
-func (s *session) GetFile(uri span.URI, kind source.FileKind) source.FileHandle {
+func (s *session) GetFile(uri span.URI) source.FileHandle {
 	if overlay := s.readOverlay(uri); overlay != nil {
 		return overlay
 	}
 	// Fall back to the cache-level file system.
-	return s.cache.GetFile(uri, kind)
+	return s.cache.GetFile(uri)
 }
 
 func (s *session) DidChangeOutOfBand(ctx context.Context, uri span.URI, action source.FileAction) bool {
@@ -296,10 +296,12 @@ func (s *session) DidChangeOutOfBand(ctx context.Context, uri span.URI, action s
 	if err != nil {
 		return false
 	}
-	f, err := view.getFileLocked(ctx, uri)
-	if err != nil {
+	// Make sure that the file is part of the view.
+	if _, err := view.getFileLocked(ctx, uri); err != nil {
 		return false
 	}
-	view.invalidateContent(ctx, f.URI(), f.kind, action)
+	// TODO(golang/go#31553): Remove this when this issue has been resolved.
+	kind := source.DetectLanguage("", uri.Filename())
+	view.invalidateContent(ctx, uri, kind, action)
 	return true
 }

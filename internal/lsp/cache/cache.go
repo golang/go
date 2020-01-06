@@ -56,8 +56,8 @@ type fileData struct {
 	err   error
 }
 
-func (c *cache) GetFile(uri span.URI, kind source.FileKind) source.FileHandle {
-	underlying := c.fs.GetFile(uri, kind)
+func (c *cache) GetFile(uri span.URI) source.FileHandle {
+	underlying := c.fs.GetFile(uri)
 	key := fileKey{
 		identity: underlying.Identity(),
 	}

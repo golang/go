@@ -8,6 +8,8 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"golang.org/x/tools/go/analysis"
@@ -92,7 +94,7 @@ func (s *snapshot) ModFiles(ctx context.Context) (source.FileHandle, source.File
 		return nil, nil, err
 	}
 	// Go directly to disk to get the correct FileHandle, since we just copied the file without invalidating the snapshot.
-	tempfh := s.view.Session().Cache().GetFile(span.FileURI(s.view.modfiles.temp), source.Mod)
+	tempfh := s.view.Session().Cache().GetFile(span.FileURI(s.view.modfiles.temp))
 	if tempfh == nil {
 		return nil, nil, errors.Errorf("temporary go.mod filehandle is nil")
 	}
@@ -533,9 +535,7 @@ func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.FileHandle
 	s.view.mu.Lock()
 	defer s.view.mu.Unlock()
 
-	// TODO(rstambler): Should there be a version that provides a kind explicitly?
-	kind := source.DetectLanguage("", uri.Filename())
-	f, err := s.view.getFile(ctx, uri, kind)
+	f, err := s.view.getFile(ctx, uri)
 	if err != nil {
 		return nil, err
 	}
@@ -547,7 +547,7 @@ func (s *snapshot) getFileHandle(ctx context.Context, f *fileBase) source.FileHa
 	defer s.mu.Unlock()
 
 	if _, ok := s.files[f.URI()]; !ok {
-		s.files[f.URI()] = s.view.session.GetFile(f.URI(), f.kind)
+		s.files[f.URI()] = s.view.session.GetFile(f.URI())
 	}
 	return s.files[f.URI()]
 }
@@ -633,7 +633,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURI span.URI, withoutFileKi
 		result.files[k] = v
 	}
 	// Handle the invalidated file; it may have new contents or not exist.
-	currentFH := s.view.session.GetFile(withoutURI, withoutFileKind)
+	currentFH := s.view.session.GetFile(withoutURI)
 	if _, _, err := currentFH.Read(ctx); os.IsNotExist(err) {
 		delete(result.files, withoutURI)
 	} else {
@@ -678,6 +678,10 @@ func (s *snapshot) clone(ctx context.Context, withoutURI span.URI, withoutFileKi
 	// Don't bother copying the importedBy graph,
 	// as it changes each time we update metadata.
 	return result
+}
+
+func dir(filename string) string {
+	return strings.ToLower(filepath.Dir(filename))
 }
 
 func (s *snapshot) ID() uint64 {
