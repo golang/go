@@ -54,7 +54,10 @@ import (
 
 // If multiple rules match, the first one in file order is selected.
 
-var genLog = flag.Bool("log", false, "generate code that logs; for debugging only")
+var (
+	genLog  = flag.Bool("log", false, "generate code that logs; for debugging only")
+	addLine = flag.Bool("line", false, "add line number comment to generated rules; for debugging only")
+)
 
 type Rule struct {
 	rule string
@@ -598,6 +601,9 @@ func fprint(w io.Writer, n Node) {
 			fprint(w, n)
 		}
 	case *RuleRewrite:
+		if *addLine {
+			fmt.Fprintf(w, "// %s\n", n.loc)
+		}
 		fmt.Fprintf(w, "// match: %s\n", n.match)
 		if n.cond != "" {
 			fmt.Fprintf(w, "// cond: %s\n", n.cond)
