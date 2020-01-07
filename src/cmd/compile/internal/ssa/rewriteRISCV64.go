@@ -3196,38 +3196,23 @@ func rewriteValueRISCV64_OpRISCV64ADD_0(v *Value) bool {
 	// cond: is32Bit(off)
 	// result: (ADDI [off] ptr)
 	for {
-		ptr := v.Args[1]
-		v_0 := v.Args[0]
-		if v_0.Op != OpRISCV64MOVDconst {
-			break
-		}
-		off := v_0.AuxInt
-		if !(is32Bit(off)) {
-			break
-		}
-		v.reset(OpRISCV64ADDI)
-		v.AuxInt = off
-		v.AddArg(ptr)
-		return true
-	}
-	// match: (ADD ptr (MOVDconst [off]))
-	// cond: is32Bit(off)
-	// result: (ADDI [off] ptr)
-	for {
 		_ = v.Args[1]
-		ptr := v.Args[0]
-		v_1 := v.Args[1]
-		if v_1.Op != OpRISCV64MOVDconst {
-			break
+		for _i0 := 0; _i0 <= 1; _i0++ {
+			v_0 := v.Args[_i0]
+			if v_0.Op != OpRISCV64MOVDconst {
+				continue
+			}
+			off := v_0.AuxInt
+			ptr := v.Args[1^_i0]
+			if !(is32Bit(off)) {
+				continue
+			}
+			v.reset(OpRISCV64ADDI)
+			v.AuxInt = off
+			v.AddArg(ptr)
+			return true
 		}
-		off := v_1.AuxInt
-		if !(is32Bit(off)) {
-			break
-		}
-		v.reset(OpRISCV64ADDI)
-		v.AuxInt = off
-		v.AddArg(ptr)
-		return true
+		break
 	}
 	return false
 }

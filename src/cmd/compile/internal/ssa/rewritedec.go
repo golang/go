@@ -33,7 +33,7 @@ func rewriteValuedec(v *Value) bool {
 	return false
 }
 func rewriteValuedec_OpComplexImag_0(v *Value) bool {
-	// match: (ComplexImag (ComplexMake _ imag))
+	// match: (ComplexImag (ComplexMake _ imag ))
 	// result: imag
 	for {
 		v_0 := v.Args[0]
@@ -49,7 +49,7 @@ func rewriteValuedec_OpComplexImag_0(v *Value) bool {
 	return false
 }
 func rewriteValuedec_OpComplexReal_0(v *Value) bool {
-	// match: (ComplexReal (ComplexMake real _))
+	// match: (ComplexReal (ComplexMake real _ ))
 	// result: real
 	for {
 		v_0 := v.Args[0]
@@ -265,7 +265,7 @@ func rewriteValuedec_OpSliceLen_0(v *Value) bool {
 	return false
 }
 func rewriteValuedec_OpSlicePtr_0(v *Value) bool {
-	// match: (SlicePtr (SliceMake ptr _ _))
+	// match: (SlicePtr (SliceMake ptr _ _ ))
 	// result: ptr
 	for {
 		v_0 := v.Args[0]
