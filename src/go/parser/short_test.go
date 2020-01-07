@@ -98,6 +98,11 @@ var valids = []string{
 	// interfaces with (contract) type lists
 	`package p; type _ interface{type int}`,
 	`package p; type _ interface{type int, float32; type bool; m(); type string;}`,
+
+	// interfaces with parenthesized embedded and possibly parameterized interfaces
+	`package p; type I1 interface{}; type I2 interface{ (I1) }`,
+	`package p; type I1(type T) interface{}; type I2 interface{ (I1(int)) }`,
+	`package p; type I1(type T) interface{}; type I2(type T) interface{ (I1(T)) }`,
 }
 
 func TestValid(t *testing.T) {

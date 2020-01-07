@@ -18,7 +18,6 @@ var _ List(byte) = []byte{}
 
 // A generic binary tree might be declared as follows.
 type Tree(type E) struct {
-	// TODO(gri) should be able to use Tree w/o repeating type args
 	left, right *Tree(E)
 	payload E
 }
@@ -107,3 +106,43 @@ var _ T // ERROR cannot use generic type T
 // In type context, parameterized (generic) types cannot use instantiation syntax.
 // See also NOTES entry from 12/4/2019.
 var _ (T /* ERROR cannot use generic type T */ )( /* ERROR expected ';' */ int)
+
+// All types may be parameterized, including interfaces.
+type I1(type T) interface{
+	m1(T)
+}
+
+// To differentiate an instantiated interface such as I1(int) from a method
+// declaration when embedding it, we must use parentheses around it:
+type I2 interface {
+	I1(int)       // method!
+	(I1(string))  // embedded I1
+}
+
+func _() {
+	var x I2
+	x.I1(0)
+	x.m1("foo")
+}
+
+// Generally, we now allow any embedded interfaces to be parenthesized.
+// Because that removes the restriction that embedded interfaces must
+// be named, we can even "inline" interface literals (though that's of
+// little practial use - it's simply more complicated to disallow them).
+// Here are some more examples:
+type I0 interface {
+	m0()
+}
+
+type I3 interface {
+	I0
+	(I1(bool))
+	((interface{ m(string) }))
+}
+
+func _() {
+	var x I3
+	x.m0()
+	x.m1(true)
+	x.m("foo")
+}

@@ -1129,18 +1129,25 @@ func (p *parser) parseMethodSpec(scope *ast.Scope) *ast.Field {
 	doc := p.leadComment
 	var idents []*ast.Ident
 	var typ ast.Expr
-	x := p.parseTypeName(nil)
-	if ident, isIdent := x.(*ast.Ident); isIdent && p.tok == token.LPAREN {
-		// method
-		idents = []*ast.Ident{ident}
-		scope := ast.NewScope(nil) // method scope
-		tparams, params := p.parseParameters(scope, methodTypeParamsOk|variadicOk, "method")
-		results := p.parseResult(scope, true)
-		typ = &ast.FuncType{Func: token.NoPos, TParams: tparams, Params: params, Results: results}
-	} else {
-		// embedded interface
-		typ = x
-		p.resolve(typ)
+	switch p.tok {
+	case token.IDENT:
+		x := p.parseTypeName(nil)
+		if ident, isIdent := x.(*ast.Ident); isIdent && p.tok == token.LPAREN {
+			// method
+			idents = []*ast.Ident{ident}
+			scope := ast.NewScope(nil) // method scope
+			tparams, params := p.parseParameters(scope, methodTypeParamsOk|variadicOk, "method")
+			results := p.parseResult(scope, true)
+			typ = &ast.FuncType{Func: token.NoPos, TParams: tparams, Params: params, Results: results}
+		} else {
+			// embedded interface
+			typ = x
+			p.resolve(typ)
+		}
+	case token.LPAREN:
+		// embedded, possibly parameterized interface
+		// (using the enclosing parentheses to distinguish it from a method declaration)
+		typ = p.parseType(true)
 	}
 	p.expectSemi() // call before accessing p.linecomment
 
@@ -1163,7 +1170,7 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 L:
 	for {
 		switch p.tok {
-		case token.IDENT:
+		case token.IDENT, token.LPAREN:
 			mlist = append(mlist, p.parseMethodSpec(scope))
 		case token.TYPE:
 			p.next()

@@ -14,8 +14,12 @@ func (S) m(type B)(B)
  
 var _ I = S{}
 
+type E(type T) interface {
+        m(type B)(B)
+}
+
 type II interface{
-        m(type C)(C)
+        (E(int))
         mm() int
 }
 

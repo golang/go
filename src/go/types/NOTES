@@ -1,7 +1,9 @@
 This file works as a sort of notebook/implementation log. It replaces my notebook based approach
 so we have a better track record. I only switched to this file recently, hence it is incomplete.
 
+----------------------------------------------------------------------------------------------------
 TODO
+
 - type assertions on/against parameterized types
 - no need for error messages where a _ type parameter cannot be inferred (_ cannot be used)
 - use Underlying() to return a type parameter's bound? investigate!
@@ -11,16 +13,20 @@ TODO
 - improve error messages!
 - use []*TypeParam for tparams in subst? (unclear)
 
+----------------------------------------------------------------------------------------------------
 OPEN ISSUES
+
 - instantiating a parameterized function type w/o value or result parameters may have unexpected side-effects
   (we don't make a copy of the signature in some cases) - investigate
 - using a contract and enumerating type arguments currently leads to an error (e.g. func f(type T C(T)) (x T) ... )
 - leaving away unused receiver type parameters leads to an error; e.g.: "type S(type T) struct{}; func (S) _()"
-- allow parenthesized embedded interfaces so we can embed parameterized interfaces and they won't be confused
-  for methods
 - confirm that it's ok to use inference in missingMethod to compare parameterized methods
+- now that we allow parenthesized embedded interfaces, should we allow parenthesized embedded fields?
+  (probably yes, for symmetry and consistency).
 
+----------------------------------------------------------------------------------------------------
 DESIGN/IMPLEMENTATION
+
 - 11/19/2019: For type parameters with interface bounds to work, the scope of all type parameters in
   a type parameter list starts at the "type" keyword. This makes all type parameters visible for all
   type parameter bounds (interfaces that may be parameterized with the type parameters).
@@ -67,6 +73,12 @@ DESIGN/IMPLEMENTATION
   name cannot be a type parameter name declared later (or by the receiver type specification). This
   seems reasonable and should help avoid confusion which is possible otherwise.
 
-- 1/6/2020: Embedding a parameterized interface in an interface is not possible because it looks
-  like a method declaration. We probably need to find a away around this; maybe parenthesize the
-  embedded interface (which is currently not permitted, syntactically).
+- 1/7/2020: We distinguish embedded instantiated (parameterized) interfaces from methods by enclosing
+  the embedded interfaces in parentheses (the design draft recommends this change). Since this opens
+  the possibility for any parenthesized type (that is an interface), we can also allow (parenthesized)
+  interface literals as it is simpler to permit those than forbid them.
+
+- 1/7/2020: The current implementation permits empty type parameter lists as in: "func f(type)(x int)"
+  but we cannot call such a function as "f()(1)"; the empty type argument list causes problems.
+  We should either disallow empty type parameter lists or document this well.
+
