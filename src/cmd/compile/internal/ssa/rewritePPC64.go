@@ -1848,6 +1848,26 @@ func rewriteValuePPC64_OpEq16_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (Eq16 y x)
+	// cond: isSigned(x.Type) && isSigned(y.Type)
+	// result: (Equal (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+	for {
+		x := v.Args[1]
+		y := v.Args[0]
+		if !(isSigned(x.Type) && isSigned(y.Type)) {
+			break
+		}
+		v.reset(OpPPC64Equal)
+		v0 := b.NewValue0(v.Pos, OpPPC64CMPW, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpSignExt16to32, typ.Int32)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Pos, OpSignExt16to32, typ.Int32)
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (Eq16 x y)
 	// result: (Equal (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
 	for {
@@ -1934,6 +1954,26 @@ func rewriteValuePPC64_OpEq8_0(v *Value) bool {
 	for {
 		y := v.Args[1]
 		x := v.Args[0]
+		if !(isSigned(x.Type) && isSigned(y.Type)) {
+			break
+		}
+		v.reset(OpPPC64Equal)
+		v0 := b.NewValue0(v.Pos, OpPPC64CMPW, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpSignExt8to32, typ.Int32)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Pos, OpSignExt8to32, typ.Int32)
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Eq8 y x)
+	// cond: isSigned(x.Type) && isSigned(y.Type)
+	// result: (Equal (CMPW (SignExt8to32 x) (SignExt8to32 y)))
+	for {
+		x := v.Args[1]
+		y := v.Args[0]
 		if !(isSigned(x.Type) && isSigned(y.Type)) {
 			break
 		}
@@ -4677,6 +4717,26 @@ func rewriteValuePPC64_OpNeq16_0(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (Neq16 y x)
+	// cond: isSigned(x.Type) && isSigned(y.Type)
+	// result: (NotEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
+	for {
+		x := v.Args[1]
+		y := v.Args[0]
+		if !(isSigned(x.Type) && isSigned(y.Type)) {
+			break
+		}
+		v.reset(OpPPC64NotEqual)
+		v0 := b.NewValue0(v.Pos, OpPPC64CMPW, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpSignExt16to32, typ.Int32)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Pos, OpSignExt16to32, typ.Int32)
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (Neq16 x y)
 	// result: (NotEqual (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
 	for {
@@ -4763,6 +4823,26 @@ func rewriteValuePPC64_OpNeq8_0(v *Value) bool {
 	for {
 		y := v.Args[1]
 		x := v.Args[0]
+		if !(isSigned(x.Type) && isSigned(y.Type)) {
+			break
+		}
+		v.reset(OpPPC64NotEqual)
+		v0 := b.NewValue0(v.Pos, OpPPC64CMPW, types.TypeFlags)
+		v1 := b.NewValue0(v.Pos, OpSignExt8to32, typ.Int32)
+		v1.AddArg(x)
+		v0.AddArg(v1)
+		v2 := b.NewValue0(v.Pos, OpSignExt8to32, typ.Int32)
+		v2.AddArg(y)
+		v0.AddArg(v2)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (Neq8 y x)
+	// cond: isSigned(x.Type) && isSigned(y.Type)
+	// result: (NotEqual (CMPW (SignExt8to32 x) (SignExt8to32 y)))
+	for {
+		x := v.Args[1]
+		y := v.Args[0]
 		if !(isSigned(x.Type) && isSigned(y.Type)) {
 			break
 		}
