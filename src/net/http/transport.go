@@ -1559,14 +1559,15 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		if hdr == nil {
 			hdr = make(Header)
 		}
+		if pa := cm.proxyAuth(); pa != "" {
+			hdr = hdr.Clone()
+			hdr.Set("Proxy-Authorization", pa)
+		}
 		connectReq := &Request{
 			Method: "CONNECT",
 			URL:    &url.URL{Opaque: cm.targetAddr},
 			Host:   cm.targetAddr,
 			Header: hdr,
-		}
-		if pa := cm.proxyAuth(); pa != "" {
-			connectReq.Header.Set("Proxy-Authorization", pa)
 		}
 
 		// If there's no done channel (no deadline or cancellation
