@@ -178,6 +178,7 @@ type Loader struct {
 	attrReachable        bitmap // reachable symbols, indexed by global index
 	attrOnList           bitmap // "on list" symbols, indexed by global index
 	attrLocal            bitmap // "local" symbols, indexed by global index
+	attrNotInSymbolTable bitmap // "not in symtab" symbols, indexed by glob idx
 	attrVisibilityHidden bitmap // hidden symbols, indexed by ext sym index
 	attrDuplicateOK      bitmap // dupOK symbols, indexed by ext sym index
 	attrShared           bitmap // shared symbols, indexed by ext sym index
@@ -797,6 +798,22 @@ func (l *Loader) SetAttrLocal(i Sym, v bool) {
 	}
 }
 
+// AttrNotInSymbolTable returns true for symbols that should not be
+// added to the symbol table of the final generated load module.
+func (l *Loader) AttrNotInSymbolTable(i Sym) bool {
+	return l.attrNotInSymbolTable.has(i)
+}
+
+// SetAttrNotInSymbolTable the "not in symtab" property for a symbol
+// (see AttrNotInSymbolTable above).
+func (l *Loader) SetAttrNotInSymbolTable(i Sym, v bool) {
+	if v {
+		l.attrNotInSymbolTable.set(i)
+	} else {
+		l.attrNotInSymbolTable.unset(i)
+	}
+}
+
 // AttrVisibilityHidden symbols returns true for ELF symbols with
 // visibility set to STV_HIDDEN. They become local symbols in
 // the final executable. Only relevant when internally linking
@@ -1393,6 +1410,7 @@ func (l *Loader) growAttrBitmaps(reqLen int) {
 		l.attrReachable = growBitmap(reqLen, l.attrReachable)
 		l.attrOnList = growBitmap(reqLen, l.attrOnList)
 		l.attrLocal = growBitmap(reqLen, l.attrLocal)
+		l.attrNotInSymbolTable = growBitmap(reqLen, l.attrNotInSymbolTable)
 	}
 	// These are indexed by external symbol offset (e.g. i - l.extStart)
 	if l.extStart == 0 {
@@ -1552,6 +1570,7 @@ func (l *Loader) Preload(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *
 
 	ndef := r.NSym()
 	nnonpkgdef := r.NNonpkgdef()
+	l.growAttrBitmaps(int(istart) + ndef + nnonpkgdef)
 	for i, n := 0, ndef+nnonpkgdef; i < n; i++ {
 		osym := goobj2.Sym{}
 		osym.Read(r, r.SymOff(i))
@@ -1562,14 +1581,21 @@ func (l *Loader) Preload(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *
 		v := abiToVer(osym.ABI, localSymVersion)
 		dupok := osym.Dupok()
 		added := l.AddSym(name, v, istart+Sym(i), or, dupok, sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)])
-		if added && strings.HasPrefix(name, "go.itablink.") {
+		if !added {
+			continue
+		}
+		if strings.HasPrefix(name, "go.itablink.") {
 			l.itablink[istart+Sym(i)] = struct{}{}
 		}
-		if added && strings.HasPrefix(name, "runtime.") {
+		if strings.HasPrefix(name, "runtime.") {
 			if bi := goobj2.BuiltinIdx(name, v); bi != -1 {
 				// This is a definition of a builtin symbol. Record where it is.
 				l.builtinSyms[bi] = istart + Sym(i)
 			}
+		}
+		if strings.HasPrefix(name, "go.string.") ||
+			strings.HasPrefix(name, "runtime.gcbits.") {
+			l.SetAttrNotInSymbolTable(istart+Sym(i), true)
 		}
 	}
 
@@ -2030,6 +2056,7 @@ func (l *Loader) copyAttributes(src Sym, dst Sym) {
 	l.SetAttrReachable(dst, l.AttrReachable(src))
 	l.SetAttrOnList(dst, l.AttrOnList(src))
 	l.SetAttrLocal(dst, l.AttrLocal(src))
+	l.SetAttrNotInSymbolTable(dst, l.AttrNotInSymbolTable(src))
 	l.SetAttrVisibilityHidden(dst, l.AttrVisibilityHidden(src))
 	l.SetAttrDuplicateOK(dst, l.AttrDuplicateOK(src))
 	l.SetAttrShared(dst, l.AttrShared(src))
@@ -2047,6 +2074,7 @@ func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {
 	dst.Attr.Set(sym.AttrReachable, l.AttrReachable(src))
 	dst.Attr.Set(sym.AttrOnList, l.AttrOnList(src))
 	dst.Attr.Set(sym.AttrLocal, l.AttrLocal(src))
+	dst.Attr.Set(sym.AttrNotInSymbolTable, l.AttrNotInSymbolTable(src))
 	dst.Attr.Set(sym.AttrVisibilityHidden, l.AttrVisibilityHidden(src))
 	dst.Attr.Set(sym.AttrDuplicateOK, l.AttrDuplicateOK(src))
 	dst.Attr.Set(sym.AttrShared, l.AttrShared(src))
