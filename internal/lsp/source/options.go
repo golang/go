@@ -51,7 +51,7 @@ var (
 		Hooks:               DefaultHooks,
 	}
 	DefaultClientOptions = ClientOptions{
-		InsertTextFormat:              protocol.SnippetTextFormat,
+		InsertTextFormat:              protocol.PlainTextTextFormat,
 		PreferredContentFormat:        protocol.Markdown,
 		ConfigurationSupported:        true,
 		DynamicConfigurationSupported: true,
