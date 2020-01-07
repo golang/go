@@ -37,14 +37,24 @@ func swapswap(type A, B)(a A, b B) (A, B) {
         return swap(B, A)(b, a)
 }
 
-// type F(type A, B) func(A, B) (B, A)
+type F(type A, B) func(A, B) (B, A)
 
-func min(type T)(x, y T) T {
-        //if x < y {
-        //        return x
-        //}
+func min(type T interface{ type int })(x, y T) T {
+        if x < y {
+                return x
+        }
         return y
 }
+
+func _(type T interface{type int, float32})(x, y T) bool { return x < y }
+func _(type T)(x, y T) bool { return x /* ERROR cannot compare */ < y }
+func _(type T interface{type int, float32, bool})(x, y T) bool { return x /* ERROR cannot compare */ < y }
+
+func _(type T C1)(x, y T) bool { return x /* ERROR cannot compare */ < y }
+func _(type T C2)(x, y T) bool { return x < y }
+
+contract C1(T) {}
+contract C2(T) { T int, float32 }
 
 func new(type T)() *T {
         var x T

@@ -259,7 +259,7 @@ func (t *Interface) is(pred func(Type) bool) bool {
 			return false
 		}
 	}
-	return true
+	return len(t.allTypes) > 0 // we must have at least one type! (was bug)
 }
 
 // emptyInterface represents the empty (completed) interface
