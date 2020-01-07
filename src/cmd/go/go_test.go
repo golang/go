@@ -2045,14 +2045,6 @@ func TestCoverageRuns(t *testing.T) {
 	checkCoverage(tg, data)
 }
 
-func TestCoverageNoStatements(t *testing.T) {
-	tooSlow(t)
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("test", "-cover", "./testdata/testcover/pkg4")
-	tg.grepStdout("[no statements]", "expected [no statements] for pkg4")
-}
-
 func TestTestEmpty(t *testing.T) {
 	if !canRace {
 		t.Skip("no race detector")
