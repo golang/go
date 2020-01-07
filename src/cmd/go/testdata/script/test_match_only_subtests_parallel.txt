@@ -1,3 +1,10 @@
+# Matches only subtests, parallel
+go test -run Test/Sub/Nested standalone_parallel_sub_test.go
+! stdout '^ok.*\[no tests to run\]'
+! stderr '^ok.*\[no tests to run\]'
+stdout '^ok'
+
+-- standalone_parallel_sub_test.go --
 package standalone_parallel_sub_test
 
 import "testing"
