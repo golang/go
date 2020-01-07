@@ -96,7 +96,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnosti
 		t.Fatal(err)
 	}
 	identity := fh.Identity()
-	results, _, err := source.Diagnostics(r.ctx, v.Snapshot(), fh, true, nil)
+	results, _, err := source.FileDiagnostics(r.ctx, v.Snapshot(), fh, true, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -350,7 +350,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 		t.Fatal(err)
 	}
 	fileID := fh.Identity()
-	diagnostics, _, err := source.Diagnostics(r.ctx, snapshot, fh, true, nil)
+	diagnostics, _, err := source.FileDiagnostics(r.ctx, snapshot, fh, true, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

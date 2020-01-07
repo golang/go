@@ -37,30 +37,20 @@ func (s *Server) diagnoseSnapshot(ctx context.Context, snapshot source.Snapshot)
 		return
 	}
 	for _, id := range wsPackages {
-		ph, err := snapshot.PackageHandle(ctx, id)
-		if err != nil {
-			log.Error(ctx, "diagnoseSnapshot: no PackageHandle for workspace package", err, telemetry.Package.Of(id))
-			continue
-		}
-		if len(ph.CompiledGoFiles()) == 0 {
-			continue
-		}
-		// Find a file on which to call diagnostics.
-		uri := ph.CompiledGoFiles()[0].File().Identity().URI
-		fh, err := snapshot.GetFile(ctx, uri)
-		if err != nil {
-			continue
-		}
-		// Run diagnostics on the workspace package.
-		go func(snapshot source.Snapshot, fh source.FileHandle) {
-			reports, _, err := source.Diagnostics(ctx, snapshot, fh, false, snapshot.View().Options().DisabledAnalyses)
+		go func(id string) {
+			ph, err := snapshot.PackageHandle(ctx, id)
 			if err != nil {
-				log.Error(ctx, "no diagnostics", err, telemetry.URI.Of(fh.Identity().URI))
+				log.Error(ctx, "diagnoseSnapshot: no PackageHandle for workspace package", err, telemetry.Package.Of(id))
+				return
+			}
+			reports, _, err := source.PackageDiagnostics(ctx, snapshot, ph, false, snapshot.View().Options().DisabledAnalyses)
+			if err != nil {
+				log.Error(ctx, "diagnoseSnapshot: no diagnostics", err, telemetry.Package.Of(ph.ID()))
 				return
 			}
 			// Don't publish empty diagnostics.
 			s.publishReports(ctx, reports, false)
-		}(snapshot, fh)
+		}(id)
 	}
 	// Run diagnostics on the go.mod file.
 	s.diagnoseModfile(snapshot)
@@ -73,7 +63,7 @@ func (s *Server) diagnoseFile(snapshot source.Snapshot, fh source.FileHandle) {
 
 	ctx = telemetry.File.With(ctx, fh.Identity().URI)
 
-	reports, warningMsg, err := source.Diagnostics(ctx, snapshot, fh, true, snapshot.View().Options().DisabledAnalyses)
+	reports, warningMsg, err := source.FileDiagnostics(ctx, snapshot, fh, true, snapshot.View().Options().DisabledAnalyses)
 	// Check the warning message first.
 	if warningMsg != "" {
 		s.client.ShowMessage(ctx, &protocol.ShowMessageParams{

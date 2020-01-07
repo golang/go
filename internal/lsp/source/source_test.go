@@ -90,7 +90,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnosti
 		t.Fatal(err)
 	}
 	fileID := fh.Identity()
-	results, _, err := source.Diagnostics(r.ctx, snapshot, fh, true, nil)
+	results, _, err := source.FileDiagnostics(r.ctx, snapshot, fh, true, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -40,10 +40,7 @@ type RelatedInformation struct {
 	Message string
 }
 
-func Diagnostics(ctx context.Context, snapshot Snapshot, fh FileHandle, withAnalysis bool, disabledAnalyses map[string]struct{}) (map[FileIdentity][]Diagnostic, string, error) {
-	ctx, done := trace.StartSpan(ctx, "source.Diagnostics", telemetry.File.Of(fh.Identity().URI))
-	defer done()
-
+func FileDiagnostics(ctx context.Context, snapshot Snapshot, fh FileHandle, withAnalysis bool, disabledAnalyses map[string]struct{}) (map[FileIdentity][]Diagnostic, string, error) {
 	if fh.Identity().Kind != Go {
 		return nil, "", errors.Errorf("unexpected file type: %q", fh.Identity().URI.Filename)
 	}
@@ -63,14 +60,24 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, fh FileHandle, withAnal
 			log.Error(ctx, "error checking common errors", err, telemetry.File.Of(fh.Identity().URI))
 		}
 	}
+	reports, msg, err := PackageDiagnostics(ctx, snapshot, ph, withAnalysis, disabledAnalyses)
+	if warningMsg == "" {
+		warningMsg = msg
+	}
+	return reports, warningMsg, err
+}
+
+func PackageDiagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, withAnalysis bool, disabledAnalyses map[string]struct{}) (map[FileIdentity][]Diagnostic, string, error) {
 	pkg, err := ph.Check(ctx)
 	if err != nil {
 		return nil, "", err
 	}
+	var warningMsg string
 	// If we have a package with a single file and errors about "undeclared" symbols,
 	// we may have an ad-hoc package with multiple files. Show a warning message.
 	// TODO(golang/go#36416): Remove this when golang.org/cl/202277 is merged.
-	if warningMsg == "" && len(pkg.CompiledGoFiles()) == 1 && hasUndeclaredErrors(pkg) {
+	if len(pkg.CompiledGoFiles()) == 1 && hasUndeclaredErrors(pkg) {
+		fh := pkg.CompiledGoFiles()[0].File()
 		if warningMsg, err = checkCommonErrors(ctx, snapshot.View(), fh.Identity().URI); err != nil {
 			log.Error(ctx, "error checking common errors", err, telemetry.File.Of(fh.Identity().URI))
 		}
@@ -86,9 +93,13 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, fh FileHandle, withAnal
 		if e.Kind != ListError {
 			continue
 		}
-		// If no file is associated with the error, default to the current file.
+		// If no file is associated with the error, pick an open file from the package.
 		if e.File.URI.Filename() == "" {
-			e.File = fh.Identity()
+			for _, ph := range pkg.CompiledGoFiles() {
+				if snapshot.View().Session().IsOpen(ph.File().Identity().URI) {
+					e.File = ph.File().Identity()
+				}
+			}
 		}
 		clearReports(snapshot, reports, e.File)
 	}
@@ -98,9 +109,9 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, fh FileHandle, withAnal
 		if err := analyses(ctx, snapshot, ph, disabledAnalyses, reports); err != nil {
 			// Exit early if the context has been canceled.
 			if err == context.Canceled {
-				return nil, "", err
+				return nil, warningMsg, err
 			}
-			log.Error(ctx, "failed to run analyses", err, telemetry.File.Of(fh.Identity().URI))
+			log.Error(ctx, "failed to run analyses", err, telemetry.Package.Of(ph.ID()))
 		}
 	}
 	// Updates to the diagnostics for this package may need to be propagated.
