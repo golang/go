@@ -6696,7 +6696,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "HMULQ",
 		argLen:       2,
-		commutative:  true,
 		clobberFlags: true,
 		asm:          x86.AIMULQ,
 		reg: regInfo{
@@ -6713,7 +6712,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "HMULL",
 		argLen:       2,
-		commutative:  true,
 		clobberFlags: true,
 		asm:          x86.AIMULL,
 		reg: regInfo{
@@ -6730,7 +6728,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "HMULQU",
 		argLen:       2,
-		commutative:  true,
 		clobberFlags: true,
 		asm:          x86.AMULQ,
 		reg: regInfo{
@@ -6747,7 +6744,6 @@ var opcodeTable = [...]opInfo{
 	{
 		name:         "HMULLU",
 		argLen:       2,
-		commutative:  true,
 		clobberFlags: true,
 		asm:          x86.AMULL,
 		reg: regInfo{
