@@ -269,6 +269,8 @@ func Import(path string) (m module.Version, dir string, err error) {
 		return module.Version{}, "", &ImportMissingError{Path: path}
 	}
 
+	fmt.Fprintf(os.Stderr, "go: finding module for package %s\n", path)
+
 	candidates, err := QueryPackage(path, "latest", Allowed)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
