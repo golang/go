@@ -112,7 +112,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
 
 // func pipe() (r, w int32, errno int32)
 TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
-	ADD	$8, RSP, R0
+	MOVD	$r+0(FP), R0
 	MOVW	$0, R1
 	MOVW	$SYS_pipe2, R8
 	SVC
@@ -121,7 +121,7 @@ TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
 
 // func pipe2(flags int32) (r, w int32, errno int32)
 TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
-	ADD	$16, RSP, R0
+	MOVD	$r+8(FP), R0
 	MOVW	flags+0(FP), R1
 	MOVW	$SYS_pipe2, R8
 	SVC
