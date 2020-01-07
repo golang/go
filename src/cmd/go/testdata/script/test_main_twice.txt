@@ -1,6 +1,6 @@
 [short] skip
 
-env GOCACHE=$TMPDIR
+env GOCACHE=$WORK/tmp
 go test -v multimain
 stdout -count=2 notwithstanding # check tests ran twice
 
