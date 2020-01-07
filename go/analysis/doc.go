@@ -70,39 +70,6 @@ A driver may use the name, flags, and documentation to provide on-line
 help that describes the analyses it performs.
 The doc comment contains a brief one-line summary,
 optionally followed by paragraphs of explanation.
-The vet command, shown below, is an example of a driver that runs
-multiple analyzers. It is based on the multichecker package
-(see the "Standalone commands" section for details).
-
-	$ go build golang.org/x/tools/go/analysis/cmd/vet
-	$ ./vet help
-	vet is a tool for static analysis of Go programs.
-
-	Usage: vet [-flag] [package]
-
-	Registered analyzers:
-
-	    asmdecl      report mismatches between assembly files and Go declarations
-	    assign       check for useless assignments
-	    atomic       check for common mistakes using the sync/atomic package
-	    ...
-	    unusedresult check for unused results of calls to some functions
-
-	$ ./vet help unusedresult
-	unusedresult: check for unused results of calls to some functions
-
-	Analyzer flags:
-
-	  -unusedresult.funcs value
-	        comma-separated list of functions whose results must be used (default Error,String)
-	  -unusedresult.stringmethods value
-	        comma-separated list of names of methods of type func() string whose results must be used
-
-	Some functions like fmt.Errorf return a result and have no side effects,
-	so it is always a mistake to discard the result. This analyzer reports
-	calls to certain functions in which the result of the call is ignored.
-
-	The set of functions may be controlled using flags.
 
 The Analyzer type has more fields besides those shown above:
 
