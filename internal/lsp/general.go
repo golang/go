@@ -17,6 +17,7 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
+	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
 )
 
@@ -165,11 +166,13 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 
 	for _, folder := range folders {
 		uri := span.NewURI(folder.URI)
-		_, snapshot, err := s.addView(ctx, folder.Name, span.NewURI(folder.URI))
+		view, snapshot, err := s.addView(ctx, folder.Name, span.NewURI(folder.URI))
 		if err != nil {
 			viewErrors[uri] = err
 			continue
 		}
+		// Make sure that this does not get canceled.
+		ctx := xcontext.Detach(view.BackgroundContext())
 		go s.diagnoseSnapshot(ctx, snapshot)
 	}
 	if len(viewErrors) > 0 {

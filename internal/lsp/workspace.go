@@ -10,6 +10,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
 )
 
@@ -52,6 +53,8 @@ func (s *Server) updateConfiguration(ctx context.Context, changed interface{}) e
 		if err != nil {
 			return err
 		}
+		// Make sure that this does not get canceled.
+		ctx := xcontext.Detach(view.BackgroundContext())
 		go s.diagnoseSnapshot(ctx, view.Snapshot())
 	}
 	return nil
