@@ -200,8 +200,11 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams 
 		// and result values, corresponding parameter and result types are identical,
 		// and either both functions are variadic or neither is. Parameter and result
 		// names are not required to match.
+		// Generic functions must also have matching type parameter lists, but for the
+		// parameter names.
 		if y, ok := y.(*Signature); ok {
 			return x.variadic == y.variadic &&
+				check.identicalTParams(x.tparams, y.tparams, cmpTags, p, tparams) &&
 				check.identical0(x.params, y.params, cmpTags, p, tparams) &&
 				check.identical0(x.results, y.results, cmpTags, p, tparams)
 		}
@@ -329,6 +332,19 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams 
 	}
 
 	return false
+}
+
+func (check *Checker) identicalTParams(x, y []*TypeName, cmpTags bool, p *ifacePair, tparams []Type) bool {
+	if len(x) != len(y) {
+		return false
+	}
+	for i, x := range x {
+		y := y[i]
+		if !check.identical0(x.typ.(*TypeParam).bound, y.typ.(*TypeParam).bound, cmpTags, p, tparams) {
+			return false
+		}
+	}
+	return true
 }
 
 // Default returns the default "typed" type for an "untyped" type;

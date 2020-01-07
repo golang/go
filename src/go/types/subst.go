@@ -79,28 +79,8 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		// the parameterized type.
 		iface = check.subst(pos, iface, tparams, targs).(*Interface)
 
-		// update targ method signatures
-		// TODO(gri) This needs documentation and clean up!
-		update := func(V Type, sig *Signature) *Signature {
-			V, _ = deref(V)
-			// check.dump(">>> %s: V = %s", pos, V)
-			var targs []Type
-			if vnamed, _ := V.(*Named); vnamed != nil {
-				targs = vnamed.targs
-			} else {
-				// nothing to do
-				return sig
-			}
-			// check.dump(">>> %s: targs = %s", pos, targs)
-			// check.dump(">>> %s: sig.mtparams = %s", pos, sig.mtparams)
-			// check.dump(">>> %s: sig before: %s, tparams = %s, targs = %s", pos, sig, sig.mtparams, targs)
-			sig = check.subst(pos, sig, sig.rparams, targs).(*Signature)
-			// check.dump(">>> %s: sig after : %s", pos, sig)
-			return sig
-		}
-
 		// targ must implement iface (methods)
-		if m, _ := check.missingMethod(targ, iface, true, update); m != nil {
+		if m, _ := check.missingMethod(targ, iface, true); m != nil {
 			// TODO(gri) needs to print updated name to avoid major confusion in error message!
 			//           (print warning for now)
 			check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", targ, tpar.bound, iface, m)

@@ -18,6 +18,7 @@ OPEN ISSUES
 - leaving away unused receiver type parameters leads to an error; e.g.: "type S(type T) struct{}; func (S) _()"
 - allow parenthesized embedded interfaces so we can embed parameterized interfaces and they won't be confused
   for methods
+- confirm that it's ok to use inference in missingMethod to compare parameterized methods
 
 DESIGN/IMPLEMENTATION
 - 11/19/2019: For type parameters with interface bounds to work, the scope of all type parameters in

@@ -265,7 +265,7 @@ func (check *Checker) lookupType(m map[Type]int, typ Type) (int, bool) {
 // x is of interface type V).
 //
 func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
-	m, typ := (*Checker)(nil).missingMethod(V, T, static, nil)
+	m, typ := (*Checker)(nil).missingMethod(V, T, static)
 	return m, typ != nil
 }
 
@@ -273,15 +273,11 @@ func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType b
 // The receiver may be nil if missingMethod is invoked through
 // an exported API call (such as MissingMethod), i.e., when all
 // methods have been type-checked.
-// If a non-nil update function is provided, it is used to update
-// the method types of V before comparing them with the methods
-// of V (usually be renaming type parameters so they can be
-// compared).
 // If the type has the correctly named method, but with the wrong
 // signature, the existing method is returned as well.
 // To improve error messages, also report the wrong signature
 // when the method exists on *V instead of V.
-func (check *Checker) missingMethod(V Type, T *Interface, static bool, update func(V Type, sig *Signature) *Signature) (method, wrongType *Func) {
+func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, wrongType *Func) {
 	check.completeInterface(token.NoPos, T)
 
 	// fast path for common case
@@ -302,7 +298,24 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool, update fu
 				continue
 			}
 
-			if !check.identical(f.typ, m.typ) {
+			// both methods must have the same number of type parameters
+			ftyp := f.typ.(*Signature)
+			mtyp := m.typ.(*Signature)
+			if len(ftyp.tparams) != len(mtyp.tparams) {
+				return m, f
+			}
+
+			// If the methods have type parameters we don't care whether they
+			// are the same or not, as long as they match up. Use inference
+			// comparison in that case.
+			// TODO(gri) is this always correct? what about type bounds?
+			// (Alternative is to rename/subst type parameters and compare.)
+			var tparams []Type
+			if len(mtyp.tparams) > 0 {
+				tparams = make([]Type, len(mtyp.tparams))
+			}
+
+			if !check.identical0(ftyp, mtyp, true, nil, tparams) {
 				return m, f
 			}
 		}
@@ -311,6 +324,8 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool, update fu
 	}
 
 	// A concrete type implements T if it implements all methods of T.
+	Vd, _ := deref(V)
+	Vn, _ := Vd.(*Named)
 	for _, m := range T.allMethods {
 		obj, _, _ := check.rawLookupFieldOrMethod(V, false, m.pkg, m.name)
 
@@ -334,13 +349,35 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool, update fu
 			check.objDecl(f, nil)
 		}
 
-		// update (generic) method signatures before comparing them
+		// both methods must have the same number of type parameters
 		ftyp := f.typ.(*Signature)
-		if update != nil {
-			ftyp = update(V, ftyp)
+		mtyp := m.typ.(*Signature)
+		if len(ftyp.tparams) != len(mtyp.tparams) {
+			return m, f
 		}
 
-		if !check.identical(ftyp, m.typ) {
+		// If V is a (instantiated) generic type, its methods are still
+		// parameterized using the original (declaration) receiver type
+		// parameters (subst simply copies the existing method list, it
+		// does not instantiate the methods).
+		// In order to compare the signatures, substitute the receiver
+		// type parameters of ftyp with V's instantiation type arguments.
+		// This lazily instantiates the method f.
+		if Vn != nil {
+			ftyp = check.subst(token.NoPos, ftyp, ftyp.rparams, Vn.targs).(*Signature)
+		}
+
+		// If the methods have type parameters we don't care whether they
+		// are the same or not, as long as they match up. Use inference
+		// comparison in that case.
+		// TODO(gri) is this always correct? what about type bounds?
+		// (Alternative is to rename/subst type parameters and compare.)
+		var tparams []Type
+		if len(mtyp.tparams) > 0 {
+			tparams = make([]Type, len(mtyp.tparams))
+		}
+
+		if !check.identical0(ftyp, mtyp, true, nil, tparams) {
 			return m, f
 		}
 	}
@@ -360,7 +397,7 @@ func (check *Checker) assertableTo(V *Interface, T Type) (method, wrongType *Fun
 	if _, ok := T.Underlying().(*Interface); ok && !strict {
 		return
 	}
-	return check.missingMethod(T, V, false, nil)
+	return check.missingMethod(T, V, false)
 }
 
 // deref dereferences typ if it is a *Pointer and returns its base and true.
