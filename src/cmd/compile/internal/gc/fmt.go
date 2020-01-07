@@ -1731,6 +1731,8 @@ func typeFormat(t *types.Type, s fmt.State, verb rune, mode fmtMode) {
 	}
 }
 
+var deepTypes map[*types.Type]string
+
 // See #16897 before changing the implementation of tconv.
 func tconv(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 	if t == nil {
@@ -1747,8 +1749,19 @@ func tconv(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 	// limits the depths of valid composite types, but they are likely
 	// artificially created.
 	// TODO(gri) should have proper cycle detection here, eventually (issue #29312)
+	// For now, ensure that each of these really deep types are at least uniquely
+	// named, so that such types don't collide in the linker and thus allow security holes.
 	if depth > 250 {
-		return "<...>"
+		if str := deepTypes[t]; str != "" {
+			return str
+		}
+		if deepTypes == nil {
+			deepTypes = map[*types.Type]string{}
+		}
+		id := len(deepTypes)
+		str := fmt.Sprintf("<...uniquetype_%d_in_%s>", id, curpkg().Path)
+		deepTypes[t] = str
+		return str
 	}
 
 	flag, mode = flag.update(mode)
