@@ -2386,33 +2386,6 @@ func TestGoBuildTestOnly(t *testing.T) {
 	tg.run("install", "./testonly...")
 }
 
-func TestGoTestFooTestWorks(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("test", "testdata/standalone_test.go")
-}
-
-func TestGoTestTestMainSeesTestingFlags(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("test", "testdata/standalone_testmain_flag_test.go")
-}
-
-// Issue 22388
-func TestGoTestMainWithWrongSignature(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.runFail("test", "testdata/standalone_main_wrong_test.go")
-	tg.grepStderr(`wrong signature for TestMain, must be: func TestMain\(m \*testing.M\)`, "detected wrong error message")
-}
-
-func TestGoTestMainAsNormalTest(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("test", "testdata/standalone_main_normal_test.go")
-	tg.grepBoth(okPattern, "go test did not say ok")
-}
-
 func TestGoTestXtestonlyWorks(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -3300,96 +3273,6 @@ const (
 	okPattern        = `(?m)^ok`
 )
 
-func TestMatchesNoTests(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	// TODO: tg.parallel()
-	tg.run("test", "-run", "ThisWillNotMatch", "testdata/standalone_test.go")
-	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
-}
-
-func TestMatchesNoBenchmarksIsOK(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	// TODO: tg.parallel()
-	tg.run("test", "-run", "^$", "-bench", "ThisWillNotMatch", "testdata/standalone_benchmark_test.go")
-	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
-	tg.grepBoth(okPattern, "go test did not say ok")
-}
-
-func TestMatchesOnlyBenchmarkIsOK(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	// TODO: tg.parallel()
-	tg.run("test", "-run", "^$", "-bench", ".", "testdata/standalone_benchmark_test.go")
-	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
-	tg.grepBoth(okPattern, "go test did not say ok")
-}
-
-func TestBenchmarkLabelsOutsideGOPATH(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	// TODO: tg.parallel()
-	tg.run("test", "-run", "^$", "-bench", ".", "testdata/standalone_benchmark_test.go")
-	tg.grepStdout(`(?m)^goos: `+runtime.GOOS, "go test did not print goos")
-	tg.grepStdout(`(?m)^goarch: `+runtime.GOARCH, "go test did not print goarch")
-	tg.grepBothNot(`(?m)^pkg:`, "go test did say pkg:")
-}
-
-func TestMatchesOnlyTestIsOK(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	// TODO: tg.parallel()
-	tg.run("test", "-run", "Test", "testdata/standalone_test.go")
-	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
-	tg.grepBoth(okPattern, "go test did not say ok")
-}
-
-func TestMatchesNoTestsWithSubtests(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("test", "-run", "ThisWillNotMatch", "testdata/standalone_sub_test.go")
-	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
-}
-
-func TestMatchesNoSubtestsMatch(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("test", "-run", "Test/ThisWillNotMatch", "testdata/standalone_sub_test.go")
-	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
-}
-
-func TestMatchesNoSubtestsDoesNotOverrideFailure(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.runFail("test", "-run", "TestThatFails/ThisWillNotMatch", "testdata/standalone_fail_sub_test.go")
-	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
-	tg.grepBoth("FAIL", "go test did not say FAIL")
-}
-
-func TestMatchesOnlySubtestIsOK(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("test", "-run", "Test/Sub", "testdata/standalone_sub_test.go")
-	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
-	tg.grepBoth(okPattern, "go test did not say ok")
-}
-
-func TestMatchesNoSubtestsParallel(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("test", "-run", "Test/Sub/ThisWillNotMatch", "testdata/standalone_parallel_sub_test.go")
-	tg.grepBoth(noMatchesPattern, "go test did not say [no tests to run]")
-}
-
-func TestMatchesOnlySubtestParallelIsOK(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("test", "-run", "Test/Sub/Nested", "testdata/standalone_parallel_sub_test.go")
-	tg.grepBothNot(noMatchesPattern, "go test did say [no tests to run]")
-	tg.grepBoth(okPattern, "go test did not say ok")
-}
-
 // Issue 18845
 func TestBenchTimeout(t *testing.T) {
 	tooSlow(t)
@@ -3887,18 +3770,6 @@ func TestExecBuildX(t *testing.T) {
 		t.Fatal("no WORK directory")
 	}
 	tg.must(robustio.RemoveAll(matches[1]))
-}
-
-func TestParallelNumber(t *testing.T) {
-	tooSlow(t)
-	for _, n := range [...]string{"-1", "0"} {
-		t.Run(n, func(t *testing.T) {
-			tg := testgo(t)
-			defer tg.cleanup()
-			tg.runFail("test", "-parallel", n, "testdata/standalone_parallel_sub_test.go")
-			tg.grepBoth("-parallel can only be given", "go test -parallel with N<1 did not error")
-		})
-	}
 }
 
 func TestWrongGOOSErrorBeforeLoadError(t *testing.T) {
