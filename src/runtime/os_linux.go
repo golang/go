@@ -343,7 +343,7 @@ func minit() {
 	minitSignals()
 
 	// Cgo-created threads and the bootstrap m are missing a
-	// procid. We need this for asynchronous preemption and its
+	// procid. We need this for asynchronous preemption and it's
 	// useful in debuggers.
 	getg().m.procid = uint64(gettid())
 }
