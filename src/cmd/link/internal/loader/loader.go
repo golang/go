@@ -225,6 +225,7 @@ type extSymPayload struct {
 	size   int64
 	ver    int
 	kind   sym.SymKind
+	gotype Sym // Gotype (0 if not present)
 	relocs []Reloc
 	data   []byte
 }
@@ -1524,6 +1525,9 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 		s.Type = pp.kind
 		s.Size = pp.size
 		s.Value = l.SymValue(i)
+		if pp.gotype != 0 {
+			s.Gotype = l.Syms[pp.gotype]
+		}
 
 		// Copy relocations
 		batch := l.relocBatch
@@ -1820,6 +1824,20 @@ func (l *Loader) cloneToExternal(symIdx Sym) Sym {
 		// Copy read-only attr
 		if r.ReadOnly() {
 			l.attrReadOnly[ns] = true
+		}
+	}
+
+	// If we're overriding a data symbol, collect the associated
+	// Gotype, so as to propagate it to the new symbol.
+	naux := r.NAux(li)
+	for j := 0; j < naux; j++ {
+		a := goobj2.Aux{}
+		a.Read(r.Reader, r.AuxOff(li, j))
+		switch a.Type {
+		case goobj2.AuxGotype:
+			pp.gotype = l.resolve(r, a.Sym)
+		default:
+			log.Fatalf("internal error: cloneToExternal applied to %s symbol %s with non-gotype aux data %d", skind.String(), sname, a.Type)
 		}
 	}
 
