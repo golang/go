@@ -1202,7 +1202,7 @@ func TestSingleJoinSlash(t *testing.T) {
 	}
 	for _, tt := range tests {
 		if got := singleJoiningSlash(tt.slasha, tt.slashb); got != tt.expected {
-			t.Errorf("singleJoiningSlash(%s,%s) want %s got %s",
+			t.Errorf("singleJoiningSlash(%q,%q) want %q got %q",
 				tt.slasha,
 				tt.slashb,
 				tt.expected,
@@ -1213,10 +1213,10 @@ func TestSingleJoinSlash(t *testing.T) {
 
 func TestJoinURLPath(t *testing.T) {
 	tests := []struct {
-		a       *url.URL
-		b       *url.URL
-		path    string
-		rawpath string
+		a        *url.URL
+		b        *url.URL
+		wantPath string
+		wantRaw  string
 	}{
 		{&url.URL{Path: "/a/b"}, &url.URL{Path: "/c"}, "/a/b/c", ""},
 		{&url.URL{Path: "/a/b", RawPath: "badpath"}, &url.URL{Path: "c"}, "/a/b/c", "/a/b/c"},
@@ -1228,11 +1228,11 @@ func TestJoinURLPath(t *testing.T) {
 
 	for _, tt := range tests {
 		p, rp := joinURLPath(tt.a, tt.b)
-		if p != tt.path || rp != tt.rawpath {
-			t.Errorf("joinURLPath(URL(%s,%s),URL(%s,%s)) want (%s,%s) got (%s,%s)",
+		if p != tt.wantPath || rp != tt.wantRaw {
+			t.Errorf("joinURLPath(URL(%q,%q),URL(%q,%q)) want (%q,%q) got (%q,%q)",
 				tt.a.Path, tt.a.RawPath,
 				tt.b.Path, tt.b.RawPath,
-				tt.path, tt.rawpath,
+				tt.wantPath, tt.wantRaw,
 				p, rp)
 		}
 	}
