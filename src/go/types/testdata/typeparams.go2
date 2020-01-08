@@ -137,8 +137,8 @@ type T struct {}
 
 func (T) m1() {}
 // Experimental: We allow method type parameters.
-// func (T) m2( /* ERROR method must have no type parameters */ type)() {}
-// func (T) m3( /* ERROR method must have no type parameters */ type P)() {}
+func (T) m2(type)() {}
+func (T) m3(type P)() {}
 
 // type inference across parameterized types
 

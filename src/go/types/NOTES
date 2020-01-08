@@ -1,5 +1,5 @@
 This file works as a sort of notebook/implementation log. It replaces my notebook based approach
-so we have a better track record. I only switched to this file recently, hence it is incomplete.
+so we have a better track record. I only switched to this file in Nov 2019, hence it is incomplete.
 
 ----------------------------------------------------------------------------------------------------
 TODO
@@ -81,4 +81,3 @@ DESIGN/IMPLEMENTATION
 - 1/7/2020: The current implementation permits empty type parameter lists as in: "func f(type)(x int)"
   but we cannot call such a function as "f()(1)"; the empty type argument list causes problems.
   We should either disallow empty type parameter lists or document this well.
-

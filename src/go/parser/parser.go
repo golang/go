@@ -2785,16 +2785,16 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	pos := p.expect(token.FUNC)
 	scope := ast.NewScope(p.topScope) // function scope
 
-	mode := typeParamsOk | variadicOk
+	mode := typeParamsOk
 	var recv *ast.FieldList
 	if p.tok == token.LPAREN {
 		_, recv = p.parseParameters(scope, 0, "receiver")
-		mode &^= typeParamsOk
+		mode = 0
 	}
 
 	ident := p.parseIdent()
 
-	tparams, params := p.parseParameters(scope, mode|methodTypeParamsOk, "method") // context string only used in methods
+	tparams, params := p.parseParameters(scope, mode|methodTypeParamsOk|variadicOk, "method") // context string only used in methods
 	results := p.parseResult(scope, true)
 
 	var body *ast.BlockStmt

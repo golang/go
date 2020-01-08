@@ -526,7 +526,8 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		}
 		x.mode = value
 		x.typ = &Signature{
-			params:   NewTuple(append([]*Var{NewVar(token.NoPos, check.pkg, "", x.typ)}, params...)...),
+			tparams:  sig.tparams,
+			params:   NewTuple(append([]*Var{NewVar(token.NoPos, check.pkg, "_", x.typ)}, params...)...),
 			results:  sig.results,
 			variadic: sig.variadic,
 		}
