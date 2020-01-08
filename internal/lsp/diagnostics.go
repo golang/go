@@ -130,9 +130,22 @@ func (s *Server) publishReports(ctx context.Context, reports map[source.FileIden
 			sorted:     diagnostics,
 		}
 		delivered, ok := s.delivered[fileID.URI]
+		// If diagnostics are empty and not previously delivered,
+		// only send them if we are publishing empty diagnostics.
+		if !ok && len(diagnostics) == 0 && !publishEmpty {
+			// Update the delivered map to cache the diagnostics.
+			s.delivered[fileID.URI] = toSend
+			continue
+		}
 		// Reuse equivalent cached diagnostics for subsequent file versions (if known),
 		// or identical files (if versions are not known).
 		if ok {
+			// If the file is open, and we've already delivered diagnostics for
+			// a later version, do nothing. This only works for open files,
+			// since their contents in the editor are the source of truth.
+			if s.session.IsOpen(fileID.URI) && fileID.Version < delivered.version {
+				continue
+			}
 			geqVersion := fileID.Version >= delivered.version && delivered.version > 0
 			noVersions := (fileID.Version == 0 && delivered.version == 0) && delivered.identifier == fileID.Identifier
 			if (geqVersion || noVersions) && equalDiagnostics(delivered.sorted, diagnostics) {
@@ -141,13 +154,7 @@ func (s *Server) publishReports(ctx context.Context, reports map[source.FileIden
 				continue
 			}
 		}
-		// If diagnostics are empty and not previously delivered,
-		// only send them if we are publishing empty diagnostics.
-		if !ok && len(diagnostics) == 0 && !publishEmpty {
-			// Update the delivered map to cache the diagnostics.
-			s.delivered[fileID.URI] = toSend
-			continue
-		}
+
 		if err := s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
 			Diagnostics: toProtocolDiagnostics(ctx, diagnostics),
 			URI:         protocol.NewURI(fileID.URI),
