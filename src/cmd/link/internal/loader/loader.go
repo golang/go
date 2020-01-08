@@ -1201,6 +1201,51 @@ func (l *Loader) SetSymElfType(i Sym, et elf.SymType) {
 	}
 }
 
+// SymGoType returns the 'Gotype' property for a given symbol (set by
+// the Go compiler for variable symbols). This version relies on
+// reading aux symbols for the target sym -- it could be that a faster
+// approach would be to check for gotype during preload and copy the
+// results in to a map (might want to try this at some point and see
+// if it helps speed things up).
+func (l *Loader) SymGoType(i Sym) Sym {
+	if l.IsExternal(i) {
+		if l.Syms[i] != nil {
+			panic("gotype already converted to sym.Symbol")
+		}
+		pp := l.getPayload(i)
+		return pp.gotype
+	}
+	r, li := l.toLocal(i)
+	naux := r.NAux(li)
+	for j := 0; j < naux; j++ {
+		a := goobj2.Aux{}
+		a.Read(r.Reader, r.AuxOff(li, j))
+		switch a.Type {
+		case goobj2.AuxGotype:
+			return l.resolve(r, a.Sym)
+		}
+	}
+	return 0
+}
+
+// SymUnit returns the compilation unit for a given symbol (which will
+// typically be nil for external or linker-manufactured symbols).
+func (l *Loader) SymUnit(i Sym) *sym.CompilationUnit {
+	if l.IsExternal(i) {
+		if l.Syms[i] != nil {
+			return l.Syms[i].Unit
+		}
+		pp := l.getPayload(i)
+		if pp.objidx != 0 {
+			r := l.objs[pp.objidx].r
+			return r.unit
+		}
+		return nil
+	}
+	r, _ := l.toLocal(i)
+	return r.unit
+}
+
 // SymFile returns the file for a symbol, which is normally the
 // package the symbol came from (for regular compiler-generated Go
 // symbols), but in the case of building with "-linkshared" (when a
