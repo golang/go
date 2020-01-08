@@ -176,6 +176,15 @@ func genRulesSuffix(arch arch, suff string) {
 
 	sw := &Switch{expr: exprf("v.Op")}
 	for _, op := range ops {
+		eop, ok := parseEllipsisRules(oprules[op], arch)
+		if ok {
+			swc := &Case{expr: exprf(op)}
+			swc.add(stmtf("v.Op = %s", eop))
+			swc.add(stmtf("return true"))
+			sw.add(swc)
+			continue
+		}
+
 		var ors []string
 		for chunk := 0; chunk < len(oprules[op]); chunk += chunkSize {
 			ors = append(ors, fmt.Sprintf("rewriteValue%s%s_%s_%d(v)", arch.name, suff, op, chunk))
@@ -192,6 +201,11 @@ func genRulesSuffix(arch arch, suff string) {
 	// because it is too big for some compilers.
 	for _, op := range ops {
 		rules := oprules[op]
+		_, ok := parseEllipsisRules(oprules[op], arch)
+		if ok {
+			continue
+		}
+
 		// rr is kept between chunks, so that a following chunk checks
 		// that the previous one ended with a rule that wasn't
 		// unconditional.
@@ -1240,7 +1254,7 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch, typ, auxi
 		if x.name != s {
 			return false
 		}
-		if x.argLength != -1 && int(x.argLength) != len(args) {
+		if x.argLength != -1 && int(x.argLength) != len(args) && (len(args) != 1 || args[0] != "...") {
 			if strict {
 				return false
 			}
@@ -1506,4 +1520,29 @@ func normalizeMatch(m string, arch arch) string {
 		fmt.Fprint(s, " ", prefix, normalizeMatch(arg, arch))
 	}
 	return s.String()
+}
+
+func parseEllipsisRules(rules []Rule, arch arch) (newop string, ok bool) {
+	if len(rules) != 1 {
+		return "", false
+	}
+	rule := rules[0]
+	match, cond, result := rule.parse()
+	if cond != "" || !isEllipsisValue(match) || !isEllipsisValue(result) {
+		return "", false
+	}
+	op, oparch, _, _, _, _ := parseValue(result, arch, rule.loc)
+	return fmt.Sprintf("Op%s%s", oparch, op.name), true
+}
+
+// isEllipsisValue reports whether s is of the form (OpX ...).
+func isEllipsisValue(s string) bool {
+	if len(s) < 2 || s[0] != '(' || s[len(s)-1] != ')' {
+		return false
+	}
+	c := split(s[1 : len(s)-1])
+	if len(c) != 2 || c[1] != "..." {
+		return false
+	}
+	return true
 }
