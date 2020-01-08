@@ -1012,35 +1012,6 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
 	tg.wantNotStale("p1", "", "./testgo list claims p1 is stale after building with old release")
 }
 
-func TestInternalPackagesInGOROOTAreRespected(t *testing.T) {
-	skipIfGccgo(t, "gccgo does not have GOROOT")
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.runFail("build", "-v", "./testdata/testinternal")
-	tg.grepBoth(`testinternal(\/|\\)p\.go\:3\:8\: use of internal package net/http/internal not allowed`, "wrong error message for testdata/testinternal")
-}
-
-func TestInternalPackagesOutsideGOROOTAreRespected(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.runFail("build", "-v", "./testdata/testinternal2")
-	tg.grepBoth(`testinternal2(\/|\\)p\.go\:3\:8\: use of internal package .*internal/w not allowed`, "wrote error message for testdata/testinternal2")
-}
-
-func TestInternalPackageErrorsAreHandled(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("list", "./testdata/testinternal3")
-}
-
-func TestInternalCache(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/testinternal4"))
-	tg.runFail("build", "p")
-	tg.grepStderr("internal", "did not fail to build p")
-}
-
 // cmd/go: custom import path checking should not apply to Go packages without import comment.
 func TestIssue10952(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
