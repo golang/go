@@ -128,6 +128,78 @@ func semawakeup(mp *m) {
 	}
 }
 
+// May run with m.p==nil, so write barriers are not allowed.
+//go:nowritebarrier
+func newosproc(mp *m) {
+	stk := unsafe.Pointer(mp.g0.stack.hi)
+	if false {
+		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
+	}
+
+	// Stack pointer must point inside stack area (as marked with MAP_STACK),
+	// rather than at the top of it.
+	param := tforkt{
+		tf_tcb:   unsafe.Pointer(&mp.tls[0]),
+		tf_tid:   nil, // minit will record tid
+		tf_stack: uintptr(stk) - sys.PtrSize,
+	}
+
+	var oset sigset
+	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+	ret := tfork(&param, unsafe.Sizeof(param), mp, mp.g0, funcPC(mstart))
+	sigprocmask(_SIG_SETMASK, &oset, nil)
+
+	if ret < 0 {
+		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
+		if ret == -_EAGAIN {
+			println("runtime: may need to increase max user processes (ulimit -p)")
+		}
+		throw("runtime.newosproc")
+	}
+}
+
+// Version of newosproc that doesn't require a valid G.
+//go:nosplit
+func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
+	stk := sysAlloc(stacksize, &memstats.stacks_sys)
+	if stk == nil {
+		write(2, unsafe.Pointer(&failallocatestack[0]), int32(len(failallocatestack)))
+		exit(1)
+	}
+	// This code "knows" it's being called once from the library
+	// initialization code, and so it's using the static m0.
+	// However, newosproc0 is currently unreachable because builds
+	// utilizing c-shared/c-archive force external linking.
+	// Stack pointer must point inside stack area (as marked with MAP_STACK),
+	// rather than at the top of it.
+	param := tforkt{
+		tf_tcb:   unsafe.Pointer(&m0.tls[0]),
+		tf_tid:   nil, // minit will record tid
+		tf_stack: uintptr(stk) - stacksize,
+	}
+
+	var oset sigset
+	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+	ret := tfork(&param, unsafe.Sizeof(param), &m0, m0.g0, funcPC(mstart))
+	sigprocmask(_SIG_SETMASK, &oset, nil)
+	if ret < 0 {
+		write(2, unsafe.Pointer(&failthreadcreate[0]), int32(len(failthreadcreate)))
+		exit(1)
+	}
+}
+
+var failallocatestack = []byte("runtime: failed to allocate stack for the new OS thread\n")
+var failthreadcreate = []byte("runtime: failed to create new OS thread\n")
+
+// Called to do synchronous initialization of Go code built with
+// -buildmode=c-archive or -buildmode=c-shared.
+// None of the Go runtime is initialized.
+//go:nosplit
+//go:nowritebarrierrec
+func libpreinit() {
+	initsig(true)
+}
+
 func osinit() {
 	ncpu = getncpu()
 	physPageSize = getPageSize()
