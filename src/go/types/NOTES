@@ -7,7 +7,6 @@ TODO
 - type assertions on/against parameterized types
 - no need for error messages where a _ type parameter cannot be inferred (_ cannot be used)
 - use Underlying() to return a type parameter's bound? investigate!
-- better error message when declaring a contract local to a function (parser gets out of sync)
 - if type parameters are repeated in recursive instantiation, they must be the same order (not yet checked)
 - debug (and error msg) printing of generic instantiated types needs some work
 - improve error messages!

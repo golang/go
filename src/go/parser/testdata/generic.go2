@@ -1,32 +1,10 @@
-// Copyright 2019 The Go Authors. All rights reserved.
+// Copyright 2020 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 package p
 
-/*
-type I interface{
-        m(type A)(A)
-}
- 
-type S struct{}
- 
-func (S) m(type B)(B)
- 
-var _ I = S{}
-
-type E(type T) interface {
-        m(type B)(B)
-}
-
-type II interface{
-        (E(int))
-        mm() int
-}
-
-var _ I = II(nil)
-*/
-
+// Verify clean recovery after invalid local contract declarations.
 func _() {
         contract /* ERROR "inside function" */ C() {}
         contract /* ERROR "inside function" */ C(T) {}

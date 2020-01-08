@@ -173,6 +173,7 @@ var invalids = []string{
 	// contracts
 	`package p; contract C(T, T /* ERROR "T redeclared" */ ) {}`,
 	`package p; contract C(T) { imported /* ERROR "expected type parameter name" */ .T int }`,
+	`package p; func _() { contract /* ERROR "cannot be inside function" */ C(T) { T m(); type int, float32 } }`,
 
 	// issue 8656
 	`package p; func f() (a b string /* ERROR "missing ','" */ , ok bool)`,

@@ -1983,6 +1983,19 @@ func (p *parser) parseSimpleStmt(mode int) (ast.Stmt, bool) {
 	}
 
 	switch p.tok {
+	case token.IDENT:
+		// possibly a local contract declaration - accept but complain
+		// Note: This still doesn't catch local grouped contract declarations
+		//       since they look like a function call at first. But those will
+		//       be exceedingly rare, and syntax errors will lead a writer to
+		//       trying ungrouped contracts which will be caught here.
+		if ident, isIdent := x[0].(*ast.Ident); isIdent && ident.Name == "contract" {
+			pos := ident.Pos()
+			c := p.parseContractSpec(nil, pos, token.ILLEGAL, 0)
+			p.error(pos, "contract declaration cannot be inside function")
+			return &ast.BadStmt{From: pos, To: c.End()}, false
+		}
+
 	case token.COLON:
 		// labeled statement
 		colon := p.pos
@@ -2706,14 +2719,12 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token
 	return spec
 }
 
-// ContractType = ident "(" [ IdentList [ "," ] ] ")" "{" { Constraint ";" } "}" .
-func (p *parser) parseContractSpec(doc *ast.CommentGroup, pos token.Pos, _ token.Token, _ int) ast.Spec {
+// ContractSpec = ident "(" [ IdentList [ "," ] ] ")" "{" { Constraint ";" } "}" .
+func (p *parser) parseContractSpec(doc *ast.CommentGroup, pos token.Pos, keyword token.Token, _ int) ast.Spec {
 	if p.trace {
 		defer un(trace(p, "ContractSpec"))
 	}
 
-	// For now we represent a contract specification like a type representation.
-	// They cannot have "outer" type parameters, though.
 	ident := p.parseIdent()
 
 	var tparams []*ast.Ident
@@ -2738,6 +2749,12 @@ func (p *parser) parseContractSpec(doc *ast.CommentGroup, pos token.Pos, _ token
 	rbrace := p.expect(token.RBRACE)
 
 	spec := &ast.ContractSpec{Doc: doc, Name: ident, TParams: tparams, Lbrace: lbrace, Constraints: constraints, Rbrace: rbrace}
+	if keyword == token.ILLEGAL {
+		// parseContract was called from parseSimpleStmt; it is invalid and
+		// a semicolon will be expected externally => don't parse semicolon
+		// and ignore the comment.
+		return spec
+	}
 	p.declare(spec, nil, p.topScope, ast.Typ, ident) // TODO(gri) should really be something other that ast.Typ
 	p.expectSemi()                                   // call before accessing p.linecomment
 	spec.Comment = p.lineComment

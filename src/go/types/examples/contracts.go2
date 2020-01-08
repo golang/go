@@ -34,6 +34,14 @@ contract Sequence(T) {
 	T string, []byte
 }
 
+// Contracts may not be declared locally. They are accepted
+// for good syntax error recovery, but an errors are reported.
+func _() {
+        contract /* ERROR "inside function" */ C() {}
+        contract /* ERROR "inside function" */ C(T) {}
+        contract /* ERROR "inside function" */ C(T) { C(T); T m(); T int }
+}
+
 // Contracts may constrain multiple type parameters
 // in mutually recursive ways.
 contract G(Node, Edge) {
