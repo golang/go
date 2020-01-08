@@ -4542,18 +4542,6 @@ func TestCDAndGOPATHAreDifferent(t *testing.T) {
 	}
 }
 
-// Issue 25579.
-func TestGoBuildDashODevNull(t *testing.T) {
-	tooSlow(t)
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.run("build", "-o", os.DevNull, filepath.Join(tg.pwd(), "testdata", "src", "hello", "hello.go"))
-	tg.mustNotExist("hello")
-	tg.mustNotExist("hello.exe")
-}
-
 // Issue 25093.
 func TestCoverpkgTestOnly(t *testing.T) {
 	skipIfGccgo(t, "gccgo has no cover tool")
