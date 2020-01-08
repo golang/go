@@ -27,8 +27,10 @@ func (r *runner) References(t *testing.T, spn span.Span, itemList []span.Span) {
 	uri := spn.URI()
 	filename := uri.Filename()
 	target := filename + fmt.Sprintf(":%v:%v", spn.Start().Line(), spn.Start().Column())
-	got, _ := r.NormalizeGoplsCmd(t, "references", "-d", target)
-	if expect != got {
+	got, stderr := r.NormalizeGoplsCmd(t, "references", "-d", target)
+	if stderr != "" {
+		t.Errorf("references failed for %s: %s", target, stderr)
+	} else if expect != got {
 		t.Errorf("references failed for %s expected:\n%s\ngot:\n%s", target, expect, got)
 	}
 }

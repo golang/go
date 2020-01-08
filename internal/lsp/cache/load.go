@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"go/types"
+	"strings"
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/source"
@@ -37,6 +38,8 @@ type metadata struct {
 func (s *snapshot) load(ctx context.Context, scope interface{}) ([]*metadata, error) {
 	var query string
 	switch scope := scope.(type) {
+	case packagePath:
+		query = string(scope)
 	case packageID:
 		query = string(scope)
 	case fileURI:
@@ -123,16 +126,19 @@ func (s *snapshot) updateMetadata(ctx context.Context, scope interface{}, pkgs [
 		if _, isDir := scope.(directoryURI); !isDir || s.view.Options().VerboseOutput {
 			log.Print(ctx, "go/packages.Load", tag.Of("package", pkg.PkgPath), tag.Of("files", pkg.CompiledGoFiles))
 		}
-		// Handle golang/go#36292 by ignoring packages with no sources and no errors.
+		// golang/go#36292: Ignore packages with no sources and no errors.
 		if len(pkg.GoFiles) == 0 && len(pkg.CompiledGoFiles) == 0 && len(pkg.Errors) == 0 {
+			continue
+		}
+		// Skip test main packages.
+		if s.view.isTestMain(ctx, pkg) {
 			continue
 		}
 		// Set the metadata for this package.
 		if err := s.updateImports(ctx, packagePath(pkg.PkgPath), pkg, cfg, map[packageID]struct{}{}); err != nil {
 			return nil, err
 		}
-		m := s.getMetadata(packageID(pkg.ID))
-		if m != nil {
+		if m := s.getMetadata(packageID(pkg.ID)); m != nil {
 			results = append(results, m)
 		}
 	}
@@ -191,16 +197,36 @@ func (s *snapshot) updateImports(ctx context.Context, pkgPath packagePath, pkg *
 			m.missingDeps[importPkgPath] = struct{}{}
 			continue
 		}
-		dep := s.getMetadata(importID)
-		if dep == nil {
+		if s.getMetadata(importID) == nil {
 			if err := s.updateImports(ctx, importPkgPath, importPkg, cfg, copied); err != nil {
 				log.Error(ctx, "error in dependency", err)
 			}
 		}
 	}
-
 	// Add the metadata to the cache.
 	s.setMetadata(m)
-
 	return nil
+}
+
+func (v *view) isTestMain(ctx context.Context, pkg *packages.Package) bool {
+	// Test mains must have an import path that ends with ".test".
+	if !strings.HasSuffix(pkg.PkgPath, ".test") {
+		return false
+	}
+	// Test main packages are always named "main".
+	if pkg.Name != "main" {
+		return false
+	}
+	// Test mains always have exactly one GoFile that is in the build cache.
+	if len(pkg.GoFiles) > 1 {
+		return false
+	}
+	buildCachePath, err := v.getBuildCachePath(ctx)
+	if err != nil {
+		return false
+	}
+	if !strings.HasPrefix(pkg.GoFiles[0], buildCachePath) {
+		return false
+	}
+	return true
 }

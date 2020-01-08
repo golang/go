@@ -28,8 +28,10 @@ func (r *runner) Implementation(t *testing.T, spn span.Span, imps []span.Span) {
 	filename := uri.Filename()
 	target := filename + fmt.Sprintf(":%v:%v", spn.Start().Line(), spn.Start().Column())
 
-	got, _ := r.NormalizeGoplsCmd(t, "implementation", target)
-	if expect != got {
+	got, stderr := r.NormalizeGoplsCmd(t, "implementation", target)
+	if stderr != "" {
+		t.Errorf("implementation failed for %s: %s", target, stderr)
+	} else if expect != got {
 		t.Errorf("implementation failed for %s expected:\n%s\ngot:\n%s", target, expect, got)
 	}
 }

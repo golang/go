@@ -94,6 +94,9 @@ type view struct {
 	initializeOnce      sync.Once
 	initialized         chan struct{}
 	initializationError error
+
+	// buildCachePath is the value of `go env GOCACHE`.
+	buildCachePath string
 }
 
 // fileBase holds the common functionality for all files.
@@ -284,13 +287,11 @@ func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error)
 	}
 
 	if env.GOPATH == "" {
-		cmd := exec.CommandContext(ctx, "go", "env", "GOPATH")
-		cmd.Env = cfg.Env
-		if out, err := cmd.CombinedOutput(); err != nil {
+		gopath, err := getGoEnvVar(ctx, cfg, "GOPATH")
+		if err != nil {
 			return nil, err
-		} else {
-			env.GOPATH = strings.TrimSpace(string(out))
 		}
+		env.GOPATH = gopath
 	}
 	return env, nil
 }
@@ -481,8 +482,10 @@ func (v *view) WorkspacePackageIDs(ctx context.Context) ([]string, error) {
 		if err != nil {
 			v.initializationError = err
 		}
+		// A test variant of a package can only be loaded directly by loading
+		// the non-test variant with -test. Track the import path of the non-test variant.
 		for _, m := range meta {
-			s.setWorkspacePackage(m.id)
+			s.setWorkspacePackage(m.id, m.pkgPath)
 		}
 	})
 	if v.initializationError != nil {
@@ -614,4 +617,44 @@ func findFileInPackage(pkg source.Package, uri span.URI) (source.ParseGoHandle, 
 		}
 	}
 	return nil, nil, errors.Errorf("no file for %s in package %s", uri, pkg.ID())
+}
+
+func (v *view) getBuildCachePath(ctx context.Context) (string, error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	if v.buildCachePath == "" {
+		path, err := getGoEnvVar(ctx, v.Config(ctx), "GOCACHE")
+		if err != nil {
+			return "", err
+		}
+		v.buildCachePath = path
+	}
+	return v.buildCachePath, nil
+}
+
+func getGoEnvVar(ctx context.Context, cfg *packages.Config, value string) (string, error) {
+	var result string
+	for _, kv := range cfg.Env {
+		split := strings.Split(kv, "=")
+		if len(split) < 2 {
+			continue
+		}
+		if split[0] == value {
+			result = split[1]
+		}
+	}
+	if result == "" {
+		cmd := exec.CommandContext(ctx, "go", "env", value)
+		cmd.Env = cfg.Env
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return "", err
+		}
+		result = strings.TrimSpace(string(out))
+		if result == "" {
+			return "", errors.Errorf("no value for %s", value)
+		}
+	}
+	return result, nil
 }

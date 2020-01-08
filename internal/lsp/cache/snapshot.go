@@ -51,7 +51,7 @@ type snapshot struct {
 
 	// workspacePackages contains the workspace's packages, which are loaded
 	// when the view is created.
-	workspacePackages map[packageID]bool
+	workspacePackages map[packageID]packagePath
 }
 
 type packageKey struct {
@@ -127,7 +127,13 @@ func (s *snapshot) PackageHandle(ctx context.Context, pkgID string) (source.Pack
 	if m := s.getMetadata(id); m != nil {
 		meta = append(meta, m)
 	}
-	phs, err := s.packageHandles(ctx, id, meta)
+	// We might need to reload the package. If it is a workspace package,
+	// it may be a test variant and therefore have a different scope.
+	var scope interface{} = id
+	if path, ok := s.isWorkspacePackage(id); ok {
+		scope = path
+	}
+	phs, err := s.packageHandles(ctx, scope, meta)
 	if err != nil {
 		return nil, err
 	}
@@ -339,8 +345,7 @@ func (s *snapshot) KnownPackages(ctx context.Context) ([]source.PackageHandle, e
 	for pkgID := range wsPackages {
 		ph, err := s.PackageHandle(ctx, string(pkgID))
 		if err != nil {
-			log.Error(ctx, "KnownPackages: failed to create PackageHandle", err, telemetry.Package.Of(pkgID))
-			continue
+			return nil, err
 		}
 		results = append(results, ph)
 	}
@@ -491,19 +496,19 @@ func (s *snapshot) getIDs(uri span.URI) []packageID {
 	return s.ids[uri]
 }
 
-func (s *snapshot) isWorkspacePackage(id packageID) bool {
+func (s *snapshot) isWorkspacePackage(id packageID) (packagePath, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	_, ok := s.workspacePackages[id]
-	return ok
+	scope, ok := s.workspacePackages[id]
+	return scope, ok
 }
 
-func (s *snapshot) setWorkspacePackage(id packageID) {
+func (s *snapshot) setWorkspacePackage(id packageID, pkgPath packagePath) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.workspacePackages[id] = true
+	s.workspacePackages[id] = pkgPath
 }
 
 func (s *snapshot) getFileURIs() []span.URI {
@@ -625,7 +630,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURI span.URI, withoutFileKi
 		packages:          make(map[packageKey]*packageHandle),
 		actions:           make(map[actionKey]*actionHandle),
 		files:             make(map[span.URI]source.FileHandle),
-		workspacePackages: make(map[packageID]bool),
+		workspacePackages: make(map[packageID]packagePath),
 	}
 
 	// Copy all of the FileHandles.

@@ -12,7 +12,6 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/trace"
 	errors "golang.org/x/xerrors"
 )
@@ -34,14 +33,12 @@ func Implementation(ctx context.Context, s Snapshot, f FileHandle, pp protocol.P
 
 		rng, err := objToMappedRange(s.View(), impl.pkg, impl.obj)
 		if err != nil {
-			log.Error(ctx, "Error getting range for object", err)
-			continue
+			return nil, err
 		}
 
 		pr, err := rng.Range()
 		if err != nil {
-			log.Error(ctx, "Error getting protocol range for object", err)
-			continue
+			return nil, err
 		}
 
 		locations = append(locations, protocol.Location{

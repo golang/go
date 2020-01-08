@@ -136,7 +136,7 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 	var depKeys [][]byte
 	for _, depID := range depList {
 		mode := source.ParseExported
-		if s.isWorkspacePackage(depID) {
+		if _, ok := s.isWorkspacePackage(depID); ok {
 			mode = source.ParseFull
 		}
 		depHandle, err := s.buildPackageHandle(ctx, depID, mode)
@@ -257,14 +257,15 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 		},
 	}
 	var (
-		files       = make([]*ast.File, len(pkg.compiledGoFiles))
-		parseErrors = make([]error, len(pkg.compiledGoFiles))
-		wg          sync.WaitGroup
+		files        = make([]*ast.File, len(pkg.compiledGoFiles))
+		parseErrors  = make([]error, len(pkg.compiledGoFiles))
+		actualErrors = make([]error, len(pkg.compiledGoFiles))
+		wg           sync.WaitGroup
 	)
 	for i, ph := range pkg.compiledGoFiles {
 		wg.Add(1)
 		go func(i int, ph source.ParseGoHandle) {
-			files[i], _, parseErrors[i], _ = ph.Parse(ctx)
+			files[i], _, parseErrors[i], actualErrors[i] = ph.Parse(ctx)
 			wg.Done()
 		}(i, ph)
 	}
@@ -297,7 +298,7 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 	if pkg.pkgPath == "unsafe" {
 		pkg.types = types.Unsafe
 	} else if len(files) == 0 { // not the unsafe package, no parsed files
-		return nil, errors.Errorf("no parsed files for package %s, expected: %s", pkg.pkgPath, pkg.compiledGoFiles)
+		return nil, errors.Errorf("no parsed files for package %s, expected: %s, errors: %v", pkg.pkgPath, pkg.compiledGoFiles, actualErrors)
 	} else {
 		pkg.types = types.NewPackage(string(m.pkgPath), m.name)
 	}
