@@ -897,3 +897,79 @@ func induceS_8_32(text []byte, sa, freq, bucket []int32) {
 		sa[b] = int32(k)
 	}
 }
+
+func newLcp_32(sa []int32, data []byte) []int32 {
+	n := len(sa)
+	lcp := make([]int32, n)
+
+	var common, s1, s2 int32
+
+	for i := 1; i < n; i++ {
+		s1 = sa[i-1]
+		s2 = sa[i]
+
+		for int(s1) < len(data) && int(s2) < len(data) && data[s1] == data[s2] {
+			common++
+			s1++
+			s2++
+		}
+		lcp[i] = common
+		common = 0
+	}
+	return lcp
+}
+
+func longestRepeatedSubs_32(sa []int32, lcp []int32, data []byte) [][]byte {
+	var max int32
+	var key int
+	lrs := make([][]byte, 0)
+
+	for k, v := range lcp {
+		if v > max {
+			max = v
+			key = k
+		}
+	}
+
+	lrs = append(lrs, data[sa[key]:sa[key]+max])
+
+	for i := key + 1; i < len(lcp); i++ {
+		if lcp[i] == max {
+			lrs = append(lrs, data[sa[i]:sa[i]+max])
+		}
+	}
+	return lrs
+}
+
+func subCount(data []byte) int {
+	return (len(data) * (len(data) + 1)) / 2
+}
+
+func distinctSubCount_32(lcp []int32, data []byte) int {
+	var dup int32
+
+	for _, v := range lcp {
+		dup += v
+	}
+
+	return subCount(data) - int(dup)
+}
+
+func distinctSub_32(sa []int32, lcp []int32, data []byte) [][]byte {
+	n := distinctSubCount_32(lcp, data)
+	dist := make([][]byte, n)
+
+	var x int32
+	var k int
+	for i, n := range sa {
+		x = lcp[i] + n
+
+		for int(x) < len(sa) {
+			dist[k] = data[n : x+1]
+			k++
+			x += 1
+		}
+	}
+
+	return dist
+}

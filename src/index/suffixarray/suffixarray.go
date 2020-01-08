@@ -24,6 +24,7 @@ import (
 	"math"
 	"regexp"
 	"sort"
+	"sync"
 )
 
 // Can change for testing
@@ -35,6 +36,8 @@ const realMaxData32 = math.MaxInt32
 type Index struct {
 	data []byte
 	sa   ints // suffix array for data; sa.len() == len(data)
+	lcp  ints
+	once *sync.Once
 }
 
 // An ints is either an []int32 or an []int64.
@@ -74,7 +77,8 @@ func (a *ints) slice(i, j int) ints {
 // New creates a new Index for data.
 // Index creation time is O(N) for N = len(data).
 func New(data []byte) *Index {
-	ix := &Index{data: data}
+	var once sync.Once
+	ix := &Index{data: data, once: &once}
 	if len(data) <= maxData32 {
 		ix.sa.int32 = make([]int32, len(data))
 		text_32(data, ix.sa.int32)
@@ -382,4 +386,42 @@ func (x *Index) FindAllIndex(r *regexp.Regexp, n int) (result [][]int) {
 		result = nil
 	}
 	return
+}
+
+func (x *Index) makeLcpOnce() {
+	x.once.Do(func() {
+		if len(x.data) <= maxData32 {
+			x.lcp.int32 = newLcp_32(x.sa.int32, x.data)
+		} else {
+			x.lcp.int64 = newLcp_64(x.sa.int64, x.data)
+		}
+	})
+}
+
+// LongestRepeatedSubs returns the longest
+// repeated substrings from data
+func (x *Index) LongestRepeatedSubs() [][]byte {
+	x.makeLcpOnce()
+	if x.sa.int32 != nil {
+		return longestRepeatedSubs_32(x.sa.int32, x.lcp.int32, x.data)
+	}
+	return longestRepeatedSubs_64(x.sa.int64, x.lcp.int64, x.data)
+}
+
+// DistinctSubs returns all the distinct substrings from data
+func (x *Index) DistinctSubs() [][]byte {
+	x.makeLcpOnce()
+	if x.sa.int32 != nil {
+		return distinctSub_32(x.sa.int32, x.lcp.int32, x.data)
+	}
+	return distinctSub_64(x.sa.int64, x.lcp.int64, x.data)
+}
+
+// DistinctSubs returns all the distinct substring count from data
+func (x *Index) DistinctSubsCount() int {
+	x.makeLcpOnce()
+	if x.sa.int32 != nil {
+		return distinctSubCount_32(x.lcp.int32, x.data)
+	}
+	return distinctSubCount_64(x.lcp.int64, x.data)
 }

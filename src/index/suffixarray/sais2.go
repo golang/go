@@ -1739,3 +1739,75 @@ func induceS_64(text []int64, sa, freq, bucket []int64) {
 		sa[b] = int64(k)
 	}
 }
+
+func newLcp_64(sa []int64, data []byte) []int64 {
+	n := len(sa)
+	lcp := make([]int64, n)
+
+	var common, s1, s2 int64
+
+	for i := 1; i < n; i++ {
+		s1 = sa[i-1]
+		s2 = sa[i]
+
+		for int(s1) < len(data) && int(s2) < len(data) && data[s1] == data[s2] {
+			common++
+			s1++
+			s2++
+		}
+		lcp[i] = common
+		common = 0
+	}
+	return lcp
+}
+
+func longestRepeatedSubs_64(sa []int64, lcp []int64, data []byte) [][]byte {
+	var max int64
+	var key int
+	lrs := make([][]byte, 0)
+
+	for k, v := range lcp {
+		if v > max {
+			max = v
+			key = k
+		}
+	}
+
+	lrs = append(lrs, data[sa[key]:sa[key]+max])
+
+	for i := key + 1; i < len(lcp); i++ {
+		if lcp[i] == max {
+			lrs = append(lrs, data[sa[i]:sa[i]+max])
+		}
+	}
+	return lrs
+}
+
+func distinctSubCount_64(lcp []int64, data []byte) int {
+	var dup int64
+
+	for _, v := range lcp {
+		dup += v
+	}
+
+	return subCount(data) - int(dup)
+}
+
+func distinctSub_64(sa []int64, lcp []int64, data []byte) [][]byte {
+	n := distinctSubCount_64(lcp, data)
+	dist := make([][]byte, n)
+
+	var x int64
+	var k int
+	for i, n := range sa {
+		x = lcp[i] + n
+
+		for int(x) < len(sa) {
+			dist[k] = data[n : x+1]
+			k++
+			x += 1
+		}
+	}
+
+	return dist
+}

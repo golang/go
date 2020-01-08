@@ -466,6 +466,79 @@ func testSA(t *testing.T, x []byte, build func([]byte) []int) bool {
 	return true
 }
 
+func TestDistinctSub(t *testing.T) {
+	sa := New([]byte("azaza"))
+	sub := sa.DistinctSubs()
+
+	if len(sub) != 9 {
+		t.Errorf("Distinct substrings should be [a az aza azaz azaza z za zaz zaza]   %+v returned\n", sub)
+	}
+
+	r := [][]byte{
+		{'a'},
+		{'a', 'z'},
+		{'a', 'z', 'a'},
+		{'a', 'z', 'a', 'z'},
+		{'a', 'z', 'a', 'z', 'a'},
+		{'z'},
+		{'z', 'a'},
+		{'z', 'a', 'z'},
+		{'z', 'a', 'z', 'a'},
+	}
+
+	for kk, vv := range sub {
+		for k, v := range vv {
+			if v != r[kk][k] {
+				t.Errorf("substring %v should be %v %v given", kk, string(vv), string(r[kk]))
+			}
+		}
+	}
+}
+
+func TestLongestRepeatedSubs(t *testing.T) {
+	sa := New([]byte("abracadabra"))
+	lrs := sa.LongestRepeatedSubs()
+
+	if len(lrs) != 1 {
+		t.Errorf("expected 1 longest repeated substring got %v\n", len(lrs))
+	}
+
+	if string(lrs[0]) != "abra" {
+		t.Errorf("expected 'abra' got %v\n", string(lrs[0]))
+	}
+
+	sa = New([]byte("ababbaabaa"))
+	lrs = sa.LongestRepeatedSubs()
+
+	if len(lrs) != 2 {
+		t.Errorf("expected 2 longest repeated substring got %v\n", len(lrs))
+	}
+
+	if string(lrs[0]) != "aba" {
+		t.Errorf("expected 'aba' got %v\n", string(lrs[0]))
+	}
+
+	if string(lrs[1]) != "baa" {
+		t.Errorf("expected 'baa' got %v\n", string(lrs[0]))
+	}
+}
+
+func BenchmarkDistinctSub(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		var bb bytes.Buffer
+
+		for i := 0; i < b.N; i++ {
+			bb.WriteRune(rune(rand.Intn(256)))
+		}
+		sa := New(bb.Bytes())
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			sa.DistinctSubs()
+		}
+	}
+}
+
 var (
 	benchdata = make([]byte, 1e6)
 	benchrand = make([]byte, 1e6)
