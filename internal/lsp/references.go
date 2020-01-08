@@ -9,10 +9,7 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry/log"
-	"golang.org/x/tools/internal/telemetry/tag"
 )
 
 func (s *Server) references(ctx context.Context, params *protocol.ReferenceParams) ([]protocol.Location, error) {
@@ -44,19 +41,14 @@ func (s *Server) references(ctx context.Context, params *protocol.ReferenceParam
 	for _, ph := range phs {
 		ident, err := source.Identifier(ctx, snapshot, fh, params.Position, source.SpecificPackageHandle(ph.ID()))
 		if err != nil {
-			if err == source.ErrNoIdentFound {
-				return nil, err
-			}
-			log.Error(ctx, "no identifier", err, telemetry.URI.Of(uri))
-			continue
+			return nil, err
 		}
 
 		lastIdent = ident
 
 		references, err := ident.References(ctx)
 		if err != nil {
-			log.Error(ctx, "no references", err, tag.Of("Identifier", ident.Name))
-			continue
+			return nil, err
 		}
 
 		for _, ref := range references {

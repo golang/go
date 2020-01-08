@@ -10,8 +10,6 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/types/objectpath"
-	"golang.org/x/tools/internal/lsp/telemetry"
-	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/trace"
 	errors "golang.org/x/xerrors"
 )
@@ -50,13 +48,11 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 		for _, id := range reverseDeps {
 			ph, err := i.Snapshot.PackageHandle(ctx, id)
 			if err != nil {
-				log.Error(ctx, "References: no CheckPackageHandle", err, telemetry.Package.Of(id))
-				continue
+				return nil, err
 			}
 			pkg, err := ph.Check(ctx)
 			if err != nil {
-				log.Error(ctx, "References: no Package", err, telemetry.Package.Of(id))
-				continue
+				return nil, err
 			}
 			searchpkgs = append(searchpkgs, pkg)
 		}
