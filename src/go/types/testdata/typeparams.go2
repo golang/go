@@ -79,6 +79,22 @@ func f3(type A, B, C)(A, struct{x B}, func(A, struct{x B}, *C)) int
 
 var _ = f3(int, rune, bool)(1, struct{x rune}{}, nil)
 
+// indexing
+
+func _(type T) (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
+func _(type T interface{ type int }) (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
+func _(type T interface{ type string }) (x T, i int) { _ = x[i] }
+func _(type T interface{ type []int }) (x T, i int) { _ = x[i] }
+func _(type T interface{ type [10]int, *[20]int, map[string]int }) (x T, i int) { _ = x[i] }
+func _(type T interface{ type string, []byte }) (x T, i int) { _ = x[i] }
+func _(type T interface{ type []int, [1]rune }) (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
+func _(type T interface{ type string, []rune }) (x T, i int) { _ = x /* ERROR "cannot index" */ [i] }
+
+// slicing
+// TODO(gri) implement this
+
+func _(type T interface{ type string }) (x T, i, j, k int) { _ = x /* ERROR not yet implemented */ [i:j:k] }
+
 // len/cap built-ins
 
 func _(type T)(x T) { _ = len(x /* ERROR invalid argument */ ) }

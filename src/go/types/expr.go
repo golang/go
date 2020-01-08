@@ -1361,6 +1361,43 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			x.typ = typ.elem
 			x.expr = e
 			return expression
+
+		case *TypeParam:
+			if types := typ.Interface().allTypes; len(types) > 0 {
+				// A generic variable can be indexed if all types
+				// in its type bound support indexing and have the
+				// same element type.
+				var elem Type
+				for _, t := range types {
+					var e Type
+					switch t := t.(type) {
+					case *Basic:
+						if isString(t) {
+							e = universeByte
+						}
+					case *Array:
+						e = t.elem
+					case *Pointer:
+						if t, _ := t.base.Underlying().(*Array); t != nil {
+							e = t.elem
+						}
+					case *Slice:
+						e = t.elem
+					case *Map:
+						e = t.elem
+					}
+					if e == nil || elem != nil && e != elem {
+						elem = nil
+						break
+					}
+					elem = e
+				}
+				if elem != nil {
+					valid = true
+					x.mode = variable
+					x.typ = elem
+				}
+			}
 		}
 
 		if !valid {
@@ -1422,6 +1459,10 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		case *Slice:
 			valid = true
 			// x.typ doesn't change
+
+		case *TypeParam:
+			check.errorf(x.pos(), "generic slice expressions not yet implemented")
+			goto Error
 		}
 
 		if !valid {
