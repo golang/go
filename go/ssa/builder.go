@@ -1746,6 +1746,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type, pos token.P
 				Index: k,
 			}
 			instr.setType(t.Elem())
+			instr.setPos(x.Pos())
 			v = fn.emit(instr)
 
 		case *types.Pointer: // *array
@@ -1754,6 +1755,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type, pos token.P
 				Index: k,
 			}
 			instr.setType(types.NewPointer(t.Elem().Underlying().(*types.Array).Elem()))
+			instr.setPos(x.Pos())
 			v = emitLoad(fn, fn.emit(instr))
 
 		case *types.Slice:
@@ -1762,6 +1764,7 @@ func (b *builder) rangeIndexed(fn *Function, x Value, tv types.Type, pos token.P
 				Index: k,
 			}
 			instr.setType(types.NewPointer(t.Elem()))
+			instr.setPos(x.Pos())
 			v = emitLoad(fn, fn.emit(instr))
 
 		default:
