@@ -1363,40 +1363,37 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			return expression
 
 		case *TypeParam:
-			if types := typ.Interface().allTypes; len(types) > 0 {
-				// A generic variable can be indexed if all types
-				// in its type bound support indexing and have the
-				// same element type.
-				var elem Type
-				for _, t := range types {
-					var e Type
-					switch t := t.(type) {
-					case *Basic:
-						if isString(t) {
-							e = universeByte
-						}
-					case *Array:
-						e = t.elem
-					case *Pointer:
-						if t, _ := t.base.Underlying().(*Array); t != nil {
-							e = t.elem
-						}
-					case *Slice:
-						e = t.elem
-					case *Map:
+			// A generic variable can be indexed if all types
+			// in its type bound support indexing and have the
+			// same element type.
+			var elem Type
+			if typ.Interface().is(func(t Type) bool {
+				var e Type
+				switch t := t.(type) {
+				case *Basic:
+					if isString(t) {
+						e = universeByte
+					}
+				case *Array:
+					e = t.elem
+				case *Pointer:
+					if t, _ := t.base.Underlying().(*Array); t != nil {
 						e = t.elem
 					}
-					if e == nil || elem != nil && e != elem {
-						elem = nil
-						break
-					}
+				case *Slice:
+					e = t.elem
+				case *Map:
+					e = t.elem
+				}
+				if e != nil && (e == elem || elem == nil) {
 					elem = e
+					return true
 				}
-				if elem != nil {
-					valid = true
-					x.mode = variable
-					x.typ = elem
-				}
+				return false
+			}) {
+				valid = true
+				x.mode = variable
+				x.typ = elem
 			}
 		}
 

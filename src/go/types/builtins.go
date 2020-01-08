@@ -176,28 +176,22 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			}
 
 		case *TypeParam:
-			if types := t.Interface().allTypes; len(types) > 0 {
-				mode = value // assume we're ok
-			L:
-				for _, t := range types {
-					switch t.(type) {
-					case *Basic:
-						if !isString(t) || id != _Len {
-							mode = invalid
-							break L
-						}
-					case *Array, *Slice, *Chan:
-						// ok
-					case *Map:
-						if id != _Len {
-							mode = invalid
-							break L
-						}
-					default:
-						mode = invalid
-						break L
+			if t.Interface().is(func(t Type) bool {
+				switch t.(type) {
+				case *Basic:
+					if isString(t) && id == _Len {
+						return true
+					}
+				case *Array, *Slice, *Chan:
+					return true
+				case *Map:
+					if id == _Len {
+						return true
 					}
 				}
+				return false
+			}) {
+				mode = value
 			}
 		}
 
