@@ -1,0 +1,11 @@
+[!net] skip
+[!exec:git] skip
+
+# Clone the repo via HTTP manually.
+exec git clone -q http://github.com/golang/example github.com/golang/example
+
+# Update without -insecure should fail.
+# Update with -insecure should succeed.
+# We need -f to ignore import comments.
+! go get -d -u -f github.com/golang/example/hello
+go get -d -u -f -insecure github.com/golang/example/hello

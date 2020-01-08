@@ -2552,31 +2552,6 @@ func TestImportLocal(t *testing.T) {
 	tg.grepStderr("cannot import current directory", "did not diagnose import current directory")
 }
 
-func TestGoGetUpdateInsecure(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExecPath(t, "git")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", tg.path("."))
-
-	const repo = "github.com/golang/example"
-
-	// Clone the repo via HTTP manually.
-	cmd := exec.Command("git", "clone", "-q", "http://"+repo, tg.path("src/"+repo))
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("cloning %v repo: %v\n%s", repo, err, out)
-	}
-
-	// Update without -insecure should fail.
-	// Update with -insecure should succeed.
-	// We need -f to ignore import comments.
-	const pkg = repo + "/hello"
-	tg.runFail("get", "-d", "-u", "-f", pkg)
-	tg.run("get", "-d", "-u", "-f", "-insecure", pkg)
-}
-
 func TestGoGetUpdateUnknownProtocol(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExecPath(t, "git")
