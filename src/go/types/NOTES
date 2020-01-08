@@ -5,7 +5,6 @@ so we have a better track record. I only switched to this file in Nov 2019, henc
 TODO
 
 - type assertions on/against parameterized types
-- no need for error messages where a _ type parameter cannot be inferred (_ cannot be used)
 - use Underlying() to return a type parameter's bound? investigate!
 - if type parameters are repeated in recursive instantiation, they must be the same order (not yet checked)
 - debug (and error msg) printing of generic instantiated types needs some work
@@ -13,12 +12,17 @@ TODO
 - use []*TypeParam for tparams in subst? (unclear)
 
 ----------------------------------------------------------------------------------------------------
-OPEN ISSUES
+KNOWN ISSUES
 
 - instantiating a parameterized function type w/o value or result parameters may have unexpected side-effects
   (we don't make a copy of the signature in some cases) - investigate
-- using a contract and enumerating type arguments currently leads to an error (e.g. func f(type T C(T)) (x T) ... )
+- using a contract and providing type arguments currently leads to an error (e.g. func f(type T C(T)) (x T) ... )
 - leaving away unused receiver type parameters leads to an error; e.g.: "type S(type T) struct{}; func (S) _()"
+- using _ for an unused receiver type parameter leads to an error and crash; e.g.: "type T(type P) int; func (_ T(_)) m()"
+
+----------------------------------------------------------------------------------------------------
+OPEN QUESTIONS
+
 - confirm that it's ok to use inference in missingMethod to compare parameterized methods
 - now that we allow parenthesized embedded interfaces, should we allow parenthesized embedded fields?
   (probably yes, for symmetry and consistency).

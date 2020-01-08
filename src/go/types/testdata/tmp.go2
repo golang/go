@@ -27,8 +27,11 @@ type II interface{
 var _ I = II(nil)
 */
 
+type T(type P) int
+
+func (_ T(P)) m() int
+
 func _() {
-        contract /* ERROR "inside function" */ C() {}
-        contract /* ERROR "inside function" */ C(T) {}
-        contract /* ERROR "inside function" */ C(T) { C(T); T m(); T int }
+        // var x T(int)
+        // _ = x.m()
 }

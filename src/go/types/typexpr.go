@@ -176,6 +176,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		// - a receiver type parameter is like any other type parameter, except that it is passed implicitly (via the receiver)
 		// - the receiver specification acts as local declaration for its type parameters (which may be blank _)
 		// - if the receiver type is parameterized but we don't need the parameters, we permit leaving them away
+		//   (TODO(gri) this is not working because the code doesn't allow an uninstantiated parameterized recv type)
 		_, rname, rparams := check.unpackRecv(recvPar.List[0].Type, true)
 		if len(rparams) > 0 {
 			sig.rparams = check.declareTypeParams(nil, rparams, nil)

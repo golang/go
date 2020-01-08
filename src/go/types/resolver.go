@@ -502,12 +502,13 @@ func (check *Checker) collectObjects() {
 // cannot easily work around).
 func (check *Checker) unpackRecv(rtyp ast.Expr, unpackParams bool) (ptr bool, rname *ast.Ident, tparams []*ast.Ident) {
 L: // unpack receiver type
+	// This accepts invalid receivers such as ***T but we don't care.
+	// The validity of receiver expressions is checked elsewhere.
 	for {
 		switch t := rtyp.(type) {
 		case *ast.ParenExpr:
 			rtyp = t.X
 		case *ast.StarExpr:
-			// TODO(gri) this is incorrect - we shouldn't permit say ***T as a receiver here
 			rtyp = t.X
 		default:
 			break L
