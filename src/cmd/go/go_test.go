@@ -2303,27 +2303,6 @@ func TestListTemplateContextFunction(t *testing.T) {
 	}
 }
 
-func TestGoBuildTestOnly(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", tg.path("."))
-	tg.tempFile("src/testonly/t_test.go", `package testonly`)
-	tg.tempFile("src/testonly2/t.go", `package testonly2`)
-	tg.cd(tg.path("src"))
-
-	// Named explicitly, test-only packages should be reported as unbuildable/uninstallable,
-	// even if there is a wildcard also matching.
-	tg.runFail("build", "testonly", "testonly...")
-	tg.grepStderr("no non-test Go files in", "go build ./xtestonly produced unexpected error")
-	tg.runFail("install", "./testonly")
-	tg.grepStderr("no non-test Go files in", "go install ./testonly produced unexpected error")
-
-	// Named through a wildcards, the test-only packages should be silently ignored.
-	tg.run("build", "testonly...")
-	tg.run("install", "./testonly...")
-}
-
 func TestGoTestXtestonlyWorks(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
