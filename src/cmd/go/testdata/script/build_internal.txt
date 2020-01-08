@@ -1,0 +1,44 @@
+# Test internal package errors are handled
+go list ./testinternal3
+stdout 'testinternal3'
+
+# Test internal cache
+env GOPATH=$WORK/gopath/src/testinternal4
+! go build p
+stderr 'internal'
+
+# Test internal packages outside GOROOT are respected
+! go build -v  ./testinternal2
+stderr 'testinternal2(\/|\\)p\.go\:3\:8\: use of internal package .*internal/w not allowed'
+
+[gccgo] skip # gccgo does not have GOROOT
+! go build -v ./testinternal
+stderr 'testinternal(\/|\\)p\.go\:3\:8\: use of internal package net/http/internal not allowed'
+
+-- testinternal/p.go --
+package p
+
+import _ "net/http/internal"
+-- testinternal2/p.go --
+package p
+
+import _ "./x/y/z/internal/w"
+-- testinternal2/x/y/z/internal/w/w.go --
+package w
+-- testinternal3/t.go --
+package t
+
+import _ "internal/does-not-exist"
+-- testinternal4/src/p/p.go --
+package p
+
+import (
+	_ "q/internal/x"
+	_ "q/j"
+)
+-- testinternal4/src/q/internal/x/x.go --
+package x
+-- testinternal4/src/q/j/j.go --
+package j
+
+import _ "q/internal/x"
