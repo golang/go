@@ -79,6 +79,28 @@ func f3(type A, B, C)(A, struct{x B}, func(A, struct{x B}, *C)) int
 
 var _ = f3(int, rune, bool)(1, struct{x rune}{}, nil)
 
+// len/cap built-ins
+
+func _(type T)(x T) { _ = len(x /* ERROR invalid argument */ ) }
+func _(type T interface{ type int })(x T) { _ = len(x /* ERROR invalid argument */ ) }
+func _(type T interface{ type string, []byte, int })(x T) { _ = len(x /* ERROR invalid argument */ ) }
+func _(type T interface{ type string })(x T) { _ = len(x) }
+func _(type T interface{ type [10]int })(x T) { _ = len(x) }
+func _(type T interface{ type []byte })(x T) { _ = len(x) }
+func _(type T interface{ type map[int]int })(x T) { _ = len(x) }
+func _(type T interface{ type chan int })(x T) { _ = len(x) }
+func _(type T interface{ type string, []byte, chan int })(x T) { _ = len(x) }
+
+func _(type T)(x T) { _ = cap(x /* ERROR invalid argument */ ) }
+func _(type T interface{ type int })(x T) { _ = cap(x /* ERROR invalid argument */ ) }
+func _(type T interface{ type string, []byte, int })(x T) { _ = cap(x /* ERROR invalid argument */ ) }
+func _(type T interface{ type string })(x T) { _ = cap(x /* ERROR invalid argument */ ) }
+func _(type T interface{ type [10]int })(x T) { _ = cap(x) }
+func _(type T interface{ type []byte })(x T) { _ = cap(x) }
+func _(type T interface{ type map[int]int })(x T) { _ = cap(x /* ERROR invalid argument */ ) }
+func _(type T interface{ type chan int })(x T) { _ = cap(x) }
+func _(type T interface{ type []byte, chan int })(x T) { _ = cap(x) }
+
 // type inference checks
 
 var _ = new() /* ERROR cannot infer T */

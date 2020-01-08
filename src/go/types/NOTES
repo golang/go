@@ -23,6 +23,8 @@ KNOWN ISSUES
 ----------------------------------------------------------------------------------------------------
 OPEN QUESTIONS
 
+- for len/cap(x) where x is of type parameter type and the bound contains arrays only, should the
+  result be a constant? (right now it is not)
 - confirm that it's ok to use inference in missingMethod to compare parameterized methods
 - now that we allow parenthesized embedded interfaces, should we allow parenthesized embedded fields?
   (probably yes, for symmetry and consistency).
