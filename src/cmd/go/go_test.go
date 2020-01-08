@@ -1204,23 +1204,6 @@ func TestPackageNotStaleWithTrailingSlash(t *testing.T) {
 	tg.wantNotStale("io", "", "with trailing slash in GOROOT, io listed as stale")
 }
 
-func TestGoGetNonPkg(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExecPath(t, "git")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.tempDir("gobin")
-	tg.setenv("GOPATH", tg.path("."))
-	tg.setenv("GOBIN", tg.path("gobin"))
-	tg.runFail("get", "-d", "golang.org/x/tools")
-	tg.grepStderr("golang.org/x/tools: no Go files", "missing error")
-	tg.runFail("get", "-d", "-u", "golang.org/x/tools")
-	tg.grepStderr("golang.org/x/tools: no Go files", "missing error")
-	tg.runFail("get", "-d", "golang.org/x/tools")
-	tg.grepStderr("golang.org/x/tools: no Go files", "missing error")
-}
-
 func TestGoGetTestOnlyPkg(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExecPath(t, "git")
