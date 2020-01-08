@@ -1146,31 +1146,6 @@ func TestAccidentalGitCheckout(t *testing.T) {
 	}
 }
 
-func TestRelativeImportsGoTest(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("test", "./testdata/testimport")
-}
-
-func TestRelativeImportsGoTestDashI(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-
-	// don't let test -i overwrite runtime
-	tg.wantNotStale("runtime", "", "must be non-stale before test -i")
-
-	tg.run("test", "-i", "./testdata/testimport")
-}
-
-func TestRelativeImportsInCommandLinePackage(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	// TODO: tg.parallel()
-	files, err := filepath.Glob("./testdata/testimport/*.go")
-	tg.must(err)
-	tg.run(append([]string{"test"}, files...)...)
-}
-
 func TestVersionControlErrorMessageIncludesCorrectDirectory(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
