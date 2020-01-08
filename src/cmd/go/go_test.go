@@ -3173,14 +3173,6 @@ const (
 	okPattern        = `(?m)^ok`
 )
 
-// Issue 18845
-func TestBenchTimeout(t *testing.T) {
-	tooSlow(t)
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("test", "-bench", ".", "-timeout", "750ms", "testdata/timeoutbench_test.go")
-}
-
 // Issue 19394
 func TestWriteProfilesOnTimeout(t *testing.T) {
 	tooSlow(t)
