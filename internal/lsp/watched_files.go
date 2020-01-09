@@ -36,7 +36,14 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 					if err != nil {
 						return err
 					}
-					return s.diagnose(snapshot, fh)
+					switch fh.Identity().Kind {
+					case source.Go:
+						go s.diagnoseFile(snapshot, fh)
+					case source.Mod:
+						go s.diagnoseModfile(snapshot)
+					}
+
+					return nil
 				}
 			case source.Delete:
 				snapshot := view.Snapshot()

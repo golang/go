@@ -16,17 +16,6 @@ import (
 	"golang.org/x/tools/internal/telemetry/trace"
 )
 
-func (s *Server) diagnose(snapshot source.Snapshot, fh source.FileHandle) error {
-	switch fh.Identity().Kind {
-	case source.Go:
-		go s.diagnoseFile(snapshot, fh)
-	case source.Mod:
-		ctx := snapshot.View().BackgroundContext()
-		go s.diagnoseSnapshot(ctx, snapshot)
-	}
-	return nil
-}
-
 func (s *Server) diagnoseSnapshot(ctx context.Context, snapshot source.Snapshot) {
 	ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
 	defer done()

@@ -344,15 +344,11 @@ func basename(filename string) string {
 }
 
 // FindFile returns the file if the given URI is already a part of the view.
-func (v *view) findFileLocked(ctx context.Context, uri span.URI) *fileBase {
+func (v *view) findFileLocked(ctx context.Context, uri span.URI) (*fileBase, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	f, err := v.findFile(uri)
-	if err != nil {
-		return nil
-	}
-	return f
+	return v.findFile(uri)
 }
 
 // getFileLocked returns a File for the given URI. It will always succeed because it

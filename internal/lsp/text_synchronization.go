@@ -37,8 +37,12 @@ func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocume
 	if err != nil {
 		return err
 	}
-	// Always run diagnostics when a file is opened.
-	return s.diagnose(snapshot, fh)
+	// Only run diagnostics on file open for Go files.
+	switch fh.Identity().Kind {
+	case source.Go:
+		go s.diagnoseFile(snapshot, fh)
+	}
+	return nil
 }
 
 func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDocumentParams) error {
@@ -72,8 +76,15 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 	if err != nil {
 		return err
 	}
-	// Always update diagnostics after a file change.
-	return s.diagnose(snapshot, fh)
+	// Run diagnostics for Go files and for mod files.
+	switch fh.Identity().Kind {
+	case source.Go:
+		go s.diagnoseFile(snapshot, fh)
+	case source.Mod:
+		// TODO(rstambler): Modifying the go.mod file should trigger workspace-level diagnostics.
+		go s.diagnoseModfile(snapshot)
+	}
+	return nil
 }
 
 func (s *Server) didSave(ctx context.Context, params *protocol.DidSaveTextDocumentParams) error {
