@@ -6,45 +6,22 @@ package runtime
 
 import "unsafe"
 
-type ptrAlignError struct {
-	ptr  unsafe.Pointer
-	elem *_type
-	n    uintptr
-}
-
-func (e ptrAlignError) RuntimeError() {}
-
-func (e ptrAlignError) Error() string {
-	return "runtime error: unsafe pointer conversion"
-}
-
 func checkptrAlignment(p unsafe.Pointer, elem *_type, n uintptr) {
 	// Check that (*[n]elem)(p) is appropriately aligned.
 	// TODO(mdempsky): What about fieldAlign?
 	if uintptr(p)&(uintptr(elem.align)-1) != 0 {
-		panic(ptrAlignError{p, elem, n})
+		throw("checkptr: unsafe pointer conversion")
 	}
 
 	// Check that (*[n]elem)(p) doesn't straddle multiple heap objects.
 	if size := n * elem.size; size > 1 && checkptrBase(p) != checkptrBase(add(p, size-1)) {
-		panic(ptrAlignError{p, elem, n})
+		throw("checkptr: unsafe pointer conversion")
 	}
-}
-
-type ptrArithError struct {
-	ptr       unsafe.Pointer
-	originals []unsafe.Pointer
-}
-
-func (e ptrArithError) RuntimeError() {}
-
-func (e ptrArithError) Error() string {
-	return "runtime error: unsafe pointer arithmetic"
 }
 
 func checkptrArithmetic(p unsafe.Pointer, originals []unsafe.Pointer) {
 	if 0 < uintptr(p) && uintptr(p) < minLegalPointer {
-		panic(ptrArithError{p, originals})
+		throw("checkptr: unsafe pointer arithmetic")
 	}
 
 	// Check that if the computed pointer p points into a heap
@@ -61,7 +38,7 @@ func checkptrArithmetic(p unsafe.Pointer, originals []unsafe.Pointer) {
 		}
 	}
 
-	panic(ptrArithError{p, originals})
+	throw("checkptr: unsafe pointer arithmetic")
 }
 
 // checkptrBase returns the base address for the allocation containing
