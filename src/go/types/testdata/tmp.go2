@@ -31,4 +31,4 @@ contract C(T) {
         T op(T) T
 }
 
-func f(type T ((C)))(x, y T) T //{ return x.op(y) }
+func f(type T C /* ERROR not yet implemented */ (T))(x, y T) T //{ return x.op(y) }

@@ -120,59 +120,25 @@ func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
 
 			// Handle contract lookup here so we don't need to set up a special contract mode
 			// for operands just to carry its information through in form of some contract Type.
-			// TODO(gri) this code is also in collectTypeParams (decl.go) - factor out!
-			if ident, ok := unparen(econtr.Fun).(*ast.Ident); ok {
-				if eobj, _ := check.lookup(ident.Name).(*Contract); eobj != nil {
-					// set up contract if not yet done
-					if eobj.typ == nil {
-						check.objDecl(eobj, nil)
-						if eobj.typ == Typ[Invalid] {
-							continue // don't use contract
-						}
-					}
-					// eobj is a valid contract
-					// contract arguments must match the embedded contract's parameters
-					n := len(econtr.Args)
-					if n != len(eobj.TParams) {
-						check.errorf(c.Types[0].Pos(), "%d type parameters but contract expects %d", n, len(eobj.TParams))
-						continue
-					}
+			if eobj, targs, valid := check.unpackContractExpr(econtr); eobj != nil {
+				// we have a (possibly invalid) contract expression
+				if !valid {
+					continue
+				}
 
-					// contract arguments must be type parameters from the enclosing contract
-					var targs []Type
-					for _, arg := range econtr.Args {
-						targ := check.typ(arg)
-						if parg, _ := targ.(*TypeParam); parg != nil {
-							// Contract declarations are only permitted at the package level,
-							// thus the only type parameters visible inside a contract are
-							// type parameters from the enclosing contract.
-							// The assertion below cannot fail unless we change the premise
-							// and permit contract declarations inside parameterized functions.
-							assert(tparams[parg.index] == parg.obj)
-							targs = append(targs, targ)
-						} else if targ != Typ[Invalid] {
-							check.errorf(arg.Pos(), "%s is not a type parameter", arg)
-						}
-					}
-					if len(targs) < n {
-						continue // some arguments were incorrect
-					}
+				// instantiate each (embedded) contract bound with contract arguments
+				ebounds := make([]*Named, len(eobj.Bounds))
+				for i, ebound := range eobj.Bounds {
+					ebounds[i] = check.instantiate(econtr.Args[i].Pos(), ebound, targs, nil).(*Named)
+				}
 
-					// instantiate each (embedded) contract bound with contract arguments
-					assert(n == len(eobj.Bounds))
-					ebounds := make([]*Named, n)
-					for i, ebound := range eobj.Bounds {
-						ebounds[i] = check.instantiate(econtr.Args[i].Pos(), ebound, targs, nil).(*Named)
-					}
-
-					// add the instantiated bounds as embedded interfaces to the respective
-					// embedding (outer) contract bound
-					for i, ebound := range ebounds {
-						index := targs[i].(*TypeParam).index
-						iface := bounds[index].underlying.(*Interface)
-						iface.embeddeds = append(iface.embeddeds, ebound)
-						check.posMap[iface] = append(check.posMap[iface], econtr.Pos()) // satisfy completeInterface requirements
-					}
+				// add the instantiated bounds as embedded interfaces to the respective
+				// embedding (outer) contract bound
+				for i, ebound := range ebounds {
+					index := targs[i].(*TypeParam).index
+					iface := bounds[index].underlying.(*Interface)
+					iface.embeddeds = append(iface.embeddeds, ebound)
+					check.posMap[iface] = append(check.posMap[iface], econtr.Pos()) // satisfy completeInterface requirements
 				}
 				continue // success
 			}

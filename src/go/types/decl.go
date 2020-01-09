@@ -637,20 +637,21 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 		// If f.Type denotes a contract, handle everything here so we don't
 		// need to set up a special contract mode for operands just to carry
 		// its information through in form of some contract Type.
-		if ident, ok := unparen(f.Type).(*ast.Ident); ok {
-			if obj, _ := check.lookup(ident.Name).(*Contract); obj != nil {
-				// set up contract if not yet done
-				if obj.typ == nil {
-					check.objDecl(obj, nil)
-					if obj.typ == Typ[Invalid] {
-						goto next // don't use contract
-					}
-				}
+		if obj, targs, valid := check.unpackContractExpr(f.Type); obj != nil {
+			// we have a (possibly invalid) contract expression
+			if !valid {
+				goto next
+			}
+			if targs != nil {
+				// obj denotes a valid contract that is instantiated with targs
+				check.errorf(f.Type.Pos(), "contract instantiation not yet implemented")
+			} else {
+				// obj denotes a valid uninstantiated contract =>
+				// use the declared type parameters as "arguments"
 				if len(f.Names) != len(obj.TParams) {
 					check.errorf(f.Type.Pos(), "%d type parameters but contract expects %d", len(f.Names), len(obj.TParams))
 					goto next
 				}
-				// obj is a valid contract
 				// Use contract's matching type parameter bound and
 				// instantiate it with the actual type parameters
 				// (== targs) present.
@@ -662,8 +663,8 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 					bound := obj.Bounds[i]
 					setBoundAt(index+i, check.instantiate(name.Pos(), bound, targs, nil))
 				}
-				goto next
 			}
+			goto next
 		}
 
 		// otherwise, bound must be an interface
@@ -682,11 +683,18 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 	return
 }
 
-func (check *Checker) unpackContractExpr(x ast.Expr) (obj *Contract, targs []Type) {
+// unpackContractExpr returns the contract obj of a contract name x = C or
+// the contract obj and type arguments targs of an instantiated contract
+// expression x = C(T1, T2, ...), and whether the expression is valid.
+// If x does not refer to a contract, the result obj is nil (and valid is
+// true). If x is not an instantiated contract expression, the result targs
+// is nil. If x is a contract expression but contains type errors, valid is
+// false.
+func (check *Checker) unpackContractExpr(x ast.Expr) (obj *Contract, targs []Type, valid bool) {
 	// permit any parenthesized expression
 	x = unparen(x)
 
-	// a call expression might be an instantiated contract => unpack arguments
+	// a call expression might be an instantiated contract => unpack
 	var call *ast.CallExpr
 	if call, _ = x.(*ast.CallExpr); call != nil {
 		x = call.Fun
@@ -699,38 +707,34 @@ func (check *Checker) unpackContractExpr(x ast.Expr) (obj *Contract, targs []Typ
 			if obj.typ == nil {
 				check.objDecl(obj, nil)
 				if obj.typ == Typ[Invalid] {
-					goto Error // we have a contract but it's broken
+					check.use(call.Args...)
+					return // we have a contract but it's broken
 				}
 			}
 			if call != nil {
 				// collect type arguments
 				if len(call.Args) != len(obj.TParams) {
 					check.errorf(call.Pos(), "%d type parameters but contract expects %d", len(call.Args), len(obj.TParams))
-					goto Error
+					check.use(call.Args...)
+					return
 				}
 				for _, arg := range call.Args {
-					if targ := check.typ(arg); targ != Typ[Invalid] {
+					// for now, contract type arguments must be type parameters
+					targ := check.typ(arg)
+					if _, ok := targ.(*TypeParam); ok {
 						targs = append(targs, targ)
+					} else if targ != Typ[Invalid] {
+						check.errorf(arg.Pos(), "%s is not a type parameter", arg)
 					}
 				}
 				if len(targs) != len(call.Args) {
-					// some arguments were invalid
-					obj.typ = Typ[Invalid]
-					return
+					return // some arguments are invalid
 				}
 			}
 		}
 	}
 
-	return
-
-Error:
-	if call != nil {
-		check.use(call.Args...)
-	}
-	if obj != nil {
-		obj.typ = Typ[Invalid]
-	}
+	valid = true
 	return
 }
 
