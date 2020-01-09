@@ -2552,55 +2552,6 @@ func TestImportLocal(t *testing.T) {
 	tg.grepStderr("cannot import current directory", "did not diagnose import current directory")
 }
 
-func TestGoGetUpdateUnknownProtocol(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExecPath(t, "git")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", tg.path("."))
-
-	const repo = "github.com/golang/example"
-
-	// Clone the repo via HTTPS manually.
-	repoDir := tg.path("src/" + repo)
-	cmd := exec.Command("git", "clone", "-q", "https://"+repo, repoDir)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("cloning %v repo: %v\n%s", repo, err, out)
-	}
-
-	// Configure the repo to use a protocol unknown to cmd/go
-	// that still actually works.
-	cmd = exec.Command("git", "remote", "set-url", "origin", "xyz://"+repo)
-	cmd.Dir = repoDir
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("git remote set-url: %v\n%s", err, out)
-	}
-	cmd = exec.Command("git", "config", "--local", "url.https://github.com/.insteadOf", "xyz://github.com/")
-	cmd.Dir = repoDir
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("git config: %v\n%s", err, out)
-	}
-
-	// We need -f to ignore import comments.
-	tg.run("get", "-d", "-u", "-f", repo+"/hello")
-}
-
-func TestGoGetInsecureCustomDomain(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExecPath(t, "git")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", tg.path("."))
-
-	const repo = "insecure.go-get-issue-15410.appspot.com/pkg/p"
-	tg.runFail("get", "-d", repo)
-	tg.run("get", "-d", "-insecure", repo)
-}
-
 func TestGoRunDirs(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
