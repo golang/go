@@ -3986,44 +3986,6 @@ func TestInstallDeps(t *testing.T) {
 	tg.mustExist(p1)
 }
 
-func TestGoTestJSON(t *testing.T) {
-	skipIfGccgo(t, "gccgo does not have standard packages")
-	tooSlow(t)
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.makeTempdir()
-	tg.setenv("GOCACHE", tg.tempdir)
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-
-	// It would be nice to test that the output is interlaced
-	// but it seems to be impossible to do that in a short test
-	// that isn't also flaky. Just check that we get JSON output.
-	tg.run("test", "-json", "-short", "-v", "errors", "empty/pkg", "skipper")
-	tg.grepStdout(`"Package":"errors"`, "did not see JSON output")
-	tg.grepStdout(`"Action":"run"`, "did not see JSON output")
-
-	tg.grepStdout(`"Action":"output","Package":"empty/pkg","Output":".*no test files`, "did not see no test files print")
-	tg.grepStdout(`"Action":"skip","Package":"empty/pkg"`, "did not see skip")
-
-	tg.grepStdout(`"Action":"output","Package":"skipper","Test":"Test","Output":"--- SKIP:`, "did not see SKIP output")
-	tg.grepStdout(`"Action":"skip","Package":"skipper","Test":"Test"`, "did not see skip result for Test")
-
-	tg.run("test", "-json", "-short", "-v", "errors")
-	tg.grepStdout(`"Action":"output","Package":"errors","Output":".*\(cached\)`, "did not see no cached output")
-
-	tg.run("test", "-json", "-bench=NONE", "-short", "-v", "errors")
-	tg.grepStdout(`"Package":"errors"`, "did not see JSON output")
-	tg.grepStdout(`"Action":"run"`, "did not see JSON output")
-
-	tg.run("test", "-o", tg.path("errors.test.exe"), "-c", "errors")
-	tg.run("tool", "test2json", "-p", "errors", tg.path("errors.test.exe"), "-test.v", "-test.short")
-	tg.grepStdout(`"Package":"errors"`, "did not see JSON output")
-	tg.grepStdout(`"Action":"run"`, "did not see JSON output")
-	tg.grepStdout(`\{"Action":"pass","Package":"errors"\}`, "did not see final pass")
-}
-
 // Issue 22986.
 func TestImportPath(t *testing.T) {
 	tooSlow(t)
