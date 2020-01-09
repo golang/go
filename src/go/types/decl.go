@@ -682,6 +682,58 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 	return
 }
 
+func (check *Checker) unpackContractExpr(x ast.Expr) (obj *Contract, targs []Type) {
+	// permit any parenthesized expression
+	x = unparen(x)
+
+	// a call expression might be an instantiated contract => unpack arguments
+	var call *ast.CallExpr
+	if call, _ = x.(*ast.CallExpr); call != nil {
+		x = call.Fun
+	}
+
+	// check if x denotes a contract
+	if ident, _ := x.(*ast.Ident); ident != nil {
+		if obj, _ = check.lookup(ident.Name).(*Contract); obj != nil {
+			// set up contract if not yet done
+			if obj.typ == nil {
+				check.objDecl(obj, nil)
+				if obj.typ == Typ[Invalid] {
+					goto Error // we have a contract but it's broken
+				}
+			}
+			if call != nil {
+				// collect type arguments
+				if len(call.Args) != len(obj.TParams) {
+					check.errorf(call.Pos(), "%d type parameters but contract expects %d", len(call.Args), len(obj.TParams))
+					goto Error
+				}
+				for _, arg := range call.Args {
+					if targ := check.typ(arg); targ != Typ[Invalid] {
+						targs = append(targs, targ)
+					}
+				}
+				if len(targs) != len(call.Args) {
+					// some arguments were invalid
+					obj.typ = Typ[Invalid]
+					return
+				}
+			}
+		}
+	}
+
+	return
+
+Error:
+	if call != nil {
+		check.use(call.Args...)
+	}
+	if obj != nil {
+		obj.typ = Typ[Invalid]
+	}
+	return
+}
+
 func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident, bound Type) []*TypeName {
 	for _, name := range names {
 		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)

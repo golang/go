@@ -27,11 +27,8 @@ type II interface{
 var _ I = II(nil)
 */
 
-type T(type P) int
-
-func (_ T(P)) m() int
-
-func _() {
-        // var x T(int)
-        // _ = x.m()
+contract C(T) {
+        T op(T) T
 }
+
+func f(type T ((C)))(x, y T) T //{ return x.op(y) }
