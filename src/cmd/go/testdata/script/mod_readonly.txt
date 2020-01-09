@@ -34,6 +34,11 @@ go list all
 go clean -modcache
 go list all
 
+# -mod=readonly must not cause 'go list -m' to fail.
+# (golang.org/issue/36478)
+go list -m all
+! stderr 'cannot query module'
+
 # -mod=readonly should reject inconsistent go.mod files
 # (ones that would be rewritten).
 go mod edit -require rsc.io/sampler@v1.2.0
