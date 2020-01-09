@@ -1204,18 +1204,6 @@ func TestPackageNotStaleWithTrailingSlash(t *testing.T) {
 	tg.wantNotStale("io", "", "with trailing slash in GOROOT, io listed as stale")
 }
 
-func TestGoGetTestOnlyPkg(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExecPath(t, "git")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.tempDir("gopath")
-	tg.setenv("GOPATH", tg.path("gopath"))
-	tg.run("get", "golang.org/x/tour/content...")
-	tg.run("get", "-t", "golang.org/x/tour/content...")
-}
-
 // Issue 4104.
 func TestGoTestWithPackageListedMultipleTimes(t *testing.T) {
 	tooSlow(t)
@@ -1546,57 +1534,6 @@ func TestDefaultGOPATHPrintedSearchList(t *testing.T) {
 	tg.grepStderr(regexp.QuoteMeta(tg.path("home/go/src/github.com/golang/example/hello"))+`.*from \$GOPATH`, "expected default GOPATH")
 }
 
-// Issue 4186. go get cannot be used to download packages to $GOROOT.
-// Test that without GOPATH set, go get should fail.
-func TestGoGetIntoGOROOT(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.tempDir("src")
-
-	// Fails because GOROOT=GOPATH
-	tg.setenv("GOPATH", tg.path("."))
-	tg.setenv("GOROOT", tg.path("."))
-	tg.runFail("get", "-d", "github.com/golang/example/hello")
-	tg.grepStderr("warning: GOPATH set to GOROOT", "go should detect GOPATH=GOROOT")
-	tg.grepStderr(`\$GOPATH must not be set to \$GOROOT`, "go should detect GOPATH=GOROOT")
-
-	// Fails because GOROOT=GOPATH after cleaning.
-	tg.setenv("GOPATH", tg.path(".")+"/")
-	tg.setenv("GOROOT", tg.path("."))
-	tg.runFail("get", "-d", "github.com/golang/example/hello")
-	tg.grepStderr("warning: GOPATH set to GOROOT", "go should detect GOPATH=GOROOT")
-	tg.grepStderr(`\$GOPATH must not be set to \$GOROOT`, "go should detect GOPATH=GOROOT")
-
-	tg.setenv("GOPATH", tg.path("."))
-	tg.setenv("GOROOT", tg.path(".")+"/")
-	tg.runFail("get", "-d", "github.com/golang/example/hello")
-	tg.grepStderr("warning: GOPATH set to GOROOT", "go should detect GOPATH=GOROOT")
-	tg.grepStderr(`\$GOPATH must not be set to \$GOROOT`, "go should detect GOPATH=GOROOT")
-
-	// Fails because GOROOT=$HOME/go so default GOPATH unset.
-	tg.tempDir("home/go")
-	tg.setenv(homeEnvName(), tg.path("home"))
-	tg.setenv("GOPATH", "")
-	tg.setenv("GOROOT", tg.path("home/go"))
-	tg.runFail("get", "-d", "github.com/golang/example/hello")
-	tg.grepStderr(`\$GOPATH not set`, "expected GOPATH not set")
-
-	tg.setenv(homeEnvName(), tg.path("home")+"/")
-	tg.setenv("GOPATH", "")
-	tg.setenv("GOROOT", tg.path("home/go"))
-	tg.runFail("get", "-d", "github.com/golang/example/hello")
-	tg.grepStderr(`\$GOPATH not set`, "expected GOPATH not set")
-
-	tg.setenv(homeEnvName(), tg.path("home"))
-	tg.setenv("GOPATH", "")
-	tg.setenv("GOROOT", tg.path("home/go")+"/")
-	tg.runFail("get", "-d", "github.com/golang/example/hello")
-	tg.grepStderr(`\$GOPATH not set`, "expected GOPATH not set")
-}
-
 func TestLdflagsArgumentsWithSpacesIssue3941(t *testing.T) {
 	skipIfGccgo(t, "gccgo does not support -ldflags -X")
 	tooSlow(t)
@@ -1877,35 +1814,6 @@ func TestSymlinkWarning(t *testing.T) {
 	tg.grepStdoutNot(".", "list should not have matched anything")
 	tg.grepStderr("matched no packages", "list should have reported that pattern matched no packages")
 	tg.grepStderr("ignoring symlink", "list should have reported symlink")
-}
-
-// Issue 8181.
-func TestGoGetDashTIssue8181(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExecPath(t, "git")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", tg.path("."))
-	tg.run("get", "-v", "-t", "github.com/rsc/go-get-issue-8181/a", "github.com/rsc/go-get-issue-8181/b")
-	tg.run("list", "...")
-	tg.grepStdout("x/build/gerrit", "missing expected x/build/gerrit")
-}
-
-func TestIssue11307(t *testing.T) {
-	// go get -u was not working except in checkout directory
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExecPath(t, "git")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", tg.path("."))
-	tg.run("get", "github.com/rsc/go-get-issue-11307")
-	tg.run("get", "-u", "github.com/rsc/go-get-issue-11307") // was failing
 }
 
 func TestShadowingLogic(t *testing.T) {
@@ -2238,30 +2146,6 @@ func TestGoTestBuildsAnXtestContainingOnlyNonRunnableExamples(t *testing.T) {
 	tg.grepStdout("File with non-runnable example was built.", "file with non-runnable example was not built")
 }
 
-func TestGoGetCustomDomainWildcard(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExecPath(t, "git")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", tg.path("."))
-	tg.run("get", "-u", "rsc.io/pdf/...")
-	tg.wantExecutable(tg.path("bin/pdfpasswd"+exeSuffix), "did not build rsc/io/pdf/pdfpasswd")
-}
-
-func TestGoGetInternalWildcard(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExecPath(t, "git")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", tg.path("."))
-	// used to fail with errors about internal packages
-	tg.run("get", "github.com/rsc/go-get-issue-11960/...")
-}
-
 func TestGoVetWithExternalTests(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -2320,19 +2204,6 @@ func TestVetWithOnlyCgoFiles(t *testing.T) {
 	tg.tempFile("src/p/p.go", "package p; import \"C\"; func F() {}")
 	tg.setenv("GOPATH", tg.path("."))
 	tg.run("vet", "p")
-}
-
-// Issue 9767, 19769.
-func TestGoGetDotSlashDownload(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExecPath(t, "git")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.tempDir("src/rsc.io")
-	tg.setenv("GOPATH", tg.path("."))
-	tg.cd(tg.path("src/rsc.io"))
-	tg.run("get", "./pprof_mac_fix")
 }
 
 // Test that you cannot use a local import in a package
@@ -2547,79 +2418,6 @@ func TestGoTestRaceInstallCgo(t *testing.T) {
 	}
 }
 
-func TestGoGetUpdate(t *testing.T) {
-	// golang.org/issue/9224.
-	// The recursive updating was trying to walk to
-	// former dependencies, not current ones.
-
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExecPath(t, "git")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", tg.path("."))
-
-	rewind := func() {
-		tg.run("get", "github.com/rsc/go-get-issue-9224-cmd")
-		cmd := exec.Command("git", "reset", "--hard", "HEAD~")
-		cmd.Dir = tg.path("src/github.com/rsc/go-get-issue-9224-lib")
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Fatalf("git: %v\n%s", err, out)
-		}
-	}
-
-	rewind()
-	tg.run("get", "-u", "github.com/rsc/go-get-issue-9224-cmd")
-
-	// Again with -d -u.
-	rewind()
-	tg.run("get", "-d", "-u", "github.com/rsc/go-get-issue-9224-cmd")
-}
-
-// Issue #20512.
-func TestGoGetRace(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExecPath(t, "git")
-	if !canRace {
-		t.Skip("skipping because race detector not supported")
-	}
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", tg.path("."))
-	tg.run("get", "-race", "github.com/rsc/go-get-issue-9224-cmd")
-}
-
-func TestGoGetDomainRoot(t *testing.T) {
-	// golang.org/issue/9357.
-	// go get foo.io (not foo.io/subdir) was not working consistently.
-
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExecPath(t, "git")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", tg.path("."))
-
-	// go-get-issue-9357.appspot.com is running
-	// the code at github.com/rsc/go-get-issue-9357,
-	// a trivial Go on App Engine app that serves a
-	// <meta> tag for the domain root.
-	tg.run("get", "-d", "go-get-issue-9357.appspot.com")
-	tg.run("get", "go-get-issue-9357.appspot.com")
-	tg.run("get", "-u", "go-get-issue-9357.appspot.com")
-
-	tg.must(robustio.RemoveAll(tg.path("src/go-get-issue-9357.appspot.com")))
-	tg.run("get", "go-get-issue-9357.appspot.com")
-
-	tg.must(robustio.RemoveAll(tg.path("src/go-get-issue-9357.appspot.com")))
-	tg.run("get", "-u", "go-get-issue-9357.appspot.com")
-}
-
 func TestGoInstallShadowedGOPATH(t *testing.T) {
 	// golang.org/issue/3652.
 	// go get foo.io (not foo.io/subdir) was not working consistently.
@@ -2825,18 +2623,6 @@ func TestParallelTest(t *testing.T) {
 	tg.run("test", "-p=4", "p1", "p2", "p3", "p4")
 }
 
-// Issue 14444: go get -u .../ duplicate loads errors
-func TestGoGetUpdateAllDoesNotTryToLoadDuplicates(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", tg.path("."))
-	tg.run("get", "-u", ".../")
-	tg.grepStderrNot("duplicate loads of", "did not remove old packages from cache")
-}
-
 func TestBinaryOnlyPackages(t *testing.T) {
 	tooSlow(t)
 
@@ -2931,36 +2717,6 @@ func TestGenerateUsesBuildContext(t *testing.T) {
 	tg.setenv("GOARCH", "386")
 	tg.run("generate", "gen")
 	tg.grepStdout("darwin 386", "unexpected GOOS/GOARCH combination")
-}
-
-// Issue 14450: go get -u .../ tried to import not downloaded package
-func TestGoGetUpdateWithWildcard(t *testing.T) {
-	testenv.MustHaveExternalNetwork(t)
-	testenv.MustHaveExecPath(t, "git")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", tg.path("."))
-	const aPkgImportPath = "github.com/tmwh/go-get-issue-14450/a"
-	tg.run("get", aPkgImportPath)
-	tg.runFail("get", "-u", ".../")
-	tg.grepStderr("cannot find package.*d-dependency/e", "should have detected e missing")
-
-	// Even though get -u failed, the source for others should be downloaded.
-	var expectedPkgPaths = []string{
-		"src/github.com/tmwh/go-get-issue-14450/b",
-		"src/github.com/tmwh/go-get-issue-14450-b-dependency/c",
-		"src/github.com/tmwh/go-get-issue-14450-b-dependency/d",
-	}
-
-	for _, importPath := range expectedPkgPaths {
-		_, err := os.Stat(tg.path(importPath))
-		tg.must(err)
-	}
-	const notExpectedPkgPath = "src/github.com/tmwh/go-get-issue-14450-c-dependency/e"
-	tg.mustNotExist(tg.path(notExpectedPkgPath))
 }
 
 func TestGoEnv(t *testing.T) {
