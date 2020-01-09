@@ -2146,66 +2146,6 @@ func TestGoTestBuildsAnXtestContainingOnlyNonRunnableExamples(t *testing.T) {
 	tg.grepStdout("File with non-runnable example was built.", "file with non-runnable example was not built")
 }
 
-func TestGoVetWithExternalTests(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.runFail("vet", "vetpkg")
-	tg.grepBoth("Printf", "go vet vetpkg did not find missing argument for Printf")
-}
-
-func TestGoVetWithTags(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.runFail("vet", "-tags", "tagtest", "vetpkg")
-	tg.grepBoth(`c\.go.*Printf`, "go vet vetpkg did not run scan tagged file")
-}
-
-func TestGoVetWithFlagsOn(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.runFail("vet", "-printf", "vetpkg")
-	tg.grepBoth("Printf", "go vet -printf vetpkg did not find missing argument for Printf")
-}
-
-func TestGoVetWithFlagsOff(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.run("vet", "-printf=false", "vetpkg")
-}
-
-// Issue 23395.
-func TestGoVetWithOnlyTestFiles(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.tempFile("src/p/p_test.go", "package p; import \"testing\"; func TestMe(*testing.T) {}")
-	tg.setenv("GOPATH", tg.path("."))
-	tg.run("vet", "p")
-}
-
-// Issue 24193.
-func TestVetWithOnlyCgoFiles(t *testing.T) {
-	if !canCgo {
-		t.Skip("skipping because cgo not enabled")
-	}
-	tooSlow(t)
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.tempFile("src/p/p.go", "package p; import \"C\"; func F() {}")
-	tg.setenv("GOPATH", tg.path("."))
-	tg.run("vet", "p")
-}
-
 // Test that you cannot use a local import in a package
 // accessed by a non-local import (found in a GOPATH/GOROOT).
 // See golang.org/issue/17475.
@@ -3525,53 +3465,6 @@ func TestTestCache(t *testing.T) {
 	if runtime.Compiler != "gccgo" {
 		tg.grepStdout(`ok  \tt/t4\t\(cached\)`, "did not cache t/t4")
 	}
-}
-
-func TestTestVet(t *testing.T) {
-	tooSlow(t)
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-
-	tg.tempFile("p1_test.go", `
-		package p
-		import "testing"
-		func Test(t *testing.T) {
-			t.Logf("%d") // oops
-		}
-	`)
-
-	tg.runFail("test", tg.path("p1_test.go"))
-	tg.grepStderr(`Logf format %d`, "did not diagnose bad Logf")
-	tg.run("test", "-vet=off", tg.path("p1_test.go"))
-	tg.grepStdout(`^ok`, "did not print test summary")
-
-	tg.tempFile("p1.go", `
-		package p
-		import "fmt"
-		func F() {
-			fmt.Printf("%d") // oops
-		}
-	`)
-	tg.runFail("test", tg.path("p1.go"))
-	tg.grepStderr(`Printf format %d`, "did not diagnose bad Printf")
-	tg.run("test", "-x", "-vet=shift", tg.path("p1.go"))
-	tg.grepStderr(`[\\/]vet.*-shift`, "did not run vet with -shift")
-	tg.grepStdout(`\[no test files\]`, "did not print test summary")
-	tg.run("test", "-vet=off", tg.path("p1.go"))
-	tg.grepStdout(`\[no test files\]`, "did not print test summary")
-
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.run("test", "vetcycle") // must not fail; #22890
-
-	tg.runFail("test", "vetfail/...")
-	tg.grepStderr(`Printf format %d`, "did not diagnose bad Printf")
-	tg.grepStdout(`ok\s+vetfail/p2`, "did not run vetfail/p2")
-
-	// Use -a so that we need to recompute the vet-specific export data for
-	// vetfail/p1.
-	tg.run("test", "-a", "vetfail/p2")
-	tg.grepStderrNot(`invalid.*constraint`, "did diagnose bad build constraint in vetxonly mode")
 }
 
 func TestTestSkipVetAfterFailedBuild(t *testing.T) {
