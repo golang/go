@@ -1974,69 +1974,6 @@ func TestCoverageRuns(t *testing.T) {
 	checkCoverage(tg, data)
 }
 
-func TestTestEmpty(t *testing.T) {
-	if !canRace {
-		t.Skip("no race detector")
-	}
-
-	wd, _ := os.Getwd()
-	testdata := filepath.Join(wd, "testdata")
-	for _, dir := range []string{"pkg", "test", "xtest", "pkgtest", "pkgxtest", "pkgtestxtest", "testxtest"} {
-		t.Run(dir, func(t *testing.T) {
-			tg := testgo(t)
-			defer tg.cleanup()
-			tg.setenv("GOPATH", testdata)
-			tg.cd(filepath.Join(testdata, "src/empty/"+dir))
-			tg.run("test", "-cover", "-coverpkg=.", "-race")
-		})
-		if testing.Short() {
-			break
-		}
-	}
-}
-
-func TestNoGoError(t *testing.T) {
-	wd, _ := os.Getwd()
-	testdata := filepath.Join(wd, "testdata")
-	for _, dir := range []string{"empty/test", "empty/xtest", "empty/testxtest", "exclude", "exclude/ignore", "exclude/empty"} {
-		t.Run(dir, func(t *testing.T) {
-			tg := testgo(t)
-			defer tg.cleanup()
-			tg.setenv("GOPATH", testdata)
-			tg.cd(filepath.Join(testdata, "src"))
-			tg.runFail("build", "./"+dir)
-			var want string
-			if strings.Contains(dir, "test") {
-				want = "no non-test Go files in "
-			} else if dir == "exclude" {
-				want = "build constraints exclude all Go files in "
-			} else {
-				want = "no Go files in "
-			}
-			tg.grepStderr(want, "wrong reason for failure")
-		})
-	}
-}
-
-func TestTestRaceInstall(t *testing.T) {
-	if !canRace {
-		t.Skip("no race detector")
-	}
-	tooSlow(t)
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-
-	tg.tempDir("pkg")
-	pkgdir := tg.path("pkg")
-	tg.run("install", "-race", "-pkgdir="+pkgdir, "std")
-	tg.run("test", "-race", "-pkgdir="+pkgdir, "-i", "-v", "empty/pkg")
-	if tg.getStderr() != "" {
-		t.Error("go test -i -race: rebuilds cached packages")
-	}
-}
-
 func TestBuildDryRunWithCgo(t *testing.T) {
 	if !canCgo {
 		t.Skip("skipping because cgo not enabled")
@@ -3546,16 +3483,6 @@ func TestExecBuildX(t *testing.T) {
 		t.Fatal("no WORK directory")
 	}
 	tg.must(robustio.RemoveAll(matches[1]))
-}
-
-func TestWrongGOOSErrorBeforeLoadError(t *testing.T) {
-	skipIfGccgo(t, "gccgo assumes cross-compilation is always possible")
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.setenv("GOOS", "windwos")
-	tg.runFail("build", "exclude")
-	tg.grepStderr("unsupported GOOS/GOARCH pair", "GOOS=windwos go build exclude did not report 'unsupported GOOS/GOARCH pair'")
 }
 
 func TestUpxCompression(t *testing.T) {
