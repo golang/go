@@ -390,15 +390,24 @@ func runList(cmd *base.Command, args []string) {
 
 		modload.InitMod() // Parses go.mod and sets cfg.BuildMod.
 		if cfg.BuildMod == "vendor" {
+			const actionDisabledFormat = "go list -m: can't %s using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)"
+
+			if *listVersions {
+				base.Fatalf(actionDisabledFormat, "determine available versions")
+			}
+			if *listU {
+				base.Fatalf(actionDisabledFormat, "determine available upgrades")
+			}
+
 			for _, arg := range args {
 				// In vendor mode, the module graph is incomplete: it contains only the
 				// explicit module dependencies and the modules that supply packages in
 				// the import graph. Reject queries that imply more information than that.
 				if arg == "all" {
-					base.Fatalf("go list -m: can't compute 'all' using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)")
+					base.Fatalf(actionDisabledFormat, "compute 'all'")
 				}
 				if strings.Contains(arg, "...") {
-					base.Fatalf("go list -m: can't match module patterns using the vendor directory\n\t(Use -mod=mod or -mod=readonly to bypass.)")
+					base.Fatalf(actionDisabledFormat, "match module patterns")
 				}
 			}
 		}
