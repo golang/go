@@ -301,9 +301,9 @@ TODO
   This release adds <code>-d=checkptr</code> as a compile-time option
   for adding instrumentation to check that Go code is following
   <code>unsafe.Pointer</code> safety rules dynamically.
-  This option is enabled by default with the <code>-race</code>
-  or <code>-msan</code> flags, and can be disabled
-  with <code>-gcflags=-all=-d=checkptr=0</code>.
+  This option is enabled by default (except on Windows) with
+  the <code>-race</code> or <code>-msan</code> flags, and can be
+  disabled with <code>-gcflags=all=-d=checkptr=0</code>.
   Specifically, <code>-d=checkptr</code> checks the following:
 </p>
 
@@ -319,6 +319,11 @@ TODO
     into the same object.
   </li>
 </ol>
+
+<p>
+  Using <code>-d=checkptr</code> is not currently recommended on
+  Windows because it causes false alerts in the standard library.
+</p>
 
 <p><!-- CL 204338 -->
   The compiler can now emit machine-readable logs of key optimizations
