@@ -512,8 +512,8 @@ func Main(archInit func(*Arch)) {
 	types.Sconv = func(s *types.Sym, flag, mode int) string {
 		return sconv(s, FmtFlag(flag), fmtMode(mode))
 	}
-	types.Tconv = func(t *types.Type, flag, mode, depth int) string {
-		return tconv(t, FmtFlag(flag), fmtMode(mode), depth)
+	types.Tconv = func(t *types.Type, flag, mode int) string {
+		return tconv(t, FmtFlag(flag), fmtMode(mode))
 	}
 	types.FormatSym = func(sym *types.Sym, s fmt.State, verb rune, mode int) {
 		symFormat(sym, s, verb, fmtMode(mode))

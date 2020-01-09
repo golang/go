@@ -5,6 +5,7 @@
 package gc
 
 import (
+	"bytes"
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
 	"fmt"
@@ -650,23 +651,55 @@ var basicnames = []string{
 	TBLANK:      "blank",
 }
 
-func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
+func tconv(t *types.Type, flag FmtFlag, mode fmtMode) string {
+	b := bytes.NewBuffer(make([]byte, 0, 64))
+	tconv2(b, t, flag, mode, nil)
+	return b.String()
+}
+
+// tconv2 writes a string representation of t to b.
+// flag and mode control exactly what is printed.
+// Any types x that are already in the visited map get printed as @%d where %d=visited[x].
+// See #16897 before changing the implementation of tconv.
+func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited map[*types.Type]int) {
+	if off, ok := visited[t]; ok {
+		// We've seen this type before, so we're trying to print it recursively.
+		// Print a reference to it instead.
+		fmt.Fprintf(b, "@%d", off)
+		return
+	}
 	if t == nil {
-		return "<T>"
+		b.WriteString("<T>")
+		return
+	}
+	if t.Etype == types.TSSA {
+		b.WriteString(t.Extra.(string))
+		return
+	}
+	if t.Etype == types.TTUPLE {
+		b.WriteString(t.FieldType(0).String())
+		b.WriteByte(',')
+		b.WriteString(t.FieldType(1).String())
+		return
 	}
 
+	flag, mode = flag.update(mode)
+	if mode == FTypeIdName {
+		flag |= FmtUnsigned
+	}
 	if t == types.Bytetype || t == types.Runetype {
 		// in %-T mode collapse rune and byte with their originals.
 		switch mode {
 		case FTypeIdName, FTypeId:
 			t = types.Types[t.Etype]
 		default:
-			return sconv(t.Sym, FmtShort, mode)
+			b.WriteString(sconv(t.Sym, FmtShort, mode))
+			return
 		}
 	}
-
 	if t == types.Errortype {
-		return "error"
+		b.WriteString("error")
+		return
 	}
 
 	// Unless the 'L' flag was specified, if the type has a name, just print that name.
@@ -675,161 +708,197 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 		case FTypeId, FTypeIdName:
 			if flag&FmtShort != 0 {
 				if t.Vargen != 0 {
-					return mode.Sprintf("%v·%d", sconv(t.Sym, FmtShort, mode), t.Vargen)
+					fmt.Fprintf(b, "%s·%d", sconv(t.Sym, FmtShort, mode), t.Vargen)
+					return
 				}
-				return sconv(t.Sym, FmtShort, mode)
+				b.WriteString(sconv(t.Sym, FmtShort, mode))
+				return
 			}
 
 			if mode == FTypeIdName {
-				return sconv(t.Sym, FmtUnsigned, mode)
+				b.WriteString(sconv(t.Sym, FmtUnsigned, mode))
+				return
 			}
 
 			if t.Sym.Pkg == localpkg && t.Vargen != 0 {
-				return mode.Sprintf("%v·%d", t.Sym, t.Vargen)
+				b.WriteString(mode.Sprintf("%v·%d", t.Sym, t.Vargen))
+				return
 			}
 		}
 
-		return smodeString(t.Sym, mode)
+		b.WriteString(smodeString(t.Sym, mode))
+		return
 	}
 
 	if int(t.Etype) < len(basicnames) && basicnames[t.Etype] != "" {
+		var name string
 		switch t {
 		case types.Idealbool:
-			return "untyped bool"
+			name = "untyped bool"
 		case types.Idealstring:
-			return "untyped string"
+			name = "untyped string"
 		case types.Idealint:
-			return "untyped int"
+			name = "untyped int"
 		case types.Idealrune:
-			return "untyped rune"
+			name = "untyped rune"
 		case types.Idealfloat:
-			return "untyped float"
+			name = "untyped float"
 		case types.Idealcomplex:
-			return "untyped complex"
+			name = "untyped complex"
+		default:
+			name = basicnames[t.Etype]
 		}
-		return basicnames[t.Etype]
+		b.WriteString(name)
+		return
 	}
+
+	// At this point, we might call tconv2 recursively. Add the current type to the visited list so we don't
+	// try to print it recursively.
+	// We record the offset in the result buffer where the type's text starts. This offset serves as a reference
+	// point for any later references to the same type.
+	// Note that we remove the type from the visited map as soon as the recursive call is done.
+	// This prevents encoding types like map[*int]*int as map[*int]@4. (That encoding would work,
+	// but I'd like to use the @ notation only when strictly necessary.)
+	if visited == nil {
+		visited = map[*types.Type]int{}
+	}
+	visited[t] = b.Len()
+	defer delete(visited, t)
 
 	if mode == FDbg {
-		return t.Etype.String() + "-" + typefmt(t, flag, FErr, depth)
+		b.WriteString(t.Etype.String())
+		b.WriteByte('-')
+		tconv2(b, t, flag, FErr, visited)
+		return
 	}
-
 	switch t.Etype {
 	case TPTR:
+		b.WriteByte('*')
 		switch mode {
 		case FTypeId, FTypeIdName:
 			if flag&FmtShort != 0 {
-				return "*" + tconv(t.Elem(), FmtShort, mode, depth)
+				tconv2(b, t.Elem(), FmtShort, mode, visited)
+				return
 			}
 		}
-		return "*" + tmodeString(t.Elem(), mode, depth)
+		tconv2(b, t.Elem(), 0, mode, visited)
 
 	case TARRAY:
-		return "[" + strconv.FormatInt(t.NumElem(), 10) + "]" + tmodeString(t.Elem(), mode, depth)
+		b.WriteByte('[')
+		b.WriteString(strconv.FormatInt(t.NumElem(), 10))
+		b.WriteByte(']')
+		tconv2(b, t.Elem(), 0, mode, visited)
 
 	case TSLICE:
-		return "[]" + tmodeString(t.Elem(), mode, depth)
+		b.WriteString("[]")
+		tconv2(b, t.Elem(), 0, mode, visited)
 
 	case TCHAN:
 		switch t.ChanDir() {
 		case types.Crecv:
-			return "<-chan " + tmodeString(t.Elem(), mode, depth)
-
+			b.WriteString("<-chan ")
+			tconv2(b, t.Elem(), 0, mode, visited)
 		case types.Csend:
-			return "chan<- " + tmodeString(t.Elem(), mode, depth)
+			b.WriteString("chan<- ")
+			tconv2(b, t.Elem(), 0, mode, visited)
+		default:
+			b.WriteString("chan ")
+			if t.Elem() != nil && t.Elem().IsChan() && t.Elem().Sym == nil && t.Elem().ChanDir() == types.Crecv {
+				b.WriteByte('(')
+				tconv2(b, t.Elem(), 0, mode, visited)
+				b.WriteByte(')')
+			} else {
+				tconv2(b, t.Elem(), 0, mode, visited)
+			}
 		}
-
-		if t.Elem() != nil && t.Elem().IsChan() && t.Elem().Sym == nil && t.Elem().ChanDir() == types.Crecv {
-			return "chan (" + tmodeString(t.Elem(), mode, depth) + ")"
-		}
-		return "chan " + tmodeString(t.Elem(), mode, depth)
 
 	case TMAP:
-		return "map[" + tmodeString(t.Key(), mode, depth) + "]" + tmodeString(t.Elem(), mode, depth)
+		b.WriteString("map[")
+		tconv2(b, t.Key(), 0, mode, visited)
+		b.WriteByte(']')
+		tconv2(b, t.Elem(), 0, mode, visited)
 
 	case TINTER:
 		if t.IsEmptyInterface() {
-			return "interface {}"
+			b.WriteString("interface {}")
+			break
 		}
-		buf := make([]byte, 0, 64)
-		buf = append(buf, "interface {"...)
+		b.WriteString("interface {")
 		for i, f := range t.Fields().Slice() {
 			if i != 0 {
-				buf = append(buf, ';')
+				b.WriteByte(';')
 			}
-			buf = append(buf, ' ')
+			b.WriteByte(' ')
 			switch {
 			case f.Sym == nil:
 				// Check first that a symbol is defined for this type.
 				// Wrong interface definitions may have types lacking a symbol.
 				break
 			case types.IsExported(f.Sym.Name):
-				buf = append(buf, sconv(f.Sym, FmtShort, mode)...)
+				b.WriteString(sconv(f.Sym, FmtShort, mode))
 			default:
 				flag1 := FmtLeft
 				if flag&FmtUnsigned != 0 {
 					flag1 = FmtUnsigned
 				}
-				buf = append(buf, sconv(f.Sym, flag1, mode)...)
+				b.WriteString(sconv(f.Sym, flag1, mode))
 			}
-			buf = append(buf, tconv(f.Type, FmtShort, mode, depth)...)
+			tconv2(b, f.Type, FmtShort, mode, visited)
 		}
 		if t.NumFields() != 0 {
-			buf = append(buf, ' ')
+			b.WriteByte(' ')
 		}
-		buf = append(buf, '}')
-		return string(buf)
+		b.WriteByte('}')
 
 	case TFUNC:
-		buf := make([]byte, 0, 64)
 		if flag&FmtShort != 0 {
 			// no leading func
 		} else {
 			if t.Recv() != nil {
-				buf = append(buf, "method"...)
-				buf = append(buf, tmodeString(t.Recvs(), mode, depth)...)
-				buf = append(buf, ' ')
+				b.WriteString("method")
+				tconv2(b, t.Recvs(), 0, mode, visited)
+				b.WriteByte(' ')
 			}
-			buf = append(buf, "func"...)
+			b.WriteString("func")
 		}
-		buf = append(buf, tmodeString(t.Params(), mode, depth)...)
+		tconv2(b, t.Params(), 0, mode, visited)
 
 		switch t.NumResults() {
 		case 0:
 			// nothing to do
 
 		case 1:
-			buf = append(buf, ' ')
-			buf = append(buf, tmodeString(t.Results().Field(0).Type, mode, depth)...) // struct->field->field's type
+			b.WriteByte(' ')
+			tconv2(b, t.Results().Field(0).Type, 0, mode, visited) // struct->field->field's type
 
 		default:
-			buf = append(buf, ' ')
-			buf = append(buf, tmodeString(t.Results(), mode, depth)...)
+			b.WriteByte(' ')
+			tconv2(b, t.Results(), 0, mode, visited)
 		}
-		return string(buf)
 
 	case TSTRUCT:
 		if m := t.StructType().Map; m != nil {
 			mt := m.MapType()
 			// Format the bucket struct for map[x]y as map.bucket[x]y.
 			// This avoids a recursive print that generates very long names.
-			var subtype string
 			switch t {
 			case mt.Bucket:
-				subtype = "bucket"
+				b.WriteString("map.bucket[")
 			case mt.Hmap:
-				subtype = "hdr"
+				b.WriteString("map.hdr[")
 			case mt.Hiter:
-				subtype = "iter"
+				b.WriteString("map.iter[")
 			default:
 				Fatalf("unknown internal map type")
 			}
-			return fmt.Sprintf("map.%s[%s]%s", subtype, tmodeString(m.Key(), mode, depth), tmodeString(m.Elem(), mode, depth))
+			tconv2(b, m.Key(), 0, mode, visited)
+			b.WriteByte(']')
+			tconv2(b, m.Elem(), 0, mode, visited)
+			break
 		}
 
-		buf := make([]byte, 0, 64)
 		if funarg := t.StructType().Funarg; funarg != types.FunargNone {
-			buf = append(buf, '(')
+			b.WriteByte('(')
 			var flag1 FmtFlag
 			switch mode {
 			case FTypeId, FTypeIdName, FErr:
@@ -838,42 +907,42 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
 			}
 			for i, f := range t.Fields().Slice() {
 				if i != 0 {
-					buf = append(buf, ", "...)
+					b.WriteString(", ")
 				}
-				buf = append(buf, fldconv(f, flag1, mode, depth, funarg)...)
+				fldconv(b, f, flag1, mode, visited, funarg)
 			}
-			buf = append(buf, ')')
+			b.WriteByte(')')
 		} else {
-			buf = append(buf, "struct {"...)
+			b.WriteString("struct {")
 			for i, f := range t.Fields().Slice() {
 				if i != 0 {
-					buf = append(buf, ';')
+					b.WriteByte(';')
 				}
-				buf = append(buf, ' ')
-				buf = append(buf, fldconv(f, FmtLong, mode, depth, funarg)...)
+				b.WriteByte(' ')
+				fldconv(b, f, FmtLong, mode, visited, funarg)
 			}
 			if t.NumFields() != 0 {
-				buf = append(buf, ' ')
+				b.WriteByte(' ')
 			}
-			buf = append(buf, '}')
+			b.WriteByte('}')
 		}
-		return string(buf)
 
 	case TFORW:
+		b.WriteString("undefined")
 		if t.Sym != nil {
-			return "undefined " + smodeString(t.Sym, mode)
+			b.WriteByte(' ')
+			b.WriteString(smodeString(t.Sym, mode))
 		}
-		return "undefined"
 
 	case TUNSAFEPTR:
-		return "unsafe.Pointer"
+		b.WriteString("unsafe.Pointer")
 
 	case Txxx:
-		return "Txxx"
+		b.WriteString("Txxx")
+	default:
+		// Don't know how to handle - fall back to detailed prints.
+		b.WriteString(mode.Sprintf("%v <%v>", t.Etype, t.Sym))
 	}
-
-	// Don't know how to handle - fall back to detailed prints.
-	return mode.Sprintf("%v <%v>", t.Etype, t.Sym)
 }
 
 // Statements which may be rendered with a simplestmt as init.
@@ -1657,15 +1726,11 @@ func sconv(s *types.Sym, flag FmtFlag, mode fmtMode) string {
 	return symfmt(s, flag, mode)
 }
 
-func tmodeString(t *types.Type, mode fmtMode, depth int) string {
-	return tconv(t, 0, mode, depth)
-}
-
-func fldconv(f *types.Field, flag FmtFlag, mode fmtMode, depth int, funarg types.Funarg) string {
+func fldconv(b *bytes.Buffer, f *types.Field, flag FmtFlag, mode fmtMode, visited map[*types.Type]int, funarg types.Funarg) {
 	if f == nil {
-		return "<T>"
+		b.WriteString("<T>")
+		return
 	}
-
 	flag, mode = flag.update(mode)
 	if mode == FTypeIdName {
 		flag |= FmtUnsigned
@@ -1694,27 +1759,26 @@ func fldconv(f *types.Field, flag FmtFlag, mode fmtMode, depth int, funarg types
 		}
 	}
 
-	var typ string
+	if name != "" {
+		b.WriteString(name)
+		b.WriteString(" ")
+	}
+
 	if f.IsDDD() {
 		var et *types.Type
 		if f.Type != nil {
 			et = f.Type.Elem()
 		}
-		typ = "..." + tmodeString(et, mode, depth)
+		b.WriteString("...")
+		tconv2(b, et, 0, mode, visited)
 	} else {
-		typ = tmodeString(f.Type, mode, depth)
-	}
-
-	str := typ
-	if name != "" {
-		str = name + " " + typ
+		tconv2(b, f.Type, 0, mode, visited)
 	}
 
 	if flag&FmtShort == 0 && funarg == types.FunargNone && f.Note != "" {
-		str += " " + strconv.Quote(f.Note)
+		b.WriteString(" ")
+		b.WriteString(strconv.Quote(f.Note))
 	}
-
-	return str
 }
 
 // "%L"  print definition, not name
@@ -1722,56 +1786,10 @@ func fldconv(f *types.Field, flag FmtFlag, mode fmtMode, depth int, funarg types
 func typeFormat(t *types.Type, s fmt.State, verb rune, mode fmtMode) {
 	switch verb {
 	case 'v', 'S', 'L':
-		// This is an external entry point, so we pass depth 0 to tconv.
-		// See comments in Type.String.
-		fmt.Fprint(s, tconv(t, fmtFlag(s, verb), mode, 0))
-
+		fmt.Fprint(s, tconv(t, fmtFlag(s, verb), mode))
 	default:
 		fmt.Fprintf(s, "%%!%c(*Type=%p)", verb, t)
 	}
-}
-
-var deepTypes map[*types.Type]string
-
-// See #16897 before changing the implementation of tconv.
-func tconv(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
-	if t == nil {
-		return "<T>"
-	}
-	if t.Etype == types.TSSA {
-		return t.Extra.(string)
-	}
-	if t.Etype == types.TTUPLE {
-		return t.FieldType(0).String() + "," + t.FieldType(1).String()
-	}
-
-	// Avoid endless recursion by setting an upper limit. This also
-	// limits the depths of valid composite types, but they are likely
-	// artificially created.
-	// TODO(gri) should have proper cycle detection here, eventually (issue #29312)
-	// For now, ensure that each of these really deep types are at least uniquely
-	// named, so that such types don't collide in the linker and thus allow security holes.
-	if depth > 250 {
-		if str := deepTypes[t]; str != "" {
-			return str
-		}
-		if deepTypes == nil {
-			deepTypes = map[*types.Type]string{}
-		}
-		id := len(deepTypes)
-		str := fmt.Sprintf("<...uniquetype_%d_in_%s>", id, curpkg().Path)
-		deepTypes[t] = str
-		return str
-	}
-
-	flag, mode = flag.update(mode)
-	if mode == FTypeIdName {
-		flag |= FmtUnsigned
-	}
-
-	str := typefmt(t, flag, mode, depth+1)
-
-	return str
 }
 
 func (n *Node) String() string                 { return fmt.Sprint(n) }
