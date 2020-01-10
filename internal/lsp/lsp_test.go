@@ -357,7 +357,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 		},
 		Context: protocol.CodeActionContext{
 			Only:        []protocol.CodeActionKind{protocol.QuickFix},
-			Diagnostics: toProtocolDiagnostics(r.ctx, diagnostics[fileID]),
+			Diagnostics: toProtocolDiagnostics(diagnostics[fileID]),
 		},
 	})
 	if err != nil {
@@ -979,7 +979,7 @@ func TestModfileSuggestedFixes(t *testing.T) {
 					},
 					Context: protocol.CodeActionContext{
 						Only:        []protocol.CodeActionKind{protocol.SourceOrganizeImports},
-						Diagnostics: toProtocolDiagnostics(ctx, diags),
+						Diagnostics: toProtocolDiagnostics(diags),
 					},
 				})
 				if err != nil {

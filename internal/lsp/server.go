@@ -15,6 +15,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
+	errors "golang.org/x/xerrors"
 )
 
 // NewClientServer
@@ -299,7 +300,27 @@ func (s *Server) NonstandardRequest(ctx context.Context, method string, params i
 			if err != nil {
 				return nil, err
 			}
-			s.diagnoseFile(view.Snapshot(), view.Session().GetFile(span.URI(uri)))
+			snapshot := view.Snapshot()
+			fh, err := snapshot.GetFile(uri)
+			if err != nil {
+				return nil, err
+			}
+			reports, _, err := source.FileDiagnostics(ctx, view.Snapshot(), fh, true, nil)
+			if err != nil {
+				return nil, err
+			}
+			fileID := fh.Identity()
+			diagnostics, ok := reports[fileID]
+			if !ok {
+				return nil, errors.Errorf("no diagnostics for %s", uri)
+			}
+			if err := s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
+				URI:         protocol.NewURI(uri),
+				Diagnostics: toProtocolDiagnostics(diagnostics),
+				Version:     fileID.Version,
+			}); err != nil {
+				return nil, err
+			}
 		}
 		if err := s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
 			URI: "gopls://diagnostics-done",
