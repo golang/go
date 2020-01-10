@@ -610,7 +610,12 @@ func (g *Generator) buildMultipleRuns(runs [][]Value, typeName string) {
 			g.Printf("\t\treturn _%s_name_%d\n", typeName, i)
 			continue
 		}
-		g.Printf("\tcase %s <= i && i <= %s:\n", &values[0], &values[len(values)-1])
+		if values[0].value == 0 && !values[0].signed {
+			// For an unsigned lower bound of 0, "0 <= i" would be redundant.
+			g.Printf("\tcase i <= %s:\n", &values[len(values)-1])
+		} else {
+			g.Printf("\tcase %s <= i && i <= %s:\n", &values[0], &values[len(values)-1])
+		}
 		if values[0].value != 0 {
 			g.Printf("\t\ti -= %s\n", &values[0])
 		}

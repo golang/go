@@ -34,6 +34,7 @@ var golden = []Golden{
 	{"gap", "", false, gap_in, gap_out},
 	{"num", "", false, num_in, num_out},
 	{"unum", "", false, unum_in, unum_out},
+	{"unumpos", "", false, unumpos_in, unumpos_out},
 	{"prime", "", false, prime_in, prime_out},
 	{"prefix", "Type", false, prefix_in, prefix_out},
 	{"tokens", "", true, tokens_in, tokens_out},
@@ -240,13 +241,62 @@ var (
 
 func (i Unum) String() string {
 	switch {
-	case 0 <= i && i <= 2:
+	case i <= 2:
 		return _Unum_name_0[_Unum_index_0[i]:_Unum_index_0[i+1]]
 	case 253 <= i && i <= 254:
 		i -= 253
 		return _Unum_name_1[_Unum_index_1[i]:_Unum_index_1[i+1]]
 	default:
 		return "Unum(" + strconv.FormatInt(int64(i), 10) + ")"
+	}
+}
+`
+
+// Unsigned positive integers.
+const unumpos_in = `type Unumpos uint
+const (
+	m253 Unumpos = iota + 253
+	m254
+)
+
+const (
+	m1 Unumpos = iota + 1
+	m2
+	m3
+)
+`
+
+const unumpos_out = `func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[m253-253]
+	_ = x[m254-254]
+	_ = x[m1-1]
+	_ = x[m2-2]
+	_ = x[m3-3]
+}
+
+const (
+	_Unumpos_name_0 = "m1m2m3"
+	_Unumpos_name_1 = "m253m254"
+)
+
+var (
+	_Unumpos_index_0 = [...]uint8{0, 2, 4, 6}
+	_Unumpos_index_1 = [...]uint8{0, 4, 8}
+)
+
+func (i Unumpos) String() string {
+	switch {
+	case 1 <= i && i <= 3:
+		i -= 1
+		return _Unumpos_name_0[_Unumpos_index_0[i]:_Unumpos_index_0[i+1]]
+	case 253 <= i && i <= 254:
+		i -= 253
+		return _Unumpos_name_1[_Unumpos_index_1[i]:_Unumpos_index_1[i+1]]
+	default:
+		return "Unumpos(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 }
 `
