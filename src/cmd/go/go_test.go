@@ -1131,15 +1131,6 @@ func TestVersionControlErrorMessageIncludesCorrectDirectory(t *testing.T) {
 	tg.grepStderr(regexp.QuoteMeta(quoted), "go get -u error does not mention shadow/root1/src/foo")
 }
 
-func TestInstallFailsWithNoBuildableFiles(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.setenv("CGO_ENABLED", "0")
-	tg.runFail("install", "cgotest")
-	tg.grepStderr("build constraints exclude all Go files", "go install cgotest did not report 'build constraints exclude all Go files'")
-}
-
 // Issue 21895
 func TestMSanAndRaceRequireCgo(t *testing.T) {
 	if !canMSan && !canRace {
@@ -1251,19 +1242,6 @@ func TestGoListCmdOnlyShowsCommands(t *testing.T) {
 			t.Error("go list cmd shows non-commands")
 			break
 		}
-	}
-}
-
-func TestGoListDedupsPackages(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	// TODO: tg.parallel()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.run("list", "xtestonly", "./testdata/src/xtestonly/...")
-	got := strings.TrimSpace(tg.getStdout())
-	const want = "xtestonly"
-	if got != want {
-		t.Errorf("got %q; want %q", got, want)
 	}
 }
 
@@ -2129,14 +2107,6 @@ func TestListTemplateContextFunction(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestGoTestXtestonlyWorks(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	tg.run("clean", "-i", "xtestonly")
-	tg.run("test", "xtestonly")
 }
 
 func TestGoTestBuildsAnXtestContainingOnlyNonRunnableExamples(t *testing.T) {
