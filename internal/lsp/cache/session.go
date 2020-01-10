@@ -115,7 +115,13 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 
 	// Preemptively build the builtin package,
 	// so we immediately add builtin.go to the list of ignored files.
-	v.buildBuiltinPackage(ctx)
+	// TODO(rstambler): This could be part of the initialization process.
+	if err := v.buildBuiltinPackage(ctx); err != nil {
+		return nil, nil, err
+	}
+
+	// Initialize the view without blocking.
+	go v.initialize(xcontext.Detach(ctx), v.snapshot)
 
 	debug.AddView(debugView{v})
 	return v, v.snapshot, nil

@@ -470,11 +470,18 @@ func (v *view) getSnapshot() *snapshot {
 func (v *view) WorkspacePackageIDs(ctx context.Context) ([]string, error) {
 	s := v.getSnapshot()
 
+	if err := s.awaitInitialized(ctx); err != nil {
+		return nil, err
+	}
+	return s.workspacePackageIDs(), nil
+}
+
+func (v *view) initialize(ctx context.Context, s *snapshot) {
 	v.initializeOnce.Do(func() {
 		defer close(v.initialized)
 
 		// Do not cancel the call to go/packages.Load for the entire workspace.
-		meta, err := s.load(xcontext.Detach(ctx), directoryURI(v.folder))
+		meta, err := s.load(ctx, directoryURI(v.folder))
 		if err != nil {
 			v.initializationError = err
 		}
@@ -484,10 +491,6 @@ func (v *view) WorkspacePackageIDs(ctx context.Context) ([]string, error) {
 			s.setWorkspacePackage(m.id, m.pkgPath)
 		}
 	})
-	if v.initializationError != nil {
-		return nil, v.initializationError
-	}
-	return s.workspacePackageIDs(), nil
 }
 
 func (s *snapshot) awaitInitialized(ctx context.Context) error {

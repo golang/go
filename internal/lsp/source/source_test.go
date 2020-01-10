@@ -60,11 +60,6 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 		data: data,
 		ctx:  ctx,
 	}
-	// Load the workspace packages, since this would normally happen when a view is initialized.
-	// Otherwise, tests that need to look at all workspace packages will fail.
-	if _, err := view.WorkspacePackageIDs(ctx); err != nil {
-		t.Fatal(err)
-	}
 	for filename, content := range data.Config.Overlay {
 		kind := source.DetectLanguage("", filename)
 		if kind != source.Go {
