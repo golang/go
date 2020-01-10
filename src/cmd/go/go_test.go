@@ -788,21 +788,6 @@ func (tg *testgoData) wantExecutable(path, msg string) {
 	}
 }
 
-// wantArchive fails if path is not an archive.
-func (tg *testgoData) wantArchive(path string) {
-	tg.t.Helper()
-	f, err := os.Open(path)
-	if err != nil {
-		tg.t.Fatal(err)
-	}
-	buf := make([]byte, 100)
-	io.ReadFull(f, buf)
-	f.Close()
-	if !bytes.HasPrefix(buf, []byte("!<arch>\n")) {
-		tg.t.Fatalf("file %s exists but is not an archive", path)
-	}
-}
-
 // isStale reports whether pkg is stale, and why
 func (tg *testgoData) isStale(pkg string) (bool, string) {
 	tg.t.Helper()
@@ -2217,67 +2202,6 @@ func TestIssue12096(t *testing.T) {
 		}`)
 	tg.unsetenv("TERM")
 	tg.run("test", tg.path("test_test.go"))
-}
-
-func TestGoBuildOutput(t *testing.T) {
-	skipIfGccgo(t, "gccgo has no standard packages")
-	tooSlow(t)
-	tg := testgo(t)
-	defer tg.cleanup()
-
-	tg.makeTempdir()
-	tg.cd(tg.path("."))
-
-	nonExeSuffix := ".exe"
-	if exeSuffix == ".exe" {
-		nonExeSuffix = ""
-	}
-
-	tg.tempFile("x.go", "package main\nfunc main(){}\n")
-	tg.run("build", "x.go")
-	tg.wantExecutable("x"+exeSuffix, "go build x.go did not write x"+exeSuffix)
-	tg.must(os.Remove(tg.path("x" + exeSuffix)))
-	tg.mustNotExist("x" + nonExeSuffix)
-
-	tg.run("build", "-o", "myprog", "x.go")
-	tg.mustNotExist("x")
-	tg.mustNotExist("x.exe")
-	tg.wantExecutable("myprog", "go build -o myprog x.go did not write myprog")
-	tg.mustNotExist("myprog.exe")
-
-	tg.tempFile("p.go", "package p\n")
-	tg.run("build", "p.go")
-	tg.mustNotExist("p")
-	tg.mustNotExist("p.a")
-	tg.mustNotExist("p.o")
-	tg.mustNotExist("p.exe")
-
-	tg.run("build", "-o", "p.a", "p.go")
-	tg.wantArchive("p.a")
-
-	tg.run("build", "cmd/gofmt")
-	tg.wantExecutable("gofmt"+exeSuffix, "go build cmd/gofmt did not write gofmt"+exeSuffix)
-	tg.must(os.Remove(tg.path("gofmt" + exeSuffix)))
-	tg.mustNotExist("gofmt" + nonExeSuffix)
-
-	tg.run("build", "-o", "mygofmt", "cmd/gofmt")
-	tg.wantExecutable("mygofmt", "go build -o mygofmt cmd/gofmt did not write mygofmt")
-	tg.mustNotExist("mygofmt.exe")
-	tg.mustNotExist("gofmt")
-	tg.mustNotExist("gofmt.exe")
-
-	tg.run("build", "sync/atomic")
-	tg.mustNotExist("atomic")
-	tg.mustNotExist("atomic.exe")
-
-	tg.run("build", "-o", "myatomic.a", "sync/atomic")
-	tg.wantArchive("myatomic.a")
-	tg.mustNotExist("atomic")
-	tg.mustNotExist("atomic.a")
-	tg.mustNotExist("atomic.exe")
-
-	tg.runFail("build", "-o", "whatever", "cmd/gofmt", "sync/atomic")
-	tg.grepStderr("multiple packages", "did not reject -o with multiple packages")
 }
 
 func TestGoBuildARM(t *testing.T) {
