@@ -748,6 +748,54 @@ field.
 <a id="go-mod-download"></a>
 ### `go mod download`
 
+Usage:
+
+```
+go mod download [-json] [-x] [modules]
+```
+
+Example:
+
+```
+$ go mod download
+$ go mod download golang.org/x/mod@v0.2.0
+```
+
+The `go mod download` command downloads the named modules into the [module
+cache](#glos-module-cache). Arguments can be module paths or module
+patterns selecting dependencies of the main module or [module
+queries](#module-queries) of the form `path@version`. With no arguments,
+`download` applies to all dependencies of the [main module](#glos-main-module).
+
+The `go` command will automatically download modules as needed during ordinary
+execution. The `go mod download` command is useful mainly for pre-filling the
+module cache or for loading data to be served by a [module
+proxy](#glos-module-proxy).
+
+By default, `download` writes nothing to standard output. It prints progress
+messages and errors to standard error.
+
+The `-json` flag causes `download` to print a sequence of JSON objects to
+standard output, describing each downloaded module (or failure), corresponding
+to this Go struct:
+
+```
+type Module struct {
+    Path     string // module path
+    Version  string // module version
+    Error    string // error loading module
+    Info     string // absolute path to cached .info file
+    GoMod    string // absolute path to cached .mod file
+    Zip      string // absolute path to cached .zip file
+    Dir      string // absolute path to cached source root directory
+    Sum      string // checksum for path, version (as in go.sum)
+    GoModSum string // checksum for go.mod (as in go.sum)
+}
+```
+
+The `-x` flag causes `download` to print the commands `download` executes
+to standard error.
+
 <a id="go-mod-edit"></a>
 ### `go mod edit`
 
