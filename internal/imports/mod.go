@@ -49,6 +49,15 @@ type ModuleJSON struct {
 	GoVersion string      // go version used in module
 }
 
+func newModuleResolver(e *ProcessEnv) *ModuleResolver {
+	r := &ModuleResolver{
+		env:      e,
+		scanSema: make(chan struct{}, 1),
+	}
+	r.scanSema <- struct{}{}
+	return r
+}
+
 func (r *ModuleResolver) init() error {
 	if r.Initialized {
 		return nil
@@ -120,10 +129,6 @@ func (r *ModuleResolver) init() error {
 	}
 
 	r.scannedRoots = map[gopathwalk.Root]bool{}
-	if r.scanSema == nil {
-		r.scanSema = make(chan struct{}, 1)
-		r.scanSema <- struct{}{}
-	}
 	if r.moduleCacheCache == nil {
 		r.moduleCacheCache = &dirInfoCache{
 			dirs:      map[string]*directoryPackageInfo{},

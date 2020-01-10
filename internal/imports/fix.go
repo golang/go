@@ -754,10 +754,10 @@ func (e *ProcessEnv) GetResolver() Resolver {
 	}
 	out, err := e.invokeGo("env", "GOMOD")
 	if err != nil || len(bytes.TrimSpace(out.Bytes())) == 0 {
-		e.resolver = &gopathResolver{env: e}
+		e.resolver = newGopathResolver(e)
 		return e.resolver
 	}
-	e.resolver = &ModuleResolver{env: e}
+	e.resolver = newModuleResolver(e)
 	return e.resolver
 }
 
@@ -998,31 +998,30 @@ type gopathResolver struct {
 	scanSema chan struct{} // scanSema prevents concurrent scans.
 }
 
-func (r *gopathResolver) init() {
-	if r.cache == nil {
-		r.cache = &dirInfoCache{
+func newGopathResolver(env *ProcessEnv) *gopathResolver {
+	r := &gopathResolver{
+		env: env,
+		cache: &dirInfoCache{
 			dirs:      map[string]*directoryPackageInfo{},
 			listeners: map[*int]cacheListener{},
-		}
+		},
+		scanSema: make(chan struct{}, 1),
 	}
-	if r.scanSema == nil {
-		r.scanSema = make(chan struct{}, 1)
-		r.scanSema <- struct{}{}
-	}
+	r.scanSema <- struct{}{}
+	return r
 }
 
 func (r *gopathResolver) ClearForNewScan() {
 	<-r.scanSema
-	*r = gopathResolver{
-		env:      r.env,
-		scanSema: r.scanSema,
+	r.cache = &dirInfoCache{
+		dirs:      map[string]*directoryPackageInfo{},
+		listeners: map[*int]cacheListener{},
 	}
-	r.init()
+	r.walked = false
 	r.scanSema <- struct{}{}
 }
 
 func (r *gopathResolver) loadPackageNames(importPaths []string, srcDir string) (map[string]string, error) {
-	r.init()
 	names := map[string]string{}
 	for _, path := range importPaths {
 		names[path] = importPathToName(r.env, path, srcDir)
@@ -1150,7 +1149,6 @@ func distance(basepath, targetpath string) int {
 }
 
 func (r *gopathResolver) scan(ctx context.Context, callback *scanCallback) error {
-	r.init()
 	add := func(root gopathwalk.Root, dir string) {
 		// We assume cached directories have not changed. We can skip them and their
 		// children.
@@ -1234,7 +1232,6 @@ func filterRoots(roots []gopathwalk.Root, include func(gopathwalk.Root) bool) []
 }
 
 func (r *gopathResolver) loadExports(ctx context.Context, pkg *pkg) (string, []string, error) {
-	r.init()
 	if info, ok := r.cache.Load(pkg.dir); ok {
 		return r.cache.CacheExports(ctx, r.env, info)
 	}

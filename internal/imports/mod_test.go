@@ -239,7 +239,7 @@ import _ "rsc.io/sampler"
 	}
 
 	// Clear out the resolver's cache, since we've changed the environment.
-	mt.resolver = &ModuleResolver{env: mt.env}
+	mt.resolver = newModuleResolver(mt.env)
 	mt.env.GOFLAGS = "-mod=vendor"
 	mt.assertModuleFoundInDir("rsc.io/sampler", "sampler", `/vendor/`)
 }
@@ -694,7 +694,7 @@ func setup(t *testing.T, main, wd string) *modTest {
 	return &modTest{
 		T:        t,
 		env:      env,
-		resolver: &ModuleResolver{env: env},
+		resolver: newModuleResolver(env),
 		cleanup:  func() { removeDir(dir) },
 	}
 }
@@ -851,7 +851,7 @@ func TestInvalidModCache(t *testing.T) {
 		GOSUMDB:     "off",
 		WorkingDir:  dir,
 	}
-	resolver := &ModuleResolver{env: env}
+	resolver := newModuleResolver(env)
 	scanToSlice(resolver, nil)
 }
 
