@@ -114,6 +114,9 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 	ctx, done := trace.StartSpan(ctx, "cache.parseGo", telemetry.File.Of(fh.Identity().URI.Filename()))
 	defer done()
 
+	if fh.Identity().Kind != source.Go {
+		return nil, nil, nil, errors.Errorf("cannot parse non-Go file %s", fh.Identity().URI)
+	}
 	buf, _, err := fh.Read(ctx)
 	if err != nil {
 		return nil, nil, nil, err

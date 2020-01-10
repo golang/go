@@ -562,15 +562,21 @@ func (s *snapshot) clone(ctx context.Context, withoutURI span.URI, withoutFileKi
 		directIDs[id] = struct{}{}
 	}
 
-	// If we are invalidating a go.mod file then we should invalidate all of the packages in the module
-	if withoutFileKind == source.Mod {
+	// Get the current and original FileHandles for this URI.
+	currentFH := s.view.session.GetFile(withoutURI)
+	originalFH := s.files[withoutURI]
+
+	// Check if the file's package name or imports have changed,
+	// and if so, invalidate this file's packages' metadata.
+	invalidateMetadata := s.view.session.cache.shouldLoad(ctx, s, originalFH, currentFH)
+
+	// If a go.mod file's contents have changed, invalidate the metadata
+	// for all of the packages in the workspace.
+	if invalidateMetadata && currentFH.Identity().Kind == source.Mod {
 		for id := range s.workspacePackages {
 			directIDs[id] = struct{}{}
 		}
 	}
-
-	// Get the original FileHandle for the URI, if it exists.
-	originalFH := s.files[withoutURI]
 
 	// If this is a file we don't yet know about,
 	// then we do not yet know what packages it should belong to.
@@ -631,8 +637,8 @@ func (s *snapshot) clone(ctx context.Context, withoutURI span.URI, withoutFileKi
 	for k, v := range s.files {
 		result.files[k] = v
 	}
+
 	// Handle the invalidated file; it may have new contents or not exist.
-	currentFH := s.view.session.GetFile(withoutURI)
 	if _, _, err := currentFH.Read(ctx); os.IsNotExist(err) {
 		delete(result.files, withoutURI)
 	} else {
@@ -661,10 +667,6 @@ func (s *snapshot) clone(ctx context.Context, withoutURI span.URI, withoutFileKi
 	for k, v := range s.workspacePackages {
 		result.workspacePackages[k] = v
 	}
-
-	// Check if the file's package name or imports have changed,
-	// and if so, invalidate this file's packages' metadata.
-	invalidateMetadata := s.view.session.cache.shouldLoad(ctx, s, originalFH, currentFH)
 
 	// Copy the package metadata. We only need to invalidate packages directly
 	// containing the affected file, and only if it changed in a relevant way.

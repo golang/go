@@ -83,11 +83,14 @@ func (c *cache) shouldLoad(ctx context.Context, s *snapshot, originalFH, current
 	if originalFH == nil {
 		return true
 	}
-	// If the file is a mod file, we should always load.
-	if originalFH.Identity().Kind == currentFH.Identity().Kind && currentFH.Identity().Kind == source.Mod {
+	// If the file hasn't changed, there's no need to reload.
+	if originalFH.Identity().String() == currentFH.Identity().String() {
+		return false
+	}
+	// If a go.mod file's contents have changed, always invalidate metadata.
+	if kind := originalFH.Identity().Kind; kind == source.Mod {
 		return true
 	}
-
 	// Get the original and current parsed files in order to check package name and imports.
 	original, _, _, originalErr := c.ParseGoHandle(originalFH, source.ParseHeader).Parse(ctx)
 	current, _, _, currentErr := c.ParseGoHandle(currentFH, source.ParseHeader).Parse(ctx)
