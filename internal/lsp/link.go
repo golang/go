@@ -26,7 +26,7 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 	if err != nil {
 		return nil, err
 	}
-	fh, err := view.Snapshot().GetFile(ctx, uri)
+	fh, err := view.Snapshot().GetFile(uri)
 	if err != nil {
 		return nil, err
 	}

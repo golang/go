@@ -19,7 +19,7 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 		return nil, err
 	}
 	snapshot := view.Snapshot()
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.GetFile(uri)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 	}
 	var docChanges []protocol.TextDocumentEdit
 	for uri, e := range edits {
-		fh, err := snapshot.GetFile(ctx, uri)
+		fh, err := snapshot.GetFile(uri)
 		if err != nil {
 			return nil, err
 		}
@@ -54,7 +54,7 @@ func (s *Server) prepareRename(ctx context.Context, params *protocol.PrepareRena
 		return nil, err
 	}
 	snapshot := view.Snapshot()
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.GetFile(uri)
 	if err != nil {
 		return nil, err
 	}

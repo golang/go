@@ -273,7 +273,7 @@ func (s *session) DidModifyFile(ctx context.Context, c source.FileModification) 
 			return nil, errors.Errorf("ignored file %v", c.URI)
 		}
 		// Make sure to add the file to the view.
-		if _, err := view.getFileLocked(ctx, c.URI); err != nil {
+		if _, err := view.getFileLocked(c.URI); err != nil {
 			return nil, err
 		}
 		snapshots = append(snapshots, view.invalidateContent(ctx, c.URI, kind, c.Action))
@@ -303,7 +303,7 @@ func (s *session) DidChangeOutOfBand(ctx context.Context, uri span.URI, action s
 		return false
 	}
 	// Make sure that the file is part of the view.
-	if _, err := view.getFileLocked(ctx, uri); err != nil {
+	if _, err := view.getFileLocked(uri); err != nil {
 		return false
 	}
 	// TODO(golang/go#31553): Remove this when this issue has been resolved.

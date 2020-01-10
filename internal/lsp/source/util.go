@@ -142,7 +142,7 @@ func SpecificPackageHandle(desiredID string) PackagePolicy {
 }
 
 func IsGenerated(ctx context.Context, view View, uri span.URI) bool {
-	fh, err := view.Snapshot().GetFile(ctx, uri)
+	fh, err := view.Snapshot().GetFile(uri)
 	if err != nil {
 		return false
 	}
@@ -168,7 +168,7 @@ func IsGenerated(ctx context.Context, view View, uri span.URI) bool {
 	return false
 }
 
-func nodeToProtocolRange(ctx context.Context, view View, m *protocol.ColumnMapper, n ast.Node) (protocol.Range, error) {
+func nodeToProtocolRange(view View, m *protocol.ColumnMapper, n ast.Node) (protocol.Range, error) {
 	mrng, err := nodeToMappedRange(view, m, n)
 	if err != nil {
 		return protocol.Range{}, err
@@ -205,7 +205,7 @@ func nodeToMappedRange(view View, m *protocol.ColumnMapper, n ast.Node) (mappedR
 
 func posToMappedRange(v View, pkg Package, pos, end token.Pos) (mappedRange, error) {
 	logicalFilename := v.Session().Cache().FileSet().File(pos).Position(pos).Filename
-	m, err := v.FindMapperInPackage(pkg, span.FileURI(logicalFilename))
+	m, err := findMapperInPackage(v, pkg, span.FileURI(logicalFilename))
 	if err != nil {
 		return mappedRange{}, err
 	}
@@ -512,7 +512,7 @@ func formatParams(s Snapshot, pkg Package, sig *types.Signature, qf types.Qualif
 }
 
 func formatFieldType(s Snapshot, srcpkg Package, obj types.Object, qf types.Qualifier) (string, error) {
-	file, pkg, err := s.View().FindPosInPackage(srcpkg, obj.Pos())
+	file, pkg, err := findPosInPackage(s.View(), srcpkg, obj.Pos())
 	if err != nil {
 		return "", err
 	}
@@ -627,4 +627,85 @@ func CompareDiagnostic(a, b Diagnostic) int {
 		return 0
 	}
 	return 1
+}
+
+func findPosInPackage(v View, searchpkg Package, pos token.Pos) (*ast.File, Package, error) {
+	tok := v.Session().Cache().FileSet().File(pos)
+	if tok == nil {
+		return nil, nil, errors.Errorf("no file for pos in package %s", searchpkg.ID())
+	}
+	uri := span.FileURI(tok.Name())
+
+	var (
+		ph  ParseGoHandle
+		pkg Package
+		err error
+	)
+	// Special case for ignored files.
+	if v.Ignore(uri) {
+		ph, err = findIgnoredFile(v, uri)
+	} else {
+		ph, pkg, err = findFileInPackage(searchpkg, uri)
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	file, _, _, err := ph.Cached()
+	if err != nil {
+		return nil, nil, err
+	}
+	if !(file.Pos() <= pos && pos <= file.End()) {
+		return nil, nil, fmt.Errorf("pos %v, apparently in file %q, is not between %v and %v", pos, ph.File().Identity().URI, file.Pos(), file.End())
+	}
+	return file, pkg, nil
+}
+
+func findMapperInPackage(v View, searchpkg Package, uri span.URI) (*protocol.ColumnMapper, error) {
+	var (
+		ph  ParseGoHandle
+		err error
+	)
+	// Special case for ignored files.
+	if v.Ignore(uri) {
+		ph, err = findIgnoredFile(v, uri)
+	} else {
+		ph, _, err = findFileInPackage(searchpkg, uri)
+	}
+	if err != nil {
+		return nil, err
+	}
+	_, m, _, err := ph.Cached()
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func findIgnoredFile(v View, uri span.URI) (ParseGoHandle, error) {
+	fh, err := v.Snapshot().GetFile(uri)
+	if err != nil {
+		return nil, err
+	}
+	return v.Session().Cache().ParseGoHandle(fh, ParseFull), nil
+}
+
+func findFileInPackage(pkg Package, uri span.URI) (ParseGoHandle, Package, error) {
+	queue := []Package{pkg}
+	seen := make(map[string]bool)
+
+	for len(queue) > 0 {
+		pkg := queue[0]
+		queue = queue[1:]
+		seen[pkg.ID()] = true
+
+		if f, err := pkg.File(uri); err == nil {
+			return f, pkg, nil
+		}
+		for _, dep := range pkg.Imports() {
+			if !seen[dep.ID()] {
+				queue = append(queue, dep)
+			}
+		}
+	}
+	return nil, nil, errors.Errorf("no file for %s in package %s", uri, pkg.ID())
 }

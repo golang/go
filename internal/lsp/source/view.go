@@ -26,11 +26,11 @@ type Snapshot interface {
 
 	// GetFile returns the file object for a given URI, initializing it
 	// if it is not already part of the view.
-	GetFile(ctx context.Context, uri span.URI) (FileHandle, error)
+	GetFile(uri span.URI) (FileHandle, error)
 
 	// FindFile returns the file object for a given URI if it is
 	// already part of the view.
-	FindFile(ctx context.Context, uri span.URI) FileHandle
+	FindFile(uri span.URI) FileHandle
 
 	// Analyze runs the analyses for the given package at this snapshot.
 	Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) ([]*Error, error)
@@ -121,14 +121,6 @@ type View interface {
 	// added to the session. If so the new view will be returned, otherwise the
 	// original one will be.
 	SetOptions(context.Context, Options) (View, error)
-
-	// FindFileInPackage returns the AST and type information for a file that may
-	// belong to or be part of a dependency of the given package.
-	FindPosInPackage(pkg Package, pos token.Pos) (*ast.File, Package, error)
-
-	// FindMapperInPackage returns the mapper associated with a file that may belong to
-	// the given package or one of its dependencies.
-	FindMapperInPackage(pkg Package, uri span.URI) (*protocol.ColumnMapper, error)
 
 	// WorkspacePackageIDs returns the ids of the packages at the top-level
 	// of the snapshot's view.

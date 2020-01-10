@@ -33,7 +33,7 @@ func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocume
 	if err != nil {
 		return err
 	}
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.GetFile(uri)
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 			Type:    protocol.Warning,
 		})
 	}
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.GetFile(uri)
 	if err != nil {
 		return err
 	}

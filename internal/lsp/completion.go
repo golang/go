@@ -25,7 +25,7 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	}
 	snapshot := view.Snapshot()
 	options := view.Options()
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.GetFile(uri)
 	if err != nil {
 		return nil, err
 	}

@@ -32,7 +32,7 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 					// If we had been tracking the given file,
 					// recompute diagnostics to reflect updated file contents.
 					snapshot := view.Snapshot()
-					fh, err := snapshot.GetFile(ctx, uri)
+					fh, err := snapshot.GetFile(uri)
 					if err != nil {
 						return err
 					}
@@ -47,7 +47,7 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 				}
 			case source.Delete:
 				snapshot := view.Snapshot()
-				fh := snapshot.FindFile(ctx, uri)
+				fh := snapshot.FindFile(uri)
 				// If we have never seen this file before, there is nothing to do.
 				if fh == nil {
 					continue
@@ -69,7 +69,7 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 					if pgh.File().Identity().URI == fh.Identity().URI {
 						continue
 					}
-					if f := snapshot.FindFile(ctx, pgh.File().Identity().URI); f != nil && s.session.IsOpen(fh.Identity().URI) {
+					if f := snapshot.FindFile(pgh.File().Identity().URI); f != nil && s.session.IsOpen(fh.Identity().URI) {
 						otherFile = f
 						break
 					}

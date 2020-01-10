@@ -252,7 +252,7 @@ func hasErrorType(obj types.Object) bool {
 }
 
 func objToNode(v View, pkg Package, obj types.Object) (ast.Decl, error) {
-	declAST, _, err := v.FindPosInPackage(pkg, obj.Pos())
+	declAST, _, err := findPosInPackage(v, pkg, obj.Pos())
 	if err != nil {
 		return nil, err
 	}

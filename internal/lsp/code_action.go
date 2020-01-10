@@ -26,7 +26,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 		return nil, err
 	}
 	snapshot := view.Snapshot()
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.GetFile(uri)
 	if err != nil {
 		return nil, err
 	}
@@ -228,7 +228,7 @@ func quickFixes(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 				Edit:        protocol.WorkspaceEdit{},
 			}
 			for uri, edits := range fix.Edits {
-				fh, err := snapshot.GetFile(ctx, uri)
+				fh, err := snapshot.GetFile(uri)
 				if err != nil {
 					log.Error(ctx, "no file", err, telemetry.URI.Of(uri))
 					continue

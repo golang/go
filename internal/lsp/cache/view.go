@@ -21,7 +21,6 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/debug"
-	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
@@ -344,7 +343,7 @@ func basename(filename string) string {
 }
 
 // FindFile returns the file if the given URI is already a part of the view.
-func (v *view) findFileLocked(ctx context.Context, uri span.URI) (*fileBase, error) {
+func (v *view) findFileLocked(uri span.URI) (*fileBase, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
@@ -353,15 +352,15 @@ func (v *view) findFileLocked(ctx context.Context, uri span.URI) (*fileBase, err
 
 // getFileLocked returns a File for the given URI. It will always succeed because it
 // adds the file to the managed set if needed.
-func (v *view) getFileLocked(ctx context.Context, uri span.URI) (*fileBase, error) {
+func (v *view) getFileLocked(uri span.URI) (*fileBase, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	return v.getFile(ctx, uri)
+	return v.getFile(uri)
 }
 
 // getFile is the unlocked internal implementation of GetFile.
-func (v *view) getFile(ctx context.Context, uri span.URI) (*fileBase, error) {
+func (v *view) getFile(uri span.URI) (*fileBase, error) {
 	f, err := v.findFile(uri)
 	if err != nil {
 		return nil, err
@@ -533,89 +532,6 @@ func (v *view) cancelBackground() {
 
 	v.cancel()
 	v.backgroundCtx, v.cancel = context.WithCancel(v.baseCtx)
-}
-
-func (v *view) FindPosInPackage(searchpkg source.Package, pos token.Pos) (*ast.File, source.Package, error) {
-	tok := v.session.cache.fset.File(pos)
-	if tok == nil {
-		return nil, nil, errors.Errorf("no file for pos in package %s", searchpkg.ID())
-	}
-	uri := span.FileURI(tok.Name())
-
-	// Special case for ignored files.
-	var (
-		ph  source.ParseGoHandle
-		pkg source.Package
-		err error
-	)
-	if v.Ignore(uri) {
-		ph, pkg, err = v.findIgnoredFile(uri)
-	} else {
-		ph, pkg, err = findFileInPackage(searchpkg, uri)
-	}
-	if err != nil {
-		return nil, nil, err
-	}
-	file, _, _, err := ph.Cached()
-	if err != nil {
-		return nil, nil, err
-	}
-	if !(file.Pos() <= pos && pos <= file.End()) {
-		return nil, nil, fmt.Errorf("pos %v, apparently in file %q, is not between %v and %v", pos, ph.File().Identity().URI, file.Pos(), file.End())
-	}
-	return file, pkg, nil
-}
-
-func (v *view) FindMapperInPackage(searchpkg source.Package, uri span.URI) (*protocol.ColumnMapper, error) {
-	// Special case for ignored files.
-	var (
-		ph  source.ParseGoHandle
-		err error
-	)
-	if v.Ignore(uri) {
-		ph, _, err = v.findIgnoredFile(uri)
-	} else {
-		ph, _, err = findFileInPackage(searchpkg, uri)
-	}
-	if err != nil {
-		return nil, err
-	}
-	_, m, _, err := ph.Cached()
-	if err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (v *view) findIgnoredFile(uri span.URI) (source.ParseGoHandle, source.Package, error) {
-	// Check the builtin package.
-	for _, h := range v.BuiltinPackage().CompiledGoFiles() {
-		if h.File().Identity().URI == uri {
-			return h, nil, nil
-		}
-	}
-	return nil, nil, errors.Errorf("no ignored file for %s", uri)
-}
-
-func findFileInPackage(pkg source.Package, uri span.URI) (source.ParseGoHandle, source.Package, error) {
-	queue := []source.Package{pkg}
-	seen := make(map[string]bool)
-
-	for len(queue) > 0 {
-		pkg := queue[0]
-		queue = queue[1:]
-		seen[pkg.ID()] = true
-
-		if f, err := pkg.File(uri); err == nil {
-			return f, pkg, nil
-		}
-		for _, dep := range pkg.Imports() {
-			if !seen[dep.ID()] {
-				queue = append(queue, dep)
-			}
-		}
-	}
-	return nil, nil, errors.Errorf("no file for %s in package %s", uri, pkg.ID())
 }
 
 func (v *view) getBuildCachePath(ctx context.Context) (string, error) {

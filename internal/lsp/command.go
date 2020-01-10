@@ -21,7 +21,7 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		if err != nil {
 			return nil, err
 		}
-		fh, err := view.Snapshot().GetFile(ctx, uri)
+		fh, err := view.Snapshot().GetFile(uri)
 		if err != nil {
 			return nil, err
 		}

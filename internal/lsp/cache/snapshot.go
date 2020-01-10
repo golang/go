@@ -72,7 +72,7 @@ func (s *snapshot) ModFiles(ctx context.Context) (source.FileHandle, source.File
 	if s.view.modfiles == nil {
 		return nil, nil, nil
 	}
-	realfh, err := s.GetFile(ctx, span.FileURI(s.view.modfiles.real))
+	realfh, err := s.GetFile(span.FileURI(s.view.modfiles.real))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -523,25 +523,25 @@ func (s *snapshot) getFileURIs() []span.URI {
 }
 
 // FindFile returns the file if the given URI is already a part of the view.
-func (s *snapshot) FindFile(ctx context.Context, uri span.URI) source.FileHandle {
-	f, err := s.view.findFileLocked(ctx, uri)
+func (s *snapshot) FindFile(uri span.URI) source.FileHandle {
+	f, err := s.view.findFileLocked(uri)
 	if f == nil || err != nil {
 		return nil
 	}
-	return s.getFileHandle(ctx, f)
+	return s.getFileHandle(f)
 }
 
 // GetFile returns a File for the given URI. It will always succeed because it
 // adds the file to the managed set if needed.
-func (s *snapshot) GetFile(ctx context.Context, uri span.URI) (source.FileHandle, error) {
-	f, err := s.view.getFileLocked(ctx, uri)
+func (s *snapshot) GetFile(uri span.URI) (source.FileHandle, error) {
+	f, err := s.view.getFileLocked(uri)
 	if err != nil {
 		return nil, err
 	}
-	return s.getFileHandle(ctx, f), nil
+	return s.getFileHandle(f), nil
 }
 
-func (s *snapshot) getFileHandle(ctx context.Context, f *fileBase) source.FileHandle {
+func (s *snapshot) getFileHandle(f *fileBase) source.FileHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

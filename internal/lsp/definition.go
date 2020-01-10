@@ -19,7 +19,7 @@ func (s *Server) definition(ctx context.Context, params *protocol.DefinitionPara
 		return nil, err
 	}
 	snapshot := view.Snapshot()
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.GetFile(uri)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func (s *Server) typeDefinition(ctx context.Context, params *protocol.TypeDefini
 		return nil, err
 	}
 	snapshot := view.Snapshot()
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.GetFile(uri)
 	if err != nil {
 		return nil, err
 	}

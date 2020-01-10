@@ -186,7 +186,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	if cand.imp != nil && cand.imp.pkg != nil {
 		searchPkg = cand.imp.pkg
 	}
-	file, pkg, err := c.snapshot.View().FindPosInPackage(searchPkg, obj.Pos())
+	file, pkg, err := findPosInPackage(c.snapshot.View(), searchPkg, obj.Pos())
 	if err != nil {
 		return item, nil
 	}

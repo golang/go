@@ -15,7 +15,7 @@ func (s *Server) foldingRange(ctx context.Context, params *protocol.FoldingRange
 		return nil, err
 	}
 	snapshot := view.Snapshot()
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.GetFile(uri)
 	if err != nil {
 		return nil, err
 	}

@@ -155,7 +155,7 @@ func (i *IdentifierInfo) Rename(ctx context.Context, newName string) (map[span.U
 	for uri, edits := range changes {
 		// These edits should really be associated with FileHandles for maximal correctness.
 		// For now, this is good enough.
-		fh, err := i.Snapshot.GetFile(ctx, uri)
+		fh, err := i.Snapshot.GetFile(uri)
 		if err != nil {
 			return nil, err
 		}

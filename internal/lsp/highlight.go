@@ -21,7 +21,7 @@ func (s *Server) documentHighlight(ctx context.Context, params *protocol.Documen
 		return nil, err
 	}
 	snapshot := view.Snapshot()
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.GetFile(uri)
 	if err != nil {
 		return nil, err
 	}

@@ -19,7 +19,7 @@ func (s *Server) implementation(ctx context.Context, params *protocol.Implementa
 		return nil, err
 	}
 	snapshot := view.Snapshot()
-	fh, err := snapshot.GetFile(ctx, uri)
+	fh, err := snapshot.GetFile(uri)
 	if err != nil {
 		return nil, err
 	}

@@ -137,7 +137,7 @@ Outer:
 	result := make(map[protocol.Range]bool)
 	// Highlight the correct argument in the function declaration return types.
 	if resultsList != nil && -1 < index && index < len(resultsList.List) {
-		rng, err := nodeToProtocolRange(ctx, snapshot.View(), m, resultsList.List[index])
+		rng, err := nodeToProtocolRange(snapshot.View(), m, resultsList.List[index])
 		if err != nil {
 			log.Error(ctx, "Error getting range for node", err)
 		} else {
@@ -174,7 +174,7 @@ Outer:
 				toAdd = n.Results[index]
 			}
 			if toAdd != nil {
-				rng, err := nodeToProtocolRange(ctx, snapshot.View(), m, toAdd)
+				rng, err := nodeToProtocolRange(snapshot.View(), m, toAdd)
 				if err != nil {
 					log.Error(ctx, "Error getting range for node", err)
 				} else {
@@ -223,7 +223,7 @@ Outer:
 		}
 		// Add all branch statements in same scope as the identified one.
 		if n, ok := n.(*ast.BranchStmt); ok {
-			rng, err := nodeToProtocolRange(ctx, snapshot.View(), m, n)
+			rng, err := nodeToProtocolRange(snapshot.View(), m, n)
 			if err != nil {
 				log.Error(ctx, "Error getting range for node", err)
 				return false
@@ -262,7 +262,7 @@ func highlightIdentifiers(ctx context.Context, snapshot Snapshot, m *protocol.Co
 		if nObj := pkg.GetTypesInfo().ObjectOf(n); nObj != idObj {
 			return false
 		}
-		if rng, err := nodeToProtocolRange(ctx, snapshot.View(), m, n); err == nil {
+		if rng, err := nodeToProtocolRange(snapshot.View(), m, n); err == nil {
 			result[rng] = true
 		} else {
 			log.Error(ctx, "Error getting range for node", err)

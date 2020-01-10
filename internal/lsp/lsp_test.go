@@ -85,7 +85,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 // TODO: Actually test the LSP diagnostics function in this test.
 func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnostic) {
 	v := r.server.session.View(viewName)
-	fh, err := v.Snapshot().GetFile(r.ctx, uri)
+	fh, err := v.Snapshot().GetFile(uri)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -339,7 +339,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 		t.Fatal(err)
 	}
 	snapshot := view.Snapshot()
-	fh, err := snapshot.GetFile(r.ctx, spn.URI())
+	fh, err := snapshot.GetFile(spn.URI())
 	if err != nil {
 		t.Fatal(err)
 	}
