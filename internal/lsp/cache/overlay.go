@@ -20,9 +20,9 @@ type overlay struct {
 	version float64
 	kind    source.FileKind
 
-	// sameContentOnDisk is true if a file has been saved on disk,
+	// saved is true if a file has been saved on disk,
 	// and therefore does not need to be part of the overlay sent to go/packages.
-	sameContentOnDisk bool
+	saved bool
 }
 
 func (o *overlay) FileSystem() source.FileSystem {
@@ -42,6 +42,11 @@ func (o *overlay) Read(ctx context.Context) ([]byte, string, error) {
 }
 
 func (s *session) updateOverlay(ctx context.Context, c source.FileModification) (source.FileKind, error) {
+	// Make sure that the file was not changed on disk.
+	if c.OnDisk {
+		return source.UnknownKind, errors.Errorf("updateOverlay called for an on-disk change: %s", c.URI)
+	}
+
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
 
@@ -90,13 +95,13 @@ func (s *session) updateOverlay(ctx context.Context, c source.FileModification) 
 		sameContentOnDisk = true
 	}
 	s.overlays[c.URI] = &overlay{
-		session:           s,
-		uri:               c.URI,
-		version:           c.Version,
-		text:              text,
-		kind:              kind,
-		hash:              hash,
-		sameContentOnDisk: sameContentOnDisk,
+		session: s,
+		uri:     c.URI,
+		version: c.Version,
+		text:    text,
+		kind:    kind,
+		hash:    hash,
+		saved:   sameContentOnDisk,
 	}
 	return kind, nil
 }
@@ -119,7 +124,7 @@ func (s *session) buildOverlay() map[string][]byte {
 	overlays := make(map[string][]byte)
 	for uri, overlay := range s.overlays {
 		// TODO(rstambler): Make sure not to send overlays outside of the current view.
-		if overlay.sameContentOnDisk {
+		if overlay.saved {
 			continue
 		}
 		overlays[uri.Filename()] = overlay.text

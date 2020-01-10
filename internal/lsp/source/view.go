@@ -28,10 +28,6 @@ type Snapshot interface {
 	// if it is not already part of the view.
 	GetFile(uri span.URI) (FileHandle, error)
 
-	// FindFile returns the file object for a given URI if it is
-	// already part of the view.
-	FindFile(uri span.URI) FileHandle
-
 	// Analyze runs the analyses for the given package at this snapshot.
 	Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) ([]*Error, error)
 
@@ -157,15 +153,12 @@ type Session interface {
 	// content from the underlying cache if no overlay is present.
 	FileSystem
 
-	// IsOpen returns whether the editor currently has a file open.
+	// IsOpen returns whether the editor currently has a file open,
+	// and if its contents are saved on disk or not.
 	IsOpen(uri span.URI) bool
 
 	// DidModifyFile reports a file modification to the session.
 	DidModifyFile(ctx context.Context, c FileModification) ([]Snapshot, error)
-
-	// DidChangeOutOfBand is called when a file under the root folder changes.
-	// If the file was open in the editor, it returns true.
-	DidChangeOutOfBand(ctx context.Context, uri span.URI, action FileAction) bool
 
 	// Options returns a copy of the SessionOptions for this session.
 	Options() Options
@@ -179,8 +172,12 @@ type FileModification struct {
 	URI    span.URI
 	Action FileAction
 
+	// OnDisk is true if a watched file is changed on disk.
+	// If true, Version will be -1 and Text will be nil.
+	OnDisk bool
+
 	// Version will be -1 and Text will be nil when they are not supplied,
-	// specifically on textDocument/didClose.
+	// specifically on textDocument/didClose and for on-disk changes.
 	Version float64
 	Text    []byte
 

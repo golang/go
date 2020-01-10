@@ -29,7 +29,7 @@ func (s *Server) diagnoseSnapshot(ctx context.Context, snapshot source.Snapshot)
 		go func(id string) {
 			ph, err := snapshot.PackageHandle(ctx, id)
 			if err != nil {
-				log.Error(ctx, "diagnoseSnapshot: no PackageHandle for workspace package", err, telemetry.Package.Of(id))
+				log.Error(ctx, "diagnoseSnapshot: no PackageHandle for package", err, telemetry.Package.Of(id))
 				return
 			}
 			reports, _, err := source.PackageDiagnostics(ctx, snapshot, ph, false, snapshot.View().Options().DisabledAnalyses)
@@ -37,7 +37,6 @@ func (s *Server) diagnoseSnapshot(ctx context.Context, snapshot source.Snapshot)
 				log.Error(ctx, "diagnoseSnapshot: no diagnostics", err, telemetry.Package.Of(ph.ID()))
 				return
 			}
-			// Don't publish empty diagnostics.
 			s.publishReports(ctx, reports, false)
 		}(id)
 	}
@@ -122,7 +121,7 @@ func (s *Server) publishReports(ctx context.Context, reports map[source.FileIden
 			// If the file is open, and we've already delivered diagnostics for
 			// a later version, do nothing. This only works for open files,
 			// since their contents in the editor are the source of truth.
-			if s.session.IsOpen(fileID.URI) && fileID.Version < delivered.version {
+			if s.session.IsOpen(fileID.URI); fileID.Version < delivered.version {
 				continue
 			}
 			geqVersion := fileID.Version >= delivered.version && delivered.version > 0

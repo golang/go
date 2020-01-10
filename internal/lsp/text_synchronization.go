@@ -12,6 +12,7 @@ import (
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
 	errors "golang.org/x/xerrors"
 )
@@ -83,6 +84,39 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 	case source.Mod:
 		// TODO(rstambler): Modifying the go.mod file should trigger workspace-level diagnostics.
 		go s.diagnoseModfile(snapshot)
+	}
+	return nil
+}
+
+func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.DidChangeWatchedFilesParams) error {
+	// Keep track of each change's view and final snapshot.
+	views := make(map[source.View]source.Snapshot)
+	for _, change := range params.Changes {
+		uri := span.NewURI(change.URI)
+		ctx := telemetry.File.With(ctx, uri)
+
+		// Do nothing if the file is open in the editor.
+		// The editor is the source of truth.
+		if s.session.IsOpen(uri) {
+			continue
+		}
+		snapshots, err := s.session.DidModifyFile(ctx, source.FileModification{
+			URI:    uri,
+			Action: changeTypeToFileAction(change.Type),
+			OnDisk: true,
+		})
+		if err != nil {
+			return err
+		}
+		snapshot, _, err := snapshotOf(s.session, uri, snapshots)
+		if err != nil {
+			return err
+		}
+		views[snapshot.View()] = snapshot
+	}
+	// Diagnose all resulting snapshots.
+	for view, snapshot := range views {
+		go s.diagnoseSnapshot(view.BackgroundContext(), snapshot)
 	}
 	return nil
 }
@@ -188,4 +222,16 @@ func (s *Server) applyIncrementalChanges(ctx context.Context, uri span.URI, chan
 		content = buf.Bytes()
 	}
 	return content, nil
+}
+
+func changeTypeToFileAction(ct protocol.FileChangeType) source.FileAction {
+	switch ct {
+	case protocol.Changed:
+		return source.Change
+	case protocol.Created:
+		return source.Create
+	case protocol.Deleted:
+		return source.Delete
+	}
+	return source.UnknownFileAction
 }

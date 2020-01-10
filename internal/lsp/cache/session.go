@@ -258,23 +258,46 @@ func (s *session) dropView(ctx context.Context, v *view) (int, error) {
 	return -1, errors.Errorf("view %s for %v not found", v.Name(), v.Folder())
 }
 
-func (s *session) DidModifyFile(ctx context.Context, c source.FileModification) ([]source.Snapshot, error) {
+func (s *session) DidModifyFile(ctx context.Context, c source.FileModification) (snapshots []source.Snapshot, err error) {
 	ctx = telemetry.URI.With(ctx, c.URI)
 
-	// Perform the session-specific updates.
-	kind, err := s.updateOverlay(ctx, c)
-	if err != nil {
-		return nil, err
+	// Update overlays only if the file was changed in the editor.
+	var kind source.FileKind
+	if !c.OnDisk {
+		kind, err = s.updateOverlay(ctx, c)
+		if err != nil {
+			return nil, err
+		}
 	}
-
-	var snapshots []source.Snapshot
 	for _, view := range s.viewsOf(c.URI) {
 		if view.Ignore(c.URI) {
 			return nil, errors.Errorf("ignored file %v", c.URI)
 		}
-		// Make sure to add the file to the view.
-		if _, err := view.getFileLocked(c.URI); err != nil {
+		// If the file was changed or deleted on disk,
+		// do nothing if the view isn't already aware of the file.
+		if c.OnDisk {
+			switch c.Action {
+			case source.Change, source.Delete:
+				if !view.knownFile(c.URI) {
+					continue
+				}
+			}
+		}
+		// Make sure that the file is added to the view.
+		f, err := view.getFileLocked(c.URI)
+		if err != nil {
 			return nil, err
+		}
+		// If the file change was on disk, the file kind is not known.
+		if c.OnDisk {
+			// If the file was already known in the snapshot,
+			// then use the already known file kind. Otherwise,
+			// detect the file kind. This should only be needed for file creates.
+			if fh := view.getSnapshot().findFileHandle(ctx, f); fh != nil {
+				kind = fh.Identity().Kind
+			} else {
+				kind = source.DetectLanguage("", c.URI.Filename())
+			}
 		}
 		snapshots = append(snapshots, view.invalidateContent(ctx, c.URI, kind, c.Action))
 	}
@@ -295,19 +318,4 @@ func (s *session) GetFile(uri span.URI) source.FileHandle {
 	}
 	// Fall back to the cache-level file system.
 	return s.cache.GetFile(uri)
-}
-
-func (s *session) DidChangeOutOfBand(ctx context.Context, uri span.URI, action source.FileAction) bool {
-	view, err := s.viewOf(uri)
-	if err != nil {
-		return false
-	}
-	// Make sure that the file is part of the view.
-	if _, err := view.getFileLocked(uri); err != nil {
-		return false
-	}
-	// TODO(golang/go#31553): Remove this when this issue has been resolved.
-	kind := source.DetectLanguage("", uri.Filename())
-	view.invalidateContent(ctx, uri, kind, action)
-	return true
 }

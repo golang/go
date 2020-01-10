@@ -342,12 +342,13 @@ func basename(filename string) string {
 	return strings.ToLower(filepath.Base(filename))
 }
 
-// FindFile returns the file if the given URI is already a part of the view.
-func (v *view) findFileLocked(uri span.URI) (*fileBase, error) {
+// knownFile returns true if the given URI is already a part of the view.
+func (v *view) knownFile(uri span.URI) bool {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	return v.findFile(uri)
+	f, err := v.findFile(uri)
+	return f != nil && err == nil
 }
 
 // getFileLocked returns a File for the given URI. It will always succeed because it
@@ -510,8 +511,13 @@ func (v *view) invalidateContent(ctx context.Context, uri span.URI, kind source.
 
 	// Cancel all still-running previous requests, since they would be
 	// operating on stale data.
+	//
+	// TODO(rstambler): All actions should lead to cancellation,
+	// but this will only be possible when all text synchronization events
+	// trigger diagnostics.
 	switch action {
-	case source.Change, source.Close:
+	case source.Save:
+	default:
 		v.cancelBackground()
 	}
 
@@ -522,7 +528,7 @@ func (v *view) invalidateContent(ctx context.Context, uri span.URI, kind source.
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock()
 
-	v.snapshot = v.snapshot.clone(ctx, uri, kind)
+	v.snapshot = v.snapshot.clone(ctx, uri)
 	return v.snapshot
 }
 

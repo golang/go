@@ -522,15 +522,6 @@ func (s *snapshot) getFileURIs() []span.URI {
 	return uris
 }
 
-// FindFile returns the file if the given URI is already a part of the view.
-func (s *snapshot) FindFile(uri span.URI) source.FileHandle {
-	f, err := s.view.findFileLocked(uri)
-	if f == nil || err != nil {
-		return nil
-	}
-	return s.getFileHandle(f)
-}
-
 // GetFile returns a File for the given URI. It will always succeed because it
 // adds the file to the managed set if needed.
 func (s *snapshot) GetFile(uri span.URI) (source.FileHandle, error) {
@@ -551,7 +542,14 @@ func (s *snapshot) getFileHandle(f *fileBase) source.FileHandle {
 	return s.files[f.URI()]
 }
 
-func (s *snapshot) clone(ctx context.Context, withoutURI span.URI, withoutFileKind source.FileKind) *snapshot {
+func (s *snapshot) findFileHandle(ctx context.Context, f *fileBase) source.FileHandle {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.files[f.URI()]
+}
+
+func (s *snapshot) clone(ctx context.Context, withoutURI span.URI) *snapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
