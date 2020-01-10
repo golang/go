@@ -81,8 +81,8 @@ func main() {
 		log.Fatalf("Failed to generate private key: %v", err)
 	}
 
-	// Both ECDSA and RSA subject keys should have the DigitalSignature KeyUsage
-	// bits set in the x509.Certificate template
+	// ECDSA, ED25519 and RSA subject keys should have the DigitalSignature
+	// KeyUsage bits set in the x509.Certificate template
 	keyUsage := x509.KeyUsageDigitalSignature
 	// Only RSA subject keys should have the KeyEncipherment KeyUsage bits set. In
 	// the context of TLS this KeyUsage is particular to RSA key exchange and
