@@ -8,9 +8,11 @@ import (
 	intdwarf "cmd/internal/dwarf"
 	objfilepkg "cmd/internal/objfile" // renamed to avoid conflict with objfile function
 	"debug/dwarf"
+	"debug/pe"
 	"errors"
 	"fmt"
 	"internal/testenv"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -1281,4 +1283,68 @@ func TestMachoIssue32233(t *testing.T) {
 	pdir := filepath.Join(wd, "testdata", "issue32233", "main")
 	f := gobuildTestdata(t, tmpdir, pdir, DefaultOpt)
 	f.Close()
+}
+
+func TestWindowsIssue36495(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	if runtime.GOOS != "windows" {
+		t.Skip("skipping: test only on windows")
+	}
+
+	dir, err := ioutil.TempDir("", "TestEmbeddedStructMarker")
+	if err != nil {
+		t.Fatalf("could not create directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	prog := `
+package main
+
+import "fmt"
+
+func main() {
+  fmt.Println("Hello World")
+}`
+	f := gobuild(t, dir, prog, NoOpt)
+	exe, err := pe.Open(f.path)
+	if err != nil {
+		t.Fatalf("error opening pe file: %v", err)
+	}
+	dw, err := exe.DWARF()
+	if err != nil {
+		t.Fatalf("error parsing DWARF: %v", err)
+	}
+	rdr := dw.Reader()
+	for {
+		e, err := rdr.Next()
+		if err != nil {
+			t.Fatalf("error reading DWARF: %v", err)
+		}
+		if e == nil {
+			break
+		}
+		if e.Tag != dwarf.TagCompileUnit {
+			continue
+		}
+		lnrdr, err := dw.LineReader(e)
+		if err != nil {
+			t.Fatalf("error creating DWARF line reader: %v", err)
+		}
+		if lnrdr != nil {
+			var lne dwarf.LineEntry
+			for {
+				err := lnrdr.Next(&lne)
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					t.Fatalf("error reading next DWARF line: %v", err)
+				}
+				if strings.Contains(lne.File.Name, `\`) {
+					t.Errorf("filename should not contain backslash: %v", lne.File.Name)
+				}
+			}
+		}
+		rdr.SkipChildren()
+	}
 }
