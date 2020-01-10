@@ -1709,27 +1709,6 @@ func TestShadowingLogic(t *testing.T) {
 	}
 }
 
-// Check that coverage analysis works at all.
-// Don't worry about the exact numbers but require not 0.0%.
-func checkCoverage(tg *testgoData, data string) {
-	tg.t.Helper()
-	if regexp.MustCompile(`[^0-9]0\.0%`).MatchString(data) {
-		tg.t.Error("some coverage results are 0.0%")
-	}
-}
-
-func TestCoverageRuns(t *testing.T) {
-	skipIfGccgo(t, "gccgo has no cover tool")
-	tooSlow(t)
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("test", "-short", "-coverpkg=strings", "strings", "regexp")
-	data := tg.getStdout() + tg.getStderr()
-	tg.run("test", "-short", "-cover", "strings", "math", "regexp")
-	data += tg.getStdout() + tg.getStderr()
-	checkCoverage(tg, data)
-}
-
 func TestBuildDryRunWithCgo(t *testing.T) {
 	if !canCgo {
 		t.Skip("skipping because cgo not enabled")
