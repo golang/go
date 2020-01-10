@@ -788,6 +788,24 @@ func TestQueryRow(t *testing.T) {
 	}
 }
 
+func TestRowErr(t *testing.T) {
+	db := newTestDB(t, "people")
+
+	err := db.QueryRowContext(context.Background(), "SELECT|people|bdate|age=?", 3).Err()
+	if err != nil {
+		t.Errorf("Unexpected err = %v; want %v", err, nil)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = db.QueryRowContext(ctx, "SELECT|people|bdate|age=?", 3).Err()
+	exp := "context canceled"
+	if err == nil || !strings.Contains(err.Error(), exp) {
+		t.Errorf("Expected err = %v; got %v", exp, err)
+	}
+}
+
 func TestTxRollbackCommitErr(t *testing.T) {
 	db := newTestDB(t, "people")
 	defer closeDB(t, db)
