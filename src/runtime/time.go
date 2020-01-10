@@ -669,6 +669,8 @@ func adjusttimers(pp *p) {
 						return
 					}
 				}
+				// Look at this heap position again.
+				i--
 			}
 		case timerNoStatus, timerRunning, timerRemoving, timerRemoved, timerMoving:
 			badTimer()
