@@ -619,13 +619,33 @@ updating requirements in `go.mod`.
 ## Compatibility with non-module repositories
 
 <a id="mod-commands"></a>
-## Module-aware build commands
+## Module-aware commands
 
-<a id="enabling"></a>
-### Enabling modules
+Most `go` commands may run in *Module-aware mode* or *`GOPATH` mode*. In
+module-aware mode, the `go` command uses `go.mod` files to find versioned
+dependencies, and it typically loads packages out of the [module
+cache](#glos-module-cache), downloading modules if they are missing. In `GOPATH`
+mode, the `go` command ignores modules; it looks in `vendor` directories and in
+`GOPATH` to find dependencies.
 
-<a id="initializing"></a>
-### Initializing modules
+Module-aware mode is active by default whenever a `go.mod` file is found in the
+current directory or in any parent directory. For more fine-grained control, the
+`GO111MODULE` environment variable may be set to one of three values: `on`,
+`off`, or `auto`.
+
+* If `GO111MODULE=off`, the `go` command ignores `go.mod` files and runs in
+  `GOPATH` mode.
+* If `GO111MODULE=on`, the `go` command runs in module-aware mode, even when
+  no `go.mod` file is present. Not all commands work without a `go.mod` file:
+  see [Module commands outside a module](#commands-outside).
+* If `GO111MODULE=auto` or is unset, the `go` command runs in module-aware
+  mode if a `go.mod` file is present in the current directory or any parent
+  directory (the default behavior).
+
+In module-aware mode, `GOPATH` no longer defines the meaning of imports during a
+build, but it still stores downloaded dependencies (in `GOPATH/pkg/mod`; see
+[Module cache](#module-cache)) and installed commands (in `GOPATH/bin`, unless
+`GOBIN` is set).
 
 <a id="build-commands"></a>
 ### Build commands
@@ -636,17 +656,29 @@ updating requirements in `go.mod`.
 <a id="go-get"></a>
 ### `go get`
 
+<a id="go-list-m"></a>
+### `go list -m`
+
 <a id="go-mod-download"></a>
 ### `go mod download`
-
-<a id="go-mod-verify"></a>
-### `go mod verify`
 
 <a id="go-mod-edit"></a>
 ### `go mod edit`
 
+<a id="go-mod-init"></a>
+### `go mod init`
+
+<a id="go-mod-tidy"></a>
+### `go mod tidy`
+
+<a id="go-mod-verify"></a>
+### `go mod verify`
+
 <a id="go-clean-modcache"></a>
 ### `go clean -modcache`
+
+<a id="module-queries"></a>
+### Module queries
 
 <a id="commands-outside"></a>
 ### Module commands outside a module
@@ -827,6 +859,9 @@ setting `GOPROXY` to `https://example.com/proxy`.
 
 <a id="private-modules"></a>
 ### Private modules
+
+<a id="module-cache"></a>
+### Module cache
 
 <a id="authenticating"></a>
 ## Authenticating modules
@@ -1056,6 +1091,10 @@ be incremented, and the patch version must be set to 0.
 <a id="glos-module"></a>
 **module:** A collection of packages that are released, versioned, and
 distributed together.
+
+<a id="glos-module-cache"></a>
+**module cache:** A local directory storing downloaded modules, located in
+`GOPATH/pkg/mod`. See [Module cache](#module-cache).
 
 <a id="glos-module-graph"></a>
 **module graph:** The directed graph of module requirements, rooted at the [main
