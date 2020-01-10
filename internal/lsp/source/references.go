@@ -45,11 +45,7 @@ func (i *IdentifierInfo) References(ctx context.Context) ([]*ReferenceInfo, erro
 		if err != nil {
 			return nil, err
 		}
-		for _, id := range reverseDeps {
-			ph, err := i.Snapshot.PackageHandle(ctx, id)
-			if err != nil {
-				return nil, err
-			}
+		for _, ph := range reverseDeps {
 			pkg, err := ph.Check(ctx)
 			if err != nil {
 				return nil, err

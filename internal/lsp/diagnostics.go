@@ -20,25 +20,20 @@ func (s *Server) diagnoseSnapshot(ctx context.Context, snapshot source.Snapshot)
 	ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
 	defer done()
 
-	wsPackages, err := snapshot.View().WorkspacePackageIDs(ctx)
+	wsPackages, err := snapshot.WorkspacePackages(ctx)
 	if err != nil {
 		log.Error(ctx, "diagnoseSnapshot: no workspace packages", err, telemetry.Directory.Of(snapshot.View().Folder))
 		return
 	}
-	for _, id := range wsPackages {
-		go func(id string) {
-			ph, err := snapshot.PackageHandle(ctx, id)
-			if err != nil {
-				log.Error(ctx, "diagnoseSnapshot: no PackageHandle for package", err, telemetry.Package.Of(id))
-				return
-			}
+	for _, ph := range wsPackages {
+		go func(ph source.PackageHandle) {
 			reports, _, err := source.PackageDiagnostics(ctx, snapshot, ph, false, snapshot.View().Options().DisabledAnalyses)
 			if err != nil {
 				log.Error(ctx, "diagnoseSnapshot: no diagnostics", err, telemetry.Package.Of(ph.ID()))
 				return
 			}
 			s.publishReports(ctx, reports, false)
-		}(id)
+		}(ph)
 	}
 	// Run diagnostics on the go.mod file.
 	s.diagnoseModfile(snapshot)

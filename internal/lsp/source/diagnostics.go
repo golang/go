@@ -120,11 +120,7 @@ func PackageDiagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle
 		log.Error(ctx, "no reverse dependencies", err)
 		return reports, warningMsg, nil
 	}
-	for _, id := range reverseDeps {
-		ph, err := snapshot.PackageHandle(ctx, id)
-		if err != nil {
-			return nil, warningMsg, err
-		}
+	for _, ph := range reverseDeps {
 		pkg, err := ph.Check(ctx)
 		if err != nil {
 			return nil, warningMsg, err

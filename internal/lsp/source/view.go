@@ -38,23 +38,24 @@ type Snapshot interface {
 	// ModFiles returns the FileHandles of the go.mod files attached to the view associated with this snapshot.
 	ModFiles(ctx context.Context) (FileHandle, FileHandle, error)
 
-	// PackageHandle returns the CheckPackageHandle for the given package ID.
-	PackageHandle(ctx context.Context, id string) (PackageHandle, error)
-
 	// PackageHandles returns the CheckPackageHandles for the packages
 	// that this file belongs to.
 	PackageHandles(ctx context.Context, fh FileHandle) ([]PackageHandle, error)
 
 	// GetActiveReverseDeps returns the active files belonging to the reverse
 	// dependencies of this file's package.
-	GetReverseDependencies(ctx context.Context, id string) ([]string, error)
+	GetReverseDependencies(ctx context.Context, id string) ([]PackageHandle, error)
 
-	// KnownImportPaths returns all the imported packages loaded in this snapshot,
+	// CachedImportPaths returns all the imported packages loaded in this snapshot,
 	// indexed by their import path.
-	KnownImportPaths() map[string]Package
+	CachedImportPaths(ctx context.Context) (map[string]Package, error)
 
 	// KnownPackages returns all the packages loaded in this snapshot.
 	KnownPackages(ctx context.Context) ([]PackageHandle, error)
+
+	// WorkspacePackages returns the PackageHandles for the snapshot's
+	// top-level packages.
+	WorkspacePackages(ctx context.Context) ([]PackageHandle, error)
 }
 
 // PackageHandle represents a handle to a specific version of a package.
@@ -117,10 +118,6 @@ type View interface {
 	// added to the session. If so the new view will be returned, otherwise the
 	// original one will be.
 	SetOptions(context.Context, Options) (View, error)
-
-	// WorkspacePackageIDs returns the ids of the packages at the top-level
-	// of the snapshot's view.
-	WorkspacePackageIDs(ctx context.Context) ([]string, error)
 
 	// Snapshot returns the current snapshot for the view.
 	Snapshot() Snapshot

@@ -293,7 +293,7 @@ func (s *session) DidModifyFile(ctx context.Context, c source.FileModification) 
 			// If the file was already known in the snapshot,
 			// then use the already known file kind. Otherwise,
 			// detect the file kind. This should only be needed for file creates.
-			if fh := view.getSnapshot().findFileHandle(ctx, f); fh != nil {
+			if fh := view.getSnapshot().findFileHandle(f); fh != nil {
 				kind = fh.Identity().Kind
 			} else {
 				kind = source.DetectLanguage("", c.URI.Filename())

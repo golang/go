@@ -649,7 +649,10 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 
 func (c *completer) unimportedMembers(id *ast.Ident) error {
 	// Try loaded packages first. They're relevant, fast, and fully typed.
-	known := c.snapshot.KnownImportPaths()
+	known, err := c.snapshot.CachedImportPaths(c.ctx)
+	if err != nil {
+		return err
+	}
 	for path, pkg := range known {
 		if pkg.GetTypes().Name() != id.Name {
 			continue

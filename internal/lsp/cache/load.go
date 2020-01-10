@@ -38,9 +38,14 @@ type metadata struct {
 func (s *snapshot) load(ctx context.Context, scope interface{}) ([]*metadata, error) {
 	var query string
 	switch scope := scope.(type) {
+	case []packagePath:
+		for i, p := range scope {
+			if i != 0 {
+				query += " "
+			}
+			query += string(p)
+		}
 	case packagePath:
-		query = string(scope)
-	case packageID:
 		query = string(scope)
 	case fileURI:
 		query = fmt.Sprintf("file=%s", span.URI(scope).Filename())

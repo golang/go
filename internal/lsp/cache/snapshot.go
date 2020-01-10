@@ -121,21 +121,20 @@ func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]
 	return results, nil
 }
 
-func (s *snapshot) PackageHandle(ctx context.Context, pkgID string) (source.PackageHandle, error) {
-	id := packageID(pkgID)
-	var meta []*metadata
-	if m := s.getMetadata(id); m != nil {
-		meta = append(meta, m)
+func (s *snapshot) packageHandle(ctx context.Context, id packageID) (*packageHandle, error) {
+	m := s.getMetadata(id)
+
+	// Don't reload metadata in this function.
+	// Callers of this function must reload metadata themselves.
+	if m == nil {
+		return nil, errors.Errorf("%s has no metadata", id)
 	}
-	// We might need to reload the package. If it is a workspace package,
-	// it may be a test variant and therefore have a different scope.
-	var scope interface{} = id
-	if path, ok := s.isWorkspacePackage(id); ok {
-		scope = path
+	phs, load, check := s.shouldCheck([]*metadata{m})
+	if load {
+		return nil, errors.Errorf("%s needs loading", id)
 	}
-	phs, err := s.packageHandles(ctx, scope, meta)
-	if err != nil {
-		return nil, err
+	if check {
+		return s.buildPackageHandle(ctx, m.id, source.ParseFull)
 	}
 	var result *packageHandle
 	for _, ph := range phs {
@@ -239,21 +238,23 @@ func (s *snapshot) shouldCheck(m []*metadata) (phs []*packageHandle, load, check
 	return phs, false, false
 }
 
-func (s *snapshot) GetReverseDependencies(ctx context.Context, id string) ([]string, error) {
-	// Do not return results until the view has been initialized.
-	if err := s.awaitInitialized(ctx); err != nil {
+func (s *snapshot) GetReverseDependencies(ctx context.Context, id string) ([]source.PackageHandle, error) {
+	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
-
 	ids := make(map[packageID]struct{})
 	s.transitiveReverseDependencies(packageID(id), ids)
 
 	// Make sure to delete the original package ID from the map.
 	delete(ids, packageID(id))
 
-	var results []string
+	var results []source.PackageHandle
 	for id := range ids {
-		results = append(results, string(id))
+		ph, err := s.packageHandle(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, ph)
 	}
 	return results, nil
 }
@@ -318,18 +319,33 @@ func (s *snapshot) addPackage(ph *packageHandle) {
 	s.packages[ph.packageKey()] = ph
 }
 
-func (s *snapshot) workspacePackageIDs() (ids []string) {
+func (s *snapshot) workspacePackageIDs() (ids []packageID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	for id := range s.workspacePackages {
-		ids = append(ids, string(id))
+		ids = append(ids, id)
 	}
 	return ids
 }
 
+func (s *snapshot) WorkspacePackages(ctx context.Context) ([]source.PackageHandle, error) {
+	if err := s.awaitLoaded(ctx); err != nil {
+		return nil, err
+	}
+	var results []source.PackageHandle
+	for _, pkgID := range s.workspacePackageIDs() {
+		ph, err := s.packageHandle(ctx, pkgID)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, ph)
+	}
+	return results, nil
+}
+
 func (s *snapshot) KnownPackages(ctx context.Context) ([]source.PackageHandle, error) {
-	if err := s.awaitInitialized(ctx); err != nil {
+	if err := s.awaitLoaded(ctx); err != nil {
 		return nil, err
 	}
 	// Collect PackageHandles for all of the workspace packages first.
@@ -343,7 +359,7 @@ func (s *snapshot) KnownPackages(ctx context.Context) ([]source.PackageHandle, e
 
 	var results []source.PackageHandle
 	for pkgID := range wsPackages {
-		ph, err := s.PackageHandle(ctx, string(pkgID))
+		ph, err := s.packageHandle(ctx, pkgID)
 		if err != nil {
 			return nil, err
 		}
@@ -374,7 +390,13 @@ func (s *snapshot) KnownPackages(ctx context.Context) ([]source.PackageHandle, e
 	return results, nil
 }
 
-func (s *snapshot) KnownImportPaths() map[string]source.Package {
+func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Package, error) {
+	// Don't reload workspace package metadata.
+	// This function is meant to only return currently cached information.
+	if err := s.view.awaitInitialized(ctx); err != nil {
+		return nil, err
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -395,7 +417,7 @@ func (s *snapshot) KnownImportPaths() map[string]source.Package {
 			}
 		}
 	}
-	return results
+	return results, nil
 }
 
 func (s *snapshot) getPackage(id packageID, m source.ParseMode) *packageHandle {
@@ -542,11 +564,38 @@ func (s *snapshot) getFileHandle(f *fileBase) source.FileHandle {
 	return s.files[f.URI()]
 }
 
-func (s *snapshot) findFileHandle(ctx context.Context, f *fileBase) source.FileHandle {
+func (s *snapshot) findFileHandle(f *fileBase) source.FileHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	return s.files[f.URI()]
+}
+
+func (s *snapshot) awaitLoaded(ctx context.Context) error {
+	// Do not return results until the snapshot's view has been initialized.
+	if err := s.view.awaitInitialized(ctx); err != nil {
+		return err
+	}
+	// Make sure that the workspace is in a valid state.
+	return s.reloadWorkspace(ctx)
+}
+
+// reloadWorkspace reloads the metadata for all invalidated workspace packages.
+func (s *snapshot) reloadWorkspace(ctx context.Context) error {
+	s.mu.Lock()
+	var scope []packagePath
+	for id, pkgPath := range s.workspacePackages {
+		if s.metadata[id] == nil {
+			scope = append(scope, pkgPath)
+		}
+	}
+	s.mu.Unlock()
+
+	if len(scope) == 0 {
+		return nil
+	}
+	_, err := s.load(ctx, scope)
+	return err
 }
 
 func (s *snapshot) clone(ctx context.Context, withoutURI span.URI) *snapshot {

@@ -416,6 +416,7 @@ func (v *view) Shutdown(ctx context.Context) {
 }
 
 func (v *view) shutdown(context.Context) {
+	// TODO: Cancel the view's initialization.
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	if v.cancel != nil {
@@ -467,15 +468,6 @@ func (v *view) getSnapshot() *snapshot {
 	return v.snapshot
 }
 
-func (v *view) WorkspacePackageIDs(ctx context.Context) ([]string, error) {
-	s := v.getSnapshot()
-
-	if err := s.awaitInitialized(ctx); err != nil {
-		return nil, err
-	}
-	return s.workspacePackageIDs(), nil
-}
-
 func (v *view) initialize(ctx context.Context, s *snapshot) {
 	v.initializeOnce.Do(func() {
 		defer close(v.initialized)
@@ -493,13 +485,13 @@ func (v *view) initialize(ctx context.Context, s *snapshot) {
 	})
 }
 
-func (s *snapshot) awaitInitialized(ctx context.Context) error {
+func (v *view) awaitInitialized(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-s.view.initialized:
+	case <-v.initialized:
 	}
-	return s.view.initializationError
+	return v.initializationError
 }
 
 // invalidateContent invalidates the content of a Go file,
@@ -521,8 +513,8 @@ func (v *view) invalidateContent(ctx context.Context, uri span.URI, kind source.
 		v.cancelBackground()
 	}
 
-	// Do not clone a snapshot until the workspace load has been completed.
-	<-v.initialized
+	// Do not clone a snapshot until its view has finished initializing.
+	_ = v.awaitInitialized(ctx)
 
 	// This should be the only time we hold the view's snapshot lock for any period of time.
 	v.snapshotMu.Lock()
