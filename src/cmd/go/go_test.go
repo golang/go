@@ -2357,25 +2357,6 @@ const (
 	okPattern        = `(?m)^ok`
 )
 
-// Issue 19394
-func TestWriteProfilesOnTimeout(t *testing.T) {
-	tooSlow(t)
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.tempDir("profiling")
-	tg.tempFile("profiling/timeouttest_test.go", `package timeouttest_test
-import "testing"
-import "time"
-func TestSleep(t *testing.T) { time.Sleep(time.Second) }`)
-	tg.cd(tg.path("profiling"))
-	tg.runFail(
-		"test",
-		"-cpuprofile", tg.path("profiling/cpu.pprof"), "-memprofile", tg.path("profiling/mem.pprof"),
-		"-timeout", "1ms")
-	tg.mustHaveContent(tg.path("profiling/cpu.pprof"))
-	tg.mustHaveContent(tg.path("profiling/mem.pprof"))
-}
-
 func TestLinkXImportPathEscape(t *testing.T) {
 	// golang.org/issue/16710
 	skipIfGccgo(t, "gccgo does not support -ldflags -X")
@@ -2661,29 +2642,6 @@ func TestNeedVersion(t *testing.T) {
 	tg.grepStderr("compile", "does not match go tool version")
 }
 
-func TestCgoFlagContainsSpace(t *testing.T) {
-	tooSlow(t)
-	if !canCgo {
-		t.Skip("skipping because cgo not enabled")
-	}
-	tg := testgo(t)
-	defer tg.cleanup()
-
-	tg.makeTempdir()
-	tg.cd(tg.path("."))
-	tg.tempFile("main.go", `package main
-		// #cgo CFLAGS: -I"c flags"
-		// #cgo LDFLAGS: -L"ld flags"
-		import "C"
-		func main() {}
-	`)
-	tg.run("run", "-x", "main.go")
-	tg.grepStderr(`"-I[^"]+c flags"`, "did not find quoted c flags")
-	tg.grepStderrNot(`"-I[^"]+c flags".*"-I[^"]+c flags"`, "found too many quoted c flags")
-	tg.grepStderr(`"-L[^"]+ld flags"`, "did not find quoted ld flags")
-	tg.grepStderrNot(`"-L[^"]+c flags".*"-L[^"]+c flags"`, "found too many quoted ld flags")
-}
-
 // Issue 9737: verify that GOARM and GO386 affect the computed build ID.
 func TestBuildIDContainsArchModeEnv(t *testing.T) {
 	if testing.Short() {
@@ -2781,71 +2739,6 @@ func TestBuildmodePIE(t *testing.T) {
 	if string(out) != "hello" {
 		t.Errorf("got %q; want %q", out, "hello")
 	}
-}
-
-func TestExecBuildX(t *testing.T) {
-	tooSlow(t)
-	if !canCgo {
-		t.Skip("skipping because cgo not enabled")
-	}
-
-	testenv.MustHaveExecPath(t, "/usr/bin/env")
-	testenv.MustHaveExecPath(t, "bash")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-
-	tg.tempDir("cache")
-	tg.setenv("GOCACHE", tg.path("cache"))
-
-	// Before building our test main.go, ensure that an up-to-date copy of
-	// runtime/cgo is present in the cache. If it isn't, the 'go build' step below
-	// will fail with "can't open import". See golang.org/issue/29004.
-	tg.run("build", "runtime/cgo")
-
-	tg.tempFile("main.go", `package main; import "C"; func main() { print("hello") }`)
-	src := tg.path("main.go")
-	obj := tg.path("main")
-	tg.run("build", "-x", "-o", obj, src)
-	sh := tg.path("test.sh")
-	cmds := tg.getStderr()
-	err := ioutil.WriteFile(sh, []byte("set -e\n"+cmds), 0666)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	out, err := exec.Command(obj).CombinedOutput()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(out) != "hello" {
-		t.Fatalf("got %q; want %q", out, "hello")
-	}
-
-	err = os.Remove(obj)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	out, err = exec.Command("/usr/bin/env", "bash", "-x", sh).CombinedOutput()
-	if err != nil {
-		t.Fatalf("/bin/sh %s: %v\n%s", sh, err, out)
-	}
-	t.Logf("shell output:\n%s", out)
-
-	out, err = exec.Command(obj).CombinedOutput()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(out) != "hello" {
-		t.Fatalf("got %q; want %q", out, "hello")
-	}
-
-	matches := regexp.MustCompile(`^WORK=(.*)\n`).FindStringSubmatch(cmds)
-	if len(matches) == 0 {
-		t.Fatal("no WORK directory")
-	}
-	tg.must(robustio.RemoveAll(matches[1]))
 }
 
 func TestUpxCompression(t *testing.T) {
