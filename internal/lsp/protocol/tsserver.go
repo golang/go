@@ -3,7 +3,7 @@ package protocol
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
 // commit: 635ab1fe6f8c57ce9402e573d007f24d6d290fd3
-// last fetched Mon Oct 14 2019 09:09:30 GMT-0400 (Eastern Daylight Time)
+// last fetched Fri Jan 10 2020 17:17:33 GMT-0500 (Eastern Standard Time)
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
 
@@ -60,6 +60,7 @@ type Server interface {
 	Rename(context.Context, *RenameParams) (*WorkspaceEdit /*WorkspaceEdit | null*/, error)
 	PrepareRename(context.Context, *PrepareRenameParams) (interface{} /* Range | struct{;  Range Range`json:"range"`;  Placeholder string`json:"placeholder"`; } | nil*/, error)
 	ExecuteCommand(context.Context, *ExecuteCommandParams) (interface{} /*any | null*/, error)
+	NonstandardRequest(ctx context.Context, method string, params interface{}) (interface{}, error)
 }
 
 func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered bool) bool {
@@ -526,9 +527,18 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 			log.Error(ctx, "", err)
 		}
 		return true
-
 	default:
-		return false
+		var params interface{}
+		if err := json.Unmarshal(*r.Params, &params); err != nil {
+			sendParseError(ctx, r, err)
+			return true
+		}
+		resp, err := h.server.NonstandardRequest(ctx, r.Method, params)
+		if err := r.Reply(ctx, resp, err); err != nil {
+			log.Error(ctx, "", err)
+		}
+		return true
+
 	}
 }
 
@@ -818,6 +828,14 @@ func (s *serverDispatcher) PrepareRename(ctx context.Context, params *PrepareRen
 func (s *serverDispatcher) ExecuteCommand(ctx context.Context, params *ExecuteCommandParams) (interface{} /*any | null*/, error) {
 	var result interface{} /*any | null*/
 	if err := s.Conn.Call(ctx, "workspace/executeCommand", params, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *serverDispatcher) NonstandardRequest(ctx context.Context, method string, params interface{}) (interface{}, error) {
+	var result interface{}
+	if err := s.Conn.Call(ctx, method, params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil

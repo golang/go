@@ -1043,8 +1043,6 @@ function output(side: side) {
             switch r.Method {`);
   side.cases.forEach((v) => {f(v)});
   f(`
-        default:
-          return false
         }
       }`);
   f(`
@@ -1053,6 +1051,33 @@ function output(side: side) {
         }
         `);
   side.calls.forEach((v) => {f(v)});
+}
+
+// Handling of non-standard requests, so we can add gopls-specific calls.
+function nonstandardRequests() {
+  server.methods.push('NonstandardRequest(ctx context.Context, method string, params interface{}) (interface{}, error)')
+  server.calls.push(`func (s *serverDispatcher) NonstandardRequest(ctx context.Context, method string, params interface{}) (interface{}, error) {
+      var result interface{}
+      if err := s.Conn.Call(ctx, method, params, &result); err != nil {
+        return nil, err
+      }
+      return result, nil
+    }
+  `)
+  client.cases.push(`default:
+    return false`)
+  server.cases.push(`default:
+  var params interface{}
+  if err := json.Unmarshal(*r.Params, &params); err != nil {
+    sendParseError(ctx, r, err)
+    return true
+  }
+  resp, err := h.server.NonstandardRequest(ctx, r.Method, params)
+  if err := r.Reply(ctx, resp, err); err != nil {
+    log.Error(ctx, "", err)
+  }
+  return true
+`)
 }
 
 // ----- remember it's a scripting language
@@ -1092,6 +1117,7 @@ function main() {
   req.forEach(  // requests
       (v, k) => {
           receives.get(k) == 'client' ? goReq(client, k) : goReq(server, k)});
+  nonstandardRequests();
   // find all the types implied by seenTypes and rpcs to try to avoid
   // generating types that aren't used
   moreTypes();
