@@ -802,6 +802,51 @@ to standard error.
 <a id="go-mod-init"></a>
 ### `go mod init`
 
+Usage:
+
+```
+go mod init [module-path]
+```
+
+Example:
+
+```
+go mod init
+go mod init example.com/m
+```
+
+The `go mod init` command initializes and writes a new `go.mod` file in the
+current directory, in effect creating a new module rooted at the current
+directory. The `go.mod` file must not already exist.
+
+`init` accepts one optional argument, the [module path](#glos-module-path) for
+the new module. See [Module paths](#module-path) for instructions on choosing
+a module path. If the module path argument is omitted, `init` will attempt
+to infer the module path using import comments in `.go` files, vendoring tool
+configuration files, and the current directory (if in `GOPATH`).
+
+If a configuration file for a vendoring tool is present, `init` will attempt to
+import module requirements from it. `init` supports the following configuration
+files.
+
+* `GLOCKFILE` (Glock)
+* `Godeps/Godeps.json` (Godeps)
+* `Gopkg.lock` (dep)
+* `dependencies.tsv` (godeps)
+* `glide.lock` (glide)
+* `vendor.conf` (trash)
+* `vendor.yml` (govend)
+* `vendor/manifest` (gvt)
+* `vendor/vendor.json` (govendor)
+
+Vendoring tool configuration files can't always be translated with perfect
+fidelity. For example, if multiple packages within the same repository are
+imported at different versions, and the repository only contains one module, the
+imported `go.mod` can only require the module at one version. You may wish to
+run [`go list -m all`](#go-list-m) to check all versions in the [build
+list](#glos-build-list), and [`go mod tidy`](#go-mod-tidy) to add missing
+requirements and to drop unused requirements.
+
 <a id="go-mod-tidy"></a>
 ### `go mod tidy`
 
