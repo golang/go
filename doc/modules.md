@@ -659,6 +659,92 @@ build, but it still stores downloaded dependencies (in `GOPATH/pkg/mod`; see
 <a id="go-list-m"></a>
 ### `go list -m`
 
+Usage:
+
+```
+go list -m [-u] [-versions] [list flags] [modules]
+```
+
+Example:
+
+```
+$ go list -m all
+$ go list -m -versions example.com/m
+$ go list -m -json example.com/m@latest
+```
+
+The `-m` flag causes `go list` to list modules instead of packages. In this
+mode, the arguments to `go list` may be modules, module patterns (containing the
+`...` wildcard), [module queries](#module-queries), or the special pattern
+`all`, which matches all modules in the [build list](#glos-build-list). If no
+arguments are specified, the [main module](#glos-main-module) is listed.
+
+When listing modules, the `-f` flag still specifies a format template applied
+to a Go struct, but now a `Module` struct:
+
+```
+type Module struct {
+    Path      string       // module path
+    Version   string       // module version
+    Versions  []string     // available module versions (with -versions)
+    Replace   *Module      // replaced by this module
+    Time      *time.Time   // time version was created
+    Update    *Module      // available update, if any (with -u)
+    Main      bool         // is this the main module?
+    Indirect  bool         // is this module only an indirect dependency of main module?
+    Dir       string       // directory holding files for this module, if any
+    GoMod     string       // path to go.mod file for this module, if any
+    GoVersion string       // go version used in module
+    Error     *ModuleError // error loading module
+}
+
+type ModuleError struct {
+    Err string // the error itself
+}
+```
+
+The default output is to print the module path and then information about the
+version and replacement if any. For example, `go list -m all` might print:
+
+```
+example.com/main/module
+golang.org/x/text v0.3.0 => /tmp/text
+rsc.io/pdf v0.1.1
+```
+
+The `Module` struct has a `String` method that formats this line of output, so
+that the default format is equivalent to `-f '{{.String}}'`.
+
+Note that when a module has been replaced, its `Replace` field describes the
+replacement module module, and its `Dir` field is set to the replacement
+module's source code, if present. (That is, if `Replace` is non-nil, then `Dir`
+is set to `Replace.Dir`, with no access to the replaced source code.)
+
+The `-u` flag adds information about available upgrades. When the latest version
+of a given module is newer than the current one, `list -u` sets the module's
+`Update` field to information about the newer module. The module's `String`
+method indicates an available upgrade by formatting the newer version in
+brackets after the current version. For example, `go list -m -u all` might
+print:
+
+```
+example.com/main/module
+golang.org/x/text v0.3.0 [v0.4.0] => /tmp/text
+rsc.io/pdf v0.1.1 [v0.1.2]
+```
+
+(For tools, `go list -m -u -json all` may be more convenient to parse.)
+
+The `-versions` flag causes `list` to set the module's `Versions` field to a
+list of all known versions of that module, ordered according to semantic
+versioning, lowest to highest. The flag also changes the default output format
+to display the module path followed by the space-separated version list.
+
+The template function `module` takes a single string argument that must be a
+module path or query and returns the specified module as a `Module` struct. If
+an error occurs, the result will be a `Module` struct with a non-nil `Error`
+field.
+
 <a id="go-mod-download"></a>
 ### `go mod download`
 
