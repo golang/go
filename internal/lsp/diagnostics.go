@@ -69,15 +69,14 @@ func (s *Server) diagnoseModfile(snapshot source.Snapshot) {
 	ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
 	defer done()
 
-	f, diags, err := mod.Diagnostics(ctx, snapshot)
+	reports, err := mod.Diagnostics(ctx, snapshot)
 	if err != nil {
 		if err != context.Canceled {
 			log.Error(ctx, "diagnoseModfile: could not generate diagnostics", err)
 		}
 		return
 	}
-	reports := map[source.FileIdentity][]source.Diagnostic{f: diags}
-	// Publish empty diagnostics for files.
+	// Publish empty diagnostics for go.mod files.
 	s.publishReports(ctx, reports, true)
 }
 

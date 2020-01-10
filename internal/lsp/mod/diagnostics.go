@@ -18,15 +18,15 @@ import (
 	"golang.org/x/tools/internal/telemetry/trace"
 )
 
-func Diagnostics(ctx context.Context, snapshot source.Snapshot) (source.FileIdentity, []source.Diagnostic, error) {
+func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.FileIdentity][]source.Diagnostic, error) {
 	// TODO: We will want to support diagnostics for go.mod files even when the -modfile flag is turned off.
 	realfh, tempfh, err := snapshot.ModFiles(ctx)
 	if err != nil {
-		return source.FileIdentity{}, nil, err
+		return nil, err
 	}
 	// Check the case when the tempModfile flag is turned off.
 	if realfh == nil || tempfh == nil {
-		return source.FileIdentity{}, nil, nil
+		return nil, nil
 	}
 
 	ctx, done := trace.StartSpan(ctx, "modfiles.Diagnostics", telemetry.File.Of(realfh.Identity().URI))
@@ -39,31 +39,34 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (source.FileIden
 	if _, err := source.InvokeGo(ctx, snapshot.View().Folder().Filename(), cfg.Env, args...); err != nil {
 		// Ignore parse errors here. They'll be handled below.
 		if !strings.Contains(err.Error(), "errors parsing go.mod") {
-			return source.FileIdentity{}, nil, err
+			return nil, err
 		}
 	}
 
 	realMod, err := snapshot.View().Session().Cache().ParseModHandle(realfh).Parse(ctx)
+	// If the go.mod file fails to parse, return errors right away.
 	if err, ok := err.(*source.Error); ok {
-		return realfh.Identity(), []source.Diagnostic{
-			{
+		return map[source.FileIdentity][]source.Diagnostic{
+			realfh.Identity(): []source.Diagnostic{{
 				Message:  err.Message,
-				Source:   "go mod tidy",
+				Source:   "syntax",
 				Range:    err.Range,
 				Severity: protocol.SeverityError,
-			},
+			}},
 		}, nil
 	}
 	if err != nil {
-		return source.FileIdentity{}, nil, err
+		return nil, err
 	}
 	tempMod, err := snapshot.View().Session().Cache().ParseModHandle(tempfh).Parse(ctx)
 	if err != nil {
-		return source.FileIdentity{}, nil, err
+		return nil, err
 	}
 
 	// Check indirect vs direct, and removal of dependencies.
-	reports := []source.Diagnostic{}
+	reports := map[source.FileIdentity][]source.Diagnostic{
+		realfh.Identity(): []source.Diagnostic{},
+	}
 	realReqs := make(map[string]*modfile.Require, len(realMod.Require))
 	tempReqs := make(map[string]*modfile.Require, len(tempMod.Require))
 	for _, req := range realMod.Require {
@@ -93,9 +96,9 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (source.FileIden
 				diag.Message = fmt.Sprintf("%s should not be an indirect dependency.", dep)
 			}
 		}
-		reports = append(reports, *diag)
+		reports[realfh.Identity()] = append(reports[realfh.Identity()], *diag)
 	}
-	return realfh.Identity(), reports, nil
+	return reports, nil
 }
 
 // TODO: Check to see if we need to go through internal/span (for multiple byte characters).

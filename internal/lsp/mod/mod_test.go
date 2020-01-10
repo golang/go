@@ -108,7 +108,7 @@ func TestDiagnostics(t *testing.T) {
 			want: []source.Diagnostic{
 				{
 					Message:  "usage: require module/path v1.2.3",
-					Source:   "go mod tidy",
+					Source:   "syntax",
 					Range:    protocol.Range{Start: getPos(4, 0), End: getPos(4, 17)},
 					Severity: protocol.SeverityError,
 				},
@@ -119,7 +119,7 @@ func TestDiagnostics(t *testing.T) {
 			want: []source.Diagnostic{
 				{
 					Message:  "usage: go 1.23",
-					Source:   "go mod tidy",
+					Source:   "syntax",
 					Range:    protocol.Range{Start: getPos(2, 0), End: getPos(2, 4)},
 					Severity: protocol.SeverityError,
 				},
@@ -130,7 +130,7 @@ func TestDiagnostics(t *testing.T) {
 			want: []source.Diagnostic{
 				{
 					Message:  "unknown directive: yo",
-					Source:   "go mod tidy",
+					Source:   "syntax",
 					Range:    protocol.Range{Start: getPos(6, 0), End: getPos(6, 2)},
 					Severity: protocol.SeverityError,
 				},
@@ -153,12 +153,17 @@ func TestDiagnostics(t *testing.T) {
 			if !hasTempModfile(ctx, snapshot) {
 				return
 			}
-			fileID, got, err := mod.Diagnostics(ctx, snapshot)
+			reports, err := mod.Diagnostics(ctx, snapshot)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if diff := tests.DiffDiagnostics(fileID.URI, tt.want, got); diff != "" {
-				t.Error(diff)
+			if len(reports) != 1 {
+				t.Errorf("expected 1 fileHandle, got %d", len(reports))
+			}
+			for fh, got := range reports {
+				if diff := tests.DiffDiagnostics(fh.URI, tt.want, got); diff != "" {
+					t.Error(diff)
+				}
 			}
 		})
 	}

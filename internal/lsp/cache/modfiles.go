@@ -20,16 +20,19 @@ import (
 // This function will return the main go.mod file for this folder if it exists and whether the -modfile
 // flag exists for this version of go.
 func modfileFlagExists(ctx context.Context, folder string, env []string) (string, bool, error) {
-	// Borrowed from (internal/imports/mod.go:620)
+	// Check the Go version by running go list with GO111MODULE=off.
+	// If the output is anything other than "go1.14\n", assume -modfile is not supported.
+	// Borrowed from internal/imports/mod.go:620
 	const format = `{{range context.ReleaseTags}}{{if eq . "go1.14"}}{{.}}{{end}}{{end}}`
-	// Check the go version by running "go list" with modules off.
-	stdout, err := source.InvokeGo(ctx, folder, append(env, "GO111MODULE=off"), "list", "-f", format)
+	stdout, err := source.InvokeGo(ctx, folder, append(env, "GO111MODULE=off"), "list", "-e", "-f", format)
 	if err != nil {
 		return "", false, err
 	}
+	// If the output is not go1.14 or an empty string, then it could be an error.
 	lines := strings.Split(stdout.String(), "\n")
-	if len(lines) < 2 {
-		return "", false, errors.Errorf("unexpected stdout: %q", stdout)
+	if len(lines) < 2 && stdout.String() != "" {
+		log.Error(ctx, "unexpected stdout when checking for go1.14", errors.Errorf("%q", stdout), telemetry.Directory.Of(folder))
+		return "", false, nil
 	}
 	// Get the go.mod file associated with this module.
 	b, err := source.InvokeGo(ctx, folder, env, "env", "GOMOD")
