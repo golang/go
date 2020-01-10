@@ -1151,25 +1151,6 @@ func TestPackageMainTestCompilerFlags(t *testing.T) {
 	tg.grepStderr(`([\\/]compile|gccgo).* (-p p1|-fgo-pkgpath=p1).*p1\.go`, "should have run compile -p p1 p1.go")
 }
 
-// Issue 12690
-func TestPackageNotStaleWithTrailingSlash(t *testing.T) {
-	skipIfGccgo(t, "gccgo does not have GOROOT")
-	tg := testgo(t)
-	defer tg.cleanup()
-
-	// Make sure the packages below are not stale.
-	tg.wantNotStale("runtime", "", "must be non-stale before test runs")
-	tg.wantNotStale("os", "", "must be non-stale before test runs")
-	tg.wantNotStale("io", "", "must be non-stale before test runs")
-
-	goroot := runtime.GOROOT()
-	tg.setenv("GOROOT", goroot+"/")
-
-	tg.wantNotStale("runtime", "", "with trailing slash in GOROOT, runtime listed as stale")
-	tg.wantNotStale("os", "", "with trailing slash in GOROOT, os listed as stale")
-	tg.wantNotStale("io", "", "with trailing slash in GOROOT, io listed as stale")
-}
-
 // Issue 4104.
 func TestGoTestWithPackageListedMultipleTimes(t *testing.T) {
 	tooSlow(t)
