@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"net/url"
 	"regexp"
 	"strconv"
 	"sync"
@@ -17,7 +18,6 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
-	"golang.org/x/tools/internal/telemetry/tag"
 )
 
 func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLinkParams) ([]protocol.DocumentLink, error) {
@@ -30,6 +30,7 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 	if err != nil {
 		return nil, err
 	}
+	// TODO(golang/go#36501): Support document links for go.mod files.
 	if fh.Identity().Kind == source.Mod {
 		return nil, nil
 	}
@@ -41,60 +42,56 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 	ast.Inspect(file, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.ImportSpec:
-			target, err := strconv.Unquote(n.Path.Value)
-			if err != nil {
-				log.Error(ctx, "cannot unquote import path", err, tag.Of("Path", n.Path.Value))
-				return false
+			// For import specs, provide a link to a documentation website, like https://pkg.go.dev.
+			if target, err := strconv.Unquote(n.Path.Value); err == nil {
+				target = fmt.Sprintf("https://%s/%s", view.Options().LinkTarget, target)
+
+				// Account for the quotation marks in the positions.
+				start, end := n.Path.Pos()+1, n.Path.End()-1
+				if l, err := toProtocolLink(view, m, target, start, end); err == nil {
+					links = append(links, l)
+				} else {
+					log.Error(ctx, "failed to create protocol link", err)
+				}
 			}
-			if target == "" {
-				return false
-			}
-			target = fmt.Sprintf("https://%s/%s", view.Options().LinkTarget, target)
-			l, err := toProtocolLink(view, m, target, n.Path.Pos()+1, n.Path.End()-1)
-			if err != nil {
-				log.Error(ctx, "cannot initialize DocumentLink", err, tag.Of("Path", n.Path.Value))
-				return false
-			}
-			links = append(links, l)
 			return false
 		case *ast.BasicLit:
-			if n.Kind != token.STRING {
-				return false
+			// Look for links in string literals.
+			if n.Kind == token.STRING {
+				links = append(links, findLinksInString(ctx, view, n.Value, n.Pos(), m)...)
 			}
-			l, err := findLinksInString(view, n.Value, n.Pos(), m)
-			if err != nil {
-				log.Error(ctx, "cannot find links in string", err)
-				return false
-			}
-			links = append(links, l...)
 			return false
 		}
 		return true
 	})
-
+	// Look for links in comments.
 	for _, commentGroup := range file.Comments {
 		for _, comment := range commentGroup.List {
-			l, err := findLinksInString(view, comment.Text, comment.Pos(), m)
-			if err != nil {
-				log.Error(ctx, "cannot find links in comment", err)
-				continue
-			}
-			links = append(links, l...)
+			links = append(links, findLinksInString(ctx, view, comment.Text, comment.Pos(), m)...)
 		}
 	}
 	return links, nil
 }
 
-func findLinksInString(view source.View, src string, pos token.Pos, m *protocol.ColumnMapper) ([]protocol.DocumentLink, error) {
+func findLinksInString(ctx context.Context, view source.View, src string, pos token.Pos, m *protocol.ColumnMapper) []protocol.DocumentLink {
 	var links []protocol.DocumentLink
 	for _, index := range view.Options().URLRegexp.FindAllIndex([]byte(src), -1) {
 		start, end := index[0], index[1]
 		startPos := token.Pos(int(pos) + start)
 		endPos := token.Pos(int(pos) + end)
-		target := src[start:end]
-		l, err := toProtocolLink(view, m, target, startPos, endPos)
+		url, err := url.Parse(src[start:end])
 		if err != nil {
-			return nil, err
+			log.Error(ctx, "failed to parse matching URL", err)
+			continue
+		}
+		// If the URL has no scheme, use https.
+		if url.Scheme == "" {
+			url.Scheme = "https"
+		}
+		l, err := toProtocolLink(view, m, url.String(), startPos, endPos)
+		if err != nil {
+			log.Error(ctx, "failed to create protocol link", err)
+			continue
 		}
 		links = append(links, l)
 	}
@@ -112,11 +109,12 @@ func findLinksInString(view source.View, src string, pos token.Pos, m *protocol.
 		target := fmt.Sprintf("https://github.com/%s/%s/issues/%s", org, repo, number)
 		l, err := toProtocolLink(view, m, target, startPos, endPos)
 		if err != nil {
-			return nil, err
+			log.Error(ctx, "failed to create protocol link", err)
+			continue
 		}
 		links = append(links, l)
 	}
-	return links, nil
+	return links
 }
 
 func getIssueRegexp() *regexp.Regexp {
@@ -140,9 +138,8 @@ func toProtocolLink(view source.View, m *protocol.ColumnMapper, target string, s
 	if err != nil {
 		return protocol.DocumentLink{}, err
 	}
-	l := protocol.DocumentLink{
+	return protocol.DocumentLink{
 		Range:  rng,
 		Target: target,
-	}
-	return l, nil
+	}, nil
 }
