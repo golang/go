@@ -29,6 +29,38 @@ containing the package (relative to the module root). For example, the module
 `"golang.org/x/net"` contains a package in the directory `"html"`. That
 package's path is `"golang.org/x/net/html"`.
 
+<a id="module-path"></a>
+### Module paths
+
+A [*module path*](#glos-module-path) is the canonical name for a module,
+declared with the [`module` directive](#go.mod-module) in the module's
+[`go.mod` file](#glos-go.mod-file). A module's path is the prefix for package
+paths within the module.
+
+A module path should describe both what the module does and where to find it.
+Typically, a module path consists of a repository root path, a subdirectory
+within the repository (usually empty), and a major version suffix (for major
+version 2 or higher).
+
+* The repository root path is part of a URL that corresponds to a version
+  control repository. For example, `golang.org/x/net`. See [Custom import
+  paths](#custom-import-paths) for details on how paths are resolved to
+  repositories.
+* If the module is in a subdirectory of the version control repository, the
+  subdirectory should be part of the module path (but not the repository root
+  path). For example, the module `golang.org/x/tools/gopls` is in the `/gopls`
+  subdirectory of the repository `golang.org/x/tools`.
+* If the module is released at major version 2 or higher, the module path must
+  end with a [major version suffix](#major-version-suffixes) like
+  `/v2`. This may or may not be part of the subdirectory name. For example, the
+  module with path `golang.org/x/repo/sub/v2` could be in the `/sub` or
+  `/sub/v2` subdirectory of the repository `golang.org/x/repo`.
+
+If a module might be depended on by other modules, these rules must be followed
+so that the `go` command can find and download the module. There are also
+several [lexical restrictions](#go.mod-ident) on characters allowed in
+module paths.
+
 <a id="versions"></a>
 ### Versions
 
