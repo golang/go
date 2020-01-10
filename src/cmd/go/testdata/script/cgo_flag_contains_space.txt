@@ -1,0 +1,15 @@
+[short] skip
+[!cgo] skip
+
+go run -x main.go
+stderr '"-I[^"]+c flags"' # find quoted c flags
+! stderr '"-I[^"]+c flags".*"-I[^"]+c flags"' # don't find too many quoted c flags
+stderr '"-L[^"]+ld flags"' # find quoted ld flags
+! stderr '"-L[^"]+c flags".*"-L[^"]+c flags"' # don't find too many quoted ld flags
+
+-- main.go --
+package main
+// #cgo CFLAGS: -I"c flags"
+// #cgo LDFLAGS: -L"ld flags"
+import "C"
+func main() {}
