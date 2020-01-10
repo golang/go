@@ -27,6 +27,44 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestModfileRemainsUnchanged(t *testing.T) {
+	ctx := tests.Context(t)
+	cache := cache.New(nil)
+	session := cache.NewSession(ctx)
+	options := tests.DefaultOptions()
+	options.TempModfile = true
+	options.Env = append(os.Environ(), "GOPACKAGESDRIVER=off", "GOROOT=")
+
+	// TODO: Once we refactor this to work with go/packages/packagestest. We do not
+	// need to copy to a temporary directory.
+	// Make sure to copy the test directory to a temporary directory so we do not
+	// modify the test code or add go.sum files when we run the tests.
+	folder, err := copyToTempDir(filepath.Join("testdata", "unchanged"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(folder)
+
+	before, err := ioutil.ReadFile(filepath.Join(folder, "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, snapshot, err := session.NewView(ctx, "diagnostics_test", span.FileURI(folder), options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasTempModfile(ctx, snapshot) {
+		return
+	}
+	after, err := ioutil.ReadFile(filepath.Join(folder, "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(before) != string(after) {
+		t.Errorf("the real go.mod file was changed even when tempModfile=true")
+	}
+}
+
 func TestDiagnostics(t *testing.T) {
 	ctx := tests.Context(t)
 	cache := cache.New(nil)
