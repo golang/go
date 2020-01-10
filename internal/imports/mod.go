@@ -175,7 +175,8 @@ func (r *ModuleResolver) ClearForNewScan() {
 	<-r.scanSema
 	r.scannedRoots = map[gopathwalk.Root]bool{}
 	r.otherCache = &dirInfoCache{
-		dirs: map[string]*directoryPackageInfo{},
+		dirs:      map[string]*directoryPackageInfo{},
+		listeners: map[*int]cacheListener{},
 	}
 	r.scanSema <- struct{}{}
 }
