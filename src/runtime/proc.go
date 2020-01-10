@@ -2643,6 +2643,13 @@ func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
 		}
 	}
 
+	// If this is the local P, and there are a lot of deleted timers,
+	// clear them out. We only do this for the local P to reduce
+	// lock contention on timersLock.
+	if pp == getg().m.p.ptr() && int(atomic.Load(&pp.deletedTimers)) > len(pp.timers)/4 {
+		clearDeletedTimers(pp)
+	}
+
 	unlock(&pp.timersLock)
 
 	return rnow, pollUntil, ran
@@ -4087,6 +4094,7 @@ func (pp *p) destroy() {
 		moveTimers(plocal, pp.timers)
 		pp.timers = nil
 		pp.adjustTimers = 0
+		pp.deletedTimers = 0
 		unlock(&pp.timersLock)
 		unlock(&plocal.timersLock)
 	}

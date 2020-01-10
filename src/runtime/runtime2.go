@@ -650,6 +650,10 @@ type p struct {
 	// such as timerModifying.
 	adjustTimers uint32
 
+	// Number of timerDeleted times in P's heap.
+	// Modified using atomic instructions.
+	deletedTimers uint32
+
 	// Race context used while executing timer functions.
 	timerRaceCtx uintptr
 
