@@ -263,18 +263,19 @@ type cmdClient struct {
 	app  *Application
 	fset *token.FileSet
 
+	diagnosticsMu   sync.Mutex
+	diagnosticsDone chan struct{}
+
 	filesMu sync.Mutex
 	files   map[span.URI]*cmdFile
 }
 
 type cmdFile struct {
-	uri            span.URI
-	mapper         *protocol.ColumnMapper
-	err            error
-	added          bool
-	hasDiagnostics chan struct{}
-	diagnosticsMu  sync.Mutex
-	diagnostics    []protocol.Diagnostic
+	uri         span.URI
+	mapper      *protocol.ColumnMapper
+	err         error
+	added       bool
+	diagnostics []protocol.Diagnostic
 }
 
 func newConnection(app *Application) *connection {
@@ -356,6 +357,9 @@ func (c *cmdClient) ApplyEdit(ctx context.Context, p *protocol.ApplyWorkspaceEdi
 }
 
 func (c *cmdClient) PublishDiagnostics(ctx context.Context, p *protocol.PublishDiagnosticsParams) error {
+	if p.URI == "gopls://diagnostics-done" {
+		close(c.diagnosticsDone)
+	}
 	// Don't worry about diagnostics without versions.
 	if p.Version == 0 {
 		return nil
@@ -366,15 +370,7 @@ func (c *cmdClient) PublishDiagnostics(ctx context.Context, p *protocol.PublishD
 
 	uri := span.URI(p.URI)
 	file := c.getFile(ctx, uri)
-
-	file.diagnosticsMu.Lock()
-	defer file.diagnosticsMu.Unlock()
-
-	hadDiagnostics := file.diagnostics != nil
 	file.diagnostics = p.Diagnostics
-	if !hadDiagnostics {
-		close(file.hasDiagnostics)
-	}
 	return nil
 }
 
@@ -382,8 +378,7 @@ func (c *cmdClient) getFile(ctx context.Context, uri span.URI) *cmdFile {
 	file, found := c.files[uri]
 	if !found || file.err != nil {
 		file = &cmdFile{
-			uri:            uri,
-			hasDiagnostics: make(chan struct{}),
+			uri: uri,
 		}
 		c.files[uri] = file
 	}
@@ -404,18 +399,6 @@ func (c *cmdClient) getFile(ctx context.Context, uri span.URI) *cmdFile {
 		}
 	}
 	return file
-}
-
-func (file *cmdFile) waitForDiagnostics(ctx context.Context) ([]protocol.Diagnostic, error) {
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case <-file.hasDiagnostics:
-	}
-
-	file.diagnosticsMu.Lock()
-	defer file.diagnosticsMu.Unlock()
-	return file.diagnostics, nil
 }
 
 func (c *connection) AddFile(ctx context.Context, uri span.URI) *cmdFile {
@@ -446,6 +429,16 @@ func (c *connection) AddFile(ctx context.Context, uri span.URI) *cmdFile {
 		file.err = errors.Errorf("%v: %v", uri, err)
 	}
 	return file
+}
+
+func (c *connection) diagnoseFiles(ctx context.Context, files []span.URI) error {
+	c.Client.diagnosticsMu.Lock()
+	defer c.Client.diagnosticsMu.Unlock()
+
+	c.Client.diagnosticsDone = make(chan struct{})
+	_, err := c.Server.NonstandardRequest(ctx, "gopls/diagnoseFiles", map[string]interface{}{"files": files})
+	<-c.Client.diagnosticsDone
+	return err
 }
 
 func (c *connection) terminate(ctx context.Context) {

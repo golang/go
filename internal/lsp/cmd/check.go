@@ -8,7 +8,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"time"
 
 	"golang.org/x/tools/internal/span"
 	errors "golang.org/x/xerrors"
@@ -41,6 +40,7 @@ func (c *check) Run(ctx context.Context, args ...string) error {
 		return nil
 	}
 	checking := map[span.URI]*cmdFile{}
+	var uris []span.URI
 	// now we ready to kick things off
 	conn, err := c.app.connect(ctx)
 	if err != nil {
@@ -49,23 +49,18 @@ func (c *check) Run(ctx context.Context, args ...string) error {
 	defer conn.terminate(ctx)
 	for _, arg := range args {
 		uri := span.FileURI(arg)
+		uris = append(uris, uri)
 		file := conn.AddFile(ctx, uri)
 		if file.err != nil {
 			return file.err
 		}
 		checking[uri] = file
 	}
-	// now wait for results
-	// TODO: maybe conn.ExecuteCommand(ctx, &protocol.ExecuteCommandParams{Command: "gopls-wait-idle"})
-	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
-	defer cancel()
-
+	if err := conn.diagnoseFiles(ctx, uris); err != nil {
+		return err
+	}
 	for _, file := range checking {
-		diagnostics, err := file.waitForDiagnostics(ctx)
-		if err != nil {
-			return err
-		}
-		for _, d := range diagnostics {
+		for _, d := range file.diagnostics {
 			spn, err := file.mapper.RangeSpan(d.Range)
 			if err != nil {
 				return errors.Errorf("Could not convert position %v for %q", d.Range, d.Message)

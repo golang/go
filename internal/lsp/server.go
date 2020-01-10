@@ -290,6 +290,24 @@ func (s *Server) SelectionRange(context.Context, *protocol.SelectionRangeParams)
 
 // Nonstandard requests
 func (s *Server) NonstandardRequest(ctx context.Context, method string, params interface{}) (interface{}, error) {
+	paramMap := params.(map[string]interface{})
+	if method == "gopls/diagnoseFiles" {
+		files := paramMap["files"].([]interface{})
+		for _, file := range files {
+			uri := span.URI(file.(string))
+			view, err := s.session.ViewOf(uri)
+			if err != nil {
+				return nil, err
+			}
+			s.diagnoseFile(view.Snapshot(), view.Session().GetFile(span.URI(uri)))
+		}
+		if err := s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
+			URI: "gopls://diagnostics-done",
+		}); err != nil {
+			return nil, err
+		}
+		return struct{}{}, nil
+	}
 	return nil, notImplemented(method)
 }
 
