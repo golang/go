@@ -2642,45 +2642,6 @@ func TestNeedVersion(t *testing.T) {
 	tg.grepStderr("compile", "does not match go tool version")
 }
 
-// Issue 9737: verify that GOARM and GO386 affect the computed build ID.
-func TestBuildIDContainsArchModeEnv(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping in short mode")
-	}
-
-	var tg *testgoData
-	testWith := func(before, after func()) func(*testing.T) {
-		return func(t *testing.T) {
-			tg = testgo(t)
-			defer tg.cleanup()
-			tg.tempFile("src/mycmd/x.go", `package main
-func main() {}`)
-			tg.setenv("GOPATH", tg.path("."))
-
-			tg.cd(tg.path("src/mycmd"))
-			tg.setenv("GOOS", "linux")
-			before()
-			tg.run("install", "mycmd")
-			after()
-			tg.wantStale("mycmd", "stale dependency", "should be stale after environment variable change")
-		}
-	}
-
-	t.Run("386", testWith(func() {
-		tg.setenv("GOARCH", "386")
-		tg.setenv("GO386", "387")
-	}, func() {
-		tg.setenv("GO386", "sse2")
-	}))
-
-	t.Run("arm", testWith(func() {
-		tg.setenv("GOARCH", "arm")
-		tg.setenv("GOARM", "5")
-	}, func() {
-		tg.setenv("GOARM", "7")
-	}))
-}
-
 func TestBuildmodePIE(t *testing.T) {
 	if testing.Short() && testenv.Builder() == "" {
 		t.Skipf("skipping in -short mode on non-builder")
