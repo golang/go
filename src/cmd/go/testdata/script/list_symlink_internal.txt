@@ -1,0 +1,26 @@
+[!symlink] skip
+
+mkdir $WORK/tmp/gopath/src/dir1/internal/v
+cp p.go $WORK/tmp/gopath/src/dir1/p.go
+cp v.go $WORK/tmp/gopath/src/dir1/internal/v/v.go
+symlink $WORK/tmp/symdir1 -> $WORK/tmp/gopath/src/dir1
+env GOPATH=$WORK/tmp/gopath
+cd $WORK/tmp/symdir1
+go list -f '{{.Root}}' .
+stdout '^'$WORK/tmp/gopath'$'
+
+# All of these should succeed, not die in internal-handling code.
+go run p.go &
+go build &
+go install &
+
+wait
+
+-- p.go --
+package main
+
+import _ `dir1/internal/v`
+
+func main() {}
+-- v.go --
+package v
