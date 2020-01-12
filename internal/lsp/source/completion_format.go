@@ -245,11 +245,12 @@ func (c *completer) formatBuiltin(cand candidate) CompletionItem {
 		item.Kind = protocol.ConstantCompletion
 	case *types.Builtin:
 		item.Kind = protocol.FunctionCompletion
-		builtin := c.snapshot.View().BuiltinPackage().Lookup(obj.Name())
-		if obj == nil {
+		astObj, err := c.snapshot.View().LookupBuiltin(obj.Name())
+		if err != nil {
+			log.Error(c.ctx, "no builtin package", err)
 			break
 		}
-		decl, ok := builtin.Decl.(*ast.FuncDecl)
+		decl, ok := astObj.Decl.(*ast.FuncDecl)
 		if !ok {
 			break
 		}

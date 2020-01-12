@@ -92,8 +92,8 @@ type View interface {
 	// Folder returns the root folder for this view.
 	Folder() span.URI
 
-	// BuiltinPackage returns the type information for the special "builtin" package.
-	BuiltinPackage() BuiltinPackage
+	// LookupBuiltin returns the go/ast.Object for the given name in the builtin package.
+	LookupBuiltin(name string) (*ast.Object, error)
 
 	// BackgroundContext returns a context used for all background processing
 	// on behalf of this view.
@@ -357,9 +357,4 @@ const (
 
 func (e *Error) Error() string {
 	return fmt.Sprintf("%s:%s: %s", e.URI, e.Range, e.Message)
-}
-
-type BuiltinPackage interface {
-	Lookup(name string) *ast.Object
-	CompiledGoFiles() []ParseGoHandle
 }

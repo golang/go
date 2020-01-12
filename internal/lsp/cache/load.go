@@ -228,11 +228,7 @@ func (v *view) isTestMain(ctx context.Context, pkg *packages.Package) bool {
 	if len(pkg.GoFiles) > 1 {
 		return false
 	}
-	buildCachePath, err := v.getBuildCachePath(ctx)
-	if err != nil {
-		return false
-	}
-	if !strings.HasPrefix(pkg.GoFiles[0], buildCachePath) {
+	if !strings.HasPrefix(pkg.GoFiles[0], v.gocache) {
 		return false
 	}
 	return true

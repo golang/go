@@ -9,21 +9,47 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
+	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
 	errors "golang.org/x/xerrors"
 )
 
+func (v *view) modFiles(ctx context.Context) (span.URI, span.URI, error) {
+	// Don't return errors if the view is not a module.
+	if v.mod == nil {
+		return "", "", nil
+	}
+	// Copy the real go.mod file content into the temp go.mod file.
+	origFile, err := os.Open(v.mod.realMod.Filename())
+	if err != nil {
+		return "", "", err
+	}
+	defer origFile.Close()
+
+	tempFile, err := os.OpenFile(v.mod.tempMod.Filename(), os.O_WRONLY, os.ModePerm)
+	if err != nil {
+		return "", "", err
+	}
+	defer tempFile.Close()
+
+	if _, err := io.Copy(tempFile, origFile); err != nil {
+		return "", "", err
+	}
+	return v.mod.realMod, v.mod.tempMod, nil
+}
+
 // This function will return the main go.mod file for this folder if it exists and whether the -modfile
 // flag exists for this version of go.
-func modfileFlagExists(ctx context.Context, folder string, env []string) (string, bool, error) {
-	// Check the Go version by running go list with GO111MODULE=off.
-	// If the output is anything other than "go1.14\n", assume -modfile is not supported.
-	// Borrowed from internal/imports/mod.go:620
+func (v *view) modfileFlagExists(ctx context.Context, env []string) (string, bool, error) {
+	// Check the go version by running "go list" with modules off.
+	// Borrowed from internal/imports/mod.go:620.
 	const format = `{{range context.ReleaseTags}}{{if eq . "go1.14"}}{{.}}{{end}}{{end}}`
+	folder := v.folder.Filename()
 	stdout, err := source.InvokeGo(ctx, folder, append(env, "GO111MODULE=off"), "list", "-e", "-f", format)
 	if err != nil {
 		return "", false, err
@@ -34,62 +60,71 @@ func modfileFlagExists(ctx context.Context, folder string, env []string) (string
 		log.Error(ctx, "unexpected stdout when checking for go1.14", errors.Errorf("%q", stdout), telemetry.Directory.Of(folder))
 		return "", false, nil
 	}
-	// Get the go.mod file associated with this module.
-	b, err := source.InvokeGo(ctx, folder, env, "env", "GOMOD")
-	if err != nil {
-		return "", false, err
-	}
-	modfile := strings.TrimSpace(b.String())
+	modfile := strings.TrimSpace(v.gomod)
 	if modfile == os.DevNull {
-		return "", false, errors.Errorf("go env GOMOD did not detect a go.mod file in this folder")
+		return "", false, errors.Errorf("unable to detect a go.mod file in %s", v.folder)
 	}
 	return modfile, lines[0] == "go1.14", nil
 }
 
-// The function getModfiles will return the go.mod files associated with the directory that is passed in.
-func getModfiles(ctx context.Context, folder string, options source.Options) (*modfiles, error) {
-	if !options.TempModfile {
-		log.Print(ctx, "using the -modfile flag is disabled", telemetry.Directory.Of(folder))
-		return nil, nil
+func (v *view) setModuleInformation(ctx context.Context, enabled bool) error {
+	// The user has disabled the use of the -modfile flag.
+	if !enabled {
+		log.Print(ctx, "using the -modfile flag is disabled", telemetry.Directory.Of(v.folder))
+		return nil
 	}
-	modfile, flagExists, err := modfileFlagExists(ctx, folder, options.Env)
+	modFile, flagExists, err := v.modfileFlagExists(ctx, v.Options().Env)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	// The user's version of Go does not support the -modfile flag.
 	if !flagExists {
-		return nil, nil
+		return nil
 	}
-	if modfile == "" || modfile == os.DevNull {
-		return nil, errors.Errorf("go env GOMOD cannot detect a go.mod file in this folder")
+	if modFile == "" || modFile == os.DevNull {
+		return errors.Errorf("unable to detect a go.mod file in %s", v.folder)
 	}
 	// Copy the current go.mod file into the temporary go.mod file.
-	tempFile, err := ioutil.TempFile("", "go.*.mod")
+	// The file's name will be of the format go.1234.mod.
+	// It's temporary go.sum file should have the corresponding format of go.1234.sum.
+	tempModFile, err := ioutil.TempFile("", "go.*.mod")
 	if err != nil {
-		return nil, err
+		return err
 	}
-	defer tempFile.Close()
-	origFile, err := os.Open(modfile)
+	defer tempModFile.Close()
+
+	origFile, err := os.Open(modFile)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer origFile.Close()
-	if _, err := io.Copy(tempFile, origFile); err != nil {
-		return nil, err
+
+	if _, err := io.Copy(tempModFile, origFile); err != nil {
+		return err
 	}
-	copySumFile(modfile, tempFile.Name())
-	return &modfiles{real: modfile, temp: tempFile.Name()}, nil
+	v.mod = &moduleInformation{
+		realMod: span.FileURI(modFile),
+		tempMod: span.FileURI(tempModFile.Name()),
+	}
+	// Copy go.sum file as well (if there is one).
+	sumFile := filepath.Join(filepath.Dir(modFile), "go.sum")
+	stat, err := os.Stat(sumFile)
+	if err != nil || !stat.Mode().IsRegular() {
+		return nil
+	}
+	contents, err := ioutil.ReadFile(sumFile)
+	if err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(v.mod.tempSumFile(), contents, stat.Mode()); err != nil {
+		return err
+	}
+	return nil
 }
 
-func copySumFile(realFile, tempFile string) {
-	realSum := realFile[0:len(realFile)-3] + "sum"
-	tempSum := tempFile[0:len(tempFile)-3] + "sum"
-	stat, err := os.Stat(realSum)
-	if err != nil || !stat.Mode().IsRegular() {
-		return
-	}
-	contents, err := ioutil.ReadFile(realSum)
-	if err != nil {
-		return
-	}
-	ioutil.WriteFile(tempSum, contents, stat.Mode())
+// tempSumFile returns the path to the copied temporary go.sum file.
+// It simply replaces the extension of the temporary go.mod file with "sum".
+func (mod *moduleInformation) tempSumFile() string {
+	tmp := mod.tempMod.Filename()
+	return tmp[:len(tmp)-len("mod")] + "sum"
 }

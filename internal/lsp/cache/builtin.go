@@ -12,6 +12,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
+	errors "golang.org/x/xerrors"
 )
 
 type builtinPkg struct {
@@ -19,11 +20,15 @@ type builtinPkg struct {
 	files []source.ParseGoHandle
 }
 
-func (b *builtinPkg) Lookup(name string) *ast.Object {
-	if b == nil || b.pkg == nil || b.pkg.Scope == nil {
-		return nil
+func (v *view) LookupBuiltin(name string) (*ast.Object, error) {
+	if v.builtin == nil || v.builtin.pkg == nil || v.builtin.pkg.Scope == nil {
+		return nil, errors.Errorf("no builtin package")
 	}
-	return b.pkg.Scope.Lookup(name)
+	astObj := v.builtin.pkg.Scope.Lookup(name)
+	if astObj == nil {
+		return nil, errors.Errorf("no builtin object for %s", name)
+	}
+	return astObj, nil
 }
 
 func (b *builtinPkg) CompiledGoFiles() []source.ParseGoHandle {
@@ -34,6 +39,9 @@ func (b *builtinPkg) CompiledGoFiles() []source.ParseGoHandle {
 // It assumes that the view is not active yet,
 // i.e. it has not been added to the session's list of views.
 func (v *view) buildBuiltinPackage(ctx context.Context) error {
+	if v.builtin != nil {
+		return errors.Errorf("rebuilding builtin package")
+	}
 	cfg := v.Config(ctx)
 	pkgs, err := packages.Load(cfg, "builtin")
 	// If the error is related to a go.mod parse error, we want to continue loading.
@@ -44,15 +52,15 @@ func (v *view) buildBuiltinPackage(ctx context.Context) error {
 		return err
 	}
 	if len(pkgs) != 1 {
-		return err
+		return errors.Errorf("expected 1 (got %v) packages for builtin", len(pkgs))
 	}
-	pkg := pkgs[0]
 	files := make(map[string]*ast.File)
-	for _, filename := range pkg.GoFiles {
+	var pghs []source.ParseGoHandle
+	for _, filename := range pkgs[0].GoFiles {
 		fh := v.session.GetFile(span.FileURI(filename))
-		ph := v.session.cache.ParseGoHandle(fh, source.ParseFull)
-		v.builtin.files = append(v.builtin.files, ph)
-		file, _, _, err := ph.Parse(ctx)
+		pgh := v.session.cache.ParseGoHandle(fh, source.ParseFull)
+		pghs = append(pghs, pgh)
+		file, _, _, err := pgh.Parse(ctx)
 		if err != nil {
 			return err
 		}
@@ -62,6 +70,13 @@ func (v *view) buildBuiltinPackage(ctx context.Context) error {
 		v.ignoredURIs[span.NewURI(filename)] = struct{}{}
 		v.ignoredURIsMu.Unlock()
 	}
-	v.builtin.pkg, err = ast.NewPackage(cfg.Fset, files, nil, nil)
-	return err
+	pkg, err := ast.NewPackage(cfg.Fset, files, nil, nil)
+	if err != nil {
+		return err
+	}
+	v.builtin = &builtinPkg{
+		files: pghs,
+		pkg:   pkg,
+	}
+	return nil
 }

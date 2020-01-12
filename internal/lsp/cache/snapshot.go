@@ -6,7 +6,6 @@ package cache
 
 import (
 	"context"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -68,32 +67,22 @@ func (s *snapshot) View() source.View {
 }
 
 func (s *snapshot) ModFiles(ctx context.Context) (source.FileHandle, source.FileHandle, error) {
-	if s.view.modfiles == nil {
+	r, t, err := s.view.modFiles(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	if r == "" || t == "" {
 		return nil, nil, nil
 	}
-	realfh, err := s.GetFile(span.FileURI(s.view.modfiles.real))
+	// Get the real mod file's content through the snapshot,
+	// as it may be open in an overlay.
+	realfh, err := s.GetFile(r)
 	if err != nil {
 		return nil, nil, err
 	}
-	if realfh == nil {
-		return nil, nil, errors.Errorf("go.mod filehandle is nil")
-	}
-	// Copy the real go.mod file content into the temp go.mod file.
-	origFile, err := os.Open(s.view.modfiles.real)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer origFile.Close()
-	tempFile, err := os.OpenFile(s.view.modfiles.temp, os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer tempFile.Close()
-	if _, err := io.Copy(tempFile, origFile); err != nil {
-		return nil, nil, err
-	}
-	// Go directly to disk to get the correct FileHandle, since we just copied the file without invalidating the snapshot.
-	tempfh := s.view.Session().Cache().GetFile(span.FileURI(s.view.modfiles.temp))
+	// Go directly to disk to get the temporary mod file,
+	// since it is always on disk.
+	tempfh := s.view.session.cache.GetFile(t)
 	if tempfh == nil {
 		return nil, nil, errors.Errorf("temporary go.mod filehandle is nil")
 	}

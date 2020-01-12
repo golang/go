@@ -153,11 +153,11 @@ func identifier(s Snapshot, pkg Package, file *ast.File, pos token.Pos) (*Identi
 
 	// Handle builtins separately.
 	if result.Declaration.obj.Parent() == types.Universe {
-		obj := view.BuiltinPackage().Lookup(result.Name)
-		if obj == nil {
-			return result, nil
+		astObj, err := view.LookupBuiltin(result.Name)
+		if err != nil {
+			return nil, err
 		}
-		decl, ok := obj.Decl.(ast.Node)
+		decl, ok := astObj.Decl.(ast.Node)
 		if !ok {
 			return nil, errors.Errorf("no declaration for %s", result.Name)
 		}

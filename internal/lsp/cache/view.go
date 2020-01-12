@@ -7,17 +7,18 @@ package cache
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/token"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/debug"
@@ -53,11 +54,11 @@ type view struct {
 	// Name is the user visible name of this view.
 	name string
 
-	// modfiles are the go.mod files attributed to this view.
-	modfiles *modfiles
-
 	// Folder is the root of this view.
 	folder span.URI
+
+	// mod is the module information for this view.
+	mod *moduleInformation
 
 	// process is the process env for this view.
 	// Note: this contains cached module and filesystem state.
@@ -81,21 +82,23 @@ type view struct {
 	snapshotMu sync.Mutex
 	snapshot   *snapshot
 
-	// builtin is used to resolve builtin types.
-	builtin *builtinPkg
-
 	// ignoredURIs is the set of URIs of files that we ignore.
 	ignoredURIsMu sync.Mutex
 	ignoredURIs   map[span.URI]struct{}
 
-	// initialized is closed when we have attempted to load the view's workspace packages.
-	// If we failed to load initially, we don't re-try to avoid too many go/packages calls.
+	// `go env` variables that need to be tracked by the view.
+	gopath, gomod, gocache string
+
+	// initialized is closed when the view has been fully initialized.
+	// On initialization, the view's workspace packages are loaded.
+	// All of the fields below are set as part of initialization.
+	// If we failed to load, we don't re-try to avoid too many go/packages calls.
 	initializeOnce      sync.Once
 	initialized         chan struct{}
 	initializationError error
 
-	// buildCachePath is the value of `go env GOCACHE`.
-	buildCachePath string
+	// builtin is used to resolve builtin types.
+	builtin *builtinPkg
 }
 
 // fileBase holds the common functionality for all files.
@@ -120,9 +123,10 @@ func (f *fileBase) addURI(uri span.URI) int {
 	return len(f.uris)
 }
 
-// modfiles holds the real and temporary go.mod files that are attributed to a view.
-type modfiles struct {
-	real, temp string
+// moduleInformation holds the real and temporary go.mod files
+// that are attributed to a view.
+type moduleInformation struct {
+	realMod, tempMod span.URI
 }
 
 func (v *view) Session() source.Session {
@@ -173,13 +177,12 @@ func (v *view) Config(ctx context.Context) *packages.Config {
 	// We want to run the go commands with the -modfile flag if the version of go
 	// that we are using supports it.
 	buildFlags := v.options.BuildFlags
-	if v.modfiles != nil {
-		buildFlags = append(buildFlags, fmt.Sprintf("-modfile=%s", v.modfiles.temp))
+	if v.mod != nil {
+		buildFlags = append(buildFlags, fmt.Sprintf("-modfile=%s", v.mod.tempMod.Filename()))
 	}
-	return &packages.Config{
+	cfg := &packages.Config{
 		Dir:        v.folder.Filename(),
 		Context:    ctx,
-		Env:        v.options.Env,
 		BuildFlags: buildFlags,
 		Mode: packages.NeedName |
 			packages.NeedFiles |
@@ -199,6 +202,9 @@ func (v *view) Config(ctx context.Context) *packages.Config {
 		},
 		Tests: true,
 	}
+	cfg.Env = append(cfg.Env, fmt.Sprintf("GOPATH=%s", v.gopath))
+	cfg.Env = append(cfg.Env, v.options.Env...)
+	return cfg
 }
 
 func (v *view) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error) error {
@@ -283,14 +289,6 @@ func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error)
 		case "GOSUMDB":
 			env.GOSUMDB = split[1]
 		}
-	}
-
-	if env.GOPATH == "" {
-		gopath, err := getGoEnvVar(ctx, cfg, "GOPATH")
-		if err != nil {
-			return nil, err
-		}
-		env.GOPATH = gopath
 	}
 	return env, nil
 }
@@ -423,8 +421,9 @@ func (v *view) shutdown(context.Context) {
 		v.cancel()
 		v.cancel = nil
 	}
-	if v.modfiles != nil {
-		os.Remove(v.modfiles.temp)
+	if v.mod != nil {
+		os.Remove(v.mod.tempMod.Filename())
+		os.Remove(v.mod.tempSumFile())
 	}
 	debug.DropView(debugView{v})
 }
@@ -453,10 +452,6 @@ func (v *view) BackgroundContext() context.Context {
 	return v.backgroundCtx
 }
 
-func (v *view) BuiltinPackage() source.BuiltinPackage {
-	return v.builtin
-}
-
 func (v *view) Snapshot() source.Snapshot {
 	return v.getSnapshot()
 }
@@ -472,15 +467,31 @@ func (v *view) initialize(ctx context.Context, s *snapshot) {
 	v.initializeOnce.Do(func() {
 		defer close(v.initialized)
 
-		// Do not cancel the call to go/packages.Load for the entire workspace.
-		meta, err := s.load(ctx, directoryURI(v.folder))
-		if err != nil {
+		g, ctx := errgroup.WithContext(ctx)
+
+		// Load all of the packages in the workspace.
+		g.Go(func() error {
+			// Do not cancel the call to go/packages.Load for the entire workspace.
+			meta, err := s.load(ctx, directoryURI(v.folder))
+			if err != nil {
+				return err
+			}
+			// A test variant of a package can only be loaded directly by loading
+			// the non-test variant with -test. Track the import path of the non-test variant.
+			for _, m := range meta {
+				s.setWorkspacePackage(m.id, m.pkgPath)
+			}
+			return nil
+		})
+
+		// Build the builtin package on initialization.
+		g.Go(func() error {
+			return v.buildBuiltinPackage(ctx)
+		})
+
+		// Wait for all initialization tasks to complete.
+		if err := g.Wait(); err != nil {
 			v.initializationError = err
-		}
-		// A test variant of a package can only be loaded directly by loading
-		// the non-test variant with -test. Track the import path of the non-test variant.
-		for _, m := range meta {
-			s.setWorkspacePackage(m.id, m.pkgPath)
 		}
 	})
 }
@@ -532,42 +543,47 @@ func (v *view) cancelBackground() {
 	v.backgroundCtx, v.cancel = context.WithCancel(v.baseCtx)
 }
 
-func (v *view) getBuildCachePath(ctx context.Context) (string, error) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-
-	if v.buildCachePath == "" {
-		path, err := getGoEnvVar(ctx, v.Config(ctx), "GOCACHE")
-		if err != nil {
-			return "", err
-		}
-		v.buildCachePath = path
-	}
-	return v.buildCachePath, nil
-}
-
-func getGoEnvVar(ctx context.Context, cfg *packages.Config, value string) (string, error) {
-	var result string
-	for _, kv := range cfg.Env {
-		split := strings.Split(kv, "=")
-		if len(split) < 2 {
+func (v *view) setGoEnv(ctx context.Context, dir string, env []string) error {
+	var gocache, gopath bool
+	for _, e := range env {
+		split := strings.Split(e, "=")
+		if len(split) != 2 {
 			continue
 		}
-		if split[0] == value {
-			result = split[1]
+		switch split[0] {
+		case "GOCACHE":
+			v.gocache = split[1]
+			gocache = true
+		case "GOPATH":
+			v.gopath = split[1]
+			gopath = true
 		}
 	}
-	if result == "" {
-		cmd := exec.CommandContext(ctx, "go", "env", value)
-		cmd.Env = cfg.Env
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			return "", err
-		}
-		result = strings.TrimSpace(string(out))
-		if result == "" {
-			return "", errors.Errorf("no value for %s", value)
+	b, err := source.InvokeGo(ctx, dir, env, "env", "-json")
+	if err != nil {
+		return err
+	}
+	envMap := make(map[string]string)
+	decoder := json.NewDecoder(b)
+	if err := decoder.Decode(&envMap); err != nil {
+		return err
+	}
+	if !gopath {
+		if gopath, ok := envMap["GOPATH"]; ok {
+			v.gopath = gopath
+		} else {
+			return errors.New("unable to determine GOPATH")
 		}
 	}
-	return result, nil
+	if !gocache {
+		if gocache, ok := envMap["GOCACHE"]; ok {
+			v.gocache = gocache
+		} else {
+			return errors.New("unable to determine GOCACHE")
+		}
+	}
+	if gomod, ok := envMap["GOMOD"]; ok {
+		v.gomod = gomod
+	}
+	return nil
 }

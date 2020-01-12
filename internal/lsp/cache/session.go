@@ -15,7 +15,6 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/trace"
 	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
@@ -78,10 +77,6 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 	baseCtx := trace.Detach(xcontext.Detach(ctx))
 	backgroundCtx, cancel := context.WithCancel(baseCtx)
 
-	modfiles, err := getModfiles(ctx, folder.Filename(), options)
-	if err != nil {
-		log.Error(ctx, "error getting modfiles", err, telemetry.Directory.Of(folder))
-	}
 	v := &view{
 		session:       s,
 		initialized:   make(chan struct{}),
@@ -91,7 +86,6 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 		backgroundCtx: backgroundCtx,
 		cancel:        cancel,
 		name:          name,
-		modfiles:      modfiles,
 		folder:        folder,
 		filesByURI:    make(map[span.URI]*fileBase),
 		filesByBase:   make(map[string][]*fileBase),
@@ -105,7 +99,6 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 			workspacePackages: make(map[packageID]packagePath),
 		},
 		ignoredURIs: make(map[span.URI]struct{}),
-		builtin:     &builtinPkg{},
 	}
 	v.snapshot.view = v
 
@@ -113,10 +106,12 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 		v.session.cache.options(&v.options)
 	}
 
-	// Preemptively build the builtin package,
-	// so we immediately add builtin.go to the list of ignored files.
-	// TODO(rstambler): This could be part of the initialization process.
-	if err := v.buildBuiltinPackage(ctx); err != nil {
+	// Make sure to get the `go env` before continuing with initialization.
+	if err := v.setGoEnv(ctx, folder.Filename(), options.Env); err != nil {
+		return nil, nil, err
+	}
+	// Set the module-specific information.
+	if err := v.setModuleInformation(ctx, v.options.TempModfile); err != nil {
 		return nil, nil, err
 	}
 
