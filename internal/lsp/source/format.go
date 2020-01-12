@@ -8,7 +8,6 @@ package source
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"go/ast"
 	"go/format"
 	"go/parser"
@@ -28,25 +27,15 @@ func Format(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.T
 	ctx, done := trace.StartSpan(ctx, "source.Format")
 	defer done()
 
-	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestCheckPackageHandle)
-	if err != nil {
-		return nil, fmt.Errorf("getting file for Format: %v", err)
-	}
-
-	// Be extra careful that the file's ParseMode is correct,
-	// otherwise we might replace the user's code with a trimmed AST.
-	if pgh.Mode() != ParseFull {
-		return nil, errors.Errorf("%s was parsed in the incorrect mode", pgh.File().Identity().URI)
-	}
-	file, m, _, err := pgh.Parse(ctx)
+	pgh := snapshot.View().Session().Cache().ParseGoHandle(fh, ParseFull)
+	file, m, parseErrors, err := pgh.Parse(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if hasListErrors(pkg) || hasParseErrors(pkg, fh.Identity().URI) {
-		// Even if this package has list or parse errors, this file may not
-		// have any parse errors and can still be formatted. Using format.Node
-		// on an ast with errors may result in code being added or removed.
-		// Attempt to format the source of this file instead.
+	// Even if this file has parse errors, it might still be possible to format it.
+	// Using format.Node on an AST with errors may result in code being modified.
+	// Attempt to format the source of this file instead.
+	if parseErrors != nil {
 		formatted, err := formatSource(ctx, snapshot, fh)
 		if err != nil {
 			return nil, err
@@ -301,16 +290,6 @@ func trimToFirstNonImport(fset *token.FileSet, f *ast.File, src []byte, err erro
 		}
 	}
 	return src[0:fset.Position(end).Offset], true
-}
-
-// hasParseErrors returns true if the given file has parse errors.
-func hasParseErrors(pkg Package, uri span.URI) bool {
-	for _, e := range pkg.GetErrors() {
-		if e.File.URI == uri && e.Kind == ParseError {
-			return true
-		}
-	}
-	return false
 }
 
 func hasListErrors(pkg Package) bool {
