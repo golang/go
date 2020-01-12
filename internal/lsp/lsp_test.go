@@ -88,16 +88,10 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 // TODO: Actually test the LSP diagnostics function in this test.
 func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnostic) {
 	v := r.server.session.View(viewName)
-	fh, err := v.Snapshot().GetFile(uri)
+	_, got, err := source.FileDiagnostics(r.ctx, v.Snapshot(), uri)
 	if err != nil {
 		t.Fatal(err)
 	}
-	identity := fh.Identity()
-	results, _, err := source.FileDiagnostics(r.ctx, v.Snapshot(), fh, true, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := results[identity]
 	// A special case to test that there are no diagnostics for a file.
 	if len(want) == 1 && want[0].Source == "no_diagnostics" {
 		if len(got) != 0 {
@@ -342,12 +336,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 		t.Fatal(err)
 	}
 	snapshot := view.Snapshot()
-	fh, err := snapshot.GetFile(spn.URI())
-	if err != nil {
-		t.Fatal(err)
-	}
-	fileID := fh.Identity()
-	diagnostics, _, err := source.FileDiagnostics(r.ctx, snapshot, fh, true, nil)
+	_, diagnostics, err := source.FileDiagnostics(r.ctx, snapshot, uri)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -357,7 +346,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 		},
 		Context: protocol.CodeActionContext{
 			Only:        []protocol.CodeActionKind{protocol.QuickFix},
-			Diagnostics: toProtocolDiagnostics(diagnostics[fileID]),
+			Diagnostics: toProtocolDiagnostics(diagnostics),
 		},
 	})
 	if err != nil {

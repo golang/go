@@ -35,9 +35,10 @@ func checkCommonErrors(ctx context.Context, v View) (string, error) {
 	// TODO(rstambler): Get the values for GOPATH and GOMOD from
 	// the view, once it's possible to do so: golang.org/cl/214417.
 	gopath := os.Getenv("GOPATH")
+	folder := v.Folder().Filename()
 
-	// Invoke `go env GOMOD` inside of the directory of the file.
-	b, err := InvokeGo(ctx, v.Folder().Filename(), v.Config(ctx).Env, "env", "GOMOD")
+	// Invoke `go env GOMOD` inside of the directory of the view.
+	b, err := InvokeGo(ctx, folder, v.Config(ctx).Env, "env", "GOMOD")
 	if err != nil {
 		return "", err
 	}
@@ -49,7 +50,6 @@ func checkCommonErrors(ctx context.Context, v View) (string, error) {
 
 	// Not inside of a module.
 	inAModule := modFile != ""
-	folder := v.Folder().Filename()
 
 	// The user may have a multiple directories in their GOPATH.
 	var inGopath bool

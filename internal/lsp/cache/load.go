@@ -85,8 +85,9 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) ([]*metadata
 // shouldLoad reparses a file's package and import declarations to
 // determine if they have changed.
 func (c *cache) shouldLoad(ctx context.Context, s *snapshot, originalFH, currentFH source.FileHandle) bool {
+	// TODO(rstambler): go.mod files should be tracked in the snapshot.
 	if originalFH == nil {
-		return true
+		return currentFH.Identity().Kind == source.Go
 	}
 	// If the file hasn't changed, there's no need to reload.
 	if originalFH.Identity().String() == currentFH.Identity().String() {

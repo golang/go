@@ -80,16 +80,11 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 
 func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnostic) {
 	snapshot := r.view.Snapshot()
-	fh, err := snapshot.GetFile(uri)
+
+	fileID, got, err := source.FileDiagnostics(r.ctx, snapshot, uri)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fileID := fh.Identity()
-	results, _, err := source.FileDiagnostics(r.ctx, snapshot, fh, true, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := results[fileID]
 	// A special case to test that there are no diagnostics for a file.
 	if len(want) == 1 && want[0].Source == "no_diagnostics" {
 		if len(got) != 0 {

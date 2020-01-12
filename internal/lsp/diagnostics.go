@@ -14,68 +14,76 @@ import (
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/trace"
+	"golang.org/x/tools/internal/xcontext"
 )
 
-func (s *Server) diagnoseSnapshot(ctx context.Context, snapshot source.Snapshot) {
-	ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
-	defer done()
+func (s *Server) diagnoseDetached(snapshot source.Snapshot) {
+	ctx := snapshot.View().BackgroundContext()
+	ctx = xcontext.Detach(ctx)
 
-	wsPackages, err := snapshot.WorkspacePackages(ctx)
-	if err != nil {
-		log.Error(ctx, "diagnoseSnapshot: no workspace packages", err, telemetry.Directory.Of(snapshot.View().Folder))
-		return
-	}
-	for _, ph := range wsPackages {
-		go func(ph source.PackageHandle) {
-			reports, _, err := source.PackageDiagnostics(ctx, snapshot, ph, false, snapshot.View().Options().DisabledAnalyses)
-			if err != nil {
-				log.Error(ctx, "diagnoseSnapshot: no diagnostics", err, telemetry.Package.Of(ph.ID()))
-				return
-			}
-			s.publishReports(ctx, snapshot, reports, false)
-		}(ph)
-	}
-	// Run diagnostics on the go.mod file.
-	s.diagnoseModfile(snapshot)
+	s.diagnose(ctx, snapshot)
 }
 
-func (s *Server) diagnoseFile(snapshot source.Snapshot, fh source.FileHandle) {
+func (s *Server) diagnoseSnapshot(snapshot source.Snapshot) {
 	ctx := snapshot.View().BackgroundContext()
-	ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
-	defer done()
 
-	ctx = telemetry.File.With(ctx, fh.Identity().URI)
-
-	reports, warningMsg, err := source.FileDiagnostics(ctx, snapshot, fh, true, snapshot.View().Options().DisabledAnalyses)
-	// Check the warning message first.
-	if warningMsg != "" {
-		s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-			Type:    protocol.Info,
-			Message: warningMsg,
-		})
-	}
-	if err != nil {
-		if err != context.Canceled {
-			log.Error(ctx, "diagnoseFile: could not generate diagnostics", err)
-		}
-		return
-	}
-	s.publishReports(ctx, snapshot, reports, true)
+	s.diagnose(ctx, snapshot)
 }
 
-func (s *Server) diagnoseModfile(snapshot source.Snapshot) {
-	ctx := snapshot.View().BackgroundContext()
+// diagnose is a helper function for running diagnostics with a given context.
+// Do not call it directly.
+func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot) {
 	ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
 	defer done()
 
-	reports, err := mod.Diagnostics(ctx, snapshot)
-	if err != nil {
-		if err != context.Canceled {
-			log.Error(ctx, "diagnoseModfile: could not generate diagnostics", err)
+	// Diagnose all of the packages in the workspace.
+	go func() {
+		wsPackages, err := snapshot.WorkspacePackages(ctx)
+		if err != nil {
+			log.Error(ctx, "diagnose: no workspace packages", err, telemetry.Directory.Of(snapshot.View().Folder))
+			return
 		}
-		return
-	}
-	s.publishReports(ctx, snapshot, reports, false)
+		for _, ph := range wsPackages {
+			go func(ph source.PackageHandle) {
+				// Only run analyses for packages with open files.
+				var withAnalyses bool
+				for _, fh := range ph.CompiledGoFiles() {
+					if s.session.IsOpen(fh.File().Identity().URI) {
+						withAnalyses = true
+					}
+				}
+				reports, msg, err := source.Diagnostics(ctx, snapshot, ph, withAnalyses)
+				// Check the warning message before the errors.
+				if msg != "" {
+					s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+						Type:    protocol.Warning,
+						Message: msg,
+					})
+				}
+				if ctx.Err() != nil {
+					return
+				}
+				if err != nil {
+					log.Error(ctx, "diagnose: could not generate diagnostics for package", err, telemetry.Package.Of(ph.ID()))
+					return
+				}
+				s.publishReports(ctx, snapshot, reports, withAnalyses)
+			}(ph)
+		}
+	}()
+
+	// Diagnose the go.mod file.
+	go func() {
+		reports, err := mod.Diagnostics(ctx, snapshot)
+		if ctx.Err() != nil {
+			return
+		}
+		if err != nil {
+			log.Error(ctx, "diagnose: could not generate diagnostics for go.mod file", err)
+			return
+		}
+		s.publishReports(ctx, snapshot, reports, false)
+	}()
 }
 
 func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, reports map[source.FileIdentity][]source.Diagnostic, withAnalysis bool) {

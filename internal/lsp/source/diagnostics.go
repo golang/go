@@ -40,44 +40,27 @@ type RelatedInformation struct {
 	Message string
 }
 
-func FileDiagnostics(ctx context.Context, snapshot Snapshot, fh FileHandle, withAnalysis bool, disabledAnalyses map[string]struct{}) (map[FileIdentity][]Diagnostic, string, error) {
-	if fh.Identity().Kind != Go {
-		return nil, "", errors.Errorf("unexpected file type: %q", fh.Identity().URI.Filename)
-	}
-	phs, err := snapshot.PackageHandles(ctx, fh)
-	if err != nil {
-		return nil, "", err
-	}
-	ph, err := WidestPackageHandle(phs)
-	if err != nil {
-		return nil, "", err
-	}
+func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, withAnalysis bool) (map[FileIdentity][]Diagnostic, string, error) {
 	// If we are missing dependencies, it may because the user's workspace is
 	// not correctly configured. Report errors, if possible.
-	var warningMsg string
+	var (
+		warn       bool
+		warningMsg string
+	)
 	if len(ph.MissingDependencies()) > 0 {
-		warningMsg, err = checkCommonErrors(ctx, snapshot.View())
-		if err != nil {
-			return nil, "", err
-		}
+		warn = true
 	}
-	reports, msg, err := PackageDiagnostics(ctx, snapshot, ph, withAnalysis, disabledAnalyses)
-	if warningMsg == "" {
-		warningMsg = msg
-	}
-	return reports, warningMsg, err
-}
-
-func PackageDiagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, withAnalysis bool, disabledAnalyses map[string]struct{}) (map[FileIdentity][]Diagnostic, string, error) {
 	pkg, err := ph.Check(ctx)
 	if err != nil {
 		return nil, "", err
 	}
-	var warningMsg string
 	// If we have a package with a single file and errors about "undeclared" symbols,
 	// we may have an ad-hoc package with multiple files. Show a warning message.
 	// TODO(golang/go#36416): Remove this when golang.org/cl/202277 is merged.
 	if len(pkg.CompiledGoFiles()) == 1 && hasUndeclaredErrors(pkg) {
+		warn = true
+	}
+	if warn {
 		warningMsg, err = checkCommonErrors(ctx, snapshot.View())
 		if err != nil {
 			return nil, "", err
@@ -115,34 +98,39 @@ func PackageDiagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle
 	}
 	if !hadDiagnostics && withAnalysis {
 		// If we don't have any list, parse, or type errors, run analyses.
-		if err := analyses(ctx, snapshot, reports, ph, disabledAnalyses); err != nil {
+		if err := analyses(ctx, snapshot, reports, ph, snapshot.View().Options().DisabledAnalyses); err != nil {
 			// Exit early if the context has been canceled.
-			if err == context.Canceled {
-				return nil, warningMsg, err
+			if ctx.Err() != nil {
+				return nil, warningMsg, ctx.Err()
 			}
 			log.Error(ctx, "failed to run analyses", err, telemetry.Package.Of(ph.ID()))
 		}
 	}
-	// Updates to the diagnostics for this package may need to be propagated.
-	reverseDeps, err := snapshot.GetReverseDependencies(ctx, pkg.ID())
-	if err != nil {
-		if err == context.Canceled {
-			return nil, warningMsg, err
-		}
-		log.Error(ctx, "no reverse dependencies", err)
-		return reports, warningMsg, nil
-	}
-	for _, ph := range reverseDeps {
-		pkg, err := ph.Check(ctx)
-		if err != nil {
-			return nil, warningMsg, err
-		}
-		for _, fh := range pkg.CompiledGoFiles() {
-			clearReports(snapshot, reports, fh.File().Identity())
-		}
-		diagnostics(ctx, snapshot, reports, pkg)
-	}
 	return reports, warningMsg, nil
+}
+
+func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (FileIdentity, []Diagnostic, error) {
+	fh, err := snapshot.GetFile(uri)
+	if err != nil {
+		return FileIdentity{}, nil, err
+	}
+	phs, err := snapshot.PackageHandles(ctx, fh)
+	if err != nil {
+		return FileIdentity{}, nil, err
+	}
+	ph, err := NarrowestPackageHandle(phs)
+	if err != nil {
+		return FileIdentity{}, nil, err
+	}
+	reports, _, err := Diagnostics(ctx, snapshot, ph, true)
+	if err != nil {
+		return FileIdentity{}, nil, err
+	}
+	diagnostics, ok := reports[fh.Identity()]
+	if !ok {
+		return FileIdentity{}, nil, errors.Errorf("no diagnostics for %s", uri)
+	}
+	return fh.Identity(), diagnostics, nil
 }
 
 type diagnosticSet struct {

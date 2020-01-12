@@ -569,20 +569,32 @@ func (s *snapshot) awaitLoaded(ctx context.Context) error {
 
 // reloadWorkspace reloads the metadata for all invalidated workspace packages.
 func (s *snapshot) reloadWorkspace(ctx context.Context) error {
-	s.mu.Lock()
-	var scope []packagePath
-	for id, pkgPath := range s.workspacePackages {
-		if s.metadata[id] == nil {
-			scope = append(scope, pkgPath)
-		}
-	}
-	s.mu.Unlock()
-
-	if len(scope) == 0 {
+	scope := s.workspaceScope(ctx)
+	if scope == nil {
 		return nil
 	}
 	_, err := s.load(ctx, scope)
 	return err
+}
+
+func (s *snapshot) workspaceScope(ctx context.Context) interface{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var pkgPaths []packagePath
+	for id, pkgPath := range s.workspacePackages {
+		if s.metadata[id] == nil {
+			pkgPaths = append(pkgPaths, pkgPath)
+		}
+	}
+	switch len(pkgPaths) {
+	case 0:
+		return nil
+	case len(s.workspacePackages):
+		return directoryURI(s.view.folder)
+	default:
+		return pkgPaths
+	}
 }
 
 func (s *snapshot) clone(ctx context.Context, withoutURI span.URI) *snapshot {

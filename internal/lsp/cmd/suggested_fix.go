@@ -65,6 +65,8 @@ func (s *suggestedfix) Run(ctx context.Context, args ...string) error {
 	if err := conn.diagnoseFiles(ctx, []span.URI{uri}); err != nil {
 		return err
 	}
+	conn.Client.filesMu.Lock()
+	defer conn.Client.filesMu.Unlock()
 
 	p := protocol.CodeActionParams{
 		TextDocument: protocol.TextDocumentIdentifier{

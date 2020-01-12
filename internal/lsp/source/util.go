@@ -141,17 +141,17 @@ func SpecificPackageHandle(desiredID string) PackagePolicy {
 	}
 }
 
-func IsGenerated(ctx context.Context, view View, uri span.URI) bool {
-	fh, err := view.Snapshot().GetFile(uri)
+func IsGenerated(ctx context.Context, snapshot Snapshot, uri span.URI) bool {
+	fh, err := snapshot.GetFile(uri)
 	if err != nil {
 		return false
 	}
-	ph := view.Session().Cache().ParseGoHandle(fh, ParseHeader)
+	ph := snapshot.View().Session().Cache().ParseGoHandle(fh, ParseHeader)
 	parsed, _, _, err := ph.Parse(ctx)
 	if err != nil {
 		return false
 	}
-	tok := view.Session().Cache().FileSet().File(parsed.Pos())
+	tok := snapshot.View().Session().Cache().FileSet().File(parsed.Pos())
 	if tok == nil {
 		return false
 	}
