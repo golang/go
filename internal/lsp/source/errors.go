@@ -8,8 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"golang.org/x/tools/internal/span"
 )
 
 const (
@@ -17,7 +15,7 @@ const (
 	modulesWiki = "https://github.com/golang/go/wiki/Modules"
 )
 
-func checkCommonErrors(ctx context.Context, view View, uri span.URI) (string, error) {
+func checkCommonErrors(ctx context.Context, v View) (string, error) {
 	// Unfortunately, we probably can't have go/packages expose a function like this.
 	// Since we only really understand the `go` command, check the user's GOPACKAGESDRIVER
 	// and, if they are using `go list`, consider the possible error cases.
@@ -31,12 +29,13 @@ func checkCommonErrors(ctx context.Context, view View, uri span.URI) (string, er
 	//  1. The user is in GOPATH mode and is working outside their GOPATH
 	//  2. The user is in module mode and has opened a subdirectory of their module
 	//
+
+	// TODO(rstambler): Get the values for GOPATH and GOMOD from
+	// the view, once it's possible to do so: golang.org/cl/214417.
 	gopath := os.Getenv("GOPATH")
-	cfg := view.Config(ctx)
 
 	// Invoke `go env GOMOD` inside of the directory of the file.
-	fdir := filepath.Dir(uri.Filename())
-	b, err := InvokeGo(ctx, fdir, cfg.Env, "env", "GOMOD")
+	b, err := InvokeGo(ctx, v.Folder().Filename(), v.Config(ctx).Env, "env", "GOMOD")
 	if err != nil {
 		return "", err
 	}
@@ -44,14 +43,16 @@ func checkCommonErrors(ctx context.Context, view View, uri span.URI) (string, er
 	if modFile == filepath.FromSlash("/dev/null") {
 		modFile = ""
 	}
+	modRoot := filepath.Dir(modFile)
 
 	// Not inside of a module.
 	inAModule := modFile != ""
+	folder := v.Folder().Filename()
 
 	// The user may have a multiple directories in their GOPATH.
 	var inGopath bool
 	for _, gp := range filepath.SplitList(gopath) {
-		if strings.HasPrefix(uri.Filename(), filepath.Join(gp, "src")) {
+		if strings.HasPrefix(folder, filepath.Join(gp, "src")) {
 			inGopath = true
 			break
 		}
@@ -62,9 +63,9 @@ func checkCommonErrors(ctx context.Context, view View, uri span.URI) (string, er
 	var msg string
 	// The user is in a module.
 	if inAModule {
-		// The workspace root is open to a directory different from the module root.
-		if modRoot := filepath.Dir(modFile); cfg.Dir != filepath.Dir(modFile) {
-			msg = fmt.Sprintf("Your workspace root is %s, but your module root is %s. Please add %s as a workspace folder.", cfg.Dir, modRoot, modRoot)
+		rel, err := filepath.Rel(modRoot, folder)
+		if err != nil || strings.HasPrefix(rel, "..") {
+			msg = fmt.Sprintf("Your workspace root is %s, but your module root is %s. Please add %s or a subdirectory as a workspace folder.", folder, modRoot, modRoot)
 		}
 	} else if inGopath {
 		if moduleMode == "on" {
