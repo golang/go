@@ -6,7 +6,11 @@
 # for gopls. See README.md for instructions on how to use this.
 steps:
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/govim-harness',
+    args: ['build',
+      # To allow for breaking changes to this test harness, tag with a major
+      # version number.
+      '-t', 'gcr.io/$PROJECT_ID/govim-harness:latest',
+      '-t', 'gcr.io/$PROJECT_ID/govim-harness:2',
       # It is assumed that this build is running from the root directory of the
       # tools repository.
       '-f', 'gopls/integration/govim/Dockerfile',

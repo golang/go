@@ -5,17 +5,24 @@ against a gopls binary built from source.
 
 ## Running on GCP
 
-To run these integration tests in Cloud Build (assuming the `gcloud` command is
-configured for a valid GCP project):
+To run these integration tests in Cloud Build, use the following steps.  Here
+we assume that `$PROJECT` is a valid GCP project and `$BUCKET` is a cloud
+storage bucket owned by that project.
 
 - `cd` to the root directory of the tools project.
-- (at least once per GCP project) Build the test harness:  
+- (at least once per GCP project) Build the test harness:
 ```
-$ gcloud builds submit --config=gopls/integration/govim/cloudbuild.harness.yaml
+$ gcloud builds submit \
+	--project="${PROJECT}" \
+	--config=gopls/integration/govim/cloudbuild.harness.yaml \
+	--substitutions=_RESULT_BUCKET="${BUCKET}"
 ```
-- Run the integration tests:  
+- Run the integration tests:
 ```
-$ gcloud builds submit --config=gopls/integration/govim/cloudbuild.yaml
+$ gcloud builds submit \
+	--project="${PROJECT}" \
+	--config=gopls/integration/govim/cloudbuild.yaml \
+	--substitutions=_RESULT_BUCKET="${BUCKET}"
 ```
 
 ## Running locally

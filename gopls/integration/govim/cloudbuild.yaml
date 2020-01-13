@@ -4,20 +4,42 @@
 
 # Build gopls, and run the govim integration tests.  See README.md for
 # instructions on how to use this.
+
+substitutions:
+  # This bucket must be owned by the the GCP project executing the build. If
+  # you are running this from your own project, override using --substitutions.
+  _RESULT_BUCKET: 'golang-gopls_integration_tests'
+
 steps:
+  # Build gopls from source, to use with the govim integration tests.
   - name: 'golang:1.13'
     env: ['GOPROXY=https://proxy.golang.org']
     dir: 'gopls'
     args: ['go', 'build']
-  - name: 'gcr.io/$PROJECT_ID/govim-harness'
-    # Work in the dummy module created in the test harness, that requires a
-    # pinned version of github.com/govim/govim.
-    dir: '/src/mod'
-    # The below setting currently causes too much noise on STDERR.
-    # TODO(findleyr): look into govim changes that make it easier to capture
-    # individual logs as build artifacts.
-    # env: ['GOVIM_TESTSCRIPT_STDERR=true']
-    args: ['go', 'test',
-      'github.com/govim/govim/cmd/govim',
-      # Specify the path to the gopls binary built in step 0.
-      '-gopls', '/workspace/gopls/gopls']
+
+  # Run the tests. Note that the script in this step does not return the exit
+  # code from `go test`, but rather saves it for use in the final step after
+  # uploading artifacts.
+  - name: 'gcr.io/$PROJECT_ID/govim-harness:2'
+    dir: '/src/govim'
+    env:
+      - GOVIM_TESTSCRIPT_WORKDIR_ROOT=/workspace/artifacts
+      - VIM_FLAVOR=vim
+    args: ['/workspace/gopls/integration/govim/run_tests_for_cloudbuild.sh']
+
+  # The govim tests produce a large number of artifacts; tarball/gzip to reduce
+  # roundtrips and save space.
+  - name: 'ubuntu'
+    args: ['tar', '-czf', 'artifacts.tar.gz', 'artifacts']
+
+  # Upload artifacts to GCS.
+  - name: 'gcr.io/cloud-builders/gsutil'
+    args: ['cp', 'artifacts.tar.gz', 'gs://${_RESULT_BUCKET}/govim/${BUILD_ID}/artifacts.tar.gz']
+
+  # Exit with the actual exit code of the integration tests.
+  - name: 'ubuntu'
+    args: ['bash', 'govim_test_result.sh']
+
+# Write build logs to the same bucket as artifacts, so they can be more easily
+# shared.
+logsBucket: 'gs://${_RESULT_BUCKET}'

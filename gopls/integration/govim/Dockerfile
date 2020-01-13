@@ -6,11 +6,19 @@
 # distros, so we build from their base image.
 FROM govim/govim:go1.13.5_vim_v8.1.2414_v1
 
-# Get a copy of govim in order to run its integration tests. We use a pinned
-# version so that this build is repeatable, and so that we're not sensitive to
-# test breakages in govim.
+# We use a pinned version of govim so that this build is repeatable, and so
+# that we're not sensitive to test breakages in govim.
 # TODO(findleyr): Once a version of govim has been tagged containing
 # https://github.com/govim/govim/pull/629, switch this to @latest.
-ENV GOPROXY=https://proxy.golang.org GOPATH=/go VIM_FLAVOR=vim
-WORKDIR /src/mod
-RUN go mod init mod && go get -t github.com/govim/govim@v0.0.27-0.20191220164001-63ce556bb69e
+ENV GOPROXY=https://proxy.golang.org GOPATH=/go VIM_FLAVOR=vim \
+    GOVIM_VERSION=v0.0.27-0.20200108180210-6236474c3ac7
+WORKDIR /src
+
+# Get govim, as well as all dependencies for the ./cmd/govim tests. In order to
+# use the go command's module version resolution, we use `go mod download` for
+# this rather than git. Another approach would be to use a temporary module and
+# `go get -t -u github.com/govim/govim`, but that may cause test dependencies
+# to be upgraded.
+RUN GOVIM_DIR=$(go mod download -json github.com/govim/govim@$GOVIM_VERSION | jq -r .Dir) && \
+    cp -r $GOVIM_DIR /src/govim && cd /src/govim && \
+    go list -test -deps ./cmd/govim

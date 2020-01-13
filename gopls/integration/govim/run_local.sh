@@ -1,5 +1,9 @@
 #!/bin/bash -e
 
+# Copyright 2019 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
 # Run govim integration tests against a local gopls.
 # TODO(findleyr): this script assumes that docker may be run without sudo.
 # Update it to escalate privileges if and only if necessary.
@@ -25,7 +29,7 @@ echo "running govim integration tests using ${temp_gopls}"
 temp_gopls_name=$(basename "${temp_gopls}")
 docker run --rm -t \
   -v "${tools_dir}:/src/tools" \
-  -w "/src/mod" \
+  -w "/src/govim" \
   gopls-govim-harness \
-  go test github.com/govim/govim/cmd/govim \
+  go test ./cmd/govim \
     -gopls "/src/tools/gopls/${temp_gopls_name}"
