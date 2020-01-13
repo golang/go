@@ -613,6 +613,11 @@ type p struct {
 
 	_ uint32 // Alignment for atomic fields below
 
+	// The when field of the first entry on the timer heap.
+	// This is updated using atomic functions.
+	// This is 0 if the timer heap is empty.
+	timer0When uint64
+
 	// Per-P GC state
 	gcAssistTime         int64    // Nanoseconds in assistAlloc
 	gcFractionalMarkTime int64    // Nanoseconds in fractional mark worker (atomic)
