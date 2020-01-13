@@ -1694,27 +1694,6 @@ func TestShadowingLogic(t *testing.T) {
 	}
 }
 
-func TestBuildDryRunWithCgo(t *testing.T) {
-	if !canCgo {
-		t.Skip("skipping because cgo not enabled")
-	}
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.tempFile("foo.go", `package main
-
-/*
-#include <limits.h>
-*/
-import "C"
-
-func main() {
-        println(C.INT_MAX)
-}`)
-	tg.run("build", "-n", tg.path("foo.go"))
-	tg.grepStderrNot(`os.Stat .* no such file or directory`, "unexpected stat of archive file")
-}
-
 func TestCgoDependsOnSyscall(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test that removes $GOROOT/pkg/*_race in short mode")
