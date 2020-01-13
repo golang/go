@@ -117,6 +117,9 @@ func PackageDiagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle
 	// Updates to the diagnostics for this package may need to be propagated.
 	reverseDeps, err := snapshot.GetReverseDependencies(ctx, pkg.ID())
 	if err != nil {
+		if err == context.Canceled {
+			return nil, warningMsg, err
+		}
 		log.Error(ctx, "no reverse dependencies", err)
 		return reports, warningMsg, nil
 	}

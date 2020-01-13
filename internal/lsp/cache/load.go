@@ -66,10 +66,11 @@ func (s *snapshot) load(ctx context.Context, scope interface{}) ([]*metadata, er
 	cfg := s.view.Config(ctx)
 	pkgs, err := packages.Load(cfg, query)
 
-	// If the context was canceled, return early.
-	// Otherwise, we might be type-checking an incomplete result.
-	if err == context.Canceled {
-		return nil, err
+	// If the context was canceled, return early. Otherwise, we might be
+	// type-checking an incomplete result. Check the context directly,
+	// because go/packages adds extra information to the error.
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 
 	log.Print(ctx, "go/packages.Load", tag.Of("query", query), tag.Of("packages", len(pkgs)))
