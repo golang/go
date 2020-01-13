@@ -1246,6 +1246,8 @@ var diffTests = []struct {
 }
 
 func TestDiff(t *testing.T) {
+	t.Parallel()
+
 	for _, tt := range diffTests {
 		// Turn spaces into \n.
 		text1 := strings.ReplaceAll(tt.text1, " ", "\n")
