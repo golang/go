@@ -12,7 +12,7 @@ describe more basic and optional trouble shooting steps
 
 1. Make sure your `gopls` is [up to date](user.md#installing).
 1. Check the [known issues](status.md#known-issues).
-1. [Report the issue](file-an-issue).
+1. [Report the issue](#file-an-issue).
 
 ## File an issue
 
