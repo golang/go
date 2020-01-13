@@ -2174,21 +2174,6 @@ func TestGoBuildGOPATHOrderBroken(t *testing.T) {
 	tg.run("install", "-x", "bar")
 }
 
-func TestIssue11709(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.tempFile("run.go", `
-		package main
-		import "os"
-		func main() {
-			if os.Getenv("TERM") != "" {
-				os.Exit(1)
-			}
-		}`)
-	tg.unsetenv("TERM")
-	tg.run("run", tg.path("run.go"))
-}
-
 func TestGoBuildARM(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping cross-compile in short mode")
