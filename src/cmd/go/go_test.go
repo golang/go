@@ -317,7 +317,6 @@ var mtimeTick time.Duration = 1 * time.Second
 type testgoData struct {
 	t              *testing.T
 	temps          []string
-	wd             string
 	env            []string
 	tempdir        string
 	ran            bool
@@ -366,9 +365,6 @@ func (tg *testgoData) parallel() {
 	tg.t.Helper()
 	if tg.ran {
 		tg.t.Fatal("internal testsuite error: call to parallel after run")
-	}
-	if tg.wd != "" {
-		tg.t.Fatal("internal testsuite error: call to parallel after cd")
 	}
 	for _, e := range tg.env {
 		if strings.HasPrefix(e, "GOROOT=") || strings.HasPrefix(e, "GOPATH=") || strings.HasPrefix(e, "GOBIN=") {
@@ -680,15 +676,6 @@ func (tg *testgoData) creatingTemp(path string) {
 	if filepath.IsAbs(path) && !strings.HasPrefix(path, tg.tempdir) {
 		tg.t.Fatalf("internal testsuite error: creatingTemp(%q) with absolute path not in temporary directory", path)
 	}
-	// If we have changed the working directory, make sure we have
-	// an absolute path, because we are going to change directory
-	// back before we remove the temporary.
-	if !filepath.IsAbs(path) {
-		if tg.wd == "" || strings.HasPrefix(tg.wd, testGOROOT) {
-			tg.t.Fatalf("internal testsuite error: creatingTemp(%q) within GOROOT/src", path)
-		}
-		path = filepath.Join(tg.wd, path)
-	}
 	tg.must(robustio.RemoveAll(path))
 	tg.temps = append(tg.temps, path)
 }
@@ -842,16 +829,6 @@ var testWork = flag.Bool("testwork", false, "")
 // cleanup cleans up a test that runs testgo.
 func (tg *testgoData) cleanup() {
 	tg.t.Helper()
-	if tg.wd != "" {
-		wd, _ := os.Getwd()
-		tg.t.Logf("ended in %s", wd)
-
-		if err := os.Chdir(tg.wd); err != nil {
-			// We are unlikely to be able to continue.
-			fmt.Fprintln(os.Stderr, "could not restore working directory, crashing:", err)
-			os.Exit(2)
-		}
-	}
 	if *testWork {
 		tg.t.Logf("TESTWORK=%s\n", tg.path("."))
 		return
@@ -2092,27 +2069,6 @@ const (
 	noMatchesPattern = `(?m)^ok.*\[no tests to run\]`
 	okPattern        = `(?m)^ok`
 )
-
-func TestLinkXImportPathEscape(t *testing.T) {
-	// golang.org/issue/16710
-	skipIfGccgo(t, "gccgo does not support -ldflags -X")
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
-	exe := tg.path("linkx" + exeSuffix)
-	tg.creatingTemp(exe)
-	tg.run("build", "-o", exe, "-ldflags", "-X=my.pkg.Text=linkXworked", "my.pkg/main")
-	out, err := exec.Command(exe).CombinedOutput()
-	if err != nil {
-		tg.t.Fatal(err)
-	}
-	if string(out) != "linkXworked\n" {
-		tg.t.Log(string(out))
-		tg.t.Fatal(`incorrect output: expected "linkXworked\n"`)
-	}
-}
 
 // Issue 18044.
 func TestLdBindNow(t *testing.T) {
