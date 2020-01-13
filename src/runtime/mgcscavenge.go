@@ -80,6 +80,17 @@ const (
 	// maxPagesPerPhysPage is the maximum number of supported runtime pages per
 	// physical page, based on maxPhysPageSize.
 	maxPagesPerPhysPage = maxPhysPageSize / pageSize
+
+	// scavengeCostRatio is the approximate ratio between the costs of using previously
+	// scavenged memory and scavenging memory.
+	//
+	// For most systems the cost of scavenging greatly outweighs the costs
+	// associated with using scavenged memory, making this constant 0. On other systems
+	// (especially ones where "sysUsed" is not just a no-op) this cost is non-trivial.
+	//
+	// This ratio is used as part of multiplicative factor to help the scavenger account
+	// for the additional costs of using scavenged memory in its pacing.
+	scavengeCostRatio = 0.7 * sys.GoosDarwin
 )
 
 // heapRetained returns an estimate of the current heap RSS.
@@ -246,7 +257,7 @@ func bgscavenge(c chan int) {
 		released := uintptr(0)
 
 		// Time in scavenging critical section.
-		crit := int64(0)
+		crit := float64(0)
 
 		// Run on the system stack since we grab the heap lock,
 		// and a stack growth with the heap lock means a deadlock.
@@ -265,7 +276,7 @@ func bgscavenge(c chan int) {
 			start := nanotime()
 			released = mheap_.pages.scavengeOne(physPageSize, false)
 			atomic.Xadduintptr(&mheap_.pages.scavReleased, released)
-			crit = nanotime() - start
+			crit = float64(nanotime() - start)
 		})
 
 		if released == 0 {
@@ -274,6 +285,14 @@ func bgscavenge(c chan int) {
 			goparkunlock(&scavenge.lock, waitReasonGCScavengeWait, traceEvGoBlock, 1)
 			continue
 		}
+
+		// Multiply the critical time by 1 + the ratio of the costs of using
+		// scavenged memory vs. scavenging memory. This forces us to pay down
+		// the cost of reusing this memory eagerly by sleeping for a longer period
+		// of time and scavenging less frequently. More concretely, we avoid situations
+		// where we end up scavenging so often that we hurt allocation performance
+		// because of the additional overheads of using scavenged memory.
+		crit *= 1 + scavengeCostRatio
 
 		// If we spent more than 10 ms (for example, if the OS scheduled us away, or someone
 		// put their machine to sleep) in the critical section, bound the time we use to
@@ -290,13 +309,13 @@ func bgscavenge(c chan int) {
 		// much, then scavengeEMWA < idealFraction, so we'll adjust the sleep time
 		// down.
 		adjust := scavengeEWMA / idealFraction
-		sleepTime := int64(adjust * float64(crit) / (scavengePercent / 100.0))
+		sleepTime := int64(adjust * crit / (scavengePercent / 100.0))
 
 		// Go to sleep.
 		slept := scavengeSleep(sleepTime)
 
 		// Compute the new ratio.
-		fraction := float64(crit) / float64(crit+slept)
+		fraction := crit / (crit + float64(slept))
 
 		// Set a lower bound on the fraction.
 		// Due to OS-related anomalies we may "sleep" for an inordinate amount
