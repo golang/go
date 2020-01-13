@@ -644,7 +644,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 			}
 			if targs != nil {
 				// obj denotes a valid contract that is instantiated with targs
-				check.errorf(f.Type.Pos(), "contract instantiation not yet implemented")
+				check.errorf(f.Type.Pos(), "explicit contract instantiation not yet implemented")
 			} else {
 				// obj denotes a valid uninstantiated contract =>
 				// use the declared type parameters as "arguments"

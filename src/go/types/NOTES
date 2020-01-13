@@ -11,6 +11,7 @@ TODO
 - debug (and error msg) printing of generic instantiated types needs some work
 - improve error messages!
 - use []*TypeParam for tparams in subst? (unclear)
+- should we use nil instead of &emptyInterface for no type bounds (as an optimization)?
 
 ----------------------------------------------------------------------------------------------------
 KNOWN ISSUES
@@ -87,4 +88,5 @@ DESIGN/IMPLEMENTATION
 
 - 1/7/2020: The current implementation permits empty type parameter lists as in: "func f(type)(x int)"
   but we cannot call such a function as "f()(1)"; the empty type argument list causes problems.
-  We should either disallow empty type parameter lists or document this well.
+  Document that we allow empty type parameter list declarations, but not empty actual type parameter
+  lists. (We could allow them for types, but that doesn't seem consistent and probably is confusing).

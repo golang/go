@@ -359,7 +359,10 @@ func (t *Interface) Method(i int) *Func { t.assertCompleteness(); return t.allMe
 
 // Empty reports whether t is the empty interface.
 // The interface must have been completed.
-func (t *Interface) Empty() bool { t.assertCompleteness(); return len(t.allMethods) == 0 }
+func (t *Interface) Empty() bool {
+	t.assertCompleteness()
+	return len(t.allMethods) == 0 && len(t.allTypes) == 0
+}
 
 // includes reports whether the interface t includes the type typ.
 func (t *Interface) includes(typ Type) bool {
@@ -537,6 +540,7 @@ type TypeParam struct {
 
 // NewTypeParam returns a new TypeParam.
 func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
+	assert(bound != nil)
 	typ := &TypeParam{check.nextId, obj, index, bound}
 	check.nextId++
 	if obj.typ == nil {

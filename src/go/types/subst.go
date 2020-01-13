@@ -38,7 +38,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 	case *Signature:
 		tparams = t.tparams
 	default:
-		check.dump(">>> trying to instantiate %s", typ)
+		check.dump("%v: cannot instantiate %v", pos, typ)
 		unreachable() // only defined types and (defined) functions can be generic
 
 	}
@@ -50,28 +50,25 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		return Typ[Invalid]
 	}
 
-	// TODO(gri) should we check for len(tparams) == 0?
+	if len(tparams) == 0 {
+		return typ // nothing to do (minor optimization)
+	}
 
 	// check bounds
 	for i, tname := range tparams {
-		targ := targs[i]
-
 		tpar := tname.typ.(*TypeParam)
-		// TODO(gri) decide if we want to keep this or standardize on the empty interface
-		//           (keeping it may make sense because it's a common scenario and it may
-		//           be more efficient to check)
-		if tpar.bound == nil {
-			continue // no type bound (optimization)
+		iface := tpar.Interface()
+		if iface.Empty() {
+			continue // no type bound
 		}
+
+		targ := targs[i]
 
 		// best position for error reporting
 		pos := pos
 		if i < len(poslist) {
 			pos = poslist[i]
 		}
-
-		// determine type parameter bound
-		iface := tpar.Interface()
 
 		// The type parameter bound is parameterized with the same type parameters
 		// as the instantiated type; before we can use it for bounds checking we

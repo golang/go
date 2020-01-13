@@ -17,7 +17,7 @@ func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
 	check.openScope(cdecl, "contract")
 	defer check.closeScope()
 
-	tparams := check.declareTypeParams(nil, cdecl.TParams, nil)
+	tparams := check.declareTypeParams(nil, cdecl.TParams, &emptyInterface)
 
 	// Given a contract C(P1, P2, ... Pn) { ... } we construct named types C1(P1, P2, ... Pn),
 	// C2(P1, P2, ... Pn), ... Cn(P1, P2, ... Pn) with the respective underlying interfaces

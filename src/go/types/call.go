@@ -441,7 +441,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 				x.typ = exp.typ
 				x.id = exp.id
 			default:
-				check.dump("unexpected object %v", exp)
+				check.dump("%v: unexpected object %v", e.Sel.Pos(), exp)
 				unreachable()
 			}
 			x.expr = e
