@@ -1832,13 +1832,6 @@ func TestListTemplateContextFunction(t *testing.T) {
 	}
 }
 
-func TestGoTestBuildsAnXtestContainingOnlyNonRunnableExamples(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("test", "-v", "./testdata/norunexample")
-	tg.grepStdout("File with non-runnable example was built.", "file with non-runnable example was not built")
-}
-
 // Test that you cannot use a local import in a package
 // accessed by a non-local import (found in a GOPATH/GOROOT).
 // See golang.org/issue/17475.
