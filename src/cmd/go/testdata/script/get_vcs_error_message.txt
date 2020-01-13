@@ -1,0 +1,8 @@
+# Test that the Version Control error message includes the correct directory
+! go get -u foo
+stderr gopath(\\\\|/)src(\\\\|/)foo
+
+-- foo/foo.go --
+package foo
+-- math/math.go --
+package math

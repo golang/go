@@ -1102,42 +1102,6 @@ func TestAccidentalGitCheckout(t *testing.T) {
 	}
 }
 
-func TestVersionControlErrorMessageIncludesCorrectDirectory(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/shadow/root1"))
-	tg.runFail("get", "-u", "foo")
-
-	// TODO(iant): We should not have to use strconv.Quote here.
-	// The code in vcs.go should be changed so that it is not required.
-	quoted := strconv.Quote(filepath.Join("testdata", "shadow", "root1", "src", "foo"))
-	quoted = quoted[1 : len(quoted)-1]
-
-	tg.grepStderr(regexp.QuoteMeta(quoted), "go get -u error does not mention shadow/root1/src/foo")
-}
-
-// Issue 21895
-func TestMSanAndRaceRequireCgo(t *testing.T) {
-	if !canMSan && !canRace {
-		t.Skip("skipping because both msan and the race detector are not supported")
-	}
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.tempFile("triv.go", `package main; func main() {}`)
-	tg.setenv("CGO_ENABLED", "0")
-	if canRace {
-		tg.runFail("install", "-race", "triv.go")
-		tg.grepStderr("-race requires cgo", "did not correctly report that -race requires cgo")
-		tg.grepStderrNot("-msan", "reported that -msan instead of -race requires cgo")
-	}
-	if canMSan {
-		tg.runFail("install", "-msan", "triv.go")
-		tg.grepStderr("-msan requires cgo", "did not correctly report that -msan requires cgo")
-		tg.grepStderrNot("-race", "reported that -race instead of -msan requires cgo")
-	}
-}
-
 func TestPackageMainTestCompilerFlags(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
@@ -1776,28 +1740,6 @@ func main() {
 	tg.run("run", tg.path("foo.go"))
 }
 
-// cmd/cgo: undefined reference when linking a C-library using gccgo
-func TestIssue7573(t *testing.T) {
-	if !canCgo {
-		t.Skip("skipping because cgo not enabled")
-	}
-	testenv.MustHaveExecPath(t, "gccgo")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.tempFile("src/cgoref/cgoref.go", `
-package main
-// #cgo LDFLAGS: -L alibpath -lalib
-// void f(void) {}
-import "C"
-
-func main() { C.f() }`)
-	tg.setenv("GOPATH", tg.path("."))
-	tg.run("build", "-n", "-compiler", "gccgo", "cgoref")
-	tg.grepStderr(`gccgo.*\-L [^ ]*alibpath \-lalib`, `no Go-inline "#cgo LDFLAGS:" ("-L alibpath -lalib") passed to gccgo linking stage`)
-}
-
 func TestListTemplateContextFunction(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct {
@@ -1986,16 +1928,6 @@ func TestImportLocal(t *testing.T) {
 	tg.grepStderr("cannot import current directory", "did not diagnose import current directory")
 }
 
-func TestGoRunDirs(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.cd("testdata/rundir")
-	tg.runFail("run", "x.go", "sub/sub.go")
-	tg.grepStderr("named files must all be in one directory; have ./ and sub/", "wrong output")
-	tg.runFail("run", "sub/sub.go", "x.go")
-	tg.grepStderr("named files must all be in one directory; have sub/ and ./", "wrong output")
-}
-
 func TestGoInstallPkgdir(t *testing.T) {
 	skipIfGccgo(t, "gccgo has no standard packages")
 	tooSlow(t)
@@ -2011,26 +1943,6 @@ func TestGoInstallPkgdir(t *testing.T) {
 	tg.run("install", "-i", "-pkgdir", pkg, "sync")
 	tg.mustExist(filepath.Join(pkg, "sync.a"))
 	tg.mustExist(filepath.Join(pkg, "sync/atomic.a"))
-}
-
-func TestGoInstallShadowedGOPATH(t *testing.T) {
-	// golang.org/issue/3652.
-	// go get foo.io (not foo.io/subdir) was not working consistently.
-
-	testenv.MustHaveExternalNetwork(t)
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", tg.path("gopath1")+string(filepath.ListSeparator)+tg.path("gopath2"))
-
-	tg.tempDir("gopath1/src/test")
-	tg.tempDir("gopath2/src/test")
-	tg.tempFile("gopath2/src/test/main.go", "package main\nfunc main(){}\n")
-
-	tg.cd(tg.path("gopath2/src/test"))
-	tg.runFail("install")
-	tg.grepStderr("no install location for.*gopath2.src.test: hidden by .*gopath1.src.test", "missing error")
 }
 
 func TestGoBuildGOPATHOrder(t *testing.T) {
@@ -2351,17 +2263,6 @@ func main() {
 	exe := tg.path("p.exe")
 	tg.creatingTemp(exe)
 	tg.run("build", "-o", exe, "p")
-}
-
-func TestBuildTagsNoComma(t *testing.T) {
-	skipIfGccgo(t, "gccgo has no standard packages")
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", tg.path("go"))
-	tg.run("build", "-tags", "tag1 tag2", "math")
-	tg.runFail("build", "-tags", "tag1,tag2 tag3", "math")
-	tg.grepBoth("space-separated list contains comma", "-tags with a comma-separated list didn't error")
 }
 
 func copyFile(src, dst string, perm os.FileMode) error {
