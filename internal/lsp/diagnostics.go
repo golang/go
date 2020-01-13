@@ -32,7 +32,7 @@ func (s *Server) diagnoseSnapshot(ctx context.Context, snapshot source.Snapshot)
 				log.Error(ctx, "diagnoseSnapshot: no diagnostics", err, telemetry.Package.Of(ph.ID()))
 				return
 			}
-			s.publishReports(ctx, reports, false)
+			s.publishReports(ctx, snapshot, reports, false)
 		}(ph)
 	}
 	// Run diagnostics on the go.mod file.
@@ -61,7 +61,7 @@ func (s *Server) diagnoseFile(snapshot source.Snapshot, fh source.FileHandle) {
 		return
 	}
 	// Publish empty diagnostics for files.
-	s.publishReports(ctx, reports, true)
+	s.publishReports(ctx, snapshot, reports, true)
 }
 
 func (s *Server) diagnoseModfile(snapshot source.Snapshot) {
@@ -76,11 +76,11 @@ func (s *Server) diagnoseModfile(snapshot source.Snapshot) {
 		}
 		return
 	}
-	// Publish empty diagnostics for go.mod files.
-	s.publishReports(ctx, reports, true)
+	// Publish empty diagnostics for files.
+	s.publishReports(ctx, snapshot, reports, true)
 }
 
-func (s *Server) publishReports(ctx context.Context, reports map[source.FileIdentity][]source.Diagnostic, publishEmpty bool) {
+func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, reports map[source.FileIdentity][]source.Diagnostic, publishEmpty bool) {
 	// Check for context cancellation before publishing diagnostics.
 	if ctx.Err() != nil {
 		return
@@ -89,11 +89,21 @@ func (s *Server) publishReports(ctx context.Context, reports map[source.FileIden
 	s.deliveredMu.Lock()
 	defer s.deliveredMu.Unlock()
 
-	for fileID, diagnostics := range reports {
+	for identity, diagnostics := range reports {
 		// Don't deliver diagnostics if the context has already been canceled.
 		if ctx.Err() != nil {
 			break
 		}
+		// Rather than using the identity provided in the report,
+		// get the FileHandle directly through the snapshot.
+		// This prevents us from using cached file versions.
+		fh, err := snapshot.GetFile(identity.URI)
+		if err != nil {
+			log.Error(ctx, "publishReports: failed to get FileHandle", err, telemetry.File.Of(identity.URI))
+			continue
+		}
+		fileID := fh.Identity()
+
 		// Pre-sort diagnostics to avoid extra work when we compare them.
 		source.SortDiagnostics(diagnostics)
 		toSend := sentDiagnostics{
@@ -112,12 +122,6 @@ func (s *Server) publishReports(ctx context.Context, reports map[source.FileIden
 		// Reuse equivalent cached diagnostics for subsequent file versions (if known),
 		// or identical files (if versions are not known).
 		if ok {
-			// If the file is open, and we've already delivered diagnostics for
-			// a later version, do nothing. This only works for open files,
-			// since their contents in the editor are the source of truth.
-			if s.session.IsOpen(fileID.URI); fileID.Version < delivered.version {
-				continue
-			}
 			geqVersion := fileID.Version >= delivered.version && delivered.version > 0
 			noVersions := (fileID.Version == 0 && delivered.version == 0) && delivered.identifier == fileID.Identifier
 			if (geqVersion || noVersions) && equalDiagnostics(delivered.sorted, diagnostics) {
@@ -126,13 +130,12 @@ func (s *Server) publishReports(ctx context.Context, reports map[source.FileIden
 				continue
 			}
 		}
-
 		if err := s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
 			Diagnostics: toProtocolDiagnostics(ctx, diagnostics),
 			URI:         protocol.NewURI(fileID.URI),
 			Version:     fileID.Version,
 		}); err != nil {
-			log.Error(ctx, "failed to deliver diagnostic", err, telemetry.File)
+			log.Error(ctx, "publishReports: failed to deliver diagnostic", err, telemetry.File)
 			continue
 		}
 		// Update the delivered map.
