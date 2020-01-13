@@ -388,24 +388,6 @@ func (tg *testgoData) pwd() string {
 	return wd
 }
 
-// cd changes the current directory to the named directory. Note that
-// using this means that the test must not be run in parallel with any
-// other tests.
-func (tg *testgoData) cd(dir string) {
-	tg.t.Helper()
-	if tg.inParallel {
-		tg.t.Fatal("internal testsuite error: changing directory when running in parallel")
-	}
-	if tg.wd == "" {
-		tg.wd = tg.pwd()
-	}
-	abs, err := filepath.Abs(dir)
-	tg.must(os.Chdir(dir))
-	if err == nil {
-		tg.setenv("PWD", abs)
-	}
-}
-
 // sleep sleeps for one tick, where a tick is a conservative estimate
 // of how long it takes for a file modification to get a different
 // mtime.
@@ -2869,40 +2851,6 @@ func TestLinkerTmpDirIsDeleted(t *testing.T) {
 	}
 	if !os.IsNotExist(err) {
 		t.Fatalf("Stat(%q) returns unexpected error: %v", tmpdir, err)
-	}
-}
-
-func testCDAndGOPATHAreDifferent(tg *testgoData, cd, gopath string) {
-	skipIfGccgo(tg.t, "gccgo does not support -ldflags -X")
-	tg.setenv("GOPATH", gopath)
-
-	tg.tempDir("dir")
-	exe := tg.path("dir/a.exe")
-
-	tg.cd(cd)
-
-	tg.run("build", "-o", exe, "-ldflags", "-X=my.pkg.Text=linkXworked")
-	out, err := exec.Command(exe).CombinedOutput()
-	if err != nil {
-		tg.t.Fatal(err)
-	}
-	if string(out) != "linkXworked\n" {
-		tg.t.Errorf(`incorrect output with GOPATH=%q and CD=%q: expected "linkXworked\n", but have %q`, gopath, cd, string(out))
-	}
-}
-
-func TestCDAndGOPATHAreDifferent(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-
-	gopath := filepath.Join(tg.pwd(), "testdata")
-	cd := filepath.Join(gopath, "src/my.pkg/main")
-
-	testCDAndGOPATHAreDifferent(tg, cd, gopath)
-	if runtime.GOOS == "windows" {
-		testCDAndGOPATHAreDifferent(tg, cd, strings.ReplaceAll(gopath, `\`, `/`))
-		testCDAndGOPATHAreDifferent(tg, cd, strings.ToUpper(gopath))
-		testCDAndGOPATHAreDifferent(tg, cd, strings.ToLower(gopath))
 	}
 }
 
