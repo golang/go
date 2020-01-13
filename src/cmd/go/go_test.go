@@ -2013,37 +2013,6 @@ func TestGoInstallPkgdir(t *testing.T) {
 	tg.mustExist(filepath.Join(pkg, "sync/atomic.a"))
 }
 
-func TestGoTestRaceInstallCgo(t *testing.T) {
-	if !canRace {
-		t.Skip("skipping because race detector not supported")
-	}
-
-	// golang.org/issue/10500.
-	// This used to install a race-enabled cgo.
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.run("tool", "-n", "cgo")
-	cgo := strings.TrimSpace(tg.stdout.String())
-	old, err := os.Stat(cgo)
-	tg.must(err)
-
-	// For this test, we don't actually care whether 'go test -race -i' succeeds.
-	// It may fail, for example, if GOROOT was installed from source as root and
-	// is now read-only.
-	// We only care that — regardless of whether it succeeds — it does not
-	// overwrite cmd/cgo.
-	runArgs := []string{"test", "-race", "-i", "runtime/race"}
-	if status := tg.doRun(runArgs); status != nil {
-		tg.t.Logf("go %v failure ignored: %v", runArgs, status)
-	}
-
-	new, err := os.Stat(cgo)
-	tg.must(err)
-	if !new.ModTime().Equal(old.ModTime()) {
-		t.Fatalf("go test -i runtime/race reinstalled cmd/cgo")
-	}
-}
-
 func TestGoInstallShadowedGOPATH(t *testing.T) {
 	// golang.org/issue/3652.
 	// go get foo.io (not foo.io/subdir) was not working consistently.
