@@ -1138,16 +1138,6 @@ func TestMSanAndRaceRequireCgo(t *testing.T) {
 	}
 }
 
-func TestRelativeGOBINFail(t *testing.T) {
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.tempFile("triv.go", `package main; func main() {}`)
-	tg.setenv("GOBIN", ".")
-	tg.cd(tg.path("."))
-	tg.runFail("install")
-	tg.grepStderr("cannot install, GOBIN must be an absolute path", "go install must fail if $GOBIN is a relative path")
-}
-
 func TestPackageMainTestCompilerFlags(t *testing.T) {
 	tg := testgo(t)
 	defer tg.cleanup()
