@@ -1945,59 +1945,6 @@ func TestGoInstallPkgdir(t *testing.T) {
 	tg.mustExist(filepath.Join(pkg, "sync/atomic.a"))
 }
 
-func TestGoBuildGOPATHOrder(t *testing.T) {
-	// golang.org/issue/14176#issuecomment-179895769
-	// golang.org/issue/14192
-	// -I arguments to compiler could end up not in GOPATH order,
-	// leading to unexpected import resolution in the compiler.
-	// This is still not a complete fix (see golang.org/issue/14271 and next test)
-	// but it is clearly OK and enough to fix both of the two reported
-	// instances of the underlying problem. It will have to do for now.
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-	tg.setenv("GOPATH", tg.path("p1")+string(filepath.ListSeparator)+tg.path("p2"))
-
-	tg.tempFile("p1/src/foo/foo.go", "package foo\n")
-	tg.tempFile("p2/src/baz/baz.go", "package baz\n")
-	tg.tempFile("p2/pkg/"+runtime.GOOS+"_"+runtime.GOARCH+"/foo.a", "bad\n")
-	tg.tempFile("p1/src/bar/bar.go", `
-		package bar
-		import _ "baz"
-		import _ "foo"
-	`)
-
-	tg.run("install", "-x", "bar")
-}
-
-func TestGoBuildGOPATHOrderBroken(t *testing.T) {
-	// This test is known not to work.
-	// See golang.org/issue/14271.
-	t.Skip("golang.org/issue/14271")
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.makeTempdir()
-
-	tg.tempFile("p1/src/foo/foo.go", "package foo\n")
-	tg.tempFile("p2/src/baz/baz.go", "package baz\n")
-	tg.tempFile("p1/pkg/"+runtime.GOOS+"_"+runtime.GOARCH+"/baz.a", "bad\n")
-	tg.tempFile("p2/pkg/"+runtime.GOOS+"_"+runtime.GOARCH+"/foo.a", "bad\n")
-	tg.tempFile("p1/src/bar/bar.go", `
-		package bar
-		import _ "baz"
-		import _ "foo"
-	`)
-
-	colon := string(filepath.ListSeparator)
-	tg.setenv("GOPATH", tg.path("p1")+colon+tg.path("p2"))
-	tg.run("install", "-x", "bar")
-
-	tg.setenv("GOPATH", tg.path("p2")+colon+tg.path("p1"))
-	tg.run("install", "-x", "bar")
-}
-
 // For issue 14337.
 func TestParallelTest(t *testing.T) {
 	tooSlow(t)
