@@ -2514,8 +2514,9 @@ func TestExecutableGOROOT(t *testing.T) {
 
 	// Note: Must not call tg methods inside subtests: tg is attached to outer t.
 	tg := testgo(t)
-	tg.unsetenv("GOROOT")
 	defer tg.cleanup()
+	tg.parallel()
+	tg.unsetenv("GOROOT")
 
 	check := func(t *testing.T, exe, want string) {
 		cmd := exec.Command(exe, "env", "GOROOT")
