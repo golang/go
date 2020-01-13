@@ -66,9 +66,9 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 
 	items := toProtocolCompletionItems(candidates, rng, options)
 
-	if incompleteResults && len(items) > 1 {
-		for i := range items[1:] {
-			// Give all the candidaites the same filterText to trick VSCode
+	if incompleteResults {
+		for i := 1; i < len(items); i++ {
+			// Give all the candidates the same filterText to trick VSCode
 			// into not reordering our candidates. All the candidates will
 			// appear to be equally good matches, so VSCode's fuzzy
 			// matching/ranking just maintains the natural "sortText"
