@@ -431,6 +431,10 @@ func (r *Request) Cookie(name string) (*Cookie, error) {
 // means all cookies, if any, are written into the same line,
 // separated by semicolon.
 func (r *Request) AddCookie(c *Cookie) {
+	if r.Header == nil {
+		r.Header = make(Header)
+	}
+	
 	s := fmt.Sprintf("%s=%s", sanitizeCookieName(c.Name), sanitizeCookieValue(c.Value))
 	if c := r.Header.Get("Cookie"); c != "" {
 		r.Header.Set("Cookie", c+"; "+s)
