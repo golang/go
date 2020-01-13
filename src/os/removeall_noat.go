@@ -27,7 +27,6 @@ func removeAll(path string) error {
 	}
 
 	// Simple case: if Remove works, we're done.
-	path = fixLongPath(path)
 	err := Remove(path)
 	if err == nil || IsNotExist(err) {
 		return nil
