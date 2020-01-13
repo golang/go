@@ -2621,6 +2621,21 @@ func dropg() {
 // We pass now in and out to avoid extra calls of nanotime.
 //go:yeswritebarrierrec
 func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
+	// If there are no timers to adjust, and the first timer on
+	// the heap is not yet ready to run, then there is nothing to do.
+	if atomic.Load(&pp.adjustTimers) == 0 {
+		next := int64(atomic.Load64(&pp.timer0When))
+		if next == 0 {
+			return now, 0, false
+		}
+		if now == 0 {
+			now = nanotime()
+		}
+		if now < next {
+			return now, next, false
+		}
+	}
+
 	lock(&pp.timersLock)
 
 	adjusttimers(pp)
@@ -4095,6 +4110,7 @@ func (pp *p) destroy() {
 		pp.timers = nil
 		pp.adjustTimers = 0
 		pp.deletedTimers = 0
+		atomic.Store64(&pp.timer0When, 0)
 		unlock(&pp.timersLock)
 		unlock(&plocal.timersLock)
 	}
@@ -4421,23 +4437,26 @@ func checkdead() {
 	}
 
 	// Maybe jump time forward for playground.
-	_p_ := timejump()
-	if _p_ != nil {
-		for pp := &sched.pidle; *pp != 0; pp = &(*pp).ptr().link {
-			if (*pp).ptr() == _p_ {
-				*pp = _p_.link
-				break
+	if faketime != 0 {
+		when, _p_ := timeSleepUntil()
+		if _p_ != nil {
+			faketime = when
+			for pp := &sched.pidle; *pp != 0; pp = &(*pp).ptr().link {
+				if (*pp).ptr() == _p_ {
+					*pp = _p_.link
+					break
+				}
 			}
+			mp := mget()
+			if mp == nil {
+				// There should always be a free M since
+				// nothing is running.
+				throw("checkdead: no m for timer")
+			}
+			mp.nextp.set(_p_)
+			notewakeup(&mp.park)
+			return
 		}
-		mp := mget()
-		if mp == nil {
-			// There should always be a free M since
-			// nothing is running.
-			throw("checkdead: no m for timer")
-		}
-		mp.nextp.set(_p_)
-		notewakeup(&mp.park)
-		return
 	}
 
 	// There are no goroutines running, so we can look at the P's.
@@ -4482,7 +4501,7 @@ func sysmon() {
 		}
 		usleep(delay)
 		now := nanotime()
-		next := timeSleepUntil()
+		next, _ := timeSleepUntil()
 		if debug.schedtrace <= 0 && (sched.gcwaiting != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs)) {
 			lock(&sched.lock)
 			if atomic.Load(&sched.gcwaiting) != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs) {
@@ -4504,7 +4523,7 @@ func sysmon() {
 						osRelax(false)
 					}
 					now = nanotime()
-					next = timeSleepUntil()
+					next, _ = timeSleepUntil()
 					lock(&sched.lock)
 					atomic.Store(&sched.sysmonwait, 0)
 					noteclear(&sched.sysmonnote)
