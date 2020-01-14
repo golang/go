@@ -39,16 +39,9 @@ type modTidyHandle struct {
 	cfg    *packages.Config
 }
 
-type parseModData struct {
+type modTidyData struct {
 	memoize.NoCopy
 
-	modfile     *modfile.File
-	mapper      *protocol.ColumnMapper
-	parseErrors []source.Error
-	err         error
-}
-
-type goModData struct {
 	// origfh is the file handle for the original go.mod file.
 	origfh source.FileHandle
 
@@ -62,6 +55,21 @@ type goModData struct {
 	// idealParsedFile contains the parsed contents for the go.mod file
 	// after it has been "tidied".
 	idealParsedFile *modfile.File
+
+	// unusedDeps is the map containing the dependencies that are left after
+	// removing the ones that are identical in the original and ideal go.mods.
+	unusedDeps map[string]*modfile.Require
+
+	// missingDeps is the map containing the dependencies that are left after
+	// removing the ones that are identical in the original and ideal go.mods.
+	missingDeps map[string]*modfile.Require
+
+	// parseErrors are the errors that arise when we diff between a user's go.mod
+	// and the "tidied" go.mod.
+	parseErrors []source.Error
+
+	// err is any error that occurs while we are calculating the parseErrors.
+	err error
 }
 
 func (mth *modTidyHandle) String() string {
@@ -72,13 +80,13 @@ func (mth *modTidyHandle) File() source.FileHandle {
 	return mth.file
 }
 
-func (mth *modTidyHandle) Tidy(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, []source.Error, error) {
+func (mth *modTidyHandle) Tidy(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, map[string]*modfile.Require, []source.Error, error) {
 	v := mth.handle.Get(ctx)
 	if v == nil {
-		return nil, nil, nil, errors.Errorf("no parsed file for %s", mth.File().Identity().URI)
+		return nil, nil, nil, nil, errors.Errorf("no parsed file for %s", mth.File().Identity().URI)
 	}
-	data := v.(*parseModData)
-	return data.modfile, data.mapper, data.parseErrors, data.err
+	data := v.(*modTidyData)
+	return data.origParsedFile, data.origMapper, data.missingDeps, data.parseErrors, data.err
 }
 
 func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) source.ModTidyHandle {
@@ -92,7 +100,7 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 		cfg:      hashConfig(cfg),
 	}
 	h := s.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
-		data := &parseModData{}
+		data := &modTidyData{}
 
 		// Check the case when the tempModfile flag is turned off.
 		if realURI == "" || tempURI == "" {
@@ -151,18 +159,33 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 			return data
 		}
 
-		modData := goModData{
+		data = &modTidyData{
 			origfh:          realfh,
 			origParsedFile:  origParsedFile,
 			origMapper:      realMapper,
 			idealParsedFile: idealParsedFile,
+			unusedDeps:      make(map[string]*modfile.Require, len(origParsedFile.Require)),
+			missingDeps:     make(map[string]*modfile.Require, len(idealParsedFile.Require)),
 		}
-		errors, err := modRequireErrors(ctx, options, modData)
-		if err != nil {
-			data.err = err
-			return data
+		// Get the dependencies that are different between the original and ideal mod files.
+		for _, req := range origParsedFile.Require {
+			data.unusedDeps[req.Mod.Path] = req
 		}
-		data.modfile, data.mapper, data.parseErrors, data.err = origParsedFile, realMapper, errors, nil
+		for _, req := range idealParsedFile.Require {
+			origDep := data.unusedDeps[req.Mod.Path]
+			if origDep != nil && origDep.Indirect == req.Indirect {
+				delete(data.unusedDeps, req.Mod.Path)
+			} else {
+				data.missingDeps[req.Mod.Path] = req
+			}
+		}
+		data.parseErrors, data.err = modRequireErrors(ctx, options, data)
+
+		for _, req := range data.missingDeps {
+			if data.unusedDeps[req.Mod.Path] != nil {
+				delete(data.missingDeps, req.Mod.Path)
+			}
+		}
 		return data
 	})
 	return &modTidyHandle{
@@ -215,27 +238,14 @@ func extractModParseErrors(ctx context.Context, uri span.URI, m *protocol.Column
 
 // modRequireErrors extracts the errors that occur on the require directives.
 // It checks for directness issues and unused dependencies.
-func modRequireErrors(ctx context.Context, options source.Options, modData goModData) ([]source.Error, error) {
-	realReqs := make(map[string]*modfile.Require, len(modData.origParsedFile.Require))
-	tempReqs := make(map[string]*modfile.Require, len(modData.idealParsedFile.Require))
-	for _, req := range modData.origParsedFile.Require {
-		realReqs[req.Mod.Path] = req
-	}
-	for _, req := range modData.idealParsedFile.Require {
-		realReq := realReqs[req.Mod.Path]
-		if realReq != nil && realReq.Indirect == req.Indirect {
-			delete(realReqs, req.Mod.Path)
-		}
-		tempReqs[req.Mod.Path] = req
-	}
-
+func modRequireErrors(ctx context.Context, options source.Options, modData *modTidyData) ([]source.Error, error) {
 	var errors []source.Error
-	for dep, req := range realReqs {
+	for dep, req := range modData.unusedDeps {
 		if req.Syntax == nil {
 			continue
 		}
 		// Handle dependencies that are incorrectly labeled indirect and vice versa.
-		if tempReqs[dep] != nil && req.Indirect != tempReqs[dep].Indirect {
+		if modData.missingDeps[dep] != nil && req.Indirect != modData.missingDeps[dep].Indirect {
 			directErr, err := modDirectnessErrors(ctx, options, modData, req)
 			if err != nil {
 				return nil, err
@@ -243,7 +253,7 @@ func modRequireErrors(ctx context.Context, options source.Options, modData goMod
 			errors = append(errors, directErr)
 		}
 		// Handle unused dependencies.
-		if tempReqs[dep] == nil {
+		if modData.missingDeps[dep] == nil {
 			rng, err := rangeFromPositions(modData.origfh.Identity().URI, modData.origMapper, req.Syntax.Start, req.Syntax.End)
 			if err != nil {
 				return nil, err
@@ -257,12 +267,10 @@ func modRequireErrors(ctx context.Context, options source.Options, modData goMod
 				Message:  fmt.Sprintf("%s is not used in this module.", dep),
 				Range:    rng,
 				URI:      modData.origfh.Identity().URI,
-				SuggestedFixes: []source.SuggestedFix{
-					{
-						Title: fmt.Sprintf("Remove dependency: %s", dep),
-						Edits: map[span.URI][]protocol.TextEdit{modData.origfh.Identity().URI: edits},
-					},
-				},
+				SuggestedFixes: []source.SuggestedFix{{
+					Title: fmt.Sprintf("Remove dependency: %s", dep),
+					Edits: map[span.URI][]protocol.TextEdit{modData.origfh.Identity().URI: edits},
+				}},
 			})
 		}
 	}
@@ -270,7 +278,7 @@ func modRequireErrors(ctx context.Context, options source.Options, modData goMod
 }
 
 // modDirectnessErrors extracts errors when a dependency is labeled indirect when it should be direct and vice versa.
-func modDirectnessErrors(ctx context.Context, options source.Options, modData goModData, req *modfile.Require) (source.Error, error) {
+func modDirectnessErrors(ctx context.Context, options source.Options, modData *modTidyData, req *modfile.Require) (source.Error, error) {
 	rng, err := rangeFromPositions(modData.origfh.Identity().URI, modData.origMapper, req.Syntax.Start, req.Syntax.End)
 	if err != nil {
 		return source.Error{}, err
@@ -330,7 +338,7 @@ func modDirectnessErrors(ctx context.Context, options source.Options, modData go
 // 	module t
 //
 // 	go 1.11
-func dropDependencyEdits(ctx context.Context, options source.Options, modData goModData, req *modfile.Require) ([]protocol.TextEdit, error) {
+func dropDependencyEdits(ctx context.Context, options source.Options, modData *modTidyData, req *modfile.Require) ([]protocol.TextEdit, error) {
 	if err := modData.origParsedFile.DropRequire(req.Mod.Path); err != nil {
 		return nil, err
 	}
@@ -364,7 +372,7 @@ func dropDependencyEdits(ctx context.Context, options source.Options, modData go
 // 	go 1.11
 //
 // 	require golang.org/x/mod v0.1.1-0.20191105210325-c90efee705ee // indirect
-func changeDirectnessEdits(ctx context.Context, options source.Options, modData goModData, req *modfile.Require, indirect bool) ([]protocol.TextEdit, error) {
+func changeDirectnessEdits(ctx context.Context, options source.Options, modData *modTidyData, req *modfile.Require, indirect bool) ([]protocol.TextEdit, error) {
 	var newReq []*modfile.Require
 	prevIndirect := false
 	// Change the directness in the matching require statement.

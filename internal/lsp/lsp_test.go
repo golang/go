@@ -980,7 +980,7 @@ func TestModfileSuggestedFixes(t *testing.T) {
 				t.Errorf("expected 1 fileHandle, got %d", len(reports))
 			}
 
-			_, m, _, err := snapshot.ModTidyHandle(ctx, realfh).Tidy(ctx)
+			_, m, _, _, err := snapshot.ModTidyHandle(ctx, realfh).Tidy(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1018,7 +1018,7 @@ func TestModfileSuggestedFixes(t *testing.T) {
 					}
 					res[uri] = applyEdits(res[uri], sedits)
 				}
-				got := res[fh.URI]
+				got := res[realfh.Identity().URI]
 				contents, err := ioutil.ReadFile(filepath.Join(folder, "go.mod.golden"))
 				if err != nil {
 					t.Fatal(err)

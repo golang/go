@@ -32,7 +32,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 	if err != nil {
 		return nil, err
 	}
-	_, _, parseErrors, err := snapshot.ModTidyHandle(ctx, realfh).Tidy(ctx)
+	_, _, _, parseErrors, err := snapshot.ModTidyHandle(ctx, realfh).Tidy(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -57,8 +57,8 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 	return reports, nil
 }
 
-func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, f source.FileHandle, diags []protocol.Diagnostic) []protocol.CodeAction {
-	_, _, parseErrors, err := snapshot.ModTidyHandle(ctx, f).Tidy(ctx)
+func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, realfh source.FileHandle, diags []protocol.Diagnostic) []protocol.CodeAction {
+	_, _, _, parseErrors, err := snapshot.ModTidyHandle(ctx, realfh).Tidy(ctx)
 	if err != nil {
 		return nil
 	}

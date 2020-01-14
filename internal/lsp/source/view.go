@@ -262,7 +262,7 @@ type ModTidyHandle interface {
 
 	// Tidy returns the parsed modfile, a mapper, and "go mod tidy" errors
 	// for the go.mod file. If the file is not available, returns nil and an error.
-	Tidy(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, []Error, error)
+	Tidy(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, map[string]*modfile.Require, []Error, error)
 }
 
 // ParseMode controls the content of the AST produced when parsing a source file.
