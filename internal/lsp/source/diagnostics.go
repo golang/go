@@ -56,8 +56,9 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, fh FileHandle, with
 	// not correctly configured. Report errors, if possible.
 	var warningMsg string
 	if len(ph.MissingDependencies()) > 0 {
-		if warningMsg, err = checkCommonErrors(ctx, snapshot.View()); err != nil {
-			log.Error(ctx, "error checking common errors", err, telemetry.File.Of(fh.Identity().URI))
+		warningMsg, err = checkCommonErrors(ctx, snapshot.View())
+		if err != nil {
+			return nil, "", err
 		}
 	}
 	reports, msg, err := PackageDiagnostics(ctx, snapshot, ph, withAnalysis, disabledAnalyses)
@@ -77,9 +78,9 @@ func PackageDiagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle
 	// we may have an ad-hoc package with multiple files. Show a warning message.
 	// TODO(golang/go#36416): Remove this when golang.org/cl/202277 is merged.
 	if len(pkg.CompiledGoFiles()) == 1 && hasUndeclaredErrors(pkg) {
-		fh := pkg.CompiledGoFiles()[0].File()
-		if warningMsg, err = checkCommonErrors(ctx, snapshot.View()); err != nil {
-			log.Error(ctx, "error checking common errors", err, telemetry.File.Of(fh.Identity().URI))
+		warningMsg, err = checkCommonErrors(ctx, snapshot.View())
+		if err != nil {
+			return nil, "", err
 		}
 	}
 	// Prepare the reports we will send for the files in this package.

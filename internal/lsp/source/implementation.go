@@ -30,17 +30,14 @@ func Implementation(ctx context.Context, s Snapshot, f FileHandle, pp protocol.P
 		if impl.pkg == nil || len(impl.pkg.CompiledGoFiles()) == 0 {
 			continue
 		}
-
 		rng, err := objToMappedRange(s.View(), impl.pkg, impl.obj)
 		if err != nil {
 			return nil, err
 		}
-
 		pr, err := rng.Range()
 		if err != nil {
 			return nil, err
 		}
-
 		locations = append(locations, protocol.Location{
 			URI:   protocol.NewURI(rng.URI()),
 			Range: pr,

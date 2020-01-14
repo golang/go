@@ -16,7 +16,6 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry/log"
 	errors "golang.org/x/xerrors"
 )
 
@@ -382,8 +381,7 @@ func (s *snapshot) KnownPackages(ctx context.Context) ([]source.PackageHandle, e
 		// so just build the package handle directly (without a reload).
 		ph, err := s.buildPackageHandle(ctx, pkgID, source.ParseExported)
 		if err != nil {
-			log.Error(ctx, "KnownPackages: failed to create PackageHandle", err, telemetry.Package.Of(pkgID))
-			continue
+			return nil, err
 		}
 		results = append(results, ph)
 	}

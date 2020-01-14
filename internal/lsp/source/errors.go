@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	errors "golang.org/x/xerrors"
 )
 
 const (
@@ -77,8 +79,8 @@ func checkCommonErrors(ctx context.Context, v View) (string, error) {
 	return msg, nil
 }
 
-// invokeGo returns the stdout of a go command invocation.
-// Borrowed from golang.org/x/tools/go/packages/golist.go.
+// InvokeGo returns the output of a go command invocation.
+// It does not try to recover from errors.
 func InvokeGo(ctx context.Context, dir string, env []string, args ...string) (*bytes.Buffer, error) {
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
@@ -99,12 +101,10 @@ func InvokeGo(ctx context.Context, dir string, env []string, args ...string) (*b
 		if ee, ok := err.(*exec.Error); ok && ee.Err == exec.ErrNotFound {
 			return nil, fmt.Errorf("'gopls requires 'go', but %s", exec.ErrNotFound)
 		}
-		if _, ok := err.(*exec.ExitError); !ok {
-			// Catastrophic error:
-			// - context cancellation
-			return nil, fmt.Errorf("couldn't exec 'go %v': %s %T", args, err, err)
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
 		}
-		return stdout, fmt.Errorf("%s", stderr)
+		return stdout, errors.Errorf("err: %v: stderr: %s", err, stderr)
 	}
 	return stdout, nil
 }

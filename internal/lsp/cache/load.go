@@ -36,35 +36,33 @@ type metadata struct {
 }
 
 func (s *snapshot) load(ctx context.Context, scope interface{}) ([]*metadata, error) {
-	var query string
+	var query []string
 	switch scope := scope.(type) {
 	case []packagePath:
-		for i, p := range scope {
-			if i != 0 {
-				query += " "
-			}
-			query += string(p)
+		for _, p := range scope {
+			query = append(query, string(p))
 		}
 	case packagePath:
-		query = string(scope)
+		query = append(query, string(scope))
 	case fileURI:
-		query = fmt.Sprintf("file=%s", span.URI(scope).Filename())
+		query = append(query, fmt.Sprintf("file=%s", span.URI(scope).Filename()))
 	case directoryURI:
 		filename := span.URI(scope).Filename()
-		query = fmt.Sprintf("%s/...", filename)
+		q := fmt.Sprintf("%s/...", filename)
 		// Simplify the query if it will be run in the requested directory.
 		// This ensures compatibility with Go 1.12 that doesn't allow
 		// <directory>/... in GOPATH mode.
 		if s.view.folder.Filename() == filename {
-			query = "./..."
+			q = "./..."
 		}
+		query = append(query, q)
 	}
 
 	ctx, done := trace.StartSpan(ctx, "cache.view.load", telemetry.Query.Of(query))
 	defer done()
 
 	cfg := s.view.Config(ctx)
-	pkgs, err := packages.Load(cfg, query)
+	pkgs, err := packages.Load(cfg, query...)
 
 	// If the context was canceled, return early. Otherwise, we might be
 	// type-checking an incomplete result. Check the context directly,
