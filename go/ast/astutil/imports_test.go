@@ -1684,6 +1684,19 @@ func TestDeleteImport(t *testing.T) {
 	}
 }
 
+func TestDeleteImportAfterAddImport(t *testing.T) {
+	file := parse(t, "test", `package main
+
+import "os"
+`)
+	if got, want := AddImport(fset, file, "fmt"), true; got != want {
+		t.Errorf("AddImport: got: %v, want: %v", got, want)
+	}
+	if got, want := DeleteImport(fset, file, "fmt"), true; got != want {
+		t.Errorf("DeleteImport: got: %v, want: %v", got, want)
+	}
+}
+
 type rewriteTest struct {
 	name   string
 	srcPkg string
