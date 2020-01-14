@@ -96,9 +96,11 @@ type Server struct {
 
 // sentDiagnostics is used to cache diagnostics that have been sent for a given file.
 type sentDiagnostics struct {
-	version    float64
-	identifier string
-	sorted     []source.Diagnostic
+	version      float64
+	identifier   string
+	sorted       []source.Diagnostic
+	withAnalysis bool
+	snapshotID   uint64
 }
 
 // General

@@ -21,6 +21,8 @@ import (
 
 // Snapshot represents the current state for the given view.
 type Snapshot interface {
+	ID() uint64
+
 	// View returns the View associated with this snapshot.
 	View() View
 

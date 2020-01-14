@@ -32,7 +32,7 @@ func (s *Server) diagnoseSnapshot(ctx context.Context, snapshot source.Snapshot)
 				log.Error(ctx, "diagnoseSnapshot: no diagnostics", err, telemetry.Package.Of(ph.ID()))
 				return
 			}
-			s.publishReports(ctx, snapshot, reports, false)
+			s.publishReports(ctx, snapshot, reports, false, false)
 		}(ph)
 	}
 	// Run diagnostics on the go.mod file.
@@ -61,7 +61,7 @@ func (s *Server) diagnoseFile(snapshot source.Snapshot, fh source.FileHandle) {
 		return
 	}
 	// Publish empty diagnostics for files.
-	s.publishReports(ctx, snapshot, reports, true)
+	s.publishReports(ctx, snapshot, reports, true, true)
 }
 
 func (s *Server) diagnoseModfile(snapshot source.Snapshot) {
@@ -77,10 +77,10 @@ func (s *Server) diagnoseModfile(snapshot source.Snapshot) {
 		return
 	}
 	// Publish empty diagnostics for files.
-	s.publishReports(ctx, snapshot, reports, true)
+	s.publishReports(ctx, snapshot, reports, true, true)
 }
 
-func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, reports map[source.FileIdentity][]source.Diagnostic, publishEmpty bool) {
+func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, reports map[source.FileIdentity][]source.Diagnostic, publishEmpty, withAnalysis bool) {
 	// Check for context cancellation before publishing diagnostics.
 	if ctx.Err() != nil {
 		return
@@ -98,11 +98,14 @@ func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, r
 		// Pre-sort diagnostics to avoid extra work when we compare them.
 		source.SortDiagnostics(diagnostics)
 		toSend := sentDiagnostics{
-			version:    fileID.Version,
-			identifier: fileID.Identifier,
-			sorted:     diagnostics,
+			version:      fileID.Version,
+			identifier:   fileID.Identifier,
+			sorted:       diagnostics,
+			withAnalysis: withAnalysis,
+			snapshotID:   snapshot.ID(),
 		}
 		delivered, ok := s.delivered[fileID.URI]
+
 		// If diagnostics are empty and not previously delivered,
 		// only send them if we are publishing empty diagnostics.
 		if !ok && len(diagnostics) == 0 && !publishEmpty {
@@ -115,9 +118,15 @@ func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, r
 		if ok {
 			geqVersion := fileID.Version >= delivered.version && delivered.version > 0
 			noVersions := (fileID.Version == 0 && delivered.version == 0) && delivered.identifier == fileID.Identifier
-			if (geqVersion || noVersions) && equalDiagnostics(delivered.sorted, diagnostics) {
+			if (geqVersion || noVersions) && equalDiagnostics(delivered.sorted, toSend.sorted) {
 				// Update the delivered map even if we reuse cached diagnostics.
 				s.delivered[fileID.URI] = toSend
+				continue
+			}
+			// If we've already delivered diagnostics with analyses for this file, for this snapshot,
+			// at this version, do not send diagnostics without analyses.
+			if delivered.snapshotID == toSend.snapshotID && delivered.version == toSend.version &&
+				delivered.withAnalysis && !toSend.withAnalysis {
 				continue
 			}
 		}
