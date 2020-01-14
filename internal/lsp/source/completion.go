@@ -1290,7 +1290,6 @@ Nodes:
 				}
 				if tv, ok := c.pkg.GetTypesInfo().Types[node.Lhs[i]]; ok {
 					inf.objType = tv.Type
-					break Nodes
 				}
 			}
 			return inf
@@ -1298,7 +1297,7 @@ Nodes:
 			if node.Type != nil && c.pos > node.Type.End() {
 				inf.objType = c.pkg.GetTypesInfo().TypeOf(node.Type)
 			}
-			break Nodes
+			return inf
 		case *ast.CallExpr:
 			// Only consider CallExpr args if position falls between parens.
 			if node.Lparen <= c.pos && c.pos <= node.Rparen {
@@ -1387,7 +1386,6 @@ Nodes:
 				if resultIdx := indexExprAtPos(c.pos, node.Results); resultIdx < len(node.Results) {
 					if resultIdx < sig.Results().Len() {
 						inf.objType = sig.Results().At(resultIdx).Type()
-						break Nodes
 					}
 				}
 			}
@@ -1396,7 +1394,6 @@ Nodes:
 			if swtch, ok := findSwitchStmt(c.path[i+1:], c.pos, node).(*ast.SwitchStmt); ok {
 				if tv, ok := c.pkg.GetTypesInfo().Types[swtch.Tag]; ok {
 					inf.objType = tv.Type
-					break Nodes
 				}
 			}
 			return inf
@@ -1404,7 +1401,6 @@ Nodes:
 			// Make sure position falls within the brackets (e.g. "foo[a:<>]").
 			if node.Lbrack < c.pos && c.pos <= node.Rbrack {
 				inf.objType = types.Typ[types.Int]
-				break Nodes
 			}
 			return inf
 		case *ast.IndexExpr:
@@ -1416,10 +1412,7 @@ Nodes:
 						inf.objType = t.Key()
 					case *types.Slice, *types.Array:
 						inf.objType = types.Typ[types.Int]
-					default:
-						return inf
 					}
-					break Nodes
 				}
 			}
 			return inf
@@ -1429,8 +1422,15 @@ Nodes:
 				if tv, ok := c.pkg.GetTypesInfo().Types[node.Chan]; ok {
 					if ch, ok := tv.Type.Underlying().(*types.Chan); ok {
 						inf.objType = ch.Elem()
-						break Nodes
 					}
+				}
+			}
+			return inf
+		case *ast.RangeStmt:
+			if nodeContains(node.X, c.pos) {
+				inf.objKind |= kindSlice | kindArray | kindMap | kindString
+				if node.Value == nil {
+					inf.objKind |= kindChan
 				}
 			}
 			return inf
@@ -1442,6 +1442,7 @@ Nodes:
 				inf.modifiers = append(inf.modifiers, typeModifier{mod: address})
 			case token.ARROW:
 				inf.modifiers = append(inf.modifiers, typeModifier{mod: chanRead})
+				inf.objKind |= kindChan
 			}
 		default:
 			if breaksExpectedTypeInference(node) {
