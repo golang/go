@@ -41,7 +41,7 @@ type snapshot struct {
 	// It may invalidated when a file's content changes.
 	files map[span.URI]source.FileHandle
 
-	// packages maps a packageKey to a set of CheckPackageHandles to which that file belongs.
+	// packages maps a packageKey to a set of packageHandles to which that file belongs.
 	// It may be invalidated when a file's content changes.
 	packages map[packageKey]*packageHandle
 
@@ -215,7 +215,7 @@ func (s *snapshot) shouldCheck(m []*metadata) (phs []*packageHandle, load, check
 	}
 	// We expect to see a checked package for each package ID,
 	// and it should be parsed in full mode.
-	// If a single CheckPackageHandle is missing, re-check all of them.
+	// If a single PackageHandle is missing, re-check all of them.
 	// TODO: Optimize this by only checking the necessary packages.
 	for _, metadata := range m {
 		ph := s.getPackage(metadata.id, source.ParseFull)
@@ -309,7 +309,7 @@ func (s *snapshot) addPackage(ph *packageHandle) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// TODO: We should make sure not to compute duplicate CheckPackageHandles,
+	// TODO: We should make sure not to compute duplicate packageHandles,
 	// and instead panic here. This will be hard to do because we may encounter
 	// the same package multiple times in the dependency tree.
 	if _, ok := s.packages[ph.packageKey()]; ok {

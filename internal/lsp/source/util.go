@@ -66,7 +66,7 @@ func (s mappedRange) URI() span.URI {
 }
 
 // getParsedFile is a convenience function that extracts the Package and ParseGoHandle for a File in a Snapshot.
-// selectPackage is typically Narrowest/WidestCheckPackageHandle below.
+// selectPackage is typically Narrowest/WidestPackageHandle below.
 func getParsedFile(ctx context.Context, snapshot Snapshot, fh FileHandle, selectPackage PackagePolicy) (Package, ParseGoHandle, error) {
 	phs, err := snapshot.PackageHandles(ctx, fh)
 	if err != nil {
@@ -86,14 +86,14 @@ func getParsedFile(ctx context.Context, snapshot Snapshot, fh FileHandle, select
 
 type PackagePolicy func([]PackageHandle) (PackageHandle, error)
 
-// NarrowestCheckPackageHandle picks the "narrowest" package for a given file.
+// NarrowestPackageHandle picks the "narrowest" package for a given file.
 //
 // By "narrowest" package, we mean the package with the fewest number of files
 // that includes the given file. This solves the problem of test variants,
 // as the test will have more files than the non-test package.
-func NarrowestCheckPackageHandle(handles []PackageHandle) (PackageHandle, error) {
+func NarrowestPackageHandle(handles []PackageHandle) (PackageHandle, error) {
 	if len(handles) < 1 {
-		return nil, errors.Errorf("no CheckPackageHandles")
+		return nil, errors.Errorf("no PackageHandles")
 	}
 	result := handles[0]
 	for _, handle := range handles[1:] {
@@ -102,18 +102,18 @@ func NarrowestCheckPackageHandle(handles []PackageHandle) (PackageHandle, error)
 		}
 	}
 	if result == nil {
-		return nil, errors.Errorf("nil CheckPackageHandles have been returned")
+		return nil, errors.Errorf("nil PackageHandles have been returned")
 	}
 	return result, nil
 }
 
-// WidestCheckPackageHandle returns the CheckPackageHandle containing the most files.
+// WidestPackageHandle returns the PackageHandle containing the most files.
 //
 // This is useful for something like diagnostics, where we'd prefer to offer diagnostics
 // for as many files as possible.
-func WidestCheckPackageHandle(handles []PackageHandle) (PackageHandle, error) {
+func WidestPackageHandle(handles []PackageHandle) (PackageHandle, error) {
 	if len(handles) < 1 {
-		return nil, errors.Errorf("no CheckPackageHandles")
+		return nil, errors.Errorf("no PackageHandles")
 	}
 	result := handles[0]
 	for _, handle := range handles[1:] {
@@ -122,7 +122,7 @@ func WidestCheckPackageHandle(handles []PackageHandle) (PackageHandle, error) {
 		}
 	}
 	if result == nil {
-		return nil, errors.Errorf("nil CheckPackageHandles have been returned")
+		return nil, errors.Errorf("nil PackageHandles have been returned")
 	}
 	return result, nil
 }

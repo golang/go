@@ -496,7 +496,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ident, err := source.Identifier(r.ctx, r.view.Snapshot(), fh, srcRng.Start, source.WidestCheckPackageHandle)
+	ident, err := source.Identifier(r.ctx, r.view.Snapshot(), fh, srcRng.Start, source.WidestPackageHandle)
 	if err != nil {
 		t.Fatalf("failed for %v: %v", d.Src, err)
 	}
@@ -638,7 +638,7 @@ func (r *runner) References(t *testing.T, src span.Span, itemList []span.Span) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ident, err := source.Identifier(ctx, r.view.Snapshot(), fh, srcRng.Start, source.WidestCheckPackageHandle)
+	ident, err := source.Identifier(ctx, r.view.Snapshot(), fh, srcRng.Start, source.WidestPackageHandle)
 	if err != nil {
 		t.Fatalf("failed for %v: %v", src, err)
 	}
@@ -682,7 +682,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ident, err := source.Identifier(r.ctx, r.view.Snapshot(), fh, srcRng.Start, source.WidestCheckPackageHandle)
+	ident, err := source.Identifier(r.ctx, r.view.Snapshot(), fh, srcRng.Start, source.WidestPackageHandle)
 	if err != nil {
 		t.Error(err)
 		return
@@ -769,7 +769,7 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 	if err != nil {
 		t.Fatal(err)
 	}
-	ident, err := source.Identifier(r.ctx, r.view.Snapshot(), fh, srcRng.Start, source.WidestCheckPackageHandle)
+	ident, err := source.Identifier(r.ctx, r.view.Snapshot(), fh, srcRng.Start, source.WidestPackageHandle)
 	if err != nil {
 		if want.Text != "" { // expected an ident.
 			t.Errorf("prepare rename failed for %v: got error: %v", src, err)

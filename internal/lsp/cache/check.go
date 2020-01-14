@@ -24,7 +24,7 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-// packageHandle implements source.CheckPackageHandle.
+// packageHandle implements source.PackageHandle.
 type packageHandle struct {
 	handle *memoize.Handle
 
@@ -58,14 +58,14 @@ type packageData struct {
 	err error
 }
 
-// buildPackageHandle returns a source.CheckPackageHandle for a given package and config.
+// buildPackageHandle returns a source.PackageHandle for a given package and config.
 func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID, mode source.ParseMode) (*packageHandle, error) {
-	// Check if we already have this CheckPackageHandle cached.
+	// Check if we already have this PackageHandle cached.
 	if ph := s.getPackage(id, mode); ph != nil {
 		return ph, nil
 	}
 
-	// Build the CheckPackageHandle for this ID and its dependencies.
+	// Build the PackageHandle for this ID and its dependencies.
 	ph, deps, err := s.buildKey(ctx, id, mode)
 	if err != nil {
 		return nil, err
@@ -98,13 +98,13 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID, mode so
 	})
 	ph.handle = h
 
-	// Cache the CheckPackageHandle in the snapshot.
+	// Cache the PackageHandle in the snapshot.
 	s.addPackage(ph)
 
 	return ph, nil
 }
 
-// buildKey computes the checkPackageKey for a given checkPackageHandle.
+// buildKey computes the key for a given packageHandle.
 func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.ParseMode) (*packageHandle, map[packagePath]*packageHandle, error) {
 	m := s.getMetadata(id)
 	if m == nil {

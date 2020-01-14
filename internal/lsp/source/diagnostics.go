@@ -48,7 +48,7 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, fh FileHandle, with
 	if err != nil {
 		return nil, "", err
 	}
-	ph, err := WidestCheckPackageHandle(phs)
+	ph, err := WidestPackageHandle(phs)
 	if err != nil {
 		return nil, "", err
 	}

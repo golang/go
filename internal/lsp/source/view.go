@@ -40,8 +40,8 @@ type Snapshot interface {
 	// ModFiles returns the FileHandles of the go.mod files attached to the view associated with this snapshot.
 	ModFiles(ctx context.Context) (FileHandle, FileHandle, error)
 
-	// PackageHandles returns the CheckPackageHandles for the packages
-	// that this file belongs to.
+	// PackageHandles returns the PackageHandles for the packages that this file
+	// belongs to.
 	PackageHandles(ctx context.Context, fh FileHandle) ([]PackageHandle, error)
 
 	// GetActiveReverseDeps returns the active files belonging to the reverse
@@ -63,16 +63,16 @@ type Snapshot interface {
 // PackageHandle represents a handle to a specific version of a package.
 // It is uniquely defined by the file handles that make up the package.
 type PackageHandle interface {
-	// ID returns the ID of the package associated with the CheckPackageHandle.
+	// ID returns the ID of the package associated with the PackageHandle.
 	ID() string
 
 	// CompiledGoFiles returns the ParseGoHandles composing the package.
 	CompiledGoFiles() []ParseGoHandle
 
-	// Check returns the type-checked Package for the CheckPackageHandle.
+	// Check returns the type-checked Package for the PackageHandle.
 	Check(ctx context.Context) (Package, error)
 
-	// Cached returns the Package for the CheckPackageHandle if it has already been stored.
+	// Cached returns the Package for the PackageHandle if it has already been stored.
 	Cached() (Package, error)
 
 	// MissingDependencies reports any unresolved imports.

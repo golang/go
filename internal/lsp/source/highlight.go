@@ -21,7 +21,7 @@ func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protoc
 	ctx, done := trace.StartSpan(ctx, "source.Highlight")
 	defer done()
 
-	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, WidestCheckPackageHandle)
+	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, WidestPackageHandle)
 	if err != nil {
 		return nil, fmt.Errorf("getting file for Highlight: %v", err)
 	}

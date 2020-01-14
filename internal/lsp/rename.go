@@ -26,7 +26,7 @@ func (s *Server) rename(ctx context.Context, params *protocol.RenameParams) (*pr
 	if fh.Identity().Kind != source.Go {
 		return nil, nil
 	}
-	ident, err := source.Identifier(ctx, snapshot, fh, params.Position, source.WidestCheckPackageHandle)
+	ident, err := source.Identifier(ctx, snapshot, fh, params.Position, source.WidestPackageHandle)
 	if err != nil {
 		return nil, nil
 	}
@@ -61,7 +61,7 @@ func (s *Server) prepareRename(ctx context.Context, params *protocol.PrepareRena
 	if fh.Identity().Kind != source.Go {
 		return nil, nil
 	}
-	ident, err := source.Identifier(ctx, snapshot, fh, params.Position, source.WidestCheckPackageHandle)
+	ident, err := source.Identifier(ctx, snapshot, fh, params.Position, source.WidestPackageHandle)
 	if err != nil {
 		return nil, nil // ignore errors
 	}

@@ -411,7 +411,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 
 	startTime := time.Now()
 
-	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestCheckPackageHandle)
+	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
 	if err != nil {
 		return nil, nil, fmt.Errorf("getting file for Completion: %v", err)
 	}
