@@ -23,7 +23,21 @@ const (
 // Version is a manually-updated mechanism for tracking versions.
 var Version = "master"
 
-// This writes the version and environment information to a writer.
+// PrintServerInfo writes HTML debug info to w for the Instance s.
+func PrintServerInfo(w io.Writer, s Instance) {
+	section(w, HTML, "Server Instance", func() {
+		fmt.Fprintf(w, "Start time: %v\n", s.StartTime())
+		fmt.Fprintf(w, "LogFile: %s\n", s.Logfile())
+		fmt.Fprintf(w, "Working directory: %s\n", s.Workdir())
+		fmt.Fprintf(w, "Address: %s\n", s.Address())
+		fmt.Fprintf(w, "Debug address: %s\n", s.Debug())
+	})
+	PrintVersionInfo(w, true, HTML)
+}
+
+// PrintVersionInfo writes version and environment information to w, using the
+// output format specified by mode. verbose controls whether additional
+// information is written, including section headers.
 func PrintVersionInfo(w io.Writer, verbose bool, mode PrintMode) {
 	if !verbose {
 		printBuildInfo(w, false, mode)

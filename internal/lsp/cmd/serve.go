@@ -62,12 +62,12 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 		return tool.CommandLineErrorf("server does not take arguments, got %v", args)
 	}
 	out := os.Stderr
-	if s.Logfile != "" {
-		filename := s.Logfile
-		if filename == "auto" {
-			filename = filepath.Join(os.TempDir(), fmt.Sprintf("gopls-%d.log", os.Getpid()))
+	logfile := s.Logfile
+	if logfile != "" {
+		if logfile == "auto" {
+			logfile = filepath.Join(os.TempDir(), fmt.Sprintf("gopls-%d.log", os.Getpid()))
 		}
-		f, err := os.Create(filename)
+		f, err := os.Create(logfile)
 		if err != nil {
 			return errors.Errorf("Unable to create log file: %v", err)
 		}
@@ -76,7 +76,7 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 		out = f
 	}
 
-	debug.Serve(ctx, s.Debug)
+	debug.Serve(ctx, s.Debug, debugServe{s: s, logfile: logfile, start: time.Now()})
 
 	if s.app.Remote != "" {
 		return s.forward()
@@ -120,6 +120,20 @@ func (s *Serve) forward() error {
 
 	return <-errc
 }
+
+// debugServe implements the debug.Instance interface.
+type debugServe struct {
+	s       *Serve
+	logfile string
+	start   time.Time
+}
+
+func (d debugServe) Logfile() string      { return d.logfile }
+func (d debugServe) StartTime() time.Time { return d.start }
+func (d debugServe) Port() int            { return d.s.Port }
+func (d debugServe) Address() string      { return d.s.Address }
+func (d debugServe) Debug() string        { return d.s.Debug }
+func (d debugServe) Workdir() string      { return d.s.app.wd }
 
 type handler struct{}
 
