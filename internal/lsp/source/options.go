@@ -215,7 +215,7 @@ const (
 	SynopsisDocumentation
 	FullDocumentation
 
-	// structured is an experimental setting that returns a structured hover format.
+	// Structured is an experimental setting that returns a structured hover format.
 	// This format separates the signature from the documentation, so that the client
 	// can do more manipulation of these fields.
 	//

@@ -26,7 +26,7 @@ func (t Tag) Format(f fmt.State, r rune) {
 	fmt.Fprintf(f, `%v="%v"`, t.Key, t.Value)
 }
 
-// Get returns the tag unmodified.
+// Tag returns the tag unmodified.
 // It makes Key conform to the Tagger interface.
 func (t Tag) Tag(ctx context.Context) Tag {
 	return t

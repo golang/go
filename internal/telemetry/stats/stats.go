@@ -24,7 +24,7 @@ type Int64Measure struct {
 	subscribers []Int64Subscriber
 }
 
-// Int64Measure is used to record floating point values.
+// Float64Measure is used to record floating point values.
 type Float64Measure struct {
 	name        string
 	description string
