@@ -147,7 +147,7 @@ const (
 	CompletionFuzzy
 
 	// CaseSensitive tests case sensitive completion
-	CompletionCaseSensitve
+	CompletionCaseSensitive
 
 	// CompletionRank candidates in test must be valid and in the right relative order.
 	CompletionRank
@@ -303,7 +303,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) *Data {
 		"unimported":      data.collectCompletions(CompletionUnimported),
 		"deep":            data.collectCompletions(CompletionDeep),
 		"fuzzy":           data.collectCompletions(CompletionFuzzy),
-		"casesensitive":   data.collectCompletions(CompletionCaseSensitve),
+		"casesensitive":   data.collectCompletions(CompletionCaseSensitive),
 		"rank":            data.collectCompletions(CompletionRank),
 		"snippet":         data.collectCompletionSnippets,
 		"fold":            data.collectFoldingRanges,
@@ -751,7 +751,7 @@ func (data *Data) collectCompletions(typ CompletionTestType) func(span.Span, []t
 		return func(src span.Span, expected []token.Pos) {
 			result(data.RankCompletions, src, expected)
 		}
-	case CompletionCaseSensitve:
+	case CompletionCaseSensitive:
 		return func(src span.Span, expected []token.Pos) {
 			result(data.CaseSensitiveCompletions, src, expected)
 		}
