@@ -15,6 +15,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
+	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/trace"
 )
 
@@ -43,7 +44,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 		}
 	}
 
-	realMod, err := snapshot.View().Session().Cache().ParseModHandle(realfh).Parse(ctx)
+	realMod, m, err := snapshot.View().Session().Cache().ParseModHandle(realfh).Parse(ctx)
 	// If the go.mod file fails to parse, return errors right away.
 	if err, ok := err.(*source.Error); ok {
 		return map[source.FileIdentity][]source.Diagnostic{
@@ -58,7 +59,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 	if err != nil {
 		return nil, err
 	}
-	tempMod, err := snapshot.View().Session().Cache().ParseModHandle(tempfh).Parse(ctx)
+	tempMod, _, err := snapshot.View().Session().Cache().ParseModHandle(tempfh).Parse(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -84,10 +85,25 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 			continue
 		}
 		dep := req.Mod.Path
+
+		start, err := positionToPoint(m, req.Syntax.Start)
+		if err != nil {
+			return nil, err
+		}
+		end, err := positionToPoint(m, req.Syntax.End)
+		if err != nil {
+			return nil, err
+		}
+		spn := span.New(realfh.Identity().URI, start, end)
+		rng, err := m.Range(spn)
+		if err != nil {
+			return nil, err
+		}
+
 		diag := &source.Diagnostic{
 			Message:  fmt.Sprintf("%s is not used in this module.", dep),
 			Source:   "go mod tidy",
-			Range:    protocol.Range{Start: getPos(req.Syntax.Start), End: getPos(req.Syntax.End)},
+			Range:    rng,
 			Severity: protocol.SeverityWarning,
 		}
 		if tempReqs[dep] != nil && req.Indirect != tempReqs[dep].Indirect {
@@ -101,10 +117,10 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 	return reports, nil
 }
 
-// TODO: Check to see if we need to go through internal/span (for multiple byte characters).
-func getPos(pos modfile.Position) protocol.Position {
-	return protocol.Position{
-		Line:      float64(pos.Line - 1),
-		Character: float64(pos.LineRune - 1),
+func positionToPoint(m *protocol.ColumnMapper, pos modfile.Position) (span.Point, error) {
+	line, col, err := m.Converter.ToPosition(pos.Byte)
+	if err != nil {
+		return span.Point{}, err
 	}
+	return span.NewPoint(line, col, pos.Byte), nil
 }

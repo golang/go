@@ -247,7 +247,7 @@ type ParseModHandle interface {
 
 	// Parse returns the parsed modifle for the go.mod file.
 	// If the file is not available, returns nil and an error.
-	Parse(ctx context.Context) (*modfile.File, error)
+	Parse(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, error)
 }
 
 // ParseMode controls the content of the AST produced when parsing a source file.
