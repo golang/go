@@ -349,9 +349,6 @@ type sudog struct {
 
 	g *g
 
-	// isSelect indicates g is participating in a select, so
-	// g.selectDone must be CAS'd to win the wake-up race.
-	isSelect bool
 	next     *sudog
 	prev     *sudog
 	elem     unsafe.Pointer // data element (may point to stack)
@@ -364,6 +361,11 @@ type sudog struct {
 	acquiretime int64
 	releasetime int64
 	ticket      uint32
+
+	// isSelect indicates g is participating in a select, so
+	// g.selectDone must be CAS'd to win the wake-up race.
+	isSelect bool
+
 	parent      *sudog // semaRoot binary tree
 	waitlink    *sudog // g.waiting list or semaRoot
 	waittail    *sudog // semaRoot
