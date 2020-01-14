@@ -18,7 +18,7 @@ In theory if only the View layer existed, the results would be identical, but sl
 
 ## Code location
 
-gopls will be developed in the [x/tools] Go repository; the core packages are in [internal/lsp], and the binary and integration tests are located in [golsp].
+gopls will be developed in the [x/tools] Go repository; the core packages are in [internal/lsp], and the binary and integration tests are located in [gopls].
 
 Below is a list of the core packages of gopls, and their primary purpose:
 

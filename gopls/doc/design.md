@@ -31,7 +31,7 @@ See Rebecca's excellent GopherCon keynote [talk] and [slides] for some more cont
 * Command line speed
 
   Although gopls will have a command line mode, it will be optimized for long running and not command responsiveness, as such it may not be the right tool for things like CI systems.
-  In such cases there will have to be an alternate tool using the same underlying libraries for consistency that can be used instead.
+  For such cases there will have to be an alternate tool using the same underlying libraries for consistency.
 
 * Low memory environments
 
@@ -41,7 +41,7 @@ See Rebecca's excellent GopherCon keynote [talk] and [slides] for some more cont
 
 * Syntax highlighting
 
-  At the moment there is no editor that hands this across to a separate binary to do, and no standard way of doing it.
+  At the moment there is no editor that delegates this functionality to a separate binary, and no standard way of doing it.
 
 ## Existing solutions
 
