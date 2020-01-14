@@ -1,0 +1,25 @@
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package contracts
+
+contract _ (){}
+contract _ (A, B, C){}
+contract(
+        C0 (){}
+        C1 (T){}
+        C2 (A, B, C){}
+)
+
+contract _(T) {
+        T m()
+}
+
+type _(type T) struct{}
+type _(type A C) struct{}
+type _(type A, B, C C) struct{}
+
+func _(type T)() {}
+func _(type A C)() {}
+func _(type A, B, C C)() {}
