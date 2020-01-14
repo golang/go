@@ -480,6 +480,9 @@ func (v *view) initialize(ctx context.Context, s *snapshot) {
 			// the non-test variant with -test. Track the import path of the non-test variant.
 			for _, m := range meta {
 				s.setWorkspacePackage(m.id, m.pkgPath)
+				if _, err := s.packageHandle(ctx, m.id); err != nil {
+					return err
+				}
 			}
 			return nil
 		})
