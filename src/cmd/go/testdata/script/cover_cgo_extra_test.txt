@@ -1,3 +1,4 @@
+[short] skip
 [!cgo] skip
 [gccgo] skip # gccgo has no cover tool
 
