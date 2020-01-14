@@ -483,6 +483,8 @@ func GetNextArenaHint() uintptr {
 
 type G = g
 
+type Sudog = sudog
+
 func Getg() *G {
 	return getg()
 }
