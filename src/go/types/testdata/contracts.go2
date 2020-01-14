@@ -218,6 +218,32 @@ func _(type F, C FloatComplex)(c C) {
         c = C(complex(fre, fim))
 }
 
+// Use of instantiated contracts
+
+contract ABC(A, B, C) {
+        A a()
+        B b()
+        C int, float64
+}
+
+func fa(type A, B, C) (A, B, C)
+func fb(type A, B, C ABC) (A, B, C)
+func fc(type A, B, C ABC(A, B, C)) (A, B, C)
+func fd(type A, B, C ABC(B, C, A)) (A, B, C)
+
+type tA int; func (tA) a()
+type tB float64; func (tB) b()
+
+func _() {
+        var a tA
+        var b tB
+        fa(a, b, 0)
+        fb(a, b, 0)
+        fc(a, b, 0)
+        fd(a, b, 0)
+        fd(tA, tB, int)(a, b, 0) // TODO(gri) this should fail - investigate!
+}
+
 // --------------------------------------------------------------------------------------
 // Parameterized interfaces as contracts
 

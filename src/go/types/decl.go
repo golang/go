@@ -644,7 +644,14 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 			}
 			if targs != nil {
 				// obj denotes a valid contract that is instantiated with targs
-				check.errorf(f.Type.Pos(), "explicit contract instantiation not yet implemented")
+				// Use contract's matching type parameter bound and
+				// instantiate it with the actual type arguments targs.
+				// TODO(gri) this is not correct when arguments are permutated. Investigate!
+				for i, bound := range obj.Bounds {
+					pos := unparen(f.Type).(*ast.CallExpr).Args[i].Pos() // we must have an *ast.CallExpr
+					//check.dump("%v: bound %d = %v, under = %v, args = %v", pos, i, bound, bound.Underlying(), targs)
+					setBoundAt(index+i, check.instantiate(pos, bound, targs, nil))
+				}
 			} else {
 				// obj denotes a valid uninstantiated contract =>
 				// use the declared type parameters as "arguments"
@@ -653,8 +660,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 					goto next
 				}
 				// Use contract's matching type parameter bound and
-				// instantiate it with the actual type parameters
-				// (== targs) present.
+				// instantiate it with the actual type arguments targs.
 				targs := make([]Type, len(f.Names))
 				for i, tparam := range tparams[index : index+len(f.Names)] {
 					targs[i] = tparam.typ
