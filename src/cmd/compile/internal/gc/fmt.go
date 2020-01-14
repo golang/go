@@ -12,6 +12,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode/utf8"
 )
 
@@ -651,10 +652,19 @@ var basicnames = []string{
 	TBLANK:      "blank",
 }
 
+var tconvBufferPool = sync.Pool{
+	New: func() interface{} {
+		return new(bytes.Buffer)
+	},
+}
+
 func tconv(t *types.Type, flag FmtFlag, mode fmtMode) string {
-	b := bytes.NewBuffer(make([]byte, 0, 64))
-	tconv2(b, t, flag, mode, nil)
-	return b.String()
+	buf := tconvBufferPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer tconvBufferPool.Put(buf)
+
+	tconv2(buf, t, flag, mode, nil)
+	return types.InternString(buf.Bytes())
 }
 
 // tconv2 writes a string representation of t to b.
