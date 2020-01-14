@@ -7,7 +7,6 @@ package cache
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"go/scanner"
 	"go/token"
 	"go/types"
@@ -105,12 +104,8 @@ func sourceError(ctx context.Context, fset *token.FileSet, pkg *pkg, e interface
 	if err != nil {
 		return nil, err
 	}
-	ph, err := pkg.File(spn.URI())
-	if err != nil {
-		return nil, fmt.Errorf("finding file for error %q: %v", msg, err)
-	}
 	return &source.Error{
-		File:           ph.File().Identity(),
+		URI:            spn.URI(),
 		Range:          rng,
 		Message:        msg,
 		Kind:           kind,

@@ -334,7 +334,7 @@ type Package interface {
 }
 
 type Error struct {
-	File           FileIdentity
+	URI            span.URI
 	Range          protocol.Range
 	Kind           ErrorKind
 	Message        string
@@ -354,7 +354,7 @@ const (
 )
 
 func (e *Error) Error() string {
-	return fmt.Sprintf("%s:%s: %s", e.File, e.Range, e.Message)
+	return fmt.Sprintf("%s:%s: %s", e.URI, e.Range, e.Message)
 }
 
 type BuiltinPackage interface {

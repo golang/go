@@ -94,19 +94,27 @@ func PackageDiagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle
 			continue
 		}
 		// If no file is associated with the error, pick an open file from the package.
-		if e.File.URI.Filename() == "" {
+		if e.URI.Filename() == "" {
 			for _, ph := range pkg.CompiledGoFiles() {
 				if snapshot.View().Session().IsOpen(ph.File().Identity().URI) {
-					e.File = ph.File().Identity()
+					e.URI = ph.File().Identity().URI
 				}
 			}
 		}
-		clearReports(snapshot, reports, e.File)
+		fh, err := snapshot.GetFile(e.URI)
+		if err != nil {
+			return nil, warningMsg, err
+		}
+		clearReports(snapshot, reports, fh.Identity())
 	}
 	// Run diagnostics for the package that this URI belongs to.
-	if !diagnostics(ctx, snapshot, pkg, reports) && withAnalysis {
+	hadDiagnostics, err := diagnostics(ctx, snapshot, reports, pkg)
+	if err != nil {
+		return nil, warningMsg, err
+	}
+	if !hadDiagnostics && withAnalysis {
 		// If we don't have any list, parse, or type errors, run analyses.
-		if err := analyses(ctx, snapshot, ph, disabledAnalyses, reports); err != nil {
+		if err := analyses(ctx, snapshot, reports, ph, disabledAnalyses); err != nil {
 			// Exit early if the context has been canceled.
 			if err == context.Canceled {
 				return nil, warningMsg, err
@@ -131,7 +139,7 @@ func PackageDiagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle
 		for _, fh := range pkg.CompiledGoFiles() {
 			clearReports(snapshot, reports, fh.File().Identity())
 		}
-		diagnostics(ctx, snapshot, pkg, reports)
+		diagnostics(ctx, snapshot, reports, pkg)
 	}
 	return reports, warningMsg, nil
 }
@@ -140,7 +148,7 @@ type diagnosticSet struct {
 	listErrors, parseErrors, typeErrors []*Diagnostic
 }
 
-func diagnostics(ctx context.Context, snapshot Snapshot, pkg Package, reports map[FileIdentity][]Diagnostic) bool {
+func diagnostics(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]Diagnostic, pkg Package) (bool, error) {
 	ctx, done := trace.StartSpan(ctx, "source.diagnostics", telemetry.Package.Of(pkg.ID()))
 	_ = ctx // circumvent SA4006
 	defer done()
@@ -152,10 +160,14 @@ func diagnostics(ctx context.Context, snapshot Snapshot, pkg Package, reports ma
 			Range:    e.Range,
 			Severity: protocol.SeverityError,
 		}
-		set, ok := diagSets[e.File]
+		fh, err := snapshot.GetFile(e.URI)
+		if err != nil {
+			return false, err
+		}
+		set, ok := diagSets[fh.Identity()]
 		if !ok {
 			set = &diagnosticSet{}
-			diagSets[e.File] = set
+			diagSets[fh.Identity()] = set
 		}
 		switch e.Kind {
 		case ParseError:
@@ -181,12 +193,12 @@ func diagnostics(ctx context.Context, snapshot Snapshot, pkg Package, reports ma
 		if len(diags) > 0 {
 			nonEmptyDiagnostics = true
 		}
-		addReports(ctx, reports, snapshot, fileID, diags...)
+		addReports(ctx, snapshot, reports, fileID, diags...)
 	}
-	return nonEmptyDiagnostics
+	return nonEmptyDiagnostics, nil
 }
 
-func analyses(ctx context.Context, snapshot Snapshot, ph PackageHandle, disabledAnalyses map[string]struct{}, reports map[FileIdentity][]Diagnostic) error {
+func analyses(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]Diagnostic, ph PackageHandle, disabledAnalyses map[string]struct{}) error {
 	var analyzers []*analysis.Analyzer
 	for _, a := range snapshot.View().Options().Analyzers {
 		if _, ok := disabledAnalyses[a.Name]; ok {
@@ -209,7 +221,11 @@ func analyses(ctx context.Context, snapshot Snapshot, ph PackageHandle, disabled
 		if onlyDeletions(e.SuggestedFixes) {
 			tags = append(tags, protocol.Unnecessary)
 		}
-		addReports(ctx, reports, snapshot, e.File, &Diagnostic{
+		fh, err := snapshot.GetFile(e.URI)
+		if err != nil {
+			return err
+		}
+		addReports(ctx, snapshot, reports, fh.Identity(), &Diagnostic{
 			Range:          e.Range,
 			Message:        e.Message,
 			Source:         e.Category,
@@ -229,7 +245,7 @@ func clearReports(snapshot Snapshot, reports map[FileIdentity][]Diagnostic, file
 	reports[fileID] = []Diagnostic{}
 }
 
-func addReports(ctx context.Context, reports map[FileIdentity][]Diagnostic, snapshot Snapshot, fileID FileIdentity, diagnostics ...*Diagnostic) error {
+func addReports(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]Diagnostic, fileID FileIdentity, diagnostics ...*Diagnostic) error {
 	if snapshot.View().Ignore(fileID.URI) {
 		return nil
 	}

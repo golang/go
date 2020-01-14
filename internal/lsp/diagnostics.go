@@ -89,20 +89,11 @@ func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, r
 	s.deliveredMu.Lock()
 	defer s.deliveredMu.Unlock()
 
-	for identity, diagnostics := range reports {
+	for fileID, diagnostics := range reports {
 		// Don't deliver diagnostics if the context has already been canceled.
 		if ctx.Err() != nil {
 			break
 		}
-		// Rather than using the identity provided in the report,
-		// get the FileHandle directly through the snapshot.
-		// This prevents us from using cached file versions.
-		fh, err := snapshot.GetFile(identity.URI)
-		if err != nil {
-			log.Error(ctx, "publishReports: failed to get FileHandle", err, telemetry.File.Of(identity.URI))
-			continue
-		}
-		fileID := fh.Identity()
 
 		// Pre-sort diagnostics to avoid extra work when we compare them.
 		source.SortDiagnostics(diagnostics)
