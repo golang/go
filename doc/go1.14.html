@@ -401,6 +401,11 @@ appropriately.)
   This API may change in future releases.
 </p>
 
+<p><!-- CL 174704 --><!-- CL 196784 -->
+  Bounds check elimination now uses information from slice creation and can
+  eliminate checks for indexes with types smaller than <code>int</code>.
+</p>
+
 <h2 id="library">Core library</h2>
 
 <p>
