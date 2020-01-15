@@ -52,7 +52,7 @@ This controls where points documentation for given package in `textDocument/docu
 It might be one of:
 * `"godoc.org"`   
 * `"pkg.go.dev"`
-If company chooses to use its own `godoc.org`, it's address can be used as well.
+If company chooses to use its own `godoc.org`, its address can be used as well.
 
 Default: `"pkg.go.dev"`.
 
