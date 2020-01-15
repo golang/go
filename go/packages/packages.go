@@ -510,12 +510,23 @@ func (ld *loader) refine(roots []string, list ...*Package) ([]*Package, error) {
 		if i, found := rootMap[pkg.ID]; found {
 			rootIndex = i
 		}
+
+		// Overlays can invalidate export data.
+		// TODO(matloob): make this check fine-grained based on dependencies on overlaid files
+		exportDataInvalid := len(ld.Overlay) > 0 || pkg.ExportFile == "" && pkg.PkgPath != "unsafe"
+		// This package needs type information if the caller requested types and the package is
+		// either a root, or it's a non-root and the user requested dependencies ...
+		needtypes := (ld.Mode&NeedTypes|NeedTypesInfo != 0 && (rootIndex >= 0 || ld.Mode&NeedDeps != 0))
+		// This package needs source if the call requested source (or types info, which implies source)
+		// and the package is either a root, or itas a non- root and the user requested dependencies...
+		needsrc := ((ld.Mode&(NeedSyntax|NeedTypesInfo) != 0 && (rootIndex >= 0 || ld.Mode&NeedDeps != 0)) ||
+			// ... or if we need types and the exportData is invalid. We fall back to (incompletely)
+			// typechecking packages from source if they fail to compile.
+			(ld.Mode&NeedTypes|NeedTypesInfo != 0 && exportDataInvalid)) && pkg.PkgPath != "unsafe"
 		lpkg := &loaderPackage{
 			Package:   pkg,
-			needtypes: (ld.Mode&(NeedTypes|NeedTypesInfo) != 0 && ld.Mode&NeedDeps != 0 && rootIndex < 0) || rootIndex >= 0,
-			needsrc: (ld.Mode&(NeedSyntax|NeedTypesInfo) != 0 && ld.Mode&NeedDeps != 0 && rootIndex < 0) || rootIndex >= 0 ||
-				len(ld.Overlay) > 0 || // Overlays can invalidate export data. TODO(matloob): make this check fine-grained based on dependencies on overlaid files
-				pkg.ExportFile == "" && pkg.PkgPath != "unsafe",
+			needtypes: needtypes,
+			needsrc:   needsrc,
 		}
 		ld.pkgs[lpkg.ID] = lpkg
 		if rootIndex >= 0 {
