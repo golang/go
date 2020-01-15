@@ -17,7 +17,7 @@ func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
 	check.openScope(cdecl, "contract")
 	defer check.closeScope()
 
-	tparams := check.declareTypeParams(nil, cdecl.TParams, &emptyInterface)
+	tparams := check.declareTypeParams(nil, cdecl.TParams)
 
 	// Given a contract C(P1, P2, ... Pn) { ... } we construct named types C1(P1, P2, ... Pn),
 	// C2(P1, P2, ... Pn), ... Cn(P1, P2, ... Pn) with the respective underlying interfaces
@@ -118,23 +118,27 @@ func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
 				continue
 			}
 
+			// If the type parameters are constraint via contracts, ensure that each type
+			// parameter is used at most once. Create a new map for each embedded contract
+			// to check this correspondence (since we may have multiple embedded contracts).
+			// Eventually, we may be able to relax this constraint and remove the need for
+			// this map.
+			unused := make(map[*TypeParam]bool, len(tparams))
+			for _, tname := range tparams {
+				unused[tname.typ.(*TypeParam)] = true
+			}
+
 			// Handle contract lookup here so we don't need to set up a special contract mode
 			// for operands just to carry its information through in form of some contract Type.
-			if eobj, targs, valid := check.unpackContractExpr(econtr); eobj != nil {
+			if eobj, targs, valid := check.contractExpr(econtr, unused); eobj != nil {
 				// we have a (possibly invalid) contract expression
 				if !valid {
 					continue
 				}
 
-				// instantiate each (embedded) contract bound with contract arguments
-				ebounds := make([]*Named, len(eobj.Bounds))
-				for i, ebound := range eobj.Bounds {
-					ebounds[i] = check.instantiate(econtr.Args[i].Pos(), ebound, targs, nil).(*Named)
-				}
-
 				// add the instantiated bounds as embedded interfaces to the respective
 				// embedding (outer) contract bound
-				for i, ebound := range ebounds {
+				for i, ebound := range eobj.Bounds {
 					index := targs[i].(*TypeParam).index
 					iface := bounds[index].underlying.(*Interface)
 					iface.embeddeds = append(iface.embeddeds, ebound)

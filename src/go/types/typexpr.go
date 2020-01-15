@@ -179,7 +179,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		//   (TODO(gri) this is not working because the code doesn't allow an uninstantiated parameterized recv type)
 		_, rname, rparams := check.unpackRecv(recvPar.List[0].Type, true)
 		if len(rparams) > 0 {
-			sig.rparams = check.declareTypeParams(nil, rparams, &emptyInterface)
+			sig.rparams = check.declareTypeParams(nil, rparams)
 			// determine receiver type to get its type parameters
 			// and the respective type parameter bounds
 			var recvTParams []*TypeName

@@ -620,7 +620,16 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 	// type parameters are all declared early (it's not observable since a contract
 	// always applies to the type parameter names immediately preceeding it).
 	for _, f := range list.List {
-		tparams = check.declareTypeParams(tparams, f.Names, &emptyInterface)
+		tparams = check.declareTypeParams(tparams, f.Names)
+	}
+
+	// If the type parameters are constraint via contracts, ensure that each type
+	// parameter is used at most once. Create a map to check this correspondence.
+	// Eventually, we may be able to relax this constraint and remove the need for
+	// this map.
+	unused := make(map[*TypeParam]bool, len(tparams))
+	for _, tname := range tparams {
+		unused[tname.typ.(*TypeParam)] = true
 	}
 
 	setBoundAt := func(at int, bound Type) {
@@ -637,22 +646,13 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 		// If f.Type denotes a contract, handle everything here so we don't
 		// need to set up a special contract mode for operands just to carry
 		// its information through in form of some contract Type.
-		if obj, targs, valid := check.unpackContractExpr(f.Type); obj != nil {
+		if obj, targs, valid := check.contractExpr(f.Type, unused); obj != nil {
 			// we have a (possibly invalid) contract expression
 			if !valid {
 				goto next
 			}
-			if targs != nil {
-				// obj denotes a valid contract that is instantiated with targs
-				// Use contract's matching type parameter bound and
-				// instantiate it with the actual type arguments targs.
-				// TODO(gri) this is not correct when arguments are permutated. Investigate!
-				for i, bound := range obj.Bounds {
-					pos := unparen(f.Type).(*ast.CallExpr).Args[i].Pos() // we must have an *ast.CallExpr
-					//check.dump("%v: bound %d = %v, under = %v, args = %v", pos, i, bound, bound.Underlying(), targs)
-					setBoundAt(index+i, check.instantiate(pos, bound, targs, nil))
-				}
-			} else {
+			// TODO(gri) can we have this code below also be handled by contractExpr?
+			if targs == nil {
 				// obj denotes a valid uninstantiated contract =>
 				// use the declared type parameters as "arguments"
 				if len(f.Names) != len(obj.TParams) {
@@ -689,14 +689,20 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 	return
 }
 
-// unpackContractExpr returns the contract obj of a contract name x = C or
+// contractExpr returns the contract obj of a contract name x = C or
 // the contract obj and type arguments targs of an instantiated contract
 // expression x = C(T1, T2, ...), and whether the expression is valid.
+// The set unused contains all (outer, incoming) type parameters that
+// have not yet been used in a contract expression. It must be set prior
+// to calling contractExpr and is updated by contractExpr.
+//
 // If x does not refer to a contract, the result obj is nil (and valid is
 // true). If x is not an instantiated contract expression, the result targs
 // is nil. If x is a contract expression but contains type errors, valid is
-// false.
-func (check *Checker) unpackContractExpr(x ast.Expr) (obj *Contract, targs []Type, valid bool) {
+// false. If x is a valid instantiated contract expression, targs is the
+// list of (incomming) type parameters used as arguments for the contract,
+// with their type bounds set according to the contract.
+func (check *Checker) contractExpr(x ast.Expr, unused map[*TypeParam]bool) (obj *Contract, targs []Type, valid bool) {
 	// permit any parenthesized expression
 	x = unparen(x)
 
@@ -724,17 +730,32 @@ func (check *Checker) unpackContractExpr(x ast.Expr) (obj *Contract, targs []Typ
 					check.use(call.Args...)
 					return
 				}
+				// For now, a contract type argument must be one of the (incoming)
+				// type parameters, and each of these type parameters may be used
+				// at most once.
 				for _, arg := range call.Args {
-					// for now, contract type arguments must be type parameters
 					targ := check.typ(arg)
-					if _, ok := targ.(*TypeParam); ok {
-						targs = append(targs, targ)
+					if tparam, _ := targ.(*TypeParam); tparam != nil {
+						if ok, found := unused[tparam]; ok {
+							unused[tparam] = false
+							targs = append(targs, targ)
+						} else if found {
+							check.errorf(arg.Pos(), "%s used multiple times (not supported due to implementation restriction)", arg)
+						} else {
+							check.errorf(arg.Pos(), "%s is not an incoming type parameter (not supported due to implementation restriction)", arg)
+						}
 					} else if targ != Typ[Invalid] {
-						check.errorf(arg.Pos(), "%s is not a type parameter", arg)
+						check.errorf(arg.Pos(), "%s is not a type parameter (not supported due to implementation restriction)", arg)
 					}
 				}
 				if len(targs) != len(call.Args) {
 					return // some arguments are invalid
+				}
+				// Use contract's matching type parameter bound, instantiate
+				// it with the actual type arguments targs, and set the bound
+				// for the type parameter.
+				for i, bound := range obj.Bounds {
+					targs[i].(*TypeParam).bound = check.instantiate(call.Args[i].Pos(), bound, targs, nil).(*Named)
 				}
 			}
 		}
@@ -744,10 +765,10 @@ func (check *Checker) unpackContractExpr(x ast.Expr) (obj *Contract, targs []Typ
 	return
 }
 
-func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident, bound Type) []*TypeName {
+func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident) []*TypeName {
 	for _, name := range names {
 		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
-		check.NewTypeParam(tpar, len(tparams), bound)           // assigns type to tpar as a side-effect
+		check.NewTypeParam(tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
 		check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
 		tparams = append(tparams, tpar)
 	}

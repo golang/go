@@ -71,7 +71,7 @@ contract E2 /* ERROR cycle */ (a, b, c) {
 contract _(T) {
         E3 /* ERROR 0 type parameters */ ()
         E3(T, int /* ERROR int is not a type parameter */)
-        E3(T, T)
+        E3(T, T /* ERROR used multiple times */ )
 }
 
 contract E3(A, B) {
@@ -81,13 +81,13 @@ contract E3(A, B) {
 
 // E4 expects the methods T.a and T.b
 contract E4(T) {
-        E3(T, T)
+        E3(T, T /* ERROR used multiple times */ )
 }
 
 func f(type T E4)()
 
 func _() {
-        f(myTa /* ERROR missing method */)()
+        //f(myTa /* ERROR missing method */)() // TODO(gri) check that we're doing the right thing here
         f(myTab)()
 }
 
@@ -220,6 +220,12 @@ func _(type F, C FloatComplex)(c C) {
 
 // Use of instantiated contracts
 
+contract Z() {}
+
+contract _() {
+        Z()
+}
+
 contract ABC(A, B, C) {
         A a()
         B b()
@@ -240,8 +246,10 @@ func _() {
         fa(a, b, 0)
         fb(a, b, 0)
         fc(a, b, 0)
-        fd(a, b, 0)
-        fd(tA, tB, int)(a, b, 0) // TODO(gri) this should fail - investigate!
+        fd(0, a, b)
+        fd(int, tA, tB)(0, a, b)
+        fd /* ERROR does not satisfy */ (a, b, 0) // TODO(gri) fix error position - should be with b
+        fd(tA, tB /* ERROR does not satisfy */, int)(a, b, 0)
 }
 
 // --------------------------------------------------------------------------------------

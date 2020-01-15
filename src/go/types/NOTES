@@ -4,10 +4,8 @@ so we have a better track record. I only switched to this file in Nov 2019, henc
 ----------------------------------------------------------------------------------------------------
 TODO
 
-- implement explicit contract instantiation (currently reports an error)
 - type assertions on/against parameterized types
 - use Underlying() to return a type parameter's bound? investigate!
-- if type parameters are repeated in recursive instantiation, they must be the same order (not yet checked)
 - debug (and error msg) printing of generic instantiated types needs some work
 - improve error messages!
 - use []*TypeParam for tparams in subst? (unclear)
@@ -16,6 +14,8 @@ TODO
 ----------------------------------------------------------------------------------------------------
 KNOWN ISSUES
 
+- contract instantiation requires the type arguments to be type parameters from the type of function
+  type parameter list or enclosing contract
 - instantiating a parameterized function type w/o value or result parameters may have unexpected side-effects
   (we don't make a copy of the signature in some cases) - investigate
 - leaving away unused receiver type parameters leads to an error; e.g.: "type S(type T) struct{}; func (S) _()"
@@ -31,6 +31,8 @@ OPEN QUESTIONS
   (probably yes, for symmetry and consistency).
 - What does it mean to explicitly instantiate a contract with a non-type parameter argument?
   (e.g., contract C(T) { T int }; func _(type T C(int))(...) ... seems invalid. What are the rules?)
+- Should we be able to parenthesize embedded contracts (like we allow for interfaces)? (currently this
+  is not permitted syntactically)
   
 ----------------------------------------------------------------------------------------------------
 DESIGN/IMPLEMENTATION

@@ -35,7 +35,7 @@ contract C(A, B) {
 //func fa(type A, B, C) (A, B, C)
 //func fb(type A, B, C ABC) (A, B, C)
 //func fc(type A, B, C ABC(A, B, C)) (A, B, C)
-func fd(type A, B C(B, A)) ()
+func fd(type A, B, X C(B, A)) ()
 
 type tA struct{}; func (tA) a()
 type tB struct{}; func (tB) b()
@@ -47,5 +47,5 @@ func _() {
         //(a, b, 0)
         //(a, b, 0)
         //fd(a, b, 0)
-        fd(tA, tB)() // TODO(gri) this should fail
+        fd(tA /* ERROR does not satisfy */ , tB, int)()
 }
