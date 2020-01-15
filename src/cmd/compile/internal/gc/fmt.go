@@ -585,28 +585,44 @@ s%^	........*\]%&~%g
 s%~	%%g
 */
 
-func symfmt(s *types.Sym, flag FmtFlag, mode fmtMode) string {
+func symfmt(b *bytes.Buffer, s *types.Sym, flag FmtFlag, mode fmtMode) {
 	if s.Pkg != nil && flag&FmtShort == 0 {
 		switch mode {
 		case FErr: // This is for the user
 			if s.Pkg == builtinpkg || s.Pkg == localpkg {
-				return s.Name
+				b.WriteString(s.Name)
+				return
 			}
 
 			// If the name was used by multiple packages, display the full path,
 			if s.Pkg.Name != "" && numImport[s.Pkg.Name] > 1 {
-				return fmt.Sprintf("%q.%s", s.Pkg.Path, s.Name)
+				fmt.Fprintf(b, "%q.%s", s.Pkg.Path, s.Name)
+				return
 			}
-			return s.Pkg.Name + "." + s.Name
+			b.WriteString(s.Pkg.Name)
+			b.WriteByte('.')
+			b.WriteString(s.Name)
+			return
 
 		case FDbg:
-			return s.Pkg.Name + "." + s.Name
+			b.WriteString(s.Pkg.Name)
+			b.WriteByte('.')
+			b.WriteString(s.Name)
+			return
 
 		case FTypeIdName:
-			return s.Pkg.Name + "." + s.Name // dcommontype, typehash
+			// dcommontype, typehash
+			b.WriteString(s.Pkg.Name)
+			b.WriteByte('.')
+			b.WriteString(s.Name)
+			return
 
 		case FTypeId:
-			return s.Pkg.Prefix + "." + s.Name // (methodsym), typesym, weaksym
+			// (methodsym), typesym, weaksym
+			b.WriteString(s.Pkg.Prefix)
+			b.WriteByte('.')
+			b.WriteString(s.Name)
+			return
 		}
 	}
 
@@ -619,13 +635,15 @@ func symfmt(s *types.Sym, flag FmtFlag, mode fmtMode) string {
 		}
 
 		if mode == FDbg {
-			return fmt.Sprintf("@%q.%s", s.Pkg.Path, name)
+			fmt.Fprintf(b, "@%q.%s", s.Pkg.Path, name)
+			return
 		}
 
-		return name
+		b.WriteString(name)
+		return
 	}
 
-	return s.Name
+	b.WriteString(s.Name)
 }
 
 var basicnames = []string{
@@ -652,16 +670,16 @@ var basicnames = []string{
 	TBLANK:      "blank",
 }
 
-var tconvBufferPool = sync.Pool{
+var fmtBufferPool = sync.Pool{
 	New: func() interface{} {
 		return new(bytes.Buffer)
 	},
 }
 
 func tconv(t *types.Type, flag FmtFlag, mode fmtMode) string {
-	buf := tconvBufferPool.Get().(*bytes.Buffer)
+	buf := fmtBufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
-	defer tconvBufferPool.Put(buf)
+	defer fmtBufferPool.Put(buf)
 
 	tconv2(buf, t, flag, mode, nil)
 	return types.InternString(buf.Bytes())
@@ -703,7 +721,7 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 		case FTypeIdName, FTypeId:
 			t = types.Types[t.Etype]
 		default:
-			b.WriteString(sconv(t.Sym, FmtShort, mode))
+			sconv2(b, t.Sym, FmtShort, mode)
 			return
 		}
 	}
@@ -718,15 +736,16 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 		case FTypeId, FTypeIdName:
 			if flag&FmtShort != 0 {
 				if t.Vargen != 0 {
-					fmt.Fprintf(b, "%s·%d", sconv(t.Sym, FmtShort, mode), t.Vargen)
+					sconv2(b, t.Sym, FmtShort, mode)
+					fmt.Fprintf(b, "·%d", t.Vargen)
 					return
 				}
-				b.WriteString(sconv(t.Sym, FmtShort, mode))
+				sconv2(b, t.Sym, FmtShort, mode)
 				return
 			}
 
 			if mode == FTypeIdName {
-				b.WriteString(sconv(t.Sym, FmtUnsigned, mode))
+				sconv2(b, t.Sym, FmtUnsigned, mode)
 				return
 			}
 
@@ -736,7 +755,7 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 			}
 		}
 
-		b.WriteString(smodeString(t.Sym, mode))
+		sconv2(b, t.Sym, 0, mode)
 		return
 	}
 
@@ -845,13 +864,13 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 				// Wrong interface definitions may have types lacking a symbol.
 				break
 			case types.IsExported(f.Sym.Name):
-				b.WriteString(sconv(f.Sym, FmtShort, mode))
+				sconv2(b, f.Sym, FmtShort, mode)
 			default:
 				flag1 := FmtLeft
 				if flag&FmtUnsigned != 0 {
 					flag1 = FmtUnsigned
 				}
-				b.WriteString(sconv(f.Sym, flag1, mode))
+				sconv2(b, f.Sym, flag1, mode)
 			}
 			tconv2(b, f.Type, FmtShort, mode, visited)
 		}
@@ -941,7 +960,7 @@ func tconv2(b *bytes.Buffer, t *types.Type, flag FmtFlag, mode fmtMode, visited 
 		b.WriteString("undefined")
 		if t.Sym != nil {
 			b.WriteByte(' ')
-			b.WriteString(smodeString(t.Sym, mode))
+			sconv2(b, t.Sym, 0, mode)
 		}
 
 	case TUNSAFEPTR:
@@ -1731,9 +1750,30 @@ func sconv(s *types.Sym, flag FmtFlag, mode fmtMode) string {
 	if s.Name == "_" {
 		return "_"
 	}
+	buf := fmtBufferPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer fmtBufferPool.Put(buf)
 
 	flag, mode = flag.update(mode)
-	return symfmt(s, flag, mode)
+	symfmt(buf, s, flag, mode)
+	return types.InternString(buf.Bytes())
+}
+
+func sconv2(b *bytes.Buffer, s *types.Sym, flag FmtFlag, mode fmtMode) {
+	if flag&FmtLong != 0 {
+		panic("linksymfmt")
+	}
+	if s == nil {
+		b.WriteString("<S>")
+		return
+	}
+	if s.Name == "_" {
+		b.WriteString("_")
+		return
+	}
+
+	flag, mode = flag.update(mode)
+	symfmt(b, s, flag, mode)
 }
 
 func fldconv(b *bytes.Buffer, f *types.Field, flag FmtFlag, mode fmtMode, visited map[*types.Type]int, funarg types.Funarg) {
