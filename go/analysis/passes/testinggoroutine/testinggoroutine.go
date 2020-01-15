@@ -6,10 +6,10 @@ package testinggoroutine
 
 import (
 	"go/ast"
-	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 )
 
@@ -46,7 +46,7 @@ var forbidden = map[string]bool{
 func run(pass *analysis.Pass) (interface{}, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
-	if !imports(pass.Pkg, "testing") {
+	if !analysisutil.Imports(pass.Pkg, "testing") {
 		return nil, nil
 	}
 
@@ -84,17 +84,6 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	})
 
 	return nil, nil
-}
-
-func imports(pkg *types.Package, path string) bool {
-	// TODO: (@odeke-em) perhaps move this function into a
-	// a library since it is commonly used in x/tools/go/analysis.
-	for _, imp := range pkg.Imports() {
-		if imp.Path() == path {
-			return true
-		}
-	}
-	return false
 }
 
 func hasBenchmarkOrTestParams(fnDecl *ast.FuncDecl) bool {

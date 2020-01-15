@@ -16,6 +16,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 )
 
@@ -32,7 +33,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	if 8*pass.TypesSizes.Sizeof(types.Typ[types.Uintptr]) == 64 {
 		return nil, nil // 64-bit platform
 	}
-	if imports(pass.Pkg, "sync/atomic") == nil {
+	if !analysisutil.Imports(pass.Pkg, "sync/atomic") {
 		return nil, nil // doesn't directly import sync/atomic
 	}
 
@@ -113,16 +114,4 @@ func check64BitAlignment(pass *analysis.Pass, funcName string, arg ast.Expr) {
 	}
 
 	pass.ReportRangef(arg, "address of non 64-bit aligned field .%s passed to atomic.%s", tvar.Name(), funcName)
-}
-
-// imports reports whether pkg has path among its direct imports.
-// It returns the imported package if so, or nil if not.
-// copied from passes/cgocall.
-func imports(pkg *types.Package, path string) *types.Package {
-	for _, imp := range pkg.Imports() {
-		if imp.Path() == path {
-			return imp
-		}
-	}
-	return nil
 }
