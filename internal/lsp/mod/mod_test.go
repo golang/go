@@ -155,7 +155,7 @@ func TestDiagnostics(t *testing.T) {
 				t.Fatal(err)
 			}
 			if len(reports) != 1 {
-				t.Errorf("expected 1 fileHandle, got %d", len(reports))
+				t.Errorf("expected 1 diagnostic, got %d", len(reports))
 			}
 			for fh, got := range reports {
 				if diff := tests.DiffDiagnostics(fh.URI, tt.want, got); diff != "" {

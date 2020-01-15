@@ -18,11 +18,11 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/tag"
@@ -97,8 +97,20 @@ type view struct {
 	initialized         chan struct{}
 	initializationError error
 
-	// builtin is used to resolve builtin types.
-	builtin *builtinPkg
+	// builtin pins the AST and package for builtin.go in memory.
+	builtin *builtinPackageHandle
+}
+
+type builtinPackageHandle struct {
+	handle *memoize.Handle
+	file   source.ParseGoHandle
+}
+
+type builtinPackageData struct {
+	memoize.NoCopy
+
+	pkg *ast.Package
+	err error
 }
 
 // fileBase holds the common functionality for all files.
@@ -167,6 +179,60 @@ func (v *view) SetOptions(ctx context.Context, options source.Options) (source.V
 	}
 	newView, _, err := v.session.updateView(ctx, v, options)
 	return newView, err
+}
+
+func (v *view) LookupBuiltin(name string) (*ast.Object, error) {
+	data := v.builtin.handle.Get(context.Background())
+	if data == nil {
+		return nil, errors.Errorf("unexpected nil builtin package")
+	}
+	d, ok := data.(*builtinPackageData)
+	if !ok {
+		return nil, errors.Errorf("unexpected type %T", data)
+	}
+	if d.err != nil {
+		return nil, d.err
+	}
+	if d.pkg == nil || d.pkg.Scope == nil {
+		return nil, errors.Errorf("no builtin package")
+	}
+	astObj := d.pkg.Scope.Lookup(name)
+	if astObj == nil {
+		return nil, errors.Errorf("no builtin object for %s", name)
+	}
+	return astObj, nil
+}
+
+func (v *view) buildBuiltinPackage(ctx context.Context, m *metadata) error {
+	if len(m.goFiles) != 1 {
+		return errors.Errorf("only expected 1 file, got %v", len(m.goFiles))
+	}
+	uri := m.goFiles[0]
+	v.addIgnoredFile(uri) // to avoid showing diagnostics for builtin.go
+
+	// Get the FileHandle through the session to avoid adding it to the snapshot.
+	pgh := v.session.cache.ParseGoHandle(v.session.GetFile(uri), source.ParseFull)
+	fset := v.session.cache.fset
+	h := v.session.cache.store.Bind(pgh.File().Identity(), func(ctx context.Context) interface{} {
+		data := &builtinPackageData{}
+		file, _, _, err := pgh.Parse(ctx)
+		if err != nil {
+			data.err = err
+			return data
+		}
+		data.pkg, data.err = ast.NewPackage(fset, map[string]*ast.File{
+			pgh.File().Identity().URI.Filename(): file,
+		}, nil, nil)
+		if err != nil {
+			return err
+		}
+		return data
+	})
+	v.builtin = &builtinPackageHandle{
+		handle: h,
+		file:   pgh,
+	}
+	return nil
 }
 
 // Config returns the configuration used for the view's interaction with the
@@ -445,6 +511,13 @@ func (v *view) Ignore(uri span.URI) bool {
 	return ok
 }
 
+func (v *view) addIgnoredFile(uri span.URI) {
+	v.ignoredURIsMu.Lock()
+	defer v.ignoredURIsMu.Unlock()
+
+	v.ignoredURIs[uri] = struct{}{}
+}
+
 func (v *view) BackgroundContext() context.Context {
 	v.mu.Lock()
 	defer v.mu.Unlock()
@@ -467,35 +540,31 @@ func (v *view) initialize(ctx context.Context, s *snapshot) {
 	v.initializeOnce.Do(func() {
 		defer close(v.initialized)
 
-		g, ctx := errgroup.WithContext(ctx)
-
-		// Load all of the packages in the workspace.
-		g.Go(func() error {
+		v.initializationError = func() error {
 			// Do not cancel the call to go/packages.Load for the entire workspace.
-			meta, err := s.load(ctx, directoryURI(v.folder))
+			meta, err := s.load(ctx, directoryURI(v.folder), packagePath("builtin"))
 			if err != nil {
 				return err
 			}
-			// A test variant of a package can only be loaded directly by loading
-			// the non-test variant with -test. Track the import path of the non-test variant.
+			// Keep track of the workspace packages.
 			for _, m := range meta {
+				// Make sure to handle the builtin package separately
+				// Don't set it as a workspace package.
+				if m.pkgPath == "builtin" {
+					if err := s.view.buildBuiltinPackage(ctx, m); err != nil {
+						return err
+					}
+					continue
+				}
+				// A test variant of a package can only be loaded directly by loading
+				// the non-test variant with -test. Track the import path of the non-test variant.
 				s.setWorkspacePackage(m.id, m.pkgPath)
 				if _, err := s.packageHandle(ctx, m.id); err != nil {
 					return err
 				}
 			}
 			return nil
-		})
-
-		// Build the builtin package on initialization.
-		g.Go(func() error {
-			return v.buildBuiltinPackage(ctx)
-		})
-
-		// Wait for all initialization tasks to complete.
-		if err := g.Wait(); err != nil {
-			v.initializationError = err
-		}
+		}()
 	})
 }
 
