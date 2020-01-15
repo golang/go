@@ -27,25 +27,34 @@ type II interface{
 var _ I = II(nil)
 */
 
-contract C(A, B) {
-        A a()
-        B b()
+func _(type T interface{})(x T) {
+        for range x /* ERROR cannot range */ {}
 }
 
-//func fa(type A, B, C) (A, B, C)
-//func fb(type A, B, C ABC) (A, B, C)
-//func fc(type A, B, C ABC(A, B, C)) (A, B, C)
-func fd(type A, B, X C(B, A)) ()
+func _(type T interface{ type string, []string })(x T) {
+        for range x {}
+        for i := range x { _ = i }
+        for i, _ := range x { _ = i }
+        for i, e := range x /* ERROR cannot range */ { _ = i } // different element types
+        for _, e := range x /* ERROR cannot range */ {} // different element types
+        var e rune
+        _ = e
+        for _, (e) = range x /* ERROR cannot range */ {} // different element types
+}
 
-type tA struct{}; func (tA) a()
-type tB struct{}; func (tB) b()
 
-func _() {
-        //var a tA
-        //var b tB
-        //fa(a, b, 0)
-        //(a, b, 0)
-        //(a, b, 0)
-        //fd(a, b, 0)
-        fd(tA /* ERROR does not satisfy */ , tB, int)()
+func _(type T interface{ type string, []rune, map[int]rune })(x T) {
+        for _, e := range x { _ = e }
+        for i, e := range x { _ = i; _ = e }
+}
+
+func _(type T interface{ type string, []rune, map[string]rune })(x T) {
+        for _, e := range x { _ = e }
+        for i, e := range x /* ERROR cannot range */ { _ = e } // different key types
+}
+
+func _(type T interface{ type string, chan int })(x T) {
+        for range x {}
+        for i := range x { _ = i }
+        for i, _ := range x { _ = i }
 }

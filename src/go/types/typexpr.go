@@ -221,7 +221,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 
 	// Value (non-type) parameters' scope starts in the function body. Use a temporary scope for their
 	// declarations and then squash that scope into the parent scope (and report any redeclarations at
-	// at that time).
+	// that time).
 	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function body (temp. scope)")
 	recvList, _ := check.collectParams(scope, recvPar, false)
 	params, variadic := check.collectParams(scope, ftyp.Params, true)

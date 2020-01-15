@@ -14,6 +14,7 @@ TODO
 ----------------------------------------------------------------------------------------------------
 KNOWN ISSUES
 
+- iteration over generic variables doesn't report certain channel errors (see TODOs in code)
 - cannot handle mutually recursive parameterized interfaces using themselves as type bounds
 - contract instantiation requires the type arguments to be type parameters from the type of function
   type parameter list or enclosing contract

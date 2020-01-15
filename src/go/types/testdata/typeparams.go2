@@ -117,6 +117,40 @@ func _(type T interface{ type map[int]int })(x T) { _ = cap(x /* ERROR invalid a
 func _(type T interface{ type chan int })(x T) { _ = cap(x) }
 func _(type T interface{ type []byte, chan int })(x T) { _ = cap(x) }
 
+// range iteration
+
+func _(type T interface{})(x T) {
+        for range x /* ERROR cannot range */ {}
+}
+
+func _(type T interface{ type string, []string })(x T) {
+        for range x {}
+        for i := range x { _ = i }
+        for i, _ := range x { _ = i }
+        for i, e := range x /* ERROR cannot range */ { _ = i } // different element types
+        for _, e := range x /* ERROR cannot range */ {} // different element types
+        var e rune
+        _ = e
+        for _, (e) = range x /* ERROR cannot range */ {} // different element types
+}
+
+
+func _(type T interface{ type string, []rune, map[int]rune })(x T) {
+        for _, e := range x { _ = e }
+        for i, e := range x { _ = i; _ = e }
+}
+
+func _(type T interface{ type string, []rune, map[string]rune })(x T) {
+        for _, e := range x { _ = e }
+        for i, e := range x /* ERROR cannot range */ { _ = e } // different key types
+}
+
+func _(type T interface{ type string, chan int })(x T) {
+        for range x {}
+        for i := range x { _ = i }
+        for i, _ := range x { _ = i } // TODO(gri) should get an error here: channels only return one value
+}
+
 // type inference checks
 
 var _ = new() /* ERROR cannot infer T */

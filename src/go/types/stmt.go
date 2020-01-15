@@ -751,43 +751,24 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		// determine key/value types
 		var key, val Type
 		if x.mode != invalid {
-			switch typ := x.typ.Underlying().(type) {
-			case *Basic:
-				if isString(typ) {
-					key = Typ[Int]
-					val = universeRune // use 'rune' name
-				}
-			case *Array:
-				key = Typ[Int]
-				val = typ.elem
-			case *Slice:
-				key = Typ[Int]
-				val = typ.elem
-			case *Pointer:
-				if typ, _ := typ.base.Underlying().(*Array); typ != nil {
-					key = Typ[Int]
-					val = typ.elem
-				}
-			case *Map:
-				key = typ.key
-				val = typ.elem
-			case *Chan:
-				key = typ.elem
-				val = Typ[Invalid]
+			typ := x.typ.Underlying()
+			// TODO(gri) these tests need to be done also for type parameter channel types
+			//           => move into rangeTypes and return an error message instead
+			if typ, _ := typ.(*Chan); typ != nil {
 				if typ.dir == SendOnly {
-					check.errorf(x.pos(), "cannot range over send-only channel %s", &x)
+					check.softErrorf(x.pos(), "cannot range over send-only channel %s", &x)
 					// ok to continue
 				}
 				if s.Value != nil {
-					check.errorf(s.Value.Pos(), "iteration over %s permits only one iteration variable", &x)
+					check.softErrorf(s.Value.Pos(), "iteration over %s permits only one iteration variable", &x)
 					// ok to continue
 				}
 			}
-		}
-
-		if key == nil {
-			check.errorf(x.pos(), "cannot range over %s", &x)
-			// ok to continue
+			key, val = rangeTypes(typ, isVarName(s.Key), isVarName(s.Value))
+			if key == nil {
+				check.softErrorf(x.pos(), "cannot range over %s", &x)
+				// ok to continue
+			}
 		}
 
 		// check assignment to/declaration of iteration variables
@@ -868,4 +849,50 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 	default:
 		check.error(s.Pos(), "invalid statement")
 	}
+}
+
+func isVarName(x ast.Expr) bool {
+	if x == nil {
+		return false
+	}
+	ident, _ := unparen(x).(*ast.Ident)
+	return ident == nil || ident.Name != "_"
+}
+
+func rangeTypes(typ Type, wantKey, wantVal bool) (Type, Type) {
+	switch typ := typ.(type) {
+	case *Basic:
+		if isString(typ) {
+			return Typ[Int], universeRune // use 'rune' name
+		}
+	case *Array:
+		return Typ[Int], typ.elem
+	case *Slice:
+		return Typ[Int], typ.elem
+	case *Pointer:
+		if typ, _ := typ.base.Underlying().(*Array); typ != nil {
+			return Typ[Int], typ.elem
+		}
+	case *Map:
+		return typ.key, typ.elem
+	case *Chan:
+		// TODO(gri) we need to move the additional channel checks here
+		return typ.elem, Typ[Invalid]
+	case *TypeParam:
+		first := true
+		var key, val Type
+		if typ.Interface().is(func(t Type) bool {
+			k, v := rangeTypes(t, true, true)
+			if first {
+				key, val = k, v
+				first = false
+				return true
+			}
+			// TODO(gri) if we fail we should return an explanatory error message
+			return (!wantKey || Identical(key, k)) && (!wantVal || Identical(val, v))
+		}) {
+			return key, val
+		}
+	}
+	return nil, nil
 }
