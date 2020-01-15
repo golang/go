@@ -752,21 +752,18 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		var key, val Type
 		if x.mode != invalid {
 			typ := x.typ.Underlying()
-			// TODO(gri) these tests need to be done also for type parameter channel types
-			//           => move into rangeKeyVal and return an error message instead
-			if typ, _ := typ.(*Chan); typ != nil {
-				if typ.dir == SendOnly {
-					check.softErrorf(x.pos(), "cannot range over send-only channel %s", &x)
-					// ok to continue
-				}
-				if s.Value != nil {
-					check.softErrorf(s.Value.Pos(), "iteration over %s permits only one iteration variable", &x)
-					// ok to continue
-				}
+			if _, ok := typ.(*Chan); ok && s.Value != nil {
+				// TODO(gri) this also needs to happen for channels in generic variables
+				check.softErrorf(s.Value.Pos(), "range over %s permits only one iteration variable", &x)
+				// ok to continue
 			}
-			key, val = rangeKeyVal(typ, isVarName(s.Key), isVarName(s.Value))
-			if key == nil {
-				check.softErrorf(x.pos(), "cannot range over %s", &x)
+			var msg string
+			key, val, msg = rangeKeyVal(typ, isVarName(s.Key), isVarName(s.Value))
+			if key == nil || msg != "" {
+				if msg != "" {
+					msg = ": " + msg
+				}
+				check.softErrorf(x.pos(), "cannot range over %s%s", &x, msg)
 				// ok to continue
 			}
 		}
@@ -861,44 +858,61 @@ func isVarName(x ast.Expr) bool {
 }
 
 // rangeKeyVal returns the key and value type produced by a range clause
-// over an expression of type typ; if the range clause is not permitted
-// the result is (nil, nil). The wantKey, wantVal flags indicate which of
-// the values are actually used - this matters if we range over a generic
+// over an expression of type typ, and possibly an error message. If the
+// range clause is not permitted the returned key is nil or msg is not
+// empty (in that case we still may have a non-nil key type which can be
+// used to reduce the chance for follow-on errors).
+// The wantKey, wantVal, and hasVal flags indicate which of the iteration
+// variables are used or present; this matters if we range over a generic
 // type where not all keys or values are of the same type.
-func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type) {
+func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
 	switch typ := typ.(type) {
 	case *Basic:
 		if isString(typ) {
-			return Typ[Int], universeRune // use 'rune' name
+			return Typ[Int], universeRune, "" // use 'rune' name
 		}
 	case *Array:
-		return Typ[Int], typ.elem
+		return Typ[Int], typ.elem, ""
 	case *Slice:
-		return Typ[Int], typ.elem
+		return Typ[Int], typ.elem, ""
 	case *Pointer:
 		if typ, _ := typ.base.Underlying().(*Array); typ != nil {
-			return Typ[Int], typ.elem
+			return Typ[Int], typ.elem, ""
 		}
 	case *Map:
-		return typ.key, typ.elem
+		return typ.key, typ.elem, ""
 	case *Chan:
-		// TODO(gri) we need to move the additional channel checks here
-		return typ.elem, Typ[Invalid]
+		var msg string
+		if typ.dir == SendOnly {
+			msg = "send-only channel"
+		}
+		return typ.elem, Typ[Invalid], msg
 	case *TypeParam:
 		first := true
 		var key, val Type
-		if typ.Interface().is(func(t Type) bool {
-			k, v := rangeKeyVal(t, true, true)
+		var msg string
+		typ.Interface().is(func(t Type) bool {
+			k, v, m := rangeKeyVal(t, wantKey, wantVal)
+			if k == nil || m != "" {
+				key, val, msg = k, v, m
+				return false
+			}
 			if first {
-				key, val = k, v
+				key, val, msg = k, v, m
 				first = false
 				return true
 			}
-			// TODO(gri) if we fail we should return an explanatory error message
-			return (!wantKey || Identical(key, k)) && (!wantVal || Identical(val, v))
-		}) {
-			return key, val
-		}
+			if wantKey && !Identical(key, k) {
+				key, val, msg = nil, nil, "all possible values must have the same key type"
+				return false
+			}
+			if wantVal && !Identical(val, v) {
+				key, val, msg = nil, nil, "all possible values must have the same element type"
+				return false
+			}
+			return true
+		})
+		return key, val, msg
 	}
-	return nil, nil
+	return nil, nil, ""
 }

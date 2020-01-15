@@ -27,34 +27,6 @@ type II interface{
 var _ I = II(nil)
 */
 
-func _(type T interface{})(x T) {
-        for range x /* ERROR cannot range */ {}
-}
-
-func _(type T interface{ type string, []string })(x T) {
-        for range x {}
-        for i := range x { _ = i }
-        for i, _ := range x { _ = i }
-        for i, e := range x /* ERROR cannot range */ { _ = i } // different element types
-        for _, e := range x /* ERROR cannot range */ {} // different element types
-        var e rune
-        _ = e
-        for _, (e) = range x /* ERROR cannot range */ {} // different element types
-}
-
-
-func _(type T interface{ type string, []rune, map[int]rune })(x T) {
-        for _, e := range x { _ = e }
-        for i, e := range x { _ = i; _ = e }
-}
-
-func _(type T interface{ type string, []rune, map[string]rune })(x T) {
-        for _, e := range x { _ = e }
-        for i, e := range x /* ERROR cannot range */ { _ = e } // different key types
-}
-
-func _(type T interface{ type string, chan int })(x T) {
-        for range x {}
-        for i := range x { _ = i }
-        for i, _ := range x { _ = i }
+func _(type T interface{ type string, chan<-int })(x T) {
+        for i, _ := range x /* ERROR send-only channel */ { _ = i }
 }

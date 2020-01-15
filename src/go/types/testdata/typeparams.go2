@@ -127,11 +127,11 @@ func _(type T interface{ type string, []string })(x T) {
         for range x {}
         for i := range x { _ = i }
         for i, _ := range x { _ = i }
-        for i, e := range x /* ERROR cannot range */ { _ = i } // different element types
-        for _, e := range x /* ERROR cannot range */ {} // different element types
+        for i, e := range x /* ERROR must have the same element type */ { _ = i }
+        for _, e := range x /* ERROR must have the same element type */ {}
         var e rune
         _ = e
-        for _, (e) = range x /* ERROR cannot range */ {} // different element types
+        for _, (e) = range x /* ERROR must have the same element type */ {}
 }
 
 
@@ -142,13 +142,17 @@ func _(type T interface{ type string, []rune, map[int]rune })(x T) {
 
 func _(type T interface{ type string, []rune, map[string]rune })(x T) {
         for _, e := range x { _ = e }
-        for i, e := range x /* ERROR cannot range */ { _ = e } // different key types
+        for i, e := range x /* ERROR must have the same key type */ { _ = e }
 }
 
 func _(type T interface{ type string, chan int })(x T) {
         for range x {}
         for i := range x { _ = i }
         for i, _ := range x { _ = i } // TODO(gri) should get an error here: channels only return one value
+}
+
+func _(type T interface{ type string, chan<-int })(x T) {
+        for i := range x /* ERROR send-only channel */ { _ = i }
 }
 
 // type inference checks
