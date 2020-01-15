@@ -753,7 +753,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		if x.mode != invalid {
 			typ := x.typ.Underlying()
 			// TODO(gri) these tests need to be done also for type parameter channel types
-			//           => move into rangeTypes and return an error message instead
+			//           => move into rangeKeyVal and return an error message instead
 			if typ, _ := typ.(*Chan); typ != nil {
 				if typ.dir == SendOnly {
 					check.softErrorf(x.pos(), "cannot range over send-only channel %s", &x)
@@ -764,7 +764,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 					// ok to continue
 				}
 			}
-			key, val = rangeTypes(typ, isVarName(s.Key), isVarName(s.Value))
+			key, val = rangeKeyVal(typ, isVarName(s.Key), isVarName(s.Value))
 			if key == nil {
 				check.softErrorf(x.pos(), "cannot range over %s", &x)
 				// ok to continue
@@ -851,6 +851,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 	}
 }
 
+// isVarName reports whether x is a non-nil, non-blank (_) expression.
 func isVarName(x ast.Expr) bool {
 	if x == nil {
 		return false
@@ -859,7 +860,12 @@ func isVarName(x ast.Expr) bool {
 	return ident == nil || ident.Name != "_"
 }
 
-func rangeTypes(typ Type, wantKey, wantVal bool) (Type, Type) {
+// rangeKeyVal returns the key and value type produced by a range clause
+// over an expression of type typ; if the range clause is not permitted
+// the result is (nil, nil). The wantKey, wantVal flags indicate which of
+// the values are actually used - this matters if we range over a generic
+// type where not all keys or values are of the same type.
+func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type) {
 	switch typ := typ.(type) {
 	case *Basic:
 		if isString(typ) {
@@ -882,7 +888,7 @@ func rangeTypes(typ Type, wantKey, wantVal bool) (Type, Type) {
 		first := true
 		var key, val Type
 		if typ.Interface().is(func(t Type) bool {
-			k, v := rangeTypes(t, true, true)
+			k, v := rangeKeyVal(t, true, true)
 			if first {
 				key, val = k, v
 				first = false
