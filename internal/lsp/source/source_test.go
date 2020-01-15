@@ -106,6 +106,7 @@ func (r *runner) Completion(t *testing.T, src span.Span, test tests.Completion, 
 		opts.Matcher = source.CaseInsensitive
 		opts.Literal = strings.Contains(string(src.URI()), "literal")
 		opts.DeepCompletion = false
+		opts.UnimportedCompletion = false
 	})
 	if !strings.Contains(string(src.URI()), "builtins") {
 		got = tests.FilterBuiltins(got)
@@ -136,9 +137,7 @@ func (r *runner) UnimportedCompletion(t *testing.T, src span.Span, test tests.Co
 	for _, pos := range test.CompletionItems {
 		want = append(want, tests.ToProtocolCompletionItem(*items[pos]))
 	}
-	_, got := r.callCompletion(t, src, func(opts *source.Options) {
-		opts.UnimportedCompletion = true
-	})
+	_, got := r.callCompletion(t, src, func(opts *source.Options) {})
 	if !strings.Contains(string(src.URI()), "builtins") {
 		got = tests.FilterBuiltins(got)
 	}
@@ -155,6 +154,7 @@ func (r *runner) DeepCompletion(t *testing.T, src span.Span, test tests.Completi
 	prefix, list := r.callCompletion(t, src, func(opts *source.Options) {
 		opts.DeepCompletion = true
 		opts.Matcher = source.CaseInsensitive
+		opts.UnimportedCompletion = false
 	})
 	if !strings.Contains(string(src.URI()), "builtins") {
 		list = tests.FilterBuiltins(list)
@@ -180,6 +180,7 @@ func (r *runner) FuzzyCompletion(t *testing.T, src span.Span, test tests.Complet
 	_, got := r.callCompletion(t, src, func(opts *source.Options) {
 		opts.DeepCompletion = true
 		opts.Matcher = source.Fuzzy
+		opts.UnimportedCompletion = false
 	})
 	if !strings.Contains(string(src.URI()), "builtins") {
 		got = tests.FilterBuiltins(got)
@@ -196,6 +197,7 @@ func (r *runner) CaseSensitiveCompletion(t *testing.T, src span.Span, test tests
 	}
 	_, list := r.callCompletion(t, src, func(opts *source.Options) {
 		opts.Matcher = source.CaseSensitive
+		opts.UnimportedCompletion = false
 	})
 	if !strings.Contains(string(src.URI()), "builtins") {
 		list = tests.FilterBuiltins(list)

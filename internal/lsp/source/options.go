@@ -79,6 +79,7 @@ var (
 		LinkTarget:              "pkg.go.dev",
 		Matcher:                 Fuzzy,
 		DeepCompletion:          true,
+		UnimportedCompletion:    true,
 		CompletionDocumentation: true,
 		Literal:                 true,
 	}
