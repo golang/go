@@ -12,8 +12,8 @@ Read and use this code at your own risk.
 
 STATUS
 
-Most aspects of the contracts proposal have been implemented and somewhat
-tested (but expect bugs). go/types can now type-check all the *.go2 test
+Most aspects of the contracts proposal have been implemented and tested
+(but expect bugs). go/types can now type-check all the *.go2 test
 files in the testdata and examples directories.
 
 ALTERNATIVE NOTATION
@@ -71,13 +71,17 @@ and interfaces and the question if they can be mixed and how.
 Interfaces are the fundamental underlying typing mechanism;
 contracts are syntactic sugar that may improve readability.
 
+To explore the boundaries of this new approach, this prototype
+permits type parameters also on methods (we don't have a good
+idea how to implement that but we can easily type-check it).
+
 MAJOR KNOWN ISSUES
 
 - importing of packages exporting generic code is not implemented
   (and won't be implemented in this prototype)
-- various type-specific operations (such as indexing, sending a
-  message, type assertions, etc.) on expressions of a generic type
-  don't work yet (but are relatively easy to implement going forward)
+- various type-specific operations (such as sending a message, type
+  assertions, etc.) on expressions of a generic type don't work yet
+  (but are relatively easy to implement going forward)
 - error messages are reasonable but expect them to be significantly
   better in a real implementation (the subscript numbers on type
   parameters are there to visually identify different parameters
@@ -90,7 +94,7 @@ current state and issues.
 TO PLAY WITH THIS PROTOTYPE
 
 - Cherry-pick this CL on top of tip (the cherry-pick was tested with
-  tip at bf26847240):
+  tip at cae9a9fd65):
 
   git fetch "https://go.googlesource.com/go" ... && git cherry-pick FETCH_HEAD
 
@@ -133,6 +137,6 @@ Updates:
 12/15/2019: Significant progress with much of the functionality present.
 12/19/2019: Several bugs around type bounds checking fixed; more complex examples.
 12/20/2019: Treat contracts as objects, not types anymore. Various bug fixes and more examples.
-1/2/2020: Implemented contract embedding. Various bug fixes.
+1/14/2020: Implemented contract embedding and instantiation. Lots of bug fixes.
 
 Change-Id: I29839b5e95d7050fce1dcb3334d3d324883cf76f
