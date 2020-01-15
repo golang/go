@@ -294,8 +294,9 @@ func loadOptionalSyscalls() {
 
 func monitorSuspendResume() {
 	const (
-		_DEVICE_NOTIFY_CALLBACK = 2
-		_ERROR_FILE_NOT_FOUND   = 2
+		_DEVICE_NOTIFY_CALLBACK   = 2
+		_ERROR_FILE_NOT_FOUND     = 2
+		_ERROR_INVALID_PARAMETERS = 87
 	)
 	type _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS struct {
 		callback uintptr
@@ -332,6 +333,10 @@ func monitorSuspendResume() {
 		// Systems without access to the suspend/resume notifier
 		// also have their clock on "program time", and therefore
 		// don't want or need this anyway.
+		return
+	case _ERROR_INVALID_PARAMETERS:
+		// This is seen when running in Windows Docker.
+		// See issue 36557.
 		return
 	default:
 		println("runtime: PowerRegisterSuspendResumeNotification failed with errno=", ret)
