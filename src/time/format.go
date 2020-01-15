@@ -809,9 +809,8 @@ func skip(value, prefix string) (string, error) {
 // differ by the actual zone offset. To avoid such problems, prefer time layouts
 // that use a numeric zone offset, or use ParseInLocation.
 //
-// When parsing a date, it is possible to use pivot years when using two-digit years
-// (two-digit year two-digit-year >= 69 => add 1900, < 69 => add 2000)
-// in this case, the layout must have a two-digit year. Example: 02 Jan 06
+// For layouts with two-digit years, year elements are parsed as 1900+value
+// for values greater than or equal to 69, and 2000+value otherwise.
 func Parse(layout, value string) (Time, error) {
 	return parse(layout, value, UTC, Local)
 }
