@@ -40,6 +40,10 @@ type Snapshot interface {
 	// ModFiles returns the FileHandles of the go.mod files attached to the view associated with this snapshot.
 	ModFiles(ctx context.Context) (FileHandle, FileHandle, error)
 
+	// ParseModHandle returns a ParseModHandle for the given go.mod file handle.
+	// This function can have no data or error if there is no modfile detected.
+	ParseModHandle(ctx context.Context, fh FileHandle) ParseModHandle
+
 	// PackageHandles returns the PackageHandles for the packages that this file
 	// belongs to.
 	PackageHandles(ctx context.Context, fh FileHandle) ([]PackageHandle, error)
@@ -216,9 +220,6 @@ type Cache interface {
 	// FileSet returns the shared fileset used by all files in the system.
 	FileSet() *token.FileSet
 
-	// ParseGoHandle returns a go.mod ParseGoHandle for the given file handle.
-	ParseModHandle(fh FileHandle) ParseModHandle
-
 	// ParseGoHandle returns a ParseGoHandle for the given file handle.
 	ParseGoHandle(fh FileHandle, mode ParseMode) ParseGoHandle
 }
@@ -252,7 +253,7 @@ type ParseModHandle interface {
 
 	// Parse returns the parsed modifle for the go.mod file.
 	// If the file is not available, returns nil and an error.
-	Parse(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, error)
+	Parse(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, []Error, error)
 }
 
 // ParseMode controls the content of the AST produced when parsing a source file.

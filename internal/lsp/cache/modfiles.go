@@ -24,22 +24,6 @@ func (v *view) modFiles(ctx context.Context) (span.URI, span.URI, error) {
 	if v.mod == nil {
 		return "", "", nil
 	}
-	// Copy the real go.mod file content into the temp go.mod file.
-	origFile, err := os.Open(v.mod.realMod.Filename())
-	if err != nil {
-		return "", "", err
-	}
-	defer origFile.Close()
-
-	tempFile, err := os.OpenFile(v.mod.tempMod.Filename(), os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return "", "", err
-	}
-	defer tempFile.Close()
-
-	if _, err := io.Copy(tempFile, origFile); err != nil {
-		return "", "", err
-	}
 	return v.mod.realMod, v.mod.tempMod, nil
 }
 
