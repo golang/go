@@ -77,3 +77,57 @@ func TestNoRet(t *testing.T) {
 		t.Errorf("%v\n%s", err, out)
 	}
 }
+
+func TestImmediateSplitting(t *testing.T) {
+	dir, err := ioutil.TempDir("", "testimmsplit")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	tmpfile := filepath.Join(dir, "x.s")
+	asm := `
+TEXT _stub(SB),$0-0
+	LB	4096(X5), X6
+	LH	4096(X5), X6
+	LW	4096(X5), X6
+	LD	4096(X5), X6
+	LBU	4096(X5), X6
+	LHU	4096(X5), X6
+	LWU	4096(X5), X6
+	SB	X6, 4096(X5)
+	SH	X6, 4096(X5)
+	SW	X6, 4096(X5)
+	SD	X6, 4096(X5)
+
+	FLW	4096(X5), F6
+	FLD	4096(X5), F6
+	FSW	F6, 4096(X5)
+	FSD	F6, 4096(X5)
+
+	MOVB	4096(X5), X6
+	MOVH	4096(X5), X6
+	MOVW	4096(X5), X6
+	MOV	4096(X5), X6
+	MOVBU	4096(X5), X6
+	MOVHU	4096(X5), X6
+	MOVWU	4096(X5), X6
+
+	MOVB	X6, 4096(X5)
+	MOVH	X6, 4096(X5)
+	MOVW	X6, 4096(X5)
+	MOV	X6, 4096(X5)
+
+	MOVF	4096(X5), F6
+	MOVD	4096(X5), F6
+	MOVF	F6, 4096(X5)
+	MOVD	F6, 4096(X5)
+`
+	if err := ioutil.WriteFile(tmpfile, []byte(asm), 0644); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
+	cmd.Env = append(os.Environ(), "GOARCH=riscv64", "GOOS=linux")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Errorf("%v\n%s", err, out)
+	}
+}
