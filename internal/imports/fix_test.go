@@ -2540,12 +2540,12 @@ func TestGetCandidates(t *testing.T) {
 	testConfig{
 		modules: []packagestest.Module{
 			{
-				Name:  "foo.com",
-				Files: fm{"foo/foo.go": "package foo\n"},
-			},
-			{
 				Name:  "bar.com",
 				Files: fm{"bar/bar.go": "package bar\n"},
+			},
+			{
+				Name:  "foo.com",
+				Files: fm{"foo/foo.go": "package foo\n"},
 			},
 		},
 	}.test(t, func(t *goimportTest) {

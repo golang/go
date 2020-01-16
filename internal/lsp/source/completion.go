@@ -656,12 +656,24 @@ func (c *completer) unimportedMembers(id *ast.Ident) error {
 	if err != nil {
 		return err
 	}
+	var paths []string
 	for path, pkg := range known {
 		if pkg.GetTypes().Name() != id.Name {
 			continue
 		}
-		// We don't know what this is, so assign it the highest score.
-		score := 0.01 * imports.MaxRelevance
+		paths = append(paths, path)
+	}
+	var relevances map[string]int
+	if len(paths) != 0 {
+		c.snapshot.View().RunProcessEnvFunc(c.ctx, func(opts *imports.Options) error {
+			relevances = imports.ScoreImportPaths(c.ctx, opts.Env, paths)
+			return nil
+		})
+	}
+	for path, pkg := range known {
+		if pkg.GetTypes().Name() != id.Name {
+			continue
+		}
 		imp := &importInfo{
 			importPath: path,
 			pkg:        pkg,
@@ -669,7 +681,7 @@ func (c *completer) unimportedMembers(id *ast.Ident) error {
 		if imports.ImportPathToAssumedName(path) != pkg.GetTypes().Name() {
 			imp.name = pkg.GetTypes().Name()
 		}
-		c.packageMembers(pkg.GetTypes(), score, imp)
+		c.packageMembers(pkg.GetTypes(), .01*float64(relevances[path]), imp)
 		if len(c.items) >= unimportedTarget {
 			return nil
 		}

@@ -643,6 +643,14 @@ func getCandidatePkgs(ctx context.Context, wrappedCallback *scanCallback, filena
 	return env.GetResolver().scan(ctx, scanFilter)
 }
 
+func ScoreImportPaths(ctx context.Context, env *ProcessEnv, paths []string) map[string]int {
+	result := make(map[string]int)
+	for _, path := range paths {
+		result[path] = env.GetResolver().scoreImportPath(ctx, path)
+	}
+	return result
+}
+
 func PrimeCache(ctx context.Context, env *ProcessEnv) error {
 	// Fully scan the disk for directories, but don't actually read any Go files.
 	callback := &scanCallback{
@@ -874,6 +882,8 @@ type Resolver interface {
 	// loadExports returns the set of exported symbols in the package at dir.
 	// loadExports may be called concurrently.
 	loadExports(ctx context.Context, pkg *pkg, includeTest bool) (string, []string, error)
+	// scoreImportPath returns the relevance for an import path.
+	scoreImportPath(ctx context.Context, path string) int
 
 	ClearForNewScan()
 }
@@ -1249,6 +1259,13 @@ func (r *gopathResolver) scan(ctx context.Context, callback *scanCallback) error
 	case <-scanDone:
 	}
 	return nil
+}
+
+func (r *gopathResolver) scoreImportPath(ctx context.Context, path string) int {
+	if _, ok := stdlib[path]; ok {
+		return MaxRelevance
+	}
+	return MaxRelevance - 1
 }
 
 func filterRoots(roots []gopathwalk.Root, include func(gopathwalk.Root) bool) []gopathwalk.Root {

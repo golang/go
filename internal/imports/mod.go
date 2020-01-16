@@ -480,6 +480,27 @@ func (r *ModuleResolver) scan(ctx context.Context, callback *scanCallback) error
 	return nil
 }
 
+func (r *ModuleResolver) scoreImportPath(ctx context.Context, path string) int {
+	if _, ok := stdlib[path]; ok {
+		return MaxRelevance
+	}
+	mod, _ := r.findPackage(path)
+	return modRelevance(mod)
+}
+
+func modRelevance(mod *ModuleJSON) int {
+	switch {
+	case mod == nil: // out of scope
+		return MaxRelevance - 4
+	case mod.Indirect:
+		return MaxRelevance - 3
+	case !mod.Main:
+		return MaxRelevance - 2
+	default:
+		return MaxRelevance - 1 // main module ties with stdlib
+	}
+}
+
 // canonicalize gets the result of canonicalizing the packages using the results
 // of initializing the resolver from 'go list -m'.
 func (r *ModuleResolver) canonicalize(info directoryPackageInfo) (*pkg, error) {
@@ -494,14 +515,9 @@ func (r *ModuleResolver) canonicalize(info directoryPackageInfo) (*pkg, error) {
 	}
 
 	importPath := info.nonCanonicalImportPath
-	relevance := MaxRelevance - 3
+	mod := r.findModuleByDir(info.dir)
 	// Check if the directory is underneath a module that's in scope.
-	if mod := r.findModuleByDir(info.dir); mod != nil {
-		if mod.Indirect {
-			relevance = MaxRelevance - 2
-		} else {
-			relevance = MaxRelevance - 1
-		}
+	if mod != nil {
 		// It is. If dir is the target of a replace directive,
 		// our guessed import path is wrong. Use the real one.
 		if mod.Dir == info.dir {
@@ -519,7 +535,7 @@ func (r *ModuleResolver) canonicalize(info directoryPackageInfo) (*pkg, error) {
 	res := &pkg{
 		importPathShort: importPath,
 		dir:             info.dir,
-		relevance:       relevance,
+		relevance:       modRelevance(mod),
 	}
 	// We may have discovered a package that has a different version
 	// in scope already. Canonicalize to that one if possible.

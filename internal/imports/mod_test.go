@@ -880,13 +880,14 @@ import _ "rsc.io/quote"
 		// Stdlib
 		{7, "bytes", "bytes"},
 		{7, "http", "net/http"},
-		// Direct module deps
-		{6, "quote", "rsc.io/quote"},
+		// Main module
 		{6, "rpackage", "example.com/rpackage"},
+		// Direct module deps
+		{5, "quote", "rsc.io/quote"},
 		// Indirect deps
-		{5, "language", "golang.org/x/text/language"},
+		{4, "language", "golang.org/x/text/language"},
 		// Out of scope modules
-		{4, "quote", "rsc.io/quote/v2"},
+		{3, "quote", "rsc.io/quote/v2"},
 	}
 	var mu sync.Mutex
 	var got []res
