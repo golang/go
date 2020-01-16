@@ -47,7 +47,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	// expandFuncCall mutates the completion label, detail, and snippet
 	// to that of an invocation of sig.
 	expandFuncCall := func(sig *types.Signature) {
-		params := formatParams(c.snapshot, c.pkg, sig, c.qf)
+		params := formatParams(c.ctx, c.snapshot, c.pkg, sig, c.qf)
 		snip = c.functionCallSnippet(label, params)
 		results, writeParens := formatResults(sig.Results(), c.qf)
 		detail = "func" + formatFunction(params, results, writeParens)
@@ -68,7 +68,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 			detail = "struct{...}" // for anonymous structs
 		} else if obj.IsField() {
 			var err error
-			detail, err = formatFieldType(c.snapshot, c.pkg, obj, c.qf)
+			detail, err = formatFieldType(c.ctx, c.snapshot, c.pkg, obj, c.qf)
 			if err != nil {
 				detail = types.TypeString(obj.Type(), c.qf)
 			}
@@ -190,7 +190,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	if err != nil {
 		return item, nil
 	}
-	ident, err := findIdentifier(c.snapshot, pkg, file, obj.Pos())
+	ident, err := findIdentifier(c.ctx, c.snapshot, pkg, file, obj.Pos())
 	if err != nil {
 		return item, nil
 	}
@@ -245,7 +245,7 @@ func (c *completer) formatBuiltin(cand candidate) CompletionItem {
 		item.Kind = protocol.ConstantCompletion
 	case *types.Builtin:
 		item.Kind = protocol.FunctionCompletion
-		astObj, err := c.snapshot.View().LookupBuiltin(obj.Name())
+		astObj, err := c.snapshot.View().LookupBuiltin(c.ctx, obj.Name())
 		if err != nil {
 			log.Error(c.ctx, "no builtin package", err)
 			break

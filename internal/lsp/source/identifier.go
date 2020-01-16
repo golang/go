@@ -79,19 +79,19 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 	if err != nil {
 		return nil, err
 	}
-	return findIdentifier(snapshot, pkg, file, rng.Start)
+	return findIdentifier(ctx, snapshot, pkg, file, rng.Start)
 }
 
 var ErrNoIdentFound = errors.New("no identifier found")
 
-func findIdentifier(snapshot Snapshot, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
-	if result, err := identifier(snapshot, pkg, file, pos); err != nil || result != nil {
+func findIdentifier(ctx context.Context, snapshot Snapshot, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
+	if result, err := identifier(ctx, snapshot, pkg, file, pos); err != nil || result != nil {
 		return result, err
 	}
 	// If the position is not an identifier but immediately follows
 	// an identifier or selector period (as is common when
 	// requesting a completion), use the path to the preceding node.
-	ident, err := identifier(snapshot, pkg, file, pos-1)
+	ident, err := identifier(ctx, snapshot, pkg, file, pos-1)
 	if ident == nil && err == nil {
 		err = ErrNoIdentFound
 	}
@@ -99,7 +99,7 @@ func findIdentifier(snapshot Snapshot, pkg Package, file *ast.File, pos token.Po
 }
 
 // identifier checks a single position for a potential identifier.
-func identifier(s Snapshot, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
+func identifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File, pos token.Pos) (*IdentifierInfo, error) {
 	var err error
 
 	// Handle import specs separately, as there is no formal position for a package declaration.
@@ -153,7 +153,7 @@ func identifier(s Snapshot, pkg Package, file *ast.File, pos token.Pos) (*Identi
 
 	// Handle builtins separately.
 	if result.Declaration.obj.Parent() == types.Universe {
-		astObj, err := view.LookupBuiltin(result.Name)
+		astObj, err := view.LookupBuiltin(ctx, result.Name)
 		if err != nil {
 			return nil, err
 		}

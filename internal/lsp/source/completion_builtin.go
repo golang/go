@@ -13,7 +13,7 @@ import (
 // argument. It attempts to use the AST hints from builtin.go where
 // possible.
 func (c *completer) builtinArgKind(obj types.Object, call *ast.CallExpr) objKind {
-	astObj, err := c.snapshot.View().LookupBuiltin(obj.Name())
+	astObj, err := c.snapshot.View().LookupBuiltin(c.ctx, obj.Name())
 	if err != nil {
 		return 0
 	}

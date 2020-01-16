@@ -93,7 +93,7 @@ type View interface {
 	Folder() span.URI
 
 	// LookupBuiltin returns the go/ast.Object for the given name in the builtin package.
-	LookupBuiltin(name string) (*ast.Object, error)
+	LookupBuiltin(ctx context.Context, name string) (*ast.Object, error)
 
 	// BackgroundContext returns a context used for all background processing
 	// on behalf of this view.

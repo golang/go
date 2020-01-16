@@ -181,8 +181,11 @@ func (v *view) SetOptions(ctx context.Context, options source.Options) (source.V
 	return newView, err
 }
 
-func (v *view) LookupBuiltin(name string) (*ast.Object, error) {
-	data := v.builtin.handle.Get(context.Background())
+func (v *view) LookupBuiltin(ctx context.Context, name string) (*ast.Object, error) {
+	if err := v.awaitInitialized(ctx); err != nil {
+		return nil, err
+	}
+	data := v.builtin.handle.Get(ctx)
 	if data == nil {
 		return nil, errors.Errorf("unexpected nil builtin package")
 	}

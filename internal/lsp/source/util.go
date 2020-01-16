@@ -488,11 +488,11 @@ func fieldsAccessible(s *types.Struct, p *types.Package) bool {
 	return false
 }
 
-func formatParams(s Snapshot, pkg Package, sig *types.Signature, qf types.Qualifier) []string {
+func formatParams(ctx context.Context, s Snapshot, pkg Package, sig *types.Signature, qf types.Qualifier) []string {
 	params := make([]string, 0, sig.Params().Len())
 	for i := 0; i < sig.Params().Len(); i++ {
 		el := sig.Params().At(i)
-		typ, err := formatFieldType(s, pkg, el, qf)
+		typ, err := formatFieldType(ctx, s, pkg, el, qf)
 		if err != nil {
 			typ = types.TypeString(el.Type(), qf)
 		}
@@ -511,12 +511,12 @@ func formatParams(s Snapshot, pkg Package, sig *types.Signature, qf types.Qualif
 	return params
 }
 
-func formatFieldType(s Snapshot, srcpkg Package, obj types.Object, qf types.Qualifier) (string, error) {
+func formatFieldType(ctx context.Context, s Snapshot, srcpkg Package, obj types.Object, qf types.Qualifier) (string, error) {
 	file, pkg, err := findPosInPackage(s.View(), srcpkg, obj.Pos())
 	if err != nil {
 		return "", err
 	}
-	ident, err := findIdentifier(s, pkg, file, obj.Pos())
+	ident, err := findIdentifier(ctx, s, pkg, file, obj.Pos())
 	if err != nil {
 		return "", err
 	}

@@ -101,7 +101,7 @@ FindCall:
 	}
 
 	qf := qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo())
-	params := formatParams(snapshot, pkg, sig, qf)
+	params := formatParams(ctx, snapshot, pkg, sig, qf)
 	results, writeResultParens := formatResults(sig.Results(), qf)
 	activeParam := activeParameter(callExpr, sig.Params().Len(), sig.Variadic(), rng.Start)
 
@@ -136,7 +136,7 @@ FindCall:
 }
 
 func builtinSignature(ctx context.Context, v View, callExpr *ast.CallExpr, name string, pos token.Pos) (*SignatureInformation, error) {
-	astObj, err := v.LookupBuiltin(name)
+	astObj, err := v.LookupBuiltin(ctx, name)
 	if err != nil {
 		return nil, err
 	}
