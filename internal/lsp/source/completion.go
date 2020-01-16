@@ -12,6 +12,7 @@ import (
 	"go/token"
 	"go/types"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -484,6 +485,8 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 
 	c.expectedType = expectedType(c)
 
+	defer c.sortItems()
+
 	// If we're inside a comment return comment completions
 	for _, comment := range file.Comments {
 		if comment.Pos() <= rng.Start && rng.Start <= comment.End() {
@@ -564,6 +567,19 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 	}
 
 	return c.items, c.getSurrounding(), nil
+}
+
+func (c *completer) sortItems() {
+	sort.SliceStable(c.items, func(i, j int) bool {
+		// Sort by score first.
+		if c.items[i].Score != c.items[j].Score {
+			return c.items[i].Score > c.items[j].Score
+		}
+
+		// Then sort by label so order stays consistent. This also has the
+		// effect of prefering shorter candidates.
+		return c.items[i].Label < c.items[j].Label
+	})
 }
 
 // populateCommentCompletions yields completions for an exported
