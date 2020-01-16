@@ -168,8 +168,8 @@ func IsGenerated(ctx context.Context, snapshot Snapshot, uri span.URI) bool {
 	return false
 }
 
-func nodeToProtocolRange(view View, m *protocol.ColumnMapper, n ast.Node) (protocol.Range, error) {
-	mrng, err := nodeToMappedRange(view, m, n)
+func nodeToProtocolRange(view View, pkg Package, n ast.Node) (protocol.Range, error) {
+	mrng, err := posToMappedRange(view, pkg, n.Pos(), n.End())
 	if err != nil {
 		return protocol.Range{}, err
 	}
@@ -199,27 +199,19 @@ func nameToMappedRange(v View, pkg Package, pos token.Pos, name string) (mappedR
 	return posToMappedRange(v, pkg, pos, pos+token.Pos(len(name)))
 }
 
-func nodeToMappedRange(view View, m *protocol.ColumnMapper, n ast.Node) (mappedRange, error) {
-	return posToRange(view, m, n.Pos(), n.End())
-}
-
 func posToMappedRange(v View, pkg Package, pos, end token.Pos) (mappedRange, error) {
 	logicalFilename := v.Session().Cache().FileSet().File(pos).Position(pos).Filename
 	m, err := findMapperInPackage(v, pkg, span.FileURI(logicalFilename))
 	if err != nil {
 		return mappedRange{}, err
 	}
-	return posToRange(v, m, pos, end)
-}
-
-func posToRange(view View, m *protocol.ColumnMapper, pos, end token.Pos) (mappedRange, error) {
 	if !pos.IsValid() {
 		return mappedRange{}, errors.Errorf("invalid position for %v", pos)
 	}
 	if !end.IsValid() {
 		return mappedRange{}, errors.Errorf("invalid position for %v", end)
 	}
-	return newMappedRange(view.Session().Cache().FileSet(), m, pos, end), nil
+	return newMappedRange(v.Session().Cache().FileSet(), m, pos, end), nil
 }
 
 // Matches cgo generated comment as well as the proposed standard:
