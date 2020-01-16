@@ -39,6 +39,9 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot) {
 	// Diagnose all of the packages in the workspace.
 	go func() {
 		wsPackages, err := snapshot.WorkspacePackages(ctx)
+		if ctx.Err() != nil {
+			return
+		}
 		if err != nil {
 			log.Error(ctx, "diagnose: no workspace packages", err, telemetry.Directory.Of(snapshot.View().Folder))
 			return
