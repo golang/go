@@ -27,6 +27,7 @@ import (
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/packages/packagestest"
+	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/testenv"
 )
 
@@ -2585,6 +2586,52 @@ func testCycleImportStack(t *testing.T, exporter packagestest.Exporter) {
 	expected := "import cycle not allowed: import stack: [golang.org/fake/a golang.org/fake/b golang.org/fake/a]"
 	if pkg.Errors[0].Msg != expected {
 		t.Fatalf("Expected error %q, got %q", expected, pkg.Errors[0].Msg)
+	}
+}
+
+func TestForTestField(t *testing.T) {
+	packagestest.TestAll(t, testForTestField)
+}
+func testForTestField(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+		Files: map[string]interface{}{
+			"a/a.go":      `package a; func hello() {};`,
+			"a/a_test.go": `package a; import "testing"; func TestA1(t *testing.T) {};`,
+			"a/x_test.go": `package a_test; import "testing"; func TestA2(t *testing.T) {};`,
+		}}})
+	defer exported.Cleanup()
+
+	// Add overlays to make sure they don't affect anything.
+	exported.Config.Overlay = map[string][]byte{
+		"a/a_test.go": []byte(`package a; import "testing"; func TestA1(t *testing.T) { hello(); };`),
+		"a/x_test.go": []byte(`package a_test; import "testing"; func TestA2(t *testing.T) { hello(); };`),
+	}
+	exported.Config.Tests = true
+	exported.Config.Mode = packages.NeedName | packages.NeedImports
+	forTest := "golang.org/fake/a"
+	pkgs, err := packages.Load(exported.Config, forTest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pkgs) != 4 {
+		t.Errorf("expected 4 packages, got %v", len(pkgs))
+	}
+	for _, pkg := range pkgs {
+		var hasTestFile bool
+		for _, f := range pkg.CompiledGoFiles {
+			if strings.Contains(f, "a_test.go") || strings.Contains(f, "x_test.go") {
+				hasTestFile = true
+				break
+			}
+		}
+		if !hasTestFile {
+			continue
+		}
+		got := packagesinternal.GetForTest(pkg)
+		if got != forTest {
+			t.Errorf("expected %q, got %q", forTest, got)
+		}
 	}
 }
 

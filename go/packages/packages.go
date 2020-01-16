@@ -23,6 +23,7 @@ import (
 	"sync"
 
 	"golang.org/x/tools/go/gcexportdata"
+	"golang.org/x/tools/internal/packagesinternal"
 )
 
 // A LoadMode controls the amount of detail to return when loading.
@@ -292,6 +293,15 @@ type Package struct {
 
 	// TypesSizes provides the effective size function for types in TypesInfo.
 	TypesSizes types.Sizes
+
+	// forTest is the package under test, if any.
+	forTest string
+}
+
+func init() {
+	packagesinternal.GetForTest = func(p interface{}) string {
+		return p.(*Package).forTest
+	}
 }
 
 // An Error describes a problem with a package's metadata, syntax, or types.

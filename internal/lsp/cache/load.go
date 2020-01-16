@@ -13,6 +13,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
+	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/tag"
@@ -26,6 +27,7 @@ type metadata struct {
 	name            string
 	goFiles         []span.URI
 	compiledGoFiles []span.URI
+	forTest         packagePath
 	typesSizes      types.Sizes
 	errors          []packages.Error
 	deps            []packageID
@@ -179,6 +181,7 @@ func (s *snapshot) updateImports(ctx context.Context, pkgPath packagePath, pkg *
 		id:         id,
 		pkgPath:    pkgPath,
 		name:       pkg.Name,
+		forTest:    packagePath(packagesinternal.GetForTest(pkg)),
 		typesSizes: pkg.TypesSizes,
 		errors:     pkg.Errors,
 		config:     cfg,

@@ -729,6 +729,7 @@ func golistDriver(cfg *Config, rootsDirs func() *goInfo, words ...string) (*driv
 			GoFiles:         absJoin(p.Dir, p.GoFiles, p.CgoFiles),
 			CompiledGoFiles: absJoin(p.Dir, p.CompiledGoFiles),
 			OtherFiles:      absJoin(p.Dir, otherFiles(p)...),
+			forTest:         p.ForTest,
 		}
 
 		// Work around https://golang.org/issue/28749:

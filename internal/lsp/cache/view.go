@@ -576,7 +576,11 @@ func (v *view) initialize(ctx context.Context, s *snapshot) {
 				}
 				// A test variant of a package can only be loaded directly by loading
 				// the non-test variant with -test. Track the import path of the non-test variant.
-				s.setWorkspacePackage(m.id, m.pkgPath)
+				pkgPath := m.pkgPath
+				if m.forTest != "" {
+					pkgPath = m.forTest
+				}
+				s.setWorkspacePackage(m.id, pkgPath)
 				if _, err := s.packageHandle(ctx, m.id); err != nil {
 					return err
 				}
