@@ -41,6 +41,24 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 		fset       = s.View().Session().Cache().FileSet()
 	)
 
+	// Make sure declaration is the first item in the response.
+	if includeDeclaration {
+		rng, err := objToMappedRange(s.View(), qualifiedObjs[0].pkg, qualifiedObjs[0].obj)
+		if err != nil {
+			return nil, err
+		}
+
+		ident, _ := qualifiedObjs[0].node.(*ast.Ident)
+		references = append(references, &ReferenceInfo{
+			mappedRange:   rng,
+			Name:          qualifiedObjs[0].obj.Name(),
+			ident:         ident,
+			obj:           qualifiedObjs[0].obj,
+			pkg:           qualifiedObjs[0].pkg,
+			isDeclaration: true,
+		})
+	}
+
 	for _, qo := range qualifiedObjs {
 		var searchPkgs []Package
 
@@ -88,23 +106,6 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 				})
 			}
 		}
-	}
-
-	if includeDeclaration {
-		rng, err := objToMappedRange(s.View(), qualifiedObjs[0].pkg, qualifiedObjs[0].obj)
-		if err != nil {
-			return nil, err
-		}
-
-		ident, _ := qualifiedObjs[0].node.(*ast.Ident)
-		references = append(references, &ReferenceInfo{
-			mappedRange:   rng,
-			Name:          qualifiedObjs[0].obj.Name(),
-			ident:         ident,
-			obj:           qualifiedObjs[0].obj,
-			pkg:           qualifiedObjs[0].pkg,
-			isDeclaration: true,
-		})
 	}
 
 	return references, nil
