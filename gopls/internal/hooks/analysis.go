@@ -17,6 +17,10 @@ func updateAnalyzers(options *source.Options) {
 			options.Analyzers[a.Name] = a
 		}
 		for _, a := range staticcheck.Analyzers {
+			// This check conflicts with the vet printf check (golang/go#34494).
+			if a.Name == "SA5009" {
+				continue
+			}
 			options.Analyzers[a.Name] = a
 		}
 		for _, a := range stylecheck.Analyzers {
