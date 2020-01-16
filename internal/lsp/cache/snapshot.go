@@ -65,29 +65,6 @@ func (s *snapshot) View() source.View {
 	return s.view
 }
 
-func (s *snapshot) ModFiles(ctx context.Context) (source.FileHandle, source.FileHandle, error) {
-	r, t, err := s.view.modFiles(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	if r == "" || t == "" {
-		return nil, nil, nil
-	}
-	// Get the real mod file's content through the snapshot,
-	// as it may be open in an overlay.
-	realfh, err := s.GetFile(r)
-	if err != nil {
-		return nil, nil, err
-	}
-	// Go directly to disk to get the temporary mod file,
-	// since it is always on disk.
-	tempfh := s.view.session.cache.GetFile(t)
-	if tempfh == nil {
-		return nil, nil, errors.Errorf("temporary go.mod filehandle is nil")
-	}
-	return realfh, tempfh, nil
-}
-
 func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]source.PackageHandle, error) {
 	// If the file is a go.mod file, go.Packages.Load will always return 0 packages.
 	if fh.Identity().Kind == source.Mod {

@@ -19,7 +19,7 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-func (v *view) modFiles(ctx context.Context) (span.URI, span.URI, error) {
+func (v *view) ModFiles() (span.URI, span.URI, error) {
 	// Don't return errors if the view is not a module.
 	if v.mod == nil {
 		return "", "", nil

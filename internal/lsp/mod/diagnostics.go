@@ -8,29 +8,33 @@ package mod
 
 import (
 	"context"
-	"fmt"
-	"strings"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
+	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/trace"
 )
 
 func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.FileIdentity][]source.Diagnostic, error) {
 	// TODO: We will want to support diagnostics for go.mod files even when the -modfile flag is turned off.
-	realfh, tempfh, err := snapshot.ModFiles(ctx)
+	realURI, tempURI, err := snapshot.View().ModFiles()
 	if err != nil {
 		return nil, err
 	}
 	// Check the case when the tempModfile flag is turned off.
-	if realfh == nil || tempfh == nil {
+	if realURI == "" || tempURI == "" {
 		return nil, nil
 	}
-	ctx, done := trace.StartSpan(ctx, "modfiles.Diagnostics", telemetry.File.Of(realfh.Identity().URI))
+
+	ctx, done := trace.StartSpan(ctx, "mod.Diagnostics", telemetry.File.Of(realURI))
 	defer done()
 
-	_, _, parseErrors, err := snapshot.ParseModHandle(ctx, realfh).Parse(ctx)
+	realfh, err := snapshot.GetFile(realURI)
+	if err != nil {
+		return nil, err
+	}
+	_, _, parseErrors, err := snapshot.ModTidyHandle(ctx, realfh).Tidy(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -55,43 +59,56 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 	return reports, nil
 }
 
-// TODO: Add caching for go.mod diagnostics to be able to map them back to source.Diagnostics
-// and reuse the cached suggested fixes.
-func SuggestedFixes(fh source.FileHandle, diags []protocol.Diagnostic) []protocol.CodeAction {
+func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, f source.FileHandle, diags []protocol.Diagnostic) []protocol.CodeAction {
+	_, _, parseErrors, err := snapshot.ModTidyHandle(ctx, f).Tidy(ctx)
+	if err != nil {
+		return nil
+	}
+
+	errorsMap := make(map[string][]source.Error)
+	for _, e := range parseErrors {
+		if errorsMap[e.Message] == nil {
+			errorsMap[e.Message] = []source.Error{}
+		}
+		errorsMap[e.Message] = append(errorsMap[e.Message], e)
+	}
+
 	var actions []protocol.CodeAction
 	for _, diag := range diags {
-		var title string
-		if strings.Contains(diag.Message, "is not used in this module") {
-			split := strings.Split(diag.Message, " ")
-			if len(split) < 1 {
+		for _, e := range errorsMap[diag.Message] {
+			if !sameDiagnostic(diag, e) {
 				continue
 			}
-			title = fmt.Sprintf("Remove dependency: %s", split[0])
-		}
-		if strings.Contains(diag.Message, "should be a direct dependency.") {
-			title = "Remove indirect"
-		}
-		if title == "" {
-			continue
-		}
-		actions = append(actions, protocol.CodeAction{
-			Title: title,
-			Kind:  protocol.QuickFix,
-			Edit: protocol.WorkspaceEdit{
-				DocumentChanges: []protocol.TextDocumentEdit{
-					{
+			for _, fix := range e.SuggestedFixes {
+				action := protocol.CodeAction{
+					Title:       fix.Title,
+					Kind:        protocol.QuickFix,
+					Diagnostics: []protocol.Diagnostic{diag},
+					Edit:        protocol.WorkspaceEdit{},
+				}
+				for uri, edits := range fix.Edits {
+					fh, err := snapshot.GetFile(uri)
+					if err != nil {
+						log.Error(ctx, "no file", err, telemetry.URI.Of(uri))
+						continue
+					}
+					action.Edit.DocumentChanges = append(action.Edit.DocumentChanges, protocol.TextDocumentEdit{
 						TextDocument: protocol.VersionedTextDocumentIdentifier{
 							Version: fh.Identity().Version,
 							TextDocumentIdentifier: protocol.TextDocumentIdentifier{
 								URI: protocol.NewURI(fh.Identity().URI),
 							},
 						},
-						Edits: []protocol.TextEdit{protocol.TextEdit{Range: diag.Range, NewText: ""}},
-					},
-				},
-			},
-			Diagnostics: diags,
-		})
+						Edits: edits,
+					})
+				}
+				actions = append(actions, action)
+			}
+		}
 	}
 	return actions
+}
+
+func sameDiagnostic(d protocol.Diagnostic, e source.Error) bool {
+	return d.Message == e.Message && protocol.CompareRange(d.Range, e.Range) == 0 && d.Source == e.Category
 }

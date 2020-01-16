@@ -68,7 +68,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			})
 		}
 		if diagnostics := params.Context.Diagnostics; len(diagnostics) > 0 {
-			codeActions = append(codeActions, mod.SuggestedFixes(fh, diagnostics)...)
+			codeActions = append(codeActions, mod.SuggestedFixes(ctx, snapshot, fh, diagnostics)...)
 		}
 	case source.Go:
 		edits, editsPerFix, err := source.AllImportsFixes(ctx, snapshot, fh)

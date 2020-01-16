@@ -167,8 +167,8 @@ func TestDiagnostics(t *testing.T) {
 }
 
 func hasTempModfile(ctx context.Context, snapshot source.Snapshot) bool {
-	_, t, _ := snapshot.ModFiles(ctx)
-	return t != nil
+	_, t, _ := snapshot.View().ModFiles()
+	return t != ""
 }
 
 func getRawPos(line, character int) protocol.Position {

@@ -37,12 +37,9 @@ type Snapshot interface {
 	// This is used to get the SuggestedFixes associated with that error.
 	FindAnalysisError(ctx context.Context, pkgID, analyzerName, msg string, rng protocol.Range) (*Error, error)
 
-	// ModFiles returns the FileHandles of the go.mod files attached to the view associated with this snapshot.
-	ModFiles(ctx context.Context) (FileHandle, FileHandle, error)
-
-	// ParseModHandle returns a ParseModHandle for the given go.mod file handle.
+	// ModTidyHandle returns a ModTidyHandle for the given go.mod file handle.
 	// This function can have no data or error if there is no modfile detected.
-	ParseModHandle(ctx context.Context, fh FileHandle) ParseModHandle
+	ModTidyHandle(ctx context.Context, fh FileHandle) ModTidyHandle
 
 	// PackageHandles returns the PackageHandles for the packages that this file
 	// belongs to.
@@ -98,6 +95,9 @@ type View interface {
 
 	// ModFile is the path to the go.mod file for the view, if any.
 	ModFile() string
+
+	// ModFiles returns the URIs of the go.mod files attached to the view associated with this snapshot.
+	ModFiles() (span.URI, span.URI, error)
 
 	// LookupBuiltin returns the go/ast.Object for the given name in the builtin package.
 	LookupBuiltin(ctx context.Context, name string) (*ast.Object, error)
@@ -246,14 +246,14 @@ type ParseGoHandle interface {
 	Cached() (*ast.File, *protocol.ColumnMapper, error, error)
 }
 
-// ParseModHandle represents a handle to the modfile for a go.mod.
-type ParseModHandle interface {
+// ModTidyHandle represents a handle to the modfile for a go.mod.
+type ModTidyHandle interface {
 	// File returns a file handle for which to get the modfile.
 	File() FileHandle
 
-	// Parse returns the parsed modifle for the go.mod file.
-	// If the file is not available, returns nil and an error.
-	Parse(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, []Error, error)
+	// Tidy returns the parsed modfile, a mapper, and "go mod tidy" errors
+	// for the go.mod file. If the file is not available, returns nil and an error.
+	Tidy(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, []Error, error)
 }
 
 // ParseMode controls the content of the AST produced when parsing a source file.

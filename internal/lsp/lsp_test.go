@@ -932,7 +932,7 @@ func TestBytesOffset(t *testing.T) {
 // when marker support gets added for go.mod files.
 func TestModfileSuggestedFixes(t *testing.T) {
 	if runtime.GOOS == "android" {
-		t.Skipf("this test cannot find mod/testdata files")
+		t.Skip("this test cannot find mod/testdata files")
 	}
 
 	ctx := tests.Context(t)
@@ -959,10 +959,17 @@ func TestModfileSuggestedFixes(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+
+			realURI, tempURI, _ := snapshot.View().ModFiles()
 			// TODO: Add testing for when the -modfile flag is turned off and we still get diagnostics.
-			if _, t, _ := snapshot.ModFiles(ctx); t == nil {
+			if tempURI == "" {
 				return
 			}
+			realfh, err := snapshot.GetFile(realURI)
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			reports, err := mod.Diagnostics(ctx, snapshot)
 			if err != nil {
 				t.Fatal(err)
@@ -970,6 +977,12 @@ func TestModfileSuggestedFixes(t *testing.T) {
 			if len(reports) != 1 {
 				t.Errorf("expected 1 fileHandle, got %d", len(reports))
 			}
+
+			_, m, _, err := snapshot.ModTidyHandle(ctx, realfh).Tidy(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			for fh, diags := range reports {
 				actions, err := server.CodeAction(ctx, &protocol.CodeActionParams{
 					TextDocument: protocol.TextDocumentIdentifier{
@@ -989,7 +1002,6 @@ func TestModfileSuggestedFixes(t *testing.T) {
 				if len(actions) > 1 {
 					t.Fatal("expected only 1 code action")
 				}
-
 				res := map[span.URI]string{}
 				for _, docEdits := range actions[0].Edit.DocumentChanges {
 					uri := span.URI(docEdits.TextDocument.URI)
@@ -998,20 +1010,14 @@ func TestModfileSuggestedFixes(t *testing.T) {
 						t.Fatal(err)
 					}
 					res[uri] = string(content)
-
-					split := strings.Split(res[uri], "\n")
-					for i := len(docEdits.Edits) - 1; i >= 0; i-- {
-						edit := docEdits.Edits[i]
-						start := edit.Range.Start
-						end := edit.Range.End
-						tmp := split[int(start.Line)][0:int(start.Character)] + edit.NewText
-						split[int(end.Line)] = tmp + split[int(end.Line)][int(end.Character):]
+					sedits, err := source.FromProtocolEdits(m, docEdits.Edits)
+					if err != nil {
+						t.Fatal(err)
 					}
-					res[uri] = strings.Join(split, "\n")
+					res[uri] = applyEdits(res[uri], sedits)
 				}
 				got := res[fh.URI]
-				golden := filepath.Join(folder, "go.mod.golden")
-				contents, err := ioutil.ReadFile(golden)
+				contents, err := ioutil.ReadFile(filepath.Join(folder, "go.mod.golden"))
 				if err != nil {
 					t.Fatal(err)
 				}
