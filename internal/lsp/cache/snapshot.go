@@ -666,6 +666,22 @@ func (s *snapshot) clone(ctx context.Context, withoutURI span.URI) *snapshot {
 	for id := range directIDs {
 		addRevDeps(id)
 	}
+	// Invalidate metadata for the transitive dependencies,
+	// if they are x_tests and test variants.
+	//
+	// An example:
+	//
+	// The only way to reload the metadata for
+	// golang.org/x/tools/internal/lsp/cache [golang.org/x/tools/internal/lsp/source.test]
+	// is by reloading golang.org/x/tools/internal/lsp/source.
+	// That means we have to invalidate the metadata for
+	// golang.org/x/tools/internal/lsp/source_test when invalidating metadata for
+	// golang.org/x/tools/internal/lsp/cache.
+	for id := range transitiveIDs {
+		if m := s.metadata[id]; m != nil && m.forTest != "" {
+			directIDs[id] = struct{}{}
+		}
+	}
 
 	result := &snapshot{
 		id:                s.id + 1,
