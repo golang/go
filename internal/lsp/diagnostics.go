@@ -113,20 +113,35 @@ func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, r
 			withAnalysis: withAnalysis,
 			snapshotID:   snapshot.ID(),
 		}
+
 		// We use the zero values if this is an unknown file.
 		delivered := s.delivered[fileID.URI]
 
-		// Reuse cached diagnostics and update the delivered map.
-		if fileID.Version >= delivered.version && equalDiagnostics(delivered.sorted, diagnostics) {
+		// Snapshot IDs are always increasing, so we use them instead of file
+		// versions to create the correct order for diagnostics.
+
+		// If we've already delivered diagnostics for a future snapshot for this file,
+		// do not deliver them.
+		if delivered.snapshotID > toSend.snapshotID {
+			// Do not update the delivered map since it already contains newer diagnostics.
+			continue
+		}
+
+		// Check if we should reuse the cached diagnostics.
+		if equalDiagnostics(delivered.sorted, diagnostics) {
+			// Make sure to update the delivered map.
 			s.delivered[fileID.URI] = toSend
 			continue
 		}
-		// If we've already delivered diagnostics with analyses for this file, for this snapshot,
-		// at this version, do not send diagnostics without analyses.
+
+		// If we've already delivered diagnostics for this file, at this
+		// snapshot, with analyses, do not send diagnostics without analyses.
 		if delivered.snapshotID == toSend.snapshotID && delivered.version == toSend.version &&
 			delivered.withAnalysis && !toSend.withAnalysis {
+			// Do not update the delivered map since it already contains better diagnostics.
 			continue
 		}
+
 		if err := s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
 			Diagnostics: toProtocolDiagnostics(diagnostics),
 			URI:         protocol.NewURI(fileID.URI),
