@@ -1695,7 +1695,7 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 
 	candType := cand.obj.Type()
 	if candType == nil {
-		return true
+		return false
 	}
 
 	// Default to invoking *types.Func candidates. This is so function
