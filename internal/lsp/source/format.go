@@ -245,8 +245,13 @@ func trimToImports(fset *token.FileSet, f *ast.File, src []byte) ([]byte, int) {
 	tok := fset.File(f.Pos())
 	start := firstImport.Pos()
 	end := lastImport.End()
-	if tok.LineCount() > fset.Position(end).Line {
-		end = fset.File(f.Pos()).LineStart(fset.Position(lastImport.End()).Line + 1)
+	// The parser will happily feed us nonsense. See golang/go#36610.
+	tokStart, tokEnd := token.Pos(tok.Base()), token.Pos(tok.Base()+tok.Size())
+	if start < tokStart || start > tokEnd || end < tokStart || end > tokEnd {
+		return nil, 0
+	}
+	if nextLine := fset.Position(end).Line + 1; tok.LineCount() >= nextLine {
+		end = fset.File(f.Pos()).LineStart(nextLine)
 	}
 
 	startLineOffset := fset.Position(start).Line - 1 // lines are 1-indexed.
