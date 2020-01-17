@@ -1835,6 +1835,11 @@ func encodingForProg(p *obj.Prog) encoding {
 // assemble emits machine code.
 // It is called at the very end of the assembly process.
 func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+	if ctxt.Retpoline {
+		ctxt.Diag("-spectre=ret not supported on riscv")
+		ctxt.Retpoline = false // don't keep printing
+	}
+
 	var symcode []uint32
 	for p := cursym.Func.Text; p != nil; p = p.Link {
 		switch p.As {

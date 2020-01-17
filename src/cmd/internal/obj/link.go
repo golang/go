@@ -653,6 +653,7 @@ type Link struct {
 	Flag_optimize      bool
 	Flag_locationlists bool
 	Flag_newobj        bool // use new object file format
+	Retpoline          bool // emit use of retpoline stubs for indirect jmp/call
 	Bso                *bufio.Writer
 	Pathname           string
 	hashmu             sync.Mutex       // protects hash, funchash

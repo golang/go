@@ -294,8 +294,11 @@ func Main(archInit func(*Arch)) {
 			// nothing
 		case "all":
 			spectreIndex = true
+			Ctxt.Retpoline = true
 		case "index":
 			spectreIndex = true
+		case "ret":
+			Ctxt.Retpoline = true
 		}
 	}
 
