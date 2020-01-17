@@ -8,7 +8,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"golang.org/x/tools/go/analysis"
@@ -629,10 +628,10 @@ func (s *snapshot) clone(ctx context.Context, withoutURI span.URI) *snapshot {
 	// Make a rough estimate of what metadata to invalidate by finding the package IDs
 	// of all of the files in the same directory as this one.
 	// TODO(rstambler): Speed this up by mapping directories to filenames.
-	if originalFH == nil {
-		if dirStat, err := os.Stat(dir(withoutURI.Filename())); err == nil {
+	if len(directIDs) == 0 {
+		if dirStat, err := os.Stat(filepath.Dir(withoutURI.Filename())); err == nil {
 			for uri := range s.files {
-				if fdirStat, err := os.Stat(dir(uri.Filename())); err == nil {
+				if fdirStat, err := os.Stat(filepath.Dir(uri.Filename())); err == nil {
 					if os.SameFile(dirStat, fdirStat) {
 						for _, id := range s.ids[uri] {
 							directIDs[id] = struct{}{}
@@ -641,13 +640,6 @@ func (s *snapshot) clone(ctx context.Context, withoutURI span.URI) *snapshot {
 				}
 			}
 		}
-	}
-
-	// If there is no known FileHandle and no known IDs for the given file,
-	// there is nothing to invalidate.
-	if len(directIDs) == 0 && originalFH == nil {
-		// TODO(heschi): clone anyway? Seems like this is just setting us up for trouble.
-		return s
 	}
 
 	// Invalidate reverse dependencies too.
@@ -741,10 +733,6 @@ func (s *snapshot) clone(ctx context.Context, withoutURI span.URI) *snapshot {
 	// Don't bother copying the importedBy graph,
 	// as it changes each time we update metadata.
 	return result
-}
-
-func dir(filename string) string {
-	return strings.ToLower(filepath.Dir(filename))
 }
 
 func (s *snapshot) ID() uint64 {

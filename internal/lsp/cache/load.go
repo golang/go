@@ -74,7 +74,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) ([]*metadata
 		return nil, ctx.Err()
 	}
 
-	log.Print(ctx, "go/packages.Load", tag.Of("query", query), tag.Of("packages", len(pkgs)))
+	log.Print(ctx, "go/packages.Load", tag.Of("snapshot", s.ID()), tag.Of("query", query), tag.Of("packages", len(pkgs)))
 	if len(pkgs) == 0 {
 		if err == nil {
 			err = errors.Errorf("no packages found for query %s", query)
