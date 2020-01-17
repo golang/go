@@ -69,11 +69,7 @@ type view struct {
 	processEnv           *imports.ProcessEnv
 	cacheRefreshDuration time.Duration
 	cacheRefreshTimer    *time.Timer
-
-	// modFileVersions stores the last seen versions of the module files that are used
-	// by processEnvs resolver.
-	// TODO(suzmue): These versions may not actually be on disk.
-	modFileVersions map[string]string
+	cachedModFileVersion source.FileIdentity
 
 	// keep track of files by uri and by basename, a single file may be mapped
 	// to multiple uris, and the same basename may map to multiple files
@@ -287,9 +283,12 @@ func (v *view) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 		}
 	}
 
-	// Before running the user provided function, clear caches in the resolver.
-	if v.modFilesChanged() {
-		v.processEnv.GetResolver().(*imports.ModuleResolver).ClearForNewMod()
+	// In module mode, check if the mod file has changed.
+	if mod, _, err := v.Snapshot().ModFiles(ctx); err == nil && mod != nil {
+		if mod.Identity() != v.cachedModFileVersion {
+			v.processEnv.GetResolver().(*imports.ModuleResolver).ClearForNewMod()
+		}
+		v.cachedModFileVersion = mod.Identity()
 	}
 
 	// Run the user function.
@@ -307,10 +306,6 @@ func (v *view) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 	if err := fn(opts); err != nil {
 		return err
 	}
-
-	// If applicable, store the file versions of the 'go.mod' files that are
-	// looked at by the resolver.
-	v.storeModFileVersions()
 
 	if v.cacheRefreshTimer == nil {
 		// Don't refresh more than twice per minute.
@@ -375,35 +370,6 @@ func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error)
 		}
 	}
 	return env, nil
-}
-
-func (v *view) modFilesChanged() bool {
-	// Check the versions of the 'go.mod' files of the main module
-	// and modules included by a replace directive. Return true if
-	// any of these file versions do not match.
-	for filename, version := range v.modFileVersions {
-		if version != v.fileVersion(filename) {
-			return true
-		}
-	}
-	return false
-}
-
-func (v *view) storeModFileVersions() {
-	// Store the mod files versions, if we are using a ModuleResolver.
-	r, moduleMode := v.processEnv.GetResolver().(*imports.ModuleResolver)
-	if !moduleMode || !r.Initialized {
-		return
-	}
-	v.modFileVersions = make(map[string]string)
-
-	// Get the file versions of the 'go.mod' files of the main module
-	// and modules included by a replace directive in the resolver.
-	for _, mod := range r.ModsByModPath {
-		if (mod.Main || mod.Replace != nil) && mod.GoMod != "" {
-			v.modFileVersions[mod.GoMod] = v.fileVersion(mod.GoMod)
-		}
-	}
 }
 
 func (v *view) fileVersion(filename string) string {
