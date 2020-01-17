@@ -502,6 +502,10 @@ func (v *view) addIgnoredFile(uri span.URI) {
 	v.ignoredURIs[uri] = struct{}{}
 }
 
+func (v *view) ModFile() string {
+	return v.gomod
+}
+
 func (v *view) BackgroundContext() context.Context {
 	v.mu.Lock()
 	defer v.mu.Unlock()

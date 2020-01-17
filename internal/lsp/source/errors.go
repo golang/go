@@ -31,25 +31,13 @@ func checkCommonErrors(ctx context.Context, v View) (string, error) {
 	//  1. The user is in GOPATH mode and is working outside their GOPATH
 	//  2. The user is in module mode and has opened a subdirectory of their module
 	//
-
-	// TODO(rstambler): Get the values for GOPATH and GOMOD from
-	// the view, once it's possible to do so: golang.org/cl/214417.
 	gopath := os.Getenv("GOPATH")
 	folder := v.Folder().Filename()
 
-	// Invoke `go env GOMOD` inside of the directory of the view.
-	b, err := InvokeGo(ctx, folder, v.Config(ctx).Env, "env", "GOMOD")
-	if err != nil {
-		return "", err
-	}
-	modFile := strings.TrimSpace(b.String())
-	if modFile == filepath.FromSlash("/dev/null") {
-		modFile = ""
-	}
-	modRoot := filepath.Dir(modFile)
+	modRoot := filepath.Dir(v.ModFile())
 
 	// Not inside of a module.
-	inAModule := modFile != ""
+	inAModule := v.ModFile() != "" && v.ModFile() != os.DevNull
 
 	// The user may have a multiple directories in their GOPATH.
 	var inGopath bool

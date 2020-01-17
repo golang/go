@@ -92,6 +92,9 @@ type View interface {
 	// Folder returns the root folder for this view.
 	Folder() span.URI
 
+	// ModFile is the path to the go.mod file for the view, if any.
+	ModFile() string
+
 	// LookupBuiltin returns the go/ast.Object for the given name in the builtin package.
 	LookupBuiltin(ctx context.Context, name string) (*ast.Object, error)
 

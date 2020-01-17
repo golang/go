@@ -20,10 +20,6 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	if runtime.GOOS == "android" {
-		fmt.Fprintln(os.Stderr, "skipping test: cmd tests open too many files on android")
-		os.Exit(0)
-	}
 	testenv.ExitIfSmallMachine()
 	os.Exit(m.Run())
 }
