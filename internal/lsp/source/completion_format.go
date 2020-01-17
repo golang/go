@@ -53,7 +53,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		detail = "func" + formatFunction(params, results, writeParens)
 
 		// Add variadic "..." if we are using a function result to fill in a variadic parameter.
-		if sig.Results().Len() == 1 && c.expectedType.matchesVariadic(sig.Results().At(0).Type()) {
+		if sig.Results().Len() == 1 && c.inference.matchesVariadic(sig.Results().At(0).Type()) {
 			snip.WriteText("...")
 		}
 	}
@@ -88,7 +88,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		}
 
 		// Add variadic "..." if we are using a variable to fill in a variadic parameter.
-		if c.expectedType.matchesVariadic(obj.Type()) {
+		if c.inference.matchesVariadic(obj.Type()) {
 			snip = &snippet.Builder{}
 			snip.WriteText(insert + "...")
 		}

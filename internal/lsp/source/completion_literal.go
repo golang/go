@@ -24,12 +24,12 @@ func (c *completer) literal(literalType types.Type, imp *importInfo) {
 		return
 	}
 
-	expType := c.expectedType.objType
+	expType := c.inference.objType
 
-	if c.expectedType.variadic {
+	if c.inference.variadic {
 		// Don't offer literal slice candidates for variadic arguments.
 		// For example, don't offer "[]interface{}{}" in "fmt.Print(<>)".
-		if c.expectedType.matchesVariadic(literalType) {
+		if c.inference.matchesVariadic(literalType) {
 			return
 		}
 
