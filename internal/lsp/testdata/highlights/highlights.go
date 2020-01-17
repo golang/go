@@ -1,7 +1,8 @@
 package highlights
 
 import (
-	"fmt"
+	"fmt"         //@mark(fmtImp, "\"fmt\""),highlight(fmtImp, fmtImp, fmt1, fmt2, fmt3, fmt4)
+	h2 "net/http" //@mark(hImp, "h2"),highlight(hImp, hImp, hUse)
 	"sort"
 
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -18,8 +19,10 @@ func _() F {
 var foo = F{bar: 52} //@mark(fooDeclaration, "foo"),mark(bar2, "bar"),highlight(fooDeclaration, fooDeclaration, fooUse),highlight(bar2, barDeclaration, bar1, bar2, bar3)
 
 func Print() { //@mark(printFunc, "Print"),highlight(printFunc, printFunc, printTest)
-	fmt.Println(foo) //@mark(fooUse, "foo"),highlight(fooUse, fooDeclaration, fooUse)
-	fmt.Print("yo")  //@mark(printSep, "Print"),highlight(printSep, printSep, print1, print2)
+	_ = h2.Client{} //@mark(hUse, "h2"),highlight(hUse, hImp, hUse)
+
+	fmt.Println(foo) //@mark(fooUse, "foo"),highlight(fooUse, fooDeclaration, fooUse),mark(fmt1, "fmt"),highlight(fmt1, fmtImp, fmt1, fmt2, fmt3, fmt4)
+	fmt.Print("yo")  //@mark(printSep, "Print"),highlight(printSep, printSep, print1, print2),mark(fmt2, "fmt"),highlight(fmt2, fmtImp, fmt1, fmt2, fmt3, fmt4)
 }
 
 func (x *F) Inc() { //@mark(xRightDecl, "x"),mark(xLeftDecl, " *"),highlight(xRightDecl, xRightDecl, xUse),highlight(xLeftDecl, xRightDecl, xUse)
@@ -27,8 +30,8 @@ func (x *F) Inc() { //@mark(xRightDecl, "x"),mark(xLeftDecl, " *"),highlight(xRi
 }
 
 func testFunctions() {
-	fmt.Print("main start") //@mark(print1, "Print"),highlight(print1, printSep, print1, print2)
-	fmt.Print("ok")         //@mark(print2, "Print"),highlight(print2, printSep, print1, print2)
+	fmt.Print("main start") //@mark(print1, "Print"),highlight(print1, printSep, print1, print2),mark(fmt3, "fmt"),highlight(fmt3, fmtImp, fmt1, fmt2, fmt3, fmt4)
+	fmt.Print("ok")         //@mark(print2, "Print"),highlight(print2, printSep, print1, print2),mark(fmt4, "fmt"),highlight(fmt4, fmtImp, fmt1, fmt2, fmt3, fmt4)
 	Print()                 //@mark(printTest, "Print"),highlight(printTest, printFunc, printTest)
 }
 
