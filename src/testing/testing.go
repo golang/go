@@ -776,9 +776,9 @@ func (c *common) Helper() {
 	c.helpers[callerName(1)] = struct{}{}
 }
 
-// Cleanup registers a function to be called when the test finishes.
-// Cleanup functions will be called in last added, first called
-// order.
+// Cleanup registers a function to be called when the test and all its
+// subtests complete. Cleanup functions will be called in last added,
+// first called order.
 func (c *common) Cleanup(f func()) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
