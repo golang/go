@@ -8,12 +8,17 @@ import (
 	"bufio"
 	"fmt"
 	"go/ast"
-	"go/format"
+	"go/printer"
 	"go/token"
 	"path/filepath"
 	"os"
 	"strings"
 )
+
+var config = printer.Config{
+	Mode: printer.UseSpaces | printer.TabIndent | printer.SourcePos,
+	Tabwidth: 8,
+}
 
 // rewrite rewrites the contents of one file.
 func rewrite(dir string, fset *token.FileSet, filename string, ast *ast.File) (err error) {
@@ -37,5 +42,5 @@ func rewrite(dir string, fset *token.FileSet, filename string, ast *ast.File) (e
 	}()
 	fmt.Fprintln(w, rewritePrefix)
 
-	return format.Node(w, fset, ast)
+	return config.Fprint(w, fset, ast)
 }
