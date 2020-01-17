@@ -383,9 +383,6 @@ func MakeFromLiteral(lit string, tok token.Token, zero uint) Value {
 
 	switch tok {
 	case token.INT:
-		if len(lit) >= 2 && lit[0] == '0' && (lit[1] == 'o' || lit[1] == 'O') {
-			lit = "0" + lit[2:]
-		}
 		if x, err := strconv.ParseInt(lit, 0, 64); err == nil {
 			return int64Val(x)
 		}
