@@ -1875,6 +1875,17 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				p.As = spadjop(ctxt, ASUBL, ASUBQ)
 			}
 		}
+		if ctxt.Retpoline && (p.As == obj.ACALL || p.As == obj.AJMP) && (p.To.Type == obj.TYPE_REG || p.To.Type == obj.TYPE_MEM) {
+			if p.To.Type != obj.TYPE_REG {
+				ctxt.Diag("non-retpoline-compatible: %v", p)
+				continue
+			}
+			p.To.Type = obj.TYPE_BRANCH
+			p.To.Name = obj.NAME_EXTERN
+			p.To.Sym = ctxt.Lookup("runtime.retpoline" + obj.Rconv(int(p.To.Reg)))
+			p.To.Reg = 0
+			p.To.Offset = 0
+		}
 	}
 
 	var count int64 // rough count of number of instructions
