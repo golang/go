@@ -1384,6 +1384,8 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					e = t.elem
 				case *Map:
 					e = t.elem
+				case *TypeParam:
+					check.errorf(x.pos(), "type of %s contains a type parameter - cannot index (implementation restriction)", x)
 				}
 				if e != nil && (e == elem || elem == nil) {
 					elem = e

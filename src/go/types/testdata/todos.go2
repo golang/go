@@ -1,0 +1,54 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file is meant as "dumping ground" for tests
+// of not yet implemented features. It will grow and
+// shrink over time.
+
+package p
+
+// indexing on generic types containing type parameters in their type list
+// is not yet supported
+func _(type T interface { type T })(x T) {
+        _ = x /* ERROR type parameter */ /* ERROR cannot index */ [0]
+}
+
+// channel sends and receives on generic types is not yet supported
+func _(type T interface{ type chan int })(ch T) {
+	ch <- /* ERROR cannot send */ 0
+	_ = <- ch /* ERROR cannot receive */
+}
+
+// local variable declaration with underlying generic type is not fully supported
+func _(type T)() {
+	type L T // local variable declaration
+	var x L
+	_ = x /* ERROR not defined */ + x
+}
+
+// pointer indirection of generic types is not yet supported
+func _(type T interface{ type *int })(p T) {
+	_ = *p /* ERROR cannot indirect */
+}
+
+// type assertions over generic types are not yet supported
+func _(type T interface{ type int })(x T) {
+	_ = T /* ERROR not an expression */ .(int)
+	_ = x /* ERROR not an interface */ .(int)
+}
+
+// calling of a generic variable is not yet supported
+func _(type T interface{ type func() })(f T) {
+	f /* ERROR cannot call */ ()
+	go f /* ERROR cannot call */ ()
+}
+
+// need to investigate the exact nature of a generic type (is it a named type)?
+func _(type T interface{ type int})(x T) {
+	type myint int
+	var _ int = x /* ERROR cannot use */
+	var _ T = 42
+	var _ T = int /* ERROR cannot use */ (42)
+	var _ T = myint /* ERROR cannot use */ (42)
+}

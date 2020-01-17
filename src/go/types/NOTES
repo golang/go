@@ -1,4 +1,4 @@
-This file works as a sort of notebook/implementation log. It replaces my notebook based approach
+This file works as a sort of notebook/implementation log. It replaces my notebook-based approach
 so we have a better track record. I only switched to this file in Nov 2019, hence it is incomplete.
 
 ----------------------------------------------------------------------------------------------------
@@ -26,15 +26,17 @@ KNOWN ISSUES
 ----------------------------------------------------------------------------------------------------
 OPEN QUESTIONS
 
-- for len/cap(x) where x is of type parameter type and the bound contains arrays only, should the
-  result be a constant? (right now it is not)
-- confirm that it's ok to use inference in missingMethod to compare parameterized methods
-- now that we allow parenthesized embedded interfaces, should we allow parenthesized embedded fields?
+- What is the exact nature of a generic type? Does it act as a named type (it can have methods)?
+- For len/cap(x) where x is of type parameter type and the bound contains arrays only, should the
+  result be a constant? (right now it is not). What are the implications for alternative, non-
+  monomorphizing implementation methods?
+- Confirm that it's ok to use inference in missingMethod to compare parameterized methods
+- Now that we allow parenthesized embedded interfaces, should we allow parenthesized embedded fields?
   (probably yes, for symmetry and consistency).
 - What does it mean to explicitly instantiate a contract with a non-type parameter argument?
   (e.g., contract C(T) { T int }; func _(type T C(int))(...) ... seems invalid. What are the rules?)
-- Should we be able to parenthesize embedded contracts (like we allow for interfaces)? (currently this
-  is not permitted syntactically)
+- Should we be able to parenthesize embedded contracts like we allow for interfaces (currently this
+  is not permitted syntactically)?
   
 ----------------------------------------------------------------------------------------------------
 DESIGN/IMPLEMENTATION
