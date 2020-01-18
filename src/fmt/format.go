@@ -563,6 +563,10 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 			}
 		}
 		if !hasDecimalPoint {
+			// 0 should contribute once to digits
+			if num[1] == '0' && len(num) == 2 {
+				digits--
+			}
 			num = append(num, '.')
 		}
 		for digits > 0 {
