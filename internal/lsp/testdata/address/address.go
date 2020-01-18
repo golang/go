@@ -1,6 +1,9 @@
 package address
 
-func wantsPtr(*int) {}
+func wantsPtr(*int)            {}
+func wantsVariadicPtr(...*int) {}
+
+func wantsVariadic(...int) {}
 
 type foo struct{ c int } //@item(addrFieldC, "c", "int", "field")
 
@@ -15,6 +18,8 @@ func _() {
 	wantsPtr()   //@rank(")", addrBRef, addrA),snippet(")", addrBRef, "&b", "&b")
 	wantsPtr(&b) //@snippet(")", addrB, "b", "b")
 
+	wantsVariadicPtr() //@rank(")", addrBRef, addrA),snippet(")", addrBRef, "&b", "&b")
+
 	var s foo
 	s.c          //@item(addrDeepC, "s.c", "int", "field")
 	&s.c         //@item(addrDeepCRef, "&s.c", "int", "field")
@@ -24,6 +29,13 @@ func _() {
 
 	// don't add "&" in item (it gets added as an additional edit)
 	wantsPtr(&s.c) //@snippet(")", addrFieldC, "c", "c")
+
+	// check dereferencing as well
+	var c *int
+	*c            //@item(addrCPtr, "*c", "*int", "var")
+	var _ int = _ //@rank("_ //", addrCPtr, addrA),snippet("_ //", addrCPtr, "*c", "*c")
+
+	wantsVariadic() //@rank(")", addrCPtr, addrA),snippet(")", addrCPtr, "*c", "*c")
 }
 
 func (f foo) ptr() *foo { return &f }

@@ -383,6 +383,9 @@ type candidate struct {
 	// makePointer is true if the candidate type name T should be made into *T.
 	makePointer bool
 
+	// dereference is true if the candidate obj should be made into *obj.
+	dereference bool
+
 	// imp is the import that needs to be added to this package in order
 	// for this candidate to be valid. nil if no import needed.
 	imp *importInfo
@@ -1774,6 +1777,15 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 
 	if c.inference.convertibleTo != nil && types.ConvertibleTo(candType, c.inference.convertibleTo) {
 		return true
+	}
+
+	// Check if dereferencing cand would match our type inference.
+	if ptr, ok := cand.obj.Type().Underlying().(*types.Pointer); ok {
+		if c.matchingCandidate(&candidate{obj: c.fakeObj(ptr.Elem())}) {
+			// Mark the candidate so we know to prepend "*" when formatting.
+			cand.dereference = true
+			return true
+		}
 	}
 
 	// Check if cand is addressable and a pointer to cand matches our type inference.
