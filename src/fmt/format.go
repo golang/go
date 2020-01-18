@@ -536,16 +536,12 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 		tail := tailBuf[:0]
 
 		hasDecimalPoint := false
+		meetNonzeroDigit := false
 		// Starting from i = 1 to skip sign at num[0].
 		for i := 1; i < len(num); i++ {
 			switch num[i] {
 			case '.':
 				hasDecimalPoint = true
-				// The sharp flag keeps trailing zeros, but a leading 0 (0.xxx)
-				// should not contribute to the zero count.
-				if num[i-1] == '0' && (num[i-2] < '0' || '9' < num[i-2]) {
-					digits++
-				}
 			case 'p', 'P':
 				tail = append(tail, num[i:]...)
 				num = num[:i]
@@ -557,14 +553,16 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 				}
 				fallthrough
 			default:
-				digits--
+				if num[i] != '0' {
+					meetNonzeroDigit = true
+				}
+				// Count significant digits after meeting first non-zero digit
+				if meetNonzeroDigit {
+					digits--
+				}
 			}
 		}
 		if !hasDecimalPoint {
-			// See comment for '.' above.
-			if num[1] == '0' && len(num) == 2 {
-				digits++
-			}
 			num = append(num, '.')
 		}
 		for digits > 0 {
