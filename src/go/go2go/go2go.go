@@ -13,8 +13,8 @@ import (
 	"go/token"
 	"go/types"
 	"io"
-	"path/filepath"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -43,8 +43,9 @@ func Rewrite(dir string) error {
 		ast  *ast.File
 	}
 	type gpkg struct {
-		tpkg *types.Package
+		tpkg     *types.Package
 		pkgfiles []fileAST
+		info     *types.Info
 	}
 
 	var tpkgs []*gpkg
@@ -63,13 +64,21 @@ func Rewrite(dir string) error {
 		}
 
 		conf := types.Config{Importer: importer.Default()}
-		var info types.Info
-		tpkg, err := conf.Check(name, fset, asts, &info)
+		info := &types.Info{
+			Types: make(map[ast.Expr]types.TypeAndValue),
+			Defs:  make(map[*ast.Ident]types.Object),
+			Uses:  make(map[*ast.Ident]types.Object),
+		}
+		tpkg, err := conf.Check(name, fset, asts, info)
 		if err != nil {
 			return err
 		}
 
-		tpkgs = append(tpkgs, &gpkg{tpkg: tpkg, pkgfiles: pkgfiles})
+		tpkgs = append(tpkgs, &gpkg{
+			tpkg:     tpkg,
+			pkgfiles: pkgfiles,
+			info:     info,
+		})
 	}
 
 	if err := checkAndRemoveGofiles(dir, gofiles); err != nil {
@@ -77,8 +86,13 @@ func Rewrite(dir string) error {
 	}
 
 	for _, tpkg := range tpkgs {
+		idToFunc := make(map[types.Object]*ast.FuncDecl)
 		for _, pkgfile := range tpkg.pkgfiles {
-			if err := rewrite(dir, fset, pkgfile.name, pkgfile.ast); err != nil {
+			addFuncIDs(tpkg.info, pkgfile.ast, idToFunc)
+		}
+
+		for _, pkgfile := range tpkg.pkgfiles {
+			if err := rewrite(dir, fset, tpkg.info, idToFunc, pkgfile.name, pkgfile.ast); err != nil {
 				return err
 			}
 		}
