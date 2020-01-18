@@ -27,9 +27,6 @@ import (
 	"fmt"
 )
 
-// TODO(jsing): Populate.
-var RISCV64DWARFRegisters = map[int16]int16{}
-
 func buildop(ctxt *obj.Link) {}
 
 // jalrToSym replaces p with a set of Progs needed to jump to the Sym in p.
