@@ -20,8 +20,6 @@ const (
 	RequestCancelledError = -32800
 )
 
-type DocumentUri = string
-
 type canceller struct{ jsonrpc2.EmptyHandler }
 
 type clientHandler struct {
