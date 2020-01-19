@@ -313,6 +313,12 @@ func fieldSelections(T types.Type) (fields []*types.Var) {
 
 // typeIsValid reports whether typ doesn't contain any Invalid types.
 func typeIsValid(typ types.Type) bool {
+	// Check named types separately, because we don't want
+	// to call Underlying() on them to avoid problems with recursive types.
+	if _, ok := typ.(*types.Named); ok {
+		return true
+	}
+
 	switch typ := typ.Underlying().(type) {
 	case *types.Basic:
 		return typ.Kind() != types.Invalid
@@ -335,8 +341,8 @@ func typeIsValid(typ types.Type) bool {
 			}
 		}
 		return true
-	case *types.Struct, *types.Interface, *types.Named:
-		// Don't bother checking structs, interfaces, or named types for validity.
+	case *types.Struct, *types.Interface:
+		// Don't bother checking structs, interfaces for validity.
 		return true
 	default:
 		return false
