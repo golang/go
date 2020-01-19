@@ -489,9 +489,37 @@ func (it *stringIter) next() tuple {
 	return okv
 }
 
-type mapIter chan [2]value
+type mapIter struct {
+	iter *reflect.MapIter
+	ok   bool
+}
 
-func (it mapIter) next() tuple {
-	kv, ok := <-it
-	return tuple{ok, kv[0], kv[1]}
+func (it *mapIter) next() tuple {
+	it.ok = it.iter.Next()
+	if !it.ok {
+		return []value{false, nil, nil}
+	}
+	k, v := it.iter.Key().Interface(), it.iter.Value().Interface()
+	return []value{true, k, v}
+}
+
+type hashmapIter struct {
+	iter *reflect.MapIter
+	ok   bool
+	cur  *entry
+}
+
+func (it *hashmapIter) next() tuple {
+	for {
+		if it.cur != nil {
+			k, v := it.cur.key, it.cur.value
+			it.cur = it.cur.next
+			return []value{true, k, v}
+		}
+		it.ok = it.iter.Next()
+		if !it.ok {
+			return []value{false, nil, nil}
+		}
+		it.cur = it.iter.Value().Interface().(*entry)
+	}
 }

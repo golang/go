@@ -32,8 +32,6 @@
 // makes no attempt to distinguish target panics from interpreter
 // crashes.
 //
-// * map iteration is asymptotically inefficient.
-//
 // * the sizes of the int, uint and uintptr types in the target
 // program are assumed to be the same as those of the interpreter
 // itself.
