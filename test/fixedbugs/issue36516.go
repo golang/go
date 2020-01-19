@@ -1,4 +1,4 @@
-// +build linux,amd64
+// +build cgo,linux,amd64
 // run -race
 
 // Copyright 2020 The Go Authors. All rights reserved.
