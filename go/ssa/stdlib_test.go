@@ -28,18 +28,6 @@ import (
 	"golang.org/x/tools/internal/testenv"
 )
 
-// Skip the set of packages that transitively depend on
-// cmd/internal/objfile, which uses vendoring,
-// which go/loader does not yet support.
-// TODO(adonovan): add support for vendoring and delete this.
-var skip = map[string]bool{
-	"cmd/addr2line":        true,
-	"cmd/internal/objfile": true,
-	"cmd/nm":               true,
-	"cmd/objdump":          true,
-	"cmd/pprof":            true,
-}
-
 func bytesAllocated() uint64 {
 	runtime.GC()
 	var stats runtime.MemStats
@@ -62,9 +50,6 @@ func TestStdlib(t *testing.T) {
 	ctxt.GOPATH = ""      // disable GOPATH
 	conf := loader.Config{Build: &ctxt}
 	for _, path := range buildutil.AllPackages(conf.Build) {
-		if skip[path] {
-			continue
-		}
 		conf.ImportWithTests(path)
 	}
 
