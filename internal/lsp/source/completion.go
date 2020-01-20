@@ -1270,6 +1270,15 @@ type candidateInference struct {
 	// typeName holds information about the expected type name at
 	// position, if any.
 	typeName typeNameInference
+
+	// assignees are the types that would receive a function call's
+	// results at the position. For example:
+	//
+	// foo := 123
+	// foo, bar := <>
+	//
+	// at "<>", the assignees are [int, <invalid>].
+	assignees []types.Type
 }
 
 // typeNameInference holds information about the expected type name at
@@ -1322,6 +1331,20 @@ Nodes:
 				if tv, ok := c.pkg.GetTypesInfo().Types[node.Lhs[i]]; ok {
 					inf.objType = tv.Type
 				}
+
+				// If we have a single expression on the RHS, record the LHS
+				// assignees so we can favor multi-return function calls with
+				// matching result values.
+				if len(node.Rhs) <= 1 {
+					for _, lhs := range node.Lhs {
+						inf.assignees = append(inf.assignees, c.pkg.GetTypesInfo().TypeOf(lhs))
+					}
+				} else {
+					// Otherwse, record our single assignee, even if its type is
+					// not available. We use this info to downrank functions
+					// with the wrong number of result values.
+					inf.assignees = append(inf.assignees, c.pkg.GetTypesInfo().TypeOf(node.Lhs[i]))
+				}
 			}
 			return inf
 		case *ast.ValueSpec:
@@ -1351,6 +1374,17 @@ Nodes:
 							isLastParam     = exprIdx == numParams-1
 							beyondLastParam = exprIdx >= numParams
 						)
+
+						// If we have one or zero arg expressions, we may be
+						// completing to a function call that returns multiple
+						// values, in turn getting passed in to the surrounding
+						// call. Record the assignees so we can favor function
+						// calls that return matching values.
+						if len(node.Args) <= 1 {
+							for i := 0; i < sig.Params().Len(); i++ {
+								inf.assignees = append(inf.assignees, sig.Params().At(i).Type())
+							}
+						}
 
 						if sig.Variadic() {
 							// If we are beyond the last param or we are the last
@@ -1701,61 +1735,17 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 	// are invoked by default.
 	cand.expandFuncCall = isFunc(cand.obj)
 
-	typeMatches := func(expType, candType types.Type) bool {
-		if expType == nil {
-			// If we don't expect a specific type, check if we expect a particular
-			// kind of object (map, slice, etc).
-			if c.inference.objKind > 0 {
-				return c.inference.objKind&candKind(candType) > 0
-			}
-
-			return false
-		}
-
-		// Take into account any type modifiers on the expected type.
-		candType = c.inference.applyTypeModifiers(candType, cand.addressable)
-		if candType == nil {
-			return false
-		}
-
-		// Handle untyped values specially since AssignableTo gives false negatives
-		// for them (see https://golang.org/issue/32146).
-		if candBasic, ok := candType.Underlying().(*types.Basic); ok {
-			if wantBasic, ok := expType.Underlying().(*types.Basic); ok {
-				// Make sure at least one of them is untyped.
-				if isUntyped(candType) || isUntyped(expType) {
-					// Check that their constant kind (bool|int|float|complex|string) matches.
-					// This doesn't take into account the constant value, so there will be some
-					// false positives due to integer sign and overflow.
-					if candBasic.Info()&types.IsConstType == wantBasic.Info()&types.IsConstType {
-						// Lower candidate score if the types are not identical. This avoids
-						// ranking untyped constants above candidates with an exact type
-						// match. Don't lower score of builtin constants (e.g. "true").
-						if !types.Identical(candType, expType) && cand.obj.Parent() != types.Universe {
-							cand.score /= 2
-						}
-						return true
-					}
-				}
-			}
-		}
-
-		// AssignableTo covers the case where the types are equal, but also handles
-		// cases like assigning a concrete type to an interface type.
-		return types.AssignableTo(candType, expType)
-	}
-
-	if typeMatches(c.inference.objType, candType) {
+	if c.inference.typeMatches(cand, c.inference.objType, candType) {
 		// If obj's type matches, we don't want to expand to an invocation of obj.
 		cand.expandFuncCall = false
 		return true
 	}
 
 	// Try using a function's return type as its type.
-	if sig, ok := candType.Underlying().(*types.Signature); ok && sig.Results().Len() == 1 {
-		if typeMatches(c.inference.objType, sig.Results().At(0).Type()) {
-			// If obj's return value matches the expected type, we need to invoke obj
-			// in the completion.
+	if sig, ok := candType.Underlying().(*types.Signature); ok {
+		if c.inference.signatureMatches(cand, sig) {
+			// If obj's signature's return value matches the expected type,
+			// we need to invoke obj in the completion.
 			cand.expandFuncCall = true
 			return true
 		}
@@ -1764,8 +1754,10 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 	// When completing the variadic parameter, if the expected type is
 	// []T then check candType against T.
 	if c.inference.variadic {
-		if slice, ok := c.inference.objType.(*types.Slice); ok && typeMatches(slice.Elem(), candType) {
-			return true
+		if slice, ok := c.inference.objType.(*types.Slice); ok {
+			if c.inference.typeMatches(cand, slice.Elem(), candType) {
+				return true
+			}
 		}
 	}
 
@@ -1790,6 +1782,97 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 	}
 
 	return false
+}
+
+// typeMatches reports whether an object of candType makes a good
+// completion candidate given the expected type expType. The
+// candidate's score may be mutated to downrank the candidate in
+// certain situations.
+func (ci *candidateInference) typeMatches(cand *candidate, expType, candType types.Type) bool {
+	if expType == nil {
+		// If we don't expect a specific type, check if we expect a particular
+		// kind of object (map, slice, etc).
+		if ci.objKind > 0 {
+			return ci.objKind&candKind(candType) > 0
+		}
+
+		return false
+	}
+
+	// Take into account any type modifiers on the expected type.
+	candType = ci.applyTypeModifiers(candType, cand.addressable)
+	if candType == nil {
+		return false
+	}
+
+	// Handle untyped values specially since AssignableTo gives false negatives
+	// for them (see https://golang.org/issue/32146).
+	if candBasic, ok := candType.Underlying().(*types.Basic); ok {
+		if wantBasic, ok := expType.Underlying().(*types.Basic); ok {
+			// Make sure at least one of them is untyped.
+			if isUntyped(candType) || isUntyped(expType) {
+				// Check that their constant kind (bool|int|float|complex|string) matches.
+				// This doesn't take into account the constant value, so there will be some
+				// false positives due to integer sign and overflow.
+				if candBasic.Info()&types.IsConstType == wantBasic.Info()&types.IsConstType {
+					// Lower candidate score if the types are not identical. This avoids
+					// ranking untyped constants above candidates with an exact type
+					// match. Don't lower score of builtin constants (e.g. "true").
+					if !types.Identical(candType, expType) && cand.obj.Parent() != types.Universe {
+						cand.score /= 2
+					}
+					return true
+				}
+			}
+		}
+	}
+
+	// AssignableTo covers the case where the types are equal, but also handles
+	// cases like assigning a concrete type to an interface type.
+	return types.AssignableTo(candType, expType)
+}
+
+// signatureMatches reports whether an invocation of sig makes a good
+// completion candidate. The candidate's score may be mutated to
+// downrank the candidate in certain situations.
+func (ci *candidateInference) signatureMatches(cand *candidate, sig *types.Signature) bool {
+	// If sig returns a single value and it matches our expected type,
+	// invocation of sig is a good candidate.
+	if sig.Results().Len() == 1 {
+		return ci.typeMatches(cand, ci.objType, sig.Results().At(0).Type())
+	}
+
+	if len(ci.assignees) == 0 {
+		return false
+	}
+
+	// If our signature doesn't return the right number of values, it's
+	// not a match, so downrank it. For example:
+	//
+	//  var foo func() (int, int)
+	//  a, b, c := <> // downrank "foo()" since it only returns two values
+	//
+	// TODO: handle the case when we are completing the parameters to a
+	//       variadic function call.
+	if sig.Results().Len() != len(ci.assignees) {
+		cand.score /= 2
+		return false
+	}
+
+	// If at least one assignee has a valid type, and all valid
+	// assignees match the corresponding sig result value, the signature
+	// is a match.
+	allMatch := false
+	for i, a := range ci.assignees {
+		if a == nil || a.Underlying() == types.Typ[types.Invalid] {
+			continue
+		}
+		allMatch = ci.typeMatches(cand, a, sig.Results().At(i).Type())
+		if !allMatch {
+			break
+		}
+	}
+	return allMatch
 }
 
 func (c *completer) matchingTypeName(cand *candidate) bool {

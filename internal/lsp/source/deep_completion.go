@@ -138,7 +138,7 @@ func (c *completer) shouldPrune() bool {
 	return false
 }
 
-// deepSearch searches through obj's subordinate objects for more
+// deepSearch searches through cand's subordinate objects for more
 // completion items.
 func (c *completer) deepSearch(cand candidate) {
 	if c.deepState.maxDepth == 0 {
