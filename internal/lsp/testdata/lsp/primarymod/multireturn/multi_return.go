@@ -30,4 +30,7 @@ func _() {
 
 	var s string
 	_, s := f //@rank(" //", multiF2Str, multiF2)
+
+	var variadic func(int, ...int)
+	variadic() //@rank(")", multiF1, multiF0),rank(")", multiF2, multiF0),rank(")", multiF3, multiF0)
 }

@@ -1311,6 +1311,17 @@ type candidateInference struct {
 	//
 	// at "<>", the assignees are [int, <invalid>].
 	assignees []types.Type
+
+	// variadicAssignees is true if we could be completing an inner
+	// function call that fills out an outer function call's variadic
+	// params. For example:
+	//
+	// func foo(int, ...string) {}
+	//
+	// foo(<>)         // variadicAssignees=true
+	// foo(bar<>)      // variadicAssignees=true
+	// foo(bar, baz<>) // variadicAssignees=false
+	variadicAssignees bool
 }
 
 // typeNameInference holds information about the expected type name at
@@ -1415,6 +1426,9 @@ Nodes:
 							for i := 0; i < sig.Params().Len(); i++ {
 								inf.assignees = append(inf.assignees, sig.Params().At(i).Type())
 							}
+
+							// Record that we may be completing into variadic parameters.
+							inf.variadicAssignees = sig.Variadic()
 						}
 
 						if sig.Variadic() {
@@ -1899,15 +1913,19 @@ func (ci *candidateInference) signatureMatches(cand *candidate, sig *types.Signa
 		return false
 	}
 
+	var numberOfResultsCouldMatch bool
+	if ci.variadicAssignees {
+		numberOfResultsCouldMatch = sig.Results().Len() >= len(ci.assignees)-1
+	} else {
+		numberOfResultsCouldMatch = sig.Results().Len() == len(ci.assignees)
+	}
+
 	// If our signature doesn't return the right number of values, it's
 	// not a match, so downrank it. For example:
 	//
 	//  var foo func() (int, int)
 	//  a, b, c := <> // downrank "foo()" since it only returns two values
-	//
-	// TODO: handle the case when we are completing the parameters to a
-	//       variadic function call.
-	if sig.Results().Len() != len(ci.assignees) {
+	if !numberOfResultsCouldMatch {
 		cand.score /= 2
 		return false
 	}
@@ -1916,11 +1934,21 @@ func (ci *candidateInference) signatureMatches(cand *candidate, sig *types.Signa
 	// assignees match the corresponding sig result value, the signature
 	// is a match.
 	allMatch := false
-	for i, a := range ci.assignees {
-		if a == nil || a.Underlying() == types.Typ[types.Invalid] {
-			continue
+	for i := 0; i < sig.Results().Len(); i++ {
+		var assignee types.Type
+
+		// If we are completing into variadic parameters, deslice the
+		// expected variadic type.
+		if ci.variadicAssignees && i >= len(ci.assignees)-1 {
+			assignee = ci.assignees[len(ci.assignees)-1]
+			if slice, ok := assignee.Underlying().(*types.Slice); ok {
+				assignee = slice.Elem()
+			}
+		} else {
+			assignee = ci.assignees[i]
 		}
-		allMatch = ci.typeMatches(cand, a, sig.Results().At(i).Type())
+
+		allMatch = ci.typeMatches(cand, assignee, sig.Results().At(i).Type())
 		if !allMatch {
 			break
 		}
