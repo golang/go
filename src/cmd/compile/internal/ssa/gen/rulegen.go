@@ -966,9 +966,16 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int) 
 	commutative := op.commutative
 	if commutative {
 		if args[0] == args[1] {
+			// When we have (Add x x), for any x,
+			// even if there are other uses of x besides these two,
+			// and even if x is not a variable,
+			// we can skip the commutative match.
 			commutative = false
 		}
 		if cnt[args[0]] == 1 && cnt[args[1]] == 1 {
+			// When we have (Add x y) with no other uses
+			// of x and y in the matching rule and condition,
+			// then we can skip the commutative match (Add y x).
 			commutative = false
 		}
 	}
