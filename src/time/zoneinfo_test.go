@@ -182,3 +182,97 @@ func TestMalformedTZData(t *testing.T) {
 		t.Error("expected error, got none")
 	}
 }
+
+func TestTzset(t *testing.T) {
+	for _, test := range []struct {
+		inStr string
+		inEnd int64
+		inSec int64
+		name  string
+		off   int
+		start int64
+		end   int64
+		ok    bool
+	}{
+		{"", 0, 0, "", 0, 0, 0, false},
+		{"PST8PDT,M3.2.0,M11.1.0", 0, 2159200800, "PDT", -7 * 60 * 60, 2152173600, 2172733200, true},
+		{"PST8PDT,M3.2.0,M11.1.0", 0, 2152173599, "PST", -8 * 60 * 60, 2145916800, 2152173600, true},
+		{"PST8PDT,M3.2.0,M11.1.0", 0, 2152173600, "PDT", -7 * 60 * 60, 2152173600, 2172733200, true},
+		{"PST8PDT,M3.2.0,M11.1.0", 0, 2152173601, "PDT", -7 * 60 * 60, 2152173600, 2172733200, true},
+		{"PST8PDT,M3.2.0,M11.1.0", 0, 2172733199, "PDT", -7 * 60 * 60, 2152173600, 2172733200, true},
+		{"PST8PDT,M3.2.0,M11.1.0", 0, 2172733200, "PST", -8 * 60 * 60, 2172733200, 2177452800, true},
+		{"PST8PDT,M3.2.0,M11.1.0", 0, 2172733201, "PST", -8 * 60 * 60, 2172733200, 2177452800, true},
+	} {
+		name, off, start, end, ok := time.Tzset(test.inStr, test.inEnd, test.inSec)
+		if name != test.name || off != test.off || start != test.start || end != test.end || ok != test.ok {
+			t.Errorf("tzset(%q, %d, %d) = %q, %d, %d, %d, %t, want %q, %d, %d, %d, %t", test.inStr, test.inEnd, test.inSec, name, off, start, end, ok, test.name, test.off, test.start, test.end, test.ok)
+		}
+	}
+}
+
+func TestTzsetName(t *testing.T) {
+	for _, test := range []struct {
+		in   string
+		name string
+		out  string
+		ok   bool
+	}{
+		{"", "", "", false},
+		{"X", "", "", false},
+		{"PST", "PST", "", true},
+		{"PST8PDT", "PST", "8PDT", true},
+		{"PST-08", "PST", "-08", true},
+		{"<A+B>+08", "A+B", "+08", true},
+	} {
+		name, out, ok := time.TzsetName(test.in)
+		if name != test.name || out != test.out || ok != test.ok {
+			t.Errorf("tzsetName(%q) = %q, %q, %t, want %q, %q, %t", test.in, name, out, ok, test.name, test.out, test.ok)
+		}
+	}
+}
+
+func TestTzsetOffset(t *testing.T) {
+	for _, test := range []struct {
+		in  string
+		off int
+		out string
+		ok  bool
+	}{
+		{"", 0, "", false},
+		{"X", 0, "", false},
+		{"+", 0, "", false},
+		{"+08", 8 * 60 * 60, "", true},
+		{"-01:02:03", -1*60*60 - 2*60 - 3, "", true},
+		{"01", 1 * 60 * 60, "", true},
+		{"100", 0, "", false},
+		{"8PDT", 8 * 60 * 60, "PDT", true},
+	} {
+		off, out, ok := time.TzsetOffset(test.in)
+		if off != test.off || out != test.out || ok != test.ok {
+			t.Errorf("tzsetName(%q) = %d, %q, %t, want %d, %q, %t", test.in, off, out, ok, test.off, test.out, test.ok)
+		}
+	}
+}
+
+func TestTzsetRule(t *testing.T) {
+	for _, test := range []struct {
+		in  string
+		r   time.Rule
+		out string
+		ok  bool
+	}{
+		{"", time.Rule{}, "", false},
+		{"X", time.Rule{}, "", false},
+		{"J10", time.Rule{Kind: time.RuleJulian, Day: 10, Time: 2 * 60 * 60}, "", true},
+		{"20", time.Rule{Kind: time.RuleDOY, Day: 20, Time: 2 * 60 * 60}, "", true},
+		{"M1.2.3", time.Rule{Kind: time.RuleMonthWeekDay, Mon: 1, Week: 2, Day: 3, Time: 2 * 60 * 60}, "", true},
+		{"30/03:00:00", time.Rule{Kind: time.RuleDOY, Day: 30, Time: 3 * 60 * 60}, "", true},
+		{"M4.5.6/03:00:00", time.Rule{Kind: time.RuleMonthWeekDay, Mon: 4, Week: 5, Day: 6, Time: 3 * 60 * 60}, "", true},
+		{"M4.5.7/03:00:00", time.Rule{}, "", false},
+	} {
+		r, out, ok := time.TzsetRule(test.in)
+		if r != test.r || out != test.out || ok != test.ok {
+			t.Errorf("tzsetName(%q) = %#v, %q, %t, want %#v, %q, %t", test.in, r, out, ok, test.r, test.out, test.ok)
+		}
+	}
+}
