@@ -6,7 +6,6 @@ package source
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -69,7 +68,9 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, withA
 	// Prepare the reports we will send for the files in this package.
 	reports := make(map[FileIdentity][]Diagnostic)
 	for _, fh := range pkg.CompiledGoFiles() {
-		clearReports(snapshot, reports, fh.File().Identity())
+		if err := clearReports(snapshot, reports, fh.File().Identity().URI); err != nil {
+			return nil, warningMsg, err
+		}
 	}
 	// Prepare any additional reports for the errors in this package.
 	for _, e := range pkg.GetErrors() {
@@ -85,11 +86,9 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, withA
 				}
 			}
 		}
-		fh, err := snapshot.GetFile(e.URI)
-		if err != nil {
+		if err := clearReports(snapshot, reports, e.URI); err != nil {
 			return nil, warningMsg, err
 		}
-		clearReports(snapshot, reports, fh.Identity())
 	}
 	// Run diagnostics for the package that this URI belongs to.
 	hadDiagnostics, err := diagnostics(ctx, snapshot, reports, pkg)
@@ -142,21 +141,17 @@ func diagnostics(ctx context.Context, snapshot Snapshot, reports map[FileIdentit
 	_ = ctx // circumvent SA4006
 	defer done()
 
-	diagSets := make(map[FileIdentity]*diagnosticSet)
+	diagSets := make(map[span.URI]*diagnosticSet)
 	for _, e := range pkg.GetErrors() {
 		diag := &Diagnostic{
 			Message:  e.Message,
 			Range:    e.Range,
 			Severity: protocol.SeverityError,
 		}
-		fh, err := snapshot.GetFile(e.URI)
-		if err != nil {
-			return false, err
-		}
-		set, ok := diagSets[fh.Identity()]
+		set, ok := diagSets[e.URI]
 		if !ok {
 			set = &diagnosticSet{}
-			diagSets[fh.Identity()] = set
+			diagSets[e.URI] = set
 		}
 		switch e.Kind {
 		case ParseError:
@@ -171,7 +166,7 @@ func diagnostics(ctx context.Context, snapshot Snapshot, reports map[FileIdentit
 		}
 	}
 	var nonEmptyDiagnostics bool // track if we actually send non-empty diagnostics
-	for fileID, set := range diagSets {
+	for uri, set := range diagSets {
 		// Don't report type errors if there are parse errors or list errors.
 		diags := set.typeErrors
 		if len(set.parseErrors) > 0 {
@@ -182,7 +177,9 @@ func diagnostics(ctx context.Context, snapshot Snapshot, reports map[FileIdentit
 		if len(diags) > 0 {
 			nonEmptyDiagnostics = true
 		}
-		addReports(ctx, snapshot, reports, fileID, diags...)
+		if err := addReports(ctx, snapshot, reports, uri, diags...); err != nil {
+			return false, err
+		}
 	}
 	return nonEmptyDiagnostics, nil
 }
@@ -210,11 +207,7 @@ func analyses(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][
 		if onlyDeletions(e.SuggestedFixes) {
 			tags = append(tags, protocol.Unnecessary)
 		}
-		fh, err := snapshot.GetFile(e.URI)
-		if err != nil {
-			return err
-		}
-		addReports(ctx, snapshot, reports, fh.Identity(), &Diagnostic{
+		if err := addReports(ctx, snapshot, reports, e.URI, &Diagnostic{
 			Range:          e.Range,
 			Message:        e.Message,
 			Source:         e.Category,
@@ -222,45 +215,43 @@ func analyses(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][
 			Tags:           tags,
 			SuggestedFixes: e.SuggestedFixes,
 			Related:        e.Related,
-		})
+		}); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func clearReports(snapshot Snapshot, reports map[FileIdentity][]Diagnostic, fileID FileIdentity) {
-	if snapshot.View().Ignore(fileID.URI) {
-		return
-	}
-	reports[fileID] = []Diagnostic{}
-}
-
-func addReports(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]Diagnostic, fileID FileIdentity, diagnostics ...*Diagnostic) error {
-	if snapshot.View().Ignore(fileID.URI) {
+func clearReports(snapshot Snapshot, reports map[FileIdentity][]Diagnostic, uri span.URI) error {
+	if snapshot.View().Ignore(uri) {
 		return nil
 	}
-	if _, ok := reports[fileID]; !ok {
-		return errors.Errorf("diagnostics for unexpected file %s", fileID.URI)
+	fh, err := snapshot.GetFile(uri)
+	if err != nil {
+		return err
+	}
+	reports[fh.Identity()] = []Diagnostic{}
+	return nil
+}
+
+func addReports(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]Diagnostic, uri span.URI, diagnostics ...*Diagnostic) error {
+	if snapshot.View().Ignore(uri) {
+		return nil
+	}
+	fh, err := snapshot.GetFile(uri)
+	if err != nil {
+		return err
+	}
+	if _, ok := reports[fh.Identity()]; !ok {
+		return errors.Errorf("diagnostics for unexpected file %s", uri)
 	}
 	for _, diag := range diagnostics {
 		if diag == nil {
 			continue
 		}
-		reports[fileID] = append(reports[fileID], *diag)
+		reports[fh.Identity()] = append(reports[fh.Identity()], *diag)
 	}
 	return nil
-}
-
-func singleDiagnostic(fileID FileIdentity, format string, a ...interface{}) map[FileIdentity][]Diagnostic {
-	return map[FileIdentity][]Diagnostic{
-		fileID: []Diagnostic{
-			{
-				Source:   "gopls",
-				Range:    protocol.Range{},
-				Message:  fmt.Sprintf(format, a...),
-				Severity: protocol.SeverityError,
-			},
-		},
-	}
 }
 
 // onlyDeletions returns true if all of the suggested fixes are deletions.
