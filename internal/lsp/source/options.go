@@ -20,15 +20,20 @@ import (
 	"golang.org/x/tools/go/analysis/passes/cgocall"
 	"golang.org/x/tools/go/analysis/passes/composite"
 	"golang.org/x/tools/go/analysis/passes/copylock"
+	"golang.org/x/tools/go/analysis/passes/deepequalerrors"
+	"golang.org/x/tools/go/analysis/passes/errorsas"
 	"golang.org/x/tools/go/analysis/passes/httpresponse"
 	"golang.org/x/tools/go/analysis/passes/loopclosure"
 	"golang.org/x/tools/go/analysis/passes/lostcancel"
 	"golang.org/x/tools/go/analysis/passes/nilfunc"
+	"golang.org/x/tools/go/analysis/passes/nilness"
 	"golang.org/x/tools/go/analysis/passes/printf"
+	"golang.org/x/tools/go/analysis/passes/shadow"
 	"golang.org/x/tools/go/analysis/passes/shift"
 	"golang.org/x/tools/go/analysis/passes/sortslice"
 	"golang.org/x/tools/go/analysis/passes/stdmethods"
 	"golang.org/x/tools/go/analysis/passes/structtag"
+	"golang.org/x/tools/go/analysis/passes/testinggoroutine"
 	"golang.org/x/tools/go/analysis/passes/tests"
 	"golang.org/x/tools/go/analysis/passes/unmarshal"
 	"golang.org/x/tools/go/analysis/passes/unreachable"
@@ -472,6 +477,7 @@ var defaultAnalyzers = map[string]*analysis.Analyzer{
 	cgocall.Analyzer.Name:      cgocall.Analyzer,
 	composite.Analyzer.Name:    composite.Analyzer,
 	copylock.Analyzer.Name:     copylock.Analyzer,
+	errorsas.Analyzer.Name:     errorsas.Analyzer,
 	httpresponse.Analyzer.Name: httpresponse.Analyzer,
 	loopclosure.Analyzer.Name:  loopclosure.Analyzer,
 	lostcancel.Analyzer.Name:   lostcancel.Analyzer,
@@ -487,5 +493,9 @@ var defaultAnalyzers = map[string]*analysis.Analyzer{
 	unusedresult.Analyzer.Name: unusedresult.Analyzer,
 
 	// Non-vet analyzers
-	sortslice.Analyzer.Name: sortslice.Analyzer,
+	deepequalerrors.Analyzer.Name:  deepequalerrors.Analyzer,
+	nilness.Analyzer.Name:          nilness.Analyzer,
+	shadow.Analyzer.Name:           shadow.Analyzer,
+	sortslice.Analyzer.Name:        sortslice.Analyzer,
+	testinggoroutine.Analyzer.Name: testinggoroutine.Analyzer,
 }
