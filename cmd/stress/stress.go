@@ -131,9 +131,11 @@ func main() {
 			f.Write(out)
 			f.Close()
 			if len(out) > 2<<10 {
-				out = out[:2<<10]
+				out := out[:2<<10]
+				fmt.Printf("\n%s\n%s\n…\n", f.Name(), out)
+			} else {
+				fmt.Printf("\n%s\n%s\n", f.Name(), out)
 			}
-			fmt.Printf("\n%s\n%s\n", f.Name(), out)
 		case <-ticker:
 			fmt.Printf("%v runs so far, %v failures\n", runs, fails)
 		}
