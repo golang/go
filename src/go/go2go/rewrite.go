@@ -54,13 +54,8 @@ type instantiation struct {
 }
 
 // rewrite rewrites the contents of one file.
-func rewrite(dir string, fset *token.FileSet, info *types.Info, idToFunc map[types.Object]*ast.FuncDecl, filename string, file *ast.File) (err error) {
-	t := translator{
-		info:           info,
-		idToFunc:       idToFunc,
-		instantiations: make(map[*ast.Ident][]*instantiation),
-	}
-	if err := t.translate(file); err != nil {
+func rewriteFile(dir string, fset *token.FileSet, info *types.Info, idToFunc map[types.Object]*ast.FuncDecl, filename string, file *ast.File) (err error) {
+	if err := rewriteAST(info, idToFunc, file); err != nil {
 		return err
 	}
 
@@ -85,6 +80,16 @@ func rewrite(dir string, fset *token.FileSet, info *types.Info, idToFunc map[typ
 	fmt.Fprintln(w, rewritePrefix)
 
 	return config.Fprint(w, fset, file)
+}
+
+// rewriteAST rewrites the AST for a file.
+func rewriteAST(info *types.Info, idToFunc map[types.Object]*ast.FuncDecl, file *ast.File) (err error) {
+	t := translator{
+		info:           info,
+		idToFunc:       idToFunc,
+		instantiations: make(map[*ast.Ident][]*instantiation),
+	}
+	return t.translate(file)
 }
 
 // translate translates the AST for a file from Go with contracts to Go 1.

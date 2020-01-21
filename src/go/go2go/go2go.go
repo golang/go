@@ -6,6 +6,7 @@
 package go2go
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/importer"
@@ -92,13 +93,44 @@ func Rewrite(dir string) error {
 		}
 
 		for _, pkgfile := range tpkg.pkgfiles {
-			if err := rewrite(dir, fset, tpkg.info, idToFunc, pkgfile.name, pkgfile.ast); err != nil {
+			if err := rewriteFile(dir, fset, tpkg.info, idToFunc, pkgfile.name, pkgfile.ast); err != nil {
 				return err
 			}
 		}
 	}
 
 	return nil
+}
+
+// RewriteBuffer rewrites the contents of a single file, in a buffer.
+// It returns a modified buffer. The filename parameter is only used
+// for error messages.
+func RewriteBuffer(filename string, file []byte) ([]byte, error) {
+	fset := token.NewFileSet()
+	pf, err := parser.ParseFile(fset, filename, file, 0)
+	if err != nil {
+		return nil, err
+	}
+	conf := types.Config{Importer: importer.Default()}
+	info := &types.Info{
+		Types: make(map[ast.Expr]types.TypeAndValue),
+		Defs:  make(map[*ast.Ident]types.Object),
+		Uses:  make(map[*ast.Ident]types.Object),
+	}
+	if _, err := conf.Check(pf.Name.Name, fset, []*ast.File{pf}, info); err != nil {
+		return nil, err
+	}
+	idToFunc := make(map[types.Object]*ast.FuncDecl)
+	addFuncIDs(info, pf, idToFunc)
+	if err := rewriteAST(info, idToFunc, pf); err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	fmt.Fprintln(&buf, rewritePrefix)
+	if err := config.Fprint(&buf, fset, pf); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // go2Files returns the list of files in dir with a .go2 extension

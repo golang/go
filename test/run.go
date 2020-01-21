@@ -12,6 +12,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/go2go"
 	"hash/fnv"
 	"io"
 	"io/ioutil"
@@ -58,7 +59,7 @@ var (
 
 	// dirs are the directories to look for *.go files in.
 	// TODO(bradfitz): just use all directories?
-	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime"}
+	dirs = []string{".", "ken", "chan", "interface", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "gen"}
 
 	// ratec controls the max number of tests running at a time.
 	ratec chan bool
@@ -108,7 +109,7 @@ func main() {
 				for _, baseGoFile := range goFiles(arg) {
 					tests = append(tests, startTest(arg, baseGoFile))
 				}
-			} else if strings.HasSuffix(arg, ".go") {
+			} else if strings.HasSuffix(arg, ".go") || strings.HasSuffix(arg, ".go2") {
 				dir, file := filepath.Split(arg)
 				tests = append(tests, startTest(dir, file))
 			} else {
@@ -203,7 +204,7 @@ func goFiles(dir string) []string {
 	}
 	names := []string{}
 	for _, name := range dirnames {
-		if !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go") && shardMatch(name) {
+		if !strings.HasPrefix(name, ".") && (strings.HasSuffix(name, ".go") || strings.HasSuffix(name, ".go2")) && shardMatch(name) {
 			names = append(names, name)
 		}
 	}
@@ -594,9 +595,48 @@ func (t *test) run() {
 		defer os.RemoveAll(t.tempDir)
 	}
 
+	isgo2 := false
+	if strings.HasSuffix(t.gofile, ".go2") {
+		go2Bytes, err := go2go.RewriteBuffer(t.gofile, srcBytes)
+		if err != nil {
+			t.err = err
+			return
+		}
+		srcBytes = go2Bytes
+		t.gofile = strings.TrimSuffix(t.gofile, ".go2") + ".go"
+		isgo2 = true
+		if err := ioutil.WriteFile(filepath.Join(t.dir, t.gofile), srcBytes, 0644); err != nil {
+			t.err = err
+			return
+		}
+		defer os.Remove(filepath.Join(t.dir, t.gofile))
+	}
+
 	err = ioutil.WriteFile(filepath.Join(t.tempDir, t.gofile), srcBytes, 0644)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	if isgo2 && strings.HasSuffix(action, "dir") {
+		go2files := goFiles(t.goDirName())
+		for _, f := range go2files {
+			if filepath.Ext(f) == ".go" {
+				t.err = fmt.Errorf("%s: invalid .go file for .go2 test", f)
+				return
+			}
+		}
+		if err := go2go.Rewrite(t.goDirName()); err != nil {
+			t.err = err
+			return
+		}
+		defer func() {
+			for _, f := range go2files {
+				if filepath.Ext(f) == ".go2" {
+					f1 := strings.TrimSuffix(f, ".go2") + ".go"
+					os.Remove(filepath.Join(t.goDirName(), f1))
+				}
+			}
+		}()
 	}
 
 	// A few tests (of things like the environment) require these to be set.
