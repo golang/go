@@ -78,6 +78,13 @@ func (d *dataIO) byte() (n byte, ok bool) {
 	return p[0], true
 }
 
+// read returns the read of the data in the buffer.
+func (d *dataIO) rest() []byte {
+	r := d.p
+	d.p = nil
+	return r
+}
+
 // Make a string by stopping at the first NUL
 func byteString(p []byte) string {
 	for i := 0; i < len(p); i++ {
@@ -213,6 +220,12 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 		return nil, badData
 	}
 
+	var extend string
+	rest := d.rest()
+	if len(rest) > 2 && rest[0] == '\n' && rest[len(rest)-1] == '\n' {
+		extend = string(rest[1 : len(rest)-1])
+	}
+
 	// Now we can build up a useful data structure.
 	// First the zone information.
 	//	utcoff[4] isdst[1] nameindex[1]
@@ -289,7 +302,7 @@ func LoadLocationFromTZData(name string, data []byte) (*Location, error) {
 	}
 
 	// Committed to succeed.
-	l := &Location{zone: zone, tx: tx, name: name}
+	l := &Location{zone: zone, tx: tx, name: name, extend: extend}
 
 	// Fill in the cache with information about right now,
 	// since that will be the most common lookup.

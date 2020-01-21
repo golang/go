@@ -1074,6 +1074,34 @@ func daysIn(m Month, year int) int {
 	return int(daysBefore[m] - daysBefore[m-1])
 }
 
+// daysSinceEpoch takes a year and returns the number of days from
+// the absolute epoch to the start of that year.
+// This is basically (year - zeroYear) * 365, but accounting for leap days.
+func daysSinceEpoch(year int) uint64 {
+	y := uint64(int64(year) - absoluteZeroYear)
+
+	// Add in days from 400-year cycles.
+	n := y / 400
+	y -= 400 * n
+	d := daysPer400Years * n
+
+	// Add in 100-year cycles.
+	n = y / 100
+	y -= 100 * n
+	d += daysPer100Years * n
+
+	// Add in 4-year cycles.
+	n = y / 4
+	y -= 4 * n
+	d += daysPer4Years * n
+
+	// Add in non-leap years.
+	n = y
+	d += 365 * n
+
+	return d
+}
+
 // Provided by package runtime.
 func now() (sec int64, nsec int32, mono int64)
 
@@ -1382,28 +1410,8 @@ func Date(year int, month Month, day, hour, min, sec, nsec int, loc *Location) T
 	hour, min = norm(hour, min, 60)
 	day, hour = norm(day, hour, 24)
 
-	y := uint64(int64(year) - absoluteZeroYear)
-
 	// Compute days since the absolute epoch.
-
-	// Add in days from 400-year cycles.
-	n := y / 400
-	y -= 400 * n
-	d := daysPer400Years * n
-
-	// Add in 100-year cycles.
-	n = y / 100
-	y -= 100 * n
-	d += daysPer100Years * n
-
-	// Add in 4-year cycles.
-	n = y / 4
-	y -= 4 * n
-	d += daysPer4Years * n
-
-	// Add in non-leap years.
-	n = y
-	d += 365 * n
+	d := daysSinceEpoch(year)
 
 	// Add in days before this month.
 	d += uint64(daysBefore[month-1])
