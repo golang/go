@@ -92,6 +92,16 @@ type ReverseProxy struct {
 	// If nil, the default is to log the provided error and return
 	// a 502 Status Bad Gateway response.
 	ErrorHandler func(http.ResponseWriter, *http.Request, error)
+
+	// TrustForwardedHeaders specifies if X-Forwarded-For,
+	// X-Forwarded-Proto and X-Forwarded-Host headers comming from
+	// the previous proxy must be trusted or not.
+	// If true, existing values of X-Forwarded-Proto and
+	// X-Forwarded-Host will be preserved, and the current client IP
+	// will be appended to the list in X-Forwarded-For.
+	// If false, values of these headers will be set regardless of
+	// any existing value.
+	TrustForwardedHeaders bool
 }
 
 // A BufferPool is an interface for getting and returning temporary
@@ -280,6 +290,23 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	if reqUpType != "" {
 		outreq.Header.Set("Connection", "Upgrade")
 		outreq.Header.Set("Upgrade", reqUpType)
+	}
+
+	if _, ok := outreq.Header["X-Forwarded-Proto"]; !ok || !p.TrustForwardedHeaders {
+		proto := "https"
+		if req.TLS == nil {
+			proto = "http"
+		}
+
+		outreq.Header.Set("X-Forwarded-Proto", proto)
+	}
+
+	if _, ok := outreq.Header["X-Forwarded-Host"]; !ok || !p.TrustForwardedHeaders {
+		outreq.Header.Set("X-Forwarded-Host", outreq.Host)
+	}
+
+	if !p.TrustForwardedHeaders {
+		outreq.Header.Del("X-Forwarded-For")
 	}
 
 	if clientIP, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
