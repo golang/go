@@ -64,6 +64,11 @@ func (canceller) Cancel(ctx context.Context, conn *jsonrpc2.Conn, id jsonrpc2.ID
 	return true
 }
 
+func (canceller) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered bool) bool {
+	// Hide cancellations from downstream handlers.
+	return r.Method == "$/cancelRequest"
+}
+
 func NewClient(ctx context.Context, stream jsonrpc2.Stream, client Client) (context.Context, *jsonrpc2.Conn, Server) {
 	ctx = WithClient(ctx, client)
 	conn := jsonrpc2.NewConn(stream)
