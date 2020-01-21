@@ -24,12 +24,13 @@ import (
 // ReverseProxy is an HTTP Handler that takes an incoming request and
 // sends it to another server, proxying the response back to the
 // client.
-// ReverseProxy automatically sets the client IP as value of the
+//
+// ReverseProxy automatically sets the client IP as the value of the
 // X-Forwarded-For header.
-// If a X-Forwarded-For header already exists, the client IP is
-// appended to existing values.
+// If an X-Forwarded-For header already exists, the client IP is
+// appended to the existing values.
 // To prevent IP spoofing, be sure to delete any pre-existing
-// X-Forwarded-For header comming from the client or
+// X-Forwarded-For header coming from the client or
 // an untrusted proxy.
 type ReverseProxy struct {
 	// Director must be a function which modifies
