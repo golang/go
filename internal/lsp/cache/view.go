@@ -60,6 +60,8 @@ type view struct {
 	// mod is the module information for this view.
 	mod *moduleInformation
 
+	// importsMu guards imports-related state, particularly the ProcessEnv.
+	importsMu sync.Mutex
 	// process is the process env for this view.
 	// Note: this contains cached module and filesystem state.
 	//
@@ -274,8 +276,9 @@ func (v *view) Config(ctx context.Context) *packages.Config {
 }
 
 func (v *view) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error) error {
-	v.mu.Lock()
-	defer v.mu.Unlock()
+	v.importsMu.Lock()
+	defer v.importsMu.Unlock()
+
 	if v.processEnv == nil {
 		var err error
 		if v.processEnv, err = v.buildProcessEnv(ctx); err != nil {
@@ -284,11 +287,12 @@ func (v *view) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 	}
 
 	// In module mode, check if the mod file has changed.
-	if mod, _, err := v.Snapshot().ModFiles(ctx); err == nil && mod != nil {
-		if mod.Identity() != v.cachedModFileVersion {
+	if v.gomod != "" && v.gomod != os.DevNull {
+		mod, err := v.Snapshot().GetFile(span.FileURI(v.gomod))
+		if err == nil && mod.Identity() != v.cachedModFileVersion {
 			v.processEnv.GetResolver().(*imports.ModuleResolver).ClearForNewMod()
+			v.cachedModFileVersion = mod.Identity()
 		}
-		v.cachedModFileVersion = mod.Identity()
 	}
 
 	// Run the user function.
@@ -323,20 +327,20 @@ func (v *view) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 func (v *view) refreshProcessEnv() {
 	start := time.Now()
 
-	v.mu.Lock()
+	v.importsMu.Lock()
 	env := v.processEnv
 	env.GetResolver().ClearForNewScan()
-	v.mu.Unlock()
+	v.importsMu.Unlock()
 
 	// We don't have a context handy to use for logging, so use the stdlib for now.
 	stdlog.Printf("background imports cache refresh starting")
 	err := imports.PrimeCache(context.Background(), env)
 	stdlog.Printf("background refresh finished after %v with err: %v", time.Since(start), err)
 
-	v.mu.Lock()
+	v.importsMu.Lock()
 	v.cacheRefreshDuration = time.Since(start)
 	v.cacheRefreshTimer = nil
-	v.mu.Unlock()
+	v.importsMu.Unlock()
 }
 
 func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error) {
