@@ -140,6 +140,7 @@ func (r *runner) RunGoplsCmd(t testing.TB, args ...string) (string, string) {
 	return string(stdout), string(stderr)
 }
 
+// NormalizeGoplsCmd runs the gopls command and normalizes its output.
 func (r *runner) NormalizeGoplsCmd(t testing.TB, args ...string) (string, string) {
 	stdout, stderr := r.RunGoplsCmd(t, args...)
 	return r.Normalize(stdout), r.Normalize(stderr)

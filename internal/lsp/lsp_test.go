@@ -52,7 +52,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	defer data.Exported.Cleanup()
 
 	cache := cache.New(nil)
-	session := cache.NewSession(ctx)
+	session := cache.NewSession()
 	options := tests.DefaultOptions()
 	session.SetOptions(options)
 	options.Env = data.Config.Env
@@ -928,7 +928,7 @@ func TestModfileSuggestedFixes(t *testing.T) {
 
 	ctx := tests.Context(t)
 	cache := cache.New(nil)
-	session := cache.NewSession(ctx)
+	session := cache.NewSession()
 	options := tests.DefaultOptions()
 	options.TempModfile = true
 	options.Env = append(os.Environ(), "GOPACKAGESDRIVER=off", "GOROOT=")

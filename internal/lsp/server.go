@@ -18,23 +18,23 @@ import (
 )
 
 // NewClientServer
-func NewClientServer(ctx context.Context, cache source.Cache, client protocol.Client) (context.Context, *Server) {
+func NewClientServer(ctx context.Context, session source.Session, client protocol.Client) (context.Context, *Server) {
 	ctx = protocol.WithClient(ctx, client)
 	return ctx, &Server{
 		client:    client,
-		session:   cache.NewSession(ctx),
+		session:   session,
 		delivered: make(map[span.URI]sentDiagnostics),
 	}
 }
 
-// NewServer starts an LSP server on the supplied stream, and waits until the
-// stream is closed.
-func NewServer(ctx context.Context, cache source.Cache, stream jsonrpc2.Stream) (context.Context, *Server) {
+// NewServer creates an LSP server and binds it to handle incoming client
+// messages on on the supplied stream.
+func NewServer(ctx context.Context, session source.Session, stream jsonrpc2.Stream) (context.Context, *Server) {
 	s := &Server{
 		delivered: make(map[span.URI]sentDiagnostics),
+		session:   session,
 	}
 	ctx, s.Conn, s.client = protocol.NewServer(ctx, stream, s)
-	s.session = cache.NewSession(ctx)
 	return ctx, s
 }
 
@@ -56,7 +56,7 @@ func RunServerOnAddress(ctx context.Context, cache source.Cache, addr string, h 
 		if err != nil {
 			return err
 		}
-		h(NewServer(ctx, cache, jsonrpc2.NewHeaderStream(conn, conn)))
+		h(NewServer(ctx, cache.NewSession(), jsonrpc2.NewHeaderStream(conn, conn)))
 	}
 }
 

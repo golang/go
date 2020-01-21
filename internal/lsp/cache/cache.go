@@ -73,7 +73,7 @@ func (c *cache) GetFile(uri span.URI) source.FileHandle {
 	}
 }
 
-func (c *cache) NewSession(ctx context.Context) source.Session {
+func (c *cache) NewSession() source.Session {
 	index := atomic.AddInt64(&sessionIndex, 1)
 	s := &session{
 		cache:    c,

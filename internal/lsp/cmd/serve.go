@@ -97,7 +97,7 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 	if s.Trace {
 		stream = protocol.LoggingStream(stream, out)
 	}
-	ctx, srv := lsp.NewServer(ctx, cache.New(s.app.options), stream)
+	ctx, srv := lsp.NewServer(ctx, cache.New(s.app.options).NewSession(), stream)
 	return prepare(ctx, srv).Run(ctx)
 }
 

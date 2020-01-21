@@ -40,7 +40,7 @@ func TestCapabilities(t *testing.T) {
 	params.Capabilities.Workspace.Configuration = true
 
 	// Send an initialize request to the server.
-	ctx, c.Server = lsp.NewClientServer(ctx, cache.New(app.options), c.Client)
+	ctx, c.Server = lsp.NewClientServer(ctx, cache.New(app.options).NewSession(), c.Client)
 	result, err := c.Server.Initialize(ctx, params)
 	if err != nil {
 		t.Fatal(err)

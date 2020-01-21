@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 func TestModfileRemainsUnchanged(t *testing.T) {
 	ctx := tests.Context(t)
 	cache := cache.New(nil)
-	session := cache.NewSession(ctx)
+	session := cache.NewSession()
 	options := tests.DefaultOptions()
 	options.TempModfile = true
 	options.Env = append(os.Environ(), "GOPACKAGESDRIVER=off", "GOROOT=")
@@ -67,7 +67,7 @@ func TestModfileRemainsUnchanged(t *testing.T) {
 func TestDiagnostics(t *testing.T) {
 	ctx := tests.Context(t)
 	cache := cache.New(nil)
-	session := cache.NewSession(ctx)
+	session := cache.NewSession()
 	options := tests.DefaultOptions()
 	options.TempModfile = true
 	options.Env = append(os.Environ(), "GOPACKAGESDRIVER=off", "GOROOT=")

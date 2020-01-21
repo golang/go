@@ -48,7 +48,7 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 	defer data.Exported.Cleanup()
 
 	cache := cache.New(nil)
-	session := cache.NewSession(ctx)
+	session := cache.NewSession()
 	options := tests.DefaultOptions()
 	options.Env = data.Config.Env
 	view, _, err := session.NewView(ctx, "source_test", span.FileURI(data.Config.Dir), options)

@@ -192,7 +192,7 @@ func (app *Application) connect(ctx context.Context) (*connection, error) {
 	switch app.Remote {
 	case "":
 		connection := newConnection(app)
-		ctx, connection.Server = lsp.NewClientServer(ctx, cache.New(app.options), connection.Client)
+		ctx, connection.Server = lsp.NewClientServer(ctx, cache.New(app.options).NewSession(), connection.Client)
 		return connection, connection.initialize(ctx, app.options)
 	case "internal":
 		internalMu.Lock()
@@ -208,7 +208,7 @@ func (app *Application) connect(ctx context.Context) (*connection, error) {
 		ctx, jc, connection.Server = protocol.NewClient(ctx, jsonrpc2.NewHeaderStream(cr, cw), connection.Client)
 		go jc.Run(ctx)
 		go func() {
-			ctx, srv := lsp.NewServer(ctx, cache.New(app.options), jsonrpc2.NewHeaderStream(sr, sw))
+			ctx, srv := lsp.NewServer(ctx, cache.New(app.options).NewSession(), jsonrpc2.NewHeaderStream(sr, sw))
 			srv.Run(ctx)
 		}()
 		if err := connection.initialize(ctx, app.options); err != nil {

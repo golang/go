@@ -215,7 +215,7 @@ type Cache interface {
 	FileSystem
 
 	// NewSession creates a new Session manager and returns it.
-	NewSession(ctx context.Context) Session
+	NewSession() Session
 
 	// FileSet returns the shared fileset used by all files in the system.
 	FileSet() *token.FileSet
