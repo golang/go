@@ -403,17 +403,12 @@ func (v *view) knownFile(uri span.URI) bool {
 	return f != nil && err == nil
 }
 
-// getFileLocked returns a File for the given URI. It will always succeed because it
+// getFile returns a file for the given URI. It will always succeed because it
 // adds the file to the managed set if needed.
-func (v *view) getFileLocked(uri span.URI) (*fileBase, error) {
+func (v *view) getFile(uri span.URI) (*fileBase, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	return v.getFile(uri)
-}
-
-// getFile is the unlocked internal implementation of GetFile.
-func (v *view) getFile(uri span.URI) (*fileBase, error) {
 	f, err := v.findFile(uri)
 	if err != nil {
 		return nil, err

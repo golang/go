@@ -279,7 +279,7 @@ func (s *session) DidModifyFile(ctx context.Context, c source.FileModification) 
 			}
 		}
 		// Make sure that the file is added to the view.
-		f, err := view.getFileLocked(c.URI)
+		f, err := view.getFile(c.URI)
 		if err != nil {
 			return nil, err
 		}

@@ -533,7 +533,7 @@ func (s *snapshot) getFileURIs() []span.URI {
 // GetFile returns a File for the given URI. It will always succeed because it
 // adds the file to the managed set if needed.
 func (s *snapshot) GetFile(uri span.URI) (source.FileHandle, error) {
-	f, err := s.view.getFileLocked(uri)
+	f, err := s.view.getFile(uri)
 	if err != nil {
 		return nil, err
 	}
