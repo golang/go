@@ -452,6 +452,17 @@ TODO
 
 </dl><!-- encoding/asn1 -->
 
+<dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
+  <dd>
+    <p><!-- CL 200217 -->
+      <a href="/pkg/encoding/json/#Compact"><code>Compact</code></a> no longer
+      escapes the <code>U+2028</code> and <code>U+2029</code> characters, which
+      was never a documented feature. For proper escaping, see <a
+      href="/pkg/encoding/json/#HTMLEscape"><code>HTMLEscape</code></a>.
+    </p>
+
+</dl><!-- encoding/json -->
+
 <dl id="mime"><dt><a href="/pkg/mime/">mime</a></dt>
   <dd>
     <p><!-- CL 186927 -->
