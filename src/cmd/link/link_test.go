@@ -214,6 +214,7 @@ func TestBuildForTvOS(t *testing.T) {
 		"GOOS=darwin",
 		"GOARCH=arm64",
 		"CC="+strings.Join(CC, " "),
+		"CGO_CFLAGS=", // ensure CGO_CFLAGS does not contain any flags. Issue #35459
 	)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
