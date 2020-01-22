@@ -11,7 +11,7 @@ FROM govim/govim:go1.13.5_vim_v8.1.2414_v1
 # TODO(findleyr): Once a version of govim has been tagged containing
 # https://github.com/govim/govim/pull/629, switch this to @latest.
 ENV GOPROXY=https://proxy.golang.org GOPATH=/go VIM_FLAVOR=vim \
-    GOVIM_VERSION=v0.0.27-0.20200108180210-6236474c3ac7
+    GOVIM_VERSION=v0.0.27-0.20200122085353-96e61d22452d
 WORKDIR /src
 
 # Get govim, as well as all dependencies for the ./cmd/govim tests. In order to
