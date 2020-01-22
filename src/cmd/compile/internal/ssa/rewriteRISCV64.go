@@ -9,509 +9,509 @@ import "cmd/compile/internal/types"
 func rewriteValueRISCV64(v *Value) bool {
 	switch v.Op {
 	case OpAdd16:
-		return rewriteValueRISCV64_OpAdd16_0(v)
+		return rewriteValueRISCV64_OpAdd16(v)
 	case OpAdd32:
-		return rewriteValueRISCV64_OpAdd32_0(v)
+		return rewriteValueRISCV64_OpAdd32(v)
 	case OpAdd32F:
-		return rewriteValueRISCV64_OpAdd32F_0(v)
+		return rewriteValueRISCV64_OpAdd32F(v)
 	case OpAdd64:
-		return rewriteValueRISCV64_OpAdd64_0(v)
+		return rewriteValueRISCV64_OpAdd64(v)
 	case OpAdd64F:
-		return rewriteValueRISCV64_OpAdd64F_0(v)
+		return rewriteValueRISCV64_OpAdd64F(v)
 	case OpAdd8:
-		return rewriteValueRISCV64_OpAdd8_0(v)
+		return rewriteValueRISCV64_OpAdd8(v)
 	case OpAddPtr:
-		return rewriteValueRISCV64_OpAddPtr_0(v)
+		return rewriteValueRISCV64_OpAddPtr(v)
 	case OpAddr:
-		return rewriteValueRISCV64_OpAddr_0(v)
+		return rewriteValueRISCV64_OpAddr(v)
 	case OpAnd16:
-		return rewriteValueRISCV64_OpAnd16_0(v)
+		return rewriteValueRISCV64_OpAnd16(v)
 	case OpAnd32:
-		return rewriteValueRISCV64_OpAnd32_0(v)
+		return rewriteValueRISCV64_OpAnd32(v)
 	case OpAnd64:
-		return rewriteValueRISCV64_OpAnd64_0(v)
+		return rewriteValueRISCV64_OpAnd64(v)
 	case OpAnd8:
-		return rewriteValueRISCV64_OpAnd8_0(v)
+		return rewriteValueRISCV64_OpAnd8(v)
 	case OpAndB:
-		return rewriteValueRISCV64_OpAndB_0(v)
+		return rewriteValueRISCV64_OpAndB(v)
 	case OpAvg64u:
-		return rewriteValueRISCV64_OpAvg64u_0(v)
+		return rewriteValueRISCV64_OpAvg64u(v)
 	case OpClosureCall:
-		return rewriteValueRISCV64_OpClosureCall_0(v)
+		return rewriteValueRISCV64_OpClosureCall(v)
 	case OpCom16:
-		return rewriteValueRISCV64_OpCom16_0(v)
+		return rewriteValueRISCV64_OpCom16(v)
 	case OpCom32:
-		return rewriteValueRISCV64_OpCom32_0(v)
+		return rewriteValueRISCV64_OpCom32(v)
 	case OpCom64:
-		return rewriteValueRISCV64_OpCom64_0(v)
+		return rewriteValueRISCV64_OpCom64(v)
 	case OpCom8:
-		return rewriteValueRISCV64_OpCom8_0(v)
+		return rewriteValueRISCV64_OpCom8(v)
 	case OpConst16:
-		return rewriteValueRISCV64_OpConst16_0(v)
+		return rewriteValueRISCV64_OpConst16(v)
 	case OpConst32:
-		return rewriteValueRISCV64_OpConst32_0(v)
+		return rewriteValueRISCV64_OpConst32(v)
 	case OpConst32F:
-		return rewriteValueRISCV64_OpConst32F_0(v)
+		return rewriteValueRISCV64_OpConst32F(v)
 	case OpConst64:
-		return rewriteValueRISCV64_OpConst64_0(v)
+		return rewriteValueRISCV64_OpConst64(v)
 	case OpConst64F:
-		return rewriteValueRISCV64_OpConst64F_0(v)
+		return rewriteValueRISCV64_OpConst64F(v)
 	case OpConst8:
-		return rewriteValueRISCV64_OpConst8_0(v)
+		return rewriteValueRISCV64_OpConst8(v)
 	case OpConstBool:
-		return rewriteValueRISCV64_OpConstBool_0(v)
+		return rewriteValueRISCV64_OpConstBool(v)
 	case OpConstNil:
-		return rewriteValueRISCV64_OpConstNil_0(v)
+		return rewriteValueRISCV64_OpConstNil(v)
 	case OpConvert:
-		return rewriteValueRISCV64_OpConvert_0(v)
+		return rewriteValueRISCV64_OpConvert(v)
 	case OpCvt32Fto32:
-		return rewriteValueRISCV64_OpCvt32Fto32_0(v)
+		return rewriteValueRISCV64_OpCvt32Fto32(v)
 	case OpCvt32Fto64:
-		return rewriteValueRISCV64_OpCvt32Fto64_0(v)
+		return rewriteValueRISCV64_OpCvt32Fto64(v)
 	case OpCvt32Fto64F:
-		return rewriteValueRISCV64_OpCvt32Fto64F_0(v)
+		return rewriteValueRISCV64_OpCvt32Fto64F(v)
 	case OpCvt32to32F:
-		return rewriteValueRISCV64_OpCvt32to32F_0(v)
+		return rewriteValueRISCV64_OpCvt32to32F(v)
 	case OpCvt32to64F:
-		return rewriteValueRISCV64_OpCvt32to64F_0(v)
+		return rewriteValueRISCV64_OpCvt32to64F(v)
 	case OpCvt64Fto32:
-		return rewriteValueRISCV64_OpCvt64Fto32_0(v)
+		return rewriteValueRISCV64_OpCvt64Fto32(v)
 	case OpCvt64Fto32F:
-		return rewriteValueRISCV64_OpCvt64Fto32F_0(v)
+		return rewriteValueRISCV64_OpCvt64Fto32F(v)
 	case OpCvt64Fto64:
-		return rewriteValueRISCV64_OpCvt64Fto64_0(v)
+		return rewriteValueRISCV64_OpCvt64Fto64(v)
 	case OpCvt64to32F:
-		return rewriteValueRISCV64_OpCvt64to32F_0(v)
+		return rewriteValueRISCV64_OpCvt64to32F(v)
 	case OpCvt64to64F:
-		return rewriteValueRISCV64_OpCvt64to64F_0(v)
+		return rewriteValueRISCV64_OpCvt64to64F(v)
 	case OpDiv16:
-		return rewriteValueRISCV64_OpDiv16_0(v)
+		return rewriteValueRISCV64_OpDiv16(v)
 	case OpDiv16u:
-		return rewriteValueRISCV64_OpDiv16u_0(v)
+		return rewriteValueRISCV64_OpDiv16u(v)
 	case OpDiv32:
-		return rewriteValueRISCV64_OpDiv32_0(v)
+		return rewriteValueRISCV64_OpDiv32(v)
 	case OpDiv32F:
-		return rewriteValueRISCV64_OpDiv32F_0(v)
+		return rewriteValueRISCV64_OpDiv32F(v)
 	case OpDiv32u:
-		return rewriteValueRISCV64_OpDiv32u_0(v)
+		return rewriteValueRISCV64_OpDiv32u(v)
 	case OpDiv64:
-		return rewriteValueRISCV64_OpDiv64_0(v)
+		return rewriteValueRISCV64_OpDiv64(v)
 	case OpDiv64F:
-		return rewriteValueRISCV64_OpDiv64F_0(v)
+		return rewriteValueRISCV64_OpDiv64F(v)
 	case OpDiv64u:
-		return rewriteValueRISCV64_OpDiv64u_0(v)
+		return rewriteValueRISCV64_OpDiv64u(v)
 	case OpDiv8:
-		return rewriteValueRISCV64_OpDiv8_0(v)
+		return rewriteValueRISCV64_OpDiv8(v)
 	case OpDiv8u:
-		return rewriteValueRISCV64_OpDiv8u_0(v)
+		return rewriteValueRISCV64_OpDiv8u(v)
 	case OpEq16:
-		return rewriteValueRISCV64_OpEq16_0(v)
+		return rewriteValueRISCV64_OpEq16(v)
 	case OpEq32:
-		return rewriteValueRISCV64_OpEq32_0(v)
+		return rewriteValueRISCV64_OpEq32(v)
 	case OpEq32F:
-		return rewriteValueRISCV64_OpEq32F_0(v)
+		return rewriteValueRISCV64_OpEq32F(v)
 	case OpEq64:
-		return rewriteValueRISCV64_OpEq64_0(v)
+		return rewriteValueRISCV64_OpEq64(v)
 	case OpEq64F:
-		return rewriteValueRISCV64_OpEq64F_0(v)
+		return rewriteValueRISCV64_OpEq64F(v)
 	case OpEq8:
-		return rewriteValueRISCV64_OpEq8_0(v)
+		return rewriteValueRISCV64_OpEq8(v)
 	case OpEqB:
-		return rewriteValueRISCV64_OpEqB_0(v)
+		return rewriteValueRISCV64_OpEqB(v)
 	case OpEqPtr:
-		return rewriteValueRISCV64_OpEqPtr_0(v)
+		return rewriteValueRISCV64_OpEqPtr(v)
 	case OpGeq16:
-		return rewriteValueRISCV64_OpGeq16_0(v)
+		return rewriteValueRISCV64_OpGeq16(v)
 	case OpGeq16U:
-		return rewriteValueRISCV64_OpGeq16U_0(v)
+		return rewriteValueRISCV64_OpGeq16U(v)
 	case OpGeq32:
-		return rewriteValueRISCV64_OpGeq32_0(v)
+		return rewriteValueRISCV64_OpGeq32(v)
 	case OpGeq32F:
-		return rewriteValueRISCV64_OpGeq32F_0(v)
+		return rewriteValueRISCV64_OpGeq32F(v)
 	case OpGeq32U:
-		return rewriteValueRISCV64_OpGeq32U_0(v)
+		return rewriteValueRISCV64_OpGeq32U(v)
 	case OpGeq64:
-		return rewriteValueRISCV64_OpGeq64_0(v)
+		return rewriteValueRISCV64_OpGeq64(v)
 	case OpGeq64F:
-		return rewriteValueRISCV64_OpGeq64F_0(v)
+		return rewriteValueRISCV64_OpGeq64F(v)
 	case OpGeq64U:
-		return rewriteValueRISCV64_OpGeq64U_0(v)
+		return rewriteValueRISCV64_OpGeq64U(v)
 	case OpGeq8:
-		return rewriteValueRISCV64_OpGeq8_0(v)
+		return rewriteValueRISCV64_OpGeq8(v)
 	case OpGeq8U:
-		return rewriteValueRISCV64_OpGeq8U_0(v)
+		return rewriteValueRISCV64_OpGeq8U(v)
 	case OpGetCallerPC:
-		return rewriteValueRISCV64_OpGetCallerPC_0(v)
+		return rewriteValueRISCV64_OpGetCallerPC(v)
 	case OpGetCallerSP:
-		return rewriteValueRISCV64_OpGetCallerSP_0(v)
+		return rewriteValueRISCV64_OpGetCallerSP(v)
 	case OpGetClosurePtr:
-		return rewriteValueRISCV64_OpGetClosurePtr_0(v)
+		return rewriteValueRISCV64_OpGetClosurePtr(v)
 	case OpGreater16:
-		return rewriteValueRISCV64_OpGreater16_0(v)
+		return rewriteValueRISCV64_OpGreater16(v)
 	case OpGreater16U:
-		return rewriteValueRISCV64_OpGreater16U_0(v)
+		return rewriteValueRISCV64_OpGreater16U(v)
 	case OpGreater32:
-		return rewriteValueRISCV64_OpGreater32_0(v)
+		return rewriteValueRISCV64_OpGreater32(v)
 	case OpGreater32F:
-		return rewriteValueRISCV64_OpGreater32F_0(v)
+		return rewriteValueRISCV64_OpGreater32F(v)
 	case OpGreater32U:
-		return rewriteValueRISCV64_OpGreater32U_0(v)
+		return rewriteValueRISCV64_OpGreater32U(v)
 	case OpGreater64:
-		return rewriteValueRISCV64_OpGreater64_0(v)
+		return rewriteValueRISCV64_OpGreater64(v)
 	case OpGreater64F:
-		return rewriteValueRISCV64_OpGreater64F_0(v)
+		return rewriteValueRISCV64_OpGreater64F(v)
 	case OpGreater64U:
-		return rewriteValueRISCV64_OpGreater64U_0(v)
+		return rewriteValueRISCV64_OpGreater64U(v)
 	case OpGreater8:
-		return rewriteValueRISCV64_OpGreater8_0(v)
+		return rewriteValueRISCV64_OpGreater8(v)
 	case OpGreater8U:
-		return rewriteValueRISCV64_OpGreater8U_0(v)
+		return rewriteValueRISCV64_OpGreater8U(v)
 	case OpHmul32:
-		return rewriteValueRISCV64_OpHmul32_0(v)
+		return rewriteValueRISCV64_OpHmul32(v)
 	case OpHmul32u:
-		return rewriteValueRISCV64_OpHmul32u_0(v)
+		return rewriteValueRISCV64_OpHmul32u(v)
 	case OpHmul64:
-		return rewriteValueRISCV64_OpHmul64_0(v)
+		return rewriteValueRISCV64_OpHmul64(v)
 	case OpHmul64u:
-		return rewriteValueRISCV64_OpHmul64u_0(v)
+		return rewriteValueRISCV64_OpHmul64u(v)
 	case OpInterCall:
-		return rewriteValueRISCV64_OpInterCall_0(v)
+		return rewriteValueRISCV64_OpInterCall(v)
 	case OpIsInBounds:
-		return rewriteValueRISCV64_OpIsInBounds_0(v)
+		return rewriteValueRISCV64_OpIsInBounds(v)
 	case OpIsNonNil:
-		return rewriteValueRISCV64_OpIsNonNil_0(v)
+		return rewriteValueRISCV64_OpIsNonNil(v)
 	case OpIsSliceInBounds:
-		return rewriteValueRISCV64_OpIsSliceInBounds_0(v)
+		return rewriteValueRISCV64_OpIsSliceInBounds(v)
 	case OpLeq16:
-		return rewriteValueRISCV64_OpLeq16_0(v)
+		return rewriteValueRISCV64_OpLeq16(v)
 	case OpLeq16U:
-		return rewriteValueRISCV64_OpLeq16U_0(v)
+		return rewriteValueRISCV64_OpLeq16U(v)
 	case OpLeq32:
-		return rewriteValueRISCV64_OpLeq32_0(v)
+		return rewriteValueRISCV64_OpLeq32(v)
 	case OpLeq32F:
-		return rewriteValueRISCV64_OpLeq32F_0(v)
+		return rewriteValueRISCV64_OpLeq32F(v)
 	case OpLeq32U:
-		return rewriteValueRISCV64_OpLeq32U_0(v)
+		return rewriteValueRISCV64_OpLeq32U(v)
 	case OpLeq64:
-		return rewriteValueRISCV64_OpLeq64_0(v)
+		return rewriteValueRISCV64_OpLeq64(v)
 	case OpLeq64F:
-		return rewriteValueRISCV64_OpLeq64F_0(v)
+		return rewriteValueRISCV64_OpLeq64F(v)
 	case OpLeq64U:
-		return rewriteValueRISCV64_OpLeq64U_0(v)
+		return rewriteValueRISCV64_OpLeq64U(v)
 	case OpLeq8:
-		return rewriteValueRISCV64_OpLeq8_0(v)
+		return rewriteValueRISCV64_OpLeq8(v)
 	case OpLeq8U:
-		return rewriteValueRISCV64_OpLeq8U_0(v)
+		return rewriteValueRISCV64_OpLeq8U(v)
 	case OpLess16:
-		return rewriteValueRISCV64_OpLess16_0(v)
+		return rewriteValueRISCV64_OpLess16(v)
 	case OpLess16U:
-		return rewriteValueRISCV64_OpLess16U_0(v)
+		return rewriteValueRISCV64_OpLess16U(v)
 	case OpLess32:
-		return rewriteValueRISCV64_OpLess32_0(v)
+		return rewriteValueRISCV64_OpLess32(v)
 	case OpLess32F:
-		return rewriteValueRISCV64_OpLess32F_0(v)
+		return rewriteValueRISCV64_OpLess32F(v)
 	case OpLess32U:
-		return rewriteValueRISCV64_OpLess32U_0(v)
+		return rewriteValueRISCV64_OpLess32U(v)
 	case OpLess64:
-		return rewriteValueRISCV64_OpLess64_0(v)
+		return rewriteValueRISCV64_OpLess64(v)
 	case OpLess64F:
-		return rewriteValueRISCV64_OpLess64F_0(v)
+		return rewriteValueRISCV64_OpLess64F(v)
 	case OpLess64U:
-		return rewriteValueRISCV64_OpLess64U_0(v)
+		return rewriteValueRISCV64_OpLess64U(v)
 	case OpLess8:
-		return rewriteValueRISCV64_OpLess8_0(v)
+		return rewriteValueRISCV64_OpLess8(v)
 	case OpLess8U:
-		return rewriteValueRISCV64_OpLess8U_0(v)
+		return rewriteValueRISCV64_OpLess8U(v)
 	case OpLoad:
-		return rewriteValueRISCV64_OpLoad_0(v)
+		return rewriteValueRISCV64_OpLoad(v)
 	case OpLocalAddr:
-		return rewriteValueRISCV64_OpLocalAddr_0(v)
+		return rewriteValueRISCV64_OpLocalAddr(v)
 	case OpLsh16x16:
-		return rewriteValueRISCV64_OpLsh16x16_0(v)
+		return rewriteValueRISCV64_OpLsh16x16(v)
 	case OpLsh16x32:
-		return rewriteValueRISCV64_OpLsh16x32_0(v)
+		return rewriteValueRISCV64_OpLsh16x32(v)
 	case OpLsh16x64:
-		return rewriteValueRISCV64_OpLsh16x64_0(v)
+		return rewriteValueRISCV64_OpLsh16x64(v)
 	case OpLsh16x8:
-		return rewriteValueRISCV64_OpLsh16x8_0(v)
+		return rewriteValueRISCV64_OpLsh16x8(v)
 	case OpLsh32x16:
-		return rewriteValueRISCV64_OpLsh32x16_0(v)
+		return rewriteValueRISCV64_OpLsh32x16(v)
 	case OpLsh32x32:
-		return rewriteValueRISCV64_OpLsh32x32_0(v)
+		return rewriteValueRISCV64_OpLsh32x32(v)
 	case OpLsh32x64:
-		return rewriteValueRISCV64_OpLsh32x64_0(v)
+		return rewriteValueRISCV64_OpLsh32x64(v)
 	case OpLsh32x8:
-		return rewriteValueRISCV64_OpLsh32x8_0(v)
+		return rewriteValueRISCV64_OpLsh32x8(v)
 	case OpLsh64x16:
-		return rewriteValueRISCV64_OpLsh64x16_0(v)
+		return rewriteValueRISCV64_OpLsh64x16(v)
 	case OpLsh64x32:
-		return rewriteValueRISCV64_OpLsh64x32_0(v)
+		return rewriteValueRISCV64_OpLsh64x32(v)
 	case OpLsh64x64:
-		return rewriteValueRISCV64_OpLsh64x64_0(v)
+		return rewriteValueRISCV64_OpLsh64x64(v)
 	case OpLsh64x8:
-		return rewriteValueRISCV64_OpLsh64x8_0(v)
+		return rewriteValueRISCV64_OpLsh64x8(v)
 	case OpLsh8x16:
-		return rewriteValueRISCV64_OpLsh8x16_0(v)
+		return rewriteValueRISCV64_OpLsh8x16(v)
 	case OpLsh8x32:
-		return rewriteValueRISCV64_OpLsh8x32_0(v)
+		return rewriteValueRISCV64_OpLsh8x32(v)
 	case OpLsh8x64:
-		return rewriteValueRISCV64_OpLsh8x64_0(v)
+		return rewriteValueRISCV64_OpLsh8x64(v)
 	case OpLsh8x8:
-		return rewriteValueRISCV64_OpLsh8x8_0(v)
+		return rewriteValueRISCV64_OpLsh8x8(v)
 	case OpMod16:
-		return rewriteValueRISCV64_OpMod16_0(v)
+		return rewriteValueRISCV64_OpMod16(v)
 	case OpMod16u:
-		return rewriteValueRISCV64_OpMod16u_0(v)
+		return rewriteValueRISCV64_OpMod16u(v)
 	case OpMod32:
-		return rewriteValueRISCV64_OpMod32_0(v)
+		return rewriteValueRISCV64_OpMod32(v)
 	case OpMod32u:
-		return rewriteValueRISCV64_OpMod32u_0(v)
+		return rewriteValueRISCV64_OpMod32u(v)
 	case OpMod64:
-		return rewriteValueRISCV64_OpMod64_0(v)
+		return rewriteValueRISCV64_OpMod64(v)
 	case OpMod64u:
-		return rewriteValueRISCV64_OpMod64u_0(v)
+		return rewriteValueRISCV64_OpMod64u(v)
 	case OpMod8:
-		return rewriteValueRISCV64_OpMod8_0(v)
+		return rewriteValueRISCV64_OpMod8(v)
 	case OpMod8u:
-		return rewriteValueRISCV64_OpMod8u_0(v)
+		return rewriteValueRISCV64_OpMod8u(v)
 	case OpMove:
-		return rewriteValueRISCV64_OpMove_0(v)
+		return rewriteValueRISCV64_OpMove(v)
 	case OpMul16:
-		return rewriteValueRISCV64_OpMul16_0(v)
+		return rewriteValueRISCV64_OpMul16(v)
 	case OpMul32:
-		return rewriteValueRISCV64_OpMul32_0(v)
+		return rewriteValueRISCV64_OpMul32(v)
 	case OpMul32F:
-		return rewriteValueRISCV64_OpMul32F_0(v)
+		return rewriteValueRISCV64_OpMul32F(v)
 	case OpMul64:
-		return rewriteValueRISCV64_OpMul64_0(v)
+		return rewriteValueRISCV64_OpMul64(v)
 	case OpMul64F:
-		return rewriteValueRISCV64_OpMul64F_0(v)
+		return rewriteValueRISCV64_OpMul64F(v)
 	case OpMul8:
-		return rewriteValueRISCV64_OpMul8_0(v)
+		return rewriteValueRISCV64_OpMul8(v)
 	case OpNeg16:
-		return rewriteValueRISCV64_OpNeg16_0(v)
+		return rewriteValueRISCV64_OpNeg16(v)
 	case OpNeg32:
-		return rewriteValueRISCV64_OpNeg32_0(v)
+		return rewriteValueRISCV64_OpNeg32(v)
 	case OpNeg32F:
-		return rewriteValueRISCV64_OpNeg32F_0(v)
+		return rewriteValueRISCV64_OpNeg32F(v)
 	case OpNeg64:
-		return rewriteValueRISCV64_OpNeg64_0(v)
+		return rewriteValueRISCV64_OpNeg64(v)
 	case OpNeg64F:
-		return rewriteValueRISCV64_OpNeg64F_0(v)
+		return rewriteValueRISCV64_OpNeg64F(v)
 	case OpNeg8:
-		return rewriteValueRISCV64_OpNeg8_0(v)
+		return rewriteValueRISCV64_OpNeg8(v)
 	case OpNeq16:
-		return rewriteValueRISCV64_OpNeq16_0(v)
+		return rewriteValueRISCV64_OpNeq16(v)
 	case OpNeq32:
-		return rewriteValueRISCV64_OpNeq32_0(v)
+		return rewriteValueRISCV64_OpNeq32(v)
 	case OpNeq32F:
-		return rewriteValueRISCV64_OpNeq32F_0(v)
+		return rewriteValueRISCV64_OpNeq32F(v)
 	case OpNeq64:
-		return rewriteValueRISCV64_OpNeq64_0(v)
+		return rewriteValueRISCV64_OpNeq64(v)
 	case OpNeq64F:
-		return rewriteValueRISCV64_OpNeq64F_0(v)
+		return rewriteValueRISCV64_OpNeq64F(v)
 	case OpNeq8:
-		return rewriteValueRISCV64_OpNeq8_0(v)
+		return rewriteValueRISCV64_OpNeq8(v)
 	case OpNeqB:
-		return rewriteValueRISCV64_OpNeqB_0(v)
+		return rewriteValueRISCV64_OpNeqB(v)
 	case OpNeqPtr:
-		return rewriteValueRISCV64_OpNeqPtr_0(v)
+		return rewriteValueRISCV64_OpNeqPtr(v)
 	case OpNilCheck:
-		return rewriteValueRISCV64_OpNilCheck_0(v)
+		return rewriteValueRISCV64_OpNilCheck(v)
 	case OpNot:
-		return rewriteValueRISCV64_OpNot_0(v)
+		return rewriteValueRISCV64_OpNot(v)
 	case OpOffPtr:
-		return rewriteValueRISCV64_OpOffPtr_0(v)
+		return rewriteValueRISCV64_OpOffPtr(v)
 	case OpOr16:
-		return rewriteValueRISCV64_OpOr16_0(v)
+		return rewriteValueRISCV64_OpOr16(v)
 	case OpOr32:
-		return rewriteValueRISCV64_OpOr32_0(v)
+		return rewriteValueRISCV64_OpOr32(v)
 	case OpOr64:
-		return rewriteValueRISCV64_OpOr64_0(v)
+		return rewriteValueRISCV64_OpOr64(v)
 	case OpOr8:
-		return rewriteValueRISCV64_OpOr8_0(v)
+		return rewriteValueRISCV64_OpOr8(v)
 	case OpOrB:
-		return rewriteValueRISCV64_OpOrB_0(v)
+		return rewriteValueRISCV64_OpOrB(v)
 	case OpPanicBounds:
-		return rewriteValueRISCV64_OpPanicBounds_0(v)
+		return rewriteValueRISCV64_OpPanicBounds(v)
 	case OpRISCV64ADD:
-		return rewriteValueRISCV64_OpRISCV64ADD_0(v)
+		return rewriteValueRISCV64_OpRISCV64ADD(v)
 	case OpRISCV64ADDI:
-		return rewriteValueRISCV64_OpRISCV64ADDI_0(v)
+		return rewriteValueRISCV64_OpRISCV64ADDI(v)
 	case OpRISCV64MOVBUload:
-		return rewriteValueRISCV64_OpRISCV64MOVBUload_0(v)
+		return rewriteValueRISCV64_OpRISCV64MOVBUload(v)
 	case OpRISCV64MOVBload:
-		return rewriteValueRISCV64_OpRISCV64MOVBload_0(v)
+		return rewriteValueRISCV64_OpRISCV64MOVBload(v)
 	case OpRISCV64MOVBstore:
-		return rewriteValueRISCV64_OpRISCV64MOVBstore_0(v)
+		return rewriteValueRISCV64_OpRISCV64MOVBstore(v)
 	case OpRISCV64MOVDconst:
-		return rewriteValueRISCV64_OpRISCV64MOVDconst_0(v)
+		return rewriteValueRISCV64_OpRISCV64MOVDconst(v)
 	case OpRISCV64MOVDload:
-		return rewriteValueRISCV64_OpRISCV64MOVDload_0(v)
+		return rewriteValueRISCV64_OpRISCV64MOVDload(v)
 	case OpRISCV64MOVDstore:
-		return rewriteValueRISCV64_OpRISCV64MOVDstore_0(v)
+		return rewriteValueRISCV64_OpRISCV64MOVDstore(v)
 	case OpRISCV64MOVHUload:
-		return rewriteValueRISCV64_OpRISCV64MOVHUload_0(v)
+		return rewriteValueRISCV64_OpRISCV64MOVHUload(v)
 	case OpRISCV64MOVHload:
-		return rewriteValueRISCV64_OpRISCV64MOVHload_0(v)
+		return rewriteValueRISCV64_OpRISCV64MOVHload(v)
 	case OpRISCV64MOVHstore:
-		return rewriteValueRISCV64_OpRISCV64MOVHstore_0(v)
+		return rewriteValueRISCV64_OpRISCV64MOVHstore(v)
 	case OpRISCV64MOVWUload:
-		return rewriteValueRISCV64_OpRISCV64MOVWUload_0(v)
+		return rewriteValueRISCV64_OpRISCV64MOVWUload(v)
 	case OpRISCV64MOVWload:
-		return rewriteValueRISCV64_OpRISCV64MOVWload_0(v)
+		return rewriteValueRISCV64_OpRISCV64MOVWload(v)
 	case OpRISCV64MOVWstore:
-		return rewriteValueRISCV64_OpRISCV64MOVWstore_0(v)
+		return rewriteValueRISCV64_OpRISCV64MOVWstore(v)
 	case OpRotateLeft16:
-		return rewriteValueRISCV64_OpRotateLeft16_0(v)
+		return rewriteValueRISCV64_OpRotateLeft16(v)
 	case OpRotateLeft32:
-		return rewriteValueRISCV64_OpRotateLeft32_0(v)
+		return rewriteValueRISCV64_OpRotateLeft32(v)
 	case OpRotateLeft64:
-		return rewriteValueRISCV64_OpRotateLeft64_0(v)
+		return rewriteValueRISCV64_OpRotateLeft64(v)
 	case OpRotateLeft8:
-		return rewriteValueRISCV64_OpRotateLeft8_0(v)
+		return rewriteValueRISCV64_OpRotateLeft8(v)
 	case OpRound32F:
-		return rewriteValueRISCV64_OpRound32F_0(v)
+		return rewriteValueRISCV64_OpRound32F(v)
 	case OpRound64F:
-		return rewriteValueRISCV64_OpRound64F_0(v)
+		return rewriteValueRISCV64_OpRound64F(v)
 	case OpRsh16Ux16:
-		return rewriteValueRISCV64_OpRsh16Ux16_0(v)
+		return rewriteValueRISCV64_OpRsh16Ux16(v)
 	case OpRsh16Ux32:
-		return rewriteValueRISCV64_OpRsh16Ux32_0(v)
+		return rewriteValueRISCV64_OpRsh16Ux32(v)
 	case OpRsh16Ux64:
-		return rewriteValueRISCV64_OpRsh16Ux64_0(v)
+		return rewriteValueRISCV64_OpRsh16Ux64(v)
 	case OpRsh16Ux8:
-		return rewriteValueRISCV64_OpRsh16Ux8_0(v)
+		return rewriteValueRISCV64_OpRsh16Ux8(v)
 	case OpRsh16x16:
-		return rewriteValueRISCV64_OpRsh16x16_0(v)
+		return rewriteValueRISCV64_OpRsh16x16(v)
 	case OpRsh16x32:
-		return rewriteValueRISCV64_OpRsh16x32_0(v)
+		return rewriteValueRISCV64_OpRsh16x32(v)
 	case OpRsh16x64:
-		return rewriteValueRISCV64_OpRsh16x64_0(v)
+		return rewriteValueRISCV64_OpRsh16x64(v)
 	case OpRsh16x8:
-		return rewriteValueRISCV64_OpRsh16x8_0(v)
+		return rewriteValueRISCV64_OpRsh16x8(v)
 	case OpRsh32Ux16:
-		return rewriteValueRISCV64_OpRsh32Ux16_0(v)
+		return rewriteValueRISCV64_OpRsh32Ux16(v)
 	case OpRsh32Ux32:
-		return rewriteValueRISCV64_OpRsh32Ux32_0(v)
+		return rewriteValueRISCV64_OpRsh32Ux32(v)
 	case OpRsh32Ux64:
-		return rewriteValueRISCV64_OpRsh32Ux64_0(v)
+		return rewriteValueRISCV64_OpRsh32Ux64(v)
 	case OpRsh32Ux8:
-		return rewriteValueRISCV64_OpRsh32Ux8_0(v)
+		return rewriteValueRISCV64_OpRsh32Ux8(v)
 	case OpRsh32x16:
-		return rewriteValueRISCV64_OpRsh32x16_0(v)
+		return rewriteValueRISCV64_OpRsh32x16(v)
 	case OpRsh32x32:
-		return rewriteValueRISCV64_OpRsh32x32_0(v)
+		return rewriteValueRISCV64_OpRsh32x32(v)
 	case OpRsh32x64:
-		return rewriteValueRISCV64_OpRsh32x64_0(v)
+		return rewriteValueRISCV64_OpRsh32x64(v)
 	case OpRsh32x8:
-		return rewriteValueRISCV64_OpRsh32x8_0(v)
+		return rewriteValueRISCV64_OpRsh32x8(v)
 	case OpRsh64Ux16:
-		return rewriteValueRISCV64_OpRsh64Ux16_0(v)
+		return rewriteValueRISCV64_OpRsh64Ux16(v)
 	case OpRsh64Ux32:
-		return rewriteValueRISCV64_OpRsh64Ux32_0(v)
+		return rewriteValueRISCV64_OpRsh64Ux32(v)
 	case OpRsh64Ux64:
-		return rewriteValueRISCV64_OpRsh64Ux64_0(v)
+		return rewriteValueRISCV64_OpRsh64Ux64(v)
 	case OpRsh64Ux8:
-		return rewriteValueRISCV64_OpRsh64Ux8_0(v)
+		return rewriteValueRISCV64_OpRsh64Ux8(v)
 	case OpRsh64x16:
-		return rewriteValueRISCV64_OpRsh64x16_0(v)
+		return rewriteValueRISCV64_OpRsh64x16(v)
 	case OpRsh64x32:
-		return rewriteValueRISCV64_OpRsh64x32_0(v)
+		return rewriteValueRISCV64_OpRsh64x32(v)
 	case OpRsh64x64:
-		return rewriteValueRISCV64_OpRsh64x64_0(v)
+		return rewriteValueRISCV64_OpRsh64x64(v)
 	case OpRsh64x8:
-		return rewriteValueRISCV64_OpRsh64x8_0(v)
+		return rewriteValueRISCV64_OpRsh64x8(v)
 	case OpRsh8Ux16:
-		return rewriteValueRISCV64_OpRsh8Ux16_0(v)
+		return rewriteValueRISCV64_OpRsh8Ux16(v)
 	case OpRsh8Ux32:
-		return rewriteValueRISCV64_OpRsh8Ux32_0(v)
+		return rewriteValueRISCV64_OpRsh8Ux32(v)
 	case OpRsh8Ux64:
-		return rewriteValueRISCV64_OpRsh8Ux64_0(v)
+		return rewriteValueRISCV64_OpRsh8Ux64(v)
 	case OpRsh8Ux8:
-		return rewriteValueRISCV64_OpRsh8Ux8_0(v)
+		return rewriteValueRISCV64_OpRsh8Ux8(v)
 	case OpRsh8x16:
-		return rewriteValueRISCV64_OpRsh8x16_0(v)
+		return rewriteValueRISCV64_OpRsh8x16(v)
 	case OpRsh8x32:
-		return rewriteValueRISCV64_OpRsh8x32_0(v)
+		return rewriteValueRISCV64_OpRsh8x32(v)
 	case OpRsh8x64:
-		return rewriteValueRISCV64_OpRsh8x64_0(v)
+		return rewriteValueRISCV64_OpRsh8x64(v)
 	case OpRsh8x8:
-		return rewriteValueRISCV64_OpRsh8x8_0(v)
+		return rewriteValueRISCV64_OpRsh8x8(v)
 	case OpSignExt16to32:
-		return rewriteValueRISCV64_OpSignExt16to32_0(v)
+		return rewriteValueRISCV64_OpSignExt16to32(v)
 	case OpSignExt16to64:
-		return rewriteValueRISCV64_OpSignExt16to64_0(v)
+		return rewriteValueRISCV64_OpSignExt16to64(v)
 	case OpSignExt32to64:
-		return rewriteValueRISCV64_OpSignExt32to64_0(v)
+		return rewriteValueRISCV64_OpSignExt32to64(v)
 	case OpSignExt8to16:
-		return rewriteValueRISCV64_OpSignExt8to16_0(v)
+		return rewriteValueRISCV64_OpSignExt8to16(v)
 	case OpSignExt8to32:
-		return rewriteValueRISCV64_OpSignExt8to32_0(v)
+		return rewriteValueRISCV64_OpSignExt8to32(v)
 	case OpSignExt8to64:
-		return rewriteValueRISCV64_OpSignExt8to64_0(v)
+		return rewriteValueRISCV64_OpSignExt8to64(v)
 	case OpSlicemask:
-		return rewriteValueRISCV64_OpSlicemask_0(v)
+		return rewriteValueRISCV64_OpSlicemask(v)
 	case OpSqrt:
-		return rewriteValueRISCV64_OpSqrt_0(v)
+		return rewriteValueRISCV64_OpSqrt(v)
 	case OpStaticCall:
-		return rewriteValueRISCV64_OpStaticCall_0(v)
+		return rewriteValueRISCV64_OpStaticCall(v)
 	case OpStore:
-		return rewriteValueRISCV64_OpStore_0(v)
+		return rewriteValueRISCV64_OpStore(v)
 	case OpSub16:
-		return rewriteValueRISCV64_OpSub16_0(v)
+		return rewriteValueRISCV64_OpSub16(v)
 	case OpSub32:
-		return rewriteValueRISCV64_OpSub32_0(v)
+		return rewriteValueRISCV64_OpSub32(v)
 	case OpSub32F:
-		return rewriteValueRISCV64_OpSub32F_0(v)
+		return rewriteValueRISCV64_OpSub32F(v)
 	case OpSub64:
-		return rewriteValueRISCV64_OpSub64_0(v)
+		return rewriteValueRISCV64_OpSub64(v)
 	case OpSub64F:
-		return rewriteValueRISCV64_OpSub64F_0(v)
+		return rewriteValueRISCV64_OpSub64F(v)
 	case OpSub8:
-		return rewriteValueRISCV64_OpSub8_0(v)
+		return rewriteValueRISCV64_OpSub8(v)
 	case OpSubPtr:
-		return rewriteValueRISCV64_OpSubPtr_0(v)
+		return rewriteValueRISCV64_OpSubPtr(v)
 	case OpTrunc16to8:
-		return rewriteValueRISCV64_OpTrunc16to8_0(v)
+		return rewriteValueRISCV64_OpTrunc16to8(v)
 	case OpTrunc32to16:
-		return rewriteValueRISCV64_OpTrunc32to16_0(v)
+		return rewriteValueRISCV64_OpTrunc32to16(v)
 	case OpTrunc32to8:
-		return rewriteValueRISCV64_OpTrunc32to8_0(v)
+		return rewriteValueRISCV64_OpTrunc32to8(v)
 	case OpTrunc64to16:
-		return rewriteValueRISCV64_OpTrunc64to16_0(v)
+		return rewriteValueRISCV64_OpTrunc64to16(v)
 	case OpTrunc64to32:
-		return rewriteValueRISCV64_OpTrunc64to32_0(v)
+		return rewriteValueRISCV64_OpTrunc64to32(v)
 	case OpTrunc64to8:
-		return rewriteValueRISCV64_OpTrunc64to8_0(v)
+		return rewriteValueRISCV64_OpTrunc64to8(v)
 	case OpWB:
-		return rewriteValueRISCV64_OpWB_0(v)
+		return rewriteValueRISCV64_OpWB(v)
 	case OpXor16:
-		return rewriteValueRISCV64_OpXor16_0(v)
+		return rewriteValueRISCV64_OpXor16(v)
 	case OpXor32:
-		return rewriteValueRISCV64_OpXor32_0(v)
+		return rewriteValueRISCV64_OpXor32(v)
 	case OpXor64:
-		return rewriteValueRISCV64_OpXor64_0(v)
+		return rewriteValueRISCV64_OpXor64(v)
 	case OpXor8:
-		return rewriteValueRISCV64_OpXor8_0(v)
+		return rewriteValueRISCV64_OpXor8(v)
 	case OpZero:
-		return rewriteValueRISCV64_OpZero_0(v)
+		return rewriteValueRISCV64_OpZero(v)
 	case OpZeroExt16to32:
-		return rewriteValueRISCV64_OpZeroExt16to32_0(v)
+		return rewriteValueRISCV64_OpZeroExt16to32(v)
 	case OpZeroExt16to64:
-		return rewriteValueRISCV64_OpZeroExt16to64_0(v)
+		return rewriteValueRISCV64_OpZeroExt16to64(v)
 	case OpZeroExt32to64:
-		return rewriteValueRISCV64_OpZeroExt32to64_0(v)
+		return rewriteValueRISCV64_OpZeroExt32to64(v)
 	case OpZeroExt8to16:
-		return rewriteValueRISCV64_OpZeroExt8to16_0(v)
+		return rewriteValueRISCV64_OpZeroExt8to16(v)
 	case OpZeroExt8to32:
-		return rewriteValueRISCV64_OpZeroExt8to32_0(v)
+		return rewriteValueRISCV64_OpZeroExt8to32(v)
 	case OpZeroExt8to64:
-		return rewriteValueRISCV64_OpZeroExt8to64_0(v)
+		return rewriteValueRISCV64_OpZeroExt8to64(v)
 	}
 	return false
 }
-func rewriteValueRISCV64_OpAdd16_0(v *Value) bool {
+func rewriteValueRISCV64_OpAdd16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Add16 x y)
@@ -525,7 +525,7 @@ func rewriteValueRISCV64_OpAdd16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpAdd32_0(v *Value) bool {
+func rewriteValueRISCV64_OpAdd32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Add32 x y)
@@ -539,7 +539,7 @@ func rewriteValueRISCV64_OpAdd32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpAdd32F_0(v *Value) bool {
+func rewriteValueRISCV64_OpAdd32F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Add32F x y)
@@ -553,7 +553,7 @@ func rewriteValueRISCV64_OpAdd32F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpAdd64_0(v *Value) bool {
+func rewriteValueRISCV64_OpAdd64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Add64 x y)
@@ -567,7 +567,7 @@ func rewriteValueRISCV64_OpAdd64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpAdd64F_0(v *Value) bool {
+func rewriteValueRISCV64_OpAdd64F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Add64F x y)
@@ -581,7 +581,7 @@ func rewriteValueRISCV64_OpAdd64F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpAdd8_0(v *Value) bool {
+func rewriteValueRISCV64_OpAdd8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Add8 x y)
@@ -595,7 +595,7 @@ func rewriteValueRISCV64_OpAdd8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpAddPtr_0(v *Value) bool {
+func rewriteValueRISCV64_OpAddPtr(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (AddPtr x y)
@@ -609,7 +609,7 @@ func rewriteValueRISCV64_OpAddPtr_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpAddr_0(v *Value) bool {
+func rewriteValueRISCV64_OpAddr(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Addr {sym} base)
 	// result: (MOVaddr {sym} base)
@@ -622,7 +622,7 @@ func rewriteValueRISCV64_OpAddr_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpAnd16_0(v *Value) bool {
+func rewriteValueRISCV64_OpAnd16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (And16 x y)
@@ -636,7 +636,7 @@ func rewriteValueRISCV64_OpAnd16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpAnd32_0(v *Value) bool {
+func rewriteValueRISCV64_OpAnd32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (And32 x y)
@@ -650,7 +650,7 @@ func rewriteValueRISCV64_OpAnd32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpAnd64_0(v *Value) bool {
+func rewriteValueRISCV64_OpAnd64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (And64 x y)
@@ -664,7 +664,7 @@ func rewriteValueRISCV64_OpAnd64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpAnd8_0(v *Value) bool {
+func rewriteValueRISCV64_OpAnd8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (And8 x y)
@@ -678,7 +678,7 @@ func rewriteValueRISCV64_OpAnd8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpAndB_0(v *Value) bool {
+func rewriteValueRISCV64_OpAndB(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (AndB x y)
@@ -692,7 +692,7 @@ func rewriteValueRISCV64_OpAndB_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpAvg64u_0(v *Value) bool {
+func rewriteValueRISCV64_OpAvg64u(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -723,7 +723,7 @@ func rewriteValueRISCV64_OpAvg64u_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpClosureCall_0(v *Value) bool {
+func rewriteValueRISCV64_OpClosureCall(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -742,7 +742,7 @@ func rewriteValueRISCV64_OpClosureCall_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpCom16_0(v *Value) bool {
+func rewriteValueRISCV64_OpCom16(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Com16 x)
 	// result: (XORI [int64(-1)] x)
@@ -754,7 +754,7 @@ func rewriteValueRISCV64_OpCom16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpCom32_0(v *Value) bool {
+func rewriteValueRISCV64_OpCom32(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Com32 x)
 	// result: (XORI [int64(-1)] x)
@@ -766,7 +766,7 @@ func rewriteValueRISCV64_OpCom32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpCom64_0(v *Value) bool {
+func rewriteValueRISCV64_OpCom64(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Com64 x)
 	// result: (XORI [int64(-1)] x)
@@ -778,7 +778,7 @@ func rewriteValueRISCV64_OpCom64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpCom8_0(v *Value) bool {
+func rewriteValueRISCV64_OpCom8(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Com8 x)
 	// result: (XORI [int64(-1)] x)
@@ -790,7 +790,7 @@ func rewriteValueRISCV64_OpCom8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpConst16_0(v *Value) bool {
+func rewriteValueRISCV64_OpConst16(v *Value) bool {
 	// match: (Const16 [val])
 	// result: (MOVHconst [val])
 	for {
@@ -800,7 +800,7 @@ func rewriteValueRISCV64_OpConst16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpConst32_0(v *Value) bool {
+func rewriteValueRISCV64_OpConst32(v *Value) bool {
 	// match: (Const32 [val])
 	// result: (MOVWconst [val])
 	for {
@@ -810,7 +810,7 @@ func rewriteValueRISCV64_OpConst32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpConst32F_0(v *Value) bool {
+func rewriteValueRISCV64_OpConst32F(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Const32F [val])
@@ -824,7 +824,7 @@ func rewriteValueRISCV64_OpConst32F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpConst64_0(v *Value) bool {
+func rewriteValueRISCV64_OpConst64(v *Value) bool {
 	// match: (Const64 [val])
 	// result: (MOVDconst [val])
 	for {
@@ -834,7 +834,7 @@ func rewriteValueRISCV64_OpConst64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpConst64F_0(v *Value) bool {
+func rewriteValueRISCV64_OpConst64F(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Const64F [val])
@@ -848,7 +848,7 @@ func rewriteValueRISCV64_OpConst64F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpConst8_0(v *Value) bool {
+func rewriteValueRISCV64_OpConst8(v *Value) bool {
 	// match: (Const8 [val])
 	// result: (MOVBconst [val])
 	for {
@@ -858,7 +858,7 @@ func rewriteValueRISCV64_OpConst8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpConstBool_0(v *Value) bool {
+func rewriteValueRISCV64_OpConstBool(v *Value) bool {
 	// match: (ConstBool [b])
 	// result: (MOVBconst [b])
 	for {
@@ -868,7 +868,7 @@ func rewriteValueRISCV64_OpConstBool_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpConstNil_0(v *Value) bool {
+func rewriteValueRISCV64_OpConstNil(v *Value) bool {
 	// match: (ConstNil)
 	// result: (MOVDconst [0])
 	for {
@@ -877,7 +877,7 @@ func rewriteValueRISCV64_OpConstNil_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpConvert_0(v *Value) bool {
+func rewriteValueRISCV64_OpConvert(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Convert x mem)
@@ -891,7 +891,7 @@ func rewriteValueRISCV64_OpConvert_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpCvt32Fto32_0(v *Value) bool {
+func rewriteValueRISCV64_OpCvt32Fto32(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Cvt32Fto32 x)
 	// result: (FCVTWS x)
@@ -902,7 +902,7 @@ func rewriteValueRISCV64_OpCvt32Fto32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpCvt32Fto64_0(v *Value) bool {
+func rewriteValueRISCV64_OpCvt32Fto64(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Cvt32Fto64 x)
 	// result: (FCVTLS x)
@@ -913,7 +913,7 @@ func rewriteValueRISCV64_OpCvt32Fto64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpCvt32Fto64F_0(v *Value) bool {
+func rewriteValueRISCV64_OpCvt32Fto64F(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Cvt32Fto64F x)
 	// result: (FCVTDS x)
@@ -924,7 +924,7 @@ func rewriteValueRISCV64_OpCvt32Fto64F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpCvt32to32F_0(v *Value) bool {
+func rewriteValueRISCV64_OpCvt32to32F(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Cvt32to32F x)
 	// result: (FCVTSW x)
@@ -935,7 +935,7 @@ func rewriteValueRISCV64_OpCvt32to32F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpCvt32to64F_0(v *Value) bool {
+func rewriteValueRISCV64_OpCvt32to64F(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Cvt32to64F x)
 	// result: (FCVTDW x)
@@ -946,7 +946,7 @@ func rewriteValueRISCV64_OpCvt32to64F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpCvt64Fto32_0(v *Value) bool {
+func rewriteValueRISCV64_OpCvt64Fto32(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Cvt64Fto32 x)
 	// result: (FCVTWD x)
@@ -957,7 +957,7 @@ func rewriteValueRISCV64_OpCvt64Fto32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpCvt64Fto32F_0(v *Value) bool {
+func rewriteValueRISCV64_OpCvt64Fto32F(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Cvt64Fto32F x)
 	// result: (FCVTSD x)
@@ -968,7 +968,7 @@ func rewriteValueRISCV64_OpCvt64Fto32F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpCvt64Fto64_0(v *Value) bool {
+func rewriteValueRISCV64_OpCvt64Fto64(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Cvt64Fto64 x)
 	// result: (FCVTLD x)
@@ -979,7 +979,7 @@ func rewriteValueRISCV64_OpCvt64Fto64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpCvt64to32F_0(v *Value) bool {
+func rewriteValueRISCV64_OpCvt64to32F(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Cvt64to32F x)
 	// result: (FCVTSL x)
@@ -990,7 +990,7 @@ func rewriteValueRISCV64_OpCvt64to32F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpCvt64to64F_0(v *Value) bool {
+func rewriteValueRISCV64_OpCvt64to64F(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Cvt64to64F x)
 	// result: (FCVTDL x)
@@ -1001,7 +1001,7 @@ func rewriteValueRISCV64_OpCvt64to64F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpDiv16_0(v *Value) bool {
+func rewriteValueRISCV64_OpDiv16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1021,7 +1021,7 @@ func rewriteValueRISCV64_OpDiv16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpDiv16u_0(v *Value) bool {
+func rewriteValueRISCV64_OpDiv16u(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1041,7 +1041,7 @@ func rewriteValueRISCV64_OpDiv16u_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpDiv32_0(v *Value) bool {
+func rewriteValueRISCV64_OpDiv32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Div32 x y)
@@ -1055,7 +1055,7 @@ func rewriteValueRISCV64_OpDiv32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpDiv32F_0(v *Value) bool {
+func rewriteValueRISCV64_OpDiv32F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Div32F x y)
@@ -1069,7 +1069,7 @@ func rewriteValueRISCV64_OpDiv32F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpDiv32u_0(v *Value) bool {
+func rewriteValueRISCV64_OpDiv32u(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Div32u x y)
@@ -1083,7 +1083,7 @@ func rewriteValueRISCV64_OpDiv32u_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpDiv64_0(v *Value) bool {
+func rewriteValueRISCV64_OpDiv64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Div64 x y)
@@ -1097,7 +1097,7 @@ func rewriteValueRISCV64_OpDiv64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpDiv64F_0(v *Value) bool {
+func rewriteValueRISCV64_OpDiv64F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Div64F x y)
@@ -1111,7 +1111,7 @@ func rewriteValueRISCV64_OpDiv64F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpDiv64u_0(v *Value) bool {
+func rewriteValueRISCV64_OpDiv64u(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Div64u x y)
@@ -1125,7 +1125,7 @@ func rewriteValueRISCV64_OpDiv64u_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpDiv8_0(v *Value) bool {
+func rewriteValueRISCV64_OpDiv8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1145,7 +1145,7 @@ func rewriteValueRISCV64_OpDiv8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpDiv8u_0(v *Value) bool {
+func rewriteValueRISCV64_OpDiv8u(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1165,7 +1165,7 @@ func rewriteValueRISCV64_OpDiv8u_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpEq16_0(v *Value) bool {
+func rewriteValueRISCV64_OpEq16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1185,7 +1185,7 @@ func rewriteValueRISCV64_OpEq16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpEq32_0(v *Value) bool {
+func rewriteValueRISCV64_OpEq32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1205,7 +1205,7 @@ func rewriteValueRISCV64_OpEq32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpEq32F_0(v *Value) bool {
+func rewriteValueRISCV64_OpEq32F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Eq32F x y)
@@ -1219,7 +1219,7 @@ func rewriteValueRISCV64_OpEq32F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpEq64_0(v *Value) bool {
+func rewriteValueRISCV64_OpEq64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1236,7 +1236,7 @@ func rewriteValueRISCV64_OpEq64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpEq64F_0(v *Value) bool {
+func rewriteValueRISCV64_OpEq64F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Eq64F x y)
@@ -1250,7 +1250,7 @@ func rewriteValueRISCV64_OpEq64F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpEq8_0(v *Value) bool {
+func rewriteValueRISCV64_OpEq8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1270,7 +1270,7 @@ func rewriteValueRISCV64_OpEq8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpEqB_0(v *Value) bool {
+func rewriteValueRISCV64_OpEqB(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1289,7 +1289,7 @@ func rewriteValueRISCV64_OpEqB_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpEqPtr_0(v *Value) bool {
+func rewriteValueRISCV64_OpEqPtr(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1306,7 +1306,7 @@ func rewriteValueRISCV64_OpEqPtr_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGeq16_0(v *Value) bool {
+func rewriteValueRISCV64_OpGeq16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1324,7 +1324,7 @@ func rewriteValueRISCV64_OpGeq16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGeq16U_0(v *Value) bool {
+func rewriteValueRISCV64_OpGeq16U(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1342,7 +1342,7 @@ func rewriteValueRISCV64_OpGeq16U_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGeq32_0(v *Value) bool {
+func rewriteValueRISCV64_OpGeq32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1360,7 +1360,7 @@ func rewriteValueRISCV64_OpGeq32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGeq32F_0(v *Value) bool {
+func rewriteValueRISCV64_OpGeq32F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Geq32F x y)
@@ -1374,7 +1374,7 @@ func rewriteValueRISCV64_OpGeq32F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGeq32U_0(v *Value) bool {
+func rewriteValueRISCV64_OpGeq32U(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1392,7 +1392,7 @@ func rewriteValueRISCV64_OpGeq32U_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGeq64_0(v *Value) bool {
+func rewriteValueRISCV64_OpGeq64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1410,7 +1410,7 @@ func rewriteValueRISCV64_OpGeq64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGeq64F_0(v *Value) bool {
+func rewriteValueRISCV64_OpGeq64F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Geq64F x y)
@@ -1424,7 +1424,7 @@ func rewriteValueRISCV64_OpGeq64F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGeq64U_0(v *Value) bool {
+func rewriteValueRISCV64_OpGeq64U(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1442,7 +1442,7 @@ func rewriteValueRISCV64_OpGeq64U_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGeq8_0(v *Value) bool {
+func rewriteValueRISCV64_OpGeq8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1460,7 +1460,7 @@ func rewriteValueRISCV64_OpGeq8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGeq8U_0(v *Value) bool {
+func rewriteValueRISCV64_OpGeq8U(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1478,7 +1478,7 @@ func rewriteValueRISCV64_OpGeq8U_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGetCallerPC_0(v *Value) bool {
+func rewriteValueRISCV64_OpGetCallerPC(v *Value) bool {
 	// match: (GetCallerPC)
 	// result: (LoweredGetCallerPC)
 	for {
@@ -1486,7 +1486,7 @@ func rewriteValueRISCV64_OpGetCallerPC_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGetCallerSP_0(v *Value) bool {
+func rewriteValueRISCV64_OpGetCallerSP(v *Value) bool {
 	// match: (GetCallerSP)
 	// result: (LoweredGetCallerSP)
 	for {
@@ -1494,7 +1494,7 @@ func rewriteValueRISCV64_OpGetCallerSP_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGetClosurePtr_0(v *Value) bool {
+func rewriteValueRISCV64_OpGetClosurePtr(v *Value) bool {
 	// match: (GetClosurePtr)
 	// result: (LoweredGetClosurePtr)
 	for {
@@ -1502,7 +1502,7 @@ func rewriteValueRISCV64_OpGetClosurePtr_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGreater16_0(v *Value) bool {
+func rewriteValueRISCV64_OpGreater16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Greater16 x y)
@@ -1516,7 +1516,7 @@ func rewriteValueRISCV64_OpGreater16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGreater16U_0(v *Value) bool {
+func rewriteValueRISCV64_OpGreater16U(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Greater16U x y)
@@ -1530,7 +1530,7 @@ func rewriteValueRISCV64_OpGreater16U_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGreater32_0(v *Value) bool {
+func rewriteValueRISCV64_OpGreater32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Greater32 x y)
@@ -1544,7 +1544,7 @@ func rewriteValueRISCV64_OpGreater32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGreater32F_0(v *Value) bool {
+func rewriteValueRISCV64_OpGreater32F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Greater32F x y)
@@ -1558,7 +1558,7 @@ func rewriteValueRISCV64_OpGreater32F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGreater32U_0(v *Value) bool {
+func rewriteValueRISCV64_OpGreater32U(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Greater32U x y)
@@ -1572,7 +1572,7 @@ func rewriteValueRISCV64_OpGreater32U_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGreater64_0(v *Value) bool {
+func rewriteValueRISCV64_OpGreater64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Greater64 x y)
@@ -1586,7 +1586,7 @@ func rewriteValueRISCV64_OpGreater64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGreater64F_0(v *Value) bool {
+func rewriteValueRISCV64_OpGreater64F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Greater64F x y)
@@ -1600,7 +1600,7 @@ func rewriteValueRISCV64_OpGreater64F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGreater64U_0(v *Value) bool {
+func rewriteValueRISCV64_OpGreater64U(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Greater64U x y)
@@ -1614,7 +1614,7 @@ func rewriteValueRISCV64_OpGreater64U_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGreater8_0(v *Value) bool {
+func rewriteValueRISCV64_OpGreater8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Greater8 x y)
@@ -1628,7 +1628,7 @@ func rewriteValueRISCV64_OpGreater8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpGreater8U_0(v *Value) bool {
+func rewriteValueRISCV64_OpGreater8U(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Greater8U x y)
@@ -1642,7 +1642,7 @@ func rewriteValueRISCV64_OpGreater8U_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpHmul32_0(v *Value) bool {
+func rewriteValueRISCV64_OpHmul32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1665,7 +1665,7 @@ func rewriteValueRISCV64_OpHmul32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpHmul32u_0(v *Value) bool {
+func rewriteValueRISCV64_OpHmul32u(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1688,7 +1688,7 @@ func rewriteValueRISCV64_OpHmul32u_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpHmul64_0(v *Value) bool {
+func rewriteValueRISCV64_OpHmul64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Hmul64 x y)
@@ -1702,7 +1702,7 @@ func rewriteValueRISCV64_OpHmul64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpHmul64u_0(v *Value) bool {
+func rewriteValueRISCV64_OpHmul64u(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Hmul64u x y)
@@ -1716,7 +1716,7 @@ func rewriteValueRISCV64_OpHmul64u_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpInterCall_0(v *Value) bool {
+func rewriteValueRISCV64_OpInterCall(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (InterCall [argwid] entry mem)
@@ -1732,7 +1732,7 @@ func rewriteValueRISCV64_OpInterCall_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpIsInBounds_0(v *Value) bool {
+func rewriteValueRISCV64_OpIsInBounds(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (IsInBounds idx len)
@@ -1746,7 +1746,7 @@ func rewriteValueRISCV64_OpIsInBounds_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpIsNonNil_0(v *Value) bool {
+func rewriteValueRISCV64_OpIsNonNil(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -1761,7 +1761,7 @@ func rewriteValueRISCV64_OpIsNonNil_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpIsSliceInBounds_0(v *Value) bool {
+func rewriteValueRISCV64_OpIsSliceInBounds(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (IsSliceInBounds idx len)
@@ -1775,7 +1775,7 @@ func rewriteValueRISCV64_OpIsSliceInBounds_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLeq16_0(v *Value) bool {
+func rewriteValueRISCV64_OpLeq16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1793,7 +1793,7 @@ func rewriteValueRISCV64_OpLeq16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLeq16U_0(v *Value) bool {
+func rewriteValueRISCV64_OpLeq16U(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1811,7 +1811,7 @@ func rewriteValueRISCV64_OpLeq16U_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLeq32_0(v *Value) bool {
+func rewriteValueRISCV64_OpLeq32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1829,7 +1829,7 @@ func rewriteValueRISCV64_OpLeq32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLeq32F_0(v *Value) bool {
+func rewriteValueRISCV64_OpLeq32F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Leq32F x y)
@@ -1843,7 +1843,7 @@ func rewriteValueRISCV64_OpLeq32F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLeq32U_0(v *Value) bool {
+func rewriteValueRISCV64_OpLeq32U(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1861,7 +1861,7 @@ func rewriteValueRISCV64_OpLeq32U_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLeq64_0(v *Value) bool {
+func rewriteValueRISCV64_OpLeq64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1879,7 +1879,7 @@ func rewriteValueRISCV64_OpLeq64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLeq64F_0(v *Value) bool {
+func rewriteValueRISCV64_OpLeq64F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Leq64F x y)
@@ -1893,7 +1893,7 @@ func rewriteValueRISCV64_OpLeq64F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLeq64U_0(v *Value) bool {
+func rewriteValueRISCV64_OpLeq64U(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1911,7 +1911,7 @@ func rewriteValueRISCV64_OpLeq64U_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLeq8_0(v *Value) bool {
+func rewriteValueRISCV64_OpLeq8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1929,7 +1929,7 @@ func rewriteValueRISCV64_OpLeq8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLeq8U_0(v *Value) bool {
+func rewriteValueRISCV64_OpLeq8U(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1947,7 +1947,7 @@ func rewriteValueRISCV64_OpLeq8U_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLess16_0(v *Value) bool {
+func rewriteValueRISCV64_OpLess16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1967,7 +1967,7 @@ func rewriteValueRISCV64_OpLess16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLess16U_0(v *Value) bool {
+func rewriteValueRISCV64_OpLess16U(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -1987,7 +1987,7 @@ func rewriteValueRISCV64_OpLess16U_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLess32_0(v *Value) bool {
+func rewriteValueRISCV64_OpLess32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2007,7 +2007,7 @@ func rewriteValueRISCV64_OpLess32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLess32F_0(v *Value) bool {
+func rewriteValueRISCV64_OpLess32F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Less32F x y)
@@ -2021,7 +2021,7 @@ func rewriteValueRISCV64_OpLess32F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLess32U_0(v *Value) bool {
+func rewriteValueRISCV64_OpLess32U(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2041,7 +2041,7 @@ func rewriteValueRISCV64_OpLess32U_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLess64_0(v *Value) bool {
+func rewriteValueRISCV64_OpLess64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Less64 x y)
@@ -2055,7 +2055,7 @@ func rewriteValueRISCV64_OpLess64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLess64F_0(v *Value) bool {
+func rewriteValueRISCV64_OpLess64F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Less64F x y)
@@ -2069,7 +2069,7 @@ func rewriteValueRISCV64_OpLess64F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLess64U_0(v *Value) bool {
+func rewriteValueRISCV64_OpLess64U(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Less64U x y)
@@ -2083,7 +2083,7 @@ func rewriteValueRISCV64_OpLess64U_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLess8_0(v *Value) bool {
+func rewriteValueRISCV64_OpLess8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2103,7 +2103,7 @@ func rewriteValueRISCV64_OpLess8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLess8U_0(v *Value) bool {
+func rewriteValueRISCV64_OpLess8U(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2123,7 +2123,7 @@ func rewriteValueRISCV64_OpLess8U_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLoad_0(v *Value) bool {
+func rewriteValueRISCV64_OpLoad(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Load <t> ptr mem)
@@ -2278,7 +2278,7 @@ func rewriteValueRISCV64_OpLoad_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpLocalAddr_0(v *Value) bool {
+func rewriteValueRISCV64_OpLocalAddr(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (LocalAddr {sym} base _)
 	// result: (MOVaddr {sym} base)
@@ -2291,7 +2291,7 @@ func rewriteValueRISCV64_OpLocalAddr_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLsh16x16_0(v *Value) bool {
+func rewriteValueRISCV64_OpLsh16x16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2318,7 +2318,7 @@ func rewriteValueRISCV64_OpLsh16x16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLsh16x32_0(v *Value) bool {
+func rewriteValueRISCV64_OpLsh16x32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2345,7 +2345,7 @@ func rewriteValueRISCV64_OpLsh16x32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLsh16x64_0(v *Value) bool {
+func rewriteValueRISCV64_OpLsh16x64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2369,7 +2369,7 @@ func rewriteValueRISCV64_OpLsh16x64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLsh16x8_0(v *Value) bool {
+func rewriteValueRISCV64_OpLsh16x8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2396,7 +2396,7 @@ func rewriteValueRISCV64_OpLsh16x8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLsh32x16_0(v *Value) bool {
+func rewriteValueRISCV64_OpLsh32x16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2423,7 +2423,7 @@ func rewriteValueRISCV64_OpLsh32x16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLsh32x32_0(v *Value) bool {
+func rewriteValueRISCV64_OpLsh32x32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2450,7 +2450,7 @@ func rewriteValueRISCV64_OpLsh32x32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLsh32x64_0(v *Value) bool {
+func rewriteValueRISCV64_OpLsh32x64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2474,7 +2474,7 @@ func rewriteValueRISCV64_OpLsh32x64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLsh32x8_0(v *Value) bool {
+func rewriteValueRISCV64_OpLsh32x8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2501,7 +2501,7 @@ func rewriteValueRISCV64_OpLsh32x8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLsh64x16_0(v *Value) bool {
+func rewriteValueRISCV64_OpLsh64x16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2528,7 +2528,7 @@ func rewriteValueRISCV64_OpLsh64x16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLsh64x32_0(v *Value) bool {
+func rewriteValueRISCV64_OpLsh64x32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2555,7 +2555,7 @@ func rewriteValueRISCV64_OpLsh64x32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLsh64x64_0(v *Value) bool {
+func rewriteValueRISCV64_OpLsh64x64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2579,7 +2579,7 @@ func rewriteValueRISCV64_OpLsh64x64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLsh64x8_0(v *Value) bool {
+func rewriteValueRISCV64_OpLsh64x8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2606,7 +2606,7 @@ func rewriteValueRISCV64_OpLsh64x8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLsh8x16_0(v *Value) bool {
+func rewriteValueRISCV64_OpLsh8x16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2633,7 +2633,7 @@ func rewriteValueRISCV64_OpLsh8x16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLsh8x32_0(v *Value) bool {
+func rewriteValueRISCV64_OpLsh8x32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2660,7 +2660,7 @@ func rewriteValueRISCV64_OpLsh8x32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLsh8x64_0(v *Value) bool {
+func rewriteValueRISCV64_OpLsh8x64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2684,7 +2684,7 @@ func rewriteValueRISCV64_OpLsh8x64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpLsh8x8_0(v *Value) bool {
+func rewriteValueRISCV64_OpLsh8x8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2711,7 +2711,7 @@ func rewriteValueRISCV64_OpLsh8x8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpMod16_0(v *Value) bool {
+func rewriteValueRISCV64_OpMod16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2731,7 +2731,7 @@ func rewriteValueRISCV64_OpMod16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpMod16u_0(v *Value) bool {
+func rewriteValueRISCV64_OpMod16u(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2751,7 +2751,7 @@ func rewriteValueRISCV64_OpMod16u_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpMod32_0(v *Value) bool {
+func rewriteValueRISCV64_OpMod32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Mod32 x y)
@@ -2765,7 +2765,7 @@ func rewriteValueRISCV64_OpMod32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpMod32u_0(v *Value) bool {
+func rewriteValueRISCV64_OpMod32u(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Mod32u x y)
@@ -2779,7 +2779,7 @@ func rewriteValueRISCV64_OpMod32u_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpMod64_0(v *Value) bool {
+func rewriteValueRISCV64_OpMod64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Mod64 x y)
@@ -2793,7 +2793,7 @@ func rewriteValueRISCV64_OpMod64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpMod64u_0(v *Value) bool {
+func rewriteValueRISCV64_OpMod64u(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Mod64u x y)
@@ -2807,7 +2807,7 @@ func rewriteValueRISCV64_OpMod64u_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpMod8_0(v *Value) bool {
+func rewriteValueRISCV64_OpMod8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2827,7 +2827,7 @@ func rewriteValueRISCV64_OpMod8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpMod8u_0(v *Value) bool {
+func rewriteValueRISCV64_OpMod8u(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2847,7 +2847,7 @@ func rewriteValueRISCV64_OpMod8u_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpMove_0(v *Value) bool {
+func rewriteValueRISCV64_OpMove(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -2958,7 +2958,7 @@ func rewriteValueRISCV64_OpMove_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpMul16_0(v *Value) bool {
+func rewriteValueRISCV64_OpMul16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -2978,7 +2978,7 @@ func rewriteValueRISCV64_OpMul16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpMul32_0(v *Value) bool {
+func rewriteValueRISCV64_OpMul32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Mul32 x y)
@@ -2992,7 +2992,7 @@ func rewriteValueRISCV64_OpMul32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpMul32F_0(v *Value) bool {
+func rewriteValueRISCV64_OpMul32F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Mul32F x y)
@@ -3006,7 +3006,7 @@ func rewriteValueRISCV64_OpMul32F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpMul64_0(v *Value) bool {
+func rewriteValueRISCV64_OpMul64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Mul64 x y)
@@ -3020,7 +3020,7 @@ func rewriteValueRISCV64_OpMul64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpMul64F_0(v *Value) bool {
+func rewriteValueRISCV64_OpMul64F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Mul64F x y)
@@ -3034,7 +3034,7 @@ func rewriteValueRISCV64_OpMul64F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpMul8_0(v *Value) bool {
+func rewriteValueRISCV64_OpMul8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3054,7 +3054,7 @@ func rewriteValueRISCV64_OpMul8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpNeg16_0(v *Value) bool {
+func rewriteValueRISCV64_OpNeg16(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -3069,7 +3069,7 @@ func rewriteValueRISCV64_OpNeg16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpNeg32_0(v *Value) bool {
+func rewriteValueRISCV64_OpNeg32(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -3084,7 +3084,7 @@ func rewriteValueRISCV64_OpNeg32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpNeg32F_0(v *Value) bool {
+func rewriteValueRISCV64_OpNeg32F(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Neg32F x)
 	// result: (FNEGS x)
@@ -3095,7 +3095,7 @@ func rewriteValueRISCV64_OpNeg32F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpNeg64_0(v *Value) bool {
+func rewriteValueRISCV64_OpNeg64(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -3110,7 +3110,7 @@ func rewriteValueRISCV64_OpNeg64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpNeg64F_0(v *Value) bool {
+func rewriteValueRISCV64_OpNeg64F(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Neg64F x)
 	// result: (FNEGD x)
@@ -3121,7 +3121,7 @@ func rewriteValueRISCV64_OpNeg64F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpNeg8_0(v *Value) bool {
+func rewriteValueRISCV64_OpNeg8(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -3136,7 +3136,7 @@ func rewriteValueRISCV64_OpNeg8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpNeq16_0(v *Value) bool {
+func rewriteValueRISCV64_OpNeq16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3156,7 +3156,7 @@ func rewriteValueRISCV64_OpNeq16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpNeq32_0(v *Value) bool {
+func rewriteValueRISCV64_OpNeq32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3176,7 +3176,7 @@ func rewriteValueRISCV64_OpNeq32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpNeq32F_0(v *Value) bool {
+func rewriteValueRISCV64_OpNeq32F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Neq32F x y)
@@ -3190,7 +3190,7 @@ func rewriteValueRISCV64_OpNeq32F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpNeq64_0(v *Value) bool {
+func rewriteValueRISCV64_OpNeq64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3207,7 +3207,7 @@ func rewriteValueRISCV64_OpNeq64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpNeq64F_0(v *Value) bool {
+func rewriteValueRISCV64_OpNeq64F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Neq64F x y)
@@ -3221,7 +3221,7 @@ func rewriteValueRISCV64_OpNeq64F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpNeq8_0(v *Value) bool {
+func rewriteValueRISCV64_OpNeq8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3241,7 +3241,7 @@ func rewriteValueRISCV64_OpNeq8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpNeqB_0(v *Value) bool {
+func rewriteValueRISCV64_OpNeqB(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (NeqB x y)
@@ -3255,7 +3255,7 @@ func rewriteValueRISCV64_OpNeqB_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpNeqPtr_0(v *Value) bool {
+func rewriteValueRISCV64_OpNeqPtr(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -3272,7 +3272,7 @@ func rewriteValueRISCV64_OpNeqPtr_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpNilCheck_0(v *Value) bool {
+func rewriteValueRISCV64_OpNilCheck(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (NilCheck ptr mem)
@@ -3286,7 +3286,7 @@ func rewriteValueRISCV64_OpNilCheck_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpNot_0(v *Value) bool {
+func rewriteValueRISCV64_OpNot(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Not x)
 	// result: (XORI [1] x)
@@ -3298,7 +3298,7 @@ func rewriteValueRISCV64_OpNot_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpOffPtr_0(v *Value) bool {
+func rewriteValueRISCV64_OpOffPtr(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -3342,7 +3342,7 @@ func rewriteValueRISCV64_OpOffPtr_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpOr16_0(v *Value) bool {
+func rewriteValueRISCV64_OpOr16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Or16 x y)
@@ -3356,7 +3356,7 @@ func rewriteValueRISCV64_OpOr16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpOr32_0(v *Value) bool {
+func rewriteValueRISCV64_OpOr32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Or32 x y)
@@ -3370,7 +3370,7 @@ func rewriteValueRISCV64_OpOr32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpOr64_0(v *Value) bool {
+func rewriteValueRISCV64_OpOr64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Or64 x y)
@@ -3384,7 +3384,7 @@ func rewriteValueRISCV64_OpOr64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpOr8_0(v *Value) bool {
+func rewriteValueRISCV64_OpOr8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Or8 x y)
@@ -3398,7 +3398,7 @@ func rewriteValueRISCV64_OpOr8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpOrB_0(v *Value) bool {
+func rewriteValueRISCV64_OpOrB(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (OrB x y)
@@ -3412,7 +3412,7 @@ func rewriteValueRISCV64_OpOrB_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpPanicBounds_0(v *Value) bool {
+func rewriteValueRISCV64_OpPanicBounds(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -3472,7 +3472,7 @@ func rewriteValueRISCV64_OpPanicBounds_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpRISCV64ADD_0(v *Value) bool {
+func rewriteValueRISCV64_OpRISCV64ADD(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (ADD (MOVDconst [off]) ptr)
@@ -3497,7 +3497,7 @@ func rewriteValueRISCV64_OpRISCV64ADD_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpRISCV64ADDI_0(v *Value) bool {
+func rewriteValueRISCV64_OpRISCV64ADDI(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (ADDI [c] (MOVaddr [d] {s} x))
 	// cond: is32Bit(c+d)
@@ -3533,7 +3533,7 @@ func rewriteValueRISCV64_OpRISCV64ADDI_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpRISCV64MOVBUload_0(v *Value) bool {
+func rewriteValueRISCV64_OpRISCV64MOVBUload(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVBUload [off1] {sym1} (MOVaddr [off2] {sym2} base) mem)
@@ -3583,7 +3583,7 @@ func rewriteValueRISCV64_OpRISCV64MOVBUload_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpRISCV64MOVBload_0(v *Value) bool {
+func rewriteValueRISCV64_OpRISCV64MOVBload(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVBload [off1] {sym1} (MOVaddr [off2] {sym2} base) mem)
@@ -3633,7 +3633,7 @@ func rewriteValueRISCV64_OpRISCV64MOVBload_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpRISCV64MOVBstore_0(v *Value) bool {
+func rewriteValueRISCV64_OpRISCV64MOVBstore(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -3688,7 +3688,7 @@ func rewriteValueRISCV64_OpRISCV64MOVBstore_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpRISCV64MOVDconst_0(v *Value) bool {
+func rewriteValueRISCV64_OpRISCV64MOVDconst(v *Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (MOVDconst <t> [c])
@@ -3735,7 +3735,7 @@ func rewriteValueRISCV64_OpRISCV64MOVDconst_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpRISCV64MOVDload_0(v *Value) bool {
+func rewriteValueRISCV64_OpRISCV64MOVDload(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVDload [off1] {sym1} (MOVaddr [off2] {sym2} base) mem)
@@ -3785,7 +3785,7 @@ func rewriteValueRISCV64_OpRISCV64MOVDload_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpRISCV64MOVDstore_0(v *Value) bool {
+func rewriteValueRISCV64_OpRISCV64MOVDstore(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -3840,7 +3840,7 @@ func rewriteValueRISCV64_OpRISCV64MOVDstore_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpRISCV64MOVHUload_0(v *Value) bool {
+func rewriteValueRISCV64_OpRISCV64MOVHUload(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVHUload [off1] {sym1} (MOVaddr [off2] {sym2} base) mem)
@@ -3890,7 +3890,7 @@ func rewriteValueRISCV64_OpRISCV64MOVHUload_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpRISCV64MOVHload_0(v *Value) bool {
+func rewriteValueRISCV64_OpRISCV64MOVHload(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVHload [off1] {sym1} (MOVaddr [off2] {sym2} base) mem)
@@ -3940,7 +3940,7 @@ func rewriteValueRISCV64_OpRISCV64MOVHload_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpRISCV64MOVHstore_0(v *Value) bool {
+func rewriteValueRISCV64_OpRISCV64MOVHstore(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -3995,7 +3995,7 @@ func rewriteValueRISCV64_OpRISCV64MOVHstore_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpRISCV64MOVWUload_0(v *Value) bool {
+func rewriteValueRISCV64_OpRISCV64MOVWUload(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVWUload [off1] {sym1} (MOVaddr [off2] {sym2} base) mem)
@@ -4045,7 +4045,7 @@ func rewriteValueRISCV64_OpRISCV64MOVWUload_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpRISCV64MOVWload_0(v *Value) bool {
+func rewriteValueRISCV64_OpRISCV64MOVWload(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MOVWload [off1] {sym1} (MOVaddr [off2] {sym2} base) mem)
@@ -4095,7 +4095,7 @@ func rewriteValueRISCV64_OpRISCV64MOVWload_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpRISCV64MOVWstore_0(v *Value) bool {
+func rewriteValueRISCV64_OpRISCV64MOVWstore(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -4150,7 +4150,7 @@ func rewriteValueRISCV64_OpRISCV64MOVWstore_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpRotateLeft16_0(v *Value) bool {
+func rewriteValueRISCV64_OpRotateLeft16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4181,7 +4181,7 @@ func rewriteValueRISCV64_OpRotateLeft16_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpRotateLeft32_0(v *Value) bool {
+func rewriteValueRISCV64_OpRotateLeft32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4212,7 +4212,7 @@ func rewriteValueRISCV64_OpRotateLeft32_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpRotateLeft64_0(v *Value) bool {
+func rewriteValueRISCV64_OpRotateLeft64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4243,7 +4243,7 @@ func rewriteValueRISCV64_OpRotateLeft64_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpRotateLeft8_0(v *Value) bool {
+func rewriteValueRISCV64_OpRotateLeft8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4274,7 +4274,7 @@ func rewriteValueRISCV64_OpRotateLeft8_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpRound32F_0(v *Value) bool {
+func rewriteValueRISCV64_OpRound32F(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Round32F x)
 	// result: x
@@ -4286,7 +4286,7 @@ func rewriteValueRISCV64_OpRound32F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRound64F_0(v *Value) bool {
+func rewriteValueRISCV64_OpRound64F(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Round64F x)
 	// result: x
@@ -4298,7 +4298,7 @@ func rewriteValueRISCV64_OpRound64F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh16Ux16_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh16Ux16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4327,7 +4327,7 @@ func rewriteValueRISCV64_OpRsh16Ux16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh16Ux32_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh16Ux32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4356,7 +4356,7 @@ func rewriteValueRISCV64_OpRsh16Ux32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh16Ux64_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh16Ux64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4383,7 +4383,7 @@ func rewriteValueRISCV64_OpRsh16Ux64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh16Ux8_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh16Ux8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4412,7 +4412,7 @@ func rewriteValueRISCV64_OpRsh16Ux8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh16x16_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh16x16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4443,7 +4443,7 @@ func rewriteValueRISCV64_OpRsh16x16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh16x32_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh16x32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4474,7 +4474,7 @@ func rewriteValueRISCV64_OpRsh16x32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh16x64_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh16x64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4503,7 +4503,7 @@ func rewriteValueRISCV64_OpRsh16x64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh16x8_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh16x8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4534,7 +4534,7 @@ func rewriteValueRISCV64_OpRsh16x8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh32Ux16_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh32Ux16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4563,7 +4563,7 @@ func rewriteValueRISCV64_OpRsh32Ux16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh32Ux32_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh32Ux32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4592,7 +4592,7 @@ func rewriteValueRISCV64_OpRsh32Ux32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh32Ux64_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh32Ux64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4619,7 +4619,7 @@ func rewriteValueRISCV64_OpRsh32Ux64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh32Ux8_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh32Ux8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4648,7 +4648,7 @@ func rewriteValueRISCV64_OpRsh32Ux8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh32x16_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh32x16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4679,7 +4679,7 @@ func rewriteValueRISCV64_OpRsh32x16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh32x32_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh32x32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4710,7 +4710,7 @@ func rewriteValueRISCV64_OpRsh32x32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh32x64_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh32x64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4739,7 +4739,7 @@ func rewriteValueRISCV64_OpRsh32x64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh32x8_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh32x8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4770,7 +4770,7 @@ func rewriteValueRISCV64_OpRsh32x8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh64Ux16_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh64Ux16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4797,7 +4797,7 @@ func rewriteValueRISCV64_OpRsh64Ux16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh64Ux32_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh64Ux32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4824,7 +4824,7 @@ func rewriteValueRISCV64_OpRsh64Ux32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh64Ux64_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh64Ux64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4848,7 +4848,7 @@ func rewriteValueRISCV64_OpRsh64Ux64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh64Ux8_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh64Ux8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4875,7 +4875,7 @@ func rewriteValueRISCV64_OpRsh64Ux8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh64x16_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh64x16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4904,7 +4904,7 @@ func rewriteValueRISCV64_OpRsh64x16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh64x32_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh64x32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4933,7 +4933,7 @@ func rewriteValueRISCV64_OpRsh64x32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh64x64_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh64x64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4959,7 +4959,7 @@ func rewriteValueRISCV64_OpRsh64x64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh64x8_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh64x8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -4988,7 +4988,7 @@ func rewriteValueRISCV64_OpRsh64x8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh8Ux16_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh8Ux16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5017,7 +5017,7 @@ func rewriteValueRISCV64_OpRsh8Ux16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh8Ux32_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh8Ux32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5046,7 +5046,7 @@ func rewriteValueRISCV64_OpRsh8Ux32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh8Ux64_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh8Ux64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5073,7 +5073,7 @@ func rewriteValueRISCV64_OpRsh8Ux64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh8Ux8_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh8Ux8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5102,7 +5102,7 @@ func rewriteValueRISCV64_OpRsh8Ux8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh8x16_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh8x16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5133,7 +5133,7 @@ func rewriteValueRISCV64_OpRsh8x16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh8x32_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh8x32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5164,7 +5164,7 @@ func rewriteValueRISCV64_OpRsh8x32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh8x64_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh8x64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5193,7 +5193,7 @@ func rewriteValueRISCV64_OpRsh8x64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpRsh8x8_0(v *Value) bool {
+func rewriteValueRISCV64_OpRsh8x8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5224,7 +5224,7 @@ func rewriteValueRISCV64_OpRsh8x8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpSignExt16to32_0(v *Value) bool {
+func rewriteValueRISCV64_OpSignExt16to32(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (SignExt16to32 <t> x)
@@ -5241,7 +5241,7 @@ func rewriteValueRISCV64_OpSignExt16to32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpSignExt16to64_0(v *Value) bool {
+func rewriteValueRISCV64_OpSignExt16to64(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (SignExt16to64 <t> x)
@@ -5258,7 +5258,7 @@ func rewriteValueRISCV64_OpSignExt16to64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpSignExt32to64_0(v *Value) bool {
+func rewriteValueRISCV64_OpSignExt32to64(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (SignExt32to64 <t> x)
@@ -5275,7 +5275,7 @@ func rewriteValueRISCV64_OpSignExt32to64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpSignExt8to16_0(v *Value) bool {
+func rewriteValueRISCV64_OpSignExt8to16(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (SignExt8to16 <t> x)
@@ -5292,7 +5292,7 @@ func rewriteValueRISCV64_OpSignExt8to16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpSignExt8to32_0(v *Value) bool {
+func rewriteValueRISCV64_OpSignExt8to32(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (SignExt8to32 <t> x)
@@ -5309,7 +5309,7 @@ func rewriteValueRISCV64_OpSignExt8to32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpSignExt8to64_0(v *Value) bool {
+func rewriteValueRISCV64_OpSignExt8to64(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (SignExt8to64 <t> x)
@@ -5326,7 +5326,7 @@ func rewriteValueRISCV64_OpSignExt8to64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpSlicemask_0(v *Value) bool {
+func rewriteValueRISCV64_OpSlicemask(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
@@ -5353,7 +5353,7 @@ func rewriteValueRISCV64_OpSlicemask_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpSqrt_0(v *Value) bool {
+func rewriteValueRISCV64_OpSqrt(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Sqrt x)
 	// result: (FSQRTD x)
@@ -5364,7 +5364,7 @@ func rewriteValueRISCV64_OpSqrt_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpStaticCall_0(v *Value) bool {
+func rewriteValueRISCV64_OpStaticCall(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (StaticCall [argwid] {target} mem)
 	// result: (CALLstatic [argwid] {target} mem)
@@ -5379,7 +5379,7 @@ func rewriteValueRISCV64_OpStaticCall_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpStore_0(v *Value) bool {
+func rewriteValueRISCV64_OpStore(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -5487,7 +5487,7 @@ func rewriteValueRISCV64_OpStore_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValueRISCV64_OpSub16_0(v *Value) bool {
+func rewriteValueRISCV64_OpSub16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Sub16 x y)
@@ -5501,7 +5501,7 @@ func rewriteValueRISCV64_OpSub16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpSub32_0(v *Value) bool {
+func rewriteValueRISCV64_OpSub32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Sub32 x y)
@@ -5515,7 +5515,7 @@ func rewriteValueRISCV64_OpSub32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpSub32F_0(v *Value) bool {
+func rewriteValueRISCV64_OpSub32F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Sub32F x y)
@@ -5529,7 +5529,7 @@ func rewriteValueRISCV64_OpSub32F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpSub64_0(v *Value) bool {
+func rewriteValueRISCV64_OpSub64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Sub64 x y)
@@ -5543,7 +5543,7 @@ func rewriteValueRISCV64_OpSub64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpSub64F_0(v *Value) bool {
+func rewriteValueRISCV64_OpSub64F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Sub64F x y)
@@ -5557,7 +5557,7 @@ func rewriteValueRISCV64_OpSub64F_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpSub8_0(v *Value) bool {
+func rewriteValueRISCV64_OpSub8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Sub8 x y)
@@ -5571,7 +5571,7 @@ func rewriteValueRISCV64_OpSub8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpSubPtr_0(v *Value) bool {
+func rewriteValueRISCV64_OpSubPtr(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (SubPtr x y)
@@ -5585,7 +5585,7 @@ func rewriteValueRISCV64_OpSubPtr_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpTrunc16to8_0(v *Value) bool {
+func rewriteValueRISCV64_OpTrunc16to8(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc16to8 x)
 	// result: x
@@ -5597,7 +5597,7 @@ func rewriteValueRISCV64_OpTrunc16to8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpTrunc32to16_0(v *Value) bool {
+func rewriteValueRISCV64_OpTrunc32to16(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc32to16 x)
 	// result: x
@@ -5609,7 +5609,7 @@ func rewriteValueRISCV64_OpTrunc32to16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpTrunc32to8_0(v *Value) bool {
+func rewriteValueRISCV64_OpTrunc32to8(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc32to8 x)
 	// result: x
@@ -5621,7 +5621,7 @@ func rewriteValueRISCV64_OpTrunc32to8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpTrunc64to16_0(v *Value) bool {
+func rewriteValueRISCV64_OpTrunc64to16(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc64to16 x)
 	// result: x
@@ -5633,7 +5633,7 @@ func rewriteValueRISCV64_OpTrunc64to16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpTrunc64to32_0(v *Value) bool {
+func rewriteValueRISCV64_OpTrunc64to32(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc64to32 x)
 	// result: x
@@ -5645,7 +5645,7 @@ func rewriteValueRISCV64_OpTrunc64to32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpTrunc64to8_0(v *Value) bool {
+func rewriteValueRISCV64_OpTrunc64to8(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (Trunc64to8 x)
 	// result: x
@@ -5657,7 +5657,7 @@ func rewriteValueRISCV64_OpTrunc64to8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpWB_0(v *Value) bool {
+func rewriteValueRISCV64_OpWB(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -5676,7 +5676,7 @@ func rewriteValueRISCV64_OpWB_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpXor16_0(v *Value) bool {
+func rewriteValueRISCV64_OpXor16(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Xor16 x y)
@@ -5690,7 +5690,7 @@ func rewriteValueRISCV64_OpXor16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpXor32_0(v *Value) bool {
+func rewriteValueRISCV64_OpXor32(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Xor32 x y)
@@ -5704,7 +5704,7 @@ func rewriteValueRISCV64_OpXor32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpXor64_0(v *Value) bool {
+func rewriteValueRISCV64_OpXor64(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Xor64 x y)
@@ -5718,7 +5718,7 @@ func rewriteValueRISCV64_OpXor64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpXor8_0(v *Value) bool {
+func rewriteValueRISCV64_OpXor8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Xor8 x y)
@@ -5732,7 +5732,7 @@ func rewriteValueRISCV64_OpXor8_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpZero_0(v *Value) bool {
+func rewriteValueRISCV64_OpZero(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -5830,7 +5830,7 @@ func rewriteValueRISCV64_OpZero_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpZeroExt16to32_0(v *Value) bool {
+func rewriteValueRISCV64_OpZeroExt16to32(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (ZeroExt16to32 <t> x)
@@ -5847,7 +5847,7 @@ func rewriteValueRISCV64_OpZeroExt16to32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpZeroExt16to64_0(v *Value) bool {
+func rewriteValueRISCV64_OpZeroExt16to64(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (ZeroExt16to64 <t> x)
@@ -5864,7 +5864,7 @@ func rewriteValueRISCV64_OpZeroExt16to64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpZeroExt32to64_0(v *Value) bool {
+func rewriteValueRISCV64_OpZeroExt32to64(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (ZeroExt32to64 <t> x)
@@ -5881,7 +5881,7 @@ func rewriteValueRISCV64_OpZeroExt32to64_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpZeroExt8to16_0(v *Value) bool {
+func rewriteValueRISCV64_OpZeroExt8to16(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (ZeroExt8to16 <t> x)
@@ -5898,7 +5898,7 @@ func rewriteValueRISCV64_OpZeroExt8to16_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpZeroExt8to32_0(v *Value) bool {
+func rewriteValueRISCV64_OpZeroExt8to32(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (ZeroExt8to32 <t> x)
@@ -5915,7 +5915,7 @@ func rewriteValueRISCV64_OpZeroExt8to32_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueRISCV64_OpZeroExt8to64_0(v *Value) bool {
+func rewriteValueRISCV64_OpZeroExt8to64(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	// match: (ZeroExt8to64 <t> x)

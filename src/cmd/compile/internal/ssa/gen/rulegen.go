@@ -170,7 +170,6 @@ func genRulesSuffix(arch arch, suff string) {
 	sort.Strings(ops)
 
 	genFile := &File{arch: arch, suffix: suff}
-	const chunkSize = 10
 	// Main rewrite routine is a switch on v.Op.
 	fn := &Func{kind: "Value", arglen: -1}
 
@@ -185,12 +184,8 @@ func genRulesSuffix(arch arch, suff string) {
 			continue
 		}
 
-		var ors []string
-		for chunk := 0; chunk < len(oprules[op]); chunk += chunkSize {
-			ors = append(ors, fmt.Sprintf("rewriteValue%s%s_%s_%d(v)", arch.name, suff, op, chunk))
-		}
 		swc := &Case{expr: exprf(op)}
-		swc.add(stmtf("return %s", strings.Join(ors, " || ")))
+		swc.add(stmtf("return rewriteValue%s%s_%s(v)", arch.name, suff, op))
 		sw.add(swc)
 	}
 	fn.add(sw)
@@ -206,48 +201,41 @@ func genRulesSuffix(arch arch, suff string) {
 			continue
 		}
 
-		// rr is kept between chunks, so that a following chunk checks
-		// that the previous one ended with a rule that wasn't
-		// unconditional.
+		// rr is kept between iterations, so that each rule can check
+		// that the previous rule wasn't unconditional.
 		var rr *RuleRewrite
-		for chunk := 0; chunk < len(rules); chunk += chunkSize {
-			endchunk := chunk + chunkSize
-			if endchunk > len(rules) {
-				endchunk = len(rules)
-			}
-			fn := &Func{
-				kind:   "Value",
-				suffix: fmt.Sprintf("_%s_%d", op, chunk),
-				arglen: opByName(arch, op).argLength,
-			}
-			fn.add(declf("b", "v.Block"))
-			fn.add(declf("config", "b.Func.Config"))
-			fn.add(declf("fe", "b.Func.fe"))
-			fn.add(declf("typ", "&b.Func.Config.Types"))
-			for _, rule := range rules[chunk:endchunk] {
-				if rr != nil && !rr.canFail {
-					log.Fatalf("unconditional rule %s is followed by other rules", rr.match)
-				}
-				rr = &RuleRewrite{loc: rule.loc}
-				rr.match, rr.cond, rr.result = rule.parse()
-				pos, _ := genMatch(rr, arch, rr.match, fn.arglen >= 0)
-				if pos == "" {
-					pos = "v.Pos"
-				}
-				if rr.cond != "" {
-					rr.add(breakf("!(%s)", rr.cond))
-				}
-				genResult(rr, arch, rr.result, pos)
-				if *genLog {
-					rr.add(stmtf("logRule(%q)", rule.loc))
-				}
-				fn.add(rr)
-			}
-			if rr.canFail {
-				fn.add(stmtf("return false"))
-			}
-			genFile.add(fn)
+		fn := &Func{
+			kind:   "Value",
+			suffix: fmt.Sprintf("_%s", op),
+			arglen: opByName(arch, op).argLength,
 		}
+		fn.add(declf("b", "v.Block"))
+		fn.add(declf("config", "b.Func.Config"))
+		fn.add(declf("fe", "b.Func.fe"))
+		fn.add(declf("typ", "&b.Func.Config.Types"))
+		for _, rule := range rules {
+			if rr != nil && !rr.canFail {
+				log.Fatalf("unconditional rule %s is followed by other rules", rr.match)
+			}
+			rr = &RuleRewrite{loc: rule.loc}
+			rr.match, rr.cond, rr.result = rule.parse()
+			pos, _ := genMatch(rr, arch, rr.match, fn.arglen >= 0)
+			if pos == "" {
+				pos = "v.Pos"
+			}
+			if rr.cond != "" {
+				rr.add(breakf("!(%s)", rr.cond))
+			}
+			genResult(rr, arch, rr.result, pos)
+			if *genLog {
+				rr.add(stmtf("logRule(%q)", rule.loc))
+			}
+			fn.add(rr)
+		}
+		if rr.canFail {
+			fn.add(stmtf("return false"))
+		}
+		genFile.add(fn)
 	}
 
 	// Generate block rewrite function. There are only a few block types
