@@ -1,4 +1,4 @@
--- suggestedfix --
+-- suggestedfix_go.mod_5_40 --
 module indirect
 
 go 1.12

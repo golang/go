@@ -1,0 +1,25 @@
+-- summary --
+CompletionsCount = 0
+CompletionSnippetCount = 0
+UnimportedCompletionsCount = 0
+DeepCompletionsCount = 0
+FuzzyCompletionsCount = 0
+RankedCompletionsCount = 0
+CaseSensitiveCompletionsCount = 0
+DiagnosticsCount = 3
+FoldingRangesCount = 0
+FormatCount = 0
+ImportCount = 0
+SuggestedFixCount = 3
+DefinitionsCount = 0
+TypeDefinitionsCount = 0
+HighlightsCount = 0
+ReferencesCount = 0
+RenamesCount = 0
+PrepareRenamesCount = 0
+SymbolsCount = 0
+WorkspaceSymbolsCount = 0
+SignaturesCount = 0
+LinksCount = 0
+ImplementationsCount = 0
+

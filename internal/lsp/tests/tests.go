@@ -416,7 +416,7 @@ func Run(t *testing.T, tests Tests, data *Data) {
 
 		for src, exp := range cases {
 			for i, e := range exp {
-				t.Run(spanName(src)+"_"+strconv.Itoa(i), func(t *testing.T) {
+				t.Run(SpanName(src)+"_"+strconv.Itoa(i), func(t *testing.T) {
 					t.Helper()
 					if (!haveCgo || runtime.GOOS == "android") && strings.Contains(t.Name(), "cgo") {
 						t.Skip("test requires cgo, not supported")
@@ -438,7 +438,7 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		for _, placeholders := range []bool{true, false} {
 			for src, expecteds := range data.CompletionSnippets {
 				for i, expected := range expecteds {
-					name := spanName(src) + "_" + strconv.Itoa(i+1)
+					name := SpanName(src) + "_" + strconv.Itoa(i+1)
 					if placeholders {
 						name += "_placeholders"
 					}
@@ -480,9 +480,8 @@ func Run(t *testing.T, tests Tests, data *Data) {
 	t.Run("Diagnostics", func(t *testing.T) {
 		t.Helper()
 		for uri, want := range data.Diagnostics {
-			// If the -modfile flag is not available, then we do not want to run
-			// diagnostics on any .mod file.
-			if strings.Contains(uri.Filename(), ".mod") && !data.ModfileFlagAvailable {
+			// Check if we should skip this URI if the -modfile flag is not available.
+			if shouldSkip(data, uri) {
 				continue
 			}
 			t.Run(uriName(uri), func(t *testing.T) {
@@ -525,12 +524,11 @@ func Run(t *testing.T, tests Tests, data *Data) {
 	t.Run("SuggestedFix", func(t *testing.T) {
 		t.Helper()
 		for _, spn := range data.SuggestedFixes {
-			// If the -modfile flag is not available, then we do not want to run
-			// suggested fixes on any .mod file.
-			if strings.Contains(spn.URI().Filename(), ".mod") && !data.ModfileFlagAvailable {
+			// Check if we should skip this spn if the -modfile flag is not available.
+			if shouldSkip(data, spn.URI()) {
 				continue
 			}
-			t.Run(spanName(spn), func(t *testing.T) {
+			t.Run(SpanName(spn), func(t *testing.T) {
 				t.Helper()
 				tests.SuggestedFix(t, spn)
 			})
@@ -540,7 +538,7 @@ func Run(t *testing.T, tests Tests, data *Data) {
 	t.Run("Definition", func(t *testing.T) {
 		t.Helper()
 		for spn, d := range data.Definitions {
-			t.Run(spanName(spn), func(t *testing.T) {
+			t.Run(SpanName(spn), func(t *testing.T) {
 				t.Helper()
 				if (!haveCgo || runtime.GOOS == "android") && strings.Contains(t.Name(), "cgo") {
 					t.Skip("test requires cgo, not supported")
@@ -553,7 +551,7 @@ func Run(t *testing.T, tests Tests, data *Data) {
 	t.Run("Implementation", func(t *testing.T) {
 		t.Helper()
 		for spn, m := range data.Implementations {
-			t.Run(spanName(spn), func(t *testing.T) {
+			t.Run(SpanName(spn), func(t *testing.T) {
 				t.Helper()
 				tests.Implementation(t, spn, m)
 			})
@@ -563,7 +561,7 @@ func Run(t *testing.T, tests Tests, data *Data) {
 	t.Run("Highlight", func(t *testing.T) {
 		t.Helper()
 		for pos, locations := range data.Highlights {
-			t.Run(spanName(pos), func(t *testing.T) {
+			t.Run(SpanName(pos), func(t *testing.T) {
 				t.Helper()
 				tests.Highlight(t, pos, locations)
 			})
@@ -573,7 +571,7 @@ func Run(t *testing.T, tests Tests, data *Data) {
 	t.Run("References", func(t *testing.T) {
 		t.Helper()
 		for src, itemList := range data.References {
-			t.Run(spanName(src), func(t *testing.T) {
+			t.Run(SpanName(src), func(t *testing.T) {
 				t.Helper()
 				tests.References(t, src, itemList)
 			})
@@ -593,7 +591,7 @@ func Run(t *testing.T, tests Tests, data *Data) {
 	t.Run("PrepareRenames", func(t *testing.T) {
 		t.Helper()
 		for src, want := range data.PrepareRenames {
-			t.Run(spanName(src), func(t *testing.T) {
+			t.Run(SpanName(src), func(t *testing.T) {
 				t.Helper()
 				tests.PrepareRename(t, src, want)
 			})
@@ -634,7 +632,7 @@ func Run(t *testing.T, tests Tests, data *Data) {
 	t.Run("SignatureHelp", func(t *testing.T) {
 		t.Helper()
 		for spn, expectedSignature := range data.Signatures {
-			t.Run(spanName(spn), func(t *testing.T) {
+			t.Run(SpanName(spn), func(t *testing.T) {
 				t.Helper()
 				tests.SignatureHelp(t, spn, expectedSignature)
 			})
@@ -1043,7 +1041,7 @@ func uriName(uri span.URI) string {
 	return filepath.Base(strings.TrimSuffix(uri.Filename(), ".go"))
 }
 
-func spanName(spn span.Span) string {
+func SpanName(spn span.Span) string {
 	return fmt.Sprintf("%v_%v_%v", uriName(spn.URI()), spn.Start().Line(), spn.Start().Column())
 }
 
@@ -1099,4 +1097,19 @@ func testFolders(root string) ([]string, error) {
 		return nil, err
 	}
 	return folders, nil
+}
+
+func shouldSkip(data *Data, uri span.URI) bool {
+	if data.ModfileFlagAvailable {
+		return false
+	}
+	// If the -modfile flag is not available, then we do not want to run
+	// any tests on the go.mod file.
+	if strings.Contains(uri.Filename(), ".mod") {
+		return true
+	}
+	// If the -modfile flag is not available, then we do not want to test any
+	// uri that contains "go mod tidy".
+	m, err := data.Mapper(uri)
+	return err == nil && strings.Contains(string(m.Content), ", \"go mod tidy\",")
 }

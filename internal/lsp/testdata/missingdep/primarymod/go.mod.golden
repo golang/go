@@ -1,0 +1,7 @@
+-- suggestedfix_main_5_2 --
+module missingdep
+
+go 1.12
+
+require example.com/extramodule v1.0.0
+

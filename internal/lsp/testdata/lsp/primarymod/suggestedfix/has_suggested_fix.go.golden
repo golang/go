@@ -1,4 +1,4 @@
--- suggestedfix --
+-- suggestedfix_has_suggested_fix_9_2 --
 package suggestedfix
 
 import (

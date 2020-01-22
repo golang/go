@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,7 +18,6 @@ import (
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/diff"
-	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
@@ -351,12 +349,18 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 
 func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 	uri := spn.URI()
-	filename := uri.Filename()
 	view, err := r.server.session.ViewOf(uri)
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	m, err := r.data.Mapper(uri)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rng, err := m.Range(spn)
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Get the diagnostics for this view if we have not done it before.
 	if r.diagnostics == nil {
 		r.diagnostics = make(map[span.URI][]source.Diagnostic)
@@ -366,15 +370,26 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 			r.diagnostics[key.id.URI] = diags
 		}
 	}
-	diags := r.diagnostics[uri]
-
+	var diag *source.Diagnostic
+	for _, d := range r.diagnostics[uri] {
+		// Compare the start positions rather than the entire range because
+		// some diagnostics have a range with the same start and end position (8:1-8:1).
+		// The current marker functionality prevents us from having a range of 0 length.
+		if protocol.ComparePosition(d.Range.Start, rng.Start) == 0 {
+			diag = &d
+			break
+		}
+	}
+	if diag == nil {
+		t.Fatalf("could not get any suggested fixes for %v", spn)
+	}
 	actions, err := r.server.CodeAction(r.ctx, &protocol.CodeActionParams{
 		TextDocument: protocol.TextDocumentIdentifier{
 			URI: protocol.NewURI(uri),
 		},
 		Context: protocol.CodeActionContext{
 			Only:        []protocol.CodeActionKind{protocol.QuickFix},
-			Diagnostics: toProtocolDiagnostics(diags),
+			Diagnostics: toProtocolDiagnostics([]source.Diagnostic{*diag}),
 		},
 	})
 	if err != nil {
@@ -388,12 +403,13 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := res[uri]
-	fixed := string(r.data.Golden("suggestedfix", filename, func() ([]byte, error) {
-		return []byte(got), nil
-	}))
-	if fixed != got {
-		t.Errorf("suggested fixes failed for %s, expected:\n%#v\ngot:\n%#v", filename, fixed, got)
+	for u, got := range res {
+		fixed := string(r.data.Golden("suggestedfix_"+tests.SpanName(spn), u.Filename(), func() ([]byte, error) {
+			return []byte(got), nil
+		}))
+		if fixed != got {
+			t.Errorf("suggested fixes failed for %s, expected:\n%#v\ngot:\n%#v", u.Filename(), fixed, got)
+		}
 	}
 }
 
@@ -890,105 +906,5 @@ func TestBytesOffset(t *testing.T) {
 		if err == nil && got.Offset() != test.want {
 			t.Errorf("want %d for %q(Line:%d,Character:%d), but got %d", test.want, test.text, int(test.pos.Line), int(test.pos.Character), got.Offset())
 		}
-	}
-}
-
-// TODO(golang/go#36091): This function can be refactored to look like the rest of this file
-// when marker support gets added for go.mod files.
-func TestModfileSuggestedFixes(t *testing.T) {
-	t.Skip("this test cannot find example.com/package")
-
-	ctx := tests.Context(t)
-	cache := cache.New(nil)
-	session := cache.NewSession()
-	options := tests.DefaultOptions()
-	options.TempModfile = true
-	options.Env = append(os.Environ(), "GOPACKAGESDRIVER=off", "GOROOT=")
-
-	server := Server{
-		session:   session,
-		delivered: map[span.URI]sentDiagnostics{},
-	}
-
-	for _, tt := range []string{"indirect/primarymod", "unused/primarymod"} {
-		t.Run(tt, func(t *testing.T) {
-			folder, err := tests.CopyFolderToTempDir(filepath.Join("testdata", tt))
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(folder)
-
-			_, snapshot, err := session.NewView(ctx, "suggested_fix_test", span.FileURI(folder), options)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			realURI, tempURI := snapshot.View().ModFiles()
-			// TODO: Add testing for when the -modfile flag is turned off and we still get diagnostics.
-			if tempURI == "" {
-				return
-			}
-			realfh, err := snapshot.GetFile(realURI)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			reports, _, err := mod.Diagnostics(ctx, snapshot)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(reports) != 1 {
-				t.Errorf("expected 1 fileHandle, got %d", len(reports))
-			}
-
-			_, m, _, _, err := snapshot.ModTidyHandle(ctx, realfh).Tidy(ctx)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			for fh, diags := range reports {
-				actions, err := server.CodeAction(ctx, &protocol.CodeActionParams{
-					TextDocument: protocol.TextDocumentIdentifier{
-						URI: protocol.NewURI(fh.URI),
-					},
-					Context: protocol.CodeActionContext{
-						Only:        []protocol.CodeActionKind{protocol.SourceOrganizeImports},
-						Diagnostics: toProtocolDiagnostics(diags),
-					},
-				})
-				if err != nil {
-					t.Fatal(err)
-				}
-				if len(actions) == 0 {
-					t.Fatal("no code actions returned")
-				}
-				if len(actions) > 1 {
-					t.Fatal("expected only 1 code action")
-				}
-				res := map[span.URI]string{}
-				for _, docEdits := range actions[0].Edit.DocumentChanges {
-					uri := span.NewURI(docEdits.TextDocument.URI)
-					content, err := ioutil.ReadFile(uri.Filename())
-					if err != nil {
-						t.Fatal(err)
-					}
-					res[uri] = string(content)
-					sedits, err := source.FromProtocolEdits(m, docEdits.Edits)
-					if err != nil {
-						t.Fatal(err)
-					}
-					res[uri] = applyEdits(res[uri], sedits)
-				}
-				got := res[realfh.Identity().URI]
-				contents, err := ioutil.ReadFile(filepath.Join(folder, "go.mod.golden"))
-				if err != nil {
-					t.Fatal(err)
-				}
-				want := string(contents)
-				if want != got {
-					t.Errorf("suggested fixes failed for %s, expected:\n%s\ngot:\n%s", fh.URI.Filename(), want, got)
-				}
-			}
-		})
 	}
 }

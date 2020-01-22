@@ -101,6 +101,13 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 					}
 				}
 			}
+			actions, err := mod.SuggestedGoFixes(ctx, snapshot, fh, diagnostics)
+			if err != nil {
+				log.Error(ctx, "quick fixes failed", err, telemetry.File.Of(uri))
+			}
+			if len(actions) > 0 {
+				codeActions = append(codeActions, actions...)
+			}
 		}
 		if wanted[protocol.SourceOrganizeImports] && len(edits) > 0 {
 			codeActions = append(codeActions, protocol.CodeAction{
