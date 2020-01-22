@@ -44,15 +44,17 @@ func sourceError(ctx context.Context, fset *token.FileSet, pkg *pkg, e interface
 
 		if e.Pos == "" {
 			spn = parseGoListError(e.Msg)
+
+			// We may not have been able to parse a valid span.
+			if _, err := spanToRange(ctx, pkg, spn); err != nil {
+				return &source.Error{
+					URI:     spn.URI(),
+					Message: msg,
+					Kind:    kind,
+				}, nil
+			}
 		} else {
 			spn = span.Parse(e.Pos)
-		}
-		// If the range can't be derived from the parseGoListError function, then we do not have a valid position.
-		if _, err := spanToRange(ctx, pkg, spn); err != nil && e.Pos == "" {
-			return &source.Error{
-				Message: msg,
-				Kind:    kind,
-			}, nil
 		}
 	case *scanner.Error:
 		msg = e.Msg

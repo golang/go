@@ -273,43 +273,16 @@ func (state *golistState) runContainsQueries(response *responseDeduper, queries 
 			return fmt.Errorf("could not determine absolute path of file= query path %q: %v", query, err)
 		}
 		dirResponse, err := state.createDriverResponse(pattern)
-		if err != nil || (len(dirResponse.Packages) == 1 && len(dirResponse.Packages[0].Errors) == 1) {
-			// There was an error loading the package. Try to load the file as an ad-hoc package.
-			// Usually the error will appear in a returned package, but may not if we're in modules mode
-			// and the ad-hoc is located outside a module.
+
+		// If there was an error loading the package, or the package is returned
+		// with errors, try to load the file as an ad-hoc package.
+		// Usually the error will appear in a returned package, but may not if we're
+		// in module mode and the ad-hoc is located outside a module.
+		if err != nil || len(dirResponse.Packages) == 1 && len(dirResponse.Packages[0].GoFiles) == 0 &&
+			len(dirResponse.Packages[0].Errors) == 1 {
 			var queryErr error
-			dirResponse, queryErr = state.createDriverResponse(query)
-			if queryErr != nil {
-				// Return the original error if the attempt to fall back failed.
-				return err
-			}
-			// If we get nothing back from `go list`, try to make this file into its own ad-hoc package.
-			if len(dirResponse.Packages) == 0 && queryErr == nil {
-				dirResponse.Packages = append(dirResponse.Packages, &Package{
-					ID:              "command-line-arguments",
-					PkgPath:         query,
-					GoFiles:         []string{query},
-					CompiledGoFiles: []string{query},
-					Imports:         make(map[string]*Package),
-				})
-				dirResponse.Roots = append(dirResponse.Roots, "command-line-arguments")
-			}
-			// Special case to handle issue #33482:
-			// If this is a file= query for ad-hoc packages where the file only exists on an overlay,
-			// and exists outside of a module, add the file in for the package.
-			if len(dirResponse.Packages) == 1 && (dirResponse.Packages[0].ID == "command-line-arguments" ||
-				filepath.ToSlash(dirResponse.Packages[0].PkgPath) == filepath.ToSlash(query)) {
-				if len(dirResponse.Packages[0].GoFiles) == 0 {
-					filename := filepath.Join(pattern, filepath.Base(query)) // avoid recomputing abspath
-					// TODO(matloob): check if the file is outside of a root dir?
-					for path := range state.cfg.Overlay {
-						if path == filename {
-							dirResponse.Packages[0].Errors = nil
-							dirResponse.Packages[0].GoFiles = []string{path}
-							dirResponse.Packages[0].CompiledGoFiles = []string{path}
-						}
-					}
-				}
+			if dirResponse, queryErr = state.adhocPackage(pattern, query); queryErr != nil {
+				return err // return the original error
 			}
 		}
 		isRoot := make(map[string]bool, len(dirResponse.Roots))
@@ -335,6 +308,49 @@ func (state *golistState) runContainsQueries(response *responseDeduper, queries 
 		}
 	}
 	return nil
+}
+
+// adhocPackage attempts to load or construct an ad-hoc package for a given
+// query, if the original call to the driver produced inadequate results.
+func (state *golistState) adhocPackage(pattern, query string) (*driverResponse, error) {
+	response, err := state.createDriverResponse(query)
+	if err != nil {
+		return nil, err
+	}
+	// If we get nothing back from `go list`,
+	// try to make this file into its own ad-hoc package.
+	// TODO(rstambler): Should this check against the original response?
+	if len(response.Packages) == 0 {
+		response.Packages = append(response.Packages, &Package{
+			ID:              "command-line-arguments",
+			PkgPath:         query,
+			GoFiles:         []string{query},
+			CompiledGoFiles: []string{query},
+			Imports:         make(map[string]*Package),
+		})
+		response.Roots = append(response.Roots, "command-line-arguments")
+	}
+	// Handle special cases.
+	if len(response.Packages) == 1 {
+		// golang/go#33482: If this is a file= query for ad-hoc packages where
+		// the file only exists on an overlay, and exists outside of a module,
+		// add the file to the package and remove the errors.
+		if response.Packages[0].ID == "command-line-arguments" ||
+			filepath.ToSlash(response.Packages[0].PkgPath) == filepath.ToSlash(query) {
+			if len(response.Packages[0].GoFiles) == 0 {
+				filename := filepath.Join(pattern, filepath.Base(query)) // avoid recomputing abspath
+				// TODO(matloob): check if the file is outside of a root dir?
+				for path := range state.cfg.Overlay {
+					if path == filename {
+						response.Packages[0].Errors = nil
+						response.Packages[0].GoFiles = []string{path}
+						response.Packages[0].CompiledGoFiles = []string{path}
+					}
+				}
+			}
+		}
+	}
+	return response, nil
 }
 
 // Fields must match go list;
