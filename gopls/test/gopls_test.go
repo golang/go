@@ -10,7 +10,10 @@ import (
 
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/gopls/internal/hooks"
+	"golang.org/x/tools/internal/jsonrpc2/servertest"
+	"golang.org/x/tools/internal/lsp/cache"
 	cmdtest "golang.org/x/tools/internal/lsp/cmd/test"
+	"golang.org/x/tools/internal/lsp/lsprpc"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/testenv"
@@ -37,11 +40,15 @@ func testCommandLine(t *testing.T, exporter packagestest.Exporter) {
 		t.Skip("testdata directory not present")
 	}
 	data := tests.Load(t, exporter, testdata)
+	ctx := tests.Context(t)
+	cache := cache.New(commandLineOptions)
+	ss := lsprpc.NewStreamServer(cache, false)
+	ts := servertest.NewServer(ctx, ss)
 	for _, data := range data {
 		defer data.Exported.Cleanup()
 		t.Run(data.Folder, func(t *testing.T) {
 			t.Helper()
-			tests.Run(t, cmdtest.NewRunner(exporter, data, tests.Context(t), commandLineOptions), data)
+			tests.Run(t, cmdtest.NewRunner(exporter, data, tests.Context(t), ts.Addr, commandLineOptions), data)
 		})
 	}
 }

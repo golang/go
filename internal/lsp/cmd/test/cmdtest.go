@@ -31,6 +31,7 @@ type runner struct {
 	ctx         context.Context
 	options     func(*source.Options)
 	normalizers []normalizer
+	remote      string
 }
 
 type normalizer struct {
@@ -40,13 +41,14 @@ type normalizer struct {
 	fragment string
 }
 
-func NewRunner(exporter packagestest.Exporter, data *tests.Data, ctx context.Context, options func(*source.Options)) *runner {
+func NewRunner(exporter packagestest.Exporter, data *tests.Data, ctx context.Context, remote string, options func(*source.Options)) *runner {
 	r := &runner{
 		exporter:    exporter,
 		data:        data,
 		ctx:         ctx,
 		options:     options,
 		normalizers: make([]normalizer, 0, len(data.Exported.Modules)),
+		remote:      remote,
 	}
 	// build the path normalizing patterns
 	for _, m := range data.Exported.Modules {
@@ -100,7 +102,7 @@ func (r *runner) WorkspaceSymbols(*testing.T, string, []protocol.SymbolInformati
 	//TODO: add command line workspace symbol tests when it works
 }
 
-func (r *runner) RunGoplsCmd(t testing.TB, args ...string) (string, string) {
+func (r *runner) runGoplsCmd(t testing.TB, args ...string) (string, string) {
 	rStdout, wStdout, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -122,9 +124,10 @@ func (r *runner) RunGoplsCmd(t testing.TB, args ...string) (string, string) {
 	os.Stdout = wStdout
 	os.Stderr = wStderr
 	app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Exported.Config.Env, r.options)
+	remote := r.remote
 	err = tool.Run(tests.Context(t),
 		app,
-		append([]string{"-remote=internal"}, args...))
+		append([]string{fmt.Sprintf("-remote=internal@%s", remote)}, args...))
 	if err != nil {
 		fmt.Fprint(os.Stderr, err)
 	}
@@ -143,7 +146,7 @@ func (r *runner) RunGoplsCmd(t testing.TB, args ...string) (string, string) {
 
 // NormalizeGoplsCmd runs the gopls command and normalizes its output.
 func (r *runner) NormalizeGoplsCmd(t testing.TB, args ...string) (string, string) {
-	stdout, stderr := r.RunGoplsCmd(t, args...)
+	stdout, stderr := r.runGoplsCmd(t, args...)
 	return r.Normalize(stdout), r.Normalize(stderr)
 }
 

@@ -22,7 +22,7 @@ func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnosti
 		t.Skip("skipping circular diagnostics tests due to golang/go#36265")
 	}
 	fname := uri.Filename()
-	out, _ := r.RunGoplsCmd(t, "check", fname)
+	out, _ := r.runGoplsCmd(t, "check", fname)
 	// parse got into a collection of reports
 	got := map[string]struct{}{}
 	for _, l := range strings.Split(out, "\n") {

@@ -7,8 +7,6 @@ package lsp
 
 import (
 	"context"
-	"fmt"
-	"net"
 	"sync"
 
 	"golang.org/x/tools/internal/jsonrpc2"
@@ -17,51 +15,14 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-// NewClientServer
-func NewClientServer(ctx context.Context, session source.Session, client protocol.Client) (context.Context, *Server) {
-	ctx = protocol.WithClient(ctx, client)
-	return ctx, &Server{
-		client:    client,
-		session:   session,
-		delivered: make(map[span.URI]sentDiagnostics),
-	}
-}
-
 // NewServer creates an LSP server and binds it to handle incoming client
 // messages on on the supplied stream.
-func NewServer(ctx context.Context, session source.Session, stream jsonrpc2.Stream) (context.Context, *Server) {
-	s := &Server{
+func NewServer(session source.Session, client protocol.Client) *Server {
+	return &Server{
 		delivered: make(map[span.URI]sentDiagnostics),
 		session:   session,
+		client:    client,
 	}
-	ctx, s.Conn, s.client = protocol.NewServer(ctx, stream, s)
-	return ctx, s
-}
-
-// RunServerOnPort starts an LSP server on the given port and does not exit.
-// This function exists for debugging purposes.
-func RunServerOnPort(ctx context.Context, cache source.Cache, port int, h func(ctx context.Context, s *Server)) error {
-	return RunServerOnAddress(ctx, cache, fmt.Sprintf(":%v", port), h)
-}
-
-// RunServerOnAddress starts an LSP server on the given address and does not
-// exit. This function exists for debugging purposes.
-func RunServerOnAddress(ctx context.Context, cache source.Cache, addr string, h func(ctx context.Context, s *Server)) error {
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		return err
-	}
-	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			return err
-		}
-		h(NewServer(ctx, cache.NewSession(), jsonrpc2.NewHeaderStream(conn, conn)))
-	}
-}
-
-func (s *Server) Run(ctx context.Context) error {
-	return s.Conn.Run(ctx)
 }
 
 type serverState int
@@ -73,8 +34,8 @@ const (
 	serverShutDown
 )
 
+// Server implements the protocol.Server interface.
 type Server struct {
-	Conn   *jsonrpc2.Conn
 	client protocol.Client
 
 	stateMu sync.Mutex

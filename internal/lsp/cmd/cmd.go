@@ -190,45 +190,45 @@ var (
 )
 
 func (app *Application) connect(ctx context.Context) (*connection, error) {
-	switch app.Remote {
-	case "":
+	switch {
+	case app.Remote == "":
 		connection := newConnection(app)
-		ctx, connection.Server = lsp.NewClientServer(ctx, cache.New(app.options).NewSession(), connection.Client)
+		connection.Server = lsp.NewServer(cache.New(app.options).NewSession(), connection.Client)
+		ctx = protocol.WithClient(ctx, connection.Client)
 		return connection, connection.initialize(ctx, app.options)
-	case "internal":
+	case strings.HasPrefix(app.Remote, "internal@"):
 		internalMu.Lock()
 		defer internalMu.Unlock()
 		if c := internalConnections[app.wd]; c != nil {
 			return c, nil
 		}
-		connection := newConnection(app)
+		remote := app.Remote[len("internal@"):]
 		ctx := xcontext.Detach(ctx) //TODO:a way of shutting down the internal server
-		cr, sw, _ := os.Pipe()
-		sr, cw, _ := os.Pipe()
-		var jc *jsonrpc2.Conn
-		ctx, jc, connection.Server = protocol.NewClient(ctx, jsonrpc2.NewHeaderStream(cr, cw), connection.Client)
-		go jc.Run(ctx)
-		go func() {
-			ctx, srv := lsp.NewServer(ctx, cache.New(app.options).NewSession(), jsonrpc2.NewHeaderStream(sr, sw))
-			srv.Run(ctx)
-		}()
-		if err := connection.initialize(ctx, app.options); err != nil {
+		connection, err := app.connectRemote(ctx, remote)
+		if err != nil {
 			return nil, err
 		}
 		internalConnections[app.wd] = connection
 		return connection, nil
 	default:
-		connection := newConnection(app)
-		conn, err := net.Dial("tcp", app.Remote)
-		if err != nil {
-			return nil, err
-		}
-		stream := jsonrpc2.NewHeaderStream(conn, conn)
-		var jc *jsonrpc2.Conn
-		ctx, jc, connection.Server = protocol.NewClient(ctx, stream, connection.Client)
-		go jc.Run(ctx)
-		return connection, connection.initialize(ctx, app.options)
+		return app.connectRemote(ctx, app.Remote)
 	}
+}
+
+func (app *Application) connectRemote(ctx context.Context, remote string) (*connection, error) {
+	connection := newConnection(app)
+	conn, err := net.Dial("tcp", remote)
+	if err != nil {
+		return nil, err
+	}
+	stream := jsonrpc2.NewHeaderStream(conn, conn)
+	cc := jsonrpc2.NewConn(stream)
+	connection.Server = protocol.ServerDispatcher(cc)
+	cc.AddHandler(protocol.ClientHandler(connection.Client))
+	cc.AddHandler(protocol.Canceller{})
+	ctx = protocol.WithClient(ctx, connection.Client)
+	go cc.Run(ctx)
+	return connection, connection.initialize(ctx, app.options)
 }
 
 func (c *connection) initialize(ctx context.Context, options func(*source.Options)) error {
@@ -447,7 +447,7 @@ func (c *connection) diagnoseFiles(ctx context.Context, files []span.URI) error 
 }
 
 func (c *connection) terminate(ctx context.Context) {
-	if c.Client.app.Remote == "internal" {
+	if strings.HasPrefix(c.Client.app.Remote, "internal@") {
 		// internal connections need to be left alive for the next test
 		return
 	}
