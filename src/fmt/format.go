@@ -536,7 +536,7 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 		tail := tailBuf[:0]
 
 		hasDecimalPoint := false
-		meetNonzeroDigit := false
+		sawNonzeroDigit := false
 		// Starting from i = 1 to skip sign at num[0].
 		for i := 1; i < len(num); i++ {
 			switch num[i] {
@@ -554,16 +554,16 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 				fallthrough
 			default:
 				if num[i] != '0' {
-					meetNonzeroDigit = true
+					sawNonzeroDigit = true
 				}
-				// Count significant digits after meeting first non-zero digit
-				if meetNonzeroDigit {
+				// Count significant digits after saw the first non-zero digit.
+				if sawNonzeroDigit {
 					digits--
 				}
 			}
 		}
 		if !hasDecimalPoint {
-			// 0 should contribute once to digits
+			// decimal 0 should contribute once to digits.
 			if num[1] == '0' && len(num) == 2 {
 				digits--
 			}
