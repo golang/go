@@ -110,6 +110,9 @@ func xinit() {
 		fatalf("$GOROOT must be set")
 	}
 	goroot = filepath.Clean(b)
+	if modRoot := findModuleRoot(goroot); modRoot != "" {
+		fatalf("found go.mod file in %s: $GOROOT must not be inside a module", modRoot)
+	}
 
 	b = os.Getenv("GOROOT_FINAL")
 	if b == "" {
@@ -1588,6 +1591,20 @@ func checkCC() {
 			"To set a C compiler, set CC=the-compiler.\n"+
 			"To disable cgo, set CGO_ENABLED=0.\n%s%s", defaultcc[""], err, outputHdr, output)
 	}
+}
+
+func findModuleRoot(dir string) (root string) {
+	for {
+		if fi, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil && !fi.IsDir() {
+			return dir
+		}
+		d := filepath.Dir(dir)
+		if d == dir {
+			break
+		}
+		dir = d
+	}
+	return ""
 }
 
 func defaulttarg() string {
