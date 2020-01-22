@@ -149,7 +149,7 @@ func zero(t types.Type) value {
 			// this is unreachable.  Currently some
 			// constants have 'untyped' types when they
 			// should be defaulted by the typechecker.
-			t = ssa.DefaultType(t).(*types.Basic)
+			t = types.Default(t).(*types.Basic)
 		}
 		switch t.Kind() {
 		case types.Bool:

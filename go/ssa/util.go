@@ -52,36 +52,6 @@ func recvType(obj *types.Func) types.Type {
 	return obj.Type().(*types.Signature).Recv().Type()
 }
 
-// DefaultType returns the default "typed" type for an "untyped" type;
-// it returns the incoming type for all other types.  The default type
-// for untyped nil is untyped nil.
-//
-// Exported to ssa/interp.
-//
-// TODO(adonovan): use go/types.DefaultType after 1.8.
-//
-func DefaultType(typ types.Type) types.Type {
-	if t, ok := typ.(*types.Basic); ok {
-		k := t.Kind()
-		switch k {
-		case types.UntypedBool:
-			k = types.Bool
-		case types.UntypedInt:
-			k = types.Int
-		case types.UntypedRune:
-			k = types.Rune
-		case types.UntypedFloat:
-			k = types.Float64
-		case types.UntypedComplex:
-			k = types.Complex128
-		case types.UntypedString:
-			k = types.String
-		}
-		typ = types.Typ[k]
-	}
-	return typ
-}
-
 // logStack prints the formatted "start" message to stderr and
 // returns a closure that prints the corresponding "end" message.
 // Call using 'defer logStack(...)()' to show builder stack on panic.
