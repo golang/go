@@ -1059,13 +1059,9 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 			continue
 		}
 		// compound sexpr
-		argname := fmt.Sprintf("%s_%d", v, i)
-		colon := strings.Index(arg, ":")
-		openparen := strings.Index(arg, "(")
-		if colon >= 0 && openparen >= 0 && colon < openparen {
-			// rule-specified name
-			argname = arg[:colon]
-			arg = arg[colon+1:]
+		argname, expr := splitNameExpr(arg)
+		if argname == "" {
+			argname = fmt.Sprintf("%s_%d", v, i)
 		}
 		if argname == "b" {
 			log.Fatalf("don't name args 'b', it is ambiguous with blocks")
@@ -1076,7 +1072,7 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 		}
 		bexpr := exprf("%s.Op != addLater", argname)
 		rr.add(&CondBreak{expr: bexpr})
-		argPos, argCheckOp := genMatch0(rr, arch, arg, argname, cnt, false)
+		argPos, argCheckOp := genMatch0(rr, arch, expr, argname, cnt, false)
 		bexpr.(*ast.BinaryExpr).Y.(*ast.Ident).Name = argCheckOp
 
 		if argPos != "" {
@@ -1326,6 +1322,26 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch, typ, auxi
 	return
 }
 
+// splitNameExpr splits s-expr arg, possibly prefixed by "name:",
+// into name and the unprefixed expression.
+// For example, "x:(Foo)" yields "x", "(Foo)",
+// and "(Foo)" yields "", "(Foo)".
+func splitNameExpr(arg string) (name, expr string) {
+	colon := strings.Index(arg, ":")
+	if colon < 0 {
+		return "", arg
+	}
+	openparen := strings.Index(arg, "(")
+	if openparen < 0 {
+		log.Fatalf("splitNameExpr(%q): colon but no open parens", arg)
+	}
+	if colon > openparen {
+		// colon is inside the parens, such as in "(Foo x:(Bar))".
+		return "", arg
+	}
+	return arg[:colon], arg[colon+1:]
+}
+
 func getBlockInfo(op string, arch arch) (name string, data blockData) {
 	for _, b := range genericBlocks {
 		if b.name == op {
@@ -1358,7 +1374,7 @@ func typeName(typ string) string {
 	}
 }
 
-// unbalanced reports whether there aren't the same number of ( and ) in the string.
+// unbalanced reports whether there are a different number of ( and ) in the string.
 func unbalanced(s string) bool {
 	balance := 0
 	for _, c := range s {
@@ -1467,14 +1483,14 @@ func varCount1(m string, cnt map[string]int) {
 		return
 	}
 	// Split up input.
-	if i := strings.Index(m, ":"); i >= 0 && token.IsIdentifier(m[:i]) {
-		cnt[m[:i]]++
-		m = m[i+1:]
+	name, expr := splitNameExpr(m)
+	if name != "" {
+		cnt[name]++
 	}
-	if m[0] != '(' || m[len(m)-1] != ')' {
-		log.Fatalf("non-compound expr in commute1: %q", m)
+	if expr[0] != '(' || expr[len(expr)-1] != ')' {
+		log.Fatalf("non-compound expr in commute1: %q", expr)
 	}
-	s := split(m[1 : len(m)-1])
+	s := split(expr[1 : len(expr)-1])
 	for _, arg := range s[1:] {
 		varCount1(arg, cnt)
 	}
@@ -1527,12 +1543,8 @@ func normalizeMatch(m string, arch arch) string {
 	s := new(strings.Builder)
 	fmt.Fprintf(s, "%s <%s> [%s] {%s}", op, typ, auxint, aux)
 	for _, arg := range args {
-		var prefix string
-		if i := strings.Index(arg, ":"); i >= 0 && token.IsIdentifier(arg[:i]) {
-			prefix = arg[:i+1]
-			arg = arg[i+1:]
-		}
-		fmt.Fprint(s, " ", prefix, normalizeMatch(arg, arch))
+		prefix, expr := splitNameExpr(arg)
+		fmt.Fprint(s, " ", prefix, normalizeMatch(expr, arch))
 	}
 	return s.String()
 }
