@@ -6,21 +6,21 @@ package ssa
 func rewriteValue386splitload(v *Value) bool {
 	switch v.Op {
 	case Op386CMPBconstload:
-		return rewriteValue386splitload_Op386CMPBconstload_0(v)
+		return rewriteValue386splitload_Op386CMPBconstload(v)
 	case Op386CMPBload:
-		return rewriteValue386splitload_Op386CMPBload_0(v)
+		return rewriteValue386splitload_Op386CMPBload(v)
 	case Op386CMPLconstload:
-		return rewriteValue386splitload_Op386CMPLconstload_0(v)
+		return rewriteValue386splitload_Op386CMPLconstload(v)
 	case Op386CMPLload:
-		return rewriteValue386splitload_Op386CMPLload_0(v)
+		return rewriteValue386splitload_Op386CMPLload(v)
 	case Op386CMPWconstload:
-		return rewriteValue386splitload_Op386CMPWconstload_0(v)
+		return rewriteValue386splitload_Op386CMPWconstload(v)
 	case Op386CMPWload:
-		return rewriteValue386splitload_Op386CMPWload_0(v)
+		return rewriteValue386splitload_Op386CMPWload(v)
 	}
 	return false
 }
-func rewriteValue386splitload_Op386CMPBconstload_0(v *Value) bool {
+func rewriteValue386splitload_Op386CMPBconstload(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -43,7 +43,7 @@ func rewriteValue386splitload_Op386CMPBconstload_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValue386splitload_Op386CMPBload_0(v *Value) bool {
+func rewriteValue386splitload_Op386CMPBload(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -68,7 +68,7 @@ func rewriteValue386splitload_Op386CMPBload_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValue386splitload_Op386CMPLconstload_0(v *Value) bool {
+func rewriteValue386splitload_Op386CMPLconstload(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -91,7 +91,7 @@ func rewriteValue386splitload_Op386CMPLconstload_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValue386splitload_Op386CMPLload_0(v *Value) bool {
+func rewriteValue386splitload_Op386CMPLload(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -116,7 +116,7 @@ func rewriteValue386splitload_Op386CMPLload_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValue386splitload_Op386CMPWconstload_0(v *Value) bool {
+func rewriteValue386splitload_Op386CMPWconstload(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
@@ -139,7 +139,7 @@ func rewriteValue386splitload_Op386CMPWconstload_0(v *Value) bool {
 		return true
 	}
 }
-func rewriteValue386splitload_Op386CMPWload_0(v *Value) bool {
+func rewriteValue386splitload_Op386CMPWload(v *Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
