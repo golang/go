@@ -292,6 +292,7 @@ func doaddtimer(pp *p, t *timer) bool {
 	if t == pp.timers[0] {
 		atomic.Store64(&pp.timer0When, uint64(t.when))
 	}
+	atomic.Xadd(&pp.numTimers, 1)
 	return ok
 }
 
@@ -370,6 +371,7 @@ func dodeltimer(pp *p, i int) bool {
 	if i == 0 {
 		updateTimer0When(pp)
 	}
+	atomic.Xadd(&pp.numTimers, -1)
 	return ok
 }
 
@@ -394,6 +396,7 @@ func dodeltimer0(pp *p) bool {
 		ok = siftdownTimer(pp.timers, 0)
 	}
 	updateTimer0When(pp)
+	atomic.Xadd(&pp.numTimers, -1)
 	return ok
 }
 
@@ -650,7 +653,7 @@ func adjusttimers(pp *p) {
 	}
 	if atomic.Load(&pp.adjustTimers) == 0 {
 		if verifyTimers {
-			verifyTimerHeap(pp.timers)
+			verifyTimerHeap(pp)
 		}
 		return
 	}
@@ -712,7 +715,7 @@ loop:
 	}
 
 	if verifyTimers {
-		verifyTimerHeap(pp.timers)
+		verifyTimerHeap(pp)
 	}
 }
 
@@ -954,21 +957,24 @@ nextTimer:
 		timers[i] = nil
 	}
 
-	timers = timers[:to]
-	if verifyTimers {
-		verifyTimerHeap(timers)
-	}
-	pp.timers = timers
 	atomic.Xadd(&pp.deletedTimers, -cdel)
+	atomic.Xadd(&pp.numTimers, -cdel)
 	atomic.Xadd(&pp.adjustTimers, -cearlier)
+
+	timers = timers[:to]
+	pp.timers = timers
 	updateTimer0When(pp)
+
+	if verifyTimers {
+		verifyTimerHeap(pp)
+	}
 }
 
 // verifyTimerHeap verifies that the timer heap is in a valid state.
 // This is only for debugging, and is only called if verifyTimers is true.
 // The caller must have locked the timers.
-func verifyTimerHeap(timers []*timer) {
-	for i, t := range timers {
+func verifyTimerHeap(pp *p) {
+	for i, t := range pp.timers {
 		if i == 0 {
 			// First timer has no parent.
 			continue
@@ -976,10 +982,14 @@ func verifyTimerHeap(timers []*timer) {
 
 		// The heap is 4-ary. See siftupTimer and siftdownTimer.
 		p := (i - 1) / 4
-		if t.when < timers[p].when {
-			print("bad timer heap at ", i, ": ", p, ": ", timers[p].when, ", ", i, ": ", t.when, "\n")
+		if t.when < pp.timers[p].when {
+			print("bad timer heap at ", i, ": ", p, ": ", pp.timers[p].when, ", ", i, ": ", t.when, "\n")
 			throw("bad timer heap")
 		}
+	}
+	if numTimers := int(atomic.Load(&pp.numTimers)); len(pp.timers) != numTimers {
+		println("timer heap len", len(pp.timers), "!= numTimers", numTimers)
+		throw("bad timer heap len")
 	}
 }
 

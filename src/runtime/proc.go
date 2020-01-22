@@ -2632,7 +2632,13 @@ func checkTimers(pp *p, now int64) (rnow, pollUntil int64, ran bool) {
 			now = nanotime()
 		}
 		if now < next {
-			return now, next, false
+			// Next timer is not ready to run.
+			// But keep going if we would clear deleted timers.
+			// This corresponds to the condition below where
+			// we decide whether to call clearDeletedTimers.
+			if pp != getg().m.p.ptr() || int(atomic.Load(&pp.deletedTimers)) <= int(atomic.Load(&pp.numTimers)/4) {
+				return now, next, false
+			}
 		}
 	}
 
@@ -4108,6 +4114,7 @@ func (pp *p) destroy() {
 		lock(&pp.timersLock)
 		moveTimers(plocal, pp.timers)
 		pp.timers = nil
+		pp.numTimers = 0
 		pp.adjustTimers = 0
 		pp.deletedTimers = 0
 		atomic.Store64(&pp.timer0When, 0)
