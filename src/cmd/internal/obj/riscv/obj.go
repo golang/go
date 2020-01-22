@@ -1287,13 +1287,6 @@ func immIFits(x int64, nbits uint) bool {
 	return min <= x && x <= max
 }
 
-// immUFits reports whether immediate value x fits in nbits bits
-// as an unsigned integer.
-func immUFits(x int64, nbits uint) bool {
-	var max int64 = 1<<nbits - 1
-	return 0 <= x && x <= max
-}
-
 // immI extracts the signed integer literal of the specified size from an Addr.
 func immI(a obj.Addr, nbits uint) uint32 {
 	if a.Type != obj.TYPE_CONST {
@@ -1305,17 +1298,6 @@ func immI(a obj.Addr, nbits uint) uint32 {
 	return uint32(a.Offset)
 }
 
-// immU extracts the unsigned integer literal of the specified size from an Addr.
-func immU(a obj.Addr, nbits uint) uint32 {
-	if a.Type != obj.TYPE_CONST {
-		panic(fmt.Sprintf("ill typed: %+v", a))
-	}
-	if !immUFits(a.Offset, nbits) {
-		panic(fmt.Sprintf("unsigned immediate %d in %v cannot fit in %d bits", a.Offset, a, nbits))
-	}
-	return uint32(a.Offset)
-}
-
 func wantImmI(p *obj.Prog, pos string, a obj.Addr, nbits uint) {
 	if a.Type != obj.TYPE_CONST {
 		p.Ctxt.Diag("%v\texpected immediate in %s position but got %s", p, pos, obj.Dconv(p, &a))
@@ -1323,16 +1305,6 @@ func wantImmI(p *obj.Prog, pos string, a obj.Addr, nbits uint) {
 	}
 	if !immIFits(a.Offset, nbits) {
 		p.Ctxt.Diag("%v\tsigned immediate in %s position cannot be larger than %d bits but got %d", p, pos, nbits, a.Offset)
-	}
-}
-
-func wantImmU(p *obj.Prog, pos string, a obj.Addr, nbits uint) {
-	if a.Type != obj.TYPE_CONST {
-		p.Ctxt.Diag("%v\texpected immediate in %s position but got %s", p, pos, obj.Dconv(p, &a))
-		return
-	}
-	if !immUFits(a.Offset, nbits) {
-		p.Ctxt.Diag("%v\tunsigned immediate in %s position cannot be larger than %d bits but got %d", p, pos, nbits, a.Offset)
 	}
 }
 
@@ -1457,7 +1429,7 @@ func validateU(p *obj.Prog) {
 		// to represent this state?
 		return
 	}
-	wantImmU(p, "from", p.From, 20)
+	wantImmI(p, "from", p.From, 20)
 	wantIntRegAddr(p, "to", &p.To)
 }
 
@@ -1578,7 +1550,7 @@ func encodeU(p *obj.Prog) uint32 {
 	// Rather than have the user/compiler generate a 32 bit constant, the
 	// bottommost bits of which must all be zero, instead accept just the
 	// top bits.
-	imm := immU(p.From, 20)
+	imm := immI(p.From, 20)
 	rd := regIAddr(p.To)
 	ins := encode(p.As)
 	if ins == nil {
@@ -1627,7 +1599,7 @@ func EncodeSImmediate(imm int64) (int64, error) {
 }
 
 func EncodeUImmediate(imm int64) (int64, error) {
-	if !immUFits(imm, 20) {
+	if !immIFits(imm, 20) {
 		return 0, fmt.Errorf("immediate %#x does not fit in 20 bits", imm)
 	}
 	return imm << 12, nil
