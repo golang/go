@@ -39,7 +39,8 @@ import (
 //
 // To prevent IP spoofing, be sure to delete any pre-existing
 // X-Forwarded-For header coming from the client or
-// an untrusted proxy.
+// an untrusted proxy, for instance, by setting
+// OverwriteForwardedHeaders to true.
 type ReverseProxy struct {
 	// Director must be a function which modifies
 	// the request into a new request to be sent
@@ -94,11 +95,15 @@ type ReverseProxy struct {
 	ErrorHandler func(http.ResponseWriter, *http.Request, error)
 
 	// TrustForwardedHeaders specifies if X-Forwarded-For,
-	// X-Forwarded-Proto and X-Forwarded-Host headers comming from
+	// X-Forwarded-Proto and X-Forwarded-Host headers coming from
 	// the previous proxy must be trusted or not.
+	//
 	// If true, existing values of X-Forwarded-Proto and
 	// X-Forwarded-Host will be preserved, and the current client IP
-	// will be appended to the list in X-Forwarded-For.
+	// will be appended to the list in X-Forwarded-For. In this case
+	// be sure that these 3 headers are removed from the request if
+	// sent by the client to prevent spoofing attacks.
+	//
 	// If false, values of these headers will be set regardless of
 	// any existing value.
 	TrustForwardedHeaders bool
