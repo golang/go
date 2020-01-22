@@ -9,14 +9,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/types"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,8 +22,6 @@ import (
 	"unicode"
 
 	"golang.org/x/tools/go/internal/packagesdriver"
-	"golang.org/x/tools/internal/gopathwalk"
-	"golang.org/x/tools/internal/semver"
 )
 
 // debug controls verbose logging.
@@ -139,7 +135,6 @@ func goListDriver(cfg *Config, patterns ...string) (*driverResponse, error) {
 
 	// Determine files requested in contains patterns
 	var containFiles []string
-	var packagesNamed []string
 	restPatterns := make([]string, 0, len(patterns))
 	// Extract file= and other [querytype]= patterns. Report an error if querytype
 	// doesn't exist.
@@ -155,8 +150,6 @@ extractQueries:
 				containFiles = append(containFiles, value)
 			case "pattern":
 				restPatterns = append(restPatterns, value)
-			case "iamashamedtousethedisabledqueryname":
-				packagesNamed = append(packagesNamed, value)
 			case "": // not a reserved query
 				restPatterns = append(restPatterns, pattern)
 			default:
@@ -199,12 +192,6 @@ extractQueries:
 
 	if len(containFiles) != 0 {
 		if err := runContainsQueries(cfg, golistDriver, response, containFiles, getGoInfo); err != nil {
-			return nil, err
-		}
-	}
-
-	if len(packagesNamed) != 0 {
-		if err := runNamedQueries(cfg, golistDriver, response, packagesNamed); err != nil {
 			return nil, err
 		}
 	}
@@ -342,276 +329,8 @@ func runContainsQueries(cfg *Config, driver driver, response *responseDeduper, q
 	return nil
 }
 
-// modCacheRegexp splits a path in a module cache into module, module version, and package.
-var modCacheRegexp = regexp.MustCompile(`(.*)@([^/\\]*)(.*)`)
-
-func runNamedQueries(cfg *Config, driver driver, response *responseDeduper, queries []string) error {
-	// calling `go env` isn't free; bail out if there's nothing to do.
-	if len(queries) == 0 {
-		return nil
-	}
-	// Determine which directories are relevant to scan.
-	roots, modRoot, err := roots(cfg)
-	if err != nil {
-		return err
-	}
-
-	// Scan the selected directories. Simple matches, from GOPATH/GOROOT
-	// or the local module, can simply be "go list"ed. Matches from the
-	// module cache need special treatment.
-	var matchesMu sync.Mutex
-	var simpleMatches, modCacheMatches []string
-	add := func(root gopathwalk.Root, dir string) {
-		// Walk calls this concurrently; protect the result slices.
-		matchesMu.Lock()
-		defer matchesMu.Unlock()
-
-		path := dir
-		if dir != root.Path {
-			path = dir[len(root.Path)+1:]
-		}
-		if pathMatchesQueries(path, queries) {
-			switch root.Type {
-			case gopathwalk.RootModuleCache:
-				modCacheMatches = append(modCacheMatches, path)
-			case gopathwalk.RootCurrentModule:
-				// We'd need to read go.mod to find the full
-				// import path. Relative's easier.
-				rel, err := filepath.Rel(cfg.Dir, dir)
-				if err != nil {
-					// This ought to be impossible, since
-					// we found dir in the current module.
-					panic(err)
-				}
-				simpleMatches = append(simpleMatches, "./"+rel)
-			case gopathwalk.RootGOPATH, gopathwalk.RootGOROOT:
-				simpleMatches = append(simpleMatches, path)
-			}
-		}
-	}
-
-	startWalk := time.Now()
-	gopathwalk.Walk(roots, add, gopathwalk.Options{ModulesEnabled: modRoot != "", Debug: debug})
-	cfg.Logf("%v for walk", time.Since(startWalk))
-
-	// Weird special case: the top-level package in a module will be in
-	// whatever directory the user checked the repository out into. It's
-	// more reasonable for that to not match the package name. So, if there
-	// are any Go files in the mod root, query it just to be safe.
-	if modRoot != "" {
-		rel, err := filepath.Rel(cfg.Dir, modRoot)
-		if err != nil {
-			panic(err) // See above.
-		}
-
-		files, err := ioutil.ReadDir(modRoot)
-		if err != nil {
-			panic(err) // See above.
-		}
-
-		for _, f := range files {
-			if strings.HasSuffix(f.Name(), ".go") {
-				simpleMatches = append(simpleMatches, rel)
-				break
-			}
-		}
-	}
-
-	addResponse := func(r *driverResponse) {
-		for _, pkg := range r.Packages {
-			response.addPackage(pkg)
-			for _, name := range queries {
-				if pkg.Name == name {
-					response.addRoot(pkg.ID)
-					break
-				}
-			}
-		}
-	}
-
-	if len(simpleMatches) != 0 {
-		resp, err := driver(cfg, simpleMatches...)
-		if err != nil {
-			return err
-		}
-		addResponse(resp)
-	}
-
-	// Module cache matches are tricky. We want to avoid downloading new
-	// versions of things, so we need to use the ones present in the cache.
-	// go list doesn't accept version specifiers, so we have to write out a
-	// temporary module, and do the list in that module.
-	if len(modCacheMatches) != 0 {
-		// Collect all the matches, deduplicating by major version
-		// and preferring the newest.
-		type modInfo struct {
-			mod   string
-			major string
-		}
-		mods := make(map[modInfo]string)
-		var imports []string
-		for _, modPath := range modCacheMatches {
-			matches := modCacheRegexp.FindStringSubmatch(modPath)
-			mod, ver := filepath.ToSlash(matches[1]), matches[2]
-			importPath := filepath.ToSlash(filepath.Join(matches[1], matches[3]))
-
-			major := semver.Major(ver)
-			if prevVer, ok := mods[modInfo{mod, major}]; !ok || semver.Compare(ver, prevVer) > 0 {
-				mods[modInfo{mod, major}] = ver
-			}
-
-			imports = append(imports, importPath)
-		}
-
-		// Build the temporary module.
-		var gomod bytes.Buffer
-		gomod.WriteString("module modquery\nrequire (\n")
-		for mod, version := range mods {
-			gomod.WriteString("\t" + mod.mod + " " + version + "\n")
-		}
-		gomod.WriteString(")\n")
-
-		tmpCfg := *cfg
-
-		// We're only trying to look at stuff in the module cache, so
-		// disable the network. This should speed things up, and has
-		// prevented errors in at least one case, #28518.
-		tmpCfg.Env = append([]string{"GOPROXY=off"}, cfg.Env...)
-
-		var err error
-		tmpCfg.Dir, err = ioutil.TempDir("", "gopackages-modquery")
-		if err != nil {
-			return err
-		}
-		defer os.RemoveAll(tmpCfg.Dir)
-
-		if err := ioutil.WriteFile(filepath.Join(tmpCfg.Dir, "go.mod"), gomod.Bytes(), 0777); err != nil {
-			return fmt.Errorf("writing go.mod for module cache query: %v", err)
-		}
-
-		// Run the query, using the import paths calculated from the matches above.
-		resp, err := driver(&tmpCfg, imports...)
-		if err != nil {
-			return fmt.Errorf("querying module cache matches: %v", err)
-		}
-		addResponse(resp)
-	}
-
-	return nil
-}
-
 func getSizes(cfg *Config) (types.Sizes, error) {
 	return packagesdriver.GetSizesGolist(cfg.Context, cfg.BuildFlags, cfg.Env, cfg.Dir, usesExportData(cfg))
-}
-
-// roots selects the appropriate paths to walk based on the passed-in configuration,
-// particularly the environment and the presence of a go.mod in cfg.Dir's parents.
-func roots(cfg *Config) ([]gopathwalk.Root, string, error) {
-	stdout, err := invokeGo(cfg, "env", "GOROOT", "GOPATH", "GOMOD")
-	if err != nil {
-		return nil, "", err
-	}
-
-	fields := strings.Split(stdout.String(), "\n")
-	if len(fields) != 4 || len(fields[3]) != 0 {
-		return nil, "", fmt.Errorf("go env returned unexpected output: %q", stdout.String())
-	}
-	goroot, gopath, gomod := fields[0], filepath.SplitList(fields[1]), fields[2]
-	var modDir string
-	if gomod != "" {
-		modDir = filepath.Dir(gomod)
-	}
-
-	var roots []gopathwalk.Root
-	// Always add GOROOT.
-	roots = append(roots, gopathwalk.Root{
-		Path: filepath.Join(goroot, "/src"),
-		Type: gopathwalk.RootGOROOT,
-	})
-	// If modules are enabled, scan the module dir.
-	if modDir != "" {
-		roots = append(roots, gopathwalk.Root{
-			Path: modDir,
-			Type: gopathwalk.RootCurrentModule,
-		})
-	}
-	// Add either GOPATH/src or GOPATH/pkg/mod, depending on module mode.
-	for _, p := range gopath {
-		if modDir != "" {
-			roots = append(roots, gopathwalk.Root{
-				Path: filepath.Join(p, "/pkg/mod"),
-				Type: gopathwalk.RootModuleCache,
-			})
-		} else {
-			roots = append(roots, gopathwalk.Root{
-				Path: filepath.Join(p, "/src"),
-				Type: gopathwalk.RootGOPATH,
-			})
-		}
-	}
-
-	return roots, modDir, nil
-}
-
-// These functions were copied from goimports. See further documentation there.
-
-// pathMatchesQueries is adapted from pkgIsCandidate.
-// TODO: is it reasonable to do Contains here, rather than an exact match on a path component?
-func pathMatchesQueries(path string, queries []string) bool {
-	lastTwo := lastTwoComponents(path)
-	for _, query := range queries {
-		if strings.Contains(lastTwo, query) {
-			return true
-		}
-		if hasHyphenOrUpperASCII(lastTwo) && !hasHyphenOrUpperASCII(query) {
-			lastTwo = lowerASCIIAndRemoveHyphen(lastTwo)
-			if strings.Contains(lastTwo, query) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// lastTwoComponents returns at most the last two path components
-// of v, using either / or \ as the path separator.
-func lastTwoComponents(v string) string {
-	nslash := 0
-	for i := len(v) - 1; i >= 0; i-- {
-		if v[i] == '/' || v[i] == '\\' {
-			nslash++
-			if nslash == 2 {
-				return v[i:]
-			}
-		}
-	}
-	return v
-}
-
-func hasHyphenOrUpperASCII(s string) bool {
-	for i := 0; i < len(s); i++ {
-		b := s[i]
-		if b == '-' || ('A' <= b && b <= 'Z') {
-			return true
-		}
-	}
-	return false
-}
-
-func lowerASCIIAndRemoveHyphen(s string) (ret string) {
-	buf := make([]byte, 0, len(s))
-	for i := 0; i < len(s); i++ {
-		b := s[i]
-		switch {
-		case b == '-':
-			continue
-		case 'A' <= b && b <= 'Z':
-			buf = append(buf, b+('a'-'A'))
-		default:
-			buf = append(buf, b)
-		}
-	}
-	return string(buf)
 }
 
 // Fields must match go list;
