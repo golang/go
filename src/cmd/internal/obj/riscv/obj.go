@@ -91,7 +91,9 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	if p.Reg == 0 {
 		switch p.As {
 		case AADDI, ASLTI, ASLTIU, AANDI, AORI, AXORI, ASLLI, ASRLI, ASRAI,
-			AADD, AAND, AOR, AXOR, ASLL, ASRL, ASUB, ASRA:
+			AADD, AAND, AOR, AXOR, ASLL, ASRL, ASUB, ASRA,
+			AMUL, AMULH, AMULHU, AMULHSU, AMULW, ADIV, ADIVU, ADIVW, ADIVUW,
+			AREM, AREMU, AREMW, AREMUW:
 			p.Reg = p.To.Reg
 		}
 	}
