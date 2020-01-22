@@ -945,13 +945,13 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 // genMatch returns the variable whose source position should be used for the
 // result (or "" if no opinion), and a boolean that reports whether the match can fail.
 func genMatch(rr *RuleRewrite, arch arch, match string, pregenTop bool) (pos, checkOp string) {
-	cnt := varCount(rr.match, rr.cond)
+	cnt := varCount(rr)
 	return genMatch0(rr, arch, match, "v", cnt, pregenTop)
 }
 
 func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, pregenTop bool) (pos, checkOp string) {
 	if match[0] != '(' || match[len(match)-1] != ')' {
-		log.Fatalf("non-compound expr in genMatch0: %q", match)
+		log.Fatalf("%s: non-compound expr in genMatch0: %q", rr.loc, match)
 	}
 	op, oparch, typ, auxint, aux, args := parseValue(match, arch, rr.loc)
 
@@ -1443,14 +1443,14 @@ func expandOr(r string) []string {
 }
 
 // varCount returns a map which counts the number of occurrences of
-// Value variables in the s-expression "match" and the Go expression "cond".
-func varCount(match, cond string) map[string]int {
+// Value variables in the s-expression rr.match and the Go expression rr.cond.
+func varCount(rr *RuleRewrite) map[string]int {
 	cnt := map[string]int{}
-	varCount1(match, cnt)
-	if cond != "" {
-		expr, err := parser.ParseExpr(cond)
+	varCount1(rr.loc, rr.match, cnt)
+	if rr.cond != "" {
+		expr, err := parser.ParseExpr(rr.cond)
 		if err != nil {
-			log.Fatalf("failed to parse cond %q: %v", cond, err)
+			log.Fatalf("%s: failed to parse cond %q: %v", rr.loc, rr.cond, err)
 		}
 		ast.Inspect(expr, func(n ast.Node) bool {
 			if id, ok := n.(*ast.Ident); ok {
@@ -1462,7 +1462,7 @@ func varCount(match, cond string) map[string]int {
 	return cnt
 }
 
-func varCount1(m string, cnt map[string]int) {
+func varCount1(loc, m string, cnt map[string]int) {
 	if m[0] == '<' || m[0] == '[' || m[0] == '{' {
 		return
 	}
@@ -1476,11 +1476,11 @@ func varCount1(m string, cnt map[string]int) {
 		cnt[name]++
 	}
 	if expr[0] != '(' || expr[len(expr)-1] != ')' {
-		log.Fatalf("non-compound expr in commute1: %q", expr)
+		log.Fatalf("%s: non-compound expr in varCount1: %q", loc, expr)
 	}
 	s := split(expr[1 : len(expr)-1])
 	for _, arg := range s[1:] {
-		varCount1(arg, cnt)
+		varCount1(loc, arg, cnt)
 	}
 }
 
