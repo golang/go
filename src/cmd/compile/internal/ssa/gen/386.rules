@@ -3,80 +3,71 @@
 // license that can be found in the LICENSE file.
 
 // Lowering arithmetic
-(Add(Ptr|32|16|8) x y) -> (ADDL  x y)
-(Add(32|64)F x y) -> (ADDS(S|D) x y)
-(Add32carry x y) -> (ADDLcarry x y)
-(Add32withcarry x y c) -> (ADCL x y c)
+(Add(Ptr|32|16|8) ...) -> (ADDL ...)
+(Add(32|64)F ...) -> (ADDS(S|D) ...)
+(Add32carry ...) -> (ADDLcarry ...)
+(Add32withcarry ...) -> (ADCL ...)
 
-(Sub(Ptr|32|16|8) x y) -> (SUBL  x y)
-(Sub(32|64)F x y) -> (SUBS(S|D) x y)
-(Sub32carry x y) -> (SUBLcarry x y)
-(Sub32withcarry x y c) -> (SBBL x y c)
+(Sub(Ptr|32|16|8) ...) -> (SUBL ...)
+(Sub(32|64)F ...) -> (SUBS(S|D) ...)
+(Sub32carry ...) -> (SUBLcarry ...)
+(Sub32withcarry ...) -> (SBBL ...)
 
-(Mul(32|16|8)  x y) -> (MULL  x y)
-(Mul(32|64)F x y) -> (MULS(S|D) x y)
-(Mul32uhilo x y) -> (MULLQU x y)
+(Mul(32|16|8) ...) -> (MULL ...)
+(Mul(32|64)F ...) -> (MULS(S|D) ...)
+(Mul32uhilo ...) -> (MULLQU ...)
 
 (Select0 (Mul32uover x y)) -> (Select0 <typ.UInt32> (MULLU x y))
 (Select1 (Mul32uover x y)) -> (SETO (Select1 <types.TypeFlags> (MULLU x y)))
 
-(Avg32u x y) -> (AVGLU x y)
+(Avg32u ...) -> (AVGLU ...)
 
-(Div32F x y) -> (DIVSS x y)
-(Div64F x y) -> (DIVSD x y)
-
-(Div32 [a] x y) -> (DIVL [a] x y)
-(Div32u x y) -> (DIVLU x y)
-(Div16 [a] x y) -> (DIVW [a] x y)
-(Div16u x y) -> (DIVWU x y)
+(Div(32|64)F ...) -> (DIVS(S|D) ...)
+(Div(32|32u|16|16u) ...) -> (DIV(L|LU|W|WU) ...)
 (Div8   x y) -> (DIVW  (SignExt8to16 x) (SignExt8to16 y))
 (Div8u  x y) -> (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y))
 
-(Hmul32  x y) -> (HMULL  x y)
-(Hmul32u x y) -> (HMULLU x y)
+(Hmul(32|32u) ...) -> (HMUL(L|LU) ...)
 
-(Mod32 [a] x y) -> (MODL [a] x y)
-(Mod32u x y) -> (MODLU x y)
-(Mod16 [a] x y) -> (MODW [a] x y)
-(Mod16u x y) -> (MODWU x y)
+(Mod(32|32u|16|16u) ...) -> (MOD(L|LU|W|WU) ...)
 (Mod8   x y) -> (MODW  (SignExt8to16 x) (SignExt8to16 y))
 (Mod8u  x y) -> (MODWU (ZeroExt8to16 x) (ZeroExt8to16 y))
 
-(And(32|16|8) x y) -> (ANDL x y)
-(Or(32|16|8) x y) -> (ORL x y)
-(Xor(32|16|8) x y) -> (XORL x y)
+(And(32|16|8) ...) -> (ANDL ...)
+(Or(32|16|8) ...) -> (ORL ...)
+(Xor(32|16|8) ...) -> (XORL ...)
 
-(Neg(32|16|8)  x) -> (NEGL x)
+(Neg(32|16|8) ...) -> (NEGL ...)
 (Neg32F x) && !config.use387 -> (PXOR x (MOVSSconst <typ.Float32> [auxFrom32F(float32(math.Copysign(0, -1)))]))
 (Neg64F x) && !config.use387 -> (PXOR x (MOVSDconst <typ.Float64> [auxFrom64F(math.Copysign(0, -1))]))
 (Neg32F x) && config.use387 -> (FCHS x)
 (Neg64F x) && config.use387 -> (FCHS x)
 
-(Com(32|16|8) x) -> (NOTL x)
+(Com(32|16|8) ...) -> (NOTL ...)
 
 // Lowering boolean ops
-(AndB x y) -> (ANDL x y)
-(OrB x y) -> (ORL x y)
+(AndB ...) -> (ANDL ...)
+(OrB ...) -> (ORL ...)
 (Not x) -> (XORLconst [1] x)
 
 // Lowering pointer arithmetic
-(OffPtr [off] ptr) -> (ADDLconst [off] ptr)
+(OffPtr ...) -> (ADDLconst ...)
 
-(Bswap32 x) -> (BSWAPL x)
+(Bswap32 ...) -> (BSWAPL ...)
 
-(Sqrt x) -> (SQRTSD x)
+(Sqrt ...) -> (SQRTSD ...)
 
 (Ctz16 x) -> (BSFL (ORLconst <typ.UInt32> [0x10000] x))
-(Ctz16NonZero x) -> (BSFL x)
+(Ctz16NonZero ...) -> (BSFL ...)
 
 // Lowering extension
-(SignExt8to16  x) -> (MOVBLSX x)
-(SignExt8to32  x) -> (MOVBLSX x)
-(SignExt16to32 x) -> (MOVWLSX x)
+(SignExt8to16  ...) -> (MOVBLSX ...)
+(SignExt8to32  ...) -> (MOVBLSX ...)
+(SignExt16to32 ...) -> (MOVWLSX ...)
 
-(ZeroExt8to16  x) -> (MOVBLZX x)
-(ZeroExt8to32  x) -> (MOVBLZX x)
-(ZeroExt16to32 x) -> (MOVWLZX x)
+(ZeroExt8to16  ...) -> (MOVBLZX ...)
+(ZeroExt8to32  ...) -> (MOVBLZX ...)
+(ZeroExt16to32 ...) -> (MOVWLZX ...)
 
 (Signmask x) -> (SARLconst x [31])
 (Zeromask <t> x) -> (XORLconst [-1] (SBBLcarrymask <t> (CMPLconst x [1])))
@@ -84,22 +75,22 @@
 
 // Lowering truncation
 // Because we ignore high parts of registers, truncates are just copies.
-(Trunc16to8  x) -> x
-(Trunc32to8  x) -> x
-(Trunc32to16 x) -> x
+(Trunc16to8  ...) -> (Copy ...)
+(Trunc32to8  ...) -> (Copy ...)
+(Trunc32to16 ...) -> (Copy ...)
 
 // Lowering float <-> int
-(Cvt32to32F x) -> (CVTSL2SS x)
-(Cvt32to64F x) -> (CVTSL2SD x)
+(Cvt32to32F ...) -> (CVTSL2SS ...)
+(Cvt32to64F ...) -> (CVTSL2SD ...)
 
-(Cvt32Fto32 x) -> (CVTTSS2SL x)
-(Cvt64Fto32 x) -> (CVTTSD2SL x)
+(Cvt32Fto32 ...) -> (CVTTSS2SL ...)
+(Cvt64Fto32 ...) -> (CVTTSD2SL ...)
 
-(Cvt32Fto64F x) -> (CVTSS2SD x)
-(Cvt64Fto32F x) -> (CVTSD2SS x)
+(Cvt32Fto64F ...) -> (CVTSS2SD ...)
+(Cvt64Fto32F ...) -> (CVTSD2SS ...)
 
-(Round32F x) -> x
-(Round64F x) -> x
+(Round32F ...) -> (Copy ...)
+(Round64F ...) -> (Copy ...)
 
 // Lowering shifts
 // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
@@ -335,26 +326,26 @@
 	(REPSTOSL destptr (MOVLconst [s/4]) (MOVLconst [0]) mem)
 
 // Lowering constants
-(Const(8|16|32)   [val]) -> (MOVLconst [val])
-(Const(32|64)F [val]) -> (MOVS(S|D)const [val])
+(Const(8|16|32) ...) -> (MOVLconst ...)
+(Const(32|64)F ...) -> (MOVS(S|D)const ...)
 (ConstNil) -> (MOVLconst [0])
-(ConstBool [b]) -> (MOVLconst [b])
+(ConstBool ...) -> (MOVLconst ...)
 
 // Lowering calls
-(StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
-(ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
-(InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
+(StaticCall ...) -> (CALLstatic ...)
+(ClosureCall ...) -> (CALLclosure ...)
+(InterCall ...) -> (CALLinter ...)
 
 // Miscellaneous
 (IsNonNil p) -> (SETNE (TESTL p p))
 (IsInBounds idx len) -> (SETB (CMPL idx len))
 (IsSliceInBounds idx len) -> (SETBE (CMPL idx len))
-(NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
-(GetG mem) -> (LoweredGetG mem)
-(GetClosurePtr) -> (LoweredGetClosurePtr)
-(GetCallerPC) -> (LoweredGetCallerPC)
-(GetCallerSP) -> (LoweredGetCallerSP)
-(Addr {sym} base) -> (LEAL {sym} base)
+(NilCheck ...) -> (LoweredNilCheck ...)
+(GetG ...) -> (LoweredGetG ...)
+(GetClosurePtr ...) -> (LoweredGetClosurePtr ...)
+(GetCallerPC ...) -> (LoweredGetCallerPC ...)
+(GetCallerSP ...) -> (LoweredGetCallerSP ...)
+(Addr ...) -> (LEAL ...)
 (LocalAddr {sym} base _) -> (LEAL {sym} base)
 
 // block rewrites
@@ -379,7 +370,7 @@
 (If cond yes no) -> (NE (TESTB cond cond) yes no)
 
 // Write barrier.
-(WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
+(WB ...) -> (LoweredWB ...)
 
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 0 -> (LoweredPanicBoundsA [kind] x y mem)
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 1 -> (LoweredPanicBoundsB [kind] x y mem)
