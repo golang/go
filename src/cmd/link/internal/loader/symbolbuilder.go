@@ -8,6 +8,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
+	"fmt"
 )
 
 // SymbolBuilder is a helper designed to help with the construction
@@ -47,7 +48,7 @@ func (l *Loader) MakeSymbolUpdater(symIdx Sym) (*SymbolBuilder, Sym) {
 		symIdx = l.cloneToExternal(symIdx)
 	}
 	if l.Syms[symIdx] != nil {
-		panic("can't build if sym.Symbol already present")
+		panic(fmt.Sprintf("can't build if sym.Symbol %q already present", l.RawSymName(symIdx)))
 	}
 
 	// Construct updater and return.
@@ -58,24 +59,30 @@ func (l *Loader) MakeSymbolUpdater(symIdx Sym) (*SymbolBuilder, Sym) {
 
 // Getters for properties of the symbol we're working on.
 
-func (sb *SymbolBuilder) Sym() Sym           { return sb.symIdx }
-func (sb *SymbolBuilder) Name() string       { return sb.name }
-func (sb *SymbolBuilder) Version() int       { return sb.ver }
-func (sb *SymbolBuilder) Type() sym.SymKind  { return sb.kind }
-func (sb *SymbolBuilder) Size() int64        { return sb.size }
-func (sb *SymbolBuilder) Data() []byte       { return sb.data }
-func (sb *SymbolBuilder) Value() int64       { return sb.l.SymValue(sb.symIdx) }
-func (sb *SymbolBuilder) Align() int32       { return sb.l.SymAlign(sb.symIdx) }
-func (sb *SymbolBuilder) Localentry() uint8  { return sb.l.SymLocalentry(sb.symIdx) }
-func (sb *SymbolBuilder) Extname() string    { return sb.l.SymExtname(sb.symIdx) }
-func (sb *SymbolBuilder) Dynimplib() string  { return sb.l.SymDynimplib(sb.symIdx) }
-func (sb *SymbolBuilder) Dynimpvers() string { return sb.l.SymDynimpvers(sb.symIdx) }
+func (sb *SymbolBuilder) Sym() Sym               { return sb.symIdx }
+func (sb *SymbolBuilder) Name() string           { return sb.name }
+func (sb *SymbolBuilder) Version() int           { return sb.ver }
+func (sb *SymbolBuilder) Type() sym.SymKind      { return sb.kind }
+func (sb *SymbolBuilder) Size() int64            { return sb.size }
+func (sb *SymbolBuilder) Data() []byte           { return sb.data }
+func (sb *SymbolBuilder) Value() int64           { return sb.l.SymValue(sb.symIdx) }
+func (sb *SymbolBuilder) Align() int32           { return sb.l.SymAlign(sb.symIdx) }
+func (sb *SymbolBuilder) Localentry() uint8      { return sb.l.SymLocalentry(sb.symIdx) }
+func (sb *SymbolBuilder) OnList() bool           { return sb.l.AttrOnList(sb.symIdx) }
+func (sb *SymbolBuilder) External() bool         { return sb.l.AttrExternal(sb.symIdx) }
+func (sb *SymbolBuilder) Extname() string        { return sb.l.SymExtname(sb.symIdx) }
+func (sb *SymbolBuilder) CgoExportDynamic() bool { return sb.l.AttrCgoExportDynamic(sb.symIdx) }
+func (sb *SymbolBuilder) Dynimplib() string      { return sb.l.SymDynimplib(sb.symIdx) }
+func (sb *SymbolBuilder) Dynimpvers() string     { return sb.l.SymDynimpvers(sb.symIdx) }
+func (sb *SymbolBuilder) SubSym() Sym            { return sb.l.SubSym(sb.symIdx) }
 
 // Setters for symbol properties.
 
 func (sb *SymbolBuilder) SetType(kind sym.SymKind)   { sb.kind = kind }
 func (sb *SymbolBuilder) SetSize(size int64)         { sb.size = size }
 func (sb *SymbolBuilder) SetData(data []byte)        { sb.data = data }
+func (sb *SymbolBuilder) SetOnList(v bool)           { sb.l.SetAttrOnList(sb.symIdx, v) }
+func (sb *SymbolBuilder) SetExternal(v bool)         { sb.l.SetAttrExternal(sb.symIdx, v) }
 func (sb *SymbolBuilder) SetValue(v int64)           { sb.l.SetSymValue(sb.symIdx, v) }
 func (sb *SymbolBuilder) SetAlign(align int32)       { sb.l.SetSymAlign(sb.symIdx, align) }
 func (sb *SymbolBuilder) SetLocalentry(value uint8)  { sb.l.SetSymLocalentry(sb.symIdx, value) }
@@ -110,6 +117,22 @@ func (sb *SymbolBuilder) Reachable() bool {
 
 func (sb *SymbolBuilder) setReachable() {
 	sb.l.SetAttrReachable(sb.symIdx, true)
+}
+
+func (sb *SymbolBuilder) ReadOnly() bool {
+	return sb.l.AttrReadOnly(sb.symIdx)
+}
+
+func (sb *SymbolBuilder) SetReadOnly(v bool) {
+	sb.l.SetAttrReadOnly(sb.symIdx, v)
+}
+
+func (sb *SymbolBuilder) DuplicateOK() bool {
+	return sb.l.AttrDuplicateOK(sb.symIdx)
+}
+
+func (sb *SymbolBuilder) SetDuplicateOK(v bool) {
+	sb.l.SetAttrDuplicateOK(sb.symIdx, v)
 }
 
 func (sb *SymbolBuilder) Outer() Sym {
