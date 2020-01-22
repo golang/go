@@ -457,7 +457,8 @@ func (ctxt *Link) loadlib() {
 	}
 
 	// Process cgo directives (has to be done before host object loading).
-	ctxt.loadcgodirectives(ctxt.IsELF && *FlagNewLdElf)
+	newCgo := (ctxt.IsELF && *FlagNewLdElf) || ctxt.HeadType == objabi.Hdarwin
+	ctxt.loadcgodirectives(newCgo)
 
 	// Conditionally load host objects, or setup for external linking.
 	hostobjs(ctxt)
@@ -1888,7 +1889,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 				Errorf(nil, "%v", err)
 				return
 			}
-			ctxt.Textp = append(ctxt.Textp, textp...)
+			ctxt.Textp2 = append(ctxt.Textp2, textp...)
 		}
 		return ldhostobj(ldmacho, ctxt.HeadType, f, pkg, length, pn, file)
 	}

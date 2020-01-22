@@ -100,7 +100,7 @@ type ldMachoSect struct {
 	flags   uint32
 	res1    uint32
 	res2    uint32
-	sym     *sym.Symbol
+	sym     loader.Sym
 	rel     []ldMachoRel
 }
 
@@ -131,7 +131,7 @@ type ldMachoSym struct {
 	desc    uint16
 	kind    int8
 	value   uint64
-	sym     *sym.Symbol
+	sym     loader.Sym
 }
 
 type ldMachoDysymtab struct {
@@ -423,8 +423,8 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
 
 // Load the Mach-O file pn from f.
 // Symbols are written into syms, and a slice of the text symbols is returned.
-func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, err error) {
-	errorf := func(str string, args ...interface{}) ([]*sym.Symbol, error) {
+func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, pkg string, length int64, pn string) (textp []loader.Sym, err error) {
+	errorf := func(str string, args ...interface{}) ([]loader.Sym, error) {
 		return nil, fmt.Errorf("loadmacho: %v: %v", pn, fmt.Sprintf(str, args...))
 	}
 
@@ -559,31 +559,31 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 			continue
 		}
 		name := fmt.Sprintf("%s(%s/%s)", pkg, sect.segname, sect.name)
-		s := l.LookupOrCreate(name, localSymVersion)
-		if s.Type != 0 {
+		bld, s := l.MakeSymbolUpdater(l.LookupOrCreateSym(name, localSymVersion))
+		if bld.Type() != 0 {
 			return errorf("duplicate %s/%s", sect.segname, sect.name)
 		}
 
 		if sect.flags&0xff == 1 { // S_ZEROFILL
-			s.P = make([]byte, sect.size)
+			bld.SetData(make([]byte, sect.size))
 		} else {
-			s.Attr.Set(sym.AttrReadOnly, readOnly)
-			s.P = dat[sect.addr-c.seg.vmaddr:][:sect.size]
+			bld.SetReadOnly(readOnly)
+			bld.SetData(dat[sect.addr-c.seg.vmaddr:][:sect.size])
 		}
-		s.Size = int64(len(s.P))
+		bld.SetSize(int64(len(bld.Data())))
 
 		if sect.segname == "__TEXT" {
 			if sect.name == "__text" {
-				s.Type = sym.STEXT
+				bld.SetType(sym.STEXT)
 			} else {
-				s.Type = sym.SRODATA
+				bld.SetType(sym.SRODATA)
 			}
 		} else {
 			if sect.name == "__bss" {
-				s.Type = sym.SNOPTRBSS
-				s.P = s.P[:0]
+				bld.SetType(sym.SNOPTRBSS)
+				bld.SetData(nil)
 			} else {
-				s.Type = sym.SNOPTRDATA
+				bld.SetType(sym.SNOPTRDATA)
 			}
 		}
 
@@ -608,12 +608,12 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		if machsym.type_&N_EXT == 0 {
 			v = localSymVersion
 		}
-		s := l.LookupOrCreate(name, v)
+		s := l.LookupOrCreateSym(name, v)
 		if machsym.type_&N_EXT == 0 {
-			s.Attr |= sym.AttrDuplicateOK
+			l.SetAttrDuplicateOK(s, true)
 		}
 		if machsym.desc&(N_WEAK_REF|N_WEAK_DEF) != 0 {
-			s.Attr |= sym.AttrDuplicateOK
+			l.SetAttrDuplicateOK(s, true)
 		}
 		machsym.sym = s
 		if machsym.sectnum == 0 { // undefined
@@ -624,69 +624,72 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		}
 
 		sect := &c.seg.sect[machsym.sectnum-1]
+		bld, bldSym := l.MakeSymbolUpdater(s)
 		outer := sect.sym
-		if outer == nil {
+		if outer == 0 {
 			continue // ignore reference to invalid section
 		}
 
-		if s.Outer != nil {
-			if s.Attr.DuplicateOK() {
+		if osym := l.OuterSym(s); osym != 0 {
+			if l.AttrDuplicateOK(s) {
 				continue
 			}
-			return errorf("duplicate symbol reference: %s in both %s and %s", s.Name, s.Outer.Name, sect.sym.Name)
+			return errorf("duplicate symbol reference: %s in both %s and %s", l.SymName(s), l.SymName(osym), l.SymName(sect.sym))
 		}
 
-		s.Type = outer.Type
-		s.Attr |= sym.AttrSubSymbol
-		s.Sub = outer.Sub
-		outer.Sub = s
-		s.Outer = outer
-		s.Value = int64(machsym.value - sect.addr)
-		if !s.Attr.CgoExportDynamic() {
-			s.SetDynimplib("") // satisfy dynimport
+		bld.SetType(l.SymType(outer))
+		l.PrependSub(outer, bldSym)
+
+		bld.SetValue(int64(machsym.value - sect.addr))
+		if !l.AttrCgoExportDynamic(s) {
+			bld.SetDynimplib("") // satisfy dynimport
 		}
-		if outer.Type == sym.STEXT {
-			if s.Attr.External() && !s.Attr.DuplicateOK() {
+		if l.SymType(outer) == sym.STEXT {
+			if bld.External() && !bld.DuplicateOK() {
 				return errorf("%v: duplicate symbol definition", s)
 			}
-			s.Attr |= sym.AttrExternal
+			bld.SetExternal(true)
 		}
 
-		machsym.sym = s
+		machsym.sym = bldSym
 	}
 
 	// Sort outer lists by address, adding to textp.
 	// This keeps textp in increasing address order.
 	for i := 0; uint32(i) < c.seg.nsect; i++ {
 		sect := &c.seg.sect[i]
-		s := sect.sym
-		if s == nil {
+		sectSym := sect.sym
+		if sectSym == 0 {
 			continue
 		}
-		if s.Sub != nil {
-			s.Sub = sym.SortSub(s.Sub)
+		bld, s := l.MakeSymbolUpdater(sectSym)
+		if bld.SubSym() != 0 {
+
+			bld.SortSub()
 
 			// assign sizes, now that we know symbols in sorted order.
-			for s1 := s.Sub; s1 != nil; s1 = s1.Sub {
-				if s1.Sub != nil {
-					s1.Size = s1.Sub.Value - s1.Value
+			for s1 := bld.Sub(); s1 != 0; s1 = l.SubSym(s1) {
+				s1Bld, _ := l.MakeSymbolUpdater(s1)
+				if sub := l.SubSym(s1); sub != 0 {
+					s1Bld.SetSize(l.SymValue(sub) - l.SymValue(s1))
 				} else {
-					s1.Size = s.Value + s.Size - s1.Value
+					dlen := int64(len(l.Data(s)))
+					s1Bld.SetSize(l.SymValue(s) + dlen - l.SymValue(s1))
 				}
 			}
 		}
 
-		if s.Type == sym.STEXT {
-			if s.Attr.OnList() {
-				return errorf("symbol %s listed multiple times", s.Name)
+		if bld.Type() == sym.STEXT {
+			if bld.OnList() {
+				return errorf("symbol %s listed multiple times", bld.Name())
 			}
-			s.Attr |= sym.AttrOnList
+			bld.SetOnList(true)
 			textp = append(textp, s)
-			for s1 := s.Sub; s1 != nil; s1 = s1.Sub {
-				if s1.Attr.OnList() {
-					return errorf("symbol %s listed multiple times", s1.Name)
+			for s1 := bld.Sub(); s1 != 0; s1 = l.SubSym(s1) {
+				if l.AttrOnList(s1) {
+					return errorf("symbol %s listed multiple times", l.RawSymName(s1))
 				}
-				s1.Attr |= sym.AttrOnList
+				l.SetAttrOnList(s1, true)
 				textp = append(textp, s1)
 			}
 		}
@@ -696,14 +699,14 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 	for i := 0; uint32(i) < c.seg.nsect; i++ {
 		sect := &c.seg.sect[i]
 		s := sect.sym
-		if s == nil {
+		if s == 0 {
 			continue
 		}
 		macholoadrel(m, sect)
 		if sect.rel == nil {
 			continue
 		}
-		r := make([]sym.Reloc, sect.nreloc)
+		r := make([]loader.Reloc, sect.nreloc)
 		rpi := 0
 	Reloc:
 		for j := uint32(0); j < sect.nreloc; j++ {
@@ -728,7 +731,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 					return errorf("unsupported scattered relocation %d/%d", int(rel.type_), int(sect.rel[j+1].type_))
 				}
 
-				rp.Siz = rel.length
+				rp.Size = rel.length
 				rp.Off = int32(rel.addr)
 
 				// NOTE(rsc): I haven't worked out why (really when)
@@ -752,7 +755,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 				for k := 0; uint32(k) < c.seg.nsect; k++ {
 					ks := &c.seg.sect[k]
 					if ks.addr <= uint64(rel.value) && uint64(rel.value) < ks.addr+ks.size {
-						if ks.sym != nil {
+						if ks.sym != 0 {
 							rp.Sym = ks.sym
 							rp.Add += int64(uint64(rel.value) - ks.addr)
 						} else if ks.segname == "__IMPORT" && ks.name == "__pointers" {
@@ -792,11 +795,12 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 				return errorf("unsupported scattered relocation: invalid address %#x", rel.addr)
 			}
 
-			rp.Siz = rel.length
+			rp.Size = rel.length
 			rp.Type = objabi.MachoRelocOffset + (objabi.RelocType(rel.type_) << 1) + objabi.RelocType(rel.pcrel)
 			rp.Off = int32(rel.addr)
 
 			// Handle X86_64_RELOC_SIGNED referencing a section (rel->extrn == 0).
+			p := l.Data(s)
 			if arch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_SIGNED {
 				// Calculate the addend as the offset into the section.
 				//
@@ -815,9 +819,9 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 				// [For future reference, see Darwin's /usr/include/mach-o/x86_64/reloc.h]
 				secaddr := c.seg.sect[rel.symnum-1].addr
 
-				rp.Add = int64(uint64(int64(int32(e.Uint32(s.P[rp.Off:])))+int64(rp.Off)+4) - secaddr)
+				rp.Add = int64(uint64(int64(int32(e.Uint32(p[rp.Off:])))+int64(rp.Off)+4) - secaddr)
 			} else {
-				rp.Add = int64(int32(e.Uint32(s.P[rp.Off:])))
+				rp.Add = int64(int32(e.Uint32(p[rp.Off:])))
 			}
 
 			// An unsigned internal relocation has a value offset
@@ -831,7 +835,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 			// it *is* the PC being subtracted. Use that to make
 			// it match our version of PC-relative.
 			if rel.pcrel != 0 && arch.Family == sys.I386 {
-				rp.Add += int64(rp.Off) + int64(rp.Siz)
+				rp.Add += int64(rp.Off) + int64(rp.Size)
 			}
 			if rel.extrn == 0 {
 				if rel.symnum < 1 || rel.symnum > c.seg.nsect {
@@ -839,7 +843,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 				}
 
 				rp.Sym = c.seg.sect[rel.symnum-1].sym
-				if rp.Sym == nil {
+				if rp.Sym == 0 {
 					return errorf("invalid relocation: %s", c.seg.sect[rel.symnum-1].name)
 				}
 
@@ -861,9 +865,9 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 			rpi++
 		}
 
-		sort.Sort(sym.RelocByOff(r[:rpi]))
-		s.R = r
-		s.R = s.R[:rpi]
+		sort.Sort(loader.RelocByOff(r[:rpi]))
+		sb, _ := l.MakeSymbolUpdater(sect.sym)
+		sb.SetRelocs(r[:rpi])
 	}
 
 	return textp, nil
