@@ -34,6 +34,7 @@ import (
 	"bufio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/benchmark"
 	"cmd/link/internal/sym"
 	"flag"
 	"log"
@@ -95,6 +96,8 @@ var (
 	cpuprofile     = flag.String("cpuprofile", "", "write cpu profile to `file`")
 	memprofile     = flag.String("memprofile", "", "write memory profile to `file`")
 	memprofilerate = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
+
+	benchmarkFlag = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
 )
 
 func (ctxt *Link) loaderSupport() bool {
@@ -173,13 +176,29 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	interpreter = *flagInterpreter
 
+	// enable benchmarking
+	var bench *benchmark.Metrics
+	if len(*benchmarkFlag) != 0 {
+		if *benchmarkFlag == "mem" {
+			bench = benchmark.New(benchmark.GC)
+		} else if *benchmarkFlag == "cpu" {
+			bench = benchmark.New(benchmark.NoGC)
+		} else {
+			Errorf(nil, "unknown benchmark flag: %q", *benchmarkFlag)
+			usage()
+		}
+	}
+
+	bench.Start("libinit")
 	libinit(ctxt) // creates outfile
 
 	if ctxt.HeadType == objabi.Hunknown {
 		ctxt.HeadType.Set(objabi.GOOS)
 	}
 
+	bench.Start("computeTLSOffset")
 	ctxt.computeTLSOffset()
+	bench.Start("Archinit")
 	thearch.Archinit(ctxt)
 
 	if ctxt.linkShared && !ctxt.IsELF {
@@ -210,53 +229,82 @@ func Main(arch *sys.Arch, theArch Arch) {
 	default:
 		addlibpath(ctxt, "command line", "command line", flag.Arg(0), "main", "")
 	}
+	bench.Start("loadlib")
 	ctxt.loadlib()
 
+	bench.Start("deadcode")
 	deadcode(ctxt)
 
 	if ctxt.loaderSupport() {
+		bench.Start("linksetup")
 		ctxt.linksetup()
 	}
 
+	bench.Start("loadlibfull")
 	ctxt.loadlibfull() // XXX do it here for now
 
 	if !ctxt.loaderSupport() {
+		bench.Start("linksetupold")
 		ctxt.linksetupold()
 	}
+	bench.Start("dostrdata")
 	ctxt.dostrdata()
+	bench.Start("dwarfGenerateDebugInfo")
 	dwarfGenerateDebugInfo(ctxt)
 
 	if objabi.Fieldtrack_enabled != 0 {
+		bench.Start("fieldtrack")
 		fieldtrack(ctxt)
 	}
+	bench.Start("mangleTypeSym")
 	ctxt.mangleTypeSym()
+	bench.Start("callgraph")
 	ctxt.callgraph()
 
+	bench.Start("doelf")
 	ctxt.doelf()
 	if ctxt.HeadType == objabi.Hdarwin {
+		bench.Start("domacho")
 		ctxt.domacho()
 	}
+	bench.Start("dostkcheck")
 	ctxt.dostkcheck()
 	if ctxt.HeadType == objabi.Hwindows {
+		bench.Start("dope")
 		ctxt.dope()
+		bench.Start("windynrelocsyms")
 		ctxt.windynrelocsyms()
 	}
 	if ctxt.HeadType == objabi.Haix {
+		bench.Start("doxcoff")
 		ctxt.doxcoff()
 	}
 
+	bench.Start("addexport")
 	ctxt.addexport()
+	bench.Start("Gentext")
 	thearch.Gentext(ctxt) // trampolines, call stubs, etc.
+	bench.Start("textbuildid")
 	ctxt.textbuildid()
+	bench.Start("textaddress")
 	ctxt.textaddress()
+	bench.Start("pclntab")
 	ctxt.pclntab()
+	bench.Start("findfunctab")
 	ctxt.findfunctab()
+	bench.Start("typelink")
 	ctxt.typelink()
+	bench.Start("symtab")
 	ctxt.symtab()
+	bench.Start("buildinfo")
 	ctxt.buildinfo()
+	bench.Start("dodata")
 	ctxt.dodata()
+	bench.Start("address")
 	order := ctxt.address()
+	bench.Start("dwarfcompress")
 	dwarfcompress(ctxt)
+	bench.Start("layout")
 	filesize := ctxt.layout(order)
 
 	// Write out the output file.
@@ -275,25 +323,36 @@ func Main(arch *sys.Arch, theArch Arch) {
 	if outputMmapped {
 		// Asmb will redirect symbols to the output file mmap, and relocations
 		// will be applied directly there.
+		bench.Start("Asmb")
 		thearch.Asmb(ctxt)
+		bench.Start("reloc")
 		ctxt.reloc()
+		bench.Start("Munmap")
 		ctxt.Out.Munmap()
 	} else {
 		// If we don't mmap, we need to apply relocations before
 		// writing out.
+		bench.Start("reloc")
 		ctxt.reloc()
+		bench.Start("Asmb")
 		thearch.Asmb(ctxt)
 	}
+	bench.Start("Asmb2")
 	thearch.Asmb2(ctxt)
 
+	bench.Start("undef")
 	ctxt.undef()
+	bench.Start("hostlink")
 	ctxt.hostlink()
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("%d symbols\n", len(ctxt.Syms.Allsym))
 		ctxt.Logf("%d liveness data\n", liveness)
 	}
+	bench.Start("Flush")
 	ctxt.Bso.Flush()
+	bench.Start("archive")
 	ctxt.archive()
+	bench.Report(os.Stdout)
 
 	errorexit()
 }
