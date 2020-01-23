@@ -21,7 +21,7 @@ var config = printer.Config{
 	Tabwidth: 8,
 }
 
-// addFuncIDS finds IDs for instantiated functions and adds them to a map.
+// addFuncIDS finds IDs for generic functions and adds them to a map.
 func addFuncIDs(info *types.Info, f *ast.File, m map[types.Object]*ast.FuncDecl) {
 	for _, decl := range f.Decls {
 		if fd, ok := decl.(*ast.FuncDecl); ok && isParameterizedFuncDecl(fd) {
@@ -42,6 +42,7 @@ func isParameterizedFuncDecl(fd *ast.FuncDecl) bool {
 // A translator is used to translate a file from Go with contracts to Go 1.
 type translator struct {
 	info           *types.Info
+	types          map[ast.Expr]types.Type
 	idToFunc       map[types.Object]*ast.FuncDecl
 	instantiations map[*ast.Ident][]*instantiation
 	newDecls       []ast.Decl
@@ -86,6 +87,7 @@ func rewriteFile(dir string, fset *token.FileSet, info *types.Info, idToFunc map
 func rewriteAST(info *types.Info, idToFunc map[types.Object]*ast.FuncDecl, file *ast.File) (err error) {
 	t := translator{
 		info:           info,
+		types:          make(map[ast.Expr]types.Type),
 		idToFunc:       idToFunc,
 		instantiations: make(map[*ast.Ident][]*instantiation),
 	}
@@ -94,38 +96,43 @@ func rewriteAST(info *types.Info, idToFunc map[types.Object]*ast.FuncDecl, file 
 
 // translate translates the AST for a file from Go with contracts to Go 1.
 func (t *translator) translate(file *ast.File) error {
-	newDecls := make([]ast.Decl, 0, len(file.Decls))
-	for i, decl := range file.Decls {
-		switch decl := decl.(type) {
-		case (*ast.FuncDecl):
-			if !isParameterizedFuncDecl(decl) {
-				if err := t.translateFuncDecl(&file.Decls[i]); err != nil {
-					return err
+	declsToDo := file.Decls
+	file.Decls = nil
+	for len(declsToDo) > 0 {
+		newDecls := make([]ast.Decl, 0, len(declsToDo))
+		for i, decl := range declsToDo {
+			switch decl := decl.(type) {
+			case (*ast.FuncDecl):
+				if !isParameterizedFuncDecl(decl) {
+					if err := t.translateFuncDecl(&declsToDo[i]); err != nil {
+						return err
+					}
+					newDecls = append(newDecls, decl)
+				}
+			case (*ast.GenDecl):
+				switch decl.Tok {
+				case token.TYPE:
+					for j := range decl.Specs {
+						if err := t.translateTypeSpec(&decl.Specs[j]); err != nil {
+							return err
+						}
+					}
+				case token.VAR, token.CONST:
+					for j := range decl.Specs {
+						if err := t.translateValueSpec(&decl.Specs[j]); err != nil {
+							return err
+						}
+					}
 				}
 				newDecls = append(newDecls, decl)
-			}
-		case (*ast.GenDecl):
-			switch decl.Tok {
-			case token.TYPE:
-				for j := range decl.Specs {
-					if err := t.translateTypeSpec(&decl.Specs[j]); err != nil {
-						return err
-					}
-				}
-			case token.VAR, token.CONST:
-				for j := range decl.Specs {
-					if err := t.translateValueSpec(&decl.Specs[j]); err != nil {
-						return err
-					}
-				}
 			default:
 				newDecls = append(newDecls, decl)
 			}
-		default:
-			newDecls = append(newDecls, decl)
 		}
+		file.Decls = append(file.Decls, newDecls...)
+		declsToDo = t.newDecls
+		t.newDecls = nil
 	}
-	file.Decls = append(newDecls, t.newDecls...)
 	return nil
 }
 
@@ -194,6 +201,20 @@ func (t *translator) translateStmt(ps *ast.Stmt) error {
 		return t.translateBlockStmt(s)
 	case *ast.ExprStmt:
 		return t.translateExpr(&s.X)
+	case *ast.RangeStmt:
+		if err := t.translateExpr(&s.Key); err != nil {
+			return err
+		}
+		if err := t.translateExpr(&s.Value); err != nil {
+			return err
+		}
+		if err := t.translateExpr(&s.X); err != nil {
+			return err
+		}
+		if err := t.translateBlockStmt(s.Body); err != nil {
+			return err
+		}
+		return nil
 	default:
 		panic(fmt.Sprintf("unimplemented Stmt %T", s))
 	}
@@ -201,6 +222,9 @@ func (t *translator) translateStmt(ps *ast.Stmt) error {
 
 // translateExpr translates an expression from Go with contracts to Go 1.
 func (t *translator) translateExpr(pe *ast.Expr) error {
+	if *pe == nil {
+		return nil
+	}
 	switch e := (*pe).(type) {
 	case *ast.Ident:
 		return nil
@@ -208,7 +232,7 @@ func (t *translator) translateExpr(pe *ast.Expr) error {
 		if err := t.translateExprList(e.Args); err != nil {
 			return err
 		}
-		ftyp := t.info.Types[e.Fun].Type.(*types.Signature)
+		ftyp := t.lookupType(e.Fun).(*types.Signature)
 		if ftyp.TParams() != nil {
 			if err := t.translateFunctionInstantiation(pe); err != nil {
 				return err
@@ -273,7 +297,7 @@ func (t *translator) translateFunctionInstantiation(pe *ast.Expr) error {
 
 	types := make([]types.Type, 0, len(call.Args))
 	for _, arg := range call.Args {
-		types = append(types, t.info.Types[arg].Type)
+		types = append(types, t.lookupType(arg))
 	}
 
 	instantiations := t.instantiations[fnident]

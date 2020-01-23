@@ -236,6 +236,9 @@ func (s *Signature) Recv() *Var { return s.recv }
 // TParams returns the type parameters of signature s, or nil.
 func (s *Signature) TParams() []*TypeName { return s.tparams }
 
+// SetTParams sets the type parameters of signature s.
+func (s *Signature) SetTParams(tparams []*TypeName) { s.tparams = tparams }
+
 // Params returns the parameters of signature s, or nil.
 func (s *Signature) Params() *Tuple { return s.params }
 

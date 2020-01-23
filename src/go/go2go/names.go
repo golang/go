@@ -12,13 +12,13 @@ import (
 	"unicode"
 )
 
-// We use Arabic digit zero as a separator.
+// We use Oriya digit zero as a separator.
 // Do not use this character in your own identifiers.
-const nameSep = '٠'
+const nameSep = '୦'
 
-// We use Vai digit one to introduce a special character code.
+// We use Oriya digit eight to introduce a special character code.
 // Do not use this character in your own identifiers.
-const nameIntro = '꘡'
+const nameIntro = '୮'
 
 var nameCodes = map[rune]int{
 	' ': 0,
@@ -36,7 +36,7 @@ var nameCodes = map[rune]int{
 // instantiatedName returns the name of a newly instantiated function.
 func (t *translator) instantiatedName(fnident *ast.Ident, types []types.Type) (string, error) {
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "_instantiate%c%s", nameSep, fnident.Name)
+	fmt.Fprintf(&sb, "instantiate%c%s", nameSep, fnident.Name)
 	for _, typ := range types {
 		sb.WriteRune(nameSep)
 		s := typ.String()
