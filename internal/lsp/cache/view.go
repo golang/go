@@ -180,6 +180,11 @@ func (v *view) SetOptions(ctx context.Context, options source.Options) (source.V
 	return newView, err
 }
 
+func (v *view) Rebuild(ctx context.Context) (source.Snapshot, error) {
+	_, snapshot, err := v.session.updateView(ctx, v, v.options)
+	return snapshot, err
+}
+
 func (v *view) LookupBuiltin(ctx context.Context, name string) (*ast.Object, error) {
 	if err := v.awaitInitialized(ctx); err != nil {
 		return nil, err
@@ -563,6 +568,11 @@ func (v *view) initialize(ctx context.Context, s *snapshot) {
 			return nil
 		}()
 	})
+}
+
+func (v *view) Initialized(ctx context.Context) bool {
+	err := v.awaitInitialized(ctx)
+	return err == nil
 }
 
 func (v *view) awaitInitialized(ctx context.Context) error {

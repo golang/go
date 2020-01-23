@@ -112,13 +112,13 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 	if err != nil {
 		return nil, err
 	}
-	uris := make(map[span.URI]source.Snapshot)
+	snapshotByURI := make(map[span.URI]source.Snapshot)
 	for _, c := range modifications {
-		uris[c.URI] = nil
+		snapshotByURI[c.URI] = nil
 	}
 	// Avoid diagnosing the same snapshot twice.
-	snapshotSet := make(map[source.Snapshot]struct{})
-	for uri := range uris {
+	snapshotSet := make(map[source.Snapshot][]span.URI)
+	for uri := range snapshotByURI {
 		view, err := s.session.ViewOf(uri)
 		if err != nil {
 			return nil, err
@@ -132,13 +132,35 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 				snapshot = s
 			}
 		}
-		uris[uri] = snapshot
-		snapshotSet[snapshot] = struct{}{}
+		if snapshot == nil {
+			return nil, errors.Errorf("no snapshot for %s", uri)
+		}
+		snapshotByURI[uri] = snapshot
+		snapshotSet[snapshot] = append(snapshotSet[snapshot], uri)
 	}
-	for snapshot := range snapshotSet {
+	for snapshot, uris := range snapshotSet {
+		for _, uri := range uris {
+			fh, err := snapshot.GetFile(uri)
+			if err != nil {
+				return nil, err
+			}
+			// If a modification comes in for a go.mod file,
+			// and the view was never properly initialized,
+			// try to recreate the associated view.
+			switch fh.Identity().Kind {
+			case source.Mod:
+				newSnapshot, err := snapshot.View().Rebuild(ctx)
+				if err != nil {
+					return nil, err
+				}
+				// Update the snapshot to the rebuilt one.
+				snapshot = newSnapshot
+				snapshotByURI[uri] = snapshot
+			}
+		}
 		go s.diagnoseSnapshot(snapshot)
 	}
-	return uris, nil
+	return snapshotByURI, nil
 }
 
 func (s *Server) wasFirstChange(uri span.URI) bool {
