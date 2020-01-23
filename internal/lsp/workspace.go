@@ -13,7 +13,8 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-func (s *Server) changeFolders(ctx context.Context, event protocol.WorkspaceFoldersChangeEvent) error {
+func (s *Server) didChangeWorkspaceFolders(ctx context.Context, params *protocol.DidChangeWorkspaceFoldersParams) error {
+	event := params.Event
 	for _, folder := range event.Removed {
 		view := s.session.View(folder.Name)
 		if view != nil {
@@ -41,7 +42,7 @@ func (s *Server) addView(ctx context.Context, name string, uri span.URI) (source
 	return s.session.NewView(ctx, name, uri, options)
 }
 
-func (s *Server) updateConfiguration(ctx context.Context, changed interface{}) error {
+func (s *Server) didChangeConfiguration(ctx context.Context, changed interface{}) error {
 	// go through all the views getting the config
 	for _, view := range s.session.Views() {
 		options := s.session.Options()
