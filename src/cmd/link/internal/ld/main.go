@@ -98,7 +98,7 @@ var (
 )
 
 func (ctxt *Link) loaderSupport() bool {
-	return ctxt.IsELF || ctxt.HeadType == objabi.Hdarwin
+	return ctxt.IsELF || ctxt.HeadType == objabi.Hdarwin || ctxt.HeadType == objabi.Haix
 }
 
 // Main is the main entry point for the linker code.
