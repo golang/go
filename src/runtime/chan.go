@@ -121,21 +121,6 @@ func chanbuf(c *hchan, i uint) unsafe.Pointer {
 	return add(c.buf, uintptr(i)*uintptr(c.elemsize))
 }
 
-// full reports whether a send on c would block (that is, the channel is full).
-// It uses a single word-sized read of mutable state, so although
-// the answer is instantaneously true, the correct answer may have changed
-// by the time the calling function receives the return value.
-func full(c *hchan) bool {
-	// c.dataqsiz is immutable (never written after the channel is created)
-	// so it is safe to read at any time during channel operation.
-	if c.dataqsiz == 0 {
-		// Assumes that a pointer read is relaxed-atomic.
-		return c.recvq.first == nil
-	}
-	// Assumes that a uint read is relaxed-atomic.
-	return c.qcount == c.dataqsiz
-}
-
 // entry point for c <- x from compiled code
 //go:nosplit
 func chansend1(c *hchan, elem unsafe.Pointer) {
@@ -175,7 +160,7 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	//
 	// After observing that the channel is not closed, we observe that the channel is
 	// not ready for sending. Each of these observations is a single word-sized read
-	// (first c.closed and second full()).
+	// (first c.closed and second c.recvq.first or c.qcount depending on kind of channel).
 	// Because a closed channel cannot transition from 'ready for sending' to
 	// 'not ready for sending', even if the channel is closed between the two observations,
 	// they imply a moment between the two when the channel was both not yet closed
@@ -184,10 +169,9 @@ func chansend(c *hchan, ep unsafe.Pointer, block bool, callerpc uintptr) bool {
 	//
 	// It is okay if the reads are reordered here: if we observe that the channel is not
 	// ready for sending and then observe that it is not closed, that implies that the
-	// channel wasn't closed during the first observation. However, nothing here
-	// guarantees forward progress. We rely on the side effects of lock release in
-	// chanrecv() and closechan() to update this thread's view of c.closed and full().
-	if !block && c.closed == 0 && full(c) {
+	// channel wasn't closed during the first observation.
+	if !block && c.closed == 0 && ((c.dataqsiz == 0 && c.recvq.first == nil) ||
+		(c.dataqsiz > 0 && c.qcount == c.dataqsiz)) {
 		return false
 	}
 
@@ -417,16 +401,6 @@ func closechan(c *hchan) {
 	}
 }
 
-// empty reports whether a read from c would block (that is, the channel is
-// empty).  It uses a single atomic read of mutable state.
-func empty(c *hchan) bool {
-	// c.dataqsiz is immutable.
-	if c.dataqsiz == 0 {
-		return atomic.Loadp(unsafe.Pointer(&c.sendq.first)) == nil
-	}
-	return atomic.Loaduint(&c.qcount) == 0
-}
-
 // entry points for <- c from compiled code
 //go:nosplit
 func chanrecv1(c *hchan, elem unsafe.Pointer) {
@@ -462,33 +436,21 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 	}
 
 	// Fast path: check for failed non-blocking operation without acquiring the lock.
-	if !block && empty(c) {
-		// After observing that the channel is not ready for receiving, we observe whether the
-		// channel is closed.
-		//
-		// Reordering of these checks could lead to incorrect behavior when racing with a close.
-		// For example, if the channel was open and not empty, was closed, and then drained,
-		// reordered reads could incorrectly indicate "open and empty". To prevent reordering,
-		// we use atomic loads for both checks, and rely on emptying and closing to happen in
-		// separate critical sections under the same lock.  This assumption fails when closing
-		// an unbuffered channel with a blocked send, but that is an error condition anyway.
-		if atomic.Load(&c.closed) == 0 {
-			// Because a channel cannot be reopened, the later observation of the channel
-			// being not closed implies that it was also not closed at the moment of the
-			// first observation. We behave as if we observed the channel at that moment
-			// and report that the receive cannot proceed.
-			return
-		}
-		// The channel is irreversibly closed. Re-check whether the channel has any pending data
-		// to receive, which could have arrived between the empty and closed checks above.
-		// Sequential consistency is also required here, when racing with such a send.
-		if empty(c) {
-			// The channel is irreversibly closed and empty.
-			if ep != nil {
-				typedmemclr(c.elemtype, ep)
-			}
-			return true, false
-		}
+	//
+	// After observing that the channel is not ready for receiving, we observe that the
+	// channel is not closed. Each of these observations is a single word-sized read
+	// (first c.sendq.first or c.qcount, and second c.closed).
+	// Because a channel cannot be reopened, the later observation of the channel
+	// being not closed implies that it was also not closed at the moment of the
+	// first observation. We behave as if we observed the channel at that moment
+	// and report that the receive cannot proceed.
+	//
+	// The order of operations is important here: reversing the operations can lead to
+	// incorrect behavior when racing with a close.
+	if !block && (c.dataqsiz == 0 && c.sendq.first == nil ||
+		c.dataqsiz > 0 && atomic.Loaduint(&c.qcount) == 0) &&
+		atomic.Load(&c.closed) == 0 {
+		return
 	}
 
 	var t0 int64
