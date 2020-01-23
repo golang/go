@@ -3,27 +3,27 @@
 // license that can be found in the LICENSE file.
 
 // Lowering arithmetic
-(Add(64|Ptr)  x y) -> (ADD  x y)
-(Add(32|16|8)  x y) -> (ADDW  x y)
-(Add32F x y) -> (FADDS x y)
-(Add64F x y) -> (FADD x y)
+(Add(64|Ptr) ...) -> (ADD ...)
+(Add(32|16|8) ...) -> (ADDW ...)
+(Add32F ...) -> (FADDS ...)
+(Add64F ...) -> (FADD ...)
 
-(Sub(64|Ptr)  x y) -> (SUB  x y)
-(Sub(32|16|8)  x y) -> (SUBW  x y)
-(Sub32F x y) -> (FSUBS x y)
-(Sub64F x y) -> (FSUB x y)
+(Sub(64|Ptr) ...) -> (SUB ...)
+(Sub(32|16|8) ...) -> (SUBW ...)
+(Sub32F ...) -> (FSUBS ...)
+(Sub64F ...) -> (FSUB ...)
 
-(Mul64  x y) -> (MULLD  x y)
-(Mul(32|16|8)  x y) -> (MULLW  x y)
-(Mul32F x y) -> (FMULS x y)
-(Mul64F x y) -> (FMUL x y)
-(Mul64uhilo x y) -> (MLGR x y)
+(Mul64 ...) -> (MULLD ...)
+(Mul(32|16|8) ...) -> (MULLW ...)
+(Mul32F ...) -> (FMULS ...)
+(Mul64F ...) -> (FMUL ...)
+(Mul64uhilo ...) -> (MLGR ...)
 
-(Div32F x y) -> (FDIVS x y)
-(Div64F x y) -> (FDIV x y)
+(Div32F ...) -> (FDIVS ...)
+(Div64F ...) -> (FDIV ...)
 
-(Div64  x y) -> (DIVD  x y)
-(Div64u x y) -> (DIVDU x y)
+(Div64 [a] x y) -> (DIVD x y)
+(Div64u ...) -> (DIVDU ...)
 // DIVW/DIVWU has a 64-bit dividend and a 32-bit divisor,
 // so a sign/zero extension of the dividend is required.
 (Div32  x y) -> (DIVW  (MOVWreg x) y)
@@ -33,11 +33,12 @@
 (Div8   x y) -> (DIVW  (MOVBreg x) (MOVBreg y))
 (Div8u  x y) -> (DIVWU (MOVBZreg x) (MOVBZreg y))
 
-(Hmul(64|64u)  x y) -> (MULH(D|DU)  x y)
+(Hmul(64|64u) ...) -> (MULH(D|DU) ...)
 (Hmul32  x y) -> (SRDconst [32] (MULLD (MOVWreg x) (MOVWreg y)))
 (Hmul32u x y) -> (SRDconst [32] (MULLD (MOVWZreg x) (MOVWZreg y)))
 
-(Mod(64|64u)  x y) -> (MOD(D|DU)  x y)
+(Mod64 [a] x y) -> (MODD x y)
+(Mod64u ...) -> (MODDU ...)
 // MODW/MODWU has a 64-bit dividend and a 32-bit divisor,
 // so a sign/zero extension of the dividend is required.
 (Mod32  x y) -> (MODW  (MOVWreg x) y)
@@ -50,28 +51,28 @@
 // (x + y) / 2 with x>=y -> (x - y) / 2 + y
 (Avg64u <t> x y) -> (ADD (SRDconst <t> (SUB <t> x y) [1]) y)
 
-(And64 x y) -> (AND x y)
-(And(32|16|8) x y) -> (ANDW x y)
+(And64 ...) -> (AND ...)
+(And(32|16|8) ...) -> (ANDW ...)
 
-(Or64 x y) -> (OR x y)
-(Or(32|16|8) x y) -> (ORW x y)
+(Or64 ...) -> (OR ...)
+(Or(32|16|8) ...) -> (ORW ...)
 
-(Xor64 x y) -> (XOR x y)
-(Xor(32|16|8) x y) -> (XORW x y)
+(Xor64 ...) -> (XOR ...)
+(Xor(32|16|8) ...) -> (XORW ...)
 
-(Neg64 x) -> (NEG x)
-(Neg(32|16|8) x) -> (NEGW x)
-(Neg32F x) -> (FNEGS x)
-(Neg64F x) -> (FNEG x)
+(Neg64 ...) -> (NEG ...)
+(Neg(32|16|8) ...) -> (NEGW ...)
+(Neg32F ...) -> (FNEGS ...)
+(Neg64F ...) -> (FNEG ...)
 
-(Com64 x) -> (NOT x)
-(Com(32|16|8) x) -> (NOTW x)
-(NOT x) && true -> (XOR (MOVDconst [-1]) x)
-(NOTW x) && true -> (XORWconst [-1] x)
+(Com64 ...) -> (NOT ...)
+(Com(32|16|8) ...) -> (NOTW ...)
+(NOT x) -> (XOR (MOVDconst [-1]) x)
+(NOTW x) -> (XORWconst [-1] x)
 
 // Lowering boolean ops
-(AndB x y) -> (ANDW x y)
-(OrB x y) -> (ORW x y)
+(AndB ...) -> (ANDW ...)
+(OrB ...) -> (ORW ...)
 (Not x) -> (XORWconst [1] x)
 
 // Lowering pointer arithmetic
@@ -80,8 +81,8 @@
 (OffPtr [off] ptr) -> (ADD (MOVDconst [off]) ptr)
 
 // TODO: optimize these cases?
-(Ctz64NonZero x) -> (Ctz64 x)
-(Ctz32NonZero x) -> (Ctz32 x)
+(Ctz64NonZero ...) -> (Ctz64 ...)
+(Ctz32NonZero ...) -> (Ctz32 ...)
 
 // Ctz(x) = 64 - findLeftmostOne((x-1)&^x)
 (Ctz64 <t> x) -> (SUB (MOVDconst [64]) (FLOGR (AND <t> (SUBconst <t> [1] x) (NOT <t> x))))
@@ -117,8 +118,8 @@
 (SumBytes4 x) -> (SumBytes2 (ADDW <typ.UInt16> (SRWconst <typ.UInt16> x [16]) x))
 (SumBytes8 x) -> (SumBytes4 (ADDW <typ.UInt32> (SRDconst <typ.UInt32> x [32]) x))
 
-(Bswap64 x) -> (MOVDBR x)
-(Bswap32 x) -> (MOVWBR x)
+(Bswap64 ...) -> (MOVDBR ...)
+(Bswap32 ...) -> (MOVWBR ...)
 
 // add with carry
 (Select0 (Add64carry x y c))
@@ -133,7 +134,7 @@
   -> (NEG (Select0 <typ.UInt64> (SUBE (MOVDconst [0]) (MOVDconst [0]) (Select1 <types.TypeFlags> (SUBE x y (Select1 <types.TypeFlags> (SUBC (MOVDconst [0]) c)))))))
 
 // math package intrinsics
-(Sqrt        x) -> (FSQRT x)
+(Sqrt      ...) -> (FSQRT ...)
 (Floor       x) -> (FIDBR [7] x)
 (Ceil        x) -> (FIDBR [6] x)
 (Trunc       x) -> (FIDBR [5] x)
@@ -145,11 +146,11 @@
 // The SYNC instruction (fast-BCR-serialization) prevents store-load
 // reordering. Other sequences of memory operations (load-load,
 // store-store and load-store) are already guaranteed not to be reordered.
-(AtomicLoad(8|32|Acq32|64|Ptr) ptr mem) -> (MOV(BZ|WZ|WZ|D|D)atomicload ptr mem)
+(AtomicLoad(8|32|Acq32|64|Ptr) ...) -> (MOV(BZ|WZ|WZ|D|D)atomicload ...)
 (AtomicStore(8|32|64|PtrNoWB) ptr val mem) -> (SYNC (MOV(B|W|D|D)atomicstore ptr val mem))
 
 // Store-release doesn't require store-load ordering.
-(AtomicStoreRel32 ptr val mem) -> (MOVWatomicstore ptr val mem)
+(AtomicStoreRel32 ...) -> (MOVWatomicstore ...)
 
 // Atomic adds.
 (AtomicAdd32 ptr val mem) -> (AddTupleFirst32 val (LAA ptr val mem))
@@ -160,12 +161,12 @@
 (Select1     (AddTupleFirst64   _ tuple)) -> (Select1 tuple)
 
 // Atomic exchanges.
-(AtomicExchange32 ptr val mem) -> (LoweredAtomicExchange32 ptr val mem)
-(AtomicExchange64 ptr val mem) -> (LoweredAtomicExchange64 ptr val mem)
+(AtomicExchange32 ...) -> (LoweredAtomicExchange32 ...)
+(AtomicExchange64 ...) -> (LoweredAtomicExchange64 ...)
 
 // Atomic compare and swap.
-(AtomicCompareAndSwap32 ptr old new_ mem) -> (LoweredAtomicCas32 ptr old new_ mem)
-(AtomicCompareAndSwap64 ptr old new_ mem) -> (LoweredAtomicCas64 ptr old new_ mem)
+(AtomicCompareAndSwap32 ...) -> (LoweredAtomicCas32 ...)
+(AtomicCompareAndSwap64 ...) -> (LoweredAtomicCas64 ...)
 
 // Atomic and: *(*uint8)(ptr) &= val
 //
@@ -199,37 +200,37 @@
 
 // Lowering extension
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.
-(SignExt8to(16|32|64)  x) -> (MOVBreg x)
-(SignExt16to(32|64) x) -> (MOVHreg x)
-(SignExt32to64 x) -> (MOVWreg x)
+(SignExt8to(16|32|64) ...) -> (MOVBreg ...)
+(SignExt16to(32|64) ...) -> (MOVHreg ...)
+(SignExt32to64 ...) -> (MOVWreg ...)
 
-(ZeroExt8to(16|32|64)  x) -> (MOVBZreg x)
-(ZeroExt16to(32|64) x) -> (MOVHZreg x)
-(ZeroExt32to64 x) -> (MOVWZreg x)
+(ZeroExt8to(16|32|64) ...) -> (MOVBZreg ...)
+(ZeroExt16to(32|64) ...) -> (MOVHZreg ...)
+(ZeroExt32to64 ...) -> (MOVWZreg ...)
 
 (Slicemask <t> x) -> (SRADconst (NEG <t> x) [63])
 
 // Lowering truncation
 // Because we ignore high parts of registers, truncates are just copies.
-(Trunc(16|32|64)to8  x) -> x
-(Trunc(32|64)to16 x) -> x
-(Trunc64to32 x) -> x
+(Trunc(16|32|64)to8 ...) -> (Copy ...)
+(Trunc(32|64)to16 ...) -> (Copy ...)
+(Trunc64to32 ...) -> (Copy ...)
 
 // Lowering float <-> int
-(Cvt32to32F x) -> (CEFBRA x)
-(Cvt32to64F x) -> (CDFBRA x)
-(Cvt64to32F x) -> (CEGBRA x)
-(Cvt64to64F x) -> (CDGBRA x)
+(Cvt32to32F ...) -> (CEFBRA ...)
+(Cvt32to64F ...) -> (CDFBRA ...)
+(Cvt64to32F ...) -> (CEGBRA ...)
+(Cvt64to64F ...) -> (CDGBRA ...)
 
-(Cvt32Fto32 x) -> (CFEBRA x)
-(Cvt32Fto64 x) -> (CGEBRA x)
-(Cvt64Fto32 x) -> (CFDBRA x)
-(Cvt64Fto64 x) -> (CGDBRA x)
+(Cvt32Fto32 ...) -> (CFEBRA ...)
+(Cvt32Fto64 ...) -> (CGEBRA ...)
+(Cvt64Fto32 ...) -> (CFDBRA ...)
+(Cvt64Fto64 ...) -> (CGDBRA ...)
 
-(Cvt32Fto64F x) -> (LDEBR x)
-(Cvt64Fto32F x) -> (LEDBR x)
+(Cvt32Fto64F ...) -> (LDEBR ...)
+(Cvt64Fto32F ...) -> (LEDBR ...)
 
-(Round(32|64)F x) -> (LoweredRound(32|64)F x)
+(Round(32|64)F ...) -> (LoweredRound(32|64)F ...)
 
 // Lowering shifts
 
@@ -280,8 +281,8 @@
 // Lowering rotates
 (RotateLeft8 <t> x (MOVDconst [c])) -> (Or8 (Lsh8x64 <t> x (MOVDconst [c&7])) (Rsh8Ux64 <t> x (MOVDconst [-c&7])))
 (RotateLeft16 <t> x (MOVDconst [c])) -> (Or16 (Lsh16x64 <t> x (MOVDconst [c&15])) (Rsh16Ux64 <t> x (MOVDconst [-c&15])))
-(RotateLeft32 x y) -> (RLL  x y)
-(RotateLeft64 x y) -> (RLLG x y)
+(RotateLeft32 ...) -> (RLL  ...)
+(RotateLeft64 ...) -> (RLLG ...)
 
 // Lowering comparisons
 (Less64      x y) -> (LOCGR {s390x.Less} (MOVDconst [0]) (MOVDconst [1]) (CMP x y))
@@ -423,26 +424,26 @@
 	(LoweredZero [s%256] destptr (ADDconst <destptr.Type> destptr [(s/256)*256]) mem)
 
 // Lowering constants
-(Const(64|32|16|8)  [val]) -> (MOVDconst [val])
-(Const(32|64)F [val]) -> (FMOV(S|D)const [val])
+(Const(64|32|16|8) ...) -> (MOVDconst ...)
+(Const(32|64)F ...) -> (FMOV(S|D)const ...)
 (ConstNil) -> (MOVDconst [0])
-(ConstBool [b]) -> (MOVDconst [b])
+(ConstBool ...) -> (MOVDconst ...)
 
 // Lowering calls
-(StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
-(ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
-(InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
+(StaticCall ...) -> (CALLstatic ...)
+(ClosureCall ...) -> (CALLclosure ...)
+(InterCall ...) -> (CALLinter ...)
 
 // Miscellaneous
 (IsNonNil p) -> (LOCGR {s390x.NotEqual} (MOVDconst [0]) (MOVDconst [1]) (CMPconst p [0]))
 (IsInBounds idx len) -> (LOCGR {s390x.Less} (MOVDconst [0]) (MOVDconst [1]) (CMPU idx len))
 (IsSliceInBounds idx len) -> (LOCGR {s390x.LessOrEqual} (MOVDconst [0]) (MOVDconst [1]) (CMPU idx len))
-(NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
-(GetG mem) -> (LoweredGetG mem)
-(GetClosurePtr) -> (LoweredGetClosurePtr)
-(GetCallerSP) -> (LoweredGetCallerSP)
-(GetCallerPC) -> (LoweredGetCallerPC)
-(Addr {sym} base) -> (MOVDaddr {sym} base)
+(NilCheck ...) -> (LoweredNilCheck ...)
+(GetG ...) -> (LoweredGetG ...)
+(GetClosurePtr ...) -> (LoweredGetClosurePtr ...)
+(GetCallerSP ...) -> (LoweredGetCallerSP ...)
+(GetCallerPC ...) -> (LoweredGetCallerPC ...)
+(Addr ...) -> (MOVDaddr ...)
 (LocalAddr {sym} base _) -> (MOVDaddr {sym} base)
 (ITab (Load ptr mem)) -> (MOVDload ptr mem)
 
@@ -450,7 +451,7 @@
 (If cond yes no) -> (CLIJ {s390x.LessOrGreater} (MOVBZreg <typ.Bool> cond) [0] yes no)
 
 // Write barrier.
-(WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
+(WB ...) -> (LoweredWB ...)
 
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 0 -> (LoweredPanicBoundsA [kind] x y mem)
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 1 -> (LoweredPanicBoundsB [kind] x y mem)
