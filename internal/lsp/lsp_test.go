@@ -59,22 +59,22 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	if _, _, err := session.NewView(ctx, viewName, span.FileURI(data.Config.Dir), options); err != nil {
 		t.Fatal(err)
 	}
+	var modifications []source.FileModification
 	for filename, content := range data.Config.Overlay {
 		kind := source.DetectLanguage("", filename)
 		if kind != source.Go {
 			continue
 		}
-		if _, err := session.DidModifyFiles(ctx, []source.FileModification{
-			{
-				URI:        span.FileURI(filename),
-				Action:     source.Open,
-				Version:    -1,
-				Text:       content,
-				LanguageID: "go",
-			},
-		}); err != nil {
-			t.Fatal(err)
-		}
+		modifications = append(modifications, source.FileModification{
+			URI:        span.FileURI(filename),
+			Action:     source.Open,
+			Version:    -1,
+			Text:       content,
+			LanguageID: "go",
+		})
+	}
+	if _, err := session.DidModifyFiles(ctx, modifications); err != nil {
+		t.Fatal(err)
 	}
 	r := &runner{
 		server: &Server{

@@ -254,7 +254,6 @@ func (s *session) dropView(ctx context.Context, v *view) (int, error) {
 
 func (s *session) DidModifyFiles(ctx context.Context, changes []source.FileModification) ([]source.Snapshot, error) {
 	views := make(map[*view][]span.URI)
-	saves := make(map[*view]bool)
 
 	for _, c := range changes {
 		// Only update overlays for in-editor changes.
@@ -275,8 +274,6 @@ func (s *session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 					if !view.knownFile(c.URI) {
 						continue
 					}
-				case source.Save:
-					panic("save considered an on-disk change")
 				}
 			}
 			// Make sure that the file is added to the view.
@@ -284,16 +281,11 @@ func (s *session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 				return nil, err
 			}
 			views[view] = append(views[view], c.URI)
-			saves[view] = len(changes) == 1 && !changes[0].OnDisk && changes[0].Action == source.Save
 		}
 	}
 	var snapshots []source.Snapshot
 	for view, uris := range views {
-		containsFileSave, ok := saves[view]
-		if !ok {
-			panic("unknown view")
-		}
-		snapshots = append(snapshots, view.invalidateContent(ctx, uris, containsFileSave))
+		snapshots = append(snapshots, view.invalidateContent(ctx, uris))
 	}
 	return snapshots, nil
 }

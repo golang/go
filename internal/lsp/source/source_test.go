@@ -60,22 +60,22 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 		data: data,
 		ctx:  ctx,
 	}
+	var modifications []source.FileModification
 	for filename, content := range data.Config.Overlay {
 		kind := source.DetectLanguage("", filename)
 		if kind != source.Go {
 			continue
 		}
-		if _, err := session.DidModifyFiles(ctx, []source.FileModification{
-			{
-				URI:        span.FileURI(filename),
-				Action:     source.Open,
-				Version:    -1,
-				Text:       content,
-				LanguageID: "go",
-			},
-		}); err != nil {
-			t.Fatal(err)
-		}
+		modifications = append(modifications, source.FileModification{
+			URI:        span.FileURI(filename),
+			Action:     source.Open,
+			Version:    -1,
+			Text:       content,
+			LanguageID: "go",
+		})
+	}
+	if _, err := session.DidModifyFiles(ctx, modifications); err != nil {
+		t.Fatal(err)
 	}
 	tests.Run(t, r, data)
 }
