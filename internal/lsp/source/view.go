@@ -93,11 +93,8 @@ type View interface {
 	// Folder returns the root folder for this view.
 	Folder() span.URI
 
-	// ModFile is the path to the go.mod file for the view, if any.
-	ModFile() string
-
 	// ModFiles returns the URIs of the go.mod files attached to the view associated with this snapshot.
-	ModFiles() (span.URI, span.URI, error)
+	ModFiles() (span.URI, span.URI)
 
 	// LookupBuiltin returns the go/ast.Object for the given name in the builtin package.
 	LookupBuiltin(ctx context.Context, name string) (*ast.Object, error)

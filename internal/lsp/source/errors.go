@@ -34,10 +34,11 @@ func checkCommonErrors(ctx context.Context, v View) (string, error) {
 	gopath := os.Getenv("GOPATH")
 	folder := v.Folder().Filename()
 
-	modRoot := filepath.Dir(v.ModFile())
+	modfile, _ := v.ModFiles()
+	modRoot := filepath.Dir(modfile.Filename())
 
 	// Not inside of a module.
-	inAModule := v.ModFile() != "" && v.ModFile() != os.DevNull
+	inAModule := modfile != ""
 
 	// The user may have a multiple directories in their GOPATH.
 	var inGopath bool

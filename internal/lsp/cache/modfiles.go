@@ -19,36 +19,24 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-func (v *view) ModFiles() (span.URI, span.URI, error) {
-	// Don't return errors if the view is not a module.
-	if v.mod == nil {
-		return "", "", nil
-	}
-	return v.mod.realMod, v.mod.tempMod, nil
-}
-
 // This function will return the main go.mod file for this folder if it exists and whether the -modfile
 // flag exists for this version of go.
-func (v *view) modfileFlagExists(ctx context.Context, env []string) (string, bool, error) {
+func (v *view) modfileFlagExists(ctx context.Context, env []string) (bool, error) {
 	// Check the go version by running "go list" with modules off.
 	// Borrowed from internal/imports/mod.go:620.
 	const format = `{{range context.ReleaseTags}}{{if eq . "go1.14"}}{{.}}{{end}}{{end}}`
 	folder := v.folder.Filename()
 	stdout, err := source.InvokeGo(ctx, folder, append(env, "GO111MODULE=off"), "list", "-e", "-f", format)
 	if err != nil {
-		return "", false, err
+		return false, err
 	}
 	// If the output is not go1.14 or an empty string, then it could be an error.
 	lines := strings.Split(stdout.String(), "\n")
 	if len(lines) < 2 && stdout.String() != "" {
 		log.Error(ctx, "unexpected stdout when checking for go1.14", errors.Errorf("%q", stdout), telemetry.Directory.Of(folder))
-		return "", false, nil
+		return false, nil
 	}
-	modfile := strings.TrimSpace(v.gomod)
-	if modfile == os.DevNull {
-		return "", false, errors.Errorf("unable to detect a go.mod file in %s", v.folder)
-	}
-	return modfile, lines[0] == "go1.14", nil
+	return lines[0] == "go1.14", nil
 }
 
 func (v *view) setModuleInformation(ctx context.Context, enabled bool) error {
@@ -57,16 +45,17 @@ func (v *view) setModuleInformation(ctx context.Context, enabled bool) error {
 		log.Print(ctx, "using the -modfile flag is disabled", telemetry.Directory.Of(v.folder))
 		return nil
 	}
-	modFile, flagExists, err := v.modfileFlagExists(ctx, v.Options().Env)
-	if err != nil {
-		return err
-	}
-	// The user's version of Go does not support the -modfile flag.
-	if !flagExists {
+	modFile := strings.TrimSpace(v.gomod)
+	if modFile == os.DevNull {
 		return nil
 	}
-	if modFile == "" || modFile == os.DevNull {
-		return errors.Errorf("unable to detect a go.mod file in %s", v.folder)
+	v.mod = &moduleInformation{
+		realMod: span.FileURI(modFile),
+	}
+	if modfileFlag, err := v.modfileFlagExists(ctx, v.Options().Env); err != nil {
+		return err
+	} else if !modfileFlag {
+		return nil
 	}
 	// Copy the current go.mod file into the temporary go.mod file.
 	// The file's name will be of the format go.1234.mod.
@@ -86,10 +75,8 @@ func (v *view) setModuleInformation(ctx context.Context, enabled bool) error {
 	if _, err := io.Copy(tempModFile, origFile); err != nil {
 		return err
 	}
-	v.mod = &moduleInformation{
-		realMod: span.FileURI(modFile),
-		tempMod: span.FileURI(tempModFile.Name()),
-	}
+	v.mod.tempMod = span.FileURI(tempModFile.Name())
+
 	// Copy go.sum file as well (if there is one).
 	sumFile := filepath.Join(filepath.Dir(modFile), "go.sum")
 	stat, err := os.Stat(sumFile)

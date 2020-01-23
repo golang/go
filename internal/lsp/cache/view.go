@@ -140,6 +140,14 @@ type moduleInformation struct {
 	realMod, tempMod span.URI
 }
 
+func (v *view) ModFiles() (span.URI, span.URI) {
+	// Don't return errors if the view is not in a module.
+	if v.mod == nil {
+		return "", ""
+	}
+	return v.mod.realMod, v.mod.tempMod
+}
+
 func (v *view) Session() source.Session {
 	return v.session
 }
@@ -292,8 +300,8 @@ func (v *view) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 	}
 
 	// In module mode, check if the mod file has changed.
-	if v.gomod != "" && v.gomod != os.DevNull {
-		mod, err := v.Snapshot().GetFile(span.FileURI(v.gomod))
+	if v.mod != nil {
+		mod, err := v.Snapshot().GetFile(v.mod.realMod)
 		if err == nil && mod.Identity() != v.cachedModFileVersion {
 			v.processEnv.GetResolver().(*imports.ModuleResolver).ClearForNewMod()
 			v.cachedModFileVersion = mod.Identity()
@@ -510,10 +518,6 @@ func (v *view) addIgnoredFile(uri span.URI) {
 	defer v.ignoredURIsMu.Unlock()
 
 	v.ignoredURIs[uri] = struct{}{}
-}
-
-func (v *view) ModFile() string {
-	return v.gomod
 }
 
 func (v *view) BackgroundContext() context.Context {

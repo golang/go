@@ -962,7 +962,7 @@ func TestModfileSuggestedFixes(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			realURI, tempURI, _ := snapshot.View().ModFiles()
+			realURI, tempURI := snapshot.View().ModFiles()
 			// TODO: Add testing for when the -modfile flag is turned off and we still get diagnostics.
 			if tempURI == "" {
 				return

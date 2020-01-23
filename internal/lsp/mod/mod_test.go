@@ -167,7 +167,7 @@ func TestDiagnostics(t *testing.T) {
 }
 
 func hasTempModfile(ctx context.Context, snapshot source.Snapshot) bool {
-	_, t, _ := snapshot.View().ModFiles()
+	_, t := snapshot.View().ModFiles()
 	return t != ""
 }
 

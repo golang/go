@@ -82,7 +82,7 @@ func (mth *modTidyHandle) Tidy(ctx context.Context) (*modfile.File, *protocol.Co
 }
 
 func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) source.ModTidyHandle {
-	realURI, tempURI, err := s.View().ModFiles()
+	realURI, tempURI := s.view.ModFiles()
 	cfg := s.View().Config(ctx)
 	options := s.View().Options()
 	folder := s.View().Folder().Filename()
@@ -93,10 +93,7 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 	}
 	h := s.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
 		data := &parseModData{}
-		if err != nil {
-			data.err = err
-			return data
-		}
+
 		// Check the case when the tempModfile flag is turned off.
 		if realURI == "" || tempURI == "" {
 			return data

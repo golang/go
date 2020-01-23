@@ -18,10 +18,8 @@ import (
 
 func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.FileIdentity][]source.Diagnostic, error) {
 	// TODO: We will want to support diagnostics for go.mod files even when the -modfile flag is turned off.
-	realURI, tempURI, err := snapshot.View().ModFiles()
-	if err != nil {
-		return nil, err
-	}
+	realURI, tempURI := snapshot.View().ModFiles()
+
 	// Check the case when the tempModfile flag is turned off.
 	if realURI == "" || tempURI == "" {
 		return nil, nil
