@@ -38,7 +38,6 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loadelf"
-	"cmd/link/internal/loadelfold"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/loadmacho"
 	"cmd/link/internal/loadpe"
@@ -457,8 +456,7 @@ func (ctxt *Link) loadlib() {
 	}
 
 	// Process cgo directives (has to be done before host object loading).
-	newCgo := (ctxt.IsELF && *FlagNewLdElf) || ctxt.HeadType == objabi.Hdarwin
-	ctxt.loadcgodirectives(newCgo)
+	ctxt.loadcgodirectives(ctxt.loaderSupport())
 
 	// Conditionally load host objects, or setup for external linking.
 	hostobjs(ctxt)
@@ -471,7 +469,7 @@ func (ctxt *Link) loadlib() {
 		// If we have any undefined symbols in external
 		// objects, try to read them from the libgcc file.
 		any := false
-		if ctxt.IsELF && *FlagNewLdElf {
+		if ctxt.loaderSupport() {
 			undefs := ctxt.loader.UndefinedRelocTargets(1)
 			if len(undefs) > 0 {
 				any = true
@@ -629,9 +627,6 @@ func (ctxt *Link) loadcgodirectives(useLoader bool) {
 // Set up flags and special symbols depending on the platform build mode.
 // This version works with loader.Loader.
 func (ctxt *Link) linksetup() {
-	if !*FlagNewLdElf {
-		panic("should not get here, -newldelf not on")
-	}
 	switch ctxt.BuildMode {
 	case BuildModeCShared, BuildModePlugin:
 		symIdx := ctxt.loader.LookupOrCreateSym("runtime.islibrary", 0)
@@ -1857,29 +1852,16 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 
 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
 	if magic == 0x7f454c46 { // \x7F E L F
-		if *FlagNewLdElf {
-			ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-				textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn, ehdr.flags)
-				if err != nil {
-					Errorf(nil, "%v", err)
-					return
-				}
-				ehdr.flags = flags
-				ctxt.Textp2 = append(ctxt.Textp2, textp...)
+		ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+			textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn, ehdr.flags)
+			if err != nil {
+				Errorf(nil, "%v", err)
+				return
 			}
-			return ldhostobj(ldelf, ctxt.HeadType, f, pkg, length, pn, file)
-		} else {
-			ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
-				textp, flags, err := loadelfold.Load(ctxt.loader, ctxt.Arch, ctxt.Syms.IncVersion(), f, pkg, length, pn, ehdr.flags)
-				if err != nil {
-					Errorf(nil, "%v", err)
-					return
-				}
-				ehdr.flags = flags
-				ctxt.Textp = append(ctxt.Textp, textp...)
-			}
-			return ldhostobj(ldelf, ctxt.HeadType, f, pkg, length, pn, file)
+			ehdr.flags = flags
+			ctxt.Textp2 = append(ctxt.Textp2, textp...)
 		}
+		return ldhostobj(ldelf, ctxt.HeadType, f, pkg, length, pn, file)
 	}
 
 	if magic&^1 == 0xfeedface || magic&^0x01000000 == 0xcefaedfe {
@@ -2144,8 +2126,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		Errorf(nil, "cannot read symbols from shared library: %s", libpath)
 		return
 	}
-	gcdataLocations := make(map[uint64]*sym.Symbol)
-	gcdataLocations2 := make(map[uint64]loader.Sym)
+	gcdataLocations := make(map[uint64]loader.Sym)
 	for _, elfsym := range syms {
 		if elf.ST_TYPE(elfsym.Info) == elf.STT_NOTYPE || elf.ST_TYPE(elfsym.Info) == elf.STT_SECTION {
 			continue
@@ -2158,103 +2139,61 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			ver = sym.SymVerABIInternal
 		}
 
-		if *FlagNewLdElf {
-			l := ctxt.loader
-			symIdx := l.LookupOrCreateSym(elfsym.Name, ver)
+		l := ctxt.loader
+		symIdx := l.LookupOrCreateSym(elfsym.Name, ver)
 
-			// Because loadlib above loads all .a files before loading
-			// any shared libraries, any non-dynimport symbols we find
-			// that duplicate symbols already loaded should be ignored
-			// (the symbols from the .a files "win").
-			if l.SymType(symIdx) != 0 && l.SymType(symIdx) != sym.SDYNIMPORT {
-				continue
-			}
-			su, s := l.MakeSymbolUpdater(symIdx)
-			su.SetType(sym.SDYNIMPORT)
-			l.SetSymElfType(s, elf.ST_TYPE(elfsym.Info))
-			su.SetSize(int64(elfsym.Size))
-			if elfsym.Section != elf.SHN_UNDEF {
-				// If it's not undefined, mark the symbol as reachable
-				// so as to protect it from dead code elimination,
-				// even if there aren't any explicit references to it.
-				// Under the previous sym.Symbol based regime this
-				// wasn't necessary, but for the loader-based deadcode
-				// it is definitely needed.
-				//
-				// FIXME: have a more general/flexible mechanism for this?
-				//
-				l.SetAttrReachable(s, true)
-
-				// Set .File for the library that actually defines the symbol.
-				l.SetSymFile(s, libpath)
-
-				// The decodetype_* functions in decodetype.go need access to
-				// the type data.
-				sname := l.SymName(s)
-				if strings.HasPrefix(sname, "type.") && !strings.HasPrefix(sname, "type..") {
-					su.SetData(readelfsymboldata(ctxt, f, &elfsym))
-					gcdataLocations2[elfsym.Value+2*uint64(ctxt.Arch.PtrSize)+8+1*uint64(ctxt.Arch.PtrSize)] = s
-				}
-			}
-
-			// For function symbols, we don't know what ABI is
-			// available, so alias it under both ABIs.
+		// Because loadlib above loads all .a files before loading
+		// any shared libraries, any non-dynimport symbols we find
+		// that duplicate symbols already loaded should be ignored
+		// (the symbols from the .a files "win").
+		if l.SymType(symIdx) != 0 && l.SymType(symIdx) != sym.SDYNIMPORT {
+			continue
+		}
+		su, s := l.MakeSymbolUpdater(symIdx)
+		su.SetType(sym.SDYNIMPORT)
+		l.SetSymElfType(s, elf.ST_TYPE(elfsym.Info))
+		su.SetSize(int64(elfsym.Size))
+		if elfsym.Section != elf.SHN_UNDEF {
+			// If it's not undefined, mark the symbol as reachable
+			// so as to protect it from dead code elimination,
+			// even if there aren't any explicit references to it.
+			// Under the previous sym.Symbol based regime this
+			// wasn't necessary, but for the loader-based deadcode
+			// it is definitely needed.
 			//
-			// TODO(austin): This is almost certainly wrong once
-			// the ABIs are actually different. We might have to
-			// mangle Go function names in the .so to include the
-			// ABI.
-			if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
-				alias := ctxt.loader.LookupOrCreateSym(elfsym.Name, sym.SymVerABIInternal)
-				if l.SymType(alias) != 0 {
-					continue
-				}
-				su, _ := l.MakeSymbolUpdater(alias)
-				su.SetType(sym.SABIALIAS)
-				su.AddReloc(loader.Reloc{Sym: s})
-			}
-		} else {
-			lsym := ctxt.loader.LookupOrCreate(elfsym.Name, ver)
-
-			// Because loadlib above loads all .a files before loading any shared
-			// libraries, any non-dynimport symbols we find that duplicate symbols
-			// already loaded should be ignored (the symbols from the .a files
-			// "win").
-			if lsym.Type != 0 && lsym.Type != sym.SDYNIMPORT {
-				continue
-			}
-			lsym.Type = sym.SDYNIMPORT
-			lsym.SetElfType(elf.ST_TYPE(elfsym.Info))
-			lsym.Size = int64(elfsym.Size)
-			if elfsym.Section != elf.SHN_UNDEF {
-				// Set .File for the library that actually defines the symbol.
-				lsym.File = libpath
-				// The decodetype_* functions in decodetype.go need access to
-				// the type data.
-				if strings.HasPrefix(lsym.Name, "type.") && !strings.HasPrefix(lsym.Name, "type..") {
-					lsym.P = readelfsymboldata(ctxt, f, &elfsym)
-					gcdataLocations[elfsym.Value+2*uint64(ctxt.Arch.PtrSize)+8+1*uint64(ctxt.Arch.PtrSize)] = lsym
-				}
-			}
-			// For function symbols, we don't know what ABI is
-			// available, so alias it under both ABIs.
+			// FIXME: have a more general/flexible mechanism for this?
 			//
-			// TODO(austin): This is almost certainly wrong once
-			// the ABIs are actually different. We might have to
-			// mangle Go function names in the .so to include the
-			// ABI.
-			if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
-				alias := ctxt.loader.LookupOrCreate(elfsym.Name, sym.SymVerABIInternal)
-				if alias.Type != 0 {
-					continue
-				}
-				alias.Type = sym.SABIALIAS
-				alias.R = []sym.Reloc{{Sym: lsym}}
+			l.SetAttrReachable(s, true)
+
+			// Set .File for the library that actually defines the symbol.
+			l.SetSymFile(s, libpath)
+
+			// The decodetype_* functions in decodetype.go need access to
+			// the type data.
+			sname := l.SymName(s)
+			if strings.HasPrefix(sname, "type.") && !strings.HasPrefix(sname, "type..") {
+				su.SetData(readelfsymboldata(ctxt, f, &elfsym))
+				gcdataLocations[elfsym.Value+2*uint64(ctxt.Arch.PtrSize)+8+1*uint64(ctxt.Arch.PtrSize)] = s
 			}
 		}
+
+		// For function symbols, we don't know what ABI is
+		// available, so alias it under both ABIs.
+		//
+		// TODO(austin): This is almost certainly wrong once
+		// the ABIs are actually different. We might have to
+		// mangle Go function names in the .so to include the
+		// ABI.
+		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
+			alias := ctxt.loader.LookupOrCreateSym(elfsym.Name, sym.SymVerABIInternal)
+			if l.SymType(alias) != 0 {
+				continue
+			}
+			su, _ := l.MakeSymbolUpdater(alias)
+			su.SetType(sym.SABIALIAS)
+			su.AddReloc(loader.Reloc{Sym: s})
+		}
 	}
-	gcdataAddresses := make(map[*sym.Symbol]uint64)
-	gcdataAddresses2 := make(map[loader.Sym]uint64)
 	if ctxt.Arch.Family == sys.ARM64 {
 		for _, sect := range f.Sections {
 			if sect.Type == elf.SHT_RELA {
@@ -2272,21 +2211,12 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 					if t != elf.R_AARCH64_RELATIVE {
 						continue
 					}
-					if *FlagNewLdElf {
-						if symIdx, ok := gcdataLocations2[rela.Off]; ok {
-							gcdataAddresses2[symIdx] = uint64(rela.Addend)
-						}
-					} else {
-						if lsym, ok := gcdataLocations[rela.Off]; ok {
-							gcdataAddresses[lsym] = uint64(rela.Addend)
-						}
-					}
 				}
 			}
 		}
 	}
 
-	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f, gcdataAddresses: gcdataAddresses, gcdataAddresses2: gcdataAddresses2})
+	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f})
 }
 
 func addsection(arch *sys.Arch, seg *sym.Segment, name string, rwx int) *sym.Section {

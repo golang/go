@@ -87,7 +87,6 @@ var (
 	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
 	FlagDebugTramp  = flag.Int("debugtramp", 0, "debug trampolines")
 	FlagStrictDups  = flag.Int("strictdups", 0, "sanity check duplicate symbol contents during object file reading (1=warn 2=err).")
-	FlagNewLdElf    = flag.Bool("newldelf", true, "ELF host obj load with new loader")
 
 	FlagRound       = flag.Int("R", -1, "set address rounding `quantum`")
 	FlagTextAddr    = flag.Int64("T", -1, "set text segment `address`")
@@ -97,6 +96,10 @@ var (
 	memprofile     = flag.String("memprofile", "", "write memory profile to `file`")
 	memprofilerate = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
 )
+
+func (ctxt *Link) loaderSupport() bool {
+	return ctxt.IsELF || ctxt.HeadType == objabi.Hdarwin
+}
 
 // Main is the main entry point for the linker code.
 func Main(arch *sys.Arch, theArch Arch) {
@@ -211,13 +214,13 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	deadcode(ctxt)
 
-	if *FlagNewLdElf {
+	if ctxt.loaderSupport() {
 		ctxt.linksetup()
 	}
 
 	ctxt.loadlibfull() // XXX do it here for now
 
-	if !*FlagNewLdElf {
+	if !ctxt.loaderSupport() {
 		ctxt.linksetupold()
 	}
 	ctxt.dostrdata()
