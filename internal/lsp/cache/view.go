@@ -373,6 +373,12 @@ func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error)
 			env.GOSUMDB = split[1]
 		}
 	}
+	if len(cfg.BuildFlags) > 0 {
+		if env.GOFLAGS != "" {
+			env.GOFLAGS += " "
+		}
+		env.GOFLAGS += strings.Join(cfg.BuildFlags, " ")
+	}
 	return env, nil
 }
 
