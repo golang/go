@@ -125,11 +125,6 @@ func decodetypeGcprog(ctxt *Link, s *sym.Symbol) []byte {
 
 func decodetypeGcprogShlib(ctxt *Link, s *sym.Symbol) uint64 {
 	if ctxt.Arch.Family == sys.ARM64 {
-		for _, shlib := range ctxt.Shlibs {
-			if shlib.Path == s.File {
-				return shlib.gcdataAddresses[s]
-			}
-		}
 		return 0
 	}
 	return decodeInuxi(ctxt.Arch, s.P[2*int32(ctxt.Arch.PtrSize)+8+1*int32(ctxt.Arch.PtrSize):], ctxt.Arch.PtrSize)

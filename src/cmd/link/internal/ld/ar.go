@@ -104,7 +104,7 @@ func hostArchive(ctxt *Link, name string) {
 	any := true
 	for any {
 		var load []uint64
-		if ctxt.IsELF && *FlagNewLdElf {
+		if ctxt.IsELF {
 			returnAllUndefs := -1
 			undefs := ctxt.loader.UndefinedRelocTargets(returnAllUndefs)
 			for _, symIdx := range undefs {
