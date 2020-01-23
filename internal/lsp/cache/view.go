@@ -594,7 +594,7 @@ func (v *view) invalidateContent(ctx context.Context, uri span.URI, kind source.
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock()
 
-	v.snapshot = v.snapshot.clone(ctx, uri)
+	v.snapshot = v.snapshot.clone(ctx, []span.URI{uri})
 	return v.snapshot
 }
 
