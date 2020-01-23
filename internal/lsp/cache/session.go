@@ -257,10 +257,8 @@ func (s *session) DidModifyFile(ctx context.Context, c source.FileModification) 
 	ctx = telemetry.URI.With(ctx, c.URI)
 
 	// Update overlays only if the file was changed in the editor.
-	var kind source.FileKind
 	if !c.OnDisk {
-		kind, err = s.updateOverlay(ctx, c)
-		if err != nil {
+		if err := s.updateOverlay(ctx, c); err != nil {
 			return nil, err
 		}
 	}
@@ -279,22 +277,10 @@ func (s *session) DidModifyFile(ctx context.Context, c source.FileModification) 
 			}
 		}
 		// Make sure that the file is added to the view.
-		f, err := view.getFile(c.URI)
-		if err != nil {
+		if _, err := view.getFile(c.URI); err != nil {
 			return nil, err
 		}
-		// If the file change was on disk, the file kind is not known.
-		if c.OnDisk {
-			// If the file was already known in the snapshot,
-			// then use the already known file kind. Otherwise,
-			// detect the file kind. This should only be needed for file creates.
-			if fh := view.getSnapshot().findFileHandle(f); fh != nil {
-				kind = fh.Identity().Kind
-			} else {
-				kind = source.DetectLanguage("", c.URI.Filename())
-			}
-		}
-		snapshots = append(snapshots, view.invalidateContent(ctx, c.URI, kind, c.Action))
+		snapshots = append(snapshots, view.invalidateContent(ctx, []span.URI{c.URI}, c.Action == source.Save))
 	}
 	return snapshots, nil
 }

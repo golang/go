@@ -577,19 +577,20 @@ func (v *view) awaitInitialized(ctx context.Context) error {
 // invalidateContent invalidates the content of a Go file,
 // including any position and type information that depends on it.
 // It returns true if we were already tracking the given file, false otherwise.
-func (v *view) invalidateContent(ctx context.Context, uri span.URI, kind source.FileKind, action source.FileAction) source.Snapshot {
+func (v *view) invalidateContent(ctx context.Context, uris []span.URI, containsFileSave bool) source.Snapshot {
 	// Detach the context so that content invalidation cannot be canceled.
 	ctx = xcontext.Detach(ctx)
+
+	if containsFileSave && len(uris) > 1 {
+		panic("file save among multiple content invalidations")
+	}
 
 	// Cancel all still-running previous requests, since they would be
 	// operating on stale data.
 	//
-	// TODO(rstambler): All actions should lead to cancellation,
-	// but this will only be possible when all text synchronization events
-	// trigger diagnostics.
-	switch action {
-	case source.Save:
-	default:
+	// TODO(rstambler): File saves should also lead to cancellation,
+	// but this will only be possible when they trigger workspace-level diagnostics.
+	if !containsFileSave {
 		v.cancelBackground()
 	}
 
@@ -600,7 +601,7 @@ func (v *view) invalidateContent(ctx context.Context, uri span.URI, kind source.
 	v.snapshotMu.Lock()
 	defer v.snapshotMu.Unlock()
 
-	v.snapshot = v.snapshot.clone(ctx, []span.URI{uri})
+	v.snapshot = v.snapshot.clone(ctx, uris)
 	return v.snapshot
 }
 
