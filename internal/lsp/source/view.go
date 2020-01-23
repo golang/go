@@ -164,7 +164,7 @@ type Session interface {
 	IsOpen(uri span.URI) bool
 
 	// DidModifyFile reports a file modification to the session.
-	DidModifyFile(ctx context.Context, c FileModification) ([]Snapshot, error)
+	DidModifyFiles(ctx context.Context, changes []FileModification) ([]Snapshot, error)
 
 	// Options returns a copy of the SessionOptions for this session.
 	Options() Options

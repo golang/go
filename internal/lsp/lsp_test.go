@@ -64,12 +64,14 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		if kind != source.Go {
 			continue
 		}
-		if _, err := session.DidModifyFile(ctx, source.FileModification{
-			URI:        span.FileURI(filename),
-			Action:     source.Open,
-			Version:    -1,
-			Text:       content,
-			LanguageID: "go",
+		if _, err := session.DidModifyFiles(ctx, []source.FileModification{
+			{
+				URI:        span.FileURI(filename),
+				Action:     source.Open,
+				Version:    -1,
+				Text:       content,
+				LanguageID: "go",
+			},
 		}); err != nil {
 			t.Fatal(err)
 		}

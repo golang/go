@@ -69,10 +69,12 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 		if s.session.IsOpen(uri) {
 			continue
 		}
-		snapshots, err := s.session.DidModifyFile(ctx, source.FileModification{
-			URI:    uri,
-			Action: changeTypeToFileAction(change.Type),
-			OnDisk: true,
+		snapshots, err := s.session.DidModifyFiles(ctx, []source.FileModification{
+			{
+				URI:    uri,
+				Action: changeTypeToFileAction(change.Type),
+				OnDisk: true,
+			},
 		})
 		if err != nil {
 			return err
@@ -114,7 +116,7 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 }
 
 func (s *Server) didModifyFile(ctx context.Context, c source.FileModification) (source.Snapshot, error) {
-	snapshots, err := s.session.DidModifyFile(ctx, c)
+	snapshots, err := s.session.DidModifyFiles(ctx, []source.FileModification{c})
 	if err != nil {
 		return nil, err
 	}

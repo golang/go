@@ -13,7 +13,6 @@ import (
 
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/trace"
 	"golang.org/x/tools/internal/xcontext"
@@ -253,34 +252,48 @@ func (s *session) dropView(ctx context.Context, v *view) (int, error) {
 	return -1, errors.Errorf("view %s for %v not found", v.Name(), v.Folder())
 }
 
-func (s *session) DidModifyFile(ctx context.Context, c source.FileModification) (snapshots []source.Snapshot, err error) {
-	ctx = telemetry.URI.With(ctx, c.URI)
+func (s *session) DidModifyFiles(ctx context.Context, changes []source.FileModification) ([]source.Snapshot, error) {
+	views := make(map[*view][]span.URI)
+	saves := make(map[*view]bool)
 
-	// Update overlays only if the file was changed in the editor.
-	if !c.OnDisk {
-		if err := s.updateOverlay(ctx, c); err != nil {
-			return nil, err
-		}
-	}
-	for _, view := range s.viewsOf(c.URI) {
-		if view.Ignore(c.URI) {
-			return nil, errors.Errorf("ignored file %v", c.URI)
-		}
-		// If the file was changed or deleted on disk,
-		// do nothing if the view isn't already aware of the file.
-		if c.OnDisk {
-			switch c.Action {
-			case source.Change, source.Delete:
-				if !view.knownFile(c.URI) {
-					continue
-				}
+	for _, c := range changes {
+		// Only update overlays for in-editor changes.
+		if !c.OnDisk {
+			if err := s.updateOverlay(ctx, c); err != nil {
+				return nil, err
 			}
 		}
-		// Make sure that the file is added to the view.
-		if _, err := view.getFile(c.URI); err != nil {
-			return nil, err
+		for _, view := range s.viewsOf(c.URI) {
+			if view.Ignore(c.URI) {
+				return nil, errors.Errorf("ignored file %v", c.URI)
+			}
+			// If the file change is on-disk and not a create,
+			// make sure the file is known to the view already.
+			if c.OnDisk {
+				switch c.Action {
+				case source.Change, source.Delete:
+					if !view.knownFile(c.URI) {
+						continue
+					}
+				case source.Save:
+					panic("save considered an on-disk change")
+				}
+			}
+			// Make sure that the file is added to the view.
+			if _, err := view.getFile(c.URI); err != nil {
+				return nil, err
+			}
+			views[view] = append(views[view], c.URI)
+			saves[view] = len(changes) == 1 && !changes[0].OnDisk && changes[0].Action == source.Save
 		}
-		snapshots = append(snapshots, view.invalidateContent(ctx, []span.URI{c.URI}, c.Action == source.Save))
+	}
+	var snapshots []source.Snapshot
+	for view, uris := range views {
+		containsFileSave, ok := saves[view]
+		if !ok {
+			panic("unknown view")
+		}
+		snapshots = append(snapshots, view.invalidateContent(ctx, uris, containsFileSave))
 	}
 	return snapshots, nil
 }
