@@ -83,6 +83,8 @@ func runWhy(cmd *base.Command, args []string) {
 		}
 		sep := ""
 		for _, m := range mods {
+			var why string
+
 			best := ""
 			bestDepth := 1000000000
 			for _, path := range byModule[module.Version{Path: m.Path, Version: m.Version}] {
@@ -92,12 +94,22 @@ func runWhy(cmd *base.Command, args []string) {
 					bestDepth = d
 				}
 			}
-			why := modload.Why(best)
+
+			if best == "" {
+				err := module.CheckPath(m.Path)
+				if err != nil {
+					why = err.Error() + "\n"
+				}
+			} else {
+				why = modload.Why(best)
+			}
+
 			if why == "" {
 				vendoring := ""
 				if *whyVendor {
 					vendoring = " to vendor"
 				}
+
 				why = "(main module does not need" + vendoring + " module " + m.Path + ")\n"
 			}
 			fmt.Printf("%s# %s\n%s", sep, m.Path, why)

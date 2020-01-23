@@ -41,6 +41,10 @@ cmp stdout why-both.txt
 go mod why -m rsc.io/quote rsc.io/sampler
 cmp stdout why-both-module.txt
 
+# test malformed module path
+go mod why -m golang.org/x/text/language/
+cmp stdout why-malformed.txt
+
 -- go.mod --
 module mymodule
 require rsc.io/quote v1.5.2
@@ -113,3 +117,6 @@ mymodule/y
 mymodule/y.test
 rsc.io/quote
 rsc.io/sampler
+-- why-malformed.txt --
+# golang.org/x/text/language/
+malformed module path "golang.org/x/text/language/": trailing slash
