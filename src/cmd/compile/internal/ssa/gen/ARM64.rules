@@ -2,50 +2,37 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-(AddPtr x y) -> (ADD x y)
-(Add64 x y) -> (ADD x y)
-(Add32 x y) -> (ADD x y)
-(Add16 x y) -> (ADD x y)
-(Add8 x y) -> (ADD x y)
-(Add32F x y) -> (FADDS x y)
-(Add64F x y) -> (FADDD x y)
+(Add(Ptr|64|32|16|8) ...) -> (ADD ...)
+(Add(32F|64F) ...) -> (FADD(S|D) ...)
 
-(SubPtr x y) -> (SUB x y)
-(Sub64 x y) -> (SUB x y)
-(Sub32 x y) -> (SUB x y)
-(Sub16 x y) -> (SUB x y)
-(Sub8 x y) -> (SUB x y)
-(Sub32F x y) -> (FSUBS x y)
-(Sub64F x y) -> (FSUBD x y)
+(Sub(Ptr|64|32|16|8) ...) -> (SUB ...)
+(Sub(32F|64F) ...) -> (FSUB(S|D) ...)
 
-(Mul64 x y) -> (MUL x y)
-(Mul32 x y) -> (MULW x y)
-(Mul16 x y) -> (MULW x y)
-(Mul8 x y) -> (MULW x y)
-(Mul32F x y) -> (FMULS x y)
-(Mul64F x y) -> (FMULD x y)
+(Mul64 ...) -> (MUL ...)
+(Mul(32|16|8) ...) -> (MULW ...)
+(Mul(32F|64F) ...) -> (FMUL(S|D) ...)
 
-(Hmul64 x y) -> (MULH x y)
-(Hmul64u x y) -> (UMULH x y)
+(Hmul64 ...) -> (MULH ...)
+(Hmul64u ...) -> (UMULH ...)
 (Hmul32 x y) -> (SRAconst (MULL <typ.Int64> x y) [32])
 (Hmul32u x y) -> (SRAconst (UMULL <typ.UInt64> x y) [32])
-(Mul64uhilo x y) -> (LoweredMuluhilo x y)
+(Mul64uhilo ...) -> (LoweredMuluhilo ...)
 
-(Div64 x y) -> (DIV x y)
-(Div64u x y) -> (UDIV x y)
-(Div32 x y) -> (DIVW x y)
-(Div32u x y) -> (UDIVW x y)
+(Div64 [a] x y) -> (DIV x y)
+(Div64u ...) -> (UDIV ...)
+(Div32 [a] x y) -> (DIVW x y)
+(Div32u ...) -> (UDIVW ...)
 (Div16 x y) -> (DIVW (SignExt16to32 x) (SignExt16to32 y))
 (Div16u x y) -> (UDIVW (ZeroExt16to32 x) (ZeroExt16to32 y))
 (Div8 x y) -> (DIVW (SignExt8to32 x) (SignExt8to32 y))
 (Div8u x y) -> (UDIVW (ZeroExt8to32 x) (ZeroExt8to32 y))
-(Div32F x y) -> (FDIVS x y)
-(Div64F x y) -> (FDIVD x y)
+(Div32F ...) -> (FDIVS ...)
+(Div64F ...) -> (FDIVD ...)
 
-(Mod64 x y) -> (MOD x y)
-(Mod64u x y) -> (UMOD x y)
-(Mod32 x y) -> (MODW x y)
-(Mod32u x y) -> (UMODW x y)
+(Mod64 [a] x y) -> (MOD x y)
+(Mod64u ...) -> (UMOD ...)
+(Mod32 [a] x y) -> (MODW x y)
+(Mod32u ...) -> (UMODW ...)
 (Mod16 x y) -> (MODW (SignExt16to32 x) (SignExt16to32 y))
 (Mod16u x y) -> (UMODW (ZeroExt16to32 x) (ZeroExt16to32 y))
 (Mod8 x y) -> (MODW (SignExt8to32 x) (SignExt8to32 y))
@@ -54,42 +41,23 @@
 // (x + y) / 2 with x>=y -> (x - y) / 2 + y
 (Avg64u <t> x y) -> (ADD (SRLconst <t> (SUB <t> x y) [1]) y)
 
-(And64 x y) -> (AND x y)
-(And32 x y) -> (AND x y)
-(And16 x y) -> (AND x y)
-(And8 x y) -> (AND x y)
-
-(Or64 x y) -> (OR x y)
-(Or32 x y) -> (OR x y)
-(Or16 x y) -> (OR x y)
-(Or8 x y) -> (OR x y)
-
-(Xor64 x y) -> (XOR x y)
-(Xor32 x y) -> (XOR x y)
-(Xor16 x y) -> (XOR x y)
-(Xor8 x y) -> (XOR x y)
+(And(64|32|16|8) ...) -> (AND ...)
+(Or(64|32|16|8) ...) -> (OR ...)
+(Xor(64|32|16|8) ...) -> (XOR ...)
 
 // unary ops
-(Neg64 x) -> (NEG x)
-(Neg32 x) -> (NEG x)
-(Neg16 x) -> (NEG x)
-(Neg8 x) -> (NEG x)
-(Neg32F x) -> (FNEGS x)
-(Neg64F x) -> (FNEGD x)
-
-(Com64 x) -> (MVN x)
-(Com32 x) -> (MVN x)
-(Com16 x) -> (MVN x)
-(Com8 x) -> (MVN x)
+(Neg(64|32|16|8) ...) -> (NEG ...)
+(Neg(32F|64F) ...) -> (FNEG(S|D) ...)
+(Com(64|32|16|8) ...) -> (MVN ...)
 
 // math package intrinsics
-(Abs x) -> (FABSD x)
-(Sqrt x) -> (FSQRTD x)
-(Ceil  x) -> (FRINTPD x)
-(Floor x) -> (FRINTMD x)
-(Round x) -> (FRINTAD x)
-(RoundToEven x) -> (FRINTND x)
-(Trunc x) -> (FRINTZD x)
+(Abs ...) -> (FABSD ...)
+(Sqrt ...) -> (FSQRTD ...)
+(Ceil ...) -> (FRINTPD ...)
+(Floor ...) -> (FRINTMD ...)
+(Round ...) -> (FRINTAD ...)
+(RoundToEven ...) -> (FRINTND ...)
+(Trunc ...) -> (FRINTZD ...)
 (FMA x y z) -> (FMADDD z x y)
 
 // lowering rotates
@@ -98,10 +66,7 @@
 (RotateLeft32 x y) -> (RORW x (NEG <y.Type> y))
 (RotateLeft64 x y) -> (ROR x (NEG <y.Type> y))
 
-(Ctz64NonZero x) -> (Ctz64 x)
-(Ctz32NonZero x) -> (Ctz32 x)
-(Ctz16NonZero x) -> (Ctz32 x)
-(Ctz8NonZero x) -> (Ctz32 x)
+(Ctz(64|32|16|8)NonZero ...) -> (Ctz(64|32|32|32) ...)
 
 (Ctz64 <t> x) -> (CLZ (RBIT <t> x))
 (Ctz32 <t> x) -> (CLZW (RBITW <t> x))
@@ -132,11 +97,11 @@
 (BitLen64 x) -> (SUB (MOVDconst [64]) (CLZ <typ.Int> x))
 (BitLen32 x) -> (SUB (MOVDconst [32]) (CLZW <typ.Int> x))
 
-(Bswap64 x) -> (REV x)
-(Bswap32 x) -> (REVW x)
+(Bswap64 ...) -> (REV ...)
+(Bswap32 ...) -> (REVW ...)
 
-(BitRev64 x) -> (RBIT x)
-(BitRev32 x) -> (RBITW x)
+(BitRev64 ...) -> (RBIT ...)
+(BitRev32 ...) -> (RBITW ...)
 (BitRev16 x) -> (SRLconst [48] (RBIT <typ.UInt64> x))
 (BitRev8 x) -> (SRLconst [56] (RBIT <typ.UInt64> x))
 
@@ -156,10 +121,10 @@
 (Select1 (Sub64borrow x y bo)) -> (NEG <typ.UInt64> (NGCzerocarry <typ.UInt64> (Select1 <types.TypeFlags> (SBCSflags x y (Select1 <types.TypeFlags> (NEGSflags bo))))))
 
 // boolean ops -- booleans are represented with 0=false, 1=true
-(AndB x y) -> (AND x y)
-(OrB x y) -> (OR x y)
+(AndB ...) -> (AND ...)
+(OrB ...) -> (OR ...)
 (EqB x y) -> (XOR (MOVDconst [1]) (XOR <typ.Bool> x y))
-(NeqB x y) -> (XOR x y)
+(NeqB ...) -> (XOR ...)
 (Not x) -> (XOR (MOVDconst [1]) x)
 
 // shifts
@@ -228,63 +193,59 @@
 (Rsh8x8  x y) -> (SRA (SignExt8to64 x) (CSEL {OpARM64LessThanU} <y.Type> (ZeroExt8to64  y) (Const64 <y.Type> [63]) (CMPconst [64] (ZeroExt8to64  y))))
 
 // constants
-(Const64 [val]) -> (MOVDconst [val])
-(Const32 [val]) -> (MOVDconst [val])
-(Const16 [val]) -> (MOVDconst [val])
-(Const8 [val]) -> (MOVDconst [val])
-(Const32F [val]) -> (FMOVSconst [val])
-(Const64F [val]) -> (FMOVDconst [val])
+(Const(64|32|16|8) ...) -> (MOVDconst ...)
+(Const(32F|64F) ...) -> (FMOV(S|D)const ...)
 (ConstNil) -> (MOVDconst [0])
-(ConstBool [b]) -> (MOVDconst [b])
+(ConstBool ...) -> (MOVDconst ...)
 
 (Slicemask <t> x) -> (SRAconst (NEG <t> x) [63])
 
 // truncations
 // Because we ignore high parts of registers, truncates are just copies.
-(Trunc16to8 x) -> x
-(Trunc32to8 x) -> x
-(Trunc32to16 x) -> x
-(Trunc64to8 x) -> x
-(Trunc64to16 x) -> x
-(Trunc64to32 x) -> x
+(Trunc16to8 ...) -> (Copy ...)
+(Trunc32to8 ...) -> (Copy ...)
+(Trunc32to16 ...) -> (Copy ...)
+(Trunc64to8 ...) -> (Copy ...)
+(Trunc64to16 ...) -> (Copy ...)
+(Trunc64to32 ...) -> (Copy ...)
 
 // Zero-/Sign-extensions
-(ZeroExt8to16 x) -> (MOVBUreg x)
-(ZeroExt8to32 x) -> (MOVBUreg x)
-(ZeroExt16to32 x) -> (MOVHUreg x)
-(ZeroExt8to64 x) -> (MOVBUreg x)
-(ZeroExt16to64 x) -> (MOVHUreg x)
-(ZeroExt32to64 x) -> (MOVWUreg x)
+(ZeroExt8to16 ...) -> (MOVBUreg ...)
+(ZeroExt8to32 ...) -> (MOVBUreg ...)
+(ZeroExt16to32 ...) -> (MOVHUreg ...)
+(ZeroExt8to64 ...) -> (MOVBUreg ...)
+(ZeroExt16to64 ...) -> (MOVHUreg ...)
+(ZeroExt32to64 ...) -> (MOVWUreg ...)
 
-(SignExt8to16 x) -> (MOVBreg x)
-(SignExt8to32 x) -> (MOVBreg x)
-(SignExt16to32 x) -> (MOVHreg x)
-(SignExt8to64 x) -> (MOVBreg x)
-(SignExt16to64 x) -> (MOVHreg x)
-(SignExt32to64 x) -> (MOVWreg x)
+(SignExt8to16 ...) -> (MOVBreg ...)
+(SignExt8to32 ...) -> (MOVBreg ...)
+(SignExt16to32 ...) -> (MOVHreg ...)
+(SignExt8to64 ...) -> (MOVBreg ...)
+(SignExt16to64 ...) -> (MOVHreg ...)
+(SignExt32to64 ...) -> (MOVWreg ...)
 
 // float <-> int conversion
-(Cvt32to32F x) -> (SCVTFWS x)
-(Cvt32to64F x) -> (SCVTFWD x)
-(Cvt64to32F x) -> (SCVTFS x)
-(Cvt64to64F x) -> (SCVTFD x)
-(Cvt32Uto32F x) -> (UCVTFWS x)
-(Cvt32Uto64F x) -> (UCVTFWD x)
-(Cvt64Uto32F x) -> (UCVTFS x)
-(Cvt64Uto64F x) -> (UCVTFD x)
-(Cvt32Fto32 x) -> (FCVTZSSW x)
-(Cvt64Fto32 x) -> (FCVTZSDW x)
-(Cvt32Fto64 x) -> (FCVTZSS x)
-(Cvt64Fto64 x) -> (FCVTZSD x)
-(Cvt32Fto32U x) -> (FCVTZUSW x)
-(Cvt64Fto32U x) -> (FCVTZUDW x)
-(Cvt32Fto64U x) -> (FCVTZUS x)
-(Cvt64Fto64U x) -> (FCVTZUD x)
-(Cvt32Fto64F x) -> (FCVTSD x)
-(Cvt64Fto32F x) -> (FCVTDS x)
+(Cvt32to32F ...) -> (SCVTFWS ...)
+(Cvt32to64F ...) -> (SCVTFWD ...)
+(Cvt64to32F ...) -> (SCVTFS ...)
+(Cvt64to64F ...) -> (SCVTFD ...)
+(Cvt32Uto32F ...) -> (UCVTFWS ...)
+(Cvt32Uto64F ...) -> (UCVTFWD ...)
+(Cvt64Uto32F ...) -> (UCVTFS ...)
+(Cvt64Uto64F ...) -> (UCVTFD ...)
+(Cvt32Fto32 ...) -> (FCVTZSSW ...)
+(Cvt64Fto32 ...) -> (FCVTZSDW ...)
+(Cvt32Fto64 ...) -> (FCVTZSS ...)
+(Cvt64Fto64 ...) -> (FCVTZSD ...)
+(Cvt32Fto32U ...) -> (FCVTZUSW ...)
+(Cvt64Fto32U ...) -> (FCVTZUDW ...)
+(Cvt32Fto64U ...) -> (FCVTZUS ...)
+(Cvt64Fto64U ...) -> (FCVTZUD ...)
+(Cvt32Fto64F ...) -> (FCVTSD ...)
+(Cvt64Fto32F ...) -> (FCVTDS ...)
 
-(Round32F x) -> (LoweredRound32F x)
-(Round64F x) -> (LoweredRound64F x)
+(Round32F ...) -> (LoweredRound32F ...)
+(Round64F ...) -> (LoweredRound64F ...)
 
 // comparisons
 (Eq8 x y)  -> (Equal (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
@@ -372,7 +333,7 @@
 (OffPtr [off] ptr:(SP)) -> (MOVDaddr [off] ptr)
 (OffPtr [off] ptr) -> (ADDconst [off] ptr)
 
-(Addr {sym} base) -> (MOVDaddr {sym} base)
+(Addr ...) -> (MOVDaddr ...)
 (LocalAddr {sym} base _) -> (MOVDaddr {sym} base)
 
 // loads
@@ -549,20 +510,20 @@
 		mem)
 
 // calls
-(StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
-(ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
-(InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
+(StaticCall ...) -> (CALLstatic ...)
+(ClosureCall ...) -> (CALLclosure ...)
+(InterCall ...) -> (CALLinter ...)
 
 // checks
-(NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
+(NilCheck ...) -> (LoweredNilCheck ...)
 (IsNonNil ptr) -> (NotEqual (CMPconst [0] ptr))
 (IsInBounds idx len) -> (LessThanU (CMP idx len))
 (IsSliceInBounds idx len) -> (LessEqualU (CMP idx len))
 
 // pseudo-ops
-(GetClosurePtr) -> (LoweredGetClosurePtr)
-(GetCallerSP) -> (LoweredGetCallerSP)
-(GetCallerPC) -> (LoweredGetCallerPC)
+(GetClosurePtr ...) -> (LoweredGetClosurePtr ...)
+(GetCallerSP ...) -> (LoweredGetCallerSP ...)
+(GetCallerPC ...) -> (LoweredGetCallerPC ...)
 
 // Absorb pseudo-ops into blocks.
 (If (Equal cc) yes no) -> (EQ cc yes no)
@@ -584,34 +545,28 @@
 
 // atomic intrinsics
 // Note: these ops do not accept offset.
-(AtomicLoad8   ptr mem) -> (LDARB ptr mem)
-(AtomicLoad32  ptr mem) -> (LDARW ptr mem)
-(AtomicLoad64  ptr mem) -> (LDAR  ptr mem)
-(AtomicLoadPtr ptr mem) -> (LDAR  ptr mem)
+(AtomicLoad8   ...) -> (LDARB ...)
+(AtomicLoad32  ...) -> (LDARW ...)
+(AtomicLoad64  ...) -> (LDAR  ...)
+(AtomicLoadPtr ...) -> (LDAR  ...)
 
-(AtomicStore8       ptr val mem) -> (STLRB ptr val mem)
-(AtomicStore32      ptr val mem) -> (STLRW ptr val mem)
-(AtomicStore64      ptr val mem) -> (STLR  ptr val mem)
-(AtomicStorePtrNoWB ptr val mem) -> (STLR  ptr val mem)
+(AtomicStore8       ...) -> (STLRB ...)
+(AtomicStore32      ...) -> (STLRW ...)
+(AtomicStore64      ...) -> (STLR  ...)
+(AtomicStorePtrNoWB ...) -> (STLR  ...)
 
-(AtomicExchange32 ptr val mem) -> (LoweredAtomicExchange32 ptr val mem)
-(AtomicExchange64 ptr val mem) -> (LoweredAtomicExchange64 ptr val mem)
-
-(AtomicAdd32 ptr val mem) -> (LoweredAtomicAdd32 ptr val mem)
-(AtomicAdd64 ptr val mem) -> (LoweredAtomicAdd64 ptr val mem)
-
-(AtomicCompareAndSwap32 ptr old new_ mem) -> (LoweredAtomicCas32 ptr old new_ mem)
-(AtomicCompareAndSwap64 ptr old new_ mem) -> (LoweredAtomicCas64 ptr old new_ mem)
+(AtomicExchange(32|64) ...) -> (LoweredAtomicExchange(32|64) ...)
+(AtomicAdd(32|64) ...) -> (LoweredAtomicAdd(32|64) ...)
+(AtomicCompareAndSwap(32|64) ...) -> (LoweredAtomicCas(32|64) ...)
 
 // Currently the updated value is not used, but we need a register to temporarily hold it.
 (AtomicAnd8 ptr val mem) -> (Select1 (LoweredAtomicAnd8 ptr val mem))
 (AtomicOr8  ptr val mem) -> (Select1 (LoweredAtomicOr8  ptr val mem))
 
-(AtomicAdd32Variant ptr val mem) -> (LoweredAtomicAdd32Variant ptr val mem)
-(AtomicAdd64Variant ptr val mem) -> (LoweredAtomicAdd64Variant ptr val mem)
+(AtomicAdd(32|64)Variant ...) -> (LoweredAtomicAdd(32|64)Variant ...)
 
 // Write barrier.
-(WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
+(WB ...) -> (LoweredWB ...)
 
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 0 -> (LoweredPanicBoundsA [kind] x y mem)
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 1 -> (LoweredPanicBoundsB [kind] x y mem)
