@@ -71,6 +71,7 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) 
 			}
 			cmd.Args = append(cmd.Args, dir)
 			if env != nil {
+				env = append(env, "CGO_CFLAGS=") // ensure CGO_CFLAGS does not contain any flags. Issue #35459
 				cmd.Env = append(os.Environ(), env...)
 			}
 			out, err := cmd.CombinedOutput()
