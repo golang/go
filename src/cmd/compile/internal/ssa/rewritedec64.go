@@ -24,7 +24,8 @@ func rewriteValuedec64(v *Value) bool {
 	case OpCtz64:
 		return rewriteValuedec64_OpCtz64(v)
 	case OpCtz64NonZero:
-		return rewriteValuedec64_OpCtz64NonZero(v)
+		v.Op = OpCtz64
+		return true
 	case OpEq64:
 		return rewriteValuedec64_OpEq64(v)
 	case OpGeq64:
@@ -428,17 +429,6 @@ func rewriteValuedec64_OpCtz64(v *Value) bool {
 		v6.AddArg(v7)
 		v2.AddArg(v6)
 		v.AddArg(v2)
-		return true
-	}
-}
-func rewriteValuedec64_OpCtz64NonZero(v *Value) bool {
-	v_0 := v.Args[0]
-	// match: (Ctz64NonZero x)
-	// result: (Ctz64 x)
-	for {
-		x := v_0
-		v.reset(OpCtz64)
-		v.AddArg(x)
 		return true
 	}
 }
