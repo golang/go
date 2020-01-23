@@ -11,6 +11,7 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"path"
 	"sort"
 	"sync"
 
@@ -309,6 +310,24 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 		},
 		Importer: importerFunc(func(pkgPath string) (*types.Package, error) {
 			dep := deps[packagePath(pkgPath)]
+			if dep == nil {
+				// We may be in GOPATH mode, in which case we need to check vendor dirs.
+				searchDir := path.Dir(pkg.PkgPath())
+				for {
+					vdir := packagePath(path.Join(searchDir, "vendor", pkgPath))
+					if vdep := deps[vdir]; vdep != nil {
+						dep = vdep
+						break
+					}
+
+					// Search until Dir doesn't take us anywhere new, e.g. "." or "/".
+					next := path.Dir(searchDir)
+					if searchDir == next {
+						break
+					}
+					searchDir = next
+				}
+			}
 			if dep == nil {
 				return nil, errors.Errorf("no package for import %s", pkgPath)
 			}

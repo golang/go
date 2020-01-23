@@ -42,6 +42,9 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) ([]*metadata
 	for _, scope := range scopes {
 		switch scope := scope.(type) {
 		case []packagePath:
+			// The only time we pass package paths is when we're doing a
+			// partial workspace load. In those cases, the paths came back from
+			// go list and should already be GOPATH-vendorized when appropriate.
 			for _, p := range scope {
 				query = append(query, string(p))
 			}
@@ -59,6 +62,8 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) ([]*metadata
 				q = "./..."
 			}
 			query = append(query, q)
+		default:
+			panic(fmt.Sprintf("unknown scope type %T", scope))
 		}
 	}
 	ctx, done := trace.StartSpan(ctx, "cache.view.load", telemetry.Query.Of(query))
