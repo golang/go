@@ -3,27 +3,27 @@
 // license that can be found in the LICENSE file.
 
 // Lowering arithmetic
-(Add(64|32|16|8|Ptr) x y) -> (I64Add x y)
-(Add(64|32)F x y) -> (F(64|32)Add x y)
+(Add(64|32|16|8|Ptr) ...) -> (I64Add ...)
+(Add(64|32)F ...) -> (F(64|32)Add ...)
 
-(Sub(64|32|16|8|Ptr) x y) -> (I64Sub x y)
-(Sub(64|32)F x y) -> (F(64|32)Sub x y)
+(Sub(64|32|16|8|Ptr) ...) -> (I64Sub ...)
+(Sub(64|32)F ...) -> (F(64|32)Sub ...)
 
-(Mul(64|32|16|8) x y) -> (I64Mul x y)
-(Mul(64|32)F x y) -> (F(64|32)Mul x y)
+(Mul(64|32|16|8) ...) -> (I64Mul ...)
+(Mul(64|32)F ...) -> (F(64|32)Mul ...)
 
-(Div64  x y) -> (I64DivS x y)
-(Div64u x y) -> (I64DivU x y)
+(Div64 [a] x y) -> (I64DivS x y)
+(Div64u ...) -> (I64DivU ...)
 (Div32  x y) -> (I64DivS (SignExt32to64 x) (SignExt32to64 y))
 (Div32u x y) -> (I64DivU (ZeroExt32to64 x) (ZeroExt32to64 y))
 (Div16  x y) -> (I64DivS (SignExt16to64 x) (SignExt16to64 y))
 (Div16u x y) -> (I64DivU (ZeroExt16to64 x) (ZeroExt16to64 y))
 (Div8   x y) -> (I64DivS (SignExt8to64 x) (SignExt8to64 y))
 (Div8u  x y) -> (I64DivU (ZeroExt8to64 x) (ZeroExt8to64 y))
-(Div(64|32)F x y) -> (F(64|32)Div x y)
+(Div(64|32)F ...) -> (F(64|32)Div ...)
 
-(Mod64  x y) -> (I64RemS x y)
-(Mod64u x y) -> (I64RemU x y)
+(Mod64 [a] x y) -> (I64RemS x y)
+(Mod64u ...) -> (I64RemU ...)
 (Mod32  x y) -> (I64RemS (SignExt32to64 x) (SignExt32to64 y))
 (Mod32u x y) -> (I64RemU (ZeroExt32to64 x) (ZeroExt32to64 y))
 (Mod16  x y) -> (I64RemS (SignExt16to64 x) (SignExt16to64 y))
@@ -31,21 +31,21 @@
 (Mod8   x y) -> (I64RemS (SignExt8to64  x) (SignExt8to64  y))
 (Mod8u  x y) -> (I64RemU (ZeroExt8to64  x) (ZeroExt8to64  y))
 
-(And(64|32|16|8|B) x y) -> (I64And x y)
+(And(64|32|16|8|B) ...) -> (I64And ...)
 
-(Or(64|32|16|8|B) x y) -> (I64Or x y)
+(Or(64|32|16|8|B) ...) -> (I64Or ...)
 
-(Xor(64|32|16|8) x y) -> (I64Xor x y)
+(Xor(64|32|16|8) ...) -> (I64Xor ...)
 
 (Neg(64|32|16|8) x) -> (I64Sub (I64Const [0]) x)
-(Neg(64|32)F x) -> (F(64|32)Neg x)
+(Neg(64|32)F ...) -> (F(64|32)Neg ...)
 
 (Com(64|32|16|8) x) -> (I64Xor x (I64Const [-1]))
 
-(Not x) -> (I64Eqz x)
+(Not ...) -> (I64Eqz ...)
 
 // Lowering pointer arithmetic
-(OffPtr [off] ptr) -> (I64AddConst [off] ptr)
+(OffPtr ...) -> (I64AddConst ...)
 
 // Lowering extension
 // It is unnecessary to extend loads
@@ -69,30 +69,30 @@
 
 // Lowering truncation
 // Because we ignore the high parts, truncates are just copies.
-(Trunc64to(32|16|8) x) -> x
-(Trunc32to(16|8)    x) -> x
-(Trunc16to8         x) -> x
+(Trunc64to(32|16|8) ...) -> (Copy ...)
+(Trunc32to(16|8)    ...) -> (Copy ...)
+(Trunc16to8         ...) -> (Copy ...)
 
 // Lowering float <-> int
 (Cvt32to(64|32)F x) -> (F(64|32)ConvertI64S (SignExt32to64 x))
-(Cvt64to(64|32)F x) -> (F(64|32)ConvertI64S x)
+(Cvt64to(64|32)F ...) -> (F(64|32)ConvertI64S ...)
 (Cvt32Uto(64|32)F x) -> (F(64|32)ConvertI64U (ZeroExt32to64 x))
-(Cvt64Uto(64|32)F x) -> (F(64|32)ConvertI64U x)
+(Cvt64Uto(64|32)F ...) -> (F(64|32)ConvertI64U ...)
 
-(Cvt32Fto32 x) -> (I64TruncSatF32S x)
-(Cvt32Fto64 x) -> (I64TruncSatF32S x)
-(Cvt64Fto32 x) -> (I64TruncSatF64S x)
-(Cvt64Fto64 x) -> (I64TruncSatF64S x)
-(Cvt32Fto32U x) -> (I64TruncSatF32U x)
-(Cvt32Fto64U x) -> (I64TruncSatF32U x)
-(Cvt64Fto32U x) -> (I64TruncSatF64U x)
-(Cvt64Fto64U x) -> (I64TruncSatF64U x)
+(Cvt32Fto32 ...) -> (I64TruncSatF32S ...)
+(Cvt32Fto64 ...) -> (I64TruncSatF32S ...)
+(Cvt64Fto32 ...) -> (I64TruncSatF64S ...)
+(Cvt64Fto64 ...) -> (I64TruncSatF64S ...)
+(Cvt32Fto32U ...) -> (I64TruncSatF32U ...)
+(Cvt32Fto64U ...) -> (I64TruncSatF32U ...)
+(Cvt64Fto32U ...) -> (I64TruncSatF64U ...)
+(Cvt64Fto64U ...) -> (I64TruncSatF64U ...)
 
-(Cvt32Fto64F x) -> (F64PromoteF32 x)
-(Cvt64Fto32F x) -> (F32DemoteF64 x)
+(Cvt32Fto64F ...) -> (F64PromoteF32 ...)
+(Cvt64Fto32F ...) -> (F32DemoteF64 ...)
 
-(Round32F x) -> x
-(Round64F x) -> x
+(Round32F ...) -> (Copy ...)
+(Round64F ...) -> (Copy ...)
 
 // Lowering shifts
 // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
@@ -103,13 +103,13 @@
 (Lsh64x64 x y) -> (Select (I64Shl x y) (I64Const [0]) (I64LtU y (I64Const [64])))
 (Lsh64x(32|16|8) [c] x y) -> (Lsh64x64 [c] x (ZeroExt(32|16|8)to64 y))
 
-(Lsh32x64 [c] x y) -> (Lsh64x64 [c] x y)
+(Lsh32x64 ...) -> (Lsh64x64 ...)
 (Lsh32x(32|16|8) [c] x y) -> (Lsh64x64 [c] x (ZeroExt(32|16|8)to64 y))
 
-(Lsh16x64 [c] x y) -> (Lsh64x64 [c] x y)
+(Lsh16x64 ...) -> (Lsh64x64 ...)
 (Lsh16x(32|16|8) [c] x y) -> (Lsh64x64 [c] x (ZeroExt(32|16|8)to64 y))
 
-(Lsh8x64 [c] x y) -> (Lsh64x64 [c] x y)
+(Lsh8x64 ...) -> (Lsh64x64 ...)
 (Lsh8x(32|16|8) [c] x y) -> (Lsh64x64 [c] x (ZeroExt(32|16|8)to64 y))
 
 (Rsh64Ux64 x y) && shiftIsBounded(v) -> (I64ShrU x y)
@@ -148,65 +148,65 @@
 // Lowering rotates
 (RotateLeft8 <t> x (I64Const [c])) -> (Or8 (Lsh8x64 <t> x (I64Const [c&7])) (Rsh8Ux64 <t> x (I64Const [-c&7])))
 (RotateLeft16 <t> x (I64Const [c])) -> (Or16 (Lsh16x64 <t> x (I64Const [c&15])) (Rsh16Ux64 <t> x (I64Const [-c&15])))
-(RotateLeft32 x y) -> (I32Rotl x y)
-(RotateLeft64 x y) -> (I64Rotl x y)
+(RotateLeft32 ...) -> (I32Rotl ...)
+(RotateLeft64 ...) -> (I64Rotl ...)
 
 // Lowering comparisons
-(Less64  x y) -> (I64LtS x y)
+(Less64  ...) -> (I64LtS ...)
 (Less32  x y) -> (I64LtS (SignExt32to64 x) (SignExt32to64 y))
 (Less16  x y) -> (I64LtS (SignExt16to64 x) (SignExt16to64 y))
 (Less8   x y) -> (I64LtS (SignExt8to64  x) (SignExt8to64  y))
-(Less64U x y) -> (I64LtU x y)
+(Less64U ...) -> (I64LtU ...)
 (Less32U x y) -> (I64LtU (ZeroExt32to64 x) (ZeroExt32to64 y))
 (Less16U x y) -> (I64LtU (ZeroExt16to64 x) (ZeroExt16to64 y))
 (Less8U  x y) -> (I64LtU (ZeroExt8to64  x) (ZeroExt8to64  y))
-(Less(64|32)F x y) -> (F(64|32)Lt x y)
+(Less(64|32)F ...) -> (F(64|32)Lt ...)
 
-(Leq64  x y) -> (I64LeS x y)
+(Leq64  ...) -> (I64LeS ...)
 (Leq32  x y) -> (I64LeS (SignExt32to64 x) (SignExt32to64 y))
 (Leq16  x y) -> (I64LeS (SignExt16to64 x) (SignExt16to64 y))
 (Leq8   x y) -> (I64LeS (SignExt8to64  x) (SignExt8to64  y))
-(Leq64U x y) -> (I64LeU x y)
+(Leq64U ...) -> (I64LeU ...)
 (Leq32U x y) -> (I64LeU (ZeroExt32to64 x) (ZeroExt32to64 y))
 (Leq16U x y) -> (I64LeU (ZeroExt16to64 x) (ZeroExt16to64 y))
 (Leq8U  x y) -> (I64LeU (ZeroExt8to64  x) (ZeroExt8to64  y))
-(Leq(64|32)F x y) -> (F(64|32)Le x y)
+(Leq(64|32)F ...) -> (F(64|32)Le ...)
 
-(Greater64  x y) -> (I64GtS x y)
+(Greater64  ...) -> (I64GtS ...)
 (Greater32  x y) -> (I64GtS (SignExt32to64 x) (SignExt32to64 y))
 (Greater16  x y) -> (I64GtS (SignExt16to64 x) (SignExt16to64 y))
 (Greater8   x y) -> (I64GtS (SignExt8to64  x) (SignExt8to64  y))
-(Greater64U x y) -> (I64GtU x y)
+(Greater64U ...) -> (I64GtU ...)
 (Greater32U x y) -> (I64GtU (ZeroExt32to64 x) (ZeroExt32to64 y))
 (Greater16U x y) -> (I64GtU (ZeroExt16to64 x) (ZeroExt16to64 y))
 (Greater8U  x y) -> (I64GtU (ZeroExt8to64  x) (ZeroExt8to64  y))
-(Greater(64|32)F x y) -> (F(64|32)Gt x y)
+(Greater(64|32)F ...) -> (F(64|32)Gt ...)
 
-(Geq64  x y) -> (I64GeS x y)
+(Geq64  ...) -> (I64GeS ...)
 (Geq32  x y) -> (I64GeS (SignExt32to64 x) (SignExt32to64 y))
 (Geq16  x y) -> (I64GeS (SignExt16to64 x) (SignExt16to64 y))
 (Geq8   x y) -> (I64GeS (SignExt8to64  x) (SignExt8to64  y))
-(Geq64U x y) -> (I64GeU x y)
+(Geq64U ...) -> (I64GeU ...)
 (Geq32U x y) -> (I64GeU (ZeroExt32to64 x) (ZeroExt32to64 y))
 (Geq16U x y) -> (I64GeU (ZeroExt16to64 x) (ZeroExt16to64 y))
 (Geq8U  x y) -> (I64GeU (ZeroExt8to64  x) (ZeroExt8to64  y))
-(Geq(64|32)F x y) -> (F(64|32)Ge x y)
+(Geq(64|32)F ...) -> (F(64|32)Ge ...)
 
-(Eq64  x y) -> (I64Eq x y)
+(Eq64  ...) -> (I64Eq ...)
 (Eq32  x y) -> (I64Eq (ZeroExt32to64 x) (ZeroExt32to64 y))
 (Eq16  x y) -> (I64Eq (ZeroExt16to64 x) (ZeroExt16to64 y))
 (Eq8   x y) -> (I64Eq (ZeroExt8to64  x) (ZeroExt8to64  y))
-(EqB   x y) -> (I64Eq x y)
-(EqPtr x y) -> (I64Eq x y)
-(Eq(64|32)F x y) -> (F(64|32)Eq x y)
+(EqB   ...) -> (I64Eq ...)
+(EqPtr ...) -> (I64Eq ...)
+(Eq(64|32)F ...) -> (F(64|32)Eq ...)
 
-(Neq64  x y) -> (I64Ne x y)
+(Neq64  ...) -> (I64Ne ...)
 (Neq32  x y) -> (I64Ne (ZeroExt32to64 x) (ZeroExt32to64 y))
 (Neq16  x y) -> (I64Ne (ZeroExt16to64 x) (ZeroExt16to64 y))
 (Neq8   x y) -> (I64Ne (ZeroExt8to64  x) (ZeroExt8to64  y))
-(NeqB   x y) -> (I64Ne x y)
-(NeqPtr x y) -> (I64Ne x y)
-(Neq(64|32)F x y) -> (F(64|32)Ne x y)
+(NeqB   ...) -> (I64Ne ...)
+(NeqPtr ...) -> (I64Ne ...)
+(Neq(64|32)F ...) -> (F(64|32)Ne ...)
 
 // Lowering loads
 (Load <t> ptr mem) && is32BitFloat(t) -> (F32Load ptr mem)
@@ -315,55 +315,55 @@
 	(LoweredZero [s/8] destptr mem)
 
 // Lowering constants
-(Const(64|32|16|8) [val]) -> (I64Const [val])
-(Const(64|32)F [val]) -> (F(64|32)Const [val])
+(Const(64|32|16|8) ...) -> (I64Const ...)
+(Const(64|32)F ...) -> (F(64|32)Const ...)
 (ConstNil) -> (I64Const [0])
-(ConstBool [b]) -> (I64Const [b])
+(ConstBool ...) -> (I64Const ...)
 
 // Lowering calls
-(StaticCall [argwid] {target} mem) -> (LoweredStaticCall [argwid] {target} mem)
-(ClosureCall [argwid] entry closure mem) -> (LoweredClosureCall [argwid] entry closure mem)
-(InterCall [argwid] entry mem) -> (LoweredInterCall [argwid] entry mem)
+(StaticCall ...) -> (LoweredStaticCall ...)
+(ClosureCall ...) -> (LoweredClosureCall ...)
+(InterCall ...) -> (LoweredInterCall ...)
 
 // Miscellaneous
-(Convert <t> x mem) -> (LoweredConvert <t> x mem)
+(Convert ...) -> (LoweredConvert ...)
 (IsNonNil p) -> (I64Eqz (I64Eqz p))
-(IsInBounds idx len) -> (I64LtU idx len)
-(IsSliceInBounds idx len) -> (I64LeU idx len)
-(NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
-(GetClosurePtr) -> (LoweredGetClosurePtr)
-(GetCallerPC) -> (LoweredGetCallerPC)
-(GetCallerSP) -> (LoweredGetCallerSP)
-(Addr {sym} base) -> (LoweredAddr {sym} base)
+(IsInBounds ...) -> (I64LtU ...)
+(IsSliceInBounds ...) -> (I64LeU ...)
+(NilCheck ...) -> (LoweredNilCheck ...)
+(GetClosurePtr ...) -> (LoweredGetClosurePtr ...)
+(GetCallerPC ...) -> (LoweredGetCallerPC ...)
+(GetCallerSP ...) -> (LoweredGetCallerSP ...)
+(Addr ...) -> (LoweredAddr ...)
 (LocalAddr {sym} base _) -> (LoweredAddr {sym} base)
 
 // Write barrier.
-(WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
+(WB ...) -> (LoweredWB ...)
 
 // --- Intrinsics ---
-(Sqrt x) -> (F64Sqrt x)
-(Trunc x) -> (F64Trunc x)
-(Ceil x) -> (F64Ceil x)
-(Floor x) -> (F64Floor x)
-(RoundToEven x) -> (F64Nearest x)
-(Abs x) -> (F64Abs x)
-(Copysign x y) -> (F64Copysign x y)
+(Sqrt ...) -> (F64Sqrt ...)
+(Trunc ...) -> (F64Trunc ...)
+(Ceil ...) -> (F64Ceil ...)
+(Floor ...) -> (F64Floor ...)
+(RoundToEven ...) -> (F64Nearest ...)
+(Abs ...) -> (F64Abs ...)
+(Copysign ...) -> (F64Copysign ...)
 
-(Ctz64 x) -> (I64Ctz x)
+(Ctz64 ...) -> (I64Ctz ...)
 (Ctz32 x) -> (I64Ctz (I64Or x (I64Const [0x100000000])))
 (Ctz16 x) -> (I64Ctz (I64Or x (I64Const [0x10000])))
 (Ctz8  x) -> (I64Ctz (I64Or x (I64Const [0x100])))
 
-(Ctz(64|32|16|8)NonZero x) -> (I64Ctz x)
+(Ctz(64|32|16|8)NonZero ...) -> (I64Ctz ...)
 
 (BitLen64 x) -> (I64Sub (I64Const [64]) (I64Clz x))
 
-(PopCount64 x) -> (I64Popcnt x)
+(PopCount64 ...) -> (I64Popcnt ...)
 (PopCount32 x) -> (I64Popcnt (ZeroExt32to64 x))
 (PopCount16 x) -> (I64Popcnt (ZeroExt16to64 x))
 (PopCount8  x) -> (I64Popcnt (ZeroExt8to64  x))
 
-(CondSelect <t> x y cond) -> (Select <t> x y cond)
+(CondSelect ...) -> (Select ...)
 
 // --- Optimizations ---
 (I64Add (I64Const [x]) (I64Const [y])) -> (I64Const [x + y])
