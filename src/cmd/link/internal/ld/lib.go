@@ -1898,7 +1898,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 				Errorf(nil, "%v", err)
 				return
 			}
-			ctxt.Textp = append(ctxt.Textp, textp...)
+			ctxt.Textp2 = append(ctxt.Textp2, textp...)
 		}
 		return ldhostobj(ldxcoff, ctxt.HeadType, f, pkg, length, pn, file)
 	}
