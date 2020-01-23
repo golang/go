@@ -106,11 +106,12 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 	}
 
 	// Make sure to get the `go env` before continuing with initialization.
-	if err := v.setGoEnv(ctx, folder.Filename(), options.Env); err != nil {
+	gomod, err := v.setGoEnv(ctx, folder.Filename(), options.Env)
+	if err != nil {
 		return nil, nil, err
 	}
 	// Set the module-specific information.
-	if err := v.setModuleInformation(ctx, v.options.TempModfile); err != nil {
+	if err := v.setModuleInformation(ctx, gomod, v.options.TempModfile); err != nil {
 		return nil, nil, err
 	}
 

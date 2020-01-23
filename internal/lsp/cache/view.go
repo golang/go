@@ -58,7 +58,7 @@ type view struct {
 	folder span.URI
 
 	// mod is the module information for this view.
-	mod *moduleInformation
+	mod moduleInformation
 
 	// importsMu guards imports-related state, particularly the ProcessEnv.
 	importsMu sync.Mutex
@@ -86,7 +86,7 @@ type view struct {
 	ignoredURIs   map[span.URI]struct{}
 
 	// `go env` variables that need to be tracked by the view.
-	gopath, gomod, gocache string
+	gopath, gocache string
 
 	// initialized is closed when the view has been fully initialized.
 	// On initialization, the view's workspace packages are loaded.
@@ -141,10 +141,6 @@ type moduleInformation struct {
 }
 
 func (v *view) ModFiles() (span.URI, span.URI) {
-	// Don't return errors if the view is not in a module.
-	if v.mod == nil {
-		return "", ""
-	}
 	return v.mod.realMod, v.mod.tempMod
 }
 
@@ -258,7 +254,7 @@ func (v *view) Config(ctx context.Context) *packages.Config {
 	// We want to run the go commands with the -modfile flag if the version of go
 	// that we are using supports it.
 	buildFlags := v.options.BuildFlags
-	if v.mod != nil {
+	if v.mod.tempMod != "" {
 		buildFlags = append(buildFlags, fmt.Sprintf("-modfile=%s", v.mod.tempMod.Filename()))
 	}
 	cfg := &packages.Config{
@@ -300,7 +296,7 @@ func (v *view) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 	}
 
 	// In module mode, check if the mod file has changed.
-	if v.mod != nil {
+	if v.mod.realMod != "" {
 		mod, err := v.Snapshot().GetFile(v.mod.realMod)
 		if err == nil && mod.Identity() != v.cachedModFileVersion {
 			v.processEnv.GetResolver().(*imports.ModuleResolver).ClearForNewMod()
@@ -489,9 +485,9 @@ func (v *view) shutdown(context.Context) {
 		v.cancel()
 		v.cancel = nil
 	}
-	if v.mod != nil {
+	if v.mod.tempMod != "" {
 		os.Remove(v.mod.tempMod.Filename())
-		os.Remove(v.mod.tempSumFile())
+		os.Remove(tempSumFile(v.mod.tempMod.Filename()))
 	}
 	debug.DropView(debugView{v})
 }
@@ -618,7 +614,9 @@ func (v *view) cancelBackground() {
 	v.backgroundCtx, v.cancel = context.WithCancel(v.baseCtx)
 }
 
-func (v *view) setGoEnv(ctx context.Context, dir string, env []string) error {
+// setGoEnv sets the view's GOPATH and GOCACHE values.
+// It also returns the view's GOMOD value, which need not be cached.
+func (v *view) setGoEnv(ctx context.Context, dir string, env []string) (string, error) {
 	var gocache, gopath bool
 	for _, e := range env {
 		split := strings.Split(e, "=")
@@ -636,29 +634,29 @@ func (v *view) setGoEnv(ctx context.Context, dir string, env []string) error {
 	}
 	b, err := source.InvokeGo(ctx, dir, env, "env", "-json")
 	if err != nil {
-		return err
+		return "", err
 	}
 	envMap := make(map[string]string)
 	decoder := json.NewDecoder(b)
 	if err := decoder.Decode(&envMap); err != nil {
-		return err
+		return "", err
 	}
 	if !gopath {
 		if gopath, ok := envMap["GOPATH"]; ok {
 			v.gopath = gopath
 		} else {
-			return errors.New("unable to determine GOPATH")
+			return "", errors.New("unable to determine GOPATH")
 		}
 	}
 	if !gocache {
 		if gocache, ok := envMap["GOCACHE"]; ok {
 			v.gocache = gocache
 		} else {
-			return errors.New("unable to determine GOCACHE")
+			return "", errors.New("unable to determine GOCACHE")
 		}
 	}
 	if gomod, ok := envMap["GOMOD"]; ok {
-		v.gomod = gomod
+		return gomod, nil
 	}
-	return nil
+	return "", nil
 }

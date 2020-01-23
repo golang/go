@@ -39,18 +39,17 @@ func (v *view) modfileFlagExists(ctx context.Context, env []string) (bool, error
 	return lines[0] == "go1.14", nil
 }
 
-func (v *view) setModuleInformation(ctx context.Context, enabled bool) error {
-	// The user has disabled the use of the -modfile flag.
-	if !enabled {
-		log.Print(ctx, "using the -modfile flag is disabled", telemetry.Directory.Of(v.folder))
-		return nil
-	}
-	modFile := strings.TrimSpace(v.gomod)
+func (v *view) setModuleInformation(ctx context.Context, gomod string, modfileFlagEnabled bool) error {
+	modFile := strings.TrimSpace(gomod)
 	if modFile == os.DevNull {
 		return nil
 	}
-	v.mod = &moduleInformation{
+	v.mod = moduleInformation{
 		realMod: span.FileURI(modFile),
+	}
+	// The user has disabled the use of the -modfile flag.
+	if !modfileFlagEnabled {
+		return nil
 	}
 	if modfileFlag, err := v.modfileFlagExists(ctx, v.Options().Env); err != nil {
 		return err
@@ -87,7 +86,7 @@ func (v *view) setModuleInformation(ctx context.Context, enabled bool) error {
 	if err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(v.mod.tempSumFile(), contents, stat.Mode()); err != nil {
+	if err := ioutil.WriteFile(tempSumFile(tempModFile.Name()), contents, stat.Mode()); err != nil {
 		return err
 	}
 	return nil
@@ -95,7 +94,9 @@ func (v *view) setModuleInformation(ctx context.Context, enabled bool) error {
 
 // tempSumFile returns the path to the copied temporary go.sum file.
 // It simply replaces the extension of the temporary go.mod file with "sum".
-func (mod *moduleInformation) tempSumFile() string {
-	tmp := mod.tempMod.Filename()
-	return tmp[:len(tmp)-len("mod")] + "sum"
+func tempSumFile(filename string) string {
+	if filename == "" {
+		return ""
+	}
+	return filename[:len(filename)-len("mod")] + "sum"
 }
