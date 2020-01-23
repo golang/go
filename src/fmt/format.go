@@ -564,7 +564,7 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 		}
 		if !hasDecimalPoint {
 			// decimal 0 should contribute once to digits.
-			if num[1] == '0' && len(num) == 2 {
+			if len(num) == 2 && num[1] == '0' {
 				digits--
 			}
 			num = append(num, '.')
