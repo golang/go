@@ -1127,20 +1127,6 @@ func BenchmarkChanPopular(b *testing.B) {
 	wg.Wait()
 }
 
-func BenchmarkChanClosed(b *testing.B) {
-	c := make(chan struct{})
-	close(c)
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			select {
-			case <-c:
-			default:
-				b.Error("Unreachable")
-			}
-		}
-	})
-}
-
 var (
 	alwaysFalse = false
 	workSink    = 0
