@@ -792,6 +792,9 @@ func skip(value, prefix string) (string, error) {
 // Years must be in the range 0000..9999. The day of the week is checked
 // for syntax but it is otherwise ignored.
 //
+// For layouts specifying the two-digit year 06, a value NN >= 69 will be treated
+// as 19NN and a value NN < 69 will be treated as 20NN.
+//
 // In the absence of a time zone indicator, Parse returns a time in UTC.
 //
 // When parsing a time with a zone offset like -0700, if the offset corresponds
