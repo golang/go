@@ -132,8 +132,11 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 				snapshot = s
 			}
 		}
+		// If the file isn't in any known views (for example, if it's in a dependency),
+		// we may not have a snapshot to map it to. As a result, we won't try to
+		// diagnose it. TODO(rstambler): Figure out how to handle this better.
 		if snapshot == nil {
-			return nil, errors.Errorf("no snapshot for %s", uri)
+			continue
 		}
 		snapshotByURI[uri] = snapshot
 		snapshotSet[snapshot] = append(snapshotSet[snapshot], uri)
