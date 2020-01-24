@@ -68,6 +68,9 @@ func runRun(cmd *base.Command, args []string) {
 	}
 	var p *load.Package
 	if i > 0 {
+		if i < len(args) {
+			base.Fatalf("go run: cannot run non *.go files (%s)", args[i])
+		}
 		files := args[:i]
 		for _, file := range files {
 			if strings.HasSuffix(file, "_test.go") {
