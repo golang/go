@@ -126,6 +126,8 @@ func Import(path string) (m module.Version, dir string, err error) {
 		}
 		dir := filepath.Join(cfg.GOROOT, "src", path)
 		return module.Version{}, dir, nil
+	} else if pathIsStd && path == cfg.GOROOTsrc {
+		return module.Version{}, dir, errors.New("directory should not directly contain source files")
 	}
 
 	// -mod=vendor is special.

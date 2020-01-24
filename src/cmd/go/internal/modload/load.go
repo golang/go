@@ -126,6 +126,12 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 					// It's not strictly necessary but helpful to keep the checks.
 					if modRoot != "" && dir == modRoot {
 						pkg = targetPrefix
+						if modRoot == cfg.GOROOTsrc {
+							// A package in GOROOT/src would have an empty path.
+							// Keep the path as cfg.GOROOTsrc. We'll report an error in Import.
+							// See golang.org/issue/36587.
+							pkg = modRoot
+						}
 					} else if modRoot != "" && strings.HasPrefix(dir, modRoot+string(filepath.Separator)) && !strings.Contains(dir[len(modRoot):], "@") {
 						suffix := filepath.ToSlash(dir[len(modRoot):])
 						if strings.HasPrefix(suffix, "/vendor/") {
