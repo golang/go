@@ -14,8 +14,14 @@ func (r *runner) Completion(t *testing.T, src span.Span, test tests.Completion, 
 	got := r.callCompletion(t, src, func(opts *source.Options) {
 		opts.DeepCompletion = false
 		opts.Matcher = source.CaseInsensitive
-		opts.Literal = strings.Contains(string(src.URI()), "literal")
 		opts.UnimportedCompletion = false
+		opts.InsertTextFormat = protocol.PlainTextTextFormat
+		// Only enable literal completions if in the completion literals tests.
+		// TODO(rstambler): Separate out literal completion tests.
+		if strings.Contains(string(src.URI()), "literal") {
+			opts.InsertTextFormat = protocol.SnippetTextFormat
+		}
+
 	})
 	if !strings.Contains(string(src.URI()), "builtins") {
 		got = tests.FilterBuiltins(got)
@@ -31,7 +37,6 @@ func (r *runner) CompletionSnippet(t *testing.T, src span.Span, expected tests.C
 		opts.Placeholders = placeholders
 		opts.DeepCompletion = true
 		opts.Matcher = source.Fuzzy
-		opts.Literal = true
 		opts.UnimportedCompletion = false
 	})
 	got := tests.FindItem(list, *items[expected.CompletionItem])
@@ -103,7 +108,6 @@ func (r *runner) RankCompletion(t *testing.T, src span.Span, test tests.Completi
 	got := r.callCompletion(t, src, func(opts *source.Options) {
 		opts.DeepCompletion = true
 		opts.Matcher = source.Fuzzy
-		opts.Literal = true
 		opts.UnimportedCompletion = false
 	})
 	want := expected(t, test, items)

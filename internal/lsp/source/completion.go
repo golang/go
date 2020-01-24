@@ -466,7 +466,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 			documentation:     opts.CompletionDocumentation,
 			fullDocumentation: opts.HoverKind == FullDocumentation,
 			placeholders:      opts.Placeholders,
-			literal:           opts.Literal,
+			literal:           opts.InsertTextFormat == protocol.SnippetTextFormat,
 			budget:            opts.CompletionBudget,
 		},
 		// default to a matcher that always matches

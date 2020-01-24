@@ -81,7 +81,6 @@ var (
 		DeepCompletion:          true,
 		UnimportedCompletion:    true,
 		CompletionDocumentation: true,
-		Literal:                 true,
 	}
 	DefaultHooks = Hooks{
 		ComputeEdits: myers.ComputeEdits,
@@ -159,9 +158,6 @@ type UserOptions struct {
 	// Placeholders adds placeholders to parameters and structs in completion
 	// results.
 	Placeholders bool
-
-	// Literal enables completion for map, slice, and function literals.
-	Literal bool
 }
 
 type completionOptions struct {
