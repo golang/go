@@ -35,7 +35,8 @@ func Compile(f *Func) {
 
 	var rnd *rand.Rand
 	if checkEnabled {
-		rnd = rand.New(rand.NewSource(int64(crc32.ChecksumIEEE(([]byte)(f.Name)))))
+		seed := int64(crc32.ChecksumIEEE(([]byte)(f.Name))) ^ int64(checkRandSeed)
+		rnd = rand.New(rand.NewSource(seed))
 	}
 
 	// hook to print function & phase if panic happens
@@ -199,7 +200,10 @@ func (p *pass) addDump(s string) {
 }
 
 // Run consistency checker between each phase
-var checkEnabled = false
+var (
+	checkEnabled  = false
+	checkRandSeed = 0
+)
 
 // Debug output
 var IntrinsicsDebug int
@@ -253,7 +257,7 @@ where:
 ` + phasenames + `
 
 - <flag> is one of:
-    on, off, debug, mem, time, test, stats, dump
+    on, off, debug, mem, time, test, stats, dump, seed
 
 - <value> defaults to 1
 
@@ -270,6 +274,10 @@ Examples:
 
     -d=ssa/check/on
 enables checking after each phase
+
+	-d=ssa/check/seed=1234
+enables checking after each phase, using 1234 to seed the PRNG
+used for value order randomization
 
     -d=ssa/all/time
 enables time reporting for all phases
@@ -291,6 +299,12 @@ commas. For example:
 	}
 	if phase == "check" && flag == "off" {
 		checkEnabled = val == 0
+		debugPoset = checkEnabled
+		return ""
+	}
+	if phase == "check" && flag == "seed" {
+		checkEnabled = true
+		checkRandSeed = val
 		debugPoset = checkEnabled
 		return ""
 	}
