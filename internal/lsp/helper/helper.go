@@ -128,7 +128,7 @@ func doUses() {
 				continue
 			}
 			nm := fd.Name.String()
-			if isExported(nm) {
+			if ast.IsExported(nm) {
 				// we're looking for things like didChange
 				continue
 			}
@@ -224,7 +224,7 @@ func whatis(x ast.Expr) string {
 	case *ast.StarExpr:
 		return "*" + whatis(n.X)
 	case *ast.Ident:
-		if isExported(n.Name) {
+		if ast.IsExported(n.Name) {
 			// these are from package protocol
 			return "protocol." + n.Name
 		}
@@ -237,8 +237,4 @@ func whatis(x ast.Expr) string {
 		log.Fatalf("Fatal %T", x)
 		return fmt.Sprintf("%T", x)
 	}
-}
-
-func isExported(n string) bool {
-	return n[0] >= 'A' && n[0] <= 'Z'
 }
