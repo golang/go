@@ -80,6 +80,11 @@ func newTestDBConnector(t testing.TB, fc *fakeConnector, name string) *DB {
 		exec(t, db, "CREATE|magicquery|op=string,millis=int32")
 		exec(t, db, "INSERT|magicquery|op=sleep,millis=10")
 	}
+	if name == "tx_status" {
+		// Magic table name and column, known by fakedb_test.go.
+		exec(t, db, "CREATE|tx_status|tx_status=string")
+		exec(t, db, "INSERT|tx_status|tx_status=invalid")
+	}
 	return db
 }
 
@@ -2704,6 +2709,70 @@ func TestManyErrBadConn(t *testing.T) {
 	err = db.PingContext(ctx)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// Issue 34755: Ensure that a Tx cannot commit after a rollback.
+func TestTxCannotCommitAfterRollback(t *testing.T) {
+	db := newTestDB(t, "tx_status")
+	defer closeDB(t, db)
+
+	// First check query reporting is correct.
+	var txStatus string
+	err := db.QueryRow("SELECT|tx_status|tx_status|").Scan(&txStatus)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g, w := txStatus, "autocommit"; g != w {
+		t.Fatalf("tx_status=%q, wanted %q", g, w)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Ignore dirty session for this test.
+	// A failing test should trigger the dirty session flag as well,
+	// but that isn't exactly what this should test for.
+	tx.txi.(*fakeTx).c.skipDirtySession = true
+
+	defer tx.Rollback()
+
+	err = tx.QueryRow("SELECT|tx_status|tx_status|").Scan(&txStatus)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g, w := txStatus, "transaction"; g != w {
+		t.Fatalf("tx_status=%q, wanted %q", g, w)
+	}
+
+	// 1. Begin a transaction.
+	// 2. (A) Start a query, (B) begin Tx rollback through a ctx cancel.
+	// 3. Check if 2.A has committed in Tx (pass) or outside of Tx (fail).
+	sendQuery := make(chan struct{})
+	hookTxGrabConn = func() {
+		cancel()
+		<-sendQuery
+	}
+	rollbackHook = func() {
+		close(sendQuery)
+	}
+	defer func() {
+		hookTxGrabConn = nil
+		rollbackHook = nil
+	}()
+
+	err = tx.QueryRow("SELECT|tx_status|tx_status|").Scan(&txStatus)
+	if err != nil {
+		// A failure here would be expected if skipDirtySession was not set to true above.
+		t.Fatal(err)
+	}
+	if g, w := txStatus, "transaction"; g != w {
+		t.Fatalf("tx_status=%q, wanted %q", g, w)
 	}
 }
 
