@@ -40,6 +40,7 @@ type packagePath string
 // Declare explicit types for files and directories to distinguish between the two.
 type fileURI span.URI
 type directoryURI span.URI
+type viewLoadScope span.URI
 
 func (p *pkg) ID() string {
 	return string(p.id)

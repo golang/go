@@ -133,6 +133,11 @@ type View interface {
 
 	// Rebuild rebuilds the current view, replacing the original view in its session.
 	Rebuild(ctx context.Context) (Snapshot, error)
+
+	// InvalidBuildConfiguration returns true if there is some error in the
+	// user's workspace. In particular, if they are both outside of a module
+	// and their GOPATH.
+	ValidBuildConfiguration() bool
 }
 
 // Session represents a single connection from a client.

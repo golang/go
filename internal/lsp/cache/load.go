@@ -62,6 +62,14 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) ([]*metadata
 				q = "./..."
 			}
 			query = append(query, q)
+		case viewLoadScope:
+			// If we are outside of GOPATH, a module, or some other known
+			// build system, don't load subdirectories.
+			if !s.view.hasValidBuildConfiguration {
+				query = append(query, "./")
+			} else {
+				query = append(query, "./...")
+			}
 		default:
 			panic(fmt.Sprintf("unknown scope type %T", scope))
 		}
@@ -136,9 +144,9 @@ func (s *snapshot) updateMetadata(ctx context.Context, scopes []interface{}, pkg
 		// Don't log output for full workspace packages.Loads.
 		var containsDir bool
 		for _, scope := range scopes {
-			if _, ok := scope.(directoryURI); ok {
+			switch scope.(type) {
+			case directoryURI, viewLoadScope:
 				containsDir = true
-				break
 			}
 		}
 		if !containsDir || s.view.Options().VerboseOutput {
