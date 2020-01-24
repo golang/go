@@ -23,12 +23,12 @@ const (
 type canceller struct{ jsonrpc2.EmptyHandler }
 
 type clientHandler struct {
-	canceller
+	jsonrpc2.EmptyHandler
 	client Client
 }
 
 type serverHandler struct {
-	canceller
+	jsonrpc2.EmptyHandler
 	server Server
 }
 
@@ -73,6 +73,7 @@ func NewClient(ctx context.Context, stream jsonrpc2.Stream, client Client) (cont
 	ctx = WithClient(ctx, client)
 	conn := jsonrpc2.NewConn(stream)
 	conn.AddHandler(&clientHandler{client: client})
+	conn.AddHandler(&canceller{})
 	return ctx, conn, &serverDispatcher{Conn: conn}
 }
 
@@ -81,6 +82,7 @@ func NewServer(ctx context.Context, stream jsonrpc2.Stream, server Server) (cont
 	client := &clientDispatcher{Conn: conn}
 	ctx = WithClient(ctx, client)
 	conn.AddHandler(&serverHandler{server: server})
+	conn.AddHandler(&canceller{})
 	return ctx, conn, client
 }
 
