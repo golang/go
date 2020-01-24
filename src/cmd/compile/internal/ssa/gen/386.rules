@@ -104,20 +104,32 @@
 // Lowering shifts
 // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
 //   result = (arg << shift) & (shift >= argbits ? 0 : 0xffffffffffffffff)
-(Lsh32x(32|16|8) <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [32])))
-(Lsh16x(32|16|8) <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [32])))
-(Lsh8x(32|16|8)  <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [32])))
+(Lsh32x(32|16|8) <t> x y) && !shiftIsBounded(v) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [32])))
+(Lsh16x(32|16|8) <t> x y) && !shiftIsBounded(v) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [32])))
+(Lsh8x(32|16|8)  <t> x y) && !shiftIsBounded(v) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [32])))
 
-(Rsh32Ux(32|16|8) <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [32])))
-(Rsh16Ux(32|16|8) <t> x y) -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [16])))
-(Rsh8Ux(32|16|8)  <t> x y) -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [8])))
+(Lsh32x(32|16|8) <t> x y) && shiftIsBounded(v) -> (SHLL <t> x y)
+(Lsh16x(32|16|8) <t> x y) && shiftIsBounded(v) -> (SHLL <t> x y)
+(Lsh8x(32|16|8)  <t> x y) && shiftIsBounded(v) -> (SHLL <t> x y)
+
+(Rsh32Ux(32|16|8) <t> x y) && !shiftIsBounded(v) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [32])))
+(Rsh16Ux(32|16|8) <t> x y) && !shiftIsBounded(v) -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [16])))
+(Rsh8Ux(32|16|8)  <t> x y) && !shiftIsBounded(v) -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [8])))
+
+(Rsh32Ux(32|16|8) <t> x y) && shiftIsBounded(v) -> (SHRL <t> x y)
+(Rsh16Ux(32|16|8) <t> x y) && shiftIsBounded(v) -> (SHRW <t> x y)
+(Rsh8Ux(32|16|8)  <t> x y) && shiftIsBounded(v) -> (SHRB <t> x y)
 
 // Signed right shift needs to return 0/-1 if shift amount is >= width of shifted value.
 // We implement this by setting the shift value to -1 (all ones) if the shift value is >= width.
 
-(Rsh32x(32|16|8) <t> x y) -> (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMP(L|W|B)const y [32])))))
-(Rsh16x(32|16|8) <t> x y) -> (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMP(L|W|B)const y [16])))))
-(Rsh8x(32|16|8) <t> x y)  -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMP(L|W|B)const y [8])))))
+(Rsh32x(32|16|8) <t> x y) && !shiftIsBounded(v) -> (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMP(L|W|B)const y [32])))))
+(Rsh16x(32|16|8) <t> x y) && !shiftIsBounded(v) -> (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMP(L|W|B)const y [16])))))
+(Rsh8x(32|16|8) <t> x y)  && !shiftIsBounded(v) -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMP(L|W|B)const y [8])))))
+
+(Rsh32x(32|16|8) <t> x y) && shiftIsBounded(v) -> (SARL x y)
+(Rsh16x(32|16|8) <t> x y) && shiftIsBounded(v) -> (SARW x y)
+(Rsh8x(32|16|8) <t> x y)  && shiftIsBounded(v) -> (SARB x y)
 
 // constant shifts
 // generic opt rewrites all constant shifts to shift by Const64
