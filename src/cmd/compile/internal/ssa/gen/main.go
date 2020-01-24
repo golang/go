@@ -307,13 +307,13 @@ func genOp() {
 			}
 			if v.faultOnNilArg0 {
 				fmt.Fprintln(w, "faultOnNilArg0: true,")
-				if v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "" {
+				if v.aux != "Sym" && v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "" {
 					log.Fatalf("faultOnNilArg0 with aux %s not allowed", v.aux)
 				}
 			}
 			if v.faultOnNilArg1 {
 				fmt.Fprintln(w, "faultOnNilArg1: true,")
-				if v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "" {
+				if v.aux != "Sym" && v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "" {
 					log.Fatalf("faultOnNilArg1 with aux %s not allowed", v.aux)
 				}
 			}

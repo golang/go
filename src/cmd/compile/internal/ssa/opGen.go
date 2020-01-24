@@ -23950,7 +23950,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:           "MOVDBRstore",
-		auxType:        auxSymOff,
+		auxType:        auxSym,
 		argLen:         3,
 		faultOnNilArg0: true,
 		symEffect:      SymWrite,
@@ -23964,7 +23964,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:           "MOVWBRstore",
-		auxType:        auxSymOff,
+		auxType:        auxSym,
 		argLen:         3,
 		faultOnNilArg0: true,
 		symEffect:      SymWrite,
@@ -23978,7 +23978,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:           "MOVHBRstore",
-		auxType:        auxSymOff,
+		auxType:        auxSym,
 		argLen:         3,
 		faultOnNilArg0: true,
 		symEffect:      SymWrite,

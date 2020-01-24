@@ -317,10 +317,10 @@ func init() {
 		{name: "FMOVSloadidx", argLength: 3, reg: fploadidx, asm: "FMOVS", aux: "SymOff", typ: "Float32", faultOnNilArg0: true, symEffect: "Read"},
 
 		// Store bytes in the reverse endian order of the arch into arg0.
-		// These are indexes stores with no offset field in the instruction so the aux fields are not used.
-		{name: "MOVDBRstore", argLength: 3, reg: gpstore, asm: "MOVDBR", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes reverse order
-		{name: "MOVWBRstore", argLength: 3, reg: gpstore, asm: "MOVWBR", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 4 bytes reverse order
-		{name: "MOVHBRstore", argLength: 3, reg: gpstore, asm: "MOVHBR", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 2 bytes reverse order
+		// These are indexed stores with no offset field in the instruction so the auxint fields are not used.
+		{name: "MOVDBRstore", argLength: 3, reg: gpstore, asm: "MOVDBR", aux: "Sym", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes reverse order
+		{name: "MOVWBRstore", argLength: 3, reg: gpstore, asm: "MOVWBR", aux: "Sym", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 4 bytes reverse order
+		{name: "MOVHBRstore", argLength: 3, reg: gpstore, asm: "MOVHBR", aux: "Sym", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 2 bytes reverse order
 
 		// Floating point loads from arg0+aux+auxint
 		{name: "FMOVDload", argLength: 2, reg: fpload, asm: "FMOVD", aux: "SymOff", typ: "Float64", faultOnNilArg0: true, symEffect: "Read"}, // load double float
