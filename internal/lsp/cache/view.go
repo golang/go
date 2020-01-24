@@ -204,6 +204,9 @@ func (v *view) LookupBuiltin(ctx context.Context, name string) (*ast.Object, err
 		return nil, err
 	}
 	data := v.builtin.handle.Get(ctx)
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	if data == nil {
 		return nil, errors.Errorf("unexpected nil builtin package")
 	}
