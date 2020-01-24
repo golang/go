@@ -1,4 +1,4 @@
-// +build !nacl,!386,!wasm,!arm,!gcflags_noopt
+// +build !nacl,!386,!wasm,!arm,!riscv64,!gcflags_noopt
 // errorcheck -0 -m
 
 // Copyright 2019 The Go Authors. All rights reserved.
@@ -13,6 +13,9 @@
 // are function calls rather than intrinsics, since this prevents inlining
 // of the sync fast paths. This test should be re-enabled once the problem
 // is solved.
+
+// TODO(jsing): Re-enable on riscv64 when it has atomic intrinsics - see
+// golang.org/issue/36765
 
 package foo
 
