@@ -2061,14 +2061,10 @@ func (tx *Tx) isDone() bool {
 // that has already been committed or rolled back.
 var ErrTxDone = errors.New("sql: transaction has already been committed or rolled back")
 
-// close returns the connection to the pool and
-// must only be called by Tx.rollback or Tx.Commit.
-func (tx *Tx) close(err error) {
-	tx.cancel()
-
-	tx.closemu.Lock()
-	defer tx.closemu.Unlock()
-
+// closeLocked returns the connection to the pool and
+// must only be called by Tx.rollback or Tx.Commit while
+// closemu is Locked and tx already canceled.
+func (tx *Tx) closeLocked(err error) {
 	tx.releaseConn(err)
 	tx.dc = nil
 	tx.txi = nil
@@ -2135,6 +2131,15 @@ func (tx *Tx) Commit() error {
 	if !atomic.CompareAndSwapInt32(&tx.done, 0, 1) {
 		return ErrTxDone
 	}
+
+	// Cancel the Tx to release any active R-closemu locks.
+	// This is safe to do because tx.done has already transitioned
+	// from 0 to 1. Hold the W-closemu lock prior to rollback
+	// to ensure no other connection has an active query.
+	tx.cancel()
+	tx.closemu.Lock()
+	defer tx.closemu.Unlock()
+
 	var err error
 	withLock(tx.dc, func() {
 		err = tx.txi.Commit()
@@ -2142,9 +2147,11 @@ func (tx *Tx) Commit() error {
 	if err != driver.ErrBadConn {
 		tx.closePrepared()
 	}
-	tx.close(err)
+	tx.closeLocked(err)
 	return err
 }
+
+var rollbackHook func()
 
 // rollback aborts the transaction and optionally forces the pool to discard
 // the connection.
@@ -2152,6 +2159,19 @@ func (tx *Tx) rollback(discardConn bool) error {
 	if !atomic.CompareAndSwapInt32(&tx.done, 0, 1) {
 		return ErrTxDone
 	}
+
+	if rollbackHook != nil {
+		rollbackHook()
+	}
+
+	// Cancel the Tx to release any active R-closemu locks.
+	// This is safe to do because tx.done has already transitioned
+	// from 0 to 1. Hold the W-closemu lock prior to rollback
+	// to ensure no other connection has an active query.
+	tx.cancel()
+	tx.closemu.Lock()
+	defer tx.closemu.Unlock()
+
 	var err error
 	withLock(tx.dc, func() {
 		err = tx.txi.Rollback()
@@ -2162,7 +2182,7 @@ func (tx *Tx) rollback(discardConn bool) error {
 	if discardConn {
 		err = driver.ErrBadConn
 	}
-	tx.close(err)
+	tx.closeLocked(err)
 	return err
 }
 
