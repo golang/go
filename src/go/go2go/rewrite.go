@@ -47,6 +47,10 @@ type translator struct {
 	instantiations     map[*ast.Ident][]*instantiation
 	newDecls           []ast.Decl
 	typeInstantiations map[types.Type][]*typeInstantiation
+
+	// err is set if we have seen an error during this translation.
+	// This is used by the rewrite methods.
+	err error
 }
 
 // An instantiation is a single instantiation of a function.
@@ -99,11 +103,12 @@ func rewriteAST(info *types.Info, idToFunc map[types.Object]*ast.FuncDecl, file 
 		instantiations:     make(map[*ast.Ident][]*instantiation),
 		typeInstantiations: make(map[types.Type][]*typeInstantiation),
 	}
-	return t.translate(file)
+	t.translate(file)
+	return t.err
 }
 
 // translate translates the AST for a file from Go with contracts to Go 1.
-func (t *translator) translate(file *ast.File) error {
+func (t *translator) translate(file *ast.File) {
 	declsToDo := file.Decls
 	file.Decls = nil
 	for len(declsToDo) > 0 {
@@ -112,24 +117,18 @@ func (t *translator) translate(file *ast.File) error {
 			switch decl := decl.(type) {
 			case (*ast.FuncDecl):
 				if !isParameterizedFuncDecl(decl) {
-					if err := t.translateFuncDecl(&declsToDo[i]); err != nil {
-						return err
-					}
+					t.translateFuncDecl(&declsToDo[i])
 					newDecls = append(newDecls, decl)
 				}
 			case (*ast.GenDecl):
 				switch decl.Tok {
 				case token.TYPE:
 					for j := range decl.Specs {
-						if err := t.translateTypeSpec(&decl.Specs[j]); err != nil {
-							return err
-						}
+						t.translateTypeSpec(&decl.Specs[j])
 					}
 				case token.VAR, token.CONST:
 					for j := range decl.Specs {
-						if err := t.translateValueSpec(&decl.Specs[j]); err != nil {
-							return err
-						}
+						t.translateValueSpec(&decl.Specs[j])
 					}
 				}
 				newDecls = append(newDecls, decl)
@@ -141,125 +140,102 @@ func (t *translator) translate(file *ast.File) error {
 		declsToDo = t.newDecls
 		t.newDecls = nil
 	}
-	return nil
 }
 
 // translateTypeSpec translates a type from Go with contracts to Go 1.
-func (t *translator) translateTypeSpec(ps *ast.Spec) error {
+func (t *translator) translateTypeSpec(ps *ast.Spec) {
 	ts := (*ps).(*ast.TypeSpec)
 	if ts.TParams == nil {
-		return t.translateExpr(&ts.Type)
+		t.translateExpr(&ts.Type)
+		return
 	}
 	panic("parameterized type")
 }
 
 // translateValueSpec translates a variable or constant from Go with
 // contracts to Go 1.
-func (t *translator) translateValueSpec(ps *ast.Spec) error {
+func (t *translator) translateValueSpec(ps *ast.Spec) {
 	vs := (*ps).(*ast.ValueSpec)
-	if err := t.translateExpr(&vs.Type); err != nil {
-		return err
-	}
+	t.translateExpr(&vs.Type)
 	for i := range vs.Values {
-		if err := t.translateExpr(&vs.Values[i]); err != nil {
-			return err
-		}
+		t.translateExpr(&vs.Values[i])
 	}
-	return nil
 }
 
 // translateFuncDecl translates a function from Go with contracts to Go 1.
-func (t *translator) translateFuncDecl(pd *ast.Decl) error {
+func (t *translator) translateFuncDecl(pd *ast.Decl) {
+	if t.err != nil {
+		return
+	}
 	fd := (*pd).(*ast.FuncDecl)
 	if fd.Type.TParams != nil {
 		panic("parameterized function")
 	}
 	if fd.Recv != nil {
-		if err := t.translateFieldList(fd.Recv); err != nil {
-			return err
-		}
+		t.translateFieldList(fd.Recv)
 	}
-	if err := t.translateFieldList(fd.Type.Params); err != nil {
-		return err
-	}
-	if err := t.translateFieldList(fd.Type.Results); err != nil {
-		return err
-	}
-	if err := t.translateBlockStmt(fd.Body); err != nil {
-		return err
-	}
-	return nil
+	t.translateFieldList(fd.Type.Params)
+	t.translateFieldList(fd.Type.Results)
+	t.translateBlockStmt(fd.Body)
 }
 
 // translateBlockStmt translates a block statement from Go with
 // contracts to Go 1.
-func (t *translator) translateBlockStmt(pbs *ast.BlockStmt) error {
+func (t *translator) translateBlockStmt(pbs *ast.BlockStmt) {
 	for i := range pbs.List {
-		if err := t.translateStmt(&pbs.List[i]); err != nil {
-			return err
-		}
+		t.translateStmt(&pbs.List[i])
 	}
-	return nil
 }
 
 // translateStmt translates a statement from Go with contracts to Go 1.
-func (t *translator) translateStmt(ps *ast.Stmt) error {
+func (t *translator) translateStmt(ps *ast.Stmt) {
+	if t.err != nil {
+		return
+	}
 	switch s := (*ps).(type) {
 	case *ast.BlockStmt:
-		return t.translateBlockStmt(s)
+		t.translateBlockStmt(s)
 	case *ast.ExprStmt:
-		return t.translateExpr(&s.X)
+		t.translateExpr(&s.X)
 	case *ast.RangeStmt:
-		if err := t.translateExpr(&s.Key); err != nil {
-			return err
-		}
-		if err := t.translateExpr(&s.Value); err != nil {
-			return err
-		}
-		if err := t.translateExpr(&s.X); err != nil {
-			return err
-		}
-		if err := t.translateBlockStmt(s.Body); err != nil {
-			return err
-		}
-		return nil
+		t.translateExpr(&s.Key)
+		t.translateExpr(&s.Value)
+		t.translateExpr(&s.X)
+		t.translateBlockStmt(s.Body)
 	default:
 		panic(fmt.Sprintf("unimplemented Stmt %T", s))
 	}
 }
 
 // translateExpr translates an expression from Go with contracts to Go 1.
-func (t *translator) translateExpr(pe *ast.Expr) error {
+func (t *translator) translateExpr(pe *ast.Expr) {
+	if t.err != nil {
+		return
+	}
 	if *pe == nil {
-		return nil
+		return
 	}
 	switch e := (*pe).(type) {
 	case *ast.Ident:
-		return nil
+		return
 	case *ast.CallExpr:
-		if err := t.translateExprList(e.Args); err != nil {
-			return err
-		}
+		t.translateExprList(e.Args)
 		ftyp := t.lookupType(e.Fun).(*types.Signature)
 		if ftyp.TParams() != nil {
-			if err := t.translateFunctionInstantiation(pe); err != nil {
-				return err
-			}
+			t.translateFunctionInstantiation(pe)
 		}
-		return t.translateExpr(&e.Fun)
+		t.translateExpr(&e.Fun)
 	case *ast.StarExpr:
-		return t.translateExpr(&e.X)
+		t.translateExpr(&e.X)
 	case *ast.SelectorExpr:
-		return t.translateExpr(&e.X)
+		t.translateExpr(&e.X)
 	case *ast.ArrayType:
-		return t.translateExpr(&e.Elt)
+		t.translateExpr(&e.Elt)
 	case *ast.BasicLit:
-		return nil
+		return
 	case *ast.CompositeLit:
-		if err := t.translateExpr(&e.Type); err != nil {
-			return err
-		}
-		return t.translateExprList(e.Elts)
+		t.translateExpr(&e.Type)
+		t.translateExprList(e.Elts)
 	default:
 		panic(fmt.Sprintf("unimplemented Expr %T", e))
 	}
@@ -267,36 +243,30 @@ func (t *translator) translateExpr(pe *ast.Expr) error {
 
 // translateExprList translate an expression list from Go with
 // contracts to Go 1.
-func (t *translator) translateExprList(el []ast.Expr) error {
+func (t *translator) translateExprList(el []ast.Expr) {
 	for i := range el {
-		if err := t.translateExpr(&el[i]); err != nil {
-			return err
-		}
+		t.translateExpr(&el[i])
 	}
-	return nil
 }
 
 // translateFieldList translates a field list from Go with contracts to Go 1.
-func (t *translator) translateFieldList(fl *ast.FieldList) error {
+func (t *translator) translateFieldList(fl *ast.FieldList) {
 	if fl == nil {
-		return nil
+		return
 	}
 	for _, f := range fl.List {
-		if err := t.translateField(f); err != nil {
-			return err
-		}
+		t.translateField(f)
 	}
-	return nil
 }
 
 // translateField translates a field from Go with contracts to Go 1.
-func (t *translator) translateField(f *ast.Field) error {
-	return t.translateExpr(&f.Type)
+func (t *translator) translateField(f *ast.Field) {
+	t.translateExpr(&f.Type)
 }
 
 // translateFunctionInstantiation translates an instantiated function
 // to Go 1.
-func (t *translator) translateFunctionInstantiation(pe *ast.Expr) error {
+func (t *translator) translateFunctionInstantiation(pe *ast.Expr) {
 	call := (*pe).(*ast.CallExpr)
 	fnident, ok := call.Fun.(*ast.Ident)
 	if !ok {
@@ -312,13 +282,14 @@ func (t *translator) translateFunctionInstantiation(pe *ast.Expr) error {
 	for _, inst := range instantiations {
 		if t.sameTypes(types, inst.types) {
 			*pe = inst.decl
-			return nil
+			return
 		}
 	}
 
 	instIdent, err := t.instantiateFunction(fnident, call.Args, types)
 	if err != nil {
-		return err
+		t.err = err
+		return
 	}
 
 	n := &instantiation{
@@ -328,7 +299,6 @@ func (t *translator) translateFunctionInstantiation(pe *ast.Expr) error {
 	t.instantiations[fnident] = append(instantiations, n)
 
 	*pe = instIdent
-	return nil
 }
 
 // sameTypes reports whether two type slices are the same.
