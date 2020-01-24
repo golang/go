@@ -41,17 +41,24 @@ func isParameterizedFuncDecl(fd *ast.FuncDecl) bool {
 
 // A translator is used to translate a file from Go with contracts to Go 1.
 type translator struct {
-	info           *types.Info
-	types          map[ast.Expr]types.Type
-	idToFunc       map[types.Object]*ast.FuncDecl
-	instantiations map[*ast.Ident][]*instantiation
-	newDecls       []ast.Decl
+	info               *types.Info
+	types              map[ast.Expr]types.Type
+	idToFunc           map[types.Object]*ast.FuncDecl
+	instantiations     map[*ast.Ident][]*instantiation
+	newDecls           []ast.Decl
+	typeInstantiations map[types.Type][]*typeInstantiation
 }
 
 // An instantiation is a single instantiation of a function.
 type instantiation struct {
 	types []types.Type
 	decl  *ast.Ident
+}
+
+// A typeInstantiation is a single instantiation of a type.
+type typeInstantiation struct {
+	types []types.Type
+	typ   types.Type
 }
 
 // rewrite rewrites the contents of one file.
@@ -86,10 +93,11 @@ func rewriteFile(dir string, fset *token.FileSet, info *types.Info, idToFunc map
 // rewriteAST rewrites the AST for a file.
 func rewriteAST(info *types.Info, idToFunc map[types.Object]*ast.FuncDecl, file *ast.File) (err error) {
 	t := translator{
-		info:           info,
-		types:          make(map[ast.Expr]types.Type),
-		idToFunc:       idToFunc,
-		instantiations: make(map[*ast.Ident][]*instantiation),
+		info:               info,
+		types:              make(map[ast.Expr]types.Type),
+		idToFunc:           idToFunc,
+		instantiations:     make(map[*ast.Ident][]*instantiation),
+		typeInstantiations: make(map[types.Type][]*typeInstantiation),
 	}
 	return t.translate(file)
 }

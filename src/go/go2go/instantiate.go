@@ -14,13 +14,15 @@ import (
 // We can look them up either with a types.Object associated with an ast.Ident,
 // or with a types.TypeParam.
 type typeArgs struct {
+	types []types.Type // type arguments in order
 	toAST map[types.Object]ast.Expr
 	toTyp map[*types.TypeParam]types.Type
 }
 
 // newTypeArgs returns a new typeArgs value.
-func newTypeArgs() *typeArgs {
+func newTypeArgs(typeTypes []types.Type) *typeArgs {
 	return &typeArgs{
+		types: typeTypes,
 		toAST: make(map[types.Object]ast.Expr),
 		toTyp: make(map[*types.TypeParam]types.Type),
 	}
@@ -56,7 +58,7 @@ func (t *translator) instantiateFunction(fnident *ast.Ident, astTypes []ast.Expr
 		return nil, err
 	}
 
-	ta := newTypeArgs()
+	ta := newTypeArgs(typeTypes)
 	for i, tf := range decl.Type.TParams.List {
 		for _, tn := range tf.Names {
 			obj, ok := t.info.Defs[tn]

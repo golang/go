@@ -42,6 +42,26 @@ func (t *translator) setType(e ast.Expr, nt types.Type) {
 
 // instantiateType instantiates typ using ta.
 func (t *translator) instantiateType(ta *typeArgs, typ types.Type) types.Type {
+	if insts, ok := t.typeInstantiations[typ]; ok {
+		for _, inst := range insts {
+			if t.sameTypes(ta.types, inst.types) {
+				return inst.typ
+			}
+		}
+	}
+
+	ityp := t.doInstantiateType(ta, typ)
+	typinst := &typeInstantiation{
+		types: ta.types,
+		typ:   ityp,
+	}
+	t.typeInstantiations[typ] = append(t.typeInstantiations[typ], typinst)
+	return ityp
+}
+
+// doInstantiateType does the work of instantiating typ using ta.
+// This should only be called from instantiateType.
+func (t *translator) doInstantiateType(ta *typeArgs, typ types.Type) types.Type {
 	switch typ := typ.(type) {
 	case *types.TypeParam:
 		if instType, ok := ta.typ(typ); ok {
