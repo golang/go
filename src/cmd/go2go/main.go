@@ -49,6 +49,10 @@ func main() {
 		}
 		args = nargs
 		rundir = tmpdir
+	} else if args[0] == "translate" && isGo2Files(args[1:]...) {
+		for _, arg := range args[1:] {
+			translateFile(arg)
+		}
 	} else {
 		for _, dir := range expandPackages(args[1:]) {
 			translate(dir)
@@ -65,6 +69,16 @@ func main() {
 			die(fmt.Sprintf("%s %v failed: %v", gotool, args, err))
 		}
 	}
+}
+
+// isGo2Files reports whether the arguments are a list of .go2 files.
+func isGo2Files(args ...string) bool {
+	for _, arg := range args {
+		if filepath.Ext(arg) != ".go2" {
+			return false
+		}
+	}
+	return true
 }
 
 // expandPackages returns a list of directories expanded from packages.

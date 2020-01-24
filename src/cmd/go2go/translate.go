@@ -6,11 +6,28 @@ package main
 
 import (
 	"go/go2go"
+	"io/ioutil"
+	"strings"
 )
 
 // translate writes .go files for all .go2 files in dir.
 func translate(dir string) {
 	if err := go2go.Rewrite(dir); err != nil {
+		die(err.Error())
+	}
+}
+
+// translateFile translates one .go2 file into a .go file.
+func translateFile(file string) {
+	data, err := ioutil.ReadFile(file)
+	if err != nil {
+		die(err.Error())
+	}
+	out, err := go2go.RewriteBuffer(file, data)
+	if err != nil {
+		die(err.Error())
+	}
+	if err := ioutil.WriteFile(strings.TrimSuffix(file, ".go2") + ".go", out, 0644); err != nil {
 		die(err.Error())
 	}
 }
