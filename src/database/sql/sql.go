@@ -1261,7 +1261,13 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 			if !ok {
 				return nil, errDBClosed
 			}
-			if ret.err == nil && ret.conn.expired(lifetime) {
+			// Only check if the connection is expired if the strategy is cachedOrNewConns.
+			// If we require a new connection, just re-use the connection without looking
+			// at the expiry time. If it is expired, it will be checked when it is placed
+			// back into the connection pool.
+			// This prioritizes giving a valid connection to a client over the exact connection
+			// lifetime, which could expire exactly after this point anyway.
+			if strategy == cachedOrNewConn && ret.err == nil && ret.conn.expired(lifetime) {
 				ret.conn.Close()
 				return nil, driver.ErrBadConn
 			}
@@ -1338,10 +1344,15 @@ func (db *DB) putConn(dc *driverConn, err error, resetSession bool) {
 	}
 	db.mu.Lock()
 	if !dc.inUse {
+		db.mu.Unlock()
 		if debugGetPut {
 			fmt.Printf("putConn(%v) DUPLICATE was: %s\n\nPREVIOUS was: %s", dc, stack(), db.lastPut[dc])
 		}
 		panic("sql: connection returned that was never out")
+	}
+
+	if err != driver.ErrBadConn && dc.expired(db.maxLifetime) {
+		err = driver.ErrBadConn
 	}
 	if debugGetPut {
 		db.lastPut[dc] = stack()

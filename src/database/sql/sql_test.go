@@ -2707,6 +2707,95 @@ func TestManyErrBadConn(t *testing.T) {
 	}
 }
 
+// Issue32530 encounters an issue where a connection may
+// expire right after it comes out of a used connection pool
+// even when a new connection is requested.
+func TestConnExpiresFreshOutOfPool(t *testing.T) {
+	execCases := []struct {
+		expired  bool
+		badReset bool
+	}{
+		{false, false},
+		{true, false},
+		{false, true},
+	}
+
+	t0 := time.Unix(1000000, 0)
+	offset := time.Duration(0)
+	offsetMu := sync.RWMutex{}
+
+	nowFunc = func() time.Time {
+		offsetMu.RLock()
+		defer offsetMu.RUnlock()
+		return t0.Add(offset)
+	}
+	defer func() { nowFunc = time.Now }()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	db := newTestDB(t, "magicquery")
+	defer closeDB(t, db)
+
+	db.SetMaxOpenConns(1)
+
+	for _, ec := range execCases {
+		ec := ec
+		name := fmt.Sprintf("expired=%t,badReset=%t", ec.expired, ec.badReset)
+		t.Run(name, func(t *testing.T) {
+			db.clearAllConns(t)
+
+			db.SetMaxIdleConns(1)
+			db.SetConnMaxLifetime(10 * time.Second)
+
+			conn, err := db.conn(ctx, alwaysNewConn)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			afterPutConn := make(chan struct{})
+			waitingForConn := make(chan struct{})
+
+			go func() {
+				conn, err := db.conn(ctx, alwaysNewConn)
+				if err != nil {
+					t.Fatal(err)
+				}
+				db.putConn(conn, err, false)
+				close(afterPutConn)
+			}()
+			go func() {
+				for {
+					db.mu.Lock()
+					ct := len(db.connRequests)
+					db.mu.Unlock()
+					if ct > 0 {
+						close(waitingForConn)
+						return
+					}
+					time.Sleep(10 * time.Millisecond)
+				}
+			}()
+
+			<-waitingForConn
+
+			offsetMu.Lock()
+			if ec.expired {
+				offset = 11 * time.Second
+			} else {
+				offset = time.Duration(0)
+			}
+			offsetMu.Unlock()
+
+			conn.ci.(*fakeConn).stickyBad = ec.badReset
+
+			db.putConn(conn, err, true)
+
+			<-afterPutConn
+		})
+	}
+}
+
 // TestIssue20575 ensures the Rows from query does not block
 // closing a transaction. Ensure Rows is closed while closing a trasaction.
 func TestIssue20575(t *testing.T) {
