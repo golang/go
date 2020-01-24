@@ -29,6 +29,8 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 			return nil, errors.Errorf("%s is not a mod file", uri)
 		}
 		// Run go.mod tidy on the view.
+		// TODO: This should go through the ModTidyHandle on the view.
+		// That will also allow us to move source.InvokeGo into internal/lsp/cache.
 		if _, err := source.InvokeGo(ctx, view.Folder().Filename(), view.Config(ctx).Env, "mod", "tidy"); err != nil {
 			return nil, err
 		}

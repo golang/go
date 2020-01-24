@@ -39,19 +39,16 @@ type RelatedInformation struct {
 	Message string
 }
 
-func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, withAnalysis bool) (map[FileIdentity][]Diagnostic, string, error) {
+func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, withAnalysis bool) (map[FileIdentity][]Diagnostic, bool, error) {
 	// If we are missing dependencies, it may because the user's workspace is
 	// not correctly configured. Report errors, if possible.
-	var (
-		warn       bool
-		warningMsg string
-	)
+	var warn bool
 	if len(ph.MissingDependencies()) > 0 {
 		warn = true
 	}
 	pkg, err := ph.Check(ctx)
 	if err != nil {
-		return nil, "", err
+		return nil, false, err
 	}
 	// If we have a package with a single file and errors about "undeclared" symbols,
 	// we may have an ad-hoc package with multiple files. Show a warning message.
@@ -59,17 +56,11 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, withA
 	if len(pkg.CompiledGoFiles()) == 1 && hasUndeclaredErrors(pkg) {
 		warn = true
 	}
-	if warn {
-		warningMsg, err = checkCommonErrors(ctx, snapshot.View())
-		if err != nil {
-			return nil, "", err
-		}
-	}
 	// Prepare the reports we will send for the files in this package.
 	reports := make(map[FileIdentity][]Diagnostic)
 	for _, fh := range pkg.CompiledGoFiles() {
 		if err := clearReports(snapshot, reports, fh.File().Identity().URI); err != nil {
-			return nil, warningMsg, err
+			return nil, warn, err
 		}
 	}
 	// Prepare any additional reports for the errors in this package.
@@ -87,25 +78,25 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, withA
 			}
 		}
 		if err := clearReports(snapshot, reports, e.URI); err != nil {
-			return nil, warningMsg, err
+			return nil, warn, err
 		}
 	}
 	// Run diagnostics for the package that this URI belongs to.
 	hadDiagnostics, err := diagnostics(ctx, snapshot, reports, pkg)
 	if err != nil {
-		return nil, warningMsg, err
+		return nil, warn, err
 	}
 	if !hadDiagnostics && withAnalysis {
 		// If we don't have any list, parse, or type errors, run analyses.
 		if err := analyses(ctx, snapshot, reports, ph, snapshot.View().Options().DisabledAnalyses); err != nil {
 			// Exit early if the context has been canceled.
 			if ctx.Err() != nil {
-				return nil, warningMsg, ctx.Err()
+				return nil, warn, ctx.Err()
 			}
 			log.Error(ctx, "failed to run analyses", err, telemetry.Package.Of(ph.ID()))
 		}
 	}
-	return reports, warningMsg, nil
+	return reports, warn, nil
 }
 
 func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (FileIdentity, []Diagnostic, error) {

@@ -55,12 +55,13 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot) {
 						withAnalyses = true
 					}
 				}
-				reports, msg, err := source.Diagnostics(ctx, snapshot, ph, withAnalyses)
-				// Check the warning message before the errors.
-				if msg != "" {
+				reports, warn, err := source.Diagnostics(ctx, snapshot, ph, withAnalyses)
+				// Check if might want to warn the user about their build configuration.
+				if warn && !snapshot.View().ValidBuildConfiguration() {
 					s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-						Type:    protocol.Warning,
-						Message: msg,
+						Type: protocol.Warning,
+						// TODO(rstambler): We should really be able to point to a link on the website.
+						Message: `You are neither in a module nor in your GOPATH. Please see https://github.com/golang/go/wiki/Modules for information on how to set up your Go project.`,
 					})
 				}
 				if ctx.Err() != nil {
