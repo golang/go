@@ -150,7 +150,7 @@ func TestDiagnostics(t *testing.T) {
 			if !hasTempModfile(ctx, snapshot) {
 				return
 			}
-			reports, err := Diagnostics(ctx, snapshot)
+			reports, _, err := Diagnostics(ctx, snapshot)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -6,8 +6,12 @@ package source
 
 import (
 	"context"
+	"fmt"
+	"go/ast"
+	"strconv"
 	"strings"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/telemetry"
@@ -39,7 +43,7 @@ type RelatedInformation struct {
 	Message string
 }
 
-func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, withAnalysis bool) (map[FileIdentity][]Diagnostic, bool, error) {
+func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, missingModules map[string]*modfile.Require, withAnalysis bool) (map[FileIdentity][]Diagnostic, bool, error) {
 	// If we are missing dependencies, it may because the user's workspace is
 	// not correctly configured. Report errors, if possible.
 	var warn bool
@@ -56,11 +60,40 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, withA
 	if len(pkg.CompiledGoFiles()) == 1 && hasUndeclaredErrors(pkg) {
 		warn = true
 	}
+
+	isMissingModule := false
+	for _, imp := range pkg.Imports() {
+		if _, ok := missingModules[imp.PkgPath()]; ok {
+			isMissingModule = true
+			continue
+		}
+		for dep, req := range missingModules {
+			// If the import is a package of the dependency, then add the package to the map, this will
+			// eliminate the need to do this prefix package search on each import for each file.
+			// Example:
+			// import (
+			//   "golang.org/x/tools/go/expect"
+			//   "golang.org/x/tools/go/packages"
+			// )
+			// They both are related to the same module: "golang.org/x/tools"
+			if req != nil && strings.HasPrefix(imp.PkgPath(), dep) {
+				missingModules[imp.PkgPath()] = req
+				isMissingModule = true
+				break
+			}
+		}
+	}
+
 	// Prepare the reports we will send for the files in this package.
 	reports := make(map[FileIdentity][]Diagnostic)
 	for _, fh := range pkg.CompiledGoFiles() {
 		if err := clearReports(snapshot, reports, fh.File().Identity().URI); err != nil {
 			return nil, warn, err
+		}
+		if isMissingModule {
+			if err := missingModulesDiagnostics(ctx, snapshot, reports, missingModules, fh.File().Identity().URI); err != nil {
+				return nil, warn, err
+			}
 		}
 	}
 	// Prepare any additional reports for the errors in this package.
@@ -116,7 +149,7 @@ func FileDiagnostics(ctx context.Context, snapshot Snapshot, uri span.URI) (File
 	if err != nil {
 		return FileIdentity{}, nil, err
 	}
-	reports, _, err := Diagnostics(ctx, snapshot, ph, true)
+	reports, _, err := Diagnostics(ctx, snapshot, ph, nil, true)
 	if err != nil {
 		return FileIdentity{}, nil, err
 	}
@@ -180,6 +213,62 @@ func diagnostics(ctx context.Context, snapshot Snapshot, reports map[FileIdentit
 		}
 	}
 	return nonEmptyDiagnostics, nil
+}
+
+func missingModulesDiagnostics(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]Diagnostic, missingModules map[string]*modfile.Require, uri span.URI) error {
+	if snapshot.View().Ignore(uri) || len(missingModules) == 0 {
+		return nil
+	}
+	fh, err := snapshot.GetFile(uri)
+	if err != nil {
+		return err
+	}
+	file, m, _, err := snapshot.View().Session().Cache().ParseGoHandle(fh, ParseHeader).Parse(ctx)
+	if err != nil {
+		log.Error(ctx, "could not parse go file when checking for missing modules", err)
+		return err
+	}
+	// Make a dependency->import map to improve performance when finding missing dependencies.
+	imports := make(map[string]*ast.ImportSpec)
+	for _, imp := range file.Imports {
+		if imp.Path == nil {
+			continue
+		}
+		if target, err := strconv.Unquote(imp.Path.Value); err == nil {
+			imports[target] = imp
+		}
+	}
+	// If the go file has 0 imports, then we do not need to check for missing dependencies.
+	if len(imports) == 0 {
+		return nil
+	}
+	if reports[fh.Identity()] == nil {
+		reports[fh.Identity()] = []Diagnostic{}
+	}
+	for mod, req := range missingModules {
+		if req.Syntax == nil {
+			continue
+		}
+		imp, ok := imports[mod]
+		if !ok {
+			continue
+		}
+		spn, err := span.NewRange(snapshot.View().Session().Cache().FileSet(), imp.Path.Pos(), imp.Path.End()).Span()
+		if err != nil {
+			return err
+		}
+		rng, err := m.Range(spn)
+		if err != nil {
+			return err
+		}
+		reports[fh.Identity()] = append(reports[fh.Identity()], Diagnostic{
+			Message:  fmt.Sprintf("%s is not in your go.mod file.", req.Mod.Path),
+			Range:    rng,
+			Source:   "go mod tidy",
+			Severity: protocol.SeverityWarning,
+		})
+	}
+	return nil
 }
 
 func analyses(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]Diagnostic, ph PackageHandle, disabledAnalyses map[string]struct{}) error {

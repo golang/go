@@ -36,6 +36,28 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot) {
 	ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
 	defer done()
 
+	// Diagnose the go.mod file.
+	reports, missingModules, err := mod.Diagnostics(ctx, snapshot)
+	if ctx.Err() != nil {
+		return
+	}
+	if err != nil {
+		log.Error(ctx, "diagnose: could not generate diagnostics for go.mod file", err)
+		return
+	}
+	// Ensure that the reports returned from mod.Diagnostics are only related to the
+	// go.mod file for the module.
+	if len(reports) > 1 {
+		panic("unexpected reports from mod.Diagnostics")
+	}
+	modURI, _ := snapshot.View().ModFiles()
+	for fi := range reports {
+		if fi.URI != modURI {
+			panic("unexpected reports from mod.Diagnostics")
+		}
+	}
+	s.publishReports(ctx, snapshot, reports, false)
+
 	// Diagnose all of the packages in the workspace.
 	go func() {
 		wsPackages, err := snapshot.WorkspacePackages(ctx)
@@ -55,7 +77,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot) {
 						withAnalyses = true
 					}
 				}
-				reports, warn, err := source.Diagnostics(ctx, snapshot, ph, withAnalyses)
+				reports, warn, err := source.Diagnostics(ctx, snapshot, ph, missingModules, withAnalyses)
 				// Check if might want to warn the user about their build configuration.
 				if warn && !snapshot.View().ValidBuildConfiguration() {
 					s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
@@ -74,19 +96,6 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot) {
 				s.publishReports(ctx, snapshot, reports, withAnalyses)
 			}(ph)
 		}
-	}()
-
-	// Diagnose the go.mod file.
-	go func() {
-		reports, err := mod.Diagnostics(ctx, snapshot)
-		if ctx.Err() != nil {
-			return
-		}
-		if err != nil {
-			log.Error(ctx, "diagnose: could not generate diagnostics for go.mod file", err)
-			return
-		}
-		s.publishReports(ctx, snapshot, reports, false)
 	}()
 }
 

@@ -972,7 +972,7 @@ func TestModfileSuggestedFixes(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			reports, err := mod.Diagnostics(ctx, snapshot)
+			reports, _, err := mod.Diagnostics(ctx, snapshot)
 			if err != nil {
 				t.Fatal(err)
 			}

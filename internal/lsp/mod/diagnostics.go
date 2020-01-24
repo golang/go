@@ -9,6 +9,7 @@ package mod
 import (
 	"context"
 
+	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
@@ -16,13 +17,13 @@ import (
 	"golang.org/x/tools/internal/telemetry/trace"
 )
 
-func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.FileIdentity][]source.Diagnostic, error) {
+func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.FileIdentity][]source.Diagnostic, map[string]*modfile.Require, error) {
 	// TODO: We will want to support diagnostics for go.mod files even when the -modfile flag is turned off.
 	realURI, tempURI := snapshot.View().ModFiles()
 
 	// Check the case when the tempModfile flag is turned off.
 	if realURI == "" || tempURI == "" {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	ctx, done := trace.StartSpan(ctx, "mod.Diagnostics", telemetry.File.Of(realURI))
@@ -30,11 +31,11 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 
 	realfh, err := snapshot.GetFile(realURI)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	_, _, _, parseErrors, err := snapshot.ModTidyHandle(ctx, realfh).Tidy(ctx)
+	_, _, missingDeps, parseErrors, err := snapshot.ModTidyHandle(ctx, realfh).Tidy(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	reports := map[source.FileIdentity][]source.Diagnostic{
@@ -54,7 +55,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 		}
 		reports[realfh.Identity()] = append(reports[realfh.Identity()], diag)
 	}
-	return reports, nil
+	return reports, missingDeps, nil
 }
 
 func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, realfh source.FileHandle, diags []protocol.Diagnostic) []protocol.CodeAction {
