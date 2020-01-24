@@ -154,23 +154,23 @@
 (Rsh8x64 x (Int64Make (Const32 [c]) _)) && c != 0 -> (Signmask (SignExt8to32 x))
 (Rsh8Ux64 _ (Int64Make (Const32 [c]) _)) && c != 0 -> (Const32 [0])
 
-(Lsh32x64 x (Int64Make (Const32 [0]) lo)) -> (Lsh32x32 x lo)
-(Rsh32x64 x (Int64Make (Const32 [0]) lo)) -> (Rsh32x32 x lo)
-(Rsh32Ux64 x (Int64Make (Const32 [0]) lo)) -> (Rsh32Ux32 x lo)
-(Lsh16x64 x (Int64Make (Const32 [0]) lo)) -> (Lsh16x32 x lo)
-(Rsh16x64 x (Int64Make (Const32 [0]) lo)) -> (Rsh16x32 x lo)
-(Rsh16Ux64 x (Int64Make (Const32 [0]) lo)) -> (Rsh16Ux32 x lo)
-(Lsh8x64 x (Int64Make (Const32 [0]) lo)) -> (Lsh8x32 x lo)
-(Rsh8x64 x (Int64Make (Const32 [0]) lo)) -> (Rsh8x32 x lo)
-(Rsh8Ux64 x (Int64Make (Const32 [0]) lo)) -> (Rsh8Ux32 x lo)
+(Lsh32x64 [c] x (Int64Make (Const32 [0]) lo)) -> (Lsh32x32 [c] x lo)
+(Rsh32x64 [c] x (Int64Make (Const32 [0]) lo)) -> (Rsh32x32 [c] x lo)
+(Rsh32Ux64 [c] x (Int64Make (Const32 [0]) lo)) -> (Rsh32Ux32 [c] x lo)
+(Lsh16x64 [c] x (Int64Make (Const32 [0]) lo)) -> (Lsh16x32 [c] x lo)
+(Rsh16x64 [c] x (Int64Make (Const32 [0]) lo)) -> (Rsh16x32 [c] x lo)
+(Rsh16Ux64 [c] x (Int64Make (Const32 [0]) lo)) -> (Rsh16Ux32 [c] x lo)
+(Lsh8x64 [c] x (Int64Make (Const32 [0]) lo)) -> (Lsh8x32 [c] x lo)
+(Rsh8x64 [c] x (Int64Make (Const32 [0]) lo)) -> (Rsh8x32 [c] x lo)
+(Rsh8Ux64 [c] x (Int64Make (Const32 [0]) lo)) -> (Rsh8Ux32 [c] x lo)
 
 (Lsh64x64 _ (Int64Make (Const32 [c]) _)) && c != 0 -> (Const64 [0])
 (Rsh64x64 x (Int64Make (Const32 [c]) _)) && c != 0 -> (Int64Make (Signmask (Int64Hi x)) (Signmask (Int64Hi x)))
 (Rsh64Ux64 _ (Int64Make (Const32 [c]) _)) && c != 0 -> (Const64 [0])
 
-(Lsh64x64 x (Int64Make (Const32 [0]) lo)) -> (Lsh64x32 x lo)
-(Rsh64x64 x (Int64Make (Const32 [0]) lo)) -> (Rsh64x32 x lo)
-(Rsh64Ux64 x (Int64Make (Const32 [0]) lo)) -> (Rsh64Ux32 x lo)
+(Lsh64x64 [c] x (Int64Make (Const32 [0]) lo)) -> (Lsh64x32 [c] x lo)
+(Rsh64x64 [c] x (Int64Make (Const32 [0]) lo)) -> (Rsh64x32 [c] x lo)
+(Rsh64Ux64 [c] x (Int64Make (Const32 [0]) lo)) -> (Rsh64Ux32 [c] x lo)
 
 // turn x64 non-constant shifts to x32 shifts
 // if high 32-bit of the shift is nonzero, make a huge shift
