@@ -2417,7 +2417,13 @@ func resetspinning() {
 	}
 }
 
-// Injects the list of runnable G's into the scheduler and clears glist.
+// injectglist adds each runnable G on the list to some run queue,
+// and clears glist. If there is no current P, they are added to the
+// global queue, and up to npidle M's are started to run them.
+// Otherwise, for each idle P, this adds a G to the global queue
+// and starts an M. Any remaining G's are added to the current P's
+// local run queue.
+// This may temporarily acquire the scheduler lock.
 // Can run concurrently with GC.
 func injectglist(glist *gList) {
 	if glist.empty() {
@@ -2428,18 +2434,52 @@ func injectglist(glist *gList) {
 			traceGoUnpark(gp, 0)
 		}
 	}
-	lock(&sched.lock)
-	var n int
-	for n = 0; !glist.empty(); n++ {
-		gp := glist.pop()
+
+	// Mark all the goroutines as runnable before we put them
+	// on the run queues.
+	head := glist.head.ptr()
+	var tail *g
+	qsize := 0
+	for gp := head; gp != nil; gp = gp.schedlink.ptr() {
+		tail = gp
+		qsize++
 		casgstatus(gp, _Gwaiting, _Grunnable)
-		globrunqput(gp)
+	}
+
+	// Turn the gList into a gQueue.
+	var q gQueue
+	q.head.set(head)
+	q.tail.set(tail)
+	*glist = gList{}
+
+	startIdle := func(n int) {
+		for ; n != 0 && sched.npidle != 0; n-- {
+			startm(nil, false)
+		}
+	}
+
+	pp := getg().m.p.ptr()
+	if pp == nil {
+		lock(&sched.lock)
+		globrunqputbatch(&q, int32(qsize))
+		unlock(&sched.lock)
+		startIdle(qsize)
+		return
+	}
+
+	lock(&sched.lock)
+	npidle := int(sched.npidle)
+	var n int
+	for n = 0; n < npidle && !q.empty(); n++ {
+		globrunqput(q.pop())
 	}
 	unlock(&sched.lock)
-	for ; n != 0 && sched.npidle != 0; n-- {
-		startm(nil, false)
+	startIdle(n)
+	qsize -= n
+
+	if !q.empty() {
+		runqputbatch(pp, &q, qsize)
 	}
-	*glist = gList{}
 }
 
 // One round of scheduler: find a runnable goroutine and execute it.
@@ -5013,6 +5053,38 @@ func runqputslow(_p_ *p, gp *g, h, t uint32) bool {
 	globrunqputbatch(&q, int32(n+1))
 	unlock(&sched.lock)
 	return true
+}
+
+// runqputbatch tries to put all the G's on q on the local runnable queue.
+// If the queue is full, they are put on the global queue; in that case
+// this will temporarily acquire the scheduler lock.
+// Executed only by the owner P.
+func runqputbatch(pp *p, q *gQueue, qsize int) {
+	h := atomic.LoadAcq(&pp.runqhead)
+	t := pp.runqtail
+	n := uint32(0)
+	for !q.empty() && t-h < uint32(len(pp.runq)) {
+		gp := q.pop()
+		pp.runq[t%uint32(len(pp.runq))].set(gp)
+		t++
+		n++
+	}
+	qsize -= int(n)
+
+	if randomizeScheduler {
+		off := func(o uint32) uint32 {
+			return (pp.runqtail + o) % uint32(len(pp.runq))
+		}
+		for i := uint32(1); i < n; i++ {
+			j := fastrandn(i + 1)
+			pp.runq[off(i)], pp.runq[off(j)] = pp.runq[off(j)], pp.runq[off(i)]
+		}
+	}
+
+	atomic.StoreRel(&pp.runqtail, t)
+	if !q.empty() {
+		globrunqputbatch(q, int32(qsize))
+	}
 }
 
 // Get g from local runnable queue.
