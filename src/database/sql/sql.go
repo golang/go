@@ -1746,7 +1746,11 @@ func (db *DB) begin(ctx context.Context, opts *TxOptions, strategy connReuseStra
 // beginDC starts a transaction. The provided dc must be valid and ready to use.
 func (db *DB) beginDC(ctx context.Context, dc *driverConn, release func(error), opts *TxOptions) (tx *Tx, err error) {
 	var txi driver.Tx
+	keepConnOnRollback := false
 	withLock(dc, func() {
+		_, hasSessionResetter := dc.ci.(driver.SessionResetter)
+		_, hasConnectionValidator := dc.ci.(driver.Validator)
+		keepConnOnRollback = hasSessionResetter && hasConnectionValidator
 		txi, err = ctxDriverBegin(ctx, opts, dc.ci)
 	})
 	if err != nil {
@@ -1758,12 +1762,13 @@ func (db *DB) beginDC(ctx context.Context, dc *driverConn, release func(error), 
 	// The cancel function in Tx will be called after done is set to true.
 	ctx, cancel := context.WithCancel(ctx)
 	tx = &Tx{
-		db:          db,
-		dc:          dc,
-		releaseConn: release,
-		txi:         txi,
-		cancel:      cancel,
-		ctx:         ctx,
+		db:                 db,
+		dc:                 dc,
+		releaseConn:        release,
+		txi:                txi,
+		cancel:             cancel,
+		keepConnOnRollback: keepConnOnRollback,
+		ctx:                ctx,
 	}
 	go tx.awaitDone()
 	return tx, nil
@@ -2025,6 +2030,11 @@ type Tx struct {
 	// Use atomic operations on value when checking value.
 	done int32
 
+	// keepConnOnRollback is true if the driver knows
+	// how to reset the connection's session and if need be discard
+	// the connection.
+	keepConnOnRollback bool
+
 	// All Stmts prepared for this transaction. These will be closed after the
 	// transaction has been committed or rolled back.
 	stmts struct {
@@ -2050,7 +2060,10 @@ func (tx *Tx) awaitDone() {
 	// transaction is closed and the resources are released.  This
 	// rollback does nothing if the transaction has already been
 	// committed or rolled back.
-	tx.rollback(true)
+	// Do not discard the connection if the connection knows
+	// how to reset the session.
+	discardConnection := !tx.keepConnOnRollback
+	tx.rollback(discardConnection)
 }
 
 func (tx *Tx) isDone() bool {
