@@ -193,6 +193,16 @@ TODO
   trimming the ".mod" extension and appending ".sum".
 </p>
 
+<h4 id="go-env-vars">Environment variables</h4>
+
+<p><!-- golang.org/issue/32966 -->
+  <code>GOINSECURE</code> is a new environment variable that instructs
+  the <code>go</code> command to not require an HTTPS connection, and to skip
+  certificate validation, when fetching certain modules directly from their
+  origins. Like the existing <code>GOPRIVATE</code> variable, the value
+  of <code>GOINSECURE</code> is a comma-separated list of glob patterns.
+</p>
+
 <h4 id="incompatible-versions"><code>+incompatible</code> versions</h4>
 <!-- golang.org/issue/34165 -->
 
