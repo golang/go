@@ -15,6 +15,9 @@ import (
 	"golang.org/x/tools/go/packages/packagestest"
 )
 
+// These tests check fixes that are only available in Go 1.14.
+// They can be moved into packages_test.go when we no longer support 1.13.
+// See golang/go#35973 for more information.
 func TestInvalidFilesInOverlay(t *testing.T) { packagestest.TestAll(t, testInvalidFilesInOverlay) }
 func testInvalidFilesInOverlay(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{
@@ -61,6 +64,19 @@ func testInvalidFilesInOverlay(t *testing.T, exporter packagestest.Exporter) {
 					t.Fatal(err)
 				}
 				d := initial[0]
+				var containsFile bool
+				for _, goFile := range d.CompiledGoFiles {
+					if f == goFile {
+						containsFile = true
+						break
+					}
+				}
+				if !containsFile {
+					t.Fatalf("expected %s in CompiledGoFiles, got %v", f, d.CompiledGoFiles)
+				}
+				if len(d.Errors) > 0 {
+					t.Fatalf("expected no errors in package, got %v", d.Errors)
+				}
 				// Check value of d.D.
 				dD := constant(d, "D")
 				if dD == nil {

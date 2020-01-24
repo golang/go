@@ -132,6 +132,12 @@ func (state *golistState) processGolistOverlay(response *responseDeduper) (modif
 			pkg.CompiledGoFiles = append(pkg.CompiledGoFiles, opath)
 			modifiedPkgsSet[pkg.ID] = true
 		}
+
+		// Clear out the package's errors, since we've probably corrected
+		// them by adding the overlay. This may eliminate some legitimate
+		// errors, but that's a risk with overlays in general.
+		pkg.Errors = nil
+
 		imports, err := extractImports(opath, contents)
 		if err != nil {
 			// Let the parser or type checker report errors later.

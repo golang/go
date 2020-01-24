@@ -81,18 +81,14 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) ([]*metadata
 
 	log.Print(ctx, "go/packages.Load", tag.Of("snapshot", s.ID()), tag.Of("query", query), tag.Of("packages", len(pkgs)))
 	if len(pkgs) == 0 {
-		if err == nil {
-			err = errors.Errorf("no packages found for query %s", query)
-		}
 		return nil, err
 	}
 	return s.updateMetadata(ctx, scopes, pkgs, cfg)
 }
 
 // shouldLoad reparses a file's package and import declarations to
-// determine if they have changed.
+// determine if the file requires a metadata reload.
 func (c *cache) shouldLoad(ctx context.Context, s *snapshot, originalFH, currentFH source.FileHandle) bool {
-	// TODO(rstambler): go.mod files should be tracked in the snapshot.
 	if originalFH == nil {
 		return currentFH.Identity().Kind == source.Go
 	}
@@ -112,10 +108,8 @@ func (c *cache) shouldLoad(ctx context.Context, s *snapshot, originalFH, current
 	}
 
 	// Check if the package's metadata has changed. The cases handled are:
-	//
 	//    1. A package's name has changed
 	//    2. A file's imports have changed
-	//
 	if original.Name.Name != current.Name.Name {
 		return true
 	}

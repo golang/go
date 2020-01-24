@@ -49,6 +49,9 @@ type snapshot struct {
 	// workspacePackages contains the workspace's packages, which are loaded
 	// when the view is created.
 	workspacePackages map[packageID]packagePath
+
+	// unloadableFiles keeps track of files that we've failed to load.
+	unloadableFiles map[span.URI]struct{}
 }
 
 type packageKey struct {
@@ -425,11 +428,16 @@ func (s *snapshot) addActionHandle(ah *actionHandle) {
 	s.actions[key] = ah
 }
 
-func (s *snapshot) getMetadataForURI(uri span.URI) (metadata []*metadata) {
-	// TODO(matloob): uri can be a file or directory. Should we update the mappings
-	// to map directories to their contained packages?
+func (s *snapshot) getMetadataForURI(uri span.URI) []*metadata {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	return s.getMetadataForURILocked(uri)
+}
+
+func (s *snapshot) getMetadataForURILocked(uri span.URI) (metadata []*metadata) {
+	// TODO(matloob): uri can be a file or directory. Should we update the mappings
+	// to map directories to their contained packages?
 
 	for _, id := range s.ids[uri] {
 		if m, ok := s.metadata[id]; ok {
@@ -489,13 +497,6 @@ func (s *snapshot) isWorkspacePackage(id packageID) (packagePath, bool) {
 	return scope, ok
 }
 
-func (s *snapshot) setWorkspacePackage(id packageID, pkgPath packagePath) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.workspacePackages[id] = pkgPath
-}
-
 func (s *snapshot) getFileURIs() []span.URI {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -545,32 +546,115 @@ func (s *snapshot) awaitLoaded(ctx context.Context) error {
 
 // reloadWorkspace reloads the metadata for all invalidated workspace packages.
 func (s *snapshot) reloadWorkspace(ctx context.Context) error {
-	scope := s.workspaceScope(ctx)
-	if scope == nil {
-		return nil
-	}
-	_, err := s.load(ctx, scope)
-	return err
-}
-
-func (s *snapshot) workspaceScope(ctx context.Context) interface{} {
+	// See which of the workspace packages are missing metadata.
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	var pkgPaths []packagePath
+	var pkgPaths []interface{}
 	for id, pkgPath := range s.workspacePackages {
 		if s.metadata[id] == nil {
 			pkgPaths = append(pkgPaths, pkgPath)
 		}
 	}
-	switch len(pkgPaths) {
-	case 0:
-		return nil
-	case len(s.workspacePackages):
-		return directoryURI(s.view.folder)
-	default:
-		return pkgPaths
+	s.mu.Unlock()
+
+	if len(pkgPaths) > 0 {
+		if m, err := s.load(ctx, pkgPaths...); err == nil {
+			for _, m := range m {
+				s.setWorkspacePackage(ctx, m)
+			}
+		}
 	}
+
+	// When we load ./... or a package path directly, we may not get packages
+	// that exist only in overlays. As a workaround, we search all of the files
+	// available in the snapshot and reload their metadata individually using a
+	// file= query if the metadata is unavailable.
+	if scopes := s.orphanedFileScopes(); len(scopes) > 0 {
+		m, err := s.load(ctx, scopes...)
+
+		// If we failed to load some files, i.e. they have no metadata,
+		// mark the failures so we don't bother retrying until the file's
+		// content changes.
+		//
+		// TODO(rstambler): This may be an overestimate if the load stopped
+		// early for an unrelated errors. Add a fallback?
+		//
+		// Check for context cancellation so that we don't incorrectly mark files
+		// as unloadable, but don't return before setting all workspace packages.
+		if ctx.Err() == nil && err != nil {
+			s.mu.Lock()
+			for _, scope := range scopes {
+				uri := span.URI(scope.(fileURI))
+				if s.getMetadataForURILocked(uri) == nil {
+					s.unloadableFiles[uri] = struct{}{}
+				}
+			}
+			s.mu.Unlock()
+		}
+		for _, m := range m {
+			// If a package's files belong to this view, it is a workspace package
+			// and should be added to the set of workspace packages.
+			for _, uri := range m.compiledGoFiles {
+				if !contains(s.view.session.viewsOf(uri), s.view) {
+					continue
+				}
+				s.setWorkspacePackage(ctx, m)
+			}
+		}
+	}
+	// Create package handles for all of the workspace packages.
+	for _, id := range s.workspacePackageIDs() {
+		if _, err := s.packageHandle(ctx, id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *snapshot) orphanedFileScopes() []interface{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	scopeSet := make(map[span.URI]struct{})
+	for uri, fh := range s.files {
+		// Don't try to reload metadata for go.mod files.
+		if fh.Identity().Kind != source.Go {
+			continue
+		}
+		// Don't reload metadata for files we've already deemed unloadable.
+		if _, ok := s.unloadableFiles[uri]; ok {
+			continue
+		}
+		if s.getMetadataForURILocked(uri) == nil {
+			scopeSet[uri] = struct{}{}
+		}
+	}
+	var scopes []interface{}
+	for uri := range scopeSet {
+		scopes = append(scopes, fileURI(uri))
+	}
+	return scopes
+}
+
+func contains(views []*view, view *view) bool {
+	for _, v := range views {
+		if v == view {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *snapshot) setWorkspacePackage(ctx context.Context, m *metadata) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// A test variant of a package can only be loaded directly by loading
+	// the non-test variant with -test. Track the import path of the non-test variant.
+	pkgPath := m.pkgPath
+	if m.forTest != "" {
+		pkgPath = m.forTest
+	}
+	s.workspacePackages[m.id] = pkgPath
 }
 
 func (s *snapshot) clone(ctx context.Context, withoutURIs []span.URI) *snapshot {
@@ -587,11 +671,16 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs []span.URI) *snapshot 
 		actions:           make(map[actionKey]*actionHandle),
 		files:             make(map[span.URI]source.FileHandle),
 		workspacePackages: make(map[packageID]packagePath),
+		unloadableFiles:   make(map[span.URI]struct{}),
 	}
 
 	// Copy all of the FileHandles.
 	for k, v := range s.files {
 		result.files[k] = v
+	}
+	// Copy the set of unloadable files.
+	for k, v := range s.unloadableFiles {
+		result.unloadableFiles[k] = v
 	}
 
 	// transitiveIDs keeps track of transitive reverse dependencies.
@@ -664,6 +753,8 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs []span.URI) *snapshot 
 		} else {
 			result.files[withoutURI] = currentFH
 		}
+		// Make sure to remove the changed file from the unloadable set.
+		delete(result.unloadableFiles, withoutURI)
 	}
 
 	// Collect the IDs for the packages associated with the excluded URIs.
