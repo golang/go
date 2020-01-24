@@ -480,8 +480,8 @@ func extend32Fto64F(f float32) float64 {
 	return math.Float64frombits(r)
 }
 
-// NeedsFixUp reports whether the division needs fix-up code.
-func NeedsFixUp(v *Value) bool {
+// DivisionNeedsFixUp reports whether the division needs fix-up code.
+func DivisionNeedsFixUp(v *Value) bool {
 	return v.AuxInt == 0
 }
 

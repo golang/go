@@ -257,7 +257,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 
 		// CPU faults upon signed overflow, which occurs when the most
 		// negative int is divided by -1. Handle divide by -1 as a special case.
-		if ssa.NeedsFixUp(v) {
+		if ssa.DivisionNeedsFixUp(v) {
 			var c *obj.Prog
 			switch v.Op {
 			case ssa.OpAMD64DIVQ:
