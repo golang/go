@@ -1,0 +1,20 @@
+-- Flamingo-rename --
+crosspkg.go:
+package crosspkg
+
+func Flamingo() { //@rename("Foo", "Dolphin")
+
+}
+
+var Bar int //@rename("Bar", "Tomato")
+
+other.go:
+package other
+
+import "golang.org/x/tools/internal/lsp/rename/crosspkg"
+
+func Other() {
+	crosspkg.Bar
+	crosspkg.Flamingo() //@rename("Foo", "Flamingo")
+}
+

@@ -15,7 +15,7 @@ import "golang.org/x/tools/internal/lsp/rename/crosspkg"
 
 func Other() {
 	crosspkg.Bar
-	crosspkg.Dolphin()
+	crosspkg.Dolphin() //@rename("Foo", "Flamingo")
 }
 
 -- Tomato-rename --
@@ -35,6 +35,6 @@ import "golang.org/x/tools/internal/lsp/rename/crosspkg"
 
 func Other() {
 	crosspkg.Tomato
-	crosspkg.Foo()
+	crosspkg.Foo() //@rename("Foo", "Flamingo")
 }
 

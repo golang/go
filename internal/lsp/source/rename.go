@@ -88,7 +88,6 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 
 	obj := qos[0].obj
 	pkg := qos[0].pkg
-	sourcePkg := qos[0].sourcePkg
 
 	if obj.Name() == newName {
 		return nil, errors.Errorf("old and new names are the same: %s", newName)
@@ -102,10 +101,6 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 	}
 	if pkg == nil || pkg.IsIllTyped() {
 		return nil, errors.Errorf("package for %s is ill typed", f.Identity().URI)
-	}
-	// Do not rename identifiers declared in another package.
-	if pkg != sourcePkg {
-		return nil, errors.Errorf("rename failed because %q is declared in a different package (%s)", obj.Name(), pkg.PkgPath())
 	}
 
 	refs, err := References(ctx, s, f, pp, true)
