@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Mar 16, 2021",
+	"Subtitle": "Version of Apr 20, 2021",
 	"Path": "/ref/spec"
 }-->
 
@@ -4164,6 +4164,10 @@ in any of these cases:
 	<li>
 	<code>x</code> is a string and <code>T</code> is a slice of bytes or runes.
 	</li>
+	<li>
+	<code>x</code> is a slice, <code>T</code> is a pointer to an array,
+	and the slice and array types have <a href="#Type_identity">identical</a> element types.
+	</li>
 </ul>
 
 <p>
@@ -4314,6 +4318,24 @@ MyRunes("白鵬翔")           // []rune{0x767d, 0x9d6c, 0x7fd4}
 </li>
 </ol>
 
+<h4 id="Conversions_from_slice_to_array_pointer">Conversions from slice to array pointer</h4>
+
+<p>
+Converting a slice to an array pointer yields a pointer to the underlying array of the slice.
+If the <a href="#Length_and_capacity">length</a> of the slice is less than the length of the array,
+a <a href="#Run_time_panics">run-time panic<a/> occurs.
+</p>
+
+<pre>
+s := make([]byte, 2, 4)
+s0 := (*[0]byte)(s)      // s0 != nil
+s2 := (*[2]byte)(s)      // &amp;s2[0] == &amp;s[0]
+s4 := (*[4]byte)(s)      // panics: len([4]byte) > len(s)
+
+var t []string
+t0 := (*[0]string)(t)    // t0 == nil
+t1 := (*[1]string)(t)    // panics: len([1]string) > len(s)
+</pre>
 
 <h3 id="Constant_expressions">Constant expressions</h3>
 
