@@ -878,7 +878,7 @@ func diffSignatures(spn span.Span, want *source.SignatureInformation, got *sourc
 		return fmt.Sprintf("Invalid signature at %s: %s", spn, fmt.Sprintf(f, args...))
 	}
 	if want.ActiveParameter != got.ActiveParameter {
-		return decorate("wanted active parameter of %d, got %f", want.ActiveParameter, got.ActiveParameter)
+		return decorate("wanted active parameter of %d, got %d", want.ActiveParameter, got.ActiveParameter)
 	}
 	if want.Label != got.Label {
 		return decorate("wanted label %q, got %q", want.Label, got.Label)

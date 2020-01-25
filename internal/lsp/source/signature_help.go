@@ -103,7 +103,7 @@ FindCall:
 	qf := qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo())
 	params := formatParams(ctx, snapshot, pkg, sig, qf)
 	results, writeResultParens := formatResults(sig.Results(), qf)
-	activeParam := activeParameter(callExpr, sig.Params().Len(), sig.Variadic(), rng.Start)
+	activeParam := activeParameter(callExpr.Args, sig.Params().Len(), sig.Variadic(), rng.Start)
 
 	var (
 		name    string
@@ -158,7 +158,7 @@ func builtinSignature(ctx context.Context, v View, callExpr *ast.CallExpr, name 
 			variadic = true
 		}
 	}
-	activeParam := activeParameter(callExpr, numParams, variadic, pos)
+	activeParam := activeParameter(callExpr.Args, numParams, variadic, pos)
 	return signatureInformation(name, nil, params, results, writeResultParens, activeParam), nil
 }
 
@@ -180,11 +180,16 @@ func signatureInformation(name string, comment *ast.CommentGroup, params, result
 	}
 }
 
-func activeParameter(callExpr *ast.CallExpr, numParams int, variadic bool, pos token.Pos) int {
-	// Determine the query position relative to the number of parameters in the function.
-	var activeParam int
-	var start, end token.Pos
-	for _, expr := range callExpr.Args {
+func activeParameter(args []ast.Expr, numParams int, variadic bool, pos token.Pos) (activeParam int) {
+	if len(args) == 0 {
+		return 0
+	}
+	// First, check if the position is even in the range of the arguments.
+	start, end := args[0].Pos(), args[len(args)-1].End()
+	if !(start <= pos && pos <= end) {
+		return 0
+	}
+	for _, expr := range args {
 		if start == token.NoPos {
 			start = expr.Pos()
 		}
@@ -192,7 +197,6 @@ func activeParameter(callExpr *ast.CallExpr, numParams int, variadic bool, pos t
 		if start <= pos && pos <= end {
 			break
 		}
-
 		// Don't advance the active parameter for the last parameter of a variadic function.
 		if !variadic || activeParam < numParams-1 {
 			activeParam++

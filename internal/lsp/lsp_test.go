@@ -843,11 +843,11 @@ func diffSignatures(spn span.Span, want *source.SignatureInformation, got *proto
 	}
 
 	if got.ActiveSignature != 0 {
-		return decorate("wanted active signature of 0, got %f", got.ActiveSignature)
+		return decorate("wanted active signature of 0, got %d", got.ActiveSignature)
 	}
 
 	if want.ActiveParameter != int(got.ActiveParameter) {
-		return decorate("wanted active parameter of %d, got %f", want.ActiveParameter, got.ActiveParameter)
+		return decorate("wanted active parameter of %d, got %d", want.ActiveParameter, got.ActiveParameter)
 	}
 
 	gotSig := got.Signatures[int(got.ActiveSignature)]

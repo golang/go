@@ -1,0 +1,5 @@
+package signature
+
+func _() {
+	Foo(//@signature("//", "Foo(a string, b int) (c bool)", 0)
+}

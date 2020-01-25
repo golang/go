@@ -17,7 +17,7 @@ func (c *completer) builtinArgKind(obj types.Object, call *ast.CallExpr) objKind
 	if err != nil {
 		return 0
 	}
-	exprIdx := indexExprAtPos(c.pos, call.Args)
+	exprIdx := exprAtPos(c.pos, call.Args)
 
 	decl, ok := astObj.Decl.(*ast.FuncDecl)
 	if !ok || exprIdx >= len(decl.Type.Params.List) {
@@ -52,7 +52,7 @@ func (c *completer) builtinArgKind(obj types.Object, call *ast.CallExpr) objKind
 // function. "parentType" is the inferred type for the builtin call's
 // parent node.
 func (c *completer) builtinArgType(obj types.Object, call *ast.CallExpr, parentType types.Type) (infType types.Type, variadic bool) {
-	exprIdx := indexExprAtPos(c.pos, call.Args)
+	exprIdx := exprAtPos(c.pos, call.Args)
 
 	switch obj.Name() {
 	case "append":

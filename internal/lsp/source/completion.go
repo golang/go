@@ -1212,7 +1212,7 @@ func (c *completer) expectedCompositeLiteralType() types.Type {
 
 			// The order of the literal fields must match the order in the struct definition.
 			// Find the element that the position belongs to and suggest that field's type.
-			if i := indexExprAtPos(c.pos, clInfo.cl.Elts); i < t.NumFields() {
+			if i := exprAtPos(c.pos, clInfo.cl.Elts); i < t.NumFields() {
 				return t.Field(i).Type()
 			}
 		}
@@ -1315,7 +1315,7 @@ Nodes:
 		case *ast.AssignStmt:
 			// Only rank completions if you are on the right side of the token.
 			if c.pos > node.TokPos {
-				i := indexExprAtPos(c.pos, node.Rhs)
+				i := exprAtPos(c.pos, node.Rhs)
 				if i >= len(node.Lhs) {
 					i = len(node.Lhs) - 1
 				}
@@ -1347,7 +1347,7 @@ Nodes:
 						}
 
 						var (
-							exprIdx         = indexExprAtPos(c.pos, node.Args)
+							exprIdx         = exprAtPos(c.pos, node.Args)
 							isLastParam     = exprIdx == numParams-1
 							beyondLastParam = exprIdx >= numParams
 						)
@@ -1414,7 +1414,7 @@ Nodes:
 			if c.enclosingFunc != nil {
 				sig := c.enclosingFunc.sig
 				// Find signature result that corresponds to our return statement.
-				if resultIdx := indexExprAtPos(c.pos, node.Results); resultIdx < len(node.Results) {
+				if resultIdx := exprAtPos(c.pos, node.Results); resultIdx < len(node.Results) {
 					if resultIdx < sig.Results().Len() {
 						inf.objType = sig.Results().At(resultIdx).Type()
 					}
@@ -1546,7 +1546,7 @@ func (ci candidateInference) matchesVariadic(candType types.Type) bool {
 // *ast.TypeSwitchStmt. path should start from the case clause's first ancestor.
 func findSwitchStmt(path []ast.Node, pos token.Pos, c *ast.CaseClause) ast.Stmt {
 	// Make sure position falls within a "case <>:" clause.
-	if exprAtPos(pos, c.List) == nil {
+	if exprAtPos(pos, c.List) >= len(c.List) {
 		return nil
 	}
 	// A case clause is always nested within a block statement in a switch statement.

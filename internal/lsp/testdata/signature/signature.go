@@ -1,3 +1,4 @@
+// Package signature has tests for signature help.
 package signature
 
 import (
@@ -22,7 +23,7 @@ func (*myStruct) foo(e *json.Decoder) (*big.Int, error) {
 type MyFunc func(foo int) string
 
 func Qux() {
-	Foo("foo", 123) //@signature("(", "Foo(a string, b int) (c bool)", 2)
+	Foo("foo", 123) //@signature("(", "Foo(a string, b int) (c bool)", 0)
 	Foo("foo", 123) //@signature("123", "Foo(a string, b int) (c bool)", 1)
 	Foo("foo", 123) //@signature(",", "Foo(a string, b int) (c bool)", 0)
 	Foo("foo", 123) //@signature(" 1", "Foo(a string, b int) (c bool)", 1)
