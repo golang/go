@@ -88,6 +88,33 @@ func (t *translator) doInstantiateType(ta *typeArgs, typ types.Type) types.Type 
 		return r
 	case *types.Tuple:
 		return t.instantiateTypeTuple(ta, typ)
+	case *types.Struct:
+		n := typ.NumFields()
+		fields := make([]*types.Var, n)
+		changed := false
+		tags := make([]string, n)
+		hasTag := false
+		for i := 0; i < n; i++ {
+			v := typ.Field(i)
+			instType := t.instantiateType(ta, v.Type())
+			if v.Type() != instType {
+				changed = true
+			}
+			fields[i] = types.NewVar(v.Pos(), v.Pkg(), v.Name(), instType)
+
+			tag := typ.Tag(i)
+			if tag != "" {
+				tags[i] = tag
+				hasTag = true
+			}
+		}
+		if !changed {
+			return typ
+		}
+		if !hasTag {
+			tags = nil
+		}
+		return types.NewStruct(fields, tags)
 	default:
 		panic(fmt.Sprintf("unimplemented Type %T", typ))
 	}

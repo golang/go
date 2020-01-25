@@ -88,12 +88,13 @@ func Rewrite(dir string) error {
 
 	for _, tpkg := range tpkgs {
 		idToFunc := make(map[types.Object]*ast.FuncDecl)
+		idToTypeSpec := make(map[types.Object]*ast.TypeSpec)
 		for _, pkgfile := range tpkg.pkgfiles {
-			addFuncIDs(tpkg.info, pkgfile.ast, idToFunc)
+			addIDs(tpkg.info, pkgfile.ast, idToFunc, idToTypeSpec)
 		}
 
 		for _, pkgfile := range tpkg.pkgfiles {
-			if err := rewriteFile(dir, fset, tpkg.info, idToFunc, pkgfile.name, pkgfile.ast); err != nil {
+			if err := rewriteFile(dir, fset, tpkg.info, idToFunc, idToTypeSpec, pkgfile.name, pkgfile.ast); err != nil {
 				return err
 			}
 		}
@@ -121,8 +122,9 @@ func RewriteBuffer(filename string, file []byte) ([]byte, error) {
 		return nil, err
 	}
 	idToFunc := make(map[types.Object]*ast.FuncDecl)
-	addFuncIDs(info, pf, idToFunc)
-	if err := rewriteAST(info, idToFunc, pf); err != nil {
+	idToTypeSpec := make(map[types.Object]*ast.TypeSpec)
+	addIDs(info, pf, idToFunc, idToTypeSpec)
+	if err := rewriteAST(info, idToFunc, idToTypeSpec, pf); err != nil {
 		return nil, err
 	}
 	var buf bytes.Buffer

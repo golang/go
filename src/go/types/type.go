@@ -512,6 +512,9 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 // Obj returns the type name for the named type t.
 func (t *Named) Obj() *TypeName { return t.obj }
 
+// TParams returns the type parameters of the named type t, or nil.
+func (t *Named) TParams() []*TypeName { return t.tparams }
+
 // NumMethods returns the number of explicit methods whose receiver is named type t.
 func (t *Named) NumMethods() int { return len(t.methods) }
 

@@ -21,15 +21,29 @@ var config = printer.Config{
 	Tabwidth: 8,
 }
 
-// addFuncIDS finds IDs for generic functions and adds them to a map.
-func addFuncIDs(info *types.Info, f *ast.File, m map[types.Object]*ast.FuncDecl) {
+// addIDs finds IDs for generic functions and types and adds them to a map.
+func addIDs(info *types.Info, f *ast.File, mf map[types.Object]*ast.FuncDecl, mt map[types.Object]*ast.TypeSpec) {
 	for _, decl := range f.Decls {
-		if fd, ok := decl.(*ast.FuncDecl); ok && isParameterizedFuncDecl(fd) {
-			obj, ok := info.Defs[fd.Name]
-			if !ok {
-				panic(fmt.Sprintf("no types.Object for %q", fd.Name.Name))
+		switch decl := decl.(type) {
+		case *ast.FuncDecl:
+			if isParameterizedFuncDecl(decl) {
+				obj, ok := info.Defs[decl.Name]
+				if !ok {
+					panic(fmt.Sprintf("no types.Object for %q", decl.Name.Name))
+				}
+				mf[obj] = decl
 			}
-			m[obj] = fd
+		case *ast.GenDecl:
+			if decl.Tok == token.TYPE {
+				for _, s := range decl.Specs {
+					ts := s.(*ast.TypeSpec)
+					obj, ok := info.Defs[ts.Name]
+					if !ok {
+						panic(fmt.Sprintf("no types.Object for %q", ts.Name.Name))
+					}
+					mt[obj] = ts
+				}
+			}
 		}
 	}
 }
@@ -39,11 +53,18 @@ func isParameterizedFuncDecl(fd *ast.FuncDecl) bool {
 	return fd.Type.TParams != nil
 }
 
+// isParameterizedTypeDecl reports whether s is a parameterized type.
+func isParameterizedTypeDecl(s ast.Spec) bool {
+	ts := s.(*ast.TypeSpec)
+	return ts.TParams != nil
+}
+
 // A translator is used to translate a file from Go with contracts to Go 1.
 type translator struct {
 	info               *types.Info
 	types              map[ast.Expr]types.Type
 	idToFunc           map[types.Object]*ast.FuncDecl
+	idToTypeSpec       map[types.Object]*ast.TypeSpec
 	instantiations     map[*ast.Ident][]*instantiation
 	newDecls           []ast.Decl
 	typeInstantiations map[types.Type][]*typeInstantiation
@@ -62,12 +83,13 @@ type instantiation struct {
 // A typeInstantiation is a single instantiation of a type.
 type typeInstantiation struct {
 	types []types.Type
+	decl  *ast.Ident
 	typ   types.Type
 }
 
 // rewrite rewrites the contents of one file.
-func rewriteFile(dir string, fset *token.FileSet, info *types.Info, idToFunc map[types.Object]*ast.FuncDecl, filename string, file *ast.File) (err error) {
-	if err := rewriteAST(info, idToFunc, file); err != nil {
+func rewriteFile(dir string, fset *token.FileSet, info *types.Info, idToFunc map[types.Object]*ast.FuncDecl, idToTypeSpec map[types.Object]*ast.TypeSpec, filename string, file *ast.File) (err error) {
+	if err := rewriteAST(info, idToFunc, idToTypeSpec, file); err != nil {
 		return err
 	}
 
@@ -95,11 +117,12 @@ func rewriteFile(dir string, fset *token.FileSet, info *types.Info, idToFunc map
 }
 
 // rewriteAST rewrites the AST for a file.
-func rewriteAST(info *types.Info, idToFunc map[types.Object]*ast.FuncDecl, file *ast.File) (err error) {
+func rewriteAST(info *types.Info, idToFunc map[types.Object]*ast.FuncDecl, idToTypeSpec map[types.Object]*ast.TypeSpec, file *ast.File) (err error) {
 	t := translator{
 		info:               info,
 		types:              make(map[ast.Expr]types.Type),
 		idToFunc:           idToFunc,
+		idToTypeSpec:       idToTypeSpec,
 		instantiations:     make(map[*ast.Ident][]*instantiation),
 		typeInstantiations: make(map[types.Type][]*typeInstantiation),
 	}
@@ -115,23 +138,34 @@ func (t *translator) translate(file *ast.File) {
 		newDecls := make([]ast.Decl, 0, len(declsToDo))
 		for i, decl := range declsToDo {
 			switch decl := decl.(type) {
-			case (*ast.FuncDecl):
+			case *ast.FuncDecl:
 				if !isParameterizedFuncDecl(decl) {
 					t.translateFuncDecl(&declsToDo[i])
 					newDecls = append(newDecls, decl)
 				}
-			case (*ast.GenDecl):
+			case *ast.GenDecl:
 				switch decl.Tok {
 				case token.TYPE:
+					newSpecs := make([]ast.Spec, 0, len(decl.Specs))
 					for j := range decl.Specs {
-						t.translateTypeSpec(&decl.Specs[j])
+						if !isParameterizedTypeDecl(decl.Specs[j]) {
+							t.translateTypeSpec(&decl.Specs[j])
+							newSpecs = append(newSpecs, decl.Specs[j])
+						}
+					}
+					if len(newSpecs) == 0 {
+						decl = nil
+					} else {
+						decl.Specs = newSpecs
 					}
 				case token.VAR, token.CONST:
 					for j := range decl.Specs {
 						t.translateValueSpec(&decl.Specs[j])
 					}
 				}
-				newDecls = append(newDecls, decl)
+				if decl != nil {
+					newDecls = append(newDecls, decl)
+				}
 			default:
 				newDecls = append(newDecls, decl)
 			}
@@ -145,11 +179,10 @@ func (t *translator) translate(file *ast.File) {
 // translateTypeSpec translates a type from Go with contracts to Go 1.
 func (t *translator) translateTypeSpec(ps *ast.Spec) {
 	ts := (*ps).(*ast.TypeSpec)
-	if ts.TParams == nil {
-		t.translateExpr(&ts.Type)
-		return
+	if ts.TParams != nil {
+		panic("parameterized type")
 	}
-	panic("parameterized type")
+	t.translateExpr(&ts.Type)
 }
 
 // translateValueSpec translates a variable or constant from Go with
@@ -192,16 +225,41 @@ func (t *translator) translateStmt(ps *ast.Stmt) {
 	if t.err != nil {
 		return
 	}
+	if *ps == nil {
+		return
+	}
 	switch s := (*ps).(type) {
 	case *ast.BlockStmt:
 		t.translateBlockStmt(s)
 	case *ast.ExprStmt:
 		t.translateExpr(&s.X)
+	case *ast.AssignStmt:
+		t.translateExprList(s.Lhs)
+		t.translateExprList(s.Rhs)
+	case *ast.IfStmt:
+		t.translateStmt(&s.Init)
+		t.translateExpr(&s.Cond)
+		t.translateBlockStmt(s.Body)
+		t.translateStmt(&s.Else)
 	case *ast.RangeStmt:
 		t.translateExpr(&s.Key)
 		t.translateExpr(&s.Value)
 		t.translateExpr(&s.X)
 		t.translateBlockStmt(s.Body)
+	case *ast.DeclStmt:
+		d := s.Decl.(*ast.GenDecl)
+		switch d.Tok {
+		case token.TYPE:
+			for i := range d.Specs {
+				t.translateTypeSpec(&d.Specs[i])
+			}
+		case token.CONST, token.VAR:
+			for i := range d.Specs {
+				t.translateValueSpec(&d.Specs[i])
+			}
+		default:
+			panic(fmt.Sprintf("unknown decl type %v", d.Tok))
+		}
 	default:
 		panic(fmt.Sprintf("unimplemented Stmt %T", s))
 	}
@@ -218,11 +276,15 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 	switch e := (*pe).(type) {
 	case *ast.Ident:
 		return
+	case *ast.BinaryExpr:
+		t.translateExpr(&e.X)
+		t.translateExpr(&e.Y)
 	case *ast.CallExpr:
 		t.translateExprList(e.Args)
-		ftyp := t.lookupType(e.Fun).(*types.Signature)
-		if ftyp.TParams() != nil {
+		if ftyp, ok := t.lookupType(e.Fun).(*types.Signature); ok && ftyp.TParams() != nil {
 			t.translateFunctionInstantiation(pe)
+		} else if ntyp, ok := t.lookupType(e.Fun).(*types.Named); ok && ntyp.TParams() != nil {
+			t.translateTypeInstantiation(pe)
 		}
 		t.translateExpr(&e.Fun)
 	case *ast.StarExpr:
@@ -231,6 +293,8 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 		t.translateExpr(&e.X)
 	case *ast.ArrayType:
 		t.translateExpr(&e.Elt)
+	case *ast.StructType:
+		t.translateFieldList(e.Fields)
 	case *ast.BasicLit:
 		return
 	case *ast.CompositeLit:
@@ -297,6 +361,45 @@ func (t *translator) translateFunctionInstantiation(pe *ast.Expr) {
 		decl:  instIdent,
 	}
 	t.instantiations[fnident] = append(instantiations, n)
+
+	*pe = instIdent
+}
+
+// translateTypeInstantiation translates an instantiated type to Go 1.
+func (t *translator) translateTypeInstantiation(pe *ast.Expr) {
+	call := (*pe).(*ast.CallExpr)
+	tident, ok := call.Fun.(*ast.Ident)
+	if !ok {
+		panic("instantiated type non-ident")
+	}
+
+	typ := t.lookupType(call.Fun).(*types.Named)
+
+	types := make([]types.Type, 0, len(call.Args))
+	for _, arg := range call.Args {
+		types = append(types, t.lookupType(arg))
+	}
+
+	instantiations := t.typeInstantiations[typ]
+	for _, inst := range instantiations {
+		if t.sameTypes(types, inst.types) {
+			*pe = inst.decl
+			return
+		}
+	}
+
+	instIdent, instType, err := t.instantiateTypeDecl(tident, typ.Underlying(), call.Args, types)
+	if err != nil {
+		t.err = err
+		return
+	}
+
+	n := &typeInstantiation{
+		types: types,
+		decl:  instIdent,
+		typ:   instType,
+	}
+	t.typeInstantiations[typ] = append(instantiations, n)
 
 	*pe = instIdent
 }

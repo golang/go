@@ -7,6 +7,7 @@ package go2go
 import (
 	"fmt"
 	"go/ast"
+	"go/token"
 	"go/types"
 )
 
@@ -68,7 +69,7 @@ func (t *translator) instantiateFunction(fnident *ast.Ident, astTypes []ast.Expr
 			objType := obj.Type()
 			objParam, ok := objType.(*types.TypeParam)
 			if !ok {
-				panic(fmt.Sprintf("%v is not a TypeParam"))
+				panic(fmt.Sprintf("%v is not a TypeParam", objParam))
 			}
 			ta.add(obj, objParam, astTypes[i], typeTypes[i])
 		}
@@ -100,6 +101,68 @@ func (t *translator) findFuncDecl(id *ast.Ident) (*ast.FuncDecl, error) {
 		return nil, fmt.Errorf("could not find function body for %q", id.Name)
 	}
 	return decl, nil
+}
+
+// instantiateType creates a new instantiation of a type.
+func (t *translator) instantiateTypeDecl(tident *ast.Ident, typ types.Type, astTypes []ast.Expr, typeTypes []types.Type) (*ast.Ident, types.Type, error) {
+	name, err := t.instantiatedName(tident, typeTypes)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	spec, err := t.findTypeSpec(tident)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ta := newTypeArgs(typeTypes)
+	for i, tf := range spec.TParams.List {
+		for _, tn := range tf.Names {
+			obj, ok := t.info.Defs[tn]
+			if !ok {
+				panic(fmt.Sprintf("no object for type parameter %q", tn))
+			}
+			objType := obj.Type()
+			objParam, ok := objType.(*types.TypeParam)
+			if !ok {
+				panic(fmt.Sprintf("%v is not a TypeParam", objParam))
+			}
+			ta.add(obj, objParam, astTypes[i], typeTypes[i])
+		}
+	}
+
+	instIdent := ast.NewIdent(name)
+
+	newSpec := &ast.TypeSpec{
+		Doc:     spec.Doc,
+		Name:    instIdent,
+		Assign:  spec.Assign,
+		Type:    t.instantiateExpr(ta, spec.Type),
+		Comment: spec.Comment,
+	}
+	newDecl := &ast.GenDecl{
+		Tok:   token.TYPE,
+		Specs: []ast.Spec{newSpec},
+	}
+	t.newDecls = append(t.newDecls, newDecl)
+
+	instType := t.instantiateType(ta, typ)
+
+	return instIdent, instType, nil
+}
+
+// findTypeSpec looks for the TypeSpec for id.
+// FIXME: Handle imported packages.
+func (t *translator) findTypeSpec(id *ast.Ident) (*ast.TypeSpec, error) {
+	obj, ok := t.info.Uses[id]
+	if !ok {
+		return nil, fmt.Errorf("could not find Object for %q", id.Name)
+	}
+	spec, ok := t.idToTypeSpec[obj]
+	if !ok {
+		return nil, fmt.Errorf("could not find type spec for %q", id.Name)
+	}
+	return spec, nil
 }
 
 // instantiateBlockStmt instantiates a BlockStmt.
@@ -256,6 +319,16 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 			Lbrack: e.Lbrack,
 			Len:    ln,
 			Elt:    elt,
+		}
+	case *ast.StructType:
+		fields := t.instantiateFieldList(ta, e.Fields)
+		if fields == e.Fields {
+			return e
+		}
+		return &ast.StructType{
+			Struct:     e.Struct,
+			Fields:     fields,
+			Incomplete: e.Incomplete,
 		}
 	default:
 		panic(fmt.Sprintf("unimplemented Expr %T", e))
