@@ -540,12 +540,33 @@ func (s *snapshot) awaitLoaded(ctx context.Context) error {
 	if err := s.view.awaitInitialized(ctx); err != nil {
 		return err
 	}
-	// Make sure that the workspace is in a valid state.
-	return s.reloadWorkspace(ctx)
+	m, err := s.reloadWorkspace(ctx)
+	if err != nil {
+		return err
+	}
+	for _, m := range m {
+		s.setWorkspacePackage(ctx, m)
+	}
+	if err := s.reloadOrphanedFiles(ctx); err != nil {
+		return err
+	}
+	// Create package handles for all of the workspace packages.
+	for _, id := range s.workspacePackageIDs() {
+		if _, err := s.packageHandle(ctx, id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // reloadWorkspace reloads the metadata for all invalidated workspace packages.
-func (s *snapshot) reloadWorkspace(ctx context.Context) error {
+func (s *snapshot) reloadWorkspace(ctx context.Context) ([]*metadata, error) {
+	// If the view's build configuration is invalid, we cannot reload by package path.
+	// Just reload the directory instead.
+	if !s.view.hasValidBuildConfiguration {
+		return s.load(ctx, viewLoadScope("LOAD_INVALID_VIEW"))
+	}
+
 	// See which of the workspace packages are missing metadata.
 	s.mu.Lock()
 	var pkgPaths []interface{}
@@ -556,55 +577,52 @@ func (s *snapshot) reloadWorkspace(ctx context.Context) error {
 	}
 	s.mu.Unlock()
 
-	if len(pkgPaths) > 0 {
-		if m, err := s.load(ctx, pkgPaths...); err == nil {
-			for _, m := range m {
-				s.setWorkspacePackage(ctx, m)
-			}
-		}
+	if len(pkgPaths) == 0 {
+		return nil, nil
 	}
 
+	return s.load(ctx, pkgPaths...)
+}
+
+func (s *snapshot) reloadOrphanedFiles(ctx context.Context) error {
 	// When we load ./... or a package path directly, we may not get packages
 	// that exist only in overlays. As a workaround, we search all of the files
 	// available in the snapshot and reload their metadata individually using a
 	// file= query if the metadata is unavailable.
-	if scopes := s.orphanedFileScopes(); len(scopes) > 0 {
-		m, err := s.load(ctx, scopes...)
-
-		// If we failed to load some files, i.e. they have no metadata,
-		// mark the failures so we don't bother retrying until the file's
-		// content changes.
-		//
-		// TODO(rstambler): This may be an overestimate if the load stopped
-		// early for an unrelated errors. Add a fallback?
-		//
-		// Check for context cancellation so that we don't incorrectly mark files
-		// as unloadable, but don't return before setting all workspace packages.
-		if ctx.Err() == nil && err != nil {
-			s.mu.Lock()
-			for _, scope := range scopes {
-				uri := span.URI(scope.(fileURI))
-				if s.getMetadataForURILocked(uri) == nil {
-					s.unloadableFiles[uri] = struct{}{}
-				}
-			}
-			s.mu.Unlock()
-		}
-		for _, m := range m {
-			// If a package's files belong to this view, it is a workspace package
-			// and should be added to the set of workspace packages.
-			for _, uri := range m.compiledGoFiles {
-				if !contains(s.view.session.viewsOf(uri), s.view) {
-					continue
-				}
-				s.setWorkspacePackage(ctx, m)
-			}
-		}
+	scopes := s.orphanedFileScopes()
+	if len(scopes) == 0 {
+		return nil
 	}
-	// Create package handles for all of the workspace packages.
-	for _, id := range s.workspacePackageIDs() {
-		if _, err := s.packageHandle(ctx, id); err != nil {
-			return err
+
+	m, err := s.load(ctx, scopes...)
+
+	// If we failed to load some files, i.e. they have no metadata,
+	// mark the failures so we don't bother retrying until the file's
+	// content changes.
+	//
+	// TODO(rstambler): This may be an overestimate if the load stopped
+	// early for an unrelated errors. Add a fallback?
+	//
+	// Check for context cancellation so that we don't incorrectly mark files
+	// as unloadable, but don't return before setting all workspace packages.
+	if ctx.Err() == nil && err != nil {
+		s.mu.Lock()
+		for _, scope := range scopes {
+			uri := span.URI(scope.(fileURI))
+			if s.getMetadataForURILocked(uri) == nil {
+				s.unloadableFiles[uri] = struct{}{}
+			}
+		}
+		s.mu.Unlock()
+	}
+	for _, m := range m {
+		// If a package's files belong to this view, it is a workspace package
+		// and should be added to the set of workspace packages.
+		for _, uri := range m.compiledGoFiles {
+			if !contains(s.view.session.viewsOf(uri), s.view) {
+				continue
+			}
+			s.setWorkspacePackage(ctx, m)
 		}
 	}
 	return nil
