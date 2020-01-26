@@ -1478,6 +1478,8 @@ func (c *NamedConst) Object() types.Object                 { return c.object }
 func (c *NamedConst) Package() *Package                    { return c.pkg }
 func (c *NamedConst) RelString(from *types.Package) string { return relString(c, from) }
 
+func (d *DebugRef) Object() types.Object { return d.object }
+
 // Func returns the package-level function of the specified name,
 // or nil if not found.
 //
