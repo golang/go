@@ -259,7 +259,10 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 
 	case *Named:
 		writeTypeName(buf, t.obj, qf)
-		if t.tparams != nil {
+		// Don't write type parameter list again if we have an instantiated type,
+		// recognized by a closing '>'.
+		// TODO(gri) clean up - this is too subtle a hack and too dependent on subst.
+		if buf.Bytes()[buf.Len()-1] != '>' && t.tparams != nil {
 			writeTParamList(buf, t.tparams, qf, visited)
 		}
 

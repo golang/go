@@ -772,6 +772,11 @@ func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident)
 		check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
 		tparams = append(tparams, tpar)
 	}
+
+	if check.conf.Trace && len(names) > 0 {
+		check.trace(names[0].Pos(), "type params = %v", tparams[len(tparams)-len(names):])
+	}
+
 	return tparams
 }
 

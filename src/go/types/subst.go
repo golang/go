@@ -250,7 +250,7 @@ func (subst *subster) typ(typ Type) Type {
 
 			// already instantiated
 			dump(">>> %s already instantiated", t)
-			assert(len(t.targs) == len(t.targs))
+			assert(len(t.targs) == len(t.tparams))
 			// For each (existing) type argument targ, determine if it needs
 			// to be substituted; i.e., if it is or contains a type parameter
 			// that has a type argument for it.
@@ -282,7 +282,9 @@ func (subst *subster) typ(typ Type) Type {
 
 		// TODO(gri) revisit name creation (function local types, etc.) and factor out
 		//           (also, stripArgNames call is an awful hack)
-		name := stripArgNames(TypeString(t, nil)) + "<" + typeListString(new_targs) + ">"
+		var buf bytes.Buffer
+		writeTypeName(&buf, t.obj, nil)
+		name := stripArgNames(buf.String()) + "<" + typeListString(new_targs) + ">"
 		dump(">>> new type name: %s", name)
 		if tname, found := subst.check.typMap[name]; found {
 			dump(">>> instantiated %s found", tname)
