@@ -129,18 +129,33 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 	file, parseError := parser.ParseFile(fset, fh.Identity().URI.Filename(), buf, parserMode)
 	var tok *token.File
 	if file != nil {
-		// Fix any badly parsed parts of the AST.
 		tok = fset.File(file.Pos())
 		if tok == nil {
 			return &parseGoData{err: errors.Errorf("successfully parsed but no token.File for %s (%v)", fh.Identity().URI, parseError)}
 		}
+
+		// Fix certain syntax errors that render the file unparseable.
+		newSrc := fixSrc(file, tok, buf)
+		if newSrc != nil {
+			newFile, _ := parser.ParseFile(fset, fh.Identity().URI.Filename(), newSrc, parserMode)
+			if newFile != nil {
+				// Maintain the original parseError so we don't try formatting the doctored file.
+				file = newFile
+				buf = newSrc
+				tok = fset.File(file.Pos())
+			}
+		}
+
 		if mode == source.ParseExported {
 			trimAST(file)
 		}
+
+		// Fix any badly parsed parts of the AST.
 		if err := fixAST(ctx, file, tok, buf); err != nil {
 			log.Error(ctx, "failed to fix AST", err)
 		}
 	}
+
 	if file == nil {
 		// If the file is nil only due to parse errors,
 		// the parse errors are the actual errors.
@@ -266,6 +281,90 @@ func walkASTWithParent(n ast.Node, f func(n ast.Node, parent ast.Node) bool) {
 	})
 }
 
+// fixSrc attempts to modify the file's source code to fix certain
+// syntax errors that leave the rest of the file unparsed.
+func fixSrc(f *ast.File, tok *token.File, src []byte) (newSrc []byte) {
+	walkASTWithParent(f, func(n, parent ast.Node) bool {
+		if newSrc != nil {
+			return false
+		}
+
+		switch n := n.(type) {
+		case *ast.BlockStmt:
+			newSrc = fixMissingCurlies(f, n, parent, tok, src)
+		}
+
+		return newSrc == nil
+	})
+
+	return newSrc
+}
+
+// fixMissingCurlies adds in curly braces for block statements that
+// are missing curly braces. For example:
+//
+//   if foo
+//
+// becomes
+//
+//   if foo {}
+func fixMissingCurlies(f *ast.File, b *ast.BlockStmt, parent ast.Node, tok *token.File, src []byte) []byte {
+	// If the "{" is already in the source code, there isn't anything to
+	// fix since we aren't mising curlies.
+	if b.Lbrace.IsValid() {
+		braceOffset := tok.Offset(b.Lbrace)
+		if braceOffset < len(src) && src[braceOffset] == '{' {
+			return nil
+		}
+	}
+
+	// Insert curlies at the end of parent's starting line. The parent
+	// is the statement that contains the block, e.g. *ast.IfStmt. The
+	// block's Pos()/End() can't be relied upon because they are based
+	// on the (missing) curly braces. We assume the statement is a
+	// single line for now and try sticking the curly braces at the end.
+	insertPos := tok.LineStart(tok.Line(parent.Pos())+1) - 1
+
+	// Scootch position backwards until it's not in a comment. For example:
+	//
+	// if foo<> // some amazing comment |
+	// someOtherCode()
+	//
+	// insertPos will be located at "|", so we back it out of the comment.
+	didSomething := true
+	for didSomething {
+		didSomething = false
+		for _, c := range f.Comments {
+			if c.Pos() < insertPos && insertPos <= c.End() {
+				insertPos = c.Pos()
+				didSomething = true
+			}
+		}
+	}
+
+	// Bail out if line doesn't end in an ident or ".". This is to avoid
+	// cases like below where we end up making things worse by adding
+	// curlies:
+	//
+	//   if foo &&
+	//     bar<>
+	switch precedingToken(insertPos, tok, src) {
+	case token.IDENT, token.PERIOD:
+		// ok
+	default:
+		return nil
+	}
+
+	// Insert "{}" at insertPos.
+	var buf bytes.Buffer
+	buf.Grow(len(src) + 2)
+	buf.Write(src[:tok.Offset(insertPos)])
+	buf.WriteByte('{')
+	buf.WriteByte('}')
+	buf.Write(src[tok.Offset(insertPos):])
+	return buf.Bytes()
+}
+
 // fixPhantomSelector tries to fix selector expressions with phantom
 // "_" selectors. In particular, we check if the selector is a
 // keyword, and if so we swap in an *ast.Ident with the keyword text. For example:
@@ -375,6 +474,23 @@ func fixArrayType(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte
 	}
 
 	return nil
+}
+
+// precedingToken scans src to find the token preceding pos.
+func precedingToken(pos token.Pos, tok *token.File, src []byte) token.Token {
+	s := &scanner.Scanner{}
+	s.Init(tok, src, nil, 0)
+
+	var lastTok token.Token
+	for {
+		p, t, _ := s.Scan()
+		if t == token.EOF || p >= pos {
+			break
+		}
+
+		lastTok = t
+	}
+	return lastTok
 }
 
 // fixDeferOrGoStmt tries to parse an *ast.BadStmt into a defer or a go statement.
