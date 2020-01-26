@@ -36,6 +36,8 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot) {
 	ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
 	defer done()
 
+	ctx = telemetry.Snapshot.With(ctx, snapshot.ID())
+
 	// Diagnose all of the packages in the workspace.
 	go func() {
 		wsPackages, err := snapshot.WorkspacePackages(ctx)
@@ -148,7 +150,9 @@ func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, r
 			URI:         protocol.NewURI(fileID.URI),
 			Version:     fileID.Version,
 		}); err != nil {
-			log.Error(ctx, "publishReports: failed to deliver diagnostic", err, telemetry.File)
+			if ctx.Err() == nil {
+				log.Error(ctx, "publishReports: failed to deliver diagnostic", err, telemetry.File)
+			}
 			continue
 		}
 		// Update the delivered map.
