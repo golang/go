@@ -26,7 +26,7 @@ func addIDs(info *types.Info, f *ast.File, mf map[types.Object]*ast.FuncDecl, mt
 	for _, decl := range f.Decls {
 		switch decl := decl.(type) {
 		case *ast.FuncDecl:
-			if isParameterizedFuncDecl(decl) {
+			if isParameterizedFuncDecl(decl, info) {
 				obj, ok := info.Defs[decl.Name]
 				if !ok {
 					panic(fmt.Sprintf("no types.Object for %q", decl.Name.Name))
@@ -49,8 +49,26 @@ func addIDs(info *types.Info, f *ast.File, mf map[types.Object]*ast.FuncDecl, mt
 }
 
 // isParameterizedFuncDecl reports whether fd is a parameterized function.
-func isParameterizedFuncDecl(fd *ast.FuncDecl) bool {
-	return fd.Type.TParams != nil
+func isParameterizedFuncDecl(fd *ast.FuncDecl, info *types.Info) bool {
+	if fd.Type.TParams != nil {
+		return true
+	}
+	if fd.Recv != nil {
+		rtyp := info.TypeOf(fd.Recv.List[0].Type)
+		if rtyp == nil {
+			// Already instantiated.
+			return false
+		}
+		if p, ok := rtyp.(*types.Pointer); ok {
+			rtyp = p.Elem()
+		}
+		if named, ok := rtyp.(*types.Named); ok {
+			if named.TParams() != nil {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // isParameterizedTypeDecl reports whether s is a parameterized type.
@@ -61,6 +79,7 @@ func isParameterizedTypeDecl(s ast.Spec) bool {
 
 // A translator is used to translate a file from Go with contracts to Go 1.
 type translator struct {
+	fset               *token.FileSet
 	info               *types.Info
 	types              map[ast.Expr]types.Type
 	idToFunc           map[types.Object]*ast.FuncDecl
@@ -89,7 +108,7 @@ type typeInstantiation struct {
 
 // rewrite rewrites the contents of one file.
 func rewriteFile(dir string, fset *token.FileSet, info *types.Info, idToFunc map[types.Object]*ast.FuncDecl, idToTypeSpec map[types.Object]*ast.TypeSpec, filename string, file *ast.File) (err error) {
-	if err := rewriteAST(info, idToFunc, idToTypeSpec, file); err != nil {
+	if err := rewriteAST(fset, info, idToFunc, idToTypeSpec, file); err != nil {
 		return err
 	}
 
@@ -117,8 +136,9 @@ func rewriteFile(dir string, fset *token.FileSet, info *types.Info, idToFunc map
 }
 
 // rewriteAST rewrites the AST for a file.
-func rewriteAST(info *types.Info, idToFunc map[types.Object]*ast.FuncDecl, idToTypeSpec map[types.Object]*ast.TypeSpec, file *ast.File) (err error) {
+func rewriteAST(fset *token.FileSet, info *types.Info, idToFunc map[types.Object]*ast.FuncDecl, idToTypeSpec map[types.Object]*ast.TypeSpec, file *ast.File) (err error) {
 	t := translator{
+		fset:               fset,
 		info:               info,
 		types:              make(map[ast.Expr]types.Type),
 		idToFunc:           idToFunc,
@@ -139,7 +159,7 @@ func (t *translator) translate(file *ast.File) {
 		for i, decl := range declsToDo {
 			switch decl := decl.(type) {
 			case *ast.FuncDecl:
-				if !isParameterizedFuncDecl(decl) {
+				if !isParameterizedFuncDecl(decl, t.info) {
 					t.translateFuncDecl(&declsToDo[i])
 					newDecls = append(newDecls, decl)
 				}
@@ -260,6 +280,8 @@ func (t *translator) translateStmt(ps *ast.Stmt) {
 		default:
 			panic(fmt.Sprintf("unknown decl type %v", d.Tok))
 		}
+	case *ast.ReturnStmt:
+		t.translateExprList(s.Results)
 	default:
 		panic(fmt.Sprintf("unimplemented Stmt %T", s))
 	}
@@ -276,9 +298,13 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 	switch e := (*pe).(type) {
 	case *ast.Ident:
 		return
+	case *ast.ParenExpr:
+		t.translateExpr(&e.X)
 	case *ast.BinaryExpr:
 		t.translateExpr(&e.X)
 		t.translateExpr(&e.Y)
+	case *ast.UnaryExpr:
+		t.translateExpr(&e.X)
 	case *ast.CallExpr:
 		t.translateExprList(e.Args)
 		if ftyp, ok := t.lookupType(e.Fun).(*types.Signature); ok && ftyp.TParams() != nil {
@@ -388,7 +414,7 @@ func (t *translator) translateTypeInstantiation(pe *ast.Expr) {
 		}
 	}
 
-	instIdent, instType, err := t.instantiateTypeDecl(tident, typ.Underlying(), call.Args, types)
+	instIdent, instType, err := t.instantiateTypeDecl(tident, typ, call.Args, types)
 	if err != nil {
 		t.err = err
 		return

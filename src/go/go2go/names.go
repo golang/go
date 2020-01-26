@@ -34,9 +34,9 @@ var nameCodes = map[rune]int{
 }
 
 // instantiatedName returns the name of a newly instantiated function.
-func (t *translator) instantiatedName(fnident *ast.Ident, types []types.Type) (string, error) {
+func (t *translator) instantiatedName(ident *ast.Ident, types []types.Type) (string, error) {
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "instantiate%c%s", nameSep, fnident.Name)
+	fmt.Fprintf(&sb, "instantiate%c%s", nameSep, ident.Name)
 	for _, typ := range types {
 		sb.WriteRune(nameSep)
 		s := typ.String()
@@ -50,7 +50,7 @@ func (t *translator) instantiatedName(fnident *ast.Ident, types []types.Type) (s
 			} else {
 				code, ok := nameCodes[r]
 				if !ok {
-					panic(fmt.Sprintf("unexpected type string character %q", r))
+					panic(fmt.Sprintf("unexpected type string character %q in %q", r, s))
 				}
 				fmt.Fprintf(&sb, "%c%d", nameIntro, code)
 			}

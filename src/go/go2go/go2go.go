@@ -72,7 +72,7 @@ func Rewrite(dir string) error {
 		}
 		tpkg, err := conf.Check(name, fset, asts, info)
 		if err != nil {
-			return err
+			return fmt.Errorf("type checking failed for %s: %v", name, err)
 		}
 
 		tpkgs = append(tpkgs, &gpkg{
@@ -119,12 +119,12 @@ func RewriteBuffer(filename string, file []byte) ([]byte, error) {
 		Uses:  make(map[*ast.Ident]types.Object),
 	}
 	if _, err := conf.Check(pf.Name.Name, fset, []*ast.File{pf}, info); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("type checking failed for %s: %v", pf.Name.Name, err)
 	}
 	idToFunc := make(map[types.Object]*ast.FuncDecl)
 	idToTypeSpec := make(map[types.Object]*ast.TypeSpec)
 	addIDs(info, pf, idToFunc, idToTypeSpec)
-	if err := rewriteAST(info, idToFunc, idToTypeSpec, pf); err != nil {
+	if err := rewriteAST(fset, info, idToFunc, idToTypeSpec, pf); err != nil {
 		return nil, err
 	}
 	var buf bytes.Buffer

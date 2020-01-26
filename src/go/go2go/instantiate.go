@@ -29,6 +29,46 @@ func newTypeArgs(typeTypes []types.Type) *typeArgs {
 	}
 }
 
+// typeArgsFromTParams builds mappings from a list of type parameters
+// expressed as ast.Field values.
+func typeArgsFromFields(t *translator, astTypes []ast.Expr, typeTypes []types.Type, tparams []*ast.Field) *typeArgs {
+	ta := newTypeArgs(typeTypes)
+	for i, tf := range tparams {
+		for _, tn := range tf.Names {
+			obj, ok := t.info.Defs[tn]
+			if !ok {
+				panic(fmt.Sprintf("no object for type parameter %q", tn))
+			}
+			objType := obj.Type()
+			objParam, ok := objType.(*types.TypeParam)
+			if !ok {
+				panic(fmt.Sprintf("%v is not a TypeParam", objParam))
+			}
+			ta.add(obj, objParam, astTypes[i], typeTypes[i])
+		}
+	}
+	return ta
+}
+
+// typeArgsFromTParams builds mappings from a list of type parameters
+// expressed as ast.Expr values.
+func typeArgsFromExprs(t *translator, astTypes []ast.Expr, typeTypes []types.Type, tparams []ast.Expr) *typeArgs {
+	ta := newTypeArgs(typeTypes)
+	for i, ti := range tparams {
+		obj, ok := t.info.Defs[ti.(*ast.Ident)]
+		if !ok {
+			panic(fmt.Sprintf("no object for type parameter %q", ti))
+		}
+		objType := obj.Type()
+		objParam, ok := objType.(*types.TypeParam)
+		if !ok {
+			panic(fmt.Sprintf("%v is not a TypeParam", objParam))
+		}
+		ta.add(obj, objParam, astTypes[i], typeTypes[i])
+	}
+	return ta
+}
+
 // add adds mappings for obj to ast and typ.
 func (ta *typeArgs) add(obj types.Object, objParam *types.TypeParam, ast ast.Expr, typ types.Type) {
 	ta.toAST[obj] = ast
@@ -59,21 +99,7 @@ func (t *translator) instantiateFunction(fnident *ast.Ident, astTypes []ast.Expr
 		return nil, err
 	}
 
-	ta := newTypeArgs(typeTypes)
-	for i, tf := range decl.Type.TParams.List {
-		for _, tn := range tf.Names {
-			obj, ok := t.info.Defs[tn]
-			if !ok {
-				panic(fmt.Sprintf("no object for type parameter %q", tn))
-			}
-			objType := obj.Type()
-			objParam, ok := objType.(*types.TypeParam)
-			if !ok {
-				panic(fmt.Sprintf("%v is not a TypeParam", objParam))
-			}
-			ta.add(obj, objParam, astTypes[i], typeTypes[i])
-		}
-	}
+	ta := typeArgsFromFields(t, astTypes, typeTypes, decl.Type.TParams.List)
 
 	instIdent := ast.NewIdent(name)
 
@@ -104,7 +130,7 @@ func (t *translator) findFuncDecl(id *ast.Ident) (*ast.FuncDecl, error) {
 }
 
 // instantiateType creates a new instantiation of a type.
-func (t *translator) instantiateTypeDecl(tident *ast.Ident, typ types.Type, astTypes []ast.Expr, typeTypes []types.Type) (*ast.Ident, types.Type, error) {
+func (t *translator) instantiateTypeDecl(tident *ast.Ident, typ *types.Named, astTypes []ast.Expr, typeTypes []types.Type) (*ast.Ident, types.Type, error) {
 	name, err := t.instantiatedName(tident, typeTypes)
 	if err != nil {
 		return nil, nil, err
@@ -115,21 +141,7 @@ func (t *translator) instantiateTypeDecl(tident *ast.Ident, typ types.Type, astT
 		return nil, nil, err
 	}
 
-	ta := newTypeArgs(typeTypes)
-	for i, tf := range spec.TParams.List {
-		for _, tn := range tf.Names {
-			obj, ok := t.info.Defs[tn]
-			if !ok {
-				panic(fmt.Sprintf("no object for type parameter %q", tn))
-			}
-			objType := obj.Type()
-			objParam, ok := objType.(*types.TypeParam)
-			if !ok {
-				panic(fmt.Sprintf("%v is not a TypeParam", objParam))
-			}
-			ta.add(obj, objParam, astTypes[i], typeTypes[i])
-		}
-	}
+	ta := typeArgsFromFields(t, astTypes, typeTypes, spec.TParams.List)
 
 	instIdent := ast.NewIdent(name)
 
@@ -146,7 +158,47 @@ func (t *translator) instantiateTypeDecl(tident *ast.Ident, typ types.Type, astT
 	}
 	t.newDecls = append(t.newDecls, newDecl)
 
-	instType := t.instantiateType(ta, typ)
+	instType := t.instantiateType(ta, typ.Underlying())
+
+	nm := typ.NumMethods()
+	for i := 0; i < nm; i++ {
+		method := typ.Method(i)
+		mast := t.idToFunc[method]
+		if mast == nil {
+			panic(fmt.Sprintf("no AST for method %v", method))
+		}
+		rtyp := mast.Recv.List[0].Type
+		newRtype := ast.Expr(ast.NewIdent(name))
+		if p, ok := rtyp.(*ast.StarExpr); ok {
+			rtyp = p.X
+			newRtype = &ast.StarExpr{
+				X: newRtype,
+			}
+		}
+		tparams := rtyp.(*ast.CallExpr).Args
+		ta := typeArgsFromExprs(t, astTypes, typeTypes, tparams)
+		newDecl := &ast.FuncDecl{
+			Doc:  mast.Doc,
+			Recv: &ast.FieldList{
+				Opening: mast.Recv.Opening,
+				List: []*ast.Field{
+					{
+						Doc:     mast.Recv.List[0].Doc,
+						Names:   []*ast.Ident{
+							mast.Recv.List[0].Names[0],
+						},
+						Type:    newRtype,
+						Comment: mast.Recv.List[0].Comment,
+					},
+				},
+				Closing: mast.Recv.Closing,
+			},
+			Name: mast.Name,
+			Type: t.instantiateExpr(ta, mast.Type).(*ast.FuncType),
+			Body: t.instantiateBlockStmt(ta, mast.Body),
+		}
+		t.newDecls = append(t.newDecls, newDecl)
+	}
 
 	return instIdent, instType, nil
 }
@@ -199,6 +251,18 @@ func (t *translator) instantiateStmt(ta *typeArgs, s ast.Stmt) ast.Stmt {
 		return &ast.ExprStmt{
 			X: x,
 		}
+	case *ast.AssignStmt:
+		lhs, lchanged := t.instantiateExprList(ta, s.Lhs)
+		rhs, rchanged := t.instantiateExprList(ta, s.Rhs)
+		if !lchanged && !rchanged {
+			return s
+		}
+		return &ast.AssignStmt{
+			Lhs:    lhs,
+			TokPos: s.TokPos,
+			Tok:    s.Tok,
+			Rhs:    rhs,
+		}
 	case *ast.RangeStmt:
 		key := t.instantiateExpr(ta, s.Key)
 		value := t.instantiateExpr(ta, s.Value)
@@ -215,6 +279,15 @@ func (t *translator) instantiateStmt(ta *typeArgs, s ast.Stmt) ast.Stmt {
 			Tok:    s.Tok,
 			X:      x,
 			Body:   body,
+		}
+	case *ast.ReturnStmt:
+		results, changed := t.instantiateExprList(ta, s.Results)
+		if !changed {
+			return s
+		}
+		return &ast.ReturnStmt{
+			Return:  s.Return,
+			Results: results,
 		}
 	default:
 		panic(fmt.Sprintf("unimplemented Stmt %T", s))
@@ -281,8 +354,8 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 			Rparen:   e.Rparen,
 		}
 	case *ast.Ident:
-		obj, ok := t.info.Uses[e]
-		if ok {
+		obj := t.info.ObjectOf(e)
+		if obj != nil {
 			if typ, ok := ta.ast(obj); ok {
 				return typ
 			}
@@ -296,6 +369,15 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 		r = &ast.SelectorExpr{
 			X:   x,
 			Sel: e.Sel,
+		}
+	case *ast.StarExpr:
+		x := t.instantiateExpr(ta, e.X)
+		if x == e.X {
+			return e
+		}
+		r = &ast.StarExpr{
+			Star: e.Star,
+			X:    x,
 		}
 	case *ast.FuncType:
 		params := t.instantiateFieldList(ta, e.Params)
