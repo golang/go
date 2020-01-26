@@ -13,6 +13,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"fmt"
+	"io"
 	"log"
 	"path/filepath"
 	"sort"
@@ -262,13 +263,13 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 	fmt.Fprintf(ctxt.Bso, "\n")
 	if s.Type == objabi.STEXT {
 		for p := s.Func.Text; p != nil; p = p.Link {
-			var s string
+			fmt.Fprintf(ctxt.Bso, "\t%#04x ", uint(int(p.Pc)))
 			if ctxt.Debugasm > 1 {
-				s = p.String()
+				io.WriteString(ctxt.Bso, p.String())
 			} else {
-				s = p.InnermostString()
+				p.InnermostString(ctxt.Bso)
 			}
-			fmt.Fprintf(ctxt.Bso, "\t%#04x %s\n", uint(int(p.Pc)), s)
+			fmt.Fprintln(ctxt.Bso)
 		}
 	}
 	for i := 0; i < len(s.P); i += 16 {
@@ -283,11 +284,11 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 		fmt.Fprintf(ctxt.Bso, "  ")
 		for j = i; j < i+16 && j < len(s.P); j++ {
 			c := int(s.P[j])
+			b := byte('.')
 			if ' ' <= c && c <= 0x7e {
-				fmt.Fprintf(ctxt.Bso, "%c", c)
-			} else {
-				fmt.Fprintf(ctxt.Bso, ".")
+				b = byte(c)
 			}
+			ctxt.Bso.WriteByte(b)
 		}
 
 		fmt.Fprintf(ctxt.Bso, "\n")
