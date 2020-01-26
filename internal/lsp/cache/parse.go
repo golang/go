@@ -138,7 +138,7 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 		if mode == source.ParseExported {
 			trimAST(file)
 		}
-		if err := fix(ctx, file, tok, buf); err != nil {
+		if err := fixAST(ctx, file, tok, buf); err != nil {
 			log.Error(ctx, "failed to fix AST", err)
 		}
 	}
@@ -151,16 +151,12 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 		}
 		return nil, nil, parseError, err
 	}
-	uri := fh.Identity().URI
-	content, _, err := fh.Read(ctx)
-	if err != nil {
-		return nil, nil, parseError, err
-	}
 	m := &protocol.ColumnMapper{
-		URI:       uri,
+		URI:       fh.Identity().URI,
 		Converter: span.NewTokenConverter(fset, tok),
-		Content:   content,
+		Content:   buf,
 	}
+
 	return file, m, parseError, nil
 }
 
@@ -201,36 +197,17 @@ func isEllipsisArray(n ast.Expr) bool {
 	return ok
 }
 
-// fix inspects the AST and potentially modifies any *ast.BadStmts so that it can be
+// fixAST inspects the AST and potentially modifies any *ast.BadStmts so that it can be
 // type-checked more effectively.
-func fix(ctx context.Context, n ast.Node, tok *token.File, src []byte) error {
-	var (
-		ancestors []ast.Node
-		err       error
-	)
-	ast.Inspect(n, func(n ast.Node) (recurse bool) {
-		defer func() {
-			if recurse {
-				ancestors = append(ancestors, n)
-			}
-		}()
-
-		if n == nil {
-			ancestors = ancestors[:len(ancestors)-1]
-			return false
-		}
-
-		var parent ast.Node
-		if len(ancestors) > 0 {
-			parent = ancestors[len(ancestors)-1]
-		}
-
+func fixAST(ctx context.Context, n ast.Node, tok *token.File, src []byte) error {
+	var err error
+	walkASTWithParent(n, func(n, parent ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.BadStmt:
 			err = fixDeferOrGoStmt(n, parent, tok, src) // don't shadow err
 			if err == nil {
 				// Recursively fix in our fixed node.
-				err = fix(ctx, parent, tok, src)
+				err = fixAST(ctx, parent, tok, src)
 			} else {
 				err = errors.Errorf("unable to parse defer or go from *ast.BadStmt: %v", err)
 			}
@@ -241,7 +218,7 @@ func fix(ctx context.Context, n ast.Node, tok *token.File, src []byte) error {
 			// are expected and not actionable in general.
 			if fixArrayType(n, parent, tok, src) == nil {
 				// Recursively fix in our fixed node.
-				err = fix(ctx, parent, tok, src)
+				err = fixAST(ctx, parent, tok, src)
 				return false
 			}
 
@@ -273,6 +250,31 @@ func fix(ctx context.Context, n ast.Node, tok *token.File, src []byte) error {
 	})
 
 	return err
+}
+
+// walkASTWithParent walks the AST rooted at n. The semantics are
+// similar to ast.Inspect except it does not call f(nil).
+func walkASTWithParent(n ast.Node, f func(n ast.Node, parent ast.Node) bool) {
+	var ancestors []ast.Node
+	ast.Inspect(n, func(n ast.Node) (recurse bool) {
+		defer func() {
+			if recurse {
+				ancestors = append(ancestors, n)
+			}
+		}()
+
+		if n == nil {
+			ancestors = ancestors[:len(ancestors)-1]
+			return false
+		}
+
+		var parent ast.Node
+		if len(ancestors) > 0 {
+			parent = ancestors[len(ancestors)-1]
+		}
+
+		return f(n, parent)
+	})
 }
 
 // fixAccidentalDecl tries to fix "accidental" declarations. For example:
@@ -597,9 +599,9 @@ FindTo:
 	return nil
 }
 
-// parseExpr parses the expression in src and updates its position to
+// parseStmt parses the statement in src and updates its position to
 // start at pos.
-func parseExpr(pos token.Pos, src []byte) (ast.Expr, error) {
+func parseStmt(pos token.Pos, src []byte) (ast.Stmt, error) {
 	// Wrap our expression to make it a valid Go file we can pass to ParseFile.
 	fileSrc := bytes.Join([][]byte{
 		[]byte("package fake;func _(){"),
@@ -624,25 +626,36 @@ func parseExpr(pos token.Pos, src []byte) (ast.Expr, error) {
 		return nil, errors.Errorf("no statement in %s: %v", src, err)
 	}
 
-	exprStmt, ok := fakeDecl.Body.List[0].(*ast.ExprStmt)
+	stmt := fakeDecl.Body.List[0]
+
+	// parser.ParseFile returns undefined positions.
+	// Adjust them for the current file.
+	offsetPositions(stmt, pos-1-(stmt.Pos()-1))
+
+	return stmt, nil
+}
+
+// parseExpr parses the expression in src and updates its position to
+// start at pos.
+func parseExpr(pos token.Pos, src []byte) (ast.Expr, error) {
+	stmt, err := parseStmt(pos, src)
+	if err != nil {
+		return nil, err
+	}
+
+	exprStmt, ok := stmt.(*ast.ExprStmt)
 	if !ok {
 		return nil, errors.Errorf("no expr in %s: %v", src, err)
 	}
 
-	expr := exprStmt.X
-
-	// parser.ParseExpr returns undefined positions.
-	// Adjust them for the current file.
-	offsetPositions(expr, pos-1-(expr.Pos()-1))
-
-	return expr, nil
+	return exprStmt.X, nil
 }
 
 var tokenPosType = reflect.TypeOf(token.NoPos)
 
 // offsetPositions applies an offset to the positions in an ast.Node.
-func offsetPositions(expr ast.Expr, offset token.Pos) {
-	ast.Inspect(expr, func(n ast.Node) bool {
+func offsetPositions(n ast.Node, offset token.Pos) {
+	ast.Inspect(n, func(n ast.Node) bool {
 		if n == nil {
 			return false
 		}
