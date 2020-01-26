@@ -82,7 +82,7 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, withA
 		}
 	}
 	// Run diagnostics for the package that this URI belongs to.
-	hadDiagnostics, err := diagnostics(ctx, snapshot, reports, pkg)
+	hadDiagnostics, err := diagnostics(ctx, snapshot, reports, pkg, len(ph.MissingDependencies()) > 0)
 	if err != nil {
 		return nil, warn, err
 	}
@@ -127,7 +127,7 @@ type diagnosticSet struct {
 	listErrors, parseErrors, typeErrors []*Diagnostic
 }
 
-func diagnostics(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]Diagnostic, pkg Package) (bool, error) {
+func diagnostics(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]Diagnostic, pkg Package, hasMissingDeps bool) (bool, error) {
 	ctx, done := trace.StartSpan(ctx, "source.diagnostics", telemetry.Package.Of(pkg.ID()))
 	_ = ctx // circumvent SA4006
 	defer done()
@@ -163,7 +163,10 @@ func diagnostics(ctx context.Context, snapshot Snapshot, reports map[FileIdentit
 		if len(set.parseErrors) > 0 {
 			diags = set.parseErrors
 		} else if len(set.listErrors) > 0 {
-			diags = set.listErrors
+			// Only show list errors if the package has missing dependencies.
+			if hasMissingDeps {
+				diags = set.listErrors
+			}
 		}
 		if len(diags) > 0 {
 			nonEmptyDiagnostics = true

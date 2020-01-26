@@ -609,6 +609,9 @@ func CompareDiagnostic(a, b Diagnostic) int {
 	if r := protocol.CompareRange(a.Range, b.Range); r != 0 {
 		return r
 	}
+	if a.Source < b.Source {
+		return -1
+	}
 	if a.Message < b.Message {
 		return -1
 	}

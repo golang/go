@@ -74,9 +74,6 @@ func testInvalidFilesInOverlay(t *testing.T, exporter packagestest.Exporter) {
 				if !containsFile {
 					t.Fatalf("expected %s in CompiledGoFiles, got %v", f, d.CompiledGoFiles)
 				}
-				if len(d.Errors) > 0 {
-					t.Fatalf("expected no errors in package, got %v", d.Errors)
-				}
 				// Check value of d.D.
 				dD := constant(d, "D")
 				if dD == nil {

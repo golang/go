@@ -37,11 +37,10 @@ func sourceError(ctx context.Context, fset *token.FileSet, pkg *pkg, e interface
 	case packages.Error:
 		kind = toSourceErrorKind(e.Kind)
 		var ok bool
-		msg, spn, ok = parseGoListImportCycleError(ctx, fset, e, pkg)
-		if ok {
+		if msg, spn, ok = parseGoListImportCycleError(ctx, fset, e, pkg); ok {
+			kind = source.TypeError
 			break
 		}
-
 		if e.Pos == "" {
 			spn = parseGoListError(e.Msg)
 
