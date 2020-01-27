@@ -865,58 +865,22 @@ func (h heapBits) clearCheckmarkSpan(size, n, total uintptr) {
 	}
 }
 
-// oneBitCount is indexed by byte and produces the
-// number of 1 bits in that byte. For example 128 has 1 bit set
-// and oneBitCount[128] will holds 1.
-var oneBitCount = [256]uint8{
-	0, 1, 1, 2, 1, 2, 2, 3,
-	1, 2, 2, 3, 2, 3, 3, 4,
-	1, 2, 2, 3, 2, 3, 3, 4,
-	2, 3, 3, 4, 3, 4, 4, 5,
-	1, 2, 2, 3, 2, 3, 3, 4,
-	2, 3, 3, 4, 3, 4, 4, 5,
-	2, 3, 3, 4, 3, 4, 4, 5,
-	3, 4, 4, 5, 4, 5, 5, 6,
-	1, 2, 2, 3, 2, 3, 3, 4,
-	2, 3, 3, 4, 3, 4, 4, 5,
-	2, 3, 3, 4, 3, 4, 4, 5,
-	3, 4, 4, 5, 4, 5, 5, 6,
-	2, 3, 3, 4, 3, 4, 4, 5,
-	3, 4, 4, 5, 4, 5, 5, 6,
-	3, 4, 4, 5, 4, 5, 5, 6,
-	4, 5, 5, 6, 5, 6, 6, 7,
-	1, 2, 2, 3, 2, 3, 3, 4,
-	2, 3, 3, 4, 3, 4, 4, 5,
-	2, 3, 3, 4, 3, 4, 4, 5,
-	3, 4, 4, 5, 4, 5, 5, 6,
-	2, 3, 3, 4, 3, 4, 4, 5,
-	3, 4, 4, 5, 4, 5, 5, 6,
-	3, 4, 4, 5, 4, 5, 5, 6,
-	4, 5, 5, 6, 5, 6, 6, 7,
-	2, 3, 3, 4, 3, 4, 4, 5,
-	3, 4, 4, 5, 4, 5, 5, 6,
-	3, 4, 4, 5, 4, 5, 5, 6,
-	4, 5, 5, 6, 5, 6, 6, 7,
-	3, 4, 4, 5, 4, 5, 5, 6,
-	4, 5, 5, 6, 5, 6, 6, 7,
-	4, 5, 5, 6, 5, 6, 6, 7,
-	5, 6, 6, 7, 6, 7, 7, 8}
-
 // countAlloc returns the number of objects allocated in span s by
 // scanning the allocation bitmap.
-// TODO:(rlh) Use popcount intrinsic.
 func (s *mspan) countAlloc() int {
 	count := 0
-	maxIndex := s.nelems / 8
-	for i := uintptr(0); i < maxIndex; i++ {
-		mrkBits := *s.gcmarkBits.bytep(i)
-		count += int(oneBitCount[mrkBits])
-	}
-	if bitsInLastByte := s.nelems % 8; bitsInLastByte != 0 {
-		mrkBits := *s.gcmarkBits.bytep(maxIndex)
-		mask := uint8((1 << bitsInLastByte) - 1)
-		bits := mrkBits & mask
-		count += int(oneBitCount[bits])
+	bytes := divRoundUp(s.nelems, 8)
+	// Iterate over each 8-byte chunk and count allocations
+	// with an intrinsic. Note that newMarkBits guarantees that
+	// gcmarkBits will be 8-byte aligned, so we don't have to
+	// worry about edge cases, irrelevant bits will simply be zero.
+	for i := uintptr(0); i < bytes; i += 8 {
+		// Extract 64 bits from the byte pointer and get a OnesCount.
+		// Note that the unsafe cast here doesn't preserve endianness,
+		// but that's OK. We only care about how many bits are 1, not
+		// about the order we discover them in.
+		mrkBits := *(*uint64)(unsafe.Pointer(s.gcmarkBits.bytep(i)))
+		count += sys.OnesCount64(mrkBits)
 	}
 	return count
 }
