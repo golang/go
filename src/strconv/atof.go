@@ -678,7 +678,3 @@ func ParseFloat(s string, bitSize int) (float64, error) {
 	}
 	return atof64(s)
 }
-
-func ParseComplex(s string, bitSize int) (float64, error) {
-	return 0,nil	
-}
