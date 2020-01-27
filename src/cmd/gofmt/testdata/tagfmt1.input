@@ -1,0 +1,6 @@
+//gofmt -tf
+package main
+type Example struct {
+	Data string `xml:"data" yaml:"data"  json:"data"`
+	OtherData string `xml:"other_data" json:"other_data:omitempty" yaml:"other_data"`
+}

@@ -30,6 +30,8 @@ var (
 	write       = flag.Bool("w", false, "write result to (source) file instead of stdout")
 	rewriteRule = flag.String("r", "", "rewrite rule (e.g., 'a[b:len(a)] -> a[b:]')")
 	simplifyAST = flag.Bool("s", false, "simplify code")
+	tagFormat   = flag.Bool("tf", false, "format struct tags")
+	tagSort     = flag.Bool("ts", false, "sort struct tag by key")
 	doDiff      = flag.Bool("d", false, "display diffs instead of rewriting files")
 	allErrors   = flag.Bool("e", false, "report all errors (not just the first 10 on different lines)")
 
@@ -111,6 +113,20 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 
 	if *simplifyAST {
 		simplify(file)
+	}
+
+	if *tagSort {
+		err := tagSortByKey(file)
+		if err != nil {
+			return err
+		}
+	}
+
+	if *tagFormat {
+		err := tagFmt(file, fileSet)
+		if err != nil {
+			return err
+		}
 	}
 
 	ast.Inspect(file, normalizeNumbers)
