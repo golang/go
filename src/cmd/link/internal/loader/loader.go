@@ -228,6 +228,8 @@ type Loader struct {
 	extname    map[Sym]string      // stores Extname symbol attribute
 	elfType    map[Sym]elf.SymType // stores elf type symbol property
 	symFile    map[Sym]string      // stores file for shlib-derived syms
+	plt        map[Sym]int32       // stores dynimport for pe objects
+	got        map[Sym]int32       // stores got for pe objects
 
 	// Used to implement field tracking; created during deadcode if
 	// field tracking is enabled. Reachparent[K] contains the index of
@@ -282,6 +284,8 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc) *Loader {
 		attrReadOnly:         make(map[Sym]bool),
 		elfType:              make(map[Sym]elf.SymType),
 		symFile:              make(map[Sym]string),
+		plt:                  make(map[Sym]int32),
+		got:                  make(map[Sym]int32),
 		attrTopFrame:         make(map[Sym]struct{}),
 		attrSpecial:          make(map[Sym]struct{}),
 		attrCgoExportDynamic: make(map[Sym]struct{}),
@@ -1154,7 +1158,7 @@ func (l *Loader) SymElfType(i Sym) elf.SymType {
 	return elf.STT_NOTYPE
 }
 
-// SetSymElfType sets the  elf type attribute for a symbol.
+// SetSymElfType sets the elf type attribute for a symbol.
 func (l *Loader) SetSymElfType(i Sym, et elf.SymType) {
 	// reject bad symbols
 	if i > l.max || i == 0 {
@@ -1164,6 +1168,30 @@ func (l *Loader) SetSymElfType(i Sym, et elf.SymType) {
 		delete(l.elfType, i)
 	} else {
 		l.elfType[i] = et
+	}
+}
+
+// SetPlt sets the plt value for pe symbols.
+func (l *Loader) SetPlt(i Sym, v int32) {
+	if i > l.max || i == 0 {
+		panic("bad symbol for SetPlt")
+	}
+	if v == 0 {
+		delete(l.plt, i)
+	} else {
+		l.plt[i] = v
+	}
+}
+
+// SetGot sets the got value for pe symbols.
+func (l *Loader) SetGot(i Sym, v int32) {
+	if i > l.max || i == 0 {
+		panic("bad symbol for SetPlt")
+	}
+	if v == 0 {
+		delete(l.got, i)
+	} else {
+		l.got[i] = v
 	}
 }
 
@@ -2077,6 +2105,14 @@ func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {
 	// Copy ELF type if set.
 	if et, ok := l.elfType[src]; ok {
 		dst.SetElfType(et)
+	}
+
+	// Copy pe objects values if set.
+	if plt, ok := l.plt[src]; ok {
+		dst.SetPlt(plt)
+	}
+	if got, ok := l.got[src]; ok {
+		dst.SetGot(got)
 	}
 }
 

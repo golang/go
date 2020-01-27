@@ -1883,10 +1883,10 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 				Errorf(nil, "%v", err)
 				return
 			}
-			if rsrc != nil {
+			if rsrc != 0 {
 				setpersrc(ctxt, rsrc)
 			}
-			ctxt.Textp = append(ctxt.Textp, textp...)
+			ctxt.Textp2 = append(ctxt.Textp2, textp...)
 		}
 		return ldhostobj(ldpe, ctxt.HeadType, f, pkg, length, pn, file)
 	}
@@ -2812,9 +2812,6 @@ func (ctxt *Link) loadlibfull() {
 	ctxt.cgodata = nil
 
 	addToTextp(ctxt)
-
-	// Drop the loader.
-	ctxt.loader = nil
 }
 
 func (ctxt *Link) dumpsyms() {
