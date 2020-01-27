@@ -432,11 +432,15 @@ func (c *connection) AddFile(ctx context.Context, uri span.URI) *cmdFile {
 }
 
 func (c *connection) diagnoseFiles(ctx context.Context, files []span.URI) error {
+	var untypedFiles []interface{}
+	for _, file := range files {
+		untypedFiles = append(untypedFiles, string(file))
+	}
 	c.Client.diagnosticsMu.Lock()
 	defer c.Client.diagnosticsMu.Unlock()
 
 	c.Client.diagnosticsDone = make(chan struct{})
-	_, err := c.Server.NonstandardRequest(ctx, "gopls/diagnoseFiles", map[string]interface{}{"files": files})
+	_, err := c.Server.NonstandardRequest(ctx, "gopls/diagnoseFiles", map[string]interface{}{"files": untypedFiles})
 	<-c.Client.diagnosticsDone
 	return err
 }
