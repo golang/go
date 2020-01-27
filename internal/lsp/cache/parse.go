@@ -240,6 +240,15 @@ func fixAST(ctx context.Context, n ast.Node, tok *token.File, src []byte) error 
 				err = fixAST(ctx, parent, tok, src)
 				return false
 			}
+
+			// Fix cases where parser interprets if/for/switch "init"
+			// statement as "cond" expression, e.g.:
+			//
+			//   // "i := foo" is init statement, not condition.
+			//   for i := foo
+			//
+			fixInitStmt(n, parent, tok, src)
+
 			return false
 		case *ast.SelectorExpr:
 			// Fix cases where a keyword prefix results in a phantom "_" selector, e.g.:
@@ -355,10 +364,26 @@ func fixMissingCurlies(f *ast.File, b *ast.BlockStmt, parent ast.Node, tok *toke
 		return nil
 	}
 
-	// Insert "{}" at insertPos.
 	var buf bytes.Buffer
-	buf.Grow(len(src) + 2)
+	buf.Grow(len(src) + 3)
 	buf.Write(src[:tok.Offset(insertPos)])
+
+	// Detect if we need to insert a semicolon to fix "for" loop situations like:
+	//
+	//   for i := foo(); foo<>
+	//
+	// Just adding curlies is not sufficient to make things parse well.
+	if fs, ok := parent.(*ast.ForStmt); ok {
+		if _, ok := fs.Cond.(*ast.BadExpr); !ok {
+			if xs, ok := fs.Post.(*ast.ExprStmt); ok {
+				if _, ok := xs.X.(*ast.BadExpr); ok {
+					buf.WriteByte(';')
+				}
+			}
+		}
+	}
+
+	// Insert "{}" at insertPos.
 	buf.WriteByte('{')
 	buf.WriteByte('}')
 	buf.Write(src[tok.Offset(insertPos):])
@@ -400,6 +425,48 @@ func isPhantomUnderscore(id *ast.Ident, tok *token.File, src []byte) bool {
 	// program text.
 	offset := tok.Offset(id.Pos())
 	return len(src) <= offset || src[offset] != '_'
+}
+
+// fixInitStmt fixes cases where the parser misinterprets an
+// if/for/switch "init" statement as the "cond" conditional. In cases
+// like "if i := 0" the user hasn't typed the semicolon yet so the
+// parser is looking for the conditional expression. However, "i := 0"
+// are not valid expressions, so we get a BadExpr.
+func fixInitStmt(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte) {
+	if !bad.Pos().IsValid() || !bad.End().IsValid() {
+		return
+	}
+
+	// Try to extract a statement from the BadExpr.
+	stmtBytes := src[tok.Offset(bad.Pos()) : tok.Offset(bad.End()-1)+1]
+	stmt, err := parseStmt(bad.Pos(), stmtBytes)
+	if err != nil {
+		return
+	}
+
+	// If the parent statement doesn't already have an "init" statement,
+	// move the extracted statement into the "init" field and insert a
+	// dummy expression into the required "cond" field.
+	switch p := parent.(type) {
+	case *ast.IfStmt:
+		if p.Init != nil {
+			return
+		}
+		p.Init = stmt
+		p.Cond = &ast.Ident{Name: "_"}
+	case *ast.ForStmt:
+		if p.Init != nil {
+			return
+		}
+		p.Init = stmt
+		p.Cond = &ast.Ident{Name: "_"}
+	case *ast.SwitchStmt:
+		if p.Init != nil {
+			return
+		}
+		p.Init = stmt
+		p.Tag = nil
+	}
 }
 
 // readKeyword reads the keyword starting at pos, if any.
