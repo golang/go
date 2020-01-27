@@ -10,6 +10,7 @@ package ld
 import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/pe"
 	"encoding/binary"
@@ -282,7 +283,7 @@ type Dll struct {
 }
 
 var (
-	rsrcsym     *sym.Symbol
+	rsrcsym     loader.Sym
 	PESECTHEADR int32
 	PEFILEHEADR int32
 	pe64        int
@@ -1469,27 +1470,30 @@ func (ctxt *Link) dope() {
 	initdynexport(ctxt)
 }
 
-func setpersrc(ctxt *Link, sym *sym.Symbol) {
-	if rsrcsym != nil {
-		Errorf(sym, "too many .rsrc sections")
+func setpersrc(ctxt *Link, sym loader.Sym) {
+	if rsrcsym != 0 {
+		Errorf(nil, "too many .rsrc sections")
 	}
 
 	rsrcsym = sym
 }
 
 func addpersrc(ctxt *Link) {
-	if rsrcsym == nil {
+	if rsrcsym == 0 {
 		return
 	}
 
-	h := pefile.addSection(".rsrc", int(rsrcsym.Size), int(rsrcsym.Size))
+	data := ctxt.loader.Data(rsrcsym)
+	size := len(data)
+	h := pefile.addSection(".rsrc", size, size)
 	h.characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_INITIALIZED_DATA
 	h.checkOffset(ctxt.Out.Offset())
 
 	// relocation
-	for ri := range rsrcsym.R {
-		r := &rsrcsym.R[ri]
-		p := rsrcsym.P[r.Off:]
+	relocs := ctxt.loader.Relocs(rsrcsym)
+	for i := 0; i < relocs.Count; i++ {
+		r := relocs.At(i)
+		p := data[r.Off:]
 		val := uint32(int64(h.virtualAddress) + r.Add)
 
 		// 32-bit little-endian
@@ -1500,8 +1504,8 @@ func addpersrc(ctxt *Link) {
 		p[3] = byte(val >> 24)
 	}
 
-	ctxt.Out.Write(rsrcsym.P)
-	h.pad(ctxt.Out, uint32(rsrcsym.Size))
+	ctxt.Out.Write(data)
+	h.pad(ctxt.Out, uint32(size))
 
 	// update data directory
 	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress = h.virtualAddress

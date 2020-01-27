@@ -88,6 +88,8 @@ func (sb *SymbolBuilder) SetLocalentry(value uint8)  { sb.l.SetSymLocalentry(sb.
 func (sb *SymbolBuilder) SetExtname(value string)    { sb.l.SetSymExtname(sb.symIdx, value) }
 func (sb *SymbolBuilder) SetDynimplib(value string)  { sb.l.SetSymDynimplib(sb.symIdx, value) }
 func (sb *SymbolBuilder) SetDynimpvers(value string) { sb.l.SetSymDynimpvers(sb.symIdx, value) }
+func (sb *SymbolBuilder) SetPlt(value int32)         { sb.l.SetPlt(sb.symIdx, value) }
+func (sb *SymbolBuilder) SetGot(value int32)         { sb.l.SetGot(sb.symIdx, value) }
 
 func (sb *SymbolBuilder) AddBytes(data []byte) {
 	sb.setReachable()
