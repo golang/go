@@ -247,9 +247,6 @@ func (v *view) buildBuiltinPackage(ctx context.Context, m *metadata) error {
 		data.pkg, data.err = ast.NewPackage(fset, map[string]*ast.File{
 			pgh.File().Identity().URI.Filename(): file,
 		}, nil, nil)
-		if err != nil {
-			return err
-		}
 		return data
 	})
 	v.builtin = &builtinPackageHandle{

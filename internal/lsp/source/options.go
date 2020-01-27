@@ -28,7 +28,6 @@ import (
 	"golang.org/x/tools/go/analysis/passes/nilfunc"
 	"golang.org/x/tools/go/analysis/passes/nilness"
 	"golang.org/x/tools/go/analysis/passes/printf"
-	"golang.org/x/tools/go/analysis/passes/shadow"
 	"golang.org/x/tools/go/analysis/passes/shift"
 	"golang.org/x/tools/go/analysis/passes/sortslice"
 	"golang.org/x/tools/go/analysis/passes/stdmethods"
@@ -495,7 +494,6 @@ var defaultAnalyzers = map[string]*analysis.Analyzer{
 	// Non-vet analyzers
 	deepequalerrors.Analyzer.Name:  deepequalerrors.Analyzer,
 	nilness.Analyzer.Name:          nilness.Analyzer,
-	shadow.Analyzer.Name:           shadow.Analyzer,
 	sortslice.Analyzer.Name:        sortslice.Analyzer,
 	testinggoroutine.Analyzer.Name: testinggoroutine.Analyzer,
 }
