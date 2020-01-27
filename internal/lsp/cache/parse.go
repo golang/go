@@ -18,7 +18,6 @@ import (
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/trace"
 	errors "golang.org/x/xerrors"
 )
@@ -134,6 +133,9 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 			return &parseGoData{err: errors.Errorf("successfully parsed but no token.File for %s (%v)", fh.Identity().URI, parseError)}
 		}
 
+		// Fix any badly parsed parts of the AST.
+		_ = fixAST(ctx, file, tok, buf)
+
 		// Fix certain syntax errors that render the file unparseable.
 		newSrc := fixSrc(file, tok, buf)
 		if newSrc != nil {
@@ -143,16 +145,13 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 				file = newFile
 				buf = newSrc
 				tok = fset.File(file.Pos())
+
+				_ = fixAST(ctx, file, tok, buf)
 			}
 		}
 
 		if mode == source.ParseExported {
 			trimAST(file)
-		}
-
-		// Fix any badly parsed parts of the AST.
-		if err := fixAST(ctx, file, tok, buf); err != nil {
-			log.Error(ctx, "failed to fix AST", err)
 		}
 	}
 
@@ -301,6 +300,8 @@ func fixSrc(f *ast.File, tok *token.File, src []byte) (newSrc []byte) {
 		switch n := n.(type) {
 		case *ast.BlockStmt:
 			newSrc = fixMissingCurlies(f, n, parent, tok, src)
+		case *ast.SelectorExpr:
+			newSrc = fixDanglingSelector(f, n, parent, tok, src)
 		}
 
 		return newSrc == nil
@@ -390,6 +391,76 @@ func fixMissingCurlies(f *ast.File, b *ast.BlockStmt, parent ast.Node, tok *toke
 	return buf.Bytes()
 }
 
+// fixDanglingSelector inserts real "_" selector expressions in place
+// of phantom "_" selectors. For example:
+//
+// func _() {
+//   x.<>
+// }
+// var x struct { i int }
+//
+// To fix completion at "<>", we insert a real "_" after the "." so the
+// following declaration of "x" can be parsed and type checked
+// normally.
+func fixDanglingSelector(f *ast.File, s *ast.SelectorExpr, parent ast.Node, tok *token.File, src []byte) []byte {
+	if !isPhantomUnderscore(s.Sel, tok, src) {
+		return nil
+	}
+
+	if !s.X.End().IsValid() {
+		return nil
+	}
+
+	// Insert directly after the selector's ".".
+	insertOffset := tok.Offset(s.X.End()) + 1
+	if src[insertOffset-1] != '.' {
+		return nil
+	}
+
+	var buf bytes.Buffer
+	buf.Grow(len(src) + 1)
+	buf.Write(src[:insertOffset])
+	buf.WriteByte('_')
+	buf.Write(src[insertOffset:])
+	return buf.Bytes()
+}
+
+// fixAccidentalDecl tries to fix "accidental" declarations. For example:
+//
+// func typeOf() {}
+// type<> // want to call typeOf(), not declare a type
+//
+// If we find an *ast.DeclStmt with only a single phantom "_" spec, we
+// replace the decl statement with an expression statement containing
+// only the keyword. This allows completion to work to some degree.
+func fixAccidentalDecl(decl *ast.DeclStmt, parent ast.Node, tok *token.File, src []byte) {
+	genDecl, _ := decl.Decl.(*ast.GenDecl)
+	if genDecl == nil || len(genDecl.Specs) != 1 {
+		return
+	}
+
+	switch spec := genDecl.Specs[0].(type) {
+	case *ast.TypeSpec:
+		// If the name isn't a phantom "_" identifier inserted by the
+		// parser then the decl is likely legitimate and we shouldn't mess
+		// with it.
+		if !isPhantomUnderscore(spec.Name, tok, src) {
+			return
+		}
+	case *ast.ValueSpec:
+		if len(spec.Names) != 1 || !isPhantomUnderscore(spec.Names[0], tok, src) {
+			return
+		}
+	}
+
+	replaceNode(parent, decl, &ast.ExprStmt{
+		X: &ast.Ident{
+			Name:    genDecl.Tok.String(),
+			NamePos: decl.Pos(),
+		},
+	})
+}
+
 // fixPhantomSelector tries to fix selector expressions with phantom
 // "_" selectors. In particular, we check if the selector is a
 // keyword, and if so we swap in an *ast.Ident with the keyword text. For example:
@@ -399,6 +470,16 @@ func fixMissingCurlies(f *ast.File, b *ast.BlockStmt, parent ast.Node, tok *toke
 // yields a "_" selector instead of "var" since "var" is a keyword.
 func fixPhantomSelector(sel *ast.SelectorExpr, tok *token.File, src []byte) {
 	if !isPhantomUnderscore(sel.Sel, tok, src) {
+		return
+	}
+
+	// Only consider selectors directly abutting the selector ".". This
+	// avoids false positives in cases like:
+	//
+	//   foo. // don't think "var" is our selector
+	//   var bar = 123
+	//
+	if sel.Sel.Pos() != sel.X.End()+1 {
 		return
 	}
 
