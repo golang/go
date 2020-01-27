@@ -78,7 +78,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) ([]*metadata
 	defer done()
 
 	cfg := s.view.Config(ctx)
-	pkgs, err := packages.Load(cfg, query...)
+	pkgs, err := s.view.loadPackages(cfg, query...)
 
 	// If the context was canceled, return early. Otherwise, we might be
 	// type-checking an incomplete result. Check the context directly,

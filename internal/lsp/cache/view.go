@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -39,7 +40,7 @@ type view struct {
 
 	options source.Options
 
-	// mu protects all mutable state of the view.
+	// mu protects most mutable state of the view.
 	mu sync.Mutex
 
 	// baseCtx is the context handed to NewView. This is the parent of all
@@ -110,6 +111,10 @@ type view struct {
 
 	// `go env` variables that need to be tracked.
 	gopath, gocache string
+
+	// LoadMu guards packages.Load calls and associated state.
+	loadMu         sync.Mutex
+	serializeLoads int
 }
 
 type builtinPackageHandle struct {
@@ -759,6 +764,50 @@ func (v *view) getGoEnv(ctx context.Context, env []string) (string, error) {
 		return gomod, nil
 	}
 	return "", nil
+}
+
+// 1.13: go: updates to go.mod needed, but contents have changed
+// 1.14: go: updating go.mod: existing contents have changed since last read
+var modConcurrencyError = regexp.MustCompile(`go:.*go.mod.*contents have changed`)
+
+// LoadPackages calls packages.Load, serializing requests if they fight over
+// go.mod changes.
+func (v *view) loadPackages(cfg *packages.Config, patterns ...string) ([]*packages.Package, error) {
+	// We want to run go list calls concurrently as much as possible. However,
+	// if go.mod updates are needed, only one can make them and the others will
+	// fail. We need to retry in those cases, but we don't want to thrash so
+	// badly we never recover. To avoid that, once we've seen one concurrency
+	// error, start serializing everything until the backlog has cleared out.
+	// This could all be avoided on 1.14 by using multiple -modfiles.
+
+	v.loadMu.Lock()
+	var locked bool // If true, we hold the mutex and have incremented.
+	if v.serializeLoads == 0 {
+		v.loadMu.Unlock()
+	} else {
+		locked = true
+		v.serializeLoads++
+	}
+	defer func() {
+		if locked {
+			v.serializeLoads--
+			v.loadMu.Unlock()
+		}
+	}()
+
+	for {
+		pkgs, err := packages.Load(cfg, patterns...)
+		if err == nil || !modConcurrencyError.MatchString(err.Error()) {
+			return pkgs, err
+		}
+
+		log.Error(cfg.Context, "Load concurrency error, will retry serially", err)
+		if !locked {
+			v.loadMu.Lock()
+			v.serializeLoads++
+			locked = true
+		}
+	}
 }
 
 // This function will return the main go.mod file for this folder if it exists and whether the -modfile
