@@ -217,6 +217,32 @@ TODO
   of <code>GOINSECURE</code> is a comma-separated list of glob patterns.
 </p>
 
+<h4 id="commands-outside-modules">Commands outside modules</h4>
+
+<p><!-- golang.org/issue/32027 -->
+  When module-aware mode is enabled explicitly (by setting
+  <code>GO111MODULE=on</code>), most module commands have more
+  limited functionality if no <code>go.mod</code> file is present. For
+  example, <code>go</code> <code>build</code>,
+  <code>go</code> <code>run</code>, and other build commands can only build
+  packages in the standard library and packages specified as <code>.go</code>
+  files on the command line.
+</p>
+
+<p>
+  Previously, the <code>go</code> command would resolve each package path
+  to the latest version of a module but would not record the module path
+  or version. This resulted in <a href="https://golang.org/issue/32027">slow,
+  non-reproducible builds</a>.
+</p>
+
+<p>
+  <code>go</code> <code>get</code> continues to work as before, as do
+  <code>go</code> <code>mod</code> <code>download</code> and
+  <code>go</code> <code>list</code> <code>-m</code> with explicit version
+  patterns.
+</p>
+
 <h4 id="incompatible-versions"><code>+incompatible</code> versions</h4>
 <!-- golang.org/issue/34165 -->
 
