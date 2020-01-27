@@ -95,6 +95,31 @@ When invoked with -s gofmt will make the following source transformations where 
 	will be simplified to:
 		for range v {...}
 
+When invoke with -tf gofmt will format struct tag.
+
+	struct tag format example:
+	struct User struct {
+		Name     string `json:"name" xml:"name" yaml:"name"`
+		Password string `json:"password" xml:"password" yaml:"password"`
+	}
+
+	struct User struct {
+		Name     string `json:"name"     xml:"name"     yaml:"name"    `
+		Password string `json:"password" xml:"password" yaml:"password"`
+	}
+
+When invoke with -ts gofmt will sort struct tags by key.
+
+	struct tag key example:
+	struct User struct {
+		Name     string `xml:"name" json:"name" yaml:"name"`
+	}
+
+	struct User struct {
+		Name     string `json:"name" xml:"name" yaml:"name"`
+	}
+
+
 This may result in changes that are incompatible with earlier versions of Go.
 */
 package main
