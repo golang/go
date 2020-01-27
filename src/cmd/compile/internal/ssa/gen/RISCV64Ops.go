@@ -6,7 +6,9 @@
 
 package main
 
-import "cmd/internal/obj/riscv"
+import (
+	"fmt"
+)
 
 // Suffixes encode the bit width of various instructions:
 //
@@ -17,6 +19,30 @@ import "cmd/internal/obj/riscv"
 // S (single)      = 32 bit float
 // D (double)      = 64 bit float
 // L               = 64 bit int, used when the opcode starts with F
+
+const (
+	riscv64REG_G    = 4
+	riscv64REG_CTXT = 20
+	riscv64REG_LR   = 1
+	riscv64REG_SP   = 2
+	riscv64REG_TMP  = 31
+	riscv64REG_ZERO = 0
+)
+
+func riscv64RegName(r int) string {
+	switch {
+	case r == riscv64REG_G:
+		return "g"
+	case r == riscv64REG_SP:
+		return "SP"
+	case 0 <= r && r <= 31:
+		return fmt.Sprintf("X%d", r)
+	case 32 <= r && r <= 63:
+		return fmt.Sprintf("F%d", r-32)
+	default:
+		panic(fmt.Sprintf("unknown register %d", r))
+	}
+}
 
 func init() {
 	var regNamesRISCV64 []string
@@ -30,7 +56,7 @@ func init() {
 	addreg := func(r int, name string) regMask {
 		mask := regMask(1) << uint(len(regNamesRISCV64))
 		if name == "" {
-			name = riscv.RegName(r)
+			name = riscv64RegName(r)
 		}
 		regNamesRISCV64 = append(regNamesRISCV64, name)
 		regNamed[name] = mask
@@ -38,8 +64,8 @@ func init() {
 	}
 
 	// General purpose registers.
-	for r := riscv.REG_X0; r <= riscv.REG_X31; r++ {
-		if r == riscv.REG_LR {
+	for r := 0; r <= 31; r++ {
+		if r == riscv64REG_LR {
 			// LR is not used by regalloc, so we skip it to leave
 			// room for pseudo-register SB.
 			continue
@@ -50,8 +76,8 @@ func init() {
 		// Add general purpose registers to gpMask.
 		switch r {
 		// ZERO, g, and TMP are not in any gp mask.
-		case riscv.REG_ZERO, riscv.REG_G, riscv.REG_TMP:
-		case riscv.REG_SP:
+		case riscv64REG_ZERO, riscv64REG_G, riscv64REG_TMP:
+		case riscv64REG_SP:
 			gpspMask |= mask
 			gpspsbMask |= mask
 		default:
@@ -62,7 +88,7 @@ func init() {
 	}
 
 	// Floating pointer registers.
-	for r := riscv.REG_F0; r <= riscv.REG_F31; r++ {
+	for r := 32; r <= 63; r++ {
 		mask := addreg(r, "")
 		fpMask |= mask
 	}
