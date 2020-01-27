@@ -10,10 +10,11 @@ import * as ts from 'typescript';
 let dir = process.env['HOME'];
 const srcDir = '/vscode-languageserver-node'
 export const fnames = [
-  `${dir}${srcDir}/protocol/src/protocol.ts`,
+  //`${dir}${srcDir}/protocol/src/protocol.ts`, // why isn't this main.ts?
+  `${dir}/${srcDir}/protocol/src/main.ts`,
   `${dir}${srcDir}/types/src/main.ts`, `${dir}${srcDir}/jsonrpc/src/main.ts`
 ];
-export const gitHash = '635ab1fe6f8c57ce9402e573d007f24d6d290fd3';
+export const gitHash = '7b90c29d0cb5cd7b9c41084f6cb3781a955adeba';
 let outFname = 'tsprotocol.go';
 let fda: number, fdb: number, fde: number;  // file descriptors
 
@@ -65,10 +66,10 @@ export function computeHeader(pkgDoc: boolean): string {
     }
   }
   const a =
-      `// Package protocol contains data types and code for LSP jsonrpcs\n` +
-      `// generated automatically from vscode-languageserver-node\n` +
-      `// commit: ${gitHash}\n` +
-      `// last fetched ${lastDate}\n`
+    `// Package protocol contains data types and code for LSP jsonrpcs\n` +
+    `// generated automatically from vscode-languageserver-node\n` +
+    `// commit: ${gitHash}\n` +
+    `// last fetched ${lastDate}\n`
   const b = 'package protocol\n'
   const c = `\n// Code generated (see typescript/README.md) DO NOT EDIT.\n\n`
   if (pkgDoc) {
@@ -85,7 +86,7 @@ export function goName(s: string): string {
   if (s.charAt(0) == '_') {
     ans = 'Inner' + s.substring(1)
   }
-  else {ans = s.substring(0, 1).toUpperCase() + s.substring(1)};
+  else { ans = s.substring(0, 1).toUpperCase() + s.substring(1) };
   ans = ans.replace(/Uri$/, 'URI')
   ans = ans.replace(/Id$/, 'ID')
   return ans
@@ -94,7 +95,7 @@ export function goName(s: string): string {
 // Generate JSON tag for a struct field
 export function JSON(n: ts.PropertySignature): string {
   const json = `\`json:"${n.name.getText()}${
-      n.questionToken != undefined ? ',omitempty' : ''}"\``;
+    n.questionToken != undefined ? ',omitempty' : ''}"\``;
   return json
 }
 
@@ -107,12 +108,13 @@ export function constName(nm: string, type: string): string {
     ['SignatureHelpTriggerKind', 'Sig'], ['CompletionItemTag', 'Compl']
   ])  // typeName->prefix
   let suff = new Map<string, string>([
-    ['CompletionItemKind', 'Completion'], ['InsertTextFormat', 'TextFormat']
+    ['CompletionItemKind', 'Completion'], ['InsertTextFormat', 'TextFormat'],
+    ['SymbolTag', 'Symbol']
   ])
   let ans = nm;
   if (pref.get(type)) ans = pref.get(type) + ans;
   if (suff.has(type)) ans = ans + suff.get(type)
-    return ans
+  return ans
 }
 
 // Find the comments associated with an AST node
@@ -129,7 +131,7 @@ export function getComments(node: ts.Node): string {
 
 export function printAST(program: ts.Program) {
   // dump the ast, for debugging
-  const f = function(n: ts.Node) {
+  const f = function (n: ts.Node) {
     describe(n, pra)
   };
   for (const sourceFile of program.getSourceFiles()) {
@@ -171,7 +173,7 @@ function describe(node: ts.Node, pr: (s: string) => any) {
     else if (ts.isStringLiteral(n)) {
       pr(`${indent} ${loc(n)} ${strKind(n)} ${n.text} \n`)
     }
-    else {pr(`${indent} ${loc(n)} ${strKind(n)} \n`)};
+    else { pr(`${indent} ${loc(n)} ${strKind(n)} \n`) };
     indent += ' .'
     ts.forEachChild(n, f)
     indent = indent.slice(0, indent.length - 2)
@@ -191,7 +193,7 @@ export function loc(node: ts.Node): string {
   const n = fn.search(/-node./)
   fn = fn.substring(n + 6)
   return `${fn} ${x.line + 1}: ${x.character + 1} (${y.line + 1}: ${
-      y.character + 1})`
+    y.character + 1})`
 }
 // --- various string stuff
 
@@ -199,7 +201,7 @@ export function loc(node: ts.Node): string {
 // as part of printing the AST tree
 function kinds(n: ts.Node): string {
   let res = 'Seen ' + strKind(n);
-  function f(n: ts.Node): void{res += ' ' + strKind(n)};
+  function f(n: ts.Node): void { res += ' ' + strKind(n) };
   ts.forEachChild(n, f)
   return res
 }

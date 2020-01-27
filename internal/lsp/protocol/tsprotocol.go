@@ -1,7 +1,7 @@
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
-// commit: 635ab1fe6f8c57ce9402e573d007f24d6d290fd3
-// last fetched Fri Jan 10 2020 17:17:33 GMT-0500 (Eastern Standard Time)
+// commit: 7b90c29d0cb5cd7b9c41084f6cb3781a955adeba
+// last fetched Thu Jan 23 2020 11:10:31 GMT-0500 (Eastern Standard Time)
 package protocol
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
@@ -44,6 +44,111 @@ type ApplyWorkspaceEditResponse struct {
 	FailedChange float64 `json:"failedChange,omitempty"`
 }
 
+/**
+ * Represents an incoming call, e.g. a caller of a method or constructor.
+ *
+ * @since 3.16.0 - Proposed state
+ */
+type CallHierarchyIncomingCall struct {
+	/**
+	 * The item that makes the call.
+	 */
+	From CallHierarchyItem `json:"from"`
+	/**
+	 * The range at which at which the calls appears. This is relative to the caller
+	 * denoted by [`this.from`](#CallHierarchyIncomingCall.from).
+	 */
+	FromRanges []Range `json:"fromRanges"`
+}
+
+/**
+ * The parameter of a `callHierarchy/incomingCalls` request.
+ *
+ * @since 3.16.0 - Proposed state
+ */
+type CallHierarchyIncomingCallsParams struct {
+	Item CallHierarchyItem `json:"item"`
+	WorkDoneProgressParams
+	PartialResultParams
+}
+
+/**
+ * Represents programming constructs like functions or constructors in the context
+ * of call hierarchy.
+ *
+ * @since 3.16.0 - Proposed state
+ */
+type CallHierarchyItem struct {
+	/**
+	 * The name of this item.
+	 */
+	Name string `json:"name"`
+	/**
+	 * The kind of this item.
+	 */
+	Kind SymbolKind `json:"kind"`
+	/**
+	 * Tags for this item.
+	 */
+	Tags []SymbolTag `json:"tags,omitempty"`
+	/**
+	 * More detail for this item, e.g. the signature of a function.
+	 */
+	Detail string `json:"detail,omitempty"`
+	/**
+	 * The resource identifier of this item.
+	 */
+	URI DocumentURI `json:"uri"`
+	/**
+	 * The range enclosing this symbol not including leading/trailing whitespace but everything else, e.g. comments and code.
+	 */
+	Range Range `json:"range"`
+	/**
+	 * The range that should be selected and revealed when this symbol is being picked, e.g. the name of a function.
+	 * Must be contained by the [`range`](#CallHierarchyItem.range).
+	 */
+	SelectionRange Range `json:"selectionRange"`
+}
+
+/**
+ * Represents an outgoing call, e.g. calling a getter from a method or a method from a constructor etc.
+ *
+ * @since 3.16.0 - Proposed state
+ */
+type CallHierarchyOutgoingCall struct {
+	/**
+	 * The item that is called.
+	 */
+	To CallHierarchyItem `json:"to"`
+	/**
+	 * The range at which this item is called. This is the range relative to the caller, e.g the item
+	 * passed to [`provideCallHierarchyOutgoingCalls`](#CallHierarchyItemProvider.provideCallHierarchyOutgoingCalls)
+	 * and not [`this.to`](#CallHierarchyOutgoingCall.to).
+	 */
+	FromRanges []Range `json:"fromRanges"`
+}
+
+/**
+ * The parameter of a `callHierarchy/outgoingCalls` request.
+ *
+ * @since 3.16.0 - Proposed state
+ */
+type CallHierarchyOutgoingCallsParams struct {
+	Item CallHierarchyItem `json:"item"`
+	WorkDoneProgressParams
+	PartialResultParams
+}
+
+/**
+ * The parameter of a `textDocument/prepareCallHierarchy` request.
+ *
+ * @since 3.16.0 - Proposed state
+ */
+type CallHierarchyPrepareParams struct {
+	TextDocumentPositionParams
+	WorkDoneProgressParams
+}
+
 type CancelParams struct {
 	/**
 	 * The request id to cancel.
@@ -70,20 +175,23 @@ type ClientCapabilities = struct {
 	 * Text document specific client capabilities.
 	 */
 	TextDocument TextDocumentClientCapabilities `json:"textDocument,omitempty"`
-	/**
-	 * Window specific client capabilities.
-	 */
-	Window interface{} `json:"window,omitempty"`
+	Window       struct {
+		/**
+		 * Window specific client capabilities.
+		 */
+		Window interface{} `json:"window,omitempty"`
+		/**
+		 * Whether client supports handling progress notifications. If set servers are allowed to
+		 * report in `workDoneProgress` property in the request specific server capabilities.
+		 *
+		 * Since 3.15.0
+		 */
+		WorkDoneProgress bool `json:"workDoneProgress,omitempty"`
+	}
 	/**
 	 * Experimental client capabilities.
 	 */
 	Experimental interface{} `json:"experimental,omitempty"`
-	/**
-	 * Whether implementation supports dynamic registration for selection range providers. If this is set to `true`
-	 * the client supports the new `SelectionRangeRegistrationOptions` return value for the corresponding server
-	 * capability as well.
-	 */
-	DynamicRegistration bool `json:"dynamicRegistration,omitempty"`
 }
 
 /**
@@ -541,7 +649,8 @@ type CompletionItem struct {
 	InsertText string `json:"insertText,omitempty"`
 	/**
 	 * The format of the insert text. The format applies to both the `insertText` property
-	 * and the `newText` property of a provided `textEdit`.
+	 * and the `newText` property of a provided `textEdit`. If ommitted defaults to
+	 * `InsertTextFormat.PlainText`.
 	 */
 	InsertTextFormat InsertTextFormat `json:"insertTextFormat,omitempty"`
 	/**
@@ -630,6 +739,9 @@ type CompletionOptions struct {
 	 * The list of all possible characters that commit a completion. This field can be used
 	 * if clients don't support individual commmit characters per completion item. See
 	 * `ClientCapabilities.textDocument.completion.completionItem.commitCharactersSupport`
+	 *
+	 * If a server provides both `allCommitCharacters` and commit characters on an individual
+	 * completion item the ones on the completion item win.
 	 *
 	 * @since 3.2.0
 	 */
@@ -934,10 +1046,6 @@ type DidChangeConfigurationParams struct {
 	Settings interface{} `json:"settings"`
 }
 
-type DidChangeConfigurationRegistrationOptions struct {
-	Section []string /*string | string[]*/ `json:"section,omitempty"`
-}
-
 /**
  * The change text document notification's parameters.
  */
@@ -950,8 +1058,16 @@ type DidChangeTextDocumentParams struct {
 	TextDocument VersionedTextDocumentIdentifier `json:"textDocument"`
 	/**
 	 * The actual content changes. The content changes describe single state changes
-	 * to the document. So if there are two content changes c1 and c2 for a document
-	 * in state S then c1 move the document to S' and c2 to S''.
+	 * to the document. So if there are two content changes c1 (at array index 0) and
+	 * c2 (at array index 1) for a document in state S then c1 moves the document from
+	 * S to S' and c2 from S' to S''. So c1 is computed on the state S and c2 is computed
+	 * on the state S'.
+	 *
+	 * To mirror the content of a document using change events use the following approach:
+	 * - start with the same initial content
+	 * - apply the 'textDocument/didChange' notifications in the order you recevie them.
+	 * - apply the `TextDocumentContentChangeEvent`s in a single notification in the order
+	 *   you receive them.
 	 */
 	ContentChanges []TextDocumentContentChangeEvent `json:"contentChanges"`
 }
@@ -1040,10 +1156,6 @@ type DocumentColorClientCapabilities struct {
 }
 
 type DocumentColorOptions struct {
-	/**
-	 * Code lens has a resolve provider as well.
-	 */
-	ResolveProvider bool `json:"resolveProvider,omitempty"`
 	WorkDoneProgressOptions
 }
 
@@ -2134,6 +2246,13 @@ type PublishDiagnosticsClientCapabilities struct {
 		 */
 		ValueSet []DiagnosticTag `json:"valueSet"`
 	} `json:"tagSupport,omitempty"`
+	/**
+	 * Whether the client interprets the version property of the
+	 * `textDocument/publishDiagnostics` notification`s parameter.
+	 *
+	 * @since 3.15.0
+	 */
+	VersionSupport bool `json:"versionSupport,omitempty"`
 }
 
 /**
@@ -2390,6 +2509,90 @@ type SelectionRangeRegistrationOptions struct {
 	SelectionRangeOptions
 	TextDocumentRegistrationOptions
 	StaticRegistrationOptions
+}
+
+/**
+ * @since 3.16.0 - Proposed state
+ */
+type SemanticTokens struct {
+	/**
+	 * An optional result id. If provided and clients support delta updating
+	 * the client will include the result id in the next semantic token request.
+	 * A server can then instead of computing all sematic tokens again simply
+	 * send a delta.
+	 */
+	ResultID string `json:"resultId,omitempty"`
+	/**
+	 * The actual tokens. For a detailed description about how the data is
+	 * structured pls see
+	 * https://github.com/microsoft/vscode-extension-samples/blob/5ae1f7787122812dcc84e37427ca90af5ee09f14/semantic-tokens-sample/vscode.proposed.d.ts#L71
+	 */
+	Data []float64 `json:"data"`
+}
+
+/**
+ * @since 3.16.0 - Proposed state
+ */
+type SemanticTokensEdit struct {
+	Start       float64   `json:"start"`
+	DeleteCount float64   `json:"deleteCount"`
+	Data        []float64 `json:"data,omitempty"`
+}
+
+/**
+ * @since 3.16.0 - Proposed state
+ */
+type SemanticTokensEdits struct {
+	ResultID string `json:"resultId,omitempty"`
+	/**
+	 * For a detailed description how these edits are structured pls see
+	 * https://github.com/microsoft/vscode-extension-samples/blob/5ae1f7787122812dcc84e37427ca90af5ee09f14/semantic-tokens-sample/vscode.proposed.d.ts#L131
+	 */
+	Edits []SemanticTokensEdit `json:"edits"`
+}
+
+/**
+ * @since 3.16.0 - Proposed state
+ */
+type SemanticTokensEditsParams struct {
+	/**
+	 * The text document.
+	 */
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	/**
+	 * The previous result id.
+	 */
+	PreviousResultID string `json:"previousResultId"`
+	WorkDoneProgressParams
+	PartialResultParams
+}
+
+/**
+ * @since 3.16.0 - Proposed state
+ */
+type SemanticTokensParams struct {
+	/**
+	 * The text document.
+	 */
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	WorkDoneProgressParams
+	PartialResultParams
+}
+
+/**
+ * @since 3.16.0 - Proposed state
+ */
+type SemanticTokensRangeParams struct {
+	/**
+	 * The text document.
+	 */
+	TextDocument TextDocumentIdentifier `json:"textDocument"`
+	/**
+	 * The range the semantic tokens are requested for.
+	 */
+	Range Range `json:"range"`
+	WorkDoneProgressParams
+	PartialResultParams
 }
 
 type ServerCapabilities = struct {
@@ -2749,15 +2952,10 @@ type SymbolInformation struct {
 type SymbolKind float64
 
 /**
- * Describe options to be used when registered for text document change events.
+ * Symbol tags are extra annotations that tweak the rendering of a symbol.
+ * @since 3.15
  */
-type TextDocumentChangeRegistrationOptions struct {
-	/**
-	 * How documents are synced to the server.
-	 */
-	SyncKind TextDocumentSyncKind `json:"syncKind"`
-	TextDocumentRegistrationOptions
-}
+type SymbolTag float64
 
 /**
  * Text document specific client capabilities.
@@ -2867,23 +3065,28 @@ type TextDocumentClientCapabilities struct {
  * An event describing a change to a text document. If range and rangeLength are omitted
  * the new text is considered to be the full content of the document.
  */
-type TextDocumentContentChangeEvent struct {
+type TextDocumentContentChangeEvent = struct {
 	/**
 	 * The range of the document that changed.
 	 */
 	Range *Range `json:"range,omitempty"`
 	/**
-	 * The length of the range that got replaced.
+	 * The optional length of the range that got replaced.
+	 *
+	 * @deprecated use range instead.
 	 */
 	RangeLength float64 `json:"rangeLength,omitempty"`
 	/**
-	 * The new text of the document.
+	 * The new text for the provided range.
 	 */
 	Text string `json:"text"`
 }
 
 /**
- * Describes textual changes on a text document.
+ * Describes textual changes on a text document. A TextDocumentEdit describes all changes
+ * on a document version Si and after they are applied move the document to version Si+1.
+ * So the creator of a TextDocumentEdit doesn't need to sort the array of edits or do any
+ * kind of ordering. However the edits must be non overlapping.
  */
 type TextDocumentEdit struct {
 	/**
@@ -2960,14 +3163,6 @@ type TextDocumentRegistrationOptions struct {
  * Represents reasons why a text document is saved.
  */
 type TextDocumentSaveReason float64
-
-/**
- * Save registration options.
- */
-type TextDocumentSaveRegistrationOptions struct {
-	TextDocumentRegistrationOptions
-	SaveOptions
-}
 
 type TextDocumentSyncClientCapabilities struct {
 	/**
@@ -3126,6 +3321,35 @@ type WillSaveTextDocumentParams struct {
 	Reason TextDocumentSaveReason `json:"reason"`
 }
 
+type WorkDoneProgressCancelParams struct {
+	/**
+	 * The token to be used to report progress.
+	 */
+	Token ProgressToken `json:"token"`
+}
+
+type WorkDoneProgressClientCapabilities struct {
+	/**
+	 * Window specific client capabilities.
+	 */
+	Window struct {
+		/**
+		 * Whether client supports handling progress notifications. If set servers are allowed to
+		 * report in `workDoneProgress` property in the request specific server capabilities.
+		 *
+		 * Since 3.15.0
+		 */
+		WorkDoneProgress bool `json:"workDoneProgress,omitempty"`
+	} `json:"window,omitempty"`
+}
+
+type WorkDoneProgressCreateParams struct {
+	/**
+	 * The token to be used to report progress.
+	 */
+	Token ProgressToken `json:"token"`
+}
+
 type WorkDoneProgressOptions struct {
 	WorkDoneProgress bool `json:"workDoneProgress,omitempty"`
 }
@@ -3222,7 +3446,7 @@ type WorkspaceFolder struct {
 	URI string `json:"uri"`
 	/**
 	 * The name of the workspace folder. Used to refer to this
-	 * workspace folder in thge user interface.
+	 * workspace folder in the user interface.
 	 */
 	Name string `json:"name"`
 }
@@ -3374,7 +3598,17 @@ const (
 	 * Base kind for an organize imports source action: `source.organizeImports`
 	 */
 
-	SourceOrganizeImports   CodeActionKind     = "source.organizeImports"
+	SourceOrganizeImports CodeActionKind = "source.organizeImports"
+	/**
+	 * Base kind for auto-fix source actions: `source.fixAll`.
+	 *
+	 * Fix all actions automatically fix errors that have a clear fix that do not require user input.
+	 * They should not suppress errors or perform unsafe fixes such as generating new types or classes.
+	 *
+	 * @since 3.15.0
+	 */
+
+	SourceFixAll            CodeActionKind     = "source.fixAll"
 	TextCompletion          CompletionItemKind = 1
 	MethodCompletion        CompletionItemKind = 2
 	FunctionCompletion      CompletionItemKind = 3
@@ -3493,7 +3727,7 @@ const (
 	TextOnlyTransactional FailureHandlingKind = "textOnlyTransactional"
 	/**
 	 * The client tries to undo the operations already executed. But there is no
-	 * guaruntee that this is succeeding.
+	 * guarantee that this is succeeding.
 	 */
 
 	Undo FailureHandlingKind = "undo"
@@ -3634,6 +3868,11 @@ const (
 	Event            SymbolKind               = 24
 	Operator         SymbolKind               = 25
 	TypeParameter    SymbolKind               = 26
+	/**
+	 * Render a symbol as obsolete, usually using a strike-out.
+	 */
+
+	DeprecatedSymbol SymbolTag = 1
 	/**
 	 * Manually triggered, e.g. by the user pressing save, by starting debugging,
 	 * or by an API call.

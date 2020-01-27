@@ -100,6 +100,10 @@ func (s *Server) Implementation(ctx context.Context, params *protocol.Implementa
 	return s.implementation(ctx, params)
 }
 
+func (s *Server) IncomingCalls(context.Context, *protocol.CallHierarchyIncomingCallsParams) ([]protocol.CallHierarchyIncomingCall, error) {
+	return nil, notImplemented("IncomingCalls")
+}
+
 func (s *Server) Initialize(ctx context.Context, params *protocol.ParamInitialize) (*protocol.InitializeResult, error) {
 	return s.initialize(ctx, params)
 }
@@ -118,6 +122,14 @@ func (s *Server) NonstandardRequest(ctx context.Context, method string, params i
 
 func (s *Server) OnTypeFormatting(context.Context, *protocol.DocumentOnTypeFormattingParams) ([]protocol.TextEdit, error) {
 	return nil, notImplemented("OnTypeFormatting")
+}
+
+func (s *Server) OutgoingCalls(context.Context, *protocol.CallHierarchyOutgoingCallsParams) ([]protocol.CallHierarchyOutgoingCall, error) {
+	return nil, notImplemented("OutgoingCalls")
+}
+
+func (s *Server) PrepareCallHierarchy(context.Context, *protocol.CallHierarchyPrepareParams) ([]protocol.CallHierarchyItem, error) {
+	return nil, notImplemented("PrepareCallHierarchy")
 }
 
 func (s *Server) PrepareRename(ctx context.Context, params *protocol.PrepareRenameParams) (interface{}, error) {
@@ -156,6 +168,18 @@ func (s *Server) SelectionRange(context.Context, *protocol.SelectionRangeParams)
 	return nil, notImplemented("SelectionRange")
 }
 
+func (s *Server) SemanticTokens(context.Context, *protocol.SemanticTokensParams) (*protocol.SemanticTokens, error) {
+	return nil, notImplemented("SemanticTokens")
+}
+
+func (s *Server) SemanticTokensEdits(context.Context, *protocol.SemanticTokensEditsParams) (interface{}, error) {
+	return nil, notImplemented("SemanticTokensEdits")
+}
+
+func (s *Server) SemanticTokensRange(context.Context, *protocol.SemanticTokensRangeParams) (*protocol.SemanticTokens, error) {
+	return nil, notImplemented("SemanticTokensRange")
+}
+
 func (s *Server) SetTraceNotification(context.Context, *protocol.SetTraceParams) error {
 	return notImplemented("SetTraceNotification")
 }
@@ -182,4 +206,12 @@ func (s *Server) WillSave(context.Context, *protocol.WillSaveTextDocumentParams)
 
 func (s *Server) WillSaveWaitUntil(context.Context, *protocol.WillSaveTextDocumentParams) ([]protocol.TextEdit, error) {
 	return nil, notImplemented("WillSaveWaitUntil")
+}
+
+func (s *Server) WorkDoneProgressCancel(context.Context, *protocol.WorkDoneProgressCancelParams) error {
+	return notImplemented("WorkDoneProgressCancel")
+}
+
+func (s *Server) WorkDoneProgressCreate(context.Context, *protocol.WorkDoneProgressCreateParams) error {
+	return notImplemented("WorkDoneProgressCreate")
 }
