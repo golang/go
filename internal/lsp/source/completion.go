@@ -324,6 +324,15 @@ func (c *completer) found(cand candidate) {
 		return
 	}
 
+	// If we know we want a type name, don't offer non-type name
+	// candidates. However, do offer package names since they can
+	// contain type names, and do offer any candidate without a type
+	// since we aren't sure if it is a type name or not (i.e. unimported
+	// candidate).
+	if c.wantTypeName() && obj.Type() != nil && !isTypeName(obj) && !isPkgName(obj) {
+		return
+	}
+
 	if c.matchingCandidate(&cand, nil) {
 		cand.score *= highScore
 	} else if isTypeName(obj) {
@@ -856,7 +865,7 @@ func (c *completer) lexical() error {
 
 			// If obj's type is invalid, find the AST node that defines the lexical block
 			// containing the declaration of obj. Don't resolve types for packages.
-			if _, ok := obj.(*types.PkgName); !ok && !typeIsValid(obj.Type()) {
+			if !isPkgName(obj) && !typeIsValid(obj.Type()) {
 				// Match the scope to its ast.Node. If the scope is the package scope,
 				// use the *ast.File as the starting node.
 				var node ast.Node
@@ -1718,6 +1727,11 @@ Nodes:
 				// If the key is empty, assume we are completing the key if
 				// pos is directly after the "map[".
 				wantComparable = c.pos == n.Pos()+token.Pos(len("map["))
+			}
+			break Nodes
+		case *ast.ValueSpec:
+			if n.Type != nil && n.Type.Pos() <= c.pos && c.pos <= n.Type.End() {
+				wantTypeName = true
 			}
 			break Nodes
 		default:

@@ -5,7 +5,7 @@ func _() {
 	var banana string //@item(banana, "banana", "string", "var")
 
 	switch interface{}(pear).(type) {
-	case b: //@complete(":", basket, banana)
+	case b: //@complete(":", basket)
 		b //@complete(" //", banana, basket)
 	}
 }

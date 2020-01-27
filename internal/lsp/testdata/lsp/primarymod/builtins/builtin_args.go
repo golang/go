@@ -33,13 +33,12 @@ func _() {
 
 	cap() //@rank(")", builtinSlice, builtinMap),rank(")", builtinArray, builtinString),rank(")", builtinArrayPtr, builtinPtr),rank(")", builtinChan, builtinInt)
 
-	make()              //@rank(")", builtinMapType, int),rank(")", builtinChanType, int),rank(")", builtinSliceType, int),rank(")", builtinMapType, builtinMap)
+	make()              //@rank(")", builtinMapType, int),rank(")", builtinChanType, int),rank(")", builtinSliceType, int),rank(")", builtinMapType, int)
 	make(aSliceType, a) //@rank(")", builtinInt, builtinSlice)
 
-	var _ []int = make() //@rank(")", builtinSliceType, builtinSlice)
+	var _ []int = make() //@rank(")", builtinSliceType, builtinMapType)
 
 	type myStruct struct{}  //@item(builtinStructType, "myStruct", "struct{...}", "struct")
-	new()                   //@rank(")", builtinStructType, builtinInt)
 	var _ *myStruct = new() //@rank(")", builtinStructType, int)
 
 	for k := range a { //@rank(" {", builtinSlice, builtinInt),rank(" {", builtinString, builtinInt),rank(" {", builtinChan, builtinInt),rank(" {", builtinArray, builtinInt),rank(" {", builtinArrayPtr, builtinInt),rank(" {", builtinMap, builtinInt),

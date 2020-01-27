@@ -4,11 +4,11 @@ var stringAVar = "var"    //@item(stringAVar, "stringAVar", "string", "var")
 func stringBFunc() string { return "str" } //@item(stringBFunc, "stringBFunc", "func() string", "func")
 type stringer struct{}    //@item(stringer, "stringer", "struct{...}", "struct")
 
-func _() stringer //@complete("tr", stringer, stringAVar, stringBFunc)
+func _() stringer //@complete("tr", stringer)
 
-func _(val stringer) {} //@complete("tr", stringer, stringAVar, stringBFunc)
+func _(val stringer) {} //@complete("tr", stringer)
 
-func (stringer) _() {} //@complete("tr", stringer, stringAVar, stringBFunc)
+func (stringer) _() {} //@complete("tr", stringer)
 
 func _() {
 	var s struct {

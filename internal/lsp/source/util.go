@@ -415,6 +415,11 @@ func isUntyped(T types.Type) bool {
 	return false
 }
 
+func isPkgName(obj types.Object) bool {
+	_, ok := obj.(*types.PkgName)
+	return ok
+}
+
 // isSelector returns the enclosing *ast.SelectorExpr when pos is in the
 // selector.
 func enclosingSelector(path []ast.Node, pos token.Pos) *ast.SelectorExpr {

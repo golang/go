@@ -9,14 +9,14 @@ func _() {
 		val string //@item(atVal, "val", "string", "var")
 	)
 
-	[] //@complete(" //", atVal, PackageFoo)
+	[] //@complete(" //", PackageFoo)
 
-	[]val //@complete(" //", atVal)
+	[]val //@complete(" //")
 
 	[]foo.StructFoo //@complete(" //", StructFoo)
 
 	[]foo.StructFoo(nil) //@complete("(", StructFoo)
-	
+
 	[]*foo.StructFoo //@complete(" //", StructFoo)
 
 	[...]foo.StructFoo //@complete(" //", StructFoo)
@@ -32,12 +32,12 @@ func _() {
 	var mark []myInt //@item(atMark, "mark", "[]myInt", "var")
 
 	var s []myInt //@item(atS, "s", "[]myInt", "var")
-	s = []m //@complete(" //", atMyInt, atMark)
-	s = [] //@complete(" //", atMyInt, atMark, atS, PackageFoo)
+	s = []m //@complete(" //", atMyInt)
+	s = [] //@complete(" //", atMyInt, PackageFoo)
 
 	var a [1]myInt
-	a = [1]m //@complete(" //", atMyInt, atMark)
+	a = [1]m //@complete(" //", atMyInt)
 
 	var ds [][]myInt
-	ds = [][]m //@complete(" //", atMyInt, atMark)
+	ds = [][]m //@complete(" //", atMyInt)
 }
