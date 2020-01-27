@@ -616,14 +616,7 @@ func (s *snapshot) reloadOrphanedFiles(ctx context.Context) error {
 		s.mu.Unlock()
 	}
 	for _, m := range m {
-		// If a package's files belong to this view, it is a workspace package
-		// and should be added to the set of workspace packages.
-		for _, uri := range m.compiledGoFiles {
-			if !contains(s.view.session.viewsOf(uri), s.view) {
-				continue
-			}
-			s.setWorkspacePackage(ctx, m)
-		}
+		s.setWorkspacePackage(ctx, m)
 	}
 	return nil
 }
@@ -636,6 +629,11 @@ func (s *snapshot) orphanedFileScopes() []interface{} {
 	for uri, fh := range s.files {
 		// Don't try to reload metadata for go.mod files.
 		if fh.Identity().Kind != source.Go {
+			continue
+		}
+		// If the URI doesn't belong to this view, then it's not in a workspace
+		// package and should not be reloaded directly.
+		if !contains(s.view.session.viewsOf(uri), s.view) {
 			continue
 		}
 		// Don't reload metadata for files we've already deemed unloadable.
