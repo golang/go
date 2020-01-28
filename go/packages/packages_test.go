@@ -1104,6 +1104,33 @@ func testNewPackagesInOverlay(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
+// Test that we can create a package and its test package in an overlay.
+func TestOverlayNewPackageAndTest(t *testing.T) { packagestest.TestAll(t, testOverlayNewPackageAndTest) }
+func testOverlayNewPackageAndTest(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{
+		{
+			Name: "golang.org/fake",
+			Files: map[string]interface{}{
+				"foo.txt": "placeholder",
+			},
+		},
+	})
+	defer exported.Cleanup()
+
+	dir := filepath.Dir(exported.File("golang.org/fake", "foo.txt"))
+	exported.Config.Overlay = map[string][]byte{
+		filepath.Join(dir, "a.go"):      []byte(`package a;`),
+		filepath.Join(dir, "a_test.go"): []byte(`package a; import "testing";`),
+	}
+	initial, err := packages.Load(exported.Config, "file="+filepath.Join(dir, "a.go"), "file="+filepath.Join(dir, "a_test.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(initial) != 2 {
+		t.Errorf("got %v packages, wanted %v", len(initial), 2)
+	}
+}
+
 func TestAdHocPackagesBadImport(t *testing.T) {
 	// This test doesn't use packagestest because we are testing ad-hoc packages,
 	// which are outside of $GOPATH and outside of a module.

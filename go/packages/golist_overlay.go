@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -34,7 +35,24 @@ func (state *golistState) processGolistOverlay(response *responseDeduper) (modif
 	// potentially modifying the transitive set of dependencies).
 	var overlayAddsImports bool
 
-	for opath, contents := range state.cfg.Overlay {
+	// If both a package and its test package are created by the overlay, we
+	// need the real package first. Process all non-test files before test
+	// files, and make the whole process deterministic while we're at it.
+	var overlayFiles []string
+	for opath := range state.cfg.Overlay {
+		overlayFiles = append(overlayFiles, opath)
+	}
+	sort.Slice(overlayFiles, func(i, j int) bool {
+		iTest := strings.HasSuffix(overlayFiles[i], "_test.go")
+		jTest := strings.HasSuffix(overlayFiles[j], "_test.go")
+		if iTest != jTest {
+			return !iTest // non-tests are before tests.
+		}
+		return overlayFiles[i] < overlayFiles[j]
+	})
+
+	for _, opath := range overlayFiles {
+		contents := state.cfg.Overlay[opath]
 		base := filepath.Base(opath)
 		dir := filepath.Dir(opath)
 		var pkg *Package           // if opath belongs to both a package and its test variant, this will be the test variant
