@@ -50,7 +50,6 @@ func (state *golistState) processGolistOverlay(response *responseDeduper) (modif
 		}
 		return overlayFiles[i] < overlayFiles[j]
 	})
-
 	for _, opath := range overlayFiles {
 		contents := state.cfg.Overlay[opath]
 		base := filepath.Base(opath)
@@ -82,14 +81,8 @@ func (state *golistState) processGolistOverlay(response *responseDeduper) (modif
 					testVariantOf = p
 					continue nextPackage
 				}
+				// We must have already seen the package of which this is a test variant.
 				if pkg != nil && p != pkg && pkg.PkgPath == p.PkgPath {
-					// If we've already seen the test variant,
-					// make sure to label which package it is a test variant of.
-					if hasTestFiles(pkg) {
-						testVariantOf = p
-						continue nextPackage
-					}
-					// If we have already seen the package of which this is a test variant.
 					if hasTestFiles(p) {
 						testVariantOf = pkg
 					}
