@@ -324,7 +324,6 @@ func TestXForwardedFor(t *testing.T) {
 		t.Fatal(err)
 	}
 	proxyHandler := NewSingleHostReverseProxy(backendURL)
-	proxyHandler.TrustForwardedHeaders = true
 	frontend := httptest.NewServer(proxyHandler)
 	defer frontend.Close()
 

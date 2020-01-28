@@ -98,7 +98,7 @@ type ReverseProxy struct {
 	// X-Forwarded-Proto and X-Forwarded-Host headers coming from
 	// the previous proxy must be replaced or not.
 	//
-	// If true, these headers 3 headers will be set regardless of any
+	// If true, these 3 headers will be set regardless of any
 	// existing value.
 	//
 	// If false, X-Forwarded-Proto and X-Forwarded-Host will not be
