@@ -4,9 +4,9 @@
 
 package os
 
-// From FreeBSD's <sys/sysctl.h>
+// From DragonFly's <sys/sysctl.h>
 const (
         _CTL_KERN           = 1
         _KERN_PROC          = 14
-        _KERN_PROC_PATHNAME = 12
+        _KERN_PROC_PATHNAME = 9
 )
