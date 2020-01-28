@@ -14,102 +14,127 @@ import (
 )
 
 func TestMarker(t *testing.T) {
-	const filename = "testdata/test.go"
-	content, err := ioutil.ReadFile(filename)
-	if err != nil {
-		t.Fatal(err)
-	}
+	for _, tt := range []struct {
+		filename      string
+		expectNotes   int
+		expectMarkers map[string]string
+		expectChecks  map[string][]interface{}
+	}{
+		{
+			filename:    "testdata/test.go",
+			expectNotes: 13,
+			expectMarkers: map[string]string{
+				"αSimpleMarker": "α",
+				"OffsetMarker":  "β",
+				"RegexMarker":   "γ",
+				"εMultiple":     "ε",
+				"ζMarkers":      "ζ",
+				"ηBlockMarker":  "η",
+				"Declared":      "η",
+				"Comment":       "ι",
+				"LineComment":   "someFunc",
+				"NonIdentifier": "+",
+				"StringMarker":  "\"hello\"",
+			},
+			expectChecks: map[string][]interface{}{
+				"αSimpleMarker": nil,
+				"StringAndInt":  []interface{}{"Number %d", int64(12)},
+				"Bool":          []interface{}{true},
+			},
+		},
+		{
+			filename:    "testdata/go.mod",
+			expectNotes: 3,
+			expectMarkers: map[string]string{
+				"αMarker":        "αfake1α",
+				"IndirectMarker": "// indirect",
+				"βMarker":        "require golang.org/modfile v0.0.0",
+			},
+		},
+	} {
+		t.Run(tt.filename, func(t *testing.T) {
+			content, err := ioutil.ReadFile(tt.filename)
+			if err != nil {
+				t.Fatal(err)
+			}
+			readFile := func(string) ([]byte, error) { return content, nil }
 
-	const expectNotes = 13
-	expectMarkers := map[string]string{
-		"αSimpleMarker": "α",
-		"OffsetMarker":  "β",
-		"RegexMarker":   "γ",
-		"εMultiple":     "ε",
-		"ζMarkers":      "ζ",
-		"ηBlockMarker":  "η",
-		"Declared":      "η",
-		"Comment":       "ι",
-		"LineComment":   "someFunc",
-		"NonIdentifier": "+",
-		"StringMarker":  "\"hello\"",
-	}
-	expectChecks := map[string][]interface{}{
-		"αSimpleMarker": nil,
-		"StringAndInt":  []interface{}{"Number %d", int64(12)},
-		"Bool":          []interface{}{true},
-	}
-
-	readFile := func(string) ([]byte, error) { return content, nil }
-	markers := make(map[string]token.Pos)
-	for name, tok := range expectMarkers {
-		offset := bytes.Index(content, []byte(tok))
-		markers[name] = token.Pos(offset + 1)
-		end := bytes.Index(content[offset:], []byte(tok))
-		if end > 0 {
-			markers[name+"@"] = token.Pos(offset + end + 2)
-		}
-	}
-
-	fset := token.NewFileSet()
-	notes, err := expect.Parse(fset, filename, nil)
-	if err != nil {
-		t.Fatalf("Failed to extract notes: %v", err)
-	}
-	if len(notes) != expectNotes {
-		t.Errorf("Expected %v notes, got %v", expectNotes, len(notes))
-	}
-	for _, n := range notes {
-		switch {
-		case n.Args == nil:
-			// A //@foo note associates the name foo with the position of the
-			// first match of "foo" on the current line.
-			checkMarker(t, fset, readFile, markers, n.Pos, n.Name, n.Name)
-		case n.Name == "mark":
-			// A //@mark(name, "pattern") note associates the specified name
-			// with the position on the first match of pattern on the current line.
-			if len(n.Args) != 2 {
-				t.Errorf("%v: expected 2 args to mark, got %v", fset.Position(n.Pos), len(n.Args))
-				continue
-			}
-			ident, ok := n.Args[0].(expect.Identifier)
-			if !ok {
-				t.Errorf("%v: identifier, got %T", fset.Position(n.Pos), n.Args[0])
-				continue
-			}
-			checkMarker(t, fset, readFile, markers, n.Pos, string(ident), n.Args[1])
-
-		case n.Name == "check":
-			// A //@check(args, ...) note specifies some hypothetical action to
-			// be taken by the test driver and its expected outcome.
-			// In this test, the action is to compare the arguments
-			// against expectChecks.
-			if len(n.Args) < 1 {
-				t.Errorf("%v: expected 1 args to check, got %v", fset.Position(n.Pos), len(n.Args))
-				continue
-			}
-			ident, ok := n.Args[0].(expect.Identifier)
-			if !ok {
-				t.Errorf("%v: identifier, got %T", fset.Position(n.Pos), n.Args[0])
-				continue
-			}
-			args, ok := expectChecks[string(ident)]
-			if !ok {
-				t.Errorf("%v: unexpected check %v", fset.Position(n.Pos), ident)
-				continue
-			}
-			if len(n.Args) != len(args)+1 {
-				t.Errorf("%v: expected %v args to check, got %v", fset.Position(n.Pos), len(args)+1, len(n.Args))
-				continue
-			}
-			for i, got := range n.Args[1:] {
-				if args[i] != got {
-					t.Errorf("%v: arg %d expected %v, got %v", fset.Position(n.Pos), i, args[i], got)
+			markers := make(map[string]token.Pos)
+			for name, tok := range tt.expectMarkers {
+				offset := bytes.Index(content, []byte(tok))
+				// Handle special case where we look for // indirect and we
+				// need to search the next line.
+				if tok == "// indirect" {
+					offset = bytes.Index(content, []byte(" "+tok)) + 1
+				}
+				markers[name] = token.Pos(offset + 1)
+				end := bytes.Index(content[offset:], []byte(tok))
+				if end > 0 {
+					markers[name+"@"] = token.Pos(offset + end + 2)
 				}
 			}
-		default:
-			t.Errorf("Unexpected note %v at %v", n.Name, fset.Position(n.Pos))
-		}
+
+			fset := token.NewFileSet()
+			notes, err := expect.Parse(fset, tt.filename, content)
+			if err != nil {
+				t.Fatalf("Failed to extract notes: %v", err)
+			}
+			if len(notes) != tt.expectNotes {
+				t.Errorf("Expected %v notes, got %v", tt.expectNotes, len(notes))
+			}
+			for _, n := range notes {
+				switch {
+				case n.Args == nil:
+					// A //@foo note associates the name foo with the position of the
+					// first match of "foo" on the current line.
+					checkMarker(t, fset, readFile, markers, n.Pos, n.Name, n.Name)
+				case n.Name == "mark":
+					// A //@mark(name, "pattern") note associates the specified name
+					// with the position on the first match of pattern on the current line.
+					if len(n.Args) != 2 {
+						t.Errorf("%v: expected 2 args to mark, got %v", fset.Position(n.Pos), len(n.Args))
+						continue
+					}
+					ident, ok := n.Args[0].(expect.Identifier)
+					if !ok {
+						t.Errorf("%v: identifier, got %T", fset.Position(n.Pos), n.Args[0])
+						continue
+					}
+					checkMarker(t, fset, readFile, markers, n.Pos, string(ident), n.Args[1])
+
+				case n.Name == "check":
+					// A //@check(args, ...) note specifies some hypothetical action to
+					// be taken by the test driver and its expected outcome.
+					// In this test, the action is to compare the arguments
+					// against expectChecks.
+					if len(n.Args) < 1 {
+						t.Errorf("%v: expected 1 args to check, got %v", fset.Position(n.Pos), len(n.Args))
+						continue
+					}
+					ident, ok := n.Args[0].(expect.Identifier)
+					if !ok {
+						t.Errorf("%v: identifier, got %T", fset.Position(n.Pos), n.Args[0])
+						continue
+					}
+					args, ok := tt.expectChecks[string(ident)]
+					if !ok {
+						t.Errorf("%v: unexpected check %v", fset.Position(n.Pos), ident)
+						continue
+					}
+					if len(n.Args) != len(args)+1 {
+						t.Errorf("%v: expected %v args to check, got %v", fset.Position(n.Pos), len(args)+1, len(n.Args))
+						continue
+					}
+					for i, got := range n.Args[1:] {
+						if args[i] != got {
+							t.Errorf("%v: arg %d expected %v, got %v", fset.Position(n.Pos), i, args[i], got)
+						}
+					}
+				default:
+					t.Errorf("Unexpected note %v at %v", n.Name, fset.Position(n.Pos))
+				}
+			}
+		})
 	}
 }
 

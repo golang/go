@@ -50,7 +50,7 @@ func TestObjValueLookup(t *testing.T) {
 	// Each note of the form @ssa(x, "BinOp") in testdata/objlookup.go
 	// specifies an expectation that an object named x declared on the
 	// same line is associated with an an ssa.Value of type *ssa.BinOp.
-	notes, err := expect.Extract(conf.Fset, f)
+	notes, err := expect.ExtractGo(conf.Fset, f)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -271,7 +271,7 @@ func testValueForExpr(t *testing.T, testfile string) {
 		return true
 	})
 
-	notes, err := expect.Extract(prog.Fset, f)
+	notes, err := expect.ExtractGo(prog.Fset, f)
 	if err != nil {
 		t.Fatal(err)
 	}

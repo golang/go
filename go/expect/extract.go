@@ -9,15 +9,17 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"text/scanner"
+
+	"golang.org/x/mod/modfile"
 )
 
-const (
-	commentStart = "@"
-)
+const commentStart = "@"
+const commentStartLen = len(commentStart)
 
 // Identifier is the type for an identifier in an Note argument list.
 type Identifier string
@@ -34,52 +36,62 @@ func Parse(fset *token.FileSet, filename string, content []byte) ([]*Note, error
 	if content != nil {
 		src = content
 	}
-	// TODO: We should write this in terms of the scanner.
-	// there are ways you can break the parser such that it will not add all the
-	// comments to the ast, which may result in files where the tests are silently
-	// not run.
-	file, err := parser.ParseFile(fset, filename, src, parser.ParseComments)
-	if file == nil {
-		return nil, err
+	switch filepath.Ext(filename) {
+	case ".go":
+		// TODO: We should write this in terms of the scanner.
+		// there are ways you can break the parser such that it will not add all the
+		// comments to the ast, which may result in files where the tests are silently
+		// not run.
+		file, err := parser.ParseFile(fset, filename, src, parser.ParseComments)
+		if file == nil {
+			return nil, err
+		}
+		return ExtractGo(fset, file)
+	case ".mod":
+		file, err := modfile.Parse(filename, content, nil)
+		if err != nil {
+			return nil, err
+		}
+		fset.AddFile(filename, -1, len(content)).SetLinesForContent(content)
+		return extractMod(fset, file)
 	}
-	return Extract(fset, file)
+	return nil, nil
 }
 
-// Extract collects all the notes present in an AST.
+// extractMod collects all the notes present in a go.mod file.
 // Each comment whose text starts with @ is parsed as a comma-separated
 // sequence of notes.
 // See the package documentation for details about the syntax of those
 // notes.
-func Extract(fset *token.FileSet, file *ast.File) ([]*Note, error) {
+// Only allow notes to appear with the following format: "//@mark()" or // @mark()
+func extractMod(fset *token.FileSet, file *modfile.File) ([]*Note, error) {
 	var notes []*Note
-	for _, g := range file.Comments {
-		for _, c := range g.List {
-			text := c.Text
-			if strings.HasPrefix(text, "/*") {
-				text = strings.TrimSuffix(text, "*/")
-			}
-			text = text[2:] // remove "//" or "/*" prefix
-
-			// Allow notes to appear within comments.
-			// For example:
-			// "// //@mark()" is valid.
-			// "// @mark()" is not valid.
-			// "// /*@mark()*/" is not valid.
-			var adjust int
-			if i := strings.Index(text, commentStart); i > 2 {
-				// Get the text before the commentStart.
-				pre := text[i-2 : i]
-				if pre != "//" {
-					continue
-				}
-				text = text[i:]
-				adjust = i
-			}
-			if !strings.HasPrefix(text, commentStart) {
+	for _, stmt := range file.Syntax.Stmt {
+		comment := stmt.Comment()
+		if comment == nil {
+			continue
+		}
+		// Handle the case for markers of `// indirect` to be on the line before
+		// the require statement.
+		// TODO(golang/go#36894): have a more intuitive approach for // indirect
+		for _, cmt := range comment.Before {
+			text, adjust := getAdjustedNote(cmt.Token)
+			if text == "" {
 				continue
 			}
-			text = text[len(commentStart):]
-			parsed, err := parse(fset, token.Pos(int(c.Pos())+4+adjust), text)
+			parsed, err := parse(fset, token.Pos(int(cmt.Start.Byte)+adjust), text)
+			if err != nil {
+				return nil, err
+			}
+			notes = append(notes, parsed...)
+		}
+		// Handle the normal case for markers on the same line.
+		for _, cmt := range comment.Suffix {
+			text, adjust := getAdjustedNote(cmt.Token)
+			if text == "" {
+				continue
+			}
+			parsed, err := parse(fset, token.Pos(int(cmt.Start.Byte)+adjust), text)
 			if err != nil {
 				return nil, err
 			}
@@ -87,6 +99,57 @@ func Extract(fset *token.FileSet, file *ast.File) ([]*Note, error) {
 		}
 	}
 	return notes, nil
+}
+
+// ExtractGo collects all the notes present in an AST.
+// Each comment whose text starts with @ is parsed as a comma-separated
+// sequence of notes.
+// See the package documentation for details about the syntax of those
+// notes.
+func ExtractGo(fset *token.FileSet, file *ast.File) ([]*Note, error) {
+	var notes []*Note
+	for _, g := range file.Comments {
+		for _, c := range g.List {
+			text, adjust := getAdjustedNote(c.Text)
+			if text == "" {
+				continue
+			}
+			parsed, err := parse(fset, token.Pos(int(c.Pos())+adjust), text)
+			if err != nil {
+				return nil, err
+			}
+			notes = append(notes, parsed...)
+		}
+	}
+	return notes, nil
+}
+
+func getAdjustedNote(text string) (string, int) {
+	if strings.HasPrefix(text, "/*") {
+		text = strings.TrimSuffix(text, "*/")
+	}
+	text = text[2:] // remove "//" or "/*" prefix
+
+	// Allow notes to appear within comments.
+	// For example:
+	// "// //@mark()" is valid.
+	// "// @mark()" is not valid.
+	// "// /*@mark()*/" is not valid.
+	var adjust int
+	if i := strings.Index(text, commentStart); i > 2 {
+		// Get the text before the commentStart.
+		pre := text[i-2 : i]
+		if pre != "//" {
+			return "", 0
+		}
+		text = text[i:]
+		adjust = i
+	}
+	if !strings.HasPrefix(text, commentStart) {
+		return "", 0
+	}
+	text = text[commentStartLen:]
+	return text, commentStartLen + adjust + 1
 }
 
 const invalidToken rune = 0
