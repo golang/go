@@ -128,9 +128,6 @@ type View interface {
 	// Snapshot returns the current snapshot for the view.
 	Snapshot() Snapshot
 
-	// Initialized returns true if the view has been initialized without errors.
-	Initialized(ctx context.Context) bool
-
 	// Rebuild rebuilds the current view, replacing the original view in its session.
 	Rebuild(ctx context.Context) (Snapshot, error)
 

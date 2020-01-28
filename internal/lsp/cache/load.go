@@ -149,14 +149,15 @@ func (s *snapshot) updateMetadata(ctx context.Context, scopes []interface{}, pkg
 			}
 		}
 		if !containsDir || s.view.Options().VerboseOutput {
-			log.Print(ctx, "go/packages.Load", tag.Of("package", pkg.PkgPath), tag.Of("files", pkg.CompiledGoFiles))
+			log.Print(ctx, "go/packages.Load", tag.Of("snapshot", s.ID()), tag.Of("package", pkg.PkgPath), tag.Of("files", pkg.CompiledGoFiles))
 		}
-		// golang/go#36292: Ignore packages with no sources and no errors.
-		if len(pkg.GoFiles) == 0 && len(pkg.CompiledGoFiles) == 0 && len(pkg.Errors) == 0 {
+		// Ignore packages with no sources, since we will never be able to
+		// correctly invalidate that metadata.
+		if len(pkg.GoFiles) == 0 && len(pkg.CompiledGoFiles) == 0 {
 			continue
 		}
 		// Skip test main packages.
-		if s.view.isTestMain(ctx, pkg) {
+		if isTestMain(ctx, pkg, s.view.gocache) {
 			continue
 		}
 		// Set the metadata for this package.
@@ -234,7 +235,7 @@ func (s *snapshot) updateImports(ctx context.Context, pkgPath packagePath, pkg *
 	return nil
 }
 
-func (v *view) isTestMain(ctx context.Context, pkg *packages.Package) bool {
+func isTestMain(ctx context.Context, pkg *packages.Package, gocache string) bool {
 	// Test mains must have an import path that ends with ".test".
 	if !strings.HasSuffix(pkg.PkgPath, ".test") {
 		return false
@@ -247,7 +248,7 @@ func (v *view) isTestMain(ctx context.Context, pkg *packages.Package) bool {
 	if len(pkg.GoFiles) > 1 {
 		return false
 	}
-	if !strings.HasPrefix(pkg.GoFiles[0], v.gocache) {
+	if !strings.HasPrefix(pkg.GoFiles[0], gocache) {
 		return false
 	}
 	return true

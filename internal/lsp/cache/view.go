@@ -90,9 +90,8 @@ type view struct {
 	// On initialization, the view's workspace packages are loaded.
 	// All of the fields below are set as part of initialization.
 	// If we failed to load, we don't re-try to avoid too many go/packages calls.
-	initializeOnce      sync.Once
-	initialized         chan struct{}
-	initializationError error
+	initializeOnce sync.Once
+	initialized    chan struct{}
 
 	// builtin pins the AST and package for builtin.go in memory.
 	builtin *builtinPackageHandle
@@ -205,9 +204,8 @@ func (v *view) Rebuild(ctx context.Context) (source.Snapshot, error) {
 }
 
 func (v *view) LookupBuiltin(ctx context.Context, name string) (*ast.Object, error) {
-	if err := v.awaitInitialized(ctx); err != nil {
-		return nil, err
-	}
+	v.awaitInitialized(ctx)
+
 	data := v.builtin.handle.Get(ctx)
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
@@ -553,7 +551,7 @@ func (v *view) initialize(ctx context.Context, s *snapshot) {
 	v.initializeOnce.Do(func() {
 		defer close(v.initialized)
 
-		v.initializationError = func() error {
+		err := func() error {
 			// Do not cancel the call to go/packages.Load for the entire workspace.
 			meta, err := s.load(ctx, viewLoadScope("LOAD_VIEW"), packagePath("builtin"))
 			if err != nil {
@@ -576,21 +574,17 @@ func (v *view) initialize(ctx context.Context, s *snapshot) {
 			}
 			return nil
 		}()
+		if err != nil {
+			log.Error(ctx, "initial workspace load failed", err)
+		}
 	})
 }
 
-func (v *view) Initialized(ctx context.Context) bool {
-	err := v.awaitInitialized(ctx)
-	return err == nil
-}
-
-func (v *view) awaitInitialized(ctx context.Context) error {
+func (v *view) awaitInitialized(ctx context.Context) {
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
 	case <-v.initialized:
 	}
-	return v.initializationError
 }
 
 // invalidateContent invalidates the content of a Go file,
@@ -605,7 +599,7 @@ func (v *view) invalidateContent(ctx context.Context, uris []span.URI) source.Sn
 	v.cancelBackground()
 
 	// Do not clone a snapshot until its view has finished initializing.
-	_ = v.awaitInitialized(ctx)
+	v.awaitInitialized(ctx)
 
 	// This should be the only time we hold the view's snapshot lock for any period of time.
 	v.snapshotMu.Lock()

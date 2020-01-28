@@ -36,8 +36,6 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot) {
 	ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
 	defer done()
 
-	ctx = telemetry.Snapshot.With(ctx, snapshot.ID())
-
 	// Diagnose all of the packages in the workspace.
 	go func() {
 		wsPackages, err := snapshot.WorkspacePackages(ctx)
@@ -45,7 +43,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot) {
 			return
 		}
 		if err != nil {
-			log.Error(ctx, "diagnose: no workspace packages", err, telemetry.Directory.Of(snapshot.View().Folder))
+			log.Error(ctx, "diagnose: no workspace packages", err, telemetry.Snapshot.Of(snapshot.ID()), telemetry.Directory.Of(snapshot.View().Folder))
 			return
 		}
 		for _, ph := range wsPackages {
@@ -70,7 +68,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot) {
 					return
 				}
 				if err != nil {
-					log.Error(ctx, "diagnose: could not generate diagnostics for package", err, telemetry.Package.Of(ph.ID()))
+					log.Error(ctx, "diagnose: could not generate diagnostics for package", err, telemetry.Snapshot.Of(snapshot.ID()), telemetry.Package.Of(ph.ID()))
 					return
 				}
 				s.publishReports(ctx, snapshot, reports, withAnalyses)

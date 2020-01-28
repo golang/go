@@ -359,9 +359,7 @@ func (s *snapshot) KnownPackages(ctx context.Context) ([]source.PackageHandle, e
 func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Package, error) {
 	// Don't reload workspace package metadata.
 	// This function is meant to only return currently cached information.
-	if err := s.view.awaitInitialized(ctx); err != nil {
-		return nil, err
-	}
+	s.view.awaitInitialized(ctx)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -537,9 +535,8 @@ func (s *snapshot) findFileHandle(f *fileBase) source.FileHandle {
 
 func (s *snapshot) awaitLoaded(ctx context.Context) error {
 	// Do not return results until the snapshot's view has been initialized.
-	if err := s.view.awaitInitialized(ctx); err != nil {
-		return err
-	}
+	s.view.awaitInitialized(ctx)
+
 	m, err := s.reloadWorkspace(ctx)
 	if err != nil {
 		return err
