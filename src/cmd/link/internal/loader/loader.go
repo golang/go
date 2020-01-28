@@ -322,7 +322,7 @@ func (l *Loader) AddSym(name string, ver int, i Sym, r *oReader, dupok bool, typ
 		if overwrite {
 			// new symbol overwrites old symbol.
 			oldtyp := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type)]
-			if !oldtyp.IsData() && r.DataSize(li) == 0 {
+			if !(oldtyp.IsData() && oldr.DataSize(li) == 0) {
 				log.Fatalf("duplicated definition of symbol " + name)
 			}
 			l.overwrite[oldi] = i
