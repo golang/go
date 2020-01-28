@@ -469,6 +469,17 @@ func (t *Transport) useRegisteredProtocol(req *Request) bool {
 	return true
 }
 
+// alternateRoundTripper returns the alternate RoundTripper to use
+// for this request if the Request's URL scheme requires one,
+// or nil for the normal case of using the Transport.
+func (t *Transport) alternateRoundTripper(req *Request) RoundTripper {
+	if !t.useRegisteredProtocol(req) {
+		return nil
+	}
+	altProto, _ := t.altProto.Load().(map[string]RoundTripper)
+	return altProto[req.URL.Scheme]
+}
+
 // roundTrip implements a RoundTripper over HTTP.
 func (t *Transport) roundTrip(req *Request) (*Response, error) {
 	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
@@ -500,12 +511,9 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		}
 	}
 
-	if t.useRegisteredProtocol(req) {
-		altProto, _ := t.altProto.Load().(map[string]RoundTripper)
-		if altRT := altProto[scheme]; altRT != nil {
-			if resp, err := altRT.RoundTrip(req); err != ErrSkipAltProtocol {
-				return resp, err
-			}
+	if altRT := t.alternateRoundTripper(req); altRT != nil {
+		if resp, err := altRT.RoundTrip(req); err != ErrSkipAltProtocol {
+			return resp, err
 		}
 	}
 	if !isHTTP {

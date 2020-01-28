@@ -6143,3 +6143,35 @@ func TestTransportDecrementConnWhenIdleConnRemoved(t *testing.T) {
 		t.Errorf("error occurred: %v", err)
 	}
 }
+
+// Issue 36820
+// Test that we use the older backward compatible cancellation protocol
+// when a RoundTripper is registered via RegisterProtocol.
+func TestAltProtoCancellation(t *testing.T) {
+	defer afterTest(t)
+	tr := &Transport{}
+	c := &Client{
+		Transport: tr,
+		Timeout:   time.Millisecond,
+	}
+	tr.RegisterProtocol("timeout", timeoutProto{})
+	_, err := c.Get("timeout://bar.com/path")
+	if err == nil {
+		t.Error("request unexpectedly succeeded")
+	} else if !strings.Contains(err.Error(), timeoutProtoErr.Error()) {
+		t.Errorf("got error %q, does not contain expected string %q", err, timeoutProtoErr)
+	}
+}
+
+var timeoutProtoErr = errors.New("canceled as expected")
+
+type timeoutProto struct{}
+
+func (timeoutProto) RoundTrip(req *Request) (*Response, error) {
+	select {
+	case <-req.Cancel:
+		return nil, timeoutProtoErr
+	case <-time.After(5 * time.Second):
+		return nil, errors.New("request was not canceled")
+	}
+}
