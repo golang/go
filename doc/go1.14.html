@@ -453,19 +453,61 @@ TODO
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
     <p><!-- CL 191976 -->
-      TODO: <a href="https://golang.org/cl/191976">https://golang.org/cl/191976</a>: remove SSLv3 support
+      Support for SSL version 3.0 (SSLv3) has been removed. Note that SSLv3 is the
+      <a href="https://tools.ietf.org/html/rfc7568">cryptographically broken</a>
+      protocol predating TLS.
     </p>
 
     <p><!-- CL 191999 -->
-      TODO: <a href="https://golang.org/cl/191999">https://golang.org/cl/191999</a>: remove TLS 1.3 opt-out
+      TLS 1.3 can't be disabled via the <code>GODEBUG</code> environment
+      variable anymore. Use the
+      <a href="/pkg/crypto/tls/#Config.MaxVersion"><code>Config.MaxVersion</code></a>
+      field to configure TLS versions.
+    </p>
+
+    <p><!-- CL 205059 -->
+      When multiple certificate chains are provided through the
+      <a href="/pkg/crypto/tls/#Config.Certificates"><code>Config.Certificates</code></a>
+      field, the first one compatible with the peer is now automatically
+      selected. This allows for example providing an ECDSA and an RSA
+      certificate, and letting the package automatically select the best one.
+      Note that the performance of this selection is going to be poor unless the
+      <a href="/pkg/crypto/tls/#Certificate.Leaf"><code>Certificate.Leaf</code></a>
+      field is set.
+    </p>
+
+    <p><!-- CL 175517 -->
+      The new <a href="/pkg/crypto/tls/#CipherSuites"><code>CipherSuites</code></a>
+      and <a href="/pkg/crypto/tls/#InsecureCipherSuites"><code>InsecureCipherSuites</code></a>
+      functions return a list of currently implemented cipher suites.
+      The new <a href="/pkg/crypto/tls/#CipherSuiteName"><code>CipherSuiteName</code></a>
+      function returns a name for a cipher suite ID.
+    </p>
+
+    <p><!-- CL 205058, 205057 -->
+      The new <a href="/pkg/crypto/tls/#ClientHelloInfo.SupportsCertificate">
+      <code>(*ClientHelloInfo).SupportsCertificate</code></a> and
+      <a href="/pkg/crypto/tls/#CertificateRequestInfo.SupportsCertificate">
+      <code>(*CertificateRequestInfo).SupportsCertificate</code></a>
+      methods expose whether a peer supports a certain certificate.
     </p>
 
     <p><!-- CL 174329 -->
-      The <code>tls</code> package no longer supports NPN and now only
-      supports ALPN. In previous releases it supported both. There are
-      no API changes and code should function identically as before.
-      Most other clients & servers have already removed NPN support in
-      favor of the standardized ALPN.
+      The <code>tls</code> package no longer supports the legacy Next Protocol
+      Negotiation (NPN) extension and now only supports ALPN. In previous
+      releases it supported both. There are no API changes and applications
+      should function identically as before. Most other clients and servers have
+      already removed NPN support in favor of the standardized ALPN.
+    </p>
+
+    <p><!-- CL 205063, 205062 -->
+      RSA-PSS signatures are now used when supported in TLS 1.2 handshakes. This
+      won't affect most applications, but custom
+      <a href="/pkg/crypto/tls/#Certificate.PrivateKey"><code>Certificate.PrivateKey</code></a>
+      implementations that don't support RSA-PSS signatures will need to use the new
+      <a href="/pkg/crypto/tls/#Certificate.SupportedSignatureAlgorithms">
+      <code>Certificate.SupportedSignatureAlgorithms</code></a>
+      field to disable them.
     </p>
 
 </dl><!-- crypto/tls -->
