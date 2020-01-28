@@ -94,19 +94,19 @@ type ReverseProxy struct {
 	// a 502 Status Bad Gateway response.
 	ErrorHandler func(http.ResponseWriter, *http.Request, error)
 
-	// TrustForwardedHeaders specifies if X-Forwarded-For,
+	// OverwriteForwardedHeaders specifies if X-Forwarded-For,
 	// X-Forwarded-Proto and X-Forwarded-Host headers coming from
-	// the previous proxy must be trusted or not.
+	// the previous proxy must be replaced or not.
 	//
-	// If true, existing values of X-Forwarded-Proto and
-	// X-Forwarded-Host will be preserved, and the current client IP
-	// will be appended to the list in X-Forwarded-For. In this case
-	// be sure that these 3 headers are removed from the request if
-	// sent by the client to prevent spoofing attacks.
+	// If true, these headers 3 headers will be set regardless of any
+	// existing value.
 	//
-	// If false, values of these headers will be set regardless of
-	// any existing value.
-	TrustForwardedHeaders bool
+	// If false, X-Forwarded-Proto and X-Forwarded-Host will not be
+	// touched (not even created if they don't exist), and the
+	// current client IP will be appended to the list in
+	// X-Forwarded-For. If X-Forwarded-For doesn't exist, it will be
+	// created.
+	OverwriteForwardedHeaders bool
 }
 
 // A BufferPool is an interface for getting and returning temporary
@@ -297,20 +297,14 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		outreq.Header.Set("Upgrade", reqUpType)
 	}
 
-	if _, ok := outreq.Header["X-Forwarded-Proto"]; !ok || !p.TrustForwardedHeaders {
+	if p.OverwriteForwardedHeaders {
 		proto := "https"
 		if req.TLS == nil {
 			proto = "http"
 		}
 
 		outreq.Header.Set("X-Forwarded-Proto", proto)
-	}
-
-	if _, ok := outreq.Header["X-Forwarded-Host"]; !ok || !p.TrustForwardedHeaders {
 		outreq.Header.Set("X-Forwarded-Host", outreq.Host)
-	}
-
-	if !p.TrustForwardedHeaders {
 		outreq.Header.Del("X-Forwarded-For")
 	}
 
