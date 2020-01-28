@@ -21,7 +21,7 @@ import (
 func addDummyObjSym(t *testing.T, ldr *Loader, or *oReader, name string) Sym {
 	idx := ldr.max + 1
 	ldr.max++
-	if ok := ldr.AddSym(name, 0, idx, or, false, sym.SRODATA); !ok {
+	if _, ok := ldr.AddSym(name, 0, idx, or, int(idx-ldr.startIndex(or)), false, sym.SRODATA); !ok {
 		t.Errorf("AddrSym failed for '" + name + "'")
 	}
 
@@ -31,7 +31,7 @@ func addDummyObjSym(t *testing.T, ldr *Loader, or *oReader, name string) Sym {
 func TestAddMaterializedSymbol(t *testing.T) {
 	edummy := func(s *sym.Symbol, str string, off int) {}
 	ldr := NewLoader(0, edummy)
-	dummyOreader := oReader{version: -1}
+	dummyOreader := oReader{version: -1, syms: make([]Sym, 100)}
 	or := &dummyOreader
 
 	// Create some syms from a dummy object file symbol to get things going.
@@ -45,8 +45,8 @@ func TestAddMaterializedSymbol(t *testing.T) {
 		t.Fatalf("AddExtSym failed for extnew1")
 	}
 	es1x := ldr.AddExtSym("extnew1", 0)
-	if es1x != 0 {
-		t.Fatalf("AddExtSym lookup: expected 0 got %d for second lookup", es1x)
+	if es1x != es1 {
+		t.Fatalf("AddExtSym lookup: expected %d got %d for second lookup", es1, es1x)
 	}
 	es2 := ldr.AddExtSym("go.info.type.uint8", 0)
 	if es2 == 0 {
@@ -231,7 +231,7 @@ type addFunc func(l *Loader, s Sym, s2 Sym) Sym
 func TestAddDataMethods(t *testing.T) {
 	edummy := func(s *sym.Symbol, str string, off int) {}
 	ldr := NewLoader(0, edummy)
-	dummyOreader := oReader{version: -1}
+	dummyOreader := oReader{version: -1, syms: make([]Sym, 100)}
 	or := &dummyOreader
 
 	// Populate loader with some symbols.
@@ -355,7 +355,7 @@ func TestAddDataMethods(t *testing.T) {
 func TestOuterSub(t *testing.T) {
 	edummy := func(s *sym.Symbol, str string, off int) {}
 	ldr := NewLoader(0, edummy)
-	dummyOreader := oReader{version: -1}
+	dummyOreader := oReader{version: -1, syms: make([]Sym, 100)}
 	or := &dummyOreader
 
 	// Populate loader with some symbols.

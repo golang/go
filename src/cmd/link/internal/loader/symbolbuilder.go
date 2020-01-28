@@ -28,7 +28,7 @@ func (l *Loader) MakeSymbolBuilder(name string) *SymbolBuilder {
 		panic("can't build if sym.Symbol already present")
 	}
 	sb := &SymbolBuilder{l: l, symIdx: symIdx}
-	sb.extSymPayload = l.payloads[symIdx-l.extStart]
+	sb.extSymPayload = l.getPayload(symIdx)
 	return sb
 }
 
@@ -42,10 +42,9 @@ func (l *Loader) MakeSymbolUpdater(symIdx Sym) (*SymbolBuilder, Sym) {
 	if symIdx == 0 {
 		panic("can't update the null symbol")
 	}
-	symIdx = l.getOverwrite(symIdx)
 	if !l.IsExternal(symIdx) {
 		// Create a clone with the same name/version/kind etc.
-		symIdx = l.cloneToExternal(symIdx)
+		l.cloneToExternal(symIdx)
 	}
 	if l.Syms[symIdx] != nil {
 		panic(fmt.Sprintf("can't build if sym.Symbol %q already present", l.RawSymName(symIdx)))
@@ -53,7 +52,7 @@ func (l *Loader) MakeSymbolUpdater(symIdx Sym) (*SymbolBuilder, Sym) {
 
 	// Construct updater and return.
 	sb := &SymbolBuilder{l: l, symIdx: symIdx}
-	sb.extSymPayload = l.payloads[symIdx-l.extStart]
+	sb.extSymPayload = l.getPayload(symIdx)
 	return sb, symIdx
 }
 
