@@ -42,11 +42,11 @@ type Optionals struct {
 	Str struct{} `json:"str"`
 	Sto struct{} `json:"sto,omitempty"`
 
-	Slh []string `json:"slh,heednull"`
-	Slb []string `json:"slb,omitempty,heednull"`
+	Slh []string `json:"slh,nonil"`
+	Slb []string `json:"slb,omitempty,nonil"`
 
-	Mh map[string]interface{} `json:"mh,heednull"`
-	Mb map[string]interface{} `json:"mb,omitempty,heednull"`
+	Mh map[string]interface{} `json:"mh,nonil"`
+	Mb map[string]interface{} `json:"mb,omitempty,nonil"`
 }
 
 var optionalsExpected = `{

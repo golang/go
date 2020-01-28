@@ -71,10 +71,10 @@ import (
 // false, 0, a nil pointer, a nil interface value, and any empty array,
 // slice, map, or string.
 //
-// The "heednull" option specifies that if the field is a slice or map
+// The "nonil" option specifies that if the field is a slice or map
 // of nil value, then the value encoded will be [] or {} respectively (instead
-// of "null"). If both "heednull" and "omitempty" are present, then "heednull" is
-// ignored. If the field is not a slice or map, "heednull" does nothing.
+// of "null"). If both "nonil" and "omitempty" are present, then "nonil" is
+// ignored. If the field is not a slice or map, "nonil" does nothing.
 //
 // As a special case, if the field tag is "-", the field is always omitted.
 // Note that a field with name "-" can still be generated using the tag "-,".
@@ -662,7 +662,7 @@ FieldLoop:
 		}
 		opts.quoted = f.quoted
 
-		if f.heedNull {
+		if f.noNil {
 			if f.typ.Kind() == reflect.Slice && fv.IsNil() {
 				e.WriteString("[]")
 			} else if f.typ.Kind() == reflect.Map && fv.IsNil() {
@@ -1055,7 +1055,7 @@ type field struct {
 	index     []int
 	typ       reflect.Type
 	omitEmpty bool
-	heedNull  bool
+	noNil     bool
 	quoted    bool
 
 	encoder encoderFunc
@@ -1173,7 +1173,7 @@ func typeFields(t reflect.Type) []field {
 						index:     index,
 						typ:       ft,
 						omitEmpty: opts.Contains("omitempty"),
-						heedNull:  !opts.Contains("omitempty") && opts.Contains("heednull"),
+						noNil:     !opts.Contains("omitempty") && opts.Contains("nonil"),
 						quoted:    quoted,
 					}
 					field.nameBytes = []byte(field.name)
