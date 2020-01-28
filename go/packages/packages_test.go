@@ -1105,7 +1105,9 @@ func testNewPackagesInOverlay(t *testing.T, exporter packagestest.Exporter) {
 }
 
 // Test that we can create a package and its test package in an overlay.
-func TestOverlayNewPackageAndTest(t *testing.T) { packagestest.TestAll(t, testOverlayNewPackageAndTest) }
+func TestOverlayNewPackageAndTest(t *testing.T) {
+	packagestest.TestAll(t, testOverlayNewPackageAndTest)
+}
 func testOverlayNewPackageAndTest(t *testing.T, exporter packagestest.Exporter) {
 	exported := packagestest.Export(t, exporter, []packagestest.Module{
 		{
@@ -2407,6 +2409,38 @@ func testIssue35331(t *testing.T, exporter packagestest.Exporter) {
 		}
 		return true
 	}, nil)
+}
+
+func TestMultiplePackageVersionsIssue36188(t *testing.T) {
+	packagestest.TestAll(t, testMultiplePackageVersionsIssue36188)
+}
+
+func testMultiplePackageVersionsIssue36188(t *testing.T, exporter packagestest.Exporter) {
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+		Files: map[string]interface{}{
+			"a/a.go": `package a; import _ "golang.org/fake/b"`,
+			"b/b.go": `package main`,
+		}}})
+	pkgs, err := packages.Load(exported.Config, "golang.org/fake/a", "golang.org/fake/b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sort.Slice(pkgs, func(i, j int) bool { return pkgs[i].ID < pkgs[j].ID })
+	if len(pkgs) != 2 {
+		t.Fatalf("expected two packages, got %v", pkgs)
+	}
+	if pkgs[0].ID != "golang.org/fake/a" && pkgs[1].ID != "golang.org/fake/b" {
+		t.Fatalf(`expected (sorted) IDs "golang.org/fake/a" and "golang.org/fake/b", got %q and %q`,
+			pkgs[0].ID, pkgs[1].ID)
+	}
+	if pkgs[0].Errors == nil {
+		t.Errorf(`expected error on package "golang.org/fake/a", got none`)
+	}
+	if pkgs[1].Errors != nil {
+		t.Errorf(`expected no errors on package "golang.org/fake/b", got %v`, pkgs[1].Errors)
+	}
+	defer exported.Cleanup()
 }
 
 func TestLoadModeStrings(t *testing.T) {
