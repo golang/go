@@ -225,7 +225,9 @@ type pageAlloc struct {
 	// the bitmaps align better on zero-values.
 	chunks [1 << pallocChunksL1Bits]*[1 << pallocChunksL2Bits]pallocData
 
-	// The address to start an allocation search with.
+	// The address to start an allocation search with. It must never
+	// point to any memory that is not contained in inUse, i.e.
+	// inUse.contains(searchAddr) must always be true.
 	//
 	// When added with arenaBaseOffset, we guarantee that
 	// all valid heap addresses (when also added with
@@ -237,7 +239,8 @@ type pageAlloc struct {
 	// space on architectures with segmented address spaces.
 	searchAddr uintptr
 
-	// The address to start a scavenge candidate search with.
+	// The address to start a scavenge candidate search with. It
+	// need not point to memory contained in inUse.
 	scavAddr uintptr
 
 	// The amount of memory scavenged since the last scavtrace print.

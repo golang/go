@@ -582,6 +582,7 @@ const (
 	PageSize         = pageSize
 	PallocChunkPages = pallocChunkPages
 	PageAlloc64Bit   = pageAlloc64Bit
+	PallocSumBytes   = pallocSumBytes
 )
 
 // Expose pallocSum for testing.
