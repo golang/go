@@ -13,7 +13,6 @@ import (
 	"go/token"
 	"io"
 	"io/ioutil"
-	stdlog "log"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -30,6 +29,7 @@ import (
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
+	"golang.org/x/tools/internal/telemetry/tag"
 	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
 )
@@ -355,9 +355,9 @@ func (v *view) refreshProcessEnv() {
 	v.importsMu.Unlock()
 
 	// We don't have a context handy to use for logging, so use the stdlib for now.
-	stdlog.Printf("background imports cache refresh starting")
+	log.Print(v.baseCtx, "background imports cache refresh starting")
 	err := imports.PrimeCache(context.Background(), env)
-	stdlog.Printf("background refresh finished after %v with err: %v", time.Since(start), err)
+	log.Print(v.baseCtx, fmt.Sprintf("background refresh finished after %v", time.Since(start)), tag.Of("Error", err))
 
 	v.importsMu.Lock()
 	v.cacheRefreshDuration = time.Since(start)
