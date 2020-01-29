@@ -4,6 +4,8 @@
 
 package strconv
 
+const fnParseComplex = "ParseComplex"
+
 func convErr(err error, s string) error {
 	if x, ok := err.(*NumError); ok {
 		x.Func = fnParseComplex
@@ -27,8 +29,6 @@ func parseFloat(s, orig string, bitSize int) (float64, error) {
 	}
 	return f, nil
 }
-
-const fnParseComplex = "ParseComplex"
 
 // ParseComplex converts the string s to a complex number
 // with the precision specified by bitSize: 64 for complex64, or 128 for complex128.
@@ -99,7 +99,7 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 		// There is only an imaginary component
 
 		if s == "" {
-			s = "1"
+			s = s + "1"
 		}
 
 		imag, err := parseFloat(s, orig, bitSize)
@@ -113,7 +113,7 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 		return 0, syntaxError(fnParseComplex, orig)
 	}
 
-	/* From here onwards, it is either complex number with both a real and imaginary component OR a pure imaginary number in exponential form. */
+	/* From here onwards, it is either a complex number with both a real and imaginary component OR a pure imaginary number in exponential form. */
 
 	// Loop through pos from middle of slice, outwards
 	mid := (len(pos) - 1) >> 1
@@ -127,6 +127,10 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 
 		left := s[0:pos[idx]]
 		right := s[pos[idx]:]
+
+		if left == "" {
+			left = left + "0"
+		}
 
 		// Check if left and right are valid float64
 		real, err := parseFloat(left, orig, bitSize)
