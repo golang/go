@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
@@ -91,50 +90,6 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) ([]*metadata
 		return nil, err
 	}
 	return s.updateMetadata(ctx, scopes, pkgs, cfg)
-}
-
-// shouldLoad reparses a file's package and import declarations to
-// determine if the file requires a metadata reload.
-func (c *cache) shouldLoad(ctx context.Context, s *snapshot, originalFH, currentFH source.FileHandle) bool {
-	if originalFH == nil {
-		return currentFH.Identity().Kind == source.Go
-	}
-	// If the file hasn't changed, there's no need to reload.
-	if originalFH.Identity().String() == currentFH.Identity().String() {
-		return false
-	}
-	// If a go.mod file's contents have changed, always invalidate metadata.
-	if kind := originalFH.Identity().Kind; kind == source.Mod {
-		return true
-	}
-	// Get the original and current parsed files in order to check package name and imports.
-	original, _, _, originalErr := c.ParseGoHandle(originalFH, source.ParseHeader).Parse(ctx)
-	current, _, _, currentErr := c.ParseGoHandle(currentFH, source.ParseHeader).Parse(ctx)
-	if originalErr != nil || currentErr != nil {
-		return (originalErr == nil) != (currentErr == nil)
-	}
-
-	// Check if the package's metadata has changed. The cases handled are:
-	//    1. A package's name has changed
-	//    2. A file's imports have changed
-	if original.Name.Name != current.Name.Name {
-		return true
-	}
-	// If the package's imports have increased, definitely re-run `go list`.
-	if len(original.Imports) < len(current.Imports) {
-		return true
-	}
-	importSet := make(map[string]struct{})
-	for _, importSpec := range original.Imports {
-		importSet[importSpec.Path.Value] = struct{}{}
-	}
-	// If any of the current imports were not in the original imports.
-	for _, importSpec := range current.Imports {
-		if _, ok := importSet[importSpec.Path.Value]; !ok {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *snapshot) updateMetadata(ctx context.Context, scopes []interface{}, pkgs []*packages.Package, cfg *packages.Config) ([]*metadata, error) {
