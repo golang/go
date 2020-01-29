@@ -539,6 +539,17 @@ TODO
 
 </dl><!-- runtime -->
 
+<dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof">runtime/pprof</a></dt>
+  <dd>
+    <p><!-- CL 204636, 205097 -->
+    The generated profile no longer includes the pseudo-PCs used for inline
+    marks. Symbol information of inlined functions is encoded in
+    <a href="https://github.com/google/pprof/blob/5e96527/proto/profile.proto#L177-L184">the format</a>
+    the pprof tool expects. This is a fix for the regression introduced
+    during recent releases.
+    </p>
+</dl><!-- runtime/pprof -->
+
 <dl id="signal"><dt><a href="/pkg/signal/">signal</a></dt>
   <dd>
     <p><!-- CL 187739 -->
