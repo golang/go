@@ -32,6 +32,7 @@ benchcmp will also compare memory allocations.
 `
 
 func main() {
+	fmt.Fprintf(os.Stderr, "benchcmp is deprecated in favor of benchstat: https://pkg.go.dev/golang.org/x/perf/cmd/benchstat\n")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: %s old.txt new.txt\n\n", os.Args[0])
 		flag.PrintDefaults()
