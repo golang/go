@@ -28,8 +28,6 @@ func requireTestSOSupported(t *testing.T) {
 		if runtime.GOOS == "linux" {
 			t.Skip("External linking not implemented on aix/ppc64 (issue #8912).")
 		}
-	case "mips64le", "mips64":
-		t.Skip("External linking not implemented on mips64.")
 	}
 	if runtime.GOOS == "android" {
 		t.Skip("No exec facility on Android.")
