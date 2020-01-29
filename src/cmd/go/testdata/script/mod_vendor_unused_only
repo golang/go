@@ -1,0 +1,15 @@
+# Ensure that we generate a vendor/modules.txt file even when the only
+# requirements in go.mod are unused.  Regression test for:
+# golang.org/issue/36580
+
+go mod vendor
+cmp expected-modules.txt vendor/modules.txt
+
+-- go.mod --
+module example.com/m
+go 1.14
+
+require golang.org/x/tools v0.0.0-20200129045341-207d3de1faaf // indirect
+-- go1.14-modules.txt --
+# golang.org/x/tools v0.0.0-20200129045341-207d3de1faaf
+## explicit
