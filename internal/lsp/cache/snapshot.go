@@ -480,30 +480,12 @@ func (s *snapshot) addID(uri span.URI, id packageID) {
 	s.ids[uri] = append(s.ids[uri], id)
 }
 
-func (s *snapshot) getIDs(uri span.URI) []packageID {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.ids[uri]
-}
-
 func (s *snapshot) isWorkspacePackage(id packageID) (packagePath, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	scope, ok := s.workspacePackages[id]
 	return scope, ok
-}
-
-func (s *snapshot) getFileURIs() []span.URI {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	var uris []span.URI
-	for uri := range s.files {
-		uris = append(uris, uri)
-	}
-	return uris
 }
 
 // GetFile returns a File for the given URI. It will always succeed because it
@@ -513,24 +495,13 @@ func (s *snapshot) GetFile(uri span.URI) (source.FileHandle, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.getFileHandle(f), nil
-}
-
-func (s *snapshot) getFileHandle(f *fileBase) source.FileHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if _, ok := s.files[f.URI()]; !ok {
 		s.files[f.URI()] = s.view.session.GetFile(f.URI())
 	}
-	return s.files[f.URI()]
-}
-
-func (s *snapshot) findFileHandle(f *fileBase) source.FileHandle {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.files[f.URI()]
+	return s.files[f.URI()], nil
 }
 
 func (s *snapshot) awaitLoaded(ctx context.Context) error {

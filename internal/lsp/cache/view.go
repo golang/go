@@ -404,12 +404,6 @@ func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error)
 	return env, nil
 }
 
-func (v *view) fileVersion(filename string) string {
-	uri := span.FileURI(filename)
-	fh := v.session.GetFile(uri)
-	return fh.Identity().String()
-}
-
 func (v *view) mapFile(uri span.URI, f *fileBase) {
 	v.filesByURI[uri] = f
 	if f.addURI(uri) == 1 {
