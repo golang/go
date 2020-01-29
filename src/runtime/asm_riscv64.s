@@ -254,12 +254,11 @@ TEXT runtime·gogo(SB), NOSPLIT, $16-8
 // func jmpdefer(fv *funcval, argp uintptr)
 // called from deferreturn
 // 1. grab stored return address from the caller's frame
-// 2. sub 12 bytes to get back to JAL deferreturn
+// 2. sub 8 bytes to get back to JAL deferreturn
 // 3. JMP to fn
-// TODO(sorear): There are shorter jump sequences.  This function will need to be updated when we use them.
 TEXT runtime·jmpdefer(SB), NOSPLIT|NOFRAME, $0-16
 	MOV	0(X2), RA
-	ADD	$-12, RA
+	ADD	$-8, RA
 
 	MOV	fv+0(FP), CTXT
 	MOV	argp+8(FP), X2
