@@ -139,6 +139,8 @@ TODO
   Go 1.14 drops support for the Native Client platform (<code>GOOS=nacl</code>).
 </p>
 
+<h3 id="illumos">Illumos</h3>
+
 <p><!-- CL 203758 -->
   The runtime now respects zone CPU caps
   (the <code>zone.cpu-cap</code> resource control)
@@ -174,7 +176,8 @@ TODO
   <code>go</code> <code>list</code> <code>-m</code> no longer silently omits
   transitive dependencies that do not provide packages in
   the <code>vendor</code> directory. It now fails explicitly if
-  <code>-mod=vendor</code> is set.
+  <code>-mod=vendor</code> is set and information is requested for a module not
+  mentioned in <code>vendor/modules.txt</code>.
 </p>
 
 <h4 id="go-flags">Flags</h4>
@@ -204,12 +207,13 @@ TODO
 
 <p><!-- golang.org/issue/34506 -->
   <code>-modfile=file</code> is a new flag that instructs the <code>go</code>
-  command to read (and possibly write) an alternate go.mod file instead of the
-  one in the module root directory. A file named "go.mod" must still be present
-  in order to determine the module root directory, but it is not
-  accessed. When <code>-modfile</code> is specified, an alternate go.sum file
-  is also used: its path is derived from the <code>-modfile</code> flag by
-  trimming the ".mod" extension and appending ".sum".
+  command to read (and possibly write) an alternate <code>go.mod</code> file
+  instead of the one in the module root directory. A file
+  named <code>go.mod</code> must still be present in order to determine the
+  module root directory, but it is not accessed. When <code>-modfile</code> is
+  specified, an alternate <code>go.sum</code> file is also used: its path is
+  derived from the <code>-modfile</code> flag by trimming the <code>.mod</code>
+  extension and appending <code>.sum</code>.
 </p>
 
 <h4 id="go-env-vars">Environment variables</h4>
@@ -244,8 +248,7 @@ TODO
 <p>
   <code>go</code> <code>get</code> continues to work as before, as do
   <code>go</code> <code>mod</code> <code>download</code> and
-  <code>go</code> <code>list</code> <code>-m</code> with explicit version
-  patterns.
+  <code>go</code> <code>list</code> <code>-m</code> with explicit versions.
 </p>
 
 <h4 id="incompatible-versions"><code>+incompatible</code> versions</h4>
@@ -282,8 +285,8 @@ TODO
 
 <p>
   When <code>-mod=readonly</code> is set, <code>go</code> commands will no
-  longer fail due to a missing <code>go</code> directive or erroneous
-  <code>// indirect</code> comment.
+  longer fail due to a missing <code>go</code> directive or an erroneous
+  <code>//&nbsp;indirect</code> comment.
 </p>
 
 <h4 id="module-downloading">Module downloading</h4>
