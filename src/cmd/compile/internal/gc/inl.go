@@ -225,7 +225,7 @@ func caninl(fn *Node) {
 	fn.Type.FuncType().Nname = asTypesNode(n)
 
 	if Debug['m'] > 1 {
-		fmt.Printf("%v: can inline %#v as: %#v { %#v }\n", fn.Line(), n, fn.Type, asNodes(n.Func.Inl.Body))
+		fmt.Printf("%v: can inline %#v with cost %d as: %#v { %#v }\n", fn.Line(), n, inlineMaxBudget-visitor.budget, fn.Type, asNodes(n.Func.Inl.Body))
 	} else if Debug['m'] != 0 {
 		fmt.Printf("%v: can inline %v\n", fn.Line(), n)
 	}
