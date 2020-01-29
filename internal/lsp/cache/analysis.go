@@ -19,6 +19,7 @@ import (
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/telemetry/log"
+	"golang.org/x/tools/internal/telemetry/tag"
 	errors "golang.org/x/xerrors"
 )
 
@@ -319,13 +320,15 @@ func runAnalysis(ctx context.Context, fset *token.FileSet, analyzer *analysis.An
 		return data
 	}
 	data.result, data.err = pass.Analyzer.Run(pass)
-	if data.err == nil {
-		if got, want := reflect.TypeOf(data.result), pass.Analyzer.ResultType; got != want {
-			data.err = errors.Errorf(
-				"internal error: on package %s, analyzer %s returned a result of type %v, but declared ResultType %v",
-				pass.Pkg.Path(), pass.Analyzer, got, want)
-			return data
-		}
+	if data.err != nil {
+		return data
+	}
+
+	if got, want := reflect.TypeOf(data.result), pass.Analyzer.ResultType; got != want {
+		data.err = errors.Errorf(
+			"internal error: on package %s, analyzer %s returned a result of type %v, but declared ResultType %v",
+			pass.Pkg.Path(), pass.Analyzer, got, want)
+		return data
 	}
 
 	// disallow calls after Run
@@ -339,8 +342,8 @@ func runAnalysis(ctx context.Context, fset *token.FileSet, analyzer *analysis.An
 	for _, diag := range diagnostics {
 		srcErr, err := sourceError(ctx, fset, pkg, diag)
 		if err != nil {
-			data.err = err
-			return data
+			log.Error(ctx, "unable to compute analysis error position", err, tag.Of("category", diag.Category), telemetry.Package.Of(pkg.ID()))
+			continue
 		}
 		data.diagnostics = append(data.diagnostics, srcErr)
 	}

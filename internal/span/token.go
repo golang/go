@@ -61,6 +61,9 @@ func (r Range) IsPoint() bool {
 // It will fill in all the members of the Span, calculating the line and column
 // information.
 func (r Range) Span() (Span, error) {
+	if !r.Start.IsValid() {
+		return Span{}, fmt.Errorf("start pos is not valid")
+	}
 	f := r.FileSet.File(r.Start)
 	if f == nil {
 		return Span{}, fmt.Errorf("file not found in FileSet")
