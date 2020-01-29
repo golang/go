@@ -87,9 +87,13 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, withA
 		return nil, warn, err
 	}
 	if !hadDiagnostics && withAnalysis {
+		// Exit early if the context has been canceled. This also protects us
+		// from a race on Options, see golang/go#36699.
+		if ctx.Err() != nil {
+			return nil, warn, ctx.Err()
+		}
 		// If we don't have any list, parse, or type errors, run analyses.
 		if err := analyses(ctx, snapshot, reports, ph, snapshot.View().Options().DisabledAnalyses); err != nil {
-			// Exit early if the context has been canceled.
 			if ctx.Err() != nil {
 				return nil, warn, ctx.Err()
 			}
