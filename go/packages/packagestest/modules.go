@@ -63,6 +63,19 @@ func (modules) Finalize(exported *Exported) error {
 	if exported.written[exported.primary] == nil {
 		exported.written[exported.primary] = make(map[string]string)
 	}
+
+	// If the primary module already has a go.mod, write the contents to a temp
+	// go.mod for now and then we will reset it when we are getting all the markers.
+	if gomod := exported.written[exported.primary]["go.mod"]; gomod != "" {
+		contents, err := ioutil.ReadFile(gomod)
+		if err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(gomod+".temp", contents, 0644); err != nil {
+			return err
+		}
+	}
+
 	exported.written[exported.primary]["go.mod"] = filepath.Join(primaryDir, "go.mod")
 	primaryGomod := "module " + exported.primary + "\nrequire (\n"
 	for other := range exported.written {

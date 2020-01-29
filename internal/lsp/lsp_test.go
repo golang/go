@@ -13,7 +13,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -55,10 +54,21 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		cache := cache.New(nil)
 		session := cache.NewSession()
 		options := tests.DefaultOptions()
+		options.TempModfile = exporter == packagestest.Modules
 		session.SetOptions(options)
 		options.Env = datum.Config.Env
-		if _, _, err := session.NewView(ctx, datum.Config.Dir, span.FileURI(datum.Config.Dir), options); err != nil {
+		v, _, err := session.NewView(ctx, datum.Config.Dir, span.FileURI(datum.Config.Dir), options)
+		if err != nil {
 			t.Fatal(err)
+		}
+		// Check to see if the -modfile flag is available, this is basically a check
+		// to see if the go version >= 1.14. Otherwise, the modfile specific tests
+		// will always fail if this flag is not available.
+		for _, flag := range v.Config(ctx).BuildFlags {
+			if strings.Contains(flag, "-modfile=") {
+				datum.ModfileFlagAvailable = true
+				break
+			}
 		}
 		var modifications []source.FileModification
 		for filename, content := range datum.Config.Overlay {
@@ -374,9 +384,6 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 	// TODO: This test should probably be able to handle multiple code actions.
 	if len(actions) == 0 {
 		t.Fatal("no code actions returned")
-	}
-	if len(actions) > 1 {
-		t.Fatal("expected only 1 code action")
 	}
 	res, err := applyWorkspaceEdits(r, actions[0].Edit)
 	if err != nil {
@@ -968,9 +975,7 @@ func TestBytesOffset(t *testing.T) {
 // TODO(golang/go#36091): This function can be refactored to look like the rest of this file
 // when marker support gets added for go.mod files.
 func TestModfileSuggestedFixes(t *testing.T) {
-	if runtime.GOOS == "android" {
-		t.Skip("this test cannot find mod/testdata files")
-	}
+	t.Skip("this test cannot find example.com/package")
 
 	ctx := tests.Context(t)
 	cache := cache.New(nil)

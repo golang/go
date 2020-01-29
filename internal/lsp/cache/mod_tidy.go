@@ -126,8 +126,8 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 		// We want to run "go mod tidy" to be able to diff between the real and the temp files.
 		args := append([]string{"mod", "tidy"}, cfg.BuildFlags...)
 		if _, err := source.InvokeGo(ctx, folder, cfg.Env, args...); err != nil {
-			// Ignore parse errors here. They'll be handled below.
-			if !strings.Contains(err.Error(), "errors parsing go.mod") {
+			// Ignore parse errors and concurrency errors here. They'll be handled below.
+			if !strings.Contains(err.Error(), "errors parsing go.mod") && !modConcurrencyError.MatchString(err.Error()) {
 				data.err = err
 				return data
 			}

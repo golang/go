@@ -2,9 +2,9 @@
 package indirect
 
 import (
-	"golang.org/x/tools/go/packages"
+	"example.com/extramodule/pkg"
 )
 
 func Yo() {
-	var _ packages.Config
+	var _ pkg.Test
 }

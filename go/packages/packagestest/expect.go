@@ -7,9 +7,12 @@ package packagestest
 import (
 	"fmt"
 	"go/token"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strings"
 
 	"golang.org/x/tools/go/expect"
 	"golang.org/x/tools/go/packages"
@@ -161,8 +164,45 @@ func (e *Exported) getNotes() error {
 			notes = append(notes, l...)
 		}
 	}
+	if _, ok := e.written[e.primary]; !ok {
+		e.notes = notes
+		return nil
+	}
+	// Check go.mod markers regardless of mode, we need to do this so that our marker count
+	// matches the counts in the summary.txt.golden file for the test directory.
+	if gomod, found := e.written[e.primary]["go.mod"]; found {
+		// If we are in Modules mode, then we need to check the contents of the go.mod.temp.
+		if e.exporter == Modules {
+			gomod += ".temp"
+		}
+		l, err := goModMarkers(e, gomod)
+		if err != nil {
+			return fmt.Errorf("failed to extract expectations for go.mod: %v", err)
+		}
+		notes = append(notes, l...)
+	}
 	e.notes = notes
 	return nil
+}
+
+func goModMarkers(e *Exported, gomod string) ([]*expect.Note, error) {
+	if _, err := os.Stat(gomod); os.IsNotExist(err) {
+		// If there is no go.mod file, we want to be able to continue.
+		return nil, nil
+	}
+	content, err := e.FileContents(gomod)
+	if err != nil {
+		return nil, err
+	}
+	if e.exporter == GOPATH {
+		return expect.Parse(e.ExpectFileSet, gomod, content)
+	}
+	gomod = strings.TrimSuffix(gomod, ".temp")
+	// If we are in Modules mode, copy the original contents file back into go.mod
+	if err := ioutil.WriteFile(gomod, content, 0644); err != nil {
+		return nil, nil
+	}
+	return expect.Parse(e.ExpectFileSet, gomod, content)
 }
 
 func (e *Exported) getMarkers() error {

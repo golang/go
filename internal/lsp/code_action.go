@@ -56,6 +56,9 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	var codeActions []protocol.CodeAction
 	switch fh.Identity().Kind {
 	case source.Mod:
+		if diagnostics := params.Context.Diagnostics; len(diagnostics) > 0 {
+			codeActions = append(codeActions, mod.SuggestedFixes(ctx, snapshot, fh, diagnostics)...)
+		}
 		if !wanted[protocol.SourceOrganizeImports] {
 			codeActions = append(codeActions, protocol.CodeAction{
 				Title: "Tidy",
@@ -66,9 +69,6 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 					Arguments: []interface{}{fh.Identity().URI},
 				},
 			})
-		}
-		if diagnostics := params.Context.Diagnostics; len(diagnostics) > 0 {
-			codeActions = append(codeActions, mod.SuggestedFixes(ctx, snapshot, fh, diagnostics)...)
 		}
 	case source.Go:
 		edits, editsPerFix, err := source.AllImportsFixes(ctx, snapshot, fh)

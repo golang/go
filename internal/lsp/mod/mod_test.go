@@ -21,8 +21,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// TODO(golang/go#36091): This file can be refactored to look like lsp_test.go
-// when marker support gets added for go.mod files.
 func TestModfileRemainsUnchanged(t *testing.T) {
 	ctx := tests.Context(t)
 	cache := cache.New(nil)

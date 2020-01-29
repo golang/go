@@ -1,3 +1,5 @@
+-- suggestedfix --
 module unused
 
 go 1.12
+

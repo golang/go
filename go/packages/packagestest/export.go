@@ -118,11 +118,12 @@ type Exported struct {
 
 	ExpectFileSet *token.FileSet // The file set used when parsing expectations
 
-	temp    string                       // the temporary directory that was exported to
-	primary string                       // the first non GOROOT module that was exported
-	written map[string]map[string]string // the full set of exported files
-	notes   []*expect.Note               // The list of expectations extracted from go source files
-	markers map[string]span.Range        // The set of markers extracted from go source files
+	exporter Exporter                     // the exporter used
+	temp     string                       // the temporary directory that was exported to
+	primary  string                       // the first non GOROOT module that was exported
+	written  map[string]map[string]string // the full set of exported files
+	notes    []*expect.Note               // The list of expectations extracted from go source files
+	markers  map[string]span.Range        // The set of markers extracted from go source files
 }
 
 // Exporter implementations are responsible for converting from the generic description of some
@@ -200,6 +201,7 @@ func Export(t testing.TB, exporter Exporter, modules []Module) *Exported {
 			Mode:    packages.LoadImports,
 		},
 		Modules:       modules,
+		exporter:      exporter,
 		temp:          temp,
 		primary:       modules[0].Name,
 		written:       map[string]map[string]string{},

@@ -103,6 +103,8 @@ type Data struct {
 	Folder    string
 	golden    map[string]*Golden
 
+	ModfileFlagAvailable bool
+
 	mappersMu sync.Mutex
 	mappers   map[span.URI]*protocol.ColumnMapper
 }
@@ -400,7 +402,6 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) []*Data {
 		}); err != nil {
 			t.Fatal(err)
 		}
-
 		data = append(data, datum)
 	}
 	return data
@@ -479,6 +480,11 @@ func Run(t *testing.T, tests Tests, data *Data) {
 	t.Run("Diagnostics", func(t *testing.T) {
 		t.Helper()
 		for uri, want := range data.Diagnostics {
+			// If the -modfile flag is not available, then we do not want to run
+			// diagnostics on any .mod file.
+			if strings.Contains(uri.Filename(), ".mod") && !data.ModfileFlagAvailable {
+				continue
+			}
 			t.Run(uriName(uri), func(t *testing.T) {
 				t.Helper()
 				tests.Diagnostics(t, uri, want)
@@ -519,6 +525,11 @@ func Run(t *testing.T, tests Tests, data *Data) {
 	t.Run("SuggestedFix", func(t *testing.T) {
 		t.Helper()
 		for _, spn := range data.SuggestedFixes {
+			// If the -modfile flag is not available, then we do not want to run
+			// suggested fixes on any .mod file.
+			if strings.Contains(spn.URI().Filename(), ".mod") && !data.ModfileFlagAvailable {
+				continue
+			}
 			t.Run(spanName(spn), func(t *testing.T) {
 				t.Helper()
 				tests.SuggestedFix(t, spn)
