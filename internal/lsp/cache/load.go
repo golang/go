@@ -39,6 +39,7 @@ type metadata struct {
 
 func (s *snapshot) load(ctx context.Context, scopes ...interface{}) ([]*metadata, error) {
 	var query []string
+	var containsDir bool // for logging
 	for _, scope := range scopes {
 		switch scope := scope.(type) {
 		case packagePath:
@@ -69,6 +70,10 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) ([]*metadata
 		default:
 			panic(fmt.Sprintf("unknown scope type %T", scope))
 		}
+		switch scope.(type) {
+		case directoryURI, viewLoadScope:
+			containsDir = true
+		}
 	}
 	sort.Strings(query) // for determinism
 
@@ -89,20 +94,8 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) ([]*metadata
 	if len(pkgs) == 0 {
 		return nil, err
 	}
-	return s.updateMetadata(ctx, scopes, pkgs, cfg)
-}
-
-func (s *snapshot) updateMetadata(ctx context.Context, scopes []interface{}, pkgs []*packages.Package, cfg *packages.Config) ([]*metadata, error) {
 	var results []*metadata
 	for _, pkg := range pkgs {
-		// Don't log output for full workspace packages.Loads.
-		var containsDir bool
-		for _, scope := range scopes {
-			switch scope.(type) {
-			case directoryURI, viewLoadScope:
-				containsDir = true
-			}
-		}
 		if !containsDir || s.view.Options().VerboseOutput {
 			log.Print(ctx, "go/packages.Load", tag.Of("snapshot", s.ID()), tag.Of("package", pkg.PkgPath), tag.Of("files", pkg.CompiledGoFiles))
 		}
@@ -116,12 +109,17 @@ func (s *snapshot) updateMetadata(ctx context.Context, scopes []interface{}, pkg
 			continue
 		}
 		// Set the metadata for this package.
-		if err := s.updateImports(ctx, packagePath(pkg.PkgPath), pkg, cfg, map[packageID]struct{}{}); err != nil {
+		m, err := s.setMetadata(ctx, packagePath(pkg.PkgPath), pkg, cfg, map[packageID]struct{}{})
+		if err != nil {
 			return nil, err
 		}
-		if m := s.getMetadata(packageID(pkg.ID)); m != nil {
-			results = append(results, m)
+		// All packages returned by packages.Load will be top-level packages,
+		// with dependencies in the Imports field. Therefore, we can assume that
+		// they are all workspace packages and mark them as such.
+		if err := s.setWorkspacePackage(ctx, m); err != nil {
+			return nil, err
 		}
+		results = append(results, m)
 	}
 
 	// Rebuild the import graph when the metadata is updated.
@@ -133,10 +131,30 @@ func (s *snapshot) updateMetadata(ctx context.Context, scopes []interface{}, pkg
 	return results, nil
 }
 
-func (s *snapshot) updateImports(ctx context.Context, pkgPath packagePath, pkg *packages.Package, cfg *packages.Config, seen map[packageID]struct{}) error {
+func (s *snapshot) setWorkspacePackage(ctx context.Context, m *metadata) error {
+	// Make sure that the builtin package doesn't get marked a workspace package.
+	if m.pkgPath == "builtin" {
+		return nil
+	}
+	// A test variant of a package can only be loaded directly by loading
+	// the non-test variant with -test. Track the import path of the non-test variant.
+	pkgPath := m.pkgPath
+	if m.forTest != "" {
+		pkgPath = m.forTest
+	}
+
+	s.mu.Lock()
+	s.workspacePackages[m.id] = pkgPath
+	s.mu.Unlock()
+
+	_, err := s.packageHandle(ctx, m.id)
+	return err
+}
+
+func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *packages.Package, cfg *packages.Config, seen map[packageID]struct{}) (*metadata, error) {
 	id := packageID(pkg.ID)
 	if _, ok := seen[id]; ok {
-		return errors.Errorf("import cycle detected: %q", id)
+		return nil, errors.Errorf("import cycle detected: %q", id)
 	}
 	// Recreate the metadata rather than reusing it to avoid locking.
 	m := &metadata{
@@ -160,8 +178,9 @@ func (s *snapshot) updateImports(ctx context.Context, pkgPath packagePath, pkg *
 		s.addID(uri, m.id)
 	}
 
-	seen[id] = struct{}{}
-	copied := make(map[packageID]struct{})
+	copied := map[packageID]struct{}{
+		id: struct{}{},
+	}
 	for k, v := range seen {
 		copied[k] = v
 	}
@@ -180,14 +199,24 @@ func (s *snapshot) updateImports(ctx context.Context, pkgPath packagePath, pkg *
 			continue
 		}
 		if s.getMetadata(importID) == nil {
-			if err := s.updateImports(ctx, importPkgPath, importPkg, cfg, copied); err != nil {
+			if _, err := s.setMetadata(ctx, importPkgPath, importPkg, cfg, copied); err != nil {
 				log.Error(ctx, "error in dependency", err)
 			}
 		}
 	}
 	// Add the metadata to the cache.
-	s.setMetadata(m)
-	return nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// TODO: We should make sure not to set duplicate metadata,
+	// and instead panic here. This can be done by making sure not to
+	// reset metadata information for packages we've already seen.
+	if orig, ok := s.metadata[m.id]; ok {
+		return orig, nil
+	} else {
+		s.metadata[m.id] = m
+		return m, nil
+	}
 }
 
 func isTestMain(ctx context.Context, pkg *packages.Package, gocache string) bool {

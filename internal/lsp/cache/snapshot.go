@@ -449,19 +449,6 @@ func (s *snapshot) getMetadataForURILocked(uri span.URI) (metadata []*metadata) 
 	return metadata
 }
 
-func (s *snapshot) setMetadata(m *metadata) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// TODO: We should make sure not to set duplicate metadata,
-	// and instead panic here. This can be done by making sure not to
-	// reset metadata information for packages we've already seen.
-	if _, ok := s.metadata[m.id]; ok {
-		return
-	}
-	s.metadata[m.id] = m
-}
-
 func (s *snapshot) getMetadata(id packageID) *metadata {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -512,31 +499,19 @@ func (s *snapshot) awaitLoaded(ctx context.Context) error {
 	// Do not return results until the snapshot's view has been initialized.
 	s.view.awaitInitialized(ctx)
 
-	m, err := s.reloadWorkspace(ctx)
-	if err != nil {
+	if err := s.reloadWorkspace(ctx); err != nil {
 		return err
 	}
-	for _, m := range m {
-		s.setWorkspacePackage(ctx, m)
-	}
-	if err := s.reloadOrphanedFiles(ctx); err != nil {
-		return err
-	}
-	// Create package handles for all of the workspace packages.
-	for _, id := range s.workspacePackageIDs() {
-		if _, err := s.packageHandle(ctx, id); err != nil {
-			return err
-		}
-	}
-	return nil
+	return s.reloadOrphanedFiles(ctx)
 }
 
 // reloadWorkspace reloads the metadata for all invalidated workspace packages.
-func (s *snapshot) reloadWorkspace(ctx context.Context) ([]*metadata, error) {
+func (s *snapshot) reloadWorkspace(ctx context.Context) error {
 	// If the view's build configuration is invalid, we cannot reload by package path.
 	// Just reload the directory instead.
 	if !s.view.hasValidBuildConfiguration {
-		return s.load(ctx, viewLoadScope("LOAD_INVALID_VIEW"))
+		_, err := s.load(ctx, viewLoadScope("LOAD_INVALID_VIEW"))
+		return err
 	}
 
 	// See which of the workspace packages are missing metadata.
@@ -550,10 +525,10 @@ func (s *snapshot) reloadWorkspace(ctx context.Context) ([]*metadata, error) {
 	s.mu.Unlock()
 
 	if len(pkgPaths) == 0 {
-		return nil, nil
+		return nil
 	}
-
-	return s.load(ctx, pkgPaths...)
+	_, err := s.load(ctx, pkgPaths...)
+	return err
 }
 
 func (s *snapshot) reloadOrphanedFiles(ctx context.Context) error {
@@ -566,7 +541,7 @@ func (s *snapshot) reloadOrphanedFiles(ctx context.Context) error {
 		return nil
 	}
 
-	m, err := s.load(ctx, scopes...)
+	_, err := s.load(ctx, scopes...)
 
 	// If we failed to load some files, i.e. they have no metadata,
 	// mark the failures so we don't bother retrying until the file's
@@ -586,9 +561,6 @@ func (s *snapshot) reloadOrphanedFiles(ctx context.Context) error {
 			}
 		}
 		s.mu.Unlock()
-	}
-	for _, m := range m {
-		s.setWorkspacePackage(ctx, m)
 	}
 	return nil
 }
@@ -630,19 +602,6 @@ func contains(views []*view, view *view) bool {
 		}
 	}
 	return false
-}
-
-func (s *snapshot) setWorkspacePackage(ctx context.Context, m *metadata) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// A test variant of a package can only be loaded directly by loading
-	// the non-test variant with -test. Track the import path of the non-test variant.
-	pkgPath := m.pkgPath
-	if m.forTest != "" {
-		pkgPath = m.forTest
-	}
-	s.workspacePackages[m.id] = pkgPath
 }
 
 func (s *snapshot) clone(ctx context.Context, withoutURIs []span.URI) *snapshot {

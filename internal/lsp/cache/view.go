@@ -551,22 +551,13 @@ func (v *view) initialize(ctx context.Context, s *snapshot) {
 			if err != nil {
 				return err
 			}
-			// Keep track of the workspace packages.
+			// Find the builtin package in order to handle it separately.
 			for _, m := range meta {
-				// Make sure to handle the builtin package separately
-				// Don't set it as a workspace package.
 				if m.pkgPath == "builtin" {
-					if err := s.view.buildBuiltinPackage(ctx, m); err != nil {
-						return err
-					}
-					continue
-				}
-				s.setWorkspacePackage(ctx, m)
-				if _, err := s.packageHandle(ctx, m.id); err != nil {
-					return err
+					return s.view.buildBuiltinPackage(ctx, m)
 				}
 			}
-			return nil
+			return errors.Errorf("failed to load the builtin package")
 		}()
 		if err != nil {
 			log.Error(ctx, "initial workspace load failed", err)
