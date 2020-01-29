@@ -55,15 +55,6 @@ func jalrToSym(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, lr int16) *ob
 	p.Mark |= NEED_PCREL_ITYPE_RELOC
 	p = obj.Appendp(p, newprog)
 
-	// TODO(jsing): This instruction is not necessary, as the lower bits
-	// of the immediate can be encoded directly in the JALR instruction.
-	// However, other code currently depends on jalrToSym being 12 bytes...
-	p.As = AADDI
-	p.From = obj.Addr{Type: obj.TYPE_CONST}
-	p.Reg = REG_TMP
-	p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-	p = obj.Appendp(p, newprog)
-
 	// Leave Sym only for the CALL reloc in assemble.
 	p.As = AJALR
 	p.From.Type = obj.TYPE_REG

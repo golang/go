@@ -271,8 +271,8 @@ func (ctxt *Link) pclntab() {
 					case sys.RISCV64:
 						// TODO(jsing): The JALR instruction is marked with
 						// R_CALLRISCV, whereas the actual reloc is currently
-						// two instructions earlier for the AUIPC+AADI sequence.
-						deferreturn -= 8
+						// one instruction earlier starting with the AUIPC.
+						deferreturn -= 4
 					case sys.S390X:
 						deferreturn -= 2
 					default:
