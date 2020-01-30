@@ -1247,3 +1247,43 @@ func read64(sym interface{}, off int64, byteorder binary.ByteOrder) uint64 {
 	copy(buf, src)
 	return byteorder.Uint64(buf)
 }
+
+// same reports whether x and y are the same value.
+// It checks to a maximum depth of d, so it may report
+// a false negative.
+func same(x, y *Value, depth int) bool {
+	if x == y {
+		return true
+	}
+	if depth <= 0 {
+		return false
+	}
+	if x.Op != y.Op || x.Aux != y.Aux || x.AuxInt != y.AuxInt {
+		return false
+	}
+	if len(x.Args) != len(y.Args) {
+		return false
+	}
+	if opcodeTable[x.Op].commutative {
+		// Check exchanged ordering first.
+		for i, a := range x.Args {
+			j := i
+			if j < 2 {
+				j ^= 1
+			}
+			b := y.Args[j]
+			if !same(a, b, depth-1) {
+				goto checkNormalOrder
+			}
+		}
+		return true
+	checkNormalOrder:
+	}
+	for i, a := range x.Args {
+		b := y.Args[i]
+		if !same(a, b, depth-1) {
+			return false
+		}
+	}
+	return true
+}
