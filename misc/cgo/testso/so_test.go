@@ -26,7 +26,7 @@ func requireTestSOSupported(t *testing.T) {
 		}
 	case "ppc64":
 		if runtime.GOOS == "linux" {
-			t.Skip("External linking not implemented on aix/ppc64 (issue #8912).")
+			t.Skip("External linking not implemented on linux/ppc64 (issue #8912).")
 		}
 	}
 	if runtime.GOOS == "android" {
