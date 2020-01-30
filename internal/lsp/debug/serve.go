@@ -119,24 +119,25 @@ func getCache(r *http.Request) interface{} {
 	return result
 }
 
-func findSession(id string) Session {
-	for _, c := range data.Sessions {
+func findSession(id string) (int, Session) {
+	for i, c := range data.Sessions {
 		if c.ID() == id {
-			return c
+			return i, c
 		}
 	}
-	return nil
+	return -1, nil
 }
 
 func getSession(r *http.Request) interface{} {
 	mu.Lock()
 	defer mu.Unlock()
 	id := path.Base(r.URL.Path)
+	_, session := findSession(id)
 	result := struct {
 		Session
 		Views []View
 	}{
-		Session: findSession(id),
+		Session: session,
 	}
 	// now find all the views that belong to this session
 	for _, v := range data.Views {
@@ -147,20 +148,21 @@ func getSession(r *http.Request) interface{} {
 	return result
 }
 
-func findView(id string) View {
-	for _, c := range data.Views {
+func findView(id string) (int, View) {
+	for i, c := range data.Views {
 		if c.ID() == id {
-			return c
+			return i, c
 		}
 	}
-	return nil
+	return -1, nil
 }
 
 func getView(r *http.Request) interface{} {
 	mu.Lock()
 	defer mu.Unlock()
 	id := path.Base(r.URL.Path)
-	return findView(id)
+	_, v := findView(id)
+	return v
 }
 
 func getFile(r *http.Request) interface{} {
@@ -168,7 +170,7 @@ func getFile(r *http.Request) interface{} {
 	defer mu.Unlock()
 	hash := path.Base(r.URL.Path)
 	sid := path.Base(path.Dir(r.URL.Path))
-	session := findSession(sid)
+	_, session := findSession(sid)
 	return session.File(hash)
 }
 
@@ -197,7 +199,12 @@ func AddSession(session Session) {
 func DropSession(session Session) {
 	mu.Lock()
 	defer mu.Unlock()
-	//find and remove the session
+
+	if i, _ := findSession(session.ID()); i >= 0 {
+		copy(data.Sessions[i:], data.Sessions[i+1:])
+		data.Sessions[len(data.Sessions)-1] = nil
+		data.Sessions = data.Sessions[:len(data.Sessions)-1]
+	}
 }
 
 // AddView adds a view to the set being served
@@ -211,7 +218,13 @@ func AddView(view View) {
 func DropView(view View) {
 	mu.Lock()
 	defer mu.Unlock()
+
 	//find and remove the view
+	if i, _ := findView(view.ID()); i >= 0 {
+		copy(data.Views[i:], data.Views[i+1:])
+		data.Views[len(data.Views)-1] = nil
+		data.Views = data.Views[:len(data.Views)-1]
+	}
 }
 
 // Serve starts and runs a debug server in the background.
@@ -239,22 +252,22 @@ func Serve(ctx context.Context, addr string, instance Instance) error {
 	export.AddExporters(prometheus, rpcs, traces)
 	go func() {
 		mux := http.NewServeMux()
-		mux.HandleFunc("/", Render(mainTmpl, func(*http.Request) interface{} { return data }))
-		mux.HandleFunc("/debug/", Render(debugTmpl, nil))
+		mux.HandleFunc("/", render(mainTmpl, func(*http.Request) interface{} { return data }))
+		mux.HandleFunc("/debug/", render(debugTmpl, nil))
 		mux.HandleFunc("/debug/pprof/", pprof.Index)
 		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
 		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 		mux.HandleFunc("/metrics/", prometheus.Serve)
-		mux.HandleFunc("/rpc/", Render(rpcTmpl, rpcs.getData))
-		mux.HandleFunc("/trace/", Render(traceTmpl, traces.getData))
-		mux.HandleFunc("/cache/", Render(cacheTmpl, getCache))
-		mux.HandleFunc("/session/", Render(sessionTmpl, getSession))
-		mux.HandleFunc("/view/", Render(viewTmpl, getView))
-		mux.HandleFunc("/file/", Render(fileTmpl, getFile))
-		mux.HandleFunc("/info", Render(infoTmpl, getInfo(instance)))
-		mux.HandleFunc("/memory", Render(memoryTmpl, getMemory))
+		mux.HandleFunc("/rpc/", render(rpcTmpl, rpcs.getData))
+		mux.HandleFunc("/trace/", render(traceTmpl, traces.getData))
+		mux.HandleFunc("/cache/", render(cacheTmpl, getCache))
+		mux.HandleFunc("/session/", render(sessionTmpl, getSession))
+		mux.HandleFunc("/view/", render(viewTmpl, getView))
+		mux.HandleFunc("/file/", render(fileTmpl, getFile))
+		mux.HandleFunc("/info", render(infoTmpl, getInfo(instance)))
+		mux.HandleFunc("/memory", render(memoryTmpl, getMemory))
 		if err := http.Serve(listener, mux); err != nil {
 			log.Error(ctx, "Debug server failed", err)
 			return
@@ -266,7 +279,7 @@ func Serve(ctx context.Context, addr string, instance Instance) error {
 
 type dataFunc func(*http.Request) interface{}
 
-func Render(tmpl *template.Template, fun dataFunc) func(http.ResponseWriter, *http.Request) {
+func render(tmpl *template.Template, fun dataFunc) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var data interface{}
 		if fun != nil {
@@ -294,7 +307,7 @@ func fuint32(v uint32) string {
 	return commas(strconv.FormatUint(uint64(v), 10))
 }
 
-var BaseTemplate = template.Must(template.New("").Parse(`
+var baseTemplate = template.Must(template.New("").Parse(`
 <html>
 <head>
 <title>{{template "title" .}}</title>
@@ -337,7 +350,7 @@ Unknown page
 	"fuint32": fuint32,
 })
 
-var mainTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
+var mainTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{define "title"}}GoPls server information{{end}}
 {{define "body"}}
 <h2>Caches</h2>
@@ -349,14 +362,14 @@ var mainTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{end}}
 `))
 
-var infoTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
+var infoTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{define "title"}}GoPls version information{{end}}
 {{define "body"}}
 {{.}}
 {{end}}
 `))
 
-var memoryTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
+var memoryTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{define "title"}}GoPls memory usage{{end}}
 {{define "head"}}<meta http-equiv="refresh" content="5">{{end}}
 {{define "body"}}
@@ -386,14 +399,14 @@ var memoryTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{end}}
 `))
 
-var debugTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
+var debugTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{define "title"}}GoPls Debug pages{{end}}
 {{define "body"}}
 <a href="/debug/pprof">Profiling</a>
 {{end}}
 `))
 
-var cacheTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
+var cacheTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{define "title"}}Cache {{.ID}}{{end}}
 {{define "body"}}
 <h2>Sessions</h2>
@@ -401,7 +414,7 @@ var cacheTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
 {{end}}
 `))
 
-var sessionTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
+var sessionTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{define "title"}}Session {{.ID}}{{end}}
 {{define "body"}}
 From: <b>{{template "cachelink" .Cache.ID}}</b><br>
@@ -412,7 +425,7 @@ From: <b>{{template "cachelink" .Cache.ID}}</b><br>
 {{end}}
 `))
 
-var viewTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
+var viewTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{define "title"}}View {{.ID}}{{end}}
 {{define "body"}}
 Name: <b>{{.Name}}</b><br>
@@ -423,7 +436,7 @@ From: <b>{{template "sessionlink" .Session.ID}}</b><br>
 {{end}}
 `))
 
-var fileTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
+var fileTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{define "title"}}File {{.Hash}}{{end}}
 {{define "body"}}
 From: <b>{{template "sessionlink" .Session.ID}}</b><br>

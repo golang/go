@@ -17,7 +17,7 @@ import (
 	"golang.org/x/tools/internal/telemetry"
 )
 
-var traceTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
+var traceTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{define "title"}}Trace Information{{end}}
 {{define "body"}}
 	{{range .Traces}}<a href="/trace/{{.Name}}">{{.Name}}</a> last: {{.Last.Duration}}, longest: {{.Longest.Duration}}<br>{{end}}

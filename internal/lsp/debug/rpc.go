@@ -17,7 +17,7 @@ import (
 	"golang.org/x/tools/internal/telemetry/metric"
 )
 
-var rpcTmpl = template.Must(template.Must(BaseTemplate.Clone()).Parse(`
+var rpcTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{define "title"}}RPC Information{{end}}
 {{define "body"}}
 	<H2>Inbound</H2>
