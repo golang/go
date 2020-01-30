@@ -139,6 +139,8 @@ func underlyingError(err error) error {
 		return err.Err
 	case *SyscallError:
 		return err.Err
+	case interface{ Unwrap() error }:
+		return underlyingError(err.Unwrap())
 	}
 	return err
 }
