@@ -455,15 +455,15 @@ func (ctxt *Link) loadlib() {
 		}
 	}
 
+	// Add references of externally defined symbols.
+	ctxt.loader.LoadRefs(ctxt.Arch, ctxt.Syms)
+
 	// Process cgo directives (has to be done before host object loading).
 	ctxt.loadcgodirectives(ctxt.loaderSupport())
 
 	// Conditionally load host objects, or setup for external linking.
 	hostobjs(ctxt)
 	hostlinksetup(ctxt)
-
-	// Add references of externally defined symbols.
-	ctxt.loader.LoadRefs(ctxt.Arch, ctxt.Syms)
 
 	if ctxt.LinkMode == LinkInternal && len(hostobj) != 0 {
 		// If we have any undefined symbols in external
