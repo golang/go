@@ -1644,6 +1644,7 @@ var (
 	oidExtensionNameConstraints       = []int{2, 5, 29, 30}
 	oidExtensionCRLDistributionPoints = []int{2, 5, 29, 31}
 	oidExtensionAuthorityInfoAccess   = []int{1, 3, 6, 1, 5, 5, 7, 1, 1}
+	oidExtensionCRLNumber             = []int{2, 5, 29, 20}
 )
 
 var (
@@ -2213,6 +2214,10 @@ func ParseDERCRL(derBytes []byte) (*pkix.CertificateList, error) {
 
 // CreateCRL returns a DER encoded CRL, signed by this Certificate, that
 // contains the given list of revoked certificates.
+//
+// Note: this method does not generate RFC 5280 X509 v2 conformant CRLs as
+// it omits the CRL number extension and will also omit the authority key
+// identifier extension if the certificate has an empty SubjectKeyId.
 func (c *Certificate) CreateCRL(rand io.Reader, priv interface{}, revokedCerts []pkix.RevokedCertificate, now, expiry time.Time) (crlBytes []byte, err error) {
 	key, ok := priv.(crypto.Signer)
 	if !ok {
@@ -2659,4 +2664,106 @@ func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error
 // CheckSignature reports whether the signature on c is valid.
 func (c *CertificateRequest) CheckSignature() error {
 	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificateRequest, c.Signature, c.PublicKey)
+}
+
+// CRLTemplate contains the fields used to create an X.509 v2 Certificate
+// Revocation list.
+type CRLTemplate struct {
+	RevokedCertificates []pkix.RevokedCertificate
+	Number              int
+	ThisUpdate          time.Time
+	NextUpdate          time.Time
+	Extensions          []pkix.Extension
+}
+
+// CreateCRL creates a new x509 v2 Certificate Revocation List.
+//
+// The CRL is signed by priv.
+//
+// revokedCerts may be nil, in which case an empty CRL will be created.
+//
+// The issuer distinguished name CRL field and authority key identifier extension
+// are populated using the issuer certificate. issuer must have SubjectKeyId set.
+//
+// The CRL number extension is populated using the Number field of template.
+//
+// The template fields NextUpdate must be greater than ThisUpdate.
+//
+// Any extensions in the Extensions field of template will be copied directly into
+// the CRL.
+//
+// This method is differentiated from the Certificate.CreateCRL method as
+// it creates X509 v2 conformant CRLs as defined by the RFC 5280 CRL profile.
+// This method should be used if created CRLs need to be standards compliant.
+func CreateCRL(rand io.Reader, issuer *Certificate, priv crypto.Signer, template CRLTemplate) ([]byte, error) {
+	if len(issuer.SubjectKeyId) == 0 {
+		return nil, errors.New("x509: issuer certificate doesn't contain a subject key identifier")
+	}
+	if template.NextUpdate.Before(template.ThisUpdate) {
+		return nil, errors.New("x509: template.ThisUpdate is after template.NextUpdate")
+	}
+
+	hashFunc, signatureAlgorithm, err := signingParamsForPublicKey(priv.Public(), 0)
+	if err != nil {
+		return nil, err
+	}
+
+	// Force revocation times to UTC per RFC 5280.
+	revokedCertsUTC := make([]pkix.RevokedCertificate, len(template.RevokedCertificates))
+	for i, rc := range template.RevokedCertificates {
+		rc.RevocationTime = rc.RevocationTime.UTC()
+		revokedCertsUTC[i] = rc
+	}
+
+	aki, err := asn1.Marshal(authKeyId{Id: issuer.SubjectKeyId})
+	if err != nil {
+		return nil, err
+	}
+	crlNum, err := asn1.Marshal(template.Number)
+	if err != nil {
+		return nil, err
+	}
+
+	tbsCertList := pkix.TBSCertificateList{
+		Version:             1,
+		Signature:           signatureAlgorithm,
+		Issuer:              issuer.Subject.ToRDNSequence(),
+		ThisUpdate:          template.ThisUpdate.UTC(),
+		NextUpdate:          template.NextUpdate.UTC(),
+		RevokedCertificates: revokedCertsUTC,
+		Extensions: []pkix.Extension{
+			{
+				Id:    oidExtensionAuthorityKeyId,
+				Value: aki,
+			},
+			{
+				Id:    oidExtensionCRLNumber,
+				Value: crlNum,
+			},
+		},
+	}
+
+	if len(template.Extensions) > 0 {
+		tbsCertList.Extensions = append(tbsCertList.Extensions, template.Extensions...)
+	}
+
+	tbsCertListContents, err := asn1.Marshal(tbsCertList)
+	if err != nil {
+		return nil, err
+	}
+
+	h := hashFunc.New()
+	h.Write(tbsCertListContents)
+	digest := h.Sum(nil)
+
+	signature, err := priv.Sign(rand, digest, hashFunc)
+	if err != nil {
+		return nil, err
+	}
+
+	return asn1.Marshal(pkix.CertificateList{
+		TBSCertList:        tbsCertList,
+		SignatureAlgorithm: signatureAlgorithm,
+		SignatureValue:     asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
+	})
 }
