@@ -236,7 +236,7 @@ func (c *connection) initialize(ctx context.Context, options func(*source.Option
 	params.Capabilities.Workspace.Configuration = true
 
 	// Make sure to respect configured options when sending initialize request.
-	opts := source.DefaultOptions
+	opts := source.DefaultOptions()
 	if options != nil {
 		options(&opts)
 	}

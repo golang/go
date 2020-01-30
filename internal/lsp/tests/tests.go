@@ -181,7 +181,7 @@ func Context(t testing.TB) context.Context {
 }
 
 func DefaultOptions() source.Options {
-	o := source.DefaultOptions
+	o := source.DefaultOptions()
 	o.SupportedCodeActions = map[source.FileKind]map[protocol.CodeActionKind]bool{
 		source.Go: {
 			protocol.SourceOrganizeImports: true,

@@ -78,7 +78,7 @@ func (c *cache) NewSession() source.Session {
 	s := &session{
 		cache:    c,
 		id:       strconv.FormatInt(index, 10),
-		options:  source.DefaultOptions,
+		options:  source.DefaultOptions(),
 		overlays: make(map[span.URI]*overlay),
 	}
 	debug.AddSession(debugSession{s})

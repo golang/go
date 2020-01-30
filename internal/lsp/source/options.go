@@ -45,60 +45,54 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-var (
-	DefaultOptions = Options{
-		ClientOptions:       DefaultClientOptions,
-		ServerOptions:       DefaultServerOptions,
-		UserOptions:         DefaultUserOptions,
-		DebuggingOptions:    DefaultDebuggingOptions,
-		ExperimentalOptions: DefaultExperimentalOptions,
-		Hooks:               DefaultHooks,
-	}
-	DefaultClientOptions = ClientOptions{
-		InsertTextFormat:              protocol.PlainTextTextFormat,
-		PreferredContentFormat:        protocol.Markdown,
-		ConfigurationSupported:        true,
-		DynamicConfigurationSupported: true,
-		DynamicWatchedFilesSupported:  true,
-		LineFoldingOnly:               false,
-	}
-	DefaultServerOptions = ServerOptions{
-		SupportedCodeActions: map[FileKind]map[protocol.CodeActionKind]bool{
-			Go: {
-				protocol.SourceOrganizeImports: true,
-				protocol.QuickFix:              true,
-			},
-			Mod: {
-				protocol.SourceOrganizeImports: true,
-			},
-			Sum: {},
+func DefaultOptions() Options {
+	return Options{
+		ClientOptions: ClientOptions{
+			InsertTextFormat:              protocol.PlainTextTextFormat,
+			PreferredContentFormat:        protocol.Markdown,
+			ConfigurationSupported:        true,
+			DynamicConfigurationSupported: true,
+			DynamicWatchedFilesSupported:  true,
+			LineFoldingOnly:               false,
 		},
-		SupportedCommands: []string{
-			"tidy", // for go.mod files
+		ServerOptions: ServerOptions{
+			SupportedCodeActions: map[FileKind]map[protocol.CodeActionKind]bool{
+				Go: {
+					protocol.SourceOrganizeImports: true,
+					protocol.QuickFix:              true,
+				},
+				Mod: {
+					protocol.SourceOrganizeImports: true,
+				},
+				Sum: {},
+			},
+			SupportedCommands: []string{
+				"tidy", // for go.mod files
+			},
+		},
+		UserOptions: UserOptions{
+			Env:                     os.Environ(),
+			HoverKind:               SynopsisDocumentation,
+			LinkTarget:              "pkg.go.dev",
+			Matcher:                 Fuzzy,
+			DeepCompletion:          true,
+			UnimportedCompletion:    true,
+			CompletionDocumentation: true,
+		},
+		DebuggingOptions: DebuggingOptions{
+			CompletionBudget: 100 * time.Millisecond,
+		},
+		ExperimentalOptions: ExperimentalOptions{
+			TempModfile: false,
+		},
+		Hooks: Hooks{
+			ComputeEdits: myers.ComputeEdits,
+			URLRegexp:    regexp.MustCompile(`(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?`),
+			Analyzers:    defaultAnalyzers(),
+			GoDiff:       true,
 		},
 	}
-	DefaultUserOptions = UserOptions{
-		Env:                     os.Environ(),
-		HoverKind:               SynopsisDocumentation,
-		LinkTarget:              "pkg.go.dev",
-		Matcher:                 Fuzzy,
-		DeepCompletion:          true,
-		UnimportedCompletion:    true,
-		CompletionDocumentation: true,
-	}
-	DefaultHooks = Hooks{
-		ComputeEdits: myers.ComputeEdits,
-		URLRegexp:    regexp.MustCompile(`(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?`),
-		Analyzers:    defaultAnalyzers,
-		GoDiff:       true,
-	}
-	DefaultExperimentalOptions = ExperimentalOptions{
-		TempModfile: false,
-	}
-	DefaultDebuggingOptions = DebuggingOptions{
-		CompletionBudget: 100 * time.Millisecond,
-	}
-)
+}
 
 type Options struct {
 	ClientOptions
@@ -465,35 +459,37 @@ func (r *OptionResult) setBool(b *bool) {
 	}
 }
 
-var defaultAnalyzers = map[string]*analysis.Analyzer{
-	// The traditional vet suite:
-	asmdecl.Analyzer.Name:      asmdecl.Analyzer,
-	assign.Analyzer.Name:       assign.Analyzer,
-	atomic.Analyzer.Name:       atomic.Analyzer,
-	atomicalign.Analyzer.Name:  atomicalign.Analyzer,
-	bools.Analyzer.Name:        bools.Analyzer,
-	buildtag.Analyzer.Name:     buildtag.Analyzer,
-	cgocall.Analyzer.Name:      cgocall.Analyzer,
-	composite.Analyzer.Name:    composite.Analyzer,
-	copylock.Analyzer.Name:     copylock.Analyzer,
-	errorsas.Analyzer.Name:     errorsas.Analyzer,
-	httpresponse.Analyzer.Name: httpresponse.Analyzer,
-	loopclosure.Analyzer.Name:  loopclosure.Analyzer,
-	lostcancel.Analyzer.Name:   lostcancel.Analyzer,
-	nilfunc.Analyzer.Name:      nilfunc.Analyzer,
-	printf.Analyzer.Name:       printf.Analyzer,
-	shift.Analyzer.Name:        shift.Analyzer,
-	stdmethods.Analyzer.Name:   stdmethods.Analyzer,
-	structtag.Analyzer.Name:    structtag.Analyzer,
-	tests.Analyzer.Name:        tests.Analyzer,
-	unmarshal.Analyzer.Name:    unmarshal.Analyzer,
-	unreachable.Analyzer.Name:  unreachable.Analyzer,
-	unsafeptr.Analyzer.Name:    unsafeptr.Analyzer,
-	unusedresult.Analyzer.Name: unusedresult.Analyzer,
+func defaultAnalyzers() map[string]*analysis.Analyzer {
+	return map[string]*analysis.Analyzer{
+		// The traditional vet suite:
+		asmdecl.Analyzer.Name:      asmdecl.Analyzer,
+		assign.Analyzer.Name:       assign.Analyzer,
+		atomic.Analyzer.Name:       atomic.Analyzer,
+		atomicalign.Analyzer.Name:  atomicalign.Analyzer,
+		bools.Analyzer.Name:        bools.Analyzer,
+		buildtag.Analyzer.Name:     buildtag.Analyzer,
+		cgocall.Analyzer.Name:      cgocall.Analyzer,
+		composite.Analyzer.Name:    composite.Analyzer,
+		copylock.Analyzer.Name:     copylock.Analyzer,
+		errorsas.Analyzer.Name:     errorsas.Analyzer,
+		httpresponse.Analyzer.Name: httpresponse.Analyzer,
+		loopclosure.Analyzer.Name:  loopclosure.Analyzer,
+		lostcancel.Analyzer.Name:   lostcancel.Analyzer,
+		nilfunc.Analyzer.Name:      nilfunc.Analyzer,
+		printf.Analyzer.Name:       printf.Analyzer,
+		shift.Analyzer.Name:        shift.Analyzer,
+		stdmethods.Analyzer.Name:   stdmethods.Analyzer,
+		structtag.Analyzer.Name:    structtag.Analyzer,
+		tests.Analyzer.Name:        tests.Analyzer,
+		unmarshal.Analyzer.Name:    unmarshal.Analyzer,
+		unreachable.Analyzer.Name:  unreachable.Analyzer,
+		unsafeptr.Analyzer.Name:    unsafeptr.Analyzer,
+		unusedresult.Analyzer.Name: unusedresult.Analyzer,
 
-	// Non-vet analyzers
-	deepequalerrors.Analyzer.Name:  deepequalerrors.Analyzer,
-	nilness.Analyzer.Name:          nilness.Analyzer,
-	sortslice.Analyzer.Name:        sortslice.Analyzer,
-	testinggoroutine.Analyzer.Name: testinggoroutine.Analyzer,
+		// Non-vet analyzers
+		deepequalerrors.Analyzer.Name:  deepequalerrors.Analyzer,
+		nilness.Analyzer.Name:          nilness.Analyzer,
+		sortslice.Analyzer.Name:        sortslice.Analyzer,
+		testinggoroutine.Analyzer.Name: testinggoroutine.Analyzer,
+	}
 }
