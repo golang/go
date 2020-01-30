@@ -983,10 +983,19 @@ func testOverlayDeps(t *testing.T, exporter packagestest.Exporter) {
 		packages.NeedImports |
 		packages.NeedDeps |
 		packages.NeedTypesSizes
-	initial, err := packages.Load(exported.Config, fmt.Sprintf("file=%s", exported.File("golang.org/fake", "c/c.go")))
+	pkgs, err := packages.Load(exported.Config, fmt.Sprintf("file=%s", exported.File("golang.org/fake", "c/c.go")))
 	if err != nil {
 		t.Error(err)
 	}
+
+	// Find package golang.org/fake/c
+	sort.Slice(pkgs, func(i, j int) bool { return pkgs[i].ID < pkgs[j].ID })
+	pkgc := pkgs[0]
+	if pkgc.ID != "golang.org/fake/c" {
+		t.Errorf("expected first package in sorted list to be \"golang.org/fake/c\", got %v", pkgc.ID)
+	}
+
+	// Make sure golang.org/fake/c imports net/http, as per the overlay.
 	contains := func(imports map[string]*packages.Package, wantImport string) bool {
 		for imp := range imports {
 			if imp == wantImport {
@@ -995,11 +1004,11 @@ func testOverlayDeps(t *testing.T, exporter packagestest.Exporter) {
 		}
 		return false
 	}
-	for _, pkg := range initial {
-		if !contains(pkg.Imports, "net/http") {
-			t.Errorf("expected %s import in %s", "net/http", pkg.ID)
-		}
+	if !contains(pkgc.Imports, "net/http") {
+		t.Errorf("expected import of %s in package %s, got the following imports: %v",
+			"net/http", pkgc.ID, pkgc.Imports)
 	}
+
 }
 
 func TestNewPackagesInOverlay(t *testing.T) { packagestest.TestAll(t, testNewPackagesInOverlay) }
