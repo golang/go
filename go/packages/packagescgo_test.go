@@ -8,7 +8,10 @@ package packages_test
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -66,10 +69,6 @@ func TestLoadImportsC(t *testing.T) {
 	}
 }
 
-func TestCgoNoSyntax(t *testing.T) {
-	packagestest.TestAll(t, testCgoNoSyntax)
-}
-
 // Stolen from internal/testenv package in core.
 // hasGoBuild reports whether the current system can build programs with ``go build''
 // and then run them with os.StartProcess or exec.Command.
@@ -92,6 +91,9 @@ func hasGoBuild() bool {
 	return true
 }
 
+func TestCgoNoSyntax(t *testing.T) {
+	packagestest.TestAll(t, testCgoNoSyntax)
+}
 func testCgoNoSyntax(t *testing.T, exporter packagestest.Exporter) {
 	// The android builders have a complex setup which causes this test to fail. See discussion on
 	// golang.org/cl/214943 for more details.
@@ -132,4 +134,79 @@ func testCgoNoSyntax(t *testing.T, exporter packagestest.Exporter) {
 			}
 		})
 	}
+}
+
+func TestCgoBadPkgConfig(t *testing.T) {
+	packagestest.TestAll(t, testCgoBadPkgConfig)
+}
+func testCgoBadPkgConfig(t *testing.T, exporter packagestest.Exporter) {
+	if !hasGoBuild() {
+		t.Skip("this test can't run on platforms without go build. See discussion on golang.org/cl/214943 for more details.")
+	}
+
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+		Files: map[string]interface{}{
+			"c/c.go": `package c
+
+// #cgo pkg-config: --cflags --  foo
+import "C"`,
+		},
+	}})
+
+	dir := buildFakePkgconfig(t, exported.Config.Env)
+	defer os.RemoveAll(dir)
+	env := exported.Config.Env
+	for i, v := range env {
+		if strings.HasPrefix(v, "PATH=") {
+			env[i] = "PATH=" + dir + string(os.PathListSeparator) + v[len("PATH="):]
+		}
+	}
+
+	exported.Config.Env = append(exported.Config.Env, "CGO_ENABLED=1")
+
+	exported.Config.Mode = packages.NeedName | packages.NeedCompiledGoFiles
+	pkgs, err := packages.Load(exported.Config, "golang.org/fake/c")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pkgs) != 1 {
+		t.Fatalf("Expected 1 package, got %v", pkgs)
+	}
+	if pkgs[0].Name != "c" {
+		t.Fatalf("Expected package to have name \"c\", got %q", pkgs[0].Name)
+	}
+}
+
+func buildFakePkgconfig(t *testing.T, env []string) string {
+	tmpdir, err := ioutil.TempDir("", "fakepkgconfig")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = ioutil.WriteFile(filepath.Join(tmpdir, "pkg-config.go"), []byte(`
+package main
+
+import "fmt"
+import "os"
+
+func main() {
+	fmt.Fprintln(os.Stderr, "bad")
+	os.Exit(2)
+}
+`), 0644)
+	if err != nil {
+		os.RemoveAll(tmpdir)
+		t.Fatal(err)
+	}
+	cmd := exec.Command("go", "build", "-o", "pkg-config", "pkg-config.go")
+	cmd.Dir = tmpdir
+	cmd.Env = env
+
+	if b, err := cmd.CombinedOutput(); err != nil {
+		os.RemoveAll(tmpdir)
+		fmt.Println(os.Environ())
+		t.Log(string(b))
+		t.Fatal(err)
+	}
+	return tmpdir
 }

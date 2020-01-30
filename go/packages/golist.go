@@ -761,7 +761,12 @@ func (state *golistState) invokeGo(verb string, args ...string) (*bytes.Buffer, 
 				!strings.ContainsRune("!\"#$%&'()*,:;<=>?[\\]^`{|}\uFFFD", r)
 		}
 		if len(stderr.String()) > 0 && strings.HasPrefix(stderr.String(), "# ") {
-			if strings.HasPrefix(strings.TrimLeftFunc(stderr.String()[len("# "):], isPkgPathRune), "\n") {
+			msg := stderr.String()[len("# "):]
+			if strings.HasPrefix(strings.TrimLeftFunc(msg, isPkgPathRune), "\n") {
+				return stdout, nil
+			}
+			// Treat pkg-config errors as a special case (golang.org/issue/36770).
+			if strings.HasPrefix(msg, "pkg-config") {
 				return stdout, nil
 			}
 		}
