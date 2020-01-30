@@ -63,15 +63,24 @@ func TestAddMaterializedSymbol(t *testing.T) {
 	sb2, es2 := ldr.MakeSymbolUpdater(es2)
 	sb3, es3 := ldr.MakeSymbolUpdater(es3)
 
+	// Suppose we create some more symbols, which triggers a grow.
+	// Make sure the symbol builder's payload pointer is valid,
+	// even across a grow.
+	ldr.growSyms(9999)
+
 	// Check get/set symbol type
 	es3typ := sb3.Type()
 	if es3typ != sym.Sxxx {
-		t.Errorf("SymType(es3): expected %d, got %d", sym.Sxxx, es3typ)
+		t.Errorf("SymType(es3): expected %v, got %v", sym.Sxxx, es3typ)
 	}
-	sb2.SetType(sym.SRODATA)
-	es3typ = sb2.Type()
+	sb3.SetType(sym.SRODATA)
+	es3typ = sb3.Type()
 	if es3typ != sym.SRODATA {
-		t.Errorf("SymType(es3): expected %d, got %d", sym.SRODATA, es3typ)
+		t.Errorf("SymType(es3): expected %v, got %v", sym.SRODATA, es3typ)
+	}
+	es3typ = ldr.SymType(es3)
+	if es3typ != sym.SRODATA {
+		t.Errorf("SymType(es3): expected %v, got %v", sym.SRODATA, es3typ)
 	}
 
 	// New symbols should not initially be reachable.
