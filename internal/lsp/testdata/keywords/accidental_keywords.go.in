@@ -18,6 +18,12 @@ func _() {
 }
 
 func _() {
+	channel := 123 //@item(kwChannel, "channel", "int", "var")
+	chan //@complete(" //", kwChannel)
+	foo.bar()
+}
+
+func _() {
 	foo.bar()
 	var typeName string //@item(kwTypeName, "typeName", "string", "var")
 	foo.bar()

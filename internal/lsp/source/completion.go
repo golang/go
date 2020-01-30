@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/constant"
+	"go/scanner"
 	"go/token"
 	"go/types"
 	"math"
@@ -481,9 +482,20 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 		c.deepState.maxDepth = -1
 	}
 
-	// Set the filter surrounding.
+	// Detect our surrounding identifier.
 	if ident, ok := path[0].(*ast.Ident); ok {
+		// In the normal case, our leaf AST node is the identifer being completed.
 		c.setSurrounding(ident)
+	} else {
+		// Otherwise, manually extract the prefix if our containing token
+		// is a keyword. This improves completion after an "accidental
+		// keyword", e.g. completing to "variance" in "someFunc(var<>)".
+		if contents, _, err := pgh.File().Read(ctx); err == nil {
+			id := scanKeyword(c.pos, c.snapshot.View().Session().Cache().FileSet().File(c.pos), contents)
+			if id != nil {
+				c.setSurrounding(id)
+			}
+		}
 	}
 
 	c.inference = expectedCandidate(c)
@@ -549,15 +561,6 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 		}
 
 	case *ast.SelectorExpr:
-		// The go parser inserts a phantom "_" Sel node when the selector is
-		// not followed by an identifier or a "(". The "_" isn't actually in
-		// the text, so don't think it is our surrounding.
-		// TODO: Find a way to differentiate between phantom "_" and real "_",
-		//       perhaps by checking if "_" is present in file contents.
-		if n.Sel.Name != "_" || c.pos != n.Sel.Pos() {
-			c.setSurrounding(n.Sel)
-		}
-
 		if err := c.selector(n); err != nil {
 			return nil, nil, err
 		}
@@ -570,6 +573,24 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 	}
 
 	return c.items, c.getSurrounding(), nil
+}
+
+// scanKeyword scans file for the ident or keyword containing or abutting pos.
+func scanKeyword(pos token.Pos, file *token.File, data []byte) *ast.Ident {
+	var s scanner.Scanner
+	s.Init(file, data, nil, 0)
+	for {
+		tknPos, tkn, lit := s.Scan()
+		if tkn == token.EOF || tknPos >= pos {
+			return nil
+		}
+
+		if tkn.IsKeyword() {
+			if tknPos <= pos && pos <= tknPos+token.Pos(len(lit)) {
+				return &ast.Ident{NamePos: tknPos, Name: lit}
+			}
+		}
+	}
 }
 
 func (c *completer) sortItems() {
