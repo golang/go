@@ -6,6 +6,9 @@
 // The Language Server Protocol allows any text editor
 // to be extended with IDE-like features;
 // see https://langserver.org/ for details.
+//
+// See https://github.com/golang/tools/tree/master/gopls
+// for the most up-to-date information on the gopls status.
 package main // import "golang.org/x/tools/gopls"
 
 import (
