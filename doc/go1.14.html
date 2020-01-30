@@ -41,11 +41,13 @@ appropriately.)
 <h2 id="language">Changes to the language</h2>
 
 <p>
-TODO
-</p>
-
-<p><!-- CL 187519 -->
-  TODO: <a href="https://golang.org/cl/187519">https://golang.org/cl/187519</a>: allow embedding overlapping interfaces
+  Per the <a href="https://github.com/golang/proposal/blob/master/design/6977-overlapping-interfaces.md">overlapping interfaces proposal</a>,
+  Go 1.14 now permits embedding of interfaces with overlapping method sets:
+  methods from an embedded interface may have the same names and identical signatures
+  as methods already present in the (embedding) interface. This solves problems that typically
+  (but not exclusively) occur with diamond-shaped embedding graphs.
+  Explicitly declared methods in an interface must remain
+  <a href="https://tip.golang.org/ref/spec#Uniqueness_of_identifiers">unique</a>, as before.
 </p>
 
 <h2 id="ports">Ports</h2>
