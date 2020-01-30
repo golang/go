@@ -158,8 +158,9 @@ type Loader struct {
 	extStaticSyms map[nameVer]Sym   // externally defined static symbols, keyed by name
 	overwrite     map[Sym]Sym       // overwrite[i]=j if symbol j overwrites symbol i
 
-	payloads []extSymPayload // contents of linker-materialized external syms
-	values   []int64         // symbol values, indexed by global sym index
+	payloadBatch []extSymPayload
+	payloads     []*extSymPayload // contents of linker-materialized external syms
+	values       []int64          // symbol values, indexed by global sym index
 
 	itablink map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
 
@@ -349,6 +350,7 @@ func (l *Loader) newExtSym(name string, ver int) Sym {
 	}
 	l.growSyms(int(i))
 	pi := i - l.extStart
+	l.payloads[pi] = l.allocPayload()
 	l.payloads[pi].name = name
 	l.payloads[pi].ver = ver
 	return i
@@ -405,7 +407,18 @@ func (l *Loader) getPayload(i Sym) *extSymPayload {
 		return nil
 	}
 	pi := i - l.extStart
-	return &l.payloads[pi]
+	return l.payloads[pi]
+}
+
+// allocPayload allocates a new payload.
+func (l *Loader) allocPayload() *extSymPayload {
+	batch := l.payloadBatch
+	if len(batch) == 0 {
+		batch = make([]extSymPayload, 1000)
+	}
+	p := &batch[0]
+	l.payloadBatch = batch[1:]
+	return p
 }
 
 func (ms *extSymPayload) Grow(siz int64) {
@@ -431,7 +444,7 @@ func (l *Loader) growSyms(i int) {
 		return
 	}
 	l.Syms = append(l.Syms, make([]*sym.Symbol, i+1-n)...)
-	l.payloads = append(l.payloads, make([]extSymPayload, i+1-n)...)
+	l.payloads = append(l.payloads, make([]*extSymPayload, i+1-n)...)
 	l.growValues(int(i) + 1)
 	l.growAttrBitmaps(int(i) + 1)
 }
@@ -1752,7 +1765,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 	for _, i := range toConvert {
 
 		// Copy kind/size/value etc.
-		pp := &l.payloads[i-l.extStart]
+		pp := l.payloads[i-l.extStart]
 		s := l.Syms[i]
 		s.Version = int16(pp.ver)
 		s.Type = pp.kind
@@ -2021,7 +2034,7 @@ func (l *Loader) cloneToExternal(symIdx Sym) Sym {
 
 	// Create new symbol, update version and kind.
 	ns := l.newExtSym(sname, sver)
-	pp := &l.payloads[ns-l.extStart]
+	pp := l.payloads[ns-l.extStart]
 	pp.kind = skind
 	pp.ver = sver
 	pp.size = int64(osym.Siz)

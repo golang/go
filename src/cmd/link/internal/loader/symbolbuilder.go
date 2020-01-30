@@ -28,7 +28,7 @@ func (l *Loader) MakeSymbolBuilder(name string) *SymbolBuilder {
 		panic("can't build if sym.Symbol already present")
 	}
 	sb := &SymbolBuilder{l: l, symIdx: symIdx}
-	sb.extSymPayload = &l.payloads[symIdx-l.extStart]
+	sb.extSymPayload = l.payloads[symIdx-l.extStart]
 	return sb
 }
 
@@ -53,7 +53,7 @@ func (l *Loader) MakeSymbolUpdater(symIdx Sym) (*SymbolBuilder, Sym) {
 
 	// Construct updater and return.
 	sb := &SymbolBuilder{l: l, symIdx: symIdx}
-	sb.extSymPayload = &l.payloads[symIdx-l.extStart]
+	sb.extSymPayload = l.payloads[symIdx-l.extStart]
 	return sb, symIdx
 }
 
