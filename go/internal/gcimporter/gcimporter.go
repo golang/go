@@ -696,7 +696,7 @@ func (p *parser) parseInterfaceType(parent *types.Package) types.Type {
 
 	// Complete requires the type's embedded interfaces to be fully defined,
 	// but we do not define any
-	return types.NewInterfaceType(methods, nil).Complete()
+	return newInterface(methods, nil).Complete()
 }
 
 // ChanType = ( "chan" [ "<-" ] | "<-" "chan" ) Type .
