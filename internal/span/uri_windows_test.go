@@ -1,8 +1,8 @@
-// Copyright 2019 The Go Authors. All rights reserved.
+// Copyright 2020 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !windows
+// +build windows
 
 package span_test
 
@@ -27,38 +27,38 @@ func TestURI(t *testing.T) {
 			wantURI:  span.URI(""),
 		},
 		{
-			path:     `C:/Windows/System32`,
-			wantFile: `C:/Windows/System32`,
+			path:     `C:\Windows\System32`,
+			wantFile: `C:\Windows\System32`,
 			wantURI:  span.URI("file:///C:/Windows/System32"),
 		},
 		{
-			path:     `C:/Go/src/bob.go`,
-			wantFile: `C:/Go/src/bob.go`,
+			path:     `C:\Go\src\bob.go`,
+			wantFile: `C:\Go\src\bob.go`,
 			wantURI:  span.URI("file:///C:/Go/src/bob.go"),
 		},
 		{
-			path:     `c:/Go/src/bob.go`,
-			wantFile: `C:/Go/src/bob.go`,
+			path:     `c:\Go\src\bob.go`,
+			wantFile: `C:\Go\src\bob.go`,
 			wantURI:  span.URI("file:///C:/Go/src/bob.go"),
 		},
 		{
-			path:     `/path/to/dir`,
-			wantFile: `/path/to/dir`,
-			wantURI:  span.URI("file:///path/to/dir"),
+			path:     `\path\to\dir`,
+			wantFile: `C:\path\to\dir`,
+			wantURI:  span.URI("file:///C:/path/to/dir"),
 		},
 		{
-			path:     `/a/b/c/src/bob.go`,
-			wantFile: `/a/b/c/src/bob.go`,
-			wantURI:  span.URI("file:///a/b/c/src/bob.go"),
+			path:     `\a\b\c\src\bob.go`,
+			wantFile: `C:\a\b\c\src\bob.go`,
+			wantURI:  span.URI("file:///C:/a/b/c/src/bob.go"),
 		},
 		{
-			path:     `c:/Go/src/bob george/george/george.go`,
-			wantFile: `C:/Go/src/bob george/george/george.go`,
+			path:     `c:\Go\src\bob george\george\george.go`,
+			wantFile: `C:\Go\src\bob george\george\george.go`,
 			wantURI:  span.URI("file:///C:/Go/src/bob george/george/george.go"),
 		},
 		{
 			path:     `file:///c:/Go/src/bob george/george/george.go`,
-			wantFile: `C:/Go/src/bob george/george/george.go`,
+			wantFile: `C:\Go\src\bob george\george\george.go`,
 			wantURI:  span.URI("file:///C:/Go/src/bob george/george/george.go"),
 		},
 	} {
@@ -66,9 +66,8 @@ func TestURI(t *testing.T) {
 		if got != test.wantURI {
 			t.Errorf("ToURI: got %s, expected %s", got, test.wantURI)
 		}
-		gotFilename := got.Filename()
-		if gotFilename != test.wantFile {
-			t.Errorf("Filename: got %s, expected %s", gotFilename, test.wantFile)
+		if got.Filename() != test.wantFile {
+			t.Errorf("Filename: got %s, expected %s", got.Filename(), test.wantFile)
 		}
 	}
 }
