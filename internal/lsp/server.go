@@ -115,7 +115,7 @@ func (s *Server) nonstandardRequest(ctx context.Context, method string, params i
 	paramMap := params.(map[string]interface{})
 	if method == "gopls/diagnoseFiles" {
 		for _, file := range paramMap["files"].([]interface{}) {
-			uri := span.URI(file.(string))
+			uri := span.NewURI(file.(string))
 			view, err := s.session.ViewOf(uri)
 			if err != nil {
 				return nil, err

@@ -368,7 +368,7 @@ func (c *cmdClient) PublishDiagnostics(ctx context.Context, p *protocol.PublishD
 	c.filesMu.Lock()
 	defer c.filesMu.Unlock()
 
-	uri := span.URI(p.URI)
+	uri := span.NewURI(p.URI)
 	file := c.getFile(ctx, uri)
 	file.diagnostics = p.Diagnostics
 	return nil

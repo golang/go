@@ -81,7 +81,7 @@ func (r *rename) Run(ctx context.Context, args ...string) error {
 	var orderedURIs []string
 	edits := map[span.URI][]protocol.TextEdit{}
 	for _, c := range edit.DocumentChanges {
-		uri := span.URI(c.TextDocument.URI)
+		uri := span.NewURI(c.TextDocument.URI)
 		edits[uri] = append(edits[uri], c.Edits...)
 		orderedURIs = append(orderedURIs, c.TextDocument.URI)
 	}
@@ -89,7 +89,7 @@ func (r *rename) Run(ctx context.Context, args ...string) error {
 	changeCount := len(orderedURIs)
 
 	for _, u := range orderedURIs {
-		uri := span.URI(u)
+		uri := span.NewURI(u)
 		cmdFile := conn.AddFile(ctx, uri)
 		filename := cmdFile.uri.Filename()
 

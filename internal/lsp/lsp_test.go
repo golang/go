@@ -636,7 +636,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 		if i != 0 {
 			got += "\n"
 		}
-		uri := span.URI(orderedURIs[i])
+		uri := span.NewURI(orderedURIs[i])
 		if len(res) > 1 {
 			got += filepath.Base(uri.Filename()) + ":\n"
 		}
@@ -701,7 +701,7 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 func applyWorkspaceEdits(r *runner, wedit protocol.WorkspaceEdit) (map[span.URI]string, error) {
 	res := map[span.URI]string{}
 	for _, docEdits := range wedit.DocumentChanges {
-		uri := span.URI(docEdits.TextDocument.URI)
+		uri := span.NewURI(docEdits.TextDocument.URI)
 		m, err := r.data.Mapper(uri)
 		if err != nil {
 			return nil, err
@@ -1006,7 +1006,7 @@ func TestModfileSuggestedFixes(t *testing.T) {
 				}
 				res := map[span.URI]string{}
 				for _, docEdits := range actions[0].Edit.DocumentChanges {
-					uri := span.URI(docEdits.TextDocument.URI)
+					uri := span.NewURI(docEdits.TextDocument.URI)
 					content, err := ioutil.ReadFile(uri.Filename())
 					if err != nil {
 						t.Fatal(err)
