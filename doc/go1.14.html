@@ -432,7 +432,13 @@ TODO
 <dl id="hash/maphash"><dt><a href="/pkg/hash/maphash">hash/maphash</a></dt>
   <dd>
     <p><!-- CL 186877 -->
-      TODO: <a href="https://golang.org/cl/186877">https://golang.org/cl/186877</a>: add hashing package for bytes and strings
+      This new package provides hash functions on byte sequences.
+      These hash functions are intended to be used to implement hash tables or
+      other data structures that need to map arbitrary strings or byte
+      sequences to a uniform distribution of integers.
+    </p>
+    <p>
+      The hash functions are collision-resistant but not cryptographically secure.
     </p>
 
 </dl><!-- hash/maphash -->
