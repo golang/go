@@ -16,6 +16,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -627,6 +628,7 @@ func (state *golistState) createDriverResponse(words ...string) (*driverResponse
 	for _, pkg := range pkgs {
 		response.Packages = append(response.Packages, pkg)
 	}
+	sort.Slice(response.Packages, func(i, j int) bool { return response.Packages[i].ID < response.Packages[j].ID })
 
 	return &response, nil
 }
