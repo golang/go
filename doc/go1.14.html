@@ -540,6 +540,20 @@ TODO
       can be used to fetch all values associated with a
       canonicalized key.
     </p>
+
+    <p><!-- CL 61291 -->
+      The
+      new <a href="/pkg/net/http/#Transport"><code>Transport</code></a>
+      field <a href="/pkg/net/http/#Transport.DialTLSContext"><code>DialTLSContext</code></a>
+      can be used to specify an optional dial function for creating
+      TLS connections for non-proxied HTTPS requests.
+      This new field can be used instead
+      of <a href="/pkg/net/http/#Transport.DialTLS"><code>DialTLS</code></a>,
+      which is now considered deprecated; <code>DialTLS</code> will
+      continue to work, but new code should
+      use <code>DialTLSContext</code>, which allows the transport to
+      cancel dials as soon as they are no longer needed.
+    </p>
   </dd>
 </dl><!-- net/http -->
 
