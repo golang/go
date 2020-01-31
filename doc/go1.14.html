@@ -482,6 +482,18 @@ TODO
 
 </dl><!-- encoding/json -->
 
+<dl id="go/build"><dt><a href="/pkg/go/build/">go/build</a></dt>
+  <dd>
+    <p><!-- CL 203820, 211657 -->
+      The <a href="/pkg/go/build/#Context"><code>Context</code></a>
+      type has a new field <code>Dir</code> which may be used to set
+      the working directory for the build.
+      The default is the current directory of the running process.
+      In module mode, this is used to locate the main module.
+    </p>
+  </dd>
+</dl><!-- go/build -->
+
 <dl id="log"><dt><a href="/pkg/log/">log</a></dt>
   <dd>
     <p><!-- CL 186182 -->
