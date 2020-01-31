@@ -33,9 +33,12 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 			}
 			if isTyped(arg.typ) {
 				if !check.identical0(par.typ, arg.typ, true, nil, targs) {
-					check.errorf(arg.pos(), "type %s for %s does not match %s = %s",
-						arg.typ, arg.expr, par.typ, check.subst(pos, par.typ, tparams, targs),
-					)
+					// Calling subst for an error message can cause problems.
+					// TODO(gri) Determine best approach here.
+					// check.errorf(arg.pos(), "type %s for %s does not match %s = %s",
+					// 	arg.typ, arg.expr, par.typ, check.subst(pos, par.typ, tparams, targs),
+					// )
+					check.errorf(arg.pos(), "type %s for %s does not match %s", arg.typ, arg.expr, par.typ)
 					return nil
 				}
 			} else {

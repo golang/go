@@ -489,14 +489,35 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 		// If m has a parameterized receiver type, infer the type parameter
 		// values from the actual receiver provided and then substitute the
 		// type parameters in the signature accordingly.
+		// TODO(gri) factor this code out
 		sig := m.typ.(*Signature)
 		if len(sig.rparams) > 0 {
-			// check.dump("### recv typ = %s", x.typ)
-			// check.dump("### method = %s tparams = %s", m, m.rparams)
-			targs := check.infer(sig.recv.pos, sig.rparams, NewTuple(sig.recv), []*operand{x})
-			// check.dump("### inferred targs = %s", targs)
+			//check.dump("### recv typ = %s", x.typ)
+			//check.dump("### method = %s rparams = %s tparams = %s", m, sig.rparams, sig.tparams)
+			// The method may have a pointer receiver, but the actually provided receiver
+			// may be a (hopefully addressable) non-pointer value, or vice versa. Here we
+			// only care about inferring receiver type parameters; to make the inferrence
+			// work, match up pointer-ness of reveiver and argument.
+			arg := x
+			if ptrRecv := isPointer(sig.recv.typ); ptrRecv != isPointer(arg.typ) {
+				copy := *arg
+				if ptrRecv {
+					copy.typ = NewPointer(arg.typ)
+				} else {
+					copy.typ = arg.typ.(*Pointer).base
+				}
+				arg = &copy
+			}
+			targs := check.infer(sig.recv.pos, sig.rparams, NewTuple(sig.recv), []*operand{arg})
+			//check.dump("### inferred targs = %s", targs)
+			if len(targs) == 0 {
+				// TODO(gri) Provide explanation as to why we can't possibly
+				//           reach here (consider invalid receivers, etc.).
+				panic("internal error: receiver type parameter inference failed")
+			}
 			// Don't modify m. Instead - for now - make a copy of m and use that instead.
 			// (If we modify m, some tests will fail; possibly because the m is in use.)
+			// TODO(gri) investigate and provide a correct explanation here
 			copy := *m
 			copy.typ = check.subst(e.Pos(), m.typ, sig.rparams, targs)
 			obj = &copy

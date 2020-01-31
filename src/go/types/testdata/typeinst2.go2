@@ -116,3 +116,34 @@ type A(type P) struct{ x P }
 func (_ A(P)) a() {}
 
 var _ T5(A(int), int)
+
+// Invoking methods with parameterized receiver types uses
+// type inference to determine the actual type arguments matching
+// the receiver type parameters from the actual receiver argument.
+// Go does implicit address-taking and dereferenciation depending
+// on the actual receiver and the method's receiver type. To make
+// type inference work, the type-checker matches "pointer-ness"
+// of the actual receiver and the method's receiver type.
+// The following tests verify test this mechanism.
+
+type R1(type A) struct{}
+func (_ R1(A)) vm()
+func (_ *R1(A)) pm()
+
+func _(type T)(r R1(T), p *R1(T)) {
+	r.vm()
+	r.pm()
+	p.vm()
+	p.pm()
+}
+
+type R2(type A, B) struct{}
+func (_ R2(A, B)) vm()
+func (_ *R2(A, B)) pm()
+
+func _(type T)(r R2(T, int), p *R2(string, T)) {
+	r.vm()
+	r.pm()
+	p.vm()
+	p.pm()
+}
