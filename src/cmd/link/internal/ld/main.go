@@ -100,10 +100,6 @@ var (
 	benchmarkFlag = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
 )
 
-func (ctxt *Link) loaderSupport() bool {
-	return true //ctxt.IsELF || ctxt.HeadType == objabi.Hdarwin || ctxt.HeadType == objabi.Haix
-}
-
 // Main is the main entry point for the linker code.
 func Main(arch *sys.Arch, theArch Arch) {
 	thearch = theArch
@@ -235,18 +231,12 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("deadcode")
 	deadcode(ctxt)
 
-	if ctxt.loaderSupport() {
-		bench.Start("linksetup")
-		ctxt.linksetup()
-	}
+	bench.Start("linksetup")
+	ctxt.linksetup()
 
 	bench.Start("loadlibfull")
 	ctxt.loadlibfull() // XXX do it here for now
 
-	if !ctxt.loaderSupport() {
-		bench.Start("linksetupold")
-		ctxt.linksetupold()
-	}
 	bench.Start("dostrdata")
 	ctxt.dostrdata()
 	bench.Start("dwarfGenerateDebugInfo")
