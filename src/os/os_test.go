@@ -2406,3 +2406,45 @@ func TestUserHomeDir(t *testing.T) {
 		t.Fatalf("dir %s is not directory; type = %v", dir, fi.Mode())
 	}
 }
+
+func TestDirSeek(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		testenv.SkipFlaky(t, 36019)
+	}
+	wd, err := Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := Open(wd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dirnames1, err := f.Readdirnames(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ret, err := f.Seek(0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ret != 0 {
+		t.Fatalf("seek result not zero: %d", ret)
+	}
+
+	dirnames2, err := f.Readdirnames(0)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	if len(dirnames1) != len(dirnames2) {
+		t.Fatalf("listings have different lengths: %d and %d\n", len(dirnames1), len(dirnames2))
+	}
+	for i, n1 := range dirnames1 {
+		n2 := dirnames2[i]
+		if n1 != n2 {
+			t.Fatalf("different name i=%d n1=%s n2=%s\n", i, n1, n2)
+		}
+	}
+}

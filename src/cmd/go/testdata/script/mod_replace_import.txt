@@ -28,7 +28,8 @@ stdout 'example.com/v v1.12.0 => ./v12'
 cd fail
 ! go list all
 stdout 'localhost.fail'
-stderr '^can.t load package: m.go:3:8: module w@latest found \(v0.0.0-00010101000000-000000000000, replaced by ../w\), but does not contain package w$'
+stderr '^can''t load package: m.go:4:2: module w@latest found \(v0.0.0-00010101000000-000000000000, replaced by ../w\), but does not contain package w$'
+stderr '^can''t load package: m.go:5:2: nonexist@v0.1.0: replacement directory ../nonexist does not exist$'
 
 -- go.mod --
 module example.com/m
@@ -54,6 +55,10 @@ replace (
 	example.com/v => ./v
 )
 
+replace (
+	example.com/i v2.0.0+incompatible => ./i2
+)
+
 -- m.go --
 package main
 import (
@@ -61,6 +66,7 @@ import (
 	_ "example.com/x/v3"
 	_ "example.com/y/z/w"
 	_ "example.com/v"
+	_ "example.com/i"
 )
 func main() {}
 
@@ -115,10 +121,18 @@ module v.localhost
 -- v/v.go --
 package v
 
+-- i2/go.mod --
+module example.com/i
+-- i2/i.go --
+package i
+
 -- fail/m.go --
 package main
 
-import _ "w"
+import (
+	_ "w"
+	_ "nonexist"
+)
 
 func main() {}
 
@@ -127,3 +141,4 @@ module localhost.fail
 
 replace w => ../w
 
+replace nonexist v0.1.0 => ../nonexist

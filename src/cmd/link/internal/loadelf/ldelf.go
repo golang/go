@@ -901,14 +901,26 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		p := rsect.base
 		for j := 0; j < n; j++ {
 			var add uint64
+			var symIdx int
+			var relocType uint64
+
 			rp := &r[j]
-			var info uint64
 			if is64 != 0 {
 				// 64-bit rel/rela
 				rp.Off = int32(e.Uint64(p))
 
 				p = p[8:]
-				info = e.Uint64(p)
+				switch arch.Family {
+				case sys.MIPS64:
+					// https://www.linux-mips.org/pub/linux/mips/doc/ABI/elf64-2.4.pdf
+					// The doc shows it's different with general Linux ELF
+					symIdx = int(e.Uint32(p))
+					relocType = uint64(p[7])
+				default:
+					info := e.Uint64(p)
+					relocType = info & 0xffffffff
+					symIdx = int(info >> 32)
+				}
 				p = p[8:]
 				if rela != 0 {
 					add = e.Uint64(p)
@@ -919,8 +931,9 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 				rp.Off = int32(e.Uint32(p))
 
 				p = p[4:]
-				info = uint64(e.Uint32(p))
-				info = info>>8<<32 | info&0xff // convert to 64-bit info
+				info := e.Uint32(p)
+				relocType = uint64(info & 0xff)
+				symIdx = int(info >> 8)
 				p = p[4:]
 				if rela != 0 {
 					add = uint64(e.Uint32(p))
@@ -928,29 +941,29 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 				}
 			}
 
-			if info&0xffffffff == 0 { // skip R_*_NONE relocation
+			if relocType == 0 { // skip R_*_NONE relocation
 				j--
 				n--
 				continue
 			}
 
-			if info>>32 == 0 { // absolute relocation, don't bother reading the null symbol
+			if symIdx == 0 { // absolute relocation, don't bother reading the null symbol
 				rp.Sym = 0
 			} else {
 				var elfsym ElfSym
-				if err := readelfsym(newSym, lookup, l, arch, elfobj, int(info>>32), &elfsym, 0, 0); err != nil {
+				if err := readelfsym(newSym, lookup, l, arch, elfobj, int(symIdx), &elfsym, 0, 0); err != nil {
 					return errorf("malformed elf file: %v", err)
 				}
-				elfsym.sym = symbols[info>>32]
+				elfsym.sym = symbols[symIdx]
 				if elfsym.sym == 0 {
-					return errorf("malformed elf file: %s#%d: reloc of invalid sym #%d %s shndx=%d type=%d", l.SymName(sect.sym), j, int(info>>32), elfsym.name, elfsym.shndx, elfsym.type_)
+					return errorf("malformed elf file: %s#%d: reloc of invalid sym #%d %s shndx=%d type=%d", l.SymName(sect.sym), j, int(symIdx), elfsym.name, elfsym.shndx, elfsym.type_)
 				}
 
 				rp.Sym = elfsym.sym
 			}
 
-			rp.Type = objabi.ElfRelocOffset + objabi.RelocType(info)
-			rp.Size, err = relSize(arch, pn, uint32(info))
+			rp.Type = objabi.ElfRelocOffset + objabi.RelocType(relocType)
+			rp.Size, err = relSize(arch, pn, uint32(relocType))
 			if err != nil {
 				return nil, 0, err
 			}
@@ -1148,17 +1161,35 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, error) {
 	// performance.
 
 	const (
-		AMD64 = uint32(sys.AMD64)
-		ARM   = uint32(sys.ARM)
-		ARM64 = uint32(sys.ARM64)
-		I386  = uint32(sys.I386)
-		PPC64 = uint32(sys.PPC64)
-		S390X = uint32(sys.S390X)
+		AMD64  = uint32(sys.AMD64)
+		ARM    = uint32(sys.ARM)
+		ARM64  = uint32(sys.ARM64)
+		I386   = uint32(sys.I386)
+		PPC64  = uint32(sys.PPC64)
+		S390X  = uint32(sys.S390X)
+		MIPS   = uint32(sys.MIPS)
+		MIPS64 = uint32(sys.MIPS64)
 	)
 
 	switch uint32(arch.Family) | elftype<<16 {
 	default:
 		return 0, fmt.Errorf("%s: unknown relocation type %d; compiled without -fpic?", pn, elftype)
+
+	case MIPS | uint32(elf.R_MIPS_HI16)<<16,
+		MIPS | uint32(elf.R_MIPS_LO16)<<16,
+		MIPS | uint32(elf.R_MIPS_GOT16)<<16,
+		MIPS | uint32(elf.R_MIPS_GPREL16)<<16,
+		MIPS | uint32(elf.R_MIPS_GOT_PAGE)<<16,
+		MIPS | uint32(elf.R_MIPS_JALR)<<16,
+		MIPS | uint32(elf.R_MIPS_GOT_OFST)<<16,
+		MIPS64 | uint32(elf.R_MIPS_HI16)<<16,
+		MIPS64 | uint32(elf.R_MIPS_LO16)<<16,
+		MIPS64 | uint32(elf.R_MIPS_GOT16)<<16,
+		MIPS64 | uint32(elf.R_MIPS_GPREL16)<<16,
+		MIPS64 | uint32(elf.R_MIPS_GOT_PAGE)<<16,
+		MIPS64 | uint32(elf.R_MIPS_JALR)<<16,
+		MIPS64 | uint32(elf.R_MIPS_GOT_OFST)<<16:
+		return 4, nil
 
 	case S390X | uint32(elf.R_390_8)<<16:
 		return 1, nil

@@ -52,7 +52,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
 	re(`-W([^@,]+)`), // -Wall but not -Wa,-foo.
 	re(`-Wa,-mbig-obj`),
 	re(`-Wp,-D([A-Za-z_].*)`),
-	re(`-Wp, -U([A-Za-z_]*)`),
+	re(`-Wp,-U([A-Za-z_]*)`),
 	re(`-ansi`),
 	re(`-f(no-)?asynchronous-unwind-tables`),
 	re(`-f(no-)?blocks`),

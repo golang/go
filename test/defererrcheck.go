@@ -1,10 +1,14 @@
 // errorcheck -0 -l -d=defer
+// +build !riscv64
 
 // Copyright 2019 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
 // check that open-coded defers are used in expected situations
+
+// TODO(jsing): Re-enable on riscv64 once open-coded defers are turned
+// back on - see golang.org/issue/36786
 
 package main
 

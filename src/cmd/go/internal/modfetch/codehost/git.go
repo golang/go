@@ -682,8 +682,11 @@ func (r *gitRepo) RecentTag(rev, prefix, major string) (tag string, err error) {
 
 			semtag := line[len(prefix):]
 			// Consider only tags that are valid and complete (not just major.minor prefixes).
-			if c := semver.Canonical(semtag); c != "" && strings.HasPrefix(semtag, c) && (major == "" || semver.Major(c) == major) {
-				highest = semver.Max(highest, semtag)
+			// NOTE: Do not replace the call to semver.Compare with semver.Max.
+			// We want to return the actual tag, not a canonicalized version of it,
+			// and semver.Max currently canonicalizes (see golang.org/issue/32700).
+			if c := semver.Canonical(semtag); c != "" && strings.HasPrefix(semtag, c) && (major == "" || semver.Major(c) == major) && semver.Compare(semtag, highest) > 0 {
+				highest = semtag
 			}
 		}
 

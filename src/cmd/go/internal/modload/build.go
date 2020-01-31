@@ -112,7 +112,7 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 		}
 		if HasModRoot() {
 			info.Dir = ModRoot()
-			info.GoMod = filepath.Join(info.Dir, "go.mod")
+			info.GoMod = ModFilePath()
 			if modFile.Go != nil {
 				info.GoVersion = modFile.Go.Version
 			}

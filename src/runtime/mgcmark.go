@@ -46,8 +46,6 @@ const (
 // gcMarkRootPrepare queues root scanning jobs (stacks, globals, and
 // some miscellany) and initializes scanning-related state.
 //
-// The caller must have call gcCopySpans().
-//
 // The world must be stopped.
 //
 //go:nowritebarrier

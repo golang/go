@@ -1036,7 +1036,7 @@ func (b *Builder) vet(a *Action) error {
 		// There's too much unsafe.Pointer code
 		// that vet doesn't like in low-level packages
 		// like runtime, sync, and reflect.
-		vetFlags = append(vetFlags, string("-unsafeptr=false"))
+		vetFlags = []string{"-unsafeptr=false"}
 	}
 
 	// Note: We could decide that vet should compute export data for
@@ -1774,6 +1774,11 @@ func (b *Builder) fmtcmd(dir string, format string, args ...interface{}) string 
 	}
 	if b.WorkDir != "" {
 		cmd = strings.ReplaceAll(cmd, b.WorkDir, "$WORK")
+		escaped := strconv.Quote(b.WorkDir)
+		escaped = escaped[1 : len(escaped)-1] // strip quote characters
+		if escaped != b.WorkDir {
+			cmd = strings.ReplaceAll(cmd, escaped, "$WORK")
+		}
 	}
 	return cmd
 }

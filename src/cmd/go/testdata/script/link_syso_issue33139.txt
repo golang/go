@@ -8,6 +8,10 @@
 # See: https://github.com/golang/go/issues/8912
 [linux] [ppc64] skip
 
+# External linking is not supported on linux/riscv64.
+# See: https://github.com/golang/go/issues/36739
+[linux] [riscv64] skip
+
 # External linking is not supported on darwin/386 (10.14+).
 # See: https://github.com/golang/go/issues/31751
 [darwin] [386] skip

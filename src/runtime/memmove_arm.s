@@ -58,6 +58,8 @@
 #define FW3	R4
 #define FR3	R8					/* shared with TE */
 
+// See memmove Go doc for important implementation constraints.
+
 // func memmove(to, from unsafe.Pointer, n uintptr)
 TEXT runtime·memmove(SB), NOSPLIT, $4-12
 _memmove:

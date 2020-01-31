@@ -305,7 +305,7 @@ type lico uint32
 // because they have almost no interaction with other uses of the position.
 const (
 	lineBits, lineMax     = 20, 1<<lineBits - 2
-	bogusLine             = 1<<lineBits - 1 // Not a line number; used to disrupt infinite loops
+	bogusLine             = 1 // Used to disrupt infinite loops to prevent debugger looping
 	isStmtBits, isStmtMax = 2, 1<<isStmtBits - 1
 	xlogueBits, xlogueMax = 2, 1<<xlogueBits - 1
 	colBits, colMax       = 32 - lineBits - xlogueBits - isStmtBits, 1<<colBits - 1

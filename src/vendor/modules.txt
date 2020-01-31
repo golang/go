@@ -1,4 +1,4 @@
-# golang.org/x/crypto v0.0.0-20191111213947-16651526fdb4
+# golang.org/x/crypto v0.0.0-20200128174031-69ecbb4d6d5d
 ## explicit
 golang.org/x/crypto/chacha20
 golang.org/x/crypto/chacha20poly1305
@@ -8,7 +8,7 @@ golang.org/x/crypto/curve25519
 golang.org/x/crypto/hkdf
 golang.org/x/crypto/internal/subtle
 golang.org/x/crypto/poly1305
-# golang.org/x/net v0.0.0-20191105084925-a882066a44e0
+# golang.org/x/net v0.0.0-20191126235420-ef20fe5d7933
 ## explicit
 golang.org/x/net/dns/dnsmessage
 golang.org/x/net/http/httpguts

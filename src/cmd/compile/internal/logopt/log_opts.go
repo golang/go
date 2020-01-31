@@ -321,12 +321,14 @@ func Enabled() bool {
 // byPos sorts diagnostics by source position.
 type byPos struct {
 	ctxt *obj.Link
-	a []LoggedOpt
+	a    []LoggedOpt
 }
 
-func (x byPos) Len() int           { return len(x.a) }
-func (x byPos) Less(i, j int) bool { return x.ctxt.OutermostPos(x.a[i].pos).Before(x.ctxt.OutermostPos(x.a[j].pos)) }
-func (x byPos) Swap(i, j int)      { x.a[i], x.a[j] = x.a[j], x.a[i] }
+func (x byPos) Len() int { return len(x.a) }
+func (x byPos) Less(i, j int) bool {
+	return x.ctxt.OutermostPos(x.a[i].pos).Before(x.ctxt.OutermostPos(x.a[j].pos))
+}
+func (x byPos) Swap(i, j int) { x.a[i], x.a[j] = x.a[j], x.a[i] }
 
 func writerForLSP(subdirpath, file string) io.WriteCloser {
 	basename := file
@@ -367,7 +369,7 @@ func uriIfy(f string) DocumentURI {
 // Return filename, replacing a first occurrence of $GOROOT with the
 // actual value of the GOROOT (because LSP does not speak "$GOROOT").
 func uprootedPath(filename string) string {
-	if ! strings.HasPrefix(filename, "$GOROOT/") {
+	if !strings.HasPrefix(filename, "$GOROOT/") {
 		return filename
 	}
 	return objabi.GOROOT + filename[len("$GOROOT"):]
@@ -379,7 +381,7 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
 		return
 	}
 
-	sort.Stable(byPos{ctxt,loggedOpts}) // Stable is necessary to preserve the per-function order, which is repeatable.
+	sort.Stable(byPos{ctxt, loggedOpts}) // Stable is necessary to preserve the per-function order, which is repeatable.
 	switch Format {
 
 	case Json0: // LSP 3.15

@@ -34,7 +34,6 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/debug"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -4116,14 +4115,49 @@ func TestServerConnState(t *testing.T) {
 			panic("intentional panic")
 		},
 	}
+
+	// A stateLog is a log of states over the lifetime of a connection.
+	type stateLog struct {
+		active   net.Conn // The connection for which the log is recorded; set to the first connection seen in StateNew.
+		got      []ConnState
+		want     []ConnState
+		complete chan<- struct{} // If non-nil, closed when either 'got' is equal to 'want', or 'got' is no longer a prefix of 'want'.
+	}
+	activeLog := make(chan *stateLog, 1)
+
+	// wantLog invokes doRequests, then waits for the resulting connection to
+	// either pass through the sequence of states in want or enter a state outside
+	// of that sequence.
+	wantLog := func(doRequests func(), want ...ConnState) {
+		t.Helper()
+		complete := make(chan struct{})
+		activeLog <- &stateLog{want: want, complete: complete}
+
+		doRequests()
+
+		timer := time.NewTimer(5 * time.Second)
+		select {
+		case <-timer.C:
+			t.Errorf("Timed out waiting for connection to change state.")
+		case <-complete:
+			timer.Stop()
+		}
+		sl := <-activeLog
+		if !reflect.DeepEqual(sl.got, sl.want) {
+			t.Errorf("Request(s) produced unexpected state sequence.\nGot:  %v\nWant: %v", sl.got, sl.want)
+		}
+		// Don't return sl to activeLog: we don't expect any further states after
+		// this point, and want to keep the ConnState callback blocked until the
+		// next call to wantLog.
+	}
+
 	ts := httptest.NewUnstartedServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		handler[r.URL.Path](w, r)
 	}))
-	defer ts.Close()
-
-	var mu sync.Mutex // guard stateLog and connID
-	var stateLog = map[int][]ConnState{}
-	var connID = map[net.Conn]int{}
+	defer func() {
+		activeLog <- &stateLog{} // If the test failed, allow any remaining ConnState callbacks to complete.
+		ts.Close()
+	}()
 
 	ts.Config.ErrorLog = log.New(ioutil.Discard, "", 0)
 	ts.Config.ConnState = func(c net.Conn, state ConnState) {
@@ -4131,20 +4165,27 @@ func TestServerConnState(t *testing.T) {
 			t.Errorf("nil conn seen in state %s", state)
 			return
 		}
-		mu.Lock()
-		defer mu.Unlock()
-		id, ok := connID[c]
-		if !ok {
-			id = len(connID) + 1
-			connID[c] = id
+		sl := <-activeLog
+		if sl.active == nil && state == StateNew {
+			sl.active = c
+		} else if sl.active != c {
+			t.Errorf("unexpected conn in state %s", state)
+			activeLog <- sl
+			return
 		}
-		stateLog[id] = append(stateLog[id], state)
+		sl.got = append(sl.got, state)
+		if sl.complete != nil && (len(sl.got) >= len(sl.want) || !reflect.DeepEqual(sl.got, sl.want[:len(sl.got)])) {
+			close(sl.complete)
+			sl.complete = nil
+		}
+		activeLog <- sl
 	}
-	ts.Start()
 
+	ts.Start()
 	c := ts.Client()
 
 	mustGet := func(url string, headers ...string) {
+		t.Helper()
 		req, err := NewRequest("GET", url, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -4165,26 +4206,33 @@ func TestServerConnState(t *testing.T) {
 		}
 	}
 
-	mustGet(ts.URL + "/")
-	mustGet(ts.URL + "/close")
+	wantLog(func() {
+		mustGet(ts.URL + "/")
+		mustGet(ts.URL + "/close")
+	}, StateNew, StateActive, StateIdle, StateActive, StateClosed)
 
-	mustGet(ts.URL + "/")
-	mustGet(ts.URL+"/", "Connection", "close")
+	wantLog(func() {
+		mustGet(ts.URL + "/")
+		mustGet(ts.URL+"/", "Connection", "close")
+	}, StateNew, StateActive, StateIdle, StateActive, StateClosed)
 
-	mustGet(ts.URL + "/hijack")
-	mustGet(ts.URL + "/hijack-panic")
+	wantLog(func() {
+		mustGet(ts.URL + "/hijack")
+	}, StateNew, StateActive, StateHijacked)
 
-	// New->Closed
-	{
+	wantLog(func() {
+		mustGet(ts.URL + "/hijack-panic")
+	}, StateNew, StateActive, StateHijacked)
+
+	wantLog(func() {
 		c, err := net.Dial("tcp", ts.Listener.Addr().String())
 		if err != nil {
 			t.Fatal(err)
 		}
 		c.Close()
-	}
+	}, StateNew, StateClosed)
 
-	// New->Active->Closed
-	{
+	wantLog(func() {
 		c, err := net.Dial("tcp", ts.Listener.Addr().String())
 		if err != nil {
 			t.Fatal(err)
@@ -4194,10 +4242,9 @@ func TestServerConnState(t *testing.T) {
 		}
 		c.Read(make([]byte, 1)) // block until server hangs up on us
 		c.Close()
-	}
+	}, StateNew, StateActive, StateClosed)
 
-	// New->Idle->Closed
-	{
+	wantLog(func() {
 		c, err := net.Dial("tcp", ts.Listener.Addr().String())
 		if err != nil {
 			t.Fatal(err)
@@ -4213,47 +4260,7 @@ func TestServerConnState(t *testing.T) {
 			t.Fatal(err)
 		}
 		c.Close()
-	}
-
-	want := map[int][]ConnState{
-		1: {StateNew, StateActive, StateIdle, StateActive, StateClosed},
-		2: {StateNew, StateActive, StateIdle, StateActive, StateClosed},
-		3: {StateNew, StateActive, StateHijacked},
-		4: {StateNew, StateActive, StateHijacked},
-		5: {StateNew, StateClosed},
-		6: {StateNew, StateActive, StateClosed},
-		7: {StateNew, StateActive, StateIdle, StateClosed},
-	}
-	logString := func(m map[int][]ConnState) string {
-		var b bytes.Buffer
-		var keys []int
-		for id := range m {
-			keys = append(keys, id)
-		}
-		sort.Ints(keys)
-		for _, id := range keys {
-			fmt.Fprintf(&b, "Conn %d: ", id)
-			for _, s := range m[id] {
-				fmt.Fprintf(&b, "%s ", s)
-			}
-			b.WriteString("\n")
-		}
-		return b.String()
-	}
-
-	for i := 0; i < 5; i++ {
-		time.Sleep(time.Duration(i) * 50 * time.Millisecond)
-		mu.Lock()
-		match := reflect.DeepEqual(stateLog, want)
-		mu.Unlock()
-		if match {
-			return
-		}
-	}
-
-	mu.Lock()
-	t.Errorf("Unexpected events.\nGot log:\n%s\n   Want:\n%s\n", logString(stateLog), logString(want))
-	mu.Unlock()
+	}, StateNew, StateActive, StateIdle, StateClosed)
 }
 
 func TestServerKeepAlivesEnabled(t *testing.T) {
@@ -6306,6 +6313,10 @@ func testContentEncodingNoSniffing(t *testing.T, h2 bool) {
 // Issue 30803: ensure that TimeoutHandler logs spurious
 // WriteHeader calls, for consistency with other Handlers.
 func TestTimeoutHandlerSuperfluousLogs(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
 	setParallel(t)
 	defer afterTest(t)
 
@@ -6314,29 +6325,30 @@ func TestTimeoutHandlerSuperfluousLogs(t *testing.T) {
 	testFuncName := runtime.FuncForPC(pc).Name()
 
 	timeoutMsg := "timed out here!"
-	maxTimeout := 200 * time.Millisecond
 
 	tests := []struct {
-		name      string
-		sleepTime time.Duration
-		wantResp  string
+		name        string
+		mustTimeout bool
+		wantResp    string
 	}{
 		{
-			name:      "return before timeout",
-			sleepTime: 0,
-			wantResp:  "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n",
+			name:     "return before timeout",
+			wantResp: "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n",
 		},
 		{
-			name:      "return after timeout",
-			sleepTime: maxTimeout * 2,
+			name:        "return after timeout",
+			mustTimeout: true,
 			wantResp: fmt.Sprintf("HTTP/1.1 503 Service Unavailable\r\nContent-Length: %d\r\n\r\n%s",
 				len(timeoutMsg), timeoutMsg),
 		},
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			var lastSpuriousLine int32
+			exitHandler := make(chan bool, 1)
+			defer close(exitHandler)
+			lastLine := make(chan int, 1)
 
 			sh := HandlerFunc(func(w ResponseWriter, r *Request) {
 				w.WriteHeader(404)
@@ -6344,14 +6356,23 @@ func TestTimeoutHandlerSuperfluousLogs(t *testing.T) {
 				w.WriteHeader(404)
 				w.WriteHeader(404)
 				_, _, line, _ := runtime.Caller(0)
-				atomic.StoreInt32(&lastSpuriousLine, int32(line))
-
-				<-time.After(tt.sleepTime)
+				lastLine <- line
+				<-exitHandler
 			})
+
+			if !tt.mustTimeout {
+				exitHandler <- true
+			}
 
 			logBuf := new(bytes.Buffer)
 			srvLog := log.New(logBuf, "", 0)
-			th := TimeoutHandler(sh, maxTimeout, timeoutMsg)
+			// When expecting to timeout, we'll keep the duration short.
+			dur := 20 * time.Millisecond
+			if !tt.mustTimeout {
+				// Otherwise, make it arbitrarily long to reduce the risk of flakes.
+				dur = 10 * time.Second
+			}
+			th := TimeoutHandler(sh, dur, timeoutMsg)
 			cst := newClientServerTest(t, h1Mode /* the test is protocol-agnostic */, th, optWithServerLog(srvLog))
 			defer cst.close()
 
@@ -6379,10 +6400,12 @@ func TestTimeoutHandlerSuperfluousLogs(t *testing.T) {
 				t.Fatalf("Server logs count mismatch\ngot %d, want %d\n\nGot\n%s\n", g, w, blob)
 			}
 
+			lastSpuriousLine := <-lastLine
+			firstSpuriousLine := lastSpuriousLine - 3
 			// Now ensure that the regexes match exactly.
 			//      "http: superfluous response.WriteHeader call from <fn>.func\d.\d (<curFile>:lastSpuriousLine-[1, 3]"
 			for i, logEntry := range logEntries {
-				wantLine := atomic.LoadInt32(&lastSpuriousLine) - 3 + int32(i)
+				wantLine := firstSpuriousLine + i
 				pat := fmt.Sprintf("^http: superfluous response.WriteHeader call from %s.func\\d+.\\d+ \\(%s:%d\\)$",
 					testFuncName, curFileBaseName, wantLine)
 				re := regexp.MustCompile(pat)

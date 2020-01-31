@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-// An version of bytes.Buffer without ReadFrom and WriteTo
+// A version of bytes.Buffer without ReadFrom and WriteTo
 type Buffer struct {
 	bytes.Buffer
 	ReaderFrom // conflicts with and hides bytes.Buffer's ReaderFrom.

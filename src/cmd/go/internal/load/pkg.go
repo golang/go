@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"go/build"
+	"go/scanner"
 	"go/token"
 	"io/ioutil"
 	"os"
@@ -1519,17 +1520,30 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 		p.Internal.LocalPrefix = dirToImportPath(p.Dir)
 	}
 
+	// setError sets p.Error if it hasn't already been set. We may proceed
+	// after encountering some errors so that 'go list -e' has more complete
+	// output. If there's more than one error, we should report the first.
+	setError := func(err error) {
+		if p.Error == nil {
+			p.Error = &PackageError{
+				ImportStack: stk.Copy(),
+				Err:         err,
+			}
+		}
+	}
+
 	if err != nil {
 		if _, ok := err.(*build.NoGoError); ok {
 			err = &NoGoError{Package: p}
 		}
 		p.Incomplete = true
-		err = base.ExpandScanner(err)
-		p.Error = &PackageError{
-			ImportStack: stk.Copy(),
-			Err:         err,
+
+		setError(base.ExpandScanner(err))
+		if _, isScanErr := err.(scanner.ErrorList); !isScanErr {
+			return
 		}
-		return
+		// Fall through if there was an error parsing a file. 'go list -e' should
+		// still report imports and other metadata.
 	}
 
 	useBindir := p.Name == "main"
@@ -1545,7 +1559,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 		if InstallTargetDir(p) == StalePath {
 			newPath := strings.Replace(p.ImportPath, "code.google.com/p/go.", "golang.org/x/", 1)
 			e := ImportErrorf(p.ImportPath, "the %v command has moved; use %v instead.", p.ImportPath, newPath)
-			p.Error = &PackageError{Err: e}
+			setError(e)
 			return
 		}
 		elem := p.DefaultExecName()
@@ -1658,10 +1672,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 	inputs := p.AllFiles()
 	f1, f2 := str.FoldDup(inputs)
 	if f1 != "" {
-		p.Error = &PackageError{
-			ImportStack: stk.Copy(),
-			Err:         fmt.Errorf("case-insensitive file name collision: %q and %q", f1, f2),
-		}
+		setError(fmt.Errorf("case-insensitive file name collision: %q and %q", f1, f2))
 		return
 	}
 
@@ -1674,25 +1685,16 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 	// so we shouldn't see any _cgo_ files anyway, but just be safe.
 	for _, file := range inputs {
 		if !SafeArg(file) || strings.HasPrefix(file, "_cgo_") {
-			p.Error = &PackageError{
-				ImportStack: stk.Copy(),
-				Err:         fmt.Errorf("invalid input file name %q", file),
-			}
+			setError(fmt.Errorf("invalid input file name %q", file))
 			return
 		}
 	}
 	if name := pathpkg.Base(p.ImportPath); !SafeArg(name) {
-		p.Error = &PackageError{
-			ImportStack: stk.Copy(),
-			Err:         fmt.Errorf("invalid input directory name %q", name),
-		}
+		setError(fmt.Errorf("invalid input directory name %q", name))
 		return
 	}
 	if !SafeArg(p.ImportPath) {
-		p.Error = &PackageError{
-			ImportStack: stk.Copy(),
-			Err:         ImportErrorf(p.ImportPath, "invalid import path %q", p.ImportPath),
-		}
+		setError(ImportErrorf(p.ImportPath, "invalid import path %q", p.ImportPath))
 		return
 	}
 
@@ -1735,13 +1737,6 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
 		// and HFiles are okay (they might be used by the SFiles).
 		// Also Sysofiles are okay (they might not contain object
 		// code; see issue #16050).
-	}
-
-	setError := func(err error) {
-		p.Error = &PackageError{
-			ImportStack: stk.Copy(),
-			Err:         err,
-		}
 	}
 
 	// The gc toolchain only permits C source files with cgo or SWIG.

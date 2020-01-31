@@ -266,8 +266,13 @@ func (ctxt *Link) pclntab() {
 					switch ctxt.Arch.Family {
 					case sys.AMD64, sys.I386:
 						deferreturn--
-					case sys.PPC64, sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64, sys.RISCV64:
+					case sys.PPC64, sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64:
 						// no change
+					case sys.RISCV64:
+						// TODO(jsing): The JALR instruction is marked with
+						// R_CALLRISCV, whereas the actual reloc is currently
+						// one instruction earlier starting with the AUIPC.
+						deferreturn -= 4
 					case sys.S390X:
 						deferreturn -= 2
 					default:
