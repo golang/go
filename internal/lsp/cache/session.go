@@ -187,7 +187,7 @@ func (s *session) bestView(uri span.URI) (*view, error) {
 		if longest != nil && len(longest.Folder()) > len(view.Folder()) {
 			continue
 		}
-		if strings.HasPrefix(string(uri), string(view.Folder())) {
+		if view.contains(uri) {
 			longest = view
 		}
 	}

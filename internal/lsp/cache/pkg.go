@@ -124,7 +124,7 @@ func (s *snapshot) FindAnalysisError(ctx context.Context, pkgID, analyzerName, m
 	if !ok {
 		return nil, errors.Errorf("unexpected analyzer: %s", analyzerName)
 	}
-	act, err := s.actionHandle(ctx, packageID(pkgID), source.ParseFull, analyzer)
+	act, err := s.actionHandle(ctx, packageID(pkgID), analyzer)
 	if err != nil {
 		return nil, err
 	}

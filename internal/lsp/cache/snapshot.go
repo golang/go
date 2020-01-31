@@ -6,6 +6,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -105,7 +106,12 @@ func (s *snapshot) packageHandle(ctx context.Context, id packageID) (*packageHan
 		return nil, errors.Errorf("%s needs loading", id)
 	}
 	if check {
-		return s.buildPackageHandle(ctx, m.id, source.ParseFull)
+		ph, err := s.buildPackageHandle(ctx, m.id)
+		if err != nil {
+			return nil, err
+		}
+		expectMode(ph, source.ParseFull)
+		return ph, nil
 	}
 	var result *packageHandle
 	for _, ph := range phs {
@@ -141,10 +147,11 @@ func (s *snapshot) packageHandles(ctx context.Context, scope interface{}, meta [
 	var results []*packageHandle
 	if check {
 		for _, m := range meta {
-			ph, err := s.buildPackageHandle(ctx, m.id, source.ParseFull)
+			ph, err := s.buildPackageHandle(ctx, m.id)
 			if err != nil {
 				return nil, err
 			}
+			expectMode(ph, source.ParseFull)
 			results = append(results, ph)
 		}
 	} else {
@@ -189,11 +196,12 @@ func (s *snapshot) shouldCheck(m []*metadata) (phs []*packageHandle, load, check
 	// and it should be parsed in full mode.
 	// If a single PackageHandle is missing, re-check all of them.
 	// TODO: Optimize this by only checking the necessary packages.
-	for _, metadata := range m {
-		ph := s.getPackage(metadata.id, source.ParseFull)
+	for _, m := range m {
+		ph := s.getPackage(m.id)
 		if ph == nil {
 			return nil, false, true
 		}
+		expectMode(ph, source.ParseFull)
 		phs = append(phs, ph)
 	}
 	// If the metadata for the package had missing dependencies,
@@ -351,13 +359,22 @@ func (s *snapshot) KnownPackages(ctx context.Context) ([]source.PackageHandle, e
 	for pkgID := range pkgIDs {
 		// Metadata for these packages should already be up-to-date,
 		// so just build the package handle directly (without a reload).
-		ph, err := s.buildPackageHandle(ctx, pkgID, source.ParseExported)
+		ph, err := s.buildPackageHandle(ctx, pkgID)
 		if err != nil {
 			return nil, err
 		}
+		expectMode(ph, source.ParseExported)
 		results = append(results, ph)
 	}
 	return results, nil
+}
+
+// expectMode is a defensive check to make sure that we mark workspace packages
+// correctly. TODO(rstambler): Remove this once we're confident this works.
+func expectMode(ph *packageHandle, mode source.ParseMode) {
+	if ph.mode != mode {
+		panic(fmt.Sprintf("unexpected parse mode for %s", ph.m.id))
+	}
 }
 
 func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Package, error) {
@@ -388,15 +405,29 @@ func (s *snapshot) CachedImportPaths(ctx context.Context) (map[string]source.Pac
 	return results, nil
 }
 
-func (s *snapshot) getPackage(id packageID, m source.ParseMode) *packageHandle {
+func (s *snapshot) getPackage(id packageID) *packageHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	key := packageKey{
 		id:   id,
-		mode: m,
+		mode: s.packageModeLocked(id),
 	}
 	return s.packages[key]
+}
+
+func (s *snapshot) packageMode(id packageID) source.ParseMode {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.packageModeLocked(id)
+}
+
+func (s *snapshot) packageModeLocked(id packageID) source.ParseMode {
+	if _, ok := s.workspacePackages[id]; ok {
+		return source.ParseFull
+	}
+	return source.ParseExported
 }
 
 func (s *snapshot) getActionHandle(id packageID, m source.ParseMode, a *analysis.Analyzer) *actionHandle {

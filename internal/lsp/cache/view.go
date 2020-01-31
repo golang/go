@@ -233,11 +233,11 @@ func (v *view) LookupBuiltin(ctx context.Context, name string) (*ast.Object, err
 	return astObj, nil
 }
 
-func (v *view) buildBuiltinPackage(ctx context.Context, m *metadata) error {
-	if len(m.goFiles) != 1 {
-		return errors.Errorf("only expected 1 file, got %v", len(m.goFiles))
+func (v *view) buildBuiltinPackage(ctx context.Context, goFiles []string) error {
+	if len(goFiles) != 1 {
+		return errors.Errorf("only expected 1 file, got %v", len(goFiles))
 	}
-	uri := m.goFiles[0]
+	uri := span.FileURI(goFiles[0])
 	v.addIgnoredFile(uri) // to avoid showing diagnostics for builtin.go
 
 	// Get the FileHandle through the session to avoid adding it to the snapshot.
@@ -407,6 +407,10 @@ func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error)
 	return env, nil
 }
 
+func (v *view) contains(uri span.URI) bool {
+	return strings.HasPrefix(string(uri), string(v.folder))
+}
+
 func (v *view) mapFile(uri span.URI, f *fileBase) {
 	v.filesByURI[uri] = f
 	if f.addURI(uri) == 1 {
@@ -547,22 +551,7 @@ func (v *view) getSnapshot() *snapshot {
 func (v *view) initialize(ctx context.Context, s *snapshot) {
 	v.initializeOnce.Do(func() {
 		defer close(v.initialized)
-
-		err := func() error {
-			// Do not cancel the call to go/packages.Load for the entire workspace.
-			meta, err := s.load(ctx, viewLoadScope("LOAD_VIEW"), packagePath("builtin"))
-			if err != nil {
-				return err
-			}
-			// Find the builtin package in order to handle it separately.
-			for _, m := range meta {
-				if m.pkgPath == "builtin" {
-					return s.view.buildBuiltinPackage(ctx, m)
-				}
-			}
-			return errors.Errorf("failed to load the builtin package")
-		}()
-		if err != nil {
+		if _, err := s.load(ctx, viewLoadScope("LOAD_VIEW"), packagePath("builtin")); err != nil {
 			log.Error(ctx, "initial workspace load failed", err)
 		}
 	})

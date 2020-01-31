@@ -27,7 +27,7 @@ func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*analysis
 	var roots []*actionHandle
 
 	for _, a := range analyzers {
-		ah, err := s.actionHandle(ctx, packageID(id), source.ParseFull, a)
+		ah, err := s.actionHandle(ctx, packageID(id), a)
 		if err != nil {
 			return nil, err
 		}
@@ -81,14 +81,15 @@ type packageFactKey struct {
 	typ reflect.Type
 }
 
-func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.ParseMode, a *analysis.Analyzer) (*actionHandle, error) {
-	act := s.getActionHandle(id, mode, a)
+func (s *snapshot) actionHandle(ctx context.Context, id packageID, a *analysis.Analyzer) (*actionHandle, error) {
+	ph := s.getPackage(id)
+	if ph == nil {
+		return nil, errors.Errorf("no PackageHandle for %s", id)
+	}
+	expectMode(ph, source.ParseFull)
+	act := s.getActionHandle(id, ph.mode, a)
 	if act != nil {
 		return act, nil
-	}
-	ph := s.getPackage(id, mode)
-	if ph == nil {
-		return nil, errors.Errorf("no PackageHandle for %s:%v", id, mode == source.ParseExported)
 	}
 	if len(ph.key) == 0 {
 		return nil, errors.Errorf("no key for PackageHandle %s", id)
@@ -104,7 +105,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.P
 	var deps []*actionHandle
 	// Add a dependency on each required analyzers.
 	for _, req := range a.Requires {
-		reqActionHandle, err := s.actionHandle(ctx, id, mode, req)
+		reqActionHandle, err := s.actionHandle(ctx, id, req)
 		if err != nil {
 			return nil, err
 		}
@@ -124,7 +125,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, mode source.P
 			}
 			sort.Strings(importIDs) // for determinism
 			for _, importID := range importIDs {
-				depActionHandle, err := s.actionHandle(ctx, packageID(importID), source.ParseExported, a)
+				depActionHandle, err := s.actionHandle(ctx, packageID(importID), a)
 				if err != nil {
 					return nil, err
 				}

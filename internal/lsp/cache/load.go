@@ -104,6 +104,13 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) ([]*metadata
 		if len(pkg.GoFiles) == 0 && len(pkg.CompiledGoFiles) == 0 {
 			continue
 		}
+		// Special case for the builtin package, as it has no dependencies.
+		if pkg.PkgPath == "builtin" {
+			if err := s.view.buildBuiltinPackage(ctx, pkg.GoFiles); err != nil {
+				return nil, err
+			}
+			continue
+		}
 		// Skip test main packages.
 		if isTestMain(ctx, pkg, s.view.gocache) {
 			continue
@@ -113,10 +120,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) ([]*metadata
 		if err != nil {
 			return nil, err
 		}
-		// All packages returned by packages.Load will be top-level packages,
-		// with dependencies in the Imports field. Therefore, we can assume that
-		// they are all workspace packages and mark them as such.
-		if err := s.setWorkspacePackage(ctx, m); err != nil {
+		if _, err := s.packageHandle(ctx, m.id); err != nil {
 			return nil, err
 		}
 		results = append(results, m)
@@ -129,26 +133,6 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) ([]*metadata
 		return nil, errors.Errorf("no metadata for %s", scopes)
 	}
 	return results, nil
-}
-
-func (s *snapshot) setWorkspacePackage(ctx context.Context, m *metadata) error {
-	// Make sure that the builtin package doesn't get marked a workspace package.
-	if m.pkgPath == "builtin" {
-		return nil
-	}
-	// A test variant of a package can only be loaded directly by loading
-	// the non-test variant with -test. Track the import path of the non-test variant.
-	pkgPath := m.pkgPath
-	if m.forTest != "" {
-		pkgPath = m.forTest
-	}
-
-	s.mu.Lock()
-	s.workspacePackages[m.id] = pkgPath
-	s.mu.Unlock()
-
-	_, err := s.packageHandle(ctx, m.id)
-	return err
 }
 
 func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *packages.Package, cfg *packages.Config, seen map[packageID]struct{}) (*metadata, error) {
@@ -204,6 +188,7 @@ func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *pa
 			}
 		}
 	}
+
 	// Add the metadata to the cache.
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -211,12 +196,28 @@ func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *pa
 	// TODO: We should make sure not to set duplicate metadata,
 	// and instead panic here. This can be done by making sure not to
 	// reset metadata information for packages we've already seen.
-	if orig, ok := s.metadata[m.id]; ok {
-		return orig, nil
+	if original, ok := s.metadata[m.id]; ok {
+		m = original
 	} else {
 		s.metadata[m.id] = m
-		return m, nil
 	}
+
+	// Set the workspace packages. If any of the package's files belong to the
+	// view, then the package is considered to be a workspace package.
+	for _, uri := range append(m.compiledGoFiles, m.goFiles...) {
+		if !s.view.contains(uri) {
+			continue
+		}
+		// A test variant of a package can only be loaded directly by loading
+		// the non-test variant with -test. Track the import path of the non-test variant.
+		if m.forTest != "" {
+			s.workspacePackages[m.id] = m.forTest
+		} else {
+			s.workspacePackages[m.id] = pkgPath
+		}
+		break
+	}
+	return m, nil
 }
 
 func isTestMain(ctx context.Context, pkg *packages.Package, gocache string) bool {
