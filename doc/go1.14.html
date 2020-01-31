@@ -512,6 +512,37 @@ TODO
 
 </dl><!-- crypto/tls -->
 
+<dl id="debug/dwarf"><dt><a href="/pkg/debug/dwarf/">debug/dwarf</a></dt>
+  <dd>
+    <p><!-- CL 175138 -->
+      The <code>debug/dwarf</code> package now supports reading DWARF
+      version 5.
+    </p>
+    <p>
+      The new
+      method <a href="/pkg/debug/dwarf/#Data.AddSection"><code>(*Data).AddSection</code></a>
+      supports adding arbitrary new DWARF sections from the input file
+      to the DWARF <code>Data</code>.
+    </p>
+
+    <p><!-- CL 192698 -->
+      The new
+      method <a href="/pkg/debug/dwarf/#Reader.ByteOrder"><code>(*Reader).ByteOrder</code></a>
+      returns the byte order of the current compilation unit.
+      This may be used to interpret attributes that are encoded in the
+      native ordering, such as location descriptions.
+    </p>
+
+    <p><!-- CL 192699 -->
+      The new
+      method <a href="/pkg/debug/dwarf/#LineReader.Files"><code>(*LineReader).Files</code></a>
+      returns the file name table from a line reader.
+      This may be used to interpret the value of DWARF attributes such
+      as <code>AttrDeclFile</code>.
+    </p>
+  </dd>
+</dl><!-- debug/dwarf -->
+
 <dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1/">encoding/asn1</a></dt>
   <dd>
     <p><!-- CL 126624 -->
