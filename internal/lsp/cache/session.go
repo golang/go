@@ -402,7 +402,9 @@ func (s *session) updateOverlays(ctx context.Context, changes []source.FileModif
 	// Get the overlays for each change while the session's overlay map is locked.
 	overlays := make(map[span.URI]*overlay)
 	for _, c := range changes {
-		overlays[c.URI] = s.overlays[c.URI]
+		if o, ok := s.overlays[c.URI]; ok {
+			overlays[c.URI] = o
+		}
 	}
 	return overlays, nil
 }
