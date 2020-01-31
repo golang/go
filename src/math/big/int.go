@@ -504,11 +504,14 @@ func (z *Int) Exp(x, y, m *Int) *Int {
 
 // GCD sets z to the greatest common divisor of a and b and returns z.
 // If x or y are not nil, GCD sets their value such that z = a*x + b*y.
-// As of Go 1.14, a and b may be zero or negative (before Go 1.14 both
-// a and b had to be > 0).
+//
+// a and b may be positive, zero or negative.
 // Regardless of the signs of a and b, z is always >= 0.
+//
 // If a == b == 0, GCD sets z = x = y = 0.
+//
 // If a == 0 and b != 0, GCD sets z = |b|, x = 0, y = sign(b) * 1.
+//
 // If a != 0 and b == 0, GCD sets z = |a|, x = sign(a) * 1, y = 0.
 func (z *Int) GCD(x, y, a, b *Int) *Int {
 	if len(a.abs) == 0 || len(b.abs) == 0 {
