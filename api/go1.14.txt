@@ -150,7 +150,6 @@ pkg go/doc, type Example struct, Suffix string
 pkg go/doc, type Func struct, Examples []*Example
 pkg go/doc, type Package struct, Examples []*Example
 pkg go/doc, type Type struct, Examples []*Example
-pkg go/types, method (*Checker) LookupFieldOrMethod(Type, bool, *Package, string) (Object, []int, bool)
 pkg hash/maphash, func MakeSeed() Seed
 pkg hash/maphash, method (*Hash) BlockSize() int
 pkg hash/maphash, method (*Hash) Reset()
