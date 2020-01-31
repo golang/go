@@ -52,8 +52,18 @@ func Parse(fset *token.FileSet, filename string, content []byte) ([]*Note, error
 		if err != nil {
 			return nil, err
 		}
-		fset.AddFile(filename, -1, len(content)).SetLinesForContent(content)
-		return extractMod(fset, file)
+		f := fset.AddFile(filename, -1, len(content))
+		f.SetLinesForContent(content)
+		notes, err := extractMod(fset, file)
+		if err != nil {
+			return nil, err
+		}
+		// Since modfile.Parse does not return an *ast, we need to add the offset
+		// within the file's contents to the file's base relative to the fileset.
+		for _, note := range notes {
+			note.Pos += token.Pos(f.Base())
+		}
+		return notes, nil
 	}
 	return nil, nil
 }
