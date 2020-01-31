@@ -694,6 +694,23 @@ TODO
 
 </dl><!-- signal -->
 
+<dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+  <dd>
+    <p>
+      The <a href="/pkg/strconv/#NumError"><code>NumError</code></a>
+      type now has
+      an <a href="/pkg/strconv/#NumError.Unwrap"><code>Unwrap</code></a>
+      method that may be used to retrieve the reason that a conversion
+      failed.
+      This supports using <code>NumError</code> values
+      with <a href="/pkg/errors/#Is"><code>errors.Is</code></a> to see
+      if the underlying error
+      is <a href="/pkg/strconv/#pkg-variables"><code>strconv.ErrRange</code></a>
+      or <a href="/pkg/strconv/#pkg-variables"><code>strconv.ErrSyntax</code></a>.
+    </p>
+  </dd>
+</dl><!-- strconv -->
+
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
     <p><!-- CL 200577 -->
