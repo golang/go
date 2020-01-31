@@ -147,11 +147,15 @@ func (s *Server) didModifyFiles(ctx context.Context, modifications []source.File
 			if err != nil {
 				return nil, err
 			}
-			// If a modification comes in for a go.mod file,
-			// and the view was never properly initialized,
-			// try to recreate the associated view.
+			// If a modification comes in for the view's go.mod file and the view
+			// was never properly initialized, or the view does not have
+			// a go.mod file, try to recreate the associated view.
 			switch fh.Identity().Kind {
 			case source.Mod:
+				modfile, _ := snapshot.View().ModFiles()
+				if modfile != "" || fh.Identity().URI != modfile {
+					continue
+				}
 				newSnapshot, err := snapshot.View().Rebuild(ctx)
 				if err != nil {
 					return nil, err

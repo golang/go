@@ -752,7 +752,8 @@ func (s *snapshot) shouldLoad(ctx context.Context, originalFH, currentFH source.
 	}
 	// If a go.mod file's contents have changed, always invalidate metadata.
 	if kind := originalFH.Identity().Kind; kind == source.Mod {
-		return true
+		modfile, _ := s.view.ModFiles()
+		return originalFH.Identity().URI == modfile
 	}
 	// Get the original and current parsed files in order to check package name and imports.
 	original, _, _, originalErr := s.view.session.cache.ParseGoHandle(originalFH, source.ParseHeader).Parse(ctx)
