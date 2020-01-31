@@ -199,9 +199,9 @@ func semrelease1(addr *uint32, handoff bool, skipframes int) {
 			// the waiter G immediately.
 			// Note that waiter inherits our time slice: this is desirable
 			// to avoid having a highly contended semaphore hog the P
-			// indefinitely. goyield is like Gosched, but it does not emit a
-			// GoSched trace event and, more importantly, puts the current G
-			// on the local runq instead of the global one.
+			// indefinitely. goyield is like Gosched, but it emits a
+			// "preempted" trace event instead and, more importantly, puts
+			// the current G on the local runq instead of the global one.
 			// We only do this in the starving regime (handoff=true), as in
 			// the non-starving case it is possible for a different waiter
 			// to acquire the semaphore while we are yielding/scheduling,

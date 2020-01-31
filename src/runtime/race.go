@@ -403,6 +403,9 @@ func racefini() {
 	// already held it's assumed that the first caller exits the program
 	// so other calls can hang forever without an issue.
 	lock(&raceFiniLock)
+	// We're entering external code that may call ExitProcess on
+	// Windows.
+	osPreemptExtEnter(getg().m)
 	racecall(&__tsan_fini, 0, 0, 0, 0)
 }
 

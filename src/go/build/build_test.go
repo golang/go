@@ -328,7 +328,7 @@ func TestImportDirNotExist(t *testing.T) {
 	defer os.RemoveAll(emptyDir)
 
 	ctxt.GOPATH = emptyDir
-	ctxt.WorkingDir = emptyDir
+	ctxt.Dir = emptyDir
 
 	tests := []struct {
 		label        string
@@ -340,20 +340,38 @@ func TestImportDirNotExist(t *testing.T) {
 		{"Import(full, FindOnly)", "go/build/doesnotexist", "", FindOnly},
 		{"Import(local, FindOnly)", "./doesnotexist", filepath.Join(ctxt.GOROOT, "src/go/build"), FindOnly},
 	}
-	for _, test := range tests {
-		p, err := ctxt.Import(test.path, test.srcDir, test.mode)
-		if err == nil || !strings.HasPrefix(err.Error(), "cannot find package") {
-			t.Errorf(`%s got error: %q, want "cannot find package" error`, test.label, err)
-		}
-		// If an error occurs, build.Import is documented to return
-		// a non-nil *Package containing partial information.
-		if p == nil {
-			t.Fatalf(`%s got nil p, want non-nil *Package`, test.label)
-		}
-		// Verify partial information in p.
-		if p.ImportPath != "go/build/doesnotexist" {
-			t.Errorf(`%s got p.ImportPath: %q, want "go/build/doesnotexist"`, test.label, p.ImportPath)
-		}
+
+	defer os.Setenv("GO111MODULE", os.Getenv("GO111MODULE"))
+
+	for _, GO111MODULE := range []string{"off", "on"} {
+		t.Run("GO111MODULE="+GO111MODULE, func(t *testing.T) {
+			os.Setenv("GO111MODULE", GO111MODULE)
+
+			for _, test := range tests {
+				p, err := ctxt.Import(test.path, test.srcDir, test.mode)
+
+				errOk := (err != nil && strings.HasPrefix(err.Error(), "cannot find package"))
+				wantErr := `"cannot find package" error`
+				if test.srcDir == "" {
+					if err != nil && strings.Contains(err.Error(), "is not in GOROOT") {
+						errOk = true
+					}
+					wantErr = `"cannot find package" or "is not in GOROOT" error`
+				}
+				if !errOk {
+					t.Errorf("%s got error: %q, want %s", test.label, err, wantErr)
+				}
+				// If an error occurs, build.Import is documented to return
+				// a non-nil *Package containing partial information.
+				if p == nil {
+					t.Fatalf(`%s got nil p, want non-nil *Package`, test.label)
+				}
+				// Verify partial information in p.
+				if p.ImportPath != "go/build/doesnotexist" {
+					t.Errorf(`%s got p.ImportPath: %q, want "go/build/doesnotexist"`, test.label, p.ImportPath)
+				}
+			}
+		})
 	}
 }
 
@@ -459,7 +477,7 @@ func TestImportPackageOutsideModule(t *testing.T) {
 	os.Setenv("GOPATH", gopath)
 	ctxt := Default
 	ctxt.GOPATH = gopath
-	ctxt.WorkingDir = filepath.Join(gopath, "src/example.com/p")
+	ctxt.Dir = filepath.Join(gopath, "src/example.com/p")
 
 	want := "cannot find module providing package"
 	if _, err := ctxt.Import("example.com/p", gopath, FindOnly); err == nil {
@@ -515,14 +533,38 @@ func TestMissingImportErrorRepetition(t *testing.T) {
 	os.Setenv("GO111MODULE", "on")
 	defer os.Setenv("GOPROXY", os.Getenv("GOPROXY"))
 	os.Setenv("GOPROXY", "off")
+	defer os.Setenv("GONOPROXY", os.Getenv("GONOPROXY"))
+	os.Setenv("GONOPROXY", "none")
 
 	ctxt := Default
-	ctxt.WorkingDir = tmp
+	ctxt.Dir = tmp
 
 	pkgPath := "example.com/hello"
-	if _, err = ctxt.Import(pkgPath, tmp, FindOnly); err == nil {
+	_, err = ctxt.Import(pkgPath, tmp, FindOnly)
+	if err == nil {
 		t.Fatal("unexpected success")
-	} else if n := strings.Count(err.Error(), pkgPath); n != 1 {
+	}
+	// Don't count the package path with a URL like https://...?go-get=1.
+	// See golang.org/issue/35986.
+	errStr := strings.ReplaceAll(err.Error(), "://"+pkgPath+"?go-get=1", "://...?go-get=1")
+	if n := strings.Count(errStr, pkgPath); n != 1 {
 		t.Fatalf("package path %q appears in error %d times; should appear once\nerror: %v", pkgPath, n, err)
+	}
+}
+
+// TestCgoImportsIgnored checks that imports in cgo files are not included
+// in the imports list when cgo is disabled.
+// Verifies golang.org/issue/35946.
+func TestCgoImportsIgnored(t *testing.T) {
+	ctxt := Default
+	ctxt.CgoEnabled = false
+	p, err := ctxt.ImportDir("testdata/cgo_disabled", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range p.Imports {
+		if path == "should/be/ignored" {
+			t.Errorf("found import %q in ignored cgo file", path)
+		}
 	}
 }

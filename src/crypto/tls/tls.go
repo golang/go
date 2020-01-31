@@ -116,9 +116,10 @@ func DialWithDialer(dialer *net.Dialer, network, addr string, config *Config) (*
 
 	if timeout != 0 {
 		errChannel = make(chan error, 2)
-		time.AfterFunc(timeout, func() {
+		timer := time.AfterFunc(timeout, func() {
 			errChannel <- timeoutError{}
 		})
+		defer timer.Stop()
 	}
 
 	rawConn, err := dialer.Dial(network, addr)

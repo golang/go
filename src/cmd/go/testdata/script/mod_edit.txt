@@ -52,6 +52,12 @@ go mod init a.a/b/c
 go mod edit -module x.x/y/z
 cmpenv go.mod go.mod.edit
 
+# golang.org/issue/30513: don't require go-gettable module paths.
+cd $WORK/local
+go mod init foo
+go mod edit -module local-only -require=other-local@v1.0.0 -replace other-local@v1.0.0=./other
+cmpenv go.mod go.mod.edit
+
 -- x.go --
 package x
 
@@ -159,6 +165,14 @@ exclude x.1 v1.2.0
 replace x.1 => y.1/v2 v2.3.6
 
 require x.3 v1.99.0
+-- $WORK/local/go.mod.edit --
+module local-only
+
+go $goversion
+
+require other-local v1.0.0
+
+replace other-local v1.0.0 => ./other
 -- $WORK/go.mod.badfmt --
 module     x.x/y/z
 

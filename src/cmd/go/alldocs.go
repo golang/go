@@ -907,7 +907,7 @@
 //         Main      bool         // is this the main module?
 //         Indirect  bool         // is this module only an indirect dependency of main module?
 //         Dir       string       // directory holding files for this module, if any
-//         GoMod     string       // path to go.mod file for this module, if any
+//         GoMod     string       // path to go.mod file used when loading this module, if any
 //         GoVersion string       // go version used in module
 //         Error     *ModuleError // error loading module
 //     }
@@ -915,6 +915,9 @@
 //     type ModuleError struct {
 //         Err string // the error itself
 //     }
+//
+// The file GoMod refers to may be outside the module directory if the
+// module is in the module cache or if the -modfile flag is used.
 //
 // The default output is to print the module path and then
 // information about the version and replacement if any.
@@ -1020,7 +1023,9 @@
 // execution. The "go mod download" command is useful mainly for pre-filling
 // the local cache or to compute the answers for a Go module proxy.
 //
-// By default, download reports errors to standard error but is otherwise silent.
+// By default, download writes nothing to standard output. It may print progress
+// messages and errors to standard error.
+//
 // The -json flag causes download to print a sequence of JSON objects
 // to standard output, describing each downloaded module (or failure),
 // corresponding to this Go struct:
@@ -1075,12 +1080,17 @@
 // add and drop an exclusion for the given module path and version.
 // Note that -exclude=path@version is a no-op if that exclusion already exists.
 //
-// The -replace=old[@v]=new[@v] and -dropreplace=old[@v] flags
-// add and drop a replacement of the given module path and version pair.
-// If the @v in old@v is omitted, the replacement applies to all versions
-// with the old module path. If the @v in new@v is omitted, the new path
-// should be a local module root directory, not a module path.
-// Note that -replace overrides any existing replacements for old[@v].
+// The -replace=old[@v]=new[@v] flag adds a replacement of the given
+// module path and version pair. If the @v in old@v is omitted, a
+// replacement without a version on the left side is added, which applies
+// to all versions of the old module path. If the @v in new@v is omitted,
+// the new path should be a local module root directory, not a module
+// path. Note that -replace overrides any redundant replacements for old[@v],
+// so omitting @v will drop existing replacements for specific versions.
+//
+// The -dropreplace=old[@v] flag drops a replacement of the given
+// module path and version pair. If the @v is omitted, a replacement without
+// a version on the left side is dropped.
 //
 // The -require, -droprequire, -exclude, -dropexclude, -replace,
 // and -dropreplace editing flags may be repeated, and the changes
@@ -1721,8 +1731,10 @@
 // 	GOHOSTOS
 // 		The operating system (GOOS) of the Go toolchain binaries.
 // 	GOMOD
-// 		The absolute path to the go.mod of the main module,
-// 		or the empty string if not using modules.
+// 		The absolute path to the go.mod of the main module.
+// 		If module-aware mode is enabled, but there is no go.mod, GOMOD will be
+// 		os.DevNull ("/dev/null" on Unix-like systems, "NUL" on Windows).
+// 		If module-aware mode is disabled, GOMOD will be the empty string.
 // 	GOTOOLDIR
 // 		The directory where the go tools (compile, cover, doc, etc...) are installed.
 //
@@ -2339,14 +2351,15 @@
 //
 // Module support
 //
-// Go 1.13 includes support for Go modules. Module-aware mode is active by default
-// whenever a go.mod file is found in, or in a parent of, the current directory.
+// The go command includes support for Go modules. Module-aware mode is active
+// by default whenever a go.mod file is found in the current directory or in
+// any parent directory.
 //
 // The quickest way to take advantage of module support is to check out your
 // repository, create a go.mod file (described in the next section) there, and run
 // go commands from within that file tree.
 //
-// For more fine-grained control, Go 1.13 continues to respect
+// For more fine-grained control, the go command continues to respect
 // a temporary environment variable, GO111MODULE, which can be set to one
 // of three string values: off, on, or auto (the default).
 // If GO111MODULE=on, then the go command requires the use of modules,

@@ -1705,7 +1705,6 @@ func mkdotargslice(typ *types.Type, args []*Node, init *Nodes, ddd *Node) *Node 
 	if ddd != nil {
 		esc = ddd.Esc
 	}
-
 	if len(args) == 0 {
 		n := nodnil()
 		n.Type = typ
@@ -1740,6 +1739,9 @@ func walkCall(n *Node, init *Nodes) {
 	// then assign the remaining arguments as a slice.
 	if nf := params.NumFields(); nf > 0 {
 		if last := params.Field(nf - 1); last.IsDDD() && !n.IsDDD() {
+			// The callsite does not use a ..., but the called function is declared
+			// with a final argument that has a ... . Build the slice that we will
+			// pass as the ... argument.
 			tail := args[nf-1:]
 			slice := mkdotargslice(last.Type, tail, init, n.Right)
 			// Allow immediate GC.
@@ -4067,11 +4069,15 @@ func walkCheckPtrArithmetic(n *Node, init *Nodes) *Node {
 
 	n = cheapexpr(n, init)
 
-	slice := mkdotargslice(types.NewSlice(types.Types[TUNSAFEPTR]), originals, init, nil)
-	slice.Esc = EscNone
-	slice.SetTransient(true)
+	ddd := nodl(n.Pos, ODDDARG, nil, nil)
+	ddd.Type = types.NewPtr(types.NewArray(types.Types[TUNSAFEPTR], int64(len(originals))))
+	ddd.Esc = EscNone
+	slice := mkdotargslice(types.NewSlice(types.Types[TUNSAFEPTR]), originals, init, ddd)
 
 	init.Append(mkcall("checkptrArithmetic", nil, init, convnop(n, types.Types[TUNSAFEPTR]), slice))
+	// TODO(khr): Mark backing store of slice as dead. This will allow us to reuse
+	// the backing store for multiple calls to checkptrArithmetic.
+
 	return n
 }
 

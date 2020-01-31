@@ -469,6 +469,17 @@ func (t *Transport) useRegisteredProtocol(req *Request) bool {
 	return true
 }
 
+// alternateRoundTripper returns the alternate RoundTripper to use
+// for this request if the Request's URL scheme requires one,
+// or nil for the normal case of using the Transport.
+func (t *Transport) alternateRoundTripper(req *Request) RoundTripper {
+	if !t.useRegisteredProtocol(req) {
+		return nil
+	}
+	altProto, _ := t.altProto.Load().(map[string]RoundTripper)
+	return altProto[req.URL.Scheme]
+}
+
 // roundTrip implements a RoundTripper over HTTP.
 func (t *Transport) roundTrip(req *Request) (*Response, error) {
 	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
@@ -500,12 +511,9 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		}
 	}
 
-	if t.useRegisteredProtocol(req) {
-		altProto, _ := t.altProto.Load().(map[string]RoundTripper)
-		if altRT := altProto[scheme]; altRT != nil {
-			if resp, err := altRT.RoundTrip(req); err != ErrSkipAltProtocol {
-				return resp, err
-			}
+	if altRT := t.alternateRoundTripper(req); altRT != nil {
+		if resp, err := altRT.RoundTrip(req); err != ErrSkipAltProtocol {
+			return resp, err
 		}
 	}
 	if !isHTTP {
@@ -1559,22 +1567,54 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		if hdr == nil {
 			hdr = make(Header)
 		}
+		if pa := cm.proxyAuth(); pa != "" {
+			hdr = hdr.Clone()
+			hdr.Set("Proxy-Authorization", pa)
+		}
 		connectReq := &Request{
 			Method: "CONNECT",
 			URL:    &url.URL{Opaque: cm.targetAddr},
 			Host:   cm.targetAddr,
 			Header: hdr,
 		}
-		if pa := cm.proxyAuth(); pa != "" {
-			connectReq.Header.Set("Proxy-Authorization", pa)
-		}
-		connectReq.Write(conn)
 
-		// Read response.
-		// Okay to use and discard buffered reader here, because
-		// TLS server will not speak until spoken to.
-		br := bufio.NewReader(conn)
-		resp, err := ReadResponse(br, connectReq)
+		// If there's no done channel (no deadline or cancellation
+		// from the caller possible), at least set some (long)
+		// timeout here. This will make sure we don't block forever
+		// and leak a goroutine if the connection stops replying
+		// after the TCP connect.
+		connectCtx := ctx
+		if ctx.Done() == nil {
+			newCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+			defer cancel()
+			connectCtx = newCtx
+		}
+
+		didReadResponse := make(chan struct{}) // closed after CONNECT write+read is done or fails
+		var (
+			resp *Response
+			err  error // write or read error
+		)
+		// Write the CONNECT request & read the response.
+		go func() {
+			defer close(didReadResponse)
+			err = connectReq.Write(conn)
+			if err != nil {
+				return
+			}
+			// Okay to use and discard buffered reader here, because
+			// TLS server will not speak until spoken to.
+			br := bufio.NewReader(conn)
+			resp, err = ReadResponse(br, connectReq)
+		}()
+		select {
+		case <-connectCtx.Done():
+			conn.Close()
+			<-didReadResponse
+			return nil, connectCtx.Err()
+		case <-didReadResponse:
+			// resp or err now set
+		}
 		if err != nil {
 			conn.Close()
 			return nil, err

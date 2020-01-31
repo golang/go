@@ -291,7 +291,7 @@ func (b *Builder) Init() {
 	}
 
 	if err := CheckGOOSARCHPair(cfg.Goos, cfg.Goarch); err != nil {
-		fmt.Fprintf(os.Stderr, "cmd/go: %v", err)
+		fmt.Fprintf(os.Stderr, "cmd/go: %v\n", err)
 		base.SetExitStatus(2)
 		base.Exit()
 	}

@@ -460,6 +460,21 @@ func TestTRun(t *T) {
 			<-ch
 			t.Errorf("error")
 		},
+	}, {
+		// If a subtest panics we should run cleanups.
+		desc:   "cleanup when subtest panics",
+		ok:     false,
+		chatty: false,
+		output: `
+--- FAIL: cleanup when subtest panics (N.NNs)
+    --- FAIL: cleanup when subtest panics/sub (N.NNs)
+    sub_test.go:NNN: running cleanup`,
+		f: func(t *T) {
+			t.Cleanup(func() { t.Log("running cleanup") })
+			t.Run("sub", func(t2 *T) {
+				t2.FailNow()
+			})
+		},
 	}}
 	for _, tc := range testCases {
 		ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
@@ -853,5 +868,21 @@ func TestRunCleanup(t *T) {
 	}
 	if outerCleanup != 1 {
 		t.Errorf("unexpected outer cleanup count; got %d want 0", outerCleanup)
+	}
+}
+
+func TestCleanupParallelSubtests(t *T) {
+	ranCleanup := 0
+	t.Run("test", func(t *T) {
+		t.Cleanup(func() { ranCleanup++ })
+		t.Run("x", func(t *T) {
+			t.Parallel()
+			if ranCleanup > 0 {
+				t.Error("outer cleanup ran before parallel subtest")
+			}
+		})
+	})
+	if ranCleanup != 1 {
+		t.Errorf("unexpected cleanup count; got %d want 1", ranCleanup)
 	}
 }

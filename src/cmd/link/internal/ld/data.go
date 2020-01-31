@@ -1625,28 +1625,26 @@ func (ctxt *Link) dodata() {
 	}
 
 	if ctxt.UseRelro() {
-		addrelrosection = func(suffix string) *sym.Section {
-			seg := &Segrelrodata
-			if ctxt.LinkMode == LinkExternal && ctxt.HeadType != objabi.Haix {
-				// Using a separate segment with an external
-				// linker results in some programs moving
-				// their data sections unexpectedly, which
-				// corrupts the moduledata. So we use the
-				// rodata segment and let the external linker
-				// sort out a rel.ro segment.
-				seg = &Segrodata
-			}
-			return addsection(ctxt.Arch, seg, ".data.rel.ro"+suffix, 06)
-		}
-		/* data only written by relocations */
-		sect = addrelrosection("")
-
-		sect.Vaddr = 0
-		if ctxt.HeadType == objabi.Haix {
-			// datsize must be reset because relro datas will end up
-			// in data segment.
+		segrelro := &Segrelrodata
+		if ctxt.LinkMode == LinkExternal && ctxt.HeadType != objabi.Haix {
+			// Using a separate segment with an external
+			// linker results in some programs moving
+			// their data sections unexpectedly, which
+			// corrupts the moduledata. So we use the
+			// rodata segment and let the external linker
+			// sort out a rel.ro segment.
+			segrelro = segro
+		} else {
+			// Reset datsize for new segment.
 			datsize = 0
 		}
+
+		addrelrosection = func(suffix string) *sym.Section {
+			return addsection(ctxt.Arch, segrelro, ".data.rel.ro"+suffix, 06)
+		}
+
+		/* data only written by relocations */
+		sect = addrelrosection("")
 
 		ctxt.Syms.Lookup("runtime.types", 0).Sect = sect
 		ctxt.Syms.Lookup("runtime.etypes", 0).Sect = sect
@@ -1659,7 +1657,17 @@ func (ctxt *Link) dodata() {
 			}
 		}
 		datsize = Rnd(datsize, int64(sect.Align))
-		for _, symnro := range sym.ReadOnly {
+		sect.Vaddr = uint64(datsize)
+
+		for i, symnro := range sym.ReadOnly {
+			if i == 0 && symnro == sym.STYPE && ctxt.HeadType != objabi.Haix {
+				// Skip forward so that no type
+				// reference uses a zero offset.
+				// This is unlikely but possible in small
+				// programs with no other read-only data.
+				datsize++
+			}
+
 			symn := sym.RelROMap[symnro]
 			symnStartValue := datsize
 			for _, s := range data[symn] {

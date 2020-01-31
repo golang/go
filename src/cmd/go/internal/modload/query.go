@@ -79,7 +79,7 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
 	if current != "" && !semver.IsValid(current) {
 		return nil, fmt.Errorf("invalid previous version %q", current)
 	}
-	if cfg.BuildMod != "" && cfg.BuildMod != "mod" {
+	if cfg.BuildMod == "vendor" {
 		return nil, errQueryDisabled
 	}
 	if allowed == nil {

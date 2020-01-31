@@ -19,8 +19,8 @@ type InternalExample struct {
 	Unordered bool
 }
 
-// An internal function but exported because it is cross-package; part of the implementation
-// of the "go test" command.
+// RunExamples is an internal function but exported because it is cross-package;
+// it is part of the implementation of the "go test" command.
 func RunExamples(matchString func(pat, str string) (bool, error), examples []InternalExample) (ok bool) {
 	_, ok = runExamples(matchString, examples)
 	return ok

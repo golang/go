@@ -813,7 +813,7 @@
 (MFVSRD x:(FMOVDload [off] {sym} ptr mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVDload [off] {sym} ptr mem)
 
 // Fold offsets for stores.
-(MOVDstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(off1+off2) -> (MOVDstore [off1+off2] {sym} x val mem)
+(MOVDstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(off1+off2) && (off1+off2)%4 == 0 -> (MOVDstore [off1+off2] {sym} x val mem)
 (MOVWstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(off1+off2) -> (MOVWstore [off1+off2] {sym} x val mem)
 (MOVHstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(off1+off2) -> (MOVHstore [off1+off2] {sym} x val mem)
 (MOVBstore [off1] {sym} (ADDconst [off2] x) val mem) && is16Bit(off1+off2) -> (MOVBstore [off1+off2] {sym} x val mem)
@@ -836,7 +836,7 @@
 	&& (ptr.Op != OpSB || p.Uses == 1) ->
         (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 (MOVDstore [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2)
-	&& (ptr.Op != OpSB || p.Uses == 1) ->
+	&& (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0 ->
         (MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 
 (FMOVSstore [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2)
@@ -856,13 +856,13 @@
 	&& (ptr.Op != OpSB || p.Uses == 1) ->
         (MOVHZload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVWload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
-	&& (ptr.Op != OpSB || p.Uses == 1) ->
+	&& (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0 ->
         (MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVWZload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
 	&& (ptr.Op != OpSB || p.Uses == 1) ->
         (MOVWZload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (MOVDload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
-	&& (ptr.Op != OpSB || p.Uses == 1) ->
+	&& (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0 ->
         (MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 (FMOVSload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2)
 	&& (ptr.Op != OpSB || p.Uses == 1) ->
@@ -875,8 +875,8 @@
 (FMOVSload [off1] {sym} (ADDconst [off2] ptr) mem) && is16Bit(off1+off2) -> (FMOVSload [off1+off2] {sym} ptr mem)
 (FMOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && is16Bit(off1+off2) -> (FMOVDload [off1+off2] {sym} ptr mem)
 
-(MOVDload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) -> (MOVDload [off1+off2] {sym} x mem)
-(MOVWload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) -> (MOVWload [off1+off2] {sym} x mem)
+(MOVDload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) && (off1+off2)%4 == 0 -> (MOVDload [off1+off2] {sym} x mem)
+(MOVWload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) && (off1+off2)%4 == 0 -> (MOVWload [off1+off2] {sym} x mem)
 (MOVWZload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) -> (MOVWZload [off1+off2] {sym} x mem)
 (MOVHload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) -> (MOVHload [off1+off2] {sym} x mem)
 (MOVHZload [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) -> (MOVHZload [off1+off2] {sym} x mem)
@@ -886,9 +886,10 @@
 (MOV(D|W|WZ|H|HZ|BZ)load [0] {sym} p:(ADD ptr idx) mem) && sym == nil && p.Uses == 1 -> (MOV(D|W|WZ|H|HZ|BZ)loadidx ptr idx mem)
 
 // Determine indexed loads with constant values that can be done without index
-(MOV(D|W|WZ|H|HZ|BZ)loadidx ptr (MOVDconst [c]) mem) && is16Bit(c) -> (MOV(D|W|WZ|H|HZ|BZ)load [c] ptr mem)
-(MOV(D|W|WZ|H|HZ|BZ)loadidx (MOVDconst [c]) ptr mem) && is16Bit(c) -> (MOV(D|W|WZ|H|HZ|BZ)load [c] ptr mem)
-
+(MOV(D|W)loadidx ptr (MOVDconst [c]) mem) && is16Bit(c) && c%4 == 0 -> (MOV(D|W)load [c] ptr mem)
+(MOV(WZ|H|HZ|BZ)loadidx ptr (MOVDconst [c]) mem) && is16Bit(c) -> (MOV(WZ|H|HZ|BZ)load [c] ptr mem)
+(MOV(D|W)loadidx (MOVDconst [c]) ptr mem) && is16Bit(c) && c%4 == 0 -> (MOV(D|W)load [c] ptr mem)
+(MOV(WZ|H|HZ|BZ)loadidx (MOVDconst [c]) ptr mem) && is16Bit(c) -> (MOV(WZ|H|HZ|BZ)load [c] ptr mem)
 
 // Store of zero -> storezero
 (MOVDstore [off] {sym} ptr (MOVDconst [0]) mem) -> (MOVDstorezero [off] {sym} ptr mem)
@@ -897,7 +898,7 @@
 (MOVBstore [off] {sym} ptr (MOVDconst [0]) mem) -> (MOVBstorezero [off] {sym} ptr mem)
 
 // Fold offsets for storezero
-(MOVDstorezero [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) ->
+(MOVDstorezero [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) && (off1+off2)%4 == 0 ->
     (MOVDstorezero [off1+off2] {sym} x mem)
 (MOVWstorezero [off1] {sym} (ADDconst [off2] x) mem) && is16Bit(off1+off2) ->
     (MOVWstorezero [off1+off2] {sym} x mem)
@@ -910,12 +911,14 @@
 (MOV(D|W|H|B)store [off] {sym} p:(ADD ptr idx) val mem) && off == 0 && sym == nil && p.Uses == 1 -> (MOV(D|W|H|B)storeidx ptr idx val mem)
 
 // Stores with constant index values can be done without indexed instructions
-(MOV(D|W|H|B)storeidx ptr (MOVDconst [c]) val mem) && is16Bit(c) -> (MOV(D|W|H|B)store [c] ptr val mem)
-(MOV(D|W|H|B)storeidx (MOVDconst [c]) ptr val mem) && is16Bit(c) -> (MOV(D|W|H|B)store [c] ptr val mem)
+(MOVDstoreidx ptr (MOVDconst [c]) val mem) && is16Bit(c) && c%4 == 0 -> (MOVDstore [c] ptr val mem)
+(MOV(W|H|B)storeidx ptr (MOVDconst [c]) val mem) && is16Bit(c) -> (MOV(W|H|B)store [c] ptr val mem)
+(MOVDstoreidx (MOVDconst [c]) ptr val mem) && is16Bit(c) && c%4 == 0 -> (MOVDstore [c] ptr val mem)
+(MOV(W|H|B)storeidx (MOVDconst [c]) ptr val mem) && is16Bit(c) -> (MOV(W|H|B)store [c] ptr val mem)
 
 // Fold symbols into storezero
 (MOVDstorezero [off1] {sym1} p:(MOVDaddr [off2] {sym2} x) mem) && canMergeSym(sym1,sym2)
-	&& (x.Op != OpSB || p.Uses == 1) ->
+	&& (x.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0 ->
     (MOVDstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
 (MOVWstorezero [off1] {sym1} p:(MOVDaddr [off2] {sym2} x) mem) && canMergeSym(sym1,sym2)
 	&& (x.Op != OpSB || p.Uses == 1) ->

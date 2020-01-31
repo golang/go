@@ -22,6 +22,8 @@ var goodCompilerFlags = [][]string{
 	{"-Osmall"},
 	{"-W"},
 	{"-Wall"},
+	{"-Wp,-Dfoo=bar"},
+	{"-Wp,-Ufoo"},
 	{"-fobjc-arc"},
 	{"-fno-objc-arc"},
 	{"-fomit-frame-pointer"},

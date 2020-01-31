@@ -9480,7 +9480,7 @@ func rewriteValuePPC64_OpPPC64MOVDload_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVDload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem)
-	// cond: canMergeSym(sym1,sym2) && (ptr.Op != OpSB || p.Uses == 1)
+	// cond: canMergeSym(sym1,sym2) && (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0
 	// result: (MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -9493,7 +9493,7 @@ func rewriteValuePPC64_OpPPC64MOVDload_0(v *Value) bool {
 		off2 := p.AuxInt
 		sym2 := p.Aux
 		ptr := p.Args[0]
-		if !(canMergeSym(sym1, sym2) && (ptr.Op != OpSB || p.Uses == 1)) {
+		if !(canMergeSym(sym1, sym2) && (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0) {
 			break
 		}
 		v.reset(OpPPC64MOVDload)
@@ -9504,7 +9504,7 @@ func rewriteValuePPC64_OpPPC64MOVDload_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVDload [off1] {sym} (ADDconst [off2] x) mem)
-	// cond: is16Bit(off1+off2)
+	// cond: is16Bit(off1+off2) && (off1+off2)%4 == 0
 	// result: (MOVDload [off1+off2] {sym} x mem)
 	for {
 		off1 := v.AuxInt
@@ -9516,7 +9516,7 @@ func rewriteValuePPC64_OpPPC64MOVDload_0(v *Value) bool {
 		}
 		off2 := v_0.AuxInt
 		x := v_0.Args[0]
-		if !(is16Bit(off1 + off2)) {
+		if !(is16Bit(off1+off2) && (off1+off2)%4 == 0) {
 			break
 		}
 		v.reset(OpPPC64MOVDload)
@@ -9554,7 +9554,7 @@ func rewriteValuePPC64_OpPPC64MOVDload_0(v *Value) bool {
 }
 func rewriteValuePPC64_OpPPC64MOVDloadidx_0(v *Value) bool {
 	// match: (MOVDloadidx ptr (MOVDconst [c]) mem)
-	// cond: is16Bit(c)
+	// cond: is16Bit(c) && c%4 == 0
 	// result: (MOVDload [c] ptr mem)
 	for {
 		mem := v.Args[2]
@@ -9564,7 +9564,7 @@ func rewriteValuePPC64_OpPPC64MOVDloadidx_0(v *Value) bool {
 			break
 		}
 		c := v_1.AuxInt
-		if !(is16Bit(c)) {
+		if !(is16Bit(c) && c%4 == 0) {
 			break
 		}
 		v.reset(OpPPC64MOVDload)
@@ -9574,7 +9574,7 @@ func rewriteValuePPC64_OpPPC64MOVDloadidx_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVDloadidx (MOVDconst [c]) ptr mem)
-	// cond: is16Bit(c)
+	// cond: is16Bit(c) && c%4 == 0
 	// result: (MOVDload [c] ptr mem)
 	for {
 		mem := v.Args[2]
@@ -9584,7 +9584,7 @@ func rewriteValuePPC64_OpPPC64MOVDloadidx_0(v *Value) bool {
 		}
 		c := v_0.AuxInt
 		ptr := v.Args[1]
-		if !(is16Bit(c)) {
+		if !(is16Bit(c) && c%4 == 0) {
 			break
 		}
 		v.reset(OpPPC64MOVDload)
@@ -9617,7 +9617,7 @@ func rewriteValuePPC64_OpPPC64MOVDstore_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVDstore [off1] {sym} (ADDconst [off2] x) val mem)
-	// cond: is16Bit(off1+off2)
+	// cond: is16Bit(off1+off2) && (off1+off2)%4 == 0
 	// result: (MOVDstore [off1+off2] {sym} x val mem)
 	for {
 		off1 := v.AuxInt
@@ -9630,7 +9630,7 @@ func rewriteValuePPC64_OpPPC64MOVDstore_0(v *Value) bool {
 		off2 := v_0.AuxInt
 		x := v_0.Args[0]
 		val := v.Args[1]
-		if !(is16Bit(off1 + off2)) {
+		if !(is16Bit(off1+off2) && (off1+off2)%4 == 0) {
 			break
 		}
 		v.reset(OpPPC64MOVDstore)
@@ -9642,7 +9642,7 @@ func rewriteValuePPC64_OpPPC64MOVDstore_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVDstore [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) val mem)
-	// cond: canMergeSym(sym1,sym2) && (ptr.Op != OpSB || p.Uses == 1)
+	// cond: canMergeSym(sym1,sym2) && (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0
 	// result: (MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
 	for {
 		off1 := v.AuxInt
@@ -9656,7 +9656,7 @@ func rewriteValuePPC64_OpPPC64MOVDstore_0(v *Value) bool {
 		sym2 := p.Aux
 		ptr := p.Args[0]
 		val := v.Args[1]
-		if !(canMergeSym(sym1, sym2) && (ptr.Op != OpSB || p.Uses == 1)) {
+		if !(canMergeSym(sym1, sym2) && (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0) {
 			break
 		}
 		v.reset(OpPPC64MOVDstore)
@@ -9713,7 +9713,7 @@ func rewriteValuePPC64_OpPPC64MOVDstore_0(v *Value) bool {
 }
 func rewriteValuePPC64_OpPPC64MOVDstoreidx_0(v *Value) bool {
 	// match: (MOVDstoreidx ptr (MOVDconst [c]) val mem)
-	// cond: is16Bit(c)
+	// cond: is16Bit(c) && c%4 == 0
 	// result: (MOVDstore [c] ptr val mem)
 	for {
 		mem := v.Args[3]
@@ -9724,7 +9724,7 @@ func rewriteValuePPC64_OpPPC64MOVDstoreidx_0(v *Value) bool {
 		}
 		c := v_1.AuxInt
 		val := v.Args[2]
-		if !(is16Bit(c)) {
+		if !(is16Bit(c) && c%4 == 0) {
 			break
 		}
 		v.reset(OpPPC64MOVDstore)
@@ -9735,7 +9735,7 @@ func rewriteValuePPC64_OpPPC64MOVDstoreidx_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVDstoreidx (MOVDconst [c]) ptr val mem)
-	// cond: is16Bit(c)
+	// cond: is16Bit(c) && c%4 == 0
 	// result: (MOVDstore [c] ptr val mem)
 	for {
 		mem := v.Args[3]
@@ -9746,7 +9746,7 @@ func rewriteValuePPC64_OpPPC64MOVDstoreidx_0(v *Value) bool {
 		c := v_0.AuxInt
 		ptr := v.Args[1]
 		val := v.Args[2]
-		if !(is16Bit(c)) {
+		if !(is16Bit(c) && c%4 == 0) {
 			break
 		}
 		v.reset(OpPPC64MOVDstore)
@@ -9760,7 +9760,7 @@ func rewriteValuePPC64_OpPPC64MOVDstoreidx_0(v *Value) bool {
 }
 func rewriteValuePPC64_OpPPC64MOVDstorezero_0(v *Value) bool {
 	// match: (MOVDstorezero [off1] {sym} (ADDconst [off2] x) mem)
-	// cond: is16Bit(off1+off2)
+	// cond: is16Bit(off1+off2) && (off1+off2)%4 == 0
 	// result: (MOVDstorezero [off1+off2] {sym} x mem)
 	for {
 		off1 := v.AuxInt
@@ -9772,7 +9772,7 @@ func rewriteValuePPC64_OpPPC64MOVDstorezero_0(v *Value) bool {
 		}
 		off2 := v_0.AuxInt
 		x := v_0.Args[0]
-		if !(is16Bit(off1 + off2)) {
+		if !(is16Bit(off1+off2) && (off1+off2)%4 == 0) {
 			break
 		}
 		v.reset(OpPPC64MOVDstorezero)
@@ -9783,7 +9783,7 @@ func rewriteValuePPC64_OpPPC64MOVDstorezero_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVDstorezero [off1] {sym1} p:(MOVDaddr [off2] {sym2} x) mem)
-	// cond: canMergeSym(sym1,sym2) && (x.Op != OpSB || p.Uses == 1)
+	// cond: canMergeSym(sym1,sym2) && (x.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0
 	// result: (MOVDstorezero [off1+off2] {mergeSym(sym1,sym2)} x mem)
 	for {
 		off1 := v.AuxInt
@@ -9796,7 +9796,7 @@ func rewriteValuePPC64_OpPPC64MOVDstorezero_0(v *Value) bool {
 		off2 := p.AuxInt
 		sym2 := p.Aux
 		x := p.Args[0]
-		if !(canMergeSym(sym1, sym2) && (x.Op != OpSB || p.Uses == 1)) {
+		if !(canMergeSym(sym1, sym2) && (x.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0) {
 			break
 		}
 		v.reset(OpPPC64MOVDstorezero)
@@ -11548,7 +11548,7 @@ func rewriteValuePPC64_OpPPC64MOVWZreg_20(v *Value) bool {
 }
 func rewriteValuePPC64_OpPPC64MOVWload_0(v *Value) bool {
 	// match: (MOVWload [off1] {sym1} p:(MOVDaddr [off2] {sym2} ptr) mem)
-	// cond: canMergeSym(sym1,sym2) && (ptr.Op != OpSB || p.Uses == 1)
+	// cond: canMergeSym(sym1,sym2) && (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0
 	// result: (MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 	for {
 		off1 := v.AuxInt
@@ -11561,7 +11561,7 @@ func rewriteValuePPC64_OpPPC64MOVWload_0(v *Value) bool {
 		off2 := p.AuxInt
 		sym2 := p.Aux
 		ptr := p.Args[0]
-		if !(canMergeSym(sym1, sym2) && (ptr.Op != OpSB || p.Uses == 1)) {
+		if !(canMergeSym(sym1, sym2) && (ptr.Op != OpSB || p.Uses == 1) && (off1+off2)%4 == 0) {
 			break
 		}
 		v.reset(OpPPC64MOVWload)
@@ -11572,7 +11572,7 @@ func rewriteValuePPC64_OpPPC64MOVWload_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVWload [off1] {sym} (ADDconst [off2] x) mem)
-	// cond: is16Bit(off1+off2)
+	// cond: is16Bit(off1+off2) && (off1+off2)%4 == 0
 	// result: (MOVWload [off1+off2] {sym} x mem)
 	for {
 		off1 := v.AuxInt
@@ -11584,7 +11584,7 @@ func rewriteValuePPC64_OpPPC64MOVWload_0(v *Value) bool {
 		}
 		off2 := v_0.AuxInt
 		x := v_0.Args[0]
-		if !(is16Bit(off1 + off2)) {
+		if !(is16Bit(off1+off2) && (off1+off2)%4 == 0) {
 			break
 		}
 		v.reset(OpPPC64MOVWload)
@@ -11622,7 +11622,7 @@ func rewriteValuePPC64_OpPPC64MOVWload_0(v *Value) bool {
 }
 func rewriteValuePPC64_OpPPC64MOVWloadidx_0(v *Value) bool {
 	// match: (MOVWloadidx ptr (MOVDconst [c]) mem)
-	// cond: is16Bit(c)
+	// cond: is16Bit(c) && c%4 == 0
 	// result: (MOVWload [c] ptr mem)
 	for {
 		mem := v.Args[2]
@@ -11632,7 +11632,7 @@ func rewriteValuePPC64_OpPPC64MOVWloadidx_0(v *Value) bool {
 			break
 		}
 		c := v_1.AuxInt
-		if !(is16Bit(c)) {
+		if !(is16Bit(c) && c%4 == 0) {
 			break
 		}
 		v.reset(OpPPC64MOVWload)
@@ -11642,7 +11642,7 @@ func rewriteValuePPC64_OpPPC64MOVWloadidx_0(v *Value) bool {
 		return true
 	}
 	// match: (MOVWloadidx (MOVDconst [c]) ptr mem)
-	// cond: is16Bit(c)
+	// cond: is16Bit(c) && c%4 == 0
 	// result: (MOVWload [c] ptr mem)
 	for {
 		mem := v.Args[2]
@@ -11652,7 +11652,7 @@ func rewriteValuePPC64_OpPPC64MOVWloadidx_0(v *Value) bool {
 		}
 		c := v_0.AuxInt
 		ptr := v.Args[1]
-		if !(is16Bit(c)) {
+		if !(is16Bit(c) && c%4 == 0) {
 			break
 		}
 		v.reset(OpPPC64MOVWload)

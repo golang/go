@@ -83,6 +83,7 @@ var arches = map[string]func(){
 	"mips64x": func() { genMIPS(true) },
 	"mipsx":   func() { genMIPS(false) },
 	"ppc64x":  genPPC64,
+	"riscv64": genRISCV64,
 	"s390x":   genS390X,
 	"wasm":    genWasm,
 }
@@ -476,6 +477,11 @@ func genPPC64() {
 	p("MOVD 32(R1), R31")        // restore R31
 	p("ADD $%d, R1", l.stack+32) // pop frame (including the space pushed by sigctxt.pushCall)
 	p("JMP (CTR)")
+}
+
+func genRISCV64() {
+	p("// No async preemption on riscv64 - see issue 36711")
+	p("UNDEF")
 }
 
 func genS390X() {

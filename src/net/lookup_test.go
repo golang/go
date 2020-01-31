@@ -998,11 +998,15 @@ func TestConcurrentPreferGoResolversDial(t *testing.T) {
 			defer wg.Done()
 			_, err := r.LookupIPAddr(context.Background(), "google.com")
 			if err != nil {
-				t.Fatalf("lookup failed for resolver %d: %q", index, err)
+				t.Errorf("lookup failed for resolver %d: %q", index, err)
 			}
 		}(resolver.Resolver, i)
 	}
 	wg.Wait()
+
+	if t.Failed() {
+		t.FailNow()
+	}
 
 	for i, resolver := range resolvers {
 		if !resolver.dialed {

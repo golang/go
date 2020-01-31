@@ -613,6 +613,11 @@ type p struct {
 
 	_ uint32 // Alignment for atomic fields below
 
+	// The when field of the first entry on the timer heap.
+	// This is updated using atomic functions.
+	// This is 0 if the timer heap is empty.
+	timer0When uint64
+
 	// Per-P GC state
 	gcAssistTime         int64    // Nanoseconds in assistAlloc
 	gcFractionalMarkTime int64    // Nanoseconds in fractional mark worker (atomic)
@@ -644,11 +649,19 @@ type p struct {
 	// Must hold timersLock to access.
 	timers []*timer
 
+	// Number of timers in P's heap.
+	// Modified using atomic instructions.
+	numTimers uint32
+
 	// Number of timerModifiedEarlier timers on P's heap.
 	// This should only be modified while holding timersLock,
 	// or while the timer status is in a transient state
 	// such as timerModifying.
 	adjustTimers uint32
+
+	// Number of timerDeleted timers in P's heap.
+	// Modified using atomic instructions.
+	deletedTimers uint32
 
 	// Race context used while executing timer functions.
 	timerRaceCtx uintptr

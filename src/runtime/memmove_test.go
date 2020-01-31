@@ -11,7 +11,9 @@ import (
 	"internal/race"
 	"internal/testenv"
 	. "runtime"
+	"sync/atomic"
 	"testing"
+	"unsafe"
 )
 
 func TestMemmove(t *testing.T) {
@@ -204,6 +206,71 @@ func cmpb(a, b []byte) int {
 		return -1
 	}
 	return l
+}
+
+// Ensure that memmove writes pointers atomically, so the GC won't
+// observe a partially updated pointer.
+func TestMemmoveAtomicity(t *testing.T) {
+	if race.Enabled {
+		t.Skip("skip under the race detector -- this test is intentionally racy")
+	}
+
+	var x int
+
+	for _, backward := range []bool{true, false} {
+		for _, n := range []int{3, 4, 5, 6, 7, 8, 9, 10, 15, 25, 49} {
+			n := n
+
+			// test copying [N]*int.
+			sz := uintptr(n * PtrSize)
+			name := fmt.Sprint(sz)
+			if backward {
+				name += "-backward"
+			} else {
+				name += "-forward"
+			}
+			t.Run(name, func(t *testing.T) {
+				// Use overlapping src and dst to force forward/backward copy.
+				var s [100]*int
+				src := s[n-1 : 2*n-1]
+				dst := s[:n]
+				if backward {
+					src, dst = dst, src
+				}
+				for i := range src {
+					src[i] = &x
+				}
+				for i := range dst {
+					dst[i] = nil
+				}
+
+				var ready uint32
+				go func() {
+					sp := unsafe.Pointer(&src[0])
+					dp := unsafe.Pointer(&dst[0])
+					atomic.StoreUint32(&ready, 1)
+					for i := 0; i < 10000; i++ {
+						Memmove(dp, sp, sz)
+						MemclrNoHeapPointers(dp, sz)
+					}
+					atomic.StoreUint32(&ready, 2)
+				}()
+
+				for atomic.LoadUint32(&ready) == 0 {
+					Gosched()
+				}
+
+				for atomic.LoadUint32(&ready) != 2 {
+					for i := range dst {
+						p := dst[i]
+						if p != nil && p != &x {
+							t.Fatalf("got partially updated pointer %p at dst[%d], want either nil or %p", p, i, &x)
+						}
+					}
+				}
+			})
+		}
+	}
 }
 
 func benchmarkSizes(b *testing.B, sizes []int, fn func(b *testing.B, n int)) {

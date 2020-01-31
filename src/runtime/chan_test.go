@@ -719,6 +719,7 @@ func TestSelectStackAdjust(t *testing.T) {
 		if after.NumGC-before.NumGC >= 2 {
 			goto done
 		}
+		runtime.Gosched()
 	}
 	t.Fatal("failed to trigger concurrent GC")
 done:
@@ -1124,20 +1125,6 @@ func BenchmarkChanPopular(b *testing.B) {
 		}
 	}
 	wg.Wait()
-}
-
-func BenchmarkChanClosed(b *testing.B) {
-	c := make(chan struct{})
-	close(c)
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			select {
-			case <-c:
-			default:
-				b.Error("Unreachable")
-			}
-		}
-	})
 }
 
 var (

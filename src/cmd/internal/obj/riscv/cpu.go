@@ -141,6 +141,7 @@ const (
 	// Go runtime register names.
 	REG_G    = REG_TP // G pointer.
 	REG_CTXT = REG_S4 // Context for closures.
+	REG_LR   = REG_RA // Link register.
 	REG_TMP  = REG_T6 // Reserved for assembler use.
 
 	// ABI names for floating point registers.
@@ -181,6 +182,77 @@ const (
 	REGSP = REG_SP
 	REGG  = REG_G
 )
+
+// https://github.com/riscv/riscv-elf-psabi-doc/blob/master/riscv-elf.md#dwarf-register-numbers
+var RISCV64DWARFRegisters = map[int16]int16{
+	// Integer Registers.
+	REG_X0:  0,
+	REG_X1:  1,
+	REG_X2:  2,
+	REG_X3:  3,
+	REG_X4:  4,
+	REG_X5:  5,
+	REG_X6:  6,
+	REG_X7:  7,
+	REG_X8:  8,
+	REG_X9:  9,
+	REG_X10: 10,
+	REG_X11: 11,
+	REG_X12: 12,
+	REG_X13: 13,
+	REG_X14: 14,
+	REG_X15: 15,
+	REG_X16: 16,
+	REG_X17: 17,
+	REG_X18: 18,
+	REG_X19: 19,
+	REG_X20: 20,
+	REG_X21: 21,
+	REG_X22: 22,
+	REG_X23: 23,
+	REG_X24: 24,
+	REG_X25: 25,
+	REG_X26: 26,
+	REG_X27: 27,
+	REG_X28: 28,
+	REG_X29: 29,
+	REG_X30: 30,
+	REG_X31: 31,
+
+	// Floating-Point Registers.
+	REG_F0:  32,
+	REG_F1:  33,
+	REG_F2:  34,
+	REG_F3:  35,
+	REG_F4:  36,
+	REG_F5:  37,
+	REG_F6:  38,
+	REG_F7:  39,
+	REG_F8:  40,
+	REG_F9:  41,
+	REG_F10: 42,
+	REG_F11: 43,
+	REG_F12: 44,
+	REG_F13: 45,
+	REG_F14: 46,
+	REG_F15: 47,
+	REG_F16: 48,
+	REG_F17: 49,
+	REG_F18: 50,
+	REG_F19: 51,
+	REG_F20: 52,
+	REG_F21: 53,
+	REG_F22: 54,
+	REG_F23: 55,
+	REG_F24: 56,
+	REG_F25: 57,
+	REG_F26: 58,
+	REG_F27: 59,
+	REG_F28: 60,
+	REG_F29: 61,
+	REG_F30: 62,
+	REG_F31: 63,
+}
 
 // Prog.Mark flags.
 const (

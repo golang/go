@@ -20,7 +20,6 @@ import (
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/par"
 	"cmd/go/internal/search"
-	"cmd/go/internal/str"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
@@ -40,7 +39,7 @@ var _ load.ImportPathError = (*ImportMissingError)(nil)
 
 func (e *ImportMissingError) Error() string {
 	if e.Module.Path == "" {
-		if str.HasPathPrefix(e.Path, "cmd") {
+		if search.IsStandardImportPath(e.Path) {
 			return fmt.Sprintf("package %s is not in GOROOT (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
 		}
 		if e.QueryErr != nil {
@@ -118,8 +117,8 @@ func Import(path string) (m module.Version, dir string, err error) {
 	}
 
 	// Is the package in the standard library?
-	if search.IsStandardImportPath(path) &&
-		goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
+	pathIsStd := search.IsStandardImportPath(path)
+	if pathIsStd && goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
 		if targetInGorootSrc {
 			if dir, ok := dirInModule(path, targetPrefix, ModRoot(), true); ok {
 				return Target, dir, nil
@@ -127,9 +126,6 @@ func Import(path string) (m module.Version, dir string, err error) {
 		}
 		dir := filepath.Join(cfg.GOROOT, "src", path)
 		return module.Version{}, dir, nil
-	}
-	if str.HasPathPrefix(path, "cmd") {
-		return module.Version{}, "", &ImportMissingError{Path: path}
 	}
 
 	// -mod=vendor is special.
@@ -184,7 +180,14 @@ func Import(path string) (m module.Version, dir string, err error) {
 	// Look up module containing the package, for addition to the build list.
 	// Goal is to determine the module, download it to dir, and return m, dir, ErrMissing.
 	if cfg.BuildMod == "readonly" {
-		return module.Version{}, "", fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
+		var queryErr error
+		if !pathIsStd {
+			if cfg.BuildModReason == "" {
+				queryErr = fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
+			}
+			queryErr = fmt.Errorf("import lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
+		}
+		return module.Version{}, "", &ImportMissingError{Path: path, QueryErr: queryErr}
 	}
 	if modRoot == "" && !allowMissingModuleImports {
 		return module.Version{}, "", &ImportMissingError{
@@ -200,7 +203,12 @@ func Import(path string) (m module.Version, dir string, err error) {
 		latest := map[string]string{} // path -> version
 		for _, r := range modFile.Replace {
 			if maybeInModule(path, r.Old.Path) {
-				latest[r.Old.Path] = semver.Max(r.Old.Version, latest[r.Old.Path])
+				// Don't use semver.Max here; need to preserve +incompatible suffix.
+				v := latest[r.Old.Path]
+				if semver.Compare(r.Old.Version, v) > 0 {
+					v = r.Old.Version
+				}
+				latest[r.Old.Path] = v
 			}
 		}
 
@@ -249,6 +257,19 @@ func Import(path string) (m module.Version, dir string, err error) {
 			}
 		}
 	}
+
+	if pathIsStd {
+		// This package isn't in the standard library, isn't in any module already
+		// in the build list, and isn't in any other module that the user has
+		// shimmed in via a "replace" directive.
+		// Moreover, the import path is reserved for the standard library, so
+		// QueryPackage cannot possibly find a module containing this package.
+		//
+		// Instead of trying QueryPackage, report an ImportMissingError immediately.
+		return module.Version{}, "", &ImportMissingError{Path: path}
+	}
+
+	fmt.Fprintf(os.Stderr, "go: finding module for package %s\n", path)
 
 	candidates, err := QueryPackage(path, "latest", Allowed)
 	if err != nil {

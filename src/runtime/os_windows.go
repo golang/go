@@ -151,6 +151,29 @@ type mOS struct {
 
 	waitsema   uintptr // semaphore for parking on locks
 	resumesema uintptr // semaphore to indicate suspend/resume
+
+	// preemptExtLock synchronizes preemptM with entry/exit from
+	// external C code.
+	//
+	// This protects against races between preemptM calling
+	// SuspendThread and external code on this thread calling
+	// ExitProcess. If these happen concurrently, it's possible to
+	// exit the suspending thread and suspend the exiting thread,
+	// leading to deadlock.
+	//
+	// 0 indicates this M is not being preempted or in external
+	// code. Entering external code CASes this from 0 to 1. If
+	// this fails, a preemption is in progress, so the thread must
+	// wait for the preemption. preemptM also CASes this from 0 to
+	// 1. If this fails, the preemption fails (as it would if the
+	// PC weren't in Go code). The value is reset to 0 when
+	// returning from external code or after a preemption is
+	// complete.
+	//
+	// TODO(austin): We may not need this if preemption were more
+	// tightly synchronized on the G/P status and preemption
+	// blocked transition into _Gsyscall/_Psyscall.
+	preemptExtLock uint32
 }
 
 //go:linkname os_sigpipe os.sigpipe
@@ -270,7 +293,11 @@ func loadOptionalSyscalls() {
 }
 
 func monitorSuspendResume() {
-	const _DEVICE_NOTIFY_CALLBACK = 2
+	const (
+		_DEVICE_NOTIFY_CALLBACK   = 2
+		_ERROR_FILE_NOT_FOUND     = 2
+		_ERROR_INVALID_PARAMETERS = 87
+	)
 	type _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS struct {
 		callback uintptr
 		context  uintptr
@@ -296,10 +323,24 @@ func monitorSuspendResume() {
 		callback: compileCallback(*efaceOf(&fn), true),
 	}
 	handle := uintptr(0)
-	if stdcall3(powerRegisterSuspendResumeNotification, _DEVICE_NOTIFY_CALLBACK,
-		uintptr(unsafe.Pointer(&params)),
-		uintptr(unsafe.Pointer(&handle))) != 0 {
-		throw("PowerRegisterSuspendResumeNotification failure")
+	ret := stdcall3(powerRegisterSuspendResumeNotification, _DEVICE_NOTIFY_CALLBACK,
+		uintptr(unsafe.Pointer(&params)), uintptr(unsafe.Pointer(&handle)))
+	// This function doesn't use GetLastError(), so we use the return value directly.
+	switch ret {
+	case 0:
+		return // Successful, nothing more to do.
+	case _ERROR_FILE_NOT_FOUND:
+		// Systems without access to the suspend/resume notifier
+		// also have their clock on "program time", and therefore
+		// don't want or need this anyway.
+		return
+	case _ERROR_INVALID_PARAMETERS:
+		// This is seen when running in Windows Docker.
+		// See issue 36557.
+		return
+	default:
+		println("runtime: PowerRegisterSuspendResumeNotification failed with errno=", ret)
+		throw("runtime: PowerRegisterSuspendResumeNotification failure")
 	}
 }
 
@@ -1108,11 +1149,20 @@ func preemptM(mp *m) {
 		throw("self-preempt")
 	}
 
+	// Synchronize with external code that may try to ExitProcess.
+	if !atomic.Cas(&mp.preemptExtLock, 0, 1) {
+		// External code is running. Fail the preemption
+		// attempt.
+		atomic.Xadd(&mp.preemptGen, 1)
+		return
+	}
+
 	// Acquire our own handle to mp's thread.
 	lock(&mp.threadLock)
 	if mp.thread == 0 {
 		// The M hasn't been minit'd yet (or was just unminit'd).
 		unlock(&mp.threadLock)
+		atomic.Store(&mp.preemptExtLock, 0)
 		atomic.Xadd(&mp.preemptGen, 1)
 		return
 	}
@@ -1138,6 +1188,7 @@ func preemptM(mp *m) {
 	if int32(stdcall1(_SuspendThread, thread)) == -1 {
 		unlock(&suspendLock)
 		stdcall1(_CloseHandle, thread)
+		atomic.Store(&mp.preemptExtLock, 0)
 		// The thread no longer exists. This shouldn't be
 		// possible, but just acknowledge the request.
 		atomic.Xadd(&mp.preemptGen, 1)
@@ -1178,9 +1229,43 @@ func preemptM(mp *m) {
 		stdcall2(_SetThreadContext, thread, uintptr(unsafe.Pointer(c)))
 	}
 
+	atomic.Store(&mp.preemptExtLock, 0)
+
 	// Acknowledge the preemption.
 	atomic.Xadd(&mp.preemptGen, 1)
 
 	stdcall1(_ResumeThread, thread)
 	stdcall1(_CloseHandle, thread)
+}
+
+// osPreemptExtEnter is called before entering external code that may
+// call ExitProcess.
+//
+// This must be nosplit because it may be called from a syscall with
+// untyped stack slots, so the stack must not be grown or scanned.
+//
+//go:nosplit
+func osPreemptExtEnter(mp *m) {
+	for !atomic.Cas(&mp.preemptExtLock, 0, 1) {
+		// An asynchronous preemption is in progress. It's not
+		// safe to enter external code because it may call
+		// ExitProcess and deadlock with SuspendThread.
+		// Ideally we would do the preemption ourselves, but
+		// can't since there may be untyped syscall arguments
+		// on the stack. Instead, just wait and encourage the
+		// SuspendThread APC to run. The preemption should be
+		// done shortly.
+		osyield()
+	}
+	// Asynchronous preemption is now blocked.
+}
+
+// osPreemptExtExit is called after returning from external code that
+// may call ExitProcess.
+//
+// See osPreemptExtEnter for why this is nosplit.
+//
+//go:nosplit
+func osPreemptExtExit(mp *m) {
+	atomic.Store(&mp.preemptExtLock, 0)
 }

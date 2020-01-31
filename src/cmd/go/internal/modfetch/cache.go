@@ -13,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -27,8 +26,6 @@ import (
 )
 
 var PkgMod string // $GOPATH/pkg/mod; set by package modload
-
-const logFindingDelay = 1 * time.Second
 
 func cacheDir(path string) (string, error) {
 	if PkgMod == "" {
@@ -140,11 +137,6 @@ func (r *cachingRepo) Versions(prefix string) ([]string, error) {
 		err  error
 	}
 	c := r.cache.Do("versions:"+prefix, func() interface{} {
-		logTimer := time.AfterFunc(logFindingDelay, func() {
-			fmt.Fprintf(os.Stderr, "go: finding versions for %s\n", r.path)
-		})
-		defer logTimer.Stop()
-
 		list, err := r.r.Versions(prefix)
 		return cached{list, err}
 	}).(cached)
@@ -166,11 +158,6 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
 		if err == nil {
 			return cachedInfo{info, nil}
 		}
-
-		logTimer := time.AfterFunc(logFindingDelay, func() {
-			fmt.Fprintf(os.Stderr, "go: finding %s %s\n", r.path, rev)
-		})
-		defer logTimer.Stop()
 
 		info, err = r.r.Stat(rev)
 		if err == nil {
@@ -199,11 +186,6 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
 
 func (r *cachingRepo) Latest() (*RevInfo, error) {
 	c := r.cache.Do("latest:", func() interface{} {
-		logTimer := time.AfterFunc(logFindingDelay, func() {
-			fmt.Fprintf(os.Stderr, "go: finding %s latest\n", r.path)
-		})
-		defer logTimer.Stop()
-
 		info, err := r.r.Latest()
 
 		// Save info for likely future Stat call.

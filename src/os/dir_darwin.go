@@ -24,6 +24,16 @@ func (d *dirInfo) close() {
 	d.dir = 0
 }
 
+func (f *File) seekInvalidate() {
+	if f.dirinfo == nil {
+		return
+	}
+	// Free cached dirinfo, so we allocate a new one if we
+	// access this file as a directory again. See #35767.
+	f.dirinfo.close()
+	f.dirinfo = nil
+}
+
 func (f *File) readdirnames(n int) (names []string, err error) {
 	if f.dirinfo == nil {
 		dir, call, errno := f.pfd.OpenDir()
