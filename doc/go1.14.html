@@ -482,6 +482,26 @@ TODO
 
 </dl><!-- encoding/json -->
 
+<dl id="go/doc"><dt><a href="/go/doc/">go/doc</a></dt>
+  <dd>
+    <p><!-- CL 204830 -->
+      The new
+      function <a href="/pkg/go/doc/#NewFromFiles"><code>NewFromFiles</code></a>
+      computes package documentation from a list
+      of <code>*ast.File</code>'s and associates examples with the
+      appropriate package elements.
+      The new information is available in a new <code>Examples</code>
+      field
+      in the <a href="/pkg/go/doc/#Package"><code>Package</code></a>, <a href="/pkg/go/doc/#Type"><code>Type</code></a>,
+      and <a href="/pkg/go/doc/#Func"><code>Func</code></a> types, and a
+      new <a href="/pkg/go/doc/#Example.Suffix"><code>Suffix</code></a>
+      field in
+      the <a href="/pkg/go/doc/#Example"><code>Example</code></a>
+      type.
+    </p>
+  </dd>
+</dl><!-- go/doc -->
+
 <dl id="mime"><dt><a href="/pkg/mime/">mime</a></dt>
   <dd>
     <p><!-- CL 186927 -->
