@@ -551,7 +551,8 @@ func (v *view) getSnapshot() *snapshot {
 func (v *view) initialize(ctx context.Context, s *snapshot) {
 	v.initializeOnce.Do(func() {
 		defer close(v.initialized)
-		if _, err := s.load(ctx, viewLoadScope("LOAD_VIEW"), packagePath("builtin")); err != nil {
+
+		if err := s.load(ctx, viewLoadScope("LOAD_VIEW"), packagePath("builtin")); err != nil {
 			log.Error(ctx, "initial workspace load failed", err)
 		}
 	})

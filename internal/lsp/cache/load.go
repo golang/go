@@ -37,7 +37,7 @@ type metadata struct {
 	config *packages.Config
 }
 
-func (s *snapshot) load(ctx context.Context, scopes ...interface{}) ([]*metadata, error) {
+func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	var query []string
 	var containsDir bool // for logging
 	for _, scope := range scopes {
@@ -87,14 +87,13 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) ([]*metadata
 	// type-checking an incomplete result. Check the context directly,
 	// because go/packages adds extra information to the error.
 	if ctx.Err() != nil {
-		return nil, ctx.Err()
+		return ctx.Err()
 	}
 
 	log.Print(ctx, "go/packages.Load", tag.Of("snapshot", s.ID()), tag.Of("query", query), tag.Of("packages", len(pkgs)))
 	if len(pkgs) == 0 {
-		return nil, err
+		return err
 	}
-	var results []*metadata
 	for _, pkg := range pkgs {
 		if !containsDir || s.view.Options().VerboseOutput {
 			log.Print(ctx, "go/packages.Load", tag.Of("snapshot", s.ID()), tag.Of("package", pkg.PkgPath), tag.Of("files", pkg.CompiledGoFiles))
@@ -107,7 +106,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) ([]*metadata
 		// Special case for the builtin package, as it has no dependencies.
 		if pkg.PkgPath == "builtin" {
 			if err := s.view.buildBuiltinPackage(ctx, pkg.GoFiles); err != nil {
-				return nil, err
+				return err
 			}
 			continue
 		}
@@ -118,21 +117,16 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) ([]*metadata
 		// Set the metadata for this package.
 		m, err := s.setMetadata(ctx, packagePath(pkg.PkgPath), pkg, cfg, map[packageID]struct{}{})
 		if err != nil {
-			return nil, err
+			return err
 		}
-		if _, err := s.packageHandle(ctx, m.id); err != nil {
-			return nil, err
+		if _, err := s.buildPackageHandle(ctx, m.id); err != nil {
+			return err
 		}
-		results = append(results, m)
 	}
-
 	// Rebuild the import graph when the metadata is updated.
 	s.clearAndRebuildImportGraph()
 
-	if len(results) == 0 {
-		return nil, errors.Errorf("no metadata for %s", scopes)
-	}
-	return results, nil
+	return nil
 }
 
 func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *packages.Package, cfg *packages.Config, seen map[packageID]struct{}) (*metadata, error) {
@@ -205,17 +199,17 @@ func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *pa
 	// Set the workspace packages. If any of the package's files belong to the
 	// view, then the package is considered to be a workspace package.
 	for _, uri := range append(m.compiledGoFiles, m.goFiles...) {
-		if !s.view.contains(uri) {
-			continue
+		// If the package's files are in this view, mark it as a workspace package.
+		if s.view.contains(uri) {
+			// A test variant of a package can only be loaded directly by loading
+			// the non-test variant with -test. Track the import path of the non-test variant.
+			if m.forTest != "" {
+				s.workspacePackages[m.id] = m.forTest
+			} else {
+				s.workspacePackages[m.id] = pkgPath
+			}
+			break
 		}
-		// A test variant of a package can only be loaded directly by loading
-		// the non-test variant with -test. Track the import path of the non-test variant.
-		if m.forTest != "" {
-			s.workspacePackages[m.id] = m.forTest
-		} else {
-			s.workspacePackages[m.id] = pkgPath
-		}
-		break
 	}
 	return m, nil
 }

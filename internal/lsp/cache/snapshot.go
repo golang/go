@@ -82,7 +82,7 @@ func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]
 	ctx = telemetry.File.With(ctx, fh.Identity().URI)
 	meta := s.getMetadataForURI(fh.Identity().URI)
 
-	phs, err := s.packageHandles(ctx, fileURI(fh.Identity().URI), meta)
+	phs, err := s.packageHandles(ctx, fh.Identity().URI, meta)
 	if err != nil {
 		return nil, err
 	}
@@ -128,14 +128,16 @@ func (s *snapshot) packageHandle(ctx context.Context, id packageID) (*packageHan
 	return result, nil
 }
 
-func (s *snapshot) packageHandles(ctx context.Context, scope interface{}, meta []*metadata) ([]*packageHandle, error) {
+func (s *snapshot) packageHandles(ctx context.Context, uri span.URI, meta []*metadata) ([]*packageHandle, error) {
 	// First, determine if we need to reload or recheck the package.
 	phs, load, check := s.shouldCheck(meta)
 	if load {
-		newMeta, err := s.load(ctx, scope)
-		if err != nil {
+		if err := s.load(ctx, fileURI(uri)); err != nil {
 			return nil, err
 		}
+		// TODO(rstambler): Now that we are creating new package handles in
+		// every load, this isn't really necessary.
+		newMeta := s.getMetadataForURI(uri)
 		newMissing := missingImports(newMeta)
 		if len(newMissing) != 0 {
 			// Type checking a package with the same missing imports over and over
@@ -158,7 +160,7 @@ func (s *snapshot) packageHandles(ctx context.Context, scope interface{}, meta [
 		results = phs
 	}
 	if len(results) == 0 {
-		return nil, errors.Errorf("packageHandles: no package handles for %v", scope)
+		return nil, errors.Errorf("packageHandles: no package handles for %v", uri)
 	}
 	return results, nil
 }
@@ -541,8 +543,7 @@ func (s *snapshot) reloadWorkspace(ctx context.Context) error {
 	// If the view's build configuration is invalid, we cannot reload by package path.
 	// Just reload the directory instead.
 	if !s.view.hasValidBuildConfiguration {
-		_, err := s.load(ctx, viewLoadScope("LOAD_INVALID_VIEW"))
-		return err
+		return s.load(ctx, viewLoadScope("LOAD_INVALID_VIEW"))
 	}
 
 	// See which of the workspace packages are missing metadata.
@@ -558,8 +559,7 @@ func (s *snapshot) reloadWorkspace(ctx context.Context) error {
 	if len(pkgPaths) == 0 {
 		return nil
 	}
-	_, err := s.load(ctx, pkgPaths...)
-	return err
+	return s.load(ctx, pkgPaths...)
 }
 
 func (s *snapshot) reloadOrphanedFiles(ctx context.Context) error {
@@ -572,7 +572,7 @@ func (s *snapshot) reloadOrphanedFiles(ctx context.Context) error {
 		return nil
 	}
 
-	_, err := s.load(ctx, scopes...)
+	err := s.load(ctx, scopes...)
 
 	// If we failed to load some files, i.e. they have no metadata,
 	// mark the failures so we don't bother retrying until the file's

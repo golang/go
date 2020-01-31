@@ -63,7 +63,6 @@ type packageData struct {
 
 // buildPackageHandle returns a source.PackageHandle for a given package and config.
 func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID) (*packageHandle, error) {
-	// Check if we already have this PackageHandle cached.
 	if ph := s.getPackage(id); ph != nil {
 		return ph, nil
 	}
