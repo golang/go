@@ -2678,19 +2678,22 @@ type CRLTemplate struct {
 
 // CreateCRL creates a new x509 v2 Certificate Revocation List.
 //
-// The CRL is signed by priv.
+// The CRL is signed by priv which should be the private key associated with
+// the public key in the issuer certificate.
 //
-// revokedCerts may be nil, in which case an empty CRL will be created.
-//
-// The issuer distinguished name CRL field and authority key identifier extension
-// are populated using the issuer certificate. issuer must have SubjectKeyId set.
+// The issuer distinguished name CRL field and authority key identifier
+// extension are populated using the issuer certificate. issuer must have
+// SubjectKeyId set.
 //
 // The CRL number extension is populated using the Number field of template.
 //
+// The template field RevokedCertificates may be nil, in which case an empty
+// CRL will be created.
+//
 // The template fields NextUpdate must be greater than ThisUpdate.
 //
-// Any extensions in the Extensions field of template will be copied directly into
-// the CRL.
+// Any extensions in the Extensions field of template will be copied directly
+// into the CRL.
 //
 // This method is differentiated from the Certificate.CreateCRL method as
 // it creates X509 v2 conformant CRLs as defined by the RFC 5280 CRL profile.
