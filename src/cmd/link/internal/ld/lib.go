@@ -459,7 +459,7 @@ func (ctxt *Link) loadlib() {
 	ctxt.loader.LoadRefs(ctxt.Arch, ctxt.Syms)
 
 	// Process cgo directives (has to be done before host object loading).
-	ctxt.loadcgodirectives(ctxt.loaderSupport())
+	ctxt.loadcgodirectives()
 
 	// Conditionally load host objects, or setup for external linking.
 	hostobjs(ctxt)
@@ -469,24 +469,9 @@ func (ctxt *Link) loadlib() {
 		// If we have any undefined symbols in external
 		// objects, try to read them from the libgcc file.
 		any := false
-		if ctxt.loaderSupport() {
-			undefs := ctxt.loader.UndefinedRelocTargets(1)
-			if len(undefs) > 0 {
-				any = true
-			}
-		} else {
-			for _, s := range ctxt.loader.Syms {
-				if s == nil {
-					continue
-				}
-				for i := range s.R {
-					r := &s.R[i] // Copying sym.Reloc has measurable impact on performance
-					if r.Sym != nil && r.Sym.Type == sym.SXREF && r.Sym.Name != ".got" {
-						any = true
-						break
-					}
-				}
-			}
+		undefs := ctxt.loader.UndefinedRelocTargets(1)
+		if len(undefs) > 0 {
+			any = true
 		}
 		if any {
 			if *flagLibGCC == "" {
@@ -563,61 +548,30 @@ func setupdynexp(ctxt *Link) {
 	ctxt.cgo_export_dynamic = nil
 }
 
-// loadcgodirectives reads the previously discovered cgo directives,
-// creating symbols (either sym.Symbol or loader.Sym) in preparation
-// for host object loading or use later in the link.
-func (ctxt *Link) loadcgodirectives(useLoader bool) {
-	if useLoader {
-		l := ctxt.loader
-		hostObjSyms := make(map[loader.Sym]struct{})
-		for _, d := range ctxt.cgodata {
-			setCgoAttr2(ctxt, ctxt.loader.LookupOrCreateSym, d.file, d.pkg, d.directives, hostObjSyms)
-		}
-		ctxt.cgodata = nil
+// loadcgodirectives reads the previously discovered cgo directives, creating
+// symbols in preparation for host object loading or use later in the link.
+func (ctxt *Link) loadcgodirectives() {
+	l := ctxt.loader
+	hostObjSyms := make(map[loader.Sym]struct{})
+	for _, d := range ctxt.cgodata {
+		setCgoAttr(ctxt, ctxt.loader.LookupOrCreateSym, d.file, d.pkg, d.directives, hostObjSyms)
+	}
+	ctxt.cgodata = nil
 
-		if ctxt.LinkMode == LinkInternal {
-			// Drop all the cgo_import_static declarations.
-			// Turns out we won't be needing them.
-			for symIdx := range hostObjSyms {
-				if l.SymType(symIdx) == sym.SHOSTOBJ {
-					// If a symbol was marked both
-					// cgo_import_static and cgo_import_dynamic,
-					// then we want to make it cgo_import_dynamic
-					// now.
-					su, _ := l.MakeSymbolUpdater(symIdx)
-					if l.SymExtname(symIdx) != "" && l.SymDynimplib(symIdx) != "" && !(l.AttrCgoExportStatic(symIdx) || l.AttrCgoExportDynamic(symIdx)) {
-						su.SetType(sym.SDYNIMPORT)
-					} else {
-						su.SetType(0)
-					}
-				}
-			}
-		}
-	} else {
-		// In newobj mode, we typically create sym.Symbols later therefore
-		// also set cgo attributes later. However, for internal cgo linking,
-		// the host object loaders still work with sym.Symbols (for now),
-		// and they need cgo attributes set to work properly. So process
-		// them now.
-		for _, d := range ctxt.cgodata {
-			setCgoAttr(ctxt, ctxt.loader.LookupOrCreate, d.file, d.pkg, d.directives)
-		}
-		ctxt.cgodata = nil
-
-		if ctxt.LinkMode == LinkInternal {
-			// Drop all the cgo_import_static declarations.
-			// Turns out we won't be needing them.
-			for _, s := range ctxt.loader.Syms {
-				if s != nil && s.Type == sym.SHOSTOBJ {
-					// If a symbol was marked both
-					// cgo_import_static and cgo_import_dynamic,
-					// then we want to make it cgo_import_dynamic
-					// now.
-					if s.Extname() != "" && s.Dynimplib() != "" && !s.Attr.CgoExport() {
-						s.Type = sym.SDYNIMPORT
-					} else {
-						s.Type = 0
-					}
+	if ctxt.LinkMode == LinkInternal {
+		// Drop all the cgo_import_static declarations.
+		// Turns out we won't be needing them.
+		for symIdx := range hostObjSyms {
+			if l.SymType(symIdx) == sym.SHOSTOBJ {
+				// If a symbol was marked both
+				// cgo_import_static and cgo_import_dynamic,
+				// then we want to make it cgo_import_dynamic
+				// now.
+				su, _ := l.MakeSymbolUpdater(symIdx)
+				if l.SymExtname(symIdx) != "" && l.SymDynimplib(symIdx) != "" && !(l.AttrCgoExportStatic(symIdx) || l.AttrCgoExportDynamic(symIdx)) {
+					su.SetType(sym.SDYNIMPORT)
+				} else {
+					su.SetType(0)
 				}
 			}
 		}
@@ -754,130 +708,6 @@ func (ctxt *Link) linksetup() {
 			sb, got := ctxt.loader.MakeSymbolUpdater(symIdx)
 			sb.SetType(sym.SDYNIMPORT)
 			ctxt.loader.SetAttrReachable(got, true)
-		}
-	}
-}
-
-// Set up flags and special symbols depending on the platform build mode.
-func (ctxt *Link) linksetupold() {
-	switch ctxt.BuildMode {
-	case BuildModeCShared, BuildModePlugin:
-		s := ctxt.Syms.Lookup("runtime.islibrary", 0)
-		s.Type = sym.SNOPTRDATA
-		s.Attr |= sym.AttrDuplicateOK
-		s.AddUint8(1)
-	case BuildModeCArchive:
-		s := ctxt.Syms.Lookup("runtime.isarchive", 0)
-		s.Type = sym.SNOPTRDATA
-		s.Attr |= sym.AttrDuplicateOK
-		s.AddUint8(1)
-	}
-
-	// Recalculate pe parameters now that we have ctxt.LinkMode set.
-	if ctxt.HeadType == objabi.Hwindows {
-		Peinit(ctxt)
-	}
-
-	if ctxt.HeadType == objabi.Hdarwin && ctxt.LinkMode == LinkExternal {
-		*FlagTextAddr = 0
-	}
-
-	// If there are no dynamic libraries needed, gcc disables dynamic linking.
-	// Because of this, glibc's dynamic ELF loader occasionally (like in version 2.13)
-	// assumes that a dynamic binary always refers to at least one dynamic library.
-	// Rather than be a source of test cases for glibc, disable dynamic linking
-	// the same way that gcc would.
-	//
-	// Exception: on OS X, programs such as Shark only work with dynamic
-	// binaries, so leave it enabled on OS X (Mach-O) binaries.
-	// Also leave it enabled on Solaris which doesn't support
-	// statically linked binaries.
-	if ctxt.BuildMode == BuildModeExe {
-		if havedynamic == 0 && ctxt.HeadType != objabi.Hdarwin && ctxt.HeadType != objabi.Hsolaris {
-			*FlagD = true
-		}
-	}
-
-	if ctxt.LinkMode == LinkExternal && ctxt.Arch.Family == sys.PPC64 && objabi.GOOS != "aix" {
-		toc := ctxt.Syms.Lookup(".TOC.", 0)
-		toc.Type = sym.SDYNIMPORT
-	}
-
-	// The Android Q linker started to complain about underalignment of the our TLS
-	// section. We don't actually use the section on android, so dont't
-	// generate it.
-	if objabi.GOOS != "android" {
-		tlsg := ctxt.Syms.Lookup("runtime.tlsg", 0)
-
-		// runtime.tlsg is used for external linking on platforms that do not define
-		// a variable to hold g in assembly (currently only intel).
-		if tlsg.Type == 0 {
-			tlsg.Type = sym.STLSBSS
-			tlsg.Size = int64(ctxt.Arch.PtrSize)
-		} else if tlsg.Type != sym.SDYNIMPORT {
-			Errorf(nil, "runtime declared tlsg variable %v", tlsg.Type)
-		}
-		tlsg.Attr |= sym.AttrReachable
-		ctxt.Tlsg = tlsg
-	}
-
-	var moduledata *sym.Symbol
-	if ctxt.BuildMode == BuildModePlugin {
-		moduledata = ctxt.Syms.Lookup("local.pluginmoduledata", 0)
-		moduledata.Attr |= sym.AttrLocal
-	} else {
-		moduledata = ctxt.Syms.Lookup("runtime.firstmoduledata", 0)
-	}
-	if moduledata.Type != 0 && moduledata.Type != sym.SDYNIMPORT {
-		// If the module (toolchain-speak for "executable or shared
-		// library") we are linking contains the runtime package, it
-		// will define the runtime.firstmoduledata symbol and we
-		// truncate it back to 0 bytes so we can define its entire
-		// contents in symtab.go:symtab().
-		moduledata.Size = 0
-
-		// In addition, on ARM, the runtime depends on the linker
-		// recording the value of GOARM.
-		if ctxt.Arch.Family == sys.ARM {
-			s := ctxt.Syms.Lookup("runtime.goarm", 0)
-			s.Type = sym.SDATA
-			s.Size = 0
-			s.AddUint8(uint8(objabi.GOARM))
-		}
-
-		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
-			s := ctxt.Syms.Lookup("runtime.framepointer_enabled", 0)
-			s.Type = sym.SDATA
-			s.Size = 0
-			s.AddUint8(1)
-		}
-	} else {
-		// If OTOH the module does not contain the runtime package,
-		// create a local symbol for the moduledata.
-		moduledata = ctxt.Syms.Lookup("local.moduledata", 0)
-		moduledata.Attr |= sym.AttrLocal
-	}
-	// In all cases way we mark the moduledata as noptrdata to hide it from
-	// the GC.
-	moduledata.Type = sym.SNOPTRDATA
-	moduledata.Attr |= sym.AttrReachable
-	ctxt.Moduledata = moduledata
-
-	// If package versioning is required, generate a hash of the
-	// packages used in the link.
-	if ctxt.BuildMode == BuildModeShared || ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins() {
-		for _, lib := range ctxt.Library {
-			if lib.Shlib == "" {
-				genhash(ctxt, lib)
-			}
-		}
-	}
-
-	if ctxt.Arch == sys.Arch386 && ctxt.HeadType != objabi.Hwindows {
-		if (ctxt.BuildMode == BuildModeCArchive && ctxt.IsELF) || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
-			got := ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
-			got.Type = sym.SDYNIMPORT
-			got.Attr |= sym.AttrReachable
 		}
 	}
 }
