@@ -522,6 +522,14 @@ TODO
 
 <dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
   <dd>
+    <p><!-- CL 200677 -->
+      The <a href="/pkg/encoding/json/#Decoder"><code>Decoder</code></a>
+      type supports a new
+      method <a href="/pkg/encoding/json/#Decoder.InputOffset"><code>InputOffset</code></a>
+      that returns the input stream byte offset of the current
+      decoder position.
+    </p>
+
     <p><!-- CL 200217 -->
       <a href="/pkg/encoding/json/#Compact"><code>Compact</code></a> no longer
       escapes the <code>U+2028</code> and <code>U+2029</code> characters, which
