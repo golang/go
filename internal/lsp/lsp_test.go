@@ -39,9 +39,10 @@ func TestLSP(t *testing.T) {
 }
 
 type runner struct {
-	server *Server
-	data   *tests.Data
-	ctx    context.Context
+	server      *Server
+	data        *tests.Data
+	diagnostics map[span.URI][]source.Diagnostic
+	ctx         context.Context
 }
 
 const viewName = "lsp_test"
@@ -87,13 +88,18 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	tests.Run(t, r, data)
 }
 
-// TODO: Actually test the LSP diagnostics function in this test.
 func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnostic) {
-	v := r.server.session.View(viewName)
-	_, got, err := source.FileDiagnostics(r.ctx, v.Snapshot(), uri)
-	if err != nil {
-		t.Fatal(err)
+	// Get the diagnostics for this view if we have not done it before.
+	if r.diagnostics == nil {
+		r.diagnostics = make(map[span.URI][]source.Diagnostic)
+		v := r.server.session.View(viewName)
+		// Always run diagnostics with analysis.
+		reports := r.server.diagnose(r.ctx, v.Snapshot(), true)
+		for key, diags := range reports {
+			r.diagnostics[key.id.URI] = diags
+		}
 	}
+	got := r.diagnostics[uri]
 	// A special case to test that there are no diagnostics for a file.
 	if len(want) == 1 && want[0].Source == "no_diagnostics" {
 		if len(got) != 0 {
