@@ -309,6 +309,10 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 			rawErrors = append(rawErrors, e)
 		},
 		Importer: importerFunc(func(pkgPath string) (*types.Package, error) {
+			// If the context was cancelled, we should abort.
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
 			dep := deps[packagePath(pkgPath)]
 			if dep == nil {
 				// We may be in GOPATH mode, in which case we need to check vendor dirs.
