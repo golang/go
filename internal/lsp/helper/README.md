@@ -3,7 +3,7 @@
 `helper` generates boilerplate code for server.go by processing the
 generated code in `protocol/tsserver.go`.
 
-First, build `helper` in this directore (`go build .`).
+First, build `helper` in this directory (`go build .`).
 
 In directory `lsp`, executing `go generate server.go` generates the stylized file
 `server_gen.go` that contains stubs for type `Server`.
