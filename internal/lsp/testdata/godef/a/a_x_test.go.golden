@@ -1,0 +1,26 @@
+-- TestA2-definition --
+godef/a/a_x_test.go:7:6-12: defined here as ```go
+func TestA2(t *testing.T)
+```
+-- TestA2-definition-json --
+{
+	"span": {
+		"uri": "file://godef/a/a_x_test.go",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"offset": 44
+		},
+		"end": {
+			"line": 7,
+			"column": 12,
+			"offset": 50
+		}
+	},
+	"description": "```go\nfunc TestA2(t *testing.T)\n```"
+}
+
+-- TestA2-hover --
+```go
+func TestA2(t *testing.T)
+```

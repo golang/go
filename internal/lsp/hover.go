@@ -26,7 +26,7 @@ func (s *Server) hover(ctx context.Context, params *protocol.HoverParams) (*prot
 	if fh.Identity().Kind != source.Go {
 		return nil, nil
 	}
-	ident, err := source.Identifier(ctx, snapshot, fh, params.Position, source.WidestPackageHandle)
+	ident, err := source.Identifier(ctx, snapshot, fh, params.Position)
 	if err != nil {
 		return nil, nil
 	}

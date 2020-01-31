@@ -1,0 +1,26 @@
+-- TestA-definition --
+godef/a/a_test.go:7:6-11: defined here as ```go
+func TestA(t *testing.T)
+```
+-- TestA-definition-json --
+{
+	"span": {
+		"uri": "file://godef/a/a_test.go",
+		"start": {
+			"line": 7,
+			"column": 6,
+			"offset": 39
+		},
+		"end": {
+			"line": 7,
+			"column": 11,
+			"offset": 44
+		}
+	},
+	"description": "```go\nfunc TestA(t *testing.T)\n```"
+}
+
+-- TestA-hover --
+```go
+func TestA(t *testing.T)
+```

@@ -85,6 +85,14 @@ func (i *IdentifierInfo) linkAndSymbolName() (string, string) {
 	case *types.Builtin:
 		return fmt.Sprintf("builtin#%s", obj.Name()), obj.Name()
 	}
+	// Check if the identifier is test-only (and is therefore not part of a
+	// package's API). This is true if the request originated in a test package,
+	// and if the declaration is also found in the same test package.
+	if i.pkg != nil && obj.Pkg() != nil && i.pkg.ForTest() != "" {
+		if _, pkg, _ := findFileInPackage(i.pkg, i.Declaration.URI()); i.pkg == pkg {
+			return "", ""
+		}
+	}
 	// Don't return links for other unexported types.
 	if !obj.Exported() {
 		return "", ""

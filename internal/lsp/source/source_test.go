@@ -484,7 +484,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ident, err := source.Identifier(r.ctx, r.view.Snapshot(), fh, srcRng.Start, source.WidestPackageHandle)
+	ident, err := source.Identifier(r.ctx, r.view.Snapshot(), fh, srcRng.Start)
 	if err != nil {
 		t.Fatalf("failed for %v: %v", d.Src, err)
 	}
@@ -768,7 +768,7 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 		}
 		return
 	}
-	if want.Text == "" && item != nil {
+	if want.Text == "" {
 		t.Errorf("prepare rename failed for %v: expected nil, got %v", src, item)
 		return
 	}

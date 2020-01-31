@@ -18,10 +18,10 @@ import (
 // pkg contains the type information needed by the source package.
 type pkg struct {
 	// ID and package path have their own types to avoid being used interchangeably.
-	id      packageID
-	pkgPath packagePath
-	mode    source.ParseMode
-
+	id              packageID
+	pkgPath         packagePath
+	mode            source.ParseMode
+	forTest         packagePath
 	goFiles         []source.ParseGoHandle
 	compiledGoFiles []source.ParseGoHandle
 	errors          []*source.Error
@@ -97,6 +97,10 @@ func (p *pkg) GetTypesSizes() types.Sizes {
 
 func (p *pkg) IsIllTyped() bool {
 	return p.types == nil || p.typesInfo == nil || p.typesSizes == nil
+}
+
+func (p *pkg) ForTest() string {
+	return string(p.forTest)
 }
 
 func (p *pkg) GetImport(pkgPath string) (source.Package, error) {

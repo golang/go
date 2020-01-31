@@ -256,6 +256,7 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 			Selections: make(map[*ast.SelectorExpr]*types.Selection),
 			Scopes:     make(map[ast.Node]*types.Scope),
 		},
+		forTest: m.forTest,
 	}
 	var (
 		files        = make([]*ast.File, len(pkg.compiledGoFiles))
