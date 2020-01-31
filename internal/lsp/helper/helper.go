@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/token"
 	"log"
@@ -109,7 +110,10 @@ func output() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	ans := bytes.Replace(buf.Bytes(), []byte("\\\n"), []byte{}, -1)
+	ans, err := format.Source(bytes.Replace(buf.Bytes(), []byte("\\\n"), []byte{}, -1))
+	if err != nil {
+		log.Fatal(err)
+	}
 	fd.Write(ans)
 }
 
