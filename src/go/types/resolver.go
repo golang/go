@@ -626,7 +626,7 @@ func (check *Checker) packageObjects() {
 	// add new methods to already type-checked types (from a prior Checker.Files call)
 	for _, obj := range objList {
 		if obj, _ := obj.(*TypeName); obj != nil && obj.typ != nil {
-			check.addMethodDecls(obj)
+			check.collectMethods(obj)
 		}
 	}
 

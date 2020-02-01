@@ -187,7 +187,7 @@ func (subst *subster) typ(typ Type) Type {
 		// TODO(gri) BUG: If we instantiate this signature but it has no value params, we don't get a copy!
 		//           We need to look at the actual type parameters of the signature as well.
 		// TODO(gri) rethink the recv situation with respect to methods on parameterized types
-		//recv := s.var_(t.recv) // not strictly needed (receivers cannot be parameterized) (?)
+		// recv := subst.var_(t.recv) // TODO(gri) this causes a stack overflow - explain
 		recv := t.recv
 		params := subst.tuple(t.params)
 		results := subst.tuple(t.results)

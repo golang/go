@@ -200,6 +200,7 @@ func (check *Checker) objDecl(obj Object, def *Named) {
 	case *TypeName:
 		// invalid recursive types are detected via path
 		check.typeDecl(obj, d.tdecl, def)
+		check.collectMethods(obj) // methods can only be added to top-level types
 	case *Func:
 		// functions may be recursive - no need to track dependencies
 		check.funcDecl(obj, d)
@@ -580,6 +581,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 
 		if tdecl.TParams != nil {
 			check.openScope(tdecl, "type parameters")
+			defer check.closeScope()
 			named.tparams = check.collectTypeParams(tdecl.TParams)
 		}
 
@@ -600,16 +602,8 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 		// Determine the (final, unnamed) underlying type by resolving
 		// any forward chain.
 		named.underlying = check.underlying(named)
-
-		// this must happen before addMethodDecls - cannot use defer
-		// TODO(gri) consider refactoring this
-		if tdecl.TParams != nil {
-			check.closeScope()
-		}
-
 	}
 
-	check.addMethodDecls(obj)
 }
 
 func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeName) {
@@ -780,7 +774,7 @@ func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident)
 	return tparams
 }
 
-func (check *Checker) addMethodDecls(obj *TypeName) {
+func (check *Checker) collectMethods(obj *TypeName) {
 	// get associated methods
 	// (Checker.collectObjects only collects methods with non-blank names;
 	// Checker.resolveBaseTypeName ensures that obj is not an alias name
