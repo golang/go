@@ -231,16 +231,14 @@ func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr) {
 }
 
 //go:nosplit
-func typedslicecopy(typ *_type, dst, src slice) int {
-	n := dst.len
-	if n > src.len {
-		n = src.len
+func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe.Pointer, srcLen int) int {
+	n := dstLen
+	if n > srcLen {
+		n = srcLen
 	}
 	if n == 0 {
 		return 0
 	}
-	dstp := dst.array
-	srcp := src.array
 
 	// The compiler emits calls to typedslicecopy before
 	// instrumentation runs, so unlike the other copying and
@@ -249,19 +247,19 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 	if raceenabled {
 		callerpc := getcallerpc()
 		pc := funcPC(slicecopy)
-		racewriterangepc(dstp, uintptr(n)*typ.size, callerpc, pc)
-		racereadrangepc(srcp, uintptr(n)*typ.size, callerpc, pc)
+		racewriterangepc(dstPtr, uintptr(n)*typ.size, callerpc, pc)
+		racereadrangepc(srcPtr, uintptr(n)*typ.size, callerpc, pc)
 	}
 	if msanenabled {
-		msanwrite(dstp, uintptr(n)*typ.size)
-		msanread(srcp, uintptr(n)*typ.size)
+		msanwrite(dstPtr, uintptr(n)*typ.size)
+		msanread(srcPtr, uintptr(n)*typ.size)
 	}
 
 	if writeBarrier.cgo {
-		cgoCheckSliceCopy(typ, dst, src, n)
+		cgoCheckSliceCopy(typ, dstPtr, srcPtr, n)
 	}
 
-	if dstp == srcp {
+	if dstPtr == srcPtr {
 		return n
 	}
 
@@ -272,11 +270,11 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 	size := uintptr(n) * typ.size
 	if writeBarrier.needed {
 		pwsize := size - typ.size + typ.ptrdata
-		bulkBarrierPreWrite(uintptr(dstp), uintptr(srcp), pwsize)
+		bulkBarrierPreWrite(uintptr(dstPtr), uintptr(srcPtr), pwsize)
 	}
 	// See typedmemmove for a discussion of the race between the
 	// barrier and memmove.
-	memmove(dstp, srcp, size)
+	memmove(dstPtr, srcPtr, size)
 	return n
 }
 
@@ -306,7 +304,7 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
 		memmove(dst.array, src.array, size)
 		return n
 	}
-	return typedslicecopy(elemType, dst, src)
+	return typedslicecopy(elemType, dst.array, dst.len, src.array, src.len)
 }
 
 // typedmemclr clears the typed memory at ptr with type typ. The

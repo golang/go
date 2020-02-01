@@ -923,6 +923,21 @@ func (o Op) IsSlice3() bool {
 	return false
 }
 
+// slicePtrLen extracts the pointer and length from a slice.
+// This constructs two nodes referring to n, so n must be a cheapexpr.
+func (n *Node) slicePtrLen() (ptr, len *Node) {
+	var init Nodes
+	c := cheapexpr(n, &init)
+	if c != n || init.Len() != 0 {
+		Fatalf("slicePtrLen not cheap: %v", n)
+	}
+	ptr = nod(OSPTR, n, nil)
+	ptr.Type = n.Type.Elem().PtrTo()
+	len = nod(OLEN, n, nil)
+	len.Type = types.Types[TINT]
+	return ptr, len
+}
+
 // labeledControl returns the control flow Node (for, switch, select)
 // associated with the label n, if any.
 func (n *Node) labeledControl() *Node {

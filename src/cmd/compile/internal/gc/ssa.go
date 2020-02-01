@@ -3277,10 +3277,7 @@ func init() {
 				// Compiler frontend optimizations emit OBYTES2STRTMP nodes
 				// for the backend instead of slicebytetostringtmp calls
 				// when not instrumenting.
-				slice := args[0]
-				ptr := s.newValue1(ssa.OpSlicePtr, s.f.Config.Types.BytePtr, slice)
-				len := s.newValue1(ssa.OpSliceLen, types.Types[TINT], slice)
-				return s.newValue2(ssa.OpStringMake, n.Type, ptr, len)
+				return s.newValue2(ssa.OpStringMake, n.Type, args[0], args[1])
 			},
 			all...)
 	}
