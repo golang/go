@@ -15,6 +15,8 @@ import (
 
 // Process stores the information about a process created by StartProcess.
 type Process struct {
+	// Pid is the operating system process ID. The value of Pid after the process
+	// has been waited/released is not specified.
 	Pid    int
 	handle uintptr      // handle is accessed atomically on Windows
 	isdone uint32       // process has been successfully waited on, non zero if true
