@@ -51,7 +51,7 @@ func (c *completer) builtinArgKind(obj types.Object, call *ast.CallExpr) objKind
 // builtinArgType infers the type of an argument to a builtin
 // function. "parentType" is the inferred type for the builtin call's
 // parent node.
-func (c *completer) builtinArgType(obj types.Object, call *ast.CallExpr, parentType types.Type) (infType types.Type, variadic bool) {
+func (c *completer) builtinArgType(obj types.Object, call *ast.CallExpr, parentType types.Type) (infType types.Type, wantType, variadic bool) {
 	exprIdx := exprAtPos(c.pos, call.Args)
 
 	switch obj.Name() {
@@ -93,6 +93,7 @@ func (c *completer) builtinArgType(obj types.Object, call *ast.CallExpr, parentT
 			infType = t2
 		}
 	case "new":
+		wantType = true
 		if parentType != nil {
 			// Expected type for "new" is the de-pointered parent type.
 			if ptr, ok := parentType.Underlying().(*types.Pointer); ok {
@@ -101,9 +102,12 @@ func (c *completer) builtinArgType(obj types.Object, call *ast.CallExpr, parentT
 		}
 	case "make":
 		if exprIdx == 0 {
+			wantType = true
 			infType = parentType
+		} else {
+			infType = types.Typ[types.Int]
 		}
 	}
 
-	return infType, variadic
+	return infType, wantType, variadic
 }

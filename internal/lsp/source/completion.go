@@ -1375,8 +1375,6 @@ Nodes:
 						} else {
 							inf.objType = sig.Params().At(exprIdx).Type()
 						}
-
-						break Nodes
 					}
 				}
 
@@ -1386,14 +1384,10 @@ Nodes:
 					if obj != nil && obj.Parent() == types.Universe {
 						inf.objKind |= c.builtinArgKind(obj, node)
 
-						if obj.Name() == "new" {
-							inf.typeName.wantTypeName = true
-						}
-
 						// Defer call to builtinArgType so we can provide it the
 						// inferred type from its parent node.
 						defer func() {
-							inf.objType, inf.variadic = c.builtinArgType(obj, node, inf.objType)
+							inf.objType, inf.typeName.wantTypeName, inf.variadic = c.builtinArgType(obj, node, inf.objType)
 						}()
 
 						// The expected type of builtin arguments like append() is

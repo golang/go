@@ -12,6 +12,12 @@ func _() {
 		aInt      int            //@item(builtinInt, "aInt", "int", "var")
 	)
 
+	type (
+		aSliceType []int          //@item(builtinSliceType, "aSliceType", "[]int", "type")
+		aChanType  chan int       //@item(builtinChanType, "aChanType", "chan int", "type")
+		aMapType   map[string]int //@item(builtinMapType, "aMapType", "map[string]int", "type")
+	)
+
 	close() //@rank(")", builtinChan, builtinSlice)
 
 	append() //@rank(")", builtinSlice, builtinChan)
@@ -27,9 +33,10 @@ func _() {
 
 	cap() //@rank(")", builtinSlice, builtinMap),rank(")", builtinArray, builtinString),rank(")", builtinArrayPtr, builtinPtr),rank(")", builtinChan, builtinInt)
 
-	make() //@rank(")", builtinMap, builtinInt),rank(")", builtinChan, builtinInt),rank(")", builtinSlice, builtinInt)
+	make()              //@rank(")", builtinMapType, int),rank(")", builtinChanType, int),rank(")", builtinSliceType, int),rank(")", builtinMapType, builtinMap)
+	make(aSliceType, a) //@rank(")", builtinInt, builtinSlice)
 
-	var _ []int = make() //@rank(")", builtinSlice, builtinMap)
+	var _ []int = make() //@rank(")", builtinSliceType, builtinSlice)
 
 	type myStruct struct{}  //@item(builtinStructType, "myStruct", "struct{...}", "struct")
 	new()                   //@rank(")", builtinStructType, builtinInt)
