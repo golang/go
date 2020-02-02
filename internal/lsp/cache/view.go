@@ -206,6 +206,9 @@ func (v *view) Rebuild(ctx context.Context) (source.Snapshot, error) {
 func (v *view) LookupBuiltin(ctx context.Context, name string) (*ast.Object, error) {
 	v.awaitInitialized(ctx)
 
+	if v.builtin == nil {
+		return nil, errors.Errorf("no builtin package for view %s", v.name)
+	}
 	data := v.builtin.handle.Get(ctx)
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
