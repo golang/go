@@ -271,10 +271,10 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 	// Download if the package is missing, or update if we're using -u.
 	if p.Dir == "" || *getU {
 		// The actual download.
-		stk.Push(arg)
+		stk.Push(arg, nil)
 		err := downloadPackage(p)
 		if err != nil {
-			base.Errorf("%s", &load.PackageError{ImportStack: stk.Copy(), Err: err})
+			base.Errorf("%s", load.NewPackageError(stk, err))
 			stk.Pop()
 			return
 		}
@@ -329,7 +329,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 		if isWildcard {
 			// Report both the real package and the
 			// wildcard in any error message.
-			stk.Push(p.ImportPath)
+			stk.Push(p.ImportPath, nil)
 		}
 
 		// Process dependencies, now that we know what they are.
@@ -352,11 +352,9 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 				orig = p.Internal.Build.Imports[i]
 			}
 			if j, ok := load.FindVendor(orig); ok {
-				stk.Push(path)
-				err := &load.PackageError{
-					ImportStack: stk.Copy(),
-					Err:         load.ImportErrorf(path, "%s must be imported as %s", path, path[j+len("vendor/"):]),
-				}
+				stk.Push(path, nil)
+				err := load.NewPackageError(stk,
+					load.ImportErrorf(path, "%s must be imported as %s", path, path[j+len("vendor/"):]))
 				stk.Pop()
 				base.Errorf("%s", err)
 				continue

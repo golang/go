@@ -54,9 +54,7 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 			break
 		}
 		if len(p1.DepsErrors) > 0 {
-			perr := p1.DepsErrors[0]
-			perr.Pos = "" // show full import stack
-			err = perr
+			err = p1.DepsErrors[0]
 			break
 		}
 	}
@@ -100,7 +98,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
 	var ptestErr, pxtestErr *PackageError
 	var imports, ximports []*Package
 	var stk ImportStack
-	stk.Push(p.ImportPath + " (test)")
+	stk.Push(p.ImportPath+" (test)", nil)
 	rawTestImports := str.StringList(p.TestImports)
 	for i, path := range p.TestImports {
 		p1 := loadImport(pre, path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
@@ -109,7 +107,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
 			// Can't change that code, because that code is only for loading the
 			// non-test copy of a package.
 			ptestErr = &PackageError{
-				ImportStack:   testImportStack(stk[0], p1, p.ImportPath),
+				importStack:   testImportStack(stk[0], p1, p.ImportPath),
 				Err:           errors.New("import cycle not allowed in test"),
 				IsImportCycle: true,
 			}
@@ -118,7 +116,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
 		imports = append(imports, p1)
 	}
 	stk.Pop()
-	stk.Push(p.ImportPath + "_test")
+	stk.Push(p.ImportPath+"_test", nil)
 	pxtestNeedsPtest := false
 	rawXTestImports := str.StringList(p.XTestImports)
 	for i, path := range p.XTestImports {
@@ -230,7 +228,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
 
 	// The generated main also imports testing, regexp, and os.
 	// Also the linker introduces implicit dependencies reported by LinkerDeps.
-	stk.Push("testmain")
+	stk.Push("testmain", nil)
 	deps := TestMainDeps // cap==len, so safe for append
 	for _, d := range LinkerDeps(p) {
 		deps = append(deps, d)
@@ -331,19 +329,19 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
 	return pmain, ptest, pxtest
 }
 
-func testImportStack(top string, p *Package, target string) []string {
-	stk := []string{top, p.ImportPath}
+func testImportStack(top ImportStackFrame, p *Package, target string) ImportStack {
+	stk := ImportStack{top, ImportStackFrame{Path: p.ImportPath}}
 Search:
 	for p.ImportPath != target {
 		for _, p1 := range p.Internal.Imports {
 			if p1.ImportPath == target || str.Contains(p1.Deps, target) {
-				stk = append(stk, p1.ImportPath)
+				stk = append(stk, ImportStackFrame{Path: p1.ImportPath})
 				p = p1
 				continue Search
 			}
 		}
 		// Can't happen, but in case it does...
-		stk = append(stk, "<lost path to cycle>")
+		stk = append(stk, ImportStackFrame{Path: "<lost path to cycle>"})
 		break
 	}
 	return stk

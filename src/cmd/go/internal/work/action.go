@@ -472,7 +472,7 @@ func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 
 		// vet expects to be able to import "fmt".
 		var stk load.ImportStack
-		stk.Push("vet")
+		stk.Push("vet", nil)
 		p1 := load.LoadImportWithFlags("fmt", p.Dir, p, &stk, nil, 0)
 		stk.Pop()
 		aFmt := b.CompileAction(ModeBuild, depMode, p1)
