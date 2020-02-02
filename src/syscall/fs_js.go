@@ -495,7 +495,7 @@ func fsCall(name string, args ...interface{}) (js.Value, error) {
 	}
 
 	c := make(chan callResult, 1)
-	jsFS.Call(name, append(args, js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	f := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 		var res callResult
 
 		if len(args) >= 1 { // on Node.js 8, fs.utimes calls the callback without any arguments
@@ -511,7 +511,9 @@ func fsCall(name string, args ...interface{}) (js.Value, error) {
 
 		c <- res
 		return nil
-	}))...)
+	})
+	defer f.Release()
+	jsFS.Call(name, append(args, f)...)
 	res := <-c
 	return res.val, res.err
 }
