@@ -493,16 +493,24 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 	}
 
 	// Detect our surrounding identifier.
-	if ident, ok := path[0].(*ast.Ident); ok {
+	switch leaf := path[0].(type) {
+	case *ast.Ident:
 		// In the normal case, our leaf AST node is the identifer being completed.
-		c.setSurrounding(ident)
-	} else {
+		c.setSurrounding(leaf)
+	case *ast.BadDecl:
+		// You don't get *ast.Idents at the file level, so look for bad
+		// decls and manually extract the surrounding token.
+		pos, _, lit := c.scanToken(ctx, src)
+		if pos.IsValid() {
+			c.setSurrounding(&ast.Ident{Name: lit, NamePos: pos})
+		}
+	default:
 		// Otherwise, manually extract the prefix if our containing token
 		// is a keyword. This improves completion after an "accidental
 		// keyword", e.g. completing to "variance" in "someFunc(var<>)".
-		id := scanKeyword(c.pos, c.snapshot.View().Session().Cache().FileSet().File(c.pos), src)
-		if id != nil {
-			c.setSurrounding(id)
+		pos, tkn, lit := c.scanToken(ctx, src)
+		if pos.IsValid() && tkn.IsKeyword() {
+			c.setSurrounding(&ast.Ident{Name: lit, NamePos: pos})
 		}
 	}
 
@@ -512,7 +520,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 
 	// If we're inside a comment return comment completions
 	for _, comment := range file.Comments {
-		if comment.Pos() <= rng.Start && rng.Start <= comment.End() {
+		if comment.Pos() < rng.Start && rng.Start <= comment.End() {
 			c.populateCommentCompletions(comment)
 			return c.items, c.getSurrounding(), nil
 		}
@@ -556,10 +564,6 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 		if err := c.lexical(); err != nil {
 			return nil, nil, err
 		}
-		if err := c.keyword(); err != nil {
-			return nil, nil, err
-		}
-
 	// The function name hasn't been typed yet, but the parens are there:
 	//   recv.‸(arg)
 	case *ast.TypeAssertExpr:
@@ -573,6 +577,10 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 			return nil, nil, err
 		}
 
+	// At the file scope, only keywords are allowed.
+	case *ast.BadDecl, *ast.File:
+		c.addKeywordCompletions()
+
 	default:
 		// fallback to lexical completions
 		if err := c.lexical(); err != nil {
@@ -583,20 +591,20 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 	return c.items, c.getSurrounding(), nil
 }
 
-// scanKeyword scans file for the ident or keyword containing or abutting pos.
-func scanKeyword(pos token.Pos, file *token.File, data []byte) *ast.Ident {
+// scanToken scans pgh's contents for the token containing pos.
+func (c *completer) scanToken(ctx context.Context, contents []byte) (token.Pos, token.Token, string) {
+	tok := c.snapshot.View().Session().Cache().FileSet().File(c.pos)
+
 	var s scanner.Scanner
-	s.Init(file, data, nil, 0)
+	s.Init(tok, contents, nil, 0)
 	for {
 		tknPos, tkn, lit := s.Scan()
-		if tkn == token.EOF || tknPos >= pos {
-			return nil
+		if tkn == token.EOF || tknPos >= c.pos {
+			return token.NoPos, token.ILLEGAL, ""
 		}
 
-		if tkn.IsKeyword() {
-			if tknPos <= pos && pos <= tknPos+token.Pos(len(lit)) {
-				return &ast.Ident{NamePos: tknPos, Name: lit}
-			}
+		if len(lit) > 0 && tknPos <= c.pos && c.pos <= tknPos+token.Pos(len(lit)) {
+			return tknPos, tkn, lit
 		}
 	}
 }
@@ -1001,6 +1009,9 @@ func (c *completer) lexical() error {
 			c.literal(t, nil)
 		}
 	}
+
+	// Add keyword completion items appropriate in the current context.
+	c.addKeywordCompletions()
 
 	return nil
 }

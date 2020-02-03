@@ -420,6 +420,11 @@ func isPkgName(obj types.Object) bool {
 	return ok
 }
 
+func isASTFile(n ast.Node) bool {
+	_, ok := n.(*ast.File)
+	return ok
+}
+
 // isSelector returns the enclosing *ast.SelectorExpr when pos is in the
 // selector.
 func enclosingSelector(path []ast.Node, pos token.Pos) *ast.SelectorExpr {

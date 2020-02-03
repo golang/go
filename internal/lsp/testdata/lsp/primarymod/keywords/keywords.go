@@ -1,5 +1,7 @@
 package keywords
 
+//@rank("", type),rank("", func),rank("", var),rank("", const),rank("", import)
+
 func _() {
 	var test int
 	var tChan chan int
@@ -42,7 +44,7 @@ func _() {
 
 	f //@complete(" //", for)
 	d //@complete(" //", defer)
-	g //@complete(" //", go)
+	g //@rank(" //", go),rank(" //", goto)
 	r //@complete(" //", return)
 	i //@complete(" //", if)
 	e //@complete(" //", else)
@@ -72,3 +74,4 @@ func _() {
 /* return */ //@item(return, "return", "", "keyword")
 /* var */ //@item(var, "var", "", "keyword")
 /* const */ //@item(const, "const", "", "keyword")
+/* goto */ //@item(goto, "goto", "", "keyword")
