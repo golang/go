@@ -30,11 +30,6 @@ type Timespec struct {
 	Nsec int32
 }
 
-type StTimespec struct {
-	Sec  int32
-	Nsec int32
-}
-
 type Timeval struct {
 	Sec  int32
 	Usec int32
@@ -101,9 +96,9 @@ type Stat_t struct {
 	Gid      uint32
 	Rdev     uint32
 	Size     int32
-	Atim     StTimespec
-	Mtim     StTimespec
-	Ctim     StTimespec
+	Atim     Timespec
+	Mtim     Timespec
+	Ctim     Timespec
 	Blksize  int32
 	Blocks   int32
 	Vfstype  int32
@@ -146,6 +141,17 @@ type RawSockaddrUnix struct {
 	Len    uint8
 	Family uint8
 	Path   [1023]uint8
+}
+
+type RawSockaddrDatalink struct {
+	Len    uint8
+	Family uint8
+	Index  uint16
+	Type   uint8
+	Nlen   uint8
+	Alen   uint8
+	Slen   uint8
+	Data   [120]uint8
 }
 
 type RawSockaddr struct {
@@ -207,17 +213,18 @@ type Msghdr struct {
 }
 
 const (
-	SizeofSockaddrInet4 = 0x10
-	SizeofSockaddrInet6 = 0x1c
-	SizeofSockaddrAny   = 0x404
-	SizeofSockaddrUnix  = 0x401
-	SizeofLinger        = 0x8
-	SizeofIPMreq        = 0x8
-	SizeofIPv6Mreq      = 0x14
-	SizeofIPv6MTUInfo   = 0x20
-	SizeofMsghdr        = 0x1c
-	SizeofCmsghdr       = 0xc
-	SizeofICMPv6Filter  = 0x20
+	SizeofSockaddrInet4    = 0x10
+	SizeofSockaddrInet6    = 0x1c
+	SizeofSockaddrAny      = 0x404
+	SizeofSockaddrUnix     = 0x401
+	SizeofSockaddrDatalink = 0x80
+	SizeofLinger           = 0x8
+	SizeofIPMreq           = 0x8
+	SizeofIPv6Mreq         = 0x14
+	SizeofIPv6MTUInfo      = 0x20
+	SizeofMsghdr           = 0x1c
+	SizeofCmsghdr          = 0xc
+	SizeofICMPv6Filter     = 0x20
 )
 
 const (

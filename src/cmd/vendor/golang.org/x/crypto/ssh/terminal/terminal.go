@@ -7,6 +7,7 @@ package terminal
 import (
 	"bytes"
 	"io"
+	"runtime"
 	"strconv"
 	"sync"
 	"unicode/utf8"
@@ -939,6 +940,8 @@ func (s *stRingBuffer) NthPreviousEntry(n int) (value string, ok bool) {
 // readPasswordLine reads from reader until it finds \n or io.EOF.
 // The slice returned does not include the \n.
 // readPasswordLine also ignores any \r it finds.
+// Windows uses \r as end of line. So, on Windows, readPasswordLine
+// reads until it finds \r and ignores any \n it finds during processing.
 func readPasswordLine(reader io.Reader) ([]byte, error) {
 	var buf [1]byte
 	var ret []byte
@@ -952,9 +955,15 @@ func readPasswordLine(reader io.Reader) ([]byte, error) {
 					ret = ret[:len(ret)-1]
 				}
 			case '\n':
-				return ret, nil
+				if runtime.GOOS != "windows" {
+					return ret, nil
+				}
+				// otherwise ignore \n
 			case '\r':
-				// remove \r from passwords on Windows
+				if runtime.GOOS == "windows" {
+					return ret, nil
+				}
+				// otherwise ignore \r
 			default:
 				ret = append(ret, buf[0])
 			}

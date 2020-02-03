@@ -78,6 +78,42 @@ var ARM64 struct {
 	_           CacheLinePad
 }
 
+// ARM contains the supported CPU features of the current ARM (32-bit) platform.
+// All feature flags are false if:
+//   1. the current platform is not arm, or
+//   2. the current operating system is not Linux.
+var ARM struct {
+	_           CacheLinePad
+	HasSWP      bool // SWP instruction support
+	HasHALF     bool // Half-word load and store support
+	HasTHUMB    bool // ARM Thumb instruction set
+	Has26BIT    bool // Address space limited to 26-bits
+	HasFASTMUL  bool // 32-bit operand, 64-bit result multiplication support
+	HasFPA      bool // Floating point arithmetic support
+	HasVFP      bool // Vector floating point support
+	HasEDSP     bool // DSP Extensions support
+	HasJAVA     bool // Java instruction set
+	HasIWMMXT   bool // Intel Wireless MMX technology support
+	HasCRUNCH   bool // MaverickCrunch context switching and handling
+	HasTHUMBEE  bool // Thumb EE instruction set
+	HasNEON     bool // NEON instruction set
+	HasVFPv3    bool // Vector floating point version 3 support
+	HasVFPv3D16 bool // Vector floating point version 3 D8-D15
+	HasTLS      bool // Thread local storage support
+	HasVFPv4    bool // Vector floating point version 4 support
+	HasIDIVA    bool // Integer divide instruction support in ARM mode
+	HasIDIVT    bool // Integer divide instruction support in Thumb mode
+	HasVFPD32   bool // Vector floating point version 3 D15-D31
+	HasLPAE     bool // Large Physical Address Extensions
+	HasEVTSTRM  bool // Event stream support
+	HasAES      bool // AES hardware implementation
+	HasPMULL    bool // Polynomial multiplication instruction set
+	HasSHA1     bool // SHA1 hardware implementation
+	HasSHA2     bool // SHA2 hardware implementation
+	HasCRC32    bool // CRC32 hardware implementation
+	_           CacheLinePad
+}
+
 // PPC64 contains the supported CPU features of the current ppc64/ppc64le platforms.
 // If the current platform is not ppc64/ppc64le then all feature flags are false.
 //
