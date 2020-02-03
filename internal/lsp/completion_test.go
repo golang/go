@@ -23,9 +23,7 @@ func (r *runner) Completion(t *testing.T, src span.Span, test tests.Completion, 
 		}
 
 	})
-	if !strings.Contains(string(src.URI()), "builtins") {
-		got = tests.FilterBuiltins(got)
-	}
+	got = tests.FilterBuiltins(src, got)
 	want := expected(t, test, items)
 	if diff := tests.DiffCompletionItems(want, got); diff != "" {
 		t.Errorf("%s: %s", src, diff)
@@ -51,9 +49,7 @@ func (r *runner) CompletionSnippet(t *testing.T, src span.Span, expected tests.C
 
 func (r *runner) UnimportedCompletion(t *testing.T, src span.Span, test tests.Completion, items tests.CompletionItems) {
 	got := r.callCompletion(t, src, func(opts *source.Options) {})
-	if !strings.Contains(string(src.URI()), "builtins") {
-		got = tests.FilterBuiltins(got)
-	}
+	got = tests.FilterBuiltins(src, got)
 	want := expected(t, test, items)
 	if diff := tests.CheckCompletionOrder(want, got, false); diff != "" {
 		t.Errorf("%s: %s", src, diff)
@@ -66,9 +62,7 @@ func (r *runner) DeepCompletion(t *testing.T, src span.Span, test tests.Completi
 		opts.Matcher = source.CaseInsensitive
 		opts.UnimportedCompletion = false
 	})
-	if !strings.Contains(string(src.URI()), "builtins") {
-		got = tests.FilterBuiltins(got)
-	}
+	got = tests.FilterBuiltins(src, got)
 	want := expected(t, test, items)
 	if msg := tests.DiffCompletionItems(want, got); msg != "" {
 		t.Errorf("%s: %s", src, msg)
@@ -81,9 +75,7 @@ func (r *runner) FuzzyCompletion(t *testing.T, src span.Span, test tests.Complet
 		opts.Matcher = source.Fuzzy
 		opts.UnimportedCompletion = false
 	})
-	if !strings.Contains(string(src.URI()), "builtins") {
-		got = tests.FilterBuiltins(got)
-	}
+	got = tests.FilterBuiltins(src, got)
 	want := expected(t, test, items)
 	if msg := tests.DiffCompletionItems(want, got); msg != "" {
 		t.Errorf("%s: %s", src, msg)
@@ -95,9 +87,7 @@ func (r *runner) CaseSensitiveCompletion(t *testing.T, src span.Span, test tests
 		opts.Matcher = source.CaseSensitive
 		opts.UnimportedCompletion = false
 	})
-	if !strings.Contains(string(src.URI()), "builtins") {
-		got = tests.FilterBuiltins(got)
-	}
+	got = tests.FilterBuiltins(src, got)
 	want := expected(t, test, items)
 	if msg := tests.DiffCompletionItems(want, got); msg != "" {
 		t.Errorf("%s: %s", src, msg)

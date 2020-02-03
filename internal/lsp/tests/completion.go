@@ -3,12 +3,14 @@ package tests
 import (
 	"bytes"
 	"fmt"
+	"go/token"
 	"sort"
 	"strconv"
 	"strings"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/span"
 )
 
 func ToProtocolCompletionItems(items []source.CompletionItem) []protocol.CompletionItem {
@@ -38,12 +40,21 @@ func ToProtocolCompletionItem(item source.CompletionItem) protocol.CompletionIte
 	return pItem
 }
 
-func FilterBuiltins(items []protocol.CompletionItem) []protocol.CompletionItem {
-	var got []protocol.CompletionItem
+func FilterBuiltins(src span.Span, items []protocol.CompletionItem) []protocol.CompletionItem {
+	var (
+		got          []protocol.CompletionItem
+		wantBuiltins = strings.Contains(string(src.URI()), "builtins")
+		wantKeywords = strings.Contains(string(src.URI()), "keywords")
+	)
 	for _, item := range items {
-		if isBuiltin(item.Label, item.Detail, item.Kind) {
+		if !wantBuiltins && isBuiltin(item.Label, item.Detail, item.Kind) {
 			continue
 		}
+
+		if !wantKeywords && token.Lookup(item.Label).IsKeyword() {
+			continue
+		}
+
 		got = append(got, item)
 	}
 	return got
