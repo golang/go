@@ -233,6 +233,12 @@ func resetTimer(t *timer, when int64) {
 	resettimer(t, when)
 }
 
+// modTimer modifies an existing timer.
+//go:linkname modTimer time.modTimer
+func modTimer(t *timer, when, period int64, f func(interface{}, uintptr), arg interface{}, seq uintptr) {
+	modtimer(t, when, period, f, arg, seq)
+}
+
 // Go runtime.
 
 // Ready the goroutine arg.
@@ -402,7 +408,7 @@ func dodeltimer0(pp *p) bool {
 }
 
 // modtimer modifies an existing timer.
-// This is called by the netpoll code.
+// This is called by the netpoll code or time.Ticker.Reset.
 func modtimer(t *timer, when, period int64, f func(interface{}, uintptr), arg interface{}, seq uintptr) {
 	if when < 0 {
 		when = maxWhen
