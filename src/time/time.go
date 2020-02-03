@@ -252,7 +252,9 @@ func (t Time) Before(u Time) bool {
 	if t.wall&u.wall&hasMonotonic != 0 {
 		return t.ext < u.ext
 	}
-	return t.sec() < u.sec() || t.sec() == u.sec() && t.nsec() < u.nsec()
+	ts := t.sec()
+	us := u.sec()
+	return ts < us || ts == us && t.nsec() < u.nsec()
 }
 
 // Equal reports whether t and u represent the same time instant.
