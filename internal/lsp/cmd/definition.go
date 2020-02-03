@@ -134,9 +134,6 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	default:
 		return errors.Errorf("unknown emulation for definition: %s", d.query.Emulate)
 	}
-	if err != nil {
-		return err
-	}
 	if d.query.JSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "\t")
