@@ -125,7 +125,6 @@ func (modules) Finalize(exported *Exported) error {
 	if err := invokeGo(exported.Config, "mod", "download"); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -204,7 +203,7 @@ func modCache(exported *Exported) string {
 }
 
 func primaryDir(exported *Exported) string {
-	return filepath.Join(exported.temp, "primarymod", path.Base(exported.primary))
+	return filepath.Join(exported.temp, path.Base(exported.primary))
 }
 
 func moduleDir(exported *Exported, module string) string {

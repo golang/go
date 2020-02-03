@@ -45,54 +45,58 @@ type runner struct {
 	ctx         context.Context
 }
 
-const viewName = "lsp_test"
-
 func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	ctx := tests.Context(t)
 	data := tests.Load(t, exporter, "testdata")
-	defer data.Exported.Cleanup()
 
-	cache := cache.New(nil)
-	session := cache.NewSession()
-	options := tests.DefaultOptions()
-	session.SetOptions(options)
-	options.Env = data.Config.Env
-	if _, _, err := session.NewView(ctx, viewName, span.FileURI(data.Config.Dir), options); err != nil {
-		t.Fatal(err)
-	}
-	var modifications []source.FileModification
-	for filename, content := range data.Config.Overlay {
-		kind := source.DetectLanguage("", filename)
-		if kind != source.Go {
-			continue
+	for _, datum := range data {
+		defer datum.Exported.Cleanup()
+
+		cache := cache.New(nil)
+		session := cache.NewSession()
+		options := tests.DefaultOptions()
+		session.SetOptions(options)
+		options.Env = datum.Config.Env
+		if _, _, err := session.NewView(ctx, datum.Config.Dir, span.FileURI(datum.Config.Dir), options); err != nil {
+			t.Fatal(err)
 		}
-		modifications = append(modifications, source.FileModification{
-			URI:        span.FileURI(filename),
-			Action:     source.Open,
-			Version:    -1,
-			Text:       content,
-			LanguageID: "go",
+		var modifications []source.FileModification
+		for filename, content := range datum.Config.Overlay {
+			kind := source.DetectLanguage("", filename)
+			if kind != source.Go {
+				continue
+			}
+			modifications = append(modifications, source.FileModification{
+				URI:        span.FileURI(filename),
+				Action:     source.Open,
+				Version:    -1,
+				Text:       content,
+				LanguageID: "go",
+			})
+		}
+		if _, err := session.DidModifyFiles(ctx, modifications); err != nil {
+			t.Fatal(err)
+		}
+		r := &runner{
+			server: &Server{
+				session:   session,
+				delivered: map[span.URI]sentDiagnostics{},
+			},
+			data: datum,
+			ctx:  ctx,
+		}
+		t.Run(datum.Folder, func(t *testing.T) {
+			t.Helper()
+			tests.Run(t, r, datum)
 		})
 	}
-	if _, err := session.DidModifyFiles(ctx, modifications); err != nil {
-		t.Fatal(err)
-	}
-	r := &runner{
-		server: &Server{
-			session:   session,
-			delivered: map[span.URI]sentDiagnostics{},
-		},
-		data: data,
-		ctx:  ctx,
-	}
-	tests.Run(t, r, data)
 }
 
 func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnostic) {
 	// Get the diagnostics for this view if we have not done it before.
 	if r.diagnostics == nil {
 		r.diagnostics = make(map[span.URI][]source.Diagnostic)
-		v := r.server.session.View(viewName)
+		v := r.server.session.View(r.data.Config.Dir)
 		// Always run diagnostics with analysis.
 		reports := r.server.diagnose(r.ctx, v.Snapshot(), true)
 		for key, diags := range reports {
@@ -980,9 +984,9 @@ func TestModfileSuggestedFixes(t *testing.T) {
 		delivered: map[span.URI]sentDiagnostics{},
 	}
 
-	for _, tt := range []string{"indirect", "unused"} {
+	for _, tt := range []string{"indirect/primarymod", "unused/primarymod"} {
 		t.Run(tt, func(t *testing.T) {
-			folder, err := tests.CopyFolderToTempDir(filepath.Join("mod", "testdata", tt))
+			folder, err := tests.CopyFolderToTempDir(filepath.Join("testdata", tt))
 			if err != nil {
 				t.Fatal(err)
 			}

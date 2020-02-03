@@ -303,6 +303,110 @@ func Copy(source string) Writer {
 	}
 }
 
+// GroupFilesByModules attempts to map directories to the modules within each directory.
+// This function assumes that the folder is structured in the following way:
+// - dir
+//   - primarymod
+//     - .go files
+//		 - packages
+//		 - go.mod (optional)
+//	 - modules
+// 		 - repoa
+//		   - mod1
+//	       - .go files
+//			   -  packages
+//		  	 - go.mod (optional)
+// It scans the directory tree anchored at root and adds a Copy writer to the
+// map for every file found.
+// This is to enable the common case in tests where you have a full copy of the
+// package in your testdata.
+func GroupFilesByModules(root string) ([]Module, error) {
+	root = filepath.FromSlash(root)
+	primarymodPath := filepath.Join(root, "primarymod")
+
+	_, err := os.Stat(primarymodPath)
+	if os.IsNotExist(err) {
+		return nil, fmt.Errorf("could not find primarymod folder within %s", root)
+	}
+
+	primarymod := &Module{
+		Name:    root,
+		Files:   make(map[string]interface{}),
+		Overlay: make(map[string][]byte),
+	}
+	mods := map[string]*Module{
+		root: primarymod,
+	}
+	modules := []Module{*primarymod}
+
+	if err := filepath.Walk(primarymodPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		fragment, err := filepath.Rel(primarymodPath, path)
+		if err != nil {
+			return err
+		}
+		primarymod.Files[filepath.ToSlash(fragment)] = Copy(path)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	modulesPath := filepath.Join(root, "modules")
+	if _, err := os.Stat(modulesPath); os.IsNotExist(err) {
+		return modules, nil
+	}
+
+	var currentRepo, currentModule string
+	if err := filepath.Walk(modulesPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		// If the path is not a directory, then we want to add the path to
+		// the files map of the currentModule.
+		if !info.IsDir() {
+			fragment, err := filepath.Rel(currentModule, path)
+			if err != nil {
+				return err
+			}
+			mods[currentModule].Files[filepath.ToSlash(fragment)] = Copy(path)
+			return nil
+		}
+		// If the path is a directory and it's enclosing folder is equal to
+		// the modules folder, then the path is a new repo.
+		if filepath.Dir(path) == modulesPath {
+			currentRepo = path
+			return nil
+		}
+		// If the path is a directory and it's enclosing folder is not the same
+		// as the current repo, then the path is a folder/package of the current module.
+		if filepath.Dir(path) != currentRepo {
+			return nil
+		}
+		// If the path is a directory and it's enclosing folder is the current repo
+		// then the path is a new module.
+		module, err := filepath.Rel(modulesPath, path)
+		if err != nil {
+			return err
+		}
+		mods[path] = &Module{
+			Name:    filepath.ToSlash(module),
+			Files:   make(map[string]interface{}),
+			Overlay: make(map[string][]byte),
+		}
+		currentModule = path
+		modules = append(modules, *mods[path])
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return modules, nil
+}
+
 // MustCopyFileTree returns a file set for a module based on a real directory tree.
 // It scans the directory tree anchored at root and adds a Copy writer to the
 // map for every file found.

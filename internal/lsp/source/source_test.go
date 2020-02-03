@@ -45,39 +45,44 @@ type runner struct {
 func testSource(t *testing.T, exporter packagestest.Exporter) {
 	ctx := tests.Context(t)
 	data := tests.Load(t, exporter, "../testdata")
-	defer data.Exported.Cleanup()
+	for _, datum := range data {
+		defer datum.Exported.Cleanup()
 
-	cache := cache.New(nil)
-	session := cache.NewSession()
-	options := tests.DefaultOptions()
-	options.Env = data.Config.Env
-	view, _, err := session.NewView(ctx, "source_test", span.FileURI(data.Config.Dir), options)
-	if err != nil {
-		t.Fatal(err)
-	}
-	r := &runner{
-		view: view,
-		data: data,
-		ctx:  ctx,
-	}
-	var modifications []source.FileModification
-	for filename, content := range data.Config.Overlay {
-		kind := source.DetectLanguage("", filename)
-		if kind != source.Go {
-			continue
+		cache := cache.New(nil)
+		session := cache.NewSession()
+		options := tests.DefaultOptions()
+		options.Env = datum.Config.Env
+		view, _, err := session.NewView(ctx, "source_test", span.FileURI(datum.Config.Dir), options)
+		if err != nil {
+			t.Fatal(err)
 		}
-		modifications = append(modifications, source.FileModification{
-			URI:        span.FileURI(filename),
-			Action:     source.Open,
-			Version:    -1,
-			Text:       content,
-			LanguageID: "go",
+		r := &runner{
+			view: view,
+			data: datum,
+			ctx:  ctx,
+		}
+		var modifications []source.FileModification
+		for filename, content := range datum.Config.Overlay {
+			kind := source.DetectLanguage("", filename)
+			if kind != source.Go {
+				continue
+			}
+			modifications = append(modifications, source.FileModification{
+				URI:        span.FileURI(filename),
+				Action:     source.Open,
+				Version:    -1,
+				Text:       content,
+				LanguageID: "go",
+			})
+		}
+		if _, err := session.DidModifyFiles(ctx, modifications); err != nil {
+			t.Fatal(err)
+		}
+		t.Run(datum.Folder, func(t *testing.T) {
+			t.Helper()
+			tests.Run(t, r, datum)
 		})
 	}
-	if _, err := session.DidModifyFiles(ctx, modifications); err != nil {
-		t.Fatal(err)
-	}
-	tests.Run(t, r, data)
 }
 
 func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnostic) {

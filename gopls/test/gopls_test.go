@@ -37,6 +37,11 @@ func testCommandLine(t *testing.T, exporter packagestest.Exporter) {
 		t.Skip("testdata directory not present")
 	}
 	data := tests.Load(t, exporter, testdata)
-	defer data.Exported.Cleanup()
-	tests.Run(t, cmdtest.NewRunner(exporter, data, tests.Context(t), commandLineOptions), data)
+	for _, data := range data {
+		defer data.Exported.Cleanup()
+		t.Run(data.Folder, func(t *testing.T) {
+			t.Helper()
+			tests.Run(t, cmdtest.NewRunner(exporter, data, tests.Context(t), commandLineOptions), data)
+		})
+	}
 }
