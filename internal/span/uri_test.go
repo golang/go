@@ -54,21 +54,31 @@ func TestURI(t *testing.T) {
 		{
 			path:     `c:/Go/src/bob george/george/george.go`,
 			wantFile: `C:/Go/src/bob george/george/george.go`,
-			wantURI:  span.URI("file:///C:/Go/src/bob george/george/george.go"),
+			wantURI:  span.URI("file:///C:/Go/src/bob%20george/george/george.go"),
 		},
 		{
-			path:     `file:///c:/Go/src/bob george/george/george.go`,
+			path:     `file:///c:/Go/src/bob%20george/george/george.go`,
 			wantFile: `C:/Go/src/bob george/george/george.go`,
-			wantURI:  span.URI("file:///C:/Go/src/bob george/george/george.go"),
+			wantURI:  span.URI("file:///C:/Go/src/bob%20george/george/george.go"),
+		},
+		{
+			path:     `file:///C%3A/Go/src/bob%20george/george/george.go`,
+			wantFile: `C:/Go/src/bob george/george/george.go`,
+			wantURI:  span.URI("file:///C:/Go/src/bob%20george/george/george.go"),
+		},
+		{
+			path:     `file:///path/to/%25p%25ercent%25/per%25cent.go`,
+			wantFile: `/path/to/%p%ercent%/per%cent.go`,
+			wantURI:  span.URI(`file:///path/to/%25p%25ercent%25/per%25cent.go`),
 		},
 	} {
 		got := span.NewURI(test.path)
 		if got != test.wantURI {
-			t.Errorf("ToURI: got %s, expected %s", got, test.wantURI)
+			t.Errorf("NewURI(%q): got %q, expected %q", test.path, got, test.wantURI)
 		}
 		gotFilename := got.Filename()
 		if gotFilename != test.wantFile {
-			t.Errorf("Filename: got %s, expected %s", gotFilename, test.wantFile)
+			t.Errorf("Filename(%q): got %q, expected %q", got, gotFilename, test.wantFile)
 		}
 	}
 }

@@ -54,12 +54,22 @@ func TestURI(t *testing.T) {
 		{
 			path:     `c:\Go\src\bob george\george\george.go`,
 			wantFile: `C:\Go\src\bob george\george\george.go`,
-			wantURI:  span.URI("file:///C:/Go/src/bob george/george/george.go"),
+			wantURI:  span.URI("file:///C:/Go/src/bob%20george/george/george.go"),
 		},
 		{
-			path:     `file:///c:/Go/src/bob george/george/george.go`,
+			path:     `file:///c:/Go/src/bob%20george/george/george.go`,
 			wantFile: `C:\Go\src\bob george\george\george.go`,
-			wantURI:  span.URI("file:///C:/Go/src/bob george/george/george.go"),
+			wantURI:  span.URI("file:///C:/Go/src/bob%20george/george/george.go"),
+		},
+		{
+			path:     `file:///C%3A/Go/src/bob%20george/george/george.go`,
+			wantFile: `C:\Go\src\bob george\george\george.go`,
+			wantURI:  span.URI("file:///C:/Go/src/bob%20george/george/george.go"),
+		},
+		{
+			path:     `file:///c:/path/to/%25p%25ercent%25/per%25cent.go`,
+			wantFile: `C:\path\to\%p%ercent%\per%cent.go`,
+			wantURI:  span.URI(`file:///C:/path/to/%25p%25ercent%25/per%25cent.go`),
 		},
 	} {
 		got := span.NewURI(test.path)

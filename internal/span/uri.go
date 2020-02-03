@@ -46,24 +46,26 @@ func filename(uri URI) (string, error) {
 	if isWindowsDriveURIPath(u.Path) {
 		u.Path = strings.ToUpper(string(u.Path[1])) + u.Path[2:]
 	}
-
 	return u.Path, nil
 }
 
 // NewURI returns a span URI for the string.
 // It will attempt to detect if the string is a file path or uri.
 func NewURI(s string) URI {
-	if u, err := url.PathUnescape(s); err == nil {
-		s = u
-	}
 	// If a path has a scheme, it is already a URI.
 	// We only handle the file:// scheme.
-	if strings.HasPrefix(s, fileScheme+"://") {
+	if i := len(fileScheme + "://"); strings.HasPrefix(s, "file:///") {
+		// Handle microsoft/vscode#75027 by making it a special case.
+		// On Windows, VS Code sends file URIs that look like file:///C%3A/x/y/z.
+		// Replace the %3A so that the URI looks like: file:///C:/x/y/z.
+		if strings.ToLower(s[i+2:i+5]) == "%3a" {
+			s = s[:i+2] + ":" + s[i+5:]
+		}
 		// File URIs from Windows may have lowercase drive letters.
 		// Since drive letters are guaranteed to be case insensitive,
 		// we change them to uppercase to remain consistent.
 		// For example, file:///c:/x/y/z becomes file:///C:/x/y/z.
-		if i := len(fileScheme + "://"); isWindowsDriveURIPath(s[i:]) {
+		if isWindowsDriveURIPath(s[i:]) {
 			s = s[:i+1] + strings.ToUpper(string(s[i+1])) + s[i+2:]
 		}
 		return URI(s)
@@ -136,11 +138,7 @@ func FileURI(path string) URI {
 		Scheme: fileScheme,
 		Path:   path,
 	}
-	uri := u.String()
-	if unescaped, err := url.PathUnescape(uri); err == nil {
-		uri = unescaped
-	}
-	return URI(uri)
+	return URI(u.String())
 }
 
 // isWindowsDrivePath returns true if the file path is of the form used by
