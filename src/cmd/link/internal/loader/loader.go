@@ -67,7 +67,6 @@ type oReader struct {
 type objIdx struct {
 	r *oReader
 	i Sym // start index
-	e Sym // end index
 }
 
 // objSym represents a symbol in an object file. It is a tuple of
@@ -130,9 +129,8 @@ func growBitmap(reqLen int, b bitmap) bitmap {
 // TODO: rework index space reservation.
 //
 // - Go object files are read before host object files; each Go object
-//   read allocates a new chunk of global index space of size P + NP,
-//   where P is the number of package defined symbols in the object and
-//   NP is the number of non-package defined symbols.
+//   read adds its defined (package + non-package) symbols to the global
+//   index space.
 //
 // - In loader.LoadRefs(), the loader makes a sweep through all of the
 //   non-package references in each object file and allocates sym indices
@@ -161,9 +159,6 @@ func growBitmap(reqLen int, b bitmap) bitmap {
 // - Each symbol gets a unique global index. For duplicated and
 //   overwriting/overwritten symbols, the second (or later) appearance
 //   of the symbol gets the same global index as the first appearance.
-//   This means, currently, there may be holes in the index space --
-//   the index reserved for a duplicated symbol does not actually
-//   point to any symbol.
 type Loader struct {
 	start       map[*oReader]Sym // map from object file to its start index
 	objs        []objIdx         // sorted by start index (i.e. objIdx.i)
@@ -297,11 +292,6 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc) *Loader {
 	}
 }
 
-// Return the start index in the global index space for a given object file.
-func (l *Loader) startIndex(r *oReader) Sym {
-	return l.start[r]
-}
-
 // Add object file r, return the start index.
 func (l *Loader) addObj(pkg string, r *oReader) Sym {
 	if _, ok := l.start[r]; ok {
@@ -314,68 +304,67 @@ func (l *Loader) addObj(pkg string, r *oReader) Sym {
 	n := r.NSym() + r.NNonpkgdef()
 	i := l.max + 1
 	l.start[r] = i
-	l.objs = append(l.objs, objIdx{r, i, i + Sym(n) - 1})
-	l.max += Sym(n)
-	l.growValues(int(l.max))
+	l.objs = append(l.objs, objIdx{r, i})
+	l.growValues(int(l.max) + n)
 	return i
 }
 
-// Add a symbol with a given index, return the global index and whether it is added.
+// Add a symbol from an object file, return the global index and whether it is added.
 // If the symbol already exist, it returns the index of that symbol.
-func (l *Loader) AddSym(name string, ver int, i Sym, r *oReader, li int, dupok bool, typ sym.SymKind) (Sym, bool) {
+func (l *Loader) AddSym(name string, ver int, r *oReader, li int, dupok bool, typ sym.SymKind) (Sym, bool) {
 	if l.extStart != 0 {
 		panic("AddSym called after AddExtSym is called")
 	}
-	if int(i) != len(l.objSyms) {
-		fmt.Println(i, len(l.objSyms), name, ver)
-		panic("XXX AddSym inconsistency")
+	i := Sym(len(l.objSyms))
+	addToGlobal := func() {
+		l.max++
+		l.objSyms = append(l.objSyms, objSym{r, li})
 	}
-	l.objSyms = append(l.objSyms, objSym{r, li})
 	if name == "" {
+		addToGlobal()
 		return i, true // unnamed aux symbol
 	}
 	if ver == r.version {
 		// Static symbol. Add its global index but don't
 		// add to name lookup table, as it cannot be
 		// referenced by name.
+		addToGlobal()
 		return i, true
 	}
-	if oldi, ok := l.symsByName[ver][name]; ok {
-		if dupok {
-			if l.flags&FlagStrictDups != 0 {
-				l.checkdup(name, i, r, oldi)
-			}
-			l.objSyms[i] = objSym{} // nil this out -- this is a hole in the index space
-			return oldi, false
+	oldi, existed := l.symsByName[ver][name]
+	if !existed {
+		l.symsByName[ver][name] = i
+		addToGlobal()
+		return i, true
+	}
+	// symbol already exists
+	if dupok {
+		if l.flags&FlagStrictDups != 0 {
+			l.checkdup(name, r, li, oldi)
 		}
-		oldr, oldli := l.toLocal(oldi)
-		oldsym := goobj2.Sym{}
-		oldsym.Read(oldr.Reader, oldr.SymOff(oldli))
-		if oldsym.Dupok() {
-			l.objSyms[i] = objSym{} // nil this out -- this is a hole in the index space
-			return oldi, false
+		return oldi, false
+	}
+	oldr, oldli := l.toLocal(oldi)
+	oldsym := goobj2.Sym{}
+	oldsym.Read(oldr.Reader, oldr.SymOff(oldli))
+	if oldsym.Dupok() {
+		return oldi, false
+	}
+	overwrite := r.DataSize(li) != 0
+	if overwrite {
+		// new symbol overwrites old symbol.
+		oldtyp := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type)]
+		if !(oldtyp.IsData() && oldr.DataSize(oldli) == 0) {
+			log.Fatalf("duplicated definition of symbol " + name)
 		}
-		overwrite := r.DataSize(li) != 0
-		if overwrite {
-			// new symbol overwrites old symbol.
-			oldtyp := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type)]
-			if !(oldtyp.IsData() && oldr.DataSize(oldli) == 0) {
-				log.Fatalf("duplicated definition of symbol " + name)
-			}
-			l.objSyms[oldi] = objSym{r, li}
-			l.objSyms[i] = objSym{} // nil this out -- this is a hole in the index space
-			return oldi, true
-		} else {
-			// old symbol overwrites new symbol.
-			if !typ.IsData() { // only allow overwriting data symbol
-				log.Fatalf("duplicated definition of symbol " + name)
-			}
-			l.objSyms[i] = objSym{} // nil this out -- this is a hole in the index space
-			return oldi, false
+		l.objSyms[oldi] = objSym{r, li}
+	} else {
+		// old symbol overwrites new symbol.
+		if !typ.IsData() { // only allow overwriting data symbol
+			log.Fatalf("duplicated definition of symbol " + name)
 		}
 	}
-	l.symsByName[ver][name] = i
-	return i, true
+	return oldi, true
 }
 
 // newExtSym creates a new external sym with the specified
@@ -551,17 +540,8 @@ func (l *Loader) Lookup(name string, ver int) Sym {
 	return l.symsByName[ver][name]
 }
 
-// Returns whether i is a dup of another symbol, and i is not
-// "primary", i.e. i is a hole in the global index space.
-// TODO: get rid of the holes.
-func (l *Loader) IsDup(i Sym) bool {
-	r, _ := l.toLocal(i)
-	return r == nil
-}
-
 // Check that duplicate symbols have same contents.
-func (l *Loader) checkdup(name string, i Sym, r *oReader, dup Sym) {
-	li := int(i - l.startIndex(r))
+func (l *Loader) checkdup(name string, r *oReader, li int, dup Sym) {
 	p := r.Data(li)
 	if strings.HasPrefix(name, "go.info.") {
 		p, _ = patchDWARFName1(p, r)
@@ -1503,7 +1483,6 @@ func (l *Loader) Preload(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *
 	}
 
 	istart := l.addObj(lib.Pkg, or)
-
 	l.growAttrBitmaps(int(istart) + ndef + nnonpkgdef)
 	for i, n := 0, ndef+nnonpkgdef; i < n; i++ {
 		osym := goobj2.Sym{}
@@ -1511,7 +1490,7 @@ func (l *Loader) Preload(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *
 		name := strings.Replace(osym.Name, "\"\".", pkgprefix, -1)
 		v := abiToVer(osym.ABI, localSymVersion)
 		dupok := osym.Dupok()
-		gi, added := l.AddSym(name, v, istart+Sym(i), or, i, dupok, sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)])
+		gi, added := l.AddSym(name, v, or, i, dupok, sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)])
 		or.syms[i] = gi
 		if !added {
 			continue
@@ -1973,7 +1952,6 @@ func (l *Loader) CreateExtSym(name string) Sym {
 }
 
 func loadObjFull(l *Loader, r *oReader) {
-	istart := l.startIndex(r)
 	lib := r.unit.Lib
 	resolveSymRef := func(s goobj2.SymRef) *sym.Symbol {
 		i := l.resolve(r, s)
@@ -1986,38 +1964,39 @@ func loadObjFull(l *Loader, r *oReader) {
 	pcdataBase := r.PcdataBase()
 	rslice := []Reloc{}
 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
+		// A symbol may be a dup or overwritten. In this case, its
+		// content will actually be provided by a different object
+		// (to which its global index points). Skip those symbols.
+		gi := l.toGlobal(r, i)
+		var isdup bool
+		if r2, i2 := l.toLocal(gi); r2 != r || i2 != i {
+			isdup = true
+		}
+
 		osym := goobj2.Sym{}
 		osym.Read(r.Reader, r.SymOff(i))
 		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
 		if name == "" {
 			continue
 		}
-		ver := abiToVer(osym.ABI, r.version)
 		dupok := osym.Dupok()
-		if dupok {
-			if dupsym := l.symsByName[ver][name]; dupsym != istart+Sym(i) {
-				if l.attrReachable.has(dupsym) {
-					// A dupok symbol is resolved to another package. We still need
-					// to record its presence in the current package, as the trampoline
-					// pass expects packages are laid out in dependency order.
-					s := l.Syms[dupsym]
-					if s.Type == sym.STEXT {
-						lib.DupTextSyms = append(lib.DupTextSyms, s)
-						lib.DupTextSyms2 = append(lib.DupTextSyms2, sym.LoaderSym(dupsym))
-					}
+		if dupok && isdup {
+			if l.attrReachable.has(gi) {
+				// A dupok symbol is resolved to another package. We still need
+				// to record its presence in the current package, as the trampoline
+				// pass expects packages are laid out in dependency order.
+				s := l.Syms[gi]
+				if s.Type == sym.STEXT {
+					lib.DupTextSyms = append(lib.DupTextSyms, s)
+					lib.DupTextSyms2 = append(lib.DupTextSyms2, sym.LoaderSym(gi))
 				}
-				continue
 			}
+			continue
 		}
 
-		// A symbol may be a dup or overwritten. In this case, its
-		// content will actually be provided by a different object
-		// (to which its global index points). Skip those symbols.
-		gi := l.toGlobal(r, i)
-		if r2, i2 := l.toLocal(gi); r2 != r || i2 != i {
+		if isdup {
 			continue // come from a different object
 		}
-
 		s := l.Syms[gi]
 		if s == nil {
 			continue
@@ -2301,9 +2280,6 @@ func (l *Loader) UndefinedRelocTargets(limit int) []Sym {
 	result := []Sym{}
 	rslice := []Reloc{}
 	for si := Sym(1); si <= l.max; si++ {
-		if l.IsDup(si) {
-			continue
-		}
 		relocs := l.Relocs(si)
 		rslice = relocs.ReadAll(rslice)
 		for ri := 0; ri < relocs.Count; ri++ {
@@ -2342,10 +2318,6 @@ func (l *Loader) Dump() {
 		if s != nil {
 			fmt.Println(i, s, s.Type, pi)
 		} else {
-			if l.IsDup(i) {
-				fmt.Println(i, "<overwritten>")
-				continue
-			}
 			fmt.Println(i, l.SymName(i), "<not loaded>", pi)
 		}
 	}
