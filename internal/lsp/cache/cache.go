@@ -9,6 +9,7 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"go/token"
+	"reflect"
 	"strconv"
 	"sync/atomic"
 
@@ -116,5 +117,6 @@ var cacheIndex, sessionIndex, viewIndex int64
 
 type debugCache struct{ *cache }
 
-func (c *cache) ID() string                  { return c.id }
-func (c debugCache) FileSet() *token.FileSet { return c.fset }
+func (c *cache) ID() string                         { return c.id }
+func (c debugCache) FileSet() *token.FileSet        { return c.fset }
+func (c debugCache) MemStats() map[reflect.Type]int { return c.store.Stats() }

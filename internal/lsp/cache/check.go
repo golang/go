@@ -25,6 +25,8 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
+type packageHandleKey string
+
 // packageHandle implements source.PackageHandle.
 type packageHandle struct {
 	handle *memoize.Handle
@@ -41,7 +43,7 @@ type packageHandle struct {
 	m *metadata
 
 	// key is the hashed key for the package.
-	key []byte
+	key packageHandleKey
 }
 
 func (ph *packageHandle) packageKey() packageKey {
@@ -86,7 +88,7 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID, mode so
 	key := ph.key
 	fset := s.view.session.cache.fset
 
-	h := s.view.session.cache.store.Bind(string(key), func(ctx context.Context) interface{} {
+	h := s.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
 		// Begin loading the direct dependencies, in parallel.
 		for _, dep := range deps {
 			go func(dep *packageHandle) {
@@ -134,7 +136,7 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 	deps := make(map[packagePath]*packageHandle)
 
 	// Begin computing the key by getting the depKeys for all dependencies.
-	var depKeys [][]byte
+	var depKeys []packageHandleKey
 	for _, depID := range depList {
 		mode := source.ParseExported
 		if _, ok := s.isWorkspacePackage(depID); ok {
@@ -146,7 +148,7 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 
 			// One bad dependency should not prevent us from checking the entire package.
 			// Add a special key to mark a bad dependency.
-			depKeys = append(depKeys, []byte(fmt.Sprintf("%s import not found", id)))
+			depKeys = append(depKeys, packageHandleKey(fmt.Sprintf("%s import not found", id)))
 			continue
 		}
 		deps[depHandle.m.pkgPath] = depHandle
@@ -156,8 +158,12 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 	return ph, deps, nil
 }
 
-func checkPackageKey(id packageID, pghs []source.ParseGoHandle, cfg *packages.Config, deps [][]byte) []byte {
-	return []byte(hashContents([]byte(fmt.Sprintf("%s%s%s%s", id, hashParseKeys(pghs), hashConfig(cfg), hashContents(bytes.Join(deps, nil))))))
+func checkPackageKey(id packageID, pghs []source.ParseGoHandle, cfg *packages.Config, deps []packageHandleKey) packageHandleKey {
+	var depBytes []byte
+	for _, dep := range deps {
+		depBytes = append(depBytes, []byte(dep)...)
+	}
+	return packageHandleKey(hashContents([]byte(fmt.Sprintf("%s%s%s%s", id, hashParseKeys(pghs), hashConfig(cfg), hashContents(depBytes)))))
 }
 
 // hashConfig returns the hash for the *packages.Config.

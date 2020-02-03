@@ -16,6 +16,7 @@ package memoize
 
 import (
 	"context"
+	"reflect"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -149,6 +150,18 @@ func (s *Store) get(key interface{}) *Handle {
 		return nil
 	}
 	return (*Handle)(unsafe.Pointer(e))
+}
+
+// Stats returns the number of each type of value in the store.
+func (s *Store) Stats() map[reflect.Type]int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	result := map[reflect.Type]int{}
+	for k := range s.entries {
+		result[reflect.TypeOf(k)]++
+	}
+	return result
 }
 
 // Cached returns the value associated with a handle.

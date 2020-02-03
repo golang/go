@@ -15,6 +15,7 @@ import (
 	"net/http/pprof"
 	_ "net/http/pprof" // pull in the standard pprof handlers
 	"path"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -39,6 +40,7 @@ type Instance interface {
 type Cache interface {
 	ID() string
 	FileSet() *token.FileSet
+	MemStats() map[reflect.Type]int
 }
 
 type Session interface {
@@ -411,6 +413,8 @@ var cacheTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{define "body"}}
 <h2>Sessions</h2>
 <ul>{{range .Sessions}}<li>{{template "sessionlink" .ID}}</li>{{end}}</ul>
+<h2>memoize.Store entries</h2>
+<ul>{{range $k,$v := .MemStats}}<li>{{$k}} - {{$v}}</li>{{end}}</ul>
 {{end}}
 `))
 
