@@ -20,8 +20,7 @@ import (
 // data or relocations).
 func addDummyObjSym(t *testing.T, ldr *Loader, or *oReader, name string) Sym {
 	idx := ldr.max + 1
-	ldr.max++
-	if _, ok := ldr.AddSym(name, 0, idx, or, int(idx-ldr.startIndex(or)), false, sym.SRODATA); !ok {
+	if _, ok := ldr.AddSym(name, 0, or, int(idx), false, sym.SRODATA); !ok {
 		t.Errorf("AddrSym failed for '" + name + "'")
 	}
 

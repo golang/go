@@ -58,9 +58,7 @@ func (d *deadcodePass2) init() {
 		n := d.ldr.NDef()
 		for i := 1; i < n; i++ {
 			s := loader.Sym(i)
-			if !d.ldr.IsDup(s) {
-				d.mark(s, 0)
-			}
+			d.mark(s, 0)
 		}
 		return
 	}
