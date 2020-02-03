@@ -508,9 +508,13 @@ func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func,
 	return fn, KindNone
 }
 
-// isFormatter reports whether t satisfies fmt.Formatter.
+// isFormatter reports whether t could satisfy fmt.Formatter.
 // The only interface method to look for is "Format(State, rune)".
 func isFormatter(typ types.Type) bool {
+	// If the type is an interface, the value it holds might satisfy fmt.Formatter.
+	if _, ok := typ.Underlying().(*types.Interface); ok {
+		return true
+	}
 	obj, _, _ := types.LookupFieldOrMethod(typ, false, nil, "Format")
 	fn, ok := obj.(*types.Func)
 	if !ok {
@@ -827,7 +831,7 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
 		}
 	}
 
-	// Does current arg implement fmt.Formatter?
+	// Could current arg implement fmt.Formatter?
 	formatter := false
 	if state.argNum < len(call.Args) {
 		if tv, ok := pass.TypesInfo.Types[call.Args[state.argNum]]; ok {

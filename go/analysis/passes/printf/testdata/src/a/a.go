@@ -101,8 +101,9 @@ func PrintfTests() {
 	fmt.Printf("%v", notstringerarrayv)
 	fmt.Printf("%T", notstringerarrayv)
 	fmt.Printf("%d", new(fmt.Formatter))
-	fmt.Printf("%*%", 2)               // Ridiculous but allowed.
-	fmt.Printf("%s", interface{}(nil)) // Nothing useful we can say.
+	fmt.Printf("%*%", 2)                              // Ridiculous but allowed.
+	fmt.Printf("%s", interface{}(nil))                // Nothing useful we can say.
+	fmt.Printf("%a", interface{}(new(BoolFormatter))) // Could be a fmt.Formatter.
 
 	fmt.Printf("%g", 1+2i)
 	fmt.Printf("%#e %#E %#f %#F %#g %#G", 1.2, 1.2, 1.2, 1.2, 1.2, 1.2) // OK since Go 1.9
