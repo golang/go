@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This package constructs a simple control-flow graph (CFG) of the
+// Package cfg constructs a simple control-flow graph (CFG) of the
 // statements and expressions within a single function.
 //
 // Use cfg.New to construct the CFG for a function body.

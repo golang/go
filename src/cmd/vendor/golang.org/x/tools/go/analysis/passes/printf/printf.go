@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file contains the printf-checker.
-
+// Package printf defines an Analyzer that checks consistency
+// of Printf format strings and arguments.
 package printf
 
 import (

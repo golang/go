@@ -102,7 +102,7 @@ func Generate(w io.Writer, rpt *Report, obj plugin.ObjTool) error {
 	case Tags:
 		return printTags(w, rpt)
 	case Proto:
-		return rpt.prof.Write(w)
+		return printProto(w, rpt)
 	case TopProto:
 		return printTopProto(w, rpt)
 	case Dis:
@@ -291,6 +291,23 @@ func (rpt *Report) newGraph(nodes graph.NodeSet) *graph.Graph {
 	return graph.New(rpt.prof, gopt)
 }
 
+// printProto writes the incoming proto via thw writer w.
+// If the divide_by option has been specified, samples are scaled appropriately.
+func printProto(w io.Writer, rpt *Report) error {
+	p, o := rpt.prof, rpt.options
+
+	// Apply the sample ratio to all samples before saving the profile.
+	if r := o.Ratio; r > 0 && r != 1 {
+		for _, sample := range p.Sample {
+			for i, v := range sample.Value {
+				sample.Value[i] = int64(float64(v) * r)
+			}
+		}
+	}
+	return p.Write(w)
+}
+
+// printTopProto writes a list of the hottest routines in a profile as a profile.proto.
 func printTopProto(w io.Writer, rpt *Report) error {
 	p := rpt.prof
 	o := rpt.options

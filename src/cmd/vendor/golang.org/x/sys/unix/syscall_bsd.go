@@ -63,15 +63,6 @@ func Setgroups(gids []int) (err error) {
 	return setgroups(len(a), &a[0])
 }
 
-func ReadDirent(fd int, buf []byte) (n int, err error) {
-	// Final argument is (basep *uintptr) and the syscall doesn't take nil.
-	// 64 bits should be enough. (32 bits isn't even on 386). Since the
-	// actual system call is getdirentries64, 64 is a good guess.
-	// TODO(rsc): Can we use a single global basep for all calls?
-	var base = (*uintptr)(unsafe.Pointer(new(uint64)))
-	return Getdirentries(fd, buf, base)
-}
-
 // Wait status is 7 bits at bottom, either 0 (exited),
 // 0x7F (stopped), or a signal number that caused an exit.
 // The 0x80 bit is whether there was a core dump.
@@ -86,6 +77,7 @@ const (
 	shift = 8
 
 	exited  = 0
+	killed  = 9
 	stopped = 0x7F
 )
 
@@ -111,6 +103,8 @@ func (w WaitStatus) Signal() syscall.Signal {
 func (w WaitStatus) CoreDump() bool { return w.Signaled() && w&core != 0 }
 
 func (w WaitStatus) Stopped() bool { return w&mask == stopped && syscall.Signal(w>>shift) != SIGSTOP }
+
+func (w WaitStatus) Killed() bool { return w&mask == killed && syscall.Signal(w>>shift) != SIGKILL }
 
 func (w WaitStatus) Continued() bool { return w&mask == stopped && syscall.Signal(w>>shift) == SIGSTOP }
 
@@ -243,7 +237,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
 				break
 			}
 		}
-		bytes := (*[10000]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
+		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
 		sa.Name = string(bytes)
 		return sa, nil
 
@@ -419,8 +413,6 @@ func Kevent(kq int, changes, events []Kevent_t, timeout *Timespec) (n int, err e
 	return kevent(kq, change, len(changes), event, len(events), timeout)
 }
 
-//sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL
-
 // sysctlmib translates name to mib number and appends any additional args.
 func sysctlmib(name string, args ...int) ([]_C_int, error) {
 	// Translate name to mib number.
@@ -518,6 +510,23 @@ func SysctlRaw(name string, args ...int) ([]byte, error) {
 	return buf[:n], nil
 }
 
+func SysctlClockinfo(name string) (*Clockinfo, error) {
+	mib, err := sysctlmib(name)
+	if err != nil {
+		return nil, err
+	}
+
+	n := uintptr(SizeofClockinfo)
+	var ci Clockinfo
+	if err := sysctl(mib, (*byte)(unsafe.Pointer(&ci)), &n, nil, 0); err != nil {
+		return nil, err
+	}
+	if n != SizeofClockinfo {
+		return nil, EIO
+	}
+	return &ci, nil
+}
+
 //sys	utimes(path string, timeval *[2]Timeval) (err error)
 
 func Utimes(path string, tv []Timeval) error {
@@ -584,8 +593,6 @@ func Futimes(fd int, tv []Timeval) error {
 	}
 	return futimes(fd, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
 }
-
-//sys	fcntl(fd int, cmd int, arg int) (val int, err error)
 
 //sys   poll(fds *PollFd, nfds int, timeout int) (n int, err error)
 

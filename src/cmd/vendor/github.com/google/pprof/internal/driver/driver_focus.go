@@ -25,7 +25,7 @@ import (
 	"github.com/google/pprof/profile"
 )
 
-var tagFilterRangeRx = regexp.MustCompile("([+-]?[[:digit:]]+)([[:alpha:]]+)")
+var tagFilterRangeRx = regexp.MustCompile("([+-]?[[:digit:]]+)([[:alpha:]]+)?")
 
 // applyFocus filters samples based on the focus/ignore options
 func applyFocus(prof *profile.Profile, numLabelUnits map[string]string, v variables, ui plugin.UI) error {
