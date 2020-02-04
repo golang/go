@@ -1,9 +1,9 @@
 -- PosSum-definition --
-godef/a/random.go:16:15-18: defined here as [`(a.Pos).Sum` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Pos.Sum)
-
-```go
+godef/a/random.go:16:15-18: defined here as ```go
 func (*Pos).Sum() int
 ```
+
+[`(a.Pos).Sum` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Pos.Sum)
 -- PosSum-definition-json --
 {
 	"span": {
@@ -19,7 +19,7 @@ func (*Pos).Sum() int
 			"offset": 251
 		}
 	},
-	"description": "[`(a.Pos).Sum` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Pos.Sum)\n\n```go\nfunc (*Pos).Sum() int\n```"
+	"description": "```go\nfunc (*Pos).Sum() int\n```\n\n[`(a.Pos).Sum` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/godef/a#Pos.Sum)"
 }
 
 -- PosSum-hover --
@@ -29,11 +29,11 @@ func (*Pos).Sum() int
 func (*Pos).Sum() int
 ```
 -- PosX-definition --
-godef/a/random.go:13:2-3: defined here as \@mark\(PosX, \"x\"\),mark\(PosY, \"y\"\)
-
-```go
+godef/a/random.go:13:2-3: defined here as ```go
 field x int
 ```
+
+\@mark\(PosX, \"x\"\),mark\(PosY, \"y\"\)
 -- PosX-definition-json --
 {
 	"span": {
@@ -49,7 +49,7 @@ field x int
 			"offset": 188
 		}
 	},
-	"description": "\\@mark\\(PosX, \\\"x\\\"\\),mark\\(PosY, \\\"y\\\"\\)\n\n```go\nfield x int\n```"
+	"description": "```go\nfield x int\n```\n\n\\@mark\\(PosX, \\\"x\\\"\\),mark\\(PosY, \\\"y\\\"\\)"
 }
 
 -- PosX-hover --

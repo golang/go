@@ -72,7 +72,7 @@ func DefaultOptions() Options {
 		},
 		UserOptions: UserOptions{
 			Env:                     os.Environ(),
-			HoverKind:               SynopsisDocumentation,
+			HoverKind:               FullDocumentation,
 			LinkTarget:              "pkg.go.dev",
 			Matcher:                 Fuzzy,
 			DeepCompletion:          true,

@@ -1,9 +1,9 @@
 -- funccgoexample-definition --
-cgo/declarecgo.go:17:6-13: defined here as [`cgo.Example` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/cgo#Example)
-
-```go
+cgo/declarecgo.go:17:6-13: defined here as ```go
 func cgo.Example()
 ```
+
+[`cgo.Example` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/cgo#Example)
 -- funccgoexample-definition-json --
 {
 	"span": {
@@ -19,7 +19,7 @@ func cgo.Example()
 			"offset": 160
 		}
 	},
-	"description": "[`cgo.Example` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/cgo#Example)\n\n```go\nfunc cgo.Example()\n```"
+	"description": "```go\nfunc cgo.Example()\n```\n\n[`cgo.Example` on pkg.go.dev](https://pkg.go.dev/golang.org/x/tools/internal/lsp/cgo#Example)"
 }
 
 -- funccgoexample-hover --
