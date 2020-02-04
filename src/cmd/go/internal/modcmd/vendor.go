@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -55,13 +54,6 @@ func runVendor(cmd *base.Command, args []string) {
 		base.Fatalf("go mod vendor: %v", err)
 	}
 
-	var once sync.Once
-	createVdir := func() {
-		if err := os.MkdirAll(vdir, 0777); err != nil {
-			base.Fatalf("go mod vendor: %v", err)
-		}
-	}
-
 	modpkgs := make(map[module.Version][]string)
 	for _, pkg := range pkgs {
 		m := modload.PackageModule(pkg)
@@ -96,7 +88,6 @@ func runVendor(cmd *base.Command, args []string) {
 				if cfg.BuildV {
 					os.Stderr.WriteString("## explicit\n")
 				}
-				once.Do(createVdir)
 			}
 			sort.Strings(pkgs)
 			for _, pkg := range pkgs {
@@ -132,6 +123,11 @@ func runVendor(cmd *base.Command, args []string) {
 		fmt.Fprintf(os.Stderr, "go: no dependencies to vendor\n")
 		return
 	}
+
+    if err := os.MkdirAll(vdir, 0777); err != nil {
+        base.Fatalf("go mod vendor: %v", err)
+    }
+
 	if err := ioutil.WriteFile(filepath.Join(vdir, "modules.txt"), buf.Bytes(), 0666); err != nil {
 		base.Fatalf("go mod vendor: %v", err)
 	}
