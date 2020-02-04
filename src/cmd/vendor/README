@@ -23,3 +23,9 @@ commit by accident.
 The vendored copy of golang.org/x/tools is maintained by
 running the update-xtools.sh script in this directory,
 not by govendor.
+
+Please ensure that you remove all *_test.go and testdata
+files after updating (golang.org/issue/34986).
+
+  $ cd $GOROOT/src/cmd
+  $ find vendor | grep -E '_test.go|testdata' | xargs rm -rf
