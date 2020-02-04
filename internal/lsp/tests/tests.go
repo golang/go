@@ -703,16 +703,22 @@ func (data *Data) Golden(tag string, target string, update func() ([]byte, error
 	return file.Data[:len(file.Data)-1] // drop the trailing \n
 }
 
-func (data *Data) collectDiagnostics(spn span.Span, msgSource, msg string) {
+func (data *Data) collectDiagnostics(spn span.Span, msgSource, msg, msgSeverity string) {
 	if _, ok := data.Diagnostics[spn.URI()]; !ok {
 		data.Diagnostics[spn.URI()] = []source.Diagnostic{}
 	}
 	severity := protocol.SeverityError
-	if strings.Contains(string(spn.URI()), "analyzer") {
+	switch msgSeverity {
+	case "error":
+		severity = protocol.SeverityError
+	case "warning":
 		severity = protocol.SeverityWarning
+	case "hint":
+		severity = protocol.SeverityHint
+	case "information":
+		severity = protocol.SeverityInformation
 	}
-	// This is not the correct way to do this,
-	// but it seems excessive to do the full conversion here.
+	// This is not the correct way to do this, but it seems excessive to do the full conversion here.
 	want := source.Diagnostic{
 		Range: protocol.Range{
 			Start: protocol.Position{

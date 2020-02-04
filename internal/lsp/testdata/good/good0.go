@@ -1,4 +1,4 @@
-package good //@diag("package", "no_diagnostics", "")
+package good //@diag("package", "no_diagnostics", "", "error")
 
 func stuff() { //@item(good_stuff, "stuff", "func()", "func"),prepare("stu", "stuff", "stuff")
 	x := 5

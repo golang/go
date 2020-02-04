@@ -1,4 +1,4 @@
-package good //@diag("package", "no_diagnostics", "")
+package good //@diag("package", "no_diagnostics", "", "error")
 
 import (
 	_ "go/ast"                              //@prepare("go/ast", "_", "_")
