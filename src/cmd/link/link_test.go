@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"debug/macho"
 	"internal/testenv"
 	"io/ioutil"
@@ -313,5 +315,64 @@ func TestMacOSVersion(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("no LC_VERSION_MIN_MACOSX load command found")
+	}
+}
+
+const Issue34788src = `
+
+package blah
+
+func Blah(i int) int {
+	a := [...]int{1, 2, 3, 4, 5, 6, 7, 8}
+	return a[i&7]
+}
+`
+
+func TestIssue34788Android386TLSSequence(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+
+	// This is a cross-compilation test, so it doesn't make
+	// sense to run it on every GOOS/GOARCH combination. Limit
+	// the test to amd64 + darwin/linux.
+	if runtime.GOARCH != "amd64" ||
+		(runtime.GOOS != "darwin" && runtime.GOOS != "linux") {
+		t.Skip("skipping on non-{linux,darwin}/amd64 platform")
+	}
+
+	tmpdir, err := ioutil.TempDir("", "TestIssue34788Android386TLSSequence")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "blah.go")
+	err = ioutil.WriteFile(src, []byte(Issue34788src), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	obj := filepath.Join(tmpdir, "blah.o")
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", obj, src)
+	cmd.Env = append(os.Environ(), "GOARCH=386", "GOOS=android")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		if err != nil {
+			t.Fatalf("failed to compile blah.go: %v, output: %s\n", err, out)
+		}
+	}
+
+	// Run objdump on the resulting object.
+	cmd = exec.Command(testenv.GoToolPath(t), "tool", "objdump", obj)
+	out, oerr := cmd.CombinedOutput()
+	if oerr != nil {
+		t.Fatalf("failed to objdump blah.o: %v, output: %s\n", oerr, out)
+	}
+
+	// Sift through the output; we should not be seeing any R_TLS_LE relocs.
+	scanner := bufio.NewScanner(bytes.NewReader(out))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "R_TLS_LE") {
+			t.Errorf("objdump output contains unexpected R_TLS_LE reloc: %s", line)
+		}
 	}
 }
