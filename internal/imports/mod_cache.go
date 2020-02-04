@@ -132,20 +132,7 @@ func (d *dirInfoCache) ScanAndListen(ctx context.Context, listener cacheListener
 	}
 	d.mu.Unlock()
 
-	// Process the pre-existing keys.
-	for _, k := range keys {
-		select {
-		case <-ctx.Done():
-			cancel()
-			return func() {}
-		default:
-		}
-		if v, ok := d.Load(k); ok {
-			listener(v)
-		}
-	}
-
-	return func() {
+	stop := func() {
 		cancel()
 		d.mu.Lock()
 		delete(d.listeners, cookie)
@@ -154,6 +141,20 @@ func (d *dirInfoCache) ScanAndListen(ctx context.Context, listener cacheListener
 			<-sema
 		}
 	}
+
+	// Process the pre-existing keys.
+	for _, k := range keys {
+		select {
+		case <-ctx.Done():
+			return stop
+		default:
+		}
+		if v, ok := d.Load(k); ok {
+			listener(v)
+		}
+	}
+
+	return stop
 }
 
 // Store stores the package info for dir.
