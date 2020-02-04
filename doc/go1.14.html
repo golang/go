@@ -579,7 +579,7 @@ TODO
   </dd>
 </dl><!-- log -->
 
-<dl id="go/doc"><dt><a href="/go/doc/">go/doc</a></dt>
+<dl id="go/doc"><dt><a href="/pkg/go/doc/">go/doc</a></dt>
   <dd>
     <p><!-- CL 204830 -->
       The new
@@ -683,7 +683,7 @@ TODO
   </dd>
 </dl><!-- net/http -->
 
-<dl id="net/http/httptest"><dt><a href="/net/http/httptest/">net/http/httptest</a></dt>
+<dl id="net/http/httptest"><dt><a href="/pkg/net/http/httptest/">net/http/httptest</a></dt>
   <dd>
     <p><!-- CL 201557 -->
       The
@@ -705,6 +705,18 @@ TODO
     </p>
   </dd>
 </dl><!-- net/textproto -->
+
+<dl id="os/signal"><dt><a href="/pkg/os/signal/">os/signal</a></dt>
+  <dd>
+    <p><!-- CL 187739 -->
+      On Windows,
+      the <code>CTRL_CLOSE_EVENT</code>, <code>CTRL_LOGOFF_EVENT</code>,
+      and <code>CTRL_SHUTDOWN_EVENT</code> events now generate
+      a <code>syscall.SIGTERM</code> signal, similar to how Control-C
+      and Control-Break generate a <code>syscall.SIGINT</code> signal.
+    </p>
+
+</dl><!-- os/signal -->
 
 <dl id="plugin"><dt><a href="/pkg/plugin/">plugin</a></dt>
   <dd>
@@ -754,18 +766,6 @@ TODO
     during recent releases.
     </p>
 </dl><!-- runtime/pprof -->
-
-<dl id="signal"><dt><a href="/pkg/signal/">signal</a></dt>
-  <dd>
-    <p><!-- CL 187739 -->
-      On Windows,
-      the <code>CTRL_CLOSE_EVENT</code>, <code>CTRL_LOGOFF_EVENT</code>,
-      and <code>CTRL_SHUTDOWN_EVENT</code> events now generate
-      a <code>syscall.SIGTERM</code> signal, similar to how Control-C
-      and Control-Break generate a <code>syscall.SIGINT</code> signal.
-    </p>
-
-</dl><!-- signal -->
 
 <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
   <dd>
