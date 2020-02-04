@@ -62,9 +62,10 @@
 // Allocating and freeing a large object uses the mheap
 // directly, bypassing the mcache and mcentral.
 //
-// Free object slots in an mspan are zeroed only if mspan.needzero is
-// false. If needzero is true, objects are zeroed as they are
-// allocated. There are various benefits to delaying zeroing this way:
+// If mspan.needzero is false, then free object slots in the mspan are
+// already zeroed. Otherwise if needzero is true, objects are zeroed as
+// they are allocated. There are various benefits to delaying zeroing
+// this way:
 //
 //	1. Stack frame allocation can avoid zeroing altogether.
 //
