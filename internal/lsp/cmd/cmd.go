@@ -174,6 +174,7 @@ func (app *Application) featureCommands() []tool.Application {
 		&implementation{app: app},
 		&imports{app: app},
 		&links{app: app},
+		&prepareRename{app: app},
 		&query{app: app},
 		&references{app: app},
 		&rename{app: app},
