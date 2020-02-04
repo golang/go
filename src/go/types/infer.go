@@ -73,9 +73,11 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 		// infer an untyped nil type as type parameter type. Ignore untyped
 		// nil by making sure all default argument types are typed.
 		if isTyped(targ) && !check.identical0(par.typ, targ, true, nil, targs) {
-			check.errorf(arg.pos(), "default type %s for %s does not match %s = %s",
-				Default(arg.typ), arg.expr, par.typ, check.subst(pos, par.typ, tparams, targs),
-			)
+			// TODO(gri) see TODO comment above
+			// check.errorf(arg.pos(), "default type %s for %s does not match %s = %s",
+			// 	Default(arg.typ), arg.expr, par.typ, check.subst(pos, par.typ, tparams, targs),
+			// )
+			check.errorf(arg.pos(), "default type %s for %s does not match %s", Default(arg.typ), arg.expr, par.typ)
 			return nil
 		}
 	}

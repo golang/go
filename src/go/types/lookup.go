@@ -362,14 +362,14 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// does not instantiate the methods).
 		// In order to compare the signatures, substitute the receiver
 		// type parameters of ftyp with V's instantiation type arguments.
-		// This lazily instantiates the method f.
-		if Vn != nil {
+		// This lazily instantiates the signature of method f.
+		if Vn != nil && len(Vn.targs) > 0 {
 			ftyp = check.subst(token.NoPos, ftyp, ftyp.rparams, Vn.targs).(*Signature)
 		}
 
 		// If the methods have type parameters we don't care whether they
 		// are the same or not, as long as they match up. Use inference
-		// comparison in that case.
+		// comparison (provide non-nil tparams to identical0) in that case.
 		// TODO(gri) is this always correct? what about type bounds?
 		// (Alternative is to rename/subst type parameters and compare.)
 		var tparams []Type
