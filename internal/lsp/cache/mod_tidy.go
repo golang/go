@@ -29,8 +29,9 @@ const ModTidyError = "go mod tidy"
 const SyntaxError = "syntax"
 
 type parseModKey struct {
-	snapshot source.Snapshot
-	cfg      string
+	view       string
+	snapshotID uint64
+	cfg        string
 }
 
 type modTidyHandle struct {
@@ -96,8 +97,9 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 	folder := s.View().Folder().Filename()
 
 	key := parseModKey{
-		snapshot: s,
-		cfg:      hashConfig(cfg),
+		view:       folder,
+		snapshotID: s.ID(),
+		cfg:        hashConfig(cfg),
 	}
 	h := s.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
 		data := &modTidyData{}
