@@ -18,41 +18,31 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-type SignatureInformation struct {
-	Label, Documentation string
-	Parameters           []ParameterInformation
-	ActiveParameter      int
-}
-
-type ParameterInformation struct {
-	Label string
-}
-
-func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) (*SignatureInformation, error) {
+func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) (*protocol.SignatureInformation, int, error) {
 	ctx, done := trace.StartSpan(ctx, "source.SignatureHelp")
 	defer done()
 
 	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
 	if err != nil {
-		return nil, fmt.Errorf("getting file for SignatureHelp: %v", err)
+		return nil, 0, fmt.Errorf("getting file for SignatureHelp: %v", err)
 	}
 	file, m, _, err := pgh.Cached()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	spn, err := m.PointSpan(pos)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	rng, err := spn.Range(m.Converter)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	// Find a call expression surrounding the query position.
 	var callExpr *ast.CallExpr
 	path, _ := astutil.PathEnclosingInterval(file, rng.Start, rng.Start)
 	if path == nil {
-		return nil, errors.Errorf("cannot find node enclosing position")
+		return nil, 0, errors.Errorf("cannot find node enclosing position")
 	}
 FindCall:
 	for _, node := range path {
@@ -66,11 +56,11 @@ FindCall:
 			// The user is within an anonymous function,
 			// which may be the parameter to the *ast.CallExpr.
 			// Don't show signature help in this case.
-			return nil, errors.Errorf("no signature help within a function declaration")
+			return nil, 0, errors.Errorf("no signature help within a function declaration")
 		}
 	}
 	if callExpr == nil || callExpr.Fun == nil {
-		return nil, errors.Errorf("cannot find an enclosing function")
+		return nil, 0, errors.Errorf("cannot find an enclosing function")
 	}
 
 	// Get the object representing the function, if available.
@@ -92,12 +82,12 @@ FindCall:
 	// Get the type information for the function being called.
 	sigType := pkg.GetTypesInfo().TypeOf(callExpr.Fun)
 	if sigType == nil {
-		return nil, errors.Errorf("cannot get type for Fun %[1]T (%[1]v)", callExpr.Fun)
+		return nil, 0, errors.Errorf("cannot get type for Fun %[1]T (%[1]v)", callExpr.Fun)
 	}
 
 	sig, _ := sigType.Underlying().(*types.Signature)
 	if sig == nil {
-		return nil, errors.Errorf("cannot find signature for Fun %[1]T (%[1]v)", callExpr.Fun)
+		return nil, 0, errors.Errorf("cannot find signature for Fun %[1]T (%[1]v)", callExpr.Fun)
 	}
 
 	qf := qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo())
@@ -112,11 +102,11 @@ FindCall:
 	if obj != nil {
 		node, err := objToNode(snapshot.View(), pkg, obj)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		rng, err := objToMappedRange(snapshot.View(), pkg, obj)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		decl := &Declaration{
 			obj:         obj,
@@ -125,24 +115,24 @@ FindCall:
 		}
 		d, err := decl.hover(ctx)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		name = obj.Name()
 		comment = d.comment
 	} else {
 		name = "func"
 	}
-	return signatureInformation(name, comment, params, results, writeResultParens, activeParam), nil
+	return signatureInformation(name, comment, params, results, writeResultParens), activeParam, nil
 }
 
-func builtinSignature(ctx context.Context, v View, callExpr *ast.CallExpr, name string, pos token.Pos) (*SignatureInformation, error) {
+func builtinSignature(ctx context.Context, v View, callExpr *ast.CallExpr, name string, pos token.Pos) (*protocol.SignatureInformation, int, error) {
 	astObj, err := v.LookupBuiltin(ctx, name)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	decl, ok := astObj.Decl.(*ast.FuncDecl)
 	if !ok {
-		return nil, errors.Errorf("no function declaration for builtin: %s", name)
+		return nil, 0, errors.Errorf("no function declaration for builtin: %s", name)
 	}
 	params, _ := formatFieldList(ctx, v, decl.Type.Params)
 	results, writeResultParens := formatFieldList(ctx, v, decl.Type.Results)
@@ -159,24 +149,23 @@ func builtinSignature(ctx context.Context, v View, callExpr *ast.CallExpr, name 
 		}
 	}
 	activeParam := activeParameter(callExpr.Args, numParams, variadic, pos)
-	return signatureInformation(name, nil, params, results, writeResultParens, activeParam), nil
+	return signatureInformation(name, nil, params, results, writeResultParens), activeParam, nil
 }
 
-func signatureInformation(name string, comment *ast.CommentGroup, params, results []string, writeResultParens bool, activeParam int) *SignatureInformation {
-	paramInfo := make([]ParameterInformation, 0, len(params))
+func signatureInformation(name string, comment *ast.CommentGroup, params, results []string, writeResultParens bool) *protocol.SignatureInformation {
+	paramInfo := make([]protocol.ParameterInformation, 0, len(params))
 	for _, p := range params {
-		paramInfo = append(paramInfo, ParameterInformation{Label: p})
+		paramInfo = append(paramInfo, protocol.ParameterInformation{Label: p})
 	}
 	label := name + formatFunction(params, results, writeResultParens)
 	var c string
 	if comment != nil {
 		c = doc.Synopsis(comment.Text())
 	}
-	return &SignatureInformation{
-		Label:           label,
-		Documentation:   c,
-		Parameters:      paramInfo,
-		ActiveParameter: activeParam,
+	return &protocol.SignatureInformation{
+		Label:         label,
+		Documentation: c,
+		Parameters:    paramInfo,
 	}
 }
 

@@ -856,7 +856,7 @@ func (r *runner) WorkspaceSymbols(t *testing.T, query string, expectedSymbols []
 	}
 }
 
-func (r *runner) SignatureHelp(t *testing.T, spn span.Span, expectedSignature *source.SignatureInformation) {
+func (r *runner) SignatureHelp(t *testing.T, spn span.Span, want *protocol.SignatureHelp) {
 	_, rng, err := spanToRange(r.data, spn)
 	if err != nil {
 		t.Fatal(err)
@@ -865,43 +865,27 @@ func (r *runner) SignatureHelp(t *testing.T, spn span.Span, expectedSignature *s
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotSignature, err := source.SignatureHelp(r.ctx, r.view.Snapshot(), fh, rng.Start)
+	gotSignature, gotActiveParameter, err := source.SignatureHelp(r.ctx, r.view.Snapshot(), fh, rng.Start)
 	if err != nil {
 		// Only fail if we got an error we did not expect.
-		if expectedSignature != nil {
+		if want != nil {
 			t.Fatalf("failed for %v: %v", spn, err)
-		}
-	}
-	if expectedSignature == nil {
-		if gotSignature != nil {
-			t.Errorf("expected no signature, got %v", gotSignature)
 		}
 		return
 	}
-	if diff := diffSignatures(spn, expectedSignature, gotSignature); diff != "" {
+	if gotSignature == nil {
+		if want != nil {
+			t.Fatalf("got nil signature, but expected %v", want)
+		}
+		return
+	}
+	got := &protocol.SignatureHelp{
+		Signatures:      []protocol.SignatureInformation{*gotSignature},
+		ActiveParameter: float64(gotActiveParameter),
+	}
+	if diff := tests.DiffSignatures(spn, got, want); diff != "" {
 		t.Error(diff)
 	}
-}
-
-func diffSignatures(spn span.Span, want *source.SignatureInformation, got *source.SignatureInformation) string {
-	decorate := func(f string, args ...interface{}) string {
-		return fmt.Sprintf("Invalid signature at %s: %s", spn, fmt.Sprintf(f, args...))
-	}
-	if want.ActiveParameter != got.ActiveParameter {
-		return decorate("wanted active parameter of %d, got %d", want.ActiveParameter, got.ActiveParameter)
-	}
-	if want.Label != got.Label {
-		return decorate("wanted label %q, got %q", want.Label, got.Label)
-	}
-	var paramParts []string
-	for _, p := range got.Parameters {
-		paramParts = append(paramParts, p.Label)
-	}
-	paramsStr := strings.Join(paramParts, ", ")
-	if !strings.Contains(got.Label, paramsStr) {
-		return decorate("expected signature %q to contain params %q", got.Label, paramsStr)
-	}
-	return ""
 }
 
 func (r *runner) Link(t *testing.T, uri span.URI, wantLinks []tests.Link) {

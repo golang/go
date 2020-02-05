@@ -14,7 +14,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
-	"strings"
 	"testing"
 
 	"golang.org/x/tools/go/packages/packagestest"
@@ -835,7 +834,7 @@ func (r *runner) WorkspaceSymbols(t *testing.T, query string, expectedSymbols []
 	}
 }
 
-func (r *runner) SignatureHelp(t *testing.T, spn span.Span, expectedSignature *source.SignatureInformation) {
+func (r *runner) SignatureHelp(t *testing.T, spn span.Span, want *protocol.SignatureHelp) {
 	m, err := r.data.Mapper(spn.URI())
 	if err != nil {
 		t.Fatal(err)
@@ -853,61 +852,26 @@ func (r *runner) SignatureHelp(t *testing.T, spn span.Span, expectedSignature *s
 	params := &protocol.SignatureHelpParams{
 		TextDocumentPositionParams: tdpp,
 	}
-	gotSignatures, err := r.server.SignatureHelp(r.ctx, params)
+	got, err := r.server.SignatureHelp(r.ctx, params)
 	if err != nil {
 		// Only fail if we got an error we did not expect.
-		if expectedSignature != nil {
+		if want != nil {
 			t.Fatal(err)
 		}
 		return
 	}
-	if expectedSignature == nil {
-		if gotSignatures != nil {
-			t.Errorf("expected no signature, got %v", gotSignatures)
+	if want == nil {
+		if got != nil {
+			t.Errorf("expected no signature, got %v", got)
 		}
 		return
 	}
-	if gotSignatures == nil {
-		t.Fatalf("expected %v, got nil", expectedSignature)
+	if got == nil {
+		t.Fatalf("expected %v, got nil", want)
 	}
-	if diff := diffSignatures(spn, expectedSignature, gotSignatures); diff != "" {
+	if diff := tests.DiffSignatures(spn, want, got); diff != "" {
 		t.Error(diff)
 	}
-}
-
-func diffSignatures(spn span.Span, want *source.SignatureInformation, got *protocol.SignatureHelp) string {
-	decorate := func(f string, args ...interface{}) string {
-		return fmt.Sprintf("Invalid signature at %s: %s", spn, fmt.Sprintf(f, args...))
-	}
-
-	if len(got.Signatures) != 1 {
-		return decorate("wanted 1 signature, got %d", len(got.Signatures))
-	}
-
-	if got.ActiveSignature != 0 {
-		return decorate("wanted active signature of 0, got %d", got.ActiveSignature)
-	}
-
-	if want.ActiveParameter != int(got.ActiveParameter) {
-		return decorate("wanted active parameter of %d, got %d", want.ActiveParameter, got.ActiveParameter)
-	}
-
-	gotSig := got.Signatures[int(got.ActiveSignature)]
-
-	if want.Label != gotSig.Label {
-		return decorate("wanted label %q, got %q", want.Label, gotSig.Label)
-	}
-
-	var paramParts []string
-	for _, p := range gotSig.Parameters {
-		paramParts = append(paramParts, p.Label)
-	}
-	paramsStr := strings.Join(paramParts, ", ")
-	if !strings.Contains(gotSig.Label, paramsStr) {
-		return decorate("expected signature %q to contain params %q", gotSig.Label, paramsStr)
-	}
-
-	return ""
 }
 
 func (r *runner) Link(t *testing.T, uri span.URI, wantLinks []tests.Link) {

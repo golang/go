@@ -65,7 +65,7 @@ type Symbols map[span.URI][]protocol.DocumentSymbol
 type SymbolsChildren map[string][]protocol.DocumentSymbol
 type SymbolInformation map[span.Span]protocol.SymbolInformation
 type WorkspaceSymbols map[string][]protocol.SymbolInformation
-type Signatures map[span.Span]*source.SignatureInformation
+type Signatures map[span.Span]*protocol.SignatureHelp
 type Links map[span.URI][]Link
 
 type Data struct {
@@ -130,7 +130,7 @@ type Tests interface {
 	PrepareRename(*testing.T, span.Span, *source.PrepareItem)
 	Symbols(*testing.T, span.URI, []protocol.DocumentSymbol)
 	WorkspaceSymbols(*testing.T, string, []protocol.SymbolInformation, map[string]struct{})
-	SignatureHelp(*testing.T, span.Span, *source.SignatureInformation)
+	SignatureHelp(*testing.T, span.Span, *protocol.SignatureHelp)
 	Link(*testing.T, span.URI, []Link)
 }
 
@@ -1007,9 +1007,13 @@ func (data *Data) collectWorkspaceSymbols(query string, targets []span.Span) {
 }
 
 func (data *Data) collectSignatures(spn span.Span, signature string, activeParam int64) {
-	data.Signatures[spn] = &source.SignatureInformation{
-		Label:           signature,
-		ActiveParameter: int(activeParam),
+	data.Signatures[spn] = &protocol.SignatureHelp{
+		Signatures: []protocol.SignatureInformation{
+			{
+				Label: signature,
+			},
+		},
+		ActiveParameter: float64(activeParam),
 	}
 	// Hardcode special case to test the lack of a signature.
 	if signature == "" && activeParam == 0 {

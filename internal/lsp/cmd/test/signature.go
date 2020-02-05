@@ -8,20 +8,22 @@ import (
 	"fmt"
 	"testing"
 
-	"golang.org/x/tools/internal/lsp/source"
-
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 )
 
-func (r *runner) SignatureHelp(t *testing.T, spn span.Span, expectedSignature *source.SignatureInformation) {
-	goldenTag := "-signature"
-	if expectedSignature != nil {
-		goldenTag = expectedSignature.Label + goldenTag
-	}
+func (r *runner) SignatureHelp(t *testing.T, spn span.Span, want *protocol.SignatureHelp) {
 	uri := spn.URI()
 	filename := uri.Filename()
 	target := filename + fmt.Sprintf(":%v:%v", spn.Start().Line(), spn.Start().Column())
 	got, _ := r.NormalizeGoplsCmd(t, "signature", target)
+	if want == nil {
+		if got != "" {
+			t.Fatalf("want nil, but got %s", got)
+		}
+		return
+	}
+	goldenTag := want.Signatures[0].Label + "-signature"
 	expect := string(r.data.Golden(goldenTag, filename, func() ([]byte, error) {
 		return []byte(got), nil
 	}))
