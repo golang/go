@@ -26,7 +26,7 @@ done
 
 git add RELEASES
 git commit -m "misc/boring: add new releases to RELEASES file"
-git codereview mail -r dmitshur@golang.org,filippo@golang.org
+git codereview mail -r katie@golang.org,filippo@golang.org
 
 rm *.tar.gz
 cd - && git worktree remove "$WORKTREE"
