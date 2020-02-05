@@ -6,6 +6,17 @@ go vet -n -unreachable=false encoding/binary
 stderr '-unreachable=false'
 ! stderr '-unsafeptr=false'
 
+# Issue 37030: "go vet <std package>" without other flags should disable the
+# unsafeptr check by default.
+go vet -n encoding/binary
+stderr '-unsafeptr=false'
+! stderr '-unreachable=false'
+
+# However, it should be enabled if requested explicitly.
+go vet -n -unsafeptr encoding/binary
+stderr '-unsafeptr'
+! stderr '-unsafeptr=false'
+
 [short] stop
 env GOCACHE=$WORK/gocache
 env GOTMPDIR=$WORK/tmp

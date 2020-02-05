@@ -51,7 +51,9 @@ func runVet(cmd *base.Command, args []string) {
 
 	work.BuildInit()
 	work.VetFlags = vetFlags
-	work.VetExplicit = true
+	if len(vetFlags) > 0 {
+		work.VetExplicit = true
+	}
 	if vetTool != "" {
 		var err error
 		work.VetTool, err = filepath.Abs(vetTool)
