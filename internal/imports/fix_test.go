@@ -1577,6 +1577,27 @@ var _ = bytes.Buffer
 	})
 }
 
+func TestStdlibSelfImports(t *testing.T) {
+	const input = `package ecdsa
+
+var _ = ecdsa.GenerateKey
+`
+
+	testConfig{
+		module: packagestest.Module{
+			Name: "ignored.com",
+		},
+	}.test(t, func(t *goimportTest) {
+		got, err := t.processNonModule(filepath.Join(t.env.GOROOT, "src/crypto/ecdsa/foo.go"), []byte(input), nil)
+		if err != nil {
+			t.Fatalf("Process() = %v", err)
+		}
+		if string(got) != input {
+			t.Errorf("Got:\n%s\nWant:\n%s", got, input)
+		}
+	})
+}
+
 type testConfig struct {
 	gopathOnly bool
 	module     packagestest.Module
