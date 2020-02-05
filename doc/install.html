@@ -192,20 +192,11 @@ Settings" option inside the "System" control panel.
 <h2 id="testing">Test your installation</h2>
 
 <p>
-Check that Go is installed correctly by setting up a workspace
-and building a simple program, as follows.
+Check that Go is installed correctly by building a simple program, as follows.
 </p>
 
 <p>
-Create your <a href="code.html#Workspaces">workspace</a> directory,
-<code class="testUnix">$HOME/go</code><code class="testWindows">%USERPROFILE%\go</code>.
-(If you'd like to use a different directory,
-you will need to <a href="https://golang.org/wiki/SettingGOPATH">set the <code>GOPATH</code> environment variable</a>.)
-</p>
-
-<p>
-Next, make the directory <code class="testUnix">src/hello</code><code class="testWindows">src\hello</code> inside your workspace,
-and in that directory create a file named <code>hello.go</code> that looks like:
+Create a file named <code>hello.go</code> that looks like:
 </p>
 
 <pre>
@@ -223,19 +214,17 @@ Then build it with the <code>go</code> tool:
 </p>
 
 <pre class="testUnix">
-$ <b>cd $HOME/go/src/hello</b>
-$ <b>go build</b>
+$ <b>go build hello.go</b>
 </pre>
 
 <pre class="testWindows">
-C:\&gt; <b>cd %USERPROFILE%\go\src\hello</b>
-C:\Users\Gopher\go\src\hello&gt; <b>go build</b>
+C:\Users\Gopher\go\src\hello&gt; <b>go build hello.go</b>
 </pre>
 
 <p>
 The command above will build an executable named
 <code class="testUnix">hello</code><code class="testWindows">hello.exe</code>
-in the directory alongside your source code.
+in the current directory alongside your source code.
 Execute it to see the greeting:
 </p>
 
@@ -251,12 +240,6 @@ hello, world
 
 <p>
 If you see the "hello, world" message then your Go installation is working.
-</p>
-
-<p>
-You can run <code>go</code> <code>install</code> to install the binary into
-your workspace's <code>bin</code> directory
-or <code>go</code> <code>clean</code> <code>-i</code> to remove it.
 </p>
 
 <p>
