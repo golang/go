@@ -569,6 +569,16 @@ appropriately.)
   </dd>
 </dl><!-- go/build -->
 
+<dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
+  <dd>
+    <p><!-- CL 198488 -->
+      <a href="/pkg/io/ioutil/#TempDir"><code>TempDir</code></a> can now create directories
+      whose names have predictable prefixes and suffixes. As with TempFile, if the pattern
+      contains a '*', the random string replaces the last '*'.
+    </p>
+  </dd>
+</dl>
+
 <dl id="log"><dt><a href="/pkg/log/">log</a></dt>
   <dd>
     <p><!-- CL 186182 -->
