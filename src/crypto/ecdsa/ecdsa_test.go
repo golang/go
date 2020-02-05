@@ -131,6 +131,36 @@ func TestSignAndVerify(t *testing.T) {
 	testSignAndVerify(t, elliptic.P521(), "p521")
 }
 
+func testSignAndVerifyASN1(t *testing.T, c elliptic.Curve, tag string) {
+	priv, _ := GenerateKey(c, rand.Reader)
+
+	hashed := []byte("testing")
+	sig, err := SignASN1(rand.Reader, priv, hashed)
+	if err != nil {
+		t.Errorf("%s: error signing: %s", tag, err)
+		return
+	}
+
+	if !VerifyASN1(&priv.PublicKey, hashed, sig) {
+		t.Errorf("%s: VerifyASN1 failed", tag)
+	}
+
+	hashed[0] ^= 0xff
+	if VerifyASN1(&priv.PublicKey, hashed, sig) {
+		t.Errorf("%s: VerifyASN1 always works!", tag)
+	}
+}
+
+func TestSignAndVerifyASN1(t *testing.T) {
+	testSignAndVerifyASN1(t, elliptic.P224(), "p224")
+	if testing.Short() {
+		return
+	}
+	testSignAndVerifyASN1(t, elliptic.P256(), "p256")
+	testSignAndVerifyASN1(t, elliptic.P384(), "p384")
+	testSignAndVerifyASN1(t, elliptic.P521(), "p521")
+}
+
 func testNonceSafety(t *testing.T, c elliptic.Curve, tag string) {
 	priv, _ := GenerateKey(c, rand.Reader)
 
