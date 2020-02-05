@@ -55,7 +55,6 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 	}
 	if err != nil {
 		log.Error(ctx, "diagnose: could not generate diagnostics for go.mod file", err)
-		return nil
 	}
 	// Ensure that the reports returned from mod.Diagnostics are only related to the
 	// go.mod file for the module.

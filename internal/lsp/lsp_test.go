@@ -343,18 +343,25 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	snapshot := view.Snapshot()
-	_, diagnostics, err := source.FileDiagnostics(r.ctx, snapshot, uri)
-	if err != nil {
-		t.Fatal(err)
+
+	// Get the diagnostics for this view if we have not done it before.
+	if r.diagnostics == nil {
+		r.diagnostics = make(map[span.URI][]source.Diagnostic)
+		// Always run diagnostics with analysis.
+		reports := r.server.diagnose(r.ctx, view.Snapshot(), true)
+		for key, diags := range reports {
+			r.diagnostics[key.id.URI] = diags
+		}
 	}
+	diags := r.diagnostics[uri]
+
 	actions, err := r.server.CodeAction(r.ctx, &protocol.CodeActionParams{
 		TextDocument: protocol.TextDocumentIdentifier{
 			URI: protocol.NewURI(uri),
 		},
 		Context: protocol.CodeActionContext{
 			Only:        []protocol.CodeActionKind{protocol.QuickFix},
-			Diagnostics: toProtocolDiagnostics(diagnostics),
+			Diagnostics: toProtocolDiagnostics(diags),
 		},
 	})
 	if err != nil {
@@ -376,7 +383,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 		return []byte(got), nil
 	}))
 	if fixed != got {
-		t.Errorf("suggested fixes failed for %s, expected:\n%v\ngot:\n%v", filename, fixed, got)
+		t.Errorf("suggested fixes failed for %s, expected:\n%#v\ngot:\n%#v", filename, fixed, got)
 	}
 }
 
