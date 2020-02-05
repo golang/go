@@ -46,13 +46,12 @@ func jalrToSym(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, lr int16) *ob
 
 	to := p.To
 
-	// This offset isn't really encoded with either instruction. It will be
-	// extracted for a relocation later.
 	p.As = AAUIPC
-	p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: to.Offset, Sym: to.Sym}
+	p.Mark |= NEED_PCREL_ITYPE_RELOC
+	p.RestArgs = []obj.Addr{obj.Addr{Type: obj.TYPE_CONST, Offset: to.Offset, Sym: to.Sym}}
+	p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
 	p.Reg = 0
 	p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-	p.Mark |= NEED_PCREL_ITYPE_RELOC
 	p = obj.Appendp(p, newprog)
 
 	// Leave Sym only for the CALL reloc in assemble.
@@ -324,13 +323,12 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 			as := p.As
 			to := p.To
 
-			// The offset is not really encoded with either instruction.
-			// It will be extracted later for a relocation.
 			p.As = AAUIPC
-			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym}
+			p.Mark |= NEED_PCREL_ITYPE_RELOC
+			p.RestArgs = []obj.Addr{obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym}}
+			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
 			p.Reg = 0
 			p.To = obj.Addr{Type: obj.TYPE_REG, Reg: to.Reg}
-			p.Mark |= NEED_PCREL_ITYPE_RELOC
 			p = obj.Appendp(p, newprog)
 
 			p.As = movToLoad(as)
@@ -385,13 +383,12 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 				as := p.As
 				from := p.From
 
-				// The offset is not really encoded with either instruction.
-				// It will be extracted later for a relocation.
 				p.As = AAUIPC
-				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: p.To.Offset, Sym: p.To.Sym}
+				p.Mark |= NEED_PCREL_STYPE_RELOC
+				p.RestArgs = []obj.Addr{obj.Addr{Type: obj.TYPE_CONST, Offset: p.To.Offset, Sym: p.To.Sym}}
+				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
 				p.Reg = 0
 				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-				p.Mark |= NEED_PCREL_STYPE_RELOC
 				p = obj.Appendp(p, newprog)
 
 				p.As = movToStore(as)
@@ -452,13 +449,12 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 			// ADDI $off_lo, R
 			to := p.To
 
-			// The offset is not really encoded with either instruction.
-			// It will be extracted later for a relocation.
 			p.As = AAUIPC
-			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym}
+			p.Mark |= NEED_PCREL_ITYPE_RELOC
+			p.RestArgs = []obj.Addr{obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym}}
+			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
 			p.Reg = 0
 			p.To = to
-			p.Mark |= NEED_PCREL_ITYPE_RELOC
 			p = obj.Appendp(p, newprog)
 
 			p.As = AADDI
@@ -1413,13 +1409,6 @@ func validateB(p *obj.Prog) {
 }
 
 func validateU(p *obj.Prog) {
-	if p.As == AAUIPC && p.Mark&(NEED_PCREL_ITYPE_RELOC|NEED_PCREL_STYPE_RELOC) != 0 {
-		// TODO(sorear): Hack.  The Offset is being used here to temporarily
-		// store the relocation addend, not as an actual offset to assemble,
-		// so it's OK for it to be out of range.  Is there a more valid way
-		// to represent this state?
-		return
-	}
 	wantImmI(p, "from", p.From, 20)
 	wantIntRegAddr(p, "to", &p.To)
 }
@@ -1868,20 +1857,17 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				ctxt.Diag("AUIPC needing PC-relative reloc missing following instruction")
 				break
 			}
-			if p.From.Sym == nil {
+			addr := p.RestArgs[0]
+			if addr.Sym == nil {
 				ctxt.Diag("AUIPC needing PC-relative reloc missing symbol")
 				break
 			}
 
-			// The relocation offset can be larger than the maximum
-			// size of an AUIPC, so zero p.From.Offset to avoid any
-			// attempt to assemble it.
 			rel := obj.Addrel(cursym)
 			rel.Off = int32(p.Pc)
 			rel.Siz = 8
-			rel.Sym = p.From.Sym
-			rel.Add = p.From.Offset
-			p.From.Offset = 0
+			rel.Sym = addr.Sym
+			rel.Add = addr.Offset
 			rel.Type = rt
 		}
 
