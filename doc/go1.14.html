@@ -829,8 +829,8 @@ appropriately.)
       The text/template package now correctly reports errors when a
       parenthesized argument is used as a function.
       This most commonly shows up in erroneous cases like
-      <code>{{if (eq .F "a") or (eq .F "b")}}</code>.
-      This should be written as <code>{{if or (eq .F "a") (eq .F "b")}}</code>.
+      <code>{{"{{"}}if (eq .F "a") or (eq .F "b"){{"}}"}}</code>.
+      This should be written as <code>{{"{{"}}if or (eq .F "a") (eq .F "b"){{"}}"}}</code>.
       The erroneous case never worked as expected, and will now be
       reported with an error <code>can't give argument to non-function</code>.
     </p>
