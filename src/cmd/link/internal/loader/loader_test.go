@@ -19,12 +19,12 @@ import (
 // do anything interesting with this symbol (such as look at its
 // data or relocations).
 func addDummyObjSym(t *testing.T, ldr *Loader, or *oReader, name string) Sym {
-	idx := ldr.max + 1
-	if _, ok := ldr.AddSym(name, 0, or, int(idx), false, sym.SRODATA); !ok {
+	idx := len(ldr.objSyms)
+	s, ok := ldr.AddSym(name, 0, or, idx, false, sym.SRODATA)
+	if !ok {
 		t.Errorf("AddrSym failed for '" + name + "'")
 	}
-
-	return idx
+	return s
 }
 
 func TestAddMaterializedSymbol(t *testing.T) {
