@@ -28,5 +28,5 @@ if ! git log --format=%B -n 1 | grep "\[dev.boringcrypto"; then
     exit 1
 fi
 
-git codereview mail -r dmitshur@golang.org,filippo@golang.org -trybot HEAD
+git codereview mail -r katie@golang.org,filippo@golang.org -trybot HEAD
 cd - && git worktree remove "$WORKTREE"
