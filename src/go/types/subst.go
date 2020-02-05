@@ -10,9 +10,44 @@ package types
 
 import (
 	"bytes"
+	"fmt"
 	"go/token"
 	"strings"
 )
+
+type substMap struct {
+	// The targs field is currently needed for *Named type substitution.
+	// TODO(gri) rewrite that code, get rid of this field, and make this
+	//           struct just the map (proj)
+	targs []Type
+	proj  map[*TypeParam]Type
+}
+
+func makeSubstMap(tpars []*TypeName, targs []Type) *substMap {
+	assert(len(tpars) == len(targs))
+	proj := make(map[*TypeParam]Type, len(tpars))
+	for i, tpar := range tpars {
+		targ := targs[i]
+		assert(targ != nil)
+		proj[tpar.typ.(*TypeParam)] = targs[i]
+	}
+	return &substMap{targs, proj}
+}
+
+func (m *substMap) String() string {
+	return fmt.Sprintf("%s", m.proj)
+}
+
+func (m *substMap) empty() bool {
+	return len(m.proj) == 0
+}
+
+func (m *substMap) lookup(typ *TypeParam) Type {
+	if t := m.proj[typ]; t != nil {
+		return t
+	}
+	return typ
+}
 
 func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist []token.Pos) (res Type) {
 	if check.conf.Trace {
@@ -67,6 +102,8 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		return typ // nothing to do (minor optimization)
 	}
 
+	smap := makeSubstMap(tparams, targs)
+
 	// check bounds
 	for i, tname := range tparams {
 		tpar := tname.typ.(*TypeParam)
@@ -87,7 +124,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		// as the instantiated type; before we can use it for bounds checking we
 		// need to instantiate it with the type arguments with which we instantiate
 		// the parameterized type.
-		iface = check.subst(pos, iface, tparams, targs).(*Interface)
+		iface = check.subst(pos, iface, smap).(*Interface)
 
 		// targ must implement iface (methods)
 		if m, _ := check.missingMethod(targ, iface, true); m != nil {
@@ -125,14 +162,13 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		}
 	}
 
-	return check.subst(pos, typ, tparams, targs)
+	return check.subst(pos, typ, smap)
 }
 
 // subst returns the type typ with its type parameters tpars replaced by
 // the corresponding type arguments targs, recursively.
-func (check *Checker) subst(pos token.Pos, typ Type, tpars []*TypeName, targs []Type) Type {
-	assert(len(tpars) == len(targs))
-	if len(tpars) == 0 {
+func (check *Checker) subst(pos token.Pos, typ Type, smap *substMap) Type {
+	if smap.empty() {
 		return typ
 	}
 
@@ -141,16 +177,11 @@ func (check *Checker) subst(pos token.Pos, typ Type, tpars []*TypeName, targs []
 	case *Basic:
 		return typ // nothing to do
 	case *TypeParam:
-		for i, tpar := range tpars {
-			if tpar.typ == t {
-				return targs[i]
-			}
-		}
-		return typ
+		return smap.lookup(t)
 	}
 
 	// general case
-	subst := subster{check, pos, make(map[Type]Type), tpars, targs}
+	subst := subster{check, pos, make(map[Type]Type), smap}
 	return subst.typ(typ)
 }
 
@@ -158,8 +189,7 @@ type subster struct {
 	check *Checker
 	pos   token.Pos
 	cache map[Type]Type
-	tpars []*TypeName
-	targs []Type
+	smap  *substMap
 }
 
 func (subst *subster) typ(typ Type) Type {
@@ -278,7 +308,7 @@ func (subst *subster) typ(typ Type) Type {
 
 			// not yet instantiated
 			dump(">>> first instantiation of %s", t)
-			new_targs = subst.targs
+			new_targs = subst.smap.targs
 
 		}
 
@@ -300,19 +330,14 @@ func (subst *subster) typ(typ Type) Type {
 		named.tparams = t.tparams // new type is still parameterized
 		named.targs = new_targs
 		subst.cache[t] = named
-		dump(">>> subst %s(%s) with %s (new: %s)", t.underlying, subst.tpars, subst.targs, new_targs)
+		dump(">>> subst %s with %s (new: %s)", t.underlying, subst.smap, new_targs)
 		named.underlying = subst.typ(t.underlying)
 		named.methods = t.methods // method signatures are updated lazily
 
 		return named
 
 	case *TypeParam:
-		// TODO(gri) Can we do this with direct indexing somehow? Or use a map instead?
-		for i, tpar := range subst.tpars {
-			if tpar.typ == t {
-				return subst.targs[i]
-			}
-		}
+		return subst.smap.lookup(t)
 
 	default:
 		panic("unimplemented")

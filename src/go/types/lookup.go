@@ -364,7 +364,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// type parameters of ftyp with V's instantiation type arguments.
 		// This lazily instantiates the signature of method f.
 		if Vn != nil && len(Vn.targs) > 0 {
-			ftyp = check.subst(token.NoPos, ftyp, ftyp.rparams, Vn.targs).(*Signature)
+			ftyp = check.subst(token.NoPos, ftyp, makeSubstMap(ftyp.rparams, Vn.targs)).(*Signature)
 		}
 
 		// If the methods have type parameters we don't care whether they

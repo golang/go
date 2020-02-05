@@ -207,7 +207,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 					// TODO(gri) should we assume now that bounds always exist?
 					//           (no bound == empty interface)
 					if bound != nil {
-						bound = check.subst(tname.pos, bound, recvTParams, list)
+						bound = check.subst(tname.pos, bound, makeSubstMap(recvTParams, list))
 						tname.typ.(*TypeParam).bound = bound
 					}
 				}

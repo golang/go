@@ -329,7 +329,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 		// need to compute it from the adjusted list; otherwise we can
 		// simply use the result signature's parameter list.
 		if adjusted {
-			sig_params = check.subst(call.Pos(), sig_params, sig.tparams, targs).(*Tuple)
+			sig_params = check.subst(call.Pos(), sig_params, makeSubstMap(sig.tparams, targs)).(*Tuple)
 		} else {
 			sig_params = rsig.params
 		}
@@ -523,7 +523,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
 			// (If we modify m, some tests will fail; possibly because the m is in use.)
 			// TODO(gri) investigate and provide a correct explanation here
 			copy := *m
-			copy.typ = check.subst(e.Pos(), m.typ, sig.rparams, targs)
+			copy.typ = check.subst(e.Pos(), m.typ, makeSubstMap(sig.rparams, targs))
 			obj = &copy
 		}
 		// TODO(gri) we also need to do substitution for parameterized interface methods
