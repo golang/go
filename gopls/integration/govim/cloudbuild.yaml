@@ -20,7 +20,7 @@ steps:
   # Run the tests. Note that the script in this step does not return the exit
   # code from `go test`, but rather saves it for use in the final step after
   # uploading artifacts.
-  - name: 'gcr.io/$PROJECT_ID/govim-harness:2'
+  - name: 'gcr.io/$PROJECT_ID/govim-harness:3'
     dir: '/src/govim'
     env:
       - GOVIM_TESTSCRIPT_WORKDIR_ROOT=/workspace/artifacts

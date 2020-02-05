@@ -10,7 +10,7 @@ steps:
       # To allow for breaking changes to this test harness, tag with a major
       # version number.
       '-t', 'gcr.io/$PROJECT_ID/govim-harness:latest',
-      '-t', 'gcr.io/$PROJECT_ID/govim-harness:2',
+      '-t', 'gcr.io/$PROJECT_ID/govim-harness:3',
       # It is assumed that this build is running from the root directory of the
       # tools repository.
       '-f', 'gopls/integration/govim/Dockerfile',
