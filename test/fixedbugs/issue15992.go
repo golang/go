@@ -28,7 +28,7 @@ func main() {
 	fmt.Println(n, a)
 
 	b := []byte{1, 2, 3}
-	n = copy(f(b))
+	n = copy(g(b))
 	fmt.Println(n, b)
 
 	m := map[int]int{0: 0}
