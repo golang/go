@@ -682,6 +682,11 @@ appropriately.)
       use <code>DialTLSContext</code>, which allows the transport to
       cancel dials as soon as they are no longer needed.
     </p>
+
+    <p><!-- CL 192518, CL 194218 -->
+      On Windows, <a href="/pkg/net/http/#ServeFile"><code>ServeFile</code></a> now correctly
+      serves files larger than 2GB.
+    </p>
   </dd>
 </dl><!-- net/http -->
 
