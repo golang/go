@@ -37,8 +37,6 @@ type Relocs struct {
 	li int      // local index of symbol whose relocs we're examining
 	r  *oReader // object reader for containing package
 	l  *Loader  // loader
-
-	extIdx Sym // index of external symbol we're examining or 0
 }
 
 // Reloc contains the payload for a specific relocation.
@@ -162,7 +160,6 @@ func growBitmap(reqLen int, b bitmap) bitmap {
 type Loader struct {
 	start       map[*oReader]Sym // map from object file to its start index
 	objs        []objIdx         // sorted by start index (i.e. objIdx.i)
-	max         Sym              // current max index
 	extStart    Sym              // from this index on, the symbols are externally defined
 	builtinSyms []Sym            // global index of builtin symbols
 	ocache      int              // index (into 'objs') of most recent lookup
@@ -302,10 +299,10 @@ func (l *Loader) addObj(pkg string, r *oReader) Sym {
 		l.objByPkg[pkg] = r
 	}
 	n := r.NSym() + r.NNonpkgdef()
-	i := l.max + 1
+	i := Sym(len(l.objSyms))
 	l.start[r] = i
 	l.objs = append(l.objs, objIdx{r, i})
-	l.growValues(int(l.max) + n)
+	l.growValues(int(i) + n - 1)
 	return i
 }
 
@@ -317,7 +314,6 @@ func (l *Loader) AddSym(name string, ver int, r *oReader, li int, dupok bool, ty
 	}
 	i := Sym(len(l.objSyms))
 	addToGlobal := func() {
-		l.max++
 		l.objSyms = append(l.objSyms, objSym{r, li})
 	}
 	if name == "" {
@@ -370,16 +366,12 @@ func (l *Loader) AddSym(name string, ver int, r *oReader, li int, dupok bool, ty
 // newExtSym creates a new external sym with the specified
 // name/version.
 func (l *Loader) newExtSym(name string, ver int) Sym {
-	l.max++
-	i := l.max
+	i := Sym(len(l.objSyms))
 	if l.extStart == 0 {
 		l.extStart = i
 	}
 	l.growSyms(int(i))
 	pi := l.newPayload(name, ver)
-	if int(i) != len(l.objSyms) || pi != len(l.extReader.syms) {
-		panic("XXX AddSym inconsistency")
-	}
 	l.objSyms = append(l.objSyms, objSym{l.extReader, int(pi)})
 	l.extReader.syms = append(l.extReader.syms, i)
 	return i
@@ -422,6 +414,11 @@ func (l *Loader) LookupOrCreateSym(name string, ver int) Sym {
 
 func (l *Loader) IsExternal(i Sym) bool {
 	r, _ := l.toLocal(i)
+	return l.isExtReader(r)
+}
+
+
+func (l *Loader) isExtReader(r *oReader) bool {
 	return r == l.extReader
 }
 
@@ -577,7 +574,7 @@ func (l *Loader) NStrictDupMsgs() int { return l.strictDupMsgs }
 
 // Number of total symbols.
 func (l *Loader) NSym() int {
-	return int(l.max + 1)
+	return len(l.objSyms)
 }
 
 // Number of defined Go symbols.
@@ -997,7 +994,7 @@ func (l *Loader) SymAlign(i Sym) int32 {
 // SetSymAlign sets the alignment for a symbol.
 func (l *Loader) SetSymAlign(i Sym, align int32) {
 	// reject bad synbols
-	if i > l.max || i == 0 {
+	if i >= Sym(len(l.objSyms)) || i == 0 {
 		panic("bad symbol index in SetSymAlign")
 	}
 	// Reject nonsense alignments.
@@ -1026,7 +1023,7 @@ func (l *Loader) SymDynimplib(i Sym) string {
 // SetSymDynimplib sets the "dynimplib" attribute for a symbol.
 func (l *Loader) SetSymDynimplib(i Sym, value string) {
 	// reject bad symbols
-	if i > l.max || i == 0 {
+	if i >= Sym(len(l.objSyms)) || i == 0 {
 		panic("bad symbol index in SetDynimplib")
 	}
 	if value == "" {
@@ -1046,7 +1043,7 @@ func (l *Loader) SymDynimpvers(i Sym) string {
 // SetSymDynimpvers sets the "dynimpvers" attribute for a symbol.
 func (l *Loader) SetSymDynimpvers(i Sym, value string) {
 	// reject bad symbols
-	if i > l.max || i == 0 {
+	if i >= Sym(len(l.objSyms)) || i == 0 {
 		panic("bad symbol index in SetDynimpvers")
 	}
 	if value == "" {
@@ -1065,7 +1062,7 @@ func (l *Loader) SymExtname(i Sym) string {
 // SetSymExtname sets the  "extname" attribute for a symbol.
 func (l *Loader) SetSymExtname(i Sym, value string) {
 	// reject bad symbols
-	if i > l.max || i == 0 {
+	if i >= Sym(len(l.objSyms)) || i == 0 {
 		panic("bad symbol index in SetExtname")
 	}
 	if value == "" {
@@ -1089,7 +1086,7 @@ func (l *Loader) SymElfType(i Sym) elf.SymType {
 // SetSymElfType sets the elf type attribute for a symbol.
 func (l *Loader) SetSymElfType(i Sym, et elf.SymType) {
 	// reject bad symbols
-	if i > l.max || i == 0 {
+	if i >= Sym(len(l.objSyms)) || i == 0 {
 		panic("bad symbol index in SetSymElfType")
 	}
 	if et == elf.STT_NOTYPE {
@@ -1101,7 +1098,7 @@ func (l *Loader) SetSymElfType(i Sym, et elf.SymType) {
 
 // SetPlt sets the plt value for pe symbols.
 func (l *Loader) SetPlt(i Sym, v int32) {
-	if i > l.max || i == 0 {
+	if i >= Sym(len(l.objSyms)) || i == 0 {
 		panic("bad symbol for SetPlt")
 	}
 	if v == 0 {
@@ -1113,7 +1110,7 @@ func (l *Loader) SetPlt(i Sym, v int32) {
 
 // SetGot sets the got value for pe symbols.
 func (l *Loader) SetGot(i Sym, v int32) {
-	if i > l.max || i == 0 {
+	if i >= Sym(len(l.objSyms)) || i == 0 {
 		panic("bad symbol for SetPlt")
 	}
 	if v == 0 {
@@ -1188,7 +1185,7 @@ func (l *Loader) SymFile(i Sym) string {
 // from shared libraries.
 func (l *Loader) SetSymFile(i Sym, file string) {
 	// reject bad symbols
-	if i > l.max || i == 0 {
+	if i >= Sym(len(l.objSyms)) || i == 0 {
 		panic("bad symbol index in SetSymFile")
 	}
 	if !l.IsExternal(i) {
@@ -1206,7 +1203,7 @@ func (l *Loader) SymLocalentry(i Sym) uint8 {
 // SetSymExtname sets the "extname" attribute for a symbol.
 func (l *Loader) SetSymLocalentry(i Sym, value uint8) {
 	// reject bad symbols
-	if i > l.max || i == 0 {
+	if i >= Sym(len(l.objSyms)) || i == 0 {
 		panic("bad symbol index in SetExtname")
 	}
 	if value == 0 {
@@ -1369,8 +1366,8 @@ func (l *Loader) growExtAttrBitmaps() {
 
 // At method returns the j-th reloc for a global symbol.
 func (relocs *Relocs) At(j int) Reloc {
-	if relocs.extIdx != 0 {
-		pp := relocs.l.getPayload(relocs.extIdx)
+	if relocs.l.isExtReader(relocs.r) {
+		pp := relocs.l.payloads[relocs.li]
 		return pp.relocs[j]
 	}
 	rel := goobj2.Reloc{}
@@ -1398,8 +1395,8 @@ func (relocs *Relocs) ReadAll(dst []Reloc) []Reloc {
 	}
 	dst = dst[:0]
 
-	if relocs.extIdx != 0 {
-		pp := relocs.l.getPayload(relocs.extIdx)
+	if relocs.l.isExtReader(relocs.r) {
+		pp := relocs.l.payloads[relocs.li]
 		dst = append(dst, pp.relocs...)
 		return dst
 	}
@@ -1423,13 +1420,6 @@ func (relocs *Relocs) ReadAll(dst []Reloc) []Reloc {
 
 // Relocs returns a Relocs object for the given global sym.
 func (l *Loader) Relocs(i Sym) Relocs {
-	if l.IsExternal(i) {
-		pp := l.getPayload(i)
-		if pp != nil {
-			return Relocs{Count: len(pp.relocs), l: l, extIdx: i}
-		}
-		return Relocs{}
-	}
 	r, li := l.toLocal(i)
 	if r == nil {
 		panic(fmt.Sprintf("trying to get oreader for invalid sym %d\n\n", i))
@@ -1439,8 +1429,15 @@ func (l *Loader) Relocs(i Sym) Relocs {
 
 // Relocs returns a Relocs object given a local sym index and reader.
 func (l *Loader) relocs(r *oReader, li int) Relocs {
+	var n int
+	if l.isExtReader(r) {
+		pp := l.payloads[li]
+		n = len(pp.relocs)
+	} else {
+		n = r.NReloc(li)
+	}
 	return Relocs{
-		Count: r.NReloc(li),
+		Count: n,
 		li:    li,
 		r:     r,
 		l:     l,
@@ -2279,7 +2276,7 @@ func patchDWARFName(s *sym.Symbol, r *oReader) {
 func (l *Loader) UndefinedRelocTargets(limit int) []Sym {
 	result := []Sym{}
 	rslice := []Reloc{}
-	for si := Sym(1); si <= l.max; si++ {
+	for si := Sym(1); si < Sym(len(l.objSyms)); si++ {
 		relocs := l.Relocs(si)
 		rslice = relocs.ReadAll(rslice)
 		for ri := 0; ri < relocs.Count; ri++ {
@@ -2304,9 +2301,9 @@ func (l *Loader) Dump() {
 		}
 	}
 	fmt.Println("extStart:", l.extStart)
-	fmt.Println("max:", l.max)
+	fmt.Println("Nsyms:", len(l.objSyms))
 	fmt.Println("syms")
-	for i := Sym(1); i <= l.max; i++ {
+	for i := Sym(1); i <= Sym(len(l.objSyms)); i++ {
 		pi := interface{}("")
 		if l.IsExternal(i) {
 			pi = fmt.Sprintf("<ext %d>", l.extIndex(i))
