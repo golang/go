@@ -102,7 +102,7 @@ func (k *PrivateKeyRSA) finalize() {
 	C._goboringcrypto_RSA_free(k.key)
 }
 
-func setupRSA(key *C.GO_RSA,
+func setupRSA(gokey interface{}, key *C.GO_RSA,
 	padding C.int, h hash.Hash, label []byte, saltLen int, ch crypto.Hash,
 	init func(*C.GO_EVP_PKEY_CTX) C.int) (pkey *C.GO_EVP_PKEY, ctx *C.GO_EVP_PKEY_CTX, err error) {
 	defer func() {
@@ -125,6 +125,9 @@ func setupRSA(key *C.GO_RSA,
 	if C._goboringcrypto_EVP_PKEY_set1_RSA(pkey, key) == 0 {
 		return nil, nil, fail("EVP_PKEY_set1_RSA")
 	}
+	// key is freed by the finalizer on gokey, which is a PrivateKeyRSA or a
+	// PublicKeyRSA. Ensure it doesn't run until after the cgo calls that use key.
+	runtime.KeepAlive(gokey)
 	ctx = C._goboringcrypto_EVP_PKEY_CTX_new(pkey, nil)
 	if ctx == nil {
 		return nil, nil, fail("EVP_PKEY_CTX_new")
@@ -144,9 +147,9 @@ func setupRSA(key *C.GO_RSA,
 			return nil, nil, fail("EVP_PKEY_set_rsa_oaep_md")
 		}
 		// ctx takes ownership of label, so malloc a copy for BoringCrypto to free.
-		clabel := (*C.uint8_t)(C.malloc(C.size_t(len(label))))
+		clabel := (*C.uint8_t)(C._goboringcrypto_OPENSSL_malloc(C.size_t(len(label))))
 		if clabel == nil {
-			return nil, nil, fail("malloc")
+			return nil, nil, fail("OPENSSL_malloc")
 		}
 		copy((*[1 << 30]byte)(unsafe.Pointer(clabel))[:len(label)], label)
 		if C._goboringcrypto_EVP_PKEY_CTX_set0_rsa_oaep_label(ctx, clabel, C.size_t(len(label))) == 0 {
@@ -177,7 +180,7 @@ func cryptRSA(gokey interface{}, key *C.GO_RSA,
 	crypt func(*C.GO_EVP_PKEY_CTX, *C.uint8_t, *C.size_t, *C.uint8_t, C.size_t) C.int,
 	in []byte) ([]byte, error) {
 
-	pkey, ctx, err := setupRSA(key, padding, h, label, saltLen, ch, init)
+	pkey, ctx, err := setupRSA(gokey, key, padding, h, label, saltLen, ch, init)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +195,6 @@ func cryptRSA(gokey interface{}, key *C.GO_RSA,
 	if crypt(ctx, base(out), &outLen, base(in), C.size_t(len(in))) == 0 {
 		return nil, fail("EVP_PKEY_decrypt/encrypt")
 	}
-	runtime.KeepAlive(gokey) // keep key from being freed before now
 	return out[:outLen], nil
 }
 

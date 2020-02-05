@@ -1,16 +1,18 @@
 # dev.boringcrypto branch
 
 We have been working inside Google on a fork of Go that uses
-BoringCrypto (the core of [BoringSSL](https://boringssl.googlesource.com/boringssl/)) for various crypto primitives, in
-furtherance of some [work related to FIPS 140-2](http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp2964.pdf). We have heard that
-some external users of Go would be interested in this code as well, so
-I intend to create a new branch dev.boringcrypto that will hold
-patches to make Go use BoringCrypto.
+BoringCrypto (the core of [BoringSSL][]) for various crypto
+primitives, in furtherance of some [work related to FIPS 140-2][3318].
+We have heard that some external users of Go would be interested in
+this code as well, so this branch holds the patches to make Go use
+BoringCrypto.
+
+[BoringSSL]: https://boringssl.googlesource.com/boringssl/
+[3318]: https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3318.pdf
 
 Unlike typical dev branches, we do not intend any eventual merge of
 this code into the master branch. Instead we intend to maintain in
-that branch the latest release plus BoringCrypto patches. In this
-sense it is a bit like dev.typealias holding go1.8+type alias patches.
+this branch the latest release plus BoringCrypto patches.
 
 To be clear, we are not making any statements or representations about
 the suitability of this code in relation to the FIPS 140-2 standard.
