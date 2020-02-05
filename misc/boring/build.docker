@@ -36,10 +36,9 @@ if echo "$url" | grep '!' >/dev/null; then
 	exit 2
 fi
 
-sed "s!UUU!$url!; s/SSS/$sha256/" dockerfile.in >$dir/Dockerfile
-cp go-wrapper $dir/go-wrapper
-
 dversion=$(echo "$version" | sed 's/^go//')
+sed "s!UUU!$url!; s/SSS/$sha256/; s/VVV/$dversion/" dockerfile.in >$dir/Dockerfile
+
 docker build --pull -t goboring/golang:$dversion $dir
 docker run goboring/golang:$dversion go version
 docker run goboring/golang:$dversion go tool nm /usr/local/go/bin/go >$dir/nm
