@@ -79,7 +79,7 @@ func main() {
 		Rate:    5 * time.Second,
 		Client:  &http.Client{},
 	})
-	export.AddExporters(exporter)
+	export.SetExporter(exporter)
 
 	ctx := context.TODO()
 	mLatency := stats.Float64("latency", "the latency in milliseconds", "ms")

@@ -41,15 +41,12 @@ func SetExporter(e Exporter) {
 	exporter = e
 }
 
-func AddExporters(e ...Exporter) {
-	exporterMu.Lock()
-	defer exporterMu.Unlock()
-	exporter = Multi(append([]Exporter{exporter}, e...)...)
-}
-
 func StartSpan(ctx context.Context, span *telemetry.Span, at time.Time) {
 	exporterMu.Lock()
 	defer exporterMu.Unlock()
+	if exporter == nil {
+		return
+	}
 	span.Start = at
 	exporter.StartSpan(ctx, span)
 }
@@ -57,6 +54,9 @@ func StartSpan(ctx context.Context, span *telemetry.Span, at time.Time) {
 func FinishSpan(ctx context.Context, span *telemetry.Span, at time.Time) {
 	exporterMu.Lock()
 	defer exporterMu.Unlock()
+	if exporter == nil {
+		return
+	}
 	span.Finish = at
 	exporter.FinishSpan(ctx, span)
 }
@@ -64,6 +64,9 @@ func FinishSpan(ctx context.Context, span *telemetry.Span, at time.Time) {
 func Tag(ctx context.Context, at time.Time, tags telemetry.TagList) {
 	exporterMu.Lock()
 	defer exporterMu.Unlock()
+	if exporter == nil {
+		return
+	}
 	// If context has a span we need to add the tags to it
 	span := telemetry.GetSpan(ctx)
 	if span == nil {
@@ -84,6 +87,9 @@ func Tag(ctx context.Context, at time.Time, tags telemetry.TagList) {
 func Log(ctx context.Context, event telemetry.Event) {
 	exporterMu.Lock()
 	defer exporterMu.Unlock()
+	if exporter == nil {
+		return
+	}
 	// If context has a span we need to add the event to it
 	span := telemetry.GetSpan(ctx)
 	if span != nil {
@@ -96,11 +102,17 @@ func Log(ctx context.Context, event telemetry.Event) {
 func Metric(ctx context.Context, data telemetry.MetricData) {
 	exporterMu.Lock()
 	defer exporterMu.Unlock()
+	if exporter == nil {
+		return
+	}
 	exporter.Metric(ctx, data)
 }
 
 func Flush() {
 	exporterMu.Lock()
 	defer exporterMu.Unlock()
+	if exporter == nil {
+		return
+	}
 	exporter.Flush()
 }

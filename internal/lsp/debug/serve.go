@@ -27,7 +27,9 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/telemetry"
 	"golang.org/x/tools/internal/telemetry/export"
 	"golang.org/x/tools/internal/telemetry/export/ocagent"
 	"golang.org/x/tools/internal/telemetry/export/prometheus"
@@ -368,7 +370,7 @@ func NewInstance(workdir, agent string) *Instance {
 	i.rpcs = &rpcs{}
 	i.traces = &traces{}
 	i.State = &State{}
-	export.AddExporters(i.ocagent, i.prometheus, i.rpcs, i.traces)
+	export.SetExporter(i)
 	return i
 }
 
@@ -491,6 +493,57 @@ func (i *Instance) writeMemoryDebug(threshold uint64) error {
 		return err
 	}
 	return nil
+}
+
+func (i *Instance) StartSpan(ctx context.Context, spn *telemetry.Span) {
+	if i.ocagent != nil {
+		i.ocagent.StartSpan(ctx, spn)
+	}
+	if i.traces != nil {
+		i.traces.StartSpan(ctx, spn)
+	}
+}
+
+func (i *Instance) FinishSpan(ctx context.Context, spn *telemetry.Span) {
+	if i.ocagent != nil {
+		i.ocagent.FinishSpan(ctx, spn)
+	}
+	if i.traces != nil {
+		i.traces.FinishSpan(ctx, spn)
+	}
+}
+
+//TODO: remove this hack
+// capture stderr at startup because it gets modified in a way that this
+// logger should not respect
+var stderr = os.Stderr
+
+func (i *Instance) Log(ctx context.Context, event telemetry.Event) {
+	if event.Error != nil {
+		fmt.Fprintf(stderr, "%v\n", event)
+	}
+	protocol.LogEvent(ctx, event)
+	if i.ocagent != nil {
+		i.ocagent.Log(ctx, event)
+	}
+}
+
+func (i *Instance) Metric(ctx context.Context, data telemetry.MetricData) {
+	if i.ocagent != nil {
+		i.ocagent.Metric(ctx, data)
+	}
+	if i.traces != nil {
+		i.prometheus.Metric(ctx, data)
+	}
+	if i.rpcs != nil {
+		i.rpcs.Metric(ctx, data)
+	}
+}
+
+func (i *Instance) Flush() {
+	if i.ocagent != nil {
+		i.ocagent.Flush()
+	}
 }
 
 type dataFunc func(*http.Request) interface{}

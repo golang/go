@@ -91,7 +91,7 @@ func BenchmarkBaseline(b *testing.B) {
 
 func BenchmarkLoggingNoExporter(b *testing.B) {
 	ctx := context.Background()
-	export.SetExporter(export.Null())
+	export.SetExporter(nil)
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
