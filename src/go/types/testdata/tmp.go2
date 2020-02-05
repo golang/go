@@ -4,8 +4,14 @@
 
 package p
 
+/*
 type T(type E) struct {
 	f *T(E)
 }
 
 var _ T(int)
+*/
+
+func f(type T)(...T) T
+
+var _ int = f() /* ERROR cannot infer T */

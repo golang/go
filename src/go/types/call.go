@@ -262,7 +262,8 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 	ddd := call.Ellipsis.IsValid()
 
 	// set up parameters
-	sig_params := sig.params
+	sig_params := sig.params // adjusted for variadic functions (may be nil for empty parameter lists!)
+	adjusted := false        // indicates if sig_params is different from t.params
 	if sig.variadic {
 		if ddd {
 			// variadic_func(a, b, c...)
@@ -284,7 +285,8 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 				for len(vars) < nargs {
 					vars = append(vars, NewParam(last.pos, last.pkg, last.name, typ))
 				}
-				sig_params = NewTuple(vars...)
+				sig_params = NewTuple(vars...) // possibly nil!
+				adjusted = true
 				npars = nargs
 			} else {
 				// nargs < npars-1
@@ -318,14 +320,24 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 		if targs == nil {
 			return
 		}
+
+		// compute result signature
 		rsig = check.instantiate(call.Pos(), sig, targs, nil).(*Signature)
 		assert(rsig.tparams == nil) // signature is not generic anymore
-		sig_params = check.subst(call.Pos(), sig_params, sig.tparams, targs).(*Tuple)
-		// TODO(gri) Optimization: We don't need to check arguments
-		//           from which we inferred parameter types.
+
+		// Optimization: Only if the parameter list was adjusted do we
+		// need to compute it from the adjusted list; otherwise we can
+		// simply use the result signature's parameter list.
+		if adjusted {
+			sig_params = check.subst(call.Pos(), sig_params, sig.tparams, targs).(*Tuple)
+		} else {
+			sig_params = rsig.params
+		}
 	}
 
 	// check arguments
+	// TODO(gri) Possible optimization (may be tricky): We could avoid
+	//           checking arguments from which we inferred type arguments.
 	for i, a := range args {
 		check.assignment(a, sig_params.vars[i].typ, "argument")
 	}
