@@ -1,6 +1,6 @@
 # Template for Dockerfile, used in build.docker script.
-# Based on https://github.com/docker-library/golang/blob/master/1.9-rc/stretch/Dockerfile
-FROM buildpack-deps:stretch-scm
+# Based on https://github.com/docker-library/golang/blob/7e3d99a803/1.13/buster/Dockerfile
+FROM buildpack-deps:buster-scm
 
 # gcc for cgo
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -11,19 +11,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		pkg-config \
 	&& rm -rf /var/lib/apt/lists/*
 
-ADD UUU /go.tgz
+ENV GOLANG_VERSION VVV
 
 RUN set -eux; \
 	\
-	echo "SSS /go.tgz" | sha256sum -c -; \
-	tar -C /usr/local -xzf /go.tgz; \
-	rm /go.tgz; \
+	url="UUU"; \
+	wget -O go.tgz "$url"; \
+	echo "SSS go.tgz" | sha256sum -c -; \
+	tar -C /usr/local -xzf go.tgz; \
+	rm go.tgz; \
+	\
 	export PATH="/usr/local/go/bin:$PATH"; \
 	go version
 
 ENV GOPATH /go
 ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
+
 RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
 WORKDIR $GOPATH
-
-COPY go-wrapper /usr/local/bin/
