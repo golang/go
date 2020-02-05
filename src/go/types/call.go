@@ -107,15 +107,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 
 			// instantiate function signature
 			res := check.instantiate(x.pos(), sig, targs, poslist).(*Signature)
-			// TODO(gri) The code below should not be necessary. The subst function
-			// does not correctly create a copy for signatures that have no value
-			// parameters but are instantiated. Documented bug.
-			// Look also into the situation for methods.
-			if res == sig {
-				copy := *sig
-				res = &copy
-			}
-			res.tparams = nil // signature is not generic anymore
+			assert(res.tparams == nil) // signature is not generic anymore
 			x.typ = res
 			x.mode = value
 			x.expr = e
@@ -327,7 +319,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 			return
 		}
 		rsig = check.instantiate(call.Pos(), sig, targs, nil).(*Signature)
-		rsig.tparams = nil // signature is not generic anymore
+		assert(rsig.tparams == nil) // signature is not generic anymore
 		sig_params = check.subst(call.Pos(), sig_params, sig.tparams, targs).(*Tuple)
 		// TODO(gri) Optimization: We don't need to check arguments
 		//           from which we inferred parameter types.

@@ -4,29 +4,8 @@
 
 package p
 
-/*
-type I interface{
-        m(type A)(A)
-}
- 
-type S struct{}
- 
-func (S) m(type B)(B)
- 
-var _ I = S{}
-
-type E(type T) interface {
-        m(type B)(B)
+type T(type E) struct {
+	f *T(E)
 }
 
-type II interface{
-        (E(int))
-        mm() int
-}
-
-var _ I = II(nil)
-*/
-
-func _(type T interface{ type string, chan<-int })(x T) {
-        for i, _ := range x /* ERROR send-only channel */ { _ = i }
-}
+var _ T(int)

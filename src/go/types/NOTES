@@ -18,8 +18,6 @@ KNOWN ISSUES
 - cannot handle mutually recursive parameterized interfaces using themselves as type bounds
 - contract instantiation requires the type arguments to be type parameters from the type of function
   type parameter list or enclosing contract
-- instantiating a parameterized function type w/o value or result parameters may have unexpected side-effects
-  (we don't make a copy of the signature in some cases) - investigate
 - leaving away unused receiver type parameters leads to an error; e.g.: "type S(type T) struct{}; func (S) _()"
 - using _ for an unused receiver type parameter leads to an error and crash; e.g.: "type T(type P) int; func (_ T(_)) m()"
 

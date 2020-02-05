@@ -199,10 +199,10 @@ type Signature struct {
 	// and store it in the Func Object) because when type-checking a function
 	// literal we call the general type checker which returns a general Type.
 	// We then unpack the *Signature and use the scope for the literal body.
-	scope    *Scope      // function scope, present for package-local signatures
-	recv     *Var        // nil if not a method
 	rparams  []*TypeName // reveiver type parameters from left to right; or nil
 	tparams  []*TypeName // type parameters from left to right; or nil
+	scope    *Scope      // function scope, present for package-local signatures
+	recv     *Var        // nil if not a method
 	params   *Tuple      // (incoming) parameters from left to right; or nil
 	results  *Tuple      // (outgoing) results from left to right; or nil
 	variadic bool        // true if the last parameter's type is of the form ...T (or string, for append built-in only)
@@ -222,7 +222,7 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
 			panic("types.NewSignature: variadic parameter must be of unnamed slice type")
 		}
 	}
-	return &Signature{nil, recv, nil, nil, params, results, variadic}
+	return &Signature{nil, nil, nil, recv, params, results, variadic}
 }
 
 // Recv returns the receiver of signature s (if a method), or nil if a
