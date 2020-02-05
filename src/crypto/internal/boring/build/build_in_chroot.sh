@@ -11,19 +11,19 @@ export LANG=C
 unset LANGUAGE
 
 # Build BoringCrypto libcrypto.a.
-# Following http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp2964.pdf page 18.
+# Following https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3318.pdf page 19.
 if ! [ -e ./boringssl/build/tool/bssl ]; then
-	export PATH=$PATH:/usr/lib/go-1.8/bin:/clangbin
+	export PATH=$PATH:/usr/lib/go-1.10/bin:/clangbin
 
 	# Go requires -fPIC for linux/amd64 cgo builds.
 	# Setting -fPIC only affects the compilation of the non-module code in libcrypto.a,
 	# because the FIPS module itself is already built with -fPIC.
 	mkdir /clangbin
 	echo '#!/bin/bash
-	exec clang-4.0 -fPIC "$@"
+	exec clang-6.0 -fPIC "$@"
 	' >/clangbin/clang
 	echo '#!/bin/bash
-	exec clang++-4.0 -fPIC "$@"
+	exec clang++-6.0 -fPIC "$@"
 	' >/clangbin/clang++
 	chmod +x /clangbin/clang /clangbin/clang++
 
@@ -32,9 +32,9 @@ if ! [ -e ./boringssl/build/tool/bssl ]; then
 	cd boringssl
 
 	# Verbatim instructions from BoringCrypto build docs.
-	printf "set(CMAKE_C_COMPILER \"clang\")\nset(CMAKE_CXX_COMPILER \"clang++\")\n" >/toolchain
-	mkdir build && cd build && cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=/toolchain -DFIPS=1 -DCMAKE_BUILD_TYPE=Release ..
-	ninja -v
+	printf "set(CMAKE_C_COMPILER \"clang\")\nset(CMAKE_CXX_COMPILER \"clang++\")\n" >${HOME}/toolchain
+	mkdir build && cd build && cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=${HOME}/toolchain -DFIPS=1 -DCMAKE_BUILD_TYPE=Release ..
+	ninja
 	ninja run_tests
 
 	cd ../..
@@ -134,7 +134,7 @@ cat goboringcrypto.h | awk '
 	/typedef struct|enum ([a-z_]+ )?{|^[ \t]/ {print;next}
 	{gsub(/GO_/, ""); gsub(/enum go_/, "enum "); print}
 ' >goboringcrypto1.h
-clang++-4.0 -std=c++11 -fPIC -I../boringssl/include -O2 -o a.out  goboringcrypto.cc
+clang++-6.0 -std=c++11 -fPIC -I../boringssl/include -O2 -o a.out  goboringcrypto.cc
 ./a.out || exit 2
 
 # Prepare copy of libcrypto.a with only the checked functions renamed and exported.
@@ -186,7 +186,7 @@ __umodti3:
 
 .section .note.GNU-stack,"",@progbits
 EOF
-clang-4.0 -c -o umod.o umod.s
+clang-6.0 -c -o umod.o umod.s
 
 ld -r -nostdlib --whole-archive -o goboringcrypto.o libcrypto.a umod.o
 echo __umodti3 _goboringcrypto___umodti3 >>renames.txt

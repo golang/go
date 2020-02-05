@@ -10,4 +10,4 @@ echo http_proxy=$http_proxy
 export LANG=C
 unset LANGUAGE
 apt-get update
-apt-get install --no-install-recommends -y cmake clang-4.0 golang-1.8-go ninja-build xz-utils
+apt-get install --no-install-recommends -y cmake clang-6.0 golang-1.10-go ninja-build xz-utils

@@ -6,6 +6,7 @@
 # Run on Ubuntu system set up with:
 #	sudo apt-get install debootstrap
 #	sudo apt-get install squid-deb-proxy
+#	sudo /etc/init.d/squid-deb-proxy start
 #
 # The script sets up an Ubuntu chroot and then runs the build
 # in that chroot, to make sure we know exactly what software
@@ -28,10 +29,10 @@ sudo umount -f $chroot/dev
 set -e
 if [ "$1" != "-quick" ]; then
 	sudo rm -rf $chroot
-	sudo http_proxy=$http_proxy debootstrap --variant=minbase zesty $chroot
+	sudo http_proxy=$http_proxy debootstrap --variant=minbase disco $chroot
 fi
 
-sudo chown $USER $chroot
+sudo chown $(whoami) $chroot
 sudo chmod u+w $chroot
 
 sudo mount -t proc proc $chroot/proc
@@ -43,11 +44,11 @@ sudo cp sources.list $chroot/etc/apt/sources.list
 
 cp *chroot.sh $chroot
 
-# Following http://csrc.nist.gov/groups/STM/cmvp/documents/140-1/140sp/140sp2964.pdf page 18.
-if [ ! -e $chroot/boringssl-24e5886c0edfc409c8083d10f9f1120111efd6f5.tar.xz ]; then
-	wget -O $chroot/boringssl-24e5886c0edfc409c8083d10f9f1120111efd6f5.tar.xz https://commondatastorage.googleapis.com/chromium-boringssl-docs/fips/boringssl-24e5886c0edfc409c8083d10f9f1120111efd6f5.tar.xz
+# Following https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3318.pdf page 19.
+if [ ! -e $chroot/boringssl-66005f41fbc3529ffe8d007708756720529da20d.tar.xz ]; then
+	wget -O $chroot/boringssl-66005f41fbc3529ffe8d007708756720529da20d.tar.xz https://commondatastorage.googleapis.com/chromium-boringssl-docs/fips/boringssl-66005f41fbc3529ffe8d007708756720529da20d.tar.xz
 fi
-if [ "$(sha256sum $chroot/boringssl-24e5886c0edfc409c8083d10f9f1120111efd6f5.tar.xz | awk '{print $1}')" != 15a65d676eeae27618e231183a1ce9804fc9c91bcc3abf5f6ca35216c02bf4da ]; then
+if [ "$(sha256sum $chroot/boringssl-66005f41fbc3529ffe8d007708756720529da20d.tar.xz | awk '{print $1}')" != b12ad676ee533824f698741bd127f6fbc82c46344398a6d78d25e62c6c418c73 ]; then
 	echo WRONG SHA256SUM
 	exit 2
 fi
