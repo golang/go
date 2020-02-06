@@ -9,6 +9,9 @@
 //
 // The hash functions are collision-resistant but not cryptographically secure.
 // (See crypto/sha256 and crypto/sha512 for cryptographic use.)
+//
+// The hash value of a given byte sequence is consistent within a
+// single process, but will be different in different processes.
 package maphash
 
 import "unsafe"
