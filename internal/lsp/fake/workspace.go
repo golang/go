@@ -116,6 +116,33 @@ func (w *Workspace) ReadFile(path string) (string, error) {
 	return string(b), nil
 }
 
+// RemoveFile removes a workspace-relative file path.
+func (w *Workspace) RemoveFile(ctx context.Context, path string) error {
+	fp := w.filePath(path)
+	if err := os.Remove(fp); err != nil {
+		return fmt.Errorf("removing %q: %v", path, err)
+	}
+	evts := []FileEvent{{
+		Path: path,
+		ProtocolEvent: protocol.FileEvent{
+			URI:  w.URI(path),
+			Type: protocol.Deleted,
+		},
+	}}
+	w.sendEvents(ctx, evts)
+	return nil
+}
+
+func (w *Workspace) sendEvents(ctx context.Context, evts []FileEvent) {
+	w.watcherMu.Lock()
+	watchers := make([]func(context.Context, []FileEvent), len(w.watchers))
+	copy(watchers, w.watchers)
+	w.watcherMu.Unlock()
+	for _, w := range watchers {
+		go w(ctx, evts)
+	}
+}
+
 // WriteFile writes text file content to a workspace-relative path.
 func (w *Workspace) WriteFile(ctx context.Context, path, content string) error {
 	fp := w.filePath(path)
@@ -129,11 +156,9 @@ func (w *Workspace) WriteFile(ctx context.Context, path, content string) error {
 	} else {
 		changeType = protocol.Changed
 	}
-	werr := w.writeFileData(path, []byte(content))
-	w.watcherMu.Lock()
-	watchers := make([]func(context.Context, []FileEvent), len(w.watchers))
-	copy(watchers, w.watchers)
-	w.watcherMu.Unlock()
+	if err := w.writeFileData(path, []byte(content)); err != nil {
+		return err
+	}
 	evts := []FileEvent{{
 		Path: path,
 		ProtocolEvent: protocol.FileEvent{
@@ -141,10 +166,8 @@ func (w *Workspace) WriteFile(ctx context.Context, path, content string) error {
 			Type: changeType,
 		},
 	}}
-	for _, w := range watchers {
-		go w(ctx, evts)
-	}
-	return werr
+	w.sendEvents(ctx, evts)
+	return nil
 }
 
 func (w *Workspace) writeFileData(path string, data []byte) error {

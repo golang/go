@@ -36,14 +36,14 @@ type testEnvironment struct {
 	ws     *fake.Workspace
 	ts     *servertest.Server
 
-	diagnostics <-chan *protocol.PublishDiagnosticsParams
+	dw diagnosticsWatcher
 }
 
-func setupEnv(t *testing.T) (context.Context, testEnvironment, func()) {
+func setupEnv(t *testing.T, txt string) (context.Context, testEnvironment, func()) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
-	ws, err := fake.NewWorkspace("get-diagnostics", []byte(exampleProgram))
+	ws, err := fake.NewWorkspace("get-diagnostics", []byte(txt))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,22 +55,61 @@ func setupEnv(t *testing.T) (context.Context, testEnvironment, func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	diags := make(chan *protocol.PublishDiagnosticsParams, 10)
-	editor.Client().OnDiagnostics(func(_ context.Context, params *protocol.PublishDiagnosticsParams) error {
-		diags <- params
-		return nil
-	})
+	dw := newDiagWatcher(ws)
+	editor.Client().OnDiagnostics(dw.onDiagnostics)
 	cleanup := func() {
 		cancel()
 		ts.Close()
 		ws.Close()
 	}
 	return ctx, testEnvironment{
-		editor:      editor,
-		ws:          ws,
-		ts:          ts,
-		diagnostics: diags,
+		editor: editor,
+		ws:     ws,
+		ts:     ts,
+		dw:     dw,
 	}, cleanup
+}
+
+type diagnosticsWatcher struct {
+	diagnostics chan *protocol.PublishDiagnosticsParams
+	ws          *fake.Workspace
+}
+
+func newDiagWatcher(ws *fake.Workspace) diagnosticsWatcher {
+	return diagnosticsWatcher{
+		// Allow an arbitrarily large buffer, as we should never want onDiagnostics
+		// to block.
+		diagnostics: make(chan *protocol.PublishDiagnosticsParams, 1000),
+		ws:          ws,
+	}
+}
+
+func (w diagnosticsWatcher) onDiagnostics(_ context.Context, p *protocol.PublishDiagnosticsParams) error {
+	w.diagnostics <- p
+	return nil
+}
+
+func (w diagnosticsWatcher) await(ctx context.Context, expected ...string) (map[string]*protocol.PublishDiagnosticsParams, error) {
+	expectedSet := make(map[string]bool)
+	for _, e := range expected {
+		expectedSet[e] = true
+	}
+	got := make(map[string]*protocol.PublishDiagnosticsParams)
+	for len(got) < len(expectedSet) {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case d := <-w.diagnostics:
+			pth, err := w.ws.URIToPath(d.URI)
+			if err != nil {
+				return nil, err
+			}
+			if expectedSet[pth] {
+				got[pth] = d
+			}
+		}
+	}
+	return got, nil
 }
 
 func checkDiagnosticLocation(params *protocol.PublishDiagnosticsParams, filename string, line, col int) error {
@@ -89,7 +128,7 @@ func checkDiagnosticLocation(params *protocol.PublishDiagnosticsParams, filename
 
 func TestDiagnosticErrorInEditedFile(t *testing.T) {
 	t.Parallel()
-	ctx, env, cleanup := setupEnv(t)
+	ctx, env, cleanup := setupEnv(t, exampleProgram)
 	defer cleanup()
 
 	// Deleting the 'n' at the end of Println should generate a single error
@@ -107,15 +146,18 @@ func TestDiagnosticErrorInEditedFile(t *testing.T) {
 	if err := env.editor.EditBuffer(ctx, "main.go", edits); err != nil {
 		t.Fatal(err)
 	}
-	params := awaitDiagnostics(ctx, t, env.diagnostics)
-	if err := checkDiagnosticLocation(params, env.ws.URI("main.go"), 5, 5); err != nil {
+	diags, err := env.dw.await(ctx, "main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := checkDiagnosticLocation(diags["main.go"], env.ws.URI("main.go"), 5, 5); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestSimultaneousEdits(t *testing.T) {
 	t.Parallel()
-	ctx, env, cleanup := setupEnv(t)
+	ctx, env, cleanup := setupEnv(t, exampleProgram)
 	defer cleanup()
 
 	// Set up a second editor session connected to the same server, using the
@@ -125,12 +167,8 @@ func TestSimultaneousEdits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	diags2 := make(chan *protocol.PublishDiagnosticsParams, 10)
-	editor2.Client().OnDiagnostics(func(_ context.Context, params *protocol.PublishDiagnosticsParams) error {
-		diags2 <- params
-		return nil
-	})
-
+	dw2 := newDiagWatcher(env.ws)
+	editor2.Client().OnDiagnostics(dw2.onDiagnostics)
 	// In editor #1, break fmt.Println as before.
 	edits1 := []fake.Edit{{
 		Start: fake.Pos{Line: 5, Column: 11},
@@ -156,23 +194,19 @@ func TestSimultaneousEdits(t *testing.T) {
 	if err := editor2.EditBuffer(ctx, "main.go", edits2); err != nil {
 		t.Fatal(err)
 	}
-	params1 := awaitDiagnostics(ctx, t, env.diagnostics)
-	params2 := awaitDiagnostics(ctx, t, diags2)
-	if err := checkDiagnosticLocation(params1, env.ws.URI("main.go"), 5, 5); err != nil {
+	diags1, err := env.dw.await(ctx, "main.go")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := checkDiagnosticLocation(params2, env.ws.URI("main.go"), 7, 0); err != nil {
+	diags2, err := dw2.await(ctx, "main.go")
+	if err != nil {
 		t.Fatal(err)
 	}
-}
-
-func awaitDiagnostics(ctx context.Context, t *testing.T, diags <-chan *protocol.PublishDiagnosticsParams) *protocol.PublishDiagnosticsParams {
-	t.Helper()
-	select {
-	case <-ctx.Done():
-		panic(ctx.Err())
-	case d := <-diags:
-		return d
+	if err := checkDiagnosticLocation(diags1["main.go"], env.ws.URI("main.go"), 5, 5); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkDiagnosticLocation(diags2["main.go"], env.ws.URI("main.go"), 7, 0); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -183,14 +217,91 @@ const Foo = "abc
 
 func TestDiagnosticErrorInNewFile(t *testing.T) {
 	t.Parallel()
-	ctx, env, cleanup := setupEnv(t)
+	ctx, env, cleanup := setupEnv(t, exampleProgram)
 	defer cleanup()
 
 	if err := env.editor.CreateBuffer(ctx, "broken.go", brokenFile); err != nil {
 		t.Fatal(err)
 	}
-	params := awaitDiagnostics(ctx, t, env.diagnostics)
-	if got, want := params.URI, env.ws.URI("broken.go"); got != want {
-		t.Fatalf("got diagnostics for URI %q, want %q", got, want)
+	_, err := env.dw.await(ctx, "broken.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// badPackage contains a duplicate definition of the 'a' const.
+const badPackage = `
+-- go.mod --
+module mod
+
+go 1.12
+-- a.go --
+package consts
+
+const a = 1
+-- b.go --
+package consts
+
+const a = 2
+`
+
+func TestDiagnosticClearingOnEdit(t *testing.T) {
+	t.Parallel()
+	ctx, env, cleanup := setupEnv(t, badPackage)
+	defer cleanup()
+
+	if err := env.editor.OpenFile(ctx, "b.go"); err != nil {
+		t.Fatal(err)
+	}
+	_, err := env.dw.await(ctx, "a.go", "b.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// In editor #2 remove the closing brace.
+	edits := []fake.Edit{{
+		Start: fake.Pos{Line: 2, Column: 6},
+		End:   fake.Pos{Line: 2, Column: 7},
+		Text:  "b",
+	}}
+	if err := env.editor.EditBuffer(ctx, "b.go", edits); err != nil {
+		t.Fatal(err)
+	}
+	diags, err := env.dw.await(ctx, "a.go", "b.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for pth, d := range diags {
+		if len(d.Diagnostics) != 0 {
+			t.Errorf("non-empty diagnostics for %q", pth)
+		}
+	}
+}
+
+func TestDiagnosticClearingOnDelete(t *testing.T) {
+	t.Skip("skipping due to golang.org/issues/37049")
+
+	t.Parallel()
+	ctx, env, cleanup := setupEnv(t, badPackage)
+	defer cleanup()
+
+	if err := env.editor.OpenFile(ctx, "a.go"); err != nil {
+		t.Fatal(err)
+	}
+	_, err := env.dw.await(ctx, "a.go", "b.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	env.ws.RemoveFile(ctx, "b.go")
+
+	// TODO(golang.org/issues/37049): here we only get diagnostics for a.go.
+	diags, err := env.dw.await(ctx, "a.go", "b.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for pth, d := range diags {
+		if len(d.Diagnostics) != 0 {
+			t.Errorf("non-empty diagnostics for %q", pth)
+		}
 	}
 }
