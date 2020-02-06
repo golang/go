@@ -34,6 +34,10 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 	if err != nil {
 		return nil, err
 	}
+	// Don't return references for builtin types.
+	if qualifiedObjs[0].obj.Parent() == types.Universe {
+		return nil, nil
+	}
 
 	var (
 		references []*ReferenceInfo
