@@ -29,12 +29,12 @@ import (
 	"golang.org/x/tools/internal/telemetry/tag"
 )
 
-type Instance interface {
-	Logfile() string
-	StartTime() time.Time
-	Address() string
-	Debug() string
-	Workdir() string
+type Instance struct {
+	Logfile       string
+	StartTime     time.Time
+	ServerAddress string
+	DebugAddress  string
+	Workdir       string
 }
 
 type Cache interface {
@@ -176,10 +176,10 @@ func getFile(r *http.Request) interface{} {
 	return session.File(hash)
 }
 
-func getInfo(s Instance) dataFunc {
+func (i *Instance) getInfo() dataFunc {
 	return func(r *http.Request) interface{} {
 		buf := &bytes.Buffer{}
-		PrintServerInfo(buf, s)
+		i.PrintServerInfo(buf)
 		return template.HTML(buf.String())
 	}
 }
@@ -232,7 +232,7 @@ func DropView(view View) {
 // Serve starts and runs a debug server in the background.
 // It also logs the port the server starts on, to allow for :0 auto assigned
 // ports.
-func Serve(ctx context.Context, addr string, instance Instance) error {
+func (i *Instance) Serve(ctx context.Context, addr string) error {
 	mu.Lock()
 	defer mu.Unlock()
 	if addr == "" {
@@ -268,7 +268,7 @@ func Serve(ctx context.Context, addr string, instance Instance) error {
 		mux.HandleFunc("/session/", render(sessionTmpl, getSession))
 		mux.HandleFunc("/view/", render(viewTmpl, getView))
 		mux.HandleFunc("/file/", render(fileTmpl, getFile))
-		mux.HandleFunc("/info", render(infoTmpl, getInfo(instance)))
+		mux.HandleFunc("/info", render(infoTmpl, i.getInfo()))
 		mux.HandleFunc("/memory", render(memoryTmpl, getMemory))
 		if err := http.Serve(listener, mux); err != nil {
 			log.Error(ctx, "Debug server failed", err)

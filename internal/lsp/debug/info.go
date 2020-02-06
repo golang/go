@@ -23,14 +23,14 @@ const (
 // Version is a manually-updated mechanism for tracking versions.
 var Version = "master"
 
-// PrintServerInfo writes HTML debug info to w for the Instance s.
-func PrintServerInfo(w io.Writer, s Instance) {
+// PrintServerInfo writes HTML debug info to w for the Instance.
+func (i *Instance) PrintServerInfo(w io.Writer) {
 	section(w, HTML, "Server Instance", func() {
-		fmt.Fprintf(w, "Start time: %v\n", s.StartTime())
-		fmt.Fprintf(w, "LogFile: %s\n", s.Logfile())
-		fmt.Fprintf(w, "Working directory: %s\n", s.Workdir())
-		fmt.Fprintf(w, "Address: %s\n", s.Address())
-		fmt.Fprintf(w, "Debug address: %s\n", s.Debug())
+		fmt.Fprintf(w, "Start time: %v\n", i.StartTime)
+		fmt.Fprintf(w, "LogFile: %s\n", i.Logfile)
+		fmt.Fprintf(w, "Working directory: %s\n", i.Workdir)
+		fmt.Fprintf(w, "Address: %s\n", i.ServerAddress)
+		fmt.Fprintf(w, "Debug address: %s\n", i.DebugAddress)
 	})
 	PrintVersionInfo(w, true, HTML)
 }

@@ -73,7 +73,14 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 		out = f
 	}
 
-	debug.Serve(ctx, s.Debug, debugServe{s: s, logfile: logfile, start: time.Now()})
+	debug := debug.Instance{
+		Logfile:       logfile,
+		StartTime:     time.Now(),
+		ServerAddress: s.Address,
+		DebugAddress:  s.Debug,
+		Workdir:       s.app.wd,
+	}
+	debug.Serve(ctx, s.Debug)
 
 	if s.app.Remote != "" {
 		return s.forward()
@@ -113,17 +120,3 @@ func (s *Serve) forward() error {
 
 	return <-errc
 }
-
-// debugServe implements the debug.Instance interface.
-type debugServe struct {
-	s       *Serve
-	logfile string
-	start   time.Time
-}
-
-func (d debugServe) Logfile() string      { return d.logfile }
-func (d debugServe) StartTime() time.Time { return d.start }
-func (d debugServe) Port() int            { return d.s.Port }
-func (d debugServe) Address() string      { return d.s.Address }
-func (d debugServe) Debug() string        { return d.s.Debug }
-func (d debugServe) Workdir() string      { return d.s.app.wd }
