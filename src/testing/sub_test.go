@@ -613,6 +613,46 @@ func TestBRun(t *T) {
 				t.Errorf("MemBytes was %v; want %v", got, 2*bufSize)
 			}
 		},
+	}, {
+		desc: "cleanup is called",
+		f: func(b *B) {
+			var calls, cleanups, innerCalls, innerCleanups int
+			b.Run("", func(b *B) {
+				calls++
+				b.Cleanup(func() {
+					cleanups++
+				})
+				b.Run("", func(b *B) {
+					b.Cleanup(func() {
+						innerCleanups++
+					})
+					innerCalls++
+				})
+				work(b)
+			})
+			if calls == 0 || calls != cleanups {
+				t.Errorf("mismatched cleanups; got %d want %d", cleanups, calls)
+			}
+			if innerCalls == 0 || innerCalls != innerCleanups {
+				t.Errorf("mismatched cleanups; got %d want %d", cleanups, calls)
+			}
+		},
+	}, {
+		desc:   "cleanup is called on failure",
+		failed: true,
+		f: func(b *B) {
+			var calls, cleanups int
+			b.Run("", func(b *B) {
+				calls++
+				b.Cleanup(func() {
+					cleanups++
+				})
+				b.Fatalf("failure")
+			})
+			if calls == 0 || calls != cleanups {
+				t.Errorf("mismatched cleanups; got %d want %d", cleanups, calls)
+			}
+		},
 	}}
 	for _, tc := range testCases {
 		var ok bool
