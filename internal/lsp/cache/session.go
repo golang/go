@@ -33,6 +33,35 @@ type session struct {
 	overlays  map[span.URI]*overlay
 }
 
+type overlay struct {
+	session *session
+	uri     span.URI
+	text    []byte
+	hash    string
+	version float64
+	kind    source.FileKind
+
+	// saved is true if a file has been saved on disk,
+	// and therefore does not need to be part of the overlay sent to go/packages.
+	saved bool
+}
+
+func (o *overlay) FileSystem() source.FileSystem {
+	return o.session
+}
+
+func (o *overlay) Identity() source.FileIdentity {
+	return source.FileIdentity{
+		URI:        o.uri,
+		Identifier: o.hash,
+		Version:    o.version,
+		Kind:       o.kind,
+	}
+}
+func (o *overlay) Read(ctx context.Context) ([]byte, string, error) {
+	return o.text, o.hash, nil
+}
+
 func (s *session) Options() source.Options {
 	return s.options
 }
@@ -249,14 +278,17 @@ func (s *session) dropView(ctx context.Context, v *view) (int, error) {
 }
 
 func (s *session) DidModifyFiles(ctx context.Context, changes []source.FileModification) ([]source.Snapshot, error) {
-	views := make(map[*view][]span.URI)
+	views := make(map[*view]map[span.URI]source.FileHandle)
 
+	overlays, err := s.updateOverlays(ctx, changes)
+	if err != nil {
+		return nil, err
+	}
 	for _, c := range changes {
-		// Only update overlays for in-editor changes.
-		if !c.OnDisk {
-			if err := s.updateOverlay(ctx, c); err != nil {
-				return nil, err
-			}
+		// Do nothing if the file is open in the editor and we receive
+		// an on-disk action. The editor is the source of truth.
+		if s.isOpen(c.URI) && c.OnDisk {
+			continue
 		}
 		for _, view := range s.viewsOf(c.URI) {
 			if view.Ignore(c.URI) {
@@ -276,7 +308,14 @@ func (s *session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 			if _, err := view.getFile(c.URI); err != nil {
 				return nil, err
 			}
-			views[view] = append(views[view], c.URI)
+			if _, ok := views[view]; !ok {
+				views[view] = make(map[span.URI]source.FileHandle)
+			}
+			if o, ok := overlays[c.URI]; ok {
+				views[view][c.URI] = o
+			} else {
+				views[view][c.URI] = s.cache.GetFile(c.URI)
+			}
 		}
 	}
 	var snapshots []source.Snapshot
@@ -286,12 +325,86 @@ func (s *session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 	return snapshots, nil
 }
 
-func (s *session) IsOpen(uri span.URI) bool {
+func (s *session) isOpen(uri span.URI) bool {
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
 
 	_, open := s.overlays[uri]
 	return open
+}
+
+func (s *session) updateOverlays(ctx context.Context, changes []source.FileModification) (map[span.URI]*overlay, error) {
+	s.overlayMu.Lock()
+	defer s.overlayMu.Unlock()
+
+	for _, c := range changes {
+		// Don't update overlays for on-disk changes.
+		if c.OnDisk {
+			continue
+		}
+
+		o, ok := s.overlays[c.URI]
+
+		// Determine the file kind on open, otherwise, assume it has been cached.
+		var kind source.FileKind
+		switch c.Action {
+		case source.Open:
+			kind = source.DetectLanguage(c.LanguageID, c.URI.Filename())
+		default:
+			if !ok {
+				return nil, errors.Errorf("updateOverlays: modifying unopened overlay %v", c.URI)
+			}
+			kind = o.kind
+		}
+		if kind == source.UnknownKind {
+			return nil, errors.Errorf("updateOverlays: unknown file kind for %s", c.URI)
+		}
+
+		// Closing a file just deletes its overlay.
+		if c.Action == source.Close {
+			delete(s.overlays, c.URI)
+			continue
+		}
+
+		// If the file is on disk, check if its content is the same as the overlay.
+		text := c.Text
+		if text == nil {
+			text = o.text
+		}
+		hash := hashContents(text)
+		var sameContentOnDisk bool
+		switch c.Action {
+		case source.Open:
+			_, h, err := s.cache.GetFile(c.URI).Read(ctx)
+			sameContentOnDisk = (err == nil && h == hash)
+		case source.Save:
+			// Make sure the version and content (if present) is the same.
+			if o.version != c.Version {
+				return nil, errors.Errorf("updateOverlays: saving %s at version %v, currently at %v", c.URI, c.Version, o.version)
+			}
+			if c.Text != nil && o.hash != hash {
+				return nil, errors.Errorf("updateOverlays: overlay %s changed on save", c.URI)
+			}
+			sameContentOnDisk = true
+		}
+		o = &overlay{
+			session: s,
+			uri:     c.URI,
+			version: c.Version,
+			text:    text,
+			kind:    kind,
+			hash:    hash,
+			saved:   sameContentOnDisk,
+		}
+		s.overlays[c.URI] = o
+	}
+
+	// Get the overlays for each change while the session's overlay map is locked.
+	overlays := make(map[span.URI]*overlay)
+	for _, c := range changes {
+		overlays[c.URI] = s.overlays[c.URI]
+	}
+	return overlays, nil
 }
 
 func (s *session) GetFile(uri span.URI) source.FileHandle {
@@ -300,4 +413,14 @@ func (s *session) GetFile(uri span.URI) source.FileHandle {
 	}
 	// Fall back to the cache-level file system.
 	return s.cache.GetFile(uri)
+}
+
+func (s *session) readOverlay(uri span.URI) *overlay {
+	s.overlayMu.Lock()
+	defer s.overlayMu.Unlock()
+
+	if overlay, ok := s.overlays[uri]; ok {
+		return overlay
+	}
+	return nil
 }

@@ -65,15 +65,8 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.DidChangeWatchedFilesParams) error {
 	var modifications []source.FileModification
 	for _, change := range params.Changes {
-		uri := span.NewURI(change.URI)
-
-		// Do nothing if the file is open in the editor.
-		// The editor is the source of truth.
-		if s.session.IsOpen(uri) {
-			continue
-		}
 		modifications = append(modifications, source.FileModification{
-			URI:    uri,
+			URI:    span.NewURI(change.URI),
 			Action: changeTypeToFileAction(change.Type),
 			OnDisk: true,
 		})

@@ -33,6 +33,10 @@ type Snapshot interface {
 	// if it is not already part of the view.
 	GetFile(uri span.URI) (FileHandle, error)
 
+	// IsOpen returns whether the editor currently has a file open,
+	// and if its contents are saved on disk or not.
+	IsOpen(uri span.URI) bool
+
 	// Analyze runs the analyses for the given package at this snapshot.
 	Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) ([]*Error, error)
 
@@ -163,10 +167,6 @@ type Session interface {
 	// A FileSystem prefers the contents from overlays, and falls back to the
 	// content from the underlying cache if no overlay is present.
 	FileSystem
-
-	// IsOpen returns whether the editor currently has a file open,
-	// and if its contents are saved on disk or not.
-	IsOpen(uri span.URI) bool
 
 	// DidModifyFile reports a file modification to the session.
 	// It returns the resulting snapshots, a guaranteed one per view.

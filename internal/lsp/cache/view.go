@@ -239,8 +239,9 @@ func (v *view) buildBuiltinPackage(ctx context.Context, goFiles []string) error 
 	uri := span.FileURI(goFiles[0])
 	v.addIgnoredFile(uri) // to avoid showing diagnostics for builtin.go
 
-	// Get the FileHandle through the session to avoid adding it to the snapshot.
-	pgh := v.session.cache.ParseGoHandle(v.session.GetFile(uri), source.ParseFull)
+	// Get the FileHandle through the cache to avoid adding it to the snapshot
+	// and to get the file content from disk.
+	pgh := v.session.cache.ParseGoHandle(v.session.cache.GetFile(uri), source.ParseFull)
 	fset := v.session.cache.fset
 	h := v.session.cache.store.Bind(pgh.File().Identity(), func(ctx context.Context) interface{} {
 		data := &builtinPackageData{}
@@ -540,7 +541,7 @@ func (v *view) awaitInitialized(ctx context.Context) {
 // invalidateContent invalidates the content of a Go file,
 // including any position and type information that depends on it.
 // It returns true if we were already tracking the given file, false otherwise.
-func (v *view) invalidateContent(ctx context.Context, uris []span.URI) source.Snapshot {
+func (v *view) invalidateContent(ctx context.Context, uris map[span.URI]source.FileHandle) source.Snapshot {
 	// Detach the context so that content invalidation cannot be canceled.
 	ctx = xcontext.Detach(ctx)
 

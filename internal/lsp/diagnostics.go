@@ -88,7 +88,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 			// Only run analyses for packages with open files.
 			withAnalyses := alwaysAnalyze
 			for _, fh := range ph.CompiledGoFiles() {
-				if s.session.IsOpen(fh.File().Identity().URI) {
+				if snapshot.IsOpen(fh.File().Identity().URI) {
 					withAnalyses = true
 				}
 			}

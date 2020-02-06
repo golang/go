@@ -108,6 +108,9 @@ func (s *snapshot) Config(ctx context.Context) *packages.Config {
 }
 
 func (s *snapshot) buildOverlay() map[string][]byte {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	overlays := make(map[string][]byte)
 	for uri, fh := range s.files {
 		overlay, ok := fh.(*overlay)
@@ -569,13 +572,22 @@ func (s *snapshot) GetFile(uri span.URI) (source.FileHandle, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if _, ok := s.files[f.URI()]; !ok {
-		s.files[f.URI()] = s.view.session.GetFile(f.URI())
+		s.files[f.URI()] = s.view.session.cache.GetFile(uri)
 	}
 	return s.files[f.URI()], nil
+}
+
+func (s *snapshot) IsOpen(uri span.URI) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_, open := s.files[uri].(*overlay)
+	return open
 }
 
 func (s *snapshot) awaitLoaded(ctx context.Context) error {
@@ -685,7 +697,7 @@ func contains(views []*view, view *view) bool {
 	return false
 }
 
-func (s *snapshot) clone(ctx context.Context, withoutURIs []span.URI) *snapshot {
+func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.FileHandle) *snapshot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -716,7 +728,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs []span.URI) *snapshot 
 	// If an ID's value is true, invalidate its metadata too.
 	transitiveIDs := make(map[packageID]bool)
 
-	for _, withoutURI := range withoutURIs {
+	for withoutURI, currentFH := range withoutURIs {
 		directIDs := map[packageID]struct{}{}
 
 		// Collect all of the package IDs that correspond to the given file.
@@ -724,8 +736,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs []span.URI) *snapshot 
 		for _, id := range s.ids[withoutURI] {
 			directIDs[id] = struct{}{}
 		}
-		// Get the current and original FileHandles for this URI.
-		currentFH := s.view.session.GetFile(withoutURI)
+		// The original FileHandle for this URI is cached on the snapshot.
 		originalFH := s.files[withoutURI]
 
 		// Check if the file's package name or imports have changed,

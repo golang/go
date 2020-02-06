@@ -105,7 +105,7 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, missi
 		// If no file is associated with the error, pick an open file from the package.
 		if e.URI.Filename() == "" {
 			for _, ph := range pkg.CompiledGoFiles() {
-				if snapshot.View().Session().IsOpen(ph.File().Identity().URI) {
+				if snapshot.IsOpen(ph.File().Identity().URI) {
 					e.URI = ph.File().Identity().URI
 				}
 			}
