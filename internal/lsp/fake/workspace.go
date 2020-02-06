@@ -86,6 +86,10 @@ func (w *Workspace) AddWatcher(watcher func(context.Context, []FileEvent)) {
 // filePath returns the absolute filesystem path to a the workspace-relative
 // path.
 func (w *Workspace) filePath(path string) string {
+	fp := filepath.FromSlash(path)
+	if filepath.IsAbs(fp) {
+		return fp
+	}
 	return filepath.Join(w.workdir, filepath.FromSlash(path))
 }
 
@@ -94,13 +98,15 @@ func (w *Workspace) URI(path string) protocol.DocumentURI {
 	return toURI(w.filePath(path))
 }
 
-// URIToPath converts a uri to a workspace-relative path.
-func (w *Workspace) URIToPath(uri protocol.DocumentURI) (string, error) {
-	prefix := w.RootURI() + "/"
-	if !strings.HasPrefix(uri, prefix) {
-		return "", fmt.Errorf("uri %q outside of workspace", uri)
+// URIToPath converts a uri to a workspace-relative path (or an absolute path,
+// if the uri is outside of the workspace).
+func (w *Workspace) URIToPath(uri protocol.DocumentURI) string {
+	root := w.RootURI() + "/"
+	if strings.HasPrefix(uri, root) {
+		return strings.TrimPrefix(uri, root)
 	}
-	return strings.TrimPrefix(uri, prefix), nil
+	filename := span.NewURI(string(uri)).Filename()
+	return filepath.ToSlash(filename)
 }
 
 func toURI(fp string) protocol.DocumentURI {

@@ -54,6 +54,19 @@ func fromProtocolTextEdit(textEdit protocol.TextEdit) Edit {
 	}
 }
 
+// inText reports whether p is a valid position in the text buffer.
+func inText(p Pos, content []string) bool {
+	if p.Line < 0 || p.Line >= len(content) {
+		return false
+	}
+	// Note the strict right bound: the column indexes character _separators_,
+	// not characters.
+	if p.Column < 0 || p.Column > len(content[p.Line]) {
+		return false
+	}
+	return true
+}
+
 // editContent implements a simplistic, inefficient algorithm for applying text
 // edits to our buffer representation. It returns an error if the edit is
 // invalid for the current content.
@@ -61,23 +74,10 @@ func editContent(content []string, edit Edit) ([]string, error) {
 	if edit.End.Line < edit.Start.Line || (edit.End.Line == edit.Start.Line && edit.End.Column < edit.Start.Column) {
 		return nil, fmt.Errorf("invalid edit: end %v before start %v", edit.End, edit.Start)
 	}
-	// inText reports whether a position is within the bounds of the current
-	// text.
-	inText := func(p Pos) bool {
-		if p.Line < 0 || p.Line >= len(content) {
-			return false
-		}
-		// Note the strict right bound: the column indexes character _separators_,
-		// not characters.
-		if p.Column < 0 || p.Column > len(content[p.Line]) {
-			return false
-		}
-		return true
-	}
-	if !inText(edit.Start) {
+	if !inText(edit.Start, content) {
 		return nil, fmt.Errorf("start position %v is out of bounds", edit.Start)
 	}
-	if !inText(edit.End) {
+	if !inText(edit.End, content) {
 		return nil, fmt.Errorf("end position %v is out of bounds", edit.End)
 	}
 	// Splice the edit text in between the first and last lines of the edit.

@@ -43,7 +43,7 @@ func setupEnv(t *testing.T, txt string) (context.Context, testEnvironment, func(
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
-	ws, err := fake.NewWorkspace("get-diagnostics", []byte(txt))
+	ws, err := fake.NewWorkspace("lsprpc", []byte(txt))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,10 +100,7 @@ func (w diagnosticsWatcher) await(ctx context.Context, expected ...string) (map[
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case d := <-w.diagnostics:
-			pth, err := w.ws.URIToPath(d.URI)
-			if err != nil {
-				return nil, err
-			}
+			pth := w.ws.URIToPath(d.URI)
 			if expectedSet[pth] {
 				got[pth] = d
 			}

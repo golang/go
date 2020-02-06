@@ -322,6 +322,41 @@ func (e *Editor) doEdits(ctx context.Context, path string, edits []Edit) (*proto
 	return params, nil
 }
 
-// TODO: expose more client functionality, for example GoToDefinition, Hover,
-// CodeAction, Rename, Completion, etc.  setting the content of an entire
-// buffer, etc.
+// GoToDefinition jumps to the definition of the symbol at the given position
+// in an open buffer.
+func (e *Editor) GoToDefinition(ctx context.Context, path string, pos Pos) (string, Pos, error) {
+	if err := e.checkBufferPosition(path, pos); err != nil {
+		return "", Pos{}, err
+	}
+	params := &protocol.DefinitionParams{}
+	params.TextDocument.URI = e.ws.URI(path)
+	params.Position = pos.toProtocolPosition()
+
+	resp, err := e.server.Definition(ctx, params)
+	if err != nil {
+		return "", Pos{}, fmt.Errorf("Definition: %v", err)
+	}
+	if len(resp) == 0 {
+		return "", Pos{}, nil
+	}
+	newPath := e.ws.URIToPath(resp[0].URI)
+	newPos := fromProtocolPosition(resp[0].Range.Start)
+	e.OpenFile(ctx, newPath)
+	return newPath, newPos, nil
+}
+
+func (e *Editor) checkBufferPosition(path string, pos Pos) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	buf, ok := e.buffers[path]
+	if !ok {
+		return fmt.Errorf("buffer %q is not open", path)
+	}
+	if !inText(pos, buf.content) {
+		return fmt.Errorf("position %v is invalid in buffer %q", pos, path)
+	}
+	return nil
+}
+
+// TODO: expose more client functionality, for example Hover, CodeAction,
+// Rename, Completion, etc.  setting the content of an entire buffer, etc.

@@ -97,10 +97,7 @@ func (c *Client) ApplyEdit(ctx context.Context, params *protocol.ApplyWorkspaceE
 		return &protocol.ApplyWorkspaceEditResponse{FailureReason: "Edit.Changes is unsupported"}, nil
 	}
 	for _, change := range params.Edit.DocumentChanges {
-		path, err := c.ws.URIToPath(change.TextDocument.URI)
-		if err != nil {
-			return nil, err
-		}
+		path := c.ws.URIToPath(change.TextDocument.URI)
 		var edits []Edit
 		for _, lspEdit := range change.Edits {
 			edits = append(edits, fromProtocolTextEdit(lspEdit))
