@@ -118,47 +118,22 @@
 (ROTLW  x (MOVDconst [c])) -> (ROTLWconst  x [c&31])
 (ROTL   x (MOVDconst [c])) -> (ROTLconst   x [c&63])
 
-(Lsh64x64  x (Const64 [c])) && uint64(c) < 64 -> (SLDconst x [c])
-(Rsh64x64  x (Const64 [c])) && uint64(c) < 64 -> (SRADconst x [c])
-(Rsh64Ux64 x (Const64 [c])) && uint64(c) < 64 -> (SRDconst x [c])
-(Lsh32x64  x (Const64 [c])) && uint64(c) < 32 -> (SLWconst x [c])
-(Rsh32x64  x (Const64 [c])) && uint64(c) < 32 -> (SRAWconst x [c])
-(Rsh32Ux64 x (Const64 [c])) && uint64(c) < 32 -> (SRWconst x [c])
-(Lsh16x64  x (Const64 [c])) && uint64(c) < 16 -> (SLWconst x [c])
-(Rsh16x64  x (Const64 [c])) && uint64(c) < 16 -> (SRAWconst (SignExt16to32 x) [c])
-(Rsh16Ux64 x (Const64 [c])) && uint64(c) < 16 -> (SRWconst (ZeroExt16to32 x) [c])
-(Lsh8x64   x (Const64 [c])) && uint64(c) < 8  -> (SLWconst x [c])
-(Rsh8x64   x (Const64 [c])) && uint64(c) < 8  -> (SRAWconst (SignExt8to32  x) [c])
-(Rsh8Ux64  x (Const64 [c])) && uint64(c) < 8  -> (SRWconst (ZeroExt8to32  x) [c])
-
-(Lsh64x32  x (Const64 [c])) && uint32(c) < 64 -> (SLDconst x [c])
-(Rsh64x32  x (Const64 [c])) && uint32(c) < 64 -> (SRADconst x [c])
-(Rsh64Ux32 x (Const64 [c])) && uint32(c) < 64 -> (SRDconst x [c])
-(Lsh32x32  x (Const64 [c])) && uint32(c) < 32 -> (SLWconst x [c])
-(Rsh32x32  x (Const64 [c])) && uint32(c) < 32 -> (SRAWconst x [c])
-(Rsh32Ux32 x (Const64 [c])) && uint32(c) < 32 -> (SRWconst x [c])
-(Lsh16x32  x (Const64 [c])) && uint32(c) < 16 -> (SLWconst x [c])
-(Rsh16x32  x (Const64 [c])) && uint32(c) < 16 -> (SRAWconst (SignExt16to32 x) [c])
-(Rsh16Ux32 x (Const64 [c])) && uint32(c) < 16 -> (SRWconst (ZeroExt16to32 x) [c])
-(Lsh8x32   x (Const64 [c])) && uint32(c) < 8  -> (SLWconst x [c])
-(Rsh8x32   x (Const64 [c])) && uint32(c) < 8  -> (SRAWconst (SignExt8to32  x) [c])
-(Rsh8Ux32  x (Const64 [c])) && uint32(c) < 8  -> (SRWconst (ZeroExt8to32  x) [c])
 
 // large constant shifts
-(Lsh64x64  _ (Const64 [c])) && uint64(c) >= 64 -> (MOVDconst [0])
-(Rsh64Ux64 _ (Const64 [c])) && uint64(c) >= 64 -> (MOVDconst [0])
-(Lsh32x64  _ (Const64 [c])) && uint64(c) >= 32 -> (MOVDconst [0])
-(Rsh32Ux64 _ (Const64 [c])) && uint64(c) >= 32 -> (MOVDconst [0])
-(Lsh16x64  _ (Const64 [c])) && uint64(c) >= 16 -> (MOVDconst [0])
-(Rsh16Ux64 _ (Const64 [c])) && uint64(c) >= 16 -> (MOVDconst [0])
-(Lsh8x64   _ (Const64 [c])) && uint64(c) >= 8  -> (MOVDconst [0])
-(Rsh8Ux64  _ (Const64 [c])) && uint64(c) >= 8  -> (MOVDconst [0])
+(Lsh64x64  _ (MOVDconst [c])) && uint64(c) >= 64 -> (MOVDconst [0])
+(Rsh64Ux64 _ (MOVDconst [c])) && uint64(c) >= 64 -> (MOVDconst [0])
+(Lsh32x64  _ (MOVDconst [c])) && uint64(c) >= 32 -> (MOVDconst [0])
+(Rsh32Ux64 _ (MOVDconst [c])) && uint64(c) >= 32 -> (MOVDconst [0])
+(Lsh16x64  _ (MOVDconst [c])) && uint64(c) >= 16 -> (MOVDconst [0])
+(Rsh16Ux64 _ (MOVDconst [c])) && uint64(c) >= 16 -> (MOVDconst [0])
+(Lsh8x64   _ (MOVDconst [c])) && uint64(c) >= 8  -> (MOVDconst [0])
+(Rsh8Ux64  _ (MOVDconst [c])) && uint64(c) >= 8  -> (MOVDconst [0])
 
 // large constant signed right shift, we leave the sign bit
-(Rsh64x64 x (Const64 [c])) && uint64(c) >= 64 -> (SRADconst x [63])
-(Rsh32x64 x (Const64 [c])) && uint64(c) >= 32 -> (SRAWconst x [63])
-(Rsh16x64 x (Const64 [c])) && uint64(c) >= 16 -> (SRAWconst (SignExt16to32 x) [63])
-(Rsh8x64  x (Const64 [c])) && uint64(c) >= 8  -> (SRAWconst (SignExt8to32  x) [63])
+(Rsh64x64 x (MOVDconst [c])) && uint64(c) >= 64 -> (SRADconst x [63])
+(Rsh32x64 x (MOVDconst [c])) && uint64(c) >= 32 -> (SRAWconst x [63])
+(Rsh16x64 x (MOVDconst [c])) && uint64(c) >= 16 -> (SRAWconst (SignExt16to32 x) [63])
+(Rsh8x64  x (MOVDconst [c])) && uint64(c) >= 8  -> (SRAWconst (SignExt8to32  x) [63])
 
 // constant shifts
 (Lsh64x64  x (MOVDconst [c])) && uint64(c) < 64 -> (SLDconst x [c])
@@ -299,11 +274,13 @@
 (MaskIfNotCarry (ADDconstForCarry [c] (ANDconst [d] _))) && c < 0 && d > 0 && c + d < 0 -> (MOVDconst [-1])
 (ORN x (MOVDconst [-1])) -> x
 
-// Potentially useful optimizing rewrites.
-// (ADDconstForCarry [k] c), k < 0 && (c < 0 || k+c >= 0) -> CarrySet
-// (ADDconstForCarry [k] c), K < 0 && (c >= 0 && k+c < 0) -> CarryClear
-// (MaskIfNotCarry CarrySet) -> 0
-// (MaskIfNotCarry CarrySet) -> -1
+(ADDconstForCarry [c] (MOVDconst [d])) && int64(int16(c)) < 0 && (int64(int16(c)) <  0 || int64(int16(c)) + d >= 0) -> (FlagCarryClear)
+(ADDconstForCarry [c] (MOVDconst [d])) && int64(int16(c)) < 0 &&  int64(int16(c)) >= 0 && int64(int16(c)) + d <  0  -> (FlagCarrySet)
+
+(MaskIfNotCarry (FlagCarrySet)) -> (MOVDconst [0])
+(MaskIfNotCarry (FlagCarryClear)) -> (MOVDconst [-1])
+
+(S(RAD|RAW|RD|RW|LD|LW) x (MOVDconst [c])) -> (S(RAD|RAW|RD|RW|LD|LW)const [c] x)
 
 (Addr ...) -> (MOVDaddr ...)
 (LocalAddr {sym} base _) -> (MOVDaddr {sym} base)
@@ -664,6 +641,9 @@
 (AND (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [c&d])
 (OR (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [c|d])
 (XOR (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [c^d])
+(ORN (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [c|^d])
+(ANDN (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [c&^d])
+(NOR (MOVDconst [c]) (MOVDconst [d])) -> (MOVDconst [^(c|d)])
 
 // Discover consts
 (AND x (MOVDconst [c])) && isU16Bit(c) -> (ANDconst [c] x)

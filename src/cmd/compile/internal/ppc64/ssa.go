@@ -1328,7 +1328,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		v.Fatalf("Pseudo-op should not make it to codegen: %s ###\n", v.LongString())
 	case ssa.OpPPC64InvertFlags:
 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
-	case ssa.OpPPC64FlagEQ, ssa.OpPPC64FlagLT, ssa.OpPPC64FlagGT:
+	case ssa.OpPPC64FlagEQ, ssa.OpPPC64FlagLT, ssa.OpPPC64FlagGT, ssa.OpPPC64FlagCarrySet, ssa.OpPPC64FlagCarryClear:
 		v.Fatalf("Flag* ops should never make it to codegen %v", v.LongString())
 	case ssa.OpClobber:
 		// TODO: implement for clobberdead experiment. Nop is ok for now.
