@@ -28,5 +28,7 @@ func TestModulesExport(t *testing.T) {
 		{"golang.org/fake2", "go.mod", "modcache/pkg/mod/golang.org/fake2@v1.0.0/go.mod", nil},
 		{"golang.org/fake2", "other/a.go", "modcache/pkg/mod/golang.org/fake2@v1.0.0/other/a.go", checkContent("package fake2")},
 		{"golang.org/fake2/v2", "other/a.go", "modcache/pkg/mod/golang.org/fake2/v2@v2.0.0/other/a.go", checkContent("package fake2")},
+		{"golang.org/fake3@v1.1.0", "other/a.go", "modcache/pkg/mod/golang.org/fake3@v1.1.0/other/a.go", checkContent("package fake3")},
+		{"golang.org/fake3@v1.0.0", "other/a.go", "modcache/pkg/mod/golang.org/fake3@v1.0.0/other/a.go", nil},
 	})
 }
