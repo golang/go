@@ -35,7 +35,11 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 	if err != nil {
 		return nil, nil, err
 	}
-	_, _, missingDeps, parseErrors, err := snapshot.ModTidyHandle(ctx, realfh).Tidy(ctx)
+	mth, err := snapshot.ModTidyHandle(ctx, realfh)
+	if err != nil {
+		return nil, nil, err
+	}
+	_, _, missingDeps, parseErrors, err := mth.Tidy(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -61,7 +65,11 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 }
 
 func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, realfh source.FileHandle, diags []protocol.Diagnostic) []protocol.CodeAction {
-	_, _, _, parseErrors, err := snapshot.ModTidyHandle(ctx, realfh).Tidy(ctx)
+	mth, err := snapshot.ModTidyHandle(ctx, realfh)
+	if err != nil {
+		return nil
+	}
+	_, _, _, parseErrors, err := mth.Tidy(ctx)
 	if err != nil {
 		return nil
 	}
@@ -126,7 +134,11 @@ func SuggestedGoFixes(ctx context.Context, snapshot source.Snapshot, gofh source
 	if err != nil {
 		return nil, err
 	}
-	realFile, realMapper, missingDeps, _, err := snapshot.ModTidyHandle(ctx, realfh).Tidy(ctx)
+	mth, err := snapshot.ModTidyHandle(ctx, realfh)
+	if err != nil {
+		return nil, err
+	}
+	realFile, realMapper, missingDeps, _, err := mth.Tidy(ctx)
 	if err != nil {
 		return nil, err
 	}

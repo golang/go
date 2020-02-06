@@ -13,6 +13,7 @@ import (
 	"go/types"
 	"path"
 	"sort"
+	"strings"
 	"sync"
 
 	"golang.org/x/tools/go/packages"
@@ -207,6 +208,28 @@ func (ph *packageHandle) MissingDependencies() []string {
 		md = append(md, string(i))
 	}
 	return md
+}
+
+func hashImports(ctx context.Context, wsPackages []source.PackageHandle) (string, error) {
+	results := make(map[string]bool)
+	var imports []string
+	for _, ph := range wsPackages {
+		// Check package since we do not always invalidate the metadata.
+		pkg, err := ph.Check(ctx)
+		if err != nil {
+			return "", err
+		}
+		for _, path := range pkg.Imports() {
+			imp := path.PkgPath()
+			if _, ok := results[imp]; !ok {
+				results[imp] = true
+				imports = append(imports, imp)
+			}
+		}
+	}
+	sort.Strings(imports)
+	hashed := strings.Join(imports, ",")
+	return hashContents([]byte(hashed)), nil
 }
 
 func (ph *packageHandle) Cached() (source.Package, error) {

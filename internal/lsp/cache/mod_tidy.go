@@ -29,9 +29,10 @@ const ModTidyError = "go mod tidy"
 const SyntaxError = "syntax"
 
 type parseModKey struct {
-	view       string
-	snapshotID uint64
-	cfg        string
+	view    string
+	imports string
+	gomod   string
+	cfg     string
 }
 
 type modTidyHandle struct {
@@ -90,16 +91,28 @@ func (mth *modTidyHandle) Tidy(ctx context.Context) (*modfile.File, *protocol.Co
 	return data.origParsedFile, data.origMapper, data.missingDeps, data.parseErrors, data.err
 }
 
-func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) source.ModTidyHandle {
+func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) (source.ModTidyHandle, error) {
 	realURI, tempURI := s.view.ModFiles()
 	cfg := s.View().Config(ctx)
 	options := s.View().Options()
 	folder := s.View().Folder().Filename()
 
+	wsPackages, err := s.WorkspacePackages(ctx)
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	if err != nil {
+		return nil, err
+	}
+	imports, err := hashImports(ctx, wsPackages)
+	if err != nil {
+		return nil, err
+	}
 	key := parseModKey{
-		view:       folder,
-		snapshotID: s.ID(),
-		cfg:        hashConfig(cfg),
+		view:    folder,
+		imports: imports,
+		gomod:   realfh.Identity().Identifier,
+		cfg:     hashConfig(cfg),
 	}
 	h := s.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
 		data := &modTidyData{}
@@ -194,7 +207,7 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 		handle: h,
 		file:   realfh,
 		cfg:    cfg,
-	}
+	}, nil
 }
 
 // extractModParseErrors processes the raw errors returned by modfile.Parse,

@@ -39,7 +39,7 @@ type Snapshot interface {
 
 	// ModTidyHandle returns a ModTidyHandle for the given go.mod file handle.
 	// This function can have no data or error if there is no modfile detected.
-	ModTidyHandle(ctx context.Context, fh FileHandle) ModTidyHandle
+	ModTidyHandle(ctx context.Context, fh FileHandle) (ModTidyHandle, error)
 
 	// PackageHandles returns the PackageHandles for the packages that this file
 	// belongs to.
