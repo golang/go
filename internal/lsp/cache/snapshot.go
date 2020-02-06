@@ -7,14 +7,18 @@ package cache
 import (
 	"context"
 	"fmt"
+	"go/ast"
+	"go/token"
 	"os"
 	"path/filepath"
 	"sync"
 
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
+	"golang.org/x/tools/internal/telemetry/log"
 	errors "golang.org/x/xerrors"
 )
 
@@ -71,6 +75,52 @@ func (s *snapshot) ID() uint64 {
 
 func (s *snapshot) View() source.View {
 	return s.view
+}
+
+// Config returns the configuration used for the snapshot's interaction with the
+// go/packages API.
+func (s *snapshot) Config(ctx context.Context) *packages.Config {
+	env, buildFlags := s.view.env()
+	cfg := &packages.Config{
+		Env:        env,
+		Dir:        s.view.folder.Filename(),
+		Context:    ctx,
+		BuildFlags: buildFlags,
+		Mode: packages.NeedName |
+			packages.NeedFiles |
+			packages.NeedCompiledGoFiles |
+			packages.NeedImports |
+			packages.NeedDeps |
+			packages.NeedTypesSizes,
+		Fset:    s.view.session.cache.fset,
+		Overlay: s.buildOverlay(),
+		ParseFile: func(*token.FileSet, string, []byte) (*ast.File, error) {
+			panic("go/packages must not be used to parse files")
+		},
+		Logf: func(format string, args ...interface{}) {
+			if s.view.options.VerboseOutput {
+				log.Print(ctx, fmt.Sprintf(format, args...))
+			}
+		},
+		Tests: true,
+	}
+	return cfg
+}
+
+func (s *snapshot) buildOverlay() map[string][]byte {
+	overlays := make(map[string][]byte)
+	for uri, fh := range s.files {
+		overlay, ok := fh.(*overlay)
+		if !ok {
+			continue
+		}
+		if overlay.saved {
+			continue
+		}
+		// TODO(rstambler): Make sure not to send overlays outside of the current view.
+		overlays[uri.Filename()] = overlay.text
+	}
+	return overlays
 }
 
 func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]source.PackageHandle, error) {

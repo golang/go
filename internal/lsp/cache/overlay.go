@@ -116,18 +116,3 @@ func (s *session) readOverlay(uri span.URI) *overlay {
 	}
 	return nil
 }
-
-func (s *session) buildOverlay() map[string][]byte {
-	s.overlayMu.Lock()
-	defer s.overlayMu.Unlock()
-
-	overlays := make(map[string][]byte)
-	for uri, overlay := range s.overlays {
-		// TODO(rstambler): Make sure not to send overlays outside of the current view.
-		if overlay.saved {
-			continue
-		}
-		overlays[uri.Filename()] = overlay.text
-	}
-	return overlays
-}

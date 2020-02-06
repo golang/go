@@ -93,7 +93,7 @@ func (mth *modTidyHandle) Tidy(ctx context.Context) (*modfile.File, *protocol.Co
 
 func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) (source.ModTidyHandle, error) {
 	realURI, tempURI := s.view.ModFiles()
-	cfg := s.View().Config(ctx)
+	cfg := s.Config(ctx)
 	options := s.View().Options()
 	folder := s.View().Folder().Filename()
 

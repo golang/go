@@ -80,7 +80,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	ctx, done := trace.StartSpan(ctx, "cache.view.load", telemetry.Query.Of(query))
 	defer done()
 
-	cfg := s.view.Config(ctx)
+	cfg := s.Config(ctx)
 	pkgs, err := s.view.loadPackages(cfg, query...)
 
 	// If the context was canceled, return early. Otherwise, we might be

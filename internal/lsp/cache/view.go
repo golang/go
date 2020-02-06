@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/ast"
-	"go/token"
 	"io"
 	"io/ioutil"
 	"os"
@@ -262,44 +261,6 @@ func (v *view) buildBuiltinPackage(ctx context.Context, goFiles []string) error 
 	return nil
 }
 
-// Config returns the configuration used for the view's interaction with the
-// go/packages API. It is shared across all views.
-func (v *view) Config(ctx context.Context) *packages.Config {
-	// TODO: Should we cache the config and/or overlay somewhere?
-
-	// We want to run the go commands with the -modfile flag if the version of go
-	// that we are using supports it.
-	buildFlags := v.options.BuildFlags
-	if v.tempMod != "" {
-		buildFlags = append(buildFlags, fmt.Sprintf("-modfile=%s", v.tempMod.Filename()))
-	}
-	cfg := &packages.Config{
-		Dir:        v.folder.Filename(),
-		Context:    ctx,
-		BuildFlags: buildFlags,
-		Mode: packages.NeedName |
-			packages.NeedFiles |
-			packages.NeedCompiledGoFiles |
-			packages.NeedImports |
-			packages.NeedDeps |
-			packages.NeedTypesSizes,
-		Fset:    v.session.cache.fset,
-		Overlay: v.session.buildOverlay(),
-		ParseFile: func(*token.FileSet, string, []byte) (*ast.File, error) {
-			panic("go/packages must not be used to parse files")
-		},
-		Logf: func(format string, args ...interface{}) {
-			if v.options.VerboseOutput {
-				log.Print(ctx, fmt.Sprintf(format, args...))
-			}
-		},
-		Tests: true,
-	}
-	cfg.Env = append(cfg.Env, fmt.Sprintf("GOPATH=%s", v.gopath))
-	cfg.Env = append(cfg.Env, v.options.Env...)
-	return cfg
-}
-
 func (v *view) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error) error {
 	v.importsMu.Lock()
 	defer v.importsMu.Unlock()
@@ -313,8 +274,7 @@ func (v *view) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) 
 
 	// In module mode, check if the mod file has changed.
 	if v.realMod != "" {
-		mod, err := v.Snapshot().GetFile(v.realMod)
-		if err == nil && mod.Identity() != v.cachedModFileVersion {
+		if mod := v.session.cache.GetFile(v.realMod); mod.Identity() != v.cachedModFileVersion {
 			v.processEnv.GetResolver().(*imports.ModuleResolver).ClearForNewMod()
 			v.cachedModFileVersion = mod.Identity()
 		}
@@ -369,42 +329,54 @@ func (v *view) refreshProcessEnv() {
 }
 
 func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error) {
-	cfg := v.Config(ctx)
-	env := &imports.ProcessEnv{
-		WorkingDir: cfg.Dir,
+	env, buildFlags := v.env()
+	processEnv := &imports.ProcessEnv{
+		WorkingDir: v.folder.Filename(),
 		Logf: func(format string, args ...interface{}) {
 			log.Print(ctx, fmt.Sprintf(format, args...))
 		},
 		LocalPrefix: v.options.LocalPrefix,
 		Debug:       v.options.VerboseOutput,
 	}
-	for _, kv := range cfg.Env {
+	for _, kv := range env {
 		split := strings.Split(kv, "=")
 		if len(split) < 2 {
 			continue
 		}
 		switch split[0] {
 		case "GOPATH":
-			env.GOPATH = split[1]
+			processEnv.GOPATH = split[1]
 		case "GOROOT":
-			env.GOROOT = split[1]
+			processEnv.GOROOT = split[1]
 		case "GO111MODULE":
-			env.GO111MODULE = split[1]
+			processEnv.GO111MODULE = split[1]
 		case "GOPROXY":
-			env.GOPROXY = split[1]
+			processEnv.GOPROXY = split[1]
 		case "GOFLAGS":
-			env.GOFLAGS = split[1]
+			processEnv.GOFLAGS = split[1]
 		case "GOSUMDB":
-			env.GOSUMDB = split[1]
+			processEnv.GOSUMDB = split[1]
 		}
 	}
-	if len(cfg.BuildFlags) > 0 {
-		if env.GOFLAGS != "" {
-			env.GOFLAGS += " "
+	if len(buildFlags) > 0 {
+		if processEnv.GOFLAGS != "" {
+			processEnv.GOFLAGS += " "
 		}
-		env.GOFLAGS += strings.Join(cfg.BuildFlags, " ")
+		processEnv.GOFLAGS += strings.Join(buildFlags, " ")
 	}
-	return env, nil
+	return processEnv, nil
+}
+
+func (v *view) env() ([]string, []string) {
+	// We want to run the go commands with the -modfile flag if the version of go
+	// that we are using supports it.
+	buildFlags := v.options.BuildFlags
+	if v.tempMod != "" {
+		buildFlags = append(buildFlags, fmt.Sprintf("-modfile=%s", v.tempMod.Filename()))
+	}
+	env := []string{fmt.Sprintf("GOPATH=%s", v.gopath)}
+	env = append(env, v.options.Env...)
+	return env, buildFlags
 }
 
 func (v *view) contains(uri span.URI) bool {

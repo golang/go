@@ -26,6 +26,9 @@ type Snapshot interface {
 	// View returns the View associated with this snapshot.
 	View() View
 
+	// Config returns the configuration for the view.
+	Config(ctx context.Context) *packages.Config
+
 	// GetFile returns the file object for a given URI, initializing it
 	// if it is not already part of the view.
 	GetFile(uri span.URI) (FileHandle, error)
@@ -109,10 +112,7 @@ type View interface {
 	// Ignore returns true if this file should be ignored by this view.
 	Ignore(span.URI) bool
 
-	// Config returns the configuration for the view.
-	Config(ctx context.Context) *packages.Config
-
-	// RunProcessEnvFunc runs fn with the process env for this view.
+	// RunProcessEnvFunc runs fn with the process env for this snapshot's view.
 	// Note: the process env contains cached module and filesystem state.
 	RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error) error
 
