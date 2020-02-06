@@ -42,6 +42,7 @@ const (
 
 var UpdateGolden = flag.Bool("golden", false, "Update golden files")
 
+type CodeLens map[span.Span][]protocol.CodeLens
 type Diagnostics map[span.URI][]source.Diagnostic
 type CompletionItems map[token.Pos]*source.CompletionItem
 type Completions map[span.Span][]Completion
@@ -71,6 +72,7 @@ type Links map[span.URI][]Link
 type Data struct {
 	Config                        packages.Config
 	Exported                      *packagestest.Exported
+	CodeLens                      CodeLens
 	Diagnostics                   Diagnostics
 	CompletionItems               CompletionItems
 	Completions                   Completions
@@ -112,6 +114,7 @@ type Data struct {
 }
 
 type Tests interface {
+	CodeLens(*testing.T, span.Span, []protocol.CodeLens)
 	Diagnostics(*testing.T, span.URI, []source.Diagnostic)
 	Completion(*testing.T, span.Span, Completion, CompletionItems)
 	CompletionSnippet(*testing.T, span.Span, CompletionSnippet, bool, CompletionItems)
@@ -260,6 +263,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) []*Data {
 	var data []*Data
 	for _, folder := range folders {
 		datum := &Data{
+			CodeLens:                      make(CodeLens),
 			Diagnostics:                   make(Diagnostics),
 			CompletionItems:               make(CompletionItems),
 			Completions:                   make(Completions),
@@ -380,6 +384,7 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) []*Data {
 
 		// Collect any data that needs to be used by subsequent tests.
 		if err := datum.Exported.Expect(map[string]interface{}{
+			"codelens":        datum.collectCodeLens,
 			"diag":            datum.collectDiagnostics,
 			"item":            datum.collectCompletionItems,
 			"complete":        datum.collectCompletions(CompletionDefault),
@@ -518,6 +523,20 @@ func Run(t *testing.T, tests Tests, data *Data) {
 	t.Run("RankCompletions", func(t *testing.T) {
 		t.Helper()
 		eachCompletion(t, data.RankCompletions, tests.RankCompletion)
+	})
+
+	t.Run("CodeLens", func(t *testing.T) {
+		t.Helper()
+		for spn, want := range data.CodeLens {
+			// Check if we should skip this URI if the -modfile flag is not available.
+			if shouldSkip(data, spn.URI()) {
+				continue
+			}
+			t.Run(SpanName(spn), func(t *testing.T) {
+				t.Helper()
+				tests.CodeLens(t, spn, want)
+			})
+		}
 	})
 
 	t.Run("Diagnostics", func(t *testing.T) {
@@ -733,6 +752,14 @@ func checkData(t *testing.T, data *Data) {
 		return count
 	}
 
+	countCodeLens := func(c map[span.Span][]protocol.CodeLens) (count int) {
+		for _, want := range c {
+			count += len(want)
+		}
+		return count
+	}
+
+	fmt.Fprintf(buf, "CodeLensCount = %v\n", countCodeLens(data.CodeLens))
 	fmt.Fprintf(buf, "CompletionsCount = %v\n", countCompletions(data.Completions))
 	fmt.Fprintf(buf, "CompletionSnippetCount = %v\n", snippetCount)
 	fmt.Fprintf(buf, "UnimportedCompletionsCount = %v\n", countCompletions(data.UnimportedCompletions))
@@ -836,9 +863,38 @@ func (data *Data) Golden(tag string, target string, update func() ([]byte, error
 	return file.Data[:len(file.Data)-1] // drop the trailing \n
 }
 
+func (data *Data) collectCodeLens(spn span.Span, title, cmd string) {
+	if _, ok := data.CodeLens[spn]; !ok {
+		data.CodeLens[spn] = []protocol.CodeLens{}
+	}
+	m, err := data.Mapper(spn.URI())
+	if err != nil {
+		return
+	}
+	rng, err := m.Range(spn)
+	if err != nil {
+		return
+	}
+	data.CodeLens[spn] = append(data.CodeLens[spn], protocol.CodeLens{
+		Range: rng,
+		Command: protocol.Command{
+			Title:   title,
+			Command: cmd,
+		},
+	})
+}
+
 func (data *Data) collectDiagnostics(spn span.Span, msgSource, msg, msgSeverity string) {
 	if _, ok := data.Diagnostics[spn.URI()]; !ok {
 		data.Diagnostics[spn.URI()] = []source.Diagnostic{}
+	}
+	m, err := data.Mapper(spn.URI())
+	if err != nil {
+		return
+	}
+	rng, err := m.Range(spn)
+	if err != nil {
+		return
 	}
 	severity := protocol.SeverityError
 	switch msgSeverity {
@@ -853,16 +909,7 @@ func (data *Data) collectDiagnostics(spn span.Span, msgSource, msg, msgSeverity 
 	}
 	// This is not the correct way to do this, but it seems excessive to do the full conversion here.
 	want := source.Diagnostic{
-		Range: protocol.Range{
-			Start: protocol.Position{
-				Line:      float64(spn.Start().Line()) - 1,
-				Character: float64(spn.Start().Column()) - 1,
-			},
-			End: protocol.Position{
-				Line:      float64(spn.End().Line()) - 1,
-				Character: float64(spn.End().Column()) - 1,
-			},
-		},
+		Range:    rng,
 		Severity: severity,
 		Source:   msgSource,
 		Message:  msg,

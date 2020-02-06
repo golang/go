@@ -48,6 +48,10 @@ type Snapshot interface {
 	// This function can have no data or error if there is no modfile detected.
 	ModTidyHandle(ctx context.Context, fh FileHandle) (ModTidyHandle, error)
 
+	// ParseModHandle returns a ParseModHandle for the view's go.mod file handle.
+	// This function can have no data or error if there is no modfile detected.
+	ParseModHandle(ctx context.Context) (ParseModHandle, error)
+
 	// PackageHandles returns the PackageHandles for the packages that this file
 	// belongs to.
 	PackageHandles(ctx context.Context, fh FileHandle) ([]PackageHandle, error)
@@ -252,6 +256,16 @@ type ParseGoHandle interface {
 
 	// Cached returns the AST for this handle, if it has already been stored.
 	Cached() (file *ast.File, src []byte, m *protocol.ColumnMapper, parseErr error, err error)
+}
+
+// ParseModHandle represents a handle to the modfile for a go.mod.
+type ParseModHandle interface {
+	// File returns a file handle for which to get the modfile.
+	File() FileHandle
+
+	// Upgrades returns the parsed modfile, a mapper, and any dependency upgrades
+	// for the go.mod file. If the file is not available, returns nil and an error.
+	Upgrades(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, map[string]string, error)
 }
 
 // ModTidyHandle represents a handle to the modfile for a go.mod.

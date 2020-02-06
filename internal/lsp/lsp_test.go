@@ -18,6 +18,7 @@ import (
 	"golang.org/x/tools/go/packages/packagestest"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/diff"
+	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
@@ -95,6 +96,23 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 			t.Helper()
 			tests.Run(t, r, datum)
 		})
+	}
+}
+
+func (r *runner) CodeLens(t *testing.T, spn span.Span, want []protocol.CodeLens) {
+	if source.DetectLanguage("", spn.URI().Filename()) != source.Mod {
+		return
+	}
+	v, err := r.server.session.ViewOf(spn.URI())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := mod.CodeLens(r.ctx, v.Snapshot(), spn.URI())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := tests.DiffCodeLens(spn.URI(), want, got); diff != "" {
+		t.Error(diff)
 	}
 }
 

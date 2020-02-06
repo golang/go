@@ -30,9 +30,21 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 			return nil, errors.Errorf("%s is not a mod file", uri)
 		}
 		// Run go.mod tidy on the view.
-		// TODO: This should go through the ModTidyHandle on the view.
-		// That will also allow us to move source.InvokeGo into internal/lsp/cache.
 		if _, err := source.InvokeGo(ctx, view.Folder().Filename(), snapshot.Config(ctx).Env, "mod", "tidy"); err != nil {
+			return nil, err
+		}
+	case "upgrade.dependency":
+		if len(params.Arguments) < 2 {
+			return nil, errors.Errorf("expected one file URI and one dependency for call to `go get`, got %v", params.Arguments)
+		}
+		uri := span.NewURI(params.Arguments[0].(string))
+		view, err := s.session.ViewOf(uri)
+		if err != nil {
+			return nil, err
+		}
+		dep := params.Arguments[1].(string)
+		// Run "go get" on the dependency to upgrade it to the latest version.
+		if _, err := source.InvokeGo(ctx, view.Folder().Filename(), view.Snapshot().Config(ctx).Env, "get", dep); err != nil {
 			return nil, err
 		}
 	}

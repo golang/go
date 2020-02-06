@@ -894,6 +894,10 @@ func (r *runner) Link(t *testing.T, uri span.URI, wantLinks []tests.Link) {
 	// This is a pure LSP feature, no source level functionality to be tested.
 }
 
+func (r *runner) CodeLens(t *testing.T, spn span.Span, want []protocol.CodeLens) {
+	// This is a pure LSP feature, no source level functionality to be tested.
+}
+
 func spanToRange(data *tests.Data, spn span.Span) (*protocol.ColumnMapper, protocol.Range, error) {
 	m, err := data.Mapper(spn.URI())
 	if err != nil {

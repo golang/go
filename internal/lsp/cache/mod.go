@@ -25,10 +25,24 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-const ModTidyError = "go mod tidy"
-const SyntaxError = "syntax"
+const (
+	ModTidyError = "go mod tidy"
+	SyntaxError  = "syntax"
+)
 
 type parseModKey struct {
+	view  string
+	gomod string
+	cfg   string
+}
+
+type parseModHandle struct {
+	handle *memoize.Handle
+	file   source.FileHandle
+	cfg    *packages.Config
+}
+
+type modTidyKey struct {
 	view    string
 	imports string
 	gomod   string
@@ -66,12 +80,128 @@ type modTidyData struct {
 	// removing the ones that are identical in the original and ideal go.mods.
 	missingDeps map[string]*modfile.Require
 
+	// upgrades is a map of path->version that contains any upgrades for the go.mod.
+	upgrades map[string]string
+
 	// parseErrors are the errors that arise when we diff between a user's go.mod
 	// and the "tidied" go.mod.
 	parseErrors []source.Error
 
 	// err is any error that occurs while we are calculating the parseErrors.
 	err error
+}
+
+func (pmh *parseModHandle) String() string {
+	return pmh.File().Identity().URI.Filename()
+}
+
+func (pmh *parseModHandle) File() source.FileHandle {
+	return pmh.file
+}
+
+func (pmh *parseModHandle) Upgrades(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, map[string]string, error) {
+	v := pmh.handle.Get(ctx)
+	if v == nil {
+		return nil, nil, nil, errors.Errorf("no parsed file for %s", pmh.File().Identity().URI)
+	}
+	data := v.(*modTidyData)
+	return data.origParsedFile, data.origMapper, data.upgrades, data.err
+}
+
+func (s *snapshot) ParseModHandle(ctx context.Context) (source.ParseModHandle, error) {
+	cfg := s.Config(ctx)
+	folder := s.View().Folder().Filename()
+
+	realURI, tempURI := s.view.ModFiles()
+	fh, err := s.GetFile(realURI)
+	if err != nil {
+		return nil, err
+	}
+
+	key := parseModKey{
+		view:  folder,
+		gomod: fh.Identity().String(),
+		cfg:   hashConfig(cfg),
+	}
+	h := s.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
+		data := &modTidyData{}
+
+		uri := fh.Identity().URI
+
+		ctx, done := trace.StartSpan(ctx, "cache.ParseModHandle", telemetry.File.Of(uri))
+		defer done()
+
+		contents, _, err := fh.Read(ctx)
+		if err != nil {
+			data.err = err
+			return data
+		}
+		// If the filehandle passed in is equal to the view's go.mod file, and we have
+		// a tempModfile, copy the real go.mod file content into the temp go.mod file.
+		if realURI == uri && tempURI != "" {
+			if err := ioutil.WriteFile(tempURI.Filename(), contents, os.ModePerm); err != nil {
+				data.err = err
+				return data
+			}
+		}
+		mapper := &protocol.ColumnMapper{
+			URI:       uri,
+			Converter: span.NewContentConverter(uri.Filename(), contents),
+			Content:   contents,
+		}
+		parsedFile, err := modfile.Parse(uri.Filename(), contents, nil)
+		if err != nil {
+			data.err = err
+			return data
+		}
+		data = &modTidyData{
+			origfh:         fh,
+			origParsedFile: parsedFile,
+			origMapper:     mapper,
+		}
+		// Only check if any dependencies can be upgraded if the passed in
+		// go.mod file is equal to the view's go.mod file.
+		if realURI == uri {
+			data.upgrades, data.err = dependencyUpgrades(ctx, cfg, folder, data)
+		}
+		return data
+	})
+	return &parseModHandle{
+		handle: h,
+		file:   fh,
+		cfg:    cfg,
+	}, nil
+}
+
+func dependencyUpgrades(ctx context.Context, cfg *packages.Config, folder string, modData *modTidyData) (map[string]string, error) {
+	if len(modData.origParsedFile.Require) == 0 {
+		return nil, nil
+	}
+	// Run "go list -u -m all" to be able to see which deps can be upgraded.
+	args := []string{"list"}
+	args = append(args, cfg.BuildFlags...)
+	args = append(args, []string{"-u", "-m", "all"}...)
+	stdout, err := source.InvokeGo(ctx, folder, cfg.Env, args...)
+	if err != nil {
+		return nil, err
+	}
+	upgradesList := strings.Split(stdout.String(), "\n")
+	if len(upgradesList) <= 1 {
+		return nil, nil
+	}
+	upgrades := make(map[string]string)
+	for _, upgrade := range upgradesList[1:] {
+		// Example: "github.com/x/tools v1.1.0 [v1.2.0]"
+		info := strings.Split(upgrade, " ")
+		if len(info) < 3 {
+			continue
+		}
+		dep, version := info[0], info[2]
+		latest := version[1:]                    // remove the "["
+		latest = strings.TrimSuffix(latest, "]") // remove the "]"
+		upgrades[dep] = latest
+	}
+	return upgrades, nil
 }
 
 func (mth *modTidyHandle) String() string {
@@ -108,7 +238,7 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 	if err != nil {
 		return nil, err
 	}
-	key := parseModKey{
+	key := modTidyKey{
 		view:    folder,
 		imports: imports,
 		gomod:   realfh.Identity().Identifier,

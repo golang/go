@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"golang.org/x/tools/internal/jsonrpc2"
+	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -69,6 +70,22 @@ func (s *Server) cancelRequest(ctx context.Context, params *protocol.CancelParam
 }
 
 func (s *Server) codeLens(ctx context.Context, params *protocol.CodeLensParams) ([]protocol.CodeLens, error) {
+	uri := span.NewURI(params.TextDocument.URI)
+	view, err := s.session.ViewOf(uri)
+	if err != nil {
+		return nil, err
+	}
+	snapshot := view.Snapshot()
+	fh, err := snapshot.GetFile(uri)
+	if err != nil {
+		return nil, err
+	}
+	switch fh.Identity().Kind {
+	case source.Go:
+		return nil, nil
+	case source.Mod:
+		return mod.CodeLens(ctx, snapshot, uri)
+	}
 	return nil, nil
 }
 
