@@ -89,7 +89,7 @@ func (i *IdentifierInfo) linkAndSymbolName() (string, string) {
 	// package's API). This is true if the request originated in a test package,
 	// and if the declaration is also found in the same test package.
 	if i.pkg != nil && obj.Pkg() != nil && i.pkg.ForTest() != "" {
-		if _, pkg, _ := findFileInPackage(i.pkg, i.Declaration.URI()); i.pkg == pkg {
+		if _, pkg, _ := FindFileInPackage(i.pkg, i.Declaration.URI()); i.pkg == pkg {
 			return "", ""
 		}
 	}

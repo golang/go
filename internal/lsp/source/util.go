@@ -637,7 +637,7 @@ func findPosInPackage(v View, searchpkg Package, pos token.Pos) (*ast.File, Pack
 	if v.Ignore(uri) {
 		ph, err = findIgnoredFile(v, uri)
 	} else {
-		ph, pkg, err = findFileInPackage(searchpkg, uri)
+		ph, pkg, err = FindFileInPackage(searchpkg, uri)
 	}
 	if err != nil {
 		return nil, nil, err
@@ -661,7 +661,7 @@ func findMapperInPackage(v View, searchpkg Package, uri span.URI) (*protocol.Col
 	if v.Ignore(uri) {
 		ph, err = findIgnoredFile(v, uri)
 	} else {
-		ph, _, err = findFileInPackage(searchpkg, uri)
+		ph, _, err = FindFileInPackage(searchpkg, uri)
 	}
 	if err != nil {
 		return nil, err
@@ -681,7 +681,8 @@ func findIgnoredFile(v View, uri span.URI) (ParseGoHandle, error) {
 	return v.Session().Cache().ParseGoHandle(fh, ParseFull), nil
 }
 
-func findFileInPackage(pkg Package, uri span.URI) (ParseGoHandle, Package, error) {
+// FindFileInPackage finds uri in pkg or its dependencies.
+func FindFileInPackage(pkg Package, uri span.URI) (ParseGoHandle, Package, error) {
 	queue := []Package{pkg}
 	seen := make(map[string]bool)
 
