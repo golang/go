@@ -1881,6 +1881,8 @@ const (
 	OpPPC64FlagEQ
 	OpPPC64FlagLT
 	OpPPC64FlagGT
+	OpPPC64FlagCarrySet
+	OpPPC64FlagCarryClear
 
 	OpRISCV64ADD
 	OpRISCV64ADDI
@@ -24992,6 +24994,16 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:   "FlagGT",
+		argLen: 0,
+		reg:    regInfo{},
+	},
+	{
+		name:   "FlagCarrySet",
+		argLen: 0,
+		reg:    regInfo{},
+	},
+	{
+		name:   "FlagCarryClear",
 		argLen: 0,
 		reg:    regInfo{},
 	},
