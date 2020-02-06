@@ -5,18 +5,20 @@ Use the [VSCode-Go] plugin, with the following configuration:
 ```json5
 "go.useLanguageServer": true,
 "[go]": {
-    "editor.snippetSuggestions": "none",
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
         "source.organizeImports": true,
     }
+    // Optional: Disable snippets, as they conflict with completion ranking.
+    "editor.snippetSuggestions": "none",
 },
 "gopls": {
-    "usePlaceholders": true, // add parameter placeholders when completing a function
+     // Add parameter placeholders when completing a function.
+    "usePlaceholders": true,
 
-    // Experimental settings
-    "completeUnimported": true, // autocomplete unimported packages
-    "deepCompletion": true,     // enable deep completion
+    // If true, enable additional analyses with staticcheck.
+    // Warning: This will significantly increase memory usage.
+    "staticcheck": false,
 }
 ```
 
