@@ -1,7 +1,6 @@
 <!--{
         "Title": "Go 1.14 Release Notes",
-        "Path":  "/doc/go1.14",
-        "Template": true
+        "Path":  "/doc/go1.14"
 }-->
 
 <!--
@@ -401,6 +400,11 @@ appropriately.)
   This API may change in future releases.
 </p>
 
+<p><!-- CL 174704 --><!-- CL 196784 -->
+  Bounds check elimination now uses information from slice creation and can
+  eliminate checks for indexes with types smaller than <code>int</code>.
+</p>
+
 <h2 id="library">Core library</h2>
 
 <p>
@@ -564,6 +568,16 @@ appropriately.)
   </dd>
 </dl><!-- go/build -->
 
+<dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
+  <dd>
+    <p><!-- CL 198488 -->
+      <a href="/pkg/io/ioutil/#TempDir"><code>TempDir</code></a> can now create directories
+      whose names have predictable prefixes and suffixes. As with TempFile, if the pattern
+      contains a '*', the random string replaces the last '*'.
+    </p>
+  </dd>
+</dl>
+
 <dl id="log"><dt><a href="/pkg/log/">log</a></dt>
   <dd>
     <p><!-- CL 186182 -->
@@ -676,6 +690,11 @@ appropriately.)
       continue to work, but new code should
       use <code>DialTLSContext</code>, which allows the transport to
       cancel dials as soon as they are no longer needed.
+    </p>
+
+    <p><!-- CL 192518, CL 194218 -->
+      On Windows, <a href="/pkg/net/http/#ServeFile"><code>ServeFile</code></a> now correctly
+      serves files larger than 2GB.
     </p>
   </dd>
 </dl><!-- net/http -->
@@ -802,6 +821,20 @@ appropriately.)
        <a href="/pkg/testing#B.Cleanup"><code>B.Cleanup</code></a> respectively.
     </p>
 </dl><!-- testing -->
+
+<dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+  <dd>
+    <p><!-- CL 206124 -->
+      The text/template package now correctly reports errors when a
+      parenthesized argument is used as a function.
+      This most commonly shows up in erroneous cases like
+      <code>{{if (eq .F "a") or (eq .F "b")}}</code>.
+      This should be written as <code>{{if or (eq .F "a") (eq .F "b")}}</code>.
+      The erroneous case never worked as expected, and will now be
+      reported with an error <code>can't give argument to non-function</code>.
+    </p>
+  </dd>
+</dl><!-- text/template -->
 
 <dl id="unicode"><dt><a href="/pkg/unicode/">unicode</a></dt>
   <dd>
