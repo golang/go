@@ -4,8 +4,9 @@ func _() {
 	//@unimported("", hashslashadler32, goslashast, encodingslashbase64, bytes)
 	pkg //@unimported("g", externalpackage)
 	// container/ring is extremely unlikely to be imported by anything, so shouldn't have type information.
-	ring.Ring //@unimported("Ring", ringring)
+	ring.Ring     //@unimported("Ring", ringring)
 	signature.Foo //@unimported("Foo", signaturefoo)
+	context.Bac //@unimported("Bac", contextBackground, contextBackgroundErr)
 }
 
 // Create markers for unimported std lib packages. Only for use by this test.
@@ -18,3 +19,6 @@ func _() {
 /* ring.Ring */ //@item(ringring, "Ring", "(from \"container/ring\")", "var")
 
 /* signature.Foo */ //@item(signaturefoo, "Foo", "func(a string, b int) (c bool) (from \"golang.org/x/tools/internal/lsp/signature\")", "func")
+
+/* context.Background */ //@item(contextBackground, "Background", "func() context.Context (from \"context\")", "func")
+/* context.Background().Err */ //@item(contextBackgroundErr, "Background().Err", "func() error (from \"context\")", "method")

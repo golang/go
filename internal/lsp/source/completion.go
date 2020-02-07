@@ -721,7 +721,7 @@ func (c *completer) unimportedMembers(id *ast.Ident) error {
 		if imports.ImportPathToAssumedName(path) != pkg.GetTypes().Name() {
 			imp.name = pkg.GetTypes().Name()
 		}
-		c.packageMembers(pkg.GetTypes(), .01*float64(relevances[path]), imp)
+		c.packageMembers(pkg.GetTypes(), stdScore+.01*float64(relevances[path]), imp)
 		if len(c.items) >= unimportedTarget {
 			return nil
 		}
@@ -740,7 +740,7 @@ func (c *completer) unimportedMembers(id *ast.Ident) error {
 		// Continue with untyped proposals.
 		pkg := types.NewPackage(pkgExport.Fix.StmtInfo.ImportPath, pkgExport.Fix.IdentName)
 		for _, export := range pkgExport.Exports {
-			score := 0.01 * float64(pkgExport.Fix.Relevance)
+			score := stdScore + 0.01*float64(pkgExport.Fix.Relevance)
 			c.found(candidate{
 				obj:   types.NewVar(0, pkg, export, nil),
 				score: score,
