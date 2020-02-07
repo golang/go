@@ -8,7 +8,10 @@ package lsprpc
 
 import (
 	"context"
+	"fmt"
+	"net"
 
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -50,4 +53,56 @@ func (s *StreamServer) ServeStream(ctx context.Context, stream jsonrpc2.Stream) 
 		conn.AddHandler(telemetryHandler{})
 	}
 	return conn.Run(protocol.WithClient(ctx, client))
+}
+
+// A Forwarder is a jsonrpc2.StreamServer that handles an LSP stream by
+// forwarding it to a remote. This is used when the gopls process started by
+// the editor is in the `-remote` mode, which means it finds and connects to a
+// separate gopls daemon. In these cases, we still want the forwarder gopls to
+// be instrumented with telemetry, and want to be able to in some cases hijack
+// the jsonrpc2 connection with the daemon.
+type Forwarder struct {
+	remote        string
+	withTelemetry bool
+}
+
+// NewForwarder creates a new Forwarder, ready to forward connections to the
+// given remote.
+func NewForwarder(remote string, withTelemetry bool) *Forwarder {
+	return &Forwarder{
+		remote:        remote,
+		withTelemetry: withTelemetry,
+	}
+}
+
+// ServeStream dials the forwarder remote and binds the remote to serve the LSP
+// on the incoming stream.
+func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) error {
+	clientConn := jsonrpc2.NewConn(stream)
+	client := protocol.ClientDispatcher(clientConn)
+
+	netConn, err := net.Dial("tcp", f.remote)
+	if err != nil {
+		return fmt.Errorf("forwarder: dialing remote: %v", err)
+	}
+	serverConn := jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn, netConn))
+	server := protocol.ServerDispatcher(serverConn)
+
+	// Forward between connections.
+	serverConn.AddHandler(protocol.ClientHandler(client))
+	serverConn.AddHandler(protocol.Canceller{})
+	clientConn.AddHandler(protocol.ServerHandler(server))
+	clientConn.AddHandler(protocol.Canceller{})
+	if f.withTelemetry {
+		clientConn.AddHandler(telemetryHandler{})
+	}
+
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		return serverConn.Run(ctx)
+	})
+	g.Go(func() error {
+		return clientConn.Run(ctx)
+	})
+	return g.Wait()
 }

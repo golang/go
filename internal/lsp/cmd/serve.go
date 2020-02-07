@@ -8,8 +8,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
-	"net"
 	"os"
 
 	"golang.org/x/tools/internal/jsonrpc2"
@@ -64,11 +62,13 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 	s.app.debug.Serve(ctx)
 	s.app.debug.MonitorMemory(ctx)
 
+	var ss jsonrpc2.StreamServer
 	if s.app.Remote != "" {
-		return s.forward()
+		ss = lsprpc.NewForwarder(s.app.Remote, true)
+	} else {
+		ss = lsprpc.NewStreamServer(cache.New(s.app.options), true)
 	}
 
-	ss := lsprpc.NewStreamServer(cache.New(s.app.options), true)
 	if s.Address != "" {
 		return jsonrpc2.ListenAndServe(ctx, s.Address, ss)
 	}
@@ -81,24 +81,4 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 		stream = protocol.LoggingStream(stream, s.app.debug.LogWriter)
 	}
 	return ss.ServeStream(ctx, stream)
-}
-
-func (s *Serve) forward() error {
-	conn, err := net.Dial("tcp", s.app.Remote)
-	if err != nil {
-		return err
-	}
-	errc := make(chan error)
-
-	go func(conn net.Conn) {
-		_, err := io.Copy(conn, os.Stdin)
-		errc <- err
-	}(conn)
-
-	go func(conn net.Conn) {
-		_, err := io.Copy(os.Stdout, conn)
-		errc <- err
-	}(conn)
-
-	return <-errc
 }

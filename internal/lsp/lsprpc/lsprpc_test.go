@@ -102,17 +102,33 @@ func TestRequestCancellation(t *testing.T) {
 		},
 	}
 	ctx := context.Background()
-	ts := servertest.NewServer(ctx, ss)
-	cc := ts.Connect(ctx)
-	cc.AddHandler(protocol.Canceller{})
-	lensCtx, cancelLens := context.WithCancel(context.Background())
-	go func() {
-		protocol.ServerDispatcher(cc).CodeLens(lensCtx, &protocol.CodeLensParams{})
-	}()
-	<-server.started
-	cancelLens()
-	if got, want := <-server.finished, true; got != want {
-		t.Errorf("CodeLens was cancelled: %t, want %t", got, want)
+	tsDirect := servertest.NewServer(ctx, ss)
+
+	forwarder := NewForwarder(tsDirect.Addr, false)
+	tsForwarded := servertest.NewServer(ctx, forwarder)
+
+	tests := []struct {
+		serverType string
+		ts         *servertest.Server
+	}{
+		{"direct", tsDirect},
+		{"forwarder", tsForwarded},
+	}
+
+	for _, test := range tests {
+		t.Run(test.serverType, func(t *testing.T) {
+			cc := test.ts.Connect(ctx)
+			cc.AddHandler(protocol.Canceller{})
+			lensCtx, cancelLens := context.WithCancel(context.Background())
+			go func() {
+				protocol.ServerDispatcher(cc).CodeLens(lensCtx, &protocol.CodeLensParams{})
+			}()
+			<-server.started
+			cancelLens()
+			if got, want := <-server.finished, true; got != want {
+				t.Errorf("CodeLens was cancelled: %t, want %t", got, want)
+			}
+		})
 	}
 }
 

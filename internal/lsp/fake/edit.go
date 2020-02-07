@@ -36,6 +36,16 @@ type Edit struct {
 	Text       string
 }
 
+// NewEdit creates an edit replacing all content between
+// (startLine, startColumn) and (endLine, endColumn) with text.
+func NewEdit(startLine, startColumn, endLine, endColumn int, text string) Edit {
+	return Edit{
+		Start: Pos{Line: startLine, Column: startColumn},
+		End:   Pos{Line: endLine, Column: endColumn},
+		Text:  text,
+	}
+}
+
 func (e Edit) toProtocolChangeEvent() protocol.TextDocumentContentChangeEvent {
 	return protocol.TextDocumentContentChangeEvent{
 		Range: &protocol.Range{
