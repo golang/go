@@ -325,6 +325,9 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 	// Use the default type information for the unsafe package.
 	if pkg.pkgPath == "unsafe" {
 		pkg.types = types.Unsafe
+		// Don't type check Unsafe: it's unnecessary, and doing so exposes a data
+		// race to Unsafe.completed.
+		return pkg, nil
 	} else if len(files) == 0 { // not the unsafe package, no parsed files
 		return nil, errors.Errorf("no parsed files for package %s, expected: %s, errors: %v, list errors: %v", pkg.pkgPath, pkg.compiledGoFiles, actualErrors, rawErrors)
 	} else {
