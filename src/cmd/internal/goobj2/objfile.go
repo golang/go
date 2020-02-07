@@ -225,6 +225,16 @@ func (s *Sym) Read(r *Reader, off uint32) {
 	s.Siz = r.uint32At(off + 8)
 }
 
+// Read fields other than the symbol name. The name is not necessary
+// in some cases, and most of the time spent in Read is reading the
+// name.
+func (s *Sym) ReadWithoutName(r *Reader, off uint32) {
+	s.ABI = r.uint16At(off + 4)
+	s.Type = r.uint8At(off + 6)
+	s.Flag = r.uint8At(off + 7)
+	s.Siz = r.uint32At(off + 8)
+}
+
 func (s *Sym) ReadFlag(r *Reader, off uint32) {
 	s.Flag = r.uint8At(off + 7)
 }
