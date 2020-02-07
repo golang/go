@@ -8,7 +8,7 @@ Use the [VSCode-Go] plugin, with the following configuration:
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
         "source.organizeImports": true,
-    }
+    },
     // Optional: Disable snippets, as they conflict with completion ranking.
     "editor.snippetSuggestions": "none",
 },
