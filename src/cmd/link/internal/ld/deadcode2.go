@@ -126,10 +126,21 @@ func (d *deadcodePass2) flood() {
 
 		d.reflectSeen = d.reflectSeen || d.ldr.IsReflectMethod(symIdx)
 
+		isgotype := d.ldr.IsGoType(symIdx)
 		relocs := d.ldr.Relocs(symIdx)
-		symRelocs = relocs.ReadAll(symRelocs)
+		// For non-type symbols, we only need the target and the reloc
+		// type, so don't read other fields.
+		// For type symbols we may need all fields for interface
+		// satisfaction check.
+		// TODO: we don't even need the reloc type for non-type non-dwarf
+		// symbols.
+		if isgotype {
+			symRelocs = relocs.ReadAll(symRelocs)
+		} else {
+			symRelocs = relocs.ReadSyms(symRelocs)
+		}
 
-		if d.ldr.IsGoType(symIdx) {
+		if isgotype {
 			p := d.ldr.Data(symIdx)
 			if len(p) != 0 && decodetypeKind(d.ctxt.Arch, p)&kindMask == kindInterface {
 				for _, sig := range d.decodeIfaceMethods2(d.ldr, d.ctxt.Arch, symIdx, symRelocs) {
@@ -177,6 +188,9 @@ func (d *deadcodePass2) flood() {
 		d.mark(d.ldr.SubSym(symIdx), symIdx)
 
 		if len(methods) != 0 {
+			if !isgotype {
+				panic("method found on non-type symbol")
+			}
 			// Decode runtime type information for type methods
 			// to help work out which methods can be called
 			// dynamically via interfaces.

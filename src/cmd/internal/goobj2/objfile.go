@@ -225,6 +225,10 @@ func (s *Sym) Read(r *Reader, off uint32) {
 	s.Siz = r.uint32At(off + 8)
 }
 
+func (s *Sym) ReadFlag(r *Reader, off uint32) {
+	s.Flag = r.uint8At(off + 7)
+}
+
 func (s *Sym) Size() int {
 	return 4 + 2 + 1 + 1 + 4
 }
@@ -283,6 +287,12 @@ func (o *Reloc) Read(r *Reader, off uint32) {
 	o.Sym.Read(r, off+14)
 }
 
+// Only reads the target symbol and reloc type, leaving other fields unset.
+func (o *Reloc) ReadSymType(r *Reader, off uint32) {
+	o.Type = r.uint8At(off + 5)
+	o.Sym.Read(r, off+14)
+}
+
 func (r *Reloc) Size() int {
 	return 4 + 1 + 1 + 8 + r.Sym.Size()
 }
@@ -313,6 +323,11 @@ func (a *Aux) Write(w *Writer) {
 
 func (a *Aux) Read(r *Reader, off uint32) {
 	a.Type = r.uint8At(off)
+	a.Sym.Read(r, off+1)
+}
+
+// Only reads the target symbol, leaving other fields unset.
+func (a *Aux) ReadSym(r *Reader, off uint32) {
 	a.Sym.Read(r, off+1)
 }
 
