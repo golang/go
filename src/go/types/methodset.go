@@ -166,17 +166,15 @@ func NewMethodSet(T Type) *MethodSet {
 			}
 		}
 
-		// Multiple fields with matching names collide at this depth and shadow all
-		// entries further down; add them as collisions to base if no entries with
-		// matching names exist already.
-		for k, f := range fset {
-			if f == nil {
-				if _, found := base[k]; !found {
-					if base == nil {
-						base = make(methodSet)
-					}
-					base[k] = nil // collision
+		// Add all fields at this depth as collisions (since they will hide any
+		// method further down) to base if no entries with matching names exist
+		// already.
+		for k := range fset {
+			if _, found := base[k]; !found {
+				if base == nil {
+					base = make(methodSet)
 				}
+				base[k] = nil // collision
 			}
 		}
 
@@ -233,7 +231,7 @@ func (s fieldSet) add(f *Var, multiples bool) fieldSet {
 
 // A methodSet is a set of methods and name collisions.
 // A collision indicates that multiple methods with the
-// same unique id appeared.
+// same unique id, or a field with that id appeared.
 type methodSet map[string]*Selection // a nil entry indicates a name collision
 
 // Add adds all functions in list to the method set s.
