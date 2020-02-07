@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
@@ -119,7 +120,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 		if err != nil {
 			return err
 		}
-		if _, err := s.buildPackageHandle(ctx, m.id); err != nil {
+		if _, err := s.buildPackageHandle(ctx, m.id, source.ParseFull); err != nil {
 			return err
 		}
 	}

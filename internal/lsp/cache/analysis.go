@@ -82,11 +82,10 @@ type packageFactKey struct {
 }
 
 func (s *snapshot) actionHandle(ctx context.Context, id packageID, a *analysis.Analyzer) (*actionHandle, error) {
-	ph := s.getPackage(id)
+	ph := s.getPackage(id, source.ParseFull)
 	if ph == nil {
 		return nil, errors.Errorf("no PackageHandle for %s", id)
 	}
-	expectMode(ph, source.ParseFull)
 	act := s.getActionHandle(id, ph.mode, a)
 	if act != nil {
 		return act, nil

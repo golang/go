@@ -61,6 +61,8 @@ type Snapshot interface {
 	CachedImportPaths(ctx context.Context) (map[string]Package, error)
 
 	// KnownPackages returns all the packages loaded in this snapshot.
+	// Workspace packages may be parsed in ParseFull mode, whereas transitive
+	// dependencies will be in ParseExported mode.
 	KnownPackages(ctx context.Context) ([]PackageHandle, error)
 
 	// WorkspacePackages returns the PackageHandles for the snapshot's

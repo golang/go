@@ -63,13 +63,13 @@ type packageData struct {
 }
 
 // buildPackageHandle returns a source.PackageHandle for a given package and config.
-func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID) (*packageHandle, error) {
-	if ph := s.getPackage(id); ph != nil {
+func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID, mode source.ParseMode) (*packageHandle, error) {
+	if ph := s.getPackage(id, mode); ph != nil {
 		return ph, nil
 	}
 
 	// Build the PackageHandle for this ID and its dependencies.
-	ph, deps, err := s.buildKey(ctx, id)
+	ph, deps, err := s.buildKey(ctx, id, mode)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,6 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID) (*packa
 	//
 
 	m := ph.m
-	mode := ph.mode
 	goFiles := ph.goFiles
 	compiledGoFiles := ph.compiledGoFiles
 	key := ph.key
@@ -109,12 +108,11 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID) (*packa
 }
 
 // buildKey computes the key for a given packageHandle.
-func (s *snapshot) buildKey(ctx context.Context, id packageID) (*packageHandle, map[packagePath]*packageHandle, error) {
+func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.ParseMode) (*packageHandle, map[packagePath]*packageHandle, error) {
 	m := s.getMetadata(id)
 	if m == nil {
 		return nil, nil, errors.Errorf("no metadata for %s", id)
 	}
-	mode := s.packageMode(id)
 	goFiles, err := s.parseGoHandles(ctx, m.goFiles, mode)
 	if err != nil {
 		return nil, nil, err
@@ -140,7 +138,11 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID) (*packageHandle, 
 	// Begin computing the key by getting the depKeys for all dependencies.
 	var depKeys []packageHandleKey
 	for _, depID := range depList {
-		depHandle, err := s.buildPackageHandle(ctx, depID)
+		mode := source.ParseExported
+		if _, ok := s.isWorkspacePackage(depID); ok {
+			mode = source.ParseFull
+		}
+		depHandle, err := s.buildPackageHandle(ctx, depID, mode)
 		if err != nil {
 			log.Error(ctx, "no dep handle", err, telemetry.Package.Of(depID))
 
