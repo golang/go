@@ -7,14 +7,18 @@ package debug
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"go/token"
 	"html/template"
+	"io"
 	stdlog "log"
 	"net"
 	"net/http"
 	"net/http/pprof"
 	_ "net/http/pprof" // pull in the standard pprof handlers
+	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -24,6 +28,7 @@ import (
 
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/export"
+	"golang.org/x/tools/internal/telemetry/export/ocagent"
 	"golang.org/x/tools/internal/telemetry/export/prometheus"
 	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/tag"
@@ -35,6 +40,14 @@ type Instance struct {
 	ServerAddress string
 	DebugAddress  string
 	Workdir       string
+	OCAgentConfig string
+
+	LogWriter io.Writer
+
+	ocagent    export.Exporter
+	prometheus *prometheus.Exporter
+	rpcs       *rpcs
+	traces     *traces
 }
 
 type Cache interface {
@@ -229,29 +242,57 @@ func DropView(view View) {
 	}
 }
 
+// Prepare gets a debug instance ready for use using the supplied configuration.
+func (i *Instance) Prepare(ctx context.Context) {
+	mu.Lock()
+	defer mu.Unlock()
+	i.LogWriter = os.Stderr
+	ocConfig := ocagent.Discover()
+	//TODO: we should not need to adjust the discovered configuration
+	ocConfig.Address = i.OCAgentConfig
+	i.ocagent = ocagent.Connect(ocConfig)
+	i.prometheus = prometheus.New()
+	i.rpcs = &rpcs{}
+	i.traces = &traces{}
+	export.AddExporters(i.ocagent, i.prometheus, i.rpcs, i.traces)
+}
+
+func (i *Instance) SetLogFile(logfile string) error {
+	if logfile != "" {
+		if logfile == "auto" {
+			logfile = filepath.Join(os.TempDir(), fmt.Sprintf("gopls-%d.log", os.Getpid()))
+		}
+		f, err := os.Create(logfile)
+		if err != nil {
+			return fmt.Errorf("Unable to create log file: %v", err)
+		}
+		defer f.Close()
+		stdlog.SetOutput(io.MultiWriter(os.Stderr, f))
+		i.LogWriter = f
+	}
+	i.Logfile = logfile
+	return nil
+}
+
 // Serve starts and runs a debug server in the background.
 // It also logs the port the server starts on, to allow for :0 auto assigned
 // ports.
-func (i *Instance) Serve(ctx context.Context, addr string) error {
+func (i *Instance) Serve(ctx context.Context) error {
 	mu.Lock()
 	defer mu.Unlock()
-	if addr == "" {
+	if i.DebugAddress == "" {
 		return nil
 	}
-	listener, err := net.Listen("tcp", addr)
+	listener, err := net.Listen("tcp", i.DebugAddress)
 	if err != nil {
 		return err
 	}
 
 	port := listener.Addr().(*net.TCPAddr).Port
-	if strings.HasSuffix(addr, ":0") {
+	if strings.HasSuffix(i.DebugAddress, ":0") {
 		stdlog.Printf("debug server listening on port %d", port)
 	}
 	log.Print(ctx, "Debug serving", tag.Of("Port", port))
-	prometheus := prometheus.New()
-	rpcs := &rpcs{}
-	traces := &traces{}
-	export.AddExporters(prometheus, rpcs, traces)
 	go func() {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/", render(mainTmpl, func(*http.Request) interface{} { return data }))
@@ -261,9 +302,15 @@ func (i *Instance) Serve(ctx context.Context, addr string) error {
 		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
 		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-		mux.HandleFunc("/metrics/", prometheus.Serve)
-		mux.HandleFunc("/rpc/", render(rpcTmpl, rpcs.getData))
-		mux.HandleFunc("/trace/", render(traceTmpl, traces.getData))
+		if i.prometheus != nil {
+			mux.HandleFunc("/metrics/", i.prometheus.Serve)
+		}
+		if i.rpcs != nil {
+			mux.HandleFunc("/rpc/", render(rpcTmpl, i.rpcs.getData))
+		}
+		if i.traces != nil {
+			mux.HandleFunc("/trace/", render(traceTmpl, i.traces.getData))
+		}
 		mux.HandleFunc("/cache/", render(cacheTmpl, getCache))
 		mux.HandleFunc("/session/", render(sessionTmpl, getSession))
 		mux.HandleFunc("/view/", render(viewTmpl, getView))

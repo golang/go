@@ -18,15 +18,15 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/cache"
+	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry/export"
-	"golang.org/x/tools/internal/telemetry/export/ocagent"
 	"golang.org/x/tools/internal/tool"
 	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
@@ -69,6 +69,8 @@ type Application struct {
 	// PrepareOptions is called to update the options when a new view is built.
 	// It is primarily to allow the behavior of gopls to be modified by hooks.
 	PrepareOptions func(*source.Options)
+
+	debug debug.Instance
 }
 
 // New returns a new Application ready to run.
@@ -130,10 +132,12 @@ gopls flags are:
 // If no arguments are passed it will invoke the server sub command, as a
 // temporary measure for compatibility.
 func (app *Application) Run(ctx context.Context, args ...string) error {
-	ocConfig := ocagent.Discover()
-	//TODO: we should not need to adjust the discovered configuration
-	ocConfig.Address = app.OCAgent
-	export.AddExporters(ocagent.Connect(ocConfig))
+	app.debug = debug.Instance{
+		StartTime:     time.Now(),
+		Workdir:       app.wd,
+		OCAgentConfig: app.OCAgent,
+	}
+	app.debug.Prepare(ctx)
 	app.Serve.app = app
 	if len(args) == 0 {
 		return tool.Run(ctx, &app.Serve, args)

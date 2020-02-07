@@ -9,19 +9,14 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
-	"path/filepath"
-	"time"
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp/cache"
-	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/lsprpc"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/tool"
-	errors "golang.org/x/xerrors"
 )
 
 // Serve is a struct that exposes the configurable parts of the LSP server as
@@ -58,29 +53,13 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 	if len(args) > 0 {
 		return tool.CommandLineErrorf("server does not take arguments, got %v", args)
 	}
-	out := os.Stderr
-	logfile := s.Logfile
-	if logfile != "" {
-		if logfile == "auto" {
-			logfile = filepath.Join(os.TempDir(), fmt.Sprintf("gopls-%d.log", os.Getpid()))
-		}
-		f, err := os.Create(logfile)
-		if err != nil {
-			return errors.Errorf("Unable to create log file: %v", err)
-		}
-		defer f.Close()
-		log.SetOutput(io.MultiWriter(os.Stderr, f))
-		out = f
-	}
 
-	debug := debug.Instance{
-		Logfile:       logfile,
-		StartTime:     time.Now(),
-		ServerAddress: s.Address,
-		DebugAddress:  s.Debug,
-		Workdir:       s.app.wd,
+	if err := s.app.debug.SetLogFile(s.Logfile); err != nil {
+		return err
 	}
-	debug.Serve(ctx, s.Debug)
+	s.app.debug.ServerAddress = s.Address
+	s.app.debug.DebugAddress = s.Debug
+	s.app.debug.Serve(ctx)
 
 	if s.app.Remote != "" {
 		return s.forward()
@@ -96,7 +75,7 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 	}
 	stream := jsonrpc2.NewHeaderStream(os.Stdin, os.Stdout)
 	if s.Trace {
-		stream = protocol.LoggingStream(stream, out)
+		stream = protocol.LoggingStream(stream, s.app.debug.LogWriter)
 	}
 	return ss.ServeStream(ctx, stream)
 }
