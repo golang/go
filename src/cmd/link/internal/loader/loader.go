@@ -343,7 +343,7 @@ func (l *Loader) AddSym(name string, ver int, r *oReader, li int, dupok bool, ty
 	}
 	oldr, oldli := l.toLocal(oldi)
 	oldsym := goobj2.Sym{}
-	oldsym.Read(oldr.Reader, oldr.SymOff(oldli))
+	oldsym.ReadWithoutName(oldr.Reader, oldr.SymOff(oldli))
 	if oldsym.Dupok() {
 		return oldi, false
 	}
@@ -615,7 +615,7 @@ func (l *Loader) SymVersion(i Sym) int {
 	}
 	r, li := l.toLocal(i)
 	osym := goobj2.Sym{}
-	osym.Read(r.Reader, r.SymOff(li))
+	osym.ReadWithoutName(r.Reader, r.SymOff(li))
 	return int(abiToVer(osym.ABI, r.version))
 }
 
@@ -630,7 +630,7 @@ func (l *Loader) SymType(i Sym) sym.SymKind {
 	}
 	r, li := l.toLocal(i)
 	osym := goobj2.Sym{}
-	osym.Read(r.Reader, r.SymOff(li))
+	osym.ReadWithoutName(r.Reader, r.SymOff(li))
 	return sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]
 }
 
@@ -1766,10 +1766,6 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 			continue
 		}
 		ver := abiToVer(osym.ABI, r.version)
-		if osym.ABI != goobj2.SymABIstatic && l.symsByName[ver][name] != gi {
-			continue
-		}
-
 		t := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]
 		if t == sym.SXREF {
 			log.Fatalf("bad sxref")
@@ -1987,11 +1983,7 @@ func loadObjFull(l *Loader, r *oReader) {
 		}
 
 		osym := goobj2.Sym{}
-		osym.Read(r.Reader, r.SymOff(i))
-		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
-		if name == "" {
-			continue
-		}
+		osym.ReadWithoutName(r.Reader, r.SymOff(i))
 		dupok := osym.Dupok()
 		if dupok && isdup {
 			if l.attrReachable.has(gi) {
@@ -2013,10 +2005,6 @@ func loadObjFull(l *Loader, r *oReader) {
 		s := l.Syms[gi]
 		if s == nil {
 			continue
-		}
-		if s.Name != name { // Sanity check. We can remove it in the final version.
-			fmt.Println("name mismatch:", lib, i, s.Name, name)
-			panic("name mismatch")
 		}
 
 		local := osym.Local()
