@@ -1329,7 +1329,6 @@ func expectedCandidate(c *completer) (inf candidateInference) {
 
 	if c.enclosingCompositeLiteral != nil {
 		inf.objType = c.expectedCompositeLiteralType()
-		return inf
 	}
 
 Nodes:

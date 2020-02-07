@@ -180,3 +180,15 @@ func _() {
 	var mi myInt
 	mi = my //@snippet(" //", litMyInt, "myInt($0)", "myInt($0)")
 }
+
+func _() {
+	type ptrStruct struct {
+		p *ptrStruct
+	}
+
+	ptrStruct{} //@item(litPtrStruct, "ptrStruct{}", "", "var")
+
+	ptrStruct{
+		p: &ptrSt, //@rank(",", litPtrStruct)
+	}
+}
