@@ -60,6 +60,7 @@ type oReader struct {
 	flags     uint32 // read from object file
 	pkgprefix string
 	syms      []Sym // Sym's global index, indexed by local index
+	ndef      int   // cache goobj2.Reader.NSym()
 }
 
 type objIdx struct {
@@ -169,7 +170,7 @@ type Loader struct {
 	symsByName    [2]map[string]Sym // map symbol name to index, two maps are for ABI0 and ABIInternal
 	extStaticSyms map[nameVer]Sym   // externally defined static symbols, keyed by name
 
-	extReader    *oReader  // a dummy oReader, for external symbols
+	extReader    *oReader // a dummy oReader, for external symbols
 	payloadBatch []extSymPayload
 	payloads     []*extSymPayload // contents of linker-materialized external syms
 	values       []int64          // symbol values, indexed by global sym index
@@ -510,7 +511,7 @@ func (l *Loader) resolve(r *oReader, s goobj2.SymRef) Sym {
 		}
 		return 0
 	case goobj2.PkgIdxNone:
-		i := int(s.SymIdx) + r.NSym()
+		i := int(s.SymIdx) + r.ndef
 		return r.syms[i]
 	case goobj2.PkgIdxBuiltin:
 		return l.builtinSyms[s.SymIdx]
@@ -641,7 +642,7 @@ func (l *Loader) SymAttr(i Sym) uint8 {
 	}
 	r, li := l.toLocal(i)
 	osym := goobj2.Sym{}
-	osym.Read(r.Reader, r.SymOff(li))
+	osym.ReadFlag(r.Reader, r.SymOff(li))
 	return osym.Flag
 }
 
@@ -745,7 +746,7 @@ func (l *Loader) AttrDuplicateOK(i Sym) bool {
 		// into a larger bitmap during preload.
 		r, li := l.toLocal(i)
 		osym := goobj2.Sym{}
-		osym.Read(r.Reader, r.SymOff(li))
+		osym.ReadFlag(r.Reader, r.SymOff(li))
 		return osym.Dupok()
 	}
 	return l.attrDuplicateOK.has(l.extIndex(i))
@@ -1252,9 +1253,9 @@ func (l *Loader) ReadAuxSyms(symIdx Sym, dst []Sym) []Sym {
 	dst = dst[:0]
 
 	r, li := l.toLocal(symIdx)
+	a := goobj2.Aux{}
 	for i := 0; i < naux; i++ {
-		a := goobj2.Aux{}
-		a.Read(r.Reader, r.AuxOff(li, i))
+		a.ReadSym(r.Reader, r.AuxOff(li, i))
 		dst = append(dst, l.resolve(r, a.Sym))
 	}
 
@@ -1386,6 +1387,17 @@ func (relocs *Relocs) At(j int) Reloc {
 // specified slice. If the slice capacity is not large enough, a new
 // larger slice will be allocated. Final slice is returned.
 func (relocs *Relocs) ReadAll(dst []Reloc) []Reloc {
+	return relocs.readAll(dst, false)
+}
+
+// ReadSyms method reads all relocation target symbols and reloc types
+// for a symbol into the specified slice. It is like ReadAll but only
+// fill in the Sym and Type fields.
+func (relocs *Relocs) ReadSyms(dst []Reloc) []Reloc {
+	return relocs.readAll(dst, true)
+}
+
+func (relocs *Relocs) readAll(dst []Reloc, onlySymType bool) []Reloc {
 	if relocs.Count == 0 {
 		return dst[:0]
 	}
@@ -1402,9 +1414,13 @@ func (relocs *Relocs) ReadAll(dst []Reloc) []Reloc {
 	}
 
 	off := relocs.r.RelocOff(relocs.li, 0)
+	rel := goobj2.Reloc{}
 	for i := 0; i < relocs.Count; i++ {
-		rel := goobj2.Reloc{}
-		rel.Read(relocs.r.Reader, off)
+		if onlySymType {
+			rel.ReadSymType(relocs.r.Reader, off)
+		} else {
+			rel.Read(relocs.r.Reader, off)
+		}
 		off += uint32(rel.Size())
 		target := relocs.l.resolve(relocs.r, rel.Sym)
 		dst = append(dst, Reloc{
@@ -1467,7 +1483,7 @@ func (l *Loader) Preload(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *
 	pkgprefix := objabi.PathToPrefix(lib.Pkg) + "."
 	ndef := r.NSym()
 	nnonpkgdef := r.NNonpkgdef()
-	or := &oReader{r, unit, localSymVersion, r.Flags(), pkgprefix, make([]Sym, ndef + nnonpkgdef + r.NNonpkgref())}
+	or := &oReader{r, unit, localSymVersion, r.Flags(), pkgprefix, make([]Sym, ndef+nnonpkgdef+r.NNonpkgref()), ndef}
 
 	// Autolib
 	lib.ImportStrings = append(lib.ImportStrings, r.Autolib()...)
@@ -1740,7 +1756,7 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 	nr := 0
 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
 		gi := r.syms[i]
-		if r2, i2 := l.toLocal(gi); r2 != r || i2 != i{
+		if r2, i2 := l.toLocal(gi); r2 != r || i2 != i {
 			continue // come from a different object
 		}
 		osym := goobj2.Sym{}
@@ -2278,7 +2294,7 @@ func (l *Loader) UndefinedRelocTargets(limit int) []Sym {
 	rslice := []Reloc{}
 	for si := Sym(1); si < Sym(len(l.objSyms)); si++ {
 		relocs := l.Relocs(si)
-		rslice = relocs.ReadAll(rslice)
+		rslice = relocs.ReadSyms(rslice)
 		for ri := 0; ri < relocs.Count; ri++ {
 			r := &rslice[ri]
 			if r.Sym != 0 && l.SymType(r.Sym) == sym.SXREF && l.RawSymName(r.Sym) != ".got" {
