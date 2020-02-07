@@ -36,6 +36,17 @@ func _() {
 	var _ int = _ //@rank("_ //", addrCPtr, addrA),snippet("_ //", addrCPtr, "*c", "*c")
 
 	wantsVariadic() //@rank(")", addrCPtr, addrA),snippet(")", addrCPtr, "*c", "*c")
+
+	type namedPtr *int
+	var np namedPtr
+	*np           //@item(addrNamedPtr, "*np", "namedPtr", "var")
+	var _ int = _ //@rank("_ //", addrNamedPtr, addrA)
+
+	// don't get tripped up by recursive pointer type
+	type dontMessUp *dontMessUp
+	var dmu *dontMessUp //@item(addrDMU, "dmu", "*dontMessUp", "var")
+
+	var _ int = dmu //@complete(" //", addrDMU)
 }
 
 func (f foo) ptr() *foo { return &f }

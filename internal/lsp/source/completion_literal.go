@@ -75,7 +75,7 @@ func (c *completer) literal(literalType types.Type, imp *importInfo) {
 		cand.addressable = true
 	}
 
-	if !c.matchingCandidate(&cand) {
+	if !c.matchingCandidate(&cand, nil) {
 		return
 	}
 

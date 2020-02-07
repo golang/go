@@ -324,7 +324,7 @@ func (c *completer) found(cand candidate) {
 		return
 	}
 
-	if c.matchingCandidate(&cand) {
+	if c.matchingCandidate(&cand, nil) {
 		cand.score *= highScore
 	} else if isTypeName(obj) {
 		// If obj is a *types.TypeName that didn't otherwise match, check
@@ -1737,8 +1737,9 @@ func (c *completer) fakeObj(T types.Type) *types.Var {
 }
 
 // matchingCandidate reports whether a candidate matches our type
-// inferences.
-func (c *completer) matchingCandidate(cand *candidate) bool {
+// inferences. seen is used to detect recursive types in certain cases
+// and should be set to nil when calling matchingCandidate.
+func (c *completer) matchingCandidate(cand *candidate, seen map[types.Type]struct{}) bool {
 	if isTypeName(cand.obj) {
 		return c.matchingTypeName(cand)
 	} else if c.wantTypeName() {
@@ -1788,7 +1789,20 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 
 	// Check if dereferencing cand would match our type inference.
 	if ptr, ok := cand.obj.Type().Underlying().(*types.Pointer); ok {
-		if c.matchingCandidate(&candidate{obj: c.fakeObj(ptr.Elem())}) {
+		// Notice if we have already encountered this pointer type before.
+		_, saw := seen[cand.obj.Type()]
+
+		if _, named := cand.obj.Type().(*types.Named); named {
+			// Lazily allocate "seen" since it isn't used normally.
+			if seen == nil {
+				seen = make(map[types.Type]struct{})
+			}
+
+			// Track named pointer types we have seen to detect cycles.
+			seen[cand.obj.Type()] = struct{}{}
+		}
+
+		if !saw && c.matchingCandidate(&candidate{obj: c.fakeObj(ptr.Elem())}, seen) {
 			// Mark the candidate so we know to prepend "*" when formatting.
 			cand.dereference = true
 			return true
@@ -1796,7 +1810,7 @@ func (c *completer) matchingCandidate(cand *candidate) bool {
 	}
 
 	// Check if cand is addressable and a pointer to cand matches our type inference.
-	if cand.addressable && c.matchingCandidate(&candidate{obj: c.fakeObj(types.NewPointer(candType))}) {
+	if cand.addressable && c.matchingCandidate(&candidate{obj: c.fakeObj(types.NewPointer(candType))}, seen) {
 		// Mark the candidate so we know to prepend "&" when formatting.
 		cand.takeAddress = true
 		return true
