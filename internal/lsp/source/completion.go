@@ -384,8 +384,9 @@ type candidate struct {
 	// makePointer is true if the candidate type name T should be made into *T.
 	makePointer bool
 
-	// dereference is true if the candidate obj should be made into *obj.
-	dereference bool
+	// dereference is a count of how many times to dereference the candidate obj.
+	// For example, dereference=2 turns "foo" into "**foo" when formatting.
+	dereference int
 
 	// imp is the import that needs to be added to this package in order
 	// for this candidate to be valid. nil if no import needed.
@@ -1804,9 +1805,10 @@ func (c *completer) matchingCandidate(cand *candidate, seen map[types.Type]struc
 			seen[cand.obj.Type()] = struct{}{}
 		}
 
-		if !saw && c.matchingCandidate(&candidate{obj: c.fakeObj(ptr.Elem())}, seen) {
+		fakeCandidate := candidate{obj: c.fakeObj(ptr.Elem())}
+		if !saw && c.matchingCandidate(&fakeCandidate, seen) {
 			// Mark the candidate so we know to prepend "*" when formatting.
-			cand.dereference = true
+			cand.dereference = 1 + fakeCandidate.dereference
 			return true
 		}
 	}

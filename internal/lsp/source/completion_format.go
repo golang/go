@@ -134,8 +134,10 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	var prefixOp string
 	if cand.takeAddress {
 		prefixOp = "&"
-	} else if cand.makePointer || cand.dereference {
+	} else if cand.makePointer {
 		prefixOp = "*"
+	} else if cand.dereference > 0 {
+		prefixOp = strings.Repeat("*", cand.dereference)
 	}
 
 	if prefixOp != "" {

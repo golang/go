@@ -37,6 +37,10 @@ func _() {
 
 	wantsVariadic() //@rank(")", addrCPtr, addrA),snippet(")", addrCPtr, "*c", "*c")
 
+	var d **int
+	**d           //@item(addrDPtr, "**d", "**int", "var")
+	var _ int = _ //@rank("_ //", addrDPtr, addrA),snippet("_ //", addrDPtr, "**d", "**d")
+
 	type namedPtr *int
 	var np namedPtr
 	*np           //@item(addrNamedPtr, "*np", "namedPtr", "var")
