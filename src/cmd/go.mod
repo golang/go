@@ -8,6 +8,6 @@ require (
 	golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1
 	golang.org/x/crypto v0.0.0-20200128174031-69ecbb4d6d5d
 	golang.org/x/mod v0.2.0
-	golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 // indirect
-	golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e
+	golang.org/x/sys v0.0.0-20200131233351-9e5cf931a04b // indirect
+	golang.org/x/tools v0.0.0-20200131233409-575de47986ce
 )

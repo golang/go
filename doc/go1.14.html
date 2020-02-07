@@ -1,7 +1,6 @@
 <!--{
         "Title": "Go 1.14 Release Notes",
-        "Path":  "/doc/go1.14",
-        "Template": true
+        "Path":  "/doc/go1.14"
 }-->
 
 <!--
@@ -27,9 +26,6 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
 Module support in the <code>go</code> command is now ready for production use,
 and we encourage all users to migrate to Go modules for dependency management.
-</p>
-
-<p>
 If you are unable to migrate due to a problem in the Go toolchain,
 please ensure that the problem has an
 <a href="https://golang.org/issue?q=is%3Aissue+is%3Aopen+label%3Amodules">open issue</a>
@@ -51,24 +47,6 @@ appropriately.)
 </p>
 
 <h2 id="ports">Ports</h2>
-
-<p>
-  TODO: is Dragonfly passing? On both Dragonfly release & tip? (ABI
-  change happened) Does the net package's interface APIs work on both?
-  https://golang.org/issue/34368.
-</p>
-
-<p>
-  TODO: is Illumos up with a builder and passing?
-  https://golang.org/issue/15581.
-</p>
-
-<p>
-  TODO: announce something about the Go Solaris port? Solaris itself
-  is unmaintained? The builder is still running at Oracle, but the
-  employee who set it up left the company and we have no way to
-  maintain it.
-</p>
 
 <h3 id="darwin">Darwin</h3>
 
@@ -422,13 +400,26 @@ appropriately.)
   This API may change in future releases.
 </p>
 
+<p><!-- CL 174704 --><!-- CL 196784 -->
+  Bounds check elimination now uses information from slice creation and can
+  eliminate checks for indexes with types smaller than <code>int</code>.
+</p>
+
 <h2 id="library">Core library</h2>
 
 <p>
-TODO
+  All of the changes to the standard library are minor.
 </p>
 
-<dl id="hash/maphash"><dt><a href="/pkg/hash/maphash">hash/maphash</a></dt>
+<h3 id="minor_library_changes">Minor changes to the library</h3>
+
+<p>
+  As always, there are various minor changes and updates to the library,
+  made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
+  in mind.
+</p>
+
+<dl id="hash/maphash"><dt><a href="/pkg/hash/maphash/">hash/maphash</a></dt>
   <dd>
     <p><!-- CL 186877 -->
       This new package provides hash functions on byte sequences.
@@ -445,33 +436,117 @@ TODO
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
     <p><!-- CL 191976 -->
-      TODO: <a href="https://golang.org/cl/191976">https://golang.org/cl/191976</a>: remove SSLv3 support
+      Support for SSL version 3.0 (SSLv3) has been removed. Note that SSLv3 is the
+      <a href="https://tools.ietf.org/html/rfc7568">cryptographically broken</a>
+      protocol predating TLS.
     </p>
 
     <p><!-- CL 191999 -->
-      TODO: <a href="https://golang.org/cl/191999">https://golang.org/cl/191999</a>: remove TLS 1.3 opt-out
+      TLS 1.3 can't be disabled via the <code>GODEBUG</code> environment
+      variable anymore. Use the
+      <a href="/pkg/crypto/tls/#Config.MaxVersion"><code>Config.MaxVersion</code></a>
+      field to configure TLS versions.
+    </p>
+
+    <p><!-- CL 205059 -->
+      When multiple certificate chains are provided through the
+      <a href="/pkg/crypto/tls/#Config.Certificates"><code>Config.Certificates</code></a>
+      field, the first one compatible with the peer is now automatically
+      selected. This allows for example providing an ECDSA and an RSA
+      certificate, and letting the package automatically select the best one.
+      Note that the performance of this selection is going to be poor unless the
+      <a href="/pkg/crypto/tls/#Certificate.Leaf"><code>Certificate.Leaf</code></a>
+      field is set.
+    </p>
+
+    <p><!-- CL 175517 -->
+      The new <a href="/pkg/crypto/tls/#CipherSuites"><code>CipherSuites</code></a>
+      and <a href="/pkg/crypto/tls/#InsecureCipherSuites"><code>InsecureCipherSuites</code></a>
+      functions return a list of currently implemented cipher suites.
+      The new <a href="/pkg/crypto/tls/#CipherSuiteName"><code>CipherSuiteName</code></a>
+      function returns a name for a cipher suite ID.
+    </p>
+
+    <p><!-- CL 205058, 205057 -->
+      The new <a href="/pkg/crypto/tls/#ClientHelloInfo.SupportsCertificate">
+      <code>(*ClientHelloInfo).SupportsCertificate</code></a> and
+      <a href="/pkg/crypto/tls/#CertificateRequestInfo.SupportsCertificate">
+      <code>(*CertificateRequestInfo).SupportsCertificate</code></a>
+      methods expose whether a peer supports a certain certificate.
     </p>
 
     <p><!-- CL 174329 -->
-      The <code>tls</code> package no longer supports NPN and now only
-      supports ALPN. In previous releases it supported both. There are
-      no API changes and code should function identically as before.
-      Most other clients & servers have already removed NPN support in
-      favor of the standardized ALPN.
+      The <code>tls</code> package no longer supports the legacy Next Protocol
+      Negotiation (NPN) extension and now only supports ALPN. In previous
+      releases it supported both. There are no API changes and applications
+      should function identically as before. Most other clients and servers have
+      already removed NPN support in favor of the standardized ALPN.
+    </p>
+
+    <p><!-- CL 205063, 205062 -->
+      RSA-PSS signatures are now used when supported in TLS 1.2 handshakes. This
+      won't affect most applications, but custom
+      <a href="/pkg/crypto/tls/#Certificate.PrivateKey"><code>Certificate.PrivateKey</code></a>
+      implementations that don't support RSA-PSS signatures will need to use the new
+      <a href="/pkg/crypto/tls/#Certificate.SupportedSignatureAlgorithms">
+      <code>Certificate.SupportedSignatureAlgorithms</code></a>
+      field to disable them.
     </p>
 
 </dl><!-- crypto/tls -->
 
+<dl id="debug/dwarf"><dt><a href="/pkg/debug/dwarf/">debug/dwarf</a></dt>
+  <dd>
+    <p><!-- CL 175138 -->
+      The <code>debug/dwarf</code> package now supports reading DWARF
+      version 5.
+    </p>
+    <p>
+      The new
+      method <a href="/pkg/debug/dwarf/#Data.AddSection"><code>(*Data).AddSection</code></a>
+      supports adding arbitrary new DWARF sections from the input file
+      to the DWARF <code>Data</code>.
+    </p>
+
+    <p><!-- CL 192698 -->
+      The new
+      method <a href="/pkg/debug/dwarf/#Reader.ByteOrder"><code>(*Reader).ByteOrder</code></a>
+      returns the byte order of the current compilation unit.
+      This may be used to interpret attributes that are encoded in the
+      native ordering, such as location descriptions.
+    </p>
+
+    <p><!-- CL 192699 -->
+      The new
+      method <a href="/pkg/debug/dwarf/#LineReader.Files"><code>(*LineReader).Files</code></a>
+      returns the file name table from a line reader.
+      This may be used to interpret the value of DWARF attributes such
+      as <code>AttrDeclFile</code>.
+    </p>
+  </dd>
+</dl><!-- debug/dwarf -->
+
 <dl id="encoding/asn1"><dt><a href="/pkg/encoding/asn1/">encoding/asn1</a></dt>
   <dd>
     <p><!-- CL 126624 -->
-      TODO: <a href="https://golang.org/cl/126624">https://golang.org/cl/126624</a>: handle ASN1&#39;s string type BMPString
+      <a href="/pkg/encoding/asn1/#Unmarshal"><code>Unmarshal</code></a>
+      now supports ASN.1 string type BMPString, represented by the new
+      <a href="/pkg/encoding/asn1/#TagBMPString"><code>TagBMPString</code></a>
+      constant.
     </p>
 
 </dl><!-- encoding/asn1 -->
 
 <dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
   <dd>
+    <p><!-- CL 200677 -->
+      The <a href="/pkg/encoding/json/#Decoder"><code>Decoder</code></a>
+      type supports a new
+      method <a href="/pkg/encoding/json/#Decoder.InputOffset"><code>InputOffset</code></a>
+      that returns the input stream byte offset of the current
+      decoder position.
+    </p>
+
     <p><!-- CL 200217 -->
       <a href="/pkg/encoding/json/#Compact"><code>Compact</code></a> no longer
       escapes the <code>U+2028</code> and <code>U+2029</code> characters, which
@@ -493,6 +568,16 @@ TODO
   </dd>
 </dl><!-- go/build -->
 
+<dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
+  <dd>
+    <p><!-- CL 198488 -->
+      <a href="/pkg/io/ioutil/#TempDir"><code>TempDir</code></a> can now create directories
+      whose names have predictable prefixes and suffixes. As with TempFile, if the pattern
+      contains a '*', the random string replaces the last '*'.
+    </p>
+  </dd>
+</dl>
+
 <dl id="log"><dt><a href="/pkg/log/">log</a></dt>
   <dd>
     <p><!-- CL 186182 -->
@@ -505,7 +590,7 @@ TODO
   </dd>
 </dl><!-- log -->
 
-<dl id="go/doc"><dt><a href="/go/doc/">go/doc</a></dt>
+<dl id="go/doc"><dt><a href="/pkg/go/doc/">go/doc</a></dt>
   <dd>
     <p><!-- CL 204830 -->
       The new
@@ -537,10 +622,10 @@ TODO
 
 </dl><!-- math -->
 
-<dl id="math/big"><dt><a href="/pkg/math/big">math/big</a></dt>
+<dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
   <dd>
     <p><!-- CL 164972 -->
-      The <a href="/pkg/math/big/#GCD"><code>GCD</code></a> function
+      The <a href="/pkg/math/big/#Int.GCD"><code>GCD</code></a> method
       now allows the inputs <code>a</code> and <code>b</code> to be
       zero or negative.
     </p>
@@ -606,10 +691,15 @@ TODO
       use <code>DialTLSContext</code>, which allows the transport to
       cancel dials as soon as they are no longer needed.
     </p>
+
+    <p><!-- CL 192518, CL 194218 -->
+      On Windows, <a href="/pkg/net/http/#ServeFile"><code>ServeFile</code></a> now correctly
+      serves files larger than 2GB.
+    </p>
   </dd>
 </dl><!-- net/http -->
 
-<dl id="net/http/httptest"><dt><a href="/net/http/httptest/">net/http/httptest</a></dt>
+<dl id="net/http/httptest"><dt><a href="/pkg/net/http/httptest/">net/http/httptest</a></dt>
   <dd>
     <p><!-- CL 201557 -->
       The
@@ -632,6 +722,18 @@ TODO
   </dd>
 </dl><!-- net/textproto -->
 
+<dl id="os/signal"><dt><a href="/pkg/os/signal/">os/signal</a></dt>
+  <dd>
+    <p><!-- CL 187739 -->
+      On Windows,
+      the <code>CTRL_CLOSE_EVENT</code>, <code>CTRL_LOGOFF_EVENT</code>,
+      and <code>CTRL_SHUTDOWN_EVENT</code> events now generate
+      a <code>syscall.SIGTERM</code> signal, similar to how Control-C
+      and Control-Break generate a <code>syscall.SIGINT</code> signal.
+    </p>
+
+</dl><!-- os/signal -->
+
 <dl id="plugin"><dt><a href="/pkg/plugin/">plugin</a></dt>
   <dd>
     <p><!-- CL 191617 -->
@@ -653,7 +755,7 @@ TODO
 
 </dl><!-- reflect -->
 
-<dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+<dl id="pkg-runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
     <p><!-- CL 200081 -->
       <code>runtime.Goexit</code> can no longer be aborted by a
@@ -670,7 +772,7 @@ TODO
 
 </dl><!-- runtime -->
 
-<dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof">runtime/pprof</a></dt>
+<dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof/">runtime/pprof</a></dt>
   <dd>
     <p><!-- CL 204636, 205097 -->
     The generated profile no longer includes the pseudo-PCs used for inline
@@ -680,18 +782,6 @@ TODO
     during recent releases.
     </p>
 </dl><!-- runtime/pprof -->
-
-<dl id="signal"><dt><a href="/pkg/signal/">signal</a></dt>
-  <dd>
-    <p><!-- CL 187739 -->
-      On Windows,
-      the <code>CTRL_CLOSE_EVENT</code>, <code>CTRL_LOGOFF_EVENT</code>,
-      and <code>CTRL_SHUTDOWN_EVENT</code> events now generate
-      a <code>syscall.SIGTERM</code> signal, similar to how Control-C
-      and Control-Break generate a <code>syscall.SIGINT</code> signal.
-    </p>
-
-</dl><!-- signal -->
 
 <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
   <dd>
@@ -732,6 +822,20 @@ TODO
     </p>
 </dl><!-- testing -->
 
+<dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>
+  <dd>
+    <p><!-- CL 206124 -->
+      The text/template package now correctly reports errors when a
+      parenthesized argument is used as a function.
+      This most commonly shows up in erroneous cases like
+      <code>{{if (eq .F "a") or (eq .F "b")}}</code>.
+      This should be written as <code>{{if or (eq .F "a") (eq .F "b")}}</code>.
+      The erroneous case never worked as expected, and will now be
+      reported with an error <code>can't give argument to non-function</code>.
+    </p>
+  </dd>
+</dl><!-- text/template -->
+
 <dl id="unicode"><dt><a href="/pkg/unicode/">unicode</a></dt>
   <dd>
     <p>
@@ -742,15 +846,3 @@ TODO
     </p>
   </dd>
 </dl><!-- unicode -->
-
-<h3 id="minor_library_changes">Minor changes to the library</h3>
-
-<p>
-  As always, there are various minor changes and updates to the library,
-  made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
-  in mind.
-</p>
-
-<p>
-TODO
-</p>
