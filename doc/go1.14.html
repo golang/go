@@ -315,7 +315,7 @@ appropriately.)
   releases.
   This means that programs that use packages
   like <a href="/pkg/syscall/"><code>syscall</code></a>
-  or <a href="https://godoc.org/golang.org/x/sys/unix"><code>golang.org/x/sys/unix</code></a>
+  or <a href="https://pkg.go.dev/golang.org/x/sys/unix"><code>golang.org/x/sys/unix</code></a>
   will see more slow system calls fail with <code>EINTR</code> errors.
   Those programs will have to handle those errors in some way, most
   likely looping to try the system call again.  For more

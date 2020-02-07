@@ -12,7 +12,7 @@
 // The smtp package is frozen and is not accepting new features.
 // Some external packages provide more functionality. See:
 //
-//   https://godoc.org/?q=smtp
+//   https://pkg.go.dev/search?q=smtp
 package smtp
 
 import (

@@ -166,7 +166,7 @@ Do not send CLs removing the interior tags from such phrases.
 
 <p>
   The new package
-  <a href="https://godoc.org/golang.org/x/tools/go/packages"><code>golang.org/x/tools/go/packages</code></a>
+  <a href="https://pkg.go.dev/golang.org/x/tools/go/packages"><code>golang.org/x/tools/go/packages</code></a>
   provides a simple API for locating and loading packages of Go source code.
   Although not yet part of the standard library, for many tasks it
   effectively replaces the <a href="/pkg/go/build"><code>go/build</code></a>
@@ -868,7 +868,7 @@ for k := range m {
       On Windows, several fields were changed from <code>uintptr</code> to a new
       <a href="/pkg/syscall/?GOOS=windows&GOARCH=amd64#Pointer"><code>Pointer</code></a>
       type to avoid problems with Go's garbage collector. The same change was made
-      to the <a href="https://godoc.org/golang.org/x/sys/windows"><code>golang.org/x/sys/windows</code></a>
+      to the <a href="https://pkg.go.dev/golang.org/x/sys/windows"><code>golang.org/x/sys/windows</code></a>
       package. For any code affected, users should first migrate away from the <code>syscall</code>
       package to the <code>golang.org/x/sys/windows</code> package, and then change
       to using the <code>Pointer</code>, while obeying the

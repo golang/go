@@ -1494,7 +1494,7 @@ func (r *eofReader) Read(p []byte) (int, error) {
 	case 0, len(r.buf):
 		// As allowed in the documentation, this will return io.EOF
 		// in the same call that consumes the last of the data.
-		// https://godoc.org/io#Reader
+		// https://pkg.go.dev/io#Reader
 		return read, io.EOF
 	}
 

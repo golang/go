@@ -93,7 +93,7 @@ Do not send CLs removing the interior tags from such phrases.
 <p>
   The <code>go vet</code> command has been rewritten to serve as the
   base for a range of different source code analysis tools. See
-  the <a href="https://godoc.org/golang.org/x/tools/go/analysis">golang.org/x/tools/go/analysis</a>
+  the <a href="https://pkg.go.dev/golang.org/x/tools/go/analysis">golang.org/x/tools/go/analysis</a>
   package for details. A side-effect is that <code>go tool vet</code>
   is no longer supported. External tools that use <code>go tool
   vet</code> must be changed to use <code>go
@@ -683,9 +683,9 @@ for {
       active and then new TCP connections are created as needed. In Go 1.10 and Go 1.11 the <code>http2</code> package
       would block and wait for requests to finish instead of creating new connections.
       To get the stricter behavior back, import the
-      <a href="https://godoc.org/golang.org/x/net/http2"><code>golang.org/x/net/http2</code></a> package
+      <a href="https://pkg.go.dev/golang.org/x/net/http2"><code>golang.org/x/net/http2</code></a> package
       directly and set
-      <a href="https://godoc.org/golang.org/x/net/http2#Transport.StrictMaxConcurrentStreams"><code>Transport.StrictMaxConcurrentStreams</code></a> to
+      <a href="https://pkg.go.dev/golang.org/x/net/http2#Transport.StrictMaxConcurrentStreams"><code>Transport.StrictMaxConcurrentStreams</code></a> to
       <code>true</code>.
     </p>
 
