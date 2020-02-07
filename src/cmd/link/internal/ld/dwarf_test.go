@@ -1239,6 +1239,7 @@ func TestPackageNameAttr(t *testing.T) {
 	}
 
 	rdr := d.Reader()
+	runtimeUnitSeen := false
 	for {
 		e, err := rdr.Next()
 		if err != nil {
@@ -1254,11 +1255,25 @@ func TestPackageNameAttr(t *testing.T) {
 			continue
 		}
 
-		_, ok := e.Val(dwarfAttrGoPackageName).(string)
+		pn, ok := e.Val(dwarfAttrGoPackageName).(string)
 		if !ok {
 			name, _ := e.Val(dwarf.AttrName).(string)
 			t.Errorf("found compile unit without package name: %s", name)
+
 		}
+		if pn == "" {
+			name, _ := e.Val(dwarf.AttrName).(string)
+			t.Errorf("found compile unit with empty package name: %s", name)
+		} else {
+			if pn == "runtime" {
+				runtimeUnitSeen = true
+			}
+		}
+	}
+
+	// Something is wrong if there's no runtime compilation unit.
+	if !runtimeUnitSeen {
+		t.Errorf("no package name for runtime unit")
 	}
 }
 
