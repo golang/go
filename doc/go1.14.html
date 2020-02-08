@@ -419,20 +419,6 @@ appropriately.)
   in mind.
 </p>
 
-<dl id="hash/maphash"><dt><a href="/pkg/hash/maphash/">hash/maphash</a></dt>
-  <dd>
-    <p><!-- CL 186877 -->
-      This new package provides hash functions on byte sequences.
-      These hash functions are intended to be used to implement hash tables or
-      other data structures that need to map arbitrary strings or byte
-      sequences to a uniform distribution of integers.
-    </p>
-    <p>
-      The hash functions are collision-resistant but not cryptographically secure.
-    </p>
-  </dd>
-</dl><!-- hash/maphash -->
-
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
     <p><!-- CL 191976 -->
@@ -568,6 +554,40 @@ appropriately.)
   </dd>
 </dl><!-- go/build -->
 
+<dl id="go/doc"><dt><a href="/pkg/go/doc/">go/doc</a></dt>
+  <dd>
+    <p><!-- CL 204830 -->
+      The new
+      function <a href="/pkg/go/doc/#NewFromFiles"><code>NewFromFiles</code></a>
+      computes package documentation from a list
+      of <code>*ast.File</code>'s and associates examples with the
+      appropriate package elements.
+      The new information is available in a new <code>Examples</code>
+      field
+      in the <a href="/pkg/go/doc/#Package"><code>Package</code></a>, <a href="/pkg/go/doc/#Type"><code>Type</code></a>,
+      and <a href="/pkg/go/doc/#Func"><code>Func</code></a> types, and a
+      new <a href="/pkg/go/doc/#Example.Suffix"><code>Suffix</code></a>
+      field in
+      the <a href="/pkg/go/doc/#Example"><code>Example</code></a>
+      type.
+    </p>
+  </dd>
+</dl><!-- go/doc -->
+
+<dl id="hash/maphash"><dt><a href="/pkg/hash/maphash/">hash/maphash</a></dt>
+  <dd>
+    <p><!-- CL 186877 -->
+      This new package provides hash functions on byte sequences.
+      These hash functions are intended to be used to implement hash tables or
+      other data structures that need to map arbitrary strings or byte
+      sequences to a uniform distribution of integers.
+    </p>
+    <p>
+      The hash functions are collision-resistant but not cryptographically secure.
+    </p>
+  </dd>
+</dl><!-- hash/maphash -->
+
 <dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
   <dd>
     <p><!-- CL 198488 -->
@@ -590,26 +610,6 @@ appropriately.)
     </p>
   </dd>
 </dl><!-- log -->
-
-<dl id="go/doc"><dt><a href="/pkg/go/doc/">go/doc</a></dt>
-  <dd>
-    <p><!-- CL 204830 -->
-      The new
-      function <a href="/pkg/go/doc/#NewFromFiles"><code>NewFromFiles</code></a>
-      computes package documentation from a list
-      of <code>*ast.File</code>'s and associates examples with the
-      appropriate package elements.
-      The new information is available in a new <code>Examples</code>
-      field
-      in the <a href="/pkg/go/doc/#Package"><code>Package</code></a>, <a href="/pkg/go/doc/#Type"><code>Type</code></a>,
-      and <a href="/pkg/go/doc/#Func"><code>Func</code></a> types, and a
-      new <a href="/pkg/go/doc/#Example.Suffix"><code>Suffix</code></a>
-      field in
-      the <a href="/pkg/go/doc/#Example"><code>Example</code></a>
-      type.
-    </p>
-  </dd>
-</dl><!-- go/doc -->
 
 <dl id="math"><dt><a href="/pkg/math/">math</a></dt>
   <dd>
