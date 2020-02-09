@@ -174,6 +174,12 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 			ld.Errorf(s, "unexpected R_X86_64_64 relocation for dynamic symbol %s", targ.Name)
 		}
 		r.Type = objabi.R_ADDR
+		if ctxt.BuildMode == ld.BuildModePIE && ctxt.LinkMode == ld.LinkInternal {
+			// For internal linking PIE, this R_ADDR relocation cannot
+			// be resolved statically. We need to generate a dynamic
+			// relocation. Let the code below handle it.
+			break
+		}
 		return true
 
 	// Handle relocations found in Mach-O object files.
