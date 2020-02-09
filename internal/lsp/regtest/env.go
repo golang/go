@@ -40,9 +40,9 @@ const (
 // remote), any tests that execute on the same Runner will share the same
 // state.
 type Runner struct {
-	ts      *servertest.TCPServer
-	modes   EnvMode
-	timeout time.Duration
+	ts           *servertest.TCPServer
+	defaultModes EnvMode
+	timeout      time.Duration
 }
 
 // NewTestRunner creates a Runner with its shared state initialized, ready to
@@ -51,9 +51,9 @@ func NewTestRunner(modes EnvMode, testTimeout time.Duration) *Runner {
 	ss := lsprpc.NewStreamServer(cache.New(nil), false)
 	ts := servertest.NewTCPServer(context.Background(), ss)
 	return &Runner{
-		ts:      ts,
-		modes:   modes,
-		timeout: testTimeout,
+		ts:           ts,
+		defaultModes: modes,
+		timeout:      testTimeout,
 	}
 }
 
@@ -62,12 +62,17 @@ func (r *Runner) Close() error {
 	return r.ts.Close()
 }
 
-// Run executes the test function in in all configured gopls execution modes.
-// For each a test run, a new workspace is created containing the un-txtared
-// files specified by filedata.
+// Run executes the test function in the default configured gopls execution
+// modes. For each a test run, a new workspace is created containing the
+// un-txtared files specified by filedata.
 func (r *Runner) Run(t *testing.T, filedata string, test func(context.Context, *testing.T, *Env)) {
 	t.Helper()
+	r.RunInMode(r.defaultModes, t, filedata, test)
+}
 
+// RunInMode runs the test in the execution modes specified by the modes bitmask.
+func (r *Runner) RunInMode(modes EnvMode, t *testing.T, filedata string, test func(ctx context.Context, t *testing.T, e *Env)) {
+	t.Helper()
 	tests := []struct {
 		name         string
 		mode         EnvMode
@@ -80,7 +85,7 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(context.Context, *
 
 	for _, tc := range tests {
 		tc := tc
-		if r.modes&tc.mode == 0 {
+		if modes&tc.mode == 0 {
 			continue
 		}
 		t.Run(tc.name, func(t *testing.T) {
@@ -231,8 +236,15 @@ func (e *Env) onDiagnostics(_ context.Context, d *protocol.PublishDiagnosticsPar
 			close(condition.met)
 		}
 	}
-
 	return nil
+}
+
+// CloseEditor shuts down the editor, calling t.Fatal on any error.
+func (e *Env) CloseEditor() {
+	e.t.Helper()
+	if err := e.E.ShutdownAndExit(e.ctx); err != nil {
+		e.t.Fatal(err)
+	}
 }
 
 func meetsCondition(m map[string]*protocol.PublishDiagnosticsParams, expectations []DiagnosticExpectation) bool {

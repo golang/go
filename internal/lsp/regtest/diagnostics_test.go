@@ -37,28 +37,6 @@ func TestDiagnosticErrorInEditedFile(t *testing.T) {
 	})
 }
 
-func TestSimultaneousEdits(t *testing.T) {
-	t.Parallel()
-	runner.Run(t, exampleProgram, func(ctx context.Context, t *testing.T, env1 *Env) {
-		// Create a second test session connected to the same workspace and server
-		// as the first.
-		env2 := NewEnv(ctx, t, env1.W, env1.Server)
-
-		// In editor #1, break fmt.Println as before.
-		edit1 := fake.NewEdit(5, 11, 5, 12, "")
-		env1.OpenFile("main.go")
-		env1.EditBuffer("main.go", edit1)
-		// In editor #2 remove the closing brace.
-		edit2 := fake.NewEdit(6, 0, 6, 1, "")
-		env2.OpenFile("main.go")
-		env2.EditBuffer("main.go", edit2)
-
-		// Now check that we got different diagnostics in each environment.
-		env1.Await(DiagnosticAt("main.go", 5, 5))
-		env2.Await(DiagnosticAt("main.go", 7, 0))
-	})
-}
-
 const brokenFile = `package main
 
 const Foo = "abc

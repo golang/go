@@ -272,13 +272,17 @@ func (s *Server) shutdown(ctx context.Context) error {
 	return nil
 }
 
+// ServerExitFunc is used to exit when requested by the client. It is mutable
+// for testing purposes.
+var ServerExitFunc = os.Exit
+
 func (s *Server) exit(ctx context.Context) error {
 	s.stateMu.Lock()
 	defer s.stateMu.Unlock()
 	if s.state != serverShutDown {
-		os.Exit(1)
+		ServerExitFunc(1)
 	}
-	os.Exit(0)
+	ServerExitFunc(0)
 	return nil
 }
 

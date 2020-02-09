@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/internal/jsonrpc2"
@@ -93,6 +94,7 @@ func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) err
 	serverConn.AddHandler(protocol.Canceller{})
 	clientConn.AddHandler(protocol.ServerHandler(server))
 	clientConn.AddHandler(protocol.Canceller{})
+	clientConn.AddHandler(forwarderHandler{})
 	if f.withTelemetry {
 		clientConn.AddHandler(telemetryHandler{})
 	}
@@ -105,4 +107,28 @@ func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) err
 		return clientConn.Run(ctx)
 	})
 	return g.Wait()
+}
+
+// ForwarderExitFunc is used to exit the forwarder process. It is mutable for
+// testing purposes.
+var ForwarderExitFunc = os.Exit
+
+// forwarderHandler intercepts 'exit' messages to prevent the shared gopls
+// instance from exiting. In the future it may also intercept 'shutdown' to
+// provide more graceful shutdown of the client connection.
+type forwarderHandler struct {
+	jsonrpc2.EmptyHandler
+}
+
+func (forwarderHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered bool) bool {
+	// TODO(golang.org/issues/34111): we should more gracefully disconnect here,
+	// once that process exists.
+	if r.Method == "exit" {
+		ForwarderExitFunc(0)
+		// Still return true here to prevent the message from being delivered: in
+		// tests, ForwarderExitFunc may be overridden to something that doesn't
+		// exit the process.
+		return true
+	}
+	return false
 }
