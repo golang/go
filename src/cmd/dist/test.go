@@ -581,7 +581,7 @@ func (t *tester) registerTests() {
 	}
 
 	// Test internal linking of PIE binaries where it is supported.
-	if goos == "linux" && (goarch == "amd64" || goarch == "arm64") {
+	if t.internalLinkPIE() {
 		t.tests = append(t.tests, distTest{
 			name:    "pie_internal",
 			heading: "internal linking of -buildmode=pie",
@@ -936,6 +936,10 @@ func (t *tester) internalLink() bool {
 	return true
 }
 
+func (t *tester) internalLinkPIE() bool {
+	return goos == "linux" && (goarch == "amd64" || goarch == "arm64")
+}
+
 func (t *tester) supportedBuildmode(mode string) bool {
 	pair := goos + "-" + goarch
 	switch mode {
@@ -1110,6 +1114,9 @@ func (t *tester) cgoTest(dt *distTest) error {
 
 			if t.supportedBuildmode("pie") {
 				t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie")
+				if t.internalLinkPIE() {
+					t.addCmd(dt, "misc/cgo/test", t.goTest(), "-buildmode=pie", "-ldflags=-linkmode=internal")
+				}
 				t.addCmd(dt, "misc/cgo/testtls", t.goTest(), "-buildmode=pie")
 				t.addCmd(dt, "misc/cgo/nocgo", t.goTest(), "-buildmode=pie")
 			}
