@@ -11,6 +11,7 @@ import (
 	"go/types"
 	"strings"
 
+	"golang.org/x/tools/internal/lsp/fuzzy"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/trace"
@@ -20,11 +21,6 @@ func WorkspaceSymbols(ctx context.Context, views []View, query string) ([]protoc
 	ctx, done := trace.StartSpan(ctx, "source.WorkspaceSymbols")
 	defer done()
 
-	q := strings.ToLower(query)
-	matcher := func(s string) bool {
-		return strings.Contains(strings.ToLower(s), q)
-	}
-
 	seen := make(map[string]struct{})
 	var symbols []protocol.SymbolInformation
 	for _, view := range views {
@@ -32,6 +28,7 @@ func WorkspaceSymbols(ctx context.Context, views []View, query string) ([]protoc
 		if err != nil {
 			return nil, err
 		}
+		matcher := makeMatcher(view.Options().Matcher, query)
 		for _, ph := range knownPkgs {
 			pkg, err := ph.Check(ctx)
 			if err != nil {
@@ -74,6 +71,25 @@ type symbolInformation struct {
 }
 
 type matcherFunc func(string) bool
+
+func makeMatcher(m Matcher, query string) matcherFunc {
+	switch m {
+	case Fuzzy:
+		fm := fuzzy.NewMatcher(query)
+		return func(s string) bool {
+			return fm.Score(s) > 0
+		}
+	case CaseSensitive:
+		return func(s string) bool {
+			return strings.Contains(s, query)
+		}
+	default:
+		q := strings.ToLower(query)
+		return func(s string) bool {
+			return strings.Contains(strings.ToLower(s), q)
+		}
+	}
+}
 
 func findSymbol(decls []ast.Decl, info *types.Info, matcher matcherFunc) []symbolInformation {
 	var result []symbolInformation
