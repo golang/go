@@ -71,6 +71,7 @@ func CgoSignalDeadlock() {
 		case <-ping:
 			times = append(times, time.Since(start))
 		case <-time.After(time.Second):
+			<-ping
 			fmt.Printf("HANG 1 %v\n", times)
 			return
 		}
@@ -79,6 +80,7 @@ func CgoSignalDeadlock() {
 	select {
 	case <-ping:
 	case <-time.After(time.Second):
+		<-ping
 		fmt.Printf("HANG 2 %v\n", times)
 		return
 	}
