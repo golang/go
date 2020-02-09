@@ -40,7 +40,7 @@ const (
 // remote), any tests that execute on the same Runner will share the same
 // state.
 type Runner struct {
-	ts      *servertest.Server
+	ts      *servertest.TCPServer
 	modes   EnvMode
 	timeout time.Duration
 }
@@ -49,7 +49,7 @@ type Runner struct {
 // run tests.
 func NewTestRunner(modes EnvMode, testTimeout time.Duration) *Runner {
 	ss := lsprpc.NewStreamServer(cache.New(nil), false)
-	ts := servertest.NewServer(context.Background(), ss)
+	ts := servertest.NewTCPServer(context.Background(), ss)
 	return &Runner{
 		ts:      ts,
 		modes:   modes,
@@ -69,9 +69,9 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(context.Context, *
 	t.Helper()
 
 	tests := []struct {
-		name       string
-		mode       EnvMode
-		makeServer func(context.Context, *testing.T) (*servertest.Server, func())
+		name         string
+		mode         EnvMode
+		getConnector func(context.Context, *testing.T) (servertest.Connector, func())
 	}{
 		{"singleton", Singleton, r.singletonEnv},
 		{"shared", Shared, r.sharedEnv},
@@ -92,7 +92,7 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(context.Context, *
 				t.Fatal(err)
 			}
 			defer ws.Close()
-			ts, cleanup := tc.makeServer(ctx, t)
+			ts, cleanup := tc.getConnector(ctx, t)
 			defer cleanup()
 			env := NewEnv(ctx, t, ws, ts)
 			test(ctx, t, env)
@@ -100,22 +100,22 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(context.Context, *
 	}
 }
 
-func (r *Runner) singletonEnv(ctx context.Context, t *testing.T) (*servertest.Server, func()) {
+func (r *Runner) singletonEnv(ctx context.Context, t *testing.T) (servertest.Connector, func()) {
 	ss := lsprpc.NewStreamServer(cache.New(nil), false)
-	ts := servertest.NewServer(ctx, ss)
+	ts := servertest.NewPipeServer(ctx, ss)
 	cleanup := func() {
 		ts.Close()
 	}
 	return ts, cleanup
 }
 
-func (r *Runner) sharedEnv(ctx context.Context, t *testing.T) (*servertest.Server, func()) {
+func (r *Runner) sharedEnv(ctx context.Context, t *testing.T) (servertest.Connector, func()) {
 	return r.ts, func() {}
 }
 
-func (r *Runner) forwardedEnv(ctx context.Context, t *testing.T) (*servertest.Server, func()) {
+func (r *Runner) forwardedEnv(ctx context.Context, t *testing.T) (servertest.Connector, func()) {
 	forwarder := lsprpc.NewForwarder(r.ts.Addr, false)
-	ts2 := servertest.NewServer(ctx, forwarder)
+	ts2 := servertest.NewTCPServer(ctx, forwarder)
 	cleanup := func() {
 		ts2.Close()
 	}
@@ -134,7 +134,7 @@ type Env struct {
 	// but they are available if needed.
 	W      *fake.Workspace
 	E      *fake.Editor
-	Server *servertest.Server
+	Server servertest.Connector
 
 	// mu guards the fields below, for the purpose of checking conditions on
 	// every change to diagnostics.
@@ -154,7 +154,7 @@ type diagnosticCondition struct {
 
 // NewEnv creates a new test environment using the given workspace and gopls
 // server.
-func NewEnv(ctx context.Context, t *testing.T, ws *fake.Workspace, ts *servertest.Server) *Env {
+func NewEnv(ctx context.Context, t *testing.T, ws *fake.Workspace, ts servertest.Connector) *Env {
 	t.Helper()
 	conn := ts.Connect(ctx)
 	editor, err := fake.NewConnectedEditor(ctx, ws, conn)

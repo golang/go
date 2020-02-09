@@ -46,7 +46,7 @@ func TestClientLogging(t *testing.T) {
 			return server
 		},
 	}
-	ts := servertest.NewServer(ctx, ss)
+	ts := servertest.NewPipeServer(ctx, ss)
 	cc := ts.Connect(ctx)
 	cc.AddHandler(protocol.ClientHandler(client))
 
@@ -100,14 +100,14 @@ func TestRequestCancellation(t *testing.T) {
 		},
 	}
 	ctx := context.Background()
-	tsDirect := servertest.NewServer(ctx, ss)
+	tsDirect := servertest.NewTCPServer(ctx, ss)
 
 	forwarder := NewForwarder(tsDirect.Addr, false)
-	tsForwarded := servertest.NewServer(ctx, forwarder)
+	tsForwarded := servertest.NewPipeServer(ctx, forwarder)
 
 	tests := []struct {
 		serverType string
-		ts         *servertest.Server
+		ts         servertest.Connector
 	}{
 		{"direct", tsDirect},
 		{"forwarder", tsForwarded},

@@ -30,14 +30,31 @@ func (fakeHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered b
 func TestTestServer(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	ts := NewServer(ctx, jsonrpc2.HandlerServer(fakeHandler{}))
-	defer ts.Close()
-	conn := ts.Connect(ctx)
-	var got msg
-	if err := conn.Call(ctx, "ping", &msg{"ping"}, &got); err != nil {
-		t.Fatal(err)
+	server := jsonrpc2.HandlerServer(fakeHandler{})
+	tcpTS := NewTCPServer(ctx, server)
+	defer tcpTS.Close()
+	pipeTS := NewPipeServer(ctx, server)
+	defer pipeTS.Close()
+
+
+	tests := []struct {
+		name string
+		connector Connector
+	} {
+		{"tcp", tcpTS},
+		{"pipe", pipeTS},
 	}
-	if want := "pong"; got.Msg != want {
-		t.Errorf("conn.Call(...): returned %q, want %q", got, want)
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			conn := test.connector.Connect(ctx)
+			var got msg
+			if err := conn.Call(ctx, "ping", &msg{"ping"}, &got); err != nil {
+				t.Fatal(err)
+			}
+			if want := "pong"; got.Msg != want {
+				t.Errorf("conn.Call(...): returned %q, want %q", got, want)
+			}
+		})
 	}
 }
