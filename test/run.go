@@ -203,6 +203,7 @@ func goFiles(dir string) []string {
 	f, err := os.Open(dir)
 	check(err)
 	dirnames, err := f.Readdirnames(-1)
+	f.Close()
 	check(err)
 	names := []string{}
 	for _, name := range dirnames {
