@@ -72,6 +72,12 @@ func CgoCallbackGC() {
 	// allocate a bunch of stack frames and spray them with pointers
 	for i := 0; i < P; i++ {
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					done <- true
+					return
+				}
+			}()
 			grow()
 			done <- true
 		}()
