@@ -31,6 +31,11 @@ func _() {
 	delete()         //@rank(")", builtinMap, builtinChan)
 	delete(aMap, aS) //@rank(")", builtinString, builtinSlice)
 
+	aMapFunc := func() map[int]int { //@item(builtinMapFunc, "aMapFunc", "func() map[int]int", "var")
+		return nil
+	}
+	delete() //@rank(")", builtinMapFunc, builtinSlice)
+
 	len() //@rank(")", builtinSlice, builtinInt),rank(")", builtinMap, builtinInt),rank(")", builtinString, builtinInt),rank(")", builtinArray, builtinInt),rank(")", builtinArrayPtr, builtinPtr),rank(")", builtinChan, builtinInt)
 
 	cap() //@rank(")", builtinSlice, builtinMap),rank(")", builtinArray, builtinString),rank(")", builtinArrayPtr, builtinPtr),rank(")", builtinChan, builtinInt)

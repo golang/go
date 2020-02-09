@@ -21,3 +21,10 @@ func _() {
   // snippet will add the "..." for you
 	foo(123, ) //@snippet(")", vStrSlice, "ss...", "ss..."),snippet(")", vFunc, "bar()...", "bar()..."),snippet(")", vStr, "s", "s")
 }
+
+func qux(...func()) {}
+func f()            {} //@item(vVarArg, "f", "func()", "func")
+
+func _() {
+	qux(f) //@snippet(")", vVarArg, "f", "f")
+}

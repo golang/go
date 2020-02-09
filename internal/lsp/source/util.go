@@ -425,6 +425,13 @@ func isASTFile(n ast.Node) bool {
 	return ok
 }
 
+func deslice(T types.Type) types.Type {
+	if slice, ok := T.Underlying().(*types.Slice); ok {
+		return slice.Elem()
+	}
+	return nil
+}
+
 // isSelector returns the enclosing *ast.SelectorExpr when pos is in the
 // selector.
 func enclosingSelector(path []ast.Node, pos token.Pos) *ast.SelectorExpr {

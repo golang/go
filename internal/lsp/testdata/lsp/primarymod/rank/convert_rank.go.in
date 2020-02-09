@@ -39,4 +39,7 @@ func _() {
 	type myUint uint32
 	var mu myUint
 	mu = conv //@rank(" //", convertD, convertE)
+
+	// don't downrank constants when assigning to interface{}
+	var _ interface{} = c //@rank(" //", convertD, complex)
 }
