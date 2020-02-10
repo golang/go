@@ -2670,10 +2670,10 @@ func (c *CertificateRequest) CheckSignature() error {
 // Revocation list.
 type CRLTemplate struct {
 	RevokedCertificates []pkix.RevokedCertificate
-	Number              int
+	Number              *big.Int
 	ThisUpdate          time.Time
 	NextUpdate          time.Time
-	Extensions          []pkix.Extension
+	ExtraExtensions     []pkix.Extension
 }
 
 // CreateCRL creates a new x509 v2 Certificate Revocation List.
@@ -2692,8 +2692,8 @@ type CRLTemplate struct {
 //
 // The template fields NextUpdate must be greater than ThisUpdate.
 //
-// Any extensions in the Extensions field of template will be copied directly
-// into the CRL.
+// Any extensions in the ExtraExtensions field of template will be copied
+// directly into the CRL.
 //
 // This method is differentiated from the Certificate.CreateCRL method as
 // it creates X509 v2 conformant CRLs as defined by the RFC 5280 CRL profile.
@@ -2704,6 +2704,9 @@ func CreateCRL(rand io.Reader, issuer *Certificate, priv crypto.Signer, template
 	}
 	if template.NextUpdate.Before(template.ThisUpdate) {
 		return nil, errors.New("x509: template.ThisUpdate is after template.NextUpdate")
+	}
+	if template.Number == nil {
+		return nil, errors.New("x509: template contains nil Number field")
 	}
 
 	hashFunc, signatureAlgorithm, err := signingParamsForPublicKey(priv.Public(), 0)
@@ -2746,8 +2749,8 @@ func CreateCRL(rand io.Reader, issuer *Certificate, priv crypto.Signer, template
 		},
 	}
 
-	if len(template.Extensions) > 0 {
-		tbsCertList.Extensions = append(tbsCertList.Extensions, template.Extensions...)
+	if len(template.ExtraExtensions) > 0 {
+		tbsCertList.Extensions = append(tbsCertList.Extensions, template.ExtraExtensions...)
 	}
 
 	tbsCertListContents, err := asn1.Marshal(tbsCertList)

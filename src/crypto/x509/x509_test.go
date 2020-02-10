@@ -2326,6 +2326,20 @@ func TestCreateCRLExt(t *testing.T) {
 			expectedError: "x509: template.ThisUpdate is after template.NextUpdate",
 		},
 		{
+			name: "nil Number",
+			issuer: Certificate{
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: CRLTemplate{
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+			},
+			expectedError: "x509: template contains nil Number field",
+		},
+		{
 			name: "valid, extra extension",
 			issuer: Certificate{
 				Subject: pkix.Name{
@@ -2340,10 +2354,10 @@ func TestCreateCRLExt(t *testing.T) {
 						RevocationTime: time.Time{}.Add(time.Hour),
 					},
 				},
-				Number:     5,
+				Number:     big.NewInt(5),
 				ThisUpdate: time.Time{}.Add(time.Hour * 24),
 				NextUpdate: time.Time{}.Add(time.Hour * 48),
-				Extensions: []pkix.Extension{
+				ExtraExtensions: []pkix.Extension{
 					{
 						Id:    []int{2, 5, 29, 99},
 						Value: []byte{5, 0},
@@ -2377,8 +2391,8 @@ func TestCreateCRLExt(t *testing.T) {
 					parsedCRL.TBSCertList.RevokedCertificates, tc.template.RevokedCertificates)
 			}
 
-			if len(parsedCRL.TBSCertList.Extensions) != 2+len(tc.template.Extensions) {
-				t.Fatalf("Generated CRL has wrong number of extensions, wanted: %d, got: %d", 2+len(tc.template.Extensions), len(parsedCRL.TBSCertList.Extensions))
+			if len(parsedCRL.TBSCertList.Extensions) != 2+len(tc.template.ExtraExtensions) {
+				t.Fatalf("Generated CRL has wrong number of extensions, wanted: %d, got: %d", 2+len(tc.template.ExtraExtensions), len(parsedCRL.TBSCertList.Extensions))
 			}
 			expectedAKI, err := asn1.Marshal(authKeyId{Id: tc.issuer.SubjectKeyId})
 			if err != nil {
@@ -2404,9 +2418,9 @@ func TestCreateCRLExt(t *testing.T) {
 				t.Fatalf("Unexpected second extension: got %v, want %v",
 					parsedCRL.TBSCertList.Extensions[1], crlExt)
 			}
-			if !reflect.DeepEqual(parsedCRL.TBSCertList.Extensions[2:], tc.template.Extensions) {
+			if !reflect.DeepEqual(parsedCRL.TBSCertList.Extensions[2:], tc.template.ExtraExtensions) {
 				t.Fatalf("Extensions mismatch: got %v; want %v.",
-					parsedCRL.TBSCertList.Extensions[2:], tc.template.Extensions)
+					parsedCRL.TBSCertList.Extensions[2:], tc.template.ExtraExtensions)
 			}
 		})
 	}
