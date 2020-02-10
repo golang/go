@@ -663,14 +663,17 @@ func (c *completer) wantTypeName() bool {
 }
 
 // See https://golang.org/issue/36001. Unimported completions are expensive.
-const unimportedTarget = 100
+const (
+	maxUnimportedPackageNames = 5
+	unimportedMemberTarget    = 100
+)
 
 // selector finds completions for the specified selector expression.
 func (c *completer) selector(sel *ast.SelectorExpr) error {
 	// Is sel a qualified identifier?
 	if id, ok := sel.X.(*ast.Ident); ok {
-		if pkgname, ok := c.pkg.GetTypesInfo().Uses[id].(*types.PkgName); ok {
-			c.packageMembers(pkgname.Imported(), stdScore, nil)
+		if pkgName, ok := c.pkg.GetTypesInfo().Uses[id].(*types.PkgName); ok {
+			c.packageMembers(pkgName.Imported(), stdScore, nil)
 			return nil
 		}
 	}
@@ -682,7 +685,7 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 	}
 
 	// Try unimported packages.
-	if id, ok := sel.X.(*ast.Ident); ok && c.opts.unimported && len(c.items) < unimportedTarget {
+	if id, ok := sel.X.(*ast.Ident); ok && c.opts.unimported {
 		if err := c.unimportedMembers(id); err != nil {
 			return err
 		}
@@ -696,6 +699,7 @@ func (c *completer) unimportedMembers(id *ast.Ident) error {
 	if err != nil {
 		return err
 	}
+
 	var paths []string
 	for path, pkg := range known {
 		if pkg.GetTypes().Name() != id.Name {
@@ -703,6 +707,7 @@ func (c *completer) unimportedMembers(id *ast.Ident) error {
 		}
 		paths = append(paths, path)
 	}
+
 	var relevances map[string]int
 	if len(paths) != 0 {
 		c.snapshot.View().RunProcessEnvFunc(c.ctx, func(opts *imports.Options) error {
@@ -710,6 +715,7 @@ func (c *completer) unimportedMembers(id *ast.Ident) error {
 			return nil
 		})
 	}
+
 	for path, pkg := range known {
 		if pkg.GetTypes().Name() != id.Name {
 			continue
@@ -722,7 +728,7 @@ func (c *completer) unimportedMembers(id *ast.Ident) error {
 			imp.name = pkg.GetTypes().Name()
 		}
 		c.packageMembers(pkg.GetTypes(), stdScore+.01*float64(relevances[path]), imp)
-		if len(c.items) >= unimportedTarget {
+		if len(c.items) >= unimportedMemberTarget {
 			return nil
 		}
 	}
@@ -750,7 +756,7 @@ func (c *completer) unimportedMembers(id *ast.Ident) error {
 				},
 			})
 		}
-		if len(c.items) >= unimportedTarget {
+		if len(c.items) >= unimportedMemberTarget {
 			cancel()
 		}
 	}
@@ -930,7 +936,7 @@ func (c *completer) lexical() error {
 		}
 	}
 
-	if c.opts.unimported && len(c.items) < unimportedTarget {
+	if c.opts.unimported {
 		ctx, cancel := c.deepCompletionContext()
 		defer cancel()
 		// Suggest packages that have not been imported yet.
@@ -938,13 +944,22 @@ func (c *completer) lexical() error {
 		if c.surrounding != nil {
 			prefix = c.surrounding.Prefix()
 		}
-		var mu sync.Mutex
+		var (
+			mu               sync.Mutex
+			initialItemCount = len(c.items)
+		)
 		add := func(pkg imports.ImportFix) {
 			mu.Lock()
 			defer mu.Unlock()
 			if _, ok := seen[pkg.IdentName]; ok {
 				return
 			}
+
+			if len(c.items)-initialItemCount >= maxUnimportedPackageNames {
+				cancel()
+				return
+			}
+
 			// Rank unimported packages significantly lower than other results.
 			score := 0.01 * float64(pkg.Relevance)
 
@@ -952,18 +967,6 @@ func (c *completer) lexical() error {
 			// multiple packages of the same name as completion suggestions, since
 			// only one will be chosen.
 			obj := types.NewPkgName(0, nil, pkg.IdentName, types.NewPackage(pkg.StmtInfo.ImportPath, pkg.IdentName))
-			c.found(candidate{
-				obj:   obj,
-				score: score,
-				imp: &importInfo{
-					importPath: pkg.StmtInfo.ImportPath,
-					name:       pkg.StmtInfo.Name,
-				},
-			})
-
-			if len(c.items) >= unimportedTarget {
-				cancel()
-			}
 			c.found(candidate{
 				obj:   obj,
 				score: score,
