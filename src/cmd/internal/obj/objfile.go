@@ -830,6 +830,8 @@ func (ft *DwarfFixupTable) RegisterChildDIEOffsets(s *LSym, vars []*dwarf.Var, c
 }
 
 func (ft *DwarfFixupTable) processFixups(slot int, s *LSym) {
+	ft.mu.Lock()
+	defer ft.mu.Unlock()
 	sf := &ft.svec[slot]
 	for _, f := range sf.fixups {
 		dfound := false
@@ -887,12 +889,15 @@ func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
 	}
 
 	// Generate any missing abstract functions.
+	
 	for _, s := range fns {
 		absfn := ft.AbsFuncDwarfSym(s)
 		slot, found := ft.symtab[absfn]
+		ft.mu.Lock()
 		if !found || !ft.svec[slot].defseen {
 			ft.ctxt.GenAbstractFunc(s)
 		}
+		ft.mu.Unlock()
 	}
 
 	// Apply fixups.
