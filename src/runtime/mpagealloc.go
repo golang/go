@@ -270,6 +270,14 @@ type pageAlloc struct {
 
 		// released is the amount of memory released this generation.
 		released uintptr
+
+		// scavLWM is the lowest address that the scavenger reached this
+		// scavenge generation.
+		scavLWM uintptr
+
+		// freeHWM is the highest address of a page that was freed to
+		// the page allocator this scavenge generation.
+		freeHWM uintptr
 	}
 
 	// mheap_.lock. This level of indirection makes it possible
@@ -306,6 +314,9 @@ func (s *pageAlloc) init(mheapLock *mutex, sysStat *uint64) {
 
 	// Set the mheapLock.
 	s.mheapLock = mheapLock
+
+	// Initialize scavenge tracking state.
+	s.scav.scavLWM = maxSearchAddr
 }
 
 // compareSearchAddrTo compares an address against s.searchAddr in a linearized
@@ -813,6 +824,11 @@ func (s *pageAlloc) free(base, npages uintptr) {
 	if s.compareSearchAddrTo(base) < 0 {
 		s.searchAddr = base
 	}
+	// Update the free high watermark for the scavenger.
+	limit := base + npages*pageSize - 1
+	if s.scav.freeHWM < limit {
+		s.scav.freeHWM = limit
+	}
 	if npages == 1 {
 		// Fast path: we're clearing a single bit, and we know exactly
 		// where it is, so mark it directly.
@@ -820,7 +836,6 @@ func (s *pageAlloc) free(base, npages uintptr) {
 		s.chunkOf(i).free1(chunkPageIndex(base))
 	} else {
 		// Slow path: we're clearing more bits so we may need to iterate.
-		limit := base + npages*pageSize - 1
 		sc, ec := chunkIndex(base), chunkIndex(limit)
 		si, ei := chunkPageIndex(base), chunkPageIndex(limit)
 
