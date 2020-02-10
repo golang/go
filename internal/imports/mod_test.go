@@ -18,8 +18,8 @@ import (
 	"sync"
 	"testing"
 
+	"golang.org/x/mod/module"
 	"golang.org/x/tools/internal/gopathwalk"
-	"golang.org/x/tools/internal/module"
 	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/txtar"
 )
@@ -739,7 +739,7 @@ func writeProxyModule(base, arPath string) error {
 	i := strings.LastIndex(arName, "_v")
 	ver := strings.TrimSuffix(arName[i+1:], ".txt")
 	modDir := strings.Replace(arName[:i], "_", "/", -1)
-	modPath, err := module.DecodePath(modDir)
+	modPath, err := module.UnescapePath(modDir)
 	if err != nil {
 		return err
 	}
