@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	rpprof "runtime/pprof"
 	"strconv"
 	"strings"
 	"sync"
@@ -323,6 +324,49 @@ func (i *Instance) Serve(ctx context.Context) error {
 		}
 		log.Print(ctx, "Debug server finished")
 	}()
+	return nil
+}
+
+func (i *Instance) MonitorMemory(ctx context.Context) {
+	tick := time.NewTicker(time.Second)
+	nextThresholdGiB := uint64(5)
+	go func() {
+		for {
+			<-tick.C
+			var mem runtime.MemStats
+			runtime.ReadMemStats(&mem)
+			if mem.HeapAlloc < nextThresholdGiB*1<<30 {
+				continue
+			}
+			i.writeMemoryDebug(nextThresholdGiB)
+			log.Print(ctx, fmt.Sprintf("Wrote memory usage debug info to %v", os.TempDir()))
+			nextThresholdGiB++
+		}
+	}()
+}
+
+func (i *Instance) writeMemoryDebug(threshold uint64) error {
+	fname := func(t string) string {
+		return fmt.Sprintf("gopls.%d-%dGiB-%s", os.Getpid(), threshold, t)
+	}
+
+	f, err := os.Create(filepath.Join(os.TempDir(), fname("heap.pb.gz")))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if err := rpprof.Lookup("heap").WriteTo(f, 0); err != nil {
+		return err
+	}
+
+	f, err = os.Create(filepath.Join(os.TempDir(), fname("goroutines.txt")))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if err := rpprof.Lookup("goroutine").WriteTo(f, 1); err != nil {
+		return err
+	}
 	return nil
 }
 

@@ -60,6 +60,7 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 	s.app.debug.ServerAddress = s.Address
 	s.app.debug.DebugAddress = s.Debug
 	s.app.debug.Serve(ctx)
+	s.app.debug.MonitorMemory(ctx)
 
 	if s.app.Remote != "" {
 		return s.forward()
