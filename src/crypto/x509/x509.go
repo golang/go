@@ -2682,6 +2682,9 @@ type CRLTemplate struct {
 // The CRL is signed by priv which should be the private key associated with
 // the public key in the issuer certificate.
 //
+// The issuer may not be nil, and the crlSign bit must be set in KeyUsage in
+// order to use it as a CRL issuer.
+//
 // The issuer distinguished name CRL field and authority key identifier
 // extension are populated using the issuer certificate. issuer must have
 // SubjectKeyId set.
