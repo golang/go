@@ -21,7 +21,7 @@ import (
 
 // DiffLinks takes the links we got and checks if they are located within the source or a Note.
 // If the link is within a Note, the link is removed.
-// Returns an diff comment if there are differences and empty string if no diffs
+// Returns an diff comment if there are differences and empty string if no diffs.
 func DiffLinks(mapper *protocol.ColumnMapper, wantLinks []Link, gotLinks []protocol.DocumentLink) string {
 	var notePositions []token.Position
 	links := make(map[span.Span]string, len(wantLinks))
@@ -36,7 +36,7 @@ func DiffLinks(mapper *protocol.ColumnMapper, wantLinks []Link, gotLinks []proto
 		}
 		linkInNote := false
 		for _, notePosition := range notePositions {
-			// Drop the links found inside expectation notes arguments as this links are not collected by expect package
+			// Drop the links found inside expectation notes arguments as this links are not collected by expect package.
 			if notePosition.Line == spn.Start().Line() &&
 				notePosition.Column <= spn.Start().Column() {
 				delete(links, spn)

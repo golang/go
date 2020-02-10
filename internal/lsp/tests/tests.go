@@ -156,7 +156,7 @@ const (
 	// Fuzzy tests deep completion and fuzzy matching.
 	CompletionFuzzy
 
-	// CaseSensitive tests case sensitive completion
+	// CaseSensitive tests case sensitive completion.
 	CompletionCaseSensitive
 
 	// CompletionRank candidates in test must be valid and in the right relative order.
