@@ -391,12 +391,17 @@ func basename(filename string) string {
 	return strings.ToLower(filepath.Base(filename))
 }
 
-// knownFile returns true if the given URI is already a part of the view.
-func (v *view) knownFile(uri span.URI) bool {
+func (v *view) relevantChange(c source.FileModification) bool {
+	if v.contains(c.URI) {
+		return true
+	}
+
+	// Check if the view is already aware of this file.
+	// If so, the change is relevant.
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	f, err := v.findFile(uri)
+	f, err := v.findFile(c.URI)
 	return f != nil && err == nil
 }
 

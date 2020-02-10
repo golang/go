@@ -290,19 +290,16 @@ func (s *session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 		if s.isOpen(c.URI) && c.OnDisk {
 			continue
 		}
-		for _, view := range s.viewsOf(c.URI) {
+		// Look through all of the session's views, invalidating the file for
+		// all of the views to which it is known.
+		for _, view := range s.views {
 			if view.Ignore(c.URI) {
 				return nil, errors.Errorf("ignored file %v", c.URI)
 			}
-			// If the file change is on-disk and not a create,
-			// make sure the file is known to the view already.
-			if c.OnDisk {
-				switch c.Action {
-				case source.Change, source.Delete:
-					if !view.knownFile(c.URI) {
-						continue
-					}
-				}
+			// Don't propagate changes that are outside of the view's scope
+			// or knowledge.
+			if !view.relevantChange(c) {
+				continue
 			}
 			// Make sure that the file is added to the view.
 			if _, err := view.getFile(c.URI); err != nil {
