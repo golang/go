@@ -2700,6 +2700,12 @@ type CRLTemplate struct {
 // it creates X509 v2 conformant CRLs as defined by the RFC 5280 CRL profile.
 // This method should be used if created CRLs need to be standards compliant.
 func CreateCRL(rand io.Reader, issuer *Certificate, priv crypto.Signer, template CRLTemplate) ([]byte, error) {
+	if issuer == nil {
+		return nil, errors.New("x509: issuer may not be nil")
+	}
+	if (issuer.KeyUsage & KeyUsageCRLSign) == 0 {
+		return nil, errors.New("x509: issuer must have the crlSign key usage bit set")
+	}
 	if len(issuer.SubjectKeyId) == 0 {
 		return nil, errors.New("x509: issuer certificate doesn't contain a subject key identifier")
 	}

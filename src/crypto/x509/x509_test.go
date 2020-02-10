@@ -2301,19 +2301,36 @@ func TestCreateCRLExt(t *testing.T) {
 	}
 	tests := []struct {
 		name          string
-		issuer        Certificate
+		issuer        *Certificate
 		template      CRLTemplate
 		expectedError string
 	}{
 		{
-			name:          "issuer missing SubjectKeyId",
-			issuer:        Certificate{},
+			name:          "nil issuer",
+			issuer:        nil,
+			template:      CRLTemplate{},
+			expectedError: "x509: issuer may not be nil",
+		},
+		{
+			name: "issuer doesn't have crlSign key usage bit set",
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCertSign,
+			},
+			template:      CRLTemplate{},
+			expectedError: "x509: issuer must have the crlSign key usage bit set",
+		},
+		{
+			name: "issuer missing SubjectKeyId",
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+			},
 			template:      CRLTemplate{},
 			expectedError: "x509: issuer certificate doesn't contain a subject key identifier",
 		},
 		{
 			name: "nextUpdate before thisUpdate",
-			issuer: Certificate{
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
 				Subject: pkix.Name{
 					CommonName: "testing",
 				},
@@ -2327,7 +2344,8 @@ func TestCreateCRLExt(t *testing.T) {
 		},
 		{
 			name: "nil Number",
-			issuer: Certificate{
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
 				Subject: pkix.Name{
 					CommonName: "testing",
 				},
@@ -2341,7 +2359,8 @@ func TestCreateCRLExt(t *testing.T) {
 		},
 		{
 			name: "valid, extra extension",
-			issuer: Certificate{
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
 				Subject: pkix.Name{
 					CommonName: "testing",
 				},
@@ -2369,7 +2388,7 @@ func TestCreateCRLExt(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			crl, err := CreateCRL(rand.Reader, &tc.issuer, ecdsaPriv, tc.template)
+			crl, err := CreateCRL(rand.Reader, tc.issuer, ecdsaPriv, tc.template)
 			if err != nil && tc.expectedError == "" {
 				t.Fatalf("CreateCRL failed unexpectedly: %s", err)
 			} else if err != nil && tc.expectedError != err.Error() {
