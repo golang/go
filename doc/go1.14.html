@@ -478,8 +478,39 @@ appropriately.)
       <code>Certificate.SupportedSignatureAlgorithms</code></a>
       field to disable them.
     </p>
+
+    <p><!-- CL 205059, 205059 -->
+      <a href="/pkg/crypto/tls/#Config.Certificates"><code>Config.Certificates</code></a> and
+      <a href="/pkg/crypto/tls/#Config.GetCertificate"><code>Config.GetCertificate</code></a>
+      can now both be nil if
+      <a href="/pkg/crypto/tls/#Config.GetConfigForClient"><code>Config.GetConfigForClient</code></a>
+      is set. If the callbacks return neither certificates nor an error, the
+      <code>unrecognized_name</code> is now sent.
+    </p>
+
+    <p><!-- CL 205058 -->
+      The new <a href="/pkg/crypto/tls/#CertificateRequestInfo.Version"><code>CertificateRequestInfo.Version</code></a>
+      field provides the TLS version to client certificates callbacks.
+    </p>
+
+    <p><!-- CL 205068 -->
+      The new <code>TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256</code> and
+      <code>TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256</code> constants use
+      the final names for the cipher suites previously referred to as
+      <code>TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305</code> and
+      <code>TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305</code>.
+    </p>
   </dd>
 </dl><!-- crypto/tls -->
+
+<dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
+  <dd>
+    <p><!-- CL 204046 -->
+      <a href="/pkg/crypto/x509/#Certificate.CreateCRL"><code>Certificate.CreateCRL</code></a>
+      now supports Ed25519 issuers.
+    </p>
+  </dd>
+</dl>
 
 <dl id="debug/dwarf"><dt><a href="/pkg/debug/dwarf/">debug/dwarf</a></dt>
   <dd>
