@@ -140,6 +140,8 @@ func NewLineTable(data []byte, text uint64) *LineTable {
 
 // isGo12 reports whether this is a Go 1.2 (or later) symbol table.
 func (t *LineTable) isGo12() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	t.go12Init()
 	return t.go12 == 1
 }
@@ -157,8 +159,6 @@ func (t *LineTable) uintptr(b []byte) uint64 {
 
 // go12init initializes the Go 1.2 metadata if t is a Go 1.2 symbol table.
 func (t *LineTable) go12Init() {
-	t.mu.Lock()
-	defer t.mu.Unlock()
 	if t.go12 != 0 {
 		return
 	}
@@ -391,6 +391,8 @@ func (t *LineTable) go12PCToFile(pc uint64) (file string) {
 	if fno <= 0 {
 		return ""
 	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	return t.string(t.binary.Uint32(t.filetab[4*fno:]))
 }
 
