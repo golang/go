@@ -2669,6 +2669,7 @@ func (c *CertificateRequest) CheckSignature() error {
 // CRLTemplate contains the fields used to create an X.509 v2 Certificate
 // Revocation list.
 type CRLTemplate struct {
+	SignatureAlgorithm  SignatureAlgorithm
 	RevokedCertificates []pkix.RevokedCertificate
 	Number              *big.Int
 	ThisUpdate          time.Time
@@ -2709,7 +2710,7 @@ func CreateCRL(rand io.Reader, issuer *Certificate, priv crypto.Signer, template
 		return nil, errors.New("x509: template contains nil Number field")
 	}
 
-	hashFunc, signatureAlgorithm, err := signingParamsForPublicKey(priv.Public(), 0)
+	hashFunc, signatureAlgorithm, err := signingParamsForPublicKey(priv.Public(), template.SignatureAlgorithm)
 	if err != nil {
 		return nil, err
 	}
@@ -2758,11 +2759,21 @@ func CreateCRL(rand io.Reader, issuer *Certificate, priv crypto.Signer, template
 		return nil, err
 	}
 
-	h := hashFunc.New()
-	h.Write(tbsCertListContents)
-	digest := h.Sum(nil)
+	input := tbsCertListContents
+	if hashFunc != 0 {
+		h := hashFunc.New()
+		h.Write(tbsCertListContents)
+		input = h.Sum(nil)
+	}
+	var signerOpts crypto.SignerOpts = hashFunc
+	if template.SignatureAlgorithm.isRSAPSS() {
+		signerOpts = &rsa.PSSOptions{
+			SaltLength: rsa.PSSSaltLengthEqualsHash,
+			Hash:       hashFunc,
+		}
+	}
 
-	signature, err := priv.Sign(rand, digest, hashFunc)
+	signature, err := priv.Sign(rand, input, signerOpts)
 	if err != nil {
 		return nil, err
 	}
