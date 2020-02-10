@@ -333,6 +333,7 @@ func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error)
 	env, buildFlags := v.env()
 	processEnv := &imports.ProcessEnv{
 		WorkingDir: v.folder.Filename(),
+		BuildFlags: buildFlags,
 		Logf: func(format string, args ...interface{}) {
 			log.Print(ctx, fmt.Sprintf(format, args...))
 		},
@@ -358,12 +359,6 @@ func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error)
 		case "GOSUMDB":
 			processEnv.GOSUMDB = split[1]
 		}
-	}
-	if len(buildFlags) > 0 {
-		if processEnv.GOFLAGS != "" {
-			processEnv.GOFLAGS += " "
-		}
-		processEnv.GOFLAGS += strings.Join(buildFlags, " ")
 	}
 	return processEnv, nil
 }

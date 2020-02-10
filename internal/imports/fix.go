@@ -749,6 +749,8 @@ type ProcessEnv struct {
 	LocalPrefix string
 	Debug       bool
 
+	BuildFlags []string
+
 	// If non-empty, these will be used instead of the
 	// process-wide values.
 	GOPATH, GOROOT, GO111MODULE, GOPROXY, GOFLAGS, GOSUMDB string
@@ -821,8 +823,13 @@ func (e *ProcessEnv) buildContext() *build.Context {
 	return &ctx
 }
 
-func (e *ProcessEnv) invokeGo(args ...string) (*bytes.Buffer, error) {
-	cmd := exec.Command("go", args...)
+func (e *ProcessEnv) invokeGo(verb string, args ...string) (*bytes.Buffer, error) {
+	goArgs := []string{verb}
+	if verb != "env" {
+		goArgs = append(goArgs, e.BuildFlags...)
+	}
+	goArgs = append(goArgs, args...)
+	cmd := exec.Command("go", goArgs...)
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	cmd.Stdout = stdout
