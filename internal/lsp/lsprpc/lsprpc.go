@@ -9,8 +9,10 @@ package lsprpc
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"os"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/internal/jsonrpc2"
@@ -63,16 +65,24 @@ func (s *StreamServer) ServeStream(ctx context.Context, stream jsonrpc2.Stream) 
 // be instrumented with telemetry, and want to be able to in some cases hijack
 // the jsonrpc2 connection with the daemon.
 type Forwarder struct {
-	remote        string
+	network, addr string
+
+	// Configuration. Right now, not all of this may be customizable, but in the
+	// future it probably will be.
 	withTelemetry bool
+	dialTimeout   time.Duration
+	retries       int
 }
 
 // NewForwarder creates a new Forwarder, ready to forward connections to the
-// given remote.
-func NewForwarder(remote string, withTelemetry bool) *Forwarder {
+// remote server specified by network and addr.
+func NewForwarder(network, addr string, withTelemetry bool) *Forwarder {
 	return &Forwarder{
-		remote:        remote,
+		network:       network,
+		addr:          addr,
 		withTelemetry: withTelemetry,
+		dialTimeout:   1 * time.Second,
+		retries:       5,
 	}
 }
 
@@ -82,7 +92,26 @@ func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) err
 	clientConn := jsonrpc2.NewConn(stream)
 	client := protocol.ClientDispatcher(clientConn)
 
-	netConn, err := net.Dial("tcp", f.remote)
+	var (
+		netConn net.Conn
+		err     error
+	)
+	// Sometimes the forwarder will be started immediately after the server is
+	// started. To account for these cases, add in some simple retrying.
+	// Note that the number of total attempts is f.retries + 1.
+	for attempt := 0; attempt <= f.retries; attempt++ {
+		startDial := time.Now()
+		netConn, err = net.DialTimeout(f.network, f.addr, f.dialTimeout)
+		if err == nil {
+			break
+		}
+		log.Printf("failed an attempt to connect to remote: %v\n", err)
+		// In case our failure was a fast-failure, ensure we wait at least
+		// f.dialTimeout before trying again.
+		if attempt != f.retries {
+			time.Sleep(f.dialTimeout - time.Since(startDial))
+		}
+	}
 	if err != nil {
 		return fmt.Errorf("forwarder: dialing remote: %v", err)
 	}

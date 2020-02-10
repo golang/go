@@ -6,8 +6,13 @@
 package regtest
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -25,14 +30,17 @@ import (
 type EnvMode int
 
 const (
-	// Singleton mode uses a separate cache for each test
+	// Singleton mode uses a separate cache for each test.
 	Singleton EnvMode = 1 << iota
-	// Shared mode uses a Shared cache
+	// Shared mode uses a Shared cache.
 	Shared
-	// Forwarded forwards connections
+	// Forwarded forwards connections to an in-process gopls instance.
 	Forwarded
-	// AllModes runs tests in all modes
-	AllModes = Singleton | Shared | Forwarded
+	// SeparateProcess runs a separate gopls process, and forwards connections to
+	// it.
+	SeparateProcess
+	// NormalModes runs tests in all modes.
+	NormalModes = Singleton | Shared | Forwarded
 )
 
 // A Runner runs tests in gopls execution environments, as specified by its
@@ -40,26 +48,90 @@ const (
 // remote), any tests that execute on the same Runner will share the same
 // state.
 type Runner struct {
-	ts           *servertest.TCPServer
 	defaultModes EnvMode
 	timeout      time.Duration
+	goplsPath    string
+
+	mu        sync.Mutex
+	ts        *servertest.TCPServer
+	socketDir string
 }
 
 // NewTestRunner creates a Runner with its shared state initialized, ready to
 // run tests.
-func NewTestRunner(modes EnvMode, testTimeout time.Duration) *Runner {
-	ss := lsprpc.NewStreamServer(cache.New(nil), false)
-	ts := servertest.NewTCPServer(context.Background(), ss)
+func NewTestRunner(modes EnvMode, testTimeout time.Duration, goplsPath string) *Runner {
 	return &Runner{
-		ts:           ts,
 		defaultModes: modes,
 		timeout:      testTimeout,
+		goplsPath:    goplsPath,
 	}
+}
+
+// Modes returns the bitmask of environment modes this runner is configured to
+// test.
+func (r *Runner) Modes() EnvMode {
+	return r.defaultModes
+}
+
+// getTestServer gets the test server instance to connect to, or creates one if
+// it doesn't exist.
+func (r *Runner) getTestServer() *servertest.TCPServer {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.ts == nil {
+		ss := lsprpc.NewStreamServer(cache.New(nil), false)
+		r.ts = servertest.NewTCPServer(context.Background(), ss)
+	}
+	return r.ts
+}
+
+// runTestAsGoplsEnvvar triggers TestMain to run gopls instead of running
+// tests. It's a trick to allow tests to find a binary to use to start a gopls
+// subprocess.
+const runTestAsGoplsEnvvar = "_GOPLS_TEST_BINARY_RUN_AS_GOPLS"
+
+func (r *Runner) getRemoteSocket(t *testing.T) string {
+	t.Helper()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	const daemonFile = "gopls-test-daemon"
+	if r.socketDir != "" {
+		return filepath.Join(r.socketDir, daemonFile)
+	}
+
+	if r.goplsPath == "" {
+		t.Fatal("cannot run tests with a separate process unless a path to a gopls binary is configured")
+	}
+	var err error
+	r.socketDir, err = ioutil.TempDir("", "gopls-regtests")
+	if err != nil {
+		t.Fatalf("creating tempdir: %v", err)
+	}
+	socket := filepath.Join(r.socketDir, daemonFile)
+	args := []string{"serve", "-listen", "unix;" + socket}
+	cmd := exec.Command(r.goplsPath, args...)
+	cmd.Env = append(os.Environ(), runTestAsGoplsEnvvar+"=true")
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	go func() {
+		if err := cmd.Run(); err != nil {
+			panic(fmt.Sprintf("error running external gopls: %v\nstderr:\n%s", err, stderr.String()))
+		}
+	}()
+	return socket
 }
 
 // Close cleans up resource that have been allocated to this workspace.
 func (r *Runner) Close() error {
-	return r.ts.Close()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.ts != nil {
+		r.ts.Close()
+	}
+	if r.socketDir != "" {
+		os.RemoveAll(r.socketDir)
+	}
+	return nil
 }
 
 // Run executes the test function in the default configured gopls execution
@@ -81,6 +153,7 @@ func (r *Runner) RunInMode(modes EnvMode, t *testing.T, filedata string, test fu
 		{"singleton", Singleton, r.singletonEnv},
 		{"shared", Shared, r.sharedEnv},
 		{"forwarded", Forwarded, r.forwardedEnv},
+		{"separate_process", SeparateProcess, r.separateProcessEnv},
 	}
 
 	for _, tc := range tests {
@@ -115,12 +188,23 @@ func (r *Runner) singletonEnv(ctx context.Context, t *testing.T) (servertest.Con
 }
 
 func (r *Runner) sharedEnv(ctx context.Context, t *testing.T) (servertest.Connector, func()) {
-	return r.ts, func() {}
+	return r.getTestServer(), func() {}
 }
 
 func (r *Runner) forwardedEnv(ctx context.Context, t *testing.T) (servertest.Connector, func()) {
-	forwarder := lsprpc.NewForwarder(r.ts.Addr, false)
-	ts2 := servertest.NewTCPServer(ctx, forwarder)
+	ts := r.getTestServer()
+	forwarder := lsprpc.NewForwarder("tcp", ts.Addr, false)
+	ts2 := servertest.NewPipeServer(ctx, forwarder)
+	cleanup := func() {
+		ts2.Close()
+	}
+	return ts2, cleanup
+}
+
+func (r *Runner) separateProcessEnv(ctx context.Context, t *testing.T) (servertest.Connector, func()) {
+	socket := r.getRemoteSocket(t)
+	forwarder := lsprpc.NewForwarder("unix", socket, false)
+	ts2 := servertest.NewPipeServer(ctx, forwarder)
 	cleanup := func() {
 		ts2.Close()
 	}

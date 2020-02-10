@@ -102,7 +102,7 @@ func TestRequestCancellation(t *testing.T) {
 	ctx := context.Background()
 	tsDirect := servertest.NewTCPServer(ctx, ss)
 
-	forwarder := NewForwarder(tsDirect.Addr, false)
+	forwarder := NewForwarder("tcp", tsDirect.Addr, false)
 	tsForwarded := servertest.NewPipeServer(ctx, forwarder)
 
 	tests := []struct {

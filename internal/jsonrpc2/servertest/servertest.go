@@ -27,7 +27,7 @@ type Connector interface {
 type TCPServer struct {
 	Addr string
 
-	ln net.Listener
+	ln  net.Listener
 	cls *closerList
 }
 
@@ -67,7 +67,7 @@ func (s *TCPServer) Close() error {
 // PipeServer is a test server that handles connections over io.Pipes.
 type PipeServer struct {
 	server jsonrpc2.StreamServer
-	cls *closerList
+	cls    *closerList
 }
 
 // NewPipeServer returns a test server that can be connected to via io.Pipes.
@@ -107,7 +107,7 @@ func (s *PipeServer) Close() error {
 // convenience, so that callers don't have to worry about closing each
 // connection.
 type closerList struct {
-	mu sync.Mutex
+	mu      sync.Mutex
 	closers []func()
 }
 

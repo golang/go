@@ -6,6 +6,7 @@ package jsonrpc2
 
 import (
 	"context"
+	"log"
 	"net"
 )
 
@@ -41,8 +42,8 @@ func HandlerServer(h Handler) StreamServer {
 
 // ListenAndServe starts an jsonrpc2 server on the given address. It exits only
 // on error.
-func ListenAndServe(ctx context.Context, addr string, server StreamServer) error {
-	ln, err := net.Listen("tcp", addr)
+func ListenAndServe(ctx context.Context, network, addr string, server StreamServer) error {
+	ln, err := net.Listen(network, addr)
 	if err != nil {
 		return err
 	}
@@ -58,6 +59,10 @@ func Serve(ctx context.Context, ln net.Listener, server StreamServer) error {
 			return err
 		}
 		stream := NewHeaderStream(netConn, netConn)
-		go server.ServeStream(ctx, stream)
+		go func() {
+			if err := server.ServeStream(ctx, stream); err != nil {
+				log.Printf("serving stream: %v", err)
+			}
+		}()
 	}
 }

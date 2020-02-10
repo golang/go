@@ -26,7 +26,9 @@ func main() {
 }`
 
 func runShared(t *testing.T, program string, testFunc func(ctx context.Context, t *testing.T, env1 *Env, env2 *Env)) {
-	runner.RunInMode(Forwarded, t, sharedProgram, func(ctx context.Context, t *testing.T, env1 *Env) {
+	// Only run these tests in forwarded modes.
+	modes := runner.Modes() & (Forwarded | SeparateProcess)
+	runner.RunInMode(modes, t, sharedProgram, func(ctx context.Context, t *testing.T, env1 *Env) {
 		// Create a second test session connected to the same workspace and server
 		// as the first.
 		env2 := NewEnv(ctx, t, env1.W, env1.Server)
@@ -36,11 +38,7 @@ func runShared(t *testing.T, program string, testFunc func(ctx context.Context, 
 
 func TestSimultaneousEdits(t *testing.T) {
 	t.Parallel()
-	runner.Run(t, exampleProgram, func(ctx context.Context, t *testing.T, env1 *Env) {
-		// Create a second test session connected to the same workspace and server
-		// as the first.
-		env2 := NewEnv(ctx, t, env1.W, env1.Server)
-
+	runShared(t, exampleProgram, func(ctx context.Context, t *testing.T, env1 *Env, env2 *Env) {
 		// In editor #1, break fmt.Println as before.
 		edit1 := fake.NewEdit(5, 11, 5, 12, "")
 		env1.OpenFile("main.go")
