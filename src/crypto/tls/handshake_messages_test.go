@@ -112,7 +112,7 @@ func randomString(n int, rand *rand.Rand) string {
 	return string(b)
 }
 
-func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+func (*clientHelloMsg) Generate(rand *rand.Rand) reflect.Value {
 	m := &clientHelloMsg{}
 	m.vers = uint16(rand.Intn(65536))
 	m.random = randomBytes(32, rand)
@@ -194,7 +194,7 @@ func (*clientHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(m)
 }
 
-func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+func (*serverHelloMsg) Generate(rand *rand.Rand) reflect.Value {
 	m := &serverHelloMsg{}
 	m.vers = uint16(rand.Intn(65536))
 	m.random = randomBytes(32, rand)
@@ -243,7 +243,7 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(m)
 }
 
-func (*encryptedExtensionsMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+func (*encryptedExtensionsMsg) Generate(rand *rand.Rand) reflect.Value {
 	m := &encryptedExtensionsMsg{}
 
 	if rand.Intn(10) > 5 {
@@ -253,7 +253,7 @@ func (*encryptedExtensionsMsg) Generate(rand *rand.Rand, size int) reflect.Value
 	return reflect.ValueOf(m)
 }
 
-func (*certificateMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+func (*certificateMsg) Generate(rand *rand.Rand) reflect.Value {
 	m := &certificateMsg{}
 	numCerts := rand.Intn(20)
 	m.certificates = make([][]byte, numCerts)
@@ -263,7 +263,7 @@ func (*certificateMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(m)
 }
 
-func (*certificateRequestMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+func (*certificateRequestMsg) Generate(rand *rand.Rand) reflect.Value {
 	m := &certificateRequestMsg{}
 	m.certificateTypes = randomBytes(rand.Intn(5)+1, rand)
 	for i := 0; i < rand.Intn(100); i++ {
@@ -272,7 +272,7 @@ func (*certificateRequestMsg) Generate(rand *rand.Rand, size int) reflect.Value 
 	return reflect.ValueOf(m)
 }
 
-func (*certificateVerifyMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+func (*certificateVerifyMsg) Generate(rand *rand.Rand) reflect.Value {
 	m := &certificateVerifyMsg{}
 	m.hasSignatureAlgorithm = true
 	m.signatureAlgorithm = SignatureScheme(rand.Intn(30000))
@@ -280,31 +280,31 @@ func (*certificateVerifyMsg) Generate(rand *rand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(m)
 }
 
-func (*certificateStatusMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+func (*certificateStatusMsg) Generate(rand *rand.Rand) reflect.Value {
 	m := &certificateStatusMsg{}
 	m.response = randomBytes(rand.Intn(10)+1, rand)
 	return reflect.ValueOf(m)
 }
 
-func (*clientKeyExchangeMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+func (*clientKeyExchangeMsg) Generate(rand *rand.Rand) reflect.Value {
 	m := &clientKeyExchangeMsg{}
 	m.ciphertext = randomBytes(rand.Intn(1000)+1, rand)
 	return reflect.ValueOf(m)
 }
 
-func (*finishedMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+func (*finishedMsg) Generate(rand *rand.Rand) reflect.Value {
 	m := &finishedMsg{}
 	m.verifyData = randomBytes(12, rand)
 	return reflect.ValueOf(m)
 }
 
-func (*newSessionTicketMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+func (*newSessionTicketMsg) Generate(rand *rand.Rand) reflect.Value {
 	m := &newSessionTicketMsg{}
 	m.ticket = randomBytes(rand.Intn(4), rand)
 	return reflect.ValueOf(m)
 }
 
-func (*sessionState) Generate(rand *rand.Rand, size int) reflect.Value {
+func (*sessionState) Generate(rand *rand.Rand) reflect.Value {
 	s := &sessionState{}
 	s.vers = uint16(rand.Intn(10000))
 	s.cipherSuite = uint16(rand.Intn(10000))
@@ -317,7 +317,7 @@ func (*sessionState) Generate(rand *rand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(s)
 }
 
-func (*sessionStateTLS13) Generate(rand *rand.Rand, size int) reflect.Value {
+func (*sessionStateTLS13) Generate(rand *rand.Rand) reflect.Value {
 	s := &sessionStateTLS13{}
 	s.cipherSuite = uint16(rand.Intn(10000))
 	s.resumptionSecret = randomBytes(rand.Intn(100)+1, rand)
@@ -338,18 +338,18 @@ func (*sessionStateTLS13) Generate(rand *rand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(s)
 }
 
-func (*endOfEarlyDataMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+func (*endOfEarlyDataMsg) Generate(rand *rand.Rand) reflect.Value {
 	m := &endOfEarlyDataMsg{}
 	return reflect.ValueOf(m)
 }
 
-func (*keyUpdateMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+func (*keyUpdateMsg) Generate(rand *rand.Rand) reflect.Value {
 	m := &keyUpdateMsg{}
 	m.updateRequested = rand.Intn(10) > 5
 	return reflect.ValueOf(m)
 }
 
-func (*newSessionTicketMsgTLS13) Generate(rand *rand.Rand, size int) reflect.Value {
+func (*newSessionTicketMsgTLS13) Generate(rand *rand.Rand) reflect.Value {
 	m := &newSessionTicketMsgTLS13{}
 	m.lifetime = uint32(rand.Intn(500000))
 	m.ageAdd = uint32(rand.Intn(500000))
@@ -361,7 +361,7 @@ func (*newSessionTicketMsgTLS13) Generate(rand *rand.Rand, size int) reflect.Val
 	return reflect.ValueOf(m)
 }
 
-func (*certificateRequestMsgTLS13) Generate(rand *rand.Rand, size int) reflect.Value {
+func (*certificateRequestMsgTLS13) Generate(rand *rand.Rand) reflect.Value {
 	m := &certificateRequestMsgTLS13{}
 	if rand.Intn(10) > 5 {
 		m.ocspStapling = true
@@ -384,7 +384,7 @@ func (*certificateRequestMsgTLS13) Generate(rand *rand.Rand, size int) reflect.V
 	return reflect.ValueOf(m)
 }
 
-func (*certificateMsgTLS13) Generate(rand *rand.Rand, size int) reflect.Value {
+func (*certificateMsgTLS13) Generate(rand *rand.Rand) reflect.Value {
 	m := &certificateMsgTLS13{}
 	for i := 0; i < rand.Intn(2)+1; i++ {
 		m.certificate.Certificate = append(
