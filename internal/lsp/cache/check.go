@@ -274,6 +274,7 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 		mode:            mode,
 		goFiles:         goFiles,
 		compiledGoFiles: compiledGoFiles,
+		module:          m.module,
 		imports:         make(map[packagePath]*pkg),
 		typesSizes:      m.typesSizes,
 		typesInfo: &types.Info{

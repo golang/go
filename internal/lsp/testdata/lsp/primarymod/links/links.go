@@ -8,6 +8,8 @@ import (
 	_ "database/sql" //@link(`database/sql`, `https://pkg.go.dev/database/sql`)
 
 	errors "golang.org/x/xerrors" //@link(`golang.org/x/xerrors`, `https://pkg.go.dev/golang.org/x/xerrors`)
+
+	_ "example.com/extramodule/pkg" //@link(`example.com/extramodule/pkg`,`https://pkg.go.dev/example.com/extramodule@v1.0.0/pkg`)
 )
 
 var (

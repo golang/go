@@ -299,11 +299,17 @@ type Package struct {
 
 	// forTest is the package under test, if any.
 	forTest string
+
+	// module is the module information for the package if it exists.
+	module *packagesinternal.Module
 }
 
 func init() {
 	packagesinternal.GetForTest = func(p interface{}) string {
 		return p.(*Package).forTest
+	}
+	packagesinternal.GetModule = func(p interface{}) *packagesinternal.Module {
+		return p.(*Package).module
 	}
 }
 

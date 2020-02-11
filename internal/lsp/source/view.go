@@ -16,6 +16,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
 )
 
@@ -359,6 +360,7 @@ type Package interface {
 	ForTest() string
 	GetImport(pkgPath string) (Package, error)
 	Imports() []Package
+	Module() *packagesinternal.Module
 }
 
 type Error struct {

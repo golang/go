@@ -33,6 +33,7 @@ type metadata struct {
 	errors          []packages.Error
 	deps            []packageID
 	missingDeps     map[packagePath]struct{}
+	module          *packagesinternal.Module
 
 	// config is the *packages.Config associated with the loaded package.
 	config *packages.Config
@@ -144,6 +145,7 @@ func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *pa
 		typesSizes: pkg.TypesSizes,
 		errors:     pkg.Errors,
 		config:     cfg,
+		module:     packagesinternal.GetModule(pkg),
 	}
 
 	for _, filename := range pkg.CompiledGoFiles {

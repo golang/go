@@ -24,6 +24,7 @@ import (
 	"unicode"
 
 	"golang.org/x/tools/go/internal/packagesdriver"
+	"golang.org/x/tools/internal/packagesinternal"
 )
 
 // debug controls verbose logging.
@@ -380,6 +381,7 @@ type jsonPackage struct {
 	Imports         []string
 	ImportMap       map[string]string
 	Deps            []string
+	Module          *packagesinternal.Module
 	TestGoFiles     []string
 	TestImports     []string
 	XTestGoFiles    []string
@@ -529,6 +531,7 @@ func (state *golistState) createDriverResponse(words ...string) (*driverResponse
 			CompiledGoFiles: absJoin(p.Dir, p.CompiledGoFiles),
 			OtherFiles:      absJoin(p.Dir, otherFiles(p)...),
 			forTest:         p.ForTest,
+			module:          p.Module,
 		}
 
 		// Work around https://golang.org/issue/28749:

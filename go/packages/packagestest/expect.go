@@ -172,7 +172,7 @@ func (e *Exported) getNotes() error {
 	// matches the counts in the summary.txt.golden file for the test directory.
 	if gomod, found := e.written[e.primary]["go.mod"]; found {
 		// If we are in Modules mode, then we need to check the contents of the go.mod.temp.
-		if e.exporter == Modules {
+		if e.Exporter == Modules {
 			gomod += ".temp"
 		}
 		l, err := goModMarkers(e, gomod)
@@ -194,7 +194,7 @@ func goModMarkers(e *Exported, gomod string) ([]*expect.Note, error) {
 	if err != nil {
 		return nil, err
 	}
-	if e.exporter == GOPATH {
+	if e.Exporter == GOPATH {
 		return expect.Parse(e.ExpectFileSet, gomod, content)
 	}
 	gomod = strings.TrimSuffix(gomod, ".temp")

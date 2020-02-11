@@ -118,7 +118,7 @@ type Exported struct {
 
 	ExpectFileSet *token.FileSet // The file set used when parsing expectations
 
-	exporter Exporter                     // the exporter used
+	Exporter Exporter                     // the exporter used
 	temp     string                       // the temporary directory that was exported to
 	primary  string                       // the first non GOROOT module that was exported
 	written  map[string]map[string]string // the full set of exported files
@@ -201,7 +201,7 @@ func Export(t testing.TB, exporter Exporter, modules []Module) *Exported {
 			Mode:    packages.LoadImports,
 		},
 		Modules:       modules,
-		exporter:      exporter,
+		Exporter:      exporter,
 		temp:          temp,
 		primary:       modules[0].Name,
 		written:       map[string]map[string]string{},

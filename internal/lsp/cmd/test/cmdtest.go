@@ -9,11 +9,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"golang.org/x/tools/go/packages/packagestest"
@@ -125,16 +126,18 @@ func (r *runner) runGoplsCmd(t testing.TB, args ...string) (string, string) {
 		t.Fatal(err)
 	}
 	oldStderr := os.Stderr
-	defer func() {
-		os.Stdout = oldStdout
-		os.Stderr = oldStderr
-		wStdout.Close()
-		rStdout.Close()
-		wStderr.Close()
-		rStderr.Close()
+	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		io.Copy(stdout, rStdout)
+		wg.Done()
 	}()
-	os.Stdout = wStdout
-	os.Stderr = wStderr
+	go func() {
+		io.Copy(stderr, rStderr)
+		wg.Done()
+	}()
+	os.Stdout, os.Stderr = wStdout, wStderr
 	app := cmd.New("gopls-test", r.data.Config.Dir, r.data.Exported.Config.Env, r.options)
 	remote := r.remote
 	err = tool.Run(tests.Context(t),
@@ -145,15 +148,11 @@ func (r *runner) runGoplsCmd(t testing.TB, args ...string) (string, string) {
 	}
 	wStdout.Close()
 	wStderr.Close()
-	stdout, err := ioutil.ReadAll(rStdout)
-	if err != nil {
-		t.Fatal(err)
-	}
-	stderr, err := ioutil.ReadAll(rStderr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(stdout), string(stderr)
+	wg.Wait()
+	os.Stdout, os.Stderr = oldStdout, oldStderr
+	rStdout.Close()
+	rStderr.Close()
+	return stdout.String(), stderr.String()
 }
 
 // NormalizeGoplsCmd runs the gopls command and normalizes its output.

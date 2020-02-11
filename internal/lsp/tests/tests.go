@@ -15,6 +15,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strconv"
@@ -700,6 +701,14 @@ func Run(t *testing.T, tests Tests, data *Data) {
 	t.Run("Link", func(t *testing.T) {
 		t.Helper()
 		for uri, wantLinks := range data.Links {
+			// If we are testing GOPATH, then we do not want links with
+			// the versions attached (pkg.go.dev/repoa/moda@v1.1.0/pkg).
+			if data.Exported.Exporter == packagestest.GOPATH {
+				re := regexp.MustCompile(`@(.+?)/`)
+				for i, link := range wantLinks {
+					wantLinks[i].Target = re.ReplaceAllString(link.Target, "/")
+				}
+			}
 			t.Run(uriName(uri), func(t *testing.T) {
 				t.Helper()
 				tests.Link(t, uri, wantLinks)

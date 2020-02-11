@@ -81,7 +81,11 @@ func (i *IdentifierInfo) linkAndSymbolName() (string, string) {
 	}
 	switch obj := obj.(type) {
 	case *types.PkgName:
-		return obj.Imported().Path(), obj.Name()
+		path := obj.Imported().Path()
+		if mod, version, ok := moduleAtVersion(path, i); ok {
+			path = strings.Replace(path, mod, mod+"@"+version, 1)
+		}
+		return path, obj.Name()
 	case *types.Builtin:
 		return fmt.Sprintf("builtin#%s", obj.Name()), obj.Name()
 	}
@@ -128,13 +132,35 @@ func (i *IdentifierInfo) linkAndSymbolName() (string, string) {
 			}
 		}
 	}
+	path := obj.Pkg().Path()
+	if mod, version, ok := moduleAtVersion(path, i); ok {
+		path = strings.Replace(path, mod, mod+"@"+version, 1)
+	}
 	if rTypeName != "" {
-		link := fmt.Sprintf("%s#%s.%s", obj.Pkg().Path(), rTypeName, obj.Name())
+		link := fmt.Sprintf("%s#%s.%s", path, rTypeName, obj.Name())
 		symbol := fmt.Sprintf("(%s.%s).%s", obj.Pkg().Name(), rTypeName, obj.Name())
 		return link, symbol
 	}
 	// For most cases, the link is "package/path#symbol".
-	return fmt.Sprintf("%s#%s", obj.Pkg().Path(), obj.Name()), fmt.Sprintf("%s.%s", obj.Pkg().Name(), obj.Name())
+	return fmt.Sprintf("%s#%s", path, obj.Name()), fmt.Sprintf("%s.%s", obj.Pkg().Name(), obj.Name())
+}
+
+func moduleAtVersion(path string, i *IdentifierInfo) (string, string, bool) {
+	if strings.ToLower(i.Snapshot.View().Options().LinkTarget) != "pkg.go.dev" {
+		return "", "", false
+	}
+	impPkg, err := i.pkg.GetImport(path)
+	if err != nil {
+		return "", "", false
+	}
+	if impPkg.Module() == nil {
+		return "", "", false
+	}
+	version, modpath := impPkg.Module().Version, impPkg.Module().Path
+	if modpath == "" || version == "" {
+		return "", "", false
+	}
+	return modpath, version, true
 }
 
 // objectString is a wrapper around the types.ObjectString function.
