@@ -69,10 +69,7 @@ func (r *prepareRename) Run(ctx context.Context, args ...string) error {
 		return fmt.Errorf("request is not valid at the given position")
 	}
 
-	resRange, ok := result.(protocol.Range)
-	if !ok {
-		return fmt.Errorf("prepare_rename failed to convert result to range, got: %T", result)
-	}
+	resRange := *result
 
 	l := protocol.Location{Range: resRange}
 	s, err := file.mapper.Span(l)

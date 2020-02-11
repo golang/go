@@ -713,16 +713,13 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 		return
 	}
 	// we all love typed nils
-	if got == nil || got.(*protocol.Range) == nil {
+	if got == nil {
 		if want.Text != "" { // expected an ident.
 			t.Errorf("prepare rename failed for %v: got nil", src)
 		}
 		return
 	}
-	xx, ok := got.(*protocol.Range)
-	if !ok {
-		t.Fatalf("got %T, wanted Range", got)
-	}
+	xx := got
 	if xx.Start == xx.End {
 		// Special case for 0-length ranges. Marks can't specify a 0-length range,
 		// so just compare the start.
