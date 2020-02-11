@@ -7,6 +7,7 @@ package lsprpc
 import (
 	"context"
 	"regexp"
+	"sync"
 	"testing"
 	"time"
 
@@ -61,40 +62,37 @@ func TestClientLogging(t *testing.T) {
 		if !matched {
 			t.Errorf("got log %q, want a log containing %q", got, want)
 		}
-	case <-time.After(1000 * time.Second):
+	case <-time.After(1 * time.Second):
 		t.Error("timeout waiting for client log")
 	}
 }
 
+// waitableServer instruments LSP request so that we can control their timing.
+// The requests chosen are arbitrary: we simply needed one that blocks, and
+// another that doesn't.
 type waitableServer struct {
 	protocol.Server
 
 	started chan struct{}
-	// finished records whether the request ended with a cancellation or not
-	// (true means the request was cancelled).
-	finished chan bool
 }
 
-func (s waitableServer) CodeLens(ctx context.Context, params *protocol.CodeLensParams) ([]protocol.CodeLens, error) {
+func (s waitableServer) Hover(ctx context.Context, _ *protocol.HoverParams) (*protocol.Hover, error) {
 	s.started <- struct{}{}
-	cancelled := false
-	defer func() {
-		s.finished <- cancelled
-	}()
 	select {
 	case <-ctx.Done():
-		cancelled = true
 		return nil, ctx.Err()
-	case <-time.After(1 * time.Second):
-		cancelled = false
+	case <-time.After(200 * time.Millisecond):
 	}
-	return []protocol.CodeLens{}, nil
+	return &protocol.Hover{}, nil
+}
+
+func (s waitableServer) Resolve(_ context.Context, item *protocol.CompletionItem) (*protocol.CompletionItem, error) {
+	return item, nil
 }
 
 func TestRequestCancellation(t *testing.T) {
 	server := waitableServer{
-		started:  make(chan struct{}),
-		finished: make(chan bool),
+		started: make(chan struct{}),
 	}
 	ss := &StreamServer{
 		accept: func(c protocol.Client) protocol.Server {
@@ -119,14 +117,33 @@ func TestRequestCancellation(t *testing.T) {
 		t.Run(test.serverType, func(t *testing.T) {
 			cc := test.ts.Connect(ctx)
 			cc.AddHandler(protocol.Canceller{})
-			lensCtx, cancelLens := context.WithCancel(context.Background())
+			ctx := context.Background()
+			ctx1, cancel1 := context.WithCancel(ctx)
+			var (
+				err1, err2 error
+				wg         sync.WaitGroup
+			)
+			wg.Add(2)
 			go func() {
-				protocol.ServerDispatcher(cc).CodeLens(lensCtx, &protocol.CodeLensParams{})
+				defer wg.Done()
+				_, err1 = protocol.ServerDispatcher(cc).Hover(ctx1, &protocol.HoverParams{})
 			}()
+			go func() {
+				defer wg.Done()
+				_, err2 = protocol.ServerDispatcher(cc).Resolve(ctx, &protocol.CompletionItem{})
+			}()
+			// Wait for the Hover request to start.
 			<-server.started
-			cancelLens()
-			if got, want := <-server.finished, true; got != want {
-				t.Errorf("CodeLens was cancelled: %t, want %t", got, want)
+			cancel1()
+			wg.Wait()
+			if err1 == nil {
+				t.Errorf("cancelled Hover(): got nil err")
+			}
+			if err2 != nil {
+				t.Errorf("uncancelled Hover(): err: %v", err2)
+			}
+			if _, err := protocol.ServerDispatcher(cc).Resolve(ctx, &protocol.CompletionItem{}); err != nil {
+				t.Errorf("subsequent Hover(): %v", err)
 			}
 		})
 	}

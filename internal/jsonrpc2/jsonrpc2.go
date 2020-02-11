@@ -147,14 +147,15 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	for _, h := range c.handlers {
 		ctx = h.Request(ctx, c, Send, request)
 	}
-	// we have to add ourselves to the pending map before we send, otherwise we
-	// are racing the response
-	rchan := make(chan *WireResponse)
+	// We have to add ourselves to the pending map before we send, otherwise we
+	// are racing the response. Also add a buffer to rchan, so that if we get a
+	// wire response between the time this call is cancelled and id is deleted
+	// from c.pending, the send to rchan will not block.
+	rchan := make(chan *WireResponse, 1)
 	c.pendingMu.Lock()
 	c.pending[id] = rchan
 	c.pendingMu.Unlock()
 	defer func() {
-		// clean up the pending response handler on the way out
 		c.pendingMu.Lock()
 		delete(c.pending, id)
 		c.pendingMu.Unlock()
@@ -189,7 +190,7 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 		}
 		return nil
 	case <-ctx.Done():
-		// allow the handler to propagate the cancel
+		// Allow the handler to propagate the cancel.
 		cancelled := false
 		for _, h := range c.handlers {
 			if h.Cancel(ctx, c, id, cancelled) {
@@ -328,10 +329,10 @@ func (c *Conn) Run(runCtx context.Context) error {
 			}
 			continue
 		}
-		// work out which kind of message we have
+		// Work out whether this is a request or response.
 		switch {
 		case msg.Method != "":
-			// if method is set it must be a request
+			// If method is set it must be a request.
 			reqCtx, cancelReq := context.WithCancel(runCtx)
 			thisRequest := nextRequest
 			nextRequest = make(chan struct{})
@@ -373,21 +374,19 @@ func (c *Conn) Run(runCtx context.Context) error {
 				}
 			}()
 		case msg.ID != nil:
-			// we have a response, get the pending entry from the map
+			// If method is not set, this should be a response, in which case we must
+			// have an id to send the response back to the caller.
 			c.pendingMu.Lock()
-			rchan := c.pending[*msg.ID]
-			if rchan != nil {
-				delete(c.pending, *msg.ID)
-			}
+			rchan, ok := c.pending[*msg.ID]
 			c.pendingMu.Unlock()
-			// and send the reply to the channel
-			response := &WireResponse{
-				Result: msg.Result,
-				Error:  msg.Error,
-				ID:     msg.ID,
+			if ok {
+				response := &WireResponse{
+					Result: msg.Result,
+					Error:  msg.Error,
+					ID:     msg.ID,
+				}
+				rchan <- response
 			}
-			rchan <- response
-			close(rchan)
 		default:
 			for _, h := range c.handlers {
 				h.Error(runCtx, fmt.Errorf("message not a call, notify or response, ignoring"))
