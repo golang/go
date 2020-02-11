@@ -12,11 +12,22 @@ stdout '^\tmod\trsc.io/fortune\tv1.0.0'
 # Repeat the test with -buildmode=pie.
 # TODO(golang.org/issue/27144): don't skip after -buildmode=pie is implemented
 # on Windows.
-[windows] skip # -buildmode=pie not supported
+[!buildmode:pie] stop
 go build -buildmode=pie -o external.exe rsc.io/fortune
 go version external.exe
 stdout '^external.exe: .+'
 go version -m external.exe
+stdout '^\tpath\trsc.io/fortune'
+stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+
+# Also test PIE with internal linking.
+# currently only supported on linux/amd64 and linux/arm64.
+[!linux] stop
+[!amd64] [!arm64] stop
+go build -buildmode=pie -ldflags=-linkmode=internal -o internal.exe rsc.io/fortune
+go version internal.exe
+stdout '^internal.exe: .+'
+go version -m internal.exe
 stdout '^\tpath\trsc.io/fortune'
 stdout '^\tmod\trsc.io/fortune\tv1.0.0'
 
