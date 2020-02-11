@@ -4,6 +4,9 @@
 #include "textflag.h"
 
 TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+	#ifdef GOOS_darwin
+	VZEROUPPER
+	#endif
 	PUSHQ BP
 	MOVQ SP, BP
 	// Save flags before clobbering them
