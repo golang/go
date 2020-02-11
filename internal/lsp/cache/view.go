@@ -245,7 +245,7 @@ func (v *view) buildBuiltinPackage(ctx context.Context, goFiles []string) error 
 	fset := v.session.cache.fset
 	h := v.session.cache.store.Bind(pgh.File().Identity(), func(ctx context.Context) interface{} {
 		data := &builtinPackageData{}
-		file, _, _, err := pgh.Parse(ctx)
+		file, _, _, _, err := pgh.Parse(ctx)
 		if err != nil {
 			data.err = err
 			return data

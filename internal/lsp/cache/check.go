@@ -295,7 +295,7 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 	for i, ph := range pkg.compiledGoFiles {
 		wg.Add(1)
 		go func(i int, ph source.ParseGoHandle) {
-			files[i], _, parseErrors[i], actualErrors[i] = ph.Parse(ctx)
+			files[i], _, _, parseErrors[i], actualErrors[i] = ph.Parse(ctx)
 			wg.Done()
 		}(i, ph)
 	}

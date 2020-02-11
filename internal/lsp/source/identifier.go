@@ -56,7 +56,7 @@ func Identifier(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 	if err != nil {
 		return nil, fmt.Errorf("getting file for Identifier: %v", err)
 	}
-	file, m, _, err := pgh.Cached()
+	file, _, m, _, err := pgh.Cached()
 	if err != nil {
 		return nil, err
 	}

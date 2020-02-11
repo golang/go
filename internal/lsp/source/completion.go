@@ -433,7 +433,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 	if err != nil {
 		return nil, nil, fmt.Errorf("getting file for Completion: %v", err)
 	}
-	file, m, _, err := pgh.Cached()
+	file, src, m, _, err := pgh.Cached()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -500,11 +500,9 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 		// Otherwise, manually extract the prefix if our containing token
 		// is a keyword. This improves completion after an "accidental
 		// keyword", e.g. completing to "variance" in "someFunc(var<>)".
-		if contents, _, err := pgh.File().Read(ctx); err == nil {
-			id := scanKeyword(c.pos, c.snapshot.View().Session().Cache().FileSet().File(c.pos), contents)
-			if id != nil {
-				c.setSurrounding(id)
-			}
+		id := scanKeyword(c.pos, c.snapshot.View().Session().Cache().FileSet().File(c.pos), src)
+		if id != nil {
+			c.setSurrounding(id)
 		}
 	}
 

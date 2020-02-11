@@ -248,10 +248,10 @@ type ParseGoHandle interface {
 
 	// Parse returns the parsed AST for the file.
 	// If the file is not available, returns nil and an error.
-	Parse(ctx context.Context) (*ast.File, *protocol.ColumnMapper, error, error)
+	Parse(ctx context.Context) (file *ast.File, src []byte, m *protocol.ColumnMapper, parseErr error, err error)
 
 	// Cached returns the AST for this handle, if it has already been stored.
-	Cached() (*ast.File, *protocol.ColumnMapper, error, error)
+	Cached() (file *ast.File, src []byte, m *protocol.ColumnMapper, parseErr error, err error)
 }
 
 // ModTidyHandle represents a handle to the modfile for a go.mod.

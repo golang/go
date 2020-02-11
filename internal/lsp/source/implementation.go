@@ -241,7 +241,7 @@ func getASTFile(pkg Package, f FileHandle, pos protocol.Position) (*ast.File, to
 		return nil, 0, err
 	}
 
-	file, m, _, err := pgh.Cached()
+	file, _, m, _, err := pgh.Cached()
 	if err != nil {
 		return nil, 0, err
 	}

@@ -734,8 +734,8 @@ func (s *snapshot) shouldInvalidateMetadata(ctx context.Context, originalFH, cur
 		return originalFH.Identity().URI == modfile
 	}
 	// Get the original and current parsed files in order to check package name and imports.
-	original, _, _, originalErr := s.view.session.cache.ParseGoHandle(originalFH, source.ParseHeader).Parse(ctx)
-	current, _, _, currentErr := s.view.session.cache.ParseGoHandle(currentFH, source.ParseHeader).Parse(ctx)
+	original, _, _, _, originalErr := s.view.session.cache.ParseGoHandle(originalFH, source.ParseHeader).Parse(ctx)
+	current, _, _, _, currentErr := s.view.session.cache.ParseGoHandle(currentFH, source.ParseHeader).Parse(ctx)
 	if originalErr != nil || currentErr != nil {
 		return (originalErr == nil) != (currentErr == nil)
 	}

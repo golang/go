@@ -71,7 +71,7 @@ func (p *pkg) File(uri span.URI) (source.ParseGoHandle, error) {
 func (p *pkg) GetSyntax() []*ast.File {
 	var syntax []*ast.File
 	for _, ph := range p.compiledGoFiles {
-		file, _, _, err := ph.Cached()
+		file, _, _, _, err := ph.Cached()
 		if err == nil {
 			syntax = append(syntax, file)
 		}

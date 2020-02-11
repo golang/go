@@ -42,7 +42,7 @@ func WorkspaceSymbols(ctx context.Context, views []View, query string) ([]protoc
 			}
 			seen[pkg.PkgPath()] = struct{}{}
 			for _, fh := range pkg.CompiledGoFiles() {
-				file, _, _, err := fh.Cached()
+				file, _, _, _, err := fh.Cached()
 				if err != nil {
 					return nil, err
 				}

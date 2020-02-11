@@ -41,6 +41,7 @@ type parseGoHandle struct {
 type parseGoData struct {
 	memoize.NoCopy
 
+	src        []byte
 	ast        *ast.File
 	parseError error // errors associated with parsing the file
 	mapper     *protocol.ColumnMapper
@@ -54,9 +55,7 @@ func (c *cache) ParseGoHandle(fh source.FileHandle, mode source.ParseMode) sourc
 	}
 	fset := c.fset
 	h := c.store.Bind(key, func(ctx context.Context) interface{} {
-		data := &parseGoData{}
-		data.ast, data.mapper, data.parseError, data.err = parseGo(ctx, fset, fh, mode)
-		return data
+		return parseGo(ctx, fset, fh, mode)
 	})
 	return &parseGoHandle{
 		handle: h,
@@ -77,22 +76,22 @@ func (pgh *parseGoHandle) Mode() source.ParseMode {
 	return pgh.mode
 }
 
-func (pgh *parseGoHandle) Parse(ctx context.Context) (*ast.File, *protocol.ColumnMapper, error, error) {
+func (pgh *parseGoHandle) Parse(ctx context.Context) (*ast.File, []byte, *protocol.ColumnMapper, error, error) {
 	v := pgh.handle.Get(ctx)
 	if v == nil {
-		return nil, nil, nil, errors.Errorf("no parsed file for %s", pgh.File().Identity().URI)
+		return nil, nil, nil, nil, errors.Errorf("no parsed file for %s", pgh.File().Identity().URI)
 	}
 	data := v.(*parseGoData)
-	return data.ast, data.mapper, data.parseError, data.err
+	return data.ast, data.src, data.mapper, data.parseError, data.err
 }
 
-func (pgh *parseGoHandle) Cached() (*ast.File, *protocol.ColumnMapper, error, error) {
+func (pgh *parseGoHandle) Cached() (*ast.File, []byte, *protocol.ColumnMapper, error, error) {
 	v := pgh.handle.Cached()
 	if v == nil {
-		return nil, nil, nil, errors.Errorf("no cached AST for %s", pgh.file.Identity().URI)
+		return nil, nil, nil, nil, errors.Errorf("no cached AST for %s", pgh.file.Identity().URI)
 	}
 	data := v.(*parseGoData)
-	return data.ast, data.mapper, data.parseError, data.err
+	return data.ast, data.src, data.mapper, data.parseError, data.err
 }
 
 func hashParseKey(ph source.ParseGoHandle) string {
@@ -110,16 +109,16 @@ func hashParseKeys(phs []source.ParseGoHandle) string {
 	return hashContents(b.Bytes())
 }
 
-func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mode source.ParseMode) (file *ast.File, mapper *protocol.ColumnMapper, parseError error, err error) {
+func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mode source.ParseMode) *parseGoData {
 	ctx, done := trace.StartSpan(ctx, "cache.parseGo", telemetry.File.Of(fh.Identity().URI.Filename()))
 	defer done()
 
 	if fh.Identity().Kind != source.Go {
-		return nil, nil, nil, errors.Errorf("cannot parse non-Go file %s", fh.Identity().URI)
+		return &parseGoData{err: errors.Errorf("cannot parse non-Go file %s", fh.Identity().URI)}
 	}
 	buf, _, err := fh.Read(ctx)
 	if err != nil {
-		return nil, nil, nil, err
+		return &parseGoData{err: err}
 	}
 	parseLimit <- struct{}{}
 	defer func() { <-parseLimit }()
@@ -127,13 +126,13 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 	if mode == source.ParseHeader {
 		parserMode = parser.ImportsOnly | parser.ParseComments
 	}
-	file, parseError = parser.ParseFile(fset, fh.Identity().URI.Filename(), buf, parserMode)
+	file, parseError := parser.ParseFile(fset, fh.Identity().URI.Filename(), buf, parserMode)
 	var tok *token.File
 	if file != nil {
 		// Fix any badly parsed parts of the AST.
 		tok = fset.File(file.Pos())
 		if tok == nil {
-			return nil, nil, nil, errors.Errorf("successfully parsed but no token.File for %s (%v)", fh.Identity().URI, parseError)
+			return &parseGoData{err: errors.Errorf("successfully parsed but no token.File for %s (%v)", fh.Identity().URI, parseError)}
 		}
 		if mode == source.ParseExported {
 			trimAST(file)
@@ -149,7 +148,7 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 		if err == nil {
 			err = errors.Errorf("no AST for %s", fh.Identity().URI)
 		}
-		return nil, nil, parseError, err
+		return &parseGoData{parseError: parseError, err: err}
 	}
 	m := &protocol.ColumnMapper{
 		URI:       fh.Identity().URI,
@@ -157,7 +156,12 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 		Content:   buf,
 	}
 
-	return file, m, parseError, nil
+	return &parseGoData{
+		src:        buf,
+		ast:        file,
+		mapper:     m,
+		parseError: parseError,
+	}
 }
 
 // trimAST clears any part of the AST not relevant to type checking

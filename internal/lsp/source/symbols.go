@@ -22,7 +22,7 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 	if err != nil {
 		return nil, fmt.Errorf("getting file for DocumentSymbols: %v", err)
 	}
-	file, _, _, err := pgh.Cached()
+	file, _, _, _, err := pgh.Cached()
 	if err != nil {
 		return nil, err
 	}

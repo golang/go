@@ -34,7 +34,7 @@ func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLink
 	if fh.Identity().Kind == source.Mod {
 		return nil, nil
 	}
-	file, m, _, err := view.Session().Cache().ParseGoHandle(fh, source.ParseFull).Parse(ctx)
+	file, _, m, _, err := view.Session().Cache().ParseGoHandle(fh, source.ParseFull).Parse(ctx)
 	if err != nil {
 		return nil, err
 	}

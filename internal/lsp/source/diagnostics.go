@@ -223,7 +223,7 @@ func missingModulesDiagnostics(ctx context.Context, snapshot Snapshot, reports m
 	if err != nil {
 		return err
 	}
-	file, m, _, err := snapshot.View().Session().Cache().ParseGoHandle(fh, ParseHeader).Parse(ctx)
+	file, _, m, _, err := snapshot.View().Session().Cache().ParseGoHandle(fh, ParseHeader).Parse(ctx)
 	if err != nil {
 		log.Error(ctx, "could not parse go file when checking for missing modules", err)
 		return err

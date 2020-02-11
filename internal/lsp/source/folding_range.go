@@ -19,7 +19,7 @@ func FoldingRange(ctx context.Context, snapshot Snapshot, fh FileHandle, lineFol
 	// TODO(suzmue): consider limiting the number of folding ranges returned, and
 	// implement a way to prioritize folding ranges in that case.
 	pgh := snapshot.View().Session().Cache().ParseGoHandle(fh, ParseFull)
-	file, m, _, err := pgh.Parse(ctx)
+	file, _, m, _, err := pgh.Parse(ctx)
 	if err != nil {
 		return nil, err
 	}

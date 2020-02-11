@@ -26,7 +26,7 @@ func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, pos pr
 	if err != nil {
 		return nil, 0, fmt.Errorf("getting file for SignatureHelp: %v", err)
 	}
-	file, m, _, err := pgh.Cached()
+	file, _, m, _, err := pgh.Cached()
 	if err != nil {
 		return nil, 0, err
 	}
