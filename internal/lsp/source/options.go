@@ -26,7 +26,6 @@ import (
 	"golang.org/x/tools/go/analysis/passes/loopclosure"
 	"golang.org/x/tools/go/analysis/passes/lostcancel"
 	"golang.org/x/tools/go/analysis/passes/nilfunc"
-	"golang.org/x/tools/go/analysis/passes/nilness"
 	"golang.org/x/tools/go/analysis/passes/printf"
 	"golang.org/x/tools/go/analysis/passes/shift"
 	"golang.org/x/tools/go/analysis/passes/sortslice"
@@ -488,7 +487,6 @@ func defaultAnalyzers() map[string]*analysis.Analyzer {
 
 		// Non-vet analyzers
 		deepequalerrors.Analyzer.Name:  deepequalerrors.Analyzer,
-		nilness.Analyzer.Name:          nilness.Analyzer,
 		sortslice.Analyzer.Name:        sortslice.Analyzer,
 		testinggoroutine.Analyzer.Name: testinggoroutine.Analyzer,
 	}
