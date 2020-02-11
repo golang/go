@@ -124,9 +124,9 @@ func runVendor(cmd *base.Command, args []string) {
 		return
 	}
 
-    if err := os.MkdirAll(vdir, 0777); err != nil {
-        base.Fatalf("go mod vendor: %v", err)
-    }
+	if err := os.MkdirAll(vdir, 0777); err != nil {
+		base.Fatalf("go mod vendor: %v", err)
+	}
 
 	if err := ioutil.WriteFile(filepath.Join(vdir, "modules.txt"), buf.Bytes(), 0666); err != nil {
 		base.Fatalf("go mod vendor: %v", err)
