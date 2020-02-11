@@ -422,30 +422,33 @@ func (ctxt *Link) loadlib() {
 			loadobjfile(ctxt, lib)
 		}
 	}
+	// At this point, the Go objects are "preloaded". Not all the symbols are
+	// added to the symbol table (only defined package symbols are). Looking
+	// up symbol by name may not get expected result.
 
-	iscgo = ctxt.loader.Lookup("x_cgo_init", 0) != 0
-	ctxt.canUsePlugins = ctxt.loader.Lookup("plugin.Open", sym.SymVerABIInternal) != 0
+	iscgo = ctxt.LibraryByPkg["runtime/cgo"] != nil
+	ctxt.canUsePlugins = ctxt.LibraryByPkg["plugin"] != nil
 
 	// We now have enough information to determine the link mode.
 	determineLinkMode(ctxt)
 
-	if ctxt.LinkMode == LinkExternal && !iscgo && ctxt.LibraryByPkg["runtime/cgo"] == nil && !(objabi.GOOS == "darwin" && ctxt.BuildMode != BuildModePlugin && (ctxt.Arch.Family == sys.AMD64 || ctxt.Arch.Family == sys.I386)) {
+	if ctxt.LinkMode == LinkExternal && !iscgo && !(objabi.GOOS == "darwin" && ctxt.BuildMode != BuildModePlugin && (ctxt.Arch.Family == sys.AMD64 || ctxt.Arch.Family == sys.I386)) {
 		// This indicates a user requested -linkmode=external.
 		// The startup code uses an import of runtime/cgo to decide
 		// whether to initialize the TLS.  So give it one. This could
 		// be handled differently but it's an unusual case.
-		if lib := loadinternal(ctxt, "runtime/cgo"); lib != nil {
-			if lib.Shlib != "" {
-				ldshlibsyms(ctxt, lib.Shlib)
-			} else {
-				if ctxt.BuildMode == BuildModeShared || ctxt.linkShared {
-					Exitf("cannot implicitly include runtime/cgo in a shared library")
-				}
-				loadobjfile(ctxt, lib)
+		if lib := loadinternal(ctxt, "runtime/cgo"); lib != nil && lib.Shlib == "" {
+			if ctxt.BuildMode == BuildModeShared || ctxt.linkShared {
+				Exitf("cannot implicitly include runtime/cgo in a shared library")
 			}
+			loadobjfile(ctxt, lib)
 		}
 	}
 
+	// Add non-package symbols and references of externally defined symbols.
+	ctxt.loader.LoadNonpkgSyms(ctxt.Arch, ctxt.Syms)
+
+	// Load symbols from shared libraries, after all Go object symbols are loaded.
 	for _, lib := range ctxt.Library {
 		if lib.Shlib != "" {
 			if ctxt.Debugvlog > 1 {
@@ -454,9 +457,6 @@ func (ctxt *Link) loadlib() {
 			ldshlibsyms(ctxt, lib.Shlib)
 		}
 	}
-
-	// Add references of externally defined symbols.
-	ctxt.loader.LoadRefs(ctxt.Arch, ctxt.Syms)
 
 	// Process cgo directives (has to be done before host object loading).
 	ctxt.loadcgodirectives()

@@ -125,31 +125,20 @@ func growBitmap(reqLen int, b bitmap) bitmap {
 //
 // Notes on the layout of global symbol index space:
 //
-// TODO: rework index space reservation.
-//
 // - Go object files are read before host object files; each Go object
-//   read adds its defined (package + non-package) symbols to the global
-//   index space.
+//   read adds its defined package symbols to the global index space.
+//   Nonpackage symbols are not yet added.
 //
-// - In loader.LoadRefs(), the loader makes a sweep through all of the
-//   non-package references in each object file and allocates sym indices
-//   for any symbols that have not yet been defined (start of this space
-//   is marked by loader.extStart).
+// - In loader.LoadNonpkgSyms, add non-package defined symbols and
+//   references in all object files to the global index space.
 //
 // - Host object file loading happens; the host object loader does a
 //   name/version lookup for each symbol it finds; this can wind up
 //   extending the external symbol index space range. The host object
-//   loader currently stores symbol payloads in sym.Symbol objects,
-//   which get handed off to the loader.
+//   loader stores symbol payloads in loader.payloads using SymbolBuilder.
 //
-// - A given external symbol (Sym) either has a sym.Symbol acting as
-//   its backing store (this will continue to be the case until we
-//   finish rewriting the host object loader to work entirely with
-//   loader.Sym) or it has a "payload" backing store (represented by
-//   extSymPayload). Newly created external symbols (created by
-//   a call to AddExtSym or equivalent) start out in the "has payload"
-//   state, and continue until installSym is called for the sym
-//   index in question.
+// - For now, in loader.LoadFull we convert all symbols (Go + external)
+//   to sym.Symbols.
 //
 // - At some point (when the wayfront is pushed through all of the
 //   linker), all external symbols will be payload-based, and we can
@@ -237,6 +226,12 @@ type Loader struct {
 	elfsetstring elfsetstringFunc
 }
 
+const (
+	pkgDef    = iota
+	nonPkgDef
+	nonPkgRef
+)
+
 type elfsetstringFunc func(s *sym.Symbol, str string, off int)
 
 // extSymPayload holds the payload (data + relocations) for linker-synthesized
@@ -299,17 +294,15 @@ func (l *Loader) addObj(pkg string, r *oReader) Sym {
 	if _, ok := l.objByPkg[pkg]; !ok {
 		l.objByPkg[pkg] = r
 	}
-	n := r.NSym() + r.NNonpkgdef()
 	i := Sym(len(l.objSyms))
 	l.start[r] = i
 	l.objs = append(l.objs, objIdx{r, i})
-	l.growValues(int(i) + n - 1)
 	return i
 }
 
 // Add a symbol from an object file, return the global index and whether it is added.
 // If the symbol already exist, it returns the index of that symbol.
-func (l *Loader) AddSym(name string, ver int, r *oReader, li int, dupok bool, typ sym.SymKind) (Sym, bool) {
+func (l *Loader) AddSym(name string, ver int, r *oReader, li int, kind int, dupok bool, typ sym.SymKind) (Sym, bool) {
 	if l.extStart != 0 {
 		panic("AddSym called after AddExtSym is called")
 	}
@@ -328,6 +321,18 @@ func (l *Loader) AddSym(name string, ver int, r *oReader, li int, dupok bool, ty
 		addToGlobal()
 		return i, true
 	}
+	if kind == pkgDef {
+		// Defined package symbols cannot be dup to each other.
+		// We load all the package symbols first, so we don't need
+		// to check dup here.
+		// We still add it to the lookup table, as it may still be
+		// referenced by name (e.g. through linkname).
+		l.symsByName[ver][name] = i
+		addToGlobal()
+		return i, true
+	}
+
+	// Non-package (named) symbol. Check if it already exists.
 	oldi, existed := l.symsByName[ver][name]
 	if !existed {
 		l.symsByName[ver][name] = i
@@ -1468,8 +1473,9 @@ func (x RelocByOff) Len() int           { return len(x) }
 func (x RelocByOff) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 func (x RelocByOff) Less(i, j int) bool { return x[i].Off < x[j].Off }
 
-// Preload a package: add autolibs, add symbols to the symbol table.
-// Does not read symbol data yet.
+// Preload a package: add autolibs, add defined package symbols to the symbol table.
+// Does not add non-package symbols yet, which will be done in LoadNonpkgSyms.
+// Does not read symbol data.
 func (l *Loader) Preload(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64, pn string, flags int) {
 	roObject, readonly, err := f.Slice(uint64(length))
 	if err != nil {
@@ -1495,16 +1501,38 @@ func (l *Loader) Preload(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *
 		unit.DWARFFileTable[i] = r.DwarfFile(i)
 	}
 
-	istart := l.addObj(lib.Pkg, or)
-	l.growAttrBitmaps(int(istart) + ndef + nnonpkgdef)
-	for i, n := 0, ndef+nnonpkgdef; i < n; i++ {
+	l.addObj(lib.Pkg, or)
+	l.preloadSyms(or, pkgDef)
+
+	// The caller expects us consuming all the data
+	f.MustSeek(length, os.SEEK_CUR)
+}
+
+// Preload symbols of given kind from an object.
+func (l *Loader) preloadSyms(r *oReader, kind int) {
+	ndef := r.NSym()
+	nnonpkgdef := r.NNonpkgdef()
+	var start, end int
+	switch kind {
+	case pkgDef:
+		start = 0
+		end = ndef
+	case nonPkgDef:
+		start = ndef
+		end = ndef + nnonpkgdef
+	default:
+		panic("preloadSyms: bad kind")
+	}
+	l.growSyms(len(l.objSyms) + end - start)
+	l.growAttrBitmaps(len(l.objSyms) + end - start)
+	for i := start; i < end; i++ {
 		osym := goobj2.Sym{}
-		osym.Read(r, r.SymOff(i))
-		name := strings.Replace(osym.Name, "\"\".", pkgprefix, -1)
-		v := abiToVer(osym.ABI, localSymVersion)
+		osym.Read(r.Reader, r.SymOff(i))
+		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
+		v := abiToVer(osym.ABI, r.version)
 		dupok := osym.Dupok()
-		gi, added := l.AddSym(name, v, or, i, dupok, sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)])
-		or.syms[i] = gi
+		gi, added := l.AddSym(name, v, r, i, kind, dupok, sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)])
+		r.syms[i] = gi
 		if !added {
 			continue
 		}
@@ -1522,14 +1550,14 @@ func (l *Loader) Preload(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *
 			l.SetAttrNotInSymbolTable(gi, true)
 		}
 	}
-
-	// The caller expects us consuming all the data
-	f.MustSeek(length, os.SEEK_CUR)
 }
 
-// Make sure referenced symbols are added. Most of them should already be added.
-// This should only be needed for referenced external symbols.
-func (l *Loader) LoadRefs(arch *sys.Arch, syms *sym.Symbols) {
+// Add non-package symbols and references to external symbols (which are always
+// named).
+func (l *Loader) LoadNonpkgSyms(arch *sys.Arch, syms *sym.Symbols) {
+	for _, o := range l.objs[1:] {
+		l.preloadSyms(o.r, nonPkgDef)
+	}
 	for _, o := range l.objs[1:] {
 		loadObjRefs(l, o.r, arch, syms)
 	}
