@@ -353,7 +353,10 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 				ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
 			}
 			rela.AddAddrPlus(ctxt.Arch, targ, int64(r.Add))
-			r.Type = objabi.ElfRelocOffset // ignore during relocsym
+			// Not mark r done here. So we still apply it statically,
+			// so in the file content we'll also have the right offset
+			// to the relocation target. So it can be examined statically
+			// (e.g. go version).
 			return true
 		}
 
