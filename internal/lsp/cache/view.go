@@ -591,8 +591,8 @@ func (v *view) setBuildInformation(ctx context.Context, folder span.URI, env []s
 	// check if the view has a valid build configuration.
 	v.hasValidBuildConfiguration = checkBuildConfiguration(v.goCommand, v.realMod, v.folder, v.gopath)
 
-	// The user has disabled the use of the -modfile flag.
-	if !modfileFlagEnabled {
+	// The user has disabled the use of the -modfile flag or has no go.mod file.
+	if !modfileFlagEnabled || v.realMod == "" {
 		return nil
 	}
 	if modfileFlag, err := v.modfileFlagExists(ctx, v.Options().Env); err != nil {

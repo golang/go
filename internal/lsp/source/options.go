@@ -82,7 +82,7 @@ func DefaultOptions() Options {
 			CompletionBudget: 100 * time.Millisecond,
 		},
 		ExperimentalOptions: ExperimentalOptions{
-			TempModfile: false,
+			TempModfile: true,
 		},
 		Hooks: Hooks{
 			ComputeEdits: myers.ComputeEdits,

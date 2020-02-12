@@ -51,7 +51,6 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		cache := cache.New(nil)
 		session := cache.NewSession()
 		options := tests.DefaultOptions()
-		options.TempModfile = exporter == packagestest.Modules
 		session.SetOptions(options)
 		options.Env = datum.Config.Env
 		v, _, err := session.NewView(ctx, datum.Config.Dir, span.FileURI(datum.Config.Dir), options)
