@@ -1476,7 +1476,7 @@ func (x RelocByOff) Less(i, j int) bool { return x[i].Off < x[j].Off }
 // Preload a package: add autolibs, add defined package symbols to the symbol table.
 // Does not add non-package symbols yet, which will be done in LoadNonpkgSyms.
 // Does not read symbol data.
-func (l *Loader) Preload(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64, pn string, flags int) {
+func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64, flags int) {
 	roObject, readonly, err := f.Slice(uint64(length))
 	if err != nil {
 		log.Fatal("cannot read object file:", err)
@@ -1554,16 +1554,16 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
 
 // Add non-package symbols and references to external symbols (which are always
 // named).
-func (l *Loader) LoadNonpkgSyms(arch *sys.Arch, syms *sym.Symbols) {
+func (l *Loader) LoadNonpkgSyms(syms *sym.Symbols) {
 	for _, o := range l.objs[1:] {
 		l.preloadSyms(o.r, nonPkgDef)
 	}
 	for _, o := range l.objs[1:] {
-		loadObjRefs(l, o.r, arch, syms)
+		loadObjRefs(l, o.r, syms)
 	}
 }
 
-func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch, syms *sym.Symbols) {
+func loadObjRefs(l *Loader, r *oReader, syms *sym.Symbols) {
 	ndef := r.NSym() + r.NNonpkgdef()
 	for i, n := 0, r.NNonpkgref(); i < n; i++ {
 		osym := goobj2.Sym{}
@@ -1832,14 +1832,6 @@ type funcAllocInfo struct {
 	inlCall uint32 // number of sym.InlinedCall's needed in inltree slices
 	pcData  uint32 // number of sym.Pcdata's needed in pdata slices
 	fdOff   uint32 // number of int64's needed in all Funcdataoff slices
-}
-
-// LookupOrCreate looks up a symbol by name, and creates one if not found.
-// Either way, it will also create a sym.Symbol for it, if not already.
-// This should only be called when interacting with parts of the linker
-// that still works on sym.Symbols (i.e. internal cgo linking, for now).
-func (l *Loader) LookupOrCreate(name string, version int) *sym.Symbol {
-	panic("unreachable") // TODO: delete once PE loader is converted
 }
 
 // cloneToExternal takes the existing object file symbol (symIdx)
