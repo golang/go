@@ -733,7 +733,7 @@ func (ctxt *Link) mangleTypeSym() {
 	for _, s := range ctxt.Syms.Allsym {
 		newName := typeSymbolMangle(s.Name)
 		if newName != s.Name {
-			ctxt.Syms.Rename(s.Name, newName, int(s.Version), ctxt.Reachparent)
+			ctxt.Syms.Rename(s.Name, newName, int(s.Version))
 		}
 	}
 }
@@ -2618,25 +2618,9 @@ func (ctxt *Link) loadlibfull() {
 	}
 
 	// Pull the symbols out.
-	ctxt.loader.ExtractSymbols(ctxt.Syms)
+	ctxt.loader.ExtractSymbols(ctxt.Syms, ctxt.Reachparent)
 
 	setupdynexp(ctxt)
-
-	// Populate ctxt.Reachparent if appropriate.
-	if ctxt.Reachparent != nil {
-		for i := 0; i < len(ctxt.loader.Reachparent); i++ {
-			p := ctxt.loader.Reachparent[i]
-			if p == 0 {
-				continue
-			}
-			if p == loader.Sym(i) {
-				panic("self-cycle in reachparent")
-			}
-			sym := ctxt.loader.Syms[i]
-			psym := ctxt.loader.Syms[p]
-			ctxt.Reachparent[sym] = psym
-		}
-	}
 
 	// Drop the cgodata reference.
 	ctxt.cgodata = nil
