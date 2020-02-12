@@ -58,9 +58,9 @@ func TestAddMaterializedSymbol(t *testing.T) {
 	}
 
 	// Grab symbol builder pointers
-	sb1, es1 := ldr.MakeSymbolUpdater(es1)
-	sb2, es2 := ldr.MakeSymbolUpdater(es2)
-	sb3, es3 := ldr.MakeSymbolUpdater(es3)
+	sb1 := ldr.MakeSymbolUpdater(es1)
+	sb2 := ldr.MakeSymbolUpdater(es2)
+	sb3 := ldr.MakeSymbolUpdater(es3)
 
 	// Suppose we create some more symbols, which triggers a grow.
 	// Make sure the symbol builder's payload pointer is valid,
@@ -116,8 +116,8 @@ func TestAddMaterializedSymbol(t *testing.T) {
 		}
 	}
 
-	sb1, es1 = ldr.MakeSymbolUpdater(es1)
-	sb2, es2 = ldr.MakeSymbolUpdater(es2)
+	sb1 = ldr.MakeSymbolUpdater(es1)
+	sb2 = ldr.MakeSymbolUpdater(es2)
 
 	// Get/set a few other attributes
 	if ldr.AttrVisibilityHidden(es3) {
@@ -248,9 +248,9 @@ func TestAddDataMethods(t *testing.T) {
 		{
 			which: "AddUint8",
 			addDataFunc: func(l *Loader, s Sym, _ Sym) Sym {
-				sb, ns := l.MakeSymbolUpdater(s)
+				sb := l.MakeSymbolUpdater(s)
 				sb.AddUint8('a')
-				return ns
+				return s
 			},
 			expData: []byte{'a'},
 			expKind: sym.SDATA,
@@ -258,9 +258,9 @@ func TestAddDataMethods(t *testing.T) {
 		{
 			which: "AddUintXX",
 			addDataFunc: func(l *Loader, s Sym, _ Sym) Sym {
-				sb, ns := l.MakeSymbolUpdater(s)
+				sb := l.MakeSymbolUpdater(s)
 				sb.AddUintXX(arch, 25185, 2)
-				return ns
+				return s
 			},
 			expData: []byte{'a', 'b'},
 			expKind: sym.SDATA,
@@ -268,11 +268,11 @@ func TestAddDataMethods(t *testing.T) {
 		{
 			which: "SetUint8",
 			addDataFunc: func(l *Loader, s Sym, _ Sym) Sym {
-				sb, ns := l.MakeSymbolUpdater(s)
+				sb := l.MakeSymbolUpdater(s)
 				sb.AddUint8('a')
 				sb.AddUint8('b')
 				sb.SetUint8(arch, 1, 'c')
-				return ns
+				return s
 			},
 			expData: []byte{'a', 'c'},
 			expKind: sym.SDATA,
@@ -280,9 +280,9 @@ func TestAddDataMethods(t *testing.T) {
 		{
 			which: "AddString",
 			addDataFunc: func(l *Loader, s Sym, _ Sym) Sym {
-				sb, ns := l.MakeSymbolUpdater(s)
+				sb := l.MakeSymbolUpdater(s)
 				sb.Addstring("hello")
-				return ns
+				return s
 			},
 			expData: []byte{'h', 'e', 'l', 'l', 'o', 0},
 			expKind: sym.SNOPTRDATA,
@@ -290,9 +290,9 @@ func TestAddDataMethods(t *testing.T) {
 		{
 			which: "AddAddrPlus",
 			addDataFunc: func(l *Loader, s Sym, s2 Sym) Sym {
-				sb, ns := l.MakeSymbolUpdater(s)
+				sb := l.MakeSymbolUpdater(s)
 				sb.AddAddrPlus(arch, s2, 3)
-				return ns
+				return s
 			},
 			expData: []byte{0, 0, 0, 0, 0, 0, 0, 0},
 			expKind: sym.SDATA,
@@ -301,9 +301,9 @@ func TestAddDataMethods(t *testing.T) {
 		{
 			which: "AddAddrPlus4",
 			addDataFunc: func(l *Loader, s Sym, s2 Sym) Sym {
-				sb, ns := l.MakeSymbolUpdater(s)
+				sb := l.MakeSymbolUpdater(s)
 				sb.AddAddrPlus4(arch, s2, 3)
-				return ns
+				return s
 			},
 			expData: []byte{0, 0, 0, 0},
 			expKind: sym.SDATA,
@@ -312,9 +312,9 @@ func TestAddDataMethods(t *testing.T) {
 		{
 			which: "AddCURelativeAddrPlus",
 			addDataFunc: func(l *Loader, s Sym, s2 Sym) Sym {
-				sb, ns := l.MakeSymbolUpdater(s)
+				sb := l.MakeSymbolUpdater(s)
 				sb.AddCURelativeAddrPlus(arch, s2, 7)
-				return ns
+				return s
 			},
 			expData: []byte{0, 0, 0, 0, 0, 0, 0, 0},
 			expKind: sym.SDATA,

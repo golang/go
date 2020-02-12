@@ -63,7 +63,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 		lds.Section = *sect
 		name := fmt.Sprintf("%s(%s)", pkg, lds.Name)
 		symbol := l.LookupOrCreateSym(name, localSymVersion)
-		s, _ := l.MakeSymbolUpdater(symbol)
+		s := l.MakeSymbolUpdater(symbol)
 
 		switch lds.Type {
 		default:
@@ -148,7 +148,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 
 			}
 		}
-		bld, _ := l.MakeSymbolUpdater(sect.sym)
+		bld := l.MakeSymbolUpdater(sect.sym)
 		bld.SetRelocs(rs[:sect.Nreloc])
 	}
 	return textp, nil

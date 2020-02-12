@@ -721,7 +721,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		}
 		sectsymNames[name] = true
 
-		sb, _ := l.MakeSymbolUpdater(lookup(name, localSymVersion))
+		sb := l.MakeSymbolUpdater(lookup(name, localSymVersion))
 
 		switch int(sect.flags) & (ElfSectFlagAlloc | ElfSectFlagWrite | ElfSectFlagExec) {
 		default:
@@ -768,15 +768,13 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 			continue
 		}
 		if elfsym.shndx == ElfSymShnCommon || elfsym.type_ == ElfSymTypeCommon {
-			sb, ns := l.MakeSymbolUpdater(elfsym.sym)
+			sb := l.MakeSymbolUpdater(elfsym.sym)
 			if uint64(sb.Size()) < elfsym.size {
 				sb.SetSize(int64(elfsym.size))
 			}
 			if sb.Type() == 0 || sb.Type() == sym.SXREF {
 				sb.SetType(sym.SNOPTRBSS)
 			}
-			symbols[i] = ns
-			elfsym.sym = ns
 			continue
 		}
 
@@ -822,8 +820,8 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 				l.SymName(s), l.SymName(l.OuterSym(s)), l.SymName(sect.sym))
 		}
 
-		sectsb, _ := l.MakeSymbolUpdater(sect.sym)
-		sb, _ := l.MakeSymbolUpdater(s)
+		sectsb := l.MakeSymbolUpdater(sect.sym)
+		sb := l.MakeSymbolUpdater(s)
 
 		sb.SetType(sectsb.Type())
 		sectsb.PrependSub(s)
@@ -856,8 +854,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		if s == 0 {
 			continue
 		}
-		sb, _ := l.MakeSymbolUpdater(s)
-		s = sb.Sym()
+		sb := l.MakeSymbolUpdater(s)
 		if l.SubSym(s) != 0 {
 			sb.SortSub()
 		}
@@ -992,7 +989,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		sort.Sort(loader.RelocByOff(r[:n]))
 		// just in case
 
-		sb, _ := l.MakeSymbolUpdater(sect.sym)
+		sb := l.MakeSymbolUpdater(sect.sym)
 		r = r[:n]
 		sb.SetRelocs(r)
 	}
@@ -1090,7 +1087,7 @@ func readelfsym(newSym, lookup func(string, int) loader.Sym, l *loader.Loader, a
 				// comment #5 for details.
 				if s != 0 && elfsym.other == 2 {
 					if !l.IsExternal(s) {
-						_, s = l.MakeSymbolUpdater(s)
+						l.MakeSymbolUpdater(s)
 					}
 					l.SetAttrDuplicateOK(s, true)
 					l.SetAttrVisibilityHidden(s, true)
@@ -1147,7 +1144,7 @@ func readelfsym(newSym, lookup func(string, int) loader.Sym, l *loader.Loader, a
 	// TODO(mwhudson): the test of VisibilityHidden here probably doesn't make
 	// sense and should be removed when someone has thought about it properly.
 	if s != 0 && l.SymType(s) == 0 && !l.AttrVisibilityHidden(s) && elfsym.type_ != ElfSymTypeSection {
-		sb, _ := l.MakeSymbolUpdater(s)
+		sb := l.MakeSymbolUpdater(s)
 		sb.SetType(sym.SXREF)
 	}
 	elfsym.sym = s

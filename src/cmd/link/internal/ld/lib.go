@@ -567,7 +567,7 @@ func (ctxt *Link) loadcgodirectives() {
 				// cgo_import_static and cgo_import_dynamic,
 				// then we want to make it cgo_import_dynamic
 				// now.
-				su, _ := l.MakeSymbolUpdater(symIdx)
+				su := l.MakeSymbolUpdater(symIdx)
 				if l.SymExtname(symIdx) != "" && l.SymDynimplib(symIdx) != "" && !(l.AttrCgoExportStatic(symIdx) || l.AttrCgoExportDynamic(symIdx)) {
 					su.SetType(sym.SDYNIMPORT)
 				} else {
@@ -584,12 +584,12 @@ func (ctxt *Link) linksetup() {
 	switch ctxt.BuildMode {
 	case BuildModeCShared, BuildModePlugin:
 		symIdx := ctxt.loader.LookupOrCreateSym("runtime.islibrary", 0)
-		sb, _ := ctxt.loader.MakeSymbolUpdater(symIdx)
+		sb := ctxt.loader.MakeSymbolUpdater(symIdx)
 		sb.SetType(sym.SNOPTRDATA)
 		sb.AddUint8(1)
 	case BuildModeCArchive:
 		symIdx := ctxt.loader.LookupOrCreateSym("runtime.isarchive", 0)
-		sb, _ := ctxt.loader.MakeSymbolUpdater(symIdx)
+		sb := ctxt.loader.MakeSymbolUpdater(symIdx)
 		sb.SetType(sym.SNOPTRDATA)
 		sb.AddUint8(1)
 	}
@@ -621,7 +621,7 @@ func (ctxt *Link) linksetup() {
 
 	if ctxt.LinkMode == LinkExternal && ctxt.Arch.Family == sys.PPC64 && objabi.GOOS != "aix" {
 		toc := ctxt.loader.LookupOrCreateSym(".TOC.", 0)
-		sb, _ := ctxt.loader.MakeSymbolUpdater(toc)
+		sb := ctxt.loader.MakeSymbolUpdater(toc)
 		sb.SetType(sym.SDYNIMPORT)
 	}
 
@@ -629,8 +629,8 @@ func (ctxt *Link) linksetup() {
 	// section. We don't actually use the section on android, so don't
 	// generate it.
 	if objabi.GOOS != "android" {
-		symIdx := ctxt.loader.LookupOrCreateSym("runtime.tlsg", 0)
-		sb, tlsg := ctxt.loader.MakeSymbolUpdater(symIdx)
+		tlsg := ctxt.loader.LookupOrCreateSym("runtime.tlsg", 0)
+		sb := ctxt.loader.MakeSymbolUpdater(tlsg)
 
 		// runtime.tlsg is used for external linking on platforms that do not define
 		// a variable to hold g in assembly (currently only intel).
@@ -647,12 +647,12 @@ func (ctxt *Link) linksetup() {
 	var moduledata loader.Sym
 	var mdsb *loader.SymbolBuilder
 	if ctxt.BuildMode == BuildModePlugin {
-		pmd := ctxt.loader.LookupOrCreateSym("local.pluginmoduledata", 0)
-		mdsb, moduledata = ctxt.loader.MakeSymbolUpdater(pmd)
+		moduledata = ctxt.loader.LookupOrCreateSym("local.pluginmoduledata", 0)
+		mdsb = ctxt.loader.MakeSymbolUpdater(moduledata)
 		ctxt.loader.SetAttrLocal(moduledata, true)
 	} else {
-		fmd := ctxt.loader.LookupOrCreateSym("runtime.firstmoduledata", 0)
-		mdsb, moduledata = ctxt.loader.MakeSymbolUpdater(fmd)
+		moduledata = ctxt.loader.LookupOrCreateSym("runtime.firstmoduledata", 0)
+		mdsb = ctxt.loader.MakeSymbolUpdater(moduledata)
 	}
 	if mdsb.Type() != 0 && mdsb.Type() != sym.SDYNIMPORT {
 		// If the module (toolchain-speak for "executable or shared
@@ -666,7 +666,7 @@ func (ctxt *Link) linksetup() {
 		// recording the value of GOARM.
 		if ctxt.Arch.Family == sys.ARM {
 			goarm := ctxt.loader.LookupOrCreateSym("runtime.goarm", 0)
-			sb, _ := ctxt.loader.MakeSymbolUpdater(goarm)
+			sb := ctxt.loader.MakeSymbolUpdater(goarm)
 			sb.SetType(sym.SDATA)
 			sb.SetSize(0)
 			sb.AddUint8(uint8(objabi.GOARM))
@@ -674,7 +674,7 @@ func (ctxt *Link) linksetup() {
 
 		if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
 			fpe := ctxt.loader.LookupOrCreateSym("runtime.framepointer_enabled", 0)
-			sb, _ := ctxt.loader.MakeSymbolUpdater(fpe)
+			sb := ctxt.loader.MakeSymbolUpdater(fpe)
 			sb.SetType(sym.SNOPTRDATA)
 			sb.SetSize(0)
 			sb.AddUint8(1)
@@ -682,8 +682,8 @@ func (ctxt *Link) linksetup() {
 	} else {
 		// If OTOH the module does not contain the runtime package,
 		// create a local symbol for the moduledata.
-		lmd := ctxt.loader.LookupOrCreateSym("local.moduledata", 0)
-		mdsb, moduledata = ctxt.loader.MakeSymbolUpdater(lmd)
+		moduledata = ctxt.loader.LookupOrCreateSym("local.moduledata", 0)
+		mdsb = ctxt.loader.MakeSymbolUpdater(moduledata)
 		ctxt.loader.SetAttrLocal(moduledata, true)
 	}
 	// In all cases way we mark the moduledata as noptrdata to hide it from
@@ -704,8 +704,8 @@ func (ctxt *Link) linksetup() {
 
 	if ctxt.Arch == sys.Arch386 && ctxt.HeadType != objabi.Hwindows {
 		if (ctxt.BuildMode == BuildModeCArchive && ctxt.IsELF) || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
-			symIdx := ctxt.loader.LookupOrCreateSym("_GLOBAL_OFFSET_TABLE_", 0)
-			sb, got := ctxt.loader.MakeSymbolUpdater(symIdx)
+			got := ctxt.loader.LookupOrCreateSym("_GLOBAL_OFFSET_TABLE_", 0)
+			sb := ctxt.loader.MakeSymbolUpdater(got)
 			sb.SetType(sym.SDYNIMPORT)
 			ctxt.loader.SetAttrReachable(got, true)
 		}
@@ -1970,16 +1970,16 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 		}
 
 		l := ctxt.loader
-		symIdx := l.LookupOrCreateSym(elfsym.Name, ver)
+		s := l.LookupOrCreateSym(elfsym.Name, ver)
 
 		// Because loadlib above loads all .a files before loading
 		// any shared libraries, any non-dynimport symbols we find
 		// that duplicate symbols already loaded should be ignored
 		// (the symbols from the .a files "win").
-		if l.SymType(symIdx) != 0 && l.SymType(symIdx) != sym.SDYNIMPORT {
+		if l.SymType(s) != 0 && l.SymType(s) != sym.SDYNIMPORT {
 			continue
 		}
-		su, s := l.MakeSymbolUpdater(symIdx)
+		su := l.MakeSymbolUpdater(s)
 		su.SetType(sym.SDYNIMPORT)
 		l.SetSymElfType(s, elf.ST_TYPE(elfsym.Info))
 		su.SetSize(int64(elfsym.Size))
@@ -2019,7 +2019,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			if l.SymType(alias) != 0 {
 				continue
 			}
-			su, _ := l.MakeSymbolUpdater(alias)
+			su := l.MakeSymbolUpdater(alias)
 			su.SetType(sym.SABIALIAS)
 			su.AddReloc(loader.Reloc{Sym: s})
 		}
