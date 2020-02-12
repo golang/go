@@ -184,8 +184,9 @@ func Import(path string) (m module.Version, dir string, err error) {
 		if !pathIsStd {
 			if cfg.BuildModReason == "" {
 				queryErr = fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
+			} else {
+				queryErr = fmt.Errorf("import lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
 			}
-			queryErr = fmt.Errorf("import lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
 		}
 		return module.Version{}, "", &ImportMissingError{Path: path, QueryErr: queryErr}
 	}
