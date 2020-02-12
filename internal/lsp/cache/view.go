@@ -392,16 +392,23 @@ func basename(filename string) string {
 }
 
 func (v *view) relevantChange(c source.FileModification) bool {
-	if v.contains(c.URI) {
-		return true
-	}
+	// If the file is known to the view, the change is relevant.
+	known := v.knownFile(c.URI)
 
-	// Check if the view is already aware of this file.
-	// If so, the change is relevant.
+	// If the file is not known to the view, and the change is only on-disk,
+	// we should not invalidate the snapshot. This is necessary because Emacs
+	// sends didChangeWatchedFiles events for temp files.
+	if !known && c.OnDisk && (c.Action == source.Change || c.Action == source.Delete) {
+		return false
+	}
+	return v.contains(c.URI) || known
+}
+
+func (v *view) knownFile(uri span.URI) bool {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
-	f, err := v.findFile(c.URI)
+	f, err := v.findFile(uri)
 	return f != nil && err == nil
 }
 
