@@ -151,7 +151,7 @@ func makeUpdater(l *loader.Loader, bld *loader.SymbolBuilder, s loader.Sym) *loa
 	if bld != nil {
 		return bld
 	}
-	bld, _ = l.MakeSymbolUpdater(s)
+	bld = l.MakeSymbolUpdater(s)
 	return bld
 }
 
@@ -160,7 +160,9 @@ func makeUpdater(l *loader.Loader, bld *loader.SymbolBuilder, s loader.Sym) *loa
 // If an .rsrc section is found, its symbol is returned as rsrc.
 func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []loader.Sym, rsrc loader.Sym, err error) {
 	lookup := func(name string, version int) (*loader.SymbolBuilder, loader.Sym) {
-		return l.MakeSymbolUpdater(l.LookupOrCreateSym(name, version))
+		s := l.LookupOrCreateSym(name, version)
+		sb := l.MakeSymbolUpdater(s)
+		return sb, s
 	}
 	sectsyms := make(map[*pe.Section]loader.Sym)
 	sectdata := make(map[*pe.Section][]byte)
@@ -328,7 +330,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
 
 		sort.Sort(loader.RelocByOff(rs[:rsect.NumberOfRelocations]))
 
-		bld, _ := l.MakeSymbolUpdater(sectsyms[rsect])
+		bld := l.MakeSymbolUpdater(sectsyms[rsect])
 		bld.SetRelocs(rs[:rsect.NumberOfRelocations])
 	}
 

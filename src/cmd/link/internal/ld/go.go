@@ -202,7 +202,7 @@ func setCgoAttr(ctxt *Link, lookup func(string, int) loader.Sym, file string, pk
 				l.SetSymExtname(s, remote)
 				l.SetSymDynimpvers(s, q)
 				if st != sym.SHOSTOBJ {
-					su, _ := l.MakeSymbolUpdater(s)
+					su := l.MakeSymbolUpdater(s)
 					su.SetType(sym.SDYNIMPORT)
 				} else {
 					hostObjSyms[s] = struct{}{}
@@ -218,7 +218,8 @@ func setCgoAttr(ctxt *Link, lookup func(string, int) loader.Sym, file string, pk
 			}
 			local := f[1]
 
-			su, s := l.MakeSymbolUpdater(lookup(local, 0))
+			s := lookup(local, 0)
+			su := l.MakeSymbolUpdater(s)
 			su.SetType(sym.SHOSTOBJ)
 			su.SetSize(0)
 			hostObjSyms[s] = struct{}{}
@@ -260,7 +261,7 @@ func setCgoAttr(ctxt *Link, lookup func(string, int) loader.Sym, file string, pk
 				l.SetSymDynimpvers(s, "")
 				l.SetSymExtname(s, "")
 				var su *loader.SymbolBuilder
-				su, s = l.MakeSymbolUpdater(s)
+				su = l.MakeSymbolUpdater(s)
 				su.SetType(0)
 			}
 

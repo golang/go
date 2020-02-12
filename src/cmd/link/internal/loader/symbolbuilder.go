@@ -36,9 +36,8 @@ func (l *Loader) MakeSymbolBuilder(name string) *SymbolBuilder {
 // symbol 'symIdx'. If 'symIdx' is not an external symbol, then create
 // a clone of it (copy name, properties, etc) fix things up so that
 // the lookup tables and caches point to the new version, not the old
-// version. Returns a SymbolBuilder and a Sym (which may be different
-// from the original if we had to clone).
-func (l *Loader) MakeSymbolUpdater(symIdx Sym) (*SymbolBuilder, Sym) {
+// version.
+func (l *Loader) MakeSymbolUpdater(symIdx Sym) *SymbolBuilder {
 	if symIdx == 0 {
 		panic("can't update the null symbol")
 	}
@@ -53,7 +52,7 @@ func (l *Loader) MakeSymbolUpdater(symIdx Sym) (*SymbolBuilder, Sym) {
 	// Construct updater and return.
 	sb := &SymbolBuilder{l: l, symIdx: symIdx}
 	sb.extSymPayload = l.getPayload(symIdx)
-	return sb, symIdx
+	return sb
 }
 
 // Getters for properties of the symbol we're working on.

@@ -559,7 +559,8 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 			continue
 		}
 		name := fmt.Sprintf("%s(%s/%s)", pkg, sect.segname, sect.name)
-		bld, s := l.MakeSymbolUpdater(l.LookupOrCreateSym(name, localSymVersion))
+		s := l.LookupOrCreateSym(name, localSymVersion)
+		bld := l.MakeSymbolUpdater(s)
 		if bld.Type() != 0 {
 			return errorf("duplicate %s/%s", sect.segname, sect.name)
 		}
@@ -624,7 +625,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		}
 
 		sect := &c.seg.sect[machsym.sectnum-1]
-		bld, bldSym := l.MakeSymbolUpdater(s)
+		bld := l.MakeSymbolUpdater(s)
 		outer := sect.sym
 		if outer == 0 {
 			continue // ignore reference to invalid section
@@ -638,7 +639,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		}
 
 		bld.SetType(l.SymType(outer))
-		l.PrependSub(outer, bldSym)
+		l.PrependSub(outer, s)
 
 		bld.SetValue(int64(machsym.value - sect.addr))
 		if !l.AttrCgoExportDynamic(s) {
@@ -650,26 +651,24 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 			}
 			bld.SetExternal(true)
 		}
-
-		machsym.sym = bldSym
 	}
 
 	// Sort outer lists by address, adding to textp.
 	// This keeps textp in increasing address order.
 	for i := 0; uint32(i) < c.seg.nsect; i++ {
 		sect := &c.seg.sect[i]
-		sectSym := sect.sym
-		if sectSym == 0 {
+		s := sect.sym
+		if s == 0 {
 			continue
 		}
-		bld, s := l.MakeSymbolUpdater(sectSym)
+		bld := l.MakeSymbolUpdater(s)
 		if bld.SubSym() != 0 {
 
 			bld.SortSub()
 
 			// assign sizes, now that we know symbols in sorted order.
 			for s1 := bld.Sub(); s1 != 0; s1 = l.SubSym(s1) {
-				s1Bld, _ := l.MakeSymbolUpdater(s1)
+				s1Bld := l.MakeSymbolUpdater(s1)
 				if sub := l.SubSym(s1); sub != 0 {
 					s1Bld.SetSize(l.SymValue(sub) - l.SymValue(s1))
 				} else {
@@ -866,7 +865,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		}
 
 		sort.Sort(loader.RelocByOff(r[:rpi]))
-		sb, _ := l.MakeSymbolUpdater(sect.sym)
+		sb := l.MakeSymbolUpdater(sect.sym)
 		sb.SetRelocs(r[:rpi])
 	}
 
