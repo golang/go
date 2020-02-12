@@ -446,7 +446,7 @@ func (ctxt *Link) loadlib() {
 	}
 
 	// Add non-package symbols and references of externally defined symbols.
-	ctxt.loader.LoadNonpkgSyms(ctxt.Arch, ctxt.Syms)
+	ctxt.loader.LoadNonpkgSyms(ctxt.Syms)
 
 	// Load symbols from shared libraries, after all Go object symbols are loaded.
 	for _, lib := range ctxt.Library {
@@ -1815,7 +1815,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
 	ldpkg(ctxt, f, lib, import1-import0-2, pn) // -2 for !\n
 	f.MustSeek(import1, 0)
 
-	ctxt.loader.Preload(ctxt.Arch, ctxt.Syms, f, lib, unit, eof-f.Offset(), pn, 0)
+	ctxt.loader.Preload(ctxt.Syms, f, lib, unit, eof-f.Offset(), 0)
 	addImports(ctxt, lib, pn)
 	return nil
 }
