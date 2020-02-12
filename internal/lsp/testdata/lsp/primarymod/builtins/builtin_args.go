@@ -22,6 +22,8 @@ func _() {
 
 	append() //@rank(")", builtinSlice, builtinChan)
 
+	var _ []byte = append([]byte(nil), ""...) //@rank(") //")
+
 	copy()           //@rank(")", builtinSlice, builtinChan)
 	copy(aSlice, aS) //@rank(")", builtinSlice, builtinString)
 	copy(aS, aSlice) //@rank(",", builtinSlice, builtinString)

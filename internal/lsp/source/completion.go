@@ -1424,7 +1424,9 @@ Nodes:
 							// param w/ further expressions, we expect a single
 							// variadic item.
 							if beyondLastParam || isLastParam && len(node.Args) > numParams {
-								inf.objType = sig.Params().At(numParams - 1).Type().(*types.Slice).Elem()
+								if slice, ok := sig.Params().At(numParams - 1).Type().(*types.Slice); ok {
+									inf.objType = slice.Elem()
+								}
 								break Nodes
 							}
 
