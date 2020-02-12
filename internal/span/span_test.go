@@ -14,8 +14,7 @@ import (
 )
 
 var (
-	formats = []string{"%v", "%#v", "%+v"}
-	tests   = [][]string{
+	tests = [][]string{
 		{"C:/file_a", "C:/file_a", "file:///C:/file_a:1:1#0"},
 		{"C:/file_b:1:2", "C:/file_b:#1", "file:///C:/file_b:1:2#1"},
 		{"C:/file_c:1000", "C:/file_c:#9990", "file:///C:/file_c:1000:1#9990"},
@@ -30,7 +29,7 @@ var (
 func TestFormat(t *testing.T) {
 	converter := lines(10)
 	for _, test := range tests {
-		for ti, text := range test {
+		for ti, text := range test[:2] {
 			spn := span.Parse(text)
 			if ti <= 1 {
 				// we can check %v produces the same as the input

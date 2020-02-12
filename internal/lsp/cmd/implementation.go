@@ -72,7 +72,7 @@ func (i *implementation) Run(ctx context.Context, args ...string) error {
 
 	var spans []string
 	for _, impl := range implementations {
-		f := conn.AddFile(ctx, span.NewURI(impl.URI))
+		f := conn.AddFile(ctx, impl.URI.SpanURI())
 		span, err := f.mapper.Span(impl)
 		if err != nil {
 			return err

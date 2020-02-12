@@ -49,28 +49,26 @@ func filename(uri URI) (string, error) {
 	return u.Path, nil
 }
 
-// NewURI returns a span URI for the string.
-// It will attempt to detect if the string is a file path or uri.
-func NewURI(s string) URI {
-	// If a path has a scheme, it is already a URI.
-	// We only handle the file:// scheme.
-	if i := len(fileScheme + "://"); strings.HasPrefix(s, "file:///") {
-		// Handle microsoft/vscode#75027 by making it a special case.
-		// On Windows, VS Code sends file URIs that look like file:///C%3A/x/y/z.
-		// Replace the %3A so that the URI looks like: file:///C:/x/y/z.
-		if strings.ToLower(s[i+2:i+5]) == "%3a" {
-			s = s[:i+2] + ":" + s[i+5:]
-		}
-		// File URIs from Windows may have lowercase drive letters.
-		// Since drive letters are guaranteed to be case insensitive,
-		// we change them to uppercase to remain consistent.
-		// For example, file:///c:/x/y/z becomes file:///C:/x/y/z.
-		if isWindowsDriveURIPath(s[i:]) {
-			s = s[:i+1] + strings.ToUpper(string(s[i+1])) + s[i+2:]
-		}
+func URIFromURI(s string) URI {
+	if !strings.HasPrefix(s, "file:///") {
 		return URI(s)
 	}
-	return FileURI(s)
+	// Handle Windows-specific glitches. We can't parse the URI -- it may not be valid.
+	path := s[len("file://"):]
+	// Handle microsoft/vscode#75027 by making it a special case.
+	// On Windows, VS Code sends file URIs that look like file:///C%3A/x/y/z.
+	// Replace the %3A so that the URI looks like: file:///C:/x/y/z.
+	if strings.ToLower(path[2:5]) == "%3a" {
+		path = path[:2] + ":" + path[5:]
+	}
+	// File URIs from Windows may have lowercase drive letters.
+	// Since drive letters are guaranteed to be case insensitive,
+	// we change them to uppercase to remain consistent.
+	// For example, file:///c:/x/y/z becomes file:///C:/x/y/z.
+	if isWindowsDriveURIPath(path) {
+		path = path[:1] + strings.ToUpper(string(path[1])) + path[2:]
+	}
+	return URI("file://" + path)
 }
 
 func CompareURI(a, b URI) int {
@@ -111,9 +109,9 @@ func equalURI(a, b URI) bool {
 	return os.SameFile(infoa, infob)
 }
 
-// FileURI returns a span URI for the supplied file path.
+// URIFromPath returns a span URI for the supplied file path.
 // It will always have the file scheme.
-func FileURI(path string) URI {
+func URIFromPath(path string) URI {
 	if path == "" {
 		return ""
 	}

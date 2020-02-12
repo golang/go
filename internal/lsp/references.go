@@ -9,11 +9,10 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/span"
 )
 
 func (s *Server) references(ctx context.Context, params *protocol.ReferenceParams) ([]protocol.Location, error) {
-	uri := span.NewURI(params.TextDocument.URI)
+	uri := params.TextDocument.URI.SpanURI()
 	view, err := s.session.ViewOf(uri)
 	if err != nil {
 		return nil, err
@@ -41,7 +40,7 @@ func (s *Server) references(ctx context.Context, params *protocol.ReferenceParam
 		}
 
 		locations = append(locations, protocol.Location{
-			URI:   protocol.NewURI(ref.URI()),
+			URI:   protocol.URIFromSpanURI(ref.URI()),
 			Range: refRange,
 		})
 	}

@@ -19,8 +19,16 @@ type ColumnMapper struct {
 	Content   []byte
 }
 
-func NewURI(uri span.URI) string {
-	return string(uri)
+func URIFromSpanURI(uri span.URI) DocumentURI {
+	return DocumentURI(uri)
+}
+
+func URIFromPath(path string) DocumentURI {
+	return URIFromSpanURI(span.URIFromPath(path))
+}
+
+func (u DocumentURI) SpanURI() span.URI {
+	return span.URIFromURI(string(u))
 }
 
 func (m *ColumnMapper) Location(s span.Span) (Location, error) {
@@ -28,7 +36,7 @@ func (m *ColumnMapper) Location(s span.Span) (Location, error) {
 	if err != nil {
 		return Location{}, err
 	}
-	return Location{URI: NewURI(s.URI()), Range: rng}, nil
+	return Location{URI: URIFromSpanURI(s.URI()), Range: rng}, nil
 }
 
 func (m *ColumnMapper) Range(s span.Span) (Range, error) {

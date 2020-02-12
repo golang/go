@@ -101,16 +101,16 @@ func (w *Workspace) URI(path string) protocol.DocumentURI {
 // URIToPath converts a uri to a workspace-relative path (or an absolute path,
 // if the uri is outside of the workspace).
 func (w *Workspace) URIToPath(uri protocol.DocumentURI) string {
-	root := w.RootURI() + "/"
-	if strings.HasPrefix(uri, root) {
-		return strings.TrimPrefix(uri, root)
+	root := w.RootURI().SpanURI().Filename()
+	path := uri.SpanURI().Filename()
+	if rel, err := filepath.Rel(root, path); err == nil && !strings.HasPrefix(rel, "..") {
+		return filepath.ToSlash(rel)
 	}
-	filename := span.NewURI(string(uri)).Filename()
-	return filepath.ToSlash(filename)
+	return filepath.ToSlash(path)
 }
 
 func toURI(fp string) protocol.DocumentURI {
-	return protocol.DocumentURI(span.FileURI(fp))
+	return protocol.DocumentURI(span.URIFromPath(fp))
 }
 
 // ReadFile reads a text file specified by a workspace-relative path.

@@ -21,7 +21,7 @@ import (
 )
 
 func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLinkParams) ([]protocol.DocumentLink, error) {
-	uri := span.NewURI(params.TextDocument.URI)
+	uri := params.TextDocument.URI.SpanURI()
 	view, err := s.session.ViewOf(uri)
 	if err != nil {
 		return nil, err

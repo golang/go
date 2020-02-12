@@ -75,7 +75,7 @@ func (r Range) Span() (Span, error) {
 	if err != nil {
 		return Span{}, err
 	}
-	s.v.URI = FileURI(startFilename)
+	s.v.URI = URIFromPath(startFilename)
 	if r.End.IsValid() {
 		var endFilename string
 		endFilename, s.v.End.Line, s.v.End.Column, err = position(f, r.End)

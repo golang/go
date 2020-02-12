@@ -222,7 +222,7 @@ func DiffTest(t *testing.T, compute diff.ComputeEdits) {
 	for _, test := range TestCases {
 		t.Run(test.Name, func(t *testing.T) {
 			t.Helper()
-			edits := compute(span.FileURI("/"+test.Name), test.In, test.Out)
+			edits := compute(span.URIFromPath("/"+test.Name), test.In, test.Out)
 			got := diff.ApplyEdits(test.In, edits)
 			unified := fmt.Sprint(diff.ToUnified(FileA, FileB, test.In, edits))
 			if got != test.Out {

@@ -32,10 +32,10 @@ package test`)},
 }
 
 var tokenTests = []span.Span{
-	span.New(span.FileURI("/a.go"), span.NewPoint(1, 1, 0), span.Point{}),
-	span.New(span.FileURI("/a.go"), span.NewPoint(3, 7, 20), span.NewPoint(3, 7, 20)),
-	span.New(span.FileURI("/b.go"), span.NewPoint(4, 9, 15), span.NewPoint(4, 13, 19)),
-	span.New(span.FileURI("/c.go"), span.NewPoint(4, 1, 26), span.Point{}),
+	span.New(span.URIFromPath("/a.go"), span.NewPoint(1, 1, 0), span.Point{}),
+	span.New(span.URIFromPath("/a.go"), span.NewPoint(3, 7, 20), span.NewPoint(3, 7, 20)),
+	span.New(span.URIFromPath("/b.go"), span.NewPoint(4, 9, 15), span.NewPoint(4, 13, 19)),
+	span.New(span.URIFromPath("/c.go"), span.NewPoint(4, 1, 26), span.Point{}),
 }
 
 func TestToken(t *testing.T) {
@@ -44,7 +44,7 @@ func TestToken(t *testing.T) {
 	for _, f := range testdata {
 		file := fset.AddFile(f.uri, -1, len(f.content))
 		file.SetLinesForContent(f.content)
-		files[span.FileURI(f.uri)] = file
+		files[span.URIFromPath(f.uri)] = file
 	}
 	for _, test := range tokenTests {
 		f := files[test.URI()]

@@ -237,7 +237,7 @@ func (app *Application) connectRemote(ctx context.Context, remote string) (*conn
 
 func (c *connection) initialize(ctx context.Context, options func(*source.Options)) error {
 	params := &protocol.ParamInitialize{}
-	params.RootURI = string(span.FileURI(c.Client.app.wd))
+	params.RootURI = protocol.URIFromPath(c.Client.app.wd)
 	params.Capabilities.Workspace.Configuration = true
 
 	// Make sure to respect configured options when sending initialize request.
@@ -373,8 +373,7 @@ func (c *cmdClient) PublishDiagnostics(ctx context.Context, p *protocol.PublishD
 	c.filesMu.Lock()
 	defer c.filesMu.Unlock()
 
-	uri := span.NewURI(p.URI)
-	file := c.getFile(ctx, uri)
+	file := c.getFile(ctx, p.URI.SpanURI())
 	file.diagnostics = p.Diagnostics
 	return nil
 }
@@ -424,7 +423,7 @@ func (c *connection) AddFile(ctx context.Context, uri span.URI) *cmdFile {
 	file.added = true
 	p := &protocol.DidOpenTextDocumentParams{
 		TextDocument: protocol.TextDocumentItem{
-			URI:        protocol.NewURI(uri),
+			URI:        protocol.URIFromSpanURI(uri),
 			LanguageID: source.DetectLanguage("", file.uri.Filename()).String(),
 			Version:    1,
 			Text:       string(file.mapper.Content),

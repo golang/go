@@ -51,7 +51,7 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 		session := cache.NewSession()
 		options := tests.DefaultOptions()
 		options.Env = datum.Config.Env
-		view, _, err := session.NewView(ctx, "source_test", span.FileURI(datum.Config.Dir), options)
+		view, _, err := session.NewView(ctx, "source_test", span.URIFromPath(datum.Config.Dir), options)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -67,7 +67,7 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 				continue
 			}
 			modifications = append(modifications, source.FileModification{
-				URI:        span.FileURI(filename),
+				URI:        span.URIFromPath(filename),
 				Action:     source.Open,
 				Version:    -1,
 				Text:       content,
@@ -547,7 +547,7 @@ func (r *runner) Implementation(t *testing.T, spn span.Span, impls []span.Span) 
 	}
 	var results []span.Span
 	for i := range locs {
-		locURI := span.NewURI(locs[i].URI)
+		locURI := locs[i].URI.SpanURI()
 		lm, err := r.data.Mapper(locURI)
 		if err != nil {
 			t.Fatal(err)

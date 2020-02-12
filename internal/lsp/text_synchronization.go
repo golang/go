@@ -19,7 +19,7 @@ import (
 func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
 	_, err := s.didModifyFiles(ctx, []source.FileModification{
 		{
-			URI:        span.NewURI(params.TextDocument.URI),
+			URI:        params.TextDocument.URI.SpanURI(),
 			Action:     source.Open,
 			Version:    params.TextDocument.Version,
 			Text:       []byte(params.TextDocument.Text),
@@ -30,7 +30,7 @@ func (s *Server) didOpen(ctx context.Context, params *protocol.DidOpenTextDocume
 }
 
 func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDocumentParams) error {
-	uri := span.NewURI(params.TextDocument.URI)
+	uri := params.TextDocument.URI.SpanURI()
 	text, err := s.changedText(ctx, uri, params.ContentChanges)
 	if err != nil {
 		return err
@@ -66,7 +66,7 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 	var modifications []source.FileModification
 	for _, change := range params.Changes {
 		modifications = append(modifications, source.FileModification{
-			URI:    span.NewURI(change.URI),
+			URI:    change.URI.SpanURI(),
 			Action: changeTypeToFileAction(change.Type),
 			OnDisk: true,
 		})
@@ -77,7 +77,7 @@ func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.Did
 
 func (s *Server) didSave(ctx context.Context, params *protocol.DidSaveTextDocumentParams) error {
 	c := source.FileModification{
-		URI:     span.NewURI(params.TextDocument.URI),
+		URI:     params.TextDocument.URI.SpanURI(),
 		Action:  source.Save,
 		Version: params.TextDocument.Version,
 	}
@@ -91,7 +91,7 @@ func (s *Server) didSave(ctx context.Context, params *protocol.DidSaveTextDocume
 func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocumentParams) error {
 	_, err := s.didModifyFiles(ctx, []source.FileModification{
 		{
-			URI:     span.NewURI(params.TextDocument.URI),
+			URI:     params.TextDocument.URI.SpanURI(),
 			Action:  source.Close,
 			Version: -1,
 			Text:    nil,

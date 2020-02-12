@@ -16,7 +16,7 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 			return nil, errors.Errorf("expected one file URI for call to `go mod tidy`, got %v", params.Arguments)
 		}
 		// Confirm that this action is being taken on a go.mod file.
-		uri := span.NewURI(params.Arguments[0].(string))
+		uri := span.URIFromURI(params.Arguments[0].(string))
 		view, err := s.session.ViewOf(uri)
 		if err != nil {
 			return nil, err
@@ -37,7 +37,7 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		if len(params.Arguments) < 2 {
 			return nil, errors.Errorf("expected one file URI and one dependency for call to `go get`, got %v", params.Arguments)
 		}
-		uri := span.NewURI(params.Arguments[0].(string))
+		uri := span.URIFromURI(params.Arguments[0].(string))
 		view, err := s.session.ViewOf(uri)
 		if err != nil {
 			return nil, err

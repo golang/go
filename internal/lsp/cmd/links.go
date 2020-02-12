@@ -59,7 +59,7 @@ func (l *links) Run(ctx context.Context, args ...string) error {
 	}
 	results, err := conn.DocumentLink(ctx, &protocol.DocumentLinkParams{
 		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.NewURI(uri),
+			URI: protocol.URIFromSpanURI(uri),
 		},
 	})
 	if err != nil {

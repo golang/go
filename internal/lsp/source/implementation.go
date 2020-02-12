@@ -39,7 +39,7 @@ func Implementation(ctx context.Context, s Snapshot, f FileHandle, pp protocol.P
 			return nil, err
 		}
 		locations = append(locations, protocol.Location{
-			URI:   protocol.NewURI(rng.URI()),
+			URI:   protocol.URIFromSpanURI(rng.URI()),
 			Range: pr,
 		})
 	}

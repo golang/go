@@ -236,7 +236,7 @@ func (v *view) buildBuiltinPackage(ctx context.Context, goFiles []string) error 
 	if len(goFiles) != 1 {
 		return errors.Errorf("only expected 1 file, got %v", len(goFiles))
 	}
-	uri := span.FileURI(goFiles[0])
+	uri := span.URIFromPath(goFiles[0])
 	v.addIgnoredFile(uri) // to avoid showing diagnostics for builtin.go
 
 	// Get the FileHandle through the cache to avoid adding it to the snapshot
@@ -585,7 +585,7 @@ func (v *view) setBuildInformation(ctx context.Context, folder span.URI, env []s
 	if modFile == os.DevNull {
 		return nil
 	}
-	v.realMod = span.FileURI(modFile)
+	v.realMod = span.URIFromPath(modFile)
 
 	// Now that we have set all required fields,
 	// check if the view has a valid build configuration.
@@ -618,7 +618,7 @@ func (v *view) setBuildInformation(ctx context.Context, folder span.URI, env []s
 	if _, err := io.Copy(tempModFile, origFile); err != nil {
 		return err
 	}
-	v.tempMod = span.FileURI(tempModFile.Name())
+	v.tempMod = span.URIFromPath(tempModFile.Name())
 
 	// Copy go.sum file as well (if there is one).
 	sumFile := filepath.Join(filepath.Dir(modFile), "go.sum")

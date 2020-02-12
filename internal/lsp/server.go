@@ -70,7 +70,7 @@ func (s *Server) cancelRequest(ctx context.Context, params *protocol.CancelParam
 }
 
 func (s *Server) codeLens(ctx context.Context, params *protocol.CodeLensParams) ([]protocol.CodeLens, error) {
-	uri := span.NewURI(params.TextDocument.URI)
+	uri := params.TextDocument.URI.SpanURI()
 	view, err := s.session.ViewOf(uri)
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func (s *Server) nonstandardRequest(ctx context.Context, method string, params i
 	paramMap := params.(map[string]interface{})
 	if method == "gopls/diagnoseFiles" {
 		for _, file := range paramMap["files"].([]interface{}) {
-			uri := span.NewURI(file.(string))
+			uri := span.URIFromURI(file.(string))
 			view, err := s.session.ViewOf(uri)
 			if err != nil {
 				return nil, err
@@ -105,7 +105,7 @@ func (s *Server) nonstandardRequest(ctx context.Context, method string, params i
 				return nil, err
 			}
 			if err := s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
-				URI:         protocol.NewURI(uri),
+				URI:         protocol.URIFromSpanURI(uri),
 				Diagnostics: toProtocolDiagnostics(diagnostics),
 				Version:     fileID.Version,
 			}); err != nil {

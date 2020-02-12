@@ -137,7 +137,7 @@ func (r *runner) callCompletion(t *testing.T, src span.Span, options func(*sourc
 	list, err := r.server.Completion(r.ctx, &protocol.CompletionParams{
 		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
 			TextDocument: protocol.TextDocumentIdentifier{
-				URI: protocol.NewURI(src.URI()),
+				URI: protocol.URIFromSpanURI(src.URI()),
 			},
 			Position: protocol.Position{
 				Line:      float64(src.Start().Line() - 1),

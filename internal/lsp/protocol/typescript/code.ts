@@ -601,7 +601,8 @@ function goTypeAlias(d: Data, nm: string) {
   }
   typesOut.push(getComments(d.me))
   // d.alias doesn't seem to have comments
-  typesOut.push(`type ${goName(nm)} = ${goType(d.alias, nm)}\n`)
+  let aliasStr = goName(nm) == "DocumentURI" ? " " : " = "
+  typesOut.push(`type ${goName(nm)}${aliasStr}${goType(d.alias, nm)}\n`)
 }
 
 // return a go type and maybe an assocated javascript tag

@@ -42,8 +42,8 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 	if len(s.pendingFolders) == 0 {
 		if params.RootURI != "" {
 			s.pendingFolders = []protocol.WorkspaceFolder{{
-				URI:  params.RootURI,
-				Name: path.Base(params.RootURI),
+				URI:  string(params.RootURI),
+				Name: path.Base(params.RootURI.SpanURI().Filename()),
 			}}
 		} else {
 			// No folders and no root--we are in single file mode.
@@ -165,8 +165,8 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 	viewErrors := make(map[span.URI]error)
 
 	for _, folder := range folders {
-		uri := span.NewURI(folder.URI)
-		_, snapshot, err := s.addView(ctx, folder.Name, span.NewURI(folder.URI))
+		uri := span.URIFromURI(folder.URI)
+		_, snapshot, err := s.addView(ctx, folder.Name, uri)
 		if err != nil {
 			viewErrors[uri] = err
 			continue
@@ -192,10 +192,10 @@ func (s *Server) fetchConfig(ctx context.Context, name string, folder span.URI, 
 	v := protocol.ParamConfiguration{
 		ConfigurationParams: protocol.ConfigurationParams{
 			Items: []protocol.ConfigurationItem{{
-				ScopeURI: protocol.NewURI(folder),
+				ScopeURI: string(folder),
 				Section:  "gopls",
 			}, {
-				ScopeURI: protocol.NewURI(folder),
+				ScopeURI: string(folder),
 				Section:  fmt.Sprintf("gopls-%s", name),
 			}},
 		},

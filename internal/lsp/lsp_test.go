@@ -54,7 +54,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 		options := tests.DefaultOptions()
 		session.SetOptions(options)
 		options.Env = datum.Config.Env
-		v, _, err := session.NewView(ctx, datum.Config.Dir, span.FileURI(datum.Config.Dir), options)
+		v, _, err := session.NewView(ctx, datum.Config.Dir, span.URIFromPath(datum.Config.Dir), options)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -74,7 +74,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 				continue
 			}
 			modifications = append(modifications, source.FileModification{
-				URI:        span.FileURI(filename),
+				URI:        span.URIFromPath(filename),
 				Action:     source.Open,
 				Version:    -1,
 				Text:       content,
@@ -158,7 +158,7 @@ func (r *runner) FoldingRanges(t *testing.T, spn span.Span) {
 	}
 	ranges, err := r.server.FoldingRange(r.ctx, &protocol.FoldingRangeParams{
 		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.NewURI(uri),
+			URI: protocol.URIFromSpanURI(uri),
 		},
 	})
 	if err != nil {
@@ -176,7 +176,7 @@ func (r *runner) FoldingRanges(t *testing.T, spn span.Span) {
 	}
 	ranges, err = r.server.FoldingRange(r.ctx, &protocol.FoldingRangeParams{
 		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.NewURI(uri),
+			URI: protocol.URIFromSpanURI(uri),
 		},
 	})
 	if err != nil {
@@ -310,7 +310,7 @@ func (r *runner) Format(t *testing.T, spn span.Span) {
 
 	edits, err := r.server.Formatting(r.ctx, &protocol.DocumentFormattingParams{
 		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.NewURI(uri),
+			URI: protocol.URIFromSpanURI(uri),
 		},
 	})
 	if err != nil {
@@ -338,7 +338,7 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 	filename := uri.Filename()
 	actions, err := r.server.CodeAction(r.ctx, &protocol.CodeActionParams{
 		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.NewURI(uri),
+			URI: protocol.URIFromSpanURI(uri),
 		},
 	})
 	if err != nil {
@@ -402,7 +402,7 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 	}
 	actions, err := r.server.CodeAction(r.ctx, &protocol.CodeActionParams{
 		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.NewURI(uri),
+			URI: protocol.URIFromSpanURI(uri),
 		},
 		Context: protocol.CodeActionContext{
 			Only:        []protocol.CodeActionKind{protocol.QuickFix},
@@ -482,7 +482,7 @@ func (r *runner) Definition(t *testing.T, spn span.Span, d tests.Definition) {
 	}
 	if !d.OnlyHover {
 		didSomething = true
-		locURI := span.NewURI(locs[0].URI)
+		locURI := locs[0].URI.SpanURI()
 		lm, err := r.data.Mapper(locURI)
 		if err != nil {
 			t.Fatal(err)
@@ -525,7 +525,7 @@ func (r *runner) Implementation(t *testing.T, spn span.Span, impls []span.Span) 
 
 	var results []span.Span
 	for i := range locs {
-		locURI := span.NewURI(locs[i].URI)
+		locURI := locs[i].URI.SpanURI()
 		lm, err := r.data.Mapper(locURI)
 		if err != nil {
 			t.Fatal(err)
@@ -663,7 +663,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 
 	wedit, err := r.server.Rename(r.ctx, &protocol.RenameParams{
 		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.NewURI(uri),
+			URI: protocol.URIFromSpanURI(uri),
 		},
 		Position: loc.Range.Start,
 		NewName:  newText,
@@ -692,7 +692,7 @@ func (r *runner) Rename(t *testing.T, spn span.Span, newText string) {
 		if i != 0 {
 			got += "\n"
 		}
-		uri := span.NewURI(orderedURIs[i])
+		uri := span.URIFromURI(orderedURIs[i])
 		if len(res) > 1 {
 			got += filepath.Base(uri.Filename()) + ":\n"
 		}
@@ -753,7 +753,7 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 func applyWorkspaceEdits(r *runner, wedit protocol.WorkspaceEdit) (map[span.URI]string, error) {
 	res := map[span.URI]string{}
 	for _, docEdits := range wedit.DocumentChanges {
-		uri := span.NewURI(docEdits.TextDocument.URI)
+		uri := docEdits.TextDocument.URI.SpanURI()
 		m, err := r.data.Mapper(uri)
 		if err != nil {
 			return nil, err
@@ -786,7 +786,7 @@ func applyEdits(contents string, edits []diff.TextEdit) string {
 func (r *runner) Symbols(t *testing.T, uri span.URI, expectedSymbols []protocol.DocumentSymbol) {
 	params := &protocol.DocumentSymbolParams{
 		TextDocument: protocol.TextDocumentIdentifier{
-			URI: string(uri),
+			URI: protocol.URIFromSpanURI(uri),
 		},
 	}
 	symbols, err := r.server.DocumentSymbol(r.ctx, params)
@@ -881,7 +881,7 @@ func (r *runner) SignatureHelp(t *testing.T, spn span.Span, want *protocol.Signa
 	}
 	tdpp := protocol.TextDocumentPositionParams{
 		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.NewURI(spn.URI()),
+			URI: protocol.URIFromSpanURI(spn.URI()),
 		},
 		Position: loc.Range.Start,
 	}
@@ -917,7 +917,7 @@ func (r *runner) Link(t *testing.T, uri span.URI, wantLinks []tests.Link) {
 	}
 	got, err := r.server.DocumentLink(r.ctx, &protocol.DocumentLinkParams{
 		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.NewURI(uri),
+			URI: protocol.URIFromSpanURI(uri),
 		},
 	})
 	if err != nil {
@@ -955,7 +955,7 @@ func TestBytesOffset(t *testing.T) {
 		fset := token.NewFileSet()
 		f := fset.AddFile(fname, -1, len(test.text))
 		f.SetLinesForContent([]byte(test.text))
-		uri := span.FileURI(fname)
+		uri := span.URIFromPath(fname)
 		converter := span.NewContentConverter(fname, []byte(test.text))
 		mapper := &protocol.ColumnMapper{
 			URI:       uri,

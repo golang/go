@@ -177,7 +177,7 @@ func toSourceErrorKind(kind packages.ErrorKind) source.ErrorKind {
 
 func typeErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, pos token.Pos) (span.Span, error) {
 	posn := fset.Position(pos)
-	ph, _, err := source.FindFileInPackage(pkg, span.FileURI(posn.Filename))
+	ph, _, err := source.FindFileInPackage(pkg, span.URIFromPath(posn.Filename))
 	if err != nil {
 		return span.Span{}, err
 	}
@@ -213,7 +213,7 @@ func typeErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, pos toke
 }
 
 func scannerErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, posn token.Position) (span.Span, error) {
-	ph, _, err := source.FindFileInPackage(pkg, span.FileURI(posn.Filename))
+	ph, _, err := source.FindFileInPackage(pkg, span.URIFromPath(posn.Filename))
 	if err != nil {
 		return span.Span{}, err
 	}

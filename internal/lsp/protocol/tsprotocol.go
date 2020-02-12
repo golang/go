@@ -1,7 +1,7 @@
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
 // commit: 7b90c29d0cb5cd7b9c41084f6cb3781a955adeba
-// last fetched Thu Jan 23 2020 11:10:31 GMT-0500 (Eastern Standard Time)
+// last fetched Wed Feb 12 2020 17:16:47 GMT-0500 (Eastern Standard Time)
 package protocol
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
@@ -1532,7 +1532,7 @@ type DocumentSymbolParams struct {
 /**
  * A tagging type for string properties that are actually URIs.
  */
-type DocumentURI = string
+type DocumentURI string
 
 /**
  * The client capabilities of a [ExecuteCommandRequest](#ExecuteCommandRequest).

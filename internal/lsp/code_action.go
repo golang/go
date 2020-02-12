@@ -15,13 +15,12 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
-	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
 	errors "golang.org/x/xerrors"
 )
 
 func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
-	uri := span.NewURI(params.TextDocument.URI)
+	uri := params.TextDocument.URI.SpanURI()
 	view, err := s.session.ViewOf(uri)
 	if err != nil {
 		return nil, err
@@ -257,7 +256,7 @@ func documentChanges(fh source.FileHandle, edits []protocol.TextEdit) []protocol
 			TextDocument: protocol.VersionedTextDocumentIdentifier{
 				Version: fh.Identity().Version,
 				TextDocumentIdentifier: protocol.TextDocumentIdentifier{
-					URI: protocol.NewURI(fh.Identity().URI),
+					URI: protocol.URIFromSpanURI(fh.Identity().URI),
 				},
 			},
 			Edits: edits,

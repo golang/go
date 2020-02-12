@@ -10,7 +10,6 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
-	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/trace"
 )
@@ -19,7 +18,7 @@ func (s *Server) documentSymbol(ctx context.Context, params *protocol.DocumentSy
 	ctx, done := trace.StartSpan(ctx, "lsp.Server.documentSymbol")
 	defer done()
 
-	uri := span.NewURI(params.TextDocument.URI)
+	uri := params.TextDocument.URI.SpanURI()
 	view, err := s.session.ViewOf(uri)
 	if err != nil {
 		return nil, err

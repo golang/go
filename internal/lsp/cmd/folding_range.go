@@ -50,7 +50,7 @@ func (r *foldingRanges) Run(ctx context.Context, args ...string) error {
 
 	p := protocol.FoldingRangeParams{
 		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.NewURI(from.URI()),
+			URI: protocol.URIFromSpanURI(from.URI()),
 		},
 	}
 

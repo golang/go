@@ -70,7 +70,7 @@ func (s *suggestedfix) Run(ctx context.Context, args ...string) error {
 
 	p := protocol.CodeActionParams{
 		TextDocument: protocol.TextDocumentIdentifier{
-			URI: protocol.NewURI(uri),
+			URI: protocol.URIFromSpanURI(uri),
 		},
 		Context: protocol.CodeActionContext{
 			Only:        []protocol.CodeActionKind{protocol.QuickFix},
@@ -87,7 +87,7 @@ func (s *suggestedfix) Run(ctx context.Context, args ...string) error {
 			continue
 		}
 		for _, c := range a.Edit.DocumentChanges {
-			if c.TextDocument.URI == string(uri) {
+			if c.TextDocument.URI.SpanURI() == uri {
 				edits = append(edits, c.Edits...)
 			}
 		}

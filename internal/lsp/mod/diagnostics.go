@@ -105,7 +105,7 @@ func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, realfh source
 						TextDocument: protocol.VersionedTextDocumentIdentifier{
 							Version: fh.Identity().Version,
 							TextDocumentIdentifier: protocol.TextDocumentIdentifier{
-								URI: protocol.NewURI(fh.Identity().URI),
+								URI: protocol.URIFromSpanURI(fh.Identity().URI),
 							},
 						},
 						Edits: edits,
@@ -188,7 +188,7 @@ func SuggestedGoFixes(ctx context.Context, snapshot source.Snapshot, gofh source
 						TextDocument: protocol.VersionedTextDocumentIdentifier{
 							Version: realfh.Identity().Version,
 							TextDocumentIdentifier: protocol.TextDocumentIdentifier{
-								URI: protocol.NewURI(realfh.Identity().URI),
+								URI: protocol.URIFromSpanURI(realfh.Identity().URI),
 							},
 						},
 						Edits: edits,

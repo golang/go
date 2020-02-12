@@ -53,7 +53,7 @@ func WorkspaceSymbols(ctx context.Context, views []View, query string) ([]protoc
 						Name: si.name,
 						Kind: si.kind,
 						Location: protocol.Location{
-							URI:   protocol.NewURI(fh.File().Identity().URI),
+							URI:   protocol.URIFromSpanURI(fh.File().Identity().URI),
 							Range: rng,
 						},
 					})

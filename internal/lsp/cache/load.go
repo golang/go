@@ -147,12 +147,12 @@ func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *pa
 	}
 
 	for _, filename := range pkg.CompiledGoFiles {
-		uri := span.FileURI(filename)
+		uri := span.URIFromPath(filename)
 		m.compiledGoFiles = append(m.compiledGoFiles, uri)
 		s.addID(uri, m.id)
 	}
 	for _, filename := range pkg.GoFiles {
-		uri := span.FileURI(filename)
+		uri := span.URIFromPath(filename)
 		m.goFiles = append(m.goFiles, uri)
 		s.addID(uri, m.id)
 	}

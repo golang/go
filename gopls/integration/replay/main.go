@@ -68,7 +68,7 @@ func main() {
 	log.Printf("new %d, hist:%s", len(newMsgs), seen.Histogram)
 
 	ok := make(map[string]int)
-	f := func(x []*parse.Logmsg, label string, diags map[string][]p.Diagnostic) {
+	f := func(x []*parse.Logmsg, label string, diags map[p.DocumentURI][]p.Diagnostic) {
 		counts := make(map[parse.MsgType]int)
 		for _, l := range x {
 			if l.Method == "window/logMessage" {
@@ -102,9 +102,9 @@ func main() {
 		}
 		log.Printf("%s: %s", label, msg)
 	}
-	mdiags := make(map[string][]p.Diagnostic)
+	mdiags := make(map[p.DocumentURI][]p.Diagnostic)
 	f(msgs, "old", mdiags)
-	vdiags := make(map[string][]p.Diagnostic)
+	vdiags := make(map[p.DocumentURI][]p.Diagnostic)
 	f(newMsgs, "new", vdiags)
 	buf := []string{}
 	for k := range ok {

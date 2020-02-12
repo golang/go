@@ -201,7 +201,7 @@ func nameToMappedRange(v View, pkg Package, pos token.Pos, name string) (mappedR
 
 func posToMappedRange(v View, pkg Package, pos, end token.Pos) (mappedRange, error) {
 	logicalFilename := v.Session().Cache().FileSet().File(pos).Position(pos).Filename
-	m, err := findMapperInPackage(v, pkg, span.FileURI(logicalFilename))
+	m, err := findMapperInPackage(v, pkg, span.URIFromPath(logicalFilename))
 	if err != nil {
 		return mappedRange{}, err
 	}
@@ -631,7 +631,7 @@ func findPosInPackage(v View, searchpkg Package, pos token.Pos) (*ast.File, Pack
 	if tok == nil {
 		return nil, nil, errors.Errorf("no file for pos in package %s", searchpkg.ID())
 	}
-	uri := span.FileURI(tok.Name())
+	uri := span.URIFromPath(tok.Name())
 
 	var (
 		ph  ParseGoHandle

@@ -466,7 +466,7 @@ func Run(t *testing.T, tests Tests, data *Data) {
 				t.Helper()
 				dirs := make(map[string]struct{})
 				for _, si := range expectedSymbols {
-					d := filepath.Dir(si.Location.URI)
+					d := filepath.Dir(si.Location.URI.SpanURI().Filename())
 					if _, ok := dirs[d]; !ok {
 						dirs[d] = struct{}{}
 					}
@@ -1077,7 +1077,7 @@ func (data *Data) collectSymbols(name string, spn span.Span, kind string, parent
 		Name: sym.Name,
 		Kind: sym.Kind,
 		Location: protocol.Location{
-			URI:   protocol.NewURI(spn.URI()),
+			URI:   protocol.URIFromSpanURI(spn.URI()),
 			Range: sym.SelectionRange,
 		},
 	}

@@ -109,7 +109,7 @@ func summarizeSymbols(t *testing.T, i int, want, got []protocol.DocumentSymbol, 
 func FilterWorkspaceSymbols(got []protocol.SymbolInformation, dirs map[string]struct{}) []protocol.SymbolInformation {
 	var result []protocol.SymbolInformation
 	for _, si := range got {
-		if _, ok := dirs[filepath.Dir(si.Location.URI)]; ok {
+		if _, ok := dirs[filepath.Dir(si.Location.URI.SpanURI().Filename())]; ok {
 			result = append(result, si)
 		}
 	}

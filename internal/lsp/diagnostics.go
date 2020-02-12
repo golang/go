@@ -178,7 +178,7 @@ func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, r
 
 		if err := s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
 			Diagnostics: toProtocolDiagnostics(diagnostics),
-			URI:         protocol.NewURI(key.id.URI),
+			URI:         protocol.URIFromSpanURI(key.id.URI),
 			Version:     key.id.Version,
 		}); err != nil {
 			if ctx.Err() == nil {
@@ -212,7 +212,7 @@ func toProtocolDiagnostics(diagnostics []source.Diagnostic) []protocol.Diagnosti
 		for _, rel := range diag.Related {
 			related = append(related, protocol.DiagnosticRelatedInformation{
 				Location: protocol.Location{
-					URI:   protocol.NewURI(rel.URI),
+					URI:   protocol.URIFromSpanURI(rel.URI),
 					Range: rel.Range,
 				},
 				Message: rel.Message,

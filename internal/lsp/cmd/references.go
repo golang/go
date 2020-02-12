@@ -73,7 +73,7 @@ func (r *references) Run(ctx context.Context, args ...string) error {
 	}
 	var spans []string
 	for _, l := range locations {
-		f := conn.AddFile(ctx, span.NewURI(l.URI))
+		f := conn.AddFile(ctx, l.URI.SpanURI())
 		// convert location to span for user-friendly 1-indexed line
 		// and column numbers
 		span, err := f.mapper.Span(l)
