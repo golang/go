@@ -73,6 +73,7 @@ func (sb *SymbolBuilder) CgoExportDynamic() bool { return sb.l.AttrCgoExportDyna
 func (sb *SymbolBuilder) Dynimplib() string      { return sb.l.SymDynimplib(sb.symIdx) }
 func (sb *SymbolBuilder) Dynimpvers() string     { return sb.l.SymDynimpvers(sb.symIdx) }
 func (sb *SymbolBuilder) SubSym() Sym            { return sb.l.SubSym(sb.symIdx) }
+func (sb *SymbolBuilder) GoType() Sym            { return sb.l.SymGoType(sb.symIdx) }
 
 // Setters for symbol properties.
 
@@ -89,6 +90,11 @@ func (sb *SymbolBuilder) SetDynimplib(value string)  { sb.l.SetSymDynimplib(sb.s
 func (sb *SymbolBuilder) SetDynimpvers(value string) { sb.l.SetSymDynimpvers(sb.symIdx, value) }
 func (sb *SymbolBuilder) SetPlt(value int32)         { sb.l.SetPlt(sb.symIdx, value) }
 func (sb *SymbolBuilder) SetGot(value int32)         { sb.l.SetGot(sb.symIdx, value) }
+func (sb *SymbolBuilder) SetSpecial(value bool)      { sb.l.SetAttrSpecial(sb.symIdx, value) }
+
+func (sb *SymbolBuilder) SetNotInSymbolTable(value bool) {
+	sb.l.SetAttrNotInSymbolTable(sb.symIdx, value)
+}
 
 func (sb *SymbolBuilder) AddBytes(data []byte) {
 	sb.setReachable()

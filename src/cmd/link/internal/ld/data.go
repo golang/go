@@ -37,6 +37,7 @@ import (
 	"cmd/internal/gcprog"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"compress/zlib"
 	"encoding/binary"
@@ -927,48 +928,39 @@ func addstrdata1(ctxt *Link, arg string) {
 }
 
 // addstrdata sets the initial value of the string variable name to value.
-func addstrdata(ctxt *Link, name, value string) {
-	s := ctxt.Syms.ROLookup(name, 0)
-	if s == nil || s.Gotype == nil {
-		// Not defined in the loaded packages.
+func addstrdata(arch *sys.Arch, l *loader.Loader, name, value string) {
+	s := l.Lookup(name, 0)
+	if s == 0 {
 		return
 	}
-	if s.Gotype.Name != "type.string" {
-		Errorf(s, "cannot set with -X: not a var of type string (%s)", s.Gotype.Name)
+	if goType := l.SymGoType(s); goType == 0 {
+		return
+	} else if typeName := l.SymName(goType); typeName != "type.string" {
+		Errorf(nil, "%s: cannot set with -X: not a var of type string (%s)", name, typeName)
 		return
 	}
-	if s.Type == sym.SBSS {
-		s.Type = sym.SDATA
+	bld, s := l.MakeSymbolUpdater(s)
+	if bld.Type() == sym.SBSS {
+		bld.SetType(sym.SDATA)
 	}
 
-	p := fmt.Sprintf("%s.str", s.Name)
-	sp := ctxt.Syms.Lookup(p, 0)
+	p := fmt.Sprintf("%s.str", name)
+	sbld, sp := l.MakeSymbolUpdater(l.LookupOrCreateSym(p, 0))
 
-	Addstring(sp, value)
-	sp.Type = sym.SRODATA
+	sbld.Addstring(value)
+	sbld.SetType(sym.SRODATA)
 
-	s.Size = 0
-	s.P = s.P[:0]
-	if s.Attr.ReadOnly() {
-		s.P = make([]byte, 0, ctxt.Arch.PtrSize*2)
-		s.Attr.Set(sym.AttrReadOnly, false)
-	}
-	s.R = s.R[:0]
-	reachable := s.Attr.Reachable()
-	s.AddAddr(ctxt.Arch, sp)
-	s.AddUint(ctxt.Arch, uint64(len(value)))
-
-	// addstring, addaddr, etc., mark the symbols as reachable.
-	// In this case that is not necessarily true, so stick to what
-	// we know before entering this function.
-	s.Attr.Set(sym.AttrReachable, reachable)
-
-	sp.Attr.Set(sym.AttrReachable, reachable)
+	bld.SetSize(0)
+	bld.SetData(make([]byte, 0, arch.PtrSize*2))
+	bld.SetReadOnly(false)
+	bld.SetRelocs(nil)
+	bld.AddAddrPlus(arch, sp, 0)
+	bld.AddUint(arch, uint64(len(value)))
 }
 
 func (ctxt *Link) dostrdata() {
 	for _, name := range strnames {
-		addstrdata(ctxt, name, strdata[name])
+		addstrdata(ctxt.Arch, ctxt.loader, name, strdata[name])
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
+	"cmd/internal/sys"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"encoding/json"
@@ -345,36 +346,36 @@ func Adddynsym(ctxt *Link, s *sym.Symbol) {
 	}
 }
 
-func fieldtrack(ctxt *Link) {
-	// record field tracking references
+func fieldtrack(arch *sys.Arch, l *loader.Loader) {
 	var buf bytes.Buffer
-	for _, s := range ctxt.Syms.Allsym {
-		if strings.HasPrefix(s.Name, "go.track.") {
-			s.Attr |= sym.AttrSpecial // do not lay out in data segment
-			s.Attr |= sym.AttrNotInSymbolTable
-			if s.Attr.Reachable() {
-				buf.WriteString(s.Name[9:])
-				for p := ctxt.Reachparent[s]; p != nil; p = ctxt.Reachparent[p] {
+	for i := loader.Sym(1); i < loader.Sym(l.NSym()); i++ {
+		if name := l.SymName(i); strings.HasPrefix(name, "go.track.") {
+			bld, s := l.MakeSymbolUpdater(i)
+			bld.SetSpecial(true)
+			bld.SetNotInSymbolTable(true)
+			if bld.Reachable() {
+				buf.WriteString(name[9:])
+				for p := l.Reachparent[s]; p != 0; p = l.Reachparent[p] {
 					buf.WriteString("\t")
-					buf.WriteString(p.Name)
+					buf.WriteString(l.SymName(p))
 				}
 				buf.WriteString("\n")
-			}
 
-			s.Type = sym.SCONST
-			s.Value = 0
+				bld.SetType(sym.SCONST)
+				bld.SetValue(0)
+			}
 		}
 	}
-
 	if *flagFieldTrack == "" {
 		return
 	}
-	s := ctxt.Syms.ROLookup(*flagFieldTrack, 0)
-	if s == nil || !s.Attr.Reachable() {
+	s := l.Lookup(*flagFieldTrack, 0)
+	if s == 0 || !l.AttrReachable(s) {
 		return
 	}
-	s.Type = sym.SDATA
-	addstrdata(ctxt, *flagFieldTrack, buf.String())
+	bld, _ := l.MakeSymbolUpdater(s)
+	bld.SetType(sym.SDATA)
+	addstrdata(arch, l, *flagFieldTrack, buf.String())
 }
 
 func (ctxt *Link) addexport() {

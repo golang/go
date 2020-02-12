@@ -1186,7 +1186,7 @@ func (ctxt *Link) doxcoff() {
 	if ctxt.LinkMode == LinkExternal {
 		// Change rt0_go name to match name in runtime/cgo:main().
 		rt0 := ctxt.Syms.ROLookup("runtime.rt0_go", 0)
-		ctxt.Syms.Rename(rt0.Name, "runtime_rt0_go", 0, ctxt.Reachparent)
+		ctxt.Syms.Rename(rt0.Name, "runtime_rt0_go", 0)
 
 		for _, s := range ctxt.Syms.Allsym {
 			if !s.Attr.CgoExport() {
@@ -1198,7 +1198,7 @@ func (ctxt *Link) doxcoff() {
 				// On AIX, a exported function must have two symbols:
 				// - a .text symbol which must start with a ".".
 				// - a .data symbol which is a function descriptor.
-				ctxt.Syms.Rename(s.Name, "."+name, 0, ctxt.Reachparent)
+				ctxt.Syms.Rename(s.Name, "."+name, 0)
 
 				desc := ctxt.Syms.Lookup(name, 0)
 				desc.Type = sym.SNOPTRDATA

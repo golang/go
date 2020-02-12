@@ -423,7 +423,6 @@ func (l *Loader) IsExternal(i Sym) bool {
 	return l.isExtReader(r)
 }
 
-
 func (l *Loader) isExtReader(r *oReader) bool {
 	return r == l.extReader
 }
@@ -1708,7 +1707,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 
 // ExtractSymbols grabs the symbols out of the loader for work that hasn't been
 // ported to the new symbol type.
-func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
+func (l *Loader) ExtractSymbols(syms *sym.Symbols, rp map[*sym.Symbol]*sym.Symbol) {
 	// Add symbols to the ctxt.Syms lookup table. This explicitly skips things
 	// created via loader.Create (marked with versions less than zero), since
 	// if we tried to add these we'd wind up with collisions. We do, however,
@@ -1730,6 +1729,13 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
 		if s.Version < 0 {
 			s.Version = int16(anonVerReplacement)
 		}
+	}
+
+	for i, s := range l.Reachparent {
+		if i == 0 {
+			continue
+		}
+		rp[l.Syms[i]] = l.Syms[s]
 	}
 }
 
