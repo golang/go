@@ -80,12 +80,9 @@ func AllImportsFixes(ctx context.Context, snapshot Snapshot, fh FileHandle) (all
 	ctx, done := trace.StartSpan(ctx, "source.AllImportsFixes")
 	defer done()
 
-	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
+	_, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
 	if err != nil {
 		return nil, nil, errors.Errorf("getting file for AllImportsFixes: %v", err)
-	}
-	if hasListErrors(pkg) {
-		return nil, nil, errors.Errorf("%s has list errors, not running goimports", fh.Identity().URI)
 	}
 	err = snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
 		allFixEdits, editsPerFix, err = computeImportEdits(ctx, snapshot.View(), pgh, opts)
@@ -295,15 +292,6 @@ func trimToFirstNonImport(fset *token.FileSet, f *ast.File, src []byte, err erro
 		}
 	}
 	return src[0:fset.Position(end).Offset], true
-}
-
-func hasListErrors(pkg Package) bool {
-	for _, err := range pkg.GetErrors() {
-		if err.Kind == ListError {
-			return true
-		}
-	}
-	return false
 }
 
 func computeTextEdits(ctx context.Context, view View, fh FileHandle, m *protocol.ColumnMapper, formatted string) ([]protocol.TextEdit, error) {
