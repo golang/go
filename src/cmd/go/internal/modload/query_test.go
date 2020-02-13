@@ -119,8 +119,6 @@ var queryTests = []struct {
 	{path: queryRepoV2, query: "v0.0.1+foo", vers: "v2.0.0-20180704023347-179bc86b1be3"},
 	{path: queryRepoV2, query: "latest", vers: "v2.5.5"},
 
-	{path: queryRepoV3, query: "latest", vers: "v3.0.0-20180704024501-e0cf3de987e6"},
-
 	{path: emptyRepo, query: "latest", vers: "v0.0.0-20180704023549-7bb914627242"},
 	{path: emptyRepo, query: ">v0.0.0", err: `no matching versions for query ">v0.0.0"`},
 	{path: emptyRepo, query: "<v10.0.0", err: `no matching versions for query "<v10.0.0"`},
