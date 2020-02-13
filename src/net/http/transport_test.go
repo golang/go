@@ -451,14 +451,23 @@ func TestTransportReadToEndReusesConn(t *testing.T) {
 
 func TestTransportMaxPerHostIdleConns(t *testing.T) {
 	defer afterTest(t)
+	stop := make(chan struct{}) // stop marks the exit of main Test goroutine
+	defer close(stop)
+
 	resch := make(chan string)
 	gotReq := make(chan bool)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		gotReq <- true
-		msg := <-resch
+		var msg string
+		select {
+		case <-stop:
+			return
+		case msg = <-resch:
+		}
 		_, err := w.Write([]byte(msg))
 		if err != nil {
-			t.Fatalf("Write: %v", err)
+			t.Errorf("Write: %v", err)
+			return
 		}
 	}))
 	defer ts.Close()
@@ -472,6 +481,13 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
 	// Their responses will hang until we write to resch, though.
 	donech := make(chan bool)
 	doReq := func() {
+		defer func() {
+			select {
+			case <-stop:
+				return
+			case donech <- t.Failed():
+			}
+		}()
 		resp, err := c.Get(ts.URL)
 		if err != nil {
 			t.Error(err)
@@ -481,7 +497,6 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
 			t.Errorf("ReadAll: %v", err)
 			return
 		}
-		donech <- true
 	}
 	go doReq()
 	<-gotReq
@@ -842,7 +857,9 @@ func TestStressSurpriseServerCloses(t *testing.T) {
 					// where we won the race.
 					res.Body.Close()
 				}
-				activityc <- true
+				if !<-activityc { // Receives false when close(activityc) is executed
+					return
+				}
 			}
 		}()
 	}
@@ -850,8 +867,9 @@ func TestStressSurpriseServerCloses(t *testing.T) {
 	// Make sure all the request come back, one way or another.
 	for i := 0; i < numClients*reqsPerClient; i++ {
 		select {
-		case <-activityc:
+		case activityc <- true:
 		case <-time.After(5 * time.Second):
+			close(activityc)
 			t.Fatalf("presumed deadlock; no HTTP client activity seen in awhile")
 		}
 	}
@@ -2361,7 +2379,9 @@ func TestTransportCancelRequestInDial(t *testing.T) {
 	tr := &Transport{
 		Dial: func(network, addr string) (net.Conn, error) {
 			eventLog.Println("dial: blocking")
-			inDial <- true
+			if !<-inDial {
+				return nil, errors.New("main Test goroutine exited")
+			}
 			<-unblockDial
 			return nil, errors.New("nope")
 		},
@@ -2376,8 +2396,9 @@ func TestTransportCancelRequestInDial(t *testing.T) {
 	}()
 
 	select {
-	case <-inDial:
+	case inDial <- true:
 	case <-time.After(5 * time.Second):
+		close(inDial)
 		t.Fatal("timeout; never saw blocking dial")
 	}
 

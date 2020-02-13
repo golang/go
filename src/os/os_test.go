@@ -1325,8 +1325,9 @@ func TestChdirAndGetwd(t *testing.T) {
 // Test that Chdir+Getwd is program-wide.
 func TestProgWideChdir(t *testing.T) {
 	const N = 10
+	const ErrPwd = "Error!"
 	c := make(chan bool)
-	cpwd := make(chan string)
+	cpwd := make(chan string, N)
 	for i := 0; i < N; i++ {
 		go func(i int) {
 			// Lock half the goroutines in their own operating system
@@ -1339,10 +1340,15 @@ func TestProgWideChdir(t *testing.T) {
 				// See issue 9428.
 				runtime.LockOSThread()
 			}
-			<-c
+			hasErr, closed := <-c
+			if !closed && hasErr {
+				cpwd <- ErrPwd
+				return
+			}
 			pwd, err := Getwd()
 			if err != nil {
 				t.Errorf("Getwd on goroutine %d: %v", i, err)
+				cpwd <- ErrPwd
 				return
 			}
 			cpwd <- pwd
@@ -1350,10 +1356,12 @@ func TestProgWideChdir(t *testing.T) {
 	}
 	oldwd, err := Getwd()
 	if err != nil {
+		c <- true
 		t.Fatalf("Getwd: %v", err)
 	}
 	d, err := ioutil.TempDir("", "test")
 	if err != nil {
+		c <- true
 		t.Fatalf("TempDir: %v", err)
 	}
 	defer func() {
@@ -1363,17 +1371,22 @@ func TestProgWideChdir(t *testing.T) {
 		RemoveAll(d)
 	}()
 	if err := Chdir(d); err != nil {
+		c <- true
 		t.Fatalf("Chdir: %v", err)
 	}
 	// OS X sets TMPDIR to a symbolic link.
 	// So we resolve our working directory again before the test.
 	d, err = Getwd()
 	if err != nil {
+		c <- true
 		t.Fatalf("Getwd: %v", err)
 	}
 	close(c)
 	for i := 0; i < N; i++ {
 		pwd := <-cpwd
+		if pwd == ErrPwd {
+			t.FailNow()
+		}
 		if pwd != d {
 			t.Errorf("Getwd returned %q; want %q", pwd, d)
 		}

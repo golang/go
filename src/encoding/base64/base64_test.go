@@ -401,7 +401,7 @@ func TestDecoderIssue3577(t *testing.T) {
 		source: "VHdhcyBicmlsbGlnLCBhbmQgdGhlIHNsaXRoeSB0b3Zlcw==", // twas brillig...
 		nextc:  next,
 	})
-	errc := make(chan error)
+	errc := make(chan error, 1)
 	go func() {
 		_, err := ioutil.ReadAll(d)
 		errc <- err

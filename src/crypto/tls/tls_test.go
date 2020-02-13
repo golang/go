@@ -294,7 +294,11 @@ func TestTLSUniqueMatches(t *testing.T) {
 	defer ln.Close()
 
 	serverTLSUniques := make(chan []byte)
+	parentDone := make(chan struct{})
+	childDone := make(chan struct{})
+	defer close(parentDone)
 	go func() {
+		defer close(childDone)
 		for i := 0; i < 2; i++ {
 			sconn, err := ln.Accept()
 			if err != nil {
@@ -308,7 +312,11 @@ func TestTLSUniqueMatches(t *testing.T) {
 				t.Error(err)
 				return
 			}
-			serverTLSUniques <- srv.ConnectionState().TLSUnique
+			select {
+			case <-parentDone:
+				return
+			case serverTLSUniques <- srv.ConnectionState().TLSUnique:
+			}
 		}
 	}()
 
@@ -318,7 +326,15 @@ func TestTLSUniqueMatches(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(conn.ConnectionState().TLSUnique, <-serverTLSUniques) {
+
+	var serverTLSUniquesValue []byte
+	select {
+	case <-childDone:
+		return
+	case serverTLSUniquesValue = <-serverTLSUniques:
+	}
+
+	if !bytes.Equal(conn.ConnectionState().TLSUnique, serverTLSUniquesValue) {
 		t.Error("client and server channel bindings differ")
 	}
 	conn.Close()
@@ -331,7 +347,14 @@ func TestTLSUniqueMatches(t *testing.T) {
 	if !conn.ConnectionState().DidResume {
 		t.Error("second session did not use resumption")
 	}
-	if !bytes.Equal(conn.ConnectionState().TLSUnique, <-serverTLSUniques) {
+
+	select {
+	case <-childDone:
+		return
+	case serverTLSUniquesValue = <-serverTLSUniques:
+	}
+
+	if !bytes.Equal(conn.ConnectionState().TLSUnique, serverTLSUniquesValue) {
 		t.Error("client and server channel bindings differ when session resumption is used")
 	}
 }
