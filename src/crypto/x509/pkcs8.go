@@ -79,7 +79,7 @@ func ParsePKCS8PrivateKey(der []byte) (key interface{}, err error) {
 	}
 }
 
-// MarshalPKCS8PrivateKey converts an RSA private key to PKCS#8, ASN.1 DER form.
+// MarshalPKCS8PrivateKey converts a private key to PKCS#8, ASN.1 DER form.
 //
 // The following key types are currently supported: *rsa.PrivateKey, *ecdsa.PrivateKey
 // and ed25519.PrivateKey. Unsupported key types result in an error.
