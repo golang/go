@@ -158,6 +158,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		if targ.Type != sym.SDYNIMPORT {
 			// have symbol
 			if r.Off >= 2 && s.P[r.Off-2] == 0x8b {
+				makeWritable(s)
 				// turn MOVQ of GOT entry into LEAQ of symbol itself
 				s.P[r.Off-2] = 0x8d
 
