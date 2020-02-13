@@ -27,10 +27,11 @@ type spanSet struct {
 	//
 	// The spine and all blocks are allocated off-heap, which
 	// allows this to be used in the memory manager and avoids the
-	// need for write barriers on all of these. We never release
-	// this memory because there could be concurrent lock-free
-	// access and we're likely to reuse it anyway. (In principle,
-	// we could do this during STW.)
+	// need for write barriers on all of these. spanSetBlocks are
+	// managed in a pool, though never freed back to the operating
+	// system. We never release spine memory because there could be
+	// concurrent lock-free access and we're likely to reuse it
+	// anyway. (In principle, we could do this during STW.)
 
 	spineLock mutex
 	spine     unsafe.Pointer // *[N]*spanSetBlock, accessed atomically
@@ -48,6 +49,17 @@ const (
 )
 
 type spanSetBlock struct {
+	// Free spanSetBlocks are managed via a lock-free stack.
+	lfnode
+
+	// used represents the number of slots in the spans array which are
+	// currently in use. This number is used to help determine when a
+	// block may be safely recycled.
+	//
+	// Accessed and updated atomically.
+	used uint32
+
+	// spans is the set of spans in this block.
 	spans [spanSetBlockEntries]*mspan
 }
 
@@ -102,8 +114,10 @@ retry:
 			// during STW.
 		}
 
-		// Allocate a new block and add it to the spine.
-		block = (*spanSetBlock)(persistentalloc(unsafe.Sizeof(spanSetBlock{}), cpu.CacheLineSize, &memstats.gc_sys))
+		// Allocate a new block from the pool.
+		block = spanSetBlockPool.alloc()
+
+		// Add it to the spine.
 		blockp := add(b.spine, sys.PtrSize*top)
 		// Blocks are allocated off-heap, so no write barrier.
 		atomic.StorepNoWB(blockp, unsafe.Pointer(block))
@@ -113,6 +127,7 @@ retry:
 
 	// We have a block. Insert the span atomically, since there may be
 	// concurrent readers via the block API.
+	atomic.Xadd(&block.used, 1)
 	atomic.StorepNoWB(unsafe.Pointer(&block.spans[bottom]), unsafe.Pointer(s))
 }
 
@@ -134,6 +149,16 @@ func (b *spanSet) pop() *mspan {
 	s := block.spans[bottom]
 	// Clear the pointer for block(i).
 	block.spans[bottom] = nil
+
+	// If we're the last popper in the block, free the block.
+	if used := atomic.Xadd(&block.used, -1); used == 0 {
+		// Decrement spine length and clear the block's pointer.
+		atomic.Xadduintptr(&b.spineLen, ^uintptr(0) /* -1 */)
+		atomic.StorepNoWB(add(b.spine, sys.PtrSize*uintptr(top)), nil)
+
+		// Return the block to the block pool.
+		spanSetBlockPool.free(block)
+	}
 	return s
 }
 
@@ -173,4 +198,26 @@ func (b *spanSet) block(i int) []*mspan {
 		spans = block.spans[:bottom]
 	}
 	return spans
+}
+
+// spanSetBlockPool is a global pool of spanSetBlocks.
+var spanSetBlockPool spanSetBlockAlloc
+
+// spanSetBlockAlloc represents a concurrent pool of spanSetBlocks.
+type spanSetBlockAlloc struct {
+	stack lfstack
+}
+
+// alloc tries to grab a spanSetBlock out of the pool, and if it fails
+// persistentallocs a new one and returns it.
+func (p *spanSetBlockAlloc) alloc() *spanSetBlock {
+	if s := (*spanSetBlock)(p.stack.pop()); s != nil {
+		return s
+	}
+	return (*spanSetBlock)(persistentalloc(unsafe.Sizeof(spanSetBlock{}), cpu.CacheLineSize, &memstats.gc_sys))
+}
+
+// free returns a spanSetBlock back to the pool.
+func (p *spanSetBlockAlloc) free(block *spanSetBlock) {
+	p.stack.push(&block.lfnode)
 }
