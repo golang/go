@@ -12,18 +12,9 @@ import (
 )
 
 func (s *Server) definition(ctx context.Context, params *protocol.DefinitionParams) ([]protocol.Location, error) {
-	uri := params.TextDocument.URI.SpanURI()
-	view, err := s.session.ViewOf(uri)
-	if err != nil {
+	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.Go)
+	if !ok {
 		return nil, err
-	}
-	snapshot := view.Snapshot()
-	fh, err := snapshot.GetFile(uri)
-	if err != nil {
-		return nil, err
-	}
-	if fh.Identity().Kind != source.Go {
-		return nil, nil
 	}
 	ident, err := source.Identifier(ctx, snapshot, fh, params.Position)
 	if err != nil {
@@ -42,18 +33,9 @@ func (s *Server) definition(ctx context.Context, params *protocol.DefinitionPara
 }
 
 func (s *Server) typeDefinition(ctx context.Context, params *protocol.TypeDefinitionParams) ([]protocol.Location, error) {
-	uri := params.TextDocument.URI.SpanURI()
-	view, err := s.session.ViewOf(uri)
-	if err != nil {
+	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.Go)
+	if !ok {
 		return nil, err
-	}
-	snapshot := view.Snapshot()
-	fh, err := snapshot.GetFile(uri)
-	if err != nil {
-		return nil, err
-	}
-	if fh.Identity().Kind != source.Go {
-		return nil, nil
 	}
 	ident, err := source.Identifier(ctx, snapshot, fh, params.Position)
 	if err != nil {

@@ -21,19 +21,12 @@ import (
 )
 
 func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLinkParams) ([]protocol.DocumentLink, error) {
-	uri := params.TextDocument.URI.SpanURI()
-	view, err := s.session.ViewOf(uri)
-	if err != nil {
-		return nil, err
-	}
-	fh, err := view.Snapshot().GetFile(uri)
-	if err != nil {
-		return nil, err
-	}
 	// TODO(golang/go#36501): Support document links for go.mod files.
-	if fh.Identity().Kind == source.Mod {
-		return nil, nil
+	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.Go)
+	if !ok {
+		return nil, err
 	}
+	view := snapshot.View()
 	file, _, m, _, err := view.Session().Cache().ParseGoHandle(fh, source.ParseFull).Parse(ctx)
 	if err != nil {
 		return nil, err

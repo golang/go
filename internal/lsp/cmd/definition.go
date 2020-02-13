@@ -109,7 +109,7 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	if hover == nil {
 		return errors.Errorf("%v: not an identifier", from)
 	}
-	file = conn.AddFile(ctx, locs[0].URI.SpanURI())
+	file = conn.AddFile(ctx, fileURI(locs[0].URI))
 	if file.err != nil {
 		return errors.Errorf("%v: %v", from, file.err)
 	}

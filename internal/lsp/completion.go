@@ -16,14 +16,8 @@ import (
 )
 
 func (s *Server) completion(ctx context.Context, params *protocol.CompletionParams) (*protocol.CompletionList, error) {
-	uri := params.TextDocument.URI.SpanURI()
-	view, err := s.session.ViewOf(uri)
-	if err != nil {
-		return nil, err
-	}
-	snapshot := view.Snapshot()
-	fh, err := snapshot.GetFile(uri)
-	if err != nil {
+	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.UnknownKind)
+	if !ok {
 		return nil, err
 	}
 	var candidates []source.CompletionItem
@@ -51,7 +45,7 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 
 	// When using deep completions/fuzzy matching, report results as incomplete so
 	// client fetches updated completions after every key stroke.
-	options := view.Options()
+	options := snapshot.View().Options()
 	incompleteResults := options.DeepCompletion || options.Matcher == source.Fuzzy
 
 	items := toProtocolCompletionItems(candidates, rng, options)

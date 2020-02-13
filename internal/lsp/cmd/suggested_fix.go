@@ -87,7 +87,7 @@ func (s *suggestedfix) Run(ctx context.Context, args ...string) error {
 			continue
 		}
 		for _, c := range a.Edit.DocumentChanges {
-			if c.TextDocument.URI.SpanURI() == uri {
+			if fileURI(c.TextDocument.URI) == uri {
 				edits = append(edits, c.Edits...)
 			}
 		}

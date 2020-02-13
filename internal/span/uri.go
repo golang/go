@@ -20,6 +20,10 @@ const fileScheme = "file"
 // URI represents the full URI for a file.
 type URI string
 
+func (uri URI) IsFile() bool {
+	return strings.HasPrefix(string(uri), "file://")
+}
+
 // Filename returns the file path for the given URI.
 // It is an error to call this on a URI that is not a valid filename.
 func (uri URI) Filename() string {

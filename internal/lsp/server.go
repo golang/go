@@ -95,17 +95,17 @@ func (s *Server) nonstandardRequest(ctx context.Context, method string, params i
 	paramMap := params.(map[string]interface{})
 	if method == "gopls/diagnoseFiles" {
 		for _, file := range paramMap["files"].([]interface{}) {
-			uri := span.URIFromURI(file.(string))
-			view, err := s.session.ViewOf(uri)
-			if err != nil {
+			snapshot, fh, ok, err := s.beginFileRequest(protocol.DocumentURI(file.(string)), source.UnknownKind)
+			if !ok {
 				return nil, err
 			}
-			fileID, diagnostics, err := source.FileDiagnostics(ctx, view.Snapshot(), uri)
+
+			fileID, diagnostics, err := source.FileDiagnostics(ctx, snapshot, fh.Identity().URI)
 			if err != nil {
 				return nil, err
 			}
 			if err := s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
-				URI:         protocol.URIFromSpanURI(uri),
+				URI:         protocol.URIFromSpanURI(fh.Identity().URI),
 				Diagnostics: toProtocolDiagnostics(diagnostics),
 				Version:     fileID.Version,
 			}); err != nil {

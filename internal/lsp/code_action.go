@@ -20,19 +20,14 @@ import (
 )
 
 func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
-	uri := params.TextDocument.URI.SpanURI()
-	view, err := s.session.ViewOf(uri)
-	if err != nil {
+	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.UnknownKind)
+	if !ok {
 		return nil, err
 	}
-	snapshot := view.Snapshot()
-	fh, err := snapshot.GetFile(uri)
-	if err != nil {
-		return nil, err
-	}
+	uri := fh.Identity().URI
 
 	// Determine the supported actions for this file kind.
-	supportedCodeActions, ok := view.Options().SupportedCodeActions[fh.Identity().Kind]
+	supportedCodeActions, ok := snapshot.View().Options().SupportedCodeActions[fh.Identity().Kind]
 	if !ok {
 		return nil, fmt.Errorf("no supported code actions for %v file kind", fh.Identity().Kind)
 	}

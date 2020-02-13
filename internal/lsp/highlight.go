@@ -14,26 +14,13 @@ import (
 )
 
 func (s *Server) documentHighlight(ctx context.Context, params *protocol.DocumentHighlightParams) ([]protocol.DocumentHighlight, error) {
-	uri := params.TextDocument.URI.SpanURI()
-	view, err := s.session.ViewOf(uri)
-	if err != nil {
+	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.Go)
+	if !ok {
 		return nil, err
 	}
-	snapshot := view.Snapshot()
-	fh, err := snapshot.GetFile(uri)
+	rngs, err := source.Highlight(ctx, snapshot, fh, params.Position)
 	if err != nil {
-		return nil, err
-	}
-	var rngs []protocol.Range
-	switch fh.Identity().Kind {
-	case source.Go:
-		rngs, err = source.Highlight(ctx, snapshot, fh, params.Position)
-	case source.Mod:
-		return nil, nil
-	}
-
-	if err != nil {
-		log.Error(ctx, "no highlight", err, telemetry.URI.Of(uri))
+		log.Error(ctx, "no highlight", err, telemetry.URI.Of(params.TextDocument.URI))
 	}
 	return toProtocolHighlight(rngs), nil
 }
