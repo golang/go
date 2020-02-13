@@ -69,9 +69,7 @@ func (r *prepareRename) Run(ctx context.Context, args ...string) error {
 		return fmt.Errorf("request is not valid at the given position")
 	}
 
-	resRange := *result
-
-	l := protocol.Location{Range: resRange}
+	l := protocol.Location{Range: *result}
 	s, err := file.mapper.Span(l)
 	if err != nil {
 		return err

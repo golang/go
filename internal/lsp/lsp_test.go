@@ -719,16 +719,15 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 		}
 		return
 	}
-	xx := got
-	if xx.Start == xx.End {
+	if got.Start == got.End {
 		// Special case for 0-length ranges. Marks can't specify a 0-length range,
 		// so just compare the start.
-		if xx.Start != want.Range.Start {
-			t.Errorf("prepare rename failed: incorrect point, got %v want %v", xx.Start, want.Range.Start)
+		if got.Start != want.Range.Start {
+			t.Errorf("prepare rename failed: incorrect point, got %v want %v", got.Start, want.Range.Start)
 		}
 	} else {
-		if protocol.CompareRange(*xx, want.Range) != 0 {
-			t.Errorf("prepare rename failed: incorrect range got %v want %v", *xx, want.Range)
+		if protocol.CompareRange(*got, want.Range) != 0 {
+			t.Errorf("prepare rename failed: incorrect range got %v want %v", *got, want.Range)
 		}
 	}
 }
