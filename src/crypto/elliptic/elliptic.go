@@ -52,11 +52,8 @@ func (curve *CurveParams) Params() *CurveParams {
 	return curve
 }
 
-func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
-	// y² = x³ - 3x + b
-	y2 := new(big.Int).Mul(y, y)
-	y2.Mod(y2, curve.P)
-
+// polynomial returns x³ - 3x + b.
+func (curve *CurveParams) polynomial(x *big.Int) *big.Int {
 	x3 := new(big.Int).Mul(x, x)
 	x3.Mul(x3, x)
 
@@ -67,7 +64,15 @@ func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
 	x3.Add(x3, curve.B)
 	x3.Mod(x3, curve.P)
 
-	return x3.Cmp(y2) == 0
+	return x3
+}
+
+func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
+	// y² = x³ - 3x + b
+	y2 := new(big.Int).Mul(y, y)
+	y2.Mod(y2, curve.P)
+
+	return curve.polynomial(x).Cmp(y2) == 0
 }
 
 // zForAffine returns a Jacobian Z value for the affine point (x, y). If x and
@@ -315,22 +320,62 @@ func Marshal(curve Curve, x, y *big.Int) []byte {
 	return ret
 }
 
+// MarshalCompressed converts a point into the compressed form specified in section 4.3.6 of ANSI X9.62.
+func MarshalCompressed(curve Curve, x, y *big.Int) []byte {
+	byteLen := (curve.Params().BitSize + 7) / 8
+	compressed := make([]byte, 1+byteLen)
+	compressed[0] = byte(y.Bit(0)) | 2
+	x.FillBytes(compressed[1:])
+	return compressed
+}
+
 // Unmarshal converts a point, serialized by Marshal, into an x, y pair.
 // It is an error if the point is not in uncompressed form or is not on the curve.
 // On error, x = nil.
 func Unmarshal(curve Curve, data []byte) (x, y *big.Int) {
 	byteLen := (curve.Params().BitSize + 7) / 8
 	if len(data) != 1+2*byteLen {
-		return
+		return nil, nil
 	}
 	if data[0] != 4 { // uncompressed form
-		return
+		return nil, nil
 	}
 	p := curve.Params().P
 	x = new(big.Int).SetBytes(data[1 : 1+byteLen])
 	y = new(big.Int).SetBytes(data[1+byteLen:])
 	if x.Cmp(p) >= 0 || y.Cmp(p) >= 0 {
 		return nil, nil
+	}
+	if !curve.IsOnCurve(x, y) {
+		return nil, nil
+	}
+	return
+}
+
+// UnmarshalCompressed converts a point, serialized by MarshalCompressed, into an x, y pair.
+// It is an error if the point is not in compressed form or is not on the curve.
+// On error, x = nil.
+func UnmarshalCompressed(curve Curve, data []byte) (x, y *big.Int) {
+	byteLen := (curve.Params().BitSize + 7) / 8
+	if len(data) != 1+byteLen {
+		return nil, nil
+	}
+	if data[0] != 2 && data[0] != 3 { // compressed form
+		return nil, nil
+	}
+	p := curve.Params().P
+	x = new(big.Int).SetBytes(data[1:])
+	if x.Cmp(p) >= 0 {
+		return nil, nil
+	}
+	// y² = x³ - 3x + b
+	y = curve.Params().polynomial(x)
+	y = y.ModSqrt(y, p)
+	if y == nil {
+		return nil, nil
+	}
+	if byte(y.Bit(0)) != data[0]&1 {
+		y.Neg(y).Mod(y, p)
 	}
 	if !curve.IsOnCurve(x, y) {
 		return nil, nil
