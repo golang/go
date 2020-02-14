@@ -45,8 +45,13 @@ func (l *Loader) MakeSymbolUpdater(symIdx Sym) *SymbolBuilder {
 		// Create a clone with the same name/version/kind etc.
 		l.cloneToExternal(symIdx)
 	}
-	if l.Syms[symIdx] != nil {
-		panic(fmt.Sprintf("can't build if sym.Symbol %q already present", l.RawSymName(symIdx)))
+	// Now that we're doing phase 2 DWARF generation using the loader
+	// but before the wavefront has reached dodata(), we can't have this
+	// assertion here. Commented out for now.
+	if false {
+		if l.Syms[symIdx] != nil {
+			panic(fmt.Sprintf("can't build if sym.Symbol %q already present", l.RawSymName(symIdx)))
+		}
 	}
 
 	// Construct updater and return.
@@ -111,6 +116,13 @@ func (sb *SymbolBuilder) Relocs() []Reloc {
 
 func (sb *SymbolBuilder) SetRelocs(rslice []Reloc) {
 	sb.relocs = rslice
+}
+
+func (sb *SymbolBuilder) WriteRelocs(rslice []Reloc) {
+	if len(sb.relocs) != len(rslice) {
+		panic("src/dest length mismatch")
+	}
+	copy(sb.relocs, rslice)
 }
 
 func (sb *SymbolBuilder) AddReloc(r Reloc) {

@@ -933,6 +933,10 @@ func dwarfGenerateDebugSyms(ctxt *Link) {
 	if !dwarfEnabled(ctxt) {
 		return
 	}
+	if *FlagNewDw2 {
+		dwarfGenerateDebugSyms2(ctxt)
+		return
+	}
 
 	abbrev := writeabbrev(ctxt)
 	syms := []*sym.Symbol{abbrev}

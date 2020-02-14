@@ -785,7 +785,7 @@ func (l *Loader) AttrShared(i Sym) bool {
 // symbol (see AttrShared).
 func (l *Loader) SetAttrShared(i Sym, v bool) {
 	if !l.IsExternal(i) {
-		panic("tried to set shared attr on non-external symbol")
+		panic(fmt.Sprintf("tried to set shared attr on non-external symbol %d %s", i, l.SymName(i)))
 	}
 	if v {
 		l.attrShared.Set(l.extIndex(i))
@@ -1764,7 +1764,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 		batch := l.relocBatch
 		s.R = batch[:len(pp.relocs):len(pp.relocs)]
 		l.relocBatch = batch[len(pp.relocs):]
-		l.convertRelocations(pp.relocs, s)
+		l.convertRelocations(pp.relocs, s, false)
 
 		// Copy data
 		s.P = pp.data
@@ -1799,6 +1799,191 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 			}
 		}
 	}
+}
+
+// PropagateSymbolChangesBackToLoader is a temporary shim function
+// that copies over a given sym.Symbol into the equivalent representation
+// in the loader world. The intent is to enable converting a given
+// linker phase/pass from dealing with sym.Symbol's to a modernized
+// pass that works with loader.Sym, in cases where the "loader.Sym
+// wavefront" has not yet reached the pass in question. For such work
+// the recipe is to first call PropagateSymbolChangesBackToLoader(),
+// then exexute the pass working with the loader, then call
+// PropagateLoaderChangesToSymbols to copy the changes made by the
+// pass back to the sym.Symbol world.
+func (l *Loader) PropagateSymbolChangesBackToLoader() {
+
+	// For the moment we only copy symbol values, and we don't touch
+	// any new sym.Symbols created since loadlibfull() was run. This
+	// seems to be what's needed for DWARF gen.
+	for i := Sym(1); i < Sym(len(l.objSyms)); i++ {
+		s := l.Syms[i]
+		if s != nil {
+			if s.Value != l.SymValue(i) {
+				l.SetSymValue(i, s.Value)
+			}
+		}
+	}
+}
+
+// PropagateLoaderChangesToSymbols is a temporary shim function that
+// takes a list of loader.Sym symbols and works to copy their contents
+// and attributes over to a corresponding sym.Symbol. See the
+// PropagateSymbolChangesBackToLoader header comment for more info.
+//
+// WARNING: this function is brittle and depends heavily on loader
+// implementation. A key problem with doing this is that as things
+// stand at the moment, some sym.Symbol contents/attributes are
+// populated only when converting from loader.Sym to sym.Symbol
+// in loadlibfull, meaning if we may wipe out some information
+// when copying back.
+
+func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, syms *sym.Symbols) []*sym.Symbol {
+
+	result := []*sym.Symbol{}
+	relocfixup := []Sym{}
+
+	// Note: this loop needs to allow for the possibility that we may
+	// see "new" symbols on the 'toconvert' list that come from object
+	// files (for example, DWARF location lists), as opposed to just
+	// newly manufactured symbols (ex: DWARF section symbols such as
+	// ".debug_info").  This means that we have to be careful not to
+	// stomp on sym.Symbol attributes/content that was set up in
+	// in loadlibfull().
+
+	// Also note that in order for the relocation fixup to work, we
+	// have to do this in two passes -- one pass to create the symbols,
+	// and then a second fix up the relocations once all necessary
+	// sym.Symbols are created.
+
+	// First pass, symbol creation and symbol data fixup.
+	anonVerReplacement := syms.IncVersion()
+	rslice := []Reloc{}
+	for _, cand := range toconvert {
+
+		sn := l.SymName(cand)
+		sv := l.SymVersion(cand)
+		if sv < 0 {
+			sv = anonVerReplacement
+		}
+
+		s := l.Syms[cand]
+
+		isnew := false
+		if sn == "" {
+			// Don't install anonymous symbols in the lookup tab.
+			if s == nil {
+				s := l.allocSym(sn, sv)
+				l.installSym(cand, s)
+			}
+			isnew = true
+		} else {
+			if s != nil {
+				// Already have a symbol for this -- it must be
+				// something that was previously processed by
+				// loadObjFull. Note that the symbol in question may
+				// or may not be in the name lookup map.
+			} else {
+				isnew = true
+				s = syms.Lookup(sn, sv)
+			}
+		}
+		result = append(result, s)
+
+		// Always copy these from new to old.
+		s.Value = l.SymValue(cand)
+		s.Type = l.SymType(cand)
+
+		// If the data for a symbol has increased in size, make sure
+		// we bring the new content across.
+		relfix := isnew
+		if isnew || len(l.Data(cand)) > len(s.P) {
+			s.P = l.Data(cand)
+			s.Size = int64(len(s.P))
+			relfix = true
+		}
+
+		// For 'new' symbols, copy other content (such as Gotype,
+		// sym file, relocations, etc).
+		if isnew {
+			if gt := l.SymGoType(cand); gt != 0 {
+				s.Gotype = l.Syms[gt]
+			}
+			if f, ok := l.symFile[cand]; ok {
+				s.File = f
+			} else {
+				r, _ := l.toLocal(cand)
+				if r != nil && r != l.extReader {
+					s.File = l.SymFile(cand)
+				}
+			}
+		}
+
+		// If this symbol has any DWARF file relocations, we need to
+		// make sure that the relocations are copied back over, since
+		// DWARF-gen alters the offset values for these relocs.
+		relocs := l.Relocs(cand)
+		rslice = relocs.ReadSyms(rslice)
+		for ri := range rslice {
+			if rslice[ri].Type == objabi.R_DWARFFILEREF {
+				relfix = true
+				break
+			}
+		}
+
+		if relfix {
+			relocfixup = append(relocfixup, cand)
+		}
+
+		// If new symbol, call a helper to migrate attributes.
+		// Otherwise touch only not-in-symbol-table, since there are
+		// some attrs that are only set up at the point where we
+		// convert loader.Sym to sym.Symbol.
+		if isnew {
+			l.migrateAttributes(cand, s)
+		} else {
+			if l.AttrNotInSymbolTable(cand) {
+				s.Attr.Set(sym.AttrNotInSymbolTable, true)
+			}
+		}
+
+		if os.Getenv("THANM_DEBUG") != "" {
+			fmt.Fprintf(os.Stderr, "=-= migrating %s t=%v sz=%d isnew=%v relocs=%d\n", s.Name, s.Type, s.Size, isnew, len(s.R))
+			if sn == "go.info.internal/cpu.cpuid" {
+				fmt.Fprintf(os.Stderr, "=-= new %s:\n", sn)
+				fmt.Fprintf(os.Stderr, "    new %s %v\n",
+					string(s.P), s.P)
+			}
+		}
+	}
+
+	// Second pass to fix up relocations.
+	for _, cand := range relocfixup {
+		s := l.Syms[cand]
+		relocs := l.Relocs(cand)
+		rslice = relocs.ReadAll(rslice)
+		s.R = make([]sym.Reloc, len(rslice))
+
+		if os.Getenv("THANM_DEBUG") != "" {
+			fmt.Fprintf(os.Stderr, "=-= fixing relocs for %s<%d> newrelocs=%d oldrelocs=%d\n", s.Name, s.Version, relocs.Count, len(s.R))
+			fmt.Fprintf(os.Stderr, "=-= loader.Sym relocs:\n")
+			for i := range rslice {
+				r := &rslice[i]
+				rt := objabi.RelocType(r.Type)
+				rsrs := "0"
+				if r.Sym != 0 {
+					rsrs = fmt.Sprintf("%d[%s<%d>]", r.Sym, l.SymName(r.Sym), l.SymVersion(r.Sym))
+				}
+
+				fmt.Fprintf(os.Stderr, "    R%d: %-9s o=%d tgt=%s\n",
+					i, rt.String(), r.Off, rsrs)
+			}
+		}
+
+		l.convertRelocations(rslice, s, true)
+	}
+
+	return result
 }
 
 // ExtractSymbols grabs the symbols out of the loader for work that hasn't been
@@ -2184,7 +2369,7 @@ func loadObjFull(l *Loader, r *oReader) {
 		batch := l.relocBatch
 		s.R = batch[:relocs.Count:relocs.Count]
 		l.relocBatch = batch[relocs.Count:]
-		l.convertRelocations(rslice, s)
+		l.convertRelocations(rslice, s, false)
 
 		// Aux symbol info
 		isym := -1
@@ -2359,9 +2544,10 @@ func loadObjFull(l *Loader, r *oReader) {
 // convertRelocations takes a vector of loader.Reloc relocations and
 // translates them into an equivalent set of sym.Reloc relocations on
 // the symbol "dst", performing fixups along the way for ABI aliases,
-// etc. It is assumed that the called has pre-allocated the dst symbol
-// relocations slice.
-func (l *Loader) convertRelocations(src []Reloc, dst *sym.Symbol) {
+// etc. It is assumed that the caller has pre-allocated the dst symbol
+// relocations slice. If 'strict' is set, then this method will
+// panic if it finds a relocation targeting a nil symbol.
+func (l *Loader) convertRelocations(src []Reloc, dst *sym.Symbol, strict bool) {
 	for j := range dst.R {
 		r := src[j]
 		rs := r.Sym
@@ -2382,6 +2568,9 @@ func (l *Loader) convertRelocations(src []Reloc, dst *sym.Symbol) {
 		if rs != 0 && l.Syms[rs] != nil && l.Syms[rs].Type == sym.SABIALIAS {
 			rsrelocs := l.Relocs(rs)
 			rs = rsrelocs.At(0).Sym
+		}
+		if strict && rs != 0 && l.Syms[rs] == nil && rt != objabi.R_USETYPE {
+			panic("nil reloc target in convertRelocations")
 		}
 		dst.R[j] = sym.Reloc{
 			Off:  r.Off,
@@ -2547,6 +2736,7 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 			lib.Textp2 = libtextp2
 		}
 	}
+
 	return textp2
 }
 
