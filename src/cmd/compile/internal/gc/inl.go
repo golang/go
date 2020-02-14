@@ -321,7 +321,7 @@ func (v *hairyVisitor) visit(n *Node) bool {
 		}
 
 		if isIntrinsicCall(n) {
-			v.budget--
+			// Treat like any other node.
 			break
 		}
 
