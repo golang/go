@@ -328,12 +328,19 @@ func fixMissingCurlies(f *ast.File, b *ast.BlockStmt, parent ast.Node, tok *toke
 		}
 	}
 
+	parentLine := tok.Line(parent.Pos())
+
+	if parentLine >= tok.LineCount() {
+		// If we are the last line in the file, no need to fix anything.
+		return nil
+	}
+
 	// Insert curlies at the end of parent's starting line. The parent
 	// is the statement that contains the block, e.g. *ast.IfStmt. The
 	// block's Pos()/End() can't be relied upon because they are based
 	// on the (missing) curly braces. We assume the statement is a
 	// single line for now and try sticking the curly braces at the end.
-	insertPos := tok.LineStart(tok.Line(parent.Pos())+1) - 1
+	insertPos := tok.LineStart(parentLine+1) - 1
 
 	// Scootch position backwards until it's not in a comment. For example:
 	//
