@@ -75,8 +75,10 @@ func (s *Server) codeLens(ctx context.Context, params *protocol.CodeLensParams) 
 	if err != nil {
 		return nil, err
 	}
-	snapshot := view.Snapshot()
-	fh, err := snapshot.GetFile(uri)
+	if !view.Snapshot().IsSaved(uri) {
+		return nil, nil
+	}
+	fh, err := view.Snapshot().GetFile(uri)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +86,7 @@ func (s *Server) codeLens(ctx context.Context, params *protocol.CodeLensParams) 
 	case source.Go:
 		return nil, nil
 	case source.Mod:
-		return mod.CodeLens(ctx, snapshot, uri)
+		return mod.CodeLens(ctx, view.Snapshot(), uri)
 	}
 	return nil, nil
 }

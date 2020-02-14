@@ -29,6 +29,9 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 		return nil, err
 	}
 	f, m, upgrades, err := pmh.Upgrades(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var codelens []protocol.CodeLens
 	for _, req := range f.Require {
 		dep := req.Mod.Path

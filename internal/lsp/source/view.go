@@ -33,9 +33,11 @@ type Snapshot interface {
 	// if it is not already part of the view.
 	GetFile(uri span.URI) (FileHandle, error)
 
-	// IsOpen returns whether the editor currently has a file open,
-	// and if its contents are saved on disk or not.
+	// IsOpen returns whether the editor currently has a file open.
 	IsOpen(uri span.URI) bool
+
+	// IsSaved returns whether the contents are saved on disk or not.
+	IsSaved(uri span.URI) bool
 
 	// Analyze runs the analyses for the given package at this snapshot.
 	Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) ([]*Error, error)
