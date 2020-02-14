@@ -70,25 +70,14 @@ func (s *Server) cancelRequest(ctx context.Context, params *protocol.CancelParam
 }
 
 func (s *Server) codeLens(ctx context.Context, params *protocol.CodeLensParams) ([]protocol.CodeLens, error) {
-	uri := params.TextDocument.URI.SpanURI()
-	view, err := s.session.ViewOf(uri)
-	if err != nil {
+	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.Mod)
+	if !ok {
 		return nil, err
 	}
-	if !view.Snapshot().IsSaved(uri) {
+	if !snapshot.IsSaved(fh.Identity().URI) {
 		return nil, nil
 	}
-	fh, err := view.Snapshot().GetFile(uri)
-	if err != nil {
-		return nil, err
-	}
-	switch fh.Identity().Kind {
-	case source.Go:
-		return nil, nil
-	case source.Mod:
-		return mod.CodeLens(ctx, view.Snapshot(), uri)
-	}
-	return nil, nil
+	return mod.CodeLens(ctx, snapshot, fh.Identity().URI)
 }
 
 func (s *Server) nonstandardRequest(ctx context.Context, method string, params interface{}) (interface{}, error) {
