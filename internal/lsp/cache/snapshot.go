@@ -11,6 +11,8 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"sync"
 
 	"golang.org/x/tools/go/analysis"
@@ -60,6 +62,10 @@ type snapshot struct {
 
 	// modHandles keeps track of any ParseModHandles for this snapshot.
 	modHandles map[span.URI]*modHandle
+
+	// modTidyHandle is the saved modTidyHandle for this snapshot, it is attached to the
+	// snapshot so we can reuse it without having to call "go mod tidy" everytime.
+	modTidyHandle *modHandle
 }
 
 type packageKey struct {
@@ -127,6 +133,17 @@ func (s *snapshot) buildOverlay() map[string][]byte {
 		overlays[uri.Filename()] = overlay.text
 	}
 	return overlays
+}
+
+func hashUnsavedOverlays(files map[span.URI]source.FileHandle) string {
+	var unsaved []string
+	for uri, fh := range files {
+		if overlay, ok := fh.(*overlay); ok && !overlay.saved {
+			unsaved = append(unsaved, uri.Filename())
+		}
+	}
+	sort.Strings(unsaved)
+	return hashContents([]byte(strings.Join(unsaved, "")))
 }
 
 func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]source.PackageHandle, error) {
@@ -228,6 +245,12 @@ func (s *snapshot) getModHandle(uri span.URI) *modHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.modHandles[uri]
+}
+
+func (s *snapshot) getModTidyHandle() *modHandle {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.modTidyHandle
 }
 
 func (s *snapshot) getImportedBy(id packageID) []packageID {
@@ -625,6 +648,7 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Fi
 		workspacePackages: make(map[packageID]packagePath),
 		unloadableFiles:   make(map[span.URI]struct{}),
 		modHandles:        make(map[span.URI]*modHandle),
+		modTidyHandle:     s.modTidyHandle,
 	}
 
 	// Copy all of the FileHandles.
@@ -660,11 +684,19 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Fi
 		// and if so, invalidate this file's packages' metadata.
 		invalidateMetadata := s.shouldInvalidateMetadata(ctx, originalFH, currentFH)
 
-		// If a go.mod file's contents have changed, invalidate the metadata
-		// for all of the packages in the workspace.
-		if invalidateMetadata && currentFH.Identity().Kind == source.Mod {
-			for id := range s.workspacePackages {
-				directIDs[id] = struct{}{}
+		// Invalidate the previous modTidyHandle if any of the files have been
+		// saved or if any of the metadata has been invalidated.
+		if invalidateMetadata || fileWasSaved(originalFH, currentFH) {
+			result.modTidyHandle = nil
+		}
+
+		if currentFH.Identity().Kind == source.Mod {
+			// If the view's go.mod file's contents have changed, invalidate the metadata
+			// for all of the packages in the workspace.
+			if invalidateMetadata {
+				for id := range s.workspacePackages {
+					directIDs[id] = struct{}{}
+				}
 			}
 			delete(result.modHandles, withoutURI)
 		}
@@ -713,7 +745,6 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Fi
 		// Make sure to remove the changed file from the unloadable set.
 		delete(result.unloadableFiles, withoutURI)
 	}
-
 	// Copy the set of initally loaded packages.
 	for k, v := range s.workspacePackages {
 		result.workspacePackages[k] = v
@@ -753,8 +784,23 @@ outer:
 	}
 	// Don't bother copying the importedBy graph,
 	// as it changes each time we update metadata.
-
 	return result
+}
+
+// fileWasSaved returns true if the FileHandle passed in has been saved.
+// It accomplishes this by checking to see if the original and current FileHandles
+// are both overlays, and if the current FileHandles is saved while the original FileHandle
+// was not saved.
+func fileWasSaved(originalFH, currentFH source.FileHandle) bool {
+	c, ok := currentFH.(*overlay)
+	if ok {
+		return true
+	}
+	if originalFH == nil {
+		return c.saved
+	}
+	o, ok := originalFH.(*overlay)
+	return ok && !o.saved && c.saved
 }
 
 // shouldInvalidateMetadata reparses a file's package and import declarations to
