@@ -655,13 +655,13 @@ func (ld *loader) load(roots func() []string) {
 				if err.newMissingVersion != "" {
 					base.Fatalf("go: %s: package provided by %s at latest version %s but not at required version %s", pkg.stackText(), err.Module.Path, err.Module.Version, err.newMissingVersion)
 				}
+				fmt.Fprintf(os.Stderr, "go: found %s in %s %s\n", pkg.path, err.Module.Path, err.Module.Version)
 				if added[pkg.path] {
 					base.Fatalf("go: %s: looping trying to add package", pkg.stackText())
 				}
 				added[pkg.path] = true
 				numAdded++
 				if !haveMod[err.Module] {
-					fmt.Fprintf(os.Stderr, "go: found %s in %s %s\n", pkg.path, err.Module.Path, err.Module.Version)
 					haveMod[err.Module] = true
 					modAddedBy[err.Module] = pkg
 					buildList = append(buildList, err.Module)
