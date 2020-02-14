@@ -124,46 +124,37 @@ func (s *snapshot) ParseModHandle(ctx context.Context) (source.ParseModHandle, e
 		cfg:   hashConfig(cfg),
 	}
 	h := s.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
-		data := &modTidyData{}
-
-		uri := fh.Identity().URI
-
-		ctx, done := trace.StartSpan(ctx, "cache.ParseModHandle", telemetry.File.Of(uri))
+		ctx, done := trace.StartSpan(ctx, "cache.ParseModHandle", telemetry.File.Of(realURI))
 		defer done()
 
+		data := &modTidyData{}
 		contents, _, err := fh.Read(ctx)
 		if err != nil {
 			data.err = err
 			return data
 		}
-		// If the filehandle passed in is equal to the view's go.mod file, and we have
-		// a tempModfile, copy the real go.mod file content into the temp go.mod file.
-		if realURI == uri && tempURI != "" {
+		parsedFile, err := modfile.Parse(realURI.Filename(), contents, nil)
+		if err != nil {
+			data.err = err
+			return data
+		}
+		// If we have a tempModfile, copy the real go.mod file content into the temp go.mod file.
+		if tempURI != "" {
 			if err := ioutil.WriteFile(tempURI.Filename(), contents, os.ModePerm); err != nil {
 				data.err = err
 				return data
 			}
 		}
-		mapper := &protocol.ColumnMapper{
-			URI:       uri,
-			Converter: span.NewContentConverter(uri.Filename(), contents),
-			Content:   contents,
-		}
-		parsedFile, err := modfile.Parse(uri.Filename(), contents, nil)
-		if err != nil {
-			data.err = err
-			return data
-		}
 		data = &modTidyData{
 			origfh:         fh,
 			origParsedFile: parsedFile,
-			origMapper:     mapper,
+			origMapper: &protocol.ColumnMapper{
+				URI:       realURI,
+				Converter: span.NewContentConverter(realURI.Filename(), contents),
+				Content:   contents,
+			},
 		}
-		// Only check if any dependencies can be upgraded if the passed in
-		// go.mod file is equal to the view's go.mod file.
-		if realURI == uri {
-			data.upgrades, data.err = dependencyUpgrades(ctx, cfg, folder, data)
-		}
+		data.upgrades, data.err = dependencyUpgrades(ctx, cfg, folder, data)
 		return data
 	})
 	return &parseModHandle{
@@ -255,27 +246,11 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 		ctx, done := trace.StartSpan(ctx, "cache.ModTidyHandle", telemetry.File.Of(realURI))
 		defer done()
 
-		// Copy the real go.mod file content into the temp go.mod file.
 		realContents, _, err := realfh.Read(ctx)
 		if err != nil {
 			data.err = err
 			return data
 		}
-		if err := ioutil.WriteFile(tempURI.Filename(), realContents, os.ModePerm); err != nil {
-			data.err = err
-			return data
-		}
-
-		// We want to run "go mod tidy" to be able to diff between the real and the temp files.
-		args := append([]string{"mod", "tidy"}, cfg.BuildFlags...)
-		if _, err := source.InvokeGo(ctx, folder, cfg.Env, args...); err != nil {
-			// Ignore parse errors and concurrency errors here. They'll be handled below.
-			if !strings.Contains(err.Error(), "errors parsing go.mod") && !modConcurrencyError.MatchString(err.Error()) {
-				data.err = err
-				return data
-			}
-		}
-
 		realMapper := &protocol.ColumnMapper{
 			URI:       realURI,
 			Converter: span.NewContentConverter(realURI.Filename(), realContents),
@@ -289,6 +264,22 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 			}
 			data.err = err
 			return data
+		}
+
+		// Copy the real go.mod file content into the temp go.mod file.
+		if err := ioutil.WriteFile(tempURI.Filename(), realContents, os.ModePerm); err != nil {
+			data.err = err
+			return data
+		}
+
+		// We want to run "go mod tidy" to be able to diff between the real and the temp files.
+		args := append([]string{"mod", "tidy"}, cfg.BuildFlags...)
+		if _, err := source.InvokeGo(ctx, folder, cfg.Env, args...); err != nil {
+			// Ignore concurrency errors here.
+			if !modConcurrencyError.MatchString(err.Error()) {
+				data.err = err
+				return data
+			}
 		}
 
 		// Go directly to disk to get the temporary mod file, since it is always on disk.
