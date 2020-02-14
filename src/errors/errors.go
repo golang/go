@@ -67,3 +67,11 @@ type errorString struct {
 func (e *errorString) Error() string {
 	return e.s
 }
+
+// Temporary returns true if it makes sense to retry the call that returned the error.
+func Temporary(err error) bool {
+	if err, ok := err.(interface{ Temporary() bool }); ok {
+		return err.Temporary()
+	}
+	return false
+}
