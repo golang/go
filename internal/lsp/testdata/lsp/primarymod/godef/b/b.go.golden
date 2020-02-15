@@ -90,29 +90,6 @@ func a.AStuff()
 ```go
 func a.AStuff()
 ```
--- PackageFoo-definition --
-foo/foo.go:1:1-30:16: defined here as myFoo "golang.org/x/tools/internal/lsp/foo" //@mark(myFoo, "myFoo"),godef("foo", PackageFoo),godef("myFoo", myFoo)
--- PackageFoo-definition-json --
-{
-	"span": {
-		"uri": "file://foo/foo.go",
-		"start": {
-			"line": 1,
-			"column": 1,
-			"offset": 0
-		},
-		"end": {
-			"line": 30,
-			"column": 16,
-			"offset": 922
-		}
-	},
-	"description": "myFoo \"golang.org/x/tools/internal/lsp/foo\" //@mark(myFoo, \"myFoo\"),godef(\"foo\", PackageFoo),godef(\"myFoo\", myFoo)"
-}
-
--- PackageFoo-hover --
-myFoo "golang.org/x/tools/internal/lsp/foo" //@mark(myFoo, "myFoo"),godef("foo", PackageFoo),godef("myFoo", myFoo)
-
 -- S1-definition --
 godef/b/b.go:8:6-8: defined here as ```go
 S1 struct {
@@ -325,28 +302,6 @@ field F2 int
 ```go
 field F2 int
 ```
--- Stuff-definition --
-godef/a/a.go:9:6-11: defined here as func a.Stuff()
--- Stuff-definition-json --
-{
-	"span": {
-		"uri": "file://godef/a/a.go",
-		"start": {
-			"line": 9,
-			"column": 6,
-			"offset": 95
-		},
-		"end": {
-			"line": 9,
-			"column": 11,
-			"offset": 100
-		}
-	},
-	"description": "func a.Stuff()"
-}
-
--- Stuff-hover --
-func a.Stuff()
 -- bX-definition --
 godef/b/b.go:37:7-8: defined here as ```go
 const X untyped int = 0

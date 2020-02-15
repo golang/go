@@ -36,7 +36,7 @@ const (
 	overlayFileSuffix = ".overlay"
 	goldenFileSuffix  = ".golden"
 	inFileSuffix      = ".in"
-	summaryFile       = "summary.txt.golden"
+	summaryFile       = "summary.txt"
 	testModule        = "golang.org/x/tools/internal/lsp"
 )
 
@@ -296,17 +296,19 @@ func Load(t testing.TB, exporter packagestest.Exporter, dir string) []*Data {
 			mappers:   map[span.URI]*protocol.ColumnMapper{},
 		}
 
-		summary := filepath.Join(filepath.FromSlash(folder), summaryFile)
-		if _, err := os.Stat(summary); os.IsNotExist(err) {
-			t.Fatalf("could not find golden file summary.txt in %#v", folder)
-		}
-		archive, err := txtar.ParseFile(summary)
-		if err != nil {
-			t.Fatalf("could not read golden file %v/%v: %v", folder, summary, err)
-		}
-		datum.golden["summary.txt"] = &Golden{
-			Filename: summary,
-			Archive:  archive,
+		if !*UpdateGolden {
+			summary := filepath.Join(filepath.FromSlash(folder), summaryFile+goldenFileSuffix)
+			if _, err := os.Stat(summary); os.IsNotExist(err) {
+				t.Fatalf("could not find golden file summary.txt in %#v", folder)
+			}
+			archive, err := txtar.ParseFile(summary)
+			if err != nil {
+				t.Fatalf("could not read golden file %v/%v: %v", folder, summary, err)
+			}
+			datum.golden[summaryFile] = &Golden{
+				Filename: summary,
+				Archive:  archive,
+			}
 		}
 
 		modules, _ := packagestest.GroupFilesByModules(folder)
@@ -786,7 +788,7 @@ func checkData(t *testing.T, data *Data) {
 	fmt.Fprintf(buf, "LinksCount = %v\n", linksCount)
 	fmt.Fprintf(buf, "ImplementationsCount = %v\n", len(data.Implementations))
 
-	want := string(data.Golden("summary", "summary.txt", func() ([]byte, error) {
+	want := string(data.Golden("summary", summaryFile, func() ([]byte, error) {
 		return buf.Bytes(), nil
 	}))
 	got := buf.String()
@@ -828,8 +830,12 @@ func (data *Data) Golden(tag string, target string, update func() ([]byte, error
 		if !*UpdateGolden {
 			data.t.Fatalf("could not find golden file %v: %v", fragment, tag)
 		}
+		var subdir string
+		if fragment != summaryFile {
+			subdir = "primarymod"
+		}
 		golden = &Golden{
-			Filename: filepath.Join(data.dir, fragment+goldenFileSuffix),
+			Filename: filepath.Join(data.dir, subdir, fragment+goldenFileSuffix),
 			Archive:  &txtar.Archive{},
 			Modified: true,
 		}
