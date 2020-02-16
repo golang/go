@@ -26,6 +26,7 @@ import (
 var TestMainDeps = []string{
 	// Dependencies for testmain.
 	"os",
+	"reflect",
 	"testing",
 	"testing/internal/testdeps",
 }
@@ -612,8 +613,9 @@ var testmainTmpl = lazytemplate.New("main", `
 package main
 
 import (
-{{if not .TestMain}}
 	"os"
+{{if .TestMain}}
+	"reflect"
 {{end}}
 	"testing"
 	"testing/internal/testdeps"
@@ -704,6 +706,7 @@ func main() {
 	m := testing.MainStart(testdeps.TestDeps{}, tests, benchmarks, examples)
 {{with .TestMain}}
 	{{.Package}}.{{.Name}}(m)
+	os.Exit(int(reflect.ValueOf(m).Elem().FieldByName("exitCode").Int()))
 {{else}}
 	os.Exit(m.Run())
 {{end}}

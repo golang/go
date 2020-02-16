@@ -16,7 +16,7 @@ go list -deps -test -f '{{.ImportPath}} MAP: {{.ImportMap}}{{"\n"}}{{.ImportPath
 stdout '^flag \[fmt\.test\] MAP: map\[fmt:fmt \[fmt\.test\]\]'
 stdout '^fmt\.test MAP: map\[(.* )?testing:testing \[fmt\.test\]'
 ! stdout '^fmt\.test MAP: map\[(.* )?os:'
-stdout '^fmt\.test IMPORT: \[fmt \[fmt\.test\] fmt_test \[fmt\.test\] os testing \[fmt\.test\] testing/internal/testdeps \[fmt\.test\]\]'
+stdout '^fmt\.test IMPORT: \[fmt \[fmt\.test\] fmt_test \[fmt\.test\] os reflect testing \[fmt\.test\] testing/internal/testdeps \[fmt\.test\]\]'
 
 
 -- a/b/b.go --
