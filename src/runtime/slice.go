@@ -211,12 +211,12 @@ func slicecopy(to, fm slice, width uintptr) int {
 	if raceenabled {
 		callerpc := getcallerpc()
 		pc := funcPC(slicecopy)
-		racewriterangepc(to.array, uintptr(n*int(width)), callerpc, pc)
 		racereadrangepc(fm.array, uintptr(n*int(width)), callerpc, pc)
+		racewriterangepc(to.array, uintptr(n*int(width)), callerpc, pc)
 	}
 	if msanenabled {
-		msanwrite(to.array, uintptr(n*int(width)))
 		msanread(fm.array, uintptr(n*int(width)))
+		msanwrite(to.array, uintptr(n*int(width)))
 	}
 
 	size := uintptr(n) * width
