@@ -46,8 +46,10 @@ func Implementation(ctx context.Context, s Snapshot, f FileHandle, pp protocol.P
 	return locations, nil
 }
 
-var ErrNotAnInterface = errors.New("not an interface or interface method")
+var ErrNotAType = errors.New("not a type name or method")
 
+// implementations returns the concrete implementations of the specified
+// interface, or the interfaces implemented by the specified concrete type.
 func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position) ([]qualifiedObject, error) {
 	var (
 		impls []qualifiedObject
@@ -62,25 +64,25 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 
 	for _, qo := range qos {
 		var (
-			T      *types.Interface
-			method *types.Func
+			queryType   types.Type
+			queryMethod *types.Func
 		)
 
 		switch obj := qo.obj.(type) {
 		case *types.Func:
-			method = obj
+			queryMethod = obj
 			if recv := obj.Type().(*types.Signature).Recv(); recv != nil {
-				T, _ = recv.Type().Underlying().(*types.Interface)
+				queryType = ensurePointer(recv.Type())
 			}
 		case *types.TypeName:
-			T, _ = obj.Type().Underlying().(*types.Interface)
+			queryType = ensurePointer(obj.Type())
 		}
 
-		if T == nil {
-			return nil, ErrNotAnInterface
+		if queryType == nil {
+			return nil, ErrNotAType
 		}
 
-		if T.NumMethods() == 0 {
+		if types.NewMethodSet(queryType).Len() == 0 {
 			return nil, nil
 		}
 
@@ -108,47 +110,82 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 				if !ok || obj.IsAlias() {
 					continue
 				}
-				named, ok := obj.Type().(*types.Named)
-				// We skip interface types since we only want concrete
-				// implementations.
-				if !ok || isInterface(named) {
-					continue
+				if named, ok := obj.Type().(*types.Named); ok {
+					allNamed = append(allNamed, named)
 				}
-				allNamed = append(allNamed, named)
 			}
 		}
 
-		// Find all the named types that implement our interface.
-		for _, U := range allNamed {
-			var concrete types.Type = U
-			if !types.AssignableTo(concrete, T) {
-				// We also accept T if *T implements our interface.
-				concrete = types.NewPointer(concrete)
-				if !types.AssignableTo(concrete, T) {
+		// Find all the named types that match our query.
+		for _, named := range allNamed {
+			var (
+				candObj  types.Object = named.Obj()
+				candType              = ensurePointer(named)
+			)
+
+			if !concreteImplementsIntf(candType, queryType) {
+				continue
+			}
+
+			ms := types.NewMethodSet(candType)
+			if ms.Len() == 0 {
+				// Skip empty interfaces.
+				continue
+			}
+
+			// If client queried a method, look up corresponding candType method.
+			if queryMethod != nil {
+				sel := ms.Lookup(queryMethod.Pkg(), queryMethod.Name())
+				if sel == nil {
 					continue
 				}
+				candObj = sel.Obj()
 			}
 
-			var obj types.Object = U.Obj()
-			if method != nil {
-				obj = types.NewMethodSet(concrete).Lookup(method.Pkg(), method.Name()).Obj()
-			}
-
-			pos := fset.Position(obj.Pos())
-			if obj == method || seen[pos] {
+			pos := fset.Position(candObj.Pos())
+			if candObj == queryMethod || seen[pos] {
 				continue
 			}
 
 			seen[pos] = true
 
 			impls = append(impls, qualifiedObject{
-				obj: obj,
-				pkg: pkgs[obj.Pkg()],
+				obj: candObj,
+				pkg: pkgs[candObj.Pkg()],
 			})
 		}
 	}
 
 	return impls, nil
+}
+
+// concreteImplementsIntf returns true if a is an interface type implemented by
+// concrete type b, or vice versa.
+func concreteImplementsIntf(a, b types.Type) bool {
+	aIsIntf, bIsIntf := isInterface(a), isInterface(b)
+
+	// Make sure exactly one is an interface type.
+	if aIsIntf == bIsIntf {
+		return false
+	}
+
+	// Rearrange if needed so "a" is the concrete type.
+	if aIsIntf {
+		a, b = b, a
+	}
+
+	return types.AssignableTo(a, b)
+}
+
+// ensurePointer wraps T in a *types.Pointer if T is a named, non-interface
+// type. This is useful to make sure you consider a named type's full method
+// set.
+func ensurePointer(T types.Type) types.Type {
+	if _, ok := T.(*types.Named); ok && !isInterface(T) {
+		return types.NewPointer(T)
+	}
+
+	return T
 }
 
 type qualifiedObject struct {
