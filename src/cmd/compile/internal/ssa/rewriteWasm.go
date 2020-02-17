@@ -4010,7 +4010,7 @@ func rewriteValueWasm_OpWasmI64Load(v *Value) bool {
 	}
 	// match: (I64Load [off] (LoweredAddr {sym} [off2] (SB)) _)
 	// cond: symIsRO(sym) && isU32Bit(off+off2)
-	// result: (I64Const [int64(read64(sym, off+off2, config.BigEndian))])
+	// result: (I64Const [int64(read64(sym, off+off2, config.ctxt.Arch.ByteOrder))])
 	for {
 		off := v.AuxInt
 		if v_0.Op != OpWasmLoweredAddr {
@@ -4023,7 +4023,7 @@ func rewriteValueWasm_OpWasmI64Load(v *Value) bool {
 			break
 		}
 		v.reset(OpWasmI64Const)
-		v.AuxInt = int64(read64(sym, off+off2, config.BigEndian))
+		v.AuxInt = int64(read64(sym, off+off2, config.ctxt.Arch.ByteOrder))
 		return true
 	}
 	return false
@@ -4080,7 +4080,7 @@ func rewriteValueWasm_OpWasmI64Load16U(v *Value) bool {
 	}
 	// match: (I64Load16U [off] (LoweredAddr {sym} [off2] (SB)) _)
 	// cond: symIsRO(sym) && isU32Bit(off+off2)
-	// result: (I64Const [int64(read16(sym, off+off2, config.BigEndian))])
+	// result: (I64Const [int64(read16(sym, off+off2, config.ctxt.Arch.ByteOrder))])
 	for {
 		off := v.AuxInt
 		if v_0.Op != OpWasmLoweredAddr {
@@ -4093,7 +4093,7 @@ func rewriteValueWasm_OpWasmI64Load16U(v *Value) bool {
 			break
 		}
 		v.reset(OpWasmI64Const)
-		v.AuxInt = int64(read16(sym, off+off2, config.BigEndian))
+		v.AuxInt = int64(read16(sym, off+off2, config.ctxt.Arch.ByteOrder))
 		return true
 	}
 	return false
@@ -4150,7 +4150,7 @@ func rewriteValueWasm_OpWasmI64Load32U(v *Value) bool {
 	}
 	// match: (I64Load32U [off] (LoweredAddr {sym} [off2] (SB)) _)
 	// cond: symIsRO(sym) && isU32Bit(off+off2)
-	// result: (I64Const [int64(read32(sym, off+off2, config.BigEndian))])
+	// result: (I64Const [int64(read32(sym, off+off2, config.ctxt.Arch.ByteOrder))])
 	for {
 		off := v.AuxInt
 		if v_0.Op != OpWasmLoweredAddr {
@@ -4163,7 +4163,7 @@ func rewriteValueWasm_OpWasmI64Load32U(v *Value) bool {
 			break
 		}
 		v.reset(OpWasmI64Const)
-		v.AuxInt = int64(read32(sym, off+off2, config.BigEndian))
+		v.AuxInt = int64(read32(sym, off+off2, config.ctxt.Arch.ByteOrder))
 		return true
 	}
 	return false

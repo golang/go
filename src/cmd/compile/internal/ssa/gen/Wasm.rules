@@ -396,7 +396,7 @@
 	(LoweredAddr {sym} [off+off2] base)
 
 // transforming readonly globals into constants
-(I64Load [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+off2) -> (I64Const [int64(read64(sym, off+off2, config.BigEndian))])
-(I64Load32U [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+off2) -> (I64Const [int64(read32(sym, off+off2, config.BigEndian))])
-(I64Load16U [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+off2) -> (I64Const [int64(read16(sym, off+off2, config.BigEndian))])
+(I64Load [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+off2) -> (I64Const [int64(read64(sym, off+off2, config.ctxt.Arch.ByteOrder))])
+(I64Load32U [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+off2) -> (I64Const [int64(read32(sym, off+off2, config.ctxt.Arch.ByteOrder))])
+(I64Load16U [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+off2) -> (I64Const [int64(read16(sym, off+off2, config.ctxt.Arch.ByteOrder))])
 (I64Load8U [off] (LoweredAddr {sym} [off2] (SB)) _) && symIsRO(sym) && isU32Bit(off+off2) -> (I64Const [int64(read8(sym, off+off2))])

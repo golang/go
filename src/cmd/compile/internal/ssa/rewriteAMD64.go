@@ -1973,6 +1973,26 @@ func rewriteValueAMD64_OpAMD64ADDQ(v *Value) bool {
 		}
 		break
 	}
+	// match: (ADDQ x (MOVLconst [c]))
+	// cond: is32Bit(c)
+	// result: (ADDQconst [int64(int32(c))] x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpAMD64MOVLconst {
+				continue
+			}
+			c := v_1.AuxInt
+			if !(is32Bit(c)) {
+				continue
+			}
+			v.reset(OpAMD64ADDQconst)
+			v.AuxInt = int64(int32(c))
+			v.AddArg(x)
+			return true
+		}
+		break
+	}
 	// match: (ADDQ (SHLQconst x [c]) (SHRQconst x [d]))
 	// cond: d==64-c
 	// result: (ROLQconst x [c])
@@ -13271,7 +13291,7 @@ func rewriteValueAMD64_OpAMD64MOVLload(v *Value) bool {
 	}
 	// match: (MOVLload [off] {sym} (SB) _)
 	// cond: symIsRO(sym)
-	// result: (MOVQconst [int64(read32(sym, off, config.BigEndian))])
+	// result: (MOVQconst [int64(read32(sym, off, config.ctxt.Arch.ByteOrder))])
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -13279,7 +13299,7 @@ func rewriteValueAMD64_OpAMD64MOVLload(v *Value) bool {
 			break
 		}
 		v.reset(OpAMD64MOVQconst)
-		v.AuxInt = int64(read32(sym, off, config.BigEndian))
+		v.AuxInt = int64(read32(sym, off, config.ctxt.Arch.ByteOrder))
 		return true
 	}
 	return false
@@ -15902,7 +15922,7 @@ func rewriteValueAMD64_OpAMD64MOVQload(v *Value) bool {
 	}
 	// match: (MOVQload [off] {sym} (SB) _)
 	// cond: symIsRO(sym)
-	// result: (MOVQconst [int64(read64(sym, off, config.BigEndian))])
+	// result: (MOVQconst [int64(read64(sym, off, config.ctxt.Arch.ByteOrder))])
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -15910,7 +15930,7 @@ func rewriteValueAMD64_OpAMD64MOVQload(v *Value) bool {
 			break
 		}
 		v.reset(OpAMD64MOVQconst)
-		v.AuxInt = int64(read64(sym, off, config.BigEndian))
+		v.AuxInt = int64(read64(sym, off, config.ctxt.Arch.ByteOrder))
 		return true
 	}
 	return false
@@ -19335,7 +19355,7 @@ func rewriteValueAMD64_OpAMD64MOVWload(v *Value) bool {
 	}
 	// match: (MOVWload [off] {sym} (SB) _)
 	// cond: symIsRO(sym)
-	// result: (MOVLconst [int64(read16(sym, off, config.BigEndian))])
+	// result: (MOVLconst [int64(read16(sym, off, config.ctxt.Arch.ByteOrder))])
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -19343,7 +19363,7 @@ func rewriteValueAMD64_OpAMD64MOVWload(v *Value) bool {
 			break
 		}
 		v.reset(OpAMD64MOVLconst)
-		v.AuxInt = int64(read16(sym, off, config.BigEndian))
+		v.AuxInt = int64(read16(sym, off, config.ctxt.Arch.ByteOrder))
 		return true
 	}
 	return false

@@ -6314,7 +6314,7 @@ func rewriteValueARM_OpARMMOVHUload(v *Value) bool {
 	}
 	// match: (MOVHUload [off] {sym} (SB) _)
 	// cond: symIsRO(sym)
-	// result: (MOVWconst [int64(read16(sym, off, config.BigEndian))])
+	// result: (MOVWconst [int64(read16(sym, off, config.ctxt.Arch.ByteOrder))])
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -6322,7 +6322,7 @@ func rewriteValueARM_OpARMMOVHUload(v *Value) bool {
 			break
 		}
 		v.reset(OpARMMOVWconst)
-		v.AuxInt = int64(read16(sym, off, config.BigEndian))
+		v.AuxInt = int64(read16(sym, off, config.ctxt.Arch.ByteOrder))
 		return true
 	}
 	return false
@@ -7089,7 +7089,7 @@ func rewriteValueARM_OpARMMOVWload(v *Value) bool {
 	}
 	// match: (MOVWload [off] {sym} (SB) _)
 	// cond: symIsRO(sym)
-	// result: (MOVWconst [int64(int32(read32(sym, off, config.BigEndian)))])
+	// result: (MOVWconst [int64(int32(read32(sym, off, config.ctxt.Arch.ByteOrder)))])
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -7097,7 +7097,7 @@ func rewriteValueARM_OpARMMOVWload(v *Value) bool {
 			break
 		}
 		v.reset(OpARMMOVWconst)
-		v.AuxInt = int64(int32(read32(sym, off, config.BigEndian)))
+		v.AuxInt = int64(int32(read32(sym, off, config.ctxt.Arch.ByteOrder)))
 		return true
 	}
 	return false

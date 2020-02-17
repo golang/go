@@ -207,7 +207,7 @@ func (o *Order) addrTemp(n *Node) *Node {
 		n = defaultlit(n, nil)
 		dowidth(n.Type)
 		vstat := staticname(n.Type)
-		vstat.Name.SetReadonly(true)
+		vstat.MarkReadonly()
 		var s InitSchedule
 		s.staticassign(vstat, n)
 		if s.out != nil {

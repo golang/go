@@ -1557,5 +1557,5 @@
 (GE (CMPconst [0] l:(XORshiftRAreg x y z)) yes no) && l.Uses==1 -> (GE (TEQshiftRAreg x y z) yes no)
 
 (MOVBUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(read8(sym, off))])
-(MOVHUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(read16(sym, off, config.BigEndian))])
-(MOVWload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(int32(read32(sym, off, config.BigEndian)))])
+(MOVHUload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(read16(sym, off, config.ctxt.Arch.ByteOrder))])
+(MOVWload [off] {sym} (SB) _) && symIsRO(sym) -> (MOVWconst [int64(int32(read32(sym, off, config.ctxt.Arch.ByteOrder)))])
