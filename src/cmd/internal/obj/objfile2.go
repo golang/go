@@ -229,8 +229,8 @@ func (w *writer) Sym(s *LSym) {
 	if s.Leaf() {
 		flag |= goobj2.SymFlagLeaf
 	}
-	if s.CFunc() {
-		flag |= goobj2.SymFlagCFunc
+	if s.NoSplit() {
+		flag |= goobj2.SymFlagNoSplit
 	}
 	if s.ReflectMethod() {
 		flag |= goobj2.SymFlagReflectMethod
@@ -366,14 +366,9 @@ func genFuncInfoSyms(ctxt *Link) {
 		if s.Func == nil {
 			continue
 		}
-		nosplit := uint8(0)
-		if s.NoSplit() {
-			nosplit = 1
-		}
 		o := goobj2.FuncInfo{
-			NoSplit: nosplit,
-			Args:    uint32(s.Func.Args),
-			Locals:  uint32(s.Func.Locals),
+			Args:   uint32(s.Func.Args),
+			Locals: uint32(s.Func.Locals),
 		}
 		pc := &s.Func.Pcln
 		o.Pcsp = pcdataoff

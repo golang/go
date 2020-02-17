@@ -940,6 +940,11 @@ func (l *Loader) IsReflectMethod(i Sym) bool {
 	return l.SymAttr(i)&goobj2.SymFlagReflectMethod != 0
 }
 
+// Returns whether the i-th symbol is nosplit.
+func (l *Loader) IsNoSplit(i Sym) bool {
+	return l.SymAttr(i)&goobj2.SymFlagNoSplit != 0
+}
+
 // Returns whether this is a Go type symbol.
 func (l *Loader) IsGoType(i Sym) bool {
 	return l.SymAttr(i)&goobj2.SymFlagGoType != 0
@@ -2189,7 +2194,7 @@ func loadObjFull(l *Loader, r *oReader) {
 		info := goobj2.FuncInfo{}
 		info.Read(b)
 
-		if info.NoSplit != 0 {
+		if osym.NoSplit() {
 			s.Attr |= sym.AttrNoSplit
 		}
 		if osym.ReflectMethod() {
