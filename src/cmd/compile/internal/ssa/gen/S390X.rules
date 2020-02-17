@@ -1218,6 +1218,20 @@
 (SUBE x y (Select1 (SUBC (MOVDconst [0]) (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) c))))))
   -> (SUBE x y c)
 
+// branch on carry
+(C(G|LG)IJ {s390x.Equal}         (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) carry)) [0]) => (BRC {s390x.NoCarry} carry)
+(C(G|LG)IJ {s390x.Equal}         (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) carry)) [1]) => (BRC {s390x.Carry}   carry)
+(C(G|LG)IJ {s390x.LessOrGreater} (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) carry)) [0]) => (BRC {s390x.Carry}   carry)
+(C(G|LG)IJ {s390x.LessOrGreater} (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) carry)) [1]) => (BRC {s390x.NoCarry} carry)
+(C(G|LG)IJ {s390x.Greater}       (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) carry)) [0]) => (BRC {s390x.Carry}   carry)
+
+// branch on borrow
+(C(G|LG)IJ {s390x.Equal}         (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [0]) => (BRC {s390x.NoBorrow} borrow)
+(C(G|LG)IJ {s390x.Equal}         (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [1]) => (BRC {s390x.Borrow}   borrow)
+(C(G|LG)IJ {s390x.LessOrGreater} (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [0]) => (BRC {s390x.Borrow}   borrow)
+(C(G|LG)IJ {s390x.LessOrGreater} (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [1]) => (BRC {s390x.NoBorrow} borrow)
+(C(G|LG)IJ {s390x.Greater}       (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [0]) => (BRC {s390x.Borrow}   borrow)
+
 // fused multiply-add
 (Select0 (F(ADD|SUB) (FMUL y z) x)) -> (FM(ADD|SUB) x y z)
 (Select0 (F(ADDS|SUBS) (FMULS y z) x)) -> (FM(ADDS|SUBS) x y z)
