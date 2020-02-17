@@ -14,8 +14,6 @@ import (
 //
 // TODO: make each pcdata a separate symbol?
 type FuncInfo struct {
-	NoSplit uint8
-
 	Args   uint32
 	Locals uint32
 
@@ -32,8 +30,6 @@ type FuncInfo struct {
 }
 
 func (a *FuncInfo) Write(w *bytes.Buffer) {
-	w.WriteByte(a.NoSplit)
-
 	var b [4]byte
 	writeUint32 := func(x uint32) {
 		binary.LittleEndian.PutUint32(b[:], x)
@@ -68,9 +64,6 @@ func (a *FuncInfo) Write(w *bytes.Buffer) {
 }
 
 func (a *FuncInfo) Read(b []byte) {
-	a.NoSplit = b[0]
-	b = b[1:]
-
 	readUint32 := func() uint32 {
 		x := binary.LittleEndian.Uint32(b)
 		b = b[4:]

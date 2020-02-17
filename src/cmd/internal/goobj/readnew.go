@@ -149,7 +149,7 @@ func (r *objReader) readNew() {
 		f := &Func{
 			Args:     int64(info.Args),
 			Frame:    int64(info.Locals),
-			NoSplit:  info.NoSplit != 0,
+			NoSplit:  osym.NoSplit(),
 			Leaf:     osym.Leaf(),
 			TopFrame: osym.TopFrame(),
 			PCSP:     Data{int64(pcdataBase + info.Pcsp), int64(info.Pcfile - info.Pcsp)},
