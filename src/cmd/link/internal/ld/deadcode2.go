@@ -86,7 +86,7 @@ func (d *deadcodePass2) init() {
 			// but we do keep the symbols it refers to.
 			exportsIdx := d.ldr.Lookup("go.plugin.exports", 0)
 			if exportsIdx != 0 {
-				d.ReadRelocs(exportsIdx)
+				d.ReadRelocSyms(exportsIdx)
 				for i := 0; i < len(d.rtmp); i++ {
 					d.mark(d.rtmp[i].Sym, 0)
 				}
@@ -227,7 +227,7 @@ func (d *deadcodePass2) mark(symIdx, parent loader.Sym) {
 }
 
 func (d *deadcodePass2) markMethod(m methodref2) {
-	d.ReadRelocs(m.src)
+	d.ReadRelocSyms(m.src)
 	d.mark(d.rtmp[m.r].Sym, m.src)
 	d.mark(d.rtmp[m.r+1].Sym, m.src)
 	d.mark(d.rtmp[m.r+2].Sym, m.src)
@@ -409,4 +409,10 @@ func (d *deadcodePass2) decodetypeMethods2(ldr *loader.Loader, arch *sys.Arch, s
 func (d *deadcodePass2) ReadRelocs(symIdx loader.Sym) {
 	relocs := d.ldr.Relocs(symIdx)
 	d.rtmp = relocs.ReadAll(d.rtmp)
+}
+
+// Like ReadRelocs, but only reads target symbols.
+func (d *deadcodePass2) ReadRelocSyms(symIdx loader.Sym) {
+	relocs := d.ldr.Relocs(symIdx)
+	d.rtmp = relocs.ReadSyms(d.rtmp)
 }
