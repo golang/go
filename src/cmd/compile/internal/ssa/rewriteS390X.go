@@ -19678,6 +19678,236 @@ func rewriteBlockS390X(b *Block) bool {
 			b.swapSuccessors()
 			return true
 		}
+		// match: (CGIJ {s390x.Equal} (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) carry)) [0])
+		// result: (BRC {s390x.NoCarry} carry)
+		for b.Controls[0].Op == OpSelect0 {
+			v_0 := b.Controls[0]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpS390XADDE {
+				break
+			}
+			carry := v_0_0.Args[2]
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0.AuxInt) != 0 {
+				break
+			}
+			v_0_0_1 := v_0_0.Args[1]
+			if v_0_0_1.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_1.AuxInt) != 0 || auxIntToInt8(b.AuxInt) != 0 || auxToS390xCCMask(b.Aux) != s390x.Equal {
+				break
+			}
+			b.resetWithControl(BlockS390XBRC, carry)
+			b.Aux = s390xCCMaskToAux(s390x.NoCarry)
+			return true
+		}
+		// match: (CGIJ {s390x.Equal} (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) carry)) [1])
+		// result: (BRC {s390x.Carry} carry)
+		for b.Controls[0].Op == OpSelect0 {
+			v_0 := b.Controls[0]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpS390XADDE {
+				break
+			}
+			carry := v_0_0.Args[2]
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0.AuxInt) != 0 {
+				break
+			}
+			v_0_0_1 := v_0_0.Args[1]
+			if v_0_0_1.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_1.AuxInt) != 0 || auxIntToInt8(b.AuxInt) != 1 || auxToS390xCCMask(b.Aux) != s390x.Equal {
+				break
+			}
+			b.resetWithControl(BlockS390XBRC, carry)
+			b.Aux = s390xCCMaskToAux(s390x.Carry)
+			return true
+		}
+		// match: (CGIJ {s390x.LessOrGreater} (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) carry)) [0])
+		// result: (BRC {s390x.Carry} carry)
+		for b.Controls[0].Op == OpSelect0 {
+			v_0 := b.Controls[0]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpS390XADDE {
+				break
+			}
+			carry := v_0_0.Args[2]
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0.AuxInt) != 0 {
+				break
+			}
+			v_0_0_1 := v_0_0.Args[1]
+			if v_0_0_1.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_1.AuxInt) != 0 || auxIntToInt8(b.AuxInt) != 0 || auxToS390xCCMask(b.Aux) != s390x.LessOrGreater {
+				break
+			}
+			b.resetWithControl(BlockS390XBRC, carry)
+			b.Aux = s390xCCMaskToAux(s390x.Carry)
+			return true
+		}
+		// match: (CGIJ {s390x.LessOrGreater} (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) carry)) [1])
+		// result: (BRC {s390x.NoCarry} carry)
+		for b.Controls[0].Op == OpSelect0 {
+			v_0 := b.Controls[0]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpS390XADDE {
+				break
+			}
+			carry := v_0_0.Args[2]
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0.AuxInt) != 0 {
+				break
+			}
+			v_0_0_1 := v_0_0.Args[1]
+			if v_0_0_1.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_1.AuxInt) != 0 || auxIntToInt8(b.AuxInt) != 1 || auxToS390xCCMask(b.Aux) != s390x.LessOrGreater {
+				break
+			}
+			b.resetWithControl(BlockS390XBRC, carry)
+			b.Aux = s390xCCMaskToAux(s390x.NoCarry)
+			return true
+		}
+		// match: (CGIJ {s390x.Greater} (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) carry)) [0])
+		// result: (BRC {s390x.Carry} carry)
+		for b.Controls[0].Op == OpSelect0 {
+			v_0 := b.Controls[0]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpS390XADDE {
+				break
+			}
+			carry := v_0_0.Args[2]
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0.AuxInt) != 0 {
+				break
+			}
+			v_0_0_1 := v_0_0.Args[1]
+			if v_0_0_1.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_1.AuxInt) != 0 || auxIntToInt8(b.AuxInt) != 0 || auxToS390xCCMask(b.Aux) != s390x.Greater {
+				break
+			}
+			b.resetWithControl(BlockS390XBRC, carry)
+			b.Aux = s390xCCMaskToAux(s390x.Carry)
+			return true
+		}
+		// match: (CGIJ {s390x.Equal} (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [0])
+		// result: (BRC {s390x.NoBorrow} borrow)
+		for b.Controls[0].Op == OpS390XNEG {
+			v_0 := b.Controls[0]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpSelect0 {
+				break
+			}
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XSUBE {
+				break
+			}
+			borrow := v_0_0_0.Args[2]
+			v_0_0_0_0 := v_0_0_0.Args[0]
+			if v_0_0_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0_0.AuxInt) != 0 {
+				break
+			}
+			v_0_0_0_1 := v_0_0_0.Args[1]
+			if v_0_0_0_1.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0_1.AuxInt) != 0 || auxIntToInt8(b.AuxInt) != 0 || auxToS390xCCMask(b.Aux) != s390x.Equal {
+				break
+			}
+			b.resetWithControl(BlockS390XBRC, borrow)
+			b.Aux = s390xCCMaskToAux(s390x.NoBorrow)
+			return true
+		}
+		// match: (CGIJ {s390x.Equal} (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [1])
+		// result: (BRC {s390x.Borrow} borrow)
+		for b.Controls[0].Op == OpS390XNEG {
+			v_0 := b.Controls[0]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpSelect0 {
+				break
+			}
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XSUBE {
+				break
+			}
+			borrow := v_0_0_0.Args[2]
+			v_0_0_0_0 := v_0_0_0.Args[0]
+			if v_0_0_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0_0.AuxInt) != 0 {
+				break
+			}
+			v_0_0_0_1 := v_0_0_0.Args[1]
+			if v_0_0_0_1.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0_1.AuxInt) != 0 || auxIntToInt8(b.AuxInt) != 1 || auxToS390xCCMask(b.Aux) != s390x.Equal {
+				break
+			}
+			b.resetWithControl(BlockS390XBRC, borrow)
+			b.Aux = s390xCCMaskToAux(s390x.Borrow)
+			return true
+		}
+		// match: (CGIJ {s390x.LessOrGreater} (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [0])
+		// result: (BRC {s390x.Borrow} borrow)
+		for b.Controls[0].Op == OpS390XNEG {
+			v_0 := b.Controls[0]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpSelect0 {
+				break
+			}
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XSUBE {
+				break
+			}
+			borrow := v_0_0_0.Args[2]
+			v_0_0_0_0 := v_0_0_0.Args[0]
+			if v_0_0_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0_0.AuxInt) != 0 {
+				break
+			}
+			v_0_0_0_1 := v_0_0_0.Args[1]
+			if v_0_0_0_1.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0_1.AuxInt) != 0 || auxIntToInt8(b.AuxInt) != 0 || auxToS390xCCMask(b.Aux) != s390x.LessOrGreater {
+				break
+			}
+			b.resetWithControl(BlockS390XBRC, borrow)
+			b.Aux = s390xCCMaskToAux(s390x.Borrow)
+			return true
+		}
+		// match: (CGIJ {s390x.LessOrGreater} (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [1])
+		// result: (BRC {s390x.NoBorrow} borrow)
+		for b.Controls[0].Op == OpS390XNEG {
+			v_0 := b.Controls[0]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpSelect0 {
+				break
+			}
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XSUBE {
+				break
+			}
+			borrow := v_0_0_0.Args[2]
+			v_0_0_0_0 := v_0_0_0.Args[0]
+			if v_0_0_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0_0.AuxInt) != 0 {
+				break
+			}
+			v_0_0_0_1 := v_0_0_0.Args[1]
+			if v_0_0_0_1.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0_1.AuxInt) != 0 || auxIntToInt8(b.AuxInt) != 1 || auxToS390xCCMask(b.Aux) != s390x.LessOrGreater {
+				break
+			}
+			b.resetWithControl(BlockS390XBRC, borrow)
+			b.Aux = s390xCCMaskToAux(s390x.NoBorrow)
+			return true
+		}
+		// match: (CGIJ {s390x.Greater} (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [0])
+		// result: (BRC {s390x.Borrow} borrow)
+		for b.Controls[0].Op == OpS390XNEG {
+			v_0 := b.Controls[0]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpSelect0 {
+				break
+			}
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XSUBE {
+				break
+			}
+			borrow := v_0_0_0.Args[2]
+			v_0_0_0_0 := v_0_0_0.Args[0]
+			if v_0_0_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0_0.AuxInt) != 0 {
+				break
+			}
+			v_0_0_0_1 := v_0_0_0.Args[1]
+			if v_0_0_0_1.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0_1.AuxInt) != 0 || auxIntToInt8(b.AuxInt) != 0 || auxToS390xCCMask(b.Aux) != s390x.Greater {
+				break
+			}
+			b.resetWithControl(BlockS390XBRC, borrow)
+			b.Aux = s390xCCMaskToAux(s390x.Borrow)
+			return true
+		}
 	case BlockS390XCGRJ:
 		// match: (CGRJ {c} x (MOVDconst [y]) yes no)
 		// cond: is8Bit(y)
@@ -19991,6 +20221,236 @@ func rewriteBlockS390X(b *Block) bool {
 			}
 			b.Reset(BlockFirst)
 			b.swapSuccessors()
+			return true
+		}
+		// match: (CLGIJ {s390x.Equal} (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) carry)) [0])
+		// result: (BRC {s390x.NoCarry} carry)
+		for b.Controls[0].Op == OpSelect0 {
+			v_0 := b.Controls[0]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpS390XADDE {
+				break
+			}
+			carry := v_0_0.Args[2]
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0.AuxInt) != 0 {
+				break
+			}
+			v_0_0_1 := v_0_0.Args[1]
+			if v_0_0_1.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_1.AuxInt) != 0 || auxIntToUint8(b.AuxInt) != 0 || auxToS390xCCMask(b.Aux) != s390x.Equal {
+				break
+			}
+			b.resetWithControl(BlockS390XBRC, carry)
+			b.Aux = s390xCCMaskToAux(s390x.NoCarry)
+			return true
+		}
+		// match: (CLGIJ {s390x.Equal} (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) carry)) [1])
+		// result: (BRC {s390x.Carry} carry)
+		for b.Controls[0].Op == OpSelect0 {
+			v_0 := b.Controls[0]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpS390XADDE {
+				break
+			}
+			carry := v_0_0.Args[2]
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0.AuxInt) != 0 {
+				break
+			}
+			v_0_0_1 := v_0_0.Args[1]
+			if v_0_0_1.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_1.AuxInt) != 0 || auxIntToUint8(b.AuxInt) != 1 || auxToS390xCCMask(b.Aux) != s390x.Equal {
+				break
+			}
+			b.resetWithControl(BlockS390XBRC, carry)
+			b.Aux = s390xCCMaskToAux(s390x.Carry)
+			return true
+		}
+		// match: (CLGIJ {s390x.LessOrGreater} (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) carry)) [0])
+		// result: (BRC {s390x.Carry} carry)
+		for b.Controls[0].Op == OpSelect0 {
+			v_0 := b.Controls[0]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpS390XADDE {
+				break
+			}
+			carry := v_0_0.Args[2]
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0.AuxInt) != 0 {
+				break
+			}
+			v_0_0_1 := v_0_0.Args[1]
+			if v_0_0_1.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_1.AuxInt) != 0 || auxIntToUint8(b.AuxInt) != 0 || auxToS390xCCMask(b.Aux) != s390x.LessOrGreater {
+				break
+			}
+			b.resetWithControl(BlockS390XBRC, carry)
+			b.Aux = s390xCCMaskToAux(s390x.Carry)
+			return true
+		}
+		// match: (CLGIJ {s390x.LessOrGreater} (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) carry)) [1])
+		// result: (BRC {s390x.NoCarry} carry)
+		for b.Controls[0].Op == OpSelect0 {
+			v_0 := b.Controls[0]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpS390XADDE {
+				break
+			}
+			carry := v_0_0.Args[2]
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0.AuxInt) != 0 {
+				break
+			}
+			v_0_0_1 := v_0_0.Args[1]
+			if v_0_0_1.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_1.AuxInt) != 0 || auxIntToUint8(b.AuxInt) != 1 || auxToS390xCCMask(b.Aux) != s390x.LessOrGreater {
+				break
+			}
+			b.resetWithControl(BlockS390XBRC, carry)
+			b.Aux = s390xCCMaskToAux(s390x.NoCarry)
+			return true
+		}
+		// match: (CLGIJ {s390x.Greater} (Select0 (ADDE (MOVDconst [0]) (MOVDconst [0]) carry)) [0])
+		// result: (BRC {s390x.Carry} carry)
+		for b.Controls[0].Op == OpSelect0 {
+			v_0 := b.Controls[0]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpS390XADDE {
+				break
+			}
+			carry := v_0_0.Args[2]
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0.AuxInt) != 0 {
+				break
+			}
+			v_0_0_1 := v_0_0.Args[1]
+			if v_0_0_1.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_1.AuxInt) != 0 || auxIntToUint8(b.AuxInt) != 0 || auxToS390xCCMask(b.Aux) != s390x.Greater {
+				break
+			}
+			b.resetWithControl(BlockS390XBRC, carry)
+			b.Aux = s390xCCMaskToAux(s390x.Carry)
+			return true
+		}
+		// match: (CLGIJ {s390x.Equal} (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [0])
+		// result: (BRC {s390x.NoBorrow} borrow)
+		for b.Controls[0].Op == OpS390XNEG {
+			v_0 := b.Controls[0]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpSelect0 {
+				break
+			}
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XSUBE {
+				break
+			}
+			borrow := v_0_0_0.Args[2]
+			v_0_0_0_0 := v_0_0_0.Args[0]
+			if v_0_0_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0_0.AuxInt) != 0 {
+				break
+			}
+			v_0_0_0_1 := v_0_0_0.Args[1]
+			if v_0_0_0_1.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0_1.AuxInt) != 0 || auxIntToUint8(b.AuxInt) != 0 || auxToS390xCCMask(b.Aux) != s390x.Equal {
+				break
+			}
+			b.resetWithControl(BlockS390XBRC, borrow)
+			b.Aux = s390xCCMaskToAux(s390x.NoBorrow)
+			return true
+		}
+		// match: (CLGIJ {s390x.Equal} (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [1])
+		// result: (BRC {s390x.Borrow} borrow)
+		for b.Controls[0].Op == OpS390XNEG {
+			v_0 := b.Controls[0]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpSelect0 {
+				break
+			}
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XSUBE {
+				break
+			}
+			borrow := v_0_0_0.Args[2]
+			v_0_0_0_0 := v_0_0_0.Args[0]
+			if v_0_0_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0_0.AuxInt) != 0 {
+				break
+			}
+			v_0_0_0_1 := v_0_0_0.Args[1]
+			if v_0_0_0_1.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0_1.AuxInt) != 0 || auxIntToUint8(b.AuxInt) != 1 || auxToS390xCCMask(b.Aux) != s390x.Equal {
+				break
+			}
+			b.resetWithControl(BlockS390XBRC, borrow)
+			b.Aux = s390xCCMaskToAux(s390x.Borrow)
+			return true
+		}
+		// match: (CLGIJ {s390x.LessOrGreater} (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [0])
+		// result: (BRC {s390x.Borrow} borrow)
+		for b.Controls[0].Op == OpS390XNEG {
+			v_0 := b.Controls[0]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpSelect0 {
+				break
+			}
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XSUBE {
+				break
+			}
+			borrow := v_0_0_0.Args[2]
+			v_0_0_0_0 := v_0_0_0.Args[0]
+			if v_0_0_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0_0.AuxInt) != 0 {
+				break
+			}
+			v_0_0_0_1 := v_0_0_0.Args[1]
+			if v_0_0_0_1.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0_1.AuxInt) != 0 || auxIntToUint8(b.AuxInt) != 0 || auxToS390xCCMask(b.Aux) != s390x.LessOrGreater {
+				break
+			}
+			b.resetWithControl(BlockS390XBRC, borrow)
+			b.Aux = s390xCCMaskToAux(s390x.Borrow)
+			return true
+		}
+		// match: (CLGIJ {s390x.LessOrGreater} (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [1])
+		// result: (BRC {s390x.NoBorrow} borrow)
+		for b.Controls[0].Op == OpS390XNEG {
+			v_0 := b.Controls[0]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpSelect0 {
+				break
+			}
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XSUBE {
+				break
+			}
+			borrow := v_0_0_0.Args[2]
+			v_0_0_0_0 := v_0_0_0.Args[0]
+			if v_0_0_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0_0.AuxInt) != 0 {
+				break
+			}
+			v_0_0_0_1 := v_0_0_0.Args[1]
+			if v_0_0_0_1.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0_1.AuxInt) != 0 || auxIntToUint8(b.AuxInt) != 1 || auxToS390xCCMask(b.Aux) != s390x.LessOrGreater {
+				break
+			}
+			b.resetWithControl(BlockS390XBRC, borrow)
+			b.Aux = s390xCCMaskToAux(s390x.NoBorrow)
+			return true
+		}
+		// match: (CLGIJ {s390x.Greater} (NEG (Select0 (SUBE (MOVDconst [0]) (MOVDconst [0]) borrow))) [0])
+		// result: (BRC {s390x.Borrow} borrow)
+		for b.Controls[0].Op == OpS390XNEG {
+			v_0 := b.Controls[0]
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != OpSelect0 {
+				break
+			}
+			v_0_0_0 := v_0_0.Args[0]
+			if v_0_0_0.Op != OpS390XSUBE {
+				break
+			}
+			borrow := v_0_0_0.Args[2]
+			v_0_0_0_0 := v_0_0_0.Args[0]
+			if v_0_0_0_0.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0_0.AuxInt) != 0 {
+				break
+			}
+			v_0_0_0_1 := v_0_0_0.Args[1]
+			if v_0_0_0_1.Op != OpS390XMOVDconst || auxIntToInt64(v_0_0_0_1.AuxInt) != 0 || auxIntToUint8(b.AuxInt) != 0 || auxToS390xCCMask(b.Aux) != s390x.Greater {
+				break
+			}
+			b.resetWithControl(BlockS390XBRC, borrow)
+			b.Aux = s390xCCMaskToAux(s390x.Borrow)
 			return true
 		}
 	case BlockS390XCLGRJ:
