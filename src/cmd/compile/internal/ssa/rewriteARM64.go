@@ -9775,7 +9775,7 @@ func rewriteValueARM64_OpARM64MOVDload(v *Value) bool {
 	}
 	// match: (MOVDload [off] {sym} (SB) _)
 	// cond: symIsRO(sym)
-	// result: (MOVDconst [int64(read64(sym, off, config.BigEndian))])
+	// result: (MOVDconst [int64(read64(sym, off, config.ctxt.Arch.ByteOrder))])
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -9783,7 +9783,7 @@ func rewriteValueARM64_OpARM64MOVDload(v *Value) bool {
 			break
 		}
 		v.reset(OpARM64MOVDconst)
-		v.AuxInt = int64(read64(sym, off, config.BigEndian))
+		v.AuxInt = int64(read64(sym, off, config.ctxt.Arch.ByteOrder))
 		return true
 	}
 	return false
@@ -10599,7 +10599,7 @@ func rewriteValueARM64_OpARM64MOVHUload(v *Value) bool {
 	}
 	// match: (MOVHUload [off] {sym} (SB) _)
 	// cond: symIsRO(sym)
-	// result: (MOVDconst [int64(read16(sym, off, config.BigEndian))])
+	// result: (MOVDconst [int64(read16(sym, off, config.ctxt.Arch.ByteOrder))])
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -10607,7 +10607,7 @@ func rewriteValueARM64_OpARM64MOVHUload(v *Value) bool {
 			break
 		}
 		v.reset(OpARM64MOVDconst)
-		v.AuxInt = int64(read16(sym, off, config.BigEndian))
+		v.AuxInt = int64(read16(sym, off, config.ctxt.Arch.ByteOrder))
 		return true
 	}
 	return false
@@ -12798,7 +12798,7 @@ func rewriteValueARM64_OpARM64MOVWUload(v *Value) bool {
 	}
 	// match: (MOVWUload [off] {sym} (SB) _)
 	// cond: symIsRO(sym)
-	// result: (MOVDconst [int64(read32(sym, off, config.BigEndian))])
+	// result: (MOVDconst [int64(read32(sym, off, config.ctxt.Arch.ByteOrder))])
 	for {
 		off := v.AuxInt
 		sym := v.Aux
@@ -12806,7 +12806,7 @@ func rewriteValueARM64_OpARM64MOVWUload(v *Value) bool {
 			break
 		}
 		v.reset(OpARM64MOVDconst)
-		v.AuxInt = int64(read32(sym, off, config.BigEndian))
+		v.AuxInt = int64(read32(sym, off, config.ctxt.Arch.ByteOrder))
 		return true
 	}
 	return false

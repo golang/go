@@ -11,6 +11,7 @@ import (
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"sort"
 )
@@ -195,6 +196,18 @@ func (n *Node) SetLikely(b bool)    { n.flags.set(nodeLikely, b) }
 func (n *Node) SetHasVal(b bool)    { n.flags.set(nodeHasVal, b) }
 func (n *Node) SetHasOpt(b bool)    { n.flags.set(nodeHasOpt, b) }
 func (n *Node) SetEmbedded(b bool)  { n.flags.set(nodeEmbedded, b) }
+
+// MarkReadonly indicates that n is an ONAME with readonly contents.
+func (n *Node) MarkReadonly() {
+	if n.Op != ONAME {
+		Fatalf("Node.MarkReadonly %v", n.Op)
+	}
+	n.Name.SetReadonly(true)
+	// Mark the linksym as readonly immediately
+	// so that the SSA backend can use this information.
+	// It will be overridden later during dumpglobls.
+	n.Sym.Linksym().Type = objabi.SRODATA
+}
 
 // Val returns the Val for the node.
 func (n *Node) Val() Val {
