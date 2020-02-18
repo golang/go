@@ -10,8 +10,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	stdlog "log"
 	"net"
 	"os"
+	"os/exec"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -24,6 +26,10 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/telemetry/log"
 )
+
+// AutoNetwork is the pseudo network type used to signal that gopls should use
+// automatic discovery to resolve a remote address.
+const AutoNetwork = "auto"
 
 // The StreamServer type is a jsonrpc2.StreamServer that handles incoming
 // streams as a new LSP session, using a shared cache.
@@ -56,6 +62,7 @@ type debugInstance struct {
 	id           string
 	debugAddress string
 	logfile      string
+	goplsPath    string
 }
 
 func (d debugInstance) ID() string {
@@ -68,6 +75,10 @@ func (d debugInstance) DebugAddress() string {
 
 func (d debugInstance) Logfile() string {
 	return d.logfile
+}
+
+func (d debugInstance) GoplsPath() string {
+	return d.goplsPath
 }
 
 // A debugServer is held by the client to identity the remove server to which
@@ -124,9 +135,15 @@ func (s *StreamServer) ServeStream(ctx context.Context, stream jsonrpc2.Stream) 
 	if s.withTelemetry {
 		conn.AddHandler(telemetryHandler{})
 	}
+	executable, err := os.Executable()
+	if err != nil {
+		stdlog.Printf("error getting gopls path: %v", err)
+		executable = ""
+	}
 	conn.AddHandler(&handshaker{
-		client: dc,
-		debug:  s.debug,
+		client:    dc,
+		debug:     s.debug,
+		goplsPath: executable,
 	})
 	return conn.Run(protocol.WithClient(ctx, client))
 }
@@ -146,11 +163,17 @@ type Forwarder struct {
 	dialTimeout   time.Duration
 	retries       int
 	debug         *debug.Instance
+	goplsPath     string
 }
 
 // NewForwarder creates a new Forwarder, ready to forward connections to the
 // remote server specified by network and addr.
 func NewForwarder(network, addr string, withTelemetry bool, debugInstance *debug.Instance) *Forwarder {
+	gp, err := os.Executable()
+	if err != nil {
+		stdlog.Printf("error getting gopls path for forwarder: %v", err)
+		gp = ""
+	}
 	return &Forwarder{
 		network:       network,
 		addr:          addr,
@@ -158,6 +181,7 @@ func NewForwarder(network, addr string, withTelemetry bool, debugInstance *debug
 		dialTimeout:   1 * time.Second,
 		retries:       5,
 		debug:         debugInstance,
+		goplsPath:     gp,
 	}
 }
 
@@ -167,28 +191,9 @@ func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) err
 	clientConn := jsonrpc2.NewConn(stream)
 	client := protocol.ClientDispatcher(clientConn)
 
-	var (
-		netConn net.Conn
-		err     error
-	)
-	// Sometimes the forwarder will be started immediately after the server is
-	// started. To account for these cases, add in some simple retrying.
-	// Note that the number of total attempts is f.retries + 1.
-	for attempt := 0; attempt <= f.retries; attempt++ {
-		startDial := time.Now()
-		netConn, err = net.DialTimeout(f.network, f.addr, f.dialTimeout)
-		if err == nil {
-			break
-		}
-		log.Print(ctx, fmt.Sprintf("failed an attempt to connect to remote: %v\n", err))
-		// In case our failure was a fast-failure, ensure we wait at least
-		// f.dialTimeout before trying again.
-		if attempt != f.retries {
-			time.Sleep(f.dialTimeout - time.Since(startDial))
-		}
-	}
+	netConn, err := f.connectToRemote(ctx)
 	if err != nil {
-		return fmt.Errorf("forwarder: dialing remote: %v", err)
+		return fmt.Errorf("forwarder: connecting to remote: %v", err)
 	}
 	serverConn := jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn, netConn))
 	server := protocol.ServerDispatcher(serverConn)
@@ -217,22 +222,95 @@ func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) err
 		hreq = handshakeRequest{
 			ServerID:  serverID,
 			Logfile:   f.debug.Logfile,
-			DebugAddr: f.debug.DebugAddress,
+			DebugAddr: f.debug.ListenedDebugAddress,
+			GoplsPath: f.goplsPath,
 		}
 		hresp handshakeResponse
 	)
 	if err := serverConn.Call(ctx, handshakeMethod, hreq, &hresp); err != nil {
-		log.Error(ctx, "gopls handshake failed", err)
+		log.Error(ctx, "forwarder: gopls handshake failed", err)
+	}
+	if hresp.GoplsPath != f.goplsPath {
+		log.Error(ctx, "", fmt.Errorf("forwarder: gopls path mismatch: forwarder is %q, remote is %q", f.goplsPath, hresp.GoplsPath))
 	}
 	f.debug.State.AddServer(debugServer{
 		debugInstance: debugInstance{
 			id:           serverID,
 			logfile:      hresp.Logfile,
 			debugAddress: hresp.DebugAddr,
+			goplsPath:    hresp.GoplsPath,
 		},
 		clientID: hresp.ClientID,
 	})
 	return g.Wait()
+}
+
+func (f *Forwarder) connectToRemote(ctx context.Context) (net.Conn, error) {
+	var (
+		netConn          net.Conn
+		err              error
+		network, address = f.network, f.addr
+	)
+	if f.network == AutoNetwork {
+		// f.network is overloaded to support a concept of 'automatic' addresses,
+		// which signals that the gopls remote address should be automatically
+		// derived.
+		// So we need to resolve a real network and address here.
+		network, address = autoNetworkAddress(f.goplsPath, f.addr)
+	}
+	// Try dialing our remote once, in case it is already running.
+	netConn, err = net.DialTimeout(network, address, f.dialTimeout)
+	if err == nil {
+		return netConn, nil
+	}
+	// If our remote is on the 'auto' network, start it if it doesn't exist.
+	if f.network == AutoNetwork {
+		if f.goplsPath == "" {
+			return nil, fmt.Errorf("cannot auto-start remote: gopls path is unknown")
+		}
+		if network == "unix" {
+			// Sometimes the socketfile isn't properly cleaned up when gopls shuts
+			// down. Since we have already tried and failed to dial this address, it
+			// should *usually* be safe to remove the socket before binding to the
+			// address.
+			// TODO(rfindley): there is probably a race here if multiple gopls
+			// instances are simultaneously starting up.
+			if _, err := os.Stat(address); err == nil {
+				if err := os.Remove(address); err != nil {
+					return nil, fmt.Errorf("removing remote socket file: %v", err)
+				}
+			}
+		}
+		if err := startRemote(f.goplsPath, network, address); err != nil {
+			return nil, fmt.Errorf("startRemote(%q, %q): %v", network, address, err)
+		}
+	}
+
+	// It can take some time for the newly started server to bind to our address,
+	// so we retry for a bit.
+	for retry := 0; retry < f.retries; retry++ {
+		startDial := time.Now()
+		netConn, err = net.DialTimeout(network, address, f.dialTimeout)
+		if err == nil {
+			return netConn, nil
+		}
+		log.Print(ctx, fmt.Sprintf("failed attempt #%d to connect to remote: %v\n", retry+2, err))
+		// In case our failure was a fast-failure, ensure we wait at least
+		// f.dialTimeout before trying again.
+		if retry != f.retries-1 {
+			time.Sleep(f.dialTimeout - time.Since(startDial))
+		}
+	}
+	return nil, fmt.Errorf("dialing remote: %v", err)
+}
+
+func startRemote(goplsPath, network, address string) error {
+	args := []string{"serve", "-listen", fmt.Sprintf(`%s;%s`, network, address), "-debug", ":0", "-logfile", "auto"}
+	cmd := exec.Command(goplsPath, args...)
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("starting remote gopls: %v", err)
+	}
+	return nil
 }
 
 // ForwarderExitFunc is used to exit the forwarder process. It is mutable for
@@ -281,14 +359,16 @@ func (forwarderHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, delive
 
 type handshaker struct {
 	jsonrpc2.EmptyHandler
-	client *debugClient
-	debug  *debug.Instance
+	client    *debugClient
+	debug     *debug.Instance
+	goplsPath string
 }
 
 type handshakeRequest struct {
 	ServerID  string `json:"serverID"`
 	Logfile   string `json:"logfile"`
 	DebugAddr string `json:"debugAddr"`
+	GoplsPath string `json:"goplsPath"`
 }
 
 type handshakeResponse struct {
@@ -296,6 +376,7 @@ type handshakeResponse struct {
 	SessionID string `json:"sessionID"`
 	Logfile   string `json:"logfile"`
 	DebugAddr string `json:"debugAddr"`
+	GoplsPath string `json:"goplsPath"`
 }
 
 const handshakeMethod = "gopls/handshake"
@@ -310,11 +391,13 @@ func (h *handshaker) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered
 		h.client.debugAddress = req.DebugAddr
 		h.client.logfile = req.Logfile
 		h.client.serverID = req.ServerID
+		h.client.goplsPath = req.GoplsPath
 		resp := handshakeResponse{
 			ClientID:  h.client.id,
 			SessionID: cache.DebugSession{Session: h.client.session}.ID(),
 			Logfile:   h.debug.Logfile,
-			DebugAddr: h.debug.DebugAddress,
+			DebugAddr: h.debug.ListenedDebugAddress,
+			GoplsPath: h.goplsPath,
 		}
 		if err := r.Reply(ctx, resp, nil); err != nil {
 			log.Error(ctx, "replying to handshake", err)

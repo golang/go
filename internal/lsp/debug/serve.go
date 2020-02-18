@@ -567,7 +567,26 @@ Unknown page
 `)).Funcs(template.FuncMap{
 	"fuint64": fuint64,
 	"fuint32": fuint32,
-	"url":     func(s string) template.URL { return template.URL(s) },
+	"localAddress": func(s string) string {
+		// Try to translate loopback addresses to localhost, both for cosmetics and
+		// because unspecified ipv6 addresses can break links on Windows.
+		//
+		// TODO(rfindley): In the future, it would be better not to assume the
+		// server is running on localhost, and instead construct this address using
+		// the remote host.
+		host, port, err := net.SplitHostPort(s)
+		if err != nil {
+			return s
+		}
+		ip := net.ParseIP(host)
+		if ip == nil {
+			return s
+		}
+		if ip.IsLoopback() || ip.IsUnspecified() {
+			return "localhost:" + port
+		}
+		return s
+	},
 })
 
 var mainTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
@@ -644,16 +663,18 @@ var clientTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{define "title"}}Client {{.ID}}{{end}}
 {{define "body"}}
 Using session: <b>{{template "sessionlink" .Session.ID}}</b><br>
-Debug this client at: <a href="http://{{url .DebugAddress}}">{{.DebugAddress}}</a><br>
+Debug this client at: <a href="http://{{localAddress .DebugAddress}}">{{localAddress .DebugAddress}}</a><br>
 Logfile: {{.Logfile}}<br>
+Gopls Path: {{.GoplsPath}}<br>
 {{end}}
 `))
 
 var serverTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{define "title"}}Server {{.ID}}{{end}}
 {{define "body"}}
-Debug this server at: <a href="http://{{.DebugAddress}}">{{.DebugAddress}}</a><br>
+Debug this server at: <a href="http://{{localAddress .DebugAddress}}">{{localAddress .DebugAddress}}</a><br>
 Logfile: {{.Logfile}}<br>
+Gopls Path: {{.GoplsPath}}<br>
 {{end}}
 `))
 

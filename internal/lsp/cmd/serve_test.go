@@ -12,6 +12,8 @@ func TestListenParsing(t *testing.T) {
 	}{
 		{"127.0.0.1:0", "tcp", "127.0.0.1:0"},
 		{"unix;/tmp/sock", "unix", "/tmp/sock"},
+		{"auto", "auto", ""},
+		{"auto;foo", "auto", "foo"},
 	}
 
 	for _, test := range tests {

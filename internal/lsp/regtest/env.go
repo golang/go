@@ -211,6 +211,8 @@ func (r *Runner) forwardedEnv(ctx context.Context, t *testing.T) (servertest.Con
 
 func (r *Runner) separateProcessEnv(ctx context.Context, t *testing.T) (servertest.Connector, func()) {
 	socket := r.getRemoteSocket(t)
+	// TODO(rfindley): can we use the autostart behavior here, instead of
+	// pre-starting the remote?
 	forwarder := lsprpc.NewForwarder("unix", socket, false, debug.NewInstance("", ""))
 	ts2 := servertest.NewPipeServer(ctx, forwarder)
 	cleanup := func() {

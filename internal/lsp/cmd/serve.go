@@ -88,6 +88,11 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 
 // parseAddr parses the -listen flag in to a network, and address.
 func parseAddr(listen string) (network string, address string) {
+	// Allow passing just -remote=auto, as a shorthand for using automatic remote
+	// resolution.
+	if listen == lsprpc.AutoNetwork {
+		return lsprpc.AutoNetwork, ""
+	}
 	if parts := strings.SplitN(listen, ";", 2); len(parts) == 2 {
 		return parts[0], parts[1]
 	}
