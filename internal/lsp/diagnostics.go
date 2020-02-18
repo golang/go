@@ -44,6 +44,14 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 	ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
 	defer done()
 
+	// Wait for a free diagnostics slot.
+	select {
+	case <-ctx.Done():
+		return nil
+	case s.diagnosticsSema <- struct{}{}:
+	}
+	defer func() { <-s.diagnosticsSema }()
+
 	allReports := make(map[diagnosticKey][]source.Diagnostic)
 	var reportsMu sync.Mutex
 	var wg sync.WaitGroup

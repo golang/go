@@ -85,12 +85,9 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 			t.Fatal(err)
 		}
 		r := &runner{
-			server: &Server{
-				session:   session,
-				delivered: map[span.URI]sentDiagnostics{},
-			},
-			data: datum,
-			ctx:  ctx,
+			server: NewServer(session, nil),
+			data:   datum,
+			ctx:    ctx,
 		}
 		t.Run(datum.Folder, func(t *testing.T) {
 			t.Helper()

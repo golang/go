@@ -16,13 +16,16 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
+const concurrentAnalyses = 1
+
 // NewServer creates an LSP server and binds it to handle incoming client
 // messages on on the supplied stream.
 func NewServer(session source.Session, client protocol.Client) *Server {
 	return &Server{
-		delivered: make(map[span.URI]sentDiagnostics),
-		session:   session,
-		client:    client,
+		delivered:       make(map[span.URI]sentDiagnostics),
+		session:         session,
+		client:          client,
+		diagnosticsSema: make(chan struct{}, concurrentAnalyses),
 	}
 }
 
@@ -54,6 +57,9 @@ type Server struct {
 	// delivered is a cache of the diagnostics that the server has sent.
 	deliveredMu sync.Mutex
 	delivered   map[span.URI]sentDiagnostics
+
+	// diagnosticsSema limits the concurrency of diagnostics runs, which can be expensive.
+	diagnosticsSema chan struct{}
 }
 
 // sentDiagnostics is used to cache diagnostics that have been sent for a given file.
