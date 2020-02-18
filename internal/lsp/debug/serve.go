@@ -335,7 +335,7 @@ func (i *Instance) Serve(ctx context.Context) error {
 
 func (i *Instance) MonitorMemory(ctx context.Context) {
 	tick := time.NewTicker(time.Second)
-	nextThresholdGiB := uint64(5)
+	nextThresholdGiB := uint64(1)
 	go func() {
 		for {
 			<-tick.C
