@@ -702,8 +702,12 @@ func Run(t *testing.T, tests Tests, data *Data) {
 		t.Helper()
 		for uri, wantLinks := range data.Links {
 			// If we are testing GOPATH, then we do not want links with
-			// the versions attached (pkg.go.dev/repoa/moda@v1.1.0/pkg).
+			// the versions attached (pkg.go.dev/repoa/moda@v1.1.0/pkg),
+			// unless the file is a go.mod, then we can skip it alltogether.
 			if data.Exported.Exporter == packagestest.GOPATH {
+				if strings.HasSuffix(uri.Filename(), ".mod") {
+					continue
+				}
 				re := regexp.MustCompile(`@v\d+\.\d+\.[\w-]+`)
 				for i, link := range wantLinks {
 					wantLinks[i].Target = re.ReplaceAllString(link.Target, "")
@@ -1223,7 +1227,7 @@ func shouldSkip(data *Data, uri span.URI) bool {
 	}
 	// If the -modfile flag is not available, then we do not want to run
 	// any tests on the go.mod file.
-	if strings.Contains(uri.Filename(), ".mod") {
+	if strings.HasSuffix(uri.Filename(), ".mod") {
 		return true
 	}
 	// If the -modfile flag is not available, then we do not want to test any

@@ -13,7 +13,6 @@ import (
 
 func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]protocol.CodeLens, error) {
 	realURI, _ := snapshot.View().ModFiles()
-	// Check the case when the tempModfile flag is turned off.
 	if realURI == "" {
 		return nil, nil
 	}
@@ -24,11 +23,11 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 	ctx, done := trace.StartSpan(ctx, "mod.CodeLens", telemetry.File.Of(realURI))
 	defer done()
 
-	pmh, err := snapshot.ParseModHandle(ctx)
+	fh, err := snapshot.GetFile(realURI)
 	if err != nil {
 		return nil, err
 	}
-	f, m, upgrades, err := pmh.Upgrades(ctx)
+	f, m, upgrades, err := snapshot.ModHandle(ctx, fh).Upgrades(ctx)
 	if err != nil {
 		return nil, err
 	}

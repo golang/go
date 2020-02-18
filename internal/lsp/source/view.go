@@ -51,9 +51,9 @@ type Snapshot interface {
 	// This function can have no data or error if there is no modfile detected.
 	ModTidyHandle(ctx context.Context, fh FileHandle) (ModTidyHandle, error)
 
-	// ParseModHandle returns a ParseModHandle for the view's go.mod file handle.
-	// This function can have no data or error if there is no modfile detected.
-	ParseModHandle(ctx context.Context) (ParseModHandle, error)
+	// ModHandle returns a ModHandle for the passed in go.mod file handle.
+	// This function can have no data if there is no modfile detected.
+	ModHandle(ctx context.Context, fh FileHandle) ModHandle
 
 	// PackageHandles returns the PackageHandles for the packages that this file
 	// belongs to.
@@ -258,17 +258,23 @@ type ParseGoHandle interface {
 	Cached() (file *ast.File, src []byte, m *protocol.ColumnMapper, parseErr error, err error)
 }
 
-// ParseModHandle represents a handle to the modfile for a go.mod.
-type ParseModHandle interface {
+// ModHandle represents a handle to the modfile for a go.mod.
+type ModHandle interface {
 	// File returns a file handle for which to get the modfile.
 	File() FileHandle
 
+	// Parse returns the parsed modfile and a mapper for the go.mod file.
+	// If the file is not available, returns nil and an error.
+	Parse(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, error)
+
 	// Upgrades returns the parsed modfile, a mapper, and any dependency upgrades
-	// for the go.mod file. If the file is not available, returns nil and an error.
+	// for the go.mod file. Note that this will only work if the go.mod is the view's go.mod.
+	// If the file is not available, returns nil and an error.
 	Upgrades(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, map[string]string, error)
 }
 
-// ModTidyHandle represents a handle to the modfile for a go.mod.
+// ModTidyHandle represents a handle to the modfile for the view.
+// Specifically for the purpose of getting diagnostics by running "go mod tidy".
 type ModTidyHandle interface {
 	// File returns a file handle for which to get the modfile.
 	File() FileHandle

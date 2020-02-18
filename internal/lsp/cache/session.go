@@ -125,6 +125,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 			actions:           make(map[actionKey]*actionHandle),
 			workspacePackages: make(map[packageID]packagePath),
 			unloadableFiles:   make(map[span.URI]struct{}),
+			modHandles:        make(map[span.URI]*modHandle),
 		},
 		ignoredURIs: make(map[span.URI]struct{}),
 	}
