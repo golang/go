@@ -57,14 +57,14 @@ func URIFromURI(s string) URI {
 	if !strings.HasPrefix(s, "file:///") {
 		return URI(s)
 	}
-	// Handle Windows-specific glitches. We can't parse the URI -- it may not be valid.
-	path := s[len("file://"):]
-	// Handle microsoft/vscode#75027 by making it a special case.
-	// On Windows, VS Code sends file URIs that look like file:///C%3A/x/y/z.
-	// Replace the %3A so that the URI looks like: file:///C:/x/y/z.
-	if strings.ToLower(path[2:5]) == "%3a" {
-		path = path[:2] + ":" + path[5:]
+
+	// Even though the input is a URI, it may not be in canonical form. VS Code
+	// in particular over-escapes :, @, etc. Unescape and re-encode to canonicalize.
+	path, err := url.PathUnescape(s[len("file://"):])
+	if err != nil {
+		panic(err)
 	}
+
 	// File URIs from Windows may have lowercase drive letters.
 	// Since drive letters are guaranteed to be case insensitive,
 	// we change them to uppercase to remain consistent.
@@ -72,7 +72,8 @@ func URIFromURI(s string) URI {
 	if isWindowsDriveURIPath(path) {
 		path = path[:1] + strings.ToUpper(string(path[1])) + path[2:]
 	}
-	return URI("file://" + path)
+	u := url.URL{Scheme: fileScheme, Path: path}
+	return URI(u.String())
 }
 
 func CompareURI(a, b URI) int {
