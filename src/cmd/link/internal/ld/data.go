@@ -939,13 +939,14 @@ func addstrdata(arch *sys.Arch, l *loader.Loader, name, value string) {
 		Errorf(nil, "%s: cannot set with -X: not a var of type string (%s)", name, typeName)
 		return
 	}
-	bld, s := l.MakeSymbolUpdater(s)
+	bld := l.MakeSymbolUpdater(s)
 	if bld.Type() == sym.SBSS {
 		bld.SetType(sym.SDATA)
 	}
 
 	p := fmt.Sprintf("%s.str", name)
-	sbld, sp := l.MakeSymbolUpdater(l.LookupOrCreateSym(p, 0))
+	sp := l.LookupOrCreateSym(p, 0)
+	sbld := l.MakeSymbolUpdater(sp)
 
 	sbld.Addstring(value)
 	sbld.SetType(sym.SRODATA)

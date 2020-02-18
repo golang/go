@@ -350,12 +350,12 @@ func fieldtrack(arch *sys.Arch, l *loader.Loader) {
 	var buf bytes.Buffer
 	for i := loader.Sym(1); i < loader.Sym(l.NSym()); i++ {
 		if name := l.SymName(i); strings.HasPrefix(name, "go.track.") {
-			bld, s := l.MakeSymbolUpdater(i)
+			bld := l.MakeSymbolUpdater(i)
 			bld.SetSpecial(true)
 			bld.SetNotInSymbolTable(true)
 			if bld.Reachable() {
 				buf.WriteString(name[9:])
-				for p := l.Reachparent[s]; p != 0; p = l.Reachparent[p] {
+				for p := l.Reachparent[i]; p != 0; p = l.Reachparent[p] {
 					buf.WriteString("\t")
 					buf.WriteString(l.SymName(p))
 				}
@@ -373,7 +373,7 @@ func fieldtrack(arch *sys.Arch, l *loader.Loader) {
 	if s == 0 || !l.AttrReachable(s) {
 		return
 	}
-	bld, _ := l.MakeSymbolUpdater(s)
+	bld := l.MakeSymbolUpdater(s)
 	bld.SetType(sym.SDATA)
 	addstrdata(arch, l, *flagFieldTrack, buf.String())
 }
