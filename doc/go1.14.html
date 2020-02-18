@@ -405,8 +405,22 @@ appropriately.)
 
 <h2 id="library">Core library</h2>
 
+<h3 id="hash/maphash">New byte sequence hashing package</h3>
+
+<p> <!-- golang.org/issue/28322, CL 186877 -->
+  Go 1.14 includes a new package,
+  <a href="/pkg/hash/maphash/"><code>hash/maphash</code></a>,
+  which provides hash functions on byte sequences.
+  These hash functions are intended to be used to implement hash tables or
+  other data structures that need to map arbitrary strings or byte
+  sequences to a uniform distribution on unsigned 64-bit integers.
+</p>
 <p>
-  All of the changes to the standard library are minor.
+  The hash functions are collision-resistant but not cryptographically secure.
+</p>
+<p>
+  The hash value of a given byte sequence is consistent within a
+  single process, but will be different in different processes.
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
@@ -602,24 +616,6 @@ appropriately.)
     </p>
   </dd>
 </dl><!-- go/doc -->
-
-<dl id="hash/maphash"><dt><a href="/pkg/hash/maphash/">hash/maphash</a></dt>
-  <dd>
-    <p><!-- CL 186877 -->
-      This new package provides hash functions on byte sequences.
-      These hash functions are intended to be used to implement hash tables or
-      other data structures that need to map arbitrary strings or byte
-      sequences to a uniform distribution of integers.
-    </p>
-    <p>
-      The hash functions are collision-resistant but not cryptographically secure.
-    </p>
-    <p>
-      The hash value of a given byte sequence is consistent within a
-      single process, but will be different in different processes.
-    </p>
-  </dd>
-</dl><!-- hash/maphash -->
 
 <dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
   <dd>
