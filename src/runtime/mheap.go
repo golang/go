@@ -52,7 +52,7 @@ const (
 	// The definition of this flag helps ensure that if there's a problem with
 	// the new markroot spans implementation and it gets turned off, that the new
 	// mcentral implementation also gets turned off so the runtime isn't broken.
-	go115NewMCentralImpl = true && go115NewMarkrootSpans
+	go115NewMCentralImpl = true
 )
 
 // Main malloc heap.
@@ -1705,9 +1705,7 @@ func addspecial(p unsafe.Pointer, s *special) bool {
 	s.offset = uint16(offset)
 	s.next = *t
 	*t = s
-	if go115NewMarkrootSpans {
-		spanHasSpecials(span)
-	}
+	spanHasSpecials(span)
 	unlock(&span.speciallock)
 	releasem(mp)
 
@@ -1748,7 +1746,7 @@ func removespecial(p unsafe.Pointer, kind uint8) *special {
 		}
 		t = &s.next
 	}
-	if go115NewMarkrootSpans && span.specials == nil {
+	if span.specials == nil {
 		spanHasNoSpecials(span)
 	}
 	unlock(&span.speciallock)
