@@ -119,14 +119,14 @@ func (e *Editor) initialize(ctx context.Context) error {
 	if e.server != nil {
 		resp, err := e.server.Initialize(ctx, params)
 		if err != nil {
-			return fmt.Errorf("Initialize: %v", err)
+			return fmt.Errorf("initialize: %v", err)
 		}
 		e.mu.Lock()
 		e.serverCapabilities = resp.Capabilities
 		e.mu.Unlock()
 
 		if err := e.server.Initialized(ctx, &protocol.InitializedParams{}); err != nil {
-			return fmt.Errorf("Initialized: %v", err)
+			return fmt.Errorf("initialized: %v", err)
 		}
 	}
 	return nil
@@ -341,7 +341,7 @@ func (e *Editor) GoToDefinition(ctx context.Context, path string, pos Pos) (stri
 
 	resp, err := e.server.Definition(ctx, params)
 	if err != nil {
-		return "", Pos{}, fmt.Errorf("Definition: %v", err)
+		return "", Pos{}, fmt.Errorf("definition: %v", err)
 	}
 	if len(resp) == 0 {
 		return "", Pos{}, nil

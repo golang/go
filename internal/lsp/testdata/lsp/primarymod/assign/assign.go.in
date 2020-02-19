@@ -1,6 +1,9 @@
 package assign
 
+import "golang.org/x/tools/internal/lsp/assign/internal/secret"
+
 func _() {
+	secret.Hello()
 	var (
 		myInt int //@item(assignInt, "myInt", "int", "var")
 		myStr string //@item(assignStr, "myStr", "string", "var")

@@ -1,0 +1,3 @@
+package secret
+
+func Hello() {}
