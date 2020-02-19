@@ -600,9 +600,7 @@ func (p *parser) parseLhsList() []ast.Expr {
 	switch p.tok {
 	case token.DEFINE:
 		// lhs of a short variable declaration
-		// but doesn't enter scope until later:
-		// caller must call p.shortVarDecl(p.makeIdentList(list))
-		// at appropriate time.
+		// but doesn't enter scope until later.
 	case token.COLON:
 		// lhs of a label declaration or a communication clause of a select
 		// statement (parseLhsList is not called when parsing the case clause
@@ -690,35 +688,6 @@ func (p *parser) parseArrayLen() ast.Expr {
 	return len
 }
 
-func (p *parser) makeIdentList(list []ast.Expr) []*ast.Ident {
-	idents := make([]*ast.Ident, len(list))
-	for i, x := range list {
-		ident, isIdent := x.(*ast.Ident)
-		if !isIdent {
-			if _, isBad := x.(*ast.BadExpr); !isBad {
-				// only report error if it's a new one
-				p.errorExpected(x.Pos(), "identifier")
-			}
-			ident = &ast.Ident{NamePos: x.Pos(), Name: "_"}
-		}
-		idents[i] = ident
-	}
-	return idents
-}
-
-func (p *parser) parseOptionalTag() (tag *ast.BasicLit) {
-	if p.trace {
-		defer un(trace(p, "OptionalTag"))
-	}
-
-	if p.tok == token.STRING {
-		tag = &ast.BasicLit{ValuePos: p.pos, Kind: p.tok, Value: p.lit}
-		p.next()
-	}
-
-	return
-}
-
 func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
 	if p.trace {
 		defer un(trace(p, "FieldDecl"))
@@ -726,18 +695,13 @@ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
 
 	doc := p.leadComment
 
-	makeField := func(typ ast.Expr, tag *ast.BasicLit, names ...*ast.Ident) *ast.Field {
-		field := &ast.Field{Doc: doc, Names: names, Type: typ, Tag: tag, Comment: p.lineComment}
-		p.declare(field, nil, scope, ast.Var, names...)
-		return field
-	}
-
-	switch p.tok {
-	case token.IDENT:
+	var names []*ast.Ident
+	var typ ast.Expr
+	if p.tok == token.IDENT {
 		name := p.parseIdent()
 		if p.tok == token.PERIOD || p.tok == token.STRING || p.tok == token.SEMICOLON || p.tok == token.RBRACE {
-			// T
-			var typ ast.Expr = name
+			// embedded type
+			typ = name
 			if p.tok == token.PERIOD {
 				typ = p.parseTypeName(name)
 				// A "(" indicates a type parameter (or a syntax error).
@@ -747,83 +711,31 @@ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
 			} else {
 				p.resolve(typ)
 			}
-			tag := p.parseOptionalTag()
-			p.expectSemi()
-			return makeField(typ, tag)
-		}
-		names := []*ast.Ident{name}
-		for p.tok == token.COMMA {
-			p.next()
-			names = append(names, p.parseIdent())
-		}
-		typ := p.parseType(true)
-		tag := p.parseOptionalTag()
-		p.expectSemi()
-		return makeField(typ, tag, names...)
-
-	case token.LPAREN:
-		p.error(p.pos, "cannot parenthesize embedded type")
-		p.next()
-		if p.tok == token.MUL {
-			// (*T) tag
-			pos := p.pos
-			p.next()
-			base := p.parseTypeName(nil)
-			p.expect(token.RPAREN)
-			if _, ok := base.(*ast.Ident); ok {
-				p.resolve(base)
-			}
-			typ := &ast.StarExpr{Star: pos, X: base}
-			tag := p.parseOptionalTag()
-			p.expectSemi()
-			return makeField(typ, tag)
-
 		} else {
-			// (T) tag
-			typ := p.parseTypeName(nil)
-			p.expect(token.RPAREN)
-			if _, ok := typ.(*ast.Ident); ok {
-				p.resolve(typ)
+			// name1, name2, ... T
+			names = []*ast.Ident{name}
+			for p.tok == token.COMMA {
+				p.next()
+				names = append(names, p.parseIdent())
 			}
-			tag := p.parseOptionalTag()
-			p.expectSemi()
-			return makeField(typ, tag)
+			typ = p.parseType(true)
 		}
-
-	case token.MUL:
-		pos := p.pos
-		p.next()
-		if p.tok == token.LPAREN {
-			// *(T) tag
-			p.error(p.pos, "cannot parenthesize embedded type")
-			p.next()
-			base := p.parseTypeName(nil)
-			p.expect(token.RPAREN)
-			if _, ok := base.(*ast.Ident); ok {
-				p.resolve(base)
-			}
-			typ := &ast.StarExpr{Star: pos, X: base}
-			tag := p.parseOptionalTag()
-			p.expectSemi()
-			return makeField(typ, tag)
-
-		} else {
-			// *T tag
-			base := p.parseTypeName(nil)
-			if _, ok := base.(*ast.Ident); ok {
-				p.resolve(base)
-			}
-			typ := &ast.StarExpr{Star: pos, X: base}
-			tag := p.parseOptionalTag()
-			p.expectSemi()
-			return makeField(typ, tag)
-		}
-
-	default:
-		p.errorExpected(p.pos, "field name or embedded type")
-		p.advance(exprEnd)
-		return nil
+	} else {
+		// embedded type
+		typ = p.parseType(true)
 	}
+
+	var tag *ast.BasicLit
+	if p.tok == token.STRING {
+		tag = &ast.BasicLit{ValuePos: p.pos, Kind: p.tok, Value: p.lit}
+		p.next()
+	}
+
+	p.expectSemi()
+
+	field := &ast.Field{Doc: doc, Names: names, Type: typ, Tag: tag, Comment: p.lineComment}
+	p.declare(field, nil, scope, ast.Var, names...)
+	return field
 }
 
 func (p *parser) parseStructType() *ast.StructType {
@@ -836,12 +748,7 @@ func (p *parser) parseStructType() *ast.StructType {
 	scope := ast.NewScope(nil) // struct scope
 	var list []*ast.Field
 	for p.tok == token.IDENT || p.tok == token.MUL || p.tok == token.LPAREN {
-		// a field declaration cannot start with a '(' but we accept
-		// it here for more robust parsing and better error messages
-		// (parseFieldDecl will check and complain if necessary)
-		if f := p.parseFieldDecl(scope); f != nil {
-			list = append(list, f)
-		}
+		list = append(list, p.parseFieldDecl(scope))
 	}
 	rbrace := p.expect(token.RBRACE)
 
@@ -1129,8 +1036,7 @@ func (p *parser) parseMethodSpec(scope *ast.Scope) *ast.Field {
 	doc := p.leadComment
 	var idents []*ast.Ident
 	var typ ast.Expr
-	switch p.tok {
-	case token.IDENT:
+	if p.tok == token.IDENT {
 		x := p.parseTypeName(nil)
 		if ident, isIdent := x.(*ast.Ident); isIdent && p.tok == token.LPAREN {
 			// method
@@ -1144,7 +1050,7 @@ func (p *parser) parseMethodSpec(scope *ast.Scope) *ast.Field {
 			typ = x
 			p.resolve(typ)
 		}
-	case token.LPAREN:
+	} else {
 		// embedded, possibly parameterized interface
 		// (using the enclosing parentheses to distinguish it from a method declaration)
 		typ = p.parseType(true)

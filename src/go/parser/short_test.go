@@ -50,6 +50,11 @@ var valids = []string{
 	`package p; type (T = p.T; _ = struct{}; x = *T)`,
 	`package p; type T (*int)`,
 
+	// structs with parameterized embedded fields (for symmetry with interfaces)
+	`package p; type _ struct{ ((int)) }`,
+	`package p; type _ struct{ (*(int)) }`,
+	`package p; type _ struct{ ([]byte) }`, // disallowed by type-checker
+
 	// type parameters
 	`package p; type T(type P) struct { P }`,
 	`package p; type T(type P comparable) struct { P }`,
@@ -191,7 +196,7 @@ var invalids = []string{
 	// issue 11611
 	`package p; type _ struct { int, } /* ERROR "expected 'IDENT', found '}'" */ ;`,
 	`package p; type _ struct { int, float } /* ERROR "expected type, found '}'" */ ;`,
-	`package p; type _ struct { ( /* ERROR "cannot parenthesize embedded type" */ int) };`,
+	//`package p; type _ struct { ( /* ERROR "cannot parenthesize embedded type" */ int) };`,
 	//`package p; func _()(x, y, z ... /* ERROR "expected '\)', found '...'" */ int){}`,
 	//`package p; func _()(... /* ERROR "expected type, found '...'" */ int){}`,
 

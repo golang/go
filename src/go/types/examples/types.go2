@@ -146,3 +146,30 @@ func _() {
 	x.m1(true)
 	x.m("foo")
 }
+
+// We accept parenthesized embedded struct fields so we can distinguish between
+// a named field with a parenthesized type foo (T) and an embedded parameterized
+// type (foo(T)), similarly to interace embedding.
+// They still need to be valid embedded types after the parentheses are stripped
+// (i.e., in contrast to interfaces, we cannot embed a struct literal). The name
+// of the embedded field is derived as before, after stripping parentheses.
+type _ struct {
+	(int8)
+	(*int16)
+	*(int32)
+	(*(int64))
+	(((*(int))))
+	(*(List(int)))
+
+	int8 /* ERROR int8 redeclared */
+	int /* ERROR int redeclared */
+	* /* ERROR List redeclared */ List(int)
+
+	( /* ERROR invalid embedded field type */ [10]int)
+	( /* ERROR invalid embedded field type */ []int)
+	( /* ERROR invalid embedded field type */ struct{})
+	( /* ERROR invalid embedded field type */ map[int]string)
+	( /* ERROR invalid embedded field type */ chan<- int)
+	( /* ERROR invalid embedded field type */ interface{})
+	( /* ERROR invalid embedded field type */ func())
+}

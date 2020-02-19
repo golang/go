@@ -842,12 +842,12 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 			}
 		} else {
 			// embedded field
-			// spec: "An embedded type must be specified as a type name T or as a pointer
-			// to a non-interface type name *T, and T itself may not be a pointer type."
+			// spec: "An embedded type must be specified as a (possibly parenthesized) type name T or
+			// as a pointer to a non-interface type name *T, and T itself may not be a pointer type."
 			pos := f.Type.Pos()
 			name := embeddedFieldIdent(f.Type)
 			if name == nil {
-				check.invalidAST(pos, "embedded field type %s has no name", f.Type)
+				check.errorf(pos, "invalid embedded field type %s", f.Type)
 				name = ast.NewIdent("_")
 				name.NamePos = pos
 				addInvalid(name, pos)
@@ -902,6 +902,10 @@ func embeddedFieldIdent(e ast.Expr) *ast.Ident {
 		}
 	case *ast.SelectorExpr:
 		return e.Sel
+	case *ast.CallExpr:
+		return embeddedFieldIdent(e.Fun)
+	case *ast.ParenExpr:
+		return embeddedFieldIdent(e.X)
 	}
 	return nil // invalid embedded field
 }
