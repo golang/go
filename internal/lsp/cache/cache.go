@@ -19,9 +19,9 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func New(options func(*source.Options)) source.Cache {
+func New(options func(*source.Options)) *Cache {
 	index := atomic.AddInt64(&cacheIndex, 1)
-	c := &cache{
+	c := &Cache{
 		fs:      &nativeFileSystem{},
 		id:      strconv.FormatInt(index, 10),
 		fset:    token.NewFileSet(),
@@ -31,7 +31,7 @@ func New(options func(*source.Options)) source.Cache {
 	return c
 }
 
-type cache struct {
+type Cache struct {
 	fs      source.FileSystem
 	id      string
 	fset    *token.FileSet
@@ -45,7 +45,7 @@ type fileKey struct {
 }
 
 type fileHandle struct {
-	cache      *cache
+	cache      *Cache
 	underlying source.FileHandle
 	handle     *memoize.Handle
 }
@@ -57,7 +57,7 @@ type fileData struct {
 	err   error
 }
 
-func (c *cache) GetFile(uri span.URI) source.FileHandle {
+func (c *Cache) GetFile(uri span.URI) source.FileHandle {
 	underlying := c.fs.GetFile(uri)
 	key := fileKey{
 		identity: underlying.Identity(),
@@ -74,9 +74,9 @@ func (c *cache) GetFile(uri span.URI) source.FileHandle {
 	}
 }
 
-func (c *cache) NewSession() source.Session {
+func (c *Cache) NewSession() *Session {
 	index := atomic.AddInt64(&sessionIndex, 1)
-	s := &session{
+	s := &Session{
 		cache:    c,
 		id:       strconv.FormatInt(index, 10),
 		options:  source.DefaultOptions(),
@@ -86,7 +86,7 @@ func (c *cache) NewSession() source.Session {
 	return s
 }
 
-func (c *cache) FileSet() *token.FileSet {
+func (c *Cache) FileSet() *token.FileSet {
 	return c.fset
 }
 
@@ -115,8 +115,8 @@ func hashContents(contents []byte) string {
 
 var cacheIndex, sessionIndex, viewIndex int64
 
-type debugCache struct{ *cache }
+type debugCache struct{ *Cache }
 
-func (c *cache) ID() string                         { return c.id }
+func (c *Cache) ID() string                         { return c.id }
 func (c debugCache) FileSet() *token.FileSet        { return c.fset }
 func (c debugCache) MemStats() map[reflect.Type]int { return c.store.Stats() }

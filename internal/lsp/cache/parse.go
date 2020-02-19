@@ -47,7 +47,7 @@ type parseGoData struct {
 	err        error
 }
 
-func (c *cache) ParseGoHandle(fh source.FileHandle, mode source.ParseMode) source.ParseGoHandle {
+func (c *Cache) ParseGoHandle(fh source.FileHandle, mode source.ParseMode) source.ParseGoHandle {
 	key := parseKey{
 		file: fh.Identity(),
 		mode: mode,

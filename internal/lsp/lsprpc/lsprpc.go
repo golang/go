@@ -17,8 +17,8 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp"
+	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/lsp/source"
 )
 
 // The StreamServer type is a jsonrpc2.StreamServer that handles incoming
@@ -33,7 +33,7 @@ type StreamServer struct {
 // NewStreamServer creates a StreamServer using the shared cache. If
 // withTelemetry is true, each session is instrumented with telemetry that
 // records RPC statistics.
-func NewStreamServer(cache source.Cache, withTelemetry bool) *StreamServer {
+func NewStreamServer(cache *cache.Cache, withTelemetry bool) *StreamServer {
 	s := &StreamServer{
 		withTelemetry: withTelemetry,
 	}

@@ -228,9 +228,6 @@ type Cache interface {
 	// A FileSystem that reads file contents from external storage.
 	FileSystem
 
-	// NewSession creates a new Session manager and returns it.
-	NewSession() Session
-
 	// FileSet returns the shared fileset used by all files in the system.
 	FileSet() *token.FileSet
 

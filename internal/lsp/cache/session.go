@@ -19,8 +19,8 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-type session struct {
-	cache *cache
+type Session struct {
+	cache *Cache
 	id    string
 
 	options source.Options
@@ -34,7 +34,7 @@ type session struct {
 }
 
 type overlay struct {
-	session *session
+	session *Session
 	uri     span.URI
 	text    []byte
 	hash    string
@@ -62,15 +62,15 @@ func (o *overlay) Read(ctx context.Context) ([]byte, string, error) {
 	return o.text, o.hash, nil
 }
 
-func (s *session) Options() source.Options {
+func (s *Session) Options() source.Options {
 	return s.options
 }
 
-func (s *session) SetOptions(options source.Options) {
+func (s *Session) SetOptions(options source.Options) {
 	s.options = options
 }
 
-func (s *session) Shutdown(ctx context.Context) {
+func (s *Session) Shutdown(ctx context.Context) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 	for _, view := range s.views {
@@ -81,11 +81,11 @@ func (s *session) Shutdown(ctx context.Context) {
 	debug.DropSession(debugSession{s})
 }
 
-func (s *session) Cache() source.Cache {
+func (s *Session) Cache() source.Cache {
 	return s.cache
 }
 
-func (s *session) NewView(ctx context.Context, name string, folder span.URI, options source.Options) (source.View, source.Snapshot, error) {
+func (s *Session) NewView(ctx context.Context, name string, folder span.URI, options source.Options) (source.View, source.Snapshot, error) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 	v, snapshot, err := s.createView(ctx, name, folder, options)
@@ -98,7 +98,7 @@ func (s *session) NewView(ctx context.Context, name string, folder span.URI, opt
 	return v, snapshot, nil
 }
 
-func (s *session) createView(ctx context.Context, name string, folder span.URI, options source.Options) (*view, *snapshot, error) {
+func (s *Session) createView(ctx context.Context, name string, folder span.URI, options source.Options) (*view, *snapshot, error) {
 	index := atomic.AddInt64(&viewIndex, 1)
 	// We want a true background context and not a detached context here
 	// the spans need to be unrelated and no tag values should pollute it.
@@ -147,7 +147,7 @@ func (s *session) createView(ctx context.Context, name string, folder span.URI, 
 }
 
 // View returns the view by name.
-func (s *session) View(name string) source.View {
+func (s *Session) View(name string) source.View {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 	for _, view := range s.views {
@@ -160,11 +160,11 @@ func (s *session) View(name string) source.View {
 
 // ViewOf returns a view corresponding to the given URI.
 // If the file is not already associated with a view, pick one using some heuristics.
-func (s *session) ViewOf(uri span.URI) (source.View, error) {
+func (s *Session) ViewOf(uri span.URI) (source.View, error) {
 	return s.viewOf(uri)
 }
 
-func (s *session) viewOf(uri span.URI) (*view, error) {
+func (s *Session) viewOf(uri span.URI) (*view, error) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 
@@ -181,7 +181,7 @@ func (s *session) viewOf(uri span.URI) (*view, error) {
 	return v, nil
 }
 
-func (s *session) viewsOf(uri span.URI) []*view {
+func (s *Session) viewsOf(uri span.URI) []*view {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 
@@ -194,7 +194,7 @@ func (s *session) viewsOf(uri span.URI) []*view {
 	return views
 }
 
-func (s *session) Views() []source.View {
+func (s *Session) Views() []source.View {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 	result := make([]source.View, len(s.views))
@@ -206,7 +206,7 @@ func (s *session) Views() []source.View {
 
 // bestView finds the best view to associate a given URI with.
 // viewMu must be held when calling this method.
-func (s *session) bestView(uri span.URI) (*view, error) {
+func (s *Session) bestView(uri span.URI) (*view, error) {
 	if len(s.views) == 0 {
 		return nil, errors.Errorf("no views in the session")
 	}
@@ -227,7 +227,7 @@ func (s *session) bestView(uri span.URI) (*view, error) {
 	return s.views[0], nil
 }
 
-func (s *session) removeView(ctx context.Context, view *view) error {
+func (s *Session) removeView(ctx context.Context, view *view) error {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 	i, err := s.dropView(ctx, view)
@@ -242,7 +242,7 @@ func (s *session) removeView(ctx context.Context, view *view) error {
 	return nil
 }
 
-func (s *session) updateView(ctx context.Context, view *view, options source.Options) (*view, *snapshot, error) {
+func (s *Session) updateView(ctx context.Context, view *view, options source.Options) (*view, *snapshot, error) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
 	i, err := s.dropView(ctx, view)
@@ -263,7 +263,7 @@ func (s *session) updateView(ctx context.Context, view *view, options source.Opt
 	return v, snapshot, nil
 }
 
-func (s *session) dropView(ctx context.Context, v *view) (int, error) {
+func (s *Session) dropView(ctx context.Context, v *view) (int, error) {
 	// we always need to drop the view map
 	s.viewMap = make(map[span.URI]*view)
 	for i := range s.views {
@@ -277,7 +277,7 @@ func (s *session) dropView(ctx context.Context, v *view) (int, error) {
 	return -1, errors.Errorf("view %s for %v not found", v.Name(), v.Folder())
 }
 
-func (s *session) DidModifyFiles(ctx context.Context, changes []source.FileModification) ([]source.Snapshot, error) {
+func (s *Session) DidModifyFiles(ctx context.Context, changes []source.FileModification) ([]source.Snapshot, error) {
 	views := make(map[*view]map[span.URI]source.FileHandle)
 
 	overlays, err := s.updateOverlays(ctx, changes)
@@ -322,7 +322,7 @@ func (s *session) DidModifyFiles(ctx context.Context, changes []source.FileModif
 	return snapshots, nil
 }
 
-func (s *session) isOpen(uri span.URI) bool {
+func (s *Session) isOpen(uri span.URI) bool {
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
 
@@ -330,7 +330,7 @@ func (s *session) isOpen(uri span.URI) bool {
 	return open
 }
 
-func (s *session) updateOverlays(ctx context.Context, changes []source.FileModification) (map[span.URI]*overlay, error) {
+func (s *Session) updateOverlays(ctx context.Context, changes []source.FileModification) (map[span.URI]*overlay, error) {
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
 
@@ -406,7 +406,7 @@ func (s *session) updateOverlays(ctx context.Context, changes []source.FileModif
 	return overlays, nil
 }
 
-func (s *session) GetFile(uri span.URI) source.FileHandle {
+func (s *Session) GetFile(uri span.URI) source.FileHandle {
 	if overlay := s.readOverlay(uri); overlay != nil {
 		return overlay
 	}
@@ -414,7 +414,7 @@ func (s *session) GetFile(uri span.URI) source.FileHandle {
 	return s.cache.GetFile(uri)
 }
 
-func (s *session) readOverlay(uri span.URI) *overlay {
+func (s *Session) readOverlay(uri span.URI) *overlay {
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
 

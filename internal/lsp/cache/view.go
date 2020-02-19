@@ -34,7 +34,7 @@ import (
 )
 
 type view struct {
-	session *session
+	session *Session
 	id      string
 
 	options source.Options

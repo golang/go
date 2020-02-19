@@ -17,7 +17,7 @@ func (v debugView) ID() string             { return v.id }
 func (v debugView) Session() debug.Session { return debugSession{v.session} }
 func (v debugView) Env() []string          { return v.Options().Env }
 
-type debugSession struct{ *session }
+type debugSession struct{ *Session }
 
 func (s debugSession) ID() string         { return s.id }
 func (s debugSession) Cache() debug.Cache { return debugCache{s.cache} }
