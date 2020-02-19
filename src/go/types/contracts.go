@@ -111,10 +111,9 @@ func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
 				check.invalidAST(cdecl.Pos(), "contract contains incorrect (possibly embedded contract) entry")
 				continue
 			}
-			// TODO(gri) we can probably get away w/o checking this (even if the AST is broken)
-			econtr, _ := c.Types[0].(*ast.CallExpr)
+			econtr, _ := unparen(c.Types[0]).(*ast.CallExpr)
 			if econtr == nil {
-				check.invalidAST(c.Types[0].Pos(), "invalid embedded contract %s", econtr)
+				check.errorf(c.Types[0].Pos(), "%s is not a contract", c.Types[0])
 				continue
 			}
 

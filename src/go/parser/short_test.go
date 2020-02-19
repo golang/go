@@ -97,6 +97,7 @@ var valids = []string{
 	`package p; contract C(T){ T int, m(int), float64, n() float64, o(x string) rune }`,
 	`package p; contract C(T){ T int; T imported.T; T chan<-int; T m(x int) float64; C0(); imported.C1(int, T,) }`,
 	`package p; contract C(T){ T int, imported.T, chan<-int; T m(x int) float64; C0(); imported.C1(int, T,) }`,
+	`package p; contract C(T){ (C(T)); (((imported.T))) }`,
 	`package p; func _(type T1, T2 interface{})(x T1) T2`,
 	`package p; func _(type T1 interface{ m() }, T2, T3 interface{})(x T1, y T3) T2`,
 

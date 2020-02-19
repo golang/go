@@ -721,7 +721,8 @@ func (p *parser) parseFieldDecl(scope *ast.Scope) *ast.Field {
 			typ = p.parseType(true)
 		}
 	} else {
-		// embedded type
+		// embedded, possibly parameterized type
+		// (using the enclosing parentheses to distinguish it from a named field declaration)
 		typ = p.parseType(true)
 	}
 
@@ -1136,54 +1137,6 @@ func (p *parser) parseChanType(typeContext bool) *ast.ChanType {
 	value := p.parseType(typeContext)
 
 	return &ast.ChanType{Begin: pos, Arrow: arrow, Dir: dir, Value: value}
-}
-
-// Constraint       = TypeParam TypeOrMethod { "," TypeOrMethod } | ContractTypeName "(" [ TypeList [ "," ] ] ")" .
-// TypeParam        = Ident .
-// TypeOrMethod     = Type | MethodName Signature .
-// ContractTypeName = TypeName.
-func (p *parser) parseConstraint() *ast.Constraint {
-	if p.trace {
-		defer un(trace(p, "Constraint"))
-	}
-
-	tname := p.parseTypeName(nil)
-	if p.tok == token.LPAREN {
-		// ContractTypeName "(" [ TypeList [ "," ] ] ")"
-		return &ast.Constraint{Types: []ast.Expr{p.parseTypeInstance(tname)}}
-	}
-
-	param, isIdent := tname.(*ast.Ident)
-	if !isIdent {
-		p.errorExpected(tname.Pos(), "type parameter name")
-		param = &ast.Ident{NamePos: tname.Pos(), Name: "_"}
-	}
-
-	// list of type constraints or methods
-	var mnames []*ast.Ident
-	var types []ast.Expr
-	for {
-		var mname *ast.Ident
-		typ := p.parseType(false)
-		if ident, isIdent := typ.(*ast.Ident); isIdent && p.tok == token.LPAREN {
-			// method
-			mname = ident
-			scope := ast.NewScope(nil) // method scope
-			tparams, params := p.parseParameters(scope, methodTypeParamsOk|variadicOk, "method")
-			results := p.parseResult(scope, true)
-			typ = &ast.FuncType{Func: token.NoPos, TParams: tparams, Params: params, Results: results}
-		}
-		mnames = append(mnames, mname)
-		types = append(types, typ)
-
-		if p.tok != token.COMMA {
-			break
-		}
-		p.next()
-	}
-
-	// param != nil
-	return &ast.Constraint{Param: param, MNames: mnames, Types: types}
 }
 
 func (p *parser) parseTypeInstance(typ ast.Expr) *ast.CallExpr {
@@ -2625,6 +2578,61 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token
 	return spec
 }
 
+// Constraint   = TypeParam TypeOrMethod { "," TypeOrMethod } | ContractName "(" [ TypeList [ "," ] ] ")" .
+// TypeParam    = Ident .
+// TypeOrMethod = Type | MethodName Signature .
+// ContractName = TypeName.
+func (p *parser) parseConstraint() *ast.Constraint {
+	if p.trace {
+		defer un(trace(p, "Constraint"))
+	}
+
+	if p.tok == token.LPAREN {
+		// embedded, possibly parameterized contract
+		// (It's never a type but it looks like a possibly instantiated type, so
+		// let's parse it as such and have the type-checker complain if need be.)
+		return &ast.Constraint{Types: []ast.Expr{p.parseType(true)}}
+	}
+
+	tname := p.parseTypeName(nil)
+	if p.tok == token.LPAREN {
+		// ContractName "(" [ TypeList [ "," ] ] ")"
+		return &ast.Constraint{Types: []ast.Expr{p.parseTypeInstance(tname)}}
+	}
+
+	param, isIdent := tname.(*ast.Ident)
+	if !isIdent {
+		p.errorExpected(tname.Pos(), "type parameter name")
+		param = &ast.Ident{NamePos: tname.Pos(), Name: "_"}
+	}
+
+	// list of type constraints or methods
+	var mnames []*ast.Ident
+	var types []ast.Expr
+	for {
+		var mname *ast.Ident
+		typ := p.parseType(false)
+		if ident, isIdent := typ.(*ast.Ident); isIdent && p.tok == token.LPAREN {
+			// method
+			mname = ident
+			scope := ast.NewScope(nil) // method scope
+			tparams, params := p.parseParameters(scope, methodTypeParamsOk|variadicOk, "method")
+			results := p.parseResult(scope, true)
+			typ = &ast.FuncType{Func: token.NoPos, TParams: tparams, Params: params, Results: results}
+		}
+		mnames = append(mnames, mname)
+		types = append(types, typ)
+
+		if p.tok != token.COMMA {
+			break
+		}
+		p.next()
+	}
+
+	// param != nil
+	return &ast.Constraint{Param: param, MNames: mnames, Types: types}
+}
+
 // ContractSpec = ident "(" [ IdentList [ "," ] ] ")" "{" { Constraint ";" } "}" .
 func (p *parser) parseContractSpec(doc *ast.CommentGroup, pos token.Pos, keyword token.Token, _ int) ast.Spec {
 	if p.trace {
@@ -2643,7 +2651,7 @@ func (p *parser) parseContractSpec(doc *ast.CommentGroup, pos token.Pos, keyword
 		}
 		p.next()
 	}
-	p.declare(nil, nil, scope, ast.Typ, tparams...) // TODO(gri) should really be something other that ast.Typ
+	p.declare(nil, nil, scope, ast.Typ, tparams...) // this should be something other that ast.Typ but we don't care (never used)
 	p.expect(token.RPAREN)
 
 	var constraints []*ast.Constraint

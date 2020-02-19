@@ -70,3 +70,14 @@ type NodeFace(type Edge) interface {
 type EdgeFace(type Node) interface {
 	Nodes() (from, to Node)
 }
+
+// Contracts may embed other contracts.
+// Parentheses are permitted (for symmetry with embedding in structs and interfaces)
+// but never required.
+contract _(T) {
+	Stringer(T)
+	(Sequence(T))
+
+	Graph /* ERROR not a contract */ (T, T)
+	( /* ERROR not a contract */ []int)
+}
