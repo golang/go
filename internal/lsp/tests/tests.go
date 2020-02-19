@@ -704,9 +704,9 @@ func Run(t *testing.T, tests Tests, data *Data) {
 			// If we are testing GOPATH, then we do not want links with
 			// the versions attached (pkg.go.dev/repoa/moda@v1.1.0/pkg).
 			if data.Exported.Exporter == packagestest.GOPATH {
-				re := regexp.MustCompile(`@(.+?)/`)
+				re := regexp.MustCompile(`@v\d+\.\d+\.[\w-]+`)
 				for i, link := range wantLinks {
-					wantLinks[i].Target = re.ReplaceAllString(link.Target, "/")
+					wantLinks[i].Target = re.ReplaceAllString(link.Target, "")
 				}
 			}
 			t.Run(uriName(uri), func(t *testing.T) {

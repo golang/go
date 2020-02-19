@@ -49,7 +49,7 @@ func DiffLinks(mapper *protocol.ColumnMapper, wantLinks []Link, gotLinks []proto
 		if target, ok := links[spn]; ok {
 			delete(links, spn)
 			if target != link.Target {
-				return fmt.Sprintf("for %v want %v, got %v\n", spn, link.Target, target)
+				return fmt.Sprintf("for %v want %v, got %v\n", spn, target, link.Target)
 			}
 		} else {
 			return fmt.Sprintf("unexpected link %v:%v\n", spn, link.Target)
