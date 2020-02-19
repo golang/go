@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp/cache"
@@ -21,12 +22,13 @@ import (
 // Serve is a struct that exposes the configurable parts of the LSP server as
 // flags, in the right form for tool.Main to consume.
 type Serve struct {
-	Logfile string `flag:"logfile" help:"filename to log to. if value is \"auto\", then logging to a default output file is enabled"`
-	Mode    string `flag:"mode" help:"no effect"`
-	Port    int    `flag:"port" help:"port on which to run gopls for debugging purposes"`
-	Address string `flag:"listen" help:"address on which to listen for remote connections. If prefixed by 'unix;', the subsequent address is assumed to be a unix domain socket. Otherwise, TCP is used."`
-	Trace   bool   `flag:"rpc.trace" help:"print the full rpc trace in lsp inspector format"`
-	Debug   string `flag:"debug" help:"serve debug information on the supplied address"`
+	Logfile     string        `flag:"logfile" help:"filename to log to. if value is \"auto\", then logging to a default output file is enabled"`
+	Mode        string        `flag:"mode" help:"no effect"`
+	Port        int           `flag:"port" help:"port on which to run gopls for debugging purposes"`
+	Address     string        `flag:"listen" help:"address on which to listen for remote connections. If prefixed by 'unix;', the subsequent address is assumed to be a unix domain socket. Otherwise, TCP is used."`
+	IdleTimeout time.Duration `flag:"listen.timeout" help:"when used with -listen, shut down the server when there are no connected clients for this duration"`
+	Trace       bool          `flag:"rpc.trace" help:"print the full rpc trace in lsp inspector format"`
+	Debug       string        `flag:"debug" help:"serve debug information on the supplied address"`
 
 	app *Application
 }
@@ -73,11 +75,11 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 
 	if s.Address != "" {
 		network, addr := parseAddr(s.Address)
-		return jsonrpc2.ListenAndServe(ctx, network, addr, ss)
+		return jsonrpc2.ListenAndServe(ctx, network, addr, ss, s.IdleTimeout)
 	}
 	if s.Port != 0 {
 		addr := fmt.Sprintf(":%v", s.Port)
-		return jsonrpc2.ListenAndServe(ctx, "tcp", addr, ss)
+		return jsonrpc2.ListenAndServe(ctx, "tcp", addr, ss, s.IdleTimeout)
 	}
 	stream := jsonrpc2.NewHeaderStream(os.Stdin, os.Stdout)
 	if s.Trace {

@@ -36,11 +36,10 @@ func TestTestServer(t *testing.T) {
 	pipeTS := NewPipeServer(ctx, server)
 	defer pipeTS.Close()
 
-
 	tests := []struct {
-		name string
+		name      string
 		connector Connector
-	} {
+	}{
 		{"tcp", tcpTS},
 		{"pipe", pipeTS},
 	}

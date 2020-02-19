@@ -39,7 +39,7 @@ func NewTCPServer(ctx context.Context, server jsonrpc2.StreamServer) *TCPServer 
 	if err != nil {
 		panic(fmt.Sprintf("servertest: failed to listen: %v", err))
 	}
-	go jsonrpc2.Serve(ctx, ln, server)
+	go jsonrpc2.Serve(ctx, ln, server, 0)
 	return &TCPServer{Addr: ln.Addr().String(), ln: ln, cls: &closerList{}}
 }
 
