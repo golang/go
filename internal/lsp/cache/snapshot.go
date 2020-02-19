@@ -432,11 +432,17 @@ func (s *snapshot) addID(uri span.URI, id packageID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for _, existingID := range s.ids[uri] {
+	for i, existingID := range s.ids[uri] {
+		// TODO: We should make sure not to set duplicate IDs,
+		// and instead panic here. This can be done by making sure not to
+		// reset metadata information for packages we've already seen.
 		if existingID == id {
-			// TODO: We should make sure not to set duplicate IDs,
-			// and instead panic here. This can be done by making sure not to
-			// reset metadata information for packages we've already seen.
+			return
+		}
+		// If we are setting a real ID, when the package had only previously
+		// had a command-line-arguments ID, we should just replace it.
+		if existingID == "command-line-arguments" {
+			s.ids[uri][i] = id
 			return
 		}
 	}
@@ -690,10 +696,6 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Fi
 		delete(result.unloadableFiles, withoutURI)
 	}
 
-	// Collect the IDs for the packages associated with the excluded URIs.
-	for k, ids := range s.ids {
-		result.ids[k] = ids
-	}
 	// Copy the set of initally loaded packages.
 	for k, v := range s.workspacePackages {
 		result.workspacePackages[k] = v
@@ -719,6 +721,17 @@ func (s *snapshot) clone(ctx context.Context, withoutURIs map[span.URI]source.Fi
 			continue
 		}
 		result.metadata[k] = v
+	}
+	// Copy the URI to package ID mappings, skipping only those URIs whose
+	// metadata will be reloaded in future calls to load.
+outer:
+	for k, ids := range s.ids {
+		for _, id := range ids {
+			if invalidateMetadata, ok := transitiveIDs[id]; invalidateMetadata && ok {
+				break outer
+			}
+		}
+		result.ids[k] = ids
 	}
 	// Don't bother copying the importedBy graph,
 	// as it changes each time we update metadata.
