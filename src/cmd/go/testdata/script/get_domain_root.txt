@@ -2,7 +2,7 @@
 # go get foo.io (not foo.io/subdir) was not working consistently.
 
 [!net] skip
-[!exec:git] skup
+[!exec:git] skip
 
 # go-get-issue-9357.appspot.com is running
 # the code at github.com/rsc/go-get-issue-9357,
