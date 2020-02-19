@@ -70,12 +70,19 @@ func NewEditor(ws *Workspace) *Editor {
 	}
 }
 
-// ShutdownAndExit shuts down the client and issues the editor exit.
-func (e *Editor) ShutdownAndExit(ctx context.Context) error {
+// Shutdown issues the 'shutdown' LSP notification.
+func (e *Editor) Shutdown(ctx context.Context) error {
 	if e.server != nil {
 		if err := e.server.Shutdown(ctx); err != nil {
 			return fmt.Errorf("Shutdown: %v", err)
 		}
+	}
+	return nil
+}
+
+// Exit issues the 'exit' LSP notification.
+func (e *Editor) Exit(ctx context.Context) error {
+	if e.server != nil {
 		// Not all LSP clients issue the exit RPC, but we do so here to ensure that
 		// we gracefully handle it on multi-session servers.
 		if err := e.server.Exit(ctx); err != nil {

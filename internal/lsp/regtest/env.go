@@ -173,6 +173,11 @@ func (r *Runner) RunInMode(modes EnvMode, t *testing.T, filedata string, test fu
 			ts, cleanup := tc.getConnector(ctx, t)
 			defer cleanup()
 			env := NewEnv(ctx, t, ws, ts)
+			defer func() {
+				if err := env.E.Shutdown(ctx); err != nil {
+					panic(err)
+				}
+			}()
 			test(ctx, t, env)
 		})
 	}
@@ -326,7 +331,10 @@ func (e *Env) onDiagnostics(_ context.Context, d *protocol.PublishDiagnosticsPar
 // CloseEditor shuts down the editor, calling t.Fatal on any error.
 func (e *Env) CloseEditor() {
 	e.t.Helper()
-	if err := e.E.ShutdownAndExit(e.ctx); err != nil {
+	if err := e.E.Shutdown(e.ctx); err != nil {
+		e.t.Fatal(err)
+	}
+	if err := e.E.Exit(e.ctx); err != nil {
 		e.t.Fatal(err)
 	}
 }

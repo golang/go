@@ -8,6 +8,7 @@ import (
 	"context"
 	"log"
 	"net"
+	"os"
 )
 
 // NOTE: This file provides an experimental API for serving multiple remote
@@ -46,6 +47,9 @@ func ListenAndServe(ctx context.Context, network, addr string, server StreamServ
 	ln, err := net.Listen(network, addr)
 	if err != nil {
 		return err
+	}
+	if network == "unix" {
+		defer os.Remove(addr)
 	}
 	return Serve(ctx, ln, server)
 }
