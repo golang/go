@@ -77,7 +77,7 @@ func (s *Session) Shutdown(ctx context.Context) {
 	}
 	s.views = nil
 	s.viewMap = nil
-	s.cache.debug.DropSession(debugSession{s})
+	s.cache.debug.DropSession(DebugSession{s})
 }
 
 func (s *Session) Cache() source.Cache {

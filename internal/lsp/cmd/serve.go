@@ -66,9 +66,9 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 	var ss jsonrpc2.StreamServer
 	if s.app.Remote != "" {
 		network, addr := parseAddr(s.app.Remote)
-		ss = lsprpc.NewForwarder(network, addr, true)
+		ss = lsprpc.NewForwarder(network, addr, true, s.app.debug)
 	} else {
-		ss = lsprpc.NewStreamServer(cache.New(s.app.options, s.app.debug.State), true)
+		ss = lsprpc.NewStreamServer(cache.New(s.app.options, s.app.debug.State), true, s.app.debug)
 	}
 
 	if s.Address != "" {

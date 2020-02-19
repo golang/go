@@ -87,7 +87,7 @@ func (c *Cache) NewSession() *Session {
 		options:  source.DefaultOptions(),
 		overlays: make(map[span.URI]*overlay),
 	}
-	c.debug.AddSession(debugSession{s})
+	c.debug.AddSession(DebugSession{s})
 	return s
 }
 

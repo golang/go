@@ -20,6 +20,7 @@ import (
 
 	"golang.org/x/tools/internal/jsonrpc2/servertest"
 	"golang.org/x/tools/internal/lsp/cache"
+	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/lsprpc"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -79,7 +80,8 @@ func (r *Runner) getTestServer() *servertest.TCPServer {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.ts == nil {
-		ss := lsprpc.NewStreamServer(cache.New(nil, nil), false)
+		di := debug.NewInstance("", "")
+		ss := lsprpc.NewStreamServer(cache.New(nil, di.State), false, di)
 		r.ts = servertest.NewTCPServer(context.Background(), ss)
 	}
 	return r.ts
@@ -184,7 +186,8 @@ func (r *Runner) RunInMode(modes EnvMode, t *testing.T, filedata string, test fu
 }
 
 func (r *Runner) singletonEnv(ctx context.Context, t *testing.T) (servertest.Connector, func()) {
-	ss := lsprpc.NewStreamServer(cache.New(nil, nil), false)
+	di := debug.NewInstance("", "")
+	ss := lsprpc.NewStreamServer(cache.New(nil, di.State), false, di)
 	ts := servertest.NewPipeServer(ctx, ss)
 	cleanup := func() {
 		ts.Close()
@@ -198,7 +201,7 @@ func (r *Runner) sharedEnv(ctx context.Context, t *testing.T) (servertest.Connec
 
 func (r *Runner) forwardedEnv(ctx context.Context, t *testing.T) (servertest.Connector, func()) {
 	ts := r.getTestServer()
-	forwarder := lsprpc.NewForwarder("tcp", ts.Addr, false)
+	forwarder := lsprpc.NewForwarder("tcp", ts.Addr, false, debug.NewInstance("", ""))
 	ts2 := servertest.NewPipeServer(ctx, forwarder)
 	cleanup := func() {
 		ts2.Close()
@@ -208,7 +211,7 @@ func (r *Runner) forwardedEnv(ctx context.Context, t *testing.T) (servertest.Con
 
 func (r *Runner) separateProcessEnv(ctx context.Context, t *testing.T) (servertest.Connector, func()) {
 	socket := r.getRemoteSocket(t)
-	forwarder := lsprpc.NewForwarder("unix", socket, false)
+	forwarder := lsprpc.NewForwarder("unix", socket, false, debug.NewInstance("", ""))
 	ts2 := servertest.NewPipeServer(ctx, forwarder)
 	cleanup := func() {
 		ts2.Close()

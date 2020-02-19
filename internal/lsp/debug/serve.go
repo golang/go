@@ -154,7 +154,7 @@ func (st *State) Servers() []Server {
 type Client interface {
 	ID() string
 	Session() Session
-	DebugAddr() string
+	DebugAddress() string
 	Logfile() string
 	ServerID() string
 }
@@ -162,7 +162,7 @@ type Client interface {
 // A Server is an outgoing connection to a remote LSP server.
 type Server interface {
 	ID() string
-	DebugAddr() string
+	DebugAddress() string
 	Logfile() string
 	ClientID() string
 }
@@ -644,7 +644,7 @@ var clientTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{define "title"}}Client {{.ID}}{{end}}
 {{define "body"}}
 Using session: <b>{{template "sessionlink" .Session.ID}}</b><br>
-Debug this client at: <a href="http://{{url .DebugAddr}}">{{.DebugAddr}}</a><br>
+Debug this client at: <a href="http://{{url .DebugAddress}}">{{.DebugAddress}}</a><br>
 Logfile: {{.Logfile}}<br>
 {{end}}
 `))
@@ -652,7 +652,7 @@ Logfile: {{.Logfile}}<br>
 var serverTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{define "title"}}Server {{.ID}}{{end}}
 {{define "body"}}
-Debug this server at: <a href="http://{{.DebugAddr}}">{{.DebugAddr}}</a><br>
+Debug this server at: <a href="http://{{.DebugAddress}}">{{.DebugAddress}}</a><br>
 Logfile: {{.Logfile}}<br>
 {{end}}
 `))

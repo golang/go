@@ -13,6 +13,8 @@ import (
 
 	"golang.org/x/tools/internal/jsonrpc2/servertest"
 	"golang.org/x/tools/internal/lsp/cache"
+	"golang.org/x/tools/internal/lsp/debug"
+	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/telemetry/log"
 )
@@ -42,7 +44,8 @@ func TestClientLogging(t *testing.T) {
 	server := pingServer{}
 	client := fakeClient{logs: make(chan string, 10)}
 
-	ss := NewStreamServer(cache.New(nil, nil), false)
+	di := debug.NewInstance("", "")
+	ss := NewStreamServer(cache.New(nil, di.State), false, di)
 	ss.serverForTest = server
 	ts := servertest.NewPipeServer(ctx, ss)
 	cc := ts.Connect(ctx)
@@ -92,12 +95,13 @@ func TestRequestCancellation(t *testing.T) {
 	server := waitableServer{
 		started: make(chan struct{}),
 	}
-	ss := NewStreamServer(cache.New(nil, nil), false)
+	diserve := debug.NewInstance("", "")
+	ss := NewStreamServer(cache.New(nil, diserve.State), false, diserve)
 	ss.serverForTest = server
 	ctx := context.Background()
 	tsDirect := servertest.NewTCPServer(ctx, ss)
 
-	forwarder := NewForwarder("tcp", tsDirect.Addr, false)
+	forwarder := NewForwarder("tcp", tsDirect.Addr, false, debug.NewInstance("", ""))
 	tsForwarded := servertest.NewPipeServer(ctx, forwarder)
 
 	tests := []struct {
@@ -157,5 +161,60 @@ import "fmt"
 func main() {
 	fmt.Println("Hello World.")
 }`
+
+func TestDebugInfoLifecycle(t *testing.T) {
+	resetExitFuncs := OverrideExitFuncsForTest()
+	defer resetExitFuncs()
+
+	clientDebug := debug.NewInstance("", "")
+	serverDebug := debug.NewInstance("", "")
+
+	cache := cache.New(nil, serverDebug.State)
+	ss := NewStreamServer(cache, false, serverDebug)
+	ctx := context.Background()
+	tsBackend := servertest.NewTCPServer(ctx, ss)
+
+	forwarder := NewForwarder("tcp", tsBackend.Addr, false, clientDebug)
+	tsForwarder := servertest.NewPipeServer(ctx, forwarder)
+
+	ws, err := fake.NewWorkspace("gopls-lsprpc-test", []byte(exampleProgram))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ws.Close()
+
+	conn1 := tsForwarder.Connect(ctx)
+	ed1, err := fake.NewConnectedEditor(ctx, ws, conn1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ed1.Shutdown(ctx)
+	conn2 := tsBackend.Connect(ctx)
+	ed2, err := fake.NewConnectedEditor(ctx, ws, conn2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ed2.Shutdown(ctx)
+
+	if got, want := len(serverDebug.State.Clients()), 2; got != want {
+		t.Errorf("len(server:Clients) = %d, want %d", got, want)
+	}
+	if got, want := len(serverDebug.State.Sessions()), 2; got != want {
+		t.Errorf("len(server:Sessions) = %d, want %d", got, want)
+	}
+	if got, want := len(clientDebug.State.Servers()), 1; got != want {
+		t.Errorf("len(client:Servers) = %d, want %d", got, want)
+	}
+	// Close one of the connections to verify that the client and session were
+	// dropped.
+	if err := ed1.Shutdown(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := len(serverDebug.State.Sessions()), 1; got != want {
+		t.Errorf("len(server:Sessions()) = %d, want %d", got, want)
+	}
+	// TODO(rfindley): once disconnection works, assert that len(Clients) == 1
+	// (as of writing, it is still 2)
+}
 
 // TODO: add a test for telemetry.

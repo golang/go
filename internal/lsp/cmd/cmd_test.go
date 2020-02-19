@@ -18,6 +18,7 @@ import (
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/cmd"
 	cmdtest "golang.org/x/tools/internal/lsp/cmd/test"
+	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/lsprpc"
 	"golang.org/x/tools/internal/lsp/tests"
 	"golang.org/x/tools/internal/testenv"
@@ -46,8 +47,9 @@ func testCommandLine(t *testing.T, exporter packagestest.Exporter) {
 }
 
 func testServer(ctx context.Context) *servertest.TCPServer {
-	cache := cache.New(nil, nil)
-	ss := lsprpc.NewStreamServer(cache, false)
+	di := debug.NewInstance("", "")
+	cache := cache.New(nil, di.State)
+	ss := lsprpc.NewStreamServer(cache, false, di)
 	return servertest.NewTCPServer(ctx, ss)
 }
 

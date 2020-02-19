@@ -13,6 +13,7 @@ import (
 	"golang.org/x/tools/internal/jsonrpc2/servertest"
 	"golang.org/x/tools/internal/lsp/cache"
 	cmdtest "golang.org/x/tools/internal/lsp/cmd/test"
+	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/lsprpc"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/tests"
@@ -41,8 +42,9 @@ func testCommandLine(t *testing.T, exporter packagestest.Exporter) {
 	}
 	data := tests.Load(t, exporter, testdata)
 	ctx := tests.Context(t)
-	cache := cache.New(commandLineOptions, nil)
-	ss := lsprpc.NewStreamServer(cache, false)
+	di := debug.NewInstance("", "")
+	cache := cache.New(commandLineOptions, di.State)
+	ss := lsprpc.NewStreamServer(cache, false, di)
 	ts := servertest.NewTCPServer(ctx, ss)
 	for _, data := range data {
 		defer data.Exported.Cleanup()

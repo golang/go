@@ -14,14 +14,14 @@ import (
 type debugView struct{ *view }
 
 func (v debugView) ID() string             { return v.id }
-func (v debugView) Session() debug.Session { return debugSession{v.session} }
+func (v debugView) Session() debug.Session { return DebugSession{v.session} }
 func (v debugView) Env() []string          { return v.Options().Env }
 
-type debugSession struct{ *Session }
+type DebugSession struct{ *Session }
 
-func (s debugSession) ID() string         { return s.id }
-func (s debugSession) Cache() debug.Cache { return debugCache{s.cache} }
-func (s debugSession) Files() []*debug.File {
+func (s DebugSession) ID() string         { return s.id }
+func (s DebugSession) Cache() debug.Cache { return debugCache{s.cache} }
+func (s DebugSession) Files() []*debug.File {
 	var files []*debug.File
 	seen := make(map[span.URI]*debug.File)
 	s.overlayMu.Lock()
@@ -43,7 +43,7 @@ func (s debugSession) Files() []*debug.File {
 	return files
 }
 
-func (s debugSession) File(hash string) *debug.File {
+func (s DebugSession) File(hash string) *debug.File {
 	s.overlayMu.Lock()
 	defer s.overlayMu.Unlock()
 	for _, overlay := range s.overlays {
