@@ -662,7 +662,7 @@ func (s *mspan) oldSweep(preserve bool) bool {
 			special = *specialp
 		}
 	}
-	if go115NewMarkrootSpans && hadSpecials && s.specials == nil {
+	if hadSpecials && s.specials == nil {
 		spanHasNoSpecials(s)
 	}
 
