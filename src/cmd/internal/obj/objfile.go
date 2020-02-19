@@ -216,7 +216,7 @@ func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, 
 	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym, s.Func.dwarfAbsFnSym, s.Func.dwarfDebugLinesSym
 }
 
-func (s *LSym) Len() int64 {
+func (s *LSym) Length(dwarfContext interface{}) int64 {
 	return s.Size
 }
 

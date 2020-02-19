@@ -70,60 +70,70 @@ func newdwctxt2(linkctxt *Link, forTypeGen bool) dwctxt2 {
 	return d
 }
 
+// dwSym wraps a loader.Sym; this type is meant to obey the interface
+// rules for dwarf.Sym from the cmd/internal/dwarf package. DwDie and
+// DwAttr objects contain references to symbols via this type.
+type dwSym loader.Sym
+
+func (s dwSym) Length(dwarfContext interface{}) int64 {
+	l := dwarfContext.(dwctxt2).ldr
+	return int64(len(l.Data(loader.Sym(s))))
+}
+
 func (c dwctxt2) PtrSize() int {
 	return c.arch.PtrSize
 }
 
 func (c dwctxt2) AddInt(s dwarf.Sym, size int, i int64) {
-	ds := s.(dwSym)
-	dsu := ds.l.MakeSymbolUpdater(ds.s)
+	ds := loader.Sym(s.(dwSym))
+	dsu := c.ldr.MakeSymbolUpdater(ds)
 	dsu.AddUintXX(c.arch, uint64(i), size)
 }
 
 func (c dwctxt2) AddBytes(s dwarf.Sym, b []byte) {
-	ds := s.(dwSym)
-	dsu := ds.l.MakeSymbolUpdater(ds.s)
+	ds := loader.Sym(s.(dwSym))
+	dsu := c.ldr.MakeSymbolUpdater(ds)
 	dsu.AddBytes(b)
 }
 
 func (c dwctxt2) AddString(s dwarf.Sym, v string) {
-	ds := s.(dwSym)
-	dsu := ds.l.MakeSymbolUpdater(ds.s)
+	ds := loader.Sym(s.(dwSym))
+	dsu := c.ldr.MakeSymbolUpdater(ds)
 	dsu.Addstring(v)
 }
 
 func (c dwctxt2) AddAddress(s dwarf.Sym, data interface{}, value int64) {
-	ds := s.(dwSym)
-	dsu := ds.l.MakeSymbolUpdater(ds.s)
+	ds := loader.Sym(s.(dwSym))
+	dsu := c.ldr.MakeSymbolUpdater(ds)
 	if value != 0 {
 		value -= dsu.Value()
 	}
-	tgtds := data.(dwSym)
-	dsu.AddAddrPlus(c.arch, tgtds.s, value)
+	tgtds := loader.Sym(data.(dwSym))
+	dsu.AddAddrPlus(c.arch, tgtds, value)
 }
 
 func (c dwctxt2) AddCURelativeAddress(s dwarf.Sym, data interface{}, value int64) {
-	ds := s.(dwSym)
-	dsu := ds.l.MakeSymbolUpdater(ds.s)
+	ds := loader.Sym(s.(dwSym))
+	dsu := c.ldr.MakeSymbolUpdater(ds)
 	if value != 0 {
 		value -= dsu.Value()
 	}
-	tgtds := data.(dwSym)
-	dsu.AddCURelativeAddrPlus(c.arch, tgtds.s, value)
+	tgtds := loader.Sym(data.(dwSym))
+	dsu.AddCURelativeAddrPlus(c.arch, tgtds, value)
 }
 
 func (c dwctxt2) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
-	ds := s.(dwSym)
-	dsu := ds.l.MakeSymbolUpdater(ds.s)
-	tds := t.(dwSym)
+	ds := loader.Sym(s.(dwSym))
+	dsu := c.ldr.MakeSymbolUpdater(ds)
+	tds := loader.Sym(t.(dwSym))
 	switch size {
 	default:
-		c.linkctxt.Errorf(ds.s, "invalid size %d in adddwarfref\n", size)
+		c.linkctxt.Errorf(ds, "invalid size %d in adddwarfref\n", size)
 		fallthrough
 	case c.arch.PtrSize:
-		dsu.AddAddrPlus(c.arch, tds.s, 0)
+		dsu.AddAddrPlus(c.arch, tds, 0)
 	case 4:
-		dsu.AddAddrPlus4(c.arch, tds.s, 0)
+		dsu.AddAddrPlus4(c.arch, tds, 0)
 	}
 	rsl := dsu.Relocs()
 	r := &rsl[len(rsl)-1]
@@ -139,8 +149,8 @@ func (c dwctxt2) AddDWARFAddrSectionOffset(s dwarf.Sym, t interface{}, ofs int64
 
 	c.AddSectionOffset(s, size, t, ofs)
 
-	ds := s.(dwSym)
-	dsu := ds.l.MakeSymbolUpdater(ds.s)
+	ds := loader.Sym(s.(dwSym))
+	dsu := c.ldr.MakeSymbolUpdater(ds)
 	rsl := dsu.Relocs()
 	r := &rsl[len(rsl)-1]
 	r.Type = objabi.R_DWARFSECREF
@@ -166,23 +176,6 @@ func (c dwctxt2) RecordDclReference(s dwarf.Sym, t dwarf.Sym, dclIdx int, inlInd
 
 func (c dwctxt2) RecordChildDieOffsets(s dwarf.Sym, vars []*dwarf.Var, offsets []int32) {
 	panic("should be used only in the compiler")
-}
-
-// dwSym wraps a loader.Sym; objects of this type are stored
-// in the 'Sym' field of dwarf.DIE objects.
-//
-// FIXME: the main reason we need the loader.Loader pointer field is
-// that the dwarf.Sym interface has a Len() method with no parameters.
-// If we changed this method to accept a dwxtxt (from which we could
-// access the loader) then we could get rid of this field and/or avoid
-// using a struct.
-type dwSym struct {
-	s loader.Sym
-	l *loader.Loader
-}
-
-func (s dwSym) Len() int64 {
-	return int64(len(s.l.Data(s.s)))
 }
 
 var gdbscript string
@@ -264,7 +257,7 @@ func (d *dwctxt2) newdie(parent *dwarf.DWDie, abbrev int, name string, version i
 			dsu.SetType(sym.SDWARFINFO)
 			d.ldr.SetAttrNotInSymbolTable(ds, true)
 			d.ldr.SetAttrReachable(ds, true)
-			die.Sym = dwSym{s: ds, l: d.ldr}
+			die.Sym = dwSym(ds)
 			if abbrev >= dwarf.DW_ABRV_NULLTYPE && abbrev <= dwarf.DW_ABRV_TYPEDECL {
 				d.tmap[name] = ds
 			}
@@ -361,15 +354,15 @@ func (d *dwctxt2) newrefattr(die *dwarf.DWDie, attr uint16, ref loader.Sym) *dwa
 	if ref == 0 {
 		return nil
 	}
-	return newattr(die, attr, dwarf.DW_CLS_REFERENCE, 0, dwSym{s: ref, l: d.ldr})
+	return newattr(die, attr, dwarf.DW_CLS_REFERENCE, 0, dwSym(ref))
 }
 
 func (d *dwctxt2) dtolsym(s dwarf.Sym) loader.Sym {
 	if s == nil {
 		return 0
 	}
-	dws := s.(dwSym)
-	return dws.s
+	dws := loader.Sym(s.(dwSym))
+	return dws
 }
 
 func (d *dwctxt2) putdie(syms []loader.Sym, die *dwarf.DWDie) []loader.Sym {
@@ -405,7 +398,7 @@ func newmemberoffsetattr(die *dwarf.DWDie, offs int32) {
 // GDB doesn't like FORM_addr for AT_location, so emit a
 // location expression that evals to a const.
 func (d *dwctxt2) newabslocexprattr(die *dwarf.DWDie, addr int64, symIdx loader.Sym) {
-	newattr(die, dwarf.DW_AT_location, dwarf.DW_CLS_ADDRESS, addr, dwSym{s: symIdx, l: d.ldr})
+	newattr(die, dwarf.DW_AT_location, dwarf.DW_CLS_ADDRESS, addr, dwSym(symIdx))
 }
 
 func (d *dwctxt2) lookupOrDiag(n string) loader.Sym {
@@ -444,7 +437,7 @@ func (d *dwctxt2) dotypedef(parent *dwarf.DWDie, gotype loader.Sym, name string,
 	tds := d.ldr.CreateExtSym("")
 	tdsu := d.ldr.MakeSymbolUpdater(tds)
 	tdsu.SetType(sym.SDWARFINFO)
-	def.Sym = dwSym{s: tds, l: d.ldr}
+	def.Sym = dwSym(tds)
 	d.ldr.SetAttrNotInSymbolTable(tds, true)
 	d.ldr.SetAttrReachable(tds, true)
 
@@ -483,8 +476,8 @@ func (d *dwctxt2) defgotype(gotype loader.Sym) loader.Sym {
 	}
 
 	gtdwSym := d.newtype(gotype)
-	d.tdmap[gotype] = gtdwSym.Sym.(dwSym).s
-	return gtdwSym.Sym.(dwSym).s
+	d.tdmap[gotype] = loader.Sym(gtdwSym.Sym.(dwSym))
+	return loader.Sym(gtdwSym.Sym.(dwSym))
 }
 
 func (d *dwctxt2) newtype(gotype loader.Sym) *dwarf.DWDie {
@@ -654,7 +647,7 @@ func (d *dwctxt2) newtype(gotype loader.Sym) *dwarf.DWDie {
 	newattr(die, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, int64(kind), 0)
 
 	if d.ldr.AttrReachable(gotype) {
-		newattr(die, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, dwSym{s: gotype, l: d.ldr})
+		newattr(die, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, dwSym(gotype))
 	}
 
 	// Sanity check.
@@ -662,11 +655,11 @@ func (d *dwctxt2) newtype(gotype loader.Sym) *dwarf.DWDie {
 		log.Fatalf("internal error: rtmap entry already installed\n")
 	}
 
-	ds := die.Sym.(dwSym)
+	ds := loader.Sym(die.Sym.(dwSym))
 	if typedefdie != nil {
-		ds = typedefdie.Sym.(dwSym)
+		ds = loader.Sym(typedefdie.Sym.(dwSym))
 	}
-	d.rtmap[ds.s] = gotype
+	d.rtmap[ds] = gotype
 
 	if _, ok := prototypedies[sn]; ok {
 		prototypedies[sn] = die
@@ -702,13 +695,13 @@ func (d *dwctxt2) defptrto(dwtype loader.Sym) loader.Sym {
 	// pointers of slices. Link to the ones we can find.
 	gts := d.ldr.Lookup("type."+ptrname, 0)
 	if gts != 0 && d.ldr.AttrReachable(gts) {
-		newattr(pdie, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, dwSym{s: gts, l: d.ldr})
+		newattr(pdie, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, dwSym(gts))
 	}
 
 	if gts != 0 {
-		ds := pdie.Sym.(dwSym)
-		d.rtmap[ds.s] = gts
-		d.tdmap[gts] = ds.s
+		ds := loader.Sym(pdie.Sym.(dwSym))
+		d.rtmap[ds] = gts
+		d.tdmap[gts] = ds
 	}
 
 	return d.dtolsym(pdie.Sym)
@@ -748,7 +741,7 @@ func (d *dwctxt2) substitutetype(structdie *dwarf.DWDie, field string, dwtype lo
 
 	a := getattr(child, dwarf.DW_AT_type)
 	if a != nil {
-		a.Data = dwSym{s: dwtype, l: d.ldr}
+		a.Data = dwSym(dwtype)
 	} else {
 		d.newrefattr(child, dwarf.DW_AT_type, dwtype)
 	}
@@ -791,7 +784,7 @@ func (d *dwctxt2) synthesizeslicetypes(ctxt *Link, die *dwarf.DWDie) {
 			continue
 		}
 		d.copychildren(ctxt, die, prototype)
-		elem := getattr(die, dwarf.DW_AT_go_elem).Data.(dwSym).s
+		elem := loader.Sym(getattr(die, dwarf.DW_AT_go_elem).Data.(dwSym))
 		d.substitutetype(die, "array", d.defptrto(elem))
 	}
 }
@@ -834,7 +827,7 @@ func (d *dwctxt2) synthesizemaptypes(ctxt *Link, die *dwarf.DWDie) {
 		if die.Abbrev != dwarf.DW_ABRV_MAPTYPE {
 			continue
 		}
-		gotype := getattr(die, dwarf.DW_AT_type).Data.(dwSym).s
+		gotype := loader.Sym(getattr(die, dwarf.DW_AT_type).Data.(dwSym))
 		keytype := decodetypeMapKey2(d.ldr, d.arch, gotype)
 		valtype := decodetypeMapValue2(d.ldr, d.arch, gotype)
 		keydata := d.ldr.Data(keytype)
@@ -932,7 +925,7 @@ func (d *dwctxt2) synthesizechantypes(ctxt *Link, die *dwarf.DWDie) {
 		if die.Abbrev != dwarf.DW_ABRV_CHANTYPE {
 			continue
 		}
-		elemgotype := getattr(die, dwarf.DW_AT_type).Data.(dwSym).s
+		elemgotype := loader.Sym(getattr(die, dwarf.DW_AT_type).Data.(dwSym))
 		tname := d.ldr.SymName(elemgotype)
 		elemname := tname[5:]
 		elemtype := d.walksymtypedef(d.defgotype(d.lookupOrDiag(tname)))
@@ -1200,11 +1193,11 @@ func (d *dwctxt2) mkBuiltinType(ctxt *Link, abrv int, tname string) *dwarf.DWDie
 	gotype := d.lookupOrDiag("type." + tname)
 
 	// Map from die sym to type sym
-	ds := die.Sym.(dwSym)
-	d.rtmap[ds.s] = gotype
+	ds := loader.Sym(die.Sym.(dwSym))
+	d.rtmap[ds] = gotype
 
 	// Map from type to def sym
-	d.tdmap[gotype] = ds.s
+	d.tdmap[gotype] = ds
 
 	return die
 }
@@ -1241,7 +1234,7 @@ func dwarfGenerateDebugInfo2(ctxt *Link) {
 	newattr(die, dwarf.DW_AT_encoding, dwarf.DW_CLS_CONSTANT, dwarf.DW_ATE_unsigned, 0)
 	newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, int64(d.arch.PtrSize), 0)
 	newattr(die, dwarf.DW_AT_go_kind, dwarf.DW_CLS_CONSTANT, objabi.KindUintptr, 0)
-	newattr(die, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_ADDRESS, 0, dwSym{s: d.lookupOrDiag("type.uintptr"), l: d.ldr})
+	newattr(die, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_ADDRESS, 0, dwSym(d.lookupOrDiag("type.uintptr")))
 
 	d.uintptrInfoSym = d.mustFind("uintptr")
 
@@ -1515,19 +1508,19 @@ func convertSymbolsInDIE(ctxt *Link, die *dwarf.DWDie, convdies map[*dwarf.DWDie
 	}
 	convdies[die] = true
 	if die.Sym != nil {
-		symIdx, ok := die.Sym.(dwSym)
+		ds, ok := die.Sym.(dwSym)
 		if !ok {
 			panic("bad die sym field")
 		}
-		ls := symIdx.s
-		if ls == 0 {
+		symIdx := loader.Sym(ds)
+		if symIdx == 0 {
 			panic("zero loader sym for die")
 		}
-		die.Sym = ctxt.loader.Syms[symIdx.s]
+		die.Sym = ctxt.loader.Syms[symIdx]
 	}
 	for a := die.Attr; a != nil; a = a.Link {
 		if attrSym, ok := a.Data.(dwSym); ok {
-			a.Data = ctxt.loader.Syms[attrSym.s]
+			a.Data = ctxt.loader.Syms[loader.Sym(attrSym)]
 		}
 	}
 	convertSymbolsInDIE(ctxt, die.Child, convdies)
