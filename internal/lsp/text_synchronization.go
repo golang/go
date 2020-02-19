@@ -73,19 +73,47 @@ func (s *Server) didChange(ctx context.Context, params *protocol.DidChangeTextDo
 
 func (s *Server) didChangeWatchedFiles(ctx context.Context, params *protocol.DidChangeWatchedFilesParams) error {
 	var modifications []source.FileModification
+	deletions := make(map[span.URI]struct{})
 	for _, change := range params.Changes {
 		uri := change.URI.SpanURI()
 		if !uri.IsFile() {
 			continue
 		}
+		action := changeTypeToFileAction(change.Type)
 		modifications = append(modifications, source.FileModification{
 			URI:    uri,
-			Action: changeTypeToFileAction(change.Type),
+			Action: action,
 			OnDisk: true,
 		})
+		// Keep track of deleted files so that we can clear their diagnostics.
+		// A file might be re-created after deletion, so only mark files that
+		// have truly been deleted.
+		switch action {
+		case source.Delete:
+			deletions[uri] = struct{}{}
+		case source.Close:
+		default:
+			delete(deletions, uri)
+		}
 	}
-	_, err := s.didModifyFiles(ctx, modifications)
-	return err
+	snapshots, err := s.didModifyFiles(ctx, modifications)
+	if err != nil {
+		return err
+	}
+	// Clear the diagnostics for any deleted files.
+	for uri := range deletions {
+		if snapshot := snapshots[uri]; snapshot == nil || snapshot.IsOpen(uri) {
+			continue
+		}
+		if err := s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
+			URI:         protocol.URIFromSpanURI(uri),
+			Diagnostics: []protocol.Diagnostic{},
+			Version:     0,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Server) didSave(ctx context.Context, params *protocol.DidSaveTextDocumentParams) error {
@@ -93,7 +121,6 @@ func (s *Server) didSave(ctx context.Context, params *protocol.DidSaveTextDocume
 	if !uri.IsFile() {
 		return nil
 	}
-
 	c := source.FileModification{
 		URI:     uri,
 		Action:  source.Save,
@@ -111,8 +138,7 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 	if !uri.IsFile() {
 		return nil
 	}
-
-	_, err := s.didModifyFiles(ctx, []source.FileModification{
+	snapshots, err := s.didModifyFiles(ctx, []source.FileModification{
 		{
 			URI:     uri,
 			Action:  source.Close,
@@ -120,7 +146,26 @@ func (s *Server) didClose(ctx context.Context, params *protocol.DidCloseTextDocu
 			Text:    nil,
 		},
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	snapshot := snapshots[uri]
+	if snapshot == nil {
+		return errors.Errorf("no snapshot for %s", uri)
+	}
+	fh, err := snapshot.GetFile(uri)
+	if err != nil {
+		return err
+	}
+	// If a file has been closed and is not on disk, clear its diagnostics.
+	if _, _, err := fh.Read(ctx); err != nil {
+		return s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
+			URI:         protocol.URIFromSpanURI(uri),
+			Diagnostics: []protocol.Diagnostic{},
+			Version:     0,
+		})
+	}
+	return nil
 }
 
 func (s *Server) didModifyFiles(ctx context.Context, modifications []source.FileModification) (map[span.URI]source.Snapshot, error) {

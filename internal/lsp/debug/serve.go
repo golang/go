@@ -258,7 +258,7 @@ func (i *Instance) Prepare(ctx context.Context) {
 	export.AddExporters(i.ocagent, i.prometheus, i.rpcs, i.traces)
 }
 
-func (i *Instance) SetLogFile(logfile string) (error, func()) {
+func (i *Instance) SetLogFile(logfile string) (func(), error) {
 	// TODO: probably a better solution for deferring closure to the caller would
 	// be for the debug instance to itself be closed, but this fixes the
 	// immediate bug of logs not being captured.
@@ -269,7 +269,7 @@ func (i *Instance) SetLogFile(logfile string) (error, func()) {
 		}
 		f, err := os.Create(logfile)
 		if err != nil {
-			return fmt.Errorf("Unable to create log file: %v", err), nil
+			return nil, fmt.Errorf("unable to create log file: %v", err)
 		}
 		closeLog = func() {
 			defer f.Close()
@@ -278,7 +278,7 @@ func (i *Instance) SetLogFile(logfile string) (error, func()) {
 		i.LogWriter = f
 	}
 	i.Logfile = logfile
-	return nil, closeLog
+	return closeLog, nil
 }
 
 // Serve starts and runs a debug server in the background.

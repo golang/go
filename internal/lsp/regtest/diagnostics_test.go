@@ -80,15 +80,25 @@ func TestDiagnosticClearingOnEdit(t *testing.T) {
 }
 
 func TestDiagnosticClearingOnDelete(t *testing.T) {
-	t.Skip("skipping due to golang.org/issues/37049")
-
 	t.Parallel()
 	runner.Run(t, badPackage, func(ctx context.Context, t *testing.T, env *Env) {
 		env.OpenFile("a.go")
 		env.Await(DiagnosticAt("a.go", 2, 6), DiagnosticAt("b.go", 2, 6))
 		env.RemoveFileFromWorkspace("b.go")
 
-		// TODO(golang.org/issues/37049): here we only get diagnostics for a.go.
 		env.Await(EmptyDiagnostics("a.go"), EmptyDiagnostics("b.go"))
+	})
+}
+
+func TestDiagnosticClearingOnClose(t *testing.T) {
+	t.Parallel()
+	runner.Run(t, badPackage, func(ctx context.Context, t *testing.T, env *Env) {
+		env.E.CreateBuffer(env.ctx, "c.go", `package consts
+
+const a = 3`)
+		env.Await(DiagnosticAt("a.go", 2, 6), DiagnosticAt("b.go", 2, 6), DiagnosticAt("c.go", 2, 6))
+		env.E.CloseBuffer(env.ctx, "c.go")
+
+		env.Await(DiagnosticAt("a.go", 2, 6), DiagnosticAt("b.go", 2, 6), EmptyDiagnostics("c.go"))
 	})
 }

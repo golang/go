@@ -53,7 +53,7 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 		return tool.CommandLineErrorf("server does not take arguments, got %v", args)
 	}
 
-	err, closeLog := s.app.debug.SetLogFile(s.Logfile)
+	closeLog, err := s.app.debug.SetLogFile(s.Logfile)
 	if err != nil {
 		return err
 	}
