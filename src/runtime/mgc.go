@@ -2149,21 +2149,13 @@ func gcSweep(mode gcMode) {
 	lock(&mheap_.lock)
 	mheap_.sweepgen += 2
 	mheap_.sweepdone = 0
-	if !go115NewMCentralImpl && mheap_.sweepSpans[mheap_.sweepgen/2%2].index != 0 {
-		// We should have drained this list during the last
-		// sweep phase. We certainly need to start this phase
-		// with an empty swept list.
-		throw("non-empty swept list")
-	}
 	mheap_.pagesSwept = 0
 	mheap_.sweepArenas = mheap_.allArenas
 	mheap_.reclaimIndex = 0
 	mheap_.reclaimCredit = 0
 	unlock(&mheap_.lock)
 
-	if go115NewMCentralImpl {
-		sweep.centralIndex.clear()
-	}
+	sweep.centralIndex.clear()
 
 	if !_ConcurrentSweep || mode == gcForceBlockMode {
 		// Special case synchronous sweep.
