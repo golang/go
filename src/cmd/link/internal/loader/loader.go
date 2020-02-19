@@ -1627,6 +1627,9 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
 		if !added {
 			continue
 		}
+		if osym.TopFrame() {
+			l.SetAttrTopFrame(gi, true)
+		}
 		if strings.HasPrefix(name, "go.itablink.") {
 			l.itablink[gi] = struct{}{}
 		}
@@ -2021,6 +2024,7 @@ func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {
 	dst.Attr.Set(sym.AttrOnList, l.AttrOnList(src))
 	dst.Attr.Set(sym.AttrLocal, l.AttrLocal(src))
 	dst.Attr.Set(sym.AttrNotInSymbolTable, l.AttrNotInSymbolTable(src))
+	dst.Attr.Set(sym.AttrNoSplit, l.IsNoSplit(src))
 	dst.Attr.Set(sym.AttrVisibilityHidden, l.AttrVisibilityHidden(src))
 	dst.Attr.Set(sym.AttrDuplicateOK, l.AttrDuplicateOK(src))
 	dst.Attr.Set(sym.AttrShared, l.AttrShared(src))
