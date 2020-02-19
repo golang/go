@@ -324,7 +324,7 @@ func (subst *subster) typ(typ Type) Type {
 		}
 
 		// create a new named type and populate caches to avoid endless recursion
-		tname := NewTypeName(subst.pos, subst.check.pkg, name, nil)
+		tname := NewTypeName(subst.pos, t.obj.pkg, name, nil)
 		subst.check.typMap[name] = tname
 		named := NewNamed(tname, nil, nil)
 		named.tparams = t.tparams // new type is still parameterized
