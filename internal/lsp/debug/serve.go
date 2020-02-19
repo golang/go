@@ -35,13 +35,15 @@ import (
 	"golang.org/x/tools/internal/telemetry/tag"
 )
 
+// An Instance holds all debug information associated with a gopls instance.
 type Instance struct {
-	Logfile       string
-	StartTime     time.Time
-	ServerAddress string
-	DebugAddress  string
-	Workdir       string
-	OCAgentConfig string
+	Logfile              string
+	StartTime            time.Time
+	ServerAddress        string
+	DebugAddress         string
+	ListenedDebugAddress string
+	Workdir              string
+	OCAgentConfig        string
 
 	LogWriter io.Writer
 
@@ -49,14 +51,130 @@ type Instance struct {
 	prometheus *prometheus.Exporter
 	rpcs       *rpcs
 	traces     *traces
+	State      *State
 }
 
+// State holds debugging information related to the server state.
+type State struct {
+	mu       sync.Mutex
+	caches   objset
+	sessions objset
+	views    objset
+	clients  objset
+	servers  objset
+}
+
+type ider interface {
+	ID() string
+}
+
+type objset struct {
+	objs []ider
+}
+
+func (s *objset) add(elem ider) {
+	s.objs = append(s.objs, elem)
+}
+
+func (s *objset) drop(elem ider) {
+	var newobjs []ider
+	for _, obj := range s.objs {
+		if obj.ID() != elem.ID() {
+			newobjs = append(newobjs, obj)
+		}
+	}
+	s.objs = newobjs
+}
+
+func (s *objset) find(id string) ider {
+	for _, e := range s.objs {
+		if e.ID() == id {
+			return e
+		}
+	}
+	return nil
+}
+
+// Caches returns the set of Cache objects currently being served.
+func (st *State) Caches() []Cache {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	caches := make([]Cache, len(st.caches.objs))
+	for i, c := range st.caches.objs {
+		caches[i] = c.(Cache)
+	}
+	return caches
+}
+
+// Sessions returns the set of Session objects currently being served.
+func (st *State) Sessions() []Session {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	sessions := make([]Session, len(st.sessions.objs))
+	for i, s := range st.sessions.objs {
+		sessions[i] = s.(Session)
+	}
+	return sessions
+}
+
+// Views returns the set of View objects currently being served.
+func (st *State) Views() []View {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	views := make([]View, len(st.views.objs))
+	for i, v := range st.views.objs {
+		views[i] = v.(View)
+	}
+	return views
+}
+
+// Clients returns the set of Clients currently being served.
+func (st *State) Clients() []Client {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	clients := make([]Client, len(st.clients.objs))
+	for i, c := range st.clients.objs {
+		clients[i] = c.(Client)
+	}
+	return clients
+}
+
+// Servers returns the set of Servers the instance is currently connected to.
+func (st *State) Servers() []Server {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	servers := make([]Server, len(st.servers.objs))
+	for i, s := range st.servers.objs {
+		servers[i] = s.(Server)
+	}
+	return servers
+}
+
+// A Client is an incoming connection from a remote client.
+type Client interface {
+	ID() string
+	Session() Session
+	DebugAddr() string
+	Logfile() string
+	ServerID() string
+}
+
+// A Server is an outgoing connection to a remote LSP server.
+type Server interface {
+	ID() string
+	DebugAddr() string
+	Logfile() string
+	ClientID() string
+}
+
+// A Cache is an in-memory cache.
 type Cache interface {
 	ID() string
 	FileSet() *token.FileSet
 	MemStats() map[reflect.Type]int
 }
 
+// A Session is an LSP serving session.
 type Session interface {
 	ID() string
 	Cache() Cache
@@ -64,6 +182,7 @@ type Session interface {
 	File(hash string) *File
 }
 
+// A View is a root directory within a Session.
 type View interface {
 	ID() string
 	Name() string
@@ -71,6 +190,7 @@ type View interface {
 	Session() Session
 }
 
+// A File is is a file within a session.
 type File struct {
 	Session Session
 	URI     span.URI
@@ -79,55 +199,91 @@ type File struct {
 	Hash    string
 }
 
-var (
-	mu   sync.Mutex
-	data = struct {
-		Caches   []Cache
-		Sessions []Session
-		Views    []View
-	}{}
-)
-
-// AddCache adds a cache to the set being served
-func AddCache(cache Cache) {
-	mu.Lock()
-	defer mu.Unlock()
-	data.Caches = append(data.Caches, cache)
+// AddCache adds a cache to the set being served.
+func (st *State) AddCache(cache Cache) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	st.caches.add(cache)
 }
 
-// DropCache drops a cache from the set being served
-func DropCache(cache Cache) {
-	mu.Lock()
-	defer mu.Unlock()
-	//find and remove the cache
-	if i, _ := findCache(cache.ID()); i >= 0 {
-		copy(data.Caches[i:], data.Caches[i+1:])
-		data.Caches[len(data.Caches)-1] = nil
-		data.Caches = data.Caches[:len(data.Caches)-1]
-	}
+// DropCache drops a cache from the set being served.
+func (st *State) DropCache(cache Cache) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	st.caches.drop(cache)
 }
 
-func findCache(id string) (int, Cache) {
-	for i, c := range data.Caches {
-		if c.ID() == id {
-			return i, c
-		}
-	}
-	return -1, nil
+// AddSession adds a session to the set being served.
+func (st *State) AddSession(session Session) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	st.sessions.add(session)
 }
 
-func getCache(r *http.Request) interface{} {
-	mu.Lock()
-	defer mu.Unlock()
+// DropSession drops a session from the set being served.
+func (st *State) DropSession(session Session) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	st.sessions.drop(session)
+}
+
+// AddView adds a view to the set being served.
+func (st *State) AddView(view View) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	st.views.add(view)
+}
+
+// DropView drops a view from the set being served.
+func (st *State) DropView(view View) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	st.views.drop(view)
+}
+
+// AddClient adds a client to the set being served.
+func (st *State) AddClient(client Client) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	st.clients.add(client)
+}
+
+// DropClient adds a client to the set being served.
+func (st *State) DropClient(client Client) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	st.clients.drop(client)
+}
+
+// AddServer adds a server to the set being queried. In practice, there should
+// be at most one remote server.
+func (st *State) AddServer(server Server) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	st.servers.add(server)
+}
+
+// DropServer drops a server to the set being queried.
+func (st *State) DropServer(server Server) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	st.servers.drop(server)
+}
+
+func (i *Instance) getCache(r *http.Request) interface{} {
+	i.State.mu.Lock()
+	defer i.State.mu.Unlock()
 	id := path.Base(r.URL.Path)
 	result := struct {
 		Cache
 		Sessions []Session
-	}{}
-	_, result.Cache = findCache(id)
+	}{
+		Cache: i.State.caches.find(id).(Cache),
+	}
 
 	// now find all the views that belong to this session
-	for _, v := range data.Sessions {
+	for _, vd := range i.State.sessions.objs {
+		v := vd.(Session)
 		if v.Cache().ID() == id {
 			result.Sessions = append(result.Sessions, v)
 		}
@@ -135,28 +291,19 @@ func getCache(r *http.Request) interface{} {
 	return result
 }
 
-func findSession(id string) (int, Session) {
-	for i, c := range data.Sessions {
-		if c.ID() == id {
-			return i, c
-		}
-	}
-	return -1, nil
-}
-
-func getSession(r *http.Request) interface{} {
-	mu.Lock()
-	defer mu.Unlock()
+func (i *Instance) getSession(r *http.Request) interface{} {
+	i.State.mu.Lock()
+	defer i.State.mu.Unlock()
 	id := path.Base(r.URL.Path)
-	_, session := findSession(id)
 	result := struct {
 		Session
 		Views []View
 	}{
-		Session: session,
+		Session: i.State.sessions.find(id).(Session),
 	}
 	// now find all the views that belong to this session
-	for _, v := range data.Views {
+	for _, vd := range i.State.views.objs {
+		v := vd.(View)
 		if v.Session().ID() == id {
 			result.Views = append(result.Views, v)
 		}
@@ -164,38 +311,39 @@ func getSession(r *http.Request) interface{} {
 	return result
 }
 
-func findView(id string) (int, View) {
-	for i, c := range data.Views {
-		if c.ID() == id {
-			return i, c
-		}
-	}
-	return -1, nil
-}
-
-func getView(r *http.Request) interface{} {
-	mu.Lock()
-	defer mu.Unlock()
+func (i Instance) getClient(r *http.Request) interface{} {
+	i.State.mu.Lock()
+	defer i.State.mu.Unlock()
 	id := path.Base(r.URL.Path)
-	_, v := findView(id)
-	return v
+	return i.State.clients.find(id).(Client)
 }
 
-func getFile(r *http.Request) interface{} {
-	mu.Lock()
-	defer mu.Unlock()
+func (i Instance) getServer(r *http.Request) interface{} {
+	i.State.mu.Lock()
+	defer i.State.mu.Unlock()
+	id := path.Base(r.URL.Path)
+	return i.State.servers.find(id).(Server)
+}
+
+func (i Instance) getView(r *http.Request) interface{} {
+	i.State.mu.Lock()
+	defer i.State.mu.Unlock()
+	id := path.Base(r.URL.Path)
+	return i.State.views.find(id).(View)
+}
+
+func (i *Instance) getFile(r *http.Request) interface{} {
+	i.State.mu.Lock()
+	defer i.State.mu.Unlock()
 	hash := path.Base(r.URL.Path)
 	sid := path.Base(path.Dir(r.URL.Path))
-	_, session := findSession(sid)
-	return session.File(hash)
+	return i.State.sessions.find(sid).(Session).File(hash)
 }
 
-func (i *Instance) getInfo() dataFunc {
-	return func(r *http.Request) interface{} {
-		buf := &bytes.Buffer{}
-		i.PrintServerInfo(buf)
-		return template.HTML(buf.String())
-	}
+func (i *Instance) getInfo(r *http.Request) interface{} {
+	buf := &bytes.Buffer{}
+	i.PrintServerInfo(buf)
+	return template.HTML(buf.String())
 }
 
 func getMemory(r *http.Request) interface{} {
@@ -204,49 +352,13 @@ func getMemory(r *http.Request) interface{} {
 	return m
 }
 
-// AddSession adds a session to the set being served
-func AddSession(session Session) {
-	mu.Lock()
-	defer mu.Unlock()
-	data.Sessions = append(data.Sessions, session)
-}
-
-// DropSession drops a session from the set being served
-func DropSession(session Session) {
-	mu.Lock()
-	defer mu.Unlock()
-
-	if i, _ := findSession(session.ID()); i >= 0 {
-		copy(data.Sessions[i:], data.Sessions[i+1:])
-		data.Sessions[len(data.Sessions)-1] = nil
-		data.Sessions = data.Sessions[:len(data.Sessions)-1]
+// NewInstance creates debug instance ready for use using the supplied configuration.
+func NewInstance(workdir, agent string) *Instance {
+	i := &Instance{
+		StartTime:     time.Now(),
+		Workdir:       workdir,
+		OCAgentConfig: agent,
 	}
-}
-
-// AddView adds a view to the set being served
-func AddView(view View) {
-	mu.Lock()
-	defer mu.Unlock()
-	data.Views = append(data.Views, view)
-}
-
-// DropView drops a view from the set being served
-func DropView(view View) {
-	mu.Lock()
-	defer mu.Unlock()
-
-	//find and remove the view
-	if i, _ := findView(view.ID()); i >= 0 {
-		copy(data.Views[i:], data.Views[i+1:])
-		data.Views[len(data.Views)-1] = nil
-		data.Views = data.Views[:len(data.Views)-1]
-	}
-}
-
-// Prepare gets a debug instance ready for use using the supplied configuration.
-func (i *Instance) Prepare(ctx context.Context) {
-	mu.Lock()
-	defer mu.Unlock()
 	i.LogWriter = os.Stderr
 	ocConfig := ocagent.Discover()
 	//TODO: we should not need to adjust the discovered configuration
@@ -255,9 +367,12 @@ func (i *Instance) Prepare(ctx context.Context) {
 	i.prometheus = prometheus.New()
 	i.rpcs = &rpcs{}
 	i.traces = &traces{}
+	i.State = &State{}
 	export.AddExporters(i.ocagent, i.prometheus, i.rpcs, i.traces)
+	return i
 }
 
+// SetLogFile sets the logfile for use with this instance.
 func (i *Instance) SetLogFile(logfile string) (func(), error) {
 	// TODO: probably a better solution for deferring closure to the caller would
 	// be for the debug instance to itself be closed, but this fixes the
@@ -285,8 +400,6 @@ func (i *Instance) SetLogFile(logfile string) (func(), error) {
 // It also logs the port the server starts on, to allow for :0 auto assigned
 // ports.
 func (i *Instance) Serve(ctx context.Context) error {
-	mu.Lock()
-	defer mu.Unlock()
 	if i.DebugAddress == "" {
 		return nil
 	}
@@ -294,6 +407,7 @@ func (i *Instance) Serve(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	i.ListenedDebugAddress = listener.Addr().String()
 
 	port := listener.Addr().(*net.TCPAddr).Port
 	if strings.HasSuffix(i.DebugAddress, ":0") {
@@ -302,7 +416,7 @@ func (i *Instance) Serve(ctx context.Context) error {
 	log.Print(ctx, "Debug serving", tag.Of("Port", port))
 	go func() {
 		mux := http.NewServeMux()
-		mux.HandleFunc("/", render(mainTmpl, func(*http.Request) interface{} { return data }))
+		mux.HandleFunc("/", render(mainTmpl, func(*http.Request) interface{} { return i }))
 		mux.HandleFunc("/debug/", render(debugTmpl, nil))
 		mux.HandleFunc("/debug/pprof/", pprof.Index)
 		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
@@ -318,11 +432,13 @@ func (i *Instance) Serve(ctx context.Context) error {
 		if i.traces != nil {
 			mux.HandleFunc("/trace/", render(traceTmpl, i.traces.getData))
 		}
-		mux.HandleFunc("/cache/", render(cacheTmpl, getCache))
-		mux.HandleFunc("/session/", render(sessionTmpl, getSession))
-		mux.HandleFunc("/view/", render(viewTmpl, getView))
-		mux.HandleFunc("/file/", render(fileTmpl, getFile))
-		mux.HandleFunc("/info", render(infoTmpl, i.getInfo()))
+		mux.HandleFunc("/cache/", render(cacheTmpl, i.getCache))
+		mux.HandleFunc("/session/", render(sessionTmpl, i.getSession))
+		mux.HandleFunc("/view/", render(viewTmpl, i.getView))
+		mux.HandleFunc("/client/", render(clientTmpl, i.getClient))
+		mux.HandleFunc("/server/", render(serverTmpl, i.getServer))
+		mux.HandleFunc("/file/", render(fileTmpl, i.getFile))
+		mux.HandleFunc("/info", render(infoTmpl, i.getInfo))
 		mux.HandleFunc("/memory", render(memoryTmpl, getMemory))
 		if err := http.Serve(listener, mux); err != nil {
 			log.Error(ctx, "Debug server failed", err)
@@ -333,6 +449,7 @@ func (i *Instance) Serve(ctx context.Context) error {
 	return nil
 }
 
+// MonitorMemory starts recording memory statistics each second.
 func (i *Instance) MonitorMemory(ctx context.Context) {
 	tick := time.NewTicker(time.Second)
 	nextThresholdGiB := uint64(1)
@@ -386,6 +503,7 @@ func render(tmpl *template.Template, fun dataFunc) func(http.ResponseWriter, *ht
 		}
 		if err := tmpl.Execute(w, data); err != nil {
 			log.Error(context.Background(), "", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}
 }
@@ -441,23 +559,30 @@ Unknown page
 </html>
 
 {{define "cachelink"}}<a href="/cache/{{.}}">Cache {{.}}</a>{{end}}
+{{define "clientlink"}}<a href="/client/{{.}}">Client {{.}}</a>{{end}}
+{{define "serverlink"}}<a href="/server/{{.}}">Server {{.}}</a>{{end}}
 {{define "sessionlink"}}<a href="/session/{{.}}">Session {{.}}</a>{{end}}
 {{define "viewlink"}}<a href="/view/{{.}}">View {{.}}</a>{{end}}
 {{define "filelink"}}<a href="/file/{{.Session.ID}}/{{.Hash}}">{{.URI}}</a>{{end}}
 `)).Funcs(template.FuncMap{
 	"fuint64": fuint64,
 	"fuint32": fuint32,
+	"url":     func(s string) template.URL { return template.URL(s) },
 })
 
 var mainTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{define "title"}}GoPls server information{{end}}
 {{define "body"}}
 <h2>Caches</h2>
-<ul>{{range .Caches}}<li>{{template "cachelink" .ID}}</li>{{end}}</ul>
+<ul>{{range .State.Caches}}<li>{{template "cachelink" .ID}}</li>{{end}}</ul>
 <h2>Sessions</h2>
-<ul>{{range .Sessions}}<li>{{template "sessionlink" .ID}} from {{template "cachelink" .Cache.ID}}</li>{{end}}</ul>
+<ul>{{range .State.Sessions}}<li>{{template "sessionlink" .ID}} from {{template "cachelink" .Cache.ID}}</li>{{end}}</ul>
 <h2>Views</h2>
-<ul>{{range .Views}}<li>{{.Name}} is {{template "viewlink" .ID}} from {{template "sessionlink" .Session.ID}} in {{.Folder}}</li>{{end}}</ul>
+<ul>{{range .State.Views}}<li>{{.Name}} is {{template "viewlink" .ID}} from {{template "sessionlink" .Session.ID}} in {{.Folder}}</li>{{end}}</ul>
+<h2>Clients</h2>
+<ul>{{range .State.Clients}}<li>{{template "clientlink" .ID}}</li>{{end}}</ul>
+<h2>Servers</h2>
+<ul>{{range .State.Servers}}<li>{{template "serverlink" .ID}}</li>{{end}}</ul>
 {{end}}
 `))
 
@@ -512,6 +637,23 @@ var cacheTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 <ul>{{range .Sessions}}<li>{{template "sessionlink" .ID}}</li>{{end}}</ul>
 <h2>memoize.Store entries</h2>
 <ul>{{range $k,$v := .MemStats}}<li>{{$k}} - {{$v}}</li>{{end}}</ul>
+{{end}}
+`))
+
+var clientTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
+{{define "title"}}Client {{.ID}}{{end}}
+{{define "body"}}
+Using session: <b>{{template "sessionlink" .Session.ID}}</b><br>
+Debug this client at: <a href="http://{{url .DebugAddr}}">{{.DebugAddr}}</a><br>
+Logfile: {{.Logfile}}<br>
+{{end}}
+`))
+
+var serverTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
+{{define "title"}}Server {{.ID}}{{end}}
+{{define "body"}}
+Debug this server at: <a href="http://{{.DebugAddr}}">{{.DebugAddr}}</a><br>
+Logfile: {{.Logfile}}<br>
 {{end}}
 `))
 

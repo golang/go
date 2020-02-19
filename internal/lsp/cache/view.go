@@ -22,7 +22,6 @@ import (
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/imports"
-	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/memoize"
@@ -483,7 +482,7 @@ func (v *view) shutdown(context.Context) {
 		os.Remove(v.tempMod.Filename())
 		os.Remove(tempSumFile(v.tempMod.Filename()))
 	}
-	debug.DropView(debugView{v})
+	v.session.cache.debug.DropView(debugView{v})
 }
 
 // Ignore checks if the given URI is a URI we ignore.

@@ -18,7 +18,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp"
@@ -70,7 +69,7 @@ type Application struct {
 	// It is primarily to allow the behavior of gopls to be modified by hooks.
 	PrepareOptions func(*source.Options)
 
-	debug debug.Instance
+	debug *debug.Instance
 }
 
 // New returns a new Application ready to run.
@@ -132,12 +131,7 @@ gopls flags are:
 // If no arguments are passed it will invoke the server sub command, as a
 // temporary measure for compatibility.
 func (app *Application) Run(ctx context.Context, args ...string) error {
-	app.debug = debug.Instance{
-		StartTime:     time.Now(),
-		Workdir:       app.wd,
-		OCAgentConfig: app.OCAgent,
-	}
-	app.debug.Prepare(ctx)
+	app.debug = debug.NewInstance(app.wd, app.OCAgent)
 	app.Serve.app = app
 	if len(args) == 0 {
 		return tool.Run(ctx, &app.Serve, args)
@@ -197,7 +191,7 @@ func (app *Application) connect(ctx context.Context) (*connection, error) {
 	switch {
 	case app.Remote == "":
 		connection := newConnection(app)
-		connection.Server = lsp.NewServer(cache.New(app.options).NewSession(), connection.Client)
+		connection.Server = lsp.NewServer(cache.New(app.options, nil).NewSession(), connection.Client)
 		ctx = protocol.WithClient(ctx, connection.Client)
 		return connection, connection.initialize(ctx, app.options)
 	case strings.HasPrefix(app.Remote, "internal@"):

@@ -19,15 +19,19 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func New(options func(*source.Options)) *Cache {
+func New(options func(*source.Options), debugState *debug.State) *Cache {
+	if debugState == nil {
+		debugState = &debug.State{}
+	}
 	index := atomic.AddInt64(&cacheIndex, 1)
 	c := &Cache{
 		fs:      &nativeFileSystem{},
 		id:      strconv.FormatInt(index, 10),
 		fset:    token.NewFileSet(),
 		options: options,
+		debug:   debugState,
 	}
-	debug.AddCache(debugCache{c})
+	debugState.AddCache(debugCache{c})
 	return c
 }
 
@@ -36,6 +40,7 @@ type Cache struct {
 	id      string
 	fset    *token.FileSet
 	options func(*source.Options)
+	debug   *debug.State
 
 	store memoize.Store
 }
@@ -82,7 +87,7 @@ func (c *Cache) NewSession() *Session {
 		options:  source.DefaultOptions(),
 		overlays: make(map[span.URI]*overlay),
 	}
-	debug.AddSession(debugSession{s})
+	c.debug.AddSession(debugSession{s})
 	return s
 }
 

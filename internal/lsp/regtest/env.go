@@ -79,7 +79,7 @@ func (r *Runner) getTestServer() *servertest.TCPServer {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.ts == nil {
-		ss := lsprpc.NewStreamServer(cache.New(nil), false)
+		ss := lsprpc.NewStreamServer(cache.New(nil, nil), false)
 		r.ts = servertest.NewTCPServer(context.Background(), ss)
 	}
 	return r.ts
@@ -184,7 +184,7 @@ func (r *Runner) RunInMode(modes EnvMode, t *testing.T, filedata string, test fu
 }
 
 func (r *Runner) singletonEnv(ctx context.Context, t *testing.T) (servertest.Connector, func()) {
-	ss := lsprpc.NewStreamServer(cache.New(nil), false)
+	ss := lsprpc.NewStreamServer(cache.New(nil, nil), false)
 	ts := servertest.NewPipeServer(ctx, ss)
 	cleanup := func() {
 		ts.Close()

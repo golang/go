@@ -41,7 +41,7 @@ func testCommandLine(t *testing.T, exporter packagestest.Exporter) {
 	}
 	data := tests.Load(t, exporter, testdata)
 	ctx := tests.Context(t)
-	cache := cache.New(commandLineOptions)
+	cache := cache.New(commandLineOptions, nil)
 	ss := lsprpc.NewStreamServer(cache, false)
 	ts := servertest.NewTCPServer(ctx, ss)
 	for _, data := range data {

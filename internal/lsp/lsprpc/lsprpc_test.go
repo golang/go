@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"golang.org/x/tools/internal/jsonrpc2/servertest"
+	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/telemetry/log"
 )
@@ -41,11 +42,8 @@ func TestClientLogging(t *testing.T) {
 	server := pingServer{}
 	client := fakeClient{logs: make(chan string, 10)}
 
-	ss := &StreamServer{
-		accept: func(c protocol.Client) protocol.Server {
-			return server
-		},
-	}
+	ss := NewStreamServer(cache.New(nil, nil), false)
+	ss.serverForTest = server
 	ts := servertest.NewPipeServer(ctx, ss)
 	cc := ts.Connect(ctx)
 	cc.AddHandler(protocol.ClientHandler(client))
@@ -94,11 +92,8 @@ func TestRequestCancellation(t *testing.T) {
 	server := waitableServer{
 		started: make(chan struct{}),
 	}
-	ss := &StreamServer{
-		accept: func(c protocol.Client) protocol.Server {
-			return server
-		},
-	}
+	ss := NewStreamServer(cache.New(nil, nil), false)
+	ss.serverForTest = server
 	ctx := context.Background()
 	tsDirect := servertest.NewTCPServer(ctx, ss)
 
@@ -148,5 +143,19 @@ func TestRequestCancellation(t *testing.T) {
 		})
 	}
 }
+
+const exampleProgram = `
+-- go.mod --
+module mod
+
+go 1.12
+-- main.go --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("Hello World.")
+}`
 
 // TODO: add a test for telemetry.

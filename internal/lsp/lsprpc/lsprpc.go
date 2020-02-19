@@ -25,9 +25,10 @@ import (
 // streams as a new LSP session, using a shared cache.
 type StreamServer struct {
 	withTelemetry bool
+	cache         *cache.Cache
 
-	// accept is mutable for testing.
-	accept func(protocol.Client) protocol.Server
+	// If set, serverForTest is used instead of an actual lsp.Server.
+	serverForTest protocol.Server
 }
 
 // NewStreamServer creates a StreamServer using the shared cache. If
@@ -36,10 +37,7 @@ type StreamServer struct {
 func NewStreamServer(cache *cache.Cache, withTelemetry bool) *StreamServer {
 	s := &StreamServer{
 		withTelemetry: withTelemetry,
-	}
-	s.accept = func(c protocol.Client) protocol.Server {
-		session := cache.NewSession()
-		return lsp.NewServer(session, c)
+		cache:         cache,
 	}
 	return s
 }
@@ -49,7 +47,10 @@ func NewStreamServer(cache *cache.Cache, withTelemetry bool) *StreamServer {
 func (s *StreamServer) ServeStream(ctx context.Context, stream jsonrpc2.Stream) error {
 	conn := jsonrpc2.NewConn(stream)
 	client := protocol.ClientDispatcher(conn)
-	server := s.accept(client)
+	server := s.serverForTest
+	if server == nil {
+		server = lsp.NewServer(s.cache.NewSession(), client)
+	}
 	conn.AddHandler(protocol.ServerHandler(server))
 	conn.AddHandler(protocol.Canceller{})
 	if s.withTelemetry {

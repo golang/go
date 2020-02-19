@@ -68,7 +68,7 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 		network, addr := parseAddr(s.app.Remote)
 		ss = lsprpc.NewForwarder(network, addr, true)
 	} else {
-		ss = lsprpc.NewStreamServer(cache.New(s.app.options), true)
+		ss = lsprpc.NewStreamServer(cache.New(s.app.options, s.app.debug.State), true)
 	}
 
 	if s.Address != "" {
