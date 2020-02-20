@@ -52,9 +52,9 @@ TEXT ·Cas(SB), NOSPLIT, $0-17
 	MOVW	old+8(FP), A1
 	MOVW	new+12(FP), A2
 cas_again:
-	AMOWSC(LR_,13,10,0)	// lr.w.aq a3,(a0)
+	LRW	(A0), A3
 	BNE	A3, A1, cas_fail
-	AMOWSC(SC_,14,10,12)	// sc.w.aq a4,a2,(a0)
+	SCW	A2, (A0), A4
 	BNE	A4, ZERO, cas_again
 	MOV	$1, A0
 	MOVB	A0, ret+16(FP)
@@ -70,9 +70,9 @@ TEXT ·Cas64(SB), NOSPLIT, $0-25
 	MOV	old+8(FP), A1
 	MOV	new+16(FP), A2
 cas_again:
-	AMODSC(LR_,13,10,0)	// lr.d.aq a3,(a0)
+	LRD	(A0), A3
 	BNE	A3, A1, cas_fail
-	AMODSC(SC_,14,10,12)	// sc.d.aq a4,a2,(a0)
+	SCD	A2, (A0), A4
 	BNE	A4, ZERO, cas_again
 	MOV	$1, A0
 	MOVB	A0, ret+24(FP)
@@ -84,7 +84,7 @@ cas_fail:
 // func Load(ptr *uint32) uint32
 TEXT ·Load(SB),NOSPLIT|NOFRAME,$0-12
 	MOV	ptr+0(FP), A0
-	AMOWSC(LR_,10,10,0)
+	LRW	(A0), A0
 	MOVW	A0, ret+8(FP)
 	RET
 
@@ -100,7 +100,7 @@ TEXT ·Load8(SB),NOSPLIT|NOFRAME,$0-9
 // func Load64(ptr *uint64) uint64
 TEXT ·Load64(SB),NOSPLIT|NOFRAME,$0-16
 	MOV	ptr+0(FP), A0
-	AMODSC(LR_,10,10,0)
+	LRD	(A0), A0
 	MOV	A0, ret+8(FP)
 	RET
 

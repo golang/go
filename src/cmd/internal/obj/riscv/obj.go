@@ -1318,7 +1318,7 @@ func validateRaw(ctxt *obj.Link, ins *instruction) {
 }
 
 // encodeR encodes an R-type RISC-V instruction.
-func encodeR(as obj.As, rs1, rs2, rd, funct3 uint32) uint32 {
+func encodeR(as obj.As, rs1, rs2, rd, funct3, funct7 uint32) uint32 {
 	enc := encode(as)
 	if enc == nil {
 		panic("encodeR: could not encode instruction")
@@ -1326,31 +1326,31 @@ func encodeR(as obj.As, rs1, rs2, rd, funct3 uint32) uint32 {
 	if enc.rs2 != 0 && rs2 != 0 {
 		panic("encodeR: instruction uses rs2, but rs2 was nonzero")
 	}
-	return enc.funct7<<25 | enc.rs2<<20 | rs2<<20 | rs1<<15 | enc.funct3<<12 | funct3<<12 | rd<<7 | enc.opcode
+	return funct7<<25 | enc.funct7<<25 | enc.rs2<<20 | rs2<<20 | rs1<<15 | enc.funct3<<12 | funct3<<12 | rd<<7 | enc.opcode
 }
 
 func encodeRIII(ins *instruction) uint32 {
-	return encodeR(ins.as, regI(ins.rs1), regI(ins.rs2), regI(ins.rd), ins.funct3)
+	return encodeR(ins.as, regI(ins.rs1), regI(ins.rs2), regI(ins.rd), ins.funct3, ins.funct7)
 }
 
 func encodeRFFF(ins *instruction) uint32 {
-	return encodeR(ins.as, regF(ins.rs1), regF(ins.rs2), regF(ins.rd), ins.funct3)
+	return encodeR(ins.as, regF(ins.rs1), regF(ins.rs2), regF(ins.rd), ins.funct3, ins.funct7)
 }
 
 func encodeRFFI(ins *instruction) uint32 {
-	return encodeR(ins.as, regF(ins.rs1), regF(ins.rs2), regI(ins.rd), ins.funct3)
+	return encodeR(ins.as, regF(ins.rs1), regF(ins.rs2), regI(ins.rd), ins.funct3, ins.funct7)
 }
 
 func encodeRFI(ins *instruction) uint32 {
-	return encodeR(ins.as, regF(ins.rs2), 0, regI(ins.rd), ins.funct3)
+	return encodeR(ins.as, regF(ins.rs2), 0, regI(ins.rd), ins.funct3, ins.funct7)
 }
 
 func encodeRIF(ins *instruction) uint32 {
-	return encodeR(ins.as, regI(ins.rs2), 0, regF(ins.rd), ins.funct3)
+	return encodeR(ins.as, regI(ins.rs2), 0, regF(ins.rd), ins.funct3, ins.funct7)
 }
 
 func encodeRFF(ins *instruction) uint32 {
-	return encodeR(ins.as, regF(ins.rs2), 0, regF(ins.rd), ins.funct3)
+	return encodeR(ins.as, regF(ins.rs2), 0, regF(ins.rd), ins.funct3, ins.funct7)
 }
 
 // encodeI encodes an I-type RISC-V instruction.
@@ -1585,6 +1585,12 @@ var encodings = [ALAST & obj.AMask]encoding{
 	AREMW & obj.AMask:   rIIIEncoding,
 	AREMUW & obj.AMask:  rIIIEncoding,
 
+	// 8.2: Load-Reserved/Store-Conditional
+	ALRW & obj.AMask: rIIIEncoding,
+	ALRD & obj.AMask: rIIIEncoding,
+	ASCW & obj.AMask: rIIIEncoding,
+	ASCD & obj.AMask: rIIIEncoding,
+
 	// 10.1: Base Counters and Timers
 	ARDCYCLE & obj.AMask:   iIEncoding,
 	ARDTIME & obj.AMask:    iIEncoding,
@@ -1699,6 +1705,7 @@ type instruction struct {
 	rs2    uint32 // Source register 2
 	imm    int64  // Immediate
 	funct3 uint32 // Function 3
+	funct7 uint32 // Function 7
 }
 
 func (ins *instruction) encode() (uint32, error) {
@@ -1763,6 +1770,16 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		}
 		ins.rs1, ins.rs2 = uint32(p.From.Reg), obj.REG_NONE
 		ins.imm = p.To.Offset
+
+	case ALRW, ALRD:
+		// Set aq to use acquire access ordering, which matches Go's memory requirements.
+		ins.funct7 = 2
+		ins.rs1, ins.rs2 = uint32(p.From.Reg), REG_ZERO
+
+	case ASCW, ASCD:
+		// Set aq to use acquire access ordering, which matches Go's memory requirements.
+		ins.funct7 = 2
+		ins.rd, ins.rs1, ins.rs2 = uint32(p.RegTo2), uint32(p.To.Reg), uint32(p.From.Reg)
 
 	case AECALL, AEBREAK, ARDCYCLE, ARDTIME, ARDINSTRET:
 		insEnc := encode(p.As)
