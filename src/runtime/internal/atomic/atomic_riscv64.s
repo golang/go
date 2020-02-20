@@ -30,15 +30,6 @@
 
 #include "textflag.h"
 
-#define AMOWSC(op,rd,rs1,rs2) WORD $0x0600202f+rd<<7+rs1<<15+rs2<<20+op<<27
-#define AMODSC(op,rd,rs1,rs2) WORD $0x0600302f+rd<<7+rs1<<15+rs2<<20+op<<27
-#define ADD_ 0
-#define SWAP_ 1
-#define LR_ 2
-#define SC_ 3
-#define OR_ 8
-#define AND_ 12
-
 // Atomically:
 //      if(*val == *old){
 //              *val = new;
@@ -108,7 +99,7 @@ TEXT ·Load64(SB),NOSPLIT|NOFRAME,$0-16
 TEXT ·Store(SB), NOSPLIT, $0-12
 	MOV	ptr+0(FP), A0
 	MOVW	val+8(FP), A1
-	AMOWSC(SWAP_,0,10,11)
+	AMOSWAPW A1, (A0), ZERO
 	RET
 
 // func Store8(ptr *uint8, val uint8)
@@ -124,7 +115,7 @@ TEXT ·Store8(SB), NOSPLIT, $0-9
 TEXT ·Store64(SB), NOSPLIT, $0-16
 	MOV	ptr+0(FP), A0
 	MOV	val+8(FP), A1
-	AMODSC(SWAP_,0,10,11)
+	AMOSWAPD A1, (A0), ZERO
 	RET
 
 TEXT ·Casp1(SB), NOSPLIT, $0-25
@@ -151,7 +142,7 @@ TEXT ·Loadint64(SB),NOSPLIT,$0-16
 TEXT ·Xaddint64(SB),NOSPLIT,$0-24
 	MOV	ptr+0(FP), A0
 	MOV	delta+8(FP), A1
-	WORD $0x04b5352f	// amoadd.d.aq a0,a1,(a0)
+	AMOADDD A1, (A0), A0
 	ADD	A0, A1, A0
 	MOVW	A0, ret+16(FP)
 	RET
@@ -174,7 +165,7 @@ TEXT ·StoreRel(SB), NOSPLIT, $0-12
 TEXT ·Xchg(SB), NOSPLIT, $0-20
 	MOV	ptr+0(FP), A0
 	MOVW	new+8(FP), A1
-	AMOWSC(SWAP_,11,10,11)
+	AMOSWAPW A1, (A0), A1
 	MOVW	A1, ret+16(FP)
 	RET
 
@@ -182,7 +173,7 @@ TEXT ·Xchg(SB), NOSPLIT, $0-20
 TEXT ·Xchg64(SB), NOSPLIT, $0-24
 	MOV	ptr+0(FP), A0
 	MOV	new+8(FP), A1
-	AMODSC(SWAP_,11,10,11)
+	AMOSWAPD A1, (A0), A1
 	MOV	A1, ret+16(FP)
 	RET
 
@@ -194,7 +185,7 @@ TEXT ·Xchg64(SB), NOSPLIT, $0-24
 TEXT ·Xadd(SB), NOSPLIT, $0-20
 	MOV	ptr+0(FP), A0
 	MOVW	delta+8(FP), A1
-	AMOWSC(ADD_,12,10,11)
+	AMOADDW A1, (A0), A2
 	ADD	A2,A1,A0
 	MOVW	A0, ret+16(FP)
 	RET
@@ -203,8 +194,8 @@ TEXT ·Xadd(SB), NOSPLIT, $0-20
 TEXT ·Xadd64(SB), NOSPLIT, $0-24
 	MOV	ptr+0(FP), A0
 	MOV	delta+8(FP), A1
-	AMODSC(ADD_,12,10,11)
-	ADD	A2,A1,A0
+	AMOADDD A1, (A0), A2
+	ADD	A2, A1, A0
 	MOV	A0, ret+16(FP)
 	RET
 
@@ -226,7 +217,7 @@ TEXT ·And8(SB), NOSPLIT, $0-9
 	XOR	$255, A1
 	SLL	A2, A1
 	XOR	$-1, A1
-	AMOWSC(AND_,0,10,11)
+	AMOANDW A1, (A0), ZERO
 	RET
 
 // func Or8(ptr *uint8, val uint8)
@@ -237,5 +228,5 @@ TEXT ·Or8(SB), NOSPLIT, $0-9
 	AND	$-4, A0
 	SLL	$3, A2
 	SLL	A2, A1
-	AMOWSC(OR_,0,10,11)
+	AMOORW	A1, (A0), ZERO
 	RET
