@@ -117,6 +117,7 @@ var tests = [][]string{
 	// Go 2 prototype examples
 	{"examples/contracts.go2"},
 	{"examples/functions.go2"},
+	{"examples/methods.go2"},
 	{"examples/types.go2"},
 }
 

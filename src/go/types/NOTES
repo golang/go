@@ -10,6 +10,8 @@ TODO
 - improve error messages!
 - use []*TypeParam for tparams in subst? (unclear)
 - should we use nil instead of &emptyInterface for no type bounds (as an optimization)?
+- TBD: in prose, should we use "generic" or "parameterized" (try to be consistent)
+- don't apply receiver type identifier substitution in place (typexpr.go)
 
 ----------------------------------------------------------------------------------------------------
 KNOWN ISSUES
@@ -18,8 +20,18 @@ KNOWN ISSUES
 - cannot handle mutually recursive parameterized interfaces using themselves as type bounds
 - contract instantiation requires the type arguments to be type parameters from the type of function
   type parameter list or enclosing contract
-- leaving away unused receiver type parameters leads to an error; e.g.: "type S(type T) struct{}; func (S) _()"
-- using _ for an unused receiver type parameter leads to an error and crash; e.g.: "type T(type P) int; func (_ T(_)) m()"
+- A type parameter that is constrained by multiple contracts will not get the correct type bound.
+  We may disallow this for  now.
+
+----------------------------------------------------------------------------------------------------
+OBSERVATIONS
+
+- Because we permit parenthesized types anywhere for consistency, also in parameter lists (mea culpa),
+  we have parsing ambiguities when using instantiated types in parameter lists w/o argument names.
+  We could disallow the use of parentheses at the top level of type literals and then we might not have
+  this problem. This is not a backward-compatible change but perhaps worthwhile investigating. Specifically,
+  will this always work (look specifically at channel types where we need parentheses for disambiguation
+  and possibly function types). File a proposal?
 
 ----------------------------------------------------------------------------------------------------
 OPEN QUESTIONS
@@ -97,3 +109,7 @@ DESIGN/IMPLEMENTATION
 
 - 2/19/2020: Permit parentheses around embedded contracts for symmetry with embedding in structs
   and interfaces.
+
+- 2/20/2020: Receiver type parameters must always be provided in the receiver parameter list of
+  a method, even if they are not used by the method. Since the receiver acts like an implicit
+  declaration of those type parameters, they may be blank, as with any other declaration.

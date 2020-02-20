@@ -163,6 +163,51 @@ func (check *Checker) genericType(e ast.Expr, reportErr bool) Type {
 	return typ
 }
 
+// isubsts returns an x with identifiers substituted per the substitution map smap.
+// isubsts only handles the case of (valid) method receiver type expressions correctly.
+func isubst(x ast.Expr, smap map[*ast.Ident]*ast.Ident) ast.Expr {
+	switch n := x.(type) {
+	case *ast.Ident:
+		if alt := smap[n]; alt != nil {
+			return alt
+		}
+	case *ast.StarExpr:
+		X := isubst(n.X, smap)
+		if X != n.X {
+			new := *n
+			n.X = X
+			return &new
+		}
+	case *ast.CallExpr:
+		var args []ast.Expr
+		for i, arg := range n.Args {
+			Arg := isubst(arg, smap)
+			if Arg != arg {
+				if args == nil {
+					args = make([]ast.Expr, len(n.Args))
+					copy(args, n.Args)
+				}
+				args[i] = Arg
+			}
+		}
+		if args != nil {
+			new := *n
+			new.Args = args
+			return &new
+		}
+	case *ast.ParenExpr:
+		X := isubst(n.X, smap)
+		if X != n.X {
+			return X // no need to recreate the parentheses
+		}
+	default:
+		// Any more complex receiver type expression is invalid.
+		// It's fine to ignore those here since we will report
+		// an error later.
+	}
+	return x
+}
+
 // funcType type-checks a function or method type.
 func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast.FuncType) {
 	check.openScope(ftyp, "function")
@@ -173,12 +218,32 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 
 	if recvPar != nil && len(recvPar.List) > 0 {
 		// collect parameterized receiver type parameters, if any
-		// - a receiver type parameter is like any other type parameter, except that it is passed implicitly (via the receiver)
-		// - the receiver specification acts as local declaration for its type parameters (which may be blank _)
-		// - if the receiver type is parameterized but we don't need the parameters, we permit leaving them away
-		//   (TODO(gri) this is not working because the code doesn't allow an uninstantiated parameterized recv type)
+		// - a receiver type parameter is like any other type parameter, except that it is passed implicitly
+		// - the receiver specification acts as local declaration for its type parameters, which may be blank
 		_, rname, rparams := check.unpackRecv(recvPar.List[0].Type, true)
 		if len(rparams) > 0 {
+			// The receiver type parameters may not be used by the method, in which case they may be
+			// blank identifiers. But blank identifiers don't get declared and regular type-checking
+			// of the instantiated parameterized receiver type expression fails.
+			// Identify blank type parameters and substitute each with a unique new identifier named
+			// "!n" (where n is an increasing index) and which cannot conflict with any user-defined
+			// name; do the substitution both in the rparams and the receiver parameter list.
+			var smap map[*ast.Ident]*ast.Ident // substitution map from "_" to "!n" identifiers
+			for i, p := range rparams {
+				if p.Name == "_" {
+					new := *p
+					new.Name = fmt.Sprintf("%d_", i)
+					rparams[i] = &new
+					if smap == nil {
+						smap = make(map[*ast.Ident]*ast.Ident)
+					}
+					smap[p] = &new
+				}
+			}
+			if smap != nil {
+				// TODO(gri) should not do this in place
+				recvPar.List[0].Type = isubst(recvPar.List[0].Type, smap)
+			}
 			sig.rparams = check.declareTypeParams(nil, rparams)
 			// determine receiver type to get its type parameters
 			// and the respective type parameter bounds

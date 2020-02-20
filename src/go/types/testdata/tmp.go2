@@ -4,14 +4,7 @@
 
 package p
 
-/*
-type T(type E) struct {
-	f *T(E)
-}
+type T(type a, b, c) struct {}
 
-var _ T(int)
-*/
-
-func f(type T)(...T) T
-
-var _ int = f() /* ERROR cannot infer T */
+//func (_ T(_, T(_, _, _), _)) m() {}
+func (_ T(_, int, _)) m() {}
