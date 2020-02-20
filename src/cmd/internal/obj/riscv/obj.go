@@ -1552,6 +1552,9 @@ var encodings = [ALAST & obj.AMask]encoding{
 	ASH & obj.AMask:  sIEncoding,
 	ASB & obj.AMask:  sIEncoding,
 
+	// 2.7: Memory Ordering
+	AFENCE & obj.AMask: iIEncoding,
+
 	// 5.2: Integer Computational Instructions (RV64I)
 	AADDIW & obj.AMask: iIEncoding,
 	ASLLIW & obj.AMask: iIEncoding,
@@ -1768,6 +1771,10 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		}
 		ins.rs1 = REG_ZERO
 		ins.imm = insEnc.csr
+
+	case AFENCE:
+		ins.rd, ins.rs1, ins.rs2 = REG_ZERO, REG_ZERO, obj.REG_NONE
+		ins.imm = 0x0ff
 
 	case AFCVTWS, AFCVTLS, AFCVTWUS, AFCVTLUS, AFCVTWD, AFCVTLD, AFCVTWUD, AFCVTLUD:
 		// Set the rounding mode in funct3 to round to zero.

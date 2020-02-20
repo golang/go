@@ -122,6 +122,9 @@ start:
 	SB	X5, (X6)				// 23005300
 	SB	X5, 4(X6)				// 23025300
 
+	// 2.7: Memory Ordering Instructions
+	FENCE						// 0f00f00f
+
 	// 5.2: Integer Computational Instructions (RV64I)
 	ADDIW	$1, X5, X6				// 1b831200
 	SLLIW	$1, X5, X6				// 1b931200
@@ -273,7 +276,7 @@ start:
 	// These jumps can get printed as jumps to 2 because they go to the
 	// second instruction in the function (the first instruction is an
 	// invisible stack pointer adjustment).
-	JMP	start		// JMP	2		// 6ff0dfcc
+	JMP	start		// JMP	2		// 6ff09fcc
 	JMP	(X5)					// 67800200
 	JMP	4(X5)					// 67804200
 
