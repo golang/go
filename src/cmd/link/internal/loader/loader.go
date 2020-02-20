@@ -2550,6 +2550,48 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 	return textp2
 }
 
+// PatchDWARFName applies DWARF name attribute patching to the
+// specified symbol. If the symbol does not need patching, it will be
+// left alone; if it does, cloneToExternal will be invoked so that the
+// data for the symbol can be rewritten.
+//
+// Notes:
+//
+// - currently only required for assembler-generated subprogram DIE
+//   symbols (compiler-gen are ok)
+//
+// - should only be invoked on reachable/live symbols, as opposed to
+//   across the board (there is a cost to doing the cloning, we don't
+//   want to do it unless absolutely necessary).
+//
+// - over the years patchDWARFName has been a significant source
+//   of bugs and head-scratching. Something we might want to consider is
+//    switching from DW_FORM_str to DW_FORM_strp for package-qualified
+//    names in DWARF DIEs -- this might make our lives easier overall.
+//
+func (l *Loader) PatchDWARFName(s Sym) {
+	if l.IsExternal(s) {
+		// no patching needed here
+		return
+	}
+	patched, found := patchDWARFName1(l.Data(s), l.objSyms[s].r)
+	if found == -1 {
+		return
+	}
+	l.cloneToExternal(s)
+	l.SetAttrReadOnly(s, false)
+	pp := l.getPayload(s)
+	pp.data = patched
+	delta := int64(len(patched)) - pp.size
+	pp.size = int64(len(patched))
+	for i := range pp.relocs {
+		r := &pp.relocs[i]
+		if r.Off > int32(found) {
+			r.Off += int32(delta)
+		}
+	}
+}
+
 // For debugging.
 func (l *Loader) Dump() {
 	fmt.Println("objs")
