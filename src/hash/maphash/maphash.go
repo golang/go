@@ -128,7 +128,7 @@ func (h *Hash) SetSeed(seed Seed) {
 	h.n = 0
 }
 
-// setSeed sets seed without discarding accumulated data
+// setSeed sets seed without discarding accumulated data.
 func (h *Hash) setSeed(seed Seed) {
 	if seed.s == 0 {
 		panic("maphash: use of uninitialized Seed")
