@@ -210,27 +210,8 @@
 (Leq32U x y) -> (XOR (MOVVconst [1]) (SGTU (ZeroExt32to64 x) (ZeroExt32to64 y)))
 (Leq64U x y) -> (XOR (MOVVconst [1]) (SGTU x y))
 
-(Greater8 x y)  -> (SGT (SignExt8to64 x) (SignExt8to64 y))
-(Greater16 x y) -> (SGT (SignExt16to64 x) (SignExt16to64 y))
-(Greater32 x y) -> (SGT (SignExt32to64 x) (SignExt32to64 y))
-(Greater64 ...) -> (SGT ...)
 (Greater(32|64)F x y) -> (FPFlagTrue (CMPGT(F|D) x y))
-
-(Greater8U x y)  -> (SGTU (ZeroExt8to64 x) (ZeroExt8to64 y))
-(Greater16U x y) -> (SGTU (ZeroExt16to64 x) (ZeroExt16to64 y))
-(Greater32U x y) -> (SGTU (ZeroExt32to64 x) (ZeroExt32to64 y))
-(Greater64U ...) -> (SGTU ...)
-
-(Geq8 x y)  -> (XOR (MOVVconst [1]) (SGT (SignExt8to64 y) (SignExt8to64 x)))
-(Geq16 x y) -> (XOR (MOVVconst [1]) (SGT (SignExt16to64 y) (SignExt16to64 x)))
-(Geq32 x y) -> (XOR (MOVVconst [1]) (SGT (SignExt32to64 y) (SignExt32to64 x)))
-(Geq64 x y) -> (XOR (MOVVconst [1]) (SGT y x))
-(Geq(32|64)F x y) -> (FPFlagTrue (CMPGE(F|D) x y))
-
-(Geq8U x y)  -> (XOR (MOVVconst [1]) (SGTU (ZeroExt8to64 y) (ZeroExt8to64 x)))
-(Geq16U x y) -> (XOR (MOVVconst [1]) (SGTU (ZeroExt16to64 y) (ZeroExt16to64 x)))
-(Geq32U x y) -> (XOR (MOVVconst [1]) (SGTU (ZeroExt32to64 y) (ZeroExt32to64 x)))
-(Geq64U x y) -> (XOR (MOVVconst [1]) (SGTU y x))
+(Geq(32|64)F     x y) -> (FPFlagTrue (CMPGE(F|D) x y))
 
 (OffPtr [off] ptr:(SP)) -> (MOVVaddr [off] ptr)
 (OffPtr [off] ptr) -> (ADDVconst [off] ptr)

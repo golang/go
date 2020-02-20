@@ -202,25 +202,9 @@ var genericOps = []opData{
 	{name: "Leq32F", argLength: 2, typ: "Bool"},
 	{name: "Leq64F", argLength: 2, typ: "Bool"},
 
-	{name: "Greater8", argLength: 2, typ: "Bool"},  // arg0 > arg1, signed
-	{name: "Greater8U", argLength: 2, typ: "Bool"}, // arg0 > arg1, unsigned
-	{name: "Greater16", argLength: 2, typ: "Bool"},
-	{name: "Greater16U", argLength: 2, typ: "Bool"},
-	{name: "Greater32", argLength: 2, typ: "Bool"},
-	{name: "Greater32U", argLength: 2, typ: "Bool"},
-	{name: "Greater64", argLength: 2, typ: "Bool"},
-	{name: "Greater64U", argLength: 2, typ: "Bool"},
 	{name: "Greater32F", argLength: 2, typ: "Bool"},
 	{name: "Greater64F", argLength: 2, typ: "Bool"},
 
-	{name: "Geq8", argLength: 2, typ: "Bool"},  // arg0 <= arg1, signed
-	{name: "Geq8U", argLength: 2, typ: "Bool"}, // arg0 <= arg1, unsigned
-	{name: "Geq16", argLength: 2, typ: "Bool"},
-	{name: "Geq16U", argLength: 2, typ: "Bool"},
-	{name: "Geq32", argLength: 2, typ: "Bool"},
-	{name: "Geq32U", argLength: 2, typ: "Bool"},
-	{name: "Geq64", argLength: 2, typ: "Bool"},
-	{name: "Geq64U", argLength: 2, typ: "Bool"},
 	{name: "Geq32F", argLength: 2, typ: "Bool"},
 	{name: "Geq64F", argLength: 2, typ: "Bool"},
 

@@ -825,26 +825,10 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpFMA(v)
 	case OpFloor:
 		return rewriteValueAMD64_OpFloor(v)
-	case OpGeq16:
-		return rewriteValueAMD64_OpGeq16(v)
-	case OpGeq16U:
-		return rewriteValueAMD64_OpGeq16U(v)
-	case OpGeq32:
-		return rewriteValueAMD64_OpGeq32(v)
 	case OpGeq32F:
 		return rewriteValueAMD64_OpGeq32F(v)
-	case OpGeq32U:
-		return rewriteValueAMD64_OpGeq32U(v)
-	case OpGeq64:
-		return rewriteValueAMD64_OpGeq64(v)
 	case OpGeq64F:
 		return rewriteValueAMD64_OpGeq64F(v)
-	case OpGeq64U:
-		return rewriteValueAMD64_OpGeq64U(v)
-	case OpGeq8:
-		return rewriteValueAMD64_OpGeq8(v)
-	case OpGeq8U:
-		return rewriteValueAMD64_OpGeq8U(v)
 	case OpGetCallerPC:
 		v.Op = OpAMD64LoweredGetCallerPC
 		return true
@@ -857,26 +841,10 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpGetG:
 		v.Op = OpAMD64LoweredGetG
 		return true
-	case OpGreater16:
-		return rewriteValueAMD64_OpGreater16(v)
-	case OpGreater16U:
-		return rewriteValueAMD64_OpGreater16U(v)
-	case OpGreater32:
-		return rewriteValueAMD64_OpGreater32(v)
 	case OpGreater32F:
 		return rewriteValueAMD64_OpGreater32F(v)
-	case OpGreater32U:
-		return rewriteValueAMD64_OpGreater32U(v)
-	case OpGreater64:
-		return rewriteValueAMD64_OpGreater64(v)
 	case OpGreater64F:
 		return rewriteValueAMD64_OpGreater64F(v)
-	case OpGreater64U:
-		return rewriteValueAMD64_OpGreater64U(v)
-	case OpGreater8:
-		return rewriteValueAMD64_OpGreater8(v)
-	case OpGreater8U:
-		return rewriteValueAMD64_OpGreater8U(v)
 	case OpHmul32:
 		v.Op = OpAMD64HMULL
 		return true
@@ -35853,57 +35821,6 @@ func rewriteValueAMD64_OpFloor(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpGeq16(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq16 x y)
-	// result: (SETGE (CMPW x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64SETGE)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPW, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpGeq16U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq16U x y)
-	// result: (SETAE (CMPW x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64SETAE)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPW, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpGeq32(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq32 x y)
-	// result: (SETGE (CMPL x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64SETGE)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPL, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
 func rewriteValueAMD64_OpGeq32F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -35915,40 +35832,6 @@ func rewriteValueAMD64_OpGeq32F(v *Value) bool {
 		y := v_1
 		v.reset(OpAMD64SETGEF)
 		v0 := b.NewValue0(v.Pos, OpAMD64UCOMISS, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpGeq32U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq32U x y)
-	// result: (SETAE (CMPL x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64SETAE)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPL, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpGeq64(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq64 x y)
-	// result: (SETGE (CMPQ x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64SETGE)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
@@ -35972,108 +35855,6 @@ func rewriteValueAMD64_OpGeq64F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpGeq64U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq64U x y)
-	// result: (SETAE (CMPQ x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64SETAE)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpGeq8(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq8 x y)
-	// result: (SETGE (CMPB x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64SETGE)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPB, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpGeq8U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq8U x y)
-	// result: (SETAE (CMPB x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64SETAE)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPB, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpGreater16(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater16 x y)
-	// result: (SETG (CMPW x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64SETG)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPW, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpGreater16U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater16U x y)
-	// result: (SETA (CMPW x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64SETA)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPW, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpGreater32(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater32 x y)
-	// result: (SETG (CMPL x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64SETG)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPL, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
 func rewriteValueAMD64_OpGreater32F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -36091,40 +35872,6 @@ func rewriteValueAMD64_OpGreater32F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueAMD64_OpGreater32U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater32U x y)
-	// result: (SETA (CMPL x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64SETA)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPL, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpGreater64(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater64 x y)
-	// result: (SETG (CMPQ x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64SETG)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
 func rewriteValueAMD64_OpGreater64F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -36136,57 +35883,6 @@ func rewriteValueAMD64_OpGreater64F(v *Value) bool {
 		y := v_1
 		v.reset(OpAMD64SETGF)
 		v0 := b.NewValue0(v.Pos, OpAMD64UCOMISD, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpGreater64U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater64U x y)
-	// result: (SETA (CMPQ x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64SETA)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpGreater8(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater8 x y)
-	// result: (SETG (CMPB x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64SETG)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPB, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpGreater8U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater8U x y)
-	// result: (SETA (CMPB x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64SETA)
-		v0 := b.NewValue0(v.Pos, OpAMD64CMPB, types.TypeFlags)
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)

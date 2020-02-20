@@ -1717,14 +1717,6 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OLT, TFLOAT64}: ssa.OpLess64F,
 	opAndType{OLT, TFLOAT32}: ssa.OpLess32F,
 
-	opAndType{OGT, TINT8}:    ssa.OpGreater8,
-	opAndType{OGT, TUINT8}:   ssa.OpGreater8U,
-	opAndType{OGT, TINT16}:   ssa.OpGreater16,
-	opAndType{OGT, TUINT16}:  ssa.OpGreater16U,
-	opAndType{OGT, TINT32}:   ssa.OpGreater32,
-	opAndType{OGT, TUINT32}:  ssa.OpGreater32U,
-	opAndType{OGT, TINT64}:   ssa.OpGreater64,
-	opAndType{OGT, TUINT64}:  ssa.OpGreater64U,
 	opAndType{OGT, TFLOAT64}: ssa.OpGreater64F,
 	opAndType{OGT, TFLOAT32}: ssa.OpGreater32F,
 
@@ -1739,14 +1731,6 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OLE, TFLOAT64}: ssa.OpLeq64F,
 	opAndType{OLE, TFLOAT32}: ssa.OpLeq32F,
 
-	opAndType{OGE, TINT8}:    ssa.OpGeq8,
-	opAndType{OGE, TUINT8}:   ssa.OpGeq8U,
-	opAndType{OGE, TINT16}:   ssa.OpGeq16,
-	opAndType{OGE, TUINT16}:  ssa.OpGeq16U,
-	opAndType{OGE, TINT32}:   ssa.OpGeq32,
-	opAndType{OGE, TUINT32}:  ssa.OpGeq32U,
-	opAndType{OGE, TINT64}:   ssa.OpGeq64,
-	opAndType{OGE, TUINT64}:  ssa.OpGeq64U,
 	opAndType{OGE, TFLOAT64}: ssa.OpGeq64F,
 	opAndType{OGE, TFLOAT32}: ssa.OpGeq32F,
 }
@@ -2339,7 +2323,16 @@ func (s *state) expr(n *Node) *ssa.Value {
 		if n.Left.Type.IsFloat() {
 			return s.newValueOrSfCall2(s.ssaOp(n.Op, n.Left.Type), types.Types[TBOOL], a, b)
 		}
-		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), types.Types[TBOOL], a, b)
+
+		// Integer: convert OGE and OGT into OLE and OLT.
+		op := n.Op
+		switch op {
+		case OGE:
+			op, a, b = OLE, b, a
+		case OGT:
+			op, a, b = OLT, b, a
+		}
+		return s.newValue2(s.ssaOp(op, n.Left.Type), types.Types[TBOOL], a, b)
 	case OMUL:
 		a := s.expr(n.Left)
 		b := s.expr(n.Right)
@@ -2453,7 +2446,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		b := s.expr(n.Right)
 		bt := b.Type
 		if bt.IsSigned() {
-			cmp := s.newValue2(s.ssaOp(OGE, bt), types.Types[TBOOL], b, s.zeroVal(bt))
+			cmp := s.newValue2(s.ssaOp(OLE, bt), types.Types[TBOOL], s.zeroVal(bt), b)
 			s.check(cmp, panicshift)
 			bt = bt.ToUnsigned()
 		}
@@ -2789,7 +2782,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 	c := s.newValue1(ssa.OpSliceCap, types.Types[TINT], slice)
 	nl := s.newValue2(s.ssaOp(OADD, types.Types[TINT]), types.Types[TINT], l, s.constInt(types.Types[TINT], nargs))
 
-	cmp := s.newValue2(s.ssaOp(OGT, types.Types[TUINT]), types.Types[TBOOL], nl, c)
+	cmp := s.newValue2(s.ssaOp(OLT, types.Types[TUINT]), types.Types[TBOOL], c, nl)
 	s.vars[&ptrVar] = p
 
 	if !inplace {
@@ -5166,12 +5159,12 @@ func (s *state) slice(v, i, j, k *ssa.Value, bounded bool) (p, l, c *ssa.Value) 
 }
 
 type u642fcvtTab struct {
-	geq, cvt2F, and, rsh, or, add ssa.Op
+	leq, cvt2F, and, rsh, or, add ssa.Op
 	one                           func(*state, *types.Type, int64) *ssa.Value
 }
 
 var u64_f64 = u642fcvtTab{
-	geq:   ssa.OpGeq64,
+	leq:   ssa.OpLeq64,
 	cvt2F: ssa.OpCvt64to64F,
 	and:   ssa.OpAnd64,
 	rsh:   ssa.OpRsh64Ux64,
@@ -5181,7 +5174,7 @@ var u64_f64 = u642fcvtTab{
 }
 
 var u64_f32 = u642fcvtTab{
-	geq:   ssa.OpGeq64,
+	leq:   ssa.OpLeq64,
 	cvt2F: ssa.OpCvt64to32F,
 	and:   ssa.OpAnd64,
 	rsh:   ssa.OpRsh64Ux64,
@@ -5224,7 +5217,7 @@ func (s *state) uint64Tofloat(cvttab *u642fcvtTab, n *Node, x *ssa.Value, ft, tt
 	// equal to 10000000001; that rounds up, and the 1 cannot
 	// be lost else it would round down if the LSB of the
 	// candidate mantissa is 0.
-	cmp := s.newValue2(cvttab.geq, types.Types[TBOOL], x, s.zeroVal(ft))
+	cmp := s.newValue2(cvttab.leq, types.Types[TBOOL], s.zeroVal(ft), x)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.SetControl(cmp)
@@ -5285,7 +5278,7 @@ func (s *state) uint32Tofloat(cvttab *u322fcvtTab, n *Node, x *ssa.Value, ft, tt
 	// } else {
 	// 	result = floatY(float64(x) + (1<<32))
 	// }
-	cmp := s.newValue2(ssa.OpGeq32, types.Types[TBOOL], x, s.zeroVal(ft))
+	cmp := s.newValue2(ssa.OpLeq32, types.Types[TBOOL], s.zeroVal(ft), x)
 	b := s.endBlock()
 	b.Kind = ssa.BlockIf
 	b.SetControl(cmp)

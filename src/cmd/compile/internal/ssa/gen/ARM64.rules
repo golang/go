@@ -296,29 +296,11 @@
 (Leq32U x y) -> (LessEqualU (CMPW x y))
 (Leq64U x y) -> (LessEqualU (CMP x y))
 
-(Greater8 x y)  -> (GreaterThan (CMPW (SignExt8to32 x) (SignExt8to32 y)))
-(Greater16 x y) -> (GreaterThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
-(Greater32 x y) -> (GreaterThan (CMPW x y))
-(Greater64 x y) -> (GreaterThan (CMP x y))
 (Greater32F x y) -> (GreaterThanF (FCMPS x y))
 (Greater64F x y) -> (GreaterThanF (FCMPD x y))
 
-(Greater8U x y)  -> (GreaterThanU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
-(Greater16U x y) -> (GreaterThanU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
-(Greater32U x y) -> (GreaterThanU (CMPW x y))
-(Greater64U x y) -> (GreaterThanU (CMP x y))
-
-(Geq8 x y)  -> (GreaterEqual (CMPW (SignExt8to32 x) (SignExt8to32 y)))
-(Geq16 x y) -> (GreaterEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
-(Geq32 x y) -> (GreaterEqual (CMPW x y))
-(Geq64 x y) -> (GreaterEqual (CMP x y))
 (Geq32F x y) -> (GreaterEqualF (FCMPS x y))
 (Geq64F x y) -> (GreaterEqualF (FCMPD x y))
-
-(Geq8U x y)  -> (GreaterEqualU (CMPW (ZeroExt8to32 x) (ZeroExt8to32 y)))
-(Geq16U x y) -> (GreaterEqualU (CMPW (ZeroExt16to32 x) (ZeroExt16to32 y)))
-(Geq32U x y) -> (GreaterEqualU (CMPW x y))
-(Geq64U x y) -> (GreaterEqualU (CMP x y))
 
 // Optimize comparison between a floating-point value and 0.0 with "FCMP $(0.0), Fn"
 (FCMPS x (FMOVSconst [0])) -> (FCMPS0 x)

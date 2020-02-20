@@ -241,23 +241,9 @@
 (Leq16U x y) -> (LessEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Leq32U x y) -> (LessEqualU (CMP x y))
 
-(Greater8 x y)  -> (GreaterThan (CMP (SignExt8to32 x) (SignExt8to32 y)))
-(Greater16 x y) -> (GreaterThan (CMP (SignExt16to32 x) (SignExt16to32 y)))
-(Greater32 x y) -> (GreaterThan (CMP x y))
 (Greater(32|64)F x y) -> (GreaterThan (CMP(F|D) x y))
 
-(Greater8U x y)  -> (GreaterThanU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
-(Greater16U x y) -> (GreaterThanU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
-(Greater32U x y) -> (GreaterThanU (CMP x y))
-
-(Geq8 x y)  -> (GreaterEqual (CMP (SignExt8to32 x) (SignExt8to32 y)))
-(Geq16 x y) -> (GreaterEqual (CMP (SignExt16to32 x) (SignExt16to32 y)))
-(Geq32 x y) -> (GreaterEqual (CMP x y))
 (Geq(32|64)F x y) -> (GreaterEqual (CMP(F|D) x y))
-
-(Geq8U x y)  -> (GreaterEqualU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
-(Geq16U x y) -> (GreaterEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
-(Geq32U x y) -> (GreaterEqualU (CMP x y))
 
 (OffPtr [off] ptr:(SP)) -> (MOVWaddr [off] ptr)
 (OffPtr [off] ptr) -> (ADDconst [off] ptr)

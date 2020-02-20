@@ -2466,24 +2466,8 @@ const (
 	OpLeq64U
 	OpLeq32F
 	OpLeq64F
-	OpGreater8
-	OpGreater8U
-	OpGreater16
-	OpGreater16U
-	OpGreater32
-	OpGreater32U
-	OpGreater64
-	OpGreater64U
 	OpGreater32F
 	OpGreater64F
-	OpGeq8
-	OpGeq8U
-	OpGeq16
-	OpGeq16U
-	OpGeq32
-	OpGeq32U
-	OpGeq64
-	OpGeq64U
 	OpGeq32F
 	OpGeq64F
 	OpCondSelect
@@ -31926,92 +31910,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Greater8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Greater8U",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Greater16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Greater16U",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Greater32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Greater32U",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Greater64",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Greater64U",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "Greater32F",
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Greater64F",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Geq8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Geq8U",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Geq16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Geq16U",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Geq32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Geq32U",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Geq64",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Geq64U",
 		argLen:  2,
 		generic: true,
 	},

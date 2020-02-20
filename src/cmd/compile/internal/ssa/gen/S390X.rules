@@ -303,21 +303,9 @@
 (Leq64F     x y) -> (LOCGR {s390x.LessOrEqual} (MOVDconst [0]) (MOVDconst [1]) (FCMP x y))
 (Leq32F     x y) -> (LOCGR {s390x.LessOrEqual} (MOVDconst [0]) (MOVDconst [1]) (FCMPS x y))
 
-(Greater64      x y) -> (LOCGR {s390x.Greater} (MOVDconst [0]) (MOVDconst [1]) (CMP x y))
-(Greater32      x y) -> (LOCGR {s390x.Greater} (MOVDconst [0]) (MOVDconst [1]) (CMPW x y))
-(Greater(16|8)  x y) -> (LOCGR {s390x.Greater} (MOVDconst [0]) (MOVDconst [1]) (CMPW (MOV(H|B)reg x) (MOV(H|B)reg y)))
-(Greater64U     x y) -> (LOCGR {s390x.Greater} (MOVDconst [0]) (MOVDconst [1]) (CMPU x y))
-(Greater32U     x y) -> (LOCGR {s390x.Greater} (MOVDconst [0]) (MOVDconst [1]) (CMPWU x y))
-(Greater(16|8)U x y) -> (LOCGR {s390x.Greater} (MOVDconst [0]) (MOVDconst [1]) (CMPWU (MOV(H|B)Zreg x) (MOV(H|B)Zreg y)))
 (Greater64F     x y) -> (LOCGR {s390x.Greater} (MOVDconst [0]) (MOVDconst [1]) (FCMP x y))
 (Greater32F     x y) -> (LOCGR {s390x.Greater} (MOVDconst [0]) (MOVDconst [1]) (FCMPS x y))
 
-(Geq64      x y) -> (LOCGR {s390x.GreaterOrEqual} (MOVDconst [0]) (MOVDconst [1]) (CMP x y))
-(Geq32      x y) -> (LOCGR {s390x.GreaterOrEqual} (MOVDconst [0]) (MOVDconst [1]) (CMPW x y))
-(Geq(16|8)  x y) -> (LOCGR {s390x.GreaterOrEqual} (MOVDconst [0]) (MOVDconst [1]) (CMPW (MOV(H|B)reg x) (MOV(H|B)reg y)))
-(Geq64U     x y) -> (LOCGR {s390x.GreaterOrEqual} (MOVDconst [0]) (MOVDconst [1]) (CMPU x y))
-(Geq32U     x y) -> (LOCGR {s390x.GreaterOrEqual} (MOVDconst [0]) (MOVDconst [1]) (CMPWU x y))
-(Geq(16|8)U x y) -> (LOCGR {s390x.GreaterOrEqual} (MOVDconst [0]) (MOVDconst [1]) (CMPWU (MOV(H|B)Zreg x) (MOV(H|B)Zreg y)))
 (Geq64F     x y) -> (LOCGR {s390x.GreaterOrEqual} (MOVDconst [0]) (MOVDconst [1]) (FCMP x y))
 (Geq32F     x y) -> (LOCGR {s390x.GreaterOrEqual} (MOVDconst [0]) (MOVDconst [1]) (FCMPS x y))
 
