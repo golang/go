@@ -2454,116 +2454,11 @@ func copyFile(src, dst string, perm os.FileMode) error {
 	}
 
 	_, err = io.Copy(df, sf)
-	err2 := df.Sync()
-	err3 := df.Close()
+	err2 := df.Close()
 	if err != nil {
 		return err
 	}
-	if err2 != nil {
-		return err2
-	}
-	return err3
-}
-
-// TestExecutableGOROOT verifies that the cmd/go binary itself uses
-// os.Executable (when available) to locate GOROOT.
-func TestExecutableGOROOT(t *testing.T) {
-	skipIfGccgo(t, "gccgo has no GOROOT")
-
-	// Note: Must not call tg methods inside subtests: tg is attached to outer t.
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-	tg.unsetenv("GOROOT")
-
-	check := func(t *testing.T, exe, want string) {
-		cmd := exec.Command(exe, "env", "GOROOT")
-		cmd.Env = tg.env
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Fatalf("%s env GOROOT: %v, %s", exe, err, out)
-		}
-		goroot, err := filepath.EvalSymlinks(strings.TrimSpace(string(out)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		want, err = filepath.EvalSymlinks(want)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !strings.EqualFold(goroot, want) {
-			t.Errorf("go env GOROOT:\nhave %s\nwant %s", goroot, want)
-		} else {
-			t.Logf("go env GOROOT: %s", goroot)
-		}
-	}
-
-	tg.makeTempdir()
-	tg.tempDir("new/bin")
-	newGoTool := tg.path("new/bin/go" + exeSuffix)
-	tg.must(copyFile(tg.goTool(), newGoTool, 0775))
-	newRoot := tg.path("new")
-
-	t.Run("RelocatedExe", func(t *testing.T) {
-		// Should fall back to default location in binary,
-		// which is the GOROOT we used when building testgo.exe.
-		check(t, newGoTool, testGOROOT)
-	})
-
-	// If the binary is sitting in a bin dir next to ../pkg/tool, that counts as a GOROOT,
-	// so it should find the new tree.
-	tg.tempDir("new/pkg/tool")
-	t.Run("RelocatedTree", func(t *testing.T) {
-		check(t, newGoTool, newRoot)
-	})
-
-	tg.tempDir("other/bin")
-	symGoTool := tg.path("other/bin/go" + exeSuffix)
-
-	// Symlink into go tree should still find go tree.
-	t.Run("SymlinkedExe", func(t *testing.T) {
-		testenv.MustHaveSymlink(t)
-		if err := os.Symlink(newGoTool, symGoTool); err != nil {
-			t.Fatal(err)
-		}
-		check(t, symGoTool, newRoot)
-	})
-
-	tg.must(robustio.RemoveAll(tg.path("new/pkg")))
-
-	// Binaries built in the new tree should report the
-	// new tree when they call runtime.GOROOT.
-	t.Run("RuntimeGoroot", func(t *testing.T) {
-		// Build a working GOROOT the easy way, with symlinks.
-		testenv.MustHaveSymlink(t)
-		if err := os.Symlink(filepath.Join(testGOROOT, "src"), tg.path("new/src")); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.Symlink(filepath.Join(testGOROOT, "pkg"), tg.path("new/pkg")); err != nil {
-			t.Fatal(err)
-		}
-
-		cmd := exec.Command(newGoTool, "run", "testdata/print_goroot.go")
-		cmd.Env = tg.env
-		cmd.Stderr = os.Stderr
-		out, err := cmd.Output()
-		if err != nil {
-			t.Fatalf("%s run testdata/print_goroot.go: %v, %s", newGoTool, err, out)
-		}
-		goroot, err := filepath.EvalSymlinks(strings.TrimSpace(string(out)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		want, err := filepath.EvalSymlinks(tg.path("new"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !strings.EqualFold(goroot, want) {
-			t.Errorf("go run testdata/print_goroot.go:\nhave %s\nwant %s", goroot, want)
-		} else {
-			t.Logf("go run testdata/print_goroot.go: %s", goroot)
-		}
-	})
+	return err2
 }
 
 func TestNeedVersion(t *testing.T) {
