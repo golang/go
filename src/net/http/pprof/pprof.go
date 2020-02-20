@@ -273,6 +273,9 @@ func Index(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
 	type profile struct {
 		Name  string
 		Href  string
