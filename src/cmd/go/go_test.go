@@ -2454,11 +2454,15 @@ func copyFile(src, dst string, perm os.FileMode) error {
 	}
 
 	_, err = io.Copy(df, sf)
-	err2 := df.Close()
+	err2 := df.Sync()
+	err3 := df.Close()
 	if err != nil {
 		return err
 	}
-	return err2
+	if err2 != nil {
+		return err2
+	}
+	return err3
 }
 
 // TestExecutableGOROOT verifies that the cmd/go binary itself uses
