@@ -163,6 +163,26 @@ start:
 	SCW	X5, (X6), X7				// af23531c
 	SCD	X5, (X6), X7				// af33531c
 
+	// 8.3: Atomic Memory Operations
+	AMOSWAPW	X5, (X6), X7			// af23530c
+	AMOSWAPD	X5, (X6), X7			// af33530c
+	AMOADDW		X5, (X6), X7			// af235304
+	AMOADDD		X5, (X6), X7			// af335304
+	AMOANDW		X5, (X6), X7			// af235364
+	AMOANDD		X5, (X6), X7			// af335364
+	AMOORW		X5, (X6), X7			// af235344
+	AMOORD		X5, (X6), X7			// af335344
+	AMOXORW		X5, (X6), X7			// af235324
+	AMOXORD		X5, (X6), X7			// af335324
+	AMOMAXW		X5, (X6), X7			// af2353a4
+	AMOMAXD		X5, (X6), X7			// af3353a4
+	AMOMAXUW	X5, (X6), X7			// af2353e4
+	AMOMAXUD	X5, (X6), X7			// af3353e4
+	AMOMINW		X5, (X6), X7			// af235384
+	AMOMIND		X5, (X6), X7			// af335384
+	AMOMINUW	X5, (X6), X7			// af2353c4
+	AMOMINUD	X5, (X6), X7			// af3353c4
+
 	// 10.1: Base Counters and Timers
 	RDCYCLE		X5				// f32200c0
 	RDTIME		X5				// f32210c0
@@ -282,7 +302,7 @@ start:
 	// These jumps can get printed as jumps to 2 because they go to the
 	// second instruction in the function (the first instruction is an
 	// invisible stack pointer adjustment).
-	JMP	start		// JMP	2		// 6ff09fcb
+	JMP	start		// JMP	2		// 6ff01fc7
 	JMP	(X5)					// 67800200
 	JMP	4(X5)					// 67804200
 

@@ -1591,6 +1591,26 @@ var encodings = [ALAST & obj.AMask]encoding{
 	ASCW & obj.AMask: rIIIEncoding,
 	ASCD & obj.AMask: rIIIEncoding,
 
+	// 8.3: Atomic Memory Operations
+	AAMOSWAPW & obj.AMask: rIIIEncoding,
+	AAMOSWAPD & obj.AMask: rIIIEncoding,
+	AAMOADDW & obj.AMask:  rIIIEncoding,
+	AAMOADDD & obj.AMask:  rIIIEncoding,
+	AAMOANDW & obj.AMask:  rIIIEncoding,
+	AAMOANDD & obj.AMask:  rIIIEncoding,
+	AAMOORW & obj.AMask:   rIIIEncoding,
+	AAMOORD & obj.AMask:   rIIIEncoding,
+	AAMOXORW & obj.AMask:  rIIIEncoding,
+	AAMOXORD & obj.AMask:  rIIIEncoding,
+	AAMOMAXW & obj.AMask:  rIIIEncoding,
+	AAMOMAXD & obj.AMask:  rIIIEncoding,
+	AAMOMAXUW & obj.AMask: rIIIEncoding,
+	AAMOMAXUD & obj.AMask: rIIIEncoding,
+	AAMOMINW & obj.AMask:  rIIIEncoding,
+	AAMOMIND & obj.AMask:  rIIIEncoding,
+	AAMOMINUW & obj.AMask: rIIIEncoding,
+	AAMOMINUD & obj.AMask: rIIIEncoding,
+
 	// 10.1: Base Counters and Timers
 	ARDCYCLE & obj.AMask:   iIEncoding,
 	ARDTIME & obj.AMask:    iIEncoding,
@@ -1776,7 +1796,8 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		ins.funct7 = 2
 		ins.rs1, ins.rs2 = uint32(p.From.Reg), REG_ZERO
 
-	case ASCW, ASCD:
+	case ASCW, ASCD, AAMOSWAPW, AAMOSWAPD, AAMOADDW, AAMOADDD, AAMOANDW, AAMOANDD, AAMOORW, AAMOORD,
+		AAMOXORW, AAMOXORD, AAMOMINW, AAMOMIND, AAMOMINUW, AAMOMINUD, AAMOMAXW, AAMOMAXD, AAMOMAXUW, AAMOMAXUD:
 		// Set aq to use acquire access ordering, which matches Go's memory requirements.
 		ins.funct7 = 2
 		ins.rd, ins.rs1, ins.rs2 = uint32(p.RegTo2), uint32(p.To.Reg), uint32(p.From.Reg)
