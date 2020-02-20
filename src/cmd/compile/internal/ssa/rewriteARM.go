@@ -579,22 +579,10 @@ func rewriteValueARM(v *Value) bool {
 		return rewriteValueARM_OpEqPtr(v)
 	case OpFMA:
 		return rewriteValueARM_OpFMA(v)
-	case OpGeq16:
-		return rewriteValueARM_OpGeq16(v)
-	case OpGeq16U:
-		return rewriteValueARM_OpGeq16U(v)
-	case OpGeq32:
-		return rewriteValueARM_OpGeq32(v)
 	case OpGeq32F:
 		return rewriteValueARM_OpGeq32F(v)
-	case OpGeq32U:
-		return rewriteValueARM_OpGeq32U(v)
 	case OpGeq64F:
 		return rewriteValueARM_OpGeq64F(v)
-	case OpGeq8:
-		return rewriteValueARM_OpGeq8(v)
-	case OpGeq8U:
-		return rewriteValueARM_OpGeq8U(v)
 	case OpGetCallerPC:
 		v.Op = OpARMLoweredGetCallerPC
 		return true
@@ -604,22 +592,10 @@ func rewriteValueARM(v *Value) bool {
 	case OpGetClosurePtr:
 		v.Op = OpARMLoweredGetClosurePtr
 		return true
-	case OpGreater16:
-		return rewriteValueARM_OpGreater16(v)
-	case OpGreater16U:
-		return rewriteValueARM_OpGreater16U(v)
-	case OpGreater32:
-		return rewriteValueARM_OpGreater32(v)
 	case OpGreater32F:
 		return rewriteValueARM_OpGreater32F(v)
-	case OpGreater32U:
-		return rewriteValueARM_OpGreater32U(v)
 	case OpGreater64F:
 		return rewriteValueARM_OpGreater64F(v)
-	case OpGreater8:
-		return rewriteValueARM_OpGreater8(v)
-	case OpGreater8U:
-		return rewriteValueARM_OpGreater8U(v)
 	case OpHmul32:
 		v.Op = OpARMHMUL
 		return true
@@ -14847,67 +14823,6 @@ func rewriteValueARM_OpFMA(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueARM_OpGeq16(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Geq16 x y)
-	// result: (GreaterEqual (CMP (SignExt16to32 x) (SignExt16to32 y)))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARMGreaterEqual)
-		v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
-		v1 := b.NewValue0(v.Pos, OpSignExt16to32, typ.Int32)
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpSignExt16to32, typ.Int32)
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGeq16U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Geq16U x y)
-	// result: (GreaterEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARMGreaterEqualU)
-		v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
-		v1 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGeq32(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq32 x y)
-	// result: (GreaterEqual (CMP x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARMGreaterEqual)
-		v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
 func rewriteValueARM_OpGeq32F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -14919,23 +14834,6 @@ func rewriteValueARM_OpGeq32F(v *Value) bool {
 		y := v_1
 		v.reset(OpARMGreaterEqual)
 		v0 := b.NewValue0(v.Pos, OpARMCMPF, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGeq32U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq32U x y)
-	// result: (GreaterEqualU (CMP x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARMGreaterEqualU)
-		v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
@@ -14959,111 +14857,6 @@ func rewriteValueARM_OpGeq64F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueARM_OpGeq8(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Geq8 x y)
-	// result: (GreaterEqual (CMP (SignExt8to32 x) (SignExt8to32 y)))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARMGreaterEqual)
-		v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
-		v1 := b.NewValue0(v.Pos, OpSignExt8to32, typ.Int32)
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpSignExt8to32, typ.Int32)
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGeq8U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Geq8U x y)
-	// result: (GreaterEqualU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARMGreaterEqualU)
-		v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
-		v1 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.UInt32)
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.UInt32)
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGreater16(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Greater16 x y)
-	// result: (GreaterThan (CMP (SignExt16to32 x) (SignExt16to32 y)))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARMGreaterThan)
-		v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
-		v1 := b.NewValue0(v.Pos, OpSignExt16to32, typ.Int32)
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpSignExt16to32, typ.Int32)
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGreater16U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Greater16U x y)
-	// result: (GreaterThanU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARMGreaterThanU)
-		v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
-		v1 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGreater32(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater32 x y)
-	// result: (GreaterThan (CMP x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARMGreaterThan)
-		v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
 func rewriteValueARM_OpGreater32F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -15075,23 +14868,6 @@ func rewriteValueARM_OpGreater32F(v *Value) bool {
 		y := v_1
 		v.reset(OpARMGreaterThan)
 		v0 := b.NewValue0(v.Pos, OpARMCMPF, types.TypeFlags)
-		v0.AddArg(x)
-		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGreater32U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater32U x y)
-	// result: (GreaterThanU (CMP x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARMGreaterThanU)
-		v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
 		v0.AddArg(x)
 		v0.AddArg(y)
 		v.AddArg(v0)
@@ -15111,50 +14887,6 @@ func rewriteValueARM_OpGreater64F(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpARMCMPD, types.TypeFlags)
 		v0.AddArg(x)
 		v0.AddArg(y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGreater8(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Greater8 x y)
-	// result: (GreaterThan (CMP (SignExt8to32 x) (SignExt8to32 y)))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARMGreaterThan)
-		v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
-		v1 := b.NewValue0(v.Pos, OpSignExt8to32, typ.Int32)
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpSignExt8to32, typ.Int32)
-		v2.AddArg(y)
-		v0.AddArg(v2)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGreater8U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Greater8U x y)
-	// result: (GreaterThanU (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARMGreaterThanU)
-		v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
-		v1 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.UInt32)
-		v1.AddArg(x)
-		v0.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.UInt32)
-		v2.AddArg(y)
-		v0.AddArg(v2)
 		v.AddArg(v0)
 		return true
 	}

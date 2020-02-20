@@ -405,20 +405,6 @@
 			(Eq32 (Int64Hi x) (Int64Hi y))
 			(Leq32U (Int64Lo x) (Int64Lo y))))
 
-(Greater64U x y) ->
-	(OrB
-		(Greater32U (Int64Hi x) (Int64Hi y))
-		(AndB
-			(Eq32 (Int64Hi x) (Int64Hi y))
-			(Greater32U (Int64Lo x) (Int64Lo y))))
-
-(Geq64U x y) ->
-	(OrB
-		(Greater32U (Int64Hi x) (Int64Hi y))
-		(AndB
-			(Eq32 (Int64Hi x) (Int64Hi y))
-			(Geq32U (Int64Lo x) (Int64Lo y))))
-
 (Less64 x y) ->
 	(OrB
 		(Less32 (Int64Hi x) (Int64Hi y))
@@ -432,17 +418,3 @@
 		(AndB
 			(Eq32 (Int64Hi x) (Int64Hi y))
 			(Leq32U (Int64Lo x) (Int64Lo y))))
-
-(Greater64 x y) ->
-	(OrB
-		(Greater32 (Int64Hi x) (Int64Hi y))
-		(AndB
-			(Eq32 (Int64Hi x) (Int64Hi y))
-			(Greater32U (Int64Lo x) (Int64Lo y))))
-
-(Geq64 x y) ->
-	(OrB
-		(Greater32 (Int64Hi x) (Int64Hi y))
-		(AndB
-			(Eq32 (Int64Hi x) (Int64Hi y))
-			(Geq32U (Int64Lo x) (Int64Lo y))))

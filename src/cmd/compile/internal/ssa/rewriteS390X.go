@@ -226,26 +226,10 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpFMA(v)
 	case OpFloor:
 		return rewriteValueS390X_OpFloor(v)
-	case OpGeq16:
-		return rewriteValueS390X_OpGeq16(v)
-	case OpGeq16U:
-		return rewriteValueS390X_OpGeq16U(v)
-	case OpGeq32:
-		return rewriteValueS390X_OpGeq32(v)
 	case OpGeq32F:
 		return rewriteValueS390X_OpGeq32F(v)
-	case OpGeq32U:
-		return rewriteValueS390X_OpGeq32U(v)
-	case OpGeq64:
-		return rewriteValueS390X_OpGeq64(v)
 	case OpGeq64F:
 		return rewriteValueS390X_OpGeq64F(v)
-	case OpGeq64U:
-		return rewriteValueS390X_OpGeq64U(v)
-	case OpGeq8:
-		return rewriteValueS390X_OpGeq8(v)
-	case OpGeq8U:
-		return rewriteValueS390X_OpGeq8U(v)
 	case OpGetCallerPC:
 		v.Op = OpS390XLoweredGetCallerPC
 		return true
@@ -258,26 +242,10 @@ func rewriteValueS390X(v *Value) bool {
 	case OpGetG:
 		v.Op = OpS390XLoweredGetG
 		return true
-	case OpGreater16:
-		return rewriteValueS390X_OpGreater16(v)
-	case OpGreater16U:
-		return rewriteValueS390X_OpGreater16U(v)
-	case OpGreater32:
-		return rewriteValueS390X_OpGreater32(v)
 	case OpGreater32F:
 		return rewriteValueS390X_OpGreater32F(v)
-	case OpGreater32U:
-		return rewriteValueS390X_OpGreater32U(v)
-	case OpGreater64:
-		return rewriteValueS390X_OpGreater64(v)
 	case OpGreater64F:
 		return rewriteValueS390X_OpGreater64F(v)
-	case OpGreater64U:
-		return rewriteValueS390X_OpGreater64U(v)
-	case OpGreater8:
-		return rewriteValueS390X_OpGreater8(v)
-	case OpGreater8U:
-		return rewriteValueS390X_OpGreater8U(v)
 	case OpHmul32:
 		return rewriteValueS390X_OpHmul32(v)
 	case OpHmul32u:
@@ -1599,89 +1567,6 @@ func rewriteValueS390X_OpFloor(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueS390X_OpGeq16(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Geq16 x y)
-	// result: (LOCGR {s390x.GreaterOrEqual} (MOVDconst [0]) (MOVDconst [1]) (CMPW (MOVHreg x) (MOVHreg y)))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpS390XLOCGR)
-		v.Aux = s390x.GreaterOrEqual
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v0.AuxInt = 0
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v1.AuxInt = 1
-		v.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpS390XCMPW, types.TypeFlags)
-		v3 := b.NewValue0(v.Pos, OpS390XMOVHreg, typ.Int64)
-		v3.AddArg(x)
-		v2.AddArg(v3)
-		v4 := b.NewValue0(v.Pos, OpS390XMOVHreg, typ.Int64)
-		v4.AddArg(y)
-		v2.AddArg(v4)
-		v.AddArg(v2)
-		return true
-	}
-}
-func rewriteValueS390X_OpGeq16U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Geq16U x y)
-	// result: (LOCGR {s390x.GreaterOrEqual} (MOVDconst [0]) (MOVDconst [1]) (CMPWU (MOVHZreg x) (MOVHZreg y)))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpS390XLOCGR)
-		v.Aux = s390x.GreaterOrEqual
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v0.AuxInt = 0
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v1.AuxInt = 1
-		v.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpS390XCMPWU, types.TypeFlags)
-		v3 := b.NewValue0(v.Pos, OpS390XMOVHZreg, typ.UInt64)
-		v3.AddArg(x)
-		v2.AddArg(v3)
-		v4 := b.NewValue0(v.Pos, OpS390XMOVHZreg, typ.UInt64)
-		v4.AddArg(y)
-		v2.AddArg(v4)
-		v.AddArg(v2)
-		return true
-	}
-}
-func rewriteValueS390X_OpGeq32(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Geq32 x y)
-	// result: (LOCGR {s390x.GreaterOrEqual} (MOVDconst [0]) (MOVDconst [1]) (CMPW x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpS390XLOCGR)
-		v.Aux = s390x.GreaterOrEqual
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v0.AuxInt = 0
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v1.AuxInt = 1
-		v.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpS390XCMPW, types.TypeFlags)
-		v2.AddArg(x)
-		v2.AddArg(y)
-		v.AddArg(v2)
-		return true
-	}
-}
 func rewriteValueS390X_OpGeq32F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -1701,56 +1586,6 @@ func rewriteValueS390X_OpGeq32F(v *Value) bool {
 		v1.AuxInt = 1
 		v.AddArg(v1)
 		v2 := b.NewValue0(v.Pos, OpS390XFCMPS, types.TypeFlags)
-		v2.AddArg(x)
-		v2.AddArg(y)
-		v.AddArg(v2)
-		return true
-	}
-}
-func rewriteValueS390X_OpGeq32U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Geq32U x y)
-	// result: (LOCGR {s390x.GreaterOrEqual} (MOVDconst [0]) (MOVDconst [1]) (CMPWU x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpS390XLOCGR)
-		v.Aux = s390x.GreaterOrEqual
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v0.AuxInt = 0
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v1.AuxInt = 1
-		v.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpS390XCMPWU, types.TypeFlags)
-		v2.AddArg(x)
-		v2.AddArg(y)
-		v.AddArg(v2)
-		return true
-	}
-}
-func rewriteValueS390X_OpGeq64(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Geq64 x y)
-	// result: (LOCGR {s390x.GreaterOrEqual} (MOVDconst [0]) (MOVDconst [1]) (CMP x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpS390XLOCGR)
-		v.Aux = s390x.GreaterOrEqual
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v0.AuxInt = 0
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v1.AuxInt = 1
-		v.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpS390XCMP, types.TypeFlags)
 		v2.AddArg(x)
 		v2.AddArg(y)
 		v.AddArg(v2)
@@ -1782,172 +1617,6 @@ func rewriteValueS390X_OpGeq64F(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueS390X_OpGeq64U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Geq64U x y)
-	// result: (LOCGR {s390x.GreaterOrEqual} (MOVDconst [0]) (MOVDconst [1]) (CMPU x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpS390XLOCGR)
-		v.Aux = s390x.GreaterOrEqual
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v0.AuxInt = 0
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v1.AuxInt = 1
-		v.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpS390XCMPU, types.TypeFlags)
-		v2.AddArg(x)
-		v2.AddArg(y)
-		v.AddArg(v2)
-		return true
-	}
-}
-func rewriteValueS390X_OpGeq8(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Geq8 x y)
-	// result: (LOCGR {s390x.GreaterOrEqual} (MOVDconst [0]) (MOVDconst [1]) (CMPW (MOVBreg x) (MOVBreg y)))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpS390XLOCGR)
-		v.Aux = s390x.GreaterOrEqual
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v0.AuxInt = 0
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v1.AuxInt = 1
-		v.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpS390XCMPW, types.TypeFlags)
-		v3 := b.NewValue0(v.Pos, OpS390XMOVBreg, typ.Int64)
-		v3.AddArg(x)
-		v2.AddArg(v3)
-		v4 := b.NewValue0(v.Pos, OpS390XMOVBreg, typ.Int64)
-		v4.AddArg(y)
-		v2.AddArg(v4)
-		v.AddArg(v2)
-		return true
-	}
-}
-func rewriteValueS390X_OpGeq8U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Geq8U x y)
-	// result: (LOCGR {s390x.GreaterOrEqual} (MOVDconst [0]) (MOVDconst [1]) (CMPWU (MOVBZreg x) (MOVBZreg y)))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpS390XLOCGR)
-		v.Aux = s390x.GreaterOrEqual
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v0.AuxInt = 0
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v1.AuxInt = 1
-		v.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpS390XCMPWU, types.TypeFlags)
-		v3 := b.NewValue0(v.Pos, OpS390XMOVBZreg, typ.UInt64)
-		v3.AddArg(x)
-		v2.AddArg(v3)
-		v4 := b.NewValue0(v.Pos, OpS390XMOVBZreg, typ.UInt64)
-		v4.AddArg(y)
-		v2.AddArg(v4)
-		v.AddArg(v2)
-		return true
-	}
-}
-func rewriteValueS390X_OpGreater16(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Greater16 x y)
-	// result: (LOCGR {s390x.Greater} (MOVDconst [0]) (MOVDconst [1]) (CMPW (MOVHreg x) (MOVHreg y)))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpS390XLOCGR)
-		v.Aux = s390x.Greater
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v0.AuxInt = 0
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v1.AuxInt = 1
-		v.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpS390XCMPW, types.TypeFlags)
-		v3 := b.NewValue0(v.Pos, OpS390XMOVHreg, typ.Int64)
-		v3.AddArg(x)
-		v2.AddArg(v3)
-		v4 := b.NewValue0(v.Pos, OpS390XMOVHreg, typ.Int64)
-		v4.AddArg(y)
-		v2.AddArg(v4)
-		v.AddArg(v2)
-		return true
-	}
-}
-func rewriteValueS390X_OpGreater16U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Greater16U x y)
-	// result: (LOCGR {s390x.Greater} (MOVDconst [0]) (MOVDconst [1]) (CMPWU (MOVHZreg x) (MOVHZreg y)))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpS390XLOCGR)
-		v.Aux = s390x.Greater
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v0.AuxInt = 0
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v1.AuxInt = 1
-		v.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpS390XCMPWU, types.TypeFlags)
-		v3 := b.NewValue0(v.Pos, OpS390XMOVHZreg, typ.UInt64)
-		v3.AddArg(x)
-		v2.AddArg(v3)
-		v4 := b.NewValue0(v.Pos, OpS390XMOVHZreg, typ.UInt64)
-		v4.AddArg(y)
-		v2.AddArg(v4)
-		v.AddArg(v2)
-		return true
-	}
-}
-func rewriteValueS390X_OpGreater32(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Greater32 x y)
-	// result: (LOCGR {s390x.Greater} (MOVDconst [0]) (MOVDconst [1]) (CMPW x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpS390XLOCGR)
-		v.Aux = s390x.Greater
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v0.AuxInt = 0
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v1.AuxInt = 1
-		v.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpS390XCMPW, types.TypeFlags)
-		v2.AddArg(x)
-		v2.AddArg(y)
-		v.AddArg(v2)
-		return true
-	}
-}
 func rewriteValueS390X_OpGreater32F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -1967,56 +1636,6 @@ func rewriteValueS390X_OpGreater32F(v *Value) bool {
 		v1.AuxInt = 1
 		v.AddArg(v1)
 		v2 := b.NewValue0(v.Pos, OpS390XFCMPS, types.TypeFlags)
-		v2.AddArg(x)
-		v2.AddArg(y)
-		v.AddArg(v2)
-		return true
-	}
-}
-func rewriteValueS390X_OpGreater32U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Greater32U x y)
-	// result: (LOCGR {s390x.Greater} (MOVDconst [0]) (MOVDconst [1]) (CMPWU x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpS390XLOCGR)
-		v.Aux = s390x.Greater
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v0.AuxInt = 0
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v1.AuxInt = 1
-		v.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpS390XCMPWU, types.TypeFlags)
-		v2.AddArg(x)
-		v2.AddArg(y)
-		v.AddArg(v2)
-		return true
-	}
-}
-func rewriteValueS390X_OpGreater64(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Greater64 x y)
-	// result: (LOCGR {s390x.Greater} (MOVDconst [0]) (MOVDconst [1]) (CMP x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpS390XLOCGR)
-		v.Aux = s390x.Greater
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v0.AuxInt = 0
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v1.AuxInt = 1
-		v.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpS390XCMP, types.TypeFlags)
 		v2.AddArg(x)
 		v2.AddArg(y)
 		v.AddArg(v2)
@@ -2044,89 +1663,6 @@ func rewriteValueS390X_OpGreater64F(v *Value) bool {
 		v2 := b.NewValue0(v.Pos, OpS390XFCMP, types.TypeFlags)
 		v2.AddArg(x)
 		v2.AddArg(y)
-		v.AddArg(v2)
-		return true
-	}
-}
-func rewriteValueS390X_OpGreater64U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Greater64U x y)
-	// result: (LOCGR {s390x.Greater} (MOVDconst [0]) (MOVDconst [1]) (CMPU x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpS390XLOCGR)
-		v.Aux = s390x.Greater
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v0.AuxInt = 0
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v1.AuxInt = 1
-		v.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpS390XCMPU, types.TypeFlags)
-		v2.AddArg(x)
-		v2.AddArg(y)
-		v.AddArg(v2)
-		return true
-	}
-}
-func rewriteValueS390X_OpGreater8(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Greater8 x y)
-	// result: (LOCGR {s390x.Greater} (MOVDconst [0]) (MOVDconst [1]) (CMPW (MOVBreg x) (MOVBreg y)))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpS390XLOCGR)
-		v.Aux = s390x.Greater
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v0.AuxInt = 0
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v1.AuxInt = 1
-		v.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpS390XCMPW, types.TypeFlags)
-		v3 := b.NewValue0(v.Pos, OpS390XMOVBreg, typ.Int64)
-		v3.AddArg(x)
-		v2.AddArg(v3)
-		v4 := b.NewValue0(v.Pos, OpS390XMOVBreg, typ.Int64)
-		v4.AddArg(y)
-		v2.AddArg(v4)
-		v.AddArg(v2)
-		return true
-	}
-}
-func rewriteValueS390X_OpGreater8U(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	typ := &b.Func.Config.Types
-	// match: (Greater8U x y)
-	// result: (LOCGR {s390x.Greater} (MOVDconst [0]) (MOVDconst [1]) (CMPWU (MOVBZreg x) (MOVBZreg y)))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpS390XLOCGR)
-		v.Aux = s390x.Greater
-		v0 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v0.AuxInt = 0
-		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
-		v1.AuxInt = 1
-		v.AddArg(v1)
-		v2 := b.NewValue0(v.Pos, OpS390XCMPWU, types.TypeFlags)
-		v3 := b.NewValue0(v.Pos, OpS390XMOVBZreg, typ.UInt64)
-		v3.AddArg(x)
-		v2.AddArg(v3)
-		v4 := b.NewValue0(v.Pos, OpS390XMOVBZreg, typ.UInt64)
-		v4.AddArg(y)
-		v2.AddArg(v4)
 		v.AddArg(v2)
 		return true
 	}

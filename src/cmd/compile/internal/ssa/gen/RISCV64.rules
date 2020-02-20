@@ -258,26 +258,10 @@
 (Leq32F ...) -> (FLES ...)
 
 // Convert x > y to y < x.
-(Greater64  x y) -> (Less64  y x)
-(Greater32  x y) -> (Less32  y x)
-(Greater16  x y) -> (Less16  y x)
-(Greater8   x y) -> (Less8   y x)
-(Greater64U x y) -> (Less64U y x)
-(Greater32U x y) -> (Less32U y x)
-(Greater16U x y) -> (Less16U y x)
-(Greater8U  x y) -> (Less8U  y x)
 (Greater64F x y) -> (FLTD y x)
 (Greater32F x y) -> (FLTS y x)
 
 // Convert x >= y to !(x < y)
-(Geq64  x y) -> (Not (Less64  x y))
-(Geq32  x y) -> (Not (Less32  x y))
-(Geq16  x y) -> (Not (Less16  x y))
-(Geq8   x y) -> (Not (Less8   x y))
-(Geq64U x y) -> (Not (Less64U x y))
-(Geq32U x y) -> (Not (Less32U x y))
-(Geq16U x y) -> (Not (Less16U x y))
-(Geq8U  x y) -> (Not (Less8U  x y))
 (Geq64F x y) -> (FLED y x)
 (Geq32F x y) -> (FLES y x)
 

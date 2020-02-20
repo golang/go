@@ -200,14 +200,10 @@
 // Use SETGEF with reversed operands to dodge NaN case
 (Leq(32|64)F x y) -> (SETGEF (UCOMIS(S|D) y x))
 
-(Greater(64|32|16|8)  x y) -> (SETG (CMP(Q|L|W|B) x y))
-(Greater(64|32|16|8)U x y) -> (SETA (CMP(Q|L|W|B) x y))
 // Note Go assembler gets UCOMISx operand order wrong, but it is right here
 // Bug is accommodated at generation of assembly language.
 (Greater(32|64)F x y) -> (SETGF (UCOMIS(S|D) x y))
 
-(Geq(64|32|16|8)  x y) -> (SETGE (CMP(Q|L|W|B) x y))
-(Geq(64|32|16|8)U x y) -> (SETAE (CMP(Q|L|W|B) x y))
 // Note Go assembler gets UCOMISx operand order wrong, but it is right here
 // Bug is accommodated at generation of assembly language.
 (Geq(32|64)F x y) -> (SETGEF (UCOMIS(S|D) x y))

@@ -718,24 +718,6 @@ var (
 		OpLeq64:  {signed, lt | eq},
 		OpLeq64U: {unsigned, lt | eq},
 
-		OpGeq8:   {signed, eq | gt},
-		OpGeq8U:  {unsigned, eq | gt},
-		OpGeq16:  {signed, eq | gt},
-		OpGeq16U: {unsigned, eq | gt},
-		OpGeq32:  {signed, eq | gt},
-		OpGeq32U: {unsigned, eq | gt},
-		OpGeq64:  {signed, eq | gt},
-		OpGeq64U: {unsigned, eq | gt},
-
-		OpGreater8:   {signed, gt},
-		OpGreater8U:  {unsigned, gt},
-		OpGreater16:  {signed, gt},
-		OpGreater16U: {unsigned, gt},
-		OpGreater32:  {signed, gt},
-		OpGreater32U: {unsigned, gt},
-		OpGreater64:  {signed, gt},
-		OpGreater64U: {unsigned, gt},
-
 		// For these ops, the negative branch is different: we can only
 		// prove signed/GE (signed/GT) if we can prove that arg0 is non-negative.
 		// See the special case in addBranchRestrictions.

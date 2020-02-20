@@ -393,27 +393,9 @@
 (Leq32U x y) -> (LessEqual (CMPWU x y))
 (Leq64U x y) -> (LessEqual (CMPU x y))
 
-(Greater8 x y)  -> (GreaterThan (CMPW (SignExt8to32 x) (SignExt8to32 y)))
-(Greater16 x y) -> (GreaterThan (CMPW (SignExt16to32 x) (SignExt16to32 y)))
-(Greater32 x y) -> (GreaterThan (CMPW x y))
-(Greater64 x y) -> (GreaterThan (CMP x y))
 (Greater(32|64)F x y) -> (FGreaterThan (FCMPU x y))
 
-(Greater8U x y)  -> (GreaterThan (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
-(Greater16U x y) -> (GreaterThan (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
-(Greater32U x y) -> (GreaterThan (CMPWU x y))
-(Greater64U x y) -> (GreaterThan (CMPU x y))
-
-(Geq8 x y)  -> (GreaterEqual (CMPW (SignExt8to32 x) (SignExt8to32 y)))
-(Geq16 x y) -> (GreaterEqual (CMPW (SignExt16to32 x) (SignExt16to32 y)))
-(Geq32 x y) -> (GreaterEqual (CMPW x y))
-(Geq64 x y) -> (GreaterEqual (CMP x y))
 (Geq(32|64)F x y) -> (FGreaterEqual (FCMPU x y))
-
-(Geq8U x y)  -> (GreaterEqual (CMPWU (ZeroExt8to32 x) (ZeroExt8to32 y)))
-(Geq16U x y) -> (GreaterEqual (CMPWU (ZeroExt16to32 x) (ZeroExt16to32 y)))
-(Geq32U x y) -> (GreaterEqual (CMPWU x y))
-(Geq64U x y) -> (GreaterEqual (CMPU x y))
 
 // Absorb pseudo-ops into blocks.
 (If (Equal cc) yes no) -> (EQ cc yes no)
