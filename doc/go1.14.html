@@ -582,6 +582,13 @@ appropriately.)
       was never a documented feature. For proper escaping, see <a
       href="/pkg/encoding/json/#HTMLEscape"><code>HTMLEscape</code></a>.
     </p>
+
+    <p><!-- CL 195045 -->
+      <a href="/pkg/encoding/json/#Number"><code>Number</code></a> no longer
+      accepts invalid numbers, to follow the documented behavior more closely.
+      If a program needs to accept invalid numbers like the empty string,
+      consider wrapping the type with <a href="/pkg/encoding/json/#Unmarshaler"><code>Unmarshaler</code></a>.
+    </p>
   </dd>
 </dl><!-- encoding/json -->
 
