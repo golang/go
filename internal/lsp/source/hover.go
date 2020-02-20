@@ -44,6 +44,32 @@ type HoverInformation struct {
 	comment *ast.CommentGroup
 }
 
+func Hover(ctx context.Context, snapshot Snapshot, fh FileHandle, position protocol.Position) (*protocol.Hover, error) {
+	ident, err := Identifier(ctx, snapshot, fh, position)
+	if err != nil {
+		return nil, nil
+	}
+	h, err := ident.Hover(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rng, err := ident.Range()
+	if err != nil {
+		return nil, err
+	}
+	hover, err := FormatHover(h, snapshot.View().Options())
+	if err != nil {
+		return nil, err
+	}
+	return &protocol.Hover{
+		Contents: protocol.MarkupContent{
+			Kind:  snapshot.View().Options().PreferredContentFormat,
+			Value: hover,
+		},
+		Range: rng,
+	}, nil
+}
+
 func (i *IdentifierInfo) Hover(ctx context.Context) (*HoverInformation, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Hover")
 	defer done()

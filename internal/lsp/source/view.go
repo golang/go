@@ -271,6 +271,11 @@ type ModHandle interface {
 	// for the go.mod file. Note that this will only work if the go.mod is the view's go.mod.
 	// If the file is not available, returns nil and an error.
 	Upgrades(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, map[string]string, error)
+
+	// Why returns the parsed modfile, a mapper, and any explanations why a dependency should be
+	// in the go.mod file. Note that this will only work if the go.mod is the view's go.mod.
+	// If the file is not available, returns nil and an error.
+	Why(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, map[string]string, error)
 }
 
 // ModTidyHandle represents a handle to the modfile for the view.

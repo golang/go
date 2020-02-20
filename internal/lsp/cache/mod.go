@@ -78,6 +78,10 @@ type modData struct {
 	// upgrades is a map of path->version that contains any upgrades for the go.mod.
 	upgrades map[string]string
 
+	// why is a map of path->explanation that contains all the "go mod why" contents
+	// for each require statement.
+	why map[string]string
+
 	// parseErrors are the errors that arise when we diff between a user's go.mod
 	// and the "tidied" go.mod.
 	parseErrors []source.Error
@@ -110,6 +114,15 @@ func (mh *modHandle) Upgrades(ctx context.Context) (*modfile.File, *protocol.Col
 	}
 	data := v.(*modData)
 	return data.origParsedFile, data.origMapper, data.upgrades, data.err
+}
+
+func (mh *modHandle) Why(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, map[string]string, error) {
+	v := mh.handle.Get(ctx)
+	if v == nil {
+		return nil, nil, nil, errors.Errorf("no parsed file for %s", mh.File().Identity().URI)
+	}
+	data := v.(*modData)
+	return data.origParsedFile, data.origMapper, data.why, data.err
 }
 
 func (s *snapshot) ModHandle(ctx context.Context, fh source.FileHandle) source.ModHandle {
@@ -165,7 +178,15 @@ func (s *snapshot) ModHandle(ctx context.Context, fh source.FileHandle) source.M
 			}
 		}
 		// Only get dependency upgrades if the go.mod file is the same as the view's.
-		data.upgrades, data.err = dependencyUpgrades(ctx, cfg, folder, data)
+		if err := dependencyUpgrades(ctx, cfg, folder, data); err != nil {
+			data.err = err
+			return data
+		}
+		// Only run "go mod why" if the go.mod file is the same as the view's.
+		if err := goModWhy(ctx, cfg, folder, data); err != nil {
+			data.err = err
+			return data
+		}
 		return data
 	})
 	s.mu.Lock()
@@ -178,9 +199,39 @@ func (s *snapshot) ModHandle(ctx context.Context, fh source.FileHandle) source.M
 	return s.modHandles[uri]
 }
 
-func dependencyUpgrades(ctx context.Context, cfg *packages.Config, folder string, data *modData) (map[string]string, error) {
+func goModWhy(ctx context.Context, cfg *packages.Config, folder string, data *modData) error {
 	if len(data.origParsedFile.Require) == 0 {
-		return nil, nil
+		return nil
+	}
+	// Run "go mod why" on all the dependencies to get information about the usages.
+	inv := gocommand.Invocation{
+		Verb:       "mod",
+		Args:       []string{"why", "-m"},
+		BuildFlags: cfg.BuildFlags,
+		Env:        cfg.Env,
+		WorkingDir: folder,
+	}
+	for _, req := range data.origParsedFile.Require {
+		inv.Args = append(inv.Args, req.Mod.Path)
+	}
+	stdout, err := inv.Run(ctx)
+	if err != nil {
+		return err
+	}
+	whyList := strings.Split(stdout.String(), "\n\n")
+	if len(whyList) <= 1 || len(whyList) > len(data.origParsedFile.Require) {
+		return nil
+	}
+	data.why = make(map[string]string)
+	for i, req := range data.origParsedFile.Require {
+		data.why[req.Mod.Path] = whyList[i]
+	}
+	return nil
+}
+
+func dependencyUpgrades(ctx context.Context, cfg *packages.Config, folder string, data *modData) error {
+	if len(data.origParsedFile.Require) == 0 {
+		return nil
 	}
 	// Run "go list -u -m all" to be able to see which deps can be upgraded.
 	inv := gocommand.Invocation{
@@ -192,13 +243,13 @@ func dependencyUpgrades(ctx context.Context, cfg *packages.Config, folder string
 	}
 	stdout, err := inv.Run(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	upgradesList := strings.Split(stdout.String(), "\n")
 	if len(upgradesList) <= 1 {
-		return nil, nil
+		return nil
 	}
-	upgrades := make(map[string]string)
+	data.upgrades = make(map[string]string)
 	for _, upgrade := range upgradesList[1:] {
 		// Example: "github.com/x/tools v1.1.0 [v1.2.0]"
 		info := strings.Split(upgrade, " ")
@@ -208,9 +259,9 @@ func dependencyUpgrades(ctx context.Context, cfg *packages.Config, folder string
 		dep, version := info[0], info[2]
 		latest := version[1:]                    // remove the "["
 		latest = strings.TrimSuffix(latest, "]") // remove the "]"
-		upgrades[dep] = latest
+		data.upgrades[dep] = latest
 	}
-	return upgrades, nil
+	return nil
 }
 
 func (mh *modHandle) Tidy(ctx context.Context) (*modfile.File, *protocol.ColumnMapper, map[string]*modfile.Require, []source.Error, error) {
