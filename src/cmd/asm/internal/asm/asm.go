@@ -590,7 +590,7 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 		prog.To = a[1]
 	case 3:
 		switch p.arch.Family {
-		case sys.MIPS, sys.MIPS64, sys.RISCV64:
+		case sys.MIPS, sys.MIPS64:
 			prog.From = a[0]
 			prog.Reg = p.getRegister(prog, op, &a[1])
 			prog.To = a[2]
@@ -675,6 +675,21 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
 				p.errorf("invalid addressing modes for %s instruction", op)
 				return
 			}
+		case sys.RISCV64:
+			// RISCV64 instructions with one input and two outputs.
+			if arch.IsRISCV64AMO(op) {
+				prog.From = a[0]
+				prog.To = a[1]
+				if a[2].Type != obj.TYPE_REG {
+					p.errorf("invalid addressing modes for third operand to %s instruction, must be register", op)
+					return
+				}
+				prog.RegTo2 = a[2].Reg
+				break
+			}
+			prog.From = a[0]
+			prog.Reg = p.getRegister(prog, op, &a[1])
+			prog.To = a[2]
 		case sys.S390X:
 			prog.From = a[0]
 			if a[1].Type == obj.TYPE_REG {

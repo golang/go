@@ -157,6 +157,12 @@ start:
 	REMW	X5, X6, X7				// bb635302
 	REMUW	X5, X6, X7				// bb735302
 
+	// 8.2: Load-Reserved/Store-Conditional
+	LRW	(X5), X6				// 2fa30214
+	LRD	(X5), X6				// 2fb30214
+	SCW	X5, (X6), X7				// af23531c
+	SCD	X5, (X6), X7				// af33531c
+
 	// 10.1: Base Counters and Timers
 	RDCYCLE		X5				// f32200c0
 	RDTIME		X5				// f32210c0
@@ -276,7 +282,7 @@ start:
 	// These jumps can get printed as jumps to 2 because they go to the
 	// second instruction in the function (the first instruction is an
 	// invisible stack pointer adjustment).
-	JMP	start		// JMP	2		// 6ff09fcc
+	JMP	start		// JMP	2		// 6ff09fcb
 	JMP	(X5)					// 67800200
 	JMP	4(X5)					// 67804200
 
