@@ -1639,6 +1639,51 @@ func TestSymlinkWarning(t *testing.T) {
 	tg.grepStderr("ignoring symlink", "list should have reported symlink")
 }
 
+func TestShadowingLogic(t *testing.T) {
+	skipIfGccgo(t, "gccgo has no standard packages")
+	tg := testgo(t)
+	defer tg.cleanup()
+	pwd := tg.pwd()
+	sep := string(filepath.ListSeparator)
+	tg.setenv("GOPATH", filepath.Join(pwd, "testdata", "shadow", "root1")+sep+filepath.Join(pwd, "testdata", "shadow", "root2"))
+
+	// The math in root1 is not "math" because the standard math is.
+	tg.run("list", "-f", "({{.ImportPath}}) ({{.ConflictDir}})", "./testdata/shadow/root1/src/math")
+	pwdForwardSlash := strings.ReplaceAll(pwd, string(os.PathSeparator), "/")
+	if !strings.HasPrefix(pwdForwardSlash, "/") {
+		pwdForwardSlash = "/" + pwdForwardSlash
+	}
+	// The output will have makeImportValid applies, but we only
+	// bother to deal with characters we might reasonably see.
+	for _, r := range " :" {
+		pwdForwardSlash = strings.ReplaceAll(pwdForwardSlash, string(r), "_")
+	}
+	want := "(_" + pwdForwardSlash + "/testdata/shadow/root1/src/math) (" + filepath.Join(runtime.GOROOT(), "src", "math") + ")"
+	if strings.TrimSpace(tg.getStdout()) != want {
+		t.Error("shadowed math is not shadowed; looking for", want)
+	}
+
+	// The foo in root1 is "foo".
+	tg.run("list", "-f", "({{.ImportPath}}) ({{.ConflictDir}})", "./testdata/shadow/root1/src/foo")
+	if strings.TrimSpace(tg.getStdout()) != "(foo) ()" {
+		t.Error("unshadowed foo is shadowed")
+	}
+
+	// The foo in root2 is not "foo" because the foo in root1 got there first.
+	tg.run("list", "-f", "({{.ImportPath}}) ({{.ConflictDir}})", "./testdata/shadow/root2/src/foo")
+	want = "(_" + pwdForwardSlash + "/testdata/shadow/root2/src/foo) (" + filepath.Join(pwd, "testdata", "shadow", "root1", "src", "foo") + ")"
+	if strings.TrimSpace(tg.getStdout()) != want {
+		t.Error("shadowed foo is not shadowed; looking for", want)
+	}
+
+	// The error for go install should mention the conflicting directory.
+	tg.runFail("install", "./testdata/shadow/root2/src/foo")
+	want = "go install: no install location for " + filepath.Join(pwd, "testdata", "shadow", "root2", "src", "foo") + ": hidden by " + filepath.Join(pwd, "testdata", "shadow", "root1", "src", "foo")
+	if strings.TrimSpace(tg.getStderr()) != want {
+		t.Error("wrong shadowed install error; looking for", want)
+	}
+}
+
 func TestCgoDependsOnSyscall(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test that removes $GOROOT/pkg/*_race in short mode")
