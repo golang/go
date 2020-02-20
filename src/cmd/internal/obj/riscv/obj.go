@@ -1651,6 +1651,9 @@ var encodings = [ALAST & obj.AMask]encoding{
 	AFLTS & obj.AMask: rFFIEncoding,
 	AFLES & obj.AMask: rFFIEncoding,
 
+	// 11.9: Single-Precision Floating-Point Classify Instruction
+	AFCLASSS & obj.AMask: rFIEncoding,
+
 	// 12.3: Double-Precision Load and Store Instructions
 	AFLD & obj.AMask: iFEncoding,
 	AFSD & obj.AMask: sFEncoding,
@@ -1685,6 +1688,9 @@ var encodings = [ALAST & obj.AMask]encoding{
 	AFEQD & obj.AMask: rFFIEncoding,
 	AFLTD & obj.AMask: rFFIEncoding,
 	AFLED & obj.AMask: rFFIEncoding,
+
+	// 12.7: Double-Precision Floating-Point Classify Instruction
+	AFCLASSD & obj.AMask: rFIEncoding,
 
 	// Privileged ISA
 

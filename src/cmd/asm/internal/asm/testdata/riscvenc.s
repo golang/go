@@ -225,6 +225,9 @@ start:
 	FLTS	F0, F1, X7				// d39300a0
 	FLES	F0, F1, X7				// d38300a0
 
+	// 11.9: Single-Precision Floating-Point Classify Instruction
+	FCLASSS	F0, X5					// d31200e0
+
 	// 12.3: Double-Precision Load and Store Instructions
 	FLD	(X5), F0				// 07b00200
 	FLD	4(X5), F0				// 07b04200
@@ -256,6 +259,9 @@ start:
 	FSGNJXD	F1, F0, F2				// 53211022
 	FMVXD	F0, X5					// d30200e2
 	FMVDX	X5, F0					// 538002f2
+
+	// 12.6: Double-Precision Floating-Point Classify Instruction
+	FCLASSD	F0, X5					// d31200e2
 
 	// Privileged ISA
 
@@ -302,7 +308,7 @@ start:
 	// These jumps can get printed as jumps to 2 because they go to the
 	// second instruction in the function (the first instruction is an
 	// invisible stack pointer adjustment).
-	JMP	start		// JMP	2		// 6ff01fc7
+	JMP	start		// JMP	2		// 6ff09fc6
 	JMP	(X5)					// 67800200
 	JMP	4(X5)					// 67804200
 
