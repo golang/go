@@ -44,6 +44,7 @@ func TestMain(m *testing.M) {
 	// We don't want our forwarders to exit, but it's OK if they would have.
 	lsprpc.ForwarderExitFunc = func(code int) {}
 
+	const testTimeout = 60 * time.Second
 	if *runSubprocessTests {
 		goplsPath := *goplsBinaryPath
 		if goplsPath == "" {
@@ -53,9 +54,9 @@ func TestMain(m *testing.M) {
 				panic(fmt.Sprintf("finding test binary path: %v", err))
 			}
 		}
-		runner = NewTestRunner(NormalModes|SeparateProcess, 30*time.Second, goplsPath)
+		runner = NewTestRunner(NormalModes|SeparateProcess, testTimeout, goplsPath)
 	} else {
-		runner = NewTestRunner(NormalModes, 30*time.Second, "")
+		runner = NewTestRunner(NormalModes, testTimeout, "")
 	}
 	code := m.Run()
 	runner.Close()
