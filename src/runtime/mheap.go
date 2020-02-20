@@ -44,6 +44,15 @@ const (
 	// Must be a multiple of the pageInUse bitmap element size and
 	// must also evenly divid pagesPerArena.
 	pagesPerReclaimerChunk = 512
+
+	// go115NewMCentralImpl is a feature flag for the new mcentral implementation.
+	//
+	// This flag depends on go115NewMarkrootSpans because the new mcentral
+	// implementation requires that markroot spans no longer rely on mgcsweepbufs.
+	// The definition of this flag helps ensure that if there's a problem with
+	// the new markroot spans implementation and it gets turned off, that the new
+	// mcentral implementation also gets turned off so the runtime isn't broken.
+	go115NewMCentralImpl = true && go115NewMarkrootSpans
 )
 
 // Main malloc heap.
@@ -85,6 +94,8 @@ type mheap struct {
 	// unswept stack and pushes spans that are still in-use on the
 	// swept stack. Likewise, allocating an in-use span pushes it
 	// on the swept stack.
+	//
+	// For !go115NewMCentralImpl.
 	sweepSpans [2]gcSweepBuf
 
 	// _ uint32 // align uint64 fields on 32-bit for atomics
@@ -1278,13 +1289,15 @@ HaveSpan:
 	h.setSpans(s.base(), npages, s)
 
 	if !manual {
-		// Add to swept in-use list.
-		//
-		// This publishes the span to root marking.
-		//
-		// h.sweepgen is guaranteed to only change during STW,
-		// and preemption is disabled in the page allocator.
-		h.sweepSpans[h.sweepgen/2%2].push(s)
+		if !go115NewMCentralImpl {
+			// Add to swept in-use list.
+			//
+			// This publishes the span to root marking.
+			//
+			// h.sweepgen is guaranteed to only change during STW,
+			// and preemption is disabled in the page allocator.
+			h.sweepSpans[h.sweepgen/2%2].push(s)
+		}
 
 		// Mark in-use span in arena page bitmap.
 		//
