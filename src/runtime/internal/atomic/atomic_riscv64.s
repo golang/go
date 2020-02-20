@@ -38,7 +38,6 @@
 #define SC_ 3
 #define OR_ 8
 #define AND_ 12
-#define FENCE WORD $0x0ff0000f
 
 // Atomically:
 //      if(*val == *old){
