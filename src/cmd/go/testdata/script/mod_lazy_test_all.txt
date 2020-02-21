@@ -1,0 +1,125 @@
+cp go.mod go.mod.old
+go mod tidy
+cmp go.mod go.mod.old
+
+# 'go list -m all' includes modules that cover the test dependencies of
+# the packages imported by the main module.
+
+go list -m all
+stdout 'example.com/b v0.1.0'
+stdout 'example.com/c v0.1.0'
+cmp go.mod go.mod.old
+
+# 'go test' (or equivalent) of any package in 'all' should use its existing
+# dependencies without updating the go.mod file.
+
+go list all  # Control case: example.com/b really is in 'all'.
+stdout '^example.com/b$'
+cmp go.mod go.mod.old  # Already tidy, so dependencies shouldn't change.
+
+go list -test -deps example.com/b
+stdout '^example.com/b$'
+stdout '^example.com/c$'
+! stdout '^example.com/d$'
+
+[!short] go test -c example.com/b
+
+cmp go.mod go.mod.old  # Should have resolved the above without modifying go.mod.
+
+
+# TODO(#36460):
+
+# 'go list -m all' should include modules that cover the test dependencies of
+# the packages imported by the main module, found via a deepening scan.
+
+# 'go test' of any package in 'all' should use its existing dependencies without
+# updating the go.mod file. This requires that we consider _dependencies of_ the
+# explicit dependencies of the main module, and that we not record those
+# dependencies explicitly after loading them.
+
+
+-- go.mod --
+module example.com/lazy
+
+go 1.14
+
+require example.com/a v0.1.0
+
+replace (
+	example.com/a v0.1.0 => ./a
+	example.com/b v0.1.0 => ./b1
+	example.com/b v0.2.0 => ./b2
+	example.com/c v0.1.0 => ./c
+	example.com/d v0.1.0 => ./d
+)
+-- lazy.go --
+package lazy
+
+import (
+	_ "example.com/a/x"
+)
+-- a/go.mod --
+module example.com/a
+
+go 1.14
+
+require example.com/b v0.1.0
+-- a/x/x.go --
+package x
+-- a/x/x_test.go --
+package x
+
+import (
+	"testing"
+
+	_ "example.com/b"
+)
+
+func TestUsingB(t *testing.T) {
+	// …
+}
+-- b1/go.mod --
+module example.com/b
+
+go 1.14
+
+require example.com/c v0.1.0
+-- b1/b.go --
+package b
+-- b1/b_test.go --
+package b
+
+import _ "example.com/c"
+-- b2/go.mod --
+module example.com/b
+
+go 1.14
+
+require example.com/c v0.1.0
+-- b2/b.go --
+package b
+-- b2/b_test.go --
+package b
+
+import _ "example.com/c"
+
+This file should not be used, so this syntax error should be ignored.
+-- c/go.mod --
+module example.com/c
+
+go 1.14
+
+require example.com/d v0.1.0
+-- c/c.go --
+package c
+-- c/c_test.go --
+package c
+import _ "example.com/d"
+This file should not be used, so this syntax error should be ignored.
+-- d/go.mod --
+module example.com/d
+
+go 1.14
+-- d/d.go --
+package d
+This file should not be used, so this syntax error should be ignored.
