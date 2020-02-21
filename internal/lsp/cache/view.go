@@ -601,9 +601,10 @@ func (v *view) setBuildInformation(ctx context.Context, folder span.URI, env []s
 		return nil
 	}
 	// Copy the current go.mod file into the temporary go.mod file.
-	// The file's name will be of the format go.1234.mod.
-	// It's temporary go.sum file should have the corresponding format of go.1234.sum.
-	tempModFile, err := ioutil.TempFile("", "go.*.mod")
+	// The file's name will be of the format go.directory.1234.mod.
+	// It's temporary go.sum file should have the corresponding format of go.directory.1234.sum.
+	tmpPattern := fmt.Sprintf("go.%s.*.mod", filepath.Base(folder.Filename()))
+	tempModFile, err := ioutil.TempFile("", tmpPattern)
 	if err != nil {
 		return err
 	}
