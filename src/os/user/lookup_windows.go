@@ -215,7 +215,7 @@ func current() (*User, error) {
 		return nil, e
 	}
 	dir, e := t.GetUserProfileDirectory()
-	if e != nil {
+	if e != nil && e != syscall.ERROR_FILE_NOT_FOUND {
 		return nil, e
 	}
 	username, domain, e := lookupUsernameAndDomain(u.User.Sid)
