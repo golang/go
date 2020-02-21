@@ -63,6 +63,7 @@ func main() {
 }`
 
 func TestGoToStdlibDefinition(t *testing.T) {
+	t.Skip("skipping due to golang.org/issues/37318")
 	t.Parallel()
 	runner.Run(t, stdlibDefinition, func(ctx context.Context, t *testing.T, env *Env) {
 		env.OpenFile("main.go")
