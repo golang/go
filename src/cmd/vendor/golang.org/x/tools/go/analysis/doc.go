@@ -1,7 +1,8 @@
 /*
 
-The analysis package defines the interface between a modular static
+Package analysis defines the interface between a modular static
 analysis and an analysis driver program.
+
 
 Background
 
@@ -41,16 +42,15 @@ the go/analysis/passes/ subdirectory:
 	package unusedresult
 
 	var Analyzer = &analysis.Analyzer{
-		Name:	"unusedresult",
-		Doc:	"check for unused results of calls to some functions",
-		Run:    run,
+		Name: "unusedresult",
+		Doc:  "check for unused results of calls to some functions",
+		Run:  run,
 		...
 	}
 
 	func run(pass *analysis.Pass) (interface{}, error) {
 		...
 	}
-
 
 An analysis driver is a program such as vet that runs a set of
 analyses and prints the diagnostics that they report.
@@ -70,51 +70,18 @@ A driver may use the name, flags, and documentation to provide on-line
 help that describes the analyses it performs.
 The doc comment contains a brief one-line summary,
 optionally followed by paragraphs of explanation.
-The vet command, shown below, is an example of a driver that runs
-multiple analyzers. It is based on the multichecker package
-(see the "Standalone commands" section for details).
-
-	$ go build golang.org/x/tools/go/analysis/cmd/vet
-	$ ./vet help
-	vet is a tool for static analysis of Go programs.
-
-	Usage: vet [-flag] [package]
-
-	Registered analyzers:
-
-	    asmdecl      report mismatches between assembly files and Go declarations
-	    assign       check for useless assignments
-	    atomic       check for common mistakes using the sync/atomic package
-	    ...
-	    unusedresult check for unused results of calls to some functions
-
-	$ ./vet help unusedresult
-	unusedresult: check for unused results of calls to some functions
-
-	Analyzer flags:
-
-	  -unusedresult.funcs value
-	        comma-separated list of functions whose results must be used (default Error,String)
-	  -unusedresult.stringmethods value
-	        comma-separated list of names of methods of type func() string whose results must be used
-
-	Some functions like fmt.Errorf return a result and have no side effects,
-	so it is always a mistake to discard the result. This analyzer reports
-	calls to certain functions in which the result of the call is ignored.
-
-	The set of functions may be controlled using flags.
 
 The Analyzer type has more fields besides those shown above:
 
 	type Analyzer struct {
-		Name			string
-		Doc			string
-		Flags			flag.FlagSet
-		Run			func(*Pass) (interface{}, error)
-		RunDespiteErrors	bool
-		ResultType		reflect.Type
-		Requires		[]*Analyzer
-		FactTypes		[]Fact
+		Name             string
+		Doc              string
+		Flags            flag.FlagSet
+		Run              func(*Pass) (interface{}, error)
+		RunDespiteErrors bool
+		ResultType       reflect.Type
+		Requires         []*Analyzer
+		FactTypes        []Fact
 	}
 
 The Flags field declares a set of named (global) flag variables that
@@ -154,13 +121,13 @@ package being analyzed, and provides operations to the Run function for
 reporting diagnostics and other information back to the driver.
 
 	type Pass struct {
-		Fset   		*token.FileSet
-		Files		[]*ast.File
-		OtherFiles	[]string
-		Pkg		*types.Package
-		TypesInfo	*types.Info
-		ResultOf	map[*Analyzer]interface{}
-		Report		func(Diagnostic)
+		Fset       *token.FileSet
+		Files      []*ast.File
+		OtherFiles []string
+		Pkg        *types.Package
+		TypesInfo  *types.Info
+		ResultOf   map[*Analyzer]interface{}
+		Report     func(Diagnostic)
 		...
 	}
 
@@ -245,7 +212,7 @@ package.
 An Analyzer that uses facts must declare their types:
 
 	var Analyzer = &analysis.Analyzer{
-		Name:       "printf",
+		Name:      "printf",
 		FactTypes: []analysis.Fact{new(isWrapper)},
 		...
 	}
@@ -329,8 +296,6 @@ entirety as:
 
 A tool that provides multiple analyzers can use multichecker in a
 similar way, giving it the list of Analyzers.
-
-
 
 */
 package analysis

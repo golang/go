@@ -560,7 +560,6 @@
 (MOVWreg x:(MOVBreg _)) -> (MOVVreg x)
 (MOVWreg x:(MOVBUreg _)) -> (MOVVreg x)
 (MOVWreg x:(MOVHreg _)) -> (MOVVreg x)
-(MOVWreg x:(MOVHreg _)) -> (MOVVreg x)
 (MOVWreg x:(MOVWreg _)) -> (MOVVreg x)
 (MOVWUreg x:(MOVBUreg _)) -> (MOVVreg x)
 (MOVWUreg x:(MOVHUreg _)) -> (MOVVreg x)
@@ -607,11 +606,6 @@
 (Select1 (MULVU _ (MOVVconst [0]))) -> (MOVVconst [0])
 (Select1 (MULVU x (MOVVconst [1]))) -> x
 (Select1 (MULVU x (MOVVconst [c]))) && isPowerOfTwo(c) -> (SLLVconst [log2(c)] x)
-
-(Select1 (MULVU (MOVVconst [-1]) x)) -> (NEGV x)
-(Select1 (MULVU (MOVVconst [0]) _)) -> (MOVVconst [0])
-(Select1 (MULVU (MOVVconst [1]) x)) -> x
-(Select1 (MULVU (MOVVconst [c]) x)) && isPowerOfTwo(c) -> (SLLVconst [log2(c)] x)
 
 // div by constant
 (Select1 (DIVVU x (MOVVconst [1]))) -> x

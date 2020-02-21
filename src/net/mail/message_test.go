@@ -431,6 +431,20 @@ func TestAddressParsing(t *testing.T) {
 				},
 			},
 		},
+		// RFC5322 4.4 obs-addr-list
+		{
+			` , joe@where.test,,John <jdoe@one.test>,`,
+			[]*Address{
+				{
+					Name:    "",
+					Address: "joe@where.test",
+				},
+				{
+					Name:    "John",
+					Address: "jdoe@one.test",
+				},
+			},
+		},
 		{
 			`Group1: <addr1@example.com>;, Group 2: addr2@example.com;, John <addr3@example.com>`,
 			[]*Address{

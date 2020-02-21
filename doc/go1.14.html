@@ -343,8 +343,6 @@ appropriately.)
   visible changes.
 </p>
 
-<!-- TODO: Maybe CL 200439? -->
-
 <h2 id="compiler">Compiler</h2>
 
 <p><!-- CL 162237 -->
@@ -378,7 +376,7 @@ appropriately.)
 <p><!-- CL 204338 -->
   The compiler can now emit machine-readable logs of key optimizations
   using the <code>-json</code> flag, including inlining, escape
-  analysis, bounds-check elimination, and nil-check elimination
+  analysis, bounds-check elimination, and nil-check elimination.
 </p>
 
 <p><!-- CL 196959 -->
@@ -407,8 +405,22 @@ appropriately.)
 
 <h2 id="library">Core library</h2>
 
+<h3 id="hash/maphash">New byte sequence hashing package</h3>
+
+<p> <!-- golang.org/issue/28322, CL 186877 -->
+  Go 1.14 includes a new package,
+  <a href="/pkg/hash/maphash/"><code>hash/maphash</code></a>,
+  which provides hash functions on byte sequences.
+  These hash functions are intended to be used to implement hash tables or
+  other data structures that need to map arbitrary strings or byte
+  sequences to a uniform distribution on unsigned 64-bit integers.
+</p>
 <p>
-  All of the changes to the standard library are minor.
+  The hash functions are collision-resistant but not cryptographically secure.
+</p>
+<p>
+  The hash value of a given byte sequence is consistent within a
+  single process, but will be different in different processes.
 </p>
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>
@@ -418,20 +430,6 @@ appropriately.)
   made with the Go 1 <a href="/doc/go1compat">promise of compatibility</a>
   in mind.
 </p>
-
-<dl id="hash/maphash"><dt><a href="/pkg/hash/maphash/">hash/maphash</a></dt>
-  <dd>
-    <p><!-- CL 186877 -->
-      This new package provides hash functions on byte sequences.
-      These hash functions are intended to be used to implement hash tables or
-      other data structures that need to map arbitrary strings or byte
-      sequences to a uniform distribution of integers.
-    </p>
-    <p>
-      The hash functions are collision-resistant but not cryptographically secure.
-    </p>
-
-</dl><!-- hash/maphash -->
 
 <dl id="crypto/tls"><dt><a href="/pkg/crypto/tls/">crypto/tls</a></dt>
   <dd>
@@ -493,7 +491,38 @@ appropriately.)
       field to disable them.
     </p>
 
+    <p><!-- CL 205059, 205059 -->
+      <a href="/pkg/crypto/tls/#Config.Certificates"><code>Config.Certificates</code></a> and
+      <a href="/pkg/crypto/tls/#Config.GetCertificate"><code>Config.GetCertificate</code></a>
+      can now both be nil if
+      <a href="/pkg/crypto/tls/#Config.GetConfigForClient"><code>Config.GetConfigForClient</code></a>
+      is set. If the callbacks return neither certificates nor an error, the
+      <code>unrecognized_name</code> is now sent.
+    </p>
+
+    <p><!-- CL 205058 -->
+      The new <a href="/pkg/crypto/tls/#CertificateRequestInfo.Version"><code>CertificateRequestInfo.Version</code></a>
+      field provides the TLS version to client certificates callbacks.
+    </p>
+
+    <p><!-- CL 205068 -->
+      The new <code>TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256</code> and
+      <code>TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256</code> constants use
+      the final names for the cipher suites previously referred to as
+      <code>TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305</code> and
+      <code>TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305</code>.
+    </p>
+  </dd>
 </dl><!-- crypto/tls -->
+
+<dl id="crypto/x509"><dt><a href="/pkg/crypto/x509/">crypto/x509</a></dt>
+  <dd>
+    <p><!-- CL 204046 -->
+      <a href="/pkg/crypto/x509/#Certificate.CreateCRL"><code>Certificate.CreateCRL</code></a>
+      now supports Ed25519 issuers.
+    </p>
+  </dd>
+</dl>
 
 <dl id="debug/dwarf"><dt><a href="/pkg/debug/dwarf/">debug/dwarf</a></dt>
   <dd>
@@ -534,7 +563,7 @@ appropriately.)
       <a href="/pkg/encoding/asn1/#TagBMPString"><code>TagBMPString</code></a>
       constant.
     </p>
-
+  </dd>
 </dl><!-- encoding/asn1 -->
 
 <dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
@@ -554,6 +583,13 @@ appropriately.)
       href="/pkg/encoding/json/#HTMLEscape"><code>HTMLEscape</code></a>.
     </p>
 
+    <p><!-- CL 195045 -->
+      <a href="/pkg/encoding/json/#Number"><code>Number</code></a> no longer
+      accepts invalid numbers, to follow the documented behavior more closely.
+      If a program needs to accept invalid numbers like the empty string,
+      consider wrapping the type with <a href="/pkg/encoding/json/#Unmarshaler"><code>Unmarshaler</code></a>.
+    </p>
+  </dd>
 </dl><!-- encoding/json -->
 
 <dl id="go/build"><dt><a href="/pkg/go/build/">go/build</a></dt>
@@ -567,28 +603,6 @@ appropriately.)
     </p>
   </dd>
 </dl><!-- go/build -->
-
-<dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
-  <dd>
-    <p><!-- CL 198488 -->
-      <a href="/pkg/io/ioutil/#TempDir"><code>TempDir</code></a> can now create directories
-      whose names have predictable prefixes and suffixes. As with TempFile, if the pattern
-      contains a '*', the random string replaces the last '*'.
-    </p>
-  </dd>
-</dl>
-
-<dl id="log"><dt><a href="/pkg/log/">log</a></dt>
-  <dd>
-    <p><!-- CL 186182 -->
-      The
-      new <a href="https://tip.golang.org/pkg/log/#pkg-constants"><code>Lmsgprefix</code></a>
-      flag may be used to tell the logging functions to emit the
-      optional output prefix immediately before the log message rather
-      than at the start of the line.
-    </p>
-  </dd>
-</dl><!-- log -->
 
 <dl id="go/doc"><dt><a href="/pkg/go/doc/">go/doc</a></dt>
   <dd>
@@ -610,6 +624,29 @@ appropriately.)
   </dd>
 </dl><!-- go/doc -->
 
+<dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
+  <dd>
+    <p><!-- CL 198488 -->
+      <a href="/pkg/io/ioutil/#TempDir"><code>TempDir</code></a> can now create directories
+      whose names have predictable prefixes and suffixes.
+      As with <a href="/pkg/io/ioutil/#TempFile"><code>TempFile</code></a>, if the pattern
+      contains a '*', the random string replaces the last '*'.
+    </p>
+  </dd>
+</dl>
+
+<dl id="log"><dt><a href="/pkg/log/">log</a></dt>
+  <dd>
+    <p><!-- CL 186182 -->
+      The
+      new <a href="https://tip.golang.org/pkg/log/#pkg-constants"><code>Lmsgprefix</code></a>
+      flag may be used to tell the logging functions to emit the
+      optional output prefix immediately before the log message rather
+      than at the start of the line.
+    </p>
+  </dd>
+</dl><!-- log -->
+
 <dl id="math"><dt><a href="/pkg/math/">math</a></dt>
   <dd>
     <p><!-- CL 127458 -->
@@ -619,7 +656,7 @@ appropriately.)
       computation. Several architectures implement this computation
       using dedicated hardware instructions for additional performance.
     </p>
-
+  </dd>
 </dl><!-- math -->
 
 <dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
@@ -629,7 +666,7 @@ appropriately.)
       now allows the inputs <code>a</code> and <code>b</code> to be
       zero or negative.
     </p>
-
+  </dd>
 </dl><!-- math/big -->
 
 <dl id="math/bits"><dt><a href="/pkg/math/bits/">math/bits</a></dt>
@@ -654,7 +691,7 @@ appropriately.)
       with <a href="https://datatracker.ietf.org/doc/draft-ietf-dispatch-javascript-mjs/">an
       IETF draft</a> that treats <code>application/javascript</code> as obsolete.
     </p>
-
+  </dd>
 </dl><!-- mime -->
 
 <dl id="mime/multipart"><dt><a href="/pkg/mime/multipart/">mime/multipart</a></dt>
@@ -731,7 +768,7 @@ appropriately.)
       a <code>syscall.SIGTERM</code> signal, similar to how Control-C
       and Control-Break generate a <code>syscall.SIGINT</code> signal.
     </p>
-
+  </dd>
 </dl><!-- os/signal -->
 
 <dl id="plugin"><dt><a href="/pkg/plugin/">plugin</a></dt>
@@ -739,12 +776,10 @@ appropriately.)
     <p><!-- CL 191617 -->
       The <code>plugin</code> package now supports <code>freebsd/amd64</code>.
     </p>
-
+  </dd>
 </dl><!-- plugin -->
 
-<dl id="reflect">
-
-<dt><a href="/pkg/reflect/">reflect</a></dt>
+<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
   <dd>
     <p><!-- CL 85661 -->
       <a href="/pkg/reflect#StructOf"><code>StructOf</code></a> now
@@ -752,7 +787,7 @@ appropriately.)
       setting the <code>PkgPath</code> field in
       a <code>StructField</code> element.
     </p>
-
+  </dd>
 </dl><!-- reflect -->
 
 <dl id="pkg-runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
@@ -769,7 +804,7 @@ appropriately.)
       <a href="https://golang.org/issue/33384">to the main thread</a>
       rather than the thread writing to the closed pipe.
     </p>
-
+  </dd>
 </dl><!-- runtime -->
 
 <dl id="runtime/pprof"><dt><a href="/pkg/runtime/pprof/">runtime/pprof</a></dt>
@@ -781,6 +816,7 @@ appropriately.)
     the pprof tool expects. This is a fix for the regression introduced
     during recent releases.
     </p>
+  </dd>
 </dl><!-- runtime/pprof -->
 
 <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
@@ -809,7 +845,7 @@ appropriately.)
       performance of highly contended mutexes on high CPU count
       machines.
     </p>
-
+  </dd>
 </dl><!-- sync -->
 
 <dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
@@ -820,6 +856,7 @@ appropriately.)
        <a href="/pkg/testing#T.Cleanup"><code>T.Cleanup</code></a> or
        <a href="/pkg/testing#B.Cleanup"><code>B.Cleanup</code></a> respectively.
     </p>
+  </dd>
 </dl><!-- testing -->
 
 <dl id="text/template"><dt><a href="/pkg/text/template/">text/template</a></dt>

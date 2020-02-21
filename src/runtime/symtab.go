@@ -614,7 +614,15 @@ func findfunc(pc uintptr) funcInfo {
 			idx++
 		}
 	}
-	return funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[idx].funcoff])), datap}
+	funcoff := datap.ftab[idx].funcoff
+	if funcoff == ^uintptr(0) {
+		// With multiple text sections, there may be functions inserted by the external
+		// linker that are not known by Go. This means there may be holes in the PC
+		// range covered by the func table. The invalid funcoff value indicates a hole.
+		// See also cmd/link/internal/ld/pcln.go:pclntab
+		return funcInfo{}
+	}
+	return funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[funcoff])), datap}
 }
 
 type pcvalueCache struct {

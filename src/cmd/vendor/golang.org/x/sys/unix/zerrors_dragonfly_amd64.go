@@ -938,6 +938,7 @@ const (
 	NET_RT_FLAGS                      = 0x2
 	NET_RT_IFLIST                     = 0x3
 	NET_RT_MAXID                      = 0x4
+	NFDBITS                           = 0x40
 	NOFLSH                            = 0x80000000
 	NOKERNINFO                        = 0x2000000
 	NOTE_ATTRIB                       = 0x8

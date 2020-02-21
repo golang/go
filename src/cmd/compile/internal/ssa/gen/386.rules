@@ -104,44 +104,20 @@
 // Lowering shifts
 // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
 //   result = (arg << shift) & (shift >= argbits ? 0 : 0xffffffffffffffff)
-(Lsh32x32 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
-(Lsh32x16 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
-(Lsh32x8  <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
+(Lsh32x(32|16|8) <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [32])))
+(Lsh16x(32|16|8) <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [32])))
+(Lsh8x(32|16|8)  <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [32])))
 
-(Lsh16x32 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
-(Lsh16x16 <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
-(Lsh16x8  <t> x y) -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
-
-(Lsh8x32 <t> x y)  -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
-(Lsh8x16 <t> x y)  -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
-(Lsh8x8  <t> x y)  -> (ANDL (SHLL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
-
-(Rsh32Ux32 <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPLconst y [32])))
-(Rsh32Ux16 <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPWconst y [32])))
-(Rsh32Ux8  <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMPBconst y [32])))
-
-(Rsh16Ux32 <t> x y) -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPLconst y [16])))
-(Rsh16Ux16 <t> x y) -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPWconst y [16])))
-(Rsh16Ux8  <t> x y) -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMPBconst y [16])))
-
-(Rsh8Ux32 <t> x y)  -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPLconst y [8])))
-(Rsh8Ux16 <t> x y)  -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPWconst y [8])))
-(Rsh8Ux8  <t> x y)  -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMPBconst y [8])))
+(Rsh32Ux(32|16|8) <t> x y) -> (ANDL (SHRL <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [32])))
+(Rsh16Ux(32|16|8) <t> x y) -> (ANDL (SHRW <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [16])))
+(Rsh8Ux(32|16|8)  <t> x y) -> (ANDL (SHRB <t> x y) (SBBLcarrymask <t> (CMP(L|W|B)const y [8])))
 
 // Signed right shift needs to return 0/-1 if shift amount is >= width of shifted value.
 // We implement this by setting the shift value to -1 (all ones) if the shift value is >= width.
 
-(Rsh32x32 <t> x y) -> (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [32])))))
-(Rsh32x16 <t> x y) -> (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [32])))))
-(Rsh32x8  <t> x y) -> (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [32])))))
-
-(Rsh16x32 <t> x y) -> (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [16])))))
-(Rsh16x16 <t> x y) -> (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [16])))))
-(Rsh16x8  <t> x y) -> (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [16])))))
-
-(Rsh8x32 <t> x y)  -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPLconst y [8])))))
-(Rsh8x16 <t> x y)  -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPWconst y [8])))))
-(Rsh8x8  <t> x y)  -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMPBconst y [8])))))
+(Rsh32x(32|16|8) <t> x y) -> (SARL <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMP(L|W|B)const y [32])))))
+(Rsh16x(32|16|8) <t> x y) -> (SARW <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMP(L|W|B)const y [16])))))
+(Rsh8x(32|16|8) <t> x y)  -> (SARB <t> x (ORL <y.Type> y (NOTL <y.Type> (SBBLcarrymask <y.Type> (CMP(L|W|B)const y [8])))))
 
 // constant shifts
 // generic opt rewrites all constant shifts to shift by Const64
@@ -430,7 +406,6 @@
 (ADDL x (MOVLconst [c])) -> (ADDLconst [c] x)
 (ADDLcarry x (MOVLconst [c])) -> (ADDLconstcarry [c] x)
 (ADCL x (MOVLconst [c]) f) -> (ADCLconst [c] x f)
-(ADCL (MOVLconst [c]) x f) -> (ADCLconst [c] x f)
 
 (SUBL x (MOVLconst [c])) -> (SUBLconst x [c])
 (SUBL (MOVLconst [c]) x) -> (NEGL (SUBLconst <v.Type> x [c]))

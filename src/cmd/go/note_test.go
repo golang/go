@@ -18,6 +18,8 @@ func TestNoteReading(t *testing.T) {
 	// both in internal and external linking mode.
 	tg := testgo(t)
 	defer tg.cleanup()
+	tg.parallel()
+
 	tg.tempFile("hello.go", `package main; func main() { print("hello, world\n") }`)
 	const buildID = "TestNoteReading-Build-ID"
 	tg.run("build", "-ldflags", "-buildid="+buildID, "-o", tg.path("hello.exe"), tg.path("hello.go"))

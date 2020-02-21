@@ -6,11 +6,11 @@ package ssa
 func rewriteValuedecArgs(v *Value) bool {
 	switch v.Op {
 	case OpArg:
-		return rewriteValuedecArgs_OpArg_0(v) || rewriteValuedecArgs_OpArg_10(v)
+		return rewriteValuedecArgs_OpArg(v)
 	}
 	return false
 }
-func rewriteValuedecArgs_OpArg_0(v *Value) bool {
+func rewriteValuedecArgs_OpArg(v *Value) bool {
 	b := v.Block
 	config := b.Func.Config
 	fe := b.Func.fe
@@ -222,11 +222,6 @@ func rewriteValuedecArgs_OpArg_0(v *Value) bool {
 		v.AddArg(v3)
 		return true
 	}
-	return false
-}
-func rewriteValuedecArgs_OpArg_10(v *Value) bool {
-	b := v.Block
-	fe := b.Func.fe
 	// match: (Arg <t>)
 	// cond: t.IsArray() && t.NumElem() == 0
 	// result: (ArrayMake0)

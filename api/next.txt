@@ -1,0 +1,1 @@
+pkg testing, method (*T) Deadline() (time.Time, bool)

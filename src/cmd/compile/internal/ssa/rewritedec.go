@@ -8,35 +8,35 @@ import "cmd/compile/internal/types"
 func rewriteValuedec(v *Value) bool {
 	switch v.Op {
 	case OpComplexImag:
-		return rewriteValuedec_OpComplexImag_0(v)
+		return rewriteValuedec_OpComplexImag(v)
 	case OpComplexReal:
-		return rewriteValuedec_OpComplexReal_0(v)
+		return rewriteValuedec_OpComplexReal(v)
 	case OpIData:
-		return rewriteValuedec_OpIData_0(v)
+		return rewriteValuedec_OpIData(v)
 	case OpITab:
-		return rewriteValuedec_OpITab_0(v)
+		return rewriteValuedec_OpITab(v)
 	case OpLoad:
-		return rewriteValuedec_OpLoad_0(v)
+		return rewriteValuedec_OpLoad(v)
 	case OpSliceCap:
-		return rewriteValuedec_OpSliceCap_0(v)
+		return rewriteValuedec_OpSliceCap(v)
 	case OpSliceLen:
-		return rewriteValuedec_OpSliceLen_0(v)
+		return rewriteValuedec_OpSliceLen(v)
 	case OpSlicePtr:
-		return rewriteValuedec_OpSlicePtr_0(v)
+		return rewriteValuedec_OpSlicePtr(v)
 	case OpStore:
-		return rewriteValuedec_OpStore_0(v)
+		return rewriteValuedec_OpStore(v)
 	case OpStringLen:
-		return rewriteValuedec_OpStringLen_0(v)
+		return rewriteValuedec_OpStringLen(v)
 	case OpStringPtr:
-		return rewriteValuedec_OpStringPtr_0(v)
+		return rewriteValuedec_OpStringPtr(v)
 	}
 	return false
 }
-func rewriteValuedec_OpComplexImag_0(v *Value) bool {
-	// match: (ComplexImag (ComplexMake _ imag))
+func rewriteValuedec_OpComplexImag(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (ComplexImag (ComplexMake _ imag ))
 	// result: imag
 	for {
-		v_0 := v.Args[0]
 		if v_0.Op != OpComplexMake {
 			break
 		}
@@ -48,11 +48,11 @@ func rewriteValuedec_OpComplexImag_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpComplexReal_0(v *Value) bool {
-	// match: (ComplexReal (ComplexMake real _))
+func rewriteValuedec_OpComplexReal(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (ComplexReal (ComplexMake real _ ))
 	// result: real
 	for {
-		v_0 := v.Args[0]
 		if v_0.Op != OpComplexMake {
 			break
 		}
@@ -65,11 +65,11 @@ func rewriteValuedec_OpComplexReal_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpIData_0(v *Value) bool {
+func rewriteValuedec_OpIData(v *Value) bool {
+	v_0 := v.Args[0]
 	// match: (IData (IMake _ data))
 	// result: data
 	for {
-		v_0 := v.Args[0]
 		if v_0.Op != OpIMake {
 			break
 		}
@@ -81,11 +81,11 @@ func rewriteValuedec_OpIData_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpITab_0(v *Value) bool {
+func rewriteValuedec_OpITab(v *Value) bool {
+	v_0 := v.Args[0]
 	// match: (ITab (IMake itab _))
 	// result: itab
 	for {
-		v_0 := v.Args[0]
 		if v_0.Op != OpIMake {
 			break
 		}
@@ -98,7 +98,9 @@ func rewriteValuedec_OpITab_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpLoad_0(v *Value) bool {
+func rewriteValuedec_OpLoad(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
 	typ := &b.Func.Config.Types
@@ -107,8 +109,8 @@ func rewriteValuedec_OpLoad_0(v *Value) bool {
 	// result: (ComplexMake (Load <typ.Float32> ptr mem) (Load <typ.Float32> (OffPtr <typ.Float32Ptr> [4] ptr) mem) )
 	for {
 		t := v.Type
-		mem := v.Args[1]
-		ptr := v.Args[0]
+		ptr := v_0
+		mem := v_1
 		if !(t.IsComplex() && t.Size() == 8) {
 			break
 		}
@@ -131,8 +133,8 @@ func rewriteValuedec_OpLoad_0(v *Value) bool {
 	// result: (ComplexMake (Load <typ.Float64> ptr mem) (Load <typ.Float64> (OffPtr <typ.Float64Ptr> [8] ptr) mem) )
 	for {
 		t := v.Type
-		mem := v.Args[1]
-		ptr := v.Args[0]
+		ptr := v_0
+		mem := v_1
 		if !(t.IsComplex() && t.Size() == 16) {
 			break
 		}
@@ -155,8 +157,8 @@ func rewriteValuedec_OpLoad_0(v *Value) bool {
 	// result: (StringMake (Load <typ.BytePtr> ptr mem) (Load <typ.Int> (OffPtr <typ.IntPtr> [config.PtrSize] ptr) mem))
 	for {
 		t := v.Type
-		mem := v.Args[1]
-		ptr := v.Args[0]
+		ptr := v_0
+		mem := v_1
 		if !(t.IsString()) {
 			break
 		}
@@ -179,8 +181,8 @@ func rewriteValuedec_OpLoad_0(v *Value) bool {
 	// result: (SliceMake (Load <t.Elem().PtrTo()> ptr mem) (Load <typ.Int> (OffPtr <typ.IntPtr> [config.PtrSize] ptr) mem) (Load <typ.Int> (OffPtr <typ.IntPtr> [2*config.PtrSize] ptr) mem))
 	for {
 		t := v.Type
-		mem := v.Args[1]
-		ptr := v.Args[0]
+		ptr := v_0
+		mem := v_1
 		if !(t.IsSlice()) {
 			break
 		}
@@ -210,8 +212,8 @@ func rewriteValuedec_OpLoad_0(v *Value) bool {
 	// result: (IMake (Load <typ.Uintptr> ptr mem) (Load <typ.BytePtr> (OffPtr <typ.BytePtrPtr> [config.PtrSize] ptr) mem))
 	for {
 		t := v.Type
-		mem := v.Args[1]
-		ptr := v.Args[0]
+		ptr := v_0
+		mem := v_1
 		if !(t.IsInterface()) {
 			break
 		}
@@ -231,11 +233,11 @@ func rewriteValuedec_OpLoad_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpSliceCap_0(v *Value) bool {
+func rewriteValuedec_OpSliceCap(v *Value) bool {
+	v_0 := v.Args[0]
 	// match: (SliceCap (SliceMake _ _ cap))
 	// result: cap
 	for {
-		v_0 := v.Args[0]
 		if v_0.Op != OpSliceMake {
 			break
 		}
@@ -247,11 +249,11 @@ func rewriteValuedec_OpSliceCap_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpSliceLen_0(v *Value) bool {
+func rewriteValuedec_OpSliceLen(v *Value) bool {
+	v_0 := v.Args[0]
 	// match: (SliceLen (SliceMake _ len _))
 	// result: len
 	for {
-		v_0 := v.Args[0]
 		if v_0.Op != OpSliceMake {
 			break
 		}
@@ -264,11 +266,11 @@ func rewriteValuedec_OpSliceLen_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpSlicePtr_0(v *Value) bool {
-	// match: (SlicePtr (SliceMake ptr _ _))
+func rewriteValuedec_OpSlicePtr(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (SlicePtr (SliceMake ptr _ _ ))
 	// result: ptr
 	for {
-		v_0 := v.Args[0]
 		if v_0.Op != OpSliceMake {
 			break
 		}
@@ -281,7 +283,10 @@ func rewriteValuedec_OpSlicePtr_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpStore_0(v *Value) bool {
+func rewriteValuedec_OpStore(v *Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
 	b := v.Block
 	config := b.Func.Config
 	typ := &b.Func.Config.Types
@@ -290,14 +295,13 @@ func rewriteValuedec_OpStore_0(v *Value) bool {
 	// result: (Store {typ.Float32} (OffPtr <typ.Float32Ptr> [4] dst) imag (Store {typ.Float32} dst real mem))
 	for {
 		t := v.Aux
-		mem := v.Args[2]
-		dst := v.Args[0]
-		v_1 := v.Args[1]
+		dst := v_0
 		if v_1.Op != OpComplexMake {
 			break
 		}
 		imag := v_1.Args[1]
 		real := v_1.Args[0]
+		mem := v_2
 		if !(t.(*types.Type).Size() == 8) {
 			break
 		}
@@ -321,14 +325,13 @@ func rewriteValuedec_OpStore_0(v *Value) bool {
 	// result: (Store {typ.Float64} (OffPtr <typ.Float64Ptr> [8] dst) imag (Store {typ.Float64} dst real mem))
 	for {
 		t := v.Aux
-		mem := v.Args[2]
-		dst := v.Args[0]
-		v_1 := v.Args[1]
+		dst := v_0
 		if v_1.Op != OpComplexMake {
 			break
 		}
 		imag := v_1.Args[1]
 		real := v_1.Args[0]
+		mem := v_2
 		if !(t.(*types.Type).Size() == 16) {
 			break
 		}
@@ -350,14 +353,13 @@ func rewriteValuedec_OpStore_0(v *Value) bool {
 	// match: (Store dst (StringMake ptr len) mem)
 	// result: (Store {typ.Int} (OffPtr <typ.IntPtr> [config.PtrSize] dst) len (Store {typ.BytePtr} dst ptr mem))
 	for {
-		mem := v.Args[2]
-		dst := v.Args[0]
-		v_1 := v.Args[1]
+		dst := v_0
 		if v_1.Op != OpStringMake {
 			break
 		}
 		len := v_1.Args[1]
 		ptr := v_1.Args[0]
+		mem := v_2
 		v.reset(OpStore)
 		v.Aux = typ.Int
 		v0 := b.NewValue0(v.Pos, OpOffPtr, typ.IntPtr)
@@ -376,15 +378,14 @@ func rewriteValuedec_OpStore_0(v *Value) bool {
 	// match: (Store dst (SliceMake ptr len cap) mem)
 	// result: (Store {typ.Int} (OffPtr <typ.IntPtr> [2*config.PtrSize] dst) cap (Store {typ.Int} (OffPtr <typ.IntPtr> [config.PtrSize] dst) len (Store {typ.BytePtr} dst ptr mem)))
 	for {
-		mem := v.Args[2]
-		dst := v.Args[0]
-		v_1 := v.Args[1]
+		dst := v_0
 		if v_1.Op != OpSliceMake {
 			break
 		}
 		cap := v_1.Args[2]
 		ptr := v_1.Args[0]
 		len := v_1.Args[1]
+		mem := v_2
 		v.reset(OpStore)
 		v.Aux = typ.Int
 		v0 := b.NewValue0(v.Pos, OpOffPtr, typ.IntPtr)
@@ -411,14 +412,13 @@ func rewriteValuedec_OpStore_0(v *Value) bool {
 	// match: (Store dst (IMake itab data) mem)
 	// result: (Store {typ.BytePtr} (OffPtr <typ.BytePtrPtr> [config.PtrSize] dst) data (Store {typ.Uintptr} dst itab mem))
 	for {
-		mem := v.Args[2]
-		dst := v.Args[0]
-		v_1 := v.Args[1]
+		dst := v_0
 		if v_1.Op != OpIMake {
 			break
 		}
 		data := v_1.Args[1]
 		itab := v_1.Args[0]
+		mem := v_2
 		v.reset(OpStore)
 		v.Aux = typ.BytePtr
 		v0 := b.NewValue0(v.Pos, OpOffPtr, typ.BytePtrPtr)
@@ -436,11 +436,11 @@ func rewriteValuedec_OpStore_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpStringLen_0(v *Value) bool {
+func rewriteValuedec_OpStringLen(v *Value) bool {
+	v_0 := v.Args[0]
 	// match: (StringLen (StringMake _ len))
 	// result: len
 	for {
-		v_0 := v.Args[0]
 		if v_0.Op != OpStringMake {
 			break
 		}
@@ -452,11 +452,11 @@ func rewriteValuedec_OpStringLen_0(v *Value) bool {
 	}
 	return false
 }
-func rewriteValuedec_OpStringPtr_0(v *Value) bool {
+func rewriteValuedec_OpStringPtr(v *Value) bool {
+	v_0 := v.Args[0]
 	// match: (StringPtr (StringMake ptr _))
 	// result: ptr
 	for {
-		v_0 := v.Args[0]
 		if v_0.Op != OpStringMake {
 			break
 		}

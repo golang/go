@@ -1,0 +1,7 @@
+# Issue 14444: go get -u .../ duplicate loads errors
+# Check that go get update -u ... does not try to load duplicates
+
+[!net] skip
+
+go get -u .../
+! stderr 'duplicate loads of' # make sure old packages are removed from cache
