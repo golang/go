@@ -1209,10 +1209,23 @@ func (d *dwctxt2) mkBuiltinType(ctxt *Link, abrv int, tname string) *dwarf.DWDie
 // done before symbol names are mangled while dwarfGenerateDebugSyms does
 // all the work that can only be done after addresses have been assigned to
 // text symbols.
-func dwarfGenerateDebugInfo2(ctxt *Link) {
+func dwarfGenerateDebugInfo(ctxt *Link) {
 	if !dwarfEnabled(ctxt) {
 		return
 	}
+
+	// DWARF-gen requires that the unit Textp2 slices be populated,
+	// so that it can walk the functions in each unit. Call into
+	// the loader to do this (requires that we collect the set of
+	// internal libraries first). NB: might be simpler if we moved
+	// isRuntimeDepPkg to cmd/internal and then did the test
+	// in loader.AssignTextSymbolOrder.
+	ctxt.Library = postorder(ctxt.Library)
+	intlibs := []bool{}
+	for _, lib := range ctxt.Library {
+		intlibs = append(intlibs, isRuntimeDepPkg(lib.Pkg))
+	}
+	ctxt.loader.AssignTextSymbolOrder(ctxt.Library, intlibs)
 
 	d := newdwctxt2(ctxt, true)
 
