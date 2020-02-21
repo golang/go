@@ -7,5 +7,5 @@ import (
 func goodbye() {
 	s := "hiiiiiii"
 	s = s //@suggestedfix("s = s")
-	log.Printf(s)
+	log.Print(s)
 }
