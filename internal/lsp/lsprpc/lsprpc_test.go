@@ -37,6 +37,10 @@ func (s pingServer) DidOpen(ctx context.Context, params *protocol.DidOpenTextDoc
 	return nil
 }
 
+func (s pingServer) Shutdown(ctx context.Context) error {
+	return nil
+}
+
 func TestClientLogging(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -48,6 +52,7 @@ func TestClientLogging(t *testing.T) {
 	ss := NewStreamServer(cache.New(nil, di.State), false, di)
 	ss.serverForTest = server
 	ts := servertest.NewPipeServer(ctx, ss)
+	defer ts.Close()
 	cc := ts.Connect(ctx)
 	cc.AddHandler(protocol.ClientHandler(client))
 
@@ -91,6 +96,10 @@ func (s waitableServer) Resolve(_ context.Context, item *protocol.CompletionItem
 	return item, nil
 }
 
+func (s waitableServer) Shutdown(ctx context.Context) error {
+	return nil
+}
+
 func TestRequestCancellation(t *testing.T) {
 	server := waitableServer{
 		started: make(chan struct{}),
@@ -100,9 +109,11 @@ func TestRequestCancellation(t *testing.T) {
 	ss.serverForTest = server
 	ctx := context.Background()
 	tsDirect := servertest.NewTCPServer(ctx, ss)
+	defer tsDirect.Close()
 
 	forwarder := NewForwarder("tcp", tsDirect.Addr, false, debug.NewInstance("", ""))
 	tsForwarded := servertest.NewPipeServer(ctx, forwarder)
+	defer tsForwarded.Close()
 
 	tests := []struct {
 		serverType string

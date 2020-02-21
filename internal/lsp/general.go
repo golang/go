@@ -266,9 +266,11 @@ func (s *Server) shutdown(ctx context.Context) error {
 	if s.state < serverInitialized {
 		return jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidRequest, "server not initialized")
 	}
-	// drop all the active views
-	s.session.Shutdown(ctx)
-	s.state = serverShutDown
+	if s.state != serverShutDown {
+		// drop all the active views
+		s.session.Shutdown(ctx)
+		s.state = serverShutDown
+	}
 	return nil
 }
 

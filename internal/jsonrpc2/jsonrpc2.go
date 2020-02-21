@@ -316,7 +316,8 @@ func (c *Conn) Run(runCtx context.Context) error {
 		// get the data for a message
 		data, n, err := c.stream.Read(runCtx)
 		if err != nil {
-			// the stream failed, we cannot continue
+			// The stream failed, we cannot continue. If the client disconnected
+			// normally, we should get ErrDisconnected here.
 			return err
 		}
 		// read a combined message

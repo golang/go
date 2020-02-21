@@ -126,10 +126,16 @@ func (s *StreamServer) ServeStream(ctx context.Context, stream jsonrpc2.Stream) 
 		session: session,
 	}
 	s.debug.State.AddClient(dc)
+	defer s.debug.State.DropClient(dc)
+
 	server := s.serverForTest
 	if server == nil {
 		server = lsp.NewServer(session, client)
 	}
+	// Clients may or may not send a shutdown message. Make sure the server is
+	// shut down.
+	// TODO(rFindley): this shutdown should perhaps be on a disconnected context.
+	defer server.Shutdown(ctx)
 	conn.AddHandler(protocol.ServerHandler(server))
 	conn.AddHandler(protocol.Canceller{})
 	if s.withTelemetry {
@@ -174,6 +180,7 @@ func NewForwarder(network, addr string, withTelemetry bool, debugInstance *debug
 		stdlog.Printf("error getting gopls path for forwarder: %v", err)
 		gp = ""
 	}
+
 	return &Forwarder{
 		network:       network,
 		addr:          addr,
