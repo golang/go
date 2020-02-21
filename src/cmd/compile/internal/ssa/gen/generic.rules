@@ -1757,20 +1757,12 @@
 (Add32 (Sub32 i:(Const32 <t>) z) x) && (z.Op != OpConst32 && x.Op != OpConst32) -> (Add32 i (Sub32 <t> x z))
 (Add16 (Sub16 i:(Const16 <t>) z) x) && (z.Op != OpConst16 && x.Op != OpConst16) -> (Add16 i (Sub16 <t> x z))
 (Add8  (Sub8  i:(Const8  <t>) z) x) && (z.Op != OpConst8  && x.Op != OpConst8)  -> (Add8  i (Sub8  <t> x z))
-(Add64 x (Sub64 i:(Const64 <t>) z)) && (z.Op != OpConst64 && x.Op != OpConst64) -> (Add64 i (Sub64 <t> x z))
-(Add32 x (Sub32 i:(Const32 <t>) z)) && (z.Op != OpConst32 && x.Op != OpConst32) -> (Add32 i (Sub32 <t> x z))
-(Add16 x (Sub16 i:(Const16 <t>) z)) && (z.Op != OpConst16 && x.Op != OpConst16) -> (Add16 i (Sub16 <t> x z))
-(Add8  x (Sub8  i:(Const8  <t>) z)) && (z.Op != OpConst8  && x.Op != OpConst8)  -> (Add8  i (Sub8  <t> x z))
 
 // x + (z - C) -> (x + z) - C
 (Add64 (Sub64 z i:(Const64 <t>)) x) && (z.Op != OpConst64 && x.Op != OpConst64) -> (Sub64 (Add64 <t> x z) i)
 (Add32 (Sub32 z i:(Const32 <t>)) x) && (z.Op != OpConst32 && x.Op != OpConst32) -> (Sub32 (Add32 <t> x z) i)
 (Add16 (Sub16 z i:(Const16 <t>)) x) && (z.Op != OpConst16 && x.Op != OpConst16) -> (Sub16 (Add16 <t> x z) i)
 (Add8  (Sub8  z i:(Const8  <t>)) x) && (z.Op != OpConst8  && x.Op != OpConst8)  -> (Sub8  (Add8  <t> x z) i)
-(Add64 x (Sub64 z i:(Const64 <t>))) && (z.Op != OpConst64 && x.Op != OpConst64) -> (Sub64 (Add64 <t> x z) i)
-(Add32 x (Sub32 z i:(Const32 <t>))) && (z.Op != OpConst32 && x.Op != OpConst32) -> (Sub32 (Add32 <t> x z) i)
-(Add16 x (Sub16 z i:(Const16 <t>))) && (z.Op != OpConst16 && x.Op != OpConst16) -> (Sub16 (Add16 <t> x z) i)
-(Add8  x (Sub8  z i:(Const8  <t>))) && (z.Op != OpConst8  && x.Op != OpConst8)  -> (Sub8  (Add8  <t> x z) i)
 
 // x - (C - z) -> x + (z - C) -> (x + z) - C
 (Sub64 x (Sub64 i:(Const64 <t>) z)) && (z.Op != OpConst64 && x.Op != OpConst64) -> (Sub64 (Add64 <t> x z) i)

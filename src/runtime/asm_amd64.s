@@ -1244,7 +1244,6 @@ aesloop:
 TEXT runtime·memhash32(SB),NOSPLIT,$0-24
 	CMPB	runtime·useAeshash(SB), $0
 	JEQ	noaes
-	JMP	runtime·memhash32Fallback(SB)
 	MOVQ	p+0(FP), AX	// ptr to data
 	MOVQ	h+8(FP), X0	// seed
 	PINSRD	$2, (AX), X0	// data
@@ -1260,7 +1259,6 @@ noaes:
 TEXT runtime·memhash64(SB),NOSPLIT,$0-24
 	CMPB	runtime·useAeshash(SB), $0
 	JEQ	noaes
-	JMP	runtime·memhash64Fallback(SB)
 	MOVQ	p+0(FP), AX	// ptr to data
 	MOVQ	h+8(FP), X0	// seed
 	PINSRQ	$1, (AX), X0	// data

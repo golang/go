@@ -62,45 +62,45 @@ const (
 )
 
 type Stat_t struct {
-	Dev      uint64
-	Ino      uint64
-	Nlink    uint64
-	Mode     uint16
-	_0       int16
-	Uid      uint32
-	Gid      uint32
-	_1       int32
-	Rdev     uint64
-	Atim     Timespec
-	Mtim     Timespec
-	Ctim     Timespec
-	Birthtim Timespec
-	Size     int64
-	Blocks   int64
-	Blksize  int32
-	Flags    uint32
-	Gen      uint64
-	Spare    [10]uint64
+	Dev     uint64
+	Ino     uint64
+	Nlink   uint64
+	Mode    uint16
+	_0      int16
+	Uid     uint32
+	Gid     uint32
+	_1      int32
+	Rdev    uint64
+	Atim    Timespec
+	Mtim    Timespec
+	Ctim    Timespec
+	Btim    Timespec
+	Size    int64
+	Blocks  int64
+	Blksize int32
+	Flags   uint32
+	Gen     uint64
+	Spare   [10]uint64
 }
 
 type stat_freebsd11_t struct {
-	Dev      uint32
-	Ino      uint32
-	Mode     uint16
-	Nlink    uint16
-	Uid      uint32
-	Gid      uint32
-	Rdev     uint32
-	Atim     Timespec
-	Mtim     Timespec
-	Ctim     Timespec
-	Size     int64
-	Blocks   int64
-	Blksize  int32
-	Flags    uint32
-	Gen      uint32
-	Lspare   int32
-	Birthtim Timespec
+	Dev     uint32
+	Ino     uint32
+	Mode    uint16
+	Nlink   uint16
+	Uid     uint32
+	Gid     uint32
+	Rdev    uint32
+	Atim    Timespec
+	Mtim    Timespec
+	Ctim    Timespec
+	Size    int64
+	Blocks  int64
+	Blksize int32
+	Flags   uint32
+	Gen     uint32
+	Lspare  int32
+	Btim    Timespec
 }
 
 type Statfs_t struct {
@@ -322,10 +322,92 @@ const (
 )
 
 const (
-	PTRACE_TRACEME = 0x0
-	PTRACE_CONT    = 0x7
-	PTRACE_KILL    = 0x8
+	PTRACE_ATTACH     = 0xa
+	PTRACE_CONT       = 0x7
+	PTRACE_DETACH     = 0xb
+	PTRACE_GETFPREGS  = 0x23
+	PTRACE_GETFSBASE  = 0x47
+	PTRACE_GETLWPLIST = 0xf
+	PTRACE_GETNUMLWPS = 0xe
+	PTRACE_GETREGS    = 0x21
+	PTRACE_GETXSTATE  = 0x45
+	PTRACE_IO         = 0xc
+	PTRACE_KILL       = 0x8
+	PTRACE_LWPEVENTS  = 0x18
+	PTRACE_LWPINFO    = 0xd
+	PTRACE_SETFPREGS  = 0x24
+	PTRACE_SETREGS    = 0x22
+	PTRACE_SINGLESTEP = 0x9
+	PTRACE_TRACEME    = 0x0
 )
+
+const (
+	PIOD_READ_D  = 0x1
+	PIOD_WRITE_D = 0x2
+	PIOD_READ_I  = 0x3
+	PIOD_WRITE_I = 0x4
+)
+
+const (
+	PL_FLAG_BORN   = 0x100
+	PL_FLAG_EXITED = 0x200
+	PL_FLAG_SI     = 0x20
+)
+
+const (
+	TRAP_BRKPT = 0x1
+	TRAP_TRACE = 0x2
+)
+
+type PtraceLwpInfoStruct struct {
+	Lwpid        int32
+	Event        int32
+	Flags        int32
+	Sigmask      Sigset_t
+	Siglist      Sigset_t
+	Siginfo      __Siginfo
+	Tdname       [20]int8
+	Child_pid    int32
+	Syscall_code uint32
+	Syscall_narg uint32
+}
+
+type __Siginfo struct {
+	Signo    int32
+	Errno    int32
+	Code     int32
+	Pid      int32
+	Uid      uint32
+	Status   int32
+	Addr     *byte
+	Value    [8]byte
+	X_reason [40]byte
+}
+
+type Sigset_t struct {
+	Val [4]uint32
+}
+
+type Reg struct {
+	X    [30]uint64
+	Lr   uint64
+	Sp   uint64
+	Elr  uint64
+	Spsr uint32
+}
+
+type FpReg struct {
+	Fp_q  [512]uint8
+	Fp_sr uint32
+	Fp_cr uint32
+}
+
+type PtraceIoDesc struct {
+	Op   int32
+	Offs *byte
+	Addr *byte
+	Len  uint64
+}
 
 type Kevent_t struct {
 	Ident  uint64
@@ -599,4 +681,14 @@ type Utsname struct {
 	Release  [256]byte
 	Version  [256]byte
 	Machine  [256]byte
+}
+
+const SizeofClockinfo = 0x14
+
+type Clockinfo struct {
+	Hz     int32
+	Tick   int32
+	Spare  int32
+	Stathz int32
+	Profhz int32
 }

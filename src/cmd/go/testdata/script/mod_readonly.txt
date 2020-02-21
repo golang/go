@@ -7,6 +7,7 @@ go mod edit -fmt
 cp go.mod go.mod.empty
 ! go list all
 stderr '^can''t load package: x.go:2:8: cannot find module providing package rsc\.io/quote: import lookup disabled by -mod=readonly'
+! stderr '\(\)' # If we don't have a reason for -mod=readonly, don't log an empty one.
 cmp go.mod go.mod.empty
 
 # -mod=readonly should be set implicitly if the go.mod file is read-only

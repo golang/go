@@ -1243,9 +1243,11 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 			divdLim, divdLimok := ft.limits[divd.ID]
 			if (divrLimok && (divrLim.max < -1 || divrLim.min > -1)) ||
 				(divdLimok && divdLim.min > mostNegativeDividend[v.Op]) {
-				v.AuxInt = 1 // see NeedsFixUp in genericOps - v.AuxInt = 0 means we have not proved
-				// that the divisor is not -1 and the dividend is not the most negative,
-				// so we need to add fix-up code.
+				// See DivisionNeedsFixUp in rewrite.go.
+				// v.AuxInt = 1 means we have proved both that the divisor is not -1
+				// and that the dividend is not the most negative integer,
+				// so we do not need to add fix-up code.
+				v.AuxInt = 1
 				if b.Func.pass.debug > 0 {
 					b.Func.Warnl(v.Pos, "Proved %v does not need fix-up", v.Op)
 				}

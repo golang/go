@@ -21,12 +21,12 @@ func Example() {
 	msg := "hello, world"
 	hash := sha256.Sum256([]byte(msg))
 
-	r, s, err := ecdsa.Sign(rand.Reader, privateKey, hash[:])
+	sig, err := ecdsa.SignASN1(rand.Reader, privateKey, hash[:])
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("signature: (0x%x, 0x%x)\n", r, s)
+	fmt.Printf("signature: %x\n", sig)
 
-	valid := ecdsa.Verify(&privateKey.PublicKey, hash[:], r, s)
+	valid := ecdsa.VerifyASN1(&privateKey.PublicKey, hash[:], sig)
 	fmt.Println("signature verified:", valid)
 }

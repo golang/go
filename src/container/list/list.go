@@ -90,11 +90,10 @@ func (l *List) lazyInit() {
 
 // insert inserts e after at, increments l.len, and returns e.
 func (l *List) insert(e, at *Element) *Element {
-	n := at.next
-	at.next = e
 	e.prev = at
-	e.next = n
-	n.prev = e
+	e.next = at.next
+	e.prev.next = e
+	e.next.prev = e
 	e.list = l
 	l.len++
 	return e
@@ -124,11 +123,10 @@ func (l *List) move(e, at *Element) *Element {
 	e.prev.next = e.next
 	e.next.prev = e.prev
 
-	n := at.next
-	at.next = e
 	e.prev = at
-	e.next = n
-	n.prev = e
+	e.next = at.next
+	e.prev.next = e
+	e.next.prev = e
 
 	return e
 }

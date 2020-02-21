@@ -1133,7 +1133,6 @@
 (MOVWreg x:(MOVBreg _)) -> (MOVDreg x)
 (MOVWreg x:(MOVBUreg _)) -> (MOVDreg x)
 (MOVWreg x:(MOVHreg _)) -> (MOVDreg x)
-(MOVWreg x:(MOVHreg _)) -> (MOVDreg x)
 (MOVWreg x:(MOVWreg _)) -> (MOVDreg x)
 (MOVWUreg x:(MOVBUreg _)) -> (MOVDreg x)
 (MOVWUreg x:(MOVHUreg _)) -> (MOVDreg x)
@@ -2989,16 +2988,6 @@
 	&& clobber(x)
 	-> (MOVHstore [i-1] {s} ptr (REV16W <w.Type> w) mem)
 (MOVBstore [1] {s} (ADD ptr1 idx1) w x:(MOVBstoreidx ptr0 idx0 (UBFX [armBFAuxInt(8, 24)] w) mem))
-	&& x.Uses == 1
-	&& s == nil
-	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
-	&& clobber(x)
-	-> (MOVHstoreidx ptr0 idx0 (REV16W <w.Type> w) mem)
-(MOVBstore [i] {s} ptr w x:(MOVBstore [i-1] {s} ptr (SRLconst [8] (MOVDreg w)) mem))
-	&& x.Uses == 1
-	&& clobber(x)
-	-> (MOVHstore [i-1] {s} ptr (REV16W <w.Type> w) mem)
-(MOVBstore [1] {s} (ADD ptr1 idx1) w x:(MOVBstoreidx ptr0 idx0 (SRLconst [8] (MOVDreg w)) mem))
 	&& x.Uses == 1
 	&& s == nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))

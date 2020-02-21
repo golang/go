@@ -3,29 +3,29 @@
 // license that can be found in the LICENSE file.
 
 // Lowering arithmetic
-(Add(64|32|16|8)  x y) -> (ADD(Q|L|L|L)  x y)
-(AddPtr x y) -> (ADDQ x y)
-(Add(32|64)F x y) -> (ADDS(S|D) x y)
+(Add(64|32|16|8) ...) -> (ADD(Q|L|L|L) ...)
+(AddPtr ...) -> (ADDQ ...)
+(Add(32|64)F ...) -> (ADDS(S|D) ...)
 
-(Sub(64|32|16|8)  x y) -> (SUB(Q|L|L|L)  x y)
-(SubPtr x y) -> (SUBQ x y)
-(Sub(32|64)F x y) -> (SUBS(S|D) x y)
+(Sub(64|32|16|8) ...) -> (SUB(Q|L|L|L) ...)
+(SubPtr ...) -> (SUBQ ...)
+(Sub(32|64)F ...) -> (SUBS(S|D) ...)
 
-(Mul(64|32|16|8)  x y) -> (MUL(Q|L|L|L)  x y)
-(Mul(32|64)F x y) -> (MULS(S|D) x y)
+(Mul(64|32|16|8) ...) -> (MUL(Q|L|L|L) ...)
+(Mul(32|64)F ...) -> (MULS(S|D) ...)
 
 (Select0 (Mul64uover x y)) -> (Select0 <typ.UInt64> (MULQU x y))
 (Select0 (Mul32uover x y)) -> (Select0 <typ.UInt32> (MULLU x y))
 (Select1 (Mul(64|32)uover x y)) -> (SETO (Select1 <types.TypeFlags> (MUL(Q|L)U x y)))
 
-(Hmul(64|32)  x y) -> (HMUL(Q|L)  x y)
-(Hmul(64|32)u x y) -> (HMUL(Q|L)U x y)
+(Hmul(64|32) ...) -> (HMUL(Q|L) ...)
+(Hmul(64|32)u ...) -> (HMUL(Q|L)U ...)
 
 (Div(64|32|16) [a] x y) -> (Select0 (DIV(Q|L|W) [a] x y))
 (Div8  x y) -> (Select0 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
 (Div(64|32|16)u x y) -> (Select0 (DIV(Q|L|W)U x y))
 (Div8u x y) -> (Select0 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
-(Div(32|64)F x y) -> (DIVS(S|D) x y)
+(Div(32|64)F ...) -> (DIVS(S|D) ...)
 
 (Select0 (Add64carry x y c)) ->
 	(Select0 <typ.UInt64> (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags c))))
@@ -49,28 +49,28 @@
 (Select1 (NEGLflags (NEGQ (SBBQcarrymask x)))) -> x
 
 
-(Mul64uhilo x y) -> (MULQU2 x y)
-(Div128u xhi xlo y) -> (DIVQU2 xhi xlo y)
+(Mul64uhilo ...) -> (MULQU2 ...)
+(Div128u ...) -> (DIVQU2 ...)
 
-(Avg64u x y) -> (AVGQU x y)
+(Avg64u ...) -> (AVGQU ...)
 
 (Mod(64|32|16) [a] x y) -> (Select1 (DIV(Q|L|W) [a] x y))
 (Mod8  x y) -> (Select1 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
 (Mod(64|32|16)u x y) -> (Select1 (DIV(Q|L|W)U x y))
 (Mod8u x y) -> (Select1 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
 
-(And(64|32|16|8) x y) -> (AND(Q|L|L|L) x y)
-(Or(64|32|16|8) x y) -> (OR(Q|L|L|L) x y)
-(Xor(64|32|16|8) x y) -> (XOR(Q|L|L|L) x y)
-(Com(64|32|16|8) x) -> (NOT(Q|L|L|L) x)
+(And(64|32|16|8) ...) -> (AND(Q|L|L|L) ...)
+(Or(64|32|16|8) ...) -> (OR(Q|L|L|L) ...)
+(Xor(64|32|16|8) ...) -> (XOR(Q|L|L|L) ...)
+(Com(64|32|16|8) ...) -> (NOT(Q|L|L|L) ...)
 
-(Neg(64|32|16|8)  x) -> (NEG(Q|L|L|L) x)
+(Neg(64|32|16|8) ...) -> (NEG(Q|L|L|L) ...)
 (Neg32F x) -> (PXOR x (MOVSSconst <typ.Float32> [auxFrom32F(float32(math.Copysign(0, -1)))]))
 (Neg64F x) -> (PXOR x (MOVSDconst <typ.Float64> [auxFrom64F(math.Copysign(0, -1))]))
 
 // Lowering boolean ops
-(AndB x y) -> (ANDL x y)
-(OrB x y) -> (ORL x y)
+(AndB ...) -> (ANDL ...)
+(OrB ...) -> (ORL ...)
 (Not x) -> (XORLconst [1] x)
 
 // Lowering pointer arithmetic
@@ -84,9 +84,9 @@
 (Ctz8  x) -> (BSFL (BTSLconst <typ.UInt32> [ 8] x))
 
 (Ctz64NonZero x) -> (Select0 (BSFQ x))
-(Ctz32NonZero x) -> (BSFL x)
-(Ctz16NonZero x) -> (BSFL x)
-(Ctz8NonZero  x) -> (BSFL x)
+(Ctz32NonZero ...) -> (BSFL ...)
+(Ctz16NonZero ...) -> (BSFL ...)
+(Ctz8NonZero  ...) -> (BSFL ...)
 
 // BitLen64 of a 64 bit value x requires checking whether x == 0, since BSRQ is undefined when x == 0.
 // However, for zero-extended values, we can cheat a bit, and calculate
@@ -97,14 +97,13 @@
 (BitLen16 x) -> (BSRL (LEAL1 <typ.UInt32> [1] (MOVWQZX <typ.UInt32> x) (MOVWQZX <typ.UInt32> x)))
 (BitLen8  x) -> (BSRL (LEAL1 <typ.UInt32> [1] (MOVBQZX <typ.UInt32> x) (MOVBQZX <typ.UInt32> x)))
 
-(Bswap(64|32) x) -> (BSWAP(Q|L) x)
+(Bswap(64|32) ...) -> (BSWAP(Q|L) ...)
 
-(PopCount64 x) -> (POPCNTQ x)
-(PopCount32 x) -> (POPCNTL x)
+(PopCount(64|32) ...) -> (POPCNT(Q|L) ...)
 (PopCount16 x) -> (POPCNTL (MOVWQZX <typ.UInt32> x))
 (PopCount8 x) -> (POPCNTL (MOVBQZX <typ.UInt32> x))
 
-(Sqrt x) -> (SQRTSD x)
+(Sqrt ...) -> (SQRTSD ...)
 
 (RoundToEven x) -> (ROUNDSD [0] x)
 (Floor x)	-> (ROUNDSD [1] x)
@@ -114,46 +113,46 @@
 
 // Lowering extension
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.
-(SignExt8to16  x) -> (MOVBQSX x)
-(SignExt8to32  x) -> (MOVBQSX x)
-(SignExt8to64  x) -> (MOVBQSX x)
-(SignExt16to32 x) -> (MOVWQSX x)
-(SignExt16to64 x) -> (MOVWQSX x)
-(SignExt32to64 x) -> (MOVLQSX x)
+(SignExt8to16  ...) -> (MOVBQSX ...)
+(SignExt8to32  ...) -> (MOVBQSX ...)
+(SignExt8to64  ...) -> (MOVBQSX ...)
+(SignExt16to32 ...) -> (MOVWQSX ...)
+(SignExt16to64 ...) -> (MOVWQSX ...)
+(SignExt32to64 ...) -> (MOVLQSX ...)
 
-(ZeroExt8to16  x) -> (MOVBQZX x)
-(ZeroExt8to32  x) -> (MOVBQZX x)
-(ZeroExt8to64  x) -> (MOVBQZX x)
-(ZeroExt16to32 x) -> (MOVWQZX x)
-(ZeroExt16to64 x) -> (MOVWQZX x)
-(ZeroExt32to64 x) -> (MOVLQZX x)
+(ZeroExt8to16  ...) -> (MOVBQZX ...)
+(ZeroExt8to32  ...) -> (MOVBQZX ...)
+(ZeroExt8to64  ...) -> (MOVBQZX ...)
+(ZeroExt16to32 ...) -> (MOVWQZX ...)
+(ZeroExt16to64 ...) -> (MOVWQZX ...)
+(ZeroExt32to64 ...) -> (MOVLQZX ...)
 
 (Slicemask <t> x) -> (SARQconst (NEGQ <t> x) [63])
 
 // Lowering truncation
 // Because we ignore high parts of registers, truncates are just copies.
-(Trunc16to8  x) -> x
-(Trunc32to8  x) -> x
-(Trunc32to16 x) -> x
-(Trunc64to8  x) -> x
-(Trunc64to16 x) -> x
-(Trunc64to32 x) -> x
+(Trunc16to8  ...) -> (Copy ...)
+(Trunc32to8  ...) -> (Copy ...)
+(Trunc32to16 ...) -> (Copy ...)
+(Trunc64to8  ...) -> (Copy ...)
+(Trunc64to16 ...) -> (Copy ...)
+(Trunc64to32 ...) -> (Copy ...)
 
 // Lowering float <-> int
-(Cvt32to32F x) -> (CVTSL2SS x)
-(Cvt32to64F x) -> (CVTSL2SD x)
-(Cvt64to32F x) -> (CVTSQ2SS x)
-(Cvt64to64F x) -> (CVTSQ2SD x)
+(Cvt32to32F ...) -> (CVTSL2SS ...)
+(Cvt32to64F ...) -> (CVTSL2SD ...)
+(Cvt64to32F ...) -> (CVTSQ2SS ...)
+(Cvt64to64F ...) -> (CVTSQ2SD ...)
 
-(Cvt32Fto32 x) -> (CVTTSS2SL x)
-(Cvt32Fto64 x) -> (CVTTSS2SQ x)
-(Cvt64Fto32 x) -> (CVTTSD2SL x)
-(Cvt64Fto64 x) -> (CVTTSD2SQ x)
+(Cvt32Fto32 ...) -> (CVTTSS2SL ...)
+(Cvt32Fto64 ...) -> (CVTTSS2SQ ...)
+(Cvt64Fto32 ...) -> (CVTTSD2SL ...)
+(Cvt64Fto64 ...) -> (CVTTSD2SQ ...)
 
-(Cvt32Fto64F x) -> (CVTSS2SD x)
-(Cvt64Fto32F x) -> (CVTSD2SS x)
+(Cvt32Fto64F ...) -> (CVTSS2SD ...)
+(Cvt64Fto32F ...) -> (CVTSD2SS ...)
 
-(Round(32|64)F x) -> x
+(Round(32|64)F ...) -> (Copy ...)
 
 // Lowering shifts
 // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
@@ -409,19 +408,19 @@
 	(REPSTOSQ destptr (MOVQconst [s/8]) (MOVQconst [0]) mem)
 
 // Lowering constants
-(Const8   [val]) -> (MOVLconst [val])
-(Const16  [val]) -> (MOVLconst [val])
-(Const32  [val]) -> (MOVLconst [val])
-(Const64  [val]) -> (MOVQconst [val])
-(Const32F [val]) -> (MOVSSconst [val])
-(Const64F [val]) -> (MOVSDconst [val])
-(ConstNil) -> (MOVQconst [0])
-(ConstBool [b]) -> (MOVLconst [b])
+(Const8   ...) -> (MOVLconst ...)
+(Const16  ...) -> (MOVLconst ...)
+(Const32  ...) -> (MOVLconst ...)
+(Const64  ...) -> (MOVQconst ...)
+(Const32F ...) -> (MOVSSconst ...)
+(Const64F ...) -> (MOVSDconst ...)
+(ConstNil ...) -> (MOVQconst ...)
+(ConstBool ...) -> (MOVLconst ...)
 
 // Lowering calls
-(StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
-(ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
-(InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
+(StaticCall ...) -> (CALLstatic ...)
+(ClosureCall ...) -> (CALLclosure ...)
+(InterCall ...) -> (CALLinter ...)
 
 // Lowering conditional moves
 // If the condition is a SETxx, we can just run a CMOV from the comparison that was
@@ -473,12 +472,12 @@
 (IsNonNil p) -> (SETNE (TESTQ p p))
 (IsInBounds idx len) -> (SETB (CMPQ idx len))
 (IsSliceInBounds idx len) -> (SETBE (CMPQ idx len))
-(NilCheck ptr mem) -> (LoweredNilCheck ptr mem)
-(GetG mem) -> (LoweredGetG mem)
-(GetClosurePtr) -> (LoweredGetClosurePtr)
-(GetCallerPC) -> (LoweredGetCallerPC)
-(GetCallerSP) -> (LoweredGetCallerSP)
-(Addr {sym} base) -> (LEAQ {sym} base)
+(NilCheck ...) -> (LoweredNilCheck ...)
+(GetG ...) -> (LoweredGetG ...)
+(GetClosurePtr ...) -> (LoweredGetClosurePtr ...)
+(GetCallerPC ...) -> (LoweredGetCallerPC ...)
+(GetCallerSP ...) -> (LoweredGetCallerSP ...)
+(Addr ...) -> (LEAQ ...)
 (LocalAddr {sym} base _) -> (LEAQ {sym} base)
 
 (MOVBstore [off] {sym} ptr y:(SETL x) mem) && y.Uses == 1 -> (SETLstore [off] {sym} ptr x mem)
@@ -514,10 +513,10 @@
 (If cond yes no) -> (NE (TESTB cond cond) yes no)
 
 // Atomic loads.  Other than preserving their ordering with respect to other loads, nothing special here.
-(AtomicLoad8 ptr mem) -> (MOVBatomicload ptr mem)
-(AtomicLoad32 ptr mem) -> (MOVLatomicload ptr mem)
-(AtomicLoad64 ptr mem) -> (MOVQatomicload ptr mem)
-(AtomicLoadPtr ptr mem) -> (MOVQatomicload ptr mem)
+(AtomicLoad8 ...) -> (MOVBatomicload ...)
+(AtomicLoad32 ...) -> (MOVLatomicload ...)
+(AtomicLoad64 ...) -> (MOVQatomicload ...)
+(AtomicLoadPtr ...) -> (MOVQatomicload ...)
 
 // Atomic stores.  We use XCHG to prevent the hardware reordering a subsequent load.
 // TODO: most runtime uses of atomic stores don't need that property.  Use normal stores for those?
@@ -539,15 +538,15 @@
 (Select1     (AddTupleFirst64   _ tuple)) -> (Select1 tuple)
 
 // Atomic compare and swap.
-(AtomicCompareAndSwap32 ptr old new_ mem) -> (CMPXCHGLlock ptr old new_ mem)
-(AtomicCompareAndSwap64 ptr old new_ mem) -> (CMPXCHGQlock ptr old new_ mem)
+(AtomicCompareAndSwap32 ...) -> (CMPXCHGLlock ...)
+(AtomicCompareAndSwap64 ...) -> (CMPXCHGQlock ...)
 
 // Atomic memory updates.
-(AtomicAnd8 ptr val mem) -> (ANDBlock ptr val mem)
-(AtomicOr8 ptr val mem) -> (ORBlock ptr val mem)
+(AtomicAnd8 ...) -> (ANDBlock ...)
+(AtomicOr8 ...) -> (ORBlock ...)
 
 // Write barrier.
-(WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
+(WB ...) -> (LoweredWB ...)
 
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 0 -> (LoweredPanicBoundsA [kind] x y mem)
 (PanicBounds [kind] x y mem) && boundsABI(kind) == 1 -> (LoweredPanicBoundsB [kind] x y mem)
@@ -807,10 +806,10 @@
 (ROLWconst [c] (ROLWconst [d] x)) -> (ROLWconst [(c+d)&15] x)
 (ROLBconst [c] (ROLBconst [d] x)) -> (ROLBconst [(c+d)& 7] x)
 
-(RotateLeft8  a b) -> (ROLB a b)
-(RotateLeft16 a b) -> (ROLW a b)
-(RotateLeft32 a b) -> (ROLL a b)
-(RotateLeft64 a b) -> (ROLQ a b)
+(RotateLeft8  ...) -> (ROLB ...)
+(RotateLeft16 ...) -> (ROLW ...)
+(RotateLeft32 ...) -> (ROLL ...)
+(RotateLeft64 ...) -> (ROLQ ...)
 
 // Non-constant rotates.
 // We want to issue a rotate when the Go source contains code like

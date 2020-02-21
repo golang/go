@@ -658,13 +658,22 @@ func (ts *testScript) cmdExec(neg bool, args []string) {
 
 // exists checks that the list of files exists.
 func (ts *testScript) cmdExists(neg bool, args []string) {
-	var readonly bool
-	if len(args) > 0 && args[0] == "-readonly" {
-		readonly = true
-		args = args[1:]
+	var readonly, exec bool
+loop:
+	for len(args) > 0 {
+		switch args[0] {
+		case "-readonly":
+			readonly = true
+			args = args[1:]
+		case "-exec":
+			exec = true
+			args = args[1:]
+		default:
+			break loop
+		}
 	}
 	if len(args) == 0 {
-		ts.fatalf("usage: exists [-readonly] file...")
+		ts.fatalf("usage: exists [-readonly] [-exec] file...")
 	}
 
 	for _, file := range args {
@@ -682,6 +691,9 @@ func (ts *testScript) cmdExists(neg bool, args []string) {
 		}
 		if err == nil && !neg && readonly && info.Mode()&0222 != 0 {
 			ts.fatalf("%s exists but is writable", file)
+		}
+		if err == nil && !neg && exec && runtime.GOOS != "windows" && info.Mode()&0111 == 0 {
+			ts.fatalf("%s exists but is not executable", file)
 		}
 	}
 }
@@ -1234,6 +1246,8 @@ var diffTests = []struct {
 }
 
 func TestDiff(t *testing.T) {
+	t.Parallel()
+
 	for _, tt := range diffTests {
 		// Turn spaces into \n.
 		text1 := strings.ReplaceAll(tt.text1, " ", "\n")
