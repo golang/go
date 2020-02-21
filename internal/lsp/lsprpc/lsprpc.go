@@ -312,7 +312,12 @@ func (f *Forwarder) connectToRemote(ctx context.Context) (net.Conn, error) {
 }
 
 func startRemote(goplsPath, network, address string) error {
-	args := []string{"serve", "-listen", fmt.Sprintf(`%s;%s`, network, address), "-debug", ":0", "-logfile", "auto"}
+	args := []string{"serve",
+		"-listen", fmt.Sprintf(`%s;%s`, network, address),
+		"-listen.timeout", "1m",
+		"-debug", ":0",
+		"-logfile", "auto",
+	}
 	cmd := exec.Command(goplsPath, args...)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("starting remote gopls: %v", err)
