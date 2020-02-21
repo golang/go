@@ -89,3 +89,72 @@ func i(*int) error {
 		}
 	}
 }
+
+func f4(x *X) {
+	if x == nil {
+		panic(x)
+	}
+}
+
+func f5(x *X) {
+	panic(nil) // want "panic with nil value"
+}
+
+func f6(x *X) {
+	var err error
+	panic(err) // want "panic with nil value"
+}
+
+func f7() {
+	x, err := bad()
+	if err != nil {
+		panic(0)
+	}
+	if x == nil {
+		panic(err) // want "panic with nil value"
+	}
+}
+
+func bad() (*X, error) {
+	return nil, nil
+}
+
+func f8() {
+	var e error
+	v, _ := e.(interface{})
+	print(v)
+}
+
+func f9(x interface {
+	a()
+	b()
+	c()
+}) {
+
+	x.b() // we don't catch this panic because we don't have any facts yet
+	xx := interface {
+		a()
+		b()
+	}(x)
+	if xx != nil {
+		return
+	}
+	x.c()  // want "nil dereference in dynamic method call"
+	xx.b() // want "nil dereference in dynamic method call"
+	xxx := interface{ a() }(xx)
+	xxx.a() // want "nil dereference in dynamic method call"
+
+	if unknown() {
+		panic(x) // want "panic with nil value"
+	}
+	if unknown() {
+		panic(xx) // want "panic with nil value"
+	}
+	if unknown() {
+		panic(xxx) // want "panic with nil value"
+	}
+}
+
+func unknown() bool {
+	return false
+}
