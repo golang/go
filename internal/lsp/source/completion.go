@@ -1746,7 +1746,7 @@ Nodes:
 		case *ast.MapType:
 			wantTypeName = true
 			if n.Key != nil {
-				wantComparable = n.Key.Pos() <= c.pos && c.pos <= n.Key.End()
+				wantComparable = nodeContains(n.Key, c.pos)
 			} else {
 				// If the key is empty, assume we are completing the key if
 				// pos is directly after the "map[".
@@ -1754,10 +1754,10 @@ Nodes:
 			}
 			break Nodes
 		case *ast.ValueSpec:
-			if n.Type != nil && n.Type.Pos() <= c.pos && c.pos <= n.Type.End() {
-				wantTypeName = true
-			}
+			wantTypeName = nodeContains(n.Type, c.pos)
 			break Nodes
+		case *ast.TypeSpec:
+			wantTypeName = nodeContains(n.Type, c.pos)
 		default:
 			if breaksExpectedTypeInference(p) {
 				return typeNameInference{}

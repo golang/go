@@ -1,11 +1,11 @@
 -- summary --
 CodeLensCount = 0
-CompletionsCount = 226
+CompletionsCount = 229
 CompletionSnippetCount = 68
 UnimportedCompletionsCount = 11
 DeepCompletionsCount = 5
 FuzzyCompletionsCount = 8
-RankedCompletionsCount = 112
+RankedCompletionsCount = 116
 CaseSensitiveCompletionsCount = 4
 DiagnosticsCount = 39
 FoldingRangesCount = 2
