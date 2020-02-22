@@ -201,9 +201,9 @@ func isubst(x ast.Expr, smap map[*ast.Ident]*ast.Ident) ast.Expr {
 			return X // no need to recreate the parentheses
 		}
 	default:
-		// Any more complex receiver type expression is invalid.
-		// It's fine to ignore those here since we will report
-		// an error later.
+		// Other receiver type expressions are invalid.
+		// It's fine to ignore those here as they will
+		// be checked elsewhere.
 	}
 	return x
 }
@@ -216,24 +216,24 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 	sig.scope = check.scope
 	defer check.closeScope()
 
+	var recvTyp ast.Expr // rewritten receiver type; valid if != nil
 	if recvPar != nil && len(recvPar.List) > 0 {
 		// collect parameterized receiver type parameters, if any
-		// - a receiver type parameter is like any other type parameter, except that it is passed implicitly
+		// - a receiver type parameter is like any other type parameter, except that it is declared implicitly
 		// - the receiver specification acts as local declaration for its type parameters, which may be blank
 		_, rname, rparams := check.unpackRecv(recvPar.List[0].Type, true)
 		if len(rparams) > 0 {
-			// The receiver type parameters may not be used by the method, in which case they may be
-			// blank identifiers. But blank identifiers don't get declared and regular type-checking
-			// of the instantiated parameterized receiver type expression fails.
+			// Blank identifiers don't get declared and regular type-checking of the instantiated
+			// parameterized receiver type expression fails in Checker.collectParams of receiver.
 			// Identify blank type parameters and substitute each with a unique new identifier named
-			// "!n" (where n is an increasing index) and which cannot conflict with any user-defined
-			// name; do the substitution both in the rparams and the receiver parameter list.
+			// "n_" (where n is the parameter index) and which cannot conflict with any user-defined
+			// name.
 			var smap map[*ast.Ident]*ast.Ident // substitution map from "_" to "!n" identifiers
 			for i, p := range rparams {
 				if p.Name == "_" {
 					new := *p
 					new.Name = fmt.Sprintf("%d_", i)
-					rparams[i] = &new
+					rparams[i] = &new // use n_ identifier instead of _ so it can be looked up
 					if smap == nil {
 						smap = make(map[*ast.Ident]*ast.Ident)
 					}
@@ -241,8 +241,8 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 				}
 			}
 			if smap != nil {
-				// TODO(gri) should not do this in place
-				recvPar.List[0].Type = isubst(recvPar.List[0].Type, smap)
+				// blank identifiers were found => use rewritten receiver type
+				recvTyp = isubst(recvPar.List[0].Type, smap)
 			}
 			sig.rparams = check.declareTypeParams(nil, rparams)
 			// determine receiver type to get its type parameters
@@ -288,9 +288,9 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 	// declarations and then squash that scope into the parent scope (and report any redeclarations at
 	// that time).
 	scope := NewScope(check.scope, token.NoPos, token.NoPos, "function body (temp. scope)")
-	recvList, _ := check.collectParams(scope, recvPar, false)
-	params, variadic := check.collectParams(scope, ftyp.Params, true)
-	results, _ := check.collectParams(scope, ftyp.Results, false)
+	recvList, _ := check.collectParams(scope, recvPar, recvTyp, false) // use rewritten receiver type, if any
+	params, variadic := check.collectParams(scope, ftyp.Params, nil, true)
+	results, _ := check.collectParams(scope, ftyp.Results, nil, false)
 	scope.Squash(func(obj, alt Object) {
 		check.errorf(obj.Pos(), "%s redeclared in this block", obj.Name())
 		check.reportAltDecl(alt)
@@ -585,7 +585,9 @@ func (check *Checker) typeList(list []ast.Expr) []Type {
 	return res
 }
 
-func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicOk bool) (params []*Var, variadic bool) {
+// collectParams declares the parameters of list in scope and returns the corresponding
+// variable list. If type0 != nil, it is used instead of the the first type in list.
+func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, type0 ast.Expr, variadicOk bool) (params []*Var, variadic bool) {
 	if list == nil {
 		return
 	}
@@ -593,6 +595,9 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
 	var named, anonymous bool
 	for i, field := range list.List {
 		ftype := field.Type
+		if i == 0 && type0 != nil {
+			ftype = type0
+		}
 		if t, _ := ftype.(*ast.Ellipsis); t != nil {
 			ftype = t.Elt
 			if variadicOk && i == len(list.List)-1 && len(field.Names) <= 1 {

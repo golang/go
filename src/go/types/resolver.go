@@ -502,8 +502,9 @@ func (check *Checker) collectObjects() {
 // cannot easily work around).
 func (check *Checker) unpackRecv(rtyp ast.Expr, unpackParams bool) (ptr bool, rname *ast.Ident, tparams []*ast.Ident) {
 L: // unpack receiver type
-	// This accepts invalid receivers such as ***T but we don't care.
-	// The validity of receiver expressions is checked elsewhere.
+	// This accepts invalid receivers such as ***T and does not
+	// work for other invalid receivers, but we don't care. The
+	// validity of receiver expressions is checked elsewhere.
 	for {
 		switch t := rtyp.(type) {
 		case *ast.ParenExpr:
