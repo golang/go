@@ -179,6 +179,23 @@ func testFunVW(t *testing.T, msg string, f funVW, a argVW) {
 	}
 }
 
+func testFunVWext(t *testing.T, msg string, f funVW, f_g funVW, a argVW) {
+	// using the result of addVW_g/subVW_g as golden
+	z_g := make(nat, len(a.z))
+	c_g := f_g(z_g, a.x, a.y)
+	c := f(a.z, a.x, a.y)
+
+	for i, zi := range a.z {
+		if zi != z_g[i] {
+			t.Errorf("%s\n\tgot z[%d] = %#x; want %#x", msg, i, zi, z_g[i])
+			break
+		}
+	}
+	if c != c_g {
+		t.Errorf("%s\n\tgot c = %#x; want %#x", msg, c, c_g)
+	}
+}
+
 func makeFunVW(f func(z, x []Word, s uint) (c Word)) funVW {
 	return func(z, x []Word, s Word) (c Word) {
 		return f(z, x, uint(s))
@@ -210,6 +227,49 @@ func TestFunVW(t *testing.T) {
 		arg := a
 		testFunVW(t, "shrVU_g", shrVW_g, arg)
 		testFunVW(t, "shrVU", shrVW, arg)
+	}
+}
+
+// Construct a vector comprising the same word, usually '0' or 'maximum uint'
+func makeWordVec(e Word, n int) []Word {
+	v := make([]Word, n)
+	for i := range v {
+		v[i] = e
+	}
+	return v
+}
+
+// Extended testing to addVW and subVW using various kinds of input data.
+// We utilize the results of addVW_g and subVW_g as golden reference to check
+// correctness.
+func TestFunVWExt(t *testing.T) {
+	// 32 is the current threshold that triggers an optimized version of
+	// calculation for large-sized vector, ensure we have sizes around it tested.
+	var vwSizes = []int{0, 1, 3, 4, 5, 8, 9, 23, 31, 32, 33, 34, 35, 36, 50, 120}
+	for _, n := range vwSizes {
+		// vector of random numbers, using the result of addVW_g/subVW_g as golden
+		x := rndV(n)
+		y := rndW()
+		z := make(nat, n)
+		arg := argVW{z, x, y, 0}
+		testFunVWext(t, "addVW, random inputs", addVW, addVW_g, arg)
+		testFunVWext(t, "subVW, random inputs", subVW, subVW_g, arg)
+
+		// vector of random numbers, but make 'x' and 'z' share storage
+		arg = argVW{x, x, y, 0}
+		testFunVWext(t, "addVW, random inputs, sharing storage", addVW, addVW_g, arg)
+		testFunVWext(t, "subVW, random inputs, sharing storage", subVW, subVW_g, arg)
+
+		// vector of maximum uint, to force carry flag set in each 'add'
+		y = ^Word(0)
+		x = makeWordVec(y, n)
+		arg = argVW{z, x, y, 0}
+		testFunVWext(t, "addVW, vector of max uint", addVW, addVW_g, arg)
+
+		// vector of '0', to force carry flag set in each 'sub'
+		x = makeWordVec(0, n)
+		arg = argVW{z, x, 1, 0}
+		testFunVWext(t, "subVW, vector of zero", subVW, subVW_g, arg)
 	}
 }
 
@@ -299,6 +359,24 @@ func BenchmarkAddVW(b *testing.B) {
 	}
 }
 
+// Benchmarking addVW using vector of maximum uint to force carry flag set
+func BenchmarkAddVWext(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		y := ^Word(0)
+		x := makeWordVec(y, n)
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _S))
+			for i := 0; i < b.N; i++ {
+				addVW(z, x, y)
+			}
+		})
+	}
+}
+
 func BenchmarkSubVW(b *testing.B) {
 	for _, n := range benchSizes {
 		if isRaceBuilder && n > 1e3 {
@@ -306,6 +384,24 @@ func BenchmarkSubVW(b *testing.B) {
 		}
 		x := rndV(n)
 		y := rndW()
+		z := make([]Word, n)
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			b.SetBytes(int64(n * _S))
+			for i := 0; i < b.N; i++ {
+				subVW(z, x, y)
+			}
+		})
+	}
+}
+
+// Benchmarking subVW using vector of zero to force carry flag set
+func BenchmarkSubVWext(b *testing.B) {
+	for _, n := range benchSizes {
+		if isRaceBuilder && n > 1e3 {
+			continue
+		}
+		x := makeWordVec(0, n)
+		y := Word(1)
 		z := make([]Word, n)
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
 			b.SetBytes(int64(n * _S))
