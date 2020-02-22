@@ -86,6 +86,14 @@ func (c *completer) addKeywordCompletions() {
 		return
 	}
 
+	if len(c.path) > 2 {
+		// Offer "range" if we are in ast.ForStmt.Init. This is what the
+		// AST looks like before "range" is typed, e.g. "for i := r<>".
+		if loop, ok := c.path[2].(*ast.ForStmt); ok && nodeContains(loop.Init, c.pos) {
+			addKeywords(stdScore, RANGE)
+		}
+	}
+
 	// Only suggest keywords if we are beginning a statement.
 	switch c.path[1].(type) {
 	case *ast.BlockStmt, *ast.CommClause, *ast.CaseClause, *ast.ExprStmt:

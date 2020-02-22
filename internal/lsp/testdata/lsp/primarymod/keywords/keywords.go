@@ -61,6 +61,7 @@ func _() {
 	v //@complete(" //", var)
 	c //@complete(" //", const)
 
+	for i := r //@complete(" //", range)
 }
 
 /* package */ //@item(package, "package", "", "keyword")
@@ -90,3 +91,4 @@ func _() {
 /* map */ //@item(map, "map", "", "keyword")
 /* func */ //@item(func, "func", "", "keyword")
 /* chan */ //@item(chan, "chan", "", "keyword")
+/* range */ //@item(range, "range", "", "keyword")
