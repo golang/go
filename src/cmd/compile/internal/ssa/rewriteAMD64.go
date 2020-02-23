@@ -7334,6 +7334,22 @@ func rewriteValueAMD64_OpAMD64CMPB(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (CMPB x y)
+	// cond: x.ID > y.ID
+	// result: (InvertFlags (CMPB y x))
+	for {
+		x := v_0
+		y := v_1
+		if !(x.ID > y.ID) {
+			break
+		}
+		v.reset(OpAMD64InvertFlags)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPB, types.TypeFlags)
+		v0.AddArg(y)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (CMPB l:(MOVBload {sym} [off] ptr mem) x)
 	// cond: canMergeLoad(v, l) && clobber(l)
 	// result: (CMPBload {sym} [off] ptr x mem)
@@ -7700,6 +7716,22 @@ func rewriteValueAMD64_OpAMD64CMPL(v *Value) bool {
 		v.reset(OpAMD64InvertFlags)
 		v0 := b.NewValue0(v.Pos, OpAMD64CMPLconst, types.TypeFlags)
 		v0.AuxInt = c
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (CMPL x y)
+	// cond: x.ID > y.ID
+	// result: (InvertFlags (CMPL y x))
+	for {
+		x := v_0
+		y := v_1
+		if !(x.ID > y.ID) {
+			break
+		}
+		v.reset(OpAMD64InvertFlags)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPL, types.TypeFlags)
+		v0.AddArg(y)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -8093,6 +8125,22 @@ func rewriteValueAMD64_OpAMD64CMPQ(v *Value) bool {
 		v.reset(OpAMD64InvertFlags)
 		v0 := b.NewValue0(v.Pos, OpAMD64CMPQconst, types.TypeFlags)
 		v0.AuxInt = c
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (CMPQ x y)
+	// cond: x.ID > y.ID
+	// result: (InvertFlags (CMPQ y x))
+	for {
+		x := v_0
+		y := v_1
+		if !(x.ID > y.ID) {
+			break
+		}
+		v.reset(OpAMD64InvertFlags)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
+		v0.AddArg(y)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -8560,6 +8608,22 @@ func rewriteValueAMD64_OpAMD64CMPW(v *Value) bool {
 		v.reset(OpAMD64InvertFlags)
 		v0 := b.NewValue0(v.Pos, OpAMD64CMPWconst, types.TypeFlags)
 		v0.AuxInt = int64(int16(c))
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (CMPW x y)
+	// cond: x.ID > y.ID
+	// result: (InvertFlags (CMPW y x))
+	for {
+		x := v_0
+		y := v_1
+		if !(x.ID > y.ID) {
+			break
+		}
+		v.reset(OpAMD64InvertFlags)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPW, types.TypeFlags)
+		v0.AddArg(y)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true

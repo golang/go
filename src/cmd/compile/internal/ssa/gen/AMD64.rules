@@ -896,6 +896,9 @@
 (CMPB x (MOVLconst [c])) -> (CMPBconst x [int64(int8(c))])
 (CMPB (MOVLconst [c]) x) -> (InvertFlags (CMPBconst x [int64(int8(c))]))
 
+// Canonicalize the order of arguments to comparisons - helps with CSE.
+(CMP(Q|L|W|B) x y) && x.ID > y.ID -> (InvertFlags (CMP(Q|L|W|B) y x))
+
 // Using MOVZX instead of AND is cheaper.
 (AND(Q|L)const [  0xFF] x) -> (MOVBQZX x)
 (AND(Q|L)const [0xFFFF] x) -> (MOVWQZX x)

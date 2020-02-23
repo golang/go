@@ -1152,6 +1152,9 @@
 (CMPW x (MOVDconst [c])) -> (CMPWconst [int64(int32(c))] x)
 (CMPW (MOVDconst [c]) x) -> (InvertFlags (CMPWconst [int64(int32(c))] x))
 
+// Canonicalize the order of arguments to comparisons - helps with CSE.
+((CMP|CMPW) x y) && x.ID > y.ID -> (InvertFlags ((CMP|CMPW) y x))
+
 // mul-neg -> mneg
 (NEG (MUL x y)) -> (MNEG x y)
 (NEG (MULW x y)) -> (MNEGW x y)
