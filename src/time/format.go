@@ -1112,7 +1112,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			return Time{}, &ParseError{alayout, avalue, "", value, ": day-of-year out of range"}
 		}
 		if m == 0 {
-			m = yday/31 + 1
+			m = (yday-1)/31 + 1
 			if int(daysBefore[m]) < yday {
 				m++
 			}
