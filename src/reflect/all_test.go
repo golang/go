@@ -1651,6 +1651,35 @@ func TestSelect(t *testing.T) {
 	}
 }
 
+func TestSelectMaxCases(t *testing.T) {
+	var sCases []SelectCase
+	channel := make(chan int)
+	close(channel)
+	for i := 0; i < 65536; i++ {
+		sCases = append(sCases, SelectCase{
+			Dir:  SelectRecv,
+			Chan: ValueOf(channel),
+		})
+	}
+	// Should not panic
+	_, _, _ = Select(sCases)
+	sCases = append(sCases, SelectCase{
+		Dir:  SelectRecv,
+		Chan: ValueOf(channel),
+	})
+	defer func() {
+		if err := recover(); err != nil {
+			if err.(string) != "reflect.Select: too many cases (max 65536)" {
+				t.Fatalf("unexpected error from select call with greater than max supported cases")
+			}
+		} else {
+			t.Fatalf("expected select call to panic with greater than max supported cases")
+		}
+	}()
+	// Should panic
+	_, _, _ = Select(sCases)
+}
+
 // selectWatch and the selectWatcher are a watchdog mechanism for running Select.
 // If the selectWatcher notices that the select has been blocked for >1 second, it prints
 // an error describing the select and panics the entire test binary.
