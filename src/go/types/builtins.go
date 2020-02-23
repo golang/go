@@ -455,7 +455,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		x.typ = T
 		if check.Types != nil {
 			params := [...]Type{T, Typ[Int], Typ[Int]}
-			check.recordBuiltinType(call.Fun, makeSig(x.typ, params[:1+len(sizes)]...))
+			check.recordBuiltinType(call.Fun, makeSig(x.typ, params[:nargs]...))
 		}
 
 	case _New:
