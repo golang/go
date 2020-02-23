@@ -36,17 +36,13 @@ func TestTicker(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		ticker := NewTicker(delta)
 		t0 := Now()
-		for i := 0; i < count/2; i++ {
-			<-ticker.C
-		}
-		ticker.Reset(delta * 2)
-		for i := count / 2; i < count; i++ {
+		for i := 0; i < count; i++ {
 			<-ticker.C
 		}
 		ticker.Stop()
 		t1 := Now()
 		dt := t1.Sub(t0)
-		target := 3 * delta * Duration(count/2)
+		target := delta * Duration(count)
 		slop := target * 2 / 10
 		if dt < target-slop || dt > target+slop {
 			errs = append(errs, fmt.Sprintf("%d %s ticks took %s, expected [%s,%s]", count, delta, dt, target-slop, target+slop))
@@ -118,27 +114,6 @@ func BenchmarkTicker(b *testing.B) {
 		ticker := NewTicker(Nanosecond)
 		for i := 0; i < n; i++ {
 			<-ticker.C
-		}
-		ticker.Stop()
-	})
-}
-
-func BenchmarkTickerReset(b *testing.B) {
-	benchmark(b, func(n int) {
-		ticker := NewTicker(Nanosecond)
-		for i := 0; i < n; i++ {
-			ticker.Reset(Nanosecond * 2)
-		}
-		ticker.Stop()
-	})
-}
-
-func BenchmarkTickerResetNaive(b *testing.B) {
-	benchmark(b, func(n int) {
-		ticker := NewTicker(Nanosecond)
-		for i := 0; i < n; i++ {
-			ticker.Stop()
-			ticker = NewTicker(Nanosecond * 2)
 		}
 		ticker.Stop()
 	})
