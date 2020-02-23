@@ -7234,6 +7234,22 @@ func rewriteValueS390X_OpS390XCMP(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (CMP x y)
+	// cond: x.ID > y.ID
+	// result: (InvertFlags (CMP y x))
+	for {
+		x := v_0
+		y := v_1
+		if !(x.ID > y.ID) {
+			break
+		}
+		v.reset(OpS390XInvertFlags)
+		v0 := b.NewValue0(v.Pos, OpS390XCMP, types.TypeFlags)
+		v0.AddArg(y)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
 	return false
 }
 func rewriteValueS390X_OpS390XCMPU(v *Value) bool {
@@ -7272,6 +7288,22 @@ func rewriteValueS390X_OpS390XCMPU(v *Value) bool {
 		v.reset(OpS390XInvertFlags)
 		v0 := b.NewValue0(v.Pos, OpS390XCMPUconst, types.TypeFlags)
 		v0.AuxInt = int64(int32(c))
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (CMPU x y)
+	// cond: x.ID > y.ID
+	// result: (InvertFlags (CMPU y x))
+	for {
+		x := v_0
+		y := v_1
+		if !(x.ID > y.ID) {
+			break
+		}
+		v.reset(OpS390XInvertFlags)
+		v0 := b.NewValue0(v.Pos, OpS390XCMPU, types.TypeFlags)
+		v0.AddArg(y)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
@@ -7481,6 +7513,22 @@ func rewriteValueS390X_OpS390XCMPW(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (CMPW x y)
+	// cond: x.ID > y.ID
+	// result: (InvertFlags (CMPW y x))
+	for {
+		x := v_0
+		y := v_1
+		if !(x.ID > y.ID) {
+			break
+		}
+		v.reset(OpS390XInvertFlags)
+		v0 := b.NewValue0(v.Pos, OpS390XCMPW, types.TypeFlags)
+		v0.AddArg(y)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (CMPW x (MOVWreg y))
 	// result: (CMPW x y)
 	for {
@@ -7563,6 +7611,22 @@ func rewriteValueS390X_OpS390XCMPWU(v *Value) bool {
 		v.reset(OpS390XInvertFlags)
 		v0 := b.NewValue0(v.Pos, OpS390XCMPWUconst, types.TypeFlags)
 		v0.AuxInt = int64(int32(c))
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (CMPWU x y)
+	// cond: x.ID > y.ID
+	// result: (InvertFlags (CMPWU y x))
+	for {
+		x := v_0
+		y := v_1
+		if !(x.ID > y.ID) {
+			break
+		}
+		v.reset(OpS390XInvertFlags)
+		v0 := b.NewValue0(v.Pos, OpS390XCMPWU, types.TypeFlags)
+		v0.AddArg(y)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true

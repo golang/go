@@ -4941,6 +4941,22 @@ func rewriteValuePPC64_OpPPC64CMP(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (CMP x y)
+	// cond: x.ID > y.ID
+	// result: (InvertFlags (CMP y x))
+	for {
+		x := v_0
+		y := v_1
+		if !(x.ID > y.ID) {
+			break
+		}
+		v.reset(OpPPC64InvertFlags)
+		v0 := b.NewValue0(v.Pos, OpPPC64CMP, types.TypeFlags)
+		v0.AddArg(y)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
 	return false
 }
 func rewriteValuePPC64_OpPPC64CMPU(v *Value) bool {
@@ -4980,6 +4996,22 @@ func rewriteValuePPC64_OpPPC64CMPU(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpPPC64CMPUconst, types.TypeFlags)
 		v0.AuxInt = c
 		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (CMPU x y)
+	// cond: x.ID > y.ID
+	// result: (InvertFlags (CMPU y x))
+	for {
+		x := v_0
+		y := v_1
+		if !(x.ID > y.ID) {
+			break
+		}
+		v.reset(OpPPC64InvertFlags)
+		v0 := b.NewValue0(v.Pos, OpPPC64CMPU, types.TypeFlags)
+		v0.AddArg(y)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}
@@ -5100,6 +5132,22 @@ func rewriteValuePPC64_OpPPC64CMPW(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (CMPW x y)
+	// cond: x.ID > y.ID
+	// result: (InvertFlags (CMPW y x))
+	for {
+		x := v_0
+		y := v_1
+		if !(x.ID > y.ID) {
+			break
+		}
+		v.reset(OpPPC64InvertFlags)
+		v0 := b.NewValue0(v.Pos, OpPPC64CMPW, types.TypeFlags)
+		v0.AddArg(y)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
 	return false
 }
 func rewriteValuePPC64_OpPPC64CMPWU(v *Value) bool {
@@ -5165,6 +5213,22 @@ func rewriteValuePPC64_OpPPC64CMPWU(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpPPC64CMPWUconst, types.TypeFlags)
 		v0.AuxInt = c
 		v0.AddArg(y)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (CMPWU x y)
+	// cond: x.ID > y.ID
+	// result: (InvertFlags (CMPWU y x))
+	for {
+		x := v_0
+		y := v_1
+		if !(x.ID > y.ID) {
+			break
+		}
+		v.reset(OpPPC64InvertFlags)
+		v0 := b.NewValue0(v.Pos, OpPPC64CMPWU, types.TypeFlags)
+		v0.AddArg(y)
+		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
 	}

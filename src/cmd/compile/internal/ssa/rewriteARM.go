@@ -4034,6 +4034,22 @@ func rewriteValueARM_OpARMCMP(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (CMP x y)
+	// cond: x.ID > y.ID
+	// result: (InvertFlags (CMP y x))
+	for {
+		x := v_0
+		y := v_1
+		if !(x.ID > y.ID) {
+			break
+		}
+		v.reset(OpARMInvertFlags)
+		v0 := b.NewValue0(v.Pos, OpARMCMP, types.TypeFlags)
+		v0.AddArg(y)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (CMP x (SLLconst [c] y))
 	// result: (CMPshiftLL x y [c])
 	for {

@@ -700,6 +700,9 @@
 (CMPWU x (MOVDconst [c])) -> (CMPWUconst x [int64(int32(c))])
 (CMPWU (MOVDconst [c]) x) -> (InvertFlags (CMPWUconst x [int64(int32(c))]))
 
+// Canonicalize the order of arguments to comparisons - helps with CSE.
+((CMP|CMPW|CMPU|CMPWU) x y) && x.ID > y.ID -> (InvertFlags ((CMP|CMPW|CMPU|CMPWU) y x))
+
 // Using MOV{W,H,B}Zreg instead of AND is cheaper.
 (AND x (MOVDconst [0xFF])) -> (MOVBZreg x)
 (AND x (MOVDconst [0xFFFF])) -> (MOVHZreg x)

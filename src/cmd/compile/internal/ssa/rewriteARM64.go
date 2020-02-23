@@ -2957,6 +2957,22 @@ func rewriteValueARM64_OpARM64CMP(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (CMP x y)
+	// cond: x.ID > y.ID
+	// result: (InvertFlags (CMP y x))
+	for {
+		x := v_0
+		y := v_1
+		if !(x.ID > y.ID) {
+			break
+		}
+		v.reset(OpARM64InvertFlags)
+		v0 := b.NewValue0(v.Pos, OpARM64CMP, types.TypeFlags)
+		v0.AddArg(y)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
 	// match: (CMP x0 x1:(SLLconst [c] y))
 	// cond: clobberIfDead(x1)
 	// result: (CMPshiftLL x0 y [c])
@@ -3113,6 +3129,22 @@ func rewriteValueARM64_OpARM64CMPW(v *Value) bool {
 		v.reset(OpARM64InvertFlags)
 		v0 := b.NewValue0(v.Pos, OpARM64CMPWconst, types.TypeFlags)
 		v0.AuxInt = int64(int32(c))
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	// match: (CMPW x y)
+	// cond: x.ID > y.ID
+	// result: (InvertFlags (CMPW y x))
+	for {
+		x := v_0
+		y := v_1
+		if !(x.ID > y.ID) {
+			break
+		}
+		v.reset(OpARM64InvertFlags)
+		v0 := b.NewValue0(v.Pos, OpARM64CMPW, types.TypeFlags)
+		v0.AddArg(y)
 		v0.AddArg(x)
 		v.AddArg(v0)
 		return true
