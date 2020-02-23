@@ -31354,6 +31354,18 @@ func rewriteValueAMD64_OpAMD64SHLLconst(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (SHLLconst [d] (MOVLconst [c]))
+	// result: (MOVLconst [int64(int32(c)) << uint64(d)])
+	for {
+		d := v.AuxInt
+		if v_0.Op != OpAMD64MOVLconst {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpAMD64MOVLconst)
+		v.AuxInt = int64(int32(c)) << uint64(d)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64SHLQ(v *Value) bool {
@@ -31584,6 +31596,18 @@ func rewriteValueAMD64_OpAMD64SHLQconst(v *Value) bool {
 		v.reset(OpCopy)
 		v.Type = x.Type
 		v.AddArg(x)
+		return true
+	}
+	// match: (SHLQconst [d] (MOVQconst [c]))
+	// result: (MOVQconst [c << uint64(d)])
+	for {
+		d := v.AuxInt
+		if v_0.Op != OpAMD64MOVQconst {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpAMD64MOVQconst)
+		v.AuxInt = c << uint64(d)
 		return true
 	}
 	return false

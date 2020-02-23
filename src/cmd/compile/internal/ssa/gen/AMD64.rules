@@ -1482,6 +1482,9 @@
 (XORQ x x) -> (MOVQconst [0])
 (XORL x x) -> (MOVLconst [0])
 
+(SHLLconst [d] (MOVLconst [c])) -> (MOVLconst [int64(int32(c)) << uint64(d)])
+(SHLQconst [d] (MOVQconst [c])) -> (MOVQconst [c << uint64(d)])
+
 // Fold NEG into ADDconst/MULconst. Take care to keep c in 32 bit range.
 (NEGQ (ADDQconst [c] (NEGQ x))) && c != -(1<<31) -> (ADDQconst [-c] x)
 (MULQconst [c] (NEGQ x)) && c != -(1<<31) -> (MULQconst [-c] x)
