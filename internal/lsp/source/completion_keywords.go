@@ -38,26 +38,6 @@ const (
 func (c *completer) addKeywordCompletions() {
 	seen := make(map[string]bool)
 
-	// addKeywords dedupes and adds completion items for the specified
-	// keywords with the specified score.
-	addKeywords := func(score float64, kws ...string) {
-		for _, kw := range kws {
-			if seen[kw] {
-				continue
-			}
-			seen[kw] = true
-
-			if matchScore := c.matcher.Score(kw); matchScore > 0 {
-				c.items = append(c.items, CompletionItem{
-					Label:      kw,
-					Kind:       protocol.KeywordCompletion,
-					InsertText: kw,
-					Score:      score * float64(matchScore),
-				})
-			}
-		}
-	}
-
 	if c.wantTypeName() {
 		// If we expect a type name, include "interface", "struct",
 		// "func", "chan", and "map".
@@ -71,15 +51,15 @@ func (c *completer) addKeywordCompletions() {
 			}
 		}
 
-		addKeywords(structIntf, STRUCT, INTERFACE)
-		addKeywords(funcChanMap, FUNC, CHAN, MAP)
+		c.addKeywordItems(seen, structIntf, STRUCT, INTERFACE)
+		c.addKeywordItems(seen, funcChanMap, FUNC, CHAN, MAP)
 	}
 
 	// If we are at the file scope, only offer decl keywords. We don't
 	// get *ast.Idents at the file scope because non-keyword identifiers
 	// turn into *ast.BadDecl, not *ast.Ident.
 	if len(c.path) == 1 || isASTFile(c.path[1]) {
-		addKeywords(stdScore, TYPE, CONST, VAR, FUNC, IMPORT)
+		c.addKeywordItems(seen, stdScore, TYPE, CONST, VAR, FUNC, IMPORT)
 		return
 	} else if _, ok := c.path[0].(*ast.Ident); !ok {
 		// Otherwise only offer keywords if the client is completing an identifier.
@@ -90,7 +70,7 @@ func (c *completer) addKeywordCompletions() {
 		// Offer "range" if we are in ast.ForStmt.Init. This is what the
 		// AST looks like before "range" is typed, e.g. "for i := r<>".
 		if loop, ok := c.path[2].(*ast.ForStmt); ok && nodeContains(loop.Init, c.pos) {
-			addKeywords(stdScore, RANGE)
+			c.addKeywordItems(seen, stdScore, RANGE)
 		}
 	}
 
@@ -109,7 +89,7 @@ func (c *completer) addKeywordCompletions() {
 		case *ast.CaseClause:
 			// only recommend "fallthrough" and "break" within the bodies of a case clause
 			if c.pos > node.Colon {
-				addKeywords(stdScore, BREAK)
+				c.addKeywordItems(seen, stdScore, BREAK)
 				// "fallthrough" is only valid in switch statements.
 				// A case clause is always nested within a block statement in a switch statement,
 				// that block statement is nested within either a TypeSwitchStmt or a SwitchStmt.
@@ -117,23 +97,42 @@ func (c *completer) addKeywordCompletions() {
 					continue
 				}
 				if _, ok := path[i+2].(*ast.SwitchStmt); ok {
-					addKeywords(stdScore, FALLTHROUGH)
+					c.addKeywordItems(seen, stdScore, FALLTHROUGH)
 				}
 			}
 		case *ast.CommClause:
 			if c.pos > node.Colon {
-				addKeywords(stdScore, BREAK)
+				c.addKeywordItems(seen, stdScore, BREAK)
 			}
 		case *ast.TypeSwitchStmt, *ast.SelectStmt, *ast.SwitchStmt:
-			addKeywords(stdScore, CASE, DEFAULT)
+			c.addKeywordItems(seen, stdScore, CASE, DEFAULT)
 		case *ast.ForStmt:
-			addKeywords(stdScore, BREAK, CONTINUE)
+			c.addKeywordItems(seen, stdScore, BREAK, CONTINUE)
 		// This is a bit weak, functions allow for many keywords
 		case *ast.FuncDecl:
 			if node.Body != nil && c.pos > node.Body.Lbrace {
-				addKeywords(stdScore, DEFER, RETURN, FOR, GO, SWITCH, SELECT, IF, ELSE, VAR, CONST, GOTO, TYPE)
+				c.addKeywordItems(seen, stdScore, DEFER, RETURN, FOR, GO, SWITCH, SELECT, IF, ELSE, VAR, CONST, GOTO, TYPE)
 			}
 		}
 	}
+}
 
+// addKeywordItems dedupes and adds completion items for the specified
+// keywords with the specified score.
+func (c *completer) addKeywordItems(seen map[string]bool, score float64, kws ...string) {
+	for _, kw := range kws {
+		if seen[kw] {
+			continue
+		}
+		seen[kw] = true
+
+		if matchScore := c.matcher.Score(kw); matchScore > 0 {
+			c.items = append(c.items, CompletionItem{
+				Label:      kw,
+				Kind:       protocol.KeywordCompletion,
+				InsertText: kw,
+				Score:      score * float64(matchScore),
+			})
+		}
+	}
 }

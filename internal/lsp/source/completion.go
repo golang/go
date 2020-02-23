@@ -501,26 +501,8 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 		c.deepState.maxDepth = -1
 	}
 
-	// Detect our surrounding identifier.
-	switch leaf := path[0].(type) {
-	case *ast.Ident:
-		// In the normal case, our leaf AST node is the identifier being completed.
-		c.setSurrounding(leaf)
-	case *ast.BadDecl:
-		// You don't get *ast.Idents at the file level, so look for bad
-		// decls and manually extract the surrounding token.
-		pos, _, lit := c.scanToken(ctx, src)
-		if pos.IsValid() {
-			c.setSurrounding(&ast.Ident{Name: lit, NamePos: pos})
-		}
-	default:
-		// Otherwise, manually extract the prefix if our containing token
-		// is a keyword. This improves completion after an "accidental
-		// keyword", e.g. completing to "variance" in "someFunc(var<>)".
-		pos, tkn, lit := c.scanToken(ctx, src)
-		if pos.IsValid() && tkn.IsKeyword() {
-			c.setSurrounding(&ast.Ident{Name: lit, NamePos: pos})
-		}
+	if surrounding := c.containingIdent(src); surrounding != nil {
+		c.setSurrounding(surrounding)
 	}
 
 	c.inference = expectedCandidate(c)
@@ -551,6 +533,12 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 	// Statement candidates offer an entire statement in certain
 	// contexts, as opposed to a single object.
 	c.addStatementCandidates()
+
+	if c.emptySwitchStmt() {
+		// Empty switch statements only admit "default" and "case" keywords.
+		c.addKeywordItems(map[string]bool{}, highScore, CASE, DEFAULT)
+		return c.items, c.getSurrounding(), nil
+	}
 
 	switch n := path[0].(type) {
 	case *ast.Ident:
@@ -604,8 +592,43 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 	return c.items, c.getSurrounding(), nil
 }
 
+// containingIdent returns the *ast.Ident containing pos, if any. It
+// synthesizes an *ast.Ident to allow completion in the face of
+// certain syntax errors.
+func (c *completer) containingIdent(src []byte) *ast.Ident {
+	// In the normal case, our leaf AST node is the identifer being completed.
+	if ident, ok := c.path[0].(*ast.Ident); ok {
+		return ident
+	}
+
+	pos, tkn, lit := c.scanToken(src)
+	if !pos.IsValid() {
+		return nil
+	}
+
+	fakeIdent := &ast.Ident{Name: lit, NamePos: pos}
+
+	if _, isBadDecl := c.path[0].(*ast.BadDecl); isBadDecl {
+		// You don't get *ast.Idents at the file level, so look for bad
+		// decls and use the manually extracted token.
+		return fakeIdent
+	} else if c.emptySwitchStmt() {
+		// Only keywords are allowed in empty switch statements.
+		// *ast.Idents are not parsed, so we must use the manually
+		// extracted token.
+		return fakeIdent
+	} else if tkn.IsKeyword() {
+		// Otherwise, manually extract the prefix if our containing token
+		// is a keyword. This improves completion after an "accidental
+		// keyword", e.g. completing to "variance" in "someFunc(var<>)".
+		return fakeIdent
+	}
+
+	return nil
+}
+
 // scanToken scans pgh's contents for the token containing pos.
-func (c *completer) scanToken(ctx context.Context, contents []byte) (token.Pos, token.Token, string) {
+func (c *completer) scanToken(contents []byte) (token.Pos, token.Token, string) {
 	tok := c.snapshot.View().Session().Cache().FileSet().File(c.pos)
 
 	var s scanner.Scanner
@@ -633,6 +656,22 @@ func (c *completer) sortItems() {
 		// effect of prefering shorter candidates.
 		return c.items[i].Label < c.items[j].Label
 	})
+}
+
+// emptySwitchStmt reports whether pos is in an empty switch or select
+// statement.
+func (c *completer) emptySwitchStmt() bool {
+	block, ok := c.path[0].(*ast.BlockStmt)
+	if !ok || len(block.List) > 0 || len(c.path) == 1 {
+		return false
+	}
+
+	switch c.path[1].(type) {
+	case *ast.SwitchStmt, *ast.TypeSwitchStmt, *ast.SelectStmt:
+		return true
+	default:
+		return false
+	}
 }
 
 // populateCommentCompletions yields completions for an exported
