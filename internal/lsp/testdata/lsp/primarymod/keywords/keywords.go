@@ -26,6 +26,7 @@ func _() {
 	}
 
 	switch test.(type) {
+	case fo: //@complete(":")
 	case int:
 		b //@complete(" //", break)
 	case int32:

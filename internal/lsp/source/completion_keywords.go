@@ -75,8 +75,19 @@ func (c *completer) addKeywordCompletions() {
 	}
 
 	// Only suggest keywords if we are beginning a statement.
-	switch c.path[1].(type) {
-	case *ast.BlockStmt, *ast.CommClause, *ast.CaseClause, *ast.ExprStmt:
+	switch n := c.path[1].(type) {
+	case *ast.BlockStmt, *ast.ExprStmt:
+		// OK - our ident must be at beginning of statement.
+	case *ast.CommClause:
+		// Make sure we aren't in the Comm statement.
+		if !n.Colon.IsValid() || c.pos <= n.Colon {
+			return
+		}
+	case *ast.CaseClause:
+		// Make sure we aren't in the case List.
+		if !n.Colon.IsValid() || c.pos <= n.Colon {
+			return
+		}
 	default:
 		return
 	}
