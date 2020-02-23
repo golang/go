@@ -756,3 +756,17 @@ func TestParseMonthOutOfRange(t *testing.T) {
 		}
 	}
 }
+
+// Issue 37387.
+func TestParseYday(t *testing.T) {
+	t.Parallel()
+	for i := 1; i <= 365; i++ {
+		d := fmt.Sprintf("2020-%03d", i)
+		tm, err := Parse("2006-002", d)
+		if err != nil {
+			t.Errorf("unexpected error for %s: %v", d, err)
+		} else if tm.Year() != 2020 || tm.YearDay() != i {
+			t.Errorf("got year %d yearday %d, want %d %d", tm.Year(), tm.YearDay(), 2020, i)
+		}
+	}
+}
