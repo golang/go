@@ -63,9 +63,8 @@ func (e *SyntaxError) Error() string { return e.msg }
 // the beginning of 12345e+6?).
 type scanner struct {
 	// The step is a func to be called to execute the next transition.
-	// Also tried using an integer constant and a single func
-	// with a switch, but using the func directly was 10% faster
-	// on a 64-bit Mac Mini, and it's nicer to read.
+	// Also tried using an integer constant and a single func with a
+	// switch, but this is nicer to read.
 	step func(*scanner, byte) int
 
 	// Reached end of top-level value.
