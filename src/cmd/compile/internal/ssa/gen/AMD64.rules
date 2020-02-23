@@ -2441,6 +2441,15 @@
 (MOVSDloadidx1 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+c) -> (MOVSDload [i+c] {s} p mem)
 (MOVSDloadidx8 [i] {s} p (MOVQconst [c]) mem) && is32Bit(i+8*c) -> (MOVSDload [i+8*c] {s} p mem)
 
+// Combine consts into storeidx.
+// Note that when c == 0, it takes more bytes to encode
+// the immediate $0 than to zero a register and use it.
+// We do the rewrite anyway, to minimize register pressure.
+(MOVBstoreidx1     [off] {s} ptr idx (MOVLconst [c]) mem) && validValAndOff(int64(int8(c)), off)  -> (MOVBstoreconstidx1     [makeValAndOff(int64(int8(c)), off)]  {s} ptr idx mem)
+(MOVWstoreidx(1|2) [off] {s} ptr idx (MOVLconst [c]) mem) && validValAndOff(int64(int16(c)), off) -> (MOVWstoreconstidx(1|2) [makeValAndOff(int64(int16(c)), off)] {s} ptr idx mem)
+(MOVLstoreidx(1|4) [off] {s} ptr idx (MOVQconst [c]) mem) && validValAndOff(int64(int32(c)), off) -> (MOVLstoreconstidx(1|4) [makeValAndOff(int64(int32(c)), off)] {s} ptr idx mem)
+(MOVQstoreidx(1|8) [off] {s} ptr idx (MOVQconst [c]) mem) && validValAndOff(c, off)               -> (MOVQstoreconstidx(1|8) [makeValAndOff(c, off)]               {s} ptr idx mem)
+
 // Redundant sign/zero extensions
 // Note: see issue 21963. We have to make sure we use the right type on
 // the resulting extension (the outer type, not the inner type).
