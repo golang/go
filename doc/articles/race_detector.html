@@ -395,3 +395,14 @@ func (w *Watchdog) Start() {
 The cost of race detection varies by program, but for a typical program, memory
 usage may increase by 5-10x and execution time by 2-20x.
 </p>
+
+<p>
+The race detector currently allocates an extra 8 bytes per <code>defer</code>
+and <code>recover</code> statement. Those extra allocations <a
+href="https://golang.org/issue/26813">are not recovered until the goroutine
+exits</a>. This means that if you have a long-running goroutine that is
+periodically issuing <code>defer</code> and <code>recover</code> calls,
+the program memory usage may grow without bound. These memory allocations
+will not show up in the output of <code>runtime.ReadMemStats</code> or
+<code>runtime/pprof</code>.
+</p>
