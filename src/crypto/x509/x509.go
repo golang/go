@@ -163,8 +163,6 @@ type dsaSignature struct {
 	R, S *big.Int
 }
 
-type ecdsaSignature dsaSignature
-
 type validity struct {
 	NotBefore, NotAfter time.Time
 }
@@ -905,16 +903,7 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
 		if pubKeyAlgo != ECDSA {
 			return signaturePublicKeyAlgoMismatchError(pubKeyAlgo, pub)
 		}
-		ecdsaSig := new(ecdsaSignature)
-		if rest, err := asn1.Unmarshal(signature, ecdsaSig); err != nil {
-			return err
-		} else if len(rest) != 0 {
-			return errors.New("x509: trailing data after ECDSA signature")
-		}
-		if ecdsaSig.R.Sign() <= 0 || ecdsaSig.S.Sign() <= 0 {
-			return errors.New("x509: ECDSA signature contained zero or negative values")
-		}
-		if !ecdsa.Verify(pub, signed, ecdsaSig.R, ecdsaSig.S) {
+		if !ecdsa.VerifyASN1(pub, signed, signature) {
 			return errors.New("x509: ECDSA verification failure")
 		}
 		return
