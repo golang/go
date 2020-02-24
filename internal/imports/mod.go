@@ -162,6 +162,8 @@ func (r *ModuleResolver) initAllMods() error {
 			// Can't do anything with a module that's not downloaded.
 			continue
 		}
+		// golang/go#36193: the go command doesn't always clean paths.
+		mod.Dir = filepath.Clean(mod.Dir)
 		r.modsByModPath = append(r.modsByModPath, mod)
 		r.modsByDir = append(r.modsByDir, mod)
 		if mod.Main {
