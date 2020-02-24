@@ -409,9 +409,6 @@ func (ctxt *Link) loadlib() {
 	}
 
 	// load internal packages, if not already
-	if ctxt.Arch.Family == sys.ARM {
-		loadinternal(ctxt, "math")
-	}
 	if *flagRace {
 		loadinternal(ctxt, "runtime/race")
 	}
