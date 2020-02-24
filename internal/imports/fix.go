@@ -14,7 +14,6 @@ import (
 	"go/token"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -22,11 +21,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 	"unicode"
 	"unicode/utf8"
 
 	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/gopathwalk"
 )
 
@@ -792,7 +791,7 @@ func (e *ProcessEnv) GetResolver() Resolver {
 	if e.resolver != nil {
 		return e.resolver
 	}
-	out, err := e.invokeGo("env", "GOMOD")
+	out, err := e.invokeGo(context.TODO(), "env", "GOMOD")
 	if err != nil || len(bytes.TrimSpace(out.Bytes())) == 0 {
 		e.resolver = newGopathResolver(e)
 		return e.resolver
@@ -823,38 +822,16 @@ func (e *ProcessEnv) buildContext() *build.Context {
 	return &ctx
 }
 
-func (e *ProcessEnv) invokeGo(verb string, args ...string) (*bytes.Buffer, error) {
-	goArgs := []string{verb}
-	if verb != "env" {
-		goArgs = append(goArgs, e.BuildFlags...)
+func (e *ProcessEnv) invokeGo(ctx context.Context, verb string, args ...string) (*bytes.Buffer, error) {
+	inv := gocommand.Invocation{
+		Verb:       verb,
+		Args:       args,
+		BuildFlags: e.BuildFlags,
+		Env:        e.env(),
+		Logf:       e.Logf,
+		WorkingDir: e.WorkingDir,
 	}
-	goArgs = append(goArgs, args...)
-	cmd := exec.Command("go", goArgs...)
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	cmd.Env = e.env()
-	cmd.Dir = e.WorkingDir
-
-	if e.Debug {
-		defer func(start time.Time) { e.Logf("%s for %v", time.Since(start), cmdDebugStr(cmd)) }(time.Now())
-	}
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("running go: %v (stderr:\n%s)", err, stderr)
-	}
-	return stdout, nil
-}
-
-func cmdDebugStr(cmd *exec.Cmd) string {
-	env := make(map[string]string)
-	for _, kv := range cmd.Env {
-		split := strings.Split(kv, "=")
-		k, v := split[0], split[1]
-		env[k] = v
-	}
-
-	return fmt.Sprintf("GOROOT=%v GOPATH=%v GO111MODULE=%v GOPROXY=%v PWD=%v go %v", env["GOROOT"], env["GOPATH"], env["GO111MODULE"], env["GOPROXY"], env["PWD"], cmd.Args)
+	return inv.Run(ctx)
 }
 
 func addStdlibCandidates(pass *pass, refs references) {

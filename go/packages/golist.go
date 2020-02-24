@@ -20,10 +20,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 	"unicode"
 
 	"golang.org/x/tools/go/internal/packagesdriver"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/packagesinternal"
 )
 
@@ -707,29 +707,17 @@ func golistargs(cfg *Config, words []string) []string {
 func (state *golistState) invokeGo(verb string, args ...string) (*bytes.Buffer, error) {
 	cfg := state.cfg
 
-	stdout := new(bytes.Buffer)
-	stderr := new(bytes.Buffer)
-	goArgs := []string{verb}
-	if verb != "env" {
-		goArgs = append(goArgs, cfg.BuildFlags...)
+	inv := &gocommand.Invocation{
+		Verb:       verb,
+		Args:       args,
+		BuildFlags: cfg.BuildFlags,
+		Env:        cfg.Env,
+		Logf:       cfg.Logf,
+		WorkingDir: cfg.Dir,
 	}
-	goArgs = append(goArgs, args...)
-	cmd := exec.CommandContext(state.ctx, "go", goArgs...)
-	// On darwin the cwd gets resolved to the real path, which breaks anything that
-	// expects the working directory to keep the original path, including the
-	// go command when dealing with modules.
-	// The Go stdlib has a special feature where if the cwd and the PWD are the
-	// same node then it trusts the PWD, so by setting it in the env for the child
-	// process we fix up all the paths returned by the go command.
-	cmd.Env = append(append([]string{}, cfg.Env...), "PWD="+cfg.Dir)
-	cmd.Dir = cfg.Dir
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	defer func(start time.Time) {
-		cfg.Logf("%s for %v, stderr: <<%s>> stdout: <<%s>>\n", time.Since(start), cmdDebugStr(cmd, goArgs...), stderr, stdout)
-	}(time.Now())
 
-	if err := cmd.Run(); err != nil {
+	stdout, stderr, _, err := inv.RunRaw(cfg.Context)
+	if err != nil {
 		// Check for 'go' executable not being found.
 		if ee, ok := err.(*exec.Error); ok && ee.Err == exec.ErrNotFound {
 			return nil, fmt.Errorf("'go list' driver requires 'go', but %s", exec.ErrNotFound)
@@ -739,7 +727,7 @@ func (state *golistState) invokeGo(verb string, args ...string) (*bytes.Buffer, 
 		if !ok {
 			// Catastrophic error:
 			// - context cancellation
-			return nil, fmt.Errorf("couldn't exec 'go %v': %s %T", args, err, err)
+			return nil, fmt.Errorf("couldn't run 'go': %v", err)
 		}
 
 		// Old go version?
@@ -859,16 +847,6 @@ func (state *golistState) invokeGo(verb string, args ...string) (*bytes.Buffer, 
 		if !usesExportData(cfg) && !containsGoFile(args) {
 			return nil, fmt.Errorf("go %v: %s: %s", args, exitErr, stderr)
 		}
-	}
-
-	// As of writing, go list -export prints some non-fatal compilation
-	// errors to stderr, even with -e set. We would prefer that it put
-	// them in the Package.Error JSON (see https://golang.org/issue/26319).
-	// In the meantime, there's nowhere good to put them, but they can
-	// be useful for debugging. Print them if $GOPACKAGESPRINTGOLISTERRORS
-	// is set.
-	if len(stderr.Bytes()) != 0 && os.Getenv("GOPACKAGESPRINTGOLISTERRORS") != "" {
-		fmt.Fprintf(os.Stderr, "%s stderr: <<%s>>\n", cmdDebugStr(cmd, args...), stderr)
 	}
 	return stdout, nil
 }

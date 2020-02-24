@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
@@ -685,12 +686,18 @@ func (v *view) getGoEnv(ctx context.Context, env []string) (string, error) {
 			gopackagesdriver = true
 		}
 	}
-	b, err := source.InvokeGo(ctx, v.folder.Filename(), env, "env", "-json")
+	inv := gocommand.Invocation{
+		Verb:       "env",
+		Args:       []string{"-json"},
+		Env:        env,
+		WorkingDir: v.Folder().Filename(),
+	}
+	stdout, err := inv.Run(ctx)
 	if err != nil {
 		return "", err
 	}
 	envMap := make(map[string]string)
-	decoder := json.NewDecoder(b)
+	decoder := json.NewDecoder(stdout)
 	if err := decoder.Decode(&envMap); err != nil {
 		return "", err
 	}
@@ -769,7 +776,13 @@ func (v *view) modfileFlagExists(ctx context.Context, env []string) (bool, error
 	// Borrowed from internal/imports/mod.go:620.
 	const format = `{{range context.ReleaseTags}}{{if eq . "go1.14"}}{{.}}{{end}}{{end}}`
 	folder := v.folder.Filename()
-	stdout, err := source.InvokeGo(ctx, folder, append(env, "GO111MODULE=off"), "list", "-e", "-f", format)
+	inv := gocommand.Invocation{
+		Verb:       "list",
+		Args:       []string{"-e", "-f", format},
+		Env:        append(env, "GO111MODULE=off"),
+		WorkingDir: v.Folder().Filename(),
+	}
+	stdout, err := inv.Run(ctx)
 	if err != nil {
 		return false, err
 	}

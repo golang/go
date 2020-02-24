@@ -146,7 +146,7 @@ func (r *ModuleResolver) init() error {
 }
 
 func (r *ModuleResolver) initAllMods() error {
-	stdout, err := r.env.invokeGo("list", "-m", "-json", "...")
+	stdout, err := r.env.invokeGo(context.TODO(), "list", "-m", "-json", "...")
 	if err != nil {
 		return err
 	}
@@ -699,7 +699,7 @@ func getMainModuleAnd114(env *ProcessEnv) (*ModuleJSON, bool, error) {
 {{.GoVersion}}
 {{range context.ReleaseTags}}{{if eq . "go1.14"}}{{.}}{{end}}{{end}}
 `
-	stdout, err := env.invokeGo("list", "-m", "-f", format)
+	stdout, err := env.invokeGo(context.TODO(), "list", "-m", "-f", format)
 	if err != nil {
 		return nil, false, nil
 	}

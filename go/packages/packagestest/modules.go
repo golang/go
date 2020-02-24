@@ -6,17 +6,16 @@ package packagestest
 
 import (
 	"archive/zip"
-	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
 
-	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/gocommand"
 )
 
 // Modules is the exporter that produces module layouts.
@@ -170,7 +169,14 @@ func (modules) Finalize(exported *Exported) error {
 
 	// Run go mod download to recreate the mod cache dir with all the extra
 	// stuff in cache. All the files created by Export should be recreated.
-	if err := invokeGo(exported.Config, "mod", "download"); err != nil {
+	inv := gocommand.Invocation{
+		Verb:       "mod",
+		Args:       []string{"download"},
+		Env:        exported.Config.Env,
+		BuildFlags: exported.Config.BuildFlags,
+		WorkingDir: exported.Config.Dir,
+	}
+	if _, err := inv.Run(context.Background()); err != nil {
 		return err
 	}
 	return nil
@@ -234,20 +240,6 @@ func writeModuleProxy(dir, module, ver string, files map[string]string) error {
 		return err
 	}
 
-	return nil
-}
-
-func invokeGo(cfg *packages.Config, args ...string) error {
-	stdout := new(bytes.Buffer)
-	stderr := new(bytes.Buffer)
-	cmd := exec.Command("go", args...)
-	cmd.Env = append(append([]string{}, cfg.Env...), "PWD="+cfg.Dir)
-	cmd.Dir = cfg.Dir
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("go %v: %s: %s", args, err, stderr)
-	}
 	return nil
 }
 

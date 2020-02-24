@@ -3,6 +3,7 @@ package lsp
 import (
 	"context"
 
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	errors "golang.org/x/xerrors"
@@ -20,7 +21,13 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 			return nil, err
 		}
 		// Run go.mod tidy on the view.
-		if _, err := source.InvokeGo(ctx, snapshot.View().Folder().Filename(), snapshot.Config(ctx).Env, "mod", "tidy"); err != nil {
+		inv := gocommand.Invocation{
+			Verb:       "mod",
+			Args:       []string{"tidy"},
+			Env:        snapshot.Config(ctx).Env,
+			WorkingDir: snapshot.View().Folder().Filename(),
+		}
+		if _, err := inv.Run(ctx); err != nil {
 			return nil, err
 		}
 	case "upgrade.dependency":
@@ -34,7 +41,13 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		}
 		dep := params.Arguments[1].(string)
 		// Run "go get" on the dependency to upgrade it to the latest version.
-		if _, err := source.InvokeGo(ctx, snapshot.View().Folder().Filename(), snapshot.Config(ctx).Env, "get", dep); err != nil {
+		inv := gocommand.Invocation{
+			Verb:       "get",
+			Args:       []string{dep},
+			Env:        snapshot.Config(ctx).Env,
+			WorkingDir: snapshot.View().Folder().Filename(),
+		}
+		if _, err := inv.Run(ctx); err != nil {
 			return nil, err
 		}
 	}

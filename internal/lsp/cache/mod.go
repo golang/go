@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
@@ -169,10 +170,14 @@ func dependencyUpgrades(ctx context.Context, cfg *packages.Config, folder string
 		return nil, nil
 	}
 	// Run "go list -u -m all" to be able to see which deps can be upgraded.
-	args := []string{"list"}
-	args = append(args, cfg.BuildFlags...)
-	args = append(args, []string{"-u", "-m", "all"}...)
-	stdout, err := source.InvokeGo(ctx, folder, cfg.Env, args...)
+	inv := gocommand.Invocation{
+		Verb:       "list",
+		Args:       []string{"-u", "-m", "all"},
+		BuildFlags: cfg.BuildFlags,
+		Env:        cfg.Env,
+		WorkingDir: folder,
+	}
+	stdout, err := inv.Run(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -273,8 +278,14 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 		}
 
 		// We want to run "go mod tidy" to be able to diff between the real and the temp files.
-		args := append([]string{"mod", "tidy"}, cfg.BuildFlags...)
-		if _, err := source.InvokeGo(ctx, folder, cfg.Env, args...); err != nil {
+		inv := gocommand.Invocation{
+			Verb:       "mod",
+			Args:       []string{"tidy"},
+			BuildFlags: cfg.BuildFlags,
+			Env:        cfg.Env,
+			WorkingDir: folder,
+		}
+		if _, err := inv.Run(ctx); err != nil {
 			// Ignore concurrency errors here.
 			if !modConcurrencyError.MatchString(err.Error()) {
 				data.err = err
