@@ -387,15 +387,15 @@ func TestPIESize(t *testing.T) {
 					}
 				}
 				// also skip gaps between PT_LOAD segments
-				for i := range ef.Progs {
-					if i == 0 {
+				var prev *elf.Prog
+				for _, seg := range ef.Progs {
+					if seg.Type != elf.PT_LOAD {
 						continue
 					}
-					p1 := ef.Progs[i-1]
-					p2 := ef.Progs[i]
-					if p1.Type == elf.PT_LOAD && p2.Type == elf.PT_LOAD {
-						ret += p2.Off - p1.Off - p1.Filesz
+					if prev != nil {
+						ret += seg.Off - prev.Off - prev.Filesz
 					}
+					prev = seg
 				}
 				return ret
 			}
