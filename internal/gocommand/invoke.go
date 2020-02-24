@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -49,7 +50,7 @@ func (i *Invocation) RunRaw(ctx context.Context) (stdout *bytes.Buffer, stderr *
 		goArgs = append(goArgs, i.BuildFlags...)
 		goArgs = append(goArgs, i.Args...)
 	}
-	cmd := exec.CommandContext(ctx, "go", goArgs...)
+	cmd := exec.Command("go", goArgs...)
 	stdout = &bytes.Buffer{}
 	stderr = &bytes.Buffer{}
 	cmd.Stdout = stdout
@@ -65,7 +66,7 @@ func (i *Invocation) RunRaw(ctx context.Context) (stdout *bytes.Buffer, stderr *
 
 	defer func(start time.Time) { log("%s for %v", time.Since(start), cmdDebugStr(cmd)) }(time.Now())
 
-	rawError = cmd.Run()
+	rawError = runCmdContext(ctx, cmd)
 	friendlyError = rawError
 	if rawError != nil {
 		// Check for 'go' executable not being found.
@@ -78,6 +79,34 @@ func (i *Invocation) RunRaw(ctx context.Context) (stdout *bytes.Buffer, stderr *
 		friendlyError = fmt.Errorf("err: %v: stderr: %s", rawError, stderr)
 	}
 	return
+}
+
+// runCmdContext is like exec.CommandContext except it sends os.Interrupt
+// before os.Kill.
+func runCmdContext(ctx context.Context, cmd *exec.Cmd) error {
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	resChan := make(chan error, 1)
+	go func() {
+		resChan <- cmd.Wait()
+	}()
+
+	select {
+	case err := <-resChan:
+		return err
+	case <-ctx.Done():
+	}
+	// Cancelled. Interrupt and see if it ends voluntarily.
+	cmd.Process.Signal(os.Interrupt)
+	select {
+	case err := <-resChan:
+		return err
+	case <-time.After(time.Second):
+	}
+	// Didn't shut down in response to interrupt. Kill it hard.
+	cmd.Process.Kill()
+	return <-resChan
 }
 
 func cmdDebugStr(cmd *exec.Cmd) string {
