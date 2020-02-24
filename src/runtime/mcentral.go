@@ -84,7 +84,7 @@ retry:
 				goto havespan
 			}
 			lock(&c.lock)
-			// the span is still empty after sweep
+			// the span is still not empty after sweep
 			// it is already in the empty list, so just retry
 			goto retry
 		}
