@@ -105,6 +105,8 @@ func testMain(m *testing.M) (int, error) {
 		fmt.Printf("+ cd %s\n", modRoot)
 	}
 	os.Setenv("GOPATH", gopath)
+	// Explicitly override GOBIN as well, in case it was set through a GOENV file.
+	os.Setenv("GOBIN", filepath.Join(gopath, "bin"))
 	os.Chdir(modRoot)
 	os.Setenv("PWD", modRoot)
 
@@ -152,10 +154,6 @@ func testMain(m *testing.M) (int, error) {
 func TestMain(m *testing.M) {
 	log.SetFlags(log.Lshortfile)
 	flag.Parse()
-
-	// Some of the tests install binaries into a custom GOPATH.
-	// That won't work if GOBIN is set.
-	os.Unsetenv("GOBIN")
 
 	exitCode, err := testMain(m)
 	if err != nil {
