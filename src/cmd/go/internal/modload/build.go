@@ -207,6 +207,7 @@ func PackageBuildInfo(path string, deps []string) string {
 	if isStandardImportPath(path) || !Enabled() {
 		return ""
 	}
+
 	target := mustFindModule(path, path)
 	mdeps := make(map[module.Version]bool)
 	for _, dep := range deps {
@@ -223,26 +224,25 @@ func PackageBuildInfo(path string, deps []string) string {
 
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "path\t%s\n", path)
-	tv := target.Version
-	if tv == "" {
-		tv = "(devel)"
-	}
-	fmt.Fprintf(&buf, "mod\t%s\t%s\t%s\n", target.Path, tv, modfetch.Sum(target))
-	for _, mod := range mods {
-		mv := mod.Version
+
+	writeEntry := func(token string, m module.Version) {
+		mv := m.Version
 		if mv == "" {
 			mv = "(devel)"
 		}
-		r := Replacement(mod)
-		h := ""
-		if r.Path == "" {
-			h = "\t" + modfetch.Sum(mod)
-		}
-		fmt.Fprintf(&buf, "dep\t%s\t%s%s\n", mod.Path, mv, h)
-		if r.Path != "" {
-			fmt.Fprintf(&buf, "=>\t%s\t%s\t%s\n", r.Path, r.Version, modfetch.Sum(r))
+		fmt.Fprintf(&buf, "%s\t%s\t%s", token, m.Path, mv)
+		if r := Replacement(m); r.Path == "" {
+			fmt.Fprintf(&buf, "\t%s\n", modfetch.Sum(m))
+		} else {
+			fmt.Fprintf(&buf, "\n=>\t%s\t%s\t%s\n", r.Path, r.Version, modfetch.Sum(r))
 		}
 	}
+
+	writeEntry("mod", target)
+	for _, mod := range mods {
+		writeEntry("dep", mod)
+	}
+
 	return buf.String()
 }
 
