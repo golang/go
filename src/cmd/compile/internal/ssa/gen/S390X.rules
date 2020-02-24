@@ -22,7 +22,7 @@
 (Div32F ...) -> (FDIVS ...)
 (Div64F ...) -> (FDIV ...)
 
-(Div64 [a] x y) -> (DIVD x y)
+(Div64 ...) -> (DIVD ...)
 (Div64u ...) -> (DIVDU ...)
 // DIVW/DIVWU has a 64-bit dividend and a 32-bit divisor,
 // so a sign/zero extension of the dividend is required.
@@ -37,7 +37,7 @@
 (Hmul32  x y) -> (SRDconst [32] (MULLD (MOVWreg x) (MOVWreg y)))
 (Hmul32u x y) -> (SRDconst [32] (MULLD (MOVWZreg x) (MOVWZreg y)))
 
-(Mod64 [a] x y) -> (MODD x y)
+(Mod64 ...) -> (MODD ...)
 (Mod64u ...) -> (MODDU ...)
 // MODW/MODWU has a 64-bit dividend and a 32-bit divisor,
 // so a sign/zero extension of the dividend is required.

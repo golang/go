@@ -12,7 +12,7 @@
 (Mul(64|32|16|8) ...) -> (I64Mul ...)
 (Mul(64|32)F ...) -> (F(64|32)Mul ...)
 
-(Div64 [a] x y) -> (I64DivS x y)
+(Div64 ...) -> (I64DivS ...)
 (Div64u ...) -> (I64DivU ...)
 (Div32  x y) -> (I64DivS (SignExt32to64 x) (SignExt32to64 y))
 (Div32u x y) -> (I64DivU (ZeroExt32to64 x) (ZeroExt32to64 y))
@@ -22,7 +22,7 @@
 (Div8u  x y) -> (I64DivU (ZeroExt8to64 x) (ZeroExt8to64 y))
 (Div(64|32)F ...) -> (F(64|32)Div ...)
 
-(Mod64 [a] x y) -> (I64RemS x y)
+(Mod64 ...) -> (I64RemS ...)
 (Mod64u ...) -> (I64RemU ...)
 (Mod32  x y) -> (I64RemS (SignExt32to64 x) (SignExt32to64 y))
 (Mod32u x y) -> (I64RemU (ZeroExt32to64 x) (ZeroExt32to64 y))

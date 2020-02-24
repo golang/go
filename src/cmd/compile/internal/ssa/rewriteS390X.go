@@ -195,7 +195,8 @@ func rewriteValueS390X(v *Value) bool {
 	case OpDiv32u:
 		return rewriteValueS390X_OpDiv32u(v)
 	case OpDiv64:
-		return rewriteValueS390X_OpDiv64(v)
+		v.Op = OpS390XDIVD
+		return true
 	case OpDiv64F:
 		v.Op = OpS390XFDIV
 		return true
@@ -352,7 +353,8 @@ func rewriteValueS390X(v *Value) bool {
 	case OpMod32u:
 		return rewriteValueS390X_OpMod32u(v)
 	case OpMod64:
-		return rewriteValueS390X_OpMod64(v)
+		v.Op = OpS390XMODD
+		return true
 	case OpMod64u:
 		v.Op = OpS390XMODDU
 		return true
@@ -1268,20 +1270,6 @@ func rewriteValueS390X_OpDiv32u(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpS390XMOVWZreg, typ.UInt64)
 		v0.AddArg(x)
 		v.AddArg(v0)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueS390X_OpDiv64(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Div64 [a] x y)
-	// result: (DIVD x y)
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpS390XDIVD)
-		v.AddArg(x)
 		v.AddArg(y)
 		return true
 	}
@@ -3248,20 +3236,6 @@ func rewriteValueS390X_OpMod32u(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpS390XMOVWZreg, typ.UInt64)
 		v0.AddArg(x)
 		v.AddArg(v0)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueS390X_OpMod64(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Mod64 [a] x y)
-	// result: (MODD x y)
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpS390XMODD)
-		v.AddArg(x)
 		v.AddArg(y)
 		return true
 	}

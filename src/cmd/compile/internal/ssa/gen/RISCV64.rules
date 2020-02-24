@@ -43,9 +43,9 @@
 (Div32F ...) -> (FDIVS ...)
 (Div64F ...) -> (FDIVD ...)
 
-(Div64 [a] x y)  -> (DIV x y)
+(Div64 ...)  -> (DIV ...)
 (Div64u ...) -> (DIVU  ...)
-(Div32 [a] x y)  -> (DIVW x y)
+(Div32 ...)  -> (DIVW ...)
 (Div32u ...) -> (DIVUW ...)
 (Div16 x y)  -> (DIVW  (SignExt16to32 x) (SignExt16to32 y))
 (Div16u x y) -> (DIVUW (ZeroExt16to32 x) (ZeroExt16to32 y))
@@ -60,9 +60,9 @@
 // (x + y) / 2 -> (x / 2) + (y / 2) + (x & y & 1)
 (Avg64u <t> x y) -> (ADD (ADD <t> (SRLI <t> [1] x) (SRLI <t> [1] y)) (ANDI <t> [1] (AND <t> x y)))
 
-(Mod64 [a] x y)  -> (REM x y)
+(Mod64 ...)  -> (REM ...)
 (Mod64u ...) -> (REMU  ...)
-(Mod32 [a] x y)  -> (REMW x y)
+(Mod32 ...)  -> (REMW ...)
 (Mod32u ...) -> (REMUW ...)
 (Mod16 x y)  -> (REMW  (SignExt16to32 x) (SignExt16to32 y))
 (Mod16u x y) -> (REMUW (ZeroExt16to32 x) (ZeroExt16to32 y))
