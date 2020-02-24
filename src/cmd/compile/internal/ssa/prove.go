@@ -1219,6 +1219,12 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
 		case OpDiv16, OpDiv32, OpDiv64, OpMod16, OpMod32, OpMod64:
 			// On amd64 and 386 fix-up code can be avoided if we know
 			//  the divisor is not -1 or the dividend > MinIntNN.
+			// Don't modify AuxInt on other architectures,
+			// as that can interfere with CSE.
+			// TODO: add other architectures?
+			if b.Func.Config.arch != "386" && b.Func.Config.arch != "amd64" {
+				break
+			}
 			divr := v.Args[1]
 			divrLim, divrLimok := ft.limits[divr.ID]
 			divd := v.Args[0]

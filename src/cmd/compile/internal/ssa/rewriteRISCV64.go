@@ -119,7 +119,8 @@ func rewriteValueRISCV64(v *Value) bool {
 	case OpDiv16u:
 		return rewriteValueRISCV64_OpDiv16u(v)
 	case OpDiv32:
-		return rewriteValueRISCV64_OpDiv32(v)
+		v.Op = OpRISCV64DIVW
+		return true
 	case OpDiv32F:
 		v.Op = OpRISCV64FDIVS
 		return true
@@ -127,7 +128,8 @@ func rewriteValueRISCV64(v *Value) bool {
 		v.Op = OpRISCV64DIVUW
 		return true
 	case OpDiv64:
-		return rewriteValueRISCV64_OpDiv64(v)
+		v.Op = OpRISCV64DIV
+		return true
 	case OpDiv64F:
 		v.Op = OpRISCV64FDIVD
 		return true
@@ -281,12 +283,14 @@ func rewriteValueRISCV64(v *Value) bool {
 	case OpMod16u:
 		return rewriteValueRISCV64_OpMod16u(v)
 	case OpMod32:
-		return rewriteValueRISCV64_OpMod32(v)
+		v.Op = OpRISCV64REMW
+		return true
 	case OpMod32u:
 		v.Op = OpRISCV64REMUW
 		return true
 	case OpMod64:
-		return rewriteValueRISCV64_OpMod64(v)
+		v.Op = OpRISCV64REM
+		return true
 	case OpMod64u:
 		v.Op = OpRISCV64REMU
 		return true
@@ -721,34 +725,6 @@ func rewriteValueRISCV64_OpDiv16u(v *Value) bool {
 		v1 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
 		v1.AddArg(y)
 		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValueRISCV64_OpDiv32(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Div32 [a] x y)
-	// result: (DIVW x y)
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpRISCV64DIVW)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueRISCV64_OpDiv64(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Div64 [a] x y)
-	// result: (DIV x y)
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpRISCV64DIV)
-		v.AddArg(x)
-		v.AddArg(y)
 		return true
 	}
 }
@@ -1908,34 +1884,6 @@ func rewriteValueRISCV64_OpMod16u(v *Value) bool {
 		v1 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
 		v1.AddArg(y)
 		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValueRISCV64_OpMod32(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Mod32 [a] x y)
-	// result: (REMW x y)
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpRISCV64REMW)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueRISCV64_OpMod64(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Mod64 [a] x y)
-	// result: (REM x y)
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpRISCV64REM)
-		v.AddArg(x)
-		v.AddArg(y)
 		return true
 	}
 }

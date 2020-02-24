@@ -184,7 +184,8 @@ func rewriteValuePPC64(v *Value) bool {
 	case OpDiv16u:
 		return rewriteValuePPC64_OpDiv16u(v)
 	case OpDiv32:
-		return rewriteValuePPC64_OpDiv32(v)
+		v.Op = OpPPC64DIVW
+		return true
 	case OpDiv32F:
 		v.Op = OpPPC64FDIVS
 		return true
@@ -192,7 +193,8 @@ func rewriteValuePPC64(v *Value) bool {
 		v.Op = OpPPC64DIVWU
 		return true
 	case OpDiv64:
-		return rewriteValuePPC64_OpDiv64(v)
+		v.Op = OpPPC64DIVD
+		return true
 	case OpDiv64F:
 		v.Op = OpPPC64FDIV
 		return true
@@ -1443,34 +1445,6 @@ func rewriteValuePPC64_OpDiv16u(v *Value) bool {
 		v1 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
 		v1.AddArg(y)
 		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValuePPC64_OpDiv32(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Div32 [a] x y)
-	// result: (DIVW x y)
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpPPC64DIVW)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValuePPC64_OpDiv64(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Div64 [a] x y)
-	// result: (DIVD x y)
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpPPC64DIVD)
-		v.AddArg(x)
-		v.AddArg(y)
 		return true
 	}
 }

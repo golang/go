@@ -609,7 +609,8 @@ func rewriteValueARM64(v *Value) bool {
 	case OpDiv16u:
 		return rewriteValueARM64_OpDiv16u(v)
 	case OpDiv32:
-		return rewriteValueARM64_OpDiv32(v)
+		v.Op = OpARM64DIVW
+		return true
 	case OpDiv32F:
 		v.Op = OpARM64FDIVS
 		return true
@@ -617,7 +618,8 @@ func rewriteValueARM64(v *Value) bool {
 		v.Op = OpARM64UDIVW
 		return true
 	case OpDiv64:
-		return rewriteValueARM64_OpDiv64(v)
+		v.Op = OpARM64DIV
+		return true
 	case OpDiv64F:
 		v.Op = OpARM64FDIVD
 		return true
@@ -766,12 +768,14 @@ func rewriteValueARM64(v *Value) bool {
 	case OpMod16u:
 		return rewriteValueARM64_OpMod16u(v)
 	case OpMod32:
-		return rewriteValueARM64_OpMod32(v)
+		v.Op = OpARM64MODW
+		return true
 	case OpMod32u:
 		v.Op = OpARM64UMODW
 		return true
 	case OpMod64:
-		return rewriteValueARM64_OpMod64(v)
+		v.Op = OpARM64MOD
+		return true
 	case OpMod64u:
 		v.Op = OpARM64UMOD
 		return true
@@ -23150,34 +23154,6 @@ func rewriteValueARM64_OpDiv16u(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueARM64_OpDiv32(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Div32 [a] x y)
-	// result: (DIVW x y)
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARM64DIVW)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueARM64_OpDiv64(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Div64 [a] x y)
-	// result: (DIV x y)
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARM64DIV)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
 func rewriteValueARM64_OpDiv8(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -24601,34 +24577,6 @@ func rewriteValueARM64_OpMod16u(v *Value) bool {
 		v1 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
 		v1.AddArg(y)
 		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValueARM64_OpMod32(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Mod32 [a] x y)
-	// result: (MODW x y)
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARM64MODW)
-		v.AddArg(x)
-		v.AddArg(y)
-		return true
-	}
-}
-func rewriteValueARM64_OpMod64(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Mod64 [a] x y)
-	// result: (MOD x y)
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARM64MOD)
-		v.AddArg(x)
-		v.AddArg(y)
 		return true
 	}
 }

@@ -18,9 +18,9 @@
 (Hmul32u x y) -> (SRAconst (UMULL <typ.UInt64> x y) [32])
 (Mul64uhilo ...) -> (LoweredMuluhilo ...)
 
-(Div64 [a] x y) -> (DIV x y)
+(Div64 ...) -> (DIV ...)
 (Div64u ...) -> (UDIV ...)
-(Div32 [a] x y) -> (DIVW x y)
+(Div32 ...) -> (DIVW ...)
 (Div32u ...) -> (UDIVW ...)
 (Div16 x y) -> (DIVW (SignExt16to32 x) (SignExt16to32 y))
 (Div16u x y) -> (UDIVW (ZeroExt16to32 x) (ZeroExt16to32 y))
@@ -29,9 +29,9 @@
 (Div32F ...) -> (FDIVS ...)
 (Div64F ...) -> (FDIVD ...)
 
-(Mod64 [a] x y) -> (MOD x y)
+(Mod64 ...) -> (MOD ...)
 (Mod64u ...) -> (UMOD ...)
-(Mod32 [a] x y) -> (MODW x y)
+(Mod32 ...) -> (MODW ...)
 (Mod32u ...) -> (UMODW ...)
 (Mod16 x y) -> (MODW (SignExt16to32 x) (SignExt16to32 y))
 (Mod16u x y) -> (UMODW (ZeroExt16to32 x) (ZeroExt16to32 y))

@@ -181,7 +181,8 @@ func rewriteValueWasm(v *Value) bool {
 	case OpDiv32u:
 		return rewriteValueWasm_OpDiv32u(v)
 	case OpDiv64:
-		return rewriteValueWasm_OpDiv64(v)
+		v.Op = OpWasmI64DivS
+		return true
 	case OpDiv64F:
 		v.Op = OpWasmF64Div
 		return true
@@ -344,7 +345,8 @@ func rewriteValueWasm(v *Value) bool {
 	case OpMod32u:
 		return rewriteValueWasm_OpMod32u(v)
 	case OpMod64:
-		return rewriteValueWasm_OpMod64(v)
+		v.Op = OpWasmI64RemS
+		return true
 	case OpMod64u:
 		v.Op = OpWasmI64RemU
 		return true
@@ -951,20 +953,6 @@ func rewriteValueWasm_OpDiv32u(v *Value) bool {
 		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
 		v1.AddArg(y)
 		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValueWasm_OpDiv64(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Div64 [a] x y)
-	// result: (I64DivS x y)
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpWasmI64DivS)
-		v.AddArg(x)
-		v.AddArg(y)
 		return true
 	}
 }
@@ -1868,20 +1856,6 @@ func rewriteValueWasm_OpMod32u(v *Value) bool {
 		v1 := b.NewValue0(v.Pos, OpZeroExt32to64, typ.UInt64)
 		v1.AddArg(y)
 		v.AddArg(v1)
-		return true
-	}
-}
-func rewriteValueWasm_OpMod64(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Mod64 [a] x y)
-	// result: (I64RemS x y)
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpWasmI64RemS)
-		v.AddArg(x)
-		v.AddArg(y)
 		return true
 	}
 }
