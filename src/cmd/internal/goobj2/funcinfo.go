@@ -100,6 +100,16 @@ func (a *FuncInfo) Read(b []byte) {
 	}
 }
 
+// Accessors reading only some fields.
+// TODO: more accessors.
+
+func (*FuncInfo) ReadLocals(b []byte) uint32 { return binary.LittleEndian.Uint32(b[4:]) }
+
+// return start and end offsets.
+func (*FuncInfo) ReadPcsp(b []byte) (uint32, uint32) {
+	return binary.LittleEndian.Uint32(b[8:]), binary.LittleEndian.Uint32(b[12:])
+}
+
 // InlTreeNode is the serialized form of FileInfo.InlTree.
 type InlTreeNode struct {
 	Parent   int32
