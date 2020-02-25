@@ -14,17 +14,18 @@ type unresolvedSymKey struct {
 	to   *sym.Symbol // Unresolved symbol referenced by "from"
 }
 
+type lookupFn func(name string, version int) *sym.Symbol
+
 // ErrorReporter is used to make error reporting thread safe.
 type ErrorReporter struct {
 	unresOnce  sync.Once
 	unresSyms  map[unresolvedSymKey]bool
 	unresMutex sync.Mutex
+	lookup     lookupFn
 }
 
-type roLookup func(name string, v int) *sym.Symbol
-
 // errorUnresolved prints unresolved symbol error for r.Sym that is referenced from s.
-func (reporter *ErrorReporter) errorUnresolved(lookup roLookup, s *sym.Symbol, r *sym.Reloc) {
+func (reporter *ErrorReporter) errorUnresolved(s *sym.Symbol, r *sym.Reloc) {
 	reporter.unresOnce.Do(func() { reporter.unresSyms = make(map[unresolvedSymKey]bool) })
 
 	k := unresolvedSymKey{from: s, to: r.Sym}
@@ -43,7 +44,7 @@ func (reporter *ErrorReporter) errorUnresolved(lookup roLookup, s *sym.Symbol, r
 				if v == -1 {
 					continue
 				}
-				if rs := lookup(r.Sym.Name, v); rs != nil && rs.Type != sym.Sxxx {
+				if rs := reporter.lookup(r.Sym.Name, v); rs != nil && rs.Type != sym.Sxxx {
 					haveABI = abi
 				}
 			}
