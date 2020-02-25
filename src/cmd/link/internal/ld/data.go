@@ -127,6 +127,8 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
 //
 // This is a performance-critical function for the linker; be careful
 // to avoid introducing unnecessary allocations in the main loop.
+// TODO: This function is called in parallel. When the Loader wavefront
+// reaches here, calls into the loader need to be parallel as well.
 func relocsym(target *Target, err *ErrorReporter, lookup LookupFn, syms *ArchSyms, s *sym.Symbol) {
 	if len(s.R) == 0 {
 		return
@@ -2481,6 +2483,7 @@ func compressSyms(ctxt *Link, syms []*sym.Symbol) []byte {
 		if len(s.R) != 0 && wasReadOnly {
 			relocbuf = append(relocbuf[:0], s.P...)
 			s.P = relocbuf
+			// TODO: This function call needs to be parallelized when the loader wavefront gets here.
 			s.Attr.Set(sym.AttrReadOnly, false)
 		}
 		relocsym(target, reporter, lookup, archSyms, s)
