@@ -106,35 +106,55 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
 // on the fly. After this, dwarfp will contain a different (new) set of
 // symbols, and sections may have been replaced.
 func dwarfcompress(ctxt *Link) {
+	// compressedSect is a helper type for parallelizing compression.
+	type compressedSect struct {
+		index      int
+		compressed []byte
+		syms       []*sym.Symbol
+	}
+
 	supported := ctxt.IsELF || ctxt.HeadType == objabi.Hwindows || ctxt.HeadType == objabi.Hdarwin
 	if !ctxt.compressDWARF || !supported || ctxt.LinkMode != LinkInternal {
 		return
 	}
 
-	var start int
-	var newDwarfp []*sym.Symbol
-	Segdwarf.Sections = Segdwarf.Sections[:0]
+	var start, compressedCount int
+	resChannel := make(chan compressedSect)
 	for i, s := range dwarfp {
 		// Find the boundaries between sections and compress
 		// the whole section once we've found the last of its
 		// symbols.
 		if i+1 >= len(dwarfp) || s.Sect != dwarfp[i+1].Sect {
-			s1 := compressSyms(ctxt, dwarfp[start:i+1])
-			if s1 == nil {
-				// Compression didn't help.
-				newDwarfp = append(newDwarfp, dwarfp[start:i+1]...)
-				Segdwarf.Sections = append(Segdwarf.Sections, s.Sect)
-			} else {
-				compressedSegName := ".zdebug_" + s.Sect.Name[len(".debug_"):]
-				sect := addsection(ctxt.Arch, &Segdwarf, compressedSegName, 04)
-				sect.Length = uint64(len(s1))
-				newSym := ctxt.Syms.Lookup(compressedSegName, 0)
-				newSym.P = s1
-				newSym.Size = int64(len(s1))
-				newSym.Sect = sect
-				newDwarfp = append(newDwarfp, newSym)
-			}
+			go func(resIndex int, syms []*sym.Symbol) {
+				resChannel <- compressedSect{resIndex, compressSyms(ctxt, syms), syms}
+			}(compressedCount, dwarfp[start:i+1])
+			compressedCount++
 			start = i + 1
+		}
+	}
+	res := make([]compressedSect, compressedCount)
+	for ; compressedCount > 0; compressedCount-- {
+		r := <-resChannel
+		res[r.index] = r
+	}
+
+	var newDwarfp []*sym.Symbol
+	Segdwarf.Sections = Segdwarf.Sections[:0]
+	for _, z := range res {
+		s := z.syms[0]
+		if z.compressed == nil {
+			// Compression didn't help.
+			newDwarfp = append(newDwarfp, z.syms...)
+			Segdwarf.Sections = append(Segdwarf.Sections, s.Sect)
+		} else {
+			compressedSegName := ".zdebug_" + s.Sect.Name[len(".debug_"):]
+			sect := addsection(ctxt.Arch, &Segdwarf, compressedSegName, 04)
+			sect.Length = uint64(len(z.compressed))
+			newSym := ctxt.Syms.Lookup(compressedSegName, 0)
+			newSym.P = z.compressed
+			newSym.Size = int64(len(z.compressed))
+			newSym.Sect = sect
+			newDwarfp = append(newDwarfp, newSym)
 		}
 	}
 	dwarfp = newDwarfp
