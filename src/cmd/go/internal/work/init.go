@@ -161,8 +161,12 @@ func buildModeInit() {
 		}
 		if gccgo {
 			codegenArg = "-fPIE"
-		} else if cfg.Goos != "aix" {
-			codegenArg = "-shared"
+		} else {
+			switch cfg.Goos {
+			case "aix", "windows":
+			default:
+				codegenArg = "-shared"
+			}
 		}
 		ldBuildmode = "pie"
 	case "shared":
