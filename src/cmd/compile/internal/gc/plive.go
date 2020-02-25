@@ -705,8 +705,8 @@ func (lv *Liveness) markUnsafePoints() {
 					v = v.Args[0]
 					continue
 				}
-			case ssa.OpRISCV64SUB:
-				// RISCV64 lowers Neq32 to include a SUB with multiple arguments.
+			case ssa.OpRISCV64SUBW:
+				// RISCV64 lowers Neq32 to include a SUBW with multiple arguments.
 				// TODO(jsing): it would be preferable not to use Neq32 for
 				// writeBuffer.enabled checks on this platform.
 				v = v.Args[0]

@@ -1885,6 +1885,7 @@ const (
 	OpRISCV64ADD
 	OpRISCV64ADDI
 	OpRISCV64SUB
+	OpRISCV64SUBW
 	OpRISCV64MUL
 	OpRISCV64MULW
 	OpRISCV64MULH
@@ -25018,6 +25019,20 @@ var opcodeTable = [...]opInfo{
 		name:   "SUB",
 		argLen: 2,
 		asm:    riscv.ASUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:   "SUBW",
+		argLen: 2,
+		asm:    riscv.ASUBW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
