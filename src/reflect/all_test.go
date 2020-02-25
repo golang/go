@@ -4163,17 +4163,6 @@ func TestConvert(t *testing.T) {
 	}
 }
 
-func TestConvertNaNs(t *testing.T) {
-	const snan uint32 = 0x7f800001
-	type myFloat32 float32
-	x := V(myFloat32(math.Float32frombits(snan)))
-	y := x.Convert(TypeOf(float32(0)))
-	z := y.Interface().(float32)
-	if got := math.Float32bits(z); got != snan {
-		t.Errorf("signaling nan conversion got %x, want %x", got, snan)
-	}
-}
-
 type ComparableStruct struct {
 	X int
 }

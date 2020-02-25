@@ -2541,14 +2541,6 @@ func makeFloat(f flag, v float64, t Type) Value {
 	return Value{typ, ptr, f | flagIndir | flag(typ.Kind())}
 }
 
-// makeFloat returns a Value of type t equal to v, where t is a float32 type.
-func makeFloat32(f flag, v float32, t Type) Value {
-	typ := t.common()
-	ptr := unsafe_New(typ)
-	*(*float32)(ptr) = v
-	return Value{typ, ptr, f | flagIndir | flag(typ.Kind())}
-}
-
 // makeComplex returns a Value of type t equal to v (possibly truncated to complex64),
 // where t is a complex64 or complex128 type.
 func makeComplex(f flag, v complex128, t Type) Value {
@@ -2621,12 +2613,6 @@ func cvtUintFloat(v Value, t Type) Value {
 
 // convertOp: floatXX -> floatXX
 func cvtFloat(v Value, t Type) Value {
-	if v.Type().Kind() == Float32 && t.Kind() == Float32 {
-		// Don't do any conversion if both types have underlying type float32.
-		// This avoids converting to float64 and back, which will
-		// convert a signaling NaN to a quiet NaN. See issue 36400.
-		return makeFloat32(v.flag.ro(), *(*float32)(v.ptr), t)
-	}
 	return makeFloat(v.flag.ro(), v.Float(), t)
 }
 
