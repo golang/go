@@ -109,7 +109,7 @@
 (SignExt8to64  <t> x) -> (SRAI [56] (SLLI <t> [56] x))
 (SignExt16to32 <t> x) -> (SRAI [48] (SLLI <t> [48] x))
 (SignExt16to64 <t> x) -> (SRAI [48] (SLLI <t> [48] x))
-(SignExt32to64 <t> x) -> (SRAI [32] (SLLI <t> [32] x))
+(SignExt32to64 <t> x) -> (ADDIW [0] x)
 
 (ZeroExt8to16  <t> x) -> (SRLI [56] (SLLI <t> [56] x))
 (ZeroExt8to32  <t> x) -> (SRLI [56] (SLLI <t> [56] x))

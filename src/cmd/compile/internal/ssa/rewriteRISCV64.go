@@ -4109,18 +4109,13 @@ func rewriteValueRISCV64_OpSignExt16to64(v *Value) bool {
 }
 func rewriteValueRISCV64_OpSignExt32to64(v *Value) bool {
 	v_0 := v.Args[0]
-	b := v.Block
 	// match: (SignExt32to64 <t> x)
-	// result: (SRAI [32] (SLLI <t> [32] x))
+	// result: (ADDIW [0] x)
 	for {
-		t := v.Type
 		x := v_0
-		v.reset(OpRISCV64SRAI)
-		v.AuxInt = 32
-		v0 := b.NewValue0(v.Pos, OpRISCV64SLLI, t)
-		v0.AuxInt = 32
-		v0.AddArg(x)
-		v.AddArg(v0)
+		v.reset(OpRISCV64ADDIW)
+		v.AuxInt = 0
+		v.AddArg(x)
 		return true
 	}
 }
