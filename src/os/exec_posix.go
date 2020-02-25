@@ -7,6 +7,7 @@
 package os
 
 import (
+	"internal/syscall/execenv"
 	"syscall"
 )
 
@@ -38,7 +39,7 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 		Sys: attr.Sys,
 	}
 	if sysattr.Env == nil {
-		sysattr.Env, err = environForSysProcAttr(sysattr.Sys)
+		sysattr.Env, err = execenv.Default(sysattr.Sys)
 		if err != nil {
 			return nil, err
 		}
