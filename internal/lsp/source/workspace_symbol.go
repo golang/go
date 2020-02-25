@@ -17,12 +17,15 @@ import (
 	"golang.org/x/tools/internal/telemetry/trace"
 )
 
+const maxSymbols = 100
+
 func WorkspaceSymbols(ctx context.Context, views []View, query string) ([]protocol.SymbolInformation, error) {
 	ctx, done := trace.StartSpan(ctx, "source.WorkspaceSymbols")
 	defer done()
 
 	seen := make(map[string]struct{})
 	var symbols []protocol.SymbolInformation
+outer:
 	for _, view := range views {
 		knownPkgs, err := view.Snapshot().KnownPackages(ctx)
 		if err != nil {
@@ -57,6 +60,9 @@ func WorkspaceSymbols(ctx context.Context, views []View, query string) ([]protoc
 							Range: rng,
 						},
 					})
+					if len(symbols) > maxSymbols {
+						break outer
+					}
 				}
 			}
 		}
