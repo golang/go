@@ -513,30 +513,12 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 	return false
 }
 
-// Return the value of .TOC. for symbol s
-func symtoc(ctxt *ld.Link, s *sym.Symbol) int64 {
-	var toc *sym.Symbol
-
-	if s.Outer != nil {
-		toc = ctxt.Syms.ROLookup(".TOC.", int(s.Outer.Version))
-	} else {
-		toc = ctxt.Syms.ROLookup(".TOC.", int(s.Version))
-	}
-
-	if toc == nil {
-		ld.Errorf(s, "TOC-relative relocation in object without .TOC.")
-		return 0
-	}
-
-	return toc.Value
-}
-
 // archreloctoc relocates a TOC relative symbol.
 // If the symbol pointed by this TOC relative symbol is in .data or .bss, the
 // default load instruction can be changed to an addi instruction and the
 // symbol address can be used directly.
 // This code is for AIX only.
-func archreloctoc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
+func archreloctoc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
 	if target.IsLinux() {
 		ld.Errorf(s, "archrelocaddr called for %s relocation\n", r.Sym.Name)
 	}
@@ -556,12 +538,12 @@ func archreloctoc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol,
 	}
 
 	if target.IsInternal() && tarSym != nil && tarSym.Attr.Reachable() && (tarSym.Sect.Seg == &ld.Segdata) {
-		t = ld.Symaddr(tarSym) + r.Add - ctxt.Syms.ROLookup("TOC", 0).Value
+		t = ld.Symaddr(tarSym) + r.Add - syms.TOC.Value
 		// change ld to addi in the second instruction
 		o2 = (o2 & 0x03FF0000) | 0xE<<26
 		useAddi = true
 	} else {
-		t = ld.Symaddr(r.Sym) + r.Add - ctxt.Syms.ROLookup("TOC", 0).Value
+		t = ld.Symaddr(r.Sym) + r.Add - syms.TOC.Value
 	}
 
 	if t != int64(int32(t)) {
@@ -593,7 +575,7 @@ func archreloctoc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol,
 
 // archrelocaddr relocates a symbol address.
 // This code is for AIX only.
-func archrelocaddr(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
+func archrelocaddr(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
 	if target.IsAIX() {
 		ld.Errorf(s, "archrelocaddr called for %s relocation\n", r.Sym.Name)
 	}
@@ -770,13 +752,13 @@ func gentramp(ctxt *ld.Link, tramp, target *sym.Symbol, offset int64) {
 	ctxt.Arch.ByteOrder.PutUint32(tramp.P[12:], o4)
 }
 
-func archreloc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
-	if ctxt.LinkMode == ld.LinkExternal {
+func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
+	if target.IsExternal() {
 		// On AIX, relocations (except TLS ones) must be also done to the
 		// value with the current addresses.
 		switch r.Type {
 		default:
-			if ctxt.HeadType != objabi.Haix {
+			if target.IsAIX() {
 				return val, false
 			}
 		case objabi.R_POWER_TLS, objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE:
@@ -806,14 +788,14 @@ func archreloc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, va
 			}
 			r.Xsym = rs
 
-			if ctxt.HeadType != objabi.Haix {
+			if !target.IsAIX() {
 				return val, true
 			}
 		case objabi.R_CALLPOWER:
 			r.Done = false
 			r.Xsym = r.Sym
 			r.Xadd = r.Add
-			if ctxt.HeadType != objabi.Haix {
+			if !target.IsAIX() {
 				return val, true
 			}
 		}
@@ -823,11 +805,11 @@ func archreloc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, va
 	case objabi.R_CONST:
 		return r.Add, true
 	case objabi.R_GOTOFF:
-		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0)), true
+		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(syms.GOT), true
 	case objabi.R_ADDRPOWER_TOCREL, objabi.R_ADDRPOWER_TOCREL_DS:
-		return archreloctoc(ctxt, &ctxt.Target, r, s, val), true
+		return archreloctoc(target, syms, r, s, val), true
 	case objabi.R_ADDRPOWER, objabi.R_ADDRPOWER_DS:
-		return archrelocaddr(ctxt, target, r, s, val), true
+		return archrelocaddr(target, syms, r, s, val), true
 	case objabi.R_CALLPOWER:
 		// Bits 6 through 29 = (S + A - P) >> 2
 
@@ -843,7 +825,7 @@ func archreloc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, va
 		}
 		return val | int64(uint32(t)&^0xfc000003), true
 	case objabi.R_POWER_TOC: // S + A - .TOC.
-		return ld.Symaddr(r.Sym) + r.Add - symtoc(ctxt, s), true
+		return ld.Symaddr(r.Sym) + r.Add - syms.DotTOC.Value, true
 
 	case objabi.R_POWER_TLS_LE:
 		// The thread pointer points 0x7000 bytes after the start of the
@@ -851,7 +833,7 @@ func archreloc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, va
 		// Runtime Handling" of "Power Architecture 64-Bit ELF V2 ABI
 		// Specification".
 		v := r.Sym.Value - 0x7000
-		if ctxt.HeadType == objabi.Haix {
+		if target.IsAIX() {
 			// On AIX, the thread pointer points 0x7800 bytes after
 			// the TLS.
 			v -= 0x800
@@ -865,7 +847,7 @@ func archreloc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, va
 	return val, false
 }
 
-func archrelocvariant(ctxt *ld.Link, taget *ld.Target, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
+func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
 	switch r.Variant & sym.RV_TYPE_MASK {
 	default:
 		ld.Errorf(s, "unexpected relocation variant %d", r.Variant)
@@ -879,7 +861,7 @@ func archrelocvariant(ctxt *ld.Link, taget *ld.Target, r *sym.Reloc, s *sym.Symb
 			// Whether to check for signed or unsigned
 			// overflow depends on the instruction
 			var o1 uint32
-			if ctxt.Arch.ByteOrder == binary.BigEndian {
+			if target.IsBigEndian() {
 				o1 = binary.BigEndian.Uint32(s.P[r.Off-2:])
 			} else {
 				o1 = binary.LittleEndian.Uint32(s.P[r.Off:])
@@ -913,7 +895,7 @@ func archrelocvariant(ctxt *ld.Link, taget *ld.Target, r *sym.Reloc, s *sym.Symb
 			// Whether to check for signed or unsigned
 			// overflow depends on the instruction
 			var o1 uint32
-			if ctxt.Arch.ByteOrder == binary.BigEndian {
+			if target.IsBigEndian() {
 				o1 = binary.BigEndian.Uint32(s.P[r.Off-2:])
 			} else {
 				o1 = binary.LittleEndian.Uint32(s.P[r.Off:])
@@ -937,7 +919,7 @@ func archrelocvariant(ctxt *ld.Link, taget *ld.Target, r *sym.Reloc, s *sym.Symb
 
 	case sym.RV_POWER_DS:
 		var o1 uint32
-		if ctxt.Arch.ByteOrder == binary.BigEndian {
+		if target.IsBigEndian() {
 			o1 = uint32(binary.BigEndian.Uint16(s.P[r.Off:]))
 		} else {
 			o1 = uint32(binary.LittleEndian.Uint16(s.P[r.Off:]))

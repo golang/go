@@ -52,6 +52,7 @@ type Shlib struct {
 type Link struct {
 	Target
 	ErrorReporter
+	ArchSyms
 	Out *OutBuf
 
 	Syms *sym.Symbols

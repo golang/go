@@ -94,6 +94,29 @@ import (
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
+type LookupFn func(name string, version int) *sym.Symbol
+
+// ArchSyms holds a number of architecture specific symbols used during
+// relocation.  Rather than allowing them universal access to all symbols,
+// we keep a subset for relocation application.
+type ArchSyms struct {
+	TOC    *sym.Symbol
+	DotTOC *sym.Symbol
+	GOT    *sym.Symbol
+	PLT    *sym.Symbol
+	GOTPLT *sym.Symbol
+}
+
+// setArchSyms sets up the ArchSyms structure, and must be called before
+// relocations are applied.
+func (ctxt *Link) setArchSyms() {
+	ctxt.TOC = ctxt.Syms.Lookup("TOC", 0)
+	ctxt.DotTOC = ctxt.Syms.Lookup(".TOC.", 0)
+	ctxt.GOT = ctxt.Syms.Lookup(".got", 0)
+	ctxt.PLT = ctxt.Syms.Lookup(".plt", 0)
+	ctxt.GOTPLT = ctxt.Syms.Lookup(".got.plt", 0)
+}
+
 type Arch struct {
 	Funcalign      int
 	Maxalign       int
@@ -118,7 +141,7 @@ type Arch struct {
 	// value is the appropriately relocated value (to be written back
 	// to the same spot in sym.P) and a boolean indicating
 	// success/failure (a failing value indicates a fatal error).
-	Archreloc func(link *Link, target *Target, rel *sym.Reloc, sym *sym.Symbol,
+	Archreloc func(target *Target, syms *ArchSyms, rel *sym.Reloc, sym *sym.Symbol,
 		offset int64) (relocatedOffset int64, success bool)
 	// Archrelocvariant is a second arch-specific hook used for
 	// relocation processing; it handles relocations where r.Type is
@@ -128,7 +151,7 @@ type Arch struct {
 	// relocation applies, and "off" is the contents of the
 	// to-be-relocated data item (from sym.P). Return is an updated
 	// offset value.
-	Archrelocvariant func(link *Link, target *Target, rel *sym.Reloc, sym *sym.Symbol,
+	Archrelocvariant func(target *Target, syms *ArchSyms, rel *sym.Reloc, sym *sym.Symbol,
 		offset int64) (relocatedOffset int64)
 	Trampoline func(*Link, *sym.Reloc, *sym.Symbol)
 
