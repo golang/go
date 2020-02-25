@@ -23,7 +23,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
