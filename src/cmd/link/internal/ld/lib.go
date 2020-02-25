@@ -734,6 +734,19 @@ func (ctxt *Link) linksetup() {
 			ctxt.loader.SetAttrReachable(got, true)
 		}
 	}
+
+	// DWARF-gen and other phases require that the unit Textp2 slices
+	// be populated, so that it can walk the functions in each unit.
+	// Call into the loader to do this (requires that we collect the
+	// set of internal libraries first). NB: might be simpler if we
+	// moved isRuntimeDepPkg to cmd/internal and then did the test in
+	// loader.AssignTextSymbolOrder.
+	ctxt.Library = postorder(ctxt.Library)
+	intlibs := []bool{}
+	for _, lib := range ctxt.Library {
+		intlibs = append(intlibs, isRuntimeDepPkg(lib.Pkg))
+	}
+	ctxt.Textp2 = ctxt.loader.AssignTextSymbolOrder(ctxt.Library, intlibs, ctxt.Textp2)
 }
 
 // mangleTypeSym shortens the names of symbols that represent Go types
