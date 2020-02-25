@@ -765,17 +765,17 @@
 ((ADD|SUB|MUL|DIV)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l) -> ((ADD|SUB|MUL|DIV)SDload x [off] {sym} ptr mem)
 ((ADD|SUB|MUL|DIV)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l) -> ((ADD|SUB|MUL|DIV)SSload x [off] {sym} ptr mem)
 (MOVLstore {sym} [off] ptr y:((ADD|AND|OR|XOR)Lload x [off] {sym} ptr mem) mem) && y.Uses==1 && clobber(y) -> ((ADD|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
-(MOVLstore {sym} [off] ptr y:((ADD|SUB|AND|OR|XOR)L l:(MOVLload [off] {sym} ptr mem) x) mem) && y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l) ->
+(MOVLstore {sym} [off] ptr y:((ADD|SUB|AND|OR|XOR)L l:(MOVLload [off] {sym} ptr mem) x) mem) && y.Uses==1 && l.Uses==1 && clobber(y, l) ->
 	((ADD|SUB|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
 (MOVLstoreidx4 {sym} [off] ptr idx y:((ADD|AND|OR|XOR)Lloadidx4 x [off] {sym} ptr idx mem) mem) && y.Uses==1 && clobber(y) ->
 	((ADD|AND|OR|XOR)Lmodifyidx4 [off] {sym} ptr idx x mem)
-(MOVLstoreidx4 {sym} [off] ptr idx y:((ADD|SUB|AND|OR|XOR)L l:(MOVLloadidx4 [off] {sym} ptr idx mem) x) mem) && y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l) ->
+(MOVLstoreidx4 {sym} [off] ptr idx y:((ADD|SUB|AND|OR|XOR)L l:(MOVLloadidx4 [off] {sym} ptr idx mem) x) mem) && y.Uses==1 && l.Uses==1 && clobber(y, l) ->
 	((ADD|SUB|AND|OR|XOR)Lmodifyidx4 [off] {sym} ptr idx x mem)
 (MOVLstore {sym} [off] ptr y:((ADD|AND|OR|XOR)Lconst [c] l:(MOVLload [off] {sym} ptr mem)) mem)
-	&& y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l) && validValAndOff(c,off) ->
+	&& y.Uses==1 && l.Uses==1 && clobber(y, l) && validValAndOff(c,off) ->
 	((ADD|AND|OR|XOR)Lconstmodify [makeValAndOff(c,off)] {sym} ptr mem)
 (MOVLstoreidx4 {sym} [off] ptr idx y:((ADD|AND|OR|XOR)Lconst [c] l:(MOVLloadidx4 [off] {sym} ptr idx mem)) mem)
-	&& y.Uses==1 && l.Uses==1 && clobber(y) && clobber(l) && validValAndOff(c,off) ->
+	&& y.Uses==1 && l.Uses==1 && clobber(y, l) && validValAndOff(c,off) ->
 	((ADD|AND|OR|XOR)Lconstmodifyidx4 [makeValAndOff(c,off)] {sym} ptr idx mem)
 ((ADD|AND|OR|XOR)Lmodifyidx4 [off] {sym} ptr idx (MOVLconst [c]) mem) && validValAndOff(c,off) ->
 	((ADD|AND|OR|XOR)Lconstmodifyidx4 [makeValAndOff(c,off)] {sym} ptr idx mem)
@@ -1047,9 +1047,7 @@
   && x1.Uses == 1
   && s0.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(s0)
+  && clobber(x0, x1, s0)
   -> @mergePoint(b,x0,x1) (MOVWload [i0] {s} p mem)
 
 (ORL o0:(ORL
@@ -1065,12 +1063,7 @@
   && s1.Uses == 1
   && o0.Uses == 1
   && mergePoint(b,x0,x1,x2) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(x2)
-  && clobber(s0)
-  && clobber(s1)
-  && clobber(o0)
+  && clobber(x0, x1, x2, s0, s1, o0)
   -> @mergePoint(b,x0,x1,x2) (MOVLload [i0] {s} p mem)
 
 (ORL                  x0:(MOVBloadidx1 [i0] {s} p idx mem)
@@ -1080,9 +1073,7 @@
   && x1.Uses == 1
   && s0.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(s0)
+  && clobber(x0, x1, s0)
   -> @mergePoint(b,x0,x1) (MOVWloadidx1 <v.Type> [i0] {s} p idx mem)
 
 (ORL o0:(ORL
@@ -1098,12 +1089,7 @@
   && s1.Uses == 1
   && o0.Uses == 1
   && mergePoint(b,x0,x1,x2) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(x2)
-  && clobber(s0)
-  && clobber(s1)
-  && clobber(o0)
+  && clobber(x0, x1, x2, s0, s1, o0)
   -> @mergePoint(b,x0,x1,x2) (MOVLloadidx1 <v.Type> [i0] {s} p idx mem)
 
 // Combine constant stores into larger (unaligned) stores.

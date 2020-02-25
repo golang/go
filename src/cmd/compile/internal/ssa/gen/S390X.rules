@@ -1465,9 +1465,7 @@
   && x1.Uses == 1
   && sh.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(sh)
+  && clobber(x0, x1, sh)
   -> @mergePoint(b,x0,x1) (MOVHZload [i0] {s} p mem)
 
 (OR                  x1:(MOVBZload [i1] {s} p mem)
@@ -1478,9 +1476,7 @@
   && x1.Uses == 1
   && sh.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(sh)
+  && clobber(x0, x1, sh)
   -> @mergePoint(b,x0,x1) (MOVHZload [i0] {s} p mem)
 
 (ORW                  x1:(MOVHZload [i1] {s} p mem)
@@ -1491,9 +1487,7 @@
   && x1.Uses == 1
   && sh.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(sh)
+  && clobber(x0, x1, sh)
   -> @mergePoint(b,x0,x1) (MOVWZload [i0] {s} p mem)
 
 (OR                   x1:(MOVHZload [i1] {s} p mem)
@@ -1504,9 +1498,7 @@
   && x1.Uses == 1
   && sh.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(sh)
+  && clobber(x0, x1, sh)
   -> @mergePoint(b,x0,x1) (MOVWZload [i0] {s} p mem)
 
 (OR                   x1:(MOVWZload [i1] {s} p mem)
@@ -1517,9 +1509,7 @@
   && x1.Uses == 1
   && sh.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(sh)
+  && clobber(x0, x1, sh)
   -> @mergePoint(b,x0,x1) (MOVDload [i0] {s} p mem)
 
 (ORW
@@ -1536,11 +1526,7 @@
   && s1.Uses == 1
   && or.Uses == 1
   && mergePoint(b,x0,x1,y) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(s0)
-  && clobber(s1)
-  && clobber(or)
+  && clobber(x0, x1, s0, s1, or)
   -> @mergePoint(b,x0,x1,y) (ORW <v.Type> (SLWconst <v.Type> [j1] (MOVHZload [i0] {s} p mem)) y)
 
 (OR
@@ -1557,11 +1543,7 @@
   && s1.Uses == 1
   && or.Uses == 1
   && mergePoint(b,x0,x1,y) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(s0)
-  && clobber(s1)
-  && clobber(or)
+  && clobber(x0, x1, s0, s1, or)
   -> @mergePoint(b,x0,x1,y) (OR <v.Type> (SLDconst <v.Type> [j1] (MOVHZload [i0] {s} p mem)) y)
 
 (OR
@@ -1578,11 +1560,7 @@
   && s1.Uses == 1
   && or.Uses == 1
   && mergePoint(b,x0,x1,y) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(s0)
-  && clobber(s1)
-  && clobber(or)
+  && clobber(x0, x1, s0, s1, or)
   -> @mergePoint(b,x0,x1,y) (OR <v.Type> (SLDconst <v.Type> [j1] (MOVWZload [i0] {s} p mem)) y)
 
 // Big-endian indexed loads
@@ -1595,9 +1573,7 @@
   && x1.Uses == 1
   && sh.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(sh)
+  && clobber(x0, x1, sh)
   -> @mergePoint(b,x0,x1) (MOVHZloadidx [i0] {s} p idx mem)
 
 (OR                  x1:(MOVBZloadidx [i1] {s} p idx mem)
@@ -1608,9 +1584,7 @@
   && x1.Uses == 1
   && sh.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(sh)
+  && clobber(x0, x1, sh)
   -> @mergePoint(b,x0,x1) (MOVHZloadidx [i0] {s} p idx mem)
 
 (ORW                  x1:(MOVHZloadidx [i1] {s} p idx mem)
@@ -1621,9 +1595,7 @@
   && x1.Uses == 1
   && sh.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(sh)
+  && clobber(x0, x1, sh)
   -> @mergePoint(b,x0,x1) (MOVWZloadidx [i0] {s} p idx mem)
 
 (OR                   x1:(MOVHZloadidx [i1] {s} p idx mem)
@@ -1634,9 +1606,7 @@
   && x1.Uses == 1
   && sh.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(sh)
+  && clobber(x0, x1, sh)
   -> @mergePoint(b,x0,x1) (MOVWZloadidx [i0] {s} p idx mem)
 
 (OR                   x1:(MOVWZloadidx [i1] {s} p idx mem)
@@ -1647,9 +1617,7 @@
   && x1.Uses == 1
   && sh.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(sh)
+  && clobber(x0, x1, sh)
   -> @mergePoint(b,x0,x1) (MOVDloadidx [i0] {s} p idx mem)
 
 (ORW
@@ -1666,11 +1634,7 @@
   && s1.Uses == 1
   && or.Uses == 1
   && mergePoint(b,x0,x1,y) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(s0)
-  && clobber(s1)
-  && clobber(or)
+  && clobber(x0, x1, s0, s1, or)
   -> @mergePoint(b,x0,x1,y) (ORW <v.Type> (SLWconst <v.Type> [j1] (MOVHZloadidx [i0] {s} p idx mem)) y)
 
 (OR
@@ -1687,11 +1651,7 @@
   && s1.Uses == 1
   && or.Uses == 1
   && mergePoint(b,x0,x1,y) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(s0)
-  && clobber(s1)
-  && clobber(or)
+  && clobber(x0, x1, s0, s1, or)
   -> @mergePoint(b,x0,x1,y) (OR <v.Type> (SLDconst <v.Type> [j1] (MOVHZloadidx [i0] {s} p idx mem)) y)
 
 (OR
@@ -1708,11 +1668,7 @@
   && s1.Uses == 1
   && or.Uses == 1
   && mergePoint(b,x0,x1,y) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(s0)
-  && clobber(s1)
-  && clobber(or)
+  && clobber(x0, x1, s0, s1, or)
   -> @mergePoint(b,x0,x1,y) (OR <v.Type> (SLDconst <v.Type> [j1] (MOVWZloadidx [i0] {s} p idx mem)) y)
 
 // Little-endian loads
@@ -1725,9 +1681,7 @@
   && x1.Uses == 1
   && sh.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(sh)
+  && clobber(x0, x1, sh)
   -> @mergePoint(b,x0,x1) (MOVHZreg (MOVHBRload [i0] {s} p mem))
 
 (OR                  x0:(MOVBZload [i0] {s} p mem)
@@ -1738,9 +1692,7 @@
   && x1.Uses == 1
   && sh.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(sh)
+  && clobber(x0, x1, sh)
   -> @mergePoint(b,x0,x1) (MOVHZreg (MOVHBRload [i0] {s} p mem))
 
 (ORW                  r0:(MOVHZreg x0:(MOVHBRload [i0] {s} p mem))
@@ -1752,11 +1704,7 @@
   && r1.Uses == 1
   && sh.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(r0)
-  && clobber(r1)
-  && clobber(sh)
+  && clobber(x0, x1, r0, r1, sh)
   -> @mergePoint(b,x0,x1) (MOVWBRload [i0] {s} p mem)
 
 (OR                   r0:(MOVHZreg x0:(MOVHBRload [i0] {s} p mem))
@@ -1768,11 +1716,7 @@
   && r1.Uses == 1
   && sh.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(r0)
-  && clobber(r1)
-  && clobber(sh)
+  && clobber(x0, x1, r0, r1, sh)
   -> @mergePoint(b,x0,x1) (MOVWZreg (MOVWBRload [i0] {s} p mem))
 
 (OR                   r0:(MOVWZreg x0:(MOVWBRload [i0] {s} p mem))
@@ -1784,11 +1728,7 @@
   && r1.Uses == 1
   && sh.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(r0)
-  && clobber(r1)
-  && clobber(sh)
+  && clobber(x0, x1, r0, r1, sh)
   -> @mergePoint(b,x0,x1) (MOVDBRload [i0] {s} p mem)
 
 (ORW
@@ -1806,11 +1746,7 @@
   && s1.Uses == 1
   && or.Uses == 1
   && mergePoint(b,x0,x1,y) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(s0)
-  && clobber(s1)
-  && clobber(or)
+  && clobber(x0, x1, s0, s1, or)
   -> @mergePoint(b,x0,x1,y) (ORW <v.Type> (SLWconst <v.Type> [j0] (MOVHZreg (MOVHBRload [i0] {s} p mem))) y)
 
 (OR
@@ -1828,11 +1764,7 @@
   && s1.Uses == 1
   && or.Uses == 1
   && mergePoint(b,x0,x1,y) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(s0)
-  && clobber(s1)
-  && clobber(or)
+  && clobber(x0, x1, s0, s1, or)
   -> @mergePoint(b,x0,x1,y) (OR <v.Type> (SLDconst <v.Type> [j0] (MOVHZreg (MOVHBRload [i0] {s} p mem))) y)
 
 (OR
@@ -1851,13 +1783,7 @@
   && s1.Uses == 1
   && or.Uses == 1
   && mergePoint(b,x0,x1,y) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(r0)
-  && clobber(r1)
-  && clobber(s0)
-  && clobber(s1)
-  && clobber(or)
+  && clobber(x0, x1, r0, r1, s0, s1, or)
   -> @mergePoint(b,x0,x1,y) (OR <v.Type> (SLDconst <v.Type> [j0] (MOVWZreg (MOVWBRload [i0] {s} p mem))) y)
 
 // Little-endian indexed loads
@@ -1870,9 +1796,7 @@
   && x1.Uses == 1
   && sh.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(sh)
+  && clobber(x0, x1, sh)
   -> @mergePoint(b,x0,x1) (MOVHZreg (MOVHBRloadidx [i0] {s} p idx mem))
 
 (OR                  x0:(MOVBZloadidx [i0] {s} p idx mem)
@@ -1883,9 +1807,7 @@
   && x1.Uses == 1
   && sh.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(sh)
+  && clobber(x0, x1, sh)
   -> @mergePoint(b,x0,x1) (MOVHZreg (MOVHBRloadidx [i0] {s} p idx mem))
 
 (ORW                  r0:(MOVHZreg x0:(MOVHBRloadidx [i0] {s} p idx mem))
@@ -1897,11 +1819,7 @@
   && r1.Uses == 1
   && sh.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(r0)
-  && clobber(r1)
-  && clobber(sh)
+  && clobber(x0, x1, r0, r1, sh)
   -> @mergePoint(b,x0,x1) (MOVWBRloadidx [i0] {s} p idx mem)
 
 (OR                   r0:(MOVHZreg x0:(MOVHBRloadidx [i0] {s} p idx mem))
@@ -1913,11 +1831,7 @@
   && r1.Uses == 1
   && sh.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(r0)
-  && clobber(r1)
-  && clobber(sh)
+  && clobber(x0, x1, r0, r1, sh)
   -> @mergePoint(b,x0,x1) (MOVWZreg (MOVWBRloadidx [i0] {s} p idx mem))
 
 (OR                   r0:(MOVWZreg x0:(MOVWBRloadidx [i0] {s} p idx mem))
@@ -1929,11 +1843,7 @@
   && r1.Uses == 1
   && sh.Uses == 1
   && mergePoint(b,x0,x1) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(r0)
-  && clobber(r1)
-  && clobber(sh)
+  && clobber(x0, x1, r0, r1, sh)
   -> @mergePoint(b,x0,x1) (MOVDBRloadidx [i0] {s} p idx mem)
 
 (ORW
@@ -1951,11 +1861,7 @@
   && s1.Uses == 1
   && or.Uses == 1
   && mergePoint(b,x0,x1,y) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(s0)
-  && clobber(s1)
-  && clobber(or)
+  && clobber(x0, x1, s0, s1, or)
   -> @mergePoint(b,x0,x1,y) (ORW <v.Type> (SLWconst <v.Type> [j0] (MOVHZreg (MOVHBRloadidx [i0] {s} p idx mem))) y)
 
 (OR
@@ -1973,11 +1879,7 @@
   && s1.Uses == 1
   && or.Uses == 1
   && mergePoint(b,x0,x1,y) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(s0)
-  && clobber(s1)
-  && clobber(or)
+  && clobber(x0, x1, s0, s1, or)
   -> @mergePoint(b,x0,x1,y) (OR <v.Type> (SLDconst <v.Type> [j0] (MOVHZreg (MOVHBRloadidx [i0] {s} p idx mem))) y)
 
 (OR
@@ -1996,13 +1898,7 @@
   && s1.Uses == 1
   && or.Uses == 1
   && mergePoint(b,x0,x1,y) != nil
-  && clobber(x0)
-  && clobber(x1)
-  && clobber(r0)
-  && clobber(r1)
-  && clobber(s0)
-  && clobber(s1)
-  && clobber(or)
+  && clobber(x0, x1, r0, r1, s0, s1, or)
   -> @mergePoint(b,x0,x1,y) (OR <v.Type> (SLDconst <v.Type> [j0] (MOVWZreg (MOVWBRloadidx [i0] {s} p idx mem))) y)
 
 // Combine stores into store multiples.
