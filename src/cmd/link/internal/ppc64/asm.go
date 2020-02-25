@@ -536,8 +536,8 @@ func symtoc(ctxt *ld.Link, s *sym.Symbol) int64 {
 // default load instruction can be changed to an addi instruction and the
 // symbol address can be used directly.
 // This code is for AIX only.
-func archreloctoc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
-	if ctxt.HeadType == objabi.Hlinux {
+func archreloctoc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
+	if target.IsLinux() {
 		ld.Errorf(s, "archrelocaddr called for %s relocation\n", r.Sym.Name)
 	}
 	var o1, o2 uint32
@@ -555,7 +555,7 @@ func archreloctoc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
 		ld.Errorf(s, "archreloctoc called for a symbol without TOC anchor")
 	}
 
-	if ctxt.LinkMode == ld.LinkInternal && tarSym != nil && tarSym.Attr.Reachable() && (tarSym.Sect.Seg == &ld.Segdata) {
+	if target.IsInternal() && tarSym != nil && tarSym.Attr.Reachable() && (tarSym.Sect.Seg == &ld.Segdata) {
 		t = ld.Symaddr(tarSym) + r.Add - ctxt.Syms.ROLookup("TOC", 0).Value
 		// change ld to addi in the second instruction
 		o2 = (o2 & 0x03FF0000) | 0xE<<26
@@ -593,12 +593,12 @@ func archreloctoc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
 
 // archrelocaddr relocates a symbol address.
 // This code is for AIX only.
-func archrelocaddr(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
-	if ctxt.HeadType == objabi.Haix {
+func archrelocaddr(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, val int64) int64 {
+	if target.IsAIX() {
 		ld.Errorf(s, "archrelocaddr called for %s relocation\n", r.Sym.Name)
 	}
 	var o1, o2 uint32
-	if ctxt.Arch.ByteOrder == binary.BigEndian {
+	if target.IsBigEndian() {
 		o1 = uint32(val >> 32)
 		o2 = uint32(val)
 	} else {
@@ -635,7 +635,7 @@ func archrelocaddr(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) int64 
 		return -1
 	}
 
-	if ctxt.Arch.ByteOrder == binary.BigEndian {
+	if target.IsBigEndian() {
 		return int64(o1)<<32 | int64(o2)
 	}
 	return int64(o2)<<32 | int64(o1)
@@ -770,7 +770,7 @@ func gentramp(ctxt *ld.Link, tramp, target *sym.Symbol, offset int64) {
 	ctxt.Arch.ByteOrder.PutUint32(tramp.P[12:], o4)
 }
 
-func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
+func archreloc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
 	if ctxt.LinkMode == ld.LinkExternal {
 		// On AIX, relocations (except TLS ones) must be also done to the
 		// value with the current addresses.
@@ -825,9 +825,9 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 	case objabi.R_GOTOFF:
 		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0)), true
 	case objabi.R_ADDRPOWER_TOCREL, objabi.R_ADDRPOWER_TOCREL_DS:
-		return archreloctoc(ctxt, r, s, val), true
+		return archreloctoc(ctxt, &ctxt.Target, r, s, val), true
 	case objabi.R_ADDRPOWER, objabi.R_ADDRPOWER_DS:
-		return archrelocaddr(ctxt, r, s, val), true
+		return archrelocaddr(ctxt, target, r, s, val), true
 	case objabi.R_CALLPOWER:
 		// Bits 6 through 29 = (S + A - P) >> 2
 
@@ -865,7 +865,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 	return val, false
 }
 
-func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
+func archrelocvariant(ctxt *ld.Link, taget *ld.Target, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
 	switch r.Variant & sym.RV_TYPE_MASK {
 	default:
 		ld.Errorf(s, "unexpected relocation variant %d", r.Variant)

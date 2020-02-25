@@ -36,7 +36,6 @@ import (
 	"cmd/link/internal/ld"
 	"cmd/link/internal/sym"
 	"debug/elf"
-	"encoding/binary"
 	"fmt"
 	"log"
 )
@@ -434,14 +433,14 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 	return true
 }
 
-func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
-	if ctxt.LinkMode == ld.LinkExternal {
+func archreloc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
+	if target.IsExternal() {
 		switch r.Type {
 		default:
 			return val, false
 		case objabi.R_ARM64_GOTPCREL:
 			var o1, o2 uint32
-			if ctxt.Arch.ByteOrder == binary.BigEndian {
+			if target.IsBigEndian() {
 				o1 = uint32(val >> 32)
 				o2 = uint32(val)
 			} else {
@@ -456,14 +455,14 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 			// (https://sourceware.org/bugzilla/show_bug.cgi?id=18270). So
 			// we convert the adrp; ld64 + R_ARM64_GOTPCREL into adrp;
 			// add + R_ADDRARM64.
-			if !(r.Sym.IsFileLocal() || r.Sym.Attr.VisibilityHidden() || r.Sym.Attr.Local()) && r.Sym.Type == sym.STEXT && ctxt.DynlinkingGo() {
+			if !(r.Sym.IsFileLocal() || r.Sym.Attr.VisibilityHidden() || r.Sym.Attr.Local()) && r.Sym.Type == sym.STEXT && target.IsDynlinkingGo() {
 				if o2&0xffc00000 != 0xf9400000 {
 					ld.Errorf(s, "R_ARM64_GOTPCREL against unexpected instruction %x", o2)
 				}
 				o2 = 0x91000000 | (o2 & 0x000003ff)
 				r.Type = objabi.R_ADDRARM64
 			}
-			if ctxt.Arch.ByteOrder == binary.BigEndian {
+			if target.IsBigEndian() {
 				val = int64(o1)<<32 | int64(o2)
 			} else {
 				val = int64(o2)<<32 | int64(o1)
@@ -490,10 +489,10 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 			// the BR26 relocation should be fully resolved at link time.
 			// That is the reason why the next if block is disabled. When the bug in ld64
 			// is fixed, we can enable this block and also enable duff's device in cmd/7g.
-			if false && ctxt.HeadType == objabi.Hdarwin {
+			if false && target.IsDarwin() {
 				var o0, o1 uint32
 
-				if ctxt.Arch.ByteOrder == binary.BigEndian {
+				if target.IsBigEndian() {
 					o0 = uint32(val >> 32)
 					o1 = uint32(val)
 				} else {
@@ -510,7 +509,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 				r.Xadd = 0
 
 				// when laid out, the instruction order must always be o1, o2.
-				if ctxt.Arch.ByteOrder == binary.BigEndian {
+				if target.IsBigEndian() {
 					val = int64(o0)<<32 | int64(o1)
 				} else {
 					val = int64(o1)<<32 | int64(o0)
@@ -543,7 +542,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 
 		var o0, o1 uint32
 
-		if ctxt.Arch.ByteOrder == binary.BigEndian {
+		if target.IsBigEndian() {
 			o0 = uint32(val >> 32)
 			o1 = uint32(val)
 		} else {
@@ -555,42 +554,42 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 		o1 |= uint32(t&0xfff) << 10
 
 		// when laid out, the instruction order must always be o1, o2.
-		if ctxt.Arch.ByteOrder == binary.BigEndian {
+		if target.IsBigEndian() {
 			return int64(o0)<<32 | int64(o1), true
 		}
 		return int64(o1)<<32 | int64(o0), true
 
 	case objabi.R_ARM64_TLS_LE:
 		r.Done = false
-		if ctxt.HeadType == objabi.Hdarwin {
-			ld.Errorf(s, "TLS reloc on unsupported OS %v", ctxt.HeadType)
+		if target.IsDarwin() {
+			ld.Errorf(s, "TLS reloc on unsupported OS %v", target.HeadType)
 		}
 		// The TCB is two pointers. This is not documented anywhere, but is
 		// de facto part of the ABI.
-		v := r.Sym.Value + int64(2*ctxt.Arch.PtrSize)
+		v := r.Sym.Value + int64(2*target.Arch.PtrSize)
 		if v < 0 || v >= 32678 {
 			ld.Errorf(s, "TLS offset out of range %d", v)
 		}
 		return val | (v << 5), true
 
 	case objabi.R_ARM64_TLS_IE:
-		if ctxt.BuildMode == ld.BuildModePIE && ctxt.IsELF {
+		if target.IsPIE() && target.IsElf() {
 			// We are linking the final executable, so we
 			// can optimize any TLS IE relocation to LE.
 			r.Done = false
-			if ctxt.HeadType != objabi.Hlinux {
-				ld.Errorf(s, "TLS reloc on unsupported OS %v", ctxt.HeadType)
+			if !target.IsLinux() {
+				ld.Errorf(s, "TLS reloc on unsupported OS %v", target.HeadType)
 			}
 
 			// The TCB is two pointers. This is not documented anywhere, but is
 			// de facto part of the ABI.
-			v := ld.Symaddr(r.Sym) + int64(2*ctxt.Arch.PtrSize) + r.Add
+			v := ld.Symaddr(r.Sym) + int64(2*target.Arch.PtrSize) + r.Add
 			if v < 0 || v >= 32678 {
 				ld.Errorf(s, "TLS offset out of range %d", v)
 			}
 
 			var o0, o1 uint32
-			if ctxt.Arch.ByteOrder == binary.BigEndian {
+			if target.IsBigEndian() {
 				o0 = uint32(val >> 32)
 				o1 = uint32(val)
 			} else {
@@ -609,7 +608,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 			o1 = 0xf2800000 | uint32(o1&0x1f) | (uint32(v&0xffff) << 5)
 
 			// when laid out, the instruction order must always be o0, o1.
-			if ctxt.Arch.ByteOrder == binary.BigEndian {
+			if target.IsBigEndian() {
 				return int64(o0)<<32 | int64(o1), true
 			}
 			return int64(o1)<<32 | int64(o0), true
@@ -707,7 +706,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 	return val, false
 }
 
-func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
+func archrelocvariant(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
 	log.Fatalf("unexpected relocation variant")
 	return -1
 }

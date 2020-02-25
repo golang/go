@@ -96,8 +96,8 @@ func applyrel(arch *sys.Arch, r *sym.Reloc, s *sym.Symbol, val int64, t int64) i
 	}
 }
 
-func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
-	if ctxt.LinkMode == ld.LinkExternal {
+func archreloc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
+	if target.IsExternal() {
 		switch r.Type {
 		default:
 			return val, false
@@ -116,12 +116,12 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 				ld.Errorf(s, "missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
-			return applyrel(ctxt.Arch, r, s, val, r.Xadd), true
+			return applyrel(target.Arch, r, s, val, r.Xadd), true
 		case objabi.R_ADDRMIPSTLS, objabi.R_CALLMIPS, objabi.R_JMPMIPS:
 			r.Done = false
 			r.Xsym = r.Sym
 			r.Xadd = r.Add
-			return applyrel(ctxt.Arch, r, s, val, r.Add), true
+			return applyrel(target.Arch, r, s, val, r.Add), true
 		}
 	}
 
@@ -132,7 +132,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0)), true
 	case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSU:
 		t := ld.Symaddr(r.Sym) + r.Add
-		return applyrel(ctxt.Arch, r, s, val, t), true
+		return applyrel(target.Arch, r, s, val, t), true
 	case objabi.R_CALLMIPS, objabi.R_JMPMIPS:
 		t := ld.Symaddr(r.Sym) + r.Add
 
@@ -145,20 +145,20 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 			ld.Errorf(s, "direct call too far: %s %x", r.Sym.Name, t)
 		}
 
-		return applyrel(ctxt.Arch, r, s, val, t), true
+		return applyrel(target.Arch, r, s, val, t), true
 	case objabi.R_ADDRMIPSTLS:
 		// thread pointer is at 0x7000 offset from the start of TLS data area
 		t := ld.Symaddr(r.Sym) + r.Add - 0x7000
 		if t < -32768 || t >= 32678 {
 			ld.Errorf(s, "TLS offset out of range %d", t)
 		}
-		return applyrel(ctxt.Arch, r, s, val, t), true
+		return applyrel(target.Arch, r, s, val, t), true
 	}
 
 	return val, false
 }
 
-func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
+func archrelocvariant(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
 	return -1
 }
 

@@ -222,7 +222,7 @@ func relocsym(ctxt *Link, target *Target, s *sym.Symbol) {
 			case 8:
 				o = int64(target.Arch.ByteOrder.Uint64(s.P[off:]))
 			}
-			if offset, ok := thearch.Archreloc(ctxt, r, s, o); ok {
+			if offset, ok := thearch.Archreloc(ctxt, target, r, s, o); ok {
 				o = offset
 			} else {
 				Errorf(s, "unknown reloc to %v: %d (%s)", r.Sym.Name, r.Type, sym.RelocName(target.Arch, r.Type))
@@ -520,7 +520,7 @@ func relocsym(ctxt *Link, target *Target, s *sym.Symbol) {
 		if target.IsPPC64() || target.IsS390X() {
 			r.InitExt()
 			if r.Variant != sym.RV_NONE {
-				o = thearch.Archrelocvariant(ctxt, r, s, o)
+				o = thearch.Archrelocvariant(ctxt, target, r, s, o)
 			}
 		}
 
