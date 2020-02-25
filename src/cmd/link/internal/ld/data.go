@@ -100,7 +100,7 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
 		if Symaddr(r.Sym) == 0 && (r.Sym.Type != sym.SDYNIMPORT && r.Sym.Type != sym.SUNDEFEXT) {
 			if r.Sym.File != s.File {
 				if !isRuntimeDepPkg(s.File) || !isRuntimeDepPkg(r.Sym.File) {
-					ctxt.ErrorUnresolved(s, r)
+					ctxt.errorUnresolved(ctxt.Syms.ROLookup, s, r)
 				}
 				// runtime and its dependent packages may call to each other.
 				// they are fine, as they will be laid down together.
@@ -167,7 +167,7 @@ func relocsym(ctxt *Link, target *Target, s *sym.Symbol) {
 					continue
 				}
 			} else {
-				ctxt.ErrorUnresolved(s, r)
+				ctxt.errorUnresolved(ctxt.Syms.ROLookup, s, r)
 				continue
 			}
 		}
@@ -335,7 +335,7 @@ func relocsym(ctxt *Link, target *Target, s *sym.Symbol) {
 				// symbol which isn't in .data. However, as .text has the
 				// same address once loaded, this is possible.
 				if s.Sect.Seg == &Segdata {
-					Xcoffadddynrel(ctxt, s, r)
+					Xcoffadddynrel(target, s, r)
 				}
 			}
 

@@ -32,7 +32,6 @@ package ld
 
 import (
 	"bufio"
-	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
@@ -52,6 +51,7 @@ type Shlib struct {
 // or for reading that input into the linker.
 type Link struct {
 	Target
+	ErrorReporter
 	Out *OutBuf
 
 	Syms *sym.Symbols
@@ -81,10 +81,6 @@ type Link struct {
 
 	tramps []*sym.Symbol // trampolines
 
-	// unresolvedSymSet is a set of erroneous unresolved references.
-	// Used to avoid duplicated error messages.
-	unresolvedSymSet map[unresolvedSymKey]bool
-
 	// Used to implement field tracking.
 	Reachparent map[*sym.Symbol]*sym.Symbol
 
@@ -102,48 +98,6 @@ type cgodata struct {
 	file       string
 	pkg        string
 	directives [][]string
-}
-
-type unresolvedSymKey struct {
-	from *sym.Symbol // Symbol that referenced unresolved "to"
-	to   *sym.Symbol // Unresolved symbol referenced by "from"
-}
-
-// ErrorUnresolved prints unresolved symbol error for r.Sym that is referenced from s.
-func (ctxt *Link) ErrorUnresolved(s *sym.Symbol, r *sym.Reloc) {
-	if ctxt.unresolvedSymSet == nil {
-		ctxt.unresolvedSymSet = make(map[unresolvedSymKey]bool)
-	}
-
-	k := unresolvedSymKey{from: s, to: r.Sym}
-	if !ctxt.unresolvedSymSet[k] {
-		ctxt.unresolvedSymSet[k] = true
-
-		// Try to find symbol under another ABI.
-		var reqABI, haveABI obj.ABI
-		haveABI = ^obj.ABI(0)
-		reqABI, ok := sym.VersionToABI(int(r.Sym.Version))
-		if ok {
-			for abi := obj.ABI(0); abi < obj.ABICount; abi++ {
-				v := sym.ABIToVersion(abi)
-				if v == -1 {
-					continue
-				}
-				if rs := ctxt.Syms.ROLookup(r.Sym.Name, v); rs != nil && rs.Type != sym.Sxxx {
-					haveABI = abi
-				}
-			}
-		}
-
-		// Give a special error message for main symbol (see #24809).
-		if r.Sym.Name == "main.main" {
-			Errorf(s, "function main is undeclared in the main package")
-		} else if haveABI != ^obj.ABI(0) {
-			Errorf(s, "relocation target %s not defined for %s (but is defined for %s)", r.Sym.Name, reqABI, haveABI)
-		} else {
-			Errorf(s, "relocation target %s not defined", r.Sym.Name)
-		}
-	}
 }
 
 // The smallest possible offset from the hardware stack pointer to a local
