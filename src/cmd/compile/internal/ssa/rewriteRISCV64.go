@@ -4230,27 +4230,20 @@ func rewriteValueRISCV64_OpSignExt8to64(v *Value) bool {
 func rewriteValueRISCV64_OpSlicemask(v *Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
-	typ := &b.Func.Config.Types
 	// match: (Slicemask <t> x)
-	// result: (XOR (MOVDconst [-1]) (SRA <t> (SUB <t> x (MOVDconst [1])) (MOVDconst [63])))
+	// result: (XORI [-1] (SRAI <t> [63] (ADDI <t> [-1] x)))
 	for {
 		t := v.Type
 		x := v_0
-		v.reset(OpRISCV64XOR)
-		v0 := b.NewValue0(v.Pos, OpRISCV64MOVDconst, typ.UInt64)
-		v0.AuxInt = -1
+		v.reset(OpRISCV64XORI)
+		v.AuxInt = -1
+		v0 := b.NewValue0(v.Pos, OpRISCV64SRAI, t)
+		v0.AuxInt = 63
+		v1 := b.NewValue0(v.Pos, OpRISCV64ADDI, t)
+		v1.AuxInt = -1
+		v1.AddArg(x)
+		v0.AddArg(v1)
 		v.AddArg(v0)
-		v1 := b.NewValue0(v.Pos, OpRISCV64SRA, t)
-		v2 := b.NewValue0(v.Pos, OpRISCV64SUB, t)
-		v2.AddArg(x)
-		v3 := b.NewValue0(v.Pos, OpRISCV64MOVDconst, typ.UInt64)
-		v3.AuxInt = 1
-		v2.AddArg(v3)
-		v1.AddArg(v2)
-		v4 := b.NewValue0(v.Pos, OpRISCV64MOVDconst, typ.UInt64)
-		v4.AuxInt = 63
-		v1.AddArg(v4)
-		v.AddArg(v1)
 		return true
 	}
 }
