@@ -2058,15 +2058,10 @@ func addsection(arch *sys.Arch, seg *sym.Segment, name string, rwx int) *sym.Sec
 }
 
 type chain struct {
-	sym   *sym.Symbol
+	sym   loader.Sym
 	up    *chain
 	limit int // limit on entry to sym
 }
-
-var morestack *sym.Symbol
-
-// TODO: Record enough information in new object files to
-// allow stack checks here.
 
 func haslinkregister(ctxt *Link) bool {
 	return ctxt.FixedFrameSize() != 0
@@ -2079,10 +2074,23 @@ func callsize(ctxt *Link) int {
 	return ctxt.Arch.RegSize
 }
 
-func (ctxt *Link) dostkcheck() {
-	var ch chain
+type stkChk struct {
+	ldr       *loader.Loader
+	ctxt      *Link
+	morestack loader.Sym
+	done      loader.Bitmap
+}
 
-	morestack = ctxt.Syms.Lookup("runtime.morestack", 0)
+// Walk the call tree and check that there is always enough stack space
+// for the call frames, especially for a chain of nosplit functions.
+func (ctxt *Link) dostkcheck() {
+	ldr := ctxt.loader
+	sc := stkChk{
+		ldr:       ldr,
+		ctxt:      ctxt,
+		morestack: ldr.Lookup("runtime.morestack", 0),
+		done:      loader.MakeBitmap(ldr.NSym()),
+	}
 
 	// Every splitting function ensures that there are at least StackLimit
 	// bytes available below SP when the splitting prologue finishes.
@@ -2091,8 +2099,7 @@ func (ctxt *Link) dostkcheck() {
 	// Check that every function behaves correctly with this amount
 	// of stack, following direct calls in order to piece together chains
 	// of non-splitting functions.
-	ch.up = nil
-
+	var ch chain
 	ch.limit = objabi.StackLimit - callsize(ctxt)
 	if objabi.GOARCH == "arm64" {
 		// need extra 8 bytes below SP to save FP
@@ -2101,118 +2108,121 @@ func (ctxt *Link) dostkcheck() {
 
 	// Check every function, but do the nosplit functions in a first pass,
 	// to make the printed failure chains as short as possible.
-	for _, s := range ctxt.Textp {
-		// runtime.racesymbolizethunk is called from gcc-compiled C
-		// code running on the operating system thread stack.
-		// It uses more than the usual amount of stack but that's okay.
-		if s.Name == "runtime.racesymbolizethunk" {
+	// TODO: iterate over Textp
+	for s, n := loader.Sym(1), ldr.NSym(); int(s) < n; s++ {
+		if !ldr.AttrReachable(s) || ldr.SymType(s) != sym.STEXT {
 			continue
 		}
-
-		if s.Attr.NoSplit() {
+		if ldr.IsNoSplit(s) {
 			ch.sym = s
-			stkcheck(ctxt, &ch, 0)
+			sc.check(&ch, 0)
 		}
 	}
 
-	for _, s := range ctxt.Textp {
-		if !s.Attr.NoSplit() {
+	for s, n := loader.Sym(1), ldr.NSym(); int(s) < n; s++ {
+		if !ldr.AttrReachable(s) || ldr.SymType(s) != sym.STEXT {
+			continue
+		}
+		if !ldr.IsNoSplit(s) {
 			ch.sym = s
-			stkcheck(ctxt, &ch, 0)
+			sc.check(&ch, 0)
 		}
 	}
 }
 
-func stkcheck(ctxt *Link, up *chain, depth int) int {
+func (sc *stkChk) check(up *chain, depth int) int {
 	limit := up.limit
 	s := up.sym
+	ldr := sc.ldr
+	ctxt := sc.ctxt
 
 	// Don't duplicate work: only need to consider each
 	// function at top of safe zone once.
 	top := limit == objabi.StackLimit-callsize(ctxt)
 	if top {
-		if s.Attr.StackCheck() {
+		if sc.done.Has(s) {
 			return 0
 		}
-		s.Attr |= sym.AttrStackCheck
+		sc.done.Set(s)
 	}
 
 	if depth > 500 {
-		Errorf(s, "nosplit stack check too deep")
-		stkbroke(ctxt, up, 0)
+		sc.ctxt.Errorf(s, "nosplit stack check too deep")
+		sc.broke(up, 0)
 		return -1
 	}
 
-	if s.Attr.External() || s.FuncInfo == nil {
+	if ldr.AttrExternal(s) {
 		// external function.
 		// should never be called directly.
 		// onlyctxt.Diagnose the direct caller.
 		// TODO(mwhudson): actually think about this.
 		// TODO(khr): disabled for now. Calls to external functions can only happen on the g0 stack.
 		// See the trampolines in src/runtime/sys_darwin_$ARCH.go.
-		if depth == 1 && s.Type != sym.SXREF && !ctxt.DynlinkingGo() &&
-			ctxt.BuildMode != BuildModeCArchive && ctxt.BuildMode != BuildModePIE && ctxt.BuildMode != BuildModeCShared && ctxt.BuildMode != BuildModePlugin {
-			//Errorf(s, "call to external function")
-		}
+		//if depth == 1 && ldr.SymType(s) != sym.SXREF && !ctxt.DynlinkingGo() &&
+		//	ctxt.BuildMode != BuildModeCArchive && ctxt.BuildMode != BuildModePIE && ctxt.BuildMode != BuildModeCShared && ctxt.BuildMode != BuildModePlugin {
+		//	Errorf(s, "call to external function")
+		//}
+		return -1
+	}
+	info := ldr.FuncInfo(s)
+	if !info.Valid() { // external function. see above.
 		return -1
 	}
 
 	if limit < 0 {
-		stkbroke(ctxt, up, limit)
+		sc.broke(up, limit)
 		return -1
 	}
 
 	// morestack looks like it calls functions,
 	// but it switches the stack pointer first.
-	if s == morestack {
+	if s == sc.morestack {
 		return 0
 	}
 
 	var ch chain
 	ch.up = up
 
-	if !s.Attr.NoSplit() {
+	if !ldr.IsNoSplit(s) {
 		// Ensure we have enough stack to call morestack.
 		ch.limit = limit - callsize(ctxt)
-		ch.sym = morestack
-		if stkcheck(ctxt, &ch, depth+1) < 0 {
+		ch.sym = sc.morestack
+		if sc.check(&ch, depth+1) < 0 {
 			return -1
 		}
 		if !top {
 			return 0
 		}
 		// Raise limit to allow frame.
-		locals := int32(0)
-		if s.FuncInfo != nil {
-			locals = s.FuncInfo.Locals
-		}
+		locals := info.Locals()
 		limit = objabi.StackLimit + int(locals) + int(ctxt.FixedFrameSize())
 	}
 
 	// Walk through sp adjustments in function, consuming relocs.
-	ri := 0
-
-	endr := len(s.R)
+	relocs := ldr.Relocs(s)
 	var ch1 chain
 	pcsp := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
-	var r *sym.Reloc
-	for pcsp.Init(s.FuncInfo.Pcsp.P); !pcsp.Done; pcsp.Next() {
+	for pcsp.Init(info.Pcsp()); !pcsp.Done; pcsp.Next() {
 		// pcsp.value is in effect for [pcsp.pc, pcsp.nextpc).
 
 		// Check stack size in effect for this span.
 		if int32(limit)-pcsp.Value < 0 {
-			stkbroke(ctxt, up, int(int32(limit)-pcsp.Value))
+			sc.broke(up, int(int32(limit)-pcsp.Value))
 			return -1
 		}
 
 		// Process calls in this span.
-		for ; ri < endr && uint32(s.R[ri].Off) < pcsp.NextPC; ri++ {
-			r = &s.R[ri]
+		for i := 0; i < relocs.Count; i++ {
+			r := relocs.At(i)
+			if uint32(r.Off) >= pcsp.NextPC {
+				break
+			}
 			switch {
 			case r.Type.IsDirectCall():
 				ch.limit = int(int32(limit) - pcsp.Value - int32(callsize(ctxt)))
 				ch.sym = r.Sym
-				if stkcheck(ctxt, &ch, depth+1) < 0 {
+				if sc.check(&ch, depth+1) < 0 {
 					return -1
 				}
 
@@ -2222,11 +2232,11 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
 			// if there is an error, stkprint shows all the steps involved.
 			case r.Type == objabi.R_CALLIND:
 				ch.limit = int(int32(limit) - pcsp.Value - int32(callsize(ctxt)))
-				ch.sym = nil
+				ch.sym = 0
 				ch1.limit = ch.limit - callsize(ctxt) // for morestack in called prologue
 				ch1.up = &ch
-				ch1.sym = morestack
-				if stkcheck(ctxt, &ch1, depth+2) < 0 {
+				ch1.sym = sc.morestack
+				if sc.check(&ch1, depth+2) < 0 {
 					return -1
 				}
 			}
@@ -2236,17 +2246,18 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
 	return 0
 }
 
-func stkbroke(ctxt *Link, ch *chain, limit int) {
-	Errorf(ch.sym, "nosplit stack overflow")
-	stkprint(ctxt, ch, limit)
+func (sc *stkChk) broke(ch *chain, limit int) {
+	sc.ctxt.Errorf(ch.sym, "nosplit stack overflow")
+	sc.print(ch, limit)
 }
 
-func stkprint(ctxt *Link, ch *chain, limit int) {
+func (sc *stkChk) print(ch *chain, limit int) {
+	ldr := sc.ldr
+	ctxt := sc.ctxt
 	var name string
-
-	if ch.sym != nil {
-		name = ch.sym.Name
-		if ch.sym.Attr.NoSplit() {
+	if ch.sym != 0 {
+		name = ldr.SymName(ch.sym)
+		if ldr.IsNoSplit(ch.sym) {
 			name += " (nosplit)"
 		}
 	} else {
@@ -2254,14 +2265,14 @@ func stkprint(ctxt *Link, ch *chain, limit int) {
 	}
 
 	if ch.up == nil {
-		// top of chain.  ch->sym != nil.
-		if ch.sym.Attr.NoSplit() {
+		// top of chain. ch.sym != 0.
+		if ldr.IsNoSplit(ch.sym) {
 			fmt.Printf("\t%d\tassumed on entry to %s\n", ch.limit, name)
 		} else {
 			fmt.Printf("\t%d\tguaranteed after split check in %s\n", ch.limit, name)
 		}
 	} else {
-		stkprint(ctxt, ch.up, ch.limit+callsize(ctxt))
+		sc.print(ch.up, ch.limit+callsize(ctxt))
 		if !haslinkregister(ctxt) {
 			fmt.Printf("\t%d\ton entry to %s\n", ch.limit, name)
 		}
