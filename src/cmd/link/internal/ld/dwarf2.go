@@ -1752,7 +1752,6 @@ func dwarfcompress(ctxt *Link) {
 		}
 	}
 	dwarfp = newDwarfp
-	ctxt.relocbuf = nil // no longer needed, don't hold it live
 
 	// Re-compute the locations of the compressed DWARF symbols
 	// and sections, since the layout of these within the file is

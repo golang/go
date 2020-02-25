@@ -51,23 +51,16 @@ type Shlib struct {
 // Link holds the context for writing object code from a compiler
 // or for reading that input into the linker.
 type Link struct {
+	Target
 	Out *OutBuf
 
 	Syms *sym.Symbols
 
-	Arch      *sys.Arch
 	Debugvlog int
 	Bso       *bufio.Writer
 
 	Loaded bool // set after all inputs have been loaded as symbols
 
-	IsELF    bool
-	HeadType objabi.HeadType
-
-	linkShared    bool // link against installed Go shared libraries
-	LinkMode      LinkMode
-	BuildMode     BuildMode
-	canUsePlugins bool // initialized when Loaded is set to true
 	compressDWARF bool
 
 	Tlsg         *sym.Symbol
@@ -97,8 +90,6 @@ type Link struct {
 
 	compUnits []*sym.CompilationUnit // DWARF compilation units
 	runtimeCU *sym.CompilationUnit   // One of the runtime CUs, the last one seen.
-
-	relocbuf []byte // temporary buffer for applying relocations
 
 	loader  *loader.Loader
 	cgodata []cgodata // cgo directives to load, three strings are args for loadcgo
