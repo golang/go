@@ -218,9 +218,8 @@ func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) err
 	g.Go(func() error {
 		return serverConn.Run(ctx)
 	})
-	g.Go(func() error {
-		return clientConn.Run(ctx)
-	})
+	// Don't run the clientConn yet, so that we can complete the handshake before
+	// processing any client messages.
 
 	// Do a handshake with the server instance to exchange debug information.
 	index := atomic.AddInt64(&serverIndex, 1)
@@ -249,6 +248,10 @@ func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) err
 		},
 		clientID: hresp.ClientID,
 	})
+	g.Go(func() error {
+		return clientConn.Run(ctx)
+	})
+
 	return g.Wait()
 }
 
