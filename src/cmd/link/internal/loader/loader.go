@@ -1527,6 +1527,43 @@ func (x RelocByOff) Len() int           { return len(x) }
 func (x RelocByOff) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 func (x RelocByOff) Less(i, j int) bool { return x[i].Off < x[j].Off }
 
+// FuncInfo provides hooks to access goobj2.FuncInfo in the objects.
+type FuncInfo struct {
+	l    *Loader
+	r    *oReader
+	data []byte
+}
+
+func (fi *FuncInfo) Valid() bool { return fi.r != nil }
+
+func (fi *FuncInfo) Locals() int {
+	return int((*goobj2.FuncInfo)(nil).ReadLocals(fi.data))
+}
+
+func (fi *FuncInfo) Pcsp() []byte {
+	pcsp, end := (*goobj2.FuncInfo)(nil).ReadPcsp(fi.data)
+	return fi.r.BytesAt(fi.r.PcdataBase()+pcsp, int(end-pcsp))
+}
+
+// TODO: more accessors.
+
+func (l *Loader) FuncInfo(i Sym) FuncInfo {
+	if l.IsExternal(i) {
+		return FuncInfo{}
+	}
+	r, li := l.toLocal(i)
+	n := r.NAux(li)
+	for j := 0; j < n; j++ {
+		a := goobj2.Aux{}
+		a.Read(r.Reader, r.AuxOff(li, j))
+		if a.Type == goobj2.AuxFuncInfo {
+			b := r.Data(int(a.Sym.SymIdx))
+			return FuncInfo{l, r, b}
+		}
+	}
+	return FuncInfo{}
+}
+
 // Preload a package: add autolibs, add defined package symbols to the symbol table.
 // Does not add non-package symbols yet, which will be done in LoadNonpkgSyms.
 // Does not read symbol data.
