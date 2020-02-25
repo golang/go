@@ -2459,8 +2459,9 @@ func (l *Loader) UndefinedRelocTargets(limit int) []Sym {
 
 // AssignTextSymbolOrder populates the Textp2 slices within each
 // library and compilation unit, insuring that packages are laid down
-// in dependency order (internal first, then everything else).
-func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool) {
+// in dependency order (internal first, then everything else). Return value
+// is a slice of all text syms.
+func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, extsyms []Sym) []Sym {
 
 	// Library Textp2 lists should be empty at this point.
 	for _, lib := range libs {
@@ -2479,6 +2480,15 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool) {
 	// call the regular addToTextp.
 	assignedToUnit := MakeBitmap(l.NSym() + 1)
 
+	// Start off textp2 with reachable external syms.
+	textp2 := []Sym{}
+	for _, sym := range extsyms {
+		if !l.attrReachable.Has(sym) {
+			continue
+		}
+		textp2 = append(textp2, sym)
+	}
+
 	// Walk through all text symbols from Go object files and append
 	// them to their corresponding library's textp2 list.
 	for _, o := range l.objs[1:] {
@@ -2486,22 +2496,26 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool) {
 		lib := r.unit.Lib
 		for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
 			gi := l.toGlobal(r, i)
+			if !l.attrReachable.Has(gi) {
+				continue
+			}
 			osym := goobj2.Sym{}
 			osym.ReadWithoutName(r.Reader, r.SymOff(i))
 			st := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]
 			if st != sym.STEXT {
 				continue
 			}
-			// check for dupok
+			dupok := osym.Dupok()
 			if r2, i2 := l.toLocal(gi); r2 != r || i2 != i {
-				if l.attrReachable.Has(gi) {
-					// A dupok symbol is resolved to another package.
-					// We still need to record its presence in the
-					// current package, as the trampoline pass expects
-					// packages are laid out in dependency order.
-					lib.DupTextSyms2 = append(lib.DupTextSyms2, sym.LoaderSym(gi))
-				}
+				// A dupok text symbol is resolved to another package.
+				// We still need to record its presence in the current
+				// package, as the trampoline pass expects packages
+				// are laid out in dependency order.
+				lib.DupTextSyms2 = append(lib.DupTextSyms2, sym.LoaderSym(gi))
 				continue // symbol in different object
+			}
+			if dupok {
+				lib.DupTextSyms2 = append(lib.DupTextSyms2, sym.LoaderSym(gi))
 			}
 
 			lib.Textp2 = append(lib.Textp2, sym.LoaderSym(gi))
@@ -2515,12 +2529,13 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool) {
 				continue
 			}
 			libtextp2 := []sym.LoaderSym{}
-			tpls := [2][]sym.LoaderSym{lib.Textp2, lib.DupTextSyms2}
-			for _, textp2 := range tpls {
-				for _, s := range textp2 {
+			lists := [2][]sym.LoaderSym{lib.Textp2, lib.DupTextSyms2}
+			for _, list := range lists {
+				for _, s := range list {
 					sym := Sym(s)
 					if l.attrReachable.Has(sym) && !assignedToUnit.Has(sym) {
 						libtextp2 = append(libtextp2, s)
+						textp2 = append(textp2, sym)
 						unit := l.SymUnit(sym)
 						if unit != nil {
 							unit.Textp2 = append(unit.Textp2, s)
@@ -2532,6 +2547,7 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool) {
 			lib.Textp2 = libtextp2
 		}
 	}
+	return textp2
 }
 
 // For debugging.
