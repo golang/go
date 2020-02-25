@@ -228,7 +228,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		gc.AddrAuto(&p.To, v)
 	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
 		// nothing to do
-	case ssa.OpRISCV64ADD, ssa.OpRISCV64SUB, ssa.OpRISCV64XOR, ssa.OpRISCV64OR, ssa.OpRISCV64AND,
+	case ssa.OpRISCV64ADD, ssa.OpRISCV64SUB, ssa.OpRISCV64SUBW, ssa.OpRISCV64XOR, ssa.OpRISCV64OR, ssa.OpRISCV64AND,
 		ssa.OpRISCV64SLL, ssa.OpRISCV64SRA, ssa.OpRISCV64SRL,
 		ssa.OpRISCV64SLT, ssa.OpRISCV64SLTU, ssa.OpRISCV64MUL, ssa.OpRISCV64MULW, ssa.OpRISCV64MULH,
 		ssa.OpRISCV64MULHU, ssa.OpRISCV64DIV, ssa.OpRISCV64DIVU, ssa.OpRISCV64DIVW,

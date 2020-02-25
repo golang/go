@@ -267,7 +267,7 @@
 
 (EqPtr x y) -> (SEQZ (SUB <x.Type> x y))
 (Eq64  x y) -> (SEQZ (SUB <x.Type> x y))
-(Eq32  x y) -> (SEQZ (ZeroExt32to64 (SUB <x.Type> x y)))
+(Eq32  x y) -> (SEQZ (SUBW <x.Type> x y))
 (Eq16  x y) -> (SEQZ (ZeroExt16to64 (SUB <x.Type> x y)))
 (Eq8   x y) -> (SEQZ (ZeroExt8to64  (SUB <x.Type> x y)))
 (Eq64F ...) -> (FEQD ...)
@@ -275,7 +275,7 @@
 
 (NeqPtr x y) -> (SNEZ (SUB <x.Type> x y))
 (Neq64  x y) -> (SNEZ (SUB <x.Type> x y))
-(Neq32  x y) -> (SNEZ (ZeroExt32to64 (SUB <x.Type> x y)))
+(Neq32  x y) -> (SNEZ (SUBW <x.Type> x y))
 (Neq16  x y) -> (SNEZ (ZeroExt16to64 (SUB <x.Type> x y)))
 (Neq8   x y) -> (SNEZ (ZeroExt8to64  (SUB <x.Type> x y)))
 (Neq64F ...) -> (FNED ...)

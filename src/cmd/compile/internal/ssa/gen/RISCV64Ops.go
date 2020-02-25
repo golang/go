@@ -130,6 +130,7 @@ func init() {
 		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true}, // arg0 + arg1
 		{name: "ADDI", argLength: 1, reg: gp11sb, asm: "ADDI", aux: "Int64"},  // arg0 + auxint
 		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                    // arg0 - arg1
+		{name: "SUBW", argLength: 2, reg: gp21, asm: "SUBW"},                  // 32 low bits of arg 0 - 32 low bits of arg 1, sign extended to 64 bits
 
 		// M extension. H means high (i.e., it returns the top bits of
 		// the result). U means unsigned. W means word (i.e., 32-bit).
