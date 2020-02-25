@@ -294,6 +294,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("address")
 	order := ctxt.address()
 	bench.Start("dwarfcompress")
+	ctxt.setArchSyms()
 	dwarfcompress(ctxt)
 	bench.Start("layout")
 	filesize := ctxt.layout(order)

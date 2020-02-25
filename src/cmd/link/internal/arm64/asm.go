@@ -433,7 +433,7 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 	return true
 }
 
-func archreloc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
+func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
 	if target.IsExternal() {
 		switch r.Type {
 		default:
@@ -532,7 +532,7 @@ func archreloc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, va
 		return r.Add, true
 
 	case objabi.R_GOTOFF:
-		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0)), true
+		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(syms.GOT), true
 
 	case objabi.R_ADDRARM64:
 		t := ld.Symaddr(r.Sym) + r.Add - ((s.Value + int64(r.Off)) &^ 0xfff)
@@ -619,7 +619,7 @@ func archreloc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, va
 	case objabi.R_CALLARM64:
 		var t int64
 		if r.Sym.Type == sym.SDYNIMPORT {
-			t = (ld.Symaddr(ctxt.Syms.Lookup(".plt", 0)) + r.Add) - (s.Value + int64(r.Off))
+			t = (ld.Symaddr(syms.PLT) + r.Add) - (s.Value + int64(r.Off))
 		} else {
 			t = (ld.Symaddr(r.Sym) + r.Add) - (s.Value + int64(r.Off))
 		}
@@ -706,7 +706,7 @@ func archreloc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, va
 	return val, false
 }
 
-func archrelocvariant(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
+func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
 	log.Fatalf("unexpected relocation variant")
 	return -1
 }
