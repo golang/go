@@ -127,7 +127,7 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
 //
 // This is a performance-critical function for the linker; be careful
 // to avoid introducing unnecessary allocations in the main loop.
-func relocsym(ctxt *Link, s *sym.Symbol) {
+func relocsym(ctxt *Link, target *Target, s *sym.Symbol) {
 	if len(s.R) == 0 {
 		return
 	}
@@ -158,8 +158,8 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 		if r.Sym != nil && ((r.Sym.Type == sym.Sxxx && !r.Sym.Attr.VisibilityHidden()) || r.Sym.Type == sym.SXREF) {
 			// When putting the runtime but not main into a shared library
 			// these symbols are undefined and that's OK.
-			if ctxt.BuildMode == BuildModeShared || ctxt.BuildMode == BuildModePlugin {
-				if r.Sym.Name == "main.main" || (ctxt.BuildMode != BuildModePlugin && r.Sym.Name == "main..inittask") {
+			if target.IsShared() || target.IsPlugin() {
+				if r.Sym.Name == "main.main" || (!target.IsPlugin() && r.Sym.Name == "main..inittask") {
 					r.Sym.Type = sym.SDYNIMPORT
 				} else if strings.HasPrefix(r.Sym.Name, "go.info.") {
 					// Skip go.info symbols. They are only needed to communicate
@@ -181,21 +181,21 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 
 		// We need to be able to reference dynimport symbols when linking against
 		// shared libraries, and Solaris, Darwin and AIX need it always
-		if ctxt.HeadType != objabi.Hsolaris && ctxt.HeadType != objabi.Hdarwin && ctxt.HeadType != objabi.Haix && r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT && !ctxt.DynlinkingGo() && !r.Sym.Attr.SubSymbol() {
-			if !(ctxt.Arch.Family == sys.PPC64 && ctxt.LinkMode == LinkExternal && r.Sym.Name == ".TOC.") {
-				Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", r.Sym.Name, r.Sym.Type, r.Sym.Type, r.Type, sym.RelocName(ctxt.Arch, r.Type))
+		if !target.IsSolaris() && !target.IsDarwin() && !target.IsAIX() && r.Sym != nil && r.Sym.Type == sym.SDYNIMPORT && !target.IsDynlinkingGo() && !r.Sym.Attr.SubSymbol() {
+			if !(target.IsPPC64() && target.IsExternal() && r.Sym.Name == ".TOC.") {
+				Errorf(s, "unhandled relocation for %s (type %d (%s) rtype %d (%s))", r.Sym.Name, r.Sym.Type, r.Sym.Type, r.Type, sym.RelocName(target.Arch, r.Type))
 			}
 		}
 		if r.Sym != nil && r.Sym.Type != sym.STLSBSS && r.Type != objabi.R_WEAKADDROFF && !r.Sym.Attr.Reachable() {
 			Errorf(s, "unreachable sym in relocation: %s", r.Sym.Name)
 		}
 
-		if ctxt.LinkMode == LinkExternal {
+		if target.IsExternal() {
 			r.InitExt()
 		}
 
 		// TODO(mundaym): remove this special case - see issue 14218.
-		if ctxt.Arch.Family == sys.S390X {
+		if target.IsS390X() {
 			switch r.Type {
 			case objabi.R_PCRELDBL:
 				r.InitExt()
@@ -216,19 +216,19 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			case 1:
 				o = int64(s.P[off])
 			case 2:
-				o = int64(ctxt.Arch.ByteOrder.Uint16(s.P[off:]))
+				o = int64(target.Arch.ByteOrder.Uint16(s.P[off:]))
 			case 4:
-				o = int64(ctxt.Arch.ByteOrder.Uint32(s.P[off:]))
+				o = int64(target.Arch.ByteOrder.Uint32(s.P[off:]))
 			case 8:
-				o = int64(ctxt.Arch.ByteOrder.Uint64(s.P[off:]))
+				o = int64(target.Arch.ByteOrder.Uint64(s.P[off:]))
 			}
 			if offset, ok := thearch.Archreloc(ctxt, r, s, o); ok {
 				o = offset
 			} else {
-				Errorf(s, "unknown reloc to %v: %d (%s)", r.Sym.Name, r.Type, sym.RelocName(ctxt.Arch, r.Type))
+				Errorf(s, "unknown reloc to %v: %d (%s)", r.Sym.Name, r.Type, sym.RelocName(target.Arch, r.Type))
 			}
 		case objabi.R_TLS_LE:
-			if ctxt.LinkMode == LinkExternal && ctxt.IsELF {
+			if target.IsExternal() && target.IsElf() {
 				r.Done = false
 				if r.Sym == nil {
 					r.Sym = ctxt.Tlsg
@@ -236,13 +236,13 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				r.Xsym = r.Sym
 				r.Xadd = r.Add
 				o = 0
-				if ctxt.Arch.Family != sys.AMD64 {
+				if !target.IsAMD64() {
 					o = r.Add
 				}
 				break
 			}
 
-			if ctxt.IsELF && ctxt.Arch.Family == sys.ARM {
+			if target.IsElf() && target.IsARM() {
 				// On ELF ARM, the thread pointer is 8 bytes before
 				// the start of the thread-local data block, so add 8
 				// to the actual TLS offset (r->sym->value).
@@ -251,15 +251,15 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				// related to the fact that our own TLS storage happens
 				// to take up 8 bytes.
 				o = 8 + r.Sym.Value
-			} else if ctxt.IsELF || ctxt.HeadType == objabi.Hplan9 || ctxt.HeadType == objabi.Hdarwin {
+			} else if target.IsElf() || target.IsPlan9() || target.IsDarwin() {
 				o = int64(ctxt.Tlsoffset) + r.Add
-			} else if ctxt.HeadType == objabi.Hwindows {
+			} else if target.IsWindows() {
 				o = r.Add
 			} else {
-				log.Fatalf("unexpected R_TLS_LE relocation for %v", ctxt.HeadType)
+				log.Fatalf("unexpected R_TLS_LE relocation for %v", target.HeadType)
 			}
 		case objabi.R_TLS_IE:
-			if ctxt.LinkMode == LinkExternal && ctxt.IsELF {
+			if target.IsExternal() && target.IsElf() {
 				r.Done = false
 				if r.Sym == nil {
 					r.Sym = ctxt.Tlsg
@@ -267,16 +267,16 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				r.Xsym = r.Sym
 				r.Xadd = r.Add
 				o = 0
-				if ctxt.Arch.Family != sys.AMD64 {
+				if !target.IsAMD64() {
 					o = r.Add
 				}
 				break
 			}
-			if ctxt.BuildMode == BuildModePIE && ctxt.IsELF {
+			if target.IsPIE() && target.IsElf() {
 				// We are linking the final executable, so we
 				// can optimize any TLS IE relocation to LE.
 				if thearch.TLSIEtoLE == nil {
-					log.Fatalf("internal linking of TLS IE not supported on %v", ctxt.Arch.Family)
+					log.Fatalf("internal linking of TLS IE not supported on %v", target.Arch.Family)
 				}
 				thearch.TLSIEtoLE(s, int(off), int(r.Siz))
 				o = int64(ctxt.Tlsoffset)
@@ -287,7 +287,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				log.Fatalf("cannot handle R_TLS_IE (sym %s) when linking internally", s.Name)
 			}
 		case objabi.R_ADDR:
-			if ctxt.LinkMode == LinkExternal && r.Sym.Type != sym.SCONST {
+			if target.IsExternal() && r.Sym.Type != sym.SCONST {
 				r.Done = false
 
 				// set up addend for eventual relocation via outer symbol.
@@ -305,20 +305,20 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				r.Xsym = rs
 
 				o = r.Xadd
-				if ctxt.IsELF {
-					if ctxt.Arch.Family == sys.AMD64 {
+				if target.IsElf() {
+					if target.IsAMD64() {
 						o = 0
 					}
-				} else if ctxt.HeadType == objabi.Hdarwin {
+				} else if target.IsDarwin() {
 					if rs.Type != sym.SHOSTOBJ {
 						o += Symaddr(rs)
 					}
-				} else if ctxt.HeadType == objabi.Hwindows {
+				} else if target.IsWindows() {
 					// nothing to do
-				} else if ctxt.HeadType == objabi.Haix {
+				} else if target.IsAIX() {
 					o = Symaddr(r.Sym) + r.Add
 				} else {
-					Errorf(s, "unhandled pcrel relocation to %s on %v", rs.Name, ctxt.HeadType)
+					Errorf(s, "unhandled pcrel relocation to %s on %v", rs.Name, target.HeadType)
 				}
 
 				break
@@ -328,7 +328,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			// as section addresses can change once loaded.
 			// The "default" symbol address is still needed by the loader so
 			// the current relocation can't be skipped.
-			if ctxt.HeadType == objabi.Haix && r.Sym.Type != sym.SDYNIMPORT {
+			if target.IsAIX() && r.Sym.Type != sym.SDYNIMPORT {
 				// It's not possible to make a loader relocation in a
 				// symbol which is not inside .data section.
 				// FIXME: It should be forbidden to have R_ADDR from a
@@ -346,7 +346,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			// fail at runtime. See https://golang.org/issue/7980.
 			// Instead of special casing only amd64, we treat this as an error on all
 			// 64-bit architectures so as to be future-proof.
-			if int32(o) < 0 && ctxt.Arch.PtrSize > 4 && siz == 4 {
+			if int32(o) < 0 && target.Arch.PtrSize > 4 && siz == 4 {
 				Errorf(s, "non-pc-relative relocation address for %s is too big: %#x (%#x + %#x)", r.Sym.Name, uint64(o), Symaddr(r.Sym), r.Add)
 				errorexit()
 			}
@@ -355,7 +355,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				Errorf(s, "missing DWARF section for relocation target %s", r.Sym.Name)
 			}
 
-			if ctxt.LinkMode == LinkExternal {
+			if target.IsExternal() {
 				r.Done = false
 
 				// On most platforms, the external linker needs to adjust DWARF references
@@ -363,7 +363,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				// DWARF linking, and it understands how to follow section offsets.
 				// Leaving in the relocation records confuses it (see
 				// https://golang.org/issue/22068) so drop them for Darwin.
-				if ctxt.HeadType == objabi.Hdarwin {
+				if target.IsDarwin() {
 					r.Done = true
 				}
 
@@ -372,7 +372,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				// IMAGE_REL_I386_DIR32, IMAGE_REL_AMD64_ADDR64 and IMAGE_REL_AMD64_ADDR32.
 				// Do not replace R_DWARFSECREF with R_ADDR for windows -
 				// let PE code emit correct relocations.
-				if ctxt.HeadType != objabi.Hwindows {
+				if !target.IsWindows() {
 					r.Type = objabi.R_ADDR
 				}
 
@@ -380,7 +380,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				r.Xadd = r.Add + Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr)
 
 				o = r.Xadd
-				if ctxt.IsELF && ctxt.Arch.Family == sys.AMD64 {
+				if target.IsElf() && target.IsAMD64() {
 					o = 0
 				}
 				break
@@ -407,7 +407,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 
 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
 		case objabi.R_GOTPCREL:
-			if ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin && r.Sym != nil && r.Sym.Type != sym.SCONST {
+			if target.IsDynlinkingGo() && target.IsDarwin() && r.Sym != nil && r.Sym.Type != sym.SCONST {
 				r.Done = false
 				r.Xadd = r.Add
 				r.Xadd -= int64(r.Siz) // relative to address after the relocated chunk
@@ -419,18 +419,18 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			}
 			fallthrough
 		case objabi.R_CALL, objabi.R_PCREL:
-			if ctxt.LinkMode == LinkExternal && r.Sym != nil && r.Sym.Type == sym.SUNDEFEXT {
+			if target.IsExternal() && r.Sym != nil && r.Sym.Type == sym.SUNDEFEXT {
 				// pass through to the external linker.
 				r.Done = false
 				r.Xadd = 0
-				if ctxt.IsELF {
+				if target.IsElf() {
 					r.Xadd -= int64(r.Siz)
 				}
 				r.Xsym = r.Sym
 				o = 0
 				break
 			}
-			if ctxt.LinkMode == LinkExternal && r.Sym != nil && r.Sym.Type != sym.SCONST && (r.Sym.Sect != s.Sect || r.Type == objabi.R_GOTPCREL) {
+			if target.IsExternal() && r.Sym != nil && r.Sym.Type != sym.SCONST && (r.Sym.Sect != s.Sect || r.Type == objabi.R_GOTPCREL) {
 				r.Done = false
 
 				// set up addend for eventual relocation via outer symbol.
@@ -449,14 +449,14 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				r.Xsym = rs
 
 				o = r.Xadd
-				if ctxt.IsELF {
-					if ctxt.Arch.Family == sys.AMD64 {
+				if target.IsElf() {
+					if target.IsAMD64() {
 						o = 0
 					}
-				} else if ctxt.HeadType == objabi.Hdarwin {
+				} else if target.IsDarwin() {
 					if r.Type == objabi.R_CALL {
-						if ctxt.LinkMode == LinkExternal && rs.Type == sym.SDYNIMPORT {
-							switch ctxt.Arch.Family {
+						if target.IsExternal() && rs.Type == sym.SDYNIMPORT {
+							switch target.Arch.Family {
 							case sys.AMD64:
 								// AMD64 dynamic relocations are relative to the end of the relocation.
 								o += int64(r.Siz)
@@ -471,18 +471,18 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 							}
 							o -= int64(r.Off) // relative to section offset, not symbol
 						}
-					} else if ctxt.Arch.Family == sys.ARM {
+					} else if target.IsARM() {
 						// see ../arm/asm.go:/machoreloc1
 						o += Symaddr(rs) - s.Value - int64(r.Off)
 					} else {
 						o += int64(r.Siz)
 					}
-				} else if ctxt.HeadType == objabi.Hwindows && ctxt.Arch.Family == sys.AMD64 { // only amd64 needs PCREL
+				} else if target.IsWindows() && target.IsAMD64() { // only amd64 needs PCREL
 					// PE/COFF's PC32 relocation uses the address after the relocated
 					// bytes as the base. Compensate by skewing the addend.
 					o += int64(r.Siz)
 				} else {
-					Errorf(s, "unhandled pcrel relocation to %s on %v", rs.Name, ctxt.HeadType)
+					Errorf(s, "unhandled pcrel relocation to %s on %v", rs.Name, target.HeadType)
 				}
 
 				break
@@ -498,10 +498,10 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			o = r.Sym.Size + r.Add
 
 		case objabi.R_XCOFFREF:
-			if ctxt.HeadType != objabi.Haix {
+			if !target.IsAIX() {
 				Errorf(s, "find XCOFF R_REF on non-XCOFF files")
 			}
-			if ctxt.LinkMode != LinkExternal {
+			if !target.IsExternal() {
 				Errorf(s, "find XCOFF R_REF with internal linking")
 			}
 			r.Xsym = r.Sym
@@ -517,7 +517,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			o = r.Add
 		}
 
-		if ctxt.Arch.Family == sys.PPC64 || ctxt.Arch.Family == sys.S390X {
+		if target.IsPPC64() || target.IsS390X() {
 			r.InitExt()
 			if r.Variant != sym.RV_NONE {
 				o = thearch.Archrelocvariant(ctxt, r, s, o)
@@ -535,7 +535,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			if r.Xsym != nil {
 				xnam = r.Xsym.Name
 			}
-			fmt.Printf("relocate %s %#x (%#x+%#x, size %d) => %s %#x +%#x (xsym: %s +%#x) [type %d (%s)/%d, %x]\n", s.Name, s.Value+int64(off), s.Value, r.Off, r.Siz, nam, addr, r.Add, xnam, r.Xadd, r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Variant, o)
+			fmt.Printf("relocate %s %#x (%#x+%#x, size %d) => %s %#x +%#x (xsym: %s +%#x) [type %d (%s)/%d, %x]\n", s.Name, s.Value+int64(off), s.Value, r.Off, r.Siz, nam, addr, r.Add, xnam, r.Xadd, r.Type, sym.RelocName(target.Arch, r.Type), r.Variant, o)
 		}
 		switch siz {
 		default:
@@ -550,7 +550,7 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 				Errorf(s, "relocation address for %s is too big: %#x", r.Sym.Name, o)
 			}
 			i16 := int16(o)
-			ctxt.Arch.ByteOrder.PutUint16(s.P[off:], uint16(i16))
+			target.Arch.ByteOrder.PutUint16(s.P[off:], uint16(i16))
 		case 4:
 			if r.Type == objabi.R_PCREL || r.Type == objabi.R_CALL {
 				if o != int64(int32(o)) {
@@ -563,22 +563,22 @@ func relocsym(ctxt *Link, s *sym.Symbol) {
 			}
 
 			fl := int32(o)
-			ctxt.Arch.ByteOrder.PutUint32(s.P[off:], uint32(fl))
+			target.Arch.ByteOrder.PutUint32(s.P[off:], uint32(fl))
 		case 8:
-			ctxt.Arch.ByteOrder.PutUint64(s.P[off:], uint64(o))
+			target.Arch.ByteOrder.PutUint64(s.P[off:], uint64(o))
 		}
 	}
 }
 
 func (ctxt *Link) reloc() {
 	for _, s := range ctxt.Textp {
-		relocsym(ctxt, s)
+		relocsym(ctxt, &ctxt.Target, s)
 	}
 	for _, s := range datap {
-		relocsym(ctxt, s)
+		relocsym(ctxt, &ctxt.Target, s)
 	}
 	for _, s := range dwarfp {
-		relocsym(ctxt, s)
+		relocsym(ctxt, &ctxt.Target, s)
 	}
 }
 
@@ -2443,6 +2443,8 @@ func compressSyms(ctxt *Link, syms []*sym.Symbol) []byte {
 	binary.BigEndian.PutUint64(sizeBytes[:], uint64(total))
 	buf.Write(sizeBytes[:])
 
+	var relocbuf []byte // temporary buffer for applying relocations
+
 	// Using zlib.BestSpeed achieves very nearly the same
 	// compression levels of zlib.DefaultCompression, but takes
 	// substantially less time. This is important because DWARF
@@ -2457,11 +2459,11 @@ func compressSyms(ctxt *Link, syms []*sym.Symbol) []byte {
 		oldP := s.P
 		wasReadOnly := s.Attr.ReadOnly()
 		if len(s.R) != 0 && wasReadOnly {
-			ctxt.relocbuf = append(ctxt.relocbuf[:0], s.P...)
-			s.P = ctxt.relocbuf
+			relocbuf = append(relocbuf[:0], s.P...)
+			s.P = relocbuf
 			s.Attr.Set(sym.AttrReadOnly, false)
 		}
-		relocsym(ctxt, s)
+		relocsym(ctxt, &ctxt.Target, s)
 		if _, err := z.Write(s.P); err != nil {
 			log.Fatalf("compression failed: %s", err)
 		}

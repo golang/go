@@ -40,9 +40,9 @@ import (
 
 func linknew(arch *sys.Arch) *Link {
 	ctxt := &Link{
+		Target:       Target{Arch: arch},
 		Syms:         sym.NewSymbols(),
 		Out:          &OutBuf{arch: arch},
-		Arch:         arch,
 		LibraryByPkg: make(map[string]*sym.Library),
 	}
 
