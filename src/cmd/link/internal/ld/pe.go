@@ -94,6 +94,7 @@ const (
 	IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR           = 14
 	IMAGE_SUBSYSTEM_WINDOWS_GUI                    = 2
 	IMAGE_SUBSYSTEM_WINDOWS_CUI                    = 3
+	IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA       = 0x0020
 	IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE          = 0x0040
 	IMAGE_DLLCHARACTERISTICS_NX_COMPAT             = 0x0100
 	IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE = 0x8000
@@ -126,6 +127,7 @@ const (
 	IMAGE_REL_ARM_SECREL   = 0x000F
 
 	IMAGE_REL_BASED_HIGHLOW = 3
+	IMAGE_REL_BASED_DIR64   = 10
 )
 
 const (
@@ -752,12 +754,12 @@ func (f *peFile) writeSymbolTableAndStringTable(ctxt *Link) {
 }
 
 // writeFileHeader writes COFF file header for peFile f.
-func (f *peFile) writeFileHeader(arch *sys.Arch, out *OutBuf, linkmode LinkMode) {
+func (f *peFile) writeFileHeader(ctxt *Link) {
 	var fh pe.FileHeader
 
-	switch arch.Family {
+	switch ctxt.Arch.Family {
 	default:
-		Exitf("unknown PE architecture: %v", arch.Family)
+		Exitf("unknown PE architecture: %v", ctxt.Arch.Family)
 	case sys.AMD64:
 		fh.Machine = IMAGE_FILE_MACHINE_AMD64
 	case sys.I386:
@@ -772,16 +774,15 @@ func (f *peFile) writeFileHeader(arch *sys.Arch, out *OutBuf, linkmode LinkMode)
 	// much more beneficial than having build timestamp in the header.
 	fh.TimeDateStamp = 0
 
-	if linkmode == LinkExternal {
+	if ctxt.LinkMode == LinkExternal {
 		fh.Characteristics = IMAGE_FILE_LINE_NUMS_STRIPPED
 	} else {
-		switch arch.Family {
-		default:
-			Exitf("write COFF(ext): unknown PE architecture: %v", arch.Family)
+		fh.Characteristics = IMAGE_FILE_EXECUTABLE_IMAGE | IMAGE_FILE_DEBUG_STRIPPED
+		switch ctxt.Arch.Family {
 		case sys.AMD64, sys.I386:
-			fh.Characteristics = IMAGE_FILE_RELOCS_STRIPPED | IMAGE_FILE_EXECUTABLE_IMAGE | IMAGE_FILE_DEBUG_STRIPPED
-		case sys.ARM:
-			fh.Characteristics = IMAGE_FILE_EXECUTABLE_IMAGE | IMAGE_FILE_DEBUG_STRIPPED
+			if ctxt.BuildMode != BuildModePIE {
+				fh.Characteristics |= IMAGE_FILE_RELOCS_STRIPPED
+			}
 		}
 	}
 	if pe64 != 0 {
@@ -797,7 +798,7 @@ func (f *peFile) writeFileHeader(arch *sys.Arch, out *OutBuf, linkmode LinkMode)
 	fh.PointerToSymbolTable = uint32(f.symtabOffset)
 	fh.NumberOfSymbols = uint32(f.symbolCount)
 
-	binary.Write(out, binary.LittleEndian, &fh)
+	binary.Write(ctxt.Out, binary.LittleEndian, &fh)
 }
 
 // writeOptionalHeader writes COFF optional header for peFile f.
@@ -859,12 +860,6 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 		oh.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_CUI
 	}
 
-	switch ctxt.Arch.Family {
-	case sys.ARM:
-		oh64.DllCharacteristics = IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
-		oh.DllCharacteristics = IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
-	}
-
 	// Mark as having awareness of terminal services, to avoid ancient compatibility hacks.
 	oh64.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE
 	oh.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE
@@ -872,6 +867,23 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	// Enable DEP
 	oh64.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_NX_COMPAT
 	oh.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_NX_COMPAT
+
+	// The DLL can be relocated at load time.
+	switch ctxt.Arch.Family {
+	case sys.AMD64, sys.I386:
+		if ctxt.BuildMode == BuildModePIE {
+			oh64.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
+			oh.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
+		}
+	case sys.ARM:
+		oh64.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
+		oh.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
+	}
+
+	// Image can handle a high entropy 64-bit virtual address space.
+	if ctxt.BuildMode == BuildModePIE {
+		oh64.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA
+	}
 
 	// Disable stack growth as we don't want Windows to
 	// fiddle with the thread stack limits, which we set
@@ -997,7 +1009,7 @@ func pewrite(ctxt *Link) {
 		ctxt.Out.WriteStringN("PE", 4)
 	}
 
-	pefile.writeFileHeader(ctxt.Arch, ctxt.Out, ctxt.LinkMode)
+	pefile.writeFileHeader(ctxt)
 
 	pefile.writeOptionalHeader(ctxt)
 
@@ -1376,6 +1388,8 @@ func (rt *peBaseRelocTable) addentry(ctxt *Link, s *sym.Symbol, r *sym.Reloc) {
 		Exitf("unsupported relocation size %d\n", r.Siz)
 	case 4:
 		e.typeOff |= uint16(IMAGE_REL_BASED_HIGHLOW << 12)
+	case 8:
+		e.typeOff |= uint16(IMAGE_REL_BASED_DIR64 << 12)
 	}
 
 	b.entries = append(b.entries, e)
@@ -1430,11 +1444,15 @@ func addPEBaseRelocSym(ctxt *Link, s *sym.Symbol, rt *peBaseRelocTable) {
 }
 
 func addPEBaseReloc(ctxt *Link) {
-	// We only generate base relocation table for ARM (and ... ARM64), x86, and AMD64 are marked as legacy
-	// archs and can use fixed base with no base relocation information
+	// Arm does not work without base relocation table.
+	// 386 and amd64 will only require the table for BuildModePIE.
 	switch ctxt.Arch.Family {
 	default:
 		return
+	case sys.I386, sys.AMD64:
+		if ctxt.BuildMode != BuildModePIE {
+			return
+		}
 	case sys.ARM:
 	}
 

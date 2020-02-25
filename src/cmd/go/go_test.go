@@ -9,6 +9,7 @@ import (
 	"context"
 	"debug/elf"
 	"debug/macho"
+	"debug/pe"
 	"flag"
 	"fmt"
 	"go/format"
@@ -2146,19 +2147,37 @@ func TestBuildmodePIE(t *testing.T) {
 	switch platform {
 	case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
 		"android/amd64", "android/arm", "android/arm64", "android/386",
-		"freebsd/amd64":
+		"freebsd/amd64",
+		"windows/386", "windows/amd64", "windows/arm":
 	case "darwin/amd64":
 	default:
 		t.Skipf("skipping test because buildmode=pie is not supported on %s", platform)
 	}
+	t.Run("non-cgo", func(t *testing.T) {
+		testBuildmodePIE(t, false)
+	})
+	if canCgo {
+		switch runtime.GOOS {
+		case "darwin", "freebsd", "linux", "windows":
+			t.Run("cgo", func(t *testing.T) {
+				testBuildmodePIE(t, true)
+			})
+		}
+	}
+}
 
+func testBuildmodePIE(t *testing.T, useCgo bool) {
 	tg := testgo(t)
 	defer tg.cleanup()
 	tg.parallel()
 
-	tg.tempFile("main.go", `package main; func main() { print("hello") }`)
+	var s string
+	if useCgo {
+		s = `import "C";`
+	}
+	tg.tempFile("main.go", fmt.Sprintf(`package main;%s func main() { print("hello") }`, s))
 	src := tg.path("main.go")
-	obj := tg.path("main")
+	obj := tg.path("main.exe")
 	tg.run("build", "-buildmode=pie", "-o", obj, src)
 
 	switch runtime.GOOS {
@@ -2182,6 +2201,38 @@ func TestBuildmodePIE(t *testing.T) {
 		}
 		if f.Flags&macho.FlagPIE == 0 {
 			t.Error("PIE must have PIE flag, but not")
+		}
+	case "windows":
+		f, err := pe.Open(obj)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		const (
+			IMAGE_FILE_RELOCS_STRIPPED               = 0x0001
+			IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA = 0x0020
+			IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE    = 0x0040
+		)
+		if f.Section(".reloc") == nil {
+			t.Error(".reloc section is not present")
+		}
+		if (f.FileHeader.Characteristics & IMAGE_FILE_RELOCS_STRIPPED) != 0 {
+			t.Error("IMAGE_FILE_RELOCS_STRIPPED flag is set")
+		}
+		var dc uint16
+		switch oh := f.OptionalHeader.(type) {
+		case *pe.OptionalHeader32:
+			dc = oh.DllCharacteristics
+		case *pe.OptionalHeader64:
+			dc = oh.DllCharacteristics
+			if (dc & IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA) == 0 {
+				t.Error("IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA flag is not set")
+			}
+		default:
+			t.Fatalf("unexpected optional header type of %T", f.OptionalHeader)
+		}
+		if (dc & IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE) == 0 {
+			t.Error("IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE flag is not set")
 		}
 	default:
 		panic("unreachable")
