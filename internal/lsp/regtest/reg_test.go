@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -39,7 +38,7 @@ func TestMain(m *testing.M) {
 		goplsPath := *goplsBinaryPath
 		if goplsPath == "" {
 			var err error
-			goplsPath, err = testBinaryPath()
+			goplsPath, err = os.Executable()
 			if err != nil {
 				panic(fmt.Sprintf("finding test binary path: %v", err))
 			}
@@ -51,19 +50,4 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 	runner.Close()
 	os.Exit(code)
-}
-
-func testBinaryPath() (string, error) {
-	pth := os.Args[0]
-	if !filepath.IsAbs(pth) {
-		cwd, err := os.Getwd()
-		if err == nil {
-			return "", fmt.Errorf("os.Getwd: %v", err)
-		}
-		pth = filepath.Join(cwd, pth)
-	}
-	if _, err := os.Stat(pth); err != nil {
-		return "", fmt.Errorf("os.Stat: %v", err)
-	}
-	return pth, nil
 }

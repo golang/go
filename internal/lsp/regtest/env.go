@@ -110,7 +110,7 @@ func (r *Runner) getRemoteSocket(t *testing.T) string {
 		t.Fatalf("creating tempdir: %v", err)
 	}
 	socket := filepath.Join(r.socketDir, daemonFile)
-	args := []string{"serve", "-listen", "unix;" + socket}
+	args := []string{"serve", "-listen", "unix;" + socket, "-listen.timeout", "10s"}
 	cmd := exec.Command(r.goplsPath, args...)
 	cmd.Env = append(os.Environ(), runTestAsGoplsEnvvar+"=true")
 	var stderr bytes.Buffer
@@ -294,6 +294,14 @@ func (e *Env) OpenFile(name string) {
 func (e *Env) CreateBuffer(name string, content string) {
 	e.t.Helper()
 	if err := e.E.CreateBuffer(e.ctx, name, content); err != nil {
+		e.t.Fatal(err)
+	}
+}
+
+// CloseBuffer closes an editor buffer, calling t.Fatal on any error.
+func (e *Env) CloseBuffer(name string) {
+	e.t.Helper()
+	if err := e.E.CloseBuffer(e.ctx, name); err != nil {
 		e.t.Fatal(err)
 	}
 }

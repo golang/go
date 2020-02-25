@@ -93,12 +93,11 @@ func TestDiagnosticClearingOnDelete(t *testing.T) {
 func TestDiagnosticClearingOnClose(t *testing.T) {
 	t.Parallel()
 	runner.Run(t, badPackage, func(ctx context.Context, t *testing.T, env *Env) {
-		env.E.CreateBuffer(env.ctx, "c.go", `package consts
+		env.CreateBuffer("c.go", `package consts
 
 const a = 3`)
 		env.Await(DiagnosticAt("a.go", 2, 6), DiagnosticAt("b.go", 2, 6), DiagnosticAt("c.go", 2, 6))
-		env.E.CloseBuffer(env.ctx, "c.go")
-
+		env.CloseBuffer("c.go")
 		env.Await(DiagnosticAt("a.go", 2, 6), DiagnosticAt("b.go", 2, 6), EmptyDiagnostics("c.go"))
 	})
 }

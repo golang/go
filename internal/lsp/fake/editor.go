@@ -348,7 +348,9 @@ func (e *Editor) GoToDefinition(ctx context.Context, path string, pos Pos) (stri
 	}
 	newPath := e.ws.URIToPath(resp[0].URI)
 	newPos := fromProtocolPosition(resp[0].Range.Start)
-	e.OpenFile(ctx, newPath)
+	if err := e.OpenFile(ctx, newPath); err != nil {
+		return "", Pos{}, fmt.Errorf("OpenFile: %v", err)
+	}
 	return newPath, newPos, nil
 }
 
