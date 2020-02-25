@@ -105,6 +105,9 @@ type ArchSyms struct {
 	GOT    *sym.Symbol
 	PLT    *sym.Symbol
 	GOTPLT *sym.Symbol
+
+	Tlsg      *sym.Symbol
+	Tlsoffset int
 }
 
 // setArchSyms sets up the ArchSyms structure, and must be called before
@@ -2651,6 +2654,7 @@ func (ctxt *Link) loadlibfull() {
 
 	// Pull the symbols out.
 	ctxt.loader.ExtractSymbols(ctxt.Syms, ctxt.Reachparent)
+	ctxt.lookup = ctxt.Syms.ROLookup
 
 	// When we generated dwarf DIE objects, we created them
 	// with embedded loader.Sym refs as opposed to sym.Symbol refs.

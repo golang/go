@@ -100,7 +100,7 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
 		if Symaddr(r.Sym) == 0 && (r.Sym.Type != sym.SDYNIMPORT && r.Sym.Type != sym.SUNDEFEXT) {
 			if r.Sym.File != s.File {
 				if !isRuntimeDepPkg(s.File) || !isRuntimeDepPkg(r.Sym.File) {
-					ctxt.errorUnresolved(ctxt.Syms.ROLookup, s, r)
+					ctxt.errorUnresolved(s, r)
 				}
 				// runtime and its dependent packages may call to each other.
 				// they are fine, as they will be laid down together.
@@ -127,7 +127,7 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
 //
 // This is a performance-critical function for the linker; be careful
 // to avoid introducing unnecessary allocations in the main loop.
-func relocsym(ctxt *Link, target *Target, s *sym.Symbol) {
+func relocsym(target *Target, err *ErrorReporter, lookup LookupFn, syms *ArchSyms, s *sym.Symbol) {
 	if len(s.R) == 0 {
 		return
 	}
@@ -167,7 +167,7 @@ func relocsym(ctxt *Link, target *Target, s *sym.Symbol) {
 					continue
 				}
 			} else {
-				ctxt.errorUnresolved(ctxt.Syms.ROLookup, s, r)
+				err.errorUnresolved(s, r)
 				continue
 			}
 		}
@@ -222,7 +222,7 @@ func relocsym(ctxt *Link, target *Target, s *sym.Symbol) {
 			case 8:
 				o = int64(target.Arch.ByteOrder.Uint64(s.P[off:]))
 			}
-			if offset, ok := thearch.Archreloc(target, &ctxt.ArchSyms, r, s, o); ok {
+			if offset, ok := thearch.Archreloc(target, syms, r, s, o); ok {
 				o = offset
 			} else {
 				Errorf(s, "unknown reloc to %v: %d (%s)", r.Sym.Name, r.Type, sym.RelocName(target.Arch, r.Type))
@@ -231,7 +231,7 @@ func relocsym(ctxt *Link, target *Target, s *sym.Symbol) {
 			if target.IsExternal() && target.IsElf() {
 				r.Done = false
 				if r.Sym == nil {
-					r.Sym = ctxt.Tlsg
+					r.Sym = syms.Tlsg
 				}
 				r.Xsym = r.Sym
 				r.Xadd = r.Add
@@ -252,7 +252,7 @@ func relocsym(ctxt *Link, target *Target, s *sym.Symbol) {
 				// to take up 8 bytes.
 				o = 8 + r.Sym.Value
 			} else if target.IsElf() || target.IsPlan9() || target.IsDarwin() {
-				o = int64(ctxt.Tlsoffset) + r.Add
+				o = int64(syms.Tlsoffset) + r.Add
 			} else if target.IsWindows() {
 				o = r.Add
 			} else {
@@ -262,7 +262,7 @@ func relocsym(ctxt *Link, target *Target, s *sym.Symbol) {
 			if target.IsExternal() && target.IsElf() {
 				r.Done = false
 				if r.Sym == nil {
-					r.Sym = ctxt.Tlsg
+					r.Sym = syms.Tlsg
 				}
 				r.Xsym = r.Sym
 				r.Xadd = r.Add
@@ -279,8 +279,8 @@ func relocsym(ctxt *Link, target *Target, s *sym.Symbol) {
 					log.Fatalf("internal linking of TLS IE not supported on %v", target.Arch.Family)
 				}
 				thearch.TLSIEtoLE(s, int(off), int(r.Siz))
-				o = int64(ctxt.Tlsoffset)
-				// TODO: o += r.Add when ctxt.Arch.Family != sys.AMD64?
+				o = int64(syms.Tlsoffset)
+				// TODO: o += r.Add when !target.IsAmd64()?
 				// Why do we treat r.Add differently on AMD64?
 				// Is the external linker using Xadd at all?
 			} else {
@@ -376,7 +376,7 @@ func relocsym(ctxt *Link, target *Target, s *sym.Symbol) {
 					r.Type = objabi.R_ADDR
 				}
 
-				r.Xsym = ctxt.Syms.ROLookup(r.Sym.Sect.Name, 0)
+				r.Xsym = lookup(r.Sym.Sect.Name, 0)
 				r.Xadd = r.Add + Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr)
 
 				o = r.Xadd
@@ -520,7 +520,7 @@ func relocsym(ctxt *Link, target *Target, s *sym.Symbol) {
 		if target.IsPPC64() || target.IsS390X() {
 			r.InitExt()
 			if r.Variant != sym.RV_NONE {
-				o = thearch.Archrelocvariant(target, &ctxt.ArchSyms, r, s, o)
+				o = thearch.Archrelocvariant(target, syms, r, s, o)
 			}
 		}
 
@@ -571,14 +571,18 @@ func relocsym(ctxt *Link, target *Target, s *sym.Symbol) {
 }
 
 func (ctxt *Link) reloc() {
+	target := &ctxt.Target
+	reporter := &ctxt.ErrorReporter
+	lookup := ctxt.Syms.ROLookup
+	syms := &ctxt.ArchSyms
 	for _, s := range ctxt.Textp {
-		relocsym(ctxt, &ctxt.Target, s)
+		relocsym(target, reporter, lookup, syms, s)
 	}
 	for _, s := range datap {
-		relocsym(ctxt, &ctxt.Target, s)
+		relocsym(target, reporter, lookup, syms, s)
 	}
 	for _, s := range dwarfp {
-		relocsym(ctxt, &ctxt.Target, s)
+		relocsym(target, reporter, lookup, syms, s)
 	}
 }
 
@@ -2453,6 +2457,10 @@ func compressSyms(ctxt *Link, syms []*sym.Symbol) []byte {
 	if err != nil {
 		log.Fatalf("NewWriterLevel failed: %s", err)
 	}
+	target := &ctxt.Target
+	reporter := &ctxt.ErrorReporter
+	lookup := ctxt.Syms.ROLookup
+	archSyms := &ctxt.ArchSyms
 	for _, s := range syms {
 		// s.P may be read-only. Apply relocations in a
 		// temporary buffer, and immediately write it out.
@@ -2463,7 +2471,7 @@ func compressSyms(ctxt *Link, syms []*sym.Symbol) []byte {
 			s.P = relocbuf
 			s.Attr.Set(sym.AttrReadOnly, false)
 		}
-		relocsym(ctxt, &ctxt.Target, s)
+		relocsym(target, reporter, lookup, archSyms, s)
 		if _, err := z.Write(s.P); err != nil {
 			log.Fatalf("compression failed: %s", err)
 		}

@@ -64,13 +64,11 @@ type Link struct {
 
 	compressDWARF bool
 
-	Tlsg         *sym.Symbol
 	Tlsg2        loader.Sym
 	Libdir       []string
 	Library      []*sym.Library
 	LibraryByPkg map[string]*sym.Library
 	Shlibs       []Shlib
-	Tlsoffset    int
 	Textp        []*sym.Symbol
 	Textp2       []loader.Sym
 	Filesyms     []*sym.Symbol
