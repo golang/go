@@ -597,8 +597,8 @@ func gentrampdyn(arch *sys.Arch, tramp, target *sym.Symbol, offset int64) {
 	}
 }
 
-func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
-	if ctxt.LinkMode == ld.LinkExternal {
+func archreloc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
+	if target.IsExternal() {
 		switch r.Type {
 		case objabi.R_CALLARM:
 			r.Done = false
@@ -623,7 +623,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 			// the section load address.
 			// we need to compensate that by removing the instruction's address
 			// from addend.
-			if ctxt.HeadType == objabi.Hdarwin {
+			if target.IsDarwin() {
 				r.Xadd -= ld.Symaddr(s) + int64(r.Off)
 			}
 
@@ -667,7 +667,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 	return val, false
 }
 
-func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
+func archrelocvariant(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
 	log.Fatalf("unexpected relocation variant")
 	return t
 }

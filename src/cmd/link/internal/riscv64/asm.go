@@ -40,7 +40,7 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 	return false
 }
 
-func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
+func archreloc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
 	switch r.Type {
 	case objabi.R_CALLRISCV:
 		// Nothing to do.
@@ -91,7 +91,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 	return val, false
 }
 
-func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
+func archrelocvariant(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
 	log.Fatalf("archrelocvariant")
 	return -1
 }

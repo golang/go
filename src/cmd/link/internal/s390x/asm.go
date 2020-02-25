@@ -387,8 +387,8 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 	return false
 }
 
-func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
-	if ctxt.LinkMode == ld.LinkExternal {
+func archreloc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
+	if target.IsExternal() {
 		return val, false
 	}
 
@@ -402,7 +402,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 	return val, false
 }
 
-func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
+func archrelocvariant(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
 	switch r.Variant & sym.RV_TYPE_MASK {
 	default:
 		ld.Errorf(s, "unexpected relocation variant %d", r.Variant)

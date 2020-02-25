@@ -7,6 +7,7 @@ package ld
 import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"encoding/binary"
 )
 
 // Target holds the configuration we're building for.
@@ -33,6 +34,10 @@ func (t *Target) IsShared() bool {
 
 func (t *Target) IsPlugin() bool {
 	return t.BuildMode == BuildModePlugin
+}
+
+func (t *Target) IsInternal() bool {
+	return t.LinkMode == LinkInternal
 }
 
 func (t *Target) IsExternal() bool {
@@ -83,6 +88,10 @@ func (t *Target) IsS390X() bool {
 // OS Functions
 //
 
+func (t *Target) IsLinux() bool {
+	return t.HeadType == objabi.Hlinux
+}
+
 func (t *Target) IsDarwin() bool {
 	return t.HeadType == objabi.Hdarwin
 }
@@ -101,4 +110,12 @@ func (t *Target) IsAIX() bool {
 
 func (t *Target) IsSolaris() bool {
 	return t.HeadType == objabi.Hsolaris
+}
+
+//
+// MISC
+//
+
+func (t *Target) IsBigEndian() bool {
+	return t.Arch.ByteOrder == binary.BigEndian
 }

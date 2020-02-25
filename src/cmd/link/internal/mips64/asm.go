@@ -99,8 +99,8 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 	return false
 }
 
-func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
-	if ctxt.LinkMode == ld.LinkExternal {
+func archreloc(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
+	if target.IsExternal() {
 		switch r.Type {
 		default:
 			return val, false
@@ -140,7 +140,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 	case objabi.R_ADDRMIPS,
 		objabi.R_ADDRMIPSU:
 		t := ld.Symaddr(r.Sym) + r.Add
-		o1 := ctxt.Arch.ByteOrder.Uint32(s.P[r.Off:])
+		o1 := target.Arch.ByteOrder.Uint32(s.P[r.Off:])
 		if r.Type == objabi.R_ADDRMIPS {
 			return int64(o1&0xffff0000 | uint32(t)&0xffff), true
 		}
@@ -151,20 +151,20 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 		if t < -32768 || t >= 32678 {
 			ld.Errorf(s, "TLS offset out of range %d", t)
 		}
-		o1 := ctxt.Arch.ByteOrder.Uint32(s.P[r.Off:])
+		o1 := target.Arch.ByteOrder.Uint32(s.P[r.Off:])
 		return int64(o1&0xffff0000 | uint32(t)&0xffff), true
 	case objabi.R_CALLMIPS,
 		objabi.R_JMPMIPS:
 		// Low 26 bits = (S + A) >> 2
 		t := ld.Symaddr(r.Sym) + r.Add
-		o1 := ctxt.Arch.ByteOrder.Uint32(s.P[r.Off:])
+		o1 := target.Arch.ByteOrder.Uint32(s.P[r.Off:])
 		return int64(o1&0xfc000000 | uint32(t>>2)&^0xfc000000), true
 	}
 
 	return val, false
 }
 
-func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
+func archrelocvariant(ctxt *ld.Link, target *ld.Target, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
 	return -1
 }
 

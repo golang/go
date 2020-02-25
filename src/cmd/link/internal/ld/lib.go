@@ -118,7 +118,7 @@ type Arch struct {
 	// value is the appropriately relocated value (to be written back
 	// to the same spot in sym.P) and a boolean indicating
 	// success/failure (a failing value indicates a fatal error).
-	Archreloc func(link *Link, rel *sym.Reloc, sym *sym.Symbol,
+	Archreloc func(link *Link, target *Target, rel *sym.Reloc, sym *sym.Symbol,
 		offset int64) (relocatedOffset int64, success bool)
 	// Archrelocvariant is a second arch-specific hook used for
 	// relocation processing; it handles relocations where r.Type is
@@ -128,7 +128,7 @@ type Arch struct {
 	// relocation applies, and "off" is the contents of the
 	// to-be-relocated data item (from sym.P). Return is an updated
 	// offset value.
-	Archrelocvariant func(link *Link, rel *sym.Reloc, sym *sym.Symbol,
+	Archrelocvariant func(link *Link, target *Target, rel *sym.Reloc, sym *sym.Symbol,
 		offset int64) (relocatedOffset int64)
 	Trampoline func(*Link, *sym.Reloc, *sym.Symbol)
 
