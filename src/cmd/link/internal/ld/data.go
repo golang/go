@@ -571,19 +571,31 @@ func relocsym(target *Target, err *ErrorReporter, lookup LookupFn, syms *ArchSym
 }
 
 func (ctxt *Link) reloc() {
+	var wg sync.WaitGroup
 	target := &ctxt.Target
 	reporter := &ctxt.ErrorReporter
 	lookup := ctxt.Syms.ROLookup
 	syms := &ctxt.ArchSyms
-	for _, s := range ctxt.Textp {
-		relocsym(target, reporter, lookup, syms, s)
-	}
-	for _, s := range datap {
-		relocsym(target, reporter, lookup, syms, s)
-	}
-	for _, s := range dwarfp {
-		relocsym(target, reporter, lookup, syms, s)
-	}
+	wg.Add(3)
+	go func() {
+		for _, s := range ctxt.Textp {
+			relocsym(target, reporter, lookup, syms, s)
+		}
+		wg.Done()
+	}()
+	go func() {
+		for _, s := range datap {
+			relocsym(target, reporter, lookup, syms, s)
+		}
+		wg.Done()
+	}()
+	go func() {
+		for _, s := range dwarfp {
+			relocsym(target, reporter, lookup, syms, s)
+		}
+		wg.Done()
+	}()
+	wg.Wait()
 }
 
 func windynrelocsym(ctxt *Link, rel, s *sym.Symbol) {
