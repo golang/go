@@ -678,8 +678,8 @@ func TestMap(t *testing.T) {
 		}
 		return r
 	}
-	s := string(utf8.RuneSelf) + string(utf8.MaxRune)
-	r := string(utf8.MaxRune) + string(utf8.RuneSelf) // reverse of s
+	s := string(rune(utf8.RuneSelf)) + string(utf8.MaxRune)
+	r := string(utf8.MaxRune) + string(rune(utf8.RuneSelf)) // reverse of s
 	m = Map(encode, s)
 	if m != r {
 		t.Errorf("encoding not handled correctly: expected %q got %q", r, m)
