@@ -1924,8 +1924,7 @@
 	&& x0.Uses == 1 && x1.Uses == 1
 	&& y0.Uses == 1 && y1.Uses == 1
 	&& mergePoint(b,x0,x1) != nil
-	&& clobber(x0) && clobber(x1)
-	&& clobber(y0) && clobber(y1)
+	&& clobber(x0, x1, y0, y1)
 	-> @mergePoint(b,x0,x1) (MOVHUload <t> {s} (OffPtr <p.Type> [i0] p) mem)
 (ORshiftLL <t> [8]
 	y0:(MOVDnop x0:(MOVBUloadidx ptr0 idx0 mem))
@@ -1935,8 +1934,7 @@
 	&& y0.Uses == 1 && y1.Uses == 1
 	&& mergePoint(b,x0,x1) != nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
-	&& clobber(x0) && clobber(x1)
-	&& clobber(y0) && clobber(y1)
+	&& clobber(x0, x1, y0, y1)
 	-> @mergePoint(b,x0,x1) (MOVHUloadidx <t> ptr0 idx0 mem)
 (ORshiftLL <t> [8]
 	y0:(MOVDnop x0:(MOVBUloadidx ptr idx mem))
@@ -1944,8 +1942,7 @@
 	&& x0.Uses == 1 && x1.Uses == 1
 	&& y0.Uses == 1 && y1.Uses == 1
 	&& mergePoint(b,x0,x1) != nil
-	&& clobber(x0) && clobber(x1)
-	&& clobber(y0) && clobber(y1)
+	&& clobber(x0, x1, y0, y1)
 	-> @mergePoint(b,x0,x1) (MOVHUloadidx <t> ptr idx mem)
 
 // b[0] | b[1]<<8 | b[2]<<16 | b[3]<<24 -> load 32-bit
@@ -1959,9 +1956,7 @@
 	&& y1.Uses == 1 && y2.Uses == 1
 	&& o0.Uses == 1
 	&& mergePoint(b,x0,x1,x2) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2)
-	&& clobber(y1) && clobber(y2)
-	&& clobber(o0)
+	&& clobber(x0, x1, x2, y1, y2, o0)
 	-> @mergePoint(b,x0,x1,x2) (MOVWUload <t> {s} (OffPtr <p.Type> [i0] p) mem)
 (ORshiftLL <t> [24] o0:(ORshiftLL [16]
 	            x0:(MOVHUloadidx ptr0 idx0 mem)
@@ -1974,9 +1969,7 @@
 	&& mergePoint(b,x0,x1,x2) != nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& isSamePtr(p1, p)
-	&& clobber(x0) && clobber(x1) && clobber(x2)
-	&& clobber(y1) && clobber(y2)
-	&& clobber(o0)
+	&& clobber(x0, x1, x2, y1, y2, o0)
 	-> @mergePoint(b,x0,x1,x2) (MOVWUloadidx <t> ptr0 idx0 mem)
 (ORshiftLL <t> [24] o0:(ORshiftLL [16]
 	            x0:(MOVHUloadidx ptr idx mem)
@@ -1986,9 +1979,7 @@
 	&& y1.Uses == 1 && y2.Uses == 1
 	&& o0.Uses == 1
 	&& mergePoint(b,x0,x1,x2) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2)
-	&& clobber(y1) && clobber(y2)
-	&& clobber(o0)
+	&& clobber(x0, x1, x2, y1, y2, o0)
 	-> @mergePoint(b,x0,x1,x2) (MOVWUloadidx <t> ptr idx mem)
 (ORshiftLL <t> [24] o0:(ORshiftLL [16]
 	            x0:(MOVHUloadidx2 ptr0 idx0 mem)
@@ -2001,9 +1992,7 @@
 	&& mergePoint(b,x0,x1,x2) != nil
 	&& isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1)
 	&& isSamePtr(p1, p)
-	&& clobber(x0) && clobber(x1) && clobber(x2)
-	&& clobber(y1) && clobber(y2)
-	&& clobber(o0)
+	&& clobber(x0, x1, x2, y1, y2, o0)
 	-> @mergePoint(b,x0,x1,x2) (MOVWUloadidx <t> ptr0 (SLLconst <idx0.Type> [1] idx0) mem)
 
 // b[0] | b[1]<<8 | b[2]<<16 | b[3]<<24 | b[4]<<32 | b[5]<<40 | b[6]<<48 | b[7]<<56 -> load 64-bit
@@ -2021,9 +2010,7 @@
 	&& y1.Uses == 1 && y2.Uses == 1 && y3.Uses == 1 && y4.Uses == 1
 	&& o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1
 	&& mergePoint(b,x0,x1,x2,x3,x4) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4)
-	&& clobber(y1) && clobber(y2) && clobber(y3) && clobber(y4)
-	&& clobber(o0) && clobber(o1) && clobber(o2)
+	&& clobber(x0, x1, x2, x3, x4, y1, y2, y3, y4, o0, o1, o2)
 	-> @mergePoint(b,x0,x1,x2,x3,x4) (MOVDload <t> {s} (OffPtr <p.Type> [i0] p) mem)
 (ORshiftLL <t> [56] o0:(ORshiftLL [48] o1:(ORshiftLL [40] o2:(ORshiftLL [32]
 	            x0:(MOVWUloadidx ptr0 idx0 mem)
@@ -2038,9 +2025,7 @@
 	&& mergePoint(b,x0,x1,x2,x3,x4) != nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& isSamePtr(p1, p)
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4)
-	&& clobber(y1) && clobber(y2) && clobber(y3) && clobber(y4)
-	&& clobber(o0) && clobber(o1) && clobber(o2)
+	&& clobber(x0, x1, x2, x3, x4, y1, y2, y3, y4, o0, o1, o2)
 	-> @mergePoint(b,x0,x1,x2,x3,x4) (MOVDloadidx <t> ptr0 idx0 mem)
 (ORshiftLL <t> [56] o0:(ORshiftLL [48] o1:(ORshiftLL [40] o2:(ORshiftLL [32]
 	            x0:(MOVWUloadidx4 ptr0 idx0 mem)
@@ -2055,9 +2040,7 @@
 	&& mergePoint(b,x0,x1,x2,x3,x4) != nil
 	&& isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1)
 	&& isSamePtr(p1, p)
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4)
-	&& clobber(y1) && clobber(y2) && clobber(y3) && clobber(y4)
-	&& clobber(o0) && clobber(o1) && clobber(o2)
+	&& clobber(x0, x1, x2, x3, x4, y1, y2, y3, y4, o0, o1, o2)
 	-> @mergePoint(b,x0,x1,x2,x3,x4) (MOVDloadidx <t> ptr0 (SLLconst <idx0.Type> [2] idx0) mem)
 (ORshiftLL <t> [56] o0:(ORshiftLL [48] o1:(ORshiftLL [40] o2:(ORshiftLL [32]
 	            x0:(MOVWUloadidx ptr idx mem)
@@ -2069,9 +2052,7 @@
 	&& y1.Uses == 1 && y2.Uses == 1 && y3.Uses == 1 && y4.Uses == 1
 	&& o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1
 	&& mergePoint(b,x0,x1,x2,x3,x4) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4)
-	&& clobber(y1) && clobber(y2) && clobber(y3) && clobber(y4)
-	&& clobber(o0) && clobber(o1) && clobber(o2)
+	&& clobber(x0, x1, x2, x3, x4, y1, y2, y3, y4, o0, o1, o2)
 	-> @mergePoint(b,x0,x1,x2,x3,x4) (MOVDloadidx <t> ptr idx mem)
 
 // b[3]<<24 | b[2]<<16 | b[1]<<8 | b[0] -> load 32-bit
@@ -2087,9 +2068,7 @@
 	&& y0.Uses == 1 && y1.Uses == 1 && y2.Uses == 1 && y3.Uses == 1
 	&& o0.Uses == 1 && o1.Uses == 1 && s0.Uses == 1
 	&& mergePoint(b,x0,x1,x2,x3) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3)
-	&& clobber(y0) && clobber(y1) && clobber(y2) && clobber(y3)
-	&& clobber(o0) && clobber(o1) && clobber(s0)
+	&& clobber(x0, x1, x2, x3, y0, y1, y2, y3, o0, o1, s0)
 	-> @mergePoint(b,x0,x1,x2,x3) (MOVWUload <t> {s} (OffPtr <p.Type> [i0] p) mem)
 (OR <t> o0:(ORshiftLL [8] o1:(ORshiftLL [16] s0:(SLLconst [24]
 	y0:(MOVDnop x0:(MOVBUload [3] {s} p mem)))
@@ -2103,9 +2082,7 @@
 	&& mergePoint(b,x0,x1,x2,x3) != nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& isSamePtr(p1, p)
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3)
-	&& clobber(y0) && clobber(y1) && clobber(y2) && clobber(y3)
-	&& clobber(o0) && clobber(o1) && clobber(s0)
+	&& clobber(x0, x1, x2, x3, y0, y1, y2, y3, o0, o1, s0)
 	-> @mergePoint(b,x0,x1,x2,x3) (MOVWUloadidx <t> ptr0 idx0 mem)
 (OR <t> o0:(ORshiftLL [8] o1:(ORshiftLL [16] s0:(SLLconst [24]
 	y0:(MOVDnop x0:(MOVBUloadidx ptr (ADDconst [3] idx) mem)))
@@ -2116,9 +2093,7 @@
 	&& y0.Uses == 1 && y1.Uses == 1 && y2.Uses == 1 && y3.Uses == 1
 	&& o0.Uses == 1 && o1.Uses == 1 && s0.Uses == 1
 	&& mergePoint(b,x0,x1,x2,x3) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3)
-	&& clobber(y0) && clobber(y1) && clobber(y2) && clobber(y3)
-	&& clobber(o0) && clobber(o1) && clobber(s0)
+	&& clobber(x0, x1, x2, x3, y0, y1, y2, y3, o0, o1, s0)
 	-> @mergePoint(b,x0,x1,x2,x3) (MOVWUloadidx <t> ptr idx mem)
 
 // b[7]<<56 | b[6]<<48 | b[5]<<40 | b[4]<<32 | b[3]<<24 | b[2]<<16 | b[1]<<8 | b[0] -> load 64-bit
@@ -2145,12 +2120,7 @@
 	&& o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && o3.Uses == 1
 	&& o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1
 	&& mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3)
-	&& clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7)
-	&& clobber(y0) && clobber(y1) && clobber(y2) && clobber(y3)
-	&& clobber(y4) && clobber(y5) && clobber(y6) && clobber(y7)
-	&& clobber(o0) && clobber(o1) && clobber(o2) && clobber(o3)
-	&& clobber(o4) && clobber(o5) && clobber(s0)
+	&& clobber(x0, x1, x2, x3, x4, x5, x6, x7, y0, y1, y2, y3, y4, y5, y6, y7, o0, o1, o2, o3, o4, o5, s0)
 	-> @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (MOVDload <t> {s} (OffPtr <p.Type> [i0] p) mem)
 (OR <t> o0:(ORshiftLL [8] o1:(ORshiftLL [16] o2:(ORshiftLL [24] o3:(ORshiftLL [32] o4:(ORshiftLL [40] o5:(ORshiftLL [48] s0:(SLLconst [56]
 	y0:(MOVDnop x0:(MOVBUload [7] {s} p mem)))
@@ -2171,12 +2141,7 @@
 	&& mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) != nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& isSamePtr(p1, p)
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3)
-	&& clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7)
-	&& clobber(y0) && clobber(y1) && clobber(y2) && clobber(y3)
-	&& clobber(y4) && clobber(y5) && clobber(y6) && clobber(y7)
-	&& clobber(o0) && clobber(o1) && clobber(o2) && clobber(o3)
-	&& clobber(o4) && clobber(o5) && clobber(s0)
+	&& clobber(x0, x1, x2, x3, x4, x5, x6, x7, y0, y1, y2, y3, y4, y5, y6, y7, o0, o1, o2, o3, o4, o5, s0)
 	-> @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (MOVDloadidx <t> ptr0 idx0 mem)
 (OR <t> o0:(ORshiftLL [8] o1:(ORshiftLL [16] o2:(ORshiftLL [24] o3:(ORshiftLL [32] o4:(ORshiftLL [40] o5:(ORshiftLL [48] s0:(SLLconst [56]
 	y0:(MOVDnop x0:(MOVBUloadidx ptr (ADDconst [7] idx) mem)))
@@ -2194,12 +2159,7 @@
 	&& o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && o3.Uses == 1
 	&& o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1
 	&& mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3)
-	&& clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7)
-	&& clobber(y0) && clobber(y1) && clobber(y2) && clobber(y3)
-	&& clobber(y4) && clobber(y5) && clobber(y6) && clobber(y7)
-	&& clobber(o0) && clobber(o1) && clobber(o2) && clobber(o3)
-	&& clobber(o4) && clobber(o5) && clobber(s0)
+	&& clobber(x0, x1, x2, x3, x4, x5, x6, x7, y0, y1, y2, y3, y4, y5, y6, y7, o0, o1, o2, o3, o4, o5, s0)
 	-> @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (MOVDloadidx <t> ptr idx mem)
 
 // big endian loads
@@ -2211,8 +2171,7 @@
 	&& x0.Uses == 1 && x1.Uses == 1
 	&& y0.Uses == 1 && y1.Uses == 1
 	&& mergePoint(b,x0,x1) != nil
-	&& clobber(x0) && clobber(x1)
-	&& clobber(y0) && clobber(y1)
+	&& clobber(x0, x1, y0, y1)
 	-> @mergePoint(b,x0,x1) (REV16W <t> (MOVHUload <t> [i0] {s} p mem))
 (ORshiftLL <t> [8]
 	y0:(MOVDnop x0:(MOVBUload [1] {s} p1:(ADD ptr1 idx1) mem))
@@ -2222,8 +2181,7 @@
 	&& y0.Uses == 1 && y1.Uses == 1
 	&& mergePoint(b,x0,x1) != nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
-	&& clobber(x0) && clobber(x1)
-	&& clobber(y0) && clobber(y1)
+	&& clobber(x0, x1, y0, y1)
 	-> @mergePoint(b,x0,x1) (REV16W <t> (MOVHUloadidx <t> ptr0 idx0 mem))
 (ORshiftLL <t> [8]
 	y0:(MOVDnop x0:(MOVBUloadidx ptr (ADDconst [1] idx) mem))
@@ -2231,8 +2189,7 @@
 	&& x0.Uses == 1 && x1.Uses == 1
 	&& y0.Uses == 1 && y1.Uses == 1
 	&& mergePoint(b,x0,x1) != nil
-	&& clobber(x0) && clobber(x1)
-	&& clobber(y0) && clobber(y1)
+	&& clobber(x0, x1, y0, y1)
 	-> @mergePoint(b,x0,x1) (REV16W <t> (MOVHUloadidx <t> ptr idx mem))
 
 // b[3] | b[2]<<8 | b[1]<<16 | b[0]<<24 -> load 32-bit, reverse
@@ -2246,9 +2203,7 @@
 	&& y0.Uses == 1 && y1.Uses == 1 && y2.Uses == 1
 	&& o0.Uses == 1
 	&& mergePoint(b,x0,x1,x2) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2)
-	&& clobber(y0) && clobber(y1) && clobber(y2)
-	&& clobber(o0)
+	&& clobber(x0, x1, x2, y0, y1, y2, o0)
 	-> @mergePoint(b,x0,x1,x2) (REVW <t> (MOVWUload <t> {s} (OffPtr <p.Type> [i0] p) mem))
 (ORshiftLL <t> [24] o0:(ORshiftLL [16]
 	y0:(REV16W  x0:(MOVHUload [2] {s} p mem))
@@ -2261,9 +2216,7 @@
 	&& mergePoint(b,x0,x1,x2) != nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& isSamePtr(p1, p)
-	&& clobber(x0) && clobber(x1) && clobber(x2)
-	&& clobber(y0) && clobber(y1) && clobber(y2)
-	&& clobber(o0)
+	&& clobber(x0, x1, x2, y0, y1, y2, o0)
 	-> @mergePoint(b,x0,x1,x2) (REVW <t> (MOVWUloadidx <t> ptr0 idx0 mem))
 (ORshiftLL <t> [24] o0:(ORshiftLL [16]
 	y0:(REV16W  x0:(MOVHUloadidx ptr (ADDconst [2] idx) mem))
@@ -2273,9 +2226,7 @@
 	&& y0.Uses == 1 && y1.Uses == 1 && y2.Uses == 1
 	&& o0.Uses == 1
 	&& mergePoint(b,x0,x1,x2) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2)
-	&& clobber(y0) && clobber(y1) && clobber(y2)
-	&& clobber(o0)
+	&& clobber(x0, x1, x2, y0, y1, y2, o0)
 	-> @mergePoint(b,x0,x1,x2) (REVW <t> (MOVWUloadidx <t> ptr idx mem))
 
 // b[7] | b[6]<<8 | b[5]<<16 | b[4]<<24 | b[3]<<32 | b[2]<<40 | b[1]<<48 | b[0]<<56 -> load 64-bit, reverse
@@ -2293,9 +2244,7 @@
 	&& y0.Uses == 1 && y1.Uses == 1 && y2.Uses == 1 && y3.Uses == 1 && y4.Uses == 1
 	&& o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1
 	&& mergePoint(b,x0,x1,x2,x3,x4) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4)
-	&& clobber(y0) && clobber(y1) && clobber(y2) && clobber(y3) && clobber(y4)
-	&& clobber(o0) && clobber(o1) && clobber(o2)
+	&& clobber(x0, x1, x2, x3, x4, y0, y1, y2, y3, y4, o0, o1, o2)
 	-> @mergePoint(b,x0,x1,x2,x3,x4) (REV <t> (MOVDload <t> {s} (OffPtr <p.Type> [i0] p) mem))
 (ORshiftLL <t> [56] o0:(ORshiftLL [48] o1:(ORshiftLL [40] o2:(ORshiftLL [32]
 	y0:(REVW    x0:(MOVWUload [4] {s} p mem))
@@ -2310,9 +2259,7 @@
 	&& mergePoint(b,x0,x1,x2,x3,x4) != nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& isSamePtr(p1, p)
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4)
-	&& clobber(y0) && clobber(y1) && clobber(y2) && clobber(y3) && clobber(y4)
-	&& clobber(o0) && clobber(o1) && clobber(o2)
+	&& clobber(x0, x1, x2, x3, x4, y0, y1, y2, y3, y4, o0, o1, o2)
 	-> @mergePoint(b,x0,x1,x2,x3,x4) (REV <t> (MOVDloadidx <t> ptr0 idx0 mem))
 (ORshiftLL <t> [56] o0:(ORshiftLL [48] o1:(ORshiftLL [40] o2:(ORshiftLL [32]
 	y0:(REVW    x0:(MOVWUloadidx ptr (ADDconst [4] idx) mem))
@@ -2324,9 +2271,7 @@
 	&& y0.Uses == 1 && y1.Uses == 1 && y2.Uses == 1 && y3.Uses == 1 && y4.Uses == 1
 	&& o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1
 	&& mergePoint(b,x0,x1,x2,x3,x4) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4)
-	&& clobber(y0) && clobber(y1) && clobber(y2) && clobber(y3) && clobber(y4)
-	&& clobber(o0) && clobber(o1) && clobber(o2)
+	&& clobber(x0, x1, x2, x3, x4, y0, y1, y2, y3, y4, o0, o1, o2)
 	-> @mergePoint(b,x0,x1,x2,x3,x4) (REV <t> (MOVDloadidx <t> ptr idx mem))
 
 // b[0]<<24 | b[1]<<16 | b[2]<<8 | b[3] -> load 32-bit, reverse
@@ -2342,9 +2287,7 @@
 	&& y0.Uses == 1 && y1.Uses == 1 && y2.Uses == 1 && y3.Uses == 1
 	&& o0.Uses == 1 && o1.Uses == 1 && s0.Uses == 1
 	&& mergePoint(b,x0,x1,x2,x3) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3)
-	&& clobber(y0) && clobber(y1) && clobber(y2) && clobber(y3)
-	&& clobber(o0) && clobber(o1) && clobber(s0)
+	&& clobber(x0, x1, x2, x3, y0, y1, y2, y3, o0, o1, s0)
 	-> @mergePoint(b,x0,x1,x2,x3) (REVW <t> (MOVWUload <t> {s} (OffPtr <p.Type> [i0] p) mem))
 (OR <t> o0:(ORshiftLL [8] o1:(ORshiftLL [16] s0:(SLLconst [24]
 	y0:(MOVDnop x0:(MOVBUloadidx ptr0 idx0 mem)))
@@ -2358,9 +2301,7 @@
 	&& mergePoint(b,x0,x1,x2,x3) != nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& isSamePtr(p1, p)
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3)
-	&& clobber(y0) && clobber(y1) && clobber(y2) && clobber(y3)
-	&& clobber(o0) && clobber(o1) && clobber(s0)
+	&& clobber(x0, x1, x2, x3, y0, y1, y2, y3, o0, o1, s0)
 	-> @mergePoint(b,x0,x1,x2,x3) (REVW <t> (MOVWUloadidx <t> ptr0 idx0 mem))
 (OR <t> o0:(ORshiftLL [8] o1:(ORshiftLL [16] s0:(SLLconst [24]
 	y0:(MOVDnop x0:(MOVBUloadidx ptr idx mem)))
@@ -2371,9 +2312,7 @@
 	&& y0.Uses == 1 && y1.Uses == 1 && y2.Uses == 1 && y3.Uses == 1
 	&& o0.Uses == 1 && o1.Uses == 1 && s0.Uses == 1
 	&& mergePoint(b,x0,x1,x2,x3) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3)
-	&& clobber(y0) && clobber(y1) && clobber(y2) && clobber(y3)
-	&& clobber(o0) && clobber(o1) && clobber(s0)
+	&& clobber(x0, x1, x2, x3, y0, y1, y2, y3, o0, o1, s0)
 	-> @mergePoint(b,x0,x1,x2,x3) (REVW <t> (MOVWUloadidx <t> ptr idx mem))
 
 // b[0]<<56 | b[1]<<48 | b[2]<<40 | b[3]<<32 | b[4]<<24 | b[5]<<16 | b[6]<<8 | b[7] -> load 64-bit, reverse
@@ -2400,12 +2339,7 @@
 	&& o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && o3.Uses == 1
 	&& o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1
 	&& mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3)
-	&& clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7)
-	&& clobber(y0) && clobber(y1) && clobber(y2) && clobber(y3)
-	&& clobber(y4) && clobber(y5) && clobber(y6) && clobber(y7)
-	&& clobber(o0) && clobber(o1) && clobber(o2) && clobber(o3)
-	&& clobber(o4) && clobber(o5) && clobber(s0)
+	&& clobber(x0, x1, x2, x3, x4, x5, x6, x7, y0, y1, y2, y3, y4, y5, y6, y7, o0, o1, o2, o3, o4, o5, s0)
 	-> @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (REV <t> (MOVDload <t> {s} (OffPtr <p.Type> [i0] p) mem))
 (OR <t> o0:(ORshiftLL [8] o1:(ORshiftLL [16] o2:(ORshiftLL [24] o3:(ORshiftLL [32] o4:(ORshiftLL [40] o5:(ORshiftLL [48] s0:(SLLconst [56]
 	y0:(MOVDnop x0:(MOVBUloadidx ptr0 idx0 mem)))
@@ -2426,12 +2360,7 @@
 	&& mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) != nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& isSamePtr(p1, p)
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3)
-	&& clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7)
-	&& clobber(y0) && clobber(y1) && clobber(y2) && clobber(y3)
-	&& clobber(y4) && clobber(y5) && clobber(y6) && clobber(y7)
-	&& clobber(o0) && clobber(o1) && clobber(o2) && clobber(o3)
-	&& clobber(o4) && clobber(o5) && clobber(s0)
+	&& clobber(x0, x1, x2, x3, x4, x5, x6, x7, y0, y1, y2, y3, y4, y5, y6, y7, o0, o1, o2, o3, o4, o5, s0)
 	-> @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (REV <t> (MOVDloadidx <t> ptr0 idx0 mem))
 (OR <t> o0:(ORshiftLL [8] o1:(ORshiftLL [16] o2:(ORshiftLL [24] o3:(ORshiftLL [32] o4:(ORshiftLL [40] o5:(ORshiftLL [48] s0:(SLLconst [56]
 	y0:(MOVDnop x0:(MOVBUloadidx ptr idx mem)))
@@ -2449,12 +2378,7 @@
 	&& o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1 && o3.Uses == 1
 	&& o4.Uses == 1 && o5.Uses == 1 && s0.Uses == 1
 	&& mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3)
-	&& clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7)
-	&& clobber(y0) && clobber(y1) && clobber(y2) && clobber(y3)
-	&& clobber(y4) && clobber(y5) && clobber(y6) && clobber(y7)
-	&& clobber(o0) && clobber(o1) && clobber(o2) && clobber(o3)
-	&& clobber(o4) && clobber(o5) && clobber(s0)
+	&& clobber(x0, x1, x2, x3, x4, x5, x6, x7, y0, y1, y2, y3, y4, y5, y6, y7, o0, o1, o2, o3, o4, o5, s0)
 	-> @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (REV <t> (MOVDloadidx <t> ptr idx mem))
 
 // Combine zero stores into larger (unaligned) stores.
@@ -2754,13 +2678,7 @@
 	&& x4.Uses == 1
 	&& x5.Uses == 1
 	&& x6.Uses == 1
-	&& clobber(x0)
-	&& clobber(x1)
-	&& clobber(x2)
-	&& clobber(x3)
-	&& clobber(x4)
-	&& clobber(x5)
-	&& clobber(x6)
+	&& clobber(x0, x1, x2, x3, x4, x5, x6)
 	-> (MOVDstore [i-7] {s} ptr (REV <w.Type> w) mem)
 (MOVBstore [7] {s} p w
 	x0:(MOVBstore [6] {s} p (SRLconst [8] w)
@@ -2780,13 +2698,7 @@
 	&& s == nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& isSamePtr(p1, p)
-	&& clobber(x0)
-	&& clobber(x1)
-	&& clobber(x2)
-	&& clobber(x3)
-	&& clobber(x4)
-	&& clobber(x5)
-	&& clobber(x6)
+	&& clobber(x0, x1, x2, x3, x4, x5, x6)
 	-> (MOVDstoreidx ptr0 idx0 (REV <w.Type> w) mem)
 (MOVBstore [i] {s} ptr w
 	x0:(MOVBstore [i-1] {s} ptr (UBFX [armBFAuxInt(8, 24)] w)
@@ -2795,9 +2707,7 @@
 	&& x0.Uses == 1
 	&& x1.Uses == 1
 	&& x2.Uses == 1
-	&& clobber(x0)
-	&& clobber(x1)
-	&& clobber(x2)
+	&& clobber(x0, x1, x2)
 	-> (MOVWstore [i-3] {s} ptr (REVW <w.Type> w) mem)
 (MOVBstore [3] {s} p w
 	x0:(MOVBstore [2] {s} p (UBFX [armBFAuxInt(8, 24)] w)
@@ -2809,9 +2719,7 @@
 	&& s == nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& isSamePtr(p1, p)
-	&& clobber(x0)
-	&& clobber(x1)
-	&& clobber(x2)
+	&& clobber(x0, x1, x2)
 	-> (MOVWstoreidx ptr0 idx0 (REVW <w.Type> w) mem)
 (MOVBstoreidx ptr (ADDconst [3] idx) w
 	x0:(MOVBstoreidx ptr (ADDconst [2] idx) (UBFX [armBFAuxInt(8, 24)] w)
@@ -2820,9 +2728,7 @@
 	&& x0.Uses == 1
 	&& x1.Uses == 1
 	&& x2.Uses == 1
-	&& clobber(x0)
-	&& clobber(x1)
-	&& clobber(x2)
+	&& clobber(x0, x1, x2)
 	-> (MOVWstoreidx ptr idx (REVW <w.Type> w) mem)
 (MOVBstoreidx ptr idx w
 	x0:(MOVBstoreidx ptr (ADDconst [1] idx) (UBFX [armBFAuxInt(8, 24)] w)
@@ -2831,9 +2737,7 @@
 	&& x0.Uses == 1
 	&& x1.Uses == 1
 	&& x2.Uses == 1
-	&& clobber(x0)
-	&& clobber(x1)
-	&& clobber(x2)
+	&& clobber(x0, x1, x2)
 	-> (MOVWstoreidx ptr idx w mem)
 (MOVBstore [i] {s} ptr w
 	x0:(MOVBstore [i-1] {s} ptr (SRLconst [8] (MOVDreg w))
@@ -2842,9 +2746,7 @@
 	&& x0.Uses == 1
 	&& x1.Uses == 1
 	&& x2.Uses == 1
-	&& clobber(x0)
-	&& clobber(x1)
-	&& clobber(x2)
+	&& clobber(x0, x1, x2)
 	-> (MOVWstore [i-3] {s} ptr (REVW <w.Type> w) mem)
 (MOVBstore [3] {s} p w
 	x0:(MOVBstore [2] {s} p (SRLconst [8] (MOVDreg w))
@@ -2856,9 +2758,7 @@
 	&& s == nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& isSamePtr(p1, p)
-	&& clobber(x0)
-	&& clobber(x1)
-	&& clobber(x2)
+	&& clobber(x0, x1, x2)
 	-> (MOVWstoreidx ptr0 idx0 (REVW <w.Type> w) mem)
 (MOVBstore [i] {s} ptr w
 	x0:(MOVBstore [i-1] {s} ptr (SRLconst [8] w)
@@ -2867,9 +2767,7 @@
 	&& x0.Uses == 1
 	&& x1.Uses == 1
 	&& x2.Uses == 1
-	&& clobber(x0)
-	&& clobber(x1)
-	&& clobber(x2)
+	&& clobber(x0, x1, x2)
 	-> (MOVWstore [i-3] {s} ptr (REVW <w.Type> w) mem)
 (MOVBstore [3] {s} p w
 	x0:(MOVBstore [2] {s} p (SRLconst [8] w)
@@ -2881,9 +2779,7 @@
 	&& s == nil
 	&& (isSamePtr(ptr0, ptr1) && isSamePtr(idx0, idx1) || isSamePtr(ptr0, idx1) && isSamePtr(idx0, ptr1))
 	&& isSamePtr(p1, p)
-	&& clobber(x0)
-	&& clobber(x1)
-	&& clobber(x2)
+	&& clobber(x0, x1, x2)
 	-> (MOVWstoreidx ptr0 idx0 (REVW <w.Type> w) mem)
 (MOVBstore [i] {s} ptr w x:(MOVBstore [i-1] {s} ptr (SRLconst [8] w) mem))
 	&& x.Uses == 1

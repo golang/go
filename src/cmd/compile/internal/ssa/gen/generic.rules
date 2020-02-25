@@ -1929,7 +1929,7 @@
 	&& t.(*types.Type).IsPtr() // avoids TUINTPTR, see issue 30061
 	&& s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
 	&& isInlinableMemmove(dst,src,sz,config)
-	&& clobber(s1) && clobber(s2) && clobber(s3)
+	&& clobber(s1, s2, s3)
 	-> (Move {t.(*types.Type).Elem()} [sz] dst src mem)
 
 // De-virtualize interface calls into static calls.
@@ -1975,12 +1975,12 @@
 (Zero {t} [n] dst1 vardef:(VarDef {x} move:(Move {t} [n] dst2 _ mem)))
 	&& move.Uses == 1 && vardef.Uses == 1
 	&& isSamePtr(dst1, dst2)
-	&& clobber(move) && clobber(vardef)
+	&& clobber(move, vardef)
 	-> (Zero {t} [n] dst1 (VarDef {x} mem))
 (Move {t} [n] dst1 src1 vardef:(VarDef {x} move:(Move {t} [n] dst2 _ mem)))
 	&& move.Uses == 1 && vardef.Uses == 1
 	&& isSamePtr(dst1, dst2) && disjoint(src1, n, dst2, n)
-	&& clobber(move) && clobber(vardef)
+	&& clobber(move, vardef)
 	-> (Move {t} [n] dst1 src1 (VarDef {x} mem))
 (Store {t1} op1:(OffPtr [o1] p1) d1
 	m2:(Store {t2} op2:(OffPtr [0] p2) d2
@@ -1989,7 +1989,7 @@
 	&& o1 == sizeof(t2)
 	&& n == sizeof(t2) + sizeof(t1)
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3)
-	&& clobber(m2) && clobber(m3)
+	&& clobber(m2, m3)
 	-> (Store {t1} op1 d1 (Store {t2} op2 d2 mem))
 (Store {t1} op1:(OffPtr [o1] p1) d1
 	m2:(Store {t2} op2:(OffPtr [o2] p2) d2
@@ -2000,7 +2000,7 @@
 	&& o1-o2 == sizeof(t2)
 	&& n == sizeof(t3) + sizeof(t2) + sizeof(t1)
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4)
-	&& clobber(m2) && clobber(m3) && clobber(m4)
+	&& clobber(m2, m3, m4)
 	-> (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 mem)))
 (Store {t1} op1:(OffPtr [o1] p1) d1
 	m2:(Store {t2} op2:(OffPtr [o2] p2) d2
@@ -2013,7 +2013,7 @@
 	&& o1-o2 == sizeof(t2)
 	&& n == sizeof(t4) + sizeof(t3) + sizeof(t2) + sizeof(t1)
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5)
-	&& clobber(m2) && clobber(m3) && clobber(m4) && clobber(m5)
+	&& clobber(m2, m3, m4, m5)
 	-> (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 (Store {t4} op4 d4 mem))))
 
 // Don't Zero variables that are immediately completely overwritten
@@ -2026,7 +2026,7 @@
 (Move {t} [n] dst1 src1 vardef:(VarDef {x} zero:(Zero {t} [n] dst2 mem)))
 	&& zero.Uses == 1 && vardef.Uses == 1
 	&& isSamePtr(dst1, dst2) && disjoint(src1, n, dst2, n)
-	&& clobber(zero) && clobber(vardef)
+	&& clobber(zero, vardef)
 	-> (Move {t} [n] dst1 src1 (VarDef {x} mem))
 (Store {t1} op1:(OffPtr [o1] p1) d1
 	m2:(Store {t2} op2:(OffPtr [0] p2) d2
@@ -2035,7 +2035,7 @@
 	&& o1 == sizeof(t2)
 	&& n == sizeof(t2) + sizeof(t1)
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3)
-	&& clobber(m2) && clobber(m3)
+	&& clobber(m2, m3)
 	-> (Store {t1} op1 d1 (Store {t2} op2 d2 mem))
 (Store {t1} op1:(OffPtr [o1] p1) d1
 	m2:(Store {t2} op2:(OffPtr [o2] p2) d2
@@ -2046,7 +2046,7 @@
 	&& o1-o2 == sizeof(t2)
 	&& n == sizeof(t3) + sizeof(t2) + sizeof(t1)
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4)
-	&& clobber(m2) && clobber(m3) && clobber(m4)
+	&& clobber(m2, m3, m4)
 	-> (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 mem)))
 (Store {t1} op1:(OffPtr [o1] p1) d1
 	m2:(Store {t2} op2:(OffPtr [o2] p2) d2
@@ -2059,7 +2059,7 @@
 	&& o1-o2 == sizeof(t2)
 	&& n == sizeof(t4) + sizeof(t3) + sizeof(t2) + sizeof(t1)
 	&& isSamePtr(p1, p2) && isSamePtr(p2, p3) && isSamePtr(p3, p4) && isSamePtr(p4, p5)
-	&& clobber(m2) && clobber(m3) && clobber(m4) && clobber(m5)
+	&& clobber(m2, m3, m4, m5)
 	-> (Store {t1} op1 d1 (Store {t2} op2 d2 (Store {t3} op3 d3 (Store {t4} op4 d4 mem))))
 
 // Don't Move from memory if the values are likely to already be

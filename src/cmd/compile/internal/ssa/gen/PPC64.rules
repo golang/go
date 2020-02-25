@@ -1094,7 +1094,7 @@
 	&& x0.Uses ==1 && x1.Uses == 1
 	&& o1.Uses == 1
 	&& mergePoint(b, x0, x1) != nil
-	&& clobber(x0) && clobber(x1) && clobber(o1)
+	&& clobber(x0, x1, o1)
 	 -> @mergePoint(b,x0,x1) (MOVHZload <t> {s} [i0] p mem)
 
 // b[0]<<8 | b[1] -> load 16-bit Big endian on Little endian arch.
@@ -1106,7 +1106,7 @@
 	&& x0.Uses ==1 && x1.Uses == 1
 	&& o1.Uses == 1
 	&& mergePoint(b, x0, x1) != nil
-	&& clobber(x0) && clobber(x1) && clobber(o1)
+	&& clobber(x0, x1, o1)
 	  -> @mergePoint(b,x0,x1) (MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
 
 // b[0]<<n+8 | b[1]<<n -> load 16-bit Big endian (where n%8== 0)
@@ -1122,7 +1122,7 @@
 	&& x0.Uses == 1 && x1.Uses == 1
 	&& s0.Uses == 1 && s1.Uses == 1
 	&& mergePoint(b, x0, x1) != nil
-	&& clobber(x0) && clobber(x1) && clobber(s0) && clobber(s1)
+	&& clobber(x0, x1, s0, s1)
 	  -> @mergePoint(b,x0,x1) (SLDconst <t> (MOVHBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [n1])
 
 // b[0] | b[1]<<8 | b[2]<<16 | b[3]<<24 -> load 32-bit Little endian
@@ -1137,9 +1137,7 @@
 	&& o0.Uses == 1
 	&& s0.Uses == 1 && s1.Uses == 1
 	&& mergePoint(b, x0, x1, x2) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2)
-	&& clobber(s0) && clobber(s1)
-	&& clobber(o0)
+	&& clobber(x0, x1, x2, s0, s1, o0)
 	 -> @mergePoint(b,x0,x1,x2) (MOVWZload <t> {s} [i0] p mem)
 
 // b[0]<<24 | b[1]<<16 | b[2]<<8 | b[3] -> load 32-bit Big endian order on Little endian arch
@@ -1155,9 +1153,7 @@
 	&& o0.Uses == 1
 	&& s0.Uses == 1 && s1.Uses == 1
 	&& mergePoint(b, x0, x1, x2) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2)
-	&& clobber(s0) && clobber(s1)
-	&& clobber(o0)
+	&& clobber(x0, x1, x2, s0, s1, o0)
 	  -> @mergePoint(b,x0,x1,x2) (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
 
 // b[3] | b[2]<<8 | b[1]<<16 | b[0]<<24 -> load 32-bit Big endian order on Little endian arch
@@ -1173,9 +1169,7 @@
 	&& o0.Uses == 1
 	&& s0.Uses == 1 && s1.Uses == 1
 	&& mergePoint(b, x0, x1, x2) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2)
-	&& clobber(s0) && clobber(s1)
-	&& clobber(o0)
+	&& clobber(x0, x1, x2, s0, s1, o0)
 	  -> @mergePoint(b,x0,x1,x2) (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
 
 // b[0]<<56 | b[1]<<48 | b[2]<<40 | b[3]<<32 -> load 32-bit Big endian order on Little endian arch
@@ -1191,9 +1185,7 @@
 	&& o0.Uses == 1
 	&& s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1
 	&& mergePoint(b, x0, x1, x2) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2)
-	&& clobber(s0) && clobber(s1) && clobber(s2)
-	&& clobber(o0)
+	&& clobber(x0, x1, x2, s0, s1, s2, o0)
 	  -> @mergePoint(b,x0,x1,x2) (SLDconst <t> (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])
 
 // b[3]<<32 | b[2]<<40 | b[1]<<48 | b[0]<<56 -> load 32-bit Big endian order on Little endian arch
@@ -1209,9 +1201,7 @@
         && o0.Uses == 1
         && s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1
         && mergePoint(b, x0, x1, x2) != nil
-        && clobber(x0) && clobber(x1) && clobber(x2)
-        && clobber(s0) && clobber(s1) && clobber(s2)
-        && clobber(o0)
+        && clobber(x0, x1, x2, s0, s1, s2, o0)
           -> @mergePoint(b,x0,x1,x2) (SLDconst <t> (MOVWBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem) [32])
 
 // b[0] | b[1]<<8 | b[2]<<16 | b[3]<<24 | b[4] <<32 | b[5]<<40 | b[6]<<48 | b[7]<<56 -> load 64-bit Little endian
@@ -1233,9 +1223,7 @@
 	&& o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1
 	&& s3.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1
 	&& mergePoint(b, x0, x4, x5, x6, x7) != nil
-	&& clobber(x0) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7)
-	&& clobber(s3) && clobber(s4) && clobber(s5) && clobber (s6)
-	&& clobber(o3) && clobber(o4) && clobber(o5)
+	&& clobber(x0, x4, x5, x6, x7, s3, s4, s5, s6, o3, o4, o5)
 	  -> @mergePoint(b,x0,x4,x5,x6,x7) (MOVDload <t> {s} [i0] p mem)
 
 // b[7] | b[6]<<8 | b[5]<<16 | b[4]<<24 | b[3]<<32 | b[2]<<40 | b[1]<<48 | b[0]<<56 load 64-bit Big endian ordered bytes on Little endian arch
@@ -1256,9 +1244,7 @@
 	&& o0.Uses == 1 && o1.Uses == 1 && o2.Uses == 1
 	&& s0.Uses == 1 && s1.Uses == 1 && s2.Uses == 1 && s3.Uses == 1
 	&& mergePoint(b, x0, x1, x2, x3, x4) != nil
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4)
-	&& clobber(o0) && clobber(o1) && clobber(o2)
-	&& clobber(s0) && clobber(s1) && clobber(s2) && clobber(s3)
+	&& clobber(x0, x1, x2, x3, x4, o0, o1, o2, s0, s1, s2, s3)
 	  -> @mergePoint(b,x0,x1,x2,x3,x4) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
 
 // b[0]<<56 | b[1]<<48 | b[2]<<40 | b[3]<<32 | b[4]<<24 | b[5]<<16 | b[6]<<8 | b[7] -> load 64-bit Big endian ordered bytes on Little endian arch
@@ -1279,9 +1265,7 @@
 	&& o3.Uses == 1 && o4.Uses == 1 && o5.Uses == 1
 	&& s0.Uses == 1 && s4.Uses == 1 && s5.Uses == 1 && s6.Uses == 1
 	&& mergePoint(b, x3, x4, x5, x6, x7) != nil
-	&& clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6) && clobber(x7)
-	&& clobber(o3) && clobber(o4) && clobber(o5)
-	&& clobber(s0) && clobber(s4) && clobber(s5) && clobber(s6)
+	&& clobber(x3, x4, x5, x6, x7, o3, o4, o5, s0, s4, s5, s6)
 	-> @mergePoint(b,x3,x4,x5,x6,x7) (MOVDBRload <t> (MOVDaddr <typ.Uintptr> [i0] {s} p) mem)
 
 // 2 byte store Little endian as in:
@@ -1331,7 +1315,7 @@
 	&& !config.BigEndian
 	&& x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1
 	&& i1 == i0+1 && i2 == i0+2 && i3 == i0+3
-	&& clobber(x0) && clobber(x1) && clobber(x2)
+	&& clobber(x0, x1, x2)
 	  -> (MOVWBRstore (MOVDaddr <typ.Uintptr> [i0] {s} p) w mem)
 
 // The 2 byte store appears after the 4 byte store so that the
@@ -1370,7 +1354,7 @@
 	&& i0%4 == 0
 	&& x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1
 	&& i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7
-	&& clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3)
+	&& clobber(x0, x1, x2, x3)
 	  -> (MOVDstore [i0] {s} p w mem)
 
 // 8 byte store Big endian as in:
@@ -1394,5 +1378,5 @@
         && !config.BigEndian
         && x0.Uses == 1 && x1.Uses == 1 && x2.Uses == 1 && x3.Uses == 1 && x4.Uses == 1 && x5.Uses == 1 && x6.Uses == 1
         && i1 == i0+1 && i2 == i0+2 && i3 == i0+3 && i4 == i0+4 && i5 == i0+5 && i6 == i0+6 && i7 == i0+7
-        && clobber(x0) && clobber(x1) && clobber(x2) && clobber(x3) && clobber(x4) && clobber(x5) && clobber(x6)
+        && clobber(x0, x1, x2, x3, x4, x5, x6)
           -> (MOVDBRstore (MOVDaddr <typ.Uintptr> [i0] {s} p) w mem)

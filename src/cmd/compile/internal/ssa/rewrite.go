@@ -663,13 +663,15 @@ found:
 	return nil // too far away
 }
 
-// clobber invalidates v.  Returns true.
+// clobber invalidates values. Returns true.
 // clobber is used by rewrite rules to:
-//   A) make sure v is really dead and never used again.
-//   B) decrement use counts of v's args.
-func clobber(v *Value) bool {
-	v.reset(OpInvalid)
-	// Note: leave v.Block intact.  The Block field is used after clobber.
+//   A) make sure the values are really dead and never used again.
+//   B) decrement use counts of the values' args.
+func clobber(vv ...*Value) bool {
+	for _, v := range vv {
+		v.reset(OpInvalid)
+		// Note: leave v.Block intact.  The Block field is used after clobber.
+	}
 	return true
 }
 
