@@ -12,7 +12,9 @@ package benchmark
 import (
 	"fmt"
 	"io"
+	"os"
 	"runtime"
+	"runtime/pprof"
 	"time"
 	"unicode"
 )
@@ -25,9 +27,11 @@ const (
 )
 
 type Metrics struct {
-	gc      Flags
-	marks   []*mark
-	curMark *mark
+	gc        Flags
+	marks     []*mark
+	curMark   *mark
+	filebase  string
+	pprofFile *os.File
 }
 
 type mark struct {
@@ -41,7 +45,8 @@ type mark struct {
 // Typical usage should look like:
 //
 // func main() {
-//   bench := benchmark.New(benchmark.GC)
+//   filename := "" // Set to enable per-phase pprof file output.
+//   bench := benchmark.New(benchmark.GC, filename)
 //   defer bench.Report(os.Stdout)
 //   // etc
 //   bench.Start("foo")
@@ -63,11 +68,11 @@ type mark struct {
 //    bench.Start("foo")
 //    // etc.
 //  }
-func New(gc Flags) *Metrics {
+func New(gc Flags, filebase string) *Metrics {
 	if gc == GC {
 		runtime.GC()
 	}
-	return &Metrics{gc: gc}
+	return &Metrics{gc: gc, filebase: filebase}
 }
 
 // Report reports the metrics.
@@ -110,6 +115,16 @@ func (m *Metrics) Start(name string) {
 	m.closeMark()
 	m.curMark = &mark{name: name}
 	// Unlikely we need to a GC here, as one was likely just done in closeMark.
+	if m.shouldPProf() {
+		f, err := os.Create(makePProfFilename(m.filebase, name))
+		if err != nil {
+			panic(err)
+		}
+		m.pprofFile = f
+		if err = pprof.StartCPUProfile(m.pprofFile); err != nil {
+			panic(err)
+		}
+	}
 	runtime.ReadMemStats(&m.curMark.startM)
 	m.curMark.startT = time.Now()
 }
@@ -124,8 +139,18 @@ func (m *Metrics) closeMark() {
 		runtime.GC()
 		runtime.ReadMemStats(&m.curMark.gcM)
 	}
+	if m.shouldPProf() {
+		pprof.StopCPUProfile()
+		m.pprofFile.Close()
+		m.pprofFile = nil
+	}
 	m.marks = append(m.marks, m.curMark)
 	m.curMark = nil
+}
+
+// shouldPProf returns true if we should be doing pprof runs.
+func (m *Metrics) shouldPProf() bool {
+	return m != nil && len(m.filebase) > 0
 }
 
 // makeBenchString makes a benchmark string consumable by Go's benchmarking tools.
@@ -144,4 +169,8 @@ func makeBenchString(name string) string {
 		ret = append(ret, r)
 	}
 	return string(ret)
+}
+
+func makePProfFilename(filebase, name string) string {
+	return fmt.Sprintf("%s_%s.profile", filebase, makeBenchString(name))
 }

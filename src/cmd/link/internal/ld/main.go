@@ -98,7 +98,8 @@ var (
 	memprofile     = flag.String("memprofile", "", "write memory profile to `file`")
 	memprofilerate = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
 
-	benchmarkFlag = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
+	benchmarkFlag     = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
+	benchmarkFileFlag = flag.String("benchmarkprofile", "", "set to enable per-phase pprof profiling")
 )
 
 // Main is the main entry point for the linker code.
@@ -177,9 +178,9 @@ func Main(arch *sys.Arch, theArch Arch) {
 	var bench *benchmark.Metrics
 	if len(*benchmarkFlag) != 0 {
 		if *benchmarkFlag == "mem" {
-			bench = benchmark.New(benchmark.GC)
+			bench = benchmark.New(benchmark.GC, *benchmarkFileFlag)
 		} else if *benchmarkFlag == "cpu" {
-			bench = benchmark.New(benchmark.NoGC)
+			bench = benchmark.New(benchmark.NoGC, *benchmarkFileFlag)
 		} else {
 			Errorf(nil, "unknown benchmark flag: %q", *benchmarkFlag)
 			usage()

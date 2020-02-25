@@ -22,6 +22,29 @@ func TestMakeBenchString(t *testing.T) {
 	}
 }
 
+func TestPProfFlag(t *testing.T) {
+	tests := []struct {
+		name string
+		want bool
+	}{
+		{"", false},
+		{"foo", true},
+	}
+	for i, test := range tests {
+		b := New(GC, test.name)
+		if v := b.shouldPProf(); test.want != v {
+			t.Errorf("test[%d] shouldPProf() == %v, want %v", i, v, test.want)
+		}
+	}
+}
+
+func TestPProfNames(t *testing.T) {
+	want := "foo_BenchmarkTest.profile"
+	if v := makePProfFilename("foo", "test"); v != want {
+		t.Errorf("makePProfFilename() == %q, want %q", v, want)
+	}
+}
+
 // Ensure that public APIs work with a nil Metrics object.
 func TestNilBenchmarkObject(t *testing.T) {
 	var b *Metrics
