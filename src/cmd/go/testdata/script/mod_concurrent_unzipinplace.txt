@@ -1,0 +1,17 @@
+# This tests checks the GODEBUG=modcacheunzipinplace=1 flag, used as part of
+# a migration in golang.org/issue/36568.
+#
+# Concurrent downloads with and without GODEBUG=modcacheunzipinplace=1 should
+# not conflict. This is meant to simulate an old version and a new version
+# of Go accessing the cache concurrently.
+go mod download &
+env GODEBUG=modcacheunzipinplace=1
+go mod download
+wait
+
+-- go.mod --
+module golang.org/issue/36568
+
+go 1.14
+
+require rsc.io/quote v1.5.2

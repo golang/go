@@ -57,11 +57,10 @@ func Download(mod module.Version) (dir string, err error) {
 }
 
 func download(mod module.Version) (dir string, err error) {
-	// If the directory exists, and no .partial file exists,
-	// the module has already been completely extracted.
-	// .partial files may be created when future versions of cmd/go
-	// extract module zip directories in place instead of extracting
-	// to a random temporary directory and renaming.
+	// If the directory exists, and no .partial file exists, the module has
+	// already been completely extracted. .partial files may be created when a
+	// module zip directory is extracted in place instead of being extracted to a
+	// temporary directory and renamed.
 	dir, err = DownloadDir(mod)
 	if err == nil {
 		return dir, nil
@@ -115,34 +114,61 @@ func download(mod module.Version) (dir string, err error) {
 		return "", err
 	}
 
-	// Extract the zip file to a temporary directory, then rename it to the
-	// final path. That way, we can use the existence of the source directory to
-	// signal that it has been extracted successfully, and if someone deletes
-	// the entire directory (e.g. as an attempt to prune out file corruption)
-	// the module cache will still be left in a recoverable state.
-	// We retry failed renames using robustio.Rename on Windows. Programs that
-	// open files in the temporary directory (antivirus, search indexers, etc.)
-	// can cause os.Rename to fail with ERROR_ACCESS_DENIED.
+	// Extract the module zip directory.
+	//
+	// By default, we extract to a temporary directory, then atomically rename to
+	// its final location. We use the existence of the source directory to signal
+	// that it has been extracted successfully (see DownloadDir).  If someone
+	// deletes the entire directory (e.g., as an attempt to prune out file
+	// corruption), the module cache will still be left in a recoverable
+	// state.
+	//
+	// Unfortunately, os.Rename may fail with ERROR_ACCESS_DENIED on Windows if
+	// another process opens files in the temporary directory. This is partially
+	// mitigated by using robustio.Rename, which retries os.Rename for a short
+	// time.
+	//
+	// To avoid this error completely, if unzipInPlace is set, we instead create a
+	// .partial file (indicating the directory isn't fully extracted), then we
+	// extract the directory at its final location, then we delete the .partial
+	// file. This is not the default behavior because older versions of Go may
+	// simply stat the directory to check whether it exists without looking for a
+	// .partial file. If multiple versions run concurrently, the older version may
+	// assume a partially extracted directory is complete.
+	// TODO(golang.org/issue/36568): when these older versions are no longer
+	// supported, remove the old default behavior and the unzipInPlace flag.
 	if err := os.MkdirAll(parentDir, 0777); err != nil {
 		return "", err
 	}
-	tmpDir, err := ioutil.TempDir(parentDir, tmpPrefix)
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		if err != nil {
-			RemoveAll(tmpDir)
+
+	if unzipInPlace {
+		if err := ioutil.WriteFile(partialPath, nil, 0666); err != nil {
+			return "", err
 		}
-	}()
-
-	if err := modzip.Unzip(tmpDir, mod, zipfile); err != nil {
-		fmt.Fprintf(os.Stderr, "-> %s\n", err)
-		return "", err
-	}
-
-	if err := robustio.Rename(tmpDir, dir); err != nil {
-		return "", err
+		if err := modzip.Unzip(dir, mod, zipfile); err != nil {
+			fmt.Fprintf(os.Stderr, "-> %s\n", err)
+			if rmErr := RemoveAll(dir); rmErr == nil {
+				os.Remove(partialPath)
+			}
+			return "", err
+		}
+		if err := os.Remove(partialPath); err != nil {
+			return "", err
+		}
+	} else {
+		tmpDir, err := ioutil.TempDir(parentDir, tmpPrefix)
+		if err != nil {
+			return "", err
+		}
+		if err := modzip.Unzip(tmpDir, mod, zipfile); err != nil {
+			fmt.Fprintf(os.Stderr, "-> %s\n", err)
+			RemoveAll(tmpDir)
+			return "", err
+		}
+		if err := robustio.Rename(tmpDir, dir); err != nil {
+			RemoveAll(tmpDir)
+			return "", err
+		}
 	}
 
 	if !cfg.ModCacheRW {
@@ -151,6 +177,17 @@ func download(mod module.Version) (dir string, err error) {
 		makeDirsReadOnly(dir)
 	}
 	return dir, nil
+}
+
+var unzipInPlace bool
+
+func init() {
+	for _, f := range strings.Split(os.Getenv("GODEBUG"), ",") {
+		if f == "modcacheunzipinplace=1" {
+			unzipInPlace = true
+			break
+		}
+	}
 }
 
 var downloadZipCache par.Cache
@@ -324,7 +361,7 @@ func RemoveAll(dir string) error {
 		}
 		return nil
 	})
-	return os.RemoveAll(dir)
+	return robustio.RemoveAll(dir)
 }
 
 var GoSumFile string // path to go.sum; set by package modload

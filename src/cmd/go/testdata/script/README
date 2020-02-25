@@ -36,6 +36,7 @@ Scripts also have access to these other environment variables:
 	HOME=/no-home
 	PATH=<actual PATH>
 	TMPDIR=$WORK/tmp
+	GODEBUG=<actual GODEBUG>
 	devnull=<value of os.DevNull>
 	goversion=<current Go version; for example, 1.12>
 	:=<OS-specific path list separator>
