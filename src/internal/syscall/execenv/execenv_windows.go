@@ -1,8 +1,10 @@
-// Copyright 2019 The Go Authors. All rights reserved.
+// Copyright 2020 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package os
+// +build windows
+
+package execenv
 
 import (
 	"internal/syscall/windows"
@@ -11,9 +13,17 @@ import (
 	"unsafe"
 )
 
-func environForSysProcAttr(sys *syscall.SysProcAttr) (env []string, err error) {
+// Default will return the default environment
+// variables based on the process attributes
+// provided.
+//
+// If the process attributes contain a token, then
+// the environment variables will be sourced from
+// the defaults for that user token, otherwise they
+// will be sourced from syscall.Environ().
+func Default(sys *syscall.SysProcAttr) (env []string, err error) {
 	if sys == nil || sys.Token == 0 {
-		return Environ(), nil
+		return syscall.Environ(), nil
 	}
 	var block *uint16
 	err = windows.CreateEnvironmentBlock(&block, sys.Token, false)
