@@ -351,6 +351,13 @@ var genericOps = []opData{
 	// The source and destination of Move may overlap in some cases. See e.g.
 	// memmove inlining in generic.rules. When inlineablememmovesize (in ../rewrite.go)
 	// returns true, we must do all loads before all stores, when lowering Move.
+	// The type of Move is used for the write barrier pass to insert write barriers
+	// and for alignment on some architectures.
+	// For pointerless types, it is possible for the type to be inaccurate.
+	// For type alignment and pointer information, use the type in Aux;
+	// for type size, use the size in AuxInt.
+	// The "inline runtime.memmove" rewrite rule generates Moves with inaccurate types,
+	// such as type byte instead of the more accurate type [8]byte.
 	{name: "Move", argLength: 3, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size, aux=type.  Returns memory.
 	{name: "Zero", argLength: 2, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=mem, auxint=size, aux=type. Returns memory.
 

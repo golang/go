@@ -1923,6 +1923,7 @@
 (IsNonNil (LocalAddr _ _)) -> (ConstBool [1])
 
 // Inline small or disjoint runtime.memmove calls with constant length.
+// See the comment in op Move in genericOps.go for discussion of the type.
 (StaticCall {sym} s1:(Store _ (Const(64|32) [sz]) s2:(Store  _ src s3:(Store {t} _ dst mem))))
 	&& sz >= 0
 	&& isSameSym(sym,"runtime.memmove")
