@@ -83,40 +83,40 @@ type nameVer struct {
 	v    int
 }
 
-type bitmap []uint32
+type Bitmap []uint32
 
 // set the i-th bit.
-func (bm bitmap) set(i Sym) {
+func (bm Bitmap) Set(i Sym) {
 	n, r := uint(i)/32, uint(i)%32
 	bm[n] |= 1 << r
 }
 
 // unset the i-th bit.
-func (bm bitmap) unset(i Sym) {
+func (bm Bitmap) Unset(i Sym) {
 	n, r := uint(i)/32, uint(i)%32
 	bm[n] &^= (1 << r)
 }
 
 // whether the i-th bit is set.
-func (bm bitmap) has(i Sym) bool {
+func (bm Bitmap) Has(i Sym) bool {
 	n, r := uint(i)/32, uint(i)%32
 	return bm[n]&(1<<r) != 0
 }
 
 // return current length of bitmap in bits.
-func (bm bitmap) len() int {
+func (bm Bitmap) Len() int {
 	return len(bm) * 32
 }
-func makeBitmap(n int) bitmap {
-	return make(bitmap, (n+31)/32)
+func MakeBitmap(n int) Bitmap {
+	return make(Bitmap, (n+31)/32)
 }
 
 // growBitmap insures that the specified bitmap has enough capacity,
 // reallocating (doubling the size) if needed.
-func growBitmap(reqLen int, b bitmap) bitmap {
-	curLen := b.len()
+func growBitmap(reqLen int, b Bitmap) Bitmap {
+	curLen := b.Len()
 	if reqLen > curLen {
-		b = append(b, makeBitmap(reqLen+1-curLen)...)
+		b = append(b, MakeBitmap(reqLen+1-curLen)...)
 	}
 	return b
 }
@@ -178,14 +178,14 @@ type Loader struct {
 	// corresponding loader "AttrXXX" and "SetAttrXXX" methods. Please
 	// visit the comments on these methods for more details on the
 	// semantics / interpretation of the specific flags or attribute.
-	attrReachable        bitmap // reachable symbols, indexed by global index
-	attrOnList           bitmap // "on list" symbols, indexed by global index
-	attrLocal            bitmap // "local" symbols, indexed by global index
-	attrNotInSymbolTable bitmap // "not in symtab" symbols, indexed by glob idx
-	attrVisibilityHidden bitmap // hidden symbols, indexed by ext sym index
-	attrDuplicateOK      bitmap // dupOK symbols, indexed by ext sym index
-	attrShared           bitmap // shared symbols, indexed by ext sym index
-	attrExternal         bitmap // external symbols, indexed by ext sym index
+	attrReachable        Bitmap // reachable symbols, indexed by global index
+	attrOnList           Bitmap // "on list" symbols, indexed by global index
+	attrLocal            Bitmap // "local" symbols, indexed by global index
+	attrNotInSymbolTable Bitmap // "not in symtab" symbols, indexed by glob idx
+	attrVisibilityHidden Bitmap // hidden symbols, indexed by ext sym index
+	attrDuplicateOK      Bitmap // dupOK symbols, indexed by ext sym index
+	attrShared           Bitmap // shared symbols, indexed by ext sym index
+	attrExternal         Bitmap // external symbols, indexed by ext sym index
 
 	attrReadOnly         map[Sym]bool     // readonly data for this sym
 	attrTopFrame         map[Sym]struct{} // top frame symbols
@@ -654,16 +654,16 @@ func (l *Loader) SymAttr(i Sym) uint8 {
 // referenced from the entry points. Unreachable symbols are not
 // written to the output.
 func (l *Loader) AttrReachable(i Sym) bool {
-	return l.attrReachable.has(i)
+	return l.attrReachable.Has(i)
 }
 
 // SetAttrReachable sets the reachability property for a symbol (see
 // AttrReachable).
 func (l *Loader) SetAttrReachable(i Sym, v bool) {
 	if v {
-		l.attrReachable.set(i)
+		l.attrReachable.Set(i)
 	} else {
-		l.attrReachable.unset(i)
+		l.attrReachable.Unset(i)
 	}
 }
 
@@ -672,16 +672,16 @@ func (l *Loader) SetAttrReachable(i Sym, v bool) {
 // and is consulted to avoid bugs where a symbol is put on a list
 // twice.
 func (l *Loader) AttrOnList(i Sym) bool {
-	return l.attrOnList.has(i)
+	return l.attrOnList.Has(i)
 }
 
 // SetAttrOnList sets the "on list" property for a symbol (see
 // AttrOnList).
 func (l *Loader) SetAttrOnList(i Sym, v bool) {
 	if v {
-		l.attrOnList.set(i)
+		l.attrOnList.Set(i)
 	} else {
-		l.attrOnList.unset(i)
+		l.attrOnList.Unset(i)
 	}
 }
 
@@ -689,31 +689,31 @@ func (l *Loader) SetAttrOnList(i Sym, v bool) {
 // module (executable or shared library) being linked. This attribute
 // is applied to thunks and certain other linker-generated symbols.
 func (l *Loader) AttrLocal(i Sym) bool {
-	return l.attrLocal.has(i)
+	return l.attrLocal.Has(i)
 }
 
 // SetAttrLocal the "local" property for a symbol (see AttrLocal above).
 func (l *Loader) SetAttrLocal(i Sym, v bool) {
 	if v {
-		l.attrLocal.set(i)
+		l.attrLocal.Set(i)
 	} else {
-		l.attrLocal.unset(i)
+		l.attrLocal.Unset(i)
 	}
 }
 
 // AttrNotInSymbolTable returns true for symbols that should not be
 // added to the symbol table of the final generated load module.
 func (l *Loader) AttrNotInSymbolTable(i Sym) bool {
-	return l.attrNotInSymbolTable.has(i)
+	return l.attrNotInSymbolTable.Has(i)
 }
 
 // SetAttrNotInSymbolTable the "not in symtab" property for a symbol
 // (see AttrNotInSymbolTable above).
 func (l *Loader) SetAttrNotInSymbolTable(i Sym, v bool) {
 	if v {
-		l.attrNotInSymbolTable.set(i)
+		l.attrNotInSymbolTable.Set(i)
 	} else {
-		l.attrNotInSymbolTable.unset(i)
+		l.attrNotInSymbolTable.Unset(i)
 	}
 }
 
@@ -725,7 +725,7 @@ func (l *Loader) AttrVisibilityHidden(i Sym) bool {
 	if !l.IsExternal(i) {
 		return false
 	}
-	return l.attrVisibilityHidden.has(l.extIndex(i))
+	return l.attrVisibilityHidden.Has(l.extIndex(i))
 }
 
 // SetAttrVisibilityHidden sets the "hidden visibility" property for a
@@ -735,9 +735,9 @@ func (l *Loader) SetAttrVisibilityHidden(i Sym, v bool) {
 		panic("tried to set visibility attr on non-external symbol")
 	}
 	if v {
-		l.attrVisibilityHidden.set(l.extIndex(i))
+		l.attrVisibilityHidden.Set(l.extIndex(i))
 	} else {
-		l.attrVisibilityHidden.unset(l.extIndex(i))
+		l.attrVisibilityHidden.Unset(l.extIndex(i))
 	}
 }
 
@@ -753,7 +753,7 @@ func (l *Loader) AttrDuplicateOK(i Sym) bool {
 		osym.ReadFlag(r.Reader, r.SymOff(li))
 		return osym.Dupok()
 	}
-	return l.attrDuplicateOK.has(l.extIndex(i))
+	return l.attrDuplicateOK.Has(l.extIndex(i))
 }
 
 // SetAttrDuplicateOK sets the "duplicate OK" property for an external
@@ -763,9 +763,9 @@ func (l *Loader) SetAttrDuplicateOK(i Sym, v bool) {
 		panic("tried to set dupok attr on non-external symbol")
 	}
 	if v {
-		l.attrDuplicateOK.set(l.extIndex(i))
+		l.attrDuplicateOK.Set(l.extIndex(i))
 	} else {
-		l.attrDuplicateOK.unset(l.extIndex(i))
+		l.attrDuplicateOK.Unset(l.extIndex(i))
 	}
 }
 
@@ -778,7 +778,7 @@ func (l *Loader) AttrShared(i Sym) bool {
 		r, _ := l.toLocal(i)
 		return (r.Flags() & goobj2.ObjFlagShared) != 0
 	}
-	return l.attrShared.has(l.extIndex(i))
+	return l.attrShared.Has(l.extIndex(i))
 }
 
 // SetAttrShared sets the "shared" property for an external
@@ -788,9 +788,9 @@ func (l *Loader) SetAttrShared(i Sym, v bool) {
 		panic("tried to set shared attr on non-external symbol")
 	}
 	if v {
-		l.attrShared.set(l.extIndex(i))
+		l.attrShared.Set(l.extIndex(i))
 	} else {
-		l.attrShared.unset(l.extIndex(i))
+		l.attrShared.Unset(l.extIndex(i))
 	}
 }
 
@@ -800,7 +800,7 @@ func (l *Loader) AttrExternal(i Sym) bool {
 	if !l.IsExternal(i) {
 		return false
 	}
-	return l.attrExternal.has(l.extIndex(i))
+	return l.attrExternal.Has(l.extIndex(i))
 }
 
 // SetAttrExternal sets the "external" property for an host object
@@ -810,9 +810,9 @@ func (l *Loader) SetAttrExternal(i Sym, v bool) {
 		panic(fmt.Sprintf("tried to set external attr on non-external symbol %q", l.RawSymName(i)))
 	}
 	if v {
-		l.attrExternal.set(l.extIndex(i))
+		l.attrExternal.Set(l.extIndex(i))
 	} else {
-		l.attrExternal.unset(l.extIndex(i))
+		l.attrExternal.Unset(l.extIndex(i))
 	}
 }
 
@@ -1403,7 +1403,7 @@ func (l *Loader) SortSub(s Sym) Sym {
 
 // Insure that reachable bitmap and its siblings have enough size.
 func (l *Loader) growAttrBitmaps(reqLen int) {
-	if reqLen > l.attrReachable.len() {
+	if reqLen > l.attrReachable.Len() {
 		// These are indexed by global symbol
 		l.attrReachable = growBitmap(reqLen, l.attrReachable)
 		l.attrOnList = growBitmap(reqLen, l.attrOnList)
@@ -1416,7 +1416,7 @@ func (l *Loader) growAttrBitmaps(reqLen int) {
 func (l *Loader) growExtAttrBitmaps() {
 	// These are indexed by external symbol index (e.g. l.extIndex(i))
 	extReqLen := len(l.payloads)
-	if extReqLen > l.attrVisibilityHidden.len() {
+	if extReqLen > l.attrVisibilityHidden.Len() {
 		l.attrVisibilityHidden = growBitmap(extReqLen, l.attrVisibilityHidden)
 		l.attrDuplicateOK = growBitmap(extReqLen, l.attrDuplicateOK)
 		l.attrShared = growBitmap(extReqLen, l.attrShared)
@@ -1719,7 +1719,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 	toConvert := make([]Sym, 0, len(l.payloads))
 	for _, i := range l.extReader.syms {
 		sname := l.RawSymName(i)
-		if !l.attrReachable.has(i) && !strings.HasPrefix(sname, "gofile..") { // XXX file symbols are used but not marked
+		if !l.attrReachable.Has(i) && !strings.HasPrefix(sname, "gofile..") { // XXX file symbols are used but not marked
 			continue
 		}
 		pp := l.getPayload(i)
@@ -1900,7 +1900,7 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 		if t == 0 {
 			log.Fatalf("missing type for %s in %s", name, r.unit.Lib)
 		}
-		if !l.attrReachable.has(gi) && !(t == sym.SRODATA && strings.HasPrefix(name, "type.")) && name != "runtime.addmoduledata" && name != "runtime.lastmoduledatap" {
+		if !l.attrReachable.Has(gi) && !(t == sym.SRODATA && strings.HasPrefix(name, "type.")) && name != "runtime.addmoduledata" && name != "runtime.lastmoduledatap" {
 			// No need to load unreachable symbols.
 			// XXX some type symbol's content may be needed in DWARF code, but they are not marked.
 			// XXX reference to runtime.addmoduledata may be generated later by the linker in plugin mode.
@@ -2105,7 +2105,7 @@ func loadObjFull(l *Loader, r *oReader) {
 		osym.ReadWithoutName(r.Reader, r.SymOff(i))
 		dupok := osym.Dupok()
 		if dupok && isdup {
-			if l.attrReachable.has(gi) {
+			if l.attrReachable.Has(gi) {
 				// A dupok symbol is resolved to another package. We still need
 				// to record its presence in the current package, as the trampoline
 				// pass expects packages are laid out in dependency order.
@@ -2323,14 +2323,14 @@ func (l *Loader) convertRelocations(src []Reloc, dst *sym.Symbol) {
 		sz := r.Size
 		rt := r.Type
 		if rt == objabi.R_METHODOFF {
-			if l.attrReachable.has(rs) {
+			if l.attrReachable.Has(rs) {
 				rt = objabi.R_ADDROFF
 			} else {
 				sz = 0
 				rs = 0
 			}
 		}
-		if rt == objabi.R_WEAKADDROFF && !l.attrReachable.has(rs) {
+		if rt == objabi.R_WEAKADDROFF && !l.attrReachable.Has(rs) {
 			rs = 0
 			sz = 0
 		}
@@ -2432,7 +2432,7 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool) {
 	// clear for the later assignment of the sym.Symbol to a unit.
 	// NB: we can convert to using onList once we no longer have to
 	// call the regular addToTextp.
-	assignedToUnit := makeBitmap(l.NSym() + 1)
+	assignedToUnit := MakeBitmap(l.NSym() + 1)
 
 	// Walk through all text symbols from Go object files and append
 	// them to their corresponding library's textp2 list.
@@ -2449,7 +2449,7 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool) {
 			}
 			// check for dupok
 			if r2, i2 := l.toLocal(gi); r2 != r || i2 != i {
-				if l.attrReachable.has(gi) {
+				if l.attrReachable.Has(gi) {
 					// A dupok symbol is resolved to another package.
 					// We still need to record its presence in the
 					// current package, as the trampoline pass expects
@@ -2474,12 +2474,12 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool) {
 			for _, textp2 := range tpls {
 				for _, s := range textp2 {
 					sym := Sym(s)
-					if l.attrReachable.has(sym) && !assignedToUnit.has(sym) {
+					if l.attrReachable.Has(sym) && !assignedToUnit.Has(sym) {
 						libtextp2 = append(libtextp2, s)
 						unit := l.SymUnit(sym)
 						if unit != nil {
 							unit.Textp2 = append(unit.Textp2, s)
-							assignedToUnit.set(sym)
+							assignedToUnit.Set(sym)
 						}
 					}
 				}
