@@ -36,6 +36,24 @@ func TestDiagnosticErrorInEditedFile(t *testing.T) {
 	})
 }
 
+const onlyMod = `
+-- go.mod --
+module mod
+
+go 1.12
+`
+
+func TestMissingImportDiagsClearOnFirstFile(t *testing.T) {
+	t.Skip("skipping due to golang.org/issues/37195")
+	t.Parallel()
+	runner.Run(t, onlyMod, func(ctx context.Context, t *testing.T, env *Env) {
+		env.CreateBuffer("main.go", "package main\n\nfunc m() {\nlog.Println()\n}")
+		env.SaveBuffer("main.go")
+		// TODO: this shouldn't actually happen
+		env.Await(DiagnosticAt("main.go", 3, 0))
+	})
+}
+
 const brokenFile = `package main
 
 const Foo = "abc
