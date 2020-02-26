@@ -9,7 +9,6 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
-	"internal/race"
 	"math/big"
 	"math/rand"
 	"os"
@@ -1393,23 +1392,11 @@ func TestReadFileLimit(t *testing.T) {
 }
 
 // Issue 25686: hard crash on concurrent timer access.
+// Issue 37400: panic with "racy use of timers"
 // This test deliberately invokes a race condition.
-// We are testing that we don't crash with "fatal error: panic holding locks".
+// We are testing that we don't crash with "fatal error: panic holding locks",
+// and that we also don't panic.
 func TestConcurrentTimerReset(t *testing.T) {
-	if race.Enabled {
-		t.Skip("skipping test under race detector")
-	}
-
-	// We expect this code to panic rather than crash.
-	// Don't worry if it doesn't panic.
-	catch := func(i int) {
-		if e := recover(); e != nil {
-			t.Logf("panic in goroutine %d, as expected, with %q", i, e)
-		} else {
-			t.Logf("no panic in goroutine %d", i)
-		}
-	}
-
 	const goroutines = 8
 	const tries = 1000
 	var wg sync.WaitGroup
@@ -1418,10 +1405,31 @@ func TestConcurrentTimerReset(t *testing.T) {
 	for i := 0; i < goroutines; i++ {
 		go func(i int) {
 			defer wg.Done()
-			defer catch(i)
 			for j := 0; j < tries; j++ {
 				timer.Reset(Hour + Duration(i*j))
 			}
+		}(i)
+	}
+	wg.Wait()
+}
+
+// Issue 37400: panic with "racy use of timers".
+func TestConcurrentTimerResetStop(t *testing.T) {
+	const goroutines = 8
+	const tries = 1000
+	var wg sync.WaitGroup
+	wg.Add(goroutines * 2)
+	timer := NewTimer(Hour)
+	for i := 0; i < goroutines; i++ {
+		go func(i int) {
+			defer wg.Done()
+			for j := 0; j < tries; j++ {
+				timer.Reset(Hour + Duration(i*j))
+			}
+		}(i)
+		go func(i int) {
+			defer wg.Done()
+			timer.Stop()
 		}(i)
 	}
 	wg.Wait()
