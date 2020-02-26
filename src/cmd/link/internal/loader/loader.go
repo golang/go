@@ -259,7 +259,7 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc) *Loader {
 		objs:                 []objIdx{{}}, // reserve index 0 for nil symbol
 		objSyms:              []objSym{{}}, // reserve index 0 for nil symbol
 		extReader:            &oReader{},
-		symsByName:           [2]map[string]Sym{make(map[string]Sym), make(map[string]Sym)},
+		symsByName:           [2]map[string]Sym{make(map[string]Sym, 100000), make(map[string]Sym, 50000)}, // preallocate ~2MB for ABI0 and ~1MB for ABI1 symbols
 		objByPkg:             make(map[string]*oReader),
 		outer:                make(map[Sym]Sym),
 		sub:                  make(map[Sym]Sym),
@@ -1817,11 +1817,7 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols, rp map[*sym.Symbol]*sym.Symbo
 		if s == nil {
 			continue
 		}
-		if s.Name != "" && s.Version >= 0 {
-			syms.Add(s)
-		} else {
-			syms.Allsym = append(syms.Allsym, s)
-		}
+		syms.Allsym = append(syms.Allsym, s) // XXX still add to Allsym for now, as there are code looping through Allsym
 		if s.Version < 0 {
 			s.Version = int16(anonVerReplacement)
 		}
@@ -1832,6 +1828,52 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols, rp map[*sym.Symbol]*sym.Symbo
 			continue
 		}
 		rp[l.Syms[i]] = l.Syms[s]
+	}
+
+	// Provide lookup functions for sym.Symbols.
+	syms.Lookup = func(name string, ver int) *sym.Symbol {
+		i := l.LookupOrCreateSym(name, ver)
+		if s := l.Syms[i]; s != nil {
+			return s
+		}
+		s := l.allocSym(name, ver)
+		l.installSym(i, s)
+		syms.Allsym = append(syms.Allsym, s) // XXX see above
+		return s
+	}
+	syms.ROLookup = func(name string, ver int) *sym.Symbol {
+		i := l.Lookup(name, ver)
+		return l.Syms[i]
+	}
+	syms.Rename = func(old, new string, ver int) {
+		// annoying... maybe there is a better way to do this
+		if ver >= 2 {
+			panic("cannot rename static symbol")
+		}
+		i := l.Lookup(old, ver)
+		s := l.Syms[i]
+		s.Name = new
+		if s.Extname() == old {
+			s.SetExtname(new)
+		}
+		delete(l.symsByName[ver], old)
+
+		// This mirrors the old code. But I'm not sure if the logic of
+		// handling dup in the old code actually works, or necessary.
+		dupi := l.symsByName[ver][new]
+		dup := l.Syms[dupi]
+		if dup == nil {
+			l.symsByName[ver][new] = i
+		} else {
+			if s.Type == 0 {
+				dup.Attr |= s.Attr
+				*s = *dup
+			} else if dup.Type == 0 {
+				s.Attr |= dup.Attr
+				*dup = *s
+				l.symsByName[ver][new] = i
+			}
+		}
 	}
 }
 
