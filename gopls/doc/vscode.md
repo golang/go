@@ -12,6 +12,12 @@ Use the [VSCode-Go] plugin, with the following configuration:
     // Optional: Disable snippets, as they conflict with completion ranking.
     "editor.snippetSuggestions": "none",
 },
+"[go.mod]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": true,
+    },
+},
 "gopls": {
      // Add parameter placeholders when completing a function.
     "usePlaceholders": true,
