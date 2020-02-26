@@ -265,7 +265,7 @@ L:
 	}
 }
 
-func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []ast.Expr, seen map[Type]token.Pos) (T Type) {
+func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []ast.Expr, seen map[Type]token.Pos, strict bool) (T Type) {
 L:
 	for _, e := range types {
 		T = check.typOrNil(e)
@@ -288,7 +288,7 @@ L:
 		}
 		seen[T] = e.Pos()
 		if T != nil {
-			check.typeAssertion(e.Pos(), x, xtyp, T)
+			check.typeAssertion(e.Pos(), x, xtyp, T, strict)
 		}
 	}
 	return
@@ -611,11 +611,13 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			return
 		}
 		var xtyp *Interface
+		var strict bool
 		switch t := x.typ.Underlying().(type) {
 		case *Interface:
 			xtyp = t
 		case *TypeParam:
 			xtyp = t.Interface()
+			strict = true
 		default:
 			check.errorf(x.pos(), "%s is not an interface or generic type", &x)
 			return
@@ -632,7 +634,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				continue
 			}
 			// Check each type in this type switch case.
-			T := check.caseTypes(&x, xtyp, clause.List, seen)
+			T := check.caseTypes(&x, xtyp, clause.List, seen, strict)
 			check.openScope(clause, "case")
 			// If lhs exists, declare a corresponding variable in the case-local scope.
 			if lhs != nil {

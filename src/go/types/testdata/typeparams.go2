@@ -340,3 +340,26 @@ func ReadByte2(type T io.Reader)(r T) (byte, error) {
 	_, err := r.Read(b[:])
 	return b[0], err
 }
+
+// type assertions and type switches over generic types are strict
+type I3 interface {
+        m(int)
+}
+
+type I4 interface {
+        m() int // different signature from I3.m
+}
+
+func _(type T I3)(x I3, p T) {
+        // type assertions and type switches over interfaces are not strict
+        _ = x.(I4)
+        switch x.(type) {
+        case I4:
+        }
+
+        // type assertions and type switches over generic types are strict
+        _ = p /* ERROR cannot have dynamic type I4 */.(I4)
+        switch p.(type) {
+        case I4 /* ERROR cannot have dynamic type I4 */ :
+        }
+}

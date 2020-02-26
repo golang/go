@@ -1523,11 +1523,13 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			goto Error
 		}
 		var xtyp *Interface
+		var strict bool
 		switch t := x.typ.Underlying().(type) {
 		case *Interface:
 			xtyp = t
 		case *TypeParam:
 			xtyp = t.Interface()
+			strict = true
 		default:
 			check.invalidOp(x.pos(), "%s is not an interface or generic type", x)
 			goto Error
@@ -1541,7 +1543,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		if T == Typ[Invalid] {
 			goto Error
 		}
-		check.typeAssertion(x.pos(), x, xtyp, T)
+		check.typeAssertion(x.pos(), x, xtyp, T, strict)
 		x.mode = commaok
 		x.typ = T
 
@@ -1639,8 +1641,8 @@ func keyVal(x constant.Value) interface{} {
 }
 
 // typeAssertion checks that x.(T) is legal; xtyp must be the type of x.
-func (check *Checker) typeAssertion(pos token.Pos, x *operand, xtyp *Interface, T Type) {
-	method, wrongType := check.assertableTo(xtyp, T)
+func (check *Checker) typeAssertion(pos token.Pos, x *operand, xtyp *Interface, T Type, strict bool) {
+	method, wrongType := check.assertableTo(xtyp, T, strict)
 	if method == nil {
 		return
 	}

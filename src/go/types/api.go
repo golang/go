@@ -366,7 +366,7 @@ func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, i
 
 // AssertableTo reports whether a value of type V can be asserted to have type T.
 func AssertableTo(V *Interface, T Type) bool {
-	m, _ := (*Checker)(nil).assertableTo(V, T)
+	m, _ := (*Checker)(nil).assertableTo(V, T, false)
 	return m == nil
 }
 

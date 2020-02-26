@@ -17,7 +17,7 @@ import (
 // debugging/development support
 const debug = true // leave on during development
 
-// If strict is set, the type-checker enforces additional
+// If forceStrict is set, the type-checker enforces additional
 // rules not specified by the Go 1 spec, but which will
 // catch guaranteed run-time errors if the respective
 // code is executed. In other words, programs passing in
@@ -28,7 +28,7 @@ const debug = true // leave on during development
 //   is invalid if any (statically known) method that exists
 //   for both x and T have different signatures.
 //
-const strict = false
+const forceStrict = false
 
 // If methodTypeParamsOk is set, type parameters are
 // permitted in method declarations (in interfaces, too).

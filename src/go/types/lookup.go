@@ -390,11 +390,13 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 // method required by V and whether it is missing or just has the wrong type.
 // The receiver may be nil if assertableTo is invoked through an exported API call
 // (such as AssertableTo), i.e., when all methods have been type-checked.
-func (check *Checker) assertableTo(V *Interface, T Type) (method, wrongType *Func) {
+// If strict (or the global constant forceStrict) is set, assertions are strict;
+// i.e., assertions that are guaranteed to fail are not permitted.
+func (check *Checker) assertableTo(V *Interface, T Type, strict bool) (method, wrongType *Func) {
 	// no static check is required if T is an interface
 	// spec: "If T is an interface type, x.(T) asserts that the
 	//        dynamic type of x implements the interface T."
-	if _, ok := T.Underlying().(*Interface); ok && !strict {
+	if _, ok := T.Underlying().(*Interface); ok && !(strict || forceStrict) {
 		return
 	}
 	return check.missingMethod(T, V, false)
