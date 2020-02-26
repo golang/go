@@ -83,10 +83,10 @@ func (c *pageCache) flush(s *pageAlloc) {
 	// slower, safer thing by iterating over each bit individually.
 	for i := uint(0); i < 64; i++ {
 		if c.cache&(1<<i) != 0 {
-			s.chunks[ci].free1(pi + i)
+			s.chunkOf(ci).free1(pi + i)
 		}
 		if c.scav&(1<<i) != 0 {
-			s.chunks[ci].scavenged.setRange(pi+i, 1)
+			s.chunkOf(ci).scavenged.setRange(pi+i, 1)
 		}
 	}
 	// Since this is a lot like a free, we need to make sure
@@ -113,14 +113,15 @@ func (s *pageAlloc) allocToCache() pageCache {
 	ci := chunkIndex(s.searchAddr) // chunk index
 	if s.summary[len(s.summary)-1][ci] != 0 {
 		// Fast path: there's free pages at or near the searchAddr address.
-		j, _ := s.chunks[ci].find(1, chunkPageIndex(s.searchAddr))
+		chunk := s.chunkOf(ci)
+		j, _ := chunk.find(1, chunkPageIndex(s.searchAddr))
 		if j < 0 {
 			throw("bad summary data")
 		}
 		c = pageCache{
 			base:  chunkBase(ci) + alignDown(uintptr(j), 64)*pageSize,
-			cache: ^s.chunks[ci].pages64(j),
-			scav:  s.chunks[ci].scavenged.block64(j),
+			cache: ^chunk.pages64(j),
+			scav:  chunk.scavenged.block64(j),
 		}
 	} else {
 		// Slow path: the searchAddr address had nothing there, so go find
@@ -133,10 +134,11 @@ func (s *pageAlloc) allocToCache() pageCache {
 			return pageCache{}
 		}
 		ci := chunkIndex(addr)
+		chunk := s.chunkOf(ci)
 		c = pageCache{
 			base:  alignDown(addr, 64*pageSize),
-			cache: ^s.chunks[ci].pages64(chunkPageIndex(addr)),
-			scav:  s.chunks[ci].scavenged.block64(chunkPageIndex(addr)),
+			cache: ^chunk.pages64(chunkPageIndex(addr)),
+			scav:  chunk.scavenged.block64(chunkPageIndex(addr)),
 		}
 	}
 

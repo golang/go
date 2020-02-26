@@ -1,5 +1,0 @@
-pkg unicode, const Version = "12.0.0"
-pkg unicode, var Elymaic *RangeTable
-pkg unicode, var Nandinagari *RangeTable
-pkg unicode, var Nyiakeng_Puachue_Hmong *RangeTable
-pkg unicode, var Wancho *RangeTable

@@ -19,7 +19,7 @@ import (
 )
 
 var cmdDownload = &base.Command{
-	UsageLine: "go mod download [-json] [modules]",
+	UsageLine: "go mod download [-x] [-json] [modules]",
 	Short:     "download modules to local cache",
 	Long: `
 Download downloads the named modules, which can be module patterns selecting
@@ -30,7 +30,9 @@ The go command will automatically download modules as needed during ordinary
 execution. The "go mod download" command is useful mainly for pre-filling
 the local cache or to compute the answers for a Go module proxy.
 
-By default, download reports errors to standard error but is otherwise silent.
+By default, download writes nothing to standard output. It may print progress
+messages and errors to standard error.
+
 The -json flag causes download to print a sequence of JSON objects
 to standard output, describing each downloaded module (or failure),
 corresponding to this Go struct:
@@ -47,6 +49,8 @@ corresponding to this Go struct:
         GoModSum string // checksum for go.mod (as in go.sum)
     }
 
+The -x flag causes download to print the commands download executes.
+
 See 'go help modules' for more about module queries.
 	`,
 }
@@ -56,6 +60,8 @@ var downloadJSON = cmdDownload.Flag.Bool("json", false, "")
 func init() {
 	cmdDownload.Run = runDownload // break init cycle
 
+	// TODO(jayconrod): https://golang.org/issue/35849 Apply -x to other 'go mod' commands.
+	cmdDownload.Flag.BoolVar(&cfg.BuildX, "x", false, "")
 	work.AddModCommonFlags(cmdDownload)
 }
 

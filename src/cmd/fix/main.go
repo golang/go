@@ -203,10 +203,8 @@ func processFile(filename string, useStdin bool) error {
 	return ioutil.WriteFile(f.Name(), newSrc, 0)
 }
 
-var gofmtBuf bytes.Buffer
-
 func gofmt(n interface{}) string {
-	gofmtBuf.Reset()
+	var gofmtBuf bytes.Buffer
 	if err := format.Node(&gofmtBuf, fset, n); err != nil {
 		return "<" + err.Error() + ">"
 	}

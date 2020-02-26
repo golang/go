@@ -176,6 +176,7 @@ var tests = []test{
 			`Comment about block of variables`,
 			`VarFive = 5`,
 			`var ExportedVariable = 1`,
+			`var ExportedVarOfUnExported unexportedType`,
 			`var LongLine = newLongLine\(`,
 			`var MultiLineVar = map\[struct {`,
 			`FUNCTIONS`,
@@ -209,6 +210,13 @@ var tests = []test{
 			`unexportedField`,
 			`func \(unexportedType\)`,
 		},
+	},
+	// Package with just the package declaration. Issue 31457.
+	{
+		"only package declaration",
+		[]string{"-all", p + "/nested/empty"},
+		[]string{`package empty .*import`},
+		nil,
 	},
 	// Package dump -short
 	{

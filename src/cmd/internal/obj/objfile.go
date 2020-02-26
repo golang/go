@@ -106,7 +106,7 @@ func WriteObjFile(ctxt *Link, bout *bio.Writer, pkgpath string) {
 	fileTable := ctxt.PosTable.DebugLinesFileTable()
 	w.writeInt(int64(len(fileTable)))
 	for _, str := range fileTable {
-		w.writeString(str)
+		w.writeString(filepath.ToSlash(str))
 	}
 
 	// Symbol references

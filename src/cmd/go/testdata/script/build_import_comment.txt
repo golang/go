@@ -1,0 +1,47 @@
+# TODO: add a go.mod file and test with GO111MODULE explicitly on and off.
+# We only report the 'expects import' error when modules are disabled.
+# Do we report comment parse errors or conflicts in module mode? We shouldn't.
+
+# Import comment matches
+go build -n works.go
+
+# Import comment mismatch
+! go build -n wrongplace.go
+stderr 'wrongplace expects import "my/x"'
+
+# Import comment syntax error
+! go build -n bad.go
+stderr 'cannot parse import comment'
+
+# Import comment conflict
+! go build -n conflict.go
+stderr 'found import comments'
+
+-- bad.go --
+package p
+
+import "bad"
+-- conflict.go --
+package p
+
+import "conflict"
+-- works.go --
+package p
+
+import _ "works/x"
+-- wrongplace.go --
+package p
+
+import "wrongplace"
+-- bad/bad.go --
+package bad // import
+-- conflict/a.go --
+package conflict // import "a"
+-- conflict/b.go --
+package conflict /* import "b" */
+-- works/x/x.go --
+package x // import "works/x"
+-- works/x/x1.go --
+package x // important! not an import comment
+-- wrongplace/x.go --
+package x // import "my/x"

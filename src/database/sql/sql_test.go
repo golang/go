@@ -629,7 +629,8 @@ func TestPoolExhaustOnCancel(t *testing.T) {
 		go func() {
 			rows, err := db.Query("SELECT|people|name,photo|")
 			if err != nil {
-				t.Fatalf("Query: %v", err)
+				t.Errorf("Query: %v", err)
+				return
 			}
 			rows.Close()
 			saturateDone.Done()
@@ -637,6 +638,9 @@ func TestPoolExhaustOnCancel(t *testing.T) {
 	}
 
 	saturate.Wait()
+	if t.Failed() {
+		t.FailNow()
+	}
 	state = 2
 
 	// Now cancel the request while it is waiting.

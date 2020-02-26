@@ -475,7 +475,7 @@ func readOptionalHeader(r io.ReadSeeker, sz uint16) (interface{}, error) {
 		var (
 			oh32 OptionalHeader32
 			// There can be 0 or more data directories. So the minimum size of optional
-			// header is calculated by substracting oh32.DataDirectory size from oh32 size.
+			// header is calculated by subtracting oh32.DataDirectory size from oh32 size.
 			oh32MinSz = binary.Size(oh32) - binary.Size(oh32.DataDirectory)
 		)
 
@@ -529,7 +529,7 @@ func readOptionalHeader(r io.ReadSeeker, sz uint16) (interface{}, error) {
 		var (
 			oh64 OptionalHeader64
 			// There can be 0 or more data directories. So the minimum size of optional
-			// header is calculated by substracting oh64.DataDirectory size from oh64 size.
+			// header is calculated by subtracting oh64.DataDirectory size from oh64 size.
 			oh64MinSz = binary.Size(oh64) - binary.Size(oh64.DataDirectory)
 		)
 

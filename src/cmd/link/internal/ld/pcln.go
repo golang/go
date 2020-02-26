@@ -138,6 +138,7 @@ func (ctxt *Link) pclntab() {
 
 	// Gather some basic stats and info.
 	var nfunc int32
+	prevSect := ctxt.Textp[0].Sect
 	for _, s := range ctxt.Textp {
 		if !emitPcln(ctxt, s) {
 			continue
@@ -145,6 +146,14 @@ func (ctxt *Link) pclntab() {
 		nfunc++
 		if pclntabFirstFunc == nil {
 			pclntabFirstFunc = s
+		}
+		if s.Sect != prevSect {
+			// With multiple text sections, the external linker may insert functions
+			// between the sections, which are not known by Go. This leaves holes in
+			// the PC range covered by the func table. We need to generate an entry
+			// to mark the hole.
+			nfunc++
+			prevSect = s.Sect
 		}
 	}
 
@@ -181,10 +190,23 @@ func (ctxt *Link) pclntab() {
 	}
 
 	nfunc = 0 // repurpose nfunc as a running index
+	prevFunc := ctxt.Textp[0]
 	for _, s := range ctxt.Textp {
 		if !emitPcln(ctxt, s) {
 			continue
 		}
+
+		if s.Sect != prevFunc.Sect {
+			// With multiple text sections, there may be a hole here in the address
+			// space (see the comment above). We use an invalid funcoff value to
+			// mark the hole.
+			// See also runtime/symtab.go:findfunc
+			ftab.SetAddrPlus(ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), prevFunc, prevFunc.Size)
+			ftab.SetUint(ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), ^uint64(0))
+			nfunc++
+		}
+		prevFunc = s
+
 		pcln := s.FuncInfo
 		if pcln == nil {
 			pcln = &pclntabZpcln
@@ -266,8 +288,13 @@ func (ctxt *Link) pclntab() {
 					switch ctxt.Arch.Family {
 					case sys.AMD64, sys.I386:
 						deferreturn--
-					case sys.PPC64, sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64, sys.RISCV64:
+					case sys.PPC64, sys.ARM, sys.ARM64, sys.MIPS, sys.MIPS64:
 						// no change
+					case sys.RISCV64:
+						// TODO(jsing): The JALR instruction is marked with
+						// R_CALLRISCV, whereas the actual reloc is currently
+						// one instruction earlier starting with the AUIPC.
+						deferreturn -= 4
 					case sys.S390X:
 						deferreturn -= 2
 					default:

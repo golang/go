@@ -214,6 +214,7 @@ func TestBuildForTvOS(t *testing.T) {
 		"GOOS=darwin",
 		"GOARCH=arm64",
 		"CC="+strings.Join(CC, " "),
+		"CGO_CFLAGS=", // ensure CGO_CFLAGS does not contain any flags. Issue #35459
 	)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
@@ -417,6 +418,11 @@ func TestStrictDup(t *testing.T) {
 	}
 	src = filepath.Join(tmpdir, "b.s")
 	err = ioutil.WriteFile(src, []byte(testStrictDupAsmSrc2), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src = filepath.Join(tmpdir, "go.mod")
+	err = ioutil.WriteFile(src, []byte("module teststrictdup\n"), 0666)
 	if err != nil {
 		t.Fatal(err)
 	}

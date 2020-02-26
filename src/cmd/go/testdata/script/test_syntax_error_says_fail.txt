@@ -1,0 +1,14 @@
+# Test that the error message for a syntax error in a test go file
+# says FAIL.
+
+! go test syntaxerror
+stderr 'x_test.go:' # check that the error is diagnosed
+stdout 'FAIL' # check that go test says FAIL
+
+-- syntaxerror/x.go --
+package p
+-- syntaxerror/x_test.go --
+package p
+
+func f() (x.y, z int) {
+}

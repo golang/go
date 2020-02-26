@@ -272,6 +272,9 @@ func TestPallocDataFindScavengeCandidate(t *testing.T) {
 
 // Tests end-to-end scavenging on a pageAlloc.
 func TestPageAllocScavenge(t *testing.T) {
+	if GOOS == "openbsd" && testing.Short() {
+		t.Skip("skipping because virtual memory is limited; see #36210")
+	}
 	type test struct {
 		request, expect uintptr
 	}
@@ -279,12 +282,13 @@ func TestPageAllocScavenge(t *testing.T) {
 	if minPages < 1 {
 		minPages = 1
 	}
-	tests := map[string]struct {
+	type setup struct {
 		beforeAlloc map[ChunkIdx][]BitRange
 		beforeScav  map[ChunkIdx][]BitRange
 		expect      []test
 		afterScav   map[ChunkIdx][]BitRange
-	}{
+	}
+	tests := map[string]setup{
 		"AllFreeUnscavExhaust": {
 			beforeAlloc: map[ChunkIdx][]BitRange{
 				BaseChunkIdx:     {},
@@ -373,6 +377,45 @@ func TestPageAllocScavenge(t *testing.T) {
 				BaseChunkIdx + 1: {{0, PallocChunkPages}},
 			},
 		},
+		"ScavDiscontiguous": {
+			beforeAlloc: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:       {},
+				BaseChunkIdx + 0xe: {},
+			},
+			beforeScav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:       {{uint(minPages), PallocChunkPages - uint(2*minPages)}},
+				BaseChunkIdx + 0xe: {{uint(2 * minPages), PallocChunkPages - uint(2*minPages)}},
+			},
+			expect: []test{
+				{2 * minPages * PageSize, 2 * minPages * PageSize},
+				{^uintptr(0), 2 * minPages * PageSize},
+				{^uintptr(0), 0},
+			},
+			afterScav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:       {{0, PallocChunkPages}},
+				BaseChunkIdx + 0xe: {{0, PallocChunkPages}},
+			},
+		},
+	}
+	if PageAlloc64Bit != 0 {
+		tests["ScavAllVeryDiscontiguous"] = setup{
+			beforeAlloc: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:          {},
+				BaseChunkIdx + 0x1000: {},
+			},
+			beforeScav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:          {},
+				BaseChunkIdx + 0x1000: {},
+			},
+			expect: []test{
+				{^uintptr(0), 2 * PallocChunkPages * PageSize},
+				{^uintptr(0), 0},
+			},
+			afterScav: map[ChunkIdx][]BitRange{
+				BaseChunkIdx:          {{0, PallocChunkPages}},
+				BaseChunkIdx + 0x1000: {{0, PallocChunkPages}},
+			},
+		}
 	}
 	for name, v := range tests {
 		v := v

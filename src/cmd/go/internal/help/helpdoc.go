@@ -621,8 +621,10 @@ Additional information available from 'go env' but not read from the environment
 	GOHOSTOS
 		The operating system (GOOS) of the Go toolchain binaries.
 	GOMOD
-		The absolute path to the go.mod of the main module,
-		or the empty string if not using modules.
+		The absolute path to the go.mod of the main module.
+		If module-aware mode is enabled, but there is no go.mod, GOMOD will be
+		os.DevNull ("/dev/null" on Unix-like systems, "NUL" on Windows).
+		If module-aware mode is disabled, GOMOD will be the empty string.
 	GOTOOLDIR
 		The directory where the go tools (compile, cover, doc, etc...) are installed.
 	`,

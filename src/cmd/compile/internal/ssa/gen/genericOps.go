@@ -340,7 +340,7 @@ var genericOps = []opData{
 	// Note: ConstX are sign-extended even when the type of the value is unsigned.
 	// For instance, uint8(0xaa) is stored as auxint=0xffffffffffffffaa.
 	{name: "Const64", aux: "Int64"},    // value is auxint
-	{name: "Const32F", aux: "Float32"}, // value is math.Float64frombits(uint64(auxint)) and is exactly prepresentable as float 32
+	{name: "Const32F", aux: "Float32"}, // value is math.Float64frombits(uint64(auxint)) and is exactly representable as float 32
 	{name: "Const64F", aux: "Float64"}, // value is math.Float64frombits(uint64(auxint))
 	{name: "ConstInterface"},           // nil interface
 	{name: "ConstSlice"},               // nil slice

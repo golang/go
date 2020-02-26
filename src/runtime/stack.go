@@ -627,7 +627,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
 		print("    adjusting ", funcname(f), " frame=[", hex(frame.sp), ",", hex(frame.fp), "] pc=", hex(frame.pc), " continpc=", hex(frame.continpc), "\n")
 	}
 	if f.funcID == funcID_systemstack_switch {
-		// A special routine at the bottom of stack of a goroutine that does an systemstack call.
+		// A special routine at the bottom of stack of a goroutine that does a systemstack call.
 		// We will allow it to be copied even though we don't
 		// have full GC info for it (because it is written in asm).
 		return true
@@ -1030,6 +1030,7 @@ func newstack() {
 	newsize := oldsize * 2
 	if newsize > maxstacksize {
 		print("runtime: goroutine stack exceeds ", maxstacksize, "-byte limit\n")
+		print("runtime: sp=", hex(sp), " stack=[", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n")
 		throw("stack overflow")
 	}
 

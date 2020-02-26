@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package web defines minimal helper routines for accessing HTTP/HTTPS
-// resources without requiring external dependenicies on the net package.
+// resources without requiring external dependencies on the net package.
 //
 // If the cmd_go_bootstrap build tag is present, web avoids the use of the net
 // package and returns errors for all network operations.

@@ -2476,6 +2476,11 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
 				return cvtRunesString
 			}
 		}
+
+	case Chan:
+		if dst.Kind() == Chan && specialChannelAssignability(dst, src) {
+			return cvtDirect
+		}
 	}
 
 	// dst and src have same underlying type.

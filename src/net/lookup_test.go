@@ -998,11 +998,15 @@ func TestConcurrentPreferGoResolversDial(t *testing.T) {
 			defer wg.Done()
 			_, err := r.LookupIPAddr(context.Background(), "google.com")
 			if err != nil {
-				t.Fatalf("lookup failed for resolver %d: %q", index, err)
+				t.Errorf("lookup failed for resolver %d: %q", index, err)
 			}
 		}(resolver.Resolver, i)
 	}
 	wg.Wait()
+
+	if t.Failed() {
+		t.FailNow()
+	}
 
 	for i, resolver := range resolvers {
 		if !resolver.dialed {
@@ -1175,12 +1179,9 @@ func TestWithUnexpiredValuesPreserved(t *testing.T) {
 	}
 }
 
-// Issue 31586: don't crash on null byte in name
+// Issue 31597: don't panic on null byte in name
 func TestLookupNullByte(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	testenv.SkipFlakyNet(t)
-	_, err := LookupHost("foo\x00bar") // used to crash on Windows
-	if err == nil {
-		t.Errorf("unexpected success")
-	}
+	LookupHost("foo\x00bar") // check that it doesn't panic; it used to on Windows
 }

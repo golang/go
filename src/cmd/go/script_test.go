@@ -30,6 +30,7 @@ import (
 	"cmd/go/internal/robustio"
 	"cmd/go/internal/txtar"
 	"cmd/go/internal/work"
+	"cmd/internal/sys"
 )
 
 // TestScript runs the tests in testdata/script/*.txt.
@@ -290,6 +291,22 @@ Script:
 						_, err := exec.LookPath(prog)
 						return err == nil
 					}).(bool)
+					break
+				}
+				if strings.HasPrefix(cond.tag, "GODEBUG:") {
+					value := strings.TrimPrefix(cond.tag, "GODEBUG:")
+					parts := strings.Split(os.Getenv("GODEBUG"), ",")
+					for _, p := range parts {
+						if strings.TrimSpace(p) == value {
+							ok = true
+							break
+						}
+					}
+					break
+				}
+				if strings.HasPrefix(cond.tag, "buildmode:") {
+					value := strings.TrimPrefix(cond.tag, "buildmode:")
+					ok = sys.BuildModeSupported(runtime.Compiler, value, runtime.GOOS, runtime.GOARCH)
 					break
 				}
 				if !imports.KnownArch[cond.tag] && !imports.KnownOS[cond.tag] && cond.tag != "gc" && cond.tag != "gccgo" {
@@ -569,26 +586,31 @@ func (ts *testScript) cmdEnv(neg bool, args []string) {
 		args = args[1:]
 	}
 
+	var out strings.Builder
 	if len(args) == 0 {
 		printed := make(map[string]bool) // env list can have duplicates; only print effective value (from envMap) once
 		for _, kv := range ts.env {
 			k := kv[:strings.Index(kv, "=")]
 			if !printed[k] {
-				fmt.Fprintf(&ts.log, "%s=%s\n", k, ts.envMap[k])
+				fmt.Fprintf(&out, "%s=%s\n", k, ts.envMap[k])
 			}
 		}
-		return
-	}
-	for _, env := range args {
-		i := strings.Index(env, "=")
-		if i < 0 {
-			// Display value instead of setting it.
-			fmt.Fprintf(&ts.log, "%s=%s\n", env, ts.envMap[env])
-			continue
+	} else {
+		for _, env := range args {
+			i := strings.Index(env, "=")
+			if i < 0 {
+				// Display value instead of setting it.
+				fmt.Fprintf(&out, "%s=%s\n", env, ts.envMap[env])
+				continue
+			}
+			key, val := env[:i], conv(env[i+1:])
+			ts.env = append(ts.env, key+"="+val)
+			ts.envMap[key] = val
 		}
-		key, val := env[:i], conv(env[i+1:])
-		ts.env = append(ts.env, key+"="+val)
-		ts.envMap[key] = val
+	}
+	if out.Len() > 0 || len(args) > 0 {
+		ts.stdout = out.String()
+		ts.log.WriteString(out.String())
 	}
 }
 

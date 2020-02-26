@@ -50,6 +50,7 @@ package syscall
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <linux/icmpv6.h>
+#include <poll.h>
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
@@ -111,12 +112,13 @@ typedef struct {} ptracePer;
 // The real epoll_event is a union, and godefs doesn't handle it well.
 struct my_epoll_event {
 	uint32_t events;
-#if defined(__ARM_EABI__) || (defined(__mips__) && _MIPS_SIM == _ABIO32)
+#if defined(__ARM_EABI__) || defined(__aarch64__) || (defined(__mips__) && _MIPS_SIM == _ABIO32)
 	// padding is not specified in linux/eventpoll.h but added to conform to the
 	// alignment requirements of EABI
 	int32_t padFd;
 #endif
-#if defined(__powerpc64__) || defined(__s390x__) || (defined(__riscv_xlen) && __riscv_xlen == 64)
+#if defined(__powerpc64__) || defined(__s390x__) || (defined(__riscv_xlen) && __riscv_xlen == 64) \
+		|| (defined(__mips__) && _MIPS_SIM == _MIPS_SIM_ABI64)
 	int32_t _padFd;
 #endif
 	int32_t fd;

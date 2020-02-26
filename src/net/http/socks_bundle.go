@@ -283,7 +283,7 @@ type socksDialer struct {
 	// establishing the transport connection.
 	ProxyDial func(context.Context, string, string) (net.Conn, error)
 
-	// AuthMethods specifies the list of request authention
+	// AuthMethods specifies the list of request authentication
 	// methods.
 	// If empty, SOCKS client requests only AuthMethodNotRequired.
 	AuthMethods []socksAuthMethod

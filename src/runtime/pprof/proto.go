@@ -394,7 +394,23 @@ func (b *profileBuilder) appendLocsForStack(locs []uint64, stk []uintptr) (newLo
 
 			// then, record the cached location.
 			locs = append(locs, l.id)
-			stk = stk[len(l.pcs):] // skip the matching pcs.
+
+			// The stk may be truncated due to the stack depth limit
+			// (e.g. See maxStack and maxCPUProfStack in runtime) or
+			// bugs in runtime. Avoid the crash in either case.
+			// TODO(hyangah): The correct fix may require using the exact
+			// pcs as the key for b.locs cache management instead of just
+			// relying on the very first pc. We are late in the go1.14 dev
+			// cycle, so this is a workaround with little code change.
+			if len(l.pcs) > len(stk) {
+				stk = nil
+				// TODO(hyangah): would be nice if we can enable
+				// debug print out on demand and report the problematic
+				// cached location entry and stack traces. Do we already
+				// have such facility to utilize (e.g. GODEBUG)?
+			} else {
+				stk = stk[len(l.pcs):] // skip the matching pcs.
+			}
 			continue
 		}
 
@@ -471,13 +487,12 @@ func (d *pcDeck) reset() {
 func (d *pcDeck) tryAdd(pc uintptr, frames []runtime.Frame, symbolizeResult symbolizeFlag) (success bool) {
 	if existing := len(d.pcs); existing > 0 {
 		// 'frames' are all expanded from one 'pc' and represent all inlined functions
-		// so we check only the first one.
+		// so we check only the last one.
 		newFrame := frames[0]
 		last := d.frames[existing-1]
-		if last.Func != nil && newFrame.Func != nil { // Can't be an inlined frame.
+		if last.Func != nil { // the last frame can't be inlined. Flush.
 			return false
 		}
-
 		if last.Entry == 0 || newFrame.Entry == 0 { // Possibly not a Go function. Don't try to merge.
 			return false
 		}

@@ -4,9 +4,9 @@ package issue9026
 // per-package counter used to create fresh identifiers.
 
 /*
-typedef struct {} git_merge_file_input;
+typedef struct { int i; } git_merge_file_input;
 
-typedef struct {} git_merge_file_options;
+typedef struct { int j; } git_merge_file_options;
 
 void git_merge_file(
         git_merge_file_input *in,

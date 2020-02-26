@@ -70,7 +70,7 @@ type mheap struct {
 	// on the swept stack.
 	sweepSpans [2]gcSweepBuf
 
-	_ uint32 // align uint64 fields on 32-bit for atomics
+	// _ uint32 // align uint64 fields on 32-bit for atomics
 
 	// Proportional sweep
 	//
@@ -786,7 +786,9 @@ func (h *mheap) reclaim(npage uintptr) {
 // reclaimChunk sweeps unmarked spans that start at page indexes [pageIdx, pageIdx+n).
 // It returns the number of pages returned to the heap.
 //
-// h.lock must be held and the caller must be non-preemptible.
+// h.lock must be held and the caller must be non-preemptible. Note: h.lock may be
+// temporarily unlocked and re-locked in order to do sweeping or if tracing is
+// enabled.
 func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
 	// The heap lock must be held because this accesses the
 	// heapArena.spans arrays using potentially non-live pointers.
@@ -842,8 +844,10 @@ func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
 		n -= uintptr(len(inUse) * 8)
 	}
 	if trace.enabled {
+		unlock(&h.lock)
 		// Account for pages scanned but not reclaimed.
 		traceGCSweepSpan((n0 - nFreed) * pageSize)
+		lock(&h.lock)
 	}
 	return nFreed
 }
@@ -1419,20 +1423,19 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool) {
 // unscav and adds it into scav before continuing.
 func (h *mheap) scavengeAll() {
 	// Disallow malloc or panic while holding the heap lock. We do
-	// this here because this is an non-mallocgc entry-point to
+	// this here because this is a non-mallocgc entry-point to
 	// the mheap API.
 	gp := getg()
 	gp.m.mallocing++
 	lock(&h.lock)
+	// Reset the scavenger address so we have access to the whole heap.
+	h.pages.resetScavengeAddr()
 	released := h.pages.scavenge(^uintptr(0), true)
 	unlock(&h.lock)
 	gp.m.mallocing--
 
-	if debug.gctrace > 0 {
-		if released > 0 {
-			print("forced scvg: ", released>>20, " MB released\n")
-		}
-		print("forced scvg: inuse: ", memstats.heap_inuse>>20, ", idle: ", memstats.heap_idle>>20, ", sys: ", memstats.heap_sys>>20, ", released: ", memstats.heap_released>>20, ", consumed: ", (memstats.heap_sys-memstats.heap_released)>>20, " (MB)\n")
+	if debug.scavtrace > 0 {
+		printScavTrace(released, true)
 	}
 }
 

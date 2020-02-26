@@ -63,7 +63,7 @@ func TestFuseEliminatesBothBranches(t *testing.T) {
 			t.Errorf("then was not eliminated, but should have")
 		}
 		if b == fun.blocks["else"] && b.Kind != BlockInvalid {
-			t.Errorf("then was not eliminated, but should have")
+			t.Errorf("else was not eliminated, but should have")
 		}
 	}
 }
@@ -97,7 +97,7 @@ func TestFuseHandlesPhis(t *testing.T) {
 			t.Errorf("then was not eliminated, but should have")
 		}
 		if b == fun.blocks["else"] && b.Kind != BlockInvalid {
-			t.Errorf("then was not eliminated, but should have")
+			t.Errorf("else was not eliminated, but should have")
 		}
 	}
 }
@@ -127,6 +127,40 @@ func TestFuseEliminatesEmptyBlocks(t *testing.T) {
 	for k, b := range fun.blocks {
 		if k[:1] == "z" && b.Kind != BlockInvalid {
 			t.Errorf("%s was not eliminated, but should have", k)
+		}
+	}
+}
+
+func TestFuseSideEffects(t *testing.T) {
+	// Test that we don't fuse branches that have side effects but
+	// have no use (e.g. followed by infinite loop).
+	// See issue #36005.
+	c := testConfig(t)
+	fun := c.Fun("entry",
+		Bloc("entry",
+			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
+			Valu("b", OpArg, c.config.Types.Bool, 0, nil),
+			If("b", "then", "else")),
+		Bloc("then",
+			Valu("call1", OpStaticCall, types.TypeMem, 0, nil, "mem"),
+			Goto("empty")),
+		Bloc("else",
+			Valu("call2", OpStaticCall, types.TypeMem, 0, nil, "mem"),
+			Goto("empty")),
+		Bloc("empty",
+			Goto("loop")),
+		Bloc("loop",
+			Goto("loop")))
+
+	CheckFunc(fun.f)
+	fuseAll(fun.f)
+
+	for _, b := range fun.f.Blocks {
+		if b == fun.blocks["then"] && b.Kind == BlockInvalid {
+			t.Errorf("then is eliminated, but should not")
+		}
+		if b == fun.blocks["else"] && b.Kind == BlockInvalid {
+			t.Errorf("else is eliminated, but should not")
 		}
 	}
 }

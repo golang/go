@@ -238,7 +238,6 @@ func (c *Cmd) argv() []string {
 
 // skipStdinCopyError optionally specifies a function which reports
 // whether the provided stdin copy error should be ignored.
-// It is non-nil everywhere but Plan 9, which lacks EPIPE. See exec_posix.go.
 var skipStdinCopyError func(error) bool
 
 func (c *Cmd) stdin() (f *os.File, err error) {
@@ -368,6 +367,8 @@ func lookExtensions(path, dir string) (string, error) {
 }
 
 // Start starts the specified command but does not wait for it to complete.
+//
+// If Start returns successfully, the c.Process field will be set.
 //
 // The Wait method will return the exit code and release associated resources
 // once the command exits.

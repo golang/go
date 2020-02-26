@@ -54,7 +54,7 @@ const (
 	traceEvGoInSyscall       = 32 // denotes that goroutine is in syscall when tracing starts [timestamp, goroutine id]
 	traceEvHeapAlloc         = 33 // memstats.heap_live change [timestamp, heap_alloc]
 	traceEvNextGC            = 34 // memstats.next_gc change [timestamp, next_gc]
-	traceEvTimerGoroutine    = 35 // denotes timer goroutine [timer goroutine id]
+	traceEvTimerGoroutine    = 35 // not currently used; previously denoted timer goroutine [timer goroutine id]
 	traceEvFutileWakeup      = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
 	traceEvString            = 37 // string dictionary entry [ID, length, string]
 	traceEvGoStartLocal      = 38 // goroutine starts running on the same P as the last event [timestamp, goroutine id]
@@ -180,12 +180,9 @@ func traceBufPtrOf(b *traceBuf) traceBufPtr {
 // Most clients should use the runtime/trace package or the testing package's
 // -test.trace flag instead of calling StartTrace directly.
 func StartTrace() error {
-	// Stop the world so that we can take a consistent snapshot
+	// Stop the world, so that we can take a consistent snapshot
 	// of all goroutines at the beginning of the trace.
-	// Do not stop the world during GC so we ensure we always see
-	// a consistent view of GC-related events (e.g. a start is always
-	// paired with an end).
-	stopTheWorldGC("start tracing")
+	stopTheWorld("start tracing")
 
 	// We are in stop-the-world, but syscalls can finish and write to trace concurrently.
 	// Exitsyscall could check trace.enabled long before and then suddenly wake up
@@ -196,7 +193,7 @@ func StartTrace() error {
 
 	if trace.enabled || trace.shutdown {
 		unlock(&trace.bufLock)
-		startTheWorldGC()
+		startTheWorld()
 		return errorString("tracing is already enabled")
 	}
 
@@ -267,7 +264,7 @@ func StartTrace() error {
 
 	unlock(&trace.bufLock)
 
-	startTheWorldGC()
+	startTheWorld()
 	return nil
 }
 
@@ -276,14 +273,14 @@ func StartTrace() error {
 func StopTrace() {
 	// Stop the world so that we can collect the trace buffers from all p's below,
 	// and also to avoid races with traceEvent.
-	stopTheWorldGC("stop tracing")
+	stopTheWorld("stop tracing")
 
 	// See the comment in StartTrace.
 	lock(&trace.bufLock)
 
 	if !trace.enabled {
 		unlock(&trace.bufLock)
-		startTheWorldGC()
+		startTheWorld()
 		return
 	}
 
@@ -320,7 +317,7 @@ func StopTrace() {
 	trace.shutdown = true
 	unlock(&trace.bufLock)
 
-	startTheWorldGC()
+	startTheWorld()
 
 	// The world is started but we've set trace.shutdown, so new tracing can't start.
 	// Wait for the trace reader to flush pending buffers and stop.
@@ -416,13 +413,6 @@ func ReadTrace() []byte {
 		var data []byte
 		data = append(data, traceEvFrequency|0<<traceArgCountShift)
 		data = traceAppend(data, uint64(freq))
-		for i := range timers {
-			tb := &timers[i]
-			if tb.gp != nil {
-				data = append(data, traceEvTimerGoroutine|0<<traceArgCountShift)
-				data = traceAppend(data, uint64(tb.gp.goid))
-			}
-		}
 		// This will emit a bunch of full buffers, we will pick them up
 		// on the next iteration.
 		trace.stackTab.dump()

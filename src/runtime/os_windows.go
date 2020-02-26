@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -32,6 +33,7 @@ const (
 //go:cgo_import_dynamic runtime._GetSystemDirectoryA GetSystemDirectoryA%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetSystemInfo GetSystemInfo%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetThreadContext GetThreadContext%2 "kernel32.dll"
+//go:cgo_import_dynamic runtime._SetThreadContext SetThreadContext%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._LoadLibraryA LoadLibraryA%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._PostQueuedCompletionStatus PostQueuedCompletionStatus%4 "kernel32.dll"
@@ -79,6 +81,7 @@ var (
 	_GetSystemInfo,
 	_GetSystemTimeAsFileTime,
 	_GetThreadContext,
+	_SetThreadContext,
 	_LoadLibraryW,
 	_LoadLibraryA,
 	_PostQueuedCompletionStatus,
@@ -143,8 +146,34 @@ func tstart_stdcall(newm *m)
 func ctrlhandler()
 
 type mOS struct {
+	threadLock mutex   // protects "thread" and prevents closing
+	thread     uintptr // thread handle
+
 	waitsema   uintptr // semaphore for parking on locks
 	resumesema uintptr // semaphore to indicate suspend/resume
+
+	// preemptExtLock synchronizes preemptM with entry/exit from
+	// external C code.
+	//
+	// This protects against races between preemptM calling
+	// SuspendThread and external code on this thread calling
+	// ExitProcess. If these happen concurrently, it's possible to
+	// exit the suspending thread and suspend the exiting thread,
+	// leading to deadlock.
+	//
+	// 0 indicates this M is not being preempted or in external
+	// code. Entering external code CASes this from 0 to 1. If
+	// this fails, a preemption is in progress, so the thread must
+	// wait for the preemption. preemptM also CASes this from 0 to
+	// 1. If this fails, the preemption fails (as it would if the
+	// PC weren't in Go code). The value is reset to 0 when
+	// returning from external code or after a preemption is
+	// complete.
+	//
+	// TODO(austin): We may not need this if preemption were more
+	// tightly synchronized on the G/P status and preemption
+	// blocked transition into _Gsyscall/_Psyscall.
+	preemptExtLock uint32
 }
 
 //go:linkname os_sigpipe os.sigpipe
@@ -264,7 +293,11 @@ func loadOptionalSyscalls() {
 }
 
 func monitorSuspendResume() {
-	const _DEVICE_NOTIFY_CALLBACK = 2
+	const (
+		_DEVICE_NOTIFY_CALLBACK   = 2
+		_ERROR_FILE_NOT_FOUND     = 2
+		_ERROR_INVALID_PARAMETERS = 87
+	)
 	type _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS struct {
 		callback uintptr
 		context  uintptr
@@ -290,10 +323,24 @@ func monitorSuspendResume() {
 		callback: compileCallback(*efaceOf(&fn), true),
 	}
 	handle := uintptr(0)
-	if stdcall3(powerRegisterSuspendResumeNotification, _DEVICE_NOTIFY_CALLBACK,
-		uintptr(unsafe.Pointer(&params)),
-		uintptr(unsafe.Pointer(&handle))) != 0 {
-		throw("PowerRegisterSuspendResumeNotification failure")
+	ret := stdcall3(powerRegisterSuspendResumeNotification, _DEVICE_NOTIFY_CALLBACK,
+		uintptr(unsafe.Pointer(&params)), uintptr(unsafe.Pointer(&handle)))
+	// This function doesn't use GetLastError(), so we use the return value directly.
+	switch ret {
+	case 0:
+		return // Successful, nothing more to do.
+	case _ERROR_FILE_NOT_FOUND:
+		// Systems without access to the suspend/resume notifier
+		// also have their clock on "program time", and therefore
+		// don't want or need this anyway.
+		return
+	case _ERROR_INVALID_PARAMETERS:
+		// This is seen when running in Windows Docker.
+		// See issue 36557.
+		return
+	default:
+		println("runtime: PowerRegisterSuspendResumeNotification failed with errno=", ret)
+		throw("runtime: PowerRegisterSuspendResumeNotification failure")
 	}
 }
 
@@ -536,6 +583,11 @@ var exiting uint32
 
 //go:nosplit
 func exit(code int32) {
+	// Disallow thread suspension for preemption. Otherwise,
+	// ExitProcess and SuspendThread can race: SuspendThread
+	// queues a suspension request for this thread, ExitProcess
+	// kills the suspending thread, and then this thread suspends.
+	lock(&suspendLock)
 	atomic.Store(&exiting, 1)
 	stdcall1(_ExitProcess, uintptr(code))
 }
@@ -812,7 +864,11 @@ func sigblock() {
 func minit() {
 	var thandle uintptr
 	stdcall7(_DuplicateHandle, currentProcess, currentThread, currentProcess, uintptr(unsafe.Pointer(&thandle)), 0, 0, _DUPLICATE_SAME_ACCESS)
-	atomic.Storeuintptr(&getg().m.thread, thandle)
+
+	mp := getg().m
+	lock(&mp.threadLock)
+	mp.thread = thandle
+	unlock(&mp.threadLock)
 
 	// Query the true stack base from the OS. Currently we're
 	// running on a small assumed stack.
@@ -845,9 +901,11 @@ func minit() {
 // Called from dropm to undo the effect of an minit.
 //go:nosplit
 func unminit() {
-	tp := &getg().m.thread
-	stdcall1(_CloseHandle, *tp)
-	*tp = 0
+	mp := getg().m
+	lock(&mp.threadLock)
+	stdcall1(_CloseHandle, mp.thread)
+	mp.thread = 0
+	unlock(&mp.threadLock)
 }
 
 // Calling stdcall on os stack.
@@ -994,19 +1052,22 @@ func profilem(mp *m, thread uintptr) {
 	r.contextflags = _CONTEXT_CONTROL
 	stdcall2(_GetThreadContext, thread, uintptr(unsafe.Pointer(r)))
 
-	var gp *g
-	switch GOARCH {
-	default:
-		panic("unsupported architecture")
-	case "arm":
-		tls := &mp.tls[0]
-		gp = **((***g)(unsafe.Pointer(tls)))
-	case "386", "amd64":
-		tls := &mp.tls[0]
-		gp = *((**g)(unsafe.Pointer(tls)))
-	}
+	gp := gFromTLS(mp)
 
 	sigprof(r.ip(), r.sp(), r.lr(), gp, mp)
+}
+
+func gFromTLS(mp *m) *g {
+	switch GOARCH {
+	case "arm":
+		tls := &mp.tls[0]
+		return **((***g)(unsafe.Pointer(tls)))
+	case "386", "amd64":
+		tls := &mp.tls[0]
+		return *((**g)(unsafe.Pointer(tls)))
+	}
+	throw("unsupported architecture")
+	return nil
 }
 
 func profileloop1(param uintptr) uint32 {
@@ -1016,17 +1077,25 @@ func profileloop1(param uintptr) uint32 {
 		stdcall2(_WaitForSingleObject, profiletimer, _INFINITE)
 		first := (*m)(atomic.Loadp(unsafe.Pointer(&allm)))
 		for mp := first; mp != nil; mp = mp.alllink {
-			thread := atomic.Loaduintptr(&mp.thread)
+			lock(&mp.threadLock)
 			// Do not profile threads blocked on Notes,
 			// this includes idle worker threads,
 			// idle timer thread, idle heap scavenger, etc.
-			if thread == 0 || mp.profilehz == 0 || mp.blocked {
+			if mp.thread == 0 || mp.profilehz == 0 || mp.blocked {
+				unlock(&mp.threadLock)
 				continue
 			}
-			// mp may exit between the load above and the
-			// SuspendThread, so be careful.
+			// Acquire our own handle to the thread.
+			var thread uintptr
+			stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS)
+			unlock(&mp.threadLock)
+			// mp may exit between the DuplicateHandle
+			// above and the SuspendThread. The handle
+			// will remain valid, but SuspendThread may
+			// fail.
 			if int32(stdcall1(_SuspendThread, thread)) == -1 {
 				// The thread no longer exists.
+				stdcall1(_CloseHandle, thread)
 				continue
 			}
 			if mp.profilehz != 0 && !mp.blocked {
@@ -1035,6 +1104,7 @@ func profileloop1(param uintptr) uint32 {
 				profilem(mp, thread)
 			}
 			stdcall1(_ResumeThread, thread)
+			stdcall1(_CloseHandle, thread)
 		}
 	}
 }
@@ -1063,10 +1133,139 @@ func setThreadCPUProfiler(hz int32) {
 	atomic.Store((*uint32)(unsafe.Pointer(&getg().m.profilehz)), uint32(hz))
 }
 
-const preemptMSupported = false
+const preemptMSupported = GOARCH != "arm"
+
+// suspendLock protects simultaneous SuspendThread operations from
+// suspending each other.
+var suspendLock mutex
 
 func preemptM(mp *m) {
-	// Not currently supported.
-	//
-	// TODO: Use SuspendThread/GetThreadContext/ResumeThread
+	if GOARCH == "arm" {
+		// TODO: Implement call injection
+		return
+	}
+
+	if mp == getg().m {
+		throw("self-preempt")
+	}
+
+	// Synchronize with external code that may try to ExitProcess.
+	if !atomic.Cas(&mp.preemptExtLock, 0, 1) {
+		// External code is running. Fail the preemption
+		// attempt.
+		atomic.Xadd(&mp.preemptGen, 1)
+		return
+	}
+
+	// Acquire our own handle to mp's thread.
+	lock(&mp.threadLock)
+	if mp.thread == 0 {
+		// The M hasn't been minit'd yet (or was just unminit'd).
+		unlock(&mp.threadLock)
+		atomic.Store(&mp.preemptExtLock, 0)
+		atomic.Xadd(&mp.preemptGen, 1)
+		return
+	}
+	var thread uintptr
+	stdcall7(_DuplicateHandle, currentProcess, mp.thread, currentProcess, uintptr(unsafe.Pointer(&thread)), 0, 0, _DUPLICATE_SAME_ACCESS)
+	unlock(&mp.threadLock)
+
+	// Prepare thread context buffer.
+	var c *context
+	cbuf := make([]byte, unsafe.Sizeof(*c)+15)
+	// Align Context to 16 bytes.
+	c = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&cbuf[15]))) &^ 15))
+	c.contextflags = _CONTEXT_CONTROL
+
+	// Serialize thread suspension. SuspendThread is asynchronous,
+	// so it's otherwise possible for two threads to suspend each
+	// other and deadlock. We must hold this lock until after
+	// GetThreadContext, since that blocks until the thread is
+	// actually suspended.
+	lock(&suspendLock)
+
+	// Suspend the thread.
+	if int32(stdcall1(_SuspendThread, thread)) == -1 {
+		unlock(&suspendLock)
+		stdcall1(_CloseHandle, thread)
+		atomic.Store(&mp.preemptExtLock, 0)
+		// The thread no longer exists. This shouldn't be
+		// possible, but just acknowledge the request.
+		atomic.Xadd(&mp.preemptGen, 1)
+		return
+	}
+
+	// We have to be very careful between this point and once
+	// we've shown mp is at an async safe-point. This is like a
+	// signal handler in the sense that mp could have been doing
+	// anything when we stopped it, including holding arbitrary
+	// locks.
+
+	// We have to get the thread context before inspecting the M
+	// because SuspendThread only requests a suspend.
+	// GetThreadContext actually blocks until it's suspended.
+	stdcall2(_GetThreadContext, thread, uintptr(unsafe.Pointer(c)))
+
+	unlock(&suspendLock)
+
+	// Does it want a preemption and is it safe to preempt?
+	gp := gFromTLS(mp)
+	if wantAsyncPreempt(gp) && isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()) {
+		// Inject call to asyncPreempt
+		targetPC := funcPC(asyncPreempt)
+		switch GOARCH {
+		default:
+			throw("unsupported architecture")
+		case "386", "amd64":
+			// Make it look like the thread called targetPC.
+			pc := c.ip()
+			sp := c.sp()
+			sp -= sys.PtrSize
+			*(*uintptr)(unsafe.Pointer(sp)) = pc
+			c.set_sp(sp)
+			c.set_ip(targetPC)
+		}
+
+		stdcall2(_SetThreadContext, thread, uintptr(unsafe.Pointer(c)))
+	}
+
+	atomic.Store(&mp.preemptExtLock, 0)
+
+	// Acknowledge the preemption.
+	atomic.Xadd(&mp.preemptGen, 1)
+
+	stdcall1(_ResumeThread, thread)
+	stdcall1(_CloseHandle, thread)
+}
+
+// osPreemptExtEnter is called before entering external code that may
+// call ExitProcess.
+//
+// This must be nosplit because it may be called from a syscall with
+// untyped stack slots, so the stack must not be grown or scanned.
+//
+//go:nosplit
+func osPreemptExtEnter(mp *m) {
+	for !atomic.Cas(&mp.preemptExtLock, 0, 1) {
+		// An asynchronous preemption is in progress. It's not
+		// safe to enter external code because it may call
+		// ExitProcess and deadlock with SuspendThread.
+		// Ideally we would do the preemption ourselves, but
+		// can't since there may be untyped syscall arguments
+		// on the stack. Instead, just wait and encourage the
+		// SuspendThread APC to run. The preemption should be
+		// done shortly.
+		osyield()
+	}
+	// Asynchronous preemption is now blocked.
+}
+
+// osPreemptExtExit is called after returning from external code that
+// may call ExitProcess.
+//
+// See osPreemptExtEnter for why this is nosplit.
+//
+//go:nosplit
+func osPreemptExtExit(mp *m) {
+	atomic.Store(&mp.preemptExtLock, 0)
 }

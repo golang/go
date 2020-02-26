@@ -126,7 +126,8 @@ func vetFlags(usage func(), args []string) (passToVet, packageNames []string) {
 	})
 
 	// Process args.
-	args = str.StringList(cmdflag.FindGOFLAGS(vetFlagDefn), args)
+	goflags := cmdflag.FindGOFLAGS(vetFlagDefn)
+	args = str.StringList(goflags, args)
 	for i := 0; i < len(args); i++ {
 		if !strings.HasPrefix(args[i], "-") {
 			return args[:i], args[i:]
@@ -138,6 +139,9 @@ func vetFlags(usage func(), args []string) (passToVet, packageNames []string) {
 			fmt.Fprintf(os.Stderr, "Run \"go help vet\" for more information\n")
 			base.SetExitStatus(2)
 			base.Exit()
+		}
+		if i < len(goflags) {
+			f.Present = false // Not actually present on the command line.
 		}
 		if f.Value != nil {
 			if err := f.Value.Set(value); err != nil {

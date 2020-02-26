@@ -49,3 +49,11 @@ stderr '^go: invalid boolean value \"asdf\" for flag -e \(from (\$GOFLAGS|%GOFLA
 go env
 stdout GOFLAGS
 
+# Flags listed in GOFLAGS should be safe to duplicate on the command line.
+env GOFLAGS=-tags=magic
+go list -tags=magic
+go test -tags=magic -c -o $devnull
+go vet -tags=magic
+
+-- foo_test.go --
+package foo

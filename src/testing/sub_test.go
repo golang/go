@@ -460,6 +460,21 @@ func TestTRun(t *T) {
 			<-ch
 			t.Errorf("error")
 		},
+	}, {
+		// If a subtest panics we should run cleanups.
+		desc:   "cleanup when subtest panics",
+		ok:     false,
+		chatty: false,
+		output: `
+--- FAIL: cleanup when subtest panics (N.NNs)
+    --- FAIL: cleanup when subtest panics/sub (N.NNs)
+    sub_test.go:NNN: running cleanup`,
+		f: func(t *T) {
+			t.Cleanup(func() { t.Log("running cleanup") })
+			t.Run("sub", func(t2 *T) {
+				t2.FailNow()
+			})
+		},
 	}}
 	for _, tc := range testCases {
 		ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
@@ -596,6 +611,46 @@ func TestBRun(t *T) {
 			}
 			if got := b.result.MemBytes; got < 2*bufSize {
 				t.Errorf("MemBytes was %v; want %v", got, 2*bufSize)
+			}
+		},
+	}, {
+		desc: "cleanup is called",
+		f: func(b *B) {
+			var calls, cleanups, innerCalls, innerCleanups int
+			b.Run("", func(b *B) {
+				calls++
+				b.Cleanup(func() {
+					cleanups++
+				})
+				b.Run("", func(b *B) {
+					b.Cleanup(func() {
+						innerCleanups++
+					})
+					innerCalls++
+				})
+				work(b)
+			})
+			if calls == 0 || calls != cleanups {
+				t.Errorf("mismatched cleanups; got %d want %d", cleanups, calls)
+			}
+			if innerCalls == 0 || innerCalls != innerCleanups {
+				t.Errorf("mismatched cleanups; got %d want %d", cleanups, calls)
+			}
+		},
+	}, {
+		desc:   "cleanup is called on failure",
+		failed: true,
+		f: func(b *B) {
+			var calls, cleanups int
+			b.Run("", func(b *B) {
+				calls++
+				b.Cleanup(func() {
+					cleanups++
+				})
+				b.Fatalf("failure")
+			})
+			if calls == 0 || calls != cleanups {
+				t.Errorf("mismatched cleanups; got %d want %d", cleanups, calls)
 			}
 		},
 	}}
@@ -853,5 +908,21 @@ func TestRunCleanup(t *T) {
 	}
 	if outerCleanup != 1 {
 		t.Errorf("unexpected outer cleanup count; got %d want 0", outerCleanup)
+	}
+}
+
+func TestCleanupParallelSubtests(t *T) {
+	ranCleanup := 0
+	t.Run("test", func(t *T) {
+		t.Cleanup(func() { ranCleanup++ })
+		t.Run("x", func(t *T) {
+			t.Parallel()
+			if ranCleanup > 0 {
+				t.Error("outer cleanup ran before parallel subtest")
+			}
+		})
+	})
+	if ranCleanup != 1 {
+		t.Errorf("unexpected cleanup count; got %d want 1", ranCleanup)
 	}
 }

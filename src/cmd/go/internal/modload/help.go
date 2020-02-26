@@ -21,14 +21,15 @@ which source files are used in a given build.
 
 Module support
 
-Go 1.13 includes support for Go modules. Module-aware mode is active by default
-whenever a go.mod file is found in, or in a parent of, the current directory.
+The go command includes support for Go modules. Module-aware mode is active
+by default whenever a go.mod file is found in the current directory or in
+any parent directory.
 
 The quickest way to take advantage of module support is to check out your
 repository, create a go.mod file (described in the next section) there, and run
 go commands from within that file tree.
 
-For more fine-grained control, Go 1.13 continues to respect
+For more fine-grained control, the go command continues to respect
 a temporary environment variable, GO111MODULE, which can be set to one
 of three string values: off, on, or auto (the default).
 If GO111MODULE=on, then the go command requires the use of modules,
@@ -178,6 +179,9 @@ and the "go mod" commands do not take the -mod flag (or any other build flags).
 If invoked with -mod=vendor, the go command assumes that the vendor
 directory holds the correct copies of dependencies and ignores
 the dependency descriptions in go.mod.
+
+If invoked with -mod=mod, the go command loads modules from the module cache
+even if there is a vendor directory present.
 
 Pseudo-versions
 

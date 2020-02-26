@@ -71,6 +71,10 @@ func (p XPos) WithIsStmt() XPos {
 // gdb chooses not to display the bogus line; delve shows it with a complaint, but the
 // alternative behavior is to hang.
 func (p XPos) WithBogusLine() XPos {
+	if p.index == 0 {
+		// See #35652
+		panic("Assigning a bogus line to XPos with no file will cause mysterious downstream failures.")
+	}
 	p.lico = makeBogusLico()
 	return p
 }

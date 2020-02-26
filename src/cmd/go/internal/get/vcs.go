@@ -21,6 +21,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
 	"cmd/go/internal/web"
 )
 
@@ -661,7 +662,7 @@ func RepoRootForImportPath(importPath string, mod ModuleMode, security web.Secur
 	if err == errUnknownSite {
 		rr, err = repoRootForImportDynamic(importPath, mod, security)
 		if err != nil {
-			err = fmt.Errorf("unrecognized import path %q: %v", importPath, err)
+			err = load.ImportErrorf(importPath, "unrecognized import path %q: %v", importPath, err)
 		}
 	}
 	if err != nil {
@@ -676,7 +677,7 @@ func RepoRootForImportPath(importPath string, mod ModuleMode, security web.Secur
 	if err == nil && strings.Contains(importPath, "...") && strings.Contains(rr.Root, "...") {
 		// Do not allow wildcards in the repo root.
 		rr = nil
-		err = fmt.Errorf("cannot expand ... in %q", importPath)
+		err = load.ImportErrorf(importPath, "cannot expand ... in %q", importPath)
 	}
 	return rr, err
 }
@@ -700,7 +701,7 @@ func repoRootFromVCSPaths(importPath string, security web.SecurityMode, vcsPaths
 		m := srv.regexp.FindStringSubmatch(importPath)
 		if m == nil {
 			if srv.prefix != "" {
-				return nil, fmt.Errorf("invalid %s import path %q", srv.prefix, importPath)
+				return nil, load.ImportErrorf(importPath, "invalid %s import path %q", srv.prefix, importPath)
 			}
 			continue
 		}

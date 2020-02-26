@@ -349,6 +349,16 @@ func preemptM(mp *m) {
 		// yet, so doSigPreempt won't work.
 		return
 	}
+	if GOOS == "darwin" && (GOARCH == "arm" || GOARCH == "arm64") && !iscgo {
+		// On darwin, we use libc calls, and cgo is required on ARM and ARM64
+		// so we have TLS set up to save/restore G during C calls. If cgo is
+		// absent, we cannot save/restore G in TLS, and if a signal is
+		// received during C execution we cannot get the G. Therefore don't
+		// send signals.
+		// This can only happen in the go_bootstrap program (otherwise cgo is
+		// required).
+		return
+	}
 	signalM(mp, sigPreempt)
 }
 
@@ -400,6 +410,16 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
 	if g == nil {
 		if sig == _SIGPROF {
 			sigprofNonGoPC(c.sigpc())
+			return
+		}
+		if sig == sigPreempt && preemptMSupported && debug.asyncpreemptoff == 0 {
+			// This is probably a signal from preemptM sent
+			// while executing Go code but received while
+			// executing non-Go code.
+			// We got past sigfwdgo, so we know that there is
+			// no non-Go signal handler for sigPreempt.
+			// The default behavior for sigPreempt is to ignore
+			// the signal, so badsignal will be a no-op anyway.
 			return
 		}
 		c.fixsigcode(sig)
@@ -861,11 +881,22 @@ func signalDuringFork(sig uint32) {
 	throw("signal received during fork")
 }
 
+var badginsignalMsg = "fatal: bad g in signal handler\n"
+
 // This runs on a foreign stack, without an m or a g. No stack split.
 //go:nosplit
 //go:norace
 //go:nowritebarrierrec
 func badsignal(sig uintptr, c *sigctxt) {
+	if !iscgo && !cgoHasExtraM {
+		// There is no extra M. needm will not be able to grab
+		// an M. Instead of hanging, just crash.
+		// Cannot call split-stack function as there is no G.
+		s := stringStructOf(&badginsignalMsg)
+		write(2, s.str, int32(s.len))
+		exit(2)
+		*(*uintptr)(unsafe.Pointer(uintptr(123))) = 2
+	}
 	needm(0)
 	if !sigsend(uint32(sig)) {
 		// A foreign thread received the signal sig, and the
@@ -1005,13 +1036,15 @@ func minitSignals() {
 // stack to the gsignal stack. If the alternate signal stack is set
 // for the thread (the case when a non-Go thread sets the alternate
 // signal stack and then calls a Go function) then set the gsignal
-// stack to the alternate signal stack. Record which choice was made
-// in newSigstack, so that it can be undone in unminit.
+// stack to the alternate signal stack. We also set the alternate
+// signal stack to the gsignal stack if cgo is not used (regardless
+// of whether it is already set). Record which choice was made in
+// newSigstack, so that it can be undone in unminit.
 func minitSignalStack() {
 	_g_ := getg()
 	var st stackt
 	sigaltstack(nil, &st)
-	if st.ss_flags&_SS_DISABLE != 0 {
+	if st.ss_flags&_SS_DISABLE != 0 || !iscgo {
 		signalstack(&_g_.m.gsignal.stack)
 		_g_.m.newSigstack = true
 	} else {

@@ -36,6 +36,10 @@ type http2erringRoundTripper struct{}
 
 func (http2erringRoundTripper) RoundTrip(*Request) (*Response, error) { panic(noHTTP2) }
 
+type http2noDialH2RoundTripper struct{}
+
+func (http2noDialH2RoundTripper) RoundTrip(*Request) (*Response, error) { panic(noHTTP2) }
+
 type http2noDialClientConnPool struct {
 	http2clientConnPool http2clientConnPool
 }

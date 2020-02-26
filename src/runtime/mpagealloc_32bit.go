@@ -26,6 +26,13 @@ const (
 	// Constants for testing.
 	pageAlloc32Bit = 1
 	pageAlloc64Bit = 0
+
+	// Number of bits needed to represent all indices into the L1 of the
+	// chunks map.
+	//
+	// See (*pageAlloc).chunks for more details. Update the documentation
+	// there should this number change.
+	pallocChunksL1Bits = 0
 )
 
 // See comment in mpagealloc_64bit.go.
