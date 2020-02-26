@@ -556,14 +556,14 @@ func (f *fmt) fmtFloat(v float64, size int, verb rune, prec int) {
 				if num[i] != '0' {
 					sawNonzeroDigit = true
 				}
-				// Count significant digits after saw the first non-zero digit.
+				// Count significant digits after the first non-zero digit.
 				if sawNonzeroDigit {
 					digits--
 				}
 			}
 		}
 		if !hasDecimalPoint {
-			// decimal 0 should contribute once to digits.
+			// Leading digit 0 should contribute once to digits.
 			if len(num) == 2 && num[1] == '0' {
 				digits--
 			}
