@@ -37,8 +37,7 @@ func rewriteValue386splitload_Op386CMPBconstload(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, Op386MOVBload, typ.UInt8)
 		v0.AuxInt = offOnly(vo)
 		v0.Aux = sym
-		v0.AddArg(ptr)
-		v0.AddArg(mem)
+		v0.AddArg2(ptr, mem)
 		v.AddArg(v0)
 		return true
 	}
@@ -61,10 +60,8 @@ func rewriteValue386splitload_Op386CMPBload(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, Op386MOVBload, typ.UInt8)
 		v0.AuxInt = off
 		v0.Aux = sym
-		v0.AddArg(ptr)
-		v0.AddArg(mem)
-		v.AddArg(v0)
-		v.AddArg(x)
+		v0.AddArg2(ptr, mem)
+		v.AddArg2(v0, x)
 		return true
 	}
 }
@@ -85,8 +82,7 @@ func rewriteValue386splitload_Op386CMPLconstload(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, Op386MOVLload, typ.UInt32)
 		v0.AuxInt = offOnly(vo)
 		v0.Aux = sym
-		v0.AddArg(ptr)
-		v0.AddArg(mem)
+		v0.AddArg2(ptr, mem)
 		v.AddArg(v0)
 		return true
 	}
@@ -109,10 +105,8 @@ func rewriteValue386splitload_Op386CMPLload(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, Op386MOVLload, typ.UInt32)
 		v0.AuxInt = off
 		v0.Aux = sym
-		v0.AddArg(ptr)
-		v0.AddArg(mem)
-		v.AddArg(v0)
-		v.AddArg(x)
+		v0.AddArg2(ptr, mem)
+		v.AddArg2(v0, x)
 		return true
 	}
 }
@@ -133,8 +127,7 @@ func rewriteValue386splitload_Op386CMPWconstload(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, Op386MOVWload, typ.UInt16)
 		v0.AuxInt = offOnly(vo)
 		v0.Aux = sym
-		v0.AddArg(ptr)
-		v0.AddArg(mem)
+		v0.AddArg2(ptr, mem)
 		v.AddArg(v0)
 		return true
 	}
@@ -157,10 +150,8 @@ func rewriteValue386splitload_Op386CMPWload(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, Op386MOVWload, typ.UInt16)
 		v0.AuxInt = off
 		v0.Aux = sym
-		v0.AddArg(ptr)
-		v0.AddArg(mem)
-		v.AddArg(v0)
-		v.AddArg(x)
+		v0.AddArg2(ptr, mem)
+		v.AddArg2(v0, x)
 		return true
 	}
 }

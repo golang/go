@@ -1134,11 +1134,21 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 	if aux != "" {
 		rr.add(stmtf("%s.Aux = %s", v, aux))
 	}
-	for _, arg := range args {
+	all := new(strings.Builder)
+	for i, arg := range args {
 		x := genResult0(rr, arch, arg, false, move, pos)
-		rr.add(stmtf("%s.AddArg(%s)", v, x))
+		if i > 0 {
+			all.WriteString(", ")
+		}
+		all.WriteString(x)
 	}
-
+	switch len(args) {
+	case 0:
+	case 1:
+		rr.add(stmtf("%s.AddArg(%s)", v, all.String()))
+	default:
+		rr.add(stmtf("%s.AddArg%d(%s)", v, len(args), all.String()))
+	}
 	return v
 }
 

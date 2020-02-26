@@ -28,11 +28,10 @@ func rewriteValuedecArgs_OpArg(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpArg, typ.BytePtr)
 		v0.AuxInt = off
 		v0.Aux = n
-		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, OpArg, typ.Int)
 		v1.AuxInt = off + config.PtrSize
 		v1.Aux = n
-		v.AddArg(v1)
+		v.AddArg2(v0, v1)
 		return true
 	}
 	// match: (Arg {n} [off])
@@ -48,15 +47,13 @@ func rewriteValuedecArgs_OpArg(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpArg, v.Type.Elem().PtrTo())
 		v0.AuxInt = off
 		v0.Aux = n
-		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, OpArg, typ.Int)
 		v1.AuxInt = off + config.PtrSize
 		v1.Aux = n
-		v.AddArg(v1)
 		v2 := b.NewValue0(v.Pos, OpArg, typ.Int)
 		v2.AuxInt = off + 2*config.PtrSize
 		v2.Aux = n
-		v.AddArg(v2)
+		v.AddArg3(v0, v1, v2)
 		return true
 	}
 	// match: (Arg {n} [off])
@@ -72,11 +69,10 @@ func rewriteValuedecArgs_OpArg(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpArg, typ.Uintptr)
 		v0.AuxInt = off
 		v0.Aux = n
-		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, OpArg, typ.BytePtr)
 		v1.AuxInt = off + config.PtrSize
 		v1.Aux = n
-		v.AddArg(v1)
+		v.AddArg2(v0, v1)
 		return true
 	}
 	// match: (Arg {n} [off])
@@ -92,11 +88,10 @@ func rewriteValuedecArgs_OpArg(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpArg, typ.Float64)
 		v0.AuxInt = off
 		v0.Aux = n
-		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, OpArg, typ.Float64)
 		v1.AuxInt = off + 8
 		v1.Aux = n
-		v.AddArg(v1)
+		v.AddArg2(v0, v1)
 		return true
 	}
 	// match: (Arg {n} [off])
@@ -112,11 +107,10 @@ func rewriteValuedecArgs_OpArg(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpArg, typ.Float32)
 		v0.AuxInt = off
 		v0.Aux = n
-		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, OpArg, typ.Float32)
 		v1.AuxInt = off + 4
 		v1.Aux = n
-		v.AddArg(v1)
+		v.AddArg2(v0, v1)
 		return true
 	}
 	// match: (Arg <t>)
@@ -161,11 +155,10 @@ func rewriteValuedecArgs_OpArg(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpArg, t.FieldType(0))
 		v0.AuxInt = off + t.FieldOff(0)
 		v0.Aux = n
-		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, OpArg, t.FieldType(1))
 		v1.AuxInt = off + t.FieldOff(1)
 		v1.Aux = n
-		v.AddArg(v1)
+		v.AddArg2(v0, v1)
 		return true
 	}
 	// match: (Arg <t> {n} [off])
@@ -182,15 +175,13 @@ func rewriteValuedecArgs_OpArg(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpArg, t.FieldType(0))
 		v0.AuxInt = off + t.FieldOff(0)
 		v0.Aux = n
-		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, OpArg, t.FieldType(1))
 		v1.AuxInt = off + t.FieldOff(1)
 		v1.Aux = n
-		v.AddArg(v1)
 		v2 := b.NewValue0(v.Pos, OpArg, t.FieldType(2))
 		v2.AuxInt = off + t.FieldOff(2)
 		v2.Aux = n
-		v.AddArg(v2)
+		v.AddArg3(v0, v1, v2)
 		return true
 	}
 	// match: (Arg <t> {n} [off])
@@ -207,19 +198,16 @@ func rewriteValuedecArgs_OpArg(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpArg, t.FieldType(0))
 		v0.AuxInt = off + t.FieldOff(0)
 		v0.Aux = n
-		v.AddArg(v0)
 		v1 := b.NewValue0(v.Pos, OpArg, t.FieldType(1))
 		v1.AuxInt = off + t.FieldOff(1)
 		v1.Aux = n
-		v.AddArg(v1)
 		v2 := b.NewValue0(v.Pos, OpArg, t.FieldType(2))
 		v2.AuxInt = off + t.FieldOff(2)
 		v2.Aux = n
-		v.AddArg(v2)
 		v3 := b.NewValue0(v.Pos, OpArg, t.FieldType(3))
 		v3.AuxInt = off + t.FieldOff(3)
 		v3.Aux = n
-		v.AddArg(v3)
+		v.AddArg4(v0, v1, v2, v3)
 		return true
 	}
 	// match: (Arg <t>)
