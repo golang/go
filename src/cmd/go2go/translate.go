@@ -11,19 +11,19 @@ import (
 )
 
 // translate writes .go files for all .go2 files in dir.
-func translate(dir string) {
-	if err := go2go.Rewrite(dir); err != nil {
+func translate(importer *go2go.Importer, dir string) {
+	if err := go2go.Rewrite(importer, dir); err != nil {
 		die(err.Error())
 	}
 }
 
 // translateFile translates one .go2 file into a .go file.
-func translateFile(file string) {
+func translateFile(importer *go2go.Importer, file string) {
 	data, err := ioutil.ReadFile(file)
 	if err != nil {
 		die(err.Error())
 	}
-	out, err := go2go.RewriteBuffer(file, data)
+	out, err := go2go.RewriteBuffer(importer, file, data)
 	if err != nil {
 		die(err.Error())
 	}

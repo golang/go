@@ -54,6 +54,12 @@ func defaultAllCodeGen() bool {
 	return os.Getenv("GO_BUILDER_NAME") == "linux-amd64"
 }
 
+type fileType int
+const (
+	go1Files fileType = iota
+	go2Files
+)
+
 var (
 	goos, goarch string
 
@@ -224,7 +230,26 @@ func compileFile(runcmd runCmd, longname string, flags []string) (out []byte, er
 	return runcmd(cmd...)
 }
 
-func compileInDir(runcmd runCmd, dir string, flags []string, localImports bool, names ...string) (out []byte, err error) {
+func compileInDir(runcmd runCmd, dir string, ft fileType, importer *go2go.Importer, flags []string, localImports bool, names ...string) (out []byte, err error) {
+	gofiles := names
+	if ft == go2Files {
+		_, err := go2go.RewriteFiles(importer, dir, names)
+		if err != nil {
+			return nil, err
+		}
+
+		gofiles = make([]string, len(names))
+		for i, name := range names {
+			gofiles[i] = strings.TrimSuffix(name, ".go2") + ".go"
+		}
+
+		defer func() {
+			for _, name := range gofiles {
+				os.Remove(filepath.Join(dir, name))
+			}
+		}()
+	}
+
 	cmd := []string{goTool(), "tool", "compile", "-e"}
 	if localImports {
 		// Set relative path for local imports and import search path to current dir.
@@ -234,14 +259,15 @@ func compileInDir(runcmd runCmd, dir string, flags []string, localImports bool, 
 	if *linkshared {
 		cmd = append(cmd, "-dynlink", "-installsuffix=dynlink")
 	}
-	for _, name := range names {
+	for _, name := range gofiles {
 		cmd = append(cmd, filepath.Join(dir, name))
 	}
 	return runcmd(cmd...)
 }
 
 func linkFile(runcmd runCmd, goname string, ldflags []string) (err error) {
-	pfile := strings.Replace(goname, ".go", ".o", -1)
+	pfile := strings.Replace(goname, ".go2", ".o", -1)
+	pfile = strings.Replace(pfile, ".go", ".o", -1)
 	cmd := []string{goTool(), "tool", "link", "-w", "-o", "a.exe", "-L", "."}
 	if *linkshared {
 		cmd = append(cmd, "-linkshared", "-installsuffix=dynlink")
@@ -313,13 +339,22 @@ func (t *test) goDirName() string {
 	return filepath.Join(t.dir, strings.Replace(t.gofile, ".go", ".dir", -1))
 }
 
-func goDirFiles(longdir string) (filter []os.FileInfo, err error) {
+func goDirFiles(longdir string, ft fileType) (filter []os.FileInfo, err error) {
 	files, dirErr := ioutil.ReadDir(longdir)
 	if dirErr != nil {
 		return nil, dirErr
 	}
+	var ext string
+	switch ft {
+	case go1Files:
+		ext = ".go"
+	case go2Files:
+		ext = ".go2"
+	default:
+		log.Fatalf("invalid file type %v", ft)
+	}
 	for _, gofile := range files {
-		if filepath.Ext(gofile.Name()) == ".go" {
+		if filepath.Ext(gofile.Name()) == ext {
 			filter = append(filter, gofile)
 		}
 	}
@@ -342,8 +377,8 @@ func getPackageNameFromSource(fn string) (string, error) {
 
 // If singlefilepkgs is set, each file is considered a separate package
 // even if the package names are the same.
-func goDirPackages(longdir string, singlefilepkgs bool) ([][]string, error) {
-	files, err := goDirFiles(longdir)
+func goDirPackages(longdir string, singlefilepkgs bool, ft fileType) ([][]string, error) {
+	files, err := goDirFiles(longdir, ft)
 	if err != nil {
 		return nil, err
 	}
@@ -595,16 +630,18 @@ func (t *test) run() {
 		defer os.RemoveAll(t.tempDir)
 	}
 
-	isgo2 := false
+	ft := go1Files
+	var importer *go2go.Importer
 	if strings.HasSuffix(t.gofile, ".go2") {
-		go2Bytes, err := go2go.RewriteBuffer(t.gofile, srcBytes)
+		importer = go2go.NewImporter(t.dir)
+		go2Bytes, err := go2go.RewriteBuffer(importer, t.gofile, srcBytes)
 		if err != nil {
 			t.err = err
 			return
 		}
 		srcBytes = go2Bytes
 		t.gofile = strings.TrimSuffix(t.gofile, ".go2") + ".go"
-		isgo2 = true
+		ft = go2Files
 		if err := ioutil.WriteFile(filepath.Join(t.dir, t.gofile), srcBytes, 0644); err != nil {
 			t.err = err
 			return
@@ -615,28 +652,6 @@ func (t *test) run() {
 	err = ioutil.WriteFile(filepath.Join(t.tempDir, t.gofile), srcBytes, 0644)
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	if isgo2 && strings.HasSuffix(action, "dir") {
-		go2files := goFiles(t.goDirName())
-		for _, f := range go2files {
-			if filepath.Ext(f) == ".go" {
-				t.err = fmt.Errorf("%s: invalid .go file for .go2 test", f)
-				return
-			}
-		}
-		if err := go2go.Rewrite(t.goDirName()); err != nil {
-			t.err = err
-			return
-		}
-		defer func() {
-			for _, f := range go2files {
-				if filepath.Ext(f) == ".go2" {
-					f1 := strings.TrimSuffix(f, ".go2") + ".go"
-					os.Remove(filepath.Join(t.goDirName(), f1))
-				}
-			}
-		}()
 	}
 
 	// A few tests (of things like the environment) require these to be set.
@@ -789,13 +804,13 @@ func (t *test) run() {
 	case "compiledir":
 		// Compile all files in the directory as packages in lexicographic order.
 		longdir := filepath.Join(cwd, t.goDirName())
-		pkgs, err := goDirPackages(longdir, singlefilepkgs)
+		pkgs, err := goDirPackages(longdir, singlefilepkgs, ft)
 		if err != nil {
 			t.err = err
 			return
 		}
 		for _, gofiles := range pkgs {
-			_, t.err = compileInDir(runcmd, longdir, flags, localImports, gofiles...)
+			_, t.err = compileInDir(runcmd, longdir, ft, importer, flags, localImports, gofiles...)
 			if t.err != nil {
 				return
 			}
@@ -806,7 +821,7 @@ func (t *test) run() {
 		// If errorcheckdir and wantError, compilation of the last package must fail.
 		// If errorcheckandrundir and wantError, compilation of the package prior the last must fail.
 		longdir := filepath.Join(cwd, t.goDirName())
-		pkgs, err := goDirPackages(longdir, singlefilepkgs)
+		pkgs, err := goDirPackages(longdir, singlefilepkgs, ft)
 		if err != nil {
 			t.err = err
 			return
@@ -818,7 +833,7 @@ func (t *test) run() {
 			errPkg--
 		}
 		for i, gofiles := range pkgs {
-			out, err := compileInDir(runcmd, longdir, flags, localImports, gofiles...)
+			out, err := compileInDir(runcmd, longdir, ft, importer, flags, localImports, gofiles...)
 			if i == errPkg {
 				if wantError && err == nil {
 					t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
@@ -851,7 +866,7 @@ func (t *test) run() {
 		// Link as if the last file is the main package, run it.
 		// Verify the expected output.
 		longdir := filepath.Join(cwd, t.goDirName())
-		pkgs, err := goDirPackages(longdir, singlefilepkgs)
+		pkgs, err := goDirPackages(longdir, singlefilepkgs, ft)
 		if err != nil {
 			t.err = err
 			return
@@ -877,7 +892,7 @@ func (t *test) run() {
 				}
 				pflags = append(pflags, "-p", pkgname)
 			}
-			_, err := compileInDir(runcmd, longdir, pflags, localImports, gofiles...)
+			_, err := compileInDir(runcmd, longdir, ft, importer, pflags, localImports, gofiles...)
 			// Allow this package compilation fail based on conditions below;
 			// its errors were checked in previous case.
 			if err != nil && !(wantError && action == "errorcheckandrundir" && i == len(pkgs)-2) {

@@ -6,7 +6,6 @@ package go2go
 
 import (
 	"fmt"
-	"go/ast"
 	"go/types"
 	"strings"
 	"unicode"
@@ -34,9 +33,13 @@ var nameCodes = map[rune]int{
 }
 
 // instantiatedName returns the name of a newly instantiated function.
-func (t *translator) instantiatedName(ident *ast.Ident, types []types.Type) (string, error) {
+func (t *translator) instantiatedName(qid qualifiedIdent, types []types.Type) (string, error) {
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "instantiate%c%s", nameSep, ident.Name)
+	fmt.Fprintf(&sb, "instantiate%c", nameSep)
+	if qid.pkg != nil {
+		fmt.Fprintf(&sb, qid.pkg.Name())
+	}
+	fmt.Fprintf(&sb, "%c%s", nameSep, qid.ident.Name)
 	for _, typ := range types {
 		sb.WriteRune(nameSep)
 		s := typ.String()
@@ -57,4 +60,8 @@ func (t *translator) instantiatedName(ident *ast.Ident, types []types.Type) (str
 		}
 	}
 	return sb.String(), nil
+}
+
+func (t *translator) importableName() string {
+	return "Importable" + string(nameSep)
 }

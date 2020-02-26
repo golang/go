@@ -11,6 +11,7 @@ import (
 )
 
 // lookupType returns the types.Type for an AST expression.
+// Returns nil if the type is not known.
 func (t *translator) lookupType(e ast.Expr) types.Type {
 	if t, ok := t.info.Types[e]; ok {
 		return t.Type
@@ -18,7 +19,7 @@ func (t *translator) lookupType(e ast.Expr) types.Type {
 	if t, ok := t.types[e]; ok {
 		return t
 	}
-	panic(fmt.Sprintf("no type found for %T %v", e, e))
+	return nil
 }
 
 // setType records the type for an AST expression. This is only used for

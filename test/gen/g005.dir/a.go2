@@ -1,0 +1,30 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package a
+
+type Stack(type E) []E
+
+func (s *Stack(E)) Push(e E) {
+	*s = append(*s, e)
+}
+
+func (s *Stack(E)) Pop() (E, bool) {
+	l := len(*s)
+	if l == 0 {
+		var zero E
+		return zero, false
+	}
+	r := (*s)[l - 1]
+	*s = (*s)[:l - 1]
+	return r, true
+}
+
+func (s *Stack(E)) IsEmpty() bool {
+	return len(*s) == 0
+}
+
+func (s *Stack(E)) Len() int {
+	return len(*s)
+}

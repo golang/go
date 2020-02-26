@@ -21,32 +21,6 @@ var config = printer.Config{
 	Tabwidth: 8,
 }
 
-// addIDs finds IDs for generic functions and types and adds them to a map.
-func addIDs(info *types.Info, f *ast.File, mf map[types.Object]*ast.FuncDecl, mt map[types.Object]*ast.TypeSpec) {
-	for _, decl := range f.Decls {
-		switch decl := decl.(type) {
-		case *ast.FuncDecl:
-			if isParameterizedFuncDecl(decl, info) {
-				obj, ok := info.Defs[decl.Name]
-				if !ok {
-					panic(fmt.Sprintf("no types.Object for %q", decl.Name.Name))
-				}
-				mf[obj] = decl
-			}
-		case *ast.GenDecl:
-			if decl.Tok == token.TYPE {
-				for _, s := range decl.Specs {
-					ts := s.(*ast.TypeSpec)
-					obj, ok := info.Defs[ts.Name]
-					if !ok {
-						panic(fmt.Sprintf("no types.Object for %q", ts.Name.Name))
-					}
-					mt[obj] = ts
-				}
-			}
-		}
-	}
-}
 
 // isParameterizedFuncDecl reports whether fd is a parameterized function.
 func isParameterizedFuncDecl(fd *ast.FuncDecl, info *types.Info) bool {
@@ -80,11 +54,10 @@ func isParameterizedTypeDecl(s ast.Spec) bool {
 // A translator is used to translate a file from Go with contracts to Go 1.
 type translator struct {
 	fset               *token.FileSet
+	importer           *Importer
 	info               *types.Info
 	types              map[ast.Expr]types.Type
-	idToFunc           map[types.Object]*ast.FuncDecl
-	idToTypeSpec       map[types.Object]*ast.TypeSpec
-	instantiations     map[*ast.Ident][]*instantiation
+	instantiations     map[qualifiedIdent][]*instantiation
 	newDecls           []ast.Decl
 	typeInstantiations map[types.Type][]*typeInstantiation
 
@@ -107,8 +80,8 @@ type typeInstantiation struct {
 }
 
 // rewrite rewrites the contents of one file.
-func rewriteFile(dir string, fset *token.FileSet, info *types.Info, idToFunc map[types.Object]*ast.FuncDecl, idToTypeSpec map[types.Object]*ast.TypeSpec, filename string, file *ast.File) (err error) {
-	if err := rewriteAST(fset, info, idToFunc, idToTypeSpec, file); err != nil {
+func rewriteFile(dir string, fset *token.FileSet, importer *Importer, info *types.Info, filename string, file *ast.File, addImportableName bool) (err error) {
+	if err := rewriteAST(fset, importer, info, file, addImportableName); err != nil {
 		return err
 	}
 
@@ -136,17 +109,70 @@ func rewriteFile(dir string, fset *token.FileSet, info *types.Info, idToFunc map
 }
 
 // rewriteAST rewrites the AST for a file.
-func rewriteAST(fset *token.FileSet, info *types.Info, idToFunc map[types.Object]*ast.FuncDecl, idToTypeSpec map[types.Object]*ast.TypeSpec, file *ast.File) (err error) {
+func rewriteAST(fset *token.FileSet, importer *Importer, info *types.Info, file *ast.File, addImportableName bool) (err error) {
 	t := translator{
 		fset:               fset,
+		importer:           importer,
 		info:               info,
 		types:              make(map[ast.Expr]types.Type),
-		idToFunc:           idToFunc,
-		idToTypeSpec:       idToTypeSpec,
-		instantiations:     make(map[*ast.Ident][]*instantiation),
+		instantiations:     make(map[qualifiedIdent][]*instantiation),
 		typeInstantiations: make(map[types.Type][]*typeInstantiation),
 	}
 	t.translate(file)
+
+	// Add a name that other packages can reference to avoid an error
+	// about an unused package.
+	if addImportableName {
+		file.Decls = append(file.Decls,
+			&ast.GenDecl{
+				Tok:   token.TYPE,
+				Specs: []ast.Spec{
+					&ast.TypeSpec{
+						Name: ast.NewIdent(t.importableName()),
+						Type: ast.NewIdent("int"),
+					},
+				},
+			})
+	}
+
+	// Add a reference for each imported package to avoid an error
+	// about an unused package.
+	for _, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.IMPORT {
+			continue
+		}
+		for _, spec := range gen.Specs {
+			imp := spec.(*ast.ImportSpec)
+			path := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, `"`), `"`)
+			if _, ok := importer.lookupPackage(path); !ok {
+				continue
+			}
+
+			var name string
+			if imp.Name != nil {
+				name = imp.Name.Name
+			} else {
+				name = filepath.Base(path)
+			}
+			file.Decls = append(file.Decls,
+				&ast.GenDecl{
+					Tok:   token.VAR,
+					Specs: []ast.Spec{
+						&ast.ValueSpec{
+							Names: []*ast.Ident{
+								ast.NewIdent("_"),
+							},
+							Type:  &ast.SelectorExpr{
+								X:   ast.NewIdent(name),
+								Sel: ast.NewIdent(t.importableName()),
+							},
+						},
+					},
+				})
+		}
+	}
+
 	return t.err
 }
 
@@ -305,6 +331,14 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 		t.translateExpr(&e.Y)
 	case *ast.UnaryExpr:
 		t.translateExpr(&e.X)
+	case *ast.IndexExpr:
+		t.translateExpr(&e.X)
+		t.translateExpr(&e.Index)
+	case *ast.SliceExpr:
+		t.translateExpr(&e.X)
+		t.translateExpr(&e.Low)
+		t.translateExpr(&e.High)
+		t.translateExpr(&e.Max)
 	case *ast.CallExpr:
 		t.translateExprList(e.Args)
 		if ftyp, ok := t.lookupType(e.Fun).(*types.Signature); ok && ftyp.TParams() != nil {
@@ -358,17 +392,17 @@ func (t *translator) translateField(f *ast.Field) {
 // to Go 1.
 func (t *translator) translateFunctionInstantiation(pe *ast.Expr) {
 	call := (*pe).(*ast.CallExpr)
-	fnident, ok := call.Fun.(*ast.Ident)
-	if !ok {
-		panic("instantiated function non-ident")
-	}
-
+	qid := t.instantiatedIdent(call)
 	types := make([]types.Type, 0, len(call.Args))
 	for _, arg := range call.Args {
-		types = append(types, t.lookupType(arg))
+		if at := t.lookupType(arg); at == nil {
+			panic(fmt.Sprintf("no type found for %T %v", arg, arg))
+		} else {
+			types = append(types, at)
+		}
 	}
 
-	instantiations := t.instantiations[fnident]
+	instantiations := t.instantiations[qid]
 	for _, inst := range instantiations {
 		if t.sameTypes(types, inst.types) {
 			*pe = inst.decl
@@ -376,7 +410,7 @@ func (t *translator) translateFunctionInstantiation(pe *ast.Expr) {
 		}
 	}
 
-	instIdent, err := t.instantiateFunction(fnident, call.Args, types)
+	instIdent, err := t.instantiateFunction(qid, call.Args, types)
 	if err != nil {
 		t.err = err
 		return
@@ -386,7 +420,7 @@ func (t *translator) translateFunctionInstantiation(pe *ast.Expr) {
 		types: types,
 		decl:  instIdent,
 	}
-	t.instantiations[fnident] = append(instantiations, n)
+	t.instantiations[qid] = append(instantiations, n)
 
 	*pe = instIdent
 }
@@ -394,16 +428,16 @@ func (t *translator) translateFunctionInstantiation(pe *ast.Expr) {
 // translateTypeInstantiation translates an instantiated type to Go 1.
 func (t *translator) translateTypeInstantiation(pe *ast.Expr) {
 	call := (*pe).(*ast.CallExpr)
-	tident, ok := call.Fun.(*ast.Ident)
-	if !ok {
-		panic("instantiated type non-ident")
-	}
-
+	qid := t.instantiatedIdent(call)
 	typ := t.lookupType(call.Fun).(*types.Named)
 
 	types := make([]types.Type, 0, len(call.Args))
 	for _, arg := range call.Args {
-		types = append(types, t.lookupType(arg))
+		if at := t.lookupType(arg); at == nil {
+			panic(fmt.Sprintf("no type found for %T %v", arg, arg))
+		} else {
+			types = append(types, at)
+		}
 	}
 
 	instantiations := t.typeInstantiations[typ]
@@ -414,7 +448,7 @@ func (t *translator) translateTypeInstantiation(pe *ast.Expr) {
 		}
 	}
 
-	instIdent, instType, err := t.instantiateTypeDecl(tident, typ, call.Args, types)
+	instIdent, instType, err := t.instantiateTypeDecl(qid, typ, call.Args, types)
 	if err != nil {
 		t.err = err
 		return
@@ -430,6 +464,30 @@ func (t *translator) translateTypeInstantiation(pe *ast.Expr) {
 	*pe = instIdent
 }
 
+// instantiatedIdent returns the qualified identifer that is being
+// instantiated.
+func (t *translator) instantiatedIdent(call *ast.CallExpr) qualifiedIdent {
+	switch fun := call.Fun.(type) {
+	case *ast.Ident:
+		return qualifiedIdent{ident: fun}
+	case *ast.SelectorExpr:
+		pkgname, ok := fun.X.(*ast.Ident)
+		if !ok {
+			break
+		}
+		pkgobj, ok := t.info.Uses[pkgname]
+		if !ok {
+			break
+		}
+		pn, ok := pkgobj.(*types.PkgName)
+		if !ok {
+			break
+		}
+		return qualifiedIdent{pkg: pn.Imported(), ident: fun.Sel}
+	}
+	panic(fmt.Sprintf("instantiated object %v is not an identifier", call.Fun))
+}
+
 // sameTypes reports whether two type slices are the same.
 func (t *translator) sameTypes(a, b []types.Type) bool {
 	if len(a) != len(b) {
@@ -441,4 +499,18 @@ func (t *translator) sameTypes(a, b []types.Type) bool {
 		}
 	}
 	return true
+}
+
+// qualifiedIdent is an identifier possibly qualified with a package.
+type qualifiedIdent struct {
+	pkg   *types.Package // identifier's package; nil for current package
+	ident *ast.Ident
+}
+
+// String returns a printable name for qid.
+func (qid qualifiedIdent) String() string {
+	if qid.pkg == nil {
+		return qid.ident.Name
+	}
+	return qid.pkg.Path() + "." + qid.ident.Name
 }

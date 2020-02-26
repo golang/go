@@ -16,14 +16,16 @@ import (
 // or with a types.TypeParam.
 type typeArgs struct {
 	types []types.Type // type arguments in order
+	info  *types.Info  // info for package of function being instantiated
 	toAST map[types.Object]ast.Expr
 	toTyp map[*types.TypeParam]types.Type
 }
 
 // newTypeArgs returns a new typeArgs value.
-func newTypeArgs(typeTypes []types.Type) *typeArgs {
+func newTypeArgs(typeTypes []types.Type, info *types.Info) *typeArgs {
 	return &typeArgs{
 		types: typeTypes,
+		info:  info,
 		toAST: make(map[types.Object]ast.Expr),
 		toTyp: make(map[*types.TypeParam]types.Type),
 	}
@@ -31,11 +33,11 @@ func newTypeArgs(typeTypes []types.Type) *typeArgs {
 
 // typeArgsFromTParams builds mappings from a list of type parameters
 // expressed as ast.Field values.
-func typeArgsFromFields(t *translator, astTypes []ast.Expr, typeTypes []types.Type, tparams []*ast.Field) *typeArgs {
-	ta := newTypeArgs(typeTypes)
+func typeArgsFromFields(t *translator, info *types.Info, astTypes []ast.Expr, typeTypes []types.Type, tparams []*ast.Field) *typeArgs {
+	ta := newTypeArgs(typeTypes, info)
 	for i, tf := range tparams {
 		for _, tn := range tf.Names {
-			obj, ok := t.info.Defs[tn]
+			obj, ok := info.Defs[tn]
 			if !ok {
 				panic(fmt.Sprintf("no object for type parameter %q", tn))
 			}
@@ -52,10 +54,10 @@ func typeArgsFromFields(t *translator, astTypes []ast.Expr, typeTypes []types.Ty
 
 // typeArgsFromTParams builds mappings from a list of type parameters
 // expressed as ast.Expr values.
-func typeArgsFromExprs(t *translator, astTypes []ast.Expr, typeTypes []types.Type, tparams []ast.Expr) *typeArgs {
-	ta := newTypeArgs(typeTypes)
+func typeArgsFromExprs(t *translator, info *types.Info, astTypes []ast.Expr, typeTypes []types.Type, tparams []ast.Expr) *typeArgs {
+	ta := newTypeArgs(typeTypes, info)
 	for i, ti := range tparams {
-		obj, ok := t.info.Defs[ti.(*ast.Ident)]
+		obj, ok := info.Defs[ti.(*ast.Ident)]
 		if !ok {
 			panic(fmt.Sprintf("no object for type parameter %q", ti))
 		}
@@ -88,18 +90,23 @@ func (ta *typeArgs) typ(param *types.TypeParam) (types.Type, bool) {
 }
 
 // instantiateFunction creates a new instantiation of a function.
-func (t *translator) instantiateFunction(fnident *ast.Ident, astTypes []ast.Expr, typeTypes []types.Type) (*ast.Ident, error) {
-	name, err := t.instantiatedName(fnident, typeTypes)
+func (t *translator) instantiateFunction(qid qualifiedIdent, astTypes []ast.Expr, typeTypes []types.Type) (*ast.Ident, error) {
+	name, err := t.instantiatedName(qid, typeTypes)
 	if err != nil {
 		return nil, err
 	}
 
-	decl, err := t.findFuncDecl(fnident)
+	decl, err := t.findFuncDecl(qid)
 	if err != nil {
 		return nil, err
 	}
 
-	ta := typeArgsFromFields(t, astTypes, typeTypes, decl.Type.TParams.List)
+	info, ok := t.infoForID(qid)
+	if !ok {
+		return nil, fmt.Errorf("no package type info for %s", qid)
+	}
+
+	ta := typeArgsFromFields(t, info, astTypes, typeTypes, decl.Type.TParams.List)
 
 	instIdent := ast.NewIdent(name)
 
@@ -115,33 +122,55 @@ func (t *translator) instantiateFunction(fnident *ast.Ident, astTypes []ast.Expr
 	return instIdent, nil
 }
 
-// findFuncDecl looks for the FuncDecl for id.
-// FIXME: Handle imported packages.
-func (t *translator) findFuncDecl(id *ast.Ident) (*ast.FuncDecl, error) {
-	obj, ok := t.info.Uses[id]
-	if !ok {
-		return nil, fmt.Errorf("could not find Object for %q", id.Name)
+// findFuncDecl looks for the FuncDecl for qid.
+func (t *translator) findFuncDecl(qid qualifiedIdent) (*ast.FuncDecl, error) {
+	obj := t.findTypesObject(qid)
+	if obj == nil {
+		return nil, fmt.Errorf("could not find Object for %q", qid)
 	}
-	decl, ok := t.idToFunc[obj]
+	decl, ok := t.importer.lookupFunc(obj)
 	if !ok {
-		return nil, fmt.Errorf("could not find function body for %q", id.Name)
+		return nil, fmt.Errorf("could not find function body for %q", qid)
 	}
 	return decl, nil
 }
 
+// findTypesObject looks up the types.Object for qid.
+// It returns nil if the ID is not found.
+func (t *translator) findTypesObject(qid qualifiedIdent) types.Object {
+	if qid.pkg == nil {
+		return t.info.Uses[qid.ident]
+	} else {
+		return qid.pkg.Scope().Lookup(qid.ident.Name)
+	}
+}
+
+// infoForID returns the types.Info for the package in which qid is defined.
+func (t *translator) infoForID(qid qualifiedIdent) (*types.Info, bool) {
+	if qid.pkg == nil {
+		return t.info, true
+	}
+	return t.importer.lookupInfo(qid.pkg)
+}
+
 // instantiateType creates a new instantiation of a type.
-func (t *translator) instantiateTypeDecl(tident *ast.Ident, typ *types.Named, astTypes []ast.Expr, typeTypes []types.Type) (*ast.Ident, types.Type, error) {
-	name, err := t.instantiatedName(tident, typeTypes)
+func (t *translator) instantiateTypeDecl(qid qualifiedIdent, typ *types.Named, astTypes []ast.Expr, typeTypes []types.Type) (*ast.Ident, types.Type, error) {
+	name, err := t.instantiatedName(qid, typeTypes)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	spec, err := t.findTypeSpec(tident)
+	spec, err := t.findTypeSpec(qid)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	ta := typeArgsFromFields(t, astTypes, typeTypes, spec.TParams.List)
+	info, ok := t.infoForID(qid)
+	if !ok {
+		return nil, nil, fmt.Errorf("no package type info for %s", qid)
+	}
+
+	ta := typeArgsFromFields(t, info, astTypes, typeTypes, spec.TParams.List)
 
 	instIdent := ast.NewIdent(name)
 
@@ -163,8 +192,8 @@ func (t *translator) instantiateTypeDecl(tident *ast.Ident, typ *types.Named, as
 	nm := typ.NumMethods()
 	for i := 0; i < nm; i++ {
 		method := typ.Method(i)
-		mast := t.idToFunc[method]
-		if mast == nil {
+		mast, ok := t.importer.lookupFunc(method)
+		if !ok {
 			panic(fmt.Sprintf("no AST for method %v", method))
 		}
 		rtyp := mast.Recv.List[0].Type
@@ -176,7 +205,7 @@ func (t *translator) instantiateTypeDecl(tident *ast.Ident, typ *types.Named, as
 			}
 		}
 		tparams := rtyp.(*ast.CallExpr).Args
-		ta := typeArgsFromExprs(t, astTypes, typeTypes, tparams)
+		ta := typeArgsFromExprs(t, info, astTypes, typeTypes, tparams)
 		newDecl := &ast.FuncDecl{
 			Doc:  mast.Doc,
 			Recv: &ast.FieldList{
@@ -203,44 +232,81 @@ func (t *translator) instantiateTypeDecl(tident *ast.Ident, typ *types.Named, as
 	return instIdent, instType, nil
 }
 
-// findTypeSpec looks for the TypeSpec for id.
-// FIXME: Handle imported packages.
-func (t *translator) findTypeSpec(id *ast.Ident) (*ast.TypeSpec, error) {
-	obj, ok := t.info.Uses[id]
-	if !ok {
-		return nil, fmt.Errorf("could not find Object for %q", id.Name)
+// findTypeSpec looks for the TypeSpec for qid.
+func (t *translator) findTypeSpec(qid qualifiedIdent) (*ast.TypeSpec, error) {
+	obj := t.findTypesObject(qid)
+	if obj == nil {
+		return nil, fmt.Errorf("could not find Object for %q", qid)
 	}
-	spec, ok := t.idToTypeSpec[obj]
+	spec, ok := t.importer.lookupTypeSpec(obj)
 	if !ok {
-		return nil, fmt.Errorf("could not find type spec for %q", id.Name)
+		return nil, fmt.Errorf("could not find type spec for %q", qid)
 	}
 	return spec, nil
 }
 
-// instantiateBlockStmt instantiates a BlockStmt.
-func (t *translator) instantiateBlockStmt(ta *typeArgs, pbs *ast.BlockStmt) *ast.BlockStmt {
-	changed := false
-	stmts := make([]ast.Stmt, len(pbs.List))
-	for i, s := range pbs.List {
-		is := t.instantiateStmt(ta, s)
-		stmts[i] = is
-		if is != s {
-			changed = true
+// instantiateDecl instantiates a declaration.
+func (t *translator) instantiateDecl(ta *typeArgs, d ast.Decl) ast.Decl {
+	switch d := d.(type) {
+	case nil:
+		return nil
+	case *ast.GenDecl:
+		if len(d.Specs) == 0 {
+			return d
 		}
+		nspecs := make([]ast.Spec, len(d.Specs))
+		changed := false
+		for i, s := range d.Specs {
+			ns := t.instantiateSpec(ta, s)
+			if ns != s {
+				changed = true
+			}
+			nspecs[i] = ns
+		}
+		if !changed {
+			return d
+		}
+		return &ast.GenDecl{
+			Doc:    d.Doc,
+			TokPos: d.TokPos,
+			Tok:    d.Tok,
+			Lparen: d.Lparen,
+			Specs:  nspecs,
+			Rparen: d.Rparen,
+		}
+	default:
+		panic(fmt.Sprintf("unimplemented Decl %T", d))
 	}
-	if !changed {
-		return pbs
-	}
-	return &ast.BlockStmt{
-		Lbrace: pbs.Lbrace,
-		List:   stmts,
-		Rbrace: pbs.Rbrace,
+}
+
+// instantiateSpec instantiates a spec node.
+func (t *translator) instantiateSpec(ta *typeArgs, s ast.Spec) ast.Spec {
+	switch s := s.(type) {
+	case nil:
+		return nil
+	case *ast.ValueSpec:
+		typ := t.instantiateExpr(ta, s.Type)
+		values, changed := t.instantiateExprList(ta, s.Values)
+		if typ == s.Type && !changed {
+			return s
+		}
+		return &ast.ValueSpec{
+			Doc:     s.Doc,
+			Names:   s.Names,
+			Type:    typ,
+			Values:  values,
+			Comment: s.Comment,
+		}
+	default:
+		panic(fmt.Sprintf("unimplemented Spec %T", s))
 	}
 }
 
 // instantiateStmt instantiates a statement.
 func (t *translator) instantiateStmt(ta *typeArgs, s ast.Stmt) ast.Stmt {
 	switch s := s.(type) {
+	case nil:
+		return nil
 	case *ast.BlockStmt:
 		return t.instantiateBlockStmt(ta, s)
 	case *ast.ExprStmt:
@@ -250,6 +316,14 @@ func (t *translator) instantiateStmt(ta *typeArgs, s ast.Stmt) ast.Stmt {
 		}
 		return &ast.ExprStmt{
 			X: x,
+		}
+	case *ast.DeclStmt:
+		decl := t.instantiateDecl(ta, s.Decl)
+		if decl == s.Decl {
+			return s
+		}
+		return &ast.DeclStmt{
+			Decl: decl,
 		}
 	case *ast.AssignStmt:
 		lhs, lchanged := t.instantiateExprList(ta, s.Lhs)
@@ -262,6 +336,21 @@ func (t *translator) instantiateStmt(ta *typeArgs, s ast.Stmt) ast.Stmt {
 			TokPos: s.TokPos,
 			Tok:    s.Tok,
 			Rhs:    rhs,
+		}
+	case *ast.IfStmt:
+		init := t.instantiateStmt(ta, s.Init)
+		cond := t.instantiateExpr(ta, s.Cond)
+		body := t.instantiateBlockStmt(ta, s.Body)
+		els := t.instantiateStmt(ta, s.Else)
+		if init == s.Init && cond == s.Cond && body == s.Body && els == s.Else {
+			return s
+		}
+		return &ast.IfStmt{
+			If:   s.If,
+			Init: init,
+			Cond: cond,
+			Body: body,
+			Else: els,
 		}
 	case *ast.RangeStmt:
 		key := t.instantiateExpr(ta, s.Key)
@@ -291,6 +380,27 @@ func (t *translator) instantiateStmt(ta *typeArgs, s ast.Stmt) ast.Stmt {
 		}
 	default:
 		panic(fmt.Sprintf("unimplemented Stmt %T", s))
+	}
+}
+
+// instantiateBlockStmt instantiates a BlockStmt.
+func (t *translator) instantiateBlockStmt(ta *typeArgs, pbs *ast.BlockStmt) *ast.BlockStmt {
+	changed := false
+	stmts := make([]ast.Stmt, len(pbs.List))
+	for i, s := range pbs.List {
+		is := t.instantiateStmt(ta, s)
+		stmts[i] = is
+		if is != s {
+			changed = true
+		}
+	}
+	if !changed {
+		return pbs
+	}
+	return &ast.BlockStmt{
+		Lbrace: pbs.Lbrace,
+		List:   stmts,
+		Rbrace: pbs.Rbrace,
 	}
 }
 
@@ -335,32 +445,30 @@ func (t *translator) instantiateField(ta *typeArgs, f *ast.Field) *ast.Field {
 
 // instantiateExpr instantiates an expression.
 func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
-	if e == nil {
-		return nil
-	}
 	var r ast.Expr
 	switch e := e.(type) {
-	case *ast.CallExpr:
-		fun := t.instantiateExpr(ta, e.Fun)
-		args, argsChanged := t.instantiateExprList(ta, e.Args)
-		if fun == e.Fun && !argsChanged {
-			return e
-		}
-		r = &ast.CallExpr{
-			Fun:      fun,
-			Lparen:   e.Lparen,
-			Args:     args,
-			Ellipsis: e.Ellipsis,
-			Rparen:   e.Rparen,
-		}
+	case nil:
+		return nil
 	case *ast.Ident:
-		obj := t.info.ObjectOf(e)
+		obj := ta.info.ObjectOf(e)
 		if obj != nil {
 			if typ, ok := ta.ast(obj); ok {
 				return typ
 			}
 		}
 		return e
+	case *ast.BasicLit:
+		return e
+	case *ast.ParenExpr:
+		x := t.instantiateExpr(ta, e.X)
+		if x == e.X {
+			return e
+		}
+		return &ast.ParenExpr{
+			Lparen: e.Lparen,
+			X:      x,
+			Rparen: e.Rparen,
+		}
 	case *ast.SelectorExpr:
 		x := t.instantiateExpr(ta, e.X)
 		if x == e.X {
@@ -378,6 +486,60 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 		r = &ast.StarExpr{
 			Star: e.Star,
 			X:    x,
+		}
+	case *ast.BinaryExpr:
+		x := t.instantiateExpr(ta, e.X)
+		y := t.instantiateExpr(ta, e.Y)
+		if x == e.X && y == e.Y {
+			return e
+		}
+		r = &ast.BinaryExpr{
+			X:     x,
+			OpPos: e.OpPos,
+			Op:    e.Op,
+			Y:     y,
+		}
+	case *ast.IndexExpr:
+		x := t.instantiateExpr(ta, e.X)
+		index := t.instantiateExpr(ta, e.Index)
+		if x == e.X && index == e.Index {
+			return e
+		}
+		r = &ast.IndexExpr{
+			X:      x,
+			Lbrack: e.Lbrack,
+			Index:  index,
+			Rbrack: e.Rbrack,
+		}
+	case *ast.SliceExpr:
+		x := t.instantiateExpr(ta, e.X)
+		low := t.instantiateExpr(ta, e.Low)
+		high := t.instantiateExpr(ta, e.High)
+		max := t.instantiateExpr(ta, e.Max)
+		if x == e.X && low == e.Low && high == e.High && max == e.Max {
+			return e
+		}
+		r = &ast.SliceExpr{
+			X:      x,
+			Lbrack: e.Lbrack,
+			Low:    low,
+			High:   high,
+			Max:    max,
+			Slice3: e.Slice3,
+			Rbrack: e.Rbrack,
+		}
+	case *ast.CallExpr:
+		fun := t.instantiateExpr(ta, e.Fun)
+		args, argsChanged := t.instantiateExprList(ta, e.Args)
+		if fun == e.Fun && !argsChanged {
+			return e
+		}
+		r = &ast.CallExpr{
+			Fun:      fun,
+			Lparen:   e.Lparen,
+			Args:     args,
+			Ellipsis: e.Ellipsis,
+			Rparen:   e.Rparen,
 		}
 	case *ast.FuncType:
 		params := t.instantiateFieldList(ta, e.Params)
@@ -417,7 +579,10 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 	}
 
 	// We fall down to here for expressions that are not types.
-	t.setType(r, t.instantiateType(ta, t.lookupType(e)))
+
+	if et := t.lookupType(e); et != nil {
+		t.setType(r, t.instantiateType(ta, et))
+	}
 
 	return r
 }

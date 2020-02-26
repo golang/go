@@ -7,7 +7,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"go/go2go"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,11 +38,19 @@ func main() {
 		usage()
 	}
 
+	importerTmpdir, err := ioutil.TempDir("", "go2go")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(importerTmpdir)
+
+	importer := go2go.NewImporter(importerTmpdir)
+
 	var rundir string
 	if args[0] == "run" {
 		tmpdir := copyToTmpdir(args[1:])
 		defer os.RemoveAll(tmpdir)
-		translate(tmpdir)
+		translate(importer, tmpdir)
 		nargs := []string{"run"}
 		for _, arg := range args[1:] {
 			base := filepath.Base(arg)
@@ -51,11 +61,11 @@ func main() {
 		rundir = tmpdir
 	} else if args[0] == "translate" && isGo2Files(args[1:]...) {
 		for _, arg := range args[1:] {
-			translateFile(arg)
+			translateFile(importer, arg)
 		}
 	} else {
 		for _, dir := range expandPackages(args[1:]) {
-			translate(dir)
+			translate(importer, dir)
 		}
 	}
 
