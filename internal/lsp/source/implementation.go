@@ -299,7 +299,7 @@ func pathEnclosingObjNode(f *ast.File, pos token.Pos) []ast.Node {
 				}
 			}
 		case *ast.StarExpr:
-			// Follow star expressions to the inner identifer.
+			// Follow star expressions to the inner identifier.
 			if pos == n.Star {
 				pos = n.X.Pos()
 			}

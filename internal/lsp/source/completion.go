@@ -495,7 +495,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 	// Detect our surrounding identifier.
 	switch leaf := path[0].(type) {
 	case *ast.Ident:
-		// In the normal case, our leaf AST node is the identifer being completed.
+		// In the normal case, our leaf AST node is the identifier being completed.
 		c.setSurrounding(leaf)
 	case *ast.BadDecl:
 		// You don't get *ast.Idents at the file level, so look for bad
