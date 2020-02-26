@@ -244,15 +244,6 @@ func genAMD64() {
 
 	// TODO: MXCSR register?
 
-	// Apparently, the signal handling code path in darwin kernel leaves
-	// the upper bits of Y registers in a dirty state, which causes
-	// many SSE operations (128-bit and narrower) become much slower.
-	// Clear the upper bits to get to a clean state. See issue #37174.
-	// It is safe here as Go code don't use the upper bits of Y registers.
-	p("#ifdef GOOS_darwin")
-	p("VZEROUPPER")
-	p("#endif")
-
 	p("PUSHQ BP")
 	p("MOVQ SP, BP")
 	p("// Save flags before clobbering them")
@@ -261,6 +252,18 @@ func genAMD64() {
 	p("ADJSP $%d", l.stack)
 	p("// But vet doesn't know ADJSP, so suppress vet stack checking")
 	p("NOP SP")
+
+	// Apparently, the signal handling code path in darwin kernel leaves
+	// the upper bits of Y registers in a dirty state, which causes
+	// many SSE operations (128-bit and narrower) become much slower.
+	// Clear the upper bits to get to a clean state. See issue #37174.
+	// It is safe here as Go code don't use the upper bits of Y registers.
+	p("#ifdef GOOS_darwin")
+	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $0")
+	p("JE 2(PC)")
+	p("VZEROUPPER")
+	p("#endif")
+
 	l.save()
 	p("CALL ·asyncPreempt2(SB)")
 	l.restore()
