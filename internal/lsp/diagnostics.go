@@ -6,6 +6,7 @@ package lsp
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -86,6 +87,18 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 		return nil
 	}
 	if err != nil {
+		// If we encounter a genuine error when getting workspace packages,
+		// notify the user.
+		s.showedInitialErrorMu.Lock()
+		if !s.showedInitialError {
+			err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+				Type:    protocol.Error,
+				Message: fmt.Sprintf("Your workspace is misconfigured: %s. Please see https://github.com/golang/tools/blob/master/gopls/doc/troubleshooting.md for more information or file an issue (https://github.com/golang/go/issues/new) if you believe this is a mistake.", err.Error()),
+			})
+			s.showedInitialError = err == nil
+		}
+		s.showedInitialErrorMu.Unlock()
+
 		log.Error(ctx, "diagnose: no workspace packages", err, telemetry.Snapshot.Of(snapshot.ID()), telemetry.Directory.Of(snapshot.View().Folder))
 		return nil
 	}

@@ -58,6 +58,9 @@ type Server struct {
 	deliveredMu sync.Mutex
 	delivered   map[span.URI]sentDiagnostics
 
+	showedInitialError   bool
+	showedInitialErrorMu sync.Mutex
+
 	// diagnosticsSema limits the concurrency of diagnostics runs, which can be expensive.
 	diagnosticsSema chan struct{}
 }

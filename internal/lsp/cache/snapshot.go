@@ -145,10 +145,13 @@ func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]
 		// Reload package metadata if any of the metadata has missing
 		// dependencies, in case something has changed since the last time we
 		// reloaded it.
-		if m := s.getMetadata(id); m == nil || len(m.missingDeps) > 0 {
+		if m := s.getMetadata(id); m == nil {
 			reload = true
 			break
 		}
+		// TODO(golang/go#36918): Previously, we would reload any package with
+		// missing dependencies. This is expensive and results in too many
+		// calls to packages.Load. Determine what we should do instead.
 	}
 	if reload {
 		if err := s.load(ctx, fileURI(fh.Identity().URI)); err != nil {

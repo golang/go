@@ -355,7 +355,7 @@ func onlyDeletions(fixes []SuggestedFix) bool {
 			}
 		}
 	}
-	return true
+	return len(fixes) > 0
 }
 
 // hasUndeclaredErrors returns true if a package has a type error
