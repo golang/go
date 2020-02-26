@@ -2026,6 +2026,10 @@ func (ci *candidateInference) assigneesMatch(cand *candidate, sig *types.Signatu
 			assignee = ci.assignees[i]
 		}
 
+		if assignee == nil {
+			continue
+		}
+
 		allMatch, _ = ci.typeMatches(assignee, sig.Results().At(i).Type())
 		if !allMatch {
 			break
