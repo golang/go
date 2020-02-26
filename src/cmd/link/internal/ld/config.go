@@ -247,16 +247,10 @@ func determineLinkMode(ctxt *Link) {
 			ctxt.LinkMode = LinkExternal
 			via = "via GO_EXTLINK_ENABLED "
 		default:
-			ctxt.LinkMode = LinkInternal
-			switch {
-			case extNeeded, iscgo && externalobj:
+			if extNeeded || (iscgo && externalobj) {
 				ctxt.LinkMode = LinkExternal
-			case ctxt.BuildMode == BuildModePIE:
-				// Android always use BuildModePIE, and needs internal linking for
-				// bootstrapping.
-				if objabi.GOOS != "android" || objabi.GOARCH != "arm64" {
-					ctxt.LinkMode = LinkExternal
-				}
+			} else {
+				ctxt.LinkMode = LinkInternal
 			}
 		}
 	}
