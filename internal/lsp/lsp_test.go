@@ -96,19 +96,19 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
-func (r *runner) CodeLens(t *testing.T, spn span.Span, want []protocol.CodeLens) {
-	if source.DetectLanguage("", spn.URI().Filename()) != source.Mod {
+func (r *runner) CodeLens(t *testing.T, uri span.URI, want []protocol.CodeLens) {
+	if source.DetectLanguage("", uri.Filename()) != source.Mod {
 		return
 	}
-	v, err := r.server.session.ViewOf(spn.URI())
+	v, err := r.server.session.ViewOf(uri)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := mod.CodeLens(r.ctx, v.Snapshot(), spn.URI())
+	got, err := mod.CodeLens(r.ctx, v.Snapshot(), uri)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diff := tests.DiffCodeLens(spn.URI(), want, got); diff != "" {
+	if diff := tests.DiffCodeLens(uri, want, got); diff != "" {
 		t.Error(diff)
 	}
 }

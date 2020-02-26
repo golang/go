@@ -71,7 +71,7 @@ func NewRunner(exporter packagestest.Exporter, data *tests.Data, ctx context.Con
 	return r
 }
 
-func (r *runner) CodeLens(t *testing.T, spn span.Span, want []protocol.CodeLens) {
+func (r *runner) CodeLens(t *testing.T, uri span.URI, want []protocol.CodeLens) {
 	//TODO: add command line completions tests when it works
 }
 

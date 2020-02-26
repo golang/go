@@ -83,9 +83,6 @@ func (s *Server) codeLens(ctx context.Context, params *protocol.CodeLensParams) 
 	if !ok {
 		return nil, err
 	}
-	if !snapshot.IsSaved(fh.Identity().URI) {
-		return nil, nil
-	}
 	return mod.CodeLens(ctx, snapshot, fh.Identity().URI)
 }
 

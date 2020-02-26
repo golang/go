@@ -2,6 +2,7 @@ package lsp
 
 import (
 	"context"
+	"strings"
 
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -35,15 +36,15 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 			return nil, errors.Errorf("expected one file URI and one dependency for call to `go get`, got %v", params.Arguments)
 		}
 		uri := protocol.DocumentURI(params.Arguments[0].(string))
+		deps := params.Arguments[1].(string)
 		snapshot, _, ok, err := s.beginFileRequest(uri, source.UnknownKind)
 		if !ok {
 			return nil, err
 		}
-		dep := params.Arguments[1].(string)
 		// Run "go get" on the dependency to upgrade it to the latest version.
 		inv := gocommand.Invocation{
 			Verb:       "get",
-			Args:       []string{dep},
+			Args:       strings.Split(deps, " "),
 			Env:        snapshot.Config(ctx).Env,
 			WorkingDir: snapshot.View().Folder().Filename(),
 		}

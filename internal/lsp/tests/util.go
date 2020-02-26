@@ -197,7 +197,7 @@ func DiffDiagnostics(uri span.URI, want, got []source.Diagnostic) string {
 	return ""
 }
 
-func summarizeDiagnostics(i int, uri span.URI, want []source.Diagnostic, got []source.Diagnostic, reason string, args ...interface{}) string {
+func summarizeDiagnostics(i int, uri span.URI, want, got []source.Diagnostic, reason string, args ...interface{}) string {
 	msg := &bytes.Buffer{}
 	fmt.Fprint(msg, "diagnostics failed")
 	if i >= 0 {

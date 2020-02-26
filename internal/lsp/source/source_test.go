@@ -894,7 +894,7 @@ func (r *runner) Link(t *testing.T, uri span.URI, wantLinks []tests.Link) {
 	// This is a pure LSP feature, no source level functionality to be tested.
 }
 
-func (r *runner) CodeLens(t *testing.T, spn span.Span, want []protocol.CodeLens) {
+func (r *runner) CodeLens(t *testing.T, uri span.URI, want []protocol.CodeLens) {
 	// This is a pure LSP feature, no source level functionality to be tested.
 }
 

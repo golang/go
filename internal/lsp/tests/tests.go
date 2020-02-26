@@ -43,7 +43,7 @@ const (
 
 var UpdateGolden = flag.Bool("golden", false, "Update golden files")
 
-type CodeLens map[span.Span][]protocol.CodeLens
+type CodeLens map[span.URI][]protocol.CodeLens
 type Diagnostics map[span.URI][]source.Diagnostic
 type CompletionItems map[token.Pos]*source.CompletionItem
 type Completions map[span.Span][]Completion
@@ -115,7 +115,7 @@ type Data struct {
 }
 
 type Tests interface {
-	CodeLens(*testing.T, span.Span, []protocol.CodeLens)
+	CodeLens(*testing.T, span.URI, []protocol.CodeLens)
 	Diagnostics(*testing.T, span.URI, []source.Diagnostic)
 	Completion(*testing.T, span.Span, Completion, CompletionItems)
 	CompletionSnippet(*testing.T, span.Span, CompletionSnippet, bool, CompletionItems)
@@ -530,14 +530,14 @@ func Run(t *testing.T, tests Tests, data *Data) {
 
 	t.Run("CodeLens", func(t *testing.T) {
 		t.Helper()
-		for spn, want := range data.CodeLens {
+		for uri, want := range data.CodeLens {
 			// Check if we should skip this URI if the -modfile flag is not available.
-			if shouldSkip(data, spn.URI()) {
+			if shouldSkip(data, uri) {
 				continue
 			}
-			t.Run(SpanName(spn), func(t *testing.T) {
+			t.Run(uriName(uri), func(t *testing.T) {
 				t.Helper()
-				tests.CodeLens(t, spn, want)
+				tests.CodeLens(t, uri, want)
 			})
 		}
 	})
@@ -767,7 +767,7 @@ func checkData(t *testing.T, data *Data) {
 		return count
 	}
 
-	countCodeLens := func(c map[span.Span][]protocol.CodeLens) (count int) {
+	countCodeLens := func(c map[span.URI][]protocol.CodeLens) (count int) {
 		for _, want := range c {
 			count += len(want)
 		}
@@ -883,8 +883,8 @@ func (data *Data) Golden(tag string, target string, update func() ([]byte, error
 }
 
 func (data *Data) collectCodeLens(spn span.Span, title, cmd string) {
-	if _, ok := data.CodeLens[spn]; !ok {
-		data.CodeLens[spn] = []protocol.CodeLens{}
+	if _, ok := data.CodeLens[spn.URI()]; !ok {
+		data.CodeLens[spn.URI()] = []protocol.CodeLens{}
 	}
 	m, err := data.Mapper(spn.URI())
 	if err != nil {
@@ -894,7 +894,7 @@ func (data *Data) collectCodeLens(spn span.Span, title, cmd string) {
 	if err != nil {
 		return
 	}
-	data.CodeLens[spn] = append(data.CodeLens[spn], protocol.CodeLens{
+	data.CodeLens[spn.URI()] = append(data.CodeLens[spn.URI()], protocol.CodeLens{
 		Range: rng,
 		Command: protocol.Command{
 			Title:   title,

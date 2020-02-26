@@ -1,4 +1,4 @@
-module upgradedep
+module upgradedep //@codelens("module upgradedep", "Upgrade all dependencies", "upgrade.dependency")
 
 // TODO(microsoft/vscode-go#12): Another issue. //@link(`microsoft/vscode-go#12`, `https://github.com/microsoft/vscode-go/issues/12`)
 
