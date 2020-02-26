@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build !windows
+// +build darwin dragonfly freebsd linux netbsd solaris openbsd
 
 package lsprpc
 
@@ -13,11 +13,28 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 )
+
+func init() {
+	startRemote = startRemotePosix
+	autoNetworkAddress = autoNetworkAddressPosix
+}
+
+func startRemotePosix(goplsPath string, args ...string) error {
+	cmd := exec.Command(goplsPath, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setsid: true,
+	}
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("starting remote gopls: %v", err)
+	}
+	return nil
+}
 
 // autoNetworkAddress resolves an id on the 'auto' pseduo-network to a
 // real network and address. On unix, this uses unix domain sockets.
-func autoNetworkAddress(goplsPath, id string) (network string, address string) {
+func autoNetworkAddressPosix(goplsPath, id string) (network string, address string) {
 	// Especially when doing local development or testing, it's important that
 	// the remote gopls instance we connect to is running the same binary as our
 	// forwarder. So we encode a short hash of the binary path into the daemon

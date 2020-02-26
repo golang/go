@@ -13,7 +13,6 @@ import (
 	stdlog "log"
 	"net"
 	"os"
-	"os/exec"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -292,8 +291,14 @@ func (f *Forwarder) connectToRemote(ctx context.Context) (net.Conn, error) {
 				}
 			}
 		}
-		if err := startRemote(f.goplsPath, network, address); err != nil {
-			return nil, fmt.Errorf("startRemote(%q, %q): %v", network, address, err)
+		args := []string{"serve",
+			"-listen", fmt.Sprintf(`%s;%s`, network, address),
+			"-listen.timeout", "1m",
+			"-debug", "localhost:0",
+			"-logfile", "auto",
+		}
+		if err := startRemote(f.goplsPath, args...); err != nil {
+			return nil, fmt.Errorf("startRemote(%q, %v): %v", f.goplsPath, args, err)
 		}
 	}
 
@@ -313,20 +318,6 @@ func (f *Forwarder) connectToRemote(ctx context.Context) (net.Conn, error) {
 		}
 	}
 	return nil, fmt.Errorf("dialing remote: %v", err)
-}
-
-func startRemote(goplsPath, network, address string) error {
-	args := []string{"serve",
-		"-listen", fmt.Sprintf(`%s;%s`, network, address),
-		"-listen.timeout", "1m",
-		"-debug", "localhost:0",
-		"-logfile", "auto",
-	}
-	cmd := exec.Command(goplsPath, args...)
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("starting remote gopls: %v", err)
-	}
-	return nil
 }
 
 // ForwarderExitFunc is used to exit the forwarder process. It is mutable for
