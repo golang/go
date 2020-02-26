@@ -4,8 +4,6 @@ import (
 	"fmt"         //@mark(fmtImp, "\"fmt\""),highlight(fmtImp, fmtImp, fmt1, fmt2, fmt3, fmt4)
 	h2 "net/http" //@mark(hImp, "h2"),highlight(hImp, hImp, hUse)
 	"sort"
-
-	"golang.org/x/tools/internal/lsp/protocol"
 )
 
 type F struct{ bar int } //@mark(barDeclaration, "bar"),highlight(barDeclaration, barDeclaration, bar1, bar2, bar3)
@@ -35,12 +33,10 @@ func testFunctions() {
 	Print()                 //@mark(printTest, "Print"),highlight(printTest, printFunc, printTest)
 }
 
-func toProtocolHighlight(rngs []protocol.Range) []protocol.DocumentHighlight { //@mark(doc1, "DocumentHighlight"),mark(docRet1, "[]protocol.DocumentHighlight"),highlight(doc1, docRet1, doc1, doc2, doc3, result)
-	result := make([]protocol.DocumentHighlight, 0, len(rngs)) //@mark(doc2, "DocumentHighlight"),highlight(doc2, doc1, doc2, doc3)
-	kind := protocol.Text
+func toProtocolHighlight(rngs []int) []DocumentHighlight { //@mark(doc1, "DocumentHighlight"),mark(docRet1, "[]DocumentHighlight"),highlight(doc1, docRet1, doc1, doc2, doc3, result)
+	result := make([]DocumentHighlight, 0, len(rngs)) //@mark(doc2, "DocumentHighlight"),highlight(doc2, doc1, doc2, doc3)
 	for _, rng := range rngs {
-		result = append(result, protocol.DocumentHighlight{ //@mark(doc3, "DocumentHighlight"),highlight(doc3, doc1, doc2, doc3)
-			Kind:  kind,
+		result = append(result, DocumentHighlight{ //@mark(doc3, "DocumentHighlight"),highlight(doc3, doc1, doc2, doc3)
 			Range: rng,
 		})
 	}
