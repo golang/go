@@ -599,7 +599,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			return
 		}
 
-		// rhs must be of the form: expr.(type) and expr must be an interface
+		// rhs must be of the form: expr.(type) and expr must be an interface or generic type
 		expr, _ := rhs.(*ast.TypeAssertExpr)
 		if expr == nil || expr.Type != nil {
 			check.invalidAST(s.Pos(), "incorrect form of type switch guard")
@@ -610,9 +610,14 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		if x.mode == invalid {
 			return
 		}
-		xtyp, _ := x.typ.Underlying().(*Interface)
-		if xtyp == nil {
-			check.errorf(x.pos(), "%s is not an interface", &x)
+		var xtyp *Interface
+		switch t := x.typ.Underlying().(type) {
+		case *Interface:
+			xtyp = t
+		case *TypeParam:
+			xtyp = t.Interface()
+		default:
+			check.errorf(x.pos(), "%s is not an interface or generic type", &x)
 			return
 		}
 

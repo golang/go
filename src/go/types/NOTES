@@ -11,7 +11,6 @@ TODO
 - use []*TypeParam for tparams in subst? (unclear)
 - should we use nil instead of &emptyInterface for no type bounds (as an optimization)?
 - TBD: in prose, should we use "generic" or "parameterized" (try to be consistent)
-- don't apply receiver type identifier substitution in place (typexpr.go)
 
 ----------------------------------------------------------------------------------------------------
 KNOWN ISSUES

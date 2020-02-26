@@ -32,12 +32,6 @@ func _(type T interface{ type *int })(p T) {
 	_ = *p /* ERROR cannot indirect */
 }
 
-// type assertions over generic types are not yet supported
-func _(type T interface{ type int })(x T) {
-	_ = T /* ERROR not an expression */ .(int)
-	_ = x /* ERROR not an interface */ .(int)
-}
-
 // calling of a generic variable is not yet supported
 func _(type T interface{ type func() })(f T) {
 	f /* ERROR cannot call */ ()

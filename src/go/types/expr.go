@@ -1522,9 +1522,14 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		if x.mode == invalid {
 			goto Error
 		}
-		xtyp, _ := x.typ.Underlying().(*Interface)
-		if xtyp == nil {
-			check.invalidOp(x.pos(), "%s is not an interface", x)
+		var xtyp *Interface
+		switch t := x.typ.Underlying().(type) {
+		case *Interface:
+			xtyp = t
+		case *TypeParam:
+			xtyp = t.Interface()
+		default:
+			check.invalidOp(x.pos(), "%s is not an interface or generic type", x)
 			goto Error
 		}
 		// x.(type) expressions are handled explicitly in type switches

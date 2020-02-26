@@ -4,6 +4,8 @@
 
 package p
 
+import "io" // for type assertion tests
+
 func identity(type T)(x T) T { return x }
 
 func _(type)(x int) int
@@ -315,3 +317,26 @@ type R2(type P, Q) struct{}
 
 func (_ R2(X, Y)) m1(X)
 func (_ R2(X, Y)) m2(X) Y
+
+// type assertions and type switches over generic types
+
+// ReadByte1 corresponds to the ReadByte example in the contracts draft design.
+func ReadByte1(type T io.Reader)(r T) (byte, error) {
+	if br, ok := r.(io.ByteReader); ok {
+		return br.ReadByte()
+	}
+	var b [1]byte
+	_, err := r.Read(b[:])
+	return b[0], err
+}
+
+// ReadBytes2 is like ReadByte1 but uses a type switch instead.
+func ReadByte2(type T io.Reader)(r T) (byte, error) {
+        switch br := r.(type) {
+        case io.ByteReader:
+                return br.ReadByte()
+        }
+	var b [1]byte
+	_, err := r.Read(b[:])
+	return b[0], err
+}
