@@ -529,7 +529,7 @@ func CompareDiagnostic(a, b *Diagnostic) int {
 	return 1
 }
 
-func findPosInPackage(v View, searchpkg Package, pos token.Pos) (*ast.File, Package, error) {
+func findPosInPackage(v View, searchpkg Package, pos token.Pos) (ParseGoHandle, Package, error) {
 	tok := v.Session().Cache().FileSet().File(pos)
 	if tok == nil {
 		return nil, nil, errors.Errorf("no file for pos in package %s", searchpkg.ID())
@@ -540,14 +540,7 @@ func findPosInPackage(v View, searchpkg Package, pos token.Pos) (*ast.File, Pack
 	if err != nil {
 		return nil, nil, err
 	}
-	file, _, _, _, err := ph.Cached()
-	if err != nil {
-		return nil, nil, err
-	}
-	if !(file.Pos() <= pos && pos <= file.End()) {
-		return nil, nil, fmt.Errorf("pos %v, apparently in file %q, is not between %v and %v", pos, ph.File().URI(), file.Pos(), file.End())
-	}
-	return file, pkg, nil
+	return ph, pkg, nil
 }
 
 func findMapperInPackage(v View, searchpkg Package, uri span.URI) (*protocol.ColumnMapper, error) {

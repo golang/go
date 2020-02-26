@@ -92,8 +92,10 @@ func (s *snapshot) buildPackageHandle(ctx context.Context, id packageID, mode so
 				dep.check(ctx)
 			}(dep)
 		}
+
 		data := &packageData{}
 		data.pkg, data.err = typeCheck(ctx, fset, m, mode, goFiles, compiledGoFiles, deps)
+
 		return data
 	})
 	ph.handle = h
@@ -413,6 +415,7 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 			}
 		}
 	}
+
 	return pkg, nil
 }
 

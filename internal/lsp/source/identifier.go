@@ -12,7 +12,6 @@ import (
 	"go/types"
 	"strconv"
 
-	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
 	errors "golang.org/x/xerrors"
@@ -203,7 +202,7 @@ func findIdentifier(ctx context.Context, s Snapshot, pkg Package, file *ast.File
 	}
 	result.Declaration.MappedRange = append(result.Declaration.MappedRange, rng)
 
-	if result.Declaration.node, err = objToNode(s.View(), pkg, result.Declaration.obj); err != nil {
+	if result.Declaration.node, err = objToDecl(ctx, view, pkg, result.Declaration.obj); err != nil {
 		return nil, err
 	}
 	typ := pkg.GetTypesInfo().TypeOf(result.ident)
@@ -261,31 +260,18 @@ func hasErrorType(obj types.Object) bool {
 	return types.IsInterface(obj.Type()) && obj.Pkg() == nil && obj.Name() == "error"
 }
 
-func objToNode(v View, pkg Package, obj types.Object) (ast.Decl, error) {
-	declAST, _, err := findPosInPackage(v, pkg, obj.Pos())
+func objToDecl(ctx context.Context, v View, srcPkg Package, obj types.Object) (ast.Decl, error) {
+	ph, _, err := findPosInPackage(v, srcPkg, obj.Pos())
 	if err != nil {
 		return nil, err
 	}
-	path, _ := astutil.PathEnclosingInterval(declAST, obj.Pos(), obj.Pos())
-	if path == nil {
-		return nil, errors.Errorf("no path for object %v", obj.Name())
+
+	posToDecl, err := ph.PosToDecl(ctx)
+	if err != nil {
+		return nil, err
 	}
-	for _, node := range path {
-		switch node := node.(type) {
-		case *ast.GenDecl:
-			// Type names, fields, and methods.
-			switch obj.(type) {
-			case *types.TypeName, *types.Var, *types.Const, *types.Func:
-				return node, nil
-			}
-		case *ast.FuncDecl:
-			// Function signatures.
-			if _, ok := obj.(*types.Func); ok {
-				return node, nil
-			}
-		}
-	}
-	return nil, nil // didn't find a node, but don't fail
+
+	return posToDecl[obj.Pos()], nil
 }
 
 // importSpec handles positions inside of an *ast.ImportSpec.

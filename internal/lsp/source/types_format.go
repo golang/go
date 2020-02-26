@@ -195,21 +195,16 @@ func newSignature(ctx context.Context, s Snapshot, pkg Package, file *ast.File, 
 // To do this, it looks in the AST of the file in which the object is declared.
 // On any errors, it always fallbacks back to types.TypeString.
 func formatVarType(ctx context.Context, s Snapshot, srcpkg Package, srcfile *ast.File, obj *types.Var, qf types.Qualifier) string {
-	file, pkg, err := findPosInPackage(s.View(), srcpkg, obj.Pos())
+	ph, pkg, err := findPosInPackage(s.View(), srcpkg, obj.Pos())
 	if err != nil {
 		return types.TypeString(obj.Type(), qf)
 	}
-	// Named and unnamed variables must be handled differently.
-	// Unnamed variables appear in the result values of a function signature.
-	var expr ast.Expr
-	if obj.Name() != "" {
-		expr, err = namedVarType(ctx, s, pkg, file, obj)
-	} else {
-		expr, err = unnamedVarType(file, obj)
-	}
+
+	expr, err := varType(ctx, ph, obj)
 	if err != nil {
 		return types.TypeString(obj.Type(), qf)
 	}
+
 	// The type names in the AST may not be correctly qualified.
 	// Determine the package name to use based on the package that originated
 	// the query and the package in which the type is declared.
@@ -224,43 +219,19 @@ func formatVarType(ctx context.Context, s Snapshot, srcpkg Package, srcfile *ast
 	return fmted
 }
 
-// unnamedVarType finds the type for an unnamed variable.
-func unnamedVarType(file *ast.File, obj *types.Var) (ast.Expr, error) {
-	path, _ := astutil.PathEnclosingInterval(file, obj.Pos(), obj.Pos())
-	var expr ast.Expr
-	for _, p := range path {
-		e, ok := p.(ast.Expr)
-		if !ok {
-			break
-		}
-		expr = e
-	}
-	typ, ok := expr.(ast.Expr)
-	if !ok {
-		return nil, fmt.Errorf("unexpected type for node (%T)", path[0])
-	}
-	return typ, nil
-}
-
-// namedVarType returns the type for a named variable.
-func namedVarType(ctx context.Context, s Snapshot, pkg Package, file *ast.File, obj *types.Var) (ast.Expr, error) {
-	ident, err := findIdentifier(ctx, s, pkg, file, obj.Pos())
+// varType returns the type expression for a *types.Var.
+func varType(ctx context.Context, ph ParseGoHandle, obj *types.Var) (ast.Expr, error) {
+	posToField, err := ph.PosToField(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if ident.Declaration.obj != obj {
-		return nil, fmt.Errorf("expected the ident's declaration %v to be equal to obj %v", ident.Declaration.obj, obj)
-	}
-	if i := ident.ident; i == nil || i.Obj == nil || i.Obj.Decl == nil {
+	field := posToField[obj.Pos()]
+	if field == nil {
 		return nil, fmt.Errorf("no declaration for object %s", obj.Name())
 	}
-	f, ok := ident.ident.Obj.Decl.(*ast.Field)
+	typ, ok := field.Type.(ast.Expr)
 	if !ok {
-		return nil, fmt.Errorf("declaration of object %v is %T, not *ast.Field", obj.Name(), ident.ident.Obj.Decl)
-	}
-	typ, ok := f.Type.(ast.Expr)
-	if !ok {
-		return nil, fmt.Errorf("unexpected type for node (%T)", f.Type)
+		return nil, fmt.Errorf("unexpected type for node (%T)", field.Type)
 	}
 	return typ, nil
 }

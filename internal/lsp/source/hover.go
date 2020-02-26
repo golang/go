@@ -102,10 +102,7 @@ func HoverIdentifier(ctx context.Context, i *IdentifierInfo) (*HoverInformation,
 		h.SingleLine = objectString(obj, i.qf)
 	}
 	h.ImportPath, h.Link, h.SymbolName = pathLinkAndSymbolName(i)
-	if h.comment != nil {
-		h.FullDocumentation = h.comment.Text()
-		h.Synopsis = doc.Synopsis(h.FullDocumentation)
-	}
+
 	return h, nil
 }
 
@@ -217,13 +214,18 @@ func hover(ctx context.Context, fset *token.FileSet, pkg Package, d Declaration)
 	_, done := event.Start(ctx, "source.hover")
 	defer done()
 
-	obj := d.obj
-	switch node := d.node.(type) {
+	return hoverInfo(pkg, d.obj, d.node)
+}
+
+func hoverInfo(pkg Package, obj types.Object, node ast.Node) (*HoverInformation, error) {
+	var info *HoverInformation
+
+	switch node := node.(type) {
 	case *ast.Ident:
 		// The package declaration.
 		for _, f := range pkg.GetSyntax() {
 			if f.Name == node {
-				return &HoverInformation{comment: f.Doc}, nil
+				info = &HoverInformation{comment: f.Doc}
 			}
 		}
 	case *ast.ImportSpec:
@@ -238,32 +240,47 @@ func hover(ctx context.Context, fset *token.FileSet, pkg Package, d Declaration)
 			var doc *ast.CommentGroup
 			for _, file := range imp.GetSyntax() {
 				if file.Doc != nil {
-					return &HoverInformation{source: obj, comment: doc}, nil
+					info = &HoverInformation{source: obj, comment: doc}
 				}
 			}
 		}
-		return &HoverInformation{source: node}, nil
+		info = &HoverInformation{source: node}
 	case *ast.GenDecl:
 		switch obj := obj.(type) {
 		case *types.TypeName, *types.Var, *types.Const, *types.Func:
-			return formatGenDecl(node, obj, obj.Type())
+			var err error
+			info, err = formatGenDecl(node, obj, obj.Type())
+			if err != nil {
+				return nil, err
+			}
 		}
 	case *ast.TypeSpec:
 		if obj.Parent() == types.Universe {
 			if obj.Name() == "error" {
-				return &HoverInformation{source: node}, nil
+				info = &HoverInformation{source: node}
+			} else {
+				info = &HoverInformation{source: node.Name} // comments not needed for builtins
 			}
-			return &HoverInformation{source: node.Name}, nil // comments not needed for builtins
 		}
 	case *ast.FuncDecl:
 		switch obj.(type) {
 		case *types.Func:
-			return &HoverInformation{source: obj, comment: node.Doc}, nil
+			info = &HoverInformation{source: obj, comment: node.Doc}
 		case *types.Builtin:
-			return &HoverInformation{source: node.Type, comment: node.Doc}, nil
+			info = &HoverInformation{source: node.Type, comment: node.Doc}
 		}
 	}
-	return &HoverInformation{source: obj}, nil
+
+	if info == nil {
+		info = &HoverInformation{source: obj}
+	}
+
+	if info.comment != nil {
+		info.FullDocumentation = info.comment.Text()
+		info.Synopsis = doc.Synopsis(info.FullDocumentation)
+	}
+
+	return info, nil
 }
 
 func formatGenDecl(node *ast.GenDecl, obj types.Object, typ types.Type) (*HoverInformation, error) {
@@ -283,6 +300,7 @@ func formatGenDecl(node *ast.GenDecl, obj types.Object, typ types.Type) (*HoverI
 	if spec == nil {
 		return nil, errors.Errorf("no spec for node %v at position %v", node, obj.Pos())
 	}
+
 	// If we have a field or method.
 	switch obj.(type) {
 	case *types.Var, *types.Const, *types.Func:

@@ -303,6 +303,17 @@ type ParseGoHandle interface {
 
 	// Cached returns the AST for this handle, if it has already been stored.
 	Cached() (file *ast.File, src []byte, m *protocol.ColumnMapper, parseErr error, err error)
+
+	// PosToField is a cache of *ast.Fields by token.Pos. This allows us
+	// to quickly find corresponding *ast.Field node given a *types.Var.
+	// We must refer to the AST to render type aliases properly when
+	// formatting signatures and other types.
+	PosToField(context.Context) (map[token.Pos]*ast.Field, error)
+
+	// PosToDecl maps certain objects' positions to their surrounding
+	// ast.Decl. This mapping is used when building the documentation
+	// string for the objects.
+	PosToDecl(context.Context) (map[token.Pos]ast.Decl, error)
 }
 
 type ParseModHandle interface {

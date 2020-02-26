@@ -99,7 +99,7 @@ FindCall:
 		comment *ast.CommentGroup
 	)
 	if obj != nil {
-		node, err := objToNode(snapshot.View(), pkg, obj)
+		node, err := objToDecl(ctx, snapshot.View(), pkg, obj)
 		if err != nil {
 			return nil, 0, err
 		}

@@ -187,15 +187,22 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 	if cand.imp != nil && cand.imp.pkg != nil {
 		searchPkg = cand.imp.pkg
 	}
-	file, pkg, err := findPosInPackage(c.snapshot.View(), searchPkg, obj.Pos())
+
+	ph, pkg, err := findPosInPackage(c.snapshot.View(), searchPkg, obj.Pos())
 	if err != nil {
 		return item, nil
 	}
-	ident, err := findIdentifier(ctx, c.snapshot, pkg, file, obj.Pos())
+
+	posToDecl, err := ph.PosToDecl(ctx)
 	if err != nil {
+		return CompletionItem{}, err
+	}
+	decl := posToDecl[obj.Pos()]
+	if decl == nil {
 		return item, nil
 	}
-	hover, err := HoverIdentifier(ctx, ident)
+
+	hover, err := hoverInfo(pkg, obj, decl)
 	if err != nil {
 		event.Error(ctx, "failed to find Hover", err, tag.URI.Of(uri))
 		return item, nil
