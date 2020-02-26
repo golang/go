@@ -8,7 +8,9 @@ if [ "$#" -eq 0 ]; then
     exit 1
 fi
 
-set -x
+# Check that the Docker daemon is available.
+docker ps > /dev/null
+
 WORKTREE="$(mktemp -d)"
 BRANCH="boring/release-$(date +%Y%m%d%H%M%S)"
 
