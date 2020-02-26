@@ -8,8 +8,6 @@ package mod
 
 import (
 	"context"
-	"fmt"
-	"regexp"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/internal/lsp/debug/tag"
@@ -115,11 +113,10 @@ func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, realfh source
 	return actions
 }
 
-func SuggestedGoFixes(ctx context.Context, snapshot source.Snapshot, diags []protocol.Diagnostic) ([]protocol.CodeAction, error) {
-	// TODO: We will want to support diagnostics for go.mod files even when the -modfile flag is turned off.
+func SuggestedGoFixes(ctx context.Context, snapshot source.Snapshot) (map[string]protocol.TextDocumentEdit, error) {
+	// TODO(rstambler): Support diagnostics for go.mod files even when the
+	// -modfile flag is turned off.
 	realURI, tempURI := snapshot.View().ModFiles()
-
-	// Check the case when the tempModfile flag is turned off.
 	if realURI == "" || tempURI == "" {
 		return nil, nil
 	}
@@ -139,23 +136,16 @@ func SuggestedGoFixes(ctx context.Context, snapshot source.Snapshot, diags []pro
 	if err != nil {
 		return nil, err
 	}
+	if len(missingDeps) == 0 {
+		return nil, nil
+	}
 	// Get the contents of the go.mod file before we make any changes.
 	oldContents, _, err := realfh.Read(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	var actions []protocol.CodeAction
-	for _, diag := range diags {
-		re := regexp.MustCompile(`(.+) is not in your go.mod file`)
-		matches := re.FindStringSubmatch(diag.Message)
-		if len(matches) != 2 {
-			continue
-		}
-		req := missingDeps[matches[1]]
-		if req == nil {
-			continue
-		}
+	textDocumentEdits := make(map[string]protocol.TextDocumentEdit)
+	for dep, req := range missingDeps {
 		// Calculate the quick fix edits that need to be made to the go.mod file.
 		if err := realFile.AddRequire(req.Mod.Path, req.Mod.Version); err != nil {
 			return nil, err
@@ -175,27 +165,17 @@ func SuggestedGoFixes(ctx context.Context, snapshot source.Snapshot, diags []pro
 		if err != nil {
 			return nil, err
 		}
-		action := protocol.CodeAction{
-			Title:       fmt.Sprintf("Add %s to go.mod", req.Mod.Path),
-			Kind:        protocol.QuickFix,
-			Diagnostics: []protocol.Diagnostic{diag},
-			Edit: protocol.WorkspaceEdit{
-				DocumentChanges: []protocol.TextDocumentEdit{
-					{
-						TextDocument: protocol.VersionedTextDocumentIdentifier{
-							Version: realfh.Identity().Version,
-							TextDocumentIdentifier: protocol.TextDocumentIdentifier{
-								URI: protocol.URIFromSpanURI(realfh.Identity().URI),
-							},
-						},
-						Edits: edits,
-					},
+		textDocumentEdits[dep] = protocol.TextDocumentEdit{
+			TextDocument: protocol.VersionedTextDocumentIdentifier{
+				Version: realfh.Identity().Version,
+				TextDocumentIdentifier: protocol.TextDocumentIdentifier{
+					URI: protocol.URIFromSpanURI(realfh.Identity().URI),
 				},
 			},
+			Edits: edits,
 		}
-		actions = append(actions, action)
 	}
-	return actions, nil
+	return textDocumentEdits, nil
 }
 
 func sameDiagnostic(d protocol.Diagnostic, e source.Error) bool {

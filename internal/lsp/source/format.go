@@ -81,14 +81,12 @@ func AllImportsFixes(ctx context.Context, snapshot Snapshot, fh FileHandle) (all
 	defer done()
 
 	pgh := snapshot.View().Session().Cache().ParseGoHandle(fh, ParseFull)
-	err = snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+	if err := snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
 		allFixEdits, editsPerFix, err = computeImportEdits(ctx, snapshot.View(), pgh, opts)
 		return err
-	})
-	if err != nil {
+	}); err != nil {
 		return nil, nil, errors.Errorf("computing fix edits: %v", err)
 	}
-
 	return allFixEdits, editsPerFix, nil
 }
 
