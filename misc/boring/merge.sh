@@ -9,7 +9,6 @@ if [ "$#" -ne 2 ]; then
     exit 1
 fi
 
-set -x
 TARGET="$1"
 SOURCE="$2"
 WORKTREE="$(mktemp -d)"
@@ -20,11 +19,12 @@ git worktree add --track -b "$BRANCH" "$WORKTREE" "origin/$TARGET"
 
 cd "$WORKTREE"
 export GIT_GOFMT_HOOK=off
-git merge -m "all: merge $SOURCE into $TARGET" "$SOURCE" || \
-    (git rm VERSION && git commit -m "all: merge $SOURCE into $TARGET")
+git merge --no-commit "$SOURCE" || echo "Ignoring conflict..."
+[[ -f VERSION ]] && git rm -f VERSION
+git commit -m "all: merge $SOURCE into $TARGET"
 
-if ! git log --format=%B -n 1 | grep "\[dev.boringcrypto"; then
-    echo "The commit does not seem to be targeting a BoringCrypto branch."
+if ! git log --format=%B -n 1 | grep "\[$TARGET\] "; then
+    echo "The commit does not seem to be targeting the BoringCrypto branch."
     exit 1
 fi
 
