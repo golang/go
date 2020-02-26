@@ -978,8 +978,15 @@ func Peinit(ctxt *Link) {
 
 	if ctxt.LinkMode == LinkInternal {
 		// some mingw libs depend on this symbol, for example, FindPESectionByName
-		ctxt.xdefine("__image_base__", sym.SDATA, PEBASE)
-		ctxt.xdefine("_image_base__", sym.SDATA, PEBASE)
+		for _, name := range [2]string{"__image_base__", "_image_base__"} {
+			s := ctxt.loader.LookupOrCreateSym(name, 0)
+			sb := ctxt.loader.MakeSymbolUpdater(s)
+			sb.SetType(sym.SDATA)
+			sb.SetValue(PEBASE)
+			ctxt.loader.SetAttrReachable(s, true)
+			ctxt.loader.SetAttrSpecial(s, true)
+			ctxt.loader.SetAttrLocal(s, true)
+		}
 	}
 
 	HEADR = PEFILEHEADR
