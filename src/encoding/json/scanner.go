@@ -195,12 +195,12 @@ func (s *scanner) popParseState() {
 }
 
 func isSpace(c byte) bool {
-	return c == ' ' || c == '\t' || c == '\r' || c == '\n'
+	return c <= ' ' && (c == ' ' || c == '\t' || c == '\r' || c == '\n')
 }
 
 // stateBeginValueOrEmpty is the state after reading `[`.
 func stateBeginValueOrEmpty(s *scanner, c byte) int {
-	if c <= ' ' && isSpace(c) {
+	if isSpace(c) {
 		return scanSkipSpace
 	}
 	if c == ']' {
@@ -211,7 +211,7 @@ func stateBeginValueOrEmpty(s *scanner, c byte) int {
 
 // stateBeginValue is the state at the beginning of the input.
 func stateBeginValue(s *scanner, c byte) int {
-	if c <= ' ' && isSpace(c) {
+	if isSpace(c) {
 		return scanSkipSpace
 	}
 	switch c {
@@ -249,7 +249,7 @@ func stateBeginValue(s *scanner, c byte) int {
 
 // stateBeginStringOrEmpty is the state after reading `{`.
 func stateBeginStringOrEmpty(s *scanner, c byte) int {
-	if c <= ' ' && isSpace(c) {
+	if isSpace(c) {
 		return scanSkipSpace
 	}
 	if c == '}' {
@@ -262,7 +262,7 @@ func stateBeginStringOrEmpty(s *scanner, c byte) int {
 
 // stateBeginString is the state after reading `{"key": value,`.
 func stateBeginString(s *scanner, c byte) int {
-	if c <= ' ' && isSpace(c) {
+	if isSpace(c) {
 		return scanSkipSpace
 	}
 	if c == '"' {
@@ -282,7 +282,7 @@ func stateEndValue(s *scanner, c byte) int {
 		s.endTop = true
 		return stateEndTop(s, c)
 	}
-	if c <= ' ' && isSpace(c) {
+	if isSpace(c) {
 		s.step = stateEndValue
 		return scanSkipSpace
 	}
