@@ -131,7 +131,7 @@ func (s *snapshot) buildOverlay() map[string][]byte {
 
 func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]source.PackageHandle, error) {
 	if fh.Identity().Kind != source.Go {
-		panic(fmt.Sprintf("called PackageHandles on a non-Go FileHandle"))
+		panic("called PackageHandles on a non-Go FileHandle")
 	}
 
 	ctx = telemetry.File.With(ctx, fh.Identity().URI)
@@ -743,7 +743,7 @@ outer:
 	for k, ids := range s.ids {
 		for _, id := range ids {
 			if invalidateMetadata, ok := transitiveIDs[id]; invalidateMetadata && ok {
-				break outer
+				continue outer
 			}
 		}
 		result.ids[k] = ids
