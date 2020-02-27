@@ -28,6 +28,7 @@ func accept(s int) (int, syscall.Sockaddr, string, error) {
 	case syscall.EINVAL: // some Linux use this instead of ENOSYS
 	case syscall.EACCES: // some Linux use this instead of ENOSYS
 	case syscall.EFAULT: // some Linux use this instead of ENOSYS
+	case syscall.EOPNOTSUPP: // armv6l linux 2.6.33.5 use this instead of ENOSYS
 	}
 
 	// See ../syscall/exec_unix.go for description of ForkLock.
