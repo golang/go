@@ -83,6 +83,10 @@ import (
 // but no such flag is defined.
 var ErrHelp = errors.New("flag: help requested")
 
+// ErrHelpExitCode is the exit code if the -help or -h flag is invoked
+// but no such flag is defined.
+var ErrHelpExitCode = 0
+
 // errParse is returned by Set if a flag's value fails to parse, such as with an invalid integer for Int.
 // It then gets wrapped through failf to provide more information.
 var errParse = errors.New("parse error")
@@ -979,6 +983,9 @@ func (f *FlagSet) Parse(arguments []string) error {
 		case ContinueOnError:
 			return err
 		case ExitOnError:
+			if err == ErrHelp {
+				os.Exit(ErrHelpExitCode)
+			}
 			os.Exit(2)
 		case PanicOnError:
 			panic(err)
