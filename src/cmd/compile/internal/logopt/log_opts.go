@@ -390,7 +390,7 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
 		var w io.WriteCloser
 
 		if slashPkgPath == "" {
-			slashPkgPath = string(0)
+			slashPkgPath = "\000"
 		}
 		subdirpath := filepath.Join(dest, pathEscape(slashPkgPath))
 		err := os.MkdirAll(subdirpath, 0755)
