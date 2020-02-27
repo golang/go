@@ -232,9 +232,9 @@ func (e *Editor) CloseBuffer(ctx context.Context, path string) error {
 	return nil
 }
 
-// WriteBuffer writes the content of the buffer specified by the given path to
+// SaveBuffer writes the content of the buffer specified by the given path to
 // the filesystem.
-func (e *Editor) WriteBuffer(ctx context.Context, path string) error {
+func (e *Editor) SaveBuffer(ctx context.Context, path string) error {
 	e.mu.Lock()
 	buf, ok := e.buffers[path]
 	if !ok {
