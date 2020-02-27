@@ -62,9 +62,13 @@ func (e *ImportMissingError) ImportPath() string {
 // modules in the build list, or found in both the main module and its vendor
 // directory.
 type AmbiguousImportError struct {
-	ImportPath string
+	importPath string
 	Dirs       []string
 	Modules    []module.Version // Either empty or 1:1 with Dirs.
+}
+
+func (e *AmbiguousImportError) ImportPath() string {
+	return e.importPath
 }
 
 func (e *AmbiguousImportError) Error() string {
@@ -74,7 +78,7 @@ func (e *AmbiguousImportError) Error() string {
 	}
 
 	var buf strings.Builder
-	fmt.Fprintf(&buf, "ambiguous import: found package %s in multiple %s:", e.ImportPath, locType)
+	fmt.Fprintf(&buf, "ambiguous import: found package %s in multiple %s:", e.importPath, locType)
 
 	for i, dir := range e.Dirs {
 		buf.WriteString("\n\t")
@@ -92,6 +96,8 @@ func (e *AmbiguousImportError) Error() string {
 
 	return buf.String()
 }
+
+var _ load.ImportPathError = &AmbiguousImportError{}
 
 // Import finds the module and directory in the build list
 // containing the package with the given import path.
@@ -136,7 +142,7 @@ func Import(path string) (m module.Version, dir string, err error) {
 		mainDir, mainOK := dirInModule(path, targetPrefix, ModRoot(), true)
 		vendorDir, vendorOK := dirInModule(path, "", filepath.Join(ModRoot(), "vendor"), false)
 		if mainOK && vendorOK {
-			return module.Version{}, "", &AmbiguousImportError{ImportPath: path, Dirs: []string{mainDir, vendorDir}}
+			return module.Version{}, "", &AmbiguousImportError{importPath: path, Dirs: []string{mainDir, vendorDir}}
 		}
 		// Prefer to return main directory if there is one,
 		// Note that we're not checking that the package exists.
@@ -176,7 +182,7 @@ func Import(path string) (m module.Version, dir string, err error) {
 		return mods[0], dirs[0], nil
 	}
 	if len(mods) > 0 {
-		return module.Version{}, "", &AmbiguousImportError{ImportPath: path, Dirs: dirs, Modules: mods}
+		return module.Version{}, "", &AmbiguousImportError{importPath: path, Dirs: dirs, Modules: mods}
 	}
 
 	// Look up module containing the package, for addition to the build list.
