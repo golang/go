@@ -2074,13 +2074,13 @@ func PackagesAndErrors(patterns []string) []*Package {
 	for _, m := range matches {
 		for _, pkg := range m.Pkgs {
 			if pkg == "" {
-				panic(fmt.Sprintf("ImportPaths returned empty package for pattern %s", m.Pattern))
+				panic(fmt.Sprintf("ImportPaths returned empty package for pattern %s", m.Pattern()))
 			}
 			p := loadImport(pre, pkg, base.Cwd, nil, &stk, nil, 0)
-			p.Match = append(p.Match, m.Pattern)
+			p.Match = append(p.Match, m.Pattern())
 			p.Internal.CmdlinePkg = true
-			if m.Literal {
-				// Note: do not set = m.Literal unconditionally
+			if m.IsLiteral() {
+				// Note: do not set = m.IsLiteral unconditionally
 				// because maybe we'll see p matching both
 				// a literal and also a non-literal pattern.
 				p.Internal.CmdlinePkgLiteral = true
