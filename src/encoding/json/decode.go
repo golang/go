@@ -104,7 +104,17 @@ func Unmarshal(data []byte, v interface{}) error {
 	}
 
 	d.init(data)
-	return d.unmarshal(v)
+	// Unmarshal without using d.errorContext, to improve performance.
+	d.errorContext.ignore = true
+	err = d.unmarshal(v)
+	switch err.(type) {
+	case *UnmarshalTypeError:
+		// It's now evident, that d.errorContext is needed, so unmarshal again,
+		// but this time with d.errorContext.ignore = false.
+		d.init(data)
+		err = d.unmarshal(v)
+	}
+	return err
 }
 
 // Unmarshaler is the interface implemented by types
@@ -207,6 +217,7 @@ type decodeState struct {
 	opcode       int // last read result
 	scan         scanner
 	errorContext struct { // provides context for type errors
+		ignore     bool
 		Struct     reflect.Type
 		FieldStack []string
 	}
@@ -749,8 +760,10 @@ func (d *decodeState) object(v reflect.Value) error {
 					}
 					subv = subv.Field(i)
 				}
-				d.errorContext.FieldStack = append(d.errorContext.FieldStack, f.name)
-				d.errorContext.Struct = t
+				if !d.errorContext.ignore {
+					d.errorContext.FieldStack = append(d.errorContext.FieldStack, f.name)
+					d.errorContext.Struct = t
+				}
 			} else if d.disallowUnknownFields {
 				d.saveError(fmt.Errorf("json: unknown field %q", key))
 			}
@@ -829,11 +842,13 @@ func (d *decodeState) object(v reflect.Value) error {
 		if d.opcode == scanSkipSpace {
 			d.scanWhile(scanSkipSpace)
 		}
-		// Reset errorContext to its original state.
-		// Keep the same underlying array for FieldStack, to reuse the
-		// space and avoid unnecessary allocs.
-		d.errorContext.FieldStack = d.errorContext.FieldStack[:len(origErrorContext.FieldStack)]
-		d.errorContext.Struct = origErrorContext.Struct
+		if !d.errorContext.ignore {
+			// Reset errorContext to its original state.
+			// Keep the same underlying array for FieldStack, to reuse the
+			// space and avoid unnecessary allocs.
+			d.errorContext.FieldStack = d.errorContext.FieldStack[:len(origErrorContext.FieldStack)]
+			d.errorContext.Struct = origErrorContext.Struct
+		}
 		if d.opcode == scanEndObject {
 			break
 		}
