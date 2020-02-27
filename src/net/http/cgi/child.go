@@ -89,8 +89,6 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
 		r.Header.Add(strings.ReplaceAll(k[5:], "_", "-"), v)
 	}
 
-	// TODO: cookies.  parsing them isn't exported, though.
-
 	uriStr := params["REQUEST_URI"]
 	if uriStr == "" {
 		// Fallback to SCRIPT_NAME, PATH_INFO and QUERY_STRING.
