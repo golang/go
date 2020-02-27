@@ -1312,7 +1312,7 @@ func (t *Time) UnmarshalText(data []byte) error {
 }
 
 // Unix returns the local Time corresponding to the given Unix time,
-// sec seconds and nsec nanoseconds since January 1, 1970 UTC.
+// a.k.a. Epoch time, sec seconds and nsec nanoseconds since January 1, 1970 UTC.
 // It is valid to pass nsec outside the range [0, 999999999].
 // Not all sec values have a corresponding time value. One such
 // value is 1<<63-1 (the largest int64 value).
