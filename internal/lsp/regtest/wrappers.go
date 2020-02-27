@@ -15,6 +15,17 @@ func (e *Env) RemoveFileFromWorkspace(name string) {
 	}
 }
 
+// ReadWorkspaceFile reads a file from the workspace, calling t.Fatal on any
+// error.
+func (e *Env) ReadWorkspaceFile(name string) string {
+	e.t.Helper()
+	content, err := e.W.ReadFile(name)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return content
+}
+
 // OpenFile opens a file in the editor, calling t.Fatal on any error.
 func (e *Env) OpenFile(name string) {
 	e.t.Helper()
@@ -65,6 +76,23 @@ func (e *Env) GoToDefinition(name string, pos fake.Pos) (string, fake.Pos) {
 		e.t.Fatal(err)
 	}
 	return n, p
+}
+
+// FormatBuffer formats the editor buffer, calling t.Fatal on any error.
+func (e *Env) FormatBuffer(name string) {
+	e.t.Helper()
+	if err := e.E.FormatBuffer(e.ctx, name); err != nil {
+		e.t.Fatal(err)
+	}
+}
+
+// OrganizeImports processes the source.organizeImports codeAction, calling
+// t.Fatal on any error.
+func (e *Env) OrganizeImports(name string) {
+	e.t.Helper()
+	if err := e.E.OrganizeImports(e.ctx, name); err != nil {
+		e.t.Fatal(err)
+	}
 }
 
 // CloseEditor shuts down the editor, calling t.Fatal on any error.

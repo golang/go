@@ -23,20 +23,17 @@ func main() {
 `
 
 func TestClientEditing(t *testing.T) {
-	ws, err := NewWorkspace("test", []byte(exampleProgram))
+	ws, err := NewWorkspace("TestClientEditing", []byte(exampleProgram))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer ws.Close()
 	ctx := context.Background()
-	client := NewEditor(ws)
-	if err != nil {
+	editor := NewEditor(ws)
+	if err := editor.OpenFile(ctx, "main.go"); err != nil {
 		t.Fatal(err)
 	}
-	if err := client.OpenFile(ctx, "main.go"); err != nil {
-		t.Fatal(err)
-	}
-	if err := client.EditBuffer(ctx, "main.go", []Edit{
+	if err := editor.EditBuffer(ctx, "main.go", []Edit{
 		{
 			Start: Pos{5, 14},
 			End:   Pos{5, 26},
@@ -45,7 +42,7 @@ func TestClientEditing(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	got := client.buffers["main.go"].text()
+	got := editor.buffers["main.go"].text()
 	want := `package main
 
 import "fmt"

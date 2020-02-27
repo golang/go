@@ -98,10 +98,7 @@ func (c *Client) ApplyEdit(ctx context.Context, params *protocol.ApplyWorkspaceE
 	}
 	for _, change := range params.Edit.DocumentChanges {
 		path := c.ws.URIToPath(change.TextDocument.URI)
-		var edits []Edit
-		for _, lspEdit := range change.Edits {
-			edits = append(edits, fromProtocolTextEdit(lspEdit))
-		}
+		edits := convertEdits(change.Edits)
 		c.EditBuffer(ctx, path, edits)
 	}
 	return &protocol.ApplyWorkspaceEditResponse{Applied: true}, nil

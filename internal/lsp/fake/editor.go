@@ -235,6 +235,13 @@ func (e *Editor) CloseBuffer(ctx context.Context, path string) error {
 // SaveBuffer writes the content of the buffer specified by the given path to
 // the filesystem.
 func (e *Editor) SaveBuffer(ctx context.Context, path string) error {
+	if err := e.OrganizeImports(ctx, path); err != nil {
+		return fmt.Errorf("organizing imports before save: %v", err)
+	}
+	if err := e.FormatBuffer(ctx, path); err != nil {
+		return fmt.Errorf("formatting before save: %v", err)
+	}
+
 	e.mu.Lock()
 	buf, ok := e.buffers[path]
 	if !ok {
@@ -282,24 +289,22 @@ func (e *Editor) SaveBuffer(ctx context.Context, path string) error {
 
 // EditBuffer applies the given test edits to the buffer identified by path.
 func (e *Editor) EditBuffer(ctx context.Context, path string, edits []Edit) error {
-	params, err := e.doEdits(ctx, path, edits)
-	if err != nil {
-		return err
-	}
-	if e.server != nil {
-		if err := e.server.DidChange(ctx, params); err != nil {
-			return fmt.Errorf("DidChange: %v", err)
-		}
-	}
-	return nil
-}
-
-func (e *Editor) doEdits(ctx context.Context, path string, edits []Edit) (*protocol.DidChangeTextDocumentParams, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	return e.editBufferLocked(ctx, path, edits)
+}
+
+// BufferText returns the content of the buffer with the given name.
+func (e *Editor) BufferText(name string) string {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.buffers[name].text()
+}
+
+func (e *Editor) editBufferLocked(ctx context.Context, path string, edits []Edit) error {
 	buf, ok := e.buffers[path]
 	if !ok {
-		return nil, fmt.Errorf("unknown buffer %q", path)
+		return fmt.Errorf("unknown buffer %q", path)
 	}
 	var (
 		content = make([]string, len(buf.content))
@@ -307,16 +312,23 @@ func (e *Editor) doEdits(ctx context.Context, path string, edits []Edit) (*proto
 		evts    []protocol.TextDocumentContentChangeEvent
 	)
 	copy(content, buf.content)
-	for _, edit := range edits {
-		content, err = editContent(content, edit)
-		if err != nil {
-			return nil, err
-		}
-		evts = append(evts, edit.toProtocolChangeEvent())
+	content, err = editContent(content, edits)
+	if err != nil {
+		return err
 	}
+
 	buf.content = content
 	buf.version++
 	e.buffers[path] = buf
+	// A simple heuristic: if there is only one edit, send it incrementally.
+	// Otherwise, send the entire content.
+	if len(edits) == 1 {
+		evts = append(evts, edits[0].toProtocolChangeEvent())
+	} else {
+		evts = append(evts, protocol.TextDocumentContentChangeEvent{
+			Text: buf.text(),
+		})
+	}
 	params := &protocol.DidChangeTextDocumentParams{
 		TextDocument: protocol.VersionedTextDocumentIdentifier{
 			Version: float64(buf.version),
@@ -326,7 +338,12 @@ func (e *Editor) doEdits(ctx context.Context, path string, edits []Edit) (*proto
 		},
 		ContentChanges: evts,
 	}
-	return params, nil
+	if e.server != nil {
+		if err := e.server.DidChange(ctx, params); err != nil {
+			return fmt.Errorf("DidChange: %v", err)
+		}
+	}
+	return nil
 }
 
 // GoToDefinition jumps to the definition of the symbol at the given position
@@ -354,6 +371,65 @@ func (e *Editor) GoToDefinition(ctx context.Context, path string, pos Pos) (stri
 	return newPath, newPos, nil
 }
 
+// OrganizeImports requests and performs the source.organizeImports codeAction.
+func (e *Editor) OrganizeImports(ctx context.Context, path string) error {
+	if e.server == nil {
+		return nil
+	}
+	params := &protocol.CodeActionParams{}
+	params.TextDocument.URI = e.ws.URI(path)
+
+	actions, err := e.server.CodeAction(ctx, params)
+	if err != nil {
+		return fmt.Errorf("textDocument/codeAction: %v", err)
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for _, action := range actions {
+		if action.Kind == protocol.SourceOrganizeImports {
+			for _, change := range action.Edit.DocumentChanges {
+				path := e.ws.URIToPath(change.TextDocument.URI)
+				if float64(e.buffers[path].version) != change.TextDocument.Version {
+					// Skip edits for old versions.
+					continue
+				}
+				edits := convertEdits(change.Edits)
+				if err := e.editBufferLocked(ctx, path, edits); err != nil {
+					return fmt.Errorf("editing buffer %q: %v", path, err)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func convertEdits(protocolEdits []protocol.TextEdit) []Edit {
+	var edits []Edit
+	for _, lspEdit := range protocolEdits {
+		edits = append(edits, fromProtocolTextEdit(lspEdit))
+	}
+	return edits
+}
+
+// FormatBuffer gofmts a Go file.
+func (e *Editor) FormatBuffer(ctx context.Context, path string) error {
+	if e.server == nil {
+		return nil
+	}
+	// Because textDocument/formatting has no versions, we must block while
+	// performing formatting.
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	params := &protocol.DocumentFormattingParams{}
+	params.TextDocument.URI = e.ws.URI(path)
+	resp, err := e.server.Formatting(ctx, params)
+	if err != nil {
+		return fmt.Errorf("textDocument/formatting: %v", err)
+	}
+	edits := convertEdits(resp)
+	return e.editBufferLocked(ctx, path, edits)
+}
+
 func (e *Editor) checkBufferPosition(path string, pos Pos) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -366,6 +442,3 @@ func (e *Editor) checkBufferPosition(path string, pos Pos) error {
 	}
 	return nil
 }
-
-// TODO: expose more client functionality, for example Hover, CodeAction,
-// Rename, Completion, etc.  setting the content of an entire buffer, etc.

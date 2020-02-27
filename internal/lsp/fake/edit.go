@@ -6,6 +6,7 @@ package fake
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"golang.org/x/tools/internal/lsp/protocol"
@@ -71,7 +72,7 @@ func inText(p Pos, content []string) bool {
 	}
 	// Note the strict right bound: the column indexes character _separators_,
 	// not characters.
-	if p.Column < 0 || p.Column > len(content[p.Line]) {
+	if p.Column < 0 || p.Column > len([]rune(content[p.Line])) {
 		return false
 	}
 	return true
@@ -80,20 +81,50 @@ func inText(p Pos, content []string) bool {
 // editContent implements a simplistic, inefficient algorithm for applying text
 // edits to our buffer representation. It returns an error if the edit is
 // invalid for the current content.
-func editContent(content []string, edit Edit) ([]string, error) {
-	if edit.End.Line < edit.Start.Line || (edit.End.Line == edit.Start.Line && edit.End.Column < edit.Start.Column) {
-		return nil, fmt.Errorf("invalid edit: end %v before start %v", edit.End, edit.Start)
+func editContent(content []string, edits []Edit) ([]string, error) {
+	newEdits := make([]Edit, len(edits))
+	copy(newEdits, edits)
+	sort.Slice(newEdits, func(i, j int) bool {
+		if newEdits[i].Start.Line < newEdits[j].Start.Line {
+			return true
+		}
+		if newEdits[i].Start.Line > newEdits[j].Start.Line {
+			return false
+		}
+		return newEdits[i].Start.Column < newEdits[j].Start.Column
+	})
+
+	// Validate edits.
+	for _, edit := range newEdits {
+		if edit.End.Line < edit.Start.Line || (edit.End.Line == edit.Start.Line && edit.End.Column < edit.Start.Column) {
+			return nil, fmt.Errorf("invalid edit: end %v before start %v", edit.End, edit.Start)
+		}
+		if !inText(edit.Start, content) {
+			return nil, fmt.Errorf("start position %v is out of bounds", edit.Start)
+		}
+		if !inText(edit.End, content) {
+			return nil, fmt.Errorf("end position %v is out of bounds", edit.End)
+		}
 	}
-	if !inText(edit.Start, content) {
-		return nil, fmt.Errorf("start position %v is out of bounds", edit.Start)
+
+	var (
+		b            strings.Builder
+		line, column int
+	)
+	advance := func(toLine, toColumn int) {
+		for ; line < toLine; line++ {
+			b.WriteString(string([]rune(content[line])[column:]) + "\n")
+			column = 0
+		}
+		b.WriteString(string([]rune(content[line])[column:toColumn]))
+		column = toColumn
 	}
-	if !inText(edit.End, content) {
-		return nil, fmt.Errorf("end position %v is out of bounds", edit.End)
+	for _, edit := range newEdits {
+		advance(edit.Start.Line, edit.Start.Column)
+		b.WriteString(edit.Text)
+		line = edit.End.Line
+		column = edit.End.Column
 	}
-	// Splice the edit text in between the first and last lines of the edit.
-	prefix := string([]rune(content[edit.Start.Line])[:edit.Start.Column])
-	suffix := string([]rune(content[edit.End.Line])[edit.End.Column:])
-	newLines := strings.Split(prefix+edit.Text+suffix, "\n")
-	newContent := append(content[:edit.Start.Line], newLines...)
-	return append(newContent, content[edit.End.Line+1:]...), nil
+	advance(len(content)-1, len([]rune(content[len(content)-1])))
+	return strings.Split(b.String(), "\n"), nil
 }

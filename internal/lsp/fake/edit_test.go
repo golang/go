@@ -13,7 +13,7 @@ func TestApplyEdit(t *testing.T) {
 	tests := []struct {
 		label   string
 		content string
-		edit    Edit
+		edits   []Edit
 		want    string
 		wantErr bool
 	}{
@@ -23,57 +23,57 @@ func TestApplyEdit(t *testing.T) {
 		{
 			label:   "empty edit",
 			content: "hello",
-			edit:    Edit{},
+			edits:   []Edit{},
 			want:    "hello",
 		},
 		{
 			label:   "unicode edit",
 			content: "hello, 日本語",
-			edit: Edit{
+			edits: []Edit{{
 				Start: Pos{Line: 0, Column: 7},
 				End:   Pos{Line: 0, Column: 10},
 				Text:  "world",
-			},
+			}},
 			want: "hello, world",
 		},
 		{
 			label:   "range edit",
 			content: "ABC\nDEF\nGHI\nJKL",
-			edit: Edit{
+			edits: []Edit{{
 				Start: Pos{Line: 1, Column: 1},
 				End:   Pos{Line: 2, Column: 3},
 				Text:  "12\n345",
-			},
+			}},
 			want: "ABC\nD12\n345\nJKL",
 		},
 		{
 			label:   "end before start",
 			content: "ABC\nDEF\nGHI\nJKL",
-			edit: Edit{
+			edits: []Edit{{
 				End:   Pos{Line: 1, Column: 1},
 				Start: Pos{Line: 2, Column: 3},
 				Text:  "12\n345",
-			},
+			}},
 			wantErr: true,
 		},
 		{
 			label:   "out of bounds line",
 			content: "ABC\nDEF\nGHI\nJKL",
-			edit: Edit{
+			edits: []Edit{{
 				Start: Pos{Line: 1, Column: 1},
 				End:   Pos{Line: 4, Column: 3},
 				Text:  "12\n345",
-			},
+			}},
 			wantErr: true,
 		},
 		{
 			label:   "out of bounds column",
 			content: "ABC\nDEF\nGHI\nJKL",
-			edit: Edit{
+			edits: []Edit{{
 				Start: Pos{Line: 1, Column: 4},
 				End:   Pos{Line: 2, Column: 3},
 				Text:  "12\n345",
-			},
+			}},
 			wantErr: true,
 		},
 	}
@@ -82,7 +82,7 @@ func TestApplyEdit(t *testing.T) {
 		test := test
 		t.Run(test.label, func(t *testing.T) {
 			lines := strings.Split(test.content, "\n")
-			newLines, err := editContent(lines, test.edit)
+			newLines, err := editContent(lines, test.edits)
 			if (err != nil) != test.wantErr {
 				t.Errorf("got err %v, want error: %t", err, test.wantErr)
 			}
