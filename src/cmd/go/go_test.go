@@ -2662,7 +2662,7 @@ func TestBadCommandLines(t *testing.T) {
 	tg.tempFile("src/-x/x.go", "package x\n")
 	tg.setenv("GOPATH", tg.path("."))
 	tg.runFail("build", "--", "-x")
-	tg.grepStderr("invalid input directory name \"-x\"", "did not reject -x directory")
+	tg.grepStderr("invalid import path \"-x\"", "did not reject -x import path")
 
 	tg.tempFile("src/-x/y/y.go", "package y\n")
 	tg.setenv("GOPATH", tg.path("."))
