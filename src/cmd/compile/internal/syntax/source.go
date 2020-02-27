@@ -3,11 +3,10 @@
 // license that can be found in the LICENSE file.
 
 // This file implements source, a buffered rune reader
-// which is specialized for the needs of the Go scanner:
-// Contiguous sequences of runes (literals) are extracted
-// directly as []byte without the need to re-encode the
-// runes in UTF-8 (as would be necessary with bufio.Reader).
-//
+// specialized for scanning Go code: Reading
+// ASCII characters, maintaining current (line, col)
+// position information, and recording of the most
+// recently read source segment are highly optimized.
 // This file is self-contained (go tool compile source.go
 // compiles) and thus could be made into its own package.
 
@@ -18,202 +17,202 @@ import (
 	"unicode/utf8"
 )
 
+// The source buffer is accessed using three indices b (begin),
+// r (read), and e (end):
+//
+// - If b >= 0, it points to the beginning of a segment of most
+//   recently read characters (typically a Go literal).
+//
+// - r points to the byte immediately following the most recently
+//   read character ch, which starts at r-chw.
+//
+// - e points to the byte immediately following the last byte that
+//   was read into the buffer.
+//
+// The buffer content is terminated at buf[e] with the sentinel
+// character utf8.RuneSelf. This makes it possible to test for
+// the common case of ASCII characters with a single 'if' (see
+// nextch method).
+//
+//                +------ content in use -------+
+//                v                             v
+// buf [...read...|...segment...|ch|...unread...|s|...free...]
+//                ^             ^  ^            ^
+//                |             |  |            |
+//                b         r-chw  r            e
+//
+// Invariant: -1 <= b < r <= e < len(buf) && buf[e] == sentinel
+
+type source struct {
+	in   io.Reader
+	errh func(line, col uint, msg string)
+
+	buf       []byte // source buffer
+	ioerr     error  // pending I/O error, or nil
+	b, r, e   int    // buffer indices (see comment above)
+	line, col uint   // source position of ch (0-based)
+	ch        rune   // most recently read character
+	chw       int    // width of ch
+}
+
+const sentinel = utf8.RuneSelf
+
+func (s *source) init(in io.Reader, errh func(line, col uint, msg string)) {
+	s.in = in
+	s.errh = errh
+
+	if s.buf == nil {
+		s.buf = make([]byte, nextSize(0))
+	}
+	s.buf[0] = sentinel
+	s.ioerr = nil
+	s.b, s.r, s.e = -1, 0, 0
+	s.line, s.col = 0, 0
+	s.ch = ' '
+	s.chw = 0
+}
+
 // starting points for line and column numbers
 const linebase = 1
 const colbase = 1
 
-// max. number of bytes to unread
-const maxunread = 10
-
-// buf [...read...|...|...unread...|s|...free...]
-//         ^      ^   ^            ^
-//         |      |   |            |
-//        suf     r0  r            w
-
-type source struct {
-	src  io.Reader
-	errh func(line, pos uint, msg string)
-
-	// source buffer
-	buf         [4 << 10]byte
-	r0, r, w    int   // previous/current read and write buf positions, excluding sentinel
-	line0, line uint  // previous/current line
-	col0, col   uint  // previous/current column (byte offsets from line start)
-	ioerr       error // pending io error
-
-	// literal buffer
-	lit []byte // literal prefix
-	suf int    // literal suffix; suf >= 0 means we are scanning a literal
+// pos returns the (line, col) source position of s.ch.
+func (s *source) pos() (line, col uint) {
+	return linebase + s.line, colbase + s.col
 }
 
-// init initializes source to read from src and to report errors via errh.
-// errh must not be nil.
-func (s *source) init(src io.Reader, errh func(line, pos uint, msg string)) {
-	s.src = src
-	s.errh = errh
-
-	s.buf[0] = utf8.RuneSelf // terminate with sentinel
-	s.r0, s.r, s.w = 0, 0, 0
-	s.line0, s.line = 0, linebase
-	s.col0, s.col = 0, colbase
-	s.ioerr = nil
-
-	s.lit = s.lit[:0]
-	s.suf = -1
-}
-
-// ungetr sets the reading position to a previous reading
-// position, usually the one of the most recently read
-// rune, but possibly earlier (see unread below).
-func (s *source) ungetr() {
-	s.r, s.line, s.col = s.r0, s.line0, s.col0
-}
-
-// unread moves the previous reading position to a position
-// that is n bytes earlier in the source. The next ungetr
-// call will set the reading position to that moved position.
-// The "unread" runes must be single byte and not contain any
-// newlines; and 0 <= n <= maxunread must hold.
-func (s *source) unread(n int) {
-	s.r0 -= n
-	s.col0 -= uint(n)
-}
-
+// error reports the error msg at source position s.pos().
 func (s *source) error(msg string) {
-	s.errh(s.line0, s.col0, msg)
+	line, col := s.pos()
+	s.errh(line, col, msg)
 }
 
-// getr reads and returns the next rune.
-//
-// If a read or source encoding error occurs, getr
-// calls the error handler installed with init.
-// The handler must exist.
-//
-// The (line, col) position passed to the error handler
-// is always at the current source reading position.
-func (s *source) getr() rune {
+// start starts a new active source segment (including s.ch).
+// As long as stop has not been called, the active segment's
+// bytes (excluding s.ch) may be retrieved by calling segment.
+func (s *source) start()          { s.b = s.r - s.chw }
+func (s *source) stop()           { s.b = -1 }
+func (s *source) segment() []byte { return s.buf[s.b : s.r-s.chw] }
+
+// rewind rewinds the scanner's read position and character s.ch
+// to the start of the currently active segment, which must not
+// contain any newlines (otherwise position information will be
+// incorrect). Currently, rewind is only needed for handling the
+// source sequence ".."; it must not be called outside an active
+// segment.
+func (s *source) rewind() {
+	// ok to verify precondition - rewind is rarely called
+	if s.b < 0 {
+		panic("no active segment")
+	}
+	s.col -= uint(s.r - s.b)
+	s.r = s.b
+	s.nextch()
+}
+
+func (s *source) nextch() {
 redo:
-	s.r0, s.line0, s.col0 = s.r, s.line, s.col
-
-	// We could avoid at least one test that is always taken in the
-	// for loop below by duplicating the common case code (ASCII)
-	// here since we always have at least the sentinel (utf8.RuneSelf)
-	// in the buffer. Measure and optimize if necessary.
-
-	// make sure we have at least one rune in buffer, or we are at EOF
-	for s.r+utf8.UTFMax > s.w && !utf8.FullRune(s.buf[s.r:s.w]) && s.ioerr == nil && s.w-s.r < len(s.buf) {
-		s.fill() // s.w-s.r < len(s.buf) => buffer is not full
+	s.col += uint(s.chw)
+	if s.ch == '\n' {
+		s.line++
+		s.col = 0
 	}
 
-	// common case: ASCII and enough bytes
-	// (invariant: s.buf[s.w] == utf8.RuneSelf)
-	if b := s.buf[s.r]; b < utf8.RuneSelf {
+	// fast common case: at least one ASCII character
+	if s.ch = rune(s.buf[s.r]); s.ch < sentinel {
 		s.r++
-		// TODO(gri) Optimization: Instead of adjusting s.col for each character,
-		// remember the line offset instead and then compute the offset as needed
-		// (which is less often).
-		s.col++
-		if b == 0 {
+		s.chw = 1
+		if s.ch == 0 {
 			s.error("invalid NUL character")
 			goto redo
 		}
-		if b == '\n' {
-			s.line++
-			s.col = colbase
-		}
-		return rune(b)
+		return
+	}
+
+	// slower general case: add more bytes to buffer if we don't have a full rune
+	for s.e-s.r < utf8.UTFMax && !utf8.FullRune(s.buf[s.r:s.e]) && s.ioerr == nil {
+		s.fill()
 	}
 
 	// EOF
-	if s.r == s.w {
+	if s.r == s.e {
 		if s.ioerr != io.EOF {
 			// ensure we never start with a '/' (e.g., rooted path) in the error message
 			s.error("I/O error: " + s.ioerr.Error())
+			s.ioerr = nil
 		}
-		return -1
+		s.ch = -1
+		s.chw = 0
+		return
 	}
 
-	// uncommon case: not ASCII
-	r, w := utf8.DecodeRune(s.buf[s.r:s.w])
-	s.r += w
-	s.col += uint(w)
+	s.ch, s.chw = utf8.DecodeRune(s.buf[s.r:s.e])
+	s.r += s.chw
 
-	if r == utf8.RuneError && w == 1 {
+	if s.ch == utf8.RuneError && s.chw == 1 {
 		s.error("invalid UTF-8 encoding")
 		goto redo
 	}
 
 	// BOM's are only allowed as the first character in a file
 	const BOM = 0xfeff
-	if r == BOM {
-		if s.r0 > 0 { // s.r0 is always > 0 after 1st character (fill will set it to maxunread)
+	if s.ch == BOM {
+		if s.line > 0 || s.col > 0 {
 			s.error("invalid BOM in the middle of the file")
 		}
 		goto redo
 	}
-
-	return r
 }
 
+// fill reads more source bytes into s.buf.
+// It returns with at least one more byte in the buffer, or with s.ioerr != nil.
 func (s *source) fill() {
-	// Slide unread bytes to beginning but preserve last read char
-	// (for one ungetr call) plus maxunread extra bytes (for one
-	// unread call).
-	if s.r0 > maxunread {
-		n := s.r0 - maxunread // number of bytes to slide down
-		// save literal prefix, if any
-		// (make sure we keep maxunread bytes and the last
-		// read char in the buffer)
-		if s.suf >= 0 {
-			// we have a literal
-			if s.suf < n {
-				// save literal prefix
-				s.lit = append(s.lit, s.buf[s.suf:n]...)
-				s.suf = 0
-			} else {
-				s.suf -= n
-			}
-		}
-		copy(s.buf[:], s.buf[n:s.w])
-		s.r0 = maxunread // eqv: s.r0 -= n
-		s.r -= n
-		s.w -= n
+	// determine content to preserve
+	b := s.r
+	if s.b >= 0 {
+		b = s.b
+		s.b = 0 // after buffer has grown or content has been moved down
 	}
+	content := s.buf[b:s.e]
+
+	// grow buffer or move content down
+	if len(content)*2 > len(s.buf) {
+		s.buf = make([]byte, nextSize(len(s.buf)))
+		copy(s.buf, content)
+	} else if b > 0 {
+		copy(s.buf, content)
+	}
+	s.r -= b
+	s.e -= b
 
 	// read more data: try a limited number of times
-	for i := 100; i > 0; i-- {
-		n, err := s.src.Read(s.buf[s.w : len(s.buf)-1]) // -1 to leave space for sentinel
+	for i := 0; i < 10; i++ {
+		var n int
+		n, s.ioerr = s.in.Read(s.buf[s.e : len(s.buf)-1]) // -1 to leave space for sentinel
 		if n < 0 {
 			panic("negative read") // incorrect underlying io.Reader implementation
 		}
-		s.w += n
-		if n > 0 || err != nil {
-			s.buf[s.w] = utf8.RuneSelf // sentinel
-			if err != nil {
-				s.ioerr = err
-			}
+		if n > 0 || s.ioerr != nil {
+			s.e += n
+			s.buf[s.e] = sentinel
 			return
 		}
+		// n == 0
 	}
 
-	s.buf[s.w] = utf8.RuneSelf // sentinel
+	s.buf[s.e] = sentinel
 	s.ioerr = io.ErrNoProgress
 }
 
-func (s *source) startLit() {
-	s.suf = s.r0
-	s.lit = s.lit[:0] // reuse lit
-}
-
-func (s *source) stopLit() []byte {
-	lit := s.buf[s.suf:s.r]
-	if len(s.lit) > 0 {
-		lit = append(s.lit, lit...)
+// nextSize returns the next bigger size for a buffer of a given size.
+func nextSize(size int) int {
+	const min = 4 << 10 // 4K: minimum buffer size
+	const max = 1 << 20 // 1M: maximum buffer size which is still doubled
+	if size < min {
+		return min
 	}
-	s.killLit()
-	return lit
-}
-
-func (s *source) killLit() {
-	s.suf = -1 // no pending literal
+	if size <= max {
+		return size << 1
+	}
+	return size + max
 }

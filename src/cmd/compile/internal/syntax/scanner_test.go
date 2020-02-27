@@ -19,8 +19,8 @@ func errh(line, col uint, msg string) {
 
 // Don't bother with other tests if TestSmoke doesn't pass.
 func TestSmoke(t *testing.T) {
-	const src = "if (+foo\t+=..123/***/4.2_0e-0i'a'`raw`\"string\" ;//$"
-	tokens := []token{_If, _Lparen, _Operator, _Name, _AssignOp, _Dot, _Literal, _Literal, _Literal, _Literal, _Literal, _Semi, _EOF}
+	const src = "if (+foo\t+=..123/***/0.9_0e-0i'a'`raw`\"string\"..f;//$"
+	tokens := []token{_If, _Lparen, _Operator, _Name, _AssignOp, _Dot, _Literal, _Literal, _Literal, _Literal, _Literal, _Dot, _Dot, _Name, _Semi, _EOF}
 
 	var got scanner
 	got.init(strings.NewReader(src), errh, 0)
