@@ -69,21 +69,20 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 	updateMatches := func(matches []*search.Match, iterating bool) {
 		for i, m := range matches {
 			switch {
-			case build.IsLocalImport(m.Pattern) || filepath.IsAbs(m.Pattern):
+			case m.IsLocal():
 				// Evaluate list of file system directories on first iteration.
 				if fsDirs == nil {
 					fsDirs = make([][]string, len(matches))
 				}
 				if fsDirs[i] == nil {
-					var dirs []string
-					if m.Literal {
-						dirs = []string{m.Pattern}
+					if m.IsLiteral() {
+						fsDirs[i] = []string{m.Pattern()}
 					} else {
-						match := search.MatchPackagesInFS(m.Pattern)
-						dirs = match.Pkgs
-						m.Errs = match.Errs
+						m.MatchPackagesInFS()
+						// Pull out the matching directories: we are going to resolve them
+						// to package paths below.
+						fsDirs[i], m.Pkgs = m.Pkgs, nil
 					}
-					fsDirs[i] = dirs
 				}
 
 				// Make a copy of the directory list and translate to import paths.
@@ -92,9 +91,8 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 				// from not being in the build list to being in it and back as
 				// the exact version of a particular module increases during
 				// the loader iterations.
-				m.Pkgs = str.StringList(fsDirs[i])
-				pkgs := m.Pkgs
-				m.Pkgs = m.Pkgs[:0]
+				pkgs := str.StringList(fsDirs[i])
+				m.Pkgs = pkgs[:0]
 				for _, pkg := range pkgs {
 					var dir string
 					if !filepath.IsAbs(pkg) {
@@ -172,10 +170,13 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 					m.Pkgs = append(m.Pkgs, pkg)
 				}
 
-			case strings.Contains(m.Pattern, "..."):
-				m.Pkgs = matchPackages(m.Pattern, loaded.tags, true, buildList)
+			case m.IsLiteral():
+				m.Pkgs = []string{m.Pattern()}
 
-			case m.Pattern == "all":
+			case strings.Contains(m.Pattern(), "..."):
+				m.Pkgs = matchPackages(m.Pattern(), loaded.tags, true, buildList)
+
+			case m.Pattern() == "all":
 				loaded.testAll = true
 				if iterating {
 					// Enumerate the packages in the main module.
@@ -187,15 +188,13 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 					m.Pkgs = loaded.computePatternAll(m.Pkgs)
 				}
 
-			case search.IsMetaPackage(m.Pattern): // std, cmd
+			case m.Pattern() == "std" || m.Pattern() == "cmd":
 				if len(m.Pkgs) == 0 {
-					match := search.MatchPackages(m.Pattern)
-					m.Pkgs = match.Pkgs
-					m.Errs = match.Errs
+					m.MatchPackages() // Locate the packages within GOROOT/src.
 				}
 
 			default:
-				m.Pkgs = []string{m.Pattern}
+				panic(fmt.Sprintf("internal error: modload missing case for pattern %s", m.Pattern()))
 			}
 		}
 	}
@@ -204,10 +203,7 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 
 	var matches []*search.Match
 	for _, pattern := range search.CleanPatterns(patterns) {
-		matches = append(matches, &search.Match{
-			Pattern: pattern,
-			Literal: !strings.Contains(pattern, "...") && !search.IsMetaPackage(pattern),
-		})
+		matches = append(matches, search.NewMatch(pattern))
 	}
 
 	loaded = newLoader(tags)
