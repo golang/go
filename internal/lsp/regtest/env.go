@@ -41,7 +41,7 @@ const (
 	// it.
 	SeparateProcess
 	// NormalModes runs tests in all modes.
-	NormalModes = Singleton | Shared | Forwarded
+	NormalModes = Singleton | Forwarded
 )
 
 // A Runner runs tests in gopls execution environments, as specified by its

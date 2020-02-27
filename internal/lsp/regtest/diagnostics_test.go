@@ -26,7 +26,6 @@ func main() {
 }`
 
 func TestDiagnosticErrorInEditedFile(t *testing.T) {
-	t.Parallel()
 	runner.Run(t, exampleProgram, func(ctx context.Context, t *testing.T, env *Env) {
 		// Deleting the 'n' at the end of Println should generate a single error
 		// diagnostic.
@@ -43,7 +42,6 @@ const Foo = "abc
 `
 
 func TestDiagnosticErrorInNewFile(t *testing.T) {
-	t.Parallel()
 	runner.Run(t, brokenFile, func(ctx context.Context, t *testing.T, env *Env) {
 		env.CreateBuffer("broken.go", brokenFile)
 		env.Await(DiagnosticAt("broken.go", 2, 12))
@@ -67,7 +65,6 @@ const a = 2
 `
 
 func TestDiagnosticClearingOnEdit(t *testing.T) {
-	t.Parallel()
 	runner.Run(t, badPackage, func(ctx context.Context, t *testing.T, env *Env) {
 		env.OpenFile("b.go")
 		env.Await(DiagnosticAt("a.go", 2, 6), DiagnosticAt("b.go", 2, 6))
@@ -80,7 +77,6 @@ func TestDiagnosticClearingOnEdit(t *testing.T) {
 }
 
 func TestDiagnosticClearingOnDelete(t *testing.T) {
-	t.Parallel()
 	runner.Run(t, badPackage, func(ctx context.Context, t *testing.T, env *Env) {
 		env.OpenFile("a.go")
 		env.Await(DiagnosticAt("a.go", 2, 6), DiagnosticAt("b.go", 2, 6))
@@ -91,7 +87,6 @@ func TestDiagnosticClearingOnDelete(t *testing.T) {
 }
 
 func TestDiagnosticClearingOnClose(t *testing.T) {
-	t.Parallel()
 	runner.Run(t, badPackage, func(ctx context.Context, t *testing.T, env *Env) {
 		env.CreateBuffer("c.go", `package consts
 

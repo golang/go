@@ -37,7 +37,6 @@ func runShared(t *testing.T, program string, testFunc func(ctx context.Context, 
 }
 
 func TestSimultaneousEdits(t *testing.T) {
-	t.Parallel()
 	runShared(t, exampleProgram, func(ctx context.Context, t *testing.T, env1 *Env, env2 *Env) {
 		// In editor #1, break fmt.Println as before.
 		edit1 := fake.NewEdit(5, 11, 5, 12, "")
@@ -55,7 +54,6 @@ func TestSimultaneousEdits(t *testing.T) {
 }
 
 func TestShutdown(t *testing.T) {
-	t.Parallel()
 	runShared(t, sharedProgram, func(ctx context.Context, t *testing.T, env1 *Env, env2 *Env) {
 		env1.CloseEditor()
 		// Now make an edit in editor #2 to trigger diagnostics.

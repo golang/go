@@ -32,7 +32,6 @@ const message = "Hello World."
 `
 
 func TestGoToInternalDefinition(t *testing.T) {
-	t.Parallel()
 	runner.Run(t, internalDefinition, func(ctx context.Context, t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		name, pos := env.GoToDefinition("main.go", fake.Pos{Line: 5, Column: 13})
@@ -63,8 +62,6 @@ func main() {
 }`
 
 func TestGoToStdlibDefinition(t *testing.T) {
-	t.Skip("skipping due to golang.org/issues/37318")
-	t.Parallel()
 	runner.Run(t, stdlibDefinition, func(ctx context.Context, t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		name, pos := env.GoToDefinition("main.go", fake.Pos{Line: 8, Column: 19})
