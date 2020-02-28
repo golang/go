@@ -148,9 +148,7 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
 			}
 			dir, err := modfetch.DownloadDir(mod)
 			if err == nil {
-				if info, err := os.Stat(dir); err == nil && info.IsDir() {
-					m.Dir = dir
-				}
+				m.Dir = dir
 			}
 		}
 	}
