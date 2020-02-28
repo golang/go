@@ -347,9 +347,10 @@ func nlz(x int64) int64 {
 }
 
 // ntz returns the number of trailing zeros.
-func ntz(x int64) int64 {
-	return int64(bits.TrailingZeros64(uint64(x)))
-}
+func ntz(x int64) int64   { return int64(bits.TrailingZeros64(uint64(x))) }
+func ntz32(x int64) int64 { return int64(bits.TrailingZeros32(uint32(x))) }
+func ntz16(x int64) int64 { return int64(bits.TrailingZeros16(uint16(x))) }
+func ntz8(x int64) int64  { return int64(bits.TrailingZeros8(uint8(x))) }
 
 func oneBit(x int64) bool {
 	return bits.OnesCount64(uint64(x)) == 1
