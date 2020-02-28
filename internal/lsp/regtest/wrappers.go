@@ -4,7 +4,9 @@
 
 package regtest
 
-import "golang.org/x/tools/internal/lsp/fake"
+import (
+	"golang.org/x/tools/internal/lsp/fake"
+)
 
 // RemoveFileFromWorkspace deletes a file on disk but does nothing in the
 // editor. It calls t.Fatal on any error.
@@ -56,6 +58,30 @@ func (e *Env) EditBuffer(name string, edits ...fake.Edit) {
 	e.t.Helper()
 	if err := e.E.EditBuffer(e.ctx, name, edits); err != nil {
 		e.t.Fatal(err)
+	}
+}
+
+// RegexpSearch returns the starting position of the first match for re in the
+// buffer specified by name, calling t.Fatal on any error. It first searches
+// for the position in open buffers, then in workspace files.
+func (e *Env) RegexpSearch(name, re string) fake.Pos {
+	e.t.Helper()
+	pos, err := e.E.RegexpSearch(name, re)
+	if err == fake.ErrUnknownBuffer {
+		pos, err = e.W.RegexpSearch(name, re)
+	}
+	if err != nil {
+		e.t.Fatalf("RegexpSearch: %v", err)
+	}
+	return pos
+}
+
+// RegexpReplace replaces the first group in the first match of regexpStr with
+// the replace text, calling t.Fatal on any error.
+func (e *Env) RegexpReplace(name, regexpStr, replace string) {
+	e.t.Helper()
+	if err := e.E.RegexpReplace(e.ctx, name, regexpStr, replace); err != nil {
+		e.t.Fatalf("RegexpReplace: %v", err)
 	}
 }
 

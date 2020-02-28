@@ -9,6 +9,31 @@ import (
 	"testing"
 )
 
+func TestContentPosition(t *testing.T) {
+	content := "foo\n😀\nbar"
+	tests := []struct {
+		offset, wantLine, wantColumn int
+	}{
+		{0, 0, 0},
+		{3, 0, 3},
+		{4, 1, 0},
+		{5, 1, 1},
+		{6, 2, 0},
+	}
+	for _, test := range tests {
+		pos, err := contentPosition(content, test.offset)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if pos.Line != test.wantLine {
+			t.Errorf("contentPosition(%q, %d): Line = %d, want %d", content, test.offset, pos.Line, test.wantLine)
+		}
+		if pos.Column != test.wantColumn {
+			t.Errorf("contentPosition(%q, %d): Column = %d, want %d", content, test.offset, pos.Column, test.wantColumn)
+		}
+	}
+}
+
 const exampleProgram = `
 -- go.mod --
 go 1.12

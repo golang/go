@@ -59,7 +59,7 @@ func NewWorkspace(name string, txt []byte) (_ *Workspace, err error) {
 	w.gopath = gopath
 	archive := txtar.Parse(txt)
 	for _, f := range archive.Files {
-		if err := w.writeFileData(f.Name, f.Data); err != nil {
+		if err := w.writeFileData(f.Name, string(f.Data)); err != nil {
 			return nil, err
 		}
 	}
@@ -122,6 +122,16 @@ func (w *Workspace) ReadFile(path string) (string, error) {
 	return string(b), nil
 }
 
+// RegexpSearch searches the file
+func (w *Workspace) RegexpSearch(path string, re string) (Pos, error) {
+	content, err := w.ReadFile(path)
+	if err != nil {
+		return Pos{}, err
+	}
+	start, _, err := regexpRange(content, re)
+	return start, err
+}
+
 // RemoveFile removes a workspace-relative file path.
 func (w *Workspace) RemoveFile(ctx context.Context, path string) error {
 	fp := w.filePath(path)
@@ -162,7 +172,7 @@ func (w *Workspace) WriteFile(ctx context.Context, path, content string) error {
 	} else {
 		changeType = protocol.Changed
 	}
-	if err := w.writeFileData(path, []byte(content)); err != nil {
+	if err := w.writeFileData(path, content); err != nil {
 		return err
 	}
 	evts := []FileEvent{{
@@ -176,12 +186,12 @@ func (w *Workspace) WriteFile(ctx context.Context, path, content string) error {
 	return nil
 }
 
-func (w *Workspace) writeFileData(path string, data []byte) error {
+func (w *Workspace) writeFileData(path string, content string) error {
 	fp := w.filePath(path)
 	if err := os.MkdirAll(filepath.Dir(fp), 0755); err != nil {
 		return fmt.Errorf("creating nested directory: %v", err)
 	}
-	if err := ioutil.WriteFile(fp, data, 0644); err != nil {
+	if err := ioutil.WriteFile(fp, []byte(content), 0644); err != nil {
 		return fmt.Errorf("writing %q: %v", path, err)
 	}
 	return nil

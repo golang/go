@@ -5,8 +5,11 @@
 package fake
 
 import (
+	"bufio"
 	"context"
+	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -215,7 +218,7 @@ func (e *Editor) CloseBuffer(ctx context.Context, path string) error {
 	_, ok := e.buffers[path]
 	if !ok {
 		e.mu.Unlock()
-		return fmt.Errorf("unknown path %q", path)
+		return ErrUnknownBuffer
 	}
 	delete(e.buffers, path)
 	e.mu.Unlock()
@@ -285,6 +288,110 @@ func (e *Editor) SaveBuffer(ctx context.Context, path string) error {
 		}
 	}
 	return nil
+}
+
+// contentPosition returns the (Line, Column) position corresponding to offset
+// in the buffer referenced by path.
+func contentPosition(content string, offset int) (Pos, error) {
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	start := 0
+	line := 0
+	for scanner.Scan() {
+		end := start + len([]rune(scanner.Text())) + 1
+		if offset < end {
+			return Pos{Line: line, Column: offset - start}, nil
+		}
+		start = end
+		line++
+	}
+	if err := scanner.Err(); err != nil {
+		return Pos{}, fmt.Errorf("scanning content: %v", err)
+	}
+	// Scan() will drop the last line if it is empty. Correct for this.
+	if strings.HasSuffix(content, "\n") && offset == start {
+		return Pos{Line: line, Column: 0}, nil
+	}
+	return Pos{}, fmt.Errorf("position %d out of bounds in %q (line = %d, start = %d)", offset, content, line, start)
+}
+
+// ErrNoMatch is returned if a regexp search fails.
+var (
+	ErrNoMatch       = errors.New("no match")
+	ErrUnknownBuffer = errors.New("unknown buffer")
+)
+
+// regexpRange returns the start and end of the first occurrence of either re
+// or its singular subgroup. It returns ErrNoMatch if the regexp doesn't match.
+func regexpRange(content, re string) (Pos, Pos, error) {
+	var start, end int
+	rec, err := regexp.Compile(re)
+	if err != nil {
+		return Pos{}, Pos{}, err
+	}
+	indexes := rec.FindStringSubmatchIndex(content)
+	if indexes == nil {
+		return Pos{}, Pos{}, ErrNoMatch
+	}
+	switch len(indexes) {
+	case 2:
+		// no subgroups: return the range of the regexp expression
+		start, end = indexes[0], indexes[1]
+	case 4:
+		// one subgroup: return its range
+		start, end = indexes[2], indexes[3]
+	default:
+		return Pos{}, Pos{}, fmt.Errorf("invalid search regexp %q: expect either 0 or 1 subgroups, got %d", re, len(indexes)/2-1)
+	}
+	startPos, err := contentPosition(content, start)
+	if err != nil {
+		return Pos{}, Pos{}, err
+	}
+	endPos, err := contentPosition(content, end)
+	if err != nil {
+		return Pos{}, Pos{}, err
+	}
+	return startPos, endPos, nil
+}
+
+// RegexpSearch returns the position of the first match for re in the buffer
+// bufName. For convenience, RegexpSearch supports the following two modes:
+//  1. If re has no subgroups, return the position of the match for re itself.
+//  2. If re has one subgroup, return the position of the first subgroup.
+// It returns an error re is invalid, has more than one subgroup, or doesn't
+// match the buffer.
+func (e *Editor) RegexpSearch(bufName, re string) (Pos, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	buf, ok := e.buffers[bufName]
+	if !ok {
+		return Pos{}, ErrUnknownBuffer
+	}
+	start, _, err := regexpRange(buf.text(), re)
+	return start, err
+}
+
+// RegexpReplace edits the buffer corresponding to path by replacing the first
+// instance of re, or its first subgroup, with the replace text. See
+// RegexpSearch for more explanation of these two modes.
+// It returns an error if re is invalid, has more than one subgroup, or doesn't
+// match the buffer.
+func (e *Editor) RegexpReplace(ctx context.Context, path, re, replace string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	buf, ok := e.buffers[path]
+	if !ok {
+		return ErrUnknownBuffer
+	}
+	content := buf.text()
+	start, end, err := regexpRange(content, re)
+	if err != nil {
+		return err
+	}
+	return e.editBufferLocked(ctx, path, []Edit{{
+		Start: start,
+		End:   end,
+		Text:  replace,
+	}})
 }
 
 // EditBuffer applies the given test edits to the buffer identified by path.

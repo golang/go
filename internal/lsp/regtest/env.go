@@ -324,6 +324,16 @@ func EmptyDiagnostics(name string) DiagnosticExpectation {
 	}
 }
 
+// DiagnosticAtRegexp expects that there is a diagnostic entry at the start
+// position matching the regexp search string re in the buffer specified by
+// name. Note that this currently ignores the end position.
+func (e *Env) DiagnosticAtRegexp(name, re string) DiagnosticExpectation {
+	pos := e.RegexpSearch(name, re)
+	expectation := DiagnosticAt(name, pos.Line, pos.Column)
+	expectation.Description += fmt.Sprintf(" (location of %q)", re)
+	return expectation
+}
+
 // DiagnosticAt asserts that there is a diagnostic entry at the position
 // specified by line and col, for the workspace-relative path name.
 func DiagnosticAt(name string, line, col int) DiagnosticExpectation {
@@ -341,7 +351,7 @@ func DiagnosticAt(name string, line, col int) DiagnosticExpectation {
 	}
 	return DiagnosticExpectation{
 		IsMet:       isMet,
-		Description: fmt.Sprintf("diagnostic in %q at (line:%d, column:%d)", name, line, col),
+		Description: fmt.Sprintf("diagnostic in %q at {line:%d, column:%d}", name, line, col),
 	}
 }
 
@@ -379,7 +389,7 @@ func (e *Env) Await(expectations ...DiagnosticExpectation) {
 		e.mu.Lock()
 		diagString := formatDiagnostics(e.lastDiagnostics)
 		e.mu.Unlock()
-		e.t.Fatalf("waiting on (%s):\nerr:%v\ndiagnostics:\n%s", strings.Join(descs, ", "), e.ctx.Err(), diagString)
+		e.t.Fatalf("waiting on [%s]:\nerr:%v\ndiagnostics:\n%s", strings.Join(descs, ", "), e.ctx.Err(), diagString)
 	case <-met:
 	}
 }
