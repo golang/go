@@ -8136,6 +8136,96 @@ func rewriteValueAMD64_OpAMD64CMPQ(v *Value) bool {
 		v.AddArg(v0)
 		return true
 	}
+	// match: (CMPQ (MOVQconst [x]) (MOVQconst [y]))
+	// cond: x==y
+	// result: (FlagEQ)
+	for {
+		if v_0.Op != OpAMD64MOVQconst {
+			break
+		}
+		x := v_0.AuxInt
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		y := v_1.AuxInt
+		if !(x == y) {
+			break
+		}
+		v.reset(OpAMD64FlagEQ)
+		return true
+	}
+	// match: (CMPQ (MOVQconst [x]) (MOVQconst [y]))
+	// cond: x<y && uint64(x)<uint64(y)
+	// result: (FlagLT_ULT)
+	for {
+		if v_0.Op != OpAMD64MOVQconst {
+			break
+		}
+		x := v_0.AuxInt
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		y := v_1.AuxInt
+		if !(x < y && uint64(x) < uint64(y)) {
+			break
+		}
+		v.reset(OpAMD64FlagLT_ULT)
+		return true
+	}
+	// match: (CMPQ (MOVQconst [x]) (MOVQconst [y]))
+	// cond: x<y && uint64(x)>uint64(y)
+	// result: (FlagLT_UGT)
+	for {
+		if v_0.Op != OpAMD64MOVQconst {
+			break
+		}
+		x := v_0.AuxInt
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		y := v_1.AuxInt
+		if !(x < y && uint64(x) > uint64(y)) {
+			break
+		}
+		v.reset(OpAMD64FlagLT_UGT)
+		return true
+	}
+	// match: (CMPQ (MOVQconst [x]) (MOVQconst [y]))
+	// cond: x>y && uint64(x)<uint64(y)
+	// result: (FlagGT_ULT)
+	for {
+		if v_0.Op != OpAMD64MOVQconst {
+			break
+		}
+		x := v_0.AuxInt
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		y := v_1.AuxInt
+		if !(x > y && uint64(x) < uint64(y)) {
+			break
+		}
+		v.reset(OpAMD64FlagGT_ULT)
+		return true
+	}
+	// match: (CMPQ (MOVQconst [x]) (MOVQconst [y]))
+	// cond: x>y && uint64(x)>uint64(y)
+	// result: (FlagGT_UGT)
+	for {
+		if v_0.Op != OpAMD64MOVQconst {
+			break
+		}
+		x := v_0.AuxInt
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		y := v_1.AuxInt
+		if !(x > y && uint64(x) > uint64(y)) {
+			break
+		}
+		v.reset(OpAMD64FlagGT_UGT)
+		return true
+	}
 	// match: (CMPQ l:(MOVQload {sym} [off] ptr mem) x)
 	// cond: canMergeLoad(v, l) && clobber(l)
 	// result: (CMPQload {sym} [off] ptr x mem)
@@ -24138,6 +24228,22 @@ func rewriteValueAMD64_OpAMD64ORQ(v *Value) bool {
 		}
 		break
 	}
+	// match: (ORQ x (MOVLconst [c]))
+	// result: (ORQconst [c] x)
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			if v_1.Op != OpAMD64MOVLconst {
+				continue
+			}
+			c := v_1.AuxInt
+			v.reset(OpAMD64ORQconst)
+			v.AuxInt = c
+			v.AddArg(x)
+			return true
+		}
+		break
+	}
 	// match: (ORQ (SHLQconst x [c]) (SHRQconst x [d]))
 	// cond: d==64-c
 	// result: (ROLQconst x [c])
@@ -24363,6 +24469,24 @@ func rewriteValueAMD64_OpAMD64ORQ(v *Value) bool {
 				v.AddArg(y)
 				return true
 			}
+		}
+		break
+	}
+	// match: (ORQ (MOVQconst [c]) (MOVQconst [d]))
+	// result: (MOVQconst [c|d])
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			if v_0.Op != OpAMD64MOVQconst {
+				continue
+			}
+			c := v_0.AuxInt
+			if v_1.Op != OpAMD64MOVQconst {
+				continue
+			}
+			d := v_1.AuxInt
+			v.reset(OpAMD64MOVQconst)
+			v.AuxInt = c | d
+			return true
 		}
 		break
 	}
@@ -31785,6 +31909,18 @@ func rewriteValueAMD64_OpAMD64SHLQconst(v *Value) bool {
 		c := v_0.AuxInt
 		v.reset(OpAMD64MOVQconst)
 		v.AuxInt = c << uint64(d)
+		return true
+	}
+	// match: (SHLQconst [d] (MOVLconst [c]))
+	// result: (MOVQconst [int64(int32(c)) << uint64(d)])
+	for {
+		d := v.AuxInt
+		if v_0.Op != OpAMD64MOVLconst {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpAMD64MOVQconst)
+		v.AuxInt = int64(int32(c)) << uint64(d)
 		return true
 	}
 	return false
