@@ -1172,16 +1172,25 @@ func TestTryAdd(t *testing.T) {
 			{Value: []int64{20, 20 * period}, Location: []*profile.Location{{ID: 1}}},
 		},
 	}, {
-		name: "recursive_inlined_funcs",
+		// If a function is called recursively then it must not be
+		// inlined in the caller.
+		//
+		// N.B. We're generating an impossible profile here, with a
+		// recursive inlineCallee call. This is simulating a non-Go
+		// function that looks like an inlined Go function other than
+		// its recursive property. See pcDeck.tryAdd.
+		name: "recursive_func_is_not_inlined",
 		input: []uint64{
 			3, 0, 500, // hz = 500. Must match the period.
 			5, 0, 30, inlinedCalleePtr, inlinedCalleePtr,
 			4, 0, 40, inlinedCalleePtr,
 		},
-		wantLocs: [][]string{{"runtime/pprof.inlinedCallee"}},
+		// inlinedCaller shows up here because
+		// runtime_expandFinalInlineFrame adds it to the stack frame.
+		wantLocs: [][]string{{"runtime/pprof.inlinedCallee"}, {"runtime/pprof.inlinedCaller"}},
 		wantSamples: []*profile.Sample{
-			{Value: []int64{30, 30 * period}, Location: []*profile.Location{{ID: 1}, {ID: 1}}},
-			{Value: []int64{40, 40 * period}, Location: []*profile.Location{{ID: 1}}},
+			{Value: []int64{30, 30 * period}, Location: []*profile.Location{{ID: 1}, {ID: 1}, {ID: 2}}},
+			{Value: []int64{40, 40 * period}, Location: []*profile.Location{{ID: 1}, {ID: 2}}},
 		},
 	}, {
 		name: "truncated_stack_trace_later",
@@ -1202,12 +1211,36 @@ func TestTryAdd(t *testing.T) {
 			4, 0, 70, inlinedCalleePtr,
 			5, 0, 80, inlinedCalleePtr, inlinedCallerPtr,
 		},
-		wantLocs: [][]string{ // the inline info is screwed up, but better than a crash.
-			{"runtime/pprof.inlinedCallee"},
+		wantLocs: [][]string{{"runtime/pprof.inlinedCallee", "runtime/pprof.inlinedCaller"}},
+		wantSamples: []*profile.Sample{
+			{Value: []int64{70, 70 * period}, Location: []*profile.Location{{ID: 1}}},
+			{Value: []int64{80, 80 * period}, Location: []*profile.Location{{ID: 1}}},
+		},
+	}, {
+		// We can recover the inlined caller from a truncated stack.
+		name: "truncated_stack_trace_only",
+		input: []uint64{
+			3, 0, 500, // hz = 500. Must match the period.
+			4, 0, 70, inlinedCalleePtr,
+		},
+		wantLocs: [][]string{{"runtime/pprof.inlinedCallee", "runtime/pprof.inlinedCaller"}},
+		wantSamples: []*profile.Sample{
+			{Value: []int64{70, 70 * period}, Location: []*profile.Location{{ID: 1}}},
+		},
+	}, {
+		// The same location is used for duplicated stacks.
+		name: "truncated_stack_trace_twice",
+		input: []uint64{
+			3, 0, 500, // hz = 500. Must match the period.
+			4, 0, 70, inlinedCalleePtr,
+			5, 0, 80, inlinedCallerPtr, inlinedCalleePtr,
+		},
+		wantLocs: [][]string{
+			{"runtime/pprof.inlinedCallee", "runtime/pprof.inlinedCaller"},
 			{"runtime/pprof.inlinedCaller"}},
 		wantSamples: []*profile.Sample{
 			{Value: []int64{70, 70 * period}, Location: []*profile.Location{{ID: 1}}},
-			{Value: []int64{80, 80 * period}, Location: []*profile.Location{{ID: 1}, {ID: 2}}},
+			{Value: []int64{80, 80 * period}, Location: []*profile.Location{{ID: 2}, {ID: 1}}},
 		},
 	}}
 
