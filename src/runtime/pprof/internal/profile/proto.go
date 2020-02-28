@@ -232,7 +232,7 @@ func decodeField(b *buffer, data []byte) ([]byte, error) {
 		b.u64 = uint64(le32(data[:4]))
 		data = data[4:]
 	default:
-		return nil, errors.New("unknown type: " + string(b.typ))
+		return nil, errors.New("unknown type: " + string(rune(b.typ)))
 	}
 
 	return data, nil

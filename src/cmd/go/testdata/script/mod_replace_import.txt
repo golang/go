@@ -27,9 +27,8 @@ stdout 'example.com/v v1.12.0 => ./v12'
 # module does not contain a package.
 cd fail
 ! go list all
-stdout 'localhost.fail'
-stderr '^can''t load package: m.go:4:2: module w@latest found \(v0.0.0-00010101000000-000000000000, replaced by ../w\), but does not contain package w$'
-stderr '^can''t load package: m.go:5:2: nonexist@v0.1.0: replacement directory ../nonexist does not exist$'
+stderr '^m.go:4:2: module w@latest found \(v0.0.0-00010101000000-000000000000, replaced by ../w\), but does not contain package w$'
+stderr '^m.go:5:2: nonexist@v0.1.0: replacement directory ../nonexist does not exist$'
 
 -- go.mod --
 module example.com/m

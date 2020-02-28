@@ -97,9 +97,6 @@ TEXT ·Cos(SB),NOSPLIT,$0
 TEXT ·Cosh(SB),NOSPLIT,$0
 	JMP ·cosh(SB)
 
-TEXT ·Sqrt(SB),NOSPLIT,$0
-	JMP ·sqrt(SB)
-
 TEXT ·Tan(SB),NOSPLIT,$0
 	JMP ·tan(SB)
 

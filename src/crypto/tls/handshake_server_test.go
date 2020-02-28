@@ -182,7 +182,7 @@ func TestRenegotiationExtension(t *testing.T) {
 		cipherSuites:                 []uint16{TLS_RSA_WITH_RC4_128_SHA},
 	}
 
-	bufChan := make(chan []byte)
+	bufChan := make(chan []byte, 1)
 	c, s := localPipe(t)
 
 	go func() {
@@ -575,11 +575,12 @@ func (test *serverTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
 		return nil, nil, err
 	}
 
-	connChan := make(chan interface{})
+	connChan := make(chan interface{}, 1)
 	go func() {
 		tcpConn, err := l.Accept()
 		if err != nil {
 			connChan <- err
+			return
 		}
 		connChan <- tcpConn
 	}()

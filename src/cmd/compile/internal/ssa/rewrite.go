@@ -663,13 +663,15 @@ found:
 	return nil // too far away
 }
 
-// clobber invalidates v.  Returns true.
+// clobber invalidates values. Returns true.
 // clobber is used by rewrite rules to:
-//   A) make sure v is really dead and never used again.
-//   B) decrement use counts of v's args.
-func clobber(v *Value) bool {
-	v.reset(OpInvalid)
-	// Note: leave v.Block intact.  The Block field is used after clobber.
+//   A) make sure the values are really dead and never used again.
+//   B) decrement use counts of the values' args.
+func clobber(vv ...*Value) bool {
+	for _, v := range vv {
+		v.reset(OpInvalid)
+		// Note: leave v.Block intact.  The Block field is used after clobber.
+	}
 	return true
 }
 
@@ -1203,40 +1205,39 @@ func read8(sym interface{}, off int64) uint8 {
 }
 
 // read16 reads two bytes from the read-only global sym at offset off.
-func read16(sym interface{}, off int64, bigEndian bool) uint16 {
+func read16(sym interface{}, off int64, byteorder binary.ByteOrder) uint16 {
 	lsym := sym.(*obj.LSym)
-	if off >= int64(len(lsym.P))-1 || off < 0 {
-		return 0
+	// lsym.P is written lazily.
+	// Bytes requested after the end of lsym.P are 0.
+	var src []byte
+	if 0 <= off && off < int64(len(lsym.P)) {
+		src = lsym.P[off:]
 	}
-	if bigEndian {
-		return binary.BigEndian.Uint16(lsym.P[off:])
-	} else {
-		return binary.LittleEndian.Uint16(lsym.P[off:])
-	}
+	buf := make([]byte, 2)
+	copy(buf, src)
+	return byteorder.Uint16(buf)
 }
 
 // read32 reads four bytes from the read-only global sym at offset off.
-func read32(sym interface{}, off int64, bigEndian bool) uint32 {
+func read32(sym interface{}, off int64, byteorder binary.ByteOrder) uint32 {
 	lsym := sym.(*obj.LSym)
-	if off >= int64(len(lsym.P))-3 || off < 0 {
-		return 0
+	var src []byte
+	if 0 <= off && off < int64(len(lsym.P)) {
+		src = lsym.P[off:]
 	}
-	if bigEndian {
-		return binary.BigEndian.Uint32(lsym.P[off:])
-	} else {
-		return binary.LittleEndian.Uint32(lsym.P[off:])
-	}
+	buf := make([]byte, 4)
+	copy(buf, src)
+	return byteorder.Uint32(buf)
 }
 
 // read64 reads eight bytes from the read-only global sym at offset off.
-func read64(sym interface{}, off int64, bigEndian bool) uint64 {
+func read64(sym interface{}, off int64, byteorder binary.ByteOrder) uint64 {
 	lsym := sym.(*obj.LSym)
-	if off >= int64(len(lsym.P))-7 || off < 0 {
-		return 0
+	var src []byte
+	if 0 <= off && off < int64(len(lsym.P)) {
+		src = lsym.P[off:]
 	}
-	if bigEndian {
-		return binary.BigEndian.Uint64(lsym.P[off:])
-	} else {
-		return binary.LittleEndian.Uint64(lsym.P[off:])
-	}
+	buf := make([]byte, 8)
+	copy(buf, src)
+	return byteorder.Uint64(buf)
 }

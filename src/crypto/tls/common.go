@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"internal/cpu"
 	"io"
-	"math/big"
 	"net"
 	"strings"
 	"sync"
@@ -1263,13 +1262,6 @@ func (c *lruSessionCache) Get(sessionKey string) (*ClientSessionState, bool) {
 	}
 	return nil, false
 }
-
-// TODO(jsing): Make these available to both crypto/x509 and crypto/tls.
-type dsaSignature struct {
-	R, S *big.Int
-}
-
-type ecdsaSignature dsaSignature
 
 var emptyConfig Config
 

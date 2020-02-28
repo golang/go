@@ -1886,11 +1886,16 @@ done:
 		// which turns an expression into an assignment. Provide
 		// a more explicit error message in that case to prevent
 		// further confusion.
-		str := String(s)
+		var str string
 		if as, ok := s.(*AssignStmt); ok && as.Op == 0 {
-			str = "assignment " + str
+			// Emphasize Lhs and Rhs of assignment with parentheses to highlight '='.
+			// Do it always - it's not worth going through the trouble of doing it
+			// only for "complex" left and right sides.
+			str = "assignment (" + String(as.Lhs) + ") = (" + String(as.Rhs) + ")"
+		} else {
+			str = String(s)
 		}
-		p.syntaxError(fmt.Sprintf("%s used as value", str))
+		p.syntaxErrorAt(s.Pos(), fmt.Sprintf("cannot use %s as value", str))
 	}
 
 	p.xnest = outer

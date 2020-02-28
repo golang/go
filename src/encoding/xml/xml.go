@@ -960,7 +960,7 @@ func (d *Decoder) ungetc(b byte) {
 	d.offset--
 }
 
-var entity = map[string]int{
+var entity = map[string]rune{
 	"lt":   '<',
 	"gt":   '>',
 	"amp":  '&',
@@ -1055,7 +1055,7 @@ Input:
 					d.buf.WriteByte(';')
 					n, err := strconv.ParseUint(s, base, 64)
 					if err == nil && n <= unicode.MaxRune {
-						text = string(n)
+						text = string(rune(n))
 						haveText = true
 					}
 				}

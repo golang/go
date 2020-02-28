@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"internal/syscall/execenv"
 	"io"
 	"os"
 	"path/filepath"
@@ -222,11 +223,11 @@ func interfaceEqual(a, b interface{}) bool {
 	return a == b
 }
 
-func (c *Cmd) envv() []string {
+func (c *Cmd) envv() ([]string, error) {
 	if c.Env != nil {
-		return c.Env
+		return c.Env, nil
 	}
-	return os.Environ()
+	return execenv.Default(c.SysProcAttr)
 }
 
 func (c *Cmd) argv() []string {
@@ -413,11 +414,15 @@ func (c *Cmd) Start() error {
 	}
 	c.childFiles = append(c.childFiles, c.ExtraFiles...)
 
-	var err error
+	envv, err := c.envv()
+	if err != nil {
+		return err
+	}
+
 	c.Process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
 		Dir:   c.Dir,
 		Files: c.childFiles,
-		Env:   addCriticalEnv(dedupEnv(c.envv())),
+		Env:   addCriticalEnv(dedupEnv(envv)),
 		Sys:   c.SysProcAttr,
 	})
 	if err != nil {

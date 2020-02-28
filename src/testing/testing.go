@@ -37,17 +37,17 @@
 // https://golang.org/cmd/go/#hdr-Testing_flags
 //
 // A sample benchmark function looks like this:
-//     func BenchmarkHello(b *testing.B) {
+//     func BenchmarkRandInt(b *testing.B) {
 //         for i := 0; i < b.N; i++ {
-//             fmt.Sprintf("hello")
+//             rand.Int()
 //         }
 //     }
 //
 // The benchmark function must run the target code b.N times.
 // During benchmark execution, b.N is adjusted until the benchmark function lasts
 // long enough to be timed reliably. The output
-//     BenchmarkHello    10000000    282 ns/op
-// means that the loop ran 10000000 times at a speed of 282 ns per loop.
+//     BenchmarkRandInt-8   	68453040	        17.8 ns/op
+// means that the loop ran 68453040 times at a speed of 17.8 ns per loop.
 //
 // If a benchmark needs some expensive setup before running, the timer
 // may be reset:

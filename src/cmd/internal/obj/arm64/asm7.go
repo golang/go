@@ -2719,6 +2719,7 @@ func buildop(ctxt *obj.Link) {
 		case AVREV32:
 			oprangeset(AVRBIT, t)
 			oprangeset(AVREV64, t)
+			oprangeset(AVREV16, t)
 
 		case AVZIP1:
 			oprangeset(AVZIP2, t)
@@ -4471,6 +4472,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			c.ctxt.Diag("invalid arrangement: %v", p)
 		}
 
+		if p.As == AVREV16 && af != ARNG_8B && af != ARNG_16B {
+			c.ctxt.Diag("invalid arrangement: %v", p)
+		}
+
 		if p.As == AVMOV {
 			o1 |= uint32(rf&31) << 16
 		}
@@ -5593,6 +5598,9 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As) uint32 {
 
 	case AVORR:
 		return 7<<25 | 5<<21 | 7<<10
+
+	case AVREV16:
+		return 3<<26 | 2<<24 | 1<<21 | 3<<11
 
 	case AVREV32:
 		return 11<<26 | 2<<24 | 1<<21 | 1<<11

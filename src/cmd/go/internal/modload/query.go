@@ -381,7 +381,8 @@ type QueryResult struct {
 // module and only the version "latest", without checking for other possible
 // modules.
 func QueryPackage(path, query string, allowed func(module.Version) bool) ([]QueryResult, error) {
-	if search.IsMetaPackage(path) || strings.Contains(path, "...") {
+	m := search.NewMatch(path)
+	if m.IsLocal() || !m.IsLiteral() {
 		return nil, fmt.Errorf("pattern %s is not an importable package", path)
 	}
 	return QueryPattern(path, query, allowed)
@@ -445,7 +446,11 @@ func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]Q
 		candidateModules = modulePrefixesExcludingTarget(base)
 	)
 	if len(candidateModules) == 0 {
-		return nil, fmt.Errorf("package %s is not in the main module (%s)", pattern, Target.Path)
+		return nil, &PackageNotInModuleError{
+			Mod:     Target,
+			Query:   query,
+			Pattern: pattern,
+		}
 	}
 
 	err := modfetch.TryProxies(func(proxy string) error {
@@ -541,7 +546,9 @@ func queryPrefixModules(candidateModules []string, queryModule func(path string)
 		case nil:
 			found = append(found, r.QueryResult)
 		case *PackageNotInModuleError:
-			if noPackage == nil {
+			// Given the option, prefer to attribute “package not in module”
+			// to modules other than the main one.
+			if noPackage == nil || noPackage.Mod == Target {
 				noPackage = rErr
 			}
 		case *NoMatchingVersionError:
@@ -626,6 +633,13 @@ type PackageNotInModuleError struct {
 }
 
 func (e *PackageNotInModuleError) Error() string {
+	if e.Mod == Target {
+		if strings.Contains(e.Pattern, "...") {
+			return fmt.Sprintf("main module (%s) does not contain packages matching %s", Target.Path, e.Pattern)
+		}
+		return fmt.Sprintf("main module (%s) does not contain package %s", Target.Path, e.Pattern)
+	}
+
 	found := ""
 	if r := e.Replacement; r.Path != "" {
 		replacement := r.Path
@@ -645,6 +659,13 @@ func (e *PackageNotInModuleError) Error() string {
 		return fmt.Sprintf("module %s@%s found%s, but does not contain packages matching %s", e.Mod.Path, e.Query, found, e.Pattern)
 	}
 	return fmt.Sprintf("module %s@%s found%s, but does not contain package %s", e.Mod.Path, e.Query, found, e.Pattern)
+}
+
+func (e *PackageNotInModuleError) ImportPath() string {
+	if !strings.Contains(e.Pattern, "...") {
+		return e.Pattern
+	}
+	return ""
 }
 
 // ModuleHasRootPackage returns whether module m contains a package m.Path.

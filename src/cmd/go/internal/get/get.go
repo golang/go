@@ -7,7 +7,6 @@ package get
 
 import (
 	"fmt"
-	"go/build"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -198,8 +197,8 @@ func downloadPaths(patterns []string) []string {
 	}
 	var pkgs []string
 	for _, m := range search.ImportPathsQuiet(patterns) {
-		if len(m.Pkgs) == 0 && strings.Contains(m.Pattern, "...") {
-			pkgs = append(pkgs, m.Pattern)
+		if len(m.Pkgs) == 0 && strings.Contains(m.Pattern(), "...") {
+			pkgs = append(pkgs, m.Pattern())
 		} else {
 			pkgs = append(pkgs, m.Pkgs...)
 		}
@@ -285,10 +284,15 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 		// We delay this until after reloadPackage so that the old entry
 		// for p has been replaced in the package cache.
 		if wildcardOkay && strings.Contains(arg, "...") {
-			if build.IsLocalImport(arg) {
-				args = search.MatchPackagesInFS(arg).Pkgs
+			match := search.NewMatch(arg)
+			if match.IsLocal() {
+				match.MatchPackagesInFS()
 			} else {
-				args = search.MatchPackages(arg).Pkgs
+				match.MatchPackages()
+			}
+			args = match.Pkgs
+			for _, err := range match.Errs {
+				base.Errorf("%s", err)
 			}
 			isWildcard = true
 		}

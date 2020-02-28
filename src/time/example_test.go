@@ -245,14 +245,15 @@ func ExampleTime_Format() {
 			fmt.Printf("error: for %q got %q; expected %q\n", layout, got, want)
 			return
 		}
-		fmt.Printf("%-15s %q gives %q\n", name, layout, got)
+		fmt.Printf("%-16s %q gives %q\n", name, layout, got)
 	}
 
 	// Print a header in our output.
 	fmt.Printf("\nFormats:\n\n")
 
-	// A simple starter example.
-	do("Basic", "Mon Jan 2 15:04:05 MST 2006", "Sat Mar 7 11:06:39 PST 2015")
+	// Simple starter examples.
+	do("Basic full date", "Mon Jan 2 15:04:05 MST 2006", "Sat Mar 7 11:06:39 PST 2015")
+	do("Basic short date", "2006/01/02", "2015/03/07")
 
 	// For fixed-width printing of values, such as the date, that may be one or
 	// two characters (7 vs. 07), use an _ instead of a space in the layout string.
@@ -308,16 +309,17 @@ func ExampleTime_Format() {
 	//
 	// Formats:
 	//
-	// Basic           "Mon Jan 2 15:04:05 MST 2006" gives "Sat Mar 7 11:06:39 PST 2015"
-	// No pad          "<2>" gives "<7>"
-	// Spaces          "<_2>" gives "< 7>"
-	// Zeros           "<02>" gives "<07>"
-	// Suppressed pad  "04:05" gives "06:39"
-	// Unix            "Mon Jan _2 15:04:05 MST 2006" gives "Sat Mar  7 11:06:39 PST 2015"
-	// AM/PM           "3PM==3pm==15h" gives "11AM==11am==11h"
-	// No fraction     "Mon Jan _2 15:04:05 MST 2006" gives "Sat Mar  7 11:06:39 PST 2015"
-	// 0s for fraction "15:04:05.00000" gives "11:06:39.12340"
-	// 9s for fraction "15:04:05.99999999" gives "11:06:39.1234"
+	// Basic full date  "Mon Jan 2 15:04:05 MST 2006" gives "Sat Mar 7 11:06:39 PST 2015"
+	// Basic short date "2006/01/02" gives "2015/03/07"
+	// No pad           "<2>" gives "<7>"
+	// Spaces           "<_2>" gives "< 7>"
+	// Zeros            "<02>" gives "<07>"
+	// Suppressed pad   "04:05" gives "06:39"
+	// Unix             "Mon Jan _2 15:04:05 MST 2006" gives "Sat Mar  7 11:06:39 PST 2015"
+	// AM/PM            "3PM==3pm==15h" gives "11AM==11am==11h"
+	// No fraction      "Mon Jan _2 15:04:05 MST 2006" gives "Sat Mar  7 11:06:39 PST 2015"
+	// 0s for fraction  "15:04:05.00000" gives "11:06:39.12340"
+	// 9s for fraction  "15:04:05.99999999" gives "11:06:39.1234"
 
 }
 
