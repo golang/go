@@ -137,6 +137,16 @@
 (Xor32  (Const32 [c])  (Const32 [d]))  -> (Const32 [int64(int32(c^d))])
 (Xor64  (Const64 [c])  (Const64 [d]))  -> (Const64 [c^d])
 
+(Ctz64 (Const64 [c])) && config.PtrSize == 4 -> (Const32 [ntz(c)])
+(Ctz32 (Const32 [c])) && config.PtrSize == 4 -> (Const32 [ntz32(c)])
+(Ctz16 (Const16 [c])) && config.PtrSize == 4 -> (Const32 [ntz16(c)])
+(Ctz8  (Const8  [c])) && config.PtrSize == 4 -> (Const32 [ntz8(c)])
+
+(Ctz64 (Const64 [c])) && config.PtrSize == 8 -> (Const64 [ntz(c)])
+(Ctz32 (Const32 [c])) && config.PtrSize == 8 -> (Const64 [ntz32(c)])
+(Ctz16 (Const16 [c])) && config.PtrSize == 8 -> (Const64 [ntz16(c)])
+(Ctz8  (Const8  [c])) && config.PtrSize == 8 -> (Const64 [ntz8(c)])
+
 (Div8   (Const8  [c])  (Const8  [d])) && d != 0 -> (Const8  [int64(int8(c)/int8(d))])
 (Div16  (Const16 [c])  (Const16 [d])) && d != 0 -> (Const16 [int64(int16(c)/int16(d))])
 (Div32  (Const32 [c])  (Const32 [d])) && d != 0 -> (Const32 [int64(int32(c)/int32(d))])
