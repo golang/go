@@ -839,14 +839,6 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
 	return nil
 }
 
-// tls11SignatureSchemes contains the signature schemes that we synthesise for
-// a TLS <= 1.1 connection, based on the supported certificate types.
-var (
-	tls11SignatureSchemes      = []SignatureScheme{ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512, PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512, PKCS1WithSHA1}
-	tls11SignatureSchemesECDSA = tls11SignatureSchemes[:3]
-	tls11SignatureSchemesRSA   = tls11SignatureSchemes[3:]
-)
-
 // certificateRequestInfoFromMsg generates a CertificateRequestInfo from a TLS
 // <= 1.2 CertificateRequest, making an effort to fill in missing information.
 func certificateRequestInfoFromMsg(vers uint16, certReq *certificateRequestMsg) *CertificateRequestInfo {
@@ -866,17 +858,25 @@ func certificateRequestInfoFromMsg(vers uint16, certReq *certificateRequestMsg) 
 	}
 
 	if !certReq.hasSignatureAlgorithm {
-		// Prior to TLS 1.2, the signature schemes were not
-		// included in the certificate request message. In this
-		// case we use a plausible list based on the acceptable
-		// certificate types.
+		// Prior to TLS 1.2, signature schemes did not exist. In this case we
+		// make up a list based on the acceptable certificate types, to help
+		// GetClientCertificate and SupportsCertificate select the right certificate.
+		// The hash part of the SignatureScheme is a lie here, because
+		// TLS 1.0 and 1.1 always use MD5+SHA1 for RSA and SHA1 for ECDSA.
 		switch {
 		case rsaAvail && ecAvail:
-			cri.SignatureSchemes = tls11SignatureSchemes
+			cri.SignatureSchemes = []SignatureScheme{
+				ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512,
+				PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512, PKCS1WithSHA1,
+			}
 		case rsaAvail:
-			cri.SignatureSchemes = tls11SignatureSchemesRSA
+			cri.SignatureSchemes = []SignatureScheme{
+				PKCS1WithSHA256, PKCS1WithSHA384, PKCS1WithSHA512, PKCS1WithSHA1,
+			}
 		case ecAvail:
-			cri.SignatureSchemes = tls11SignatureSchemesECDSA
+			cri.SignatureSchemes = []SignatureScheme{
+				ECDSAWithP256AndSHA256, ECDSAWithP384AndSHA384, ECDSAWithP521AndSHA512,
+			}
 		}
 		return cri
 	}

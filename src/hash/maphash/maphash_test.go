@@ -83,6 +83,29 @@ func TestHashHighBytes(t *testing.T) {
 	}
 }
 
+func TestRepeat(t *testing.T) {
+	h1 := new(Hash)
+	h1.WriteString("testing")
+	sum1 := h1.Sum64()
+
+	h1.Reset()
+	h1.WriteString("testing")
+	sum2 := h1.Sum64()
+
+	if sum1 != sum2 {
+		t.Errorf("different sum after reseting: %#x != %#x", sum1, sum2)
+	}
+
+	h2 := new(Hash)
+	h2.SetSeed(h1.Seed())
+	h2.WriteString("testing")
+	sum3 := h2.Sum64()
+
+	if sum1 != sum3 {
+		t.Errorf("different sum on the same seed: %#x != %#x", sum1, sum3)
+	}
+}
+
 // Make sure a Hash implements the hash.Hash and hash.Hash64 interfaces.
 var _ hash.Hash = &Hash{}
 var _ hash.Hash64 = &Hash{}

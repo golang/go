@@ -2156,7 +2156,11 @@ type SelectCase struct {
 // and, if that case was a receive operation, the value received and a
 // boolean indicating whether the value corresponds to a send on the channel
 // (as opposed to a zero value received because the channel is closed).
+// Select supports a maximum of 65536 cases.
 func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
+	if len(cases) > 65536 {
+		panic("reflect.Select: too many cases (max 65536)")
+	}
 	// NOTE: Do not trust that caller is not modifying cases data underfoot.
 	// The range is safe because the caller cannot modify our copy of the len
 	// and each iteration makes its own copy of the value c.
@@ -2619,12 +2623,12 @@ func cvtComplex(v Value, t Type) Value {
 
 // convertOp: intXX -> string
 func cvtIntString(v Value, t Type) Value {
-	return makeString(v.flag.ro(), string(v.Int()), t)
+	return makeString(v.flag.ro(), string(rune(v.Int())), t)
 }
 
 // convertOp: uintXX -> string
 func cvtUintString(v Value, t Type) Value {
-	return makeString(v.flag.ro(), string(v.Uint()), t)
+	return makeString(v.flag.ro(), string(rune(v.Uint())), t)
 }
 
 // convertOp: []byte -> string

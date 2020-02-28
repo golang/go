@@ -1,0 +1,9 @@
+# Wrong import path
+! go build vend/x/invalid
+stderr 'must be imported as foo'
+
+-- vend/x/invalid/invalid.go --
+package invalid
+
+import "vend/x/invalid/vendor/foo"
+

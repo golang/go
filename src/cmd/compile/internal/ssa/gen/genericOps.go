@@ -202,25 +202,9 @@ var genericOps = []opData{
 	{name: "Leq32F", argLength: 2, typ: "Bool"},
 	{name: "Leq64F", argLength: 2, typ: "Bool"},
 
-	{name: "Greater8", argLength: 2, typ: "Bool"},  // arg0 > arg1, signed
-	{name: "Greater8U", argLength: 2, typ: "Bool"}, // arg0 > arg1, unsigned
-	{name: "Greater16", argLength: 2, typ: "Bool"},
-	{name: "Greater16U", argLength: 2, typ: "Bool"},
-	{name: "Greater32", argLength: 2, typ: "Bool"},
-	{name: "Greater32U", argLength: 2, typ: "Bool"},
-	{name: "Greater64", argLength: 2, typ: "Bool"},
-	{name: "Greater64U", argLength: 2, typ: "Bool"},
 	{name: "Greater32F", argLength: 2, typ: "Bool"},
 	{name: "Greater64F", argLength: 2, typ: "Bool"},
 
-	{name: "Geq8", argLength: 2, typ: "Bool"},  // arg0 <= arg1, signed
-	{name: "Geq8U", argLength: 2, typ: "Bool"}, // arg0 <= arg1, unsigned
-	{name: "Geq16", argLength: 2, typ: "Bool"},
-	{name: "Geq16U", argLength: 2, typ: "Bool"},
-	{name: "Geq32", argLength: 2, typ: "Bool"},
-	{name: "Geq32U", argLength: 2, typ: "Bool"},
-	{name: "Geq64", argLength: 2, typ: "Bool"},
-	{name: "Geq64U", argLength: 2, typ: "Bool"},
 	{name: "Geq32F", argLength: 2, typ: "Bool"},
 	{name: "Geq64F", argLength: 2, typ: "Bool"},
 
@@ -367,6 +351,13 @@ var genericOps = []opData{
 	// The source and destination of Move may overlap in some cases. See e.g.
 	// memmove inlining in generic.rules. When inlineablememmovesize (in ../rewrite.go)
 	// returns true, we must do all loads before all stores, when lowering Move.
+	// The type of Move is used for the write barrier pass to insert write barriers
+	// and for alignment on some architectures.
+	// For pointerless types, it is possible for the type to be inaccurate.
+	// For type alignment and pointer information, use the type in Aux;
+	// for type size, use the size in AuxInt.
+	// The "inline runtime.memmove" rewrite rule generates Moves with inaccurate types,
+	// such as type byte instead of the more accurate type [8]byte.
 	{name: "Move", argLength: 3, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size, aux=type.  Returns memory.
 	{name: "Zero", argLength: 2, typ: "Mem", aux: "TypSize"}, // arg0=destptr, arg1=mem, auxint=size, aux=type. Returns memory.
 

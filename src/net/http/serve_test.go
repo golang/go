@@ -947,7 +947,7 @@ func TestOnlyWriteTimeout(t *testing.T) {
 
 	c := ts.Client()
 
-	errc := make(chan error)
+	errc := make(chan error, 1)
 	go func() {
 		res, err := c.Get(ts.URL)
 		if err != nil {
@@ -5167,8 +5167,14 @@ func BenchmarkClient(b *testing.B) {
 	}
 
 	done := make(chan error)
+	stop := make(chan struct{})
+	defer close(stop)
 	go func() {
-		done <- cmd.Wait()
+		select {
+		case <-stop:
+			return
+		case done <- cmd.Wait():
+		}
 	}()
 
 	// Do b.N requests to the server.

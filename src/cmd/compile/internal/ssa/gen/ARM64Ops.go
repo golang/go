@@ -338,17 +338,17 @@ func init() {
 		// bitfield ops
 		// for all bitfield ops lsb is auxInt>>8, width is auxInt&0xff
 		// insert low width bits of arg1 into the result starting at bit lsb, copy other bits from arg0
-		{name: "BFI", argLength: 2, reg: gp21nog, asm: "BFI", aux: "Int64", resultInArg0: true},
+		{name: "BFI", argLength: 2, reg: gp21nog, asm: "BFI", aux: "ARM64BitField", resultInArg0: true},
 		// extract width bits of arg1 starting at bit lsb and insert at low end of result, copy other bits from arg0
-		{name: "BFXIL", argLength: 2, reg: gp21nog, asm: "BFXIL", aux: "Int64", resultInArg0: true},
+		{name: "BFXIL", argLength: 2, reg: gp21nog, asm: "BFXIL", aux: "ARM64BitField", resultInArg0: true},
 		// insert low width bits of arg0 into the result starting at bit lsb, bits to the left of the inserted bit field are set to the high/sign bit of the inserted bit field, bits to the right are zeroed
-		{name: "SBFIZ", argLength: 1, reg: gp11, asm: "SBFIZ", aux: "Int64"},
+		{name: "SBFIZ", argLength: 1, reg: gp11, asm: "SBFIZ", aux: "ARM64BitField"},
 		// extract width bits of arg0 starting at bit lsb and insert at low end of result, remaining high bits are set to the high/sign bit of the extracted bitfield
-		{name: "SBFX", argLength: 1, reg: gp11, asm: "SBFX", aux: "Int64"},
+		{name: "SBFX", argLength: 1, reg: gp11, asm: "SBFX", aux: "ARM64BitField"},
 		// insert low width bits of arg0 into the result starting at bit lsb, bits to the left and right of the inserted bit field are zeroed
-		{name: "UBFIZ", argLength: 1, reg: gp11, asm: "UBFIZ", aux: "Int64"},
+		{name: "UBFIZ", argLength: 1, reg: gp11, asm: "UBFIZ", aux: "ARM64BitField"},
 		// extract width bits of arg0 starting at bit lsb and insert at low end of result, remaining high bits are zeroed
-		{name: "UBFX", argLength: 1, reg: gp11, asm: "UBFX", aux: "Int64"},
+		{name: "UBFX", argLength: 1, reg: gp11, asm: "UBFX", aux: "ARM64BitField"},
 
 		// moves
 		{name: "MOVDconst", argLength: 0, reg: gp01, aux: "Int64", asm: "MOVD", typ: "UInt64", rematerializeable: true},      // 32 low bits of auxint

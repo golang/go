@@ -9,12 +9,12 @@
 
 package foo
 
-func small(a []int) int { // ERROR "can inline small as:.*" "a does not escape"
+func small(a []int) int { // ERROR "can inline small with cost .* as:.*" "a does not escape"
 	// Cost 16 body (need cost < 20).
 	// See cmd/compile/internal/gc/inl.go:inlineBigFunction*
 	return a[0] + a[1] + a[2] + a[3]
 }
-func medium(a []int) int { // ERROR "can inline medium as:.*" "a does not escape"
+func medium(a []int) int { // ERROR "can inline medium with cost .* as:.*" "a does not escape"
 	// Cost 32 body (need cost > 20 and cost < 80).
 	// See cmd/compile/internal/gc/inl.go:inlineBigFunction*
 	return a[0] + a[1] + a[2] + a[3] + a[4] + a[5] + a[6] + a[7]

@@ -22,6 +22,7 @@ import (
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/par"
 	"cmd/go/internal/renameio"
+	"cmd/go/internal/robustio"
 
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/sumdb/dirhash"
@@ -101,6 +102,9 @@ func download(mod module.Version, dir string) (err error) {
 	// signal that it has been extracted successfully, and if someone deletes
 	// the entire directory (e.g. as an attempt to prune out file corruption)
 	// the module cache will still be left in a recoverable state.
+	// We retry failed renames using robustio.Rename on Windows. Programs that
+	// open files in the temporary directory (antivirus, search indexers, etc.)
+	// can cause os.Rename to fail with ERROR_ACCESS_DENIED.
 	if err := os.MkdirAll(parentDir, 0777); err != nil {
 		return err
 	}
@@ -119,7 +123,7 @@ func download(mod module.Version, dir string) (err error) {
 		return err
 	}
 
-	if err := os.Rename(tmpDir, dir); err != nil {
+	if err := robustio.Rename(tmpDir, dir); err != nil {
 		return err
 	}
 

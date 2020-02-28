@@ -600,13 +600,13 @@ func (s *ss) scanNumber(digits string, haveDigits bool) string {
 // scanRune returns the next rune value in the input.
 func (s *ss) scanRune(bitSize int) int64 {
 	s.notEOF()
-	r := int64(s.getRune())
+	r := s.getRune()
 	n := uint(bitSize)
-	x := (r << (64 - n)) >> (64 - n)
-	if x != r {
+	x := (int64(r) << (64 - n)) >> (64 - n)
+	if x != int64(r) {
 		s.errorString("overflow on character value " + string(r))
 	}
-	return r
+	return int64(r)
 }
 
 // scanBasePrefix reports whether the integer begins with a base prefix

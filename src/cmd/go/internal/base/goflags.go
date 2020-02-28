@@ -102,7 +102,7 @@ type boolFlag interface {
 }
 
 // SetFromGOFLAGS sets the flags in the given flag set using settings in $GOFLAGS.
-func SetFromGOFLAGS(flags flag.FlagSet) {
+func SetFromGOFLAGS(flags *flag.FlagSet) {
 	InitGOFLAGS()
 
 	// This loop is similar to flag.Parse except that it ignores
@@ -125,14 +125,18 @@ func SetFromGOFLAGS(flags flag.FlagSet) {
 		if f == nil {
 			continue
 		}
+
+		// Use flags.Set consistently (instead of f.Value.Set) so that a subsequent
+		// call to flags.Visit will correctly visit the flags that have been set.
+
 		if fb, ok := f.Value.(boolFlag); ok && fb.IsBoolFlag() {
 			if hasValue {
-				if err := fb.Set(value); err != nil {
+				if err := flags.Set(f.Name, value); err != nil {
 					fmt.Fprintf(flags.Output(), "go: invalid boolean value %q for flag %s (from %s): %v\n", value, name, where, err)
 					flags.Usage()
 				}
 			} else {
-				if err := fb.Set("true"); err != nil {
+				if err := flags.Set(f.Name, "true"); err != nil {
 					fmt.Fprintf(flags.Output(), "go: invalid boolean flag %s (from %s): %v\n", name, where, err)
 					flags.Usage()
 				}
@@ -142,7 +146,7 @@ func SetFromGOFLAGS(flags flag.FlagSet) {
 				fmt.Fprintf(flags.Output(), "go: flag needs an argument: %s (from %s)\n", name, where)
 				flags.Usage()
 			}
-			if err := f.Value.Set(value); err != nil {
+			if err := flags.Set(f.Name, value); err != nil {
 				fmt.Fprintf(flags.Output(), "go: invalid value %q for flag %s (from %s): %v\n", value, name, where, err)
 				flags.Usage()
 			}

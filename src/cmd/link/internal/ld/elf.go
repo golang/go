@@ -823,7 +823,7 @@ const (
 	ELF_NOTE_NETBSD_NAMESZ  = 7
 	ELF_NOTE_NETBSD_DESCSZ  = 4
 	ELF_NOTE_NETBSD_TAG     = 1
-	ELF_NOTE_NETBSD_VERSION = 599000000 /* NetBSD 5.99 */
+	ELF_NOTE_NETBSD_VERSION = 700000000 /* NetBSD 7.0 */
 )
 
 var ELF_NOTE_NETBSD_NAME = []byte("NetBSD\x00")
@@ -1851,7 +1851,14 @@ func Asmbelf(ctxt *Link, symo int64) {
 		if interpreter == "" {
 			switch ctxt.HeadType {
 			case objabi.Hlinux:
-				interpreter = thearch.Linuxdynld
+				if objabi.GOOS == "android" {
+					interpreter = thearch.Androiddynld
+					if interpreter == "" {
+						Exitf("ELF interpreter not set")
+					}
+				} else {
+					interpreter = thearch.Linuxdynld
+				}
 
 			case objabi.Hfreebsd:
 				interpreter = thearch.Freebsddynld

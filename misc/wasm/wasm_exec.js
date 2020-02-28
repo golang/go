@@ -440,7 +440,7 @@
 
 					// func valueInstanceOf(v ref, t ref) bool
 					"syscall/js.valueInstanceOf": (sp) => {
-						this.mem.setUint8(sp + 24, loadValue(sp + 8) instanceof loadValue(sp + 16));
+						this.mem.setUint8(sp + 24, (loadValue(sp + 8) instanceof loadValue(sp + 16)) ? 1 : 0);
 					},
 
 					// func copyBytesToGo(dst []byte, src ref) (int, bool)

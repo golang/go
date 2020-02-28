@@ -510,7 +510,6 @@ type m struct {
 	park          note
 	alllink       *m // on allm
 	schedlink     muintptr
-	mcache        *mcache
 	lockedg       guintptr
 	createstack   [32]uintptr // stack that created this thread.
 	lockedExt     uint32      // tracking for external LockOSThread

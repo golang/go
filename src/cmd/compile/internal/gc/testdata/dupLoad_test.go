@@ -19,23 +19,25 @@ func read1(b []byte) (uint16, uint16) {
 
 func main1(t *testing.T) {
 	const N = 100000
-	done := make(chan struct{})
+	done := make(chan bool, 2)
 	b := make([]byte, 2)
 	go func() {
 		for i := 0; i < N; i++ {
 			b[0] = byte(i)
 			b[1] = byte(i)
 		}
-		done <- struct{}{}
+		done <- true
 	}()
 	go func() {
 		for i := 0; i < N; i++ {
 			x, y := read1(b)
 			if byte(x) != byte(y) {
-				t.Fatalf("x=%x y=%x\n", x, y)
+				t.Errorf("x=%x y=%x\n", x, y)
+				done <- false
+				return
 			}
 		}
-		done <- struct{}{}
+		done <- true
 	}()
 	<-done
 	<-done
@@ -51,23 +53,25 @@ func read2(b []byte) (uint16, uint16) {
 
 func main2(t *testing.T) {
 	const N = 100000
-	done := make(chan struct{})
+	done := make(chan bool, 2)
 	b := make([]byte, 2)
 	go func() {
 		for i := 0; i < N; i++ {
 			b[0] = byte(i)
 			b[1] = byte(i)
 		}
-		done <- struct{}{}
+		done <- true
 	}()
 	go func() {
 		for i := 0; i < N; i++ {
 			x, y := read2(b)
 			if x&0xff00 != y&0xff00 {
-				t.Fatalf("x=%x y=%x\n", x, y)
+				t.Errorf("x=%x y=%x\n", x, y)
+				done <- false
+				return
 			}
 		}
-		done <- struct{}{}
+		done <- true
 	}()
 	<-done
 	<-done

@@ -1884,7 +1884,9 @@ const (
 
 	OpRISCV64ADD
 	OpRISCV64ADDI
+	OpRISCV64ADDIW
 	OpRISCV64SUB
+	OpRISCV64SUBW
 	OpRISCV64MUL
 	OpRISCV64MULW
 	OpRISCV64MULH
@@ -2466,24 +2468,8 @@ const (
 	OpLeq64U
 	OpLeq32F
 	OpLeq64F
-	OpGreater8
-	OpGreater8U
-	OpGreater16
-	OpGreater16U
-	OpGreater32
-	OpGreater32U
-	OpGreater64
-	OpGreater64U
 	OpGreater32F
 	OpGreater64F
-	OpGeq8
-	OpGeq8U
-	OpGeq16
-	OpGeq16U
-	OpGeq32
-	OpGeq32U
-	OpGeq64
-	OpGeq64U
 	OpGeq32F
 	OpGeq64F
 	OpCondSelect
@@ -17373,7 +17359,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "BFI",
-		auxType:      auxInt64,
+		auxType:      auxARM64BitField,
 		argLen:       2,
 		resultInArg0: true,
 		asm:          arm64.ABFI,
@@ -17389,7 +17375,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "BFXIL",
-		auxType:      auxInt64,
+		auxType:      auxARM64BitField,
 		argLen:       2,
 		resultInArg0: true,
 		asm:          arm64.ABFXIL,
@@ -17405,7 +17391,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SBFIZ",
-		auxType: auxInt64,
+		auxType: auxARM64BitField,
 		argLen:  1,
 		asm:     arm64.ASBFIZ,
 		reg: regInfo{
@@ -17419,7 +17405,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "SBFX",
-		auxType: auxInt64,
+		auxType: auxARM64BitField,
 		argLen:  1,
 		asm:     arm64.ASBFX,
 		reg: regInfo{
@@ -17433,7 +17419,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "UBFIZ",
-		auxType: auxInt64,
+		auxType: auxARM64BitField,
 		argLen:  1,
 		asm:     arm64.AUBFIZ,
 		reg: regInfo{
@@ -17447,7 +17433,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "UBFX",
-		auxType: auxInt64,
+		auxType: auxARM64BitField,
 		argLen:  1,
 		asm:     arm64.AUBFX,
 		reg: regInfo{
@@ -23950,7 +23936,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:           "MOVDBRstore",
-		auxType:        auxSymOff,
+		auxType:        auxSym,
 		argLen:         3,
 		faultOnNilArg0: true,
 		symEffect:      SymWrite,
@@ -23964,7 +23950,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:           "MOVWBRstore",
-		auxType:        auxSymOff,
+		auxType:        auxSym,
 		argLen:         3,
 		faultOnNilArg0: true,
 		symEffect:      SymWrite,
@@ -23978,7 +23964,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:           "MOVHBRstore",
-		auxType:        auxSymOff,
+		auxType:        auxSym,
 		argLen:         3,
 		faultOnNilArg0: true,
 		symEffect:      SymWrite,
@@ -25031,9 +25017,37 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:    "ADDIW",
+		auxType: auxInt64,
+		argLen:  1,
+		asm:     riscv.AADDIW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+			},
+		},
+	},
+	{
 		name:   "SUB",
 		argLen: 2,
 		asm:    riscv.ASUB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{1, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+			},
+			outputs: []outputInfo{
+				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:   "SUBW",
+		argLen: 2,
+		asm:    riscv.ASUBW,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
@@ -31926,92 +31940,12 @@ var opcodeTable = [...]opInfo{
 		generic: true,
 	},
 	{
-		name:    "Greater8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Greater8U",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Greater16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Greater16U",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Greater32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Greater32U",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Greater64",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Greater64U",
-		argLen:  2,
-		generic: true,
-	},
-	{
 		name:    "Greater32F",
 		argLen:  2,
 		generic: true,
 	},
 	{
 		name:    "Greater64F",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Geq8",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Geq8U",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Geq16",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Geq16U",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Geq32",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Geq32U",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Geq64",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Geq64U",
 		argLen:  2,
 		generic: true,
 	},

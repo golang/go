@@ -541,7 +541,7 @@ func methtype(t *types.Type) *types.Type {
 
 // Is type src assignment compatible to type dst?
 // If so, return op code to use in conversion.
-// If not, return 0.
+// If not, return OXXX.
 func assignop(src *types.Type, dst *types.Type, why *string) Op {
 	if why != nil {
 		*why = ""
@@ -551,7 +551,7 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
 		return OCONVNOP
 	}
 	if src == nil || dst == nil || src.Etype == TFORW || dst.Etype == TFORW || src.Orig == nil || dst.Orig == nil {
-		return 0
+		return OXXX
 	}
 
 	// 1. src type is identical to dst.
@@ -611,14 +611,14 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
 			}
 		}
 
-		return 0
+		return OXXX
 	}
 
 	if isptrto(dst, TINTER) {
 		if why != nil {
 			*why = fmt.Sprintf(":\n\t%v is pointer to interface, not interface", dst)
 		}
-		return 0
+		return OXXX
 	}
 
 	if src.IsInterface() && dst.Etype != TBLANK {
@@ -627,7 +627,7 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
 		if why != nil && implements(dst, src, &missing, &have, &ptr) {
 			*why = ": need type assertion"
 		}
-		return 0
+		return OXXX
 	}
 
 	// 4. src is a bidirectional channel value, dst is a channel type,
@@ -659,12 +659,12 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
 		return OCONVNOP
 	}
 
-	return 0
+	return OXXX
 }
 
 // Can we convert a value of type src to a value of type dst?
 // If so, return op code to use in conversion (maybe OCONVNOP).
-// If not, return 0.
+// If not, return OXXX.
 func convertop(src *types.Type, dst *types.Type, why *string) Op {
 	if why != nil {
 		*why = ""
@@ -674,7 +674,7 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
 		return OCONVNOP
 	}
 	if src == nil || dst == nil {
-		return 0
+		return OXXX
 	}
 
 	// Conversions from regular to go:notinheap are not allowed
@@ -685,19 +685,19 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
 		if why != nil {
 			*why = fmt.Sprintf(":\n\t%v is go:notinheap, but %v is not", dst.Elem(), src.Elem())
 		}
-		return 0
+		return OXXX
 	}
 	// (b) Disallow string to []T where T is go:notinheap.
 	if src.IsString() && dst.IsSlice() && dst.Elem().NotInHeap() && (dst.Elem().Etype == types.Bytetype.Etype || dst.Elem().Etype == types.Runetype.Etype) {
 		if why != nil {
 			*why = fmt.Sprintf(":\n\t%v is go:notinheap", dst.Elem())
 		}
-		return 0
+		return OXXX
 	}
 
 	// 1. src can be assigned to dst.
 	op := assignop(src, dst, why)
-	if op != 0 {
+	if op != OXXX {
 		return op
 	}
 
@@ -706,7 +706,7 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
 	// with the good message from assignop.
 	// Otherwise clear the error.
 	if src.IsInterface() || dst.IsInterface() {
-		return 0
+		return OXXX
 	}
 	if why != nil {
 		*why = ""
@@ -785,7 +785,7 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
 		return OCONVNOP
 	}
 
-	return 0
+	return OXXX
 }
 
 func assignconv(n *Node, t *types.Type, context string) *Node {
@@ -828,7 +828,7 @@ func assignconvfn(n *Node, t *types.Type, context func() string) *Node {
 
 	var why string
 	op := assignop(n.Type, t, &why)
-	if op == 0 {
+	if op == OXXX {
 		yyerror("cannot use %L as type %v in %s%s", n, t, context(), why)
 		op = OCONV
 	}
