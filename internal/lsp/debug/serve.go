@@ -49,7 +49,7 @@ type Instance struct {
 
 	LogWriter io.Writer
 
-	ocagent    export.Exporter
+	ocagent    *ocagent.Exporter
 	prometheus *prometheus.Exporter
 	rpcs       *rpcs
 	traces     *traces
@@ -537,12 +537,6 @@ func (i *Instance) Metric(ctx context.Context, data telemetry.MetricData) {
 	}
 	if i.rpcs != nil {
 		i.rpcs.Metric(ctx, data)
-	}
-}
-
-func (i *Instance) Flush() {
-	if i.ocagent != nil {
-		i.ocagent.Flush()
 	}
 }
 

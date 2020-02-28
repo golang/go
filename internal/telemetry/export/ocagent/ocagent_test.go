@@ -17,13 +17,12 @@ import (
 	"time"
 
 	"golang.org/x/tools/internal/telemetry"
-	"golang.org/x/tools/internal/telemetry/export"
 	"golang.org/x/tools/internal/telemetry/export/ocagent"
 	"golang.org/x/tools/internal/telemetry/tag"
 )
 
 var (
-	exporter export.Exporter
+	exporter *ocagent.Exporter
 	sent     fakeSender
 	start    time.Time
 	at       time.Time
