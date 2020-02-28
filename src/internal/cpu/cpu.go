@@ -134,6 +134,14 @@ type s390x struct {
 	_         CacheLinePad
 }
 
+var MIPS64X mips64x
+
+type mips64x struct {
+	_      CacheLinePad
+	HasMSA bool // MIPS SIMD architecture
+	_      CacheLinePad
+}
+
 // Initialize examines the processor and sets the relevant variables above.
 // This is called by the runtime package early in program initialization,
 // before normal init functions are run. env is set by runtime if the OS supports
