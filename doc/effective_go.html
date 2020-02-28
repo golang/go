@@ -2695,9 +2695,10 @@ type ReadWriter interface {
 <p>
 This says just what it looks like: A <code>ReadWriter</code> can do
 what a <code>Reader</code> does <em>and</em> what a <code>Writer</code>
-does; it is a union of the embedded interfaces (which must be disjoint
-sets of methods).
-Only interfaces can be embedded within interfaces.
+does; it is a union of the embedded interfaces. The embedding of interfaces 
+with overlapping method sets is allowed since Go 1.14: methods from an embedded 
+interface may have the same names and identical signatures as methods already 
+present in the (embedding) interface. Only interfaces can be embedded within interfaces.
 </p>
 <p>
 The same basic idea applies to structs, but with more far-reaching
