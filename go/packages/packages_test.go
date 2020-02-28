@@ -2671,7 +2671,7 @@ func importGraph(initial []*packages.Package) (string, map[string]*packages.Pack
 			for _, imp := range p.Imports {
 				if isTestMain {
 					switch imp.ID {
-					case "os", "testing", "testing/internal/testdeps":
+					case "os", "reflect", "testing", "testing/internal/testdeps":
 						edges = append(edges, fmt.Sprintf("%s -> %s (pruned)", p, imp))
 						continue
 					}
