@@ -286,11 +286,12 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
 		if wildcardOkay && strings.Contains(arg, "...") {
 			match := search.NewMatch(arg)
 			if match.IsLocal() {
-				match.MatchPackagesInFS()
+				match.MatchDirs()
+				args = match.Dirs
 			} else {
 				match.MatchPackages()
+				args = match.Pkgs
 			}
-			args = match.Pkgs
 			for _, err := range match.Errs {
 				base.Errorf("%s", err)
 			}
