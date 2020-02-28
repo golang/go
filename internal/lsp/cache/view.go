@@ -332,13 +332,14 @@ func (v *view) refreshProcessEnv() {
 func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error) {
 	env, buildFlags := v.env()
 	processEnv := &imports.ProcessEnv{
-		WorkingDir: v.folder.Filename(),
-		BuildFlags: buildFlags,
-		Logf: func(format string, args ...interface{}) {
-			log.Print(ctx, fmt.Sprintf(format, args...))
-		},
+		WorkingDir:  v.folder.Filename(),
+		BuildFlags:  buildFlags,
 		LocalPrefix: v.options.LocalPrefix,
-		Debug:       v.options.VerboseOutput,
+	}
+	if v.options.VerboseOutput {
+		processEnv.Logf = func(format string, args ...interface{}) {
+			log.Print(ctx, fmt.Sprintf(format, args...))
+		}
 	}
 	for _, kv := range env {
 		split := strings.Split(kv, "=")

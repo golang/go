@@ -23,8 +23,10 @@ import (
 
 // Options controls the behavior of a Walk call.
 type Options struct {
-	Debug          bool // Enable debug logging
-	ModulesEnabled bool // Search module caches. Also disables legacy goimports ignore rules.
+	// If Logf is non-nil, debug logging is enabled through this function.
+	Logf func(format string, args ...interface{})
+	// Search module caches. Also disables legacy goimports ignore rules.
+	ModulesEnabled bool
 }
 
 // RootType indicates the type of a Root.
@@ -80,14 +82,14 @@ func WalkSkip(roots []Root, add func(root Root, dir string), skip func(root Root
 // walkDir creates a walker and starts fastwalk with this walker.
 func walkDir(root Root, add func(Root, string), skip func(root Root, dir string) bool, opts Options) {
 	if _, err := os.Stat(root.Path); os.IsNotExist(err) {
-		if opts.Debug {
-			log.Printf("skipping nonexistent directory: %v", root.Path)
+		if opts.Logf != nil {
+			opts.Logf("skipping nonexistent directory: %v", root.Path)
 		}
 		return
 	}
 	start := time.Now()
-	if opts.Debug {
-		log.Printf("gopathwalk: scanning %s", root.Path)
+	if opts.Logf != nil {
+		opts.Logf("gopathwalk: scanning %s", root.Path)
 	}
 	w := &walker{
 		root: root,
@@ -100,8 +102,8 @@ func walkDir(root Root, add func(Root, string), skip func(root Root, dir string)
 		log.Printf("gopathwalk: scanning directory %v: %v", root.Path, err)
 	}
 
-	if opts.Debug {
-		log.Printf("gopathwalk: scanned %s in %v", root.Path, time.Since(start))
+	if opts.Logf != nil {
+		opts.Logf("gopathwalk: scanned %s in %v", root.Path, time.Since(start))
 	}
 }
 
@@ -130,11 +132,11 @@ func (w *walker) init() {
 		full := filepath.Join(w.root.Path, p)
 		if fi, err := os.Stat(full); err == nil {
 			w.ignoredDirs = append(w.ignoredDirs, fi)
-			if w.opts.Debug {
-				log.Printf("Directory added to ignore list: %s", full)
+			if w.opts.Logf != nil {
+				w.opts.Logf("Directory added to ignore list: %s", full)
 			}
-		} else if w.opts.Debug {
-			log.Printf("Error statting ignored directory: %v", err)
+		} else if w.opts.Logf != nil {
+			w.opts.Logf("Error statting ignored directory: %v", err)
 		}
 	}
 }
@@ -145,11 +147,11 @@ func (w *walker) init() {
 func (w *walker) getIgnoredDirs(path string) []string {
 	file := filepath.Join(path, ".goimportsignore")
 	slurp, err := ioutil.ReadFile(file)
-	if w.opts.Debug {
+	if w.opts.Logf != nil {
 		if err != nil {
-			log.Print(err)
+			w.opts.Logf("%v", err)
 		} else {
-			log.Printf("Read %s", file)
+			w.opts.Logf("Read %s", file)
 		}
 	}
 	if err != nil {

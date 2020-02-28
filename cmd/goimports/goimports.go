@@ -262,7 +262,7 @@ func gofmtMain() {
 
 	if verbose {
 		log.SetFlags(log.LstdFlags | log.Lmicroseconds)
-		options.Env.Debug = true
+		options.Env.Logf = log.Printf
 	}
 	if options.TabWidth < 0 {
 		fmt.Fprintf(os.Stderr, "negative tabwidth %d\n", options.TabWidth)

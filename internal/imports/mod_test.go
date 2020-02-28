@@ -676,8 +676,9 @@ func setup(t *testing.T, main, wd string) *modTest {
 		GOPROXY:     proxyDirToURL(proxyDir),
 		GOSUMDB:     "off",
 		WorkingDir:  filepath.Join(mainDir, wd),
-		Debug:       *testDebug,
-		Logf:        log.Printf,
+	}
+	if *testDebug {
+		env.Logf = log.Printf
 	}
 
 	// go mod download gets mad if we don't have a go.mod, so make sure we do.
@@ -917,7 +918,6 @@ import _ "rsc.io/quote"
 
 func BenchmarkScanModCache(b *testing.B) {
 	env := &ProcessEnv{
-		Debug:  true,
 		GOPATH: build.Default.GOPATH,
 		GOROOT: build.Default.GOROOT,
 		Logf:   log.Printf,

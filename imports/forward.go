@@ -4,6 +4,7 @@ package imports // import "golang.org/x/tools/imports"
 
 import (
 	"go/build"
+	"log"
 	"os"
 
 	intimp "golang.org/x/tools/internal/imports"
@@ -47,7 +48,6 @@ func Process(filename string, src []byte, opt *Options) ([]byte, error) {
 			GO111MODULE: os.Getenv("GO111MODULE"),
 			GOPROXY:     os.Getenv("GOPROXY"),
 			GOSUMDB:     os.Getenv("GOSUMDB"),
-			Debug:       Debug,
 			LocalPrefix: LocalPrefix,
 		},
 		AllErrors:  opt.AllErrors,
@@ -56,6 +56,9 @@ func Process(filename string, src []byte, opt *Options) ([]byte, error) {
 		Fragment:   opt.Fragment,
 		TabIndent:  opt.TabIndent,
 		TabWidth:   opt.TabWidth,
+	}
+	if Debug {
+		intopt.Env.Logf = log.Printf
 	}
 	return intimp.Process(filename, src, intopt)
 }

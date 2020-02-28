@@ -1638,10 +1638,11 @@ func (c testConfig) test(t *testing.T, fn func(*goimportTest)) {
 					GO111MODULE: env["GO111MODULE"],
 					GOSUMDB:     env["GOSUMDB"],
 					WorkingDir:  exported.Config.Dir,
-					Debug:       *testDebug,
-					Logf:        log.Printf,
 				},
 				exported: exported,
+			}
+			if *testDebug {
+				it.env.Logf = log.Printf
 			}
 			if it.env.GOROOT == "" {
 				// packagestest clears out GOROOT to work around https://golang.org/issue/32849,
