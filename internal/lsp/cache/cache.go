@@ -19,19 +19,17 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func New(options func(*source.Options), debugState *debug.State) *Cache {
-	if debugState == nil {
-		debugState = &debug.State{}
-	}
+func New(ctx context.Context, options func(*source.Options)) *Cache {
 	index := atomic.AddInt64(&cacheIndex, 1)
 	c := &Cache{
 		fs:      &nativeFileSystem{},
 		id:      strconv.FormatInt(index, 10),
 		fset:    token.NewFileSet(),
 		options: options,
-		debug:   debugState,
 	}
-	debugState.AddCache(debugCache{c})
+	if di := debug.GetInstance(ctx); di != nil {
+		di.State.AddCache(debugCache{c})
+	}
 	return c
 }
 
@@ -40,7 +38,6 @@ type Cache struct {
 	id      string
 	fset    *token.FileSet
 	options func(*source.Options)
-	debug   *debug.State
 
 	store memoize.Store
 }
@@ -79,7 +76,7 @@ func (c *Cache) GetFile(uri span.URI) source.FileHandle {
 	}
 }
 
-func (c *Cache) NewSession() *Session {
+func (c *Cache) NewSession(ctx context.Context) *Session {
 	index := atomic.AddInt64(&sessionIndex, 1)
 	s := &Session{
 		cache:    c,
@@ -87,7 +84,9 @@ func (c *Cache) NewSession() *Session {
 		options:  source.DefaultOptions(),
 		overlays: make(map[span.URI]*overlay),
 	}
-	c.debug.AddSession(DebugSession{s})
+	if di := debug.GetInstance(ctx); di != nil {
+		di.State.AddSession(DebugSession{s})
+	}
 	return s
 }
 

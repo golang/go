@@ -37,6 +37,14 @@ import (
 	"golang.org/x/tools/internal/telemetry/tag"
 )
 
+type exporter struct {
+	stderr io.Writer
+}
+
+type instanceKeyType int
+
+const instanceKey = instanceKeyType(0)
+
 // An Instance holds all debug information associated with a gopls instance.
 type Instance struct {
 	Logfile              string
@@ -378,8 +386,26 @@ func getMemory(r *http.Request) interface{} {
 	return m
 }
 
-// NewInstance creates debug instance ready for use using the supplied configuration.
-func NewInstance(workdir, agent string) *Instance {
+func init() {
+	export.SetExporter(&exporter{
+		stderr: os.Stderr,
+	})
+}
+
+func GetInstance(ctx context.Context) *Instance {
+	if ctx == nil {
+		return nil
+	}
+	v := ctx.Value(instanceKey)
+	if v == nil {
+		return nil
+	}
+	return v.(*Instance)
+}
+
+// WithInstance creates debug instance ready for use using the supplied
+// configuration and stores it in the returned context.
+func WithInstance(ctx context.Context, workdir, agent string) context.Context {
 	i := &Instance{
 		StartTime:     time.Now(),
 		Workdir:       workdir,
@@ -394,8 +420,7 @@ func NewInstance(workdir, agent string) *Instance {
 	i.rpcs = &rpcs{}
 	i.traces = &traces{}
 	i.State = &State{}
-	export.SetExporter(i)
-	return i
+	return context.WithValue(ctx, instanceKey, i)
 }
 
 // SetLogFile sets the logfile for use with this instance.
@@ -519,7 +544,11 @@ func (i *Instance) writeMemoryDebug(threshold uint64) error {
 	return nil
 }
 
-func (i *Instance) StartSpan(ctx context.Context, spn *telemetry.Span) {
+func (e *exporter) StartSpan(ctx context.Context, spn *telemetry.Span) {
+	i := GetInstance(ctx)
+	if i == nil {
+		return
+	}
 	if i.ocagent != nil {
 		i.ocagent.StartSpan(ctx, spn)
 	}
@@ -528,7 +557,11 @@ func (i *Instance) StartSpan(ctx context.Context, spn *telemetry.Span) {
 	}
 }
 
-func (i *Instance) FinishSpan(ctx context.Context, spn *telemetry.Span) {
+func (e *exporter) FinishSpan(ctx context.Context, spn *telemetry.Span) {
+	i := GetInstance(ctx)
+	if i == nil {
+		return
+	}
 	if i.ocagent != nil {
 		i.ocagent.FinishSpan(ctx, spn)
 	}
@@ -537,14 +570,13 @@ func (i *Instance) FinishSpan(ctx context.Context, spn *telemetry.Span) {
 	}
 }
 
-//TODO: remove this hack
-// capture stderr at startup because it gets modified in a way that this
-// logger should not respect
-var stderr = os.Stderr
-
-func (i *Instance) Log(ctx context.Context, event telemetry.Event) {
-	if event.Error != nil {
-		fmt.Fprintf(stderr, "%v\n", event)
+func (e *exporter) Log(ctx context.Context, event telemetry.Event) {
+	i := GetInstance(ctx)
+	if event.Error != nil || i == nil {
+		fmt.Fprintf(e.stderr, "%v\n", event)
+	}
+	if i == nil {
+		return
 	}
 	protocol.LogEvent(ctx, event)
 	if i.ocagent != nil {
@@ -552,7 +584,11 @@ func (i *Instance) Log(ctx context.Context, event telemetry.Event) {
 	}
 }
 
-func (i *Instance) Metric(ctx context.Context, data telemetry.MetricData) {
+func (e *exporter) Metric(ctx context.Context, data telemetry.MetricData) {
+	i := GetInstance(ctx)
+	if i == nil {
+		return
+	}
 	if i.ocagent != nil {
 		i.ocagent.Metric(ctx, data)
 	}

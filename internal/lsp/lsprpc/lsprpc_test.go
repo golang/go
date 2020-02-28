@@ -48,8 +48,8 @@ func TestClientLogging(t *testing.T) {
 	server := pingServer{}
 	client := fakeClient{logs: make(chan string, 10)}
 
-	di := debug.NewInstance("", "")
-	ss := NewStreamServer(cache.New(nil, di.State), false, di)
+	ctx = debug.WithInstance(ctx, "", "")
+	ss := NewStreamServer(cache.New(ctx, nil), false)
 	ss.serverForTest = server
 	ts := servertest.NewPipeServer(ctx, ss)
 	defer ts.Close()
@@ -104,15 +104,16 @@ func TestRequestCancellation(t *testing.T) {
 	server := waitableServer{
 		started: make(chan struct{}),
 	}
-	diserve := debug.NewInstance("", "")
-	ss := NewStreamServer(cache.New(nil, diserve.State), false, diserve)
+	baseCtx := context.Background()
+	serveCtx := debug.WithInstance(baseCtx, "", "")
+	ss := NewStreamServer(cache.New(serveCtx, nil), false)
 	ss.serverForTest = server
-	ctx := context.Background()
-	tsDirect := servertest.NewTCPServer(ctx, ss)
+	tsDirect := servertest.NewTCPServer(serveCtx, ss)
 	defer tsDirect.Close()
 
-	forwarder := NewForwarder("tcp", tsDirect.Addr, false, debug.NewInstance("", ""))
-	tsForwarded := servertest.NewPipeServer(ctx, forwarder)
+	forwarderCtx := debug.WithInstance(baseCtx, "", "")
+	forwarder := NewForwarder("tcp", tsDirect.Addr, false)
+	tsForwarded := servertest.NewPipeServer(forwarderCtx, forwarder)
 	defer tsForwarded.Close()
 
 	tests := []struct {
@@ -125,7 +126,7 @@ func TestRequestCancellation(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.serverType, func(t *testing.T) {
-			cc := test.ts.Connect(ctx)
+			cc := test.ts.Connect(baseCtx)
 			cc.AddHandler(protocol.Canceller{})
 			ctx := context.Background()
 			ctx1, cancel1 := context.WithCancel(ctx)
@@ -177,16 +178,16 @@ func TestDebugInfoLifecycle(t *testing.T) {
 	resetExitFuncs := OverrideExitFuncsForTest()
 	defer resetExitFuncs()
 
-	clientDebug := debug.NewInstance("", "")
-	serverDebug := debug.NewInstance("", "")
+	baseCtx := context.Background()
+	clientCtx := debug.WithInstance(baseCtx, "", "")
+	serverCtx := debug.WithInstance(baseCtx, "", "")
 
-	cache := cache.New(nil, serverDebug.State)
-	ss := NewStreamServer(cache, false, serverDebug)
-	ctx := context.Background()
-	tsBackend := servertest.NewTCPServer(ctx, ss)
+	cache := cache.New(serverCtx, nil)
+	ss := NewStreamServer(cache, false)
+	tsBackend := servertest.NewTCPServer(serverCtx, ss)
 
-	forwarder := NewForwarder("tcp", tsBackend.Addr, false, clientDebug)
-	tsForwarder := servertest.NewPipeServer(ctx, forwarder)
+	forwarder := NewForwarder("tcp", tsBackend.Addr, false)
+	tsForwarder := servertest.NewPipeServer(clientCtx, forwarder)
 
 	ws, err := fake.NewWorkspace("gopls-lsprpc-test", []byte(exampleProgram))
 	if err != nil {
@@ -194,31 +195,33 @@ func TestDebugInfoLifecycle(t *testing.T) {
 	}
 	defer ws.Close()
 
-	conn1 := tsForwarder.Connect(ctx)
-	ed1, err := fake.NewConnectedEditor(ctx, ws, conn1)
+	conn1 := tsForwarder.Connect(clientCtx)
+	ed1, err := fake.NewConnectedEditor(clientCtx, ws, conn1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ed1.Shutdown(ctx)
-	conn2 := tsBackend.Connect(ctx)
-	ed2, err := fake.NewConnectedEditor(ctx, ws, conn2)
+	defer ed1.Shutdown(clientCtx)
+	conn2 := tsBackend.Connect(baseCtx)
+	ed2, err := fake.NewConnectedEditor(baseCtx, ws, conn2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ed2.Shutdown(ctx)
+	defer ed2.Shutdown(baseCtx)
 
+	serverDebug := debug.GetInstance(serverCtx)
 	if got, want := len(serverDebug.State.Clients()), 2; got != want {
 		t.Errorf("len(server:Clients) = %d, want %d", got, want)
 	}
 	if got, want := len(serverDebug.State.Sessions()), 2; got != want {
 		t.Errorf("len(server:Sessions) = %d, want %d", got, want)
 	}
+	clientDebug := debug.GetInstance(clientCtx)
 	if got, want := len(clientDebug.State.Servers()), 1; got != want {
 		t.Errorf("len(client:Servers) = %d, want %d", got, want)
 	}
 	// Close one of the connections to verify that the client and session were
 	// dropped.
-	if err := ed1.Shutdown(ctx); err != nil {
+	if err := ed1.Shutdown(clientCtx); err != nil {
 		t.Fatal(err)
 	}
 	if got, want := len(serverDebug.State.Sessions()), 1; got != want {

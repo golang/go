@@ -24,7 +24,7 @@ func TestMain(m *testing.M) {
 func TestModfileRemainsUnchanged(t *testing.T) {
 	ctx := tests.Context(t)
 	cache := cache.New(nil, nil)
-	session := cache.NewSession()
+	session := cache.NewSession(ctx)
 	options := tests.DefaultOptions()
 	options.TempModfile = true
 	options.Env = append(os.Environ(), "GOPACKAGESDRIVER=off", "GOROOT=")

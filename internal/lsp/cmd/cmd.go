@@ -68,8 +68,6 @@ type Application struct {
 	// PrepareOptions is called to update the options when a new view is built.
 	// It is primarily to allow the behavior of gopls to be modified by hooks.
 	PrepareOptions func(*source.Options)
-
-	debug *debug.Instance
 }
 
 // New returns a new Application ready to run.
@@ -131,7 +129,7 @@ gopls flags are:
 // If no arguments are passed it will invoke the server sub command, as a
 // temporary measure for compatibility.
 func (app *Application) Run(ctx context.Context, args ...string) error {
-	app.debug = debug.NewInstance(app.wd, app.OCAgent)
+	ctx = debug.WithInstance(ctx, app.wd, app.OCAgent)
 	app.Serve.app = app
 	if len(args) == 0 {
 		return tool.Run(ctx, &app.Serve, args)
@@ -191,7 +189,7 @@ func (app *Application) connect(ctx context.Context) (*connection, error) {
 	switch {
 	case app.Remote == "":
 		connection := newConnection(app)
-		connection.Server = lsp.NewServer(cache.New(app.options, nil).NewSession(), connection.Client)
+		connection.Server = lsp.NewServer(cache.New(ctx, app.options).NewSession(ctx), connection.Client)
 		ctx = protocol.WithClient(ctx, connection.Client)
 		return connection, connection.initialize(ctx, app.options)
 	case strings.HasPrefix(app.Remote, "internal@"):

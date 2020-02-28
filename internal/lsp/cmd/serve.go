@@ -14,6 +14,7 @@ import (
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp/cache"
+	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/lsprpc"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/tool"
@@ -55,22 +56,24 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 		return tool.CommandLineErrorf("server does not take arguments, got %v", args)
 	}
 
-	closeLog, err := s.app.debug.SetLogFile(s.Logfile)
-	if err != nil {
-		return err
+	di := debug.GetInstance(ctx)
+	if di != nil {
+		closeLog, err := di.SetLogFile(s.Logfile)
+		if err != nil {
+			return err
+		}
+		defer closeLog()
+		di.ServerAddress = s.Address
+		di.DebugAddress = s.Debug
+		di.Serve(ctx)
+		di.MonitorMemory(ctx)
 	}
-	defer closeLog()
-	s.app.debug.ServerAddress = s.Address
-	s.app.debug.DebugAddress = s.Debug
-	s.app.debug.Serve(ctx)
-	s.app.debug.MonitorMemory(ctx)
-
 	var ss jsonrpc2.StreamServer
 	if s.app.Remote != "" {
 		network, addr := parseAddr(s.app.Remote)
-		ss = lsprpc.NewForwarder(network, addr, true, s.app.debug)
+		ss = lsprpc.NewForwarder(network, addr, true)
 	} else {
-		ss = lsprpc.NewStreamServer(cache.New(s.app.options, s.app.debug.State), true, s.app.debug)
+		ss = lsprpc.NewStreamServer(cache.New(ctx, s.app.options), true)
 	}
 
 	if s.Address != "" {
@@ -82,8 +85,8 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 		return jsonrpc2.ListenAndServe(ctx, "tcp", addr, ss, s.IdleTimeout)
 	}
 	stream := jsonrpc2.NewHeaderStream(os.Stdin, os.Stdout)
-	if s.Trace {
-		stream = protocol.LoggingStream(stream, s.app.debug.LogWriter)
+	if s.Trace && di != nil {
+		stream = protocol.LoggingStream(stream, di.LogWriter)
 	}
 	return ss.ServeStream(ctx, stream)
 }

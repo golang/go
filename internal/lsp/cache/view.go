@@ -23,6 +23,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
+	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/memoize"
@@ -472,7 +473,7 @@ func (v *view) Shutdown(ctx context.Context) {
 	v.session.removeView(ctx, v)
 }
 
-func (v *view) shutdown(context.Context) {
+func (v *view) shutdown(ctx context.Context) {
 	// TODO: Cancel the view's initialization.
 	v.mu.Lock()
 	defer v.mu.Unlock()
@@ -484,7 +485,9 @@ func (v *view) shutdown(context.Context) {
 		os.Remove(v.tempMod.Filename())
 		os.Remove(tempSumFile(v.tempMod.Filename()))
 	}
-	v.session.cache.debug.DropView(debugView{v})
+	if di := debug.GetInstance(ctx); di != nil {
+		di.State.DropView(debugView{v})
+	}
 }
 
 // Ignore checks if the given URI is a URI we ignore.

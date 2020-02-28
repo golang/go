@@ -49,8 +49,8 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 	for _, datum := range data {
 		defer datum.Exported.Cleanup()
 
-		cache := cache.New(nil, nil)
-		session := cache.NewSession()
+		cache := cache.New(ctx, nil)
+		session := cache.NewSession(ctx)
 		options := tests.DefaultOptions()
 		session.SetOptions(options)
 		options.Env = datum.Config.Env

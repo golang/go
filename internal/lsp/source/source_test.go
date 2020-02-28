@@ -47,8 +47,8 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 	for _, datum := range data {
 		defer datum.Exported.Cleanup()
 
-		cache := cache.New(nil, nil)
-		session := cache.NewSession()
+		cache := cache.New(ctx, nil)
+		session := cache.NewSession(ctx)
 		options := tests.DefaultOptions()
 		options.Env = datum.Config.Env
 		view, _, err := session.NewView(ctx, "source_test", span.URIFromPath(datum.Config.Dir), options)

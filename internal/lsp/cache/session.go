@@ -11,6 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/trace"
@@ -77,7 +78,9 @@ func (s *Session) Shutdown(ctx context.Context) {
 	}
 	s.views = nil
 	s.viewMap = nil
-	s.cache.debug.DropSession(DebugSession{s})
+	if di := debug.GetInstance(ctx); di != nil {
+		di.State.DropSession(DebugSession{s})
+	}
 }
 
 func (s *Session) Cache() source.Cache {
@@ -142,7 +145,9 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	// Initialize the view without blocking.
 	go v.initialize(xcontext.Detach(ctx), v.snapshot)
 
-	v.session.cache.debug.AddView(debugView{v})
+	if di := debug.GetInstance(ctx); di != nil {
+		di.State.AddView(debugView{v})
+	}
 	return v, v.snapshot, nil
 }
 
