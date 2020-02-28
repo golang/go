@@ -24,7 +24,13 @@ import (
 	"io"
 )
 
-var config = printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 8}
+// Keep these in sync with cmd/gofmt/gofmt.go.
+const (
+	tabWidth    = 8
+	printerMode = printer.UseSpaces | printer.TabIndent | printer.StdFormat
+)
+
+var config = printer.Config{Mode: printerMode, Tabwidth: tabWidth}
 
 const parserMode = parser.ParseComments
 
