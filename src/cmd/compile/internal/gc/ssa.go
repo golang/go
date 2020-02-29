@@ -3269,7 +3269,7 @@ func init() {
 			}
 			return s.newValue2(ssa.OpMul64uover, types.NewTuple(types.Types[TUINT], types.Types[TUINT]), args[0], args[1])
 		},
-		sys.AMD64, sys.I386)
+		sys.AMD64, sys.I386, sys.MIPS64)
 	add("runtime", "KeepAlive",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			data := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, args[0])
