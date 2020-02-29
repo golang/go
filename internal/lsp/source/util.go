@@ -719,3 +719,53 @@ func FindFileInPackage(pkg Package, uri span.URI) (ParseGoHandle, Package, error
 	}
 	return nil, nil, errors.Errorf("no file for %s in package %s", uri, pkg.ID())
 }
+
+// prevStmt returns the statement that precedes the statement containing pos.
+// For example:
+//
+//     foo := 1
+//     bar(1 + 2<>)
+//
+// If "<>" is pos, prevStmt returns "foo := 1"
+func prevStmt(pos token.Pos, path []ast.Node) ast.Stmt {
+	var blockLines []ast.Stmt
+	for i := 0; i < len(path) && blockLines == nil; i++ {
+		switch n := path[i].(type) {
+		case *ast.BlockStmt:
+			blockLines = n.List
+		case *ast.CommClause:
+			blockLines = n.Body
+		case *ast.CaseClause:
+			blockLines = n.Body
+		}
+	}
+
+	for i := len(blockLines) - 1; i >= 0; i-- {
+		if blockLines[i].End() < pos {
+			return blockLines[i]
+		}
+	}
+
+	return nil
+}
+
+// formatZeroValue produces Go code representing the zero value of T.
+func formatZeroValue(T types.Type, qf types.Qualifier) string {
+	switch u := T.Underlying().(type) {
+	case *types.Basic:
+		switch {
+		case u.Info()&types.IsNumeric > 0:
+			return "0"
+		case u.Info()&types.IsString > 0:
+			return `""`
+		case u.Info()&types.IsBoolean > 0:
+			return "false"
+		default:
+			panic(fmt.Sprintf("unhandled basic type: %v", u))
+		}
+	case *types.Pointer, *types.Interface, *types.Chan, *types.Map, *types.Slice, *types.Signature:
+		return "nil"
+	default:
+		return types.TypeString(T, qf) + "{}"
+	}
+}

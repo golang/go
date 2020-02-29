@@ -548,6 +548,10 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 		return c.items, c.getSurrounding(), nil
 	}
 
+	// Statement candidates offer an entire statement in certain
+	// contexts, as opposed to a single object.
+	c.addStatementCandidates()
+
 	switch n := path[0].(type) {
 	case *ast.Ident:
 		// Is this the Sel part of a selector?
