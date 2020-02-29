@@ -376,10 +376,10 @@ func readGoSum(dst map[module.Version][]string, file string, data []byte) error 
 		var line []byte
 		lineno++
 		i := bytes.IndexByte(data, '\n')
-		if i < 0 {
-			line, data = data, nil
-		} else {
+		if i >= 0 {
 			line, data = data[:i], data[i+1:]
+		} else {
+			line, data = data, nil
 		}
 		f := strings.Fields(string(line))
 		if len(f) == 0 {
