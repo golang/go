@@ -183,6 +183,9 @@ func rewriteValueS390X(v *Value) bool {
 	case OpCvt64to64F:
 		v.Op = OpS390XCDGBRA
 		return true
+	case OpCvtBoolToUint8:
+		v.Op = OpCopy
+		return true
 	case OpDiv16:
 		return rewriteValueS390X_OpDiv16(v)
 	case OpDiv16u:

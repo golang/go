@@ -2584,6 +2584,7 @@ const (
 	OpCvt64Fto64
 	OpCvt32Fto64F
 	OpCvt64Fto32F
+	OpCvtBoolToUint8
 	OpRound32F
 	OpRound64F
 	OpIsNonNil
@@ -32558,6 +32559,11 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Cvt64Fto32F",
+		argLen:  1,
+		generic: true,
+	},
+	{
+		name:    "CvtBoolToUint8",
 		argLen:  1,
 		generic: true,
 	},

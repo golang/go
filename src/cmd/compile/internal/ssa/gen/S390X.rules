@@ -230,6 +230,8 @@
 (Cvt32Fto64F ...) -> (LDEBR ...)
 (Cvt64Fto32F ...) -> (LEDBR ...)
 
+(CvtBoolToUint8 ...) -> (Copy ...)
+
 (Round(32|64)F ...) -> (LoweredRound(32|64)F ...)
 
 // Lowering shifts

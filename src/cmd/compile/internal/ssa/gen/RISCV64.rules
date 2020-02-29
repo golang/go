@@ -131,6 +131,8 @@
 (Cvt32Fto64F ...) -> (FCVTDS ...)
 (Cvt64Fto32F ...) -> (FCVTSD ...)
 
+(CvtBoolToUint8 ...) -> (Copy ...)
+
 (Round32F ...) -> (Copy ...)
 (Round64F ...) -> (Copy ...)
 

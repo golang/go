@@ -604,6 +604,9 @@ func rewriteValueARM64(v *Value) bool {
 	case OpCvt64to64F:
 		v.Op = OpARM64SCVTFD
 		return true
+	case OpCvtBoolToUint8:
+		v.Op = OpCopy
+		return true
 	case OpDiv16:
 		return rewriteValueARM64_OpDiv16(v)
 	case OpDiv16u:

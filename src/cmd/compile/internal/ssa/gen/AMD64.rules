@@ -154,6 +154,8 @@
 
 (Round(32|64)F ...) -> (Copy ...)
 
+(CvtBoolToUint8 ...) -> (Copy ...)
+
 // Lowering shifts
 // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
 //   result = (arg << shift) & (shift >= argbits ? 0 : 0xffffffffffffffff)

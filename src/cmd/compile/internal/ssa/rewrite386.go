@@ -408,6 +408,9 @@ func rewriteValue386(v *Value) bool {
 	case OpCvt64Fto32F:
 		v.Op = Op386CVTSD2SS
 		return true
+	case OpCvtBoolToUint8:
+		v.Op = OpCopy
+		return true
 	case OpDiv16:
 		v.Op = Op386DIVW
 		return true

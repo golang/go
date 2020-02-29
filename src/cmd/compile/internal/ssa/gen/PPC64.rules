@@ -59,6 +59,8 @@
 (Cvt32Fto64F ...) -> (Copy ...) // Note v will have the wrong type for patterns dependent on Float32/Float64
 (Cvt64Fto32F ...) -> (FRSP ...)
 
+(CvtBoolToUint8 ...) -> (Copy ...)
+
 (Round(32|64)F ...) -> (LoweredRound(32|64)F ...)
 
 (Sqrt ...) -> (FSQRT ...)
