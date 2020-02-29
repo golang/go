@@ -169,6 +169,9 @@ func rewriteValueWasm(v *Value) bool {
 	case OpCvt64to64F:
 		v.Op = OpWasmF64ConvertI64S
 		return true
+	case OpCvtBoolToUint8:
+		v.Op = OpCopy
+		return true
 	case OpDiv16:
 		return rewriteValueWasm_OpDiv16(v)
 	case OpDiv16u:

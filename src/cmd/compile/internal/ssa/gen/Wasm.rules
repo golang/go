@@ -91,6 +91,8 @@
 (Cvt32Fto64F ...) -> (F64PromoteF32 ...)
 (Cvt64Fto32F ...) -> (F32DemoteF64 ...)
 
+(CvtBoolToUint8 ...) -> (Copy ...)
+
 (Round32F ...) -> (Copy ...)
 (Round64F ...) -> (Copy ...)
 

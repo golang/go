@@ -418,6 +418,7 @@ var genericOps = []opData{
 	{name: "Cvt64Fto64", argLength: 1},
 	{name: "Cvt32Fto64F", argLength: 1},
 	{name: "Cvt64Fto32F", argLength: 1},
+	{name: "CvtBoolToUint8", argLength: 1},
 
 	// Force rounding to precision of type.
 	{name: "Round32F", argLength: 1},

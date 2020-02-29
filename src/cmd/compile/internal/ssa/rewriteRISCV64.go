@@ -114,6 +114,9 @@ func rewriteValueRISCV64(v *Value) bool {
 	case OpCvt64to64F:
 		v.Op = OpRISCV64FCVTDL
 		return true
+	case OpCvtBoolToUint8:
+		v.Op = OpCopy
+		return true
 	case OpDiv16:
 		return rewriteValueRISCV64_OpDiv16(v)
 	case OpDiv16u:

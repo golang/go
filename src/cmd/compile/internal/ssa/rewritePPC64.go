@@ -179,6 +179,9 @@ func rewriteValuePPC64(v *Value) bool {
 		return rewriteValuePPC64_OpCvt64to32F(v)
 	case OpCvt64to64F:
 		return rewriteValuePPC64_OpCvt64to64F(v)
+	case OpCvtBoolToUint8:
+		v.Op = OpCopy
+		return true
 	case OpDiv16:
 		return rewriteValuePPC64_OpDiv16(v)
 	case OpDiv16u:

@@ -780,6 +780,9 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpCvt64to64F:
 		v.Op = OpAMD64CVTSQ2SD
 		return true
+	case OpCvtBoolToUint8:
+		v.Op = OpCopy
+		return true
 	case OpDiv128u:
 		v.Op = OpAMD64DIVQU2
 		return true
