@@ -217,8 +217,11 @@ func Join(elem ...string) string {
 // in the final element of path; it is empty if there is
 // no dot.
 func Ext(path string) string {
-	for i := len(path) - 1; i >= 0 && !os.IsPathSeparator(path[i]); i-- {
+	for i := len(path) - 1; i > 0 && !os.IsPathSeparator(path[i]); i-- {
 		if path[i] == '.' {
+			if os.IsPathSeparator(path[i-1]) {
+				return ""
+			}
 			return path[i:]
 		}
 	}

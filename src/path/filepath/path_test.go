@@ -315,6 +315,9 @@ var exttests = []ExtTest{
 	{"a.dir/b", ""},
 	{"a.dir/b.go", ".go"},
 	{"a.dir/", ""},
+	{"path/.config", ""},
+	{"./.config", ""},
+	{".gitignore", ""},
 }
 
 func TestExt(t *testing.T) {
