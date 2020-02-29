@@ -5,7 +5,6 @@
 package telemetry
 
 import (
-	"context"
 	"fmt"
 )
 
@@ -24,12 +23,6 @@ type TagList []Tag
 // Format is used for debug printing of tags.
 func (t Tag) Format(f fmt.State, r rune) {
 	fmt.Fprintf(f, `%v="%v"`, t.Key, t.Value)
-}
-
-// Tag returns the tag unmodified.
-// It makes Key conform to the Tagger interface.
-func (t Tag) Tag(ctx context.Context) Tag {
-	return t
 }
 
 // Get will get a single key's value from the list.
