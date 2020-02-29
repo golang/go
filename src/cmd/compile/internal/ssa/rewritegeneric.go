@@ -68,6 +68,8 @@ func rewriteValuegeneric(v *Value) bool {
 		return rewriteValuegeneric_OpCvt64to32F(v)
 	case OpCvt64to64F:
 		return rewriteValuegeneric_OpCvt64to64F(v)
+	case OpCvtBoolToUint8:
+		return rewriteValuegeneric_OpCvtBoolToUint8(v)
 	case OpDiv16:
 		return rewriteValuegeneric_OpDiv16(v)
 	case OpDiv16u:
@@ -2977,6 +2979,21 @@ func rewriteValuegeneric_OpCvt64to64F(v *Value) bool {
 		c := v_0.AuxInt
 		v.reset(OpConst64F)
 		v.AuxInt = auxFrom64F(float64(c))
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpCvtBoolToUint8(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (CvtBoolToUint8 (ConstBool [c]))
+	// result: (Const8 [c])
+	for {
+		if v_0.Op != OpConstBool {
+			break
+		}
+		c := v_0.AuxInt
+		v.reset(OpConst8)
+		v.AuxInt = c
 		return true
 	}
 	return false

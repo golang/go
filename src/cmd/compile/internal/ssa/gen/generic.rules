@@ -56,6 +56,7 @@
 (Cvt64Fto64  (Const64F [c])) -> (Const64  [int64(auxTo64F(c))])
 (Round32F x:(Const32F)) -> x
 (Round64F x:(Const64F)) -> x
+(CvtBoolToUint8 (ConstBool [c])) -> (Const8 [c])
 
 (Trunc16to8  (ZeroExt8to16  x)) -> x
 (Trunc32to8  (ZeroExt8to32  x)) -> x
