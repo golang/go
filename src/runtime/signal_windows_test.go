@@ -5,6 +5,7 @@ package runtime_test
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
@@ -63,19 +64,20 @@ func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
 	}
 }
 
-func sendCtrlBreak(t *testing.T, pid int) {
+func sendCtrlBreak(pid int) error {
 	kernel32, err := syscall.LoadDLL("kernel32.dll")
 	if err != nil {
-		t.Fatalf("LoadDLL: %v\n", err)
+		return fmt.Errorf("LoadDLL: %v\n", err)
 	}
 	generateEvent, err := kernel32.FindProc("GenerateConsoleCtrlEvent")
 	if err != nil {
-		t.Fatalf("FindProc: %v\n", err)
+		return fmt.Errorf("FindProc: %v\n", err)
 	}
 	result, _, err := generateEvent.Call(syscall.CTRL_BREAK_EVENT, uintptr(pid))
 	if result == 0 {
-		t.Fatalf("GenerateConsoleCtrlEvent: %v\n", err)
+		return fmt.Errorf("GenerateConsoleCtrlEvent: %v\n", err)
 	}
+	return nil
 }
 
 // TestLibraryCtrlHandler tests that Go DLL allows calling program to handle console control events.
@@ -130,18 +132,20 @@ func TestLibraryCtrlHandler(t *testing.T) {
 		t.Fatalf("Start failed: %v", err)
 	}
 
-	sentCtrl := make(chan bool)
+	errCh := make(chan error, 1)
 	go func() {
-		defer close(sentCtrl)
 		if line, err := outReader.ReadString('\n'); err != nil {
-			t.Fatalf("Could not read stdout: %v", err)
+			errCh <- fmt.Errorf("could not read stdout: %v", err)
 		} else if strings.TrimSpace(line) != "ready" {
-			t.Fatalf("Unexpected message: %v", line)
+			errCh <- fmt.Errorf("unexpected message: %v", line)
+		} else {
+			errCh <- sendCtrlBreak(cmd.Process.Pid)
 		}
-		sendCtrlBreak(t, cmd.Process.Pid)
 	}()
 
-	<-sentCtrl
+	if err := <-errCh; err != nil {
+		t.Fatal(err)
+	}
 	if err := cmd.Wait(); err != nil {
 		t.Fatalf("Program exited with error: %v\n%s", err, &stderr)
 	}
