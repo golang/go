@@ -1112,18 +1112,21 @@ func (data *Data) collectWorkspaceSymbols(typ WorkspaceSymbolsTestType) func(str
 	switch typ {
 	case WorkspaceSymbolsFuzzy:
 		return func(query string, targets []span.Span) {
+			data.FuzzyWorkspaceSymbols[query] = make([]protocol.SymbolInformation, 0, len(targets))
 			for _, target := range targets {
 				data.FuzzyWorkspaceSymbols[query] = append(data.FuzzyWorkspaceSymbols[query], data.symbolInformation[target])
 			}
 		}
 	case WorkspaceSymbolsCaseSensitive:
 		return func(query string, targets []span.Span) {
+			data.CaseSensitiveWorkspaceSymbols[query] = make([]protocol.SymbolInformation, 0, len(targets))
 			for _, target := range targets {
 				data.CaseSensitiveWorkspaceSymbols[query] = append(data.CaseSensitiveWorkspaceSymbols[query], data.symbolInformation[target])
 			}
 		}
 	default:
 		return func(query string, targets []span.Span) {
+			data.WorkspaceSymbols[query] = make([]protocol.SymbolInformation, 0, len(targets))
 			for _, target := range targets {
 				data.WorkspaceSymbols[query] = append(data.WorkspaceSymbols[query], data.symbolInformation[target])
 			}
