@@ -106,12 +106,13 @@ func init() {
 	callerSave := gpMask | fpMask | regNamed["g"]
 
 	var (
-		gpstore = regInfo{inputs: []regMask{gpspsbMask, gpspMask, 0}} // SB in first input so we can load from a global, but not in second to avoid using SB as a temporary register
-		gp01    = regInfo{outputs: []regMask{gpMask}}
-		gp11    = regInfo{inputs: []regMask{gpMask}, outputs: []regMask{gpMask}}
-		gp21    = regInfo{inputs: []regMask{gpMask, gpMask}, outputs: []regMask{gpMask}}
-		gpload  = regInfo{inputs: []regMask{gpspsbMask, 0}, outputs: []regMask{gpMask}}
-		gp11sb  = regInfo{inputs: []regMask{gpspsbMask}, outputs: []regMask{gpMask}}
+		gpstore  = regInfo{inputs: []regMask{gpspsbMask, gpspMask, 0}} // SB in first input so we can load from a global, but not in second to avoid using SB as a temporary register
+		gpstore0 = regInfo{inputs: []regMask{gpspsbMask}}
+		gp01     = regInfo{outputs: []regMask{gpMask}}
+		gp11     = regInfo{inputs: []regMask{gpMask}, outputs: []regMask{gpMask}}
+		gp21     = regInfo{inputs: []regMask{gpMask, gpMask}, outputs: []regMask{gpMask}}
+		gpload   = regInfo{inputs: []regMask{gpspsbMask, 0}, outputs: []regMask{gpMask}}
+		gp11sb   = regInfo{inputs: []regMask{gpspsbMask}, outputs: []regMask{gpMask}}
 
 		fp11    = regInfo{inputs: []regMask{fpMask}, outputs: []regMask{fpMask}}
 		fp21    = regInfo{inputs: []regMask{fpMask, fpMask}, outputs: []regMask{fpMask}}
@@ -170,6 +171,12 @@ func init() {
 		{name: "MOVHstore", argLength: 3, reg: gpstore, asm: "MOVH", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // 16 bits
 		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // 32 bits
 		{name: "MOVDstore", argLength: 3, reg: gpstore, asm: "MOV", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // 64 bits
+
+		// Stores: store <size> of zero in arg0+auxint+aux; arg1=mem
+		{name: "MOVBstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVB", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, //  8 bits
+		{name: "MOVHstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVH", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // 16 bits
+		{name: "MOVWstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOVW", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // 32 bits
+		{name: "MOVDstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOV", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // 64 bits
 
 		// Shift ops
 		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                 // arg0 << aux1

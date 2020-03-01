@@ -327,6 +327,14 @@
 	(MOVWstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 (MOVDstore [off1] {sym1} (MOVaddr [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(MOVDstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+(MOVBstorezero [off1] {sym1} (MOVaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) && is32Bit(off1+off2) ->
+	(MOVBstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVHstorezero [off1] {sym1} (MOVaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) && is32Bit(off1+off2) ->
+	(MOVHstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVWstorezero [off1] {sym1} (MOVaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) && is32Bit(off1+off2) ->
+	(MOVWstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVDstorezero [off1] {sym1} (MOVaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) && is32Bit(off1+off2) ->
+	(MOVDstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 
 (MOVBUload [off1] {sym} (ADDI [off2] base) mem) && is32Bit(off1+off2) ->
 	(MOVBUload [off1+off2] {sym} base mem)
@@ -351,6 +359,10 @@
 	(MOVWstore [off1+off2] {sym} base val mem)
 (MOVDstore [off1] {sym} (ADDI [off2] base) val mem) && is32Bit(off1+off2) ->
 	(MOVDstore [off1+off2] {sym} base val mem)
+(MOVBstorezero [off1] {sym} (ADDI [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVBstorezero [off1+off2] {sym} ptr mem)
+(MOVHstorezero [off1] {sym} (ADDI [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVHstorezero [off1+off2] {sym} ptr mem)
+(MOVWstorezero [off1] {sym} (ADDI [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVWstorezero [off1+off2] {sym} ptr mem)
+(MOVDstorezero [off1] {sym} (ADDI [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVDstorezero [off1+off2] {sym} ptr mem)
 
 // Similarly, fold ADDI into MOVaddr to avoid confusing live variable analysis
 // with OffPtr -> ADDI.
@@ -460,6 +472,12 @@
 
 // Absorb SNEZ into branch.
 (BNE (SNEZ x) yes no) -> (BNE x yes no)
+
+// Store zero
+(MOVBstore [off] {sym} ptr (MOVBconst [0]) mem) -> (MOVBstorezero [off] {sym} ptr mem)
+(MOVHstore [off] {sym} ptr (MOVHconst [0]) mem) -> (MOVHstorezero [off] {sym} ptr mem)
+(MOVWstore [off] {sym} ptr (MOVWconst [0]) mem) -> (MOVWstorezero [off] {sym} ptr mem)
+(MOVDstore [off] {sym} ptr (MOVDconst [0]) mem) -> (MOVDstorezero [off] {sym} ptr mem)
 
 // Fold ADD+MOVDconst into ADDI where possible.
 (ADD (MOVDconst [off]) ptr) && is32Bit(off) -> (ADDI [off] ptr)
