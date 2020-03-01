@@ -119,7 +119,8 @@ func DefaultOptions() Options {
 			},
 		},
 		DebuggingOptions: DebuggingOptions{
-			CompletionBudget: 100 * time.Millisecond,
+			CompletionBudget:   100 * time.Millisecond,
+			LiteralCompletions: true,
 		},
 		ExperimentalOptions: ExperimentalOptions{
 			TempModfile: true,
@@ -272,6 +273,11 @@ type DebuggingOptions struct {
 	// dynamically reduce the search scope to ensure we return timely
 	// results. Zero means unlimited.
 	CompletionBudget time.Duration
+
+	// LiteralCompletions controls whether literal candidates such as
+	// "&someStruct{}" are offered. Tests disable this flag to simplify
+	// their expected values.
+	LiteralCompletions bool
 }
 
 type Matcher int

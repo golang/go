@@ -78,6 +78,10 @@ type CompletionItem struct {
 
 	// Documentation is the documentation for the completion item.
 	Documentation string
+
+	// obj is the object from which this candidate was derived, if any.
+	// obj is for internal use only.
+	obj types.Object
 }
 
 // Snippet is a convenience returns the snippet if available, otherwise
@@ -501,7 +505,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 			documentation:     opts.CompletionDocumentation,
 			fullDocumentation: opts.HoverKind == FullDocumentation,
 			placeholders:      opts.Placeholders,
-			literal:           opts.InsertTextFormat == protocol.SnippetTextFormat,
+			literal:           opts.LiteralCompletions && opts.InsertTextFormat == protocol.SnippetTextFormat,
 			budget:            opts.CompletionBudget,
 		},
 		// default to a matcher that always matches
@@ -553,10 +557,6 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 		return c.items, c.getSurrounding(), nil
 	}
 
-	// Statement candidates offer an entire statement in certain
-	// contexts, as opposed to a single object.
-	c.addStatementCandidates()
-
 	if c.emptySwitchStmt() {
 		// Empty switch statements only admit "default" and "case" keywords.
 		c.addKeywordItems(map[string]bool{}, highScore, CASE, DEFAULT)
@@ -570,9 +570,20 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 			if err := c.selector(ctx, sel); err != nil {
 				return nil, nil, err
 			}
-			return c.items, c.getSurrounding(), nil
-		}
-		if err := c.lexical(ctx); err != nil {
+		} else if obj, ok := pkg.GetTypesInfo().Defs[n]; ok {
+			// reject defining identifiers
+
+			if v, ok := obj.(*types.Var); ok && v.IsField() && v.Embedded() {
+				// An anonymous field is also a reference to a type.
+			} else {
+				objStr := ""
+				if obj != nil {
+					qual := types.RelativeTo(pkg.GetTypes())
+					objStr = types.ObjectString(obj, qual)
+				}
+				return nil, nil, ErrIsDefinition{objStr: objStr}
+			}
+		} else if err := c.lexical(ctx); err != nil {
 			return nil, nil, err
 		}
 	// The function name hasn't been typed yet, but the parens are there:
@@ -598,6 +609,12 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 			return nil, nil, err
 		}
 	}
+
+	// Statement candidates offer an entire statement in certain
+	// contexts, as opposed to a single object. Add statement candidates
+	// last because they depend on other candidates having already been
+	// collected.
+	c.addStatementCandidates()
 
 	return c.items, c.getSurrounding(), nil
 }

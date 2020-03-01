@@ -166,6 +166,7 @@ func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, e
 		Score:               cand.score,
 		Depth:               len(c.deepState.chain),
 		snippet:             snip,
+		obj:                 obj,
 	}
 	// If the user doesn't want documentation for completion items.
 	if !c.opts.documentation {

@@ -117,11 +117,9 @@ func (r *runner) Completion(t *testing.T, src span.Span, test tests.Completion, 
 		opts.Matcher = source.CaseInsensitive
 		opts.DeepCompletion = false
 		opts.UnimportedCompletion = false
-		opts.InsertTextFormat = protocol.PlainTextTextFormat
-		// Only enable literal completions if in the completion literals tests.
-		// TODO(rstambler): Separate out literal completion tests.
-		if strings.Contains(string(src.URI()), "literal") {
-			opts.InsertTextFormat = protocol.SnippetTextFormat
+		opts.InsertTextFormat = protocol.SnippetTextFormat
+		if !strings.Contains(string(src.URI()), "literal") {
+			opts.LiteralCompletions = false
 		}
 	})
 	got = tests.FilterBuiltins(src, got)
