@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package telemetry
+package export
 
 import (
 	crand "crypto/rand"
@@ -48,7 +48,7 @@ func initGenerator() {
 	spanIDInc |= 1
 }
 
-func NewTraceID() TraceID {
+func newTraceID() TraceID {
 	generationMu.Lock()
 	defer generationMu.Unlock()
 	if traceIDRand == nil {
@@ -60,7 +60,7 @@ func NewTraceID() TraceID {
 	return tid
 }
 
-func NewSpanID() SpanID {
+func newSpanID() SpanID {
 	var id uint64
 	for id == 0 {
 		id = atomic.AddUint64(&nextSpanID, spanIDInc)

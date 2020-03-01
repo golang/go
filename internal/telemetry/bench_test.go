@@ -107,19 +107,12 @@ func newExporter() *loggingExporter {
 }
 
 func (e *loggingExporter) ProcessEvent(ctx context.Context, event telemetry.Event) context.Context {
+	export.ContextSpan(ctx, event)
 	return e.logger.ProcessEvent(ctx, event)
 }
 
 func (e *loggingExporter) Metric(ctx context.Context, data telemetry.MetricData) {
 	e.logger.Metric(ctx, data)
-}
-
-func (e *loggingExporter) StartSpan(ctx context.Context, span *telemetry.Span) {
-	e.logger.StartSpan(ctx, span)
-}
-
-func (e *loggingExporter) FinishSpan(ctx context.Context, span *telemetry.Span) {
-	e.logger.FinishSpan(ctx, span)
 }
 
 func BenchmarkBaseline(b *testing.B) {

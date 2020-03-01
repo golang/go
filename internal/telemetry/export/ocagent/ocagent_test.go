@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"golang.org/x/tools/internal/telemetry"
+	"golang.org/x/tools/internal/telemetry/export"
 	"golang.org/x/tools/internal/telemetry/export/ocagent"
 	"golang.org/x/tools/internal/telemetry/tag"
 )
@@ -213,14 +214,22 @@ func TestEvents(t *testing.T) {
 	ctx := context.TODO()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			span := &telemetry.Span{
-				Name:   "event span",
-				Start:  start,
-				Finish: end,
-				Events: []telemetry.Event{tt.event(ctx)},
+			startEvent := telemetry.Event{
+				Type:    telemetry.EventStartSpan,
+				Message: "event span",
+				At:      start,
 			}
-			exporter.StartSpan(ctx, span)
-			exporter.FinishSpan(ctx, span)
+			endEvent := telemetry.Event{
+				Type: telemetry.EventEndSpan,
+				At:   end,
+			}
+			ctx := export.ContextSpan(ctx, startEvent)
+			span := export.GetSpan(ctx)
+			span.ID = export.SpanContext{}
+			span.Events = []telemetry.Event{tt.event(ctx)}
+			exporter.ProcessEvent(ctx, startEvent)
+			export.ContextSpan(ctx, endEvent)
+			exporter.ProcessEvent(ctx, endEvent)
 			exporter.Flush()
 			got := sent.get("/v1/trace")
 			checkJSON(t, got, []byte(tt.want))

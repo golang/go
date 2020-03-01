@@ -23,9 +23,6 @@ type Exporter interface {
 	// given event.
 	ProcessEvent(context.Context, telemetry.Event) context.Context
 
-	StartSpan(context.Context, *telemetry.Span)
-	FinishSpan(context.Context, *telemetry.Span)
-
 	Metric(context.Context, telemetry.MetricData)
 }
 
@@ -45,31 +42,13 @@ func SetExporter(e Exporter) {
 	atomic.StorePointer(&exporter, p)
 }
 
-func StartSpan(ctx context.Context, span *telemetry.Span, at time.Time) {
-	exporterPtr := (*Exporter)(atomic.LoadPointer(&exporter))
-	if exporterPtr == nil {
-		return
-	}
-	span.Start = at
-	(*exporterPtr).StartSpan(ctx, span)
-}
-
-func FinishSpan(ctx context.Context, span *telemetry.Span, at time.Time) {
-	exporterPtr := (*Exporter)(atomic.LoadPointer(&exporter))
-	if exporterPtr == nil {
-		return
-	}
-	span.Finish = at
-	(*exporterPtr).FinishSpan(ctx, span)
-}
-
 func Tag(ctx context.Context, at time.Time, tags telemetry.TagList) {
 	exporterPtr := (*Exporter)(atomic.LoadPointer(&exporter))
 	if exporterPtr == nil {
 		return
 	}
 	// If context has a span we need to add the tags to it
-	span := telemetry.GetSpan(ctx)
+	span := GetSpan(ctx)
 	if span == nil {
 		return
 	}
@@ -89,11 +68,6 @@ func ProcessEvent(ctx context.Context, event telemetry.Event) context.Context {
 	exporterPtr := (*Exporter)(atomic.LoadPointer(&exporter))
 	if exporterPtr == nil {
 		return ctx
-	}
-	// If context has a span we need to add the event to it
-	span := telemetry.GetSpan(ctx)
-	if span != nil {
-		span.Events = append(span.Events, event)
 	}
 	// and now also hand the event of to the current exporter
 	return (*exporterPtr).ProcessEvent(ctx, event)

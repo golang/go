@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"golang.org/x/tools/internal/telemetry"
+	"golang.org/x/tools/internal/telemetry/export"
 	"golang.org/x/tools/internal/telemetry/export/ocagent/wire"
 	"golang.org/x/tools/internal/telemetry/tag"
 )
@@ -45,7 +46,7 @@ func Discover() *Config {
 type Exporter struct {
 	mu      sync.Mutex
 	config  Config
-	spans   []*telemetry.Span
+	spans   []*export.Span
 	metrics []telemetry.MetricData
 }
 
@@ -84,15 +85,16 @@ func Connect(config *Config) *Exporter {
 	return exporter
 }
 
-func (e *Exporter) StartSpan(ctx context.Context, span *telemetry.Span) {}
-
-func (e *Exporter) FinishSpan(ctx context.Context, span *telemetry.Span) {
+func (e *Exporter) ProcessEvent(ctx context.Context, event telemetry.Event) context.Context {
+	if event.Type != telemetry.EventEndSpan {
+		return ctx
+	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.spans = append(e.spans, span)
-}
-
-func (e *Exporter) ProcessEvent(ctx context.Context, event telemetry.Event) context.Context {
+	span := export.GetSpan(ctx)
+	if span != nil {
+		e.spans = append(e.spans, span)
+	}
 	return ctx
 }
 
@@ -189,7 +191,7 @@ func toTruncatableString(s string) *wire.TruncatableString {
 	return &wire.TruncatableString{Value: s}
 }
 
-func convertSpan(span *telemetry.Span) *wire.Span {
+func convertSpan(span *export.Span) *wire.Span {
 	result := &wire.Span{
 		TraceID:                 span.ID.TraceID[:],
 		SpanID:                  span.ID.SpanID[:],

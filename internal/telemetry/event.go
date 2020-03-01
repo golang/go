@@ -13,6 +13,8 @@ type EventType uint8
 
 const (
 	EventLog = EventType(iota)
+	EventStartSpan
+	EventEndSpan
 )
 
 type Event struct {

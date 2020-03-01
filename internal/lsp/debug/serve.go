@@ -544,43 +544,21 @@ func (i *Instance) writeMemoryDebug(threshold uint64) error {
 	return nil
 }
 
-func (e *exporter) StartSpan(ctx context.Context, spn *telemetry.Span) {
-	i := GetInstance(ctx)
-	if i == nil {
-		return
-	}
-	if i.ocagent != nil {
-		i.ocagent.StartSpan(ctx, spn)
-	}
-	if i.traces != nil {
-		i.traces.StartSpan(ctx, spn)
-	}
-}
-
-func (e *exporter) FinishSpan(ctx context.Context, spn *telemetry.Span) {
-	i := GetInstance(ctx)
-	if i == nil {
-		return
-	}
-	if i.ocagent != nil {
-		i.ocagent.FinishSpan(ctx, spn)
-	}
-	if i.traces != nil {
-		i.traces.FinishSpan(ctx, spn)
-	}
-}
-
 func (e *exporter) ProcessEvent(ctx context.Context, event telemetry.Event) context.Context {
+	ctx = export.ContextSpan(ctx, event)
 	i := GetInstance(ctx)
 	if event.Type == telemetry.EventLog && (event.Error != nil || i == nil) {
 		fmt.Fprintf(e.stderr, "%v\n", event)
 	}
-	protocol.LogEvent(ctx, event)
+	ctx = protocol.LogEvent(ctx, event)
 	if i == nil {
 		return ctx
 	}
 	if i.ocagent != nil {
 		ctx = i.ocagent.ProcessEvent(ctx, event)
+	}
+	if i.traces != nil {
+		ctx = i.traces.ProcessEvent(ctx, event)
 	}
 	return ctx
 }

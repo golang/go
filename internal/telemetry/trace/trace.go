@@ -11,29 +11,25 @@ import (
 
 	"golang.org/x/tools/internal/telemetry"
 	"golang.org/x/tools/internal/telemetry/export"
-	"golang.org/x/tools/internal/telemetry/tag"
 )
 
 func StartSpan(ctx context.Context, name string, tags ...telemetry.Tag) (context.Context, func()) {
-	start := time.Now()
-	span := &telemetry.Span{Name: name}
-	if parent := telemetry.GetSpan(ctx); parent != nil {
-		span.ID.TraceID = parent.ID.TraceID
-		span.ParentID = parent.ID.SpanID
-	} else {
-		span.ID.TraceID = telemetry.NewTraceID()
+	ctx = export.ProcessEvent(ctx, telemetry.Event{
+		Type:    telemetry.EventStartSpan,
+		Message: name,
+		At:      time.Now(),
+		Tags:    tags,
+	})
+	return ctx, func() {
+		export.ProcessEvent(ctx, telemetry.Event{
+			Type: telemetry.EventEndSpan,
+			At:   time.Now(),
+		})
 	}
-	span.ID.SpanID = telemetry.NewSpanID()
-	ctx = telemetry.WithSpan(ctx, span)
-	if len(tags) > 0 {
-		ctx = tag.With(ctx, tags...)
-	}
-	export.StartSpan(ctx, span, start)
-	return ctx, func() { export.FinishSpan(ctx, span, time.Now()) }
 }
 
 // Detach returns a context without an associated span.
 // This allows the creation of spans that are not children of the current span.
 func Detach(ctx context.Context) context.Context {
-	return telemetry.WithSpan(ctx, nil)
+	return export.Detach(ctx)
 }
