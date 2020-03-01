@@ -467,5 +467,14 @@
 (SUB x (MOVWconst [val])) && is32Bit(-val) -> (ADDI [-val] x)
 (SUB x (MOVDconst [val])) && is32Bit(-val) -> (ADDI [-val] x)
 
+// Subtraction of zero.
+(SUB x (MOVBconst [0])) -> x
+(SUB x (MOVHconst [0])) -> x
+(SUB x (MOVWconst [0])) -> x
+(SUB x (MOVDconst [0])) -> x
+
+// Subtraction of zero with sign extension.
+(SUBW x (MOVWconst [0])) -> (ADDIW [0] x)
+
 // remove redundant *const ops
 (ADDI [0]  x) -> x
