@@ -18,7 +18,8 @@ type Event telemetry.Event
 
 // With sends a tag list to the installed loggers.
 func With(ctx context.Context, tags ...telemetry.Tag) {
-	export.Log(ctx, telemetry.Event{
+	export.ProcessEvent(ctx, telemetry.Event{
+		Type: telemetry.EventLog,
 		At:   time.Now(),
 		Tags: tags,
 	})
@@ -27,7 +28,8 @@ func With(ctx context.Context, tags ...telemetry.Tag) {
 // Print takes a message and a tag list and combines them into a single tag
 // list before delivering them to the loggers.
 func Print(ctx context.Context, message string, tags ...telemetry.Tag) {
-	export.Log(ctx, telemetry.Event{
+	export.ProcessEvent(ctx, telemetry.Event{
+		Type:    telemetry.EventLog,
 		At:      time.Now(),
 		Message: message,
 		Tags:    tags,
@@ -42,7 +44,8 @@ func Error(ctx context.Context, message string, err error, tags ...telemetry.Tag
 		err = errorString(message)
 		message = ""
 	}
-	export.Log(ctx, telemetry.Event{
+	export.ProcessEvent(ctx, telemetry.Event{
+		Type:    telemetry.EventLog,
 		At:      time.Now(),
 		Message: message,
 		Error:   err,

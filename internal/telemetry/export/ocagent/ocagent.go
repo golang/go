@@ -92,7 +92,9 @@ func (e *Exporter) FinishSpan(ctx context.Context, span *telemetry.Span) {
 	e.spans = append(e.spans, span)
 }
 
-func (e *Exporter) Log(context.Context, telemetry.Event) {}
+func (e *Exporter) ProcessEvent(ctx context.Context, event telemetry.Event) context.Context {
+	return ctx
+}
 
 func (e *Exporter) Metric(ctx context.Context, data telemetry.MetricData) {
 	e.mu.Lock()

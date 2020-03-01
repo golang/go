@@ -570,18 +570,19 @@ func (e *exporter) FinishSpan(ctx context.Context, spn *telemetry.Span) {
 	}
 }
 
-func (e *exporter) Log(ctx context.Context, event telemetry.Event) {
+func (e *exporter) ProcessEvent(ctx context.Context, event telemetry.Event) context.Context {
 	i := GetInstance(ctx)
-	if event.Error != nil || i == nil {
+	if event.Type == telemetry.EventLog && (event.Error != nil || i == nil) {
 		fmt.Fprintf(e.stderr, "%v\n", event)
 	}
-	if i == nil {
-		return
-	}
 	protocol.LogEvent(ctx, event)
-	if i.ocagent != nil {
-		i.ocagent.Log(ctx, event)
+	if i == nil {
+		return ctx
 	}
+	if i.ocagent != nil {
+		ctx = i.ocagent.ProcessEvent(ctx, event)
+	}
+	return ctx
 }
 
 func (e *exporter) Metric(ctx context.Context, data telemetry.MetricData) {

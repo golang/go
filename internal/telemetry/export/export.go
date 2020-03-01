@@ -18,13 +18,13 @@ import (
 )
 
 type Exporter interface {
+	// ProcessEvent is a function that handles all events.
+	// Exporters may use information in the context to decide what to do with a
+	// given event.
+	ProcessEvent(context.Context, telemetry.Event) context.Context
+
 	StartSpan(context.Context, *telemetry.Span)
 	FinishSpan(context.Context, *telemetry.Span)
-
-	// Log is a function that handles logging events.
-	// Observers may use information in the context to decide what to do with a
-	// given log event.
-	Log(context.Context, telemetry.Event)
 
 	Metric(context.Context, telemetry.MetricData)
 }
@@ -85,18 +85,18 @@ func Tag(ctx context.Context, at time.Time, tags telemetry.TagList) {
 	})
 }
 
-func Log(ctx context.Context, event telemetry.Event) {
+func ProcessEvent(ctx context.Context, event telemetry.Event) context.Context {
 	exporterPtr := (*Exporter)(atomic.LoadPointer(&exporter))
 	if exporterPtr == nil {
-		return
+		return ctx
 	}
 	// If context has a span we need to add the event to it
 	span := telemetry.GetSpan(ctx)
 	if span != nil {
 		span.Events = append(span.Events, event)
 	}
-	// and now also hand the event of to the current observer
-	(*exporterPtr).Log(ctx, event)
+	// and now also hand the event of to the current exporter
+	return (*exporterPtr).ProcessEvent(ctx, event)
 }
 
 func Metric(ctx context.Context, data telemetry.MetricData) {

@@ -27,10 +27,11 @@ type logWriter struct {
 
 func (w *logWriter) StartSpan(context.Context, *telemetry.Span)  {}
 func (w *logWriter) FinishSpan(context.Context, *telemetry.Span) {}
-func (w *logWriter) Log(ctx context.Context, event telemetry.Event) {
+func (w *logWriter) ProcessEvent(ctx context.Context, event telemetry.Event) context.Context {
 	if w.onlyErrors && event.Error == nil {
-		return
+		return ctx
 	}
 	fmt.Fprintf(w.writer, "%v\n", event)
+	return ctx
 }
 func (w *logWriter) Metric(context.Context, telemetry.MetricData) {}
