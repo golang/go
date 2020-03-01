@@ -1917,6 +1917,10 @@ const (
 	OpRISCV64MOVHstore
 	OpRISCV64MOVWstore
 	OpRISCV64MOVDstore
+	OpRISCV64MOVBstorezero
+	OpRISCV64MOVHstorezero
+	OpRISCV64MOVWstorezero
+	OpRISCV64MOVDstorezero
 	OpRISCV64SLL
 	OpRISCV64SRA
 	OpRISCV64SRL
@@ -25479,6 +25483,58 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 1073741814},          // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+			},
+		},
+	},
+	{
+		name:           "MOVBstorezero",
+		auxType:        auxSymOff,
+		argLen:         2,
+		faultOnNilArg0: true,
+		symEffect:      SymWrite,
+		asm:            riscv.AMOVB,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+			},
+		},
+	},
+	{
+		name:           "MOVHstorezero",
+		auxType:        auxSymOff,
+		argLen:         2,
+		faultOnNilArg0: true,
+		symEffect:      SymWrite,
+		asm:            riscv.AMOVH,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+			},
+		},
+	},
+	{
+		name:           "MOVWstorezero",
+		auxType:        auxSymOff,
+		argLen:         2,
+		faultOnNilArg0: true,
+		symEffect:      SymWrite,
+		asm:            riscv.AMOVW,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+			},
+		},
+	},
+	{
+		name:           "MOVDstorezero",
+		auxType:        auxSymOff,
+		argLen:         2,
+		faultOnNilArg0: true,
+		symEffect:      SymWrite,
+		asm:            riscv.AMOV,
+		reg: regInfo{
+			inputs: []inputInfo{
 				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
 			},
 		},
