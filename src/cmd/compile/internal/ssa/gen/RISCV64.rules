@@ -438,9 +438,6 @@
 (MOVDconst <t> [c]) && !is32Bit(c) && int32(c) <  0 -> (ADD (SLLI <t> [32] (MOVDconst [c>>32+1])) (MOVDconst [int64(int32(c))]))
 (MOVDconst <t> [c]) && !is32Bit(c) && int32(c) >= 0 -> (ADD (SLLI <t> [32] (MOVDconst [c>>32+0])) (MOVDconst [int64(int32(c))]))
 
-// Fold ADD+MOVDconst into ADDI where possible.
-(ADD (MOVDconst [off]) ptr) && is32Bit(off) -> (ADDI [off] ptr)
-
 (Addr ...) -> (MOVaddr ...)
 (LocalAddr {sym} base _) -> (MOVaddr {sym} base)
 
@@ -458,6 +455,17 @@
 (StaticCall  ...) -> (CALLstatic  ...)
 (ClosureCall ...) -> (CALLclosure ...)
 (InterCall   ...) -> (CALLinter   ...)
+
+// Optimizations
+
+// Fold ADD+MOVDconst into ADDI where possible.
+(ADD (MOVDconst [off]) ptr) && is32Bit(off) -> (ADDI [off] ptr)
+
+// Convert subtraction of a const into ADDI with negative immediate, where possible.
+(SUB x (MOVBconst [val])) && is32Bit(-val) -> (ADDI [-val] x)
+(SUB x (MOVHconst [val])) && is32Bit(-val) -> (ADDI [-val] x)
+(SUB x (MOVWconst [val])) && is32Bit(-val) -> (ADDI [-val] x)
+(SUB x (MOVDconst [val])) && is32Bit(-val) -> (ADDI [-val] x)
 
 // remove redundant *const ops
 (ADDI [0]  x) -> x
