@@ -318,7 +318,7 @@ func startRemote(goplsPath, network, address string) error {
 	args := []string{"serve",
 		"-listen", fmt.Sprintf(`%s;%s`, network, address),
 		"-listen.timeout", "1m",
-		"-debug", ":0",
+		"-debug", "localhost:0",
 		"-logfile", "auto",
 	}
 	cmd := exec.Command(goplsPath, args...)
