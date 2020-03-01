@@ -4258,8 +4258,7 @@ func rewriteBlockRISCV64(b *Block) bool {
 		// result: (BNE cond yes no)
 		for {
 			cond := b.Controls[0]
-			b.Reset(BlockRISCV64BNE)
-			b.AddControl(cond)
+			b.resetWithControl(BlockRISCV64BNE, cond)
 			return true
 		}
 	}

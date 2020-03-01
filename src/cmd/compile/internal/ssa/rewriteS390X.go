@@ -19046,9 +19046,7 @@ func rewriteBlockS390X(b *Block) bool {
 			y := v_0.Args[1]
 			x := v_0.Args[0]
 			c := b.Aux
-			b.Reset(BlockS390XCGRJ)
-			b.AddControl(x)
-			b.AddControl(y)
+			b.resetWithControl2(BlockS390XCGRJ, x, y)
 			b.Aux = c.(s390x.CCMask) &^ s390x.Unordered
 			return true
 		}
@@ -19059,9 +19057,7 @@ func rewriteBlockS390X(b *Block) bool {
 			y := v_0.Args[1]
 			x := v_0.Args[0]
 			c := b.Aux
-			b.Reset(BlockS390XCRJ)
-			b.AddControl(x)
-			b.AddControl(y)
+			b.resetWithControl2(BlockS390XCRJ, x, y)
 			b.Aux = c.(s390x.CCMask) &^ s390x.Unordered
 			return true
 		}
@@ -19072,9 +19068,7 @@ func rewriteBlockS390X(b *Block) bool {
 			y := v_0.Args[1]
 			x := v_0.Args[0]
 			c := b.Aux
-			b.Reset(BlockS390XCLGRJ)
-			b.AddControl(x)
-			b.AddControl(y)
+			b.resetWithControl2(BlockS390XCLGRJ, x, y)
 			b.Aux = c.(s390x.CCMask) &^ s390x.Unordered
 			return true
 		}
@@ -19085,9 +19079,7 @@ func rewriteBlockS390X(b *Block) bool {
 			y := v_0.Args[1]
 			x := v_0.Args[0]
 			c := b.Aux
-			b.Reset(BlockS390XCLRJ)
-			b.AddControl(x)
-			b.AddControl(y)
+			b.resetWithControl2(BlockS390XCLRJ, x, y)
 			b.Aux = c.(s390x.CCMask) &^ s390x.Unordered
 			return true
 		}
@@ -19102,8 +19094,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if !(is8Bit(y)) {
 				break
 			}
-			b.Reset(BlockS390XCGIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCGIJ, x)
 			b.AuxInt = int64(int8(y))
 			b.Aux = c.(s390x.CCMask) &^ s390x.Unordered
 			return true
@@ -19119,8 +19110,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if !(is8Bit(y)) {
 				break
 			}
-			b.Reset(BlockS390XCIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCIJ, x)
 			b.AuxInt = int64(int8(y))
 			b.Aux = c.(s390x.CCMask) &^ s390x.Unordered
 			return true
@@ -19136,8 +19126,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if !(isU8Bit(y)) {
 				break
 			}
-			b.Reset(BlockS390XCLGIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCLGIJ, x)
 			b.AuxInt = int64(int8(y))
 			b.Aux = c.(s390x.CCMask) &^ s390x.Unordered
 			return true
@@ -19153,8 +19142,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if !(isU8Bit(y)) {
 				break
 			}
-			b.Reset(BlockS390XCLIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCLIJ, x)
 			b.AuxInt = int64(int8(y))
 			b.Aux = c.(s390x.CCMask) &^ s390x.Unordered
 			return true
@@ -19170,8 +19158,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if b.Aux != s390x.Less {
 				break
 			}
-			b.Reset(BlockS390XCGIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCGIJ, x)
 			b.AuxInt = 127
 			b.Aux = s390x.LessOrEqual
 			return true
@@ -19187,8 +19174,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if b.Aux != s390x.Less {
 				break
 			}
-			b.Reset(BlockS390XCIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCIJ, x)
 			b.AuxInt = 127
 			b.Aux = s390x.LessOrEqual
 			return true
@@ -19204,8 +19190,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if b.Aux != s390x.LessOrEqual {
 				break
 			}
-			b.Reset(BlockS390XCGIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCGIJ, x)
 			b.AuxInt = -128
 			b.Aux = s390x.Less
 			return true
@@ -19221,8 +19206,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if b.Aux != s390x.LessOrEqual {
 				break
 			}
-			b.Reset(BlockS390XCIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCIJ, x)
 			b.AuxInt = -128
 			b.Aux = s390x.Less
 			return true
@@ -19238,8 +19222,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if b.Aux != s390x.Greater {
 				break
 			}
-			b.Reset(BlockS390XCGIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCGIJ, x)
 			b.AuxInt = -128
 			b.Aux = s390x.GreaterOrEqual
 			return true
@@ -19255,8 +19238,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if b.Aux != s390x.Greater {
 				break
 			}
-			b.Reset(BlockS390XCIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCIJ, x)
 			b.AuxInt = -128
 			b.Aux = s390x.GreaterOrEqual
 			return true
@@ -19272,8 +19254,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if b.Aux != s390x.GreaterOrEqual {
 				break
 			}
-			b.Reset(BlockS390XCGIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCGIJ, x)
 			b.AuxInt = 127
 			b.Aux = s390x.Greater
 			return true
@@ -19289,8 +19270,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if b.Aux != s390x.GreaterOrEqual {
 				break
 			}
-			b.Reset(BlockS390XCIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCIJ, x)
 			b.AuxInt = 127
 			b.Aux = s390x.Greater
 			return true
@@ -19306,8 +19286,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if b.Aux != s390x.Less {
 				break
 			}
-			b.Reset(BlockS390XCLIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCLIJ, x)
 			b.AuxInt = -1
 			b.Aux = s390x.LessOrEqual
 			return true
@@ -19323,8 +19302,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if b.Aux != s390x.Less {
 				break
 			}
-			b.Reset(BlockS390XCLGIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCLGIJ, x)
 			b.AuxInt = -1
 			b.Aux = s390x.LessOrEqual
 			return true
@@ -19340,8 +19318,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if b.Aux != s390x.GreaterOrEqual {
 				break
 			}
-			b.Reset(BlockS390XCLIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCLIJ, x)
 			b.AuxInt = -1
 			b.Aux = s390x.Greater
 			return true
@@ -19357,8 +19334,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if b.Aux != s390x.GreaterOrEqual {
 				break
 			}
-			b.Reset(BlockS390XCLGIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCLGIJ, x)
 			b.AuxInt = -1
 			b.Aux = s390x.Greater
 			return true
@@ -19369,8 +19345,7 @@ func rewriteBlockS390X(b *Block) bool {
 			v_0 := b.Controls[0]
 			cmp := v_0.Args[0]
 			c := b.Aux
-			b.Reset(BlockS390XBRC)
-			b.AddControl(cmp)
+			b.resetWithControl(BlockS390XBRC, cmp)
 			b.Aux = c.(s390x.CCMask).ReverseComparison()
 			return true
 		}
@@ -19566,8 +19541,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if !(is8Bit(y)) {
 				break
 			}
-			b.Reset(BlockS390XCGIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCGIJ, x)
 			b.AuxInt = int64(int8(y))
 			b.Aux = c
 			return true
@@ -19583,8 +19557,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if !(is8Bit(x)) {
 				break
 			}
-			b.Reset(BlockS390XCGIJ)
-			b.AddControl(y)
+			b.resetWithControl(BlockS390XCGIJ, y)
 			b.AuxInt = int64(int8(x))
 			b.Aux = c.(s390x.CCMask).ReverseComparison()
 			return true
@@ -19600,11 +19573,10 @@ func rewriteBlockS390X(b *Block) bool {
 			if !(!is8Bit(y) && is32Bit(y)) {
 				break
 			}
-			b.Reset(BlockS390XBRC)
 			v0 := b.NewValue0(x.Pos, OpS390XCMPconst, types.TypeFlags)
 			v0.AuxInt = int64(int32(y))
 			v0.AddArg(x)
-			b.AddControl(v0)
+			b.resetWithControl(BlockS390XBRC, v0)
 			b.Aux = c
 			return true
 		}
@@ -19619,11 +19591,10 @@ func rewriteBlockS390X(b *Block) bool {
 			if !(!is8Bit(x) && is32Bit(x)) {
 				break
 			}
-			b.Reset(BlockS390XBRC)
 			v0 := b.NewValue0(v_0.Pos, OpS390XCMPconst, types.TypeFlags)
 			v0.AuxInt = int64(int32(x))
 			v0.AddArg(y)
-			b.AddControl(v0)
+			b.resetWithControl(BlockS390XBRC, v0)
 			b.Aux = c.(s390x.CCMask).ReverseComparison()
 			return true
 		}
@@ -19662,8 +19633,7 @@ func rewriteBlockS390X(b *Block) bool {
 			x := v_0.Args[0]
 			y := b.AuxInt
 			c := b.Aux
-			b.Reset(BlockS390XCIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCIJ, x)
 			b.AuxInt = y
 			b.Aux = c
 			return true
@@ -19675,8 +19645,7 @@ func rewriteBlockS390X(b *Block) bool {
 			x := v_0.Args[0]
 			y := b.AuxInt
 			c := b.Aux
-			b.Reset(BlockS390XCIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCIJ, x)
 			b.AuxInt = y
 			b.Aux = c
 			return true
@@ -19887,8 +19856,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if !(isU8Bit(y)) {
 				break
 			}
-			b.Reset(BlockS390XCLGIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCLGIJ, x)
 			b.AuxInt = int64(int8(y))
 			b.Aux = c
 			return true
@@ -19904,8 +19872,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if !(isU8Bit(x)) {
 				break
 			}
-			b.Reset(BlockS390XCLGIJ)
-			b.AddControl(y)
+			b.resetWithControl(BlockS390XCLGIJ, y)
 			b.AuxInt = int64(int8(x))
 			b.Aux = c.(s390x.CCMask).ReverseComparison()
 			return true
@@ -19921,11 +19888,10 @@ func rewriteBlockS390X(b *Block) bool {
 			if !(!isU8Bit(y) && isU32Bit(y)) {
 				break
 			}
-			b.Reset(BlockS390XBRC)
 			v0 := b.NewValue0(x.Pos, OpS390XCMPUconst, types.TypeFlags)
 			v0.AuxInt = int64(int32(y))
 			v0.AddArg(x)
-			b.AddControl(v0)
+			b.resetWithControl(BlockS390XBRC, v0)
 			b.Aux = c
 			return true
 		}
@@ -19940,11 +19906,10 @@ func rewriteBlockS390X(b *Block) bool {
 			if !(!isU8Bit(x) && isU32Bit(x)) {
 				break
 			}
-			b.Reset(BlockS390XBRC)
 			v0 := b.NewValue0(v_0.Pos, OpS390XCMPUconst, types.TypeFlags)
 			v0.AuxInt = int64(int32(x))
 			v0.AddArg(y)
-			b.AddControl(v0)
+			b.resetWithControl(BlockS390XBRC, v0)
 			b.Aux = c.(s390x.CCMask).ReverseComparison()
 			return true
 		}
@@ -19995,8 +19960,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if b.AuxInt != 0 || b.Aux != s390x.LessOrGreater || !(int32(x) != 0) {
 				break
 			}
-			b.Reset(BlockS390XBRC)
-			b.AddControl(cmp)
+			b.resetWithControl(BlockS390XBRC, cmp)
 			b.Aux = d
 			return true
 		}
@@ -20007,8 +19971,7 @@ func rewriteBlockS390X(b *Block) bool {
 			x := v_0.Args[0]
 			y := b.AuxInt
 			c := b.Aux
-			b.Reset(BlockS390XCLIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCLIJ, x)
 			b.AuxInt = y
 			b.Aux = c
 			return true
@@ -20020,8 +19983,7 @@ func rewriteBlockS390X(b *Block) bool {
 			x := v_0.Args[0]
 			y := b.AuxInt
 			c := b.Aux
-			b.Reset(BlockS390XCLIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCLIJ, x)
 			b.AuxInt = y
 			b.Aux = c
 			return true
@@ -20144,8 +20106,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if !(isU8Bit(y)) {
 				break
 			}
-			b.Reset(BlockS390XCLIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCLIJ, x)
 			b.AuxInt = int64(int8(y))
 			b.Aux = c
 			return true
@@ -20161,8 +20122,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if !(isU8Bit(x)) {
 				break
 			}
-			b.Reset(BlockS390XCLIJ)
-			b.AddControl(y)
+			b.resetWithControl(BlockS390XCLIJ, y)
 			b.AuxInt = int64(int8(x))
 			b.Aux = c.(s390x.CCMask).ReverseComparison()
 			return true
@@ -20178,11 +20138,10 @@ func rewriteBlockS390X(b *Block) bool {
 			if !(!isU8Bit(y) && isU32Bit(y)) {
 				break
 			}
-			b.Reset(BlockS390XBRC)
 			v0 := b.NewValue0(x.Pos, OpS390XCMPWUconst, types.TypeFlags)
 			v0.AuxInt = int64(int32(y))
 			v0.AddArg(x)
-			b.AddControl(v0)
+			b.resetWithControl(BlockS390XBRC, v0)
 			b.Aux = c
 			return true
 		}
@@ -20197,11 +20156,10 @@ func rewriteBlockS390X(b *Block) bool {
 			if !(!isU8Bit(x) && isU32Bit(x)) {
 				break
 			}
-			b.Reset(BlockS390XBRC)
 			v0 := b.NewValue0(v_0.Pos, OpS390XCMPWUconst, types.TypeFlags)
 			v0.AuxInt = int64(int32(x))
 			v0.AddArg(y)
-			b.AddControl(v0)
+			b.resetWithControl(BlockS390XBRC, v0)
 			b.Aux = c.(s390x.CCMask).ReverseComparison()
 			return true
 		}
@@ -20244,8 +20202,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if !(is8Bit(y)) {
 				break
 			}
-			b.Reset(BlockS390XCIJ)
-			b.AddControl(x)
+			b.resetWithControl(BlockS390XCIJ, x)
 			b.AuxInt = int64(int8(y))
 			b.Aux = c
 			return true
@@ -20261,8 +20218,7 @@ func rewriteBlockS390X(b *Block) bool {
 			if !(is8Bit(x)) {
 				break
 			}
-			b.Reset(BlockS390XCIJ)
-			b.AddControl(y)
+			b.resetWithControl(BlockS390XCIJ, y)
 			b.AuxInt = int64(int8(x))
 			b.Aux = c.(s390x.CCMask).ReverseComparison()
 			return true
@@ -20278,11 +20234,10 @@ func rewriteBlockS390X(b *Block) bool {
 			if !(!is8Bit(y) && is32Bit(y)) {
 				break
 			}
-			b.Reset(BlockS390XBRC)
 			v0 := b.NewValue0(x.Pos, OpS390XCMPWconst, types.TypeFlags)
 			v0.AuxInt = int64(int32(y))
 			v0.AddArg(x)
-			b.AddControl(v0)
+			b.resetWithControl(BlockS390XBRC, v0)
 			b.Aux = c
 			return true
 		}
@@ -20297,11 +20252,10 @@ func rewriteBlockS390X(b *Block) bool {
 			if !(!is8Bit(x) && is32Bit(x)) {
 				break
 			}
-			b.Reset(BlockS390XBRC)
 			v0 := b.NewValue0(v_0.Pos, OpS390XCMPWconst, types.TypeFlags)
 			v0.AuxInt = int64(int32(x))
 			v0.AddArg(y)
-			b.AddControl(v0)
+			b.resetWithControl(BlockS390XBRC, v0)
 			b.Aux = c.(s390x.CCMask).ReverseComparison()
 			return true
 		}
@@ -20337,10 +20291,9 @@ func rewriteBlockS390X(b *Block) bool {
 		// result: (CLIJ {s390x.LessOrGreater} (MOVBZreg <typ.Bool> cond) [0] yes no)
 		for {
 			cond := b.Controls[0]
-			b.Reset(BlockS390XCLIJ)
 			v0 := b.NewValue0(cond.Pos, OpS390XMOVBZreg, typ.Bool)
 			v0.AddArg(cond)
-			b.AddControl(v0)
+			b.resetWithControl(BlockS390XCLIJ, v0)
 			b.AuxInt = 0
 			b.Aux = s390x.LessOrGreater
 			return true
