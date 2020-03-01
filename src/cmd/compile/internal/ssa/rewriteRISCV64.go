@@ -4387,6 +4387,15 @@ func rewriteValueRISCV64_OpZeroExt8to64(v *Value) bool {
 }
 func rewriteBlockRISCV64(b *Block) bool {
 	switch b.Kind {
+	case BlockRISCV64BNE:
+		// match: (BNE (SNEZ x) yes no)
+		// result: (BNE x yes no)
+		for b.Controls[0].Op == OpRISCV64SNEZ {
+			v_0 := b.Controls[0]
+			x := v_0.Args[0]
+			b.resetWithControl(BlockRISCV64BNE, x)
+			return true
+		}
 	case BlockIf:
 		// match: (If cond yes no)
 		// result: (BNE cond yes no)

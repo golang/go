@@ -458,6 +458,9 @@
 
 // Optimizations
 
+// Absorb SNEZ into branch.
+(BNE (SNEZ x) yes no) -> (BNE x yes no)
+
 // Fold ADD+MOVDconst into ADDI where possible.
 (ADD (MOVDconst [off]) ptr) && is32Bit(off) -> (ADDI [off] ptr)
 
