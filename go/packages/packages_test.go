@@ -139,9 +139,6 @@ func testLoadImportsGraph(t *testing.T, exporter packagestest.Exporter) {
   golang.org/fake/subdir/d [golang.org/fake/subdir/d.test] -> math/bits
   golang.org/fake/subdir/d.test -> golang.org/fake/subdir/d [golang.org/fake/subdir/d.test]
   golang.org/fake/subdir/d.test -> golang.org/fake/subdir/d_test [golang.org/fake/subdir/d.test]
-  golang.org/fake/subdir/d.test -> os (pruned)
-  golang.org/fake/subdir/d.test -> testing (pruned)
-  golang.org/fake/subdir/d.test -> testing/internal/testdeps (pruned)
   golang.org/fake/subdir/d_test [golang.org/fake/subdir/d.test] -> golang.org/fake/subdir/d [golang.org/fake/subdir/d.test]
 `[1:]
 
@@ -178,9 +175,6 @@ func testLoadImportsGraph(t *testing.T, exporter packagestest.Exporter) {
   golang.org/fake/subdir/d [golang.org/fake/subdir/d.test] -> math/bits
   golang.org/fake/subdir/d.test -> golang.org/fake/subdir/d [golang.org/fake/subdir/d.test]
   golang.org/fake/subdir/d.test -> golang.org/fake/subdir/d_test [golang.org/fake/subdir/d.test]
-  golang.org/fake/subdir/d.test -> os (pruned)
-  golang.org/fake/subdir/d.test -> testing (pruned)
-  golang.org/fake/subdir/d.test -> testing/internal/testdeps (pruned)
   golang.org/fake/subdir/d_test [golang.org/fake/subdir/d.test] -> golang.org/fake/subdir/d [golang.org/fake/subdir/d.test]
 `[1:]
 
@@ -259,9 +253,6 @@ func testLoadImportsGraph(t *testing.T, exporter packagestest.Exporter) {
   golang.org/fake/subdir/d [golang.org/fake/subdir/d.test] -> math/bits
   golang.org/fake/subdir/d.test -> golang.org/fake/subdir/d [golang.org/fake/subdir/d.test]
   golang.org/fake/subdir/d.test -> golang.org/fake/subdir/d_test [golang.org/fake/subdir/d.test]
-  golang.org/fake/subdir/d.test -> os (pruned)
-  golang.org/fake/subdir/d.test -> testing (pruned)
-  golang.org/fake/subdir/d.test -> testing/internal/testdeps (pruned)
   golang.org/fake/subdir/d_test [golang.org/fake/subdir/d.test] -> golang.org/fake/subdir/d [golang.org/fake/subdir/d.test]
 `[1:]
 
@@ -303,9 +294,6 @@ func testLoadImportsTestVariants(t *testing.T, exporter packagestest.Exporter) {
   golang.org/fake/a [golang.org/fake/b.test] -> golang.org/fake/b [golang.org/fake/b.test]
   golang.org/fake/b.test -> golang.org/fake/b [golang.org/fake/b.test]
   golang.org/fake/b.test -> golang.org/fake/b_test [golang.org/fake/b.test]
-  golang.org/fake/b.test -> os (pruned)
-  golang.org/fake/b.test -> testing (pruned)
-  golang.org/fake/b.test -> testing/internal/testdeps (pruned)
   golang.org/fake/b_test [golang.org/fake/b.test] -> golang.org/fake/a [golang.org/fake/b.test]
 `[1:]
 
@@ -2672,7 +2660,6 @@ func importGraph(initial []*packages.Package) (string, map[string]*packages.Pack
 				if isTestMain {
 					switch imp.ID {
 					case "os", "reflect", "testing", "testing/internal/testdeps":
-						edges = append(edges, fmt.Sprintf("%s -> %s (pruned)", p, imp))
 						continue
 					}
 				}
