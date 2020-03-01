@@ -232,6 +232,34 @@ func (b *Block) Reset(kind BlockKind) {
 	b.AuxInt = 0
 }
 
+// resetWithControl resets b and adds control v.
+// It is equivalent to b.Reset(kind); b.AddControl(v),
+// except that it is one call instead of two and avoids a bounds check.
+// It is intended for use by rewrite rules, where this matters.
+func (b *Block) resetWithControl(kind BlockKind, v *Value) {
+	b.Kind = kind
+	b.ResetControls()
+	b.Aux = nil
+	b.AuxInt = 0
+	b.Controls[0] = v
+	v.Uses++
+}
+
+// resetWithControl2 resets b and adds controls v and w.
+// It is equivalent to b.Reset(kind); b.AddControl(v); b.AddControl(w),
+// except that it is one call instead of three and avoids two bounds checks.
+// It is intended for use by rewrite rules, where this matters.
+func (b *Block) resetWithControl2(kind BlockKind, v, w *Value) {
+	b.Kind = kind
+	b.ResetControls()
+	b.Aux = nil
+	b.AuxInt = 0
+	b.Controls[0] = v
+	b.Controls[1] = w
+	v.Uses++
+	w.Uses++
+}
+
 // AddEdgeTo adds an edge from block b to block c. Used during building of the
 // SSA graph; do not use on an already-completed SSA graph.
 func (b *Block) AddEdgeTo(c *Block) {

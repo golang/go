@@ -21806,8 +21806,7 @@ func rewriteBlockgeneric(b *Block) bool {
 		for b.Controls[0].Op == OpNot {
 			v_0 := b.Controls[0]
 			cond := v_0.Args[0]
-			b.Reset(BlockIf)
-			b.AddControl(cond)
+			b.resetWithControl(BlockIf, cond)
 			b.swapSuccessors()
 			return true
 		}
