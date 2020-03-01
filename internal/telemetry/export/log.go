@@ -25,8 +25,21 @@ type logWriter struct {
 	onlyErrors bool
 }
 
-func (w *logWriter) StartSpan(context.Context, *telemetry.Span)  {}
-func (w *logWriter) FinishSpan(context.Context, *telemetry.Span) {}
+func (w *logWriter) StartSpan(ctx context.Context, span *telemetry.Span) {
+	if w.onlyErrors {
+		return
+	}
+	fmt.Fprintf(w.writer, "start: %v %v", span.Name, span.ID)
+	if span.ParentID.IsValid() {
+		fmt.Fprintf(w.writer, "[%v]", span.ParentID)
+	}
+}
+func (w *logWriter) FinishSpan(ctx context.Context, span *telemetry.Span) {
+	if w.onlyErrors {
+		return
+	}
+	fmt.Fprintf(w.writer, "finish: %v %v", span.Name, span.ID)
+}
 func (w *logWriter) ProcessEvent(ctx context.Context, event telemetry.Event) context.Context {
 	if w.onlyErrors && event.Error == nil {
 		return ctx

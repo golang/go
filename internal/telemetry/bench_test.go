@@ -162,6 +162,33 @@ func BenchmarkLogging(b *testing.B) {
 		}
 	}
 }
+func BenchmarkTracingNoExporter(b *testing.B) {
+	ctx := context.Background()
+	export.SetExporter(nil)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, value := range values {
+			if g := A_trace(ctx, value); g <= 0 {
+				b.Fatalf("Unexpected got g(%d) <= 0", g)
+			}
+		}
+	}
+}
+
+func BenchmarkTracing(b *testing.B) {
+	ctx := context.Background()
+	export.SetExporter(newExporter())
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for _, value := range values {
+			if g := A_trace(ctx, value); g <= 0 {
+				b.Fatalf("Unexpected got g(%d) <= 0", g)
+			}
+		}
+	}
+}
 
 func BenchmarkLoggingStdlib(b *testing.B) {
 	ctx := context.Background()
