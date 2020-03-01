@@ -1,4 +1,4 @@
-package log_test
+package telemetry_test
 
 import (
 	"context"
@@ -6,9 +6,11 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/tools/internal/telemetry"
 	"golang.org/x/tools/internal/telemetry/export"
 	tellog "golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/tag"
+	teltrace "golang.org/x/tools/internal/telemetry/trace"
 )
 
 func init() {
@@ -55,6 +57,24 @@ func B_log(ctx context.Context, b string) int {
 	return len(b)
 }
 
+func A_trace(ctx context.Context, a int) int {
+	ctx, done := teltrace.StartSpan(ctx, "A")
+	defer done()
+	if a > 0 {
+		_ = 10 * 12
+	}
+	return B_trace(ctx, "Called from A")
+}
+
+func B_trace(ctx context.Context, b string) int {
+	ctx, done := teltrace.StartSpan(ctx, "B")
+	defer done()
+	b = strings.ToUpper(b)
+	if len(b) > 1024 {
+		b = strings.ToLower(b)
+	}
+	return len(b)
+}
 func A_log_stdlib(ctx context.Context, a int) int {
 	if a > 0 {
 		stdlog.Printf("a > 0 where a=%d", a)
@@ -75,6 +95,32 @@ func B_log_stdlib(ctx context.Context, b string) int {
 }
 
 var values = []int{0, 10, 20, 100, 1000}
+
+type loggingExporter struct {
+	logger export.Exporter
+}
+
+func newExporter() *loggingExporter {
+	return &loggingExporter{
+		logger: export.LogWriter(new(noopWriter), false),
+	}
+}
+
+func (e *loggingExporter) ProcessEvent(ctx context.Context, event telemetry.Event) context.Context {
+	return e.logger.ProcessEvent(ctx, event)
+}
+
+func (e *loggingExporter) Metric(ctx context.Context, data telemetry.MetricData) {
+	e.logger.Metric(ctx, data)
+}
+
+func (e *loggingExporter) StartSpan(ctx context.Context, span *telemetry.Span) {
+	e.logger.StartSpan(ctx, span)
+}
+
+func (e *loggingExporter) FinishSpan(ctx context.Context, span *telemetry.Span) {
+	e.logger.FinishSpan(ctx, span)
+}
 
 func BenchmarkBaseline(b *testing.B) {
 	ctx := context.Background()
@@ -105,7 +151,7 @@ func BenchmarkLoggingNoExporter(b *testing.B) {
 
 func BenchmarkLogging(b *testing.B) {
 	ctx := context.Background()
-	export.SetExporter(export.LogWriter(new(noopWriter), false))
+	export.SetExporter(newExporter())
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
