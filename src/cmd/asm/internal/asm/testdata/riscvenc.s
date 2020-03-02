@@ -305,10 +305,14 @@ start:
 	MOVD	F0, 4(X5)				// 27b20200
 	MOVD	F0, F1					// d3000022
 
+	// NOT pseudo-instruction
+	NOT	X5					// 93c2f2ff
+	NOT	X5, X6					// 13c3f2ff
+
 	// These jumps can get printed as jumps to 2 because they go to the
 	// second instruction in the function (the first instruction is an
 	// invisible stack pointer adjustment).
-	JMP	start		// JMP	2		// 6ff09fc6
+	JMP	start		// JMP	2		// 6ff01fc6
 	JMP	(X5)					// 67800200
 	JMP	4(X5)					// 67804200
 

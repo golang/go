@@ -589,6 +589,7 @@ const (
 	AMOVHU
 	AMOVW
 	AMOVWU
+	ANOT
 	ASEQZ
 	ASNEZ
 
