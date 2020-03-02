@@ -30,11 +30,11 @@ type Quux struct { //@symbol("Quux", "Quux", "Struct", "")
 	X, Y float64 //@mark(qX, "X"), symbol("X", "X", "Field", "Quux"), symbol("Y", "Y", "Field", "Quux")
 }
 
-func (f Foo) Baz() string { //@symbol("Baz", "Baz", "Method", "Foo")
+func (f Foo) Baz() string { //@symbol("(Foo).Baz", "Baz", "Method", "")
 	return f.baz
 }
 
-func (q *Quux) Do() {} //@mark(qDo, "Do"), symbol("Do", "Do", "Method", "Quux")
+func (q *Quux) Do() {} //@mark(qDo, "Do"), symbol("(*Quux).Do", "Do", "Method", "")
 
 func main() { //@symbol("main", "main", "Function", "")
 
@@ -54,3 +54,7 @@ type WithEmbeddeds interface { //@symbol("WithEmbeddeds", "WithEmbeddeds", "Inte
 	ABer      //@symbol("ABer", "ABer", "Interface", "WithEmbeddeds")
 	io.Writer //@mark(ioWriter, "io.Writer"), symbol("io.Writer", "io.Writer", "Interface", "WithEmbeddeds")
 }
+
+func Dunk() int { return 0 } //@symbol("Dunk", "Dunk", "Function", "")
+
+func dunk() {} //@symbol("dunk", "dunk", "Function", "")

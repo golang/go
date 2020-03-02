@@ -1,6 +1,6 @@
 package casesensitive
 
 /*@
-workspacesymbolcasesensitive("baz", baz)
-workspacesymbolcasesensitive("Baz", Baz)
+workspacesymbolcasesensitive("dunk", dunk)
+workspacesymbolcasesensitive("Dunk", Dunk)
 */

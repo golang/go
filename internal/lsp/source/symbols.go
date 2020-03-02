@@ -30,7 +30,6 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 	info := pkg.GetTypesInfo()
 	q := qualifier(file, pkg.GetTypes(), info)
 
-	methodsToReceiver := make(map[types.Type][]protocol.DocumentSymbol)
 	symbolsToReceiver := make(map[types.Type]int)
 	var symbols []protocol.DocumentSymbol
 	for _, decl := range file.Decls {
@@ -41,14 +40,12 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 				if err != nil {
 					return nil, err
 				}
-				// Store methods separately, as we want them to appear as children
-				// of the corresponding type (which we may not have seen yet).
+				// If function is a method, prepend the type of the method.
 				if fs.Kind == protocol.Method {
 					rtype := obj.Type().(*types.Signature).Recv().Type()
-					methodsToReceiver[rtype] = append(methodsToReceiver[rtype], fs)
-				} else {
-					symbols = append(symbols, fs)
+					fs.Name = fmt.Sprintf("(%s).%s", types.TypeString(rtype, q), fs.Name)
 				}
+				symbols = append(symbols, fs)
 			}
 		case *ast.GenDecl:
 			for _, spec := range decl.Specs {
@@ -74,20 +71,6 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 					}
 				}
 			}
-		}
-	}
-
-	// Attempt to associate methods to the corresponding type symbol.
-	for typ, methods := range methodsToReceiver {
-		if ptr, ok := typ.(*types.Pointer); ok {
-			typ = ptr.Elem()
-		}
-
-		if i, ok := symbolsToReceiver[typ]; ok {
-			symbols[i].Children = append(symbols[i].Children, methods...)
-		} else {
-			// The type definition for the receiver of these methods was not in the document.
-			symbols = append(symbols, methods...)
 		}
 	}
 	return symbols, nil
