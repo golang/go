@@ -93,7 +93,7 @@ FindCall:
 	qf := qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo())
 	params := formatParams(ctx, snapshot, pkg, sig, qf)
 	results, writeResultParens := formatResults(sig.Results(), qf)
-	activeParam := activeParameter(callExpr.Args, sig.Params().Len(), sig.Variadic(), rng.Start)
+	activeParam := activeParameter(callExpr, sig.Params().Len(), sig.Variadic(), rng.Start)
 
 	var (
 		name    string
@@ -148,7 +148,7 @@ func builtinSignature(ctx context.Context, v View, callExpr *ast.CallExpr, name 
 			variadic = true
 		}
 	}
-	activeParam := activeParameter(callExpr.Args, numParams, variadic, pos)
+	activeParam := activeParameter(callExpr, numParams, variadic, pos)
 	return signatureInformation(name, nil, params, results, writeResultParens), activeParam, nil
 }
 
@@ -169,16 +169,16 @@ func signatureInformation(name string, comment *ast.CommentGroup, params, result
 	}
 }
 
-func activeParameter(args []ast.Expr, numParams int, variadic bool, pos token.Pos) (activeParam int) {
-	if len(args) == 0 {
+func activeParameter(callExpr *ast.CallExpr, numParams int, variadic bool, pos token.Pos) (activeParam int) {
+	if len(callExpr.Args) == 0 {
 		return 0
 	}
 	// First, check if the position is even in the range of the arguments.
-	start, end := args[0].Pos(), args[len(args)-1].End()
+	start, end := callExpr.Lparen, callExpr.Rparen
 	if !(start <= pos && pos <= end) {
 		return 0
 	}
-	for _, expr := range args {
+	for _, expr := range callExpr.Args {
 		if start == token.NoPos {
 			start = expr.Pos()
 		}

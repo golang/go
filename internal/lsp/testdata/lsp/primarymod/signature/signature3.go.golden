@@ -1,0 +1,3 @@
+-- Foo(a string, b int) (c bool)-signature --
+Foo(a string, b int) (c bool)
+
