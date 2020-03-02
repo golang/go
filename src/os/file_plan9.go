@@ -290,6 +290,11 @@ func (f *File) pwrite(b []byte, off int64) (n int, err error) {
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
 func (f *File) seek(offset int64, whence int) (ret int64, err error) {
+	if f.dirinfo != nil {
+		// Free cached dirinfo, so we allocate a new one if we
+		// access this file as a directory again. See #35767 and #37161.
+		f.dirinfo = nil
+	}
 	return syscall.Seek(f.fd, offset, whence)
 }
 
