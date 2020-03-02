@@ -148,32 +148,6 @@ func newdie(ctxt *Link, parent *dwarf.DWDie, abbrev int, name string, version in
 	return die
 }
 
-func walksymtypedef(ctxt *Link, s *sym.Symbol) *sym.Symbol {
-	if t := ctxt.Syms.ROLookup(s.Name+"..def", int(s.Version)); t != nil {
-		return t
-	}
-	return s
-}
-
-func find(ctxt *Link, name string) *sym.Symbol {
-	n := append(prefixBuf, name...)
-	// The string allocation below is optimized away because it is only used in a map lookup.
-	s := ctxt.Syms.ROLookup(string(n), 0)
-	prefixBuf = n[:len(dwarf.InfoPrefix)]
-	if s != nil && s.Type == sym.SDWARFINFO {
-		return s
-	}
-	return nil
-}
-
-func mustFind(ctxt *Link, name string) *sym.Symbol {
-	r := find(ctxt, name)
-	if r == nil {
-		Exitf("dwarf find: cannot find %s", name)
-	}
-	return r
-}
-
 func adddwarfref(ctxt *Link, s *sym.Symbol, t *sym.Symbol, size int) int64 {
 	var result int64
 	switch size {
@@ -226,23 +200,6 @@ func putdie(linkctxt *Link, ctxt dwarf.Context, syms []*sym.Symbol, die *dwarf.D
 	return syms
 }
 
-// GDB doesn't like FORM_addr for AT_location, so emit a
-// location expression that evals to a const.
-func newabslocexprattr(die *dwarf.DWDie, addr int64, sym *sym.Symbol) {
-	newattr(die, dwarf.DW_AT_location, dwarf.DW_CLS_ADDRESS, addr, sym)
-	// below
-}
-
-// Lookup predefined types
-func lookupOrDiag(ctxt *Link, n string) *sym.Symbol {
-	s := ctxt.Syms.ROLookup(n, 0)
-	if s == nil || s.Size == 0 {
-		Exitf("dwarf: missing type: %s", n)
-	}
-
-	return s
-}
-
 // dwarfFuncSym looks up a DWARF metadata symbol for function symbol s.
 // If the symbol does not exist, it creates it if create is true,
 // or returns nil otherwise.
@@ -261,103 +218,6 @@ func dwarfFuncSym(ctxt *Link, s *sym.Symbol, meta string, create bool) *sym.Symb
 		return ctxt.Syms.Lookup(meta+s.Name, ver)
 	}
 	return ctxt.Syms.ROLookup(meta+s.Name, ver)
-}
-
-func dotypedef(ctxt *Link, parent *dwarf.DWDie, name string, def *dwarf.DWDie) *dwarf.DWDie {
-	// Only emit typedefs for real names.
-	if strings.HasPrefix(name, "map[") {
-		return nil
-	}
-	if strings.HasPrefix(name, "struct {") {
-		return nil
-	}
-	if strings.HasPrefix(name, "chan ") {
-		return nil
-	}
-	if name[0] == '[' || name[0] == '*' {
-		return nil
-	}
-	if def == nil {
-		Errorf(nil, "dwarf: bad def in dotypedef")
-	}
-
-	s := ctxt.Syms.Lookup(dtolsym(def.Sym).Name+"..def", 0)
-	s.Attr |= sym.AttrNotInSymbolTable
-	s.Type = sym.SDWARFINFO
-	def.Sym = s
-
-	// The typedef entry must be created after the def,
-	// so that future lookups will find the typedef instead
-	// of the real definition. This hooks the typedef into any
-	// circular definition loops, so that gdb can understand them.
-	die := newdie(ctxt, parent, dwarf.DW_ABRV_TYPEDECL, name, 0)
-
-	newrefattr(die, dwarf.DW_AT_type, s)
-
-	return die
-}
-
-func nameFromDIESym(dwtype *sym.Symbol) string {
-	return strings.TrimSuffix(dwtype.Name[len(dwarf.InfoPrefix):], "..def")
-}
-
-// Find or construct *T given T.
-func defptrto(ctxt *Link, dwtype *sym.Symbol) *sym.Symbol {
-	ptrname := "*" + nameFromDIESym(dwtype)
-	if die := find(ctxt, ptrname); die != nil {
-		return die
-	}
-	pdie := newdie(ctxt, &dwtypes, dwarf.DW_ABRV_PTRTYPE, ptrname, 0)
-	newrefattr(pdie, dwarf.DW_AT_type, dwtype)
-
-	// The DWARF info synthesizes pointer types that don't exist at the
-	// language level, like *hash<...> and *bucket<...>, and the data
-	// pointers of slices. Link to the ones we can find.
-	gotype := ctxt.Syms.ROLookup("type."+ptrname, 0)
-	if gotype != nil && gotype.Attr.Reachable() {
-		newattr(pdie, dwarf.DW_AT_go_runtime_type, dwarf.DW_CLS_GO_TYPEREF, 0, gotype)
-	}
-	return dtolsym(pdie.Sym)
-}
-
-// Copies src's children into dst. Copies attributes by value.
-// DWAttr.data is copied as pointer only. If except is one of
-// the top-level children, it will not be copied.
-func copychildrenexcept(ctxt *Link, dst *dwarf.DWDie, src *dwarf.DWDie, except *dwarf.DWDie) {
-	for src = src.Child; src != nil; src = src.Link {
-		if src == except {
-			continue
-		}
-		c := newdie(ctxt, dst, src.Abbrev, getattr(src, dwarf.DW_AT_name).Data.(string), 0)
-		for a := src.Attr; a != nil; a = a.Link {
-			newattr(c, a.Atr, int(a.Cls), a.Value, a.Data)
-		}
-		copychildrenexcept(ctxt, c, src, nil)
-	}
-
-	reverselist(&dst.Child)
-}
-
-func copychildren(ctxt *Link, dst *dwarf.DWDie, src *dwarf.DWDie) {
-	copychildrenexcept(ctxt, dst, src, nil)
-}
-
-// Search children (assumed to have TAG_member) for the one named
-// field and set its AT_type to dwtype
-func substitutetype(structdie *dwarf.DWDie, field string, dwtype *sym.Symbol) {
-	child := findchild(structdie, field)
-	if child == nil {
-		Exitf("dwarf substitutetype: %s does not have member %s",
-			getattr(structdie, dwarf.DW_AT_name).Data, field)
-		return
-	}
-
-	a := getattr(child, dwarf.DW_AT_type)
-	if a != nil {
-		a.Data = dwtype
-	} else {
-		newrefattr(child, dwarf.DW_AT_type, dwtype)
-	}
 }
 
 // createUnitLength creates the initial length field with value v and update
