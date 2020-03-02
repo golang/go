@@ -5120,9 +5120,8 @@ func rewriteValueARM_OpARMMOVBUload(v *Value) bool {
 		}
 		off2 := v_1.AuxInt
 		sym2 := v_1.Aux
-		_ = v_1.Args[2]
-		ptr2 := v_1.Args[0]
 		x := v_1.Args[1]
+		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
@@ -5179,13 +5178,9 @@ func rewriteValueARM_OpARMMOVBUloadidx(v *Value) bool {
 		if v_2.Op != OpARMMOVBstoreidx {
 			break
 		}
-		_ = v_2.Args[3]
-		ptr2 := v_2.Args[0]
-		if idx != v_2.Args[1] {
-			break
-		}
 		x := v_2.Args[2]
-		if !(isSamePtr(ptr, ptr2)) {
+		ptr2 := v_2.Args[0]
+		if idx != v_2.Args[1] || !(isSamePtr(ptr, ptr2)) {
 			break
 		}
 		v.reset(OpARMMOVBUreg)
@@ -5231,7 +5226,6 @@ func rewriteValueARM_OpARMMOVBUreg(v *Value) bool {
 		if x.Op != OpARMMOVBUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARMMOVWreg)
 		v.AddArg(x)
 		return true
@@ -5344,9 +5338,8 @@ func rewriteValueARM_OpARMMOVBload(v *Value) bool {
 		}
 		off2 := v_1.AuxInt
 		sym2 := v_1.Aux
-		_ = v_1.Args[2]
-		ptr2 := v_1.Args[0]
 		x := v_1.Args[1]
+		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
@@ -5390,13 +5383,9 @@ func rewriteValueARM_OpARMMOVBloadidx(v *Value) bool {
 		if v_2.Op != OpARMMOVBstoreidx {
 			break
 		}
-		_ = v_2.Args[3]
-		ptr2 := v_2.Args[0]
-		if idx != v_2.Args[1] {
-			break
-		}
 		x := v_2.Args[2]
-		if !(isSamePtr(ptr, ptr2)) {
+		ptr2 := v_2.Args[0]
+		if idx != v_2.Args[1] || !(isSamePtr(ptr, ptr2)) {
 			break
 		}
 		v.reset(OpARMMOVBreg)
@@ -5442,7 +5431,6 @@ func rewriteValueARM_OpARMMOVBreg(v *Value) bool {
 		if x.Op != OpARMMOVBload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARMMOVWreg)
 		v.AddArg(x)
 		return true
@@ -5751,9 +5739,8 @@ func rewriteValueARM_OpARMMOVDload(v *Value) bool {
 		}
 		off2 := v_1.AuxInt
 		sym2 := v_1.Aux
-		_ = v_1.Args[2]
-		ptr2 := v_1.Args[0]
 		x := v_1.Args[1]
+		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
@@ -5898,9 +5885,8 @@ func rewriteValueARM_OpARMMOVFload(v *Value) bool {
 		}
 		off2 := v_1.AuxInt
 		sym2 := v_1.Aux
-		_ = v_1.Args[2]
-		ptr2 := v_1.Args[0]
 		x := v_1.Args[1]
+		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
@@ -6047,9 +6033,8 @@ func rewriteValueARM_OpARMMOVHUload(v *Value) bool {
 		}
 		off2 := v_1.AuxInt
 		sym2 := v_1.Aux
-		_ = v_1.Args[2]
-		ptr2 := v_1.Args[0]
 		x := v_1.Args[1]
+		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
@@ -6106,13 +6091,9 @@ func rewriteValueARM_OpARMMOVHUloadidx(v *Value) bool {
 		if v_2.Op != OpARMMOVHstoreidx {
 			break
 		}
-		_ = v_2.Args[3]
-		ptr2 := v_2.Args[0]
-		if idx != v_2.Args[1] {
-			break
-		}
 		x := v_2.Args[2]
-		if !(isSamePtr(ptr, ptr2)) {
+		ptr2 := v_2.Args[0]
+		if idx != v_2.Args[1] || !(isSamePtr(ptr, ptr2)) {
 			break
 		}
 		v.reset(OpARMMOVHUreg)
@@ -6158,7 +6139,6 @@ func rewriteValueARM_OpARMMOVHUreg(v *Value) bool {
 		if x.Op != OpARMMOVBUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARMMOVWreg)
 		v.AddArg(x)
 		return true
@@ -6170,7 +6150,6 @@ func rewriteValueARM_OpARMMOVHUreg(v *Value) bool {
 		if x.Op != OpARMMOVHUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARMMOVWreg)
 		v.AddArg(x)
 		return true
@@ -6294,9 +6273,8 @@ func rewriteValueARM_OpARMMOVHload(v *Value) bool {
 		}
 		off2 := v_1.AuxInt
 		sym2 := v_1.Aux
-		_ = v_1.Args[2]
-		ptr2 := v_1.Args[0]
 		x := v_1.Args[1]
+		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
@@ -6340,13 +6318,9 @@ func rewriteValueARM_OpARMMOVHloadidx(v *Value) bool {
 		if v_2.Op != OpARMMOVHstoreidx {
 			break
 		}
-		_ = v_2.Args[3]
-		ptr2 := v_2.Args[0]
-		if idx != v_2.Args[1] {
-			break
-		}
 		x := v_2.Args[2]
-		if !(isSamePtr(ptr, ptr2)) {
+		ptr2 := v_2.Args[0]
+		if idx != v_2.Args[1] || !(isSamePtr(ptr, ptr2)) {
 			break
 		}
 		v.reset(OpARMMOVHreg)
@@ -6392,7 +6366,6 @@ func rewriteValueARM_OpARMMOVHreg(v *Value) bool {
 		if x.Op != OpARMMOVBload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARMMOVWreg)
 		v.AddArg(x)
 		return true
@@ -6404,7 +6377,6 @@ func rewriteValueARM_OpARMMOVHreg(v *Value) bool {
 		if x.Op != OpARMMOVBUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARMMOVWreg)
 		v.AddArg(x)
 		return true
@@ -6416,7 +6388,6 @@ func rewriteValueARM_OpARMMOVHreg(v *Value) bool {
 		if x.Op != OpARMMOVHload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARMMOVWreg)
 		v.AddArg(x)
 		return true
@@ -6715,9 +6686,8 @@ func rewriteValueARM_OpARMMOVWload(v *Value) bool {
 		}
 		off2 := v_1.AuxInt
 		sym2 := v_1.Aux
-		_ = v_1.Args[2]
-		ptr2 := v_1.Args[0]
 		x := v_1.Args[1]
+		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
 		}
@@ -6842,13 +6812,9 @@ func rewriteValueARM_OpARMMOVWloadidx(v *Value) bool {
 		if v_2.Op != OpARMMOVWstoreidx {
 			break
 		}
-		_ = v_2.Args[3]
-		ptr2 := v_2.Args[0]
-		if idx != v_2.Args[1] {
-			break
-		}
 		x := v_2.Args[2]
-		if !(isSamePtr(ptr, ptr2)) {
+		ptr2 := v_2.Args[0]
+		if idx != v_2.Args[1] || !(isSamePtr(ptr, ptr2)) {
 			break
 		}
 		v.copyOf(x)
@@ -6989,13 +6955,9 @@ func rewriteValueARM_OpARMMOVWloadshiftLL(v *Value) bool {
 			break
 		}
 		d := v_2.AuxInt
-		_ = v_2.Args[3]
-		ptr2 := v_2.Args[0]
-		if idx != v_2.Args[1] {
-			break
-		}
 		x := v_2.Args[2]
-		if !(c == d && isSamePtr(ptr, ptr2)) {
+		ptr2 := v_2.Args[0]
+		if idx != v_2.Args[1] || !(c == d && isSamePtr(ptr, ptr2)) {
 			break
 		}
 		v.copyOf(x)
@@ -7033,13 +6995,9 @@ func rewriteValueARM_OpARMMOVWloadshiftRA(v *Value) bool {
 			break
 		}
 		d := v_2.AuxInt
-		_ = v_2.Args[3]
-		ptr2 := v_2.Args[0]
-		if idx != v_2.Args[1] {
-			break
-		}
 		x := v_2.Args[2]
-		if !(c == d && isSamePtr(ptr, ptr2)) {
+		ptr2 := v_2.Args[0]
+		if idx != v_2.Args[1] || !(c == d && isSamePtr(ptr, ptr2)) {
 			break
 		}
 		v.copyOf(x)
@@ -7077,13 +7035,9 @@ func rewriteValueARM_OpARMMOVWloadshiftRL(v *Value) bool {
 			break
 		}
 		d := v_2.AuxInt
-		_ = v_2.Args[3]
-		ptr2 := v_2.Args[0]
-		if idx != v_2.Args[1] {
-			break
-		}
 		x := v_2.Args[2]
-		if !(c == d && isSamePtr(ptr, ptr2)) {
+		ptr2 := v_2.Args[0]
+		if idx != v_2.Args[1] || !(c == d && isSamePtr(ptr, ptr2)) {
 			break
 		}
 		v.copyOf(x)

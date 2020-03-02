@@ -2606,7 +2606,6 @@ func rewriteValueMIPS64_OpMIPS64MOVBUreg(v *Value) bool {
 		if x.Op != OpMIPS64MOVBUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpMIPS64MOVVreg)
 		v.AddArg(x)
 		return true
@@ -2692,7 +2691,6 @@ func rewriteValueMIPS64_OpMIPS64MOVBreg(v *Value) bool {
 		if x.Op != OpMIPS64MOVBload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpMIPS64MOVVreg)
 		v.AddArg(x)
 		return true
@@ -3193,7 +3191,6 @@ func rewriteValueMIPS64_OpMIPS64MOVHUreg(v *Value) bool {
 		if x.Op != OpMIPS64MOVBUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpMIPS64MOVVreg)
 		v.AddArg(x)
 		return true
@@ -3205,7 +3202,6 @@ func rewriteValueMIPS64_OpMIPS64MOVHUreg(v *Value) bool {
 		if x.Op != OpMIPS64MOVHUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpMIPS64MOVVreg)
 		v.AddArg(x)
 		return true
@@ -3302,7 +3298,6 @@ func rewriteValueMIPS64_OpMIPS64MOVHreg(v *Value) bool {
 		if x.Op != OpMIPS64MOVBload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpMIPS64MOVVreg)
 		v.AddArg(x)
 		return true
@@ -3314,7 +3309,6 @@ func rewriteValueMIPS64_OpMIPS64MOVHreg(v *Value) bool {
 		if x.Op != OpMIPS64MOVBUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpMIPS64MOVVreg)
 		v.AddArg(x)
 		return true
@@ -3326,7 +3320,6 @@ func rewriteValueMIPS64_OpMIPS64MOVHreg(v *Value) bool {
 		if x.Op != OpMIPS64MOVHload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpMIPS64MOVVreg)
 		v.AddArg(x)
 		return true
@@ -3807,7 +3800,6 @@ func rewriteValueMIPS64_OpMIPS64MOVWUreg(v *Value) bool {
 		if x.Op != OpMIPS64MOVBUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpMIPS64MOVVreg)
 		v.AddArg(x)
 		return true
@@ -3819,7 +3811,6 @@ func rewriteValueMIPS64_OpMIPS64MOVWUreg(v *Value) bool {
 		if x.Op != OpMIPS64MOVHUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpMIPS64MOVVreg)
 		v.AddArg(x)
 		return true
@@ -3831,7 +3822,6 @@ func rewriteValueMIPS64_OpMIPS64MOVWUreg(v *Value) bool {
 		if x.Op != OpMIPS64MOVWUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpMIPS64MOVVreg)
 		v.AddArg(x)
 		return true
@@ -3939,7 +3929,6 @@ func rewriteValueMIPS64_OpMIPS64MOVWreg(v *Value) bool {
 		if x.Op != OpMIPS64MOVBload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpMIPS64MOVVreg)
 		v.AddArg(x)
 		return true
@@ -3951,7 +3940,6 @@ func rewriteValueMIPS64_OpMIPS64MOVWreg(v *Value) bool {
 		if x.Op != OpMIPS64MOVBUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpMIPS64MOVVreg)
 		v.AddArg(x)
 		return true
@@ -3963,7 +3951,6 @@ func rewriteValueMIPS64_OpMIPS64MOVWreg(v *Value) bool {
 		if x.Op != OpMIPS64MOVHload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpMIPS64MOVVreg)
 		v.AddArg(x)
 		return true
@@ -3975,7 +3962,6 @@ func rewriteValueMIPS64_OpMIPS64MOVWreg(v *Value) bool {
 		if x.Op != OpMIPS64MOVHUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpMIPS64MOVVreg)
 		v.AddArg(x)
 		return true
@@ -3987,7 +3973,6 @@ func rewriteValueMIPS64_OpMIPS64MOVWreg(v *Value) bool {
 		if x.Op != OpMIPS64MOVWload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpMIPS64MOVVreg)
 		v.AddArg(x)
 		return true
@@ -7765,7 +7750,6 @@ func rewriteBlockMIPS64(b *Block) bool {
 			if cmp.Op != OpMIPS64SGT {
 				break
 			}
-			_ = cmp.Args[1]
 			b.resetWithControl(BlockMIPS64NE, cmp)
 			return true
 		}
@@ -7780,7 +7764,6 @@ func rewriteBlockMIPS64(b *Block) bool {
 			if cmp.Op != OpMIPS64SGTU {
 				break
 			}
-			_ = cmp.Args[1]
 			b.resetWithControl(BlockMIPS64NE, cmp)
 			return true
 		}
@@ -8023,7 +8006,6 @@ func rewriteBlockMIPS64(b *Block) bool {
 			if cmp.Op != OpMIPS64SGT {
 				break
 			}
-			_ = cmp.Args[1]
 			b.resetWithControl(BlockMIPS64EQ, cmp)
 			return true
 		}
@@ -8038,7 +8020,6 @@ func rewriteBlockMIPS64(b *Block) bool {
 			if cmp.Op != OpMIPS64SGTU {
 				break
 			}
-			_ = cmp.Args[1]
 			b.resetWithControl(BlockMIPS64EQ, cmp)
 			return true
 		}

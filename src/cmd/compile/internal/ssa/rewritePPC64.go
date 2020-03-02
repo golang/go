@@ -4125,7 +4125,6 @@ func rewriteValuePPC64_OpPPC64AND(v *Value) bool {
 			if x.Op != OpPPC64MOVBZload {
 				continue
 			}
-			_ = x.Args[1]
 			v.reset(OpPPC64ANDconst)
 			v.AuxInt = c & 0xFF
 			v.AddArg(x)
@@ -5003,11 +5002,10 @@ func rewriteValuePPC64_OpPPC64FMOVDload(v *Value) bool {
 		if v_1.Op != OpPPC64MOVDstore || v_1.AuxInt != off || v_1.Aux != sym {
 			break
 		}
-		_ = v_1.Args[2]
+		x := v_1.Args[1]
 		if ptr != v_1.Args[0] {
 			break
 		}
-		x := v_1.Args[1]
 		v.reset(OpPPC64MTVSRD)
 		v.AddArg(x)
 		return true
@@ -6359,7 +6357,6 @@ func rewriteValuePPC64_OpPPC64MOVBZreg(v *Value) bool {
 		if x.Op != OpPPC64MOVBZload {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}
@@ -6370,7 +6367,6 @@ func rewriteValuePPC64_OpPPC64MOVBZreg(v *Value) bool {
 		if x.Op != OpPPC64MOVBZloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.copyOf(x)
 		return true
 	}
@@ -7651,11 +7647,10 @@ func rewriteValuePPC64_OpPPC64MOVDload(v *Value) bool {
 		if v_1.Op != OpPPC64FMOVDstore || v_1.AuxInt != off || v_1.Aux != sym {
 			break
 		}
-		_ = v_1.Args[2]
+		x := v_1.Args[1]
 		if ptr != v_1.Args[0] {
 			break
 		}
-		x := v_1.Args[1]
 		v.reset(OpPPC64MFVSRD)
 		v.AddArg(x)
 		return true
@@ -8284,7 +8279,6 @@ func rewriteValuePPC64_OpPPC64MOVHZreg(v *Value) bool {
 		if y.Op != OpPPC64MOVHBRload {
 			break
 		}
-		_ = y.Args[1]
 		v.copyOf(y)
 		return true
 	}
@@ -8307,7 +8301,6 @@ func rewriteValuePPC64_OpPPC64MOVHZreg(v *Value) bool {
 		if x.Op != OpPPC64MOVBZload {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}
@@ -8318,7 +8311,6 @@ func rewriteValuePPC64_OpPPC64MOVHZreg(v *Value) bool {
 		if x.Op != OpPPC64MOVBZloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.copyOf(x)
 		return true
 	}
@@ -8329,7 +8321,6 @@ func rewriteValuePPC64_OpPPC64MOVHZreg(v *Value) bool {
 		if x.Op != OpPPC64MOVHZload {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}
@@ -8340,7 +8331,6 @@ func rewriteValuePPC64_OpPPC64MOVHZreg(v *Value) bool {
 		if x.Op != OpPPC64MOVHZloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.copyOf(x)
 		return true
 	}
@@ -8666,7 +8656,6 @@ func rewriteValuePPC64_OpPPC64MOVHreg(v *Value) bool {
 		if x.Op != OpPPC64MOVHload {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}
@@ -8677,7 +8666,6 @@ func rewriteValuePPC64_OpPPC64MOVHreg(v *Value) bool {
 		if x.Op != OpPPC64MOVHloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.copyOf(x)
 		return true
 	}
@@ -9268,7 +9256,6 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
 		if y.Op != OpPPC64AND {
 			break
 		}
-		_ = y.Args[1]
 		y_0 := y.Args[0]
 		y_1 := y.Args[1]
 		for _i0 := 0; _i0 <= 1; _i0, y_0, y_1 = _i0+1, y_1, y_0 {
@@ -9412,7 +9399,6 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
 		if y.Op != OpPPC64MOVHBRload {
 			break
 		}
-		_ = y.Args[1]
 		v.copyOf(y)
 		return true
 	}
@@ -9423,7 +9409,6 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
 		if y.Op != OpPPC64MOVWBRload {
 			break
 		}
-		_ = y.Args[1]
 		v.copyOf(y)
 		return true
 	}
@@ -9446,7 +9431,6 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
 		if x.Op != OpPPC64MOVBZload {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}
@@ -9457,7 +9441,6 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
 		if x.Op != OpPPC64MOVBZloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.copyOf(x)
 		return true
 	}
@@ -9468,7 +9451,6 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
 		if x.Op != OpPPC64MOVHZload {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}
@@ -9479,7 +9461,6 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
 		if x.Op != OpPPC64MOVHZloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.copyOf(x)
 		return true
 	}
@@ -9490,7 +9471,6 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
 		if x.Op != OpPPC64MOVWZload {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}
@@ -9501,7 +9481,6 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
 		if x.Op != OpPPC64MOVWZloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.copyOf(x)
 		return true
 	}
@@ -9673,7 +9652,6 @@ func rewriteValuePPC64_OpPPC64MOVWreg(v *Value) bool {
 		if y.Op != OpPPC64AND {
 			break
 		}
-		_ = y.Args[1]
 		y_0 := y.Args[0]
 		y_1 := y.Args[1]
 		for _i0 := 0; _i0 <= 1; _i0, y_0, y_1 = _i0+1, y_1, y_0 {
@@ -9846,7 +9824,6 @@ func rewriteValuePPC64_OpPPC64MOVWreg(v *Value) bool {
 		if x.Op != OpPPC64MOVHload {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}
@@ -9857,7 +9834,6 @@ func rewriteValuePPC64_OpPPC64MOVWreg(v *Value) bool {
 		if x.Op != OpPPC64MOVHloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.copyOf(x)
 		return true
 	}
@@ -9868,7 +9844,6 @@ func rewriteValuePPC64_OpPPC64MOVWreg(v *Value) bool {
 		if x.Op != OpPPC64MOVWload {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}
@@ -9879,7 +9854,6 @@ func rewriteValuePPC64_OpPPC64MOVWreg(v *Value) bool {
 		if x.Op != OpPPC64MOVWloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.copyOf(x)
 		return true
 	}

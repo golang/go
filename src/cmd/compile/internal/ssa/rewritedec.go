@@ -54,7 +54,6 @@ func rewriteValuedec_OpComplexReal(v *Value) bool {
 		if v_0.Op != OpComplexMake {
 			break
 		}
-		_ = v_0.Args[1]
 		real := v_0.Args[0]
 		v.copyOf(real)
 		return true
@@ -83,7 +82,6 @@ func rewriteValuedec_OpITab(v *Value) bool {
 		if v_0.Op != OpIMake {
 			break
 		}
-		_ = v_0.Args[1]
 		itab := v_0.Args[0]
 		v.copyOf(itab)
 		return true
@@ -230,7 +228,6 @@ func rewriteValuedec_OpSliceLen(v *Value) bool {
 		if v_0.Op != OpSliceMake {
 			break
 		}
-		_ = v_0.Args[2]
 		len := v_0.Args[1]
 		v.copyOf(len)
 		return true
@@ -245,7 +242,6 @@ func rewriteValuedec_OpSlicePtr(v *Value) bool {
 		if v_0.Op != OpSliceMake {
 			break
 		}
-		_ = v_0.Args[2]
 		ptr := v_0.Args[0]
 		v.copyOf(ptr)
 		return true
@@ -405,7 +401,6 @@ func rewriteValuedec_OpStringPtr(v *Value) bool {
 		if v_0.Op != OpStringMake {
 			break
 		}
-		_ = v_0.Args[1]
 		ptr := v_0.Args[0]
 		v.copyOf(ptr)
 		return true
