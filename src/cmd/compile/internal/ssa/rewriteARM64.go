@@ -4118,11 +4118,10 @@ func rewriteValueARM64_OpARM64FMOVDload(v *Value) bool {
 		if v_1.Op != OpARM64MOVDstore || v_1.AuxInt != off || v_1.Aux != sym {
 			break
 		}
-		_ = v_1.Args[2]
+		val := v_1.Args[1]
 		if ptr != v_1.Args[0] {
 			break
 		}
-		val := v_1.Args[1]
 		v.reset(OpARM64FMOVDgpfp)
 		v.AddArg(val)
 		return true
@@ -4366,11 +4365,10 @@ func rewriteValueARM64_OpARM64FMOVSload(v *Value) bool {
 		if v_1.Op != OpARM64MOVWstore || v_1.AuxInt != off || v_1.Aux != sym {
 			break
 		}
-		_ = v_1.Args[2]
+		val := v_1.Args[1]
 		if ptr != v_1.Args[0] {
 			break
 		}
-		val := v_1.Args[1]
 		v.reset(OpARM64FMOVSgpfp)
 		v.AddArg(val)
 		return true
@@ -6838,7 +6836,6 @@ func rewriteValueARM64_OpARM64MOVBUload(v *Value) bool {
 		}
 		off2 := v_1.AuxInt
 		sym2 := v_1.Aux
-		_ = v_1.Args[1]
 		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
@@ -6903,9 +6900,8 @@ func rewriteValueARM64_OpARM64MOVBUloadidx(v *Value) bool {
 		if v_2.Op != OpARM64MOVBstorezeroidx {
 			break
 		}
-		_ = v_2.Args[2]
-		ptr2 := v_2.Args[0]
 		idx2 := v_2.Args[1]
+		ptr2 := v_2.Args[0]
 		if !(isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) || isSamePtr(ptr, idx2) && isSamePtr(idx, ptr2)) {
 			break
 		}
@@ -6924,7 +6920,6 @@ func rewriteValueARM64_OpARM64MOVBUreg(v *Value) bool {
 		if x.Op != OpARM64MOVBUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -6936,7 +6931,6 @@ func rewriteValueARM64_OpARM64MOVBUreg(v *Value) bool {
 		if x.Op != OpARM64MOVBUloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -7103,7 +7097,6 @@ func rewriteValueARM64_OpARM64MOVBload(v *Value) bool {
 		}
 		off2 := v_1.AuxInt
 		sym2 := v_1.Aux
-		_ = v_1.Args[1]
 		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
@@ -7155,9 +7148,8 @@ func rewriteValueARM64_OpARM64MOVBloadidx(v *Value) bool {
 		if v_2.Op != OpARM64MOVBstorezeroidx {
 			break
 		}
-		_ = v_2.Args[2]
-		ptr2 := v_2.Args[0]
 		idx2 := v_2.Args[1]
+		ptr2 := v_2.Args[0]
 		if !(isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) || isSamePtr(ptr, idx2) && isSamePtr(idx, ptr2)) {
 			break
 		}
@@ -7176,7 +7168,6 @@ func rewriteValueARM64_OpARM64MOVBreg(v *Value) bool {
 		if x.Op != OpARM64MOVBload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -7188,7 +7179,6 @@ func rewriteValueARM64_OpARM64MOVBreg(v *Value) bool {
 		if x.Op != OpARM64MOVBloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -9277,11 +9267,10 @@ func rewriteValueARM64_OpARM64MOVDload(v *Value) bool {
 		if v_1.Op != OpARM64FMOVDstore || v_1.AuxInt != off || v_1.Aux != sym {
 			break
 		}
-		_ = v_1.Args[2]
+		val := v_1.Args[1]
 		if ptr != v_1.Args[0] {
 			break
 		}
-		val := v_1.Args[1]
 		v.reset(OpARM64FMOVDfpgp)
 		v.AddArg(val)
 		return true
@@ -9379,7 +9368,6 @@ func rewriteValueARM64_OpARM64MOVDload(v *Value) bool {
 		}
 		off2 := v_1.AuxInt
 		sym2 := v_1.Aux
-		_ = v_1.Args[1]
 		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
@@ -9470,9 +9458,8 @@ func rewriteValueARM64_OpARM64MOVDloadidx(v *Value) bool {
 		if v_2.Op != OpARM64MOVDstorezeroidx {
 			break
 		}
-		_ = v_2.Args[2]
-		ptr2 := v_2.Args[0]
 		idx2 := v_2.Args[1]
+		ptr2 := v_2.Args[0]
 		if !(isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) || isSamePtr(ptr, idx2) && isSamePtr(idx, ptr2)) {
 			break
 		}
@@ -9509,9 +9496,8 @@ func rewriteValueARM64_OpARM64MOVDloadidx8(v *Value) bool {
 		if v_2.Op != OpARM64MOVDstorezeroidx8 {
 			break
 		}
-		_ = v_2.Args[2]
-		ptr2 := v_2.Args[0]
 		idx2 := v_2.Args[1]
+		ptr2 := v_2.Args[0]
 		if !(isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2)) {
 			break
 		}
@@ -10145,7 +10131,6 @@ func rewriteValueARM64_OpARM64MOVHUload(v *Value) bool {
 		}
 		off2 := v_1.AuxInt
 		sym2 := v_1.Aux
-		_ = v_1.Args[1]
 		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
@@ -10255,9 +10240,8 @@ func rewriteValueARM64_OpARM64MOVHUloadidx(v *Value) bool {
 		if v_2.Op != OpARM64MOVHstorezeroidx {
 			break
 		}
-		_ = v_2.Args[2]
-		ptr2 := v_2.Args[0]
 		idx2 := v_2.Args[1]
+		ptr2 := v_2.Args[0]
 		if !(isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) || isSamePtr(ptr, idx2) && isSamePtr(idx, ptr2)) {
 			break
 		}
@@ -10294,9 +10278,8 @@ func rewriteValueARM64_OpARM64MOVHUloadidx2(v *Value) bool {
 		if v_2.Op != OpARM64MOVHstorezeroidx2 {
 			break
 		}
-		_ = v_2.Args[2]
-		ptr2 := v_2.Args[0]
 		idx2 := v_2.Args[1]
+		ptr2 := v_2.Args[0]
 		if !(isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2)) {
 			break
 		}
@@ -10315,7 +10298,6 @@ func rewriteValueARM64_OpARM64MOVHUreg(v *Value) bool {
 		if x.Op != OpARM64MOVBUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -10327,7 +10309,6 @@ func rewriteValueARM64_OpARM64MOVHUreg(v *Value) bool {
 		if x.Op != OpARM64MOVHUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -10339,7 +10320,6 @@ func rewriteValueARM64_OpARM64MOVHUreg(v *Value) bool {
 		if x.Op != OpARM64MOVBUloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -10351,7 +10331,6 @@ func rewriteValueARM64_OpARM64MOVHUreg(v *Value) bool {
 		if x.Op != OpARM64MOVHUloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -10363,7 +10342,6 @@ func rewriteValueARM64_OpARM64MOVHUreg(v *Value) bool {
 		if x.Op != OpARM64MOVHUloadidx2 {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -10548,7 +10526,6 @@ func rewriteValueARM64_OpARM64MOVHload(v *Value) bool {
 		}
 		off2 := v_1.AuxInt
 		sym2 := v_1.Aux
-		_ = v_1.Args[1]
 		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
@@ -10645,9 +10622,8 @@ func rewriteValueARM64_OpARM64MOVHloadidx(v *Value) bool {
 		if v_2.Op != OpARM64MOVHstorezeroidx {
 			break
 		}
-		_ = v_2.Args[2]
-		ptr2 := v_2.Args[0]
 		idx2 := v_2.Args[1]
+		ptr2 := v_2.Args[0]
 		if !(isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) || isSamePtr(ptr, idx2) && isSamePtr(idx, ptr2)) {
 			break
 		}
@@ -10684,9 +10660,8 @@ func rewriteValueARM64_OpARM64MOVHloadidx2(v *Value) bool {
 		if v_2.Op != OpARM64MOVHstorezeroidx2 {
 			break
 		}
-		_ = v_2.Args[2]
-		ptr2 := v_2.Args[0]
 		idx2 := v_2.Args[1]
+		ptr2 := v_2.Args[0]
 		if !(isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2)) {
 			break
 		}
@@ -10705,7 +10680,6 @@ func rewriteValueARM64_OpARM64MOVHreg(v *Value) bool {
 		if x.Op != OpARM64MOVBload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -10717,7 +10691,6 @@ func rewriteValueARM64_OpARM64MOVHreg(v *Value) bool {
 		if x.Op != OpARM64MOVBUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -10729,7 +10702,6 @@ func rewriteValueARM64_OpARM64MOVHreg(v *Value) bool {
 		if x.Op != OpARM64MOVHload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -10741,7 +10713,6 @@ func rewriteValueARM64_OpARM64MOVHreg(v *Value) bool {
 		if x.Op != OpARM64MOVBloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -10753,7 +10724,6 @@ func rewriteValueARM64_OpARM64MOVHreg(v *Value) bool {
 		if x.Op != OpARM64MOVBUloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -10765,7 +10735,6 @@ func rewriteValueARM64_OpARM64MOVHreg(v *Value) bool {
 		if x.Op != OpARM64MOVHloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -10777,7 +10746,6 @@ func rewriteValueARM64_OpARM64MOVHreg(v *Value) bool {
 		if x.Op != OpARM64MOVHloadidx2 {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12086,11 +12054,10 @@ func rewriteValueARM64_OpARM64MOVWUload(v *Value) bool {
 		if v_1.Op != OpARM64FMOVSstore || v_1.AuxInt != off || v_1.Aux != sym {
 			break
 		}
-		_ = v_1.Args[2]
+		val := v_1.Args[1]
 		if ptr != v_1.Args[0] {
 			break
 		}
-		val := v_1.Args[1]
 		v.reset(OpARM64FMOVSfpgp)
 		v.AddArg(val)
 		return true
@@ -12188,7 +12155,6 @@ func rewriteValueARM64_OpARM64MOVWUload(v *Value) bool {
 		}
 		off2 := v_1.AuxInt
 		sym2 := v_1.Aux
-		_ = v_1.Args[1]
 		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
@@ -12279,9 +12245,8 @@ func rewriteValueARM64_OpARM64MOVWUloadidx(v *Value) bool {
 		if v_2.Op != OpARM64MOVWstorezeroidx {
 			break
 		}
-		_ = v_2.Args[2]
-		ptr2 := v_2.Args[0]
 		idx2 := v_2.Args[1]
+		ptr2 := v_2.Args[0]
 		if !(isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) || isSamePtr(ptr, idx2) && isSamePtr(idx, ptr2)) {
 			break
 		}
@@ -12318,9 +12283,8 @@ func rewriteValueARM64_OpARM64MOVWUloadidx4(v *Value) bool {
 		if v_2.Op != OpARM64MOVWstorezeroidx4 {
 			break
 		}
-		_ = v_2.Args[2]
-		ptr2 := v_2.Args[0]
 		idx2 := v_2.Args[1]
+		ptr2 := v_2.Args[0]
 		if !(isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2)) {
 			break
 		}
@@ -12339,7 +12303,6 @@ func rewriteValueARM64_OpARM64MOVWUreg(v *Value) bool {
 		if x.Op != OpARM64MOVBUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12351,7 +12314,6 @@ func rewriteValueARM64_OpARM64MOVWUreg(v *Value) bool {
 		if x.Op != OpARM64MOVHUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12363,7 +12325,6 @@ func rewriteValueARM64_OpARM64MOVWUreg(v *Value) bool {
 		if x.Op != OpARM64MOVWUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12375,7 +12336,6 @@ func rewriteValueARM64_OpARM64MOVWUreg(v *Value) bool {
 		if x.Op != OpARM64MOVBUloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12387,7 +12347,6 @@ func rewriteValueARM64_OpARM64MOVWUreg(v *Value) bool {
 		if x.Op != OpARM64MOVHUloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12399,7 +12358,6 @@ func rewriteValueARM64_OpARM64MOVWUreg(v *Value) bool {
 		if x.Op != OpARM64MOVWUloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12411,7 +12369,6 @@ func rewriteValueARM64_OpARM64MOVWUreg(v *Value) bool {
 		if x.Op != OpARM64MOVHUloadidx2 {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12423,7 +12380,6 @@ func rewriteValueARM64_OpARM64MOVWUreg(v *Value) bool {
 		if x.Op != OpARM64MOVWUloadidx4 {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12619,7 +12575,6 @@ func rewriteValueARM64_OpARM64MOVWload(v *Value) bool {
 		}
 		off2 := v_1.AuxInt
 		sym2 := v_1.Aux
-		_ = v_1.Args[1]
 		ptr2 := v_1.Args[0]
 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
 			break
@@ -12697,9 +12652,8 @@ func rewriteValueARM64_OpARM64MOVWloadidx(v *Value) bool {
 		if v_2.Op != OpARM64MOVWstorezeroidx {
 			break
 		}
-		_ = v_2.Args[2]
-		ptr2 := v_2.Args[0]
 		idx2 := v_2.Args[1]
+		ptr2 := v_2.Args[0]
 		if !(isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2) || isSamePtr(ptr, idx2) && isSamePtr(idx, ptr2)) {
 			break
 		}
@@ -12736,9 +12690,8 @@ func rewriteValueARM64_OpARM64MOVWloadidx4(v *Value) bool {
 		if v_2.Op != OpARM64MOVWstorezeroidx4 {
 			break
 		}
-		_ = v_2.Args[2]
-		ptr2 := v_2.Args[0]
 		idx2 := v_2.Args[1]
+		ptr2 := v_2.Args[0]
 		if !(isSamePtr(ptr, ptr2) && isSamePtr(idx, idx2)) {
 			break
 		}
@@ -12757,7 +12710,6 @@ func rewriteValueARM64_OpARM64MOVWreg(v *Value) bool {
 		if x.Op != OpARM64MOVBload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12769,7 +12721,6 @@ func rewriteValueARM64_OpARM64MOVWreg(v *Value) bool {
 		if x.Op != OpARM64MOVBUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12781,7 +12732,6 @@ func rewriteValueARM64_OpARM64MOVWreg(v *Value) bool {
 		if x.Op != OpARM64MOVHload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12793,7 +12743,6 @@ func rewriteValueARM64_OpARM64MOVWreg(v *Value) bool {
 		if x.Op != OpARM64MOVHUload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12805,7 +12754,6 @@ func rewriteValueARM64_OpARM64MOVWreg(v *Value) bool {
 		if x.Op != OpARM64MOVWload {
 			break
 		}
-		_ = x.Args[1]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12817,7 +12765,6 @@ func rewriteValueARM64_OpARM64MOVWreg(v *Value) bool {
 		if x.Op != OpARM64MOVBloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12829,7 +12776,6 @@ func rewriteValueARM64_OpARM64MOVWreg(v *Value) bool {
 		if x.Op != OpARM64MOVBUloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12841,7 +12787,6 @@ func rewriteValueARM64_OpARM64MOVWreg(v *Value) bool {
 		if x.Op != OpARM64MOVHloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12853,7 +12798,6 @@ func rewriteValueARM64_OpARM64MOVWreg(v *Value) bool {
 		if x.Op != OpARM64MOVHUloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12865,7 +12809,6 @@ func rewriteValueARM64_OpARM64MOVWreg(v *Value) bool {
 		if x.Op != OpARM64MOVWloadidx {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12877,7 +12820,6 @@ func rewriteValueARM64_OpARM64MOVWreg(v *Value) bool {
 		if x.Op != OpARM64MOVHloadidx2 {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12889,7 +12831,6 @@ func rewriteValueARM64_OpARM64MOVWreg(v *Value) bool {
 		if x.Op != OpARM64MOVHUloadidx2 {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true
@@ -12901,7 +12842,6 @@ func rewriteValueARM64_OpARM64MOVWreg(v *Value) bool {
 		if x.Op != OpARM64MOVWloadidx4 {
 			break
 		}
-		_ = x.Args[2]
 		v.reset(OpARM64MOVDreg)
 		v.AddArg(x)
 		return true

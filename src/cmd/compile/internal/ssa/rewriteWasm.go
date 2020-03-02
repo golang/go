@@ -3096,7 +3096,6 @@ func rewriteValueWasm_OpSignExt16to32(v *Value) bool {
 		if x.Op != OpWasmI64Load16S {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}
@@ -3138,7 +3137,6 @@ func rewriteValueWasm_OpSignExt16to64(v *Value) bool {
 		if x.Op != OpWasmI64Load16S {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}
@@ -3180,7 +3178,6 @@ func rewriteValueWasm_OpSignExt32to64(v *Value) bool {
 		if x.Op != OpWasmI64Load32S {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}
@@ -3222,7 +3219,6 @@ func rewriteValueWasm_OpSignExt8to16(v *Value) bool {
 		if x.Op != OpWasmI64Load8S {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}
@@ -3264,7 +3260,6 @@ func rewriteValueWasm_OpSignExt8to32(v *Value) bool {
 		if x.Op != OpWasmI64Load8S {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}
@@ -3306,7 +3301,6 @@ func rewriteValueWasm_OpSignExt8to64(v *Value) bool {
 		if x.Op != OpWasmI64Load8S {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}
@@ -4591,7 +4585,6 @@ func rewriteValueWasm_OpZeroExt16to32(v *Value) bool {
 		if x.Op != OpWasmI64Load16U {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}
@@ -4617,7 +4610,6 @@ func rewriteValueWasm_OpZeroExt16to64(v *Value) bool {
 		if x.Op != OpWasmI64Load16U {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}
@@ -4643,7 +4635,6 @@ func rewriteValueWasm_OpZeroExt32to64(v *Value) bool {
 		if x.Op != OpWasmI64Load32U {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}
@@ -4669,7 +4660,6 @@ func rewriteValueWasm_OpZeroExt8to16(v *Value) bool {
 		if x.Op != OpWasmI64Load8U {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}
@@ -4695,7 +4685,6 @@ func rewriteValueWasm_OpZeroExt8to32(v *Value) bool {
 		if x.Op != OpWasmI64Load8U {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}
@@ -4721,7 +4710,6 @@ func rewriteValueWasm_OpZeroExt8to64(v *Value) bool {
 		if x.Op != OpWasmI64Load8U {
 			break
 		}
-		_ = x.Args[1]
 		v.copyOf(x)
 		return true
 	}

@@ -439,7 +439,6 @@ func rewriteValuedec64_OpInt64Hi(v *Value) bool {
 		if v_0.Op != OpInt64Make {
 			break
 		}
-		_ = v_0.Args[1]
 		hi := v_0.Args[0]
 		v.copyOf(hi)
 		return true
@@ -704,7 +703,6 @@ func rewriteValuedec64_OpLsh16x64(v *Value) bool {
 		if v_1.Op != OpInt64Make {
 			break
 		}
-		_ = v_1.Args[1]
 		v_1_0 := v_1.Args[0]
 		if v_1_0.Op != OpConst32 {
 			break
@@ -770,7 +768,6 @@ func rewriteValuedec64_OpLsh32x64(v *Value) bool {
 		if v_1.Op != OpInt64Make {
 			break
 		}
-		_ = v_1.Args[1]
 		v_1_0 := v_1.Args[0]
 		if v_1_0.Op != OpConst32 {
 			break
@@ -916,7 +913,6 @@ func rewriteValuedec64_OpLsh64x64(v *Value) bool {
 		if v_1.Op != OpInt64Make {
 			break
 		}
-		_ = v_1.Args[1]
 		v_1_0 := v_1.Args[0]
 		if v_1_0.Op != OpConst32 {
 			break
@@ -1022,7 +1018,6 @@ func rewriteValuedec64_OpLsh8x64(v *Value) bool {
 		if v_1.Op != OpInt64Make {
 			break
 		}
-		_ = v_1.Args[1]
 		v_1_0 := v_1.Args[0]
 		if v_1_0.Op != OpConst32 {
 			break
@@ -1204,7 +1199,6 @@ func rewriteValuedec64_OpRsh16Ux64(v *Value) bool {
 		if v_1.Op != OpInt64Make {
 			break
 		}
-		_ = v_1.Args[1]
 		v_1_0 := v_1.Args[0]
 		if v_1_0.Op != OpConst32 {
 			break
@@ -1271,7 +1265,6 @@ func rewriteValuedec64_OpRsh16x64(v *Value) bool {
 		if v_1.Op != OpInt64Make {
 			break
 		}
-		_ = v_1.Args[1]
 		v_1_0 := v_1.Args[0]
 		if v_1_0.Op != OpConst32 {
 			break
@@ -1339,7 +1332,6 @@ func rewriteValuedec64_OpRsh32Ux64(v *Value) bool {
 		if v_1.Op != OpInt64Make {
 			break
 		}
-		_ = v_1.Args[1]
 		v_1_0 := v_1.Args[0]
 		if v_1_0.Op != OpConst32 {
 			break
@@ -1406,7 +1398,6 @@ func rewriteValuedec64_OpRsh32x64(v *Value) bool {
 		if v_1.Op != OpInt64Make {
 			break
 		}
-		_ = v_1.Args[1]
 		v_1_0 := v_1.Args[0]
 		if v_1_0.Op != OpConst32 {
 			break
@@ -1552,7 +1543,6 @@ func rewriteValuedec64_OpRsh64Ux64(v *Value) bool {
 		if v_1.Op != OpInt64Make {
 			break
 		}
-		_ = v_1.Args[1]
 		v_1_0 := v_1.Args[0]
 		if v_1_0.Op != OpConst32 {
 			break
@@ -1757,7 +1747,6 @@ func rewriteValuedec64_OpRsh64x64(v *Value) bool {
 		if v_1.Op != OpInt64Make {
 			break
 		}
-		_ = v_1.Args[1]
 		v_1_0 := v_1.Args[0]
 		if v_1_0.Op != OpConst32 {
 			break
@@ -1881,7 +1870,6 @@ func rewriteValuedec64_OpRsh8Ux64(v *Value) bool {
 		if v_1.Op != OpInt64Make {
 			break
 		}
-		_ = v_1.Args[1]
 		v_1_0 := v_1.Args[0]
 		if v_1_0.Op != OpConst32 {
 			break
@@ -1948,7 +1936,6 @@ func rewriteValuedec64_OpRsh8x64(v *Value) bool {
 		if v_1.Op != OpInt64Make {
 			break
 		}
-		_ = v_1.Args[1]
 		v_1_0 := v_1.Args[0]
 		if v_1_0.Op != OpConst32 {
 			break

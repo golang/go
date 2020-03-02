@@ -1001,16 +1001,21 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 		}
 	}
 
-	// Access last argument first to minimize bounds checks.
-	if n := len(args); n > 1 && !pregenTop {
-		a := args[n-1]
-		if a != "_" && !rr.declared(a) && token.IsIdentifier(a) && !(commutative && len(args) == 2) {
-			rr.add(declf(a, "%s.Args[%d]", v, n-1))
-
-			// delete the last argument so it is not reprocessed
-			args = args[:n-1]
-		} else {
-			rr.add(stmtf("_ = %s.Args[%d]", v, n-1))
+	if !pregenTop {
+		// Access last argument first to minimize bounds checks.
+		for n := len(args) - 1; n > 0; n-- {
+			a := args[n]
+			if a == "_" {
+				continue
+			}
+			if !rr.declared(a) && token.IsIdentifier(a) && !(commutative && len(args) == 2) {
+				rr.add(declf(a, "%s.Args[%d]", v, n))
+				// delete the last argument so it is not reprocessed
+				args = args[:n]
+			} else {
+				rr.add(stmtf("_ = %s.Args[%d]", v, n))
+			}
+			break
 		}
 	}
 	if commutative && !pregenTop {
