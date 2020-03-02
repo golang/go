@@ -6909,8 +6909,7 @@ func rewriteValueMIPS64_OpSelect0(v *Value) bool {
 		v.reset(OpSelect1)
 		v.Type = typ.UInt64
 		v0 := b.NewValue0(v.Pos, OpMIPS64MULVU, types.NewTuple(typ.UInt64, typ.UInt64))
-		v0.AddArg(x)
-		v0.AddArg(y)
+		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
 	}
@@ -7011,13 +7010,11 @@ func rewriteValueMIPS64_OpSelect1(v *Value) bool {
 		v.Type = typ.Bool
 		v0 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
 		v1 := b.NewValue0(v.Pos, OpMIPS64MULVU, types.NewTuple(typ.UInt64, typ.UInt64))
-		v1.AddArg(x)
-		v1.AddArg(y)
+		v1.AddArg2(x, y)
 		v0.AddArg(v1)
-		v.AddArg(v0)
 		v2 := b.NewValue0(v.Pos, OpMIPS64MOVVconst, typ.UInt64)
 		v2.AuxInt = 0
-		v.AddArg(v2)
+		v.AddArg2(v0, v2)
 		return true
 	}
 	// match: (Select1 (MULVU x (MOVVconst [-1])))
