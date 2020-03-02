@@ -276,11 +276,15 @@ func (i *Instance) getCache(r *http.Request) interface{} {
 	i.State.mu.Lock()
 	defer i.State.mu.Unlock()
 	id := path.Base(r.URL.Path)
+	c, ok := i.State.caches.find(id).(Cache)
+	if !ok {
+		return nil
+	}
 	result := struct {
 		Cache
 		Sessions []Session
 	}{
-		Cache: i.State.caches.find(id).(Cache),
+		Cache: c,
 	}
 
 	// now find all the views that belong to this session
@@ -297,11 +301,15 @@ func (i *Instance) getSession(r *http.Request) interface{} {
 	i.State.mu.Lock()
 	defer i.State.mu.Unlock()
 	id := path.Base(r.URL.Path)
+	s, ok := i.State.sessions.find(id).(Session)
+	if !ok {
+		return nil
+	}
 	result := struct {
 		Session
 		Views []View
 	}{
-		Session: i.State.sessions.find(id).(Session),
+		Session: s,
 	}
 	// now find all the views that belong to this session
 	for _, vd := range i.State.views.objs {
@@ -317,21 +325,33 @@ func (i Instance) getClient(r *http.Request) interface{} {
 	i.State.mu.Lock()
 	defer i.State.mu.Unlock()
 	id := path.Base(r.URL.Path)
-	return i.State.clients.find(id).(Client)
+	c, ok := i.State.clients.find(id).(Client)
+	if !ok {
+		return nil
+	}
+	return c
 }
 
 func (i Instance) getServer(r *http.Request) interface{} {
 	i.State.mu.Lock()
 	defer i.State.mu.Unlock()
 	id := path.Base(r.URL.Path)
-	return i.State.servers.find(id).(Server)
+	s, ok := i.State.servers.find(id).(Server)
+	if !ok {
+		return nil
+	}
+	return s
 }
 
 func (i Instance) getView(r *http.Request) interface{} {
 	i.State.mu.Lock()
 	defer i.State.mu.Unlock()
 	id := path.Base(r.URL.Path)
-	return i.State.views.find(id).(View)
+	v, ok := i.State.views.find(id).(View)
+	if !ok {
+		return nil
+	}
+	return v
 }
 
 func (i *Instance) getFile(r *http.Request) interface{} {
@@ -339,7 +359,11 @@ func (i *Instance) getFile(r *http.Request) interface{} {
 	defer i.State.mu.Unlock()
 	hash := path.Base(r.URL.Path)
 	sid := path.Base(path.Dir(r.URL.Path))
-	return i.State.sessions.find(sid).(Session).File(hash)
+	s, ok := i.State.sessions.find(sid).(Session)
+	if !ok {
+		return nil
+	}
+	return s.File(hash)
 }
 
 func (i *Instance) getInfo(r *http.Request) interface{} {
@@ -710,7 +734,7 @@ var clientTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{define "title"}}Client {{.ID}}{{end}}
 {{define "body"}}
 Using session: <b>{{template "sessionlink" .Session.ID}}</b><br>
-Debug this client at: <a href="http://{{localAddress .DebugAddress}}">{{localAddress .DebugAddress}}</a><br>
+{{if .DebugAddress}}Debug this client at: <a href="http://{{localAddress .DebugAddress}}">{{localAddress .DebugAddress}}</a><br>{{end}}
 Logfile: {{.Logfile}}<br>
 Gopls Path: {{.GoplsPath}}<br>
 {{end}}
@@ -719,7 +743,7 @@ Gopls Path: {{.GoplsPath}}<br>
 var serverTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
 {{define "title"}}Server {{.ID}}{{end}}
 {{define "body"}}
-Debug this server at: <a href="http://{{localAddress .DebugAddress}}">{{localAddress .DebugAddress}}</a><br>
+{{if .DebugAddress}}Debug this server at: <a href="http://{{localAddress .DebugAddress}}">{{localAddress .DebugAddress}}</a><br>{{end}}
 Logfile: {{.Logfile}}<br>
 Gopls Path: {{.GoplsPath}}<br>
 {{end}}
