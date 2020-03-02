@@ -53,13 +53,17 @@ func rewriteValueRISCV64(v *Value) bool {
 		v.Op = OpRISCV64CALLclosure
 		return true
 	case OpCom16:
-		return rewriteValueRISCV64_OpCom16(v)
+		v.Op = OpRISCV64NOT
+		return true
 	case OpCom32:
-		return rewriteValueRISCV64_OpCom32(v)
+		v.Op = OpRISCV64NOT
+		return true
 	case OpCom64:
-		return rewriteValueRISCV64_OpCom64(v)
+		v.Op = OpRISCV64NOT
+		return true
 	case OpCom8:
-		return rewriteValueRISCV64_OpCom8(v)
+		v.Op = OpRISCV64NOT
+		return true
 	case OpConst16:
 		v.Op = OpRISCV64MOVHconst
 		return true
@@ -612,54 +616,6 @@ func rewriteValueRISCV64_OpAvg64u(v *Value) bool {
 		v4.AddArg2(x, y)
 		v3.AddArg(v4)
 		v.AddArg2(v0, v3)
-		return true
-	}
-}
-func rewriteValueRISCV64_OpCom16(v *Value) bool {
-	v_0 := v.Args[0]
-	// match: (Com16 x)
-	// result: (XORI [int64(-1)] x)
-	for {
-		x := v_0
-		v.reset(OpRISCV64XORI)
-		v.AuxInt = int64(-1)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValueRISCV64_OpCom32(v *Value) bool {
-	v_0 := v.Args[0]
-	// match: (Com32 x)
-	// result: (XORI [int64(-1)] x)
-	for {
-		x := v_0
-		v.reset(OpRISCV64XORI)
-		v.AuxInt = int64(-1)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValueRISCV64_OpCom64(v *Value) bool {
-	v_0 := v.Args[0]
-	// match: (Com64 x)
-	// result: (XORI [int64(-1)] x)
-	for {
-		x := v_0
-		v.reset(OpRISCV64XORI)
-		v.AuxInt = int64(-1)
-		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValueRISCV64_OpCom8(v *Value) bool {
-	v_0 := v.Args[0]
-	// match: (Com8 x)
-	// result: (XORI [int64(-1)] x)
-	for {
-		x := v_0
-		v.reset(OpRISCV64XORI)
-		v.AuxInt = int64(-1)
-		v.AddArg(x)
 		return true
 	}
 }
