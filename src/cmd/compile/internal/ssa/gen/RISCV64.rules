@@ -84,10 +84,10 @@
 (Xor16 ...) -> (XOR ...)
 (Xor8  ...) -> (XOR ...)
 
-(Neg64 x) -> (SUB (MOVDconst) x)
-(Neg32 x) -> (SUB (MOVWconst) x)
-(Neg16 x) -> (SUB (MOVHconst) x)
-(Neg8  x) -> (SUB (MOVBconst) x)
+(Neg64  ...) -> (NEG ...)
+(Neg32  ...) -> (NEG ...)
+(Neg16  ...) -> (NEG ...)
+(Neg8   ...) -> (NEG ...)
 (Neg32F ...) -> (FNEGS ...)
 (Neg64F ...) -> (FNEGD ...)
 
@@ -496,6 +496,15 @@
 
 // Subtraction of zero with sign extension.
 (SUBW x (MOVWconst [0])) -> (ADDIW [0] x)
+
+// Subtraction from zero.
+(SUB (MOVBconst [0]) x) -> (NEG x)
+(SUB (MOVHconst [0]) x) -> (NEG x)
+(SUB (MOVWconst [0]) x) -> (NEG x)
+(SUB (MOVDconst [0]) x) -> (NEG x)
+
+// Subtraction from zero with sign extension.
+(SUBW (MOVDconst [0]) x) -> (NEGW x)
 
 // remove redundant *const ops
 (ADDI [0]  x) -> x
