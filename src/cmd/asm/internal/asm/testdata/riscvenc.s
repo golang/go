@@ -309,10 +309,16 @@ start:
 	NOT	X5					// 93c2f2ff
 	NOT	X5, X6					// 13c3f2ff
 
+	// NEG/NEGW pseudo-instructions
+	NEG	X5					// b3025040
+	NEG	X5, X6					// 33035040
+	NEGW	X5					// bb025040
+	NEGW	X5, X6					// 3b035040
+
 	// These jumps can get printed as jumps to 2 because they go to the
 	// second instruction in the function (the first instruction is an
 	// invisible stack pointer adjustment).
-	JMP	start		// JMP	2		// 6ff01fc6
+	JMP	start		// JMP	2		// 6ff01fc5
 	JMP	(X5)					// 67800200
 	JMP	4(X5)					// 67804200
 
