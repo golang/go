@@ -92,6 +92,18 @@ TODO
 TODO
 </p>
 
+<dl id="pkg-runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+  <dd>
+    <p><!-- CL 221779 -->
+      If <code>panic</code> is invoked with a value whose type is derived from any
+      of: <code>bool</code>, <code>complex64</code>, <code>complex128</code>, <code>float32</code>, <code>float64</code>,
+      <code>int</code>, <code>int8</code>, <code>int16</code>, <code>int32</code>, <code>int64</code>, <code>string</code>,
+      <code>uint</code>, <code>uint8</code>, <code>uint16</code>, <code>uint32</code>, <code>uint64</code>, <code>uintptr</code>,
+      then the value will be printed, instead of just its address.
+    </p>
+  </dd>
+</dl>
+
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
     <p><!-- golang.org/issue/33762 -->
