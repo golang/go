@@ -239,6 +239,7 @@ var Anames = []string{
 	"MOVHU",
 	"MOVW",
 	"MOVWU",
+	"NOT",
 	"SEQZ",
 	"SNEZ",
 	"LAST",

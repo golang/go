@@ -1849,6 +1849,15 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		ins.rs1 = uint32(p.From.Reg)
 		ins.rs2 = REG_F0
 
+	case ANOT:
+		// NOT rs, rd -> XORI $-1, rs, rd
+		ins.as = AXORI
+		ins.rs1, ins.rs2 = uint32(p.From.Reg), obj.REG_NONE
+		if ins.rd == obj.REG_NONE {
+			ins.rd = ins.rs1
+		}
+		ins.imm = -1
+
 	case ASEQZ:
 		// SEQZ rs, rd -> SLTIU $1, rs, rd
 		ins.as = ASLTIU
