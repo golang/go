@@ -91,10 +91,10 @@
 (Neg32F ...) -> (FNEGS ...)
 (Neg64F ...) -> (FNEGD ...)
 
-(Com64 x) -> (XORI [int64(-1)] x)
-(Com32 x) -> (XORI [int64(-1)] x)
-(Com16 x) -> (XORI [int64(-1)] x)
-(Com8  x) -> (XORI [int64(-1)] x)
+(Com64 ...) -> (NOT ...)
+(Com32 ...) -> (NOT ...)
+(Com16 ...) -> (NOT ...)
+(Com8  ...) -> (NOT ...)
 
 (Sqrt ...) -> (FSQRTD ...)
 
