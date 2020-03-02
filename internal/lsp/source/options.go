@@ -47,12 +47,13 @@ import (
 func DefaultOptions() Options {
 	return Options{
 		ClientOptions: ClientOptions{
-			InsertTextFormat:              protocol.PlainTextTextFormat,
-			PreferredContentFormat:        protocol.Markdown,
-			ConfigurationSupported:        true,
-			DynamicConfigurationSupported: true,
-			DynamicWatchedFilesSupported:  true,
-			LineFoldingOnly:               false,
+			InsertTextFormat:                  protocol.PlainTextTextFormat,
+			PreferredContentFormat:            protocol.Markdown,
+			ConfigurationSupported:            true,
+			DynamicConfigurationSupported:     true,
+			DynamicWatchedFilesSupported:      true,
+			LineFoldingOnly:                   false,
+			HierarchicalDocumentSymbolSupport: true,
 		},
 		ServerOptions: ServerOptions{
 			SupportedCodeActions: map[FileKind]map[protocol.CodeActionKind]bool{
@@ -104,12 +105,13 @@ type Options struct {
 }
 
 type ClientOptions struct {
-	InsertTextFormat              protocol.InsertTextFormat
-	ConfigurationSupported        bool
-	DynamicConfigurationSupported bool
-	DynamicWatchedFilesSupported  bool
-	PreferredContentFormat        protocol.MarkupKind
-	LineFoldingOnly               bool
+	InsertTextFormat                  protocol.InsertTextFormat
+	ConfigurationSupported            bool
+	DynamicConfigurationSupported     bool
+	DynamicWatchedFilesSupported      bool
+	PreferredContentFormat            protocol.MarkupKind
+	LineFoldingOnly                   bool
+	HierarchicalDocumentSymbolSupport bool
 }
 
 type ServerOptions struct {
@@ -273,6 +275,8 @@ func (o *Options) ForClientCapabilities(caps protocol.ClientCapabilities) {
 	// Check if the client supports only line folding.
 	fr := caps.TextDocument.FoldingRange
 	o.LineFoldingOnly = fr.LineFoldingOnly
+	// Check if the client supports hierarchical document symbols.
+	o.HierarchicalDocumentSymbolSupport = caps.TextDocument.DocumentSymbol.HierarchicalDocumentSymbolSupport
 }
 
 func (o *Options) set(name string, value interface{}) OptionResult {

@@ -49,7 +49,7 @@ type Server interface {
 	Definition(context.Context, *DefinitionParams) (Definition /*Definition | DefinitionLink[] | null*/, error)
 	References(context.Context, *ReferenceParams) ([]Location /*Location[] | null*/, error)
 	DocumentHighlight(context.Context, *DocumentHighlightParams) ([]DocumentHighlight /*DocumentHighlight[] | null*/, error)
-	DocumentSymbol(context.Context, *DocumentSymbolParams) ([]DocumentSymbol /*SymbolInformation[] | DocumentSymbol[] | null*/, error)
+	DocumentSymbol(context.Context, *DocumentSymbolParams) ([]interface{} /*SymbolInformation[] | DocumentSymbol[] | null*/, error)
 	CodeAction(context.Context, *CodeActionParams) ([]CodeAction /*(Command | CodeAction)[] | null*/, error)
 	Symbol(context.Context, *WorkspaceSymbolParams) ([]SymbolInformation /*SymbolInformation[] | null*/, error)
 	CodeLens(context.Context, *CodeLensParams) ([]CodeLens /*CodeLens[] | null*/, error)
@@ -832,8 +832,8 @@ func (s *serverDispatcher) DocumentHighlight(ctx context.Context, params *Docume
 	return result, nil
 }
 
-func (s *serverDispatcher) DocumentSymbol(ctx context.Context, params *DocumentSymbolParams) ([]DocumentSymbol /*SymbolInformation[] | DocumentSymbol[] | null*/, error) {
-	var result []DocumentSymbol /*SymbolInformation[] | DocumentSymbol[] | null*/
+func (s *serverDispatcher) DocumentSymbol(ctx context.Context, params *DocumentSymbolParams) ([]interface{} /*SymbolInformation[] | DocumentSymbol[] | null*/, error) {
+	var result []interface{} /*SymbolInformation[] | DocumentSymbol[] | null*/
 	if err := s.Conn.Call(ctx, "textDocument/documentSymbol", params, &result); err != nil {
 		return nil, err
 	}

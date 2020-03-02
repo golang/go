@@ -225,6 +225,7 @@ func DefaultOptions() source.Options {
 	o.HoverKind = source.SynopsisDocumentation
 	o.InsertTextFormat = protocol.SnippetTextFormat
 	o.CompletionBudget = time.Minute
+	o.HierarchicalDocumentSymbolSupport = true
 	return o
 }
 

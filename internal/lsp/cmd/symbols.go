@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"sort"
@@ -47,33 +48,62 @@ func (r *symbols) Run(ctx context.Context, args ...string) error {
 			URI: protocol.URIFromSpanURI(from.URI()),
 		},
 	}
-
 	symbols, err := conn.DocumentSymbol(ctx, &p)
 	if err != nil {
 		return err
 	}
 	for _, s := range symbols {
-		fmt.Println(symbolToString(s))
-		// Sort children for consistency
-		sort.Slice(s.Children, func(i, j int) bool {
-			return s.Children[i].Name < s.Children[j].Name
-		})
-		for _, c := range s.Children {
-			fmt.Println("\t" + symbolToString(c))
+		s, ok := s.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		bytes, err := json.Marshal(s)
+		if err != nil {
+			return err
+		}
+		if _, ok := s["selectionRange"]; ok {
+			if err := parseDocumentSymbol(bytes); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := parseSymbolInformation(bytes); err != nil {
+			return err
 		}
 	}
-
 	return nil
 }
 
-func symbolToString(symbol protocol.DocumentSymbol) string {
-	r := symbol.SelectionRange
-	// convert ranges to user friendly 1-based positions
-	position := fmt.Sprintf("%v:%v-%v:%v",
+func parseDocumentSymbol(bytes []byte) error {
+	var s protocol.DocumentSymbol
+	if err := json.Unmarshal(bytes, &s); err != nil {
+		return err
+	}
+	fmt.Printf("%s %s %s\n", s.Name, s.Kind, positionToString(s.SelectionRange))
+	// Sort children for consistency
+	sort.Slice(s.Children, func(i, j int) bool {
+		return s.Children[i].Name < s.Children[j].Name
+	})
+	for _, c := range s.Children {
+		fmt.Printf("\t%s %s %s\n", c.Name, c.Kind, positionToString(c.SelectionRange))
+	}
+	return nil
+}
+
+func parseSymbolInformation(bytes []byte) error {
+	var s protocol.SymbolInformation
+	if err := json.Unmarshal(bytes, &s); err != nil {
+		return err
+	}
+	fmt.Printf("%s %s %s\n", s.Name, s.Kind, positionToString(s.Location.Range))
+	return nil
+}
+
+func positionToString(r protocol.Range) string {
+	return fmt.Sprintf("%v:%v-%v:%v",
 		r.Start.Line+1,
 		r.Start.Character+1,
 		r.End.Line+1,
 		r.End.Character+1,
 	)
-	return fmt.Sprintf("%s %s %s", symbol.Name, symbol.Kind, position)
 }

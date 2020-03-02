@@ -240,6 +240,7 @@ func (c *connection) initialize(ctx context.Context, options func(*source.Option
 	params.Capabilities.TextDocument.Hover = protocol.HoverClientCapabilities{
 		ContentFormat: []protocol.MarkupKind{opts.PreferredContentFormat},
 	}
+	params.Capabilities.TextDocument.DocumentSymbol.HierarchicalDocumentSymbolSupport = opts.HierarchicalDocumentSymbolSupport
 
 	if _, err := c.Server.Initialize(ctx, params); err != nil {
 		return err

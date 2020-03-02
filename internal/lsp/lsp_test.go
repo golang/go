@@ -790,13 +790,21 @@ func (r *runner) Symbols(t *testing.T, uri span.URI, expectedSymbols []protocol.
 			URI: protocol.URIFromSpanURI(uri),
 		},
 	}
-	symbols, err := r.server.DocumentSymbol(r.ctx, params)
+	got, err := r.server.DocumentSymbol(r.ctx, params)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(symbols) != len(expectedSymbols) {
-		t.Errorf("want %d top-level symbols in %v, got %d", len(expectedSymbols), uri, len(symbols))
+	if len(got) != len(expectedSymbols) {
+		t.Errorf("want %d top-level symbols in %v, got %d", len(expectedSymbols), uri, len(got))
 		return
+	}
+	symbols := make([]protocol.DocumentSymbol, len(got))
+	for i, s := range got {
+		s, ok := s.(protocol.DocumentSymbol)
+		if !ok {
+			t.Fatalf("%v: wanted []DocumentSymbols but got %v", uri, got)
+		}
+		symbols[i] = s
 	}
 	if diff := tests.DiffSymbols(t, uri, expectedSymbols, symbols); diff != "" {
 		t.Error(diff)
