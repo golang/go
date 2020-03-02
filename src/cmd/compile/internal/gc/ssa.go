@@ -1274,6 +1274,16 @@ func (s *state) stmt(n *Node) {
 		s.assign(n.Left, r, deref, skip)
 
 	case OIF:
+		if Isconst(n.Left, CTBOOL) {
+			s.stmtList(n.Left.Ninit)
+			if n.Left.Bool() {
+				s.stmtList(n.Nbody)
+			} else {
+				s.stmtList(n.Rlist)
+			}
+			break
+		}
+
 		bEnd := s.f.NewBlock(ssa.BlockPlain)
 		var likely int8
 		if n.Likely() {
