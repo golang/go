@@ -61,10 +61,10 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, missi
 		warn = true
 	}
 
-	isMissingModule := false
+	missing := make(map[string]*modfile.Require)
 	for _, imp := range pkg.Imports() {
-		if _, ok := missingModules[imp.PkgPath()]; ok {
-			isMissingModule = true
+		if req, ok := missingModules[imp.PkgPath()]; ok {
+			missing[imp.PkgPath()] = req
 			continue
 		}
 		for dep, req := range missingModules {
@@ -77,8 +77,7 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, missi
 			// )
 			// They both are related to the same module: "golang.org/x/tools"
 			if req != nil && strings.HasPrefix(imp.PkgPath(), dep) {
-				missingModules[imp.PkgPath()] = req
-				isMissingModule = true
+				missing[imp.PkgPath()] = req
 				break
 			}
 		}
@@ -90,8 +89,8 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, missi
 		if err := clearReports(snapshot, reports, fh.File().Identity().URI); err != nil {
 			return nil, warn, err
 		}
-		if isMissingModule {
-			if err := missingModulesDiagnostics(ctx, snapshot, reports, missingModules, fh.File().Identity().URI); err != nil {
+		if len(missing) > 0 {
+			if err := missingModulesDiagnostics(ctx, snapshot, reports, missing, fh.File().Identity().URI); err != nil {
 				return nil, warn, err
 			}
 		}
