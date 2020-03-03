@@ -21,7 +21,6 @@ import (
 	"go/token"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"regexp"
 	"strconv"
@@ -155,12 +154,6 @@ func initialize(filename string, src []byte, opt *Options) ([]byte, *Options, er
 			GOSUMDB:     os.Getenv("GOSUMDB"),
 		}
 	}
-
-	// Set the logger if the user has not provided it.
-	if opt.Env.Logf == nil {
-		opt.Env.Logf = log.Printf
-	}
-
 	if src == nil {
 		b, err := ioutil.ReadFile(filename)
 		if err != nil {
