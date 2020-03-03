@@ -484,6 +484,9 @@ func archMips64(linkArch *obj.LinkArch) *Arch {
 	for i := mips.REG_FCR0; i <= mips.REG_FCR31; i++ {
 		register[obj.Rconv(i)] = int16(i)
 	}
+	for i := mips.REG_W0; i <= mips.REG_W31; i++ {
+		register[obj.Rconv(i)] = int16(i)
+	}
 	register["HI"] = mips.REG_HI
 	register["LO"] = mips.REG_LO
 	// Pseudo-registers.
@@ -501,6 +504,7 @@ func archMips64(linkArch *obj.LinkArch) *Arch {
 		"FCR": true,
 		"M":   true,
 		"R":   true,
+		"W":   true,
 	}
 
 	instructions := make(map[string]obj.As)
