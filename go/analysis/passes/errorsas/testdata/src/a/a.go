@@ -34,10 +34,10 @@ func _() {
 	errors.As(nil, perr()) // *error, via a call
 	errors.As(nil, ei)     //  empty interface
 
-	errors.As(nil, nil) // want `second argument to errors.As must be a pointer to an interface or a type implementing error`
-	errors.As(nil, e)   // want `second argument to errors.As must be a pointer to an interface or a type implementing error`
-	errors.As(nil, m)   // want `second argument to errors.As must be a pointer to an interface or a type implementing error`
-	errors.As(nil, f)   // want `second argument to errors.As must be a pointer to an interface or a type implementing error`
-	errors.As(nil, &i)  // want `second argument to errors.As must be a pointer to an interface or a type implementing error`
+	errors.As(nil, nil) // want `second argument to errors.As must be a non-nil pointer to either a type that implements error, or to any interface type`
+	errors.As(nil, e)   // want `second argument to errors.As must be a non-nil pointer to either a type that implements error, or to any interface type`
+	errors.As(nil, m)   // want `second argument to errors.As must be a non-nil pointer to either a type that implements error, or to any interface type`
+	errors.As(nil, f)   // want `second argument to errors.As must be a non-nil pointer to either a type that implements error, or to any interface type`
+	errors.As(nil, &i)  // want `second argument to errors.As must be a non-nil pointer to either a type that implements error, or to any interface type`
 	errors.As(two())
 }
