@@ -85,6 +85,8 @@ func Comparable(T Type) bool {
 		return true
 	case *Array:
 		return Comparable(t.elem)
+	case *TypeParam:
+		return t.Interface().is(Comparable)
 	}
 	return false
 }

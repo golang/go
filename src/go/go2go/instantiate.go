@@ -490,6 +490,16 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 		return e
 	case *ast.BasicLit:
 		return e
+	case *ast.FuncLit:
+		typ := t.instantiateExpr(ta, e.Type).(*ast.FuncType)
+		body := t.instantiateBlockStmt(ta, e.Body)
+		if typ == e.Type && body == e.Body {
+			return e
+		}
+		return &ast.FuncLit{
+			Type: typ,
+			Body: body,
+		}
 	case *ast.ParenExpr:
 		x := t.instantiateExpr(ta, e.X)
 		if x == e.X {
@@ -517,6 +527,16 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 		r = &ast.StarExpr{
 			Star: e.Star,
 			X:    x,
+		}
+	case *ast.UnaryExpr:
+		x := t.instantiateExpr(ta, e.X)
+		if x == e.X {
+			return e
+		}
+		r = &ast.UnaryExpr{
+			OpPos: e.OpPos,
+			Op:    e.Op,
+			X:     x,
 		}
 	case *ast.BinaryExpr:
 		x := t.instantiateExpr(ta, e.X)

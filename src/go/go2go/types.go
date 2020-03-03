@@ -13,11 +13,11 @@ import (
 // lookupType returns the types.Type for an AST expression.
 // Returns nil if the type is not known.
 func (t *translator) lookupType(e ast.Expr) types.Type {
-	if t, ok := t.info.Types[e]; ok {
-		return t.Type
+	if typ, ok := t.info.Types[e]; ok {
+		return typ.Type
 	}
-	if t, ok := t.types[e]; ok {
-		return t
+	if typ, ok := t.types[e]; ok {
+		return typ
 	}
 	return nil
 }
@@ -64,6 +64,10 @@ func (t *translator) instantiateType(ta *typeArgs, typ types.Type) types.Type {
 // This should only be called from instantiateType.
 func (t *translator) doInstantiateType(ta *typeArgs, typ types.Type) types.Type {
 	switch typ := typ.(type) {
+	case *types.Named:
+		return typ
+	case *types.Basic:
+		return typ
 	case *types.TypeParam:
 		if instType, ok := ta.typ(typ); ok {
 			return instType
@@ -75,7 +79,7 @@ func (t *translator) doInstantiateType(ta *typeArgs, typ types.Type) types.Type 
 		if elem == instElem {
 			return typ
 		}
-		return types.NewSlice(elem)
+		return types.NewSlice(instElem)
 	case *types.Signature:
 		params := t.instantiateTypeTuple(ta, typ.Params())
 		results := t.instantiateTypeTuple(ta, typ.Results())

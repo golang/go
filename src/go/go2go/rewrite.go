@@ -208,6 +208,9 @@ func (t *translator) translate(file *ast.File) {
 					for j := range decl.Specs {
 						t.translateValueSpec(&decl.Specs[j])
 					}
+				case token.IDENT:
+					// A contract.
+					decl = nil
 				}
 				if decl != nil {
 					newDecls = append(newDecls, decl)
@@ -331,6 +334,16 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 	switch e := (*pe).(type) {
 	case *ast.Ident:
 		return
+	case *ast.BasicLit:
+		return
+	case *ast.FuncLit:
+		t.translateFieldList(e.Type.TParams)
+		t.translateFieldList(e.Type.Params)
+		t.translateFieldList(e.Type.Results)
+		t.translateBlockStmt(e.Body)
+	case *ast.CompositeLit:
+		t.translateExpr(&e.Type)
+		t.translateExprList(e.Elts)
 	case *ast.ParenExpr:
 		t.translateExpr(&e.X)
 	case *ast.BinaryExpr:
@@ -348,9 +361,9 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 		t.translateExpr(&e.Max)
 	case *ast.CallExpr:
 		t.translateExprList(e.Args)
-		if ftyp, ok := t.lookupType(e.Fun).(*types.Signature); ok && ftyp.TParams() != nil {
+		if ftyp, ok := t.lookupType(e.Fun).(*types.Signature); ok && len(ftyp.TParams()) > 0 {
 			t.translateFunctionInstantiation(pe)
-		} else if ntyp, ok := t.lookupType(e.Fun).(*types.Named); ok && ntyp.TParams() != nil {
+		} else if ntyp, ok := t.lookupType(e.Fun).(*types.Named); ok && len(ntyp.TParams()) > 0 && len(ntyp.TArgs()) == 0 {
 			t.translateTypeInstantiation(pe)
 		}
 		t.translateExpr(&e.Fun)
@@ -362,11 +375,10 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 		t.translateExpr(&e.Elt)
 	case *ast.StructType:
 		t.translateFieldList(e.Fields)
-	case *ast.BasicLit:
-		return
-	case *ast.CompositeLit:
-		t.translateExpr(&e.Type)
-		t.translateExprList(e.Elts)
+	case *ast.FuncType:
+		t.translateFieldList(e.TParams)
+		t.translateFieldList(e.Params)
+		t.translateFieldList(e.Results)
 	default:
 		panic(fmt.Sprintf("unimplemented Expr %T", e))
 	}
@@ -486,7 +498,7 @@ func (t *translator) instantiatedIdent(call *ast.CallExpr) qualifiedIdent {
 		}
 		return qualifiedIdent{pkg: pn.Imported(), ident: fun.Sel}
 	}
-	panic(fmt.Sprintf("instantiated object %v is not an identifier", call.Fun))
+	panic(fmt.Sprintf("instantiated object %T %v is not an identifier", call.Fun, call.Fun))
 }
 
 // instantiationTypes returns the type arguments of an instantiation.
