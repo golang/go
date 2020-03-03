@@ -4,7 +4,6 @@ so we have a better track record. I only switched to this file in Nov 2019, henc
 ----------------------------------------------------------------------------------------------------
 TODO
 
-- type assertions on/against parameterized types
 - use Underlying() to return a type parameter's bound? investigate!
 - debug (and error msg) printing of generic instantiated types needs some work
 - improve error messages!

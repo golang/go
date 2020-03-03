@@ -512,8 +512,15 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 // Obj returns the type name for the named type t.
 func (t *Named) Obj() *TypeName { return t.obj }
 
+// TODO(gri) Come up with a better representation and API to distinguish
+//           between parameterized instantiated and non-instantiated types.
+
 // TParams returns the type parameters of the named type t, or nil.
+// The result is non-nil for an (originally) parameterized type even if it is instantiated.
 func (t *Named) TParams() []*TypeName { return t.tparams }
+
+// TArgs returns the type arguments after instantiation of the named type t, or nil if not instantiated.
+func (t *Named) TArgs() []Type { return t.targs }
 
 // NumMethods returns the number of explicit methods whose receiver is named type t.
 func (t *Named) NumMethods() int { return len(t.methods) }
