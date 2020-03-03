@@ -95,6 +95,19 @@ func BenchmarkNeIfaceConcrete(b *testing.B) {
 	}
 }
 
+func BenchmarkConvT2EByteSized(b *testing.B) {
+	b.Run("bool", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			e = yes
+		}
+	})
+	b.Run("uint8", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			e = eight8
+		}
+	})
+}
+
 func BenchmarkConvT2ESmall(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		e = ts
@@ -310,6 +323,7 @@ func TestZeroConvT2x(t *testing.T) {
 var (
 	eight8  uint8 = 8
 	eight8I T8    = 8
+	yes     bool  = true
 
 	zero16     uint16 = 0
 	zero16I    T16    = 0
