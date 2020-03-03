@@ -151,13 +151,13 @@ func toFloat32(u32 uint32) float32 {
 func constantCheck64() bool {
 	// amd64:"MOVB\t[$]0",-"FCMP",-"MOVB\t[$]1"
 	// s390x:"MOV(B|BZ|D)\t[$]0,",-"FCMPU",-"MOV(B|BZ|D)\t[$]1,"
-	return 0.5 == float64(uint32(1)) || 1.5 > float64(uint64(1<<63)) || math.NaN() == math.NaN()
+	return 0.5 == float64(uint32(1)) || 1.5 > float64(uint64(1<<63))
 }
 
 func constantCheck32() bool {
 	// amd64:"MOVB\t[$]1",-"FCMP",-"MOVB\t[$]0"
 	// s390x:"MOV(B|BZ|D)\t[$]1,",-"FCMPU",-"MOV(B|BZ|D)\t[$]0,"
-	return float32(0.5) <= float32(int64(1)) && float32(1.5) >= float32(int32(-1<<31)) && float32(math.NaN()) != float32(math.NaN())
+	return float32(0.5) <= float32(int64(1)) && float32(1.5) >= float32(int32(-1<<31))
 }
 
 // Test that integer constants are converted to floating point constants
@@ -185,4 +185,33 @@ func constantConvertInt32(x uint32) uint32 {
 		return -x
 	}
 	return x
+}
+
+func nanGenerate64() float64 {
+	// Test to make sure we don't generate a NaN while constant propagating.
+	// See issue 36400.
+	zero := 0.0
+	// amd64:-"DIVSD"
+	inf := 1 / zero // +inf. We can constant propagate this one.
+	negone := -1.0
+
+	// amd64:"DIVSD"
+	z0 := zero / zero
+	// amd64:"MULSD"
+	z1 := zero * inf
+	// amd64:"SQRTSD"
+	z2 := math.Sqrt(negone)
+	return z0 + z1 + z2
+}
+
+func nanGenerate32() float32 {
+	zero := float32(0.0)
+	// amd64:-"DIVSS"
+	inf := 1 / zero // +inf. We can constant propagate this one.
+
+	// amd64:"DIVSS"
+	z0 := zero / zero
+	// amd64:"MULSS"
+	z1 := zero * inf
+	return z0 + z1
 }

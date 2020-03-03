@@ -323,7 +323,12 @@ var genericOps = []opData{
 	{name: "Const32", aux: "Int32"},      // auxint is sign-extended 32 bits
 	// Note: ConstX are sign-extended even when the type of the value is unsigned.
 	// For instance, uint8(0xaa) is stored as auxint=0xffffffffffffffaa.
-	{name: "Const64", aux: "Int64"},    // value is auxint
+	{name: "Const64", aux: "Int64"}, // value is auxint
+	// Note: for both Const32F and Const64F, we disallow encoding NaNs.
+	// Signaling NaNs are tricky because if you do anything with them, they become quiet.
+	// Particularly, converting a 32 bit sNaN to 64 bit and back converts it to a qNaN.
+	// See issue 36399 and 36400.
+	// Encodings of +inf, -inf, and -0 are fine.
 	{name: "Const32F", aux: "Float32"}, // value is math.Float64frombits(uint64(auxint)) and is exactly representable as float 32
 	{name: "Const64F", aux: "Float64"}, // value is math.Float64frombits(uint64(auxint))
 	{name: "ConstInterface"},           // nil interface

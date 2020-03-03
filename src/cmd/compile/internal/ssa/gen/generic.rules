@@ -119,8 +119,8 @@
 (Mul16  (Const16 [c])  (Const16 [d]))  -> (Const16 [int64(int16(c*d))])
 (Mul32  (Const32 [c])  (Const32 [d]))  -> (Const32 [int64(int32(c*d))])
 (Mul64  (Const64 [c])  (Const64 [d]))  -> (Const64 [c*d])
-(Mul32F (Const32F [c]) (Const32F [d])) -> (Const32F [auxFrom32F(auxTo32F(c) * auxTo32F(d))])
-(Mul64F (Const64F [c]) (Const64F [d])) -> (Const64F [auxFrom64F(auxTo64F(c) * auxTo64F(d))])
+(Mul32F (Const32F [c]) (Const32F [d])) && !math.IsNaN(float64(auxTo32F(c) * auxTo32F(d))) -> (Const32F [auxFrom32F(auxTo32F(c) * auxTo32F(d))])
+(Mul64F (Const64F [c]) (Const64F [d])) && !math.IsNaN(auxTo64F(c) * auxTo64F(d)) -> (Const64F [auxFrom64F(auxTo64F(c) * auxTo64F(d))])
 
 (And8   (Const8 [c])   (Const8 [d]))   -> (Const8  [int64(int8(c&d))])
 (And16  (Const16 [c])  (Const16 [d]))  -> (Const16 [int64(int16(c&d))])
@@ -145,8 +145,8 @@
 (Div16u (Const16 [c])  (Const16 [d])) && d != 0 -> (Const16 [int64(int16(uint16(c)/uint16(d)))])
 (Div32u (Const32 [c])  (Const32 [d])) && d != 0 -> (Const32 [int64(int32(uint32(c)/uint32(d)))])
 (Div64u (Const64 [c])  (Const64 [d])) && d != 0 -> (Const64 [int64(uint64(c)/uint64(d))])
-(Div32F (Const32F [c]) (Const32F [d])) -> (Const32F [auxFrom32F(auxTo32F(c) / auxTo32F(d))])
-(Div64F (Const64F [c]) (Const64F [d])) -> (Const64F [auxFrom64F(auxTo64F(c) / auxTo64F(d))])
+(Div32F (Const32F [c]) (Const32F [d])) && !math.IsNaN(float64(auxTo32F(c) / auxTo32F(d))) -> (Const32F [auxFrom32F(auxTo32F(c) / auxTo32F(d))])
+(Div64F (Const64F [c]) (Const64F [d])) && !math.IsNaN(auxTo64F(c) / auxTo64F(d)) -> (Const64F [auxFrom64F(auxTo64F(c) / auxTo64F(d))])
 (Select0 (Div128u (Const64 [0]) lo y)) -> (Div64u lo y)
 (Select1 (Div128u (Const64 [0]) lo y)) -> (Mod64u lo y)
 
@@ -623,8 +623,8 @@
 	-> x
 
 // Pass constants through math.Float{32,64}bits and math.Float{32,64}frombits
-(Load <t1> p1 (Store {t2} p2 (Const64  [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 8 && is64BitFloat(t1) -> (Const64F [x])
-(Load <t1> p1 (Store {t2} p2 (Const32  [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitFloat(t1) -> (Const32F [auxFrom32F(math.Float32frombits(uint32(x)))])
+        (Load <t1> p1 (Store {t2} p2 (Const64  [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 8 && is64BitFloat(t1) && !math.IsNaN(math.Float64frombits(uint64(x))) -> (Const64F [x])
+        (Load <t1> p1 (Store {t2} p2 (Const32  [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitFloat(t1) && !math.IsNaN(float64(math.Float32frombits(uint32(x)))) -> (Const32F [auxFrom32F(math.Float32frombits(uint32(x)))])
 (Load <t1> p1 (Store {t2} p2 (Const64F [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 8 && is64BitInt(t1)   -> (Const64  [x])
 (Load <t1> p1 (Store {t2} p2 (Const32F [x]) _)) && isSamePtr(p1,p2) && sizeof(t2) == 4 && is32BitInt(t1)   -> (Const32  [int64(int32(math.Float32bits(auxTo32F(x))))])
 
@@ -1893,7 +1893,7 @@
 (Div32F x (Const32F <t> [c])) && reciprocalExact32(auxTo32F(c)) -> (Mul32F x (Const32F <t> [auxFrom32F(1/auxTo32F(c))]))
 (Div64F x (Const64F <t> [c])) && reciprocalExact64(auxTo64F(c)) -> (Mul64F x (Const64F <t> [auxFrom64F(1/auxTo64F(c))]))
 
-(Sqrt (Const64F [c])) -> (Const64F [auxFrom64F(math.Sqrt(auxTo64F(c)))])
+(Sqrt (Const64F [c])) && !math.IsNaN(math.Sqrt(auxTo64F(c))) -> (Const64F [auxFrom64F(math.Sqrt(auxTo64F(c)))])
 
 // recognize runtime.newobject and don't Zero/Nilcheck it
 (Zero (Load (OffPtr [c] (SP)) mem) mem)
