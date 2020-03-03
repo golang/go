@@ -46,7 +46,11 @@ func typeArgsFromFields(t *translator, info *types.Info, astTypes []ast.Expr, ty
 			if !ok {
 				panic(fmt.Sprintf("%v is not a TypeParam", objParam))
 			}
-			ta.add(obj, objParam, astTypes[i], typeTypes[i])
+			var astType ast.Expr
+			if len(astTypes) > 0 {
+				astType = astTypes[i]
+			}
+			ta.add(obj, objParam, astType, typeTypes[i])
 		}
 	}
 	return ta
@@ -73,7 +77,9 @@ func typeArgsFromExprs(t *translator, info *types.Info, astTypes []ast.Expr, typ
 
 // add adds mappings for obj to ast and typ.
 func (ta *typeArgs) add(obj types.Object, objParam *types.TypeParam, ast ast.Expr, typ types.Type) {
-	ta.toAST[obj] = ast
+	if ast != nil {
+		ta.toAST[obj] = ast
+	}
 	ta.toTyp[objParam] = typ
 }
 
@@ -325,6 +331,16 @@ func (t *translator) instantiateStmt(ta *typeArgs, s ast.Stmt) ast.Stmt {
 		return &ast.DeclStmt{
 			Decl: decl,
 		}
+	case *ast.IncDecStmt:
+		x := t.instantiateExpr(ta, s.X)
+		if x == s.X {
+			return s
+		}
+		return &ast.IncDecStmt{
+			X:      x,
+			TokPos: s.TokPos,
+			Tok:    s.Tok,
+		}
 	case *ast.AssignStmt:
 		lhs, lchanged := t.instantiateExprList(ta, s.Lhs)
 		rhs, rchanged := t.instantiateExprList(ta, s.Rhs)
@@ -351,6 +367,21 @@ func (t *translator) instantiateStmt(ta *typeArgs, s ast.Stmt) ast.Stmt {
 			Cond: cond,
 			Body: body,
 			Else: els,
+		}
+	case *ast.ForStmt:
+		init := t.instantiateStmt(ta, s.Init)
+		cond := t.instantiateExpr(ta, s.Cond)
+		post := t.instantiateStmt(ta, s.Post)
+		body := t.instantiateBlockStmt(ta, s.Body)
+		if init == s.Init && cond == s.Cond && post == s.Post && body == s.Body {
+			return s
+		}
+		return &ast.ForStmt{
+			For:  s.For,
+			Init: init,
+			Cond: cond,
+			Post: post,
+			Body: body,
 		}
 	case *ast.RangeStmt:
 		key := t.instantiateExpr(ta, s.Key)

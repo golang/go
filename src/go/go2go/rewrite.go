@@ -279,6 +279,8 @@ func (t *translator) translateStmt(ps *ast.Stmt) {
 		t.translateBlockStmt(s)
 	case *ast.ExprStmt:
 		t.translateExpr(&s.X)
+	case *ast.IncDecStmt:
+		t.translateExpr(&s.X)
 	case *ast.AssignStmt:
 		t.translateExprList(s.Lhs)
 		t.translateExprList(s.Rhs)
@@ -287,6 +289,11 @@ func (t *translator) translateStmt(ps *ast.Stmt) {
 		t.translateExpr(&s.Cond)
 		t.translateBlockStmt(s.Body)
 		t.translateStmt(&s.Else)
+	case *ast.ForStmt:
+		t.translateStmt(&s.Init)
+		t.translateExpr(&s.Cond)
+		t.translateStmt(&s.Post)
+		t.translateBlockStmt(s.Body)
 	case *ast.RangeStmt:
 		t.translateExpr(&s.Key)
 		t.translateExpr(&s.Value)
@@ -393,36 +400,35 @@ func (t *translator) translateField(f *ast.Field) {
 func (t *translator) translateFunctionInstantiation(pe *ast.Expr) {
 	call := (*pe).(*ast.CallExpr)
 	qid := t.instantiatedIdent(call)
-	types := make([]types.Type, 0, len(call.Args))
-	for _, arg := range call.Args {
-		if at := t.lookupType(arg); at == nil {
-			panic(fmt.Sprintf("no type found for %T %v", arg, arg))
-		} else {
-			types = append(types, at)
-		}
-	}
+	argList, typeList, typeArgs := t.instantiationTypes(call)
 
 	instantiations := t.instantiations[qid]
 	for _, inst := range instantiations {
-		if t.sameTypes(types, inst.types) {
+		if t.sameTypes(typeList, inst.types) {
 			*pe = inst.decl
 			return
 		}
 	}
 
-	instIdent, err := t.instantiateFunction(qid, call.Args, types)
+	instIdent, err := t.instantiateFunction(qid, argList, typeList)
 	if err != nil {
 		t.err = err
 		return
 	}
 
 	n := &instantiation{
-		types: types,
+		types: typeList,
 		decl:  instIdent,
 	}
 	t.instantiations[qid] = append(instantiations, n)
 
-	*pe = instIdent
+	if typeArgs {
+		*pe = instIdent
+	} else {
+		newCall := *call
+		call.Fun = instIdent
+		*pe = &newCall
+	}
 }
 
 // translateTypeInstantiation translates an instantiated type to Go 1.
@@ -430,32 +436,27 @@ func (t *translator) translateTypeInstantiation(pe *ast.Expr) {
 	call := (*pe).(*ast.CallExpr)
 	qid := t.instantiatedIdent(call)
 	typ := t.lookupType(call.Fun).(*types.Named)
-
-	types := make([]types.Type, 0, len(call.Args))
-	for _, arg := range call.Args {
-		if at := t.lookupType(arg); at == nil {
-			panic(fmt.Sprintf("no type found for %T %v", arg, arg))
-		} else {
-			types = append(types, at)
-		}
+	argList, typeList, typeArgs := t.instantiationTypes(call)
+	if !typeArgs {
+		panic("no type arguments for type")
 	}
 
 	instantiations := t.typeInstantiations[typ]
 	for _, inst := range instantiations {
-		if t.sameTypes(types, inst.types) {
+		if t.sameTypes(typeList, inst.types) {
 			*pe = inst.decl
 			return
 		}
 	}
 
-	instIdent, instType, err := t.instantiateTypeDecl(qid, typ, call.Args, types)
+	instIdent, instType, err := t.instantiateTypeDecl(qid, typ, argList, typeList)
 	if err != nil {
 		t.err = err
 		return
 	}
 
 	n := &typeInstantiation{
-		types: types,
+		types: typeList,
 		decl:  instIdent,
 		typ:   instType,
 	}
@@ -486,6 +487,40 @@ func (t *translator) instantiatedIdent(call *ast.CallExpr) qualifiedIdent {
 		return qualifiedIdent{pkg: pn.Imported(), ident: fun.Sel}
 	}
 	panic(fmt.Sprintf("instantiated object %v is not an identifier", call.Fun))
+}
+
+// instantiationTypes returns the type arguments of an instantiation.
+// It also returns the AST arguments if they are present.
+// The typeArgs result reports whether the AST arguments are types.
+func (t *translator) instantiationTypes(call *ast.CallExpr) (argList []ast.Expr, typeList []types.Type, typeArgs bool) {
+	if len(call.Args) > 0 {
+		tv, ok := t.info.Types[call.Args[0]]
+		if !ok {
+			panic(fmt.Sprintf("no type found for argument %v", call.Args[0]))
+		}
+		typeArgs = tv.IsType()
+	}
+
+	if typeArgs {
+		argList = call.Args
+		typeList = make([]types.Type, 0, len(argList))
+		for _, arg := range argList {
+			if at := t.lookupType(arg); at == nil {
+				panic(fmt.Sprintf("no type found for %T %v", arg, arg))
+			} else {
+				typeList = append(typeList, at)
+			}
+		}
+	} else {
+		params := t.lookupType(call.Fun).(*types.Signature).Params()
+		ln := params.Len()
+		typeList = make([]types.Type, 0, ln)
+		for i := 0; i < ln; i++ {
+			typeList = append(typeList, params.At(i).Type())
+		}
+	}
+
+	return
 }
 
 // sameTypes reports whether two type slices are the same.
