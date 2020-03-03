@@ -837,10 +837,12 @@ opswitch:
 			break
 		}
 
-		if staticbytes == nil {
-			staticbytes = newname(Runtimepkg.Lookup("staticbytes"))
-			staticbytes.SetClass(PEXTERN)
-			staticbytes.Type = types.NewArray(types.Types[TUINT8], 256)
+		if staticuint64s == nil {
+			staticuint64s = newname(Runtimepkg.Lookup("staticuint64s"))
+			staticuint64s.SetClass(PEXTERN)
+			// The actual type is [256]uint64, but we use [256*8]uint8 so we can address
+			// individual bytes.
+			staticuint64s.Type = types.NewArray(types.Types[TUINT8], 256*8)
 			zerobase = newname(Runtimepkg.Lookup("zerobase"))
 			zerobase.SetClass(PEXTERN)
 			zerobase.Type = types.Types[TUINTPTR]
@@ -856,9 +858,16 @@ opswitch:
 			cheapexpr(n.Left, init) // Evaluate n.Left for side-effects. See issue 19246.
 			value = zerobase
 		case fromType.IsBoolean() || (fromType.Size() == 1 && fromType.IsInteger()):
-			// n.Left is a bool/byte. Use staticbytes[n.Left].
+			// n.Left is a bool/byte. Use staticuint64s[n.Left * 8] on little-endian
+			// and staticuint64s[n.Left * 8 + 7] on big-endian.
 			n.Left = cheapexpr(n.Left, init)
-			value = nod(OINDEX, staticbytes, byteindex(n.Left))
+			// byteindex widens n.Left so that the multiplication doesn't overflow.
+			index := nod(OLSH, byteindex(n.Left), nodintconst(3))
+			index.SetBounded(true)
+			if thearch.LinkArch.ByteOrder == binary.BigEndian {
+				index = nod(OADD, index, nodintconst(7))
+			}
+			value = nod(OINDEX, staticuint64s, index)
 			value.SetBounded(true)
 		case n.Left.Class() == PEXTERN && n.Left.Name != nil && n.Left.Name.Readonly():
 			// n.Left is a readonly global; use it directly.
@@ -2423,15 +2432,21 @@ func convnop(n *Node, t *types.Type) *Node {
 	return n
 }
 
-// byteindex converts n, which is byte-sized, to a uint8.
-// We cannot use conv, because we allow converting bool to uint8 here,
+// byteindex converts n, which is byte-sized, to an int used to index into an array.
+// We cannot use conv, because we allow converting bool to int here,
 // which is forbidden in user code.
 func byteindex(n *Node) *Node {
-	if types.Identical(n.Type, types.Types[TUINT8]) {
-		return n
+	// We cannot convert from bool to int directly.
+	// While converting from int8 to int is possible, it would yield
+	// the wrong result for negative values.
+	// Reinterpreting the value as an unsigned byte solves both cases.
+	if !types.Identical(n.Type, types.Types[TUINT8]) {
+		n = nod(OCONV, n, nil)
+		n.Type = types.Types[TUINT8]
+		n.SetTypecheck(1)
 	}
 	n = nod(OCONV, n, nil)
-	n.Type = types.Types[TUINT8]
+	n.Type = types.Types[TINT]
 	n.SetTypecheck(1)
 	return n
 }
