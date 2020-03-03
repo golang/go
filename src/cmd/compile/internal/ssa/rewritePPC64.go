@@ -5191,12 +5191,16 @@ func rewriteValuePPC64_OpPPC64FNEG(v *Value) bool {
 func rewriteValuePPC64_OpPPC64FSQRT(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (FSQRT (FMOVDconst [x]))
+	// cond: auxTo64F(x) >= 0
 	// result: (FMOVDconst [auxFrom64F(math.Sqrt(auxTo64F(x)))])
 	for {
 		if v_0.Op != OpPPC64FMOVDconst {
 			break
 		}
 		x := v_0.AuxInt
+		if !(auxTo64F(x) >= 0) {
+			break
+		}
 		v.reset(OpPPC64FMOVDconst)
 		v.AuxInt = auxFrom64F(math.Sqrt(auxTo64F(x)))
 		return true
