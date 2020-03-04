@@ -687,6 +687,10 @@ func inlnode(n *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 						if Debug['m'] > 1 {
 							fmt.Printf("%v: cannot inline escaping closure variable %v\n", n.Line(), n.Left)
 						}
+						if logopt.Enabled() {
+							logopt.LogOpt(n.Pos, "cannotInlineCall", "inline", Curfn.funcname(),
+								fmt.Sprintf("%v cannot be inlined (escaping closure variable)", n.Left))
+						}
 						break
 					}
 
@@ -695,8 +699,16 @@ func inlnode(n *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 						if Debug['m'] > 1 {
 							if a != nil {
 								fmt.Printf("%v: cannot inline re-assigned closure variable at %v: %v\n", n.Line(), a.Line(), a)
+								if logopt.Enabled() {
+									logopt.LogOpt(n.Pos, "cannotInlineCall", "inline", Curfn.funcname(),
+										fmt.Sprintf("%v cannot be inlined (re-assigned closure variable)", a))
+								}
 							} else {
 								fmt.Printf("%v: cannot inline global closure variable %v\n", n.Line(), n.Left)
+								if logopt.Enabled() {
+									logopt.LogOpt(n.Pos, "cannotInlineCall", "inline", Curfn.funcname(),
+										fmt.Sprintf("%v cannot be inlined (global closure variable)", n.Left))
+								}
 							}
 						}
 						break
@@ -842,7 +854,10 @@ var inlgen int
 // 	n.Left = mkinlcall(n.Left, fn, isddd)
 func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 	if fn.Func.Inl == nil {
-		// No inlinable body.
+		if logopt.Enabled() {
+			logopt.LogOpt(n.Pos, "cannotInlineCall", "inline", Curfn.funcname(),
+				fmt.Sprintf("%s cannot be inlined", fn.pkgFuncName()))
+		}
 		return n
 	}
 	if fn.Func.Inl.Cost > maxCost {
@@ -895,9 +910,6 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 	}
 	if Debug['m'] > 2 {
 		fmt.Printf("%v: Before inlining: %+v\n", n.Line(), n)
-	}
-	if logopt.Enabled() {
-		logopt.LogOpt(n.Pos, "inlineCall", "inline", Curfn.funcname(), fn.pkgFuncName())
 	}
 
 	if ssaDump != "" && ssaDump == Curfn.funcname() {
