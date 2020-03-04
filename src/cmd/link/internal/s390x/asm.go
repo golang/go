@@ -105,7 +105,7 @@ func gentext(ctxt *ld.Link) {
 	initarray_entry.AddAddr(ctxt.Arch, initfunc)
 }
 
-func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+func adddynrel(_ *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
 	targ := r.Sym
 	r.InitExt()
 
@@ -159,8 +159,8 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 		r.Variant = sym.RV_390_DBL
 		r.Add += int64(r.Siz)
 		if targ.Type == sym.SDYNIMPORT {
-			addpltsym(ctxt, targ)
-			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+			addpltsym(target, syms, targ)
+			r.Sym = syms.PLT
 			r.Add += int64(targ.Plt())
 		}
 		return true
@@ -170,8 +170,8 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 		r.Type = objabi.R_PCREL
 		r.Add += int64(r.Siz)
 		if targ.Type == sym.SDYNIMPORT {
-			addpltsym(ctxt, targ)
-			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+			addpltsym(target, syms, targ)
+			r.Sym = syms.PLT
 			r.Add += int64(targ.Plt())
 		}
 		return true
@@ -201,7 +201,7 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOTPC):
 		r.Type = objabi.R_PCREL
-		r.Sym = ctxt.Syms.Lookup(".got", 0)
+		r.Sym = syms.GOT
 		r.Add += int64(r.Siz)
 		return true
 
@@ -218,16 +218,16 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOTPCDBL):
 		r.Type = objabi.R_PCREL
 		r.Variant = sym.RV_390_DBL
-		r.Sym = ctxt.Syms.Lookup(".got", 0)
+		r.Sym = syms.GOT
 		r.Add += int64(r.Siz)
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_390_GOTENT):
-		addgotsym(ctxt, targ)
+		addgotsym(target, syms, targ)
 
 		r.Type = objabi.R_PCREL
 		r.Variant = sym.RV_390_DBL
-		r.Sym = ctxt.Syms.Lookup(".got", 0)
+		r.Sym = syms.GOT
 		r.Add += int64(targ.Got())
 		r.Add += int64(r.Siz)
 		return true
@@ -418,17 +418,17 @@ func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym
 	}
 }
 
-func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+func addpltsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
 	if s.Plt() >= 0 {
 		return
 	}
 
-	ld.Adddynsym(&ctxt.Target, &ctxt.ArchSyms, s)
+	ld.Adddynsym(target, syms, s)
 
-	if ctxt.IsELF {
-		plt := ctxt.Syms.Lookup(".plt", 0)
-		got := ctxt.Syms.Lookup(".got", 0)
-		rela := ctxt.Syms.Lookup(".rela.plt", 0)
+	if target.IsElf() {
+		plt := syms.PLT
+		got := syms.GOT
+		rela := syms.RelaPLT
 		if plt.Size == 0 {
 			panic("plt is not set up")
 		}
@@ -436,10 +436,10 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 
 		plt.AddUint8(0xc0)
 		plt.AddUint8(0x10)
-		plt.AddPCRelPlus(ctxt.Arch, got, got.Size+6) // need variant?
+		plt.AddPCRelPlus(target.Arch, got, got.Size+6) // need variant?
 
 		// add to got: pointer to current pos in plt
-		got.AddAddrPlus(ctxt.Arch, plt, plt.Size+8) // weird but correct
+		got.AddAddrPlus(target.Arch, plt, plt.Size+8) // weird but correct
 		// lg      %r1,0(%r1)
 		plt.AddUint8(0xe3)
 		plt.AddUint8(0x10)
@@ -464,15 +464,15 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		plt.AddUint8(0xc0)
 		plt.AddUint8(0xf4)
 
-		plt.AddUint32(ctxt.Arch, uint32(-((plt.Size - 2) >> 1))) // roll-your-own relocation
+		plt.AddUint32(target.Arch, uint32(-((plt.Size - 2) >> 1))) // roll-your-own relocation
 		//.plt index
-		plt.AddUint32(ctxt.Arch, uint32(rela.Size)) // rela size before current entry
+		plt.AddUint32(target.Arch, uint32(rela.Size)) // rela size before current entry
 
 		// rela
-		rela.AddAddrPlus(ctxt.Arch, got, got.Size-8)
+		rela.AddAddrPlus(target.Arch, got, got.Size-8)
 
-		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_390_JMP_SLOT)))
-		rela.AddUint64(ctxt.Arch, 0)
+		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_390_JMP_SLOT)))
+		rela.AddUint64(target.Arch, 0)
 
 		s.SetPlt(int32(plt.Size - 32))
 
@@ -481,21 +481,21 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 	}
 }
 
-func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
+func addgotsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
 	if s.Got() >= 0 {
 		return
 	}
 
-	ld.Adddynsym(&ctxt.Target, &ctxt.ArchSyms, s)
-	got := ctxt.Syms.Lookup(".got", 0)
+	ld.Adddynsym(target, syms, s)
+	got := syms.GOT
 	s.SetGot(int32(got.Size))
-	got.AddUint64(ctxt.Arch, 0)
+	got.AddUint64(target.Arch, 0)
 
-	if ctxt.IsELF {
-		rela := ctxt.Syms.Lookup(".rela", 0)
-		rela.AddAddrPlus(ctxt.Arch, got, int64(s.Got()))
-		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_390_GLOB_DAT)))
-		rela.AddUint64(ctxt.Arch, 0)
+	if target.IsElf() {
+		rela := syms.Rela
+		rela.AddAddrPlus(target.Arch, got, int64(s.Got()))
+		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_390_GLOB_DAT)))
+		rela.AddUint64(target.Arch, 0)
 	} else {
 		ld.Errorf(s, "addgotsym: unsupported binary format")
 	}

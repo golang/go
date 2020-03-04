@@ -263,22 +263,23 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *sym.Symbol, targ *sym.Symbol)
 	stub.AddUint32(ctxt.Arch, 0x4e800420) // bctr
 }
 
-func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
-	if ctxt.IsELF {
-		return addelfdynrel(ctxt, s, r)
-	} else if ctxt.HeadType == objabi.Haix {
-		return ld.Xcoffadddynrel(&ctxt.Target, s, r)
+func adddynrel(_ *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+	if target.IsElf() {
+		return addelfdynrel(target, syms, s, r)
+	} else if target.IsAIX() {
+		return ld.Xcoffadddynrel(target, s, r)
 	}
 	return false
 }
-func addelfdynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+
+func addelfdynrel(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
 	targ := r.Sym
 	r.InitExt()
 
 	switch r.Type {
 	default:
 		if r.Type >= objabi.ElfRelocOffset {
-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type))
+			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(target.Arch, r.Type))
 			return false
 		}
 
@@ -314,12 +315,12 @@ func addelfdynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		r.Type = objabi.R_ADDR
 		if targ.Type == sym.SDYNIMPORT {
 			// These happen in .toc sections
-			ld.Adddynsym(&ctxt.Target, &ctxt.ArchSyms, targ)
+			ld.Adddynsym(target, syms, targ)
 
-			rela := ctxt.Syms.Lookup(".rela", 0)
-			rela.AddAddrPlus(ctxt.Arch, s, int64(r.Off))
-			rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(targ.Dynid), uint32(elf.R_PPC64_ADDR64)))
-			rela.AddUint64(ctxt.Arch, uint64(r.Add))
+			rela := syms.Rela
+			rela.AddAddrPlus(target.Arch, s, int64(r.Off))
+			rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(targ.Dynid), uint32(elf.R_PPC64_ADDR64)))
+			rela.AddUint64(target.Arch, uint64(r.Add))
 			r.Type = objabi.ElfRelocOffset // ignore during relocsym
 		}
 

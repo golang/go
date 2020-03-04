@@ -107,13 +107,13 @@ func makeWritable(s *sym.Symbol) {
 	}
 }
 
-func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+func adddynrel(_ *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
 	targ := r.Sym
 
 	switch r.Type {
 	default:
 		if r.Type >= objabi.ElfRelocOffset {
-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type))
+			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(target.Arch, r.Type))
 			return false
 		}
 
@@ -146,8 +146,8 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 		r.Type = objabi.R_PCREL
 		r.Add += 4
 		if targ.Type == sym.SDYNIMPORT {
-			addpltsym(ctxt, targ)
-			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+			addpltsym(target, syms, targ)
+			r.Sym = syms.PLT
 			r.Add += int64(targ.Plt())
 		}
 
@@ -171,10 +171,10 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 
 		// fall back to using GOT and hope for the best (CMOV*)
 		// TODO: just needs relocation, no need to put in .dynsym
-		addgotsym(ctxt, targ)
+		addgotsym(target, syms, targ)
 
 		r.Type = objabi.R_PCREL
-		r.Sym = ctxt.Syms.Lookup(".got", 0)
+		r.Sym = syms.GOT
 		r.Add += 4
 		r.Add += int64(targ.Got())
 		return true
@@ -184,7 +184,7 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 			ld.Errorf(s, "unexpected R_X86_64_64 relocation for dynamic symbol %s", targ.Name)
 		}
 		r.Type = objabi.R_ADDR
-		if ctxt.BuildMode == ld.BuildModePIE && ctxt.LinkMode == ld.LinkInternal {
+		if target.IsPIE() && target.IsInternal() {
 			// For internal linking PIE, this R_ADDR relocation cannot
 			// be resolved statically. We need to generate a dynamic
 			// relocation. Let the code below handle it.
@@ -206,8 +206,8 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 
 	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_BRANCH*2 + 1:
 		if targ.Type == sym.SDYNIMPORT {
-			addpltsym(ctxt, targ)
-			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+			addpltsym(target, syms, targ)
+			r.Sym = syms.PLT
 			r.Add = int64(targ.Plt())
 			r.Type = objabi.R_PCREL
 			return true
@@ -246,9 +246,9 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 		if targ.Type != sym.SDYNIMPORT {
 			ld.Errorf(s, "unexpected GOT reloc for non-dynamic symbol %s", targ.Name)
 		}
-		addgotsym(ctxt, targ)
+		addgotsym(target, syms, targ)
 		r.Type = objabi.R_PCREL
-		r.Sym = ctxt.Syms.Lookup(".got", 0)
+		r.Sym = syms.GOT
 		r.Add += int64(targ.Got())
 		return true
 	}
@@ -260,37 +260,37 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 			// nothing to do, the relocation will be laid out in reloc
 			return true
 		}
-		if ctxt.LinkMode == ld.LinkExternal {
+		if target.IsExternal() {
 			// External linker will do this relocation.
 			return true
 		}
 		// Internal linking, for both ELF and Mach-O.
 		// Build a PLT entry and change the relocation target to that entry.
-		addpltsym(ctxt, targ)
-		r.Sym = ctxt.Syms.Lookup(".plt", 0)
+		addpltsym(target, syms, targ)
+		r.Sym = syms.PLT
 		r.Add = int64(targ.Plt())
 		return true
 
 	case objabi.R_ADDR:
-		if s.Type == sym.STEXT && ctxt.IsELF {
-			if ctxt.HeadType == objabi.Hsolaris {
-				addpltsym(ctxt, targ)
-				r.Sym = ctxt.Syms.Lookup(".plt", 0)
+		if s.Type == sym.STEXT && target.IsElf() {
+			if target.IsSolaris() {
+				addpltsym(target, syms, targ)
+				r.Sym = syms.PLT
 				r.Add += int64(targ.Plt())
 				return true
 			}
 			// The code is asking for the address of an external
 			// function. We provide it with the address of the
 			// correspondent GOT symbol.
-			addgotsym(ctxt, targ)
+			addgotsym(target, syms, targ)
 
-			r.Sym = ctxt.Syms.Lookup(".got", 0)
+			r.Sym = syms.GOT
 			r.Add += int64(targ.Got())
 			return true
 		}
 
 		// Process dynamic relocations for the data sections.
-		if ctxt.BuildMode == ld.BuildModePIE && ctxt.LinkMode == ld.LinkInternal {
+		if target.IsPIE() && target.IsInternal() {
 			// When internally linking, generate dynamic relocations
 			// for all typical R_ADDR relocations. The exception
 			// are those R_ADDR that are created as part of generating
@@ -338,7 +338,7 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 			}
 		}
 
-		if ctxt.IsELF {
+		if target.IsElf() {
 			// Generate R_X86_64_RELATIVE relocations for best
 			// efficiency in the dynamic linker.
 			//
@@ -356,14 +356,14 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 			// AddAddrPlus is used for r_offset and r_addend to
 			// generate new R_ADDR relocations that will update
 			// these fields in the 'reloc' phase.
-			rela := ctxt.Syms.Lookup(".rela", 0)
-			rela.AddAddrPlus(ctxt.Arch, s, int64(r.Off))
+			rela := syms.Rela
+			rela.AddAddrPlus(target.Arch, s, int64(r.Off))
 			if r.Siz == 8 {
-				rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(0, uint32(elf.R_X86_64_RELATIVE)))
+				rela.AddUint64(target.Arch, ld.ELF64_R_INFO(0, uint32(elf.R_X86_64_RELATIVE)))
 			} else {
 				ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
 			}
-			rela.AddAddrPlus(ctxt.Arch, targ, int64(r.Add))
+			rela.AddAddrPlus(target.Arch, targ, int64(r.Add))
 			// Not mark r done here. So we still apply it statically,
 			// so in the file content we'll also have the right offset
 			// to the relocation target. So it can be examined statically
@@ -371,7 +371,7 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 			return true
 		}
 
-		if ctxt.HeadType == objabi.Hdarwin && s.Size == int64(ctxt.Arch.PtrSize) && r.Off == 0 {
+		if target.IsDarwin() && s.Size == int64(target.Arch.PtrSize) && r.Off == 0 {
 			// Mach-O relocations are a royal pain to lay out.
 			// They use a compact stateful bytecode representation
 			// that is too much bother to deal with.
@@ -382,17 +382,17 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 			// just in case the C code assigns to the variable,
 			// and of course it only works for single pointers,
 			// but we only need to support cgo and that's all it needs.
-			ld.Adddynsym(&ctxt.Target, &ctxt.ArchSyms, targ)
+			ld.Adddynsym(target, syms, targ)
 
-			got := ctxt.Syms.Lookup(".got", 0)
+			got := syms.GOT
 			s.Type = got.Type
 			s.Attr |= sym.AttrSubSymbol
 			s.Outer = got
 			s.Sub = got.Sub
 			got.Sub = s
 			s.Value = got.Size
-			got.AddUint64(ctxt.Arch, 0)
-			ctxt.Syms.Lookup(".linkedit.got", 0).AddUint32(ctxt.Arch, uint32(targ.Dynid))
+			got.AddUint64(target.Arch, 0)
+			syms.LinkEditGOT.AddUint32(target.Arch, uint32(targ.Dynid))
 			r.Type = objabi.ElfRelocOffset // ignore during relocsym
 			return true
 		}
@@ -598,17 +598,17 @@ func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.S
 	}
 }
 
-func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+func addpltsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
 	if s.Plt() >= 0 {
 		return
 	}
 
-	ld.Adddynsym(&ctxt.Target, &ctxt.ArchSyms, s)
+	ld.Adddynsym(target, syms, s)
 
-	if ctxt.IsELF {
-		plt := ctxt.Syms.Lookup(".plt", 0)
-		got := ctxt.Syms.Lookup(".got.plt", 0)
-		rela := ctxt.Syms.Lookup(".rela.plt", 0)
+	if target.IsElf() {
+		plt := syms.PLT
+		got := syms.GOTPLT
+		rela := syms.RelaPLT
 		if plt.Size == 0 {
 			panic("plt is not set up")
 		}
@@ -617,29 +617,29 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		plt.AddUint8(0xff)
 
 		plt.AddUint8(0x25)
-		plt.AddPCRelPlus(ctxt.Arch, got, got.Size)
+		plt.AddPCRelPlus(target.Arch, got, got.Size)
 
 		// add to got: pointer to current pos in plt
-		got.AddAddrPlus(ctxt.Arch, plt, plt.Size)
+		got.AddAddrPlus(target.Arch, plt, plt.Size)
 
 		// pushq $x
 		plt.AddUint8(0x68)
 
-		plt.AddUint32(ctxt.Arch, uint32((got.Size-24-8)/8))
+		plt.AddUint32(target.Arch, uint32((got.Size-24-8)/8))
 
 		// jmpq .plt
 		plt.AddUint8(0xe9)
 
-		plt.AddUint32(ctxt.Arch, uint32(-(plt.Size + 4)))
+		plt.AddUint32(target.Arch, uint32(-(plt.Size + 4)))
 
 		// rela
-		rela.AddAddrPlus(ctxt.Arch, got, got.Size-8)
+		rela.AddAddrPlus(target.Arch, got, got.Size-8)
 
-		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_X86_64_JMP_SLOT)))
-		rela.AddUint64(ctxt.Arch, 0)
+		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_X86_64_JMP_SLOT)))
+		rela.AddUint64(target.Arch, 0)
 
 		s.SetPlt(int32(plt.Size - 16))
-	} else if ctxt.HeadType == objabi.Hdarwin {
+	} else if target.IsDarwin() {
 		// To do lazy symbol lookup right, we're supposed
 		// to tell the dynamic loader which library each
 		// symbol comes from and format the link info
@@ -650,39 +650,39 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		// https://networkpx.blogspot.com/2009/09/about-lcdyldinfoonly-command.html
 		// has details about what we're avoiding.
 
-		addgotsym(ctxt, s)
-		plt := ctxt.Syms.Lookup(".plt", 0)
+		addgotsym(target, syms, s)
+		plt := syms.PLT
 
-		ctxt.Syms.Lookup(".linkedit.plt", 0).AddUint32(ctxt.Arch, uint32(s.Dynid))
+		syms.LinkEditPLT.AddUint32(target.Arch, uint32(s.Dynid))
 
 		// jmpq *got+size(IP)
 		s.SetPlt(int32(plt.Size))
 
 		plt.AddUint8(0xff)
 		plt.AddUint8(0x25)
-		plt.AddPCRelPlus(ctxt.Arch, ctxt.Syms.Lookup(".got", 0), int64(s.Got()))
+		plt.AddPCRelPlus(target.Arch, syms.GOT, int64(s.Got()))
 	} else {
 		ld.Errorf(s, "addpltsym: unsupported binary format")
 	}
 }
 
-func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
+func addgotsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
 	if s.Got() >= 0 {
 		return
 	}
 
-	ld.Adddynsym(&ctxt.Target, &ctxt.ArchSyms, s)
-	got := ctxt.Syms.Lookup(".got", 0)
+	ld.Adddynsym(target, syms, s)
+	got := syms.GOT
 	s.SetGot(int32(got.Size))
-	got.AddUint64(ctxt.Arch, 0)
+	got.AddUint64(target.Arch, 0)
 
-	if ctxt.IsELF {
-		rela := ctxt.Syms.Lookup(".rela", 0)
-		rela.AddAddrPlus(ctxt.Arch, got, int64(s.Got()))
-		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_X86_64_GLOB_DAT)))
-		rela.AddUint64(ctxt.Arch, 0)
-	} else if ctxt.HeadType == objabi.Hdarwin {
-		ctxt.Syms.Lookup(".linkedit.got", 0).AddUint32(ctxt.Arch, uint32(s.Dynid))
+	if target.IsElf() {
+		rela := syms.Rela
+		rela.AddAddrPlus(target.Arch, got, int64(s.Got()))
+		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_X86_64_GLOB_DAT)))
+		rela.AddUint64(target.Arch, 0)
+	} else if target.IsDarwin() {
+		syms.LinkEditGOT.AddUint32(target.Arch, uint32(s.Dynid))
 	} else {
 		ld.Errorf(s, "addgotsym: unsupported binary format")
 	}

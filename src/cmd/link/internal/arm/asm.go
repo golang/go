@@ -116,13 +116,13 @@ func braddoff(a int32, b int32) int32 {
 	return int32((uint32(a))&0xff000000 | 0x00ffffff&uint32(a+b))
 }
 
-func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+func adddynrel(_ *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
 	targ := r.Sym
 
 	switch r.Type {
 	default:
 		if r.Type >= objabi.ElfRelocOffset {
-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type))
+			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(target.Arch, r.Type))
 			return false
 		}
 
@@ -131,8 +131,8 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 		r.Type = objabi.R_CALLARM
 
 		if targ.Type == sym.SDYNIMPORT {
-			addpltsym(ctxt, targ)
-			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+			addpltsym(target, syms, targ)
+			r.Sym = syms.PLT
 			r.Add = int64(braddoff(int32(r.Add), targ.Plt()/4))
 		}
 
@@ -144,9 +144,9 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_GOT32): // R_ARM_GOT_BREL
 		if targ.Type != sym.SDYNIMPORT {
-			addgotsyminternal(ctxt, targ)
+			addgotsyminternal(target, syms, targ)
 		} else {
-			addgotsym(ctxt, targ)
+			addgotsym(target, syms, targ)
 		}
 
 		r.Type = objabi.R_CONST // write r->add during relocsym
@@ -156,13 +156,13 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_GOT_PREL): // GOT(nil) + A - nil
 		if targ.Type != sym.SDYNIMPORT {
-			addgotsyminternal(ctxt, targ)
+			addgotsyminternal(target, syms, targ)
 		} else {
-			addgotsym(ctxt, targ)
+			addgotsym(target, syms, targ)
 		}
 
 		r.Type = objabi.R_PCREL
-		r.Sym = ctxt.Syms.Lookup(".got", 0)
+		r.Sym = syms.GOT
 		r.Add += int64(targ.Got()) + 4
 		return true
 
@@ -174,15 +174,15 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_GOTPC): // R_ARM_BASE_PREL
 		r.Type = objabi.R_PCREL
 
-		r.Sym = ctxt.Syms.Lookup(".got", 0)
+		r.Sym = syms.GOT
 		r.Add += 4
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_CALL):
 		r.Type = objabi.R_CALLARM
 		if targ.Type == sym.SDYNIMPORT {
-			addpltsym(ctxt, targ)
-			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+			addpltsym(target, syms, targ)
+			r.Sym = syms.PLT
 			r.Add = int64(braddoff(int32(r.Add), targ.Plt()/4))
 		}
 
@@ -215,8 +215,8 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 		objabi.ElfRelocOffset + objabi.RelocType(elf.R_ARM_JUMP24):
 		r.Type = objabi.R_CALLARM
 		if targ.Type == sym.SDYNIMPORT {
-			addpltsym(ctxt, targ)
-			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+			addpltsym(target, syms, targ)
+			r.Sym = syms.PLT
 			r.Add = int64(braddoff(int32(r.Add), targ.Plt()/4))
 		}
 
@@ -230,12 +230,12 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 
 	switch r.Type {
 	case objabi.R_CALLARM:
-		if ctxt.LinkMode == ld.LinkExternal {
+		if target.IsExternal() {
 			// External linker will do this relocation.
 			return true
 		}
-		addpltsym(ctxt, targ)
-		r.Sym = ctxt.Syms.Lookup(".plt", 0)
+		addpltsym(target, syms, targ)
+		r.Sym = syms.PLT
 		r.Add = int64(targ.Plt())
 		return true
 
@@ -243,12 +243,12 @@ func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbo
 		if s.Type != sym.SDATA {
 			break
 		}
-		if ctxt.IsELF {
-			ld.Adddynsym(&ctxt.Target, &ctxt.ArchSyms, targ)
-			rel := ctxt.Syms.Lookup(".rel", 0)
-			rel.AddAddrPlus(ctxt.Arch, s, int64(r.Off))
-			rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(targ.Dynid), uint32(elf.R_ARM_GLOB_DAT))) // we need a nil + A dynamic reloc
-			r.Type = objabi.R_CONST                                                                   // write r->add during relocsym
+		if target.IsElf() {
+			ld.Adddynsym(target, syms, targ)
+			rel := syms.Rel
+			rel.AddAddrPlus(target.Arch, s, int64(r.Off))
+			rel.AddUint32(target.Arch, ld.ELF32_R_INFO(uint32(targ.Dynid), uint32(elf.R_ARM_GLOB_DAT))) // we need a nil + A dynamic reloc
+			r.Type = objabi.R_CONST                                                                     // write r->add during relocsym
 			r.Sym = nil
 			return true
 		}
@@ -671,7 +671,7 @@ func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym
 	return t
 }
 
-func addpltreloc(ctxt *ld.Link, plt *sym.Symbol, got *sym.Symbol, s *sym.Symbol, typ objabi.RelocType) {
+func addpltreloc(plt *sym.Symbol, got *sym.Symbol, s *sym.Symbol, typ objabi.RelocType) {
 	r := plt.AddRel()
 	r.Sym = got
 	r.Off = int32(plt.Size)
@@ -684,17 +684,17 @@ func addpltreloc(ctxt *ld.Link, plt *sym.Symbol, got *sym.Symbol, s *sym.Symbol,
 	plt.Grow(plt.Size)
 }
 
-func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+func addpltsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
 	if s.Plt() >= 0 {
 		return
 	}
 
-	ld.Adddynsym(&ctxt.Target, &ctxt.ArchSyms, s)
+	ld.Adddynsym(target, syms, s)
 
-	if ctxt.IsELF {
-		plt := ctxt.Syms.Lookup(".plt", 0)
-		got := ctxt.Syms.Lookup(".got.plt", 0)
-		rel := ctxt.Syms.Lookup(".rel.plt", 0)
+	if target.IsElf() {
+		plt := syms.PLT
+		got := syms.GOTPLT
+		rel := syms.RelPLT
 		if plt.Size == 0 {
 			panic("plt is not set up")
 		}
@@ -705,54 +705,54 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		// In theory, all GOT should point to the first PLT entry,
 		// Linux/ARM's dynamic linker will do that for us, but FreeBSD/ARM's
 		// dynamic linker won't, so we'd better do it ourselves.
-		got.AddAddrPlus(ctxt.Arch, plt, 0)
+		got.AddAddrPlus(target.Arch, plt, 0)
 
 		// .plt entry, this depends on the .got entry
 		s.SetPlt(int32(plt.Size))
 
-		addpltreloc(ctxt, plt, got, s, objabi.R_PLT0) // add lr, pc, #0xXX00000
-		addpltreloc(ctxt, plt, got, s, objabi.R_PLT1) // add lr, lr, #0xYY000
-		addpltreloc(ctxt, plt, got, s, objabi.R_PLT2) // ldr pc, [lr, #0xZZZ]!
+		addpltreloc(plt, got, s, objabi.R_PLT0) // add lr, pc, #0xXX00000
+		addpltreloc(plt, got, s, objabi.R_PLT1) // add lr, lr, #0xYY000
+		addpltreloc(plt, got, s, objabi.R_PLT2) // ldr pc, [lr, #0xZZZ]!
 
 		// rel
-		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got()))
+		rel.AddAddrPlus(target.Arch, got, int64(s.Got()))
 
-		rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_ARM_JUMP_SLOT)))
+		rel.AddUint32(target.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_ARM_JUMP_SLOT)))
 	} else {
 		ld.Errorf(s, "addpltsym: unsupported binary format")
 	}
 }
 
-func addgotsyminternal(ctxt *ld.Link, s *sym.Symbol) {
+func addgotsyminternal(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
 	if s.Got() >= 0 {
 		return
 	}
 
-	got := ctxt.Syms.Lookup(".got", 0)
+	got := syms.GOT
 	s.SetGot(int32(got.Size))
 
-	got.AddAddrPlus(ctxt.Arch, s, 0)
+	got.AddAddrPlus(target.Arch, s, 0)
 
-	if ctxt.IsELF {
+	if target.IsElf() {
 	} else {
 		ld.Errorf(s, "addgotsyminternal: unsupported binary format")
 	}
 }
 
-func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
+func addgotsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
 	if s.Got() >= 0 {
 		return
 	}
 
-	ld.Adddynsym(&ctxt.Target, &ctxt.ArchSyms, s)
-	got := ctxt.Syms.Lookup(".got", 0)
+	ld.Adddynsym(target, syms, s)
+	got := syms.GOT
 	s.SetGot(int32(got.Size))
-	got.AddUint32(ctxt.Arch, 0)
+	got.AddUint32(target.Arch, 0)
 
-	if ctxt.IsELF {
-		rel := ctxt.Syms.Lookup(".rel", 0)
-		rel.AddAddrPlus(ctxt.Arch, got, int64(s.Got()))
-		rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_ARM_GLOB_DAT)))
+	if target.IsElf() {
+		rel := syms.Rel
+		rel.AddAddrPlus(target.Arch, got, int64(s.Got()))
+		rel.AddUint32(target.Arch, ld.ELF32_R_INFO(uint32(s.Dynid), uint32(elf.R_ARM_GLOB_DAT)))
 	} else {
 		ld.Errorf(s, "addgotsym: unsupported binary format")
 	}

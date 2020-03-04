@@ -113,6 +113,16 @@ type ArchSyms struct {
 	Dynamic *sym.Symbol
 	DynSym  *sym.Symbol
 	DynStr  *sym.Symbol
+
+	// Elf specific
+	Rel     *sym.Symbol
+	Rela    *sym.Symbol
+	RelPLT  *sym.Symbol
+	RelaPLT *sym.Symbol
+
+	// Darwin symbols
+	LinkEditGOT *sym.Symbol
+	LinkEditPLT *sym.Symbol
 }
 
 // setArchSyms sets up the ArchSyms structure, and must be called before
@@ -135,6 +145,16 @@ func (ctxt *Link) setArchSyms() {
 			}
 			ctxt.DotTOC[i] = ctxt.Syms.Lookup(".TOC.", i)
 		}
+	}
+	if ctxt.IsElf() {
+		ctxt.Rel = ctxt.Syms.Lookup(".rel", 0)
+		ctxt.Rela = ctxt.Syms.Lookup(".rela", 0)
+		ctxt.RelPLT = ctxt.Syms.Lookup(".rel.plt", 0)
+		ctxt.RelaPLT = ctxt.Syms.Lookup(".rela.plt", 0)
+	}
+	if ctxt.IsDarwin() {
+		ctxt.LinkEditGOT = ctxt.Syms.Lookup(".linkedit.got", 0)
+		ctxt.LinkEditPLT = ctxt.Syms.Lookup(".linkedit.plt", 0)
 	}
 }
 
@@ -2699,6 +2719,9 @@ func (ctxt *Link) loadlibfull() {
 	ctxt.cgodata = nil
 
 	addToTextp(ctxt)
+
+	// Set special global symbols.
+	ctxt.setArchSyms()
 }
 
 func (ctxt *Link) dumpsyms() {
