@@ -988,14 +988,13 @@ function goReq(side: side, m: string) {
   let callBody = `return s.Conn.Call(ctx, "${m}", nil, nil)\n}`;
   if (b != '' && b != 'void') {
     const p2 = a == '' ? 'nil' : 'params';
-    let theRet = `result`;
-    if (indirect(b)) theRet = '&result';
-    callBody = `var result ${b}
+    const returnType = indirect(b) ? `*${b}` : b;
+    callBody = `var result ${returnType}
 			if err := s.Conn.Call(ctx, "${m}", ${
         p2}, &result); err != nil {
 				return nil, err
       }
-      return ${theRet}, nil
+      return result, nil
     }`;
   } else if (a != '') {
     callBody = `return s.Conn.Call(ctx, "${m}", params, nil) // Call, not Notify

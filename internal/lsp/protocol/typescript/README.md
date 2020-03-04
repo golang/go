@@ -9,7 +9,7 @@ Get the typescript code for the jsonrpc protocol with
 
 `util.ts`` expects it to be in your HOME directory
 
-If you want to reproduce the existing files you need to be on a branch with the same git hash, for instance, `git checkout 635ab1f`
+If you want to reproduce the existing files you need to be on a branch with the same git hash, for instance, `git checkout 7b90c29`
 
 ## Usage
 

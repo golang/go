@@ -3,7 +3,7 @@ package protocol
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
 // commit: 7b90c29d0cb5cd7b9c41084f6cb3781a955adeba
-// last fetched Wed Feb 12 2020 17:16:47 GMT-0500 (Eastern Standard Time)
+// last fetched Wed Mar 04 2020 13:02:46 GMT-0500 (Eastern Standard Time)
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
 
@@ -757,11 +757,11 @@ func (s *serverDispatcher) WorkDoneProgressCreate(ctx context.Context, params *W
 }
 
 func (s *serverDispatcher) Initialize(ctx context.Context, params *ParamInitialize) (*InitializeResult, error) {
-	var result InitializeResult
+	var result *InitializeResult
 	if err := s.Conn.Call(ctx, "initialize", params, &result); err != nil {
 		return nil, err
 	}
-	return &result, nil
+	return result, nil
 }
 
 func (s *serverDispatcher) Shutdown(ctx context.Context) error {
@@ -777,35 +777,35 @@ func (s *serverDispatcher) WillSaveWaitUntil(ctx context.Context, params *WillSa
 }
 
 func (s *serverDispatcher) Completion(ctx context.Context, params *CompletionParams) (*CompletionList /*CompletionItem[] | CompletionList | null*/, error) {
-	var result CompletionList /*CompletionItem[] | CompletionList | null*/
+	var result *CompletionList /*CompletionItem[] | CompletionList | null*/
 	if err := s.Conn.Call(ctx, "textDocument/completion", params, &result); err != nil {
 		return nil, err
 	}
-	return &result, nil
+	return result, nil
 }
 
 func (s *serverDispatcher) Resolve(ctx context.Context, params *CompletionItem) (*CompletionItem, error) {
-	var result CompletionItem
+	var result *CompletionItem
 	if err := s.Conn.Call(ctx, "completionItem/resolve", params, &result); err != nil {
 		return nil, err
 	}
-	return &result, nil
+	return result, nil
 }
 
 func (s *serverDispatcher) Hover(ctx context.Context, params *HoverParams) (*Hover /*Hover | null*/, error) {
-	var result Hover /*Hover | null*/
+	var result *Hover /*Hover | null*/
 	if err := s.Conn.Call(ctx, "textDocument/hover", params, &result); err != nil {
 		return nil, err
 	}
-	return &result, nil
+	return result, nil
 }
 
 func (s *serverDispatcher) SignatureHelp(ctx context.Context, params *SignatureHelpParams) (*SignatureHelp /*SignatureHelp | null*/, error) {
-	var result SignatureHelp /*SignatureHelp | null*/
+	var result *SignatureHelp /*SignatureHelp | null*/
 	if err := s.Conn.Call(ctx, "textDocument/signatureHelp", params, &result); err != nil {
 		return nil, err
 	}
-	return &result, nil
+	return result, nil
 }
 
 func (s *serverDispatcher) Definition(ctx context.Context, params *DefinitionParams) (Definition /*Definition | DefinitionLink[] | null*/, error) {
@@ -865,11 +865,11 @@ func (s *serverDispatcher) CodeLens(ctx context.Context, params *CodeLensParams)
 }
 
 func (s *serverDispatcher) ResolveCodeLens(ctx context.Context, params *CodeLens) (*CodeLens, error) {
-	var result CodeLens
+	var result *CodeLens
 	if err := s.Conn.Call(ctx, "codeLens/resolve", params, &result); err != nil {
 		return nil, err
 	}
-	return &result, nil
+	return result, nil
 }
 
 func (s *serverDispatcher) DocumentLink(ctx context.Context, params *DocumentLinkParams) ([]DocumentLink /*DocumentLink[] | null*/, error) {
@@ -881,11 +881,11 @@ func (s *serverDispatcher) DocumentLink(ctx context.Context, params *DocumentLin
 }
 
 func (s *serverDispatcher) ResolveDocumentLink(ctx context.Context, params *DocumentLink) (*DocumentLink, error) {
-	var result DocumentLink
+	var result *DocumentLink
 	if err := s.Conn.Call(ctx, "documentLink/resolve", params, &result); err != nil {
 		return nil, err
 	}
-	return &result, nil
+	return result, nil
 }
 
 func (s *serverDispatcher) Formatting(ctx context.Context, params *DocumentFormattingParams) ([]TextEdit /*TextEdit[] | null*/, error) {
@@ -913,19 +913,19 @@ func (s *serverDispatcher) OnTypeFormatting(ctx context.Context, params *Documen
 }
 
 func (s *serverDispatcher) Rename(ctx context.Context, params *RenameParams) (*WorkspaceEdit /*WorkspaceEdit | null*/, error) {
-	var result WorkspaceEdit /*WorkspaceEdit | null*/
+	var result *WorkspaceEdit /*WorkspaceEdit | null*/
 	if err := s.Conn.Call(ctx, "textDocument/rename", params, &result); err != nil {
 		return nil, err
 	}
-	return &result, nil
+	return result, nil
 }
 
 func (s *serverDispatcher) PrepareRename(ctx context.Context, params *PrepareRenameParams) (*Range /*Range | { range: Range, placeholder: string } | null*/, error) {
-	var result Range /*Range | { range: Range, placeholder: string } | null*/
+	var result *Range /*Range | { range: Range, placeholder: string } | null*/
 	if err := s.Conn.Call(ctx, "textDocument/prepareRename", params, &result); err != nil {
 		return nil, err
 	}
-	return &result, nil
+	return result, nil
 }
 
 func (s *serverDispatcher) ExecuteCommand(ctx context.Context, params *ExecuteCommandParams) (interface{} /*any | null*/, error) {
@@ -961,11 +961,11 @@ func (s *serverDispatcher) OutgoingCalls(ctx context.Context, params *CallHierar
 }
 
 func (s *serverDispatcher) SemanticTokens(ctx context.Context, params *SemanticTokensParams) (*SemanticTokens /*SemanticTokens | null*/, error) {
-	var result SemanticTokens /*SemanticTokens | null*/
+	var result *SemanticTokens /*SemanticTokens | null*/
 	if err := s.Conn.Call(ctx, "textDocument/semanticTokens", params, &result); err != nil {
 		return nil, err
 	}
-	return &result, nil
+	return result, nil
 }
 
 func (s *serverDispatcher) SemanticTokensEdits(ctx context.Context, params *SemanticTokensEditsParams) (interface{} /* SemanticTokens | SemanticTokensEdits | nil*/, error) {
@@ -977,11 +977,11 @@ func (s *serverDispatcher) SemanticTokensEdits(ctx context.Context, params *Sema
 }
 
 func (s *serverDispatcher) SemanticTokensRange(ctx context.Context, params *SemanticTokensRangeParams) (*SemanticTokens /*SemanticTokens | null*/, error) {
-	var result SemanticTokens /*SemanticTokens | null*/
+	var result *SemanticTokens /*SemanticTokens | null*/
 	if err := s.Conn.Call(ctx, "textDocument/semanticTokens/range", params, &result); err != nil {
 		return nil, err
 	}
-	return &result, nil
+	return result, nil
 }
 
 func (s *serverDispatcher) NonstandardRequest(ctx context.Context, method string, params interface{}) (interface{}, error) {

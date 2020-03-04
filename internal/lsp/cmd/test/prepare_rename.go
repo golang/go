@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"testing"
 
+	"golang.org/x/tools/internal/lsp/cmd"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -27,7 +28,7 @@ func (r *runner) PrepareRename(t *testing.T, src span.Span, want *source.Prepare
 	)
 
 	if want.Text == "" {
-		if stdErr != "" {
+		if stdErr != "" && stdErr != cmd.ErrInvalidRenamePosition.Error() {
 			t.Errorf("prepare_rename failed for %s,\nexpected:\n`%v`\ngot:\n`%v`", target, expect, stdErr)
 		}
 		return

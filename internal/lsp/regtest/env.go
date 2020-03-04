@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/jsonrpc2/servertest"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/debug"
@@ -232,11 +233,12 @@ type Env struct {
 	t   *testing.T
 	ctx context.Context
 
-	// Most tests should not need to access the workspace or editor, or server,
-	// but they are available if needed.
+	// Most tests should not need to access the workspace, editor, server, or
+	// connection, but they are available if needed.
 	W      *fake.Workspace
 	E      *fake.Editor
 	Server servertest.Connector
+	Conn   *jsonrpc2.Conn
 
 	// mu guards the fields below, for the purpose of checking conditions on
 	// every change to diagnostics.
@@ -269,6 +271,7 @@ func NewEnv(ctx context.Context, t *testing.T, ws *fake.Workspace, ts servertest
 		W:               ws,
 		E:               editor,
 		Server:          ts,
+		Conn:            conn,
 		lastDiagnostics: make(map[string]*protocol.PublishDiagnosticsParams),
 		waiters:         make(map[int]*diagnosticCondition),
 	}
