@@ -665,13 +665,15 @@ func (ctxt *Link) windynrelocsyms() {
 }
 
 func dynrelocsym(ctxt *Link, s *sym.Symbol) {
+	target := &ctxt.Target
+	syms := &ctxt.ArchSyms
 	for ri := range s.R {
 		r := &s.R[ri]
 		if ctxt.BuildMode == BuildModePIE && ctxt.LinkMode == LinkInternal {
 			// It's expected that some relocations will be done
 			// later by relocsym (R_TLS_LE, R_ADDROFF), so
 			// don't worry if Adddynrel returns false.
-			thearch.Adddynrel(ctxt, s, r)
+			thearch.Adddynrel(ctxt, target, syms, s, r)
 			continue
 		}
 
@@ -679,7 +681,7 @@ func dynrelocsym(ctxt *Link, s *sym.Symbol) {
 			if r.Sym != nil && !r.Sym.Attr.Reachable() {
 				Errorf(s, "dynamic relocation to unreachable symbol %s", r.Sym.Name)
 			}
-			if !thearch.Adddynrel(ctxt, s, r) {
+			if !thearch.Adddynrel(ctxt, target, syms, s, r) {
 				Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d (%s) stype=%d (%s))", r.Sym.Name, r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Sym.Type, r.Sym.Type)
 			}
 		}

@@ -1599,7 +1599,7 @@ func (ctxt *Link) doelf() {
 			s.Type = sym.SELFRXSECT
 		}
 
-		thearch.Elfsetupplt(ctxt)
+		thearch.Elfsetupplt(ctxt, &ctxt.Target, &ctxt.ArchSyms)
 
 		s = ctxt.Syms.Lookup(elfRelType+".plt", 0)
 		s.Attr |= sym.AttrReachable

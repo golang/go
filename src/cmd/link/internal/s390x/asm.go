@@ -104,7 +104,7 @@ func gentext(ctxt *ld.Link) {
 	initarray_entry.AddAddr(ctxt.Arch, initfunc)
 }
 
-func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
 	targ := r.Sym
 	r.InitExt()
 
@@ -333,7 +333,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	return true
 }
 
-func elfsetupplt(ctxt *ld.Link) {
+func elfsetupplt(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms) {
 	plt := ctxt.Syms.Lookup(".plt", 0)
 	got := ctxt.Syms.Lookup(".got", 0)
 	if plt.Size == 0 {
@@ -431,7 +431,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		got := ctxt.Syms.Lookup(".got", 0)
 		rela := ctxt.Syms.Lookup(".rela.plt", 0)
 		if plt.Size == 0 {
-			elfsetupplt(ctxt)
+			elfsetupplt(ctxt, &ctxt.Target, &ctxt.ArchSyms)
 		}
 		// larl    %r1,_GLOBAL_OFFSET_TABLE_+index
 
