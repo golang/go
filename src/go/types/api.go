@@ -171,6 +171,11 @@ type Info struct {
 	// qualified identifiers are collected in the Uses map.
 	Types map[ast.Expr]TypeAndValue
 
+	// Inferred maps calls of parameterized functions which use
+	// type inferrence to the inferred signature of the function
+	// called.
+	Inferred map[*ast.CallExpr]*Signature
+
 	// Defs maps identifiers to the objects they define (including
 	// package names, dots "." of dot-imports, and blank "_" identifiers).
 	// For identifiers that do not denote objects (e.g., the package name

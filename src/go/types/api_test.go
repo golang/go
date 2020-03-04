@@ -42,7 +42,7 @@ func mustTypecheck(t *testing.T, path, source string, info *Info) string {
 	return pkg.Name()
 }
 
-func mayTypecheck(t *testing.T, path, source string, info *Info) string {
+func mayTypecheck(t *testing.T, path, source string, info *Info) (string, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, path, source, 0)
 	if f == nil { // ignore errors unless f is nil
@@ -52,8 +52,8 @@ func mayTypecheck(t *testing.T, path, source string, info *Info) string {
 		Error:    func(err error) {},
 		Importer: importer.Default(),
 	}
-	pkg, _ := conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
-	return pkg.Name()
+	pkg, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
+	return pkg.Name(), err
 }
 
 func TestValuesInfo(t *testing.T) {
@@ -274,11 +274,17 @@ func TestTypesInfo(t *testing.T) {
 		{`package x3; var x = panic("");`, `panic`, `func(interface{})`},
 		{`package x4; func _() { panic("") }`, `panic`, `func(interface{})`},
 		{`package x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
+
+		// parameterized functions
+		{`package p0; func f(type T)(T); var _ = f(int)`, `f`, `func(type T interface{})(T₁)`},
+		{`package p1; func f(type T)(T); var _ = f(int)`, `f(int)`, `func(int)`},
+		{`package p2; func f(type T)(T); var _ = f(42)`, `f`, `func(type T interface{})(T₁)`},
+		{`package p2; func f(type T)(T); var _ = f(42)`, `f(42)`, `()`},
 	}
 
 	for _, test := range tests {
 		info := Info{Types: make(map[ast.Expr]TypeAndValue)}
-		name := mayTypecheck(t, "TypesInfo", test.src, &info)
+		name, _ := mayTypecheck(t, "TypesInfo", test.src, &info)
 
 		// look for expression type
 		var typ Type
@@ -296,6 +302,57 @@ func TestTypesInfo(t *testing.T) {
 		// check that type is correct
 		if got := typ.String(); got != test.typ {
 			t.Errorf("package %s: got %s; want %s", name, got, test.typ)
+		}
+	}
+}
+
+func TestInferredInfo(t *testing.T) {
+	var tests = []struct {
+		src string
+		fun string
+		sig string
+	}{
+		{`package p0; func f(type T)(T); func _() { f(42) }`, `f`, `func(int)`},
+		{`package p1; func f(type T)(T) T; func _() { f('@') }`, `f`, `func(rune) rune`},
+		{`package p2; func f(type T)(...T) T; func _() { f(0i) }`, `f`, `func(...complex128) complex128`},
+		{`package p3; func f(type A, B, C)(A, *B, []C); func _() { f(1.2, new(string), []byte{}) }`, `f`, `func(float64, *string, []byte)`},
+		{`package p4; func f(type A, B)(A, *B, ...[]B); func _() { f(1.2, new(byte)) }`, `f`, `func(float64, *byte, ...[]byte)`},
+
+		// we don't know how to translate these but we can type-check them
+		{`package q0; type T struct{}; func (T) m(type P)(P); func _(x T) { x.m(42) }`, `x.m`, `func(int)`},
+		{`package q1; type T struct{}; func (T) m(type P)(P) P; func _(x T) { x.m(42) }`, `x.m`, `func(int) int`},
+		{`package q2; type T struct{}; func (T) m(type P)(...P) P; func _(x T) { x.m(42) }`, `x.m`, `func(...int) int`},
+		{`package q3; type T struct{}; func (T) m(type A, B, C)(A, *B, []C); func _(x T) { x.m(1.2, new(string), []byte{}) }`, `x.m`, `func(float64, *string, []byte)`},
+		{`package q4; type T struct{}; func (T) m(type A, B)(A, *B, ...[]B); func _(x T) { x.m(1.2, new(byte)) }`, `x.m`, `func(float64, *byte, ...[]byte)`},
+
+		{`package r0; type T(type P) struct{}; func (_ T(P)) m(type Q)(Q); func _(type P)(x T(P)) { x.m(42) }`, `x.m`, `func(int)`},
+		{`package r1; type T interface{ m(type P)(P) }; func _(x T) { x.m(4.2) }`, `x.m`, `func(float64)`},
+	}
+
+	for _, test := range tests {
+		info := Info{Inferred: make(map[*ast.CallExpr]*Signature)}
+		name, err := mayTypecheck(t, "InferredInfo", test.src, &info)
+		if err != nil {
+			t.Errorf("package %s: %v", name, err)
+			continue
+		}
+
+		// look for inferred signature
+		var sig *Signature
+		for call, typ := range info.Inferred {
+			if ExprString(call.Fun) == test.fun {
+				sig = typ
+				break
+			}
+		}
+		if sig == nil {
+			t.Errorf("package %s: no signature found for %s", name, test.fun)
+			continue
+		}
+
+		// check that signature is correct
+		if got := sig.String(); got != test.sig {
+			t.Errorf("package %s: got %s; want %s", name, got, test.sig)
 		}
 	}
 }
