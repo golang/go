@@ -1945,9 +1945,8 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 		if t == 0 {
 			log.Fatalf("missing type for %s in %s", name, r.unit.Lib)
 		}
-		if !l.attrReachable.Has(gi) && !(t == sym.SRODATA && strings.HasPrefix(name, "type.")) && name != "runtime.addmoduledata" && name != "runtime.lastmoduledatap" {
+		if !l.attrReachable.Has(gi) && name != "runtime.addmoduledata" && name != "runtime.lastmoduledatap" {
 			// No need to load unreachable symbols.
-			// XXX some type symbol's content may be needed in DWARF code, but they are not marked.
 			// XXX reference to runtime.addmoduledata may be generated later by the linker in plugin mode.
 			continue
 		}
