@@ -313,7 +313,7 @@ func addelfdynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		r.Type = objabi.R_ADDR
 		if targ.Type == sym.SDYNIMPORT {
 			// These happen in .toc sections
-			ld.Adddynsym(ctxt, targ)
+			ld.Adddynsym(&ctxt.Target, &ctxt.ArchSyms, targ)
 
 			rela := ctxt.Syms.Lookup(".rela", 0)
 			rela.AddAddrPlus(ctxt.Arch, s, int64(r.Off))
@@ -943,7 +943,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		return
 	}
 
-	ld.Adddynsym(ctxt, s)
+	ld.Adddynsym(&ctxt.Target, &ctxt.ArchSyms, s)
 
 	if ctxt.IsELF {
 		plt := ctxt.Syms.Lookup(".plt", 0)
@@ -1038,7 +1038,7 @@ func ensureglinkresolver(ctxt *ld.Link) *sym.Symbol {
 	// before the first symbol resolver stub.
 	s := ctxt.Syms.Lookup(".dynamic", 0)
 
-	ld.Elfwritedynentsymplus(ctxt, s, ld.DT_PPC64_GLINK, glink, glink.Size-32)
+	ld.Elfwritedynentsymplus(ctxt.Arch, s, ld.DT_PPC64_GLINK, glink, glink.Size-32)
 
 	return glink
 }

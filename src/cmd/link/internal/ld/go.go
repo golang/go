@@ -320,26 +320,26 @@ func adddynlib(ctxt *Link, lib string) {
 	seenlib[lib] = true
 
 	if ctxt.IsELF {
-		s := ctxt.Syms.Lookup(".dynstr", 0)
+		s := ctxt.DynStr
 		if s.Size == 0 {
 			Addstring(s, "")
 		}
-		Elfwritedynent(ctxt, ctxt.Syms.Lookup(".dynamic", 0), DT_NEEDED, uint64(Addstring(s, lib)))
+		elfWriteDynEnt(ctxt.Arch, ctxt.Dynamic, DT_NEEDED, uint64(Addstring(s, lib)))
 	} else {
 		Errorf(nil, "adddynlib: unsupported binary format")
 	}
 }
 
-func Adddynsym(ctxt *Link, s *sym.Symbol) {
-	if s.Dynid >= 0 || ctxt.LinkMode == LinkExternal {
+func Adddynsym(target *Target, syms *ArchSyms, s *sym.Symbol) {
+	if s.Dynid >= 0 || target.LinkMode == LinkExternal {
 		return
 	}
 
-	if ctxt.IsELF {
-		elfadddynsym(ctxt, s)
-	} else if ctxt.HeadType == objabi.Hdarwin {
+	if target.IsELF {
+		elfadddynsym(target, syms, s)
+	} else if target.HeadType == objabi.Hdarwin {
 		Errorf(s, "adddynsym: missed symbol (Extname=%s)", s.Extname())
-	} else if ctxt.HeadType == objabi.Hwindows {
+	} else if target.HeadType == objabi.Hwindows {
 		// already taken care of
 	} else {
 		Errorf(s, "adddynsym: unsupported binary format")
@@ -403,7 +403,7 @@ func (ctxt *Link) addexport() {
 	}
 
 	for _, exp := range dynexp {
-		Adddynsym(ctxt, exp)
+		Adddynsym(&ctxt.Target, &ctxt.ArchSyms, exp)
 	}
 	for _, lib := range dynlib {
 		adddynlib(ctxt, lib)

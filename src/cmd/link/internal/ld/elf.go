@@ -742,36 +742,36 @@ func elfhash(name string) uint32 {
 	return h
 }
 
-func Elfwritedynent(ctxt *Link, s *sym.Symbol, tag int, val uint64) {
+func elfWriteDynEnt(arch *sys.Arch, s *sym.Symbol, tag int, val uint64) {
 	if elf64 {
-		s.AddUint64(ctxt.Arch, uint64(tag))
-		s.AddUint64(ctxt.Arch, val)
+		s.AddUint64(arch, uint64(tag))
+		s.AddUint64(arch, val)
 	} else {
-		s.AddUint32(ctxt.Arch, uint32(tag))
-		s.AddUint32(ctxt.Arch, uint32(val))
+		s.AddUint32(arch, uint32(tag))
+		s.AddUint32(arch, uint32(val))
 	}
 }
 
-func elfwritedynentsym(ctxt *Link, s *sym.Symbol, tag int, t *sym.Symbol) {
-	Elfwritedynentsymplus(ctxt, s, tag, t, 0)
+func elfWriteDynEntSym(arch *sys.Arch, s *sym.Symbol, tag int, t *sym.Symbol) {
+	Elfwritedynentsymplus(arch, s, tag, t, 0)
 }
 
-func Elfwritedynentsymplus(ctxt *Link, s *sym.Symbol, tag int, t *sym.Symbol, add int64) {
+func Elfwritedynentsymplus(arch *sys.Arch, s *sym.Symbol, tag int, t *sym.Symbol, add int64) {
 	if elf64 {
-		s.AddUint64(ctxt.Arch, uint64(tag))
+		s.AddUint64(arch, uint64(tag))
 	} else {
-		s.AddUint32(ctxt.Arch, uint32(tag))
+		s.AddUint32(arch, uint32(tag))
 	}
-	s.AddAddrPlus(ctxt.Arch, t, add)
+	s.AddAddrPlus(arch, t, add)
 }
 
-func elfwritedynentsymsize(ctxt *Link, s *sym.Symbol, tag int, t *sym.Symbol) {
+func elfWriteDynEntSymSize(arch *sys.Arch, s *sym.Symbol, tag int, t *sym.Symbol) {
 	if elf64 {
-		s.AddUint64(ctxt.Arch, uint64(tag))
+		s.AddUint64(arch, uint64(tag))
 	} else {
-		s.AddUint32(ctxt.Arch, uint32(tag))
+		s.AddUint32(arch, uint32(tag))
 	}
-	s.AddSize(ctxt.Arch, t)
+	s.AddSize(arch, t)
 }
 
 func elfinterp(sh *ElfShdr, startva uint64, resoff uint64, p string) int {
@@ -1121,23 +1121,23 @@ func elfdynhash(ctxt *Link) {
 	s = ctxt.Syms.Lookup(".dynamic", 0)
 	elfverneed = nfile
 	if elfverneed != 0 {
-		elfwritedynentsym(ctxt, s, DT_VERNEED, ctxt.Syms.Lookup(".gnu.version_r", 0))
-		Elfwritedynent(ctxt, s, DT_VERNEEDNUM, uint64(nfile))
-		elfwritedynentsym(ctxt, s, DT_VERSYM, ctxt.Syms.Lookup(".gnu.version", 0))
+		elfWriteDynEntSym(ctxt.Arch, s, DT_VERNEED, ctxt.Syms.Lookup(".gnu.version_r", 0))
+		elfWriteDynEnt(ctxt.Arch, s, DT_VERNEEDNUM, uint64(nfile))
+		elfWriteDynEntSym(ctxt.Arch, s, DT_VERSYM, ctxt.Syms.Lookup(".gnu.version", 0))
 	}
 
 	sy := ctxt.Syms.Lookup(elfRelType+".plt", 0)
 	if sy.Size > 0 {
 		if elfRelType == ".rela" {
-			Elfwritedynent(ctxt, s, DT_PLTREL, DT_RELA)
+			elfWriteDynEnt(ctxt.Arch, s, DT_PLTREL, DT_RELA)
 		} else {
-			Elfwritedynent(ctxt, s, DT_PLTREL, DT_REL)
+			elfWriteDynEnt(ctxt.Arch, s, DT_PLTREL, DT_REL)
 		}
-		elfwritedynentsymsize(ctxt, s, DT_PLTRELSZ, sy)
-		elfwritedynentsym(ctxt, s, DT_JMPREL, sy)
+		elfWriteDynEntSymSize(ctxt.Arch, s, DT_PLTRELSZ, sy)
+		elfWriteDynEntSym(ctxt.Arch, s, DT_JMPREL, sy)
 	}
 
-	Elfwritedynent(ctxt, s, DT_NULL, 0)
+	elfWriteDynEnt(ctxt.Arch, s, DT_NULL, 0)
 }
 
 func elfphload(seg *sym.Segment) *ElfPhdr {
@@ -1622,47 +1622,47 @@ func (ctxt *Link) doelf() {
 		/*
 		 * .dynamic table
 		 */
-		elfwritedynentsym(ctxt, s, DT_HASH, ctxt.Syms.Lookup(".hash", 0))
+		elfWriteDynEntSym(ctxt.Arch, s, DT_HASH, ctxt.Syms.Lookup(".hash", 0))
 
-		elfwritedynentsym(ctxt, s, DT_SYMTAB, ctxt.Syms.Lookup(".dynsym", 0))
+		elfWriteDynEntSym(ctxt.Arch, s, DT_SYMTAB, ctxt.Syms.Lookup(".dynsym", 0))
 		if elf64 {
-			Elfwritedynent(ctxt, s, DT_SYMENT, ELF64SYMSIZE)
+			elfWriteDynEnt(ctxt.Arch, s, DT_SYMENT, ELF64SYMSIZE)
 		} else {
-			Elfwritedynent(ctxt, s, DT_SYMENT, ELF32SYMSIZE)
+			elfWriteDynEnt(ctxt.Arch, s, DT_SYMENT, ELF32SYMSIZE)
 		}
-		elfwritedynentsym(ctxt, s, DT_STRTAB, ctxt.Syms.Lookup(".dynstr", 0))
-		elfwritedynentsymsize(ctxt, s, DT_STRSZ, ctxt.Syms.Lookup(".dynstr", 0))
+		elfWriteDynEntSym(ctxt.Arch, s, DT_STRTAB, ctxt.Syms.Lookup(".dynstr", 0))
+		elfWriteDynEntSymSize(ctxt.Arch, s, DT_STRSZ, ctxt.Syms.Lookup(".dynstr", 0))
 		if elfRelType == ".rela" {
-			elfwritedynentsym(ctxt, s, DT_RELA, ctxt.Syms.Lookup(".rela", 0))
-			elfwritedynentsymsize(ctxt, s, DT_RELASZ, ctxt.Syms.Lookup(".rela", 0))
-			Elfwritedynent(ctxt, s, DT_RELAENT, ELF64RELASIZE)
+			elfWriteDynEntSym(ctxt.Arch, s, DT_RELA, ctxt.Syms.Lookup(".rela", 0))
+			elfWriteDynEntSymSize(ctxt.Arch, s, DT_RELASZ, ctxt.Syms.Lookup(".rela", 0))
+			elfWriteDynEnt(ctxt.Arch, s, DT_RELAENT, ELF64RELASIZE)
 		} else {
-			elfwritedynentsym(ctxt, s, DT_REL, ctxt.Syms.Lookup(".rel", 0))
-			elfwritedynentsymsize(ctxt, s, DT_RELSZ, ctxt.Syms.Lookup(".rel", 0))
-			Elfwritedynent(ctxt, s, DT_RELENT, ELF32RELSIZE)
+			elfWriteDynEntSym(ctxt.Arch, s, DT_REL, ctxt.Syms.Lookup(".rel", 0))
+			elfWriteDynEntSymSize(ctxt.Arch, s, DT_RELSZ, ctxt.Syms.Lookup(".rel", 0))
+			elfWriteDynEnt(ctxt.Arch, s, DT_RELENT, ELF32RELSIZE)
 		}
 
 		if rpath.val != "" {
-			Elfwritedynent(ctxt, s, DT_RUNPATH, uint64(Addstring(dynstr, rpath.val)))
+			elfWriteDynEnt(ctxt.Arch, s, DT_RUNPATH, uint64(Addstring(dynstr, rpath.val)))
 		}
 
 		if ctxt.Arch.Family == sys.PPC64 {
-			elfwritedynentsym(ctxt, s, DT_PLTGOT, ctxt.Syms.Lookup(".plt", 0))
+			elfWriteDynEntSym(ctxt.Arch, s, DT_PLTGOT, ctxt.Syms.Lookup(".plt", 0))
 		} else if ctxt.Arch.Family == sys.S390X {
-			elfwritedynentsym(ctxt, s, DT_PLTGOT, ctxt.Syms.Lookup(".got", 0))
+			elfWriteDynEntSym(ctxt.Arch, s, DT_PLTGOT, ctxt.Syms.Lookup(".got", 0))
 		} else {
-			elfwritedynentsym(ctxt, s, DT_PLTGOT, ctxt.Syms.Lookup(".got.plt", 0))
+			elfWriteDynEntSym(ctxt.Arch, s, DT_PLTGOT, ctxt.Syms.Lookup(".got.plt", 0))
 		}
 
 		if ctxt.Arch.Family == sys.PPC64 {
-			Elfwritedynent(ctxt, s, DT_PPC64_OPT, 0)
+			elfWriteDynEnt(ctxt.Arch, s, DT_PPC64_OPT, 0)
 		}
 
 		// Solaris dynamic linker can't handle an empty .rela.plt if
 		// DT_JMPREL is emitted so we have to defer generation of DT_PLTREL,
 		// DT_PLTRELSZ, and DT_JMPREL dynamic entries until after we know the
 		// size of .rel(a).plt section.
-		Elfwritedynent(ctxt, s, DT_DEBUG, 0)
+		elfWriteDynEnt(ctxt.Arch, s, DT_DEBUG, 0)
 	}
 
 	if ctxt.BuildMode == BuildModeShared {
@@ -2271,15 +2271,15 @@ elfobj:
 	}
 }
 
-func elfadddynsym(ctxt *Link, s *sym.Symbol) {
+func elfadddynsym(target *Target, syms *ArchSyms, s *sym.Symbol) {
 	if elf64 {
 		s.Dynid = int32(Nelfsym)
 		Nelfsym++
 
-		d := ctxt.Syms.Lookup(".dynsym", 0)
+		d := syms.DynSym
 
 		name := s.Extname()
-		d.AddUint32(ctxt.Arch, uint32(Addstring(ctxt.Syms.Lookup(".dynstr", 0), name)))
+		d.AddUint32(target.Arch, uint32(Addstring(syms.DynStr, name)))
 
 		/* type */
 		t := STB_GLOBAL << 4
@@ -2296,52 +2296,52 @@ func elfadddynsym(ctxt *Link, s *sym.Symbol) {
 
 		/* section where symbol is defined */
 		if s.Type == sym.SDYNIMPORT {
-			d.AddUint16(ctxt.Arch, SHN_UNDEF)
+			d.AddUint16(target.Arch, SHN_UNDEF)
 		} else {
-			d.AddUint16(ctxt.Arch, 1)
+			d.AddUint16(target.Arch, 1)
 		}
 
 		/* value */
 		if s.Type == sym.SDYNIMPORT {
-			d.AddUint64(ctxt.Arch, 0)
+			d.AddUint64(target.Arch, 0)
 		} else {
-			d.AddAddr(ctxt.Arch, s)
+			d.AddAddr(target.Arch, s)
 		}
 
 		/* size of object */
-		d.AddUint64(ctxt.Arch, uint64(s.Size))
+		d.AddUint64(target.Arch, uint64(s.Size))
 
-		if ctxt.Arch.Family == sys.AMD64 && !s.Attr.CgoExportDynamic() && s.Dynimplib() != "" && !seenlib[s.Dynimplib()] {
-			Elfwritedynent(ctxt, ctxt.Syms.Lookup(".dynamic", 0), DT_NEEDED, uint64(Addstring(ctxt.Syms.Lookup(".dynstr", 0), s.Dynimplib())))
+		if target.Arch.Family == sys.AMD64 && !s.Attr.CgoExportDynamic() && s.Dynimplib() != "" && !seenlib[s.Dynimplib()] {
+			elfWriteDynEnt(target.Arch, syms.Dynamic, DT_NEEDED, uint64(Addstring(syms.DynStr, s.Dynimplib())))
 		}
 	} else {
 		s.Dynid = int32(Nelfsym)
 		Nelfsym++
 
-		d := ctxt.Syms.Lookup(".dynsym", 0)
+		d := syms.DynSym
 
 		/* name */
 		name := s.Extname()
 
-		d.AddUint32(ctxt.Arch, uint32(Addstring(ctxt.Syms.Lookup(".dynstr", 0), name)))
+		d.AddUint32(target.Arch, uint32(Addstring(syms.DynStr, name)))
 
 		/* value */
 		if s.Type == sym.SDYNIMPORT {
-			d.AddUint32(ctxt.Arch, 0)
+			d.AddUint32(target.Arch, 0)
 		} else {
-			d.AddAddr(ctxt.Arch, s)
+			d.AddAddr(target.Arch, s)
 		}
 
 		/* size of object */
-		d.AddUint32(ctxt.Arch, uint32(s.Size))
+		d.AddUint32(target.Arch, uint32(s.Size))
 
 		/* type */
 		t := STB_GLOBAL << 4
 
 		// TODO(mwhudson): presumably the behavior should actually be the same on both arm and 386.
-		if ctxt.Arch.Family == sys.I386 && s.Attr.CgoExport() && s.Type == sym.STEXT {
+		if target.Arch.Family == sys.I386 && s.Attr.CgoExport() && s.Type == sym.STEXT {
 			t |= STT_FUNC
-		} else if ctxt.Arch.Family == sys.ARM && s.Attr.CgoExportDynamic() && s.Type == sym.STEXT {
+		} else if target.Arch.Family == sys.ARM && s.Attr.CgoExportDynamic() && s.Type == sym.STEXT {
 			t |= STT_FUNC
 		} else {
 			t |= STT_OBJECT
@@ -2351,9 +2351,9 @@ func elfadddynsym(ctxt *Link, s *sym.Symbol) {
 
 		/* shndx */
 		if s.Type == sym.SDYNIMPORT {
-			d.AddUint16(ctxt.Arch, SHN_UNDEF)
+			d.AddUint16(target.Arch, SHN_UNDEF)
 		} else {
-			d.AddUint16(ctxt.Arch, 1)
+			d.AddUint16(target.Arch, 1)
 		}
 	}
 }
