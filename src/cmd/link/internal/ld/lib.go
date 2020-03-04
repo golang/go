@@ -141,7 +141,7 @@ type Arch struct {
 	Openbsddynld   string
 	Dragonflydynld string
 	Solarisdynld   string
-	Adddynrel      func(*Link, *sym.Symbol, *sym.Reloc) bool
+	Adddynrel      func(*Link, *Target, *ArchSyms, *sym.Symbol, *sym.Reloc) bool
 	Archinit       func(*Link)
 	// Archreloc is an arch-specific hook that assists in
 	// relocation processing (invoked by 'relocsym'); it handles
@@ -174,7 +174,7 @@ type Arch struct {
 	Asmb2 func(*Link)
 
 	Elfreloc1   func(*Link, *sym.Reloc, int64) bool
-	Elfsetupplt func(*Link)
+	Elfsetupplt func(*Link, *Target, *ArchSyms)
 	Gentext     func(*Link)
 	Machoreloc1 func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
 	PEreloc1    func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool

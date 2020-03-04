@@ -262,7 +262,7 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *sym.Symbol, targ *sym.Symbol)
 	stub.AddUint32(ctxt.Arch, 0x4e800420) // bctr
 }
 
-func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+func adddynrel(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
 	if ctxt.IsELF {
 		return addelfdynrel(ctxt, s, r)
 	} else if ctxt.HeadType == objabi.Haix {
@@ -498,7 +498,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	return true
 }
 
-func elfsetupplt(ctxt *ld.Link) {
+func elfsetupplt(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms) {
 	plt := ctxt.Syms.Lookup(".plt", 0)
 	if plt.Size == 0 {
 		// The dynamic linker stores the address of the
@@ -949,7 +949,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		plt := ctxt.Syms.Lookup(".plt", 0)
 		rela := ctxt.Syms.Lookup(".rela.plt", 0)
 		if plt.Size == 0 {
-			elfsetupplt(ctxt)
+			elfsetupplt(ctxt, &ctxt.Target, &ctxt.ArchSyms)
 		}
 
 		// Create the glink resolver if necessary
