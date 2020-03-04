@@ -760,7 +760,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		return
 	}
 
-	ld.Adddynsym(ctxt, s)
+	ld.Adddynsym(&ctxt.Target, &ctxt.ArchSyms, s)
 
 	if ctxt.IsELF {
 		plt := ctxt.Syms.Lookup(".plt", 0)
@@ -808,7 +808,7 @@ func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
 		return
 	}
 
-	ld.Adddynsym(ctxt, s)
+	ld.Adddynsym(&ctxt.Target, &ctxt.ArchSyms, s)
 	got := ctxt.Syms.Lookup(".got", 0)
 	s.SetGot(int32(got.Size))
 	got.AddUint64(ctxt.Arch, 0)

@@ -108,6 +108,10 @@ type ArchSyms struct {
 
 	Tlsg      *sym.Symbol
 	Tlsoffset int
+
+	Dynamic *sym.Symbol
+	DynSym  *sym.Symbol
+	DynStr  *sym.Symbol
 }
 
 // setArchSyms sets up the ArchSyms structure, and must be called before
@@ -118,6 +122,10 @@ func (ctxt *Link) setArchSyms() {
 	ctxt.GOT = ctxt.Syms.Lookup(".got", 0)
 	ctxt.PLT = ctxt.Syms.Lookup(".plt", 0)
 	ctxt.GOTPLT = ctxt.Syms.Lookup(".got.plt", 0)
+
+	ctxt.Dynamic = ctxt.Syms.Lookup(".dynamic", 0)
+	ctxt.DynSym = ctxt.Syms.Lookup(".dynsym", 0)
+	ctxt.DynStr = ctxt.Syms.Lookup(".dynstr", 0)
 }
 
 type Arch struct {

@@ -312,7 +312,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 			break
 		}
 		if ctxt.IsELF {
-			ld.Adddynsym(ctxt, targ)
+			ld.Adddynsym(&ctxt.Target, &ctxt.ArchSyms, targ)
 			rel := ctxt.Syms.Lookup(".rel", 0)
 			rel.AddAddrPlus(ctxt.Arch, s, int64(r.Off))
 			rel.AddUint32(ctxt.Arch, ld.ELF32_R_INFO(uint32(targ.Dynid), uint32(elf.R_386_32)))
@@ -332,7 +332,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 			// just in case the C code assigns to the variable,
 			// and of course it only works for single pointers,
 			// but we only need to support cgo and that's all it needs.
-			ld.Adddynsym(ctxt, targ)
+			ld.Adddynsym(&ctxt.Target, &ctxt.ArchSyms, targ)
 
 			got := ctxt.Syms.Lookup(".got", 0)
 			s.Type = got.Type
@@ -543,7 +543,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		return
 	}
 
-	ld.Adddynsym(ctxt, s)
+	ld.Adddynsym(&ctxt.Target, &ctxt.ArchSyms, s)
 
 	if ctxt.IsELF {
 		plt := ctxt.Syms.Lookup(".plt", 0)
@@ -603,7 +603,7 @@ func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
 		return
 	}
 
-	ld.Adddynsym(ctxt, s)
+	ld.Adddynsym(&ctxt.Target, &ctxt.ArchSyms, s)
 	got := ctxt.Syms.Lookup(".got", 0)
 	s.SetGot(int32(got.Size))
 	got.AddUint32(ctxt.Arch, 0)
