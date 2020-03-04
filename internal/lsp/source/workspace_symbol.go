@@ -47,16 +47,21 @@ outer:
 					return nil, err
 				}
 				for _, si := range findSymbol(file.Decls, pkg.GetTypesInfo(), matcher) {
-					rng, err := nodeToProtocolRange(view, pkg, si.node)
+					mrng, err := posToMappedRange(view, pkg, si.node.Pos(), si.node.End())
 					if err != nil {
-						log.Error(ctx, "Error getting range for node", err)
+						log.Error(ctx, "Error getting mapped range for node", err)
+						continue
+					}
+					rng, err := mrng.Range()
+					if err != nil {
+						log.Error(ctx, "Error getting range from mapped range", err)
 						continue
 					}
 					symbols = append(symbols, protocol.SymbolInformation{
 						Name: si.name,
 						Kind: si.kind,
 						Location: protocol.Location{
-							URI:   protocol.URIFromSpanURI(fh.File().Identity().URI),
+							URI:   protocol.URIFromSpanURI(mrng.URI()),
 							Range: rng,
 						},
 					})
