@@ -59,8 +59,9 @@ type oReader struct {
 	version   int    // version of static symbol
 	flags     uint32 // read from object file
 	pkgprefix string
-	syms      []Sym // Sym's global index, indexed by local index
-	ndef      int   // cache goobj2.Reader.NSym()
+	syms      []Sym  // Sym's global index, indexed by local index
+	ndef      int    // cache goobj2.Reader.NSym()
+	objidx    uint32 // index of this reader in the objs slice
 }
 
 type objIdx struct {
@@ -152,7 +153,6 @@ type Loader struct {
 	objs        []objIdx         // sorted by start index (i.e. objIdx.i)
 	extStart    Sym              // from this index on, the symbols are externally defined
 	builtinSyms []Sym            // global index of builtin symbols
-	ocache      int              // index (into 'objs') of most recent lookup
 
 	objSyms []objSym // global index mapping to local index
 
@@ -1580,7 +1580,7 @@ func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, uni
 	pkgprefix := objabi.PathToPrefix(lib.Pkg) + "."
 	ndef := r.NSym()
 	nnonpkgdef := r.NNonpkgdef()
-	or := &oReader{r, unit, localSymVersion, r.Flags(), pkgprefix, make([]Sym, ndef+nnonpkgdef+r.NNonpkgref()), ndef}
+	or := &oReader{r, unit, localSymVersion, r.Flags(), pkgprefix, make([]Sym, ndef+nnonpkgdef+r.NNonpkgref()), ndef, uint32(len(l.objs))}
 
 	// Autolib
 	lib.ImportStrings = append(lib.ImportStrings, r.Autolib()...)
@@ -2005,7 +2005,7 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 	pp.kind = skind
 	pp.ver = sver
 	pp.size = int64(osym.Siz)
-	pp.objidx = uint32(l.ocache)
+	pp.objidx = r.objidx
 
 	// If this is a def, then copy the guts. We expect this case
 	// to be very rare (one case it may come up is with -X).
