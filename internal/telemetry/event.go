@@ -15,6 +15,7 @@ const (
 	EventLog = EventType(iota)
 	EventStartSpan
 	EventEndSpan
+	EventTag
 )
 
 type Event struct {

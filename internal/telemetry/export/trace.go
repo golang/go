@@ -41,9 +41,14 @@ func GetSpan(ctx context.Context) *Span {
 	return v.(*Span)
 }
 
+// ContextSpan is an exporter that maintains hierarchical span structure in the
+// context.
+// It creates new spans on EventStartSpan, adds events to the current span on
+// EventLog or EventTag, and closes the span on EventEndSpan.
+// The span structure can then be used by other exporters.
 func ContextSpan(ctx context.Context, event telemetry.Event) context.Context {
 	switch event.Type {
-	case telemetry.EventLog:
+	case telemetry.EventLog, telemetry.EventTag:
 		if span := GetSpan(ctx); span != nil {
 			span.Events = append(span.Events, event)
 		}

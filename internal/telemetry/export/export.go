@@ -11,7 +11,6 @@ import (
 	"context"
 	"os"
 	"sync/atomic"
-	"time"
 	"unsafe"
 
 	"golang.org/x/tools/internal/telemetry"
@@ -40,28 +39,6 @@ func SetExporter(e Exporter) {
 		p = nil
 	}
 	atomic.StorePointer(&exporter, p)
-}
-
-func Tag(ctx context.Context, at time.Time, tags telemetry.TagList) {
-	exporterPtr := (*Exporter)(atomic.LoadPointer(&exporter))
-	if exporterPtr == nil {
-		return
-	}
-	// If context has a span we need to add the tags to it
-	span := GetSpan(ctx)
-	if span == nil {
-		return
-	}
-	if span.Start.IsZero() {
-		// span still being created, tag it directly
-		span.Tags = append(span.Tags, tags...)
-		return
-	}
-	// span in progress, add an event to the span
-	span.Events = append(span.Events, telemetry.Event{
-		At:   at,
-		Tags: tags,
-	})
 }
 
 func ProcessEvent(ctx context.Context, event telemetry.Event) context.Context {

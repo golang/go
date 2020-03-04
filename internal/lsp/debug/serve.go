@@ -554,6 +554,7 @@ func (e *exporter) ProcessEvent(ctx context.Context, event telemetry.Event) cont
 	if i == nil {
 		return ctx
 	}
+	ctx = export.Tag(ctx, event)
 	if i.ocagent != nil {
 		ctx = i.ocagent.ProcessEvent(ctx, event)
 	}

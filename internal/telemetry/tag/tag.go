@@ -15,21 +15,13 @@ import (
 	"golang.org/x/tools/internal/telemetry/export"
 )
 
-//TODO: Do we need to do something more efficient than just store tags
-//TODO: directly on the context?
-
-// With is roughly equivalent to context.WithValue except that it also notifies
-// registered observers.
-// Unlike WithValue, it takes a list of tags so that you can set many values
-// at once if needed. Each call to With results in one invocation of each
-// observer.
+// With delivers the tag list to the telemetry exporter.
 func With(ctx context.Context, tags ...telemetry.Tag) context.Context {
-	at := time.Now()
-	for _, t := range tags {
-		ctx = context.WithValue(ctx, t.Key, t.Value)
-	}
-	export.Tag(ctx, at, tags)
-	return ctx
+	return export.ProcessEvent(ctx, telemetry.Event{
+		Type: telemetry.EventTag,
+		At:   time.Now(),
+		Tags: tags,
+	})
 }
 
 // Get collects a set of values from the context and returns them as a tag list.
