@@ -327,7 +327,11 @@ type FileHandle interface {
 type FileIdentity struct {
 	URI span.URI
 
-	// Version is the version of the file, as specified by the client.
+	// SessionID is the ID of the LSP session.
+	SessionID string
+
+	// Version is the version of the file, as specified by the client. It should
+	// only be set in combination with SessionID.
 	Version float64
 
 	// Identifier represents a unique identifier for the file.

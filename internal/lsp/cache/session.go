@@ -54,6 +54,7 @@ func (o *overlay) Identity() source.FileIdentity {
 	return source.FileIdentity{
 		URI:        o.uri,
 		Identifier: o.hash,
+		SessionID:  o.session.id,
 		Version:    o.version,
 		Kind:       o.kind,
 	}

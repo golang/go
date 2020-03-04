@@ -32,12 +32,14 @@ const (
 )
 
 type modKey struct {
-	cfg   string
-	gomod string
-	view  string
+	sessionID string
+	cfg       string
+	gomod     string
+	view      string
 }
 
 type modTidyKey struct {
+	sessionID       string
 	cfg             string
 	gomod           string
 	imports         string
@@ -137,9 +139,10 @@ func (s *snapshot) ModHandle(ctx context.Context, fh source.FileHandle) source.M
 	cfg := s.Config(ctx)
 
 	key := modKey{
-		cfg:   hashConfig(cfg),
-		gomod: fh.Identity().String(),
-		view:  folder,
+		sessionID: s.view.session.id,
+		cfg:       hashConfig(cfg),
+		gomod:     fh.Identity().String(),
+		view:      folder,
 	}
 	h := s.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
 		ctx, done := trace.StartSpan(ctx, "cache.ModHandle", telemetry.File.Of(uri))
@@ -295,10 +298,14 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 	if err != nil {
 		return nil, err
 	}
+	s.mu.Lock()
+	overlayHash := hashUnsavedOverlays(s.files)
+	s.mu.Unlock()
 	key := modTidyKey{
+		sessionID:       s.view.session.id,
 		view:            folder,
 		imports:         imports,
-		unsavedOverlays: hashUnsavedOverlays(s.files),
+		unsavedOverlays: overlayHash,
 		gomod:           realfh.Identity().Identifier,
 		cfg:             hashConfig(cfg),
 	}
