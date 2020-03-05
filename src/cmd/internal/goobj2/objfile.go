@@ -321,6 +321,15 @@ func (r *Reloc2) Sym() SymRef {
 	return SymRef{binary.LittleEndian.Uint32(r[14:]), binary.LittleEndian.Uint32(r[18:])}
 }
 
+func (r *Reloc2) Set(off int32, size uint8, typ uint8, add int64, sym SymRef) {
+	binary.LittleEndian.PutUint32(r[:], uint32(off))
+	r[4] = size
+	r[5] = typ
+	binary.LittleEndian.PutUint64(r[6:], uint64(add))
+	binary.LittleEndian.PutUint32(r[14:], sym.PkgIdx)
+	binary.LittleEndian.PutUint32(r[18:], sym.SymIdx)
+}
+
 // Aux symbol info.
 type Aux struct {
 	Type uint8
