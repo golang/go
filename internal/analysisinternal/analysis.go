@@ -17,7 +17,7 @@ func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos
 	if offset >= len(src) {
 		return end
 	}
-	if width := bytes.IndexAny(src[offset:], " \n,():;[]"); width > 0 {
+	if width := bytes.IndexAny(src[offset:], " \n,():;[]+-*"); width > 0 {
 		end = start + token.Pos(width)
 	}
 	return end
@@ -25,3 +25,9 @@ func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos
 
 var GetTypeErrors = func(p interface{}) []types.Error { return nil }
 var SetTypeErrors = func(p interface{}, errors []types.Error) {}
+
+type TypeErrorPass string
+
+const (
+	UndeclaredName TypeErrorPass = "undeclaredname"
+)

@@ -39,6 +39,7 @@ import (
 	"golang.org/x/tools/internal/lsp/analysis/simplifycompositelit"
 	"golang.org/x/tools/internal/lsp/analysis/simplifyrange"
 	"golang.org/x/tools/internal/lsp/analysis/simplifyslice"
+	"golang.org/x/tools/internal/lsp/analysis/undeclaredname"
 	"golang.org/x/tools/internal/lsp/analysis/unusedparams"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/diff"
@@ -485,7 +486,9 @@ func (r *OptionResult) setBool(b *bool) {
 }
 
 func typeErrorAnalyzers() map[string]Analyzer {
-	return map[string]Analyzer{}
+	return map[string]Analyzer{
+		undeclaredname.Analyzer.Name: {Analyzer: undeclaredname.Analyzer, Enabled: true},
+	}
 }
 
 func defaultAnalyzers() map[string]Analyzer {

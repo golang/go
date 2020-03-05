@@ -409,6 +409,16 @@ func TestFoo(t *testing.T) {
 
 Default value: `true`.
 
+### **undeclaredname**
+
+suggested fixes for "undeclared name: <>"
+
+This checker provides suggested fixes for type errors of the
+type `undeclared name: <>`. It will insert a new statement:
+`<> := `.
+
+Default value: `true`.
+
 ### **unusedparams**
 
 check for unused parameters of functions
