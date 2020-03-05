@@ -704,7 +704,7 @@ func (s *scanner) rawString() {
 }
 
 func (s *scanner) comment(text string) {
-	s.errorAtf(0, text)
+	s.errorAtf(0, "%s", text)
 }
 
 func (s *scanner) skipLine() {
