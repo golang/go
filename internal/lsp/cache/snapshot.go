@@ -787,20 +787,20 @@ outer:
 	return result
 }
 
-// fileWasSaved returns true if the FileHandle passed in has been saved.
-// It accomplishes this by checking to see if the original and current FileHandles
-// are both overlays, and if the current FileHandles is saved while the original FileHandle
-// was not saved.
+// fileWasSaved reports whether the FileHandle passed in has been saved. It
+// accomplishes this by checking to see if the original and current FileHandles
+// are both overlays, and if the current FileHandle is saved while the original
+// FileHandle was not saved.
 func fileWasSaved(originalFH, currentFH source.FileHandle) bool {
 	c, ok := currentFH.(*overlay)
-	if ok {
+	if !ok || c == nil {
 		return true
 	}
-	if originalFH == nil {
+	o, ok := originalFH.(*overlay)
+	if !ok || o == nil {
 		return c.saved
 	}
-	o, ok := originalFH.(*overlay)
-	return ok && !o.saved && c.saved
+	return !o.saved && c.saved
 }
 
 // shouldInvalidateMetadata reparses a file's package and import declarations to
