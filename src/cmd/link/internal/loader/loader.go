@@ -520,6 +520,12 @@ func (l *Loader) resolve(r *oReader, s goobj2.SymRef) Sym {
 	var rr *oReader
 	switch p := s.PkgIdx; p {
 	case goobj2.PkgIdxInvalid:
+		// {0, X} with non-zero X is never a valid sym reference from a Go object.
+		// We steal this space for symbol references from external objects.
+		// In this case, X is just the global index.
+		if l.isExtReader(r) {
+			return Sym(s.SymIdx)
+		}
 		if s.SymIdx != 0 {
 			panic("bad sym ref")
 		}
@@ -1448,10 +1454,14 @@ func (relocs *Relocs) At(j int) Reloc {
 
 func (relocs *Relocs) At2(j int) Reloc2 {
 	if relocs.l.isExtReader(relocs.r) {
-		// TODO: implement this. How? Maybe we can construct the reloc
-		// data for external symbols in the same byte form as the one
-		// in the object file?
-		panic("not implemented")
+		pp := relocs.l.payloads[relocs.li]
+		r := pp.relocs[j]
+		// XXX populate a goobj2.Reloc from external reloc record.
+		// Ugly. Maybe we just want to use this format to store the
+		// reloc record in the first place?
+		var b goobj2.Reloc2
+		b.Set(r.Off, r.Size, uint8(r.Type), r.Add, goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(r.Sym)})
+		return Reloc2{&b, relocs.r, relocs.l}
 	}
 	return Reloc2{relocs.r.Reloc2(relocs.li, j), relocs.r, relocs.l}
 }

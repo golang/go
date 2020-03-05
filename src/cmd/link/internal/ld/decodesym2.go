@@ -25,13 +25,38 @@ func decodeReloc2(ldr *loader.Loader, symIdx loader.Sym, symRelocs []loader.Relo
 	return loader.Reloc{}
 }
 
+func decodeReloc3(ldr *loader.Loader, symIdx loader.Sym, relocs *loader.Relocs, off int32) loader.Reloc2 {
+	for j := 0; j < relocs.Count; j++ {
+		rel := relocs.At2(j)
+		if rel.Off() == off {
+			return rel
+		}
+	}
+	return loader.Reloc2{}
+}
+
 func decodeRelocSym2(ldr *loader.Loader, symIdx loader.Sym, symRelocs []loader.Reloc, off int32) loader.Sym {
 	return decodeReloc2(ldr, symIdx, symRelocs, off).Sym
+}
+
+func decodeRelocSym3(ldr *loader.Loader, symIdx loader.Sym, relocs *loader.Relocs, off int32) loader.Sym {
+	return decodeReloc3(ldr, symIdx, relocs, off).Sym()
 }
 
 // decodetypeName2 decodes the name from a reflect.name.
 func decodetypeName2(ldr *loader.Loader, symIdx loader.Sym, symRelocs []loader.Reloc, off int) string {
 	r := decodeRelocSym2(ldr, symIdx, symRelocs, int32(off))
+	if r == 0 {
+		return ""
+	}
+
+	data := ldr.Data(r)
+	namelen := int(uint16(data[1])<<8 | uint16(data[2]))
+	return string(data[3 : 3+namelen])
+}
+
+func decodetypeName3(ldr *loader.Loader, symIdx loader.Sym, relocs *loader.Relocs, off int) string {
+	r := decodeRelocSym3(ldr, symIdx, relocs, int32(off))
 	if r == 0 {
 		return ""
 	}
@@ -52,8 +77,23 @@ func decodetypeFuncInType2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym
 	return decodeRelocSym2(ldr, symIdx, symRelocs, int32(uadd+i*arch.PtrSize))
 }
 
+func decodetypeFuncInType3(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs, i int) loader.Sym {
+	uadd := commonsize(arch) + 4
+	if arch.PtrSize == 8 {
+		uadd += 4
+	}
+	if decodetypeHasUncommon(arch, ldr.Data(symIdx)) {
+		uadd += uncommonSize()
+	}
+	return decodeRelocSym3(ldr, symIdx, relocs, int32(uadd+i*arch.PtrSize))
+}
+
 func decodetypeFuncOutType2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, symRelocs []loader.Reloc, i int) loader.Sym {
 	return decodetypeFuncInType2(ldr, arch, symIdx, symRelocs, i+decodetypeFuncInCount(arch, ldr.Data(symIdx)))
+}
+
+func decodetypeFuncOutType3(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, relocs *loader.Relocs, i int) loader.Sym {
+	return decodetypeFuncInType3(ldr, arch, symIdx, relocs, i+decodetypeFuncInCount(arch, ldr.Data(symIdx)))
 }
 
 func decodetypeArrayElem2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) loader.Sym {
