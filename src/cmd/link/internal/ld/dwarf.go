@@ -2068,6 +2068,9 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 // through dwarf DIE objects and rewrites loader.Sym refs to
 // sym.Symbol there as well. This is obviously a temporary function.
 func dwarfConvertSymbols(ctxt *Link) {
+	if !dwarfEnabled(ctxt) {
+		return
+	}
 	if *FlagNewDw2 {
 		// don't convert since we're running phase 2 with loader
 		return
