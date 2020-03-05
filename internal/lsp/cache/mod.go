@@ -177,19 +177,22 @@ func (s *snapshot) ModHandle(ctx context.Context, fh source.FileHandle) source.M
 		// If we have a tempModfile, copy the real go.mod file content into the temp go.mod file.
 		if tempURI != "" {
 			if err := ioutil.WriteFile(tempURI.Filename(), contents, os.ModePerm); err != nil {
-				data.err = err
-				return data
+				return &modData{
+					err: err,
+				}
 			}
 		}
 		// Only get dependency upgrades if the go.mod file is the same as the view's.
 		if err := dependencyUpgrades(ctx, cfg, folder, data); err != nil {
-			data.err = err
-			return data
+			return &modData{
+				err: err,
+			}
 		}
 		// Only run "go mod why" if the go.mod file is the same as the view's.
 		if err := goModWhy(ctx, cfg, folder, data); err != nil {
-			data.err = err
-			return data
+			return &modData{
+				err: err,
+			}
 		}
 		return data
 	})
@@ -310,11 +313,9 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 		cfg:             hashConfig(cfg),
 	}
 	h := s.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
-		data := &modData{}
-
 		// Check the case when the tempModfile flag is turned off.
 		if realURI == "" || tempURI == "" {
-			return data
+			return &modData{}
 		}
 
 		ctx, done := trace.StartSpan(ctx, "cache.ModTidyHandle", telemetry.File.Of(realURI))
@@ -322,8 +323,9 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 
 		realContents, _, err := realfh.Read(ctx)
 		if err != nil {
-			data.err = err
-			return data
+			return &modData{
+				err: err,
+			}
 		}
 		realMapper := &protocol.ColumnMapper{
 			URI:       realURI,
@@ -333,17 +335,20 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 		origParsedFile, err := modfile.Parse(realURI.Filename(), realContents, nil)
 		if err != nil {
 			if parseErr, err := extractModParseErrors(ctx, realURI, realMapper, err, realContents); err == nil {
-				data.parseErrors = []source.Error{parseErr}
-				return data
+				return &modData{
+					parseErrors: []source.Error{parseErr},
+				}
 			}
-			data.err = err
-			return data
+			return &modData{
+				err: err,
+			}
 		}
 
 		// Copy the real go.mod file content into the temp go.mod file.
 		if err := ioutil.WriteFile(tempURI.Filename(), realContents, os.ModePerm); err != nil {
-			data.err = err
-			return data
+			return &modData{
+				err: err,
+			}
 		}
 
 		// We want to run "go mod tidy" to be able to diff between the real and the temp files.
@@ -357,25 +362,28 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 		if _, err := inv.Run(ctx); err != nil {
 			// Ignore concurrency errors here.
 			if !modConcurrencyError.MatchString(err.Error()) {
-				data.err = err
-				return data
+				return &modData{
+					err: err,
+				}
 			}
 		}
 
 		// Go directly to disk to get the temporary mod file, since it is always on disk.
 		tempContents, err := ioutil.ReadFile(tempURI.Filename())
 		if err != nil {
-			data.err = err
-			return data
+			return &modData{
+				err: err,
+			}
 		}
 		idealParsedFile, err := modfile.Parse(tempURI.Filename(), tempContents, nil)
 		if err != nil {
 			// We do not need to worry about the temporary file's parse errors since it has been "tidied".
-			data.err = err
-			return data
+			return &modData{
+				err: err,
+			}
 		}
 
-		data = &modData{
+		data := &modData{
 			origfh:          realfh,
 			origParsedFile:  origParsedFile,
 			origMapper:      realMapper,
