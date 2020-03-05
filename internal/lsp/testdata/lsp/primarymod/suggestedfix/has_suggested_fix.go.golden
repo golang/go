@@ -7,7 +7,7 @@ import (
 
 func goodbye() {
 	s := "hiiiiiii"
-	 //@suggestedfix("s = s")
+	 //@suggestedfix("s = s", "quickfix")
 	log.Print(s)
 }
 

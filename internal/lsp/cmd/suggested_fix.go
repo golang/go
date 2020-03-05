@@ -46,8 +46,8 @@ gopls fix flags are:
 // - if -d is specified, prints out unified diffs of the changes; or
 // - otherwise, prints the new versions to stdout.
 func (s *suggestedfix) Run(ctx context.Context, args ...string) error {
-	if len(args) != 1 {
-		return tool.CommandLineErrorf("fix expects 1 argument")
+	if len(args) < 1 {
+		return tool.CommandLineErrorf("fix expects at least 1 argument")
 	}
 	conn, err := s.app.connect(ctx)
 	if err != nil {
@@ -68,12 +68,20 @@ func (s *suggestedfix) Run(ctx context.Context, args ...string) error {
 	conn.Client.filesMu.Lock()
 	defer conn.Client.filesMu.Unlock()
 
+	codeActionKinds := []protocol.CodeActionKind{protocol.QuickFix}
+	if len(args) > 1 {
+		codeActionKinds = []protocol.CodeActionKind{}
+		for _, k := range args[1:] {
+			codeActionKinds = append(codeActionKinds, protocol.CodeActionKind(k))
+		}
+	}
+
 	p := protocol.CodeActionParams{
 		TextDocument: protocol.TextDocumentIdentifier{
 			URI: protocol.URIFromSpanURI(uri),
 		},
 		Context: protocol.CodeActionContext{
-			Only:        []protocol.CodeActionKind{protocol.QuickFix},
+			Only:        codeActionKinds,
 			Diagnostics: file.diagnostics,
 		},
 	}
@@ -86,9 +94,28 @@ func (s *suggestedfix) Run(ctx context.Context, args ...string) error {
 		if !a.IsPreferred && !s.All {
 			continue
 		}
-		for _, c := range a.Edit.DocumentChanges {
-			if fileURI(c.TextDocument.URI) == uri {
-				edits = append(edits, c.Edits...)
+		if !from.HasPosition() {
+			for _, c := range a.Edit.DocumentChanges {
+				if fileURI(c.TextDocument.URI) == uri {
+					edits = append(edits, c.Edits...)
+				}
+			}
+			continue
+		}
+		// If the span passed in has a position, then we need to find
+		// the codeaction that has the same range as the passed in span.
+		for _, diag := range a.Diagnostics {
+			spn, err := file.mapper.RangeSpan(diag.Range)
+			if err != nil {
+				continue
+			}
+			if span.ComparePoint(from.Start(), spn.Start()) == 0 {
+				for _, c := range a.Edit.DocumentChanges {
+					if fileURI(c.TextDocument.URI) == uri {
+						edits = append(edits, c.Edits...)
+					}
+				}
+				break
 			}
 		}
 	}

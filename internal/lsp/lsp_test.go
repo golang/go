@@ -361,7 +361,7 @@ func (r *runner) Import(t *testing.T, spn span.Span) {
 	}
 }
 
-func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
+func (r *runner) SuggestedFix(t *testing.T, spn span.Span, actionKinds []string) {
 	uri := spn.URI()
 	view, err := r.server.session.ViewOf(uri)
 	if err != nil {
@@ -397,12 +397,16 @@ func (r *runner) SuggestedFix(t *testing.T, spn span.Span) {
 	if diag == nil {
 		t.Fatalf("could not get any suggested fixes for %v", spn)
 	}
+	codeActionKinds := []protocol.CodeActionKind{}
+	for _, k := range actionKinds {
+		codeActionKinds = append(codeActionKinds, protocol.CodeActionKind(k))
+	}
 	actions, err := r.server.CodeAction(r.ctx, &protocol.CodeActionParams{
 		TextDocument: protocol.TextDocumentIdentifier{
 			URI: protocol.URIFromSpanURI(uri),
 		},
 		Context: protocol.CodeActionContext{
-			Only:        []protocol.CodeActionKind{protocol.QuickFix},
+			Only:        codeActionKinds,
 			Diagnostics: toProtocolDiagnostics([]source.Diagnostic{*diag}),
 		},
 	})
