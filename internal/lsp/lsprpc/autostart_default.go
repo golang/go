@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	startRemote        = startRemoteDefault
-	autoNetworkAddress = autoNetworkAddressDefault
+	startRemote           = startRemoteDefault
+	autoNetworkAddress    = autoNetworkAddressDefault
+	verifyRemoteOwnership = verifyRemoteOwnershipDefault
 )
 
 func startRemoteDefault(goplsPath string, args ...string) error {
@@ -29,5 +30,9 @@ func autoNetworkAddressDefault(goplsPath, id string) (network string, address st
 	if id != "" {
 		panic("identified remotes are not supported on windows")
 	}
-	return "tcp", ":37374"
+	return "tcp", "localhost:37374"
+}
+
+func verifyRemoteOwnershipDefault(network, address string) (bool, error) {
+	return true, nil
 }

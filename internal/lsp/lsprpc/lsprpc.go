@@ -268,6 +268,18 @@ func (f *Forwarder) connectToRemote(ctx context.Context) (net.Conn, error) {
 		// So we need to resolve a real network and address here.
 		network, address = autoNetworkAddress(f.goplsPath, f.addr)
 	}
+	// Attempt to verify that we own the remote. This is imperfect, but if we can
+	// determine that the remote is owned by a different user, we should fail.
+	ok, err := verifyRemoteOwnership(network, address)
+	if err != nil {
+		// If the ownership check itself failed, we fail open but log an error to
+		// the user.
+		log.Error(ctx, "unable to check daemon socket owner, failing open: %v", err)
+	} else if !ok {
+		// We succesfully checked that the socket is not owned by us, we fail
+		// closed.
+		return nil, fmt.Errorf("socket %q is owned by a different user", address)
+	}
 	// Try dialing our remote once, in case it is already running.
 	netConn, err = net.DialTimeout(network, address, f.dialTimeout)
 	if err == nil {

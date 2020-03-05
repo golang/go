@@ -2,23 +2,27 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd solaris openbsd
+// +build darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package lsprpc
 
 import (
 	"crypto/sha1"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
+	"strconv"
 	"syscall"
 )
 
 func init() {
 	startRemote = startRemotePosix
 	autoNetworkAddress = autoNetworkAddressPosix
+	verifyRemoteOwnership = verifyRemoteOwnershipPosix
 }
 
 func startRemotePosix(goplsPath string, args ...string) error {
@@ -63,4 +67,30 @@ func autoNetworkAddressPosix(goplsPath, id string) (network string, address stri
 		idComponent = "-" + id
 	}
 	return "unix", filepath.Join(os.TempDir(), fmt.Sprintf("%s-%s-daemon.%s%s", basename, shortHash, user, idComponent))
+}
+
+func verifyRemoteOwnershipPosix(network, address string) (bool, error) {
+	if network != "unix" {
+		return true, nil
+	}
+	fi, err := os.Stat(address)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return true, nil
+		}
+		return false, fmt.Errorf("checking socket owner: %v", err)
+	}
+	stat, ok := fi.Sys().(*syscall.Stat_t)
+	if !ok {
+		return false, errors.New("fi.Sys() is not a Stat_t")
+	}
+	user, err := user.Current()
+	if err != nil {
+		return false, fmt.Errorf("checking current user: %v", err)
+	}
+	uid, err := strconv.ParseUint(user.Uid, 10, 32)
+	if err != nil {
+		return false, fmt.Errorf("parsing current UID: %v", err)
+	}
+	return stat.Uid == uint32(uid), nil
 }
