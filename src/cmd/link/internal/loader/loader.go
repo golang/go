@@ -49,6 +49,17 @@ type Reloc struct {
 	Sym  Sym              // global index of symbol the reloc addresses
 }
 
+// Reloc2 holds a "handle" to access a relocation record from an
+// object file.
+type Reloc2 struct {
+	*goobj2.Reloc2
+	r *oReader
+	l *Loader
+}
+
+func (rel Reloc2) Type() objabi.RelocType { return objabi.RelocType(rel.Reloc2.Type()) }
+func (rel Reloc2) Sym() Sym               { return rel.l.resolve(rel.r, rel.Reloc2.Sym()) }
+
 // oReader is a wrapper type of obj.Reader, along with some
 // extra information.
 // TODO: rename to objReader once the old one is gone?
@@ -1433,6 +1444,16 @@ func (relocs *Relocs) At(j int) Reloc {
 		Add:  rel.Add,
 		Sym:  target,
 	}
+}
+
+func (relocs *Relocs) At2(j int) Reloc2 {
+	if relocs.l.isExtReader(relocs.r) {
+		// TODO: implement this. How? Maybe we can construct the reloc
+		// data for external symbols in the same byte form as the one
+		// in the object file?
+		panic("not implemented")
+	}
+	return Reloc2{relocs.r.Reloc2(relocs.li, j), relocs.r, relocs.l}
 }
 
 // ReadAll method reads all relocations for a symbol into the
