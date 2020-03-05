@@ -2147,21 +2147,14 @@ func (ctxt *Link) dostkcheck() {
 
 	// Check every function, but do the nosplit functions in a first pass,
 	// to make the printed failure chains as short as possible.
-	// TODO: iterate over Textp
-	for s, n := loader.Sym(1), ldr.NSym(); int(s) < n; s++ {
-		if !ldr.AttrReachable(s) || ldr.SymType(s) != sym.STEXT {
-			continue
-		}
+	for _, s := range ctxt.Textp2 {
 		if ldr.IsNoSplit(s) {
 			ch.sym = s
 			sc.check(&ch, 0)
 		}
 	}
 
-	for s, n := loader.Sym(1), ldr.NSym(); int(s) < n; s++ {
-		if !ldr.AttrReachable(s) || ldr.SymType(s) != sym.STEXT {
-			continue
-		}
+	for _, s := range ctxt.Textp2 {
 		if !ldr.IsNoSplit(s) {
 			ch.sym = s
 			sc.check(&ch, 0)
