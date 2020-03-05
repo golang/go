@@ -1224,6 +1224,14 @@ func (c *runCache) builderRunTest(b *work.Builder, a *work.Action) error {
 		if len(out) == 0 {
 			fmt.Fprintf(cmd.Stdout, "%s\n", err)
 		}
+		// NOTE(golang.org/issue/37555): test2json reports that a test passes
+		// unless "FAIL" is printed at the beginning of a line. The test may not
+		// actually print that if it panics, exits, or terminates abnormally,
+		// so we print it here. We can't always check whether it was printed
+		// because some tests need stdout to be a terminal (golang.org/issue/34791),
+		// not a pipe.
+		// TODO(golang.org/issue/29062): tests that exit with status 0 without
+		// printing a final result should fail.
 		fmt.Fprintf(cmd.Stdout, "FAIL\t%s\t%s\n", a.Package.ImportPath, t)
 	}
 
