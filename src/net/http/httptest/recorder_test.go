@@ -79,6 +79,14 @@ func TestRecorder(t *testing.T) {
 	}
 	hasHeader := func(key, want string) checkFunc {
 		return func(rec *ResponseRecorder) error {
+			if got := rec.Header().Get(key); got != want {
+				return fmt.Errorf("Header %s = %q; want %q", key, got, want)
+			}
+			return nil
+		}
+	}
+	hasResultHeader := func(key, want string) checkFunc {
+		return func(rec *ResponseRecorder) error {
 			if got := rec.Result().Header.Get(key); got != want {
 				return fmt.Errorf("final header %s = %q; want %q", key, got, want)
 			}
@@ -162,7 +170,7 @@ func TestRecorder(t *testing.T) {
 				hasStatus(200),
 				hasContents("hi first"),
 				hasFlush(false),
-				hasHeader("Content-Type", "text/plain; charset=utf-8"),
+				hasResultHeader("Content-Type", "text/plain; charset=utf-8"),
 			),
 		},
 		{
@@ -178,7 +186,7 @@ func TestRecorder(t *testing.T) {
 			func(w http.ResponseWriter, r *http.Request) {
 				io.WriteString(w, "<html>")
 			},
-			check(hasHeader("Content-Type", "text/html; charset=utf-8")),
+			check(hasResultHeader("Content-Type", "text/html; charset=utf-8")),
 		},
 		{
 			"no Content-Type detection with Transfer-Encoding",
@@ -186,7 +194,7 @@ func TestRecorder(t *testing.T) {
 				w.Header().Set("Transfer-Encoding", "some encoding")
 				io.WriteString(w, "<html>")
 			},
-			check(hasHeader("Content-Type", "")), // no header
+			check(hasResultHeader("Content-Type", "")), // no header
 		},
 		{
 			"no Content-Type detection if set explicitly",
@@ -194,7 +202,7 @@ func TestRecorder(t *testing.T) {
 				w.Header().Set("Content-Type", "some/type")
 				io.WriteString(w, "<html>")
 			},
-			check(hasHeader("Content-Type", "some/type")),
+			check(hasResultHeader("Content-Type", "some/type")),
 		},
 		{
 			"Content-Type detection doesn't crash if HeaderMap is nil",
@@ -205,7 +213,7 @@ func TestRecorder(t *testing.T) {
 				w.(*ResponseRecorder).HeaderMap = nil
 				io.WriteString(w, "<html>")
 			},
-			check(hasHeader("Content-Type", "text/html; charset=utf-8")),
+			check(hasResultHeader("Content-Type", "text/html; charset=utf-8")),
 		},
 		{
 			"Header is not changed after write",
@@ -215,7 +223,7 @@ func TestRecorder(t *testing.T) {
 				w.WriteHeader(200)
 				hdr.Set("Key", "incorrect")
 			},
-			check(hasHeader("Key", "correct")),
+			check(hasResultHeader("Key", "correct")),
 		},
 		{
 			"Trailer headers are correctly recorded",
@@ -233,8 +241,8 @@ func TestRecorder(t *testing.T) {
 			},
 			check(
 				hasStatus(200),
-				hasHeader("Content-Type", "text/html; charset=utf-8"),
-				hasHeader("Non-Trailer", "correct"),
+				hasResultHeader("Content-Type", "text/html; charset=utf-8"),
+				hasResultHeader("Non-Trailer", "correct"),
 				hasNotHeaders("Trailer-A", "Trailer-B", "Trailer-C", "Trailer-NotDeclared"),
 				hasTrailer("Trailer-A", "valuea"),
 				hasTrailer("Trailer-C", "valuec"),
@@ -256,7 +264,7 @@ func TestRecorder(t *testing.T) {
 			check(
 				hasOldHeader("X-Foo", "1"),
 				hasStatus(0),
-				hasHeader("X-Foo", "1"),
+				hasResultHeader("X-Foo", "1"),
 				hasResultStatus("200 OK"),
 				hasResultStatusCode(200),
 			),
@@ -273,8 +281,21 @@ func TestRecorder(t *testing.T) {
 			check(
 				hasOldHeader("X-Foo", "2"),
 				hasOldHeader("X-Bar", "2"),
-				hasHeader("X-Foo", "1"),
+				hasResultHeader("X-Foo", "1"),
 				hasNotHeaders("X-Bar"),
+			),
+		},
+		{
+			"HeaderMap vs FinalHeaders vs WriteHeader", // more for Issue 37650
+			func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(201)
+				w.Header().Add("X-Foo", "1")
+			},
+			check(
+				hasStatus(201),
+				hasOldHeader("X-Foo", "1"),
+				hasHeader("X-Foo", "1"),
+				hasResultHeader("X-Foo", "1"),
 			),
 		},
 		{
