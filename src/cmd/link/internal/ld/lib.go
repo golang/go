@@ -2266,14 +2266,15 @@ func (sc *stkChk) check(up *chain, depth int) int {
 
 		// Process calls in this span.
 		for i := 0; i < relocs.Count; i++ {
-			r := relocs.At(i)
-			if uint32(r.Off) >= pcsp.NextPC {
+			r := relocs.At2(i)
+			if uint32(r.Off()) >= pcsp.NextPC {
 				break
 			}
+			t := r.Type()
 			switch {
-			case r.Type.IsDirectCall():
+			case t.IsDirectCall():
 				ch.limit = int(int32(limit) - pcsp.Value - int32(callsize(ctxt)))
-				ch.sym = r.Sym
+				ch.sym = r.Sym()
 				if sc.check(&ch, depth+1) < 0 {
 					return -1
 				}
@@ -2282,7 +2283,7 @@ func (sc *stkChk) check(up *chain, depth int) int {
 			// so we have to make sure it can call morestack.
 			// Arrange the data structures to report both calls, so that
 			// if there is an error, stkprint shows all the steps involved.
-			case r.Type == objabi.R_CALLIND:
+			case t == objabi.R_CALLIND:
 				ch.limit = int(int32(limit) - pcsp.Value - int32(callsize(ctxt)))
 				ch.sym = 0
 				ch1.limit = ch.limit - callsize(ctxt) // for morestack in called prologue

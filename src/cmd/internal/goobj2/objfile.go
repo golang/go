@@ -307,6 +307,20 @@ func (r *Reloc) Size() int {
 	return 4 + 1 + 1 + 8 + r.Sym.Size()
 }
 
+// XXX experiment with another way of accessing relocations.
+
+const RelocSize = 22 // TODO: is it possible to not hard-code this?
+
+type Reloc2 [RelocSize]byte
+
+func (r *Reloc2) Off() int32  { return int32(binary.LittleEndian.Uint32(r[:])) }
+func (r *Reloc2) Siz() uint8  { return r[4] }
+func (r *Reloc2) Type() uint8 { return r[5] }
+func (r *Reloc2) Add() int64  { return int64(binary.LittleEndian.Uint64(r[6:])) }
+func (r *Reloc2) Sym() SymRef {
+	return SymRef{binary.LittleEndian.Uint32(r[14:]), binary.LittleEndian.Uint32(r[18:])}
+}
+
 // Aux symbol info.
 type Aux struct {
 	Type uint8
@@ -564,6 +578,12 @@ func (r *Reader) RelocOff(i int, j int) uint32 {
 	relocIdx := r.uint32At(relocIdxOff)
 	relocsiz := (&Reloc{}).Size()
 	return r.h.Offsets[BlkReloc] + (relocIdx+uint32(j))*uint32(relocsiz)
+}
+
+// Reloc2 returns a pointer to the j-th relocation of the i-th symbol.
+func (r *Reader) Reloc2(i int, j int) *Reloc2 {
+	off := r.RelocOff(i, j)
+	return (*Reloc2)(unsafe.Pointer(&r.b[off]))
 }
 
 // NAux returns the number of aux symbols of the i-th symbol.
