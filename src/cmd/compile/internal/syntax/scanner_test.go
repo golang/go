@@ -613,9 +613,9 @@ func TestScanErrors(t *testing.T) {
 		{`'\`, "rune literal not terminated", 0, 0},
 		{`'\'`, "rune literal not terminated", 0, 0},
 		{`'\x`, "rune literal not terminated", 0, 0},
-		{`'\x'`, "invalid character '\\'' in hex escape", 0, 3},
+		{`'\x'`, "invalid character '\\'' in hexadecimal escape", 0, 3},
 		{`'\y'`, "unknown escape", 0, 2},
-		{`'\x0'`, "invalid character '\\'' in hex escape", 0, 4},
+		{`'\x0'`, "invalid character '\\'' in hexadecimal escape", 0, 4},
 		{`'\00'`, "invalid character '\\'' in octal escape", 0, 4},
 		{`'\377' /*`, "comment not terminated", 0, 7}, // valid octal escape
 		{`'\378`, "invalid character '8' in octal escape", 0, 4},
@@ -633,9 +633,9 @@ func TestScanErrors(t *testing.T) {
 		{`"\`, "string not terminated", 0, 0},
 		{`"\"`, "string not terminated", 0, 0},
 		{`"\x`, "string not terminated", 0, 0},
-		{`"\x"`, "invalid character '\"' in hex escape", 0, 3},
+		{`"\x"`, "invalid character '\"' in hexadecimal escape", 0, 3},
 		{`"\y"`, "unknown escape", 0, 2},
-		{`"\x0"`, "invalid character '\"' in hex escape", 0, 4},
+		{`"\x0"`, "invalid character '\"' in hexadecimal escape", 0, 4},
 		{`"\00"`, "invalid character '\"' in octal escape", 0, 4},
 		{`"\377" /*`, "comment not terminated", 0, 7}, // valid octal escape
 		{`"\378"`, "invalid character '8' in octal escape", 0, 4},
@@ -644,8 +644,8 @@ func TestScanErrors(t *testing.T) {
 		{`s := "foo\z"`, "unknown escape", 0, 10},
 		{`s := "foo\z00\nbar"`, "unknown escape", 0, 10},
 		{`"\x`, "string not terminated", 0, 0},
-		{`"\x"`, "invalid character '\"' in hex escape", 0, 3},
-		{`var s string = "\x"`, "invalid character '\"' in hex escape", 0, 18},
+		{`"\x"`, "invalid character '\"' in hexadecimal escape", 0, 3},
+		{`var s string = "\x"`, "invalid character '\"' in hexadecimal escape", 0, 18},
 		{`return "\Uffffffff"`, "escape is invalid Unicode code point U+FFFFFFFF", 0, 18},
 
 		{"0b.0", "invalid radix point in binary literal", 0, 2},
@@ -683,6 +683,48 @@ func TestScanErrors(t *testing.T) {
 			}
 		} else {
 			t.Errorf("%q: got no error; want %q", test.src, test.err)
+		}
+	}
+}
+
+func TestDirectives(t *testing.T) {
+	for _, src := range []string{
+		"line",
+		"// line",
+		"//line",
+		"//line foo",
+		"//line foo%bar",
+
+		"go",
+		"// go:",
+		"//go:",
+		"//go :foo",
+		"//go:foo",
+		"//go:foo%bar",
+	} {
+		got := ""
+		var s scanner
+		s.init(strings.NewReader(src), func(_, col uint, msg string) {
+			if col != colbase {
+				t.Errorf("%s: got col = %d; want %d", src, col, colbase)
+			}
+			if msg == "" {
+				t.Errorf("%s: handler called with empty msg", src)
+			}
+			got = msg
+		}, directives)
+
+		s.next()
+		if strings.HasPrefix(src, "//line ") || strings.HasPrefix(src, "//go:") {
+			// handler should have been called
+			if got != src {
+				t.Errorf("got %s; want %s", got, src)
+			}
+		} else {
+			// handler should not have been called
+			if got != "" {
+				t.Errorf("got %s for %s", got, src)
+			}
 		}
 	}
 }
