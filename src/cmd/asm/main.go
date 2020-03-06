@@ -73,7 +73,7 @@ func main() {
 			pList.Firstpc, ok = parser.Parse()
 			// reports errors to parser.Errorf
 			if ok {
-				obj.Flushplist(ctxt, pList, nil, "")
+				obj.Flushplist(ctxt, pList, nil, *flags.Importpath)
 			}
 		}
 		if !ok {

@@ -109,7 +109,9 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string
 			continue
 		}
 		linkpcln(ctxt, s)
-		ctxt.populateDWARF(plist.Curfn, s, myimportpath)
+		if myimportpath != "" {
+			ctxt.populateDWARF(plist.Curfn, s, myimportpath)
+		}
 	}
 }
 
