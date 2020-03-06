@@ -245,32 +245,40 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("dwarfGenerateDebugInfo")
 	dwarfGenerateDebugInfo(ctxt)
 
-	bench.Start("loadlibfull")
-	ctxt.loadlibfull() // XXX do it here for now
-
-	bench.Start("mangleTypeSym")
-	ctxt.mangleTypeSym()
 	bench.Start("callgraph")
 	ctxt.callgraph()
 
-	bench.Start("doelf")
-	ctxt.doelf()
-	if ctxt.HeadType == objabi.Hdarwin {
-		bench.Start("domacho")
-		ctxt.domacho()
-	}
 	bench.Start("dostkcheck")
 	ctxt.dostkcheck()
-	if ctxt.HeadType == objabi.Hwindows {
+
+	if !ctxt.IsDarwin() {
+		bench.Start("loadlibfull")
+		ctxt.loadlibfull() // XXX do it here for now
+	}
+
+	if ctxt.IsELF {
+		bench.Start("doelf")
+		ctxt.doelf()
+	}
+	if ctxt.IsDarwin() {
+		bench.Start("domacho")
+		ctxt.domacho()
+		bench.Start("loadlibfull")
+		ctxt.loadlibfull() // XXX do it here for now
+	}
+	if ctxt.IsWindows() {
 		bench.Start("dope")
 		ctxt.dope()
 		bench.Start("windynrelocsyms")
 		ctxt.windynrelocsyms()
 	}
-	if ctxt.HeadType == objabi.Haix {
+	if ctxt.IsAIX() {
 		bench.Start("doxcoff")
 		ctxt.doxcoff()
 	}
+
+	bench.Start("mangleTypeSym")
+	ctxt.mangleTypeSym()
 
 	bench.Start("addexport")
 	ctxt.addexport()
