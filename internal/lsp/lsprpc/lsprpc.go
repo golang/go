@@ -187,6 +187,28 @@ func NewForwarder(network, addr string, withTelemetry bool) *Forwarder {
 	}
 }
 
+// QueryServerState queries the server state of the current server.
+func QueryServerState(ctx context.Context, network, address string) (*ServerState, error) {
+	if network == AutoNetwork {
+		gp, err := os.Executable()
+		if err != nil {
+			return nil, fmt.Errorf("getting gopls path: %v", err)
+		}
+		network, address = autoNetworkAddress(gp, address)
+	}
+	netConn, err := net.DialTimeout(network, address, 5*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("dialing remote: %v", err)
+	}
+	serverConn := jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn, netConn))
+	go serverConn.Run(ctx)
+	var state ServerState
+	if err := serverConn.Call(ctx, sessionsMethod, nil, &state); err != nil {
+		return nil, fmt.Errorf("querying server state: %v", err)
+	}
+	return &state, nil
+}
+
 // ServeStream dials the forwarder remote and binds the remote to serve the LSP
 // on the incoming stream.
 func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) error {
@@ -379,28 +401,68 @@ func (forwarderHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, delive
 type handshaker struct {
 	jsonrpc2.EmptyHandler
 	client    *debugClient
+	instance  *debug.Instance
 	goplsPath string
 }
 
+// A handshakeRequest identifies a client to the LSP server.
 type handshakeRequest struct {
-	ServerID  string `json:"serverID"`
-	Logfile   string `json:"logfile"`
+	// ServerID is the ID of the server on the client. This should usually be 0.
+	ServerID string `json:"serverID"`
+	// Logfile is the location of the clients log file.
+	Logfile string `json:"logfile"`
+	// DebugAddr is the client debug address.
 	DebugAddr string `json:"debugAddr"`
+	// GoplsPath is the path to the Gopls binary running the current client
+	// process.
 	GoplsPath string `json:"goplsPath"`
 }
 
+// A handshakeResponse is returned by the LSP server to tell the LSP client
+// information about its session.
 type handshakeResponse struct {
+	// ClientID is the ID of the client as seen on the server.
+	ClientID string `json:"clientID"`
+	// SessionID is the server session associated with the client.
+	SessionID string `json:"sessionID"`
+	// Logfile is the location of the server logs.
+	Logfile string `json:"logfile"`
+	// DebugAddr is the server debug address.
+	DebugAddr string `json:"debugAddr"`
+	// GoplsPath is the path to the Gopls binary running the current server
+	// process.
+	GoplsPath string `json:"goplsPath"`
+}
+
+// ClientSession identifies a current client LSP session on the server. Note
+// that it looks similar to handshakeResposne, but in fact 'Logfile' and
+// 'DebugAddr' now refer to the client.
+type ClientSession struct {
 	ClientID  string `json:"clientID"`
 	SessionID string `json:"sessionID"`
 	Logfile   string `json:"logfile"`
 	DebugAddr string `json:"debugAddr"`
-	GoplsPath string `json:"goplsPath"`
 }
 
-const handshakeMethod = "gopls/handshake"
+// ServerState holds information about the gopls daemon process, including its
+// debug information and debug information of all of its current connected
+// clients.
+type ServerState struct {
+	Logfile         string          `json:"logfile"`
+	DebugAddr       string          `json:"debugAddr"`
+	GoplsPath       string          `json:"goplsPath"`
+	CurrentClientID string          `json:"currentClientID"`
+	Clients         []ClientSession `json:"clients"`
+}
+
+const (
+	handshakeMethod = "gopls/handshake"
+	sessionsMethod  = "gopls/sessions"
+)
 
 func (h *handshaker) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered bool) bool {
-	if r.Method == handshakeMethod {
+	switch r.Method {
+	case handshakeMethod:
 		var req handshakeRequest
 		if err := json.Unmarshal(*r.Params, &req); err != nil {
 			sendError(ctx, r, err)
@@ -422,6 +484,27 @@ func (h *handshaker) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered
 
 		if err := r.Reply(ctx, resp, nil); err != nil {
 			event.Error(ctx, "replying to handshake", err)
+		}
+		return true
+	case sessionsMethod:
+		resp := ServerState{
+			GoplsPath:       h.goplsPath,
+			CurrentClientID: h.client.ID(),
+		}
+		if di := debug.GetInstance(ctx); di != nil {
+			resp.Logfile = di.Logfile
+			resp.DebugAddr = di.ListenedDebugAddress
+			for _, c := range di.State.Clients() {
+				resp.Clients = append(resp.Clients, ClientSession{
+					ClientID:  c.ID(),
+					SessionID: c.Session().ID(),
+					Logfile:   c.Logfile(),
+					DebugAddr: c.DebugAddress(),
+				})
+			}
+		}
+		if err := r.Reply(ctx, resp, nil); err != nil {
+			event.Error(ctx, "replying to sessions request", err)
 		}
 		return true
 	}
