@@ -96,10 +96,6 @@ type sentDiagnostics struct {
 	snapshotID   uint64
 }
 
-func (s *Server) cancelRequest(ctx context.Context, params *protocol.CancelParams) error {
-	return nil
-}
-
 func (s *Server) codeLens(ctx context.Context, params *protocol.CodeLensParams) ([]protocol.CodeLens, error) {
 	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.UnknownKind)
 	if !ok {

@@ -44,14 +44,6 @@ func TestRoles(t *testing.T) {
 	}
 }
 
-func words(strWords ...string) [][]byte {
-	var ret [][]byte
-	for _, w := range strWords {
-		ret = append(ret, []byte(w))
-	}
-	return ret
-}
-
 var wordSplitTests = []struct {
 	input string
 	want  []string

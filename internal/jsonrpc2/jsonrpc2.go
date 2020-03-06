@@ -21,7 +21,6 @@ type Conn struct {
 	seq        int64 // must only be accessed using atomic operations
 	handlers   []Handler
 	stream     Stream
-	err        error
 	pendingMu  sync.Mutex // protects the pending map
 	pending    map[ID]chan *WireResponse
 	handlingMu sync.Mutex // protects the handling map
@@ -234,7 +233,7 @@ func (r *Request) Reply(ctx context.Context, result interface{}, err error) erro
 		return fmt.Errorf("reply invoked more than once")
 	}
 	if r.IsNotify() {
-		return fmt.Errorf("reply not invoked with a valid call: %v, %s", r.Method, r.Params)
+		return fmt.Errorf("reply not invoked with a valid call: %v, %v", r.Method, r.Params)
 	}
 	// reply ends the handling phase of a call, so if we are not yet
 	// parallel we should be now. The go routine is allowed to continue

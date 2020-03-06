@@ -136,11 +136,6 @@ func (s *Server) getSupportedCodeActions() []protocol.CodeActionKind {
 	return result
 }
 
-type protocolImportFix struct {
-	fix   *imports.ImportFix
-	edits []protocol.TextEdit
-}
-
 // findImports determines if a given diagnostic represents an error that could
 // be fixed by organizing imports.
 // TODO(rstambler): We need a better way to check this than string matching.

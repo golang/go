@@ -14,11 +14,6 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-const (
-	expectedDefinitionsCount     = 28
-	expectedTypeDefinitionsCount = 2
-)
-
 type godefMode int
 
 const (

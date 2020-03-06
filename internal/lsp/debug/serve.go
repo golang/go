@@ -15,7 +15,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
-	_ "net/http/pprof" // pull in the standard pprof handlers
 	"os"
 	"path"
 	"path/filepath"

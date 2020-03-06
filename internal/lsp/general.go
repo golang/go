@@ -292,15 +292,3 @@ func (s *Server) exit(ctx context.Context) error {
 	ServerExitFunc(0)
 	return nil
 }
-
-func setBool(b *bool, m map[string]interface{}, name string) {
-	if v, ok := m[name].(bool); ok {
-		*b = v
-	}
-}
-
-func setNotBool(b *bool, m map[string]interface{}, name string) {
-	if v, ok := m[name].(bool); ok {
-		*b = !v
-	}
-}

@@ -305,13 +305,6 @@ type block struct {
 	lines []string
 }
 
-var nonAlphaNumRx = regexp.MustCompile(`[^a-zA-Z0-9]`)
-
-func anchorID(line string) string {
-	// Add a "hdr-" prefix to avoid conflicting with IDs used for package symbols.
-	return "hdr-" + nonAlphaNumRx.ReplaceAllString(line, "_")
-}
-
 func blocks(text string) []block {
 	var (
 		out  []block

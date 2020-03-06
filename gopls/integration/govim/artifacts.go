@@ -28,7 +28,7 @@ golang-gopls_integration_tests bucket.
 
 func main() {
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), usage)
+		fmt.Fprint(flag.CommandLine.Output(), usage)
 	}
 	flag.Parse()
 	if flag.NArg() != 1 {

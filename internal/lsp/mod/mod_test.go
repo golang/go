@@ -23,7 +23,7 @@ func TestMain(m *testing.M) {
 
 func TestModfileRemainsUnchanged(t *testing.T) {
 	ctx := tests.Context(t)
-	cache := cache.New(nil, nil)
+	cache := cache.New(ctx, nil)
 	session := cache.NewSession(ctx)
 	options := tests.DefaultOptions()
 	options.TempModfile = true

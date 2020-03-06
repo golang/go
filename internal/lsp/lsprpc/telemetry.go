@@ -34,6 +34,7 @@ func (h telemetryHandler) Request(ctx context.Context, conn *jsonrpc2.Conn, dire
 	}
 	stats := &rpcStats{
 		method:    r.Method,
+		id:        r.ID,
 		start:     time.Now(),
 		direction: direction,
 		payload:   r.Params,
@@ -79,8 +80,6 @@ func (h telemetryHandler) Wrote(ctx context.Context, bytes int64) context.Contex
 	tag.ReceivedBytes.Record(ctx, bytes)
 	return ctx
 }
-
-const eol = "\r\n\r\n\r\n"
 
 func (h telemetryHandler) Error(ctx context.Context, err error) {
 }

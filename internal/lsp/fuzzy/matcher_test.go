@@ -109,12 +109,6 @@ func TestScore(t *testing.T) {
 	}
 }
 
-type candidateCompTest struct {
-	c1         string
-	comparator comparator
-	c2         string
-}
-
 var compareCandidatesTestCases = []struct {
 	pattern           string
 	orderedCandidates []string

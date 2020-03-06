@@ -19,7 +19,7 @@ import (
 	"golang.org/x/tools/internal/testenv"
 )
 
-func VerifyUnifiedTest(t *testing.T) {
+func TestVerifyUnified(t *testing.T) {
 	testenv.NeedsTool(t, "diff")
 	for _, test := range difftest.TestCases {
 		t.Run(test.Name, func(t *testing.T) {
