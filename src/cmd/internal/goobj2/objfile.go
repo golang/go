@@ -617,12 +617,17 @@ func (r *Reader) DataOff(i int) uint32 {
 
 // DataSize returns the size of the i-th symbol's data.
 func (r *Reader) DataSize(i int) int {
-	return int(r.DataOff(i+1) - r.DataOff(i))
+	dataIdxOff := r.h.Offsets[BlkDataIdx] + uint32(i*4)
+	return int(r.uint32At(dataIdxOff+4) - r.uint32At(dataIdxOff))
 }
 
 // Data returns the i-th symbol's data.
 func (r *Reader) Data(i int) []byte {
-	return r.BytesAt(r.DataOff(i), r.DataSize(i))
+	dataIdxOff := r.h.Offsets[BlkDataIdx] + uint32(i*4)
+	base := r.h.Offsets[BlkData]
+	off := r.uint32At(dataIdxOff)
+	end := r.uint32At(dataIdxOff + 4)
+	return r.BytesAt(base+off, int(end-off))
 }
 
 // AuxDataBase returns the base offset of the aux data block.
