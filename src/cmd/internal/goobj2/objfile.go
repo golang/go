@@ -368,6 +368,15 @@ func (a *Aux) Size() int {
 	return 1 + a.Sym.Size()
 }
 
+const AuxSize = 9 // TODO: is it possible to not hard-code this?
+
+type Aux2 [AuxSize]byte
+
+func (a *Aux2) Type() uint8 { return a[0] }
+func (a *Aux2) Sym() SymRef {
+	return SymRef{binary.LittleEndian.Uint32(a[1:]), binary.LittleEndian.Uint32(a[5:])}
+}
+
 type Writer struct {
 	wr        *bio.Writer
 	stringMap map[string]uint32
@@ -614,6 +623,19 @@ func (r *Reader) AuxOff(i int, j int) uint32 {
 	auxIdx := r.uint32At(auxIdxOff)
 	auxsiz := (&Aux{}).Size()
 	return r.h.Offsets[BlkAux] + (auxIdx+uint32(j))*uint32(auxsiz)
+}
+
+// Aux2 returns a pointer to the j-th aux symbol of the i-th symbol.
+func (r *Reader) Aux2(i int, j int) *Aux2 {
+	off := r.AuxOff(i, j)
+	return (*Aux2)(unsafe.Pointer(&r.b[off]))
+}
+
+// Auxs2 returns the aux symbols of the i-th symbol.
+func (r *Reader) Auxs2(i int) []Aux2 {
+	off := r.AuxOff(i, 0)
+	n := r.NAux(i)
+	return (*[1 << 20]Aux2)(unsafe.Pointer(&r.b[off]))[:n:n]
 }
 
 // DataOff returns the offset of the i-th symbol's data.

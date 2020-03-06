@@ -118,7 +118,6 @@ func (d *deadcodePass2) init() {
 }
 
 func (d *deadcodePass2) flood() {
-	auxSyms := []loader.Sym{}
 	for !d.wq.empty() {
 		symIdx := d.wq.pop()
 
@@ -162,9 +161,9 @@ func (d *deadcodePass2) flood() {
 			}
 			d.mark(r.Sym(), symIdx)
 		}
-		auxSyms = d.ldr.ReadAuxSyms(symIdx, auxSyms)
-		for i := 0; i < len(auxSyms); i++ {
-			d.mark(auxSyms[i], symIdx)
+		naux := d.ldr.NAux(symIdx)
+		for i := 0; i < naux; i++ {
+			d.mark(d.ldr.Aux2(symIdx, i).Sym(), symIdx)
 		}
 		// Some host object symbols have an outer object, which acts like a
 		// "carrier" symbol, or it holds all the symbols for a particular

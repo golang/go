@@ -20,10 +20,20 @@ func dummyWriter() *Writer {
 func TestSize(t *testing.T) {
 	// This test checks that hard-coded sizes match the actual sizes
 	// in the object file format.
+	tests := []struct {
+		x    interface{ Write(*Writer) }
+		want uint32
+	}{
+		{&Reloc{}, RelocSize},
+		{&Aux{}, AuxSize},
+	}
 	w := dummyWriter()
-	(&Reloc{}).Write(w)
-	off := w.off
-	if sz := uint32(RelocSize); off != sz {
-		t.Errorf("size mismatch: %d bytes written, but size=%d", off, sz)
+	for _, test := range tests {
+		off0 := w.off
+		test.x.Write(w)
+		got := w.off - off0
+		if got != test.want {
+			t.Errorf("size(%T) mismatch: %d bytes written, but size=%d", test.x, got, test.want)
+		}
 	}
 }
