@@ -1946,15 +1946,6 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, syms *sym.Symb
 				s.Attr.Set(sym.AttrNotInSymbolTable, true)
 			}
 		}
-
-		if os.Getenv("THANM_DEBUG") != "" {
-			fmt.Fprintf(os.Stderr, "=-= migrating %s t=%v sz=%d isnew=%v relocs=%d\n", s.Name, s.Type, s.Size, isnew, len(s.R))
-			if sn == "go.info.internal/cpu.cpuid" {
-				fmt.Fprintf(os.Stderr, "=-= new %s:\n", sn)
-				fmt.Fprintf(os.Stderr, "    new %s %v\n",
-					string(s.P), s.P)
-			}
-		}
 	}
 
 	// Second pass to fix up relocations.
@@ -1963,23 +1954,6 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, syms *sym.Symb
 		relocs := l.Relocs(cand)
 		rslice = relocs.ReadAll(rslice)
 		s.R = make([]sym.Reloc, len(rslice))
-
-		if os.Getenv("THANM_DEBUG") != "" {
-			fmt.Fprintf(os.Stderr, "=-= fixing relocs for %s<%d> newrelocs=%d oldrelocs=%d\n", s.Name, s.Version, relocs.Count, len(s.R))
-			fmt.Fprintf(os.Stderr, "=-= loader.Sym relocs:\n")
-			for i := range rslice {
-				r := &rslice[i]
-				rt := objabi.RelocType(r.Type)
-				rsrs := "0"
-				if r.Sym != 0 {
-					rsrs = fmt.Sprintf("%d[%s<%d>]", r.Sym, l.SymName(r.Sym), l.SymVersion(r.Sym))
-				}
-
-				fmt.Fprintf(os.Stderr, "    R%d: %-9s o=%d tgt=%s\n",
-					i, rt.String(), r.Off, rsrs)
-			}
-		}
-
 		l.convertRelocations(rslice, s, true)
 	}
 
