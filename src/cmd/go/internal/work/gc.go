@@ -37,6 +37,17 @@ func (gcToolchain) linker() string {
 	return base.Tool("link")
 }
 
+func pkgPath(a *Action) string {
+	p := a.Package
+	ppath := p.ImportPath
+	if cfg.BuildBuildmode == "plugin" {
+		ppath = pluginPath(a)
+	} else if p.Name == "main" && !p.Internal.ForceLibrary {
+		ppath = "main"
+	}
+	return ppath
+}
+
 func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
 	p := a.Package
 	objdir := a.Objdir
@@ -47,12 +58,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, s
 		ofile = objdir + out
 	}
 
-	pkgpath := p.ImportPath
-	if cfg.BuildBuildmode == "plugin" {
-		pkgpath = pluginPath(a)
-	} else if p.Name == "main" && !p.Internal.ForceLibrary {
-		pkgpath = "main"
-	}
+	pkgpath := pkgPath(a)
 	gcargs := []string{"-p", pkgpath}
 	if p.Module != nil && p.Module.GoVersion != "" && allowedVersion(p.Module.GoVersion) {
 		gcargs = append(gcargs, "-lang=go"+p.Module.GoVersion)
@@ -240,7 +246,8 @@ func (a *Action) trimpath() string {
 func asmArgs(a *Action, p *load.Package) []interface{} {
 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
 	inc := filepath.Join(cfg.GOROOT, "pkg", "include")
-	args := []interface{}{cfg.BuildToolexec, base.Tool("asm"), "-trimpath", a.trimpath(), "-I", a.Objdir, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, forcedAsmflags, p.Internal.Asmflags}
+	pkgpath := pkgPath(a)
+	args := []interface{}{cfg.BuildToolexec, base.Tool("asm"), "-p", pkgpath, "-trimpath", a.trimpath(), "-I", a.Objdir, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, forcedAsmflags, p.Internal.Asmflags}
 	if p.ImportPath == "runtime" && cfg.Goarch == "386" {
 		for _, arg := range forcedAsmflags {
 			if arg == "-dynlink" {
