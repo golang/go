@@ -75,6 +75,14 @@ func main() {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Dir = rundir
+		gopath := importerTmpdir
+		if oldGopath := os.Getenv("GOPATH"); oldGopath != "" {
+			gopath += ":" + oldGopath
+		}
+		cmd.Env = append(os.Environ(),
+			"GOPATH=" + gopath,
+			"GO111MODULE=off",
+		)
 		if err := cmd.Run(); err != nil {
 			die(fmt.Sprintf("%s %v failed: %v", gotool, args, err))
 		}

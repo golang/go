@@ -30,6 +30,7 @@ var nameCodes = map[rune]int{
 	']': 7,
 	'(': 8,
 	')': 9,
+	'.': 10,
 }
 
 // instantiatedName returns the name of a newly instantiated function.
@@ -46,16 +47,19 @@ func (t *translator) instantiatedName(qid qualifiedIdent, types []types.Type) (s
 
 		// We have to uniquely translate s into a valid Go identifier.
 		// This is not possible in general but we assume that
-		// identifiers will not contain
+		// identifiers will not contain nameSep or nameIntro.
 		for _, r := range s {
+			if r == nameSep || r == nameIntro {
+				panic(fmt.Sprintf("identifier %q contains mangling rune %c", s, r))
+			}
 			if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' {
 				sb.WriteRune(r)
 			} else {
 				code, ok := nameCodes[r]
 				if !ok {
-					panic(fmt.Sprintf("unexpected type string character %q in %q", r, s))
+					panic(fmt.Sprintf("%s: unexpected type string character %q in %q", t.fset.Position(qid.ident.Pos()), r, s))
 				}
-				fmt.Fprintf(&sb, "%c%d", nameIntro, code)
+				fmt.Fprintf(&sb, "%c%x", nameIntro, code)
 			}
 		}
 	}

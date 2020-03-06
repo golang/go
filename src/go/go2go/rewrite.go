@@ -57,7 +57,7 @@ type translator struct {
 	importer           *Importer
 	info               *types.Info
 	types              map[ast.Expr]types.Type
-	instantiations     map[qualifiedIdent][]*instantiation
+	instantiations     map[string][]*instantiation
 	newDecls           []ast.Decl
 	typeInstantiations map[types.Type][]*typeInstantiation
 
@@ -115,7 +115,7 @@ func rewriteAST(fset *token.FileSet, importer *Importer, info *types.Info, file 
 		importer:           importer,
 		info:               info,
 		types:              make(map[ast.Expr]types.Type),
-		instantiations:     make(map[qualifiedIdent][]*instantiation),
+		instantiations:     make(map[string][]*instantiation),
 		typeInstantiations: make(map[types.Type][]*typeInstantiation),
 	}
 	t.translate(file)
@@ -144,9 +144,48 @@ func rewriteAST(fset *token.FileSet, importer *Importer, info *types.Info, file 
 		}
 		for _, spec := range gen.Specs {
 			imp := spec.(*ast.ImportSpec)
-			path := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, `"`), `"`)
-			if _, ok := importer.lookupPackage(path); !ok {
+			if imp.Name != nil && imp.Name.Name == "_" {
 				continue
+			}
+			path := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, `"`), `"`)
+
+			var tok token.Token
+			var importableName string
+			if _, ok := importer.lookupPackage(path); ok {
+				tok = token.TYPE
+				importableName = t.importableName()
+			} else {
+				fileDir := filepath.Dir(fset.Position(file.Name.Pos()).Filename)
+				pkg, err := importer.ImportFrom(path, fileDir, 0)
+				if err != nil {
+					return err
+				}
+				scope := pkg.Scope()
+				names := scope.Names()
+			nameLoop:
+				for _, name := range names {
+					if !token.IsExported(name) {
+						continue
+					}
+					obj := scope.Lookup(name)
+					switch obj.(type) {
+					case *types.TypeName:
+						tok = token.TYPE
+						importableName = name
+						break nameLoop
+					case *types.Var:
+						tok = token.VAR
+						importableName = name
+						break nameLoop
+					case *types.Const:
+						tok = token.CONST
+						importableName = name
+						break nameLoop
+					}
+				}
+				if importableName == "" {
+					return fmt.Errorf("can't find any importable name in package %q", path)
+				}
 			}
 
 			var name string
@@ -155,20 +194,35 @@ func rewriteAST(fset *token.FileSet, importer *Importer, info *types.Info, file 
 			} else {
 				name = filepath.Base(path)
 			}
-			file.Decls = append(file.Decls,
-				&ast.GenDecl{
-					Tok:   token.VAR,
-					Specs: []ast.Spec{
-						&ast.ValueSpec{
-							Names: []*ast.Ident{
-								ast.NewIdent("_"),
-							},
-							Type:  &ast.SelectorExpr{
-								X:   ast.NewIdent(name),
-								Sel: ast.NewIdent(t.importableName()),
-							},
+			var spec ast.Spec
+			switch tok {
+			case token.CONST, token.VAR:
+				spec = &ast.ValueSpec{
+					Names:  []*ast.Ident{
+						ast.NewIdent("_"),
+					},
+					Values: []ast.Expr{
+						&ast.SelectorExpr{
+							X:   ast.NewIdent(name),
+							Sel: ast.NewIdent(importableName),
 						},
 					},
+				}
+			case token.TYPE:
+				spec = &ast.TypeSpec{
+					Name: ast.NewIdent("_"),
+					Type: &ast.SelectorExpr{
+						X:   ast.NewIdent(name),
+						Sel: ast.NewIdent(importableName),
+					},
+				}
+			default:
+				panic("can't happen")
+			}
+			file.Decls = append(file.Decls,
+				&ast.GenDecl{
+					Tok: tok,
+					Specs: []ast.Spec{spec},
 				})
 		}
 	}
@@ -292,6 +346,20 @@ func (t *translator) translateStmt(ps *ast.Stmt) {
 		t.translateExpr(&s.Cond)
 		t.translateBlockStmt(s.Body)
 		t.translateStmt(&s.Else)
+	case *ast.CaseClause:
+		t.translateExprList(s.List)
+		t.translateStmtList(s.Body)
+	case *ast.SwitchStmt:
+		t.translateStmt(&s.Init)
+		t.translateExpr(&s.Tag)
+		t.translateBlockStmt(s.Body)
+	case *ast.TypeSwitchStmt:
+		t.translateStmt(&s.Init)
+		t.translateStmt(&s.Assign)
+		t.translateBlockStmt(s.Body)
+	case *ast.CommClause:
+		t.translateStmt(&s.Comm)
+		t.translateStmtList(s.Body)
 	case *ast.ForStmt:
 		t.translateStmt(&s.Init)
 		t.translateExpr(&s.Cond)
@@ -320,6 +388,14 @@ func (t *translator) translateStmt(ps *ast.Stmt) {
 		t.translateExprList(s.Results)
 	default:
 		panic(fmt.Sprintf("unimplemented Stmt %T", s))
+	}
+}
+
+// translateStmtList translates a list of statements from Go with
+// contracts to Go 1.
+func (t *translator) translateStmtList(sl []ast.Stmt) {
+	for i := range sl {
+		t.translateStmt(&sl[i])
 	}
 }
 
@@ -414,7 +490,8 @@ func (t *translator) translateFunctionInstantiation(pe *ast.Expr) {
 	qid := t.instantiatedIdent(call)
 	argList, typeList, typeArgs := t.instantiationTypes(call)
 
-	instantiations := t.instantiations[qid]
+	key := qid.String()
+	instantiations := t.instantiations[key]
 	for _, inst := range instantiations {
 		if t.sameTypes(typeList, inst.types) {
 			*pe = inst.decl
@@ -432,7 +509,7 @@ func (t *translator) translateFunctionInstantiation(pe *ast.Expr) {
 		types: typeList,
 		decl:  instIdent,
 	}
-	t.instantiations[qid] = append(instantiations, n)
+	t.instantiations[key] = append(instantiations, n)
 
 	if typeArgs {
 		*pe = instIdent

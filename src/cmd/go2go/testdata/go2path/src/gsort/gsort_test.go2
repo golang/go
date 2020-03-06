@@ -1,0 +1,92 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package gsort
+
+import (
+	"math"
+	"sort"
+	"testing"
+
+	"contracts"
+	"slices"
+)
+
+// Test data copied from the standard library sort package.
+
+var ints = []int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
+var float64s = []float64{74.3, 59.0, math.Inf(1), 238.2, -784.0, 2.3, math.NaN(), math.NaN(), math.Inf(-1), 9845.768, -959.7485, 905, 7.8, 7.8}
+var strings = []string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
+
+func TestSortOrderedInts(t *testing.T) {
+	testOrdered(int)(t, ints, sort.Ints)
+}
+
+func TestSortOrderedFloat64s(t *testing.T) {
+	testOrdered(float64)(t, float64s, sort.Float64s)
+}
+
+func TestSortOrderedStrings(t *testing.T) {
+	testOrdered(string)(t, strings, sort.Strings)
+}
+
+func testOrdered(type Elem contracts.Ordered)(t *testing.T, s []Elem, sorter func([]Elem)) {
+	s1 := make([]Elem, len(s))
+	copy(s1, s)
+	s2 := make([]Elem, len(s))
+	copy(s2, s)
+	OrderedSlice(Elem)(s1)
+	sorter(s2)
+	if !slices.Equal(Elem)(s1, s2) {
+		t.Fatalf("got %v, want %v", s1, s2)
+	}
+	for i := len(s1) - 1; i > 0; i-- {
+		if s1[i] < s1[i-1] {
+			t.Fatalf("element %d (%v) < element %d (%v)", i, s1[i], i - 1, s1[i - 1])
+		}
+	}
+}
+
+var slicesToSort = [][]int {
+	[]int{1, 2},
+	[]int{3, 2, 1},
+	[]int{1},
+	[]int{1, 3},
+	[]int{1, 2, 3},
+}
+
+var sortedSlices = [][]int {
+	[]int{1},
+	[]int{1, 2},
+	[]int{1, 3},
+	[]int{1, 2, 3},
+	[]int{3, 2, 1},
+}
+
+func sorter(s1, s2 []int) bool {
+	switch {
+	case len(s1) < len(s2):
+		return true
+	case len(s1) > len(s2):
+		return false
+	}
+	for i := range s1 {
+		switch {
+		case s1[i] < s2[i]:
+			return true
+		case s1[i] > s2[i]:
+			return false
+		}
+	}
+	return false
+}
+
+func TestSortSliceFn(t *testing.T) {
+	c := make([][]int, len(slicesToSort))
+	copy(c, slicesToSort)
+	SliceFn([]int)(c, sorter)
+	if !slices.EqualFn([]int)(c, sortedSlices, func(a, b []int) bool { return slices.Equal(int)(a, b) }) {
+		t.Errorf("got %v, want %v", c, sortedSlices)
+	}
+}

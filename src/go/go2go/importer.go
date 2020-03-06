@@ -14,7 +14,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 )
@@ -47,6 +46,7 @@ type Importer struct {
 var _ types.ImporterFrom = &Importer{}
 
 // NewImporter returns a new Importer.
+// The tmpdir will become a GOPATH with translated files.
 func NewImporter(tmpdir string) *Importer {
 	return &Importer{
 		tmpdir:       tmpdir,
@@ -74,6 +74,14 @@ func (imp *Importer) Import(path string) (*types.Package, error) {
 func (imp *Importer) ImportFrom(importPath, dir string, mode types.ImportMode) (*types.Package, error) {
 	if build.IsLocalImport(importPath) {
 		return imp.localImport(importPath, dir)
+	}
+
+	if imp.translated[importPath] != "" {
+		tpkg, ok := imp.packages[importPath]
+		if !ok {
+			return nil, fmt.Errorf("circular import when processing %q", importPath)
+		}
+		return tpkg, nil
 	}
 
 	var pdir string
@@ -114,11 +122,15 @@ func (imp *Importer) ImportFrom(importPath, dir string, mode types.ImportMode) (
 	}
 
 	if len(gofiles) > 0 {
-		return nil, fmt.Errorf("import path %q (directory %q) has both .go and .go2 files", importPath, pdir)
+		for _, gofile := range gofiles {
+			if err := checkGoFile(pdir, gofile); err != nil {
+				return nil, err
+			}
+		}
 	}
 
-	tdir, err := ioutil.TempDir(imp.tmpdir, path.Base(importPath))
-	if err != nil {
+	tdir := filepath.Join(imp.tmpdir, "src", importPath)
+	if err := os.MkdirAll(tdir, 0755); err != nil {
 		return nil, err
 	}
 	for _, name := range names {
@@ -131,12 +143,12 @@ func (imp *Importer) ImportFrom(importPath, dir string, mode types.ImportMode) (
 		}
 	}
 
-	tpkgs, err := rewriteToPkgs(imp, dir)
+	imp.translated[importPath] = tdir
+
+	tpkgs, err := rewriteToPkgs(imp, tdir)
 	if err != nil {
 		return nil, err
 	}
-
-	imp.translated[importPath] = tdir
 
 	switch len(tpkgs) {
 	case 1:

@@ -1,0 +1,40 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package slices
+
+import "contracts"
+
+// Equal reports whether two slices are equal: the same length and all
+// elements equal. All floating point NaNs are considered equal.
+func Equal(type Elem contracts.Ordered)(s1, s2 []Elem) bool {
+	if len(s1) != len(s2) {
+		return false
+	}
+	for i, v1 := range s1 {
+		v2 := s2[i]
+		if v1 != v2 {
+			isNaN := func(f Elem) bool { return f != f }
+			if !isNaN(v1) || !isNaN(v2) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// EqualFn reports whether two slices are equal using a comparision
+// function on each element.
+func EqualFn(type Elem)(s1, s2 []Elem, eq func(Elem, Elem) bool) bool {
+	if len(s1) != len(s2) {
+		return false
+	}
+	for i, v1 := range s1 {
+		v2 := s2[i]
+		if !eq(v1, v2) {
+			return false
+		}
+	}
+	return true
+}

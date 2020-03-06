@@ -76,7 +76,7 @@ func testOrdered(type Elem Ordered)(name string, s []Elem, sorter func([]Elem)) 
 	return ok
 }
 
-func sliceEq(type Elem Ordered)(s1, s2[]Elem) bool {
+func sliceEq(type Elem Ordered)(s1, s2 []Elem) bool {
 	for i, v1 := range s1 {
 		v2 := s2[i]
 		if v1 != v2 {

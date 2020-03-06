@@ -500,6 +500,19 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 			Type: typ,
 			Body: body,
 		}
+	case *ast.CompositeLit:
+		typ := t.instantiateExpr(ta, e.Type)
+		elts, changed := t.instantiateExprList(ta, e.Elts)
+		if typ == e.Type && !changed {
+			return e
+		}
+		return &ast.CompositeLit{
+			Type:       typ,
+			Lbrace:     e.Lbrace,
+			Elts:       elts,
+			Rbrace:     e.Rbrace,
+			Incomplete: e.Incomplete,
+		}
 	case *ast.ParenExpr:
 		x := t.instantiateExpr(ta, e.X)
 		if x == e.X {
