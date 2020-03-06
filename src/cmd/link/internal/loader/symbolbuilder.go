@@ -133,8 +133,12 @@ func (sb *SymbolBuilder) Reachable() bool {
 	return sb.l.AttrReachable(sb.symIdx)
 }
 
+func (sb *SymbolBuilder) SetReachable(v bool) {
+	sb.l.SetAttrReachable(sb.symIdx, v)
+}
+
 func (sb *SymbolBuilder) setReachable() {
-	sb.l.SetAttrReachable(sb.symIdx, true)
+	sb.SetReachable(true)
 }
 
 func (sb *SymbolBuilder) ReadOnly() bool {
