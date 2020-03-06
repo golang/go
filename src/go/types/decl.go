@@ -690,11 +690,12 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 // have not yet been used in a contract expression. It must be set prior
 // to calling contractExpr and is updated by contractExpr.
 //
-// If x does not refer to a contract, the result obj is nil (and valid is
-// true). If x is not an instantiated contract expression, the result targs
-// is nil. If x is a contract expression but contains type errors, valid is
-// false. If x is a valid instantiated contract expression, targs is the
-// list of (incomming) type parameters used as arguments for the contract,
+// If x denotes a contract, the result obj is that contract; otherwise
+// obj == nil and the remaining results are undefined. If the contract
+// exists but the contract or the type arguments (if any) have errors
+// valid is false.
+// If x is a valid instantiated contract expression, targs is the list
+// of (incomming) type parameters used as arguments for the contract,
 // with their type bounds set according to the contract.
 func (check *Checker) contractExpr(x ast.Expr, unused map[*TypeParam]bool) (obj *Contract, targs []Type, valid bool) {
 	// permit any parenthesized expression
@@ -706,52 +707,88 @@ func (check *Checker) contractExpr(x ast.Expr, unused map[*TypeParam]bool) (obj 
 		x = call.Fun
 	}
 
-	// check if x denotes a contract
-	if ident, _ := x.(*ast.Ident); ident != nil {
-		if obj, _ = check.lookup(ident.Name).(*Contract); obj != nil {
+	// determine contract obj
+	switch x := x.(type) {
+	case *ast.Ident:
+		// local contract
+		if obj, _ = check.lookup(x.Name).(*Contract); obj != nil {
 			// set up contract if not yet done
 			if obj.typ == nil {
 				check.objDecl(obj, nil)
-				if obj.typ == Typ[Invalid] {
-					check.use(call.Args...)
-					return // we have a contract but it's broken
-				}
 			}
-			if call != nil {
-				// collect type arguments
-				if len(call.Args) != len(obj.TParams) {
-					check.errorf(call.Pos(), "%d type parameters but contract expects %d", len(call.Args), len(obj.TParams))
-					check.use(call.Args...)
-					return
-				}
-				// For now, a contract type argument must be one of the (incoming)
-				// type parameters, and each of these type parameters may be used
-				// at most once.
-				for _, arg := range call.Args {
-					targ := check.typ(arg)
-					if tparam, _ := targ.(*TypeParam); tparam != nil {
-						if ok, found := unused[tparam]; ok {
-							unused[tparam] = false
-							targs = append(targs, targ)
-						} else if found {
-							check.errorf(arg.Pos(), "%s used multiple times (not supported due to implementation restriction)", arg)
-						} else {
-							check.errorf(arg.Pos(), "%s is not an incoming type parameter (not supported due to implementation restriction)", arg)
-						}
-					} else if targ != Typ[Invalid] {
-						check.errorf(arg.Pos(), "%s is not a type parameter (not supported due to implementation restriction)", arg)
+		}
+
+	case *ast.SelectorExpr:
+		// imported contract
+		// TODO(gri) use a shared function between this and check.selector
+		if ident, _ := x.X.(*ast.Ident); ident != nil {
+			identObj := check.lookup(ident.Name)
+			if pname, _ := identObj.(*PkgName); pname != nil {
+				assert(pname.pkg == check.pkg)
+				check.recordUse(ident, pname)
+				pname.used = true
+				pkg := pname.imported
+				exp := pkg.scope.Lookup(x.Sel.Name)
+				if exp == nil {
+					if !pkg.fake {
+						check.errorf(x.Pos(), "%s not declared by package %s", x, pkg.name)
+						return
 					}
-				}
-				if len(targs) != len(call.Args) {
-					return // some arguments are invalid
-				}
-				// Use contract's matching type parameter bound, instantiate
-				// it with the actual type arguments targs, and set the bound
-				// for the type parameter.
-				for i, bound := range obj.Bounds {
-					targs[i].(*TypeParam).bound = check.instantiate(call.Args[i].Pos(), bound, targs, nil).(*Named)
+				} else if !exp.Exported() {
+					check.errorf(x.Pos(), "%s not exported by packge %s", x, pkg.name)
+					return
+				} else {
+					obj, _ = exp.(*Contract)
 				}
 			}
+		}
+	}
+
+	if obj == nil {
+		return // not a contract
+	}
+
+	assert(obj.typ != nil)
+	if obj.typ == Typ[Invalid] {
+		if call != nil {
+			check.use(call.Args...)
+		}
+		return // we have a contract but it's broken
+	}
+
+	if call != nil {
+		// collect type arguments
+		if len(call.Args) != len(obj.TParams) {
+			check.errorf(call.Pos(), "%d type parameters but contract expects %d", len(call.Args), len(obj.TParams))
+			check.use(call.Args...)
+			return
+		}
+		// For now, a contract type argument must be one of the (incoming)
+		// type parameters, and each of these type parameters may be used
+		// at most once.
+		for _, arg := range call.Args {
+			targ := check.typ(arg)
+			if tparam, _ := targ.(*TypeParam); tparam != nil {
+				if ok, found := unused[tparam]; ok {
+					unused[tparam] = false
+					targs = append(targs, targ)
+				} else if found {
+					check.errorf(arg.Pos(), "%s used multiple times (not supported due to implementation restriction)", arg)
+				} else {
+					check.errorf(arg.Pos(), "%s is not an incoming type parameter (not supported due to implementation restriction)", arg)
+				}
+			} else if targ != Typ[Invalid] {
+				check.errorf(arg.Pos(), "%s is not a type parameter (not supported due to implementation restriction)", arg)
+			}
+		}
+		if len(targs) != len(call.Args) {
+			return // some arguments are invalid
+		}
+		// Use contract's matching type parameter bound, instantiate
+		// it with the actual type arguments targs, and set the bound
+		// for the type parameter.
+		for i, bound := range obj.Bounds {
+			targs[i].(*TypeParam).bound = check.instantiate(call.Args[i].Pos(), bound, targs, nil).(*Named)
 		}
 	}
 
