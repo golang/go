@@ -423,7 +423,7 @@ func (e ErrIsDefinition) Error() string {
 // The selection is computed based on the preceding identifier and can be used by
 // the client to score the quality of the completion. For instance, some clients
 // may tolerate imperfect matches as valid completion results, since users may make typos.
-func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) ([]CompletionItem, *Selection, error) {
+func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos protocol.Position) ([]CompletionItem, *Selection, error) {
 	ctx, done := trace.StartSpan(ctx, "source.Completion")
 	defer done()
 
@@ -437,7 +437,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 	if err != nil {
 		return nil, nil, err
 	}
-	spn, err := m.PointSpan(pos)
+	spn, err := m.PointSpan(protoPos)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -452,9 +452,18 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 		return nil, nil, errors.Errorf("cannot find node enclosing position")
 	}
 
-	// Skip completion inside any kind of literal.
-	if _, ok := path[0].(*ast.BasicLit); ok {
+	pos := rng.Start
+
+	switch n := path[0].(type) {
+	case *ast.BasicLit:
+		// Skip completion inside any kind of literal.
 		return nil, nil, nil
+	case *ast.CallExpr:
+		if n.Ellipsis.IsValid() && pos > n.Ellipsis && pos <= n.Ellipsis+token.Pos(len("...")) {
+			// Don't offer completions inside or directly after "...". For
+			// example, don't offer completions at "<>" in "foo(bar...<>").
+			return nil, nil, nil
+		}
 	}
 
 	opts := snapshot.View().Options()
@@ -466,7 +475,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, pos proto
 		filename:                  fh.Identity().URI.Filename(),
 		file:                      file,
 		path:                      path,
-		pos:                       rng.Start,
+		pos:                       pos,
 		seen:                      make(map[types.Object]bool),
 		enclosingFunc:             enclosingFunction(path, rng.Start, pkg.GetTypesInfo()),
 		enclosingCompositeLiteral: enclosingCompositeLiteral(path, rng.Start, pkg.GetTypesInfo()),

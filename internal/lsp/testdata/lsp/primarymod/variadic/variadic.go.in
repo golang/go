@@ -28,3 +28,7 @@ func f()            {} //@item(vVarArg, "f", "func()", "func")
 func _() {
 	qux(f) //@snippet(")", vVarArg, "f", "f")
 }
+
+func _() {
+	foo(0, []string{}...) //@complete(")")
+}
