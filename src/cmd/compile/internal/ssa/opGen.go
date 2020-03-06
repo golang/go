@@ -2520,10 +2520,6 @@ const (
 	OpLeq64U
 	OpLeq32F
 	OpLeq64F
-	OpGreater32F
-	OpGreater64F
-	OpGeq32F
-	OpGeq64F
 	OpCondSelect
 	OpAndB
 	OpOrB
@@ -32630,26 +32626,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Leq64F",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Greater32F",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Greater64F",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Geq32F",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Geq64F",
 		argLen:  2,
 		generic: true,
 	},

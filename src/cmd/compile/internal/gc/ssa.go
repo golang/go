@@ -1742,9 +1742,6 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OLT, TFLOAT64}: ssa.OpLess64F,
 	opAndType{OLT, TFLOAT32}: ssa.OpLess32F,
 
-	opAndType{OGT, TFLOAT64}: ssa.OpGreater64F,
-	opAndType{OGT, TFLOAT32}: ssa.OpGreater32F,
-
 	opAndType{OLE, TINT8}:    ssa.OpLeq8,
 	opAndType{OLE, TUINT8}:   ssa.OpLeq8U,
 	opAndType{OLE, TINT16}:   ssa.OpLeq16,
@@ -1755,9 +1752,6 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OLE, TUINT64}:  ssa.OpLeq64U,
 	opAndType{OLE, TFLOAT64}: ssa.OpLeq64F,
 	opAndType{OLE, TFLOAT32}: ssa.OpLeq32F,
-
-	opAndType{OGE, TFLOAT64}: ssa.OpGeq64F,
-	opAndType{OGE, TFLOAT32}: ssa.OpGeq32F,
 }
 
 func (s *state) concreteEtype(t *types.Type) types.EType {
@@ -2345,11 +2339,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 				s.Fatalf("ordered complex compare %v", n.Op)
 			}
 		}
-		if n.Left.Type.IsFloat() {
-			return s.newValueOrSfCall2(s.ssaOp(n.Op, n.Left.Type), types.Types[TBOOL], a, b)
-		}
 
-		// Integer: convert OGE and OGT into OLE and OLT.
+		// Convert OGE and OGT into OLE and OLT.
 		op := n.Op
 		switch op {
 		case OGE:
@@ -2357,6 +2348,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 		case OGT:
 			op, a, b = OLT, b, a
 		}
+		if n.Left.Type.IsFloat() {
+			// float comparison
+			return s.newValueOrSfCall2(s.ssaOp(op, n.Left.Type), types.Types[TBOOL], a, b)
+		}
+		// integer comparison
 		return s.newValue2(s.ssaOp(op, n.Left.Type), types.Types[TBOOL], a, b)
 	case OMUL:
 		a := s.expr(n.Left)
@@ -3158,18 +3154,14 @@ func softfloatInit() {
 		ssa.OpDiv32F: sfRtCallDef{sysfunc("fdiv32"), TFLOAT32},
 		ssa.OpDiv64F: sfRtCallDef{sysfunc("fdiv64"), TFLOAT64},
 
-		ssa.OpEq64F:      sfRtCallDef{sysfunc("feq64"), TBOOL},
-		ssa.OpEq32F:      sfRtCallDef{sysfunc("feq32"), TBOOL},
-		ssa.OpNeq64F:     sfRtCallDef{sysfunc("feq64"), TBOOL},
-		ssa.OpNeq32F:     sfRtCallDef{sysfunc("feq32"), TBOOL},
-		ssa.OpLess64F:    sfRtCallDef{sysfunc("fgt64"), TBOOL},
-		ssa.OpLess32F:    sfRtCallDef{sysfunc("fgt32"), TBOOL},
-		ssa.OpGreater64F: sfRtCallDef{sysfunc("fgt64"), TBOOL},
-		ssa.OpGreater32F: sfRtCallDef{sysfunc("fgt32"), TBOOL},
-		ssa.OpLeq64F:     sfRtCallDef{sysfunc("fge64"), TBOOL},
-		ssa.OpLeq32F:     sfRtCallDef{sysfunc("fge32"), TBOOL},
-		ssa.OpGeq64F:     sfRtCallDef{sysfunc("fge64"), TBOOL},
-		ssa.OpGeq32F:     sfRtCallDef{sysfunc("fge32"), TBOOL},
+		ssa.OpEq64F:   sfRtCallDef{sysfunc("feq64"), TBOOL},
+		ssa.OpEq32F:   sfRtCallDef{sysfunc("feq32"), TBOOL},
+		ssa.OpNeq64F:  sfRtCallDef{sysfunc("feq64"), TBOOL},
+		ssa.OpNeq32F:  sfRtCallDef{sysfunc("feq32"), TBOOL},
+		ssa.OpLess64F: sfRtCallDef{sysfunc("fgt64"), TBOOL},
+		ssa.OpLess32F: sfRtCallDef{sysfunc("fgt32"), TBOOL},
+		ssa.OpLeq64F:  sfRtCallDef{sysfunc("fge64"), TBOOL},
+		ssa.OpLeq32F:  sfRtCallDef{sysfunc("fge32"), TBOOL},
 
 		ssa.OpCvt32to32F:  sfRtCallDef{sysfunc("fint32to32"), TFLOAT32},
 		ssa.OpCvt32Fto32:  sfRtCallDef{sysfunc("f32toint32"), TINT32},

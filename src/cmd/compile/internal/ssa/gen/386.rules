@@ -175,16 +175,6 @@
 (Leq64F x y) -> (SETGEF (UCOMISD y x))
 (Leq32F x y) -> (SETGEF (UCOMISS y x))
 
-// Note Go assembler gets UCOMISx operand order wrong, but it is right here
-// Bug is accommodated at generation of assembly language.
-(Greater64F x y) -> (SETGF (UCOMISD x y))
-(Greater32F x y) -> (SETGF (UCOMISS x y))
-
-// Note Go assembler gets UCOMISx operand order wrong, but it is right here
-// Bug is accommodated at generation of assembly language.
-(Geq64F x y) -> (SETGEF (UCOMISD x y))
-(Geq32F x y) -> (SETGEF (UCOMISS x y))
-
 (Eq32  x y) -> (SETEQ (CMPL x y))
 (Eq16  x y) -> (SETEQ (CMPW x y))
 (Eq8   x y) -> (SETEQ (CMPB x y))

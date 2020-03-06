@@ -230,10 +230,6 @@ func rewriteValuePPC64(v *Value) bool {
 	case OpFloor:
 		v.Op = OpPPC64FFLOOR
 		return true
-	case OpGeq32F:
-		return rewriteValuePPC64_OpGeq32F(v)
-	case OpGeq64F:
-		return rewriteValuePPC64_OpGeq64F(v)
 	case OpGetCallerPC:
 		v.Op = OpPPC64LoweredGetCallerPC
 		return true
@@ -243,10 +239,6 @@ func rewriteValuePPC64(v *Value) bool {
 	case OpGetClosurePtr:
 		v.Op = OpPPC64LoweredGetClosurePtr
 		return true
-	case OpGreater32F:
-		return rewriteValuePPC64_OpGreater32F(v)
-	case OpGreater64F:
-		return rewriteValuePPC64_OpGreater64F(v)
 	case OpHmul32:
 		v.Op = OpPPC64MULHW
 		return true
@@ -1645,70 +1637,6 @@ func rewriteValuePPC64_OpEqPtr(v *Value) bool {
 		y := v_1
 		v.reset(OpPPC64Equal)
 		v0 := b.NewValue0(v.Pos, OpPPC64CMP, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValuePPC64_OpGeq32F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq32F x y)
-	// result: (FGreaterEqual (FCMPU x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpPPC64FGreaterEqual)
-		v0 := b.NewValue0(v.Pos, OpPPC64FCMPU, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValuePPC64_OpGeq64F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq64F x y)
-	// result: (FGreaterEqual (FCMPU x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpPPC64FGreaterEqual)
-		v0 := b.NewValue0(v.Pos, OpPPC64FCMPU, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValuePPC64_OpGreater32F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater32F x y)
-	// result: (FGreaterThan (FCMPU x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpPPC64FGreaterThan)
-		v0 := b.NewValue0(v.Pos, OpPPC64FCMPU, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValuePPC64_OpGreater64F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater64F x y)
-	// result: (FGreaterThan (FCMPU x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpPPC64FGreaterThan)
-		v0 := b.NewValue0(v.Pos, OpPPC64FCMPU, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true

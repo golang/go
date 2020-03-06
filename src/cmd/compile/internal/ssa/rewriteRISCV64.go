@@ -207,10 +207,6 @@ func rewriteValueRISCV64(v *Value) bool {
 		return rewriteValueRISCV64_OpEqB(v)
 	case OpEqPtr:
 		return rewriteValueRISCV64_OpEqPtr(v)
-	case OpGeq32F:
-		return rewriteValueRISCV64_OpGeq32F(v)
-	case OpGeq64F:
-		return rewriteValueRISCV64_OpGeq64F(v)
 	case OpGetCallerPC:
 		v.Op = OpRISCV64LoweredGetCallerPC
 		return true
@@ -220,10 +216,6 @@ func rewriteValueRISCV64(v *Value) bool {
 	case OpGetClosurePtr:
 		v.Op = OpRISCV64LoweredGetClosurePtr
 		return true
-	case OpGreater32F:
-		return rewriteValueRISCV64_OpGreater32F(v)
-	case OpGreater64F:
-		return rewriteValueRISCV64_OpGreater64F(v)
 	case OpHmul32:
 		return rewriteValueRISCV64_OpHmul32(v)
 	case OpHmul32u:
@@ -891,58 +883,6 @@ func rewriteValueRISCV64_OpEqPtr(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpRISCV64SUB, x.Type)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueRISCV64_OpGeq32F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Geq32F x y)
-	// result: (FLES y x)
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpRISCV64FLES)
-		v.AddArg2(y, x)
-		return true
-	}
-}
-func rewriteValueRISCV64_OpGeq64F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Geq64F x y)
-	// result: (FLED y x)
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpRISCV64FLED)
-		v.AddArg2(y, x)
-		return true
-	}
-}
-func rewriteValueRISCV64_OpGreater32F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Greater32F x y)
-	// result: (FLTS y x)
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpRISCV64FLTS)
-		v.AddArg2(y, x)
-		return true
-	}
-}
-func rewriteValueRISCV64_OpGreater64F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Greater64F x y)
-	// result: (FLTD y x)
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpRISCV64FLTD)
-		v.AddArg2(y, x)
 		return true
 	}
 }

@@ -195,10 +195,6 @@ func rewriteValueMIPS64(v *Value) bool {
 		return rewriteValueMIPS64_OpEqB(v)
 	case OpEqPtr:
 		return rewriteValueMIPS64_OpEqPtr(v)
-	case OpGeq32F:
-		return rewriteValueMIPS64_OpGeq32F(v)
-	case OpGeq64F:
-		return rewriteValueMIPS64_OpGeq64F(v)
 	case OpGetCallerPC:
 		v.Op = OpMIPS64LoweredGetCallerPC
 		return true
@@ -208,10 +204,6 @@ func rewriteValueMIPS64(v *Value) bool {
 	case OpGetClosurePtr:
 		v.Op = OpMIPS64LoweredGetClosurePtr
 		return true
-	case OpGreater32F:
-		return rewriteValueMIPS64_OpGreater32F(v)
-	case OpGreater64F:
-		return rewriteValueMIPS64_OpGreater64F(v)
 	case OpHmul32:
 		return rewriteValueMIPS64_OpHmul32(v)
 	case OpHmul32u:
@@ -1096,70 +1088,6 @@ func rewriteValueMIPS64_OpEqPtr(v *Value) bool {
 		v1 := b.NewValue0(v.Pos, OpMIPS64XOR, typ.UInt64)
 		v1.AddArg2(x, y)
 		v.AddArg2(v0, v1)
-		return true
-	}
-}
-func rewriteValueMIPS64_OpGeq32F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq32F x y)
-	// result: (FPFlagTrue (CMPGEF x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpMIPS64FPFlagTrue)
-		v0 := b.NewValue0(v.Pos, OpMIPS64CMPGEF, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueMIPS64_OpGeq64F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq64F x y)
-	// result: (FPFlagTrue (CMPGED x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpMIPS64FPFlagTrue)
-		v0 := b.NewValue0(v.Pos, OpMIPS64CMPGED, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueMIPS64_OpGreater32F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater32F x y)
-	// result: (FPFlagTrue (CMPGTF x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpMIPS64FPFlagTrue)
-		v0 := b.NewValue0(v.Pos, OpMIPS64CMPGTF, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueMIPS64_OpGreater64F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater64F x y)
-	// result: (FPFlagTrue (CMPGTD x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpMIPS64FPFlagTrue)
-		v0 := b.NewValue0(v.Pos, OpMIPS64CMPGTD, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
 		return true
 	}
 }

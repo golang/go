@@ -120,14 +120,6 @@ func rewriteValuegeneric(v *Value) bool {
 		return rewriteValuegeneric_OpEqPtr(v)
 	case OpEqSlice:
 		return rewriteValuegeneric_OpEqSlice(v)
-	case OpGeq32F:
-		return rewriteValuegeneric_OpGeq32F(v)
-	case OpGeq64F:
-		return rewriteValuegeneric_OpGeq64F(v)
-	case OpGreater32F:
-		return rewriteValuegeneric_OpGreater32F(v)
-	case OpGreater64F:
-		return rewriteValuegeneric_OpGreater64F(v)
 	case OpIMake:
 		return rewriteValuegeneric_OpIMake(v)
 	case OpInterCall:
@@ -8667,86 +8659,6 @@ func rewriteValuegeneric_OpEqSlice(v *Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
-}
-func rewriteValuegeneric_OpGeq32F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Geq32F (Const32F [c]) (Const32F [d]))
-	// result: (ConstBool [b2i(auxTo32F(c) >= auxTo32F(d))])
-	for {
-		if v_0.Op != OpConst32F {
-			break
-		}
-		c := v_0.AuxInt
-		if v_1.Op != OpConst32F {
-			break
-		}
-		d := v_1.AuxInt
-		v.reset(OpConstBool)
-		v.AuxInt = b2i(auxTo32F(c) >= auxTo32F(d))
-		return true
-	}
-	return false
-}
-func rewriteValuegeneric_OpGeq64F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Geq64F (Const64F [c]) (Const64F [d]))
-	// result: (ConstBool [b2i(auxTo64F(c) >= auxTo64F(d))])
-	for {
-		if v_0.Op != OpConst64F {
-			break
-		}
-		c := v_0.AuxInt
-		if v_1.Op != OpConst64F {
-			break
-		}
-		d := v_1.AuxInt
-		v.reset(OpConstBool)
-		v.AuxInt = b2i(auxTo64F(c) >= auxTo64F(d))
-		return true
-	}
-	return false
-}
-func rewriteValuegeneric_OpGreater32F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Greater32F (Const32F [c]) (Const32F [d]))
-	// result: (ConstBool [b2i(auxTo32F(c) > auxTo32F(d))])
-	for {
-		if v_0.Op != OpConst32F {
-			break
-		}
-		c := v_0.AuxInt
-		if v_1.Op != OpConst32F {
-			break
-		}
-		d := v_1.AuxInt
-		v.reset(OpConstBool)
-		v.AuxInt = b2i(auxTo32F(c) > auxTo32F(d))
-		return true
-	}
-	return false
-}
-func rewriteValuegeneric_OpGreater64F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Greater64F (Const64F [c]) (Const64F [d]))
-	// result: (ConstBool [b2i(auxTo64F(c) > auxTo64F(d))])
-	for {
-		if v_0.Op != OpConst64F {
-			break
-		}
-		c := v_0.AuxInt
-		if v_1.Op != OpConst64F {
-			break
-		}
-		d := v_1.AuxInt
-		v.reset(OpConstBool)
-		v.AuxInt = b2i(auxTo64F(c) > auxTo64F(d))
-		return true
-	}
-	return false
 }
 func rewriteValuegeneric_OpIMake(v *Value) bool {
 	v_1 := v.Args[1]

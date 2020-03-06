@@ -194,32 +194,22 @@
 (Rsh16x(64|32|16|8) x y) && shiftIsBounded(v) -> (SARW x y)
 (Rsh8x(64|32|16|8) x y)  && shiftIsBounded(v) -> (SARB x y)
 
-// Lowering comparisons
-(Less(64|32|16|8)  x y) -> (SETL (CMP(Q|L|W|B) x y))
-(Less(64|32|16|8)U x y) -> (SETB (CMP(Q|L|W|B) x y))
-// Use SETGF with reversed operands to dodge NaN case
-(Less(32|64)F x y) -> (SETGF (UCOMIS(S|D) y x))
+// Lowering integer comparisons
+(Less(64|32|16|8)      x y) -> (SETL  (CMP(Q|L|W|B)     x y))
+(Less(64|32|16|8)U     x y) -> (SETB  (CMP(Q|L|W|B)     x y))
+(Leq(64|32|16|8)       x y) -> (SETLE (CMP(Q|L|W|B)     x y))
+(Leq(64|32|16|8)U      x y) -> (SETBE (CMP(Q|L|W|B)     x y))
+(Eq(Ptr|64|32|16|8|B)  x y) -> (SETEQ (CMP(Q|Q|L|W|B|B) x y))
+(Neq(Ptr|64|32|16|8|B) x y) -> (SETNE (CMP(Q|Q|L|W|B|B) x y))
 
-(Leq(64|32|16|8)  x y) -> (SETLE (CMP(Q|L|W|B) x y))
-(Leq(64|32|16|8)U x y) -> (SETBE (CMP(Q|L|W|B) x y))
-// Use SETGEF with reversed operands to dodge NaN case
-(Leq(32|64)F x y) -> (SETGEF (UCOMIS(S|D) y x))
-
+// Lowering floating point comparisons
 // Note Go assembler gets UCOMISx operand order wrong, but it is right here
-// Bug is accommodated at generation of assembly language.
-(Greater(32|64)F x y) -> (SETGF (UCOMIS(S|D) x y))
-
-// Note Go assembler gets UCOMISx operand order wrong, but it is right here
-// Bug is accommodated at generation of assembly language.
-(Geq(32|64)F x y) -> (SETGEF (UCOMIS(S|D) x y))
-
-(Eq(64|32|16|8|B)  x y) -> (SETEQ (CMP(Q|L|W|B|B) x y))
-(EqPtr x y) -> (SETEQ (CMPQ x y))
-(Eq(32|64)F x y) -> (SETEQF (UCOMIS(S|D) x y))
-
-(Neq(64|32|16|8|B)  x y) -> (SETNE (CMP(Q|L|W|B|B) x y))
-(NeqPtr x y) -> (SETNE (CMPQ x y))
-(Neq(32|64)F x y) -> (SETNEF (UCOMIS(S|D) x y))
+// and the operands are reversed when generating assembly language.
+(Eq(32|64)F   x y) -> (SETEQF (UCOMIS(S|D) x y))
+(Neq(32|64)F  x y) -> (SETNEF (UCOMIS(S|D) x y))
+// Use SETGF/SETGEF with reversed operands to dodge NaN case.
+(Less(32|64)F x y) -> (SETGF  (UCOMIS(S|D) y x))
+(Leq(32|64)F  x y) -> (SETGEF (UCOMIS(S|D) y x))
 
 // Lowering loads
 (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVQload ptr mem)
