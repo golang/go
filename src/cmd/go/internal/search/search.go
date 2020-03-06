@@ -19,7 +19,8 @@ import (
 // A Match represents the result of matching a single package pattern.
 type Match struct {
 	pattern string   // the pattern itself
-	Pkgs    []string // matching packages (dirs or import paths)
+	Dirs    []string // if the pattern is local, directories that potentially contain matching packages
+	Pkgs    []string // matching packages (import paths)
 	Errs    []error  // errors matching the patterns to packages, NOT errors loading those packages
 
 	// Errs may be non-empty even if len(Pkgs) > 0, indicating that some matching
@@ -84,17 +85,22 @@ func (e *MatchError) Unwrap() error {
 	return e.Err
 }
 
-// MatchPackages sets m.Pkgs to contain all the packages that can be found
-// under the $GOPATH directories and $GOROOT matching pattern.
-// The pattern is either "all" (all packages), "std" (standard packages),
-// "cmd" (standard commands), or a path including "...".
+// MatchPackages sets m.Pkgs to a non-nil slice containing all the packages that
+// can be found under the $GOPATH directories and $GOROOT that match the
+// pattern. The pattern must be either "all" (all packages), "std" (standard
+// packages), "cmd" (standard commands), or a path including "...".
 //
-// MatchPackages sets m.Errs to contain any errors encountered while processing
-// the match.
+// If any errors may have caused the set of packages to be incomplete,
+// MatchPackages appends those errors to m.Errs.
 func (m *Match) MatchPackages() {
-	m.Pkgs, m.Errs = nil, nil
+	m.Pkgs = []string{}
 	if m.IsLocal() {
 		m.AddError(fmt.Errorf("internal error: MatchPackages: %s is not a valid package pattern", m.pattern))
+		return
+	}
+
+	if m.IsLiteral() {
+		m.Pkgs = []string{m.pattern}
 		return
 	}
 
@@ -197,16 +203,22 @@ func SetModRoot(dir string) {
 	modRoot = dir
 }
 
-// MatchPackagesInFS is like MatchPackages but is passed a pattern that
-// begins with an absolute path or "./" or "../". On Windows, the pattern may
-// use slash or backslash separators or a mix of both.
+// MatchDirs sets m.Dirs to a non-nil slice containing all directories that
+// potentially match a local pattern. The pattern must begin with an absolute
+// path, or "./", or "../". On Windows, the pattern may use slash or backslash
+// separators or a mix of both.
 //
-// MatchPackagesInFS scans the tree rooted at the directory that contains the
-// first "..." wildcard.
-func (m *Match) MatchPackagesInFS() {
-	m.Pkgs, m.Errs = nil, nil
+// If any errors may have caused the set of directories to be incomplete,
+// MatchDirs appends those errors to m.Errs.
+func (m *Match) MatchDirs() {
+	m.Dirs = []string{}
 	if !m.IsLocal() {
-		m.AddError(fmt.Errorf("internal error: MatchPackagesInFS: %s is not a valid filesystem pattern", m.pattern))
+		m.AddError(fmt.Errorf("internal error: MatchDirs: %s is not a valid filesystem pattern", m.pattern))
+		return
+	}
+
+	if m.IsLiteral() {
+		m.Dirs = []string{m.pattern}
 		return
 	}
 
@@ -301,7 +313,7 @@ func (m *Match) MatchPackagesInFS() {
 			// which is all that Match promises to do.
 			// Ignore the import error.
 		}
-		m.Pkgs = append(m.Pkgs, name)
+		m.Dirs = append(m.Dirs, name)
 		return nil
 	})
 	if err != nil {
@@ -416,25 +428,23 @@ func ImportPathsQuiet(patterns []string) []*Match {
 	for _, a := range CleanPatterns(patterns) {
 		m := NewMatch(a)
 		if m.IsLocal() {
-			if m.IsLiteral() {
-				m.Pkgs = []string{a}
-			} else {
-				m.MatchPackagesInFS()
-			}
+			m.MatchDirs()
 
 			// Change the file import path to a regular import path if the package
 			// is in GOPATH or GOROOT. We don't report errors here; LoadImport
 			// (or something similar) will report them later.
-			for i, dir := range m.Pkgs {
+			m.Pkgs = make([]string, len(m.Dirs))
+			for i, dir := range m.Dirs {
+				absDir := dir
 				if !filepath.IsAbs(dir) {
-					dir = filepath.Join(base.Cwd, dir)
+					absDir = filepath.Join(base.Cwd, dir)
 				}
-				if bp, _ := cfg.BuildContext.ImportDir(dir, build.FindOnly); bp.ImportPath != "" && bp.ImportPath != "." {
+				if bp, _ := cfg.BuildContext.ImportDir(absDir, build.FindOnly); bp.ImportPath != "" && bp.ImportPath != "." {
 					m.Pkgs[i] = bp.ImportPath
+				} else {
+					m.Pkgs[i] = dir
 				}
 			}
-		} else if m.IsLiteral() {
-			m.Pkgs = []string{a}
 		} else {
 			m.MatchPackages()
 		}

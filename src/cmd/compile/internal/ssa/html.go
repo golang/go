@@ -93,7 +93,7 @@ td > h2 {
 td.collapsed {
     font-size: 12px;
     width: 12px;
-    border: 0px;
+    border: 1px solid white;
     padding: 0;
     cursor: pointer;
     background: #fafafa;
@@ -247,18 +247,61 @@ svg {
     outline: 1px solid #eee;
 }
 
-.highlight-aquamarine     { background-color: aquamarine; }
-.highlight-coral          { background-color: coral; }
-.highlight-lightpink      { background-color: lightpink; }
-.highlight-lightsteelblue { background-color: lightsteelblue; }
-.highlight-palegreen      { background-color: palegreen; }
-.highlight-skyblue        { background-color: skyblue; }
-.highlight-lightgray      { background-color: lightgray; }
-.highlight-yellow         { background-color: yellow; }
-.highlight-lime           { background-color: lime; }
-.highlight-khaki          { background-color: khaki; }
-.highlight-aqua           { background-color: aqua; }
-.highlight-salmon         { background-color: salmon; }
+body.darkmode {
+    background-color: rgb(21, 21, 21);
+    color: rgb(230, 255, 255);
+    opacity: 100%;
+}
+
+td.darkmode {
+    background-color: rgb(21, 21, 21);
+    border: 1px solid gray;
+}
+
+body.darkmode table, th {
+    border: 1px solid gray;
+}
+
+.highlight-aquamarine     { background-color: aquamarine; color: black; }
+.highlight-coral          { background-color: coral; color: black; }
+.highlight-lightpink      { background-color: lightpink; color: black; }
+.highlight-lightsteelblue { background-color: lightsteelblue; color: black; }
+.highlight-palegreen      { background-color: palegreen; color: black; }
+.highlight-skyblue        { background-color: skyblue; color: black; }
+.highlight-lightgray      { background-color: lightgray; color: black; }
+.highlight-yellow         { background-color: yellow; color: black; }
+.highlight-lime           { background-color: lime; color: black; }
+.highlight-khaki          { background-color: khaki; color: black; }
+.highlight-aqua           { background-color: aqua; color: black; }
+.highlight-salmon         { background-color: salmon; color: black; }
+
+/* Ensure all dead values/blocks continue to have gray font color in dark mode with highlights */
+.dead-value span.highlight-aquamarine,
+.dead-block.highlight-aquamarine,
+.dead-value span.highlight-coral,
+.dead-block.highlight-coral,
+.dead-value span.highlight-lightpink,
+.dead-block.highlight-lightpink,
+.dead-value span.highlight-lightsteelblue,
+.dead-block.highlight-lightsteelblue,
+.dead-value span.highlight-palegreen,
+.dead-block.highlight-palegreen,
+.dead-value span.highlight-skyblue,
+.dead-block.highlight-skyblue,
+.dead-value span.highlight-lightgray,
+.dead-block.highlight-lightgray,
+.dead-value span.highlight-yellow,
+.dead-block.highlight-yellow,
+.dead-value span.highlight-lime,
+.dead-block.highlight-lime,
+.dead-value span.highlight-khaki,
+.dead-block.highlight-khaki,
+.dead-value span.highlight-aqua,
+.dead-block.highlight-aqua,
+.dead-value span.highlight-salmon,
+.dead-block.highlight-salmon {
+    color: gray;
+}
 
 .outline-blue           { outline: blue solid 2px; }
 .outline-red            { outline: red solid 2px; }
@@ -283,6 +326,10 @@ ellipse.outline-orangered      { stroke-width: 2px; stroke: orangered; }
 ellipse.outline-teal           { stroke-width: 2px; stroke: teal; }
 ellipse.outline-maroon         { stroke-width: 2px; stroke: maroon; }
 ellipse.outline-black          { stroke-width: 2px; stroke: black; }
+
+/* Capture alternative for outline-black and ellipse.outline-black when in dark mode */
+body.darkmode .outline-black        { outline: gray solid 2px; }
+body.darkmode ellipse.outline-black { outline: gray solid 2px; }
 
 </style>
 
@@ -331,6 +378,11 @@ for (var i = 0; i < outlines.length; i++) {
 }
 
 window.onload = function() {
+    if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        toggleDarkMode();
+        document.getElementById("dark-mode-button").checked = true;
+    }
+
     var ssaElemClicked = function(elem, event, selections, selected) {
         event.stopPropagation();
 
@@ -584,7 +636,20 @@ function makeDraggable(event) {
     function endDrag(event) {
         isPointerDown = false;
     }
-}</script>
+}
+
+function toggleDarkMode() {
+    document.body.classList.toggle('darkmode');
+
+    const collapsedEls = document.getElementsByClassName('collapsed');
+    const len = collapsedEls.length;
+
+    for (let i = 0; i < len; i++) {
+        collapsedEls[i].classList.toggle('darkmode');
+    }
+}
+
+</script>
 
 </head>`)
 	w.WriteString("<body>")
@@ -616,6 +681,8 @@ Edge with a dot means that this edge follows the order in which blocks were laid
 </p>
 
 </div>
+<label for="dark-mode-button" style="margin-left: 15px; cursor: pointer;">darkmode</label>
+<input type="checkbox" onclick="toggleDarkMode();" id="dark-mode-button" style="cursor: pointer" />
 `)
 	w.WriteString("<table>")
 	w.WriteString("<tr>")

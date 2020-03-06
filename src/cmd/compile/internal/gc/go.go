@@ -279,7 +279,7 @@ type Arch struct {
 var thearch Arch
 
 var (
-	staticbytes,
+	staticuint64s,
 	zerobase *Node
 
 	assertE2I,

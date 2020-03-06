@@ -759,6 +759,19 @@ Do not send CLs removing the interior tags from such phrases.
   </dd>
 </dl><!-- net/textproto -->
 
+<dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
+  <dd>
+    <p><!-- CL 185117 -->
+      When parsing of a URL fails
+      (for example by <a href="/pkg/net/url/#Parse"><code>Parse</code></a>
+      or <a href="/pkg/net/url/#ParseRequestURI"><code>ParseRequestURI</code></a>),
+      the resulting <a href="/pkg/net/url/#Error.Error"><code>Error</code></a> message
+      will now quote the unparsable URL.
+      This provides clearer structure and consistency with other parsing errors.
+    </p>
+  </dd>
+</dl><!-- net/url -->
+
 <dl id="os/signal"><dt><a href="/pkg/os/signal/">os/signal</a></dt>
   <dd>
     <p><!-- CL 187739 -->

@@ -125,7 +125,7 @@ As a general guideline, test functions should be small, to avoid
 possible interactions between unrelated lines of code that may be
 introduced, for example, by the compiler's optimization passes.
 
-Any given line of Go code could get assigned more instructions that it
+Any given line of Go code could get assigned more instructions than it
 may appear from reading the source. In particular, matching all MOV
 instructions should be avoided; the compiler may add them for
 unrelated reasons and this may render the test ineffective.

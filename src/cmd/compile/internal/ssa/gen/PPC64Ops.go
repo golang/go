@@ -205,7 +205,7 @@ func init() {
 		{name: "ROTLW", argLength: 2, reg: gp21, asm: "ROTLW"}, // uint32(arg0) rotate left by arg1 mod 32
 
 		{name: "LoweredAdd64Carry", argLength: 3, reg: gp32, resultNotInArgs: true},                                                                     // arg0 + arg1 + carry, returns (sum, carry)
-		{name: "ADDconstForCarry", argLength: 1, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: tmp}, aux: "Int16", asm: "ADDC", typ: "Flags"}, // _, carry := arg0 + aux
+		{name: "ADDconstForCarry", argLength: 1, reg: regInfo{inputs: []regMask{gp | sp | sb}, clobbers: tmp}, aux: "Int16", asm: "ADDC", typ: "Flags"}, // _, carry := arg0 + auxint
 		{name: "MaskIfNotCarry", argLength: 1, reg: crgp, asm: "ADDME", typ: "Int64"},                                                                   // carry - 1 (if carry then 0 else -1)
 
 		{name: "SRADconst", argLength: 1, reg: gp11, asm: "SRAD", aux: "Int64"}, // arg0 >>a aux, 64 bits
@@ -588,10 +588,11 @@ func init() {
 
 		// These ops are for temporary use by rewrite rules. They
 		// cannot appear in the generated assembly.
-		{name: "FlagEQ"}, // equal
-		{name: "FlagLT"}, // signed < or unsigned <
-		{name: "FlagGT"}, // signed > or unsigned >
-
+		{name: "FlagEQ"},         // equal
+		{name: "FlagLT"},         // signed < or unsigned <
+		{name: "FlagGT"},         // signed > or unsigned >
+		{name: "FlagCarrySet"},   // carry flag set
+		{name: "FlagCarryClear"}, // carry flag clear
 	}
 
 	blocks := []blockData{

@@ -14,6 +14,16 @@ go list cmd/...
 stdout ^cmd/compile
 ! stdout ^cmd/vendor/golang\.org/x/arch/x86/x86asm
 
+# GOROOT/src/... should list the packages in std as if it were a module
+# dependency: omitting vendored dependencies and stopping at the 'cmd' module
+# boundary.
+
+go list $GOROOT/src/...
+stdout ^bytes$
+! stdout ^builtin$
+! stdout ^cmd/
+! stdout ^vendor/
+
 
 # Within the std module, listing ./... should omit the 'std' prefix:
 # the package paths should be the same via ./... or the 'std' meta-pattern.

@@ -401,8 +401,17 @@ func init() {
 		{name: "CDFBRA", argLength: 1, reg: gpfp, asm: "CDFBRA"}, // convert int32 to float64
 		{name: "CEGBRA", argLength: 1, reg: gpfp, asm: "CEGBRA"}, // convert int64 to float32
 		{name: "CDGBRA", argLength: 1, reg: gpfp, asm: "CDGBRA"}, // convert int64 to float64
-		{name: "LEDBR", argLength: 1, reg: fp11, asm: "LEDBR"},   // convert float64 to float32
-		{name: "LDEBR", argLength: 1, reg: fp11, asm: "LDEBR"},   // convert float32 to float64
+		{name: "CLFEBR", argLength: 1, reg: fpgp, asm: "CLFEBR"}, // convert float32 to uint32
+		{name: "CLFDBR", argLength: 1, reg: fpgp, asm: "CLFDBR"}, // convert float64 to uint32
+		{name: "CLGEBR", argLength: 1, reg: fpgp, asm: "CLGEBR"}, // convert float32 to uint64
+		{name: "CLGDBR", argLength: 1, reg: fpgp, asm: "CLGDBR"}, // convert float64 to uint64
+		{name: "CELFBR", argLength: 1, reg: gpfp, asm: "CELFBR"}, // convert uint32 to float32
+		{name: "CDLFBR", argLength: 1, reg: gpfp, asm: "CDLFBR"}, // convert uint32 to float64
+		{name: "CELGBR", argLength: 1, reg: gpfp, asm: "CELGBR"}, // convert uint64 to float32
+		{name: "CDLGBR", argLength: 1, reg: gpfp, asm: "CDLGBR"}, // convert uint64 to float64
+
+		{name: "LEDBR", argLength: 1, reg: fp11, asm: "LEDBR"}, // convert float64 to float32
+		{name: "LDEBR", argLength: 1, reg: fp11, asm: "LDEBR"}, // convert float32 to float64
 
 		{name: "MOVDaddr", argLength: 1, reg: addr, aux: "SymOff", rematerializeable: true, symEffect: "Read"}, // arg0 + auxint + offset encoded in aux
 		{name: "MOVDaddridx", argLength: 2, reg: addridx, aux: "SymOff", symEffect: "Read"},                    // arg0 + arg1 + auxint + aux

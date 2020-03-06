@@ -941,6 +941,8 @@ func (t *tester) internalLinkPIE() bool {
 	case "linux-amd64", "linux-arm64",
 		"android-arm64":
 		return true
+	case "windows-amd64", "windows-386", "windows-arm":
+		return true
 	}
 	return false
 }
@@ -996,6 +998,8 @@ func (t *tester) supportedBuildmode(mode string) bool {
 			"android-amd64", "android-arm", "android-arm64", "android-386":
 			return true
 		case "darwin-amd64":
+			return true
+		case "windows-amd64", "windows-386", "windows-arm":
 			return true
 		}
 		return false

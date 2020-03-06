@@ -170,6 +170,8 @@
 (Cvt32Fto64F ...) -> (MOVFD ...)
 (Cvt64Fto32F ...) -> (MOVDF ...)
 
+(CvtBoolToUint8 ...) -> (Copy ...)
+
 (Round(32|64)F ...) -> (Copy ...)
 
 // comparisons

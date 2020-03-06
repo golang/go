@@ -1274,6 +1274,16 @@ func (s *state) stmt(n *Node) {
 		s.assign(n.Left, r, deref, skip)
 
 	case OIF:
+		if Isconst(n.Left, CTBOOL) {
+			s.stmtList(n.Left.Ninit)
+			if n.Left.Bool() {
+				s.stmtList(n.Nbody)
+			} else {
+				s.stmtList(n.Rlist)
+			}
+			break
+		}
+
 		bEnd := s.f.NewBlock(ssa.BlockPlain)
 		var likely int8
 		if n.Likely() {
@@ -2203,7 +2213,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 					conv = conv1
 				}
 			}
-			if thearch.LinkArch.Family == sys.ARM64 || thearch.LinkArch.Family == sys.Wasm || s.softFloat {
+			if thearch.LinkArch.Family == sys.ARM64 || thearch.LinkArch.Family == sys.Wasm || thearch.LinkArch.Family == sys.S390X || s.softFloat {
 				if conv1, ok1 := uint64fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]; ok1 {
 					conv = conv1
 				}
@@ -3269,7 +3279,7 @@ func init() {
 			}
 			return s.newValue2(ssa.OpMul64uover, types.NewTuple(types.Types[TUINT], types.Types[TUINT]), args[0], args[1])
 		},
-		sys.AMD64, sys.I386)
+		sys.AMD64, sys.I386, sys.MIPS64)
 	add("runtime", "KeepAlive",
 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 			data := s.newValue1(ssa.OpIData, s.f.Config.Types.BytePtr, args[0])

@@ -565,7 +565,6 @@ opswitch:
 
 		n.Right = walkexpr(n.Right, &ll)
 		n.Right = addinit(n.Right, ll.Slice())
-		n = walkinrange(n, init)
 
 	case OPRINT, OPRINTN:
 		n = walkprint(n, init)
@@ -838,10 +837,12 @@ opswitch:
 			break
 		}
 
-		if staticbytes == nil {
-			staticbytes = newname(Runtimepkg.Lookup("staticbytes"))
-			staticbytes.SetClass(PEXTERN)
-			staticbytes.Type = types.NewArray(types.Types[TUINT8], 256)
+		if staticuint64s == nil {
+			staticuint64s = newname(Runtimepkg.Lookup("staticuint64s"))
+			staticuint64s.SetClass(PEXTERN)
+			// The actual type is [256]uint64, but we use [256*8]uint8 so we can address
+			// individual bytes.
+			staticuint64s.Type = types.NewArray(types.Types[TUINT8], 256*8)
 			zerobase = newname(Runtimepkg.Lookup("zerobase"))
 			zerobase.SetClass(PEXTERN)
 			zerobase.Type = types.Types[TUINTPTR]
@@ -857,9 +858,16 @@ opswitch:
 			cheapexpr(n.Left, init) // Evaluate n.Left for side-effects. See issue 19246.
 			value = zerobase
 		case fromType.IsBoolean() || (fromType.Size() == 1 && fromType.IsInteger()):
-			// n.Left is a bool/byte. Use staticbytes[n.Left].
+			// n.Left is a bool/byte. Use staticuint64s[n.Left * 8] on little-endian
+			// and staticuint64s[n.Left * 8 + 7] on big-endian.
 			n.Left = cheapexpr(n.Left, init)
-			value = nod(OINDEX, staticbytes, byteindex(n.Left))
+			// byteindex widens n.Left so that the multiplication doesn't overflow.
+			index := nod(OLSH, byteindex(n.Left), nodintconst(3))
+			index.SetBounded(true)
+			if thearch.LinkArch.ByteOrder == binary.BigEndian {
+				index = nod(OADD, index, nodintconst(7))
+			}
+			value = nod(OINDEX, staticuint64s, index)
 			value.SetBounded(true)
 		case n.Left.Class() == PEXTERN && n.Left.Name != nil && n.Left.Name.Readonly():
 			// n.Left is a readonly global; use it directly.
@@ -2424,15 +2432,21 @@ func convnop(n *Node, t *types.Type) *Node {
 	return n
 }
 
-// byteindex converts n, which is byte-sized, to a uint8.
-// We cannot use conv, because we allow converting bool to uint8 here,
+// byteindex converts n, which is byte-sized, to an int used to index into an array.
+// We cannot use conv, because we allow converting bool to int here,
 // which is forbidden in user code.
 func byteindex(n *Node) *Node {
-	if types.Identical(n.Type, types.Types[TUINT8]) {
-		return n
+	// We cannot convert from bool to int directly.
+	// While converting from int8 to int is possible, it would yield
+	// the wrong result for negative values.
+	// Reinterpreting the value as an unsigned byte solves both cases.
+	if !types.Identical(n.Type, types.Types[TUINT8]) {
+		n = nod(OCONV, n, nil)
+		n.Type = types.Types[TUINT8]
+		n.SetTypecheck(1)
 	}
 	n = nod(OCONV, n, nil)
-	n.Type = types.Types[TUINT8]
+	n.Type = types.Types[TINT]
 	n.SetTypecheck(1)
 	return n
 }
@@ -3521,133 +3535,6 @@ func (n *Node) isIntOrdering() bool {
 		return false
 	}
 	return n.Left.Type.IsInteger() && n.Right.Type.IsInteger()
-}
-
-// walkinrange optimizes integer-in-range checks, such as 4 <= x && x < 10.
-// n must be an OANDAND or OOROR node.
-// The result of walkinrange MUST be assigned back to n, e.g.
-// 	n.Left = walkinrange(n.Left)
-func walkinrange(n *Node, init *Nodes) *Node {
-	// We are looking for something equivalent to a opl b OP b opr c, where:
-	// * a, b, and c have integer type
-	// * b is side-effect-free
-	// * opl and opr are each < or ≤
-	// * OP is &&
-	l := n.Left
-	r := n.Right
-	if !l.isIntOrdering() || !r.isIntOrdering() {
-		return n
-	}
-
-	// Find b, if it exists, and rename appropriately.
-	// Input is: l.Left l.Op l.Right ANDAND/OROR r.Left r.Op r.Right
-	// Output is: a opl b(==x) ANDAND/OROR b(==x) opr c
-	a, opl, b := l.Left, l.Op, l.Right
-	x, opr, c := r.Left, r.Op, r.Right
-	for i := 0; ; i++ {
-		if samesafeexpr(b, x) {
-			break
-		}
-		if i == 3 {
-			// Tried all permutations and couldn't find an appropriate b == x.
-			return n
-		}
-		if i&1 == 0 {
-			a, opl, b = b, brrev(opl), a
-		} else {
-			x, opr, c = c, brrev(opr), x
-		}
-	}
-
-	// If n.Op is ||, apply de Morgan.
-	// Negate the internal ops now; we'll negate the top level op at the end.
-	// Henceforth assume &&.
-	negateResult := n.Op == OOROR
-	if negateResult {
-		opl = brcom(opl)
-		opr = brcom(opr)
-	}
-
-	cmpdir := func(o Op) int {
-		switch o {
-		case OLE, OLT:
-			return -1
-		case OGE, OGT:
-			return +1
-		}
-		Fatalf("walkinrange cmpdir %v", o)
-		return 0
-	}
-	if cmpdir(opl) != cmpdir(opr) {
-		// Not a range check; something like b < a && b < c.
-		return n
-	}
-
-	switch opl {
-	case OGE, OGT:
-		// We have something like a > b && b ≥ c.
-		// Switch and reverse ops and rename constants,
-		// to make it look like a ≤ b && b < c.
-		a, c = c, a
-		opl, opr = brrev(opr), brrev(opl)
-	}
-
-	// We must ensure that c-a is non-negative.
-	// For now, require a and c to be constants.
-	// In the future, we could also support a == 0 and c == len/cap(...).
-	// Unfortunately, by this point, most len/cap expressions have been
-	// stored into temporary variables.
-	if !Isconst(a, CTINT) || !Isconst(c, CTINT) {
-		return n
-	}
-
-	// Ensure that Int64() does not overflow on a and c (it'll happen
-	// for any const above 2**63; see issue #27143).
-	if !a.CanInt64() || !c.CanInt64() {
-		return n
-	}
-
-	if opl == OLT {
-		// We have a < b && ...
-		// We need a ≤ b && ... to safely use unsigned comparison tricks.
-		// If a is not the maximum constant for b's type,
-		// we can increment a and switch to ≤.
-		if a.Int64() >= maxintval[b.Type.Etype].Int64() {
-			return n
-		}
-		a = nodintconst(a.Int64() + 1)
-		opl = OLE
-	}
-
-	bound := c.Int64() - a.Int64()
-	if bound < 0 {
-		// Bad news. Something like 5 <= x && x < 3.
-		// Rare in practice, and we still need to generate side-effects,
-		// so just leave it alone.
-		return n
-	}
-
-	// We have a ≤ b && b < c (or a ≤ b && b ≤ c).
-	// This is equivalent to (a-a) ≤ (b-a) && (b-a) < (c-a),
-	// which is equivalent to 0 ≤ (b-a) && (b-a) < (c-a),
-	// which is equivalent to uint(b-a) < uint(c-a).
-	ut := b.Type.ToUnsigned()
-	lhs := conv(nod(OSUB, b, a), ut)
-	rhs := nodintconst(bound)
-	if negateResult {
-		// Negate top level.
-		opr = brcom(opr)
-	}
-	cmp := nod(opr, lhs, rhs)
-	cmp.Pos = n.Pos
-	cmp = addinit(cmp, l.Ninit.Slice())
-	cmp = addinit(cmp, r.Ninit.Slice())
-	// Typecheck the AST rooted at cmp...
-	cmp = typecheck(cmp, ctxExpr)
-	// ...but then reset cmp's type to match n's type.
-	cmp.Type = n.Type
-	cmp = walkexpr(cmp, init)
-	return cmp
 }
 
 // return 1 if integer n must be in range [0, max), 0 otherwise

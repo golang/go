@@ -32,7 +32,7 @@ type http2Transport struct {
 func (*http2Transport) RoundTrip(*Request) (*Response, error) { panic(noHTTP2) }
 func (*http2Transport) CloseIdleConnections()                 {}
 
-type http2erringRoundTripper struct{}
+type http2erringRoundTripper struct{ err error }
 
 func (http2erringRoundTripper) RoundTrip(*Request) (*Response, error) { panic(noHTTP2) }
 
