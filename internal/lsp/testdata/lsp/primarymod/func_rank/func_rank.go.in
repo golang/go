@@ -42,3 +42,20 @@ func _() {
 		return s.A //@complete(" //", rankAB, rankAA, rankAC)
 	}
 }
+
+type foo struct {
+	fooPrivateField int //@item(rankFooPrivField, "fooPrivateField", "int", "field")
+	FooPublicField  int //@item(rankFooPubField, "FooPublicField", "int", "field")
+}
+
+func (foo) fooPrivateMethod() int { //@item(rankFooPrivMeth, "fooPrivateMethod", "func() int", "method")
+	return 0
+}
+
+func (foo) FooPublicMethod() int { //@item(rankFooPubMeth, "FooPublicMethod", "func() int", "method")
+	return 0
+}
+
+func _() {
+	var _ int = foo{}. //@rank(" //", rankFooPrivField, rankFooPubField),rank(" //", rankFooPrivMeth, rankFooPubMeth),rank(" //", rankFooPrivField, rankFooPrivMeth)
+}

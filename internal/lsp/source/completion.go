@@ -345,8 +345,19 @@ func (c *completer) found(cand candidate) {
 		}
 	}
 
-	// Favor shallow matches by lowering weight according to depth.
-	cand.score -= cand.score * float64(len(c.deepState.chain)) / 10
+	// Lower score of function calls so we prefer fields and vars over calls.
+	if cand.expandFuncCall {
+		cand.score *= 0.9
+	}
+
+	// Prefer private objects over public ones.
+	if !obj.Exported() && obj.Parent() != types.Universe {
+		cand.score *= 1.1
+	}
+
+	// Favor shallow matches by lowering score according to depth.
+	cand.score -= cand.score * c.deepState.scorePenalty()
+
 	if cand.score < 0 {
 		cand.score = 0
 	}

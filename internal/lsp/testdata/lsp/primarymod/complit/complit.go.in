@@ -9,7 +9,7 @@ type position struct { //@item(structPosition, "position", "struct{...}", "struc
 
 func _() {
 	_ = position{
-		//@complete("", fieldX, fieldY, cVar, structPosition)
+		//@complete("", fieldX, fieldY, structPosition, cVar)
 	}
 	_ = position{
 		X: 1,
@@ -21,7 +21,7 @@ func _() {
 	}
 	_ = []*position{
         {
-            //@complete("", fieldX, fieldY, cVar, structPosition)
+            //@complete("", fieldX, fieldY, structPosition, cVar)
         },
 	}
 }
@@ -37,7 +37,7 @@ func _() {
 	}
 
 	_ = map[int]int{
-		//@complete("", abVar, aaVar, cVar, structPosition)
+		//@complete("", abVar, aaVar, structPosition, cVar)
 	}
 
 	_ = []string{a: ""} //@complete(":", abVar, aaVar)
@@ -45,10 +45,10 @@ func _() {
 
 	_ = position{X: a}   //@complete("}", abVar, aaVar)
 	_ = position{a}      //@complete("}", abVar, aaVar)
-	_ = position{a, }      //@complete("}", abVar, aaVar, cVar, structPosition)
+	_ = position{a, }      //@complete("}", abVar, aaVar, structPosition, cVar)
 
-	_ = []int{a}  //@complete("a", abVar, aaVar, cVar, structPosition)
-	_ = [1]int{a} //@complete("a", abVar, aaVar, cVar, structPosition)
+	_ = []int{a}  //@complete("a", abVar, aaVar, structPosition, cVar)
+	_ = [1]int{a} //@complete("a", abVar, aaVar, structPosition, cVar)
 
 	type myStruct struct {
 		AA int    //@item(fieldAA, "AA", "int", "field")
@@ -73,7 +73,7 @@ func _() {
 
 func _() {
 	_ := position{
-		X: 1, //@complete("X", fieldX),complete(" 1", cVar, structPosition)
-		Y: ,  //@complete(":", fieldY),complete(" ,", cVar, structPosition)
+		X: 1, //@complete("X", fieldX),complete(" 1", structPosition, cVar)
+		Y: ,  //@complete(":", fieldY),complete(" ,", structPosition, cVar)
 	}
 }

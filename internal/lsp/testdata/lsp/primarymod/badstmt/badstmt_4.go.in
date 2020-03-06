@@ -6,6 +6,6 @@ import (
 
 func _() {
 	go func() {
-		defer foo. //@complete(" //", Foo, IntFoo, StructFoo)
+		defer foo. //@complete(" //", IntFoo, StructFoo, Foo)
 	}
 }

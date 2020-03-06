@@ -93,6 +93,28 @@ func (s *deepCompletionState) isHighScore(score float64) bool {
 	return false
 }
 
+// scorePenalty computes a deep candidate score penalty. A candidate
+// is penalized based on depth to favor shallower candidates. We also
+// give a slight bonus to unexported objects and a slight additional
+// penalty to function objects.
+func (s *deepCompletionState) scorePenalty() float64 {
+	var deepPenalty float64
+	for _, dc := range s.chain {
+		deepPenalty += 1
+
+		if !dc.Exported() {
+			deepPenalty -= 0.1
+		}
+
+		if _, isSig := dc.Type().Underlying().(*types.Signature); isSig {
+			deepPenalty += 0.1
+		}
+	}
+
+	// Normalize penalty to a max depth of 10.
+	return deepPenalty / 10
+}
+
 func (c *completer) inDeepCompletion() bool {
 	return len(c.deepState.chain) > 0
 }

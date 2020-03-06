@@ -27,7 +27,7 @@ func _() {
 	b := &bob{}
 	y := b.george().
 		jack();
-	y.; //@complete(";", jill, c)
+	y.; //@complete(";", c, jill)
 }
 
 func _() {
@@ -35,10 +35,10 @@ func _() {
 	x := 5
 
 	var b *bob
-	b. //@complete(" /", george, a)
+	b. //@complete(" /", a, george)
 	y, z := 5, 6
 
-	b. //@complete(" /", george, a)
+	b. //@complete(" /", a, george)
 	y, z, a, b, c := 5, 6
 }
 
@@ -52,15 +52,15 @@ func _() {
 
 func _() {
 	var b *bob
-	if y != b. //@complete(" /", george, a)
+	if y != b. //@complete(" /", a, george)
 	z := 5
 
-	if z + y + 1 + b. //@complete(" /", george, a)
+	if z + y + 1 + b. //@complete(" /", a, george)
 	r, s, t := 4, 5
 
-	if y != b. //@complete(" /", george, a)
+	if y != b. //@complete(" /", a, george)
 	z = 5
 
-	if z + y + 1 + b. //@complete(" /", george, a)
+	if z + y + 1 + b. //@complete(" /", a, george)
 	r = 4
 }

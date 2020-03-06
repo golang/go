@@ -6,7 +6,8 @@ func _() {
 	// container/ring is extremely unlikely to be imported by anything, so shouldn't have type information.
 	ring.Ring     //@unimported("Ring", ringring)
 	signature.Foo //@unimported("Foo", signaturefoo)
-	context.Bac   //@unimported("Bac", contextBackground, contextBackgroundErr)
+
+	context.Bac //@unimported(" //", contextBackground, contextBackgroundErr)
 }
 
 // Create markers for unimported std lib packages. Only for use by this test.

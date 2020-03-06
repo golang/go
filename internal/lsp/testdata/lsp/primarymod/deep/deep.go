@@ -113,9 +113,23 @@ func _() {
 		f foo
 	)
 
-	f.b.ptrReceiver()      //@item(deepBPtr, "f.b.ptrReceiver", "func() int", "method")
-	f.bar().valueReceiver  //@item(deepBarValue, "f.bar().valueReceiver", "func() int", "method")
-	f.barPtr().ptrReceiver //@item(deepBarPtrPtr, "f.barPtr().ptrReceiver", "func() int", "method")
+	f.bar().valueReceiver    //@item(deepBarValue, "f.bar().valueReceiver", "func() int", "method")
+	f.barPtr().ptrReceiver   //@item(deepBarPtrPtr, "f.barPtr().ptrReceiver", "func() int", "method")
+	f.barPtr().valueReceiver //@item(deepBarPtrValue, "f.barPtr().valueReceiver", "func() int", "method")
 
-	i = fb //@fuzzy(" //", deepBPtr, deepBarValue, deepBarPtrPtr)
+	i = fbar //@fuzzy(" //", deepBarValue, deepBarPtrPtr, deepBarPtrValue)
+}
+
+func (b baz) Thing() struct{ val int } {
+	return b.thing
+}
+
+type baz struct {
+	thing struct{ val int }
+}
+
+func (b baz) _() {
+	b.Thing().val //@item(deepBazMethVal, "b.Thing().val", "int", "field")
+	b.thing.val   //@item(deepBazFieldVal, "b.thing.val", "int", "field")
+	var _ int = b //@rank(" //", deepBazFieldVal, deepBazMethVal)
 }
