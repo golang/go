@@ -1052,12 +1052,18 @@ func (c *completer) lexical() error {
 		}
 	}
 
-	if c.inference.objType != nil {
+	if t := c.inference.objType; t != nil {
+		// Use variadic element type if we are completing variadic position.
+		if c.inference.variadicType != nil {
+			t = c.inference.variadicType
+		}
+
+		t = deref(t)
+
 		// If we have an expected type and it is _not_ a named type, see
 		// if an object literal makes a good candidate. For example, if
 		// our expected type is "[]int", this will add a candidate of
 		// "[]int{}".
-		t := deref(c.inference.objType)
 		if _, named := t.(*types.Named); !named {
 			c.literal(t, nil)
 		}

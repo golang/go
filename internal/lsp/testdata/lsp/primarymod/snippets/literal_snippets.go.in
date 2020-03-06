@@ -192,3 +192,8 @@ func _() {
 		p: &ptrSt, //@rank(",", litPtrStruct)
 	}
 }
+
+func _() {
+	f := func(...[]int) {}
+	f() //@snippet(")", litIntSlice, "[]int{$0\\}", "[]int{$0\\}")
+}
