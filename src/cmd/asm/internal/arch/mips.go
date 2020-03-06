@@ -63,6 +63,10 @@ func mipsRegisterNumber(name string, n int16) (int16, bool) {
 		if 0 <= n && n <= 31 {
 			return mips.REG_R0 + n, true
 		}
+	case "W":
+		if 0 <= n && n <= 31 {
+			return mips.REG_W0 + n, true
+		}
 	}
 	return 0, false
 }

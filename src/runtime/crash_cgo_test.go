@@ -275,7 +275,13 @@ func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
 		t.Fatal(err)
 	}
 
-	got, err := testenv.CleanCmdEnv(exec.Command(exe, runArg)).CombinedOutput()
+	// pprofCgoTraceback is called whenever CGO code is executing and a signal
+	// is received. Disable signal preemption to increase the likelihood at
+	// least one SIGPROF signal fired to capture a sample. See issue #37201.
+	cmd := testenv.CleanCmdEnv(exec.Command(exe, runArg))
+	cmd.Env = append(cmd.Env, "GODEBUG=asyncpreemptoff=1")
+
+	got, err := cmd.CombinedOutput()
 	if err != nil {
 		if testenv.Builder() == "linux-amd64-alpine" {
 			// See Issue 18243 and Issue 19938.

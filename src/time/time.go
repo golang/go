@@ -535,58 +535,26 @@ func absWeekday(abs uint64) Weekday {
 // week 52 or 53 of year n-1, and Dec 29 to Dec 31 might belong to week 1
 // of year n+1.
 func (t Time) ISOWeek() (year, week int) {
-	year, month, day, yday := t.date(true)
-	wday := int(t.Weekday()+6) % 7 // weekday but Monday = 0.
-	const (
-		Mon int = iota
-		Tue
-		Wed
-		Thu
-		Fri
-		Sat
-		Sun
-	)
+	// According to the rule that the first calendar week of a calendar year is
+	// the week including the first Thursday of that year, and that the last one is
+	// the week immediately preceding the first calendar week of the next calendar year.
+	// See https://www.iso.org/obp/ui#iso:std:iso:8601:-1:ed-1:v1:en:term:3.1.1.23 for details.
 
-	// Calculate week as number of Mondays in year up to
-	// and including today, plus 1 because the first week is week 0.
-	// Putting the + 1 inside the numerator as a + 7 keeps the
-	// numerator from being negative, which would cause it to
-	// round incorrectly.
-	week = (yday - wday + 7) / 7
-
-	// The week number is now correct under the assumption
-	// that the first Monday of the year is in week 1.
-	// If Jan 1 is a Tuesday, Wednesday, or Thursday, the first Monday
-	// is actually in week 2.
-	jan1wday := (wday - yday + 7*53) % 7
-	if Tue <= jan1wday && jan1wday <= Thu {
-		week++
+	// weeks start with Monday
+	// Monday Tuesday Wednesday Thursday Friday Saturday Sunday
+	// 1      2       3         4        5      6        7
+	// +3     +2      +1        0        -1     -2       -3
+	// the offset to Thursday
+	abs := t.abs()
+	d := Thursday - absWeekday(abs)
+	// handle Sunday
+	if d == 4 {
+		d = -3
 	}
-
-	// If the week number is still 0, we're in early January but in
-	// the last week of last year.
-	if week == 0 {
-		year--
-		week = 52
-		// A year has 53 weeks when Jan 1 or Dec 31 is a Thursday,
-		// meaning Jan 1 of the next year is a Friday
-		// or it was a leap year and Jan 1 of the next year is a Saturday.
-		if jan1wday == Fri || (jan1wday == Sat && isLeap(year)) {
-			week++
-		}
-	}
-
-	// December 29 to 31 are in week 1 of next year if
-	// they are after the last Thursday of the year and
-	// December 31 is a Monday, Tuesday, or Wednesday.
-	if month == December && day >= 29 && wday < Thu {
-		if dec31wday := (wday + 31 - day) % 7; Mon <= dec31wday && dec31wday <= Wed {
-			year++
-			week = 1
-		}
-	}
-
-	return
+	// find the Thursday of the calendar week
+	abs += uint64(d) * secondsPerDay
+	year, _, _, yday := absDate(abs, false)
+	return year, yday/7 + 1
 }
 
 // Clock returns the hour, minute, and second within the day specified by t.

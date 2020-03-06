@@ -131,6 +131,8 @@
 (Cvt32Fto64F ...) -> (FCVTDS ...)
 (Cvt64Fto32F ...) -> (FCVTSD ...)
 
+(CvtBoolToUint8 ...) -> (Copy ...)
+
 (Round32F ...) -> (Copy ...)
 (Round64F ...) -> (Copy ...)
 
@@ -325,6 +327,14 @@
 	(MOVWstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
 (MOVDstore [off1] {sym1} (MOVaddr [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
 	(MOVDstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+(MOVBstorezero [off1] {sym1} (MOVaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) && is32Bit(off1+off2) ->
+	(MOVBstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVHstorezero [off1] {sym1} (MOVaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) && is32Bit(off1+off2) ->
+	(MOVHstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVWstorezero [off1] {sym1} (MOVaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) && is32Bit(off1+off2) ->
+	(MOVWstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+(MOVDstorezero [off1] {sym1} (MOVaddr [off2] {sym2} ptr) mem) && canMergeSym(sym1,sym2) && is32Bit(off1+off2) ->
+	(MOVDstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
 
 (MOVBUload [off1] {sym} (ADDI [off2] base) mem) && is32Bit(off1+off2) ->
 	(MOVBUload [off1+off2] {sym} base mem)
@@ -349,6 +359,10 @@
 	(MOVWstore [off1+off2] {sym} base val mem)
 (MOVDstore [off1] {sym} (ADDI [off2] base) val mem) && is32Bit(off1+off2) ->
 	(MOVDstore [off1+off2] {sym} base val mem)
+(MOVBstorezero [off1] {sym} (ADDI [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVBstorezero [off1+off2] {sym} ptr mem)
+(MOVHstorezero [off1] {sym} (ADDI [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVHstorezero [off1+off2] {sym} ptr mem)
+(MOVWstorezero [off1] {sym} (ADDI [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVWstorezero [off1+off2] {sym} ptr mem)
+(MOVDstorezero [off1] {sym} (ADDI [off2] ptr) mem) && is32Bit(off1+off2) -> (MOVDstorezero [off1+off2] {sym} ptr mem)
 
 // Similarly, fold ADDI into MOVaddr to avoid confusing live variable analysis
 // with OffPtr -> ADDI.
@@ -436,9 +450,6 @@
 (MOVDconst <t> [c]) && !is32Bit(c) && int32(c) <  0 -> (ADD (SLLI <t> [32] (MOVDconst [c>>32+1])) (MOVDconst [int64(int32(c))]))
 (MOVDconst <t> [c]) && !is32Bit(c) && int32(c) >= 0 -> (ADD (SLLI <t> [32] (MOVDconst [c>>32+0])) (MOVDconst [int64(int32(c))]))
 
-// Fold ADD+MOVDconst into ADDI where possible.
-(ADD (MOVDconst [off]) ptr) && is32Bit(off) -> (ADDI [off] ptr)
-
 (Addr ...) -> (MOVaddr ...)
 (LocalAddr {sym} base _) -> (MOVaddr {sym} base)
 
@@ -456,6 +467,35 @@
 (StaticCall  ...) -> (CALLstatic  ...)
 (ClosureCall ...) -> (CALLclosure ...)
 (InterCall   ...) -> (CALLinter   ...)
+
+// Optimizations
+
+// Absorb SNEZ into branch.
+(BNE (SNEZ x) yes no) -> (BNE x yes no)
+
+// Store zero
+(MOVBstore [off] {sym} ptr (MOVBconst [0]) mem) -> (MOVBstorezero [off] {sym} ptr mem)
+(MOVHstore [off] {sym} ptr (MOVHconst [0]) mem) -> (MOVHstorezero [off] {sym} ptr mem)
+(MOVWstore [off] {sym} ptr (MOVWconst [0]) mem) -> (MOVWstorezero [off] {sym} ptr mem)
+(MOVDstore [off] {sym} ptr (MOVDconst [0]) mem) -> (MOVDstorezero [off] {sym} ptr mem)
+
+// Fold ADD+MOVDconst into ADDI where possible.
+(ADD (MOVDconst [off]) ptr) && is32Bit(off) -> (ADDI [off] ptr)
+
+// Convert subtraction of a const into ADDI with negative immediate, where possible.
+(SUB x (MOVBconst [val])) && is32Bit(-val) -> (ADDI [-val] x)
+(SUB x (MOVHconst [val])) && is32Bit(-val) -> (ADDI [-val] x)
+(SUB x (MOVWconst [val])) && is32Bit(-val) -> (ADDI [-val] x)
+(SUB x (MOVDconst [val])) && is32Bit(-val) -> (ADDI [-val] x)
+
+// Subtraction of zero.
+(SUB x (MOVBconst [0])) -> x
+(SUB x (MOVHconst [0])) -> x
+(SUB x (MOVWconst [0])) -> x
+(SUB x (MOVDconst [0])) -> x
+
+// Subtraction of zero with sign extension.
+(SUBW x (MOVWconst [0])) -> (ADDIW [0] x)
 
 // remove redundant *const ops
 (ADDI [0]  x) -> x

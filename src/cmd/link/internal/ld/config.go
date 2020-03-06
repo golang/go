@@ -38,7 +38,7 @@ func (mode *BuildMode) Set(s string) error {
 		*mode = BuildModeExe
 	case "pie":
 		switch objabi.GOOS {
-		case "aix", "android", "linux":
+		case "aix", "android", "linux", "windows":
 		case "darwin", "freebsd":
 			switch objabi.GOARCH {
 			case "amd64":
@@ -209,6 +209,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	case BuildModePIE:
 		switch objabi.GOOS + "/" + objabi.GOARCH {
 		case "linux/amd64", "linux/arm64", "android/arm64":
+		case "windows/386", "windows/amd64", "windows/arm":
 		default:
 			// Internal linking does not support TLS_IE.
 			return true, "buildmode=pie"

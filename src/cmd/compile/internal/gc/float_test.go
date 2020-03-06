@@ -483,6 +483,64 @@ func TestFloat32StoreToLoadConstantFold(t *testing.T) {
 	}
 }
 
+// Signaling NaN values as constants.
+const (
+	snan32bits uint32 = 0x7f800001
+	snan64bits uint64 = 0x7ff0000000000001
+)
+
+// Signaling NaNs as variables.
+var snan32bitsVar uint32 = snan32bits
+var snan64bitsVar uint64 = snan64bits
+
+func TestFloatSignalingNaN(t *testing.T) {
+	// Make sure we generate a signaling NaN from a constant properly.
+	// See issue 36400.
+	f32 := math.Float32frombits(snan32bits)
+	g32 := math.Float32frombits(snan32bitsVar)
+	x32 := math.Float32bits(f32)
+	y32 := math.Float32bits(g32)
+	if x32 != y32 {
+		t.Errorf("got %x, want %x (diff=%x)", x32, y32, x32^y32)
+	}
+
+	f64 := math.Float64frombits(snan64bits)
+	g64 := math.Float64frombits(snan64bitsVar)
+	x64 := math.Float64bits(f64)
+	y64 := math.Float64bits(g64)
+	if x64 != y64 {
+		t.Errorf("got %x, want %x (diff=%x)", x64, y64, x64^y64)
+	}
+}
+
+func TestFloatSignalingNaNConversion(t *testing.T) {
+	// Test to make sure when we convert a signaling NaN, we get a NaN.
+	// (Ideally we want a quiet NaN, but some platforms don't agree.)
+	// See issue 36399.
+	s32 := math.Float32frombits(snan32bitsVar)
+	if s32 == s32 {
+		t.Errorf("converting a NaN did not result in a NaN")
+	}
+	s64 := math.Float64frombits(snan64bitsVar)
+	if s64 == s64 {
+		t.Errorf("converting a NaN did not result in a NaN")
+	}
+}
+
+func TestFloatSignalingNaNConversionConst(t *testing.T) {
+	// Test to make sure when we convert a signaling NaN, it converts to a NaN.
+	// (Ideally we want a quiet NaN, but some platforms don't agree.)
+	// See issue 36399 and 36400.
+	s32 := math.Float32frombits(snan32bits)
+	if s32 == s32 {
+		t.Errorf("converting a NaN did not result in a NaN")
+	}
+	s64 := math.Float64frombits(snan64bits)
+	if s64 == s64 {
+		t.Errorf("converting a NaN did not result in a NaN")
+	}
+}
+
 var sinkFloat float64
 
 func BenchmarkMul2(b *testing.B) {

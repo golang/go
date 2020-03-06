@@ -41,8 +41,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPBconstload(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAMD64MOVBload, typ.UInt8)
 		v0.AuxInt = offOnly(vo)
 		v0.Aux = sym
-		v0.AddArg(ptr)
-		v0.AddArg(mem)
+		v0.AddArg2(ptr, mem)
 		v.AddArg(v0)
 		return true
 	}
@@ -65,10 +64,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPBload(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAMD64MOVBload, typ.UInt8)
 		v0.AuxInt = off
 		v0.Aux = sym
-		v0.AddArg(ptr)
-		v0.AddArg(mem)
-		v.AddArg(v0)
-		v.AddArg(x)
+		v0.AddArg2(ptr, mem)
+		v.AddArg2(v0, x)
 		return true
 	}
 }
@@ -89,8 +86,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPLconstload(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAMD64MOVLload, typ.UInt32)
 		v0.AuxInt = offOnly(vo)
 		v0.Aux = sym
-		v0.AddArg(ptr)
-		v0.AddArg(mem)
+		v0.AddArg2(ptr, mem)
 		v.AddArg(v0)
 		return true
 	}
@@ -113,10 +109,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPLload(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAMD64MOVLload, typ.UInt32)
 		v0.AuxInt = off
 		v0.Aux = sym
-		v0.AddArg(ptr)
-		v0.AddArg(mem)
-		v.AddArg(v0)
-		v.AddArg(x)
+		v0.AddArg2(ptr, mem)
+		v.AddArg2(v0, x)
 		return true
 	}
 }
@@ -137,8 +131,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPQconstload(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAMD64MOVQload, typ.UInt64)
 		v0.AuxInt = offOnly(vo)
 		v0.Aux = sym
-		v0.AddArg(ptr)
-		v0.AddArg(mem)
+		v0.AddArg2(ptr, mem)
 		v.AddArg(v0)
 		return true
 	}
@@ -161,10 +154,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPQload(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAMD64MOVQload, typ.UInt64)
 		v0.AuxInt = off
 		v0.Aux = sym
-		v0.AddArg(ptr)
-		v0.AddArg(mem)
-		v.AddArg(v0)
-		v.AddArg(x)
+		v0.AddArg2(ptr, mem)
+		v.AddArg2(v0, x)
 		return true
 	}
 }
@@ -185,8 +176,7 @@ func rewriteValueAMD64splitload_OpAMD64CMPWconstload(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAMD64MOVWload, typ.UInt16)
 		v0.AuxInt = offOnly(vo)
 		v0.Aux = sym
-		v0.AddArg(ptr)
-		v0.AddArg(mem)
+		v0.AddArg2(ptr, mem)
 		v.AddArg(v0)
 		return true
 	}
@@ -209,10 +199,8 @@ func rewriteValueAMD64splitload_OpAMD64CMPWload(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAMD64MOVWload, typ.UInt16)
 		v0.AuxInt = off
 		v0.Aux = sym
-		v0.AddArg(ptr)
-		v0.AddArg(mem)
-		v.AddArg(v0)
-		v.AddArg(x)
+		v0.AddArg2(ptr, mem)
+		v.AddArg2(v0, x)
 		return true
 	}
 }

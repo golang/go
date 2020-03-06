@@ -154,6 +154,8 @@
 
 (Round(32|64)F ...) -> (Copy ...)
 
+(CvtBoolToUint8 ...) -> (Copy ...)
+
 // Lowering shifts
 // Unsigned shifts need to return 0 if shift amount is >= width of shifted value.
 //   result = (arg << shift) & (shift >= argbits ? 0 : 0xffffffffffffffff)
@@ -756,6 +758,7 @@
 (MULQconst [c] (MULQconst [d] x)) && is32Bit(c*d) -> (MULQconst [c * d] x)
 
 (ORQ x (MOVQconst [c])) && is32Bit(c) -> (ORQconst [c] x)
+(ORQ x (MOVLconst [c])) -> (ORQconst [c] x)
 (ORL x (MOVLconst [c])) -> (ORLconst [c] x)
 
 (XORQ x (MOVQconst [c])) && is32Bit(c) -> (XORQconst [c] x)
@@ -1305,6 +1308,15 @@
 (CMPBconst (MOVLconst [x]) [y]) && int8(x)>int8(y) && uint8(x)<uint8(y) -> (FlagGT_ULT)
 (CMPBconst (MOVLconst [x]) [y]) && int8(x)>int8(y) && uint8(x)>uint8(y) -> (FlagGT_UGT)
 
+// CMPQconst requires a 32 bit const, but we can still constant-fold 64 bit consts.
+// In theory this applies to any of the simplifications above,
+// but CMPQ is the only one I've actually seen occur.
+(CMPQ (MOVQconst [x]) (MOVQconst [y])) && x==y -> (FlagEQ)
+(CMPQ (MOVQconst [x]) (MOVQconst [y])) && x<y && uint64(x)<uint64(y) -> (FlagLT_ULT)
+(CMPQ (MOVQconst [x]) (MOVQconst [y])) && x<y && uint64(x)>uint64(y) -> (FlagLT_UGT)
+(CMPQ (MOVQconst [x]) (MOVQconst [y])) && x>y && uint64(x)<uint64(y) -> (FlagGT_ULT)
+(CMPQ (MOVQconst [x]) (MOVQconst [y])) && x>y && uint64(x)>uint64(y) -> (FlagGT_UGT)
+
 // Other known comparisons.
 (CMPQconst (MOVBQZX _) [c]) && 0xFF < c -> (FlagLT_ULT)
 (CMPQconst (MOVWQZX _) [c]) && 0xFFFF < c -> (FlagLT_ULT)
@@ -1478,6 +1490,12 @@
 (BTCQconst [c] (MOVQconst [d])) -> (MOVQconst [d^(1<<uint32(c))])
 (BTCLconst [c] (MOVLconst [d])) -> (MOVLconst [d^(1<<uint32(c))])
 
+// If c or d doesn't fit into 32 bits, then we can't construct ORQconst,
+// but we can still constant-fold.
+// In theory this applies to any of the simplifications above,
+// but ORQ is the only one I've actually seen occur.
+(ORQ (MOVQconst [c]) (MOVQconst [d])) -> (MOVQconst [c|d])
+
 // generic simplifications
 // TODO: more of this
 (ADDQ x (NEGQ y)) -> (SUBQ x y)
@@ -1493,6 +1511,7 @@
 
 (SHLLconst [d] (MOVLconst [c])) -> (MOVLconst [int64(int32(c)) << uint64(d)])
 (SHLQconst [d] (MOVQconst [c])) -> (MOVQconst [c << uint64(d)])
+(SHLQconst [d] (MOVLconst [c])) -> (MOVQconst [int64(int32(c)) << uint64(d)])
 
 // Fold NEG into ADDconst/MULconst. Take care to keep c in 32 bit range.
 (NEGQ (ADDQconst [c] (NEGQ x))) && c != -(1<<31) -> (ADDQconst [-c] x)

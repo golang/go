@@ -141,14 +141,22 @@ func checkFunc(f *Func) {
 					f.Fatalf("bad int32 AuxInt value for %v", v)
 				}
 				canHaveAuxInt = true
-			case auxInt64, auxFloat64, auxARM64BitField:
+			case auxInt64, auxARM64BitField:
 				canHaveAuxInt = true
 			case auxInt128:
 				// AuxInt must be zero, so leave canHaveAuxInt set to false.
 			case auxFloat32:
 				canHaveAuxInt = true
+				if math.IsNaN(v.AuxFloat()) {
+					f.Fatalf("value %v has an AuxInt that encodes a NaN", v)
+				}
 				if !isExactFloat32(v.AuxFloat()) {
 					f.Fatalf("value %v has an AuxInt value that is not an exact float32", v)
+				}
+			case auxFloat64:
+				canHaveAuxInt = true
+				if math.IsNaN(v.AuxFloat()) {
+					f.Fatalf("value %v has an AuxInt that encodes a NaN", v)
 				}
 			case auxString, auxSym, auxTyp, auxArchSpecific:
 				canHaveAux = true

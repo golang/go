@@ -65,24 +65,13 @@ func ImportPaths(patterns []string) []*search.Match {
 // packages. The build tags should typically be imports.Tags() or
 // imports.AnyTags(); a nil map has no special meaning.
 func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
-	var fsDirs [][]string
 	updateMatches := func(matches []*search.Match, iterating bool) {
-		for i, m := range matches {
+		for _, m := range matches {
 			switch {
 			case m.IsLocal():
 				// Evaluate list of file system directories on first iteration.
-				if fsDirs == nil {
-					fsDirs = make([][]string, len(matches))
-				}
-				if fsDirs[i] == nil {
-					if m.IsLiteral() {
-						fsDirs[i] = []string{m.Pattern()}
-					} else {
-						m.MatchPackagesInFS()
-						// Pull out the matching directories: we are going to resolve them
-						// to package paths below.
-						fsDirs[i], m.Pkgs = m.Pkgs, nil
-					}
+				if m.Dirs == nil {
+					matchLocalDirs(m)
 				}
 
 				// Make a copy of the directory list and translate to import paths.
@@ -91,10 +80,9 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 				// from not being in the build list to being in it and back as
 				// the exact version of a particular module increases during
 				// the loader iterations.
-				pkgs := str.StringList(fsDirs[i])
-				m.Pkgs = pkgs[:0]
-				for _, pkg := range pkgs {
-					pkg, err := resolveLocalPackage(pkg)
+				m.Pkgs = m.Pkgs[:0]
+				for _, dir := range m.Dirs {
+					pkg, err := resolveLocalPackage(dir)
 					if err != nil {
 						if !m.IsLiteral() && (err == errPkgIsBuiltin || err == errPkgIsGorootSrc) {
 							continue // Don't include "builtin" or GOROOT/src in wildcard patterns.
@@ -131,7 +119,7 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 				}
 
 			case m.Pattern() == "std" || m.Pattern() == "cmd":
-				if len(m.Pkgs) == 0 {
+				if m.Pkgs == nil {
 					m.MatchPackages() // Locate the packages within GOROOT/src.
 				}
 
@@ -184,6 +172,34 @@ func checkMultiplePaths() {
 		}
 	}
 	base.ExitIfErrors()
+}
+
+// matchLocalDirs is like m.MatchDirs, but tries to avoid scanning directories
+// outside of the standard library and active modules.
+func matchLocalDirs(m *search.Match) {
+	if !m.IsLocal() {
+		panic(fmt.Sprintf("internal error: resolveLocalDirs on non-local pattern %s", m.Pattern()))
+	}
+
+	if i := strings.Index(m.Pattern(), "..."); i >= 0 {
+		// The pattern is local, but it is a wildcard. Its packages will
+		// only resolve to paths if they are inside of the standard
+		// library, the main module, or some dependency of the main
+		// module. Verify that before we walk the filesystem: a filesystem
+		// walk in a directory like /var or /etc can be very expensive!
+		dir := filepath.Dir(filepath.Clean(m.Pattern()[:i+3]))
+		absDir := dir
+		if !filepath.IsAbs(dir) {
+			absDir = filepath.Join(base.Cwd, dir)
+		}
+		if search.InDir(absDir, cfg.GOROOTsrc) == "" && search.InDir(absDir, ModRoot()) == "" && pathInModuleCache(absDir) == "" {
+			m.Dirs = []string{}
+			m.AddError(fmt.Errorf("directory prefix %s outside available modules", base.ShortPath(absDir)))
+			return
+		}
+	}
+
+	m.MatchDirs()
 }
 
 // resolveLocalPackage resolves a filesystem path to a package path.
@@ -269,7 +285,11 @@ func resolveLocalPackage(dir string) (string, error) {
 	}
 
 	if sub := search.InDir(absDir, cfg.GOROOTsrc); sub != "" && sub != "." && !strings.Contains(sub, "@") {
-		return filepath.ToSlash(sub), nil
+		pkg := filepath.ToSlash(sub)
+		if pkg == "builtin" {
+			return "", errPkgIsBuiltin
+		}
+		return pkg, nil
 	}
 
 	pkg := pathInModuleCache(absDir)

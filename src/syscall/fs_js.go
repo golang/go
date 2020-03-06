@@ -102,6 +102,10 @@ func Open(path string, openmode int, perm uint32) (int, error) {
 		}
 	}
 
+	if path[0] != '/' {
+		cwd := jsProcess.Call("cwd").String()
+		path = cwd + "/" + path
+	}
 	f := &jsFile{
 		path:    path,
 		entries: entries,
