@@ -9,8 +9,10 @@ import (
 	"golang.org/x/tools/internal/telemetry"
 	"golang.org/x/tools/internal/telemetry/export"
 	tellog "golang.org/x/tools/internal/telemetry/log"
+	"golang.org/x/tools/internal/telemetry/stats"
 	"golang.org/x/tools/internal/telemetry/tag"
 	teltrace "golang.org/x/tools/internal/telemetry/trace"
+	"golang.org/x/tools/internal/telemetry/unit"
 )
 
 type Hooks struct {
@@ -19,6 +21,11 @@ type Hooks struct {
 }
 
 var (
+	aCount  = stats.Int64("aCount", "Count of time A is called.", unit.Dimensionless)
+	aValue  = stats.Int64("aValue", "A value.", unit.Dimensionless)
+	bCount  = stats.Int64("B", "Count of time B is called.", unit.Dimensionless)
+	bLength = stats.Int64("BLen", "B length.", unit.Dimensionless)
+
 	Baseline = Hooks{
 		A: func(ctx context.Context, a *int) (context.Context, func()) {
 			return ctx, func() {}
@@ -66,6 +73,21 @@ var (
 			return teltrace.StartSpan(ctx, "B")
 		},
 	}
+
+	Stats = Hooks{
+		A: func(ctx context.Context, a *int) (context.Context, func()) {
+			aCount.Record(ctx, 1)
+			return ctx, func() {
+				aValue.Record(ctx, int64(*a))
+			}
+		},
+		B: func(ctx context.Context, b *string) (context.Context, func()) {
+			bCount.Record(ctx, 1)
+			return ctx, func() {
+				bLength.Record(ctx, int64(len(*b)))
+			}
+		},
+	}
 )
 
 func Benchmark(b *testing.B) {
@@ -74,10 +96,12 @@ func Benchmark(b *testing.B) {
 	export.SetExporter(nil)
 	b.Run("LogNoExporter", Log.runBenchmark)
 	b.Run("TraceNoExporter", Trace.runBenchmark)
+	b.Run("StatsNoExporter", Stats.runBenchmark)
 
 	export.SetExporter(newExporter())
 	b.Run("Log", Log.runBenchmark)
 	b.Run("Trace", Trace.runBenchmark)
+	b.Run("Stats", Stats.runBenchmark)
 }
 
 func A(ctx context.Context, hooks Hooks, a int) int {
