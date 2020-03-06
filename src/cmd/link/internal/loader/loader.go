@@ -69,6 +69,16 @@ type Reloc2 struct {
 func (rel Reloc2) Type() objabi.RelocType { return objabi.RelocType(rel.Reloc2.Type()) + rel.typ }
 func (rel Reloc2) Sym() Sym               { return rel.l.resolve(rel.r, rel.Reloc2.Sym()) }
 
+// Aux2 holds a "handle" to access an aux symbol record from an
+// object file.
+type Aux2 struct {
+	*goobj2.Aux2
+	r *oReader
+	l *Loader
+}
+
+func (a Aux2) Sym() Sym { return a.l.resolve(a.r, a.Aux2.Sym()) }
+
 // oReader is a wrapper type of obj.Reader, along with some
 // extra information.
 // TODO: rename to objReader once the old one is gone?
@@ -1164,13 +1174,12 @@ func (l *Loader) SymGoType(i Sym) Sym {
 		return pp.gotype
 	}
 	r, li := l.toLocal(i)
-	naux := r.NAux(li)
-	for j := 0; j < naux; j++ {
-		a := goobj2.Aux{}
-		a.Read(r.Reader, r.AuxOff(li, j))
-		switch a.Type {
+	auxs := r.Auxs2(li)
+	for j := range auxs {
+		a := &auxs[j]
+		switch a.Type() {
 		case goobj2.AuxGotype:
-			return l.resolve(r, a.Sym)
+			return l.resolve(r, a.Sym())
 		}
 	}
 	return 0
@@ -1264,6 +1273,18 @@ func (l *Loader) AuxSym(i Sym, j int) Sym {
 	a := goobj2.Aux{}
 	a.Read(r.Reader, r.AuxOff(li, j))
 	return l.resolve(r, a.Sym)
+}
+
+// Returns the "handle" to the j-th aux symbol of the i-th symbol.
+func (l *Loader) Aux2(i Sym, j int) Aux2 {
+	if l.IsExternal(i) {
+		return Aux2{}
+	}
+	r, li := l.toLocal(i)
+	if j >= r.NAux(li) {
+		return Aux2{}
+	}
+	return Aux2{r.Aux2(li, j), r, l}
 }
 
 // GetFuncDwarfAuxSyms collects and returns the auxiliary DWARF
@@ -1593,12 +1614,11 @@ func (l *Loader) FuncInfo(i Sym) FuncInfo {
 		return FuncInfo{}
 	}
 	r, li := l.toLocal(i)
-	n := r.NAux(li)
-	for j := 0; j < n; j++ {
-		a := goobj2.Aux{}
-		a.Read(r.Reader, r.AuxOff(li, j))
-		if a.Type == goobj2.AuxFuncInfo {
-			b := r.Data(int(a.Sym.SymIdx))
+	auxs := r.Auxs2(li)
+	for j := range auxs {
+		a := &auxs[j]
+		if a.Type() == goobj2.AuxFuncInfo {
+			b := r.Data(int(a.Sym().SymIdx))
 			return FuncInfo{l, r, b}
 		}
 	}
