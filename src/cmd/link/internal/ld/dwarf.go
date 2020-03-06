@@ -1945,10 +1945,6 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 				d.ldr.SetAttrNotInSymbolTable(infosym, true)
 				d.ldr.SetAttrReachable(infosym, true)
 
-				// This is needed only for assembler-generated subprogram DIEs
-				// at the moment.
-				d.ldr.PatchDWARFName(infosym)
-
 				unit.FuncDIEs2 = append(unit.FuncDIEs2, sym.LoaderSym(infosym))
 				if rangesym != 0 {
 					rs := len(d.ldr.Data(rangesym))

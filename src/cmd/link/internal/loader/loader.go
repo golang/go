@@ -7,7 +7,6 @@ package loader
 import (
 	"bytes"
 	"cmd/internal/bio"
-	"cmd/internal/dwarf"
 	"cmd/internal/goobj2"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -545,14 +544,8 @@ func (l *Loader) Lookup(name string, ver int) Sym {
 // Check that duplicate symbols have same contents.
 func (l *Loader) checkdup(name string, r *oReader, li int, dup Sym) {
 	p := r.Data(li)
-	if strings.HasPrefix(name, "go.info.") {
-		p, _ = patchDWARFName1(p, r)
-	}
 	rdup, ldup := l.toLocal(dup)
 	pdup := rdup.Data(ldup)
-	if strings.HasPrefix(name, "go.info.") {
-		pdup, _ = patchDWARFName1(pdup, rdup)
-	}
 	if bytes.Equal(p, pdup) {
 		return
 	}
@@ -2381,14 +2374,6 @@ func loadObjFull(l *Loader, r *oReader) {
 		s.Attr.Set(sym.AttrLocal, local)
 		s.Attr.Set(sym.AttrMakeTypelink, makeTypelink)
 
-		if s.Type == sym.SDWARFINFO {
-			// For DWARF symbols, replace `"".` to actual package prefix
-			// in the symbol content.
-			// TODO: maybe we should do this in the compiler and get rid
-			// of this.
-			patchDWARFName(s, r)
-		}
-
 		if s.Type != sym.STEXT {
 			continue
 		}
@@ -2556,43 +2541,6 @@ func (l *Loader) convertRelocations(src []Reloc, dst *sym.Symbol, strict bool) {
 	}
 }
 
-var emptyPkg = []byte(`"".`)
-
-func patchDWARFName1(p []byte, r *oReader) ([]byte, int) {
-	// This is kind of ugly. Really the package name should not
-	// even be included here.
-	if len(p) < 1 || p[0] != dwarf.DW_ABRV_FUNCTION {
-		return p, -1
-	}
-	e := bytes.IndexByte(p, 0)
-	if e == -1 {
-		return p, -1
-	}
-	if !bytes.Contains(p[:e], emptyPkg) {
-		return p, -1
-	}
-	pkgprefix := []byte(r.pkgprefix)
-	patched := bytes.Replace(p[:e], emptyPkg, pkgprefix, -1)
-	return append(patched, p[e:]...), e
-}
-
-func patchDWARFName(s *sym.Symbol, r *oReader) {
-	patched, e := patchDWARFName1(s.P, r)
-	if e == -1 {
-		return
-	}
-	s.P = patched
-	s.Attr.Set(sym.AttrReadOnly, false)
-	delta := int64(len(s.P)) - s.Size
-	s.Size = int64(len(s.P))
-	for i := range s.R {
-		r := &s.R[i]
-		if r.Off > int32(e) {
-			r.Off += int32(delta)
-		}
-	}
-}
-
 // UndefinedRelocTargets iterates through the global symbol index
 // space, looking for symbols with relocations targeting undefined
 // references. The linker's loadlib method uses this to determine if
@@ -2712,48 +2660,6 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 	}
 
 	return textp2
-}
-
-// PatchDWARFName applies DWARF name attribute patching to the
-// specified symbol. If the symbol does not need patching, it will be
-// left alone; if it does, cloneToExternal will be invoked so that the
-// data for the symbol can be rewritten.
-//
-// Notes:
-//
-// - currently only required for assembler-generated subprogram DIE
-//   symbols (compiler-gen are ok)
-//
-// - should only be invoked on reachable/live symbols, as opposed to
-//   across the board (there is a cost to doing the cloning, we don't
-//   want to do it unless absolutely necessary).
-//
-// - over the years patchDWARFName has been a significant source
-//   of bugs and head-scratching. Something we might want to consider is
-//    switching from DW_FORM_str to DW_FORM_strp for package-qualified
-//    names in DWARF DIEs -- this might make our lives easier overall.
-//
-func (l *Loader) PatchDWARFName(s Sym) {
-	if l.IsExternal(s) {
-		// no patching needed here
-		return
-	}
-	patched, found := patchDWARFName1(l.Data(s), l.objSyms[s].r)
-	if found == -1 {
-		return
-	}
-	l.cloneToExternal(s)
-	l.SetAttrReadOnly(s, false)
-	pp := l.getPayload(s)
-	pp.data = patched
-	delta := int64(len(patched)) - pp.size
-	pp.size = int64(len(patched))
-	for i := range pp.relocs {
-		r := &pp.relocs[i]
-		if r.Off > int32(found) {
-			r.Off += int32(delta)
-		}
-	}
 }
 
 // For debugging.
