@@ -921,8 +921,11 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 
 		if len(exp.Doc) > 0 {
 			fmt.Fprintf(fgcch, "\n%s", exp.Doc)
+			if !strings.HasSuffix(exp.Doc, "\n") {
+				fmt.Fprint(fgcch, "\n")
+			}
 		}
-		fmt.Fprintf(fgcch, "\nextern %s;\n", s)
+		fmt.Fprintf(fgcch, "extern %s;\n", s)
 
 		fmt.Fprintf(fgcc, "extern void _cgoexp%s_%s(void *, int, __SIZE_TYPE__);\n", cPrefix, exp.ExpName)
 		fmt.Fprintf(fgcc, "\nCGO_NO_SANITIZE_THREAD")
