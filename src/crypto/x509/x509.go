@@ -2666,18 +2666,20 @@ func (c *CertificateRequest) CheckSignature() error {
 	return checkSignature(c.SignatureAlgorithm, c.RawTBSCertificateRequest, c.Signature, c.PublicKey)
 }
 
-// CRLTemplate contains the fields used to create an X.509 v2 Certificate
+// RevocationList contains the fields used to create an X.509 v2 Certificate
 // Revocation list.
-type CRLTemplate struct {
-	SignatureAlgorithm  SignatureAlgorithm
+type RevocationList struct {
+	SignatureAlgorithm SignatureAlgorithm
+
 	RevokedCertificates []pkix.RevokedCertificate
-	Number              *big.Int
-	ThisUpdate          time.Time
-	NextUpdate          time.Time
-	ExtraExtensions     []pkix.Extension
+
+	Number          *big.Int
+	ThisUpdate      time.Time
+	NextUpdate      time.Time
+	ExtraExtensions []pkix.Extension
 }
 
-// CreateCRL creates a new x509 v2 Certificate Revocation List.
+// CreateRevocationList creates a new x509 v2 Certificate Revocation List.
 //
 // The CRL is signed by priv which should be the private key associated with
 // the public key in the issuer certificate.
@@ -2702,9 +2704,12 @@ type CRLTemplate struct {
 // This method is differentiated from the Certificate.CreateCRL method as
 // it creates X509 v2 conformant CRLs as defined by the RFC 5280 CRL profile.
 // This method should be used if created CRLs need to be standards compliant.
-func CreateCRL(rand io.Reader, issuer *Certificate, priv crypto.Signer, template CRLTemplate) ([]byte, error) {
+func CreateRevocationList(rand io.Reader, template *RevocationList, issuer *Certificate, priv crypto.Signer) ([]byte, error) {
+	if template == nil {
+		return nil, errors.New("x509: template can not be nil")
+	}
 	if issuer == nil {
-		return nil, errors.New("x509: issuer may not be nil")
+		return nil, errors.New("x509: issuer can not be nil")
 	}
 	if (issuer.KeyUsage & KeyUsageCRLSign) == 0 {
 		return nil, errors.New("x509: issuer must have the crlSign key usage bit set")

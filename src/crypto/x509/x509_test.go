@@ -2294,7 +2294,7 @@ func TestPKCS1MismatchKeyFormat(t *testing.T) {
 	}
 }
 
-func TestCreateCRLExt(t *testing.T) {
+func TestCreateRevocationList(t *testing.T) {
 	ecdsaPriv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatalf("Failed to generate ECDSA key: %s", err)
@@ -2302,21 +2302,27 @@ func TestCreateCRLExt(t *testing.T) {
 	tests := []struct {
 		name          string
 		issuer        *Certificate
-		template      CRLTemplate
+		template      *RevocationList
 		expectedError string
 	}{
 		{
+			name:          "nil template",
+			issuer:        nil,
+			template:      nil,
+			expectedError: "x509: template can not be nil",
+		},
+		{
 			name:          "nil issuer",
 			issuer:        nil,
-			template:      CRLTemplate{},
-			expectedError: "x509: issuer may not be nil",
+			template:      &RevocationList{},
+			expectedError: "x509: issuer can not be nil",
 		},
 		{
 			name: "issuer doesn't have crlSign key usage bit set",
 			issuer: &Certificate{
 				KeyUsage: KeyUsageCertSign,
 			},
-			template:      CRLTemplate{},
+			template:      &RevocationList{},
 			expectedError: "x509: issuer must have the crlSign key usage bit set",
 		},
 		{
@@ -2324,7 +2330,7 @@ func TestCreateCRLExt(t *testing.T) {
 			issuer: &Certificate{
 				KeyUsage: KeyUsageCRLSign,
 			},
-			template:      CRLTemplate{},
+			template:      &RevocationList{},
 			expectedError: "x509: issuer certificate doesn't contain a subject key identifier",
 		},
 		{
@@ -2336,7 +2342,7 @@ func TestCreateCRLExt(t *testing.T) {
 				},
 				SubjectKeyId: []byte{1, 2, 3},
 			},
-			template: CRLTemplate{
+			template: &RevocationList{
 				ThisUpdate: time.Time{}.Add(time.Hour),
 				NextUpdate: time.Time{},
 			},
@@ -2351,7 +2357,7 @@ func TestCreateCRLExt(t *testing.T) {
 				},
 				SubjectKeyId: []byte{1, 2, 3},
 			},
-			template: CRLTemplate{
+			template: &RevocationList{
 				ThisUpdate: time.Time{}.Add(time.Hour * 24),
 				NextUpdate: time.Time{}.Add(time.Hour * 48),
 			},
@@ -2366,7 +2372,7 @@ func TestCreateCRLExt(t *testing.T) {
 				},
 				SubjectKeyId: []byte{1, 2, 3},
 			},
-			template: CRLTemplate{
+			template: &RevocationList{
 				RevokedCertificates: []pkix.RevokedCertificate{
 					{
 						SerialNumber:   big.NewInt(2),
@@ -2388,13 +2394,13 @@ func TestCreateCRLExt(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			crl, err := CreateCRL(rand.Reader, tc.issuer, ecdsaPriv, tc.template)
+			crl, err := CreateRevocationList(rand.Reader, tc.template, tc.issuer, ecdsaPriv)
 			if err != nil && tc.expectedError == "" {
-				t.Fatalf("CreateCRL failed unexpectedly: %s", err)
+				t.Fatalf("CreateRevocationList failed unexpectedly: %s", err)
 			} else if err != nil && tc.expectedError != err.Error() {
-				t.Fatalf("CreateCRL failed unexpectedly, wanted: %s, got: %s", tc.expectedError, err)
+				t.Fatalf("CreateRevocationList failed unexpectedly, wanted: %s, got: %s", tc.expectedError, err)
 			} else if err == nil && tc.expectedError != "" {
-				t.Fatalf("CreateCRL didn't fail, expected: %s", tc.expectedError)
+				t.Fatalf("CreateRevocationList didn't fail, expected: %s", tc.expectedError)
 			}
 			if tc.expectedError != "" {
 				return
