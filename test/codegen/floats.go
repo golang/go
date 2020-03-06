@@ -118,7 +118,7 @@ func FusedSub64_b(x, y, z float64) float64 {
 }
 
 func Cmp(f float64) bool {
-	// arm64:"FCMPD","BLE",-"CSET\tGT",-"CBZ"
+	// arm64:"FCMPD","(BGT|BLE|BMI|BPL)",-"CSET\tGT",-"CBZ"
 	return f > 4 || f < -4
 }
 

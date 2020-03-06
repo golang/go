@@ -372,10 +372,6 @@
 (Leq32U x y) -> (LessEqual (CMPWU x y))
 (Leq64U x y) -> (LessEqual (CMPU x y))
 
-(Greater(32|64)F x y) -> (FGreaterThan (FCMPU x y))
-
-(Geq(32|64)F x y) -> (FGreaterEqual (FCMPU x y))
-
 // Absorb pseudo-ops into blocks.
 (If (Equal cc) yes no) -> (EQ cc yes no)
 (If (NotEqual cc) yes no) -> (NE cc yes no)

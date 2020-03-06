@@ -221,12 +221,6 @@ func rewriteValueWasm(v *Value) bool {
 	case OpFloor:
 		v.Op = OpWasmF64Floor
 		return true
-	case OpGeq32F:
-		v.Op = OpWasmF32Ge
-		return true
-	case OpGeq64F:
-		v.Op = OpWasmF64Ge
-		return true
 	case OpGetCallerPC:
 		v.Op = OpWasmLoweredGetCallerPC
 		return true
@@ -235,12 +229,6 @@ func rewriteValueWasm(v *Value) bool {
 		return true
 	case OpGetClosurePtr:
 		v.Op = OpWasmLoweredGetClosurePtr
-		return true
-	case OpGreater32F:
-		v.Op = OpWasmF32Gt
-		return true
-	case OpGreater64F:
-		v.Op = OpWasmF64Gt
 		return true
 	case OpInterCall:
 		v.Op = OpWasmLoweredInterCall

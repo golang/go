@@ -766,10 +766,6 @@ func rewriteValueAMD64(v *Value) bool {
 		return rewriteValueAMD64_OpFMA(v)
 	case OpFloor:
 		return rewriteValueAMD64_OpFloor(v)
-	case OpGeq32F:
-		return rewriteValueAMD64_OpGeq32F(v)
-	case OpGeq64F:
-		return rewriteValueAMD64_OpGeq64F(v)
 	case OpGetCallerPC:
 		v.Op = OpAMD64LoweredGetCallerPC
 		return true
@@ -782,10 +778,6 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpGetG:
 		v.Op = OpAMD64LoweredGetG
 		return true
-	case OpGreater32F:
-		return rewriteValueAMD64_OpGreater32F(v)
-	case OpGreater64F:
-		return rewriteValueAMD64_OpGreater64F(v)
 	case OpHasCPUFeature:
 		return rewriteValueAMD64_OpHasCPUFeature(v)
 	case OpHmul32:
@@ -29856,70 +29848,6 @@ func rewriteValueAMD64_OpFloor(v *Value) bool {
 		v.reset(OpAMD64ROUNDSD)
 		v.AuxInt = 1
 		v.AddArg(x)
-		return true
-	}
-}
-func rewriteValueAMD64_OpGeq32F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq32F x y)
-	// result: (SETGEF (UCOMISS x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64SETGEF)
-		v0 := b.NewValue0(v.Pos, OpAMD64UCOMISS, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpGeq64F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq64F x y)
-	// result: (SETGEF (UCOMISD x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64SETGEF)
-		v0 := b.NewValue0(v.Pos, OpAMD64UCOMISD, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpGreater32F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater32F x y)
-	// result: (SETGF (UCOMISS x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64SETGF)
-		v0 := b.NewValue0(v.Pos, OpAMD64UCOMISS, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueAMD64_OpGreater64F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater64F x y)
-	// result: (SETGF (UCOMISD x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpAMD64SETGF)
-		v0 := b.NewValue0(v.Pos, OpAMD64UCOMISD, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
 		return true
 	}
 }
