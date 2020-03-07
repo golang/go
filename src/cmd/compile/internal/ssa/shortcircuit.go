@@ -103,24 +103,24 @@ func shortcircuitBlock(b *Block) bool {
 	// Look for control values of the form Copy(Not(Copy(Phi(const, ...)))).
 	// Those must be the only values in the b, and they each must be used only by b.
 	// Track the negations so that we can swap successors as needed later.
-	v := b.Controls[0]
+	ctl := b.Controls[0]
 	nval := 1 // the control value
 	swap := false
-	for v.Uses == 1 && v.Block == b && (v.Op == OpCopy || v.Op == OpNot) {
-		if v.Op == OpNot {
+	for ctl.Uses == 1 && ctl.Block == b && (ctl.Op == OpCopy || ctl.Op == OpNot) {
+		if ctl.Op == OpNot {
 			swap = !swap
 		}
-		v = v.Args[0]
+		ctl = ctl.Args[0]
 		nval++ // wrapper around control value
 	}
-	if len(b.Values) != nval || v.Op != OpPhi || v.Block != b || v.Uses != 1 {
+	if len(b.Values) != nval || ctl.Op != OpPhi || ctl.Block != b || ctl.Uses != 1 {
 		return false
 	}
 
 	// Check for const phi args.
 	var changed bool
-	for i := 0; i < len(v.Args); i++ {
-		a := v.Args[i]
+	for i := 0; i < len(ctl.Args); i++ {
+		a := ctl.Args[i]
 		if a.Op != OpConstBool {
 			continue
 		}
@@ -149,10 +149,10 @@ func shortcircuitBlock(b *Block) bool {
 		// Remove b's incoming edge from p.
 		b.removePred(i)
 		n := len(b.Preds)
-		v.Args[i].Uses--
-		v.Args[i] = v.Args[n]
-		v.Args[n] = nil
-		v.Args = v.Args[:n]
+		ctl.Args[i].Uses--
+		ctl.Args[i] = ctl.Args[n]
+		ctl.Args[n] = nil
+		ctl.Args = ctl.Args[:n]
 
 		// Redirect p's outgoing edge to t.
 		p.Succs[pi] = Edge{t, len(t.Preds)}
@@ -178,6 +178,6 @@ func shortcircuitBlock(b *Block) bool {
 		return true
 	}
 
-	phielimValue(v)
+	phielimValue(ctl)
 	return true
 }
