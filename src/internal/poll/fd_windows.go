@@ -999,7 +999,7 @@ func (fd *FD) ReadMsg(p []byte, oob []byte) (int, int, int, syscall.Sockaddr, er
 	o := &fd.rop
 	o.InitMsg(p, oob)
 	o.rsa = new(syscall.RawSockaddrAny)
-	o.msg.Name = o.rsa
+	o.msg.Name = (syscall.Pointer)(unsafe.Pointer(o.rsa))
 	o.msg.Namelen = int32(unsafe.Sizeof(*o.rsa))
 	n, err := execIO(o, func(o *operation) error {
 		return windows.WSARecvMsg(o.fd.Sysfd, &o.msg, &o.qty, &o.o, nil)
@@ -1030,7 +1030,7 @@ func (fd *FD) WriteMsg(p []byte, oob []byte, sa syscall.Sockaddr) (int, int, err
 		if err != nil {
 			return 0, 0, err
 		}
-		o.msg.Name = (*syscall.RawSockaddrAny)(rsa)
+		o.msg.Name = (syscall.Pointer)(rsa)
 		o.msg.Namelen = len
 	}
 	n, err := execIO(o, func(o *operation) error {
