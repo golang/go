@@ -6,54 +6,10 @@
 // with both the lsp protocol and the other telemetry packages.
 package log
 
-import (
-	"context"
-	"time"
+import "golang.org/x/tools/internal/telemetry/event"
 
-	"golang.org/x/tools/internal/telemetry"
-	"golang.org/x/tools/internal/telemetry/export"
+var (
+	With  = event.Log
+	Print = event.Print
+	Error = event.Error
 )
-
-type Event telemetry.Event
-
-// With sends a tag list to the installed loggers.
-func With(ctx context.Context, tags ...telemetry.Tag) {
-	export.ProcessEvent(ctx, telemetry.Event{
-		Type: telemetry.EventLog,
-		At:   time.Now(),
-		Tags: tags,
-	})
-}
-
-// Print takes a message and a tag list and combines them into a single tag
-// list before delivering them to the loggers.
-func Print(ctx context.Context, message string, tags ...telemetry.Tag) {
-	export.ProcessEvent(ctx, telemetry.Event{
-		Type:    telemetry.EventLog,
-		At:      time.Now(),
-		Message: message,
-		Tags:    tags,
-	})
-}
-
-// Error takes a message and a tag list and combines them into a single tag
-// list before delivering them to the loggers. It captures the error in the
-// delivered event.
-func Error(ctx context.Context, message string, err error, tags ...telemetry.Tag) {
-	if err == nil {
-		err = errorString(message)
-		message = ""
-	}
-	export.ProcessEvent(ctx, telemetry.Event{
-		Type:    telemetry.EventLog,
-		At:      time.Now(),
-		Message: message,
-		Error:   err,
-		Tags:    tags,
-	})
-}
-
-type errorString string
-
-// Error allows errorString to conform to the error interface.
-func (err errorString) Error() string { return string(err) }

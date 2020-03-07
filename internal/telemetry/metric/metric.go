@@ -10,10 +10,8 @@ import (
 	"sort"
 	"time"
 
-	"golang.org/x/tools/internal/telemetry"
-	"golang.org/x/tools/internal/telemetry/export"
+	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/telemetry/stats"
-	"golang.org/x/tools/internal/telemetry/tag"
 )
 
 // Scalar represents the construction information for a scalar metric.
@@ -134,7 +132,7 @@ type Int64Data struct {
 	// End is the last time this metric was updated.
 	EndTime *time.Time
 
-	groups []telemetry.TagList
+	groups []event.TagList
 }
 
 // Float64Data is a concrete implementation of Data for float64 scalar metrics.
@@ -148,7 +146,7 @@ type Float64Data struct {
 	// End is the last time this metric was updated.
 	EndTime *time.Time
 
-	groups []telemetry.TagList
+	groups []event.TagList
 }
 
 // HistogramInt64Data is a concrete implementation of Data for int64 histogram metrics.
@@ -160,7 +158,7 @@ type HistogramInt64Data struct {
 	// End is the last time this metric was updated.
 	EndTime *time.Time
 
-	groups []telemetry.TagList
+	groups []event.TagList
 }
 
 // HistogramInt64Row holds the values for a single row of a HistogramInt64Data.
@@ -186,7 +184,7 @@ type HistogramFloat64Data struct {
 	// End is the last time this metric was updated.
 	EndTime *time.Time
 
-	groups []telemetry.TagList
+	groups []event.TagList
 }
 
 // HistogramFloat64Row holds the values for a single row of a HistogramFloat64Data.
@@ -203,8 +201,8 @@ type HistogramFloat64Row struct {
 	Max float64
 }
 
-func getGroup(ctx context.Context, g *[]telemetry.TagList, keys []interface{}) (int, bool) {
-	group := tag.Get(ctx, keys...)
+func getGroup(ctx context.Context, g *[]event.TagList, keys []interface{}) (int, bool) {
+	group := event.Tags(ctx, keys...)
 	old := *g
 	index := sort.Search(len(old), func(i int) bool {
 		return !old[i].Less(group)
@@ -213,15 +211,15 @@ func getGroup(ctx context.Context, g *[]telemetry.TagList, keys []interface{}) (
 		// not a new group
 		return index, false
 	}
-	*g = make([]telemetry.TagList, len(old)+1)
+	*g = make([]event.TagList, len(old)+1)
 	copy(*g, old[:index])
 	copy((*g)[index+1:], old[index:])
 	(*g)[index] = group
 	return index, true
 }
 
-func (data *Int64Data) Handle() string              { return data.Info.Name }
-func (data *Int64Data) Groups() []telemetry.TagList { return data.groups }
+func (data *Int64Data) Handle() string          { return data.Info.Name }
+func (data *Int64Data) Groups() []event.TagList { return data.groups }
 
 func (data *Int64Data) modify(ctx context.Context, at time.Time, f func(v int64) int64) {
 	index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
@@ -237,7 +235,7 @@ func (data *Int64Data) modify(ctx context.Context, at time.Time, f func(v int64)
 	data.Rows[index] = f(data.Rows[index])
 	data.EndTime = &at
 	frozen := *data
-	export.Metric(ctx, &frozen)
+	event.Metric(ctx, &frozen)
 }
 
 func (data *Int64Data) countInt64(ctx context.Context, measure *stats.Int64Measure, value int64, at time.Time) {
@@ -256,8 +254,8 @@ func (data *Int64Data) latest(ctx context.Context, measure *stats.Int64Measure, 
 	data.modify(ctx, at, func(v int64) int64 { return value })
 }
 
-func (data *Float64Data) Handle() string              { return data.Info.Name }
-func (data *Float64Data) Groups() []telemetry.TagList { return data.groups }
+func (data *Float64Data) Handle() string          { return data.Info.Name }
+func (data *Float64Data) Groups() []event.TagList { return data.groups }
 
 func (data *Float64Data) modify(ctx context.Context, at time.Time, f func(v float64) float64) {
 	index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
@@ -273,7 +271,7 @@ func (data *Float64Data) modify(ctx context.Context, at time.Time, f func(v floa
 	data.Rows[index] = f(data.Rows[index])
 	data.EndTime = &at
 	frozen := *data
-	export.Metric(ctx, &frozen)
+	event.Metric(ctx, &frozen)
 }
 
 func (data *Float64Data) sum(ctx context.Context, measure *stats.Float64Measure, value float64, at time.Time) {
@@ -284,8 +282,8 @@ func (data *Float64Data) latest(ctx context.Context, measure *stats.Float64Measu
 	data.modify(ctx, at, func(v float64) float64 { return value })
 }
 
-func (data *HistogramInt64Data) Handle() string              { return data.Info.Name }
-func (data *HistogramInt64Data) Groups() []telemetry.TagList { return data.groups }
+func (data *HistogramInt64Data) Handle() string          { return data.Info.Name }
+func (data *HistogramInt64Data) Groups() []event.TagList { return data.groups }
 
 func (data *HistogramInt64Data) modify(ctx context.Context, at time.Time, f func(v *HistogramInt64Row)) {
 	index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
@@ -307,7 +305,7 @@ func (data *HistogramInt64Data) modify(ctx context.Context, at time.Time, f func
 	data.Rows[index] = &v
 	data.EndTime = &at
 	frozen := *data
-	export.Metric(ctx, &frozen)
+	event.Metric(ctx, &frozen)
 }
 
 func (data *HistogramInt64Data) record(ctx context.Context, measure *stats.Int64Measure, value int64, at time.Time) {
@@ -328,8 +326,8 @@ func (data *HistogramInt64Data) record(ctx context.Context, measure *stats.Int64
 	})
 }
 
-func (data *HistogramFloat64Data) Handle() string              { return data.Info.Name }
-func (data *HistogramFloat64Data) Groups() []telemetry.TagList { return data.groups }
+func (data *HistogramFloat64Data) Handle() string          { return data.Info.Name }
+func (data *HistogramFloat64Data) Groups() []event.TagList { return data.groups }
 
 func (data *HistogramFloat64Data) modify(ctx context.Context, at time.Time, f func(v *HistogramFloat64Row)) {
 	index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
@@ -351,7 +349,7 @@ func (data *HistogramFloat64Data) modify(ctx context.Context, at time.Time, f fu
 	data.Rows[index] = &v
 	data.EndTime = &at
 	frozen := *data
-	export.Metric(ctx, &frozen)
+	event.Metric(ctx, &frozen)
 }
 
 func (data *HistogramFloat64Data) record(ctx context.Context, measure *stats.Float64Measure, value float64, at time.Time) {

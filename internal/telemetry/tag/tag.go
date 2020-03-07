@@ -8,27 +8,13 @@
 package tag
 
 import (
-	"context"
-	"time"
-
-	"golang.org/x/tools/internal/telemetry"
-	"golang.org/x/tools/internal/telemetry/export"
+	"golang.org/x/tools/internal/telemetry/event"
 )
 
-// With delivers the tag list to the telemetry exporter.
-func With(ctx context.Context, tags ...telemetry.Tag) context.Context {
-	return export.ProcessEvent(ctx, telemetry.Event{
-		Type: telemetry.EventTag,
-		At:   time.Now(),
-		Tags: tags,
-	})
-}
+type Key = event.Key
 
-// Get collects a set of values from the context and returns them as a tag list.
-func Get(ctx context.Context, keys ...interface{}) telemetry.TagList {
-	tags := make(telemetry.TagList, len(keys))
-	for i, key := range keys {
-		tags[i] = telemetry.Tag{Key: key, Value: ctx.Value(key)}
-	}
-	return tags
-}
+var (
+	With = event.Label
+	Get  = event.Tags
+	Of   = event.TagOf
+)

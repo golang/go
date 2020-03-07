@@ -12,7 +12,7 @@ import (
 	"sort"
 	"sync"
 
-	"golang.org/x/tools/internal/telemetry"
+	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/telemetry/metric"
 )
 
@@ -22,10 +22,10 @@ func New() *Exporter {
 
 type Exporter struct {
 	mu      sync.Mutex
-	metrics []telemetry.MetricData
+	metrics []event.MetricData
 }
 
-func (e *Exporter) Metric(ctx context.Context, data telemetry.MetricData) {
+func (e *Exporter) Metric(ctx context.Context, data event.MetricData) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	name := data.Handle()
@@ -38,7 +38,7 @@ func (e *Exporter) Metric(ctx context.Context, data telemetry.MetricData) {
 	if index >= len(e.metrics) || e.metrics[index].Handle() != name {
 		// we have a new metric, so we need to make a space for it
 		old := e.metrics
-		e.metrics = make([]telemetry.MetricData, len(old)+1)
+		e.metrics = make([]event.MetricData, len(old)+1)
 		copy(e.metrics, old[:index])
 		copy(e.metrics[index+1:], old[index:])
 	}
@@ -57,7 +57,7 @@ func (e *Exporter) header(w http.ResponseWriter, name, description string, isGau
 	fmt.Fprintf(w, "# TYPE %s %s\n", name, kind)
 }
 
-func (e *Exporter) row(w http.ResponseWriter, name string, group telemetry.TagList, extra string, value interface{}) {
+func (e *Exporter) row(w http.ResponseWriter, name string, group event.TagList, extra string, value interface{}) {
 	fmt.Fprint(w, name)
 	buf := &bytes.Buffer{}
 	fmt.Fprint(buf, group)

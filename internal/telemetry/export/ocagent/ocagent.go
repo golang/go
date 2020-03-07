@@ -18,10 +18,9 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/tools/internal/telemetry"
+	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/telemetry/export"
 	"golang.org/x/tools/internal/telemetry/export/ocagent/wire"
-	"golang.org/x/tools/internal/telemetry/tag"
 )
 
 type Config struct {
@@ -47,7 +46,7 @@ type Exporter struct {
 	mu      sync.Mutex
 	config  Config
 	spans   []*export.Span
-	metrics []telemetry.MetricData
+	metrics []event.MetricData
 }
 
 // Connect creates a process specific exporter with the specified
@@ -85,8 +84,8 @@ func Connect(config *Config) *Exporter {
 	return exporter
 }
 
-func (e *Exporter) ProcessEvent(ctx context.Context, event telemetry.Event) context.Context {
-	if event.Type != telemetry.EventEndSpan {
+func (e *Exporter) ProcessEvent(ctx context.Context, ev event.Event) context.Context {
+	if !ev.IsEndSpan() {
 		return ctx
 	}
 	e.mu.Lock()
@@ -98,7 +97,7 @@ func (e *Exporter) ProcessEvent(ctx context.Context, event telemetry.Event) cont
 	return ctx
 }
 
-func (e *Exporter) Metric(ctx context.Context, data telemetry.MetricData) {
+func (e *Exporter) Metric(ctx context.Context, data event.MetricData) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.metrics = append(e.metrics, data)
@@ -212,7 +211,7 @@ func convertSpan(span *export.Span) *wire.Span {
 	return result
 }
 
-func convertMetric(data telemetry.MetricData, start time.Time) *wire.Metric {
+func convertMetric(data event.MetricData, start time.Time) *wire.Metric {
 	descriptor := dataToMetricDescriptor(data)
 	timeseries := dataToTimeseries(data, start)
 
@@ -228,7 +227,7 @@ func convertMetric(data telemetry.MetricData, start time.Time) *wire.Metric {
 	}
 }
 
-func convertAttributes(tags telemetry.TagList) *wire.Attributes {
+func convertAttributes(tags event.TagList) *wire.Attributes {
 	if len(tags) == 0 {
 		return nil
 	}
@@ -274,7 +273,7 @@ func convertAttribute(v interface{}) wire.Attribute {
 	}
 }
 
-func convertEvents(events []telemetry.Event) *wire.TimeEvents {
+func convertEvents(events []event.Event) *wire.TimeEvents {
 	//TODO: MessageEvents?
 	result := make([]wire.TimeEvent, len(events))
 	for i, event := range events {
@@ -283,22 +282,22 @@ func convertEvents(events []telemetry.Event) *wire.TimeEvents {
 	return &wire.TimeEvents{TimeEvent: result}
 }
 
-func convertEvent(event telemetry.Event) wire.TimeEvent {
+func convertEvent(ev event.Event) wire.TimeEvent {
 	return wire.TimeEvent{
-		Time:       convertTimestamp(event.At),
-		Annotation: convertAnnotation(event),
+		Time:       convertTimestamp(ev.At),
+		Annotation: convertAnnotation(ev),
 	}
 }
 
-func convertAnnotation(event telemetry.Event) *wire.Annotation {
-	description := event.Message
-	if description == "" && event.Error != nil {
-		description = event.Error.Error()
-		event.Error = nil
+func convertAnnotation(ev event.Event) *wire.Annotation {
+	description := ev.Message
+	if description == "" && ev.Error != nil {
+		description = ev.Error.Error()
+		ev.Error = nil
 	}
-	tags := event.Tags
-	if event.Error != nil {
-		tags = append(tags, tag.Of("error", event.Error))
+	tags := ev.Tags
+	if ev.Error != nil {
+		tags = append(tags, event.TagOf("error", ev.Error))
 	}
 	if description == "" && len(tags) == 0 {
 		return nil

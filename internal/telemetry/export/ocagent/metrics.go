@@ -8,13 +8,13 @@ import (
 	"fmt"
 	"time"
 
-	"golang.org/x/tools/internal/telemetry"
+	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/telemetry/export/ocagent/wire"
 	"golang.org/x/tools/internal/telemetry/metric"
 )
 
 // dataToMetricDescriptor return a *wire.MetricDescriptor based on data.
-func dataToMetricDescriptor(data telemetry.MetricData) *wire.MetricDescriptor {
+func dataToMetricDescriptor(data event.MetricData) *wire.MetricDescriptor {
 	if data == nil {
 		return nil
 	}
@@ -30,7 +30,7 @@ func dataToMetricDescriptor(data telemetry.MetricData) *wire.MetricDescriptor {
 }
 
 // getDescription returns the description of data.
-func getDescription(data telemetry.MetricData) string {
+func getDescription(data event.MetricData) string {
 	switch d := data.(type) {
 	case *metric.Int64Data:
 		return d.Info.Description
@@ -50,7 +50,7 @@ func getDescription(data telemetry.MetricData) string {
 
 // getLabelKeys returns a slice of *wire.LabelKeys based on the keys
 // in data.
-func getLabelKeys(data telemetry.MetricData) []*wire.LabelKey {
+func getLabelKeys(data event.MetricData) []*wire.LabelKey {
 	switch d := data.(type) {
 	case *metric.Int64Data:
 		return infoKeysToLabelKeys(d.Info.Keys)
@@ -70,7 +70,7 @@ func getLabelKeys(data telemetry.MetricData) []*wire.LabelKey {
 
 // dataToMetricDescriptorType returns a wire.MetricDescriptor_Type based on the
 // underlying type of data.
-func dataToMetricDescriptorType(data telemetry.MetricData) wire.MetricDescriptor_Type {
+func dataToMetricDescriptorType(data event.MetricData) wire.MetricDescriptor_Type {
 	switch d := data.(type) {
 	case *metric.Int64Data:
 		if d.IsGauge {
@@ -96,7 +96,7 @@ func dataToMetricDescriptorType(data telemetry.MetricData) wire.MetricDescriptor
 
 // dataToTimeseries returns a slice of *wire.TimeSeries based on the
 // points in data.
-func dataToTimeseries(data telemetry.MetricData, start time.Time) []*wire.TimeSeries {
+func dataToTimeseries(data event.MetricData, start time.Time) []*wire.TimeSeries {
 	if data == nil {
 		return nil
 	}
@@ -117,7 +117,7 @@ func dataToTimeseries(data telemetry.MetricData, start time.Time) []*wire.TimeSe
 }
 
 // numRows returns the number of rows in data.
-func numRows(data telemetry.MetricData) int {
+func numRows(data event.MetricData) int {
 	switch d := data.(type) {
 	case *metric.Int64Data:
 		return len(d.Rows)
@@ -134,7 +134,7 @@ func numRows(data telemetry.MetricData) int {
 
 // dataToPoints returns an array of *wire.Points based on the point(s)
 // in data at index i.
-func dataToPoints(data telemetry.MetricData, i int) []*wire.Point {
+func dataToPoints(data event.MetricData, i int) []*wire.Point {
 	switch d := data.(type) {
 	case *metric.Int64Data:
 		timestamp := convertTimestamp(*d.EndTime)

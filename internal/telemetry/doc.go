@@ -2,14 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package telemetry provides an opinionated set of packages that cover the main
+// Package telemetry provides a set of packages that cover the main
 // concepts of telemetry in an implementation agnostic way.
-// As a library author you should look at
-//    stats (for aggregatable measurements)
-//    trace (for scoped timing spans)
-//    log (for for time based events)
-// As a binary author you might look at
-//    metric (for methods of aggregating stats)
-//    exporter (for methods of exporting the telemetry to external tools)
-//    debug (for serving internal http pages of some of the telemetry)
+// The interface for libraries that want to expose telemetry is the event
+// package.
+// As a binary author you might look at exporter for methods of exporting the
+// telemetry to external tools.
 package telemetry

@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package telemetry
+package event
 
 import (
+	"context"
 	"fmt"
 )
 
@@ -23,6 +24,16 @@ type TagList []Tag
 // Format is used for debug printing of tags.
 func (t Tag) Format(f fmt.State, r rune) {
 	fmt.Fprintf(f, `%v="%v"`, t.Key, t.Value)
+}
+
+// Tags collects a set of values from the context and returns them as a
+// tag list.
+func Tags(ctx context.Context, keys ...interface{}) TagList {
+	tags := make(TagList, len(keys))
+	for i, key := range keys {
+		tags[i] = Tag{Key: key, Value: ctx.Value(key)}
+	}
+	return tags
 }
 
 // Get will get a single key's value from the list.

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package telemetry
+package event
 
 // MetricData represents a single point in the time series of a metric.
 // This provides the common interface to all metrics no matter their data

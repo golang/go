@@ -2,16 +2,13 @@ package telemetry_test
 
 import (
 	"context"
-	stdlog "log"
+	"log"
 	"strings"
 	"testing"
 
-	"golang.org/x/tools/internal/telemetry"
+	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/telemetry/export"
-	tellog "golang.org/x/tools/internal/telemetry/log"
 	"golang.org/x/tools/internal/telemetry/stats"
-	"golang.org/x/tools/internal/telemetry/tag"
-	teltrace "golang.org/x/tools/internal/telemetry/trace"
 	"golang.org/x/tools/internal/telemetry/unit"
 )
 
@@ -37,40 +34,40 @@ var (
 
 	StdLog = Hooks{
 		A: func(ctx context.Context, a *int) (context.Context, func()) {
-			stdlog.Printf("start A where a=%d", *a)
+			log.Printf("start A where a=%d", *a)
 			return ctx, func() {
-				stdlog.Printf("end A where a=%d", *a)
+				log.Printf("end A where a=%d", *a)
 			}
 		},
 		B: func(ctx context.Context, b *string) (context.Context, func()) {
-			stdlog.Printf("start B where b=%q", *b)
+			log.Printf("start B where b=%q", *b)
 			return ctx, func() {
-				stdlog.Printf("end B where b=%q", *b)
+				log.Printf("end B where b=%q", *b)
 			}
 		},
 	}
 
 	Log = Hooks{
 		A: func(ctx context.Context, a *int) (context.Context, func()) {
-			tellog.Print(ctx, "start A", tag.Of("a", *a))
+			event.Print(ctx, "start A", event.TagOf("a", *a))
 			return ctx, func() {
-				tellog.Print(ctx, "end A", tag.Of("a", *a))
+				event.Print(ctx, "end A", event.TagOf("a", *a))
 			}
 		},
 		B: func(ctx context.Context, b *string) (context.Context, func()) {
-			tellog.Print(ctx, "start B", tag.Of("b", *b))
+			event.Print(ctx, "start B", event.TagOf("b", *b))
 			return ctx, func() {
-				tellog.Print(ctx, "end B", tag.Of("b", *b))
+				event.Print(ctx, "end B", event.TagOf("b", *b))
 			}
 		},
 	}
 
 	Trace = Hooks{
 		A: func(ctx context.Context, a *int) (context.Context, func()) {
-			return teltrace.StartSpan(ctx, "A")
+			return event.StartSpan(ctx, "A")
 		},
 		B: func(ctx context.Context, b *string) (context.Context, func()) {
-			return teltrace.StartSpan(ctx, "B")
+			return event.StartSpan(ctx, "B")
 		},
 	}
 
@@ -93,12 +90,12 @@ var (
 func Benchmark(b *testing.B) {
 	b.Run("Baseline", Baseline.runBenchmark)
 	b.Run("StdLog", StdLog.runBenchmark)
-	export.SetExporter(nil)
+	event.SetExporter(nil)
 	b.Run("LogNoExporter", Log.runBenchmark)
 	b.Run("TraceNoExporter", Trace.runBenchmark)
 	b.Run("StatsNoExporter", Stats.runBenchmark)
 
-	export.SetExporter(newExporter())
+	event.SetExporter(newExporter())
 	b.Run("Log", Log.runBenchmark)
 	b.Run("Trace", Trace.runBenchmark)
 	b.Run("Stats", Stats.runBenchmark)
@@ -136,7 +133,7 @@ func (hooks Hooks) runBenchmark(b *testing.B) {
 }
 
 func init() {
-	stdlog.SetOutput(new(noopWriter))
+	log.SetOutput(new(noopWriter))
 }
 
 type noopWriter int
@@ -146,7 +143,7 @@ func (nw *noopWriter) Write(b []byte) (int, error) {
 }
 
 type loggingExporter struct {
-	logger export.Exporter
+	logger event.Exporter
 }
 
 func newExporter() *loggingExporter {
@@ -155,11 +152,11 @@ func newExporter() *loggingExporter {
 	}
 }
 
-func (e *loggingExporter) ProcessEvent(ctx context.Context, event telemetry.Event) context.Context {
-	export.ContextSpan(ctx, event)
-	return e.logger.ProcessEvent(ctx, event)
+func (e *loggingExporter) ProcessEvent(ctx context.Context, ev event.Event) context.Context {
+	export.ContextSpan(ctx, ev)
+	return e.logger.ProcessEvent(ctx, ev)
 }
 
-func (e *loggingExporter) Metric(ctx context.Context, data telemetry.MetricData) {
+func (e *loggingExporter) Metric(ctx context.Context, data event.MetricData) {
 	e.logger.Metric(ctx, data)
 }

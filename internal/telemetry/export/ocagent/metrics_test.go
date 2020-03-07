@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/tools/internal/telemetry"
+	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/telemetry/metric"
 )
 
@@ -16,7 +16,7 @@ func TestEncodeMetric(t *testing.T) {
 	const suffix = `]}`
 	tests := []struct {
 		name string
-		data telemetry.MetricData
+		data event.MetricData
 		want string
 	}{
 		{

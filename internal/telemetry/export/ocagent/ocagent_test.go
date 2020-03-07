@@ -16,10 +16,9 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/tools/internal/telemetry"
+	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/telemetry/export"
 	"golang.org/x/tools/internal/telemetry/export/ocagent"
-	"golang.org/x/tools/internal/telemetry/tag"
 )
 
 var (
@@ -79,13 +78,13 @@ func TestEvents(t *testing.T) {
 	}`
 	tests := []struct {
 		name  string
-		event func(ctx context.Context) telemetry.Event
+		event func(ctx context.Context) event.Event
 		want  string
 	}{
 		{
 			name: "no tags",
-			event: func(ctx context.Context) telemetry.Event {
-				return telemetry.Event{
+			event: func(ctx context.Context) event.Event {
+				return event.Event{
 					At: at,
 				}
 			},
@@ -95,12 +94,12 @@ func TestEvents(t *testing.T) {
 		},
 		{
 			name: "description no error",
-			event: func(ctx context.Context) telemetry.Event {
-				return telemetry.Event{
+			event: func(ctx context.Context) event.Event {
+				return event.Event{
 					At:      at,
 					Message: "cache miss",
-					Tags: telemetry.TagList{
-						tag.Of("db", "godb"),
+					Tags: event.TagList{
+						event.TagOf("db", "godb"),
 					},
 				}
 			},
@@ -116,13 +115,13 @@ func TestEvents(t *testing.T) {
 
 		{
 			name: "description and error",
-			event: func(ctx context.Context) telemetry.Event {
-				return telemetry.Event{
+			event: func(ctx context.Context) event.Event {
+				return event.Event{
 					At:      at,
 					Message: "cache miss",
 					Error:   errors.New("no network connectivity"),
-					Tags: telemetry.TagList{
-						tag.Of("db", "godb"), // must come before e
+					Tags: event.TagList{
+						event.TagOf("db", "godb"), // must come before e
 					},
 				}
 			},
@@ -138,12 +137,12 @@ func TestEvents(t *testing.T) {
 		},
 		{
 			name: "no description, but error",
-			event: func(ctx context.Context) telemetry.Event {
-				return telemetry.Event{
+			event: func(ctx context.Context) event.Event {
+				return event.Event{
 					At:    at,
 					Error: errors.New("no network connectivity"),
-					Tags: telemetry.TagList{
-						tag.Of("db", "godb"),
+					Tags: event.TagList{
+						event.TagOf("db", "godb"),
 					},
 				}
 			},
@@ -158,31 +157,31 @@ func TestEvents(t *testing.T) {
 		},
 		{
 			name: "enumerate all attribute types",
-			event: func(ctx context.Context) telemetry.Event {
-				return telemetry.Event{
+			event: func(ctx context.Context) event.Event {
+				return event.Event{
 					At:      at,
 					Message: "cache miss",
-					Tags: telemetry.TagList{
-						tag.Of("1_db", "godb"),
+					Tags: event.TagList{
+						event.TagOf("1_db", "godb"),
 
-						tag.Of("2a_age", 0.456), // Constant converted into "float64"
-						tag.Of("2b_ttl", float32(5000)),
-						tag.Of("2c_expiry_ms", float64(1e3)),
+						event.TagOf("2a_age", 0.456), // Constant converted into "float64"
+						event.TagOf("2b_ttl", float32(5000)),
+						event.TagOf("2c_expiry_ms", float64(1e3)),
 
-						tag.Of("3a_retry", false),
-						tag.Of("3b_stale", true),
+						event.TagOf("3a_retry", false),
+						event.TagOf("3b_stale", true),
 
-						tag.Of("4a_max", 0x7fff), // Constant converted into "int"
-						tag.Of("4b_opcode", int8(0x7e)),
-						tag.Of("4c_base", int16(1<<9)),
-						tag.Of("4e_checksum", int32(0x11f7e294)),
-						tag.Of("4f_mode", int64(0644)),
+						event.TagOf("4a_max", 0x7fff), // Constant converted into "int"
+						event.TagOf("4b_opcode", int8(0x7e)),
+						event.TagOf("4c_base", int16(1<<9)),
+						event.TagOf("4e_checksum", int32(0x11f7e294)),
+						event.TagOf("4f_mode", int64(0644)),
 
-						tag.Of("5a_min", uint(1)),
-						tag.Of("5b_mix", uint8(44)),
-						tag.Of("5c_port", uint16(55678)),
-						tag.Of("5d_min_hops", uint32(1<<9)),
-						tag.Of("5e_max_hops", uint64(0xffffff)),
+						event.TagOf("5a_min", uint(1)),
+						event.TagOf("5b_mix", uint8(44)),
+						event.TagOf("5c_port", uint16(55678)),
+						event.TagOf("5d_min_hops", uint32(1<<9)),
+						event.TagOf("5e_max_hops", uint64(0xffffff)),
 					},
 				}
 			},
@@ -214,19 +213,19 @@ func TestEvents(t *testing.T) {
 	ctx := context.TODO()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			startEvent := telemetry.Event{
-				Type:    telemetry.EventStartSpan,
+			startEvent := event.Event{
+				Type:    event.StartSpanType,
 				Message: "event span",
 				At:      start,
 			}
-			endEvent := telemetry.Event{
-				Type: telemetry.EventEndSpan,
+			endEvent := event.Event{
+				Type: event.EndSpanType,
 				At:   end,
 			}
 			ctx := export.ContextSpan(ctx, startEvent)
 			span := export.GetSpan(ctx)
 			span.ID = export.SpanContext{}
-			span.Events = []telemetry.Event{tt.event(ctx)}
+			span.Events = []event.Event{tt.event(ctx)}
 			exporter.ProcessEvent(ctx, startEvent)
 			export.ContextSpan(ctx, endEvent)
 			exporter.ProcessEvent(ctx, endEvent)
