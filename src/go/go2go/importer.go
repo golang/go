@@ -26,14 +26,14 @@ type Importer struct {
 	// Temporary directory used to rewrite packages.
 	tmpdir string
 
+	// Aggregated info from go/types.
+	info *types.Info
+
 	// Map from import path to directory holding rewritten files.
 	translated map[string]string
 
 	// Map from import path to package information.
 	packages map[string]*types.Package
-
-	// Map from package to collected information for package.
-	info map[*types.Package]*types.Info
 
 	// Map from Object to AST function declaration for
 	// parameterized functions.
@@ -48,11 +48,16 @@ var _ types.ImporterFrom = &Importer{}
 // NewImporter returns a new Importer.
 // The tmpdir will become a GOPATH with translated files.
 func NewImporter(tmpdir string) *Importer {
+	info := &types.Info{
+		Types: make(map[ast.Expr]types.TypeAndValue),
+		Defs:  make(map[*ast.Ident]types.Object),
+		Uses:  make(map[*ast.Ident]types.Object),
+	}
 	return &Importer{
 		tmpdir:       tmpdir,
+		info:         info,
 		translated:   make(map[string]string),
 		packages:     make(map[string]*types.Package),
-		info:         make(map[*types.Package]*types.Info),
 		idToFunc:     make(map[types.Object]*ast.FuncDecl),
 		idToTypeSpec: make(map[types.Object]*ast.TypeSpec),
 	}
@@ -191,21 +196,20 @@ func (imp *Importer) localImport(importPath, dir string) (*types.Package, error)
 
 // register records information for a package, for use when working
 // with packages that import this one.
-func (imp *Importer) register(pkgfiles []namedAST, tpkg *types.Package, info *types.Info) {
+func (imp *Importer) register(pkgfiles []namedAST, tpkg *types.Package) {
 	imp.packages[tpkg.Path()] = tpkg
-	imp.info[tpkg] = info
 	for _, nast := range pkgfiles {
-		imp.addIDs(info, nast.ast)
+		imp.addIDs(nast.ast)
 	}
 }
 
 // addIDs finds IDs for generic functions and types and adds them to a map.
-func (imp *Importer) addIDs(info *types.Info, f *ast.File) {
+func (imp *Importer) addIDs(f *ast.File) {
 	for _, decl := range f.Decls {
 		switch decl := decl.(type) {
 		case *ast.FuncDecl:
-			if isParameterizedFuncDecl(decl, info) {
-				obj, ok := info.Defs[decl.Name]
+			if isParameterizedFuncDecl(decl, imp.info) {
+				obj, ok := imp.info.Defs[decl.Name]
 				if !ok {
 					panic(fmt.Sprintf("no types.Object for %q", decl.Name.Name))
 				}
@@ -215,7 +219,7 @@ func (imp *Importer) addIDs(info *types.Info, f *ast.File) {
 			if decl.Tok == token.TYPE {
 				for _, s := range decl.Specs {
 					ts := s.(*ast.TypeSpec)
-					obj, ok := info.Defs[ts.Name]
+					obj, ok := imp.info.Defs[ts.Name]
 					if !ok {
 						panic(fmt.Sprintf("no types.Object for %q", ts.Name.Name))
 					}
@@ -230,12 +234,6 @@ func (imp *Importer) addIDs(info *types.Info, f *ast.File) {
 func (imp *Importer) lookupPackage(path string) (*types.Package, bool) {
 	pkg, ok := imp.packages[strings.TrimPrefix(path, "./")]
 	return pkg, ok
-}
-
-// lookupInfo looks up the info for a package by Object.
-func (imp *Importer) lookupInfo(pkg *types.Package) (*types.Info, bool) {
-	info, ok := imp.info[pkg]
-	return info, ok
 }
 
 // lookupFunc looks up a function by Object.

@@ -13,7 +13,7 @@ import (
 // lookupType returns the types.Type for an AST expression.
 // Returns nil if the type is not known.
 func (t *translator) lookupType(e ast.Expr) types.Type {
-	if typ, ok := t.info.Types[e]; ok {
+	if typ, ok := t.importer.info.Types[e]; ok {
 		return typ.Type
 	}
 	if typ, ok := t.types[e]; ok {
@@ -24,9 +24,9 @@ func (t *translator) lookupType(e ast.Expr) types.Type {
 
 // setType records the type for an AST expression. This is only used for
 // AST expressions created during function instantiation.
-// Uninstantiated AST expressions will be listed in t.info.Types.
+// Uninstantiated AST expressions will be listed in t.importer.info.Types.
 func (t *translator) setType(e ast.Expr, nt types.Type) {
-	if ot, ok := t.info.Types[e]; ok {
+	if ot, ok := t.importer.info.Types[e]; ok {
 		if !types.Identical(ot.Type, nt) {
 			panic("expression type changed")
 		}

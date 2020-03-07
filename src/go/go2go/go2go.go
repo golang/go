@@ -60,13 +60,8 @@ func RewriteFiles(importer *Importer, dir string, go2files []string) ([]*types.P
 		return nil, err
 	}
 
-	type gpkg struct {
-		pkgfiles []namedAST
-		info     *types.Info
-	}
-
 	var rpkgs []*types.Package
-	var tpkgs []*gpkg
+	var tpkgs [][]namedAST
 	for name, pkg := range pkgs {
 		pkgfiles := make([]namedAST, 0, len(pkg.Files))
 		for n, f := range pkg.Files {
@@ -82,28 +77,20 @@ func RewriteFiles(importer *Importer, dir string, go2files []string) ([]*types.P
 		}
 
 		conf := types.Config{Importer: importer}
-		info := &types.Info{
-			Types: make(map[ast.Expr]types.TypeAndValue),
-			Defs:  make(map[*ast.Ident]types.Object),
-			Uses:  make(map[*ast.Ident]types.Object),
-		}
-		tpkg, err := conf.Check(name, fset, asts, info)
+		tpkg, err := conf.Check(name, fset, asts, importer.info)
 		if err != nil {
 			return nil, fmt.Errorf("type checking failed for %s: %v", name, err)
 		}
 
-		importer.register(pkgfiles, tpkg, info)
+		importer.register(pkgfiles, tpkg)
 
 		rpkgs = append(rpkgs, tpkg)
-		tpkgs = append(tpkgs, &gpkg{
-			pkgfiles: pkgfiles,
-			info:     info,
-		})
+		tpkgs = append(tpkgs, pkgfiles)
 	}
 
 	for _, tpkg := range tpkgs {
-		for i, pkgfile := range tpkg.pkgfiles {
-			if err := rewriteFile(dir, fset, importer, tpkg.info, pkgfile.name, pkgfile.ast, i == 0); err != nil {
+		for i, pkgfile := range tpkg {
+			if err := rewriteFile(dir, fset, importer, pkgfile.name, pkgfile.ast, i == 0); err != nil {
 				return nil, err
 			}
 		}
@@ -122,16 +109,11 @@ func RewriteBuffer(importer *Importer, filename string, file []byte) ([]byte, er
 		return nil, err
 	}
 	conf := types.Config{Importer: importer}
-	info := &types.Info{
-		Types: make(map[ast.Expr]types.TypeAndValue),
-		Defs:  make(map[*ast.Ident]types.Object),
-		Uses:  make(map[*ast.Ident]types.Object),
-	}
-	if _, err := conf.Check(pf.Name.Name, fset, []*ast.File{pf}, info); err != nil {
+	if _, err := conf.Check(pf.Name.Name, fset, []*ast.File{pf}, importer.info); err != nil {
 		return nil, fmt.Errorf("type checking failed for %s: %v", pf.Name.Name, err)
 	}
-	importer.addIDs(info, pf)
-	if err := rewriteAST(fset, importer, info, pf, true); err != nil {
+	importer.addIDs(pf)
+	if err := rewriteAST(fset, importer, pf, true); err != nil {
 		return nil, err
 	}
 	var buf bytes.Buffer

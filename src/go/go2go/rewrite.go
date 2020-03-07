@@ -55,7 +55,6 @@ func isParameterizedTypeDecl(s ast.Spec) bool {
 type translator struct {
 	fset               *token.FileSet
 	importer           *Importer
-	info               *types.Info
 	types              map[ast.Expr]types.Type
 	instantiations     map[string][]*instantiation
 	newDecls           []ast.Decl
@@ -80,8 +79,8 @@ type typeInstantiation struct {
 }
 
 // rewrite rewrites the contents of one file.
-func rewriteFile(dir string, fset *token.FileSet, importer *Importer, info *types.Info, filename string, file *ast.File, addImportableName bool) (err error) {
-	if err := rewriteAST(fset, importer, info, file, addImportableName); err != nil {
+func rewriteFile(dir string, fset *token.FileSet, importer *Importer, filename string, file *ast.File, addImportableName bool) (err error) {
+	if err := rewriteAST(fset, importer, file, addImportableName); err != nil {
 		return err
 	}
 
@@ -109,11 +108,10 @@ func rewriteFile(dir string, fset *token.FileSet, importer *Importer, info *type
 }
 
 // rewriteAST rewrites the AST for a file.
-func rewriteAST(fset *token.FileSet, importer *Importer, info *types.Info, file *ast.File, addImportableName bool) (err error) {
+func rewriteAST(fset *token.FileSet, importer *Importer, file *ast.File, addImportableName bool) (err error) {
 	t := translator{
 		fset:               fset,
 		importer:           importer,
-		info:               info,
 		types:              make(map[ast.Expr]types.Type),
 		instantiations:     make(map[string][]*instantiation),
 		typeInstantiations: make(map[types.Type][]*typeInstantiation),
@@ -239,7 +237,7 @@ func (t *translator) translate(file *ast.File) {
 		for i, decl := range declsToDo {
 			switch decl := decl.(type) {
 			case *ast.FuncDecl:
-				if !isParameterizedFuncDecl(decl, t.info) {
+				if !isParameterizedFuncDecl(decl, t.importer.info) {
 					t.translateFuncDecl(&declsToDo[i])
 					newDecls = append(newDecls, decl)
 				}
@@ -565,7 +563,7 @@ func (t *translator) instantiatedIdent(call *ast.CallExpr) qualifiedIdent {
 		if !ok {
 			break
 		}
-		pkgobj, ok := t.info.Uses[pkgname]
+		pkgobj, ok := t.importer.info.Uses[pkgname]
 		if !ok {
 			break
 		}
@@ -583,7 +581,7 @@ func (t *translator) instantiatedIdent(call *ast.CallExpr) qualifiedIdent {
 // The typeArgs result reports whether the AST arguments are types.
 func (t *translator) instantiationTypes(call *ast.CallExpr) (argList []ast.Expr, typeList []types.Type, typeArgs bool) {
 	if len(call.Args) > 0 {
-		tv, ok := t.info.Types[call.Args[0]]
+		tv, ok := t.importer.info.Types[call.Args[0]]
 		if !ok {
 			panic(fmt.Sprintf("no type found for argument %v", call.Args[0]))
 		}

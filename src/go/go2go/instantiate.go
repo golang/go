@@ -16,16 +16,14 @@ import (
 // or with a types.TypeParam.
 type typeArgs struct {
 	types []types.Type // type arguments in order
-	info  *types.Info  // info for package of function being instantiated
 	toAST map[types.Object]ast.Expr
 	toTyp map[*types.TypeParam]types.Type
 }
 
 // newTypeArgs returns a new typeArgs value.
-func newTypeArgs(typeTypes []types.Type, info *types.Info) *typeArgs {
+func newTypeArgs(typeTypes []types.Type) *typeArgs {
 	return &typeArgs{
 		types: typeTypes,
-		info:  info,
 		toAST: make(map[types.Object]ast.Expr),
 		toTyp: make(map[*types.TypeParam]types.Type),
 	}
@@ -33,11 +31,11 @@ func newTypeArgs(typeTypes []types.Type, info *types.Info) *typeArgs {
 
 // typeArgsFromTParams builds mappings from a list of type parameters
 // expressed as ast.Field values.
-func typeArgsFromFields(t *translator, info *types.Info, astTypes []ast.Expr, typeTypes []types.Type, tparams []*ast.Field) *typeArgs {
-	ta := newTypeArgs(typeTypes, info)
+func typeArgsFromFields(t *translator, astTypes []ast.Expr, typeTypes []types.Type, tparams []*ast.Field) *typeArgs {
+	ta := newTypeArgs(typeTypes)
 	for i, tf := range tparams {
 		for _, tn := range tf.Names {
-			obj, ok := info.Defs[tn]
+			obj, ok := t.importer.info.Defs[tn]
 			if !ok {
 				panic(fmt.Sprintf("no object for type parameter %q", tn))
 			}
@@ -58,10 +56,10 @@ func typeArgsFromFields(t *translator, info *types.Info, astTypes []ast.Expr, ty
 
 // typeArgsFromTParams builds mappings from a list of type parameters
 // expressed as ast.Expr values.
-func typeArgsFromExprs(t *translator, info *types.Info, astTypes []ast.Expr, typeTypes []types.Type, tparams []ast.Expr) *typeArgs {
-	ta := newTypeArgs(typeTypes, info)
+func typeArgsFromExprs(t *translator, astTypes []ast.Expr, typeTypes []types.Type, tparams []ast.Expr) *typeArgs {
+	ta := newTypeArgs(typeTypes)
 	for i, ti := range tparams {
-		obj, ok := info.Defs[ti.(*ast.Ident)]
+		obj, ok := t.importer.info.Defs[ti.(*ast.Ident)]
 		if !ok {
 			panic(fmt.Sprintf("no object for type parameter %q", ti))
 		}
@@ -107,12 +105,7 @@ func (t *translator) instantiateFunction(qid qualifiedIdent, astTypes []ast.Expr
 		return nil, err
 	}
 
-	info, ok := t.infoForID(qid)
-	if !ok {
-		return nil, fmt.Errorf("no package type info for %s", qid)
-	}
-
-	ta := typeArgsFromFields(t, info, astTypes, typeTypes, decl.Type.TParams.List)
+	ta := typeArgsFromFields(t, astTypes, typeTypes, decl.Type.TParams.List)
 
 	instIdent := ast.NewIdent(name)
 
@@ -145,18 +138,10 @@ func (t *translator) findFuncDecl(qid qualifiedIdent) (*ast.FuncDecl, error) {
 // It returns nil if the ID is not found.
 func (t *translator) findTypesObject(qid qualifiedIdent) types.Object {
 	if qid.pkg == nil {
-		return t.info.Uses[qid.ident]
+		return t.importer.info.Uses[qid.ident]
 	} else {
 		return qid.pkg.Scope().Lookup(qid.ident.Name)
 	}
-}
-
-// infoForID returns the types.Info for the package in which qid is defined.
-func (t *translator) infoForID(qid qualifiedIdent) (*types.Info, bool) {
-	if qid.pkg == nil {
-		return t.info, true
-	}
-	return t.importer.lookupInfo(qid.pkg)
 }
 
 // instantiateType creates a new instantiation of a type.
@@ -171,12 +156,7 @@ func (t *translator) instantiateTypeDecl(qid qualifiedIdent, typ *types.Named, a
 		return nil, nil, err
 	}
 
-	info, ok := t.infoForID(qid)
-	if !ok {
-		return nil, nil, fmt.Errorf("no package type info for %s", qid)
-	}
-
-	ta := typeArgsFromFields(t, info, astTypes, typeTypes, spec.TParams.List)
+	ta := typeArgsFromFields(t, astTypes, typeTypes, spec.TParams.List)
 
 	instIdent := ast.NewIdent(name)
 
@@ -211,7 +191,7 @@ func (t *translator) instantiateTypeDecl(qid qualifiedIdent, typ *types.Named, a
 			}
 		}
 		tparams := rtyp.(*ast.CallExpr).Args
-		ta := typeArgsFromExprs(t, info, astTypes, typeTypes, tparams)
+		ta := typeArgsFromExprs(t, astTypes, typeTypes, tparams)
 		newDecl := &ast.FuncDecl{
 			Doc:  mast.Doc,
 			Recv: &ast.FieldList{
@@ -481,7 +461,7 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 	case nil:
 		return nil
 	case *ast.Ident:
-		obj := ta.info.ObjectOf(e)
+		obj := t.importer.info.ObjectOf(e)
 		if obj != nil {
 			if typ, ok := ta.ast(obj); ok {
 				return typ
