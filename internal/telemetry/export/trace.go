@@ -70,14 +70,10 @@ func ContextSpan(ctx context.Context, event telemetry.Event) context.Context {
 		if span := GetSpan(ctx); span != nil {
 			span.Finish = event.At
 		}
+	case telemetry.EventDetach:
+		return context.WithValue(ctx, spanContextKey, nil)
 	}
 	return ctx
-}
-
-// Detach returns a context without an associated span.
-// This allows the creation of spans that are not children of the current span.
-func Detach(ctx context.Context) context.Context {
-	return context.WithValue(ctx, spanContextKey, nil)
 }
 
 func (s *SpanContext) Format(f fmt.State, r rune) {

@@ -16,6 +16,7 @@ const (
 	EventStartSpan
 	EventEndSpan
 	EventTag
+	EventDetach
 )
 
 type Event struct {

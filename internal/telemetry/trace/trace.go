@@ -31,5 +31,8 @@ func StartSpan(ctx context.Context, name string, tags ...telemetry.Tag) (context
 // Detach returns a context without an associated span.
 // This allows the creation of spans that are not children of the current span.
 func Detach(ctx context.Context) context.Context {
-	return export.Detach(ctx)
+	return export.ProcessEvent(ctx, telemetry.Event{
+		Type: telemetry.EventDetach,
+		At:   time.Now(),
+	})
 }
