@@ -82,7 +82,7 @@ func checkInteger(bytes []byte) error {
 	if len(bytes) == 1 {
 		return nil
 	}
-	if (bytes[0] == 0 && bytes[1]&0x80 == 0) || (bytes[0] == 0xff && bytes[1]&0x80 == 0x80) {
+	if (bytes[0] == 0 && bytes[1]&0x80 == 0) || (bytes[0] == 0xff && bytes[1]&0x80 != 0) {
 		return StructuralError{"integer not minimally-encoded"}
 	}
 	return nil
@@ -136,7 +136,7 @@ func parseBigInt(bytes []byte) (*big.Int, error) {
 		return nil, err
 	}
 	ret := new(big.Int)
-	if len(bytes) > 0 && bytes[0]&0x80 == 0x80 {
+	if len(bytes) > 0 && bytes[0]&0x80 != 0 {
 		// This is a negative number.
 		notBytes := make([]byte, len(bytes))
 		for i := range notBytes {
@@ -529,7 +529,7 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 	b := bytes[offset]
 	offset++
 	ret.class = int(b >> 6)
-	ret.isCompound = b&0x20 == 0x20
+	ret.isCompound = b&0x20 != 0
 	ret.tag = int(b & 0x1f)
 
 	// If the bottom five bits are set, then the tag number is actually base 128

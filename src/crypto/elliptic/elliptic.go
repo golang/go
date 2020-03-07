@@ -256,7 +256,7 @@ func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.
 	for _, byte := range k {
 		for bitNum := 0; bitNum < 8; bitNum++ {
 			x, y, z = curve.doubleJacobian(x, y, z)
-			if byte&0x80 == 0x80 {
+			if byte&0x80 != 0 {
 				x, y, z = curve.addJacobian(Bx, By, Bz, x, y, z)
 			}
 			byte <<= 1
