@@ -64,7 +64,9 @@ func (d *definition) Run(ctx context.Context, args ...string) error {
 	// Plaintext makes more sense for the command line.
 	opts := d.query.app.options
 	d.query.app.options = func(o *source.Options) {
-		opts(o)
+		if opts != nil {
+			opts(o)
+		}
 		o.PreferredContentFormat = protocol.PlainText
 		if d.query.MarkdownSupported {
 			o.PreferredContentFormat = protocol.Markdown

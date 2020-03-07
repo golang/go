@@ -202,7 +202,12 @@ func (app *Application) connect(ctx context.Context) (*connection, error) {
 	case strings.HasPrefix(app.Remote, "internal@"):
 		internalMu.Lock()
 		defer internalMu.Unlock()
-		if c := internalConnections[app.wd]; c != nil {
+		opts := source.DefaultOptions()
+		if app.options != nil {
+			app.options(&opts)
+		}
+		key := fmt.Sprintf("%s %v", app.wd, opts)
+		if c := internalConnections[key]; c != nil {
 			return c, nil
 		}
 		remote := app.Remote[len("internal@"):]
@@ -211,7 +216,7 @@ func (app *Application) connect(ctx context.Context) (*connection, error) {
 		if err != nil {
 			return nil, err
 		}
-		internalConnections[app.wd] = connection
+		internalConnections[key] = connection
 		return connection, nil
 	default:
 		return app.connectRemote(ctx, app.Remote)
