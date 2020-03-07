@@ -29,7 +29,7 @@ func TestEncodeMetric(t *testing.T) {
 				Info: &metric.Scalar{
 					Name:        "int",
 					Description: "int metric",
-					Keys:        []interface{}{"hello"},
+					Keys:        []*event.Key{{Name: "hello"}},
 				},
 				Rows: []int64{
 					1,
@@ -86,7 +86,7 @@ func TestEncodeMetric(t *testing.T) {
 				Info: &metric.Scalar{
 					Name:        "int-gauge",
 					Description: "int metric gauge",
-					Keys:        []interface{}{"hello"},
+					Keys:        []*event.Key{{Name: "hello"}},
 				},
 				IsGauge: true,
 			},
@@ -109,7 +109,7 @@ func TestEncodeMetric(t *testing.T) {
 				Info: &metric.Scalar{
 					Name:        "float",
 					Description: "float metric",
-					Keys:        []interface{}{"world"},
+					Keys:        []*event.Key{{Name: "world"}},
 				},
 				Rows: []float64{
 					1.5,
@@ -156,7 +156,7 @@ func TestEncodeMetric(t *testing.T) {
 				Info: &metric.Scalar{
 					Name:        "float-gauge",
 					Description: "float metric gauge",
-					Keys:        []interface{}{"world"},
+					Keys:        []*event.Key{{Name: "world"}},
 				},
 				IsGauge: true,
 			},
@@ -179,7 +179,7 @@ func TestEncodeMetric(t *testing.T) {
 				Info: &metric.HistogramInt64{
 					Name:        "histogram int",
 					Description: "histogram int metric",
-					Keys:        []interface{}{"hello"},
+					Keys:        []*event.Key{{Name: "hello"}},
 					Buckets: []int64{
 						0, 5, 10,
 					},
@@ -250,7 +250,7 @@ func TestEncodeMetric(t *testing.T) {
 				Info: &metric.HistogramFloat64{
 					Name:        "histogram float",
 					Description: "histogram float metric",
-					Keys:        []interface{}{"hello"},
+					Keys:        []*event.Key{{Name: "hello"}},
 					Buckets: []float64{
 						0, 5,
 					},

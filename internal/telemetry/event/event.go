@@ -47,6 +47,6 @@ func (e Event) Format(f fmt.State, r rune) {
 		}
 	}
 	for _, tag := range e.Tags {
-		fmt.Fprintf(f, "\n\t%v = %v", tag.Key, tag.Value)
+		fmt.Fprintf(f, "\n\t%s = %v", tag.Key.Name, tag.Value)
 	}
 }

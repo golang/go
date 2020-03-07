@@ -12,7 +12,7 @@ import (
 // Tag holds a key and value pair.
 // It is normally used when passing around lists of tags.
 type Tag struct {
-	Key   interface{}
+	Key   *Key
 	Value interface{}
 }
 
@@ -23,12 +23,11 @@ type TagList []Tag
 
 // Format is used for debug printing of tags.
 func (t Tag) Format(f fmt.State, r rune) {
-	fmt.Fprintf(f, `%v="%v"`, t.Key, t.Value)
+	fmt.Fprintf(f, `%v="%v"`, t.Key.Name, t.Value)
 }
 
-// Tags collects a set of values from the context and returns them as a
-// tag list.
-func Tags(ctx context.Context, keys ...interface{}) TagList {
+// Tags collects a set of values from the context and returns them as a tag list.
+func Tags(ctx context.Context, keys ...*Key) TagList {
 	tags := make(TagList, len(keys))
 	for i, key := range keys {
 		tags[i] = Tag{Key: key, Value: ctx.Value(key)}

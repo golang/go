@@ -233,7 +233,7 @@ func convertAttributes(tags event.TagList) *wire.Attributes {
 	}
 	attributes := make(map[string]wire.Attribute)
 	for _, tag := range tags {
-		attributes[fmt.Sprint(tag.Key)] = convertAttribute(tag.Value)
+		attributes[tag.Key.Name] = convertAttribute(tag.Value)
 	}
 	return &wire.Attributes{AttributeMap: attributes}
 }

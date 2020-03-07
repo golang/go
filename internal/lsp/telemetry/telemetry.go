@@ -12,20 +12,20 @@ import (
 	"golang.org/x/tools/internal/telemetry/unit"
 )
 
-const (
+var (
 	// create the tag keys we use
-	Method        = event.Key("method")
-	StatusCode    = event.Key("status.code")
-	StatusMessage = event.Key("status.message")
-	RPCID         = event.Key("id")
-	RPCDirection  = event.Key("direction")
-	File          = event.Key("file")
-	Directory     = event.Key("directory")
-	URI           = event.Key("URI")
-	Package       = event.Key("package")
-	PackagePath   = event.Key("package_path")
-	Query         = event.Key("query")
-	Snapshot      = event.Key("snapshot")
+	Method        = &event.Key{Name: "method"}
+	StatusCode    = &event.Key{Name: "status.code"}
+	StatusMessage = &event.Key{Name: "status.message"}
+	RPCID         = &event.Key{Name: "id"}
+	RPCDirection  = &event.Key{Name: "direction"}
+	File          = &event.Key{Name: "file"}
+	Directory     = &event.Key{Name: "directory"}
+	URI           = &event.Key{Name: "URI"}
+	Package       = &event.Key{Name: "package"}
+	PackagePath   = &event.Key{Name: "package_path"}
+	Query         = &event.Key{Name: "query"}
+	Snapshot      = &event.Key{Name: "snapshot"}
 )
 
 var (

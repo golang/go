@@ -202,11 +202,11 @@ func distributionToPoints(counts []int64, count int64, sum float64, bucketBounds
 
 // infoKeysToLabelKeys returns an array of *wire.LabelKeys containing the
 // string values of the elements of labelKeys.
-func infoKeysToLabelKeys(infoKeys []interface{}) []*wire.LabelKey {
+func infoKeysToLabelKeys(infoKeys []*event.Key) []*wire.LabelKey {
 	labelKeys := make([]*wire.LabelKey, 0, len(infoKeys))
 	for _, key := range infoKeys {
 		labelKeys = append(labelKeys, &wire.LabelKey{
-			Key: fmt.Sprintf("%v", key),
+			Key: fmt.Sprintf("%v", key.Name),
 		})
 	}
 

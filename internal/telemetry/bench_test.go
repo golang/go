@@ -18,8 +18,8 @@ type Hooks struct {
 }
 
 var (
-	aValue  = event.Key("a")
-	bValue  = event.Key("b")
+	aValue  = &event.Key{Name: "a"}
+	bValue  = &event.Key{Name: "b"}
 	aCount  = stats.Int64("aCount", "Count of time A is called.", unit.Dimensionless)
 	aStat   = stats.Int64("aValue", "A value.", unit.Dimensionless)
 	bCount  = stats.Int64("B", "Count of time B is called.", unit.Dimensionless)

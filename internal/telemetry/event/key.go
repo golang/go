@@ -8,32 +8,32 @@ import (
 	"context"
 )
 
-// Key represents the key for a context tag.
-// It is a helper to make use of context tagging slightly easier to read, it is
-// not strictly needed to use it at all.
-// It is intended that your common tagging keys are declared as constants of
-// this type, and then you can use the methods of this type to apply and find
-// those values in the context.
-type Key string
+// Key is used as the identity of a Tag.
+// Keys are intended to be compared by pointer only, the name should be unique
+// for communicating with external systems, but it is not required or enforced.
+type Key struct {
+	Name        string
+	Description string
+}
 
 // TagOf returns a Tag for a key and value.
 // This is a trivial helper that makes common logging easier to read.
-func TagOf(key interface{}, value interface{}) Tag {
-	return Tag{Key: key, Value: value}
+func TagOf(name string, value interface{}) Tag {
+	return Tag{Key: &Key{Name: name}, Value: value}
 }
 
 // Of creates a new Tag with this key and the supplied value.
 // You can use this when building a tag list.
-func (k Key) Of(v interface{}) Tag {
+func (k *Key) Of(v interface{}) Tag {
 	return Tag{Key: k, Value: v}
 }
 
 // From can be used to get a tag for the key from a context.
-func (k Key) From(ctx context.Context) Tag {
+func (k *Key) From(ctx context.Context) Tag {
 	return Tag{Key: k, Value: ctx.Value(k)}
 }
 
 // With is a wrapper over the Label package level function for just this key.
-func (k Key) With(ctx context.Context, v interface{}) context.Context {
+func (k *Key) With(ctx context.Context, v interface{}) context.Context {
 	return Label(ctx, Tag{Key: k, Value: v})
 }
