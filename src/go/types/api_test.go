@@ -308,46 +308,109 @@ func TestTypesInfo(t *testing.T) {
 
 func TestInferredInfo(t *testing.T) {
 	var tests = []struct {
-		src string
-		fun string
-		sig string
+		src   string
+		fun   string
+		targs []string
+		sig   string
 	}{
-		{`package p0; func f(type T)(T); func _() { f(42) }`, `f`, `func(int)`},
-		{`package p1; func f(type T)(T) T; func _() { f('@') }`, `f`, `func(rune) rune`},
-		{`package p2; func f(type T)(...T) T; func _() { f(0i) }`, `f`, `func(...complex128) complex128`},
-		{`package p3; func f(type A, B, C)(A, *B, []C); func _() { f(1.2, new(string), []byte{}) }`, `f`, `func(float64, *string, []byte)`},
-		{`package p4; func f(type A, B)(A, *B, ...[]B); func _() { f(1.2, new(byte)) }`, `f`, `func(float64, *byte, ...[]byte)`},
+		{`package p0; func f(type T)(T); func _() { f(42) }`,
+			`f`,
+			[]string{`int`},
+			`func(int)`,
+		},
+		{`package p1; func f(type T)(T) T; func _() { f('@') }`,
+			`f`,
+			[]string{`rune`},
+			`func(rune) rune`,
+		},
+		{`package p2; func f(type T)(...T) T; func _() { f(0i) }`,
+			`f`,
+			[]string{`complex128`},
+			`func(...complex128) complex128`,
+		},
+		{`package p3; func f(type A, B, C)(A, *B, []C); func _() { f(1.2, new(string), []byte{}) }`,
+			`f`,
+			[]string{`float64`, `string`, `byte`},
+			`func(float64, *string, []byte)`,
+		},
+		{`package p4; func f(type A, B)(A, *B, ...[]B); func _() { f(1.2, new(byte)) }`,
+			`f`,
+			[]string{`float64`, `byte`},
+			`func(float64, *byte, ...[]byte)`,
+		},
 
 		// we don't know how to translate these but we can type-check them
-		{`package q0; type T struct{}; func (T) m(type P)(P); func _(x T) { x.m(42) }`, `x.m`, `func(int)`},
-		{`package q1; type T struct{}; func (T) m(type P)(P) P; func _(x T) { x.m(42) }`, `x.m`, `func(int) int`},
-		{`package q2; type T struct{}; func (T) m(type P)(...P) P; func _(x T) { x.m(42) }`, `x.m`, `func(...int) int`},
-		{`package q3; type T struct{}; func (T) m(type A, B, C)(A, *B, []C); func _(x T) { x.m(1.2, new(string), []byte{}) }`, `x.m`, `func(float64, *string, []byte)`},
-		{`package q4; type T struct{}; func (T) m(type A, B)(A, *B, ...[]B); func _(x T) { x.m(1.2, new(byte)) }`, `x.m`, `func(float64, *byte, ...[]byte)`},
+		{`package q0; type T struct{}; func (T) m(type P)(P); func _(x T) { x.m(42) }`,
+			`x.m`,
+			[]string{`int`},
+			`func(int)`,
+		},
+		{`package q1; type T struct{}; func (T) m(type P)(P) P; func _(x T) { x.m(42) }`,
+			`x.m`,
+			[]string{`int`},
+			`func(int) int`,
+		},
+		{`package q2; type T struct{}; func (T) m(type P)(...P) P; func _(x T) { x.m(42) }`,
+			`x.m`,
+			[]string{`int`},
+			`func(...int) int`,
+		},
+		{`package q3; type T struct{}; func (T) m(type A, B, C)(A, *B, []C); func _(x T) { x.m(1.2, new(string), []byte{}) }`,
+			`x.m`,
+			[]string{`float64`, `string`, `byte`},
+			`func(float64, *string, []byte)`,
+		},
+		{`package q4; type T struct{}; func (T) m(type A, B)(A, *B, ...[]B); func _(x T) { x.m(1.2, new(byte)) }`,
+			`x.m`,
+			[]string{`float64`, `byte`},
+			`func(float64, *byte, ...[]byte)`,
+		},
 
-		{`package r0; type T(type P) struct{}; func (_ T(P)) m(type Q)(Q); func _(type P)(x T(P)) { x.m(42) }`, `x.m`, `func(int)`},
-		{`package r1; type T interface{ m(type P)(P) }; func _(x T) { x.m(4.2) }`, `x.m`, `func(float64)`},
+		{`package r0; type T(type P) struct{}; func (_ T(P)) m(type Q)(Q); func _(type P)(x T(P)) { x.m(42) }`,
+			`x.m`,
+			[]string{`int`},
+			`func(int)`,
+		},
+		{`package r1; type T interface{ m(type P)(P) }; func _(x T) { x.m(4.2) }`,
+			`x.m`,
+			[]string{`float64`},
+			`func(float64)`,
+		},
 	}
 
 	for _, test := range tests {
-		info := Info{Inferred: make(map[*ast.CallExpr]*Signature)}
+		info := Info{Inferred: make(map[*ast.CallExpr]Inferred)}
 		name, err := mayTypecheck(t, "InferredInfo", test.src, &info)
 		if err != nil {
 			t.Errorf("package %s: %v", name, err)
 			continue
 		}
 
-		// look for inferred signature
+		// look for inferred type arguments and signature
+		var targs []Type
 		var sig *Signature
-		for call, typ := range info.Inferred {
+		for call, inf := range info.Inferred {
 			if ExprString(call.Fun) == test.fun {
-				sig = typ
+				targs = inf.Targs
+				sig = inf.Sig
 				break
 			}
 		}
-		if sig == nil {
-			t.Errorf("package %s: no signature found for %s", name, test.fun)
+		if targs == nil {
+			t.Errorf("package %s: no inferred information found for %s", name, test.fun)
 			continue
+		}
+
+		// check that type arguments are correct
+		if len(targs) != len(test.targs) {
+			t.Errorf("package %s: got %d type arguments; want %d", name, len(targs), len(test.targs))
+			continue
+		}
+		for i, targ := range targs {
+			if got := targ.String(); got != test.targs[i] {
+				t.Errorf("package %s, %d. type argument: got %s; want %s", name, i, got, test.targs[i])
+				continue
+			}
 		}
 
 		// check that signature is correct

@@ -324,7 +324,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, args []*oper
 		// compute result signature
 		rsig = check.instantiate(call.Pos(), sig, targs, nil).(*Signature)
 		assert(rsig.tparams == nil) // signature is not generic anymore
-		check.recordInferred(call, rsig)
+		check.recordInferred(call, targs, rsig)
 
 		// Optimization: Only if the parameter list was adjusted do we
 		// need to compute it from the adjusted list; otherwise we can

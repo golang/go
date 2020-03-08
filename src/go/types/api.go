@@ -171,10 +171,10 @@ type Info struct {
 	// qualified identifiers are collected in the Uses map.
 	Types map[ast.Expr]TypeAndValue
 
-	// Inferred maps calls of parameterized functions which use
-	// type inferrence to the inferred signature of the function
-	// called.
-	Inferred map[*ast.CallExpr]*Signature
+	// Inferred maps calls of parameterized functions that use
+	// type inferrence to the inferred type arguments and signature
+	// of the function called.
+	Inferred map[*ast.CallExpr]Inferred
 
 	// Defs maps identifiers to the objects they define (including
 	// package names, dots "." of dot-imports, and blank "_" identifiers).
@@ -330,6 +330,13 @@ func (tv TypeAndValue) Assignable() bool {
 // used on the rhs of a comma-ok assignment.
 func (tv TypeAndValue) HasOk() bool {
 	return tv.mode == commaok || tv.mode == mapindex
+}
+
+// Inferred reports the inferred type arguments and signature
+// for a parameterized function call that uses type inference.
+type Inferred struct {
+	Targs []Type
+	Sig   *Signature
 }
 
 // An Initializer describes a package-level variable, or a list of variables in case
