@@ -44,11 +44,7 @@ func typeArgsFromFields(t *translator, astTypes []ast.Expr, typeTypes []types.Ty
 			if !ok {
 				panic(fmt.Sprintf("%v is not a TypeParam", objParam))
 			}
-			var astType ast.Expr
-			if len(astTypes) > 0 {
-				astType = astTypes[i]
-			}
-			ta.add(obj, objParam, astType, typeTypes[i])
+			ta.add(obj, objParam, astTypes[i], typeTypes[i])
 		}
 	}
 	return ta
@@ -75,9 +71,7 @@ func typeArgsFromExprs(t *translator, astTypes []ast.Expr, typeTypes []types.Typ
 
 // add adds mappings for obj to ast and typ.
 func (ta *typeArgs) add(obj types.Object, objParam *types.TypeParam, ast ast.Expr, typ types.Type) {
-	if ast != nil {
-		ta.toAST[obj] = ast
-	}
+	ta.toAST[obj] = ast
 	ta.toTyp[objParam] = typ
 }
 
@@ -575,16 +569,36 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 	case *ast.CallExpr:
 		fun := t.instantiateExpr(ta, e.Fun)
 		args, argsChanged := t.instantiateExprList(ta, e.Args)
-		if fun == e.Fun && !argsChanged {
+		origInferred, haveInferred := t.importer.info.Inferred[e]
+		var newInferred types.Inferred
+		inferredChanged := false
+		if haveInferred {
+			for _, typ := range origInferred.Targs {
+				nt := t.instantiateType(ta, typ)
+				newInferred.Targs = append(newInferred.Targs, nt)
+				if nt != typ {
+					inferredChanged = true
+				}
+			}
+			newInferred.Sig = t.instantiateType(ta, origInferred.Sig).(*types.Signature)
+			if newInferred.Sig != origInferred.Sig {
+				inferredChanged = true
+			}
+		}
+		if fun == e.Fun && !argsChanged && !inferredChanged {
 			return e
 		}
-		r = &ast.CallExpr{
+		newCall := &ast.CallExpr{
 			Fun:      fun,
 			Lparen:   e.Lparen,
 			Args:     args,
 			Ellipsis: e.Ellipsis,
 			Rparen:   e.Rparen,
 		}
+		if haveInferred {
+			t.importer.info.Inferred[newCall] = newInferred
+		}
+		r = newCall
 	case *ast.FuncType:
 		params := t.instantiateFieldList(ta, e.Params)
 		results := t.instantiateFieldList(ta, e.Results)

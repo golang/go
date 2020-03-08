@@ -488,32 +488,36 @@ func (t *translator) translateFunctionInstantiation(pe *ast.Expr) {
 	qid := t.instantiatedIdent(call)
 	argList, typeList, typeArgs := t.instantiationTypes(call)
 
+	var instIdent *ast.Ident
 	key := qid.String()
 	instantiations := t.instantiations[key]
 	for _, inst := range instantiations {
 		if t.sameTypes(typeList, inst.types) {
-			*pe = inst.decl
-			return
+			instIdent = inst.decl
+			break
 		}
 	}
 
-	instIdent, err := t.instantiateFunction(qid, argList, typeList)
-	if err != nil {
-		t.err = err
-		return
-	}
+	if instIdent == nil {
+		var err error
+		instIdent, err = t.instantiateFunction(qid, argList, typeList)
+		if err != nil {
+			t.err = err
+			return
+		}
 
-	n := &instantiation{
-		types: typeList,
-		decl:  instIdent,
+		n := &instantiation{
+			types: typeList,
+			decl:  instIdent,
+		}
+		t.instantiations[key] = append(instantiations, n)
 	}
-	t.instantiations[key] = append(instantiations, n)
 
 	if typeArgs {
 		*pe = instIdent
 	} else {
 		newCall := *call
-		call.Fun = instIdent
+		newCall.Fun = instIdent
 		*pe = &newCall
 	}
 }
@@ -580,15 +584,9 @@ func (t *translator) instantiatedIdent(call *ast.CallExpr) qualifiedIdent {
 // It also returns the AST arguments if they are present.
 // The typeArgs result reports whether the AST arguments are types.
 func (t *translator) instantiationTypes(call *ast.CallExpr) (argList []ast.Expr, typeList []types.Type, typeArgs bool) {
-	if len(call.Args) > 0 {
-		tv, ok := t.importer.info.Types[call.Args[0]]
-		if !ok {
-			panic(fmt.Sprintf("no type found for argument %v", call.Args[0]))
-		}
-		typeArgs = tv.IsType()
-	}
+	inferred, haveInferred := t.importer.info.Inferred[call]
 
-	if typeArgs {
+	if !haveInferred {
 		argList = call.Args
 		typeList = make([]types.Type, 0, len(argList))
 		for _, arg := range argList {
@@ -598,12 +596,13 @@ func (t *translator) instantiationTypes(call *ast.CallExpr) (argList []ast.Expr,
 				typeList = append(typeList, at)
 			}
 		}
+		typeArgs = true
 	} else {
-		params := t.lookupType(call.Fun).(*types.Signature).Params()
-		ln := params.Len()
-		typeList = make([]types.Type, 0, ln)
-		for i := 0; i < ln; i++ {
-			typeList = append(typeList, params.At(i).Type())
+		for _, typ := range inferred.Targs {
+			typeList = append(typeList, typ)
+			arg := ast.NewIdent(typ.String())
+			argList = append(argList, arg)
+			t.setType(arg, typ)
 		}
 	}
 
@@ -616,7 +615,7 @@ func (t *translator) sameTypes(a, b []types.Type) bool {
 		return false
 	}
 	for i, x := range a {
-		if x != b[i] {
+		if !types.Identical(x, b[i]) {
 			return false
 		}
 	}

@@ -20,15 +20,15 @@ var float64s = []float64{74.3, 59.0, math.Inf(1), 238.2, -784.0, 2.3, math.NaN()
 var strings = []string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
 
 func TestSortOrderedInts(t *testing.T) {
-	testOrdered(int)(t, ints, sort.Ints)
+	testOrdered(t, ints, sort.Ints)
 }
 
 func TestSortOrderedFloat64s(t *testing.T) {
-	testOrdered(float64)(t, float64s, sort.Float64s)
+	testOrdered(t, float64s, sort.Float64s)
 }
 
 func TestSortOrderedStrings(t *testing.T) {
-	testOrdered(string)(t, strings, sort.Strings)
+	testOrdered(t, strings, sort.Strings)
 }
 
 func testOrdered(type Elem contracts.Ordered)(t *testing.T, s []Elem, sorter func([]Elem)) {
@@ -36,9 +36,9 @@ func testOrdered(type Elem contracts.Ordered)(t *testing.T, s []Elem, sorter fun
 	copy(s1, s)
 	s2 := make([]Elem, len(s))
 	copy(s2, s)
-	OrderedSlice(Elem)(s1)
+	OrderedSlice(s1)
 	sorter(s2)
-	if !slices.Equal(Elem)(s1, s2) {
+	if !slices.Equal(s1, s2) {
 		t.Fatalf("got %v, want %v", s1, s2)
 	}
 	for i := len(s1) - 1; i > 0; i-- {
@@ -85,8 +85,8 @@ func sorter(s1, s2 []int) bool {
 func TestSortSliceFn(t *testing.T) {
 	c := make([][]int, len(slicesToSort))
 	copy(c, slicesToSort)
-	SliceFn([]int)(c, sorter)
-	if !slices.EqualFn([]int)(c, sortedSlices, func(a, b []int) bool { return slices.Equal(int)(a, b) }) {
+	SliceFn(c, sorter)
+	if !slices.EqualFn(c, sortedSlices, func(a, b []int) bool { return slices.Equal(int)(a, b) }) {
 		t.Errorf("got %v, want %v", c, sortedSlices)
 	}
 }

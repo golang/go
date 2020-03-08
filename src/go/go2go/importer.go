@@ -49,9 +49,10 @@ var _ types.ImporterFrom = &Importer{}
 // The tmpdir will become a GOPATH with translated files.
 func NewImporter(tmpdir string) *Importer {
 	info := &types.Info{
-		Types: make(map[ast.Expr]types.TypeAndValue),
-		Defs:  make(map[*ast.Ident]types.Object),
-		Uses:  make(map[*ast.Ident]types.Object),
+		Types:    make(map[ast.Expr]types.TypeAndValue),
+		Inferred: make(map[*ast.CallExpr]types.Inferred),
+		Defs:     make(map[*ast.Ident]types.Object),
+		Uses:     make(map[*ast.Ident]types.Object),
 	}
 	return &Importer{
 		tmpdir:       tmpdir,

@@ -44,15 +44,15 @@ var float64s = []float64{74.3, 59.0, math.Inf(1), 238.2, -784.0, 2.3, math.NaN()
 var strings = []string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
 
 func TestSortOrderedInts() bool {
-	return testOrdered(int)("ints", ints, sort.Ints)
+	return testOrdered("ints", ints, sort.Ints)
 }
 
 func TestSortOrderedFloat64s() bool {
-	return testOrdered(float64)("float64s", float64s, sort.Float64s)
+	return testOrdered("float64s", float64s, sort.Float64s)
 }
 
 func TestSortOrderedStrings() bool {
-	return testOrdered(string)("strings", strings, sort.Strings)
+	return testOrdered("strings", strings, sort.Strings)
 }
 
 func testOrdered(type Elem Ordered)(name string, s []Elem, sorter func([]Elem)) bool {
@@ -60,10 +60,10 @@ func testOrdered(type Elem Ordered)(name string, s []Elem, sorter func([]Elem)) 
 	copy(s1, s)
 	s2 := make([]Elem, len(s))
 	copy(s2, s)
-	OrderedSlice(Elem)(s1)
+	OrderedSlice(s1)
 	sorter(s2)
 	ok := true
-	if !sliceEq(Elem)(s1, s2) {
+	if !sliceEq(s1, s2) {
 		fmt.Printf("%s: got %v, want %v", name, s1, s2)
 		ok = false
 	}
