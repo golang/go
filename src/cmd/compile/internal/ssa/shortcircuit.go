@@ -117,65 +117,63 @@ func shortcircuitBlock(b *Block) bool {
 		return false
 	}
 
-	// Check for const phi args.
-	var changed bool
-	for i := 0; i < len(ctl.Args); i++ {
-		a := ctl.Args[i]
-		if a.Op != OpConstBool {
-			continue
+	// Locate index of first const phi arg.
+	cidx := -1
+	for i, a := range ctl.Args {
+		if a.Op == OpConstBool {
+			cidx = i
+			break
 		}
-		// The predecessor we come in from.
-		e1 := b.Preds[i]
-		p := e1.b
-		pi := e1.i
-
-		// The successor we always go to when coming in
-		// from that predecessor.
-		si := 1 - a.AuxInt
-		if swap {
-			si = 1 - si
-		}
-		e2 := b.Succs[si]
-		t := e2.b
-		if p == b || t == b {
-			// This is an infinite loop; we can't remove it. See issue 33903.
-			continue
-		}
-		ti := e2.i
-
-		// Update CFG and Phis.
-		changed = true
-
-		// Remove b's incoming edge from p.
-		b.removePred(i)
-		n := len(b.Preds)
-		ctl.Args[i].Uses--
-		ctl.Args[i] = ctl.Args[n]
-		ctl.Args[n] = nil
-		ctl.Args = ctl.Args[:n]
-
-		// Redirect p's outgoing edge to t.
-		p.Succs[pi] = Edge{t, len(t.Preds)}
-
-		// Fix up t to have one more predecessor.
-		t.Preds = append(t.Preds, Edge{p, pi})
-		for _, w := range t.Values {
-			if w.Op != OpPhi {
-				continue
-			}
-			w.AddArg(w.Args[ti])
-		}
-		i--
+	}
+	if cidx == -1 {
+		return false
 	}
 
-	if !changed {
+	a := ctl.Args[cidx]
+	// The predecessor we come in from.
+	e1 := b.Preds[cidx]
+	p := e1.b
+	pi := e1.i
+
+	// The successor we always go to when coming in
+	// from that predecessor.
+	si := 1 - a.AuxInt
+	if swap {
+		si = 1 - si
+	}
+	e2 := b.Succs[si]
+	t := e2.b
+	if p == b || t == b {
+		// This is an infinite loop; we can't remove it. See issue 33903.
 		return false
+	}
+	ti := e2.i
+
+	// We're committed. Update CFG and Phis.
+
+	// Remove b's incoming edge from p.
+	b.removePred(cidx)
+	n := len(b.Preds)
+	ctl.Args[cidx].Uses--
+	ctl.Args[cidx] = ctl.Args[n]
+	ctl.Args[n] = nil
+	ctl.Args = ctl.Args[:n]
+
+	// Redirect p's outgoing edge to t.
+	p.Succs[pi] = Edge{t, len(t.Preds)}
+
+	// Fix up t to have one more predecessor.
+	t.Preds = append(t.Preds, Edge{p, pi})
+	for _, w := range t.Values {
+		if w.Op != OpPhi {
+			continue
+		}
+		w.AddArg(w.Args[ti])
 	}
 
 	if len(b.Preds) == 0 {
 		// Block is now dead.
 		b.Kind = BlockInvalid
-		return true
 	}
 
 	phielimValue(ctl)
