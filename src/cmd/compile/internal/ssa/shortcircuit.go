@@ -105,10 +105,10 @@ func shortcircuitBlock(b *Block) bool {
 	// Track the negations so that we can swap successors as needed later.
 	ctl := b.Controls[0]
 	nval := 1 // the control value
-	swap := false
+	var swap int64
 	for ctl.Uses == 1 && ctl.Block == b && (ctl.Op == OpCopy || ctl.Op == OpNot) {
 		if ctl.Op == OpNot {
-			swap = !swap
+			swap = 1 ^ swap
 		}
 		ctl = ctl.Args[0]
 		nval++ // wrapper around control value
@@ -129,25 +129,19 @@ func shortcircuitBlock(b *Block) bool {
 		return false
 	}
 
-	a := ctl.Args[cidx]
-	// The predecessor we come in from.
-	e1 := b.Preds[cidx]
-	p := e1.b
-	pi := e1.i
+	// p is the predecessor corresponding to cidx.
+	pe := b.Preds[cidx]
+	p := pe.b
+	pi := pe.i
 
-	// The successor we always go to when coming in
-	// from that predecessor.
-	si := 1 - a.AuxInt
-	if swap {
-		si = 1 - si
-	}
-	e2 := b.Succs[si]
-	t := e2.b
+	// t is the "taken" branch: the successor we always go to when coming in from p.
+	ti := 1 ^ ctl.Args[cidx].AuxInt ^ swap
+	te := b.Succs[ti]
+	t := te.b
 	if p == b || t == b {
 		// This is an infinite loop; we can't remove it. See issue 33903.
 		return false
 	}
-	ti := e2.i
 
 	// We're committed. Update CFG and Phis.
 
@@ -164,11 +158,11 @@ func shortcircuitBlock(b *Block) bool {
 
 	// Fix up t to have one more predecessor.
 	t.Preds = append(t.Preds, Edge{p, pi})
-	for _, w := range t.Values {
-		if w.Op != OpPhi {
+	for _, v := range t.Values {
+		if v.Op != OpPhi {
 			continue
 		}
-		w.AddArg(w.Args[ti])
+		v.AddArg(v.Args[te.i])
 	}
 
 	if len(b.Preds) == 0 {
