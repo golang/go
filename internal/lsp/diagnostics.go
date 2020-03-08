@@ -117,9 +117,8 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 			// Check if might want to warn the user about their build configuration.
 			if warn && !snapshot.View().ValidBuildConfiguration() {
 				s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-					Type: protocol.Warning,
-					// TODO(rstambler): We should really be able to point to a link on the website.
-					Message: `You are neither in a module nor in your GOPATH. Please see https://github.com/golang/go/wiki/Modules for information on how to set up your Go project.`,
+					Type:    protocol.Warning,
+					Message: `You are neither in a module nor in your GOPATH. If you are using modules, please open your editor at the directory containing the go.mod. If you believe this warning is incorrect, please file an issue: https://github.com/golang/go/issues/new.`,
 				})
 			}
 			if ctx.Err() != nil {
