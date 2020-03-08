@@ -14,7 +14,7 @@ import (
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry/trace"
+	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
 )
@@ -105,7 +105,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 	index := atomic.AddInt64(&viewIndex, 1)
 	// We want a true background context and not a detached context here
 	// the spans need to be unrelated and no tag values should pollute it.
-	baseCtx := trace.Detach(xcontext.Detach(ctx))
+	baseCtx := event.Detach(xcontext.Detach(ctx))
 	backgroundCtx, cancel := context.WithCancel(baseCtx)
 
 	v := &view{

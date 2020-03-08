@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/tools/internal/telemetry"
+	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/telemetry/export"
 )
 
@@ -73,15 +73,16 @@ type traceEvent struct {
 	Tags   string
 }
 
-func (t *traces) ProcessEvent(ctx context.Context, event telemetry.Event) context.Context {
+func (t *traces) ProcessEvent(ctx context.Context, ev event.Event) context.Context {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	span := export.GetSpan(ctx)
 	if span == nil {
 		return ctx
 	}
-	switch event.Type {
-	case telemetry.EventStartSpan:
+
+	switch {
+	case ev.IsStartSpan():
 		if t.sets == nil {
 			t.sets = make(map[string]*traceSet)
 			t.unfinished = make(map[export.SpanContext]*traceData)
@@ -108,7 +109,7 @@ func (t *traces) ProcessEvent(ctx context.Context, event telemetry.Event) contex
 		}
 		parent.Children = append(parent.Children, td)
 
-	case telemetry.EventEndSpan:
+	case ev.IsEndSpan():
 		// finishing, must be already in the map
 		td, found := t.unfinished[span.ID]
 		if !found {
@@ -168,7 +169,7 @@ func fillOffsets(td *traceData, start time.Time) {
 	}
 }
 
-func renderTags(tags telemetry.TagList) string {
+func renderTags(tags event.TagList) string {
 	buf := &bytes.Buffer{}
 	for _, tag := range tags {
 		fmt.Fprintf(buf, "%v=%q ", tag.Key, tag.Value)

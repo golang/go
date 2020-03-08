@@ -16,7 +16,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry/log"
+	"golang.org/x/tools/internal/telemetry/event"
 	errors "golang.org/x/xerrors"
 )
 
@@ -152,7 +152,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 
 	buf := &bytes.Buffer{}
 	debug.PrintVersionInfo(buf, true, debug.PlainText)
-	log.Print(ctx, buf.String())
+	event.Print(ctx, buf.String())
 
 	s.addFolders(ctx, s.pendingFolders)
 	s.pendingFolders = nil

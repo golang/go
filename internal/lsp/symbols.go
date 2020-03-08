@@ -10,12 +10,11 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
-	"golang.org/x/tools/internal/telemetry/log"
-	"golang.org/x/tools/internal/telemetry/trace"
+	"golang.org/x/tools/internal/telemetry/event"
 )
 
 func (s *Server) documentSymbol(ctx context.Context, params *protocol.DocumentSymbolParams) ([]interface{}, error) {
-	ctx, done := trace.StartSpan(ctx, "lsp.Server.documentSymbol")
+	ctx, done := event.StartSpan(ctx, "lsp.Server.documentSymbol")
 	defer done()
 
 	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.Go)
@@ -24,7 +23,7 @@ func (s *Server) documentSymbol(ctx context.Context, params *protocol.DocumentSy
 	}
 	docSymbols, err := source.DocumentSymbols(ctx, snapshot, fh)
 	if err != nil {
-		log.Error(ctx, "DocumentSymbols failed", err, telemetry.URI.Of(fh.Identity().URI))
+		event.Error(ctx, "DocumentSymbols failed", err, telemetry.URI.Of(fh.Identity().URI))
 		return []interface{}{}, nil
 	}
 	// Convert the symbols to an interface array.

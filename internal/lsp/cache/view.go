@@ -28,8 +28,7 @@ import (
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry/log"
-	"golang.org/x/tools/internal/telemetry/tag"
+	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
 )
@@ -320,9 +319,9 @@ func (v *view) refreshProcessEnv() {
 	v.importsMu.Unlock()
 
 	// We don't have a context handy to use for logging, so use the stdlib for now.
-	log.Print(v.baseCtx, "background imports cache refresh starting")
+	event.Print(v.baseCtx, "background imports cache refresh starting")
 	err := imports.PrimeCache(context.Background(), env)
-	log.Print(v.baseCtx, fmt.Sprintf("background refresh finished after %v", time.Since(start)), tag.Of("Error", err))
+	event.Print(v.baseCtx, fmt.Sprintf("background refresh finished after %v", time.Since(start)), event.TagOf("Error", err))
 
 	v.importsMu.Lock()
 	v.cacheRefreshDuration = time.Since(start)
@@ -339,7 +338,7 @@ func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error)
 	}
 	if v.options.VerboseOutput {
 		processEnv.Logf = func(format string, args ...interface{}) {
-			log.Print(ctx, fmt.Sprintf(format, args...))
+			event.Print(ctx, fmt.Sprintf(format, args...))
 		}
 	}
 	for _, kv := range env {
@@ -537,7 +536,7 @@ func (v *view) initialize(ctx context.Context, s *snapshot) {
 		defer close(v.initialized)
 
 		if err := s.load(ctx, viewLoadScope("LOAD_VIEW"), packagePath("builtin")); err != nil {
-			log.Error(ctx, "initial workspace load failed", err)
+			event.Error(ctx, "initial workspace load failed", err)
 		}
 	})
 }
@@ -764,7 +763,7 @@ func (v *view) loadPackages(cfg *packages.Config, patterns ...string) ([]*packag
 			return pkgs, err
 		}
 
-		log.Error(cfg.Context, "Load concurrency error, will retry serially", err)
+		event.Error(cfg.Context, "Load concurrency error, will retry serially", err)
 		if !locked {
 			v.loadMu.Lock()
 			v.serializeLoads++
@@ -793,7 +792,7 @@ func (v *view) modfileFlagExists(ctx context.Context, env []string) (bool, error
 	// If the output is not go1.14 or an empty string, then it could be an error.
 	lines := strings.Split(stdout.String(), "\n")
 	if len(lines) < 2 && stdout.String() != "" {
-		log.Error(ctx, "unexpected stdout when checking for go1.14", errors.Errorf("%q", stdout), telemetry.Directory.Of(folder))
+		event.Error(ctx, "unexpected stdout when checking for go1.14", errors.Errorf("%q", stdout), telemetry.Directory.Of(folder))
 		return false, nil
 	}
 	return lines[0] == "go1.14", nil

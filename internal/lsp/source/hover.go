@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/telemetry/trace"
+	"golang.org/x/tools/internal/telemetry/event"
 	errors "golang.org/x/xerrors"
 )
 
@@ -71,7 +71,7 @@ func Hover(ctx context.Context, snapshot Snapshot, fh FileHandle, position proto
 }
 
 func (i *IdentifierInfo) Hover(ctx context.Context) (*HoverInformation, error) {
-	ctx, done := trace.StartSpan(ctx, "source.Hover")
+	ctx, done := event.StartSpan(ctx, "source.Hover")
 	defer done()
 
 	h, err := i.Declaration.hover(ctx)
@@ -201,7 +201,7 @@ func objectString(obj types.Object, qf types.Qualifier) string {
 }
 
 func (d Declaration) hover(ctx context.Context) (*HoverInformation, error) {
-	_, done := trace.StartSpan(ctx, "source.hover")
+	_, done := event.StartSpan(ctx, "source.hover")
 	defer done()
 
 	obj := d.obj

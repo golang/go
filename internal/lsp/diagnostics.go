@@ -14,8 +14,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
-	"golang.org/x/tools/internal/telemetry/log"
-	"golang.org/x/tools/internal/telemetry/trace"
+	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/xcontext"
 )
 
@@ -42,7 +41,7 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot) {
 // diagnose is a helper function for running diagnostics with a given context.
 // Do not call it directly.
 func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysAnalyze bool) map[diagnosticKey][]source.Diagnostic {
-	ctx, done := trace.StartSpan(ctx, "lsp:background-worker")
+	ctx, done := event.StartSpan(ctx, "lsp:background-worker")
 	defer done()
 
 	// Wait for a free diagnostics slot.
@@ -63,7 +62,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 		return nil
 	}
 	if err != nil {
-		log.Error(ctx, "diagnose: could not generate diagnostics for go.mod file", err)
+		event.Error(ctx, "diagnose: could not generate diagnostics for go.mod file", err)
 	}
 	// Ensure that the reports returned from mod.Diagnostics are only related to the
 	// go.mod file for the module.
@@ -99,7 +98,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 		}
 		s.showedInitialErrorMu.Unlock()
 
-		log.Error(ctx, "diagnose: no workspace packages", err, telemetry.Snapshot.Of(snapshot.ID()), telemetry.Directory.Of(snapshot.View().Folder))
+		event.Error(ctx, "diagnose: no workspace packages", err, telemetry.Snapshot.Of(snapshot.ID()), telemetry.Directory.Of(snapshot.View().Folder))
 		return nil
 	}
 	for _, ph := range wsPackages {
@@ -125,7 +124,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 				return
 			}
 			if err != nil {
-				log.Error(ctx, "diagnose: could not generate diagnostics for package", err, telemetry.Snapshot.Of(snapshot.ID()), telemetry.Package.Of(ph.ID()))
+				event.Error(ctx, "diagnose: could not generate diagnostics for package", err, telemetry.Snapshot.Of(snapshot.ID()), telemetry.Package.Of(ph.ID()))
 				return
 			}
 			reportsMu.Lock()
@@ -202,7 +201,7 @@ func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, r
 			Version:     key.id.Version,
 		}); err != nil {
 			if ctx.Err() == nil {
-				log.Error(ctx, "publishReports: failed to deliver diagnostic", err, telemetry.File.From(ctx))
+				event.Error(ctx, "publishReports: failed to deliver diagnostic", err, telemetry.File.From(ctx))
 			}
 			continue
 		}

@@ -18,7 +18,7 @@ import (
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry/trace"
+	"golang.org/x/tools/internal/telemetry/event"
 	errors "golang.org/x/xerrors"
 )
 
@@ -106,7 +106,7 @@ func hashParseKeys(phs []source.ParseGoHandle) string {
 }
 
 func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mode source.ParseMode) *parseGoData {
-	ctx, done := trace.StartSpan(ctx, "cache.parseGo", telemetry.File.Of(fh.Identity().URI.Filename()))
+	ctx, done := event.StartSpan(ctx, "cache.parseGo", telemetry.File.Of(fh.Identity().URI.Filename()))
 	defer done()
 
 	if fh.Identity().Kind != source.Go {

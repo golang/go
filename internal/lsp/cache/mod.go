@@ -21,8 +21,7 @@ import (
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry/log"
-	"golang.org/x/tools/internal/telemetry/trace"
+	"golang.org/x/tools/internal/telemetry/event"
 	errors "golang.org/x/xerrors"
 )
 
@@ -145,7 +144,7 @@ func (s *snapshot) ModHandle(ctx context.Context, fh source.FileHandle) source.M
 		view:      folder,
 	}
 	h := s.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
-		ctx, done := trace.StartSpan(ctx, "cache.ModHandle", telemetry.File.Of(uri))
+		ctx, done := event.StartSpan(ctx, "cache.ModHandle", telemetry.File.Of(uri))
 		defer done()
 
 		contents, _, err := fh.Read(ctx)
@@ -318,7 +317,7 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 			return &modData{}
 		}
 
-		ctx, done := trace.StartSpan(ctx, "cache.ModTidyHandle", telemetry.File.Of(realURI))
+		ctx, done := event.StartSpan(ctx, "cache.ModTidyHandle", telemetry.File.Of(realURI))
 		defer done()
 
 		realContents, _, err := realfh.Read(ctx)
@@ -428,7 +427,7 @@ func extractModParseErrors(ctx context.Context, uri span.URI, m *protocol.Column
 	re := regexp.MustCompile(`.*:([\d]+): (.+)`)
 	matches := re.FindStringSubmatch(strings.TrimSpace(parseErr.Error()))
 	if len(matches) < 3 {
-		log.Error(ctx, "could not parse golang/x/mod error message", parseErr)
+		event.Error(ctx, "could not parse golang/x/mod error message", parseErr)
 		return source.Error{}, parseErr
 	}
 	line, err := strconv.Atoi(matches[1])

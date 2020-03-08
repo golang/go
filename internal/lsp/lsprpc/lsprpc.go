@@ -10,7 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	stdlog "log"
+	"log"
 	"net"
 	"os"
 	"strconv"
@@ -23,7 +23,7 @@ import (
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/telemetry/log"
+	"golang.org/x/tools/internal/telemetry/event"
 )
 
 // AutoNetwork is the pseudo network type used to signal that gopls should use
@@ -141,7 +141,7 @@ func (s *StreamServer) ServeStream(ctx context.Context, stream jsonrpc2.Stream) 
 	}
 	executable, err := os.Executable()
 	if err != nil {
-		stdlog.Printf("error getting gopls path: %v", err)
+		log.Printf("error getting gopls path: %v", err)
 		executable = ""
 	}
 	conn.AddHandler(&handshaker{
@@ -173,7 +173,7 @@ type Forwarder struct {
 func NewForwarder(network, addr string, withTelemetry bool) *Forwarder {
 	gp, err := os.Executable()
 	if err != nil {
-		stdlog.Printf("error getting gopls path for forwarder: %v", err)
+		log.Printf("error getting gopls path for forwarder: %v", err)
 		gp = ""
 	}
 
@@ -232,10 +232,10 @@ func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) err
 		hreq.DebugAddr = di.ListenedDebugAddress
 	}
 	if err := serverConn.Call(ctx, handshakeMethod, hreq, &hresp); err != nil {
-		log.Error(ctx, "forwarder: gopls handshake failed", err)
+		event.Error(ctx, "forwarder: gopls handshake failed", err)
 	}
 	if hresp.GoplsPath != f.goplsPath {
-		log.Error(ctx, "", fmt.Errorf("forwarder: gopls path mismatch: forwarder is %q, remote is %q", f.goplsPath, hresp.GoplsPath))
+		event.Error(ctx, "", fmt.Errorf("forwarder: gopls path mismatch: forwarder is %q, remote is %q", f.goplsPath, hresp.GoplsPath))
 	}
 	if di != nil {
 		di.State.AddServer(debugServer{
@@ -274,7 +274,7 @@ func (f *Forwarder) connectToRemote(ctx context.Context) (net.Conn, error) {
 	if err != nil {
 		// If the ownership check itself failed, we fail open but log an error to
 		// the user.
-		log.Error(ctx, "unable to check daemon socket owner, failing open: %v", err)
+		event.Error(ctx, "unable to check daemon socket owner, failing open: %v", err)
 	} else if !ok {
 		// We succesfully checked that the socket is not owned by us, we fail
 		// closed.
@@ -322,7 +322,7 @@ func (f *Forwarder) connectToRemote(ctx context.Context) (net.Conn, error) {
 		if err == nil {
 			return netConn, nil
 		}
-		log.Print(ctx, fmt.Sprintf("failed attempt #%d to connect to remote: %v\n", retry+2, err))
+		event.Print(ctx, fmt.Sprintf("failed attempt #%d to connect to remote: %v\n", retry+2, err))
 		// In case our failure was a fast-failure, ensure we wait at least
 		// f.dialTimeout before trying again.
 		if retry != f.retries-1 {
@@ -421,7 +421,7 @@ func (h *handshaker) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered
 		}
 
 		if err := r.Reply(ctx, resp, nil); err != nil {
-			log.Error(ctx, "replying to handshake", err)
+			event.Error(ctx, "replying to handshake", err)
 		}
 		return true
 	}
@@ -433,6 +433,6 @@ func sendError(ctx context.Context, req *jsonrpc2.Request, err error) {
 		err = jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err)
 	}
 	if err := req.Reply(ctx, nil, err); err != nil {
-		log.Error(ctx, "", err)
+		event.Error(ctx, "", err)
 	}
 }

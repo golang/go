@@ -921,12 +921,12 @@ function goNot(side: side, m: string) {
       return true
     }
     if err := h.${side.name}.${nm}(ctx, &params); err != nil {
-      log.Error(ctx, "", err)
+      event.Error(ctx, "", err)
     }
     return true`;
   } else {
     case1 = `if err := h.${side.name}.${nm}(ctx); err != nil {
-      log.Error(ctx, "", err)
+      event.Error(ctx, "", err)
     }
     return true`;
   }
@@ -964,18 +964,18 @@ function goReq(side: side, m: string) {
   }
   const arg2 = a == '' ? '' : ', &params';
   let case2 = `if err := h.${side.name}.${nm}(ctx${arg2}); err != nil {
-    log.Error(ctx, "", err)
+    event.Error(ctx, "", err)
   }`;
   if (b != '' && b != 'void') {
     case2 = `resp, err := h.${side.name}.${nm}(ctx${arg2})
     if err := r.Reply(ctx, resp, err); err != nil {
-      log.Error(ctx, "", err)
+      event.Error(ctx, "", err)
     }
     return true`;
   } else {  // response is nil
     case2 = `err := h.${side.name}.${nm}(ctx${arg2})
     if err := r.Reply(ctx, nil, err); err != nil {
-      log.Error(ctx, "", err)
+      event.Error(ctx, "", err)
     }
     return true`
   }
@@ -1079,7 +1079,7 @@ function output(side: side) {
           "encoding/json"
 
           "golang.org/x/tools/internal/jsonrpc2"
-          "golang.org/x/tools/internal/telemetry/log"
+          "golang.org/x/tools/internal/telemetry/event"
           "golang.org/x/tools/internal/xcontext"
         )
         `);
@@ -1133,7 +1133,7 @@ function nonstandardRequests() {
   }
   resp, err := h.server.NonstandardRequest(ctx, r.Method, params)
   if err := r.Reply(ctx, resp, err); err != nil {
-    log.Error(ctx, "", err)
+    event.Error(ctx, "", err)
   }
   return true
 `)

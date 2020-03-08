@@ -14,7 +14,7 @@ import (
 	"sync"
 
 	tlm "golang.org/x/tools/internal/lsp/telemetry"
-	"golang.org/x/tools/internal/telemetry"
+	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/telemetry/metric"
 )
 
@@ -92,7 +92,7 @@ type rpcCodeBucket struct {
 	Count int64
 }
 
-func (r *rpcs) Metric(ctx context.Context, data telemetry.MetricData) {
+func (r *rpcs) Metric(ctx context.Context, data event.MetricData) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for i, group := range data.Groups() {

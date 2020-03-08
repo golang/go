@@ -11,8 +11,7 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/telemetry/log"
-	"golang.org/x/tools/internal/telemetry/tag"
+	"golang.org/x/tools/internal/telemetry/event"
 )
 
 func (s *Server) completion(ctx context.Context, params *protocol.CompletionParams) (*protocol.CompletionList, error) {
@@ -30,7 +29,7 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	}
 
 	if err != nil {
-		log.Print(ctx, "no completions found", tag.Of("At", params.Position), tag.Of("Failure", err))
+		event.Print(ctx, "no completions found", event.TagOf("At", params.Position), event.TagOf("Failure", err))
 	}
 	if candidates == nil {
 		return &protocol.CompletionList{

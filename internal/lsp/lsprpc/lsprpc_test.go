@@ -16,7 +16,7 @@ import (
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/telemetry/log"
+	"golang.org/x/tools/internal/telemetry/event"
 )
 
 type fakeClient struct {
@@ -33,7 +33,7 @@ func (c fakeClient) LogMessage(ctx context.Context, params *protocol.LogMessageP
 type pingServer struct{ protocol.Server }
 
 func (s pingServer) DidOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
-	log.Print(ctx, "ping")
+	event.Print(ctx, "ping")
 	return nil
 }
 

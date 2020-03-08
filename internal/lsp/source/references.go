@@ -11,7 +11,7 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/telemetry/trace"
+	"golang.org/x/tools/internal/telemetry/event"
 )
 
 // ReferenceInfo holds information about reference to an identifier in Go source.
@@ -27,7 +27,7 @@ type ReferenceInfo struct {
 // References returns a list of references for a given identifier within the packages
 // containing i.File. Declarations appear first in the result.
 func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position, includeDeclaration bool) ([]*ReferenceInfo, error) {
-	ctx, done := trace.StartSpan(ctx, "source.References")
+	ctx, done := event.StartSpan(ctx, "source.References")
 	defer done()
 
 	qualifiedObjs, err := qualifiedObjsAtProtocolPos(ctx, s, f, pp)

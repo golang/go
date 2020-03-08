@@ -18,8 +18,7 @@ import (
 	"golang.org/x/tools/internal/lsp/snippet"
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry/log"
-	"golang.org/x/tools/internal/telemetry/tag"
+	"golang.org/x/tools/internal/telemetry/event"
 	errors "golang.org/x/xerrors"
 )
 
@@ -145,7 +144,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		if sel := enclosingSelector(c.path, c.pos); sel != nil {
 			edits, err := prependEdit(c.snapshot.View().Session().Cache().FileSet(), c.mapper, sel, prefixOp)
 			if err != nil {
-				log.Error(c.ctx, "error generating prefix edit", err)
+				event.Error(c.ctx, "error generating prefix edit", err)
 			} else {
 				protocolEdits = append(protocolEdits, edits...)
 			}
@@ -197,7 +196,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	}
 	hover, err := ident.Hover(c.ctx)
 	if err != nil {
-		log.Error(c.ctx, "failed to find Hover", err, telemetry.URI.Of(uri))
+		event.Error(c.ctx, "failed to find Hover", err, telemetry.URI.Of(uri))
 		return item, nil
 	}
 	item.Documentation = hover.Synopsis
@@ -249,7 +248,7 @@ func (c *completer) formatBuiltin(cand candidate) CompletionItem {
 		astObj, err := c.snapshot.View().LookupBuiltin(c.ctx, obj.Name())
 		if err != nil {
 			if c.ctx.Err() == nil {
-				log.Error(c.ctx, "no builtin package", err)
+				event.Error(c.ctx, "no builtin package", err)
 			}
 			break
 		}
@@ -294,7 +293,7 @@ func formatFieldList(ctx context.Context, v View, list *ast.FieldList) ([]string
 		cfg := printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 4}
 		b := &bytes.Buffer{}
 		if err := cfg.Fprint(b, v.Session().Cache().FileSet(), p.Type); err != nil {
-			log.Error(ctx, "unable to print type", nil, tag.Of("Type", p.Type))
+			event.Error(ctx, "unable to print type", nil, event.TagOf("Type", p.Type))
 			continue
 		}
 		typ := replacer.Replace(b.String())

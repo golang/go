@@ -11,11 +11,11 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/telemetry/trace"
+	"golang.org/x/tools/internal/telemetry/event"
 )
 
 func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.DocumentSymbol, error) {
-	ctx, done := trace.StartSpan(ctx, "source.DocumentSymbols")
+	ctx, done := event.StartSpan(ctx, "source.DocumentSymbols")
 	defer done()
 
 	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)

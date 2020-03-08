@@ -14,13 +14,12 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/telemetry/log"
-	"golang.org/x/tools/internal/telemetry/trace"
+	"golang.org/x/tools/internal/telemetry/event"
 	errors "golang.org/x/xerrors"
 )
 
 func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) ([]protocol.Range, error) {
-	ctx, done := trace.StartSpan(ctx, "source.Highlight")
+	ctx, done := event.StartSpan(ctx, "source.Highlight")
 	defer done()
 
 	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, WidestPackageHandle)
@@ -148,7 +147,7 @@ Outer:
 	if resultsList != nil && -1 < index && index < len(resultsList.List) {
 		rng, err := nodeToProtocolRange(view, pkg, resultsList.List[index])
 		if err != nil {
-			log.Error(ctx, "Error getting range for node", err)
+			event.Error(ctx, "Error getting range for node", err)
 		} else {
 			result[rng] = true
 		}
@@ -185,7 +184,7 @@ Outer:
 			if toAdd != nil {
 				rng, err := nodeToProtocolRange(view, pkg, toAdd)
 				if err != nil {
-					log.Error(ctx, "Error getting range for node", err)
+					event.Error(ctx, "Error getting range for node", err)
 				} else {
 					result[rng] = true
 				}
@@ -234,7 +233,7 @@ Outer:
 		if n, ok := n.(*ast.BranchStmt); ok {
 			rng, err := nodeToProtocolRange(view, pkg, n)
 			if err != nil {
-				log.Error(ctx, "Error getting range for node", err)
+				event.Error(ctx, "Error getting range for node", err)
 				return false
 			}
 			result[rng] = true
@@ -272,7 +271,7 @@ func highlightImportUses(ctx context.Context, view View, pkg Package, path []ast
 		if rng, err := nodeToProtocolRange(view, pkg, n); err == nil {
 			result[rng] = true
 		} else {
-			log.Error(ctx, "Error getting range for node", err)
+			event.Error(ctx, "Error getting range for node", err)
 		}
 		return false
 	})
@@ -315,7 +314,7 @@ func highlightIdentifiers(ctx context.Context, view View, pkg Package, path []as
 		if rng, err := nodeToProtocolRange(view, pkg, n); err == nil {
 			result[rng] = true
 		} else {
-			log.Error(ctx, "Error getting range for node", err)
+			event.Error(ctx, "Error getting range for node", err)
 		}
 		return false
 	})

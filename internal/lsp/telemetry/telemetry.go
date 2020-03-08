@@ -7,25 +7,25 @@
 package telemetry
 
 import (
+	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/telemetry/stats"
-	"golang.org/x/tools/internal/telemetry/tag"
 	"golang.org/x/tools/internal/telemetry/unit"
 )
 
 const (
 	// create the tag keys we use
-	Method        = tag.Key("method")
-	StatusCode    = tag.Key("status.code")
-	StatusMessage = tag.Key("status.message")
-	RPCID         = tag.Key("id")
-	RPCDirection  = tag.Key("direction")
-	File          = tag.Key("file")
-	Directory     = tag.Key("directory")
-	URI           = tag.Key("URI")
-	Package       = tag.Key("package")
-	PackagePath   = tag.Key("package_path")
-	Query         = tag.Key("query")
-	Snapshot      = tag.Key("snapshot")
+	Method        = event.Key("method")
+	StatusCode    = event.Key("status.code")
+	StatusMessage = event.Key("status.message")
+	RPCID         = event.Key("id")
+	RPCDirection  = event.Key("direction")
+	File          = event.Key("file")
+	Directory     = event.Key("directory")
+	URI           = event.Key("URI")
+	Package       = event.Key("package")
+	PackagePath   = event.Key("package_path")
+	Query         = event.Key("query")
+	Snapshot      = event.Key("snapshot")
 )
 
 var (

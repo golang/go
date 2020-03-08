@@ -5,11 +5,11 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/telemetry/trace"
+	"golang.org/x/tools/internal/telemetry/event"
 )
 
 func Format(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]protocol.TextEdit, error) {
-	ctx, done := trace.StartSpan(ctx, "mod.Format")
+	ctx, done := event.StartSpan(ctx, "mod.Format")
 	defer done()
 
 	file, m, err := snapshot.ModHandle(ctx, fh).Parse(ctx)

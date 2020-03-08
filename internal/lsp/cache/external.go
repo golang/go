@@ -12,7 +12,7 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry/trace"
+	"golang.org/x/tools/internal/telemetry/event"
 	errors "golang.org/x/xerrors"
 )
 
@@ -48,7 +48,7 @@ func (h *nativeFileHandle) Identity() source.FileIdentity {
 }
 
 func (h *nativeFileHandle) Read(ctx context.Context) ([]byte, string, error) {
-	ctx, done := trace.StartSpan(ctx, "cache.nativeFileHandle.Read", telemetry.File.Of(h.identity.URI.Filename()))
+	ctx, done := event.StartSpan(ctx, "cache.nativeFileHandle.Read", telemetry.File.Of(h.identity.URI.Filename()))
 	_ = ctx
 	defer done()
 

@@ -14,12 +14,12 @@ import (
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/telemetry/trace"
+	"golang.org/x/tools/internal/telemetry/event"
 	errors "golang.org/x/xerrors"
 )
 
 func SignatureHelp(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protocol.Position) (*protocol.SignatureInformation, int, error) {
-	ctx, done := trace.StartSpan(ctx, "source.SignatureHelp")
+	ctx, done := event.StartSpan(ctx, "source.SignatureHelp")
 	defer done()
 
 	pkg, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)

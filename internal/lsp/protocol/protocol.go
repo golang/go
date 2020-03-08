@@ -10,8 +10,7 @@ import (
 	"fmt"
 
 	"golang.org/x/tools/internal/jsonrpc2"
-	"golang.org/x/tools/internal/telemetry/log"
-	"golang.org/x/tools/internal/telemetry/trace"
+	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/xcontext"
 )
 
@@ -61,7 +60,7 @@ func (Canceller) Request(ctx context.Context, conn *jsonrpc2.Conn, direction jso
 	if direction == jsonrpc2.Receive && r.Method == "$/cancelRequest" {
 		var params CancelParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
-			log.Error(ctx, "", err)
+			event.Error(ctx, "", err)
 		} else {
 			v := jsonrpc2.ID{}
 			if n, ok := params.ID.(float64); ok {
@@ -69,7 +68,7 @@ func (Canceller) Request(ctx context.Context, conn *jsonrpc2.Conn, direction jso
 			} else if s, ok := params.ID.(string); ok {
 				v.Name = s
 			} else {
-				log.Error(ctx, fmt.Sprintf("Request ID %v malformed", params.ID), nil)
+				event.Error(ctx, fmt.Sprintf("Request ID %v malformed", params.ID), nil)
 				return ctx
 			}
 			conn.Cancel(v)
@@ -83,7 +82,7 @@ func (Canceller) Cancel(ctx context.Context, conn *jsonrpc2.Conn, id jsonrpc2.ID
 		return false
 	}
 	ctx = xcontext.Detach(ctx)
-	ctx, done := trace.StartSpan(ctx, "protocol.canceller")
+	ctx, done := event.StartSpan(ctx, "protocol.canceller")
 	defer done()
 	// Note that only *jsonrpc2.ID implements json.Marshaler.
 	conn.Notify(ctx, "$/cancelRequest", &CancelParams{ID: &id})
@@ -100,6 +99,6 @@ func sendParseError(ctx context.Context, req *jsonrpc2.Request, err error) {
 		err = jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err)
 	}
 	if err := req.Reply(ctx, nil, err); err != nil {
-		log.Error(ctx, "", err)
+		event.Error(ctx, "", err)
 	}
 }

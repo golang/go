@@ -19,7 +19,7 @@ import (
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry/log"
+	"golang.org/x/tools/internal/telemetry/event"
 )
 
 func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLinkParams) ([]protocol.DocumentLink, error) {
@@ -59,7 +59,7 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 		if l, err := toProtocolLink(view, m, target, start, end, source.Mod); err == nil {
 			links = append(links, l)
 		} else {
-			log.Error(ctx, "failed to create protocol link", err)
+			event.Error(ctx, "failed to create protocol link", err)
 		}
 	}
 	// TODO(ridersofrohan): handle links for replace and exclude directives
@@ -113,7 +113,7 @@ func goLinks(ctx context.Context, view source.View, fh source.FileHandle) ([]pro
 				if l, err := toProtocolLink(view, m, target, start, end, source.Go); err == nil {
 					links = append(links, l)
 				} else {
-					log.Error(ctx, "failed to create protocol link", err)
+					event.Error(ctx, "failed to create protocol link", err)
 				}
 			}
 			return false
@@ -162,7 +162,7 @@ func findLinksInString(ctx context.Context, view source.View, src string, pos to
 		endPos := token.Pos(int(pos) + end)
 		url, err := url.Parse(src[start:end])
 		if err != nil {
-			log.Error(ctx, "failed to parse matching URL", err)
+			event.Error(ctx, "failed to parse matching URL", err)
 			continue
 		}
 		// If the URL has no scheme, use https.
@@ -171,7 +171,7 @@ func findLinksInString(ctx context.Context, view source.View, src string, pos to
 		}
 		l, err := toProtocolLink(view, m, url.String(), startPos, endPos, fileKind)
 		if err != nil {
-			log.Error(ctx, "failed to create protocol link", err)
+			event.Error(ctx, "failed to create protocol link", err)
 			continue
 		}
 		links = append(links, l)
@@ -190,7 +190,7 @@ func findLinksInString(ctx context.Context, view source.View, src string, pos to
 		target := fmt.Sprintf("https://github.com/%s/%s/issues/%s", org, repo, number)
 		l, err := toProtocolLink(view, m, target, startPos, endPos, fileKind)
 		if err != nil {
-			log.Error(ctx, "failed to create protocol link", err)
+			event.Error(ctx, "failed to create protocol link", err)
 			continue
 		}
 		links = append(links, l)

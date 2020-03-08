@@ -40,7 +40,7 @@ import (
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/diff/myers"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/telemetry/tag"
+	"golang.org/x/tools/internal/telemetry/event"
 	errors "golang.org/x/xerrors"
 )
 
@@ -353,7 +353,7 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 		case "Structured":
 			o.HoverKind = Structured
 		default:
-			result.errorf("Unsupported hover kind", tag.Of("HoverKind", hoverKind))
+			result.errorf("Unsupported hover kind", event.TagOf("HoverKind", hoverKind))
 		}
 
 	case "linkTarget":

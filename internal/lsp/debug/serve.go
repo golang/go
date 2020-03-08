@@ -11,7 +11,7 @@ import (
 	"go/token"
 	"html/template"
 	"io"
-	stdlog "log"
+	"log"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -29,12 +29,10 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry"
+	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/telemetry/export"
 	"golang.org/x/tools/internal/telemetry/export/ocagent"
 	"golang.org/x/tools/internal/telemetry/export/prometheus"
-	"golang.org/x/tools/internal/telemetry/log"
-	"golang.org/x/tools/internal/telemetry/tag"
 )
 
 type exporter struct {
@@ -387,7 +385,7 @@ func getMemory(r *http.Request) interface{} {
 }
 
 func init() {
-	export.SetExporter(&exporter{
+	event.SetExporter(&exporter{
 		stderr: os.Stderr,
 	})
 }
@@ -440,7 +438,7 @@ func (i *Instance) SetLogFile(logfile string) (func(), error) {
 		closeLog = func() {
 			defer f.Close()
 		}
-		stdlog.SetOutput(io.MultiWriter(os.Stderr, f))
+		log.SetOutput(io.MultiWriter(os.Stderr, f))
 		i.LogWriter = f
 	}
 	i.Logfile = logfile
@@ -462,9 +460,9 @@ func (i *Instance) Serve(ctx context.Context) error {
 
 	port := listener.Addr().(*net.TCPAddr).Port
 	if strings.HasSuffix(i.DebugAddress, ":0") {
-		stdlog.Printf("debug server listening on port %d", port)
+		log.Printf("debug server listening on port %d", port)
 	}
-	log.Print(ctx, "Debug serving", tag.Of("Port", port))
+	event.Print(ctx, "Debug serving", event.TagOf("Port", port))
 	go func() {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/", render(mainTmpl, func(*http.Request) interface{} { return i }))
@@ -492,10 +490,10 @@ func (i *Instance) Serve(ctx context.Context) error {
 		mux.HandleFunc("/info", render(infoTmpl, i.getInfo))
 		mux.HandleFunc("/memory", render(memoryTmpl, getMemory))
 		if err := http.Serve(listener, mux); err != nil {
-			log.Error(ctx, "Debug server failed", err)
+			event.Error(ctx, "Debug server failed", err)
 			return
 		}
-		log.Print(ctx, "Debug server finished")
+		event.Print(ctx, "Debug server finished")
 	}()
 	return nil
 }
@@ -513,7 +511,7 @@ func (i *Instance) MonitorMemory(ctx context.Context) {
 				continue
 			}
 			i.writeMemoryDebug(nextThresholdGiB)
-			log.Print(ctx, fmt.Sprintf("Wrote memory usage debug info to %v", os.TempDir()))
+			event.Print(ctx, fmt.Sprintf("Wrote memory usage debug info to %v", os.TempDir()))
 			nextThresholdGiB++
 		}
 	}()
@@ -544,27 +542,27 @@ func (i *Instance) writeMemoryDebug(threshold uint64) error {
 	return nil
 }
 
-func (e *exporter) ProcessEvent(ctx context.Context, event telemetry.Event) context.Context {
-	ctx = export.ContextSpan(ctx, event)
+func (e *exporter) ProcessEvent(ctx context.Context, ev event.Event) context.Context {
+	ctx = export.ContextSpan(ctx, ev)
 	i := GetInstance(ctx)
-	if event.Type == telemetry.EventLog && (event.Error != nil || i == nil) {
-		fmt.Fprintf(e.stderr, "%v\n", event)
+	if ev.IsLog() && (ev.Error != nil || i == nil) {
+		fmt.Fprintf(e.stderr, "%v\n", ev)
 	}
-	ctx = protocol.LogEvent(ctx, event)
+	ctx = protocol.LogEvent(ctx, ev)
 	if i == nil {
 		return ctx
 	}
-	ctx = export.Tag(ctx, event)
+	ctx = export.Tag(ctx, ev)
 	if i.ocagent != nil {
-		ctx = i.ocagent.ProcessEvent(ctx, event)
+		ctx = i.ocagent.ProcessEvent(ctx, ev)
 	}
 	if i.traces != nil {
-		ctx = i.traces.ProcessEvent(ctx, event)
+		ctx = i.traces.ProcessEvent(ctx, ev)
 	}
 	return ctx
 }
 
-func (e *exporter) Metric(ctx context.Context, data telemetry.MetricData) {
+func (e *exporter) Metric(ctx context.Context, data event.MetricData) {
 	i := GetInstance(ctx)
 	if i == nil {
 		return
@@ -589,7 +587,7 @@ func render(tmpl *template.Template, fun dataFunc) func(http.ResponseWriter, *ht
 			data = fun(r)
 		}
 		if err := tmpl.Execute(w, data); err != nil {
-			log.Error(context.Background(), "", err)
+			event.Error(context.Background(), "", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}

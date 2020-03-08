@@ -17,7 +17,7 @@ import (
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry/trace"
+	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/refactor/satisfy"
 	errors "golang.org/x/xerrors"
 )
@@ -42,7 +42,7 @@ type PrepareItem struct {
 }
 
 func PrepareRename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position) (*PrepareItem, error) {
-	ctx, done := trace.StartSpan(ctx, "source.PrepareRename")
+	ctx, done := event.StartSpan(ctx, "source.PrepareRename")
 	defer done()
 
 	qos, err := qualifiedObjsAtProtocolPos(ctx, s, f, pp)
@@ -78,7 +78,7 @@ func PrepareRename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Po
 
 // Rename returns a map of TextEdits for each file modified when renaming a given identifier within a package.
 func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position, newName string) (map[span.URI][]protocol.TextEdit, error) {
-	ctx, done := trace.StartSpan(ctx, "source.Rename")
+	ctx, done := event.StartSpan(ctx, "source.Rename")
 	defer done()
 
 	qos, err := qualifiedObjsAtProtocolPos(ctx, s, f, pp)

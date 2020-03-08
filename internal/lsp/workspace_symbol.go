@@ -9,11 +9,11 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/telemetry/trace"
+	"golang.org/x/tools/internal/telemetry/event"
 )
 
 func (s *Server) symbol(ctx context.Context, params *protocol.WorkspaceSymbolParams) ([]protocol.SymbolInformation, error) {
-	ctx, done := trace.StartSpan(ctx, "lsp.Server.symbol")
+	ctx, done := event.StartSpan(ctx, "lsp.Server.symbol")
 	defer done()
 
 	return source.WorkspaceSymbols(ctx, s.session.Views(), params.Query)
