@@ -18,8 +18,10 @@ type Hooks struct {
 }
 
 var (
+	aValue  = event.Key("a")
+	bValue  = event.Key("b")
 	aCount  = stats.Int64("aCount", "Count of time A is called.", unit.Dimensionless)
-	aValue  = stats.Int64("aValue", "A value.", unit.Dimensionless)
+	aStat   = stats.Int64("aValue", "A value.", unit.Dimensionless)
 	bCount  = stats.Int64("B", "Count of time B is called.", unit.Dimensionless)
 	bLength = stats.Int64("BLen", "B length.", unit.Dimensionless)
 
@@ -49,15 +51,15 @@ var (
 
 	Log = Hooks{
 		A: func(ctx context.Context, a *int) (context.Context, func()) {
-			event.Print(ctx, "start A", event.TagOf("a", *a))
+			event.Print(ctx, "start A", aValue.Of(*a))
 			return ctx, func() {
-				event.Print(ctx, "end A", event.TagOf("a", *a))
+				event.Print(ctx, "end A", aValue.Of(*a))
 			}
 		},
 		B: func(ctx context.Context, b *string) (context.Context, func()) {
-			event.Print(ctx, "start B", event.TagOf("b", *b))
+			event.Print(ctx, "start B", bValue.Of(*b))
 			return ctx, func() {
-				event.Print(ctx, "end B", event.TagOf("b", *b))
+				event.Print(ctx, "end B", bValue.Of(*b))
 			}
 		},
 	}
@@ -75,7 +77,7 @@ var (
 		A: func(ctx context.Context, a *int) (context.Context, func()) {
 			aCount.Record(ctx, 1)
 			return ctx, func() {
-				aValue.Record(ctx, int64(*a))
+				aStat.Record(ctx, int64(*a))
 			}
 		},
 		B: func(ctx context.Context, b *string) (context.Context, func()) {
