@@ -1,7 +1,7 @@
 # Running gopls as a daemon
 
-**EXPERIMENTAL - This feature is experimental, and under active development.
-If you encounter bugs, please [file an issue](troubleshooting.md#file-an-issue).**
+**Note: this feature is new. If you encounter bugs, please [file an
+issue](troubleshooting.md#file-an-issue).**
 
 If you just want to try this out, skip ahead to the [quickstart](#quickstart).
 
@@ -41,7 +41,7 @@ cause this process to auto-start the gopls daemon if needed, connect to it, and
 forward the LSP. For example, here is a reasonable gopls invocation, that sets
 some additional flags for easier [debugging](#debugging):
 ```
-$ gopls -remote=auto -logfile=auto -debug=:0 -rpc.trace
+$ gopls -remote=auto -logfile=auto -debug=:0 -remote.debug=:0 -rpc.trace
 ```
 
 Note that the shared gopls process will automatically shut down after one
@@ -84,12 +84,28 @@ Debugging a shared gopls session is more complicated than a singleton session,
 because there are now two gopls processes involved with handling the LSP. Here
 are some tips:
 
+### Finding logfiles and debug addresses
+
+When running in daemon mode, you can use the `gopls inspect sessions` command
+to find the logfile and debug port for your gopls daemon instance (as well as
+for all its connected clients). By default, this inspects the default daemon
+(i.e. `-remote=auto`). To inspect a different daemon, use the `-remote` flag
+explicitly: `gopls -remote=localhost:12345 inspect sessions`.
+
+This works whether or not you have enabled `-remote.debug`.
+
 ### Traversing debug pages
 
 When `-debug=:0` is passed to gopls, it runs a webserver that serves stateful
-debug pages (see [troubleshooting.md](troubleshooting.md)).  You can find the
-actual port hosting these pages by checking the start of the logfile, for
-example`head /tmp/gopls-<pid>.log` if using `-logfile=auto`.
+debug pages (see [troubleshooting.md](troubleshooting.md)). You can find the
+actual port hosting these pages by either using the `gopls inspect sessions`
+command, or by checking the start of the logfile -- it will be one of the first
+log messages. For example, if using `-logfile=auto`, find the debug address by
+checking `head /tmp/gopls-<pid>.log`.
+
+By default, the gopls daemon is not started with `-debug`. To enable it, set
+the `-remote.debug` flag on the forwarder instance, so that it invokes gopls
+with `-debug` when starting the daemon.
 
 The debug pages of the forwarder process will have a link to the debug pages of
 the daemon server process. Correspondingly, the debug pages of the daemon
@@ -99,6 +115,9 @@ This can help you find metrics, traces, and log files for all of the various
 servers and clients.
 
 ### Using logfiles
+
+The gopls daemon is started with `-logfile=auto` by default. To customize this,
+pass `-remote.logfile` to the gopls forwarder.
 
 By default, the gopls daemon is not started with the `-rpc.trace` flag, so its
 logfile will only contain actual debug logs from the gopls process.
@@ -119,8 +138,6 @@ will use the same shared daemon.
 
 ## FAQ
 
-(these questions are speculative -- as of writing nobody has asked any questions yet!)
-
 **Q: Why am I not saving as much memory as I expected when using a shared gopls?**
 
 A: As described in [implementation.md](implementation.md), gopls has a concept
@@ -138,10 +155,18 @@ Because this hasn't mattered much in the past, it is likely that there is state
 that can be moved out of the session/view, and into the cache, thereby
 increasing the amount of memory savings in the shared mode.
 
-**Q: When using `-remote=auto`, why does my gopls daemon gets killed when I
-close my first editor session?**
+**Q: How do I customize the daemon instance when using `-remote=auto`?**
 
-A: This is most likely a result of your editor sending a SIGTERM to the gopls
-daemon. For example, this is how Vim's native job control behaves by default.
-We are actively investigating workarounds for this. If it is causing you
-problems, please consider managing the gopls daemon manually.
+The daemon may be customized using flags of the form `-remote.*` on the
+forwarder gopls. This causes the forwarder to invoke gopls with these settings
+when starting the daemon. As of writing, we expose the following configuration:
+
+* `-remote.logfile`: the location of the daemon logfile
+* `-remote.debug`: the daemon's debug address
+* `-remote.listen.timeout`: the amount of time the daemon should wait for new
+  connections while there are no current connections, before shutting down. If
+  `0`, listen indefinitely.
+
+Note that once the daemon is already running, setting these flags will not
+change its configuration. These flags only matter for the forwarder process
+that actually starts the daemon.

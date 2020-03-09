@@ -58,7 +58,7 @@ type Application struct {
 	env []string
 
 	// Support for remote lsp server
-	Remote string `flag:"remote" help:"*EXPERIMENTAL* - forward all commands to a remote lsp specified by this flag. If prefixed by 'unix;', the subsequent address is assumed to be a unix domain socket. If 'auto', or prefixed by 'auto', the remote address is automatically resolved based on the executing environment. Otherwise, TCP is used."`
+	Remote string `flag:"remote" help:"forward all commands to a remote lsp specified by this flag. With no special prefix, this is assumed to be a TCP address. If prefixed by 'unix;', the subsequent address is assumed to be a unix domain socket. If 'auto', or prefixed by 'auto;', the remote address is automatically resolved based on the executing environment."`
 
 	// Enable verbose logging
 	Verbose bool `flag:"v" help:"verbose output"`
