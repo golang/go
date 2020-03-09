@@ -190,12 +190,12 @@ func init() {
 		{name: "MOVDstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOV", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // 64 bits
 
 		// Shift ops
-		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                 // arg0 << aux1
-		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                 // arg0 >> aux1, signed
-		{name: "SRL", argLength: 2, reg: gp21, asm: "SRL"},                 // arg0 >> aux1, unsigned
-		{name: "SLLI", argLength: 1, reg: gp11, asm: "SLLI", aux: "Int64"}, // arg0 << auxint
-		{name: "SRAI", argLength: 1, reg: gp11, asm: "SRAI", aux: "Int64"}, // arg0 >> auxint, signed
-		{name: "SRLI", argLength: 1, reg: gp11, asm: "SRLI", aux: "Int64"}, // arg0 >> auxint, unsigned
+		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                 // arg0 << (aux1 & 63)
+		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                 // arg0 >> (aux1 & 63), signed
+		{name: "SRL", argLength: 2, reg: gp21, asm: "SRL"},                 // arg0 >> (aux1 & 63), unsigned
+		{name: "SLLI", argLength: 1, reg: gp11, asm: "SLLI", aux: "Int64"}, // arg0 << auxint, shift amount 0-63
+		{name: "SRAI", argLength: 1, reg: gp11, asm: "SRAI", aux: "Int64"}, // arg0 >> auxint, signed, shift amount 0-63
+		{name: "SRLI", argLength: 1, reg: gp11, asm: "SRLI", aux: "Int64"}, // arg0 >> auxint, unsigned, shift amount 0-63
 
 		// Bitwise ops
 		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true}, // arg0 ^ arg1

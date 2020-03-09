@@ -499,8 +499,41 @@
 (MOVWstore [off] {sym} ptr (MOVWconst [0]) mem) -> (MOVWstorezero [off] {sym} ptr mem)
 (MOVDstore [off] {sym} ptr (MOVDconst [0]) mem) -> (MOVDstorezero [off] {sym} ptr mem)
 
-// Fold ADD+MOVDconst into ADDI where possible.
-(ADD (MOVDconst [off]) ptr) && is32Bit(off) -> (ADDI [off] ptr)
+// Fold constant into immediate instructions where possible.
+(ADD (MOVBconst [val]) x) && is32Bit(val) -> (ADDI [val] x)
+(ADD (MOVHconst [val]) x) && is32Bit(val) -> (ADDI [val] x)
+(ADD (MOVWconst [val]) x) && is32Bit(val) -> (ADDI [val] x)
+(ADD (MOVDconst [val]) x) && is32Bit(val) -> (ADDI [val] x)
+
+(AND (MOVBconst [val]) x) && is32Bit(val) -> (ANDI [val] x)
+(AND (MOVHconst [val]) x) && is32Bit(val) -> (ANDI [val] x)
+(AND (MOVWconst [val]) x) && is32Bit(val) -> (ANDI [val] x)
+(AND (MOVDconst [val]) x) && is32Bit(val) -> (ANDI [val] x)
+
+(OR (MOVBconst [val]) x) && is32Bit(val) -> (ORI [val] x)
+(OR (MOVHconst [val]) x) && is32Bit(val) -> (ORI [val] x)
+(OR (MOVWconst [val]) x) && is32Bit(val) -> (ORI [val] x)
+(OR (MOVDconst [val]) x) && is32Bit(val) -> (ORI [val] x)
+
+(XOR (MOVBconst [val]) x) && is32Bit(val) -> (XORI [val] x)
+(XOR (MOVHconst [val]) x) && is32Bit(val) -> (XORI [val] x)
+(XOR (MOVWconst [val]) x) && is32Bit(val) -> (XORI [val] x)
+(XOR (MOVDconst [val]) x) && is32Bit(val) -> (XORI [val] x)
+
+(SLL x (MOVBconst [val])) -> (SLLI [val&63] x)
+(SLL x (MOVHconst [val])) -> (SLLI [val&63] x)
+(SLL x (MOVWconst [val])) -> (SLLI [val&63] x)
+(SLL x (MOVDconst [val])) -> (SLLI [val&63] x)
+
+(SRL x (MOVBconst [val])) -> (SRLI [val&63] x)
+(SRL x (MOVHconst [val])) -> (SRLI [val&63] x)
+(SRL x (MOVWconst [val])) -> (SRLI [val&63] x)
+(SRL x (MOVDconst [val])) -> (SRLI [val&63] x)
+
+(SRA x (MOVBconst [val])) -> (SRAI [val&63] x)
+(SRA x (MOVHconst [val])) -> (SRAI [val&63] x)
+(SRA x (MOVWconst [val])) -> (SRAI [val&63] x)
+(SRA x (MOVDconst [val])) -> (SRAI [val&63] x)
 
 // Convert subtraction of a const into ADDI with negative immediate, where possible.
 (SUB x (MOVBconst [val])) && is32Bit(-val) -> (ADDI [-val] x)
@@ -526,5 +559,5 @@
 // Subtraction from zero with sign extension.
 (SUBW (MOVDconst [0]) x) -> (NEGW x)
 
-// remove redundant *const ops
-(ADDI [0]  x) -> x
+// Addition of zero.
+(ADDI [0] x) -> x
