@@ -251,17 +251,6 @@ func (ctxt *Link) CanUsePlugins() bool {
 	return ctxt.canUsePlugins
 }
 
-// UseRelro reports whether to make use of "read only relocations" aka
-// relro.
-func (ctxt *Link) UseRelro() bool {
-	switch ctxt.BuildMode {
-	case BuildModeCArchive, BuildModeCShared, BuildModeShared, BuildModePIE, BuildModePlugin:
-		return ctxt.IsELF || ctxt.HeadType == objabi.Haix
-	default:
-		return ctxt.linkShared || (ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal)
-	}
-}
-
 var (
 	dynexp          []*sym.Symbol
 	dynlib          []string

@@ -64,6 +64,17 @@ func (t *Target) IsDynlinkingGo() bool {
 	return t.IsShared() || t.IsSharedGoLink() || t.IsPlugin() || t.CanUsePlugins()
 }
 
+// UseRelro reports whether to make use of "read only relocations" aka
+// relro.
+func (t *Target) UseRelro() bool {
+	switch t.BuildMode {
+	case BuildModeCArchive, BuildModeCShared, BuildModeShared, BuildModePIE, BuildModePlugin:
+		return t.IsELF || t.HeadType == objabi.Haix
+	default:
+		return t.linkShared || (t.HeadType == objabi.Haix && t.LinkMode == LinkExternal)
+	}
+}
+
 //
 // Processor functions
 //
