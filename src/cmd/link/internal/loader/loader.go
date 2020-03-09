@@ -1856,6 +1856,7 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, syms *sym.Symb
 
 		sn := l.SymName(cand)
 		sv := l.SymVersion(cand)
+		st := l.SymType(cand)
 		if sv < 0 {
 			sv = anonVerReplacement
 		}
@@ -1866,7 +1867,7 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, syms *sym.Symb
 		if sn == "" {
 			// Don't install anonymous symbols in the lookup tab.
 			if s == nil {
-				s := l.allocSym(sn, sv)
+				s = l.allocSym(sn, sv)
 				l.installSym(cand, s)
 			}
 			isnew = true
@@ -1885,7 +1886,7 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, syms *sym.Symb
 
 		// Always copy these from new to old.
 		s.Value = l.SymValue(cand)
-		s.Type = l.SymType(cand)
+		s.Type = st
 
 		// If the data for a symbol has increased in size, make sure
 		// we bring the new content across.
@@ -1914,11 +1915,22 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, syms *sym.Symb
 
 		// If this symbol has any DWARF file relocations, we need to
 		// make sure that the relocations are copied back over, since
-		// DWARF-gen alters the offset values for these relocs.
+		// DWARF-gen alters the offset values for these relocs. Also:
+		// if this is an info symbol and it refers to a previously
+		// unseen range/loc symbol, we'll need to fix up relocations
+		// for it as well.
 		relocs := l.Relocs(cand)
 		rslice = relocs.ReadSyms(rslice)
 		for ri := range rslice {
 			if rslice[ri].Type == objabi.R_DWARFFILEREF {
+				relfix = true
+				break
+			}
+			if st != sym.SDWARFINFO {
+				continue
+			}
+			rst := l.SymType(rslice[ri].Sym)
+			if rst == sym.SDWARFRANGE || rst == sym.SDWARFLOC {
 				relfix = true
 				break
 			}

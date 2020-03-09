@@ -1934,8 +1934,11 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 					r := &relocs[ri]
 					if r.Type == objabi.R_DWARFSECREF {
 						rsym := r.Sym
-						// NB: there should be a better way to do this that doesn't involve materializing the symbol name and doing string prefix+suffix checks.
 						rsn := d.ldr.SymName(rsym)
+						if len(rsn) == 0 {
+							continue
+						}
+						// NB: there should be a better way to do this that doesn't involve materializing the symbol name and doing string prefix+suffix checks.
 						if strings.HasPrefix(rsn, dwarf.InfoPrefix) && strings.HasSuffix(rsn, dwarf.AbstractFuncSuffix) && !d.ldr.AttrOnList(rsym) {
 							// abstract function
 							d.ldr.SetAttrOnList(rsym, true)
@@ -2129,8 +2132,7 @@ func (d *dwctxt2) collectlocs(syms []loader.Sym, units []*sym.CompilationUnit) [
 				if reloc.Type != objabi.R_DWARFSECREF {
 					continue
 				}
-				sn := d.ldr.SymName(reloc.Sym)
-				if strings.HasPrefix(sn, dwarf.LocPrefix) {
+				if d.ldr.SymType(reloc.Sym) == sym.SDWARFLOC {
 					d.ldr.SetAttrReachable(reloc.Sym, true)
 					d.ldr.SetAttrNotInSymbolTable(reloc.Sym, true)
 					syms = append(syms, reloc.Sym)

@@ -139,17 +139,10 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	ctxt.Text = append(ctxt.Text, s)
 
 	// Set up DWARF entries for s.
-	info, loc, ranges, _, lines := ctxt.dwarfSym(s)
+	info, _, _, _, lines := ctxt.dwarfSym(s)
 	info.Type = objabi.SDWARFINFO
 	info.Set(AttrDuplicateOK, s.DuplicateOK())
-	if loc != nil {
-		loc.Type = objabi.SDWARFLOC
-		loc.Set(AttrDuplicateOK, s.DuplicateOK())
-		ctxt.Data = append(ctxt.Data, loc)
-	}
-	ranges.Type = objabi.SDWARFRANGE
-	ranges.Set(AttrDuplicateOK, s.DuplicateOK())
-	ctxt.Data = append(ctxt.Data, info, ranges)
+	ctxt.Data = append(ctxt.Data, info)
 	lines.Type = objabi.SDWARFLINES
 	lines.Set(AttrDuplicateOK, s.DuplicateOK())
 	ctxt.Data = append(ctxt.Data, lines)

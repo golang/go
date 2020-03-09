@@ -307,14 +307,14 @@ func (w *writer) Aux(s *LSym) {
 			}
 			o.Write(w.Writer)
 		}
-		if s.Func.dwarfLocSym != nil {
+		if s.Func.dwarfLocSym != nil && s.Func.dwarfLocSym.Size != 0 {
 			o := goobj2.Aux{
 				Type: goobj2.AuxDwarfLoc,
 				Sym:  makeSymRef(s.Func.dwarfLocSym),
 			}
 			o.Write(w.Writer)
 		}
-		if s.Func.dwarfRangesSym != nil {
+		if s.Func.dwarfRangesSym != nil && s.Func.dwarfRangesSym.Size != 0 {
 			o := goobj2.Aux{
 				Type: goobj2.AuxDwarfRanges,
 				Sym:  makeSymRef(s.Func.dwarfRangesSym),
@@ -343,10 +343,10 @@ func nAuxSym(s *LSym) int {
 		if s.Func.dwarfInfoSym != nil {
 			n++
 		}
-		if s.Func.dwarfLocSym != nil {
+		if s.Func.dwarfLocSym != nil && s.Func.dwarfLocSym.Size != 0 {
 			n++
 		}
-		if s.Func.dwarfRangesSym != nil {
+		if s.Func.dwarfRangesSym != nil && s.Func.dwarfRangesSym.Size != 0 {
 			n++
 		}
 		if s.Func.dwarfDebugLinesSym != nil {
@@ -419,6 +419,18 @@ func genFuncInfoSyms(ctxt *Link) {
 		infosyms = append(infosyms, isym)
 		s.Func.FuncInfoSym = isym
 		b.Reset()
+
+		dwsyms := []*LSym{s.Func.dwarfRangesSym, s.Func.dwarfLocSym}
+		for _, s := range dwsyms {
+			if s == nil || s.Size == 0 {
+				continue
+			}
+			s.PkgIdx = goobj2.PkgIdxSelf
+			s.SymIdx = symidx
+			s.Set(AttrIndexed, true)
+			symidx++
+			infosyms = append(infosyms, s)
+		}
 	}
 	ctxt.defs = append(ctxt.defs, infosyms...)
 }
