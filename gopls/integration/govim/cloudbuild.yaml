@@ -12,7 +12,7 @@ substitutions:
 
 steps:
   # Build gopls from source, to use with the govim integration tests.
-  - name: 'golang:1.13'
+  - name: 'golang:1.14'
     env: ['GOPROXY=https://proxy.golang.org']
     dir: 'gopls'
     args: ['go', 'build']

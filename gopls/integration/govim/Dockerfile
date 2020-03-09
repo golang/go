@@ -4,7 +4,7 @@
 
 # govim requires a more recent version of vim than is available in most
 # distros, so we build from their base image.
-FROM govim/govim:go1.13.5_vim_v8.1.2414_v1
+FROM govim/govim:go1.14_vim_v8.1.2056_v1
 
 # We use a pinned version of govim so that this build is repeatable, and so
 # that we're not sensitive to test breakages in govim.
