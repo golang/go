@@ -2605,7 +2605,7 @@ func (ctxt *Link) undef() {
 	for _, s := range ctxt.Textp {
 		undefsym(ctxt, s)
 	}
-	for _, s := range datap {
+	for _, s := range ctxt.datap {
 		undefsym(ctxt, s)
 	}
 	if nerrors > 0 {

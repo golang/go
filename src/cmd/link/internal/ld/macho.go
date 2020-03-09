@@ -1060,10 +1060,10 @@ func Machoemitreloc(ctxt *Link) {
 
 	machorelocsect(ctxt, Segtext.Sections[0], ctxt.Textp)
 	for _, sect := range Segtext.Sections[1:] {
-		machorelocsect(ctxt, sect, datap)
+		machorelocsect(ctxt, sect, ctxt.datap)
 	}
 	for _, sect := range Segdata.Sections {
-		machorelocsect(ctxt, sect, datap)
+		machorelocsect(ctxt, sect, ctxt.datap)
 	}
 	for _, sect := range Segdwarf.Sections {
 		machorelocsect(ctxt, sect, dwarfp)

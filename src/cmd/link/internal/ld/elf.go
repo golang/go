@@ -1415,18 +1415,18 @@ func Elfemitreloc(ctxt *Link) {
 		if sect.Name == ".text" {
 			elfrelocsect(ctxt, sect, ctxt.Textp)
 		} else {
-			elfrelocsect(ctxt, sect, datap)
+			elfrelocsect(ctxt, sect, ctxt.datap)
 		}
 	}
 
 	for _, sect := range Segrodata.Sections {
-		elfrelocsect(ctxt, sect, datap)
+		elfrelocsect(ctxt, sect, ctxt.datap)
 	}
 	for _, sect := range Segrelrodata.Sections {
-		elfrelocsect(ctxt, sect, datap)
+		elfrelocsect(ctxt, sect, ctxt.datap)
 	}
 	for _, sect := range Segdata.Sections {
-		elfrelocsect(ctxt, sect, datap)
+		elfrelocsect(ctxt, sect, ctxt.datap)
 	}
 	for _, sect := range Segdwarf.Sections {
 		elfrelocsect(ctxt, sect, dwarfp)

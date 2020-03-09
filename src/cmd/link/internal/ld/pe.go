@@ -543,8 +543,8 @@ func (f *peFile) emitRelocations(ctxt *Link) {
 		syms   []*sym.Symbol
 	}{
 		{f.textSect, &Segtext, ctxt.Textp},
-		{f.rdataSect, &Segrodata, datap},
-		{f.dataSect, &Segdata, datap},
+		{f.rdataSect, &Segrodata, ctxt.datap},
+		{f.dataSect, &Segdata, ctxt.datap},
 	}
 	for _, s := range sects {
 		s.peSect.emitRelocations(ctxt.Out, func() int {
@@ -1434,7 +1434,7 @@ func addPEBaseReloc(ctxt *Link) {
 	for _, s := range ctxt.Textp {
 		addPEBaseRelocSym(ctxt, s, &rt)
 	}
-	for _, s := range datap {
+	for _, s := range ctxt.datap {
 		addPEBaseRelocSym(ctxt, s, &rt)
 	}
 
