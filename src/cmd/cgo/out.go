@@ -803,12 +803,12 @@ func (p *Package) packedAttribute() string {
 	return s + "))"
 }
 
-// filterParamName returns the value of param as it should be
-// displayed in a c header file. if param contains any non-ASCII
+// exportParamName returns the value of param as it should be
+// displayed in a c header file. If param contains any non-ASCII
 // characters, this function will return the character p followed by
 // the value of position; otherwise, this function will return the
 // value of param.
-func filterParamName(param string, position int) string {
+func exportParamName(param string, position int) string {
 	pname := param
 
 	for i := 0; i < len(param); i++ {
@@ -934,7 +934,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 				if i > 0 || fn.Recv != nil {
 					s += ", "
 				}
-				s += fmt.Sprintf("%s %s", p.cgoType(atype).C, filterParamName(aname, i))
+				s += fmt.Sprintf("%s %s", p.cgoType(atype).C, exportParamName(aname, i))
 			})
 		s += ")"
 
@@ -960,7 +960,7 @@ func (p *Package) writeExports(fgo2, fm, fgcc, fgcch io.Writer) {
 		}
 		forFieldList(fntype.Params,
 			func(i int, aname string, atype ast.Expr) {
-				fmt.Fprintf(fgcc, "\ta.p%d = %s;\n", i, filterParamName(aname, i))
+				fmt.Fprintf(fgcc, "\ta.p%d = %s;\n", i, exportParamName(aname, i))
 			})
 		fmt.Fprintf(fgcc, "\t_cgo_tsan_release();\n")
 		fmt.Fprintf(fgcc, "\tcrosscall2(_cgoexp%s_%s, &a, %d, _cgo_ctxt);\n", cPrefix, exp.ExpName, off)
