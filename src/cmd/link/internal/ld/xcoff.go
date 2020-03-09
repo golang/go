@@ -1630,7 +1630,7 @@ func (f *xcoffFile) emitRelocations(ctxt *Link, fileoff int64) {
 				if sect.Name == ".text" {
 					n += relocsect(sect, ctxt.Textp, 0)
 				} else {
-					n += relocsect(sect, datap, 0)
+					n += relocsect(sect, ctxt.datap, 0)
 				}
 			}
 		}
