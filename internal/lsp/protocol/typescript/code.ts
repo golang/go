@@ -500,8 +500,7 @@ function toGo(d: Data, nm: string) {
 // these fields need a *
 var starred: [string, string][] = [
   ['TextDocumentContentChangeEvent', 'range'], ['CodeAction', 'command'],
-  ['DidSaveTextDocumentParams', 'text'], ['CompletionItem', 'command'],
-  ['CompletionItem', 'textEdit']
+  ['DidSaveTextDocumentParams', 'text'], ['CompletionItem', 'command']
 ];
 
 // generate Go code for an interface
@@ -519,8 +518,10 @@ function goInterface(d: Data, nm: string) {
     if (gt == d.name) gt = '*' + gt;  // avoid recursive types
     // there are several cases where a * is needed
     starred.forEach(([a, b]) => {
-      if (d.name == a && n.name.getText() == b) gt = '*' + gt
-    });
+      if (d.name == a && n.name.getText() == b) {
+        gt = '*' + gt;
+      };
+    })
     ans = ans.concat(`${goName(n.name.getText())} ${gt}`, json, '\n')
   };
   d.properties.forEach(g)
@@ -601,7 +602,7 @@ function goTypeAlias(d: Data, nm: string) {
   }
   typesOut.push(getComments(d.me))
   // d.alias doesn't seem to have comments
-  let aliasStr = goName(nm) == "DocumentURI" ? " " : " = "
+  let aliasStr = goName(nm) == 'DocumentURI' ? ' ' : ' = '
   typesOut.push(`type ${goName(nm)}${aliasStr}${goType(d.alias, nm)}\n`)
 }
 
@@ -667,7 +668,7 @@ function goUnionType(n: ts.UnionTypeNode, nm: string): string {
         if (v.startsWith(`[]interface`)) v = v.slice(2, v.length)
         return `${v} ${help}`
       }
-      if (a == 'BooleanKeyword') {  // believe the weaker type is wanted
+      if (a == 'BooleanKeyword') {  // usually want bool
         if (nm == 'codeActionProvider') return `interface{} ${help}`;
         if (nm == 'renameProvider') return `interface{} ${help}`;
         return `${goType(n.types[0], 'b')} ${help}`
@@ -693,7 +694,7 @@ function goUnionType(n: ts.UnionTypeNode, nm: string): string {
         return `${goType(n.types[0], 'g')}`
       }
       if (nm == 'textDocument/documentSymbol') {
-        return `${goType(n.types[1], 'h')} ${help}`
+        return `[]interface{} ${help}`
       }
       if (aa == 'TypeReference' && bb == 'ArrayType' && cc == 'NullKeyword') {
         return `${goType(n.types[0], 'd')} ${help}`
@@ -942,9 +943,6 @@ function goNot(side: side, m: string) {
 function goReq(side: side, m: string) {
   const n = req.get(m);
   const nm = methodName(m);
-  if (nm.indexOf('/') >= 0) {
-    console.log(`980 ${m} ${n.getText()} ${loc(n)} `)
-  }
   let a = goType(n.typeArguments[0], m);
   let b = goType(n.typeArguments[1], m);
   if (n.getText().includes('Type0')) {

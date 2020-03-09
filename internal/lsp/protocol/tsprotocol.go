@@ -1,7 +1,7 @@
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
-// commit: 7b90c29d0cb5cd7b9c41084f6cb3781a955adeba
-// last fetched Wed Mar 04 2020 13:02:46 GMT-0500 (Eastern Standard Time)
+// commit: 151b520c995ee3d76729b5c46258ab273d989726
+// last fetched Mon Mar 09 2020 10:29:10 GMT-0400 (Eastern Daylight Time)
 package protocol
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
@@ -164,10 +164,14 @@ type ClientCapabilities = struct {
 		WorkspaceClientCapabilities
 		/**
 		 * The client has support for workspace folders
+		 *
+		 * @since 3.6.0
 		 */
 		WorkspaceFolders bool `json:"workspaceFolders,omitempty"`
 		/**
-		* The client supports `workspace/configuration` requests.
+		 * The client supports `workspace/configuration` requests.
+		 *
+		 * @since 3.6.0
 		 */
 		Configuration bool `json:"configuration,omitempty"`
 	}
@@ -542,6 +546,13 @@ type CompletionClientCapabilities struct {
 			 */
 			ValueSet []CompletionItemTag `json:"valueSet"`
 		} `json:"tagSupport,omitempty"`
+		/**
+		 * Client support insert replace edit to control different behavior if a
+		 * completion item is inserted in the text or should replace text.
+		 *
+		 * @since 3.16.0 - Proposed state
+		 */
+		InsertReplaceSupport bool `json:"insertReplaceSupport,omitempty"`
 	} `json:"completionItem,omitempty"`
 	CompletionItemKind struct {
 		/**
@@ -658,10 +669,12 @@ type CompletionItem struct {
 	 * this completion. When an edit is provided the value of
 	 * [insertText](#CompletionItem.insertText) is ignored.
 	 *
-	 * *Note:* The text edit's range must be a [single line] and it must contain the position
-	 * at which completion has been requested.
+	 * *Note:* The text edit's range as well as both ranges from a insert replace edit must be a
+	 * [single line] and they must contain the position at which completion has been requested.
+	 *
+	 * @since 3.16.0 additional type `InsertReplaceEdit` - Proposed state
 	 */
-	TextEdit *TextEdit `json:"textEdit,omitempty"`
+	TextEdit interface{}/*TextEdit | InsertReplaceEdit*/ `json:"textEdit,omitempty"`
 	/**
 	 * An optional array of additional [text edits](#TextEdit) that are applied when
 	 * selecting this completion. Edits must not overlap (including the same insert position)
@@ -978,8 +991,10 @@ type Diagnostic struct {
 	Severity DiagnosticSeverity `json:"severity,omitempty"`
 	/**
 	 * The diagnostic's code, which usually appear in the user interface.
+	 *
+	 * @since 3.16.0 Support for `DiagnosticCode` - Proposed state
 	 */
-	Code interface{}/*number | string*/ `json:"code,omitempty"`
+	Code interface{}/* float64 | string | DiagnosticCode*/ `json:"code,omitempty"`
 	/**
 	 * A human-readable string describing the source of this
 	 * diagnostic, e.g. 'typescript' or 'super lint'. It usually
@@ -992,6 +1007,8 @@ type Diagnostic struct {
 	Message string `json:"message"`
 	/**
 	 * Additional metadata about the diagnostic.
+	 *
+	 * @since 3.15.0
 	 */
 	Tags []DiagnosticTag `json:"tags,omitempty"`
 	/**
@@ -999,6 +1016,22 @@ type Diagnostic struct {
 	 * a scope collide all definitions can be marked via this property.
 	 */
 	RelatedInformation []DiagnosticRelatedInformation `json:"relatedInformation,omitempty"`
+}
+
+/**
+ * Structure to capture more complex diagnostic codes.
+ *
+ * @since 3.16.0 - Proposed state
+ */
+type DiagnosticCode struct {
+	/**
+	 * The actual code
+	 */
+	Value string/*string | number*/ `json:"value"`
+	/**
+	 * A target URI to open with more information about the diagnostic error.
+	 */
+	Target URI `json:"target"`
 }
 
 /**
@@ -1460,7 +1493,15 @@ type DocumentSymbol struct {
 	 */
 	Kind SymbolKind `json:"kind"`
 	/**
+	 * Tags for this completion item.
+	 *
+	 * @since 3.16.0 - Proposed state
+	 */
+	Tags []SymbolTag `json:"tags,omitempty"`
+	/**
 	 * Indicates if this symbol is deprecated.
+	 *
+	 * @deprecated Use tags instead
 	 */
 	Deprecated bool `json:"deprecated,omitempty"`
 	/**
@@ -1508,6 +1549,19 @@ type DocumentSymbolClientCapabilities struct {
 	 * The client support hierarchical document symbols.
 	 */
 	HierarchicalDocumentSymbolSupport bool `json:"hierarchicalDocumentSymbolSupport,omitempty"`
+	/**
+	 * The client supports tags on `SymbolInformation`. Tags are supported on
+	 * `DocumentSymbol` if `hierarchicalDocumentSymbolSupport` is set tot true.
+	 * Clients supporting tags have to handle unknown tags gracefully.
+	 *
+	 * @since 3.16.0 - Proposed state
+	 */
+	TagSupport struct {
+		/**
+		 * The tags supported by the client.
+		 */
+		ValueSet []SymbolTag `json:"valueSet"`
+	} `json:"tagSupport,omitempty"`
 }
 
 /**
@@ -1530,7 +1584,7 @@ type DocumentSymbolParams struct {
 }
 
 /**
- * A tagging type for string properties that are actually URIs.
+ * A tagging type for string properties that are actually document URIs.
  */
 type DocumentURI string
 
@@ -2014,6 +2068,26 @@ type InnerServerCapabilities struct {
 }
 
 /**
+ * A special text edit to provide a insert or a replace operation.
+ *
+ * @since 3.16.0 - Proposed state
+ */
+type InsertReplaceEdit struct {
+	/**
+	 * The string to be inserted.
+	 */
+	NewText string `json:"newText"`
+	/**
+	 * The range if the insert is requested
+	 */
+	Insert Range `json:"insert"`
+	/**
+	 * The range if the replace is requested.
+	 */
+	Replace Range `json:"replace"`
+}
+
+/**
  * Defines whether the insert text in a completion item should be interpreted as
  * plain text or a snippet.
  */
@@ -2253,6 +2327,12 @@ type PublishDiagnosticsClientCapabilities struct {
 	 * @since 3.15.0
 	 */
 	VersionSupport bool `json:"versionSupport,omitempty"`
+	/**
+	 * Clients support complex diagnostic codes (e.g. code and target URI).
+	 *
+	 * @since 3.16.0 - Proposed state
+	 */
+	ComplexDiagnosticCodeSupport bool `json:"complexDiagnosticCodeSupport,omitempty"`
 }
 
 /**
@@ -2518,7 +2598,7 @@ type SemanticTokens struct {
 	/**
 	 * An optional result id. If provided and clients support delta updating
 	 * the client will include the result id in the next semantic token request.
-	 * A server can then instead of computing all sematic tokens again simply
+	 * A server can then instead of computing all semantic tokens again simply
 	 * send a delta.
 	 */
 	ResultID string `json:"resultId,omitempty"`
@@ -2922,7 +3002,15 @@ type SymbolInformation struct {
 	 */
 	Kind SymbolKind `json:"kind"`
 	/**
+	 * Tags for this completion item.
+	 *
+	 * @since 3.16.0 - Proposed state
+	 */
+	Tags []SymbolTag `json:"tags,omitempty"`
+	/**
 	 * Indicates if this symbol is deprecated.
+	 *
+	 * @deprecated Use tags instead
 	 */
 	Deprecated bool `json:"deprecated,omitempty"`
 	/**
@@ -3272,6 +3360,13 @@ type TypeDefinitionRegistrationOptions struct {
 }
 
 /**
+ * A tagging type for string properties that are actually URIs
+ *
+ * @since 3.16.0 - Proposed state
+ */
+type URI = string
+
+/**
  * General parameters to unregister a request or notification.
  */
 type Unregistration struct {
@@ -3510,6 +3605,18 @@ type WorkspaceSymbolClientCapabilities struct {
 		 */
 		ValueSet []SymbolKind `json:"valueSet,omitempty"`
 	} `json:"symbolKind,omitempty"`
+	/**
+	 * The client supports tags on `SymbolInformation`.
+	 * Clients supporting tags have to handle unknown tags gracefully.
+	 *
+	 * @since 3.16.0 - Proposed state
+	 */
+	TagSupport struct {
+		/**
+		 * The tags supported by the client.
+		 */
+		ValueSet []SymbolTag `json:"valueSet"`
+	} `json:"tagSupport,omitempty"`
 }
 
 /**

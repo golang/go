@@ -102,7 +102,6 @@ func (r *rpcs) Metric(ctx context.Context, data telemetry.MetricData) {
 		}
 		method, ok := group.Get(tlm.Method).(string)
 		if !ok {
-			log.Printf("Not a method... %v", group)
 			continue
 		}
 		index := sort.Search(len(*set), func(i int) bool {
