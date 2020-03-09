@@ -21,12 +21,6 @@ import (
 // InfoPrefix is the prefix for all the symbols containing DWARF info entries.
 const InfoPrefix = "go.info."
 
-// RangePrefix is the prefix for all the symbols containing DWARF location lists.
-const LocPrefix = "go.loc."
-
-// RangePrefix is the prefix for all the symbols containing DWARF range lists.
-const RangePrefix = "go.range."
-
 // DebugLinesPrefix is the prefix for all the symbols containing DWARF debug_line information from the compiler.
 const DebugLinesPrefix = "go.debuglines."
 

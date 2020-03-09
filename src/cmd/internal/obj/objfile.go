@@ -205,9 +205,13 @@ func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, 
 	if s.Func.dwarfInfoSym == nil {
 		s.Func.dwarfInfoSym = ctxt.LookupDerived(s, dwarf.InfoPrefix+s.Name)
 		if ctxt.Flag_locationlists {
-			s.Func.dwarfLocSym = ctxt.LookupDerived(s, dwarf.LocPrefix+s.Name)
+			s.Func.dwarfLocSym = &LSym{
+				Type: objabi.SDWARFLOC,
+			}
 		}
-		s.Func.dwarfRangesSym = ctxt.LookupDerived(s, dwarf.RangePrefix+s.Name)
+		s.Func.dwarfRangesSym = &LSym{
+			Type: objabi.SDWARFRANGE,
+		}
 		if s.WasInlined() {
 			s.Func.dwarfAbsFnSym = ctxt.DwFixups.AbsFuncDwarfSym(s)
 		}
