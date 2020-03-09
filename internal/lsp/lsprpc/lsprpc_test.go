@@ -49,7 +49,7 @@ func TestClientLogging(t *testing.T) {
 	client := fakeClient{logs: make(chan string, 10)}
 
 	ctx = debug.WithInstance(ctx, "", "")
-	ss := NewStreamServer(cache.New(ctx, nil), false)
+	ss := NewStreamServer(cache.New(ctx, nil))
 	ss.serverForTest = server
 	ts := servertest.NewPipeServer(ctx, ss)
 	defer ts.Close()
@@ -106,13 +106,13 @@ func TestRequestCancellation(t *testing.T) {
 	}
 	baseCtx := context.Background()
 	serveCtx := debug.WithInstance(baseCtx, "", "")
-	ss := NewStreamServer(cache.New(serveCtx, nil), false)
+	ss := NewStreamServer(cache.New(serveCtx, nil))
 	ss.serverForTest = server
 	tsDirect := servertest.NewTCPServer(serveCtx, ss)
 	defer tsDirect.Close()
 
 	forwarderCtx := debug.WithInstance(baseCtx, "", "")
-	forwarder := NewForwarder("tcp", tsDirect.Addr, false)
+	forwarder := NewForwarder("tcp", tsDirect.Addr)
 	tsForwarded := servertest.NewPipeServer(forwarderCtx, forwarder)
 	defer tsForwarded.Close()
 
@@ -183,10 +183,10 @@ func TestDebugInfoLifecycle(t *testing.T) {
 	serverCtx := debug.WithInstance(baseCtx, "", "")
 
 	cache := cache.New(serverCtx, nil)
-	ss := NewStreamServer(cache, false)
+	ss := NewStreamServer(cache)
 	tsBackend := servertest.NewTCPServer(serverCtx, ss)
 
-	forwarder := NewForwarder("tcp", tsBackend.Addr, false)
+	forwarder := NewForwarder("tcp", tsBackend.Addr)
 	tsForwarder := servertest.NewPipeServer(clientCtx, forwarder)
 
 	ws, err := fake.NewWorkspace("gopls-lsprpc-test", []byte(exampleProgram))

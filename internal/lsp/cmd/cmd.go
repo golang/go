@@ -18,6 +18,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp"
@@ -81,6 +82,11 @@ func New(name, wd string, env []string, options func(*source.Options)) *Applicat
 		wd:      wd,
 		env:     env,
 		OCAgent: "off", //TODO: Remove this line to default the exporter to on
+
+		Serve: Serve{
+			RemoteListenTimeout: 1 * time.Minute,
+			RemoteLogfile:       "auto",
+		},
 	}
 	return app
 }

@@ -31,6 +31,10 @@ type Serve struct {
 	Trace       bool          `flag:"rpc.trace" help:"print the full rpc trace in lsp inspector format"`
 	Debug       string        `flag:"debug" help:"serve debug information on the supplied address"`
 
+	RemoteListenTimeout time.Duration `flag:"remote.listen.timeout" help:"when used with -remote=auto, the listen.timeout used when auto-starting the remote"`
+	RemoteDebug         string        `flag:"remote.debug" help:"when used with -remote=auto, the debug address used when auto-starting the remote"`
+	RemoteLogfile       string        `flag:"remote.logfile" help:"when used with -remote=auto, the filename for the remote daemon to log to"`
+
 	app *Application
 }
 
@@ -71,9 +75,14 @@ func (s *Serve) Run(ctx context.Context, args ...string) error {
 	var ss jsonrpc2.StreamServer
 	if s.app.Remote != "" {
 		network, addr := parseAddr(s.app.Remote)
-		ss = lsprpc.NewForwarder(network, addr, true)
+		ss = lsprpc.NewForwarder(network, addr,
+			lsprpc.WithTelemetry(true),
+			lsprpc.RemoteDebugAddress(s.RemoteDebug),
+			lsprpc.RemoteListenTimeout(s.RemoteListenTimeout),
+			lsprpc.RemoteLogfile(s.RemoteLogfile),
+		)
 	} else {
-		ss = lsprpc.NewStreamServer(cache.New(ctx, s.app.options), true)
+		ss = lsprpc.NewStreamServer(cache.New(ctx, s.app.options), lsprpc.WithTelemetry(true))
 	}
 
 	if s.Address != "" {

@@ -49,7 +49,7 @@ func testCommandLine(t *testing.T, exporter packagestest.Exporter) {
 func testServer(ctx context.Context) *servertest.TCPServer {
 	ctx = debug.WithInstance(ctx, "", "")
 	cache := cache.New(ctx, nil)
-	ss := lsprpc.NewStreamServer(cache, false)
+	ss := lsprpc.NewStreamServer(cache)
 	return servertest.NewTCPServer(ctx, ss)
 }
 

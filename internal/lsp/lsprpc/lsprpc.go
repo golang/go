@@ -30,6 +30,9 @@ import (
 // automatic discovery to resolve a remote address.
 const AutoNetwork = "auto"
 
+// Unique identifiers for client/server.
+var clientIndex, serverIndex int64
+
 // The StreamServer type is a jsonrpc2.StreamServer that handles incoming
 // streams as a new LSP session, using a shared cache.
 type StreamServer struct {
@@ -40,15 +43,28 @@ type StreamServer struct {
 	serverForTest protocol.Server
 }
 
-var clientIndex, serverIndex int64
+// A ServerOption configures the behavior of the LSP server.
+type ServerOption interface {
+	setServer(*StreamServer)
+}
+
+// WithTelemetry configures either a Server or Forwarder to instrument RPCs
+// with additional telemetry.
+type WithTelemetry bool
+
+func (t WithTelemetry) setServer(s *StreamServer) {
+	s.withTelemetry = bool(t)
+}
 
 // NewStreamServer creates a StreamServer using the shared cache. If
 // withTelemetry is true, each session is instrumented with telemetry that
 // records RPC statistics.
-func NewStreamServer(cache *cache.Cache, withTelemetry bool) *StreamServer {
+func NewStreamServer(cache *cache.Cache, opts ...ServerOption) *StreamServer {
 	s := &StreamServer{
-		withTelemetry: withTelemetry,
-		cache:         cache,
+		cache: cache,
+	}
+	for _, opt := range opts {
+		opt.setServer(s)
 	}
 	return s
 }
@@ -133,7 +149,11 @@ func (s *StreamServer) ServeStream(ctx context.Context, stream jsonrpc2.Stream) 
 	// Clients may or may not send a shutdown message. Make sure the server is
 	// shut down.
 	// TODO(rFindley): this shutdown should perhaps be on a disconnected context.
-	defer server.Shutdown(ctx)
+	defer func() {
+		if err := server.Shutdown(ctx); err != nil {
+			event.Error(ctx, "error shutting down", err)
+		}
+	}()
 	conn.AddHandler(protocol.ServerHandler(server))
 	conn.AddHandler(protocol.Canceller{})
 	if s.withTelemetry {
@@ -160,31 +180,73 @@ func (s *StreamServer) ServeStream(ctx context.Context, stream jsonrpc2.Stream) 
 type Forwarder struct {
 	network, addr string
 
-	// Configuration. Right now, not all of this may be customizable, but in the
-	// future it probably will be.
-	withTelemetry bool
-	dialTimeout   time.Duration
-	retries       int
-	goplsPath     string
+	// goplsPath is the path to the current executing gopls binary.
+	goplsPath string
+
+	// configuration
+	withTelemetry       bool
+	dialTimeout         time.Duration
+	retries             int
+	remoteDebug         string
+	remoteListenTimeout time.Duration
+	remoteLogfile       string
+}
+
+// A ForwarderOption configures the behavior of the LSP forwarder.
+type ForwarderOption interface {
+	setForwarder(*Forwarder)
+}
+
+func (t WithTelemetry) setForwarder(fwd *Forwarder) {
+	fwd.withTelemetry = bool(t)
+}
+
+// RemoteDebugAddress configures the address used by the auto-started Gopls daemon
+// for serving debug information.
+type RemoteDebugAddress string
+
+func (d RemoteDebugAddress) setForwarder(fwd *Forwarder) {
+	fwd.remoteDebug = string(d)
+}
+
+// RemoteListenTimeout configures the amount of time the auto-started gopls
+// daemon will wait with no client connections before shutting down.
+type RemoteListenTimeout time.Duration
+
+func (d RemoteListenTimeout) setForwarder(fwd *Forwarder) {
+	fwd.remoteListenTimeout = time.Duration(d)
+}
+
+// RemoteLogfile configures the logfile location for the auto-started gopls
+// daemon.
+type RemoteLogfile string
+
+func (l RemoteLogfile) setForwarder(fwd *Forwarder) {
+	fwd.remoteLogfile = string(l)
 }
 
 // NewForwarder creates a new Forwarder, ready to forward connections to the
 // remote server specified by network and addr.
-func NewForwarder(network, addr string, withTelemetry bool) *Forwarder {
+func NewForwarder(network, addr string, opts ...ForwarderOption) *Forwarder {
 	gp, err := os.Executable()
 	if err != nil {
 		log.Printf("error getting gopls path for forwarder: %v", err)
 		gp = ""
 	}
 
-	return &Forwarder{
-		network:       network,
-		addr:          addr,
-		withTelemetry: withTelemetry,
-		dialTimeout:   1 * time.Second,
-		retries:       5,
-		goplsPath:     gp,
+	fwd := &Forwarder{
+		network:             network,
+		addr:                addr,
+		goplsPath:           gp,
+		dialTimeout:         1 * time.Second,
+		retries:             5,
+		remoteLogfile:       "auto",
+		remoteListenTimeout: 1 * time.Minute,
 	}
+	for _, opt := range opts {
+		opt.setForwarder(fwd)
+	}
+	return fwd
 }
 
 // QueryServerState queries the server state of the current server.
@@ -327,9 +389,11 @@ func (f *Forwarder) connectToRemote(ctx context.Context) (net.Conn, error) {
 		}
 		args := []string{"serve",
 			"-listen", fmt.Sprintf(`%s;%s`, network, address),
-			"-listen.timeout", "1m",
-			"-debug", "localhost:0",
-			"-logfile", "auto",
+			"-listen.timeout", f.remoteListenTimeout.String(),
+			"-logfile", f.remoteLogfile,
+		}
+		if f.remoteDebug != "" {
+			args = append(args, "-debug", f.remoteDebug)
 		}
 		if err := startRemote(f.goplsPath, args...); err != nil {
 			return nil, fmt.Errorf("startRemote(%q, %v): %v", f.goplsPath, args, err)

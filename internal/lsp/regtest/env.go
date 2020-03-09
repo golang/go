@@ -83,7 +83,7 @@ func (r *Runner) getTestServer() *servertest.TCPServer {
 	if r.ts == nil {
 		ctx := context.Background()
 		ctx = debug.WithInstance(ctx, "", "")
-		ss := lsprpc.NewStreamServer(cache.New(ctx, nil), false)
+		ss := lsprpc.NewStreamServer(cache.New(ctx, nil))
 		r.ts = servertest.NewTCPServer(context.Background(), ss)
 	}
 	return r.ts
@@ -189,7 +189,7 @@ func (r *Runner) RunInMode(modes EnvMode, t *testing.T, filedata string, test fu
 
 func (r *Runner) singletonEnv(ctx context.Context, t *testing.T) (servertest.Connector, func()) {
 	ctx = debug.WithInstance(ctx, "", "")
-	ss := lsprpc.NewStreamServer(cache.New(ctx, nil), false)
+	ss := lsprpc.NewStreamServer(cache.New(ctx, nil))
 	ts := servertest.NewPipeServer(ctx, ss)
 	cleanup := func() {
 		ts.Close()
@@ -204,7 +204,7 @@ func (r *Runner) sharedEnv(ctx context.Context, t *testing.T) (servertest.Connec
 func (r *Runner) forwardedEnv(ctx context.Context, t *testing.T) (servertest.Connector, func()) {
 	ctx = debug.WithInstance(ctx, "", "")
 	ts := r.getTestServer()
-	forwarder := lsprpc.NewForwarder("tcp", ts.Addr, false)
+	forwarder := lsprpc.NewForwarder("tcp", ts.Addr)
 	ts2 := servertest.NewPipeServer(ctx, forwarder)
 	cleanup := func() {
 		ts2.Close()
@@ -217,7 +217,7 @@ func (r *Runner) separateProcessEnv(ctx context.Context, t *testing.T) (serverte
 	socket := r.getRemoteSocket(t)
 	// TODO(rfindley): can we use the autostart behavior here, instead of
 	// pre-starting the remote?
-	forwarder := lsprpc.NewForwarder("unix", socket, false)
+	forwarder := lsprpc.NewForwarder("unix", socket)
 	ts2 := servertest.NewPipeServer(ctx, forwarder)
 	cleanup := func() {
 		ts2.Close()
