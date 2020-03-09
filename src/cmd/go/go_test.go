@@ -2208,15 +2208,10 @@ func testBuildmodePIE(t *testing.T, useCgo bool) {
 			t.Fatal(err)
 		}
 		defer f.Close()
-		const (
-			IMAGE_FILE_RELOCS_STRIPPED               = 0x0001
-			IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA = 0x0020
-			IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE    = 0x0040
-		)
 		if f.Section(".reloc") == nil {
 			t.Error(".reloc section is not present")
 		}
-		if (f.FileHeader.Characteristics & IMAGE_FILE_RELOCS_STRIPPED) != 0 {
+		if (f.FileHeader.Characteristics & pe.IMAGE_FILE_RELOCS_STRIPPED) != 0 {
 			t.Error("IMAGE_FILE_RELOCS_STRIPPED flag is set")
 		}
 		var dc uint16
@@ -2225,13 +2220,13 @@ func testBuildmodePIE(t *testing.T, useCgo bool) {
 			dc = oh.DllCharacteristics
 		case *pe.OptionalHeader64:
 			dc = oh.DllCharacteristics
-			if (dc & IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA) == 0 {
+			if (dc & pe.IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA) == 0 {
 				t.Error("IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA flag is not set")
 			}
 		default:
 			t.Fatalf("unexpected optional header type of %T", f.OptionalHeader)
 		}
-		if (dc & IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE) == 0 {
+		if (dc & pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE) == 0 {
 			t.Error("IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE flag is not set")
 		}
 	default:
