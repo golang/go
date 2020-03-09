@@ -1305,9 +1305,9 @@ func isNonNegative(v *Value) bool {
 	if !v.Type.IsInteger() {
 		panic("isNonNegative bad type")
 	}
-	if !v.Type.IsSigned() {
-		return true
-	}
+	// TODO: return true if !v.Type.IsSigned()
+	// SSA isn't type-safe enough to do that now (issue 37753).
+	// The checks below depend only on the pattern of bits.
 
 	switch v.Op {
 	case OpConst64:
