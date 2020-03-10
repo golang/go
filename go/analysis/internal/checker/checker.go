@@ -32,6 +32,8 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/analysisflags"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/internal/span"
 )
 
 var (
@@ -650,6 +652,36 @@ func (act *action) execOnce() {
 		AllPackageFacts:   act.allPackageFacts,
 	}
 	act.pass = pass
+
+	var errors []types.Error
+	// Get any type errors that are attributed to the pkg.
+	// This is necessary to test analyzers that provide
+	// suggested fixes for compiler/type errors.
+	for _, err := range act.pkg.Errors {
+		if err.Kind != packages.TypeError {
+			continue
+		}
+		// err.Pos is a string of form: "file:line:col" or "file:line" or "" or "-"
+		spn := span.Parse(err.Pos)
+		// Extract the token positions from the error string.
+		line, col, offset := spn.Start().Line(), spn.Start().Column(), -1
+		act.pkg.Fset.Iterate(func(f *token.File) bool {
+			if f.Name() != spn.URI().Filename() {
+				return true
+			}
+			offset = int(f.LineStart(line)) + col - 1
+			return false
+		})
+		if offset == -1 {
+			continue
+		}
+		errors = append(errors, types.Error{
+			Fset: act.pkg.Fset,
+			Msg:  err.Msg,
+			Pos:  token.Pos(offset),
+		})
+	}
+	analysisinternal.SetTypeErrors(pass, errors)
 
 	var err error
 	if act.pkg.IllTyped && !pass.Analyzer.RunDespiteErrors {

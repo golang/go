@@ -5,7 +5,6 @@
 package cache
 
 import (
-	"bytes"
 	"context"
 	"go/scanner"
 	"go/token"
@@ -16,6 +15,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/analysisinternal"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
@@ -185,16 +185,6 @@ func typeErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, pos toke
 	if err != nil {
 		return span.Span{}, err
 	}
-	spn, err := span.Range{
-		FileSet:   fset,
-		Start:     pos,
-		End:       pos,
-		Converter: m.Converter,
-	}.Span()
-	if err != nil {
-		return span.Span{}, err
-	}
-	s, err := spn.WithOffset(m.Converter)
 	if err != nil {
 		return span.Span{}, err
 	}
@@ -202,14 +192,12 @@ func typeErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, pos toke
 	if err != nil {
 		return span.Span{}, err
 	}
-	start := s.Start()
-	offset := start.Offset()
-	if offset < len(data) {
-		if width := bytes.IndexAny(data[offset:], " \n,():;[]"); width > 0 {
-			return span.New(spn.URI(), start, span.NewPoint(start.Line(), start.Column()+width, offset+width)), nil
-		}
-	}
-	return spn, nil
+	return span.Range{
+		FileSet:   fset,
+		Start:     pos,
+		End:       analysisinternal.TypeErrorEndPos(fset, data, pos),
+		Converter: m.Converter,
+	}.Span()
 }
 
 func scannerErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, posn token.Position) (span.Span, error) {

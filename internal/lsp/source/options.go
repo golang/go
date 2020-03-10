@@ -92,10 +92,11 @@ func DefaultOptions() Options {
 			TempModfile: true,
 		},
 		Hooks: Hooks{
-			ComputeEdits: myers.ComputeEdits,
-			URLRegexp:    regexp.MustCompile(`(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?`),
-			Analyzers:    defaultAnalyzers(),
-			GoDiff:       true,
+			ComputeEdits:       myers.ComputeEdits,
+			URLRegexp:          regexp.MustCompile(`(http|ftp|https)://([\w_-]+(?:(?:\.[\w_-]+)+))([\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?`),
+			DefaultAnalyzers:   defaultAnalyzers(),
+			TypeErrorAnalyzers: typeErrorAnalyzers(),
+			GoDiff:             true,
 		},
 	}
 }
@@ -186,10 +187,11 @@ type completionOptions struct {
 }
 
 type Hooks struct {
-	GoDiff       bool
-	ComputeEdits diff.ComputeEdits
-	URLRegexp    *regexp.Regexp
-	Analyzers    map[string]Analyzer
+	GoDiff             bool
+	ComputeEdits       diff.ComputeEdits
+	URLRegexp          *regexp.Regexp
+	DefaultAnalyzers   map[string]Analyzer
+	TypeErrorAnalyzers map[string]Analyzer
 }
 
 type ExperimentalOptions struct {
@@ -480,6 +482,10 @@ func (r *OptionResult) setBool(b *bool) {
 	if v, ok := r.asBool(); ok {
 		*b = v
 	}
+}
+
+func typeErrorAnalyzers() map[string]Analyzer {
+	return map[string]Analyzer{}
 }
 
 func defaultAnalyzers() map[string]Analyzer {

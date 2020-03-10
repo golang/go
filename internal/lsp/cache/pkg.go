@@ -28,6 +28,7 @@ type pkg struct {
 	errors          []*source.Error
 	imports         map[packagePath]*pkg
 	module          *packagesinternal.Module
+	typeErrors      []types.Error
 	types           *types.Package
 	typesInfo       *types.Info
 	typesSizes      types.Sizes
@@ -126,9 +127,8 @@ func (p *pkg) Module() *packagesinternal.Module {
 }
 
 func (s *snapshot) FindAnalysisError(ctx context.Context, pkgID, analyzerName, msg string, rng protocol.Range) (*source.Error, *source.Analyzer, error) {
-	var analyzer source.Analyzer
-	analyzer, ok := s.View().Options().Analyzers[analyzerName]
-	if !ok {
+	analyzer := findAnalyzer(s, analyzerName)
+	if analyzer.Analyzer == nil {
 		return nil, nil, errors.Errorf("unexpected analyzer: %s", analyzerName)
 	}
 	if !analyzer.Enabled {
@@ -144,7 +144,7 @@ func (s *snapshot) FindAnalysisError(ctx context.Context, pkgID, analyzerName, m
 		return nil, nil, err
 	}
 	for _, err := range errs {
-		if err.Category != analyzerName {
+		if err.Category != analyzer.Analyzer.Name {
 			continue
 		}
 		if err.Message != msg {
@@ -156,4 +156,16 @@ func (s *snapshot) FindAnalysisError(ctx context.Context, pkgID, analyzerName, m
 		return err, &analyzer, nil
 	}
 	return nil, nil, errors.Errorf("no matching diagnostic for %s:%v", pkgID, analyzerName)
+}
+
+func findAnalyzer(s *snapshot, analyzerName string) source.Analyzer {
+	checked := s.View().Options().DefaultAnalyzers
+	if a, ok := checked[analyzerName]; ok {
+		return a
+	}
+	checked = s.View().Options().TypeErrorAnalyzers
+	if a, ok := checked[analyzerName]; ok {
+		return a
+	}
+	return source.Analyzer{}
 }

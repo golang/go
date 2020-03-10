@@ -397,6 +397,9 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 				continue
 			}
 			pkg.errors = append(pkg.errors, srcErr)
+			if err, ok := e.(types.Error); ok {
+				pkg.typeErrors = append(pkg.typeErrors, err)
+			}
 		}
 	}
 	return pkg, nil

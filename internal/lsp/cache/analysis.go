@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/internal/analysisinternal"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/memoize"
@@ -315,6 +316,7 @@ func runAnalysis(ctx context.Context, fset *token.FileSet, analyzer *analysis.An
 			return facts
 		},
 	}
+	analysisinternal.SetTypeErrors(pass, pkg.typeErrors)
 
 	if pkg.IsIllTyped() {
 		data.err = errors.Errorf("analysis skipped due to errors in package: %v", pkg.GetErrors())
