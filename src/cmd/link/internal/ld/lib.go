@@ -2682,11 +2682,6 @@ func (ctxt *Link) loadlibfull() {
 	ctxt.loader.ExtractSymbols(ctxt.Syms, ctxt.Reachparent)
 	ctxt.lookup = ctxt.Syms.ROLookup
 
-	// When we generated dwarf DIE objects, we created them
-	// with embedded loader.Sym refs as opposed to sym.Symbol refs.
-	// Call a helper to rewrite the former to the latter in all DIEs.
-	dwarfConvertSymbols(ctxt)
-
 	setupdynexp(ctxt)
 
 	// Drop the cgodata reference.
