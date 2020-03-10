@@ -11,8 +11,8 @@ func addressingModes(f *Func) {
 	default:
 		// Most architectures can't do this.
 		return
-	case "amd64":
-		// TODO: 386, s390x?
+	case "amd64", "386":
+		// TODO: s390x?
 	}
 
 	var tmp []*Value
@@ -21,7 +21,17 @@ func addressingModes(f *Func) {
 			if !combineFirst[v.Op] {
 				continue
 			}
-			p := v.Args[0]
+			// All matched operations have the pointer in arg[0].
+			// All results have the pointer in arg[0] and the index in arg[1].
+			// *Except* for operations which update a register,
+			// which are marked with resultInArg0. Those have
+			// the pointer in arg[1], and the corresponding result op
+			// has the pointer in arg[1] and the index in arg[2].
+			ptrIndex := 0
+			if opcodeTable[v.Op].resultInArg0 {
+				ptrIndex = 1
+			}
+			p := v.Args[ptrIndex]
 			c, ok := combine[[2]Op{v.Op, p.Op}]
 			if !ok {
 				continue
@@ -71,10 +81,11 @@ func addressingModes(f *Func) {
 				f.Fatalf("unknown aux combining for %s and %s\n", v.Op, p.Op)
 			}
 			// Combine the operations.
-			tmp = append(tmp[:0], v.Args[1:]...)
+			tmp = append(tmp[:0], v.Args[:ptrIndex]...)
+			tmp = append(tmp, p.Args...)
+			tmp = append(tmp, v.Args[ptrIndex+1:]...)
 			v.resetArgs()
 			v.Op = c
-			v.AddArgs(p.Args...)
 			v.AddArgs(tmp...)
 		}
 	}
@@ -97,6 +108,7 @@ func init() {
 //   x.Args[0].Args + x.Args[1:]
 // Additionally, the Aux/AuxInt from x.Args[0] is merged into x.
 var combine = map[[2]Op]Op{
+	// amd64
 	[2]Op{OpAMD64MOVBload, OpAMD64ADDQ}:  OpAMD64MOVBloadidx1,
 	[2]Op{OpAMD64MOVWload, OpAMD64ADDQ}:  OpAMD64MOVWloadidx1,
 	[2]Op{OpAMD64MOVLload, OpAMD64ADDQ}:  OpAMD64MOVLloadidx1,
@@ -150,5 +162,64 @@ var combine = map[[2]Op]Op{
 	[2]Op{OpAMD64MOVQstoreconst, OpAMD64LEAQ1}: OpAMD64MOVQstoreconstidx1,
 	[2]Op{OpAMD64MOVQstoreconst, OpAMD64LEAQ8}: OpAMD64MOVQstoreconstidx8,
 
-	// TODO: 386
+	// 386
+	[2]Op{Op386MOVBload, Op386ADDL}:  Op386MOVBloadidx1,
+	[2]Op{Op386MOVWload, Op386ADDL}:  Op386MOVWloadidx1,
+	[2]Op{Op386MOVLload, Op386ADDL}:  Op386MOVLloadidx1,
+	[2]Op{Op386MOVSSload, Op386ADDL}: Op386MOVSSloadidx1,
+	[2]Op{Op386MOVSDload, Op386ADDL}: Op386MOVSDloadidx1,
+
+	[2]Op{Op386MOVBstore, Op386ADDL}:  Op386MOVBstoreidx1,
+	[2]Op{Op386MOVWstore, Op386ADDL}:  Op386MOVWstoreidx1,
+	[2]Op{Op386MOVLstore, Op386ADDL}:  Op386MOVLstoreidx1,
+	[2]Op{Op386MOVSSstore, Op386ADDL}: Op386MOVSSstoreidx1,
+	[2]Op{Op386MOVSDstore, Op386ADDL}: Op386MOVSDstoreidx1,
+
+	[2]Op{Op386MOVBstoreconst, Op386ADDL}: Op386MOVBstoreconstidx1,
+	[2]Op{Op386MOVWstoreconst, Op386ADDL}: Op386MOVWstoreconstidx1,
+	[2]Op{Op386MOVLstoreconst, Op386ADDL}: Op386MOVLstoreconstidx1,
+
+	[2]Op{Op386MOVBload, Op386LEAL1}:  Op386MOVBloadidx1,
+	[2]Op{Op386MOVWload, Op386LEAL1}:  Op386MOVWloadidx1,
+	[2]Op{Op386MOVWload, Op386LEAL2}:  Op386MOVWloadidx2,
+	[2]Op{Op386MOVLload, Op386LEAL1}:  Op386MOVLloadidx1,
+	[2]Op{Op386MOVLload, Op386LEAL4}:  Op386MOVLloadidx4,
+	[2]Op{Op386MOVSSload, Op386LEAL1}: Op386MOVSSloadidx1,
+	[2]Op{Op386MOVSSload, Op386LEAL4}: Op386MOVSSloadidx4,
+	[2]Op{Op386MOVSDload, Op386LEAL1}: Op386MOVSDloadidx1,
+	[2]Op{Op386MOVSDload, Op386LEAL8}: Op386MOVSDloadidx8,
+
+	[2]Op{Op386MOVBstore, Op386LEAL1}:  Op386MOVBstoreidx1,
+	[2]Op{Op386MOVWstore, Op386LEAL1}:  Op386MOVWstoreidx1,
+	[2]Op{Op386MOVWstore, Op386LEAL2}:  Op386MOVWstoreidx2,
+	[2]Op{Op386MOVLstore, Op386LEAL1}:  Op386MOVLstoreidx1,
+	[2]Op{Op386MOVLstore, Op386LEAL4}:  Op386MOVLstoreidx4,
+	[2]Op{Op386MOVSSstore, Op386LEAL1}: Op386MOVSSstoreidx1,
+	[2]Op{Op386MOVSSstore, Op386LEAL4}: Op386MOVSSstoreidx4,
+	[2]Op{Op386MOVSDstore, Op386LEAL1}: Op386MOVSDstoreidx1,
+	[2]Op{Op386MOVSDstore, Op386LEAL8}: Op386MOVSDstoreidx8,
+
+	[2]Op{Op386MOVBstoreconst, Op386LEAL1}: Op386MOVBstoreconstidx1,
+	[2]Op{Op386MOVWstoreconst, Op386LEAL1}: Op386MOVWstoreconstidx1,
+	[2]Op{Op386MOVWstoreconst, Op386LEAL2}: Op386MOVWstoreconstidx2,
+	[2]Op{Op386MOVLstoreconst, Op386LEAL1}: Op386MOVLstoreconstidx1,
+	[2]Op{Op386MOVLstoreconst, Op386LEAL4}: Op386MOVLstoreconstidx4,
+
+	[2]Op{Op386ADDLload, Op386LEAL4}: Op386ADDLloadidx4,
+	[2]Op{Op386SUBLload, Op386LEAL4}: Op386SUBLloadidx4,
+	[2]Op{Op386MULLload, Op386LEAL4}: Op386MULLloadidx4,
+	[2]Op{Op386ANDLload, Op386LEAL4}: Op386ANDLloadidx4,
+	[2]Op{Op386ORLload, Op386LEAL4}:  Op386ORLloadidx4,
+	[2]Op{Op386XORLload, Op386LEAL4}: Op386XORLloadidx4,
+
+	[2]Op{Op386ADDLmodify, Op386LEAL4}: Op386ADDLmodifyidx4,
+	[2]Op{Op386SUBLmodify, Op386LEAL4}: Op386SUBLmodifyidx4,
+	[2]Op{Op386ANDLmodify, Op386LEAL4}: Op386ANDLmodifyidx4,
+	[2]Op{Op386ORLmodify, Op386LEAL4}:  Op386ORLmodifyidx4,
+	[2]Op{Op386XORLmodify, Op386LEAL4}: Op386XORLmodifyidx4,
+
+	[2]Op{Op386ADDLconstmodify, Op386LEAL4}: Op386ADDLconstmodifyidx4,
+	[2]Op{Op386ANDLconstmodify, Op386LEAL4}: Op386ANDLconstmodifyidx4,
+	[2]Op{Op386ORLconstmodify, Op386LEAL4}:  Op386ORLconstmodifyidx4,
+	[2]Op{Op386XORLconstmodify, Op386LEAL4}: Op386XORLconstmodifyidx4,
 }
