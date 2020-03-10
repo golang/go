@@ -376,9 +376,17 @@ func parseSections(ctx *Context, name string, lines *Lines, number []int) ([]Sec
 				e = Text{Lines: []string{pre}, Pre: true}
 			case strings.HasPrefix(text, "- "):
 				var b []string
-				for ok && strings.HasPrefix(text, "- ") {
-					b = append(b, text[2:])
-					text, ok = lines.next()
+				for {
+					if strings.HasPrefix(text, "- ") {
+						b = append(b, text[2:])
+					} else if len(b) > 0 && strings.HasPrefix(text, " ") {
+						b[len(b)-1] += "\n" + strings.TrimSpace(text)
+					} else {
+						break
+					}
+					if text, ok = lines.next(); !ok {
+						break
+					}
 				}
 				lines.back()
 				e = List{Bullet: b}

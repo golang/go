@@ -44,7 +44,8 @@ After that come slides/sections, each after a blank line:
 
 	- bullets
 	- more bullets
-	- a bullet with
+	- a bullet continued
+	  on the next line
 
 	*** Sub-subsection
 
