@@ -1213,11 +1213,12 @@ func (d *dwctxt2) writelines(unit *sym.CompilationUnit, ls loader.Sym) {
 
 	// Grab files for inlined functions.
 	// TODO: With difficulty, this could be moved into the compiler.
+	rslice := []loader.Reloc{}
 	for _, s := range unit.Textp2 {
 		fnSym := loader.Sym(s)
 		infosym, _, _, _ := d.ldr.GetFuncDwarfAuxSyms(fnSym)
 		drelocs := d.ldr.Relocs(infosym)
-		rslice := drelocs.ReadSyms(nil)
+		rslice = drelocs.ReadSyms(rslice)
 		for ri := 0; ri < len(rslice); ri++ {
 			r := &rslice[ri]
 			if r.Type != objabi.R_DWARFFILEREF {
@@ -1307,7 +1308,7 @@ func (d *dwctxt2) writelines(unit *sym.CompilationUnit, ls loader.Sym) {
 		fnu := d.ldr.MakeSymbolUpdater(fnSym)
 
 		relocs := d.ldr.Relocs(fnSym)
-		rslice := relocs.ReadAll(nil)
+		rslice = relocs.ReadAll(rslice)
 
 		for ri := range rslice {
 			r := &rslice[ri]
