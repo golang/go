@@ -15,7 +15,7 @@ func Log(ctx context.Context, tags ...Tag) {
 	ProcessEvent(ctx, Event{
 		Type: LogType,
 		At:   time.Now(),
-		Tags: tags,
+		Tags: newTagSet(tags),
 	})
 }
 
@@ -26,7 +26,7 @@ func Print(ctx context.Context, message string, tags ...Tag) {
 		Type:    LogType,
 		At:      time.Now(),
 		Message: message,
-		Tags:    tags,
+		Tags:    newTagSet(tags),
 	})
 }
 
@@ -43,6 +43,6 @@ func Error(ctx context.Context, message string, err error, tags ...Tag) {
 		At:      time.Now(),
 		Message: message,
 		Error:   err,
-		Tags:    tags,
+		Tags:    newTagSet(tags),
 	})
 }

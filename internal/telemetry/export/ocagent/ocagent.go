@@ -227,13 +227,18 @@ func convertMetric(data event.MetricData, start time.Time) *wire.Metric {
 	}
 }
 
-func convertAttributes(tags event.TagList) *wire.Attributes {
-	if len(tags) == 0 {
+func convertAttributes(tags event.TagSet) *wire.Attributes {
+	i := tags.Iterator()
+	if !i.Next() {
 		return nil
 	}
 	attributes := make(map[string]wire.Attribute)
-	for _, tag := range tags {
+	for {
+		tag := i.Value()
 		attributes[tag.Key().Name()] = convertAttribute(tag.Value())
+		if !i.Next() {
+			break
+		}
 	}
 	return &wire.Attributes{AttributeMap: attributes}
 }
@@ -297,9 +302,9 @@ func convertAnnotation(ev event.Event) *wire.Annotation {
 	}
 	tags := ev.Tags
 	if ev.Error != nil {
-		tags = append(tags, event.Err.Of(ev.Error))
+		tags = tags.Add(event.Err.Of(ev.Error))
 	}
-	if description == "" && len(tags) == 0 {
+	if description == "" && tags.IsEmpty() {
 		return nil
 	}
 	return &wire.Annotation{

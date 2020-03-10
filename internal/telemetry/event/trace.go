@@ -14,7 +14,7 @@ func StartSpan(ctx context.Context, name string, tags ...Tag) (context.Context, 
 		Type:    StartSpanType,
 		Message: name,
 		At:      time.Now(),
-		Tags:    tags,
+		Tags:    newTagSet(tags),
 	})
 	return ctx, func() {
 		ProcessEvent(ctx, Event{

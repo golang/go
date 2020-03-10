@@ -44,7 +44,7 @@ func NewKey(name, description string) ValueKey {
 }
 
 // Get can be used to get a tag for the key from a TagList.
-func (k ValueKey) Get(tags TagList) interface{} {
+func (k ValueKey) Get(tags TagSet) interface{} {
 	if t := tags.find(k.key); t.key != nil {
 		return t.value
 	}
@@ -65,8 +65,8 @@ func NewIntKey(name, description string) IntKey {
 // Of creates a new Tag with this key and the supplied value.
 func (k IntKey) Of(v int) Tag { return Tag{key: k.key, value: v} }
 
-// Get can be used to get a tag for the key from a TagList.
-func (k IntKey) Get(tags TagList) int {
+// Get can be used to get a tag for the key from a TagSet.
+func (k IntKey) Get(tags TagSet) int {
 	if t := tags.find(k.key); t.key != nil {
 		return t.value.(int)
 	}
@@ -84,8 +84,8 @@ func NewInt8Key(name, description string) Int8Key {
 // Of creates a new Tag with this key and the supplied value.
 func (k Int8Key) Of(v int8) Tag { return Tag{key: k.key, value: v} }
 
-// Get can be used to get a tag for the key from a TagList.
-func (k Int8Key) Get(tags TagList) int8 {
+// Get can be used to get a tag for the key from a TagSet.
+func (k Int8Key) Get(tags TagSet) int8 {
 	if t := tags.find(k.key); t.key != nil {
 		return t.value.(int8)
 	}
@@ -103,8 +103,8 @@ func NewInt16Key(name, description string) Int16Key {
 // Of creates a new Tag with this key and the supplied value.
 func (k Int16Key) Of(v int16) Tag { return Tag{key: k.key, value: v} }
 
-// Get can be used to get a tag for the key from a TagList.
-func (k Int16Key) Get(tags TagList) int16 {
+// Get can be used to get a tag for the key from a TagSet.
+func (k Int16Key) Get(tags TagSet) int16 {
 	if t := tags.find(k.key); t.key != nil {
 		return t.value.(int16)
 	}
@@ -122,8 +122,8 @@ func NewInt32Key(name, description string) Int32Key {
 // Of creates a new Tag with this key and the supplied value.
 func (k Int32Key) Of(v int32) Tag { return Tag{key: k.key, value: v} }
 
-// Get can be used to get a tag for the key from a TagList.
-func (k Int32Key) Get(tags TagList) int32 {
+// Get can be used to get a tag for the key from a TagSet.
+func (k Int32Key) Get(tags TagSet) int32 {
 	if t := tags.find(k.key); t.key != nil {
 		return t.value.(int32)
 	}
@@ -141,8 +141,8 @@ func NewInt64Key(name, description string) Int64Key {
 // Of creates a new Tag with this key and the supplied value.
 func (k Int64Key) Of(v int64) Tag { return Tag{key: k.key, value: v} }
 
-// Get can be used to get a tag for the key from a TagList.
-func (k Int64Key) Get(tags TagList) int64 {
+// Get can be used to get a tag for the key from a TagSet.
+func (k Int64Key) Get(tags TagSet) int64 {
 	if t := tags.find(k.key); t.key != nil {
 		return t.value.(int64)
 	}
@@ -160,8 +160,8 @@ func NewUIntKey(name, description string) UIntKey {
 // Of creates a new Tag with this key and the supplied value.
 func (k UIntKey) Of(v uint) Tag { return Tag{key: k.key, value: v} }
 
-// Get can be used to get a tag for the key from a TagList.
-func (k UIntKey) Get(tags TagList) uint {
+// Get can be used to get a tag for the key from a TagSet.
+func (k UIntKey) Get(tags TagSet) uint {
 	if t := tags.find(k.key); t.key != nil {
 		return t.value.(uint)
 	}
@@ -179,8 +179,8 @@ func NewUInt8Key(name, description string) UInt8Key {
 // Of creates a new Tag with this key and the supplied value.
 func (k UInt8Key) Of(v uint8) Tag { return Tag{key: k.key, value: v} }
 
-// Get can be used to get a tag for the key from a TagList.
-func (k UInt8Key) Get(tags TagList) uint8 {
+// Get can be used to get a tag for the key from a TagSet.
+func (k UInt8Key) Get(tags TagSet) uint8 {
 	if t := tags.find(k.key); t.key != nil {
 		return t.value.(uint8)
 	}
@@ -198,8 +198,8 @@ func NewUInt16Key(name, description string) UInt16Key {
 // Of creates a new Tag with this key and the supplied value.
 func (k UInt16Key) Of(v uint16) Tag { return Tag{key: k.key, value: v} }
 
-// Get can be used to get a tag for the key from a TagList.
-func (k UInt16Key) Get(tags TagList) uint16 {
+// Get can be used to get a tag for the key from a TagSet.
+func (k UInt16Key) Get(tags TagSet) uint16 {
 	if t := tags.find(k.key); t.key != nil {
 		return t.value.(uint16)
 	}
@@ -217,8 +217,8 @@ func NewUInt32Key(name, description string) UInt32Key {
 // Of creates a new Tag with this key and the supplied value.
 func (k UInt32Key) Of(v uint32) Tag { return Tag{key: k.key, value: v} }
 
-// Get can be used to get a tag for the key from a TagList.
-func (k UInt32Key) Get(tags TagList) uint32 {
+// Get can be used to get a tag for the key from a TagSet.
+func (k UInt32Key) Get(tags TagSet) uint32 {
 	if t := tags.find(k.key); t.key != nil {
 		return t.value.(uint32)
 	}
@@ -236,8 +236,8 @@ func NewUInt64Key(name, description string) UInt64Key {
 // Of creates a new Tag with this key and the supplied value.
 func (k UInt64Key) Of(v uint64) Tag { return Tag{key: k.key, value: v} }
 
-// Get can be used to get a tag for the key from a TagList.
-func (k UInt64Key) Get(tags TagList) uint64 {
+// Get can be used to get a tag for the key from a TagSet.
+func (k UInt64Key) Get(tags TagSet) uint64 {
 	if t := tags.find(k.key); t.key != nil {
 		return t.value.(uint64)
 	}
@@ -255,8 +255,8 @@ func NewFloat32Key(name, description string) Float32Key {
 // Of creates a new Tag with this key and the supplied value.
 func (k Float32Key) Of(v float32) Tag { return Tag{key: k.key, value: v} }
 
-// Get can be used to get a tag for the key from a TagList.
-func (k Float32Key) Get(tags TagList) float32 {
+// Get can be used to get a tag for the key from a TagSet.
+func (k Float32Key) Get(tags TagSet) float32 {
 	if t := tags.find(k.key); t.key != nil {
 		return t.value.(float32)
 	}
@@ -274,8 +274,8 @@ func NewFloat64Key(name, description string) Float64Key {
 // Of creates a new Tag with this key and the supplied value.
 func (k Float64Key) Of(v float64) Tag { return Tag{key: k.key, value: v} }
 
-// Get can be used to get a tag for the key from a TagList.
-func (k Float64Key) Get(tags TagList) float64 {
+// Get can be used to get a tag for the key from a TagSet.
+func (k Float64Key) Get(tags TagSet) float64 {
 	if t := tags.find(k.key); t.key != nil {
 		return t.value.(float64)
 	}
@@ -293,8 +293,8 @@ func NewStringKey(name, description string) StringKey {
 // Of creates a new Tag with this key and the supplied value.
 func (k StringKey) Of(v string) Tag { return Tag{key: k.key, value: v} }
 
-// Get can be used to get a tag for the key from a TagList.
-func (k StringKey) Get(tags TagList) string {
+// Get can be used to get a tag for the key from a TagSet.
+func (k StringKey) Get(tags TagSet) string {
 	if t := tags.find(k.key); t.key != nil {
 		return t.value.(string)
 	}
@@ -312,8 +312,8 @@ func NewBooleanKey(name, description string) BooleanKey {
 // Of creates a new Tag with this key and the supplied value.
 func (k BooleanKey) Of(v bool) Tag { return Tag{key: k.key, value: v} }
 
-// Get can be used to get a tag for the key from a TagList.
-func (k BooleanKey) Get(tags TagList) bool {
+// Get can be used to get a tag for the key from a TagSet.
+func (k BooleanKey) Get(tags TagSet) bool {
 	if t := tags.find(k.key); t.key != nil {
 		return t.value.(bool)
 	}
@@ -331,8 +331,8 @@ func NewErrorKey(name, description string) ErrorKey {
 // Of creates a new Tag with this key and the supplied value.
 func (k ErrorKey) Of(v error) Tag { return Tag{key: k.key, value: v} }
 
-// Get can be used to get a tag for the key from a TagList.
-func (k ErrorKey) Get(tags TagList) error {
+// Get can be used to get a tag for the key from a TagSet.
+func (k ErrorKey) Get(tags TagSet) error {
 	if t := tags.find(k.key); t.key != nil {
 		return t.value.(error)
 	}

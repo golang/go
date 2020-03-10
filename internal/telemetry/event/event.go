@@ -26,7 +26,7 @@ type Event struct {
 	At      time.Time
 	Message string
 	Error   error
-	Tags    TagList
+	Tags    TagSet
 }
 
 func (e Event) IsLog() bool       { return e.Type == LogType }
@@ -48,7 +48,8 @@ func (e Event) Format(f fmt.State, r rune) {
 			fmt.Fprintf(f, ": %v", e.Error)
 		}
 	}
-	for _, tag := range e.Tags {
+	for i := e.Tags.Iterator(); i.Next(); {
+		tag := i.Value()
 		fmt.Fprintf(f, "\n\t%s = %v", tag.key.name, tag.value)
 	}
 }

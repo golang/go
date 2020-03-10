@@ -57,7 +57,7 @@ func (e *Exporter) header(w http.ResponseWriter, name, description string, isGau
 	fmt.Fprintf(w, "# TYPE %s %s\n", name, kind)
 }
 
-func (e *Exporter) row(w http.ResponseWriter, name string, group event.TagList, extra string, value interface{}) {
+func (e *Exporter) row(w http.ResponseWriter, name string, group event.TagSet, extra string, value interface{}) {
 	fmt.Fprint(w, name)
 	buf := &bytes.Buffer{}
 	fmt.Fprint(buf, group)

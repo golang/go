@@ -169,9 +169,10 @@ func fillOffsets(td *traceData, start time.Time) {
 	}
 }
 
-func renderTags(tags event.TagList) string {
+func renderTags(tags event.TagSet) string {
 	buf := &bytes.Buffer{}
-	for _, tag := range tags {
+	for i := tags.Iterator(); i.Next(); {
+		tag := i.Value()
 		fmt.Fprintf(buf, "%s=%q ", tag.Key().Name(), tag.Value())
 	}
 	return buf.String()

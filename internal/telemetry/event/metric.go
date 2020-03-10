@@ -13,5 +13,5 @@ type MetricData interface {
 	// Handle returns the metric handle this data is for.
 	Handle() string
 	// Groups reports the rows that currently exist for this metric.
-	Groups() []TagList
+	Groups() []TagSet
 }

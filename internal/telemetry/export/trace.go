@@ -23,7 +23,7 @@ type Span struct {
 	ParentID SpanID
 	Start    time.Time
 	Finish   time.Time
-	Tags     event.TagList
+	Tags     event.TagSet
 	Events   []event.Event
 }
 
