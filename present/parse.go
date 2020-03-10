@@ -300,7 +300,7 @@ func (ctx *Context) Parse(r io.Reader, name string, mode ParseMode) (*Doc, error
 	}
 
 	// Authors
-	if doc.Authors, err = parseAuthors(lines); err != nil {
+	if doc.Authors, err = parseAuthors(name, lines); err != nil {
 		return nil, err
 	}
 	// Sections
@@ -483,7 +483,7 @@ func parseHeader(doc *Doc, lines *Lines) error {
 	return nil
 }
 
-func parseAuthors(lines *Lines) (authors []Author, err error) {
+func parseAuthors(name string, lines *Lines) (authors []Author, err error) {
 	// This grammar demarcates authors with blanks.
 
 	// Skip blank lines.
@@ -527,11 +527,11 @@ func parseAuthors(lines *Lines) (authors []Author, err error) {
 		var el Elem
 		switch {
 		case strings.HasPrefix(text, "@"):
-			el = parseURL("http://twitter.com/" + text[1:])
+			el = parseAuthorURL(name, "http://twitter.com/"+text[1:])
 		case strings.Contains(text, ":"):
-			el = parseURL(text)
+			el = parseAuthorURL(name, text)
 		case strings.Contains(text, "@"):
-			el = parseURL("mailto:" + text)
+			el = parseAuthorURL(name, "mailto:"+text)
 		}
 		if l, ok := el.(Link); ok {
 			l.Label = text
@@ -548,10 +548,10 @@ func parseAuthors(lines *Lines) (authors []Author, err error) {
 	return authors, nil
 }
 
-func parseURL(text string) Elem {
+func parseAuthorURL(name, text string) Elem {
 	u, err := url.Parse(text)
 	if err != nil {
-		log.Printf("Parse(%q): %v", text, err)
+		log.Printf("parsing %s author block: invalid URL %q: %v", name, text, err)
 		return nil
 	}
 	return Link{URL: u}
