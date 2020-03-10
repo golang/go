@@ -667,7 +667,25 @@ func (t *test) run() {
 			}
 			// -S=2 forces outermost line numbers when disassembling inlined code.
 			cmdline := []string{"build", "-gcflags", "-S=2"}
-			cmdline = append(cmdline, flags...)
+
+			// Append flags, but don't override -gcflags=-S=2; add to it instead.
+			for i := 0; i < len(flags); i++ {
+				flag := flags[i]
+				switch {
+				case strings.HasPrefix(flag, "-gcflags="):
+					cmdline[2] += " " + strings.TrimPrefix(flag, "-gcflags=")
+				case strings.HasPrefix(flag, "--gcflags="):
+					cmdline[2] += " " + strings.TrimPrefix(flag, "--gcflags=")
+				case flag == "-gcflags", flag == "--gcflags":
+					i++
+					if i < len(flags) {
+						cmdline[2] += " " + flags[i]
+					}
+				default:
+					cmdline = append(cmdline, flag)
+				}
+			}
+
 			cmdline = append(cmdline, long)
 			cmd := exec.Command(goTool(), cmdline...)
 			cmd.Env = append(os.Environ(), env.Environ()...)
