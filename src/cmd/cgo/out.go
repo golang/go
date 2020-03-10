@@ -809,6 +809,10 @@ func (p *Package) packedAttribute() string {
 // the value of position; otherwise, this function will return the
 // value of param.
 func exportParamName(param string, position int) string {
+	if param == "" {
+		return fmt.Sprintf("p%d", position)
+	}
+
 	pname := param
 
 	for i := 0; i < len(param); i++ {
