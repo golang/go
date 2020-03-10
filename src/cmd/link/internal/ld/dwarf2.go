@@ -998,14 +998,14 @@ func (v compilationUnitByStartPC) Swap(i, j int) { v[i], v[j] = v[j], v[i] }
 
 func (v compilationUnitByStartPC) Less(i, j int) bool {
 	switch {
-	case len(v[i].Textp) == 0 && len(v[j].Textp) == 0:
+	case len(v[i].Textp2) == 0 && len(v[j].Textp2) == 0:
 		return v[i].Lib.Pkg < v[j].Lib.Pkg
-	case len(v[i].Textp) != 0 && len(v[j].Textp) == 0:
+	case len(v[i].Textp2) != 0 && len(v[j].Textp2) == 0:
 		return true
-	case len(v[i].Textp) == 0 && len(v[j].Textp) != 0:
+	case len(v[i].Textp2) == 0 && len(v[j].Textp2) != 0:
 		return false
 	default:
-		return v[i].Textp[0].Value < v[j].Textp[0].Value
+		return v[i].PCs[0].Start < v[j].PCs[0].Start
 	}
 }
 
