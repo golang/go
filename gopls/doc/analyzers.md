@@ -374,3 +374,18 @@ func TestFoo(t *testing.T) {
 ```
 
 Default value: `true`.
+
+### **unusedparams**
+
+check for unused parameters of functions
+
+The unusedparams analyzer checks functions to see if there are
+any parameters that are not being used.
+
+To reduce false positives it ignores:
+- methods
+- parameters that do not have a name or are underscored
+- functions in test files
+- functions with empty bodies or those with just a return stmt
+
+Default value: `false`.

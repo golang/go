@@ -37,6 +37,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
 	"golang.org/x/tools/internal/lsp/analysis/simplifyrange"
+	"golang.org/x/tools/internal/lsp/analysis/unusedparams"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/diff/myers"
@@ -510,6 +511,7 @@ func defaultAnalyzers() map[string]Analyzer {
 		deepequalerrors.Analyzer.Name:  {Analyzer: deepequalerrors.Analyzer, Enabled: true},
 		sortslice.Analyzer.Name:        {Analyzer: sortslice.Analyzer, Enabled: true},
 		testinggoroutine.Analyzer.Name: {Analyzer: testinggoroutine.Analyzer, Enabled: true},
+		unusedparams.Analyzer.Name:     {Analyzer: unusedparams.Analyzer, Enabled: false},
 
 		// gofmt -s suite:
 		simplifyrange.Analyzer.Name: {Analyzer: simplifyrange.Analyzer, Enabled: true, HighConfidence: true},
