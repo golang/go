@@ -462,10 +462,10 @@ var optab = []Optab{
 	{AVSEL, C_VREG, C_VREG, C_VREG, C_VREG, 83, 4, 0}, /* vector select, va-form */
 
 	/* Vector splat */
-	{AVSPLT, C_SCON, C_VREG, C_NONE, C_VREG, 82, 4, 0}, /* vector splat, vx-form */
-	{AVSPLT, C_ADDCON, C_VREG, C_NONE, C_VREG, 82, 4, 0},
-	{AVSPLTI, C_SCON, C_NONE, C_NONE, C_VREG, 82, 4, 0}, /* vector splat immediate, vx-form */
-	{AVSPLTI, C_ADDCON, C_NONE, C_NONE, C_VREG, 82, 4, 0},
+	{AVSPLTB, C_SCON, C_VREG, C_NONE, C_VREG, 82, 4, 0}, /* vector splat, vx-form */
+	{AVSPLTB, C_ADDCON, C_VREG, C_NONE, C_VREG, 82, 4, 0},
+	{AVSPLTISB, C_SCON, C_NONE, C_NONE, C_VREG, 82, 4, 0}, /* vector splat immediate, vx-form */
+	{AVSPLTISB, C_ADDCON, C_NONE, C_NONE, C_VREG, 82, 4, 0},
 
 	/* Vector AES */
 	{AVCIPH, C_VREG, C_VREG, C_NONE, C_VREG, 82, 4, 0},  /* vector AES cipher, vx-form */
@@ -484,27 +484,27 @@ var optab = []Optab{
 	{ASTXV, C_VSREG, C_NONE, C_NONE, C_SOREG, 97, 4, 0},    /* vsx vector store, dq-form */
 
 	/* VSX scalar load */
-	{ALXS, C_SOREG, C_NONE, C_NONE, C_VSREG, 87, 4, 0}, /* vsx scalar load, xx1-form */
+	{ALXSDX, C_SOREG, C_NONE, C_NONE, C_VSREG, 87, 4, 0}, /* vsx scalar load, xx1-form */
 
 	/* VSX scalar store */
-	{ASTXS, C_VSREG, C_NONE, C_NONE, C_SOREG, 86, 4, 0}, /* vsx scalar store, xx1-form */
+	{ASTXSDX, C_VSREG, C_NONE, C_NONE, C_SOREG, 86, 4, 0}, /* vsx scalar store, xx1-form */
 
 	/* VSX scalar as integer load */
-	{ALXSI, C_SOREG, C_NONE, C_NONE, C_VSREG, 87, 4, 0}, /* vsx scalar as integer load, xx1-form */
+	{ALXSIWAX, C_SOREG, C_NONE, C_NONE, C_VSREG, 87, 4, 0}, /* vsx scalar as integer load, xx1-form */
 
 	/* VSX scalar store as integer */
-	{ASTXSI, C_VSREG, C_NONE, C_NONE, C_SOREG, 86, 4, 0}, /* vsx scalar as integer store, xx1-form */
+	{ASTXSIWX, C_VSREG, C_NONE, C_NONE, C_SOREG, 86, 4, 0}, /* vsx scalar as integer store, xx1-form */
 
 	/* VSX move from VSR */
-	{AMFVSR, C_VSREG, C_NONE, C_NONE, C_REG, 88, 4, 0}, /* vsx move from vsr, xx1-form */
-	{AMFVSR, C_FREG, C_NONE, C_NONE, C_REG, 88, 4, 0},
-	{AMFVSR, C_VREG, C_NONE, C_NONE, C_REG, 88, 4, 0},
+	{AMFVSRD, C_VSREG, C_NONE, C_NONE, C_REG, 88, 4, 0}, /* vsx move from vsr, xx1-form */
+	{AMFVSRD, C_FREG, C_NONE, C_NONE, C_REG, 88, 4, 0},
+	{AMFVSRD, C_VREG, C_NONE, C_NONE, C_REG, 88, 4, 0},
 
 	/* VSX move to VSR */
-	{AMTVSR, C_REG, C_NONE, C_NONE, C_VSREG, 88, 4, 0}, /* vsx move to vsr, xx1-form */
-	{AMTVSR, C_REG, C_REG, C_NONE, C_VSREG, 88, 4, 0},
-	{AMTVSR, C_REG, C_NONE, C_NONE, C_FREG, 88, 4, 0},
-	{AMTVSR, C_REG, C_NONE, C_NONE, C_VREG, 88, 4, 0},
+	{AMTVSRD, C_REG, C_NONE, C_NONE, C_VSREG, 88, 4, 0}, /* vsx move to vsr, xx1-form */
+	{AMTVSRD, C_REG, C_REG, C_NONE, C_VSREG, 88, 4, 0},
+	{AMTVSRD, C_REG, C_NONE, C_NONE, C_FREG, 88, 4, 0},
+	{AMTVSRD, C_REG, C_NONE, C_NONE, C_VREG, 88, 4, 0},
 
 	/* VSX logical */
 	{AXXLAND, C_VSREG, C_VSREG, C_NONE, C_VSREG, 90, 4, 0}, /* vsx and, xx3-form */
@@ -514,34 +514,34 @@ var optab = []Optab{
 	{AXXSEL, C_VSREG, C_VSREG, C_VSREG, C_VSREG, 91, 4, 0}, /* vsx select, xx4-form */
 
 	/* VSX merge */
-	{AXXMRG, C_VSREG, C_VSREG, C_NONE, C_VSREG, 90, 4, 0}, /* vsx merge, xx3-form */
+	{AXXMRGHW, C_VSREG, C_VSREG, C_NONE, C_VSREG, 90, 4, 0}, /* vsx merge, xx3-form */
 
 	/* VSX splat */
-	{AXXSPLT, C_VSREG, C_NONE, C_SCON, C_VSREG, 89, 4, 0}, /* vsx splat, xx2-form */
+	{AXXSPLTW, C_VSREG, C_NONE, C_SCON, C_VSREG, 89, 4, 0}, /* vsx splat, xx2-form */
 
 	/* VSX permute */
-	{AXXPERM, C_VSREG, C_VSREG, C_SCON, C_VSREG, 90, 4, 0}, /* vsx permute, xx3-form */
+	{AXXPERM, C_VSREG, C_VSREG, C_NONE, C_VSREG, 90, 4, 0}, /* vsx permute, xx3-form */
 
 	/* VSX shift */
-	{AXXSI, C_VSREG, C_VSREG, C_SCON, C_VSREG, 90, 4, 0}, /* vsx shift immediate, xx3-form */
+	{AXXSLDWI, C_VSREG, C_VSREG, C_SCON, C_VSREG, 90, 4, 0}, /* vsx shift immediate, xx3-form */
 
 	/* VSX scalar FP-FP conversion */
-	{AXSCV, C_VSREG, C_NONE, C_NONE, C_VSREG, 89, 4, 0}, /* vsx scalar fp-fp conversion, xx2-form */
+	{AXSCVDPSP, C_VSREG, C_NONE, C_NONE, C_VSREG, 89, 4, 0}, /* vsx scalar fp-fp conversion, xx2-form */
 
 	/* VSX vector FP-FP conversion */
-	{AXVCV, C_VSREG, C_NONE, C_NONE, C_VSREG, 89, 4, 0}, /* vsx vector fp-fp conversion, xx2-form */
+	{AXVCVDPSP, C_VSREG, C_NONE, C_NONE, C_VSREG, 89, 4, 0}, /* vsx vector fp-fp conversion, xx2-form */
 
 	/* VSX scalar FP-integer conversion */
-	{AXSCVX, C_VSREG, C_NONE, C_NONE, C_VSREG, 89, 4, 0}, /* vsx scalar fp-integer conversion, xx2-form */
+	{AXSCVDPSXDS, C_VSREG, C_NONE, C_NONE, C_VSREG, 89, 4, 0}, /* vsx scalar fp-integer conversion, xx2-form */
 
 	/* VSX scalar integer-FP conversion */
-	{AXSCVXP, C_VSREG, C_NONE, C_NONE, C_VSREG, 89, 4, 0}, /* vsx scalar integer-fp conversion, xx2-form */
+	{AXSCVSXDDP, C_VSREG, C_NONE, C_NONE, C_VSREG, 89, 4, 0}, /* vsx scalar integer-fp conversion, xx2-form */
 
 	/* VSX vector FP-integer conversion */
-	{AXVCVX, C_VSREG, C_NONE, C_NONE, C_VSREG, 89, 4, 0}, /* vsx vector fp-integer conversion, xx2-form */
+	{AXVCVDPSXDS, C_VSREG, C_NONE, C_NONE, C_VSREG, 89, 4, 0}, /* vsx vector fp-integer conversion, xx2-form */
 
 	/* VSX vector integer-FP conversion */
-	{AXVCVXP, C_VSREG, C_NONE, C_NONE, C_VSREG, 89, 4, 0}, /* vsx vector integer-fp conversion, xx2-form */
+	{AXVCVSXDDP, C_VSREG, C_NONE, C_NONE, C_VSREG, 89, 4, 0}, /* vsx vector integer-fp conversion, xx2-form */
 
 	/* 64-bit special registers */
 	{AMOVD, C_REG, C_NONE, C_NONE, C_SPR, 66, 4, 0},
@@ -1519,13 +1519,11 @@ func buildop(ctxt *obj.Link) {
 		case AVSEL: /* vsel */
 			opset(AVSEL, r0)
 
-		case AVSPLT: /* vspltb, vsplth, vspltw */
-			opset(AVSPLTB, r0)
+		case AVSPLTB: /* vspltb, vsplth, vspltw */
 			opset(AVSPLTH, r0)
 			opset(AVSPLTW, r0)
 
-		case AVSPLTI: /* vspltisb, vspltish, vspltisw */
-			opset(AVSPLTISB, r0)
+		case AVSPLTISB: /* vspltisb, vspltish, vspltisw */
 			opset(AVSPLTISH, r0)
 			opset(AVSPLTISW, r0)
 
@@ -1561,28 +1559,25 @@ func buildop(ctxt *obj.Link) {
 		case ASTXV: /* stxv */
 			opset(ASTXV, r0)
 
-		case ALXS: /* lxsdx  */
+		case ALXSDX: /* lxsdx  */
 			opset(ALXSDX, r0)
 
-		case ASTXS: /* stxsdx */
+		case ASTXSDX: /* stxsdx */
 			opset(ASTXSDX, r0)
 
-		case ALXSI: /* lxsiwax, lxsiwzx  */
-			opset(ALXSIWAX, r0)
+		case ALXSIWAX: /* lxsiwax, lxsiwzx  */
 			opset(ALXSIWZX, r0)
 
-		case ASTXSI: /* stxsiwx */
+		case ASTXSIWX: /* stxsiwx */
 			opset(ASTXSIWX, r0)
 
-		case AMFVSR: /* mfvsrd, mfvsrwz (and extended mnemonics), mfvsrld */
-			opset(AMFVSRD, r0)
+		case AMFVSRD: /* mfvsrd, mfvsrwz (and extended mnemonics), mfvsrld */
 			opset(AMFFPRD, r0)
 			opset(AMFVRD, r0)
 			opset(AMFVSRWZ, r0)
 			opset(AMFVSRLD, r0)
 
-		case AMTVSR: /* mtvsrd, mtvsrwa, mtvsrwz (and extended mnemonics), mtvsrdd, mtvsrws */
-			opset(AMTVSRD, r0)
+		case AMTVSRD: /* mtvsrd, mtvsrwa, mtvsrwz (and extended mnemonics), mtvsrdd, mtvsrws */
 			opset(AMTFPRD, r0)
 			opset(AMTVRD, r0)
 			opset(AMTVSRWA, r0)
@@ -1591,7 +1586,6 @@ func buildop(ctxt *obj.Link) {
 			opset(AMTVSRWS, r0)
 
 		case AXXLAND: /* xxland, xxlandc, xxleqv, xxlnand */
-			opset(AXXLANDQ, r0)
 			opset(AXXLANDC, r0)
 			opset(AXXLEQV, r0)
 			opset(AXXLNAND, r0)
@@ -1605,42 +1599,38 @@ func buildop(ctxt *obj.Link) {
 		case AXXSEL: /* xxsel */
 			opset(AXXSEL, r0)
 
-		case AXXMRG: /* xxmrghw, xxmrglw */
-			opset(AXXMRGHW, r0)
+		case AXXMRGHW: /* xxmrghw, xxmrglw */
 			opset(AXXMRGLW, r0)
 
-		case AXXSPLT: /* xxspltw */
+		case AXXSPLTW: /* xxspltw */
 			opset(AXXSPLTW, r0)
 
 		case AXXPERM: /* xxpermdi */
-			opset(AXXPERMDI, r0)
+			opset(AXXPERM, r0)
 
-		case AXXSI: /* xxsldwi */
+		case AXXSLDWI: /* xxsldwi */
+			opset(AXXPERMDI, r0)
 			opset(AXXSLDWI, r0)
 
-		case AXSCV: /* xscvdpsp, xscvspdp, xscvdpspn, xscvspdpn */
-			opset(AXSCVDPSP, r0)
+		case AXSCVDPSP: /* xscvdpsp, xscvspdp, xscvdpspn, xscvspdpn */
 			opset(AXSCVSPDP, r0)
 			opset(AXSCVDPSPN, r0)
 			opset(AXSCVSPDPN, r0)
 
-		case AXVCV: /* xvcvdpsp, xvcvspdp */
-			opset(AXVCVDPSP, r0)
+		case AXVCVDPSP: /* xvcvdpsp, xvcvspdp */
 			opset(AXVCVSPDP, r0)
 
-		case AXSCVX: /* xscvdpsxds, xscvdpsxws, xscvdpuxds, xscvdpuxws */
-			opset(AXSCVDPSXDS, r0)
+		case AXSCVDPSXDS: /* xscvdpsxds, xscvdpsxws, xscvdpuxds, xscvdpuxws */
 			opset(AXSCVDPSXWS, r0)
 			opset(AXSCVDPUXDS, r0)
 			opset(AXSCVDPUXWS, r0)
 
-		case AXSCVXP: /* xscvsxddp, xscvuxddp, xscvsxdsp, xscvuxdsp */
-			opset(AXSCVSXDDP, r0)
+		case AXSCVSXDDP: /* xscvsxddp, xscvuxddp, xscvsxdsp, xscvuxdsp */
 			opset(AXSCVUXDDP, r0)
 			opset(AXSCVSXDSP, r0)
 			opset(AXSCVUXDSP, r0)
 
-		case AXVCVX: /* xvcvdpsxds, xvcvdpsxws, xvcvdpuxds, xvcvdpuxws, xvcvspsxds, xvcvspsxws, xvcvspuxds, xvcvspuxws */
+		case AXVCVDPSXDS: /* xvcvdpsxds, xvcvdpsxws, xvcvdpuxds, xvcvdpuxws, xvcvspsxds, xvcvspsxws, xvcvspuxds, xvcvspuxws */
 			opset(AXVCVDPSXDS, r0)
 			opset(AXVCVDPSXWS, r0)
 			opset(AXVCVDPUXDS, r0)
@@ -1650,8 +1640,7 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVCVSPUXDS, r0)
 			opset(AXVCVSPUXWS, r0)
 
-		case AXVCVXP: /* xvcvsxddp, xvcvsxwdp, xvcvuxddp, xvcvuxwdp, xvcvsxdsp, xvcvsxwsp, xvcvuxdsp, xvcvuxwsp */
-			opset(AXVCVSXDDP, r0)
+		case AXVCVSXDDP: /* xvcvsxddp, xvcvsxwdp, xvcvuxddp, xvcvuxwdp, xvcvsxdsp, xvcvsxwsp, xvcvuxdsp, xvcvuxwsp */
 			opset(AXVCVSXWDP, r0)
 			opset(AXVCVUXDDP, r0)
 			opset(AXVCVUXWDP, r0)
@@ -4616,7 +4605,7 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 	case AMTVSRWS:
 		return OPVXX1(31, 403, 0) /* mtvsrws - v3.00 */
 
-	case AXXLANDQ:
+	case AXXLAND:
 		return OPVXX3(60, 130, 0) /* xxland - v2.06 */
 	case AXXLANDC:
 		return OPVXX3(60, 138, 0) /* xxlandc - v2.06 */
@@ -4645,6 +4634,8 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 	case AXXSPLTW:
 		return OPVXX2(60, 164, 0) /* xxspltw - v2.06 */
 
+	case AXXPERM:
+		return OPVXX3(60, 26, 0) /* xxperm - v2.06 */
 	case AXXPERMDI:
 		return OPVXX3(60, 10, 0) /* xxpermdi - v2.06 */
 
