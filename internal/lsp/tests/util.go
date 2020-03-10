@@ -428,14 +428,14 @@ func CheckCompletionOrder(want, got []protocol.CompletionItem, strictScores bool
 func DiffSnippets(want string, got *protocol.CompletionItem) string {
 	if want == "" {
 		if got != nil {
-			x := got.TextEdit.(*protocol.TextEdit)
+			x := got.TextEdit
 			return fmt.Sprintf("expected no snippet but got %s", x.NewText)
 		}
 	} else {
 		if got == nil {
 			return fmt.Sprintf("couldn't find completion matching %q", want)
 		}
-		x := got.TextEdit.(*protocol.TextEdit)
+		x := got.TextEdit
 		if want != x.NewText {
 			return fmt.Sprintf("expected snippet %q, got %q", want, x.NewText)
 		}

@@ -674,7 +674,7 @@ type CompletionItem struct {
 	 *
 	 * @since 3.16.0 additional type `InsertReplaceEdit` - Proposed state
 	 */
-	TextEdit interface{}/*TextEdit | InsertReplaceEdit*/ `json:"textEdit,omitempty"`
+	TextEdit *TextEdit/*TextEdit | InsertReplaceEdit*/ `json:"textEdit,omitempty"`
 	/**
 	 * An optional array of additional [text edits](#TextEdit) that are applied when
 	 * selecting this completion. Edits must not overlap (including the same insert position)
