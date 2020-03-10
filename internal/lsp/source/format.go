@@ -80,10 +80,7 @@ func AllImportsFixes(ctx context.Context, snapshot Snapshot, fh FileHandle) (all
 	ctx, done := trace.StartSpan(ctx, "source.AllImportsFixes")
 	defer done()
 
-	_, pgh, err := getParsedFile(ctx, snapshot, fh, NarrowestPackageHandle)
-	if err != nil {
-		return nil, nil, errors.Errorf("getting file for AllImportsFixes: %v", err)
-	}
+	pgh := snapshot.View().Session().Cache().ParseGoHandle(fh, ParseFull)
 	err = snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
 		allFixEdits, editsPerFix, err = computeImportEdits(ctx, snapshot.View(), pgh, opts)
 		return err
