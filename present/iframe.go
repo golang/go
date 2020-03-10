@@ -14,11 +14,13 @@ func init() {
 }
 
 type Iframe struct {
+	Cmd    string // original command from present source
 	URL    string
 	Width  int
 	Height int
 }
 
+func (i Iframe) PresentCmd() string   { return i.Cmd }
 func (i Iframe) TemplateName() string { return "iframe" }
 
 func parseIframe(ctx *Context, fileName string, lineno int, text string) (Elem, error) {
@@ -26,7 +28,7 @@ func parseIframe(ctx *Context, fileName string, lineno int, text string) (Elem, 
 	if len(args) < 2 {
 		return nil, fmt.Errorf("incorrect iframe invocation: %q", text)
 	}
-	i := Iframe{URL: args[1]}
+	i := Iframe{Cmd: text, URL: args[1]}
 	a, err := parseArgs(fileName, lineno, args[2:])
 	if err != nil {
 		return nil, err

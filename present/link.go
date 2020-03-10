@@ -16,10 +16,12 @@ func init() {
 }
 
 type Link struct {
+	Cmd   string // original command from present source
 	URL   *url.URL
 	Label string
 }
 
+func (l Link) PresentCmd() string   { return l.Cmd }
 func (l Link) TemplateName() string { return "link" }
 
 func parseLink(ctx *Context, fileName string, lineno int, text string) (Elem, error) {
@@ -41,7 +43,7 @@ func parseLink(ctx *Context, fileName string, lineno int, text string) (Elem, er
 		}
 		label = strings.Replace(url.String(), scheme, "", 1)
 	}
-	return Link{url, label}, nil
+	return Link{text, url, label}, nil
 }
 
 func renderLink(href, text string) string {

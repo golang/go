@@ -196,6 +196,7 @@ func execTemplate(t *template.Template, name string, data interface{}) (template
 type Text struct {
 	Lines []string
 	Pre   bool
+	Raw   string // original text, for Pre==true
 }
 
 func (t Text) TemplateName() string { return "text" }
@@ -371,9 +372,10 @@ func parseSections(ctx *Context, name string, lines *Lines, number []int) ([]Sec
 				}
 				lines.back()
 				pre := strings.Join(s, "\n")
+				raw := pre
 				pre = strings.Replace(pre, "\t", "    ", -1) // browsers treat tabs badly
 				pre = strings.TrimRightFunc(pre, unicode.IsSpace)
-				e = Text{Lines: []string{pre}, Pre: true}
+				e = Text{Lines: []string{pre}, Pre: true, Raw: raw}
 			case strings.HasPrefix(text, "- "):
 				var b []string
 				for {

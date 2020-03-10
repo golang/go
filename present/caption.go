@@ -11,12 +11,14 @@ func init() {
 }
 
 type Caption struct {
+	Cmd  string // original command from present source
 	Text string
 }
 
+func (c Caption) PresentCmd() string   { return c.Cmd }
 func (c Caption) TemplateName() string { return "caption" }
 
 func parseCaption(_ *Context, _ string, _ int, text string) (Elem, error) {
 	text = strings.TrimSpace(strings.TrimPrefix(text, ".caption"))
-	return Caption{text}, nil
+	return Caption{text, text}, nil
 }

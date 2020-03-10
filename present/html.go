@@ -21,11 +21,13 @@ func parseHTML(ctx *Context, fileName string, lineno int, text string) (Elem, er
 	if err != nil {
 		return nil, err
 	}
-	return HTML{template.HTML(b)}, nil
+	return HTML{text, template.HTML(b)}, nil
 }
 
 type HTML struct {
+	Cmd string // original command from present source
 	template.HTML
 }
 
+func (s HTML) PresentCmd() string   { return s.Cmd }
 func (s HTML) TemplateName() string { return "html" }

@@ -14,12 +14,14 @@ func init() {
 }
 
 type Video struct {
+	Cmd        string // original command from present source
 	URL        string
 	SourceType string
 	Width      int
 	Height     int
 }
 
+func (v Video) PresentCmd() string   { return v.Cmd }
 func (v Video) TemplateName() string { return "video" }
 
 func parseVideo(ctx *Context, fileName string, lineno int, text string) (Elem, error) {
@@ -27,7 +29,7 @@ func parseVideo(ctx *Context, fileName string, lineno int, text string) (Elem, e
 	if len(args) < 3 {
 		return nil, fmt.Errorf("incorrect video invocation: %q", text)
 	}
-	vid := Video{URL: args[1], SourceType: args[2]}
+	vid := Video{Cmd: text, URL: args[1], SourceType: args[2]}
 	a, err := parseArgs(fileName, lineno, args[3:])
 	if err != nil {
 		return nil, err
