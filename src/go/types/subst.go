@@ -73,6 +73,11 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 	case *Signature:
 		tparams = t.tparams
 		defer func() {
+			// If we had an unexpected failure somewhere don't
+			// panic below when asserting res.(*Signature).
+			if res == nil {
+				return
+			}
 			// If the signature doesn't use its type parameters, subst
 			// will not make a copy. In that case, make a copy now (so
 			// we can set tparams to nil w/o causing side-effects).
@@ -80,7 +85,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 				copy := *t
 				res = &copy
 			}
-			// After instantiating a generic signure, it is not generic
+			// After instantiating a generic signature, it is not generic
 			// anymore; we need to set tparams to nil.
 			res.(*Signature).tparams = nil
 		}()

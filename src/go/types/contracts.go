@@ -137,6 +137,9 @@ func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
 
 				// add the instantiated bounds as embedded interfaces to the respective
 				// embedding (outer) contract bound
+				// TODO(gri) This seems incorrect. We must accomodate the situation where
+				//           the embedded interfaces have different type parameters than
+				//           the embedding interfaces.
 				for i, ebound := range eobj.Bounds {
 					index := targs[i].(*TypeParam).index
 					iface := bounds[index].underlying.(*Interface)

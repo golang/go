@@ -4,7 +4,7 @@ so we have a better track record. I only switched to this file in Nov 2019, henc
 ----------------------------------------------------------------------------------------------------
 TODO
 
-- use Underlying() to return a type parameter's bound? investigate!
+- review embedding of contracts with multiple and different numbers of arguments - likely incorrect
 - debug (and error msg) printing of generic instantiated types needs some work
 - improve error messages!
 - use []*TypeParam for tparams in subst? (unclear)
@@ -14,6 +14,7 @@ TODO
 ----------------------------------------------------------------------------------------------------
 KNOWN ISSUES
 
+- 'comparable' predeclared contract is not implemented yet
 - iteration over generic variables doesn't report certain channel errors (see TODOs in code)
 - cannot handle mutually recursive parameterized interfaces using themselves as type bounds
 - contract instantiation requires the type arguments to be type parameters from the type of function

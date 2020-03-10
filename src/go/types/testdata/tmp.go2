@@ -2,9 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package p
+package main
 
-type T(type a, b, c) struct {}
+contract anInt(T) {
+	T int
+}
 
-//func (_ T(_, T(_, _, _), _)) m() {}
-func (_ T(_, int, _)) m() {}
+contract twoInt(K, _) {
+	anInt(K)
+}
+
+func f(type K, V twoInt)()
+
+func _ () {
+	// f(int, int)() // this fails at the moment
+}
