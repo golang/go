@@ -2064,93 +2064,10 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 	// every DIE constructed and convert the symbols.
 }
 
-// dwarfConvertSymbols is invoked around the time that loader.LoadFull
-// runs (converting all loader.Sym's into sym.Symbols); it walks
-// through dwarf DIE objects and rewrites loader.Sym refs to
-// sym.Symbol there as well. This is obviously a temporary function.
-func dwarfConvertSymbols(ctxt *Link) {
-	if !dwarfEnabled(ctxt) {
-		return
-	}
-	if *FlagNewDw2 {
-		// don't convert since we're running phase 2 with loader
-		return
-	}
-	convdies := make(map[*dwarf.DWDie]bool)
-	for _, lib := range ctxt.Library {
-		for _, unit := range lib.Units {
-			convertSymbolsInDIE(ctxt, unit.DWInfo, convdies)
-		}
-	}
-	convertSymbolsInDIE(ctxt, &dwtypes, convdies)
-
-	// Convert over the unit function DIE and abstract function DIE lists.
-	for _, lib := range ctxt.Library {
-		for _, unit := range lib.Units {
-			for _, fd := range unit.FuncDIEs2 {
-				ds := ctxt.loader.Syms[fd]
-				if ds == nil {
-					panic("bad")
-				}
-				unit.FuncDIEs = append(unit.FuncDIEs, ds)
-			}
-			for _, fd := range unit.RangeSyms2 {
-				ds := ctxt.loader.Syms[fd]
-				if ds == nil {
-					panic("bad")
-				}
-				unit.RangeSyms = append(unit.RangeSyms, ds)
-			}
-			for _, fd := range unit.AbsFnDIEs2 {
-				ds := ctxt.loader.Syms[fd]
-				if ds == nil {
-					panic("bad")
-				}
-				unit.AbsFnDIEs = append(unit.AbsFnDIEs, ds)
-			}
-			if unit.Consts2 != 0 {
-				ds := ctxt.loader.Syms[unit.Consts2]
-				if ds == nil {
-					panic("bad")
-				}
-				unit.Consts = ds
-			}
-		}
-	}
-}
-
-func convertSymbolsInDIE(ctxt *Link, die *dwarf.DWDie, convdies map[*dwarf.DWDie]bool) {
-	if die == nil {
-		return
-	}
-	if convdies[die] {
-		return
-	}
-	convdies[die] = true
-	if die.Sym != nil {
-		ds, ok := die.Sym.(dwSym)
-		if !ok {
-			panic("bad die sym field")
-		}
-		symIdx := loader.Sym(ds)
-		if symIdx == 0 {
-			panic("zero loader sym for die")
-		}
-		die.Sym = ctxt.loader.Syms[symIdx]
-	}
-	for a := die.Attr; a != nil; a = a.Link {
-		if attrSym, ok := a.Data.(dwSym); ok {
-			a.Data = ctxt.loader.Syms[loader.Sym(attrSym)]
-		}
-	}
-	convertSymbolsInDIE(ctxt, die.Child, convdies)
-	convertSymbolsInDIE(ctxt, die.Link, convdies)
-}
-
 // dwarfGenerateDebugSyms constructs debug_line, debug_frame, debug_loc,
 // debug_pubnames and debug_pubtypes. It also writes out the debug_info
 // section using symbols generated in dwarfGenerateDebugInfo2.
-func dwarfGenerateDebugSyms2(ctxt *Link) {
+func dwarfGenerateDebugSyms(ctxt *Link) {
 	if !dwarfEnabled(ctxt) {
 		return
 	}
@@ -2294,4 +2211,24 @@ func (d *dwctxt2) dwarfcompress(ctxt *Link) {
 // the package name.
 func (d *dwctxt2) getPkgFromCUSym(s loader.Sym) string {
 	return strings.TrimPrefix(d.ldr.SymName(s), dwarf.InfoPrefix+".pkg.")
+}
+
+// On AIX, the symbol table needs to know where are the compilation units parts
+// for a specific package in each .dw section.
+// dwsectCUSize map will save the size of a compilation unit for
+// the corresponding .dw section.
+// This size can later be retrieved with the index "sectionName.pkgName".
+var dwsectCUSize map[string]uint64
+
+// getDwsectCUSize retrieves the corresponding package size inside the current section.
+func getDwsectCUSize(sname string, pkgname string) uint64 {
+	return dwsectCUSize[sname+"."+pkgname]
+}
+
+func saveDwsectCUSize(sname string, pkgname string, size uint64) {
+	dwsectCUSize[sname+"."+pkgname] = size
+}
+
+func addDwsectCUSize(sname string, pkgname string, size uint64) {
+	dwsectCUSize[sname+"."+pkgname] += size
 }
