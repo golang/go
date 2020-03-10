@@ -19,6 +19,11 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/renderer/html"
+	"github.com/yuin/goldmark/text"
 )
 
 var (
@@ -68,6 +73,7 @@ func Register(name string, parser ParseFunc) {
 type Doc struct {
 	Title      string
 	Subtitle   string
+	Summary    string
 	Time       time.Time
 	Authors    []Author
 	TitleNotes []string
@@ -98,6 +104,7 @@ func (p *Author) TextElem() (elems []Elem) {
 type Section struct {
 	Number  []int
 	Title   string
+	ID      string // HTML anchor ID
 	Elem    []Elem
 	Notes   []string
 	Classes []string
@@ -210,8 +217,9 @@ func (l List) TemplateName() string { return "list" }
 
 // Lines is a helper for parsing line-based input.
 type Lines struct {
-	line int // 0 indexed, so has 1-indexed number of last line returned
-	text []string
+	line    int // 0 indexed, so has 1-indexed number of last line returned
+	text    []string
+	comment string
 }
 
 func readLines(r io.Reader) (*Lines, error) {
@@ -223,7 +231,7 @@ func readLines(r io.Reader) (*Lines, error) {
 	if err := s.Err(); err != nil {
 		return nil, err
 	}
-	return &Lines{0, lines}, nil
+	return &Lines{0, lines, "#"}, nil
 }
 
 func (l *Lines) next() (text string, ok bool) {
@@ -234,8 +242,8 @@ func (l *Lines) next() (text string, ok bool) {
 			return "", false
 		}
 		text = l.text[current]
-		// Lines starting with # are comments.
-		if len(text) == 0 || text[0] != '#' {
+		// Lines starting with l.comment are comments.
+		if l.comment == "" || !strings.HasPrefix(text, l.comment) {
 			ok = true
 			break
 		}
@@ -282,8 +290,27 @@ func (ctx *Context) Parse(r io.Reader, name string, mode ParseMode) (*Doc, error
 		return nil, err
 	}
 
+	// Detect Markdown-enabled vs legacy present file.
+	// Markdown-enabled files have a title line beginning with "# "
+	// (like preprocessed C files of yore).
+	isMarkdown := false
 	for i := lines.line; i < len(lines.text); i++ {
-		if strings.HasPrefix(lines.text[i], "*") {
+		line := lines.text[i]
+		if line == "" {
+			continue
+		}
+		isMarkdown = strings.HasPrefix(line, "# ")
+		break
+	}
+
+	sectionPrefix := "*"
+	if isMarkdown {
+		sectionPrefix = "##"
+		lines.comment = "//"
+	}
+
+	for i := lines.line; i < len(lines.text); i++ {
+		if strings.HasPrefix(lines.text[i], sectionPrefix) {
 			break
 		}
 
@@ -292,7 +319,7 @@ func (ctx *Context) Parse(r io.Reader, name string, mode ParseMode) (*Doc, error
 		}
 	}
 
-	err = parseHeader(doc, lines)
+	err = parseHeader(doc, isMarkdown, lines)
 	if err != nil {
 		return nil, err
 	}
@@ -301,13 +328,15 @@ func (ctx *Context) Parse(r io.Reader, name string, mode ParseMode) (*Doc, error
 	}
 
 	// Authors
-	if doc.Authors, err = parseAuthors(name, lines); err != nil {
+	if doc.Authors, err = parseAuthors(name, sectionPrefix, lines); err != nil {
 		return nil, err
 	}
+
 	// Sections
-	if doc.Sections, err = parseSections(ctx, name, lines, []int{}); err != nil {
+	if doc.Sections, err = parseSections(ctx, name, sectionPrefix, lines, []int{}); err != nil {
 		return nil, err
 	}
+
 	return doc, nil
 }
 
@@ -324,12 +353,13 @@ var isHeading = regexp.MustCompile(`^\*+ `)
 // lesserHeading returns true if text is a heading of a lesser or equal level
 // than that denoted by prefix.
 func lesserHeading(text, prefix string) bool {
-	return isHeading.MatchString(text) && !strings.HasPrefix(text, prefix+"*")
+	return isHeading.MatchString(text) && !strings.HasPrefix(text, prefix+prefix[:1])
 }
 
 // parseSections parses Sections from lines for the section level indicated by
 // number (a nil number indicates the top level).
-func parseSections(ctx *Context, name string, lines *Lines, number []int) ([]Section, error) {
+func parseSections(ctx *Context, name, prefix string, lines *Lines, number []int) ([]Section, error) {
+	isMarkdown := prefix[0] == '#'
 	var sections []Section
 	for i := 1; ; i++ {
 		// Next non-empty line is title.
@@ -340,21 +370,32 @@ func parseSections(ctx *Context, name string, lines *Lines, number []int) ([]Sec
 		if !ok {
 			break
 		}
-		prefix := strings.Repeat("*", len(number)+1)
-		if !strings.HasPrefix(text, prefix+" ") {
+		if text != prefix && !strings.HasPrefix(text, prefix+" ") {
 			lines.back()
 			break
 		}
+		// Markdown sections can end in {#id} to set the HTML anchor for the section.
+		// This is nicer than the default #TOC_1_2-style anchor.
+		title := strings.TrimSpace(text[len(prefix):])
+		id := ""
+		if isMarkdown && strings.HasSuffix(title, "}") {
+			j := strings.LastIndex(title, "{#")
+			if j >= 0 {
+				id = title[j+2 : len(title)-1]
+				title = strings.TrimSpace(title[:j])
+			}
+		}
 		section := Section{
 			Number: append(append([]int{}, number...), i),
-			Title:  text[len(prefix)+1:],
+			Title:  title,
+			ID:     id,
 		}
 		text, ok = lines.nextNonEmpty()
 		for ok && !lesserHeading(text, prefix) {
 			var e Elem
 			r, _ := utf8.DecodeRuneInString(text)
 			switch {
-			case unicode.IsSpace(r):
+			case !isMarkdown && unicode.IsSpace(r):
 				i := strings.IndexFunc(text, func(r rune) bool {
 					return !unicode.IsSpace(r)
 				})
@@ -376,7 +417,7 @@ func parseSections(ctx *Context, name string, lines *Lines, number []int) ([]Sec
 				pre = strings.Replace(pre, "\t", "    ", -1) // browsers treat tabs badly
 				pre = strings.TrimRightFunc(pre, unicode.IsSpace)
 				e = Text{Lines: []string{pre}, Pre: true, Raw: raw}
-			case strings.HasPrefix(text, "- "):
+			case !isMarkdown && strings.HasPrefix(text, "- "):
 				var b []string
 				for {
 					if strings.HasPrefix(text, "- ") {
@@ -394,9 +435,9 @@ func parseSections(ctx *Context, name string, lines *Lines, number []int) ([]Sec
 				e = List{Bullet: b}
 			case isSpeakerNote(text):
 				section.Notes = append(section.Notes, text[2:])
-			case strings.HasPrefix(text, prefix+"* "):
+			case strings.HasPrefix(text, prefix+prefix[:1]+" "):
 				lines.back()
-				subsecs, err := parseSections(ctx, name, lines, section.Number)
+				subsecs, err := parseSections(ctx, name, prefix+prefix[:1], lines, section.Number)
 				if err != nil {
 					return nil, err
 				}
@@ -420,20 +461,46 @@ func parseSections(ctx *Context, name string, lines *Lines, number []int) ([]Sec
 				}
 				e = t
 			default:
-				var l []string
+				var block []string
 				for ok && strings.TrimSpace(text) != "" {
-					if text[0] == '.' { // Command breaks text block.
+					// Command breaks text block.
+					// Section heading breaks text block in markdown.
+					if text[0] == '.' || isMarkdown && text[0] == '#' {
 						lines.back()
 						break
 					}
 					if strings.HasPrefix(text, `\.`) { // Backslash escapes initial period.
 						text = text[1:]
 					}
-					l = append(l, text)
+					block = append(block, text)
 					text, ok = lines.next()
 				}
-				if len(l) > 0 {
-					e = Text{Lines: l}
+				if len(block) == 0 {
+					break
+				}
+				if isMarkdown {
+					// Replace all leading tabs with 4 spaces,
+					// which render better in code blocks.
+					// CommonMark defines that for parsing the structure of the file
+					// a tab is equivalent to 4 spaces, so this change won't
+					// affect the later parsing at all.
+					// An alternative would be to apply this to code blocks after parsing,
+					// at the same time that we update <a> targets, but that turns out
+					// to be quite difficult to modify in the AST.
+					for i, line := range block {
+						if len(line) > 0 && line[0] == '\t' {
+							short := strings.TrimLeft(line, "\t")
+							line = strings.Repeat("    ", len(line)-len(short)) + short
+							block[i] = line
+						}
+					}
+					html, err := renderMarkdown([]byte(strings.Join(block, "\n")))
+					if err != nil {
+						return nil, err
+					}
+					e = HTML{HTML: html}
+				} else {
+					e = Text{Lines: block}
 				}
 			}
 			if e != nil {
@@ -449,13 +516,17 @@ func parseSections(ctx *Context, name string, lines *Lines, number []int) ([]Sec
 	return sections, nil
 }
 
-func parseHeader(doc *Doc, lines *Lines) error {
+func parseHeader(doc *Doc, isMarkdown bool, lines *Lines) error {
 	var ok bool
 	// First non-empty line starts header.
 	doc.Title, ok = lines.nextNonEmpty()
 	if !ok {
 		return errors.New("unexpected EOF; expected title")
 	}
+	if isMarkdown {
+		doc.Title = strings.TrimSpace(strings.TrimPrefix(doc.Title, "#"))
+	}
+
 	for {
 		text, ok := lines.next()
 		if !ok {
@@ -467,13 +538,14 @@ func parseHeader(doc *Doc, lines *Lines) error {
 		if isSpeakerNote(text) {
 			continue
 		}
-		const tagPrefix = "Tags:"
-		if strings.HasPrefix(text, tagPrefix) {
-			tags := strings.Split(text[len(tagPrefix):], ",")
+		if strings.HasPrefix(text, "Tags:") {
+			tags := strings.Split(text[len("Tags:"):], ",")
 			for i := range tags {
 				tags[i] = strings.TrimSpace(tags[i])
 			}
 			doc.Tags = append(doc.Tags, tags...)
+		} else if strings.HasPrefix(text, "Summary:") {
+			doc.Summary = strings.TrimSpace(text[len("Summary:"):])
 		} else if t, ok := parseTime(text); ok {
 			doc.Time = t
 		} else if doc.Subtitle == "" {
@@ -485,7 +557,7 @@ func parseHeader(doc *Doc, lines *Lines) error {
 	return nil
 }
 
-func parseAuthors(name string, lines *Lines) (authors []Author, err error) {
+func parseAuthors(name, sectionPrefix string, lines *Lines) (authors []Author, err error) {
 	// This grammar demarcates authors with blanks.
 
 	// Skip blank lines.
@@ -502,7 +574,7 @@ func parseAuthors(name string, lines *Lines) (authors []Author, err error) {
 		}
 
 		// If we find a section heading, we're done.
-		if strings.HasPrefix(text, "* ") {
+		if strings.HasPrefix(text, sectionPrefix) {
 			lines.back()
 			break
 		}
@@ -575,4 +647,28 @@ func parseTime(text string) (t time.Time, ok bool) {
 
 func isSpeakerNote(s string) bool {
 	return strings.HasPrefix(s, ": ")
+}
+
+func renderMarkdown(input []byte) (template.HTML, error) {
+	md := goldmark.New(goldmark.WithRendererOptions(html.WithUnsafe()))
+	reader := text.NewReader(input)
+	doc := md.Parser().Parse(reader)
+	fixupMarkdown(doc)
+	var b strings.Builder
+	if err := md.Renderer().Render(&b, input, doc); err != nil {
+		return "", err
+	}
+	return template.HTML(b.String()), nil
+}
+
+func fixupMarkdown(n ast.Node) {
+	ast.Walk(n, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if entering {
+			switch n := n.(type) {
+			case *ast.Link:
+				n.SetAttributeString("target", "_blank")
+			}
+		}
+		return ast.WalkContinue, nil
+	})
 }

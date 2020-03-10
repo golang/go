@@ -3,23 +3,26 @@
 // license that can be found in the LICENSE file.
 
 /*
-The present file format
+Package present implements parsing and rendering of present files,
+which can be slide presentations as in golang.org/x/tools/cmd/present
+or articles as in golang.org/x/blog (the Go blog).
 
-Present files have the following format.  The first non-blank non-comment
-line is the title, so the header looks like
+File Format
 
-	Title of document
+Present files begin with a header giving the title of the document
+and other metadata, which looks like:
+
+	# Title of document
 	Subtitle of document
 	15:04 2 Jan 2006
 	Tags: foo, bar, baz
-	<blank line>
-	Author Name
-	Job title, Company
-	joe@example.com
-	http://url/
-	@twitter_name
+	Summary: This is a great document you want to read.
 
-The subtitle, date, and tags lines are optional.
+The "# " prefix before the title indicates that this is
+a Markdown-enabled present file: it uses
+Markdown for text markup in the body of the file.
+If the "# " prefix is missing, the file uses
+legacy present markup, described below.
 
 The date line may be written without a time:
 	2 Jan 2006
@@ -28,15 +31,126 @@ In this case, the time will be interpreted as 10am UTC on that date.
 The tags line is a comma-separated list of tags that may be used to categorize
 the document.
 
-The author section may contain a mixture of text, twitter names, and links.
+The summary line gives a short summary used in blog feeds.
+
+Only the title is required;
+the subtitle, date, tags, and summary lines are optional.
+In Markdown-enabled present, the summary defaults to being empty.
+In legacy present, the summary defaults to the first paragraph of text.
+
+After the header come zero or more author blocks, like this:
+
+	Author Name
+	Job title, Company
+	joe@example.com
+	https://url/
+	@twitter_name
+
+The first line of the author block is conventionally the author name.
+Otherwise, the author section may contain a mixture of text, twitter names, and links.
 For slide presentations, only the plain text lines will be displayed on the
 first slide.
 
-Multiple presenters may be specified, separated by a blank line.
+If multiple author blocks are listed, each new block must be preceded
+by its own blank line.
 
-After that come slides/sections, each after a blank line:
+After the author blocks come the presentation slides or article sections,
+which can in turn have subsections.
+In Markdown-enabled present files, each slide or section begins with a "##" header line,
+subsections begin with a "###" header line, and so on.
+In legacy present files, each slide or section begins with a "*" header line,
+subsections begin with a "**" header line, and so on.
 
-	* Title of slide or section (must have asterisk)
+In addition to the marked-up text in a section (or subsection),
+a present file can contain present command invocations, each of which begins
+with a dot, as in:
+
+	.code x.go /^func main/,/^}/
+	.play y.go
+	.image image.jpg
+	.background image.jpg
+	.iframe https://foo
+	.link https://foo label
+	.html file.html
+	.caption _Gopher_ by [[https://twitter.com/reneefrench][Renée French]]
+
+Other than the commands, the text in a section is interpreted
+either as Markdown or as legacy present markup.
+
+Markdown Syntax
+
+Markdown typically means the generic name for a family of similar markup languages.
+The specific variant used in present is CommonMark.
+See https://commonmark.org/help/tutorial/ for a quick tutorial.
+
+In Markdown-enabled present,
+section headings can end in {#name} to set the HTML anchor ID for the heading to "name".
+
+Lines beginning with "//" (outside of code blocks, of course)
+are treated as present comments and have no effect.
+
+Lines beginning with ": " are treated as speaker notes, described below.
+
+Example:
+
+	# Title of Talk
+
+	My Name
+	9 Mar 2020
+	me@example.com
+
+	## Title of Slide or Section (must begin with ##)
+
+	Some Text
+
+	### Subsection {#anchor}
+
+	- bullets
+	- more bullets
+	- a bullet continued
+	  on the next line
+
+	#### Sub-subsection
+
+	Some More text
+
+		Preformatted text (code block)
+		is indented (by one tab, or four spaces)
+
+	Further Text, including command invocations.
+
+	## Section 2: Example formatting {#fmt}
+
+	Formatting:
+
+	_italic_
+	// A comment that is completely ignored.
+	: Speaker notes.
+	**bold**
+	`program`
+	Markup—_especially italic text_—can easily be overused.
+	_Why use scoped\_ptr_? Use plain **\*ptr** instead.
+
+	Visit [the Go home page](https://golang.org/).
+
+Legacy Present Syntax
+
+Compared to Markdown,
+in legacy present
+slides/sections use "*" instead of "##",
+whole-line comments begin with "#" instead of "//",
+bullet lists can only contain single (possibly wrapped) text lines,
+and the font styling and link syntaxes are subtly different.
+
+Example:
+
+	Title of Talk
+
+	My Name
+	1 Jan 2013
+	me@example.com
+
+	* Title of Slide or Section (must begin with *)
 
 	Some Text
 
@@ -45,35 +159,28 @@ After that come slides/sections, each after a blank line:
 	- bullets
 	- more bullets
 	- a bullet continued
-	  on the next line
+	  on the next line (indented at least one space)
 
 	*** Sub-subsection
 
 	Some More text
 
-	  Preformatted text
+	  Preformatted text (code block)
 	  is indented (however you like)
 
-	Further Text, including invocations like:
+	Further Text, including command invocations.
 
-	.code x.go /^func main/,/^}/
-	.play y.go
-	.image image.jpg
-	.background image.jpg
-	.iframe http://foo
-	.link http://foo label
-	.html file.html
-	.caption _Gopher_ by [[https://www.instagram.com/reneefrench/][Renée French]]
+	* Section 2: Example formatting
 
-	Again, more text
+	Formatting:
 
-Blank lines are OK (not mandatory) after the title and after the
-text.  Text, bullets, and .code etc. are all optional; title is
-not.
+	_italic_
+	*bold*
+	`program`
+	Markup—_especially_italic_text_—can easily be overused.
+	_Why_use_scoped__ptr_? Use plain ***ptr* instead.
 
-Lines starting with # in column 1 are commentary.
-
-Fonts:
+	Visit [[https://golang.org][the Go home page]].
 
 Within the input for plain text or lists, text bracketed by font
 markers will be presented in italic, bold, or program font.
@@ -86,27 +193,21 @@ There must be no spaces between markers. Within marked text,
 a single marker character becomes a space and a doubled single
 marker quotes the marker character.
 
-	_italic_
-	*bold*
-	`program`
-	Markup—_especially_italic_text_—can easily be overused.
-	_Why_use_scoped__ptr_? Use plain ***ptr* instead.
-
-Inline links:
-
 Links can be included in any text with the form [[url][label]], or
 [[url]] to use the URL itself as the label.
 
-Functions:
+Command Invocations
 
-A number of template functions are available through invocations
+A number of special commands are available through invocations
 in the input text. Each such invocation contains a period as the
 first character on the line, followed immediately by the name of
 the function, followed by any arguments. A typical invocation might
 be
+
 	.play demo.go /^func show/,/^}/
+
 (except that the ".play" must be at the beginning of the line and
-not be indented like this.)
+not be indented as in this comment.)
 
 Here follows a description of the functions:
 
@@ -165,7 +266,7 @@ Create a hyperlink. The syntax is 1 or 2 space-separated arguments.
 The first argument is always the HTTP URL.  If there is a second
 argument, it is the text label to display for this link.
 
-	.link http://golang.org golang.org
+	.link https://golang.org golang.org
 
 image:
 
@@ -179,7 +280,6 @@ Replacing a dimension argument with the underscore parameter
 preserves the aspect ratio of the image when scaling.
 
 	.image images/betsy.jpg 100 200
-
 	.image images/janet.jpg _ 300
 
 video:
@@ -212,7 +312,7 @@ The template uses the function "caption" to inject figure captions.
 The text after ".caption" is embedded in a figcaption element after
 processing styling and links as in standard text lines.
 
-	.caption _Gopher_ by [[http://www.reneefrench.com][Renée French]]
+	.caption _Gopher_ by [[https://twitter.com/reneefrench][Renée French]]
 
 iframe:
 
@@ -228,35 +328,29 @@ It is your responsibility to make sure the included HTML is valid and safe.
 
 	.html file.html
 
-Presenter notes:
+Presenter Notes
 
-Presenter notes may be enabled by appending the "-notes" flag when you run
-your "present" binary.
+Lines that begin with ": " are treated as presenter notes,
+in both Markdown and legacy present syntax.
+By default, presenter notes are collected but ignored.
 
-This will allow you to open a second window by pressing 'N' from your browser
-displaying your slides. The second window is completely synced with your main
-window, except that presenter notes are only visible on the second window.
-
-Lines that begin with ": " are treated as presenter notes.
-
-	* Title of slide
-
-	Some Text
-
-	: Presenter notes (first paragraph)
-	: Presenter notes (subsequent paragraph(s))
+When running the present command with -notes,
+typing 'N' in your browser displaying your slides
+will create a second window displaying the notes.
+The second window is completely synced with the main
+window, except that presenter notes are only visible in the second window.
 
 Notes may appear anywhere within the slide text. For example:
 
 	* Title of slide
 
+	Some text.
+
 	: Presenter notes (first paragraph)
 
-	Some Text
+	Some more text.
 
 	: Presenter notes (subsequent paragraph(s))
-
-This has the same result as the example above.
 
 */
 package present // import "golang.org/x/tools/present"
