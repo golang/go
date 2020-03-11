@@ -174,7 +174,7 @@ type Arch struct {
 	Asmb2 func(*Link)
 
 	Elfreloc1   func(*Link, *sym.Reloc, int64) bool
-	Elfsetupplt func(*Link, *Target, *ArchSyms)
+	Elfsetupplt func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
 	Gentext     func(*Link)
 	Machoreloc1 func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
 	PEreloc1    func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool

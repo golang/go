@@ -34,6 +34,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"fmt"
@@ -711,30 +712,25 @@ func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym
 	return -1
 }
 
-func elfsetupplt(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms) {
-	plt := ctxt.Syms.Lookup(".plt", 0)
-	gotplt := ctxt.Syms.Lookup(".got.plt", 0)
-	if plt.Size == 0 {
+func elfsetupplt(ctxt *ld.Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {
+	if plt.Size() == 0 {
 		// stp     x16, x30, [sp, #-16]!
 		// identifying information
 		plt.AddUint32(ctxt.Arch, 0xa9bf7bf0)
 
 		// the following two instructions (adrp + ldr) load *got[2] into x17
 		// adrp    x16, &got[0]
-		plt.AddAddrPlus4(gotplt, 16)
-		plt.SetUint32(ctxt.Arch, plt.Size-4, 0x90000010)
-		plt.R[len(plt.R)-1].Type = objabi.R_ARM64_GOT
+		plt.AddSymRef(ctxt.Arch, gotplt.Sym(), 16, objabi.R_ARM64_GOT, 4)
+		plt.SetUint32(ctxt.Arch, plt.Size()-4, 0x90000010)
 
 		// <imm> is the offset value of &got[2] to &got[0], the same below
 		// ldr     x17, [x16, <imm>]
-		plt.AddAddrPlus4(gotplt, 16)
-		plt.SetUint32(ctxt.Arch, plt.Size-4, 0xf9400211)
-		plt.R[len(plt.R)-1].Type = objabi.R_ARM64_GOT
+		plt.AddSymRef(ctxt.Arch, gotplt.Sym(), 16, objabi.R_ARM64_GOT, 4)
+		plt.SetUint32(ctxt.Arch, plt.Size()-4, 0xf9400211)
 
 		// add     x16, x16, <imm>
-		plt.AddAddrPlus4(gotplt, 16)
-		plt.SetUint32(ctxt.Arch, plt.Size-4, 0x91000210)
-		plt.R[len(plt.R)-1].Type = objabi.R_ARM64_PCREL
+		plt.AddSymRef(ctxt.Arch, gotplt.Sym(), 16, objabi.R_ARM64_PCREL, 4)
+		plt.SetUint32(ctxt.Arch, plt.Size()-4, 0x91000210)
 
 		// br      x17
 		plt.AddUint32(ctxt.Arch, 0xd61f0220)
@@ -745,10 +741,10 @@ func elfsetupplt(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms) {
 		plt.AddUint32(ctxt.Arch, 0xd503201f)
 
 		// check gotplt.size == 0
-		if gotplt.Size != 0 {
-			ld.Errorf(gotplt, "got.plt is not empty at the very beginning")
+		if gotplt.Size() != 0 {
+			ctxt.Errorf(gotplt.Sym(), "got.plt is not empty at the very beginning")
 		}
-		gotplt.AddAddrPlus(ctxt.Arch, ctxt.Syms.Lookup(".dynamic", 0), 0)
+		gotplt.AddAddrPlus(ctxt.Arch, dynamic, 0)
 
 		gotplt.AddUint64(ctxt.Arch, 0)
 		gotplt.AddUint64(ctxt.Arch, 0)
@@ -767,7 +763,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		gotplt := ctxt.Syms.Lookup(".got.plt", 0)
 		rela := ctxt.Syms.Lookup(".rela.plt", 0)
 		if plt.Size == 0 {
-			elfsetupplt(ctxt, &ctxt.Target, &ctxt.ArchSyms)
+			panic("plt is not set up")
 		}
 
 		// adrp    x16, &got.plt[0]

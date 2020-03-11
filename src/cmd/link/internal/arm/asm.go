@@ -34,6 +34,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"fmt"
@@ -300,10 +301,8 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	return true
 }
 
-func elfsetupplt(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms) {
-	plt := ctxt.Syms.Lookup(".plt", 0)
-	got := ctxt.Syms.Lookup(".got.plt", 0)
-	if plt.Size == 0 {
+func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
+	if plt.Size() == 0 {
 		// str lr, [sp, #-4]!
 		plt.AddUint32(ctxt.Arch, 0xe52de004)
 
@@ -317,7 +316,7 @@ func elfsetupplt(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms) {
 		plt.AddUint32(ctxt.Arch, 0xe5bef008)
 
 		// .word &GLOBAL_OFFSET_TABLE[0] - .
-		plt.AddPCRelPlus(ctxt.Arch, got, 4)
+		plt.AddPCRelPlus(ctxt.Arch, got.Sym(), 4)
 
 		// the first .plt entry requires 3 .plt.got entries
 		got.AddUint32(ctxt.Arch, 0)
@@ -697,7 +696,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		got := ctxt.Syms.Lookup(".got.plt", 0)
 		rel := ctxt.Syms.Lookup(".rel.plt", 0)
 		if plt.Size == 0 {
-			elfsetupplt(ctxt, &ctxt.Target, &ctxt.ArchSyms)
+			panic("plt is not set up")
 		}
 
 		// .got entry

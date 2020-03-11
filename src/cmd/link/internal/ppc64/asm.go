@@ -34,6 +34,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"encoding/binary"
@@ -498,14 +499,13 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	return true
 }
 
-func elfsetupplt(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms) {
-	plt := ctxt.Syms.Lookup(".plt", 0)
-	if plt.Size == 0 {
+func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
+	if plt.Size() == 0 {
 		// The dynamic linker stores the address of the
 		// dynamic resolver and the DSO identifier in the two
 		// doublewords at the beginning of the .plt section
 		// before the PLT array. Reserve space for these.
-		plt.Size = 16
+		plt.SetSize(16)
 	}
 }
 
@@ -949,7 +949,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		plt := ctxt.Syms.Lookup(".plt", 0)
 		rela := ctxt.Syms.Lookup(".rela.plt", 0)
 		if plt.Size == 0 {
-			elfsetupplt(ctxt, &ctxt.Target, &ctxt.ArchSyms)
+			panic("plt is not set up")
 		}
 
 		// Create the glink resolver if necessary

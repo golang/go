@@ -112,6 +112,14 @@ func (t *Target) IsSolaris() bool {
 	return t.HeadType == objabi.Hsolaris
 }
 
+func (t *Target) IsNetbsd() bool {
+	return t.HeadType == objabi.Hnetbsd
+}
+
+func (t *Target) IsOpenbsd() bool {
+	return t.HeadType == objabi.Hopenbsd
+}
+
 //
 // MISC
 //

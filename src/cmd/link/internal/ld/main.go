@@ -250,7 +250,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("dostkcheck")
 	ctxt.dostkcheck()
 
-	if !ctxt.IsDarwin() {
+	if !ctxt.IsELF && !ctxt.IsDarwin() {
 		bench.Start("loadlibfull")
 		ctxt.loadlibfull() // XXX do it here for now
 	}
@@ -258,6 +258,8 @@ func Main(arch *sys.Arch, theArch Arch) {
 	if ctxt.IsELF {
 		bench.Start("doelf")
 		ctxt.doelf()
+		bench.Start("loadlibfull")
+		ctxt.loadlibfull() // XXX do it here for now
 	}
 	if ctxt.IsDarwin() {
 		bench.Start("domacho")
