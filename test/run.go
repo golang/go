@@ -463,7 +463,7 @@ func goGcflags() string {
 }
 
 func goGcflagsIsEmpty() bool {
-       return "" == os.Getenv("GO_GCFLAGS")
+	return "" == os.Getenv("GO_GCFLAGS")
 }
 
 // run runs a test.

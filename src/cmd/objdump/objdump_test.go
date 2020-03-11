@@ -106,8 +106,11 @@ func testDisasm(t *testing.T, printCode bool, flags ...string) {
 	hello := filepath.Join(tmp, fmt.Sprintf("hello-%x.exe", hash))
 	args := []string{"build", "-o", hello}
 	args = append(args, flags...)
-	args = append(args, "testdata/fmthello.go")
-	out, err := exec.Command(testenv.GoToolPath(t), args...).CombinedOutput()
+	args = append(args, "fmthello.go")
+	cmd := exec.Command(testenv.GoToolPath(t), args...)
+	cmd.Dir = "testdata" // "Bad line" bug #36683 is sensitive to being run in the source directory
+	t.Logf("Running %v", cmd.Args)
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go build fmthello.go: %v\n%s", err, out)
 	}
@@ -139,7 +142,11 @@ func testDisasm(t *testing.T, printCode bool, flags ...string) {
 		args = append([]string{"-S"}, args...)
 	}
 
-	out, err = exec.Command(exe, args...).CombinedOutput()
+	cmd = exec.Command(exe, args...)
+	cmd.Dir = "testdata" // "Bad line" bug #36683 is sensitive to being run in the source directory
+	out, err = cmd.CombinedOutput()
+	t.Logf("Running %v", cmd.Args)
+
 	if err != nil {
 		t.Fatalf("objdump fmthello.exe: %v\n%s", err, out)
 	}
