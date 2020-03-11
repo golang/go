@@ -90,13 +90,13 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 		return ctx.Err()
 	}
 
-	event.Print(ctx, "go/packages.Load", event.TagOf("snapshot", s.ID()), event.TagOf("query", query), event.TagOf("packages", len(pkgs)))
+	event.Print(ctx, "go/packages.Load", tag.Snapshot.Of(s.ID()), tag.Query.Of(query), tag.PackageCount.Of(len(pkgs)))
 	if len(pkgs) == 0 {
 		return err
 	}
 	for _, pkg := range pkgs {
 		if !containsDir || s.view.Options().VerboseOutput {
-			event.Print(ctx, "go/packages.Load", event.TagOf("snapshot", s.ID()), event.TagOf("package", pkg.PkgPath), event.TagOf("files", pkg.CompiledGoFiles))
+			event.Print(ctx, "go/packages.Load", tag.Snapshot.Of(s.ID()), tag.PackagePath.Of(pkg.PkgPath), tag.Files.Of(pkg.CompiledGoFiles))
 		}
 		// Ignore packages with no sources, since we will never be able to
 		// correctly invalidate that metadata.

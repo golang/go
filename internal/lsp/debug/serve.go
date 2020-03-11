@@ -27,6 +27,7 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/event"
@@ -462,7 +463,7 @@ func (i *Instance) Serve(ctx context.Context) error {
 	if strings.HasSuffix(i.DebugAddress, ":0") {
 		log.Printf("debug server listening on port %d", port)
 	}
-	event.Print(ctx, "Debug serving", event.TagOf("Port", port))
+	event.Print(ctx, "Debug serving", tag.Port.Of(port))
 	go func() {
 		mux := http.NewServeMux()
 		mux.HandleFunc("/", render(mainTmpl, func(*http.Request) interface{} { return i }))

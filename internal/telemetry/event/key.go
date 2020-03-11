@@ -17,12 +17,6 @@ type Key struct {
 	Description string
 }
 
-// TagOf returns a Tag for a key and value.
-// This is a trivial helper that makes common logging easier to read.
-func TagOf(name string, value interface{}) Tag {
-	return Tag{Key: &Key{Name: name}, Value: value}
-}
-
 // Of creates a new Tag with this key and the supplied value.
 // You can use this when building a tag list.
 func (k *Key) Of(v interface{}) Tag {

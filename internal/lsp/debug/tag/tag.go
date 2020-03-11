@@ -26,6 +26,14 @@ var (
 	Query         = &event.Key{Name: "query"}
 	Snapshot      = &event.Key{Name: "snapshot"}
 	Operation     = &event.Key{Name: "operation"}
+
+	Position     = &event.Key{Name: "position"}
+	Category     = &event.Key{Name: "category"}
+	PackageCount = &event.Key{Name: "packages"}
+	Files        = &event.Key{Name: "files"}
+	Port         = &event.Key{Name: "port"}
+	Type         = &event.Key{Name: "type"}
+	HoverKind    = &event.Key{Name: "hoverkind"}
 )
 
 var (

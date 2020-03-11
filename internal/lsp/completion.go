@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/telemetry/event"
@@ -29,7 +30,7 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	}
 
 	if err != nil {
-		event.Print(ctx, "no completions found", event.TagOf("At", params.Position), event.TagOf("Failure", err))
+		event.Print(ctx, "no completions found", tag.Position.Of(params.Position), event.Err.Of("Failure"))
 	}
 	if candidates == nil {
 		return &protocol.CompletionList{

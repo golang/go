@@ -343,7 +343,7 @@ func runAnalysis(ctx context.Context, fset *token.FileSet, analyzer *analysis.An
 	for _, diag := range diagnostics {
 		srcErr, err := sourceError(ctx, fset, pkg, diag)
 		if err != nil {
-			event.Error(ctx, "unable to compute analysis error position", err, event.TagOf("category", diag.Category), tag.Package.Of(pkg.ID()))
+			event.Error(ctx, "unable to compute analysis error position", err, tag.Category.Of(diag.Category), tag.Package.Of(pkg.ID()))
 			continue
 		}
 		data.diagnostics = append(data.diagnostics, srcErr)

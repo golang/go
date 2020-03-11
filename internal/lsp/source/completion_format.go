@@ -293,7 +293,7 @@ func formatFieldList(ctx context.Context, v View, list *ast.FieldList) ([]string
 		cfg := printer.Config{Mode: printer.UseSpaces | printer.TabIndent, Tabwidth: 4}
 		b := &bytes.Buffer{}
 		if err := cfg.Fprint(b, v.Session().Cache().FileSet(), p.Type); err != nil {
-			event.Error(ctx, "unable to print type", nil, event.TagOf("Type", p.Type))
+			event.Error(ctx, "unable to print type", nil, tag.Type.Of(p.Type))
 			continue
 		}
 		typ := replacer.Replace(b.String())
