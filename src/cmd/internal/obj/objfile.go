@@ -219,7 +219,9 @@ func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, 
 		if s.WasInlined() {
 			s.Func.dwarfAbsFnSym = ctxt.DwFixups.AbsFuncDwarfSym(s)
 		}
-		s.Func.dwarfDebugLinesSym = ctxt.LookupDerived(s, dwarf.DebugLinesPrefix+s.Name)
+		s.Func.dwarfDebugLinesSym = &LSym{
+			Type: objabi.SDWARFLINES,
+		}
 	}
 	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym, s.Func.dwarfAbsFnSym, s.Func.dwarfDebugLinesSym
 }

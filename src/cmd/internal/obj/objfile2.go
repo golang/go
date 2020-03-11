@@ -320,7 +320,7 @@ func (w *writer) Aux(s *LSym) {
 			}
 			o.Write(w.Writer)
 		}
-		if s.Func.dwarfDebugLinesSym != nil {
+		if s.Func.dwarfDebugLinesSym != nil && s.Func.dwarfDebugLinesSym.Size != 0 {
 			o := goobj2.Aux{
 				Type: goobj2.AuxDwarfLines,
 				Sym:  makeSymRef(s.Func.dwarfDebugLinesSym),
@@ -348,7 +348,7 @@ func nAuxSym(s *LSym) int {
 		if s.Func.dwarfRangesSym != nil && s.Func.dwarfRangesSym.Size != 0 {
 			n++
 		}
-		if s.Func.dwarfDebugLinesSym != nil {
+		if s.Func.dwarfDebugLinesSym != nil && s.Func.dwarfDebugLinesSym.Size != 0 {
 			n++
 		}
 	}
@@ -419,7 +419,7 @@ func genFuncInfoSyms(ctxt *Link) {
 		s.Func.FuncInfoSym = isym
 		b.Reset()
 
-		dwsyms := []*LSym{s.Func.dwarfRangesSym, s.Func.dwarfLocSym}
+		dwsyms := []*LSym{s.Func.dwarfRangesSym, s.Func.dwarfLocSym, s.Func.dwarfDebugLinesSym}
 		for _, s := range dwsyms {
 			if s == nil || s.Size == 0 {
 				continue

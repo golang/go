@@ -21,9 +21,6 @@ import (
 // InfoPrefix is the prefix for all the symbols containing DWARF info entries.
 const InfoPrefix = "go.info."
 
-// DebugLinesPrefix is the prefix for all the symbols containing DWARF debug_line information from the compiler.
-const DebugLinesPrefix = "go.debuglines."
-
 // ConstInfoPrefix is the prefix for all symbols containing DWARF info
 // entries that contain constants.
 const ConstInfoPrefix = "go.constinfo."
