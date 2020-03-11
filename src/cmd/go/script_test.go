@@ -30,6 +30,7 @@ import (
 	"cmd/go/internal/robustio"
 	"cmd/go/internal/txtar"
 	"cmd/go/internal/work"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 )
 
@@ -119,6 +120,7 @@ func (ts *testScript) setup() {
 		"GOCACHE=" + testGOCACHE,
 		"GODEBUG=" + os.Getenv("GODEBUG"),
 		"GOEXE=" + cfg.ExeSuffix,
+		"GOEXPSTRING=" + objabi.Expstring()[2:],
 		"GOOS=" + runtime.GOOS,
 		"GOPATH=" + filepath.Join(ts.workdir, "gopath"),
 		"GOPROXY=" + proxyURL,
