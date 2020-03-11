@@ -18,9 +18,8 @@ import (
 
 // Entry point of writing new object file.
 func WriteObjFile2(ctxt *Link, b *bio.Writer, pkgpath string) {
-	if ctxt.Debugasm > 0 {
-		ctxt.traverseSyms(traverseDefs, ctxt.writeSymDebug)
-	}
+
+	debugAsmEmit(ctxt)
 
 	genFuncInfoSyms(ctxt)
 
@@ -433,4 +432,29 @@ func genFuncInfoSyms(ctxt *Link) {
 		}
 	}
 	ctxt.defs = append(ctxt.defs, infosyms...)
+}
+
+// debugDumpAux is a dumper for selected aux symbols.
+func writeAuxSymDebug(ctxt *Link, par *LSym, aux *LSym) {
+	// Most aux symbols (ex: funcdata) are not interesting--
+	// pick out just the DWARF ones for now.
+	if aux.Type != objabi.SDWARFLOC &&
+		aux.Type != objabi.SDWARFINFO &&
+		aux.Type != objabi.SDWARFLINES &&
+		aux.Type != objabi.SDWARFRANGE {
+		return
+	}
+	ctxt.writeSymDebugNamed(aux, "aux for "+par.Name)
+}
+
+func debugAsmEmit(ctxt *Link) {
+	if ctxt.Debugasm > 0 {
+		ctxt.traverseSyms(traverseDefs, ctxt.writeSymDebug)
+		if ctxt.Debugasm > 1 {
+			fn := func(par *LSym, aux *LSym) {
+				writeAuxSymDebug(ctxt, par, aux)
+			}
+			ctxt.traverseAuxSyms(fn)
+		}
+	}
 }

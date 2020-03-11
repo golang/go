@@ -21,7 +21,11 @@ func WriteObjFile(ctxt *Link, bout *bio.Writer, pkgpath string) {
 }
 
 func (ctxt *Link) writeSymDebug(s *LSym) {
-	fmt.Fprintf(ctxt.Bso, "%s ", s.Name)
+	ctxt.writeSymDebugNamed(s, s.Name)
+}
+
+func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
+	fmt.Fprintf(ctxt.Bso, "%s ", name)
 	if s.Type != 0 {
 		fmt.Fprintf(ctxt.Bso, "%v ", s.Type)
 	}
