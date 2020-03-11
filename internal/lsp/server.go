@@ -101,11 +101,18 @@ func (s *Server) cancelRequest(ctx context.Context, params *protocol.CancelParam
 }
 
 func (s *Server) codeLens(ctx context.Context, params *protocol.CodeLensParams) ([]protocol.CodeLens, error) {
-	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.Mod)
+	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.UnknownKind)
 	if !ok {
 		return nil, err
 	}
-	return mod.CodeLens(ctx, snapshot, fh.Identity().URI)
+	switch fh.Identity().Kind {
+	case source.Mod:
+		return mod.CodeLens(ctx, snapshot, fh.Identity().URI)
+	case source.Go:
+		return source.CodeLens(ctx, snapshot, fh)
+	}
+	// Unsupported file kind for a code action.
+	return nil, nil
 }
 
 func (s *Server) nonstandardRequest(ctx context.Context, method string, params interface{}) (interface{}, error) {
@@ -152,6 +159,12 @@ func (s *Server) workDoneProgressCancel(ctx context.Context, params *protocol.Wo
 	}
 	cancel()
 	return nil
+}
+
+func (s *Server) clearInProgress(token string) {
+	s.inProgressMu.Lock()
+	delete(s.inProgress, token)
+	s.inProgressMu.Unlock()
 }
 
 func notImplemented(method string) *jsonrpc2.Error {

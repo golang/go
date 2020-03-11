@@ -895,7 +895,17 @@ func (r *runner) Link(t *testing.T, uri span.URI, wantLinks []tests.Link) {
 }
 
 func (r *runner) CodeLens(t *testing.T, uri span.URI, want []protocol.CodeLens) {
-	// This is a pure LSP feature, no source level functionality to be tested.
+	fh, err := r.view.Snapshot().GetFile(uri)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := source.CodeLens(r.ctx, r.view.Snapshot(), fh)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := tests.DiffCodeLens(uri, want, got); diff != "" {
+		t.Error(diff)
+	}
 }
 
 func spanToRange(data *tests.Data, spn span.Span) (*protocol.ColumnMapper, protocol.Range, error) {
