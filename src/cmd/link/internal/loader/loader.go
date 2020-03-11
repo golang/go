@@ -31,7 +31,9 @@ type Sym int
 // Relocs encapsulates the set of relocations on a given symbol; an
 // instance of this type is returned by the Loader Relocs() method.
 type Relocs struct {
-	Count int // number of relocs
+	Count int // == len(rs), TODO: remove
+
+	rs []goobj2.Reloc2
 
 	li int      // local index of symbol whose relocs we're examining
 	r  *oReader // object reader for containing package
@@ -1469,11 +1471,13 @@ func (relocs *Relocs) At2(j int) Reloc2 {
 		// XXX populate a goobj2.Reloc from external reloc record.
 		// Ugly. Maybe we just want to use this format to store the
 		// reloc record in the first place?
+		// Also there is more speedup if we could remove the
+		// conditional here.
 		var b goobj2.Reloc2
 		b.Set(r.Off, r.Size, 0, r.Add, goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(r.Sym)})
 		return Reloc2{&b, relocs.r, relocs.l, r.Type}
 	}
-	return Reloc2{relocs.r.Reloc2(relocs.li, j), relocs.r, relocs.l, 0}
+	return Reloc2{&relocs.rs[j], relocs.r, relocs.l, 0}
 }
 
 // ReadAll method reads all relocations for a symbol into the
@@ -1539,14 +1543,17 @@ func (l *Loader) Relocs(i Sym) Relocs {
 // Relocs returns a Relocs object given a local sym index and reader.
 func (l *Loader) relocs(r *oReader, li int) Relocs {
 	var n int
+	var rs []goobj2.Reloc2
 	if l.isExtReader(r) {
 		pp := l.payloads[li]
 		n = len(pp.relocs)
 	} else {
-		n = r.NReloc(li)
+		rs = r.Relocs2(li)
+		n = len(rs)
 	}
 	return Relocs{
 		Count: n,
+		rs:    rs,
 		li:    li,
 		r:     r,
 		l:     l,

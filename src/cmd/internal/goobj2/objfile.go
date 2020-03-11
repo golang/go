@@ -595,6 +595,13 @@ func (r *Reader) Reloc2(i int, j int) *Reloc2 {
 	return (*Reloc2)(unsafe.Pointer(&r.b[off]))
 }
 
+// Relocs2 returns a pointer to the relocations of the i-th symbol.
+func (r *Reader) Relocs2(i int) []Reloc2 {
+	off := r.RelocOff(i, 0)
+	n := r.NReloc(i)
+	return (*[1 << 20]Reloc2)(unsafe.Pointer(&r.b[off]))[:n:n]
+}
+
 // NAux returns the number of aux symbols of the i-th symbol.
 func (r *Reader) NAux(i int) int {
 	auxIdxOff := r.h.Offsets[BlkAuxIdx] + uint32(i*4)
