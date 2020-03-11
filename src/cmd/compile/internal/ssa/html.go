@@ -263,6 +263,14 @@ body.darkmode table, th {
     border: 1px solid gray;
 }
 
+body.darkmode text {
+    fill: white;
+}
+
+body.darkmode svg polygon:first-child {
+    fill: rgb(21, 21, 21);
+}
+
 .highlight-aquamarine     { background-color: aquamarine; color: black; }
 .highlight-coral          { background-color: coral; color: black; }
 .highlight-lightpink      { background-color: lightpink; color: black; }
@@ -304,7 +312,7 @@ body.darkmode table, th {
     color: gray;
 }
 
-.outline-blue           { outline: blue solid 2px; }
+.outline-blue           { outline: #2893ff solid 2px; }
 .outline-red            { outline: red solid 2px; }
 .outline-blueviolet     { outline: blueviolet solid 2px; }
 .outline-darkolivegreen { outline: darkolivegreen solid 2px; }
@@ -316,7 +324,7 @@ body.darkmode table, th {
 .outline-maroon         { outline: maroon solid 2px; }
 .outline-black          { outline: black solid 2px; }
 
-ellipse.outline-blue           { stroke-width: 2px; stroke: blue; }
+ellipse.outline-blue           { stroke-width: 2px; stroke: #2893ff; }
 ellipse.outline-red            { stroke-width: 2px; stroke: red; }
 ellipse.outline-blueviolet     { stroke-width: 2px; stroke: blueviolet; }
 ellipse.outline-darkolivegreen { stroke-width: 2px; stroke: darkolivegreen; }
@@ -642,12 +650,35 @@ function makeDraggable(event) {
 function toggleDarkMode() {
     document.body.classList.toggle('darkmode');
 
+    // Collect all of the "collapsed" elements and apply dark mode on each collapsed column
     const collapsedEls = document.getElementsByClassName('collapsed');
     const len = collapsedEls.length;
 
     for (let i = 0; i < len; i++) {
         collapsedEls[i].classList.toggle('darkmode');
     }
+
+    // Collect and spread the appropriate elements from all of the svgs on the page into one array
+    const svgParts = [
+        ...document.querySelectorAll('path'),
+        ...document.querySelectorAll('ellipse'),
+        ...document.querySelectorAll('polygon'),
+    ];
+
+    // Iterate over the svgParts specifically looking for white and black fill/stroke to be toggled.
+    // The verbose conditional is intentional here so that we do not mutate any svg path, ellipse, or polygon that is of any color other than white or black.
+    svgParts.forEach(el => {
+        if (el.attributes.stroke.value === 'white') {
+            el.attributes.stroke.value = 'black';
+        } else if (el.attributes.stroke.value === 'black') {
+            el.attributes.stroke.value = 'white';
+        }
+        if (el.attributes.fill.value === 'white') {
+            el.attributes.fill.value = 'black';
+        } else if (el.attributes.fill.value === 'black') {
+            el.attributes.fill.value = 'white';
+        }
+    });
 }
 
 </script>
@@ -1016,7 +1047,7 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
 				arrow = "dotvee"
 				layoutDrawn[s.b.ID] = true
 			} else if isBackEdge(b.ID, s.b.ID) {
-				color = "blue"
+				color = "#2893ff"
 			}
 			fmt.Fprintf(pipe, `%v -> %v [label=" %d ",style="%s",color="%s",arrowhead="%s"];`, b, s.b, i, style, color, arrow)
 		}
