@@ -172,8 +172,10 @@ func (d *deadcodePass2) flood() {
 		// so we make sure we're pulling in all outer symbols, and their sub
 		// symbols. This is not ideal, and these carrier/section symbols could
 		// be removed.
-		d.mark(d.ldr.OuterSym(symIdx), symIdx)
-		d.mark(d.ldr.SubSym(symIdx), symIdx)
+		if d.ldr.IsExternal(symIdx) {
+			d.mark(d.ldr.OuterSym(symIdx), symIdx)
+			d.mark(d.ldr.SubSym(symIdx), symIdx)
+		}
 
 		if len(methods) != 0 {
 			if !isgotype {
