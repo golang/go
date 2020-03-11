@@ -14,10 +14,8 @@
 package ld
 
 import (
-	"cmd/internal/dwarf"
 	"cmd/internal/objabi"
 	"cmd/link/internal/sym"
-	"fmt"
 	"log"
 )
 
@@ -26,34 +24,6 @@ func isDwarf64(ctxt *Link) bool {
 }
 
 var dwarfp []*sym.Symbol
-
-// Every DIE manufactured by the linker has at least an AT_name
-// attribute (but it will only be written out if it is listed in the abbrev).
-// The compiler does create nameless DWARF DIEs (ex: concrete subprogram
-// instance).
-func newdie(ctxt *Link, parent *dwarf.DWDie, abbrev int, name string, version int) *dwarf.DWDie {
-	die := new(dwarf.DWDie)
-	die.Abbrev = abbrev
-	die.Link = parent.Child
-	parent.Child = die
-
-	newattr(die, dwarf.DW_AT_name, dwarf.DW_CLS_STRING, int64(len(name)), name)
-
-	if name != "" && (abbrev <= dwarf.DW_ABRV_VARIABLE || abbrev >= dwarf.DW_ABRV_NULLTYPE) {
-		if abbrev != dwarf.DW_ABRV_VARIABLE || version == 0 {
-			if abbrev == dwarf.DW_ABRV_COMPUNIT {
-				// Avoid collisions with "real" symbol names.
-				name = fmt.Sprintf(".pkg.%s.%d", name, len(ctxt.compUnits))
-			}
-			s := ctxt.Syms.Lookup(dwarf.InfoPrefix+name, version)
-			s.Attr |= sym.AttrNotInSymbolTable
-			s.Type = sym.SDWARFINFO
-			die.Sym = s
-		}
-	}
-
-	return die
-}
 
 /*
  *  Elf.
