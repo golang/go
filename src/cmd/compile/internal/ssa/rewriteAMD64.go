@@ -26562,13 +26562,36 @@ func rewriteValueAMD64_OpAMD64TESTL(v *Value) bool {
 func rewriteValueAMD64_OpAMD64TESTLconst(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (TESTLconst [c] (MOVLconst [c]))
+	// cond: c == 0
 	// result: (FlagEQ)
 	for {
 		c := v.AuxInt
-		if v_0.Op != OpAMD64MOVLconst || v_0.AuxInt != c {
+		if v_0.Op != OpAMD64MOVLconst || v_0.AuxInt != c || !(c == 0) {
 			break
 		}
 		v.reset(OpAMD64FlagEQ)
+		return true
+	}
+	// match: (TESTLconst [c] (MOVLconst [c]))
+	// cond: c < 0
+	// result: (FlagLT_UGT)
+	for {
+		c := v.AuxInt
+		if v_0.Op != OpAMD64MOVLconst || v_0.AuxInt != c || !(c < 0) {
+			break
+		}
+		v.reset(OpAMD64FlagLT_UGT)
+		return true
+	}
+	// match: (TESTLconst [c] (MOVLconst [c]))
+	// cond: c > 0
+	// result: (FlagGT_UGT)
+	for {
+		c := v.AuxInt
+		if v_0.Op != OpAMD64MOVLconst || v_0.AuxInt != c || !(c > 0) {
+			break
+		}
+		v.reset(OpAMD64FlagGT_UGT)
 		return true
 	}
 	// match: (TESTLconst [-1] x)
@@ -26644,13 +26667,36 @@ func rewriteValueAMD64_OpAMD64TESTQ(v *Value) bool {
 func rewriteValueAMD64_OpAMD64TESTQconst(v *Value) bool {
 	v_0 := v.Args[0]
 	// match: (TESTQconst [c] (MOVQconst [c]))
+	// cond: c == 0
 	// result: (FlagEQ)
 	for {
 		c := v.AuxInt
-		if v_0.Op != OpAMD64MOVQconst || v_0.AuxInt != c {
+		if v_0.Op != OpAMD64MOVQconst || v_0.AuxInt != c || !(c == 0) {
 			break
 		}
 		v.reset(OpAMD64FlagEQ)
+		return true
+	}
+	// match: (TESTQconst [c] (MOVQconst [c]))
+	// cond: c < 0
+	// result: (FlagLT_UGT)
+	for {
+		c := v.AuxInt
+		if v_0.Op != OpAMD64MOVQconst || v_0.AuxInt != c || !(c < 0) {
+			break
+		}
+		v.reset(OpAMD64FlagLT_UGT)
+		return true
+	}
+	// match: (TESTQconst [c] (MOVQconst [c]))
+	// cond: c > 0
+	// result: (FlagGT_UGT)
+	for {
+		c := v.AuxInt
+		if v_0.Op != OpAMD64MOVQconst || v_0.AuxInt != c || !(c > 0) {
+			break
+		}
+		v.reset(OpAMD64FlagGT_UGT)
 		return true
 	}
 	// match: (TESTQconst [-1] x)

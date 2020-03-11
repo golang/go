@@ -1254,7 +1254,10 @@
 (CMPWconst (ANDLconst _ [m]) [n]) && 0 <= int16(m) && int16(m) < int16(n) -> (FlagLT_ULT)
 (CMPBconst (ANDLconst _ [m]) [n]) && 0 <= int8(m) && int8(m) < int8(n) -> (FlagLT_ULT)
 
-(TEST(Q|L)const [c] (MOV(Q|L)const [c])) -> (FlagEQ)
+// TESTQ c c sets flags like CMPQ c 0.
+(TEST(Q|L)const [c] (MOV(Q|L)const [c])) && c == 0 -> (FlagEQ)
+(TEST(Q|L)const [c] (MOV(Q|L)const [c])) && c < 0 -> (FlagLT_UGT)
+(TEST(Q|L)const [c] (MOV(Q|L)const [c])) && c > 0 -> (FlagGT_UGT)
 
 // TODO: DIVxU also.
 
