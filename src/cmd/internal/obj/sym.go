@@ -325,7 +325,7 @@ func (ctxt *Link) traverseFuncAux(fsym *LSym, fn func(parent *LSym, aux *LSym)) 
 			fn(fsym, filesym)
 		}
 	}
-	dwsyms := []*LSym{fsym.Func.dwarfRangesSym, fsym.Func.dwarfLocSym}
+	dwsyms := []*LSym{fsym.Func.dwarfRangesSym, fsym.Func.dwarfLocSym, fsym.Func.dwarfDebugLinesSym}
 	for _, dws := range dwsyms {
 		if dws == nil || dws.Size == 0 {
 			continue
