@@ -6,6 +6,7 @@ package ocagent_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -14,7 +15,10 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/tools/internal/telemetry/event"
+	"golang.org/x/tools/internal/telemetry/export"
 	"golang.org/x/tools/internal/telemetry/export/ocagent"
+	"golang.org/x/tools/internal/telemetry/metric"
 )
 
 const testNodeStr = `{
@@ -35,22 +39,87 @@ const testNodeStr = `{
 	},`
 
 var (
-	exporter *ocagent.Exporter
-	sent     fakeSender
-	start    time.Time
-	at       time.Time
-	end      time.Time
+	keyDB    = &event.Key{Name: "db"}
+	keyHello = &event.Key{Name: "hello"}
+	keyWorld = &event.Key{Name: "world"}
+
+	key1DB = &event.Key{Name: "1_db"}
+
+	key2aAge      = &event.Key{Name: "2a_age"}
+	key2bTTL      = &event.Key{Name: "2b_ttl"}
+	key2cExpiryMS = &event.Key{Name: "2c_expiry_ms"}
+
+	key3aRetry = &event.Key{Name: "3a_retry"}
+	key3bStale = &event.Key{Name: "3b_stale"}
+
+	key4aMax      = &event.Key{Name: "4a_max"}
+	key4bOpcode   = &event.Key{Name: "4b_opcode"}
+	key4cBase     = &event.Key{Name: "4c_base"}
+	key4eChecksum = &event.Key{Name: "4e_checksum"}
+	key4fMode     = &event.Key{Name: "4f_mode"}
+
+	key5aMin     = &event.Key{Name: "5a_min"}
+	key5bMix     = &event.Key{Name: "5b_mix"}
+	key5cPort    = &event.Key{Name: "5c_port"}
+	key5dMinHops = &event.Key{Name: "5d_min_hops"}
+	key5eMaxHops = &event.Key{Name: "5e_max_hops"}
 )
 
-func init() {
+type testExporter struct {
+	ocagent *ocagent.Exporter
+	sent    fakeSender
+	start   time.Time
+	at      time.Time
+	end     time.Time
+}
+
+func registerExporter() *testExporter {
+	exporter := &testExporter{}
 	cfg := ocagent.Config{
 		Host:    "tester",
 		Process: 1,
 		Service: "ocagent-tests",
-		Client:  &http.Client{Transport: &sent},
+		Client:  &http.Client{Transport: &exporter.sent},
 	}
 	cfg.Start, _ = time.Parse(time.RFC3339Nano, "1970-01-01T00:00:00Z")
-	exporter = ocagent.Connect(&cfg)
+	exporter.ocagent = ocagent.Connect(&cfg)
+	exporter.start, _ = time.Parse(time.RFC3339Nano, "1970-01-01T00:00:30Z")
+	exporter.at, _ = time.Parse(time.RFC3339Nano, "1970-01-01T00:00:40Z")
+	exporter.end, _ = time.Parse(time.RFC3339Nano, "1970-01-01T00:00:50Z")
+	event.SetExporter(exporter)
+	return exporter
+}
+
+func (e *testExporter) ProcessEvent(ctx context.Context, ev event.Event) (context.Context, event.Event) {
+	switch {
+	case ev.IsStartSpan():
+		ev.At = e.start
+	case ev.IsEndSpan():
+		ev.At = e.end
+	default:
+		ev.At = e.at
+	}
+	ctx, ev = export.Tag(ctx, ev)
+	ctx, ev = export.ContextSpan(ctx, ev)
+	ctx, ev = e.ocagent.ProcessEvent(ctx, ev)
+	if ev.IsStartSpan() {
+		span := export.GetSpan(ctx)
+		span.ID = export.SpanContext{}
+	}
+	return ctx, ev
+}
+
+func (e *testExporter) Metric(ctx context.Context, data event.MetricData) {
+	switch data := data.(type) {
+	case *metric.Int64Data:
+		data.EndTime = &e.start
+	}
+	e.ocagent.Metric(ctx, data)
+}
+
+func (e *testExporter) Output(route string) []byte {
+	e.ocagent.Flush()
+	return e.sent.get(route)
 }
 
 func checkJSON(t *testing.T, got, want []byte) {

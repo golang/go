@@ -297,7 +297,7 @@ func convertAnnotation(ev event.Event) *wire.Annotation {
 	}
 	tags := ev.Tags
 	if ev.Error != nil {
-		tags = append(tags, event.TagOf("error", ev.Error))
+		tags = append(tags, event.Err.Of(ev.Error))
 	}
 	if description == "" && len(tags) == 0 {
 		return nil

@@ -3,40 +3,44 @@ package ocagent_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/telemetry/metric"
 )
 
 func TestEncodeMetric(t *testing.T) {
-	end, _ := time.Parse(time.RFC3339Nano, "1970-01-01T00:00:30Z")
+	exporter := registerExporter()
 	const prefix = testNodeStr + `
 	"metrics":[`
 	const suffix = `]}`
 	tests := []struct {
 		name string
-		data event.MetricData
+		run  func(ctx context.Context)
 		want string
 	}{
 		{
 			name: "nil data",
 			want: prefix + `null` + suffix,
+			run: func(ctx context.Context) {
+				exporter.Metric(ctx, nil)
+			},
 		},
 		{
 			name: "Int64Data cumulative",
-			data: &metric.Int64Data{
-				Info: &metric.Scalar{
-					Name:        "int",
-					Description: "int metric",
-					Keys:        []*event.Key{{Name: "hello"}},
-				},
-				Rows: []int64{
-					1,
-					2,
-					3,
-				},
-				EndTime: &end,
+			run: func(ctx context.Context) {
+				exporter.Metric(ctx, &metric.Int64Data{
+					Info: &metric.Scalar{
+						Name:        "int",
+						Description: "int metric",
+						Keys:        []*event.Key{keyHello},
+					},
+					Rows: []int64{
+						1,
+						2,
+						3,
+					},
+					EndTime: &exporter.start,
+				})
 			},
 			want: prefix + `{
 				"metric_descriptor": {
@@ -82,13 +86,15 @@ func TestEncodeMetric(t *testing.T) {
 		},
 		{
 			name: "Int64Data gauge",
-			data: &metric.Int64Data{
-				Info: &metric.Scalar{
-					Name:        "int-gauge",
-					Description: "int metric gauge",
-					Keys:        []*event.Key{{Name: "hello"}},
-				},
-				IsGauge: true,
+			run: func(ctx context.Context) {
+				exporter.Metric(ctx, &metric.Int64Data{
+					Info: &metric.Scalar{
+						Name:        "int-gauge",
+						Description: "int metric gauge",
+						Keys:        []*event.Key{keyHello},
+					},
+					IsGauge: true,
+				})
 			},
 			want: prefix + `{
 				"metric_descriptor": {
@@ -105,17 +111,19 @@ func TestEncodeMetric(t *testing.T) {
 		},
 		{
 			name: "Float64Data cumulative",
-			data: &metric.Float64Data{
-				Info: &metric.Scalar{
-					Name:        "float",
-					Description: "float metric",
-					Keys:        []*event.Key{{Name: "world"}},
-				},
-				Rows: []float64{
-					1.5,
-					4.5,
-				},
-				EndTime: &end,
+			run: func(ctx context.Context) {
+				exporter.Metric(ctx, &metric.Float64Data{
+					Info: &metric.Scalar{
+						Name:        "float",
+						Description: "float metric",
+						Keys:        []*event.Key{keyWorld},
+					},
+					Rows: []float64{
+						1.5,
+						4.5,
+					},
+					EndTime: &exporter.start,
+				})
 			},
 			want: prefix + `{
 				"metric_descriptor": {
@@ -152,13 +160,15 @@ func TestEncodeMetric(t *testing.T) {
 		},
 		{
 			name: "Float64Data gauge",
-			data: &metric.Float64Data{
-				Info: &metric.Scalar{
-					Name:        "float-gauge",
-					Description: "float metric gauge",
-					Keys:        []*event.Key{{Name: "world"}},
-				},
-				IsGauge: true,
+			run: func(ctx context.Context) {
+				exporter.Metric(ctx, &metric.Float64Data{
+					Info: &metric.Scalar{
+						Name:        "float-gauge",
+						Description: "float metric gauge",
+						Keys:        []*event.Key{keyWorld},
+					},
+					IsGauge: true,
+				})
 			},
 			want: prefix + `{
 				"metric_descriptor": {
@@ -175,27 +185,29 @@ func TestEncodeMetric(t *testing.T) {
 		},
 		{
 			name: "HistogramInt64",
-			data: &metric.HistogramInt64Data{
-				Info: &metric.HistogramInt64{
-					Name:        "histogram int",
-					Description: "histogram int metric",
-					Keys:        []*event.Key{{Name: "hello"}},
-					Buckets: []int64{
-						0, 5, 10,
-					},
-				},
-				Rows: []*metric.HistogramInt64Row{
-					{
-						Count: 6,
-						Sum:   40,
-						Values: []int64{
-							1,
-							2,
-							3,
+			run: func(ctx context.Context) {
+				exporter.Metric(ctx, &metric.HistogramInt64Data{
+					Info: &metric.HistogramInt64{
+						Name:        "histogram int",
+						Description: "histogram int metric",
+						Keys:        []*event.Key{keyHello},
+						Buckets: []int64{
+							0, 5, 10,
 						},
 					},
-				},
-				EndTime: &end,
+					Rows: []*metric.HistogramInt64Row{
+						{
+							Count: 6,
+							Sum:   40,
+							Values: []int64{
+								1,
+								2,
+								3,
+							},
+						},
+					},
+					EndTime: &exporter.start,
+				})
 			},
 			want: prefix + `{
 				"metric_descriptor": {
@@ -246,26 +258,28 @@ func TestEncodeMetric(t *testing.T) {
 		},
 		{
 			name: "HistogramFloat64",
-			data: &metric.HistogramFloat64Data{
-				Info: &metric.HistogramFloat64{
-					Name:        "histogram float",
-					Description: "histogram float metric",
-					Keys:        []*event.Key{{Name: "hello"}},
-					Buckets: []float64{
-						0, 5,
-					},
-				},
-				Rows: []*metric.HistogramFloat64Row{
-					{
-						Count: 3,
-						Sum:   10,
-						Values: []int64{
-							1,
-							2,
+			run: func(ctx context.Context) {
+				exporter.Metric(ctx, &metric.HistogramFloat64Data{
+					Info: &metric.HistogramFloat64{
+						Name:        "histogram float",
+						Description: "histogram float metric",
+						Keys:        []*event.Key{keyHello},
+						Buckets: []float64{
+							0, 5,
 						},
 					},
-				},
-				EndTime: &end,
+					Rows: []*metric.HistogramFloat64Row{
+						{
+							Count: 3,
+							Sum:   10,
+							Values: []int64{
+								1,
+								2,
+							},
+						},
+					},
+					EndTime: &exporter.start,
+				})
 			},
 			want: prefix + `{
 				"metric_descriptor": {
@@ -315,9 +329,8 @@ func TestEncodeMetric(t *testing.T) {
 	ctx := context.TODO()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			exporter.Metric(ctx, tt.data)
-			exporter.Flush()
-			got := sent.get("/v1/metrics")
+			tt.run(ctx)
+			got := exporter.Output("/v1/metrics")
 			checkJSON(t, got, []byte(tt.want))
 		})
 	}
