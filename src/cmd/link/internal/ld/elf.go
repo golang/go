@@ -7,6 +7,7 @@ package ld
 import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"crypto/sha1"
 	"encoding/binary"
@@ -774,6 +775,39 @@ func elfWriteDynEntSymSize(arch *sys.Arch, s *sym.Symbol, tag int, t *sym.Symbol
 	s.AddSize(arch, t)
 }
 
+// temporary
+func Elfwritedynent2(ctxt *Link, s *loader.SymbolBuilder, tag int, val uint64) {
+	if elf64 {
+		s.AddUint64(ctxt.Arch, uint64(tag))
+		s.AddUint64(ctxt.Arch, val)
+	} else {
+		s.AddUint32(ctxt.Arch, uint32(tag))
+		s.AddUint32(ctxt.Arch, uint32(val))
+	}
+}
+
+func elfwritedynentsym2(ctxt *Link, s *loader.SymbolBuilder, tag int, t loader.Sym) {
+	Elfwritedynentsymplus2(ctxt, s, tag, t, 0)
+}
+
+func Elfwritedynentsymplus2(ctxt *Link, s *loader.SymbolBuilder, tag int, t loader.Sym, add int64) {
+	if elf64 {
+		s.AddUint64(ctxt.Arch, uint64(tag))
+	} else {
+		s.AddUint32(ctxt.Arch, uint32(tag))
+	}
+	s.AddAddrPlus(ctxt.Arch, t, add)
+}
+
+func elfwritedynentsymsize2(ctxt *Link, s *loader.SymbolBuilder, tag int, t loader.Sym) {
+	if elf64 {
+		s.AddUint64(ctxt.Arch, uint64(tag))
+	} else {
+		s.AddUint32(ctxt.Arch, uint32(tag))
+	}
+	s.AddSize(ctxt.Arch, t)
+}
+
 func elfinterp(sh *ElfShdr, startva uint64, resoff uint64, p string) int {
 	interp = p
 	n := len(interp) + 1
@@ -1400,9 +1434,10 @@ func Elfemitreloc(ctxt *Link) {
 }
 
 func addgonote(ctxt *Link, sectionName string, tag uint32, desc []byte) {
-	s := ctxt.Syms.Lookup(sectionName, 0)
-	s.Attr |= sym.AttrReachable
-	s.Type = sym.SELFROSECT
+	ldr := ctxt.loader
+	s := ldr.CreateSymForUpdate(sectionName, 0)
+	s.SetReachable(true)
+	s.SetType(sym.SELFROSECT)
 	// namesz
 	s.AddUint32(ctxt.Arch, uint32(len(ELF_NOTE_GO_NAME)))
 	// descsz
@@ -1410,93 +1445,91 @@ func addgonote(ctxt *Link, sectionName string, tag uint32, desc []byte) {
 	// tag
 	s.AddUint32(ctxt.Arch, tag)
 	// name + padding
-	s.P = append(s.P, ELF_NOTE_GO_NAME...)
-	for len(s.P)%4 != 0 {
-		s.P = append(s.P, 0)
+	s.AddBytes(ELF_NOTE_GO_NAME)
+	for len(s.Data())%4 != 0 {
+		s.AddUint8(0)
 	}
 	// desc + padding
-	s.P = append(s.P, desc...)
-	for len(s.P)%4 != 0 {
-		s.P = append(s.P, 0)
+	s.AddBytes(desc)
+	for len(s.Data())%4 != 0 {
+		s.AddUint8(0)
 	}
-	s.Size = int64(len(s.P))
-	s.Align = 4
+	s.SetSize(int64(len(s.Data())))
+	s.SetAlign(4)
 }
 
 func (ctxt *Link) doelf() {
-	if !ctxt.IsELF {
-		return
-	}
+	ldr := ctxt.loader
 
 	/* predefine strings we need for section headers */
-	shstrtab := ctxt.Syms.Lookup(".shstrtab", 0)
+	shstrtab := ldr.CreateSymForUpdate(".shstrtab", 0)
 
-	shstrtab.Type = sym.SELFROSECT
-	shstrtab.Attr |= sym.AttrReachable
+	shstrtab.SetType(sym.SELFROSECT)
+	shstrtab.SetReachable(true)
 
-	Addstring(shstrtab, "")
-	Addstring(shstrtab, ".text")
-	Addstring(shstrtab, ".noptrdata")
-	Addstring(shstrtab, ".data")
-	Addstring(shstrtab, ".bss")
-	Addstring(shstrtab, ".noptrbss")
-	Addstring(shstrtab, "__libfuzzer_extra_counters")
-	Addstring(shstrtab, ".go.buildinfo")
+	shstrtab.Addstring("")
+	shstrtab.Addstring(".text")
+	shstrtab.Addstring(".noptrdata")
+	shstrtab.Addstring(".data")
+	shstrtab.Addstring(".bss")
+	shstrtab.Addstring(".noptrbss")
+	shstrtab.Addstring("__libfuzzer_extra_counters")
+	shstrtab.Addstring(".go.buildinfo")
 
 	// generate .tbss section for dynamic internal linker or external
 	// linking, so that various binutils could correctly calculate
 	// PT_TLS size. See https://golang.org/issue/5200.
-	if !*FlagD || ctxt.LinkMode == LinkExternal {
-		Addstring(shstrtab, ".tbss")
+	if !*FlagD || ctxt.IsExternal() {
+		shstrtab.Addstring(".tbss")
 	}
-	if ctxt.HeadType == objabi.Hnetbsd {
-		Addstring(shstrtab, ".note.netbsd.ident")
+	if ctxt.IsNetbsd() {
+		shstrtab.Addstring(".note.netbsd.ident")
 	}
-	if ctxt.HeadType == objabi.Hopenbsd {
-		Addstring(shstrtab, ".note.openbsd.ident")
+	if ctxt.IsOpenbsd() {
+		shstrtab.Addstring(".note.openbsd.ident")
 	}
 	if len(buildinfo) > 0 {
-		Addstring(shstrtab, ".note.gnu.build-id")
+		shstrtab.Addstring(".note.gnu.build-id")
 	}
 	if *flagBuildid != "" {
-		Addstring(shstrtab, ".note.go.buildid")
+		shstrtab.Addstring(".note.go.buildid")
 	}
-	Addstring(shstrtab, ".elfdata")
-	Addstring(shstrtab, ".rodata")
+	shstrtab.Addstring(".elfdata")
+	shstrtab.Addstring(".rodata")
 	// See the comment about data.rel.ro.FOO section names in data.go.
 	relro_prefix := ""
 	if ctxt.UseRelro() {
-		Addstring(shstrtab, ".data.rel.ro")
+		shstrtab.Addstring(".data.rel.ro")
 		relro_prefix = ".data.rel.ro"
 	}
-	Addstring(shstrtab, relro_prefix+".typelink")
-	Addstring(shstrtab, relro_prefix+".itablink")
-	Addstring(shstrtab, relro_prefix+".gosymtab")
-	Addstring(shstrtab, relro_prefix+".gopclntab")
+	shstrtab.Addstring(relro_prefix + ".typelink")
+	shstrtab.Addstring(relro_prefix + ".itablink")
+	shstrtab.Addstring(relro_prefix + ".gosymtab")
+	shstrtab.Addstring(relro_prefix + ".gopclntab")
 
-	if ctxt.LinkMode == LinkExternal {
+	if ctxt.IsExternal() {
 		*FlagD = true
 
-		Addstring(shstrtab, elfRelType+".text")
-		Addstring(shstrtab, elfRelType+".rodata")
-		Addstring(shstrtab, elfRelType+relro_prefix+".typelink")
-		Addstring(shstrtab, elfRelType+relro_prefix+".itablink")
-		Addstring(shstrtab, elfRelType+relro_prefix+".gosymtab")
-		Addstring(shstrtab, elfRelType+relro_prefix+".gopclntab")
-		Addstring(shstrtab, elfRelType+".noptrdata")
-		Addstring(shstrtab, elfRelType+".data")
+		shstrtab.Addstring(elfRelType + ".text")
+		shstrtab.Addstring(elfRelType + ".rodata")
+		shstrtab.Addstring(elfRelType + relro_prefix + ".typelink")
+		shstrtab.Addstring(elfRelType + relro_prefix + ".itablink")
+		shstrtab.Addstring(elfRelType + relro_prefix + ".gosymtab")
+		shstrtab.Addstring(elfRelType + relro_prefix + ".gopclntab")
+		shstrtab.Addstring(elfRelType + ".noptrdata")
+		shstrtab.Addstring(elfRelType + ".data")
 		if ctxt.UseRelro() {
-			Addstring(shstrtab, elfRelType+".data.rel.ro")
+			shstrtab.Addstring(elfRelType + ".data.rel.ro")
 		}
-		Addstring(shstrtab, elfRelType+".go.buildinfo")
+		shstrtab.Addstring(elfRelType + ".go.buildinfo")
 
 		// add a .note.GNU-stack section to mark the stack as non-executable
-		Addstring(shstrtab, ".note.GNU-stack")
+		shstrtab.Addstring(".note.GNU-stack")
 
-		if ctxt.BuildMode == BuildModeShared {
-			Addstring(shstrtab, ".note.go.abihash")
-			Addstring(shstrtab, ".note.go.pkg-list")
-			Addstring(shstrtab, ".note.go.deps")
+		if ctxt.IsShared() {
+			shstrtab.Addstring(".note.go.abihash")
+			shstrtab.Addstring(".note.go.pkg-list")
+			shstrtab.Addstring(".note.go.deps")
 		}
 	}
 
@@ -1509,171 +1542,169 @@ func (ctxt *Link) doelf() {
 	}
 
 	if hasinitarr {
-		Addstring(shstrtab, ".init_array")
-		Addstring(shstrtab, elfRelType+".init_array")
+		shstrtab.Addstring(".init_array")
+		shstrtab.Addstring(elfRelType + ".init_array")
 	}
 
 	if !*FlagS {
-		Addstring(shstrtab, ".symtab")
-		Addstring(shstrtab, ".strtab")
+		shstrtab.Addstring(".symtab")
+		shstrtab.Addstring(".strtab")
 		dwarfaddshstrings(ctxt, shstrtab)
 	}
 
-	Addstring(shstrtab, ".shstrtab")
+	shstrtab.Addstring(".shstrtab")
 
 	if !*FlagD { /* -d suppresses dynamic loader format */
-		Addstring(shstrtab, ".interp")
-		Addstring(shstrtab, ".hash")
-		Addstring(shstrtab, ".got")
-		if ctxt.Arch.Family == sys.PPC64 {
-			Addstring(shstrtab, ".glink")
+		shstrtab.Addstring(".interp")
+		shstrtab.Addstring(".hash")
+		shstrtab.Addstring(".got")
+		if ctxt.IsPPC64() {
+			shstrtab.Addstring(".glink")
 		}
-		Addstring(shstrtab, ".got.plt")
-		Addstring(shstrtab, ".dynamic")
-		Addstring(shstrtab, ".dynsym")
-		Addstring(shstrtab, ".dynstr")
-		Addstring(shstrtab, elfRelType)
-		Addstring(shstrtab, elfRelType+".plt")
+		shstrtab.Addstring(".got.plt")
+		shstrtab.Addstring(".dynamic")
+		shstrtab.Addstring(".dynsym")
+		shstrtab.Addstring(".dynstr")
+		shstrtab.Addstring(elfRelType)
+		shstrtab.Addstring(elfRelType + ".plt")
 
-		Addstring(shstrtab, ".plt")
-		Addstring(shstrtab, ".gnu.version")
-		Addstring(shstrtab, ".gnu.version_r")
+		shstrtab.Addstring(".plt")
+		shstrtab.Addstring(".gnu.version")
+		shstrtab.Addstring(".gnu.version_r")
 
 		/* dynamic symbol table - first entry all zeros */
-		s := ctxt.Syms.Lookup(".dynsym", 0)
+		dynsym := ldr.CreateSymForUpdate(".dynsym", 0)
 
-		s.Type = sym.SELFROSECT
-		s.Attr |= sym.AttrReachable
+		dynsym.SetType(sym.SELFROSECT)
+		dynsym.SetReachable(true)
 		if elf64 {
-			s.Size += ELF64SYMSIZE
+			dynsym.SetSize(dynsym.Size() + ELF64SYMSIZE)
 		} else {
-			s.Size += ELF32SYMSIZE
+			dynsym.SetSize(dynsym.Size() + ELF32SYMSIZE)
 		}
 
 		/* dynamic string table */
-		s = ctxt.Syms.Lookup(".dynstr", 0)
+		dynstr := ldr.CreateSymForUpdate(".dynstr", 0)
 
-		s.Type = sym.SELFROSECT
-		s.Attr |= sym.AttrReachable
-		if s.Size == 0 {
-			Addstring(s, "")
+		dynstr.SetType(sym.SELFROSECT)
+		dynstr.SetReachable(true)
+		if dynstr.Size() == 0 {
+			dynstr.Addstring("")
 		}
-		dynstr := s
 
 		/* relocation table */
-		s = ctxt.Syms.Lookup(elfRelType, 0)
-		s.Attr |= sym.AttrReachable
-		s.Type = sym.SELFROSECT
+		s := ldr.CreateSymForUpdate(elfRelType, 0)
+		s.SetReachable(true)
+		s.SetType(sym.SELFROSECT)
 
 		/* global offset table */
-		s = ctxt.Syms.Lookup(".got", 0)
-
-		s.Attr |= sym.AttrReachable
-		s.Type = sym.SELFGOT // writable
+		got := ldr.CreateSymForUpdate(".got", 0)
+		got.SetReachable(true)
+		got.SetType(sym.SELFGOT) // writable
 
 		/* ppc64 glink resolver */
-		if ctxt.Arch.Family == sys.PPC64 {
-			s := ctxt.Syms.Lookup(".glink", 0)
-			s.Attr |= sym.AttrReachable
-			s.Type = sym.SELFRXSECT
+		if ctxt.IsPPC64() {
+			s := ldr.CreateSymForUpdate(".glink", 0)
+			s.SetReachable(true)
+			s.SetType(sym.SELFRXSECT)
 		}
 
 		/* hash */
-		s = ctxt.Syms.Lookup(".hash", 0)
+		hash := ldr.CreateSymForUpdate(".hash", 0)
+		hash.SetReachable(true)
+		hash.SetType(sym.SELFROSECT)
 
-		s.Attr |= sym.AttrReachable
-		s.Type = sym.SELFROSECT
+		gotplt := ldr.CreateSymForUpdate(".got.plt", 0)
+		gotplt.SetReachable(true)
+		gotplt.SetType(sym.SELFSECT) // writable
 
-		s = ctxt.Syms.Lookup(".got.plt", 0)
-		s.Attr |= sym.AttrReachable
-		s.Type = sym.SELFSECT // writable
-
-		s = ctxt.Syms.Lookup(".plt", 0)
-
-		s.Attr |= sym.AttrReachable
-		if ctxt.Arch.Family == sys.PPC64 {
+		plt := ldr.CreateSymForUpdate(".plt", 0)
+		plt.SetReachable(true)
+		if ctxt.IsPPC64() {
 			// In the ppc64 ABI, .plt is a data section
 			// written by the dynamic linker.
-			s.Type = sym.SELFSECT
+			plt.SetType(sym.SELFSECT)
 		} else {
-			s.Type = sym.SELFRXSECT
+			plt.SetType(sym.SELFRXSECT)
 		}
 
-		thearch.Elfsetupplt(ctxt, &ctxt.Target, &ctxt.ArchSyms)
+		s = ldr.CreateSymForUpdate(elfRelType+".plt", 0)
+		s.SetReachable(true)
+		s.SetType(sym.SELFROSECT)
 
-		s = ctxt.Syms.Lookup(elfRelType+".plt", 0)
-		s.Attr |= sym.AttrReachable
-		s.Type = sym.SELFROSECT
+		s = ldr.CreateSymForUpdate(".gnu.version", 0)
+		s.SetReachable(true)
+		s.SetType(sym.SELFROSECT)
 
-		s = ctxt.Syms.Lookup(".gnu.version", 0)
-		s.Attr |= sym.AttrReachable
-		s.Type = sym.SELFROSECT
-
-		s = ctxt.Syms.Lookup(".gnu.version_r", 0)
-		s.Attr |= sym.AttrReachable
-		s.Type = sym.SELFROSECT
+		s = ldr.CreateSymForUpdate(".gnu.version_r", 0)
+		s.SetReachable(true)
+		s.SetType(sym.SELFROSECT)
 
 		/* define dynamic elf table */
-		s = ctxt.Syms.Lookup(".dynamic", 0)
+		dynamic := ldr.CreateSymForUpdate(".dynamic", 0)
+		dynamic.SetReachable(true)
+		dynamic.SetType(sym.SELFSECT) // writable
 
-		s.Attr |= sym.AttrReachable
-		s.Type = sym.SELFSECT // writable
+		thearch.Elfsetupplt(ctxt, plt, gotplt, dynamic.Sym())
 
 		/*
 		 * .dynamic table
 		 */
-		elfWriteDynEntSym(ctxt.Arch, s, DT_HASH, ctxt.Syms.Lookup(".hash", 0))
+		elfwritedynentsym2(ctxt, dynamic, DT_HASH, hash.Sym())
 
-		elfWriteDynEntSym(ctxt.Arch, s, DT_SYMTAB, ctxt.Syms.Lookup(".dynsym", 0))
+		elfwritedynentsym2(ctxt, dynamic, DT_SYMTAB, dynsym.Sym())
 		if elf64 {
-			elfWriteDynEnt(ctxt.Arch, s, DT_SYMENT, ELF64SYMSIZE)
+			Elfwritedynent2(ctxt, dynamic, DT_SYMENT, ELF64SYMSIZE)
 		} else {
-			elfWriteDynEnt(ctxt.Arch, s, DT_SYMENT, ELF32SYMSIZE)
+			Elfwritedynent2(ctxt, dynamic, DT_SYMENT, ELF32SYMSIZE)
 		}
-		elfWriteDynEntSym(ctxt.Arch, s, DT_STRTAB, ctxt.Syms.Lookup(".dynstr", 0))
-		elfWriteDynEntSymSize(ctxt.Arch, s, DT_STRSZ, ctxt.Syms.Lookup(".dynstr", 0))
+		elfwritedynentsym2(ctxt, dynamic, DT_STRTAB, dynstr.Sym())
+		elfwritedynentsymsize2(ctxt, dynamic, DT_STRSZ, dynstr.Sym())
 		if elfRelType == ".rela" {
-			elfWriteDynEntSym(ctxt.Arch, s, DT_RELA, ctxt.Syms.Lookup(".rela", 0))
-			elfWriteDynEntSymSize(ctxt.Arch, s, DT_RELASZ, ctxt.Syms.Lookup(".rela", 0))
-			elfWriteDynEnt(ctxt.Arch, s, DT_RELAENT, ELF64RELASIZE)
+			rela := ldr.LookupOrCreateSym(".rela", 0)
+			elfwritedynentsym2(ctxt, dynamic, DT_RELA, rela)
+			elfwritedynentsymsize2(ctxt, dynamic, DT_RELASZ, rela)
+			Elfwritedynent2(ctxt, dynamic, DT_RELAENT, ELF64RELASIZE)
 		} else {
-			elfWriteDynEntSym(ctxt.Arch, s, DT_REL, ctxt.Syms.Lookup(".rel", 0))
-			elfWriteDynEntSymSize(ctxt.Arch, s, DT_RELSZ, ctxt.Syms.Lookup(".rel", 0))
-			elfWriteDynEnt(ctxt.Arch, s, DT_RELENT, ELF32RELSIZE)
+			rel := ldr.LookupOrCreateSym(".rel", 0)
+			elfwritedynentsym2(ctxt, dynamic, DT_REL, rel)
+			elfwritedynentsymsize2(ctxt, dynamic, DT_RELSZ, rel)
+			Elfwritedynent2(ctxt, dynamic, DT_RELENT, ELF32RELSIZE)
 		}
 
 		if rpath.val != "" {
-			elfWriteDynEnt(ctxt.Arch, s, DT_RUNPATH, uint64(Addstring(dynstr, rpath.val)))
+			Elfwritedynent2(ctxt, dynamic, DT_RUNPATH, uint64(dynstr.Addstring(rpath.val)))
 		}
 
-		if ctxt.Arch.Family == sys.PPC64 {
-			elfWriteDynEntSym(ctxt.Arch, s, DT_PLTGOT, ctxt.Syms.Lookup(".plt", 0))
-		} else if ctxt.Arch.Family == sys.S390X {
-			elfWriteDynEntSym(ctxt.Arch, s, DT_PLTGOT, ctxt.Syms.Lookup(".got", 0))
+		if ctxt.IsPPC64() {
+			elfwritedynentsym2(ctxt, dynamic, DT_PLTGOT, plt.Sym())
+		} else if ctxt.IsS390X() {
+			elfwritedynentsym2(ctxt, dynamic, DT_PLTGOT, got.Sym())
 		} else {
-			elfWriteDynEntSym(ctxt.Arch, s, DT_PLTGOT, ctxt.Syms.Lookup(".got.plt", 0))
+			elfwritedynentsym2(ctxt, dynamic, DT_PLTGOT, gotplt.Sym())
 		}
 
-		if ctxt.Arch.Family == sys.PPC64 {
-			elfWriteDynEnt(ctxt.Arch, s, DT_PPC64_OPT, 0)
+		if ctxt.IsPPC64() {
+			Elfwritedynent2(ctxt, dynamic, DT_PPC64_OPT, 0)
 		}
 
 		// Solaris dynamic linker can't handle an empty .rela.plt if
 		// DT_JMPREL is emitted so we have to defer generation of DT_PLTREL,
 		// DT_PLTRELSZ, and DT_JMPREL dynamic entries until after we know the
 		// size of .rel(a).plt section.
-		elfWriteDynEnt(ctxt.Arch, s, DT_DEBUG, 0)
+		Elfwritedynent2(ctxt, dynamic, DT_DEBUG, 0)
 	}
 
-	if ctxt.BuildMode == BuildModeShared {
+	if ctxt.IsShared() {
 		// The go.link.abihashbytes symbol will be pointed at the appropriate
 		// part of the .note.go.abihash section in data.go:func address().
-		s := ctxt.Syms.Lookup("go.link.abihashbytes", 0)
-		s.Attr |= sym.AttrLocal
-		s.Type = sym.SRODATA
-		s.Attr |= sym.AttrSpecial
-		s.Attr |= sym.AttrReachable
-		s.Size = int64(sha1.Size)
+		s := ldr.LookupOrCreateSym("go.link.abihashbytes", 0)
+		sb := ldr.MakeSymbolUpdater(s)
+		ldr.SetAttrLocal(s, true)
+		sb.SetType(sym.SRODATA)
+		ldr.SetAttrSpecial(s, true)
+		sb.SetReachable(true)
+		sb.SetSize(sha1.Size)
 
 		sort.Sort(byPkg(ctxt.Library))
 		h := sha1.New()

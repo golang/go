@@ -60,6 +60,13 @@ func (l *Loader) MakeSymbolUpdater(symIdx Sym) *SymbolBuilder {
 	return sb
 }
 
+// CreateSymForUpdate creates a symbol with given name and version,
+// returns a CreateSymForUpdate for update. If the symbol already
+// exists, it will update in-place.
+func (l *Loader) CreateSymForUpdate(name string, version int) *SymbolBuilder {
+	return l.MakeSymbolUpdater(l.LookupOrCreateSym(name, version))
+}
+
 // Getters for properties of the symbol we're working on.
 
 func (sb *SymbolBuilder) Sym() Sym               { return sb.symIdx }
@@ -271,7 +278,7 @@ func (sb *SymbolBuilder) addRel() *Reloc {
 	return &sb.relocs[len(sb.relocs)-1]
 }
 
-func (sb *SymbolBuilder) addAddrPlus(tgt Sym, add int64, typ objabi.RelocType, rsize int) int64 {
+func (sb *SymbolBuilder) addSymRef(tgt Sym, add int64, typ objabi.RelocType, rsize int) int64 {
 	if sb.kind == 0 {
 		sb.kind = sym.SDATA
 	}
@@ -290,17 +297,34 @@ func (sb *SymbolBuilder) addAddrPlus(tgt Sym, add int64, typ objabi.RelocType, r
 	return i + int64(r.Size)
 }
 
+// Add a symbol reference (relocation) with given type, addend, and size
+// (the most generic form).
+func (sb *SymbolBuilder) AddSymRef(arch *sys.Arch, tgt Sym, add int64, typ objabi.RelocType, rsize int) int64 {
+	sb.setReachable()
+	return sb.addSymRef(tgt, add, typ, rsize)
+}
+
 func (sb *SymbolBuilder) AddAddrPlus(arch *sys.Arch, tgt Sym, add int64) int64 {
 	sb.setReachable()
-	return sb.addAddrPlus(tgt, add, objabi.R_ADDR, arch.PtrSize)
+	return sb.addSymRef(tgt, add, objabi.R_ADDR, arch.PtrSize)
 }
 
 func (sb *SymbolBuilder) AddAddrPlus4(arch *sys.Arch, tgt Sym, add int64) int64 {
 	sb.setReachable()
-	return sb.addAddrPlus(tgt, add, objabi.R_ADDR, 4)
+	return sb.addSymRef(tgt, add, objabi.R_ADDR, 4)
+}
+
+func (sb *SymbolBuilder) AddPCRelPlus(arch *sys.Arch, tgt Sym, add int64) int64 {
+	sb.setReachable()
+	return sb.addSymRef(tgt, add, objabi.R_PCREL, 4)
 }
 
 func (sb *SymbolBuilder) AddCURelativeAddrPlus(arch *sys.Arch, tgt Sym, add int64) int64 {
 	sb.setReachable()
-	return sb.addAddrPlus(tgt, add, objabi.R_ADDRCUOFF, arch.PtrSize)
+	return sb.addSymRef(tgt, add, objabi.R_ADDRCUOFF, arch.PtrSize)
+}
+
+func (sb *SymbolBuilder) AddSize(arch *sys.Arch, tgt Sym) int64 {
+	sb.setReachable()
+	return sb.addSymRef(tgt, 0, objabi.R_SIZE, arch.PtrSize)
 }

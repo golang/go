@@ -34,6 +34,7 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"log"
@@ -572,27 +573,25 @@ func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym
 	return t
 }
 
-func elfsetupplt(ctxt *ld.Link, target *ld.Target, syms *ld.ArchSyms) {
-	plt := ctxt.Syms.Lookup(".plt", 0)
-	got := ctxt.Syms.Lookup(".got.plt", 0)
-	if plt.Size == 0 {
+func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
+	if plt.Size() == 0 {
 		// pushq got+8(IP)
 		plt.AddUint8(0xff)
 
 		plt.AddUint8(0x35)
-		plt.AddPCRelPlus(ctxt.Arch, got, 8)
+		plt.AddPCRelPlus(ctxt.Arch, got.Sym(), 8)
 
 		// jmpq got+16(IP)
 		plt.AddUint8(0xff)
 
 		plt.AddUint8(0x25)
-		plt.AddPCRelPlus(ctxt.Arch, got, 16)
+		plt.AddPCRelPlus(ctxt.Arch, got.Sym(), 16)
 
 		// nopl 0(AX)
 		plt.AddUint32(ctxt.Arch, 0x00401f0f)
 
 		// assume got->size == 0 too
-		got.AddAddrPlus(ctxt.Arch, ctxt.Syms.Lookup(".dynamic", 0), 0)
+		got.AddAddrPlus(ctxt.Arch, dynamic, 0)
 
 		got.AddUint64(ctxt.Arch, 0)
 		got.AddUint64(ctxt.Arch, 0)
@@ -611,7 +610,7 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		got := ctxt.Syms.Lookup(".got.plt", 0)
 		rela := ctxt.Syms.Lookup(".rela.plt", 0)
 		if plt.Size == 0 {
-			elfsetupplt(ctxt, &ctxt.Target, &ctxt.ArchSyms)
+			panic("plt is not set up")
 		}
 
 		// jmpq *got+size(IP)

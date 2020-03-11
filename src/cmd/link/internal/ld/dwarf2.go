@@ -15,6 +15,7 @@ package ld
 
 import (
 	"cmd/internal/objabi"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"log"
 )
@@ -28,18 +29,18 @@ var dwarfp []*sym.Symbol
 /*
  *  Elf.
  */
-func dwarfaddshstrings(ctxt *Link, shstrtab *sym.Symbol) {
+func dwarfaddshstrings(ctxt *Link, shstrtab *loader.SymbolBuilder) {
 	if *FlagW { // disable dwarf
 		return
 	}
 
 	secs := []string{"abbrev", "frame", "info", "loc", "line", "pubnames", "pubtypes", "gdb_scripts", "ranges"}
 	for _, sec := range secs {
-		Addstring(shstrtab, ".debug_"+sec)
-		if ctxt.LinkMode == LinkExternal {
-			Addstring(shstrtab, elfRelType+".debug_"+sec)
+		shstrtab.Addstring(".debug_" + sec)
+		if ctxt.IsExternal() {
+			shstrtab.Addstring(elfRelType + ".debug_" + sec)
 		} else {
-			Addstring(shstrtab, ".zdebug_"+sec)
+			shstrtab.Addstring(".zdebug_" + sec)
 		}
 	}
 }
