@@ -1,4 +1,4 @@
-/* https://github.com/jzaefferer/jquery-treeview/blob/master/jquery.treeview.edit.js */
+/* https://github.com/jzaefferer/jquery-treeview/blob/1.4.2/jquery.treeview.edit.js */
 /* License: MIT. */
 (function($) {
 	var CLASSES = $.treeview.classes;
@@ -35,5 +35,5 @@
 			}
 		});
 	};
-	
+
 })(jQuery);
