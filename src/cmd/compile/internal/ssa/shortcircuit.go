@@ -237,7 +237,11 @@ func shortcircuitBlock(b *Block) bool {
 					}
 				}
 			}
-			phielimValue(phi)
+			if phi.Uses != 0 {
+				phielimValue(phi)
+			} else {
+				phi.reset(OpInvalid)
+			}
 			i-- // v.moveTo put a new value at index i; reprocess
 		}
 
