@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"html/template"
-	"log"
 	"net/http"
 	"sort"
 	"sync"
@@ -97,13 +96,10 @@ func (r *rpcs) Metric(ctx context.Context, data event.MetricData) {
 	defer r.mu.Unlock()
 	for i, group := range data.Groups() {
 		set := &r.Inbound
-		if group.Get(tag.RPCDirection) == tag.Outbound {
+		if tag.RPCDirection.Get(group) == tag.Outbound {
 			set = &r.Outbound
 		}
-		method, ok := group.Get(tag.Method).(string)
-		if !ok {
-			continue
-		}
+		method := tag.Method.Get(group)
 		index := sort.Search(len(*set), func(i int) bool {
 			return (*set)[i].Method >= method
 		})
@@ -119,11 +115,7 @@ func (r *rpcs) Metric(ctx context.Context, data event.MetricData) {
 		case started:
 			stats.Started = data.(*metric.Int64Data).Rows[i]
 		case completed:
-			status, ok := group.Get(tag.StatusCode).(string)
-			if !ok {
-				log.Printf("Not status... %v", group)
-				continue
-			}
+			status := tag.StatusCode.Get(group)
 			var b *rpcCodeBucket
 			for c, entry := range stats.Codes {
 				if entry.Key == status {

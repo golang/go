@@ -151,7 +151,7 @@ func (s *snapshot) PackageHandles(ctx context.Context, fh source.FileHandle) ([]
 		panic("called PackageHandles on a non-Go FileHandle")
 	}
 
-	ctx = event.Label(ctx, tag.File.Of(fh.Identity().URI))
+	ctx = event.Label(ctx, tag.URI.Of(fh.Identity().URI))
 
 	// Check if we should reload metadata for the file. We don't invalidate IDs
 	// (though we should), so the IDs will be a better source of truth than the

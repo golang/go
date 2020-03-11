@@ -46,7 +46,7 @@ func (h telemetryHandler) Request(ctx context.Context, conn *jsonrpc2.Conn, dire
 	ctx, stats.close = event.StartSpan(ctx, r.Method,
 		tag.Method.Of(r.Method),
 		tag.RPCDirection.Of(mode),
-		tag.RPCID.Of(r.ID),
+		tag.RPCID.Of(r.ID.String()),
 	)
 	tag.Started.Record(ctx, 1)
 	_, stats.delivering = event.StartSpan(ctx, "queued")

@@ -11,8 +11,8 @@ import (
 // Tag holds a key and value pair.
 // It is normally used when passing around lists of tags.
 type Tag struct {
-	Key   *Key
-	Value interface{}
+	key   *key
+	value interface{}
 }
 
 // TagList is a way of passing around a collection of key value pairs.
@@ -20,19 +20,39 @@ type Tag struct {
 // maps.
 type TagList []Tag
 
+// Key returns the key for this Tag.
+func (t Tag) Key() Key { return t.key }
+
+// Value returns the value for this Tag.
+func (t Tag) Value() interface{} { return t.value }
+
 // Format is used for debug printing of tags.
 func (t Tag) Format(f fmt.State, r rune) {
-	fmt.Fprintf(f, `%v="%v"`, t.Key.Name, t.Value)
+	if t.key == nil {
+		fmt.Fprintf(f, `nil`)
+		return
+	}
+	fmt.Fprintf(f, `%v="%v"`, t.key.name, t.value)
 }
 
-// Get will get a single key's value from the list.
-func (l TagList) Get(k interface{}) interface{} {
+// FindAll returns corresponding tags for each key in keys.
+// If no tag is found for a key, the Tag at its corresponding
+// index will be of the zero value.
+func (l TagList) FindAll(keys []Key) TagList {
+	tags := make(TagList, len(keys))
+	for i, key := range keys {
+		tags[i] = l.find(key.Identity())
+	}
+	return tags
+}
+
+func (l TagList) find(key interface{}) Tag {
 	for _, t := range l {
-		if t.Key == k {
-			return t.Value
+		if t.key == key {
+			return t
 		}
 	}
-	return nil
+	return Tag{}
 }
 
 // Format pretty prints a list.
@@ -40,7 +60,7 @@ func (l TagList) Get(k interface{}) interface{} {
 func (l TagList) Format(f fmt.State, r rune) {
 	printed := false
 	for _, t := range l {
-		if t.Value == nil {
+		if t.value == nil {
 			continue
 		}
 		if printed {

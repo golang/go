@@ -30,7 +30,7 @@ func (s *Server) completion(ctx context.Context, params *protocol.CompletionPara
 	}
 
 	if err != nil {
-		event.Print(ctx, "no completions found", tag.Position.Of(params.Position), event.Err.Of("Failure"))
+		event.Print(ctx, "no completions found", tag.Position.Of(params.Position), event.Err.Of(err))
 	}
 	if candidates == nil {
 		return &protocol.CompletionList{

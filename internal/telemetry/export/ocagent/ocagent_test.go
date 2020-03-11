@@ -39,30 +39,30 @@ const testNodeStr = `{
 	},`
 
 var (
-	keyDB    = &event.Key{Name: "db"}
-	keyHello = &event.Key{Name: "hello"}
-	keyWorld = &event.Key{Name: "world"}
+	keyDB    = event.NewStringKey("db", "the database name")
+	keyHello = event.NewStringKey("hello", "a metric grouping key")
+	keyWorld = event.NewStringKey("world", "another metric grouping key")
 
-	key1DB = &event.Key{Name: "1_db"}
+	key1DB = event.NewStringKey("1_db", "A test string key")
 
-	key2aAge      = &event.Key{Name: "2a_age"}
-	key2bTTL      = &event.Key{Name: "2b_ttl"}
-	key2cExpiryMS = &event.Key{Name: "2c_expiry_ms"}
+	key2aAge      = event.NewFloat64Key("2a_age", "A test float64 key")
+	key2bTTL      = event.NewFloat32Key("2b_ttl", "A test float32 key")
+	key2cExpiryMS = event.NewFloat64Key("2c_expiry_ms", "A test float64 key")
 
-	key3aRetry = &event.Key{Name: "3a_retry"}
-	key3bStale = &event.Key{Name: "3b_stale"}
+	key3aRetry = event.NewBooleanKey("3a_retry", "A test boolean key")
+	key3bStale = event.NewBooleanKey("3b_stale", "Another test boolean key")
 
-	key4aMax      = &event.Key{Name: "4a_max"}
-	key4bOpcode   = &event.Key{Name: "4b_opcode"}
-	key4cBase     = &event.Key{Name: "4c_base"}
-	key4eChecksum = &event.Key{Name: "4e_checksum"}
-	key4fMode     = &event.Key{Name: "4f_mode"}
+	key4aMax      = event.NewIntKey("4a_max", "A test int key")
+	key4bOpcode   = event.NewInt8Key("4b_opcode", "A test int8 key")
+	key4cBase     = event.NewInt16Key("4c_base", "A test int16 key")
+	key4eChecksum = event.NewInt32Key("4e_checksum", "A test int32 key")
+	key4fMode     = event.NewInt64Key("4f_mode", "A test int64 key")
 
-	key5aMin     = &event.Key{Name: "5a_min"}
-	key5bMix     = &event.Key{Name: "5b_mix"}
-	key5cPort    = &event.Key{Name: "5c_port"}
-	key5dMinHops = &event.Key{Name: "5d_min_hops"}
-	key5eMaxHops = &event.Key{Name: "5e_max_hops"}
+	key5aMin     = event.NewUIntKey("5a_min", "A test uint key")
+	key5bMix     = event.NewUInt8Key("5b_mix", "A test uint8 key")
+	key5cPort    = event.NewUInt16Key("5c_port", "A test uint16 key")
+	key5dMinHops = event.NewUInt32Key("5d_min_hops", "A test uint32 key")
+	key5eMaxHops = event.NewUInt64Key("5e_max_hops", "A test uint64 key")
 )
 
 type testExporter struct {

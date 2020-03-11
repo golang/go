@@ -21,10 +21,10 @@ func Label(ctx context.Context, tags ...Tag) context.Context {
 
 // Query sends a query event to the exporter with the supplied keys.
 // The returned tags will have up to date values if the exporter supports it.
-func Query(ctx context.Context, keys ...*Key) TagList {
+func Query(ctx context.Context, keys ...Key) TagList {
 	tags := make(TagList, len(keys))
 	for i, k := range keys {
-		tags[i].Key = k
+		tags[i] = k.OfValue(nil)
 	}
 	_, ev := ProcessEvent(ctx, Event{
 		Type: QueryType,

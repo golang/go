@@ -143,7 +143,7 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 		}
 		depHandle, err := s.buildPackageHandle(ctx, depID, mode)
 		if err != nil {
-			event.Error(ctx, "no dep handle", err, tag.Package.Of(depID))
+			event.Error(ctx, "no dep handle", err, tag.Package.Of(string(depID)))
 
 			// One bad dependency should not prevent us from checking the entire package.
 			// Add a special key to mark a bad dependency.
@@ -259,7 +259,7 @@ func (s *snapshot) parseGoHandles(ctx context.Context, files []span.URI, mode so
 }
 
 func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode source.ParseMode, goFiles []source.ParseGoHandle, compiledGoFiles []source.ParseGoHandle, deps map[packagePath]*packageHandle) (*pkg, error) {
-	ctx, done := event.StartSpan(ctx, "cache.importer.typeCheck", tag.Package.Of(m.id))
+	ctx, done := event.StartSpan(ctx, "cache.importer.typeCheck", tag.Package.Of(string(m.id)))
 	defer done()
 
 	var rawErrors []error

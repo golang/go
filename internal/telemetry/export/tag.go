@@ -21,13 +21,14 @@ func Tag(ctx context.Context, ev event.Event) (context.Context, event.Event) {
 	switch {
 	case ev.IsLabel(), ev.IsStartSpan():
 		for _, t := range ev.Tags {
-			ctx = context.WithValue(ctx, t.Key, t.Value)
+			ctx = context.WithValue(ctx, t.Key(), t.Value())
 		}
 	default:
 		// all other types want the tags filled in if needed
 		for i := range ev.Tags {
-			if ev.Tags[i].Value == nil {
-				ev.Tags[i].Value = ctx.Value(ev.Tags[i].Key)
+			if ev.Tags[i].Value() == nil {
+				key := ev.Tags[i].Key()
+				ev.Tags[i] = key.OfValue(ctx.Value(key.Identity()))
 			}
 		}
 	}

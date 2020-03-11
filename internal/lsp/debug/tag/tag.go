@@ -13,27 +13,27 @@ import (
 
 var (
 	// create the tag keys we use
-	Method        = &event.Key{Name: "method"}
-	StatusCode    = &event.Key{Name: "status.code"}
-	StatusMessage = &event.Key{Name: "status.message"}
-	RPCID         = &event.Key{Name: "id"}
-	RPCDirection  = &event.Key{Name: "direction"}
-	File          = &event.Key{Name: "file"}
-	Directory     = &event.Key{Name: "directory"}
-	URI           = &event.Key{Name: "URI"}
-	Package       = &event.Key{Name: "package"}
-	PackagePath   = &event.Key{Name: "package_path"}
-	Query         = &event.Key{Name: "query"}
-	Snapshot      = &event.Key{Name: "snapshot"}
-	Operation     = &event.Key{Name: "operation"}
+	Method        = event.NewStringKey("method", "")
+	StatusCode    = event.NewStringKey("status.code", "")
+	StatusMessage = event.NewStringKey("status.message", "")
+	RPCID         = event.NewStringKey("id", "")
+	RPCDirection  = event.NewStringKey("direction", "")
+	File          = event.NewStringKey("file", "")
+	Directory     = event.NewKey("directory", "")
+	URI           = event.NewKey("URI", "")
+	Package       = event.NewStringKey("package", "")
+	PackagePath   = event.NewStringKey("package_path", "")
+	Query         = event.NewKey("query", "")
+	Snapshot      = event.NewUInt64Key("snapshot", "")
+	Operation     = event.NewStringKey("operation", "")
 
-	Position     = &event.Key{Name: "position"}
-	Category     = &event.Key{Name: "category"}
-	PackageCount = &event.Key{Name: "packages"}
-	Files        = &event.Key{Name: "files"}
-	Port         = &event.Key{Name: "port"}
-	Type         = &event.Key{Name: "type"}
-	HoverKind    = &event.Key{Name: "hoverkind"}
+	Position     = event.NewKey("position", "")
+	Category     = event.NewStringKey("category", "")
+	PackageCount = event.NewIntKey("packages", "")
+	Files        = event.NewKey("files", "")
+	Port         = event.NewIntKey("port", "")
+	Type         = event.NewKey("type", "")
+	HoverKind    = event.NewStringKey("hoverkind", "")
 )
 
 var (

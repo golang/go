@@ -73,7 +73,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			// First, add the quick fixes reported by go/analysis.
 			qf, err := quickFixes(ctx, snapshot, fh, diagnostics)
 			if err != nil {
-				event.Error(ctx, "quick fixes failed", err, tag.File.Of(uri))
+				event.Error(ctx, "quick fixes failed", err, tag.URI.Of(uri))
 			}
 			codeActions = append(codeActions, qf...)
 
@@ -97,7 +97,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			}
 			actions, err := mod.SuggestedGoFixes(ctx, snapshot, fh, diagnostics)
 			if err != nil {
-				event.Error(ctx, "quick fixes failed", err, tag.File.Of(uri))
+				event.Error(ctx, "quick fixes failed", err, tag.URI.Of(uri))
 			}
 			if len(actions) > 0 {
 				codeActions = append(codeActions, actions...)

@@ -144,7 +144,7 @@ func (s *snapshot) ModHandle(ctx context.Context, fh source.FileHandle) source.M
 		view:      folder,
 	}
 	h := s.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
-		ctx, done := event.StartSpan(ctx, "cache.ModHandle", tag.File.Of(uri))
+		ctx, done := event.StartSpan(ctx, "cache.ModHandle", tag.URI.Of(uri))
 		defer done()
 
 		contents, _, err := fh.Read(ctx)
@@ -317,7 +317,7 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 			return &modData{}
 		}
 
-		ctx, done := event.StartSpan(ctx, "cache.ModTidyHandle", tag.File.Of(realURI))
+		ctx, done := event.StartSpan(ctx, "cache.ModTidyHandle", tag.URI.Of(realURI))
 		defer done()
 
 		realContents, _, err := realfh.Read(ctx)

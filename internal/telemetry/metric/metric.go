@@ -21,7 +21,7 @@ type Scalar struct {
 	// Description can be used by observers to describe the metric to users.
 	Description string
 	// Keys is the set of tags that collectively describe rows of the metric.
-	Keys []*event.Key
+	Keys []event.Key
 }
 
 // HistogramInt64 represents the construction information for an int64 histogram metric.
@@ -31,7 +31,7 @@ type HistogramInt64 struct {
 	// Description can be used by observers to describe the metric to users.
 	Description string
 	// Keys is the set of tags that collectively describe rows of the metric.
-	Keys []*event.Key
+	Keys []event.Key
 	// Buckets holds the inclusive upper bound of each bucket in the histogram.
 	Buckets []int64
 }
@@ -43,7 +43,7 @@ type HistogramFloat64 struct {
 	// Description can be used by observers to describe the metric to users.
 	Description string
 	// Keys is the set of tags that collectively describe rows of the metric.
-	Keys []*event.Key
+	Keys []event.Key
 	// Buckets holds the inclusive upper bound of each bucket in the histogram.
 	Buckets []float64
 }
@@ -201,7 +201,7 @@ type HistogramFloat64Row struct {
 	Max float64
 }
 
-func getGroup(ctx context.Context, g *[]event.TagList, keys []*event.Key) (int, bool) {
+func getGroup(ctx context.Context, g *[]event.TagList, keys []event.Key) (int, bool) {
 	group := event.Query(ctx, keys...)
 	old := *g
 	index := sort.Search(len(old), func(i int) bool {
