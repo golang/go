@@ -1,0 +1,49 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file contains regression tests for bugs found.
+
+package p
+
+// This used to crash with an assertion failure when
+// instantiating f(int, int). The assertion was checking
+// that the number of type parameters and arguments was
+// matching for the embedded contract anInt (rather, its
+// corresponding interface bound) but it really compared
+// the numbers for anInt and twoInt (which embedds anInt).
+// The fix simply uses the instantiated non-parameterized
+// underlying interface of atInt<K> rather than anInt<K>.
+contract anInt(T) {
+	T int
+}
+
+contract twoInt(K, _) {
+	anInt(K)
+}
+
+func f(type K, V twoInt)()
+
+func _ () {
+	f(int, int)()
+}
+
+// This is the original (simplified) program causing the same issue.
+contract comparable(T) {
+	T int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64, uintptr,
+		float32, float64,
+		string
+}
+
+contract twocomparable(K, V) {
+	comparable(K)
+	comparable(V)
+}
+
+func Equal(type K, V twocomparable)(m1, m2 map[K]V)
+
+func _() {
+	var m map[int]int
+	Equal(m, nil)
+}

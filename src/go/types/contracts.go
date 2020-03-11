@@ -135,15 +135,21 @@ func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
 					continue
 				}
 
-				// add the instantiated bounds as embedded interfaces to the respective
-				// embedding (outer) contract bound
-				// TODO(gri) This seems incorrect. We must accomodate the situation where
-				//           the embedded interfaces have different type parameters than
-				//           the embedding interfaces.
+				// Add the instantiated bounds (ebound) as embedded interfaces to the respective
+				// embedding (outer) contract bound. Because the ebounds are already instantiated
+				// with the outer bound's type parameters, and because they are embedded, there
+				// is no need to keep them in instantiated form; in fact it will lead to problems
+				// if the outer bound is instantiated again later. We can just keep the ebound's
+				// underlying interface instead.
+				// (Alternatively one could set ebound.tparam to nil, thus marking it as not
+				// parameterized. But because ebound may be shared one would have to make a
+				// copy first. Since interface embedding doesn't care whether the embedded
+				// interface is named or not - one may embed an interface alias, after all -
+				// it is simpler to just use the underlying unnamed interface.)
 				for i, ebound := range eobj.Bounds {
 					index := targs[i].(*TypeParam).index
 					iface := bounds[index].underlying.(*Interface)
-					iface.embeddeds = append(iface.embeddeds, ebound)
+					iface.embeddeds = append(iface.embeddeds, ebound.underlying)    // don't use Named form of ebound
 					check.posMap[iface] = append(check.posMap[iface], econtr.Pos()) // satisfy completeInterface requirements
 				}
 				continue // success

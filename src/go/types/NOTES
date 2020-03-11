@@ -4,7 +4,8 @@ so we have a better track record. I only switched to this file in Nov 2019, henc
 ----------------------------------------------------------------------------------------------------
 TODO
 
-- review embedding of contracts with multiple and different numbers of arguments - likely incorrect
+- review handling of fields of instantiated generic types (do we need to make them non-parameterized,
+  similar to what we did for the embedded interfaces created by contract embedding?)
 - debug (and error msg) printing of generic instantiated types needs some work
 - improve error messages!
 - use []*TypeParam for tparams in subst? (unclear)

@@ -105,6 +105,7 @@ var tests = [][]string{
 	{"testdata/typeinst.go2"},
 	{"testdata/typeinst2.go2"},
 	{"testdata/contracts.go2"},
+	{"testdata/issues.go2"},
 	{"testdata/todos.go2"},
 
 	// Go 2 examples from design doc

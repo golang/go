@@ -15,5 +15,5 @@ contract twoInt(K, _) {
 func f(type K, V twoInt)()
 
 func _ () {
-	// f(int, int)() // this fails at the moment
+	f(int, int)()
 }
