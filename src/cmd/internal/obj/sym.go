@@ -294,28 +294,58 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
 					fn(s.Gotype)
 				}
 				if s.Type == objabi.STEXT {
-					pc := &s.Func.Pcln
-					for _, d := range pc.Funcdata {
-						if d != nil {
-							fn(d)
-						}
+					f := func(parent *LSym, aux *LSym) {
+						fn(aux)
 					}
-					for _, f := range pc.File {
-						if fsym := ctxt.Lookup(f); fsym != nil {
-							fn(fsym)
-						}
-					}
-					for _, call := range pc.InlTree.nodes {
-						if call.Func != nil {
-							fn(call.Func)
-						}
-						f, _ := linkgetlineFromPos(ctxt, call.Pos)
-						if fsym := ctxt.Lookup(f); fsym != nil {
-							fn(fsym)
-						}
-					}
+					ctxt.traverseFuncAux(s, f)
 				}
 			}
+		}
+	}
+}
+
+func (ctxt *Link) traverseFuncAux(fsym *LSym, fn func(parent *LSym, aux *LSym)) {
+	pc := &fsym.Func.Pcln
+	for _, d := range pc.Funcdata {
+		if d != nil {
+			fn(fsym, d)
+		}
+	}
+	for _, f := range pc.File {
+		if filesym := ctxt.Lookup(f); filesym != nil {
+			fn(fsym, filesym)
+		}
+	}
+	for _, call := range pc.InlTree.nodes {
+		if call.Func != nil {
+			fn(fsym, call.Func)
+		}
+		f, _ := linkgetlineFromPos(ctxt, call.Pos)
+		if filesym := ctxt.Lookup(f); filesym != nil {
+			fn(fsym, filesym)
+		}
+	}
+	dwsyms := []*LSym{fsym.Func.dwarfRangesSym, fsym.Func.dwarfLocSym}
+	for _, dws := range dwsyms {
+		if dws == nil || dws.Size == 0 {
+			continue
+		}
+		fn(fsym, dws)
+	}
+}
+
+// Traverse aux symbols, calling fn for each sym/aux pair.
+func (ctxt *Link) traverseAuxSyms(fn func(parent *LSym, aux *LSym)) {
+	lists := [][]*LSym{ctxt.Text, ctxt.Data, ctxt.ABIAliases}
+	for _, list := range lists {
+		for _, s := range list {
+			if s.Gotype != nil {
+				fn(s, s.Gotype)
+			}
+			if s.Type != objabi.STEXT {
+				continue
+			}
+			ctxt.traverseFuncAux(s, fn)
 		}
 	}
 }
