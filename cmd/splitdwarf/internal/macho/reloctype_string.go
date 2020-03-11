@@ -4,6 +4,18 @@ package macho
 
 import "strconv"
 
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[GENERIC_RELOC_VANILLA-0]
+	_ = x[GENERIC_RELOC_PAIR-1]
+	_ = x[GENERIC_RELOC_SECTDIFF-2]
+	_ = x[GENERIC_RELOC_PB_LA_PTR-3]
+	_ = x[GENERIC_RELOC_LOCAL_SECTDIFF-4]
+	_ = x[GENERIC_RELOC_TLV-5]
+}
+
 const _RelocTypeGeneric_name = "GENERIC_RELOC_VANILLAGENERIC_RELOC_PAIRGENERIC_RELOC_SECTDIFFGENERIC_RELOC_PB_LA_PTRGENERIC_RELOC_LOCAL_SECTDIFFGENERIC_RELOC_TLV"
 
 var _RelocTypeGeneric_index = [...]uint8{0, 21, 39, 61, 84, 112, 129}
@@ -13,6 +25,21 @@ func (i RelocTypeGeneric) String() string {
 		return "RelocTypeGeneric(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _RelocTypeGeneric_name[_RelocTypeGeneric_index[i]:_RelocTypeGeneric_index[i+1]]
+}
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[X86_64_RELOC_UNSIGNED-0]
+	_ = x[X86_64_RELOC_SIGNED-1]
+	_ = x[X86_64_RELOC_BRANCH-2]
+	_ = x[X86_64_RELOC_GOT_LOAD-3]
+	_ = x[X86_64_RELOC_GOT-4]
+	_ = x[X86_64_RELOC_SUBTRACTOR-5]
+	_ = x[X86_64_RELOC_SIGNED_1-6]
+	_ = x[X86_64_RELOC_SIGNED_2-7]
+	_ = x[X86_64_RELOC_SIGNED_4-8]
+	_ = x[X86_64_RELOC_TLV-9]
 }
 
 const _RelocTypeX86_64_name = "X86_64_RELOC_UNSIGNEDX86_64_RELOC_SIGNEDX86_64_RELOC_BRANCHX86_64_RELOC_GOT_LOADX86_64_RELOC_GOTX86_64_RELOC_SUBTRACTORX86_64_RELOC_SIGNED_1X86_64_RELOC_SIGNED_2X86_64_RELOC_SIGNED_4X86_64_RELOC_TLV"
@@ -25,6 +52,21 @@ func (i RelocTypeX86_64) String() string {
 	}
 	return _RelocTypeX86_64_name[_RelocTypeX86_64_index[i]:_RelocTypeX86_64_index[i+1]]
 }
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[ARM_RELOC_VANILLA-0]
+	_ = x[ARM_RELOC_PAIR-1]
+	_ = x[ARM_RELOC_SECTDIFF-2]
+	_ = x[ARM_RELOC_LOCAL_SECTDIFF-3]
+	_ = x[ARM_RELOC_PB_LA_PTR-4]
+	_ = x[ARM_RELOC_BR24-5]
+	_ = x[ARM_THUMB_RELOC_BR22-6]
+	_ = x[ARM_THUMB_32BIT_BRANCH-7]
+	_ = x[ARM_RELOC_HALF-8]
+	_ = x[ARM_RELOC_HALF_SECTDIFF-9]
+}
 
 const _RelocTypeARM_name = "ARM_RELOC_VANILLAARM_RELOC_PAIRARM_RELOC_SECTDIFFARM_RELOC_LOCAL_SECTDIFFARM_RELOC_PB_LA_PTRARM_RELOC_BR24ARM_THUMB_RELOC_BR22ARM_THUMB_32BIT_BRANCHARM_RELOC_HALFARM_RELOC_HALF_SECTDIFF"
 
@@ -35,6 +77,22 @@ func (i RelocTypeARM) String() string {
 		return "RelocTypeARM(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _RelocTypeARM_name[_RelocTypeARM_index[i]:_RelocTypeARM_index[i+1]]
+}
+func _() {
+	// An "invalid array index" compiler error signifies that the constant values have changed.
+	// Re-run the stringer command to generate them again.
+	var x [1]struct{}
+	_ = x[ARM64_RELOC_UNSIGNED-0]
+	_ = x[ARM64_RELOC_SUBTRACTOR-1]
+	_ = x[ARM64_RELOC_BRANCH26-2]
+	_ = x[ARM64_RELOC_PAGE21-3]
+	_ = x[ARM64_RELOC_PAGEOFF12-4]
+	_ = x[ARM64_RELOC_GOT_LOAD_PAGE21-5]
+	_ = x[ARM64_RELOC_GOT_LOAD_PAGEOFF12-6]
+	_ = x[ARM64_RELOC_POINTER_TO_GOT-7]
+	_ = x[ARM64_RELOC_TLVP_LOAD_PAGE21-8]
+	_ = x[ARM64_RELOC_TLVP_LOAD_PAGEOFF12-9]
+	_ = x[ARM64_RELOC_ADDEND-10]
 }
 
 const _RelocTypeARM64_name = "ARM64_RELOC_UNSIGNEDARM64_RELOC_SUBTRACTORARM64_RELOC_BRANCH26ARM64_RELOC_PAGE21ARM64_RELOC_PAGEOFF12ARM64_RELOC_GOT_LOAD_PAGE21ARM64_RELOC_GOT_LOAD_PAGEOFF12ARM64_RELOC_POINTER_TO_GOTARM64_RELOC_TLVP_LOAD_PAGE21ARM64_RELOC_TLVP_LOAD_PAGEOFF12ARM64_RELOC_ADDEND"
