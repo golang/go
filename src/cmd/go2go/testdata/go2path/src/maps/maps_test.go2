@@ -1,0 +1,145 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package maps
+
+import (
+	"math"
+	"sort"
+	"testing"
+
+	"slices"
+)
+
+var m1 = map[int]int{1: 2, 2: 4, 4: 8, 8: 16}
+var m2 = map[int]string{1: "2", 2: "4", 4: "8", 8: "16"}
+
+func TestKeys(t *testing.T) {
+	want := []int{1, 2, 4, 8}
+
+	got1 := Keys(m1)
+	sort.Ints(got1)
+	if !slices.Equal(got1, want) {
+		t.Errorf("Keys(%v) = %v, want %v", m1, got1, want)
+	}
+
+	got2 := Keys(m2)
+	sort.Ints(got2)
+	if !slices.Equal(got2, want) {
+		t.Errorf("Keys(%v) = %v, want %v", m2, got2, want)
+	}
+}
+
+func TestValues(t *testing.T) {
+	got1 := Values(m1)
+	want1 := []int{2, 4, 8, 16}
+	sort.Ints(got1)
+	if !slices.Equal(got1, want1) {
+		t.Errorf("Values(%v) = %v, want %v", m1, got1, want1)
+	}
+
+	got2 := Values(m2)
+	want2 := []string{"16", "2", "4", "8"}
+	sort.Strings(got2)
+	if !slices.Equal(got2, want2) {
+		t.Errorf("Values(%v) = %v, want %v", m2, got2, want2)
+	}
+}
+
+func TestEqual(t *testing.T) {
+	if !Equal(m1, m1) {
+		t.Errorf("Equal(%v, %v) = false, want true", m1, m1)
+	}
+	if Equal(m1, nil) {
+		t.Errorf("Equal(%v, nil) = true, want false", m1)
+	}
+	if Equal(nil, m1) {
+		t.Errorf("Equal(nil, %v) = true, want false", m1)
+	}
+	if !Equal(int, int)(nil, nil) {
+		t.Error("Equal(nil, nil) = false, want true")
+	}
+	if ms := map[int]int{1: 2}; Equal(m1, ms) {
+		t.Errorf("Equal(%v, %v) = true, want false", m1, ms)
+	}
+
+	// Comparing NaN for equality is expected to fail.
+	mf := map[int]float64{1: 0, 2: math.NaN()}
+	if Equal(mf, mf) {
+		t.Errorf("Equal(%v, %v) = true, want false", mf, mf)
+	}
+}
+
+func TestCopy(t *testing.T) {
+	m2 := Copy(m1)
+	if !Equal(m1, m2) {
+		t.Errorf("Copy(%v) = %v, want %v", m1, m2, m1)
+	}
+	m2[16] = 32
+	if Equal(m1, m2) {
+		t.Errorf("Equal(%v, %v) = true, want false", m1, m2)
+	}
+}
+
+func TestAdd(t *testing.T) {
+	mc := Copy(m1)
+	Add(mc, mc)
+	if !Equal(mc, m1) {
+		t.Errorf("Add(%v, %v) = %v, want %v", m1, m1, mc, m1)
+	}
+	Add(mc, map[int]int{16: 32})
+	want := map[int]int{1: 2, 2: 4, 4: 8, 8: 16, 16: 32}
+	if !Equal(mc, want) {
+		t.Errorf("Add result = %v, want %v", mc, want)
+	}
+}
+
+func TestSub(t *testing.T) {
+	mc := Copy(m1)
+	Sub(mc, mc)
+	if len(mc) > 0 {
+		t.Errorf("Sub(%v, %v) = %v, want empty map", m1, m1, mc)
+	}
+	mc = Copy(m1)
+	Sub(mc, map[int]int{1: 0})
+	want := map[int]int{2: 4, 4: 8, 8: 16}
+	if !Equal(mc, want) {
+		t.Errorf("Sub result = %v, want %v", mc, want)
+	}
+}
+
+func TestIntersect(t *testing.T) {
+	mc := Copy(m1)
+	Intersect(mc, mc)
+	if !Equal(mc, m1) {
+		t.Errorf("Intersect(%v, %v) = %v, want %v", m1, m1, mc, m1)
+	}
+	Intersect(mc, map[int]int{1: 0, 2: 0})
+	want := map[int]int{1: 2, 2: 4}
+	if !Equal(mc, want) {
+		t.Errorf("Intersect result = %v, want %v", mc, want)
+	}
+}
+
+func TestFilter(t *testing.T) {
+	mc := Copy(m1)
+	Filter(mc, func(int, int) bool { return true })
+	if !Equal(mc, m1) {
+		t.Errorf("Filter(%v, true) = %v, want %v", m1, mc, m1)
+	}
+	Filter(mc, func(k, v int) bool { return k < 3 })
+	want := map[int]int{1: 2, 2: 4}
+	if !Equal(mc, want) {
+		t.Errorf("Filter result = %v, want %v", mc, want)
+	}
+}
+
+func TestTransformValues(t *testing.T) {
+	mc := Copy(m1)
+	TransformValues(mc, func(i int) int { return i / 2 })
+	want := map[int]int{1: 1, 2: 2, 4: 4, 8: 8}
+	if !Equal(mc, want) {
+		t.Errorf("TransformValues result = %v, want %v", mc, want)
+	}
+}

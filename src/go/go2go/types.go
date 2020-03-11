@@ -120,6 +120,19 @@ func (t *translator) doInstantiateType(ta *typeArgs, typ types.Type) types.Type 
 			tags = nil
 		}
 		return types.NewStruct(fields, tags)
+	case *types.Map:
+		key := t.instantiateType(ta, typ.Key())
+		elem := t.instantiateType(ta, typ.Elem())
+		if key == typ.Key() && elem == typ.Elem() {
+			return typ
+		}
+		return types.NewMap(key, elem)
+	case *types.Chan:
+		elem := t.instantiateType(ta, typ.Elem())
+		if elem == typ.Elem() {
+			return typ
+		}
+		return types.NewChan(typ.Dir(), elem)
 	default:
 		panic(fmt.Sprintf("unimplemented Type %T", typ))
 	}

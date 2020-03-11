@@ -423,6 +423,9 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 	case *ast.BinaryExpr:
 		t.translateExpr(&e.X)
 		t.translateExpr(&e.Y)
+	case *ast.KeyValueExpr:
+		t.translateExpr(&e.Key)
+		t.translateExpr(&e.Value)
 	case *ast.UnaryExpr:
 		t.translateExpr(&e.X)
 	case *ast.IndexExpr:
@@ -453,6 +456,14 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 		t.translateFieldList(e.TParams)
 		t.translateFieldList(e.Params)
 		t.translateFieldList(e.Results)
+	case *ast.InterfaceType:
+		t.translateFieldList(e.Methods)
+		t.translateExprList(e.Types)
+	case *ast.MapType:
+		t.translateExpr(&e.Key)
+		t.translateExpr(&e.Value)
+	case *ast.ChanType:
+		t.translateExpr(&e.Value)
 	default:
 		panic(fmt.Sprintf("unimplemented Expr %T", e))
 	}

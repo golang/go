@@ -33,7 +33,8 @@ func newTypeArgs(typeTypes []types.Type) *typeArgs {
 // expressed as ast.Field values.
 func typeArgsFromFields(t *translator, astTypes []ast.Expr, typeTypes []types.Type, tparams []*ast.Field) *typeArgs {
 	ta := newTypeArgs(typeTypes)
-	for i, tf := range tparams {
+	i := 0
+	for _, tf := range tparams {
 		for _, tn := range tf.Names {
 			obj, ok := t.importer.info.Defs[tn]
 			if !ok {
@@ -45,6 +46,7 @@ func typeArgsFromFields(t *translator, astTypes []ast.Expr, typeTypes []types.Ty
 				panic(fmt.Sprintf("%v is not a TypeParam", objParam))
 			}
 			ta.add(obj, objParam, astTypes[i], typeTypes[i])
+			i++
 		}
 	}
 	return ta
@@ -537,6 +539,17 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 			Op:    e.Op,
 			Y:     y,
 		}
+	case *ast.KeyValueExpr:
+		key := t.instantiateExpr(ta, e.Key)
+		value := t.instantiateExpr(ta, e.Value)
+		if key == e.Key && value == e.Value {
+			return e
+		}
+		r = &ast.KeyValueExpr{
+			Key:   key,
+			Colon: e.Colon,
+			Value: value,
+		}
 	case *ast.IndexExpr:
 		x := t.instantiateExpr(ta, e.X)
 		index := t.instantiateExpr(ta, e.Index)
@@ -599,18 +612,6 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 			t.importer.info.Inferred[newCall] = newInferred
 		}
 		r = newCall
-	case *ast.FuncType:
-		params := t.instantiateFieldList(ta, e.Params)
-		results := t.instantiateFieldList(ta, e.Results)
-		if e.TParams == nil && params == e.Params && results == e.Results {
-			return e
-		}
-		return &ast.FuncType{
-			Func:    e.Func,
-			TParams: nil,
-			Params:  params,
-			Results: results,
-		}
 	case *ast.ArrayType:
 		ln := t.instantiateExpr(ta, e.Len)
 		elt := t.instantiateExpr(ta, e.Elt)
@@ -631,6 +632,52 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 			Struct:     e.Struct,
 			Fields:     fields,
 			Incomplete: e.Incomplete,
+		}
+	case *ast.FuncType:
+		params := t.instantiateFieldList(ta, e.Params)
+		results := t.instantiateFieldList(ta, e.Results)
+		if e.TParams == nil && params == e.Params && results == e.Results {
+			return e
+		}
+		return &ast.FuncType{
+			Func:    e.Func,
+			TParams: nil,
+			Params:  params,
+			Results: results,
+		}
+	case *ast.InterfaceType:
+		methods := t.instantiateFieldList(ta, e.Methods)
+		types, typesChanged := t.instantiateExprList(ta, e.Types)
+		if methods == e.Methods && !typesChanged {
+			return e
+		}
+		return &ast.InterfaceType{
+			Interface:  e.Interface,
+			Methods:    methods,
+			Types:      types,
+			Incomplete: e.Incomplete,
+		}
+	case *ast.MapType:
+		key := t.instantiateExpr(ta, e.Key)
+		value := t.instantiateExpr(ta, e.Value)
+		if key == e.Key && value == e.Value {
+			return e
+		}
+		return &ast.MapType{
+			Map:   e.Map,
+			Key:   key,
+			Value: value,
+		}
+	case *ast.ChanType:
+		value := t.instantiateExpr(ta, e.Value)
+		if value == e.Value {
+			return e
+		}
+		return &ast.ChanType{
+			Begin: e.Begin,
+			Arrow: e.Arrow,
+			Dir:   e.Dir,
+			Value: value,
 		}
 	default:
 		panic(fmt.Sprintf("unimplemented Expr %T", e))
