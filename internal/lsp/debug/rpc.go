@@ -13,7 +13,7 @@ import (
 	"sort"
 	"sync"
 
-	tlm "golang.org/x/tools/internal/lsp/telemetry"
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/telemetry/metric"
 )
@@ -97,10 +97,10 @@ func (r *rpcs) Metric(ctx context.Context, data event.MetricData) {
 	defer r.mu.Unlock()
 	for i, group := range data.Groups() {
 		set := &r.Inbound
-		if group.Get(tlm.RPCDirection) == tlm.Outbound {
+		if group.Get(tag.RPCDirection) == tag.Outbound {
 			set = &r.Outbound
 		}
-		method, ok := group.Get(tlm.Method).(string)
+		method, ok := group.Get(tag.Method).(string)
 		if !ok {
 			continue
 		}
@@ -119,7 +119,7 @@ func (r *rpcs) Metric(ctx context.Context, data event.MetricData) {
 		case started:
 			stats.Started = data.(*metric.Int64Data).Rows[i]
 		case completed:
-			status, ok := group.Get(tlm.StatusCode).(string)
+			status, ok := group.Get(tag.StatusCode).(string)
 			if !ok {
 				log.Printf("Not status... %v", group)
 				continue

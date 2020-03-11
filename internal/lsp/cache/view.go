@@ -24,8 +24,8 @@ import (
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/debug"
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/event"
@@ -792,7 +792,7 @@ func (v *view) modfileFlagExists(ctx context.Context, env []string) (bool, error
 	// If the output is not go1.14 or an empty string, then it could be an error.
 	lines := strings.Split(stdout.String(), "\n")
 	if len(lines) < 2 && stdout.String() != "" {
-		event.Error(ctx, "unexpected stdout when checking for go1.14", errors.Errorf("%q", stdout), telemetry.Directory.Of(folder))
+		event.Error(ctx, "unexpected stdout when checking for go1.14", errors.Errorf("%q", stdout), tag.Directory.Of(folder))
 		return false, nil
 	}
 	return lines[0] == "go1.14", nil

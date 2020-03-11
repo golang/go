@@ -15,8 +15,8 @@ import (
 
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/telemetry/event"
 	errors "golang.org/x/xerrors"
@@ -207,7 +207,7 @@ func runAnalysis(ctx context.Context, fset *token.FileSet, analyzer *analysis.An
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			event.Print(ctx, fmt.Sprintf("analysis panicked: %s", r), telemetry.Package.Of(pkg.PkgPath))
+			event.Print(ctx, fmt.Sprintf("analysis panicked: %s", r), tag.Package.Of(pkg.PkgPath))
 			data.err = errors.Errorf("analysis %s for package %s panicked: %v", analyzer.Name, pkg.PkgPath(), r)
 		}
 	}()
@@ -343,7 +343,7 @@ func runAnalysis(ctx context.Context, fset *token.FileSet, analyzer *analysis.An
 	for _, diag := range diagnostics {
 		srcErr, err := sourceError(ctx, fset, pkg, diag)
 		if err != nil {
-			event.Error(ctx, "unable to compute analysis error position", err, event.TagOf("category", diag.Category), telemetry.Package.Of(pkg.ID()))
+			event.Error(ctx, "unable to compute analysis error position", err, event.TagOf("category", diag.Category), tag.Package.Of(pkg.ID()))
 			continue
 		}
 		data.diagnostics = append(data.diagnostics, srcErr)

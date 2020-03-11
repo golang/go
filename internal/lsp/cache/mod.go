@@ -16,9 +16,9 @@ import (
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/gocommand"
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/event"
@@ -144,7 +144,7 @@ func (s *snapshot) ModHandle(ctx context.Context, fh source.FileHandle) source.M
 		view:      folder,
 	}
 	h := s.view.session.cache.store.Bind(key, func(ctx context.Context) interface{} {
-		ctx, done := event.StartSpan(ctx, "cache.ModHandle", telemetry.File.Of(uri))
+		ctx, done := event.StartSpan(ctx, "cache.ModHandle", tag.File.Of(uri))
 		defer done()
 
 		contents, _, err := fh.Read(ctx)
@@ -317,7 +317,7 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 			return &modData{}
 		}
 
-		ctx, done := event.StartSpan(ctx, "cache.ModTidyHandle", telemetry.File.Of(realURI))
+		ctx, done := event.StartSpan(ctx, "cache.ModTidyHandle", tag.File.Of(realURI))
 		defer done()
 
 		realContents, _, err := realfh.Read(ctx)

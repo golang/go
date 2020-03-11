@@ -16,9 +16,9 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/event"
 	errors "golang.org/x/xerrors"
@@ -60,7 +60,7 @@ func sourceError(ctx context.Context, fset *token.FileSet, pkg *pkg, e interface
 		kind = source.ParseError
 		spn, err = scannerErrorRange(ctx, fset, pkg, e.Pos)
 		if err != nil {
-			event.Error(ctx, "no span for scanner.Error pos", err, telemetry.Package.Of(pkg.ID()))
+			event.Error(ctx, "no span for scanner.Error pos", err, tag.Package.Of(pkg.ID()))
 			spn = span.Parse(e.Pos.String())
 		}
 
@@ -73,7 +73,7 @@ func sourceError(ctx context.Context, fset *token.FileSet, pkg *pkg, e interface
 		kind = source.ParseError
 		spn, err = scannerErrorRange(ctx, fset, pkg, e[0].Pos)
 		if err != nil {
-			event.Error(ctx, "no span for scanner.Error pos", err, telemetry.Package.Of(pkg.ID()))
+			event.Error(ctx, "no span for scanner.Error pos", err, tag.Package.Of(pkg.ID()))
 			spn = span.Parse(e[0].Pos.String())
 		}
 	case types.Error:

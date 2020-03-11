@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"golang.org/x/tools/internal/jsonrpc2"
-	"golang.org/x/tools/internal/lsp/telemetry"
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/telemetry/event"
 )
 
@@ -39,16 +39,16 @@ func (h telemetryHandler) Request(ctx context.Context, conn *jsonrpc2.Conn, dire
 		payload:   r.Params,
 	}
 	ctx = context.WithValue(ctx, statsKey, stats)
-	mode := telemetry.Outbound
+	mode := tag.Outbound
 	if direction == jsonrpc2.Receive {
-		mode = telemetry.Inbound
+		mode = tag.Inbound
 	}
 	ctx, stats.close = event.StartSpan(ctx, r.Method,
-		telemetry.Method.Of(r.Method),
-		telemetry.RPCDirection.Of(mode),
-		telemetry.RPCID.Of(r.ID),
+		tag.Method.Of(r.Method),
+		tag.RPCDirection.Of(mode),
+		tag.RPCID.Of(r.ID),
 	)
-	telemetry.Started.Record(ctx, 1)
+	tag.Started.Record(ctx, 1)
 	_, stats.delivering = event.StartSpan(ctx, "queued")
 	return ctx
 }
@@ -60,23 +60,23 @@ func (h telemetryHandler) Response(ctx context.Context, conn *jsonrpc2.Conn, dir
 func (h telemetryHandler) Done(ctx context.Context, err error) {
 	stats := h.getStats(ctx)
 	if err != nil {
-		ctx = event.Label(ctx, telemetry.StatusCode.Of("ERROR"))
+		ctx = event.Label(ctx, tag.StatusCode.Of("ERROR"))
 	} else {
-		ctx = event.Label(ctx, telemetry.StatusCode.Of("OK"))
+		ctx = event.Label(ctx, tag.StatusCode.Of("OK"))
 	}
 	elapsedTime := time.Since(stats.start)
 	latencyMillis := float64(elapsedTime) / float64(time.Millisecond)
-	telemetry.Latency.Record(ctx, latencyMillis)
+	tag.Latency.Record(ctx, latencyMillis)
 	stats.close()
 }
 
 func (h telemetryHandler) Read(ctx context.Context, bytes int64) context.Context {
-	telemetry.SentBytes.Record(ctx, bytes)
+	tag.SentBytes.Record(ctx, bytes)
 	return ctx
 }
 
 func (h telemetryHandler) Wrote(ctx context.Context, bytes int64) context.Context {
-	telemetry.ReceivedBytes.Record(ctx, bytes)
+	tag.ReceivedBytes.Record(ctx, bytes)
 	return ctx
 }
 
@@ -88,7 +88,7 @@ func (h telemetryHandler) Error(ctx context.Context, err error) {
 func (h telemetryHandler) getStats(ctx context.Context) *rpcStats {
 	stats, ok := ctx.Value(statsKey).(*rpcStats)
 	if !ok || stats == nil {
-		method, ok := ctx.Value(telemetry.Method).(string)
+		method, ok := ctx.Value(tag.Method).(string)
 		if !ok {
 			method = "???"
 		}

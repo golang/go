@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"golang.org/x/mod/modfile"
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/event"
 )
@@ -22,7 +22,7 @@ func CodeLens(ctx context.Context, snapshot source.Snapshot, uri span.URI) ([]pr
 	if uri != realURI {
 		return nil, nil
 	}
-	ctx, done := event.StartSpan(ctx, "mod.CodeLens", telemetry.File.Of(realURI))
+	ctx, done := event.StartSpan(ctx, "mod.CodeLens", tag.File.Of(realURI))
 	defer done()
 
 	fh, err := snapshot.GetFile(realURI)

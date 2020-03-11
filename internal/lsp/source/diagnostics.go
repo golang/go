@@ -13,8 +13,8 @@ import (
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/event"
 	errors "golang.org/x/xerrors"
@@ -128,7 +128,7 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, missi
 			if ctx.Err() != nil {
 				return nil, warn, ctx.Err()
 			}
-			event.Error(ctx, "failed to run analyses", err, telemetry.Package.Of(ph.ID()))
+			event.Error(ctx, "failed to run analyses", err, tag.Package.Of(ph.ID()))
 		}
 	}
 	return reports, warn, nil
@@ -163,7 +163,7 @@ type diagnosticSet struct {
 }
 
 func diagnostics(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]Diagnostic, pkg Package, hasMissingDeps bool) (bool, error) {
-	ctx, done := event.StartSpan(ctx, "source.diagnostics", telemetry.Package.Of(pkg.ID()))
+	ctx, done := event.StartSpan(ctx, "source.diagnostics", tag.Package.Of(pkg.ID()))
 	_ = ctx // circumvent SA4006
 	defer done()
 

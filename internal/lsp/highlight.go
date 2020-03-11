@@ -7,9 +7,9 @@ package lsp
 import (
 	"context"
 
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/telemetry/event"
 )
 
@@ -20,7 +20,7 @@ func (s *Server) documentHighlight(ctx context.Context, params *protocol.Documen
 	}
 	rngs, err := source.Highlight(ctx, snapshot, fh, params.Position)
 	if err != nil {
-		event.Error(ctx, "no highlight", err, telemetry.URI.Of(params.TextDocument.URI))
+		event.Error(ctx, "no highlight", err, tag.URI.Of(params.TextDocument.URI))
 	}
 	return toProtocolHighlight(rngs), nil
 }

@@ -12,9 +12,9 @@ import (
 	"regexp"
 
 	"golang.org/x/mod/modfile"
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/telemetry/event"
 )
 
@@ -27,7 +27,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 		return nil, nil, nil
 	}
 
-	ctx, done := event.StartSpan(ctx, "mod.Diagnostics", telemetry.File.Of(realURI))
+	ctx, done := event.StartSpan(ctx, "mod.Diagnostics", tag.File.Of(realURI))
 	defer done()
 
 	realfh, err := snapshot.GetFile(realURI)
@@ -97,7 +97,7 @@ func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, realfh source
 				for uri, edits := range fix.Edits {
 					fh, err := snapshot.GetFile(uri)
 					if err != nil {
-						event.Error(ctx, "no file", err, telemetry.URI.Of(uri))
+						event.Error(ctx, "no file", err, tag.URI.Of(uri))
 						continue
 					}
 					action.Edit.DocumentChanges = append(action.Edit.DocumentChanges, protocol.TextDocumentEdit{
@@ -126,7 +126,7 @@ func SuggestedGoFixes(ctx context.Context, snapshot source.Snapshot, gofh source
 		return nil, nil
 	}
 
-	ctx, done := event.StartSpan(ctx, "mod.SuggestedGoFixes", telemetry.File.Of(realURI))
+	ctx, done := event.StartSpan(ctx, "mod.SuggestedGoFixes", tag.File.Of(realURI))
 	defer done()
 
 	realfh, err := snapshot.GetFile(realURI)

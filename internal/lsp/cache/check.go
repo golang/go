@@ -17,8 +17,8 @@ import (
 	"sync"
 
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/memoize"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/event"
@@ -143,7 +143,7 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 		}
 		depHandle, err := s.buildPackageHandle(ctx, depID, mode)
 		if err != nil {
-			event.Error(ctx, "no dep handle", err, telemetry.Package.Of(depID))
+			event.Error(ctx, "no dep handle", err, tag.Package.Of(depID))
 
 			// One bad dependency should not prevent us from checking the entire package.
 			// Add a special key to mark a bad dependency.
@@ -259,7 +259,7 @@ func (s *snapshot) parseGoHandles(ctx context.Context, files []span.URI, mode so
 }
 
 func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode source.ParseMode, goFiles []source.ParseGoHandle, compiledGoFiles []source.ParseGoHandle, deps map[packagePath]*packageHandle) (*pkg, error) {
-	ctx, done := event.StartSpan(ctx, "cache.importer.typeCheck", telemetry.Package.Of(m.id))
+	ctx, done := event.StartSpan(ctx, "cache.importer.typeCheck", tag.Package.Of(m.id))
 	defer done()
 
 	var rawErrors []error
@@ -393,7 +393,7 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 		for _, e := range rawErrors {
 			srcErr, err := sourceError(ctx, fset, pkg, e)
 			if err != nil {
-				event.Error(ctx, "unable to compute error positions", err, telemetry.Package.Of(pkg.ID()))
+				event.Error(ctx, "unable to compute error positions", err, tag.Package.Of(pkg.ID()))
 				continue
 			}
 			pkg.errors = append(pkg.errors, srcErr)

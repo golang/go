@@ -10,10 +10,10 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/xcontext"
 )
@@ -98,7 +98,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 		}
 		s.showedInitialErrorMu.Unlock()
 
-		event.Error(ctx, "diagnose: no workspace packages", err, telemetry.Snapshot.Of(snapshot.ID()), telemetry.Directory.Of(snapshot.View().Folder))
+		event.Error(ctx, "diagnose: no workspace packages", err, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder))
 		return nil
 	}
 	for _, ph := range wsPackages {
@@ -124,7 +124,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 				return
 			}
 			if err != nil {
-				event.Error(ctx, "diagnose: could not generate diagnostics for package", err, telemetry.Snapshot.Of(snapshot.ID()), telemetry.Package.Of(ph.ID()))
+				event.Error(ctx, "diagnose: could not generate diagnostics for package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(ph.ID()))
 				return
 			}
 			reportsMu.Lock()
@@ -201,7 +201,7 @@ func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, r
 			Version:     key.id.Version,
 		}); err != nil {
 			if ctx.Err() == nil {
-				event.Error(ctx, "publishReports: failed to deliver diagnostic", err, telemetry.URI.Of(key.id.URI))
+				event.Error(ctx, "publishReports: failed to deliver diagnostic", err, tag.URI.Of(key.id.URI))
 			}
 			continue
 		}

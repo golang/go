@@ -11,10 +11,10 @@ import (
 	"strings"
 
 	"golang.org/x/tools/internal/imports"
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/mod"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/telemetry/event"
 	errors "golang.org/x/xerrors"
 )
@@ -73,7 +73,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			// First, add the quick fixes reported by go/analysis.
 			qf, err := quickFixes(ctx, snapshot, fh, diagnostics)
 			if err != nil {
-				event.Error(ctx, "quick fixes failed", err, telemetry.File.Of(uri))
+				event.Error(ctx, "quick fixes failed", err, tag.File.Of(uri))
 			}
 			codeActions = append(codeActions, qf...)
 
@@ -97,7 +97,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			}
 			actions, err := mod.SuggestedGoFixes(ctx, snapshot, fh, diagnostics)
 			if err != nil {
-				event.Error(ctx, "quick fixes failed", err, telemetry.File.Of(uri))
+				event.Error(ctx, "quick fixes failed", err, tag.File.Of(uri))
 			}
 			if len(actions) > 0 {
 				codeActions = append(codeActions, actions...)
@@ -234,7 +234,7 @@ func quickFixes(ctx context.Context, snapshot source.Snapshot, fh source.FileHan
 			for uri, edits := range fix.Edits {
 				fh, err := snapshot.GetFile(uri)
 				if err != nil {
-					event.Error(ctx, "no file", err, telemetry.URI.Of(uri))
+					event.Error(ctx, "no file", err, tag.URI.Of(uri))
 					continue
 				}
 				action.Edit.DocumentChanges = append(action.Edit.DocumentChanges, documentChanges(fh, edits)...)

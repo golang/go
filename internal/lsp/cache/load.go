@@ -12,8 +12,8 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/lsp/telemetry"
 	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/event"
@@ -77,7 +77,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	}
 	sort.Strings(query) // for determinism
 
-	ctx, done := event.StartSpan(ctx, "cache.view.load", telemetry.Query.Of(query))
+	ctx, done := event.StartSpan(ctx, "cache.view.load", tag.Query.Of(query))
 	defer done()
 
 	cfg := s.Config(ctx)

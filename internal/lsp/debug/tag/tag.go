@@ -2,9 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package telemetry provides the hooks and adapters to allow use of telemetry
-// throughout gopls.
-package telemetry
+// Package tag provides the labels used for telemetry throughout gopls.
+package tag
 
 import (
 	"golang.org/x/tools/internal/telemetry/event"
