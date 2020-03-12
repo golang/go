@@ -346,7 +346,7 @@ func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.S
 		// larl    %r1,_GLOBAL_OFFSET_TABLE_
 		plt.AddUint8(0xc0)
 		plt.AddUint8(0x10)
-		plt.AddPCRelPlus(ctxt.Arch, got.Sym(), 6)
+		plt.AddSymRef(ctxt.Arch, got.Sym(), 6, objabi.R_PCRELDBL, 4)
 		// mvc     48(8,%r15),8(%r1)
 		plt.AddUint8(0xd2)
 		plt.AddUint8(0x07)

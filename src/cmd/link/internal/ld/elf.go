@@ -1645,6 +1645,10 @@ func (ctxt *Link) doelf() {
 		dynamic.SetReachable(true)
 		dynamic.SetType(sym.SELFSECT) // writable
 
+		if ctxt.IsS390X() {
+			// S390X uses .got instead of .got.plt
+			gotplt = got
+		}
 		thearch.Elfsetupplt(ctxt, plt, gotplt, dynamic.Sym())
 
 		/*
@@ -1678,8 +1682,6 @@ func (ctxt *Link) doelf() {
 
 		if ctxt.IsPPC64() {
 			elfwritedynentsym2(ctxt, dynamic, DT_PLTGOT, plt.Sym())
-		} else if ctxt.IsS390X() {
-			elfwritedynentsym2(ctxt, dynamic, DT_PLTGOT, got.Sym())
 		} else {
 			elfwritedynentsym2(ctxt, dynamic, DT_PLTGOT, gotplt.Sym())
 		}
