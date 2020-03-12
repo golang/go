@@ -1,0 +1,31 @@
+[short] skip
+go test -cover ./coverblank
+stdout 'coverage: 100.0% of statements'
+
+
+-- coverblank/a.go --
+package coverblank
+
+func _() {
+	println("unreachable")
+}
+
+type X int
+
+func (x X) Print() {
+	println(x)
+}
+
+func (x X) _() {
+	println("unreachable")
+}
+
+-- coverblank/a_test.go --
+package coverblank
+
+import "testing"
+
+func TestX(t *testing.T) {
+	var x X
+	x.Print()
+}
