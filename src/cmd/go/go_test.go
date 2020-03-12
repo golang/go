@@ -1044,6 +1044,7 @@ func TestGetGitDefaultBranch(t *testing.T) {
 func TestAccidentalGitCheckout(t *testing.T) {
 	testenv.MustHaveExternalNetwork(t)
 	testenv.MustHaveExecPath(t, "git")
+	testenv.MustHaveExecPath(t, "svn")
 
 	tg := testgo(t)
 	defer tg.cleanup()
