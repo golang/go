@@ -462,6 +462,10 @@ func goGcflags() string {
 	return "-gcflags=all=" + os.Getenv("GO_GCFLAGS")
 }
 
+func goGcflagsIsEmpty() bool {
+       return "" == os.Getenv("GO_GCFLAGS")
+}
+
 // run runs a test.
 func (t *test) run() {
 	start := time.Now()
@@ -1002,7 +1006,7 @@ func (t *test) run() {
 		useTmp = false
 		var out []byte
 		var err error
-		if len(flags)+len(args) == 0 && goGcflags() == "" && !*linkshared {
+		if len(flags)+len(args) == 0 && goGcflagsIsEmpty() && !*linkshared && goarch == runtime.GOARCH && goos == runtime.GOOS {
 			// If we're not using special go command flags,
 			// skip all the go command machinery.
 			// This avoids any time the go command would
