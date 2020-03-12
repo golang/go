@@ -164,12 +164,15 @@ func (c dwCtxt) AddDWARFAddrSectionOffset(s dwarf.Sym, t interface{}, ofs int64)
 	r := &ls.R[len(ls.R)-1]
 	r.Type = objabi.R_DWARFSECREF
 }
+
 func (c dwCtxt) AddFileRef(s dwarf.Sym, f interface{}) {
 	ls := s.(*LSym)
 	rsym := f.(*LSym)
-	ls.WriteAddr(c.Link, ls.Size, 4, rsym, 0)
-	r := &ls.R[len(ls.R)-1]
-	r.Type = objabi.R_DWARFFILEREF
+	fidx := c.Link.PosTable.FileIndex(rsym.Name)
+	// Note the +1 here -- the value we're writing is going to be an
+	// index into the DWARF line table file section, whose entries
+	// are numbered starting at 1, not 0.
+	ls.WriteInt(c.Link, ls.Size, 4, int64(fidx+1))
 }
 
 func (c dwCtxt) CurrentOffset(s dwarf.Sym) int64 {

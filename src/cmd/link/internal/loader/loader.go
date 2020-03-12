@@ -1955,29 +1955,6 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, syms *sym.Symb
 			}
 		}
 
-		// If this symbol has any DWARF file relocations, we need to
-		// make sure that the relocations are copied back over, since
-		// DWARF-gen alters the offset values for these relocs. Also:
-		// if this is an info symbol and it refers to a previously
-		// unseen range/loc symbol, we'll need to fix up relocations
-		// for it as well.
-		relocs := l.Relocs(cand)
-		rslice = relocs.ReadSyms(rslice)
-		for ri := range rslice {
-			if rslice[ri].Type == objabi.R_DWARFFILEREF {
-				relfix = true
-				break
-			}
-			if st != sym.SDWARFINFO {
-				continue
-			}
-			rst := l.SymType(rslice[ri].Sym)
-			if rst == sym.SDWARFRANGE || rst == sym.SDWARFLOC {
-				relfix = true
-				break
-			}
-		}
-
 		if relfix {
 			relocfixup = append(relocfixup, cand)
 		}

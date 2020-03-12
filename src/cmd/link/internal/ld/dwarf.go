@@ -1181,9 +1181,6 @@ func (d *dwctxt2) writelines(unit *sym.CompilationUnit, ls loader.Sym) {
 	lsu.AddUint8(0)                // standard_opcode_lengths[10]
 	lsu.AddUint8(0)                // include_directories  (empty)
 
-	// Maps loader.Sym for file symbol to expanded filename.
-	expandedFiles := make(map[loader.Sym]string)
-
 	// Copy over the file table.
 	fileNums := make(map[string]int)
 	lsDwsym := dwSym(ls)
@@ -1217,7 +1214,6 @@ func (d *dwctxt2) writelines(unit *sym.CompilationUnit, ls loader.Sym) {
 
 	// Output the state machine for each function remaining.
 	var lastAddr int64
-	rslice := []loader.Reloc{}
 	for _, s := range unit.Textp2 {
 		fnSym := loader.Sym(s)
 
@@ -1258,70 +1254,6 @@ func (d *dwctxt2) writelines(unit *sym.CompilationUnit, ls loader.Sym) {
 	} else {
 		lsu.SetUint32(d.arch, unitLengthOffset, uint32(lsu.Size()-unitstart))
 		lsu.SetUint32(d.arch, headerLengthOffset, uint32(headerend-headerstart))
-	}
-
-	// Process any R_DWARFFILEREF relocations, since we now know the
-	// line table file indices for this compilation unit. Note that
-	// this loop visits only subprogram DIEs: if the compiler is
-	// changed to generate DW_AT_decl_file attributes for other
-	// DIE flavors (ex: variables) then those DIEs would need to
-	// be included below.
-	missing := make(map[int]interface{})
-	for _, f := range unit.FuncDIEs2 {
-		fnSym := loader.Sym(f)
-
-		// Create a symbol updater prior to looking at the relocations
-		// on the DWARF subprogram DIE symbol. We need to do this here
-		// so that any modifications to the reloc slice will get
-		// stored in loader payload for the symbol (as opposed to a
-		// temporary slice of relocs read from the object file). Copy
-		// back relocations with updated addends.
-		fnu := d.ldr.MakeSymbolUpdater(fnSym)
-
-		relocs := d.ldr.Relocs(fnSym)
-		rslice = relocs.ReadAll(rslice)
-
-		for ri := range rslice {
-			r := &rslice[ri]
-			if r.Type != objabi.R_DWARFFILEREF {
-				continue
-			}
-
-			fname, ok := expandedFiles[r.Sym]
-			if !ok {
-				fname = expandFileSym(d.ldr, r.Sym)
-				expandedFiles[r.Sym] = fname
-			}
-
-			idx, ok := fileNums[fname]
-			if ok {
-				if int(int32(idx)) != idx {
-					d.linkctxt.Errorf(fnSym, "bad R_DWARFFILEREF relocation: file index overflow")
-				}
-				if r.Size != 4 {
-					d.linkctxt.Errorf(fnSym, "bad R_DWARFFILEREF relocation: has size %d, expected 4", r.Size)
-				}
-				if r.Add != 0 {
-					d.linkctxt.Errorf(fnSym, "bad R_DWARFFILEREF relocation: addend not zero")
-				}
-				if r.Off < 0 || r.Off+4 > int32(len(fnu.Data())) {
-					d.linkctxt.Errorf(fnSym, "bad R_DWARFFILEREF relocation offset %d + 4 would write past length %d", r.Off, len(fnu.Data()))
-					continue
-				}
-
-				d.ldr.SetAttrReachable(r.Sym, true)
-				d.ldr.SetAttrNotInSymbolTable(r.Sym, true)
-				r.Add = int64(idx) // record the index in r.Add, we'll apply it in the reloc phase.
-			} else {
-				sv := d.ldr.SymValue(r.Sym)
-				_, found := missing[int(sv)]
-				if !found {
-					d.linkctxt.Errorf(fnSym, "R_DWARFFILEREF relocation file missing: %s idx %d symVal %d", d.ldr.SymName(r.Sym), r.Sym, sv)
-					missing[int(sv)] = nil
-				}
-			}
-		}
-		fnu.WriteRelocs(rslice)
 	}
 }
 
