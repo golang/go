@@ -14,7 +14,8 @@ stdout 'rsc.io/quote v1.5.2'
 [short] skip
 
 # Packages that are only imported in excluded files should not be built.
-go get -x .
+env GOCACHE=$WORK/gocache  # Looking for compile commands, so need a clean cache.
+go get -n -x .
 stderr 'compile.* -p m '
 ! stderr 'compile.* -p example.com/version '
 ! stderr 'compile.* -p rsc.io/quote '
