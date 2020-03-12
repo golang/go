@@ -14,6 +14,7 @@
 //		return 1;
 //	} else
 //		return 0;
+//	}
 TEXT runtime∕internal∕atomic·Cas(SB),NOSPLIT,$0-17
 	MOVQ	ptr+0(FP), BX
 	MOVL	old+8(FP), AX
