@@ -106,8 +106,6 @@ contract compareTwo(A, B) {
 	comparable(B)
 }
 
-// This does not work at the moment due to a contract embedding bug.
-// TODO(gri) fix this
-// func cmp3(type T1, T2 compareTwo)(x1, y1 T1, x2, y2 T2) bool {
-//	return x1 == y1 || x2 != y2
-// }
+func cmp3(type T1, T2 compareTwo)(x1, y1 T1, x2, y2 T2) bool {
+	return x1 == y1 || x2 != y2
+}

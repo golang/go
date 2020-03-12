@@ -296,12 +296,25 @@ func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited 
 		if i > 0 {
 			buf.WriteString(", ")
 		}
-		buf.WriteString(p.name)
+
+		ptyp, _ := p.typ.(*TypeParam)
+		if ptyp != nil {
+			writeType(buf, ptyp, qf, visited)
+		} else {
+			buf.WriteString(p.name)
+		}
+
 		if ptyp, _ := p.typ.(*TypeParam); ptyp != nil && ptyp.bound != nil {
 			// TODO(gri) Instead of writing the bound with each type
 			//           parameter, consider bundling them up.
 			buf.WriteByte(' ')
-			writeType(buf, ptyp.bound, qf, visited)
+			if ptyp.Interface().Empty() {
+				// quick hack to declutter output
+				// TODO(gri) fix this per the TODO above
+				buf.WriteString("any")
+			} else {
+				writeType(buf, ptyp.bound, qf, visited)
+			}
 			// TODO(gri) if this is a generic type bound, we should print
 			// the type parameters
 		}

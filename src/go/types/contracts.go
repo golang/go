@@ -135,22 +135,24 @@ func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
 					continue
 				}
 
-				// Add the instantiated bounds (ebound) as embedded interfaces to the respective
-				// embedding (outer) contract bound. Because the ebounds are already instantiated
+				// Add the instantiated bounds (tpar.bound) as embedded interfaces (embed) to the
+				// respective embedding (outer) contract bound. Because embeds are already instantiated
 				// with the outer bound's type parameters, and because they are embedded, there
 				// is no need to keep them in instantiated form; in fact it will lead to problems
-				// if the outer bound is instantiated again later. We can just keep the ebound's
-				// underlying interface instead.
-				// (Alternatively one could set ebound.tparam to nil, thus marking it as not
-				// parameterized. But because ebound may be shared one would have to make a
-				// copy first. Since interface embedding doesn't care whether the embedded
-				// interface is named or not - one may embed an interface alias, after all -
-				// it is simpler to just use the underlying unnamed interface.)
-				for i, ebound := range eobj.Bounds {
-					index := targs[i].(*TypeParam).index
-					iface := bounds[index].underlying.(*Interface)
-					iface.embeddeds = append(iface.embeddeds, ebound.underlying)    // don't use Named form of ebound
+				// if the outer bound is instantiated again later. We can just keep the embeds
+				// instead.
+				for _, targ := range targs {
+					tpar := targ.(*TypeParam)
+					iface := bounds[tpar.index].underlying.(*Interface)
+					embed := tpar.Interface() // don't use Named form of tpar.bound
+					iface.embeddeds = append(iface.embeddeds, embed)
 					check.posMap[iface] = append(check.posMap[iface], econtr.Pos()) // satisfy completeInterface requirements
+					// check.contractExpr assigned a type bound to its incoming type arguments,
+					// but these are also the type parameters of the embedding (outer) contract.
+					// Strip those bounds again (now that we have embedded them) otherwise the
+					// embedding contract's incoming parameters have type bounds associated
+					// with them.
+					tpar.bound = &emptyInterface
 				}
 				continue // success
 			}

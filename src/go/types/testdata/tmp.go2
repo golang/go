@@ -4,48 +4,31 @@
 
 package main
 
-type C(type T) interface {
-	m()
-}
-
-type W(type T) interface {
-	C(T)
-}
-
-func _(type T W(T))(x T) {
-	// x.m() // TODO(gri) this doesn't work at the moment - embedding bug
-}
-
-/*
 contract C(T) {
-	T m()
+	T m() T
 }
+
+// contract C(T₁) {T₁ C₀(type T₁ any) = interface{m() T₁}}
 
 contract W(T) {
 	C(T)
 }
 
-func _(type T W)(x T) {
-	x.m()
-}
-*/
+// contract W(T₂) {T₂ W₀(type T₂ main.C₀<T₂>) = interface{interface{m() T₂}}}
 
-/*
-contract comparable(T) {
-	T foo() bool
+func _(type T W)(x T) {
+	var _ T = x.m()
 }
 
 contract compareTwo(A, B) {
 	comparable(A)
-	//comparable(B)
+	comparable(B)
 }
 
 func _(type T1, T2 compareTwo)(x1, y1 T1) bool {
-	// return x1 == y1
-	return x1.foo()
+	return x1 == y1
 }
 
 func _(type T comparable)(x, y T) bool {
 	return x == y || x != y
 }
-*/

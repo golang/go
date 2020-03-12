@@ -4,6 +4,7 @@ so we have a better track record. I only switched to this file in Nov 2019, henc
 ----------------------------------------------------------------------------------------------------
 TODO
 
+- review use of Contract.TParams field - it seems like it's only needed for length checks?
 - review handling of fields of instantiated generic types (do we need to make them non-parameterized,
   similar to what we did for the embedded interfaces created by contract embedding?)
 - debug (and error msg) printing of generic instantiated types needs some work
@@ -15,7 +16,6 @@ TODO
 ----------------------------------------------------------------------------------------------------
 KNOWN ISSUES
 
-- parameterized contract embedding is not working correctly
 - a non-comparable type used as type argument for a comparable contract leads to sub-optimal error
   message (referring to missing method ==)
 - iteration over generic variables doesn't report certain channel errors (see TODOs in code)
