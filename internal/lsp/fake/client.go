@@ -90,6 +90,14 @@ func (c *Client) UnregisterCapability(context.Context, *protocol.UnregistrationP
 	return nil
 }
 
+func (c *Client) Progress(context.Context, *protocol.ProgressParams) error {
+	return nil
+}
+
+func (c *Client) WorkDoneProgressCreate(context.Context, *protocol.WorkDoneProgressCreateParams) error {
+	return nil
+}
+
 // ApplyEdit applies edits sent from the server. Note that as of writing gopls
 // doesn't use this feature, so it is untested.
 func (c *Client) ApplyEdit(ctx context.Context, params *protocol.ApplyWorkspaceEditParams) (*protocol.ApplyWorkspaceEditResponse, error) {

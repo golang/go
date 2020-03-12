@@ -28,7 +28,6 @@ type Server interface {
 	DidSave(context.Context, *DidSaveTextDocumentParams) error
 	WillSave(context.Context, *WillSaveTextDocumentParams) error
 	DidChangeWatchedFiles(context.Context, *DidChangeWatchedFilesParams) error
-	Progress(context.Context, *ProgressParams) error
 	SetTraceNotification(context.Context, *SetTraceParams) error
 	LogTraceNotification(context.Context, *LogTraceParams) error
 	Implementation(context.Context, *ImplementationParams) (Definition /*Definition | DefinitionLink[] | null*/, error)
@@ -38,7 +37,6 @@ type Server interface {
 	FoldingRange(context.Context, *FoldingRangeParams) ([]FoldingRange /*FoldingRange[] | null*/, error)
 	Declaration(context.Context, *DeclarationParams) (Declaration /*Declaration | DeclarationLink[] | null*/, error)
 	SelectionRange(context.Context, *SelectionRangeParams) ([]SelectionRange /*SelectionRange[] | null*/, error)
-	WorkDoneProgressCreate(context.Context, *WorkDoneProgressCreateParams) error
 	Initialize(context.Context, *ParamInitialize) (*InitializeResult, error)
 	Shutdown(context.Context) error
 	WillSaveWaitUntil(context.Context, *WillSaveTextDocumentParams) ([]TextEdit /*TextEdit[] | null*/, error)
@@ -186,16 +184,6 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 			event.Error(ctx, "", err)
 		}
 		return true
-	case "$/progress": // notif
-		var params ProgressParams
-		if err := json.Unmarshal(*r.Params, &params); err != nil {
-			sendParseError(ctx, r, err)
-			return true
-		}
-		if err := h.server.Progress(ctx, &params); err != nil {
-			event.Error(ctx, "", err)
-		}
-		return true
 	case "$/setTraceNotification": // notif
 		var params SetTraceParams
 		if err := json.Unmarshal(*r.Params, &params); err != nil {
@@ -290,17 +278,6 @@ func (h serverHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, deliver
 		}
 		resp, err := h.server.SelectionRange(ctx, &params)
 		if err := r.Reply(ctx, resp, err); err != nil {
-			event.Error(ctx, "", err)
-		}
-		return true
-	case "window/workDoneProgress/create": // req
-		var params WorkDoneProgressCreateParams
-		if err := json.Unmarshal(*r.Params, &params); err != nil {
-			sendParseError(ctx, r, err)
-			return true
-		}
-		err := h.server.WorkDoneProgressCreate(ctx, &params)
-		if err := r.Reply(ctx, nil, err); err != nil {
 			event.Error(ctx, "", err)
 		}
 		return true
@@ -685,10 +662,6 @@ func (s *serverDispatcher) DidChangeWatchedFiles(ctx context.Context, params *Di
 	return s.Conn.Notify(ctx, "workspace/didChangeWatchedFiles", params)
 }
 
-func (s *serverDispatcher) Progress(ctx context.Context, params *ProgressParams) error {
-	return s.Conn.Notify(ctx, "$/progress", params)
-}
-
 func (s *serverDispatcher) SetTraceNotification(ctx context.Context, params *SetTraceParams) error {
 	return s.Conn.Notify(ctx, "$/setTraceNotification", params)
 }
@@ -750,10 +723,6 @@ func (s *serverDispatcher) SelectionRange(ctx context.Context, params *Selection
 		return nil, err
 	}
 	return result, nil
-}
-
-func (s *serverDispatcher) WorkDoneProgressCreate(ctx context.Context, params *WorkDoneProgressCreateParams) error {
-	return s.Conn.Call(ctx, "window/workDoneProgress/create", params, nil) // Call, not Notify
 }
 
 func (s *serverDispatcher) Initialize(ctx context.Context, params *ParamInitialize) (*InitializeResult, error) {

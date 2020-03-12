@@ -387,6 +387,14 @@ func (c *cmdClient) PublishDiagnostics(ctx context.Context, p *protocol.PublishD
 	return nil
 }
 
+func (c *cmdClient) Progress(context.Context, *protocol.ProgressParams) error {
+	return nil
+}
+
+func (c *cmdClient) WorkDoneProgressCreate(context.Context, *protocol.WorkDoneProgressCreateParams) error {
+	return nil
+}
+
 func (c *cmdClient) getFile(ctx context.Context, uri span.URI) *cmdFile {
 	file, found := c.files[uri]
 	if !found || file.err != nil {

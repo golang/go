@@ -142,6 +142,8 @@ function setReceives() {
   receives.set('workspace/configuration', 'client');
   receives.set('workspace/applyEdit', 'client');
   receives.set('textDocument/publishDiagnostics', 'client');
+  receives.set('window/workDoneProgress/create', 'client');
+  receives.set('$/progress', 'client');
   // a small check
   receives.forEach((_, k) => {
     if (!req.get(k) && !not.get(k)) throw new Error(`missing ${k}}`);

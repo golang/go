@@ -136,10 +136,6 @@ func (s *Server) PrepareRename(ctx context.Context, params *protocol.PrepareRena
 	return s.prepareRename(ctx, params)
 }
 
-func (s *Server) Progress(context.Context, *protocol.ProgressParams) error {
-	return notImplemented("Progress")
-}
-
 func (s *Server) RangeFormatting(context.Context, *protocol.DocumentRangeFormattingParams) ([]protocol.TextEdit, error) {
 	return nil, notImplemented("RangeFormatting")
 }
@@ -208,10 +204,6 @@ func (s *Server) WillSaveWaitUntil(context.Context, *protocol.WillSaveTextDocume
 	return nil, notImplemented("WillSaveWaitUntil")
 }
 
-func (s *Server) WorkDoneProgressCancel(context.Context, *protocol.WorkDoneProgressCancelParams) error {
-	return notImplemented("WorkDoneProgressCancel")
-}
-
-func (s *Server) WorkDoneProgressCreate(context.Context, *protocol.WorkDoneProgressCreateParams) error {
-	return notImplemented("WorkDoneProgressCreate")
+func (s *Server) WorkDoneProgressCancel(ctx context.Context, params *protocol.WorkDoneProgressCancelParams) error {
+	return s.workDoneProgressCancel(ctx, params)
 }
