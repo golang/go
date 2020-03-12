@@ -5,13 +5,6 @@
 // Package maps implements simple functions to manipulate maps in various ways.
 package maps
 
-contract comparable(T) {
-	T int, int8, int16, int32, int64,
-		uint, uint8, uint16, uint32, uint64, uintptr,
-		float32, float64,
-		string
-}
-
 // Keys returns the keys of the map m.
 // The keys will be an indeterminate order.
 func Keys(type K, V comparable(K))(m map[K]V) []K {
@@ -33,8 +26,17 @@ func Values(type K, V comparable(K))(m map[K]V) []V {
 }
 
 contract twocomparable(K, V) {
-	comparable(K)
-	comparable(V)
+	// Should be
+	// comparable(K)
+	// comparable(V)
+	K int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64, uintptr,
+		float32, float64,
+		string
+	V int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64, uintptr,
+		float32, float64,
+		string
 }
 
 // Equal reports whether two maps contain the same key/value pairs.
