@@ -43,6 +43,18 @@ TODO
 
 <h3 id="go-command">Go command</h3>
 
+<p><!-- golang.org/issue/37367 -->
+  The <code>GOPROXY</code> environment variable now supports skipping proxies
+  that return errors. Proxy URLs may now be separated with either commas
+  (<code>,</code>) or pipe characters (<code>|</code>). If a proxy URL is
+  followed by a comma, the <code>go</code> command will only try the next proxy
+  in the list after a 404 or 410 HTTP response. If a proxy URL is followed by a
+  pipe character, the <code>go</code> command will try the next proxy in the
+  list after any error. Note that the default value of <code>GOPROXY</code>
+  remains <code>https://proxy.golang.org,direct</code>, which does not fall
+  back to <code>direct</code> in case of errors.
+</p>
+
 <p>
 TODO
 </p>
