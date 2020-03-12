@@ -1281,6 +1281,12 @@ func startpanic_m() bool {
 	}
 }
 
+// throwReportQuirk, if non-nil, is called by throw after dumping the stacks.
+//
+// TODO(austin): Remove this after Go 1.15 when we remove the
+// mlockGsignal workaround.
+var throwReportQuirk func()
+
 var didothers bool
 var deadlock mutex
 
@@ -1326,6 +1332,10 @@ func dopanic_m(gp *g, pc, sp uintptr) bool {
 	}
 
 	printDebugLog()
+
+	if throwReportQuirk != nil {
+		throwReportQuirk()
+	}
 
 	return docrash
 }
