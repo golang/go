@@ -56,7 +56,7 @@ func Main(a *analysis.Analyzer) {
 		if len(paras) > 1 {
 			fmt.Fprintln(os.Stderr, strings.Join(paras[1:], "\n\n"))
 		}
-		fmt.Fprintf(os.Stderr, "\nFlags:")
+		fmt.Fprintln(os.Stderr, "\nFlags:")
 		flag.PrintDefaults()
 	}
 
