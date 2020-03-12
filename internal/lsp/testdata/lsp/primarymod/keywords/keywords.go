@@ -47,6 +47,11 @@ func _() {
 		b //@complete(" //", break)
 	}
 
+	for range []int{} {
+		c //@complete(" //", const, continue)
+		b //@complete(" //", break)
+	}
+
 	// Test function level keywords
 
 	//Using 2 characters to test because map output order is random

@@ -117,7 +117,7 @@ func (c *completer) addKeywordCompletions() {
 			}
 		case *ast.TypeSwitchStmt, *ast.SelectStmt, *ast.SwitchStmt:
 			c.addKeywordItems(seen, stdScore, CASE, DEFAULT)
-		case *ast.ForStmt:
+		case *ast.ForStmt, *ast.RangeStmt:
 			c.addKeywordItems(seen, stdScore, BREAK, CONTINUE)
 		// This is a bit weak, functions allow for many keywords
 		case *ast.FuncDecl:
