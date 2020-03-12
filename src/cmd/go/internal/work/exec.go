@@ -214,7 +214,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		fmt.Fprintf(h, "module %s@%s\n", p.Module.Path, p.Module.Version)
 	}
 	if p.Module != nil {
-		fmt.Fprintf(h, "go %s", p.Module.GoVersion)
+		fmt.Fprintf(h, "go %s\n", p.Module.GoVersion)
 	}
 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
 	fmt.Fprintf(h, "import %q\n", p.ImportPath)
