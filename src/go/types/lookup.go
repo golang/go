@@ -341,6 +341,10 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// we must have a method (not a field of matching function type)
 		f, _ := obj.(*Func)
 		if f == nil {
+			// if m is the magic method == and V is comparable, we're ok
+			if m.name == "==" && Comparable(V) {
+				continue
+			}
 			return m, nil
 		}
 

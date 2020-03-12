@@ -4,16 +4,48 @@
 
 package main
 
-contract anInt(T) {
-	T int
+type C(type T) interface {
+	m()
 }
 
-contract twoInt(K, _) {
-	anInt(K)
+type W(type T) interface {
+	C(T)
 }
 
-func f(type K, V twoInt)()
-
-func _ () {
-	f(int, int)()
+func _(type T W(T))(x T) {
+	// x.m() // TODO(gri) this doesn't work at the moment - embedding bug
 }
+
+/*
+contract C(T) {
+	T m()
+}
+
+contract W(T) {
+	C(T)
+}
+
+func _(type T W)(x T) {
+	x.m()
+}
+*/
+
+/*
+contract comparable(T) {
+	T foo() bool
+}
+
+contract compareTwo(A, B) {
+	comparable(A)
+	//comparable(B)
+}
+
+func _(type T1, T2 compareTwo)(x1, y1 T1) bool {
+	// return x1 == y1
+	return x1.foo()
+}
+
+func _(type T comparable)(x, y T) bool {
+	return x == y || x != y
+}
+*/

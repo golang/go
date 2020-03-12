@@ -81,3 +81,33 @@ contract _(T) {
 	Graph /* ERROR not a contract */ (T, T)
 	( /* ERROR not a contract */ []int)
 }
+
+// The predeclared contract "comparable" describes all types
+// that support == and != comparisons.
+func cmp1(type T comparable)(x, y T) bool {
+	var _ map[T]int // T is comparable so can use it as map key
+	return x == y || x != y
+}
+
+func _() {
+	_ = cmp1(int)
+	_ = cmp1(float32)(1, 2)
+	_ = cmp1(42, 53)
+	_ = cmp1(struct{})
+	_ = cmp1([ /* ERROR does not satisfy */ ]byte)
+}
+
+func cmp2(type T1 comparable, T2 comparable)(x1, y1 T1, x2, y2 T2) bool {
+	return x1 == y1 || x2 != y2
+}
+
+contract compareTwo(A, B) {
+	comparable(A)
+	comparable(B)
+}
+
+// This does not work at the moment due to a contract embedding bug.
+// TODO(gri) fix this
+// func cmp3(type T1, T2 compareTwo)(x1, y1 T1, x2, y2 T2) bool {
+//	return x1 == y1 || x2 != y2
+// }

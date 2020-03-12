@@ -86,7 +86,10 @@ func Comparable(T Type) bool {
 	case *Array:
 		return Comparable(t.elem)
 	case *TypeParam:
-		return t.Interface().is(Comparable)
+		iface := t.Interface()
+		// If the magic method == exists, the type parameter is comparable.
+		_, m := lookupMethod(iface.allMethods, nil, "==")
+		return m != nil || iface.is(Comparable)
 	}
 	return false
 }

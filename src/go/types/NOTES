@@ -15,7 +15,9 @@ TODO
 ----------------------------------------------------------------------------------------------------
 KNOWN ISSUES
 
-- 'comparable' predeclared contract is not implemented yet
+- parameterized contract embedding is not working correctly
+- a non-comparable type used as type argument for a comparable contract leads to sub-optimal error
+  message (referring to missing method ==)
 - iteration over generic variables doesn't report certain channel errors (see TODOs in code)
 - cannot handle mutually recursive parameterized interfaces using themselves as type bounds
 - contract instantiation requires the type arguments to be type parameters from the type of function
