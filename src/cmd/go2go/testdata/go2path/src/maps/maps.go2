@@ -26,17 +26,8 @@ func Values(type K, V comparable(K))(m map[K]V) []V {
 }
 
 contract twocomparable(K, V) {
-	// Should be
-	// comparable(K)
-	// comparable(V)
-	K int, int8, int16, int32, int64,
-		uint, uint8, uint16, uint32, uint64, uintptr,
-		float32, float64,
-		string
-	V int, int8, int16, int32, int64,
-		uint, uint8, uint16, uint32, uint64, uintptr,
-		float32, float64,
-		string
+	comparable(K)
+	comparable(V)
 }
 
 // Equal reports whether two maps contain the same key/value pairs.
