@@ -1211,35 +1211,6 @@ func (d *dwctxt2) writelines(unit *sym.CompilationUnit, ls loader.Sym) {
 		}
 	}
 
-	// Grab files for inlined functions.
-	// TODO: With difficulty, this could be moved into the compiler.
-	rslice := []loader.Reloc{}
-	for _, s := range unit.Textp2 {
-		fnSym := loader.Sym(s)
-		infosym, _, _, _ := d.ldr.GetFuncDwarfAuxSyms(fnSym)
-		drelocs := d.ldr.Relocs(infosym)
-		rslice = drelocs.ReadSyms(rslice)
-		for ri := 0; ri < len(rslice); ri++ {
-			r := &rslice[ri]
-			if r.Type != objabi.R_DWARFFILEREF {
-				continue
-			}
-			fname, ok := expandedFiles[r.Sym]
-			if !ok {
-				fname = expandFileSym(d.ldr, r.Sym)
-				expandedFiles[r.Sym] = fname
-			}
-			if _, ok := fileNums[fname]; ok {
-				continue
-			}
-			fileNums[fname] = len(fileNums) + 1
-			d.AddString(lsDwsym, fname)
-			lsu.AddUint8(0)
-			lsu.AddUint8(0)
-			lsu.AddUint8(0)
-		}
-	}
-
 	// 4 zeros: the string termination + 3 fields.
 	lsu.AddUint8(0)
 	// terminate file_names.
@@ -1247,6 +1218,7 @@ func (d *dwctxt2) writelines(unit *sym.CompilationUnit, ls loader.Sym) {
 
 	// Output the state machine for each function remaining.
 	var lastAddr int64
+	rslice := []loader.Reloc{}
 	for _, s := range unit.Textp2 {
 		fnSym := loader.Sym(s)
 
@@ -1318,7 +1290,8 @@ func (d *dwctxt2) writelines(unit *sym.CompilationUnit, ls loader.Sym) {
 
 			fname, ok := expandedFiles[r.Sym]
 			if !ok {
-				panic("bad")
+				fname = expandFileSym(d.ldr, r.Sym)
+				expandedFiles[r.Sym] = fname
 			}
 
 			idx, ok := fileNums[fname]
@@ -1339,7 +1312,6 @@ func (d *dwctxt2) writelines(unit *sym.CompilationUnit, ls loader.Sym) {
 
 				d.ldr.SetAttrReachable(r.Sym, true)
 				d.ldr.SetAttrNotInSymbolTable(r.Sym, true)
-
 				r.Add = int64(idx) // record the index in r.Add, we'll apply it in the reloc phase.
 			} else {
 				sv := d.ldr.SymValue(r.Sym)
