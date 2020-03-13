@@ -1371,7 +1371,7 @@ func (e *Escape) finish(fns []*Node) {
 		fn.Esc = EscFuncTagged
 
 		narg := 0
-		for _, fs := range types.RecvsParams {
+		for _, fs := range &types.RecvsParams {
 			for _, f := range fs(fn.Type).Fields().Slice() {
 				narg++
 				f.Note = e.paramTag(fn, narg, f)

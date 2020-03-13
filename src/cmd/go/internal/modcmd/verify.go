@@ -6,6 +6,7 @@ package modcmd
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -67,12 +68,10 @@ func verifyMod(mod module.Version) bool {
 		_, zipErr = os.Stat(zip)
 	}
 	dir, dirErr := modfetch.DownloadDir(mod)
-	if dirErr == nil {
-		_, dirErr = os.Stat(dir)
-	}
 	data, err := ioutil.ReadFile(zip + "hash")
 	if err != nil {
-		if zipErr != nil && os.IsNotExist(zipErr) && dirErr != nil && os.IsNotExist(dirErr) {
+		if zipErr != nil && errors.Is(zipErr, os.ErrNotExist) &&
+			dirErr != nil && errors.Is(dirErr, os.ErrNotExist) {
 			// Nothing downloaded yet. Nothing to verify.
 			return true
 		}
@@ -81,7 +80,7 @@ func verifyMod(mod module.Version) bool {
 	}
 	h := string(bytes.TrimSpace(data))
 
-	if zipErr != nil && os.IsNotExist(zipErr) {
+	if zipErr != nil && errors.Is(zipErr, os.ErrNotExist) {
 		// ok
 	} else {
 		hZ, err := dirhash.HashZip(zip, dirhash.DefaultHash)
@@ -93,7 +92,7 @@ func verifyMod(mod module.Version) bool {
 			ok = false
 		}
 	}
-	if dirErr != nil && os.IsNotExist(dirErr) {
+	if dirErr != nil && errors.Is(dirErr, os.ErrNotExist) {
 		// ok
 	} else {
 		hD, err := dirhash.HashDir(dir, mod.Path+"@"+mod.Version, dirhash.DefaultHash)

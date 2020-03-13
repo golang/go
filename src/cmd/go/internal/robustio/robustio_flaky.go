@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-const arbitraryTimeout = 500 * time.Millisecond
+const arbitraryTimeout = 2000 * time.Millisecond
 
 // retry retries ephemeral errors from f up to an arbitrary timeout
 // to work around filesystem flakiness on Windows and Darwin.

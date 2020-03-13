@@ -183,6 +183,29 @@ func IndexAny(s []byte, chars string) int {
 		// Avoid scanning all of s.
 		return -1
 	}
+	if len(s) == 1 {
+		r := rune(s[0])
+		if r >= utf8.RuneSelf {
+			// search utf8.RuneError.
+			for _, r = range chars {
+				if r == utf8.RuneError {
+					return 0
+				}
+			}
+			return -1
+		}
+		if bytealg.IndexByteString(chars, s[0]) >= 0 {
+			return 0
+		}
+		return -1
+	}
+	if len(chars) == 1 {
+		r := rune(chars[0])
+		if r >= utf8.RuneSelf {
+			r = utf8.RuneError
+		}
+		return IndexRune(s, r)
+	}
 	if len(s) > 8 {
 		if as, isASCII := makeASCIISet(chars); isASCII {
 			for i, c := range s {
@@ -197,14 +220,26 @@ func IndexAny(s []byte, chars string) int {
 	for i := 0; i < len(s); i += width {
 		r := rune(s[i])
 		if r < utf8.RuneSelf {
-			width = 1
-		} else {
-			r, width = utf8.DecodeRune(s[i:])
-		}
-		for _, ch := range chars {
-			if r == ch {
+			if bytealg.IndexByteString(chars, s[i]) >= 0 {
 				return i
 			}
+			width = 1
+			continue
+		}
+		r, width = utf8.DecodeRune(s[i:])
+		if r == utf8.RuneError {
+			for _, r = range chars {
+				if r == utf8.RuneError {
+					return i
+				}
+			}
+			continue
+		}
+		// r is 2 to 4 bytes. Using strings.Index is more reasonable, but as the bytes
+		// package should not import the strings package, use bytealg.IndexString
+		// instead. And this does not seem to lose much performance.
+		if chars == string(r) || bytealg.IndexString(chars, string(r)) >= 0 {
+			return i
 		}
 	}
 	return -1
@@ -229,13 +264,59 @@ func LastIndexAny(s []byte, chars string) int {
 			return -1
 		}
 	}
-	for i := len(s); i > 0; {
-		r, size := utf8.DecodeLastRune(s[:i])
-		i -= size
-		for _, c := range chars {
-			if r == c {
+	if len(s) == 1 {
+		r := rune(s[0])
+		if r >= utf8.RuneSelf {
+			for _, r = range chars {
+				if r == utf8.RuneError {
+					return 0
+				}
+			}
+			return -1
+		}
+		if bytealg.IndexByteString(chars, s[0]) >= 0 {
+			return 0
+		}
+		return -1
+	}
+	if len(chars) == 1 {
+		cr := rune(chars[0])
+		if cr >= utf8.RuneSelf {
+			cr = utf8.RuneError
+		}
+		for i := len(s); i > 0; {
+			r, size := utf8.DecodeLastRune(s[:i])
+			i -= size
+			if r == cr {
 				return i
 			}
+		}
+		return -1
+	}
+	for i := len(s); i > 0; {
+		r := rune(s[i-1])
+		if r < utf8.RuneSelf {
+			if bytealg.IndexByteString(chars, s[i-1]) >= 0 {
+				return i - 1
+			}
+			i--
+			continue
+		}
+		r, size := utf8.DecodeLastRune(s[:i])
+		i -= size
+		if r == utf8.RuneError {
+			for _, r = range chars {
+				if r == utf8.RuneError {
+					return i
+				}
+			}
+			continue
+		}
+		// r is 2 to 4 bytes. Using strings.Index is more reasonable, but as the bytes
+		// package should not import the strings package, use bytealg.IndexString
+		// instead. And this does not seem to lose much performance.
+		if chars == string(r) || bytealg.IndexString(chars, string(r)) >= 0 {
+			return i
 		}
 	}
 	return -1

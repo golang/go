@@ -7,6 +7,7 @@ package modfetch
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -56,8 +57,11 @@ func CachePath(m module.Version, suffix string) (string, error) {
 	return filepath.Join(dir, encVer+"."+suffix), nil
 }
 
-// DownloadDir returns the directory to which m should be downloaded.
-// Note that the directory may not yet exist.
+// DownloadDir returns the directory to which m should have been downloaded.
+// An error will be returned if the module path or version cannot be escaped.
+// An error satisfying errors.Is(err, os.ErrNotExist) will be returned
+// along with the directory if the directory does not exist or if the directory
+// is not completely populated.
 func DownloadDir(m module.Version) (string, error) {
 	if PkgMod == "" {
 		return "", fmt.Errorf("internal error: modfetch.PkgMod not set")
@@ -76,8 +80,38 @@ func DownloadDir(m module.Version) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(PkgMod, enc+"@"+encVer), nil
+
+	dir := filepath.Join(PkgMod, enc+"@"+encVer)
+	if fi, err := os.Stat(dir); os.IsNotExist(err) {
+		return dir, err
+	} else if err != nil {
+		return dir, &DownloadDirPartialError{dir, err}
+	} else if !fi.IsDir() {
+		return dir, &DownloadDirPartialError{dir, errors.New("not a directory")}
+	}
+	partialPath, err := CachePath(m, "partial")
+	if err != nil {
+		return dir, err
+	}
+	if _, err := os.Stat(partialPath); err == nil {
+		return dir, &DownloadDirPartialError{dir, errors.New("not completely extracted")}
+	} else if !os.IsNotExist(err) {
+		return dir, err
+	}
+	return dir, nil
 }
+
+// DownloadDirPartialError is returned by DownloadDir if a module directory
+// exists but was not completely populated.
+//
+// DownloadDirPartialError is equivalent to os.ErrNotExist.
+type DownloadDirPartialError struct {
+	Dir string
+	Err error
+}
+
+func (e *DownloadDirPartialError) Error() string     { return fmt.Sprintf("%s: %v", e.Dir, e.Err) }
+func (e *DownloadDirPartialError) Is(err error) bool { return err == os.ErrNotExist }
 
 // lockVersion locks a file within the module cache that guards the downloading
 // and extraction of the zipfile for the given module version.

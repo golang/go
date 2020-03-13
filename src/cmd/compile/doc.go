@@ -77,8 +77,6 @@ Flags:
 	-lang version
 		Set language version to compile, as in -lang=go1.12.
 		Default is current version.
-	-largemodel
-		Generate code that assumes a large memory model.
 	-linkobj file
 		Write linker-specific object to file and compiler-specific
 		object to usual output file (as specified by -o).

@@ -245,6 +245,7 @@ dd.ssa-prog {
 svg {
     cursor: default;
     outline: 1px solid #eee;
+    width: 100%;
 }
 
 body.darkmode {
@@ -975,7 +976,7 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
 		fmt.Println(err)
 		return
 	}
-	fmt.Fprint(pipe, `digraph "" { margin=0; size="4,40"; ranksep=.2; `)
+	fmt.Fprint(pipe, `digraph "" { margin=0; ranksep=.2; `)
 	id := strings.Replace(phase, " ", "-", -1)
 	fmt.Fprintf(pipe, `id="g_graph_%s";`, id)
 	fmt.Fprintf(pipe, `node [style=filled,fillcolor=white,fontsize=16,fontname="Menlo,Times,serif",margin="0.01,0.03"];`)

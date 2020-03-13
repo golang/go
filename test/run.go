@@ -459,7 +459,11 @@ func init() { checkShouldTest() }
 // or else the commands will rebuild any needed packages (like runtime)
 // over and over.
 func goGcflags() string {
-	return "-gcflags=" + os.Getenv("GO_GCFLAGS")
+	return "-gcflags=all=" + os.Getenv("GO_GCFLAGS")
+}
+
+func goGcflagsIsEmpty() bool {
+	return "" == os.Getenv("GO_GCFLAGS")
 }
 
 // run runs a test.
@@ -667,7 +671,25 @@ func (t *test) run() {
 			}
 			// -S=2 forces outermost line numbers when disassembling inlined code.
 			cmdline := []string{"build", "-gcflags", "-S=2"}
-			cmdline = append(cmdline, flags...)
+
+			// Append flags, but don't override -gcflags=-S=2; add to it instead.
+			for i := 0; i < len(flags); i++ {
+				flag := flags[i]
+				switch {
+				case strings.HasPrefix(flag, "-gcflags="):
+					cmdline[2] += " " + strings.TrimPrefix(flag, "-gcflags=")
+				case strings.HasPrefix(flag, "--gcflags="):
+					cmdline[2] += " " + strings.TrimPrefix(flag, "--gcflags=")
+				case flag == "-gcflags", flag == "--gcflags":
+					i++
+					if i < len(flags) {
+						cmdline[2] += " " + flags[i]
+					}
+				default:
+					cmdline = append(cmdline, flag)
+				}
+			}
+
 			cmdline = append(cmdline, long)
 			cmd := exec.Command(goTool(), cmdline...)
 			cmd.Env = append(os.Environ(), env.Environ()...)
@@ -984,7 +1006,7 @@ func (t *test) run() {
 		useTmp = false
 		var out []byte
 		var err error
-		if len(flags)+len(args) == 0 && goGcflags() == "" && !*linkshared {
+		if len(flags)+len(args) == 0 && goGcflagsIsEmpty() && !*linkshared && goarch == runtime.GOARCH && goos == runtime.GOOS {
 			// If we're not using special go command flags,
 			// skip all the go command machinery.
 			// This avoids any time the go command would
