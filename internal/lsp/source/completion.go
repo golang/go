@@ -869,14 +869,15 @@ func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *impo
 	}
 
 	// Add fields of T.
-	for _, f := range fieldSelections(typ) {
+	eachField(typ, func(v *types.Var) {
 		c.found(candidate{
-			obj:         f,
+			obj:         v,
 			score:       stdScore - 0.01,
 			imp:         imp,
 			addressable: addressable || isPointer(typ),
 		})
-	}
+	})
+
 	return nil
 }
 
