@@ -231,7 +231,7 @@ func ImportPathsQuiet(ctx context.Context, patterns []string, tags map[string]bo
 	loaded = loadFromRoots(loaderParams{
 		tags:               tags,
 		allPatternIsRoot:   allPatternIsRoot,
-		allClosesOverTests: true, // until lazy loading in Go 1.16+
+		allClosesOverTests: index.allPatternClosesOverTests(),
 
 		listRoots: func() (roots []string) {
 			updateMatches(nil)
@@ -450,7 +450,7 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
 			roots = append(roots, testImports...)
 			return roots
 		},
-		allClosesOverTests: true, // until lazy loading.
+		allClosesOverTests: index.allPatternClosesOverTests(),
 	})
 	WriteGoMod()
 }
@@ -501,7 +501,7 @@ func ReloadBuildList() []module.Version {
 	loaded = loadFromRoots(loaderParams{
 		tags:               imports.Tags(),
 		listRoots:          func() []string { return nil },
-		allClosesOverTests: true, // until lazy loading, but doesn't matter because the root list is empty.
+		allClosesOverTests: index.allPatternClosesOverTests(), // but doesn't matter because the root list is empty.
 	})
 	return buildList
 }
@@ -512,9 +512,13 @@ func ReloadBuildList() []module.Version {
 // It adds modules to the build list as needed to satisfy new imports.
 // This set is useful for deciding whether a particular import is needed
 // anywhere in a module.
+//
+// In modules that specify "go 1.16" or higher, ALL follows only one layer of
+// test dependencies. In "go 1.15" or lower, ALL follows the imports of tests of
+// dependencies of tests.
 func LoadALL(ctx context.Context) []string {
 	InitMod(ctx)
-	return loadAll(ctx, true)
+	return loadAll(ctx, index.allPatternClosesOverTests())
 }
 
 // LoadVendor is like LoadALL but only follows test dependencies
@@ -523,7 +527,9 @@ func LoadALL(ctx context.Context) []string {
 // This set is useful for identifying the which packages to include in a vendor directory.
 func LoadVendor(ctx context.Context) []string {
 	InitMod(ctx)
-	return loadAll(ctx, false)
+	// 'go mod vendor' has never followed test dependencies since Go 1.11.
+	const closeOverTests = false
+	return loadAll(ctx, closeOverTests)
 }
 
 func loadAll(ctx context.Context, closeOverTests bool) []string {
