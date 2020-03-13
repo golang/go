@@ -62,3 +62,8 @@ func (syms *Symbols) IncVersion() int {
 	syms.versions++
 	return syms.versions - 1
 }
+
+// returns the maximum version number
+func (syms *Symbols) MaxVersion() int {
+	return syms.versions
+}
