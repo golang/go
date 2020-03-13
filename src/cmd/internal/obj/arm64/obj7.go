@@ -33,6 +33,7 @@ package arm64
 import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 	"math"
 )
@@ -593,6 +594,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p = c.stacksplit(p, c.autosize) // emit split check
 			}
 
+			var prologueEnd *obj.Prog
+
 			aoffset := c.autosize
 			if aoffset > 0xF0 {
 				aoffset = 0xF0
@@ -618,6 +621,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.Reg = REGSP
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REGTMP
+
+				prologueEnd = q
 
 				q = obj.Appendp(q, c.newprog)
 				q.Pos = p.Pos
@@ -662,7 +667,11 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q1.To.Offset = int64(-aoffset)
 				q1.To.Reg = REGSP
 				q1.Spadj = aoffset
+
+				prologueEnd = q1
 			}
+
+			prologueEnd.Pos = prologueEnd.Pos.WithXlogue(src.PosPrologueEnd)
 
 			if objabi.Framepointer_enabled(objabi.GOOS, objabi.GOARCH) {
 				q1 = obj.Appendp(q1, c.newprog)
