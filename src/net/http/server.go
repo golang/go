@@ -2577,8 +2577,9 @@ type Server struct {
 	// value.
 	ConnContext func(ctx context.Context, c net.Conn) context.Context
 
+	inShutdown atomicBool // true when when server is in shutdown
+
 	disableKeepAlives int32     // accessed atomically.
-	inShutdown        int32     // accessed atomically (non-zero means we're in Shutdown)
 	nextProtoOnce     sync.Once // guards setupHTTP2_* init
 	nextProtoErr      error     // result of http2.ConfigureServer if used
 
@@ -2624,7 +2625,7 @@ func (s *Server) closeDoneChanLocked() {
 // Close returns any error returned from closing the Server's
 // underlying Listener(s).
 func (srv *Server) Close() error {
-	atomic.StoreInt32(&srv.inShutdown, 1)
+	srv.inShutdown.setTrue()
 	srv.mu.Lock()
 	defer srv.mu.Unlock()
 	srv.closeDoneChanLocked()
@@ -2666,7 +2667,7 @@ var shutdownPollInterval = 500 * time.Millisecond
 // Once Shutdown has been called on a server, it may not be reused;
 // future calls to methods such as Serve will return ErrServerClosed.
 func (srv *Server) Shutdown(ctx context.Context) error {
-	atomic.StoreInt32(&srv.inShutdown, 1)
+	srv.inShutdown.setTrue()
 
 	srv.mu.Lock()
 	lnerr := srv.closeListenersLocked()
@@ -3032,9 +3033,7 @@ func (s *Server) doKeepAlives() bool {
 }
 
 func (s *Server) shuttingDown() bool {
-	// TODO: replace inShutdown with the existing atomicBool type;
-	// see https://github.com/golang/go/issues/20239#issuecomment-381434582
-	return atomic.LoadInt32(&s.inShutdown) != 0
+	return s.inShutdown.isSet()
 }
 
 // SetKeepAlivesEnabled controls whether HTTP keep-alives are enabled.
