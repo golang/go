@@ -2,9 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package slices provides functions for basic operations on
+// slices of any element type.
 package slices
 
-import "contracts"
+import (
+	"alg"
+	"contracts"
+)
 
 // Equal reports whether two slices are equal: the same length and all
 // elements equal. All floating point NaNs are considered equal.
@@ -37,4 +42,54 @@ func EqualFn(type Elem)(s1, s2 []Elem, eq func(Elem, Elem) bool) bool {
 		}
 	}
 	return true
+}
+
+// Map turns a []Elem1 to a []Elem2 using a mapping function.
+func Map(type Elem1, Elem2)(s []Elem1, f func(Elem1) Elem2) []Elem2 {
+	r := make([]Elem2, len(s))
+	for i, v := range s {
+		r[i] = f(v)
+	}
+	return r
+}
+
+// Reduce reduces a []Elem1 to a single value of type Elem2 using
+// a reduction function.
+func Reduce(type Elem1, Elem2)(s []Elem1, initializer Elem2, f func(Elem2, Elem1) Elem2) Elem2 {
+	r := initializer
+	for _, v := range s {
+		r = f(r, v)
+	}
+	return r
+}
+
+// Filter filters values from a slice using a filter function.
+func Filter(type Elem)(s []Elem, f func(Elem) bool) []Elem {
+	var r []Elem
+	for _, v := range s {
+		if f(v) {
+			r = append(r, v)
+		}
+	}
+	return r
+}
+
+// Max returns the maximum element in a slice of some ordered type.
+// If the slice is empty it returns the zero value of the element type.
+func Max(type Elem contracts.Ordered)(s []Elem) Elem {
+	if len(s) == 0 {
+		var zero Elem
+		return zero
+	}
+	return Reduce(s[1:], s[0], alg.Max(Elem))
+}
+
+// Min returns the minimum element in a slice of some ordered type.
+// If the slice is empty it returns the zero value of the element type.
+func Min(type Elem contracts.Ordered)(s []Elem) Elem {
+	if len(s) == 0 {
+		var zero Elem
+		return zero
+	}
+	return Reduce(s[1:], s[0], alg.Min(Elem))
 }

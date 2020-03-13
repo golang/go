@@ -13,3 +13,19 @@ contract Ordered(T) {
 		float32, float64,
 		string
 }
+
+// The Integer contract permits any integer type.
+contract Integer(T) {
+	T int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64, uintptr
+}
+
+// The Signed contract permits any signed integer type.
+contract Signed(T) {
+	T int, int8, int16, int32, int64
+}
+
+// The Unsigned contract permits any unsigned integer type.
+contract Unsigned(T) {
+	T uint, uint8, uint16, uint32, uint64, uintptr
+}
