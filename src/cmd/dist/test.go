@@ -611,29 +611,7 @@ func (t *tester) registerTests() {
 			name:    "sync_cpu",
 			heading: "sync -cpu=10",
 			fn: func(dt *distTest) error {
-				t.addCmd(dt, filepath.Join(goroot, "src"), t.goTest(), "sync", t.timeout(120), "-cpu=10", t.runFlag(""))
-				return nil
-			},
-		})
-	}
-
-	// spectre tests
-	switch goarch {
-	case "amd64":
-		t.tests = append(t.tests, distTest{
-			name:    "spectre",
-			heading: "../misc/spectre",
-			fn: func(dt *distTest) error {
-				t.addCmd(dt, filepath.Join(goroot, "misc/spectre"), t.goTest(), ".")
-				return nil
-			},
-		})
-
-		t.tests = append(t.tests, distTest{
-			name:    "spectrefix",
-			heading: "../misc/spectre -gcflags=-spectre=index",
-			fn: func(dt *distTest) error {
-				t.addCmd(dt, filepath.Join(goroot, "misc/spectre"), t.goTest(), "-gcflags=-spectre=index", "-leakfixed", ".")
+				t.addCmd(dt, "src", t.goTest(), "sync", t.timeout(120), "-cpu=10", t.runFlag(""))
 				return nil
 			},
 		})
