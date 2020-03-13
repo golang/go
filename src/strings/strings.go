@@ -143,6 +143,14 @@ func IndexAny(s, chars string) int {
 		// Avoid scanning all of s.
 		return -1
 	}
+	if len(chars) == 1 {
+		// Avoid scanning all of s.
+		r := rune(chars[0])
+		if r >= utf8.RuneSelf {
+			r = utf8.RuneError
+		}
+		return IndexRune(s, r)
+	}
 	if len(s) > 8 {
 		if as, isASCII := makeASCIISet(chars); isASCII {
 			for i := 0; i < len(s); i++ {
@@ -154,10 +162,8 @@ func IndexAny(s, chars string) int {
 		}
 	}
 	for i, c := range s {
-		for _, m := range chars {
-			if c == m {
-				return i
-			}
+		if IndexRune(chars, c) >= 0 {
+			return i
 		}
 	}
 	return -1
@@ -171,6 +177,16 @@ func LastIndexAny(s, chars string) int {
 		// Avoid scanning all of s.
 		return -1
 	}
+	if len(s) == 1 {
+		rc := rune(s[0])
+		if rc >= utf8.RuneSelf {
+			rc = utf8.RuneError
+		}
+		if IndexRune(chars, rc) >= 0 {
+			return 0
+		}
+		return -1
+	}
 	if len(s) > 8 {
 		if as, isASCII := makeASCIISet(chars); isASCII {
 			for i := len(s) - 1; i >= 0; i-- {
@@ -181,13 +197,25 @@ func LastIndexAny(s, chars string) int {
 			return -1
 		}
 	}
+	if len(chars) == 1 {
+		rc := rune(chars[0])
+		if rc >= utf8.RuneSelf {
+			rc = utf8.RuneError
+		}
+		for i := len(s); i > 0; {
+			r, size := utf8.DecodeLastRuneInString(s[:i])
+			i -= size
+			if rc == r {
+				return i
+			}
+		}
+		return -1
+	}
 	for i := len(s); i > 0; {
 		r, size := utf8.DecodeLastRuneInString(s[:i])
 		i -= size
-		for _, c := range chars {
-			if r == c {
-				return i
-			}
+		if IndexRune(chars, r) >= 0 {
+			return i
 		}
 	}
 	return -1

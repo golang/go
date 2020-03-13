@@ -98,9 +98,11 @@ func (t *tester) run() {
 		os.Setenv("PATH", fmt.Sprintf("%s%c%s", gobin, os.PathListSeparator, os.Getenv("PATH")))
 	}
 
-	slurp, err := exec.Command("go", "env", "CGO_ENABLED").Output()
+	cmd := exec.Command("go", "env", "CGO_ENABLED")
+	cmd.Stderr = new(bytes.Buffer)
+	slurp, err := cmd.Output()
 	if err != nil {
-		fatalf("Error running go env CGO_ENABLED: %v", err)
+		fatalf("Error running go env CGO_ENABLED: %v\n%s", err, cmd.Stderr)
 	}
 	t.cgoEnabled, _ = strconv.ParseBool(strings.TrimSpace(string(slurp)))
 	if flag.NArg() > 0 && t.runRxStr != "" {

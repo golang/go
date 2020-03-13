@@ -101,6 +101,9 @@ func (e Edge) Block() *Block {
 func (e Edge) Index() int {
 	return e.i
 }
+func (e Edge) String() string {
+	return fmt.Sprintf("{%v,%d}", e.b, e.i)
+}
 
 //     kind          controls        successors
 //   ------------------------------------------

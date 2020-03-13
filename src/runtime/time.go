@@ -499,10 +499,20 @@ func resettimer(t *timer, when int64) {
 // slows down addtimer. Reports whether no timer problems were found.
 // The caller must have locked the timers for pp.
 func cleantimers(pp *p) {
+	gp := getg()
 	for {
 		if len(pp.timers) == 0 {
 			return
 		}
+
+		// This loop can theoretically run for a while, and because
+		// it is holding timersLock it cannot be preempted.
+		// If someone is trying to preempt us, just return.
+		// We can clean the timers later.
+		if gp.preemptStop {
+			return
+		}
+
 		t := pp.timers[0]
 		if t.pp.ptr() != pp {
 			throw("cleantimers: bad p")

@@ -175,6 +175,11 @@ func (fc *FileCache) Line(filename string, line int) ([]byte, error) {
 		fc.files.MoveToFront(e)
 	}
 
+	// because //line directives can be out-of-range. (#36683)
+	if line-1 >= len(cf.Lines) || line-1 < 0 {
+		return nil, nil
+	}
+
 	return cf.Lines[line-1], nil
 }
 

@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"runtime"
 	"testing"
@@ -279,5 +280,58 @@ func TestDeferForFuncWithNoExit(t *testing.T) {
 
 	// This function has no exit/return, since it ends with an infinite loop
 	for {
+	}
+}
+
+// Test case approximating issue #37664, where a recursive function (interpreter)
+// may do repeated recovers/re-panics until it reaches the frame where the panic
+// can actually be handled. The recurseFnPanicRec() function is testing that there
+// are no stale defer structs on the defer chain after the interpreter() sequence,
+// by writing a bunch of 0xffffffffs into several recursive stack frames, and then
+// doing a single panic-recover which would invoke any such stale defer structs.
+func TestDeferWithRepeatedRepanics(t *testing.T) {
+	interpreter(0, 6, 2)
+	recurseFnPanicRec(0, 10)
+	interpreter(0, 5, 1)
+	recurseFnPanicRec(0, 10)
+	interpreter(0, 6, 3)
+	recurseFnPanicRec(0, 10)
+}
+
+func interpreter(level int, maxlevel int, rec int) {
+	defer func() {
+		e := recover()
+		if e == nil {
+			return
+		}
+		if level != e.(int) {
+			//fmt.Fprintln(os.Stderr, "re-panicing, level", level)
+			panic(e)
+		}
+		//fmt.Fprintln(os.Stderr, "Recovered, level", level)
+	}()
+	if level+1 < maxlevel {
+		interpreter(level+1, maxlevel, rec)
+	} else {
+		//fmt.Fprintln(os.Stderr, "Initiating panic")
+		panic(rec)
+	}
+}
+
+func recurseFnPanicRec(level int, maxlevel int) {
+	defer func() {
+		recover()
+	}()
+	recurseFn(level, maxlevel)
+}
+
+func recurseFn(level int, maxlevel int) {
+	a := [40]uint32{0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff}
+	if level+1 < maxlevel {
+		// Need this print statement to keep a around.  '_ = a[4]' doesn't do it.
+		fmt.Fprintln(os.Stderr, "recurseFn", level, a[4])
+		recurseFn(level+1, maxlevel)
+	} else {
+		panic("recurseFn panic")
 	}
 }

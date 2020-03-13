@@ -15,12 +15,14 @@ import (
 	"golang.org/x/tools/go/analysis/passes/copylock"
 	"golang.org/x/tools/go/analysis/passes/errorsas"
 	"golang.org/x/tools/go/analysis/passes/httpresponse"
+	"golang.org/x/tools/go/analysis/passes/ifaceassert"
 	"golang.org/x/tools/go/analysis/passes/loopclosure"
 	"golang.org/x/tools/go/analysis/passes/lostcancel"
 	"golang.org/x/tools/go/analysis/passes/nilfunc"
 	"golang.org/x/tools/go/analysis/passes/printf"
 	"golang.org/x/tools/go/analysis/passes/shift"
 	"golang.org/x/tools/go/analysis/passes/stdmethods"
+	"golang.org/x/tools/go/analysis/passes/stringintconv"
 	"golang.org/x/tools/go/analysis/passes/structtag"
 	"golang.org/x/tools/go/analysis/passes/tests"
 	"golang.org/x/tools/go/analysis/passes/unmarshal"
@@ -43,12 +45,14 @@ func main() {
 		copylock.Analyzer,
 		errorsas.Analyzer,
 		httpresponse.Analyzer,
+		ifaceassert.Analyzer,
 		loopclosure.Analyzer,
 		lostcancel.Analyzer,
 		nilfunc.Analyzer,
 		printf.Analyzer,
 		shift.Analyzer,
 		stdmethods.Analyzer,
+		stringintconv.Analyzer,
 		structtag.Analyzer,
 		tests.Analyzer,
 		unmarshal.Analyzer,
