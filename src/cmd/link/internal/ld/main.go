@@ -250,32 +250,27 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("dostkcheck")
 	ctxt.dostkcheck()
 
-	if !ctxt.IsELF && !ctxt.IsDarwin() {
-		bench.Start("loadlibfull")
-		ctxt.loadlibfull() // XXX do it here for now
-	}
-
 	if ctxt.IsELF {
 		bench.Start("doelf")
 		ctxt.doelf()
-		bench.Start("loadlibfull")
-		ctxt.loadlibfull() // XXX do it here for now
 	}
 	if ctxt.IsDarwin() {
 		bench.Start("domacho")
 		ctxt.domacho()
-		bench.Start("loadlibfull")
-		ctxt.loadlibfull() // XXX do it here for now
 	}
 	if ctxt.IsWindows() {
 		bench.Start("dope")
 		ctxt.dope()
-		bench.Start("windynrelocsyms")
-		ctxt.windynrelocsyms()
 	}
+	bench.Start("loadlibfull")
+	ctxt.loadlibfull() // XXX do it here for now
 	if ctxt.IsAIX() {
 		bench.Start("doxcoff")
 		ctxt.doxcoff()
+	}
+	if ctxt.IsWindows() {
+		bench.Start("windynrelocsyms")
+		ctxt.windynrelocsyms()
 	}
 
 	bench.Start("mangleTypeSym")
