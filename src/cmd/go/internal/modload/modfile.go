@@ -25,6 +25,11 @@ import (
 	"golang.org/x/mod/semver"
 )
 
+// lazyLoadingVersion is the Go version (plus leading "v") at which lazy module
+// loading takes effect.
+const lazyLoadingVersionV = "v1.16"
+const go116EnableLazyLoading = true
+
 var modFile *modfile.File
 
 // A modFileIndex is an index of data corresponding to a modFile
@@ -247,6 +252,23 @@ func indexModFile(data []byte, modFile *modfile.File, needsFix bool) *modFileInd
 	}
 
 	return i
+}
+
+// allPatternClosesOverTests reports whether the "all" pattern includes
+// dependencies of tests outside the main module (as in Go 1.11–1.15).
+// (Otherwise — as in Go 1.16+ — the "all" pattern includes only the packages
+// transitively *imported by* the packages and tests in the main module.)
+func (i *modFileIndex) allPatternClosesOverTests() bool {
+	if !go116EnableLazyLoading {
+		return true
+	}
+	if i != nil && semver.Compare(i.goVersionV, lazyLoadingVersionV) < 0 {
+		// The module explicitly predates the change in "all" for lazy loading, so
+		// continue to use the older interpretation. (If i == nil, we not in any
+		// module at all and should use the latest semantics.)
+		return true
+	}
+	return false
 }
 
 // modFileIsDirty reports whether the go.mod file differs meaningfully

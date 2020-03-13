@@ -65,6 +65,8 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 	loadALL := modload.LoadALL
 	if *whyVendor {
 		loadALL = modload.LoadVendor
+	} else {
+		modload.LoadTests = true
 	}
 	if *whyM {
 		listU := false

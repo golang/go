@@ -52,7 +52,7 @@ Do not send CLs removing the interior tags from such phrases.
   TODO: write and link to tutorial or blog post
 </p>
 
-<p><!-= golang.org/issue/29062 -->
+<p><!-- golang.org/issue/29062 -->
   When using <code>go test</code>, a test that
   calls <code>os.Exit(0)</code> during execution of a test function
   will now be considered to fail.
@@ -60,6 +60,18 @@ Do not send CLs removing the interior tags from such phrases.
   os.Exit(0) and thereby stops running all future tests.
   If a <code>TestMain</code> function calls <code>os.Exit(0)</code>
   that is still considered to be a passing test.
+</p>
+
+<h4 id="all-pattern">The <code>all</code> pattern</h4>
+
+<p><!-- golang.org/cl/240623 -->
+  When the main module's <code>go.mod</code> file
+  declares <code>go</code> <code>1.16</code> or higher, the <code>all</code>
+  package pattern now matches only those packages that are transitively imported
+  by a package or test found in the main module. (Packages imported by <em>tests
+  of</em> packages imported by the main module are no longer included.) This is
+  the same set of packages retained
+  by <code>go</code> <code>mod</code> <code>vendor</code> since Go 1.11.
 </p>
 
 <p>
