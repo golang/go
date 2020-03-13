@@ -483,15 +483,15 @@ func setDefaultBuildMod() {
 
 	if fi, err := os.Stat(filepath.Join(modRoot, "vendor")); err == nil && fi.IsDir() {
 		modGo := "unspecified"
-		if index.goVersion != "" {
-			if semver.Compare("v"+index.goVersion, "v1.14") >= 0 {
+		if index.goVersionV != "" {
+			if semver.Compare(index.goVersionV, "v1.14") >= 0 {
 				// The Go version is at least 1.14, and a vendor directory exists.
 				// Set -mod=vendor by default.
 				cfg.BuildMod = "vendor"
 				cfg.BuildModReason = "Go version in go.mod is at least 1.14 and vendor directory exists."
 				return
 			} else {
-				modGo = index.goVersion
+				modGo = index.goVersionV[1:]
 			}
 		}
 
