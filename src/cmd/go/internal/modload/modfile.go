@@ -20,7 +20,7 @@ type modFileIndex struct {
 	data         []byte
 	dataNeedsFix bool // true if fixVersion applied a change while parsing data
 	module       module.Version
-	goVersion    string
+	goVersionV   string // GoVersion with "v" prefix
 	require      map[module.Version]requireMeta
 	replace      map[module.Version]module.Version
 	exclude      map[module.Version]bool
@@ -66,9 +66,11 @@ func indexModFile(data []byte, modFile *modfile.File, needsFix bool) *modFileInd
 		i.module = modFile.Module.Mod
 	}
 
-	i.goVersion = ""
+	i.goVersionV = ""
 	if modFile.Go != nil {
-		i.goVersion = modFile.Go.Version
+		// We're going to use the semver package to compare Go versions, so go ahead
+		// and add the "v" prefix it expects once instead of every time.
+		i.goVersionV = "v" + modFile.Go.Version
 	}
 
 	i.require = make(map[module.Version]requireMeta, len(modFile.Require))
@@ -114,11 +116,11 @@ func (i *modFileIndex) modFileIsDirty(modFile *modfile.File) bool {
 	}
 
 	if modFile.Go == nil {
-		if i.goVersion != "" {
+		if i.goVersionV != "" {
 			return true
 		}
-	} else if modFile.Go.Version != i.goVersion {
-		if i.goVersion == "" && cfg.BuildMod == "readonly" {
+	} else if "v"+modFile.Go.Version != i.goVersionV {
+		if i.goVersionV == "" && cfg.BuildMod == "readonly" {
 			// go.mod files did not always require a 'go' version, so do not error out
 			// if one is missing — we may be inside an older module in the module
 			// cache, and should bias toward providing useful behavior.
