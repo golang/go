@@ -55,9 +55,16 @@ type Reloc2 struct {
 	*goobj2.Reloc2
 	r *oReader
 	l *Loader
+
+	// External reloc types may not fit into a uint8 which the Go object file uses.
+	// Store it here, instead of in the byte of goobj2.Reloc2.
+	// For Go symbols this will always be 0.
+	// goobj2.Reloc2.Type() + typ is always the right type, for both Go and external
+	// symbols.
+	typ objabi.RelocType
 }
 
-func (rel Reloc2) Type() objabi.RelocType { return objabi.RelocType(rel.Reloc2.Type()) }
+func (rel Reloc2) Type() objabi.RelocType { return objabi.RelocType(rel.Reloc2.Type()) + rel.typ }
 func (rel Reloc2) Sym() Sym               { return rel.l.resolve(rel.r, rel.Reloc2.Sym()) }
 
 // oReader is a wrapper type of obj.Reader, along with some
@@ -1463,10 +1470,10 @@ func (relocs *Relocs) At2(j int) Reloc2 {
 		// Ugly. Maybe we just want to use this format to store the
 		// reloc record in the first place?
 		var b goobj2.Reloc2
-		b.Set(r.Off, r.Size, uint8(r.Type), r.Add, goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(r.Sym)})
-		return Reloc2{&b, relocs.r, relocs.l}
+		b.Set(r.Off, r.Size, 0, r.Add, goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(r.Sym)})
+		return Reloc2{&b, relocs.r, relocs.l, r.Type}
 	}
-	return Reloc2{relocs.r.Reloc2(relocs.li, j), relocs.r, relocs.l}
+	return Reloc2{relocs.r.Reloc2(relocs.li, j), relocs.r, relocs.l, 0}
 }
 
 // ReadAll method reads all relocations for a symbol into the
