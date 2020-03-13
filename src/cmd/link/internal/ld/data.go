@@ -959,6 +959,9 @@ func addstrdata(arch *sys.Arch, l *loader.Loader, name, value string) {
 		Errorf(nil, "%s: cannot set with -X: not a var of type string (%s)", name, typeName)
 		return
 	}
+	if !l.AttrReachable(s) {
+		return // don't bother setting unreachable variable
+	}
 	bld := l.MakeSymbolUpdater(s)
 	if bld.Type() == sym.SBSS {
 		bld.SetType(sym.SDATA)
