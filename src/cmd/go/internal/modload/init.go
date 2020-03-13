@@ -624,13 +624,14 @@ func findAltConfig(dir string) (root, name string) {
 		panic("dir not set")
 	}
 	dir = filepath.Clean(dir)
+	if rel := search.InDir(dir, cfg.BuildContext.GOROOT); rel != "" {
+		// Don't suggest creating a module from $GOROOT/.git/config
+		// or a config file found in any parent of $GOROOT (see #34191).
+		return "", ""
+	}
 	for {
 		for _, name := range altConfigs {
 			if fi, err := os.Stat(filepath.Join(dir, name)); err == nil && !fi.IsDir() {
-				if rel := search.InDir(dir, cfg.BuildContext.GOROOT); rel == "." {
-					// Don't suggest creating a module from $GOROOT/.git/config.
-					return "", ""
-				}
 				return dir, name
 			}
 		}
