@@ -101,7 +101,8 @@ type LookupFn func(name string, version int) *sym.Symbol
 // we keep a subset for relocation application.
 type ArchSyms struct {
 	TOC    *sym.Symbol
-	DotTOC *sym.Symbol
+	DotTOC []*sym.Symbol // for each version
+
 	GOT    *sym.Symbol
 	PLT    *sym.Symbol
 	GOTPLT *sym.Symbol
@@ -117,8 +118,6 @@ type ArchSyms struct {
 // setArchSyms sets up the ArchSyms structure, and must be called before
 // relocations are applied.
 func (ctxt *Link) setArchSyms() {
-	ctxt.TOC = ctxt.Syms.Lookup("TOC", 0)
-	ctxt.DotTOC = ctxt.Syms.Lookup(".TOC.", 0)
 	ctxt.GOT = ctxt.Syms.Lookup(".got", 0)
 	ctxt.PLT = ctxt.Syms.Lookup(".plt", 0)
 	ctxt.GOTPLT = ctxt.Syms.Lookup(".got.plt", 0)
@@ -126,6 +125,17 @@ func (ctxt *Link) setArchSyms() {
 	ctxt.Dynamic = ctxt.Syms.Lookup(".dynamic", 0)
 	ctxt.DynSym = ctxt.Syms.Lookup(".dynsym", 0)
 	ctxt.DynStr = ctxt.Syms.Lookup(".dynstr", 0)
+
+	if ctxt.IsAIX() {
+		ctxt.TOC = ctxt.Syms.Lookup("TOC", 0)
+		ctxt.DotTOC = make([]*sym.Symbol, ctxt.Syms.MaxVersion()+1)
+		for i := 0; i <= ctxt.Syms.MaxVersion(); i++ {
+			if i >= 2 && i < sym.SymVerStatic { // these versions are not used currently
+				continue
+			}
+			ctxt.DotTOC[i] = ctxt.Syms.Lookup(".TOC.", i)
+		}
+	}
 }
 
 type Arch struct {

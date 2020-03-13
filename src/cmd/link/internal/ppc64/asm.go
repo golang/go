@@ -513,6 +513,22 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 	return false
 }
 
+// Return the value of .TOC. for symbol s
+func symtoc(syms *ld.ArchSyms, s *sym.Symbol) int64 {
+	v := s.Version
+	if s.Outer != nil {
+		v = s.Outer.Version
+	}
+
+	toc := syms.DotTOC[v]
+	if toc == nil {
+		ld.Errorf(s, "TOC-relative relocation in object without .TOC.")
+		return 0
+	}
+
+	return toc.Value
+}
+
 // archreloctoc relocates a TOC relative symbol.
 // If the symbol pointed by this TOC relative symbol is in .data or .bss, the
 // default load instruction can be changed to an addi instruction and the
@@ -825,7 +841,7 @@ func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol
 		}
 		return val | int64(uint32(t)&^0xfc000003), true
 	case objabi.R_POWER_TOC: // S + A - .TOC.
-		return ld.Symaddr(r.Sym) + r.Add - syms.DotTOC.Value, true
+		return ld.Symaddr(r.Sym) + r.Add - symtoc(syms, s), true
 
 	case objabi.R_POWER_TLS_LE:
 		// The thread pointer points 0x7000 bytes after the start of the
