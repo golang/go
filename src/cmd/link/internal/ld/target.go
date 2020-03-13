@@ -68,6 +68,10 @@ func (t *Target) IsDynlinkingGo() bool {
 // Processor functions
 //
 
+func (t *Target) Is386() bool {
+	return t.Arch.Family == sys.I386
+}
+
 func (t *Target) IsARM() bool {
 	return t.Arch.Family == sys.ARM
 }

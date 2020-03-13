@@ -1076,7 +1076,10 @@ func (l *Loader) SetSymDynimpvers(i Sym, value string) {
 // SymExtname returns the "extname" value for the specified
 // symbol.
 func (l *Loader) SymExtname(i Sym) string {
-	return l.extname[i]
+	if s, ok := l.extname[i]; ok {
+		return s
+	}
+	return l.SymName(i)
 }
 
 // SetSymExtname sets the  "extname" attribute for a symbol.
