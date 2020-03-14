@@ -834,11 +834,6 @@ func TestTan(t *testing.T) {
 			t.Errorf("Tan(%g) = %g, want %g", vc[i], f, tan[i])
 		}
 	}
-	for i, x := range hugeIn {
-		if f := Tan(x); !cSoclose(tanHuge[i], f, 3e-15) {
-			t.Errorf("Tan(%g) = %g, want %g", x, f, tanHuge[i])
-		}
-	}
 	for i := 0; i < len(vcTanSC); i++ {
 		if f := Tan(vcTanSC[i]); !cAlike(tanSC[i], f) {
 			t.Errorf("Tan(%g) = %g, want %g", vcTanSC[i], f, tanSC[i])
