@@ -468,6 +468,11 @@
 (ClosureCall ...) -> (CALLclosure ...)
 (InterCall   ...) -> (CALLinter   ...)
 
+// Atomic Intrinsics
+(AtomicLoad8 ...) -> (LoweredAtomicLoad8 ...)
+
+(AtomicStore8 ...) -> (LoweredAtomicStore8 ...)
+
 // Optimizations
 
 // Absorb SNEZ into branch.

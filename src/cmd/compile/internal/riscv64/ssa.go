@@ -341,6 +341,25 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
 		s.UseArgs(16) // space used in callee args area by assembly stubs
+
+	case ssa.OpRISCV64LoweredAtomicLoad8:
+		s.Prog(riscv.AFENCE)
+		p := s.Prog(riscv.AMOVBU)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
+		s.Prog(riscv.AFENCE)
+
+	case ssa.OpRISCV64LoweredAtomicStore8:
+		s.Prog(riscv.AFENCE)
+		p := s.Prog(riscv.AMOVB)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		s.Prog(riscv.AFENCE)
+
 	case ssa.OpRISCV64LoweredZero:
 		mov, sz := largestMove(v.AuxInt)
 
