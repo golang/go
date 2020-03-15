@@ -364,6 +364,23 @@ This is one of the simplifications that "gofmt -s" applies.
 
 Default value: `true`.
 
+### **simplifyslice**
+
+check for slice simplifications
+
+A slice expression of the form:
+```go
+s[a:len(s)]
+```
+will be simplified to:
+```go
+s[a:]
+```
+
+This is one of the simplifications that "gofmt -s" applies.
+
+Default value: `true`.
+
 ### **sortslice**
 
 check the argument type of sort.Slice
