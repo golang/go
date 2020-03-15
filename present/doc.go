@@ -17,6 +17,7 @@ and other metadata, which looks like:
 	15:04 2 Jan 2006
 	Tags: foo, bar, baz
 	Summary: This is a great document you want to read.
+	OldURL: former-path-for-this-doc
 
 The "# " prefix before the title indicates that this is
 a Markdown-enabled present file: it uses
@@ -33,8 +34,12 @@ the document.
 
 The summary line gives a short summary used in blog feeds.
 
+The old URL line, which may be repeated, gives an older (perhaps relative) URL
+for this document.
+A server might use these to generate appropriate redirects.
+
 Only the title is required;
-the subtitle, date, tags, and summary lines are optional.
+the subtitle, date, tags, summary, and old URL lines are optional.
 In Markdown-enabled present, the summary defaults to being empty.
 In legacy present, the summary defaults to the first paragraph of text.
 

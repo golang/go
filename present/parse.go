@@ -79,6 +79,7 @@ type Doc struct {
 	TitleNotes []string
 	Sections   []Section
 	Tags       []string
+	OldURL     []string
 }
 
 // Author represents the person who wrote and/or is presenting the document.
@@ -546,6 +547,8 @@ func parseHeader(doc *Doc, isMarkdown bool, lines *Lines) error {
 			doc.Tags = append(doc.Tags, tags...)
 		} else if strings.HasPrefix(text, "Summary:") {
 			doc.Summary = strings.TrimSpace(text[len("Summary:"):])
+		} else if strings.HasPrefix(text, "OldURL:") {
+			doc.OldURL = append(doc.OldURL, strings.TrimSpace(text[len("OldURL:"):]))
 		} else if t, ok := parseTime(text); ok {
 			doc.Time = t
 		} else if doc.Subtitle == "" {
