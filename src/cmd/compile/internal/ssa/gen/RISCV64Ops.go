@@ -46,7 +46,7 @@ func riscv64RegName(r int) string {
 
 func init() {
 	var regNamesRISCV64 []string
-	var gpMask, fpMask, gpspMask, gpspsbMask regMask
+	var gpMask, fpMask, gpgMask, gpspMask, gpspsbMask, gpspsbgMask regMask
 	regNamed := make(map[string]regMask)
 
 	// Build the list of register names, creating an appropriately indexed
@@ -75,15 +75,21 @@ func init() {
 
 		// Add general purpose registers to gpMask.
 		switch r {
-		// ZERO, g, and TMP are not in any gp mask.
-		case riscv64REG_ZERO, riscv64REG_G, riscv64REG_TMP:
+		// ZERO, and TMP are not in any gp mask.
+		case riscv64REG_ZERO, riscv64REG_TMP:
+		case riscv64REG_G:
+			gpgMask |= mask
+			gpspsbgMask |= mask
 		case riscv64REG_SP:
 			gpspMask |= mask
 			gpspsbMask |= mask
+			gpspsbgMask |= mask
 		default:
 			gpMask |= mask
+			gpgMask |= mask
 			gpspMask |= mask
 			gpspsbMask |= mask
+			gpspsbgMask |= mask
 		}
 	}
 
@@ -96,6 +102,7 @@ func init() {
 	// Pseudo-register: SB
 	mask := addreg(-1, "SB")
 	gpspsbMask |= mask
+	gpspsbgMask |= mask
 
 	if len(regNamesRISCV64) > 64 {
 		// regMask is only 64 bits.
@@ -113,6 +120,8 @@ func init() {
 		gp21     = regInfo{inputs: []regMask{gpMask, gpMask}, outputs: []regMask{gpMask}}
 		gpload   = regInfo{inputs: []regMask{gpspsbMask, 0}, outputs: []regMask{gpMask}}
 		gp11sb   = regInfo{inputs: []regMask{gpspsbMask}, outputs: []regMask{gpMask}}
+		gpxchg   = regInfo{inputs: []regMask{gpspsbgMask, gpgMask}, outputs: []regMask{gpMask}}
+		gpcas    = regInfo{inputs: []regMask{gpspsbgMask, gpgMask, gpgMask}, outputs: []regMask{gpMask}}
 
 		fp11    = regInfo{inputs: []regMask{fpMask}, outputs: []regMask{fpMask}}
 		fp21    = regInfo{inputs: []regMask{fpMask, fpMask}, outputs: []regMask{fpMask}}
@@ -277,6 +286,33 @@ func init() {
 		{name: "LoweredAtomicStore8", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
 		{name: "LoweredAtomicStore32", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
 		{name: "LoweredAtomicStore64", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
+
+		// Atomic exchange.
+		// store arg1 to *arg0. arg2=mem. returns <old content of *arg0, memory>.
+		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+
+		// Atomic add.
+		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>.
+		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+
+		// Atomic compare and swap.
+		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory.
+		// if *arg0 == arg1 {
+		//   *arg0 = arg2
+		//   return (true, memory)
+		// } else {
+		//   return (false, memory)
+		// }
+		// MOV  $0, Rout
+		// LR	(Rarg0), Rtmp
+		// BNE	Rtmp, Rarg1, 3(PC)
+		// SC	Rarg2, (Rarg0), Rtmp
+		// BNE	Rtmp, ZERO, -3(PC)
+		// MOV  $1, Rout
+		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 
 		// Lowering pass-throughs
 		{name: "LoweredNilCheck", argLength: 2, faultOnNilArg0: true, nilCheck: true, reg: regInfo{inputs: []regMask{gpspMask}}}, // arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.

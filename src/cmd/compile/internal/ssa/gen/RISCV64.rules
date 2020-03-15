@@ -479,6 +479,15 @@
 (AtomicStore64      ...) -> (LoweredAtomicStore64 ...)
 (AtomicStorePtrNoWB ...) -> (LoweredAtomicStore64 ...)
 
+(AtomicAdd32 ...) -> (LoweredAtomicAdd32 ...)
+(AtomicAdd64 ...) -> (LoweredAtomicAdd64 ...)
+
+(AtomicCompareAndSwap32 ...) -> (LoweredAtomicCas32 ...)
+(AtomicCompareAndSwap64 ...) -> (LoweredAtomicCas64 ...)
+
+(AtomicExchange32 ...) -> (LoweredAtomicExchange32 ...)
+(AtomicExchange64 ...) -> (LoweredAtomicExchange64 ...)
+
 // Optimizations
 
 // Absorb SNEZ into branch.
