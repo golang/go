@@ -385,6 +385,9 @@ func (f *markdownFormatter) EndRaw()                 {}
 // in the words map, the link is taken from the map (if the corresponding map
 // value is the empty string, the URL is not converted into a link).
 //
+// A pair of (consecutive) backticks (`) is converted to a unicode left quote (“), and a pair of (consecutive)
+// single quotes (') is converted to a unicode right quote (”).
+//
 // Go identifiers that appear in the words map are italicized; if the corresponding
 // map value is not the empty string, it is considered a URL and the word is converted
 // into a link.
@@ -399,6 +402,9 @@ func ToHTML(w io.Writer, text string, words map[string]string) {
 // It wraps paragraphs of text to width or fewer Unicode code points
 // and then prefixes each line with the indent. In preformatted sections
 // (such as program text), it prefixes each non-blank line with preIndent.
+//
+// A pair of (consecutive) backticks (`) is converted to a unicode left quote (“), and a pair of (consecutive)
+// single quotes (') is converted to a unicode right quote (”).
 func ToText(w io.Writer, text string, indent, preIndent string, width int) {
 	f := &textFormatter{
 		out:       w,
