@@ -172,7 +172,7 @@ func convert(r io.Reader, file string, writeBack bool) error {
 		for _, s := range doc.Sections {
 			fmt.Fprintf(&md, "\n")
 			fmt.Fprintf(&md, "## %s\n", markdownEscape(s.Title, false))
-			printSectionBody(file, 2, &md, s.Elem)
+			printSectionBody(file, 1, &md, s.Elem)
 		}
 	}
 
