@@ -1949,7 +1949,11 @@ const (
 	OpRISCV64LoweredZero
 	OpRISCV64LoweredMove
 	OpRISCV64LoweredAtomicLoad8
+	OpRISCV64LoweredAtomicLoad32
+	OpRISCV64LoweredAtomicLoad64
 	OpRISCV64LoweredAtomicStore8
+	OpRISCV64LoweredAtomicStore32
+	OpRISCV64LoweredAtomicStore64
 	OpRISCV64LoweredNilCheck
 	OpRISCV64LoweredGetClosurePtr
 	OpRISCV64LoweredGetCallerSP
@@ -25853,7 +25857,57 @@ var opcodeTable = [...]opInfo{
 		},
 	},
 	{
+		name:           "LoweredAtomicLoad32",
+		argLen:         2,
+		faultOnNilArg0: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+			},
+			outputs: []outputInfo{
+				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+			},
+		},
+	},
+	{
+		name:           "LoweredAtomicLoad64",
+		argLen:         2,
+		faultOnNilArg0: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+			},
+			outputs: []outputInfo{
+				{0, 1073741812}, // X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+			},
+		},
+	},
+	{
 		name:           "LoweredAtomicStore8",
+		argLen:         3,
+		faultOnNilArg0: true,
+		hasSideEffects: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1073741814},          // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+			},
+		},
+	},
+	{
+		name:           "LoweredAtomicStore32",
+		argLen:         3,
+		faultOnNilArg0: true,
+		hasSideEffects: true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 1073741814},          // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30
+				{0, 9223372037928517622}, // SP X3 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 SB
+			},
+		},
+	},
+	{
+		name:           "LoweredAtomicStore64",
 		argLen:         3,
 		faultOnNilArg0: true,
 		hasSideEffects: true,

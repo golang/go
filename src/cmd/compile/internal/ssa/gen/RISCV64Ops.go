@@ -269,10 +269,14 @@ func init() {
 		// load from arg0. arg1=mem.
 		// returns <value,memory> so they can be properly ordered with other loads.
 		{name: "LoweredAtomicLoad8", argLength: 2, reg: gpload, faultOnNilArg0: true},
+		{name: "LoweredAtomicLoad32", argLength: 2, reg: gpload, faultOnNilArg0: true},
+		{name: "LoweredAtomicLoad64", argLength: 2, reg: gpload, faultOnNilArg0: true},
 
 		// Atomic stores.
 		// store arg1 to arg0. arg2=mem. returns memory.
 		{name: "LoweredAtomicStore8", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicStore32", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicStore64", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
 
 		// Lowering pass-throughs
 		{name: "LoweredNilCheck", argLength: 2, faultOnNilArg0: true, nilCheck: true, reg: regInfo{inputs: []regMask{gpspMask}}}, // arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
