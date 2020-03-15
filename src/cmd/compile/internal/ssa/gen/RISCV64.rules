@@ -143,7 +143,7 @@
 // For positive x, bit 63 of x-1 is always 0, so the result is -1.
 // For zero x, bit 63 of x-1 is 1, so the result is 0.
 //
-(Slicemask <t> x) -> (XORI [-1] (SRAI <t> [63] (ADDI <t> [-1] x)))
+(Slicemask <t> x) -> (NOT (SRAI <t> [63] (ADDI <t> [-1] x)))
 
 // Truncations
 // We ignore the unused high parts of registers, so truncates are just copies.
