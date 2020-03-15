@@ -36,6 +36,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unreachable"
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
+	"golang.org/x/tools/internal/lsp/analysis/simplifycompositelit"
 	"golang.org/x/tools/internal/lsp/analysis/simplifyrange"
 	"golang.org/x/tools/internal/lsp/analysis/unusedparams"
 	"golang.org/x/tools/internal/lsp/debug/tag"
@@ -514,6 +515,7 @@ func defaultAnalyzers() map[string]Analyzer {
 		unusedparams.Analyzer.Name:     {Analyzer: unusedparams.Analyzer, Enabled: false},
 
 		// gofmt -s suite:
-		simplifyrange.Analyzer.Name: {Analyzer: simplifyrange.Analyzer, Enabled: true, HighConfidence: true},
+		simplifycompositelit.Analyzer.Name: {Analyzer: simplifycompositelit.Analyzer, Enabled: true, HighConfidence: true},
+		simplifyrange.Analyzer.Name:        {Analyzer: simplifyrange.Analyzer, Enabled: true, HighConfidence: true},
 	}
 }

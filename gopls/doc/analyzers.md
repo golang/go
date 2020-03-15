@@ -321,6 +321,23 @@ errors is discouraged.
 
 Default value: `true`.
 
+### **simplifycompositelit**
+
+check for composite literal simplifications
+
+An array, slice, or map composite literal of the form:
+```go
+[]T{T{}, T{}}
+```
+will be simplified to:
+```go
+[]T{{}, {}}
+```
+
+This is one of the simplifications that "gofmt -s" applies.
+
+Default value: `true`.
+
 ### **simplifyrange**
 
 check for range statement simplifications
