@@ -326,7 +326,7 @@ func fixSrc(f *ast.File, tok *token.File, src []byte) (newSrc []byte) {
 //   if foo {}
 func fixMissingCurlies(f *ast.File, b *ast.BlockStmt, parent ast.Node, tok *token.File, src []byte) []byte {
 	// If the "{" is already in the source code, there isn't anything to
-	// fix since we aren't mising curlies.
+	// fix since we aren't missing curlies.
 	if b.Lbrace.IsValid() {
 		braceOffset := tok.Offset(b.Lbrace)
 		if braceOffset < len(src) && src[braceOffset] == '{' {
