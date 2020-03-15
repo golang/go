@@ -28,26 +28,440 @@ var (
 	unicodeQuoteReplacer = strings.NewReplacer("``", ulquo, "''", urquo)
 )
 
-// Escape comment text for HTML. If nice is set,
-// also turn `` into &ldquo; and '' into &rdquo;.
-func commentEscape(w io.Writer, text string, nice bool) {
+// Formatter is an interface to allow external custom formatting of godoc comments.
+// Internally this should write to a writer.
+type Formatter interface {
+	// Put makes sure that a string is propperly written to.
+	// One thing Put should do is making sure the string is propperly escaped
+	// Nice indicates if the text should be formatted or converted
+	Put(text string, nice bool)
+
+	// WriteURL writes the URL to the writer using match as a display name.
+	// italics indicates wether or not it should be italic. If nice is set,
+	// also turn `` and '' into appropirate quotes.
+	WriteURL(url, match string, italics, nice bool)
+
+	StartPara()
+	PreParaLine(line string)
+	PostParaLine(line string)
+	EndPara()
+
+	StartHead()
+	PreHeadLine(line string)
+	PostHeadLine(line string)
+	EndHead()
+
+	StartRaw()
+	PreRawLine(line string)
+	PostRawLine(line string)
+	EndRaw()
+}
+
+type htmlFormatter struct {
+	out    io.Writer
+	headID string
+}
+
+var (
+	htmlPreLink  = []byte(`<a href="`)
+	htmlPostLink = []byte(`">`)
+	htmlEndLink  = []byte("</a>")
+	htmlStartI   = []byte("<i>")
+	htmlEndI     = []byte("</i>")
+	htmlStartP   = []byte("<p>\n")
+	htmlEndP     = []byte("</p>\n")
+	htmlStartPre = []byte("<pre>")
+	htmlEndPre   = []byte("</pre>\n")
+	htmlPreH     = []byte(`<h3 id="`)
+	htmlPostH    = []byte(`">`)
+	htmlEndH     = []byte("</h3>\n")
+)
+
+// Escape escapes text for HTML. If nice is set,
+// also turn `` and '' into appropirate quotes.
+func (f *htmlFormatter) Put(text string, nice bool) {
 	if nice {
-		// In the first pass, we convert `` and '' into their unicode equivalents.
-		// This prevents them from being escaped in HTMLEscape.
-		text = convertQuotes(text)
 		var buf bytes.Buffer
 		template.HTMLEscape(&buf, []byte(text))
 		// Now we convert the unicode quotes to their HTML escaped entities to maintain old behavior.
 		// We need to use a temp buffer to read the string back and do the conversion,
 		// otherwise HTMLEscape will escape & to &amp;
-		htmlQuoteReplacer.WriteString(w, buf.String())
+		htmlQuoteReplacer.WriteString(f.out, buf.String())
 		return
 	}
-	template.HTMLEscape(w, []byte(text))
+	template.HTMLEscape(f.out, []byte(text))
 }
 
-func convertQuotes(text string) string {
-	return unicodeQuoteReplacer.Replace(text)
+func (f *htmlFormatter) WriteURL(url, match string, italics, nice bool) {
+	if len(url) > 0 {
+		f.out.Write(htmlPreLink)
+		f.Put(url, false)
+		f.out.Write(htmlPostLink)
+	}
+	if italics {
+		f.out.Write(htmlStartI)
+	}
+	f.Put(match, nice)
+	if italics {
+		f.out.Write(htmlEndI)
+	}
+	if len(url) > 0 {
+		f.out.Write(htmlEndLink)
+	}
+}
+
+func (f *htmlFormatter) StartPara() {
+	f.out.Write(htmlStartP)
+}
+
+func (f *htmlFormatter) PreParaLine(line string)  {}
+func (f *htmlFormatter) PostParaLine(line string) {}
+
+func (f *htmlFormatter) EndPara() {
+	f.out.Write(htmlEndP)
+}
+
+func (f *htmlFormatter) StartHead() {
+	f.out.Write(htmlPreH)
+	f.headID = ""
+}
+
+func (f *htmlFormatter) PreHeadLine(line string) {
+	if f.headID == "" {
+		f.headID = anchorID(line)
+		f.out.Write([]byte(f.headID))
+		f.out.Write(htmlPostH)
+	}
+}
+
+func (f *htmlFormatter) PostHeadLine(line string) {}
+
+func (f *htmlFormatter) EndHead() {
+	if f.headID == "" {
+		f.out.Write(htmlPostH)
+	}
+	f.out.Write(htmlEndH)
+}
+
+func (f *htmlFormatter) StartRaw() {
+	f.out.Write(htmlStartPre)
+}
+
+func (f *htmlFormatter) PreRawLine(line string)  {}
+func (f *htmlFormatter) PostRawLine(line string) {}
+
+func (f *htmlFormatter) EndRaw() {
+	f.out.Write(htmlEndPre)
+}
+
+type textFormatter struct {
+	out       io.Writer
+	line      string
+	didPrint  bool
+	width     int
+	indent    string
+	preIndent string
+	n         int
+	pendSpace int
+}
+
+var newline = []byte("\n")
+var whiteSpace = []byte(" ")
+var prefix = []byte("// ")
+
+// Escape escapes text for HTML. If nice is set,
+// also turn `` and '' into appropirate quotes.
+func (f *textFormatter) Put(text string, nice bool) {
+	if nice {
+		text = convertQuotes(text)
+		f.line += text
+		return
+	}
+	f.out.Write([]byte(text))
+}
+
+func (f *textFormatter) WriteURL(url, match string, italics, nice bool) {
+	if url == "" {
+		url = match
+	}
+	f.Put(url, nice)
+}
+
+func (f *textFormatter) StartPara() {
+	if f.didPrint {
+		f.out.Write(newline)
+	}
+	f.didPrint = true
+}
+
+func (f *textFormatter) PreParaLine(line string) {}
+
+func (f *textFormatter) PostParaLine(line string) {
+	f.write(f.line)
+	f.line = ""
+}
+
+func (f *textFormatter) EndPara() {
+	f.flush()
+}
+
+func (f *textFormatter) StartHead() {
+	if f.didPrint {
+		f.out.Write(newline)
+	}
+	f.didPrint = true
+}
+
+func (f *textFormatter) PreHeadLine(line string) {
+	f.out.Write(newline)
+}
+
+func (f *textFormatter) PostHeadLine(line string) {
+	f.write(f.line)
+	f.line = ""
+}
+
+func (f *textFormatter) EndHead() {
+	f.flush()
+}
+
+func (f *textFormatter) StartRaw() {
+	f.out.Write(newline)
+}
+
+func (f *textFormatter) PreRawLine(line string) {
+	if !isBlank(line) {
+		f.out.Write([]byte(f.preIndent))
+	} else if len(line) == 0 {
+		// line is blank, but no newline is present.
+		// We should make sure there is a newline
+		f.out.Write(newline)
+	}
+}
+
+func (f *textFormatter) PostRawLine(line string) {}
+func (f *textFormatter) EndRaw()                 {}
+
+func (f *textFormatter) write(text string) {
+	f.didPrint = true
+
+	needsPrefix := false
+	isComment := strings.HasPrefix(text, "//")
+	for _, field := range strings.Fields(text) {
+		runeCount := utf8.RuneCountInString(field)
+		// wrap if line is too long
+		if f.n > 0 && f.n+f.pendSpace+runeCount > f.width {
+			f.out.Write(newline)
+			f.n = 0
+			f.pendSpace = 0
+			needsPrefix = isComment
+		}
+		if f.n == 0 {
+			f.out.Write([]byte(f.indent))
+		}
+		if needsPrefix {
+			f.out.Write(prefix)
+			needsPrefix = false
+		}
+		f.out.Write(whiteSpace[:f.pendSpace])
+		f.out.Write([]byte(field))
+		f.n += f.pendSpace + runeCount
+		f.pendSpace = 1
+	}
+}
+
+func (f *textFormatter) flush() {
+	if f.n == 0 {
+		return
+	}
+	f.out.Write(newline)
+	f.pendSpace = 0
+	f.n = 0
+}
+
+type markdownFormatter struct {
+	out      io.Writer
+	didPrint bool
+}
+
+var (
+	mdEscape      = lazyregexp.New(`([\\\x60*{}[\]()#+\-.!_>~|"$%&'\/:;<=?@^])`)
+	mdURLReplacer = strings.NewReplacer(`(`, `\(`, `)`, `\)`)
+
+	mdHeader    = []byte("### ")
+	mdIndent    = []byte("&nbsp;&nbsp;&nbsp;&nbsp;")
+	mdLinkStart = []byte("[")
+	mdLinkDiv   = []byte("](")
+	mdLinkEnd   = []byte(")")
+)
+
+// Escape escapes text for HTML. If nice is set,
+// also turn `` and '' into appropirate quotes.
+func (f *markdownFormatter) Put(text string, nice bool) {
+	text = mdEscape.ReplaceAllString(text, `\$1`)
+	f.out.Write([]byte(text))
+}
+
+func (f *markdownFormatter) WriteURL(url, match string, italics, nice bool) {
+	if len(url) > 0 {
+		f.out.Write(mdLinkStart)
+	}
+	f.Put(match, nice)
+	if italics {
+		f.out.Write(htmlStartI)
+	}
+	if len(url) > 0 {
+		f.out.Write(mdLinkDiv)
+		f.out.Write([]byte(mdURLReplacer.Replace(url)))
+		f.out.Write(mdLinkEnd)
+	}
+}
+
+func (f *markdownFormatter) StartPara() {
+	if f.didPrint {
+		f.out.Write(newline)
+	}
+	f.didPrint = true
+}
+
+func (f *markdownFormatter) PreParaLine(line string)  {}
+func (f *markdownFormatter) PostParaLine(line string) {}
+func (f *markdownFormatter) EndPara()                 {}
+
+func (f *markdownFormatter) StartHead() {
+	if f.didPrint {
+		f.out.Write(newline)
+	}
+	f.didPrint = true
+}
+
+func (f *markdownFormatter) PreHeadLine(line string) {
+	f.out.Write(mdHeader)
+}
+
+func (f *markdownFormatter) PostHeadLine(line string) {
+	f.out.Write(newline)
+}
+
+func (f *markdownFormatter) EndHead() {}
+
+func (f *markdownFormatter) StartRaw() {
+	if f.didPrint {
+		f.out.Write(newline)
+	}
+	f.didPrint = true
+	f.out.Write(newline)
+}
+
+func (f *markdownFormatter) PreRawLine(line string) {
+	if !isBlank(line) {
+		f.out.Write(mdIndent)
+	} else if len(line) == 0 {
+		// line is blank, but no newline is present.
+		// We should make sure there is a newline
+		f.out.Write(newline)
+	}
+}
+
+func (f *markdownFormatter) PostRawLine(line string) {}
+func (f *markdownFormatter) EndRaw()                 {}
+
+// ToHTML converts comment text to formatted HTML.
+// The comment was prepared by DocReader,
+// so it is known not to have leading, trailing blank lines
+// nor to have trailing spaces at the end of lines.
+// The comment markers have already been removed.
+//
+// Each span of unindented non-blank lines is converted into
+// a single paragraph. There is one exception to the rule: a span that
+// consists of a single line, is followed by another paragraph span,
+// begins with a capital letter, and contains no punctuation
+// other than parentheses and commas is formatted as a heading.
+//
+// A span of indented lines is converted into a <pre> block,
+// with the common indent prefix removed.
+//
+// URLs in the comment text are converted into links; if the URL also appears
+// in the words map, the link is taken from the map (if the corresponding map
+// value is the empty string, the URL is not converted into a link).
+//
+// Go identifiers that appear in the words map are italicized; if the corresponding
+// map value is not the empty string, it is considered a URL and the word is converted
+// into a link.
+func ToHTML(w io.Writer, text string, words map[string]string) {
+	f := &htmlFormatter{
+		out: w,
+	}
+	FormatComment(w, f, text, words)
+}
+
+// ToText prepares comment text for presentation in textual output.
+// It wraps paragraphs of text to width or fewer Unicode code points
+// and then prefixes each line with the indent. In preformatted sections
+// (such as program text), it prefixes each non-blank line with preIndent.
+func ToText(w io.Writer, text string, indent, preIndent string, width int) {
+	f := &textFormatter{
+		out:       w,
+		width:     width,
+		indent:    indent,
+		preIndent: preIndent,
+	}
+	FormatComment(w, f, text, nil)
+}
+
+// ToMarkdown converts comment text to formatted markdown.
+// The comment was prepared by DocReader,
+// so it is known not to have leading, trailing blank lines
+// nor to have trailing spaces at the end of lines.
+// The comment markers have already been removed.
+//
+// Each line is converted into a markdown line and empty lines are just converted to
+// newlines. Heading are prefixed with `### ` to make it a markdown heading.
+//
+// A span of indented lines retains a 4 space prefix block, with the common indent
+// prefix removed unless empty, in which case it will be converted to a newline.
+//
+// URLs in the comment text are converted into links.
+
+func ToMarkdown(w io.Writer, text string) {
+	f := &markdownFormatter{
+		out: w,
+	}
+	FormatComment(w, f, text, nil)
+}
+
+//FormatComment formats a comment according to the Formatter
+func FormatComment(w io.Writer, f Formatter, text string, words map[string]string) {
+	for _, b := range blocks(text) {
+		switch b.op {
+		case opPara:
+			f.StartPara()
+			for _, line := range b.lines {
+				escapedLine := convertQuotes(line)
+				f.PreParaLine(escapedLine)
+				emphasize(w, f, line, words, true)
+				f.PostParaLine(escapedLine)
+			}
+			f.EndPara()
+		case opHead:
+			f.StartHead()
+			for _, line := range b.lines {
+				line = convertQuotes(line)
+				f.PreHeadLine(line)
+				f.Put(line, true)
+				f.PostHeadLine(line)
+			}
+			f.EndHead()
+		case opRaw:
+			f.StartRaw()
+			for _, line := range b.lines {
+				f.PreRawLine(line)
+				emphasize(w, f, line, nil, false)
+				f.PostRawLine(line)
+			}
+			f.EndRaw()
+		}
+	}
 }
 
 const (
@@ -72,21 +486,6 @@ const (
 
 var matchRx = lazyregexp.New(`(` + urlRx + `)|(` + identRx + `)`)
 
-var (
-	html_a      = []byte(`<a href="`)
-	html_aq     = []byte(`">`)
-	html_enda   = []byte("</a>")
-	html_i      = []byte("<i>")
-	html_endi   = []byte("</i>")
-	html_p      = []byte("<p>\n")
-	html_endp   = []byte("</p>\n")
-	html_pre    = []byte("<pre>")
-	html_endpre = []byte("</pre>\n")
-	html_h      = []byte(`<h3 id="`)
-	html_hq     = []byte(`">`)
-	html_endh   = []byte("</h3>\n")
-)
-
 // Emphasize and escape a line of text for HTML. URLs are converted into links;
 // if the URL also appears in the words map, the link is taken from the map (if
 // the corresponding map value is the empty string, the URL is not converted
@@ -95,7 +494,7 @@ var (
 // and the word is converted into a link. If nice is set, the remaining text's
 // appearance is improved where it makes sense (e.g., `` is turned into &ldquo;
 // and '' into &rdquo;).
-func emphasize(w io.Writer, line string, words map[string]string, nice bool) {
+func emphasize(w io.Writer, f Formatter, line string, words map[string]string, nice bool) {
 	for {
 		m := matchRx.FindStringSubmatchIndex(line)
 		if m == nil {
@@ -104,7 +503,11 @@ func emphasize(w io.Writer, line string, words map[string]string, nice bool) {
 		// m >= 6 (two parenthesized sub-regexps in matchRx, 1st one is urlRx)
 
 		// write text before match
-		commentEscape(w, line[0:m[0]], nice)
+		pre := line[0:m[0]]
+		if nice {
+			pre = convertQuotes(line[0:m[0]])
+		}
+		f.Put(pre, nice)
 
 		// adjust match for URLs
 		match := line[m[0]:m[1]]
@@ -143,48 +546,24 @@ func emphasize(w io.Writer, line string, words map[string]string, nice bool) {
 			}
 			italics = false // don't italicize URLs
 		}
+		if nice {
+			match = convertQuotes(match)
+		}
 
 		// write match
-		if len(url) > 0 {
-			w.Write(html_a)
-			template.HTMLEscape(w, []byte(url))
-			w.Write(html_aq)
-		}
-		if italics {
-			w.Write(html_i)
-		}
-		commentEscape(w, match, nice)
-		if italics {
-			w.Write(html_endi)
-		}
-		if len(url) > 0 {
-			w.Write(html_enda)
-		}
+		f.WriteURL(url, match, italics, nice)
 
 		// advance
 		line = line[m[1]:]
 	}
-	commentEscape(w, line, nice)
-}
-
-func indentLen(s string) int {
-	i := 0
-	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-		i++
+	if nice {
+		line = convertQuotes(line)
 	}
-	return i
+	f.Put(line, nice)
 }
 
-func isBlank(s string) bool {
-	return len(s) == 0 || (len(s) == 1 && s[0] == '\n')
-}
-
-func commonPrefix(a, b string) string {
-	i := 0
-	for i < len(a) && i < len(b) && a[i] == b[i] {
-		i++
-	}
-	return a[0:i]
+func convertQuotes(text string) string {
+	return unicodeQuoteReplacer.Replace(text)
 }
 
 func unindent(block []string) {
@@ -209,56 +588,24 @@ func unindent(block []string) {
 	}
 }
 
-// heading returns the trimmed line if it passes as a section heading;
-// otherwise it returns the empty string.
-func heading(line string) string {
-	line = strings.TrimSpace(line)
-	if len(line) == 0 {
-		return ""
+func indentLen(s string) int {
+	i := 0
+	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+		i++
 	}
+	return i
+}
 
-	// a heading must start with an uppercase letter
-	r, _ := utf8.DecodeRuneInString(line)
-	if !unicode.IsLetter(r) || !unicode.IsUpper(r) {
-		return ""
+func isBlank(s string) bool {
+	return len(s) == 0 || (len(s) == 1 && s[0] == '\n')
+}
+
+func commonPrefix(a, b string) string {
+	i := 0
+	for i < len(a) && i < len(b) && a[i] == b[i] {
+		i++
 	}
-
-	// it must end in a letter or digit:
-	r, _ = utf8.DecodeLastRuneInString(line)
-	if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
-		return ""
-	}
-
-	// exclude lines with illegal characters. we allow "(),"
-	if strings.ContainsAny(line, ";:!?+*/=[]{}_^°&§~%#@<\">\\") {
-		return ""
-	}
-
-	// allow "'" for possessive "'s" only
-	for b := line; ; {
-		i := strings.IndexRune(b, '\'')
-		if i < 0 {
-			break
-		}
-		if i+1 >= len(b) || b[i+1] != 's' || (i+2 < len(b) && b[i+2] != ' ') {
-			return "" // not followed by "s "
-		}
-		b = b[i+2:]
-	}
-
-	// allow "." when followed by non-space
-	for b := line; ; {
-		i := strings.IndexRune(b, '.')
-		if i < 0 {
-			break
-		}
-		if i+1 >= len(b) || b[i+1] == ' ' {
-			return "" // not followed by non-space
-		}
-		b = b[i+1:]
-	}
-
-	return line
+	return a[0:i]
 }
 
 type op int
@@ -266,7 +613,7 @@ type op int
 const (
 	opPara op = iota
 	opHead
-	opPre
+	opRaw
 )
 
 type block struct {
@@ -279,62 +626,6 @@ var nonAlphaNumRx = lazyregexp.New(`[^a-zA-Z0-9]`)
 func anchorID(line string) string {
 	// Add a "hdr-" prefix to avoid conflicting with IDs used for package symbols.
 	return "hdr-" + nonAlphaNumRx.ReplaceAllString(line, "_")
-}
-
-// ToHTML converts comment text to formatted HTML.
-// The comment was prepared by DocReader,
-// so it is known not to have leading, trailing blank lines
-// nor to have trailing spaces at the end of lines.
-// The comment markers have already been removed.
-//
-// Each span of unindented non-blank lines is converted into
-// a single paragraph. There is one exception to the rule: a span that
-// consists of a single line, is followed by another paragraph span,
-// begins with a capital letter, and contains no punctuation
-// other than parentheses and commas is formatted as a heading.
-//
-// A span of indented lines is converted into a <pre> block,
-// with the common indent prefix removed.
-//
-// URLs in the comment text are converted into links; if the URL also appears
-// in the words map, the link is taken from the map (if the corresponding map
-// value is the empty string, the URL is not converted into a link).
-//
-// Go identifiers that appear in the words map are italicized; if the corresponding
-// map value is not the empty string, it is considered a URL and the word is converted
-// into a link.
-func ToHTML(w io.Writer, text string, words map[string]string) {
-	for _, b := range blocks(text) {
-		switch b.op {
-		case opPara:
-			w.Write(html_p)
-			for _, line := range b.lines {
-				emphasize(w, line, words, true)
-			}
-			w.Write(html_endp)
-		case opHead:
-			w.Write(html_h)
-			id := ""
-			for _, line := range b.lines {
-				if id == "" {
-					id = anchorID(line)
-					w.Write([]byte(id))
-					w.Write(html_hq)
-				}
-				commentEscape(w, line, true)
-			}
-			if id == "" {
-				w.Write(html_hq)
-			}
-			w.Write(html_endh)
-		case opPre:
-			w.Write(html_pre)
-			for _, line := range b.lines {
-				emphasize(w, line, nil, false)
-			}
-			w.Write(html_endpre)
-		}
-	}
 }
 
 func blocks(text string) []block {
@@ -383,7 +674,7 @@ func blocks(text string) []block {
 			unindent(pre)
 
 			// put those lines in a pre block
-			out = append(out, block{opPre, pre})
+			out = append(out, block{opRaw, pre})
 			lastWasHeading = false
 			continue
 		}
@@ -413,95 +704,54 @@ func blocks(text string) []block {
 	return out
 }
 
-// ToText prepares comment text for presentation in textual output.
-// It wraps paragraphs of text to width or fewer Unicode code points
-// and then prefixes each line with the indent. In preformatted sections
-// (such as program text), it prefixes each non-blank line with preIndent.
-func ToText(w io.Writer, text string, indent, preIndent string, width int) {
-	l := lineWrapper{
-		out:    w,
-		width:  width,
-		indent: indent,
+// heading returns the trimmed line if it passes as a section heading;
+// otherwise it returns the empty string.
+func heading(line string) string {
+	line = strings.TrimSpace(line)
+	if len(line) == 0 {
+		return ""
 	}
-	for _, b := range blocks(text) {
-		switch b.op {
-		case opPara:
-			// l.write will add leading newline if required
-			for _, line := range b.lines {
-				line = convertQuotes(line)
-				l.write(line)
-			}
-			l.flush()
-		case opHead:
-			w.Write(nl)
-			for _, line := range b.lines {
-				line = convertQuotes(line)
-				l.write(line + "\n")
-			}
-			l.flush()
-		case opPre:
-			w.Write(nl)
-			for _, line := range b.lines {
-				if isBlank(line) {
-					w.Write([]byte("\n"))
-				} else {
-					w.Write([]byte(preIndent))
-					w.Write([]byte(line))
-				}
-			}
+
+	// a heading must start with an uppercase letter
+	r, _ := utf8.DecodeRuneInString(line)
+	if !unicode.IsLetter(r) || !unicode.IsUpper(r) {
+		return ""
+	}
+
+	// it must end in a letter or digit:
+	r, _ = utf8.DecodeLastRuneInString(line)
+	if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+		return ""
+	}
+
+	// exclude lines with illegal characters. we allow "(),"
+	if strings.ContainsAny(line, ";:!?+*/=[]{}_^°&§~%#@<\">\\") {
+		return ""
+	}
+
+	// allow "'" for possessive "'s" only
+	for b := line; ; {
+		i := strings.IndexRune(b, '\'')
+		if i < 0 {
+			break
 		}
-	}
-}
-
-type lineWrapper struct {
-	out       io.Writer
-	printed   bool
-	width     int
-	indent    string
-	n         int
-	pendSpace int
-}
-
-var nl = []byte("\n")
-var space = []byte(" ")
-var prefix = []byte("// ")
-
-func (l *lineWrapper) write(text string) {
-	if l.n == 0 && l.printed {
-		l.out.Write(nl) // blank line before new paragraph
-	}
-	l.printed = true
-
-	needsPrefix := false
-	isComment := strings.HasPrefix(text, "//")
-	for _, f := range strings.Fields(text) {
-		w := utf8.RuneCountInString(f)
-		// wrap if line is too long
-		if l.n > 0 && l.n+l.pendSpace+w > l.width {
-			l.out.Write(nl)
-			l.n = 0
-			l.pendSpace = 0
-			needsPrefix = isComment
+		if i+1 >= len(b) || b[i+1] != 's' || (i+2 < len(b) && b[i+2] != ' ') {
+			return "" // not followed by "s "
 		}
-		if l.n == 0 {
-			l.out.Write([]byte(l.indent))
-		}
-		if needsPrefix {
-			l.out.Write(prefix)
-			needsPrefix = false
-		}
-		l.out.Write(space[:l.pendSpace])
-		l.out.Write([]byte(f))
-		l.n += l.pendSpace + w
-		l.pendSpace = 1
+		b = b[i+2:]
 	}
-}
 
-func (l *lineWrapper) flush() {
-	if l.n == 0 {
-		return
+	// allow "." when followed by non-whiteSpace
+	for b := line; ; {
+		i := strings.IndexRune(b, '.')
+		if i < 0 {
+			break
+		}
+		if i+1 >= len(b) || b[i+1] == ' ' {
+			return "" // not followed by non-whiteSpace
+		}
+		b = b[i+1:]
 	}
-	l.out.Write(nl)
-	l.pendSpace = 0
-	l.n = 0
+
+	return line
 }

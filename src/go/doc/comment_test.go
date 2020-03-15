@@ -6,10 +6,99 @@ package doc
 
 import (
 	"bytes"
+	"io"
 	"reflect"
 	"strings"
 	"testing"
+	"text/template"
 )
+
+// This is practically a htmlFormatter, this is because it uses a lot of the possible things
+// a Formatter can do. This makes it easy to use for testing
+type testFormatter struct {
+	out    io.Writer
+	headID string
+}
+
+// Escape escapes text for HTML. If nice is set,
+// also turn `` and '' into appropirate quotes.
+func (f *testFormatter) Escape(text string, nice bool) {
+	if nice {
+		// In the first pass, we convert `` and '' into their unicode equivalents.
+		// This prevents them from being escaped in HTMLEscape.
+		text = convertQuotes(text)
+		var buf bytes.Buffer
+		template.HTMLEscape(&buf, []byte(text))
+		// Now we convert the unicode quotes to their HTML escaped entities to maintain old behavior.
+		// We need to use a temp buffer to read the string back and do the conversion,
+		// otherwise HTMLEscape will escape & to &amp;
+		htmlQuoteReplacer.WriteString(f.out, buf.String())
+		return
+	}
+	template.HTMLEscape(f.out, []byte(text))
+}
+
+func (f *testFormatter) WriteURL(url, match string, italics, nice bool) {
+	if len(url) > 0 {
+		f.out.Write(htmlPreLink)
+		f.Escape(url, false)
+		f.out.Write(htmlPostLink)
+	}
+	if italics {
+		f.out.Write(htmlStartI)
+	}
+	f.Escape(match, nice)
+	if italics {
+		f.out.Write(htmlEndI)
+	}
+	if len(url) > 0 {
+		f.out.Write(htmlEndLink)
+	}
+}
+
+func (f *testFormatter) StartPara() {
+	f.out.Write(htmlStartP)
+}
+
+func (f *testFormatter) PreParaLine(line string)  {}
+func (f *testFormatter) PostParaLine(line string) {}
+
+func (f *testFormatter) EndPara() {
+	f.out.Write(htmlEndP)
+}
+
+func (f *testFormatter) StartHead() {
+	f.out.Write(htmlPreH)
+	f.headID = ""
+}
+
+func (f *testFormatter) PreHeadLine(line string) {
+	if f.headID == "" {
+		f.headID = anchorID(line)
+		f.out.Write([]byte(f.headID))
+		f.out.Write(htmlPostH)
+	}
+}
+
+func (f *testFormatter) PostHeadLine(line string) {}
+
+func (f *testFormatter) EndHead() {
+	if f.headID == "" {
+		f.out.Write(htmlPostH)
+	}
+	f.out.Write(htmlEndH)
+}
+
+func (f *testFormatter) StartRaw() {
+	f.out.Write(htmlStartPre)
+}
+
+func (f *testFormatter) PreRawLine(line string)  {}
+func (f *testFormatter) PostRawLine(line string) {}
+
+func (f *testFormatter) EndRaw() {
+	f.out.Write(htmlEndPre)
+}
 
 var headingTests = []struct {
 	line string
@@ -85,13 +174,13 @@ Para 6.
 			{opPara, []string{"Para 2.\n"}},
 			{opHead, []string{"Section"}},
 			{opPara, []string{"Para 3.\n"}},
-			{opPre, []string{"pre\n", "pre1\n"}},
+			{opRaw, []string{"pre\n", "pre1\n"}},
 			{opPara, []string{"Para 4.\n"}},
-			{opPre, []string{"pre\n", "pre1\n", "\n", "pre2\n"}},
+			{opRaw, []string{"pre\n", "pre1\n", "\n", "pre2\n"}},
 			{opPara, []string{"Para 5.\n"}},
-			{opPre, []string{"pre\n", "\n", "\n", "pre1\n", "pre2\n"}},
+			{opRaw, []string{"pre\n", "\n", "\n", "pre1\n", "pre2\n"}},
 			{opPara, []string{"Para 6.\n"}},
-			{opPre, []string{"pre\n", "pre2\n"}},
+			{opRaw, []string{"pre\n", "pre2\n"}},
 		},
 		text: `.   Para 1. Para 1 line 2.
 
@@ -130,7 +219,7 @@ $	pre2
 		in: "Para.\n\tshould not be ``escaped''",
 		out: []block{
 			{opPara, []string{"Para.\n"}},
-			{opPre, []string{"should not be ``escaped''"}},
+			{opRaw, []string{"should not be ``escaped''"}},
 		},
 		text: ".   Para.\n\n$	should not be ``escaped''",
 	},
@@ -208,9 +297,11 @@ var emphasizeTests = []struct {
 }
 
 func TestEmphasize(t *testing.T) {
+	f := &testFormatter{}
 	for i, tt := range emphasizeTests {
 		var buf bytes.Buffer
-		emphasize(&buf, tt.in, nil, true)
+		f.out = &buf
+		emphasize(&buf, f, tt.in, nil, true)
 		out := buf.String()
 		if out != tt.out {
 			t.Errorf("#%d: mismatch\nhave: %v\nwant: %v", i, out, tt.out)
@@ -218,7 +309,8 @@ func TestEmphasize(t *testing.T) {
 	}
 }
 
-func TestCommentEscape(t *testing.T) {
+func TestHtmlEscape(t *testing.T) {
+	html := &htmlFormatter{}
 	commentTests := []struct {
 		in, out string
 	}{
@@ -227,7 +319,27 @@ func TestCommentEscape(t *testing.T) {
 	}
 	for i, tt := range commentTests {
 		var buf strings.Builder
-		commentEscape(&buf, tt.in, true)
+		html.out = &buf
+		html.Escape(tt.in, true)
+		out := buf.String()
+		if out != tt.out {
+			t.Errorf("#%d: mismatch\nhave: %q\nwant: %q", i, out, tt.out)
+		}
+	}
+}
+
+func TestHtmlWriteURL(t *testing.T) {
+	html := &htmlFormatter{}
+	commentTests := []struct {
+		url, match, out string
+	}{
+		{"http://git.qemu.org/?p=qemu.git;a=blob;f=qapi-schema.json;hb=HEAD", "qemu git repo", "<a href=\"http://git.qemu.org/?p=qemu.git;a=blob;f=qapi-schema.json;hb=HEAD\"><i>qemu git repo</i></a>"},
+		{"http://gmail.com", "gmail", "<a href=\"http://gmail.com\"><i>gmail</i></a>"},
+	}
+	for i, tt := range commentTests {
+		var buf strings.Builder
+		html.out = &buf
+		html.WriteURL(tt.url, tt.match, true, true)
 		out := buf.String()
 		if out != tt.out {
 			t.Errorf("#%d: mismatch\nhave: %q\nwant: %q", i, out, tt.out)
