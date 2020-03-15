@@ -46,7 +46,7 @@ type Snapshot interface {
 
 	// FindAnalysisError returns the analysis error represented by the diagnostic.
 	// This is used to get the SuggestedFixes associated with that error.
-	FindAnalysisError(ctx context.Context, pkgID, analyzerName, msg string, rng protocol.Range) (*Error, error)
+	FindAnalysisError(ctx context.Context, pkgID, analyzerName, msg string, rng protocol.Range) (*Error, *Analyzer, error)
 
 	// ModTidyHandle returns a ModTidyHandle for the given go.mod file handle.
 	// This function can have no data or error if there is no modfile detected.
@@ -368,6 +368,10 @@ const (
 type Analyzer struct {
 	Analyzer *analysis.Analyzer
 	Enabled  bool
+
+	// If this is true, then we can apply the suggested fixes
+	// as part of a source.FixAll codeaction.
+	HighConfidence bool
 }
 
 // Package represents a Go package that has been type-checked. It maintains

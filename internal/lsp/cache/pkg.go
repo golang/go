@@ -125,22 +125,23 @@ func (p *pkg) Module() *packagesinternal.Module {
 	return p.module
 }
 
-func (s *snapshot) FindAnalysisError(ctx context.Context, pkgID, analyzerName, msg string, rng protocol.Range) (*source.Error, error) {
+func (s *snapshot) FindAnalysisError(ctx context.Context, pkgID, analyzerName, msg string, rng protocol.Range) (*source.Error, *source.Analyzer, error) {
+	var analyzer source.Analyzer
 	analyzer, ok := s.View().Options().Analyzers[analyzerName]
 	if !ok {
-		return nil, errors.Errorf("unexpected analyzer: %s", analyzerName)
+		return nil, nil, errors.Errorf("unexpected analyzer: %s", analyzerName)
 	}
 	if !analyzer.Enabled {
-		return nil, errors.Errorf("disabled analyzer: %s", analyzerName)
+		return nil, nil, errors.Errorf("disabled analyzer: %s", analyzerName)
 	}
 
 	act, err := s.actionHandle(ctx, packageID(pkgID), analyzer.Analyzer)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	errs, _, err := act.analyze(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for _, err := range errs {
 		if err.Category != analyzerName {
@@ -152,7 +153,7 @@ func (s *snapshot) FindAnalysisError(ctx context.Context, pkgID, analyzerName, m
 		if protocol.CompareRange(err.Range, rng) != 0 {
 			continue
 		}
-		return err, nil
+		return err, &analyzer, nil
 	}
-	return nil, errors.Errorf("no matching diagnostic for %s:%v", pkgID, analyzerName)
+	return nil, nil, errors.Errorf("no matching diagnostic for %s:%v", pkgID, analyzerName)
 }

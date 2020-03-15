@@ -57,6 +57,7 @@ func DefaultOptions() Options {
 		ServerOptions: ServerOptions{
 			SupportedCodeActions: map[FileKind]map[protocol.CodeActionKind]bool{
 				Go: {
+					protocol.SourceFixAll:          true,
 					protocol.SourceOrganizeImports: true,
 					protocol.QuickFix:              true,
 				},
@@ -508,5 +509,7 @@ func defaultAnalyzers() map[string]Analyzer {
 		deepequalerrors.Analyzer.Name:  {Analyzer: deepequalerrors.Analyzer, Enabled: true},
 		sortslice.Analyzer.Name:        {Analyzer: sortslice.Analyzer, Enabled: true},
 		testinggoroutine.Analyzer.Name: {Analyzer: testinggoroutine.Analyzer, Enabled: true},
+
+		// gofmt -s suite:
 	}
 }
