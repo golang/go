@@ -316,7 +316,7 @@ func (ctx *Context) Parse(r io.Reader, name string, mode ParseMode) (*Doc, error
 		}
 
 		if isSpeakerNote(lines.text[i]) {
-			doc.TitleNotes = append(doc.TitleNotes, lines.text[i][2:])
+			doc.TitleNotes = append(doc.TitleNotes, trimSpeakerNote(lines.text[i]))
 		}
 	}
 
@@ -349,11 +349,14 @@ func Parse(r io.Reader, name string, mode ParseMode) (*Doc, error) {
 }
 
 // isHeading matches any section heading.
-var isHeading = regexp.MustCompile(`^\*+ `)
+var (
+	isHeadingLegacy   = regexp.MustCompile(`^\*+( |$)`)
+	isHeadingMarkdown = regexp.MustCompile(`^\#+( |$)`)
+)
 
 // lesserHeading returns true if text is a heading of a lesser or equal level
 // than that denoted by prefix.
-func lesserHeading(text, prefix string) bool {
+func lesserHeading(isHeading *regexp.Regexp, text, prefix string) bool {
 	return isHeading.MatchString(text) && !strings.HasPrefix(text, prefix+prefix[:1])
 }
 
@@ -361,6 +364,10 @@ func lesserHeading(text, prefix string) bool {
 // number (a nil number indicates the top level).
 func parseSections(ctx *Context, name, prefix string, lines *Lines, number []int) ([]Section, error) {
 	isMarkdown := prefix[0] == '#'
+	isHeading := isHeadingLegacy
+	if isMarkdown {
+		isHeading = isHeadingMarkdown
+	}
 	var sections []Section
 	for i := 1; ; i++ {
 		// Next non-empty line is title.
@@ -392,7 +399,7 @@ func parseSections(ctx *Context, name, prefix string, lines *Lines, number []int
 			ID:     id,
 		}
 		text, ok = lines.nextNonEmpty()
-		for ok && !lesserHeading(text, prefix) {
+		for ok && !lesserHeading(isHeading, text, prefix) {
 			var e Elem
 			r, _ := utf8.DecodeRuneInString(text)
 			switch {
@@ -435,8 +442,8 @@ func parseSections(ctx *Context, name, prefix string, lines *Lines, number []int
 				lines.back()
 				e = List{Bullet: b}
 			case isSpeakerNote(text):
-				section.Notes = append(section.Notes, text[2:])
-			case strings.HasPrefix(text, prefix+prefix[:1]+" "):
+				section.Notes = append(section.Notes, trimSpeakerNote(text))
+			case strings.HasPrefix(text, prefix+prefix[:1]+" ") || text == prefix+prefix[:1]:
 				lines.back()
 				subsecs, err := parseSections(ctx, name, prefix+prefix[:1], lines, section.Number)
 				if err != nil {
@@ -445,6 +452,8 @@ func parseSections(ctx *Context, name, prefix string, lines *Lines, number []int
 				for _, ss := range subsecs {
 					section.Elem = append(section.Elem, ss)
 				}
+			case strings.HasPrefix(text, prefix+prefix[:1]):
+				return nil, fmt.Errorf("%s:%d: badly nested section inside %s: %s", name, lines.line, prefix, text)
 			case strings.HasPrefix(text, "."):
 				args := strings.Fields(text)
 				if args[0] == ".background" {
@@ -466,7 +475,7 @@ func parseSections(ctx *Context, name, prefix string, lines *Lines, number []int
 				for ok && strings.TrimSpace(text) != "" {
 					// Command breaks text block.
 					// Section heading breaks text block in markdown.
-					if text[0] == '.' || isMarkdown && text[0] == '#' {
+					if text[0] == '.' || isMarkdown && text[0] == '#' || isSpeakerNote(text) {
 						lines.back()
 						break
 					}
@@ -513,6 +522,10 @@ func parseSections(ctx *Context, name, prefix string, lines *Lines, number []int
 			lines.back()
 		}
 		sections = append(sections, section)
+	}
+
+	if len(sections) == 0 {
+		return nil, fmt.Errorf("%s:%d: unexpected line: %s", name, lines.line+1, lines.text[lines.line])
 	}
 	return sections, nil
 }
@@ -649,7 +662,14 @@ func parseTime(text string) (t time.Time, ok bool) {
 }
 
 func isSpeakerNote(s string) bool {
-	return strings.HasPrefix(s, ": ")
+	return strings.HasPrefix(s, ": ") || s == ":"
+}
+
+func trimSpeakerNote(s string) string {
+	if s == ":" {
+		return ""
+	}
+	return strings.TrimPrefix(s, ": ")
 }
 
 func renderMarkdown(input []byte) (template.HTML, error) {
@@ -669,7 +689,9 @@ func fixupMarkdown(n ast.Node) {
 		if entering {
 			switch n := n.(type) {
 			case *ast.Link:
-				n.SetAttributeString("target", "_blank")
+				n.SetAttributeString("target", []byte("_blank"))
+				// https://developers.google.com/web/tools/lighthouse/audits/noopener
+				n.SetAttributeString("rel", []byte("noopener"))
 			}
 		}
 		return ast.WalkContinue, nil
