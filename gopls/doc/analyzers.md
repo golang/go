@@ -321,6 +321,32 @@ errors is discouraged.
 
 Default value: `true`.
 
+### **simplifyrange**
+
+check for range statement simplifications
+
+A range of the form:
+```go
+for x, _ = range v {...}
+```
+will be simplified to:
+```go
+for x = range v {...}
+```
+
+A range of the form:
+```go
+for _ = range v {...}
+```
+will be simplified to:
+```go
+for range v {...}
+```
+
+This is one of the simplifications that "gofmt -s" applies.
+
+Default value: `true`.
+
 ### **sortslice**
 
 check the argument type of sort.Slice
