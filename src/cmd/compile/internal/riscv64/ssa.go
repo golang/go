@@ -351,6 +351,17 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = v.Reg0()
 		s.Prog(riscv.AFENCE)
 
+	case ssa.OpRISCV64LoweredAtomicLoad32, ssa.OpRISCV64LoweredAtomicLoad64:
+		as := riscv.ALRW
+		if v.Op == ssa.OpRISCV64LoweredAtomicLoad64 {
+			as = riscv.ALRD
+		}
+		p := s.Prog(as)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
+
 	case ssa.OpRISCV64LoweredAtomicStore8:
 		s.Prog(riscv.AFENCE)
 		p := s.Prog(riscv.AMOVB)
@@ -359,6 +370,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		s.Prog(riscv.AFENCE)
+
+	case ssa.OpRISCV64LoweredAtomicStore32, ssa.OpRISCV64LoweredAtomicStore64:
+		as := riscv.AAMOSWAPW
+		if v.Op == ssa.OpRISCV64LoweredAtomicStore64 {
+			as = riscv.AAMOSWAPD
+		}
+		p := s.Prog(as)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		p.RegTo2 = riscv.REG_ZERO
 
 	case ssa.OpRISCV64LoweredZero:
 		mov, sz := largestMove(v.AuxInt)

@@ -47,11 +47,29 @@ func rewriteValueRISCV64(v *Value) bool {
 	case OpAndB:
 		v.Op = OpRISCV64AND
 		return true
+	case OpAtomicLoad32:
+		v.Op = OpRISCV64LoweredAtomicLoad32
+		return true
+	case OpAtomicLoad64:
+		v.Op = OpRISCV64LoweredAtomicLoad64
+		return true
 	case OpAtomicLoad8:
 		v.Op = OpRISCV64LoweredAtomicLoad8
 		return true
+	case OpAtomicLoadPtr:
+		v.Op = OpRISCV64LoweredAtomicLoad64
+		return true
+	case OpAtomicStore32:
+		v.Op = OpRISCV64LoweredAtomicStore32
+		return true
+	case OpAtomicStore64:
+		v.Op = OpRISCV64LoweredAtomicStore64
+		return true
 	case OpAtomicStore8:
 		v.Op = OpRISCV64LoweredAtomicStore8
+		return true
+	case OpAtomicStorePtrNoWB:
+		v.Op = OpRISCV64LoweredAtomicStore64
 		return true
 	case OpAvg64u:
 		return rewriteValueRISCV64_OpAvg64u(v)

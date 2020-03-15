@@ -469,9 +469,15 @@
 (InterCall   ...) -> (CALLinter   ...)
 
 // Atomic Intrinsics
-(AtomicLoad8 ...) -> (LoweredAtomicLoad8 ...)
+(AtomicLoad8   ...) -> (LoweredAtomicLoad8  ...)
+(AtomicLoad32  ...) -> (LoweredAtomicLoad32 ...)
+(AtomicLoad64  ...) -> (LoweredAtomicLoad64 ...)
+(AtomicLoadPtr ...) -> (LoweredAtomicLoad64 ...)
 
-(AtomicStore8 ...) -> (LoweredAtomicStore8 ...)
+(AtomicStore8       ...) -> (LoweredAtomicStore8  ...)
+(AtomicStore32      ...) -> (LoweredAtomicStore32 ...)
+(AtomicStore64      ...) -> (LoweredAtomicStore64 ...)
+(AtomicStorePtrNoWB ...) -> (LoweredAtomicStore64 ...)
 
 // Optimizations
 
