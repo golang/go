@@ -129,7 +129,15 @@ func (p *ifacePair) identical(q *ifacePair) bool {
 
 // If a non-nil tparams is provided, type inference is done for type parameters in x.
 func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams []Type) bool {
-	if x == y {
+	// If we want type inference, do not shortcut for equal types. Instead
+	// keep comparing them element-wise so we can infer the matching (and
+	// equal type parameter types). A simple test case where this matters
+	// is: func f(type T)(x T) { f(x) } .
+	// (If we know that the types are equal, we could optimize this case by
+	// simply extracting the type parameters used and then populate tparams
+	// accordingly. Not clear it's worthwhile the parallel, if slightly more
+	// efficient code structure.)
+	if tparams == nil && x == y {
 		return true
 	}
 
@@ -324,7 +332,15 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams 
 		if tparams == nil {
 			return false // x and y being equal is caught in the very beginning of this function
 		}
+		// tparams != nil
 		if x := tparams[x.index]; x != nil {
+			// If we have inferred a type x and it matches y, we're
+			// done. check.identical0 won't do this check if we run
+			// in inference mode (tparams != nil), so do it here to
+			// avoid endless recursion.
+			if x == y {
+				return true
+			}
 			return check.identical0(x, y, cmpTags, p, tparams)
 		}
 		tparams[x.index] = y // infer type from y

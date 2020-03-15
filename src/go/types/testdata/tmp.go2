@@ -4,31 +4,45 @@
 
 package main
 
-contract C(T) {
-	T m() T
+func f(type T)(x T) {
+	f(x)
 }
 
-// contract C(T₁) {T₁ C₀(type T₁ any) = interface{m() T₁}}
-
-contract W(T) {
-	C(T)
+func g(type T)(x, y T) {
+	g(x, y)
 }
 
-// contract W(T₂) {T₂ W₀(type T₂ main.C₀<T₂>) = interface{interface{m() T₂}}}
-
-func _(type T W)(x T) {
-	var _ T = x.m()
+func f2(type T1, T2)(x1 T1, x2 T2) {
+	f2(x1, x2)
 }
 
-contract compareTwo(A, B) {
-	comparable(A)
-	comparable(B)
+func f2p(type T1, T2)(x1 T1, x2 T2) {
+	f2p(x2, x1)
 }
 
-func _(type T1, T2 compareTwo)(x1, y1 T1) bool {
-	return x1 == y1
-}
+/*
+func f(func(int))
+func g(type T)(T)
 
-func _(type T comparable)(x, y T) bool {
-	return x == y || x != y
+func _() {
+	f(g)
 }
+*/
+
+/*
+func f(type T)(T, func(type T)(T))
+func g(type T)(T)
+func _() {
+    var x int
+    f(x, g)
+}
+*/
+
+/*
+func f(type T)(T, func(T))
+func g(type T)(T)
+func _() {
+    var x int
+    f(x, g)
+}
+*/

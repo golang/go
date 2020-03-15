@@ -72,3 +72,42 @@ func variadic(type A, B)(A, B, ...B) int { panic("unimplemented") }
 var _ = variadic(1, 2.3)
 var _ = variadic(1, 2.3, 3.4, 4.5)
 var _ = variadic(int, float64)(1, 2.3, 3.4, 4)
+
+// Type inference also works in recursive function calls where
+// the inferred type is the type parameter of the caller.
+func f1(type T)(x T) {
+	f1(x)
+}
+
+func f2a(type T)(x, y T) {
+	f2a(x, y)
+}
+
+func f2b(type T)(x, y T) {
+	f2b(y, x)
+}
+
+func g2a(type P, Q)(x P, y Q) {
+	g2a(x, y)
+}
+
+func g2b(type P, Q)(x P, y Q) {
+	g2b(y, x)
+}
+
+// Here's an example of a recursive function call with variadic
+// arguments and type inference inferring the type parameter of
+// the caller (i.e., itself).
+func max(type T interface{ type int })(x ...T) T {
+	var x0 T
+	if len(x) > 0 {
+		x0 = x[0]
+	}
+	if len(x) > 1 {
+		x1 := max(x[1:]...)
+		if x1 > x0 {
+			return x1
+		}
+	}
+	return x0
+}
