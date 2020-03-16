@@ -333,7 +333,7 @@ func (l *Loader) addObj(pkg string, r *oReader) Sym {
 // If the symbol already exist, it returns the index of that symbol.
 func (l *Loader) AddSym(name string, ver int, r *oReader, li int, kind int, dupok bool, typ sym.SymKind) (Sym, bool) {
 	if l.extStart != 0 {
-		panic("AddSym called after AddExtSym is called")
+		panic("AddSym called after external symbol is created")
 	}
 	i := Sym(len(l.objSyms))
 	addToGlobal := func() {
@@ -409,23 +409,6 @@ func (l *Loader) newExtSym(name string, ver int) Sym {
 	pi := l.newPayload(name, ver)
 	l.objSyms = append(l.objSyms, objSym{l.extReader, int(pi)})
 	l.extReader.syms = append(l.extReader.syms, i)
-	return i
-}
-
-// Add an external symbol (without index). Return the index of newly added
-// symbol, or 0 if not added.
-func (l *Loader) AddExtSym(name string, ver int) Sym {
-	i := l.Lookup(name, ver)
-	if i != 0 {
-		return i
-	}
-	i = l.newExtSym(name, ver)
-	static := ver >= sym.SymVerStatic || ver < 0
-	if static {
-		l.extStaticSyms[nameVer{name, ver}] = i
-	} else {
-		l.symsByName[ver][name] = i
-	}
 	return i
 }
 
@@ -1726,7 +1709,7 @@ func loadObjRefs(l *Loader, r *oReader, syms *sym.Symbols) {
 		osym.Read(r.Reader, r.SymOff(ndef+i))
 		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
 		v := abiToVer(osym.ABI, r.version)
-		r.syms[ndef+i] = l.AddExtSym(name, v)
+		r.syms[ndef+i] = l.LookupOrCreateSym(name, v)
 	}
 }
 
