@@ -299,7 +299,7 @@ func (w *writer) Aux(s *LSym) {
 			o.Write(w.Writer)
 		}
 
-		if s.Func.dwarfInfoSym != nil {
+		if s.Func.dwarfInfoSym != nil && s.Func.dwarfInfoSym.Size != 0 {
 			o := goobj2.Aux{
 				Type: goobj2.AuxDwarfInfo,
 				Sym:  makeSymRef(s.Func.dwarfInfoSym),
@@ -339,7 +339,7 @@ func nAuxSym(s *LSym) int {
 	if s.Func != nil {
 		// FuncInfo is an aux symbol, each Funcdata is an aux symbol
 		n += 1 + len(s.Func.Pcln.Funcdata)
-		if s.Func.dwarfInfoSym != nil {
+		if s.Func.dwarfInfoSym != nil && s.Func.dwarfInfoSym.Size != 0 {
 			n++
 		}
 		if s.Func.dwarfLocSym != nil && s.Func.dwarfLocSym.Size != 0 {
@@ -419,7 +419,7 @@ func genFuncInfoSyms(ctxt *Link) {
 		s.Func.FuncInfoSym = isym
 		b.Reset()
 
-		dwsyms := []*LSym{s.Func.dwarfRangesSym, s.Func.dwarfLocSym, s.Func.dwarfDebugLinesSym}
+		dwsyms := []*LSym{s.Func.dwarfRangesSym, s.Func.dwarfLocSym, s.Func.dwarfDebugLinesSym, s.Func.dwarfInfoSym}
 		for _, s := range dwsyms {
 			if s == nil || s.Size == 0 {
 				continue

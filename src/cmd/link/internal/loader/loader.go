@@ -2140,11 +2140,17 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 		osym := goobj2.Sym{}
 		osym.Read(r.Reader, r.SymOff(i))
 		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
-		if name == "" {
+		t := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]
+		// NB: for the test below, we can skip most anonymous symbols
+		// since they will never be turned into sym.Symbols (ex:
+		// funcdata), however DWARF subprogram DIE symbols (which are
+		// nameless) will eventually need to be turned into
+		// sym.Symbols (with relocations), so the simplest thing to do
+		// is include them as part of this loop.
+		if name == "" && t != sym.SDWARFINFO {
 			continue
 		}
 		ver := abiToVer(osym.ABI, r.version)
-		t := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]
 		if t == sym.SXREF {
 			log.Fatalf("bad sxref")
 		}
