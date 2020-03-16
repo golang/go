@@ -306,8 +306,8 @@ func (d *deadcodePass2) decodeMethodSig2(ldr *loader.Loader, arch *sys.Arch, sym
 	var buf bytes.Buffer
 	var methods []methodsig
 	for i := 0; i < count; i++ {
-		buf.WriteString(decodetypeName3(ldr, symIdx, relocs, off))
-		mtypSym := decodeRelocSym3(ldr, symIdx, relocs, int32(off+4))
+		buf.WriteString(decodetypeName2(ldr, symIdx, relocs, off))
+		mtypSym := decodeRelocSym2(ldr, symIdx, relocs, int32(off+4))
 		// FIXME: add some sort of caching here, since we may see some of the
 		// same symbols over time for param types.
 		mrelocs := ldr.Relocs(mtypSym)
@@ -319,7 +319,7 @@ func (d *deadcodePass2) decodeMethodSig2(ldr *loader.Loader, arch *sys.Arch, sym
 			if i > 0 {
 				buf.WriteString(", ")
 			}
-			a := decodetypeFuncInType3(ldr, arch, mtypSym, &mrelocs, i)
+			a := decodetypeFuncInType2(ldr, arch, mtypSym, &mrelocs, i)
 			buf.WriteString(ldr.SymName(a))
 		}
 		buf.WriteString(") (")
@@ -328,7 +328,7 @@ func (d *deadcodePass2) decodeMethodSig2(ldr *loader.Loader, arch *sys.Arch, sym
 			if i > 0 {
 				buf.WriteString(", ")
 			}
-			a := decodetypeFuncOutType3(ldr, arch, mtypSym, &mrelocs, i)
+			a := decodetypeFuncOutType2(ldr, arch, mtypSym, &mrelocs, i)
 			buf.WriteString(ldr.SymName(a))
 		}
 		buf.WriteRune(')')
@@ -345,7 +345,7 @@ func (d *deadcodePass2) decodeIfaceMethods2(ldr *loader.Loader, arch *sys.Arch, 
 	if decodetypeKind(arch, p)&kindMask != kindInterface {
 		panic(fmt.Sprintf("symbol %q is not an interface", ldr.SymName(symIdx)))
 	}
-	rel := decodeReloc3(ldr, symIdx, relocs, int32(commonsize(arch)+arch.PtrSize))
+	rel := decodeReloc2(ldr, symIdx, relocs, int32(commonsize(arch)+arch.PtrSize))
 	s := rel.Sym()
 	if s == 0 {
 		return nil
