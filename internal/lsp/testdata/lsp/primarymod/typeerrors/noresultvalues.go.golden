@@ -1,0 +1,14 @@
+-- suggestedfix_noresultvalues_3_19 --
+package typeerrors
+
+func x() { return } //@suggestedfix("nil", "quickfix")
+
+func y() { return nil, "hello" } //@suggestedfix("nil", "quickfix")
+
+-- suggestedfix_noresultvalues_5_19 --
+package typeerrors
+
+func x() { return nil } //@suggestedfix("nil", "quickfix")
+
+func y() { return } //@suggestedfix("nil", "quickfix")
+

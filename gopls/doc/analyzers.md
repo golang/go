@@ -321,6 +321,22 @@ errors is discouraged.
 
 Default value: `true`.
 
+### **noresultvalues**
+
+suggested fixes for "no result values expected"
+
+This checker provides suggested fixes for type errors of the
+type "no result values expected". For example:
+```go
+func z() { return nil }
+```
+will turn into
+```go
+func z() { return }
+```
+
+Default value: `true`.
+
 ### **simplifycompositelit**
 
 check for composite literal simplifications
