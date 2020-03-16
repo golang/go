@@ -73,12 +73,12 @@ type traceEvent struct {
 	Tags   string
 }
 
-func (t *traces) ProcessEvent(ctx context.Context, ev event.Event) context.Context {
+func (t *traces) ProcessEvent(ctx context.Context, ev event.Event) (context.Context, event.Event) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	span := export.GetSpan(ctx)
 	if span == nil {
-		return ctx
+		return ctx, ev
 	}
 
 	switch {
@@ -99,13 +99,13 @@ func (t *traces) ProcessEvent(ctx context.Context, ev event.Event) context.Conte
 		t.unfinished[span.ID] = td
 		// and wire up parents if we have them
 		if !span.ParentID.IsValid() {
-			return ctx
+			return ctx, ev
 		}
 		parentID := export.SpanContext{TraceID: span.ID.TraceID, SpanID: span.ParentID}
 		parent, found := t.unfinished[parentID]
 		if !found {
 			// trace had an invalid parent, so it cannot itself be valid
-			return ctx
+			return ctx, ev
 		}
 		parent.Children = append(parent.Children, td)
 
@@ -113,7 +113,7 @@ func (t *traces) ProcessEvent(ctx context.Context, ev event.Event) context.Conte
 		// finishing, must be already in the map
 		td, found := t.unfinished[span.ID]
 		if !found {
-			return ctx // if this happens we are in a bad place
+			return ctx, ev // if this happens we are in a bad place
 		}
 		delete(t.unfinished, span.ID)
 
@@ -140,7 +140,7 @@ func (t *traces) ProcessEvent(ctx context.Context, ev event.Event) context.Conte
 			fillOffsets(td, td.Start)
 		}
 	}
-	return ctx
+	return ctx, ev
 }
 
 func (t *traces) getData(req *http.Request) interface{} {

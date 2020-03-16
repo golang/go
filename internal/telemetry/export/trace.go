@@ -46,9 +46,9 @@ func GetSpan(ctx context.Context) *Span {
 // It creates new spans on EventStartSpan, adds events to the current span on
 // EventLog or EventTag, and closes the span on EventEndSpan.
 // The span structure can then be used by other exporters.
-func ContextSpan(ctx context.Context, ev event.Event) context.Context {
+func ContextSpan(ctx context.Context, ev event.Event) (context.Context, event.Event) {
 	switch {
-	case ev.IsLog(), ev.IsTag():
+	case ev.IsLog(), ev.IsLabel():
 		if span := GetSpan(ctx); span != nil {
 			span.Events = append(span.Events, ev)
 		}
@@ -71,9 +71,9 @@ func ContextSpan(ctx context.Context, ev event.Event) context.Context {
 			span.Finish = ev.At
 		}
 	case ev.IsDetach():
-		return context.WithValue(ctx, spanContextKey, nil)
+		return context.WithValue(ctx, spanContextKey, nil), ev
 	}
-	return ctx
+	return ctx, ev
 }
 
 func (s *SpanContext) Format(f fmt.State, r rune) {

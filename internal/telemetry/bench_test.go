@@ -154,8 +154,8 @@ func newExporter() *loggingExporter {
 	}
 }
 
-func (e *loggingExporter) ProcessEvent(ctx context.Context, ev event.Event) context.Context {
-	export.ContextSpan(ctx, ev)
+func (e *loggingExporter) ProcessEvent(ctx context.Context, ev event.Event) (context.Context, event.Event) {
+	ctx, ev = export.ContextSpan(ctx, ev)
 	return e.logger.ProcessEvent(ctx, ev)
 }
 

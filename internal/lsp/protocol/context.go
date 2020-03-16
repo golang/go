@@ -18,18 +18,18 @@ func WithClient(ctx context.Context, client Client) context.Context {
 	return context.WithValue(ctx, clientKey, client)
 }
 
-func LogEvent(ctx context.Context, ev event.Event) context.Context {
+func LogEvent(ctx context.Context, ev event.Event) (context.Context, event.Event) {
 	if !ev.IsLog() {
-		return ctx
+		return ctx, ev
 	}
 	client, ok := ctx.Value(clientKey).(Client)
 	if !ok {
-		return ctx
+		return ctx, ev
 	}
 	msg := &LogMessageParams{Type: Info, Message: fmt.Sprint(ev)}
 	if ev.Error != nil {
 		msg.Type = Error
 	}
 	go client.LogMessage(xcontext.Detach(ctx), msg)
-	return ctx
+	return ctx, ev
 }

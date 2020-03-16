@@ -16,7 +16,7 @@ type Exporter interface {
 	// along with the context in which that event ocurred.
 	// This method is called synchronously from the event call site, so it should
 	// return quickly so as not to hold up user code.
-	ProcessEvent(context.Context, Event) context.Context
+	ProcessEvent(context.Context, Event) (context.Context, Event)
 
 	Metric(context.Context, MetricData)
 }
@@ -37,13 +37,13 @@ func SetExporter(e Exporter) {
 	atomic.StorePointer(&exporter, p)
 }
 
-func ProcessEvent(ctx context.Context, event Event) context.Context {
+func ProcessEvent(ctx context.Context, ev Event) (context.Context, Event) {
 	exporterPtr := (*Exporter)(atomic.LoadPointer(&exporter))
 	if exporterPtr == nil {
-		return ctx
+		return ctx, ev
 	}
 	// and now also hand the event of to the current exporter
-	return (*exporterPtr).ProcessEvent(ctx, event)
+	return (*exporterPtr).ProcessEvent(ctx, ev)
 }
 
 func Metric(ctx context.Context, data MetricData) {

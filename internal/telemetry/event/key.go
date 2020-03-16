@@ -4,10 +4,6 @@
 
 package event
 
-import (
-	"context"
-)
-
 // Key is used as the identity of a Tag.
 // Keys are intended to be compared by pointer only, the name should be unique
 // for communicating with external systems, but it is not required or enforced.
@@ -26,14 +22,4 @@ func TagOf(name string, value interface{}) Tag {
 // You can use this when building a tag list.
 func (k *Key) Of(v interface{}) Tag {
 	return Tag{Key: k, Value: v}
-}
-
-// From can be used to get a tag for the key from a context.
-func (k *Key) From(ctx context.Context) Tag {
-	return Tag{Key: k, Value: ctx.Value(k)}
-}
-
-// With is a wrapper over the Label package level function for just this key.
-func (k *Key) With(ctx context.Context, v interface{}) context.Context {
-	return Label(ctx, Tag{Key: k, Value: v})
 }

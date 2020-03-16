@@ -11,9 +11,24 @@ import (
 
 // Label sends a label event to the exporter with the supplied tags.
 func Label(ctx context.Context, tags ...Tag) context.Context {
-	return ProcessEvent(ctx, Event{
+	ctx, _ = ProcessEvent(ctx, Event{
 		Type: LabelType,
 		At:   time.Now(),
 		Tags: tags,
 	})
+	return ctx
+}
+
+// Query sends a query event to the exporter with the supplied keys.
+// The returned tags will have up to date values if the exporter supports it.
+func Query(ctx context.Context, keys ...*Key) TagList {
+	tags := make(TagList, len(keys))
+	for i, k := range keys {
+		tags[i].Key = k
+	}
+	_, ev := ProcessEvent(ctx, Event{
+		Type: QueryType,
+		Tags: tags,
+	})
+	return ev.Tags
 }

@@ -201,7 +201,7 @@ func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, r
 			Version:     key.id.Version,
 		}); err != nil {
 			if ctx.Err() == nil {
-				event.Error(ctx, "publishReports: failed to deliver diagnostic", err, telemetry.File.From(ctx))
+				event.Error(ctx, "publishReports: failed to deliver diagnostic", err, telemetry.URI.Of(key.id.URI))
 			}
 			continue
 		}

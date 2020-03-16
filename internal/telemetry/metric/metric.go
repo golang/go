@@ -202,7 +202,7 @@ type HistogramFloat64Row struct {
 }
 
 func getGroup(ctx context.Context, g *[]event.TagList, keys []*event.Key) (int, bool) {
-	group := event.Tags(ctx, keys...)
+	group := event.Query(ctx, keys...)
 	old := *g
 	index := sort.Search(len(old), func(i int) bool {
 		return !old[i].Less(group)

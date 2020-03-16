@@ -10,7 +10,7 @@ import (
 )
 
 func StartSpan(ctx context.Context, name string, tags ...Tag) (context.Context, func()) {
-	ctx = ProcessEvent(ctx, Event{
+	ctx, _ = ProcessEvent(ctx, Event{
 		Type:    StartSpanType,
 		Message: name,
 		At:      time.Now(),
@@ -27,8 +27,9 @@ func StartSpan(ctx context.Context, name string, tags ...Tag) (context.Context, 
 // Detach returns a context without an associated span.
 // This allows the creation of spans that are not children of the current span.
 func Detach(ctx context.Context) context.Context {
-	return ProcessEvent(ctx, Event{
+	ctx, _ = ProcessEvent(ctx, Event{
 		Type: DetachType,
 		At:   time.Now(),
 	})
+	return ctx
 }

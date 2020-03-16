@@ -84,9 +84,9 @@ func Connect(config *Config) *Exporter {
 	return exporter
 }
 
-func (e *Exporter) ProcessEvent(ctx context.Context, ev event.Event) context.Context {
+func (e *Exporter) ProcessEvent(ctx context.Context, ev event.Event) (context.Context, event.Event) {
 	if !ev.IsEndSpan() {
-		return ctx
+		return ctx, ev
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -94,7 +94,7 @@ func (e *Exporter) ProcessEvent(ctx context.Context, ev event.Event) context.Con
 	if span != nil {
 		e.spans = append(e.spans, span)
 	}
-	return ctx
+	return ctx, ev
 }
 
 func (e *Exporter) Metric(ctx context.Context, data event.MetricData) {

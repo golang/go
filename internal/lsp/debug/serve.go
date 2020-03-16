@@ -542,24 +542,24 @@ func (i *Instance) writeMemoryDebug(threshold uint64) error {
 	return nil
 }
 
-func (e *exporter) ProcessEvent(ctx context.Context, ev event.Event) context.Context {
-	ctx = export.ContextSpan(ctx, ev)
+func (e *exporter) ProcessEvent(ctx context.Context, ev event.Event) (context.Context, event.Event) {
+	ctx, ev = export.ContextSpan(ctx, ev)
 	i := GetInstance(ctx)
 	if ev.IsLog() && (ev.Error != nil || i == nil) {
 		fmt.Fprintf(e.stderr, "%v\n", ev)
 	}
-	ctx = protocol.LogEvent(ctx, ev)
+	ctx, ev = protocol.LogEvent(ctx, ev)
 	if i == nil {
-		return ctx
+		return ctx, ev
 	}
-	ctx = export.Tag(ctx, ev)
+	ctx, ev = export.Tag(ctx, ev)
 	if i.ocagent != nil {
-		ctx = i.ocagent.ProcessEvent(ctx, ev)
+		ctx, ev = i.ocagent.ProcessEvent(ctx, ev)
 	}
 	if i.traces != nil {
-		ctx = i.traces.ProcessEvent(ctx, ev)
+		ctx, ev = i.traces.ProcessEvent(ctx, ev)
 	}
-	return ctx
+	return ctx, ev
 }
 
 func (e *exporter) Metric(ctx context.Context, data event.MetricData) {

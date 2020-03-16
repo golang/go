@@ -179,7 +179,7 @@ func TestTrace(t *testing.T) {
 				Type: event.EndSpanType,
 				At:   end,
 			}
-			ctx := export.ContextSpan(ctx, startEvent)
+			ctx, _ := export.ContextSpan(ctx, startEvent)
 			span := export.GetSpan(ctx)
 			span.ID = export.SpanContext{}
 			span.Events = []event.Event{tt.event(ctx)}

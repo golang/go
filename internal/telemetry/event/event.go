@@ -17,6 +17,7 @@ const (
 	StartSpanType
 	EndSpanType
 	LabelType
+	QueryType
 	DetachType
 )
 
@@ -31,7 +32,8 @@ type Event struct {
 func (e Event) IsLog() bool       { return e.Type == LogType }
 func (e Event) IsEndSpan() bool   { return e.Type == EndSpanType }
 func (e Event) IsStartSpan() bool { return e.Type == StartSpanType }
-func (e Event) IsTag() bool       { return e.Type == LabelType }
+func (e Event) IsLabel() bool     { return e.Type == LabelType }
+func (e Event) IsQuery() bool     { return e.Type == QueryType }
 func (e Event) IsDetach() bool    { return e.Type == DetachType }
 
 func (e Event) Format(f fmt.State, r rune) {
