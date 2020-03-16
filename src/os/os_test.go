@@ -59,13 +59,26 @@ var sysdir = func() *sysDir {
 			if err != nil {
 				wd = err.Error()
 			}
-			return &sysDir{
+			sd := &sysDir{
 				filepath.Join(wd, "..", ".."),
 				[]string{
 					"ResourceRules.plist",
 					"Info.plist",
 				},
 			}
+			found := true
+			for _, f := range sd.files {
+				path := filepath.Join(sd.name, f)
+				if _, err := Stat(path); err != nil {
+					found = false
+					break
+				}
+			}
+			if found {
+				return sd
+			}
+			// In a self-hosted iOS build the above files might
+			// not exist. Look for system files instead below.
 		}
 	case "windows":
 		return &sysDir{
@@ -178,7 +191,6 @@ func TestStatError(t *testing.T) {
 	defer chtmpdir(t)()
 
 	path := "no-such-file"
-	Remove(path) // Just in case
 
 	fi, err := Stat(path)
 	if err == nil {
@@ -194,12 +206,10 @@ func TestStatError(t *testing.T) {
 	testenv.MustHaveSymlink(t)
 
 	link := "symlink"
-	Remove(link) // Just in case
 	err = Symlink(path, link)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer Remove(link)
 
 	fi, err = Stat(link)
 	if err == nil {
@@ -269,7 +279,7 @@ func TestRead0(t *testing.T) {
 	}
 }
 
-// Reading a closed file should should return ErrClosed error
+// Reading a closed file should return ErrClosed error
 func TestReadClosed(t *testing.T) {
 	path := sfdir + "/" + sfname
 	file, err := Open(path)
@@ -688,12 +698,10 @@ func TestHardLink(t *testing.T) {
 
 	defer chtmpdir(t)()
 	from, to := "hardlinktestfrom", "hardlinktestto"
-	Remove(from) // Just in case.
 	file, err := Create(to)
 	if err != nil {
 		t.Fatalf("open %q failed: %v", to, err)
 	}
-	defer Remove(to)
 	if err = file.Close(); err != nil {
 		t.Errorf("close %q failed: %v", to, err)
 	}
@@ -709,7 +717,6 @@ func TestHardLink(t *testing.T) {
 		t.Errorf("link %q, %q failed to return a valid error", none, none)
 	}
 
-	defer Remove(from)
 	tostat, err := Stat(to)
 	if err != nil {
 		t.Fatalf("stat %q failed: %v", to, err)
@@ -745,11 +752,8 @@ func TestHardLink(t *testing.T) {
 }
 
 // chtmpdir changes the working directory to a new temporary directory and
-// provides a cleanup function. Used when PWD is read-only.
+// provides a cleanup function.
 func chtmpdir(t *testing.T) func() {
-	if runtime.GOOS != "darwin" || (runtime.GOARCH != "arm" && runtime.GOARCH != "arm64") {
-		return func() {} // only needed on darwin/arm{,64}
-	}
 	oldwd, err := Getwd()
 	if err != nil {
 		t.Fatalf("chtmpdir: %v", err)
@@ -774,12 +778,10 @@ func TestSymlink(t *testing.T) {
 
 	defer chtmpdir(t)()
 	from, to := "symlinktestfrom", "symlinktestto"
-	Remove(from) // Just in case.
 	file, err := Create(to)
 	if err != nil {
 		t.Fatalf("Create(%q) failed: %v", to, err)
 	}
-	defer Remove(to)
 	if err = file.Close(); err != nil {
 		t.Errorf("Close(%q) failed: %v", to, err)
 	}
@@ -787,7 +789,6 @@ func TestSymlink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Symlink(%q, %q) failed: %v", to, from, err)
 	}
-	defer Remove(from)
 	tostat, err := Lstat(to)
 	if err != nil {
 		t.Fatalf("Lstat(%q) failed: %v", to, err)
@@ -841,12 +842,10 @@ func TestLongSymlink(t *testing.T) {
 	// Long, but not too long: a common limit is 255.
 	s = s + s + s + s + s + s + s + s + s + s + s + s + s + s + s
 	from := "longsymlinktestfrom"
-	Remove(from) // Just in case.
 	err := Symlink(s, from)
 	if err != nil {
 		t.Fatalf("symlink %q, %q failed: %v", s, from, err)
 	}
-	defer Remove(from)
 	r, err := Readlink(from)
 	if err != nil {
 		t.Fatalf("readlink %q failed: %v", from, err)
@@ -859,9 +858,6 @@ func TestLongSymlink(t *testing.T) {
 func TestRename(t *testing.T) {
 	defer chtmpdir(t)()
 	from, to := "renamefrom", "renameto"
-	// Ensure we are not testing the overwrite case here.
-	Remove(from)
-	Remove(to)
 
 	file, err := Create(from)
 	if err != nil {
@@ -874,7 +870,6 @@ func TestRename(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rename %q, %q failed: %v", to, from, err)
 	}
-	defer Remove(to)
 	_, err = Stat(to)
 	if err != nil {
 		t.Errorf("stat %q failed: %v", to, err)
@@ -884,9 +879,6 @@ func TestRename(t *testing.T) {
 func TestRenameOverwriteDest(t *testing.T) {
 	defer chtmpdir(t)()
 	from, to := "renamefrom", "renameto"
-	// Just in case.
-	Remove(from)
-	Remove(to)
 
 	toData := []byte("to")
 	fromData := []byte("from")
@@ -904,7 +896,6 @@ func TestRenameOverwriteDest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rename %q, %q failed: %v", to, from, err)
 	}
-	defer Remove(to)
 
 	_, err = Stat(from)
 	if err == nil {
@@ -925,9 +916,6 @@ func TestRenameOverwriteDest(t *testing.T) {
 func TestRenameFailed(t *testing.T) {
 	defer chtmpdir(t)()
 	from, to := "renamefrom", "renameto"
-	// Ensure we are not testing the overwrite case here.
-	Remove(from)
-	Remove(to)
 
 	err := Rename(from, to)
 	switch err := err.(type) {
@@ -943,9 +931,6 @@ func TestRenameFailed(t *testing.T) {
 		}
 	case nil:
 		t.Errorf("rename %q, %q: expected error, got nil", from, to)
-
-		// cleanup whatever was placed in "renameto"
-		Remove(to)
 	default:
 		t.Errorf("rename %q, %q: expected %T, got %T %v", from, to, new(LinkError), err, err)
 	}
@@ -956,7 +941,6 @@ func TestRenameNotExisting(t *testing.T) {
 	from, to := "doesnt-exist", "dest"
 
 	Mkdir(to, 0777)
-	defer Remove(to)
 
 	if err := Rename(from, to); !IsNotExist(err) {
 		t.Errorf("Rename(%q, %q) = %v; want an IsNotExist error", from, to, err)
@@ -967,12 +951,8 @@ func TestRenameToDirFailed(t *testing.T) {
 	defer chtmpdir(t)()
 	from, to := "renamefrom", "renameto"
 
-	Remove(from)
-	Remove(to)
 	Mkdir(from, 0777)
 	Mkdir(to, 0777)
-	defer Remove(from)
-	defer Remove(to)
 
 	err := Rename(from, to)
 	switch err := err.(type) {
@@ -988,11 +968,69 @@ func TestRenameToDirFailed(t *testing.T) {
 		}
 	case nil:
 		t.Errorf("rename %q, %q: expected error, got nil", from, to)
-
-		// cleanup whatever was placed in "renameto"
-		Remove(to)
 	default:
 		t.Errorf("rename %q, %q: expected %T, got %T %v", from, to, new(LinkError), err, err)
+	}
+}
+
+func TestRenameCaseDifference(pt *testing.T) {
+	from, to := "renameFROM", "RENAMEfrom"
+	tests := []struct {
+		name   string
+		create func() error
+	}{
+		{"dir", func() error {
+			return Mkdir(from, 0777)
+		}},
+		{"file", func() error {
+			fd, err := Create(from)
+			if err != nil {
+				return err
+			}
+			return fd.Close()
+		}},
+	}
+
+	for _, test := range tests {
+		pt.Run(test.name, func(t *testing.T) {
+			defer chtmpdir(t)()
+
+			if err := test.create(); err != nil {
+				t.Fatalf("failed to create test file: %s", err)
+			}
+
+			if _, err := Stat(to); err != nil {
+				// Sanity check that the underlying filesystem is not case sensitive.
+				if IsNotExist(err) {
+					t.Skipf("case sensitive filesystem")
+				}
+				t.Fatalf("stat %q, got: %q", to, err)
+			}
+
+			if err := Rename(from, to); err != nil {
+				t.Fatalf("unexpected error when renaming from %q to %q: %s", from, to, err)
+			}
+
+			fd, err := Open(".")
+			if err != nil {
+				t.Fatalf("Open .: %s", err)
+			}
+
+			// Stat does not return the real case of the file (it returns what the called asked for)
+			// So we have to use readdir to get the real name of the file.
+			dirNames, err := fd.Readdirnames(-1)
+			if err != nil {
+				t.Fatalf("readdirnames: %s", err)
+			}
+
+			if dirNamesLen := len(dirNames); dirNamesLen != 1 {
+				t.Fatalf("unexpected dirNames len, got %q, want %q", dirNamesLen, 1)
+			}
+
+			if dirNames[0] != to {
+				t.Errorf("unexpected name, got %q, want %q", dirNames[0], to)
+			}
+		})
 	}
 }
 
@@ -1182,9 +1220,7 @@ func testChtimes(t *testing.T, name string) {
 	pmt := postStat.ModTime()
 	if !pat.Before(at) {
 		switch runtime.GOOS {
-		case "plan9", "nacl":
-			// Ignore.
-			// Plan 9, NaCl:
+		case "plan9":
 			// Mtime is the time of the last change of
 			// content.  Similarly, atime is set whenever
 			// the contents are accessed; also, it is set
@@ -1206,6 +1242,41 @@ func testChtimes(t *testing.T, name string) {
 	}
 }
 
+func TestFileChdir(t *testing.T) {
+	// TODO(brainman): file.Chdir() is not implemented on windows.
+	if runtime.GOOS == "windows" {
+		return
+	}
+
+	wd, err := Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %s", err)
+	}
+	defer Chdir(wd)
+
+	fd, err := Open(".")
+	if err != nil {
+		t.Fatalf("Open .: %s", err)
+	}
+	defer fd.Close()
+
+	if err := Chdir("/"); err != nil {
+		t.Fatalf("Chdir /: %s", err)
+	}
+
+	if err := fd.Chdir(); err != nil {
+		t.Fatalf("fd.Chdir: %s", err)
+	}
+
+	wdNew, err := Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %s", err)
+	}
+	if wdNew != wd {
+		t.Fatalf("fd.Chdir failed, got %s, want %s", wdNew, wd)
+	}
+}
+
 func TestChdirAndGetwd(t *testing.T) {
 	// TODO(brainman): file.Chdir() is not implemented on windows.
 	if runtime.GOOS == "windows" {
@@ -1221,21 +1292,25 @@ func TestChdirAndGetwd(t *testing.T) {
 	// /usr/bin does not usually exist on Plan 9 or Android.
 	switch runtime.GOOS {
 	case "android":
-		dirs = []string{"/", "/system/bin"}
+		dirs = []string{"/system/bin"}
 	case "plan9":
 		dirs = []string{"/", "/usr"}
 	case "darwin":
 		switch runtime.GOARCH {
 		case "arm", "arm64":
-			d1, err := ioutil.TempDir("", "d1")
-			if err != nil {
-				t.Fatalf("TempDir: %v", err)
+			dirs = nil
+			for _, d := range []string{"d1", "d2"} {
+				dir, err := ioutil.TempDir("", d)
+				if err != nil {
+					t.Fatalf("TempDir: %v", err)
+				}
+				// Expand symlinks so path equality tests work.
+				dir, err = filepath.EvalSymlinks(dir)
+				if err != nil {
+					t.Fatalf("EvalSymlinks: %v", err)
+				}
+				dirs = append(dirs, dir)
 			}
-			d2, err := ioutil.TempDir("", "d2")
-			if err != nil {
-				t.Fatalf("TempDir: %v", err)
-			}
-			dirs = []string{d1, d2}
 		}
 	}
 	oldwd := Getenv("PWD")
@@ -1285,8 +1360,9 @@ func TestChdirAndGetwd(t *testing.T) {
 // Test that Chdir+Getwd is program-wide.
 func TestProgWideChdir(t *testing.T) {
 	const N = 10
+	const ErrPwd = "Error!"
 	c := make(chan bool)
-	cpwd := make(chan string)
+	cpwd := make(chan string, N)
 	for i := 0; i < N; i++ {
 		go func(i int) {
 			// Lock half the goroutines in their own operating system
@@ -1299,10 +1375,15 @@ func TestProgWideChdir(t *testing.T) {
 				// See issue 9428.
 				runtime.LockOSThread()
 			}
-			<-c
+			hasErr, closed := <-c
+			if !closed && hasErr {
+				cpwd <- ErrPwd
+				return
+			}
 			pwd, err := Getwd()
 			if err != nil {
 				t.Errorf("Getwd on goroutine %d: %v", i, err)
+				cpwd <- ErrPwd
 				return
 			}
 			cpwd <- pwd
@@ -1310,10 +1391,12 @@ func TestProgWideChdir(t *testing.T) {
 	}
 	oldwd, err := Getwd()
 	if err != nil {
+		c <- true
 		t.Fatalf("Getwd: %v", err)
 	}
 	d, err := ioutil.TempDir("", "test")
 	if err != nil {
+		c <- true
 		t.Fatalf("TempDir: %v", err)
 	}
 	defer func() {
@@ -1323,17 +1406,22 @@ func TestProgWideChdir(t *testing.T) {
 		RemoveAll(d)
 	}()
 	if err := Chdir(d); err != nil {
+		c <- true
 		t.Fatalf("Chdir: %v", err)
 	}
 	// OS X sets TMPDIR to a symbolic link.
 	// So we resolve our working directory again before the test.
 	d, err = Getwd()
 	if err != nil {
+		c <- true
 		t.Fatalf("Getwd: %v", err)
 	}
 	close(c)
 	for i := 0; i < N; i++ {
 		pwd := <-cpwd
+		if pwd == ErrPwd {
+			t.FailNow()
+		}
 		if pwd != d {
 			t.Errorf("Getwd returned %q; want %q", pwd, d)
 		}
@@ -1370,10 +1458,6 @@ func TestSeek(t *testing.T) {
 		{0, io.SeekCurrent, 2<<32 - 1},
 	}
 	for i, tt := range tests {
-		if runtime.GOOS == "nacl" && tt.out > 1<<30 {
-			t.Logf("skipping test case #%d on nacl; https://golang.org/issue/21728", i)
-			continue
-		}
 		off, err := f.Seek(tt.in, tt.whence)
 		if off != tt.out || err != nil {
 			if e, ok := err.(*PathError); ok && e.Err == syscall.EINVAL && tt.out > 1<<32 && runtime.GOOS == "linux" {
@@ -1390,7 +1474,7 @@ func TestSeek(t *testing.T) {
 
 func TestSeekError(t *testing.T) {
 	switch runtime.GOOS {
-	case "plan9", "nacl":
+	case "js", "plan9":
 		t.Skipf("skipping test on %v", runtime.GOOS)
 	}
 
@@ -1493,7 +1577,11 @@ func runBinHostname(t *testing.T) string {
 	}
 	defer r.Close()
 	const path = "/bin/hostname"
-	p, err := StartProcess(path, []string{"hostname"}, &ProcAttr{Files: []*File{nil, w, Stderr}})
+	argv := []string{"hostname"}
+	if runtime.GOOS == "aix" {
+		argv = []string{"hostname", "-s"}
+	}
+	p, err := StartProcess(path, argv, &ProcAttr{Files: []*File{nil, w, Stderr}})
 	if err != nil {
 		if _, err := Stat(path); IsNotExist(err) {
 			t.Skipf("skipping test; test requires %s but it does not exist", path)
@@ -1523,11 +1611,7 @@ func runBinHostname(t *testing.T) string {
 	return output
 }
 
-func testWindowsHostname(t *testing.T) {
-	hostname, err := Hostname()
-	if err != nil {
-		t.Fatal(err)
-	}
+func testWindowsHostname(t *testing.T, hostname string) {
 	cmd := osexec.Command("hostname")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -1535,18 +1619,30 @@ func testWindowsHostname(t *testing.T) {
 	}
 	want := strings.Trim(string(out), "\r\n")
 	if hostname != want {
-		t.Fatalf("Hostname() = %q, want %q", hostname, want)
+		t.Fatalf("Hostname() = %q != system hostname of %q", hostname, want)
 	}
 }
 
 func TestHostname(t *testing.T) {
+	hostname, err := Hostname()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hostname == "" {
+		t.Fatal("Hostname returned empty string and no error")
+	}
+	if strings.Contains(hostname, "\x00") {
+		t.Fatalf("unexpected zero byte in hostname: %q", hostname)
+	}
+
 	// There is no other way to fetch hostname on windows, but via winapi.
 	// On Plan 9 it can be taken from #c/sysname as Hostname() does.
 	switch runtime.GOOS {
 	case "android", "plan9":
-		t.Skipf("%s doesn't have /bin/hostname", runtime.GOOS)
+		// No /bin/hostname to verify against.
+		return
 	case "windows":
-		testWindowsHostname(t)
+		testWindowsHostname(t, hostname)
 		return
 	}
 
@@ -1555,10 +1651,6 @@ func TestHostname(t *testing.T) {
 	// Check internal Hostname() against the output of /bin/hostname.
 	// Allow that the internal Hostname returns a Fully Qualified Domain Name
 	// and the /bin/hostname only returns the first component
-	hostname, err := Hostname()
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
 	want := runBinHostname(t)
 	if hostname != want {
 		i := strings.Index(hostname, ".")
@@ -1674,6 +1766,21 @@ func TestWriteAtNegativeOffset(t *testing.T) {
 	}
 }
 
+// Verify that WriteAt doesn't work in append mode.
+func TestWriteAtInAppendMode(t *testing.T) {
+	defer chtmpdir(t)()
+	f, err := OpenFile("write_at_in_append_mode.txt", O_APPEND|O_CREATE, 0666)
+	if err != nil {
+		t.Fatalf("OpenFile: %v", err)
+	}
+	defer f.Close()
+
+	_, err = f.WriteAt([]byte(""), 1)
+	if err != ErrWriteAtInAppendMode {
+		t.Fatalf("f.WriteAt returned %v, expected %v", err, ErrWriteAtInAppendMode)
+	}
+}
+
 func writeFile(t *testing.T, fname string, flag int, text string) string {
 	f, err := OpenFile(fname, flag, 0666)
 	if err != nil {
@@ -1694,7 +1801,6 @@ func writeFile(t *testing.T, fname string, flag int, text string) string {
 func TestAppend(t *testing.T) {
 	defer chtmpdir(t)()
 	const f = "append.txt"
-	defer Remove(f)
 	s := writeFile(t, f, O_CREATE|O_TRUNC|O_RDWR, "new")
 	if s != "new" {
 		t.Fatalf("writeFile: have %q want %q", s, "new")
@@ -1727,7 +1833,7 @@ func TestAppend(t *testing.T) {
 
 func TestStatDirWithTrailingSlash(t *testing.T) {
 	// Create new temporary directory and arrange to clean it up.
-	path, err := ioutil.TempDir("", "/_TestStatDirWithSlash_")
+	path, err := ioutil.TempDir("", "_TestStatDirWithSlash_")
 	if err != nil {
 		t.Fatalf("TempDir: %s", err)
 	}
@@ -1761,13 +1867,11 @@ func TestSameFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create(a): %v", err)
 	}
-	defer Remove(fa.Name())
 	fa.Close()
 	fb, err := Create("b")
 	if err != nil {
 		t.Fatalf("Create(b): %v", err)
 	}
-	defer Remove(fb.Name())
 	fb.Close()
 
 	ia1, err := Stat("a")
@@ -1791,23 +1895,54 @@ func TestSameFile(t *testing.T) {
 	}
 }
 
-func TestDevNullFile(t *testing.T) {
-	f, err := Open(DevNull)
-	if err != nil {
-		t.Fatalf("Open(%s): %v", DevNull, err)
-	}
-	defer f.Close()
-	fi, err := f.Stat()
-	if err != nil {
-		t.Fatalf("Stat(%s): %v", DevNull, err)
-	}
-	name := filepath.Base(DevNull)
-	if fi.Name() != name {
-		t.Fatalf("wrong file name have %v want %v", fi.Name(), name)
+func testDevNullFileInfo(t *testing.T, statname, devNullName string, fi FileInfo, ignoreCase bool) {
+	pre := fmt.Sprintf("%s(%q): ", statname, devNullName)
+	name := filepath.Base(devNullName)
+	if ignoreCase {
+		if strings.ToUpper(fi.Name()) != strings.ToUpper(name) {
+			t.Errorf(pre+"wrong file name have %v want %v", fi.Name(), name)
+		}
+	} else {
+		if fi.Name() != name {
+			t.Errorf(pre+"wrong file name have %v want %v", fi.Name(), name)
+		}
 	}
 	if fi.Size() != 0 {
-		t.Fatalf("wrong file size have %d want 0", fi.Size())
+		t.Errorf(pre+"wrong file size have %d want 0", fi.Size())
 	}
+	if fi.Mode()&ModeDevice == 0 {
+		t.Errorf(pre+"wrong file mode %q: ModeDevice is not set", fi.Mode())
+	}
+	if fi.Mode()&ModeCharDevice == 0 {
+		t.Errorf(pre+"wrong file mode %q: ModeCharDevice is not set", fi.Mode())
+	}
+	if fi.Mode().IsRegular() {
+		t.Errorf(pre+"wrong file mode %q: IsRegular returns true", fi.Mode())
+	}
+}
+
+func testDevNullFile(t *testing.T, devNullName string, ignoreCase bool) {
+	f, err := Open(devNullName)
+	if err != nil {
+		t.Fatalf("Open(%s): %v", devNullName, err)
+	}
+	defer f.Close()
+
+	fi, err := f.Stat()
+	if err != nil {
+		t.Fatalf("Stat(%s): %v", devNullName, err)
+	}
+	testDevNullFileInfo(t, "f.Stat", devNullName, fi, ignoreCase)
+
+	fi, err = Stat(devNullName)
+	if err != nil {
+		t.Fatalf("Stat(%s): %v", devNullName, err)
+	}
+	testDevNullFileInfo(t, "Stat", devNullName, fi, ignoreCase)
+}
+
+func TestDevNullFile(t *testing.T) {
+	testDevNullFile(t, DevNull, false)
 }
 
 var testLargeWrite = flag.Bool("large_write", false, "run TestLargeWriteToConsole test that floods console with output")
@@ -1881,7 +2016,7 @@ func TestStatStdin(t *testing.T) {
 		t.Fatal(err)
 	}
 	switch mode := fi.Mode(); {
-	case mode&ModeCharDevice != 0:
+	case mode&ModeCharDevice != 0 && mode&ModeDevice != 0:
 	case mode&ModeNamedPipe != 0:
 	default:
 		t.Fatalf("unexpected Stdin mode (%v), want ModeCharDevice or ModeNamedPipe", mode)
@@ -2211,12 +2346,14 @@ func TestPipeThreads(t *testing.T) {
 	switch runtime.GOOS {
 	case "freebsd":
 		t.Skip("skipping on FreeBSD; issue 19093")
-	case "solaris":
-		t.Skip("skipping on Solaris; issue 19111")
+	case "illumos", "solaris":
+		t.Skip("skipping on Solaris and illumos; issue 19111")
 	case "windows":
 		t.Skip("skipping on Windows; issue 19098")
 	case "plan9":
 		t.Skip("skipping on Plan 9; does not support runtime poller")
+	case "js":
+		t.Skip("skipping on js; no support for os.Pipe")
 	}
 
 	threads := 100
@@ -2277,8 +2414,7 @@ func TestPipeThreads(t *testing.T) {
 	}
 }
 
-func TestDoubleCloseError(t *testing.T) {
-	path := sfdir + "/" + sfname
+func testDoubleCloseError(t *testing.T, path string) {
 	file, err := Open(path)
 	if err != nil {
 		t.Fatal(err)
@@ -2294,5 +2430,100 @@ func TestDoubleCloseError(t *testing.T) {
 		t.Errorf("second Close returned %q, wanted %q", err, ErrClosed)
 	} else {
 		t.Logf("second close returned expected error %q", err)
+	}
+}
+
+func TestDoubleCloseError(t *testing.T) {
+	testDoubleCloseError(t, filepath.Join(sfdir, sfname))
+	testDoubleCloseError(t, sfdir)
+}
+
+func TestUserHomeDir(t *testing.T) {
+	dir, err := UserHomeDir()
+	if dir == "" && err == nil {
+		t.Fatal("UserHomeDir returned an empty string but no error")
+	}
+	if err != nil {
+		t.Skipf("UserHomeDir failed: %v", err)
+	}
+	fi, err := Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fi.IsDir() {
+		t.Fatalf("dir %s is not directory; type = %v", dir, fi.Mode())
+	}
+}
+
+func TestDirSeek(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		testenv.SkipFlaky(t, 36019)
+	}
+	wd, err := Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := Open(wd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dirnames1, err := f.Readdirnames(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ret, err := f.Seek(0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ret != 0 {
+		t.Fatalf("seek result not zero: %d", ret)
+	}
+
+	dirnames2, err := f.Readdirnames(0)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	if len(dirnames1) != len(dirnames2) {
+		t.Fatalf("listings have different lengths: %d and %d\n", len(dirnames1), len(dirnames2))
+	}
+	for i, n1 := range dirnames1 {
+		n2 := dirnames2[i]
+		if n1 != n2 {
+			t.Fatalf("different name i=%d n1=%s n2=%s\n", i, n1, n2)
+		}
+	}
+}
+
+func TestReaddirSmallSeek(t *testing.T) {
+	// See issue 37161. Read only one entry from a directory,
+	// seek to the beginning, and read again. We should not see
+	// duplicate entries.
+	if runtime.GOOS == "windows" {
+		testenv.SkipFlaky(t, 36019)
+	}
+	wd, err := Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	df, err := Open(filepath.Join(wd, "testdata", "issue37161"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	names1, err := df.Readdirnames(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = df.Seek(0, 0); err != nil {
+		t.Fatal(err)
+	}
+	names2, err := df.Readdirnames(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(names2) != 3 {
+		t.Fatalf("first names: %v, second names: %v", names1, names2)
 	}
 }

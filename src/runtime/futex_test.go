@@ -51,9 +51,9 @@ func TestFutexsleep(t *testing.T) {
 		tt.ch = make(chan *futexsleepTest, 1)
 		wg.Add(1)
 		go func(tt *futexsleepTest) {
-			runtime.Entersyscall(0)
+			runtime.Entersyscall()
 			runtime.Futexsleep(&tt.mtx, 0, tt.ns)
-			runtime.Exitsyscall(0)
+			runtime.Exitsyscall()
 			tt.ch <- tt
 			wg.Done()
 		}(tt)

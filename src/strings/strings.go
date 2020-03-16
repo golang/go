@@ -8,6 +8,7 @@
 package strings
 
 import (
+	"internal/bytealg"
 	"unicode"
 	"unicode/utf8"
 )
@@ -35,48 +36,15 @@ func explode(s string, n int) []string {
 	return a
 }
 
-// primeRK is the prime base used in Rabin-Karp algorithm.
-const primeRK = 16777619
-
-// hashStr returns the hash and the appropriate multiplicative
-// factor for use in Rabin-Karp algorithm.
-func hashStr(sep string) (uint32, uint32) {
-	hash := uint32(0)
-	for i := 0; i < len(sep); i++ {
-		hash = hash*primeRK + uint32(sep[i])
-	}
-	var pow, sq uint32 = 1, primeRK
-	for i := len(sep); i > 0; i >>= 1 {
-		if i&1 != 0 {
-			pow *= sq
-		}
-		sq *= sq
-	}
-	return hash, pow
-}
-
-// hashStrRev returns the hash of the reverse of sep and the
-// appropriate multiplicative factor for use in Rabin-Karp algorithm.
-func hashStrRev(sep string) (uint32, uint32) {
-	hash := uint32(0)
-	for i := len(sep) - 1; i >= 0; i-- {
-		hash = hash*primeRK + uint32(sep[i])
-	}
-	var pow, sq uint32 = 1, primeRK
-	for i := len(sep); i > 0; i >>= 1 {
-		if i&1 != 0 {
-			pow *= sq
-		}
-		sq *= sq
-	}
-	return hash, pow
-}
-
-// countGeneric implements Count.
-func countGeneric(s, substr string) int {
+// Count counts the number of non-overlapping instances of substr in s.
+// If substr is an empty string, Count returns 1 + the number of Unicode code points in s.
+func Count(s, substr string) int {
 	// special case
 	if len(substr) == 0 {
 		return utf8.RuneCountInString(s) + 1
+	}
+	if len(substr) == 1 {
+		return bytealg.CountString(s, substr[0])
 	}
 	n := 0
 	for {
@@ -121,17 +89,17 @@ func LastIndex(s, substr string) int {
 		return -1
 	}
 	// Rabin-Karp search from the end of the string
-	hashss, pow := hashStrRev(substr)
+	hashss, pow := bytealg.HashStrRev(substr)
 	last := len(s) - n
 	var h uint32
 	for i := len(s) - 1; i >= last; i-- {
-		h = h*primeRK + uint32(s[i])
+		h = h*bytealg.PrimeRK + uint32(s[i])
 	}
 	if h == hashss && s[last:] == substr {
 		return last
 	}
 	for i := last - 1; i >= 0; i-- {
-		h *= primeRK
+		h *= bytealg.PrimeRK
 		h += uint32(s[i])
 		h -= pow * uint32(s[i+n])
 		if h == hashss && s[i:i+n] == substr {
@@ -139,6 +107,11 @@ func LastIndex(s, substr string) int {
 		}
 	}
 	return -1
+}
+
+// IndexByte returns the index of the first instance of c in s, or -1 if c is not present in s.
+func IndexByte(s string, c byte) int {
+	return bytealg.IndexByteString(s, c)
 }
 
 // IndexRune returns the index of the first instance of the Unicode code point
@@ -170,6 +143,14 @@ func IndexAny(s, chars string) int {
 		// Avoid scanning all of s.
 		return -1
 	}
+	if len(chars) == 1 {
+		// Avoid scanning all of s.
+		r := rune(chars[0])
+		if r >= utf8.RuneSelf {
+			r = utf8.RuneError
+		}
+		return IndexRune(s, r)
+	}
 	if len(s) > 8 {
 		if as, isASCII := makeASCIISet(chars); isASCII {
 			for i := 0; i < len(s); i++ {
@@ -181,10 +162,8 @@ func IndexAny(s, chars string) int {
 		}
 	}
 	for i, c := range s {
-		for _, m := range chars {
-			if c == m {
-				return i
-			}
+		if IndexRune(chars, c) >= 0 {
+			return i
 		}
 	}
 	return -1
@@ -198,6 +177,16 @@ func LastIndexAny(s, chars string) int {
 		// Avoid scanning all of s.
 		return -1
 	}
+	if len(s) == 1 {
+		rc := rune(s[0])
+		if rc >= utf8.RuneSelf {
+			rc = utf8.RuneError
+		}
+		if IndexRune(chars, rc) >= 0 {
+			return 0
+		}
+		return -1
+	}
 	if len(s) > 8 {
 		if as, isASCII := makeASCIISet(chars); isASCII {
 			for i := len(s) - 1; i >= 0; i-- {
@@ -208,13 +197,25 @@ func LastIndexAny(s, chars string) int {
 			return -1
 		}
 	}
+	if len(chars) == 1 {
+		rc := rune(chars[0])
+		if rc >= utf8.RuneSelf {
+			rc = utf8.RuneError
+		}
+		for i := len(s); i > 0; {
+			r, size := utf8.DecodeLastRuneInString(s[:i])
+			i -= size
+			if rc == r {
+				return i
+			}
+		}
+		return -1
+	}
 	for i := len(s); i > 0; {
 		r, size := utf8.DecodeLastRuneInString(s[:i])
 		i -= size
-		for _, c := range chars {
-			if r == c {
-				return i
-			}
+		if IndexRune(chars, r) >= 0 {
+			return i
 		}
 	}
 	return -1
@@ -331,38 +332,38 @@ func Fields(s string) []string {
 		wasSpace = isSpace
 	}
 
-	if setBits < utf8.RuneSelf { // ASCII fast path
-		a := make([]string, n)
-		na := 0
-		fieldStart := 0
-		i := 0
-		// Skip spaces in the front of the input.
+	if setBits >= utf8.RuneSelf {
+		// Some runes in the input string are not ASCII.
+		return FieldsFunc(s, unicode.IsSpace)
+	}
+	// ASCII fast path
+	a := make([]string, n)
+	na := 0
+	fieldStart := 0
+	i := 0
+	// Skip spaces in the front of the input.
+	for i < len(s) && asciiSpace[s[i]] != 0 {
+		i++
+	}
+	fieldStart = i
+	for i < len(s) {
+		if asciiSpace[s[i]] == 0 {
+			i++
+			continue
+		}
+		a[na] = s[fieldStart:i]
+		na++
+		i++
+		// Skip spaces in between fields.
 		for i < len(s) && asciiSpace[s[i]] != 0 {
 			i++
 		}
 		fieldStart = i
-		for i < len(s) {
-			if asciiSpace[s[i]] == 0 {
-				i++
-				continue
-			}
-			a[na] = s[fieldStart:i]
-			na++
-			i++
-			// Skip spaces in between fields.
-			for i < len(s) && asciiSpace[s[i]] != 0 {
-				i++
-			}
-			fieldStart = i
-		}
-		if fieldStart < len(s) { // Last field might end at EOF.
-			a[na] = s[fieldStart:]
-		}
-		return a
 	}
-
-	// Some runes in the input string are not ASCII.
-	return FieldsFunc(s, unicode.IsSpace)
+	if fieldStart < len(s) { // Last field might end at EOF.
+		a[na] = s[fieldStart:]
+	}
+	return a
 }
 
 // FieldsFunc splits the string s at each run of Unicode code points c satisfying f(c)
@@ -410,35 +411,28 @@ func FieldsFunc(s string, f func(rune) bool) []string {
 	return a
 }
 
-// Join concatenates the elements of a to create a single string. The separator string
-// sep is placed between elements in the resulting string.
-func Join(a []string, sep string) string {
-	switch len(a) {
+// Join concatenates the elements of its first argument to create a single string. The separator
+// string sep is placed between elements in the resulting string.
+func Join(elems []string, sep string) string {
+	switch len(elems) {
 	case 0:
 		return ""
 	case 1:
-		return a[0]
-	case 2:
-		// Special case for common small values.
-		// Remove if golang.org/issue/6714 is fixed
-		return a[0] + sep + a[1]
-	case 3:
-		// Special case for common small values.
-		// Remove if golang.org/issue/6714 is fixed
-		return a[0] + sep + a[1] + sep + a[2]
+		return elems[0]
 	}
-	n := len(sep) * (len(a) - 1)
-	for i := 0; i < len(a); i++ {
-		n += len(a[i])
+	n := len(sep) * (len(elems) - 1)
+	for i := 0; i < len(elems); i++ {
+		n += len(elems[i])
 	}
 
-	b := make([]byte, n)
-	bp := copy(b, a[0])
-	for _, s := range a[1:] {
-		bp += copy(b[bp:], sep)
-		bp += copy(b[bp:], s)
+	var b Builder
+	b.Grow(n)
+	b.WriteString(elems[0])
+	for _, s := range elems[1:] {
+		b.WriteString(sep)
+		b.WriteString(s)
 	}
-	return string(b)
+	return b.String()
 }
 
 // HasPrefix tests whether the string s begins with prefix.
@@ -461,68 +455,56 @@ func Map(mapping func(rune) rune, s string) string {
 
 	// The output buffer b is initialized on demand, the first
 	// time a character differs.
-	var b []byte
-	// nbytes is the number of bytes encoded in b.
-	var nbytes int
+	var b Builder
 
 	for i, c := range s {
 		r := mapping(c)
-		if r == c {
+		if r == c && c != utf8.RuneError {
 			continue
 		}
 
-		b = make([]byte, len(s)+utf8.UTFMax)
-		nbytes = copy(b, s[:i])
-		if r >= 0 {
-			if r <= utf8.RuneSelf {
-				b[nbytes] = byte(r)
-				nbytes++
-			} else {
-				nbytes += utf8.EncodeRune(b[nbytes:], r)
-			}
-		}
-
+		var width int
 		if c == utf8.RuneError {
-			// RuneError is the result of either decoding
-			// an invalid sequence or '\uFFFD'. Determine
-			// the correct number of bytes we need to advance.
-			_, w := utf8.DecodeRuneInString(s[i:])
-			i += w
+			c, width = utf8.DecodeRuneInString(s[i:])
+			if width != 1 && r == c {
+				continue
+			}
 		} else {
-			i += utf8.RuneLen(c)
+			width = utf8.RuneLen(c)
 		}
 
-		s = s[i:]
+		b.Grow(len(s) + utf8.UTFMax)
+		b.WriteString(s[:i])
+		if r >= 0 {
+			b.WriteRune(r)
+		}
+
+		s = s[i+width:]
 		break
 	}
 
-	if b == nil {
+	// Fast path for unchanged input
+	if b.Cap() == 0 { // didn't call b.Grow above
 		return s
 	}
 
 	for _, c := range s {
 		r := mapping(c)
 
-		// common case
-		if (0 <= r && r <= utf8.RuneSelf) && nbytes < len(b) {
-			b[nbytes] = byte(r)
-			nbytes++
-			continue
-		}
-
-		// b is not big enough or r is not a ASCII rune.
 		if r >= 0 {
-			if nbytes+utf8.UTFMax >= len(b) {
-				// Grow the buffer.
-				nb := make([]byte, 2*len(b))
-				copy(nb, b[:nbytes])
-				b = nb
+			// common case
+			// Due to inlining, it is more performant to determine if WriteByte should be
+			// invoked rather than always call WriteRune
+			if r < utf8.RuneSelf {
+				b.WriteByte(byte(r))
+			} else {
+				// r is not a ASCII rune.
+				b.WriteRune(r)
 			}
-			nbytes += utf8.EncodeRune(b[nbytes:], r)
 		}
 	}
 
-	return string(b[:nbytes])
+	return b.String()
 }
 
 // Repeat returns a new string consisting of count copies of the string s.
@@ -530,26 +512,36 @@ func Map(mapping func(rune) rune, s string) string {
 // It panics if count is negative or if
 // the result of (len(s) * count) overflows.
 func Repeat(s string, count int) string {
+	if count == 0 {
+		return ""
+	}
+
 	// Since we cannot return an error on overflow,
 	// we should panic if the repeat will generate
 	// an overflow.
 	// See Issue golang.org/issue/16237
 	if count < 0 {
 		panic("strings: negative Repeat count")
-	} else if count > 0 && len(s)*count/count != len(s) {
+	} else if len(s)*count/count != len(s) {
 		panic("strings: Repeat count causes overflow")
 	}
 
-	b := make([]byte, len(s)*count)
-	bp := copy(b, s)
-	for bp < len(b) {
-		copy(b[bp:], b[:bp])
-		bp *= 2
+	n := len(s) * count
+	var b Builder
+	b.Grow(n)
+	b.WriteString(s)
+	for b.Len() < n {
+		if b.Len() <= n/2 {
+			b.WriteString(b.String())
+		} else {
+			b.WriteString(b.String()[:n-b.Len()])
+			break
+		}
 	}
-	return string(b)
+	return b.String()
 }
 
-// ToUpper returns a copy of the string s with all Unicode letters mapped to their upper case.
+// ToUpper returns s with all Unicode letters mapped to their upper case.
 func ToUpper(s string) string {
 	isASCII, hasLower := true, false
 	for i := 0; i < len(s); i++ {
@@ -558,27 +550,28 @@ func ToUpper(s string) string {
 			isASCII = false
 			break
 		}
-		hasLower = hasLower || (c >= 'a' && c <= 'z')
+		hasLower = hasLower || ('a' <= c && c <= 'z')
 	}
 
 	if isASCII { // optimize for ASCII-only strings.
 		if !hasLower {
 			return s
 		}
-		b := make([]byte, len(s))
+		var b Builder
+		b.Grow(len(s))
 		for i := 0; i < len(s); i++ {
 			c := s[i]
-			if c >= 'a' && c <= 'z' {
+			if 'a' <= c && c <= 'z' {
 				c -= 'a' - 'A'
 			}
-			b[i] = c
+			b.WriteByte(c)
 		}
-		return string(b)
+		return b.String()
 	}
 	return Map(unicode.ToUpper, s)
 }
 
-// ToLower returns a copy of the string s with all Unicode letters mapped to their lower case.
+// ToLower returns s with all Unicode letters mapped to their lower case.
 func ToLower(s string) string {
 	isASCII, hasUpper := true, false
 	for i := 0; i < len(s); i++ {
@@ -587,45 +580,97 @@ func ToLower(s string) string {
 			isASCII = false
 			break
 		}
-		hasUpper = hasUpper || (c >= 'A' && c <= 'Z')
+		hasUpper = hasUpper || ('A' <= c && c <= 'Z')
 	}
 
 	if isASCII { // optimize for ASCII-only strings.
 		if !hasUpper {
 			return s
 		}
-		b := make([]byte, len(s))
+		var b Builder
+		b.Grow(len(s))
 		for i := 0; i < len(s); i++ {
 			c := s[i]
-			if c >= 'A' && c <= 'Z' {
+			if 'A' <= c && c <= 'Z' {
 				c += 'a' - 'A'
 			}
-			b[i] = c
+			b.WriteByte(c)
 		}
-		return string(b)
+		return b.String()
 	}
 	return Map(unicode.ToLower, s)
 }
 
-// ToTitle returns a copy of the string s with all Unicode letters mapped to their title case.
+// ToTitle returns a copy of the string s with all Unicode letters mapped to
+// their Unicode title case.
 func ToTitle(s string) string { return Map(unicode.ToTitle, s) }
 
 // ToUpperSpecial returns a copy of the string s with all Unicode letters mapped to their
-// upper case, giving priority to the special casing rules.
+// upper case using the case mapping specified by c.
 func ToUpperSpecial(c unicode.SpecialCase, s string) string {
-	return Map(func(r rune) rune { return c.ToUpper(r) }, s)
+	return Map(c.ToUpper, s)
 }
 
 // ToLowerSpecial returns a copy of the string s with all Unicode letters mapped to their
-// lower case, giving priority to the special casing rules.
+// lower case using the case mapping specified by c.
 func ToLowerSpecial(c unicode.SpecialCase, s string) string {
-	return Map(func(r rune) rune { return c.ToLower(r) }, s)
+	return Map(c.ToLower, s)
 }
 
 // ToTitleSpecial returns a copy of the string s with all Unicode letters mapped to their
-// title case, giving priority to the special casing rules.
+// Unicode title case, giving priority to the special casing rules.
 func ToTitleSpecial(c unicode.SpecialCase, s string) string {
-	return Map(func(r rune) rune { return c.ToTitle(r) }, s)
+	return Map(c.ToTitle, s)
+}
+
+// ToValidUTF8 returns a copy of the string s with each run of invalid UTF-8 byte sequences
+// replaced by the replacement string, which may be empty.
+func ToValidUTF8(s, replacement string) string {
+	var b Builder
+
+	for i, c := range s {
+		if c != utf8.RuneError {
+			continue
+		}
+
+		_, wid := utf8.DecodeRuneInString(s[i:])
+		if wid == 1 {
+			b.Grow(len(s) + len(replacement))
+			b.WriteString(s[:i])
+			s = s[i:]
+			break
+		}
+	}
+
+	// Fast path for unchanged input
+	if b.Cap() == 0 { // didn't call b.Grow above
+		return s
+	}
+
+	invalid := false // previous byte was from an invalid UTF-8 sequence
+	for i := 0; i < len(s); {
+		c := s[i]
+		if c < utf8.RuneSelf {
+			i++
+			invalid = false
+			b.WriteByte(c)
+			continue
+		}
+		_, wid := utf8.DecodeRuneInString(s[i:])
+		if wid == 1 {
+			i++
+			if !invalid {
+				invalid = true
+				b.WriteString(replacement)
+			}
+			continue
+		}
+		invalid = false
+		b.WriteString(s[i : i+wid])
+		i += wid
+	}
+
+	return b.String()
 }
 
 // isSeparator reports whether the rune could mark a word boundary.
@@ -654,7 +699,7 @@ func isSeparator(r rune) bool {
 }
 
 // Title returns a copy of the string s with all Unicode letters that begin words
-// mapped to their title case.
+// mapped to their Unicode title case.
 //
 // BUG(rsc): The rule Title uses for word boundaries does not handle Unicode punctuation properly.
 func Title(s string) string {
@@ -792,6 +837,8 @@ func Trim(s string, cutset string) string {
 
 // TrimLeft returns a slice of the string s with all leading
 // Unicode code points contained in cutset removed.
+//
+// To remove a prefix, use TrimPrefix instead.
 func TrimLeft(s string, cutset string) string {
 	if s == "" || cutset == "" {
 		return s
@@ -801,6 +848,8 @@ func TrimLeft(s string, cutset string) string {
 
 // TrimRight returns a slice of the string s, with all trailing
 // Unicode code points contained in cutset removed.
+//
+// To remove a suffix, use TrimSuffix instead.
 func TrimRight(s string, cutset string) string {
 	if s == "" || cutset == "" {
 		return s
@@ -811,7 +860,36 @@ func TrimRight(s string, cutset string) string {
 // TrimSpace returns a slice of the string s, with all leading
 // and trailing white space removed, as defined by Unicode.
 func TrimSpace(s string) string {
-	return TrimFunc(s, unicode.IsSpace)
+	// Fast path for ASCII: look for the first ASCII non-space byte
+	start := 0
+	for ; start < len(s); start++ {
+		c := s[start]
+		if c >= utf8.RuneSelf {
+			// If we run into a non-ASCII byte, fall back to the
+			// slower unicode-aware method on the remaining bytes
+			return TrimFunc(s[start:], unicode.IsSpace)
+		}
+		if asciiSpace[c] == 0 {
+			break
+		}
+	}
+
+	// Now look for the first ASCII non-space byte from the end
+	stop := len(s)
+	for ; stop > start; stop-- {
+		c := s[stop-1]
+		if c >= utf8.RuneSelf {
+			return TrimFunc(s[start:stop], unicode.IsSpace)
+		}
+		if asciiSpace[c] == 0 {
+			break
+		}
+	}
+
+	// At this point s[start:stop] starts and ends with an ASCII
+	// non-space bytes, so we're done. Non-ASCII cases have already
+	// been handled above.
+	return s[start:stop]
 }
 
 // TrimPrefix returns s without the provided leading prefix string.
@@ -872,8 +950,18 @@ func Replace(s, old, new string, n int) string {
 	return string(t[0:w])
 }
 
+// ReplaceAll returns a copy of the string s with all
+// non-overlapping instances of old replaced by new.
+// If old is empty, it matches at the beginning of the string
+// and after each UTF-8 sequence, yielding up to k+1 replacements
+// for a k-rune string.
+func ReplaceAll(s, old, new string) string {
+	return Replace(s, old, new, -1)
+}
+
 // EqualFold reports whether s and t, interpreted as UTF-8 strings,
-// are equal under Unicode case-folding.
+// are equal under Unicode case-folding, which is a more general
+// form of case-insensitivity.
 func EqualFold(s, t string) bool {
 	for s != "" && t != "" {
 		// Extract first rune from each string.
@@ -903,9 +991,9 @@ func EqualFold(s, t string) bool {
 			tr, sr = sr, tr
 		}
 		// Fast check for ASCII.
-		if tr < utf8.RuneSelf && 'A' <= sr && sr <= 'Z' {
-			// ASCII, and sr is upper case.  tr must be lower case.
-			if tr == sr+'a'-'A' {
+		if tr < utf8.RuneSelf {
+			// ASCII only, sr/tr must be upper/lower case
+			if 'A' <= sr && sr <= 'Z' && tr == sr+'a'-'A' {
 				continue
 			}
 			return false
@@ -927,26 +1015,83 @@ func EqualFold(s, t string) bool {
 	return s == t
 }
 
-func indexRabinKarp(s, substr string) int {
-	// Rabin-Karp search
-	hashss, pow := hashStr(substr)
+// Index returns the index of the first instance of substr in s, or -1 if substr is not present in s.
+func Index(s, substr string) int {
 	n := len(substr)
-	var h uint32
-	for i := 0; i < n; i++ {
-		h = h*primeRK + uint32(s[i])
-	}
-	if h == hashss && s[:n] == substr {
+	switch {
+	case n == 0:
 		return 0
+	case n == 1:
+		return IndexByte(s, substr[0])
+	case n == len(s):
+		if substr == s {
+			return 0
+		}
+		return -1
+	case n > len(s):
+		return -1
+	case n <= bytealg.MaxLen:
+		// Use brute force when s and substr both are small
+		if len(s) <= bytealg.MaxBruteForce {
+			return bytealg.IndexString(s, substr)
+		}
+		c0 := substr[0]
+		c1 := substr[1]
+		i := 0
+		t := len(s) - n + 1
+		fails := 0
+		for i < t {
+			if s[i] != c0 {
+				// IndexByte is faster than bytealg.IndexString, so use it as long as
+				// we're not getting lots of false positives.
+				o := IndexByte(s[i:t], c0)
+				if o < 0 {
+					return -1
+				}
+				i += o
+			}
+			if s[i+1] == c1 && s[i:i+n] == substr {
+				return i
+			}
+			fails++
+			i++
+			// Switch to bytealg.IndexString when IndexByte produces too many false positives.
+			if fails > bytealg.Cutover(i) {
+				r := bytealg.IndexString(s[i:], substr)
+				if r >= 0 {
+					return r + i
+				}
+				return -1
+			}
+		}
+		return -1
 	}
-	for i := n; i < len(s); {
-		h *= primeRK
-		h += uint32(s[i])
-		h -= pow * uint32(s[i-n])
+	c0 := substr[0]
+	c1 := substr[1]
+	i := 0
+	t := len(s) - n + 1
+	fails := 0
+	for i < t {
+		if s[i] != c0 {
+			o := IndexByte(s[i:t], c0)
+			if o < 0 {
+				return -1
+			}
+			i += o
+		}
+		if s[i+1] == c1 && s[i:i+n] == substr {
+			return i
+		}
 		i++
-		if h == hashss && s[i-n:i] == substr {
-			return i - n
+		fails++
+		if fails >= 4+i>>4 && i < t {
+			// See comment in ../bytes/bytes.go.
+			j := bytealg.IndexRabinKarp(s[i:], substr)
+			if j < 0 {
+				return -1
+			}
+			return i + j
 		}
 	}
 	return -1
-
 }

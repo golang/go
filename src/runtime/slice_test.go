@@ -10,25 +10,79 @@ import (
 
 const N = 20
 
-func BenchmarkMakeSlice(b *testing.B) {
-	var x []byte
-	for i := 0; i < b.N; i++ {
-		x = make([]byte, 32)
-		_ = x
-	}
-}
-
 type (
 	struct24 struct{ a, b, c int64 }
 	struct32 struct{ a, b, c, d int64 }
 	struct40 struct{ a, b, c, d, e int64 }
 )
 
+func BenchmarkMakeSlice(b *testing.B) {
+	const length = 2
+	b.Run("Byte", func(b *testing.B) {
+		var x []byte
+		for i := 0; i < b.N; i++ {
+			x = make([]byte, length, 2*length)
+			_ = x
+		}
+	})
+	b.Run("Int16", func(b *testing.B) {
+		var x []int16
+		for i := 0; i < b.N; i++ {
+			x = make([]int16, length, 2*length)
+			_ = x
+		}
+	})
+	b.Run("Int", func(b *testing.B) {
+		var x []int
+		for i := 0; i < b.N; i++ {
+			x = make([]int, length, 2*length)
+			_ = x
+		}
+	})
+	b.Run("Ptr", func(b *testing.B) {
+		var x []*byte
+		for i := 0; i < b.N; i++ {
+			x = make([]*byte, length, 2*length)
+			_ = x
+		}
+	})
+	b.Run("Struct", func(b *testing.B) {
+		b.Run("24", func(b *testing.B) {
+			var x []struct24
+			for i := 0; i < b.N; i++ {
+				x = make([]struct24, length, 2*length)
+				_ = x
+			}
+		})
+		b.Run("32", func(b *testing.B) {
+			var x []struct32
+			for i := 0; i < b.N; i++ {
+				x = make([]struct32, length, 2*length)
+				_ = x
+			}
+		})
+		b.Run("40", func(b *testing.B) {
+			var x []struct40
+			for i := 0; i < b.N; i++ {
+				x = make([]struct40, length, 2*length)
+				_ = x
+			}
+		})
+
+	})
+}
+
 func BenchmarkGrowSlice(b *testing.B) {
 	b.Run("Byte", func(b *testing.B) {
 		x := make([]byte, 9)
 		for i := 0; i < b.N; i++ {
 			_ = append([]byte(nil), x...)
+		}
+	})
+	b.Run("Int16", func(b *testing.B) {
+		x := make([]int16, 9)
+		for i := 0; i < b.N; i++ {
+			_ = append([]int16(nil), x...)
 		}
 	})
 	b.Run("Int", func(b *testing.B) {
@@ -63,6 +117,36 @@ func BenchmarkGrowSlice(b *testing.B) {
 			}
 		})
 
+	})
+}
+
+var (
+	SinkIntSlice        []int
+	SinkIntPointerSlice []*int
+)
+
+func BenchmarkExtendSlice(b *testing.B) {
+	var length = 4 // Use a variable to prevent stack allocation of slices.
+	b.Run("IntSlice", func(b *testing.B) {
+		s := make([]int, 0, length)
+		for i := 0; i < b.N; i++ {
+			s = append(s[:0:length/2], make([]int, length)...)
+		}
+		SinkIntSlice = s
+	})
+	b.Run("PointerSlice", func(b *testing.B) {
+		s := make([]*int, 0, length)
+		for i := 0; i < b.N; i++ {
+			s = append(s[:0:length/2], make([]*int, length)...)
+		}
+		SinkIntPointerSlice = s
+	})
+	b.Run("NoGrow", func(b *testing.B) {
+		s := make([]int, 0, length)
+		for i := 0; i < b.N; i++ {
+			s = append(s[:0:length], make([]int, length)...)
+		}
+		SinkIntSlice = s
 	})
 }
 

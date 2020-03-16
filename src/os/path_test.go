@@ -5,7 +5,6 @@
 package os_test
 
 import (
-	"fmt"
 	"internal/testenv"
 	"io/ioutil"
 	. "os"
@@ -73,130 +72,6 @@ func TestMkdirAll(t *testing.T) {
 		if err != nil {
 			t.Fatalf("MkdirAll %q: %s", path, err)
 		}
-	}
-}
-
-func TestRemoveAll(t *testing.T) {
-	tmpDir := TempDir()
-	// Work directory.
-	path := tmpDir + "/_TestRemoveAll_"
-	fpath := path + "/file"
-	dpath := path + "/dir"
-
-	// Make directory with 1 file and remove.
-	if err := MkdirAll(path, 0777); err != nil {
-		t.Fatalf("MkdirAll %q: %s", path, err)
-	}
-	fd, err := Create(fpath)
-	if err != nil {
-		t.Fatalf("create %q: %s", fpath, err)
-	}
-	fd.Close()
-	if err = RemoveAll(path); err != nil {
-		t.Fatalf("RemoveAll %q (first): %s", path, err)
-	}
-	if _, err = Lstat(path); err == nil {
-		t.Fatalf("Lstat %q succeeded after RemoveAll (first)", path)
-	}
-
-	// Make directory with file and subdirectory and remove.
-	if err = MkdirAll(dpath, 0777); err != nil {
-		t.Fatalf("MkdirAll %q: %s", dpath, err)
-	}
-	fd, err = Create(fpath)
-	if err != nil {
-		t.Fatalf("create %q: %s", fpath, err)
-	}
-	fd.Close()
-	fd, err = Create(dpath + "/file")
-	if err != nil {
-		t.Fatalf("create %q: %s", fpath, err)
-	}
-	fd.Close()
-	if err = RemoveAll(path); err != nil {
-		t.Fatalf("RemoveAll %q (second): %s", path, err)
-	}
-	if _, err := Lstat(path); err == nil {
-		t.Fatalf("Lstat %q succeeded after RemoveAll (second)", path)
-	}
-
-	// Determine if we should run the following test.
-	testit := true
-	if runtime.GOOS == "windows" {
-		// Chmod is not supported under windows.
-		testit = false
-	} else {
-		// Test fails as root.
-		testit = Getuid() != 0
-	}
-	if testit {
-		// Make directory with file and subdirectory and trigger error.
-		if err = MkdirAll(dpath, 0777); err != nil {
-			t.Fatalf("MkdirAll %q: %s", dpath, err)
-		}
-
-		for _, s := range []string{fpath, dpath + "/file1", path + "/zzz"} {
-			fd, err = Create(s)
-			if err != nil {
-				t.Fatalf("create %q: %s", s, err)
-			}
-			fd.Close()
-		}
-		if err = Chmod(dpath, 0); err != nil {
-			t.Fatalf("Chmod %q 0: %s", dpath, err)
-		}
-
-		// No error checking here: either RemoveAll
-		// will or won't be able to remove dpath;
-		// either way we want to see if it removes fpath
-		// and path/zzz. Reasons why RemoveAll might
-		// succeed in removing dpath as well include:
-		//	* running as root
-		//	* running on a file system without permissions (FAT)
-		RemoveAll(path)
-		Chmod(dpath, 0777)
-
-		for _, s := range []string{fpath, path + "/zzz"} {
-			if _, err = Lstat(s); err == nil {
-				t.Fatalf("Lstat %q succeeded after partial RemoveAll", s)
-			}
-		}
-	}
-	if err = RemoveAll(path); err != nil {
-		t.Fatalf("RemoveAll %q after partial RemoveAll: %s", path, err)
-	}
-	if _, err = Lstat(path); err == nil {
-		t.Fatalf("Lstat %q succeeded after RemoveAll (final)", path)
-	}
-}
-
-// Test RemoveAll on a large directory.
-func TestRemoveAllLarge(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping in short mode")
-	}
-
-	tmpDir := TempDir()
-	// Work directory.
-	path := tmpDir + "/_TestRemoveAllLarge_"
-
-	// Make directory with 1000 files and remove.
-	if err := MkdirAll(path, 0777); err != nil {
-		t.Fatalf("MkdirAll %q: %s", path, err)
-	}
-	for i := 0; i < 1000; i++ {
-		fpath := fmt.Sprintf("%s/file%d", path, i)
-		fd, err := Create(fpath)
-		if err != nil {
-			t.Fatalf("create %q: %s", fpath, err)
-		}
-		fd.Close()
-	}
-	if err := RemoveAll(path); err != nil {
-		t.Fatalf("RemoveAll %q: %s", path, err)
-	}
-	if _, err := Lstat(path); err == nil {
-		t.Fatalf("Lstat %q succeeded after RemoveAll", path)
 	}
 }
 

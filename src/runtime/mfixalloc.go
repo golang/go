@@ -11,8 +11,8 @@ package runtime
 import "unsafe"
 
 // FixAlloc is a simple free-list allocator for fixed size objects.
-// Malloc uses a FixAlloc wrapped around sysAlloc to manages its
-// MCache and MSpan objects.
+// Malloc uses a FixAlloc wrapped around sysAlloc to manage its
+// mcache and mspan objects.
 //
 // Memory returned by fixalloc.alloc is zeroed by default, but the
 // caller may take responsibility for zeroing allocations by setting

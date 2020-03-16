@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/token"
+	"strconv"
 	"strings"
 )
 
@@ -24,8 +25,13 @@ func unreachable() {
 }
 
 func (check *Checker) qualifier(pkg *Package) string {
+	// Qualify the package unless it's the package being type-checked.
 	if pkg != check.pkg {
-		return pkg.path
+		// If the same package name was used by multiple packages, display the full path.
+		if check.pkgCnt[pkg.name] > 1 {
+			return strconv.Quote(pkg.path)
+		}
+		return pkg.name
 	}
 	return ""
 }
@@ -67,10 +73,24 @@ func (check *Checker) dump(format string, args ...interface{}) {
 }
 
 func (check *Checker) err(pos token.Pos, msg string, soft bool) {
+	// Cheap trick: Don't report errors with messages containing
+	// "invalid operand" or "invalid type" as those tend to be
+	// follow-on errors which don't add useful information. Only
+	// exclude them if these strings are not at the beginning,
+	// and only if we have at least one error already reported.
+	if check.firstErr != nil && (strings.Index(msg, "invalid operand") > 0 || strings.Index(msg, "invalid type") > 0) {
+		return
+	}
+
 	err := Error{check.fset, pos, msg, soft}
 	if check.firstErr == nil {
 		check.firstErr = err
 	}
+
+	if trace {
+		check.trace(pos, "ERROR: %s", msg)
+	}
+
 	f := check.conf.Error
 	if f == nil {
 		panic(bailout{}) // report only first error

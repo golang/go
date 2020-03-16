@@ -6,8 +6,11 @@ package aes
 
 import (
 	"crypto/cipher"
+	subtleoverlap "crypto/internal/subtle"
 	"crypto/subtle"
+	"encoding/binary"
 	"errors"
+	"internal/cpu"
 )
 
 // This file contains two implementations of AES-GCM. The first implementation
@@ -20,35 +23,15 @@ type gcmCount [16]byte
 
 // inc increments the rightmost 32-bits of the count value by 1.
 func (x *gcmCount) inc() {
-	// The compiler should optimize this to a 32-bit addition.
-	n := uint32(x[15]) | uint32(x[14])<<8 | uint32(x[13])<<16 | uint32(x[12])<<24
-	n += 1
-	x[12] = byte(n >> 24)
-	x[13] = byte(n >> 16)
-	x[14] = byte(n >> 8)
-	x[15] = byte(n)
+	binary.BigEndian.PutUint32(x[len(x)-4:], binary.BigEndian.Uint32(x[len(x)-4:])+1)
 }
 
 // gcmLengths writes len0 || len1 as big-endian values to a 16-byte array.
 func gcmLengths(len0, len1 uint64) [16]byte {
-	return [16]byte{
-		byte(len0 >> 56),
-		byte(len0 >> 48),
-		byte(len0 >> 40),
-		byte(len0 >> 32),
-		byte(len0 >> 24),
-		byte(len0 >> 16),
-		byte(len0 >> 8),
-		byte(len0),
-		byte(len1 >> 56),
-		byte(len1 >> 48),
-		byte(len1 >> 40),
-		byte(len1 >> 32),
-		byte(len1 >> 24),
-		byte(len1 >> 16),
-		byte(len1 >> 8),
-		byte(len1),
-	}
+	v := [16]byte{}
+	binary.BigEndian.PutUint64(v[0:], len0)
+	binary.BigEndian.PutUint64(v[8:], len1)
+	return v
 }
 
 // gcmHashKey represents the 16-byte hash key required by the GHASH algorithm.
@@ -84,7 +67,7 @@ func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
 		nonceSize: nonceSize,
 		tagSize:   tagSize,
 	}
-	if hasKMA {
+	if cpu.S390X.HasAESGCM {
 		g := gcmKMA{g}
 		return &g, nil
 	}
@@ -219,13 +202,16 @@ func (g *gcmAsm) auth(out, ciphertext, additionalData []byte, tagMask *[gcmTagSi
 // details.
 func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
 	if len(nonce) != g.nonceSize {
-		panic("cipher: incorrect nonce length given to GCM")
+		panic("crypto/cipher: incorrect nonce length given to GCM")
 	}
 	if uint64(len(plaintext)) > ((1<<32)-2)*BlockSize {
-		panic("cipher: message too large for GCM")
+		panic("crypto/cipher: message too large for GCM")
 	}
 
 	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
+	if subtleoverlap.InexactOverlap(out[:len(plaintext)], plaintext) {
+		panic("crypto/cipher: invalid buffer overlap")
+	}
 
 	counter := g.deriveCounter(nonce)
 
@@ -245,12 +231,12 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
 // for details.
 func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	if len(nonce) != g.nonceSize {
-		panic("cipher: incorrect nonce length given to GCM")
+		panic("crypto/cipher: incorrect nonce length given to GCM")
 	}
 	// Sanity check to prevent the authentication from always succeeding if an implementation
 	// leaves tagSize uninitialized, for example.
 	if g.tagSize < gcmMinimumTagSize {
-		panic("cipher: incorrect GCM tag size")
+		panic("crypto/cipher: incorrect GCM tag size")
 	}
 	if len(ciphertext) < g.tagSize {
 		return nil, errOpen
@@ -272,6 +258,9 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	g.auth(expectedTag[:], ciphertext, data, &tagMask)
 
 	ret, out := sliceForAppend(dst, len(ciphertext))
+	if subtleoverlap.InexactOverlap(out, ciphertext) {
+		panic("crypto/cipher: invalid buffer overlap")
+	}
 
 	if subtle.ConstantTimeCompare(expectedTag[:g.tagSize], tag) != 1 {
 		// The AESNI code decrypts and authenticates concurrently, and
@@ -287,13 +276,6 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	g.counterCrypt(out, ciphertext, &counter)
 	return ret, nil
 }
-
-// supportsKMA reports whether the message-security-assist 8 facility is available.
-// This function call may be expensive so hasKMA should be queried instead.
-func supportsKMA() bool
-
-// hasKMA contains the result of supportsKMA.
-var hasKMA = supportsKMA()
 
 // gcmKMA implements the cipher.AEAD interface using the KMA instruction. It should
 // only be used if hasKMA is true.
@@ -320,13 +302,16 @@ func kmaGCM(fn code, key, dst, src, aad []byte, tag *[16]byte, cnt *gcmCount)
 // details.
 func (g *gcmKMA) Seal(dst, nonce, plaintext, data []byte) []byte {
 	if len(nonce) != g.nonceSize {
-		panic("cipher: incorrect nonce length given to GCM")
+		panic("crypto/cipher: incorrect nonce length given to GCM")
 	}
 	if uint64(len(plaintext)) > ((1<<32)-2)*BlockSize {
-		panic("cipher: message too large for GCM")
+		panic("crypto/cipher: message too large for GCM")
 	}
 
 	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
+	if subtleoverlap.InexactOverlap(out[:len(plaintext)], plaintext) {
+		panic("crypto/cipher: invalid buffer overlap")
+	}
 
 	counter := g.deriveCounter(nonce)
 	fc := g.block.function | kmaLAAD | kmaLPC
@@ -342,7 +327,7 @@ func (g *gcmKMA) Seal(dst, nonce, plaintext, data []byte) []byte {
 // for details.
 func (g *gcmKMA) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	if len(nonce) != g.nonceSize {
-		panic("cipher: incorrect nonce length given to GCM")
+		panic("crypto/cipher: incorrect nonce length given to GCM")
 	}
 	if len(ciphertext) < g.tagSize {
 		return nil, errOpen
@@ -354,9 +339,12 @@ func (g *gcmKMA) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
 	tag := ciphertext[len(ciphertext)-g.tagSize:]
 	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
 	ret, out := sliceForAppend(dst, len(ciphertext))
+	if subtleoverlap.InexactOverlap(out, ciphertext) {
+		panic("crypto/cipher: invalid buffer overlap")
+	}
 
 	if g.tagSize < gcmMinimumTagSize {
-		panic("cipher: incorrect GCM tag size")
+		panic("crypto/cipher: incorrect GCM tag size")
 	}
 
 	counter := g.deriveCounter(nonce)

@@ -24,7 +24,7 @@ import (
 // In particular that we strip bottom uninteresting frames like goexit,
 // top uninteresting frames (runtime guts).
 func TestTraceSymbolize(t *testing.T) {
-	testenv.MustHaveGoBuild(t)
+	skipTraceSymbolizeTestIfNecessary(t)
 
 	buf := new(bytes.Buffer)
 	if err := Start(buf); err != nil {
@@ -282,6 +282,13 @@ func TestTraceSymbolize(t *testing.T) {
 		seen, n := dumpEventStacks(w.Type, events)
 		t.Errorf("Did not match event %v with stack\n%s\nSeen %d events of the type\n%s",
 			trace.EventDescriptions[w.Type].Name, dumpFrames(w.Stk), n, seen)
+	}
+}
+
+func skipTraceSymbolizeTestIfNecessary(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	if IsEnabled() {
+		t.Skip("skipping because -test.trace is set")
 	}
 }
 

@@ -7,27 +7,34 @@ package ssa
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
+	"cmd/internal/src"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"math"
+	"math/bits"
 	"os"
 	"path/filepath"
 )
 
 func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 	// repeat rewrites until we find no more rewrites
+	pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
+	pendingLines.clear()
 	for {
 		change := false
 		for _, b := range f.Blocks {
-			if b.Control != nil && b.Control.Op == OpCopy {
-				for b.Control.Op == OpCopy {
-					b.SetControl(b.Control.Args[0])
+			for i, c := range b.ControlValues() {
+				for c.Op == OpCopy {
+					c = c.Args[0]
+					b.ReplaceControl(i, c)
 				}
 			}
 			if rb(b) {
 				change = true
 			}
-			for _, v := range b.Values {
+			for j, v := range b.Values {
 				change = phielimValue(v) || change
 
 				// Eliminate copy inputs.
@@ -41,7 +48,27 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 					if a.Op != OpCopy {
 						continue
 					}
-					v.SetArg(i, copySource(a))
+					aa := copySource(a)
+					v.SetArg(i, aa)
+					// If a, a copy, has a line boundary indicator, attempt to find a new value
+					// to hold it.  The first candidate is the value that will replace a (aa),
+					// if it shares the same block and line and is eligible.
+					// The second option is v, which has a as an input.  Because aa is earlier in
+					// the data flow, it is the better choice.
+					if a.Pos.IsStmt() == src.PosIsStmt {
+						if aa.Block == a.Block && aa.Pos.Line() == a.Pos.Line() && aa.Pos.IsStmt() != src.PosNotStmt {
+							aa.Pos = aa.Pos.WithIsStmt()
+						} else if v.Block == a.Block && v.Pos.Line() == a.Pos.Line() && v.Pos.IsStmt() != src.PosNotStmt {
+							v.Pos = v.Pos.WithIsStmt()
+						} else {
+							// Record the lost line and look for a new home after all rewrites are complete.
+							// TODO: it's possible (in FOR loops, in particular) for statement boundaries for the same
+							// line to appear in more than one block, but only one block is stored, so if both end
+							// up here, then one will be lost.
+							pendingLines.set(a.Pos, int32(a.Block.ID))
+						}
+						a.Pos = a.Pos.WithNotStmt()
+					}
 					change = true
 					for a.Uses == 0 {
 						b := a.Args[0]
@@ -53,6 +80,13 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 				// apply rewrite function
 				if rv(v) {
 					change = true
+					// If value changed to a poor choice for a statement boundary, move the boundary
+					if v.Pos.IsStmt() == src.PosIsStmt {
+						if k := nextGoodStatementIndex(v, j, b); k != j {
+							v.Pos = v.Pos.WithNotStmt()
+							b.Values[k].Pos = b.Values[k].Pos.WithIsStmt()
+						}
+					}
 				}
 			}
 		}
@@ -64,14 +98,26 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 	for _, b := range f.Blocks {
 		j := 0
 		for i, v := range b.Values {
+			vl := v.Pos
 			if v.Op == OpInvalid {
+				if v.Pos.IsStmt() == src.PosIsStmt {
+					pendingLines.set(vl, int32(b.ID))
+				}
 				f.freeValue(v)
 				continue
+			}
+			if v.Pos.IsStmt() != src.PosNotStmt && pendingLines.get(vl) == int32(b.ID) {
+				pendingLines.remove(vl)
+				v.Pos = v.Pos.WithIsStmt()
 			}
 			if i != j {
 				b.Values[j] = v
 			}
 			j++
+		}
+		if pendingLines.get(b.Pos) == int32(b.ID) {
+			b.Pos = b.Pos.WithIsStmt()
+			pendingLines.remove(b.Pos)
 		}
 		if j != len(b.Values) {
 			tail := b.Values[j:]
@@ -132,23 +178,11 @@ func canMergeSym(x, y interface{}) bool {
 	return x == nil || y == nil
 }
 
-// canMergeLoad reports whether the load can be merged into target without
+// canMergeLoadClobber reports whether the load can be merged into target without
 // invalidating the schedule.
 // It also checks that the other non-load argument x is something we
-// are ok with clobbering (all our current load+op instructions clobber
-// their input register).
-func canMergeLoad(target, load, x *Value) bool {
-	if target.Block.ID != load.Block.ID {
-		// If the load is in a different block do not merge it.
-		return false
-	}
-
-	// We can't merge the load into the target if the load
-	// has more than one use.
-	if load.Uses != 1 {
-		return false
-	}
-
+// are ok with clobbering.
+func canMergeLoadClobber(target, load, x *Value) bool {
 	// The register containing x is going to get clobbered.
 	// Don't merge if we still need the value of x.
 	// We don't have liveness information here, but we can
@@ -161,6 +195,22 @@ func canMergeLoad(target, load, x *Value) bool {
 	loopnest := x.Block.Func.loopnest()
 	loopnest.calculateDepths()
 	if loopnest.depth(target.Block.ID) > loopnest.depth(x.Block.ID) {
+		return false
+	}
+	return canMergeLoad(target, load)
+}
+
+// canMergeLoad reports whether the load can be merged into target without
+// invalidating the schedule.
+func canMergeLoad(target, load *Value) bool {
+	if target.Block.ID != load.Block.ID {
+		// If the load is in a different block do not merge it.
+		return false
+	}
+
+	// We can't merge the load into the target if the load
+	// has more than one use.
+	if load.Uses != 1 {
 		return false
 	}
 
@@ -191,7 +241,6 @@ func canMergeLoad(target, load, x *Value) bool {
 	// memPreds contains memory states known to be predecessors of load's
 	// memory state. It is lazily initialized.
 	var memPreds map[*Value]bool
-search:
 	for i := 0; len(args) > 0; i++ {
 		const limit = 100
 		if i >= limit {
@@ -203,17 +252,31 @@ search:
 		if target.Block.ID != v.Block.ID {
 			// Since target and load are in the same block
 			// we can stop searching when we leave the block.
-			continue search
+			continue
 		}
 		if v.Op == OpPhi {
 			// A Phi implies we have reached the top of the block.
 			// The memory phi, if it exists, is always
 			// the first logical store in the block.
-			continue search
+			continue
 		}
 		if v.Type.IsTuple() && v.Type.FieldType(1).IsMemory() {
 			// We could handle this situation however it is likely
 			// to be very rare.
+			return false
+		}
+		if v.Op.SymEffect()&SymAddr != 0 {
+			// This case prevents an operation that calculates the
+			// address of a local variable from being forced to schedule
+			// before its corresponding VarDef.
+			// See issue 28445.
+			//   v1 = LOAD ...
+			//   v2 = VARDEF
+			//   v3 = LEAQ
+			//   v4 = CMPQ v1 v3
+			// We don't want to combine the CMPQ with the load, because
+			// that would force the CMPQ to schedule before the VARDEF, which
+			// in turn requires the LEAQ to schedule before the VARDEF.
 			return false
 		}
 		if v.Type.IsMemory() {
@@ -253,14 +316,14 @@ search:
 			//   load = read ... mem
 			// target = add x load
 			if memPreds[v] {
-				continue search
+				continue
 			}
 			return false
 		}
 		if len(v.Args) > 0 && v.Args[len(v.Args)-1] == mem {
 			// If v takes mem as an input then we know mem
 			// is valid at this point.
-			continue search
+			continue
 		}
 		for _, a := range v.Args {
 			if target.Block.ID == a.Block.ID {
@@ -272,7 +335,7 @@ search:
 	return true
 }
 
-// isSameSym returns whether sym is the same as the given named symbol
+// isSameSym reports whether sym is the same as the given named symbol
 func isSameSym(sym interface{}, name string) bool {
 	s, ok := sym.(fmt.Stringer)
 	return ok && s.String() == name
@@ -280,17 +343,16 @@ func isSameSym(sym interface{}, name string) bool {
 
 // nlz returns the number of leading zeros.
 func nlz(x int64) int64 {
-	// log2(0) == 1, so nlz(0) == 64
-	return 63 - log2(x)
+	return int64(bits.LeadingZeros64(uint64(x)))
 }
 
 // ntz returns the number of trailing zeros.
 func ntz(x int64) int64 {
-	return 64 - nlz(^x&(x-1))
+	return int64(bits.TrailingZeros64(uint64(x)))
 }
 
 func oneBit(x int64) bool {
-	return nlz(x)+ntz(x) == 63
+	return bits.OnesCount64(uint64(x)) == 1
 }
 
 // nlo returns the number of leading ones.
@@ -305,32 +367,30 @@ func nto(x int64) int64 {
 
 // log2 returns logarithm in base 2 of uint64(n), with log2(0) = -1.
 // Rounds down.
-func log2(n int64) (l int64) {
-	l = -1
-	x := uint64(n)
-	for ; x >= 0x8000; x >>= 16 {
-		l += 16
-	}
-	if x >= 0x80 {
-		x >>= 8
-		l += 8
-	}
-	if x >= 0x8 {
-		x >>= 4
-		l += 4
-	}
-	if x >= 0x2 {
-		x >>= 2
-		l += 2
-	}
-	if x >= 0x1 {
-		l++
-	}
-	return
+func log2(n int64) int64 {
+	return int64(bits.Len64(uint64(n))) - 1
+}
+
+// log2uint32 returns logarithm in base 2 of uint32(n), with log2(0) = -1.
+// Rounds down.
+func log2uint32(n int64) int64 {
+	return int64(bits.Len32(uint32(n))) - 1
 }
 
 // isPowerOfTwo reports whether n is a power of 2.
 func isPowerOfTwo(n int64) bool {
+	return n > 0 && n&(n-1) == 0
+}
+
+// isUint64PowerOfTwo reports whether uint64(n) is a power of 2.
+func isUint64PowerOfTwo(in int64) bool {
+	n := uint64(in)
+	return n > 0 && n&(n-1) == 0
+}
+
+// isUint32PowerOfTwo reports whether uint32(n) is a power of 2.
+func isUint32PowerOfTwo(in int64) bool {
+	n := uint64(uint32(in))
 	return n > 0 && n&(n-1) == 0
 }
 
@@ -342,6 +402,16 @@ func is32Bit(n int64) bool {
 // is16Bit reports whether n can be represented as a signed 16 bit integer.
 func is16Bit(n int64) bool {
 	return n == int64(int16(n))
+}
+
+// is8Bit reports whether n can be represented as a signed 8 bit integer.
+func is8Bit(n int64) bool {
+	return n == int64(int8(n))
+}
+
+// isU8Bit reports whether n can be represented as an unsigned 8 bit integer.
+func isU8Bit(n int64) bool {
+	return n == int64(uint8(n))
 }
 
 // isU12Bit reports whether n can be represented as an unsigned 12 bit integer.
@@ -372,22 +442,76 @@ func b2i(b bool) int64 {
 	return 0
 }
 
-// i2f is used in rules for converting from an AuxInt to a float.
-func i2f(i int64) float64 {
-	return math.Float64frombits(uint64(i))
+// shiftIsBounded reports whether (left/right) shift Value v is known to be bounded.
+// A shift is bounded if it is shifting by less than the width of the shifted value.
+func shiftIsBounded(v *Value) bool {
+	return v.AuxInt != 0
 }
 
-// i2f32 is used in rules for converting from an AuxInt to a float32.
-func i2f32(i int64) float32 {
-	return float32(math.Float64frombits(uint64(i)))
+// truncate64Fto32F converts a float64 value to a float32 preserving the bit pattern
+// of the mantissa. It will panic if the truncation results in lost information.
+func truncate64Fto32F(f float64) float32 {
+	if !isExactFloat32(f) {
+		panic("truncate64Fto32F: truncation is not exact")
+	}
+	if !math.IsNaN(f) {
+		return float32(f)
+	}
+	// NaN bit patterns aren't necessarily preserved across conversion
+	// instructions so we need to do the conversion manually.
+	b := math.Float64bits(f)
+	m := b & ((1 << 52) - 1) // mantissa (a.k.a. significand)
+	//          | sign                  | exponent   | mantissa       |
+	r := uint32(((b >> 32) & (1 << 31)) | 0x7f800000 | (m >> (52 - 23)))
+	return math.Float32frombits(r)
 }
 
-// f2i is used in the rules for storing a float in AuxInt.
-func f2i(f float64) int64 {
+// extend32Fto64F converts a float32 value to a float64 value preserving the bit
+// pattern of the mantissa.
+func extend32Fto64F(f float32) float64 {
+	if !math.IsNaN(float64(f)) {
+		return float64(f)
+	}
+	// NaN bit patterns aren't necessarily preserved across conversion
+	// instructions so we need to do the conversion manually.
+	b := uint64(math.Float32bits(f))
+	//   | sign                  | exponent      | mantissa                    |
+	r := ((b << 32) & (1 << 63)) | (0x7ff << 52) | ((b & 0x7fffff) << (52 - 23))
+	return math.Float64frombits(r)
+}
+
+// DivisionNeedsFixUp reports whether the division needs fix-up code.
+func DivisionNeedsFixUp(v *Value) bool {
+	return v.AuxInt == 0
+}
+
+// auxFrom64F encodes a float64 value so it can be stored in an AuxInt.
+func auxFrom64F(f float64) int64 {
+	if f != f {
+		panic("can't encode a NaN in AuxInt field")
+	}
 	return int64(math.Float64bits(f))
 }
 
-// uaddOvf returns true if unsigned a+b would overflow.
+// auxFrom32F encodes a float32 value so it can be stored in an AuxInt.
+func auxFrom32F(f float32) int64 {
+	if f != f {
+		panic("can't encode a NaN in AuxInt field")
+	}
+	return int64(math.Float64bits(extend32Fto64F(f)))
+}
+
+// auxTo32F decodes a float32 from the AuxInt value provided.
+func auxTo32F(i int64) float32 {
+	return truncate64Fto32F(math.Float64frombits(uint64(i)))
+}
+
+// auxTo64F decodes a float64 from the AuxInt value provided.
+func auxTo64F(i int64) float64 {
+	return math.Float64frombits(uint64(i))
+}
+
+// uaddOvf reports whether unsigned a+b would overflow.
 func uaddOvf(a, b int64) bool {
 	return uint64(a)+uint64(b) < uint64(a)
 }
@@ -422,12 +546,62 @@ func isSamePtr(p1, p2 *Value) bool {
 	switch p1.Op {
 	case OpOffPtr:
 		return p1.AuxInt == p2.AuxInt && isSamePtr(p1.Args[0], p2.Args[0])
-	case OpAddr:
+	case OpAddr, OpLocalAddr:
 		// OpAddr's 0th arg is either OpSP or OpSB, which means that it is uniquely identified by its Op.
 		// Checking for value equality only works after [z]cse has run.
 		return p1.Aux == p2.Aux && p1.Args[0].Op == p2.Args[0].Op
 	case OpAddPtr:
 		return p1.Args[1] == p2.Args[1] && isSamePtr(p1.Args[0], p2.Args[0])
+	}
+	return false
+}
+
+func isStackPtr(v *Value) bool {
+	for v.Op == OpOffPtr || v.Op == OpAddPtr {
+		v = v.Args[0]
+	}
+	return v.Op == OpSP || v.Op == OpLocalAddr
+}
+
+// disjoint reports whether the memory region specified by [p1:p1+n1)
+// does not overlap with [p2:p2+n2).
+// A return value of false does not imply the regions overlap.
+func disjoint(p1 *Value, n1 int64, p2 *Value, n2 int64) bool {
+	if n1 == 0 || n2 == 0 {
+		return true
+	}
+	if p1 == p2 {
+		return false
+	}
+	baseAndOffset := func(ptr *Value) (base *Value, offset int64) {
+		base, offset = ptr, 0
+		for base.Op == OpOffPtr {
+			offset += base.AuxInt
+			base = base.Args[0]
+		}
+		return base, offset
+	}
+	p1, off1 := baseAndOffset(p1)
+	p2, off2 := baseAndOffset(p2)
+	if isSamePtr(p1, p2) {
+		return !overlap(off1, n1, off2, n2)
+	}
+	// p1 and p2 are not the same, so if they are both OpAddrs then
+	// they point to different variables.
+	// If one pointer is on the stack and the other is an argument
+	// then they can't overlap.
+	switch p1.Op {
+	case OpAddr, OpLocalAddr:
+		if p2.Op == OpAddr || p2.Op == OpLocalAddr || p2.Op == OpSP {
+			return true
+		}
+		return p2.Op == OpArg && p1.Args[0].Op == OpSP
+	case OpArg:
+		if p2.Op == OpSP || p2.Op == OpLocalAddr {
+			return true
+		}
+	case OpSP:
+		return p2.Op == OpAddr || p2.Op == OpLocalAddr || p2.Op == OpArg || p2.Op == OpSP
 	}
 	return false
 }
@@ -495,13 +669,15 @@ found:
 	return nil // too far away
 }
 
-// clobber invalidates v.  Returns true.
+// clobber invalidates values. Returns true.
 // clobber is used by rewrite rules to:
-//   A) make sure v is really dead and never used again.
-//   B) decrement use counts of v's args.
-func clobber(v *Value) bool {
-	v.reset(OpInvalid)
-	// Note: leave v.Block intact.  The Block field is used after clobber.
+//   A) make sure the values are really dead and never used again.
+//   B) decrement use counts of the values' args.
+func clobber(vv ...*Value) bool {
+	for _, v := range vv {
+		v.reset(OpInvalid)
+		// Note: leave v.Block intact.  The Block field is used after clobber.
+	}
 	return true
 }
 
@@ -525,13 +701,168 @@ func noteRule(s string) bool {
 	return true
 }
 
-// warnRule generates a compiler debug output with string s when
-// cond is true and the rule is fired.
+// countRule increments Func.ruleMatches[key].
+// If Func.ruleMatches is non-nil at the end
+// of compilation, it will be printed to stdout.
+// This is intended to make it easier to find which functions
+// which contain lots of rules matches when developing new rules.
+func countRule(v *Value, key string) bool {
+	f := v.Block.Func
+	if f.ruleMatches == nil {
+		f.ruleMatches = make(map[string]int)
+	}
+	f.ruleMatches[key]++
+	return true
+}
+
+// warnRule generates compiler debug output with string s when
+// v is not in autogenerated code, cond is true and the rule has fired.
 func warnRule(cond bool, v *Value, s string) bool {
-	if cond {
-		v.Block.Func.Warnl(v.Pos, s)
+	if pos := v.Pos; pos.Line() > 1 && cond {
+		v.Block.Func.Warnl(pos, s)
 	}
 	return true
+}
+
+// for a pseudo-op like (LessThan x), extract x
+func flagArg(v *Value) *Value {
+	if len(v.Args) != 1 || !v.Args[0].Type.IsFlags() {
+		return nil
+	}
+	return v.Args[0]
+}
+
+// arm64Negate finds the complement to an ARM64 condition code,
+// for example Equal -> NotEqual or LessThan -> GreaterEqual
+//
+// TODO: add floating-point conditions
+func arm64Negate(op Op) Op {
+	switch op {
+	case OpARM64LessThan:
+		return OpARM64GreaterEqual
+	case OpARM64LessThanU:
+		return OpARM64GreaterEqualU
+	case OpARM64GreaterThan:
+		return OpARM64LessEqual
+	case OpARM64GreaterThanU:
+		return OpARM64LessEqualU
+	case OpARM64LessEqual:
+		return OpARM64GreaterThan
+	case OpARM64LessEqualU:
+		return OpARM64GreaterThanU
+	case OpARM64GreaterEqual:
+		return OpARM64LessThan
+	case OpARM64GreaterEqualU:
+		return OpARM64LessThanU
+	case OpARM64Equal:
+		return OpARM64NotEqual
+	case OpARM64NotEqual:
+		return OpARM64Equal
+	case OpARM64LessThanF:
+		return OpARM64GreaterEqualF
+	case OpARM64GreaterThanF:
+		return OpARM64LessEqualF
+	case OpARM64LessEqualF:
+		return OpARM64GreaterThanF
+	case OpARM64GreaterEqualF:
+		return OpARM64LessThanF
+	default:
+		panic("unreachable")
+	}
+}
+
+// arm64Invert evaluates (InvertFlags op), which
+// is the same as altering the condition codes such
+// that the same result would be produced if the arguments
+// to the flag-generating instruction were reversed, e.g.
+// (InvertFlags (CMP x y)) -> (CMP y x)
+//
+// TODO: add floating-point conditions
+func arm64Invert(op Op) Op {
+	switch op {
+	case OpARM64LessThan:
+		return OpARM64GreaterThan
+	case OpARM64LessThanU:
+		return OpARM64GreaterThanU
+	case OpARM64GreaterThan:
+		return OpARM64LessThan
+	case OpARM64GreaterThanU:
+		return OpARM64LessThanU
+	case OpARM64LessEqual:
+		return OpARM64GreaterEqual
+	case OpARM64LessEqualU:
+		return OpARM64GreaterEqualU
+	case OpARM64GreaterEqual:
+		return OpARM64LessEqual
+	case OpARM64GreaterEqualU:
+		return OpARM64LessEqualU
+	case OpARM64Equal, OpARM64NotEqual:
+		return op
+	case OpARM64LessThanF:
+		return OpARM64GreaterThanF
+	case OpARM64GreaterThanF:
+		return OpARM64LessThanF
+	case OpARM64LessEqualF:
+		return OpARM64GreaterEqualF
+	case OpARM64GreaterEqualF:
+		return OpARM64LessEqualF
+	default:
+		panic("unreachable")
+	}
+}
+
+// evaluate an ARM64 op against a flags value
+// that is potentially constant; return 1 for true,
+// -1 for false, and 0 for not constant.
+func ccARM64Eval(cc interface{}, flags *Value) int {
+	op := cc.(Op)
+	fop := flags.Op
+	switch fop {
+	case OpARM64InvertFlags:
+		return -ccARM64Eval(op, flags.Args[0])
+	case OpARM64FlagEQ:
+		switch op {
+		case OpARM64Equal, OpARM64GreaterEqual, OpARM64LessEqual,
+			OpARM64GreaterEqualU, OpARM64LessEqualU:
+			return 1
+		default:
+			return -1
+		}
+	case OpARM64FlagLT_ULT:
+		switch op {
+		case OpARM64LessThan, OpARM64LessThanU,
+			OpARM64LessEqual, OpARM64LessEqualU:
+			return 1
+		default:
+			return -1
+		}
+	case OpARM64FlagLT_UGT:
+		switch op {
+		case OpARM64LessThan, OpARM64GreaterThanU,
+			OpARM64LessEqual, OpARM64GreaterEqualU:
+			return 1
+		default:
+			return -1
+		}
+	case OpARM64FlagGT_ULT:
+		switch op {
+		case OpARM64GreaterThan, OpARM64LessThanU,
+			OpARM64GreaterEqual, OpARM64LessEqualU:
+			return 1
+		default:
+			return -1
+		}
+	case OpARM64FlagGT_UGT:
+		switch op {
+		case OpARM64GreaterThan, OpARM64GreaterThanU,
+			OpARM64GreaterEqual, OpARM64GreaterEqualU:
+			return 1
+		default:
+			return -1
+		}
+	default:
+		return 0
+	}
 }
 
 // logRule logs the use of the rule s. This will only be enabled if
@@ -551,7 +882,7 @@ func logRule(s string) {
 		}
 		ruleFile = w
 	}
-	_, err := fmt.Fprintf(ruleFile, "rewrite %s\n", s)
+	_, err := fmt.Fprintln(ruleFile, s)
 	if err != nil {
 		panic(err)
 	}
@@ -644,6 +975,10 @@ func overlap(offset1, size1, offset2, size2 int64) bool {
 	return false
 }
 
+func areAdjacentOffsets(off1, off2, size int64) bool {
+	return off1+size == off2 || off1 == off2+size
+}
+
 // check if value zeroes out upper 32-bit of 64-bit register.
 // depth limits recursion depth. In AMD64.rules 3 is used as limit,
 // because it catches same amount of cases as 4.
@@ -651,19 +986,15 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 	switch x.Op {
 	case OpAMD64MOVLconst, OpAMD64MOVLload, OpAMD64MOVLQZX, OpAMD64MOVLloadidx1,
 		OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVBload, OpAMD64MOVBloadidx1,
-		OpAMD64MOVLloadidx4, OpAMD64ADDLmem, OpAMD64SUBLmem, OpAMD64ANDLmem,
-		OpAMD64ORLmem, OpAMD64XORLmem, OpAMD64CVTTSD2SL,
+		OpAMD64MOVLloadidx4, OpAMD64ADDLload, OpAMD64SUBLload, OpAMD64ANDLload,
+		OpAMD64ORLload, OpAMD64XORLload, OpAMD64CVTTSD2SL,
 		OpAMD64ADDL, OpAMD64ADDLconst, OpAMD64SUBL, OpAMD64SUBLconst,
 		OpAMD64ANDL, OpAMD64ANDLconst, OpAMD64ORL, OpAMD64ORLconst,
 		OpAMD64XORL, OpAMD64XORLconst, OpAMD64NEGL, OpAMD64NOTL:
 		return true
 	case OpArg:
 		return x.Type.Width == 4
-	case OpSelect0, OpSelect1:
-		// Disabled for now. See issue 23305.
-		// TODO: we could look into the arg of the Select to decide.
-		return false
-	case OpPhi:
+	case OpPhi, OpSelect0, OpSelect1:
 		// Phis can use each-other as an arguments, instead of tracking visited values,
 		// just limit recursion depth.
 		if depth <= 0 {
@@ -680,17 +1011,279 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 	return false
 }
 
-// inlineablememmovesize reports whether the given arch performs OpMove of the given size
-// faster than memmove and in a safe way when src and dst overlap.
-// This is used as a check for replacing memmove with OpMove.
-func isInlinableMemmoveSize(sz int64, c *Config) bool {
+// zeroUpper48Bits is similar to zeroUpper32Bits, but for upper 48 bits
+func zeroUpper48Bits(x *Value, depth int) bool {
+	switch x.Op {
+	case OpAMD64MOVWQZX, OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVWloadidx2:
+		return true
+	case OpArg:
+		return x.Type.Width == 2
+	case OpPhi, OpSelect0, OpSelect1:
+		// Phis can use each-other as an arguments, instead of tracking visited values,
+		// just limit recursion depth.
+		if depth <= 0 {
+			return false
+		}
+		for i := range x.Args {
+			if !zeroUpper48Bits(x.Args[i], depth-1) {
+				return false
+			}
+		}
+		return true
+
+	}
+	return false
+}
+
+// zeroUpper56Bits is similar to zeroUpper32Bits, but for upper 56 bits
+func zeroUpper56Bits(x *Value, depth int) bool {
+	switch x.Op {
+	case OpAMD64MOVBQZX, OpAMD64MOVBload, OpAMD64MOVBloadidx1:
+		return true
+	case OpArg:
+		return x.Type.Width == 1
+	case OpPhi, OpSelect0, OpSelect1:
+		// Phis can use each-other as an arguments, instead of tracking visited values,
+		// just limit recursion depth.
+		if depth <= 0 {
+			return false
+		}
+		for i := range x.Args {
+			if !zeroUpper56Bits(x.Args[i], depth-1) {
+				return false
+			}
+		}
+		return true
+
+	}
+	return false
+}
+
+// isInlinableMemmove reports whether the given arch performs a Move of the given size
+// faster than memmove. It will only return true if replacing the memmove with a Move is
+// safe, either because Move is small or because the arguments are disjoint.
+// This is used as a check for replacing memmove with Move ops.
+func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
+	// It is always safe to convert memmove into Move when its arguments are disjoint.
+	// Move ops may or may not be faster for large sizes depending on how the platform
+	// lowers them, so we only perform this optimization on platforms that we know to
+	// have fast Move ops.
 	switch c.arch {
-	case "amd64", "amd64p32":
-		return sz <= 16
-	case "386", "ppc64", "s390x", "ppc64le":
+	case "amd64":
+		return sz <= 16 || (sz < 1024 && disjoint(dst, sz, src, sz))
+	case "386", "ppc64", "ppc64le", "arm64":
 		return sz <= 8
+	case "s390x":
+		return sz <= 8 || disjoint(dst, sz, src, sz)
 	case "arm", "mips", "mips64", "mipsle", "mips64le":
 		return sz <= 4
 	}
 	return false
+}
+
+// hasSmallRotate reports whether the architecture has rotate instructions
+// for sizes < 32-bit.  This is used to decide whether to promote some rotations.
+func hasSmallRotate(c *Config) bool {
+	switch c.arch {
+	case "amd64", "386":
+		return true
+	default:
+		return false
+	}
+}
+
+// encodes the lsb and width for arm(64) bitfield ops into the expected auxInt format.
+func armBFAuxInt(lsb, width int64) int64 {
+	if lsb < 0 || lsb > 63 {
+		panic("ARM(64) bit field lsb constant out of range")
+	}
+	if width < 1 || width > 64 {
+		panic("ARM(64) bit field width constant out of range")
+	}
+	return width | lsb<<8
+}
+
+// returns the lsb part of the auxInt field of arm64 bitfield ops.
+func getARM64BFlsb(bfc int64) int64 {
+	return int64(uint64(bfc) >> 8)
+}
+
+// returns the width part of the auxInt field of arm64 bitfield ops.
+func getARM64BFwidth(bfc int64) int64 {
+	return bfc & 0xff
+}
+
+// checks if mask >> rshift applied at lsb is a valid arm64 bitfield op mask.
+func isARM64BFMask(lsb, mask, rshift int64) bool {
+	shiftedMask := int64(uint64(mask) >> uint64(rshift))
+	return shiftedMask != 0 && isPowerOfTwo(shiftedMask+1) && nto(shiftedMask)+lsb < 64
+}
+
+// returns the bitfield width of mask >> rshift for arm64 bitfield ops
+func arm64BFWidth(mask, rshift int64) int64 {
+	shiftedMask := int64(uint64(mask) >> uint64(rshift))
+	if shiftedMask == 0 {
+		panic("ARM64 BF mask is zero")
+	}
+	return nto(shiftedMask)
+}
+
+// sizeof returns the size of t in bytes.
+// It will panic if t is not a *types.Type.
+func sizeof(t interface{}) int64 {
+	return t.(*types.Type).Size()
+}
+
+// alignof returns the alignment of t in bytes.
+// It will panic if t is not a *types.Type.
+func alignof(t interface{}) int64 {
+	return t.(*types.Type).Alignment()
+}
+
+// registerizable reports whether t is a primitive type that fits in
+// a register. It assumes float64 values will always fit into registers
+// even if that isn't strictly true.
+// It will panic if t is not a *types.Type.
+func registerizable(b *Block, t interface{}) bool {
+	typ := t.(*types.Type)
+	if typ.IsPtrShaped() || typ.IsFloat() {
+		return true
+	}
+	if typ.IsInteger() {
+		return typ.Size() <= b.Func.Config.RegSize
+	}
+	return false
+}
+
+// needRaceCleanup reports whether this call to racefuncenter/exit isn't needed.
+func needRaceCleanup(sym interface{}, v *Value) bool {
+	f := v.Block.Func
+	if !f.Config.Race {
+		return false
+	}
+	if !isSameSym(sym, "runtime.racefuncenter") && !isSameSym(sym, "runtime.racefuncexit") {
+		return false
+	}
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			switch v.Op {
+			case OpStaticCall:
+				// Check for racefuncenter will encounter racefuncexit and vice versa.
+				// Allow calls to panic*
+				s := v.Aux.(fmt.Stringer).String()
+				switch s {
+				case "runtime.racefuncenter", "runtime.racefuncexit",
+					"runtime.panicdivide", "runtime.panicwrap",
+					"runtime.panicshift":
+					continue
+				}
+				// If we encountered any call, we need to keep racefunc*,
+				// for accurate stacktraces.
+				return false
+			case OpPanicBounds, OpPanicExtend:
+				// Note: these are panic generators that are ok (like the static calls above).
+			case OpClosureCall, OpInterCall:
+				// We must keep the race functions if there are any other call types.
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// symIsRO reports whether sym is a read-only global.
+func symIsRO(sym interface{}) bool {
+	lsym := sym.(*obj.LSym)
+	return lsym.Type == objabi.SRODATA && len(lsym.R) == 0
+}
+
+// read8 reads one byte from the read-only global sym at offset off.
+func read8(sym interface{}, off int64) uint8 {
+	lsym := sym.(*obj.LSym)
+	if off >= int64(len(lsym.P)) || off < 0 {
+		// Invalid index into the global sym.
+		// This can happen in dead code, so we don't want to panic.
+		// Just return any value, it will eventually get ignored.
+		// See issue 29215.
+		return 0
+	}
+	return lsym.P[off]
+}
+
+// read16 reads two bytes from the read-only global sym at offset off.
+func read16(sym interface{}, off int64, byteorder binary.ByteOrder) uint16 {
+	lsym := sym.(*obj.LSym)
+	// lsym.P is written lazily.
+	// Bytes requested after the end of lsym.P are 0.
+	var src []byte
+	if 0 <= off && off < int64(len(lsym.P)) {
+		src = lsym.P[off:]
+	}
+	buf := make([]byte, 2)
+	copy(buf, src)
+	return byteorder.Uint16(buf)
+}
+
+// read32 reads four bytes from the read-only global sym at offset off.
+func read32(sym interface{}, off int64, byteorder binary.ByteOrder) uint32 {
+	lsym := sym.(*obj.LSym)
+	var src []byte
+	if 0 <= off && off < int64(len(lsym.P)) {
+		src = lsym.P[off:]
+	}
+	buf := make([]byte, 4)
+	copy(buf, src)
+	return byteorder.Uint32(buf)
+}
+
+// read64 reads eight bytes from the read-only global sym at offset off.
+func read64(sym interface{}, off int64, byteorder binary.ByteOrder) uint64 {
+	lsym := sym.(*obj.LSym)
+	var src []byte
+	if 0 <= off && off < int64(len(lsym.P)) {
+		src = lsym.P[off:]
+	}
+	buf := make([]byte, 8)
+	copy(buf, src)
+	return byteorder.Uint64(buf)
+}
+
+// same reports whether x and y are the same value.
+// It checks to a maximum depth of d, so it may report
+// a false negative.
+func same(x, y *Value, depth int) bool {
+	if x == y {
+		return true
+	}
+	if depth <= 0 {
+		return false
+	}
+	if x.Op != y.Op || x.Aux != y.Aux || x.AuxInt != y.AuxInt {
+		return false
+	}
+	if len(x.Args) != len(y.Args) {
+		return false
+	}
+	if opcodeTable[x.Op].commutative {
+		// Check exchanged ordering first.
+		for i, a := range x.Args {
+			j := i
+			if j < 2 {
+				j ^= 1
+			}
+			b := y.Args[j]
+			if !same(a, b, depth-1) {
+				goto checkNormalOrder
+			}
+		}
+		return true
+	checkNormalOrder:
+	}
+	for i, a := range x.Args {
+		b := y.Args[i]
+		if !same(a, b, depth-1) {
+			return false
+		}
+	}
+	return true
 }

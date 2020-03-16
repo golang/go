@@ -63,6 +63,8 @@ func mapDirOpenError(originalErr error, name string) error {
 	return originalErr
 }
 
+// Open implements FileSystem using os.Open, opening files for reading rooted
+// and relative to the directory d.
 func (d Dir) Open(name string) (File, error) {
 	if filepath.Separator != '/' && strings.ContainsRune(name, filepath.Separator) {
 		return nil, errors.New("http: invalid character in file path")
@@ -235,17 +237,17 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, 
 		}
 		switch {
 		case len(ranges) == 1:
-			// RFC 2616, Section 14.16:
-			// "When an HTTP message includes the content of a single
-			// range (for example, a response to a request for a
-			// single range, or to a request for a set of ranges
-			// that overlap without any holes), this content is
-			// transmitted with a Content-Range header, and a
-			// Content-Length header showing the number of bytes
-			// actually transferred.
+			// RFC 7233, Section 4.1:
+			// "If a single part is being transferred, the server
+			// generating the 206 response MUST generate a
+			// Content-Range header field, describing what range
+			// of the selected representation is enclosed, and a
+			// payload consisting of the range.
 			// ...
-			// A response to a request for a single range MUST NOT
-			// be sent using the multipart/byteranges media type."
+			// A server MUST NOT generate a multipart response to
+			// a request for a single range, since a client that
+			// does not request multiple parts might not support
+			// multipart responses."
 			ra := ranges[0]
 			if _, err := content.Seek(ra.start, io.SeekStart); err != nil {
 				Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
@@ -382,15 +384,18 @@ func checkIfUnmodifiedSince(r *Request, modtime time.Time) condResult {
 	if ius == "" || isZeroTime(modtime) {
 		return condNone
 	}
-	if t, err := ParseTime(ius); err == nil {
-		// The Date-Modified header truncates sub-second precision, so
-		// use mtime < t+1s instead of mtime <= t to check for unmodified.
-		if modtime.Before(t.Add(1 * time.Second)) {
-			return condTrue
-		}
-		return condFalse
+	t, err := ParseTime(ius)
+	if err != nil {
+		return condNone
 	}
-	return condNone
+
+	// The Last-Modified header truncates sub-second precision so
+	// the modtime needs to be truncated too.
+	modtime = modtime.Truncate(time.Second)
+	if modtime.Before(t) || modtime.Equal(t) {
+		return condTrue
+	}
+	return condFalse
 }
 
 func checkIfNoneMatch(w ResponseWriter, r *Request) condResult {
@@ -434,9 +439,10 @@ func checkIfModifiedSince(r *Request, modtime time.Time) condResult {
 	if err != nil {
 		return condNone
 	}
-	// The Date-Modified header truncates sub-second precision, so
-	// use mtime < t+1s instead of mtime <= t to check for unmodified.
-	if modtime.Before(t.Add(1 * time.Second)) {
+	// The Last-Modified header truncates sub-second precision so
+	// the modtime needs to be truncated too.
+	modtime = modtime.Truncate(time.Second)
+	if modtime.Before(t) || modtime.Equal(t) {
 		return condFalse
 	}
 	return condTrue
@@ -580,17 +586,15 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 		}
 	}
 
-	// redirect if the directory name doesn't end in a slash
 	if d.IsDir() {
 		url := r.URL.Path
-		if url[len(url)-1] != '/' {
+		// redirect if the directory name doesn't end in a slash
+		if url == "" || url[len(url)-1] != '/' {
 			localRedirect(w, r, path.Base(url)+"/")
 			return
 		}
-	}
 
-	// use contents of index.html for directory, if present
-	if d.IsDir() {
+		// use contents of index.html for directory, if present
 		index := strings.TrimSuffix(name, "/") + indexPage
 		ff, err := fs.Open(index)
 		if err == nil {
@@ -610,7 +614,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
 			writeNotModified(w)
 			return
 		}
-		w.Header().Set("Last-Modified", d.ModTime().UTC().Format(TimeFormat))
+		setLastModified(w, d.ModTime())
 		dirList(w, r, f)
 		return
 	}
@@ -650,15 +654,23 @@ func localRedirect(w ResponseWriter, r *Request, newPath string) {
 // file or directory.
 //
 // If the provided file or directory name is a relative path, it is
-// interpreted relative to the current directory and may ascend to parent
-// directories. If the provided name is constructed from user input, it
-// should be sanitized before calling ServeFile. As a precaution, ServeFile
-// will reject requests where r.URL.Path contains a ".." path element.
+// interpreted relative to the current directory and may ascend to
+// parent directories. If the provided name is constructed from user
+// input, it should be sanitized before calling ServeFile.
 //
-// As a special case, ServeFile redirects any request where r.URL.Path
+// As a precaution, ServeFile will reject requests where r.URL.Path
+// contains a ".." path element; this protects against callers who
+// might unsafely use filepath.Join on r.URL.Path without sanitizing
+// it and then use that filepath.Join result as the name argument.
+//
+// As another special case, ServeFile redirects any request where r.URL.Path
 // ends in "/index.html" to the same path, without the final
 // "index.html". To avoid such redirects either modify the path or
 // use ServeContent.
+//
+// Outside of those two special cases, ServeFile does not use
+// r.URL.Path for selecting the file or directory to serve; only the
+// file or directory provided in the name argument is used.
 func ServeFile(w ResponseWriter, r *Request, name string) {
 	if containsDotDot(r.URL.Path) {
 		// Too many programs use r.URL.Path to construct the argument to
@@ -731,7 +743,7 @@ func (r httpRange) mimeHeader(contentType string, size int64) textproto.MIMEHead
 	}
 }
 
-// parseRange parses a Range header string as per RFC 2616.
+// parseRange parses a Range header string as per RFC 7233.
 // errNoOverlap is returned if none of the ranges overlap.
 func parseRange(s string, size int64) ([]httpRange, error) {
 	if s == "" {

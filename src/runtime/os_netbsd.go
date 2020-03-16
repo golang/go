@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"runtime/internal/atomic"
+	"runtime/internal/sys"
 	"unsafe"
 )
 
@@ -23,8 +24,6 @@ const (
 
 	// From <sys/lwp.h>
 	_LWP_DETACHED = 0x00000040
-
-	_EAGAIN = 35
 )
 
 type mOS struct {
@@ -48,8 +47,9 @@ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, nds
 
 func lwp_tramp()
 
-func raise(sig uint32)
 func raiseproc(sig uint32)
+
+func lwp_kill(tid int32, sig int)
 
 //go:noescape
 func getcontext(ctxt unsafe.Pointer)
@@ -66,6 +66,16 @@ func lwp_unpark(lwp int32, hint unsafe.Pointer) int32
 func lwp_self() int32
 
 func osyield()
+
+func kqueue() int32
+
+//go:noescape
+func kevent(kq int32, ch *keventt, nch int32, ev *keventt, nev int32, ts *timespec) int32
+
+func pipe() (r, w int32, errno int32)
+func pipe2(flags int32) (r, w int32, errno int32)
+func closeonexec(fd int32)
+func setNonblock(fd int32)
 
 const (
 	_ESRCH     = 3
@@ -119,15 +129,9 @@ func semacreate(mp *m) {
 //go:nosplit
 func semasleep(ns int64) int32 {
 	_g_ := getg()
-
-	// Compute sleep deadline.
-	var tsp *timespec
-	var ts timespec
+	var deadline int64
 	if ns >= 0 {
-		var nsec int32
-		ts.set_sec(timediv(ns, 1000000000, &nsec))
-		ts.set_nsec(nsec)
-		tsp = &ts
+		deadline = nanotime() + ns
 	}
 
 	for {
@@ -140,18 +144,19 @@ func semasleep(ns int64) int32 {
 		}
 
 		// Sleep until unparked by semawakeup or timeout.
+		var tsp *timespec
+		var ts timespec
+		if ns >= 0 {
+			wait := deadline - nanotime()
+			if wait <= 0 {
+				return -1
+			}
+			ts.setNsec(wait)
+			tsp = &ts
+		}
 		ret := lwp_park(_CLOCK_MONOTONIC, _TIMER_RELTIME, tsp, 0, unsafe.Pointer(&_g_.m.waitsemacount), nil)
 		if ret == _ETIMEDOUT {
 			return -1
-		} else if ret == _EINTR && ns >= 0 {
-			// Avoid sleeping forever if we keep getting
-			// interrupted (for example by the profiling
-			// timer). It would be if tsp upon return had the
-			// remaining time to sleep, but this is good enough.
-			var nsec int32
-			ns /= 2
-			ts.set_sec(timediv(ns, 1000000000, &nsec))
-			ts.set_nsec(nsec)
 		}
 	}
 }
@@ -173,7 +178,8 @@ func semawakeup(mp *m) {
 
 // May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
-func newosproc(mp *m, stk unsafe.Pointer) {
+func newosproc(mp *m) {
+	stk := unsafe.Pointer(mp.g0.stack.hi)
 	if false {
 		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " id=", mp.id, " ostk=", &mp, "\n")
 	}
@@ -223,7 +229,9 @@ func netbsdMstart() {
 
 func osinit() {
 	ncpu = getncpu()
-	physPageSize = getPageSize()
+	if physPageSize == 0 {
+		physPageSize = getPageSize()
+	}
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")
@@ -323,5 +331,51 @@ func sigdelset(mask *sigset, i int) {
 	mask.__bits[(i-1)/32] &^= 1 << ((uint32(i) - 1) & 31)
 }
 
+//go:nosplit
 func (c *sigctxt) fixsigcode(sig uint32) {
+}
+
+func sysargs(argc int32, argv **byte) {
+	n := argc + 1
+
+	// skip over argv, envp to get to auxv
+	for argv_index(argv, n) != nil {
+		n++
+	}
+
+	// skip NULL separator
+	n++
+
+	// now argv+n is auxv
+	auxv := (*[1 << 28]uintptr)(add(unsafe.Pointer(argv), uintptr(n)*sys.PtrSize))
+	sysauxv(auxv[:])
+}
+
+const (
+	_AT_NULL   = 0 // Terminates the vector
+	_AT_PAGESZ = 6 // Page size in bytes
+)
+
+func sysauxv(auxv []uintptr) {
+	for i := 0; auxv[i] != _AT_NULL; i += 2 {
+		tag, val := auxv[i], auxv[i+1]
+		switch tag {
+		case _AT_PAGESZ:
+			physPageSize = val
+		}
+	}
+}
+
+// raise sends signal to the calling thread.
+//
+// It must be nosplit because it is used by the signal handler before
+// it definitely has a Go stack.
+//
+//go:nosplit
+func raise(sig uint32) {
+	lwp_kill(lwp_self(), int(sig))
+}
+
+func signalM(mp *m, sig int) {
+	lwp_kill(int32(mp.procid), sig)
 }

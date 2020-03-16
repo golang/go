@@ -4,12 +4,17 @@
 
 package strings
 
-import "io"
+import (
+	"io"
+	"sync"
+)
 
 // Replacer replaces a list of strings with replacements.
 // It is safe for concurrent use by multiple goroutines.
 type Replacer struct {
-	r replacer
+	once   sync.Once // guards buildOnce method
+	r      replacer
+	oldnew []string
 }
 
 // replacer is the interface that a replacement algorithm needs to implement.
@@ -18,21 +23,34 @@ type replacer interface {
 	WriteString(w io.Writer, s string) (n int, err error)
 }
 
-// NewReplacer returns a new Replacer from a list of old, new string pairs.
-// Replacements are performed in order, without overlapping matches.
+// NewReplacer returns a new Replacer from a list of old, new string
+// pairs. Replacements are performed in the order they appear in the
+// target string, without overlapping matches. The old string
+// comparisons are done in argument order.
+//
+// NewReplacer panics if given an odd number of arguments.
 func NewReplacer(oldnew ...string) *Replacer {
 	if len(oldnew)%2 == 1 {
 		panic("strings.NewReplacer: odd argument count")
 	}
+	return &Replacer{oldnew: append([]string(nil), oldnew...)}
+}
 
+func (r *Replacer) buildOnce() {
+	r.r = r.build()
+	r.oldnew = nil
+}
+
+func (b *Replacer) build() replacer {
+	oldnew := b.oldnew
 	if len(oldnew) == 2 && len(oldnew[0]) > 1 {
-		return &Replacer{r: makeSingleStringReplacer(oldnew[0], oldnew[1])}
+		return makeSingleStringReplacer(oldnew[0], oldnew[1])
 	}
 
 	allNewBytes := true
 	for i := 0; i < len(oldnew); i += 2 {
 		if len(oldnew[i]) != 1 {
-			return &Replacer{r: makeGenericReplacer(oldnew)}
+			return makeGenericReplacer(oldnew)
 		}
 		if len(oldnew[i+1]) != 1 {
 			allNewBytes = false
@@ -51,27 +69,37 @@ func NewReplacer(oldnew ...string) *Replacer {
 			n := oldnew[i+1][0]
 			r[o] = n
 		}
-		return &Replacer{r: &r}
+		return &r
 	}
 
-	r := byteStringReplacer{}
+	r := byteStringReplacer{toReplace: make([]string, 0, len(oldnew)/2)}
 	// The first occurrence of old->new map takes precedence
 	// over the others with the same old string.
 	for i := len(oldnew) - 2; i >= 0; i -= 2 {
 		o := oldnew[i][0]
 		n := oldnew[i+1]
-		r[o] = []byte(n)
+		// To avoid counting repetitions multiple times.
+		if r.replacements[o] == nil {
+			// We need to use string([]byte{o}) instead of string(o),
+			// to avoid utf8 encoding of o.
+			// E. g. byte(150) produces string of length 2.
+			r.toReplace = append(r.toReplace, string([]byte{o}))
+		}
+		r.replacements[o] = []byte(n)
+
 	}
-	return &Replacer{r: &r}
+	return &r
 }
 
 // Replace returns a copy of s with all replacements performed.
 func (r *Replacer) Replace(s string) string {
+	r.once.Do(r.buildOnce)
 	return r.r.Replace(s)
 }
 
 // WriteString writes s to w with all replacements performed.
 func (r *Replacer) WriteString(w io.Writer, s string) (n int, err error) {
+	r.once.Do(r.buildOnce)
 	return r.r.WriteString(w, s)
 }
 
@@ -283,10 +311,6 @@ func (w *appendSliceWriter) WriteString(s string) (int, error) {
 	return len(s), nil
 }
 
-type stringWriterIface interface {
-	WriteString(string) (int, error)
-}
-
 type stringWriter struct {
 	w io.Writer
 }
@@ -295,8 +319,8 @@ func (w stringWriter) WriteString(s string) (int, error) {
 	return w.w.Write([]byte(s))
 }
 
-func getStringWriter(w io.Writer) stringWriterIface {
-	sw, ok := w.(stringWriterIface)
+func getStringWriter(w io.Writer) io.StringWriter {
+	sw, ok := w.(io.StringWriter)
 	if !ok {
 		sw = stringWriter{w}
 	}
@@ -438,7 +462,7 @@ func (r *byteReplacer) WriteString(w io.Writer, s string) (n int, err error) {
 	buf := make([]byte, bufsize)
 
 	for len(s) > 0 {
-		ncopy := copy(buf, s[:])
+		ncopy := copy(buf, s)
 		s = s[ncopy:]
 		for i, b := range buf[:ncopy] {
 			buf[i] = r[b]
@@ -454,34 +478,60 @@ func (r *byteReplacer) WriteString(w io.Writer, s string) (n int, err error) {
 
 // byteStringReplacer is the implementation that's used when all the
 // "old" values are single ASCII bytes but the "new" values vary in size.
-// The array contains replacement byte slices indexed by old byte.
-// A nil []byte means that the old byte should not be replaced.
-type byteStringReplacer [256][]byte
+type byteStringReplacer struct {
+	// replacements contains replacement byte slices indexed by old byte.
+	// A nil []byte means that the old byte should not be replaced.
+	replacements [256][]byte
+	// toReplace keeps a list of bytes to replace. Depending on length of toReplace
+	// and length of target string it may be faster to use Count, or a plain loop.
+	// We store single byte as a string, because Count takes a string.
+	toReplace []string
+}
+
+// countCutOff controls the ratio of a string length to a number of replacements
+// at which (*byteStringReplacer).Replace switches algorithms.
+// For strings with higher ration of length to replacements than that value,
+// we call Count, for each replacement from toReplace.
+// For strings, with a lower ratio we use simple loop, because of Count overhead.
+// countCutOff is an empirically determined overhead multiplier.
+// TODO(tocarip) revisit once we have register-based abi/mid-stack inlining.
+const countCutOff = 8
 
 func (r *byteStringReplacer) Replace(s string) string {
 	newSize := len(s)
 	anyChanges := false
-	for i := 0; i < len(s); i++ {
-		b := s[i]
-		if r[b] != nil {
-			anyChanges = true
-			// The -1 is because we are replacing 1 byte with len(r[b]) bytes.
-			newSize += len(r[b]) - 1
+	// Is it faster to use Count?
+	if len(r.toReplace)*countCutOff <= len(s) {
+		for _, x := range r.toReplace {
+			if c := Count(s, x); c != 0 {
+				// The -1 is because we are replacing 1 byte with len(replacements[b]) bytes.
+				newSize += c * (len(r.replacements[x[0]]) - 1)
+				anyChanges = true
+			}
+
+		}
+	} else {
+		for i := 0; i < len(s); i++ {
+			b := s[i]
+			if r.replacements[b] != nil {
+				// See above for explanation of -1
+				newSize += len(r.replacements[b]) - 1
+				anyChanges = true
+			}
 		}
 	}
 	if !anyChanges {
 		return s
 	}
 	buf := make([]byte, newSize)
-	bi := buf
+	j := 0
 	for i := 0; i < len(s); i++ {
 		b := s[i]
-		if r[b] != nil {
-			n := copy(bi, r[b])
-			bi = bi[n:]
+		if r.replacements[b] != nil {
+			j += copy(buf[j:], r.replacements[b])
 		} else {
-			bi[0] = b
-			bi = bi[1:]
+			buf[j] = b
+			j++
 		}
 	}
 	return string(buf)
@@ -492,7 +542,7 @@ func (r *byteStringReplacer) WriteString(w io.Writer, s string) (n int, err erro
 	last := 0
 	for i := 0; i < len(s); i++ {
 		b := s[i]
-		if r[b] == nil {
+		if r.replacements[b] == nil {
 			continue
 		}
 		if last != i {
@@ -503,7 +553,7 @@ func (r *byteStringReplacer) WriteString(w io.Writer, s string) (n int, err erro
 			}
 		}
 		last = i + 1
-		nw, err := w.Write(r[b])
+		nw, err := w.Write(r.replacements[b])
 		n += nw
 		if err != nil {
 			return n, err

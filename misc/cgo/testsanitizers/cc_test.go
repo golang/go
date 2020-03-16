@@ -374,26 +374,27 @@ func (c *config) checkRuntime() (skip bool, err error) {
 	}
 
 	// libcgo.h sets CGO_TSAN if it detects TSAN support in the C compiler.
-	// Dump the preprocessor defines to check that that works.
+	// Dump the preprocessor defines to check that works.
 	// (Sometimes it doesn't: see https://golang.org/issue/15983.)
 	cmd, err := cc(c.cFlags...)
 	if err != nil {
 		return false, err
 	}
 	cmd.Args = append(cmd.Args, "-dM", "-E", "../../../src/runtime/cgo/libcgo.h")
+	cmdStr := strings.Join(cmd.Args, " ")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return false, fmt.Errorf("%#q exited with %v\n%s", strings.Join(cmd.Args, " "), err, out)
+		return false, fmt.Errorf("%#q exited with %v\n%s", cmdStr, err, out)
 	}
 	if !bytes.Contains(out, []byte("#define CGO_TSAN")) {
-		return true, fmt.Errorf("%#q did not define CGO_TSAN")
+		return true, fmt.Errorf("%#q did not define CGO_TSAN", cmdStr)
 	}
 	return false, nil
 }
 
 // srcPath returns the path to the given file relative to this test's source tree.
 func srcPath(path string) string {
-	return filepath.Join("src", path)
+	return filepath.Join("testdata", path)
 }
 
 // A tempDir manages a temporary directory within a test.

@@ -5,6 +5,7 @@
 package main
 
 import (
+	"crypto/md5"
 	"flag"
 	"fmt"
 	"go/build"
@@ -24,6 +25,7 @@ func TestMain(m *testing.M) {
 	if !testenv.HasGoBuild() {
 		return
 	}
+
 	var exitcode int
 	if err := buildObjdump(); err == nil {
 		exitcode = m.Run()
@@ -86,6 +88,7 @@ var target = flag.String("target", "", "test disassembly of `goos/goarch` binary
 // can handle that one.
 
 func testDisasm(t *testing.T, printCode bool, flags ...string) {
+	t.Parallel()
 	goarch := runtime.GOARCH
 	if *target != "" {
 		f := strings.Split(*target, "/")
@@ -99,11 +102,15 @@ func testDisasm(t *testing.T, printCode bool, flags ...string) {
 		goarch = f[1]
 	}
 
-	hello := filepath.Join(tmp, "hello.exe")
+	hash := md5.Sum([]byte(fmt.Sprintf("%v-%v", flags, printCode)))
+	hello := filepath.Join(tmp, fmt.Sprintf("hello-%x.exe", hash))
 	args := []string{"build", "-o", hello}
 	args = append(args, flags...)
-	args = append(args, "testdata/fmthello.go")
-	out, err := exec.Command(testenv.GoToolPath(t), args...).CombinedOutput()
+	args = append(args, "fmthello.go")
+	cmd := exec.Command(testenv.GoToolPath(t), args...)
+	cmd.Dir = "testdata" // "Bad line" bug #36683 is sensitive to being run in the source directory
+	t.Logf("Running %v", cmd.Args)
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("go build fmthello.go: %v\n%s", err, out)
 	}
@@ -135,7 +142,11 @@ func testDisasm(t *testing.T, printCode bool, flags ...string) {
 		args = append([]string{"-S"}, args...)
 	}
 
-	out, err = exec.Command(exe, args...).CombinedOutput()
+	cmd = exec.Command(exe, args...)
+	cmd.Dir = "testdata" // "Bad line" bug #36683 is sensitive to being run in the source directory
+	out, err = cmd.CombinedOutput()
+	t.Logf("Running %v", cmd.Args)
+
 	if err != nil {
 		t.Fatalf("objdump fmthello.exe: %v\n%s", err, out)
 	}
@@ -164,6 +175,8 @@ func TestDisasm(t *testing.T) {
 	switch runtime.GOARCH {
 	case "mips", "mipsle", "mips64", "mips64le":
 		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
+	case "riscv64":
+		t.Skipf("skipping on %s, issue 36738", runtime.GOARCH)
 	case "s390x":
 		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
 	}
@@ -172,10 +185,8 @@ func TestDisasm(t *testing.T) {
 
 func TestDisasmCode(t *testing.T) {
 	switch runtime.GOARCH {
-	case "mips", "mipsle", "mips64", "mips64le":
-		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
-	case "s390x":
-		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
+	case "mips", "mipsle", "mips64", "mips64le", "riscv64", "s390x":
+		t.Skipf("skipping on %s, issue 19160", runtime.GOARCH)
 	}
 	testDisasm(t, true)
 }
@@ -190,12 +201,10 @@ func TestDisasmExtld(t *testing.T) {
 		t.Skipf("skipping on %s, no support for external linking, issue 9038", runtime.GOARCH)
 	case "mips64", "mips64le", "mips", "mipsle":
 		t.Skipf("skipping on %s, issue 12559 and 12560", runtime.GOARCH)
+	case "riscv64":
+		t.Skipf("skipping on %s, no support for external linking, issue 36739", runtime.GOARCH)
 	case "s390x":
 		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
-	}
-	// TODO(jsing): Reenable once openbsd/arm has external linking support.
-	if runtime.GOOS == "openbsd" && runtime.GOARCH == "arm" {
-		t.Skip("skipping on openbsd/arm, no support for external linking, issue 10619")
 	}
 	if !build.Default.CgoEnabled {
 		t.Skip("skipping because cgo is not enabled")
@@ -207,6 +216,8 @@ func TestDisasmGoobj(t *testing.T) {
 	switch runtime.GOARCH {
 	case "mips", "mipsle", "mips64", "mips64le":
 		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
+	case "riscv64":
+		t.Skipf("skipping on %s, issue 36738", runtime.GOARCH)
 	case "s390x":
 		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
 	}

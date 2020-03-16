@@ -110,7 +110,7 @@ func (s *stackAllocState) init(f *Func, spillLive [][]ID) {
 	for _, b := range f.Blocks {
 		for _, v := range b.Values {
 			s.values[v.ID].typ = v.Type
-			s.values[v.ID].needSlot = !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags() && f.getHome(v.ID) == nil && !v.rematerializeable()
+			s.values[v.ID].needSlot = !v.Type.IsMemory() && !v.Type.IsVoid() && !v.Type.IsFlags() && f.getHome(v.ID) == nil && !v.rematerializeable() && !v.OnWasmStack
 			s.values[v.ID].isArg = v.Op == OpArg
 			if f.pass.debug > stackDebug && s.values[v.ID].needSlot {
 				fmt.Printf("%s needs a stack slot\n", v)
@@ -212,7 +212,7 @@ func (s *stackAllocState) stackalloc() {
 					h := f.getHome(id)
 					if h != nil && h.(LocalSlot).N == name.N && h.(LocalSlot).Off == name.Off {
 						// A variable can interfere with itself.
-						// It is rare, but but it can happen.
+						// It is rare, but it can happen.
 						s.nSelfInterfere++
 						goto noname
 					}

@@ -31,42 +31,31 @@ type mstats struct {
 	nfree       uint64 // number of frees
 
 	// Statistics about malloc heap.
-	// Protected by mheap.lock
+	// Updated atomically, or with the world stopped.
 	//
 	// Like MemStats, heap_sys and heap_inuse do not count memory
 	// in manually-managed spans.
 	heap_alloc    uint64 // bytes allocated and not yet freed (same as alloc above)
 	heap_sys      uint64 // virtual address space obtained from system for GC'd heap
 	heap_idle     uint64 // bytes in idle spans
-	heap_inuse    uint64 // bytes in _MSpanInUse spans
+	heap_inuse    uint64 // bytes in mSpanInUse spans
 	heap_released uint64 // bytes released to the os
-	heap_objects  uint64 // total number of allocated objects
 
-	// TODO(austin): heap_released is both useless and inaccurate
-	// in its current form. It's useless because, from the user's
-	// and OS's perspectives, there's no difference between a page
-	// that has not yet been faulted in and a page that has been
-	// released back to the OS. We could fix this by considering
-	// newly mapped spans to be "released". It's inaccurate
-	// because when we split a large span for allocation, we
-	// "unrelease" all pages in the large span and not just the
-	// ones we split off for use. This is trickier to fix because
-	// we currently don't know which pages of a span we've
-	// released. We could fix it by separating "free" and
-	// "released" spans, but then we have to allocate from runs of
-	// free and released spans.
+	// heap_objects is not used by the runtime directly and instead
+	// computed on the fly by updatememstats.
+	heap_objects uint64 // total number of allocated objects
 
 	// Statistics about allocation of low-level fixed-size structures.
 	// Protected by FixAlloc locks.
-	stacks_inuse uint64 // bytes in manually-managed stack spans
+	stacks_inuse uint64 // bytes in manually-managed stack spans; updated atomically or during STW
 	stacks_sys   uint64 // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
 	mspan_inuse  uint64 // mspan structures
 	mspan_sys    uint64
 	mcache_inuse uint64 // mcache structures
 	mcache_sys   uint64
 	buckhash_sys uint64 // profiling bucket hash table
-	gc_sys       uint64
-	other_sys    uint64
+	gc_sys       uint64 // updated atomically or during STW
+	other_sys    uint64 // updated atomically or during STW
 
 	// Statistics about garbage collector.
 	// Protected by mheap or stopping the world during GC.
@@ -93,6 +82,8 @@ type mstats struct {
 
 	last_gc_nanotime uint64 // last gc (monotonic time)
 	tinyallocs       uint64 // number of tiny allocations that didn't cause actual allocation; not exported to go directly
+	last_next_gc     uint64 // next_gc for the previous GC
+	last_heap_inuse  uint64 // heap_inuse at mark termination of the previous GC
 
 	// triggerRatio is the heap growth ratio that triggers marking.
 	//
@@ -484,6 +475,9 @@ func readGCStats(pauses *[]uint64) {
 	})
 }
 
+// readGCStats_m must be called on the system stack because it acquires the heap
+// lock. See mheap for details.
+//go:systemstack
 func readGCStats_m(pauses *[]uint64) {
 	p := *pauses
 	// Calling code in runtime/debug should make the slice large enough.
@@ -543,7 +537,7 @@ func updatememstats() {
 		memstats.by_size[i].nfree = 0
 	}
 
-	// Flush MCache's to MCentral.
+	// Flush mcache's to mcentral.
 	systemstack(flushallmcaches)
 
 	// Aggregate local stats.

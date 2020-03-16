@@ -69,6 +69,7 @@ data, defined in detail in the corresponding sections that follow.
 
 */
 //	{{/* a comment */}}
+//	{{- /* a comment with white space trimmed from preceding and following text */ -}}
 //		A comment; discarded. May contain newlines.
 //		Comments do not nest and must start and end at the
 //		delimiters, as shown here.
@@ -101,8 +102,8 @@ data, defined in detail in the corresponding sections that follow.
 		If the value of the pipeline has length zero, nothing is output;
 		otherwise, dot is set to the successive elements of the array,
 		slice, or map and T1 is executed. If the value is a map and the
-		keys are of basic type with a defined order ("comparable"), the
-		elements will be visited in sorted key order.
+		keys are of basic type with a defined order, the elements will be
+		visited in sorted key order.
 
 	{{range pipeline}} T1 {{else}} T0 {{end}}
 		The value of the pipeline must be an array, slice, map, or channel.
@@ -121,7 +122,7 @@ data, defined in detail in the corresponding sections that follow.
 		A block is shorthand for defining a template
 			{{define "name"}} T1 {{end}}
 		and then executing it in place
-			{{template "name" .}}
+			{{template "name" pipeline}}
 		The typical use is to define a set of root templates that are
 		then customized by redefining the block templates within.
 
@@ -141,7 +142,9 @@ An argument is a simple value, denoted by one of the following.
 
 	- A boolean, string, character, integer, floating-point, imaginary
 	  or complex constant in Go syntax. These behave like Go's untyped
-	  constants.
+	  constants. Note that, as in Go, whether a large integer constant
+	  overflows when assigned or passed to a function can depend on whether
+	  the host machine's ints are 32 or 64 bits.
 	- The keyword nil, representing an untyped Go nil.
 	- The character '.' (period):
 		.
@@ -241,6 +244,10 @@ The initialization has syntax
 where $variable is the name of the variable. An action that declares a
 variable produces no output.
 
+Variables previously declared can also be assigned, using the syntax
+
+	$variable = pipeline
+
 If a "range" action initializes a variable, the variable is set to the
 successive elements of the iteration. Also, a "range" may declare two
 variables, separated by a comma:
@@ -321,6 +328,11 @@ Predefined global functions are named as follows.
 		Returns the result of indexing its first argument by the
 		following arguments. Thus "index x 1 2 3" is, in Go syntax,
 		x[1][2][3]. Each indexed item must be a map, slice, or array.
+	slice
+		slice returns the result of slicing its first argument by the
+		remaining arguments. Thus "slice x 1 2" is, in Go syntax, x[1:2],
+		while "slice x" is x[:], "slice x 1" is x[1:], and "slice x 1 2 3"
+		is x[1:2:3]. The first argument must be a string, slice, or array.
 	js
 		Returns the escaped JavaScript equivalent of the textual
 		representation of its arguments.
@@ -373,14 +385,12 @@ returning in effect
 (Unlike with || in Go, however, eq is a function call and all the
 arguments will be evaluated.)
 
-The comparison functions work on basic types only (or named basic
-types, such as "type Celsius float32"). They implement the Go rules
-for comparison of values, except that size and exact type are
-ignored, so any integer value, signed or unsigned, may be compared
-with any other integer value. (The arithmetic value is compared,
-not the bit pattern, so all negative integers are less than all
-unsigned integers.) However, as usual, one may not compare an int
-with a float32 and so on.
+The comparison functions work on any values whose type Go defines as
+comparable. For basic types such as integers, the rules are relaxed:
+size and exact type are ignored, so any integer value, signed or unsigned,
+may be compared with any other integer value. (The arithmetic value is compared,
+not the bit pattern, so all negative integers are less than all unsigned integers.)
+However, as usual, one may not compare an int with a float32 and so on.
 
 Associated templates
 

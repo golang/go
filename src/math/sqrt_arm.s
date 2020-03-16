@@ -4,9 +4,17 @@
 
 #include "textflag.h"
 
-// func Sqrt(x float64) float64	
+// func Sqrt(x float64) float64
 TEXT ·Sqrt(SB),NOSPLIT,$0
-	MOVD   x+0(FP),F0
-	SQRTD  F0,F0
-	MOVD  F0,ret+8(FP)
+	MOVB	runtime·goarm(SB), R11
+	CMP	$5, R11
+	BEQ	arm5
+	MOVD	x+0(FP),F0
+	SQRTD	F0,F0
+	MOVD	F0,ret+8(FP)
 	RET
+arm5:
+	// Tail call to Go implementation.
+	// Can't use JMP, as in softfloat mode SQRTD is rewritten
+	// to a CALL, which makes this function have a frame.
+	RET	·sqrt(SB)

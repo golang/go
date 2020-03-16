@@ -55,8 +55,8 @@ func (c *UDPConn) writeMsg(b, oob []byte, addr *UDPAddr) (n, oobn int, err error
 	return 0, 0, syscall.EPLAN9
 }
 
-func dialUDP(ctx context.Context, net string, laddr, raddr *UDPAddr) (*UDPConn, error) {
-	fd, err := dialPlan9(ctx, net, laddr, raddr)
+func (sd *sysDialer) dialUDP(ctx context.Context, laddr, raddr *UDPAddr) (*UDPConn, error) {
+	fd, err := dialPlan9(ctx, sd.network, laddr, raddr)
 	if err != nil {
 		return nil, err
 	}
@@ -91,8 +91,8 @@ func unmarshalUDPHeader(b []byte) (*udpHeader, []byte) {
 	return h, b
 }
 
-func listenUDP(ctx context.Context, network string, laddr *UDPAddr) (*UDPConn, error) {
-	l, err := listenPlan9(ctx, network, laddr)
+func (sl *sysListener) listenUDP(ctx context.Context, laddr *UDPAddr) (*UDPConn, error) {
+	l, err := listenPlan9(ctx, sl.network, laddr)
 	if err != nil {
 		return nil, err
 	}
@@ -108,8 +108,10 @@ func listenUDP(ctx context.Context, network string, laddr *UDPAddr) (*UDPConn, e
 	return newUDPConn(fd), err
 }
 
-func listenMulticastUDP(ctx context.Context, network string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
-	l, err := listenPlan9(ctx, network, gaddr)
+func (sl *sysListener) listenMulticastUDP(ctx context.Context, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
+	// Plan 9 does not like announce command with a multicast address,
+	// so do not specify an IP address when listening.
+	l, err := listenPlan9(ctx, sl.network, &UDPAddr{IP: nil, Port: gaddr.Port, Zone: gaddr.Zone})
 	if err != nil {
 		return nil, err
 	}
@@ -129,11 +131,13 @@ func listenMulticastUDP(ctx context.Context, network string, ifi *Interface, gad
 			return nil, err
 		}
 	}
+
+	have4 := gaddr.IP.To4() != nil
 	for _, addr := range addrs {
-		if ipnet, ok := addr.(*IPNet); ok {
+		if ipnet, ok := addr.(*IPNet); ok && (ipnet.IP.To4() != nil) == have4 {
 			_, err = l.ctl.WriteString("addmulti " + ipnet.IP.String() + " " + gaddr.IP.String())
 			if err != nil {
-				return nil, err
+				return nil, &OpError{Op: "addmulti", Net: "", Source: nil, Addr: ipnet, Err: err}
 			}
 		}
 	}

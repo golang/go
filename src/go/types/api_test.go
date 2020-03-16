@@ -26,7 +26,6 @@ func pkgFor(path, source string, info *Info) (*Package, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	conf := Config{Importer: importer.Default()}
 	return conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
 }
@@ -40,6 +39,20 @@ func mustTypecheck(t *testing.T, path, source string, info *Info) string {
 		}
 		t.Fatalf("%s: didn't type-check (%s)", name, err)
 	}
+	return pkg.Name()
+}
+
+func mayTypecheck(t *testing.T, path, source string, info *Info) string {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, path, source, 0)
+	if f == nil { // ignore errors unless f is nil
+		t.Fatalf("%s: unable to parse: %s", path, err)
+	}
+	conf := Config{
+		Error:    func(err error) {},
+		Importer: importer.Default(),
+	}
+	pkg, _ := conf.Check(f.Name.Name, fset, []*ast.File{f}, info)
 	return pkg.Name()
 }
 
@@ -243,11 +256,29 @@ func TestTypesInfo(t *testing.T) {
 			`<-ch`,
 			`(string, bool)`,
 		},
+
+		// issue 28277
+		{`package issue28277_a; func f(...int)`,
+			`...int`,
+			`[]int`,
+		},
+		{`package issue28277_b; func f(a, b int, c ...[]struct{})`,
+			`...[]struct{}`,
+			`[][]struct{}`,
+		},
+
+		// tests for broken code that doesn't parse or type-check
+		{`package x0; func _() { var x struct {f string}; x.f := 0 }`, `x.f`, `string`},
+		{`package x1; func _() { var z string; type x struct {f string}; y := &x{q: z}}`, `z`, `string`},
+		{`package x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a; f: b;}}`, `b`, `string`},
+		{`package x3; var x = panic("");`, `panic`, `func(interface{})`},
+		{`package x4; func _() { panic("") }`, `panic`, `func(interface{})`},
+		{`package x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
 	}
 
 	for _, test := range tests {
 		info := Info{Types: make(map[ast.Expr]TypeAndValue)}
-		name := mustTypecheck(t, "TypesInfo", test.src, &info)
+		name := mayTypecheck(t, "TypesInfo", test.src, &info)
 
 		// look for expression type
 		var typ Type
@@ -368,6 +399,8 @@ func TestPredicatesInfo(t *testing.T) {
 		{`package t0; type _ int`, `int`, `type`},
 		{`package t1; type _ []int`, `[]int`, `type`},
 		{`package t2; type _ func()`, `func()`, `type`},
+		{`package t3; type _ func(int)`, `int`, `type`},
+		{`package t3; type _ func(...int)`, `...int`, `type`},
 
 		// built-ins
 		{`package b0; var _ = len("")`, `len`, `builtin`},

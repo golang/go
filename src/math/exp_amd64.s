@@ -8,7 +8,7 @@
 // methods of elementary functions suitable for SIMD computation", Proc.
 // of International Supercomputing Conference 2010 (ISC'10), pp. 25 -- 32
 // (May 2010). The paper is available at
-// http://www.springerlink.com/content/340228x165742104/
+// https://www.springerlink.com/content/340228x165742104/
 //
 // The original code and the constants below are from the author's
 // implementation available at http://freshmeat.net/projects/sleef.
@@ -96,14 +96,13 @@ TEXT ·Exp(SB),NOSPLIT,$0
 	MULSD   X1, X0
 	ADDSD exprodata<>+8(SB), X0
 	// return fr * 2**exponent
-lastStep:
-	MOVL    $0x3FF, AX // bias
-	ADDL    AX, BX
-	JLE     underflow
+ldexp:
+	ADDL    $0x3FF, BX // add bias
+	JLE     denormal
 	CMPL    BX, $0x7FF
 	JGE     overflow
-	MOVL    $52, CX
-	SHLQ    CX, BX
+lastStep:
+	SHLQ    $52, BX
 	MOVQ    BX, X1
 	MULSD   X1, X0
 	MOVSD   X0, ret+8(FP)
@@ -115,14 +114,22 @@ notFinite:
 	JNE     notNegInf
 	// -Inf, return 0
 underflow: // return 0
-	MOVQ    $0, AX
-	MOVQ    AX, ret+8(FP)
+	MOVQ    $0, ret+8(FP)
 	RET
 overflow: // return +Inf
 	MOVQ    $PosInf, BX
 notNegInf: // NaN or +Inf, return x
 	MOVQ    BX, ret+8(FP)
 	RET
+denormal:
+	CMPL    BX, $-52
+	JL      underflow
+	ADDL    $0x3FE, BX // add bias - 1
+	SHLQ    $52, BX
+	MOVQ    BX, X1
+	MULSD   X1, X0
+	MOVQ    $1, BX
+	JMP     lastStep
 
 avxfma:
 	MOVSD   $LN2U, X2
@@ -149,4 +156,4 @@ avxfma:
 	MULSD   X1, X0
 	VADDSD exprodata<>+16(SB), X0, X1
 	VFMADD213SD   exprodata<>+8(SB), X1, X0
-	JMP lastStep
+	JMP ldexp

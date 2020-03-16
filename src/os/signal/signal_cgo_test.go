@@ -22,6 +22,7 @@ import (
 	"os/signal/internal/pty"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -89,6 +90,8 @@ func TestTerminalSignal(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, bash, "--norc", "--noprofile", "-i")
+	// Clear HISTFILE so that we don't read or clobber the user's bash history.
+	cmd.Env = append(os.Environ(), "HISTFILE=")
 	cmd.Stdin = slave
 	cmd.Stdout = slave
 	cmd.Stderr = slave
@@ -111,7 +114,11 @@ func TestTerminalSignal(t *testing.T) {
 	const prompt = "prompt> "
 
 	// Read data from master in the background.
+	var wg sync.WaitGroup
+	wg.Add(1)
+	defer wg.Wait()
 	go func() {
+		defer wg.Done()
 		input := bufio.NewReader(master)
 		var line, handled []byte
 		for {

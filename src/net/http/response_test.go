@@ -10,7 +10,7 @@ import (
 	"compress/gzip"
 	"crypto/rand"
 	"fmt"
-	"go/ast"
+	"go/token"
 	"io"
 	"io/ioutil"
 	"net/http/internal"
@@ -157,6 +157,34 @@ var respTests = []respTest{
 		"Body here\ncontinued",
 	},
 
+	// Trailer header but no TransferEncoding
+	{
+		"HTTP/1.0 200 OK\r\n" +
+			"Trailer: Content-MD5, Content-Sources\r\n" +
+			"Content-Length: 10\r\n" +
+			"Connection: close\r\n" +
+			"\r\n" +
+			"Body here\n",
+
+		Response{
+			Status:     "200 OK",
+			StatusCode: 200,
+			Proto:      "HTTP/1.0",
+			ProtoMajor: 1,
+			ProtoMinor: 0,
+			Request:    dummyReq("GET"),
+			Header: Header{
+				"Connection":     {"close"},
+				"Content-Length": {"10"},
+				"Trailer":        []string{"Content-MD5, Content-Sources"},
+			},
+			Close:         true,
+			ContentLength: 10,
+		},
+
+		"Body here\n",
+	},
+
 	// Chunked response with Content-Length.
 	{
 		"HTTP/1.1 200 OK\r\n" +
@@ -295,7 +323,7 @@ var respTests = []respTest{
 	},
 
 	// Status line without a Reason-Phrase, but trailing space.
-	// (permitted by RFC 2616)
+	// (permitted by RFC 7230, section 3.1.2)
 	{
 		"HTTP/1.0 303 \r\n\r\n",
 		Response{
@@ -314,7 +342,7 @@ var respTests = []respTest{
 	},
 
 	// Status line without a Reason-Phrase, and no trailing space.
-	// (not permitted by RFC 2616, but we'll accept it anyway)
+	// (not permitted by RFC 7230, but we'll accept it anyway)
 	{
 		"HTTP/1.0 303\r\n\r\n",
 		Response{
@@ -608,6 +636,11 @@ var readResponseCloseInMiddleTests = []struct {
 	{true, true},
 }
 
+type readerAndCloser struct {
+	io.Reader
+	io.Closer
+}
+
 // TestReadResponseCloseInMiddle tests that closing a body after
 // reading only part of its contents advances the read to the end of
 // the request, right up until the next request.
@@ -708,7 +741,7 @@ func diff(t *testing.T, prefix string, have, want interface{}) {
 	}
 	for i := 0; i < hv.NumField(); i++ {
 		name := hv.Type().Field(i).Name
-		if !ast.IsExported(name) {
+		if !token.IsExported(name) {
 			continue
 		}
 		hf := hv.Field(i).Interface()

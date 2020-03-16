@@ -30,7 +30,8 @@ func main() {
 
 	goarch := os.Getenv("GOARCH")
 	goos := os.Getenv("GOOS")
-	if goarch == "s390x" && goos == "linux" {
+	switch {
+	case goarch == "s390x" && goos == "linux":
 		// Export the types of PtraceRegs fields.
 		re := regexp.MustCompile("ptrace(Psw|Fpregs|Per)")
 		s = re.ReplaceAllString(s, "Ptrace$1")
@@ -53,6 +54,11 @@ func main() {
 		// the existing gccgo API.
 		re = regexp.MustCompile("(Data\\s+\\[14\\])uint8")
 		s = re.ReplaceAllString(s, "${1}int8")
+
+	case goos == "freebsd":
+		// Keep pre-FreeBSD 10 / non-POSIX 2008 names for timespec fields
+		re := regexp.MustCompile("(A|M|C|Birth)tim\\s+Timespec")
+		s = re.ReplaceAllString(s, "${1}timespec Timespec")
 	}
 
 	// gofmt

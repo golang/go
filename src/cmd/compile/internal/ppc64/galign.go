@@ -16,11 +16,11 @@ func Init(arch *gc.Arch) {
 		arch.LinkArch = &ppc64.Linkppc64le
 	}
 	arch.REGSP = ppc64.REGSP
-	arch.MAXWIDTH = 1 << 50
+	arch.MAXWIDTH = 1 << 60
 
 	arch.ZeroRange = zerorange
-	arch.ZeroAuto = zeroAuto
-	arch.Ginsnop = ginsnop2
+	arch.Ginsnop = ginsnop
+	arch.Ginsnopdefer = ginsnopdefer
 
 	arch.SSAMarkMoves = ssaMarkMoves
 	arch.SSAGenValue = ssaGenValue

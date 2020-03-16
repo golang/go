@@ -48,6 +48,7 @@
 //	bench  - the benchmark printed log output but did not fail
 //	fail   - the test or benchmark failed
 //	output - the test printed output
+//	skip   - the test was skipped or the package contained no tests
 //
 // The Package field, if present, specifies the package being tested.
 // When the go command runs parallel tests in -json mode, events from

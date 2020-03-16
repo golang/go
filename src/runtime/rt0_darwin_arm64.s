@@ -8,8 +8,7 @@
 // supports external linking.
 TEXT _rt0_arm64_darwin(SB),NOSPLIT|NOFRAME,$0
 	MOVD	$42, R0
-	MOVD	$1, R16	// SYS_exit
-	SVC	$0x80
+	BL  libc_exit(SB)
 
 // When linking with -buildmode=c-archive or -buildmode=c-shared,
 // this symbol is called from a global initialization function.
@@ -27,17 +26,20 @@ TEXT _rt0_arm64_darwin_lib(SB),NOSPLIT,$168
 	MOVD R25, 72(RSP)
 	MOVD R26, 80(RSP)
 	MOVD R27, 88(RSP)
-	FMOVD F8, 96(RSP)
-	FMOVD F9, 104(RSP)
-	FMOVD F10, 112(RSP)
-	FMOVD F11, 120(RSP)
-	FMOVD F12, 128(RSP)
-	FMOVD F13, 136(RSP)
-	FMOVD F14, 144(RSP)
-	FMOVD F15, 152(RSP)
+	MOVD g, 96(RSP)
+	FMOVD F8, 104(RSP)
+	FMOVD F9, 112(RSP)
+	FMOVD F10, 120(RSP)
+	FMOVD F11, 128(RSP)
+	FMOVD F12, 136(RSP)
+	FMOVD F13, 144(RSP)
+	FMOVD F14, 152(RSP)
+	FMOVD F15, 160(RSP)
 
 	MOVD  R0, _rt0_arm64_darwin_lib_argc<>(SB)
 	MOVD  R1, _rt0_arm64_darwin_lib_argv<>(SB)
+
+	MOVD	$0, g // initialize g to nil
 
 	// Synchronous initialization.
 	MOVD	$runtime·libpreinit(SB), R4
@@ -47,7 +49,9 @@ TEXT _rt0_arm64_darwin_lib(SB),NOSPLIT,$168
 	MOVD  _cgo_sys_thread_create(SB), R4
 	MOVD  $_rt0_arm64_darwin_lib_go(SB), R0
 	MOVD  $0, R1
+	SUB   $16, RSP		// reserve 16 bytes for sp-8 where fp may be saved.
 	BL    (R4)
+	ADD   $16, RSP
 
 	// Restore callee-save registers.
 	MOVD 24(RSP), R19
@@ -59,14 +63,16 @@ TEXT _rt0_arm64_darwin_lib(SB),NOSPLIT,$168
 	MOVD 72(RSP), R25
 	MOVD 80(RSP), R26
 	MOVD 88(RSP), R27
-	FMOVD 96(RSP), F8
-	FMOVD 104(RSP), F9
-	FMOVD 112(RSP), F10
-	FMOVD 120(RSP), F11
-	FMOVD 128(RSP), F12
-	FMOVD 136(RSP), F13
-	FMOVD 144(RSP), F14
-	FMOVD 152(RSP), F15
+	MOVD 96(RSP), g
+	FMOVD 104(RSP), F8
+	FMOVD 112(RSP), F9
+	FMOVD 120(RSP), F10
+	FMOVD 128(RSP), F11
+	FMOVD 136(RSP), F12
+	FMOVD 144(RSP), F13
+	FMOVD 152(RSP), F14
+	FMOVD 160(RSP), F15
+
 	RET
 
 TEXT _rt0_arm64_darwin_lib_go(SB),NOSPLIT,$0

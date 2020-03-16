@@ -6,10 +6,8 @@
 package base32
 
 import (
-	"bytes"
 	"io"
 	"strconv"
-	"strings"
 )
 
 /*
@@ -21,7 +19,7 @@ import (
 // introduced for SASL GSSAPI and standardized in RFC 4648.
 // The alternate "base32hex" encoding is used in DNSSEC.
 type Encoding struct {
-	encode    string
+	encode    [32]byte
 	decodeMap [256]byte
 	padChar   rune
 }
@@ -37,8 +35,12 @@ const encodeHex = "0123456789ABCDEFGHIJKLMNOPQRSTUV"
 // NewEncoding returns a new Encoding defined by the given alphabet,
 // which must be a 32-byte string.
 func NewEncoding(encoder string) *Encoding {
+	if len(encoder) != 32 {
+		panic("encoding alphabet is not 32-bytes long")
+	}
+
 	e := new(Encoding)
-	e.encode = encoder
+	copy(e.encode[:], encoder)
 	e.padChar = StdPadding
 
 	for i := 0; i < len(e.decodeMap); i++ {
@@ -57,13 +59,6 @@ var StdEncoding = NewEncoding(encodeStd)
 // HexEncoding is the ``Extended Hex Alphabet'' defined in RFC 4648.
 // It is typically used in DNS.
 var HexEncoding = NewEncoding(encodeHex)
-
-var removeNewlinesMapper = func(r rune) rune {
-	if r == '\r' || r == '\n' {
-		return -1
-	}
-	return r
-}
 
 // WithPadding creates a new encoding identical to enc except
 // with a specified padding character, or NoPadding to disable padding.
@@ -96,10 +91,6 @@ func (enc Encoding) WithPadding(padding rune) *Encoding {
 // so Encode is not appropriate for use on individual blocks
 // of a large data stream. Use NewEncoder() instead.
 func (enc *Encoding) Encode(dst, src []byte) {
-	if len(src) == 0 {
-		return
-	}
-
 	for len(src) > 0 {
 		var b [8]byte
 
@@ -133,17 +124,17 @@ func (enc *Encoding) Encode(dst, src []byte) {
 		size := len(dst)
 		if size >= 8 {
 			// Common case, unrolled for extra performance
-			dst[0] = enc.encode[b[0]]
-			dst[1] = enc.encode[b[1]]
-			dst[2] = enc.encode[b[2]]
-			dst[3] = enc.encode[b[3]]
-			dst[4] = enc.encode[b[4]]
-			dst[5] = enc.encode[b[5]]
-			dst[6] = enc.encode[b[6]]
-			dst[7] = enc.encode[b[7]]
+			dst[0] = enc.encode[b[0]&31]
+			dst[1] = enc.encode[b[1]&31]
+			dst[2] = enc.encode[b[2]&31]
+			dst[3] = enc.encode[b[3]&31]
+			dst[4] = enc.encode[b[4]&31]
+			dst[5] = enc.encode[b[5]&31]
+			dst[6] = enc.encode[b[6]&31]
+			dst[7] = enc.encode[b[7]&31]
 		} else {
 			for i := 0; i < size; i++ {
-				dst[i] = enc.encode[b[i]]
+				dst[i] = enc.encode[b[i]&31]
 			}
 		}
 
@@ -244,8 +235,9 @@ func (e *encoder) Close() error {
 	// If there's anything left in the buffer, flush it out
 	if e.err == nil && e.nbuf > 0 {
 		e.enc.Encode(e.out[0:], e.buf[0:e.nbuf])
+		encodedLen := e.enc.EncodedLen(e.nbuf)
 		e.nbuf = 0
-		_, e.err = e.w.Write(e.out[0:8])
+		_, e.err = e.w.Write(e.out[0:encodedLen])
 	}
 	return e.err
 }
@@ -283,7 +275,12 @@ func (e CorruptInputError) Error() string {
 // additional data is an error. This method assumes that src has been
 // stripped of all supported whitespace ('\r' and '\n').
 func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
+	// Lift the nil check outside of the loop.
+	_ = enc.decodeMap
+
+	dsti := 0
 	olen := len(src)
+
 	for len(src) > 0 && !end {
 		// Decode quantum using the base32 alphabet
 		var dbuf [8]byte
@@ -291,17 +288,15 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 
 		for j := 0; j < 8; {
 
-			// We have reached the end and are missing padding
-			if len(src) == 0 && enc.padChar != NoPadding {
-				return n, false, CorruptInputError(olen - len(src) - j)
-			}
-
-			// We have reached the end and are not expecing any padding
-			if len(src) == 0 && enc.padChar == NoPadding {
+			if len(src) == 0 {
+				if enc.padChar != NoPadding {
+					// We have reached the end and are missing padding
+					return n, false, CorruptInputError(olen - len(src) - j)
+				}
+				// We have reached the end and are not expecting any padding
 				dlen, end = j, true
 				break
 			}
-
 			in := src[0]
 			src = src[1:]
 			if in == byte(enc.padChar) && j >= 2 && len(src) < 8 {
@@ -338,37 +333,26 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 		// quantum
 		switch dlen {
 		case 8:
-			dst[4] = dbuf[6]<<5 | dbuf[7]
+			dst[dsti+4] = dbuf[6]<<5 | dbuf[7]
+			n++
 			fallthrough
 		case 7:
-			dst[3] = dbuf[4]<<7 | dbuf[5]<<2 | dbuf[6]>>3
+			dst[dsti+3] = dbuf[4]<<7 | dbuf[5]<<2 | dbuf[6]>>3
+			n++
 			fallthrough
 		case 5:
-			dst[2] = dbuf[3]<<4 | dbuf[4]>>1
+			dst[dsti+2] = dbuf[3]<<4 | dbuf[4]>>1
+			n++
 			fallthrough
 		case 4:
-			dst[1] = dbuf[1]<<6 | dbuf[2]<<1 | dbuf[3]>>4
+			dst[dsti+1] = dbuf[1]<<6 | dbuf[2]<<1 | dbuf[3]>>4
+			n++
 			fallthrough
 		case 2:
-			dst[0] = dbuf[0]<<3 | dbuf[1]>>2
+			dst[dsti+0] = dbuf[0]<<3 | dbuf[1]>>2
+			n++
 		}
-
-		if !end {
-			dst = dst[5:]
-		}
-
-		switch dlen {
-		case 2:
-			n += 1
-		case 4:
-			n += 2
-		case 5:
-			n += 3
-		case 7:
-			n += 4
-		case 8:
-			n += 5
-		}
+		dsti += 5
 	}
 	return n, end, nil
 }
@@ -379,17 +363,18 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 // number of bytes successfully written and CorruptInputError.
 // New line characters (\r and \n) are ignored.
 func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
-	src = bytes.Map(removeNewlinesMapper, src)
-	n, _, err = enc.decode(dst, src)
+	buf := make([]byte, len(src))
+	l := stripNewlines(buf, src)
+	n, _, err = enc.decode(dst, buf[:l])
 	return
 }
 
 // DecodeString returns the bytes represented by the base32 string s.
 func (enc *Encoding) DecodeString(s string) ([]byte, error) {
-	s = strings.Map(removeNewlinesMapper, s)
-	dbuf := make([]byte, enc.DecodedLen(len(s)))
-	n, _, err := enc.decode(dbuf, []byte(s))
-	return dbuf[:n], err
+	buf := []byte(s)
+	l := stripNewlines(buf, buf)
+	n, _, err := enc.decode(buf, buf[:l])
+	return buf[:n], err
 }
 
 type decoder struct {
@@ -403,13 +388,20 @@ type decoder struct {
 	outbuf [1024 / 8 * 5]byte
 }
 
-func readEncodedData(r io.Reader, buf []byte, min int) (n int, err error) {
+func readEncodedData(r io.Reader, buf []byte, min int, expectsPadding bool) (n int, err error) {
 	for n < min && err == nil {
 		var nn int
 		nn, err = r.Read(buf[n:])
 		n += nn
 	}
+	// data was read, less than min bytes could be read
 	if n < min && n > 0 && err == io.EOF {
+		err = io.ErrUnexpectedEOF
+	}
+	// no data was read, the buffer already contains some data
+	// when padding is disabled this is not an error, as the message can be of
+	// any length
+	if expectsPadding && min < 8 && n == 0 && err == io.EOF {
 		err = io.ErrUnexpectedEOF
 	}
 	return
@@ -439,15 +431,32 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 		nn = len(d.buf)
 	}
 
-	nn, d.err = readEncodedData(d.r, d.buf[d.nbuf:nn], 8-d.nbuf)
+	// Minimum amount of bytes that needs to be read each cycle
+	var min int
+	var expectsPadding bool
+	if d.enc.padChar == NoPadding {
+		min = 1
+		expectsPadding = false
+	} else {
+		min = 8 - d.nbuf
+		expectsPadding = true
+	}
+
+	nn, d.err = readEncodedData(d.r, d.buf[d.nbuf:nn], min, expectsPadding)
 	d.nbuf += nn
-	if d.nbuf < 8 {
+	if d.nbuf < min {
 		return 0, d.err
 	}
 
 	// Decode chunk into p, or d.out and then p if p is too small.
-	nr := d.nbuf / 8 * 8
-	nw := d.nbuf / 8 * 5
+	var nr int
+	if d.enc.padChar == NoPadding {
+		nr = d.nbuf
+	} else {
+		nr = d.nbuf / 8 * 8
+	}
+	nw := d.enc.DecodedLen(d.nbuf)
+
 	if nw > len(p) {
 		nw, d.end, err = d.enc.decode(d.outbuf[0:], d.buf[0:nr])
 		d.out = d.outbuf[0:nw]
@@ -480,18 +489,25 @@ type newlineFilteringReader struct {
 	wrapped io.Reader
 }
 
+// stripNewlines removes newline characters and returns the number
+// of non-newline characters copied to dst.
+func stripNewlines(dst, src []byte) int {
+	offset := 0
+	for _, b := range src {
+		if b == '\r' || b == '\n' {
+			continue
+		}
+		dst[offset] = b
+		offset++
+	}
+	return offset
+}
+
 func (r *newlineFilteringReader) Read(p []byte) (int, error) {
 	n, err := r.wrapped.Read(p)
 	for n > 0 {
-		offset := 0
-		for i, b := range p[0:n] {
-			if b != '\r' && b != '\n' {
-				if i != offset {
-					p[offset] = b
-				}
-				offset++
-			}
-		}
+		s := p[0:n]
+		offset := stripNewlines(s, s)
 		if err != nil || offset > 0 {
 			return offset, err
 		}

@@ -665,7 +665,7 @@ func BenchmarkMatch(b *testing.B) {
 	for _, data := range benchData {
 		r := MustCompile(data.re)
 		for _, size := range benchSizes {
-			if isRaceBuilder && size.n > 1<<10 {
+			if (isRaceBuilder || testing.Short()) && size.n > 1<<10 {
 				continue
 			}
 			t := makeText(size.n)
@@ -684,26 +684,20 @@ func BenchmarkMatch(b *testing.B) {
 func BenchmarkMatch_onepass_regex(b *testing.B) {
 	isRaceBuilder := strings.HasSuffix(testenv.Builder(), "-race")
 	r := MustCompile(`(?s)\A.*\z`)
-	if r.get().op == notOnePass {
+	if r.onepass == nil {
 		b.Fatalf("want onepass regex, but %q is not onepass", r)
 	}
 	for _, size := range benchSizes {
-		if isRaceBuilder && size.n > 1<<10 {
+		if (isRaceBuilder || testing.Short()) && size.n > 1<<10 {
 			continue
 		}
 		t := makeText(size.n)
-		bs := make([][]byte, len(t))
-		for i, s := range t {
-			bs[i] = []byte{s}
-		}
 		b.Run(size.name, func(b *testing.B) {
 			b.SetBytes(int64(size.n))
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				for _, byts := range bs {
-					if !r.Match(byts) {
-						b.Fatal("not match!")
-					}
+				if !r.Match(t) {
+					b.Fatal("not match!")
 				}
 			}
 		})
@@ -723,6 +717,7 @@ var benchSizes = []struct {
 	name string
 	n    int
 }{
+	{"16", 16},
 	{"32", 32},
 	{"1K", 1 << 10},
 	{"32K", 32 << 10},

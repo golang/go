@@ -1,0 +1,46 @@
+env GO111MODULE=on
+
+go get rsc.io/quote@v1.5.1
+go list -m all
+stdout 'rsc.io/quote v1.5.1'
+grep 'rsc.io/quote v1.5.1$' go.mod
+
+# get -u should update dependencies of the package in the current directory
+go get -d -u
+grep 'rsc.io/quote v1.5.2$' go.mod
+grep 'golang.org/x/text [v0-9a-f\.-]+ // indirect' go.mod
+
+# get -u rsc.io/sampler should update only sampler's dependencies
+cp go.mod-v1.5.1 go.mod
+go get -d -u rsc.io/sampler
+grep 'rsc.io/quote v1.5.1$' go.mod
+grep 'golang.org/x/text [v0-9a-f\.-]+ // indirect' go.mod
+
+# move to a pseudo-version after any tags
+go get -d rsc.io/quote@dd9747d
+grep 'rsc.io/quote v0.0.0-20180628003336-dd9747d19b04' go.mod
+
+# get -u should not jump off newer pseudo-version to earlier tag
+go get -d -u
+grep 'rsc.io/quote v0.0.0-20180628003336-dd9747d19b04' go.mod
+
+# move to earlier pseudo-version
+go get -d rsc.io/quote@e7a685a342
+grep 'rsc.io/quote v0.0.0-20180214005133-e7a685a342c0' go.mod
+
+# get -u should jump off earlier pseudo-version to newer tag
+go get -d -u
+grep 'rsc.io/quote v1.5.2' go.mod
+
+-- go.mod --
+module x
+require rsc.io/quote v1.1.0
+
+-- go.mod-v1.5.1 --
+module x
+require rsc.io/quote v1.5.1
+
+-- use.go --
+package use
+
+import _ "rsc.io/quote"

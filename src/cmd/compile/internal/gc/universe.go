@@ -11,8 +11,6 @@ import "cmd/compile/internal/types"
 // builtinpkg is a fake package that declares the universe block.
 var builtinpkg *types.Pkg
 
-var itable *types.Type // distinguished *byte
-
 var basicTypes = [...]struct {
 	name  string
 	etype types.EType
@@ -65,6 +63,17 @@ var builtinFuncs = [...]struct {
 	{"recover", ORECOVER},
 }
 
+// isBuiltinFuncName reports whether name matches a builtin function
+// name.
+func isBuiltinFuncName(name string) bool {
+	for _, fn := range &builtinFuncs {
+		if fn.name == name {
+			return true
+		}
+	}
+	return false
+}
+
 var unsafeFuncs = [...]struct {
 	name string
 	op   Op
@@ -83,7 +92,7 @@ func initUniverse() {
 
 // lexinit initializes known symbols and the basic types.
 func lexinit() {
-	for _, s := range basicTypes {
+	for _, s := range &basicTypes {
 		etype := s.etype
 		if int(etype) >= len(types.Types) {
 			Fatalf("lexinit: %s bad etype", s.name)
@@ -102,17 +111,16 @@ func lexinit() {
 		asNode(s2.Def).Name = new(Name)
 	}
 
-	for _, s := range builtinFuncs {
-		// TODO(marvin): Fix Node.EType type union.
+	for _, s := range &builtinFuncs {
 		s2 := builtinpkg.Lookup(s.name)
 		s2.Def = asTypesNode(newname(s2))
-		asNode(s2.Def).Etype = types.EType(s.op)
+		asNode(s2.Def).SetSubOp(s.op)
 	}
 
-	for _, s := range unsafeFuncs {
+	for _, s := range &unsafeFuncs {
 		s2 := unsafepkg.Lookup(s.name)
 		s2.Def = asTypesNode(newname(s2))
-		asNode(s2.Def).Etype = types.EType(s.op)
+		asNode(s2.Def).SetSubOp(s.op)
 	}
 
 	types.Idealstring = types.New(TSTRING)
@@ -167,11 +175,8 @@ func typeinit() {
 		simtype[et] = et
 	}
 
-	types.Types[TPTR32] = types.New(TPTR32)
-	dowidth(types.Types[TPTR32])
-
-	types.Types[TPTR64] = types.New(TPTR64)
-	dowidth(types.Types[TPTR64])
+	types.Types[TPTR] = types.New(TPTR)
+	dowidth(types.Types[TPTR])
 
 	t := types.New(TUNSAFEPTR)
 	types.Types[TUNSAFEPTR] = t
@@ -179,11 +184,6 @@ func typeinit() {
 	t.Sym.Def = asTypesNode(typenod(t))
 	asNode(t.Sym.Def).Name = new(Name)
 	dowidth(types.Types[TUNSAFEPTR])
-
-	types.Tptr = TPTR32
-	if Widthptr == 8 {
-		types.Tptr = TPTR64
-	}
 
 	for et := TINT8; et <= TUINT64; et++ {
 		isInt[et] = true
@@ -197,8 +197,6 @@ func typeinit() {
 
 	isComplex[TCOMPLEX64] = true
 	isComplex[TCOMPLEX128] = true
-
-	isforw[TFORW] = true
 
 	// initialize okfor
 	for et := types.EType(0); et < NTYPE; et++ {
@@ -253,8 +251,7 @@ func typeinit() {
 	okforlen[TSLICE] = true
 	okforlen[TSTRING] = true
 
-	okforeq[TPTR32] = true
-	okforeq[TPTR64] = true
+	okforeq[TPTR] = true
 	okforeq[TUNSAFEPTR] = true
 	okforeq[TINTER] = true
 	okforeq[TCHAN] = true
@@ -295,8 +292,8 @@ func typeinit() {
 	okfor[ORSH] = okforand[:]
 
 	// unary
-	okfor[OCOM] = okforand[:]
-	okfor[OMINUS] = okforarith[:]
+	okfor[OBITNOT] = okforand[:]
+	okfor[ONEG] = okforarith[:]
 	okfor[ONOT] = okforbool[:]
 	okfor[OPLUS] = okforarith[:]
 
@@ -337,33 +334,24 @@ func typeinit() {
 	maxfltval[TCOMPLEX128] = maxfltval[TFLOAT64]
 	minfltval[TCOMPLEX128] = minfltval[TFLOAT64]
 
-	// for walk to use in error messages
-	types.Types[TFUNC] = functype(nil, nil, nil)
-
-	// types used in front end
-	// types.Types[TNIL] got set early in lexinit
-	types.Types[TIDEAL] = types.New(TIDEAL)
-
-	types.Types[TINTER] = types.New(TINTER)
+	types.Types[TINTER] = types.New(TINTER) // empty interface
 
 	// simple aliases
-	simtype[TMAP] = types.Tptr
-	simtype[TCHAN] = types.Tptr
-	simtype[TFUNC] = types.Tptr
-	simtype[TUNSAFEPTR] = types.Tptr
+	simtype[TMAP] = TPTR
+	simtype[TCHAN] = TPTR
+	simtype[TFUNC] = TPTR
+	simtype[TUNSAFEPTR] = TPTR
 
-	array_array = int(Rnd(0, int64(Widthptr)))
-	array_nel = int(Rnd(int64(array_array)+int64(Widthptr), int64(Widthptr)))
-	array_cap = int(Rnd(int64(array_nel)+int64(Widthptr), int64(Widthptr)))
-	sizeof_Array = int(Rnd(int64(array_cap)+int64(Widthptr), int64(Widthptr)))
+	slice_array = int(Rnd(0, int64(Widthptr)))
+	slice_nel = int(Rnd(int64(slice_array)+int64(Widthptr), int64(Widthptr)))
+	slice_cap = int(Rnd(int64(slice_nel)+int64(Widthptr), int64(Widthptr)))
+	sizeof_Slice = int(Rnd(int64(slice_cap)+int64(Widthptr), int64(Widthptr)))
 
 	// string is same as slice wo the cap
-	sizeof_String = int(Rnd(int64(array_nel)+int64(Widthptr), int64(Widthptr)))
+	sizeof_String = int(Rnd(int64(slice_nel)+int64(Widthptr), int64(Widthptr)))
 
 	dowidth(types.Types[TSTRING])
 	dowidth(types.Idealstring)
-
-	itable = types.NewPtr(types.Types[TUINT8])
 }
 
 func makeErrorInterface() *types.Type {
@@ -387,6 +375,7 @@ func lexinit1() {
 	types.Errortype.Sym = s
 	types.Errortype.Orig = makeErrorInterface()
 	s.Def = asTypesNode(typenod(types.Errortype))
+	dowidth(types.Errortype)
 
 	// We create separate byte and rune types for better error messages
 	// rather than just creating type alias *types.Sym's for the uint8 and
@@ -402,6 +391,7 @@ func lexinit1() {
 	types.Bytetype.Sym = s
 	s.Def = asTypesNode(typenod(types.Bytetype))
 	asNode(s.Def).Name = new(Name)
+	dowidth(types.Bytetype)
 
 	// rune alias
 	s = builtinpkg.Lookup("rune")
@@ -409,9 +399,10 @@ func lexinit1() {
 	types.Runetype.Sym = s
 	s.Def = asTypesNode(typenod(types.Runetype))
 	asNode(s.Def).Name = new(Name)
+	dowidth(types.Runetype)
 
 	// backend-dependent builtin types (e.g. int).
-	for _, s := range typedefs {
+	for _, s := range &typedefs {
 		s1 := builtinpkg.Lookup(s.name)
 
 		sameas := s.sameas32

@@ -5,8 +5,11 @@
 // +build !plan9
 // +build !solaris
 // +build !windows
-// +build !nacl
 // +build !linux !amd64
+// +build !linux !arm64
+// +build !js
+// +build !darwin
+// +build !aix
 
 package runtime
 

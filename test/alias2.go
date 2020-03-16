@@ -95,10 +95,10 @@ type _ = reflect.ValueOf // ERROR "reflect.ValueOf is not a type|expected type"
 func (A1) m() {} // ERROR "cannot define new methods on non-local type int|may not define methods on non-local type"
 func (A2) m() {} // ERROR "invalid receiver type"
 func (A3) m() {} // ERROR "cannot define new methods on non-local type reflect.Value|may not define methods on non-local type"
-func (A4) m() {} // ERROR "reflect.Value.m redeclared in this block" "cannot define new methods on non-local type reflect.Value|may not define methods on non-local type"
+func (A4) m() {} // ERROR "cannot define new methods on non-local type reflect.Value|may not define methods on non-local type"
 
 type B1 = struct{}
 
-func (B1) m() {} // ERROR "m redeclared in this block" "invalid receiver type"
+func (B1) m() {} // ERROR "invalid receiver type"
 
 // TODO(gri) expand

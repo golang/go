@@ -242,7 +242,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 				break
 			}
 		}
-		bytes := (*[10000]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
+		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
 		sa.Name = string(bytes)
 		return sa, nil
 
@@ -447,8 +447,6 @@ func Kevent(kq int, changes, events []Kevent_t, timeout *Timespec) (n int, err e
 	return kevent(kq, change, len(changes), event, len(events), timeout)
 }
 
-//sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) = SYS___SYSCTL
-
 func Sysctl(name string) (value string, err error) {
 	// Translate name to mib number.
 	mib, err := nametomib(name)
@@ -538,14 +536,6 @@ func Futimes(fd int, tv []Timeval) (err error) {
 }
 
 //sys	fcntl(fd int, cmd int, arg int) (val int, err error)
-
-// TODO: wrap
-//	Acct(name nil-string) (err error)
-//	Gethostuuid(uuid *byte, timeout *Timespec) (err error)
-//	Madvise(addr *byte, len int, behav int) (err error)
-//	Mprotect(addr *byte, len int, prot int) (err error)
-//	Msync(addr *byte, len int, flags int) (err error)
-//	Ptrace(req int, pid int, addr uintptr, data int) (ret uintptr, err error)
 
 var mapper = &mmapper{
 	active: make(map[*byte][]byte),

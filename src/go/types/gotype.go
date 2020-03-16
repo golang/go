@@ -53,6 +53,8 @@ Flags controlling additional output:
 		print parse trace (forces -seq)
 	-comments
 		parse comments (ignored unless -ast or -trace is provided)
+	-panic
+		panic on first error
 
 Examples:
 
@@ -105,6 +107,7 @@ var (
 	printAST      = flag.Bool("ast", false, "print AST (forces -seq)")
 	printTrace    = flag.Bool("trace", false, "print parse trace (forces -seq)")
 	parseComments = flag.Bool("comments", false, "parse comments (ignored unless -ast or -trace is provided)")
+	panicOnError  = flag.Bool("panic", false, "panic on first error")
 )
 
 var (
@@ -164,6 +167,9 @@ func usage() {
 }
 
 func report(err error) {
+	if *panicOnError {
+		panic(err)
+	}
 	scanner.PrintError(os.Stderr, err)
 	if list, ok := err.(scanner.ErrorList); ok {
 		errorCount += len(list)
@@ -291,7 +297,7 @@ func checkPkgFiles(files []*ast.File) {
 			}
 			report(err)
 		},
-		Importer: importer.For(*compiler, nil),
+		Importer: importer.ForCompiler(fset, *compiler, nil),
 		Sizes:    types.SizesFor(build.Default.Compiler, build.Default.GOARCH),
 	}
 

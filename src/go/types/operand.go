@@ -201,7 +201,9 @@ func (x *operand) isNil() bool {
 // assignableTo reports whether x is assignable to a variable of type T.
 // If the result is false and a non-nil reason is provided, it may be set
 // to a more detailed explanation of the failure (result != "").
-func (x *operand) assignableTo(conf *Config, T Type, reason *string) bool {
+// The check parameter may be nil if assignableTo is invoked through
+// an exported API call, i.e., when all methods have been type-checked.
+func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 	if x.mode == invalid || T == Typ[Invalid] {
 		return true // avoid spurious errors
 	}
@@ -209,7 +211,7 @@ func (x *operand) assignableTo(conf *Config, T Type, reason *string) bool {
 	V := x.typ
 
 	// x's type is identical to T
-	if Identical(V, T) {
+	if check.identical(V, T) {
 		return true
 	}
 
@@ -226,7 +228,7 @@ func (x *operand) assignableTo(conf *Config, T Type, reason *string) bool {
 				return true
 			}
 			if x.mode == constant_ {
-				return representableConst(x.val, conf, t, nil)
+				return representableConst(x.val, check, t, nil)
 			}
 			// The result of a comparison is an untyped boolean,
 			// but may not be a constant.
@@ -234,6 +236,7 @@ func (x *operand) assignableTo(conf *Config, T Type, reason *string) bool {
 				return Vb.kind == UntypedBool && isBoolean(Tu)
 			}
 		case *Interface:
+			check.completeInterface(t)
 			return x.isNil() || t.Empty()
 		case *Pointer, *Signature, *Slice, *Map, *Chan:
 			return x.isNil()
@@ -243,13 +246,13 @@ func (x *operand) assignableTo(conf *Config, T Type, reason *string) bool {
 
 	// x's type V and T have identical underlying types
 	// and at least one of V or T is not a named type
-	if Identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
+	if check.identical(Vu, Tu) && (!isNamed(V) || !isNamed(T)) {
 		return true
 	}
 
 	// T is an interface type and x implements T
 	if Ti, ok := Tu.(*Interface); ok {
-		if m, wrongType := MissingMethod(x.typ, Ti, true); m != nil /* Implements(x.typ, Ti) */ {
+		if m, wrongType := check.missingMethod(x.typ, Ti, true); m != nil /* Implements(x.typ, Ti) */ {
 			if reason != nil {
 				if wrongType {
 					*reason = "wrong type for method " + m.Name()
@@ -266,7 +269,7 @@ func (x *operand) assignableTo(conf *Config, T Type, reason *string) bool {
 	// type, x's type V and T have identical element types,
 	// and at least one of V or T is not a named type
 	if Vc, ok := Vu.(*Chan); ok && Vc.dir == SendRecv {
-		if Tc, ok := Tu.(*Chan); ok && Identical(Vc.elem, Tc.elem) {
+		if Tc, ok := Tu.(*Chan); ok && check.identical(Vc.elem, Tc.elem) {
 			return !isNamed(V) || !isNamed(T)
 		}
 	}

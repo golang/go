@@ -60,6 +60,8 @@ var regNamesARM = []string{
 	"F14",
 	"F15", // tmp
 
+	// If you add registers, update asyncPreempt in runtime.
+
 	// pseudo-registers
 	"SB",
 }
@@ -94,6 +96,11 @@ func init() {
 		gpspsbg    = gpspg | buildReg("SB")
 		fp         = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15")
 		callerSave = gp | fp | buildReg("g") // runtime.setg (and anything calling it) may clobber g
+		r0         = buildReg("R0")
+		r1         = buildReg("R1")
+		r2         = buildReg("R2")
+		r3         = buildReg("R3")
+		r4         = buildReg("R4")
 	)
 	// Common regInfo
 	var (
@@ -149,7 +156,7 @@ func init() {
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R1"), buildReg("R0")},
 				outputs:  []regMask{buildReg("R0"), buildReg("R1")},
-				clobbers: buildReg("R2 R3 R14"), // also clobbers R12 on NaCl (modified in ../config.go)
+				clobbers: buildReg("R2 R3 R14"),
 			},
 			clobberFlags: true,
 			typ:          "(UInt32,UInt32)",
@@ -187,6 +194,10 @@ func init() {
 		{name: "MULSF", argLength: 3, reg: fp31, asm: "MULSF", resultInArg0: true}, // arg0 - (arg1 * arg2)
 		{name: "MULSD", argLength: 3, reg: fp31, asm: "MULSD", resultInArg0: true}, // arg0 - (arg1 * arg2)
 
+		// FMULAD only exists on platforms with the VFPv4 instruction set.
+		// Any use must be preceded by a successful check of runtime.arm_support_vfpv4.
+		{name: "FMULAD", argLength: 3, reg: fp31, asm: "FMULAD", resultInArg0: true}, // arg0 + (arg1 * arg2)
+
 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0 & arg1
 		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int32"}, // arg0 & auxInt
 		{name: "OR", argLength: 2, reg: gp21, asm: "ORR", commutative: true},  // arg0 | arg1
@@ -206,10 +217,12 @@ func init() {
 		{name: "NEGF", argLength: 1, reg: fp11, asm: "NEGF"},   // -arg0, float32
 		{name: "NEGD", argLength: 1, reg: fp11, asm: "NEGD"},   // -arg0, float64
 		{name: "SQRTD", argLength: 1, reg: fp11, asm: "SQRTD"}, // sqrt(arg0), float64
+		{name: "ABSD", argLength: 1, reg: fp11, asm: "ABSD"},   // abs(arg0), float64
 
-		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},   // count leading zero
-		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},   // reverse byte order
-		{name: "RBIT", argLength: 1, reg: gp11, asm: "RBIT"}, // reverse bit order
+		{name: "CLZ", argLength: 1, reg: gp11, asm: "CLZ"},     // count leading zero
+		{name: "REV", argLength: 1, reg: gp11, asm: "REV"},     // reverse byte order
+		{name: "REV16", argLength: 1, reg: gp11, asm: "REV16"}, // reverse byte order in 16-bit halfwords
+		{name: "RBIT", argLength: 1, reg: gp11, asm: "RBIT"},   // reverse bit order
 
 		// shifts
 		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                    // arg0 << arg1, shift amount is mod 256
@@ -218,6 +231,7 @@ func init() {
 		{name: "SRLconst", argLength: 1, reg: gp11, asm: "SRL", aux: "Int32"}, // arg0 >> auxInt, unsigned
 		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                    // arg0 >> arg1, signed, shift amount is mod 256
 		{name: "SRAconst", argLength: 1, reg: gp11, asm: "SRA", aux: "Int32"}, // arg0 >> auxInt, signed
+		{name: "SRR", argLength: 2, reg: gp21},                                // arg0 right rotate by arg1 bits
 		{name: "SRRconst", argLength: 1, reg: gp11, aux: "Int32"},             // arg0 right rotate by auxInt bits
 
 		{name: "ADDshiftLL", argLength: 2, reg: gp21, asm: "ADD", aux: "Int32"}, // arg0 + arg1<<auxInt
@@ -373,21 +387,21 @@ func init() {
 		{name: "MOVFstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "MOVF", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
 		{name: "MOVDstore", argLength: 3, reg: fpstore, aux: "SymOff", asm: "MOVD", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
 
-		{name: "MOVWloadidx", argLength: 3, reg: gp2load, asm: "MOVW"},                   // load from arg0 + arg1. arg2=mem
-		{name: "MOVWloadshiftLL", argLength: 3, reg: gp2load, asm: "MOVW", aux: "Int32"}, // load from arg0 + arg1<<auxInt. arg2=mem
-		{name: "MOVWloadshiftRL", argLength: 3, reg: gp2load, asm: "MOVW", aux: "Int32"}, // load from arg0 + arg1>>auxInt, unsigned shift. arg2=mem
-		{name: "MOVWloadshiftRA", argLength: 3, reg: gp2load, asm: "MOVW", aux: "Int32"}, // load from arg0 + arg1>>auxInt, signed shift. arg2=mem
-		{name: "MOVBUloadidx", argLength: 3, reg: gp2load, asm: "MOVBU"},                 // load from arg0 + arg1. arg2=mem
-		{name: "MOVBloadidx", argLength: 3, reg: gp2load, asm: "MOVB"},                   // load from arg0 + arg1. arg2=mem
-		{name: "MOVHUloadidx", argLength: 3, reg: gp2load, asm: "MOVHU"},                 // load from arg0 + arg1. arg2=mem
-		{name: "MOVHloadidx", argLength: 3, reg: gp2load, asm: "MOVH"},                   // load from arg0 + arg1. arg2=mem
+		{name: "MOVWloadidx", argLength: 3, reg: gp2load, asm: "MOVW", typ: "UInt32"},                   // load from arg0 + arg1. arg2=mem
+		{name: "MOVWloadshiftLL", argLength: 3, reg: gp2load, asm: "MOVW", aux: "Int32", typ: "UInt32"}, // load from arg0 + arg1<<auxInt. arg2=mem
+		{name: "MOVWloadshiftRL", argLength: 3, reg: gp2load, asm: "MOVW", aux: "Int32", typ: "UInt32"}, // load from arg0 + arg1>>auxInt, unsigned shift. arg2=mem
+		{name: "MOVWloadshiftRA", argLength: 3, reg: gp2load, asm: "MOVW", aux: "Int32", typ: "UInt32"}, // load from arg0 + arg1>>auxInt, signed shift. arg2=mem
+		{name: "MOVBUloadidx", argLength: 3, reg: gp2load, asm: "MOVBU", typ: "UInt8"},                  // load from arg0 + arg1. arg2=mem
+		{name: "MOVBloadidx", argLength: 3, reg: gp2load, asm: "MOVB", typ: "Int8"},                     // load from arg0 + arg1. arg2=mem
+		{name: "MOVHUloadidx", argLength: 3, reg: gp2load, asm: "MOVHU", typ: "UInt16"},                 // load from arg0 + arg1. arg2=mem
+		{name: "MOVHloadidx", argLength: 3, reg: gp2load, asm: "MOVH", typ: "Int16"},                    // load from arg0 + arg1. arg2=mem
 
-		{name: "MOVWstoreidx", argLength: 4, reg: gp2store, asm: "MOVW"},                   // store arg2 to arg0 + arg1. arg3=mem
-		{name: "MOVWstoreshiftLL", argLength: 4, reg: gp2store, asm: "MOVW", aux: "Int32"}, // store arg2 to arg0 + arg1<<auxInt. arg3=mem
-		{name: "MOVWstoreshiftRL", argLength: 4, reg: gp2store, asm: "MOVW", aux: "Int32"}, // store arg2 to arg0 + arg1>>auxInt, unsigned shift. arg3=mem
-		{name: "MOVWstoreshiftRA", argLength: 4, reg: gp2store, asm: "MOVW", aux: "Int32"}, // store arg2 to arg0 + arg1>>auxInt, signed shift. arg3=mem
-		{name: "MOVBstoreidx", argLength: 4, reg: gp2store, asm: "MOVB"},                   // store arg2 to arg0 + arg1. arg3=mem
-		{name: "MOVHstoreidx", argLength: 4, reg: gp2store, asm: "MOVH"},                   // store arg2 to arg0 + arg1. arg3=mem
+		{name: "MOVWstoreidx", argLength: 4, reg: gp2store, asm: "MOVW", typ: "Mem"},                   // store arg2 to arg0 + arg1. arg3=mem
+		{name: "MOVWstoreshiftLL", argLength: 4, reg: gp2store, asm: "MOVW", aux: "Int32", typ: "Mem"}, // store arg2 to arg0 + arg1<<auxInt. arg3=mem
+		{name: "MOVWstoreshiftRL", argLength: 4, reg: gp2store, asm: "MOVW", aux: "Int32", typ: "Mem"}, // store arg2 to arg0 + arg1>>auxInt, unsigned shift. arg3=mem
+		{name: "MOVWstoreshiftRA", argLength: 4, reg: gp2store, asm: "MOVW", aux: "Int32", typ: "Mem"}, // store arg2 to arg0 + arg1>>auxInt, signed shift. arg3=mem
+		{name: "MOVBstoreidx", argLength: 4, reg: gp2store, asm: "MOVB", typ: "Mem"},                   // store arg2 to arg0 + arg1. arg3=mem
+		{name: "MOVHstoreidx", argLength: 4, reg: gp2store, asm: "MOVH", typ: "Mem"},                   // store arg2 to arg0 + arg1. arg3=mem
 
 		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVBS"},  // move from arg0, sign-extended from byte
 		{name: "MOVBUreg", argLength: 1, reg: gp11, asm: "MOVBU"}, // move from arg0, unsign-extended from byte
@@ -514,17 +528,27 @@ func init() {
 		// Scheduler ensures LoweredGetClosurePtr occurs only in entry block,
 		// and sorts it to the very beginning of the block to prevent other
 		// use of R7 (arm.REGCTXT, the closure pointer)
-		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R7")}}},
+		{name: "LoweredGetClosurePtr", reg: regInfo{outputs: []regMask{buildReg("R7")}}, zeroWidth: true},
 
 		// LoweredGetCallerSP returns the SP of the caller of the current function.
 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
 
-		// MOVWconvert converts between pointers and integers.
-		// We have a special op for this so as to not confuse GC
-		// (particularly stack maps).  It takes a memory arg so it
-		// gets correctly ordered with respect to GC safepoints.
-		// arg0=ptr/int arg1=mem, output=int/ptr
-		{name: "MOVWconvert", argLength: 2, reg: gp11, asm: "MOVW"},
+		// LoweredGetCallerPC evaluates to the PC to which its "caller" will return.
+		// I.e., if f calls g "calls" getcallerpc,
+		// the result should be the PC within f that g will return to.
+		// See runtime/stubs.go for a more detailed discussion.
+		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+
+		// There are three of these functions so that they can have three different register inputs.
+		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+		// default registers to match so we don't need to copy registers around unnecessarily.
+		{name: "LoweredPanicBoundsA", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r2, r3}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+		{name: "LoweredPanicBoundsB", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r1, r2}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+		{name: "LoweredPanicBoundsC", argLength: 3, aux: "Int64", reg: regInfo{inputs: []regMask{r0, r1}}, typ: "Mem"}, // arg0=idx, arg1=len, arg2=mem, returns memory. AuxInt contains report code (see PanicBounds in genericOps.go).
+		// Extend ops are the same as Bounds ops except the indexes are 64-bit.
+		{name: "LoweredPanicExtendA", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r2, r3}}, typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
+		{name: "LoweredPanicExtendB", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r1, r2}}, typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
+		{name: "LoweredPanicExtendC", argLength: 4, aux: "Int64", reg: regInfo{inputs: []regMask{r4, r0, r1}}, typ: "Mem"}, // arg0=idxHi, arg1=idxLo, arg2=len, arg3=mem, returns memory. AuxInt contains report code (see PanicExtend in genericOps.go).
 
 		// Constant flag values. For any comparison, there are 5 possible
 		// outcomes: the three from the signed total order (<,==,>) and the
@@ -550,16 +574,16 @@ func init() {
 	}
 
 	blocks := []blockData{
-		{name: "EQ"},
-		{name: "NE"},
-		{name: "LT"},
-		{name: "LE"},
-		{name: "GT"},
-		{name: "GE"},
-		{name: "ULT"},
-		{name: "ULE"},
-		{name: "UGT"},
-		{name: "UGE"},
+		{name: "EQ", controls: 1},
+		{name: "NE", controls: 1},
+		{name: "LT", controls: 1},
+		{name: "LE", controls: 1},
+		{name: "GT", controls: 1},
+		{name: "GE", controls: 1},
+		{name: "ULT", controls: 1},
+		{name: "ULE", controls: 1},
+		{name: "UGT", controls: 1},
+		{name: "UGE", controls: 1},
 	}
 
 	archs = append(archs, arch{

@@ -14,16 +14,16 @@
 
 package driver
 
-import "html/template"
+import (
+	"html/template"
 
-import "github.com/google/pprof/third_party/d3"
-import "github.com/google/pprof/third_party/d3tip"
-import "github.com/google/pprof/third_party/d3flamegraph"
+	"github.com/google/pprof/third_party/d3"
+	"github.com/google/pprof/third_party/d3flamegraph"
+)
 
 // addTemplates adds a set of template definitions to templates.
 func addTemplates(templates *template.Template) {
 	template.Must(templates.Parse(`{{define "d3script"}}` + d3.JSSource + `{{end}}`))
-	template.Must(templates.Parse(`{{define "d3tipscript"}}` + d3tip.JSSource + `{{end}}`))
 	template.Must(templates.Parse(`{{define "d3flamegraphscript"}}` + d3flamegraph.JSSource + `{{end}}`))
 	template.Must(templates.Parse(`{{define "d3flamegraphcss"}}` + d3flamegraph.CSSSource + `{{end}}`))
 	template.Must(templates.Parse(`
@@ -93,7 +93,7 @@ a {
   text-align: left;
 }
 .header input {
-  background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' style='pointer-events:none;display:block;width:100%25;height:100%25;fill:#757575'%3E%3Cpath d='M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61.0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E") no-repeat 4px center/20px 20px;
+  background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' style='pointer-events:none;display:block;width:100%25;height:100%25;fill:%23757575'%3E%3Cpath d='M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61.0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/%3E%3C/svg%3E") no-repeat 4px center/20px 20px;
   border: 1px solid #d1d2d3;
   border-radius: 2px 0 0 2px;
   padding: 0.25em;
@@ -224,7 +224,7 @@ table tr td {
   cursor: ns-resize;
 }
 .hilite {
-  background-color: #ebf5fb; 
+  background-color: #ebf5fb;
   font-weight: bold;
 }
 </style>
@@ -233,7 +233,7 @@ table tr td {
 {{define "header"}}
 <div class="header">
   <div class="title">
-    <h1><a href="/">pprof</a></h1>
+    <h1><a href="./">pprof</a></h1>
   </div>
 
   <div id="view" class="menu-item">
@@ -242,14 +242,29 @@ table tr td {
       <i class="downArrow"></i>
     </div>
     <div class="submenu">
-      <a title="{{.Help.top}}"  href="/top" id="topbtn">Top</a>
-      <a title="{{.Help.graph}}" href="/" id="graphbtn">Graph</a>
-      <a title="{{.Help.flamegraph}}" href="/flamegraph" id="flamegraph">Flame Graph</a>
-      <a title="{{.Help.peek}}" href="/peek" id="peek">Peek</a>
-      <a title="{{.Help.list}}" href="/source" id="list">Source</a>
-      <a title="{{.Help.disasm}}" href="/disasm" id="disasm">Disassemble</a>
+      <a title="{{.Help.top}}"  href="./top" id="topbtn">Top</a>
+      <a title="{{.Help.graph}}" href="./" id="graphbtn">Graph</a>
+      <a title="{{.Help.flamegraph}}" href="./flamegraph" id="flamegraph">Flame Graph</a>
+      <a title="{{.Help.peek}}" href="./peek" id="peek">Peek</a>
+      <a title="{{.Help.list}}" href="./source" id="list">Source</a>
+      <a title="{{.Help.disasm}}" href="./disasm" id="disasm">Disassemble</a>
     </div>
   </div>
+
+  {{$sampleLen := len .SampleTypes}}
+  {{if gt $sampleLen 1}}
+  <div id="sample" class="menu-item">
+    <div class="menu-name">
+      Sample
+      <i class="downArrow"></i>
+    </div>
+    <div class="submenu">
+      {{range .SampleTypes}}
+      <a href="?si={{.}}" id="{{.}}">{{.}}</a>
+      {{end}}
+    </div>
+  </div>
+  {{end}}
 
   <div id="refine" class="menu-item">
     <div class="menu-name">
@@ -257,12 +272,13 @@ table tr td {
       <i class="downArrow"></i>
     </div>
     <div class="submenu">
-      <a title="{{.Help.focus}}" href="{{.BaseURL}}" id="focus">Focus</a>
-      <a title="{{.Help.ignore}}" href="{{.BaseURL}}" id="ignore">Ignore</a>
-      <a title="{{.Help.hide}}" href="{{.BaseURL}}" id="hide">Hide</a>
-      <a title="{{.Help.show}}" href="{{.BaseURL}}" id="show">Show</a>
+      <a title="{{.Help.focus}}" href="?" id="focus">Focus</a>
+      <a title="{{.Help.ignore}}" href="?" id="ignore">Ignore</a>
+      <a title="{{.Help.hide}}" href="?" id="hide">Hide</a>
+      <a title="{{.Help.show}}" href="?" id="show">Show</a>
+      <a title="{{.Help.show_from}}" href="?" id="show-from">Show from</a>
       <hr>
-      <a title="{{.Help.reset}}" href="{{.BaseURL}}">Reset</a>
+      <a title="{{.Help.reset}}" href="?">Reset</a>
     </div>
   </div>
 
@@ -295,7 +311,7 @@ table tr td {
     {{.HTMLBody}}
   </div>
   {{template "script" .}}
-  <script>viewer({{.BaseURL}}, {{.Nodes}});</script>
+  <script>viewer(new URL(window.location.href), {{.Nodes}});</script>
 </body>
 </html>
 {{end}}
@@ -596,8 +612,9 @@ function viewer(baseUrl, nodes) {
 
   function handleKey(e) {
     if (e.keyCode != 13) return;
-    window.location.href =
-        updateUrl(new URL({{.BaseURL}}, window.location.href), 'f');
+    setHrefParams(window.location, function (params) {
+      params.set('f', search.value);
+    });
     e.preventDefault();
   }
 
@@ -636,9 +653,11 @@ function viewer(baseUrl, nodes) {
     })
 
     // add matching items that are not currently selected.
-    for (let n = 0; n < nodes.length; n++) {
-      if (!selected.has(n) && match(nodes[n])) {
-        select(n, document.getElementById('node' + n));
+    if (nodes) {
+      for (let n = 0; n < nodes.length; n++) {
+        if (!selected.has(n) && match(nodes[n])) {
+          select(n, document.getElementById('node' + n));
+        }
       }
     }
 
@@ -720,9 +739,18 @@ function viewer(baseUrl, nodes) {
     return str.replace(/([\\\.?+*\[\](){}|^$])/g, '\\$1');
   }
 
+  function setSampleIndexLink(id) {
+    const elem = document.getElementById(id);
+    if (elem != null) {
+      setHrefParams(elem, function (params) {
+        params.set("si", id);
+      });
+    }
+  }
+
   // Update id's href to reflect current selection whenever it is
   // liable to be followed.
-  function makeLinkDynamic(id) {
+  function makeSearchLinkDynamic(id) {
     const elem = document.getElementById(id);
     if (elem == null) return;
 
@@ -732,25 +760,39 @@ function viewer(baseUrl, nodes) {
     if (id == 'ignore') param = 'i';
     if (id == 'hide') param = 'h';
     if (id == 'show') param = 's';
+    if (id == 'show-from') param = 'sf';
 
     // We update on mouseenter so middle-click/right-click work properly.
     elem.addEventListener('mouseenter', updater);
     elem.addEventListener('touchstart', updater);
 
     function updater() {
-      elem.href = updateUrl(new URL(elem.href), param);
+      // The selection can be in one of two modes: regexp-based or
+      // list-based.  Construct regular expression depending on mode.
+      let re = regexpActive
+        ? search.value
+        : Array.from(selected.keys()).map(key => quotemeta(nodes[key])).join('|');
+
+      setHrefParams(elem, function (params) {
+        if (re != '') {
+          // For focus/show/show-from, forget old parameter. For others, add to re.
+          if (param != 'f' && param != 's' && param != 'sf' && params.has(param)) {
+            const old = params.get(param);
+            if (old != '') {
+              re += '|' + old;
+            }
+          }
+          params.set(param, re);
+        } else {
+          params.delete(param);
+        }
+      });
     }
   }
 
-  // Update URL to reflect current selection.
-  function updateUrl(url, param) {
+  function setHrefParams(elem, paramSetter) {
+    let url = new URL(elem.href);
     url.hash = '';
-
-    // The selection can be in one of two modes: regexp-based or
-    // list-based.  Construct regular expression depending on mode.
-    let re = regexpActive
-      ? search.value
-      : Array.from(selected.keys()).map(key => quotemeta(nodes[key])).join('|');
 
     // Copy params from this page's URL.
     const params = url.searchParams;
@@ -758,20 +800,10 @@ function viewer(baseUrl, nodes) {
       params.set(p[0], p[1]);
     }
 
-    if (re != '') {
-      // For focus/show, forget old parameter.  For others, add to re.
-      if (param != 'f' && param != 's' && params.has(param)) {
-        const old = params.get(param);
-         if (old != '') {
-          re += '|' + old;
-        }
-      }
-      params.set(param, re);
-    } else {
-      params.delete(param);
-    }
+    // Give the params to the setter to modify.
+    paramSetter(params);
 
-    return url.toString();
+    elem.href = url.toString();
   }
 
   function handleTopClick(e) {
@@ -805,7 +837,7 @@ function viewer(baseUrl, nodes) {
     const enable = (search.value != '' || selected.size != 0);
     if (buttonsEnabled == enable) return;
     buttonsEnabled = enable;
-    for (const id of ['focus', 'ignore', 'hide', 'show']) {
+    for (const id of ['focus', 'ignore', 'hide', 'show', 'show-from']) {
       const link = document.getElementById(id);
       if (link != null) {
         link.classList.toggle('disabled', !enable);
@@ -826,9 +858,12 @@ function viewer(baseUrl, nodes) {
     toptable.addEventListener('touchstart', handleTopClick);
   }
 
-  const ids = ['topbtn', 'graphbtn', 'peek', 'list', 'disasm',
-               'focus', 'ignore', 'hide', 'show'];
-  ids.forEach(makeLinkDynamic);
+  const ids = ['topbtn', 'graphbtn', 'flamegraph', 'peek', 'list', 'disasm',
+               'focus', 'ignore', 'hide', 'show', 'show-from'];
+  ids.forEach(makeSearchLinkDynamic);
+
+  const sampleIDs = [{{range .SampleTypes}}'{{.}}', {{end}}];
+  sampleIDs.forEach(setSampleIndexLink);
 
   // Bind action to button with specified id.
   function addAction(id, action) {
@@ -963,7 +998,7 @@ function viewer(baseUrl, nodes) {
       bindSort('namehdr', 'Name');
     }
 
-    viewer({{.BaseURL}}, {{.Nodes}});
+    viewer(new URL(window.location.href), {{.Nodes}});
     makeTopTable({{.Total}}, {{.Top}});
   </script>
 </body>
@@ -986,7 +1021,7 @@ function viewer(baseUrl, nodes) {
     {{.HTMLBody}}
   </div>
   {{template "script" .}}
-  <script>viewer({{.BaseURL}}, null);</script>
+  <script>viewer(new URL(window.location.href), null);</script>
 </body>
 </html>
 {{end}}
@@ -1007,7 +1042,7 @@ function viewer(baseUrl, nodes) {
     </pre>
   </div>
   {{template "script" .}}
-  <script>viewer({{.BaseURL}}, null);</script>
+  <script>viewer(new URL(window.location.href), null);</script>
 </body>
 </html>
 {{end}}
@@ -1031,49 +1066,52 @@ function viewer(baseUrl, nodes) {
       width: 90%;
       min-width: 90%;
       margin-left: 5%;
-      padding-bottom: 41px;
+      padding: 15px 0 35px;
     }
   </style>
 </head>
 <body>
   {{template "header" .}}
   <div id="bodycontainer">
+    <div id="flamegraphdetails" class="flamegraph-details"></div>
     <div class="flamegraph-content">
       <div id="chart"></div>
     </div>
-    <div id="flamegraphdetails" class="flamegraph-details"></div>
   </div>
   {{template "script" .}}
-  <script>viewer({{.BaseURL}}, {{.Nodes}});</script>
+  <script>viewer(new URL(window.location.href), {{.Nodes}});</script>
   <script>{{template "d3script" .}}</script>
-  <script>{{template "d3tipscript" .}}</script>
   <script>{{template "d3flamegraphscript" .}}</script>
-  <script type="text/javascript">
+  <script>
     var data = {{.FlameGraph}};
-    var label = function(d) {
-      return d.data.n + ' (' + d.data.p + ', ' + d.data.l + ')';
-    };
 
     var width = document.getElementById('chart').clientWidth;
 
-    var flameGraph = d3.flameGraph()
+    var flameGraph = d3.flamegraph()
       .width(width)
       .cellHeight(18)
       .minFrameSize(1)
       .transitionDuration(750)
       .transitionEase(d3.easeCubic)
+      .inverted(true)
       .sort(true)
       .title('')
-      .label(label)
+      .tooltip(false)
       .details(document.getElementById('flamegraphdetails'));
 
-    var tip = d3.tip()
-      .direction('s')
-      .offset([8, 0])
-      .attr('class', 'd3-flame-graph-tip')
-      .html(function(d) { return 'name: ' + d.data.n + ', value: ' + d.data.l; });
+    // <full name> (percentage, value)
+    flameGraph.label((d) => d.data.f + ' (' + d.data.p + ', ' + d.data.l + ')');
 
-    flameGraph.tooltip(tip);
+    (function(flameGraph) {
+      var oldColorMapper = flameGraph.color();
+      function colorMapper(d) {
+        // Hack to force default color mapper to use 'warm' color scheme by not passing libtype
+        const { data, highlight } = d;
+        return oldColorMapper({ data: { n: data.n }, highlight });
+      }
+
+      flameGraph.color(colorMapper);
+    }(flameGraph));
 
     d3.select('#chart')
       .datum(data)

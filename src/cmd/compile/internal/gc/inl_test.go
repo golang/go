@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"internal/testenv"
 	"io"
+	"math/bits"
 	"os/exec"
 	"regexp"
 	"runtime"
@@ -26,19 +27,18 @@ func TestIntendedInlining(t *testing.T) {
 	t.Parallel()
 
 	// want is the list of function names (by package) that should
-	// be inlined.
+	// be inlinable. If they have no callers in their packages, they
+	// might not actually be inlined anywhere.
 	want := map[string][]string{
 		"runtime": {
-			// TODO(mvdan): enable these once mid-stack
-			// inlining is available
-			// "adjustctxt",
-
 			"add",
 			"acquirem",
 			"add1",
 			"addb",
 			"adjustpanics",
 			"adjustpointer",
+			"alignDown",
+			"alignUp",
 			"bucketMask",
 			"bucketShift",
 			"chanbuf",
@@ -49,17 +49,17 @@ func TestIntendedInlining(t *testing.T) {
 			"fastrand",
 			"float64bits",
 			"funcPC",
+			"getArgInfoFast",
 			"getm",
 			"isDirectIface",
 			"itabHashFunc",
-			"maxSliceCap",
 			"noescape",
+			"pcvalueCacheKey",
 			"readUnaligned32",
 			"readUnaligned64",
 			"releasem",
-			"round",
 			"roundupsize",
-			"selectsize",
+			"stackmapdata",
 			"stringStructOf",
 			"subtract1",
 			"subtractb",
@@ -78,12 +78,12 @@ func TestIntendedInlining(t *testing.T) {
 			"heapBits.morePointers",
 			"heapBits.next",
 			"heapBitsForAddr",
-			"inheap",
 			"markBits.isMarked",
 			"muintptr.ptr",
 			"puintptr.ptr",
+			"spanOf",
 			"spanOfUnchecked",
-			"(*gcWork).putFast",
+			//"(*gcWork).putFast", // TODO(austin): For debugging #27993
 			"(*gcWork).tryGetFast",
 			"(*guintptr).set",
 			"(*markBits).advance",
@@ -95,10 +95,14 @@ func TestIntendedInlining(t *testing.T) {
 			"(*puintptr).set",
 		},
 		"runtime/internal/sys": {},
+		"runtime/internal/math": {
+			"MulUintptr",
+		},
 		"bytes": {
 			"(*Buffer).Bytes",
 			"(*Buffer).Cap",
 			"(*Buffer).Len",
+			"(*Buffer).Grow",
 			"(*Buffer).Next",
 			"(*Buffer).Read",
 			"(*Buffer).ReadByte",
@@ -106,6 +110,15 @@ func TestIntendedInlining(t *testing.T) {
 			"(*Buffer).String",
 			"(*Buffer).UnreadByte",
 			"(*Buffer).tryGrowByReslice",
+		},
+		"compress/flate": {
+			"byLiteral.Len",
+			"byLiteral.Less",
+			"byLiteral.Swap",
+		},
+		"encoding/base64": {
+			"assemble32",
+			"assemble64",
 		},
 		"unicode/utf8": {
 			"FullRune",
@@ -116,22 +129,29 @@ func TestIntendedInlining(t *testing.T) {
 		"reflect": {
 			"Value.CanAddr",
 			"Value.CanSet",
+			"Value.CanInterface",
 			"Value.IsValid",
+			"Value.pointer",
 			"add",
 			"align",
+			"flag.mustBe",
+			"flag.mustBeAssignable",
+			"flag.mustBeExported",
 			"flag.kind",
 			"flag.ro",
-
-			// TODO: these use panic, need mid-stack
-			// inlining
-			// "Value.CanInterface",
-			// "Value.pointer",
-			// "flag.mustBe",
-			// "flag.mustBeAssignable",
-			// "flag.mustBeExported",
 		},
 		"regexp": {
 			"(*bitState).push",
+		},
+		"math/big": {
+			"bigEndianWord",
+			// The following functions require the math_big_pure_go build tag.
+			"addVW",
+			"subVW",
+		},
+		"math/rand": {
+			"(*rngSource).Int63",
+			"(*rngSource).Uint64",
 		},
 	}
 
@@ -149,10 +169,32 @@ func TestIntendedInlining(t *testing.T) {
 		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Ctz32")
 		want["runtime/internal/sys"] = append(want["runtime/internal/sys"], "Bswap32")
 	}
-	switch runtime.GOARCH {
-	case "amd64", "amd64p32", "arm64", "mips64", "mips64le", "ppc64", "ppc64le", "s390x":
+	if bits.UintSize == 64 {
 		// rotl_31 is only defined on 64-bit architectures
 		want["runtime"] = append(want["runtime"], "rotl_31")
+	}
+
+	switch runtime.GOARCH {
+	case "386", "wasm", "arm", "riscv64":
+	default:
+		// TODO(mvdan): As explained in /test/inline_sync.go, some
+		// architectures don't have atomic intrinsics, so these go over
+		// the inlining budget. Move back to the main table once that
+		// problem is solved.
+		want["sync"] = []string{
+			"(*Mutex).Lock",
+			"(*Mutex).Unlock",
+			"(*RWMutex).RLock",
+			"(*RWMutex).RUnlock",
+			"(*Once).Do",
+		}
+	}
+
+	// Functions that must actually be inlined; they must have actual callers.
+	must := map[string]bool{
+		"compress/flate.byLiteral.Len":  true,
+		"compress/flate.byLiteral.Less": true,
+		"compress/flate.byLiteral.Swap": true,
 	}
 
 	notInlinedReason := make(map[string]string)
@@ -168,7 +210,7 @@ func TestIntendedInlining(t *testing.T) {
 		}
 	}
 
-	args := append([]string{"build", "-a", "-gcflags=all=-m -m"}, pkgs...)
+	args := append([]string{"build", "-a", "-gcflags=all=-m -m", "-tags=math_big_pure_go"}, pkgs...)
 	cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), args...))
 	pr, pw := io.Pipe()
 	cmd.Stdout = pw
@@ -181,6 +223,7 @@ func TestIntendedInlining(t *testing.T) {
 	scanner := bufio.NewScanner(pr)
 	curPkg := ""
 	canInline := regexp.MustCompile(`: can inline ([^ ]*)`)
+	haveInlined := regexp.MustCompile(`: inlining call to ([^ ]*)`)
 	cannotInline := regexp.MustCompile(`: cannot inline ([^ ]*): (.*)`)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -188,10 +231,19 @@ func TestIntendedInlining(t *testing.T) {
 			curPkg = line[2:]
 			continue
 		}
-		if m := canInline.FindStringSubmatch(line); m != nil {
+		if m := haveInlined.FindStringSubmatch(line); m != nil {
 			fname := m[1]
 			delete(notInlinedReason, curPkg+"."+fname)
 			continue
+		}
+		if m := canInline.FindStringSubmatch(line); m != nil {
+			fname := m[1]
+			fullname := curPkg + "." + fname
+			// If function must be inlined somewhere, being inlinable is not enough
+			if _, ok := must[fullname]; !ok {
+				delete(notInlinedReason, fullname)
+				continue
+			}
 		}
 		if m := cannotInline.FindStringSubmatch(line); m != nil {
 			fname, reason := m[1], m[2]

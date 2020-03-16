@@ -105,7 +105,8 @@ func hostArchive(ctxt *Link, name string) {
 	for any {
 		var load []uint64
 		for _, s := range ctxt.Syms.Allsym {
-			for _, r := range s.R {
+			for i := range s.R {
+				r := &s.R[i] // Copying sym.Reloc has measurable impact on performance
 				if r.Sym != nil && r.Sym.Type == sym.SXREF {
 					if off := armap[r.Sym.Name]; off != 0 && !loaded[off] {
 						load = append(load, off)
@@ -124,8 +125,8 @@ func hostArchive(ctxt *Link, name string) {
 			l = atolwhex(arhdr.size)
 
 			libgcc := sym.Library{Pkg: "libgcc"}
-			h := ldobj(ctxt, f, &libgcc, l, pname, name, ArchiveObj)
-			f.Seek(h.off, 0)
+			h := ldobj(ctxt, f, &libgcc, l, pname, name)
+			f.MustSeek(h.off, 0)
 			h.ld(ctxt, f, h.pkg, h.length, h.pn)
 		}
 

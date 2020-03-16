@@ -68,7 +68,7 @@ func genFunction(size int) []bloc {
 	blocs = append(blocs,
 		Bloc("entry",
 			Valu(valn("store", 0, 4), OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
+			Valu("sb", OpSB, types.Types[types.TUINTPTR], 0, nil),
 			Goto(blockn(1)),
 		),
 	)

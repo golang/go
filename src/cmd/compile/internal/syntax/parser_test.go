@@ -6,11 +6,11 @@ package syntax
 
 import (
 	"bytes"
-	"cmd/internal/src"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -18,9 +18,12 @@ import (
 	"time"
 )
 
-var fast = flag.Bool("fast", false, "parse package files in parallel")
-var src_ = flag.String("src", "parser.go", "source file to parse")
-var verify = flag.Bool("verify", false, "verify idempotent printing")
+var (
+	fast   = flag.Bool("fast", false, "parse package files in parallel")
+	verify = flag.Bool("verify", false, "verify idempotent printing")
+	src_   = flag.String("src", "parser.go", "source file to parse")
+	skip   = flag.String("skip", "", "files matching this regular expression are skipped by TestStdLib")
+)
 
 func TestParse(t *testing.T) {
 	ParseFile(*src_, func(err error) { t.Error(err) }, nil, 0)
@@ -29,6 +32,15 @@ func TestParse(t *testing.T) {
 func TestStdLib(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping test in short mode")
+	}
+
+	var skipRx *regexp.Regexp
+	if *skip != "" {
+		var err error
+		skipRx, err = regexp.Compile(*skip)
+		if err != nil {
+			t.Fatalf("invalid argument for -skip (%v)", err)
+		}
 	}
 
 	var m1 runtime.MemStats
@@ -47,6 +59,12 @@ func TestStdLib(t *testing.T) {
 			runtime.GOROOT(),
 		} {
 			walkDirs(t, dir, func(filename string) {
+				if skipRx != nil && skipRx.MatchString(filename) {
+					// Always report skipped files since regexp
+					// typos can lead to surprising results.
+					fmt.Printf("skipping %s\n", filename)
+					return
+				}
 				if debug {
 					fmt.Printf("parsing %s\n", filename)
 				}
@@ -97,7 +115,7 @@ func walkDirs(t *testing.T, dir string, action func(string)) {
 			}
 		} else if fi.IsDir() && fi.Name() != "testdata" {
 			path := filepath.Join(dir, fi.Name())
-			if !strings.HasSuffix(path, "/test") {
+			if !strings.HasSuffix(path, string(filepath.Separator)+"test") {
 				dirs = append(dirs, path)
 			}
 		}
@@ -131,7 +149,7 @@ func verifyPrint(filename string, ast1 *File) {
 		panic(err)
 	}
 
-	ast2, err := Parse(src.NewFileBase(filename, filename), &buf1, nil, nil, nil, 0)
+	ast2, err := Parse(NewFileBase(filename), &buf1, nil, nil, 0)
 	if err != nil {
 		panic(err)
 	}
@@ -155,7 +173,7 @@ func verifyPrint(filename string, ast1 *File) {
 }
 
 func TestIssue17697(t *testing.T) {
-	_, err := Parse(nil, bytes.NewReader(nil), nil, nil, nil, 0) // return with parser error, don't panic
+	_, err := Parse(nil, bytes.NewReader(nil), nil, nil, 0) // return with parser error, don't panic
 	if err == nil {
 		t.Errorf("no error reported")
 	}
@@ -181,108 +199,129 @@ func TestParseFile(t *testing.T) {
 	}
 }
 
+// Make sure (PosMax + 1) doesn't overflow when converted to default
+// type int (when passed as argument to fmt.Sprintf) on 32bit platforms
+// (see test cases below).
+var tooLarge int = PosMax + 1
+
 func TestLineDirectives(t *testing.T) {
 	// valid line directives lead to a syntax error after them
 	const valid = "syntax error: package statement must be first"
+	const filename = "directives.go"
 
 	for _, test := range []struct {
 		src, msg  string
 		filename  string
-		line, col uint // 0-based
+		line, col uint // 1-based; 0 means unknown
 	}{
 		// ignored //line directives
-		{"//\n", valid, "", 2 - linebase, 0},            // no directive
-		{"//line\n", valid, "", 2 - linebase, 0},        // missing colon
-		{"//line foo\n", valid, "", 2 - linebase, 0},    // missing colon
-		{"  //line foo:\n", valid, "", 2 - linebase, 0}, // not a line start
-		{"//  line foo:\n", valid, "", 2 - linebase, 0}, // space between // and line
+		{"//\n", valid, filename, 2, 1},            // no directive
+		{"//line\n", valid, filename, 2, 1},        // missing colon
+		{"//line foo\n", valid, filename, 2, 1},    // missing colon
+		{"  //line foo:\n", valid, filename, 2, 1}, // not a line start
+		{"//  line foo:\n", valid, filename, 2, 1}, // space between // and line
 
 		// invalid //line directives with one colon
-		{"//line :\n", "invalid line number: ", "", 0, 8},
-		{"//line :x\n", "invalid line number: x", "", 0, 8},
-		{"//line foo :\n", "invalid line number: ", "", 0, 12},
-		{"//line foo:x\n", "invalid line number: x", "", 0, 11},
-		{"//line foo:0\n", "invalid line number: 0", "", 0, 11},
-		{"//line foo:1 \n", "invalid line number: 1 ", "", 0, 11},
-		{"//line foo:-12\n", "invalid line number: -12", "", 0, 11},
-		{"//line C:foo:0\n", "invalid line number: 0", "", 0, 13},
-		{fmt.Sprintf("//line foo:%d\n", lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), "", 0, 11},
+		{"//line :\n", "invalid line number: ", filename, 1, 9},
+		{"//line :x\n", "invalid line number: x", filename, 1, 9},
+		{"//line foo :\n", "invalid line number: ", filename, 1, 13},
+		{"//line foo:x\n", "invalid line number: x", filename, 1, 12},
+		{"//line foo:0\n", "invalid line number: 0", filename, 1, 12},
+		{"//line foo:1 \n", "invalid line number: 1 ", filename, 1, 12},
+		{"//line foo:-12\n", "invalid line number: -12", filename, 1, 12},
+		{"//line C:foo:0\n", "invalid line number: 0", filename, 1, 14},
+		{fmt.Sprintf("//line foo:%d\n", tooLarge), fmt.Sprintf("invalid line number: %d", tooLarge), filename, 1, 12},
 
 		// invalid //line directives with two colons
-		{"//line ::\n", "invalid line number: ", "", 0, 9},
-		{"//line ::x\n", "invalid line number: x", "", 0, 9},
-		{"//line foo::123abc\n", "invalid line number: 123abc", "", 0, 12},
-		{"//line foo::0\n", "invalid line number: 0", "", 0, 12},
-		{"//line foo:0:1\n", "invalid line number: 0", "", 0, 11},
+		{"//line ::\n", "invalid line number: ", filename, 1, 10},
+		{"//line ::x\n", "invalid line number: x", filename, 1, 10},
+		{"//line foo::123abc\n", "invalid line number: 123abc", filename, 1, 13},
+		{"//line foo::0\n", "invalid line number: 0", filename, 1, 13},
+		{"//line foo:0:1\n", "invalid line number: 0", filename, 1, 12},
 
-		{"//line :123:0\n", "invalid column number: 0", "", 0, 12},
-		{"//line foo:123:0\n", "invalid column number: 0", "", 0, 15},
+		{"//line :123:0\n", "invalid column number: 0", filename, 1, 13},
+		{"//line foo:123:0\n", "invalid column number: 0", filename, 1, 16},
+		{fmt.Sprintf("//line foo:10:%d\n", tooLarge), fmt.Sprintf("invalid column number: %d", tooLarge), filename, 1, 15},
 
-		// effect of valid //line directives on positions
-		{"//line foo:123\n   foo", valid, "foo", 123 - linebase, 3},
-		{"//line  foo:123\n   foo", valid, " foo", 123 - linebase, 3},
-		{"//line foo:123\n//line bar:345\nfoo", valid, "bar", 345 - linebase, 0},
-		{"//line C:foo:123\n", valid, "C:foo", 123 - linebase, 0},
-		{"//line " + runtime.GOROOT() + "/src/a/a.go:123\n   foo", valid, "$GOROOT/src/a/a.go", 123 - linebase, 3},
-		{"//line :x:1\n", valid, ":x", 0, 0},
-		{"//line foo ::1\n", valid, "foo :", 0, 0},
-		{"//line foo:123abc:1\n", valid, "foo:123abc", 0, 0},
-		{"//line foo :123:1\n", valid, "foo ", 123 - linebase, 0},
-		{"//line ::123\n", valid, ":", 123 - linebase, 0},
+		// effect of valid //line directives on lines
+		{"//line foo:123\n   foo", valid, "foo", 123, 0},
+		{"//line  foo:123\n   foo", valid, " foo", 123, 0},
+		{"//line foo:123\n//line bar:345\nfoo", valid, "bar", 345, 0},
+		{"//line C:foo:123\n", valid, "C:foo", 123, 0},
+		{"//line /src/a/a.go:123\n   foo", valid, "/src/a/a.go", 123, 0},
+		{"//line :x:1\n", valid, ":x", 1, 0},
+		{"//line foo ::1\n", valid, "foo :", 1, 0},
+		{"//line foo:123abc:1\n", valid, "foo:123abc", 1, 0},
+		{"//line foo :123:1\n", valid, "foo ", 123, 1},
+		{"//line ::123\n", valid, ":", 123, 0},
 
-		// TODO(gri) add tests to verify correct column changes, once implemented
+		// effect of valid //line directives on columns
+		{"//line :x:1:10\n", valid, ":x", 1, 10},
+		{"//line foo ::1:2\n", valid, "foo :", 1, 2},
+		{"//line foo:123abc:1:1000\n", valid, "foo:123abc", 1, 1000},
+		{"//line foo :123:1000\n\n", valid, "foo ", 124, 1},
+		{"//line ::123:1234\n", valid, ":", 123, 1234},
+
+		// //line directives with omitted filenames lead to empty filenames
+		{"//line :10\n", valid, "", 10, 0},
+		{"//line :10:20\n", valid, filename, 10, 20},
+		{"//line bar:1\n//line :10\n", valid, "", 10, 0},
+		{"//line bar:1\n//line :10:20\n", valid, "bar", 10, 20},
 
 		// ignored /*line directives
-		{"/**/", valid, "", 1 - linebase, 4},             // no directive
-		{"/*line*/", valid, "", 1 - linebase, 8},         // missing colon
-		{"/*line foo*/", valid, "", 1 - linebase, 12},    // missing colon
-		{"  //line foo:*/", valid, "", 1 - linebase, 15}, // not a line start
-		{"/*  line foo:*/", valid, "", 1 - linebase, 15}, // space between // and line
+		{"/**/", valid, filename, 1, 5},             // no directive
+		{"/*line*/", valid, filename, 1, 9},         // missing colon
+		{"/*line foo*/", valid, filename, 1, 13},    // missing colon
+		{"  //line foo:*/", valid, filename, 1, 16}, // not a line start
+		{"/*  line foo:*/", valid, filename, 1, 16}, // space between // and line
 
 		// invalid /*line directives with one colon
-		{"/*line :*/", "invalid line number: ", "", 0, 8},
-		{"/*line :x*/", "invalid line number: x", "", 0, 8},
-		{"/*line foo :*/", "invalid line number: ", "", 0, 12},
-		{"/*line foo:x*/", "invalid line number: x", "", 0, 11},
-		{"/*line foo:0*/", "invalid line number: 0", "", 0, 11},
-		{"/*line foo:1 */", "invalid line number: 1 ", "", 0, 11},
-		{"/*line C:foo:0*/", "invalid line number: 0", "", 0, 13},
-		{fmt.Sprintf("/*line foo:%d*/", lineMax+1), fmt.Sprintf("invalid line number: %d", lineMax+1), "", 0, 11},
+		{"/*line :*/", "invalid line number: ", filename, 1, 9},
+		{"/*line :x*/", "invalid line number: x", filename, 1, 9},
+		{"/*line foo :*/", "invalid line number: ", filename, 1, 13},
+		{"/*line foo:x*/", "invalid line number: x", filename, 1, 12},
+		{"/*line foo:0*/", "invalid line number: 0", filename, 1, 12},
+		{"/*line foo:1 */", "invalid line number: 1 ", filename, 1, 12},
+		{"/*line C:foo:0*/", "invalid line number: 0", filename, 1, 14},
+		{fmt.Sprintf("/*line foo:%d*/", tooLarge), fmt.Sprintf("invalid line number: %d", tooLarge), filename, 1, 12},
 
 		// invalid /*line directives with two colons
-		{"/*line ::*/", "invalid line number: ", "", 0, 9},
-		{"/*line ::x*/", "invalid line number: x", "", 0, 9},
-		{"/*line foo::123abc*/", "invalid line number: 123abc", "", 0, 12},
-		{"/*line foo::0*/", "invalid line number: 0", "", 0, 12},
-		{"/*line foo:0:1*/", "invalid line number: 0", "", 0, 11},
+		{"/*line ::*/", "invalid line number: ", filename, 1, 10},
+		{"/*line ::x*/", "invalid line number: x", filename, 1, 10},
+		{"/*line foo::123abc*/", "invalid line number: 123abc", filename, 1, 13},
+		{"/*line foo::0*/", "invalid line number: 0", filename, 1, 13},
+		{"/*line foo:0:1*/", "invalid line number: 0", filename, 1, 12},
 
-		{"/*line :123:0*/", "invalid column number: 0", "", 0, 12},
-		{"/*line foo:123:0*/", "invalid column number: 0", "", 0, 15},
+		{"/*line :123:0*/", "invalid column number: 0", filename, 1, 13},
+		{"/*line foo:123:0*/", "invalid column number: 0", filename, 1, 16},
+		{fmt.Sprintf("/*line foo:10:%d*/", tooLarge), fmt.Sprintf("invalid column number: %d", tooLarge), filename, 1, 15},
 
-		// effect of valid /*line directives on positions
-		// TODO(gri) remove \n after directives once line number is computed correctly
-		{"/*line foo:123*/\n   foo", valid, "foo", 123 - linebase, 3},
-		{"/*line foo:123*/\n//line bar:345\nfoo", valid, "bar", 345 - linebase, 0},
-		{"/*line C:foo:123*/\n", valid, "C:foo", 123 - linebase, 0},
-		{"/*line " + runtime.GOROOT() + "/src/a/a.go:123*/\n   foo", valid, "$GOROOT/src/a/a.go", 123 - linebase, 3},
-		{"/*line :x:1*/\n", valid, ":x", 1 - linebase, 0},
-		{"/*line foo ::1*/\n", valid, "foo :", 1 - linebase, 0},
-		{"/*line foo:123abc:1*/\n", valid, "foo:123abc", 1 - linebase, 0},
-		{"/*line foo :123:1*/\n", valid, "foo ", 123 - linebase, 0},
-		{"/*line ::123*/\n", valid, ":", 123 - linebase, 0},
+		// effect of valid /*line directives on lines
+		{"/*line foo:123*/   foo", valid, "foo", 123, 0},
+		{"/*line foo:123*/\n//line bar:345\nfoo", valid, "bar", 345, 0},
+		{"/*line C:foo:123*/", valid, "C:foo", 123, 0},
+		{"/*line /src/a/a.go:123*/   foo", valid, "/src/a/a.go", 123, 0},
+		{"/*line :x:1*/", valid, ":x", 1, 0},
+		{"/*line foo ::1*/", valid, "foo :", 1, 0},
+		{"/*line foo:123abc:1*/", valid, "foo:123abc", 1, 0},
+		{"/*line foo :123:10*/", valid, "foo ", 123, 10},
+		{"/*line ::123*/", valid, ":", 123, 0},
 
-		// test effect of /*line directive on (relative) position information for this line
-		// TODO(gri) add these tests
+		// effect of valid /*line directives on columns
+		{"/*line :x:1:10*/", valid, ":x", 1, 10},
+		{"/*line foo ::1:2*/", valid, "foo :", 1, 2},
+		{"/*line foo:123abc:1:1000*/", valid, "foo:123abc", 1, 1000},
+		{"/*line foo :123:1000*/\n", valid, "foo ", 124, 1},
+		{"/*line ::123:1234*/", valid, ":", 123, 1234},
 
-		// TODO(gri) add tests to verify correct column changes, once implemented
+		// /*line directives with omitted filenames lead to the previously used filenames
+		{"/*line :10*/", valid, "", 10, 0},
+		{"/*line :10:20*/", valid, filename, 10, 20},
+		{"//line bar:1\n/*line :10*/", valid, "", 10, 0},
+		{"//line bar:1\n/*line :10:20*/", valid, "bar", 10, 20},
 	} {
-		fileh := func(name string) string {
-			if strings.HasPrefix(name, runtime.GOROOT()) {
-				return "$GOROOT" + name[len(runtime.GOROOT()):]
-			}
-			return name
-		}
-		_, err := Parse(nil, strings.NewReader(test.src), nil, nil, fileh, 0)
+		base := NewFileBase(filename)
+		_, err := Parse(base, strings.NewReader(test.src), nil, nil, 0)
 		if err == nil {
 			t.Errorf("%s: no error reported", test.src)
 			continue
@@ -295,14 +334,16 @@ func TestLineDirectives(t *testing.T) {
 		if msg := perr.Msg; msg != test.msg {
 			t.Errorf("%s: got msg = %q; want %q", test.src, msg, test.msg)
 		}
-		if filename := perr.Pos.AbsFilename(); filename != test.filename {
+
+		pos := perr.Pos
+		if filename := pos.RelFilename(); filename != test.filename {
 			t.Errorf("%s: got filename = %q; want %q", test.src, filename, test.filename)
 		}
-		if line := perr.Pos.RelLine(); line-linebase != test.line {
-			t.Errorf("%s: got line = %d; want %d", test.src, line-linebase, test.line)
+		if line := pos.RelLine(); line != test.line {
+			t.Errorf("%s: got line = %d; want %d", test.src, line, test.line)
 		}
-		if col := perr.Pos.Col(); col-colbase != test.col {
-			t.Errorf("%s: got col = %d; want %d", test.src, col-colbase, test.col)
+		if col := pos.RelCol(); col != test.col {
+			t.Errorf("%s: got col = %d; want %d", test.src, col, test.col)
 		}
 	}
 }

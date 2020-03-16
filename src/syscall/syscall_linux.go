@@ -35,6 +35,91 @@ func Creat(path string, mode uint32) (fd int, err error) {
 	return Open(path, O_CREAT|O_WRONLY|O_TRUNC, mode)
 }
 
+//sys	faccessat(dirfd int, path string, mode uint32) (err error)
+
+func Faccessat(dirfd int, path string, mode uint32, flags int) (err error) {
+	if flags & ^(_AT_SYMLINK_NOFOLLOW|_AT_EACCESS) != 0 {
+		return EINVAL
+	}
+
+	// The Linux kernel faccessat system call does not take any flags.
+	// The glibc faccessat implements the flags itself; see
+	// https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/faccessat.c;hb=HEAD
+	// Because people naturally expect syscall.Faccessat to act
+	// like C faccessat, we do the same.
+
+	if flags == 0 {
+		return faccessat(dirfd, path, mode)
+	}
+
+	var st Stat_t
+	if err := fstatat(dirfd, path, &st, flags&_AT_SYMLINK_NOFOLLOW); err != nil {
+		return err
+	}
+
+	mode &= 7
+	if mode == 0 {
+		return nil
+	}
+
+	var uid int
+	if flags&_AT_EACCESS != 0 {
+		uid = Geteuid()
+	} else {
+		uid = Getuid()
+	}
+
+	if uid == 0 {
+		if mode&1 == 0 {
+			// Root can read and write any file.
+			return nil
+		}
+		if st.Mode&0111 != 0 {
+			// Root can execute any file that anybody can execute.
+			return nil
+		}
+		return EACCES
+	}
+
+	var fmode uint32
+	if uint32(uid) == st.Uid {
+		fmode = (st.Mode >> 6) & 7
+	} else {
+		var gid int
+		if flags&_AT_EACCESS != 0 {
+			gid = Getegid()
+		} else {
+			gid = Getgid()
+		}
+
+		if uint32(gid) == st.Gid {
+			fmode = (st.Mode >> 3) & 7
+		} else {
+			fmode = st.Mode & 7
+		}
+	}
+
+	if fmode&mode == mode {
+		return nil
+	}
+
+	return EACCES
+}
+
+//sys	fchmodat(dirfd int, path string, mode uint32) (err error)
+
+func Fchmodat(dirfd int, path string, mode uint32, flags int) (err error) {
+	// Linux fchmodat doesn't support the flags parameter. Mimick glibc's behavior
+	// and check the flags. Otherwise the mode would be applied to the symlink
+	// destination which is not what the user expects.
+	if flags&^_AT_SYMLINK_NOFOLLOW != 0 {
+		return EINVAL
+	} else if flags&_AT_SYMLINK_NOFOLLOW != 0 {
+		return EOPNOTSUPP
+	}
+	return fchmodat(dirfd, path, mode)
+}
+
 //sys	linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flags int) (err error)
 
 func Link(oldpath string, newpath string) (err error) {
@@ -89,8 +174,6 @@ func Unlinkat(dirfd int, path string) error {
 	return unlinkat(dirfd, path, 0)
 }
 
-//sys	utimes(path string, times *[2]Timeval) (err error)
-
 func Utimes(path string, tv []Timeval) (err error) {
 	if len(tv) != 2 {
 		return EINVAL
@@ -118,17 +201,11 @@ func UtimesNano(path string, ts []Timespec) (err error) {
 	return utimes(path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
 }
 
-//sys	futimesat(dirfd int, path *byte, times *[2]Timeval) (err error)
-
 func Futimesat(dirfd int, path string, tv []Timeval) (err error) {
 	if len(tv) != 2 {
 		return EINVAL
 	}
-	pathp, err := BytePtrFromString(path)
-	if err != nil {
-		return err
-	}
-	return futimesat(dirfd, pathp, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
+	return futimesat(dirfd, path, (*[2]Timeval)(unsafe.Pointer(&tv[0])))
 }
 
 func Futimes(fd int, tv []Timeval) (err error) {
@@ -407,7 +484,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
 		for n < len(pp.Path) && pp.Path[n] != 0 {
 			n++
 		}
-		bytes := (*[10000]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
+		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
 		sa.Name = string(bytes)
 		return sa, nil
 
@@ -541,15 +618,17 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
 	}
 	var dummy byte
 	if len(oob) > 0 {
-		var sockType int
-		sockType, err = GetsockoptInt(fd, SOL_SOCKET, SO_TYPE)
-		if err != nil {
-			return
-		}
-		// receive at least one normal byte
-		if sockType != SOCK_DGRAM && len(p) == 0 {
-			iov.Base = &dummy
-			iov.SetLen(1)
+		if len(p) == 0 {
+			var sockType int
+			sockType, err = GetsockoptInt(fd, SOL_SOCKET, SO_TYPE)
+			if err != nil {
+				return
+			}
+			// receive at least one normal byte
+			if sockType != SOCK_DGRAM {
+				iov.Base = &dummy
+				iov.SetLen(1)
+			}
 		}
 		msg.Control = &oob[0]
 		msg.SetControllen(len(oob))
@@ -593,15 +672,17 @@ func SendmsgN(fd int, p, oob []byte, to Sockaddr, flags int) (n int, err error) 
 	}
 	var dummy byte
 	if len(oob) > 0 {
-		var sockType int
-		sockType, err = GetsockoptInt(fd, SOL_SOCKET, SO_TYPE)
-		if err != nil {
-			return 0, err
-		}
-		// send at least one normal byte
-		if sockType != SOCK_DGRAM && len(p) == 0 {
-			iov.Base = &dummy
-			iov.SetLen(1)
+		if len(p) == 0 {
+			var sockType int
+			sockType, err = GetsockoptInt(fd, SOL_SOCKET, SO_TYPE)
+			if err != nil {
+				return 0, err
+			}
+			// send at least one normal byte
+			if sockType != SOCK_DGRAM {
+				iov.Base = &dummy
+				iov.SetLen(1)
+			}
 		}
 		msg.Control = &oob[0]
 		msg.SetControllen(len(oob))
@@ -819,15 +900,11 @@ func Mount(source string, target string, fstype string, flags uintptr, data stri
 //sys	Close(fd int) (err error)
 //sys	Dup(oldfd int) (fd int, err error)
 //sys	Dup3(oldfd int, newfd int, flags int) (err error)
-//sysnb	EpollCreate(size int) (fd int, err error)
 //sysnb	EpollCreate1(flag int) (fd int, err error)
 //sysnb	EpollCtl(epfd int, op int, fd int, event *EpollEvent) (err error)
-//sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
-//sys	Faccessat(dirfd int, path string, mode uint32, flags int) (err error)
 //sys	Fallocate(fd int, mode uint32, off int64, len int64) (err error)
 //sys	Fchdir(fd int) (err error)
 //sys	Fchmod(fd int, mode uint32) (err error)
-//sys	Fchmodat(dirfd int, path string, mode uint32, flags int) (err error)
 //sys	Fchownat(dirfd int, path string, uid int, gid int, flags int) (err error)
 //sys	fcntl(fd int, cmd int, arg int) (val int, err error)
 //sys	Fdatasync(fd int) (err error)
@@ -856,12 +933,10 @@ func Getpgrp() (pid int) {
 //sys	Mkdirat(dirfd int, path string, mode uint32) (err error)
 //sys	Mknodat(dirfd int, path string, mode uint32, dev int) (err error)
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
-//sys	Pause() (err error)
 //sys	PivotRoot(newroot string, putold string) (err error) = SYS_PIVOT_ROOT
 //sysnb prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) = SYS_PRLIMIT64
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Removexattr(path string, attr string) (err error)
-//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	Setdomainname(p []byte) (err error)
 //sys	Sethostname(p []byte) (err error)
 //sysnb	Setpgid(pid int, pgid int) (err error)
@@ -892,8 +967,6 @@ func Setgid(gid int) (err error) {
 //sysnb	Uname(buf *Utsname) (err error)
 //sys	Unmount(target string, flags int) (err error) = SYS_UMOUNT2
 //sys	Unshare(flags int) (err error)
-//sys	Ustat(dev int, ubuf *Ustat_t) (err error)
-//sys	Utime(path string, buf *Utimbuf) (err error)
 //sys	write(fd int, p []byte) (n int, err error)
 //sys	exitThread(code int) (err error) = SYS_EXIT
 //sys	readlen(fd int, p *byte, np int) (n int, err error) = SYS_READ
@@ -922,140 +995,3 @@ func Munmap(b []byte) (err error) {
 //sys	Munlock(b []byte) (err error)
 //sys	Mlockall(flags int) (err error)
 //sys	Munlockall() (err error)
-
-/*
- * Unimplemented
- */
-// AddKey
-// AfsSyscall
-// Alarm
-// ArchPrctl
-// Brk
-// Capget
-// Capset
-// ClockGetres
-// ClockGettime
-// ClockNanosleep
-// ClockSettime
-// Clone
-// CreateModule
-// DeleteModule
-// EpollCtlOld
-// EpollPwait
-// EpollWaitOld
-// Eventfd
-// Execve
-// Fadvise64
-// Fgetxattr
-// Flistxattr
-// Fork
-// Fremovexattr
-// Fsetxattr
-// Futex
-// GetKernelSyms
-// GetMempolicy
-// GetRobustList
-// GetThreadArea
-// Getitimer
-// Getpmsg
-// IoCancel
-// IoDestroy
-// IoGetevents
-// IoSetup
-// IoSubmit
-// Ioctl
-// IoprioGet
-// IoprioSet
-// KexecLoad
-// Keyctl
-// Lgetxattr
-// Llistxattr
-// LookupDcookie
-// Lremovexattr
-// Lsetxattr
-// Mbind
-// MigratePages
-// Mincore
-// ModifyLdt
-// Mount
-// MovePages
-// Mprotect
-// MqGetsetattr
-// MqNotify
-// MqOpen
-// MqTimedreceive
-// MqTimedsend
-// MqUnlink
-// Mremap
-// Msgctl
-// Msgget
-// Msgrcv
-// Msgsnd
-// Msync
-// Newfstatat
-// Nfsservctl
-// Personality
-// Poll
-// Ppoll
-// Prctl
-// Pselect6
-// Ptrace
-// Putpmsg
-// QueryModule
-// Quotactl
-// Readahead
-// Readv
-// RemapFilePages
-// RequestKey
-// RestartSyscall
-// RtSigaction
-// RtSigpending
-// RtSigprocmask
-// RtSigqueueinfo
-// RtSigreturn
-// RtSigsuspend
-// RtSigtimedwait
-// SchedGetPriorityMax
-// SchedGetPriorityMin
-// SchedGetaffinity
-// SchedGetparam
-// SchedGetscheduler
-// SchedRrGetInterval
-// SchedSetaffinity
-// SchedSetparam
-// SchedYield
-// Security
-// Semctl
-// Semget
-// Semop
-// Semtimedop
-// SetMempolicy
-// SetRobustList
-// SetThreadArea
-// SetTidAddress
-// Shmat
-// Shmctl
-// Shmdt
-// Shmget
-// Sigaltstack
-// Signalfd
-// Swapoff
-// Swapon
-// Sysfs
-// TimerCreate
-// TimerDelete
-// TimerGetoverrun
-// TimerGettime
-// TimerSettime
-// Timerfd
-// Tkill (obsolete)
-// Tuxcall
-// Umount2
-// Uselib
-// Utimensat
-// Vfork
-// Vhangup
-// Vmsplice
-// Vserver
-// Waitid
-// _Sysctl

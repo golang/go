@@ -14,6 +14,51 @@ import (
 	"unicode/utf8"
 )
 
+type toks struct {
+	earlyEOF bool
+	t        []Token
+}
+
+func (t *toks) Token() (Token, error) {
+	if len(t.t) == 0 {
+		return nil, io.EOF
+	}
+	var tok Token
+	tok, t.t = t.t[0], t.t[1:]
+	if t.earlyEOF && len(t.t) == 0 {
+		return tok, io.EOF
+	}
+	return tok, nil
+}
+
+func TestDecodeEOF(t *testing.T) {
+	start := StartElement{Name: Name{Local: "test"}}
+	t.Run("EarlyEOF", func(t *testing.T) {
+		d := NewTokenDecoder(&toks{earlyEOF: true, t: []Token{
+			start,
+			start.End(),
+		}})
+		err := d.Decode(&struct {
+			XMLName Name `xml:"test"`
+		}{})
+		if err != nil {
+			t.Error(err)
+		}
+	})
+	t.Run("LateEOF", func(t *testing.T) {
+		d := NewTokenDecoder(&toks{t: []Token{
+			start,
+			start.End(),
+		}})
+		err := d.Decode(&struct {
+			XMLName Name `xml:"test"`
+		}{})
+		if err != nil {
+			t.Error(err)
+		}
+	})
+}
+
 const testInput = `
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
@@ -646,6 +691,20 @@ func TestDisallowedCharacters(t *testing.T) {
 		}
 		if synerr.Msg != tt.err {
 			t.Fatalf("input %d synerr.Msg wrong: want %q, got %q", i, tt.err, synerr.Msg)
+		}
+	}
+}
+
+func TestIsInCharacterRange(t *testing.T) {
+	invalid := []rune{
+		utf8.MaxRune + 1,
+		0xD800, // surrogate min
+		0xDFFF, // surrogate max
+		-1,
+	}
+	for _, r := range invalid {
+		if isInCharacterRange(r) {
+			t.Errorf("rune %U considered valid", r)
 		}
 	}
 }

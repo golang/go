@@ -6,28 +6,24 @@ package aes
 
 import (
 	"crypto/cipher"
+	"crypto/internal/subtle"
 )
 
 // defined in asm_ppc64le.s
 
 //go:noescape
-
 func setEncryptKeyAsm(key *byte, keylen int, enc *uint32) int
 
 //go:noescape
-
 func setDecryptKeyAsm(key *byte, keylen int, dec *uint32) int
 
 //go:noescape
-
 func doEncryptKeyAsm(key *byte, keylen int, dec *uint32) int
 
 //go:noescape
-
 func encryptBlockAsm(dst, src *byte, enc *uint32)
 
 //go:noescape
-
 func decryptBlockAsm(dst, src *byte, dec *uint32)
 
 type aesCipherAsm struct {
@@ -59,6 +55,9 @@ func (c *aesCipherAsm) Encrypt(dst, src []byte) {
 	if len(dst) < BlockSize {
 		panic("crypto/aes: output not full block")
 	}
+	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+		panic("crypto/aes: invalid buffer overlap")
+	}
 	encryptBlockAsm(&dst[0], &src[0], &c.enc[0])
 }
 
@@ -68,6 +67,9 @@ func (c *aesCipherAsm) Decrypt(dst, src []byte) {
 	}
 	if len(dst) < BlockSize {
 		panic("crypto/aes: output not full block")
+	}
+	if subtle.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+		panic("crypto/aes: invalid buffer overlap")
 	}
 	decryptBlockAsm(&dst[0], &src[0], &c.dec[0])
 }

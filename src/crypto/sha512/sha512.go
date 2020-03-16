@@ -12,6 +12,7 @@ package sha512
 
 import (
 	"crypto"
+	"encoding/binary"
 	"errors"
 	"hash"
 )
@@ -191,21 +192,13 @@ func (d *digest) UnmarshalBinary(b []byte) error {
 	b, d.h[7] = consumeUint64(b)
 	b = b[copy(d.x[:], b):]
 	b, d.len = consumeUint64(b)
-	d.nx = int(d.len) % chunk
+	d.nx = int(d.len % chunk)
 	return nil
 }
 
 func appendUint64(b []byte, x uint64) []byte {
-	a := [8]byte{
-		byte(x >> 56),
-		byte(x >> 48),
-		byte(x >> 40),
-		byte(x >> 32),
-		byte(x >> 24),
-		byte(x >> 16),
-		byte(x >> 8),
-		byte(x),
-	}
+	var a [8]byte
+	binary.BigEndian.PutUint64(a[:], x)
 	return append(b, a[:]...)
 }
 
@@ -282,12 +275,12 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 	return
 }
 
-func (d0 *digest) Sum(in []byte) []byte {
-	// Make a copy of d0 so that caller can keep writing and summing.
-	d := new(digest)
-	*d = *d0
-	hash := d.checkSum()
-	switch d.function {
+func (d *digest) Sum(in []byte) []byte {
+	// Make a copy of d so that caller can keep writing and summing.
+	d0 := new(digest)
+	*d0 = *d
+	hash := d0.checkSum()
+	switch d0.function {
 	case crypto.SHA384:
 		return append(in, hash[:Size384]...)
 	case crypto.SHA512_224:
@@ -312,30 +305,24 @@ func (d *digest) checkSum() [Size]byte {
 
 	// Length in bits.
 	len <<= 3
-	for i := uint(0); i < 16; i++ {
-		tmp[i] = byte(len >> (120 - 8*i))
-	}
+	binary.BigEndian.PutUint64(tmp[0:], 0) // upper 64 bits are always zero, because len variable has type uint64
+	binary.BigEndian.PutUint64(tmp[8:], len)
 	d.Write(tmp[0:16])
 
 	if d.nx != 0 {
 		panic("d.nx != 0")
 	}
 
-	h := d.h[:]
-	if d.function == crypto.SHA384 {
-		h = d.h[:6]
-	}
-
 	var digest [Size]byte
-	for i, s := range h {
-		digest[i*8] = byte(s >> 56)
-		digest[i*8+1] = byte(s >> 48)
-		digest[i*8+2] = byte(s >> 40)
-		digest[i*8+3] = byte(s >> 32)
-		digest[i*8+4] = byte(s >> 24)
-		digest[i*8+5] = byte(s >> 16)
-		digest[i*8+6] = byte(s >> 8)
-		digest[i*8+7] = byte(s)
+	binary.BigEndian.PutUint64(digest[0:], d.h[0])
+	binary.BigEndian.PutUint64(digest[8:], d.h[1])
+	binary.BigEndian.PutUint64(digest[16:], d.h[2])
+	binary.BigEndian.PutUint64(digest[24:], d.h[3])
+	binary.BigEndian.PutUint64(digest[32:], d.h[4])
+	binary.BigEndian.PutUint64(digest[40:], d.h[5])
+	if d.function != crypto.SHA384 {
+		binary.BigEndian.PutUint64(digest[48:], d.h[6])
+		binary.BigEndian.PutUint64(digest[56:], d.h[7])
 	}
 
 	return digest

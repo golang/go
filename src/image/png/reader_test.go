@@ -364,10 +364,6 @@ func TestReader(t *testing.T) {
 		}
 		defer sf.Close()
 		sb := bufio.NewScanner(sf)
-		if err != nil {
-			t.Error(fn, err)
-			continue
-		}
 
 		// Compare the two, in SNG format, line by line.
 		for {
@@ -585,6 +581,21 @@ func TestUnknownChunkLengthUnderflow(t *testing.T) {
 	_, err := Decode(bytes.NewReader(data))
 	if err == nil {
 		t.Errorf("Didn't fail reading an unknown chunk with length 0xffffffff")
+	}
+}
+
+func TestPaletted8OutOfRangePixel(t *testing.T) {
+	// IDAT contains a reference to a palette index that does not exist in the file.
+	img, err := readPNG("testdata/invalid-palette.png")
+	if err != nil {
+		t.Errorf("decoding invalid-palette.png: unexpected error %v", err)
+		return
+	}
+
+	// Expect that the palette is extended with opaque black.
+	want := color.RGBA{0x00, 0x00, 0x00, 0xff}
+	if got := img.At(15, 15); got != want {
+		t.Errorf("got %F %v, expected %T %v", got, got, want, want)
 	}
 }
 

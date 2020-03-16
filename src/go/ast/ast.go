@@ -10,8 +10,6 @@ package ast
 import (
 	"go/token"
 	"strings"
-	"unicode"
-	"unicode/utf8"
 )
 
 // ----------------------------------------------------------------------------
@@ -153,10 +151,12 @@ func (g *CommentGroup) Text() string {
 // A Field represents a Field declaration list in a struct type,
 // a method list in an interface type, or a parameter/result declaration
 // in a signature.
+// Field.Names is nil for unnamed parameters (parameter lists which only contain types)
+// and embedded struct fields. In the latter case, the field name is the type name.
 //
 type Field struct {
 	Doc     *CommentGroup // associated documentation; or nil
-	Names   []*Ident      // field/method/parameter names; or nil if anonymous field
+	Names   []*Ident      // field/method/parameter names; or nil
 	Type    Expr          // field/method/parameter type
 	Tag     *BasicLit     // field tag; or nil
 	Comment *CommentGroup // line comments; or nil
@@ -207,14 +207,14 @@ func (f *FieldList) End() token.Pos {
 	return token.NoPos
 }
 
-// NumFields returns the number of (named and anonymous fields) in a FieldList.
+// NumFields returns the number of parameters or struct fields represented by a FieldList.
 func (f *FieldList) NumFields() int {
 	n := 0
 	if f != nil {
 		for _, g := range f.List {
 			m := len(g.Names)
 			if m == 0 {
-				m = 1 // anonymous field
+				m = 1
 			}
 			n += m
 		}
@@ -264,10 +264,11 @@ type (
 
 	// A CompositeLit node represents a composite literal.
 	CompositeLit struct {
-		Type   Expr      // literal type; or nil
-		Lbrace token.Pos // position of "{"
-		Elts   []Expr    // list of composite elements; or nil
-		Rbrace token.Pos // position of "}"
+		Type       Expr      // literal type; or nil
+		Lbrace     token.Pos // position of "{"
+		Elts       []Expr    // list of composite elements; or nil
+		Rbrace     token.Pos // position of "}"
+		Incomplete bool      // true if (source) expressions are missing in the Elts list
 	}
 
 	// A ParenExpr node represents a parenthesized expression.
@@ -291,7 +292,7 @@ type (
 		Rbrack token.Pos // position of "]"
 	}
 
-	// An SliceExpr node represents an expression followed by slice indices.
+	// A SliceExpr node represents an expression followed by slice indices.
 	SliceExpr struct {
 		X      Expr      // expression
 		Lbrack token.Pos // position of "["
@@ -520,18 +521,13 @@ func (*ChanType) exprNode()      {}
 //
 func NewIdent(name string) *Ident { return &Ident{token.NoPos, name, nil} }
 
-// IsExported reports whether name is an exported Go symbol
-// (that is, whether it begins with an upper-case letter).
+// IsExported reports whether name starts with an upper-case letter.
 //
-func IsExported(name string) bool {
-	ch, _ := utf8.DecodeRuneInString(name)
-	return unicode.IsUpper(ch)
-}
+func IsExported(name string) bool { return token.IsExported(name) }
 
-// IsExported reports whether id is an exported Go symbol
-// (that is, whether it begins with an uppercase letter).
+// IsExported reports whether id starts with an upper-case letter.
 //
-func (id *Ident) IsExported() bool { return IsExported(id.Name) }
+func (id *Ident) IsExported() bool { return token.IsExported(id.Name) }
 
 func (id *Ident) String() string {
 	if id != nil {
@@ -638,7 +634,7 @@ type (
 	BlockStmt struct {
 		Lbrace token.Pos // position of "{"
 		List   []Stmt
-		Rbrace token.Pos // position of "}"
+		Rbrace token.Pos // position of "}", if any (may be absent due to syntax error)
 	}
 
 	// An IfStmt node represents an if statement.
@@ -666,7 +662,7 @@ type (
 		Body   *BlockStmt // CaseClauses only
 	}
 
-	// An TypeSwitchStmt node represents a type switch statement.
+	// A TypeSwitchStmt node represents a type switch statement.
 	TypeSwitchStmt struct {
 		Switch token.Pos  // position of "switch" keyword
 		Init   Stmt       // initialization statement; or nil
@@ -682,7 +678,7 @@ type (
 		Body  []Stmt    // statement list; or nil
 	}
 
-	// An SelectStmt node represents a select statement.
+	// A SelectStmt node represents a select statement.
 	SelectStmt struct {
 		Select token.Pos  // position of "select" keyword
 		Body   *BlockStmt // CommClauses only
@@ -761,7 +757,15 @@ func (s *BranchStmt) End() token.Pos {
 	}
 	return token.Pos(int(s.TokPos) + len(s.Tok.String()))
 }
-func (s *BlockStmt) End() token.Pos { return s.Rbrace + 1 }
+func (s *BlockStmt) End() token.Pos {
+	if s.Rbrace.IsValid() {
+		return s.Rbrace + 1
+	}
+	if n := len(s.List); n > 0 {
+		return s.List[n-1].End()
+	}
+	return s.Lbrace + 1
+}
 func (s *IfStmt) End() token.Pos {
 	if s.Else != nil {
 		return s.Else.End()

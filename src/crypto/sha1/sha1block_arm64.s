@@ -26,7 +26,7 @@ TEXT ·sha1block(SB),NOSPLIT,$0
 	MOVD	k_base+48(FP), R2                            // k constants first address
 	MOVD	p_len+32(FP), R3                             // message length
 	VLD1.P	16(R0), [V0.S4]
-	VMOVS	(R0), V20
+	FMOVS	(R0), F20
 	SUB	$16, R0, R0
 
 blockloop:
@@ -148,5 +148,5 @@ blockloop:
 sha1ret:
 
 	VST1.P	[V0.S4], 16(R0)                               // store hash value H(dcba)
-	VMOVS	V20, (R0)                                     // store hash value H(e)
+	FMOVS	F20, (R0)                                     // store hash value H(e)
 	RET

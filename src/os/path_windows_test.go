@@ -38,10 +38,10 @@ func TestFixLongPath(t *testing.T) {
 		{`\\?\c:\long\foo.txt`, `\\?\c:\long\foo.txt`},
 		{`\\?\c:\long/foo.txt`, `\\?\c:\long/foo.txt`},
 	} {
-		in := strings.Replace(test.in, "long", veryLong, -1)
-		want := strings.Replace(test.want, "long", veryLong, -1)
+		in := strings.ReplaceAll(test.in, "long", veryLong)
+		want := strings.ReplaceAll(test.want, "long", veryLong)
 		if got := os.FixLongPath(in); got != want {
-			got = strings.Replace(got, veryLong, "long", -1)
+			got = strings.ReplaceAll(got, veryLong, "long")
 			t.Errorf("fixLongPath(%q) = %q; want %q", test.in, got, test.want)
 		}
 	}
@@ -72,5 +72,20 @@ func TestMkdirAllExtendedLength(t *testing.T) {
 	err = os.MkdirAll(path, 0777)
 	if err == nil {
 		t.Fatalf("MkdirAll(%q) should have failed, but did not", path)
+	}
+}
+
+func TestOpenRootSlash(t *testing.T) {
+	tests := []string{
+		`/`,
+		`\`,
+	}
+
+	for _, test := range tests {
+		dir, err := os.Open(test)
+		if err != nil {
+			t.Fatalf("Open(%q) failed: %v", test, err)
+		}
+		dir.Close()
 	}
 }

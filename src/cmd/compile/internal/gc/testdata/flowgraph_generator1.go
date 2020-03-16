@@ -30,7 +30,7 @@ import (
 // of the 2-to-the-(J-1) serial numbers.
 
 // For each generated function a compact summary is also
-// created so that the generated funtion can be simulated
+// created so that the generated function can be simulated
 // with a simple interpreter to sanity check the behavior of
 // the compiled code.
 

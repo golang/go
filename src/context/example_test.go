@@ -59,7 +59,7 @@ func ExampleWithDeadline() {
 	ctx, cancel := context.WithDeadline(context.Background(), d)
 
 	// Even though ctx will be expired, it is good practice to call its
-	// cancelation function in any case. Failure to do so may keep the
+	// cancellation function in any case. Failure to do so may keep the
 	// context and its parent alive longer than necessary.
 	defer cancel()
 
@@ -93,6 +93,8 @@ func ExampleWithTimeout() {
 	// context deadline exceeded
 }
 
+// This example demonstrates how a value can be passed to the context
+// and also how to retrieve it if it exists.
 func ExampleWithValue() {
 	type favContextKey string
 

@@ -1,0 +1,45 @@
+# Without arguments, we just print Go's own version.
+go version
+stdout '^go version'
+
+# Flags without files, or paths to misisng files, should error.
+! go version missing.exe
+! go version -m
+stderr 'with arguments'
+! go version -v
+stderr 'with arguments'
+
+env GO111MODULE=on
+# Skip the builds below if we are running in short mode.
+[short] skip
+
+# Check that 'go version' and 'go version -m' work on a binary built in module mode.
+go build -o fortune.exe rsc.io/fortune
+go version fortune.exe
+stdout '^fortune.exe: .+'
+go version -m fortune.exe
+stdout '^\tpath\trsc.io/fortune'
+stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+
+# Repeat the test with -buildmode=pie.
+[!buildmode:pie] stop
+go build -buildmode=pie -o external.exe rsc.io/fortune
+go version external.exe
+stdout '^external.exe: .+'
+go version -m external.exe
+stdout '^\tpath\trsc.io/fortune'
+stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+
+# Also test PIE with internal linking.
+# currently only supported on linux/amd64, linux/arm64 and windows/amd64.
+[!linux] [!windows] stop
+[!amd64] [!arm64] stop
+go build -buildmode=pie -ldflags=-linkmode=internal -o internal.exe rsc.io/fortune
+go version internal.exe
+stdout '^internal.exe: .+'
+go version -m internal.exe
+stdout '^\tpath\trsc.io/fortune'
+stdout '^\tmod\trsc.io/fortune\tv1.0.0'
+
+-- go.mod --
+module m

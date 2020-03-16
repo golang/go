@@ -10,6 +10,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"encoding/binary"
@@ -451,20 +452,35 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) (found bool, ehdrFlags 
 	return found, ehdrFlags, nil
 }
 
-// Load loads the ELF file pn from f.
+func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string, flags uint32) ([]*sym.Symbol, uint32, error) {
+	newSym := func(name string, version int) *sym.Symbol {
+		return l.Create(name, syms)
+	}
+	lookup := func(name string, version int) *sym.Symbol {
+		return l.LookupOrCreate(name, version, syms)
+	}
+	return load(arch, syms.IncVersion(), newSym, lookup, f, pkg, length, pn, flags)
+}
+
+func LoadOld(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string, flags uint32) ([]*sym.Symbol, uint32, error) {
+	return load(arch, syms.IncVersion(), syms.Newsym, syms.Lookup, f, pkg, length, pn, flags)
+}
+
+type lookupFunc func(string, int) *sym.Symbol
+
+// load loads the ELF file pn from f.
 // Symbols are written into syms, and a slice of the text symbols is returned.
 //
 // On ARM systems, Load will attempt to determine what ELF header flags to
 // emit by scanning the attributes in the ELF file being loaded. The
 // parameter initEhdrFlags contains the current header flags for the output
-// object, and the returnd ehdrFlags contains what this Load function computes.
+// object, and the returned ehdrFlags contains what this Load function computes.
 // TODO: find a better place for this logic.
-func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string, initEhdrFlags uint32) (textp []*sym.Symbol, ehdrFlags uint32, err error) {
+func load(arch *sys.Arch, localSymVersion int, newSym, lookup lookupFunc, f *bio.Reader, pkg string, length int64, pn string, initEhdrFlags uint32) (textp []*sym.Symbol, ehdrFlags uint32, err error) {
 	errorf := func(str string, args ...interface{}) ([]*sym.Symbol, uint32, error) {
 		return nil, 0, fmt.Errorf("loadelf: %s: %v", pn, fmt.Sprintf(str, args...))
 	}
 
-	localSymVersion := syms.IncVersion()
 	base := f.Offset()
 
 	var hdrbuf [64]uint8
@@ -590,9 +606,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 
 	elfobj.nsect = uint(elfobj.shnum)
 	for i := 0; uint(i) < elfobj.nsect; i++ {
-		if f.Seek(int64(uint64(base)+elfobj.shoff+uint64(int64(i)*int64(elfobj.shentsize))), 0) < 0 {
-			return errorf("malformed elf file: negative seek")
-		}
+		f.MustSeek(int64(uint64(base)+elfobj.shoff+uint64(int64(i)*int64(elfobj.shentsize))), 0)
 		sect := &elfobj.sect[i]
 		if is64 != 0 {
 			var b ElfSectBytes64
@@ -678,6 +692,8 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 	// as well use one large chunk.
 
 	// create symbols for elfmapped sections
+	sectsymNames := make(map[string]bool)
+	counter := 0
 	for i := 0; uint(i) < elfobj.nsect; i++ {
 		sect = &elfobj.sect[i]
 		if sect.type_ == SHT_ARM_ATTRIBUTES && sect.name == ".ARM.attributes" {
@@ -709,7 +725,13 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 		}
 
 		name := fmt.Sprintf("%s(%s)", pkg, sect.name)
-		s := syms.Lookup(name, localSymVersion)
+		for sectsymNames[name] {
+			counter++
+			name = fmt.Sprintf("%s(%s%d)", pkg, sect.name, counter)
+		}
+		sectsymNames[name] = true
+
+		s := lookup(name, localSymVersion)
 
 		switch int(sect.flags) & (ElfSectFlagAlloc | ElfSectFlagWrite | ElfSectFlagExec) {
 		default:
@@ -748,7 +770,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 
 	for i := 1; i < elfobj.nsymtab; i++ {
 		var elfsym ElfSym
-		if err := readelfsym(arch, syms, elfobj, i, &elfsym, 1, localSymVersion); err != nil {
+		if err := readelfsym(newSym, lookup, arch, elfobj, i, &elfsym, 1, localSymVersion); err != nil {
 			return errorf("%s: malformed elf file: %v", pn, err)
 		}
 		symbols[i] = elfsym.sym
@@ -786,6 +808,13 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 				continue
 			}
 
+			if strings.HasPrefix(elfsym.name, "$d") && elfsym.type_ == 0 && sect.name == ".debug_frame" {
+				// "$d" is a marker, not a real symbol.
+				// This happens with gcc on ARM64.
+				// See https://sourceware.org/bugzilla/show_bug.cgi?id=21809
+				continue
+			}
+
 			if strings.HasPrefix(elfsym.name, ".LASF") { // gcc on s390x does this
 				continue
 			}
@@ -805,7 +834,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 		s.Type = sect.sym.Type
 		s.Attr |= sym.AttrSubSymbol
 		if !s.Attr.CgoExportDynamic() {
-			s.Dynimplib = "" // satisfy dynimport
+			s.SetDynimplib("") // satisfy dynimport
 		}
 		s.Value = int64(elfsym.value)
 		s.Size = int64(elfsym.size)
@@ -820,7 +849,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 		if elfobj.machine == ElfMachPower64 {
 			flag := int(elfsym.other) >> 5
 			if 2 <= flag && flag <= 6 {
-				s.Localentry = 1 << uint(flag-2)
+				s.SetLocalentry(1 << uint(flag-2))
 			} else if flag == 7 {
 				return errorf("%v: invalid sym.other 0x%x", s, elfsym.other)
 			}
@@ -875,14 +904,26 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 		p := rsect.base
 		for j := 0; j < n; j++ {
 			var add uint64
+			var symIdx int
+			var relocType uint64
+
 			rp := &r[j]
-			var info uint64
 			if is64 != 0 {
 				// 64-bit rel/rela
 				rp.Off = int32(e.Uint64(p))
 
 				p = p[8:]
-				info = e.Uint64(p)
+				switch arch.Family {
+				case sys.MIPS64:
+					// https://www.linux-mips.org/pub/linux/mips/doc/ABI/elf64-2.4.pdf
+					// The doc shows it's different with general Linux ELF
+					symIdx = int(e.Uint32(p))
+					relocType = uint64(p[7])
+				default:
+					info := e.Uint64(p)
+					relocType = info & 0xffffffff
+					symIdx = int(info >> 32)
+				}
 				p = p[8:]
 				if rela != 0 {
 					add = e.Uint64(p)
@@ -893,8 +934,9 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 				rp.Off = int32(e.Uint32(p))
 
 				p = p[4:]
-				info = uint64(e.Uint32(p))
-				info = info>>8<<32 | info&0xff // convert to 64-bit info
+				info := e.Uint32(p)
+				relocType = uint64(info & 0xff)
+				symIdx = int(info >> 8)
 				p = p[4:]
 				if rela != 0 {
 					add = uint64(e.Uint32(p))
@@ -902,29 +944,29 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
 				}
 			}
 
-			if info&0xffffffff == 0 { // skip R_*_NONE relocation
+			if relocType == 0 { // skip R_*_NONE relocation
 				j--
 				n--
 				continue
 			}
 
-			if info>>32 == 0 { // absolute relocation, don't bother reading the null symbol
+			if symIdx == 0 { // absolute relocation, don't bother reading the null symbol
 				rp.Sym = nil
 			} else {
 				var elfsym ElfSym
-				if err := readelfsym(arch, syms, elfobj, int(info>>32), &elfsym, 0, 0); err != nil {
+				if err := readelfsym(newSym, lookup, arch, elfobj, symIdx, &elfsym, 0, 0); err != nil {
 					return errorf("malformed elf file: %v", err)
 				}
-				elfsym.sym = symbols[info>>32]
+				elfsym.sym = symbols[symIdx]
 				if elfsym.sym == nil {
-					return errorf("malformed elf file: %s#%d: reloc of invalid sym #%d %s shndx=%d type=%d", sect.sym.Name, j, int(info>>32), elfsym.name, elfsym.shndx, elfsym.type_)
+					return errorf("malformed elf file: %s#%d: reloc of invalid sym #%d %s shndx=%d type=%d", sect.sym.Name, j, symIdx, elfsym.name, elfsym.shndx, elfsym.type_)
 				}
 
 				rp.Sym = elfsym.sym
 			}
 
-			rp.Type = 256 + objabi.RelocType(info)
-			rp.Siz, err = relSize(arch, pn, uint32(info))
+			rp.Type = objabi.ElfRelocOffset + objabi.RelocType(relocType)
+			rp.Siz, err = relSize(arch, pn, uint32(relocType))
 			if err != nil {
 				return nil, 0, err
 			}
@@ -981,9 +1023,7 @@ func elfmap(elfobj *ElfObj, sect *ElfSect) (err error) {
 	}
 
 	sect.base = make([]byte, sect.size)
-	if elfobj.f.Seek(int64(uint64(elfobj.base)+sect.off), 0) < 0 {
-		return fmt.Errorf("short read: seek not successful")
-	}
+	elfobj.f.MustSeek(int64(uint64(elfobj.base)+sect.off), 0)
 	if _, err := io.ReadFull(elfobj.f, sect.base); err != nil {
 		return fmt.Errorf("short read: %v", err)
 	}
@@ -991,7 +1031,7 @@ func elfmap(elfobj *ElfObj, sect *ElfSect) (err error) {
 	return nil
 }
 
-func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, localSymVersion int) (err error) {
+func readelfsym(newSym, lookup lookupFunc, arch *sys.Arch, elfobj *ElfObj, i int, elfsym *ElfSym, needSym int, localSymVersion int) (err error) {
 	if i >= elfobj.nsymtab || i < 0 {
 		err = fmt.Errorf("invalid elf symbol index")
 		return err
@@ -1041,14 +1081,14 @@ func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym
 		switch elfsym.bind {
 		case ElfSymBindGlobal:
 			if needSym != 0 {
-				s = syms.Lookup(elfsym.name, 0)
+				s = lookup(elfsym.name, 0)
 
 				// for global scoped hidden symbols we should insert it into
 				// symbol hash table, but mark them as hidden.
 				// __i686.get_pc_thunk.bx is allowed to be duplicated, to
 				// workaround that we set dupok.
 				// TODO(minux): correctly handle __i686.get_pc_thunk.bx without
-				// set dupok generally. See http://codereview.appspot.com/5823055/
+				// set dupok generally. See https://golang.org/cl/5823055
 				// comment #5 for details.
 				if s != nil && elfsym.other == 2 {
 					s.Attr |= sym.AttrDuplicateOK | sym.AttrVisibilityHidden
@@ -1056,8 +1096,8 @@ func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym
 			}
 
 		case ElfSymBindLocal:
-			if arch.Family == sys.ARM && (strings.HasPrefix(elfsym.name, "$a") || strings.HasPrefix(elfsym.name, "$d")) {
-				// binutils for arm generate these mapping
+			if (arch.Family == sys.ARM || arch.Family == sys.ARM64) && (strings.HasPrefix(elfsym.name, "$a") || strings.HasPrefix(elfsym.name, "$d") || strings.HasPrefix(elfsym.name, "$x")) {
+				// binutils for arm and arm64 generate these mapping
 				// symbols, ignore these
 				break
 			}
@@ -1066,7 +1106,7 @@ func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym
 				// We need to be able to look this up,
 				// so put it in the hash table.
 				if needSym != 0 {
-					s = syms.Lookup(elfsym.name, localSymVersion)
+					s = lookup(elfsym.name, localSymVersion)
 					s.Attr |= sym.AttrVisibilityHidden
 				}
 
@@ -1077,16 +1117,24 @@ func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym
 				// local names and hidden global names are unique
 				// and should only be referenced by their index, not name, so we
 				// don't bother to add them into the hash table
-				s = syms.Newsym(elfsym.name, localSymVersion)
+				// FIXME: pass empty string here for name? This would
+				// reduce mem use, but also (possibly) make it harder
+				// to debug problems.
+				s = newSym(elfsym.name, localSymVersion)
 
 				s.Attr |= sym.AttrVisibilityHidden
 			}
 
 		case ElfSymBindWeak:
 			if needSym != 0 {
-				s = syms.Lookup(elfsym.name, 0)
+				s = lookup(elfsym.name, 0)
 				if elfsym.other == 2 {
 					s.Attr |= sym.AttrVisibilityHidden
+				}
+
+				// Allow weak symbols to be duplicated when already defined.
+				if s.Outer != nil {
+					s.Attr |= sym.AttrDuplicateOK
 				}
 			}
 
@@ -1112,83 +1160,115 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, error) {
 	// performance.
 
 	const (
-		AMD64 = uint32(sys.AMD64)
-		ARM   = uint32(sys.ARM)
-		I386  = uint32(sys.I386)
-		PPC64 = uint32(sys.PPC64)
-		S390X = uint32(sys.S390X)
+		AMD64  = uint32(sys.AMD64)
+		ARM    = uint32(sys.ARM)
+		ARM64  = uint32(sys.ARM64)
+		I386   = uint32(sys.I386)
+		PPC64  = uint32(sys.PPC64)
+		S390X  = uint32(sys.S390X)
+		MIPS   = uint32(sys.MIPS)
+		MIPS64 = uint32(sys.MIPS64)
 	)
 
-	switch uint32(arch.Family) | elftype<<24 {
+	switch uint32(arch.Family) | elftype<<16 {
 	default:
 		return 0, fmt.Errorf("%s: unknown relocation type %d; compiled without -fpic?", pn, elftype)
 
-	case S390X | uint32(elf.R_390_8)<<24:
-		return 1, nil
-
-	case PPC64 | uint32(elf.R_PPC64_TOC16)<<24,
-		PPC64 | uint32(elf.R_PPC64_TOC16_LO)<<24,
-		PPC64 | uint32(elf.R_PPC64_TOC16_HI)<<24,
-		PPC64 | uint32(elf.R_PPC64_TOC16_HA)<<24,
-		PPC64 | uint32(elf.R_PPC64_TOC16_DS)<<24,
-		PPC64 | uint32(elf.R_PPC64_TOC16_LO_DS)<<24,
-		PPC64 | uint32(elf.R_PPC64_REL16_LO)<<24,
-		PPC64 | uint32(elf.R_PPC64_REL16_HI)<<24,
-		PPC64 | uint32(elf.R_PPC64_REL16_HA)<<24,
-		S390X | uint32(elf.R_390_16)<<24,
-		S390X | uint32(elf.R_390_GOT16)<<24,
-		S390X | uint32(elf.R_390_PC16)<<24,
-		S390X | uint32(elf.R_390_PC16DBL)<<24,
-		S390X | uint32(elf.R_390_PLT16DBL)<<24:
-		return 2, nil
-
-	case ARM | uint32(elf.R_ARM_ABS32)<<24,
-		ARM | uint32(elf.R_ARM_GOT32)<<24,
-		ARM | uint32(elf.R_ARM_PLT32)<<24,
-		ARM | uint32(elf.R_ARM_GOTOFF)<<24,
-		ARM | uint32(elf.R_ARM_GOTPC)<<24,
-		ARM | uint32(elf.R_ARM_THM_PC22)<<24,
-		ARM | uint32(elf.R_ARM_REL32)<<24,
-		ARM | uint32(elf.R_ARM_CALL)<<24,
-		ARM | uint32(elf.R_ARM_V4BX)<<24,
-		ARM | uint32(elf.R_ARM_GOT_PREL)<<24,
-		ARM | uint32(elf.R_ARM_PC24)<<24,
-		ARM | uint32(elf.R_ARM_JUMP24)<<24,
-		AMD64 | uint32(elf.R_X86_64_PC32)<<24,
-		AMD64 | uint32(elf.R_X86_64_PLT32)<<24,
-		AMD64 | uint32(elf.R_X86_64_GOTPCREL)<<24,
-		AMD64 | uint32(elf.R_X86_64_GOTPCRELX)<<24,
-		AMD64 | uint32(elf.R_X86_64_REX_GOTPCRELX)<<24,
-		I386 | uint32(elf.R_386_32)<<24,
-		I386 | uint32(elf.R_386_PC32)<<24,
-		I386 | uint32(elf.R_386_GOT32)<<24,
-		I386 | uint32(elf.R_386_PLT32)<<24,
-		I386 | uint32(elf.R_386_GOTOFF)<<24,
-		I386 | uint32(elf.R_386_GOTPC)<<24,
-		I386 | uint32(elf.R_386_GOT32X)<<24,
-		PPC64 | uint32(elf.R_PPC64_REL24)<<24,
-		PPC64 | uint32(elf.R_PPC_REL32)<<24,
-		S390X | uint32(elf.R_390_32)<<24,
-		S390X | uint32(elf.R_390_PC32)<<24,
-		S390X | uint32(elf.R_390_GOT32)<<24,
-		S390X | uint32(elf.R_390_PLT32)<<24,
-		S390X | uint32(elf.R_390_PC32DBL)<<24,
-		S390X | uint32(elf.R_390_PLT32DBL)<<24,
-		S390X | uint32(elf.R_390_GOTPCDBL)<<24,
-		S390X | uint32(elf.R_390_GOTENT)<<24:
+	case MIPS | uint32(elf.R_MIPS_HI16)<<16,
+		MIPS | uint32(elf.R_MIPS_LO16)<<16,
+		MIPS | uint32(elf.R_MIPS_GOT16)<<16,
+		MIPS | uint32(elf.R_MIPS_GPREL16)<<16,
+		MIPS | uint32(elf.R_MIPS_GOT_PAGE)<<16,
+		MIPS | uint32(elf.R_MIPS_JALR)<<16,
+		MIPS | uint32(elf.R_MIPS_GOT_OFST)<<16,
+		MIPS64 | uint32(elf.R_MIPS_HI16)<<16,
+		MIPS64 | uint32(elf.R_MIPS_LO16)<<16,
+		MIPS64 | uint32(elf.R_MIPS_GOT16)<<16,
+		MIPS64 | uint32(elf.R_MIPS_GPREL16)<<16,
+		MIPS64 | uint32(elf.R_MIPS_GOT_PAGE)<<16,
+		MIPS64 | uint32(elf.R_MIPS_JALR)<<16,
+		MIPS64 | uint32(elf.R_MIPS_GOT_OFST)<<16:
 		return 4, nil
 
-	case AMD64 | uint32(elf.R_X86_64_64)<<24,
-		AMD64 | uint32(elf.R_X86_64_PC64)<<24,
-		PPC64 | uint32(elf.R_PPC64_ADDR64)<<24,
-		S390X | uint32(elf.R_390_GLOB_DAT)<<24,
-		S390X | uint32(elf.R_390_RELATIVE)<<24,
-		S390X | uint32(elf.R_390_GOTOFF)<<24,
-		S390X | uint32(elf.R_390_GOTPC)<<24,
-		S390X | uint32(elf.R_390_64)<<24,
-		S390X | uint32(elf.R_390_PC64)<<24,
-		S390X | uint32(elf.R_390_GOT64)<<24,
-		S390X | uint32(elf.R_390_PLT64)<<24:
+	case S390X | uint32(elf.R_390_8)<<16:
+		return 1, nil
+
+	case PPC64 | uint32(elf.R_PPC64_TOC16)<<16,
+		PPC64 | uint32(elf.R_PPC64_TOC16_LO)<<16,
+		PPC64 | uint32(elf.R_PPC64_TOC16_HI)<<16,
+		PPC64 | uint32(elf.R_PPC64_TOC16_HA)<<16,
+		PPC64 | uint32(elf.R_PPC64_TOC16_DS)<<16,
+		PPC64 | uint32(elf.R_PPC64_TOC16_LO_DS)<<16,
+		PPC64 | uint32(elf.R_PPC64_REL16_LO)<<16,
+		PPC64 | uint32(elf.R_PPC64_REL16_HI)<<16,
+		PPC64 | uint32(elf.R_PPC64_REL16_HA)<<16,
+		S390X | uint32(elf.R_390_16)<<16,
+		S390X | uint32(elf.R_390_GOT16)<<16,
+		S390X | uint32(elf.R_390_PC16)<<16,
+		S390X | uint32(elf.R_390_PC16DBL)<<16,
+		S390X | uint32(elf.R_390_PLT16DBL)<<16:
+		return 2, nil
+
+	case ARM | uint32(elf.R_ARM_ABS32)<<16,
+		ARM | uint32(elf.R_ARM_GOT32)<<16,
+		ARM | uint32(elf.R_ARM_PLT32)<<16,
+		ARM | uint32(elf.R_ARM_GOTOFF)<<16,
+		ARM | uint32(elf.R_ARM_GOTPC)<<16,
+		ARM | uint32(elf.R_ARM_THM_PC22)<<16,
+		ARM | uint32(elf.R_ARM_REL32)<<16,
+		ARM | uint32(elf.R_ARM_CALL)<<16,
+		ARM | uint32(elf.R_ARM_V4BX)<<16,
+		ARM | uint32(elf.R_ARM_GOT_PREL)<<16,
+		ARM | uint32(elf.R_ARM_PC24)<<16,
+		ARM | uint32(elf.R_ARM_JUMP24)<<16,
+		ARM64 | uint32(elf.R_AARCH64_CALL26)<<16,
+		ARM64 | uint32(elf.R_AARCH64_ADR_GOT_PAGE)<<16,
+		ARM64 | uint32(elf.R_AARCH64_LD64_GOT_LO12_NC)<<16,
+		ARM64 | uint32(elf.R_AARCH64_ADR_PREL_PG_HI21)<<16,
+		ARM64 | uint32(elf.R_AARCH64_ADD_ABS_LO12_NC)<<16,
+		ARM64 | uint32(elf.R_AARCH64_LDST8_ABS_LO12_NC)<<16,
+		ARM64 | uint32(elf.R_AARCH64_LDST32_ABS_LO12_NC)<<16,
+		ARM64 | uint32(elf.R_AARCH64_LDST64_ABS_LO12_NC)<<16,
+		ARM64 | uint32(elf.R_AARCH64_LDST128_ABS_LO12_NC)<<16,
+		ARM64 | uint32(elf.R_AARCH64_PREL32)<<16,
+		ARM64 | uint32(elf.R_AARCH64_JUMP26)<<16,
+		AMD64 | uint32(elf.R_X86_64_PC32)<<16,
+		AMD64 | uint32(elf.R_X86_64_PLT32)<<16,
+		AMD64 | uint32(elf.R_X86_64_GOTPCREL)<<16,
+		AMD64 | uint32(elf.R_X86_64_GOTPCRELX)<<16,
+		AMD64 | uint32(elf.R_X86_64_REX_GOTPCRELX)<<16,
+		I386 | uint32(elf.R_386_32)<<16,
+		I386 | uint32(elf.R_386_PC32)<<16,
+		I386 | uint32(elf.R_386_GOT32)<<16,
+		I386 | uint32(elf.R_386_PLT32)<<16,
+		I386 | uint32(elf.R_386_GOTOFF)<<16,
+		I386 | uint32(elf.R_386_GOTPC)<<16,
+		I386 | uint32(elf.R_386_GOT32X)<<16,
+		PPC64 | uint32(elf.R_PPC64_REL24)<<16,
+		PPC64 | uint32(elf.R_PPC_REL32)<<16,
+		S390X | uint32(elf.R_390_32)<<16,
+		S390X | uint32(elf.R_390_PC32)<<16,
+		S390X | uint32(elf.R_390_GOT32)<<16,
+		S390X | uint32(elf.R_390_PLT32)<<16,
+		S390X | uint32(elf.R_390_PC32DBL)<<16,
+		S390X | uint32(elf.R_390_PLT32DBL)<<16,
+		S390X | uint32(elf.R_390_GOTPCDBL)<<16,
+		S390X | uint32(elf.R_390_GOTENT)<<16:
+		return 4, nil
+
+	case AMD64 | uint32(elf.R_X86_64_64)<<16,
+		AMD64 | uint32(elf.R_X86_64_PC64)<<16,
+		ARM64 | uint32(elf.R_AARCH64_ABS64)<<16,
+		ARM64 | uint32(elf.R_AARCH64_PREL64)<<16,
+		PPC64 | uint32(elf.R_PPC64_ADDR64)<<16,
+		S390X | uint32(elf.R_390_GLOB_DAT)<<16,
+		S390X | uint32(elf.R_390_RELATIVE)<<16,
+		S390X | uint32(elf.R_390_GOTOFF)<<16,
+		S390X | uint32(elf.R_390_GOTPC)<<16,
+		S390X | uint32(elf.R_390_64)<<16,
+		S390X | uint32(elf.R_390_PC64)<<16,
+		S390X | uint32(elf.R_390_GOT64)<<16,
+		S390X | uint32(elf.R_390_PLT64)<<16:
 		return 8, nil
 	}
 }

@@ -8,7 +8,6 @@ package filepath_test
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 )
 
@@ -80,24 +79,89 @@ func ExampleJoin() {
 	// a/b/c
 	// a/b/c
 }
-func ExampleWalk() {
-	dir := "dir/to/walk"
-	subDirToSkip := "skip" // dir/to/walk/skip
 
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			fmt.Printf("prevent panic by handling failure accessing a path %q: %v\n", dir, err)
-			return err
-		}
-		if info.IsDir() && info.Name() == subDirToSkip {
-			fmt.Printf("skipping a dir without errors: %+v \n", info.Name())
-			return filepath.SkipDir
-		}
-		fmt.Printf("visited file: %q\n", path)
-		return nil
-	})
+func ExampleMatch() {
+	fmt.Println("On Unix:")
+	fmt.Println(filepath.Match("/home/catch/*", "/home/catch/foo"))
+	fmt.Println(filepath.Match("/home/catch/*", "/home/catch/foo/bar"))
+	fmt.Println(filepath.Match("/home/?opher", "/home/gopher"))
+	fmt.Println(filepath.Match("/home/\\*", "/home/*"))
 
-	if err != nil {
-		fmt.Printf("error walking the path %q: %v\n", dir, err)
-	}
+	// Output:
+	// On Unix:
+	// true <nil>
+	// false <nil>
+	// true <nil>
+	// true <nil>
+}
+
+func ExampleBase() {
+	fmt.Println("On Unix:")
+	fmt.Println(filepath.Base("/foo/bar/baz.js"))
+	fmt.Println(filepath.Base("/foo/bar/baz"))
+	fmt.Println(filepath.Base("/foo/bar/baz/"))
+	fmt.Println(filepath.Base("dev.txt"))
+	fmt.Println(filepath.Base("../todo.txt"))
+	fmt.Println(filepath.Base(".."))
+	fmt.Println(filepath.Base("."))
+	fmt.Println(filepath.Base("/"))
+	fmt.Println(filepath.Base(""))
+
+	// Output:
+	// On Unix:
+	// baz.js
+	// baz
+	// baz
+	// dev.txt
+	// todo.txt
+	// ..
+	// .
+	// /
+	// .
+}
+
+func ExampleDir() {
+	fmt.Println("On Unix:")
+	fmt.Println(filepath.Dir("/foo/bar/baz.js"))
+	fmt.Println(filepath.Dir("/foo/bar/baz"))
+	fmt.Println(filepath.Dir("/foo/bar/baz/"))
+	fmt.Println(filepath.Dir("/dirty//path///"))
+	fmt.Println(filepath.Dir("dev.txt"))
+	fmt.Println(filepath.Dir("../todo.txt"))
+	fmt.Println(filepath.Dir(".."))
+	fmt.Println(filepath.Dir("."))
+	fmt.Println(filepath.Dir("/"))
+	fmt.Println(filepath.Dir(""))
+
+	// Output:
+	// On Unix:
+	// /foo/bar
+	// /foo/bar
+	// /foo/bar/baz
+	// /dirty/path
+	// .
+	// ..
+	// .
+	// .
+	// /
+	// .
+}
+
+func ExampleIsAbs() {
+	fmt.Println("On Unix:")
+	fmt.Println(filepath.IsAbs("/home/gopher"))
+	fmt.Println(filepath.IsAbs(".bashrc"))
+	fmt.Println(filepath.IsAbs(".."))
+	fmt.Println(filepath.IsAbs("."))
+	fmt.Println(filepath.IsAbs("/"))
+	fmt.Println(filepath.IsAbs(""))
+
+	// Output:
+	// On Unix:
+	// true
+	// false
+	// false
+	// false
+	// true
+	// false
 }

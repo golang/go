@@ -13,7 +13,7 @@ import "fmt"
 
 func main() {
 	for i, f := range []func(map[int]int){
-		f0, f1, f2, f3, f4, f5, f6, f7,
+		f0, f1, f2, f3, f4, f5, f6, f7, f8,
 	} {
 		m := map[int]int{}
 		func() { // wrapper to scope the defer.
@@ -25,6 +25,23 @@ func main() {
 		}()
 		if len(m) != 0 {
 			fmt.Printf("map insert happened, case f%d\n", i)
+		}
+	}
+
+	// Append slice.
+	for i, f := range []func(map[int][]int){
+		fa0, fa1, fa2, fa3,
+	} {
+		m := map[int][]int{}
+		func() { // wrapper to scope the defer.
+			defer func() {
+				recover()
+			}()
+			f(m) // Will panic. Shouldn't modify m.
+			fmt.Printf("RHS didn't panic, case fa%d\n", i)
+		}()
+		if len(m) != 0 {
+			fmt.Printf("map insert happened, case fa%d\n", i)
 		}
 	}
 }
@@ -67,6 +84,34 @@ func f6(m map[int]int) {
 func f7(m map[int]int) {
 	var a []int
 	m[0] = a[0]
+}
+
+func f8(m map[int]int) {
+	var z int
+	m[0] %= z
+}
+
+func fa0(m map[int][]int) {
+	var p *int
+	m[0] = append(m[0], *p)
+}
+
+func fa1(m map[int][]int) {
+	var p *int
+	sink, m[0] = !sink, append(m[0], *p)
+}
+
+func fa2(m map[int][]int) {
+	var p *int
+	m[0], _ = append(m[0], 0), *p
+}
+
+func fa3(m map[int][]int) {
+	// OSLICE has similar in-place-reassignment
+	// optimizations as OAPPEND, but we need to make sure
+	// to *not* optimize them, because we can't guarantee
+	// the slice indices are within bounds.
+	m[0] = m[0][:1]
 }
 
 var sink bool

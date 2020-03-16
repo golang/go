@@ -134,15 +134,15 @@ func (t *RBTint32) DebugString() string {
 func (t *node32) DebugString() string {
 	s := ""
 	if t.left != nil {
-		s = s + "["
-		s = s + t.left.DebugString()
-		s = s + "]"
+		s += "["
+		s += t.left.DebugString()
+		s += "]"
 	}
-	s = s + fmt.Sprintf("%v=%v:%d", t.key, t.data, t.rank)
+	s += fmt.Sprintf("%v=%v:%d", t.key, t.data, t.rank)
 	if t.right != nil {
-		s = s + "["
-		s = s + t.right.DebugString()
-		s = s + "]"
+		s += "["
+		s += t.right.DebugString()
+		s += "]"
 	}
 	return s
 }
@@ -175,8 +175,6 @@ func allRBT32Ops(te *testing.T, x []int32) {
 		if s != "" {
 			te.Errorf("Tree consistency problem at %v", s)
 			return
-		} else {
-			// fmt.Printf("%s", t.DebugString())
 		}
 	}
 

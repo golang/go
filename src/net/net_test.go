@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build !js
+
 package net
 
 import (
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"net/internal/socktest"
 	"os"
@@ -69,7 +72,7 @@ func TestCloseRead(t *testing.T) {
 
 func TestCloseWrite(t *testing.T) {
 	switch runtime.GOOS {
-	case "nacl", "plan9":
+	case "plan9":
 		t.Skipf("not supported on %s", runtime.GOOS)
 	}
 
@@ -282,7 +285,6 @@ func TestPacketConnClose(t *testing.T) {
 	}
 }
 
-// nacl was previous failing to reuse an address.
 func TestListenCloseListen(t *testing.T) {
 	const maxTries = 10
 	for tries := 0; tries < maxTries; tries++ {
@@ -299,7 +301,7 @@ func TestListenCloseListen(t *testing.T) {
 		}
 		ln, err = Listen("tcp", addr)
 		if err == nil {
-			// Success. nacl couldn't do this before.
+			// Success. (This test didn't always make it here earlier.)
 			ln.Close()
 			return
 		}
@@ -511,6 +513,39 @@ func TestCloseUnblocksRead(t *testing.T) {
 		n, err := ss.Read([]byte{0})
 		if n != 0 || err != io.EOF {
 			return fmt.Errorf("Read = %v, %v; want 0, EOF", n, err)
+		}
+		return nil
+	}
+	withTCPConnPair(t, client, server)
+}
+
+// Issue 24808: verify that ECONNRESET is not temporary for read.
+func TestNotTemporaryRead(t *testing.T) {
+	if runtime.GOOS == "freebsd" {
+		testenv.SkipFlaky(t, 25289)
+	}
+	if runtime.GOOS == "aix" {
+		testenv.SkipFlaky(t, 29685)
+	}
+	t.Parallel()
+	server := func(cs *TCPConn) error {
+		cs.SetLinger(0)
+		// Give the client time to get stuck in a Read.
+		time.Sleep(50 * time.Millisecond)
+		cs.Close()
+		return nil
+	}
+	client := func(ss *TCPConn) error {
+		_, err := ss.Read([]byte{0})
+		if err == nil {
+			return errors.New("Read succeeded unexpectedly")
+		} else if err == io.EOF {
+			// This happens on Plan 9.
+			return nil
+		} else if ne, ok := err.(Error); !ok {
+			return fmt.Errorf("unexpected error %v", err)
+		} else if ne.Temporary() {
+			return fmt.Errorf("unexpected temporary error %v", err)
 		}
 		return nil
 	}

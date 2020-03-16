@@ -5,17 +5,20 @@
 package x509
 
 import (
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"math/big"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 )
-
-var supportSHA2 = true
 
 type verifyTest struct {
 	leaf                 string
@@ -27,6 +30,7 @@ type verifyTest struct {
 	keyUsages            []ExtKeyUsage
 	testSystemRootsError bool
 	sha2                 bool
+	ignoreCN             bool
 
 	errorCallback  func(*testing.T, int, error) bool
 	expectedChains [][]string
@@ -73,7 +77,16 @@ var verifyTests = []verifyTest{
 		currentTime:   1395785200,
 		dnsName:       "www.example.com",
 
-		errorCallback: expectHostnameError,
+		errorCallback: expectHostnameError("certificate is valid for"),
+	},
+	{
+		leaf:          googleLeaf,
+		intermediates: []string{giag2Intermediate},
+		roots:         []string{geoTrustRoot},
+		currentTime:   1395785200,
+		dnsName:       "1.2.3.4",
+
+		errorCallback: expectHostnameError("doesn't contain any IP SANs"),
 	},
 	{
 		leaf:          googleLeaf,
@@ -250,7 +263,7 @@ var verifyTests = []verifyTest{
 		dnsName:     "notfoo.example",
 		systemSkip:  true,
 
-		errorCallback: expectHostnameError,
+		errorCallback: expectHostnameError("certificate is valid for"),
 	},
 	{
 		// The issuer name in the leaf doesn't exactly match the
@@ -283,7 +296,7 @@ var verifyTests = []verifyTest{
 		currentTime: 1486684488,
 		systemSkip:  true,
 
-		errorCallback: expectHostnameError,
+		errorCallback: expectHostnameError("certificate is not valid for any names"),
 	},
 	{
 		// Test that excluded names are respected.
@@ -320,19 +333,90 @@ var verifyTests = []verifyTest{
 
 		errorCallback: expectUnhandledCriticalExtension,
 	},
+	{
+		// Test that invalid CN are ignored.
+		leaf:        invalidCNWithoutSAN,
+		dnsName:     "foo,invalid",
+		roots:       []string{invalidCNRoot},
+		currentTime: 1540000000,
+		systemSkip:  true,
+
+		errorCallback: expectHostnameError("Common Name is not a valid hostname"),
+	},
+	{
+		// Test that valid CN are respected.
+		leaf:        validCNWithoutSAN,
+		dnsName:     "foo.example.com",
+		roots:       []string{invalidCNRoot},
+		currentTime: 1540000000,
+		systemSkip:  true,
+
+		expectedChains: [][]string{
+			{"foo.example.com", "Test root"},
+		},
+	},
+	// Replicate CN tests with ignoreCN = true
+	{
+		leaf:        ignoreCNWithSANLeaf,
+		dnsName:     "foo.example.com",
+		roots:       []string{ignoreCNWithSANRoot},
+		currentTime: 1486684488,
+		systemSkip:  true,
+		ignoreCN:    true,
+
+		errorCallback: expectHostnameError("certificate is not valid for any names"),
+	},
+	{
+		leaf:        invalidCNWithoutSAN,
+		dnsName:     "foo,invalid",
+		roots:       []string{invalidCNRoot},
+		currentTime: 1540000000,
+		systemSkip:  true,
+		ignoreCN:    true,
+
+		errorCallback: expectHostnameError("Common Name is not a valid hostname"),
+	},
+	{
+		leaf:        validCNWithoutSAN,
+		dnsName:     "foo.example.com",
+		roots:       []string{invalidCNRoot},
+		currentTime: 1540000000,
+		systemSkip:  true,
+		ignoreCN:    true,
+
+		errorCallback: expectHostnameError("not valid for any names"),
+	},
+	{
+		// A certificate with an AKID should still chain to a parent without SKID.
+		// See Issue 30079.
+		leaf:        leafWithAKID,
+		roots:       []string{rootWithoutSKID},
+		currentTime: 1550000000,
+		dnsName:     "example",
+		systemSkip:  true,
+
+		expectedChains: [][]string{
+			{"Acme LLC", "Acme Co"},
+		},
+	},
 }
 
-func expectHostnameError(t *testing.T, i int, err error) (ok bool) {
-	if _, ok := err.(HostnameError); !ok {
-		t.Errorf("#%d: error was not a HostnameError: %s", i, err)
-		return false
+func expectHostnameError(msg string) func(*testing.T, int, error) bool {
+	return func(t *testing.T, i int, err error) (ok bool) {
+		if _, ok := err.(HostnameError); !ok {
+			t.Errorf("#%d: error was not a HostnameError: %v", i, err)
+			return false
+		}
+		if !strings.Contains(err.Error(), msg) {
+			t.Errorf("#%d: HostnameError did not contain %q: %v", i, msg, err)
+		}
+		return true
 	}
-	return true
 }
 
 func expectExpired(t *testing.T, i int, err error) (ok bool) {
 	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != Expired {
-		t.Errorf("#%d: error was not Expired: %s", i, err)
+		t.Errorf("#%d: error was not Expired: %v", i, err)
 		return false
 	}
 	return true
@@ -340,7 +424,7 @@ func expectExpired(t *testing.T, i int, err error) (ok bool) {
 
 func expectUsageError(t *testing.T, i int, err error) (ok bool) {
 	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != IncompatibleUsage {
-		t.Errorf("#%d: error was not IncompatibleUsage: %s", i, err)
+		t.Errorf("#%d: error was not IncompatibleUsage: %v", i, err)
 		return false
 	}
 	return true
@@ -349,11 +433,11 @@ func expectUsageError(t *testing.T, i int, err error) (ok bool) {
 func expectAuthorityUnknown(t *testing.T, i int, err error) (ok bool) {
 	e, ok := err.(UnknownAuthorityError)
 	if !ok {
-		t.Errorf("#%d: error was not UnknownAuthorityError: %s", i, err)
+		t.Errorf("#%d: error was not UnknownAuthorityError: %v", i, err)
 		return false
 	}
 	if e.Cert == nil {
-		t.Errorf("#%d: error was UnknownAuthorityError, but missing Cert: %s", i, err)
+		t.Errorf("#%d: error was UnknownAuthorityError, but missing Cert: %v", i, err)
 		return false
 	}
 	return true
@@ -361,7 +445,7 @@ func expectAuthorityUnknown(t *testing.T, i int, err error) (ok bool) {
 
 func expectSystemRootsError(t *testing.T, i int, err error) bool {
 	if _, ok := err.(SystemRootsError); !ok {
-		t.Errorf("#%d: error was not SystemRootsError: %s", i, err)
+		t.Errorf("#%d: error was not SystemRootsError: %v", i, err)
 		return false
 	}
 	return true
@@ -373,7 +457,7 @@ func expectHashError(t *testing.T, i int, err error) bool {
 		return false
 	}
 	if expected := "algorithm unimplemented"; !strings.Contains(err.Error(), expected) {
-		t.Errorf("#%d: error resulting from invalid hash didn't contain '%s', rather it was: %s", i, expected, err)
+		t.Errorf("#%d: error resulting from invalid hash didn't contain '%s', rather it was: %v", i, expected, err)
 		return false
 	}
 	return true
@@ -381,7 +465,7 @@ func expectHashError(t *testing.T, i int, err error) bool {
 
 func expectSubjectIssuerMismatcthError(t *testing.T, i int, err error) (ok bool) {
 	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != NameMismatch {
-		t.Errorf("#%d: error was not a NameMismatch: %s", i, err)
+		t.Errorf("#%d: error was not a NameMismatch: %v", i, err)
 		return false
 	}
 	return true
@@ -389,7 +473,7 @@ func expectSubjectIssuerMismatcthError(t *testing.T, i int, err error) (ok bool)
 
 func expectNameConstraintsError(t *testing.T, i int, err error) (ok bool) {
 	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != CANotAuthorizedForThisName {
-		t.Errorf("#%d: error was not a CANotAuthorizedForThisName: %s", i, err)
+		t.Errorf("#%d: error was not a CANotAuthorizedForThisName: %v", i, err)
 		return false
 	}
 	return true
@@ -397,7 +481,7 @@ func expectNameConstraintsError(t *testing.T, i int, err error) (ok bool) {
 
 func expectNotAuthorizedError(t *testing.T, i int, err error) (ok bool) {
 	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != NotAuthorizedToSign {
-		t.Errorf("#%d: error was not a NotAuthorizedToSign: %s", i, err)
+		t.Errorf("#%d: error was not a NotAuthorizedToSign: %v", i, err)
 		return false
 	}
 	return true
@@ -405,7 +489,7 @@ func expectNotAuthorizedError(t *testing.T, i int, err error) (ok bool) {
 
 func expectUnhandledCriticalExtension(t *testing.T, i int, err error) (ok bool) {
 	if _, ok := err.(UnhandledCriticalExtension); !ok {
-		t.Errorf("#%d: error was not an UnhandledCriticalExtension: %s", i, err)
+		t.Errorf("#%d: error was not an UnhandledCriticalExtension: %v", i, err)
 		return false
 	}
 	return true
@@ -420,6 +504,9 @@ func certificateFromPEM(pemBytes string) (*Certificate, error) {
 }
 
 func testVerify(t *testing.T, useSystemRoots bool) {
+	defer func(savedIgnoreCN bool) {
+		ignoreCN = savedIgnoreCN
+	}(ignoreCN)
 	for i, test := range verifyTests {
 		if useSystemRoots && test.systemSkip {
 			continue
@@ -427,10 +514,8 @@ func testVerify(t *testing.T, useSystemRoots bool) {
 		if runtime.GOOS == "windows" && test.testSystemRootsError {
 			continue
 		}
-		if useSystemRoots && !supportSHA2 && test.sha2 {
-			continue
-		}
 
+		ignoreCN = test.ignoreCN
 		opts := VerifyOptions{
 			Intermediates: NewCertPool(),
 			DNSName:       test.dnsName,
@@ -459,7 +544,7 @@ func testVerify(t *testing.T, useSystemRoots bool) {
 
 		leaf, err := certificateFromPEM(test.leaf)
 		if err != nil {
-			t.Errorf("#%d: failed to parse leaf: %s", i, err)
+			t.Errorf("#%d: failed to parse leaf: %v", i, err)
 			return
 		}
 
@@ -477,7 +562,7 @@ func testVerify(t *testing.T, useSystemRoots bool) {
 		}
 
 		if test.errorCallback == nil && err != nil {
-			t.Errorf("#%d: unexpected error: %s", i, err)
+			t.Errorf("#%d: unexpected error: %v", i, err)
 		}
 		if test.errorCallback != nil {
 			if !test.errorCallback(t, i, err) {
@@ -1518,6 +1603,198 @@ yU1yRHUqUYpN0DWFpsPbBqgM6uUAVO2ayBFhPgWUaqkmSbZ/Nq7isGvknaTmcIwT
 +NQCZDd5eFeU8PpNX7rgaYE4GPq+EEmLVCBYmdctr8QVdqJ//8Xu3+1phjDy
 -----END CERTIFICATE-----`
 
+const invalidCNRoot = `
+-----BEGIN CERTIFICATE-----
+MIIBFjCBvgIJAIsu4r+jb70UMAoGCCqGSM49BAMCMBQxEjAQBgNVBAsMCVRlc3Qg
+cm9vdDAeFw0xODA3MTExODMyMzVaFw0yODA3MDgxODMyMzVaMBQxEjAQBgNVBAsM
+CVRlc3Qgcm9vdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABF6oDgMg0LV6YhPj
+QXaPXYCc2cIyCdqp0ROUksRz0pOLTc5iY2nraUheRUD1vRRneq7GeXOVNn7uXONg
+oCGMjNwwCgYIKoZIzj0EAwIDRwAwRAIgDSiwgIn8g1lpruYH0QD1GYeoWVunfmrI
+XzZZl0eW/ugCICgOfXeZ2GGy3wIC0352BaC3a8r5AAb2XSGNe+e9wNN6
+-----END CERTIFICATE-----
+`
+
+const invalidCNWithoutSAN = `
+Certificate:
+    Data:
+        Version: 1 (0x0)
+        Serial Number:
+            07:ba:bc:b7:d9:ab:0c:02:fe:50:1d:4e:15:a3:0d:e4:11:16:14:a2
+        Signature Algorithm: ecdsa-with-SHA256
+        Issuer: OU = Test root
+        Validity
+            Not Before: Jul 11 18:35:21 2018 GMT
+            Not After : Jul  8 18:35:21 2028 GMT
+        Subject: CN = "foo,invalid"
+        Subject Public Key Info:
+            Public Key Algorithm: id-ecPublicKey
+                Public-Key: (256 bit)
+                pub:
+                    04:a7:a6:7c:22:33:a7:47:7f:08:93:2d:5f:61:35:
+                    2e:da:45:67:76:f2:97:73:18:b0:01:12:4a:1a:d5:
+                    b7:6f:41:3c:bb:05:69:f4:06:5d:ff:eb:2b:a7:85:
+                    0b:4c:f7:45:4e:81:40:7a:a9:c6:1d:bb:ba:d9:b9:
+                    26:b3:ca:50:90
+                ASN1 OID: prime256v1
+                NIST CURVE: P-256
+    Signature Algorithm: ecdsa-with-SHA256
+         30:45:02:21:00:85:96:75:b6:72:3c:67:12:a0:7f:86:04:81:
+         d2:dd:c8:67:50:d7:5f:85:c0:54:54:fc:e6:6b:45:08:93:d3:
+         2a:02:20:60:86:3e:d6:28:a6:4e:da:dd:6e:95:89:cc:00:76:
+         78:1c:03:80:85:a6:5a:0b:eb:c5:f3:9c:2e:df:ef:6e:fa
+-----BEGIN CERTIFICATE-----
+MIIBJDCBywIUB7q8t9mrDAL+UB1OFaMN5BEWFKIwCgYIKoZIzj0EAwIwFDESMBAG
+A1UECwwJVGVzdCByb290MB4XDTE4MDcxMTE4MzUyMVoXDTI4MDcwODE4MzUyMVow
+FjEUMBIGA1UEAwwLZm9vLGludmFsaWQwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNC
+AASnpnwiM6dHfwiTLV9hNS7aRWd28pdzGLABEkoa1bdvQTy7BWn0Bl3/6yunhQtM
+90VOgUB6qcYdu7rZuSazylCQMAoGCCqGSM49BAMCA0gAMEUCIQCFlnW2cjxnEqB/
+hgSB0t3IZ1DXX4XAVFT85mtFCJPTKgIgYIY+1iimTtrdbpWJzAB2eBwDgIWmWgvr
+xfOcLt/vbvo=
+-----END CERTIFICATE-----
+`
+
+const validCNWithoutSAN = `
+Certificate:
+    Data:
+        Version: 1 (0x0)
+        Serial Number:
+            07:ba:bc:b7:d9:ab:0c:02:fe:50:1d:4e:15:a3:0d:e4:11:16:14:a4
+        Signature Algorithm: ecdsa-with-SHA256
+        Issuer: OU = Test root
+        Validity
+            Not Before: Jul 11 18:47:24 2018 GMT
+            Not After : Jul  8 18:47:24 2028 GMT
+        Subject: CN = foo.example.com
+        Subject Public Key Info:
+            Public Key Algorithm: id-ecPublicKey
+                Public-Key: (256 bit)
+                pub:
+                    04:a7:a6:7c:22:33:a7:47:7f:08:93:2d:5f:61:35:
+                    2e:da:45:67:76:f2:97:73:18:b0:01:12:4a:1a:d5:
+                    b7:6f:41:3c:bb:05:69:f4:06:5d:ff:eb:2b:a7:85:
+                    0b:4c:f7:45:4e:81:40:7a:a9:c6:1d:bb:ba:d9:b9:
+                    26:b3:ca:50:90
+                ASN1 OID: prime256v1
+                NIST CURVE: P-256
+    Signature Algorithm: ecdsa-with-SHA256
+         30:44:02:20:53:6c:d7:b7:59:61:51:72:a5:18:a3:4b:0d:52:
+         ea:15:fa:d0:93:30:32:54:4b:ed:0f:58:85:b8:a8:1a:82:3b:
+         02:20:14:77:4b:0e:7e:4f:0a:4f:64:26:97:dc:d0:ed:aa:67:
+         1d:37:85:da:b4:87:ba:25:1c:2a:58:f7:23:11:8b:3d
+-----BEGIN CERTIFICATE-----
+MIIBJzCBzwIUB7q8t9mrDAL+UB1OFaMN5BEWFKQwCgYIKoZIzj0EAwIwFDESMBAG
+A1UECwwJVGVzdCByb290MB4XDTE4MDcxMTE4NDcyNFoXDTI4MDcwODE4NDcyNFow
+GjEYMBYGA1UEAwwPZm9vLmV4YW1wbGUuY29tMFkwEwYHKoZIzj0CAQYIKoZIzj0D
+AQcDQgAEp6Z8IjOnR38Iky1fYTUu2kVndvKXcxiwARJKGtW3b0E8uwVp9AZd/+sr
+p4ULTPdFToFAeqnGHbu62bkms8pQkDAKBggqhkjOPQQDAgNHADBEAiBTbNe3WWFR
+cqUYo0sNUuoV+tCTMDJUS+0PWIW4qBqCOwIgFHdLDn5PCk9kJpfc0O2qZx03hdq0
+h7olHCpY9yMRiz0=
+-----END CERTIFICATE-----
+`
+
+const (
+	rootWithoutSKID = `
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            78:29:2a:dc:2f:12:39:7f:c9:33:93:ea:61:39:7d:70
+        Signature Algorithm: ecdsa-with-SHA256
+        Issuer: O = Acme Co
+        Validity
+            Not Before: Feb  4 22:56:34 2019 GMT
+            Not After : Feb  1 22:56:34 2029 GMT
+        Subject: O = Acme Co
+        Subject Public Key Info:
+            Public Key Algorithm: id-ecPublicKey
+                Public-Key: (256 bit)
+                pub:
+                    04:84:a6:8c:69:53:af:87:4b:39:64:fe:04:24:e6:
+                    d8:fc:d6:46:39:35:0e:92:dc:48:08:7e:02:5f:1e:
+                    07:53:5c:d9:e0:56:c5:82:07:f6:a3:e2:ad:f6:ad:
+                    be:a0:4e:03:87:39:67:0c:9c:46:91:68:6b:0e:8e:
+                    f8:49:97:9d:5b
+                ASN1 OID: prime256v1
+                NIST CURVE: P-256
+        X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment, Certificate Sign
+            X509v3 Extended Key Usage:
+                TLS Web Server Authentication
+            X509v3 Basic Constraints: critical
+                CA:TRUE
+            X509v3 Subject Alternative Name:
+                DNS:example
+    Signature Algorithm: ecdsa-with-SHA256
+         30:46:02:21:00:c6:81:61:61:42:8d:37:e7:d0:c3:72:43:44:
+         17:bd:84:ff:88:81:68:9a:99:08:ab:3c:3a:c0:1e:ea:8c:ba:
+         c0:02:21:00:de:c9:fa:e5:5e:c6:e2:db:23:64:43:a9:37:42:
+         72:92:7f:6e:89:38:ea:9e:2a:a7:fd:2f:ea:9a:ff:20:21:e7
+-----BEGIN CERTIFICATE-----
+MIIBbzCCARSgAwIBAgIQeCkq3C8SOX/JM5PqYTl9cDAKBggqhkjOPQQDAjASMRAw
+DgYDVQQKEwdBY21lIENvMB4XDTE5MDIwNDIyNTYzNFoXDTI5MDIwMTIyNTYzNFow
+EjEQMA4GA1UEChMHQWNtZSBDbzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABISm
+jGlTr4dLOWT+BCTm2PzWRjk1DpLcSAh+Al8eB1Nc2eBWxYIH9qPirfatvqBOA4c5
+ZwycRpFoaw6O+EmXnVujTDBKMA4GA1UdDwEB/wQEAwICpDATBgNVHSUEDDAKBggr
+BgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MBIGA1UdEQQLMAmCB2V4YW1wbGUwCgYI
+KoZIzj0EAwIDSQAwRgIhAMaBYWFCjTfn0MNyQ0QXvYT/iIFompkIqzw6wB7qjLrA
+AiEA3sn65V7G4tsjZEOpN0Jykn9uiTjqniqn/S/qmv8gIec=
+-----END CERTIFICATE-----
+`
+	leafWithAKID = `
+	Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            f0:8a:62:f0:03:84:a2:cf:69:63:ad:71:3b:b6:5d:8c
+        Signature Algorithm: ecdsa-with-SHA256
+        Issuer: O = Acme Co
+        Validity
+            Not Before: Feb  4 23:06:52 2019 GMT
+            Not After : Feb  1 23:06:52 2029 GMT
+        Subject: O = Acme LLC
+        Subject Public Key Info:
+            Public Key Algorithm: id-ecPublicKey
+                Public-Key: (256 bit)
+                pub:
+                    04:5a:4e:4d:fb:ff:17:f7:b6:13:e8:29:45:34:81:
+                    39:ff:8c:9c:d9:8c:0a:9f:dd:b5:97:4c:2b:20:91:
+                    1c:4f:6b:be:53:27:66:ec:4a:ad:08:93:6d:66:36:
+                    0c:02:70:5d:01:ca:7f:c3:29:e9:4f:00:ba:b4:14:
+                    ec:c5:c3:34:b3
+                ASN1 OID: prime256v1
+                NIST CURVE: P-256
+        X509v3 extensions:
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage:
+                TLS Web Server Authentication
+            X509v3 Basic Constraints: critical
+                CA:FALSE
+            X509v3 Authority Key Identifier:
+                keyid:C2:2B:5F:91:78:34:26:09:42:8D:6F:51:B2:C5:AF:4C:0B:DE:6A:42
+
+            X509v3 Subject Alternative Name:
+                DNS:example
+    Signature Algorithm: ecdsa-with-SHA256
+         30:44:02:20:64:e0:ba:56:89:63:ce:22:5e:4f:22:15:fd:3c:
+         35:64:9a:3a:6b:7b:9a:32:a0:7f:f7:69:8c:06:f0:00:58:b8:
+         02:20:09:e4:9f:6d:8b:9e:38:e1:b6:01:d5:ee:32:a4:94:65:
+         93:2a:78:94:bb:26:57:4b:c7:dd:6c:3d:40:2b:63:90
+-----BEGIN CERTIFICATE-----
+MIIBjTCCATSgAwIBAgIRAPCKYvADhKLPaWOtcTu2XYwwCgYIKoZIzj0EAwIwEjEQ
+MA4GA1UEChMHQWNtZSBDbzAeFw0xOTAyMDQyMzA2NTJaFw0yOTAyMDEyMzA2NTJa
+MBMxETAPBgNVBAoTCEFjbWUgTExDMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE
+Wk5N+/8X97YT6ClFNIE5/4yc2YwKn921l0wrIJEcT2u+Uydm7EqtCJNtZjYMAnBd
+Acp/wynpTwC6tBTsxcM0s6NqMGgwDgYDVR0PAQH/BAQDAgWgMBMGA1UdJQQMMAoG
+CCsGAQUFBwMBMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUwitfkXg0JglCjW9R
+ssWvTAveakIwEgYDVR0RBAswCYIHZXhhbXBsZTAKBggqhkjOPQQDAgNHADBEAiBk
+4LpWiWPOIl5PIhX9PDVkmjpre5oyoH/3aYwG8ABYuAIgCeSfbYueOOG2AdXuMqSU
+ZZMqeJS7JldLx91sPUArY5A=
+-----END CERTIFICATE-----
+`
+)
+
 var unknownAuthorityErrorTests = []struct {
 	cert     string
 	expected string
@@ -1535,7 +1812,7 @@ func TestUnknownAuthorityError(t *testing.T) {
 		}
 		c, err := ParseCertificate(der.Bytes)
 		if err != nil {
-			t.Errorf("#%d: Unable to parse certificate -> %s", i, err)
+			t.Errorf("#%d: Unable to parse certificate -> %v", i, err)
 		}
 		uae := &UnknownAuthorityError{
 			Cert:     c,
@@ -1707,3 +1984,143 @@ UNhY4JhezH9gQYqvDMWrWDAbBgNVHSMEFDASgBArF29S5Bnqw7de8GzGA1nfMAoG
 CCqGSM49BAMCA0gAMEUCIQClA3d4tdrDu9Eb5ZBpgyC+fU1xTZB0dKQHz6M5fPZA
 2AIgN96lM+CPGicwhN24uQI6flOsO3H0TJ5lNzBYLtnQtlc=
 -----END CERTIFICATE-----`
+
+func TestValidHostname(t *testing.T) {
+	tests := []struct {
+		host string
+		want bool
+	}{
+		{"example.com", true},
+		{"eXample123-.com", true},
+		{"-eXample123-.com", false},
+		{"", false},
+		{".", false},
+		{"example..com", false},
+		{".example.com", false},
+		{"*.example.com", true},
+		{"*foo.example.com", false},
+		{"foo.*.example.com", false},
+		{"exa_mple.com", true},
+		{"foo,bar", false},
+		{"project-dev:us-central1:main", true},
+	}
+	for _, tt := range tests {
+		if got := validHostname(tt.host); got != tt.want {
+			t.Errorf("validHostname(%q) = %v, want %v", tt.host, got, tt.want)
+		}
+	}
+}
+
+func generateCert(cn string, isCA bool, issuer *Certificate, issuerKey crypto.PrivateKey) (*Certificate, crypto.PrivateKey, error) {
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, _ := rand.Int(rand.Reader, serialNumberLimit)
+
+	template := &Certificate{
+		SerialNumber: serialNumber,
+		Subject:      pkix.Name{CommonName: cn},
+		NotBefore:    time.Now().Add(-1 * time.Hour),
+		NotAfter:     time.Now().Add(24 * time.Hour),
+
+		KeyUsage:              KeyUsageKeyEncipherment | KeyUsageDigitalSignature | KeyUsageCertSign,
+		ExtKeyUsage:           []ExtKeyUsage{ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		IsCA:                  isCA,
+	}
+	if issuer == nil {
+		issuer = template
+		issuerKey = priv
+	}
+
+	derBytes, err := CreateCertificate(rand.Reader, template, issuer, priv.Public(), issuerKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	cert, err := ParseCertificate(derBytes)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return cert, priv, nil
+}
+
+func TestPathologicalChain(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping generation of a long chain of certificates in short mode")
+	}
+
+	// Build a chain where all intermediates share the same subject, to hit the
+	// path building worst behavior.
+	roots, intermediates := NewCertPool(), NewCertPool()
+
+	parent, parentKey, err := generateCert("Root CA", true, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roots.AddCert(parent)
+
+	for i := 1; i < 100; i++ {
+		parent, parentKey, err = generateCert("Intermediate CA", true, parent, parentKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		intermediates.AddCert(parent)
+	}
+
+	leaf, _, err := generateCert("Leaf", false, parent, parentKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	start := time.Now()
+	_, err = leaf.Verify(VerifyOptions{
+		Roots:         roots,
+		Intermediates: intermediates,
+	})
+	t.Logf("verification took %v", time.Since(start))
+
+	if err == nil || !strings.Contains(err.Error(), "signature check attempts limit") {
+		t.Errorf("expected verification to fail with a signature checks limit error; got %v", err)
+	}
+}
+
+func TestLongChain(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping generation of a long chain of certificates in short mode")
+	}
+
+	roots, intermediates := NewCertPool(), NewCertPool()
+
+	parent, parentKey, err := generateCert("Root CA", true, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roots.AddCert(parent)
+
+	for i := 1; i < 15; i++ {
+		name := fmt.Sprintf("Intermediate CA #%d", i)
+		parent, parentKey, err = generateCert(name, true, parent, parentKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		intermediates.AddCert(parent)
+	}
+
+	leaf, _, err := generateCert("Leaf", false, parent, parentKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	start := time.Now()
+	if _, err := leaf.Verify(VerifyOptions{
+		Roots:         roots,
+		Intermediates: intermediates,
+	}); err != nil {
+		t.Error(err)
+	}
+	t.Logf("verification took %v", time.Since(start))
+}

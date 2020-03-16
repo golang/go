@@ -8,8 +8,6 @@
 
 package cgotest
 
-import "C"
-
 import (
 	"bytes"
 	"crypto/md5"
@@ -22,6 +20,10 @@ import (
 )
 
 func test18146(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
+
 	if runtime.GOOS == "darwin" {
 		t.Skipf("skipping flaky test on %s; see golang.org/issue/18202", runtime.GOOS)
 	}
@@ -33,10 +35,6 @@ func test18146(t *testing.T) {
 	attempts := 1000
 	threads := 4
 
-	if testing.Short() {
-		attempts = 100
-	}
-
 	// Restrict the number of attempts based on RLIMIT_NPROC.
 	// Tediously, RLIMIT_NPROC was left out of the syscall package,
 	// probably because it is not in POSIX.1, so we define it here.
@@ -46,6 +44,8 @@ func test18146(t *testing.T) {
 	switch runtime.GOOS {
 	default:
 		setNproc = false
+	case "aix":
+		nproc = 9
 	case "linux":
 		nproc = 6
 	case "darwin", "dragonfly", "freebsd", "netbsd", "openbsd":

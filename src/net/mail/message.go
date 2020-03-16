@@ -19,7 +19,6 @@ package mail
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -27,6 +26,7 @@ import (
 	"mime"
 	"net/textproto"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 )
@@ -66,9 +66,12 @@ func ReadMessage(r io.Reader) (msg *Message, err error) {
 
 // Layouts suitable for passing to time.Parse.
 // These are tried in order.
-var dateLayouts []string
+var (
+	dateLayoutsBuildOnce sync.Once
+	dateLayouts          []string
+)
 
-func init() {
+func buildDateLayouts() {
 	// Generate layouts based on RFC 5322, section 3.3.
 
 	dows := [...]string{"", "Mon, "}   // day-of-week
@@ -76,7 +79,7 @@ func init() {
 	years := [...]string{"2006", "06"} // year = 4*DIGIT / 2*DIGIT
 	seconds := [...]string{":05", ""}  // second
 	// "-0700 (MST)" is not in RFC 5322, but is common.
-	zones := [...]string{"-0700", "MST", "-0700 (MST)"} // zone = (("+" / "-") 4DIGIT) / "GMT" / ...
+	zones := [...]string{"-0700", "MST"} // zone = (("+" / "-") 4DIGIT) / "GMT" / ...
 
 	for _, dow := range dows {
 		for _, day := range days {
@@ -94,6 +97,30 @@ func init() {
 
 // ParseDate parses an RFC 5322 date string.
 func ParseDate(date string) (time.Time, error) {
+	dateLayoutsBuildOnce.Do(buildDateLayouts)
+	// CR and LF must match and are tolerated anywhere in the date field.
+	date = strings.ReplaceAll(date, "\r\n", "")
+	if strings.Index(date, "\r") != -1 {
+		return time.Time{}, errors.New("mail: header has a CR without LF")
+	}
+	// Re-using some addrParser methods which support obsolete text, i.e. non-printable ASCII
+	p := addrParser{date, nil}
+	p.skipSpace()
+
+	// RFC 5322: zone = (FWS ( "+" / "-" ) 4DIGIT) / obs-zone
+	// zone length is always 5 chars unless obsolete (obs-zone)
+	if ind := strings.IndexAny(p.s, "+-"); ind != -1 && len(p.s) >= ind+5 {
+		date = p.s[:ind+5]
+		p.s = p.s[ind+5:]
+	} else if ind := strings.Index(p.s, "T"); ind != -1 && len(p.s) >= ind+1 {
+		// The last letter T of the obsolete time zone is checked when no standard time zone is found.
+		// If T is misplaced, the date to parse is garbage.
+		date = p.s[:ind+1]
+		p.s = p.s[ind+1:]
+	}
+	if !p.skipCFWS() {
+		return time.Time{}, errors.New("mail: misformatted parenthetical comment")
+	}
 	for _, layout := range dateLayouts {
 		t, err := time.Parse(layout, date)
 		if err == nil {
@@ -144,7 +171,7 @@ type Address struct {
 	Address string // user@domain
 }
 
-// Parses a single RFC 5322 address, e.g. "Barry Gibbs <bg@example.com>"
+// ParseAddress parses a single RFC 5322 address, e.g. "Barry Gibbs <bg@example.com>"
 func ParseAddress(address string) (*Address, error) {
 	return (&addrParser{s: address}).parseSingleAddress()
 }
@@ -247,6 +274,15 @@ func (p *addrParser) parseAddressList() ([]*Address, error) {
 	var list []*Address
 	for {
 		p.skipSpace()
+
+		// allow skipping empty entries (RFC5322 obs-addr-list)
+		if p.consume(',') {
+			continue
+		}
+		if p.empty() {
+			break
+		}
+
 		addrs, err := p.parseAddress(true)
 		if err != nil {
 			return nil, err
@@ -338,6 +374,21 @@ func (p *addrParser) parseAddress(handleGroup bool) ([]*Address, error) {
 	}
 	// angle-addr = "<" addr-spec ">"
 	if !p.consume('<') {
+		atext := true
+		for _, r := range displayName {
+			if !isAtext(r, true, false) {
+				atext = false
+				break
+			}
+		}
+		if atext {
+			// The input is like "foo.bar"; it's possible the input
+			// meant to be "foo.bar@domain", or "foo.bar <...>".
+			return nil, errors.New("mail: missing '@' or angle-addr")
+		}
+		// The input is like "Full Name", which couldn't possibly be a
+		// valid email address if followed by "@domain"; the input
+		// likely meant to be "Full Name <...>".
 		return nil, errors.New("mail: no angle-addr")
 	}
 	spec, err = p.consumeAddrSpec()
@@ -735,7 +786,7 @@ func isQtext(r rune) bool {
 
 // quoteString renders a string as an RFC 5322 quoted-string.
 func quoteString(s string) string {
-	var buf bytes.Buffer
+	var buf strings.Builder
 	buf.WriteByte('"')
 	for _, r := range s {
 		if isQtext(r) || isWSP(r) {

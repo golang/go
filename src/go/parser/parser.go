@@ -300,7 +300,7 @@ func (p *parser) consumeCommentGroup(n int) (comments *ast.CommentGroup, endline
 
 // Advance to the next non-comment token. In the process, collect
 // any comment groups encountered, and remember the last lead and
-// and line comments.
+// line comments.
 //
 // A lead comment is a comment group that starts and ends in a
 // line without any other tokens and that is followed by a non-comment
@@ -395,6 +395,18 @@ func (p *parser) expect(tok token.Token) token.Pos {
 	}
 	p.next() // make progress
 	return pos
+}
+
+// expect2 is like expect, but it returns an invalid position
+// if the expected token is not found.
+func (p *parser) expect2(tok token.Token) (pos token.Pos) {
+	if p.tok == tok {
+		pos = p.pos
+	} else {
+		p.errorExpected(p.pos, "'"+tok.String()+"'")
+	}
+	p.next() // make progress
+	return
 }
 
 // expectClosing is like expect but provides a better error message
@@ -1082,7 +1094,7 @@ func (p *parser) parseBody(scope *ast.Scope) *ast.BlockStmt {
 	list := p.parseStmtList()
 	p.closeLabelScope()
 	p.closeScope()
-	rbrace := p.expect(token.RBRACE)
+	rbrace := p.expect2(token.RBRACE)
 
 	return &ast.BlockStmt{Lbrace: lbrace, List: list, Rbrace: rbrace}
 }
@@ -1096,7 +1108,7 @@ func (p *parser) parseBlockStmt() *ast.BlockStmt {
 	p.openScope()
 	list := p.parseStmtList()
 	p.closeScope()
-	rbrace := p.expect(token.RBRACE)
+	rbrace := p.expect2(token.RBRACE)
 
 	return &ast.BlockStmt{Lbrace: lbrace, List: list, Rbrace: rbrace}
 }
@@ -1446,7 +1458,6 @@ func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
 	switch t := unparen(x).(type) {
 	case *ast.ParenExpr:
 		panic("unreachable")
-	case *ast.UnaryExpr:
 	case *ast.ArrayType:
 		if len, isEllipsis := t.Len.(*ast.Ellipsis); isEllipsis {
 			p.error(len.Pos(), "expected array length, found '...'")
@@ -1830,6 +1841,7 @@ func (p *parser) makeExpr(s ast.Stmt, want string) ast.Expr {
 func (p *parser) parseIfHeader() (init ast.Stmt, cond ast.Expr) {
 	if p.tok == token.LBRACE {
 		p.error(p.pos, "missing condition in if statement")
+		cond = &ast.BadExpr{From: p.pos, To: p.pos}
 		return
 	}
 	// p.tok != token.LBRACE
@@ -1875,6 +1887,11 @@ func (p *parser) parseIfHeader() (init ast.Stmt, cond ast.Expr) {
 		} else {
 			p.error(semi.pos, "missing condition in if statement")
 		}
+	}
+
+	// make sure we have a valid AST
+	if cond == nil {
+		cond = &ast.BadExpr{From: p.pos, To: p.pos}
 	}
 
 	p.exprLev = outer
@@ -2433,8 +2450,18 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	var body *ast.BlockStmt
 	if p.tok == token.LBRACE {
 		body = p.parseBody(scope)
+		p.expectSemi()
+	} else if p.tok == token.SEMICOLON {
+		p.next()
+		if p.tok == token.LBRACE {
+			// opening { of function declaration on next line
+			p.error(p.pos, "unexpected semicolon or newline before {")
+			body = p.parseBody(scope)
+			p.expectSemi()
+		}
+	} else {
+		p.expectSemi()
 	}
-	p.expectSemi()
 
 	decl := &ast.FuncDecl{
 		Doc:  doc,

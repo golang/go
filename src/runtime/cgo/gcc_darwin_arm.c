@@ -9,11 +9,11 @@
 #include <sys/param.h>
 #include <unistd.h>
 
-#include "libcgo.h"
-#include "libcgo_unix.h"
-
 #include <CoreFoundation/CFBundle.h>
 #include <CoreFoundation/CFString.h>
+
+#include "libcgo.h"
+#include "libcgo_unix.h"
 
 #define magic (0xe696c4f4U)
 
@@ -47,7 +47,7 @@ inittls(void **tlsg, void **tlsbase)
 }
 
 static void *threadentry(void*);
-void (*setg_gcc)(void*);
+static void (*setg_gcc)(void*);
 
 void
 _cgo_sys_thread_start(ThreadStart *ts)
@@ -103,7 +103,7 @@ init_working_dir()
 	}
 	CFURLRef url_ref = CFBundleCopyResourceURL(bundle, CFSTR("Info"), CFSTR("plist"), NULL);
 	if (url_ref == NULL) {
-		fprintf(stderr, "runtime/cgo: no Info.plist URL\n");
+		// No Info.plist found. It can happen on Corellium virtual devices.
 		return;
 	}
 	CFStringRef url_str_ref = CFURLGetString(url_ref);
@@ -140,8 +140,6 @@ init_working_dir()
 		if (chdir(buf) != 0) {
 			fprintf(stderr, "runtime/cgo: chdir(%s) failed\n", buf);
 		}
-		// Notify the test harness that we're correctly set up
-		raise(SIGINT);
 	}
 }
 

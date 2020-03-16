@@ -1,0 +1,12 @@
+env GO111MODULE=off
+
+# patterns match directories with syntax errors
+! go list ./...
+! go build ./...
+! go install ./...
+
+-- mypkg/x.go --
+package mypkg
+
+-- mypkg/y.go --
+pkg mypackage

@@ -41,3 +41,18 @@ func TestRemotePackage(t *testing.T) {
 	assertString(t, fmt.Sprintf("receiver of %q", s1.Name), s1.ReceiverName(), "(*FlagSet)")
 	assertString(t, fmt.Sprintf("receiver of %q", s2.Name), s2.ReceiverName(), "")
 }
+
+func TestIssue29551(t *testing.T) {
+	symNames := []string{
+		"type..eq.[9]debug/elf.intName",
+		"type..hash.debug/elf.ProgHeader",
+		"type..eq.runtime._panic",
+		"type..hash.struct { runtime.gList; runtime.n int32 }",
+		"go.(*struct { sync.Mutex; math/big.table [64]math/big",
+	}
+
+	for _, symName := range symNames {
+		s := Sym{Name: symName}
+		assertString(t, fmt.Sprintf("package of %q", s.Name), s.PackageName(), "")
+	}
+}

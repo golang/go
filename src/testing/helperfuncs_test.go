@@ -41,17 +41,19 @@ func testHelper(t *T) {
 	}
 	fn("4")
 
-	// Check that calling Helper from inside this test entry function
-	// doesn't have an effect.
-	t.Helper()
-	t.Error("5")
-
 	t.Run("sub", func(t *T) {
-		helper(t, "6")
-		notHelperCallingHelper(t, "7")
+		helper(t, "5")
+		notHelperCallingHelper(t, "6")
+		// Check that calling Helper from inside a subtest entry function
+		// works as if it were in an ordinary function call.
 		t.Helper()
-		t.Error("8")
+		t.Error("7")
 	})
+
+	// Check that calling Helper from inside a top-level test function
+	// has no effect.
+	t.Helper()
+	t.Error("8")
 }
 
 func parallelTestHelper(t *T) {

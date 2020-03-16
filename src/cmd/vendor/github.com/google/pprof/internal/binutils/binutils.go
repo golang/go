@@ -18,11 +18,14 @@ package binutils
 import (
 	"debug/elf"
 	"debug/macho"
+	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -81,6 +84,26 @@ func (bu *Binutils) update(fn func(r *binrep)) {
 	bu.rep = r
 }
 
+// String returns string representation of the binutils state for debug logging.
+func (bu *Binutils) String() string {
+	r := bu.get()
+	var llvmSymbolizer, addr2line, nm, objdump string
+	if r.llvmSymbolizerFound {
+		llvmSymbolizer = r.llvmSymbolizer
+	}
+	if r.addr2lineFound {
+		addr2line = r.addr2line
+	}
+	if r.nmFound {
+		nm = r.nm
+	}
+	if r.objdumpFound {
+		objdump = r.objdump
+	}
+	return fmt.Sprintf("llvm-symbolizer=%q addr2line=%q nm=%q objdump=%q fast=%t",
+		llvmSymbolizer, addr2line, nm, objdump, r.fast)
+}
+
 // SetFastSymbolization sets a toggle that makes binutils use fast
 // symbolization (using nm), which is much faster than addr2line but
 // provides only symbol name information (no file/line).
@@ -111,6 +134,11 @@ func initTools(b *binrep, config string) {
 	defaultPath := paths[""]
 	b.llvmSymbolizer, b.llvmSymbolizerFound = findExe("llvm-symbolizer", append(paths["llvm-symbolizer"], defaultPath...))
 	b.addr2line, b.addr2lineFound = findExe("addr2line", append(paths["addr2line"], defaultPath...))
+	if !b.addr2lineFound {
+		// On MacOS, brew installs addr2line under gaddr2line name, so search for
+		// that if the tool is not found by its default name.
+		b.addr2line, b.addr2lineFound = findExe("gaddr2line", append(paths["addr2line"], defaultPath...))
+	}
 	b.nm, b.nmFound = findExe("nm", append(paths["nm"], defaultPath...))
 	b.objdump, b.objdumpFound = findExe("objdump", append(paths["objdump"], defaultPath...))
 }
@@ -148,12 +176,8 @@ func (bu *Binutils) Open(name string, start, limit, offset uint64) (plugin.ObjFi
 	b := bu.get()
 
 	// Make sure file is a supported executable.
-	// The pprof driver uses Open to sniff the difference
-	// between an executable and a profile.
-	// For now, only ELF is supported.
-	// Could read the first few bytes of the file and
-	// use a table of prefixes if we need to support other
-	// systems at some point.
+	// This uses magic numbers, mainly to provide better error messages but
+	// it should also help speed.
 
 	if _, err := os.Stat(name); err != nil {
 		// For testing, do not require file name to exist.
@@ -163,21 +187,54 @@ func (bu *Binutils) Open(name string, start, limit, offset uint64) (plugin.ObjFi
 		return nil, err
 	}
 
-	if f, err := b.openELF(name, start, limit, offset); err == nil {
+	// Read the first 4 bytes of the file.
+
+	f, err := os.Open(name)
+	if err != nil {
+		return nil, fmt.Errorf("error opening %s: %v", name, err)
+	}
+	defer f.Close()
+
+	var header [4]byte
+	if _, err = io.ReadFull(f, header[:]); err != nil {
+		return nil, fmt.Errorf("error reading magic number from %s: %v", name, err)
+	}
+
+	elfMagic := string(header[:])
+
+	// Match against supported file types.
+	if elfMagic == elf.ELFMAG {
+		f, err := b.openELF(name, start, limit, offset)
+		if err != nil {
+			return nil, fmt.Errorf("error reading ELF file %s: %v", name, err)
+		}
 		return f, nil
 	}
-	if f, err := b.openMachO(name, start, limit, offset); err == nil {
+
+	// Mach-O magic numbers can be big or little endian.
+	machoMagicLittle := binary.LittleEndian.Uint32(header[:])
+	machoMagicBig := binary.BigEndian.Uint32(header[:])
+
+	if machoMagicLittle == macho.Magic32 || machoMagicLittle == macho.Magic64 ||
+		machoMagicBig == macho.Magic32 || machoMagicBig == macho.Magic64 {
+		f, err := b.openMachO(name, start, limit, offset)
+		if err != nil {
+			return nil, fmt.Errorf("error reading Mach-O file %s: %v", name, err)
+		}
 		return f, nil
 	}
-	return nil, fmt.Errorf("unrecognized binary: %s", name)
+	if machoMagicLittle == macho.MagicFat || machoMagicBig == macho.MagicFat {
+		f, err := b.openFatMachO(name, start, limit, offset)
+		if err != nil {
+			return nil, fmt.Errorf("error reading fat Mach-O file %s: %v", name, err)
+		}
+		return f, nil
+	}
+
+	return nil, fmt.Errorf("unrecognized binary format: %s", name)
 }
 
-func (b *binrep) openMachO(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
-	of, err := macho.Open(name)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing %s: %v", name, err)
-	}
-	defer of.Close()
+func (b *binrep) openMachOCommon(name string, of *macho.File, start, limit, offset uint64) (plugin.ObjFile, error) {
 
 	// Subtract the load address of the __TEXT section. Usually 0 for shared
 	// libraries or 0x100000000 for executables. You can check this value by
@@ -200,6 +257,53 @@ func (b *binrep) openMachO(name string, start, limit, offset uint64) (plugin.Obj
 	return &fileAddr2Line{file: file{b: b, name: name, base: base}}, nil
 }
 
+func (b *binrep) openFatMachO(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
+	of, err := macho.OpenFat(name)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing %s: %v", name, err)
+	}
+	defer of.Close()
+
+	if len(of.Arches) == 0 {
+		return nil, fmt.Errorf("empty fat Mach-O file: %s", name)
+	}
+
+	var arch macho.Cpu
+	// Use the host architecture.
+	// TODO: This is not ideal because the host architecture may not be the one
+	// that was profiled. E.g. an amd64 host can profile a 386 program.
+	switch runtime.GOARCH {
+	case "386":
+		arch = macho.Cpu386
+	case "amd64", "amd64p32":
+		arch = macho.CpuAmd64
+	case "arm", "armbe", "arm64", "arm64be":
+		arch = macho.CpuArm
+	case "ppc":
+		arch = macho.CpuPpc
+	case "ppc64", "ppc64le":
+		arch = macho.CpuPpc64
+	default:
+		return nil, fmt.Errorf("unsupported host architecture for %s: %s", name, runtime.GOARCH)
+	}
+	for i := range of.Arches {
+		if of.Arches[i].Cpu == arch {
+			return b.openMachOCommon(name, of.Arches[i].File, start, limit, offset)
+		}
+	}
+	return nil, fmt.Errorf("architecture not found in %s: %s", name, runtime.GOARCH)
+}
+
+func (b *binrep) openMachO(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
+	of, err := macho.Open(name)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing %s: %v", name, err)
+	}
+	defer of.Close()
+
+	return b.openMachOCommon(name, of, start, limit, offset)
+}
+
 func (b *binrep) openELF(name string, start, limit, offset uint64) (plugin.ObjFile, error) {
 	ef, err := elf.Open(name)
 	if err != nil {
@@ -218,7 +322,7 @@ func (b *binrep) openELF(name string, start, limit, offset uint64) (plugin.ObjFi
 		// someone passes a kernel path that doesn't contain "vmlinux" AND
 		// (2) _stext is page-aligned AND (3) _stext is not at Vaddr
 		symbols, err := ef.Symbols()
-		if err != nil {
+		if err != nil && err != elf.ErrNoSymbols {
 			return nil, err
 		}
 		for _, s := range symbols {
@@ -306,9 +410,9 @@ func (f *fileNM) SourceLine(addr uint64) ([]plugin.Frame, error) {
 }
 
 // fileAddr2Line implements the binutils.ObjFile interface, using
-// 'addr2line' to map addresses to symbols (with file/line number
-// information). It can be slow for large binaries with debug
-// information.
+// llvm-symbolizer, if that's available, or addr2line to map addresses to
+// symbols (with file/line number information). It can be slow for large
+// binaries with debug information.
 type fileAddr2Line struct {
 	once sync.Once
 	file

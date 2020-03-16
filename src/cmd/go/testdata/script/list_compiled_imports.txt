@@ -1,0 +1,31 @@
+env GO111MODULE=off
+
+[!cgo] skip
+
+# go list should report import "C"
+cd x
+go list -f '{{.Imports}}'
+! stdout runtime/cgo
+! stdout unsafe
+! stdout syscall
+stdout C
+stdout unicode
+stdout unicode/utf16
+
+# go list -compiled should report imports in compiled files as well,
+# adding "runtime/cgo", "unsafe", and "syscall" but not dropping "C".
+go list -compiled -f '{{.Imports}}'
+stdout runtime/cgo
+stdout unsafe
+stdout syscall
+stdout C
+stdout unicode
+stdout unicode/utf16
+
+-- x/x.go --
+package x
+import "C"
+import "unicode" // does not use unsafe, syscall, runtime/cgo, unicode/utf16
+-- x/x1.go --
+package x
+import "unicode/utf16" // does not use unsafe, syscall, runtime/cgo, unicode

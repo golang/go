@@ -28,6 +28,7 @@
 //            if err != nil {
 //                log.Fatal("could not create CPU profile: ", err)
 //            }
+//            defer f.Close() // error handling omitted for example
 //            if err := pprof.StartCPUProfile(f); err != nil {
 //                log.Fatal("could not start CPU profile: ", err)
 //            }
@@ -41,11 +42,11 @@
 //            if err != nil {
 //                log.Fatal("could not create memory profile: ", err)
 //            }
+//            defer f.Close() // error handling omitted for example
 //            runtime.GC() // get up-to-date statistics
 //            if err := pprof.WriteHeapProfile(f); err != nil {
 //                log.Fatal("could not write memory profile: ", err)
 //            }
-//            f.Close()
 //        }
 //    }
 //
@@ -68,7 +69,7 @@
 // all pprof commands.
 //
 // For more information about pprof, see
-// https://github.com/google/pprof/blob/master/doc/pprof.md.
+// https://github.com/google/pprof/blob/master/doc/README.md.
 package pprof
 
 import (
@@ -99,7 +100,8 @@ import (
 // Each Profile has a unique name. A few profiles are predefined:
 //
 //	goroutine    - stack traces of all current goroutines
-//	heap         - a sampling of all heap allocations
+//	heap         - a sampling of memory allocations of live objects
+//	allocs       - a sampling of all past memory allocations
 //	threadcreate - stack traces that led to the creation of new OS threads
 //	block        - stack traces that led to blocking on synchronization primitives
 //	mutex        - stack traces of holders of contended mutexes
@@ -113,6 +115,16 @@ import (
 // If there has been no garbage collection at all, the heap profile reports
 // all known allocations. This exception helps mainly in programs running
 // without garbage collection enabled, usually for debugging purposes.
+//
+// The heap profile tracks both the allocation sites for all live objects in
+// the application memory and for all objects allocated since the program start.
+// Pprof's -inuse_space, -inuse_objects, -alloc_space, and -alloc_objects
+// flags select which to display, defaulting to -inuse_space (live objects,
+// scaled by size).
+//
+// The allocs profile is the same as the heap profile but changes the default
+// pprof display to -alloc_space, the total number of bytes allocated since
+// the program began (including garbage-collected bytes).
 //
 // The CPU profile is not available as a Profile. It has a special API,
 // the StartCPUProfile and StopCPUProfile functions, because it streams
@@ -150,6 +162,12 @@ var heapProfile = &Profile{
 	write: writeHeap,
 }
 
+var allocsProfile = &Profile{
+	name:  "allocs",
+	count: countHeap, // identical to heap profile
+	write: writeAlloc,
+}
+
 var blockProfile = &Profile{
 	name:  "block",
 	count: countBlock,
@@ -170,6 +188,7 @@ func lockProfiles() {
 			"goroutine":    goroutineProfile,
 			"threadcreate": threadcreateProfile,
 			"heap":         heapProfile,
+			"allocs":       allocsProfile,
 			"block":        blockProfile,
 			"mutex":        mutexProfile,
 		}
@@ -294,9 +313,11 @@ func (p *Profile) Remove(value interface{}) {
 // Otherwise, WriteTo returns nil.
 //
 // The debug parameter enables additional output.
-// Passing debug=0 prints only the hexadecimal addresses that pprof needs.
-// Passing debug=1 adds comments translating addresses to function names
-// and line numbers, so that a programmer can read the profile without tools.
+// Passing debug=0 writes the gzip-compressed protocol buffer described
+// in https://github.com/google/pprof/tree/master/proto#overview.
+// Passing debug=1 writes the legacy text format with comments
+// translating addresses to function names and line numbers, so that a
+// programmer can read the profile without tools.
 //
 // The predefined profiles may assign meaning to other debug values;
 // for example, when printing the "goroutine" profile, debug=2 means to
@@ -367,16 +388,9 @@ func printCountCycleProfile(w io.Writer, countName, cycleName string, scaler fun
 		count, nanosec := scaler(r.Count, float64(r.Cycles)/cpuGHz)
 		values[0] = count
 		values[1] = int64(nanosec)
-		locs = locs[:0]
-		for _, addr := range r.Stack() {
-			// For count profiles, all stack addresses are
-			// return PCs, which is what locForPC expects.
-			l := b.locForPC(addr)
-			if l == 0 { // runtime.goexit
-				continue
-			}
-			locs = append(locs, l)
-		}
+		// For count profiles, all stack addresses are
+		// return PCs, which is what appendLocsForStack expects.
+		locs = b.appendLocsForStack(locs[:0], r.Stack())
 		b.pbSample(values, locs, nil)
 	}
 	b.build()
@@ -432,16 +446,9 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
 	var locs []uint64
 	for _, k := range keys {
 		values[0] = int64(count[k])
-		locs = locs[:0]
-		for _, addr := range p.Stack(index[k]) {
-			// For count profiles, all stack addresses are
-			// return PCs, which is what locForPC expects.
-			l := b.locForPC(addr)
-			if l == 0 { // runtime.goexit
-				continue
-			}
-			locs = append(locs, l)
-		}
+		// For count profiles, all stack addresses are
+		// return PCs, which is what appendLocsForStack expects.
+		locs = b.appendLocsForStack(locs[:0], p.Stack(index[k]))
 		b.pbSample(values, locs, nil)
 	}
 	b.build()
@@ -511,6 +518,16 @@ func countHeap() int {
 
 // writeHeap writes the current runtime heap profile to w.
 func writeHeap(w io.Writer, debug int) error {
+	return writeHeapInternal(w, debug, "")
+}
+
+// writeAlloc writes the current runtime heap profile to w
+// with the total allocation space as the default sample type.
+func writeAlloc(w io.Writer, debug int) error {
+	return writeHeapInternal(w, debug, "alloc_space")
+}
+
+func writeHeapInternal(w io.Writer, debug int, defaultSampleType string) error {
 	var memStats *runtime.MemStats
 	if debug != 0 {
 		// Read mem stats first, so that our other allocations
@@ -541,7 +558,7 @@ func writeHeap(w io.Writer, debug int) error {
 	}
 
 	if debug == 0 {
-		return writeHeapProto(w, p, int64(runtime.MemProfileRate))
+		return writeHeapProto(w, p, int64(runtime.MemProfileRate), defaultSampleType)
 	}
 
 	sort.Slice(p, func(i, j int) bool { return p[i].InUseBytes() > p[j].InUseBytes() })

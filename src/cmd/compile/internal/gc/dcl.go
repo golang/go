@@ -26,33 +26,28 @@ func testdclstack() {
 	}
 }
 
-// redeclare emits a diagnostic about symbol s being redeclared somewhere.
-func redeclare(s *types.Sym, where string) {
+// redeclare emits a diagnostic about symbol s being redeclared at pos.
+func redeclare(pos src.XPos, s *types.Sym, where string) {
 	if !s.Lastlineno.IsKnown() {
-		var tmp string
-		if s.Origpkg != nil {
-			tmp = s.Origpkg.Path
-		} else {
-			tmp = s.Pkg.Path
+		pkg := s.Origpkg
+		if pkg == nil {
+			pkg = s.Pkg
 		}
-		pkgstr := tmp
-		yyerror("%v redeclared %s\n"+
-			"\tprevious declaration during import %q", s, where, pkgstr)
+		yyerrorl(pos, "%v redeclared %s\n"+
+			"\tprevious declaration during import %q", s, where, pkg.Path)
 	} else {
-		line1 := lineno
-		line2 := s.Lastlineno
+		prevPos := s.Lastlineno
 
 		// When an import and a declaration collide in separate files,
 		// present the import as the "redeclared", because the declaration
 		// is visible where the import is, but not vice versa.
 		// See issue 4510.
 		if s.Def == nil {
-			line2 = line1
-			line1 = s.Lastlineno
+			pos, prevPos = prevPos, pos
 		}
 
-		yyerrorl(line1, "%v redeclared %s\n"+
-			"\tprevious declaration at %v", s, where, linestr(line2))
+		yyerrorl(pos, "%v redeclared %s\n"+
+			"\tprevious declaration at %v", s, where, linestr(prevPos))
 	}
 }
 
@@ -65,11 +60,7 @@ var declare_typegen int
 // declare records that Node n declares symbol n.Sym in the specified
 // declaration context.
 func declare(n *Node, ctxt Class) {
-	if ctxt == PDISCARD {
-		return
-	}
-
-	if isblank(n) {
+	if n.isBlank() {
 		return
 	}
 
@@ -77,25 +68,26 @@ func declare(n *Node, ctxt Class) {
 		// named OLITERAL needs Name; most OLITERALs don't.
 		n.Name = new(Name)
 	}
-	n.Pos = lineno
+
 	s := n.Sym
 
 	// kludgy: typecheckok means we're past parsing. Eg genwrapper may declare out of package names later.
 	if !inimport && !typecheckok && s.Pkg != localpkg {
-		yyerror("cannot declare name %v", s)
+		yyerrorl(n.Pos, "cannot declare name %v", s)
 	}
 
 	gen := 0
 	if ctxt == PEXTERN {
 		if s.Name == "init" {
-			yyerror("cannot declare init - must be func")
+			yyerrorl(n.Pos, "cannot declare init - must be func")
 		}
-		if s.Name == "main" && localpkg.Name == "main" {
-			yyerror("cannot declare main - must be func")
+		if s.Name == "main" && s.Pkg.Name == "main" {
+			yyerrorl(n.Pos, "cannot declare main - must be func")
 		}
 		externdcl = append(externdcl, n)
 	} else {
 		if Curfn == nil && ctxt == PAUTO {
+			lineno = n.Pos
 			Fatalf("automatic outside function")
 		}
 		if Curfn != nil {
@@ -120,7 +112,7 @@ func declare(n *Node, ctxt Class) {
 		// functype will print errors about duplicate function arguments.
 		// Don't repeat the error here.
 		if ctxt != PPARAM && ctxt != PPARAMOUT {
-			redeclare(s, "in this block")
+			redeclare(n.Pos, s, "in this block")
 		}
 	}
 
@@ -128,8 +120,10 @@ func declare(n *Node, ctxt Class) {
 	s.Lastlineno = lineno
 	s.Def = asTypesNode(n)
 	n.Name.Vargen = int32(gen)
-	n.Name.Funcdepth = funcdepth
 	n.SetClass(ctxt)
+	if ctxt == PFUNC {
+		n.Sym.SetFunc(true)
+	}
 
 	autoexport(n, ctxt)
 }
@@ -160,7 +154,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 			declare(v, dclcontext)
 			v.Name.Param.Ntype = t
 			v.Name.Defn = as2
-			if funcdepth > 0 {
+			if Curfn != nil {
 				init = append(init, nod(ODCL, v, nil))
 			}
 		}
@@ -168,11 +162,12 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 		return append(init, as2)
 	}
 
+	nel := len(el)
 	for _, v := range vl {
 		var e *Node
 		if doexpr {
 			if len(el) == 0 {
-				yyerror("missing expression in var declaration")
+				yyerror("assignment mismatch: %d variables but %d values", len(vl), nel)
 				break
 			}
 			e = el[0]
@@ -183,8 +178,8 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 		declare(v, dclcontext)
 		v.Name.Param.Ntype = t
 
-		if e != nil || funcdepth > 0 || isblank(v) {
-			if funcdepth > 0 {
+		if e != nil || Curfn != nil || v.isBlank() {
+			if Curfn != nil {
 				init = append(init, nod(ODCL, v, nil))
 			}
 			e = nod(OAS, v, e)
@@ -196,7 +191,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
 	}
 
 	if len(el) != 0 {
-		yyerror("extra expression in var declaration")
+		yyerror("assignment mismatch: %d variables but %d values", len(vl), nel)
 	}
 	return init
 }
@@ -208,15 +203,8 @@ func newnoname(s *types.Sym) *Node {
 	}
 	n := nod(ONONAME, nil, nil)
 	n.Sym = s
-	n.SetAddable(true)
 	n.Xoffset = 0
 	return n
-}
-
-// newfuncname generates a new name node for a function or method.
-// TODO(rsc): Use an ODCLFUNC node instead. See comment in CL 7360.
-func newfuncname(s *types.Sym) *Node {
-	return newfuncnamel(lineno, s)
 }
 
 // newfuncnamel generates a new name node for a function or method.
@@ -254,7 +242,7 @@ func typenodl(pos src.XPos, t *types.Type) *Node {
 }
 
 func anonfield(typ *types.Type) *Node {
-	return nod(ODCLFIELD, nil, typenod(typ))
+	return symfield(nil, typ)
 }
 
 func namedfield(s string, typ *types.Type) *Node {
@@ -262,7 +250,9 @@ func namedfield(s string, typ *types.Type) *Node {
 }
 
 func symfield(s *types.Sym, typ *types.Type) *Node {
-	return nod(ODCLFIELD, newname(s), typenod(typ))
+	n := nodSym(ODCLFIELD, nil, s)
+	n.Type = typ
+	return n
 }
 
 // oldname returns the Node that declares symbol s in the current scope.
@@ -276,7 +266,7 @@ func oldname(s *types.Sym) *Node {
 		return newnoname(s)
 	}
 
-	if Curfn != nil && n.Op == ONAME && n.Name.Funcdepth > 0 && n.Name.Funcdepth != funcdepth {
+	if Curfn != nil && n.Op == ONAME && n.Name.Curfn != nil && n.Name.Curfn != Curfn {
 		// Inner func is referring to var in outer func.
 		//
 		// TODO(rsc): If there is an outer variable x and we
@@ -284,15 +274,13 @@ func oldname(s *types.Sym) *Node {
 		// the := it looks like a reference to the outer x so we'll
 		// make x a closure variable unnecessarily.
 		c := n.Name.Param.Innermost
-		if c == nil || c.Name.Funcdepth != funcdepth {
+		if c == nil || c.Name.Curfn != Curfn {
 			// Do not have a closure var for the active closure yet; make one.
 			c = newname(s)
 			c.SetClass(PAUTOHEAP)
-			c.SetIsClosureVar(true)
-			c.SetIsddd(n.Isddd())
+			c.Name.SetIsClosureVar(true)
+			c.SetIsDDD(n.IsDDD())
 			c.Name.Defn = n
-			c.SetAddable(false)
-			c.Name.Funcdepth = funcdepth
 
 			// Link into list of active closure variables.
 			// Popped from list in func closurebody.
@@ -332,7 +320,7 @@ func colasdefn(left []*Node, defn *Node) {
 
 	var nnew, nerr int
 	for i, n := range left {
-		if isblank(n) {
+		if n.isBlank() {
 			continue
 		}
 		if !colasname(n) {
@@ -369,11 +357,11 @@ func colasdefn(left []*Node, defn *Node) {
 // declare the arguments in an
 // interface field declaration.
 func ifacedcl(n *Node) {
-	if n.Op != ODCLFIELD || n.Right == nil {
+	if n.Op != ODCLFIELD || n.Left == nil {
 		Fatalf("ifacedcl")
 	}
 
-	if isblank(n.Left) {
+	if n.Sym.IsBlank() {
 		yyerror("methods must have a unique non-blank name")
 	}
 }
@@ -384,12 +372,14 @@ func ifacedcl(n *Node) {
 // returns in auto-declaration context.
 func funchdr(n *Node) {
 	// change the declaration context from extern to auto
-	if funcdepth == 0 && dclcontext != PEXTERN {
+	if Curfn == nil && dclcontext != PEXTERN {
 		Fatalf("funchdr: dclcontext = %d", dclcontext)
 	}
 
 	dclcontext = PAUTO
-	funcstart(n)
+	types.Markdcl()
+	funcstack = append(funcstack, Curfn)
+	Curfn = n
 
 	if n.Func.Nname != nil {
 		funcargs(n.Func.Nname.Name.Param.Ntype)
@@ -408,82 +398,63 @@ func funcargs(nt *Node) {
 	// re-start the variable generation number
 	// we want to use small numbers for the return variables,
 	// so let them have the chunk starting at 1.
+	//
+	// TODO(mdempsky): This is ugly, and only necessary because
+	// esc.go uses Vargen to figure out result parameters' index
+	// within the result tuple.
 	vargen = nt.Rlist.Len()
 
 	// declare the receiver and in arguments.
-	// no n->defn because type checking of func header
-	// will not fill in the types until later
 	if nt.Left != nil {
-		n := nt.Left
-		if n.Op != ODCLFIELD {
-			Fatalf("funcargs receiver %v", n.Op)
-		}
-		if n.Left != nil {
-			n.Left.Op = ONAME
-			n.Left.Name.Param.Ntype = n.Right
-			declare(n.Left, PPARAM)
-			if dclcontext == PAUTO {
-				vargen++
-				n.Left.Name.Vargen = int32(vargen)
-			}
-		}
+		funcarg(nt.Left, PPARAM)
+	}
+	for _, n := range nt.List.Slice() {
+		funcarg(n, PPARAM)
 	}
 
-	for _, n := range nt.List.Slice() {
-		if n.Op != ODCLFIELD {
-			Fatalf("funcargs in %v", n.Op)
-		}
-		if n.Left != nil {
-			n.Left.Op = ONAME
-			n.Left.Name.Param.Ntype = n.Right
-			declare(n.Left, PPARAM)
-			if dclcontext == PAUTO {
-				vargen++
-				n.Left.Name.Vargen = int32(vargen)
-			}
-		}
-	}
+	oldvargen := vargen
+	vargen = 0
 
 	// declare the out arguments.
 	gen := nt.List.Len()
-	var i int = 0
 	for _, n := range nt.Rlist.Slice() {
-		if n.Op != ODCLFIELD {
-			Fatalf("funcargs out %v", n.Op)
-		}
-
-		if n.Left == nil {
+		if n.Sym == nil {
 			// Name so that escape analysis can track it. ~r stands for 'result'.
-			n.Left = newname(lookupN("~r", gen))
+			n.Sym = lookupN("~r", gen)
 			gen++
 		}
-
-		// TODO: n->left->missing = 1;
-		n.Left.Op = ONAME
-
-		if isblank(n.Left) {
+		if n.Sym.IsBlank() {
 			// Give it a name so we can assign to it during return. ~b stands for 'blank'.
 			// The name must be different from ~r above because if you have
 			//	func f() (_ int)
 			//	func g() int
 			// f is allowed to use a plain 'return' with no arguments, while g is not.
 			// So the two cases must be distinguished.
-			// We do not record a pointer to the original node (n->orig).
-			// Having multiple names causes too much confusion in later passes.
-			nn := *n.Left
-			nn.Orig = &nn
-			nn.Sym = lookupN("~b", gen)
+			n.Sym = lookupN("~b", gen)
 			gen++
-			n.Left = &nn
 		}
 
-		n.Left.Name.Param.Ntype = n.Right
-		declare(n.Left, PPARAMOUT)
-		if dclcontext == PAUTO {
-			i++
-			n.Left.Name.Vargen = int32(i)
-		}
+		funcarg(n, PPARAMOUT)
 	}
+
+	vargen = oldvargen
+}
+
+func funcarg(n *Node, ctxt Class) {
+	if n.Op != ODCLFIELD {
+		Fatalf("funcarg %v", n.Op)
+	}
+	if n.Sym == nil {
+		return
+	}
+
+	n.Right = newnamel(n.Pos, n.Sym)
+	n.Right.Name.Param.Ntype = n.Left
+	n.Right.SetIsDDD(n.IsDDD())
+	declare(n.Right, ctxt)
+
+	vargen++
+	n.Right.Name.Vargen = int32(vargen)
 }
 
 // Same as funcargs, except run over an already constructed TFUNC.
@@ -494,45 +465,29 @@ func funcargs2(t *types.Type) {
 		Fatalf("funcargs2 %v", t)
 	}
 
-	for _, ft := range t.Recvs().Fields().Slice() {
-		if asNode(ft.Nname) == nil || asNode(ft.Nname).Sym == nil {
-			continue
-		}
-		n := asNode(ft.Nname) // no need for newname(ft->nname->sym)
-		n.Type = ft.Type
-		declare(n, PPARAM)
+	for _, f := range t.Recvs().Fields().Slice() {
+		funcarg2(f, PPARAM)
 	}
+	for _, f := range t.Params().Fields().Slice() {
+		funcarg2(f, PPARAM)
+	}
+	for _, f := range t.Results().Fields().Slice() {
+		funcarg2(f, PPARAMOUT)
+	}
+}
 
-	for _, ft := range t.Params().Fields().Slice() {
-		if asNode(ft.Nname) == nil || asNode(ft.Nname).Sym == nil {
-			continue
-		}
-		n := asNode(ft.Nname)
-		n.Type = ft.Type
-		declare(n, PPARAM)
+func funcarg2(f *types.Field, ctxt Class) {
+	if f.Sym == nil {
+		return
 	}
-
-	for _, ft := range t.Results().Fields().Slice() {
-		if asNode(ft.Nname) == nil || asNode(ft.Nname).Sym == nil {
-			continue
-		}
-		n := asNode(ft.Nname)
-		n.Type = ft.Type
-		declare(n, PPARAMOUT)
-	}
+	n := newnamel(f.Pos, f.Sym)
+	f.Nname = asTypesNode(n)
+	n.Type = f.Type
+	n.SetIsDDD(f.IsDDD())
+	declare(n, ctxt)
 }
 
 var funcstack []*Node // stack of previous values of Curfn
-var funcdepth int32   // len(funcstack) during parsing, but then forced to be the same later during compilation
-
-// start the function.
-// called before funcargs; undone at end of funcbody.
-func funcstart(n *Node) {
-	types.Markdcl()
-	funcstack = append(funcstack, Curfn)
-	funcdepth++
-	Curfn = n
-}
 
 // finish the body.
 // called in auto-declaration context.
@@ -544,8 +499,7 @@ func funcbody() {
 	}
 	types.Popdcl()
 	funcstack, Curfn = funcstack[:len(funcstack)-1], funcstack[len(funcstack)-1]
-	funcdepth--
-	if funcdepth == 0 {
+	if Curfn == nil {
 		dclcontext = PEXTERN
 	}
 }
@@ -580,24 +534,25 @@ func structfield(n *Node) *types.Field {
 	}
 
 	f := types.NewField()
-	f.SetIsddd(n.Isddd())
+	f.Pos = n.Pos
+	f.Sym = n.Sym
 
-	if n.Right != nil {
-		n.Right = typecheck(n.Right, Etype)
-		n.Type = n.Right.Type
-		if n.Left != nil {
-			n.Left.Type = n.Type
-		}
-		if n.Embedded() {
-			checkembeddedtype(n.Type)
-		}
+	if n.Left != nil {
+		n.Left = typecheck(n.Left, ctxType)
+		n.Type = n.Left.Type
+		n.Left = nil
 	}
-
-	n.Right = nil
 
 	f.Type = n.Type
 	if f.Type == nil {
 		f.SetBroke(true)
+	}
+
+	if n.Embedded() {
+		checkembeddedtype(n.Type)
+		f.Embedded = 1
+	} else {
+		f.Embedded = 0
 	}
 
 	switch u := n.Val().U.(type) {
@@ -609,31 +564,21 @@ func structfield(n *Node) *types.Field {
 		// no-op
 	}
 
-	if n.Left != nil && n.Left.Op == ONAME {
-		f.Nname = asTypesNode(n.Left)
-		if n.Embedded() {
-			f.Embedded = 1
-		} else {
-			f.Embedded = 0
-		}
-		f.Sym = asNode(f.Nname).Sym
-	}
-
 	lineno = lno
 	return f
 }
 
 // checkdupfields emits errors for duplicately named fields or methods in
 // a list of struct or interface types.
-func checkdupfields(what string, ts ...*types.Type) {
+func checkdupfields(what string, fss ...[]*types.Field) {
 	seen := make(map[*types.Sym]bool)
-	for _, t := range ts {
-		for _, f := range t.Fields().Slice() {
-			if f.Sym == nil || f.Sym.IsBlank() || asNode(f.Nname) == nil {
+	for _, fs := range fss {
+		for _, f := range fs {
+			if f.Sym == nil || f.Sym.IsBlank() {
 				continue
 			}
 			if seen[f.Sym] {
-				yyerrorl(asNode(f.Nname).Pos, "duplicate %s %s", what, f.Sym.Name)
+				yyerrorl(f.Pos, "duplicate %s %s", what, f.Sym.Name)
 				continue
 			}
 			seen[f.Sym] = true
@@ -664,7 +609,7 @@ func tostruct0(t *types.Type, l []*Node) {
 	}
 	t.SetFields(fields)
 
-	checkdupfields("field", t)
+	checkdupfields("field", t.FieldSlice())
 
 	if !t.Broke() {
 		checkwidth(t)
@@ -678,11 +623,10 @@ func tofunargs(l []*Node, funarg types.Funarg) *types.Type {
 	fields := make([]*types.Field, len(l))
 	for i, n := range l {
 		f := structfield(n)
-		f.Funarg = funarg
-
-		// esc.go needs to find f given a PPARAM to add the tag.
-		if n.Left != nil && n.Left.Class() == PPARAM {
-			n.Left.Name.Param.Field = f
+		f.SetIsDDD(n.IsDDD())
+		if n.Right != nil {
+			n.Right.Type = f.Type
+			f.Nname = asTypesNode(n.Right)
 		}
 		if f.Broke() {
 			t.SetBroke(true)
@@ -696,15 +640,6 @@ func tofunargs(l []*Node, funarg types.Funarg) *types.Type {
 func tofunargsfield(fields []*types.Field, funarg types.Funarg) *types.Type {
 	t := types.New(TSTRUCT)
 	t.StructType().Funarg = funarg
-
-	for _, f := range fields {
-		f.Funarg = funarg
-
-		// esc.go needs to find f given a PPARAM to add the tag.
-		if asNode(f.Nname) != nil && asNode(f.Nname).Class() == PPARAM {
-			asNode(f.Nname).Name.Param.Field = f
-		}
-	}
 	t.SetFields(fields)
 	return t
 }
@@ -723,25 +658,18 @@ func interfacefield(n *Node) *types.Field {
 
 	// MethodSpec = MethodName Signature | InterfaceTypeName .
 	//
-	// If Left != nil, then Left is MethodName and Right is Signature.
-	// Otherwise, Right is InterfaceTypeName.
+	// If Sym != nil, then Sym is MethodName and Left is Signature.
+	// Otherwise, Left is InterfaceTypeName.
 
-	if n.Right != nil {
-		n.Right = typecheck(n.Right, Etype)
-		n.Type = n.Right.Type
-		n.Right = nil
+	if n.Left != nil {
+		n.Left = typecheck(n.Left, ctxType)
+		n.Type = n.Left.Type
+		n.Left = nil
 	}
 
 	f := types.NewField()
-	if n.Left != nil {
-		f.Nname = asTypesNode(n.Left)
-		f.Sym = asNode(f.Nname).Sym
-	} else {
-		// Placeholder ONAME just to hold Pos.
-		// TODO(mdempsky): Add Pos directly to Field instead.
-		f.Nname = asTypesNode(newname(nblank.Sym))
-	}
-
+	f.Pos = n.Pos
+	f.Sym = n.Sym
 	f.Type = n.Type
 	if f.Type == nil {
 		f.SetBroke(true)
@@ -810,22 +738,16 @@ func functype0(t *types.Type, this *Node, in, out []*Node) {
 		rcvr = []*Node{this}
 	}
 	t.FuncType().Receiver = tofunargs(rcvr, types.FunargRcvr)
-	t.FuncType().Results = tofunargs(out, types.FunargResults)
 	t.FuncType().Params = tofunargs(in, types.FunargParams)
+	t.FuncType().Results = tofunargs(out, types.FunargResults)
 
-	checkdupfields("argument", t.Recvs(), t.Results(), t.Params())
+	checkdupfields("argument", t.Recvs().FieldSlice(), t.Params().FieldSlice(), t.Results().FieldSlice())
 
 	if t.Recvs().Broke() || t.Results().Broke() || t.Params().Broke() {
 		t.SetBroke(true)
 	}
 
-	t.FuncType().Outnamed = false
-	if len(out) > 0 && out[0].Left != nil && out[0].Left.Orig != nil {
-		s := out[0].Left.Orig.Sym
-		if s != nil && (s.Name[0] != '~' || s.Name[1] != 'r') { // ~r%d is the name invented for an unnamed result
-			t.FuncType().Outnamed = true
-		}
-	}
+	t.FuncType().Outnamed = t.NumResults() > 0 && origSym(t.Results().Field(0).Sym) != nil
 }
 
 func functypefield(this *types.Field, in, out []*types.Field) *types.Type {
@@ -840,105 +762,104 @@ func functypefield0(t *types.Type, this *types.Field, in, out []*types.Field) {
 		rcvr = []*types.Field{this}
 	}
 	t.FuncType().Receiver = tofunargsfield(rcvr, types.FunargRcvr)
-	t.FuncType().Results = tofunargsfield(out, types.FunargRcvr)
-	t.FuncType().Params = tofunargsfield(in, types.FunargRcvr)
+	t.FuncType().Params = tofunargsfield(in, types.FunargParams)
+	t.FuncType().Results = tofunargsfield(out, types.FunargResults)
 
-	t.FuncType().Outnamed = false
-	if len(out) > 0 && asNode(out[0].Nname) != nil && asNode(out[0].Nname).Orig != nil {
-		s := asNode(out[0].Nname).Orig.Sym
-		if s != nil && (s.Name[0] != '~' || s.Name[1] != 'r') { // ~r%d is the name invented for an unnamed result
-			t.FuncType().Outnamed = true
-		}
-	}
+	t.FuncType().Outnamed = t.NumResults() > 0 && origSym(t.Results().Field(0).Sym) != nil
 }
 
-var methodsym_toppkg *types.Pkg
-
-func methodsym(nsym *types.Sym, t0 *types.Type, iface bool) *types.Sym {
-	if t0 == nil {
-		Fatalf("methodsym: nil receiver type")
+// origSym returns the original symbol written by the user.
+func origSym(s *types.Sym) *types.Sym {
+	if s == nil {
+		return nil
 	}
 
-	t := t0
-	s := t.Sym
-	if s == nil && t.IsPtr() {
-		t = t.Elem()
-		if t == nil {
-			Fatalf("methodsym: ptrto nil")
+	if len(s.Name) > 1 && s.Name[0] == '~' {
+		switch s.Name[1] {
+		case 'r': // originally an unnamed result
+			return nil
+		case 'b': // originally the blank identifier _
+			// TODO(mdempsky): Does s.Pkg matter here?
+			return nblank.Sym
 		}
-		s = t.Sym
-	}
-
-	// if t0 == *t and t0 has a sym,
-	// we want to see *t, not t0, in the method name.
-	if t != t0 && t0.Sym != nil {
-		t0 = types.NewPtr(t)
-	}
-
-	suffix := ""
-	if iface {
-		dowidth(t0)
-		if t0.Width < int64(Widthptr) {
-			suffix = "·i"
-		}
-	}
-
-	var spkg *types.Pkg
-	if s != nil {
-		spkg = s.Pkg
-	}
-	pkgprefix := ""
-	if (spkg == nil || nsym.Pkg != spkg) && !exportname(nsym.Name) && nsym.Pkg.Prefix != `""` {
-		pkgprefix = "." + nsym.Pkg.Prefix
-	}
-	var p string
-	if t0.Sym == nil && t0.IsPtr() {
-		p = fmt.Sprintf("(%-S)%s.%s%s", t0, pkgprefix, nsym.Name, suffix)
-	} else {
-		p = fmt.Sprintf("%-S%s.%s%s", t0, pkgprefix, nsym.Name, suffix)
-	}
-
-	if spkg == nil {
-		if methodsym_toppkg == nil {
-			methodsym_toppkg = types.NewPkg("go", "")
-		}
-		spkg = methodsym_toppkg
-	}
-
-	return spkg.Lookup(p)
-}
-
-// methodname is a misnomer because this now returns a Sym, rather
-// than an ONAME.
-// TODO(mdempsky): Reconcile with methodsym.
-func methodname(s *types.Sym, recv *types.Type) *types.Sym {
-	star := false
-	if recv.IsPtr() {
-		star = true
-		recv = recv.Elem()
-	}
-
-	tsym := recv.Sym
-	if tsym == nil || s.IsBlank() {
 		return s
 	}
 
-	var p string
-	if star {
-		p = fmt.Sprintf("(*%v).%v", tsym.Name, s)
-	} else {
-		p = fmt.Sprintf("%v.%v", tsym, s)
+	if strings.HasPrefix(s.Name, ".anon") {
+		// originally an unnamed or _ name (see subr.go: structargs)
+		return nil
 	}
 
-	s = tsym.Pkg.Lookup(p)
-
 	return s
+}
+
+// methodSym returns the method symbol representing a method name
+// associated with a specific receiver type.
+//
+// Method symbols can be used to distinguish the same method appearing
+// in different method sets. For example, T.M and (*T).M have distinct
+// method symbols.
+//
+// The returned symbol will be marked as a function.
+func methodSym(recv *types.Type, msym *types.Sym) *types.Sym {
+	sym := methodSymSuffix(recv, msym, "")
+	sym.SetFunc(true)
+	return sym
+}
+
+// methodSymSuffix is like methodsym, but allows attaching a
+// distinguisher suffix. To avoid collisions, the suffix must not
+// start with a letter, number, or period.
+func methodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sym {
+	if msym.IsBlank() {
+		Fatalf("blank method name")
+	}
+
+	rsym := recv.Sym
+	if recv.IsPtr() {
+		if rsym != nil {
+			Fatalf("declared pointer receiver type: %v", recv)
+		}
+		rsym = recv.Elem().Sym
+	}
+
+	// Find the package the receiver type appeared in. For
+	// anonymous receiver types (i.e., anonymous structs with
+	// embedded fields), use the "go" pseudo-package instead.
+	rpkg := gopkg
+	if rsym != nil {
+		rpkg = rsym.Pkg
+	}
+
+	var b bytes.Buffer
+	if recv.IsPtr() {
+		// The parentheses aren't really necessary, but
+		// they're pretty traditional at this point.
+		fmt.Fprintf(&b, "(%-S)", recv)
+	} else {
+		fmt.Fprintf(&b, "%-S", recv)
+	}
+
+	// A particular receiver type may have multiple non-exported
+	// methods with the same name. To disambiguate them, include a
+	// package qualifier for names that came from a different
+	// package than the receiver type.
+	if !types.IsExported(msym.Name) && msym.Pkg != rpkg {
+		b.WriteString(".")
+		b.WriteString(msym.Pkg.Prefix)
+	}
+
+	b.WriteString(".")
+	b.WriteString(msym.Name)
+	b.WriteString(suffix)
+
+	return rpkg.LookupBytes(b.Bytes())
 }
 
 // Add a method, declared as a function.
 // - msym is the method symbol
 // - t is function type (with receiver)
-// Returns a pointer to the existing or added Field.
+// Returns a pointer to the existing or added Field; or nil if there's an error.
 func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) *types.Field {
 	if msym == nil {
 		Fatalf("no method symbol")
@@ -967,7 +888,7 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) *types.F
 		case t == nil || t.Broke():
 			// rely on typecheck having complained before
 		case t.Sym == nil:
-			yyerror("invalid receiver type %v (%v is an unnamed type)", pa, t)
+			yyerror("invalid receiver type %v (%v is not a defined type)", pa, t)
 		case t.IsPtr():
 			yyerror("invalid receiver type %v (%v is a pointer type)", pa, t)
 		case t.IsInterface():
@@ -993,6 +914,7 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) *types.F
 		for _, f := range mt.Fields().Slice() {
 			if f.Sym == msym {
 				yyerror("type %v has both field and method named %v", mt, msym)
+				f.SetBroke(true)
 				return nil
 			}
 		}
@@ -1002,45 +924,22 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) *types.F
 		if msym.Name != f.Sym.Name {
 			continue
 		}
-		// eqtype only checks that incoming and result parameters match,
+		// types.Identical only checks that incoming and result parameters match,
 		// so explicitly check that the receiver parameters match too.
-		if !eqtype(t, f.Type) || !eqtype(t.Recv().Type, f.Type.Recv().Type) {
+		if !types.Identical(t, f.Type) || !types.Identical(t.Recv().Type, f.Type.Recv().Type) {
 			yyerror("method redeclared: %v.%v\n\t%v\n\t%v", mt, msym, f.Type, t)
 		}
 		return f
 	}
 
 	f := types.NewField()
+	f.Pos = lineno
 	f.Sym = msym
-	f.Nname = asTypesNode(newname(msym))
 	f.Type = t
 	f.SetNointerface(nointerface)
 
 	mt.Methods().Append(f)
 	return f
-}
-
-func funccompile(n *Node) {
-	if n.Type == nil {
-		if nerrors == 0 {
-			Fatalf("funccompile missing type")
-		}
-		return
-	}
-
-	// assign parameter offsets
-	checkwidth(n.Type)
-
-	if Curfn != nil {
-		Fatalf("funccompile %v inside %v", n.Func.Nname.Sym, Curfn.Func.Nname.Sym)
-	}
-
-	dclcontext = PAUTO
-	funcdepth = n.Func.Depth + 1
-	compile(n)
-	Curfn = nil
-	funcdepth = 0
-	dclcontext = PEXTERN
 }
 
 func funcsymname(s *types.Sym) string {
@@ -1098,18 +997,24 @@ func makefuncsym(s *types.Sym) {
 	}
 }
 
+// disableExport prevents sym from being included in package export
+// data. To be effectual, it must be called before declare.
+func disableExport(sym *types.Sym) {
+	sym.SetOnExportList(true)
+}
+
 func dclfunc(sym *types.Sym, tfn *Node) *Node {
 	if tfn.Op != OTFUNC {
 		Fatalf("expected OTFUNC node, got %v", tfn)
 	}
 
 	fn := nod(ODCLFUNC, nil, nil)
-	fn.Func.Nname = newname(sym)
+	fn.Func.Nname = newfuncnamel(lineno, sym)
 	fn.Func.Nname.Name.Defn = fn
 	fn.Func.Nname.Name.Param.Ntype = tfn
 	declare(fn.Func.Nname, PFUNC)
 	funchdr(fn)
-	fn.Func.Nname.Name.Param.Ntype = typecheck(fn.Func.Nname.Name.Param.Ntype, Etype)
+	fn.Func.Nname.Name.Param.Ntype = typecheck(fn.Func.Nname.Name.Param.Ntype, ctxType)
 	return fn
 }
 

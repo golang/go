@@ -21,7 +21,7 @@ import (
 )
 
 func main() {
-	if runtime.Compiler != "gc" || runtime.GOOS == "nacl" {
+	if runtime.Compiler != "gc" || runtime.GOOS == "nacl" || runtime.GOOS == "js" {
 		return
 	}
 
@@ -48,8 +48,8 @@ func main() {
 		log.Fatalf("expected cmd/compile to fail")
 	}
 	wantErrs := []string{
-		"7:9: n declared and not used",
-		"7:12: err declared and not used",
+		"7:9: n declared but not used",
+		"7:12: err declared but not used",
 	}
 	outStr := string(out)
 	for _, want := range wantErrs {

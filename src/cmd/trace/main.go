@@ -16,7 +16,11 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime"
+	"runtime/debug"
 	"sync"
+
+	_ "net/http/pprof" // Required to use pprof
 )
 
 const usageMessage = "" +
@@ -79,19 +83,19 @@ func main() {
 		flag.Usage()
 	}
 
-	var pprofFunc func(io.Writer, string) error
+	var pprofFunc func(io.Writer, *http.Request) error
 	switch *pprofFlag {
 	case "net":
-		pprofFunc = pprofIO
+		pprofFunc = pprofByGoroutine(computePprofIO)
 	case "sync":
-		pprofFunc = pprofBlock
+		pprofFunc = pprofByGoroutine(computePprofBlock)
 	case "syscall":
-		pprofFunc = pprofSyscall
+		pprofFunc = pprofByGoroutine(computePprofSyscall)
 	case "sched":
-		pprofFunc = pprofSched
+		pprofFunc = pprofByGoroutine(computePprofSched)
 	}
 	if pprofFunc != nil {
-		if err := pprofFunc(os.Stdout, ""); err != nil {
+		if err := pprofFunc(os.Stdout, &http.Request{}); err != nil {
 			dief("failed to generate pprof: %v\n", err)
 		}
 		os.Exit(0)
@@ -115,19 +119,13 @@ func main() {
 		trace.Print(res.Events)
 		os.Exit(0)
 	}
-
-	log.Print("Serializing trace...")
-	params := &traceParams{
-		parsed:  res,
-		endTime: int64(1<<63 - 1),
-	}
-	data, err := generateTrace(params)
-	if err != nil {
-		dief("%v\n", err)
-	}
+	reportMemoryUsage("after parsing trace")
+	debug.FreeOSMemory()
 
 	log.Print("Splitting trace...")
-	ranges = splitTrace(data)
+	ranges = splitTrace(res)
+	reportMemoryUsage("after spliting trace")
+	debug.FreeOSMemory()
 
 	addr := "http://" + ln.Addr().String()
 	log.Printf("Opening browser. Trace viewer is listening on %s", addr)
@@ -190,7 +188,7 @@ var templMain = template.Must(template.New("").Parse(`
 <body>
 {{if $}}
 	{{range $e := $}}
-		<a href="/trace?start={{$e.Start}}&end={{$e.End}}">View trace ({{$e.Name}})</a><br>
+		<a href="{{$e.URL}}">View trace ({{$e.Name}})</a><br>
 	{{end}}
 	<br>
 {{else}}
@@ -201,6 +199,9 @@ var templMain = template.Must(template.New("").Parse(`
 <a href="/block">Synchronization blocking profile</a> (<a href="/block?raw=1" download="block.profile">⬇</a>)<br>
 <a href="/syscall">Syscall blocking profile</a> (<a href="/syscall?raw=1" download="syscall.profile">⬇</a>)<br>
 <a href="/sched">Scheduler latency profile</a> (<a href="/sche?raw=1" download="sched.profile">⬇</a>)<br>
+<a href="/usertasks">User-defined tasks</a><br>
+<a href="/userregions">User-defined regions</a><br>
+<a href="/mmu">Minimum mutator utilization</a><br>
 </body>
 </html>
 `))
@@ -208,4 +209,30 @@ var templMain = template.Must(template.New("").Parse(`
 func dief(msg string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, msg, args...)
 	os.Exit(1)
+}
+
+var debugMemoryUsage bool
+
+func init() {
+	v := os.Getenv("DEBUG_MEMORY_USAGE")
+	debugMemoryUsage = v != ""
+}
+
+func reportMemoryUsage(msg string) {
+	if !debugMemoryUsage {
+		return
+	}
+	var s runtime.MemStats
+	runtime.ReadMemStats(&s)
+	w := os.Stderr
+	fmt.Fprintf(w, "%s\n", msg)
+	fmt.Fprintf(w, " Alloc:\t%d Bytes\n", s.Alloc)
+	fmt.Fprintf(w, " Sys:\t%d Bytes\n", s.Sys)
+	fmt.Fprintf(w, " HeapReleased:\t%d Bytes\n", s.HeapReleased)
+	fmt.Fprintf(w, " HeapSys:\t%d Bytes\n", s.HeapSys)
+	fmt.Fprintf(w, " HeapInUse:\t%d Bytes\n", s.HeapInuse)
+	fmt.Fprintf(w, " HeapAlloc:\t%d Bytes\n", s.HeapAlloc)
+	var dummy string
+	fmt.Printf("Enter to continue...")
+	fmt.Scanf("%s", &dummy)
 }

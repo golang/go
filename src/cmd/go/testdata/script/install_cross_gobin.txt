@@ -1,0 +1,26 @@
+env GO111MODULE=off
+[!short] skip # rebuilds std for alternate architecture
+
+cd mycmd
+go build mycmd
+
+# cross-compile install with implicit GOBIN=$GOPATH/bin can make subdirectory
+env GOARCH=386
+[386] env GOARCH=amd64
+env GOOS=linux
+go install mycmd
+exists $GOPATH/bin/linux_$GOARCH/mycmd
+
+# cross-compile install with explicit GOBIN cannot make subdirectory
+env GOBIN=$WORK/bin
+! go install mycmd
+! exists $GOBIN/linux_$GOARCH
+
+# installing standard command should still work
+# (should also be mtime update only if cmd/pack is up-to-date).
+! stale cmd/pack
+[!short] go install cmd/pack
+
+-- mycmd/x.go --
+package main
+func main() {}

@@ -5,13 +5,17 @@
 package ssa
 
 import (
+	"bytes"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"fmt"
+	"hash/crc32"
 	"log"
+	"math/rand"
 	"os"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 )
@@ -29,6 +33,12 @@ func Compile(f *Func) {
 		f.Logf("compiling %s\n", f.Name)
 	}
 
+	var rnd *rand.Rand
+	if checkEnabled {
+		seed := int64(crc32.ChecksumIEEE(([]byte)(f.Name))) ^ int64(checkRandSeed)
+		rnd = rand.New(rand.NewSource(seed))
+	}
+
 	// hook to print function & phase if panic happens
 	phaseName := "init"
 	defer func() {
@@ -42,8 +52,10 @@ func Compile(f *Func) {
 	}()
 
 	// Run all the passes
-	printFunc(f)
-	f.HTMLWriter.WriteFunc("start", f)
+	if f.Log() {
+		printFunc(f)
+	}
+	f.HTMLWriter.WriteFunc("start", "start", f)
 	if BuildDump != "" && BuildDump == f.Name {
 		f.dumpFile("build")
 	}
@@ -66,6 +78,17 @@ func Compile(f *Func) {
 			runtime.ReadMemStats(&mStart)
 		}
 
+		if checkEnabled && !f.scheduled {
+			// Test that we don't depend on the value order, by randomizing
+			// the order of values in each block. See issue 18169.
+			for _, b := range f.Blocks {
+				for i := 0; i < len(b.Values)-1; i++ {
+					j := i + rnd.Intn(len(b.Values)-i)
+					b.Values[i], b.Values[j] = b.Values[j], b.Values[i]
+				}
+			}
+		}
+
 		tStart := time.Now()
 		p.fn(f)
 		tEnd := time.Now()
@@ -84,9 +107,11 @@ func Compile(f *Func) {
 				stats = fmt.Sprintf("[%d ns]", time)
 			}
 
-			f.Logf("  pass %s end %s\n", p.name, stats)
-			printFunc(f)
-			f.HTMLWriter.WriteFunc(fmt.Sprintf("after %s <span class=\"stats\">%s</span>", phaseName, stats), f)
+			if f.Log() {
+				f.Logf("  pass %s end %s\n", p.name, stats)
+				printFunc(f)
+			}
+			f.HTMLWriter.WriteFunc(phaseName, fmt.Sprintf("%s <span class=\"stats\">%s</span>", phaseName, stats), f)
 		}
 		if p.time || p.mem {
 			// Surround timing information w/ enough context to allow comparisons.
@@ -109,6 +134,21 @@ func Compile(f *Func) {
 		if checkEnabled {
 			checkFunc(f)
 		}
+	}
+
+	if f.ruleMatches != nil {
+		var keys []string
+		for key := range f.ruleMatches {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		buf := new(bytes.Buffer)
+		fmt.Fprintf(buf, "%s: ", f.Name)
+		for _, key := range keys {
+			fmt.Fprintf(buf, "%s=%d ", key, f.ruleMatches[key])
+		}
+		fmt.Fprint(buf, "\n")
+		fmt.Print(buf.String())
 	}
 
 	// Squash error printing defer
@@ -160,7 +200,10 @@ func (p *pass) addDump(s string) {
 }
 
 // Run consistency checker between each phase
-var checkEnabled = false
+var (
+	checkEnabled  = false
+	checkRandSeed = 0
+)
 
 // Debug output
 var IntrinsicsDebug int
@@ -190,40 +233,79 @@ var BuildDump string // name of function to dump after initial build of ssa
 // BOOT_GO_GCFLAGS=-d='ssa/~^.*scc$/off' GO_GCFLAGS='-d=ssa/~^.*scc$/off' ./make.bash
 //
 func PhaseOption(phase, flag string, val int, valString string) string {
-	if phase == "help" {
+	switch phase {
+	case "", "help":
 		lastcr := 0
-		phasenames := "check, all, build, intrinsics"
+		phasenames := "    check, all, build, intrinsics"
 		for _, p := range passes {
 			pn := strings.Replace(p.name, " ", "_", -1)
 			if len(pn)+len(phasenames)-lastcr > 70 {
-				phasenames += "\n"
+				phasenames += "\n    "
 				lastcr = len(phasenames)
 				phasenames += pn
 			} else {
 				phasenames += ", " + pn
 			}
 		}
-		return "" +
-			`GcFlag -d=ssa/<phase>/<flag>[=<value>|<function_name>]
-<phase> is one of:
+		return `PhaseOptions usage:
+
+    go tool compile -d=ssa/<phase>/<flag>[=<value>|<function_name>]
+
+where:
+
+- <phase> is one of:
 ` + phasenames + `
-<flag> is one of on, off, debug, mem, time, test, stats, dump
-<value> defaults to 1
-<function_name> is required for "dump", specifies name of function to dump after <phase>
-Except for dump, output is directed to standard out; dump appears in a file.
+
+- <flag> is one of:
+    on, off, debug, mem, time, test, stats, dump, seed
+
+- <value> defaults to 1
+
+- <function_name> is required for the "dump" flag, and specifies the
+  name of function to dump after <phase>
+
 Phase "all" supports flags "time", "mem", and "dump".
-Phases "intrinsics" supports flags "on", "off", and "debug".
-Interpretation of the "debug" value depends on the phase.
-Dump files are named <phase>__<function_name>_<seq>.dump.
+Phase "intrinsics" supports flags "on", "off", and "debug".
+
+If the "dump" flag is specified, the output is written on a file named
+<phase>__<function_name>_<seq>.dump; otherwise it is directed to stdout.
+
+Examples:
+
+    -d=ssa/check/on
+enables checking after each phase
+
+	-d=ssa/check/seed=1234
+enables checking after each phase, using 1234 to seed the PRNG
+used for value order randomization
+
+    -d=ssa/all/time
+enables time reporting for all phases
+
+    -d=ssa/prove/debug=2
+sets debugging level to 2 in the prove pass
+
+Multiple flags can be passed at once, by separating them with
+commas. For example:
+
+    -d=ssa/check/on,ssa/all/time
 `
 	}
 
 	if phase == "check" && flag == "on" {
 		checkEnabled = val != 0
+		debugPoset = checkEnabled // also turn on advanced self-checking in prove's datastructure
 		return ""
 	}
 	if phase == "check" && flag == "off" {
 		checkEnabled = val == 0
+		debugPoset = checkEnabled
+		return ""
+	}
+	if phase == "check" && flag == "seed" {
+		checkEnabled = true
+		checkRandSeed = val
+		debugPoset = checkEnabled
 		return ""
 	}
 
@@ -330,40 +412,48 @@ Dump files are named <phase>__<function_name>_<seq>.dump.
 // list of passes for the compiler
 var passes = [...]pass{
 	// TODO: combine phielim and copyelim into a single pass?
+	{name: "number lines", fn: numberLines, required: true},
 	{name: "early phielim", fn: phielim},
 	{name: "early copyelim", fn: copyelim},
 	{name: "early deadcode", fn: deadcode}, // remove generated dead code to avoid doing pointless work during opt
 	{name: "short circuit", fn: shortcircuit},
+	{name: "decompose args", fn: decomposeArgs, required: true},
 	{name: "decompose user", fn: decomposeUser, required: true},
-	{name: "opt", fn: opt, required: true},               // TODO: split required rules and optimizing rules
+	{name: "pre-opt deadcode", fn: deadcode},
+	{name: "opt", fn: opt, required: true},               // NB: some generic rules know the name of the opt pass. TODO: split required rules and optimizing rules
 	{name: "zero arg cse", fn: zcse, required: true},     // required to merge OpSB values
 	{name: "opt deadcode", fn: deadcode, required: true}, // remove any blocks orphaned during opt
 	{name: "generic cse", fn: cse},
 	{name: "phiopt", fn: phiopt},
+	{name: "gcse deadcode", fn: deadcode, required: true}, // clean out after cse and phiopt
 	{name: "nilcheckelim", fn: nilcheckelim},
 	{name: "prove", fn: prove},
-	{name: "loopbce", fn: loopbce},
+	{name: "early fuse", fn: fuseEarly},
 	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
 	{name: "softfloat", fn: softfloat, required: true},
 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
-	{name: "generic deadcode", fn: deadcode},
+	{name: "dead auto elim", fn: elimDeadAutosGeneric},
+	{name: "generic deadcode", fn: deadcode, required: true}, // remove dead stores, which otherwise mess up store chain
 	{name: "check bce", fn: checkbce},
-	{name: "fuse", fn: fuse},
+	{name: "branchelim", fn: branchelim},
+	{name: "late fuse", fn: fuseLate},
 	{name: "dse", fn: dse},
 	{name: "writebarrier", fn: writebarrier, required: true}, // expand write barrier ops
 	{name: "insert resched checks", fn: insertLoopReschedChecks,
 		disabled: objabi.Preemptibleloops_enabled == 0}, // insert resched checks in loops.
-	{name: "tighten", fn: tighten}, // move values closer to their uses
 	{name: "lower", fn: lower, required: true},
+	{name: "addressing modes", fn: addressingModes, required: false},
+	{name: "lowered deadcode for cse", fn: deadcode}, // deadcode immediately before CSE avoids CSE making dead values live again
 	{name: "lowered cse", fn: cse},
 	{name: "elim unread autos", fn: elimUnreadAutos},
 	{name: "lowered deadcode", fn: deadcode, required: true},
 	{name: "checkLower", fn: checkLower, required: true},
 	{name: "late phielim", fn: phielim},
 	{name: "late copyelim", fn: copyelim},
-	{name: "phi tighten", fn: phiTighten},
+	{name: "tighten", fn: tighten}, // move values closer to their uses
 	{name: "late deadcode", fn: deadcode},
 	{name: "critical", fn: critical, required: true}, // remove critical edges
+	{name: "phi tighten", fn: phiTighten},            // place rematerializable phi args near uses to reduce value lifetimes
 	{name: "likelyadjust", fn: likelyadjust},
 	{name: "layout", fn: layout, required: true},     // schedule blocks
 	{name: "schedule", fn: schedule, required: true}, // schedule values
@@ -402,11 +492,9 @@ var passOrder = [...]constraint{
 	// allow deadcode to clean up after nilcheckelim
 	{"nilcheckelim", "generic deadcode"},
 	// nilcheckelim generates sequences of plain basic blocks
-	{"nilcheckelim", "fuse"},
+	{"nilcheckelim", "late fuse"},
 	// nilcheckelim relies on opt to rewrite user nil checks
 	{"opt", "nilcheckelim"},
-	// tighten should happen before lowering to avoid splitting naturally paired instructions such as CMP/SET
-	{"tighten", "lower"},
 	// tighten will be most effective when as many values have been removed as possible
 	{"generic deadcode", "tighten"},
 	{"generic cse", "tighten"},
@@ -416,6 +504,8 @@ var passOrder = [...]constraint{
 	{"decompose builtin", "late opt"},
 	// decompose builtin is the last pass that may introduce new float ops, so run softfloat after it
 	{"decompose builtin", "softfloat"},
+	// remove critical edges before phi tighten, so that phi args get better placement
+	{"critical", "phi tighten"},
 	// don't layout blocks until critical edges have been removed
 	{"critical", "layout"},
 	// regalloc requires the removal of all critical edges

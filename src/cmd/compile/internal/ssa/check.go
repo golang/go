@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"math"
+	"math/bits"
 )
 
 // checkFunc checks invariants of f.
@@ -38,31 +39,31 @@ func checkFunc(f *Func) {
 			if len(b.Succs) != 0 {
 				f.Fatalf("exit block %s has successors", b)
 			}
-			if b.Control == nil {
+			if b.NumControls() != 1 {
 				f.Fatalf("exit block %s has no control value", b)
 			}
-			if !b.Control.Type.IsMemory() {
-				f.Fatalf("exit block %s has non-memory control value %s", b, b.Control.LongString())
+			if !b.Controls[0].Type.IsMemory() {
+				f.Fatalf("exit block %s has non-memory control value %s", b, b.Controls[0].LongString())
 			}
 		case BlockRet:
 			if len(b.Succs) != 0 {
 				f.Fatalf("ret block %s has successors", b)
 			}
-			if b.Control == nil {
+			if b.NumControls() != 1 {
 				f.Fatalf("ret block %s has nil control", b)
 			}
-			if !b.Control.Type.IsMemory() {
-				f.Fatalf("ret block %s has non-memory control value %s", b, b.Control.LongString())
+			if !b.Controls[0].Type.IsMemory() {
+				f.Fatalf("ret block %s has non-memory control value %s", b, b.Controls[0].LongString())
 			}
 		case BlockRetJmp:
 			if len(b.Succs) != 0 {
 				f.Fatalf("retjmp block %s len(Succs)==%d, want 0", b, len(b.Succs))
 			}
-			if b.Control == nil {
+			if b.NumControls() != 1 {
 				f.Fatalf("retjmp block %s has nil control", b)
 			}
-			if !b.Control.Type.IsMemory() {
-				f.Fatalf("retjmp block %s has non-memory control value %s", b, b.Control.LongString())
+			if !b.Controls[0].Type.IsMemory() {
+				f.Fatalf("retjmp block %s has non-memory control value %s", b, b.Controls[0].LongString())
 			}
 			if b.Aux == nil {
 				f.Fatalf("retjmp block %s has nil Aux field", b)
@@ -71,38 +72,38 @@ func checkFunc(f *Func) {
 			if len(b.Succs) != 1 {
 				f.Fatalf("plain block %s len(Succs)==%d, want 1", b, len(b.Succs))
 			}
-			if b.Control != nil {
-				f.Fatalf("plain block %s has non-nil control %s", b, b.Control.LongString())
+			if b.NumControls() != 0 {
+				f.Fatalf("plain block %s has non-nil control %s", b, b.Controls[0].LongString())
 			}
 		case BlockIf:
 			if len(b.Succs) != 2 {
 				f.Fatalf("if block %s len(Succs)==%d, want 2", b, len(b.Succs))
 			}
-			if b.Control == nil {
+			if b.NumControls() != 1 {
 				f.Fatalf("if block %s has no control value", b)
 			}
-			if !b.Control.Type.IsBoolean() {
-				f.Fatalf("if block %s has non-bool control value %s", b, b.Control.LongString())
+			if !b.Controls[0].Type.IsBoolean() {
+				f.Fatalf("if block %s has non-bool control value %s", b, b.Controls[0].LongString())
 			}
 		case BlockDefer:
 			if len(b.Succs) != 2 {
 				f.Fatalf("defer block %s len(Succs)==%d, want 2", b, len(b.Succs))
 			}
-			if b.Control == nil {
+			if b.NumControls() != 1 {
 				f.Fatalf("defer block %s has no control value", b)
 			}
-			if !b.Control.Type.IsMemory() {
-				f.Fatalf("defer block %s has non-memory control value %s", b, b.Control.LongString())
+			if !b.Controls[0].Type.IsMemory() {
+				f.Fatalf("defer block %s has non-memory control value %s", b, b.Controls[0].LongString())
 			}
 		case BlockFirst:
 			if len(b.Succs) != 2 {
 				f.Fatalf("plain/dead block %s len(Succs)==%d, want 2", b, len(b.Succs))
 			}
-			if b.Control != nil {
+			if b.NumControls() != 0 {
 				f.Fatalf("plain/dead block %s has a control value", b)
 			}
 		}
-		if len(b.Succs) > 2 && b.Likely != BranchUnknown {
+		if len(b.Succs) != 2 && b.Likely != BranchUnknown {
 			f.Fatalf("likeliness prediction %d for block %s with %d successors", b.Likely, b, len(b.Succs))
 		}
 
@@ -140,25 +141,32 @@ func checkFunc(f *Func) {
 					f.Fatalf("bad int32 AuxInt value for %v", v)
 				}
 				canHaveAuxInt = true
-			case auxInt64, auxFloat64:
+			case auxInt64, auxARM64BitField:
 				canHaveAuxInt = true
 			case auxInt128:
 				// AuxInt must be zero, so leave canHaveAuxInt set to false.
 			case auxFloat32:
 				canHaveAuxInt = true
-				if !isExactFloat32(v) {
+				if math.IsNaN(v.AuxFloat()) {
+					f.Fatalf("value %v has an AuxInt that encodes a NaN", v)
+				}
+				if !isExactFloat32(v.AuxFloat()) {
 					f.Fatalf("value %v has an AuxInt value that is not an exact float32", v)
 				}
-			case auxString, auxSym, auxTyp:
+			case auxFloat64:
+				canHaveAuxInt = true
+				if math.IsNaN(v.AuxFloat()) {
+					f.Fatalf("value %v has an AuxInt that encodes a NaN", v)
+				}
+			case auxString, auxSym, auxTyp, auxArchSpecific:
 				canHaveAux = true
 			case auxSymOff, auxSymValAndOff, auxTypSize:
 				canHaveAuxInt = true
 				canHaveAux = true
-			case auxSymInt32:
-				if v.AuxInt != int64(int32(v.AuxInt)) {
-					f.Fatalf("bad int32 AuxInt value for %v", v)
+			case auxCCop:
+				if _, ok := v.Aux.(Op); !ok {
+					f.Fatalf("bad type %T for CCop in %v", v.Aux, v)
 				}
-				canHaveAuxInt = true
 				canHaveAux = true
 			default:
 				f.Fatalf("unknown aux type for %s", v.Op)
@@ -198,8 +206,20 @@ func checkFunc(f *Func) {
 				if len(v.Args) == 0 {
 					f.Fatalf("no args for OpAddr %s", v.LongString())
 				}
-				if v.Args[0].Op != OpSP && v.Args[0].Op != OpSB {
+				if v.Args[0].Op != OpSB {
 					f.Fatalf("bad arg to OpAddr %v", v)
+				}
+			}
+
+			if v.Op == OpLocalAddr {
+				if len(v.Args) != 2 {
+					f.Fatalf("wrong # of args for OpLocalAddr %s", v.LongString())
+				}
+				if v.Args[0].Op != OpSP {
+					f.Fatalf("bad arg 0 to OpLocalAddr %v", v)
+				}
+				if !v.Args[1].Type.IsMemory() {
+					f.Fatalf("bad arg 1 to OpLocalAddr %v", v)
 				}
 			}
 
@@ -207,8 +227,17 @@ func checkFunc(f *Func) {
 				f.Fatalf("unexpected floating-point type %v", v.LongString())
 			}
 
+			// Check types.
+			// TODO: more type checks?
+			switch c := f.Config; v.Op {
+			case OpSP, OpSB:
+				if v.Type != c.Types.Uintptr {
+					f.Fatalf("bad %s type: want uintptr, have %s",
+						v.Op, v.Type.String())
+				}
+			}
+
 			// TODO: check for cycles in values
-			// TODO: check type
 		}
 	}
 
@@ -242,8 +271,10 @@ func checkFunc(f *Func) {
 				}
 			}
 		}
-		if b.Control != nil && !valueMark[b.Control.ID] {
-			f.Fatalf("control value for %s is missing: %v", b, b.Control)
+		for _, c := range b.ControlValues() {
+			if !valueMark[c.ID] {
+				f.Fatalf("control value for %s is missing: %v", b, c)
+			}
 		}
 	}
 	for b := f.freeBlocks; b != nil; b = b.succstorage[0].b {
@@ -261,7 +292,7 @@ func checkFunc(f *Func) {
 	if f.RegAlloc == nil {
 		// Note: regalloc introduces non-dominating args.
 		// See TODO in regalloc.go.
-		sdom := f.sdom()
+		sdom := f.Sdom()
 		for _, b := range f.Blocks {
 			for _, v := range b.Values {
 				for i, arg := range v.Args {
@@ -275,8 +306,10 @@ func checkFunc(f *Func) {
 					}
 				}
 			}
-			if b.Control != nil && !domCheck(f, sdom, b.Control.Block, b) {
-				f.Fatalf("control value %s for %s doesn't dominate", b.Control, b)
+			for _, c := range b.ControlValues() {
+				if !domCheck(f, sdom, c.Block, b) {
+					f.Fatalf("control value %s for %s doesn't dominate", c, b)
+				}
 			}
 		}
 	}
@@ -308,8 +341,8 @@ func checkFunc(f *Func) {
 				uses[a.ID]++
 			}
 		}
-		if b.Control != nil {
-			uses[b.Control.ID]++
+		for _, c := range b.ControlValues() {
+			uses[c.ID]++
 		}
 	}
 	for _, b := range f.Blocks {
@@ -475,15 +508,19 @@ func memCheck(f *Func) {
 
 // domCheck reports whether x dominates y (including x==y).
 func domCheck(f *Func, sdom SparseTree, x, y *Block) bool {
-	if !sdom.isAncestorEq(f.Entry, y) {
+	if !sdom.IsAncestorEq(f.Entry, y) {
 		// unreachable - ignore
 		return true
 	}
-	return sdom.isAncestorEq(x, y)
+	return sdom.IsAncestorEq(x, y)
 }
 
-// isExactFloat32 reports whether v has an AuxInt that can be exactly represented as a float32.
-func isExactFloat32(v *Value) bool {
-	x := v.AuxFloat()
-	return math.Float64bits(x) == math.Float64bits(float64(float32(x)))
+// isExactFloat32 reports whether x can be exactly represented as a float32.
+func isExactFloat32(x float64) bool {
+	// Check the mantissa is in range.
+	if bits.TrailingZeros64(math.Float64bits(x)) < 52-23 {
+		return false
+	}
+	// Check the exponent is in range. The mantissa check above is sufficient for NaN values.
+	return math.IsNaN(x) || x == float64(float32(x))
 }

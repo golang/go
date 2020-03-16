@@ -14,7 +14,8 @@ import (
 
 // A Location maps time instants to the zone in use at that time.
 // Typically, the Location represents the collection of time offsets
-// in use in a geographical area, such as CEST and CET for central Europe.
+// in use in a geographical area. For many Locations the time offset varies
+// depending on whether daylight savings time is in use at the time instant.
 type Location struct {
 	name string
 	zone []zone
@@ -34,7 +35,7 @@ type Location struct {
 	cacheZone  *zone
 }
 
-// A zone represents a single time zone such as CEST or CET.
+// A zone represents a single time zone such as CET.
 type zone struct {
 	name   string // abbreviated name, "CET"
 	offset int    // seconds east of UTC
@@ -64,6 +65,11 @@ var UTC *Location = &utcLoc
 var utcLoc = Location{name: "UTC"}
 
 // Local represents the system's local time zone.
+// On Unix systems, Local consults the TZ environment
+// variable to find the time zone to use. No TZ means
+// use the system default /etc/localtime.
+// TZ="" means use UTC.
+// TZ="foo" means use file foo in the system timezone directory.
 var Local *Location = &localLoc
 
 // localLoc is separate so that initLocal can initialize
@@ -108,13 +114,12 @@ func FixedZone(name string, offset int) *Location {
 // the start and end times bracketing sec when that zone is in effect,
 // the offset in seconds east of UTC (such as -5*60*60), and whether
 // the daylight savings is being observed at that time.
-func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start, end int64) {
+func (l *Location) lookup(sec int64) (name string, offset int, start, end int64) {
 	l = l.get()
 
 	if len(l.zone) == 0 {
 		name = "UTC"
 		offset = 0
-		isDST = false
 		start = alpha
 		end = omega
 		return
@@ -123,7 +128,6 @@ func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start
 	if zone := l.cacheZone; zone != nil && l.cacheStart <= sec && sec < l.cacheEnd {
 		name = zone.name
 		offset = zone.offset
-		isDST = zone.isDST
 		start = l.cacheStart
 		end = l.cacheEnd
 		return
@@ -133,7 +137,6 @@ func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start
 		zone := &l.zone[l.lookupFirstZone()]
 		name = zone.name
 		offset = zone.offset
-		isDST = zone.isDST
 		start = alpha
 		if len(l.tx) > 0 {
 			end = l.tx[0].when
@@ -162,7 +165,6 @@ func (l *Location) lookup(sec int64) (name string, offset int, isDST bool, start
 	zone := &l.zone[tx[lo].index]
 	name = zone.name
 	offset = zone.offset
-	isDST = zone.isDST
 	start = tx[lo].when
 	// end = maintained during the search
 	return
@@ -209,7 +211,7 @@ func (l *Location) lookupFirstZone() int {
 	return 0
 }
 
-// firstZoneUsed returns whether the first zone is used by some
+// firstZoneUsed reports whether the first zone is used by some
 // transition.
 func (l *Location) firstZoneUsed() bool {
 	for _, tx := range l.tx {
@@ -235,7 +237,7 @@ func (l *Location) lookupName(name string, unix int64) (offset int, ok bool) {
 	for i := range l.zone {
 		zone := &l.zone[i]
 		if zone.name == name {
-			nam, offset, _, _, _ := l.lookup(unix - int64(zone.offset))
+			nam, offset, _, _ := l.lookup(unix - int64(zone.offset))
 			if nam == zone.name {
 				return offset, true
 			}
@@ -292,14 +294,23 @@ func LoadLocation(name string) (*Location, error) {
 		env, _ := syscall.Getenv("ZONEINFO")
 		zoneinfo = &env
 	})
+	var firstErr error
 	if *zoneinfo != "" {
 		if zoneData, err := loadTzinfoFromDirOrZip(*zoneinfo, name); err == nil {
 			if z, err := LoadLocationFromTZData(name, zoneData); err == nil {
 				return z, nil
 			}
+			firstErr = err
+		} else if err != syscall.ENOENT {
+			firstErr = err
 		}
 	}
-	return loadLocation(name, zoneSources)
+	if z, err := loadLocation(name, zoneSources); err == nil {
+		return z, nil
+	} else if firstErr == nil {
+		firstErr = err
+	}
+	return nil, firstErr
 }
 
 // containsDotDot reports whether s contains "..".

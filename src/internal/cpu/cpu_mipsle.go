@@ -4,4 +4,4 @@
 
 package cpu
 
-const CacheLineSize = 32
+const CacheLinePadSize = 32

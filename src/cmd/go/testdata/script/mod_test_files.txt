@@ -1,0 +1,50 @@
+env GO111MODULE=on
+
+cd foo
+
+# Testing an explicit source file should use the same import visibility as the
+# package in the same directory.
+go list -test -deps
+go list -test -deps foo_test.go
+
+# If the file is inside the main module's vendor directory, it should have
+# visibility based on the vendor-relative import path.
+mkdir vendor/example.com/foo
+cp foo_test.go vendor/example.com/foo
+go list -test -deps vendor/example.com/foo/foo_test.go
+
+# If the file is outside the main module entirely, it should be treated as outside.
+cp foo_test.go ../foo_test.go
+! go list -test -deps ../foo_test.go
+stderr 'use of internal package'
+
+-- foo/go.mod --
+module example.com/foo
+go 1.12
+require example.com/internal v0.0.0
+replace example.com/internal => ../internal
+
+-- foo/internal.go --
+package foo
+import _ "example.com/internal"
+
+-- foo/foo_test.go --
+package foo_test
+
+import (
+	"testing"
+	"example.com/internal"
+)
+
+func TestHacksEnabled(t *testing.T) {
+	if !internal.Hacks {
+		t.Fatal("hacks not enabled")
+	}
+}
+
+-- internal/go.mod --
+module example.com/internal
+
+-- internal/internal.go --
+package internal
+const Hacks = true

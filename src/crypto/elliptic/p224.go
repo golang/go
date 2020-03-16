@@ -7,7 +7,7 @@ package elliptic
 // This is a constant-time, 32-bit implementation of P224. See FIPS 186-3,
 // section D.2.2.
 //
-// See http://www.imperialviolet.org/2010/12/04/ecc.html ([1]) for background.
+// See https://www.imperialviolet.org/2010/12/04/ecc.html ([1]) for background.
 
 import (
 	"math/big"
@@ -503,7 +503,7 @@ func p224Contract(out, in *p224FieldElement) {
 
 // p224AddJacobian computes *out = a+b where a != b.
 func p224AddJacobian(x3, y3, z3, x1, y1, z1, x2, y2, z2 *p224FieldElement) {
-	// See http://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-p224Add-2007-bl
+	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-p224Add-2007-bl
 	var z1z1, z2z2, u1, u2, s1, s2, h, i, j, r, v p224FieldElement
 	var c p224LargeFieldElement
 

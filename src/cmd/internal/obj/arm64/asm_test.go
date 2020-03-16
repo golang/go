@@ -42,7 +42,7 @@ func TestLarge(t *testing.T) {
 
 	// build generated file
 	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
-	cmd.Env = []string{"GOARCH=arm64", "GOOS=linux"}
+	cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Errorf("Build failed: %v, output: %s", err, out)
@@ -52,6 +52,7 @@ func TestLarge(t *testing.T) {
 // gen generates a very large program, with a very far conditional branch.
 func gen(buf *bytes.Buffer) {
 	fmt.Fprintln(buf, "TEXT f(SB),0,$0-0")
+	fmt.Fprintln(buf, "TBZ $5, R0, label")
 	fmt.Fprintln(buf, "CBZ R0, label")
 	fmt.Fprintln(buf, "BEQ label")
 	for i := 0; i < 1<<19; i++ {
@@ -59,4 +60,22 @@ func gen(buf *bytes.Buffer) {
 	}
 	fmt.Fprintln(buf, "label:")
 	fmt.Fprintln(buf, "RET")
+}
+
+// Issue 20348.
+func TestNoRet(t *testing.T) {
+	dir, err := ioutil.TempDir("", "testnoret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	tmpfile := filepath.Join(dir, "x.s")
+	if err := ioutil.WriteFile(tmpfile, []byte("TEXT ·stub(SB),$0-0\nNOP\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
+	cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Errorf("%v\n%s", err, out)
+	}
 }

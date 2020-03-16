@@ -23,6 +23,10 @@ TEXT ·chroot1(SB),NOSPLIT,$0
 TEXT ·close(SB),NOSPLIT,$0
 	JMP	runtime·syscall_close(SB)
 
+TEXT ·dup2child(SB),NOSPLIT,$0
+	JMP	runtime·syscall_dup2(SB)
+	RET
+
 TEXT ·execve(SB),NOSPLIT,$0
 	JMP	runtime·syscall_execve(SB)
 
@@ -49,6 +53,9 @@ TEXT ·pipe(SB),NOSPLIT,$0
 
 TEXT ·RawSyscall(SB),NOSPLIT,$0
 	JMP	runtime·syscall_rawsyscall(SB)
+
+TEXT ·RawSyscall6(SB),NOSPLIT,$0
+	JMP	runtime·syscall_rawsyscall6(SB)
 
 TEXT ·setgid(SB),NOSPLIT,$0
 	JMP	runtime·syscall_setgid(SB)

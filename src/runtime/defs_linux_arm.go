@@ -5,6 +5,7 @@ const (
 	_EINTR  = 0x4
 	_ENOMEM = 0xc
 	_EAGAIN = 0xb
+	_ENOSYS = 0x26
 
 	_PROT_NONE  = 0
 	_PROT_READ  = 0x1
@@ -16,6 +17,7 @@ const (
 	_MAP_FIXED   = 0x10
 
 	_MADV_DONTNEED   = 0x4
+	_MADV_FREE       = 0x8
 	_MADV_HUGEPAGE   = 0xe
 	_MADV_NOHUGEPAGE = 0xf
 
@@ -70,6 +72,7 @@ const (
 	_ITIMER_PROF    = 0x2
 	_ITIMER_VIRTUAL = 0x1
 	_O_RDONLY       = 0
+	_O_NONBLOCK     = 0x800
 	_O_CLOEXEC      = 0x80000
 
 	_EPOLLIN       = 0x1
@@ -84,7 +87,6 @@ const (
 	_EPOLL_CTL_MOD = 0x3
 
 	_AF_UNIX    = 0x1
-	_F_SETFL    = 0x4
 	_SOCK_DGRAM = 0x2
 )
 
@@ -93,12 +95,9 @@ type timespec struct {
 	tv_nsec int32
 }
 
-func (ts *timespec) set_sec(x int64) {
-	ts.tv_sec = int32(x)
-}
-
-func (ts *timespec) set_nsec(x int32) {
-	ts.tv_nsec = x
+//go:nosplit
+func (ts *timespec) setNsec(ns int64) {
+	ts.tv_sec = timediv(ns, 1e9, &ts.tv_nsec)
 }
 
 type stackt struct {

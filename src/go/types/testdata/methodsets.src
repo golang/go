@@ -29,7 +29,7 @@ type T3 struct {
 func _() {
 	var (
 		_ func(T0) = T0.v0
-		_ = T0 /* ERROR "not in method set" */ .p0
+		_ = T0.p0 /* ERROR "not in method set" */
 
 		_ func (*T0) = (*T0).v0
 		_ func (*T0) = (*T0).p0
@@ -40,7 +40,7 @@ func _() {
 		_ func(T2) = T2.p2
 
 		_ func(T3) = T3.v0
-		_ func(T3) = T3 /* ERROR "not in method set" */ .p0
+		_ func(T3) = T3.p0 /* ERROR "not in method set" */
 		_ func(T3) = T3.v1
 		_ func(T3) = T3.p1
 		_ func(T3) = T3.v2
@@ -135,7 +135,7 @@ func _() {
 func _() {
 	var (
 		_ func() = T0{}.v0
-		_ func() = T0 /* ERROR "not in method set" */ {}.p0
+		_ func() = T0{}.p0 /* ERROR "not in method set" */
 
 		_ func() = (&T0{}).v0
 		_ func() = (&T0{}).p0
@@ -145,7 +145,7 @@ func _() {
 		// no values for T2
 
 		_ func() = T3{}.v0
-		_ func() = T3 /* ERROR "not in method set" */ {}.p0
+		_ func() = T3{}.p0 /* ERROR "not in method set" */
 		_ func() = T3{}.v1
 		_ func() = T3{}.p1
 		_ func() = T3{}.v2
@@ -163,7 +163,7 @@ func _() {
 // Method calls with value receivers
 func _() {
 	T0{}.v0()
-	T0 /* ERROR "not in method set" */ {}.p0()
+	T0{}.p0 /* ERROR "not in method set" */ ()
 
 	(&T0{}).v0()
 	(&T0{}).p0()
@@ -173,7 +173,7 @@ func _() {
 	// no values for T2
 
 	T3{}.v0()
-	T3 /* ERROR "not in method set" */ {}.p0()
+	T3{}.p0 /* ERROR "not in method set" */ ()
 	T3{}.v1()
 	T3{}.p1()
 	T3{}.v2()
@@ -196,9 +196,9 @@ func issue5918() {
 		_ func(error) string = error.Error
 
 		perr = &err
-		_ = perr /* ERROR "no field or method" */ .Error()
-		_ func() string = perr /* ERROR "no field or method" */ .Error
-		_ func(*error) string = ( /* ERROR "no field or method" */ *error).Error
+		_ = perr.Error /* ERROR "no field or method" */ ()
+		_ func() string = perr.Error /* ERROR "no field or method" */
+		_ func(*error) string = (*error).Error /* ERROR "no field or method" */
 	)
 
 	type T *interface{ m() int }
@@ -207,8 +207,8 @@ func issue5918() {
 		_ = (*x).m()
 		_ = (*x).m
 
-		_ = x /* ERROR "no field or method" */ .m()
-		_ = x /* ERROR "no field or method" */ .m
-		_ = T /* ERROR "no field or method" */ .m
+		_ = x.m /* ERROR "no field or method" */ ()
+		_ = x.m /* ERROR "no field or method" */
+		_ = T.m /* ERROR "no field or method" */
 	)
 }

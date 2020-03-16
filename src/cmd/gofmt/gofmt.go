@@ -16,11 +16,12 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	"strings"
+
+	"cmd/internal/diff"
 )
 
 var (
@@ -112,6 +113,8 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 		simplify(file)
 	}
 
+	ast.Inspect(file, normalizeNumbers)
+
 	res, err := format(fileSet, file, sourceAdj, indentAdj, src, printer.Config{Mode: printerMode, Tabwidth: tabWidth})
 	if err != nil {
 		return err
@@ -139,7 +142,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
 			}
 		}
 		if *doDiff {
-			data, err := diff(src, res, filename)
+			data, err := diffWithReplaceTempFile(src, res, filename)
 			if err != nil {
 				return fmt.Errorf("computing diff: %s", err)
 			}
@@ -225,47 +228,12 @@ func gofmtMain() {
 	}
 }
 
-func writeTempFile(dir, prefix string, data []byte) (string, error) {
-	file, err := ioutil.TempFile(dir, prefix)
-	if err != nil {
-		return "", err
-	}
-	_, err = file.Write(data)
-	if err1 := file.Close(); err == nil {
-		err = err1
-	}
-	if err != nil {
-		os.Remove(file.Name())
-		return "", err
-	}
-	return file.Name(), nil
-}
-
-func diff(b1, b2 []byte, filename string) (data []byte, err error) {
-	f1, err := writeTempFile("", "gofmt", b1)
-	if err != nil {
-		return
-	}
-	defer os.Remove(f1)
-
-	f2, err := writeTempFile("", "gofmt", b2)
-	if err != nil {
-		return
-	}
-	defer os.Remove(f2)
-
-	cmd := "diff"
-	if runtime.GOOS == "plan9" {
-		cmd = "/bin/ape/diff"
-	}
-
-	data, err = exec.Command(cmd, "-u", f1, f2).CombinedOutput()
+func diffWithReplaceTempFile(b1, b2 []byte, filename string) ([]byte, error) {
+	data, err := diff.Diff("gofmt", b1, b2)
 	if len(data) > 0 {
-		// diff exits with a non-zero status when the files don't match.
-		// Ignore that failure as long as we get output.
 		return replaceTempFilename(data, filename)
 	}
-	return
+	return data, err
 }
 
 // replaceTempFilename replaces temporary filenames in diff with actual one.
@@ -319,13 +287,63 @@ func backupFile(filename string, data []byte, perm os.FileMode) (string, error) 
 	}
 
 	// write data to backup file
-	n, err := f.Write(data)
-	if err == nil && n < len(data) {
-		err = io.ErrShortWrite
-	}
+	_, err = f.Write(data)
 	if err1 := f.Close(); err == nil {
 		err = err1
 	}
 
 	return bakname, err
+}
+
+// normalizeNumbers rewrites base prefixes and exponents to
+// use lower-case letters, and removes leading 0's from
+// integer imaginary literals. It leaves hexadecimal digits
+// alone.
+func normalizeNumbers(n ast.Node) bool {
+	lit, _ := n.(*ast.BasicLit)
+	if lit == nil || (lit.Kind != token.INT && lit.Kind != token.FLOAT && lit.Kind != token.IMAG) {
+		return true
+	}
+	if len(lit.Value) < 2 {
+		return false // only one digit (common case) - nothing to do
+	}
+	// len(lit.Value) >= 2
+
+	// We ignore lit.Kind because for lit.Kind == token.IMAG the literal may be an integer
+	// or floating-point value, decimal or not. Instead, just consider the literal pattern.
+	x := lit.Value
+	switch x[:2] {
+	default:
+		// 0-prefix octal, decimal int, or float (possibly with 'i' suffix)
+		if i := strings.LastIndexByte(x, 'E'); i >= 0 {
+			x = x[:i] + "e" + x[i+1:]
+			break
+		}
+		// remove leading 0's from integer (but not floating-point) imaginary literals
+		if x[len(x)-1] == 'i' && strings.IndexByte(x, '.') < 0 && strings.IndexByte(x, 'e') < 0 {
+			x = strings.TrimLeft(x, "0_")
+			if x == "i" {
+				x = "0i"
+			}
+		}
+	case "0X":
+		x = "0x" + x[2:]
+		fallthrough
+	case "0x":
+		// possibly a hexadecimal float
+		if i := strings.LastIndexByte(x, 'P'); i >= 0 {
+			x = x[:i] + "p" + x[i+1:]
+		}
+	case "0O":
+		x = "0o" + x[2:]
+	case "0o":
+		// nothing to do
+	case "0B":
+		x = "0b" + x[2:]
+	case "0b":
+		// nothing to do
+	}
+
+	lit.Value = x
+	return false
 }

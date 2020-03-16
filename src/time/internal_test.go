@@ -64,15 +64,20 @@ func CheckRuntimeTimerOverflow() {
 		// once more.
 		stopTimer(r)
 		t.Stop()
-		r.when = 0
-		startTimer(r)
+		resetTimer(r, 0)
 	}()
 
-	// If the test fails, we will hang here until the timeout in the testing package
-	// fires, which is 10 minutes. It would be nice to catch the problem sooner,
-	// but there is no reliable way to guarantee that timerproc schedules without
-	// doing something involving timerproc itself. Previous failed attempts have
-	// tried calling runtime.Gosched and runtime.GC, but neither is reliable.
-	// So we fall back to hope: We hope we don't hang here.
+	// If the test fails, we will hang here until the timeout in the
+	// testing package fires, which is 10 minutes. It would be nice to
+	// catch the problem sooner, but there is no reliable way to guarantee
+	// that timers are run without doing something involving the scheduler.
+	// Previous failed attempts have tried calling runtime.Gosched and
+	// runtime.GC, but neither is reliable. So we fall back to hope:
+	// We hope we don't hang here.
 	<-t.C
 }
+
+var (
+	MinMonoTime = Time{wall: 1 << 63, ext: -1 << 63, loc: UTC}
+	MaxMonoTime = Time{wall: 1 << 63, ext: 1<<63 - 1, loc: UTC}
+)

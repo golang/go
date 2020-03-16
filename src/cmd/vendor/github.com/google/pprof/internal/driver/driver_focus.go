@@ -25,7 +25,7 @@ import (
 	"github.com/google/pprof/profile"
 )
 
-var tagFilterRangeRx = regexp.MustCompile("([[:digit:]]+)([[:alpha:]]+)")
+var tagFilterRangeRx = regexp.MustCompile("([+-]?[[:digit:]]+)([[:alpha:]]+)?")
 
 // applyFocus filters samples based on the focus/ignore options
 func applyFocus(prof *profile.Profile, numLabelUnits map[string]string, v variables, ui plugin.UI) error {
@@ -33,6 +33,7 @@ func applyFocus(prof *profile.Profile, numLabelUnits map[string]string, v variab
 	ignore, err := compileRegexOption("ignore", v["ignore"].value, err)
 	hide, err := compileRegexOption("hide", v["hide"].value, err)
 	show, err := compileRegexOption("show", v["show"].value, err)
+	showfrom, err := compileRegexOption("show_from", v["show_from"].value, err)
 	tagfocus, err := compileTagFilter("tagfocus", v["tagfocus"].value, numLabelUnits, ui, err)
 	tagignore, err := compileTagFilter("tagignore", v["tagignore"].value, numLabelUnits, ui, err)
 	prunefrom, err := compileRegexOption("prune_from", v["prune_from"].value, err)
@@ -45,6 +46,9 @@ func applyFocus(prof *profile.Profile, numLabelUnits map[string]string, v variab
 	warnNoMatches(ignore == nil || im, "Ignore", ui)
 	warnNoMatches(hide == nil || hm, "Hide", ui)
 	warnNoMatches(show == nil || hnm, "Show", ui)
+
+	sfm := prof.ShowFrom(showfrom)
+	warnNoMatches(showfrom == nil || sfm, "ShowFrom", ui)
 
 	tfm, tim := prof.FilterSamplesByTag(tagfocus, tagignore)
 	warnNoMatches(tagfocus == nil || tfm, "TagFocus", ui)
@@ -169,7 +173,7 @@ func parseTagFilterRange(filter string) func(int64, string) bool {
 	}
 	v, err := strconv.ParseInt(ranges[0][1], 10, 64)
 	if err != nil {
-		panic(fmt.Errorf("Failed to parse int %s: %v", ranges[0][1], err))
+		panic(fmt.Errorf("failed to parse int %s: %v", ranges[0][1], err))
 	}
 	scaledValue, unit := measurement.Scale(v, ranges[0][2], ranges[0][2])
 	if len(ranges) == 1 {
@@ -196,7 +200,7 @@ func parseTagFilterRange(filter string) func(int64, string) bool {
 		return nil
 	}
 	if v, err = strconv.ParseInt(ranges[1][1], 10, 64); err != nil {
-		panic(fmt.Errorf("Failed to parse int %s: %v", ranges[1][1], err))
+		panic(fmt.Errorf("failed to parse int %s: %v", ranges[1][1], err))
 	}
 	scaledValue2, unit2 := measurement.Scale(v, ranges[1][2], unit)
 	if unit != unit2 {

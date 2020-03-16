@@ -161,14 +161,14 @@ type Info struct {
 	// in package clauses, or symbolic variables t in t := x.(type) of
 	// type switch headers), the corresponding objects are nil.
 	//
-	// For an anonymous field, Defs returns the field *Var it defines.
+	// For an embedded field, Defs returns the field *Var it defines.
 	//
 	// Invariant: Defs[id] == nil || Defs[id].Pos() == id.Pos()
 	Defs map[*ast.Ident]Object
 
 	// Uses maps identifiers to the objects they denote.
 	//
-	// For an anonymous field, Uses returns the *TypeName it denotes.
+	// For an embedded field, Uses returns the *TypeName it denotes.
 	//
 	// Invariant: Uses[id].Pos() != id.Pos()
 	Uses map[*ast.Ident]Object
@@ -180,7 +180,7 @@ type Info struct {
 	//
 	//     *ast.ImportSpec    *PkgName for imports without renames
 	//     *ast.CaseClause    type-specific *Var for each type switch case clause (incl. default)
-	//     *ast.Field         anonymous parameter *Var
+	//     *ast.Field         anonymous parameter *Var (incl. unnamed results)
 	//
 	Implicits map[ast.Node]Object
 
@@ -239,8 +239,8 @@ func (info *Info) TypeOf(e ast.Expr) Type {
 // ObjectOf returns the object denoted by the specified id,
 // or nil if not found.
 //
-// If id is an anonymous struct field, ObjectOf returns the field (*Var)
-// it uses, not the type (*TypeName) it defines.
+// If id is an embedded struct field, ObjectOf returns the field (*Var)
+// it defines, not the type (*TypeName) it uses.
 //
 // Precondition: the Uses and Defs maps are populated.
 //
@@ -258,9 +258,6 @@ type TypeAndValue struct {
 	Type  Type
 	Value constant.Value
 }
-
-// TODO(gri) Consider eliminating the IsVoid predicate. Instead, report
-// "void" values as regular values but with the empty tuple type.
 
 // IsVoid reports whether the corresponding expression
 // is a function call without results.
@@ -309,7 +306,7 @@ func (tv TypeAndValue) Assignable() bool {
 }
 
 // HasOk reports whether the corresponding expression may be
-// used on the lhs of a comma-ok assignment.
+// used on the rhs of a comma-ok assignment.
 func (tv TypeAndValue) HasOk() bool {
 	return tv.mode == commaok || tv.mode == mapindex
 }
@@ -353,24 +350,36 @@ func (conf *Config) Check(path string, fset *token.FileSet, files []*ast.File, i
 
 // AssertableTo reports whether a value of type V can be asserted to have type T.
 func AssertableTo(V *Interface, T Type) bool {
-	m, _ := assertableTo(V, T)
+	m, _ := (*Checker)(nil).assertableTo(V, T)
 	return m == nil
 }
 
 // AssignableTo reports whether a value of type V is assignable to a variable of type T.
 func AssignableTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
-	return x.assignableTo(nil, T, nil) // config not needed for non-constant x
+	return x.assignableTo(nil, T, nil) // check not needed for non-constant x
 }
 
 // ConvertibleTo reports whether a value of type V is convertible to a value of type T.
 func ConvertibleTo(V, T Type) bool {
 	x := operand{mode: value, typ: V}
-	return x.convertibleTo(nil, T) // config not needed for non-constant x
+	return x.convertibleTo(nil, T) // check not needed for non-constant x
 }
 
 // Implements reports whether type V implements interface T.
 func Implements(V Type, T *Interface) bool {
 	f, _ := MissingMethod(V, T, true)
 	return f == nil
+}
+
+// Identical reports whether x and y are identical types.
+// Receivers of Signature types are ignored.
+func Identical(x, y Type) bool {
+	return (*Checker)(nil).identical(x, y)
+}
+
+// IdenticalIgnoreTags reports whether x and y are identical types if tags are ignored.
+// Receivers of Signature types are ignored.
+func IdenticalIgnoreTags(x, y Type) bool {
+	return (*Checker)(nil).identicalIgnoreTags(x, y)
 }

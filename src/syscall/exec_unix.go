@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 // Fork, exec, wait, etc.
 
 package syscall
 
 import (
+	"internal/bytealg"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -81,15 +82,21 @@ func StringSlicePtr(ss []string) []*byte {
 // pointers to NUL-terminated byte arrays. If any string contains
 // a NUL byte, it returns (nil, EINVAL).
 func SlicePtrFromStrings(ss []string) ([]*byte, error) {
-	var err error
-	bb := make([]*byte, len(ss)+1)
-	for i := 0; i < len(ss); i++ {
-		bb[i], err = BytePtrFromString(ss[i])
-		if err != nil {
-			return nil, err
+	n := 0
+	for _, s := range ss {
+		if bytealg.IndexByteString(s, 0) != -1 {
+			return nil, EINVAL
 		}
+		n += len(s) + 1 // +1 for NUL
 	}
-	bb[len(ss)] = nil
+	bb := make([]*byte, len(ss)+1)
+	b := make([]byte, n)
+	n = 0
+	for i, s := range ss {
+		bb[i] = &b[n]
+		copy(b[n:], s)
+		n += len(s) + 1
+	}
 	return bb, nil
 }
 
@@ -246,9 +253,10 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 func runtime_BeforeExec()
 func runtime_AfterExec()
 
-// execveSolaris is non-nil on Solaris, set to execve in exec_solaris.go; this
+// execveLibc is non-nil on OS using libc syscall, set to execve in exec_libc.go; this
 // avoids a build dependency for other platforms.
-var execveSolaris func(path uintptr, argv uintptr, envp uintptr) (err Errno)
+var execveLibc func(path uintptr, argv uintptr, envp uintptr) Errno
+var execveDarwin func(path *byte, argv **byte, envp **byte) error
 
 // Exec invokes the execve(2) system call.
 func Exec(argv0 string, argv []string, envv []string) (err error) {
@@ -266,13 +274,16 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
 	}
 	runtime_BeforeExec()
 
-	var err1 Errno
-	if runtime.GOOS == "solaris" {
-		// RawSyscall should never be used on Solaris.
-		err1 = execveSolaris(
+	var err1 error
+	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" || runtime.GOOS == "aix" {
+		// RawSyscall should never be used on Solaris, illumos, or AIX.
+		err1 = execveLibc(
 			uintptr(unsafe.Pointer(argv0p)),
 			uintptr(unsafe.Pointer(&argvp[0])),
 			uintptr(unsafe.Pointer(&envvp[0])))
+	} else if runtime.GOOS == "darwin" {
+		// Similarly on Darwin.
+		err1 = execveDarwin(argv0p, &argvp[0], &envvp[0])
 	} else {
 		_, _, err1 = RawSyscall(SYS_EXECVE,
 			uintptr(unsafe.Pointer(argv0p)),

@@ -1,0 +1,127 @@
+env GO111MODULE=on
+
+# golang.org/issue/32917 and golang.org/issue/28459: 'go build' and 'go test'
+# in an empty directory should refer to the path '.' and should not attempt
+# to resolve an external module.
+cd dir
+! go get .
+stderr 'go get \.: path .* is not a package in module rooted at .*[/\\]dir$'
+! go list
+! stderr 'cannot find module providing package'
+stderr '^no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir$'
+
+cd subdir
+! go list
+! stderr 'cannot find module providing package'
+stderr '^no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]subdir$'
+cd ..
+
+# golang.org/issue/30590: if a package is found in the filesystem
+# but is not in the main module, the error message should not say
+# "cannot find module providing package", and we shouldn't try
+# to find a module providing the package.
+! go list ./othermodule
+! stderr 'cannot find module providing package'
+stderr '^main module \(example\.com\) does not contain package example.com/othermodule$'
+
+# golang.org/issue/27122: 'go build' of a nonexistent directory should produce
+# a helpful "no Go files" error message, not a generic "unknown import path".
+! go list ./subdir
+stderr '^no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]subdir$'
+
+# golang.org/issue/29280: 'go list -e' for a nonexistent directory should
+# report a nonexistent package with an error.
+go list -e -json ./subdir
+stdout '"Incomplete": true'
+
+# golang.org/issue/28155: 'go list ./testdata' should not synthesize underscores.
+go list ./testdata
+stdout '^example.com/testdata'
+
+# golang.org/issue/32921: vendor directories should only be accepted as directories
+# if the directory would actually be used to load the package.
+! go list ./vendor/nonexist
+stderr '^no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]vendor[/\\]nonexist$'
+
+! go list ./vendor/pkg
+stderr '^without -mod=vendor, directory '$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]vendor[/\\]pkg has no package path$'
+
+! go list -mod=vendor ./vendor/nonexist
+stderr '^no Go files in '$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]vendor[/\\]nonexist$'
+
+! go list -mod=vendor ./vendor/unlisted
+stderr '^directory '$WORK'[/\\]gopath[/\\]src[/\\]dir[/\\]vendor[/\\]unlisted is not a package listed in vendor/modules.txt$'
+
+go list -mod=vendor ./vendor/pkg
+stdout '^pkg$'
+
+# Packages within GOROOT should resolve as in any other module,
+# except that -mod=vendor is implied by default.
+cd $GOROOT/src
+! go list .
+stderr '^no Go files in '$GOROOT'[/\\]src$'
+
+! go list ./builtin
+stderr '^"builtin" is a pseudo-package, not an importable package$'
+
+! go list ./debug
+! stderr 'cannot find module providing package'
+stderr '^no Go files in '$GOROOT'[/\\]src[/\\]debug$'
+
+! go list ./golang.org/x/tools/cmd/goimports
+! stderr 'cannot find module providing package'
+stderr '^stat '$GOROOT'[/\\]src[/\\]golang.org[/\\]x[/\\]tools[/\\]cmd[/\\]goimports: directory not found'
+
+go list ./vendor/golang.org/x/net/http2/hpack
+stdout '^golang.org/x/net/http2/hpack$'
+
+# golang.org/issue/30756: packages in other GOROOTs should not get the special
+# prefixless treatment of GOROOT itself.
+cd $WORK/othergoroot/src
+! go list .
+stderr '^no Go files in '$WORK'[/\\]othergoroot[/\\]src$'
+
+go list ./builtin
+stdout '^std/builtin$'  # Only the "std" in actual $GOROOT is special, and only its "builtin" is special.
+
+! go list ./bytes
+! stderr 'cannot find module providing package'
+stderr '^no Go files in '$WORK'[/\\]othergoroot[/\\]src[/\\]bytes$'
+
+! go list ./vendor/golang.org/x/net/http2/hpack
+stderr '^without -mod=vendor, directory '$WORK'[/\\]othergoroot[/\\]src[/\\]vendor[/\\]golang.org[/\\]x[/\\]net[/\\]http2[/\\]hpack has no package path$'
+
+-- dir/go.mod --
+module example.com
+go 1.13
+-- dir/subdir/README --
+There are no Go source files in this directory.
+-- dir/othermodule/go.mod --
+module example.com/othermodule
+go 1.13
+-- dir/othermodule/om.go --
+package othermodule
+-- dir/testdata/td.go --
+package testdata
+-- dir/vendor/modules.txt --
+# pkg v0.0.0
+pkg
+-- dir/vendor/nonexist/README --
+There are no Go source files here either.
+-- dir/vendor/pkg/pkg.go --
+package pkg
+-- dir/vendor/unlisted/unlisted.go --
+package unlisted
+-- emptyroot/go.mod --
+module example.com/emptyroot
+-- emptyroot/pkg/pkg.go --
+package pkg
+-- $WORK/othergoroot/src/go.mod --
+module std
+go 1.13
+-- $WORK/othergoroot/src/builtin/builtin.go --
+package builtin
+-- $WORK/othergoroot/src/bytes/README --
+There are no Go source files in this directory.
+-- $WORK/othergoroot/src/vendor/golang.org/x/net/http2/hpack --
+package hpack

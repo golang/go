@@ -550,7 +550,7 @@ label1:
 //	ftsqrt	BF, FRB
 	FTSQRT	F2,$7
 
-//	FCFID	
+//	FCFID
 //	FCFIDS
 
 	FCFID	F2,F3
@@ -814,6 +814,23 @@ label1:
 	VADDEUQM V4, V3, V2, V1
 	VADDECUQ V4, V3, V2, V1
 
+//	Vector multiply, VX-form
+//	<MNEMONIC>  VRA,VRB,VRT produces
+//	<mnemonic>  VRT,VRA,VRB
+	VMULESB V2, V3, V1
+	VMULOSB V2, V3, V1
+	VMULEUB V2, V3, V1
+	VMULOUB V2, V3, V1
+	VMULESH V2, V3, V1
+	VMULOSH V2, V3, V1
+	VMULEUH V2, V3, V1
+	VMULOUH V2, V3, V1
+	VMULESW V2, V3, V1
+	VMULOSW V2, V3, V1
+	VMULEUW V2, V3, V1
+	VMULOUW V2, V3, V1
+	VMULUWM V2, V3, V1
+
 //	Vector polynomial multiply-sum, VX-form
 //	<MNEMONIC>  VRA,VRB,VRT produces
 //	<mnemonic>  VRT,VRA,VRB
@@ -883,6 +900,13 @@ label1:
 //	<mnemonic> VRT,VRA,VRB,SHB
 	VSLDOI	$4, V2, V1, V0
 
+//	Vector merge odd and even word
+//	<MNEMONIC> VRA,VRB,VRT produces
+//	<mnemonic> VRT,VRA,VRB
+
+	VMRGOW	V4,V5,V6
+	VMRGEW	V4,V5,V6
+
 //	Vector count, VX-form
 //	<MNEMONIC> VRB,VRT produces
 //	<mnemonic> VRT,VRB
@@ -931,6 +955,7 @@ label1:
 //	<MNEMONIC> VRA,VRB,VRC,VRT produces
 //	<mnemonic> VRT,VRA,VRB,VRC
 	VPERM V3, V2, V1, V0
+	VPERMXOR V3, V2, V1, V0
 
 //	Vector bit permute, VX-form
 //	<MNEMONIC> VRA,VRB,VRT produces
@@ -986,40 +1011,60 @@ label1:
 //	<MNEMONIC> (RB)(RA*1),XT produces
 //	<mnemonic> XT,RA,RB
 	LXVD2X	    (R1)(R2*1), VS0
-	LXVDSX	    (R1)(R2*1), VS0
 	LXVW4X	    (R1)(R2*1), VS0
+	LXVH8X	    (R1)(R2*1), VS0
+	LXVB16X	    (R1)(R2*1), VS0
+	LXVDSX	    (R1)(R2*1), VS0
 	LXSDX	    (R1)(R2*1), VS0
 	LXSIWAX	    (R1)(R2*1), VS0
 	LXSIWZX	    (R1)(R2*1), VS0
+
+// VSX load, DQ-form
+// <MNEMONIC> DQ(RA), XS produces
+// <mnemonic> XS, DQ(RA)
+	LXV         32752(R1), VS0
 
 //	VSX store, XX1-form
 //	<MNEMONIC> XS,(RB)(RA*1) produces
 //	<mnemonic> XS,RA,RB
 	STXVD2X	    VS63, (R1)(R2*1)
 	STXVW4X	    VS63, (R1)(R2*1)
+	STXVH8X	    VS63, (R1)(R2*1)
+	STXVB16X	VS63, (R1)(R2*1)
 	STXSDX	    VS63, (R1)(R2*1)
 	STXSIWX	    VS63, (R1)(R2*1)
+
+// VSX store, DQ-form
+// <MNEMONIC> DQ(RA), XS produces
+// <mnemonic> XS, DQ(RA)
+	STXV        VS63, -32752(R1)
 
 //	VSX move from VSR, XX1-form
 //	<MNEMONIC> XS,RA produces
 //	<mnemonic> RA,XS
+//	Extended mnemonics accept VMX and FP registers as sources
 	MFVSRD	    VS0, R1
 	MFVSRWZ	    VS33, R1
 	MFVSRLD	    VS63, R1
+	MFVRD       V0, R1
+	MFFPRD      F0, R1
 
 //	VSX move to VSR, XX1-form
 //	<MNEMONIC> RA,XT produces
 //	<mnemonic> XT,RA
+//	Extended mnemonics accept VMX and FP registers as targets
 	MTVSRD	    R1, VS0
 	MTVSRWA	    R1, VS31
 	MTVSRWZ	    R1, VS63
 	MTVSRDD	    R1, R2, VS0
 	MTVSRWS	    R1, VS32
+	MTVRD       R1, V13
+	MTFPRD      R1, F24
 
 //	VSX AND, XX3-form
 //	<MNEMONIC> XA,XB,XT produces
 //	<mnemonic> XT,XA,XB
-	XXLANDQ	    VS0,VS1,VS32
+	XXLAND	    VS0,VS1,VS32
 	XXLANDC	    VS0,VS1,VS32
 	XXLEQV	    VS0,VS1,VS32
 	XXLNAND	    VS0,VS1,VS32
@@ -1047,6 +1092,11 @@ label1:
 //	<MNEMONIC> XB,UIM,XT produces
 //	<mnemonic> XT,XB,UIM
 	XXSPLTW	    VS0,$3,VS32
+
+//      VSX permute, XX3-form
+//      <MNEMONIC> XA,XB,XT produces
+//      <mnemonic> XT,XA,XB
+        XXPERM    VS0,VS1,VS32
 
 //	VSX permute, XX3-form
 //	<MNEMONIC> XA,XB,DM,XT produces
@@ -1197,6 +1247,27 @@ label1:
 	BEQ	2(PC)
 	JMP	foo(SB)
 	CALL	foo(SB)
+	RET	foo(SB)
+
+// load-and-reserve
+//	L*AR (RB)(RA*1),EH,RT produces
+//	l*arx RT,RA,RB,EH
+//
+//	Extended forms also accepted. Assumes RA=0, EH=0:
+//	L*AR (RB),RT
+//	L*AR (RB),EH,RT
+	LBAR (R4)(R3*1), $1, R5
+	LBAR (R4), $0, R5
+	LBAR (R3), R5
+	LHAR (R4)(R3*1), $1, R5
+	LHAR (R4), $0, R5
+	LHAR (R3), R5
+	LWAR (R4)(R3*1), $1, R5
+	LWAR (R4), $0, R5
+	LWAR (R3), R5
+	LDAR (R4)(R3*1), $1, R5
+	LDAR (R4), $0, R5
+	LDAR (R3), R5
 
 // END
 //

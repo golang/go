@@ -89,23 +89,10 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
 	switch runtime.GOOS {
 	case "plan9", "windows":
 		t.Skipf("no pthreads on %s", runtime.GOOS)
-	case "darwin":
-		if runtime.GOARCH != "arm" && runtime.GOARCH != "arm64" {
-			// static constructor needs external linking, but we don't support
-			// external linking on OS X 10.6.
-			out, err := exec.Command("uname", "-r").Output()
-			if err != nil {
-				t.Fatalf("uname -r failed: %v", err)
-			}
-			// OS X 10.6 == Darwin 10.x
-			if strings.HasPrefix(string(out), "10.") {
-				t.Skipf("no external linking on OS X 10.6")
-			}
-		}
 	}
-	if runtime.GOARCH == "ppc64" {
+	if runtime.GOARCH == "ppc64" && runtime.GOOS == "linux" {
 		// TODO(austin) External linking not implemented on
-		// ppc64 (issue #8912)
+		// linux/ppc64 (issue #8912)
 		t.Skipf("no external linking on ppc64")
 	}
 
@@ -252,8 +239,12 @@ func TestCgoCCodeSIGPROF(t *testing.T) {
 
 func TestCgoCrashTraceback(t *testing.T) {
 	t.Parallel()
-	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "ppc64le") {
-		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
+	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
+	case "darwin/amd64":
+	case "linux/amd64":
+	case "linux/ppc64le":
+	default:
+		t.Skipf("not yet supported on %s", platform)
 	}
 	got := runTestProg(t, "testprogcgo", "CrashTraceback")
 	for i := 1; i <= 3; i++ {
@@ -272,7 +263,7 @@ func TestCgoTracebackContext(t *testing.T) {
 	}
 }
 
-func testCgoPprof(t *testing.T, buildArg, runArg string) {
+func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
 	t.Parallel()
 	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "ppc64le") {
 		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
@@ -284,19 +275,25 @@ func testCgoPprof(t *testing.T, buildArg, runArg string) {
 		t.Fatal(err)
 	}
 
-	got, err := testenv.CleanCmdEnv(exec.Command(exe, runArg)).CombinedOutput()
+	// pprofCgoTraceback is called whenever CGO code is executing and a signal
+	// is received. Disable signal preemption to increase the likelihood at
+	// least one SIGPROF signal fired to capture a sample. See issue #37201.
+	cmd := testenv.CleanCmdEnv(exec.Command(exe, runArg))
+	cmd.Env = append(cmd.Env, "GODEBUG=asyncpreemptoff=1")
+
+	got, err := cmd.CombinedOutput()
 	if err != nil {
 		if testenv.Builder() == "linux-amd64-alpine" {
 			// See Issue 18243 and Issue 19938.
 			t.Skipf("Skipping failing test on Alpine (golang.org/issue/18243). Ignoring error: %v", err)
 		}
-		t.Fatal(err)
+		t.Fatalf("%s\n\n%v", got, err)
 	}
 	fn := strings.TrimSpace(string(got))
 	defer os.Remove(fn)
 
 	for try := 0; try < 2; try++ {
-		cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-top", "-nodecount=1"))
+		cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "tool", "pprof", "-traces"))
 		// Check that pprof works both with and without explicit executable on command line.
 		if try == 0 {
 			cmd.Args = append(cmd.Args, exe, fn)
@@ -316,34 +313,42 @@ func testCgoPprof(t *testing.T, buildArg, runArg string) {
 			cmd.Env = append(cmd.Env, "PPROF_TMPDIR="+os.TempDir())
 		}
 
-		top, err := cmd.CombinedOutput()
-		t.Logf("%s:\n%s", cmd.Args, top)
+		out, err := cmd.CombinedOutput()
+		t.Logf("%s:\n%s", cmd.Args, out)
 		if err != nil {
 			t.Error(err)
-		} else if !bytes.Contains(top, []byte("cpuHog")) {
-			t.Error("missing cpuHog in pprof output")
+			continue
+		}
+
+		trace := findTrace(string(out), top)
+		if len(trace) == 0 {
+			t.Errorf("%s traceback missing.", top)
+			continue
+		}
+		if trace[len(trace)-1] != bottom {
+			t.Errorf("invalid traceback origin: got=%v; want=[%s ... %s]", trace, top, bottom)
 		}
 	}
 }
 
 func TestCgoPprof(t *testing.T) {
-	testCgoPprof(t, "", "CgoPprof")
+	testCgoPprof(t, "", "CgoPprof", "cpuHog", "runtime.main")
 }
 
 func TestCgoPprofPIE(t *testing.T) {
-	testCgoPprof(t, "-buildmode=pie", "CgoPprof")
+	testCgoPprof(t, "-buildmode=pie", "CgoPprof", "cpuHog", "runtime.main")
 }
 
 func TestCgoPprofThread(t *testing.T) {
-	testCgoPprof(t, "", "CgoPprofThread")
+	testCgoPprof(t, "", "CgoPprofThread", "cpuHogThread", "cpuHogThread2")
 }
 
 func TestCgoPprofThreadNoTraceback(t *testing.T) {
-	testCgoPprof(t, "", "CgoPprofThreadNoTraceback")
+	testCgoPprof(t, "", "CgoPprofThreadNoTraceback", "cpuHogThread", "runtime._ExternalCode")
 }
 
 func TestRaceProf(t *testing.T) {
-	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+	if (runtime.GOOS != "linux" && runtime.GOOS != "freebsd") || runtime.GOARCH != "amd64" {
 		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 
@@ -372,7 +377,7 @@ func TestRaceProf(t *testing.T) {
 
 func TestRaceSignal(t *testing.T) {
 	t.Parallel()
-	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+	if (runtime.GOOS != "linux" && runtime.GOOS != "freebsd") || runtime.GOARCH != "amd64" {
 		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 
@@ -501,4 +506,52 @@ func TestCgoTracebackSigpanic(t *testing.T) {
 	if strings.Contains(got, nowant) {
 		t.Fatalf("failure incorrectly contains %q. output:\n%s\n", nowant, got)
 	}
+}
+
+// Test that C code called via cgo can use large Windows thread stacks
+// and call back in to Go without crashing. See issue #20975.
+//
+// See also TestBigStackCallbackSyscall.
+func TestBigStackCallbackCgo(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("skipping windows specific test")
+	}
+	t.Parallel()
+	got := runTestProg(t, "testprogcgo", "BigStack")
+	want := "OK\n"
+	if got != want {
+		t.Errorf("expected %q got %v", want, got)
+	}
+}
+
+func nextTrace(lines []string) ([]string, []string) {
+	var trace []string
+	for n, line := range lines {
+		if strings.HasPrefix(line, "---") {
+			return trace, lines[n+1:]
+		}
+		fields := strings.Fields(strings.TrimSpace(line))
+		if len(fields) == 0 {
+			continue
+		}
+		// Last field contains the function name.
+		trace = append(trace, fields[len(fields)-1])
+	}
+	return nil, nil
+}
+
+func findTrace(text, top string) []string {
+	lines := strings.Split(text, "\n")
+	_, lines = nextTrace(lines) // Skip the header.
+	for len(lines) > 0 {
+		var t []string
+		t, lines = nextTrace(lines)
+		if len(t) == 0 {
+			continue
+		}
+		if t[0] == top {
+			return t
+		}
+	}
+	return nil
 }

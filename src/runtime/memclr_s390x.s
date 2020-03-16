@@ -4,7 +4,7 @@
 
 #include "textflag.h"
 
-// void runtime·memclrNoHeapPointers(void*, uintptr)
+// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT|NOFRAME,$0-16
 	MOVD	ptr+0(FP), R4
 	MOVD	n+8(FP), R5
@@ -110,12 +110,12 @@ clearmt32:
 clearlt256:
 	CMPBEQ	R5, $0, done
 	ADD	$-1, R5
-	EXRL	$runtime·memclr_s390x_exrl_xc(SB), R5
+	EXRL	$memclr_exrl_xc<>(SB), R5
 done:
 	RET
 
 // DO NOT CALL - target for exrl (execute relative long) instruction.
-TEXT runtime·memclr_s390x_exrl_xc(SB),NOSPLIT|NOFRAME,$0-0
+TEXT memclr_exrl_xc<>(SB),NOSPLIT|NOFRAME,$0-0
 	XC	$1, 0(R4), 0(R4)
 	MOVD	$0, 0(R0)
 	RET

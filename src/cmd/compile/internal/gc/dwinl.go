@@ -8,7 +8,6 @@ import (
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
 	"cmd/internal/src"
-	"sort"
 	"strings"
 )
 
@@ -23,7 +22,7 @@ type varPos struct {
 // This is the main entry point for collection of raw material to
 // drive generation of DWARF "inlined subroutine" DIEs. See proposal
 // 22080 for more details and background info.
-func assembleInlines(fnsym *obj.LSym, fn *Node, dwVars []*dwarf.Var) dwarf.InlCalls {
+func assembleInlines(fnsym *obj.LSym, dwVars []*dwarf.Var) dwarf.InlCalls {
 	var inlcalls dwarf.InlCalls
 
 	if Debug_gendwarfinl != 0 {
@@ -96,12 +95,11 @@ func assembleInlines(fnsym *obj.LSym, fn *Node, dwVars []*dwarf.Var) dwarf.InlCa
 	// the pre-inlining decls for the target function and assign child
 	// index accordingly.
 	for ii, sl := range vmap {
-		sort.Sort(byClassThenName(sl))
 		var m map[varPos]int
 		if ii == 0 {
 			if !fnsym.WasInlined() {
-				for j := 0; j < len(sl); j++ {
-					sl[j].ChildIndex = int32(j)
+				for j, v := range sl {
+					v.ChildIndex = int32(j)
 				}
 				continue
 			}
@@ -121,19 +119,19 @@ func assembleInlines(fnsym *obj.LSym, fn *Node, dwVars []*dwarf.Var) dwarf.InlCa
 		// parented by the inlined routine and not the top-level
 		// caller.
 		synthCount := len(m)
-		for j := 0; j < len(sl); j++ {
-			canonName := unversion(sl[j].Name)
+		for _, v := range sl {
+			canonName := unversion(v.Name)
 			vp := varPos{
 				DeclName: canonName,
-				DeclFile: sl[j].DeclFile,
-				DeclLine: sl[j].DeclLine,
-				DeclCol:  sl[j].DeclCol,
+				DeclFile: v.DeclFile,
+				DeclLine: v.DeclLine,
+				DeclCol:  v.DeclCol,
 			}
-			synthesized := strings.HasPrefix(sl[j].Name, "~r") || canonName == "_"
+			synthesized := strings.HasPrefix(v.Name, "~r") || canonName == "_" || strings.HasPrefix(v.Name, "~b")
 			if idx, found := m[vp]; found {
-				sl[j].ChildIndex = int32(idx)
-				sl[j].IsInAbstract = !synthesized
-				sl[j].Name = canonName
+				v.ChildIndex = int32(idx)
+				v.IsInAbstract = !synthesized
+				v.Name = canonName
 			} else {
 				// Variable can't be found in the pre-inline dcl list.
 				// In the top-level case (ii=0) this can happen
@@ -141,16 +139,16 @@ func assembleInlines(fnsym *obj.LSym, fn *Node, dwVars []*dwarf.Var) dwarf.InlCa
 				// and we're looking at a piece. We can also see
 				// return temps (~r%d) that were created during
 				// lowering, or unnamed params ("_").
-				sl[j].ChildIndex = int32(synthCount)
-				synthCount += 1
+				v.ChildIndex = int32(synthCount)
+				synthCount++
 			}
 		}
 	}
 
 	// Make a second pass through the progs to compute PC ranges for
 	// the various inlined calls.
+	start := int64(-1)
 	curii := -1
-	var crange *dwarf.Range
 	var prevp *obj.Prog
 	for p := fnsym.Func.Text; p != nil; prevp, p = p, p.Link {
 		if prevp != nil && p.Pos == prevp.Pos {
@@ -159,17 +157,17 @@ func assembleInlines(fnsym *obj.LSym, fn *Node, dwVars []*dwarf.Var) dwarf.InlCa
 		ii := posInlIndex(p.Pos)
 		if ii == curii {
 			continue
-		} else {
-			// Close out the current range
-			endRange(crange, prevp)
-
-			// Begin new range
-			crange = beginRange(inlcalls.Calls, p, ii, imap)
-			curii = ii
 		}
+		// Close out the current range
+		if start != -1 {
+			addRange(inlcalls.Calls, start, p.Pc, curii, imap)
+		}
+		// Begin new range
+		start = p.Pc
+		curii = ii
 	}
-	if prevp != nil {
-		endRange(crange, prevp)
+	if start != -1 {
+		addRange(inlcalls.Calls, start, fnsym.Size, curii, imap)
 	}
 
 	// Debugging
@@ -209,17 +207,18 @@ func unversion(name string) string {
 // Given a function that was inlined as part of the compilation, dig
 // up the pre-inlining DCL list for the function and create a map that
 // supports lookup of pre-inline dcl index, based on variable
-// position/name.
+// position/name. NB: the recipe for computing variable pos/file/line
+// needs to be kept in sync with the similar code in gc.createSimpleVars
+// and related functions.
 func makePreinlineDclMap(fnsym *obj.LSym) map[varPos]int {
 	dcl := preInliningDcls(fnsym)
 	m := make(map[varPos]int)
-	for i := 0; i < len(dcl); i++ {
-		n := dcl[i]
+	for i, n := range dcl {
 		pos := Ctxt.InnermostPos(n.Pos)
 		vp := varPos{
 			DeclName: unversion(n.Sym.Name),
-			DeclFile: pos.Base().SymFilename(),
-			DeclLine: pos.Line(),
+			DeclFile: pos.RelFilename(),
+			DeclLine: pos.RelLine(),
 			DeclCol:  pos.Col(),
 		}
 		if _, found := m[vp]; found {
@@ -246,8 +245,8 @@ func insertInlCall(dwcalls *dwarf.InlCalls, inlIdx int, imap map[int]int) int {
 	}
 
 	// Create new entry for this inline
-	inlinedFn := Ctxt.InlTree.InlinedFunction(int(inlIdx))
-	callXPos := Ctxt.InlTree.CallPos(int(inlIdx))
+	inlinedFn := Ctxt.InlTree.InlinedFunction(inlIdx)
+	callXPos := Ctxt.InlTree.CallPos(inlIdx)
 	absFnSym := Ctxt.DwFixups.AbsFuncDwarfSym(inlinedFn)
 	pb := Ctxt.PosTable.Pos(callXPos).Base()
 	callFileSym := Ctxt.Lookup(pb.SymFilename())
@@ -288,55 +287,30 @@ func posInlIndex(xpos src.XPos) int {
 	return -1
 }
 
-func endRange(crange *dwarf.Range, p *obj.Prog) {
-	if crange == nil {
+func addRange(calls []dwarf.InlCall, start, end int64, ii int, imap map[int]int) {
+	if start == -1 {
+		panic("bad range start")
+	}
+	if end == -1 {
+		panic("bad range end")
+	}
+	if ii == -1 {
 		return
 	}
-	crange.End = p.Pc
-}
-
-func beginRange(calls []dwarf.InlCall, p *obj.Prog, ii int, imap map[int]int) *dwarf.Range {
-	if ii == -1 {
-		return nil
+	if start == end {
+		return
 	}
+	// Append range to correct inlined call
 	callIdx, found := imap[ii]
 	if !found {
-		Fatalf("internal error: can't find inlIndex %d in imap for prog at %d\n", ii, p.Pc)
+		Fatalf("can't find inlIndex %d in imap for prog at %d\n", ii, start)
 	}
 	call := &calls[callIdx]
-
-	// Set up range and append to correct inlined call
-	call.Ranges = append(call.Ranges, dwarf.Range{Start: p.Pc, End: -1})
-	return &call.Ranges[len(call.Ranges)-1]
+	call.Ranges = append(call.Ranges, dwarf.Range{Start: start, End: end})
 }
-
-func cmpDwarfVar(a, b *dwarf.Var) bool {
-	// named before artificial
-	aart := 0
-	if strings.HasPrefix(a.Name, "~r") {
-		aart = 1
-	}
-	bart := 0
-	if strings.HasPrefix(b.Name, "~r") {
-		bart = 1
-	}
-	if aart != bart {
-		return aart < bart
-	}
-
-	// otherwise sort by name
-	return a.Name < b.Name
-}
-
-// byClassThenName implements sort.Interface for []*dwarf.Var using cmpDwarfVar.
-type byClassThenName []*dwarf.Var
-
-func (s byClassThenName) Len() int           { return len(s) }
-func (s byClassThenName) Less(i, j int) bool { return cmpDwarfVar(s[i], s[j]) }
-func (s byClassThenName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func dumpInlCall(inlcalls dwarf.InlCalls, idx, ilevel int) {
-	for i := 0; i < ilevel; i += 1 {
+	for i := 0; i < ilevel; i++ {
 		Ctxt.Logf("  ")
 	}
 	ic := inlcalls.Calls[idx]
@@ -361,9 +335,8 @@ func dumpInlCall(inlcalls dwarf.InlCalls, idx, ilevel int) {
 }
 
 func dumpInlCalls(inlcalls dwarf.InlCalls) {
-	n := len(inlcalls.Calls)
-	for k := 0; k < n; k += 1 {
-		if inlcalls.Calls[k].Root {
+	for k, c := range inlcalls.Calls {
+		if c.Root {
 			dumpInlCall(inlcalls, k, 0)
 		}
 	}

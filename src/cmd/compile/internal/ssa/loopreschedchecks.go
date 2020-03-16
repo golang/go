@@ -56,7 +56,7 @@ func insertLoopReschedChecks(f *Func) {
 	//    are present in the graph, initially with trivial inputs.
 	// 4. Record all to-be-modified uses of mem;
 	//    apply modifications (split into two steps to simplify and
-	//    avoided nagging order-dependences).
+	//    avoided nagging order-dependencies).
 	// 5. Rewrite backedges to include reschedule check,
 	//    and modify destination phi function appropriately with new
 	//    definitions for mem.
@@ -179,7 +179,9 @@ func insertLoopReschedChecks(f *Func) {
 		if p.i != 0 {
 			likely = BranchUnlikely
 		}
-		bb.Likely = likely
+		if bb.Kind != BlockPlain { // backedges can be unconditional. e.g., if x { something; continue }
+			bb.Likely = likely
+		}
 
 		// rewrite edge to include reschedule check
 		// existing edges:
@@ -449,6 +451,16 @@ func findLastMems(f *Func) []*Value {
 	}
 	return lastMems
 }
+
+// mark values
+type markKind uint8
+
+const (
+	notFound    markKind = iota // block has not been discovered yet
+	notExplored                 // discovered and in queue, outedges not processed yet
+	explored                    // discovered and in queue, outedges processed
+	done                        // all done, in output ordering
+)
 
 type backedgesState struct {
 	b *Block

@@ -9,6 +9,7 @@ import (
 	"cmd/internal/bio"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/pe"
 	"encoding/binary"
@@ -101,6 +102,19 @@ const (
 	IMAGE_REL_AMD64_SREL32           = 0x000E
 	IMAGE_REL_AMD64_PAIR             = 0x000F
 	IMAGE_REL_AMD64_SSPAN32          = 0x0010
+	IMAGE_REL_ARM_ABSOLUTE           = 0x0000
+	IMAGE_REL_ARM_ADDR32             = 0x0001
+	IMAGE_REL_ARM_ADDR32NB           = 0x0002
+	IMAGE_REL_ARM_BRANCH24           = 0x0003
+	IMAGE_REL_ARM_BRANCH11           = 0x0004
+	IMAGE_REL_ARM_SECTION            = 0x000E
+	IMAGE_REL_ARM_SECREL             = 0x000F
+	IMAGE_REL_ARM_MOV32              = 0x0010
+	IMAGE_REL_THUMB_MOV32            = 0x0011
+	IMAGE_REL_THUMB_BRANCH20         = 0x0012
+	IMAGE_REL_THUMB_BRANCH24         = 0x0014
+	IMAGE_REL_THUMB_BLX23            = 0x0015
+	IMAGE_REL_ARM_PAIR               = 0x0016
 )
 
 // TODO(crawshaw): de-duplicate these symbols with cmd/internal/ld, ideally in debug/pe.
@@ -120,7 +134,7 @@ const (
 type peBiobuf bio.Reader
 
 func (f *peBiobuf) ReadAt(p []byte, off int64) (int, error) {
-	ret := ((*bio.Reader)(f)).Seek(off, 0)
+	ret := ((*bio.Reader)(f)).MustSeek(off, 0)
 	if ret < 0 {
 		return 0, errors.New("fail to seek")
 	}
@@ -131,12 +145,21 @@ func (f *peBiobuf) ReadAt(p []byte, off int64) (int, error) {
 	return n, nil
 }
 
-// Load loads the PE file pn from input.
+func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, rsrc *sym.Symbol, err error) {
+	lookup := func(name string, version int) *sym.Symbol {
+		return l.LookupOrCreate(name, version, syms)
+	}
+	return load(arch, lookup, syms.IncVersion(), input, pkg, length, pn)
+}
+
+func LoadOld(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, rsrc *sym.Symbol, err error) {
+	return load(arch, syms.Lookup, syms.IncVersion(), input, pkg, length, pn)
+}
+
+// load loads the PE file pn from input.
 // Symbols are written into syms, and a slice of the text symbols is returned.
 // If an .rsrc section is found, its symbol is returned as rsrc.
-func Load(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, rsrc *sym.Symbol, err error) {
-	localSymVersion := syms.IncVersion()
-
+func load(arch *sys.Arch, lookup func(string, int) *sym.Symbol, localSymVersion int, input *bio.Reader, pkg string, length int64, pn string) (textp []*sym.Symbol, rsrc *sym.Symbol, err error) {
 	sectsyms := make(map[*pe.Section]*sym.Symbol)
 	sectdata := make(map[*pe.Section][]byte)
 
@@ -168,7 +191,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, leng
 		}
 
 		name := fmt.Sprintf("%s(%s)", pkg, sect.Name)
-		s := syms.Lookup(name, localSymVersion)
+		s := lookup(name, localSymVersion)
 
 		switch sect.Characteristics & (IMAGE_SCN_CNT_UNINITIALIZED_DATA | IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE | IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE) {
 		case IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ: //.rdata
@@ -226,7 +249,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, leng
 				return nil, nil, fmt.Errorf("relocation number %d symbol index idx=%d cannot be large then number of symbols %d", j, r.SymbolTableIndex, len(f.COFFSymbols))
 			}
 			pesym := &f.COFFSymbols[r.SymbolTableIndex]
-			gosym, err := readpesym(arch, syms, f, pesym, sectsyms, localSymVersion)
+			gosym, err := readpesym(arch, lookup, f, pesym, sectsyms, localSymVersion)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -241,30 +264,56 @@ func Load(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, leng
 			rp.Sym = gosym
 			rp.Siz = 4
 			rp.Off = int32(r.VirtualAddress)
-			switch r.Type {
+			switch arch.Family {
 			default:
-				return nil, nil, fmt.Errorf("%s: %v: unknown relocation type %v", pn, sectsyms[rsect], r.Type)
+				return nil, nil, fmt.Errorf("%s: unsupported arch %v", pn, arch.Family)
+			case sys.I386, sys.AMD64:
+				switch r.Type {
+				default:
+					return nil, nil, fmt.Errorf("%s: %v: unknown relocation type %v", pn, sectsyms[rsect], r.Type)
 
-			case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
-				IMAGE_REL_AMD64_ADDR32, // R_X86_64_PC32
-				IMAGE_REL_AMD64_ADDR32NB:
-				rp.Type = objabi.R_PCREL
+				case IMAGE_REL_I386_REL32, IMAGE_REL_AMD64_REL32,
+					IMAGE_REL_AMD64_ADDR32, // R_X86_64_PC32
+					IMAGE_REL_AMD64_ADDR32NB:
+					rp.Type = objabi.R_PCREL
 
-				rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
+					rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
 
-			case IMAGE_REL_I386_DIR32NB, IMAGE_REL_I386_DIR32:
-				rp.Type = objabi.R_ADDR
+				case IMAGE_REL_I386_DIR32NB, IMAGE_REL_I386_DIR32:
+					rp.Type = objabi.R_ADDR
 
-				// load addend from image
-				rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
+					// load addend from image
+					rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
 
-			case IMAGE_REL_AMD64_ADDR64: // R_X86_64_64
-				rp.Siz = 8
+				case IMAGE_REL_AMD64_ADDR64: // R_X86_64_64
+					rp.Siz = 8
 
-				rp.Type = objabi.R_ADDR
+					rp.Type = objabi.R_ADDR
 
-				// load addend from image
-				rp.Add = int64(binary.LittleEndian.Uint64(sectdata[rsect][rp.Off:]))
+					// load addend from image
+					rp.Add = int64(binary.LittleEndian.Uint64(sectdata[rsect][rp.Off:]))
+				}
+
+			case sys.ARM:
+				switch r.Type {
+				default:
+					return nil, nil, fmt.Errorf("%s: %v: unknown ARM relocation type %v", pn, sectsyms[rsect], r.Type)
+
+				case IMAGE_REL_ARM_SECREL:
+					rp.Type = objabi.R_PCREL
+
+					rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
+
+				case IMAGE_REL_ARM_ADDR32:
+					rp.Type = objabi.R_ADDR
+
+					rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
+
+				case IMAGE_REL_ARM_BRANCH24:
+					rp.Type = objabi.R_CALLARM
+
+					rp.Add = int64(int32(binary.LittleEndian.Uint32(sectdata[rsect][rp.Off:])))
+				}
 			}
 
 			// ld -r could generate multiple section symbols for the
@@ -312,14 +361,14 @@ func Load(arch *sys.Arch, syms *sym.Symbols, input *bio.Reader, pkg string, leng
 			}
 		}
 
-		s, err := readpesym(arch, syms, f, pesym, sectsyms, localSymVersion)
+		s, err := readpesym(arch, lookup, f, pesym, sectsyms, localSymVersion)
 		if err != nil {
 			return nil, nil, err
 		}
 
 		if pesym.SectionNumber == 0 { // extern
 			if s.Type == sym.SDYNIMPORT {
-				s.Plt = -2 // flag for dynimport in PE object files.
+				s.SetPlt(-2) // flag for dynimport in PE object files.
 			}
 			if s.Type == sym.SXREF && pesym.Value > 0 { // global data
 				s.Type = sym.SNOPTRDATA
@@ -396,7 +445,7 @@ func issect(s *pe.COFFSymbol) bool {
 	return s.StorageClass == IMAGE_SYM_CLASS_STATIC && s.Type == 0 && s.Name[0] == '.'
 }
 
-func readpesym(arch *sys.Arch, syms *sym.Symbols, f *pe.File, pesym *pe.COFFSymbol, sectsyms map[*pe.Section]*sym.Symbol, localSymVersion int) (*sym.Symbol, error) {
+func readpesym(arch *sys.Arch, lookup func(string, int) *sym.Symbol, f *pe.File, pesym *pe.COFFSymbol, sectsyms map[*pe.Section]*sym.Symbol, localSymVersion int) (*sym.Symbol, error) {
 	symname, err := pesym.FullName(f.StringTable)
 	if err != nil {
 		return nil, err
@@ -406,11 +455,26 @@ func readpesym(arch *sys.Arch, syms *sym.Symbols, f *pe.File, pesym *pe.COFFSymb
 		name = sectsyms[f.Sections[pesym.SectionNumber-1]].Name
 	} else {
 		name = symname
-		if strings.HasPrefix(name, "__imp_") {
-			name = name[6:] // __imp_Name => Name
-		}
-		if arch.Family == sys.I386 && name[0] == '_' {
-			name = name[1:] // _Name => Name
+		switch arch.Family {
+		case sys.AMD64:
+			if name == "__imp___acrt_iob_func" {
+				// Do not rename __imp___acrt_iob_func into __acrt_iob_func,
+				// because __imp___acrt_iob_func symbol is real
+				// (see commit b295099 from git://git.code.sf.net/p/mingw-w64/mingw-w64 for details).
+			} else {
+				name = strings.TrimPrefix(name, "__imp_") // __imp_Name => Name
+			}
+		case sys.I386:
+			if name == "__imp____acrt_iob_func" {
+				// Do not rename __imp____acrt_iob_func into ___acrt_iob_func,
+				// because __imp____acrt_iob_func symbol is real
+				// (see commit b295099 from git://git.code.sf.net/p/mingw-w64/mingw-w64 for details).
+			} else {
+				name = strings.TrimPrefix(name, "__imp_") // __imp_Name => Name
+			}
+			if name[0] == '_' {
+				name = name[1:] // _Name => Name
+			}
 		}
 	}
 
@@ -427,10 +491,10 @@ func readpesym(arch *sys.Arch, syms *sym.Symbols, f *pe.File, pesym *pe.COFFSymb
 	case IMAGE_SYM_DTYPE_FUNCTION, IMAGE_SYM_DTYPE_NULL:
 		switch pesym.StorageClass {
 		case IMAGE_SYM_CLASS_EXTERNAL: //global
-			s = syms.Lookup(name, 0)
+			s = lookup(name, 0)
 
 		case IMAGE_SYM_CLASS_NULL, IMAGE_SYM_CLASS_STATIC, IMAGE_SYM_CLASS_LABEL:
-			s = syms.Lookup(name, localSymVersion)
+			s = lookup(name, localSymVersion)
 			s.Attr |= sym.AttrDuplicateOK
 
 		default:
@@ -442,7 +506,7 @@ func readpesym(arch *sys.Arch, syms *sym.Symbols, f *pe.File, pesym *pe.COFFSymb
 		s.Type = sym.SXREF
 	}
 	if strings.HasPrefix(symname, "__imp_") {
-		s.Got = -2 // flag for __imp_
+		s.SetGot(-2) // flag for __imp_
 	}
 
 	return s, nil

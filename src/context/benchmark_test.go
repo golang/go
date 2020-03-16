@@ -13,6 +13,30 @@ import (
 	"time"
 )
 
+func BenchmarkCommonParentCancel(b *testing.B) {
+	root := WithValue(Background(), "key", "value")
+	shared, sharedcancel := WithCancel(root)
+	defer sharedcancel()
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		x := 0
+		for pb.Next() {
+			ctx, cancel := WithCancel(shared)
+			if ctx.Value("key").(string) != "value" {
+				b.Fatal("should not be reached")
+			}
+			for i := 0; i < 100; i++ {
+				x /= x + 1
+			}
+			cancel()
+			for i := 0; i < 100; i++ {
+				x /= x + 1
+			}
+		}
+	})
+}
+
 func BenchmarkWithTimeout(b *testing.B) {
 	for concurrency := 40; concurrency <= 4e5; concurrency *= 100 {
 		name := fmt.Sprintf("concurrency=%d", concurrency)
@@ -95,4 +119,22 @@ func buildContextTree(root Context, depth int) {
 	for d := 0; d < depth; d++ {
 		root, _ = WithCancel(root)
 	}
+}
+
+func BenchmarkCheckCanceled(b *testing.B) {
+	ctx, cancel := WithCancel(Background())
+	cancel()
+	b.Run("Err", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			ctx.Err()
+		}
+	})
+	b.Run("Done", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			select {
+			case <-ctx.Done():
+			default:
+			}
+		}
+	})
 }

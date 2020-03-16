@@ -11,8 +11,10 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 )
 
@@ -42,10 +44,6 @@ const (
 )
 
 func dumpobj() {
-	if !dolinkobj {
-		dumpobj1(outfile, modeCompilerObj)
-		return
-	}
 	if linkobj == "" {
 		dumpobj1(outfile, modeCompilerObj|modeLinkerObj)
 		return
@@ -62,75 +60,58 @@ func dumpobj1(outfile string, mode int) {
 		errorexit()
 	}
 	defer bout.Close()
-
-	startobj := int64(0)
-	var arhdr [ArhdrSize]byte
-	if writearchive {
-		bout.WriteString("!<arch>\n")
-		arhdr = [ArhdrSize]byte{}
-		bout.Write(arhdr[:])
-		startobj = bout.Offset()
-	}
-
-	printheader := func() {
-		fmt.Fprintf(bout, "go object %s %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
-		if buildid != "" {
-			fmt.Fprintf(bout, "build id %q\n", buildid)
-		}
-		if localpkg.Name == "main" {
-			fmt.Fprintf(bout, "main\n")
-		}
-		if safemode {
-			fmt.Fprintf(bout, "safe\n")
-		} else {
-			fmt.Fprintf(bout, "----\n") // room for some other tool to write "safe"
-		}
-		fmt.Fprintf(bout, "\n") // header ends with blank line
-	}
-
-	printheader()
+	bout.WriteString("!<arch>\n")
 
 	if mode&modeCompilerObj != 0 {
-		dumpexport(bout)
+		start := startArchiveEntry(bout)
+		dumpCompilerObj(bout)
+		finishArchiveEntry(bout, start, "__.PKGDEF")
 	}
-
-	if writearchive {
-		bout.Flush()
-		size := bout.Offset() - startobj
-		if size&1 != 0 {
-			bout.WriteByte(0)
-		}
-		bout.Seek(startobj-ArhdrSize, 0)
-		formathdr(arhdr[:], "__.PKGDEF", size)
-		bout.Write(arhdr[:])
-		bout.Flush()
-		bout.Seek(startobj+size+(size&1), 0)
+	if mode&modeLinkerObj != 0 {
+		start := startArchiveEntry(bout)
+		dumpLinkerObj(bout)
+		finishArchiveEntry(bout, start, "_go_.o")
 	}
+}
 
-	if mode&modeLinkerObj == 0 {
-		return
+func printObjHeader(bout *bio.Writer) {
+	fmt.Fprintf(bout, "go object %s %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
+	if buildid != "" {
+		fmt.Fprintf(bout, "build id %q\n", buildid)
 	}
-
-	if writearchive {
-		// start object file
-		arhdr = [ArhdrSize]byte{}
-		bout.Write(arhdr[:])
-		startobj = bout.Offset()
-		printheader()
+	if localpkg.Name == "main" {
+		fmt.Fprintf(bout, "main\n")
 	}
+	fmt.Fprintf(bout, "\n") // header ends with blank line
+}
 
-	if pragcgobuf != "" {
-		if writearchive {
-			// write empty export section; must be before cgo section
-			fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
-		}
+func startArchiveEntry(bout *bio.Writer) int64 {
+	var arhdr [ArhdrSize]byte
+	bout.Write(arhdr[:])
+	return bout.Offset()
+}
 
-		fmt.Fprintf(bout, "\n$$  // cgo\n")
-		fmt.Fprintf(bout, "%s\n$$\n\n", pragcgobuf)
+func finishArchiveEntry(bout *bio.Writer, start int64, name string) {
+	bout.Flush()
+	size := bout.Offset() - start
+	if size&1 != 0 {
+		bout.WriteByte(0)
 	}
+	bout.MustSeek(start-ArhdrSize, 0)
 
-	fmt.Fprintf(bout, "\n!\n")
+	var arhdr [ArhdrSize]byte
+	formathdr(arhdr[:], name, size)
+	bout.Write(arhdr[:])
+	bout.Flush()
+	bout.MustSeek(start+size+(size&1), 0)
+}
 
+func dumpCompilerObj(bout *bio.Writer) {
+	printObjHeader(bout)
+	dumpexport(bout)
+}
+
+func dumpdata() {
 	externs := len(externdcl)
 
 	dumpglobls()
@@ -140,6 +121,18 @@ func dumpobj1(outfile string, mode int) {
 	dumptabs()
 	dumpimportstrings()
 	dumpbasictypes()
+
+	// Calls to dumpsignats can generate functions,
+	// like method wrappers and hash and equality routines.
+	// Compile any generated functions, process any new resulting types, repeat.
+	// This can't loop forever, because there is no way to generate an infinite
+	// number of types in a finite amount of code.
+	// In the typical case, we loop 0 or 1 times.
+	// It was not until issue 24761 that we found any code that required a loop at all.
+	for len(compilequeue) > 0 {
+		compileFunctions()
+		dumpsignats()
+	}
 
 	// Dump extra globals.
 	tmp := externdcl
@@ -156,19 +149,24 @@ func dumpobj1(outfile string, mode int) {
 	}
 
 	addGCLocals()
+}
 
-	obj.WriteObjFile(Ctxt, bout.Writer)
+func dumpLinkerObj(bout *bio.Writer) {
+	printObjHeader(bout)
 
-	if writearchive {
-		bout.Flush()
-		size := bout.Offset() - startobj
-		if size&1 != 0 {
-			bout.WriteByte(0)
+	if len(pragcgobuf) != 0 {
+		// write empty export section; must be before cgo section
+		fmt.Fprintf(bout, "\n$$\n\n$$\n\n")
+		fmt.Fprintf(bout, "\n$$  // cgo\n")
+		if err := json.NewEncoder(bout).Encode(pragcgobuf); err != nil {
+			Fatalf("serializing pragcgobuf: %v", err)
 		}
-		bout.Seek(startobj-ArhdrSize, 0)
-		formathdr(arhdr[:], "_go_.o", size)
-		bout.Write(arhdr[:])
+		fmt.Fprintf(bout, "\n$$\n\n")
 	}
+
+	fmt.Fprintf(bout, "\n!\n")
+
+	obj.WriteObjFile(Ctxt, bout, myimportpath)
 }
 
 func addptabs() {
@@ -184,7 +182,7 @@ func addptabs() {
 		if n.Op != ONAME {
 			continue
 		}
-		if !exportname(s.Name) {
+		if !types.IsExported(s.Name) {
 			continue
 		}
 		if s.Pkg.Name != "main" {
@@ -264,7 +262,7 @@ func dumpglobls() {
 		}
 	}
 
-	obj.SortSlice(funcsyms, func(i, j int) bool {
+	sort.Slice(funcsyms, func(i, j int) bool {
 		return funcsyms[i].LinksymName() < funcsyms[j].LinksymName()
 	})
 	for _, s := range funcsyms {
@@ -277,23 +275,29 @@ func dumpglobls() {
 	funcsyms = nil
 }
 
-// addGCLocals adds gcargs and gclocals symbols to Ctxt.Data.
-// It takes care not to add any duplicates.
-// Though the object file format handles duplicates efficiently,
-// storing only a single copy of the data,
-// failure to remove these duplicates adds a few percent to object file size.
+// addGCLocals adds gcargs, gclocals, gcregs, and stack object symbols to Ctxt.Data.
+//
+// This is done during the sequential phase after compilation, since
+// global symbols can't be declared during parallel compilation.
 func addGCLocals() {
-	seen := make(map[string]bool)
 	for _, s := range Ctxt.Text {
 		if s.Func == nil {
 			continue
 		}
-		for _, gcsym := range []*obj.LSym{&s.Func.GCArgs, &s.Func.GCLocals} {
-			if seen[gcsym.Name] {
-				continue
+		for _, gcsym := range []*obj.LSym{s.Func.GCArgs, s.Func.GCLocals, s.Func.GCRegs} {
+			if gcsym != nil && !gcsym.OnList() {
+				ggloblsym(gcsym, int32(len(gcsym.P)), obj.RODATA|obj.DUPOK)
 			}
-			Ctxt.Data = append(Ctxt.Data, gcsym)
-			seen[gcsym.Name] = true
+		}
+		if x := s.Func.StackObjects; x != nil {
+			attr := int16(obj.RODATA)
+			if s.DuplicateOK() {
+				attr |= obj.DUPOK
+			}
+			ggloblsym(x, int32(len(x.P)), attr)
+		}
+		if x := s.Func.OpenCodedDeferInfo; x != nil {
+			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
 		}
 	}
 }
@@ -401,8 +405,8 @@ func dsymptr(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
 	return off
 }
 
-func dsymptrOff(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
-	s.WriteOff(Ctxt, int64(off), x, int64(xoff))
+func dsymptrOff(s *obj.LSym, off int, x *obj.LSym) int {
+	s.WriteOff(Ctxt, int64(off), x, 0)
 	off += 4
 	return off
 }

@@ -58,16 +58,15 @@ func interfaceTable(ifindex int) ([]Interface, error) {
 		if ifindex == 0 || ifindex == int(index) {
 			ifi := Interface{
 				Index: int(index),
-				Name:  syscall.UTF16ToString((*(*[10000]uint16)(unsafe.Pointer(aa.FriendlyName)))[:]),
+				Name:  windows.UTF16PtrToString(aa.FriendlyName, 10000),
 			}
 			if aa.OperStatus == windows.IfOperStatusUp {
 				ifi.Flags |= FlagUp
 			}
 			// For now we need to infer link-layer service
 			// capabilities from media types.
-			// We will be able to use
-			// MIB_IF_ROW2.AccessType once we drop support
-			// for Windows XP.
+			// TODO: use MIB_IF_ROW2.AccessType now that we no longer support
+			// Windows XP.
 			switch aa.IfType {
 			case windows.IF_TYPE_ETHERNET_CSMACD, windows.IF_TYPE_ISO88025_TOKENRING, windows.IF_TYPE_IEEE80211, windows.IF_TYPE_IEEE1394:
 				ifi.Flags |= FlagBroadcast | FlagMulticast

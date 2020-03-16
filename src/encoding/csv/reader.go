@@ -80,6 +80,8 @@ func (e *ParseError) Error() string {
 	return fmt.Sprintf("parse error on line %d, column %d: %v", e.Line, e.Column, e.Err)
 }
 
+func (e *ParseError) Unwrap() error { return e.Err }
+
 // These are the errors that can be returned in ParseError.Err.
 var (
 	ErrTrailingComma = errors.New("extra delimiter at end of line") // Deprecated: No longer used.
@@ -91,7 +93,7 @@ var (
 var errInvalidDelim = errors.New("csv: invalid field or comment delimiter")
 
 func validDelim(r rune) bool {
-	return r != 0 && r != '\r' && r != '\n' && utf8.ValidRune(r) && r != utf8.RuneError
+	return r != 0 && r != '"' && r != '\r' && r != '\n' && utf8.ValidRune(r) && r != utf8.RuneError
 }
 
 // A Reader reads records from a CSV-encoded file.

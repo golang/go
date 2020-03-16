@@ -41,14 +41,23 @@ func TestLockOSThread(t *testing.T) {
 	}
 }
 
-// Test that error values are negative. Use address 1 (a misaligned
-// pointer) to get -EINVAL.
+// Test that error values are negative.
+// Use a misaligned pointer to get -EINVAL.
 func TestMincoreErrorSign(t *testing.T) {
 	var dst byte
-	v := Mincore(unsafe.Pointer(uintptr(1)), 1, &dst)
+	v := Mincore(Add(unsafe.Pointer(new(int32)), 1), 1, &dst)
 
 	const EINVAL = 0x16
 	if v != -EINVAL {
 		t.Errorf("mincore = %v, want %v", v, -EINVAL)
+	}
+}
+
+func TestEpollctlErrorSign(t *testing.T) {
+	v := Epollctl(-1, 1, -1, unsafe.Pointer(&EpollEvent{}))
+
+	const EBADF = 0x09
+	if v != -EBADF {
+		t.Errorf("epollctl = %v, want %v", v, -EBADF)
 	}
 }

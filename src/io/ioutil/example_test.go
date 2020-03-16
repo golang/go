@@ -53,6 +53,29 @@ func ExampleTempDir() {
 	}
 }
 
+func ExampleTempDir_suffix() {
+	parentDir := os.TempDir()
+	logsDir, err := ioutil.TempDir(parentDir, "*-logs")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(logsDir) // clean up
+
+	// Logs can be cleaned out earlier if needed by searching
+	// for all directories whose suffix ends in *-logs.
+	globPattern := filepath.Join(parentDir, "*-logs")
+	matches, err := filepath.Glob(globPattern)
+	if err != nil {
+		log.Fatalf("Failed to match %q: %v", globPattern, err)
+	}
+
+	for _, match := range matches {
+		if err := os.RemoveAll(match); err != nil {
+			log.Printf("Failed to remove %q: %v", match, err)
+		}
+	}
+}
+
 func ExampleTempFile() {
 	content := []byte("temporary file's content")
 	tmpfile, err := ioutil.TempFile("", "example")
@@ -70,6 +93,24 @@ func ExampleTempFile() {
 	}
 }
 
+func ExampleTempFile_suffix() {
+	content := []byte("temporary file's content")
+	tmpfile, err := ioutil.TempFile("", "example.*.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer os.Remove(tmpfile.Name()) // clean up
+
+	if _, err := tmpfile.Write(content); err != nil {
+		tmpfile.Close()
+		log.Fatal(err)
+	}
+	if err := tmpfile.Close(); err != nil {
+		log.Fatal(err)
+	}
+}
+
 func ExampleReadFile() {
 	content, err := ioutil.ReadFile("testdata/hello")
 	if err != nil {
@@ -80,4 +121,12 @@ func ExampleReadFile() {
 
 	// Output:
 	// File contents: Hello, Gophers!
+}
+
+func ExampleWriteFile() {
+	message := []byte("Hello, Gophers!")
+	err := ioutil.WriteFile("testdata/hello", message, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

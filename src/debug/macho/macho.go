@@ -3,7 +3,12 @@
 // license that can be found in the LICENSE file.
 
 // Mach-O header data structures
-// http://developer.apple.com/mac/library/documentation/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
+// Originally at:
+// http://developer.apple.com/mac/library/documentation/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html (since deleted by Apply)
+// Archived copy at:
+// https://web.archive.org/web/20090819232456/http://developer.apple.com/documentation/DeveloperTools/Conceptual/MachORuntime/index.html
+// For cloned PDF see:
+// https://github.com/aidansteele/osx-abi-macho-file-format-reference
 
 package macho
 
@@ -60,6 +65,7 @@ const (
 	Cpu386   Cpu = 7
 	CpuAmd64 Cpu = Cpu386 | cpuArch64
 	CpuArm   Cpu = 12
+	CpuArm64 Cpu = CpuArm | cpuArch64
 	CpuPpc   Cpu = 18
 	CpuPpc64 Cpu = CpuPpc | cpuArch64
 )
@@ -68,6 +74,7 @@ var cpuStrings = []intName{
 	{uint32(Cpu386), "Cpu386"},
 	{uint32(CpuAmd64), "CpuAmd64"},
 	{uint32(CpuArm), "CpuArm"},
+	{uint32(CpuArm64), "CpuArm64"},
 	{uint32(CpuPpc), "CpuPpc"},
 	{uint32(CpuPpc64), "CpuPpc64"},
 }

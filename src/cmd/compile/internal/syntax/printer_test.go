@@ -6,6 +6,8 @@ package syntax
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -23,7 +25,7 @@ func TestPrint(t *testing.T) {
 	}
 
 	if ast != nil {
-		Fprint(os.Stdout, ast, true)
+		Fprint(testOut(), ast, true)
 		fmt.Println()
 	}
 }
@@ -34,7 +36,7 @@ func TestPrintString(t *testing.T) {
 		"package p; type _ = int; type T1 = struct{}; type ( _ = *struct{}; T2 = float32 )",
 		// TODO(gri) expand
 	} {
-		ast, err := Parse(nil, strings.NewReader(want), nil, nil, nil, 0)
+		ast, err := Parse(nil, strings.NewReader(want), nil, nil, 0)
 		if err != nil {
 			t.Error(err)
 			continue
@@ -43,4 +45,11 @@ func TestPrintString(t *testing.T) {
 			t.Errorf("%q: got %q", want, got)
 		}
 	}
+}
+
+func testOut() io.Writer {
+	if testing.Verbose() {
+		return os.Stdout
+	}
+	return ioutil.Discard
 }

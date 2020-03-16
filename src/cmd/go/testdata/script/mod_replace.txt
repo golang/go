@@ -1,0 +1,129 @@
+env GO111MODULE=on
+[short] skip
+
+cp go.mod go.mod.orig
+
+# Make sure the test builds without replacement.
+go build -o a1.exe .
+exec ./a1.exe
+stdout 'Don''t communicate by sharing memory'
+
+# Modules can be replaced by local packages.
+cp go.mod.orig go.mod
+go mod edit -replace=rsc.io/quote/v3=./local/rsc.io/quote/v3
+go build -o a2.exe .
+exec ./a2.exe
+stdout 'Concurrency is not parallelism.'
+
+# The module path of the replacement doesn't need to match.
+# (For example, it could be a long-running fork with its own import path.)
+cp go.mod.orig go.mod
+go mod edit -replace=rsc.io/quote/v3=./local/not-rsc.io/quote/v3
+go build -o a3.exe .
+exec ./a3.exe
+stdout 'Clear is better than clever.'
+
+# However, the same module can't be used as two different paths.
+cp go.mod.orig go.mod
+go mod edit -replace=not-rsc.io/quote/v3@v3.0.0=rsc.io/quote/v3@v3.0.0 -require=not-rsc.io/quote/v3@v3.0.0
+! go build -o a4.exe .
+stderr 'rsc.io/quote/v3@v3.0.0 used for two different module paths \(not-rsc.io/quote/v3 and rsc.io/quote/v3\)'
+
+# Modules that do not (yet) exist upstream can be replaced too.
+cp go.mod.orig go.mod
+go mod edit -replace=not-rsc.io/quote/v3@v3.1.0=./local/rsc.io/quote/v3
+go build -o a5.exe ./usenewmodule
+! stderr 'finding not-rsc.io/quote/v3'
+grep 'not-rsc.io/quote/v3 v3.1.0' go.mod
+exec ./a5.exe
+stdout 'Concurrency is not parallelism.'
+
+# Error messages for modules not found in replacements should
+# indicate the replacement module.
+cp go.mod.orig go.mod
+go mod edit -replace=rsc.io/quote/v3=./local/rsc.io/quote/v3
+! go get -d rsc.io/quote/v3/missing-package
+stderr 'module rsc.io/quote/v3@upgrade found \(v3.0.0, replaced by ./local/rsc.io/quote/v3\), but does not contain package'
+
+# The reported Dir and GoMod for a replaced module should be accurate.
+cp go.mod.orig go.mod
+go mod edit -replace=rsc.io/quote/v3=not-rsc.io/quote@v0.1.0-nomod
+go mod download
+go list -m -f '{{.Path}} {{.Version}} {{.Dir}} {{.GoMod}}{{with .Replace}} => {{.Path}} {{.Version}} {{.Dir}} {{.GoMod}}{{end}}' rsc.io/quote/v3
+stdout '^rsc.io/quote/v3 v3.0.0 '$GOPATH'[/\\]pkg[/\\]mod[/\\]not-rsc.io[/\\]quote@v0.1.0-nomod '$GOPATH'[/\\]pkg[/\\]mod[/\\]cache[/\\]download[/\\]not-rsc.io[/\\]quote[/\\]@v[/\\]v0.1.0-nomod.mod => not-rsc.io/quote v0.1.0-nomod '$GOPATH'[/\\]pkg[/\\]mod[/\\]not-rsc.io[/\\]quote@v0.1.0-nomod '$GOPATH'[/\\]pkg[/\\]mod[/\\]cache[/\\]download[/\\]not-rsc.io[/\\]quote[/\\]@v[/\\]v0.1.0-nomod.mod$'
+
+-- go.mod --
+module quoter
+
+require rsc.io/quote/v3 v3.0.0
+
+-- main.go --
+package main
+
+import (
+	"fmt"
+	"rsc.io/quote/v3"
+)
+
+func main() {
+	fmt.Println(quote.GoV3())
+}
+
+-- usenewmodule/main.go --
+package main
+
+import (
+	"fmt"
+	"not-rsc.io/quote/v3"
+)
+
+func main() {
+	fmt.Println(quote.GoV3())
+}
+
+-- local/rsc.io/quote/v3/go.mod --
+module rsc.io/quote/v3
+
+require rsc.io/sampler v1.3.0
+
+-- local/rsc.io/quote/v3/quote.go --
+// Copyright 2018 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package quote collects pithy sayings.
+package quote
+
+import "rsc.io/sampler"
+
+// Hello returns a greeting.
+func HelloV3() string {
+	return sampler.Hello()
+}
+
+// Glass returns a useful phrase for world travelers.
+func GlassV3() string {
+	// See http://www.oocities.org/nodotus/hbglass.html.
+	return "I can eat glass and it doesn't hurt me."
+}
+
+// Go returns a REPLACED Go proverb.
+func GoV3() string {
+	return "Concurrency is not parallelism."
+}
+
+// Opt returns a optimization truth.
+func OptV3() string {
+	// Wisdom from ken.
+	return "If a program is too slow, it must have a loop."
+}
+
+-- local/not-rsc.io/quote/v3/go.mod --
+module not-rsc.io/quote/v3
+
+-- local/not-rsc.io/quote/v3/quote.go --
+package quote
+
+func GoV3() string {
+	return "Clear is better than clever."
+}

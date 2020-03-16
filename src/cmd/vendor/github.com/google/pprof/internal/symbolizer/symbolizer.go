@@ -18,7 +18,6 @@
 package symbolizer
 
 import (
-	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -35,8 +34,9 @@ import (
 
 // Symbolizer implements the plugin.Symbolize interface.
 type Symbolizer struct {
-	Obj plugin.ObjTool
-	UI  plugin.UI
+	Obj       plugin.ObjTool
+	UI        plugin.UI
+	Transport http.RoundTripper
 }
 
 // test taps for dependency injection
@@ -85,7 +85,10 @@ func (s *Symbolizer) Symbolize(mode string, sources plugin.MappingSources, p *pr
 		}
 	}
 	if remote {
-		if err = symbolzSymbolize(p, force, sources, postURL, s.UI); err != nil {
+		post := func(source, post string) ([]byte, error) {
+			return postURL(source, post, s.Transport)
+		}
+		if err = symbolzSymbolize(p, force, sources, post, s.UI); err != nil {
 			return err // Ran out of options.
 		}
 	}
@@ -95,25 +98,9 @@ func (s *Symbolizer) Symbolize(mode string, sources plugin.MappingSources, p *pr
 }
 
 // postURL issues a POST to a URL over HTTP.
-func postURL(source, post string) ([]byte, error) {
-	url, err := url.Parse(source)
-	if err != nil {
-		return nil, err
-	}
-
-	var tlsConfig *tls.Config
-	if url.Scheme == "https+insecure" {
-		tlsConfig = &tls.Config{
-			InsecureSkipVerify: true,
-		}
-		url.Scheme = "https"
-		source = url.String()
-	}
-
+func postURL(source, post string, tr http.RoundTripper) ([]byte, error) {
 	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-		},
+		Transport: tr,
 	}
 	resp, err := client.Post(source, "application/octet-stream", strings.NewReader(post))
 	if err != nil {

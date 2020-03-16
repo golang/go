@@ -25,7 +25,7 @@ var vf = []float64{
 }
 
 // The expected results below were computed by the high precision calculators
-// at http://keisan.casio.com/.  More exact input values (array vf[], above)
+// at https://keisan.casio.com/.  More exact input values (array vf[], above)
 // were obtained by printing them with "%.26f".  The answers were calculated
 // to 26 digits (by using the "Digit number" drop-down control of each
 // calculator).
@@ -128,7 +128,7 @@ var cbrt = []float64{
 var ceil = []float64{
 	5.0000000000000000e+00,
 	8.0000000000000000e+00,
-	0.0000000000000000e+00,
+	Copysign(0, -1),
 	-5.0000000000000000e+00,
 	1.0000000000000000e+01,
 	3.0000000000000000e+00,
@@ -175,6 +175,7 @@ var cosLarge = []float64{
 	-2.51772931436786954751e-01,
 	-7.3924135157173099849e-01,
 }
+
 var cosh = []float64{
 	7.2668796942212842775517446e+01,
 	1.1479413465659254502011135e+03,
@@ -644,7 +645,7 @@ var tanh = []float64{
 var trunc = []float64{
 	4.0000000000000000e+00,
 	7.0000000000000000e+00,
-	-0.0000000000000000e+00,
+	Copysign(0, -1),
 	-5.0000000000000000e+00,
 	9.0000000000000000e+00,
 	2.0000000000000000e+00,
@@ -946,6 +947,8 @@ var vferfSC = []float64{
 	0,
 	Inf(1),
 	NaN(),
+	-1000,
+	1000,
 }
 var erfSC = []float64{
 	-1,
@@ -953,17 +956,23 @@ var erfSC = []float64{
 	0,
 	1,
 	NaN(),
+	-1,
+	1,
 }
 
 var vferfcSC = []float64{
 	Inf(-1),
 	Inf(1),
 	NaN(),
+	-1000,
+	1000,
 }
 var erfcSC = []float64{
 	2,
 	0,
 	NaN(),
+	2,
+	0,
 }
 
 var vferfinvSC = []float64{
@@ -1012,6 +1021,10 @@ var vfexpSC = []float64{
 	1.48852223e+09,
 	1.4885222e+09,
 	1,
+	// near zero
+	3.725290298461915e-09,
+	// denormal
+	-740,
 }
 var expSC = []float64{
 	0,
@@ -1023,6 +1036,8 @@ var expSC = []float64{
 	Inf(1),
 	Inf(1),
 	2.718281828459045,
+	1.0000000037252903,
+	4.2e-322,
 }
 
 var vfexp2SC = []float64{
@@ -1033,6 +1048,10 @@ var vfexp2SC = []float64{
 	NaN(),
 	// smallest float64 that overflows Exp2(x)
 	1024,
+	// near underflow
+	-1.07399999999999e+03,
+	// near zero
+	3.725290298461915e-09,
 }
 var exp2SC = []float64{
 	0,
@@ -1041,6 +1060,8 @@ var exp2SC = []float64{
 	Inf(1),
 	NaN(),
 	Inf(1),
+	5e-324,
+	1.0000000025821745,
 }
 
 var vfexpm1SC = []float64{
@@ -1507,6 +1528,7 @@ var vflog1pSC = []float64{
 	0,
 	Inf(1),
 	NaN(),
+	4503599627370496.5, // Issue #29488
 }
 var log1pSC = []float64{
 	NaN(),
@@ -1516,6 +1538,7 @@ var log1pSC = []float64{
 	0,
 	Inf(1),
 	NaN(),
+	36.04365338911715, // Issue #29488
 }
 
 var vfmodfSC = []float64{
@@ -1955,6 +1978,8 @@ var vfldexpBC = []fi{
 	{-1, -1075},
 	{1, 1024},
 	{-1, 1024},
+	{1.0000000000000002, -1075},
+	{1, -1075},
 }
 var ldexpBC = []float64{
 	SmallestNonzeroFloat64,
@@ -1965,6 +1990,8 @@ var ldexpBC = []float64{
 	Copysign(0, -1),
 	Inf(1),
 	Inf(-1),
+	SmallestNonzeroFloat64,
+	0,
 }
 
 var logbBC = []float64{
@@ -1976,6 +2003,64 @@ var logbBC = []float64{
 	-1023,
 	-1074,
 	1023,
+}
+
+// Test cases were generated with Berkeley TestFloat-3e/testfloat_gen.
+// http://www.jhauser.us/arithmetic/TestFloat.html.
+// The default rounding mode is selected (nearest/even), and exception flags are ignored.
+var fmaC = []struct{ x, y, z, want float64 }{
+	// Large exponent spread
+	{-3.999999999999087, -1.1123914289620494e-16, -7.999877929687506, -7.999877929687505},
+	{-262112.0000004768, -0.06251525855623184, 1.1102230248837136e-16, 16385.99945072085},
+	{-6.462348523533467e-27, -2.3763644720331857e-211, 4.000000000931324, 4.000000000931324},
+
+	// Effective addition
+	{-2.0000000037252907, 6.7904383376e-313, -3.3951933161e-313, -1.697607001654e-312},
+	{-0.12499999999999999, 512.007568359375, -1.4193627164960366e-16, -64.00094604492188},
+	{-2.7550648847397148e-39, -3.4028301595800694e+38, 0.9960937495343386, 1.9335955376735676},
+	{5.723369164769208e+24, 3.8149300927159385e-06, 1.84489958778182e+19, 4.028324913621874e+19},
+	{-0.4843749999990904, -3.6893487872543293e+19, 9.223653786709391e+18, 2.7093936974938993e+19},
+	{-3.8146972665201165e-06, 4.2949672959999385e+09, -2.2204460489938386e-16, -16384.000003844263},
+	{6.98156394130982e-309, -1.1072962560000002e+09, -4.4414561548793455e-308, -7.73065965765153e-300},
+
+	// Effective subtraction
+	{5e-324, 4.5, -2e-323, 0},
+	{5e-324, 7, -3.5e-323, 0},
+	{5e-324, 0.5000000000000001, -5e-324, Copysign(0, -1)},
+	{-2.1240680525e-314, -1.233647078189316e+308, -0.25781249999954525, -0.25780987964919844},
+	{8.579992955364441e-308, 0.6037391876780558, -4.4501307410480706e-308, 7.29947236107098e-309},
+	{-4.450143471986689e-308, -0.9960937499927239, -4.450419332475649e-308, -1.7659233458788e-310},
+	{1.4932076393918112, -2.2248022430460833e-308, 4.449875571054211e-308, 1.127783865601762e-308},
+
+	// Overflow
+	{-2.288020632214759e+38, -8.98846570988901e+307, 1.7696041796300924e+308, Inf(0)},
+	{1.4888652783208255e+308, -9.007199254742012e+15, -6.807282911929205e+38, Inf(-1)},
+	{9.142703268902826e+192, -1.3504889569802838e+296, -1.9082200803806996e-89, Inf(-1)},
+
+	// Finite x and y, but non-finite z.
+	{31.99218749627471, -1.7976930544991702e+308, Inf(0), Inf(0)},
+	{-1.7976931281784667e+308, -2.0009765625002265, Inf(-1), Inf(-1)},
+
+	// Special
+	{0, 0, 0, 0},
+	{-1.1754226043408471e-38, NaN(), Inf(0), NaN()},
+	{0, 0, 2.22507385643494e-308, 2.22507385643494e-308},
+	{-8.65697792e+09, NaN(), -7.516192799999999e+09, NaN()},
+	{-0.00012207403779029757, 3.221225471996093e+09, NaN(), NaN()},
+	{Inf(-1), 0.1252441407414153, -1.387184532981584e-76, Inf(-1)},
+	{Inf(0), 1.525878907671432e-05, -9.214364835452549e+18, Inf(0)},
+
+	// Random
+	{0.1777916152213626, -32.000015266239636, -2.2204459148334633e-16, -5.689334401293007},
+	{-2.0816681711722314e-16, -0.4997558592585846, -0.9465627129124969, -0.9465627129124968},
+	{-1.9999997615814211, 1.8518819259933516e+19, 16.874999999999996, -3.703763410463646e+19},
+	{-0.12499994039717421, 32767.99999976135, -2.0752587082923246e+19, -2.075258708292325e+19},
+	{7.705600568510257e-34, -1.801432979000528e+16, -0.17224197722973714, -0.17224197722973716},
+	{3.8988133103758913e-308, -0.9848632812499999, 3.893879244098556e-308, 5.40811742605814e-310},
+	{-0.012651981190687427, 6.911985574912436e+38, 6.669240527007144e+18, -8.745031148409496e+36},
+	{4.612811918325842e+18, 1.4901161193847641e-08, 2.6077032311277997e-08, 6.873625395187494e+10},
+	{-9.094947033611148e-13, 4.450691014249257e-308, 2.086006742350485e-308, 2.086006742346437e-308},
+	{-7.751454006381804e-05, 5.588653777189071e-308, -2.2207280111272877e-308, -2.2211612130544025e-308},
 }
 
 func tolerance(a, b, e float64) bool {
@@ -2134,7 +2219,7 @@ func TestCbrt(t *testing.T) {
 
 func TestCeil(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := Ceil(vf[i]); ceil[i] != f {
+		if f := Ceil(vf[i]); !alike(ceil[i], f) {
 			t.Errorf("Ceil(%g) = %g, want %g", vf[i], f, ceil[i])
 		}
 	}
@@ -2316,7 +2401,7 @@ func testExp2(t *testing.T, Exp2 func(float64) float64, name string) {
 	}
 	for i := 0; i < len(vfexp2SC); i++ {
 		if f := Exp2(vfexp2SC[i]); !alike(exp2SC[i], f) {
-			t.Errorf("%s(%g) = %g, want %g", name, vfexpSC[i], f, expSC[i])
+			t.Errorf("%s(%g) = %g, want %g", name, vfexp2SC[i], f, exp2SC[i])
 		}
 	}
 	for n := -1074; n < 1024; n++ {
@@ -2361,7 +2446,7 @@ func TestDim(t *testing.T) {
 
 func TestFloor(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := Floor(vf[i]); floor[i] != f {
+		if f := Floor(vf[i]); !alike(floor[i], f) {
 			t.Errorf("Floor(%g) = %g, want %g", vf[i], f, floor[i])
 		}
 	}
@@ -2418,6 +2503,10 @@ func TestMod(t *testing.T) {
 		if f := Mod(vffmodSC[i][0], vffmodSC[i][1]); !alike(fmodSC[i], f) {
 			t.Errorf("Mod(%g, %g) = %g, want %g", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
 		}
+	}
+	// verify precision of result for extreme inputs
+	if f := Mod(5.9790119248836734e+200, 1.1258465975523544); 0.6447968302508578 != f {
+		t.Errorf("Remainder(5.9790119248836734e+200, 1.1258465975523544) = %g, want 0.6447968302508578", f)
 	}
 }
 
@@ -2760,6 +2849,24 @@ func TestRemainder(t *testing.T) {
 			t.Errorf("Remainder(%g, %g) = %g, want %g", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
 		}
 	}
+	// verify precision of result for extreme inputs
+	if f := Remainder(5.9790119248836734e+200, 1.1258465975523544); -0.4810497673014966 != f {
+		t.Errorf("Remainder(5.9790119248836734e+200, 1.1258465975523544) = %g, want -0.4810497673014966", f)
+	}
+	// verify that sign is correct when r == 0.
+	test := func(x, y float64) {
+		if r := Remainder(x, y); r == 0 && Signbit(r) != Signbit(x) {
+			t.Errorf("Remainder(x=%f, y=%f) = %f, sign of (zero) result should agree with sign of x", x, y, r)
+		}
+	}
+	for x := 0.0; x <= 3.0; x += 1 {
+		for y := 1.0; y <= 3.0; y += 1 {
+			test(x, y)
+			test(x, -y)
+			test(-x, y)
+			test(-x, -y)
+		}
+	}
 }
 
 func TestRound(t *testing.T) {
@@ -2884,7 +2991,7 @@ func TestTanh(t *testing.T) {
 
 func TestTrunc(t *testing.T) {
 	for i := 0; i < len(vf); i++ {
-		if f := Trunc(vf[i]); trunc[i] != f {
+		if f := Trunc(vf[i]); !alike(trunc[i], f) {
 			t.Errorf("Trunc(%g) = %g, want %g", vf[i], f, trunc[i])
 		}
 	}
@@ -2946,6 +3053,21 @@ func TestYn(t *testing.T) {
 	}
 }
 
+var PortableFMA = FMA // hide call from compiler intrinsic; falls back to portable code
+
+func TestFMA(t *testing.T) {
+	for _, c := range fmaC {
+		got := FMA(c.x, c.y, c.z)
+		if !alike(got, c.want) {
+			t.Errorf("FMA(%g,%g,%g) == %g; want %g", c.x, c.y, c.z, got, c.want)
+		}
+		got = PortableFMA(c.x, c.y, c.z)
+		if !alike(got, c.want) {
+			t.Errorf("PortableFMA(%g,%g,%g) == %g; want %g", c.x, c.y, c.z, got, c.want)
+		}
+	}
+}
+
 // Check that math functions of high angle values
 // return accurate results. [Since (vf[i] + large) - large != vf[i],
 // testing for Trig(vf[i] + large) == Trig(vf[i]), where large is
@@ -2990,6 +3112,41 @@ func TestLargeTan(t *testing.T) {
 		f2 := Tan(vf[i] + large)
 		if !close(f1, f2) {
 			t.Errorf("Tan(%g) = %g, want %g", vf[i]+large, f2, f1)
+		}
+	}
+}
+
+// Check that trigReduce matches the standard reduction results for input values
+// below reduceThreshold.
+func TestTrigReduce(t *testing.T) {
+	inputs := make([]float64, len(vf))
+	// all of the standard inputs
+	copy(inputs, vf)
+	// all of the large inputs
+	large := float64(100000 * Pi)
+	for _, v := range vf {
+		inputs = append(inputs, v+large)
+	}
+	// Also test some special inputs, Pi and right below the reduceThreshold
+	inputs = append(inputs, Pi, Nextafter(ReduceThreshold, 0))
+	for _, x := range inputs {
+		// reduce the value to compare
+		j, z := TrigReduce(x)
+		xred := float64(j)*(Pi/4) + z
+
+		if f, fred := Sin(x), Sin(xred); !close(f, fred) {
+			t.Errorf("Sin(trigReduce(%g)) != Sin(%g), got %g, want %g", x, x, fred, f)
+		}
+		if f, fred := Cos(x), Cos(xred); !close(f, fred) {
+			t.Errorf("Cos(trigReduce(%g)) != Cos(%g), got %g, want %g", x, x, fred, f)
+		}
+		if f, fred := Tan(x), Tan(xred); !close(f, fred) {
+			t.Errorf(" Tan(trigReduce(%g)) != Tan(%g), got %g, want %g", x, x, fred, f)
+		}
+		f, g := Sincos(x)
+		fred, gred := Sincos(xred)
+		if !close(f, fred) || !close(g, gred) {
+			t.Errorf(" Sincos(trigReduce(%g)) != Sincos(%g), got %g, %g, want %g, %g", x, x, fred, gred, f, g)
 		}
 	}
 }
@@ -3600,6 +3757,52 @@ func BenchmarkYn(b *testing.B) {
 	x := 0.0
 	for i := 0; i < b.N; i++ {
 		x = Yn(2, 2.5)
+	}
+	GlobalF = x
+}
+
+func BenchmarkFloat64bits(b *testing.B) {
+	y := uint64(0)
+	for i := 0; i < b.N; i++ {
+		y = Float64bits(roundNeg)
+	}
+	GlobalI = int(y)
+}
+
+var roundUint64 = uint64(5)
+
+func BenchmarkFloat64frombits(b *testing.B) {
+	x := 0.0
+	for i := 0; i < b.N; i++ {
+		x = Float64frombits(roundUint64)
+	}
+	GlobalF = x
+}
+
+var roundFloat32 = float32(-2.5)
+
+func BenchmarkFloat32bits(b *testing.B) {
+	y := uint32(0)
+	for i := 0; i < b.N; i++ {
+		y = Float32bits(roundFloat32)
+	}
+	GlobalI = int(y)
+}
+
+var roundUint32 = uint32(5)
+
+func BenchmarkFloat32frombits(b *testing.B) {
+	x := float32(0.0)
+	for i := 0; i < b.N; i++ {
+		x = Float32frombits(roundUint32)
+	}
+	GlobalF = float64(x)
+}
+
+func BenchmarkFMA(b *testing.B) {
+	x := 0.0
+	for i := 0; i < b.N; i++ {
+		x = FMA(E, Pi, x)
 	}
 	GlobalF = x
 }

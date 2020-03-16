@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
 
 package net
 
@@ -13,8 +13,11 @@ import (
 )
 
 func dupSocket(f *os.File) (int, error) {
-	s, err := dupCloseOnExec(int(f.Fd()))
+	s, call, err := poll.DupCloseOnExec(int(f.Fd()))
 	if err != nil {
+		if call != "" {
+			err = os.NewSyscallError(call, err)
+		}
 		return -1, err
 	}
 	if err := syscall.SetNonblock(s, true); err != nil {
@@ -90,7 +93,7 @@ func fileListener(f *os.File) (Listener, error) {
 	}
 	switch laddr := fd.laddr.(type) {
 	case *TCPAddr:
-		return &TCPListener{fd}, nil
+		return &TCPListener{fd: fd}, nil
 	case *UnixAddr:
 		return &UnixListener{fd: fd, path: laddr.Name, unlink: false}, nil
 	}

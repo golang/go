@@ -21,13 +21,22 @@ func envOr(key, value string) string {
 var (
 	defaultGOROOT string // set by linker
 
-	GOROOT  = envOr("GOROOT", defaultGOROOT)
-	GOARCH  = envOr("GOARCH", defaultGOARCH)
-	GOOS    = envOr("GOOS", defaultGOOS)
-	GO386   = envOr("GO386", defaultGO386)
-	GOARM   = goarm()
-	GOMIPS  = gomips()
-	Version = version
+	GOROOT   = envOr("GOROOT", defaultGOROOT)
+	GOARCH   = envOr("GOARCH", defaultGOARCH)
+	GOOS     = envOr("GOOS", defaultGOOS)
+	GO386    = envOr("GO386", defaultGO386)
+	GOARM    = goarm()
+	GOMIPS   = gomips()
+	GOMIPS64 = gomips64()
+	GOPPC64  = goppc64()
+	GOWASM   = gowasm()
+	GO_LDSO  = defaultGO_LDSO
+	Version  = version
+)
+
+const (
+	ElfRelocOffset   = 256
+	MachoRelocOffset = 2048 // reserve enough space for ELF relocations
 )
 
 func goarm() int {
@@ -53,6 +62,58 @@ func gomips() string {
 	panic("unreachable")
 }
 
+func gomips64() string {
+	switch v := envOr("GOMIPS64", defaultGOMIPS64); v {
+	case "hardfloat", "softfloat":
+		return v
+	}
+	log.Fatalf("Invalid GOMIPS64 value. Must be hardfloat or softfloat.")
+	panic("unreachable")
+}
+
+func goppc64() int {
+	switch v := envOr("GOPPC64", defaultGOPPC64); v {
+	case "power8":
+		return 8
+	case "power9":
+		return 9
+	}
+	log.Fatalf("Invalid GOPPC64 value. Must be power8 or power9.")
+	panic("unreachable")
+}
+
+type gowasmFeatures struct {
+	SignExt bool
+	SatConv bool
+}
+
+func (f gowasmFeatures) String() string {
+	var flags []string
+	if f.SatConv {
+		flags = append(flags, "satconv")
+	}
+	if f.SignExt {
+		flags = append(flags, "signext")
+	}
+	return strings.Join(flags, ",")
+}
+
+func gowasm() (f gowasmFeatures) {
+	for _, opt := range strings.Split(envOr("GOWASM", ""), ",") {
+		switch opt {
+		case "satconv":
+			f.SatConv = true
+		case "signext":
+			f.SignExt = true
+		case "":
+			// ignore
+		default:
+			log.Fatalf("Invalid GOWASM value. No such feature: " + opt)
+		}
+	}
+	return
+}
+
 func Getgoextlinkenabled() string {
 	return envOr("GO_EXTLINK_ENABLED", defaultGO_EXTLINK_ENABLED)
 }
@@ -66,7 +127,7 @@ func init() {
 }
 
 func Framepointer_enabled(goos, goarch string) bool {
-	return framepointer_enabled != 0 && goarch == "amd64" && goos != "nacl"
+	return framepointer_enabled != 0 && (goarch == "amd64" || goarch == "arm64" && goos == "linux")
 }
 
 func addexp(s string) {
@@ -94,7 +155,6 @@ var (
 	framepointer_enabled     int = 1
 	Fieldtrack_enabled       int
 	Preemptibleloops_enabled int
-	Clobberdead_enabled      int
 )
 
 // Toolchain experiments.
@@ -108,7 +168,6 @@ var exper = []struct {
 	{"fieldtrack", &Fieldtrack_enabled},
 	{"framepointer", &framepointer_enabled},
 	{"preemptibleloops", &Preemptibleloops_enabled},
-	{"clobberdead", &Clobberdead_enabled},
 }
 
 var defaultExpstring = Expstring()

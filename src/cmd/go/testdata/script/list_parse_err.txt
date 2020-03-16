@@ -1,0 +1,17 @@
+# 'go list' should report imports, even if some files have parse errors
+# before the import block.
+go list -e -f '{{range .Imports}}{{.}} {{end}}'
+stdout '^fmt '
+
+-- go.mod --
+module m
+
+go 1.13
+
+-- a.go --
+package a
+
+import "fmt"
+
+-- b.go --
+// no package statement

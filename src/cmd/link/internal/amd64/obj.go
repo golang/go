@@ -34,14 +34,10 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
-	"fmt"
 )
 
 func Init() (*sys.Arch, ld.Arch) {
 	arch := sys.ArchAMD64
-	if objabi.GOARCH == "amd64p32" {
-		arch = sys.ArchAMD64P32
-	}
 
 	theArch := ld.Arch{
 		Funcalign:  funcAlign,
@@ -55,6 +51,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		Archreloc:        archreloc,
 		Archrelocvariant: archrelocvariant,
 		Asmb:             asmb,
+		Asmb2:            asmb2,
 		Elfreloc1:        elfreloc1,
 		Elfsetupplt:      elfsetupplt,
 		Gentext:          gentext,
@@ -84,9 +81,6 @@ func archinit(ctxt *ld.Link) {
 		if *ld.FlagTextAddr == -1 {
 			*ld.FlagTextAddr = 0x200000 + int64(ld.HEADR)
 		}
-		if *ld.FlagDataAddr == -1 {
-			*ld.FlagDataAddr = 0
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 0x200000
 		}
@@ -98,9 +92,6 @@ func archinit(ctxt *ld.Link) {
 		}
 		if *ld.FlagTextAddr == -1 {
 			*ld.FlagTextAddr = 0x1000000 + int64(ld.HEADR)
-		}
-		if *ld.FlagDataAddr == -1 {
-			*ld.FlagDataAddr = 0
 		}
 
 	case objabi.Hlinux, /* elf64 executable */
@@ -115,34 +106,12 @@ func archinit(ctxt *ld.Link) {
 		if *ld.FlagTextAddr == -1 {
 			*ld.FlagTextAddr = (1 << 22) + int64(ld.HEADR)
 		}
-		if *ld.FlagDataAddr == -1 {
-			*ld.FlagDataAddr = 0
-		}
 		if *ld.FlagRound == -1 {
 			*ld.FlagRound = 4096
 		}
 
-	case objabi.Hnacl:
-		ld.Elfinit(ctxt)
-		*ld.FlagW = true // disable dwarf, which gets confused and is useless anyway
-		ld.HEADR = 0x10000
-		ld.Funcalign = 32
-		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = 0x20000
-		}
-		if *ld.FlagDataAddr == -1 {
-			*ld.FlagDataAddr = 0
-		}
-		if *ld.FlagRound == -1 {
-			*ld.FlagRound = 0x10000
-		}
-
 	case objabi.Hwindows: /* PE executable */
-		// ld.HEADR, ld.FlagTextAddr, ld.FlagDataAddr and ld.FlagRound are set in ld.Peinit
+		// ld.HEADR, ld.FlagTextAddr, ld.FlagRound are set in ld.Peinit
 		return
-	}
-
-	if *ld.FlagDataAddr != 0 && *ld.FlagRound != 0 {
-		fmt.Printf("warning: -D0x%x is ignored because of -R0x%x\n", uint64(*ld.FlagDataAddr), uint32(*ld.FlagRound))
 	}
 }

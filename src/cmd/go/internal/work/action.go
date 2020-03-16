@@ -16,8 +16,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cache"
@@ -36,7 +38,10 @@ type Builder struct {
 	flagCache   map[[2]string]bool   // a cache of supported compiler flags
 	Print       func(args ...interface{}) (int, error)
 
-	ComputeStaleOnly bool // compute staleness for go list; no actual build
+	IsCmdList           bool // running as part of go list; set p.Stale and additional fields below
+	NeedError           bool // list needs p.Error
+	NeedExport          bool // list needs p.Export
+	NeedCompiledGoFiles bool // list needs p.CompiledGoFiles
 
 	objdirSeq int // counter for NewObjdir
 	pkgSeq    int
@@ -79,14 +84,17 @@ type Action struct {
 	actionID cache.ActionID // cache ID of action input
 	buildID  string         // build ID of action output
 
-	needVet bool       // Mode=="build": need to fill in vet config
-	vetCfg  *vetConfig // vet config
-	output  []byte     // output redirect buffer (nil means use b.Print)
+	VetxOnly  bool       // Mode=="vet": only being called to supply info about dependencies
+	needVet   bool       // Mode=="build": need to fill in vet config
+	needBuild bool       // Mode=="build": need to do actual build (can be false if needVet is true)
+	vetCfg    *vetConfig // vet config
+	output    []byte     // output redirect buffer (nil means use b.Print)
 
 	// Execution state.
-	pending  int  // number of deps yet to complete
-	priority int  // relative execution priority
-	Failed   bool // whether the action failed
+	pending  int         // number of deps yet to complete
+	priority int         // relative execution priority
+	Failed   bool        // whether the action failed
+	json     *actionJSON // action graph information
 }
 
 // BuildActionID returns the action ID section of a's build ID.
@@ -118,6 +126,9 @@ func (q *actionQueue) Pop() interface{} {
 }
 
 func (q *actionQueue) push(a *Action) {
+	if a.json != nil {
+		a.json.TimeReady = time.Now()
+	}
 	heap.Push(q, a)
 }
 
@@ -129,15 +140,28 @@ type actionJSON struct {
 	ID         int
 	Mode       string
 	Package    string
-	Deps       []int    `json:",omitempty"`
-	IgnoreFail bool     `json:",omitempty"`
-	Args       []string `json:",omitempty"`
-	Link       bool     `json:",omitempty"`
-	Objdir     string   `json:",omitempty"`
-	Target     string   `json:",omitempty"`
-	Priority   int      `json:",omitempty"`
-	Failed     bool     `json:",omitempty"`
-	Built      string   `json:",omitempty"`
+	Deps       []int     `json:",omitempty"`
+	IgnoreFail bool      `json:",omitempty"`
+	Args       []string  `json:",omitempty"`
+	Link       bool      `json:",omitempty"`
+	Objdir     string    `json:",omitempty"`
+	Target     string    `json:",omitempty"`
+	Priority   int       `json:",omitempty"`
+	Failed     bool      `json:",omitempty"`
+	Built      string    `json:",omitempty"`
+	VetxOnly   bool      `json:",omitempty"`
+	NeedVet    bool      `json:",omitempty"`
+	NeedBuild  bool      `json:",omitempty"`
+	ActionID   string    `json:",omitempty"`
+	BuildID    string    `json:",omitempty"`
+	TimeReady  time.Time `json:",omitempty"`
+	TimeStart  time.Time `json:",omitempty"`
+	TimeDone   time.Time `json:",omitempty"`
+
+	Cmd     []string      // `json:",omitempty"`
+	CmdReal time.Duration `json:",omitempty"`
+	CmdUser time.Duration `json:",omitempty"`
+	CmdSys  time.Duration `json:",omitempty"`
 }
 
 // cacheKey is the key for the action cache.
@@ -167,25 +191,30 @@ func actionGraphJSON(a *Action) string {
 
 	var list []*actionJSON
 	for id, a := range workq {
-		aj := &actionJSON{
-			Mode:       a.Mode,
-			ID:         id,
-			IgnoreFail: a.IgnoreFail,
-			Args:       a.Args,
-			Objdir:     a.Objdir,
-			Target:     a.Target,
-			Failed:     a.Failed,
-			Priority:   a.priority,
-			Built:      a.built,
+		if a.json == nil {
+			a.json = &actionJSON{
+				Mode:       a.Mode,
+				ID:         id,
+				IgnoreFail: a.IgnoreFail,
+				Args:       a.Args,
+				Objdir:     a.Objdir,
+				Target:     a.Target,
+				Failed:     a.Failed,
+				Priority:   a.priority,
+				Built:      a.built,
+				VetxOnly:   a.VetxOnly,
+				NeedBuild:  a.needBuild,
+				NeedVet:    a.needVet,
+			}
+			if a.Package != nil {
+				// TODO(rsc): Make this a unique key for a.Package somehow.
+				a.json.Package = a.Package.ImportPath
+			}
+			for _, a1 := range a.Deps {
+				a.json.Deps = append(a.json.Deps, inWorkq[a1])
+			}
 		}
-		if a.Package != nil {
-			// TODO(rsc): Make this a unique key for a.Package somehow.
-			aj.Package = a.Package.ImportPath
-		}
-		for _, a1 := range a.Deps {
-			aj.Deps = append(aj.Deps, inWorkq[a1])
-		}
-		list = append(list, aj)
+		list = append(list, a.json)
 	}
 
 	js, err := json.MarshalIndent(list, "", "\t")
@@ -204,10 +233,11 @@ const (
 	ModeBuild BuildMode = iota
 	ModeInstall
 	ModeBuggyInstall
+
+	ModeVetOnly = 1 << 8
 )
 
 func (b *Builder) Init() {
-	var err error
 	b.Print = func(a ...interface{}) (int, error) {
 		return fmt.Fprint(os.Stderr, a...)
 	}
@@ -219,29 +249,67 @@ func (b *Builder) Init() {
 	if cfg.BuildN {
 		b.WorkDir = "$WORK"
 	} else {
-		b.WorkDir, err = ioutil.TempDir(os.Getenv("GOTMPDIR"), "go-build")
+		tmp, err := ioutil.TempDir(cfg.Getenv("GOTMPDIR"), "go-build")
 		if err != nil {
-			base.Fatalf("%s", err)
+			base.Fatalf("go: creating work dir: %v", err)
 		}
+		if !filepath.IsAbs(tmp) {
+			abs, err := filepath.Abs(tmp)
+			if err != nil {
+				os.RemoveAll(tmp)
+				base.Fatalf("go: creating work dir: %v", err)
+			}
+			tmp = abs
+		}
+		b.WorkDir = tmp
 		if cfg.BuildX || cfg.BuildWork {
 			fmt.Fprintf(os.Stderr, "WORK=%s\n", b.WorkDir)
 		}
 		if !cfg.BuildWork {
 			workdir := b.WorkDir
-			base.AtExit(func() { os.RemoveAll(workdir) })
+			base.AtExit(func() {
+				start := time.Now()
+				for {
+					err := os.RemoveAll(workdir)
+					if err == nil {
+						return
+					}
+
+					// On some configurations of Windows, directories containing executable
+					// files may be locked for a while after the executable exits (perhaps
+					// due to antivirus scans?). It's probably worth a little extra latency
+					// on exit to avoid filling up the user's temporary directory with leaked
+					// files. (See golang.org/issue/30789.)
+					if runtime.GOOS != "windows" || time.Since(start) >= 500*time.Millisecond {
+						fmt.Fprintf(os.Stderr, "go: failed to remove work dir: %s\n", err)
+						return
+					}
+					time.Sleep(5 * time.Millisecond)
+				}
+			})
 		}
 	}
 
-	if _, ok := cfg.OSArchSupportsCgo[cfg.Goos+"/"+cfg.Goarch]; !ok && cfg.BuildContext.Compiler == "gc" {
-		fmt.Fprintf(os.Stderr, "cmd/go: unsupported GOOS/GOARCH pair %s/%s\n", cfg.Goos, cfg.Goarch)
-		os.Exit(2)
+	if err := CheckGOOSARCHPair(cfg.Goos, cfg.Goarch); err != nil {
+		fmt.Fprintf(os.Stderr, "cmd/go: %v\n", err)
+		base.SetExitStatus(2)
+		base.Exit()
 	}
+
 	for _, tag := range cfg.BuildContext.BuildTags {
 		if strings.Contains(tag, ",") {
 			fmt.Fprintf(os.Stderr, "cmd/go: -tags space-separated list contains comma\n")
-			os.Exit(2)
+			base.SetExitStatus(2)
+			base.Exit()
 		}
 	}
+}
+
+func CheckGOOSARCHPair(goos, goarch string) error {
+	if _, ok := cfg.OSArchSupportsCgo[goos+"/"+goarch]; !ok && cfg.BuildContext.Compiler == "gc" {
+		return fmt.Errorf("unsupported GOOS/GOARCH pair %s/%s", goos, goarch)
+	}
+	return nil
 }
 
 // NewObjdir returns the name of a fresh object directory under b.WorkDir.
@@ -273,7 +341,7 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
 			if strings.HasPrefix(t, "pkgpath ") {
 				t = strings.TrimPrefix(t, "pkgpath ")
 				t = strings.TrimSuffix(t, ";")
-				pkgs = append(pkgs, load.LoadPackage(t, &stk))
+				pkgs = append(pkgs, load.LoadImportWithFlags(t, base.Cwd, nil, &stk, nil, 0))
 			}
 		}
 	} else {
@@ -284,7 +352,7 @@ func readpkglist(shlibpath string) (pkgs []*load.Package) {
 		scanner := bufio.NewScanner(bytes.NewBuffer(pkglistbytes))
 		for scanner.Scan() {
 			t := scanner.Text()
-			pkgs = append(pkgs, load.LoadPackage(t, &stk))
+			pkgs = append(pkgs, load.LoadImportWithFlags(t, base.Cwd, nil, &stk, nil, 0))
 		}
 	}
 	return
@@ -317,8 +385,11 @@ func (b *Builder) AutoAction(mode, depMode BuildMode, p *load.Package) *Action {
 // depMode is the action (build or install) to use when building dependencies.
 // To turn package main into an executable, call b.Link instead.
 func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Action {
-	if mode != ModeBuild && p.Internal.Local && p.Target == "" {
-		// Imported via local path. No permanent target.
+	vetOnly := mode&ModeVetOnly != 0
+	mode &^= ModeVetOnly
+
+	if mode != ModeBuild && (p.Internal.Local || p.Module != nil) && p.Target == "" {
+		// Imported via local path or using modules. No permanent target.
 		mode = ModeBuild
 	}
 	if mode != ModeBuild && p.Name == "main" {
@@ -335,8 +406,10 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 			Objdir:  b.NewObjdir(),
 		}
 
-		for _, p1 := range p.Internal.Imports {
-			a.Deps = append(a.Deps, b.CompileAction(depMode, depMode, p1))
+		if p.Error == nil || !p.Error.IsImportCycle {
+			for _, p1 := range p.Internal.Imports {
+				a.Deps = append(a.Deps, b.CompileAction(depMode, depMode, p1))
+			}
 		}
 
 		if p.Standard {
@@ -361,6 +434,19 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 		return a
 	})
 
+	// Find the build action; the cache entry may have been replaced
+	// by the install action during (*Builder).installAction.
+	buildAction := a
+	switch buildAction.Mode {
+	case "build", "built-in package", "gccgo stdlib":
+		// ok
+	case "build-install":
+		buildAction = a.Deps[0]
+	default:
+		panic("lost build action: " + buildAction.Mode)
+	}
+	buildAction.needBuild = buildAction.needBuild || !vetOnly
+
 	// Construct install action.
 	if mode == ModeInstall || mode == ModeBuggyInstall {
 		a = b.installAction(a, mode)
@@ -374,30 +460,51 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 // If the caller may be causing p to be installed, it is up to the caller
 // to make sure that the install depends on (runs after) vet.
 func (b *Builder) VetAction(mode, depMode BuildMode, p *load.Package) *Action {
+	a := b.vetAction(mode, depMode, p)
+	a.VetxOnly = false
+	return a
+}
+
+func (b *Builder) vetAction(mode, depMode BuildMode, p *load.Package) *Action {
 	// Construct vet action.
 	a := b.cacheAction("vet", p, func() *Action {
-		a1 := b.CompileAction(mode, depMode, p)
+		a1 := b.CompileAction(mode|ModeVetOnly, depMode, p)
 
 		// vet expects to be able to import "fmt".
 		var stk load.ImportStack
 		stk.Push("vet")
-		p1 := load.LoadPackage("fmt", &stk)
+		p1 := load.LoadImportWithFlags("fmt", p.Dir, p, &stk, nil, 0)
 		stk.Pop()
 		aFmt := b.CompileAction(ModeBuild, depMode, p1)
 
+		var deps []*Action
+		if a1.buggyInstall {
+			// (*Builder).vet expects deps[0] to be the package
+			// and deps[1] to be "fmt". If we see buggyInstall
+			// here then a1 is an install of a shared library,
+			// and the real package is a1.Deps[0].
+			deps = []*Action{a1.Deps[0], aFmt, a1}
+		} else {
+			deps = []*Action{a1, aFmt}
+		}
+		for _, p1 := range p.Internal.Imports {
+			deps = append(deps, b.vetAction(mode, depMode, p1))
+		}
+
 		a := &Action{
-			Mode:    "vet",
-			Package: p,
-			Deps:    []*Action{a1, aFmt},
-			Objdir:  a1.Objdir,
+			Mode:       "vet",
+			Package:    p,
+			Deps:       deps,
+			Objdir:     a1.Objdir,
+			VetxOnly:   true,
+			IgnoreFail: true, // it's OK if vet of dependencies "fails" (reports problems)
 		}
 		if a1.Func == nil {
 			// Built-in packages like unsafe.
 			return a
 		}
-		a1.needVet = true
+		deps[0].needVet = true
 		a.Func = (*Builder).vet
-
 		return a
 	})
 	return a
@@ -582,7 +689,7 @@ func (b *Builder) addInstallHeaderAction(a *Action) {
 	p := a.Package
 	if p.UsesCgo() && (cfg.BuildBuildmode == "c-archive" || cfg.BuildBuildmode == "c-shared") {
 		hdrTarget := a.Target[:len(a.Target)-len(filepath.Ext(a.Target))] + ".h"
-		if cfg.BuildContext.Compiler == "gccgo" {
+		if cfg.BuildContext.Compiler == "gccgo" && cfg.BuildO == "" {
 			// For the header file, remove the "lib"
 			// added by go/build, so we generate pkg.h
 			// rather than libpkg.h.
@@ -603,7 +710,7 @@ func (b *Builder) addInstallHeaderAction(a *Action) {
 }
 
 // buildmodeShared takes the "go build" action a1 into the building of a shared library of a1.Deps.
-// That is, the input a1 represents "go build pkgs" and the result represents "go build -buidmode=shared pkgs".
+// That is, the input a1 represents "go build pkgs" and the result represents "go build -buildmode=shared pkgs".
 func (b *Builder) buildmodeShared(mode, depMode BuildMode, args []string, pkgs []*load.Package, a1 *Action) *Action {
 	name, err := libname(args, pkgs)
 	if err != nil {
@@ -666,7 +773,7 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
 					}
 				}
 				var stk load.ImportStack
-				p := load.LoadPackage(pkg, &stk)
+				p := load.LoadImportWithFlags(pkg, base.Cwd, nil, &stk, nil, 0)
 				if p.Error != nil {
 					base.Fatalf("load %s: %v", pkg, p.Error)
 				}

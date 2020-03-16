@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // This file implements multi-precision floating-point numbers.
-// Like in the GNU MPFR library (http://www.mpfr.org/), operands
+// Like in the GNU MPFR library (https://www.mpfr.org/), operands
 // can be of mixed precision. Unlike MPFR, the rounding mode is
 // not specified with each operation, but with each operand. The
 // rounding mode of the result operand determines the rounding
@@ -43,7 +43,7 @@ const debugFloat = false // enable for debugging
 // precision of the argument with the largest precision value before any
 // rounding takes place, and the rounding mode remains unchanged. Thus,
 // uninitialized Floats provided as result arguments will have their
-// precision set to a reasonable value determined by the operands and
+// precision set to a reasonable value determined by the operands, and
 // their mode is the zero value for RoundingMode (ToNearestEven).
 //
 // By setting the desired precision to 24 or 53 and using matching rounding
@@ -56,6 +56,12 @@ const debugFloat = false // enable for debugging
 // The zero (uninitialized) value for a Float is ready to use and represents
 // the number +0.0 exactly, with precision 0 and rounding mode ToNearestEven.
 //
+// Operations always take pointer arguments (*Float) rather
+// than Float values, and each unique Float value requires
+// its own unique *Float pointer. To "copy" a Float value,
+// an existing (or newly allocated) Float must be set to
+// a new value using the Float.Set method; shallow copies
+// of Floats are not supported and may lead to errors.
 type Float struct {
 	prec uint32
 	mode RoundingMode
@@ -293,7 +299,7 @@ func (z *Float) setExpAndRound(exp int64, sbit uint) {
 	z.round(sbit)
 }
 
-// SetMantExp sets z to mant × 2**exp and and returns z.
+// SetMantExp sets z to mant × 2**exp and returns z.
 // The result z has the same precision and rounding mode
 // as mant. SetMantExp is an inverse of MantExp but does
 // not require 0.5 <= |mant| < 1.0. Specifically:
@@ -321,7 +327,7 @@ func (z *Float) SetMantExp(mant *Float, exp int) *Float {
 	return z
 }
 
-// Signbit returns true if x is negative or negative zero.
+// Signbit reports whether x is negative or negative zero.
 func (x *Float) Signbit() bool {
 	return x.neg
 }
@@ -1429,8 +1435,6 @@ func (x *Float) ucmp(y *Float) int {
 // z's accuracy reports the result error relative to the exact (not rounded)
 // result. Add panics with ErrNaN if x and y are infinities with opposite
 // signs. The value of z is undefined in that case.
-//
-// BUG(gri) When rounding ToNegativeInf, the sign of Float values rounded to 0 is incorrect.
 func (z *Float) Add(x, y *Float) *Float {
 	if debugFloat {
 		x.validate()
@@ -1465,6 +1469,9 @@ func (z *Float) Add(x, y *Float) *Float {
 				z.neg = !z.neg
 				z.usub(y, x)
 			}
+		}
+		if z.form == zero && z.mode == ToNegativeInf && z.acc == Exact {
+			z.neg = true
 		}
 		return z
 	}
@@ -1529,6 +1536,9 @@ func (z *Float) Sub(x, y *Float) *Float {
 				z.neg = !z.neg
 				z.usub(y, x)
 			}
+		}
+		if z.form == zero && z.mode == ToNegativeInf && z.acc == Exact {
+			z.neg = true
 		}
 		return z
 	}

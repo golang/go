@@ -195,7 +195,7 @@ func dumptype(t *_type) {
 		dwritebyte('.')
 		dwrite(name.str, uintptr(name.len))
 	}
-	dumpbool(t.kind&kindDirectIface == 0 || t.kind&kindNoPointers == 0)
+	dumpbool(t.kind&kindDirectIface == 0 || t.ptrdata != 0)
 }
 
 // dump an object
@@ -233,9 +233,8 @@ type childInfo struct {
 
 // dump kinds & offsets of interesting fields in bv
 func dumpbv(cbv *bitvector, offset uintptr) {
-	bv := gobv(*cbv)
-	for i := uintptr(0); i < bv.n; i++ {
-		if bv.bytedata[i/8]>>(i%8)&1 == 1 {
+	for i := uintptr(0); i < uintptr(cbv.n); i++ {
+		if cbv.ptrbit(i) == 1 {
 			dumpint(fieldKindPtr)
 			dumpint(uint64(offset + i*sys.PtrSize))
 		}
@@ -248,10 +247,11 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
 
 	// Figure out what we can about our stack map
 	pc := s.pc
+	pcdata := int32(-1) // Use the entry map at function entry
 	if pc != f.entry {
 		pc--
+		pcdata = pcdatavalue(f, _PCDATA_StackMapIndex, pc, nil)
 	}
-	pcdata := pcdatavalue(f, _PCDATA_StackMapIndex, pc, nil)
 	if pcdata == -1 {
 		// We do not have a valid pcdata value but there might be a
 		// stackmap for this function. It is likely that we are looking
@@ -346,10 +346,10 @@ func dumpgoroutine(gp *g) {
 	dumpint(uint64(gp.goid))
 	dumpint(uint64(gp.gopc))
 	dumpint(uint64(readgstatus(gp)))
-	dumpbool(isSystemGoroutine(gp))
+	dumpbool(isSystemGoroutine(gp, false))
 	dumpbool(false) // isbackground
 	dumpint(uint64(gp.waitsince))
-	dumpstr(gp.waitreason)
+	dumpstr(gp.waitreason.String())
 	dumpint(uint64(uintptr(gp.sched.ctxt)))
 	dumpint(uint64(uintptr(unsafe.Pointer(gp.m))))
 	dumpint(uint64(uintptr(unsafe.Pointer(gp._defer))))
@@ -371,7 +371,12 @@ func dumpgoroutine(gp *g) {
 		dumpint(uint64(d.sp))
 		dumpint(uint64(d.pc))
 		dumpint(uint64(uintptr(unsafe.Pointer(d.fn))))
-		dumpint(uint64(uintptr(unsafe.Pointer(d.fn.fn))))
+		if d.fn == nil {
+			// d.fn can be nil for open-coded defers
+			dumpint(uint64(0))
+		} else {
+			dumpint(uint64(uintptr(unsafe.Pointer(d.fn.fn))))
+		}
 		dumpint(uint64(uintptr(unsafe.Pointer(d.link))))
 	}
 	for p := gp._panic; p != nil; p = p.link {
@@ -428,9 +433,9 @@ func dumproots() {
 	dumpmemrange(unsafe.Pointer(firstmoduledata.bss), firstmoduledata.ebss-firstmoduledata.bss)
 	dumpfields(firstmoduledata.gcbssmask)
 
-	// MSpan.types
+	// mspan.types
 	for _, s := range mheap_.allspans {
-		if s.state == _MSpanInUse {
+		if s.state.get() == mSpanInUse {
 			// Finalizers
 			for sp := s.specials; sp != nil; sp = sp.next {
 				if sp.kind != _KindSpecialFinalizer {
@@ -453,7 +458,7 @@ var freemark [_PageSize / 8]bool
 
 func dumpobjs() {
 	for _, s := range mheap_.allspans {
-		if s.state != _MSpanInUse {
+		if s.state.get() != mSpanInUse {
 			continue
 		}
 		p := s.base()
@@ -489,12 +494,21 @@ func dumpparams() {
 	}
 	dumpint(sys.PtrSize)
 	var arenaStart, arenaEnd uintptr
-	for i, ha := range mheap_.arenas {
-		if ha != nil {
-			if arenaStart == 0 {
-				arenaStart = uintptr(i) * heapArenaBytes
+	for i1 := range mheap_.arenas {
+		if mheap_.arenas[i1] == nil {
+			continue
+		}
+		for i, ha := range mheap_.arenas[i1] {
+			if ha == nil {
+				continue
 			}
-			arenaEnd = uintptr(i+1) * heapArenaBytes
+			base := arenaBase(arenaIdx(i1)<<arenaL1Shift | arenaIdx(i))
+			if arenaStart == 0 || base < arenaStart {
+				arenaStart = base
+			}
+			if base+heapArenaBytes > arenaEnd {
+				arenaEnd = base + heapArenaBytes
+			}
 		}
 	}
 	dumpint(uint64(arenaStart))
@@ -607,7 +621,7 @@ func dumpmemprof_callback(b *bucket, nstk uintptr, pstk *uintptr, size, allocs, 
 func dumpmemprof() {
 	iterate_memprof(dumpmemprof_callback)
 	for _, s := range mheap_.allspans {
-		if s.state != _MSpanInUse {
+		if s.state.get() != mSpanInUse {
 			continue
 		}
 		for sp := s.specials; sp != nil; sp = sp.next {
@@ -628,7 +642,7 @@ var dumphdr = []byte("go1.7 heap dump\n")
 func mdump() {
 	// make sure we're done sweeping
 	for _, s := range mheap_.allspans {
-		if s.state == _MSpanInUse {
+		if s.state.get() == mSpanInUse {
 			s.ensureSwept()
 		}
 	}
@@ -649,10 +663,10 @@ func mdump() {
 func writeheapdump_m(fd uintptr) {
 	_g_ := getg()
 	casgstatus(_g_.m.curg, _Grunning, _Gwaiting)
-	_g_.waitreason = "dumping heap"
+	_g_.waitreason = waitReasonDumpingHeap
 
 	// Update stats so we can dump them.
-	// As a side effect, flushes all the MCaches so the MSpan.freelist
+	// As a side effect, flushes all the mcaches so the mspan.freelist
 	// lists contain all the free objects.
 	updatememstats()
 

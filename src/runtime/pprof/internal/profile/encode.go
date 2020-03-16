@@ -197,6 +197,10 @@ var profileDecoder = []decoder{
 	},
 	// repeated int64 period = 12
 	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Profile).Period) },
+	// repeated int64 comment = 13
+	func(b *buffer, m message) error { return decodeInt64s(b, &m.(*Profile).commentX) },
+	// int64 defaultSampleType = 14
+	func(b *buffer, m message) error { return decodeInt64(b, &m.(*Profile).defaultSampleTypeX) },
 }
 
 // postDecode takes the unexported fields populated by decode (with
@@ -278,6 +282,14 @@ func (p *Profile) postDecode() error {
 		pt.Type, err = getString(p.stringTable, &pt.typeX, err)
 		pt.Unit, err = getString(p.stringTable, &pt.unitX, err)
 	}
+	for _, i := range p.commentX {
+		var c string
+		c, err = getString(p.stringTable, &i, err)
+		p.Comments = append(p.Comments, c)
+	}
+
+	p.commentX = nil
+	p.DefaultSampleType, err = getString(p.stringTable, &p.defaultSampleTypeX, err)
 	p.stringTable = nil
 	return nil
 }

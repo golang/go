@@ -1,0 +1,87 @@
+[gccgo] skip 'gccgo has no standard packages'
+[short] skip
+
+[!windows] env NONEXE='.exe'
+[windows] env NONEXE=''
+
+env GOBIN=$WORK/tmp/bin
+go install isarchive &
+
+go build x.go
+exists -exec x$GOEXE
+rm x$GOEXE
+! exists x$NONEXE
+
+go build -o myprog x.go
+! exists x
+! exists x.exe
+exists -exec myprog
+! exists myprogr.exe
+
+go build p.go
+! exists p
+! exists p.a
+! exists p.o
+! exists p.exe
+
+wait # for isarchive
+
+go build -o p.a p.go
+exists p.a
+exec $GOBIN/isarchive p.a
+
+go build cmd/gofmt
+exists -exec gofmt$GOEXE
+rm gofmt$GOEXE
+! exists gofmt$NONEXE
+
+go build -o mygofmt cmd/gofmt
+exists -exec mygofmt
+! exists mygofmt.exe
+! exists gofmt
+! exists gofmt.exe
+
+go build sync/atomic
+! exists atomic
+! exists atomic.exe
+
+go build -o myatomic.a sync/atomic
+exists myatomic.a
+exec $GOBIN/isarchive myatomic.a
+! exists atomic
+! exists atomic.a
+! exists atomic.exe
+
+! go build -o whatever cmd/gofmt sync/atomic
+stderr 'multiple packages'
+
+-- x.go --
+package main
+
+func main() {}
+-- p.go --
+package p
+-- isarchive/isarchive.go --
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"os"
+)
+
+func main() {
+	f, err := os.Open(os.Args[1])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	buf := make([]byte, 100)
+	io.ReadFull(f, buf)
+	f.Close()
+	if !bytes.HasPrefix(buf, []byte("!<arch>\n")) {
+		fmt.Fprintf(os.Stderr, "file %s exists but is not an archive\n", os.Args[1])
+		os.Exit(1)
+	}
+}

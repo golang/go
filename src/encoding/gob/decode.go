@@ -1070,14 +1070,14 @@ func (dec *Decoder) compileSingle(remoteId typeId, ut *userTypeInfo) (engine *de
 }
 
 // compileIgnoreSingle compiles the decoder engine for a non-struct top-level value that will be discarded.
-func (dec *Decoder) compileIgnoreSingle(remoteId typeId) (engine *decEngine, err error) {
-	engine = new(decEngine)
+func (dec *Decoder) compileIgnoreSingle(remoteId typeId) *decEngine {
+	engine := new(decEngine)
 	engine.instr = make([]decInstr, 1) // one item
 	op := dec.decIgnoreOpFor(remoteId, make(map[typeId]*decOp))
 	ovfl := overflow(dec.typeString(remoteId))
 	engine.instr[0] = decInstr{*op, 0, nil, ovfl}
 	engine.numInstr = 1
-	return
+	return engine
 }
 
 // compileDec compiles the decoder engine for a value. If the value is not a struct,
@@ -1168,7 +1168,7 @@ func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, er
 		if wire != nil && wire.StructT != nil {
 			*enginePtr, err = dec.compileDec(wireId, userType(emptyStructType))
 		} else {
-			*enginePtr, err = dec.compileIgnoreSingle(wireId)
+			*enginePtr = dec.compileIgnoreSingle(wireId)
 		}
 		if err != nil {
 			delete(dec.ignorerCache, wireId)

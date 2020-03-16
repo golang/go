@@ -19,9 +19,6 @@ TEXT ·Syscall(SB),NOSPLIT,$0-56
 	MOVQ	a1+8(FP), DI
 	MOVQ	a2+16(FP), SI
 	MOVQ	a3+24(FP), DX
-	MOVQ	$0, R10
-	MOVQ	$0, R8
-	MOVQ	$0, R9
 	MOVQ	trap+0(FP), AX	// syscall entry
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
@@ -70,9 +67,6 @@ TEXT ·RawSyscall(SB),NOSPLIT,$0-56
 	MOVQ	a1+8(FP), DI
 	MOVQ	a2+16(FP), SI
 	MOVQ	a3+24(FP), DX
-	MOVQ	$0, R10
-	MOVQ	$0, R8
-	MOVQ	$0, R9
 	MOVQ	trap+0(FP), AX	// syscall entry
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
@@ -139,9 +133,6 @@ TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48
 	MOVQ	a1+8(FP), DI
 	MOVQ	a2+16(FP), SI
 	MOVQ	a3+24(FP), DX
-	MOVQ	$0, R10
-	MOVQ	$0, R8
-	MOVQ	$0, R9
 	MOVQ	trap+0(FP), AX	// syscall entry
 	SYSCALL
 	MOVQ	AX, r1+32(FP)
@@ -152,7 +143,7 @@ TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48
 TEXT ·gettimeofday(SB),NOSPLIT,$0-16
 	MOVQ	tv+0(FP), DI
 	MOVQ	$0, SI
-	MOVQ	runtime·__vdso_gettimeofday_sym(SB), AX
+	MOVQ	runtime·vdsoGettimeofdaySym(SB), AX
 	CALL	AX
 
 	CMPQ	AX, $0xfffffffffffff001

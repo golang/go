@@ -27,6 +27,7 @@ import (
 
 type treeNode struct {
 	Name      string      `json:"n"`
+	FullName  string      `json:"f"`
 	Cum       int64       `json:"v"`
 	CumFormat string      `json:"l"`
 	Percent   string      `json:"p"`
@@ -52,8 +53,10 @@ func (ui *webInterface) flamegraph(w http.ResponseWriter, req *http.Request) {
 	// Make all nodes and the map, collect the roots.
 	for _, n := range g.Nodes {
 		v := n.CumValue()
+		fullName := n.Info.PrintableName()
 		node := &treeNode{
-			Name:      n.Info.PrintableName(),
+			Name:      graph.ShortenFunctionName(fullName),
+			FullName:  fullName,
 			Cum:       v,
 			CumFormat: config.FormatValue(v),
 			Percent:   strings.TrimSpace(measurement.Percentage(v, config.Total)),
@@ -78,6 +81,7 @@ func (ui *webInterface) flamegraph(w http.ResponseWriter, req *http.Request) {
 
 	rootNode := &treeNode{
 		Name:      "root",
+		FullName:  "root",
 		Cum:       rootValue,
 		CumFormat: config.FormatValue(rootValue),
 		Percent:   strings.TrimSpace(measurement.Percentage(rootValue, config.Total)),
@@ -92,7 +96,7 @@ func (ui *webInterface) flamegraph(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	ui.render(w, "/flamegraph", "flamegraph", rpt, errList, config.Labels, webArgs{
+	ui.render(w, "flamegraph", rpt, errList, config.Labels, webArgs{
 		FlameGraph: template.JS(b),
 		Nodes:      nodeArr,
 	})

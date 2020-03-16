@@ -128,8 +128,15 @@ func (c *converter) Write(b []byte) (int, error) {
 }
 
 var (
+	// printed by test on successful run.
 	bigPass = []byte("PASS\n")
+
+	// printed by test after a normal test failure.
 	bigFail = []byte("FAIL\n")
+
+	// printed by 'go test' along with an error if the test binary terminates
+	// with an error.
+	bigFailErrorPrefix = []byte("FAIL\t")
 
 	updates = [][]byte{
 		[]byte("=== RUN   "),
@@ -155,7 +162,7 @@ var (
 // before or after emitting other events.
 func (c *converter) handleInputLine(line []byte) {
 	// Final PASS or FAIL.
-	if bytes.Equal(line, bigPass) || bytes.Equal(line, bigFail) {
+	if bytes.Equal(line, bigPass) || bytes.Equal(line, bigFail) || bytes.HasPrefix(line, bigFailErrorPrefix) {
 		c.flushReport(0)
 		c.output.write(line)
 		if bytes.Equal(line, bigPass) {
@@ -175,6 +182,7 @@ func (c *converter) handleInputLine(line []byte) {
 	// "=== RUN   "
 	// "=== PAUSE "
 	// "=== CONT  "
+	actionColon := false
 	origLine := line
 	ok := false
 	indent := 0
@@ -196,6 +204,7 @@ func (c *converter) handleInputLine(line []byte) {
 		}
 		for _, magic := range reports {
 			if bytes.HasPrefix(line, magic) {
+				actionColon = true
 				ok = true
 				break
 			}
@@ -209,7 +218,10 @@ func (c *converter) handleInputLine(line []byte) {
 	}
 
 	// Parse out action and test name.
-	i := bytes.IndexByte(line, ':') + 1
+	i := 0
+	if actionColon {
+		i = bytes.IndexByte(line, ':') + 1
+	}
 	if i == 0 {
 		i = len(updates[0])
 	}
@@ -279,7 +291,7 @@ func (c *converter) flushReport(depth int) {
 func (c *converter) Close() error {
 	c.input.flush()
 	c.output.flush()
-	e := &event{Action: "fail"}
+	e := &event{Action: "pass"}
 	if c.result != "" {
 		e.Action = c.result
 	}

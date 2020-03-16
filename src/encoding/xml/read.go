@@ -92,6 +92,11 @@ import (
 //
 //   * A struct field with tag "-" is never unmarshaled into.
 //
+// If Unmarshal encounters a field type that implements the Unmarshaler
+// interface, Unmarshal calls its UnmarshalXML method to produce the value from
+// the XML element.  Otherwise, if the value implements
+// encoding.TextUnmarshaler, Unmarshal calls that value's UnmarshalText method.
+//
 // Unmarshal maps an XML element to a string or []byte by saving the
 // concatenation of that element's character data in the string or
 // []byte. The saved []byte is never nil.
@@ -486,7 +491,7 @@ func (d *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
 					saveAny = finfo.value(sv)
 				}
 
-			case fInnerXml:
+			case fInnerXML:
 				if !saveXML.IsValid() {
 					saveXML = finfo.value(sv)
 					if d.saved == nil {

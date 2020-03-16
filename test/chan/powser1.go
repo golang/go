@@ -11,7 +11,7 @@
 // coefficients.  A denominator of zero signifies the end.
 // Original code in Newsqueak by Doug McIlroy.
 // See Squinting at Power Series by Doug McIlroy,
-//   http://www.cs.bell-labs.com/who/rsc/thread/squint.pdf
+//   https://swtch.com/~rsc/thread/squint.pdf
 
 package main
 

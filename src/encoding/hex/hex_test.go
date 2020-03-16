@@ -204,6 +204,19 @@ func TestDumper_doubleclose(t *testing.T) {
 	}
 }
 
+func TestDumper_earlyclose(t *testing.T) {
+	var out bytes.Buffer
+	dumper := Dumper(&out)
+
+	dumper.Close()
+	dumper.Write([]byte(`gopher`))
+
+	expected := ""
+	if out.String() != expected {
+		t.Fatalf("got:\n%#v\nwant:\n%#v", out.String(), expected)
+	}
+}
+
 func TestDump(t *testing.T) {
 	var in [40]byte
 	for i := range in {
@@ -229,8 +242,36 @@ func BenchmarkEncode(b *testing.B) {
 		sink = make([]byte, 2*size)
 
 		b.Run(fmt.Sprintf("%v", size), func(b *testing.B) {
+			b.SetBytes(int64(size))
 			for i := 0; i < b.N; i++ {
 				Encode(sink, src)
+			}
+		})
+	}
+}
+
+func BenchmarkDecode(b *testing.B) {
+	for _, size := range []int{256, 1024, 4096, 16384} {
+		src := bytes.Repeat([]byte{'2', 'b', '7', '4', '4', 'f', 'a', 'a'}, size/8)
+		sink = make([]byte, size/2)
+
+		b.Run(fmt.Sprintf("%v", size), func(b *testing.B) {
+			b.SetBytes(int64(size))
+			for i := 0; i < b.N; i++ {
+				Decode(sink, src)
+			}
+		})
+	}
+}
+
+func BenchmarkDump(b *testing.B) {
+	for _, size := range []int{256, 1024, 4096, 16384} {
+		src := bytes.Repeat([]byte{2, 3, 5, 7, 9, 11, 13, 17}, size/8)
+
+		b.Run(fmt.Sprintf("%v", size), func(b *testing.B) {
+			b.SetBytes(int64(size))
+			for i := 0; i < b.N; i++ {
+				Dump(src)
 			}
 		})
 	}

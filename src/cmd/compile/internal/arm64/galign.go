@@ -17,8 +17,8 @@ func Init(arch *gc.Arch) {
 
 	arch.PadFrame = padframe
 	arch.ZeroRange = zerorange
-	arch.ZeroAuto = zeroAuto
 	arch.Ginsnop = ginsnop
+	arch.Ginsnopdefer = ginsnop
 
 	arch.SSAMarkMoves = func(s *gc.SSAGenState, b *ssa.Block) {}
 	arch.SSAGenValue = ssaGenValue

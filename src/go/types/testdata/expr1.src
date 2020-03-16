@@ -35,8 +35,8 @@ func _(x, y int, z myint) {
 	x = x * y
 	x = x / y
 	x = x % y
-	x = x << y // ERROR must be unsigned integer
-	x = x >> y // ERROR must be unsigned integer
+	x = x << y
+	x = x >> y
 
 	z = z + 1
 	z = z + 1.0
@@ -46,8 +46,8 @@ func _(x, y int, z myint) {
 	z = z /* ERROR mismatched types */ * y
 	z = z /* ERROR mismatched types */ / y
 	z = z /* ERROR mismatched types */ % y
-	z = z << y // ERROR must be unsigned integer
-	z = z >> y // ERROR must be unsigned integer
+	z = z << y
+	z = z >> y
 }
 
 type myuint uint

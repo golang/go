@@ -1,0 +1,50 @@
+env GO111MODULE=off
+
+# go help shows overview.
+go help
+stdout 'Go is a tool'
+stdout 'bug.*start a bug report'
+
+# go help bug shows usage for bug
+go help bug
+stdout 'usage: go bug'
+stdout 'bug report'
+
+# go bug help is an error (bug takes no arguments)
+! go bug help
+stderr 'bug takes no arguments'
+
+# go help mod shows mod subcommands
+go help mod
+stdout 'go mod <command>'
+stdout tidy
+
+# go help mod tidy explains tidy
+go help mod tidy
+stdout 'usage: go mod tidy'
+
+# go mod help tidy does too
+go mod help tidy
+stdout 'usage: go mod tidy'
+
+# go mod --help doesn't print help but at least suggests it.
+! go mod --help
+stderr 'Run ''go help mod'' for usage.'
+
+# Earlier versions of Go printed the same as 'go -h' here.
+# Also make sure we print the short help line.
+! go vet -h
+stderr 'usage: go vet'
+stderr 'Run ''go help vet'' for details'
+stderr 'Run ''go tool vet -help'' for the vet tool''s flags'
+
+# Earlier versions of Go printed a large document here, instead of these two
+# lines.
+! go test -h
+stderr 'usage: go test'
+stderr 'Run ''go help test'' and ''go help testflag'' for details.'
+
+# go help get shows usage for get
+go help get
+stdout 'usage: go get'
+stdout 'get when using GOPATH'

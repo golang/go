@@ -1,0 +1,14 @@
+cd $GOPATH
+go run hello
+stderr 'hello, world'
+
+cd src/hello
+go run .
+stderr 'hello, world'
+
+-- hello/hello.go --
+package main
+
+func main() {
+	println("hello, world")
+}

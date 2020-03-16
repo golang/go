@@ -24,6 +24,11 @@ import (
 //   []byte
 //   string
 //   time.Time
+//
+// If the driver supports cursors, a returned Value may also implement the Rows interface
+// in this package. This is used, for example, when a user selects a cursor
+// such as "select cursor(select * from my_table) from dual". If the Rows
+// from the select is closed, the cursor Rows will also be closed.
 type Value interface{}
 
 // NamedValue holds both the value name and value.
@@ -132,7 +137,7 @@ type Pinger interface {
 
 // Execer is an optional interface that may be implemented by a Conn.
 //
-// If a Conn implements neither ExecerContext nor Execer Execer,
+// If a Conn implements neither ExecerContext nor Execer,
 // the sql package's DB.Exec will first prepare a query, execute the statement,
 // and then close the statement.
 //
@@ -469,7 +474,7 @@ type RowsAffected int64
 var _ Result = RowsAffected(0)
 
 func (RowsAffected) LastInsertId() (int64, error) {
-	return 0, errors.New("no LastInsertId available")
+	return 0, errors.New("LastInsertId is not supported by this driver")
 }
 
 func (v RowsAffected) RowsAffected() (int64, error) {

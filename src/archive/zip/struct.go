@@ -81,8 +81,17 @@ const (
 // See the zip spec for details.
 type FileHeader struct {
 	// Name is the name of the file.
-	// It must be a relative path, not start with a drive letter (e.g. C:),
-	// and must use forward slashes instead of back slashes.
+	//
+	// It must be a relative path, not start with a drive letter (such as "C:"),
+	// and must use forward slashes instead of back slashes. A trailing slash
+	// indicates that this file is a directory and should have no data.
+	//
+	// When reading zip files, the Name field is populated from
+	// the zip file directly and is not validated for correctness.
+	// It is the caller's responsibility to sanitize it as
+	// appropriate, including canonicalizing slash directions,
+	// validating that paths are relative, and preventing path
+	// traversal through filenames ("../../../").
 	Name string
 
 	// Comment is any arbitrary user-defined string shorter than 64KiB.
@@ -145,10 +154,15 @@ func (fi headerFileInfo) Size() int64 {
 	}
 	return int64(fi.fh.UncompressedSize)
 }
-func (fi headerFileInfo) IsDir() bool        { return fi.Mode().IsDir() }
-func (fi headerFileInfo) ModTime() time.Time { return fi.fh.ModTime() }
-func (fi headerFileInfo) Mode() os.FileMode  { return fi.fh.Mode() }
-func (fi headerFileInfo) Sys() interface{}   { return fi.fh }
+func (fi headerFileInfo) IsDir() bool { return fi.Mode().IsDir() }
+func (fi headerFileInfo) ModTime() time.Time {
+	if fi.fh.Modified.IsZero() {
+		return fi.fh.ModTime()
+	}
+	return fi.fh.Modified.UTC()
+}
+func (fi headerFileInfo) Mode() os.FileMode { return fi.fh.Mode() }
+func (fi headerFileInfo) Sys() interface{}  { return fi.fh }
 
 // FileInfoHeader creates a partially-populated FileHeader from an
 // os.FileInfo.
@@ -201,7 +215,7 @@ func timeZone(offset time.Duration) *time.Location {
 
 // msDosTimeToTime converts an MS-DOS date and time into a time.Time.
 // The resolution is 2s.
-// See: http://msdn.microsoft.com/en-us/library/ms724247(v=VS.85).aspx
+// See: https://msdn.microsoft.com/en-us/library/ms724247(v=VS.85).aspx
 func msDosTimeToTime(dosDate, dosTime uint16) time.Time {
 	return time.Date(
 		// date bits 0-4: day of month; 5-8: month; 9-15: years since 1980
@@ -221,7 +235,7 @@ func msDosTimeToTime(dosDate, dosTime uint16) time.Time {
 
 // timeToMsDosTime converts a time.Time to an MS-DOS date and time.
 // The resolution is 2s.
-// See: http://msdn.microsoft.com/en-us/library/ms724274(v=VS.85).aspx
+// See: https://msdn.microsoft.com/en-us/library/ms724274(v=VS.85).aspx
 func timeToMsDosTime(t time.Time) (fDate uint16, fTime uint16) {
 	fDate = uint16(t.Day() + int(t.Month())<<5 + (t.Year()-1980)<<9)
 	fTime = uint16(t.Second()/2 + t.Minute()<<5 + t.Hour()<<11)
@@ -294,8 +308,8 @@ func (h *FileHeader) SetMode(mode os.FileMode) {
 }
 
 // isZip64 reports whether the file size exceeds the 32 bit limit
-func (fh *FileHeader) isZip64() bool {
-	return fh.CompressedSize64 >= uint32max || fh.UncompressedSize64 >= uint32max
+func (h *FileHeader) isZip64() bool {
+	return h.CompressedSize64 >= uint32max || h.UncompressedSize64 >= uint32max
 }
 
 func msdosModeToFileMode(m uint32) (mode os.FileMode) {

@@ -1,4 +1,0 @@
-// +build windows
-
-package x
-

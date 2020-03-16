@@ -21,6 +21,15 @@ import (
 	_ "image/jpeg"
 )
 
+func Example_decodeConfig() {
+	reader := base64.NewDecoder(base64.StdEncoding, strings.NewReader(data))
+	config, format, err := image.DecodeConfig(reader)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("Width:", config.Width, "Height:", config.Height, "Format:", format)
+}
+
 func Example() {
 	// Decode the JPEG data. If reading from file, create a reader with
 	//

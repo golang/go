@@ -1,0 +1,21 @@
+env GO111MODULE=off
+
+# issue 26880: list with tests has wrong variant in imports
+go list -test -f '{{.ImportPath}}:{{with .Imports}} {{join . ", "}}{{end}}' a b
+cmp stdout imports.txt
+
+-- a/a.go --
+package a; import _ "b"
+-- b/b.go --
+package b
+-- b/b_test.go --
+package b
+-- b/b_x_test.go --
+package b_test; import _ "a"
+
+-- imports.txt --
+a: b
+b:
+b.test: b [b.test], b_test [b.test], os, testing, testing/internal/testdeps
+b [b.test]:
+b_test [b.test]: a [b.test]

@@ -35,6 +35,7 @@ var tests = []struct {
 	{"All Rights reserved. Package foo does bar.", 20, ""},
 	{"All rights reserved. Package foo does bar.", 20, ""},
 	{"Authors: foo@bar.com. Package foo does bar.", 21, ""},
+	{"typically invoked as ``go tool asm'',", 37, "typically invoked as " + ulquo + "go tool asm" + urquo + ","},
 }
 
 func TestSynopsis(t *testing.T) {

@@ -6,5 +6,3 @@ package bytes
 
 // Export func for testing
 var IndexBytePortable = indexBytePortable
-var EqualPortable = equalPortable
-var CountGeneric = countGeneric

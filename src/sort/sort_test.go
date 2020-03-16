@@ -194,7 +194,7 @@ func BenchmarkSortString1K_Slice(b *testing.B) {
 func BenchmarkStableString1K(b *testing.B) {
 	b.StopTimer()
 	unsorted := make([]string, 1<<10)
-	for i := 0; i < len(data); i++ {
+	for i := range unsorted {
 		unsorted[i] = strconv.Itoa(i ^ 0x2cc)
 	}
 	data := make([]string, len(unsorted))
@@ -323,8 +323,7 @@ func (d *testingData) Less(i, j int) bool {
 }
 func (d *testingData) Swap(i, j int) {
 	if d.nswap >= d.maxswap {
-		d.t.Errorf("%s: used %d swaps sorting slice of %d", d.desc, d.nswap, len(d.data))
-		d.t.FailNow()
+		d.t.Fatalf("%s: used %d swaps sorting slice of %d", d.desc, d.nswap, len(d.data))
 	}
 	d.nswap++
 	d.data[i], d.data[j] = d.data[j], d.data[i]
@@ -433,9 +432,7 @@ func testBentleyMcIlroy(t *testing.T, sort func(Interface), maxswap func(int) in
 					// mutating method Sort can call is TestingData.swap,
 					// it suffices here just to check that the final slice is sorted.
 					if !IntsAreSorted(mdata) {
-						t.Errorf("%s: ints not sorted", desc)
-						t.Errorf("\t%v", mdata)
-						t.FailNow()
+						t.Fatalf("%s: ints not sorted\n\t%v", desc, mdata)
 					}
 				}
 			}
@@ -456,7 +453,7 @@ func TestStableBM(t *testing.T) {
 }
 
 // This is based on the "antiquicksort" implementation by M. Douglas McIlroy.
-// See http://www.cs.dartmouth.edu/~doug/mdmspe.pdf for more info.
+// See https://www.cs.dartmouth.edu/~doug/mdmspe.pdf for more info.
 type adversaryTestingData struct {
 	t         *testing.T
 	data      []int // item values, initialized to special gas value and changed by Less
@@ -517,8 +514,7 @@ func TestAdversary(t *testing.T) {
 	// Check data is fully populated and sorted.
 	for i, v := range d.data {
 		if v != i {
-			t.Errorf("adversary data not fully sorted")
-			t.FailNow()
+			t.Fatalf("adversary data not fully sorted")
 		}
 	}
 }

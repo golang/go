@@ -29,7 +29,7 @@ func openGoFile(r *os.File) (*File, error) {
 	}
 	rf := &goobjFile{goobj: f, f: r}
 	if len(f.Native) == 0 {
-		return &File{r, []*Entry{&Entry{raw: rf}}}, nil
+		return &File{r, []*Entry{{raw: rf}}}, nil
 	}
 	entries := make([]*Entry, len(f.Native)+1)
 	entries[0] = &Entry{
@@ -64,7 +64,7 @@ func (f *goobjFile) symbols() ([]Sym, error) {
 	var syms []Sym
 	for _, s := range f.goobj.Syms {
 		seen[s.SymID] = true
-		sym := Sym{Addr: uint64(s.Data.Offset), Name: goobjName(s.SymID), Size: int64(s.Size), Type: s.Type.Name, Code: '?'}
+		sym := Sym{Addr: uint64(s.Data.Offset), Name: goobjName(s.SymID), Size: s.Size, Type: s.Type.Name, Code: '?'}
 		switch s.Kind {
 		case objabi.STEXT:
 			sym.Code = 'T'

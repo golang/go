@@ -73,9 +73,9 @@ func test() {
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() { //gdb-opt=(scanner/A)
 		s := scanner.Text()
-		i, err2 := strconv.ParseInt(s, 10, 64)
-		if err2 != nil { //gdb-dbg=(i) //gdb-opt=(err2,hist,i)
-			fmt.Fprintf(os.Stderr, "There was an error: %v\n", err2)
+		i, err := strconv.ParseInt(s, 10, 64)
+		if err != nil { //gdb-dbg=(i) //gdb-opt=(err,hist,i)
+			fmt.Fprintf(os.Stderr, "There was an error: %v\n", err)
 			return
 		}
 		hist = ensure(int(i), hist)
@@ -94,5 +94,13 @@ func test() {
 }
 
 func main() {
+	growstack() // Use stack early to prevent growth during test, which confuses gdb
 	test()
+}
+
+var snk string
+
+//go:noinline
+func growstack() {
+	snk = fmt.Sprintf("%#v,%#v,%#v", 1, true, "cat")
 }

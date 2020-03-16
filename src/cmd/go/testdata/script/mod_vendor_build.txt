@@ -1,0 +1,38 @@
+env GO111MODULE=on
+[short] skip
+
+# initial conditions: using sampler v1.3.0, not listed in go.mod.
+go list -deps
+stdout rsc.io/sampler
+! grep 'rsc.io/sampler v1.3.0' go.mod
+
+# update to v1.3.1, now indirect in go.mod.
+go get rsc.io/sampler@v1.3.1
+grep 'rsc.io/sampler v1.3.1 // indirect' go.mod
+cp go.mod go.mod.good
+
+# vendoring can but should not need to make changes.
+go mod vendor
+cmp go.mod go.mod.good
+
+# go list -mod=vendor (or go build -mod=vendor) must not modify go.mod.
+# golang.org/issue/26704
+go list -mod=vendor
+cmp go.mod go.mod.good
+
+# With a clean (and empty) module cache, 'go list -mod=vendor' should not download modules.
+go clean -modcache
+env GOPROXY=off
+! go list ...
+go list -mod=vendor ...
+
+# However, it should still list packages in the main module.
+go list -mod=vendor m/...
+stdout m
+
+-- go.mod --
+module m
+go 1.12
+-- x.go --
+package x
+import _ "rsc.io/quote"

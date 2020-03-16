@@ -8,6 +8,7 @@ package obj
 
 import (
 	"bufio"
+	"cmd/internal/bio"
 	"cmd/internal/dwarf"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
@@ -15,6 +16,7 @@ import (
 	"log"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 )
 
@@ -25,20 +27,15 @@ type objWriter struct {
 	// Temporary buffer for zigzag int writing.
 	varintbuf [10]uint8
 
-	// Provide the index of a symbol reference by symbol name.
-	// One map for versioned symbols and one for unversioned symbols.
-	// Used for deduplicating the symbol reference list.
-	refIdx  map[string]int
-	vrefIdx map[string]int
-
 	// Number of objects written of each type.
 	nRefs     int
 	nData     int
 	nReloc    int
 	nPcdata   int
-	nAutom    int
 	nFuncdata int
 	nFile     int
+
+	pkgpath string // the package import path (escaped), "" if unknown
 }
 
 func (w *objWriter) addLengths(s *LSym) {
@@ -56,14 +53,13 @@ func (w *objWriter) addLengths(s *LSym) {
 	data += len(pc.Pcfile.P)
 	data += len(pc.Pcline.P)
 	data += len(pc.Pcinline.P)
-	for i := 0; i < len(pc.Pcdata); i++ {
-		data += len(pc.Pcdata[i].P)
+	for _, pcd := range pc.Pcdata {
+		data += len(pcd.P)
 	}
 
 	w.nData += data
 	w.nPcdata += len(pc.Pcdata)
 
-	w.nAutom += len(s.Func.Autom)
 	w.nFuncdata += len(pc.Funcdataoff)
 	w.nFile += len(pc.File)
 }
@@ -72,25 +68,30 @@ func (w *objWriter) writeLengths() {
 	w.writeInt(int64(w.nData))
 	w.writeInt(int64(w.nReloc))
 	w.writeInt(int64(w.nPcdata))
-	w.writeInt(int64(w.nAutom))
+	w.writeInt(int64(0)) // TODO: remove at next object file rev
 	w.writeInt(int64(w.nFuncdata))
 	w.writeInt(int64(w.nFile))
 }
 
-func newObjWriter(ctxt *Link, b *bufio.Writer) *objWriter {
+func newObjWriter(ctxt *Link, b *bufio.Writer, pkgpath string) *objWriter {
 	return &objWriter{
 		ctxt:    ctxt,
 		wr:      b,
-		vrefIdx: make(map[string]int),
-		refIdx:  make(map[string]int),
+		pkgpath: objabi.PathToPrefix(pkgpath),
 	}
 }
 
-func WriteObjFile(ctxt *Link, b *bufio.Writer) {
-	w := newObjWriter(ctxt, b)
+func WriteObjFile(ctxt *Link, bout *bio.Writer, pkgpath string) {
+	if ctxt.Flag_newobj {
+		WriteObjFile2(ctxt, bout, pkgpath)
+		return
+	}
+
+	b := bout.Writer
+	w := newObjWriter(ctxt, b, pkgpath)
 
 	// Magic header
-	w.wr.WriteString("\x00\x00go19ld")
+	w.wr.WriteString("\x00go114ld")
 
 	// Version
 	w.wr.WriteByte(1)
@@ -101,12 +102,34 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
 	}
 	w.writeString("")
 
+	// DWARF File Table
+	fileTable := ctxt.PosTable.DebugLinesFileTable()
+	w.writeInt(int64(len(fileTable)))
+	for _, str := range fileTable {
+		w.writeString(filepath.ToSlash(str))
+	}
+
 	// Symbol references
 	for _, s := range ctxt.Text {
 		w.writeRefs(s)
 		w.addLengths(s)
 	}
+
+	if ctxt.Headtype == objabi.Haix {
+		// Data must be sorted to keep a constant order in TOC symbols.
+		// As they are created during Progedit, two symbols can be switched between
+		// two different compilations. Therefore, BuildID will be different.
+		// TODO: find a better place and optimize to only sort TOC symbols
+		sort.Slice(ctxt.Data, func(i, j int) bool {
+			return ctxt.Data[i].Name < ctxt.Data[j].Name
+		})
+	}
+
 	for _, s := range ctxt.Data {
+		w.writeRefs(s)
+		w.addLengths(s)
+	}
+	for _, s := range ctxt.ABIAliases {
 		w.writeRefs(s)
 		w.addLengths(s)
 	}
@@ -124,8 +147,8 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
 		w.wr.Write(pc.Pcfile.P)
 		w.wr.Write(pc.Pcline.P)
 		w.wr.Write(pc.Pcinline.P)
-		for i := 0; i < len(pc.Pcdata); i++ {
-			w.wr.Write(pc.Pcdata[i].P)
+		for _, pcd := range pc.Pcdata {
+			w.wr.Write(pcd.P)
 		}
 	}
 	for _, s := range ctxt.Data {
@@ -145,9 +168,12 @@ func WriteObjFile(ctxt *Link, b *bufio.Writer) {
 	for _, s := range ctxt.Data {
 		w.writeSym(s)
 	}
+	for _, s := range ctxt.ABIAliases {
+		w.writeSym(s)
+	}
 
 	// Magic footer
-	w.wr.WriteString("\xff\xffgo19ld")
+	w.wr.WriteString("\xffgo114ld")
 }
 
 // Symbols are prefixed so their content doesn't get confused with the magic footer.
@@ -157,46 +183,34 @@ func (w *objWriter) writeRef(s *LSym, isPath bool) {
 	if s == nil || s.RefIdx != 0 {
 		return
 	}
-	var m map[string]int
-	if !s.Static() {
-		m = w.refIdx
-	} else {
-		m = w.vrefIdx
-	}
-
-	if idx := m[s.Name]; idx != 0 {
-		s.RefIdx = idx
-		return
-	}
 	w.wr.WriteByte(symPrefix)
 	if isPath {
 		w.writeString(filepath.ToSlash(s.Name))
+	} else if w.pkgpath != "" {
+		// w.pkgpath is already escaped.
+		n := strings.Replace(s.Name, "\"\".", w.pkgpath+".", -1)
+		w.writeString(n)
 	} else {
 		w.writeString(s.Name)
 	}
-	// Write "version".
+	// Write ABI/static information.
+	abi := int64(s.ABI())
 	if s.Static() {
-		w.writeInt(1)
-	} else {
-		w.writeInt(0)
+		abi = -1
 	}
+	w.writeInt(abi)
 	w.nRefs++
 	s.RefIdx = w.nRefs
-	m[s.Name] = w.nRefs
 }
 
 func (w *objWriter) writeRefs(s *LSym) {
 	w.writeRef(s, false)
 	w.writeRef(s.Gotype, false)
-	for i := range s.R {
-		w.writeRef(s.R[i].Sym, false)
+	for _, r := range s.R {
+		w.writeRef(r.Sym, false)
 	}
 
 	if s.Type == objabi.STEXT {
-		for _, a := range s.Func.Autom {
-			w.writeRef(a.Asym, false)
-			w.writeRef(a.Gotype, false)
-		}
 		pc := &s.Func.Pcln
 		for _, d := range pc.Funcdata {
 			w.writeRef(d, false)
@@ -214,8 +228,7 @@ func (w *objWriter) writeRefs(s *LSym) {
 	}
 }
 
-func (w *objWriter) writeSymDebug(s *LSym) {
-	ctxt := w.ctxt
+func (ctxt *Link) writeSymDebug(s *LSym) {
 	fmt.Fprintf(ctxt.Bso, "%s ", s.Name)
 	if s.Type != 0 {
 		fmt.Fprintf(ctxt.Bso, "%v ", s.Type)
@@ -232,6 +245,9 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 	if s.NoSplit() {
 		fmt.Fprintf(ctxt.Bso, "nosplit ")
 	}
+	if s.TopFrame() {
+		fmt.Fprintf(ctxt.Bso, "topframe ")
+	}
 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
 	if s.Type == objabi.STEXT {
 		fmt.Fprintf(ctxt.Bso, " args=%#x locals=%#x", uint64(s.Func.Args), uint64(s.Func.Locals))
@@ -242,13 +258,19 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 	fmt.Fprintf(ctxt.Bso, "\n")
 	if s.Type == objabi.STEXT {
 		for p := s.Func.Text; p != nil; p = p.Link {
-			fmt.Fprintf(ctxt.Bso, "\t%#04x %v\n", uint(int(p.Pc)), p)
+			var s string
+			if ctxt.Debugasm > 1 {
+				s = p.String()
+			} else {
+				s = p.InnermostString()
+			}
+			fmt.Fprintf(ctxt.Bso, "\t%#04x %s\n", uint(int(p.Pc)), s)
 		}
 	}
 	for i := 0; i < len(s.P); i += 16 {
 		fmt.Fprintf(ctxt.Bso, "\t%#04x", uint(i))
 		j := i
-		for j = i; j < i+16 && j < len(s.P); j++ {
+		for ; j < i+16 && j < len(s.P); j++ {
 			fmt.Fprintf(ctxt.Bso, " %02x", s.P[j])
 		}
 		for ; j < i+16; j++ {
@@ -285,8 +307,8 @@ func (w *objWriter) writeSymDebug(s *LSym) {
 
 func (w *objWriter) writeSym(s *LSym) {
 	ctxt := w.ctxt
-	if ctxt.Debugasm {
-		w.writeSymDebug(s)
+	if ctxt.Debugasm > 0 {
+		w.ctxt.writeSymDebug(s)
 	}
 
 	w.wr.WriteByte(symPrefix)
@@ -309,7 +331,7 @@ func (w *objWriter) writeSym(s *LSym) {
 
 	w.writeInt(int64(len(s.R)))
 	var r *Reloc
-	for i := 0; i < len(s.R); i++ {
+	for i := range s.R {
 		r = &s.R[i]
 		w.writeInt(int64(r.Off))
 		w.writeInt(int64(r.Siz))
@@ -324,11 +346,7 @@ func (w *objWriter) writeSym(s *LSym) {
 
 	w.writeInt(int64(s.Func.Args))
 	w.writeInt(int64(s.Func.Locals))
-	if s.NoSplit() {
-		w.writeInt(1)
-	} else {
-		w.writeInt(0)
-	}
+	w.writeBool(s.NoSplit())
 	flags = int64(0)
 	if s.Leaf() {
 		flags |= 1
@@ -342,22 +360,11 @@ func (w *objWriter) writeSym(s *LSym) {
 	if ctxt.Flag_shared {
 		flags |= 1 << 3
 	}
-	w.writeInt(flags)
-	w.writeInt(int64(len(s.Func.Autom)))
-	for _, a := range s.Func.Autom {
-		w.writeRefIndex(a.Asym)
-		w.writeInt(int64(a.Aoffset))
-		if a.Name == NAME_AUTO {
-			w.writeInt(objabi.A_AUTO)
-		} else if a.Name == NAME_PARAM {
-			w.writeInt(objabi.A_PARAM)
-		} else if a.Name == NAME_DELETED_AUTO {
-			w.writeInt(objabi.A_DELETED_AUTO)
-		} else {
-			log.Fatalf("%s: invalid local variable type %d", s.Name, a.Name)
-		}
-		w.writeRefIndex(a.Gotype)
+	if s.TopFrame() {
+		flags |= 1 << 4
 	}
+	w.writeInt(flags)
+	w.writeInt(int64(0)) // TODO: remove at next object file rev
 
 	pc := &s.Func.Pcln
 	w.writeInt(int64(len(pc.Pcsp.P)))
@@ -365,14 +372,14 @@ func (w *objWriter) writeSym(s *LSym) {
 	w.writeInt(int64(len(pc.Pcline.P)))
 	w.writeInt(int64(len(pc.Pcinline.P)))
 	w.writeInt(int64(len(pc.Pcdata)))
-	for i := 0; i < len(pc.Pcdata); i++ {
-		w.writeInt(int64(len(pc.Pcdata[i].P)))
+	for _, pcd := range pc.Pcdata {
+		w.writeInt(int64(len(pcd.P)))
 	}
 	w.writeInt(int64(len(pc.Funcdataoff)))
-	for i := 0; i < len(pc.Funcdataoff); i++ {
+	for i := range pc.Funcdataoff {
 		w.writeRefIndex(pc.Funcdata[i])
 	}
-	for i := 0; i < len(pc.Funcdataoff); i++ {
+	for i := range pc.Funcdataoff {
 		w.writeInt(pc.Funcdataoff[i])
 	}
 	w.writeInt(int64(len(pc.File)))
@@ -388,6 +395,15 @@ func (w *objWriter) writeSym(s *LSym) {
 		w.writeRefIndex(fsym)
 		w.writeInt(int64(l))
 		w.writeRefIndex(call.Func)
+		w.writeInt(int64(call.ParentPC))
+	}
+}
+
+func (w *objWriter) writeBool(b bool) {
+	if b {
+		w.writeInt(1)
+	} else {
+		w.writeInt(0)
 	}
 }
 
@@ -437,6 +453,13 @@ func (c dwCtxt) AddInt(s dwarf.Sym, size int, i int64) {
 	ls := s.(*LSym)
 	ls.WriteInt(c.Link, ls.Size, size, i)
 }
+func (c dwCtxt) AddUint16(s dwarf.Sym, i uint16) {
+	c.AddInt(s, 2, int64(i))
+}
+func (c dwCtxt) AddUint8(s dwarf.Sym, i uint8) {
+	b := []byte{byte(i)}
+	c.AddBytes(s, b)
+}
 func (c dwCtxt) AddBytes(s dwarf.Sym, b []byte) {
 	ls := s.(*LSym)
 	ls.WriteBytes(c.Link, ls.Size, b)
@@ -462,6 +485,14 @@ func (c dwCtxt) AddCURelativeAddress(s dwarf.Sym, data interface{}, value int64)
 	ls.WriteCURelativeAddr(c.Link, ls.Size, rsym, value)
 }
 func (c dwCtxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64) {
+	panic("should be used only in the linker")
+}
+func (c dwCtxt) AddDWARFAddrSectionOffset(s dwarf.Sym, t interface{}, ofs int64) {
+	size := 4
+	if isDwarf64(c.Link) {
+		size = 8
+	}
+
 	ls := s.(*LSym)
 	rsym := t.(*LSym)
 	ls.WriteAddr(c.Link, ls.Size, size, rsym, ofs)
@@ -502,7 +533,11 @@ func (c dwCtxt) Logf(format string, args ...interface{}) {
 	c.Link.Logf(format, args...)
 }
 
-func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, dwarfAbsFnSym *LSym) {
+func isDwarf64(ctxt *Link) bool {
+	return ctxt.Headtype == objabi.Haix
+}
+
+func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, dwarfAbsFnSym, dwarfDebugLines *LSym) {
 	if s.Type != objabi.STEXT {
 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
 	}
@@ -515,9 +550,9 @@ func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, 
 		if s.WasInlined() {
 			s.Func.dwarfAbsFnSym = ctxt.DwFixups.AbsFuncDwarfSym(s)
 		}
-
+		s.Func.dwarfDebugLinesSym = ctxt.LookupDerived(s, dwarf.DebugLinesPrefix+s.Name)
 	}
-	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym, s.Func.dwarfAbsFnSym
+	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym, s.Func.dwarfAbsFnSym, s.Func.dwarfDebugLinesSym
 }
 
 func (s *LSym) Len() int64 {
@@ -541,31 +576,32 @@ func (ctxt *Link) fileSymbol(fn *LSym) *LSym {
 // TEXT symbol 's'. The various DWARF symbols must already have been
 // initialized in InitTextSym.
 func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string) {
-	info, loc, ranges, absfunc := ctxt.dwarfSym(s)
+	info, loc, ranges, absfunc, lines := ctxt.dwarfSym(s)
 	if info.Size != 0 {
 		ctxt.Diag("makeFuncDebugEntry double process %v", s)
 	}
 	var scopes []dwarf.Scope
 	var inlcalls dwarf.InlCalls
 	if ctxt.DebugInfo != nil {
-		scopes, inlcalls = ctxt.DebugInfo(s, curfn)
+		scopes, inlcalls = ctxt.DebugInfo(s, info, curfn)
 	}
 	var err error
 	dwctxt := dwCtxt{ctxt}
 	filesym := ctxt.fileSymbol(s)
 	fnstate := &dwarf.FnState{
-		Name:       s.Name,
-		Importpath: myimportpath,
-		Info:       info,
-		Filesym:    filesym,
-		Loc:        loc,
-		Ranges:     ranges,
-		Absfn:      absfunc,
-		StartPC:    s,
-		Size:       s.Size,
-		External:   !s.Static(),
-		Scopes:     scopes,
-		InlCalls:   inlcalls,
+		Name:          s.Name,
+		Importpath:    myimportpath,
+		Info:          info,
+		Filesym:       filesym,
+		Loc:           loc,
+		Ranges:        ranges,
+		Absfn:         absfunc,
+		StartPC:       s,
+		Size:          s.Size,
+		External:      !s.Static(),
+		Scopes:        scopes,
+		InlCalls:      inlcalls,
+		UseBASEntries: ctxt.UseBASEntries,
 	}
 	if absfunc != nil {
 		err = dwarf.PutAbstractFunc(dwctxt, fnstate)
@@ -579,6 +615,8 @@ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string)
 	if err != nil {
 		ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)
 	}
+	// Fill in the debug lines symbol.
+	ctxt.generateDebugLinesSymbol(s, lines)
 }
 
 // DwarfIntConst creates a link symbol for an integer constant with the
@@ -602,24 +640,25 @@ func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath str
 	if s.Func == nil {
 		s.Func = new(FuncInfo)
 	}
-	scopes, _ := ctxt.DebugInfo(s, curfn)
+	scopes, _ := ctxt.DebugInfo(s, absfn, curfn)
 	dwctxt := dwCtxt{ctxt}
 	filesym := ctxt.fileSymbol(s)
 	fnstate := dwarf.FnState{
-		Name:       s.Name,
-		Importpath: myimportpath,
-		Info:       absfn,
-		Filesym:    filesym,
-		Absfn:      absfn,
-		External:   !s.Static(),
-		Scopes:     scopes,
+		Name:          s.Name,
+		Importpath:    myimportpath,
+		Info:          absfn,
+		Filesym:       filesym,
+		Absfn:         absfn,
+		External:      !s.Static(),
+		Scopes:        scopes,
+		UseBASEntries: ctxt.UseBASEntries,
 	}
 	if err := dwarf.PutAbstractFunc(dwctxt, &fnstate); err != nil {
 		ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)
 	}
 }
 
-// This table is designed to aid in the creation of references betweeen
+// This table is designed to aid in the creation of references between
 // DWARF subprogram DIEs.
 //
 // In most cases when one DWARF DIE has to refer to another DWARF DIE,
@@ -769,7 +808,7 @@ func (ft *DwarfFixupTable) RegisterChildDIEOffsets(s *LSym, vars []*dwarf.Var, c
 
 	// Generate the slice of declOffset's based in vars/coffsets
 	doffsets := make([]declOffset, len(coffsets))
-	for i := 0; i < len(coffsets); i++ {
+	for i := range coffsets {
 		doffsets[i].dclIdx = vars[i].ChildIndex
 		doffsets[i].offset = coffsets[i]
 	}
@@ -794,9 +833,9 @@ func (ft *DwarfFixupTable) processFixups(slot int, s *LSym) {
 	sf := &ft.svec[slot]
 	for _, f := range sf.fixups {
 		dfound := false
-		for i := 0; i < len(sf.doffsets); i++ {
-			if sf.doffsets[i].dclIdx == f.dclidx {
-				f.refsym.R[f.relidx].Add += int64(sf.doffsets[i].offset)
+		for _, doffset := range sf.doffsets {
+			if doffset.dclIdx == f.dclidx {
+				f.refsym.R[f.relidx].Add += int64(doffset.offset)
 				dfound = true
 				break
 			}
@@ -836,11 +875,11 @@ func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
 	// resulting list (don't want to rely on map ordering here).
 	fns := make([]*LSym, len(ft.precursor))
 	idx := 0
-	for fn, _ := range ft.precursor {
+	for fn := range ft.precursor {
 		fns[idx] = fn
 		idx++
 	}
-	sort.Sort(bySymName(fns))
+	sort.Sort(BySymName(fns))
 
 	// Should not be called during parallel portion of compilation.
 	if ft.ctxt.InParallel {
@@ -848,8 +887,7 @@ func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
 	}
 
 	// Generate any missing abstract functions.
-	for i := 0; i < len(fns); i++ {
-		s := fns[i]
+	for _, s := range fns {
 		absfn := ft.AbsFuncDwarfSym(s)
 		slot, found := ft.symtab[absfn]
 		if !found || !ft.svec[slot].defseen {
@@ -858,8 +896,7 @@ func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
 	}
 
 	// Apply fixups.
-	for i := 0; i < len(fns); i++ {
-		s := fns[i]
+	for _, s := range fns {
 		absfn := ft.AbsFuncDwarfSym(s)
 		slot, found := ft.symtab[absfn]
 		if !found {
@@ -870,8 +907,8 @@ func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
 	}
 }
 
-type bySymName []*LSym
+type BySymName []*LSym
 
-func (s bySymName) Len() int           { return len(s) }
-func (s bySymName) Less(i, j int) bool { return s[i].Name < s[j].Name }
-func (s bySymName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s BySymName) Len() int           { return len(s) }
+func (s BySymName) Less(i, j int) bool { return s[i].Name < s[j].Name }
+func (s BySymName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }

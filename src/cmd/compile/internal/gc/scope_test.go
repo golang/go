@@ -7,6 +7,7 @@ package gc_test
 import (
 	"cmd/internal/objfile"
 	"debug/dwarf"
+	"fmt"
 	"internal/testenv"
 	"io/ioutil"
 	"os"
@@ -39,6 +40,12 @@ type testline struct {
 	// Must be ordered alphabetically.
 	// Set to nil to skip the check.
 	vars []string
+
+	// decl is the list of variables declared at this line.
+	decl []string
+
+	// declBefore is the list of variables declared at or before this line.
+	declBefore []string
 }
 
 var testfile = []testline{
@@ -58,11 +65,11 @@ var testfile = []testline{
 	{line: "var floatch = make(chan float64)"},
 	{line: "var iface interface{}"},
 	{line: "func TestNestedFor() {", vars: []string{"var a int"}},
-	{line: "	a := 0"},
+	{line: "	a := 0", decl: []string{"a"}},
 	{line: "	f1(a)"},
-	{line: "	for i := 0; i < 5; i++ {", scopes: []int{1}, vars: []string{"var i int"}},
+	{line: "	for i := 0; i < 5; i++ {", scopes: []int{1}, vars: []string{"var i int"}, decl: []string{"i"}},
 	{line: "		f2(i)", scopes: []int{1}},
-	{line: "		for i := 0; i < 5; i++ {", scopes: []int{1, 2}, vars: []string{"var i int"}},
+	{line: "		for i := 0; i < 5; i++ {", scopes: []int{1, 2}, vars: []string{"var i int"}, decl: []string{"i"}},
 	{line: "			f3(i)", scopes: []int{1, 2}},
 	{line: "		}"},
 	{line: "		f4(i)", scopes: []int{1}},
@@ -153,7 +160,7 @@ var testfile = []testline{
 	{line: "}"},
 	{line: "func TestClosureScope() {", vars: []string{"var a int", "var b int", "var f func(int)"}},
 	{line: "	a := 1; b := 1"},
-	{line: "	f := func(c int) {", scopes: []int{0}, vars: []string{"arg c int", "var &b *int", "var a int", "var d int"}},
+	{line: "	f := func(c int) {", scopes: []int{0}, vars: []string{"arg c int", "var &b *int", "var a int", "var d int"}, declBefore: []string{"&b", "a"}},
 	{line: "		d := 3"},
 	{line: "		f1(c); f1(d)"},
 	{line: "		if e := 3; e != 0 {", scopes: []int{1}, vars: []string{"var e int"}},
@@ -207,6 +214,7 @@ const detailOutput = false
 // corresponds to what we expect it to be.
 func TestScopeRanges(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	t.Parallel()
 
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
@@ -218,7 +226,7 @@ func TestScopeRanges(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	src, f := gobuild(t, dir, testfile)
+	src, f := gobuild(t, dir, false, testfile)
 	defer f.Close()
 
 	// the compiler uses forward slashes for paths even on windows
@@ -285,7 +293,18 @@ func TestScopeRanges(t *testing.T) {
 			if len(out) > 0 {
 				varsok = checkVars(testfile[i].vars, out[len(out)-1].vars)
 				if !varsok {
-					t.Logf("variable mismatch at line %d %q for scope %d: expected: %v got: %v\n", i, testfile[i].line, out[len(out)-1].id, testfile[i].vars, out[len(out)-1].vars)
+					t.Logf("variable mismatch at line %d %q for scope %d: expected: %v got: %v\n", i+1, testfile[i].line, out[len(out)-1].id, testfile[i].vars, out[len(out)-1].vars)
+				}
+				for j := range testfile[i].decl {
+					if line := declLineForVar(out[len(out)-1].vars, testfile[i].decl[j]); line != i+1 {
+						t.Errorf("wrong declaration line for variable %s, expected %d got: %d", testfile[i].decl[j], i+1, line)
+					}
+				}
+
+				for j := range testfile[i].declBefore {
+					if line := declLineForVar(out[len(out)-1].vars, testfile[i].declBefore[j]); line > i+1 {
+						t.Errorf("wrong declaration line for variable %s, expected %d (or less) got: %d", testfile[i].declBefore[j], i+1, line)
+					}
 				}
 			}
 		}
@@ -322,23 +341,41 @@ func checkScopes(tgt []int, out []*lexblock) bool {
 	return true
 }
 
-func checkVars(tgt, out []string) bool {
+func checkVars(tgt []string, out []variable) bool {
 	if len(tgt) != len(out) {
 		return false
 	}
 	for i := range tgt {
-		if tgt[i] != out[i] {
+		if tgt[i] != out[i].expr {
 			return false
 		}
 	}
 	return true
 }
 
+func declLineForVar(scope []variable, name string) int {
+	for i := range scope {
+		if scope[i].name() == name {
+			return scope[i].declLine
+		}
+	}
+	return -1
+}
+
 type lexblock struct {
 	id     int
 	ranges [][2]uint64
-	vars   []string
+	vars   []variable
 	scopes []lexblock
+}
+
+type variable struct {
+	expr     string
+	declLine int
+}
+
+func (v *variable) name() string {
+	return strings.Split(v.expr, " ")[1]
 }
 
 type line struct {
@@ -350,7 +387,6 @@ type scopexplainContext struct {
 	dwarfData   *dwarf.Data
 	dwarfReader *dwarf.Reader
 	scopegen    int
-	lines       map[line][]int
 }
 
 // readScope reads the DW_TAG_lexical_block or the DW_TAG_subprogram in
@@ -369,25 +405,34 @@ func readScope(ctxt *scopexplainContext, scope *lexblock, entry *dwarf.Entry) {
 		}
 		switch e.Tag {
 		case 0:
-			sort.Strings(scope.vars)
+			sort.Slice(scope.vars, func(i, j int) bool {
+				return scope.vars[i].expr < scope.vars[j].expr
+			})
 			return
 		case dwarf.TagFormalParameter:
 			typ, err := ctxt.dwarfData.Type(e.Val(dwarf.AttrType).(dwarf.Offset))
 			if err != nil {
 				panic(err)
 			}
-			scope.vars = append(scope.vars, "arg "+e.Val(dwarf.AttrName).(string)+" "+typ.String())
+			scope.vars = append(scope.vars, entryToVar(e, "arg", typ))
 		case dwarf.TagVariable:
 			typ, err := ctxt.dwarfData.Type(e.Val(dwarf.AttrType).(dwarf.Offset))
 			if err != nil {
 				panic(err)
 			}
-			scope.vars = append(scope.vars, "var "+e.Val(dwarf.AttrName).(string)+" "+typ.String())
+			scope.vars = append(scope.vars, entryToVar(e, "var", typ))
 		case dwarf.TagLexDwarfBlock:
 			scope.scopes = append(scope.scopes, lexblock{id: ctxt.scopegen})
 			ctxt.scopegen++
 			readScope(ctxt, &scope.scopes[len(scope.scopes)-1], e)
 		}
+	}
+}
+
+func entryToVar(e *dwarf.Entry, kind string, typ dwarf.Type) variable {
+	return variable{
+		fmt.Sprintf("%s %s %s", kind, e.Val(dwarf.AttrName).(string), typ.String()),
+		int(e.Val(dwarf.AttrDeclLine).(int64)),
 	}
 }
 
@@ -409,7 +454,7 @@ func (scope *lexblock) markLines(pcln objfile.Liner, lines map[line][]*lexblock)
 	}
 }
 
-func gobuild(t *testing.T, dir string, testfile []testline) (string, *objfile.File) {
+func gobuild(t *testing.T, dir string, optimized bool, testfile []testline) (string, *objfile.File) {
 	src := filepath.Join(dir, "test.go")
 	dst := filepath.Join(dir, "out.o")
 
@@ -423,7 +468,13 @@ func gobuild(t *testing.T, dir string, testfile []testline) (string, *objfile.Fi
 	}
 	f.Close()
 
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=-N -l", "-o", dst, src)
+	args := []string{"build"}
+	if !optimized {
+		args = append(args, "-gcflags=-N -l")
+	}
+	args = append(args, "-o", dst, src)
+
+	cmd := exec.Command(testenv.GoToolPath(t), args...)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		t.Logf("build: %s\n", string(b))
 		t.Fatal(err)
@@ -434,4 +485,54 @@ func gobuild(t *testing.T, dir string, testfile []testline) (string, *objfile.Fi
 		t.Fatal(err)
 	}
 	return src, pkg
+}
+
+// TestEmptyDwarfRanges tests that no list entry in debug_ranges has start == end.
+// See issue #23928.
+func TestEmptyDwarfRanges(t *testing.T) {
+	testenv.MustHaveGoRun(t)
+	t.Parallel()
+
+	if runtime.GOOS == "plan9" {
+		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+	}
+
+	dir, err := ioutil.TempDir("", "TestEmptyDwarfRanges")
+	if err != nil {
+		t.Fatalf("could not create directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	_, f := gobuild(t, dir, true, []testline{{line: "package main"}, {line: "func main(){ println(\"hello\") }"}})
+	defer f.Close()
+
+	dwarfData, err := f.DWARF()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dwarfReader := dwarfData.Reader()
+
+	for {
+		entry, err := dwarfReader.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if entry == nil {
+			break
+		}
+
+		ranges, err := dwarfData.Ranges(entry)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ranges == nil {
+			continue
+		}
+
+		for _, rng := range ranges {
+			if rng[0] == rng[1] {
+				t.Errorf("range entry with start == end: %v", rng)
+			}
+		}
+	}
 }

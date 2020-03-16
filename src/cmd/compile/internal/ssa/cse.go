@@ -6,6 +6,7 @@ package ssa
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/internal/src"
 	"fmt"
 	"sort"
 )
@@ -154,7 +155,7 @@ func cse(f *Func) {
 		}
 	}
 
-	sdom := f.sdom()
+	sdom := f.Sdom()
 
 	// Compute substitutions we would like to do. We substitute v for w
 	// if v and w are in the same equivalence class and v dominates w.
@@ -178,7 +179,7 @@ func cse(f *Func) {
 				if w == nil {
 					continue
 				}
-				if sdom.isAncestorEq(v.Block, w.Block) {
+				if sdom.IsAncestorEq(v.Block, w.Block) {
 					rewrite[w.ID] = v
 					e[j] = nil
 				} else {
@@ -233,19 +234,28 @@ func cse(f *Func) {
 		for _, v := range b.Values {
 			for i, w := range v.Args {
 				if x := rewrite[w.ID]; x != nil {
+					if w.Pos.IsStmt() == src.PosIsStmt {
+						// about to lose a statement marker, w
+						// w is an input to v; if they're in the same block
+						// and the same line, v is a good-enough new statement boundary.
+						if w.Block == v.Block && w.Pos.Line() == v.Pos.Line() {
+							v.Pos = v.Pos.WithIsStmt()
+							w.Pos = w.Pos.WithNotStmt()
+						} // TODO and if this fails?
+					}
 					v.SetArg(i, x)
 					rewrites++
 				}
 			}
 		}
-		if v := b.Control; v != nil {
+		for i, v := range b.ControlValues() {
 			if x := rewrite[v.ID]; x != nil {
 				if v.Op == OpNilCheck {
 					// nilcheck pass will remove the nil checks and log
 					// them appropriately, so don't mess with them here.
 					continue
 				}
-				b.SetControl(x)
+				b.ReplaceControl(i, x)
 			}
 		}
 	}

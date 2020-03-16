@@ -8,7 +8,9 @@ package syscall
 
 import (
 	errorspkg "errors"
+	"internal/oserror"
 	"internal/race"
+	"runtime"
 	"sync"
 	"unicode/utf16"
 	"unsafe"
@@ -55,6 +57,25 @@ func UTF16ToString(s []uint16) string {
 	return string(utf16.Decode(s))
 }
 
+// utf16PtrToString is like UTF16ToString, but takes *uint16
+// as a parameter instead of []uint16.
+// max is how many times p can be advanced looking for the null terminator.
+// If max is hit, the string is truncated at that point.
+func utf16PtrToString(p *uint16, max int) string {
+	if p == nil {
+		return ""
+	}
+	// Find NUL terminator.
+	end := unsafe.Pointer(p)
+	n := 0
+	for *(*uint16)(end) != 0 && n < max {
+		end = unsafe.Pointer(uintptr(end) + unsafe.Sizeof(*p))
+		n++
+	}
+	s := (*[(1 << 30) - 1]uint16)(unsafe.Pointer(p))[:n:n]
+	return string(utf16.Decode(s))
+}
+
 // StringToUTF16Ptr returns pointer to the UTF-16 encoding of
 // the UTF-8 string s, with a terminating NUL added. If s
 // contains a NUL byte this function panics instead of
@@ -75,6 +96,12 @@ func UTF16PtrFromString(s string) (*uint16, error) {
 }
 
 // Errno is the Windows error number.
+//
+// Errno values can be tested against error values from the os package
+// using errors.Is. For example:
+//
+//	_, _, err := syscall.Syscall(...)
+//	if errors.Is(err, os.ErrNotExist) ...
 type Errno uintptr
 
 func langid(pri, sub uint16) uint32 { return uint32(sub)<<10 | uint32(pri) }
@@ -109,8 +136,26 @@ func (e Errno) Error() string {
 	return string(utf16.Decode(b[:n]))
 }
 
+const _ERROR_BAD_NETPATH = Errno(53)
+
+func (e Errno) Is(target error) bool {
+	switch target {
+	case oserror.ErrPermission:
+		return e == ERROR_ACCESS_DENIED
+	case oserror.ErrExist:
+		return e == ERROR_ALREADY_EXISTS ||
+			e == ERROR_DIR_NOT_EMPTY ||
+			e == ERROR_FILE_EXISTS
+	case oserror.ErrNotExist:
+		return e == ERROR_FILE_NOT_FOUND ||
+			e == _ERROR_BAD_NETPATH ||
+			e == ERROR_PATH_NOT_FOUND
+	}
+	return false
+}
+
 func (e Errno) Temporary() bool {
-	return e == EINTR || e == EMFILE || e == WSAECONNABORTED || e == WSAECONNRESET || e.Timeout()
+	return e == EINTR || e == EMFILE || e.Timeout()
 }
 
 func (e Errno) Timeout() bool {
@@ -120,16 +165,16 @@ func (e Errno) Timeout() bool {
 // Implemented in runtime/syscall_windows.go.
 func compileCallback(fn interface{}, cleanstack bool) uintptr
 
-// Converts a Go function to a function pointer conforming
-// to the stdcall calling convention. This is useful when
-// interoperating with Windows code requiring callbacks.
+// NewCallback converts a Go function to a function pointer conforming to the stdcall calling convention.
+// This is useful when interoperating with Windows code requiring callbacks.
+// The argument is expected to be a function with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
 func NewCallback(fn interface{}) uintptr {
 	return compileCallback(fn, true)
 }
 
-// Converts a Go function to a function pointer conforming
-// to the cdecl calling convention. This is useful when
-// interoperating with Windows code requiring callbacks.
+// NewCallbackCDecl converts a Go function to a function pointer conforming to the cdecl calling convention.
+// This is useful when interoperating with Windows code requiring callbacks.
+// The argument is expected to be a function with one uintptr-sized result. The function must not have arguments with size larger than the size of uintptr.
 func NewCallbackCDecl(fn interface{}) uintptr {
 	return compileCallback(fn, false)
 }
@@ -286,7 +331,11 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
 	default:
 		createmode = OPEN_EXISTING
 	}
-	h, e := CreateFile(pathp, access, sharemode, sa, createmode, FILE_ATTRIBUTE_NORMAL, 0)
+	var attrs uint32 = FILE_ATTRIBUTE_NORMAL
+	if perm&S_IWRITE == 0 {
+		attrs = FILE_ATTRIBUTE_READONLY
+	}
+	h, e := CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
 	return h, e
 }
 
@@ -340,12 +389,19 @@ const ptrSize = unsafe.Sizeof(uintptr(0))
 // See https://msdn.microsoft.com/en-us/library/windows/desktop/aa365542(v=vs.85).aspx
 func setFilePointerEx(handle Handle, distToMove int64, newFilePointer *int64, whence uint32) error {
 	var e1 Errno
-	if ptrSize == 8 {
+	switch runtime.GOARCH {
+	default:
+		panic("unsupported architecture")
+	case "amd64":
 		_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 4, uintptr(handle), uintptr(distToMove), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence), 0, 0)
-	} else {
+	case "386":
 		// distToMove is a LARGE_INTEGER:
 		// https://msdn.microsoft.com/en-us/library/windows/desktop/aa383713(v=vs.85).aspx
 		_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 5, uintptr(handle), uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence), 0)
+	case "arm":
+		// distToMove must be 8-byte aligned per ARM calling convention
+		// https://msdn.microsoft.com/en-us/library/dn736986.aspx#Anchor_7
+		_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 6, uintptr(handle), 0, uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence))
 	}
 	if e1 != 0 {
 		return errnoErr(e1)
@@ -536,9 +592,6 @@ func Fsync(fd Handle) (err error) {
 }
 
 func Chmod(path string, mode uint32) (err error) {
-	if mode == 0 {
-		return EINVAL
-	}
 	p, e := UTF16PtrFromString(path)
 	if e != nil {
 		return e
@@ -626,7 +679,7 @@ type RawSockaddr struct {
 
 type RawSockaddrAny struct {
 	Addr RawSockaddr
-	Pad  [96]int8
+	Pad  [100]int8
 }
 
 type Sockaddr interface {
@@ -675,19 +728,69 @@ func (sa *SockaddrInet6) sockaddr() (unsafe.Pointer, int32, error) {
 	return unsafe.Pointer(&sa.raw), int32(unsafe.Sizeof(sa.raw)), nil
 }
 
+type RawSockaddrUnix struct {
+	Family uint16
+	Path   [UNIX_PATH_MAX]int8
+}
+
 type SockaddrUnix struct {
 	Name string
+	raw  RawSockaddrUnix
 }
 
 func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, int32, error) {
-	// TODO(brainman): implement SockaddrUnix.sockaddr()
-	return nil, 0, EWINDOWS
+	name := sa.Name
+	n := len(name)
+	if n > len(sa.raw.Path) {
+		return nil, 0, EINVAL
+	}
+	if n == len(sa.raw.Path) && name[0] != '@' {
+		return nil, 0, EINVAL
+	}
+	sa.raw.Family = AF_UNIX
+	for i := 0; i < n; i++ {
+		sa.raw.Path[i] = int8(name[i])
+	}
+	// length is family (uint16), name, NUL.
+	sl := int32(2)
+	if n > 0 {
+		sl += int32(n) + 1
+	}
+	if sa.raw.Path[0] == '@' {
+		sa.raw.Path[0] = 0
+		// Don't count trailing NUL for abstract address.
+		sl--
+	}
+
+	return unsafe.Pointer(&sa.raw), sl, nil
 }
 
 func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, error) {
 	switch rsa.Addr.Family {
 	case AF_UNIX:
-		return nil, EWINDOWS
+		pp := (*RawSockaddrUnix)(unsafe.Pointer(rsa))
+		sa := new(SockaddrUnix)
+		if pp.Path[0] == 0 {
+			// "Abstract" Unix domain socket.
+			// Rewrite leading NUL as @ for textual display.
+			// (This is the standard convention.)
+			// Not friendly to overwrite in place,
+			// but the callers below don't care.
+			pp.Path[0] = '@'
+		}
+
+		// Assume path ends at NUL.
+		// This is not technically the Linux semantics for
+		// abstract Unix domain sockets--they are supposed
+		// to be uninterpreted fixed-size binary blobs--but
+		// everyone uses this convention.
+		n := 0
+		for n < len(pp.Path) && pp.Path[n] != 0 {
+			n++
+		}
+		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n:n]
+		sa.Name = string(bytes)
+		return sa, nil
 
 	case AF_INET:
 		pp := (*RawSockaddrInet4)(unsafe.Pointer(rsa))

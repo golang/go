@@ -5,6 +5,7 @@
 package runtime
 
 import (
+	"runtime/internal/atomic"
 	"runtime/internal/sys"
 	"unsafe"
 )
@@ -35,8 +36,6 @@ const (
 // Don't sleep longer than ns; ns < 0 means forever.
 //go:nosplit
 func futexsleep(addr *uint32, val uint32, ns int64) {
-	var ts timespec
-
 	// Some Linux kernels have a bug where futex of
 	// FUTEX_WAIT returns an internal error code
 	// as an errno. Libpthread ignores the return value
@@ -47,19 +46,8 @@ func futexsleep(addr *uint32, val uint32, ns int64) {
 		return
 	}
 
-	// It's difficult to live within the no-split stack limits here.
-	// On ARM and 386, a 64-bit divide invokes a general software routine
-	// that needs more stack than we can afford. So we use timediv instead.
-	// But on real 64-bit systems, where words are larger but the stack limit
-	// is not, even timediv is too heavy, and we really need to use just an
-	// ordinary machine instruction.
-	if sys.PtrSize == 8 {
-		ts.set_sec(ns / 1000000000)
-		ts.set_nsec(int32(ns % 1000000000))
-	} else {
-		ts.tv_nsec = 0
-		ts.set_sec(int64(timediv(ns, 1000000000, (*int32)(unsafe.Pointer(&ts.tv_nsec)))))
-	}
+	var ts timespec
+	ts.setNsec(ns)
 	futex(unsafe.Pointer(addr), _FUTEX_WAIT_PRIVATE, val, unsafe.Pointer(&ts), nil, 0)
 }
 
@@ -129,6 +117,13 @@ const (
 	_CLONE_NEWUTS         = 0x4000000
 	_CLONE_NEWIPC         = 0x8000000
 
+	// As of QEMU 2.8.0 (5ea2fc84d), user emulation requires all six of these
+	// flags to be set when creating a thread; attempts to share the other
+	// five but leave SYSVSEM unshared will fail with -EINVAL.
+	//
+	// In non-QEMU environments CLONE_SYSVSEM is inconsequential as we do not
+	// use System V semaphores.
+
 	cloneFlags = _CLONE_VM | /* share memory */
 		_CLONE_FS | /* share cwd, etc */
 		_CLONE_FILES | /* share fd table */
@@ -142,7 +137,8 @@ func clone(flags int32, stk, mp, gp, fn unsafe.Pointer) int32
 
 // May run with m.p==nil, so write barriers are not allowed.
 //go:nowritebarrier
-func newosproc(mp *m, stk unsafe.Pointer) {
+func newosproc(mp *m) {
+	stk := unsafe.Pointer(mp.g0.stack.hi)
 	/*
 	 * note: strace gets confused if we use CLONE_PTRACE here.
 	 */
@@ -268,12 +264,40 @@ func sysauxv(auxv []uintptr) int {
 		}
 
 		archauxv(tag, val)
+		vdsoauxv(tag, val)
 	}
 	return i / 2
 }
 
+var sysTHPSizePath = []byte("/sys/kernel/mm/transparent_hugepage/hpage_pmd_size\x00")
+
+func getHugePageSize() uintptr {
+	var numbuf [20]byte
+	fd := open(&sysTHPSizePath[0], 0 /* O_RDONLY */, 0)
+	if fd < 0 {
+		return 0
+	}
+	n := read(fd, noescape(unsafe.Pointer(&numbuf[0])), int32(len(numbuf)))
+	closefd(fd)
+	if n <= 0 {
+		return 0
+	}
+	l := n - 1 // remove trailing newline
+	v, ok := atoi(slicebytetostringtmp(numbuf[:l]))
+	if !ok || v < 0 {
+		v = 0
+	}
+	if v&(v-1) != 0 {
+		// v is not a power of 2
+		return 0
+	}
+	return uintptr(v)
+}
+
 func osinit() {
 	ncpu = getproccount()
+	physHugePageSize = getHugePageSize()
+	osArchInit()
 }
 
 var urandom_dev = []byte("/dev/urandom\x00")
@@ -303,11 +327,20 @@ func libpreinit() {
 	initsig(true)
 }
 
+// gsignalInitQuirk, if non-nil, is called for every allocated gsignal G.
+//
+// TODO(austin): Remove this after Go 1.15 when we remove the
+// mlockGsignal workaround.
+var gsignalInitQuirk func(gsignal *g)
+
 // Called to initialize a new m (including the bootstrap m).
 // Called on the parent thread (main thread in case of bootstrap), can allocate memory.
 func mpreinit(mp *m) {
 	mp.gsignal = malg(32 * 1024) // Linux wants >= 2K
 	mp.gsignal.m = mp
+	if gsignalInitQuirk != nil {
+		gsignalInitQuirk(mp.gsignal)
+	}
 }
 
 func gettid() uint32
@@ -317,7 +350,9 @@ func gettid() uint32
 func minit() {
 	minitSignals()
 
-	// for debuggers, in case cgo created the thread
+	// Cgo-created threads and the bootstrap m are missing a
+	// procid. We need this for asynchronous preemption and it's
+	// useful in debuggers.
 	getg().m.procid = uint64(gettid())
 }
 
@@ -357,6 +392,10 @@ func raiseproc(sig uint32)
 func sched_getaffinity(pid, len uintptr, buf *byte) int32
 func osyield()
 
+func pipe() (r, w int32, errno int32)
+func pipe2(flags int32) (r, w int32, errno int32)
+func setNonblock(fd int32)
+
 //go:nosplit
 //go:nowritebarrierrec
 func setsig(i uint32, fn uintptr) {
@@ -377,28 +416,26 @@ func setsig(i uint32, fn uintptr) {
 		}
 	}
 	sa.sa_handler = fn
-	rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask))
+	sigaction(i, &sa, nil)
 }
 
 //go:nosplit
 //go:nowritebarrierrec
 func setsigstack(i uint32) {
 	var sa sigactiont
-	rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask))
+	sigaction(i, nil, &sa)
 	if sa.sa_flags&_SA_ONSTACK != 0 {
 		return
 	}
 	sa.sa_flags |= _SA_ONSTACK
-	rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask))
+	sigaction(i, &sa, nil)
 }
 
 //go:nosplit
 //go:nowritebarrierrec
 func getsig(i uint32) uintptr {
 	var sa sigactiont
-	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
-		throw("rt_sigaction read failure")
-	}
+	sigaction(i, nil, &sa)
 	return sa.sa_handler
 }
 
@@ -408,5 +445,56 @@ func setSignalstackSP(s *stackt, sp uintptr) {
 	*(*uintptr)(unsafe.Pointer(&s.ss_sp)) = sp
 }
 
+//go:nosplit
 func (c *sigctxt) fixsigcode(sig uint32) {
+}
+
+// sysSigaction calls the rt_sigaction system call.
+//go:nosplit
+func sysSigaction(sig uint32, new, old *sigactiont) {
+	if rt_sigaction(uintptr(sig), new, old, unsafe.Sizeof(sigactiont{}.sa_mask)) != 0 {
+		// Workaround for bugs in QEMU user mode emulation.
+		//
+		// QEMU turns calls to the sigaction system call into
+		// calls to the C library sigaction call; the C
+		// library call rejects attempts to call sigaction for
+		// SIGCANCEL (32) or SIGSETXID (33).
+		//
+		// QEMU rejects calling sigaction on SIGRTMAX (64).
+		//
+		// Just ignore the error in these case. There isn't
+		// anything we can do about it anyhow.
+		if sig != 32 && sig != 33 && sig != 64 {
+			// Use system stack to avoid split stack overflow on ppc64/ppc64le.
+			systemstack(func() {
+				throw("sigaction failed")
+			})
+		}
+	}
+}
+
+// rt_sigaction is implemented in assembly.
+//go:noescape
+func rt_sigaction(sig uintptr, new, old *sigactiont, size uintptr) int32
+
+func getpid() int
+func tgkill(tgid, tid, sig int)
+
+// touchStackBeforeSignal stores an errno value. If non-zero, it means
+// that we should touch the signal stack before sending a signal.
+// This is used on systems that have a bug when the signal stack must
+// be faulted in.  See #35777 and #37436.
+//
+// This is accessed atomically as it is set and read in different threads.
+//
+// TODO(austin): Remove this after Go 1.15 when we remove the
+// mlockGsignal workaround.
+var touchStackBeforeSignal uint32
+
+// signalM sends a signal to mp.
+func signalM(mp *m, sig int) {
+	if atomic.Load(&touchStackBeforeSignal) != 0 {
+		atomic.Cas((*uint32)(unsafe.Pointer(mp.gsignal.stack.hi-4)), 0, 0)
+	}
+	tgkill(getpid(), int(mp.procid), sig)
 }

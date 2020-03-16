@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-// An version of bytes.Buffer without ReadFrom and WriteTo
+// A version of bytes.Buffer without ReadFrom and WriteTo
 type Buffer struct {
 	bytes.Buffer
 	ReaderFrom // conflicts with and hides bytes.Buffer's ReaderFrom.
@@ -284,6 +284,9 @@ func testReadAtLeast(t *testing.T, rb ReadWriter) {
 	n, err := ReadAtLeast(rb, buf, 2)
 	if err != nil {
 		t.Error(err)
+	}
+	if n != 2 {
+		t.Errorf("expected to have read 2 bytes, got %v", n)
 	}
 	n, err = ReadAtLeast(rb, buf, 4)
 	if err != ErrShortBuffer {

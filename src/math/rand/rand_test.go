@@ -486,7 +486,7 @@ func TestUniformFactorial(t *testing.T) {
 	r := New(NewSource(testSeeds[0]))
 	top := 6
 	if testing.Short() {
-		top = 4
+		top = 3
 	}
 	for n := 3; n <= top; n++ {
 		t.Run(fmt.Sprintf("n=%d", n), func(t *testing.T) {
@@ -563,6 +563,14 @@ func BenchmarkInt63Threadsafe(b *testing.B) {
 	for n := b.N; n > 0; n-- {
 		Int63()
 	}
+}
+
+func BenchmarkInt63ThreadsafeParallel(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Int63()
+		}
+	})
 }
 
 func BenchmarkInt63Unthreadsafe(b *testing.B) {

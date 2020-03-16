@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux
+// +build aix linux
 // +build ppc64 ppc64le
 
 package runtime
@@ -84,4 +84,30 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	c.set_r30(uint64(uintptr(unsafe.Pointer(gp))))
 	c.set_r12(uint64(funcPC(sigpanic)))
 	c.set_pc(uint64(funcPC(sigpanic)))
+}
+
+const pushCallSupported = true
+
+func (c *sigctxt) pushCall(targetPC uintptr) {
+	// Push the LR to stack, as we'll clobber it in order to
+	// push the call. The function being pushed is responsible
+	// for restoring the LR and setting the SP back.
+	// This extra space is known to gentraceback.
+	sp := c.sp() - sys.MinFrameSize
+	c.set_sp(sp)
+	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.link()
+	// In PIC mode, we'll set up (i.e. clobber) R2 on function
+	// entry. Save it ahead of time.
+	// In PIC mode it requires R12 points to the function entry,
+	// so we'll set it up when pushing the call. Save it ahead
+	// of time as well.
+	// 8(SP) and 16(SP) are unused space in the reserved
+	// MinFrameSize (32) bytes.
+	*(*uint64)(unsafe.Pointer(uintptr(sp) + 8)) = c.r2()
+	*(*uint64)(unsafe.Pointer(uintptr(sp) + 16)) = c.r12()
+	// Set up PC and LR to pretend the function being signaled
+	// calls targetPC at the faulting PC.
+	c.set_link(c.pc())
+	c.set_r12(uint64(targetPC))
+	c.set_pc(uint64(targetPC))
 }

@@ -223,9 +223,7 @@ func ParseARMCondition(cond string) (uint8, bool) {
 }
 
 func parseARMCondition(cond string, ls, scond map[string]uint8) (uint8, bool) {
-	if strings.HasPrefix(cond, ".") {
-		cond = cond[1:]
-	}
+	cond = strings.TrimPrefix(cond, ".")
 	if cond == "" {
 		return arm.C_SCOND_NONE, true
 	}

@@ -12,16 +12,15 @@ import (
 	"unicode/utf8"
 )
 
+// smallBufferSize is an initial allocation minimal capacity.
+const smallBufferSize = 64
+
 // A Buffer is a variable-sized buffer of bytes with Read and Write methods.
 // The zero value for Buffer is an empty buffer ready to use.
 type Buffer struct {
-	buf       []byte   // contents are the bytes buf[off : len(buf)]
-	off       int      // read at &buf[off], write at &buf[len(buf)]
-	bootstrap [64]byte // memory to hold first slice; helps small buffers avoid allocation.
-	lastRead  readOp   // last read operation, so that Unread* can work correctly.
-
-	// FIXME: it would be advisable to align Buffer to cachelines to avoid false
-	// sharing.
+	buf      []byte // contents are the bytes buf[off : len(buf)]
+	off      int    // read at &buf[off], write at &buf[len(buf)]
+	lastRead readOp // last read operation, so that Unread* can work correctly.
 }
 
 // The readOp constants describe the last action performed on
@@ -66,7 +65,7 @@ func (b *Buffer) String() string {
 	return string(b.buf[b.off:])
 }
 
-// empty returns whether the unread portion of the buffer is empty.
+// empty reports whether the unread portion of the buffer is empty.
 func (b *Buffer) empty() bool { return len(b.buf) <= b.off }
 
 // Len returns the number of bytes of the unread portion of the buffer;
@@ -125,9 +124,8 @@ func (b *Buffer) grow(n int) int {
 	if i, ok := b.tryGrowByReslice(n); ok {
 		return i
 	}
-	// Check if we can make use of bootstrap array.
-	if b.buf == nil && n <= len(b.bootstrap) {
-		b.buf = b.bootstrap[:n]
+	if b.buf == nil && n <= smallBufferSize {
+		b.buf = make([]byte, n, smallBufferSize)
 		return 0
 	}
 	c := cap(b.buf)
@@ -202,6 +200,7 @@ func (b *Buffer) ReadFrom(r io.Reader) (n int64, err error) {
 	b.lastRead = opInvalid
 	for {
 		i := b.grow(MinRead)
+		b.buf = b.buf[:i]
 		m, e := r.Read(b.buf[i:cap(b.buf)])
 		if m < 0 {
 			panic(errNegativeRead)
@@ -383,13 +382,15 @@ func (b *Buffer) UnreadRune() error {
 	return nil
 }
 
+var errUnreadByte = errors.New("bytes.Buffer: UnreadByte: previous operation was not a successful read")
+
 // UnreadByte unreads the last byte returned by the most recent successful
 // read operation that read at least one byte. If a write has happened since
 // the last read, if the last read returned an error, or if the read read zero
 // bytes, UnreadByte returns an error.
 func (b *Buffer) UnreadByte() error {
 	if b.lastRead == opInvalid {
-		return errors.New("bytes.Buffer: UnreadByte: previous operation was not a successful read")
+		return errUnreadByte
 	}
 	b.lastRead = opInvalid
 	if b.off > 0 {
@@ -440,9 +441,9 @@ func (b *Buffer) ReadString(delim byte) (line string, err error) {
 // NewBuffer creates and initializes a new Buffer using buf as its
 // initial contents. The new Buffer takes ownership of buf, and the
 // caller should not use buf after this call. NewBuffer is intended to
-// prepare a Buffer to read existing data. It can also be used to size
-// the internal buffer for writing. To do that, buf should have the
-// desired capacity but a length of zero.
+// prepare a Buffer to read existing data. It can also be used to set
+// the initial size of the internal buffer for writing. To do that,
+// buf should have the desired capacity but a length of zero.
 //
 // In most cases, new(Buffer) (or just declaring a Buffer variable) is
 // sufficient to initialize a Buffer.

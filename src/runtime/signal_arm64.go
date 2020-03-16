@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build linux darwin
+// +build darwin freebsd linux netbsd openbsd
 
 package runtime
 
@@ -77,4 +77,20 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	// In case we are panicking from external C code
 	c.set_r28(uint64(uintptr(unsafe.Pointer(gp))))
 	c.set_pc(uint64(funcPC(sigpanic)))
+}
+
+const pushCallSupported = true
+
+func (c *sigctxt) pushCall(targetPC uintptr) {
+	// Push the LR to stack, as we'll clobber it in order to
+	// push the call. The function being pushed is responsible
+	// for restoring the LR and setting the SP back.
+	// This extra space is known to gentraceback.
+	sp := c.sp() - 16 // SP needs 16-byte alignment
+	c.set_sp(sp)
+	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.lr()
+	// Set up PC and LR to pretend the function being signaled
+	// calls targetPC at the faulting PC.
+	c.set_lr(c.pc())
+	c.set_pc(uint64(targetPC))
 }

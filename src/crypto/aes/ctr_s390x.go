@@ -6,7 +6,8 @@ package aes
 
 import (
 	"crypto/cipher"
-	"unsafe"
+	"crypto/internal/subtle"
+	"encoding/binary"
 )
 
 // Assert that aesCipherAsm implements the ctrAble interface.
@@ -37,8 +38,8 @@ func (c *aesCipherAsm) NewCTR(iv []byte) cipher.Stream {
 	}
 	var ac aesctr
 	ac.block = c
-	ac.ctr[0] = *(*uint64)(unsafe.Pointer((&iv[0]))) // high bits
-	ac.ctr[1] = *(*uint64)(unsafe.Pointer((&iv[8]))) // low bits
+	ac.ctr[0] = binary.BigEndian.Uint64(iv[0:]) // high bits
+	ac.ctr[1] = binary.BigEndian.Uint64(iv[8:]) // low bits
 	ac.buffer = ac.storage[:0]
 	return &ac
 }
@@ -47,10 +48,10 @@ func (c *aesctr) refill() {
 	// Fill up the buffer with an incrementing count.
 	c.buffer = c.storage[:streamBufferSize]
 	c0, c1 := c.ctr[0], c.ctr[1]
-	for i := 0; i < streamBufferSize; i += BlockSize {
-		b0 := (*uint64)(unsafe.Pointer(&c.buffer[i]))
-		b1 := (*uint64)(unsafe.Pointer(&c.buffer[i+BlockSize/2]))
-		*b0, *b1 = c0, c1
+	for i := 0; i < streamBufferSize; i += 16 {
+		binary.BigEndian.PutUint64(c.buffer[i+0:], c0)
+		binary.BigEndian.PutUint64(c.buffer[i+8:], c1)
+
 		// Increment in big endian: c0 is high, c1 is low.
 		c1++
 		if c1 == 0 {
@@ -64,9 +65,11 @@ func (c *aesctr) refill() {
 }
 
 func (c *aesctr) XORKeyStream(dst, src []byte) {
-	if len(src) > 0 {
-		// Assert len(dst) >= len(src)
-		_ = dst[len(src)-1]
+	if len(dst) < len(src) {
+		panic("crypto/cipher: output smaller than input")
+	}
+	if subtle.InexactOverlap(dst[:len(src)], src) {
+		panic("crypto/cipher: invalid buffer overlap")
 	}
 	for len(src) > 0 {
 		if len(c.buffer) == 0 {

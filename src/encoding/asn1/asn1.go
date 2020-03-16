@@ -27,6 +27,7 @@ import (
 	"reflect"
 	"strconv"
 	"time"
+	"unicode/utf16"
 	"unicode/utf8"
 )
 
@@ -250,7 +251,7 @@ func (oi ObjectIdentifier) String() string {
 // parseObjectIdentifier parses an OBJECT IDENTIFIER from the given bytes and
 // returns it. An object identifier is a sequence of variable length integers
 // that are assigned in a hierarchy.
-func parseObjectIdentifier(bytes []byte) (s []int, err error) {
+func parseObjectIdentifier(bytes []byte) (s ObjectIdentifier, err error) {
 	if len(bytes) == 0 {
 		err = SyntaxError{"zero length OBJECT IDENTIFIER"}
 		return
@@ -475,6 +476,29 @@ func parseUTF8String(bytes []byte) (ret string, err error) {
 	return string(bytes), nil
 }
 
+// BMPString
+
+// parseBMPString parses an ASN.1 BMPString (Basic Multilingual Plane of
+// ISO/IEC/ITU 10646-1) from the given byte slice and returns it.
+func parseBMPString(bmpString []byte) (string, error) {
+	if len(bmpString)%2 != 0 {
+		return "", errors.New("pkcs12: odd-length BMP string")
+	}
+
+	// Strip terminator if present.
+	if l := len(bmpString); l >= 2 && bmpString[l-1] == 0 && bmpString[l-2] == 0 {
+		bmpString = bmpString[:l-2]
+	}
+
+	s := make([]uint16, 0, len(bmpString)/2)
+	for len(bmpString) > 0 {
+		s = append(s, uint16(bmpString[0])<<8+uint16(bmpString[1]))
+		bmpString = bmpString[2:]
+	}
+
+	return string(utf16.Decode(s)), nil
+}
+
 // A RawValue represents an undecoded ASN.1 object.
 type RawValue struct {
 	Class, Tag int
@@ -589,7 +613,7 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 			return
 		}
 		switch t.tag {
-		case TagIA5String, TagGeneralString, TagT61String, TagUTF8String, TagNumericString:
+		case TagIA5String, TagGeneralString, TagT61String, TagUTF8String, TagNumericString, TagBMPString:
 			// We pretend that various other string types are
 			// PRINTABLE STRINGs so that a sequence of them can be
 			// parsed into a []string.
@@ -633,7 +657,7 @@ var (
 	bigIntType           = reflect.TypeOf(new(big.Int))
 )
 
-// invalidLength returns true iff offset + length > sliceLength, or if the
+// invalidLength reports whether offset + length > sliceLength, or if the
 // addition would overflow.
 func invalidLength(offset, length, sliceLength int) bool {
 	return offset+length < offset || offset+length > sliceLength
@@ -691,6 +715,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 				result, err = parseGeneralizedTime(innerBytes)
 			case TagOctetString:
 				result = innerBytes
+			case TagBMPString:
+				result, err = parseBMPString(innerBytes)
 			default:
 				// If we don't know how to handle the type, we just leave Value as nil.
 			}
@@ -759,7 +785,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	if universalTag == TagPrintableString {
 		if t.class == ClassUniversal {
 			switch t.tag {
-			case TagIA5String, TagGeneralString, TagT61String, TagUTF8String, TagNumericString:
+			case TagIA5String, TagGeneralString, TagT61String, TagUTF8String, TagNumericString, TagBMPString:
 				universalTag = t.tag
 			}
 		} else if params.stringType != 0 {
@@ -789,6 +815,12 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 
 	if !params.explicit && params.application && params.tag != nil {
 		expectedClass = ClassApplication
+		expectedTag = *params.tag
+		matchAnyClassAndTag = false
+	}
+
+	if !params.explicit && params.private && params.tag != nil {
+		expectedClass = ClassPrivate
 		expectedTag = *params.tag
 		matchAnyClassAndTag = false
 	}
@@ -951,6 +983,9 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			// that allow the encoding to change midstring and
 			// such. We give up and pass it as an 8-bit string.
 			v, err = parseT61String(innerBytes)
+		case TagBMPString:
+			v, err = parseBMPString(innerBytes)
+
 		default:
 			err = SyntaxError{fmt.Sprintf("internal error: unknown string type %d", universalTag)}
 		}
@@ -1028,6 +1063,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 // The following tags on struct fields have special meaning to Unmarshal:
 //
 //	application specifies that an APPLICATION tag is used
+//	private     specifies that a PRIVATE tag is used
 //	default:x   sets the default value for optional integer fields (only used if optional is also present)
 //	explicit    specifies that an additional, explicit tag wraps the implicit one
 //	optional    marks the field as ASN.1 OPTIONAL

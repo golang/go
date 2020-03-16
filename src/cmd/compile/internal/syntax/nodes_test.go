@@ -291,7 +291,7 @@ func testPos(t *testing.T, list []test, prefix, suffix string, extract func(*Fil
 		}
 
 		// build syntax tree
-		file, err := Parse(nil, strings.NewReader(src), nil, nil, nil, 0)
+		file, err := Parse(nil, strings.NewReader(src), nil, nil, 0)
 		if err != nil {
 			t.Errorf("parse error: %s: %v (%s)", src, err, test.nodetyp)
 			continue

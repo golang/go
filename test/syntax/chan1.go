@@ -10,7 +10,7 @@ var c chan int
 var v int
 
 func main() {
-	if c <- v { // ERROR "used as value"
+	if c <- v { // ERROR "cannot use c <- v as value"
 	}
 }
 

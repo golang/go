@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build ignore
+
 package main
 
 import (
@@ -90,7 +92,7 @@ func getTitle(w http.ResponseWriter, r *http.Request) (string, error) {
 	m := validPath.FindStringSubmatch(r.URL.Path)
 	if m == nil {
 		http.NotFound(w, r)
-		return "", errors.New("Invalid Page Title")
+		return "", errors.New("invalid Page Title")
 	}
 	return m[2], nil // The title is the second subexpression.
 }

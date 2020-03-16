@@ -57,7 +57,7 @@ func testChanSendBarrier(useSelect bool) {
 	var globalMu sync.Mutex
 	outer := 100
 	inner := 100000
-	if testing.Short() {
+	if testing.Short() || runtime.GOARCH == "wasm" {
 		outer = 10
 		inner = 1000
 	}

@@ -9,13 +9,17 @@ package work
 import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
+	"cmd/internal/sys"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func BuildInit() {
+	load.ModInit()
 	instrumentInit()
 	buildModeInit()
 
@@ -25,7 +29,8 @@ func BuildInit() {
 		p, err := filepath.Abs(cfg.BuildPkgdir)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "go %s: evaluating -pkgdir: %v\n", flag.Args()[0], err)
-			os.Exit(2)
+			base.SetExitStatus(2)
+			base.Exit()
 		}
 		cfg.BuildPkgdir = p
 	}
@@ -37,26 +42,36 @@ func instrumentInit() {
 	}
 	if cfg.BuildRace && cfg.BuildMSan {
 		fmt.Fprintf(os.Stderr, "go %s: may not use -race and -msan simultaneously\n", flag.Args()[0])
-		os.Exit(2)
+		base.SetExitStatus(2)
+		base.Exit()
 	}
-	if cfg.BuildMSan && (cfg.Goos != "linux" || cfg.Goarch != "amd64") {
+	if cfg.BuildMSan && !sys.MSanSupported(cfg.Goos, cfg.Goarch) {
 		fmt.Fprintf(os.Stderr, "-msan is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
-		os.Exit(2)
+		base.SetExitStatus(2)
+		base.Exit()
 	}
-	if cfg.Goarch != "amd64" || cfg.Goos != "linux" && cfg.Goos != "freebsd" && cfg.Goos != "darwin" && cfg.Goos != "windows" {
-		fmt.Fprintf(os.Stderr, "go %s: -race and -msan are only supported on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
-		os.Exit(2)
+	if cfg.BuildRace {
+		if !sys.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
+			fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
+			base.SetExitStatus(2)
+			base.Exit()
+		}
 	}
-
 	mode := "race"
 	if cfg.BuildMSan {
 		mode = "msan"
+		// MSAN does not support non-PIE binaries on ARM64.
+		// See issue #33712 for details.
+		if cfg.Goos == "linux" && cfg.Goarch == "arm64" && cfg.BuildBuildmode == "default" {
+			cfg.BuildBuildmode = "pie"
+		}
 	}
 	modeFlag := "-" + mode
 
 	if !cfg.BuildContext.CgoEnabled {
 		fmt.Fprintf(os.Stderr, "go %s: %s requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0], modeFlag)
-		os.Exit(2)
+		base.SetExitStatus(2)
+		base.Exit()
 	}
 	forcedGcflags = append(forcedGcflags, modeFlag)
 	forcedLdflags = append(forcedLdflags, modeFlag)
@@ -71,18 +86,27 @@ func instrumentInit() {
 func buildModeInit() {
 	gccgo := cfg.BuildToolchainName == "gccgo"
 	var codegenArg string
-	platform := cfg.Goos + "/" + cfg.Goarch
+
+	// Configure the build mode first, then verify that it is supported.
+	// That way, if the flag is completely bogus we will prefer to error out with
+	// "-buildmode=%s not supported" instead of naming the specific platform.
+
 	switch cfg.BuildBuildmode {
 	case "archive":
 		pkgsFilter = pkgsNotMain
 	case "c-archive":
 		pkgsFilter = oneMainPkg
-		switch platform {
-		case "darwin/arm", "darwin/arm64":
-			codegenArg = "-shared"
-		default:
+		if gccgo {
+			codegenArg = "-fPIC"
+		} else {
 			switch cfg.Goos {
-			case "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+			case "darwin":
+				switch cfg.Goarch {
+				case "arm", "arm64":
+					codegenArg = "-shared"
+				}
+
+			case "dragonfly", "freebsd", "illumos", "linux", "netbsd", "openbsd", "solaris":
 				// Use -shared so that the result is
 				// suitable for inclusion in a PIE or
 				// shared library.
@@ -96,29 +120,31 @@ func buildModeInit() {
 		if gccgo {
 			codegenArg = "-fPIC"
 		} else {
-			switch platform {
-			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/ppc64le", "linux/s390x",
-				"android/amd64", "android/arm", "android/arm64", "android/386":
+			switch cfg.Goos {
+			case "linux", "android", "freebsd":
 				codegenArg = "-shared"
-			case "darwin/amd64", "darwin/386":
-			case "windows/amd64", "windows/386":
+			case "windows":
 				// Do not add usual .exe suffix to the .dll file.
 				cfg.ExeSuffix = ""
-			default:
-				base.Fatalf("-buildmode=c-shared not supported on %s\n", platform)
 			}
 		}
 		ldBuildmode = "c-shared"
 	case "default":
-		switch platform {
-		case "android/arm", "android/arm64", "android/amd64", "android/386":
+		switch cfg.Goos {
+		case "android":
 			codegenArg = "-shared"
 			ldBuildmode = "pie"
-		case "darwin/arm", "darwin/arm64":
-			codegenArg = "-shared"
+		case "darwin":
+			switch cfg.Goarch {
+			case "arm", "arm64":
+				codegenArg = "-shared"
+			}
 			fallthrough
 		default:
 			ldBuildmode = "exe"
+		}
+		if gccgo {
+			codegenArg = ""
 		}
 	case "exe":
 		pkgsFilter = pkgsMain
@@ -134,16 +160,12 @@ func buildModeInit() {
 			base.Fatalf("-buildmode=pie not supported when -race is enabled")
 		}
 		if gccgo {
-			base.Fatalf("-buildmode=pie not supported by gccgo")
+			codegenArg = "-fPIE"
 		} else {
-			switch platform {
-			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
-				"android/amd64", "android/arm", "android/arm64", "android/386":
-				codegenArg = "-shared"
-			case "darwin/amd64":
-				codegenArg = "-shared"
+			switch cfg.Goos {
+			case "aix", "windows":
 			default:
-				base.Fatalf("-buildmode=pie not supported on %s\n", platform)
+				codegenArg = "-shared"
 			}
 		}
 		ldBuildmode = "pie"
@@ -152,11 +174,6 @@ func buildModeInit() {
 		if gccgo {
 			codegenArg = "-fPIC"
 		} else {
-			switch platform {
-			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x":
-			default:
-				base.Fatalf("-buildmode=shared not supported on %s\n", platform)
-			}
 			codegenArg = "-dynlink"
 		}
 		if cfg.BuildO != "" {
@@ -168,15 +185,6 @@ func buildModeInit() {
 		if gccgo {
 			codegenArg = "-fPIC"
 		} else {
-			switch platform {
-			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/s390x", "linux/ppc64le",
-				"android/amd64", "android/arm", "android/arm64", "android/386":
-			case "darwin/amd64":
-				// Skip DWARF generation due to #21647
-				forcedLdflags = append(forcedLdflags, "-w")
-			default:
-				base.Fatalf("-buildmode=plugin not supported on %s\n", platform)
-			}
 			codegenArg = "-dynlink"
 		}
 		cfg.ExeSuffix = ".so"
@@ -184,17 +192,21 @@ func buildModeInit() {
 	default:
 		base.Fatalf("buildmode=%s not supported", cfg.BuildBuildmode)
 	}
+
+	if !sys.BuildModeSupported(cfg.BuildToolchainName, cfg.BuildBuildmode, cfg.Goos, cfg.Goarch) {
+		base.Fatalf("-buildmode=%s not supported on %s/%s\n", cfg.BuildBuildmode, cfg.Goos, cfg.Goarch)
+	}
+
 	if cfg.BuildLinkshared {
+		if !sys.BuildModeSupported(cfg.BuildToolchainName, "shared", cfg.Goos, cfg.Goarch) {
+			base.Fatalf("-linkshared not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
+		}
 		if gccgo {
 			codegenArg = "-fPIC"
 		} else {
-			switch platform {
-			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x":
-				forcedAsmflags = append(forcedAsmflags, "-D=GOBUILDMODE_shared=1")
-			default:
-				base.Fatalf("-linkshared not supported on %s\n", platform)
-			}
+			forcedAsmflags = append(forcedAsmflags, "-D=GOBUILDMODE_shared=1")
 			codegenArg = "-dynlink"
+			forcedGcflags = append(forcedGcflags, "-linkshared")
 			// TODO(mwhudson): remove -w when that gets fixed in linker.
 			forcedLdflags = append(forcedLdflags, "-linkshared", "-w")
 		}
@@ -214,4 +226,39 @@ func buildModeInit() {
 			cfg.BuildContext.InstallSuffix += codegenArg[1:]
 		}
 	}
+
+	switch cfg.BuildMod {
+	case "":
+		// ok
+	case "readonly", "vendor", "mod":
+		if !cfg.ModulesEnabled && !inGOFLAGS("-mod") {
+			base.Fatalf("build flag -mod=%s only valid when using modules", cfg.BuildMod)
+		}
+	default:
+		base.Fatalf("-mod=%s not supported (can be '', 'mod', 'readonly', or 'vendor')", cfg.BuildMod)
+	}
+	if !cfg.ModulesEnabled {
+		if cfg.ModCacheRW && !inGOFLAGS("-modcacherw") {
+			base.Fatalf("build flag -modcacherw only valid when using modules")
+		}
+		if cfg.ModFile != "" && !inGOFLAGS("-mod") {
+			base.Fatalf("build flag -modfile only valid when using modules")
+		}
+	}
+}
+
+func inGOFLAGS(flag string) bool {
+	for _, goflag := range base.GOFLAGS() {
+		name := goflag
+		if strings.HasPrefix(name, "--") {
+			name = name[1:]
+		}
+		if i := strings.Index(name, "="); i >= 0 {
+			name = name[:i]
+		}
+		if name == flag {
+			return true
+		}
+	}
+	return false
 }

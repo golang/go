@@ -7,6 +7,7 @@
 package net
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"runtime"
@@ -52,4 +53,8 @@ func (ti *testInterface) setPointToPoint(suffix int) error {
 		Args: []string{"ifconfig", ti.name, "destroy"},
 	})
 	return nil
+}
+
+func (ti *testInterface) setLinkLocal(suffix int) error {
+	return errors.New("not yet implemented for BSD")
 }

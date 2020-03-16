@@ -130,9 +130,9 @@ func NewFileCache(maxLen int) *FileCache {
 }
 
 // Line returns the source code line for the given file and line number.
-// If the file is not already cached, reads it , inserts it into the cache,
+// If the file is not already cached, reads it, inserts it into the cache,
 // and removes the least recently used file if necessary.
-// If the file is in cache, moves it up to the front of the list.
+// If the file is in cache, it is moved to the front of the list.
 func (fc *FileCache) Line(filename string, line int) ([]byte, error) {
 	if filepath.Ext(filename) != ".go" {
 		return nil, nil
@@ -141,11 +141,9 @@ func (fc *FileCache) Line(filename string, line int) ([]byte, error) {
 	// Clean filenames returned by src.Pos.SymFilename()
 	// or src.PosBase.SymFilename() removing
 	// the leading src.FileSymPrefix.
-	if strings.HasPrefix(filename, src.FileSymPrefix) {
-		filename = filename[len(src.FileSymPrefix):]
-	}
+	filename = strings.TrimPrefix(filename, src.FileSymPrefix)
 
-	// Expand literal "$GOROOT" rewrited by obj.AbsFile()
+	// Expand literal "$GOROOT" rewritten by obj.AbsFile()
 	filename = filepath.Clean(os.ExpandEnv(filename))
 
 	var cf *CachedFile
@@ -177,6 +175,11 @@ func (fc *FileCache) Line(filename string, line int) ([]byte, error) {
 		fc.files.MoveToFront(e)
 	}
 
+	// because //line directives can be out-of-range. (#36683)
+	if line-1 >= len(cf.Lines) || line-1 < 0 {
+		return nil, nil
+	}
+
 	return cf.Lines[line-1], nil
 }
 
@@ -199,6 +202,7 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, pr
 		fc = NewFileCache(8)
 	}
 
+	tw := tabwriter.NewWriter(bw, 18, 8, 1, '\t', tabwriter.StripEscape)
 	for _, sym := range d.syms {
 		symStart := sym.Addr
 		symEnd := sym.Addr + uint64(sym.Size)
@@ -217,7 +221,6 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, pr
 		file, _, _ := d.pcln.PCToLine(sym.Addr)
 		fmt.Fprintf(bw, "TEXT %s(SB) %s\n", sym.Name, file)
 
-		tw := tabwriter.NewWriter(bw, 18, 8, 1, '\t', tabwriter.StripEscape)
 		if symEnd > end {
 			symEnd = end
 		}
@@ -243,7 +246,7 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, pr
 				fmt.Fprintf(tw, "  %s:%d\t%#x\t", base(file), line, pc)
 			}
 
-			if size%4 != 0 || d.goarch == "386" || d.goarch == "amd64" || d.goarch == "amd64p32" {
+			if size%4 != 0 || d.goarch == "386" || d.goarch == "amd64" {
 				// Print instruction as bytes.
 				fmt.Fprintf(tw, "%x", code[i:i+size])
 			} else {
@@ -255,7 +258,7 @@ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, pr
 					fmt.Fprintf(tw, "%08x", d.byteOrder.Uint32(code[i+j:]))
 				}
 			}
-			fmt.Fprintf(tw, "\t%s\n", text)
+			fmt.Fprintf(tw, "\t%s\t\n", text)
 		})
 		tw.Flush()
 	}
@@ -276,15 +279,10 @@ func (d *Disasm) Decode(start, end uint64, relocs []Reloc, f func(pc, size uint6
 		i := pc - d.textStart
 		text, size := d.disasm(code[i:], pc, lookup, d.byteOrder)
 		file, line, _ := d.pcln.PCToLine(pc)
-		text += "\t"
-		first := true
+		sep := "\t"
 		for len(relocs) > 0 && relocs[0].Addr < i+uint64(size) {
-			if first {
-				first = false
-			} else {
-				text += " "
-			}
-			text += relocs[0].Stringer.String(pc - start)
+			text += sep + relocs[0].Stringer.String(pc-start)
+			sep = " "
 			relocs = relocs[1:]
 		}
 		f(pc, uint64(size), file, line, text)
@@ -364,7 +362,7 @@ func disasm_ppc64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.By
 	inst, err := ppc64asm.Decode(code, byteOrder)
 	var text string
 	size := inst.Len
-	if err != nil || size == 0 || inst.Op == 0 {
+	if err != nil || size == 0 {
 		size = 4
 		text = "?"
 	} else {
@@ -374,24 +372,22 @@ func disasm_ppc64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.By
 }
 
 var disasms = map[string]disasmFunc{
-	"386":      disasm_386,
-	"amd64":    disasm_amd64,
-	"amd64p32": disasm_amd64,
-	"arm":      disasm_arm,
-	"arm64":    disasm_arm64,
-	"ppc64":    disasm_ppc64,
-	"ppc64le":  disasm_ppc64,
+	"386":     disasm_386,
+	"amd64":   disasm_amd64,
+	"arm":     disasm_arm,
+	"arm64":   disasm_arm64,
+	"ppc64":   disasm_ppc64,
+	"ppc64le": disasm_ppc64,
 }
 
 var byteOrders = map[string]binary.ByteOrder{
-	"386":      binary.LittleEndian,
-	"amd64":    binary.LittleEndian,
-	"amd64p32": binary.LittleEndian,
-	"arm":      binary.LittleEndian,
-	"arm64":    binary.LittleEndian,
-	"ppc64":    binary.BigEndian,
-	"ppc64le":  binary.LittleEndian,
-	"s390x":    binary.BigEndian,
+	"386":     binary.LittleEndian,
+	"amd64":   binary.LittleEndian,
+	"arm":     binary.LittleEndian,
+	"arm64":   binary.LittleEndian,
+	"ppc64":   binary.BigEndian,
+	"ppc64le": binary.LittleEndian,
+	"s390x":   binary.BigEndian,
 }
 
 type Liner interface {

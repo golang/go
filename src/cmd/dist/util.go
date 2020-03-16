@@ -383,23 +383,14 @@ func xsamefile(f1, f2 string) bool {
 }
 
 func xgetgoarm() string {
-	if goos == "nacl" {
-		// NaCl guarantees VFPv3 and is always cross-compiled.
-		return "7"
-	}
-	if goos == "darwin" {
-		// Assume all darwin/arm devices are have VFPv3. This
-		// port is also mostly cross-compiled, so it makes little
+	if goos == "darwin" || goos == "android" {
+		// Assume all darwin/arm and android devices have VFPv3.
+		// These ports are also mostly cross-compiled, so it makes little
 		// sense to auto-detect the setting.
 		return "7"
 	}
 	if gohostarch != "arm" || goos != gohostos {
 		// Conservative default for cross-compilation.
-		return "5"
-	}
-	if goos == "freebsd" || goos == "openbsd" {
-		// FreeBSD has broken VFP support.
-		// OpenBSD currently only supports softfloat.
 		return "5"
 	}
 

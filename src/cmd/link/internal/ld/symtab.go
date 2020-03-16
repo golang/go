@@ -93,7 +93,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
 	case UndefinedSym:
 		// ElfType is only set for symbols read from Go shared libraries, but
 		// for other symbols it is left as STT_NOTYPE which is fine.
-		typ = int(x.ElfType)
+		typ = int(x.ElfType())
 
 	case TLSSym:
 		typ = STT_TLS
@@ -110,7 +110,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
 	}
 
 	var elfshnum int
-	if xo.Type == sym.SDYNIMPORT || xo.Type == sym.SHOSTOBJ {
+	if xo.Type == sym.SDYNIMPORT || xo.Type == sym.SHOSTOBJ || xo.Type == sym.SUNDEFEXT {
 		elfshnum = SHN_UNDEF
 	} else {
 		if xo.Sect == nil {
@@ -128,7 +128,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
 	// maybe one day STB_WEAK.
 	bind := STB_GLOBAL
 
-	if x.Version != 0 || x.Attr.VisibilityHidden() || x.Attr.Local() {
+	if x.IsFileLocal() || x.Attr.VisibilityHidden() || x.Attr.Local() {
 		bind = STB_LOCAL
 	}
 
@@ -224,7 +224,7 @@ func putplan9sym(ctxt *Link, x *sym.Symbol, s string, typ SymbolType, addr int64
 	t := int(typ)
 	switch typ {
 	case TextSym, DataSym, BSSSym:
-		if x.Version != 0 {
+		if x.IsFileLocal() {
 			t += 'a' - 'A'
 		}
 		fallthrough
@@ -326,7 +326,16 @@ func textsectionmap(ctxt *Link) uint32 {
 }
 
 func (ctxt *Link) symtab() {
-	dosymtype(ctxt)
+	switch ctxt.BuildMode {
+	case BuildModeCArchive, BuildModeCShared:
+		for _, s := range ctxt.Syms.Allsym {
+			// Create a new entry in the .init_array section that points to the
+			// library initializer function.
+			if s.Name == *flagEntrySymbol && ctxt.HeadType != objabi.Haix {
+				addinitarrdata(ctxt, s)
+			}
+		}
+	}
 
 	// Define these so that they'll get put into the symbol table.
 	// data.c:/^address will provide the actual values.
@@ -368,28 +377,30 @@ func (ctxt *Link) symtab() {
 	// pseudo-symbols to mark locations of type, string, and go string data.
 	var symtype *sym.Symbol
 	var symtyperel *sym.Symbol
-	if ctxt.UseRelro() && (ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) {
-		s = ctxt.Syms.Lookup("type.*", 0)
+	if !ctxt.DynlinkingGo() {
+		if ctxt.UseRelro() && (ctxt.BuildMode == BuildModeCArchive || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE) {
+			s = ctxt.Syms.Lookup("type.*", 0)
 
-		s.Type = sym.STYPE
-		s.Size = 0
-		s.Attr |= sym.AttrReachable
-		symtype = s
+			s.Type = sym.STYPE
+			s.Size = 0
+			s.Attr |= sym.AttrReachable
+			symtype = s
 
-		s = ctxt.Syms.Lookup("typerel.*", 0)
+			s = ctxt.Syms.Lookup("typerel.*", 0)
 
-		s.Type = sym.STYPERELRO
-		s.Size = 0
-		s.Attr |= sym.AttrReachable
-		symtyperel = s
-	} else if !ctxt.DynlinkingGo() {
-		s = ctxt.Syms.Lookup("type.*", 0)
+			s.Type = sym.STYPERELRO
+			s.Size = 0
+			s.Attr |= sym.AttrReachable
+			symtyperel = s
+		} else {
+			s = ctxt.Syms.Lookup("type.*", 0)
 
-		s.Type = sym.STYPE
-		s.Size = 0
-		s.Attr |= sym.AttrReachable
-		symtype = s
-		symtyperel = s
+			s.Type = sym.STYPE
+			s.Size = 0
+			s.Attr |= sym.AttrReachable
+			symtype = s
+			symtyperel = s
+		}
 	}
 
 	groupSym := func(name string, t sym.SymKind) *sym.Symbol {
@@ -430,6 +441,10 @@ func (ctxt *Link) symtab() {
 	// just defined above will be first.
 	// hide the specific symbols.
 	for _, s := range ctxt.Syms.Allsym {
+		if ctxt.LinkMode != LinkExternal && isStaticTemp(s.Name) {
+			s.Attr |= sym.AttrNotInSymbolTable
+		}
+
 		if !s.Attr.Reachable() || s.Attr.Special() || s.Type != sym.SRODATA {
 			continue
 		}
@@ -483,7 +498,8 @@ func (ctxt *Link) symtab() {
 		case strings.HasPrefix(s.Name, "gcargs."),
 			strings.HasPrefix(s.Name, "gclocals."),
 			strings.HasPrefix(s.Name, "gclocals·"),
-			strings.HasPrefix(s.Name, "inltree."):
+			strings.HasPrefix(s.Name, "inltree."),
+			strings.HasSuffix(s.Name, ".opendefer"):
 			s.Type = sym.SGOFUNC
 			s.Attr |= sym.AttrNotInSymbolTable
 			s.Outer = symgofunc
@@ -500,7 +516,7 @@ func (ctxt *Link) symtab() {
 		abihashgostr.AddAddr(ctxt.Arch, hashsym)
 		abihashgostr.AddUint(ctxt.Arch, uint64(hashsym.Size))
 	}
-	if ctxt.BuildMode == BuildModePlugin || ctxt.Syms.ROLookup("plugin.Open", 0) != nil {
+	if ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins() {
 		for _, l := range ctxt.Library {
 			s := ctxt.Syms.Lookup("go.link.pkghashbytes."+l.Pkg, 0)
 			s.Attr |= sym.AttrReachable
@@ -555,6 +571,20 @@ func (ctxt *Link) symtab() {
 	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.gcbss", 0))
 	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.types", 0))
 	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.etypes", 0))
+
+	if ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal {
+		// Add R_REF relocation to prevent ld's garbage collection of
+		// runtime.rodata, runtime.erodata and runtime.epclntab.
+		addRef := func(name string) {
+			r := moduledata.AddRel()
+			r.Sym = ctxt.Syms.Lookup(name, 0)
+			r.Type = objabi.R_XCOFFREF
+			r.Siz = uint8(ctxt.Arch.PtrSize)
+		}
+		addRef("runtime.rodata")
+		addRef("runtime.erodata")
+		addRef("runtime.epclntab")
+	}
 
 	// text section information
 	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.textsectionmap", 0))
@@ -664,7 +694,7 @@ func (ctxt *Link) symtab() {
 	// creating the moduledata from scratch and it does not have a
 	// compiler-provided size, so read it from the type data.
 	moduledatatype := ctxt.Syms.ROLookup("type.runtime.moduledata", 0)
-	moduledata.Size = decodetypeSize(ctxt.Arch, moduledatatype)
+	moduledata.Size = decodetypeSize(ctxt.Arch, moduledatatype.P)
 	moduledata.Grow(moduledata.Size)
 
 	lastmoduledatap := ctxt.Syms.Lookup("runtime.lastmoduledatap", 0)
@@ -673,4 +703,11 @@ func (ctxt *Link) symtab() {
 		lastmoduledatap.Size = 0 // overwrite existing value
 		lastmoduledatap.AddAddr(ctxt.Arch, moduledata)
 	}
+}
+
+func isStaticTemp(name string) bool {
+	if i := strings.LastIndex(name, "/"); i >= 0 {
+		name = name[i:]
+	}
+	return strings.Contains(name, "..stmp_")
 }

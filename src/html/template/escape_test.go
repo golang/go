@@ -35,12 +35,13 @@ func TestEscape(t *testing.T) {
 		A, E    []string
 		B, M    json.Marshaler
 		N       int
-		Z       *int
+		U       interface{} // untyped nil
+		Z       *int        // typed nil
 		W       HTML
 	}{
 		F: false,
 		T: true,
-		C: "<Cincinatti>",
+		C: "<Cincinnati>",
 		G: "<Goodbye>",
 		H: "<Hello>",
 		A: []string{"<a>", "<b>"},
@@ -48,6 +49,7 @@ func TestEscape(t *testing.T) {
 		N: 42,
 		B: &badMarshaler{},
 		M: &goodMarshaler{},
+		U: nil,
 		Z: nil,
 		W: HTML(`&iexcl;<b class="foo">Hello</b>, <textarea>O'World</textarea>!`),
 	}
@@ -61,7 +63,7 @@ func TestEscape(t *testing.T) {
 		{
 			"if",
 			"{{if .T}}Hello{{end}}, {{.C}}!",
-			"Hello, &lt;Cincinatti&gt;!",
+			"Hello, &lt;Cincinnati&gt;!",
 		},
 		{
 			"else",
@@ -71,17 +73,17 @@ func TestEscape(t *testing.T) {
 		{
 			"overescaping1",
 			"Hello, {{.C | html}}!",
-			"Hello, &lt;Cincinatti&gt;!",
+			"Hello, &lt;Cincinnati&gt;!",
 		},
 		{
 			"overescaping2",
 			"Hello, {{html .C}}!",
-			"Hello, &lt;Cincinatti&gt;!",
+			"Hello, &lt;Cincinnati&gt;!",
 		},
 		{
 			"overescaping3",
 			"{{with .C}}{{$msg := .}}Hello, {{$msg}}!{{end}}",
-			"Hello, &lt;Cincinatti&gt;!",
+			"Hello, &lt;Cincinnati&gt;!",
 		},
 		{
 			"assignment",
@@ -112,6 +114,16 @@ func TestEscape(t *testing.T) {
 			"nonStringValue",
 			"{{.T}}",
 			"true",
+		},
+		{
+			"untypedNilValue",
+			"{{.U}}",
+			"",
+		},
+		{
+			"typedNilValue",
+			"{{.Z}}",
+			"&lt;nil&gt;",
 		},
 		{
 			"constant",
@@ -181,7 +193,7 @@ func TestEscape(t *testing.T) {
 		{
 			"urlBranchConflictMoot",
 			`<a href="{{if .T}}/foo?a={{else}}/bar#{{end}}{{.C}}">`,
-			`<a href="/foo?a=%3cCincinatti%3e">`,
+			`<a href="/foo?a=%3cCincinnati%3e">`,
 		},
 		{
 			"jsStrValue",
@@ -199,8 +211,13 @@ func TestEscape(t *testing.T) {
 			`<button onclick='alert( true )'>`,
 		},
 		{
-			"jsNilValue",
+			"jsNilValueTyped",
 			"<button onclick='alert(typeof{{.Z}})'>",
+			`<button onclick='alert(typeof null )'>`,
+		},
+		{
+			"jsNilValueUntyped",
+			"<button onclick='alert(typeof{{.U}})'>",
 			`<button onclick='alert(typeof null )'>`,
 		},
 		{
@@ -237,7 +254,7 @@ func TestEscape(t *testing.T) {
 			"jsStrNotUnderEscaped",
 			"<button onclick='alert({{.C | urlquery}})'>",
 			// URL escaped, then quoted for JS.
-			`<button onclick='alert(&#34;%3CCincinatti%3E&#34;)'>`,
+			`<button onclick='alert(&#34;%3CCincinnati%3E&#34;)'>`,
 		},
 		{
 			"jsRe",
@@ -405,7 +422,7 @@ func TestEscape(t *testing.T) {
 		{
 			"HTML comment",
 			"<b>Hello, <!-- name of world -->{{.C}}</b>",
-			"<b>Hello, &lt;Cincinatti&gt;</b>",
+			"<b>Hello, &lt;Cincinnati&gt;</b>",
 		},
 		{
 			"HTML comment not first < in text node.",
@@ -445,7 +462,7 @@ func TestEscape(t *testing.T) {
 		{
 			"Split HTML comment",
 			"<b>Hello, <!-- name of {{if .T}}city -->{{.C}}{{else}}world -->{{.W}}{{end}}</b>",
-			"<b>Hello, &lt;Cincinatti&gt;</b>",
+			"<b>Hello, &lt;Cincinnati&gt;</b>",
 		},
 		{
 			"JS line comment",
@@ -655,6 +672,11 @@ func TestEscape(t *testing.T) {
 			`<img srcset="{{"/not-an-image#,javascript:alert(1)"}}">`,
 			// The second URL is also filtered.
 			`<img srcset="/not-an-image#,#ZgotmplZ">`,
+		},
+		{
+			"srcset buffer growth",
+			`<img srcset={{",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,"}}>`,
+			`<img srcset=,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,>`,
 		},
 	}
 
@@ -1847,8 +1869,7 @@ func TestErrorOnUndefined(t *testing.T) {
 	err := tmpl.Execute(nil, nil)
 	if err == nil {
 		t.Error("expected error")
-	}
-	if !strings.Contains(err.Error(), "incomplete") {
+	} else if !strings.Contains(err.Error(), "incomplete") {
 		t.Errorf("expected error about incomplete template; got %s", err)
 	}
 }

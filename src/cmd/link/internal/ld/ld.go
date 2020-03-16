@@ -136,19 +136,19 @@ func findlib(ctxt *Link, lib string) (string, bool) {
 			// try dot, -L "libdir", and then goroot.
 			for _, dir := range ctxt.Libdir {
 				if ctxt.linkShared {
-					pname = dir + "/" + pkg + ".shlibname"
+					pname = filepath.Join(dir, pkg+".shlibname")
 					if _, err := os.Stat(pname); err == nil {
 						isshlib = true
 						break
 					}
 				}
-				pname = dir + "/" + name
+				pname = filepath.Join(dir, name)
 				if _, err := os.Stat(pname); err == nil {
 					break
 				}
 			}
 		}
-		pname = path.Clean(pname)
+		pname = filepath.Clean(pname)
 	}
 
 	return pname, isshlib
@@ -165,7 +165,7 @@ func addlib(ctxt *Link, src string, obj string, lib string) *sym.Library {
 	pname, isshlib := findlib(ctxt, lib)
 
 	if ctxt.Debugvlog > 1 {
-		ctxt.Logf("%5.2f addlib: %s %s pulls in %s isshlib %v\n", elapsed(), obj, src, pname, isshlib)
+		ctxt.Logf("addlib: %s %s pulls in %s isshlib %v\n", obj, src, pname, isshlib)
 	}
 
 	if isshlib {
@@ -188,7 +188,7 @@ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg strin
 	}
 
 	if ctxt.Debugvlog > 1 {
-		ctxt.Logf("%5.2f addlibpath: srcref: %s objref: %s file: %s pkg: %s shlib: %s\n", Cputime(), srcref, objref, file, pkg, shlib)
+		ctxt.Logf("addlibpath: srcref: %s objref: %s file: %s pkg: %s shlib: %s\n", srcref, objref, file, pkg, shlib)
 	}
 
 	l := &sym.Library{}

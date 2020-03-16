@@ -18,7 +18,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 	case constArg && isConstType(T):
 		// constant conversion
 		switch t := T.Underlying().(*Basic); {
-		case representableConst(x.val, check.conf, t, &x.val):
+		case representableConst(x.val, check, t, &x.val):
 			ok = true
 		case isInteger(x.typ) && isString(t):
 			codepoint := int64(-1)
@@ -28,10 +28,10 @@ func (check *Checker) conversion(x *operand, T Type) {
 			// If codepoint < 0 the absolute value is too large (or unknown) for
 			// conversion. This is the same as converting any other out-of-range
 			// value - let string(codepoint) do the work.
-			x.val = constant.MakeString(string(codepoint))
+			x.val = constant.MakeString(string(rune(codepoint)))
 			ok = true
 		}
-	case x.convertibleTo(check.conf, T):
+	case x.convertibleTo(check, T):
 		// non-constant conversion
 		x.mode = value
 		ok = true
@@ -76,9 +76,12 @@ func (check *Checker) conversion(x *operand, T Type) {
 // is tricky because we'd have to run updateExprType on the argument first.
 // (Issue #21982.)
 
-func (x *operand) convertibleTo(conf *Config, T Type) bool {
+// convertibleTo reports whether T(x) is valid.
+// The check parameter may be nil if convertibleTo is invoked through an
+// exported API call, i.e., when all methods have been type-checked.
+func (x *operand) convertibleTo(check *Checker, T Type) bool {
 	// "x is assignable to T"
-	if x.assignableTo(conf, T, nil) {
+	if x.assignableTo(check, T, nil) {
 		return true
 	}
 
@@ -86,7 +89,7 @@ func (x *operand) convertibleTo(conf *Config, T Type) bool {
 	V := x.typ
 	Vu := V.Underlying()
 	Tu := T.Underlying()
-	if IdenticalIgnoreTags(Vu, Tu) {
+	if check.identicalIgnoreTags(Vu, Tu) {
 		return true
 	}
 
@@ -94,7 +97,7 @@ func (x *operand) convertibleTo(conf *Config, T Type) bool {
 	// have identical underlying types if tags are ignored"
 	if V, ok := V.(*Pointer); ok {
 		if T, ok := T.(*Pointer); ok {
-			if IdenticalIgnoreTags(V.base.Underlying(), T.base.Underlying()) {
+			if check.identicalIgnoreTags(V.base.Underlying(), T.base.Underlying()) {
 				return true
 			}
 		}

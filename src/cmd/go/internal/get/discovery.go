@@ -11,15 +11,15 @@ import (
 	"strings"
 )
 
-// charsetReader returns a reader for the given charset. Currently
-// it only supports UTF-8 and ASCII. Otherwise, it returns a meaningful
+// charsetReader returns a reader that converts from the given charset to UTF-8.
+// Currently it only supports UTF-8 and ASCII. Otherwise, it returns a meaningful
 // error which is printed by go get, so the user can find why the package
 // wasn't downloaded if the encoding is not supported. Note that, in
 // order to reduce potential errors, ASCII is treated as UTF-8 (i.e. characters
 // greater than 0x7f are not rejected).
 func charsetReader(charset string, input io.Reader) (io.Reader, error) {
 	switch strings.ToLower(charset) {
-	case "ascii":
+	case "utf-8", "ascii":
 		return input, nil
 	default:
 		return nil, fmt.Errorf("can't decode XML document using charset %q", charset)
@@ -28,24 +28,24 @@ func charsetReader(charset string, input io.Reader) (io.Reader, error) {
 
 // parseMetaGoImports returns meta imports from the HTML in r.
 // Parsing ends at the end of the <head> section or the beginning of the <body>.
-func parseMetaGoImports(r io.Reader) (imports []metaImport, err error) {
+func parseMetaGoImports(r io.Reader, mod ModuleMode) ([]metaImport, error) {
 	d := xml.NewDecoder(r)
 	d.CharsetReader = charsetReader
 	d.Strict = false
-	var t xml.Token
+	var imports []metaImport
 	for {
-		t, err = d.RawToken()
+		t, err := d.RawToken()
 		if err != nil {
-			if err == io.EOF || len(imports) > 0 {
-				err = nil
+			if err != io.EOF && len(imports) == 0 {
+				return nil, err
 			}
-			return
+			break
 		}
 		if e, ok := t.(xml.StartElement); ok && strings.EqualFold(e.Name.Local, "body") {
-			return
+			break
 		}
 		if e, ok := t.(xml.EndElement); ok && strings.EqualFold(e.Name.Local, "head") {
-			return
+			break
 		}
 		e, ok := t.(xml.StartElement)
 		if !ok || !strings.EqualFold(e.Name.Local, "meta") {
@@ -62,6 +62,27 @@ func parseMetaGoImports(r io.Reader) (imports []metaImport, err error) {
 			})
 		}
 	}
+
+	// Extract mod entries if we are paying attention to them.
+	var list []metaImport
+	var have map[string]bool
+	if mod == PreferMod {
+		have = make(map[string]bool)
+		for _, m := range imports {
+			if m.VCS == "mod" {
+				have[m.Prefix] = true
+				list = append(list, m)
+			}
+		}
+	}
+
+	// Append non-mod entries, ignoring those superseded by a mod entry.
+	for _, m := range imports {
+		if m.VCS != "mod" && !have[m.Prefix] {
+			list = append(list, m)
+		}
+	}
+	return list, nil
 }
 
 // attrValue returns the attribute value for the case-insensitive key

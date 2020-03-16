@@ -124,7 +124,7 @@ var surrogateTests = []struct {
 	r    rune
 	want bool
 }{
-	// from http://en.wikipedia.org/wiki/UTF-16
+	// from https://en.wikipedia.org/wiki/UTF-16
 	{'\u007A', false},     // LATIN SMALL LETTER Z
 	{'\u6C34', false},     // CJK UNIFIED IDEOGRAPH-6C34 (water)
 	{'\uFEFF', false},     // Byte Order Mark

@@ -32,17 +32,17 @@ func shortcircuit(f *Func) {
 				if p.Kind != BlockIf {
 					continue
 				}
-				if p.Control != a {
+				if p.Controls[0] != a {
 					continue
 				}
 				if e.i == 0 {
 					if ct == nil {
-						ct = f.ConstBool(f.Entry.Pos, f.Config.Types.Bool, true)
+						ct = f.ConstBool(f.Config.Types.Bool, true)
 					}
 					v.SetArg(i, ct)
 				} else {
 					if cf == nil {
-						cf = f.ConstBool(f.Entry.Pos, f.Config.Types.Bool, false)
+						cf = f.ConstBool(f.Config.Types.Bool, false)
 					}
 					v.SetArg(i, cf)
 				}
@@ -50,22 +50,7 @@ func shortcircuit(f *Func) {
 		}
 	}
 
-	// Step 2: Compute which values are live across blocks.
-	live := make([]bool, f.NumValues())
-	for _, b := range f.Blocks {
-		for _, v := range b.Values {
-			for _, a := range v.Args {
-				if a.Block != v.Block {
-					live[a.ID] = true
-				}
-			}
-		}
-		if b.Control != nil && b.Control.Block != b {
-			live[b.Control.ID] = true
-		}
-	}
-
-	// Step 3: Redirect control flow around known branches.
+	// Step 2: Redirect control flow around known branches.
 	// p:
 	//   ... goto b ...
 	// b: <- p ...
@@ -73,66 +58,118 @@ func shortcircuit(f *Func) {
 	//   if v goto t else u
 	// We can redirect p to go directly to t instead of b.
 	// (If v is not live after b).
-	for _, b := range f.Blocks {
-		if b.Kind != BlockIf {
-			continue
+	for changed := true; changed; {
+		changed = false
+		for i := len(f.Blocks) - 1; i >= 0; i-- {
+			b := f.Blocks[i]
+			if fuseBlockPlain(b) {
+				changed = true
+				continue
+			}
+			changed = shortcircuitBlock(b) || changed
 		}
-		if len(b.Values) != 1 {
-			continue
+		if changed {
+			f.invalidateCFG()
 		}
-		v := b.Values[0]
+	}
+}
+
+// shortcircuitBlock checks for a CFG of the form
+//
+//   p   other pred(s)
+//    \ /
+//     b
+//    / \
+//   s   other succ
+//
+// in which b is an If block containing a single phi value with a single use,
+// which has a ConstBool arg.
+// The only use of the phi value must be the control value of b.
+// p is the predecessor determined by the argument slot in which the ConstBool is found.
+//
+// It rewrites this into
+//
+//   p   other pred(s)
+//   |  /
+//   | b
+//   |/ \
+//   s   other succ
+//
+// and removes the appropriate phi arg(s).
+func shortcircuitBlock(b *Block) bool {
+	if b.Kind != BlockIf {
+		return false
+	}
+	// Look for control values of the form Copy(Not(Copy(Phi(const, ...)))).
+	// Those must be the only values in the b, and they each must be used only by b.
+	// Track the negations so that we can swap successors as needed later.
+	ctl := b.Controls[0]
+	nval := 1 // the control value
+	var swap int64
+	for ctl.Uses == 1 && ctl.Block == b && (ctl.Op == OpCopy || ctl.Op == OpNot) {
+		if ctl.Op == OpNot {
+			swap = 1 ^ swap
+		}
+		ctl = ctl.Args[0]
+		nval++ // wrapper around control value
+	}
+	if len(b.Values) != nval || ctl.Op != OpPhi || ctl.Block != b || ctl.Uses != 1 {
+		return false
+	}
+
+	// Locate index of first const phi arg.
+	cidx := -1
+	for i, a := range ctl.Args {
+		if a.Op == OpConstBool {
+			cidx = i
+			break
+		}
+	}
+	if cidx == -1 {
+		return false
+	}
+
+	// p is the predecessor corresponding to cidx.
+	pe := b.Preds[cidx]
+	p := pe.b
+	pi := pe.i
+
+	// t is the "taken" branch: the successor we always go to when coming in from p.
+	ti := 1 ^ ctl.Args[cidx].AuxInt ^ swap
+	te := b.Succs[ti]
+	t := te.b
+	if p == b || t == b {
+		// This is an infinite loop; we can't remove it. See issue 33903.
+		return false
+	}
+
+	// We're committed. Update CFG and Phis.
+
+	// Remove b's incoming edge from p.
+	b.removePred(cidx)
+	n := len(b.Preds)
+	ctl.Args[cidx].Uses--
+	ctl.Args[cidx] = ctl.Args[n]
+	ctl.Args[n] = nil
+	ctl.Args = ctl.Args[:n]
+
+	// Redirect p's outgoing edge to t.
+	p.Succs[pi] = Edge{t, len(t.Preds)}
+
+	// Fix up t to have one more predecessor.
+	t.Preds = append(t.Preds, Edge{p, pi})
+	for _, v := range t.Values {
 		if v.Op != OpPhi {
 			continue
 		}
-		if b.Control != v {
-			continue
-		}
-		if live[v.ID] {
-			continue
-		}
-		for i := 0; i < len(v.Args); i++ {
-			a := v.Args[i]
-			if a.Op != OpConstBool {
-				continue
-			}
-
-			// The predecessor we come in from.
-			e1 := b.Preds[i]
-			p := e1.b
-			pi := e1.i
-
-			// The successor we always go to when coming in
-			// from that predecessor.
-			e2 := b.Succs[1-a.AuxInt]
-			t := e2.b
-			ti := e2.i
-
-			// Remove b's incoming edge from p.
-			b.removePred(i)
-			n := len(b.Preds)
-			v.Args[i].Uses--
-			v.Args[i] = v.Args[n]
-			v.Args[n] = nil
-			v.Args = v.Args[:n]
-
-			// Redirect p's outgoing edge to t.
-			p.Succs[pi] = Edge{t, len(t.Preds)}
-
-			// Fix up t to have one more predecessor.
-			t.Preds = append(t.Preds, Edge{p, pi})
-			for _, w := range t.Values {
-				if w.Op != OpPhi {
-					continue
-				}
-				w.AddArg(w.Args[ti])
-			}
-
-			if len(b.Preds) == 1 {
-				v.Op = OpCopy
-				// No longer a phi, stop optimizing here.
-				break
-			}
-			i--
-		}
+		v.AddArg(v.Args[te.i])
 	}
+
+	if len(b.Preds) == 0 {
+		// Block is now dead.
+		b.Kind = BlockInvalid
+	}
+
+	phielimValue(ctl)
+	return true
 }

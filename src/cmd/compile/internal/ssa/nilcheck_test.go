@@ -24,7 +24,7 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
 	blocs = append(blocs,
 		Bloc("entry",
 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
+			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
 			Goto(blockn(0)),
 		),
 	)
@@ -59,7 +59,7 @@ func ptrn(n int) string   { return "p" + strconv.Itoa(n) }
 func booln(n int) string  { return "c" + strconv.Itoa(n) }
 
 func isNilCheck(b *Block) bool {
-	return b.Kind == BlockIf && b.Control.Op == OpIsNonNil
+	return b.Kind == BlockIf && b.Controls[0].Op == OpIsNonNil
 }
 
 // TestNilcheckSimple verifies that a second repeated nilcheck is removed.
@@ -69,7 +69,7 @@ func TestNilcheckSimple(t *testing.T) {
 	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
+			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
@@ -87,7 +87,7 @@ func TestNilcheckSimple(t *testing.T) {
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
-	fuse(fun.f)
+	fuse(fun.f, fuseTypePlain)
 	deadcode(fun.f)
 
 	CheckFunc(fun.f)
@@ -106,7 +106,7 @@ func TestNilcheckDomOrder(t *testing.T) {
 	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
+			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
@@ -124,7 +124,7 @@ func TestNilcheckDomOrder(t *testing.T) {
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
-	fuse(fun.f)
+	fuse(fun.f, fuseTypePlain)
 	deadcode(fun.f)
 
 	CheckFunc(fun.f)
@@ -142,7 +142,7 @@ func TestNilcheckAddr(t *testing.T) {
 	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
+			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
 			Valu("ptr1", OpAddr, ptrType, 0, nil, "sb"),
@@ -157,7 +157,7 @@ func TestNilcheckAddr(t *testing.T) {
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
-	fuse(fun.f)
+	fuse(fun.f, fuseTypePlain)
 	deadcode(fun.f)
 
 	CheckFunc(fun.f)
@@ -175,7 +175,7 @@ func TestNilcheckAddPtr(t *testing.T) {
 	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
+			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
 			Valu("off", OpConst64, c.config.Types.Int64, 20, nil),
@@ -191,7 +191,7 @@ func TestNilcheckAddPtr(t *testing.T) {
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
-	fuse(fun.f)
+	fuse(fun.f, fuseTypePlain)
 	deadcode(fun.f)
 
 	CheckFunc(fun.f)
@@ -210,9 +210,9 @@ func TestNilcheckPhi(t *testing.T) {
 	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
-			Valu("sp", OpSP, types.TypeInvalid, 0, nil),
-			Valu("baddr", OpAddr, c.config.Types.Bool, 0, "b", "sp"),
+			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
+			Valu("sp", OpSP, c.config.Types.Uintptr, 0, nil),
+			Valu("baddr", OpLocalAddr, c.config.Types.Bool, 0, "b", "sp", "mem"),
 			Valu("bool1", OpLoad, c.config.Types.Bool, 0, nil, "baddr", "mem"),
 			If("bool1", "b1", "b2")),
 		Bloc("b1",
@@ -235,7 +235,7 @@ func TestNilcheckPhi(t *testing.T) {
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
-	fuse(fun.f)
+	fuse(fun.f, fuseTypePlain)
 	deadcode(fun.f)
 
 	CheckFunc(fun.f)
@@ -254,7 +254,7 @@ func TestNilcheckKeepRemove(t *testing.T) {
 	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
+			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
@@ -276,7 +276,7 @@ func TestNilcheckKeepRemove(t *testing.T) {
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
-	fuse(fun.f)
+	fuse(fun.f, fuseTypePlain)
 	deadcode(fun.f)
 
 	CheckFunc(fun.f)
@@ -294,7 +294,7 @@ func TestNilcheckKeepRemove(t *testing.T) {
 	}
 }
 
-// TestNilcheckInFalseBranch tests that nil checks in the false branch of an nilcheck
+// TestNilcheckInFalseBranch tests that nil checks in the false branch of a nilcheck
 // block are *not* removed.
 func TestNilcheckInFalseBranch(t *testing.T) {
 	c := testConfig(t)
@@ -302,7 +302,7 @@ func TestNilcheckInFalseBranch(t *testing.T) {
 	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
+			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
@@ -323,7 +323,7 @@ func TestNilcheckInFalseBranch(t *testing.T) {
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
-	fuse(fun.f)
+	fuse(fun.f, fuseTypePlain)
 	deadcode(fun.f)
 
 	CheckFunc(fun.f)
@@ -353,7 +353,7 @@ func TestNilcheckUser(t *testing.T) {
 	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
+			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
@@ -374,7 +374,7 @@ func TestNilcheckUser(t *testing.T) {
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
-	fuse(fun.f)
+	fuse(fun.f, fuseTypePlain)
 	deadcode(fun.f)
 
 	CheckFunc(fun.f)
@@ -392,7 +392,7 @@ func TestNilcheckBug(t *testing.T) {
 	fun := c.Fun("entry",
 		Bloc("entry",
 			Valu("mem", OpInitMem, types.TypeMem, 0, nil),
-			Valu("sb", OpSB, types.TypeInvalid, 0, nil),
+			Valu("sb", OpSB, c.config.Types.Uintptr, 0, nil),
 			Goto("checkPtr")),
 		Bloc("checkPtr",
 			Valu("ptr1", OpLoad, ptrType, 0, nil, "sb", "mem"),
@@ -418,7 +418,7 @@ func TestNilcheckBug(t *testing.T) {
 	nilcheckelim(fun.f)
 
 	// clean up the removed nil check
-	fuse(fun.f)
+	fuse(fun.f, fuseTypePlain)
 	deadcode(fun.f)
 
 	CheckFunc(fun.f)

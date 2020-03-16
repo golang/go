@@ -359,6 +359,10 @@ x,,,
 		Error: errInvalidDelim,
 	}, {
 		Name:  "BadComma3",
+		Comma: '"',
+		Error: errInvalidDelim,
+	}, {
+		Name:  "BadComma4",
 		Comma: utf8.RuneError,
 		Error: errInvalidDelim,
 	}, {

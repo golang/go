@@ -109,6 +109,9 @@ func TestFloatJSONEncoding(t *testing.T) {
 	for _, test := range floatVals {
 		for _, sign := range []string{"", "+", "-"} {
 			for _, prec := range []uint{0, 1, 2, 10, 53, 64, 100, 1000} {
+				if prec > 53 && testing.Short() {
+					continue
+				}
 				x := sign + test
 				var tx Float
 				_, _, err := tx.SetPrec(prec).Parse(x, 0)

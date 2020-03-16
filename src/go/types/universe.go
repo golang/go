@@ -12,9 +12,15 @@ import (
 	"strings"
 )
 
+// The Universe scope contains all predeclared objects of Go.
+// It is the outermost scope of any chain of nested scopes.
+var Universe *Scope
+
+// The Unsafe package is the package returned by an importer
+// for the import path "unsafe".
+var Unsafe *Package
+
 var (
-	Universe     *Scope
-	Unsafe       *Package
 	universeIota *Const
 	universeByte *Basic // uint8 alias, but has name "byte"
 	universeRune *Basic // int32 alias, but has name "rune"
@@ -74,7 +80,7 @@ func defPredeclaredTypes() {
 	res := NewVar(token.NoPos, nil, "", Typ[String])
 	sig := &Signature{results: NewTuple(res)}
 	err := NewFunc(token.NoPos, nil, "Error", sig)
-	typ := &Named{underlying: NewInterface([]*Func{err}, nil).Complete()}
+	typ := &Named{underlying: NewInterfaceType([]*Func{err}, nil).Complete()}
 	sig.recv = NewVar(token.NoPos, nil, "", typ)
 	def(NewTypeName(token.NoPos, nil, "error", typ))
 }
@@ -96,7 +102,7 @@ func defPredeclaredConsts() {
 }
 
 func defPredeclaredNil() {
-	def(&Nil{object{name: "nil", typ: Typ[UntypedNil]}})
+	def(&Nil{object{name: "nil", typ: Typ[UntypedNil], color_: black}})
 }
 
 // A builtinId is the id of a builtin function.
@@ -201,6 +207,7 @@ func init() {
 // scope; other objects are inserted in the universe scope.
 //
 func def(obj Object) {
+	assert(obj.color() == black)
 	name := obj.Name()
 	if strings.Contains(name, " ") {
 		return // nothing to do

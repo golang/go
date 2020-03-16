@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"internal/syscall/execenv"
 	"io"
 	"os"
 	"path/filepath"
@@ -34,16 +35,20 @@ import (
 	"syscall"
 )
 
-// Error records the name of a binary that failed to be executed
-// and the reason it failed.
+// Error is returned by LookPath when it fails to classify a file as an
+// executable.
 type Error struct {
+	// Name is the file name for which the error occurred.
 	Name string
-	Err  error
+	// Err is the underlying error.
+	Err error
 }
 
 func (e *Error) Error() string {
 	return "exec: " + strconv.Quote(e.Name) + ": " + e.Err.Error()
 }
+
+func (e *Error) Unwrap() error { return e.Err }
 
 // Cmd represents an external command being prepared or run.
 //
@@ -69,6 +74,8 @@ type Cmd struct {
 	// environment.
 	// If Env contains duplicate environment keys, only the last
 	// value in the slice for each duplicate key is used.
+	// As a special case on Windows, SYSTEMROOT is always added if
+	// missing and not explicitly set to the empty string.
 	Env []string
 
 	// Dir specifies the working directory of the command.
@@ -111,6 +118,8 @@ type Cmd struct {
 	// ExtraFiles specifies additional open files to be inherited by the
 	// new process. It does not include standard input, standard output, or
 	// standard error. If non-nil, entry i becomes file descriptor 3+i.
+	//
+	// ExtraFiles is not supported on Windows.
 	ExtraFiles []*os.File
 
 	// SysProcAttr holds optional, operating system-specific attributes.
@@ -148,6 +157,15 @@ type Cmd struct {
 // followed by the elements of arg, so arg should not include the
 // command name itself. For example, Command("echo", "hello").
 // Args[0] is always name, not the possibly resolved Path.
+//
+// On Windows, processes receive the whole command line as a single string
+// and do their own parsing. Command combines and quotes Args into a command
+// line string with an algorithm compatible with applications using
+// CommandLineToArgvW (which is the most common way). Notable exceptions are
+// msiexec.exe and cmd.exe (and thus, all batch files), which have a different
+// unquoting algorithm. In these or other similar cases, you can do the
+// quoting yourself and provide the full command line in SysProcAttr.CmdLine,
+// leaving Args empty.
 func Command(name string, arg ...string) *Cmd {
 	cmd := &Cmd{
 		Path: name,
@@ -177,6 +195,25 @@ func CommandContext(ctx context.Context, name string, arg ...string) *Cmd {
 	return cmd
 }
 
+// String returns a human-readable description of c.
+// It is intended only for debugging.
+// In particular, it is not suitable for use as input to a shell.
+// The output of String may vary across Go releases.
+func (c *Cmd) String() string {
+	if c.lookPathErr != nil {
+		// failed to resolve path; report the original requested path (plus args)
+		return strings.Join(c.Args, " ")
+	}
+	// report the exact executable path (plus args)
+	b := new(strings.Builder)
+	b.WriteString(c.Path)
+	for _, a := range c.Args[1:] {
+		b.WriteByte(' ')
+		b.WriteString(a)
+	}
+	return b.String()
+}
+
 // interfaceEqual protects against panics from doing equality tests on
 // two interfaces with non-comparable underlying types.
 func interfaceEqual(a, b interface{}) bool {
@@ -186,11 +223,11 @@ func interfaceEqual(a, b interface{}) bool {
 	return a == b
 }
 
-func (c *Cmd) envv() []string {
+func (c *Cmd) envv() ([]string, error) {
 	if c.Env != nil {
-		return c.Env
+		return c.Env, nil
 	}
-	return os.Environ()
+	return execenv.Default(c.SysProcAttr)
 }
 
 func (c *Cmd) argv() []string {
@@ -202,7 +239,6 @@ func (c *Cmd) argv() []string {
 
 // skipStdinCopyError optionally specifies a function which reports
 // whether the provided stdin copy error should be ignored.
-// It is non-nil everywhere but Plan 9, which lacks EPIPE. See exec_posix.go.
 var skipStdinCopyError func(error) bool
 
 func (c *Cmd) stdin() (f *os.File, err error) {
@@ -333,6 +369,8 @@ func lookExtensions(path, dir string) (string, error) {
 
 // Start starts the specified command but does not wait for it to complete.
 //
+// If Start returns successfully, the c.Process field will be set.
+//
 // The Wait method will return the exit code and release associated resources
 // once the command exits.
 func (c *Cmd) Start() error {
@@ -363,6 +401,7 @@ func (c *Cmd) Start() error {
 		}
 	}
 
+	c.childFiles = make([]*os.File, 0, 3+len(c.ExtraFiles))
 	type F func(*Cmd) (*os.File, error)
 	for _, setupFd := range []F{(*Cmd).stdin, (*Cmd).stdout, (*Cmd).stderr} {
 		fd, err := setupFd(c)
@@ -375,11 +414,15 @@ func (c *Cmd) Start() error {
 	}
 	c.childFiles = append(c.childFiles, c.ExtraFiles...)
 
-	var err error
+	envv, err := c.envv()
+	if err != nil {
+		return err
+	}
+
 	c.Process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
 		Dir:   c.Dir,
 		Files: c.childFiles,
-		Env:   dedupEnv(c.envv()),
+		Env:   addCriticalEnv(dedupEnv(envv)),
 		Sys:   c.SysProcAttr,
 	})
 	if err != nil {
@@ -390,11 +433,14 @@ func (c *Cmd) Start() error {
 
 	c.closeDescriptors(c.closeAfterStart)
 
-	c.errch = make(chan error, len(c.goroutine))
-	for _, fn := range c.goroutine {
-		go func(fn func() error) {
-			c.errch <- fn()
-		}(fn)
+	// Don't allocate the channel unless there are goroutines to fire.
+	if len(c.goroutine) > 0 {
+		c.errch = make(chan error, len(c.goroutine))
+		for _, fn := range c.goroutine {
+			go func(fn func() error) {
+				c.errch <- fn()
+			}(fn)
+		}
 	}
 
 	if c.ctx != nil {
@@ -566,8 +612,8 @@ func (c *closeOnce) close() {
 // standard output when the command starts.
 //
 // Wait will close the pipe after seeing the command exit, so most callers
-// need not close the pipe themselves; however, an implication is that
-// it is incorrect to call Wait before all reads from the pipe have completed.
+// need not close the pipe themselves. It is thus incorrect to call Wait
+// before all reads from the pipe have completed.
 // For the same reason, it is incorrect to call Run when using StdoutPipe.
 // See the example for idiomatic usage.
 func (c *Cmd) StdoutPipe() (io.ReadCloser, error) {
@@ -591,8 +637,8 @@ func (c *Cmd) StdoutPipe() (io.ReadCloser, error) {
 // standard error when the command starts.
 //
 // Wait will close the pipe after seeing the command exit, so most callers
-// need not close the pipe themselves; however, an implication is that
-// it is incorrect to call Wait before all reads from the pipe have completed.
+// need not close the pipe themselves. It is thus incorrect to call Wait
+// before all reads from the pipe have completed.
 // For the same reason, it is incorrect to use Run when using StderrPipe.
 // See the StdoutPipe example for idiomatic usage.
 func (c *Cmd) StderrPipe() (io.ReadCloser, error) {
@@ -700,7 +746,7 @@ func dedupEnv(env []string) []string {
 // If caseInsensitive is true, the case of keys is ignored.
 func dedupEnvCase(caseInsensitive bool, env []string) []string {
 	out := make([]string, 0, len(env))
-	saw := map[string]int{} // key => index into out
+	saw := make(map[string]int, len(env)) // key => index into out
 	for _, kv := range env {
 		eq := strings.Index(kv, "=")
 		if eq < 0 {
@@ -719,4 +765,25 @@ func dedupEnvCase(caseInsensitive bool, env []string) []string {
 		out = append(out, kv)
 	}
 	return out
+}
+
+// addCriticalEnv adds any critical environment variables that are required
+// (or at least almost always required) on the operating system.
+// Currently this is only used for Windows.
+func addCriticalEnv(env []string) []string {
+	if runtime.GOOS != "windows" {
+		return env
+	}
+	for _, kv := range env {
+		eq := strings.Index(kv, "=")
+		if eq < 0 {
+			continue
+		}
+		k := kv[:eq]
+		if strings.EqualFold(k, "SYSTEMROOT") {
+			// We already have it.
+			return env
+		}
+	}
+	return append(env, "SYSTEMROOT="+os.Getenv("SYSTEMROOT"))
 }

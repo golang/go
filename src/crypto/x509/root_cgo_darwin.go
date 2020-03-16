@@ -7,7 +7,7 @@
 package x509
 
 /*
-#cgo CFLAGS: -mmacosx-version-min=10.6 -D__MAC_OS_X_VERSION_MAX_ALLOWED=1080
+#cgo CFLAGS: -mmacosx-version-min=10.10 -D__MAC_OS_X_VERSION_MAX_ALLOWED=101300
 #cgo LDFLAGS: -framework CoreFoundation -framework Security
 
 #include <errno.h>
@@ -16,60 +16,142 @@ package x509
 #include <CoreFoundation/CoreFoundation.h>
 #include <Security/Security.h>
 
-// FetchPEMRoots_MountainLion is the version of FetchPEMRoots from Go 1.6
-// which still works on OS X 10.8 (Mountain Lion).
-// It lacks support for admin & user cert domains.
-// See golang.org/issue/16473
-int FetchPEMRoots_MountainLion(CFDataRef *pemRoots) {
-	if (pemRoots == NULL) {
-		return -1;
+static Boolean isSSLPolicy(SecPolicyRef policyRef) {
+	if (!policyRef) {
+		return false;
 	}
-	CFArrayRef certs = NULL;
-	OSStatus err = SecTrustCopyAnchorCertificates(&certs);
-	if (err != noErr) {
-		return -1;
+	CFDictionaryRef properties = SecPolicyCopyProperties(policyRef);
+	if (properties == NULL) {
+		return false;
 	}
-	CFMutableDataRef combinedData = CFDataCreateMutable(kCFAllocatorDefault, 0);
-	int i, ncerts = CFArrayGetCount(certs);
-	for (i = 0; i < ncerts; i++) {
-		CFDataRef data = NULL;
-		SecCertificateRef cert = (SecCertificateRef)CFArrayGetValueAtIndex(certs, i);
-		if (cert == NULL) {
-			continue;
-		}
-		// Note: SecKeychainItemExport is deprecated as of 10.7 in favor of SecItemExport.
-		// Once we support weak imports via cgo we should prefer that, and fall back to this
-		// for older systems.
-		err = SecKeychainItemExport(cert, kSecFormatX509Cert, kSecItemPemArmour, NULL, &data);
-		if (err != noErr) {
-			continue;
-		}
-		if (data != NULL) {
-			CFDataAppendBytes(combinedData, CFDataGetBytePtr(data), CFDataGetLength(data));
-			CFRelease(data);
-		}
+	Boolean isSSL = false;
+	CFTypeRef value = NULL;
+	if (CFDictionaryGetValueIfPresent(properties, kSecPolicyOid, (const void **)&value)) {
+		isSSL = CFEqual(value, kSecPolicyAppleSSL);
 	}
-	CFRelease(certs);
-	*pemRoots = combinedData;
-	return 0;
+	CFRelease(properties);
+	return isSSL;
 }
 
-// useOldCode reports whether the running machine is OS X 10.8 Mountain Lion
-// or older. We only support Mountain Lion and higher, but we'll at least try our
-// best on older machines and continue to use the old code path.
-//
-// See golang.org/issue/16473
-int useOldCode() {
-	char str[256];
-	size_t size = sizeof(str);
-	memset(str, 0, size);
-	sysctlbyname("kern.osrelease", str, &size, NULL, 0);
-	// OS X 10.8 is osrelease "12.*", 10.7 is 11.*, 10.6 is 10.*.
-	// We never supported things before that.
-	return memcmp(str, "12.", 3) == 0 || memcmp(str, "11.", 3) == 0 || memcmp(str, "10.", 3) == 0;
+// sslTrustSettingsResult obtains the final kSecTrustSettingsResult value
+// for a certificate in the user or admin domain, combining usage constraints
+// for the SSL SecTrustSettingsPolicy, ignoring SecTrustSettingsKeyUsage and
+// kSecTrustSettingsAllowedError.
+// https://developer.apple.com/documentation/security/1400261-sectrustsettingscopytrustsetting
+static SInt32 sslTrustSettingsResult(SecCertificateRef cert) {
+	CFArrayRef trustSettings = NULL;
+	OSStatus err = SecTrustSettingsCopyTrustSettings(cert, kSecTrustSettingsDomainUser, &trustSettings);
+
+	// According to Apple's SecTrustServer.c, "user trust settings overrule admin trust settings",
+	// but the rules of the override are unclear. Let's assume admin trust settings are applicable
+	// if and only if user trust settings fail to load or are NULL.
+	if (err != errSecSuccess || trustSettings == NULL) {
+		if (trustSettings != NULL) CFRelease(trustSettings);
+		err = SecTrustSettingsCopyTrustSettings(cert, kSecTrustSettingsDomainAdmin, &trustSettings);
+	}
+
+	// > no trust settings [...] means "this certificate must be verified to a known trusted certificate”
+	// (Should this cause a fallback from user to admin domain? It's unclear.)
+	if (err != errSecSuccess || trustSettings == NULL) {
+		if (trustSettings != NULL) CFRelease(trustSettings);
+		return kSecTrustSettingsResultUnspecified;
+	}
+
+	// > An empty trust settings array means "always trust this certificate” with an
+	// > overall trust setting for the certificate of kSecTrustSettingsResultTrustRoot.
+	if (CFArrayGetCount(trustSettings) == 0) {
+		CFRelease(trustSettings);
+		return kSecTrustSettingsResultTrustRoot;
+	}
+
+	// kSecTrustSettingsResult is defined as CFSTR("kSecTrustSettingsResult"),
+	// but the Go linker's internal linking mode can't handle CFSTR relocations.
+	// Create our own dynamic string instead and release it below.
+	CFStringRef _kSecTrustSettingsResult = CFStringCreateWithCString(
+		NULL, "kSecTrustSettingsResult", kCFStringEncodingUTF8);
+	CFStringRef _kSecTrustSettingsPolicy = CFStringCreateWithCString(
+		NULL, "kSecTrustSettingsPolicy", kCFStringEncodingUTF8);
+	CFStringRef _kSecTrustSettingsPolicyString = CFStringCreateWithCString(
+		NULL, "kSecTrustSettingsPolicyString", kCFStringEncodingUTF8);
+
+	CFIndex m; SInt32 result = 0;
+	for (m = 0; m < CFArrayGetCount(trustSettings); m++) {
+		CFDictionaryRef tSetting = (CFDictionaryRef)CFArrayGetValueAtIndex(trustSettings, m);
+
+		// First, check if this trust setting is constrained to a non-SSL policy.
+		SecPolicyRef policyRef;
+		if (CFDictionaryGetValueIfPresent(tSetting, _kSecTrustSettingsPolicy, (const void**)&policyRef)) {
+			if (!isSSLPolicy(policyRef)) {
+				continue;
+			}
+		}
+
+		if (CFDictionaryContainsKey(tSetting, _kSecTrustSettingsPolicyString)) {
+			// Restricted to a hostname, not a root.
+			continue;
+		}
+
+		CFNumberRef cfNum;
+		if (CFDictionaryGetValueIfPresent(tSetting, _kSecTrustSettingsResult, (const void**)&cfNum)) {
+			CFNumberGetValue(cfNum, kCFNumberSInt32Type, &result);
+		} else {
+			// > If this key is not present, a default value of
+			// > kSecTrustSettingsResultTrustRoot is assumed.
+			result = kSecTrustSettingsResultTrustRoot;
+		}
+
+		// If multiple dictionaries match, we are supposed to "OR" them,
+		// the semantics of which are not clear. Since TrustRoot and TrustAsRoot
+		// are mutually exclusive, Deny should probably override, and Invalid and
+		// Unspecified be overridden, approximate this by stopping at the first
+		// TrustRoot, TrustAsRoot or Deny.
+		if (result == kSecTrustSettingsResultTrustRoot) {
+			break;
+		} else if (result == kSecTrustSettingsResultTrustAsRoot) {
+			break;
+		} else if (result == kSecTrustSettingsResultDeny) {
+			break;
+		}
+	}
+
+	// If trust settings are present, but none of them match the policy...
+	// the docs don't tell us what to do.
+	//
+	// "Trust settings for a given use apply if any of the dictionaries in the
+	// certificate’s trust settings array satisfies the specified use." suggests
+	// that it's as if there were no trust settings at all, so we should probably
+	// fallback to the admin trust settings. TODO.
+	if (result == 0) {
+		result = kSecTrustSettingsResultUnspecified;
+	}
+
+	CFRelease(_kSecTrustSettingsPolicy);
+	CFRelease(_kSecTrustSettingsPolicyString);
+	CFRelease(_kSecTrustSettingsResult);
+	CFRelease(trustSettings);
+
+	return result;
 }
 
-// FetchPEMRoots fetches the system's list of trusted X.509 root certificates.
+// isRootCertificate reports whether Subject and Issuer match.
+static Boolean isRootCertificate(SecCertificateRef cert, CFErrorRef *errRef) {
+	CFDataRef subjectName = SecCertificateCopyNormalizedSubjectContent(cert, errRef);
+	if (*errRef != NULL) {
+		return false;
+	}
+	CFDataRef issuerName = SecCertificateCopyNormalizedIssuerContent(cert, errRef);
+	if (*errRef != NULL) {
+		CFRelease(subjectName);
+		return false;
+	}
+	Boolean equal = CFEqual(subjectName, issuerName);
+	CFRelease(subjectName);
+	CFRelease(issuerName);
+	return equal;
+}
+
+// CopyPEMRoots fetches the system's list of trusted X.509 root certificates
+// for the kSecTrustSettingsPolicy SSL.
 //
 // On success it returns 0 and fills pemRoots with a CFDataRef that contains the extracted root
 // certificates of the system. On failure, the function returns -1.
@@ -77,31 +159,32 @@ int useOldCode() {
 //
 // Note: The CFDataRef returned in pemRoots and untrustedPemRoots must
 // be released (using CFRelease) after we've consumed its content.
-int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
-	if (useOldCode()) {
-		return FetchPEMRoots_MountainLion(pemRoots);
+static int CopyPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots, bool debugDarwinRoots) {
+	int i;
+
+	if (debugDarwinRoots) {
+		fprintf(stderr, "crypto/x509: kSecTrustSettingsResultInvalid = %d\n", kSecTrustSettingsResultInvalid);
+		fprintf(stderr, "crypto/x509: kSecTrustSettingsResultTrustRoot = %d\n", kSecTrustSettingsResultTrustRoot);
+		fprintf(stderr, "crypto/x509: kSecTrustSettingsResultTrustAsRoot = %d\n", kSecTrustSettingsResultTrustAsRoot);
+		fprintf(stderr, "crypto/x509: kSecTrustSettingsResultDeny = %d\n", kSecTrustSettingsResultDeny);
+		fprintf(stderr, "crypto/x509: kSecTrustSettingsResultUnspecified = %d\n", kSecTrustSettingsResultUnspecified);
 	}
 
 	// Get certificates from all domains, not just System, this lets
 	// the user add CAs to their "login" keychain, and Admins to add
 	// to the "System" keychain
 	SecTrustSettingsDomain domains[] = { kSecTrustSettingsDomainSystem,
-					     kSecTrustSettingsDomainAdmin,
-					     kSecTrustSettingsDomainUser };
+		kSecTrustSettingsDomainAdmin, kSecTrustSettingsDomainUser };
 
 	int numDomains = sizeof(domains)/sizeof(SecTrustSettingsDomain);
-	if (pemRoots == NULL) {
+	if (pemRoots == NULL || untrustedPemRoots == NULL) {
 		return -1;
 	}
 
-	// kSecTrustSettingsResult is defined as CFSTR("kSecTrustSettingsResult"),
-	// but the Go linker's internal linking mode can't handle CFSTR relocations.
-	// Create our own dynamic string instead and release it below.
-	CFStringRef policy = CFStringCreateWithCString(NULL, "kSecTrustSettingsResult", kCFStringEncodingUTF8);
-
 	CFMutableDataRef combinedData = CFDataCreateMutable(kCFAllocatorDefault, 0);
 	CFMutableDataRef combinedUntrustedData = CFDataCreateMutable(kCFAllocatorDefault, 0);
-	for (int i = 0; i < numDomains; i++) {
+	for (i = 0; i < numDomains; i++) {
+		int j;
 		CFArrayRef certs = NULL;
 		OSStatus err = SecTrustSettingsCopyCertificates(domains[i], &certs);
 		if (err != noErr) {
@@ -109,104 +192,86 @@ int FetchPEMRoots(CFDataRef *pemRoots, CFDataRef *untrustedPemRoots) {
 		}
 
 		CFIndex numCerts = CFArrayGetCount(certs);
-		for (int j = 0; j < numCerts; j++) {
-			CFDataRef data = NULL;
-			CFErrorRef errRef = NULL;
-			CFArrayRef trustSettings = NULL;
+		for (j = 0; j < numCerts; j++) {
 			SecCertificateRef cert = (SecCertificateRef)CFArrayGetValueAtIndex(certs, j);
 			if (cert == NULL) {
 				continue;
 			}
-			// We only want trusted certs.
-			int untrusted = 0;
-			int trustAsRoot = 0;
-			int trustRoot = 0;
-			if (i == 0) {
-				trustAsRoot = 1;
-			} else {
+
+			SInt32 result;
+			if (domains[i] == kSecTrustSettingsDomainSystem) {
 				// Certs found in the system domain are always trusted. If the user
 				// configures "Never Trust" on such a cert, it will also be found in the
 				// admin or user domain, causing it to be added to untrustedPemRoots. The
 				// Go code will then clean this up.
-
-				// Trust may be stored in any of the domains. According to Apple's
-				// SecTrustServer.c, "user trust settings overrule admin trust settings",
-				// so take the last trust settings array we find.
-				// Skip the system domain since it is always trusted.
-				for (int k = i; k < numDomains; k++) {
-					CFArrayRef domainTrustSettings = NULL;
-					err = SecTrustSettingsCopyTrustSettings(cert, domains[k], &domainTrustSettings);
-					if (err == errSecSuccess && domainTrustSettings != NULL) {
-						if (trustSettings) {
-							CFRelease(trustSettings);
-						}
-						trustSettings = domainTrustSettings;
+				result = kSecTrustSettingsResultTrustRoot;
+			} else {
+				result = sslTrustSettingsResult(cert);
+				if (debugDarwinRoots) {
+					CFErrorRef errRef = NULL;
+					CFStringRef summary = SecCertificateCopyShortDescription(NULL, cert, &errRef);
+					if (errRef != NULL) {
+						fprintf(stderr, "crypto/x509: SecCertificateCopyShortDescription failed\n");
+						CFRelease(errRef);
+						continue;
 					}
-				}
-				if (trustSettings == NULL) {
-					// "this certificate must be verified to a known trusted certificate"; aka not a root.
-					continue;
-				}
-				for (CFIndex k = 0; k < CFArrayGetCount(trustSettings); k++) {
-					CFNumberRef cfNum;
-					CFDictionaryRef tSetting = (CFDictionaryRef)CFArrayGetValueAtIndex(trustSettings, k);
-					if (CFDictionaryGetValueIfPresent(tSetting, policy, (const void**)&cfNum)){
-						SInt32 result = 0;
-						CFNumberGetValue(cfNum, kCFNumberSInt32Type, &result);
-						// TODO: The rest of the dictionary specifies conditions for evaluation.
-						if (result == kSecTrustSettingsResultDeny) {
-							untrusted = 1;
-						} else if (result == kSecTrustSettingsResultTrustAsRoot) {
-							trustAsRoot = 1;
-						} else if (result == kSecTrustSettingsResultTrustRoot) {
-							trustRoot = 1;
-						}
-					}
-				}
-				CFRelease(trustSettings);
-			}
 
-			if (trustRoot) {
-				// We only want to add Root CAs, so make sure Subject and Issuer Name match
-				CFDataRef subjectName = SecCertificateCopyNormalizedSubjectContent(cert, &errRef);
-				if (errRef != NULL) {
-					CFRelease(errRef);
-					continue;
-				}
-				CFDataRef issuerName = SecCertificateCopyNormalizedIssuerContent(cert, &errRef);
-				if (errRef != NULL) {
-					CFRelease(subjectName);
-					CFRelease(errRef);
-					continue;
-				}
-				Boolean equal = CFEqual(subjectName, issuerName);
-				CFRelease(subjectName);
-				CFRelease(issuerName);
-				if (!equal) {
-					continue;
+					CFIndex length = CFStringGetLength(summary);
+					CFIndex maxSize = CFStringGetMaximumSizeForEncoding(length, kCFStringEncodingUTF8) + 1;
+					char *buffer = malloc(maxSize);
+					if (CFStringGetCString(summary, buffer, maxSize, kCFStringEncodingUTF8)) {
+						fprintf(stderr, "crypto/x509: %s returned %d\n", buffer, (int)result);
+					}
+					free(buffer);
+					CFRelease(summary);
 				}
 			}
 
-			// Note: SecKeychainItemExport is deprecated as of 10.7 in favor of SecItemExport.
-			// Once we support weak imports via cgo we should prefer that, and fall back to this
-			// for older systems.
-			err = SecKeychainItemExport(cert, kSecFormatX509Cert, kSecItemPemArmour, NULL, &data);
-			if (err != noErr) {
+			CFMutableDataRef appendTo;
+			// > Note the distinction between the results kSecTrustSettingsResultTrustRoot
+			// > and kSecTrustSettingsResultTrustAsRoot: The former can only be applied to
+			// > root (self-signed) certificates; the latter can only be applied to
+			// > non-root certificates.
+			if (result == kSecTrustSettingsResultTrustRoot) {
+				CFErrorRef errRef = NULL;
+				if (!isRootCertificate(cert, &errRef) || errRef != NULL) {
+					if (errRef != NULL) CFRelease(errRef);
+					continue;
+				}
+
+				appendTo = combinedData;
+			} else if (result == kSecTrustSettingsResultTrustAsRoot) {
+				CFErrorRef errRef = NULL;
+				if (isRootCertificate(cert, &errRef) || errRef != NULL) {
+					if (errRef != NULL) CFRelease(errRef);
+					continue;
+				}
+
+				appendTo = combinedData;
+			} else if (result == kSecTrustSettingsResultDeny) {
+				appendTo = combinedUntrustedData;
+			} else if (result == kSecTrustSettingsResultUnspecified) {
+				// Certificates with unspecified trust should probably be added to a pool of
+				// intermediates for chain building, or checked for transitive trust and
+				// added to the root pool (which is an imprecise approximation because it
+				// cuts chains short) but we don't support either at the moment. TODO.
+				continue;
+			} else {
 				continue;
 			}
 
+			CFDataRef data = NULL;
+			err = SecItemExport(cert, kSecFormatX509Cert, kSecItemPemArmour, NULL, &data);
+			if (err != noErr) {
+				continue;
+			}
 			if (data != NULL) {
-				if (!trustRoot && !trustAsRoot) {
-					untrusted = 1;
-				}
-				CFMutableDataRef appendTo = untrusted ? combinedUntrustedData : combinedData;
 				CFDataAppendBytes(appendTo, CFDataGetBytePtr(data), CFDataGetLength(data));
 				CFRelease(data);
 			}
 		}
 		CFRelease(certs);
 	}
-	CFRelease(policy);
 	*pemRoots = combinedData;
 	*untrustedPemRoots = combinedUntrustedData;
 	return 0;
@@ -219,23 +284,22 @@ import (
 )
 
 func loadSystemRoots() (*CertPool, error) {
-	roots := NewCertPool()
-
-	var data C.CFDataRef = 0
-	var untrustedData C.CFDataRef = 0
-	err := C.FetchPEMRoots(&data, &untrustedData)
+	var data, untrustedData C.CFDataRef
+	err := C.CopyPEMRoots(&data, &untrustedData, C.bool(debugDarwinRoots))
 	if err == -1 {
-		// TODO: better error message
 		return nil, errors.New("crypto/x509: failed to load darwin system roots with cgo")
 	}
-
 	defer C.CFRelease(C.CFTypeRef(data))
+	defer C.CFRelease(C.CFTypeRef(untrustedData))
+
 	buf := C.GoBytes(unsafe.Pointer(C.CFDataGetBytePtr(data)), C.int(C.CFDataGetLength(data)))
+	roots := NewCertPool()
 	roots.AppendCertsFromPEM(buf)
-	if untrustedData == 0 {
+
+	if C.CFDataGetLength(untrustedData) == 0 {
 		return roots, nil
 	}
-	defer C.CFRelease(C.CFTypeRef(untrustedData))
+
 	buf = C.GoBytes(unsafe.Pointer(C.CFDataGetBytePtr(untrustedData)), C.int(C.CFDataGetLength(untrustedData)))
 	untrustedRoots := NewCertPool()
 	untrustedRoots.AppendCertsFromPEM(buf)

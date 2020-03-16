@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"runtime"
 	"runtime/debug"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -43,7 +44,7 @@ func TestGcDeepNesting(t *testing.T) {
 	}
 }
 
-func TestGcHashmapIndirection(t *testing.T) {
+func TestGcMapIndirection(t *testing.T) {
 	defer debug.SetGCPercent(debug.SetGCPercent(1))
 	runtime.GC()
 	type T struct {
@@ -155,6 +156,10 @@ func TestHugeGCInfo(t *testing.T) {
 }
 
 func TestPeriodicGC(t *testing.T) {
+	if runtime.GOARCH == "wasm" {
+		t.Skip("no sysmon on wasm yet")
+	}
+
 	// Make sure we're not in the middle of a GC.
 	runtime.GC()
 
@@ -563,8 +568,8 @@ func BenchmarkWriteBarrier(b *testing.B) {
 		n := &node{mkTree(level - 1), mkTree(level - 1)}
 		if level == 10 {
 			// Seed GC with enough early pointers so it
-			// doesn't accidentally switch to mark 2 when
-			// it only has the top of the tree.
+			// doesn't start termination barriers when it
+			// only has the top of the tree.
 			wbRoots = append(wbRoots, n)
 		}
 		return n
@@ -638,4 +643,35 @@ func BenchmarkBulkWriteBarrier(b *testing.B) {
 	})
 
 	runtime.KeepAlive(ptrs)
+}
+
+func BenchmarkScanStackNoLocals(b *testing.B) {
+	var ready sync.WaitGroup
+	teardown := make(chan bool)
+	for j := 0; j < 10; j++ {
+		ready.Add(1)
+		go func() {
+			x := 100000
+			countpwg(&x, &ready, teardown)
+		}()
+	}
+	ready.Wait()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StartTimer()
+		runtime.GC()
+		runtime.GC()
+		b.StopTimer()
+	}
+	close(teardown)
+}
+
+func countpwg(n *int, ready *sync.WaitGroup, teardown chan bool) {
+	if *n == 0 {
+		ready.Done()
+		<-teardown
+		return
+	}
+	*n--
+	countpwg(n, ready, teardown)
 }

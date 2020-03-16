@@ -11,8 +11,6 @@
 // func crosscall2(fn func(a unsafe.Pointer, n int32, ctxt uintptr), a unsafe.Pointer, n int32, ctxt uintptr)
 // Saves C callee-saved registers and calls fn with three arguments.
 TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
-	// TODO(austin): ABI v1 (fn is probably a function descriptor)
-
 	// Start with standard C stack frame layout and linkage
 	MOVD	LR, R0
 	MOVD	R0, 16(R1)	// Save LR in caller's frame
@@ -29,9 +27,16 @@ TEXT crosscall2(SB),NOSPLIT|NOFRAME,$0
 	BL	runtime·load_g(SB)
 
 	MOVD	R3, R12
-	MOVD	R3, CTR
+#ifdef GOARCH_ppc64
+	// ppc64 use elf ABI v1. we must get the real entry address from
+	// first slot of the function descriptor before call.
+	// Same for AIX.
+	MOVD	8(R12), R2
+	MOVD	(R12), R12
+#endif
+	MOVD	R12, CTR
 	MOVD	R4, FIXED_FRAME+0(R1)
-	MOVD	R5, FIXED_FRAME+8(R1)
+	MOVW	R5, FIXED_FRAME+8(R1)
 	MOVD	R6, FIXED_FRAME+16(R1)
 	BL	(CTR)
 

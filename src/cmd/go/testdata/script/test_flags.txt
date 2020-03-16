@@ -1,0 +1,103 @@
+env GO111MODULE=on
+
+[short] skip
+
+# Arguments after the flag terminator should be ignored.
+# If we pass '-- -test.v', we should not get verbose output
+# *and* output from the test should not be echoed.
+go test ./x -- -test.v
+stdout '\Aok\s+example.com/x\s+[0-9.s]+\n\z'
+! stderr .
+
+# For backward-compatibility with previous releases of the 'go' command,
+# arguments that appear after unrecognized flags should not be  treated
+# as packages, even if they are unambiguously not arguments to flags.
+# Even though ./x looks like a package path, the real package should be
+# the implicit '.'.
+! go test --answer=42 ./x
+stderr '^no Go files in .+$'
+! stderr '/x'
+
+# An explicit '-outputdir=' argument should set test.outputdir
+# to the 'go' command's working directory, not zero it out
+# for the test binary.
+go test -x -coverprofile=cover.out '-outputdir=' ./x
+stderr '-test.outputdir=[^ ]'
+exists ./cover.out
+! exists ./x/cover.out
+
+# Test flags from GOFLAGS should be forwarded to the test binary,
+# with the 'test.' prefix in the GOFLAGS entry...
+env GOFLAGS='-test.timeout=24h0m0s -count=1'
+go test -v -x ./x
+stdout 'TestLogTimeout: .*: 24h0m0s$'
+stderr '-test.count=1'
+
+# ...or without.
+env GOFLAGS='-timeout=24h0m0s -count=1'
+go test -v -x ./x
+stdout 'TestLogTimeout: .*: 24h0m0s$'
+stderr '-test.count=1'
+
+# Arguments from the command line should override GOFLAGS...
+go test -v -x -timeout=25h0m0s ./x
+stdout 'TestLogTimeout: .*: 25h0m0s$'
+stderr '-test.count=1'
+
+# ...even if they use a different flag name.
+go test -v -x -test.timeout=26h0m0s ./x
+stdout 'TestLogTimeout: .*: 26h0m0s$'
+stderr '-test\.timeout=26h0m0s'
+! stderr 'timeout=24h0m0s'
+stderr '-test.count=1'
+
+# Invalid flags should be reported exactly once.
+! go test -covermode=walrus ./x
+stderr -count=1 'invalid value "walrus" for flag -covermode: valid modes are .*$'
+stderr '^usage: go test .*$'
+stderr '^Run ''go help test'' and ''go help testflag'' for details.$'
+
+# -covermode, -coverpkg, and -coverprofile should imply -cover
+go test -covermode=set ./x
+stdout '\s+coverage:\s+'
+
+go test -coverpkg=encoding/binary ./x
+stdout '\s+coverage:\s+'
+
+go test -coverprofile=cover.out ./x
+stdout '\s+coverage:\s+'
+exists ./cover.out
+rm ./cover.out
+
+# -*profile and -trace flags should force output to the current working directory
+# or -outputdir, not the directory containing the test.
+
+go test -memprofile=mem.out ./x
+exists ./mem.out
+rm ./mem.out
+
+go test -trace=trace.out ./x
+exists ./trace.out
+rm ./trace.out
+
+# Relative paths with -outputdir should be relative to the go command's working
+# directory, not the directory containing the test.
+mkdir profiles
+go test -memprofile=mem.out -outputdir=./profiles ./x
+exists ./profiles/mem.out
+rm profiles
+
+-- go.mod --
+module example.com
+go 1.14
+-- x/x_test.go --
+package x
+
+import (
+	"flag"
+	"testing"
+)
+
+func TestLogTimeout(t *testing.T) {
+	t.Log(flag.Lookup("test.timeout").Value)
+}

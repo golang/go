@@ -4,7 +4,7 @@ They are run as part of all.bash.
 
 To run just these tests, execute:
 
-    go run run.go
+    ../bin/go run run.go
 
 Standard library tests should be written as regular Go tests in the appropriate package.
 

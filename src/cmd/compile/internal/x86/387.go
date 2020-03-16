@@ -22,11 +22,29 @@ func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) {
 
 	switch v.Op {
 	case ssa.Op386MOVSSconst, ssa.Op386MOVSDconst:
-		p := s.Prog(loadPush(v.Type))
-		p.From.Type = obj.TYPE_FCONST
-		p.From.Val = math.Float64frombits(uint64(v.AuxInt))
-		p.To.Type = obj.TYPE_REG
-		p.To.Reg = x86.REG_F0
+		iv := uint64(v.AuxInt)
+		if iv == 0x0000000000000000 { // +0.0
+			s.Prog(x86.AFLDZ)
+		} else if iv == 0x3ff0000000000000 { // +1.0
+			s.Prog(x86.AFLD1)
+		} else if iv == 0x8000000000000000 { // -0.0
+			s.Prog(x86.AFLDZ)
+			s.Prog(x86.AFCHS)
+		} else if iv == 0xbff0000000000000 { // -1.0
+			s.Prog(x86.AFLD1)
+			s.Prog(x86.AFCHS)
+		} else if iv == 0x400921fb54442d18 { // +pi
+			s.Prog(x86.AFLDPI)
+		} else if iv == 0xc00921fb54442d18 { // -pi
+			s.Prog(x86.AFLDPI)
+			s.Prog(x86.AFCHS)
+		} else { // others
+			p := s.Prog(loadPush(v.Type))
+			p.From.Type = obj.TYPE_FCONST
+			p.From.Val = math.Float64frombits(iv)
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = x86.REG_F0
+		}
 		popAndSave(s, v)
 
 	case ssa.Op386MOVSSconst2, ssa.Op386MOVSDconst2:
@@ -308,7 +326,7 @@ func push(s *gc.SSAGenState, v *ssa.Value) {
 }
 
 // popAndSave pops a value off of the floating-point stack and stores
-// it in the reigster assigned to v.
+// it in the register assigned to v.
 func popAndSave(s *gc.SSAGenState, v *ssa.Value) {
 	r := v.Reg()
 	if _, ok := s.SSEto387[r]; ok {

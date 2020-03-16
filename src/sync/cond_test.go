@@ -4,9 +4,9 @@
 package sync_test
 
 import (
-	. "sync"
-
+	"reflect"
 	"runtime"
+	. "sync"
 	"testing"
 	"time"
 )
@@ -251,7 +251,8 @@ func TestCondCopy(t *testing.T) {
 	}()
 	c := Cond{L: &Mutex{}}
 	c.Signal()
-	c2 := c
+	var c2 Cond
+	reflect.ValueOf(&c2).Elem().Set(reflect.ValueOf(&c).Elem()) // c2 := c, hidden from vet
 	c2.Signal()
 }
 

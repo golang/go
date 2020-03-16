@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build dragonfly freebsd linux nacl netbsd openbsd solaris
+// +build aix dragonfly freebsd js,wasm linux netbsd openbsd solaris
 
 package x509
 
 import (
 	"io/ioutil"
 	"os"
+	"strings"
 )
 
 // Possible directories with certificate files; stop after successfully
@@ -19,6 +20,7 @@ var certDirectories = []string{
 	"/usr/local/share/certs",       // FreeBSD
 	"/etc/pki/tls/certs",           // Fedora/RHEL
 	"/etc/openssl/certs",           // NetBSD
+	"/var/ssl/certs",               // AIX
 }
 
 const (
@@ -28,6 +30,8 @@ const (
 
 	// certDirEnv is the environment variable which identifies which directory
 	// to check for SSL certificate files. If set this overrides the system default.
+	// It is a colon separated list of directories.
+	// See https://www.openssl.org/docs/man1.0.2/man1/c_rehash.html.
 	certDirEnv = "SSL_CERT_DIR"
 )
 
@@ -57,7 +61,11 @@ func loadSystemRoots() (*CertPool, error) {
 
 	dirs := certDirectories
 	if d := os.Getenv(certDirEnv); d != "" {
-		dirs = []string{d}
+		// OpenSSL and BoringSSL both use ":" as the SSL_CERT_DIR separator.
+		// See:
+		//  * https://golang.org/issue/35325
+		//  * https://www.openssl.org/docs/man1.0.2/man1/c_rehash.html
+		dirs = strings.Split(d, ":")
 	}
 
 	for _, directory := range dirs {
@@ -68,19 +76,15 @@ func loadSystemRoots() (*CertPool, error) {
 			}
 			continue
 		}
-		rootsAdded := false
 		for _, fi := range fis {
 			data, err := ioutil.ReadFile(directory + "/" + fi.Name())
-			if err == nil && roots.AppendCertsFromPEM(data) {
-				rootsAdded = true
+			if err == nil {
+				roots.AppendCertsFromPEM(data)
 			}
-		}
-		if rootsAdded {
-			return roots, nil
 		}
 	}
 
-	if len(roots.certs) > 0 {
+	if len(roots.certs) > 0 || firstErr == nil {
 		return roots, nil
 	}
 

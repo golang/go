@@ -12,9 +12,6 @@ DATA runtime·no_pointers_stackmap+0x00(SB)/4, $2
 DATA runtime·no_pointers_stackmap+0x04(SB)/4, $0
 GLOBL runtime·no_pointers_stackmap(SB),RODATA, $8
 
-GLOBL runtime·mheap_(SB), NOPTR, $0
-GLOBL runtime·memstats(SB), NOPTR, $0
-
 // NaCl requires that these skips be verifiable machine code.
 #ifdef GOARCH_amd64
 #define SKIP4 BYTE $0x90; BYTE $0x90; BYTE $0x90; BYTE $0x90
@@ -22,8 +19,8 @@ GLOBL runtime·memstats(SB), NOPTR, $0
 #ifdef GOARCH_386
 #define SKIP4 BYTE $0x90; BYTE $0x90; BYTE $0x90; BYTE $0x90
 #endif
-#ifdef GOARCH_amd64p32
-#define SKIP4 BYTE $0x90; BYTE $0x90; BYTE $0x90; BYTE $0x90
+#ifdef GOARCH_wasm
+#define SKIP4 UNDEF; UNDEF; UNDEF; UNDEF
 #endif
 #ifndef SKIP4
 #define SKIP4 WORD $0

@@ -10,6 +10,7 @@ import (
 	"go/types"
 	"internal/testenv"
 	"io/ioutil"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -80,10 +81,10 @@ func TestImportStdLib(t *testing.T) {
 		t.Skip("no source code available")
 	}
 
-	dt := maxTime
 	if testing.Short() && testenv.Builder() == "" {
-		dt = 500 * time.Millisecond
+		t.Skip("skipping in -short mode")
 	}
+	dt := maxTime
 	nimports, _ := walkDir(t, "", time.Now().Add(dt)) // installed packages
 	t.Logf("tested %d imports", nimports)
 }
@@ -98,7 +99,7 @@ var importedObjectTests = []struct {
 	{"math.Pi", "const Pi untyped float"},
 	{"math.Sin", "func Sin(x float64) float64"},
 	{"math/big.Int", "type Int struct{neg bool; abs nat}"},
-	{"golang_org/x/text/unicode/norm.MaxSegmentSize", "const MaxSegmentSize untyped int"},
+	{"golang.org/x/text/unicode/norm.MaxSegmentSize", "const MaxSegmentSize untyped int"},
 }
 
 func TestImportedTypes(t *testing.T) {
@@ -107,12 +108,12 @@ func TestImportedTypes(t *testing.T) {
 	}
 
 	for _, test := range importedObjectTests {
-		s := strings.Split(test.name, ".")
-		if len(s) != 2 {
+		i := strings.LastIndex(test.name, ".")
+		if i < 0 {
 			t.Fatal("invalid test data format")
 		}
-		importPath := s[0]
-		objName := s[1]
+		importPath := test.name[:i]
+		objName := test.name[i+1:]
 
 		pkg, err := importer.ImportFrom(importPath, ".", 0)
 		if err != nil {
@@ -199,4 +200,35 @@ func TestIssue20855(t *testing.T) {
 	if pkg == nil {
 		t.Error("got no package despite no hard errors")
 	}
+}
+
+func testImportPath(t *testing.T, pkgPath string) {
+	if !testenv.HasSrc() {
+		t.Skip("no source code available")
+	}
+
+	pkgName := path.Base(pkgPath)
+
+	pkg, err := importer.Import(pkgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if pkg.Name() != pkgName {
+		t.Errorf("got %q; want %q", pkg.Name(), pkgName)
+	}
+
+	if pkg.Path() != pkgPath {
+		t.Errorf("got %q; want %q", pkg.Path(), pkgPath)
+	}
+}
+
+// TestIssue23092 tests relative imports.
+func TestIssue23092(t *testing.T) {
+	testImportPath(t, "./testdata/issue23092")
+}
+
+// TestIssue24392 tests imports against a path containing 'testdata'.
+func TestIssue24392(t *testing.T) {
+	testImportPath(t, "go/internal/srcimporter/testdata/issue24392")
 }

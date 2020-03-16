@@ -39,7 +39,7 @@ var vc = []complex128{
 }
 
 // The expected results below were computed by the high precision calculators
-// at http://keisan.casio.com/.  More exact input values (array vc[], above)
+// at https://keisan.casio.com/.  More exact input values (array vc[], above)
 // were obtained by printing them with "%.26f".  The answers were calculated
 // to 26 digits (by using the "Digit number" drop-down control of each
 // calculator).
@@ -222,7 +222,7 @@ var pow = []complex128{
 	(-2.499956739197529585028819e+00 + 1.759751724335650228957144e+00i),
 	(7.357094338218116311191939e+04 - 5.089973412479151648145882e+04i),
 	(1.320777296067768517259592e+01 - 3.165621914333901498921986e+01i),
-	(-3.123287828297300934072149e-07 - 1.9849567521490553032502223E-7i),
+	(-3.123287828297300934072149e-07 - 1.9849567521490553032502223e-7i),
 	(8.0622651468477229614813e+04 - 7.80028727944573092944363e+04i),
 	(-1.0268824572103165858577141e+00 - 4.716844738244989776610672e-01i),
 	(-4.35953819012244175753187e+01 + 2.2036445974645306917648585e+02i),
@@ -289,6 +289,35 @@ var tanh = []complex128{
 	(1.0074784189316340029873945e+00 - 4.194050814891697808029407e-03i),
 	(9.9385534229718327109131502e-01 + 5.144217985914355502713437e-02i),
 	(-1.0000000491604982429364892e+00 - 2.901873195374433112227349e-08i),
+}
+
+// huge values along the real axis for testing reducePi in Tan
+var hugeIn = []complex128{
+	1 << 28,
+	1 << 29,
+	1 << 30,
+	1 << 35,
+	-1 << 120,
+	1 << 240,
+	1 << 300,
+	-1 << 480,
+	1234567891234567 << 180,
+	-1234567891234567 << 300,
+}
+
+// Results for tanHuge[i] calculated with https://github.com/robpike/ivy
+// using 4096 bits of working precision.
+var tanHuge = []complex128{
+	5.95641897939639421,
+	-0.34551069233430392,
+	-0.78469661331920043,
+	0.84276385870875983,
+	0.40806638884180424,
+	-0.37603456702698076,
+	4.60901287677810962,
+	3.39135965054779932,
+	-6.76813854009065030,
+	-0.76417695016604922,
 }
 
 // special cases
@@ -400,8 +429,10 @@ var polarSC = []ff{
 }
 var vcPowSC = [][2]complex128{
 	{NaN(), NaN()},
+	{0, NaN()},
 }
 var powSC = []complex128{
+	NaN(),
 	NaN(),
 }
 var vcSinSC = []complex128{
@@ -734,8 +765,8 @@ func TestPow(t *testing.T) {
 		}
 	}
 	for i := 0; i < len(vcPowSC); i++ {
-		if f := Pow(vcPowSC[i][0], vcPowSC[i][0]); !cAlike(powSC[i], f) {
-			t.Errorf("Pow(%g, %g) = %g, want %g", vcPowSC[i][0], vcPowSC[i][0], f, powSC[i])
+		if f := Pow(vcPowSC[i][0], vcPowSC[i][1]); !cAlike(powSC[i], f) {
+			t.Errorf("Pow(%g, %g) = %g, want %g", vcPowSC[i][0], vcPowSC[i][1], f, powSC[i])
 		}
 	}
 	for _, pt := range branchPoints {

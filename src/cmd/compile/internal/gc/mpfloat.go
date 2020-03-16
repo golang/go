@@ -31,12 +31,14 @@ type Mpcplx struct {
 	Imag Mpflt
 }
 
+// Use newMpflt (not new(Mpflt)!) to get the correct default precision.
 func newMpflt() *Mpflt {
 	var a Mpflt
 	a.Val.SetPrec(Mpprec)
 	return &a
 }
 
+// Use newMpcmplx (not new(Mpcplx)!) to get the correct default precision.
 func newMpcmplx() *Mpcplx {
 	var a Mpcplx
 	a.Real = *newMpflt()
@@ -177,11 +179,7 @@ func (a *Mpflt) Neg() {
 }
 
 func (a *Mpflt) SetString(as string) {
-	for len(as) > 0 && (as[0] == ' ' || as[0] == '\t') {
-		as = as[1:]
-	}
-
-	f, _, err := a.Val.Parse(as, 10)
+	f, _, err := a.Val.Parse(as, 0)
 	if err != nil {
 		yyerror("malformed constant: %s (%v)", as, err)
 		a.Val.SetFloat64(0)
@@ -201,24 +199,16 @@ func (a *Mpflt) SetString(as string) {
 }
 
 func (f *Mpflt) String() string {
-	return fconv(f, 0)
+	return f.Val.Text('b', 0)
 }
 
-func fconv(fvp *Mpflt, flag FmtFlag) string {
-	if flag&FmtSharp == 0 {
-		return fvp.Val.Text('b', 0)
-	}
-
-	// use decimal format for error messages
-
+func (fvp *Mpflt) GoString() string {
 	// determine sign
+	sign := ""
 	f := &fvp.Val
-	var sign string
 	if f.Sign() < 0 {
 		sign = "-"
 		f = new(big.Float).Abs(f)
-	} else if flag&FmtSign != 0 {
-		sign = "+"
 	}
 
 	// Don't try to convert infinities (will not terminate).
@@ -262,4 +252,106 @@ func fconv(fvp *Mpflt, flag FmtFlag) string {
 	}
 
 	return fmt.Sprintf("%s%.6ge%+d", sign, m, e)
+}
+
+// complex multiply v *= rv
+//	(a, b) * (c, d) = (a*c - b*d, b*c + a*d)
+func (v *Mpcplx) Mul(rv *Mpcplx) {
+	var ac, ad, bc, bd Mpflt
+
+	ac.Set(&v.Real)
+	ac.Mul(&rv.Real) // ac
+
+	bd.Set(&v.Imag)
+	bd.Mul(&rv.Imag) // bd
+
+	bc.Set(&v.Imag)
+	bc.Mul(&rv.Real) // bc
+
+	ad.Set(&v.Real)
+	ad.Mul(&rv.Imag) // ad
+
+	v.Real.Set(&ac)
+	v.Real.Sub(&bd) // ac-bd
+
+	v.Imag.Set(&bc)
+	v.Imag.Add(&ad) // bc+ad
+}
+
+// complex divide v /= rv
+//	(a, b) / (c, d) = ((a*c + b*d), (b*c - a*d))/(c*c + d*d)
+func (v *Mpcplx) Div(rv *Mpcplx) bool {
+	if rv.Real.CmpFloat64(0) == 0 && rv.Imag.CmpFloat64(0) == 0 {
+		return false
+	}
+
+	var ac, ad, bc, bd, cc_plus_dd Mpflt
+
+	cc_plus_dd.Set(&rv.Real)
+	cc_plus_dd.Mul(&rv.Real) // cc
+
+	ac.Set(&rv.Imag)
+	ac.Mul(&rv.Imag)    // dd
+	cc_plus_dd.Add(&ac) // cc+dd
+
+	// We already checked that c and d are not both zero, but we can't
+	// assume that c²+d² != 0 follows, because for tiny values of c
+	// and/or d c²+d² can underflow to zero.  Check that c²+d² is
+	// nonzero, return if it's not.
+	if cc_plus_dd.CmpFloat64(0) == 0 {
+		return false
+	}
+
+	ac.Set(&v.Real)
+	ac.Mul(&rv.Real) // ac
+
+	bd.Set(&v.Imag)
+	bd.Mul(&rv.Imag) // bd
+
+	bc.Set(&v.Imag)
+	bc.Mul(&rv.Real) // bc
+
+	ad.Set(&v.Real)
+	ad.Mul(&rv.Imag) // ad
+
+	v.Real.Set(&ac)
+	v.Real.Add(&bd)         // ac+bd
+	v.Real.Quo(&cc_plus_dd) // (ac+bd)/(cc+dd)
+
+	v.Imag.Set(&bc)
+	v.Imag.Sub(&ad)         // bc-ad
+	v.Imag.Quo(&cc_plus_dd) // (bc+ad)/(cc+dd)
+
+	return true
+}
+
+func (v *Mpcplx) String() string {
+	return fmt.Sprintf("(%s+%si)", v.Real.String(), v.Imag.String())
+}
+
+func (v *Mpcplx) GoString() string {
+	var re string
+	sre := v.Real.CmpFloat64(0)
+	if sre != 0 {
+		re = v.Real.GoString()
+	}
+
+	var im string
+	sim := v.Imag.CmpFloat64(0)
+	if sim != 0 {
+		im = v.Imag.GoString()
+	}
+
+	switch {
+	case sre == 0 && sim == 0:
+		return "0"
+	case sre == 0:
+		return im + "i"
+	case sim == 0:
+		return re
+	case sim < 0:
+		return fmt.Sprintf("(%s%si)", re, im)
+	default:
+		return fmt.Sprintf("(%s+%si)", re, im)
+	}
 }

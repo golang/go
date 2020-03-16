@@ -13,6 +13,9 @@
 
 package p
 
+import "runtime"
+
 func f() { // ERROR "stack frame too large"
-	_ = [][]int{1e9: []int{}}
+	x := [][]int{1e9: []int{}}
+	runtime.KeepAlive(x)
 }

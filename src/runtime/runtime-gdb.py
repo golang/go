@@ -230,6 +230,27 @@ def makematcher(klass):
 
 goobjfile.pretty_printers.extend([makematcher(var) for var in vars().values() if hasattr(var, 'pattern')])
 
+
+#
+#  Utilities
+#
+
+def pc_to_int(pc):
+	# python2 will not cast pc (type void*) to an int cleanly
+	# instead python2 and python3 work with the hex string representation
+	# of the void pointer which we can parse back into an int.
+	# int(pc) will not work.
+	try:
+		# python3 / newer versions of gdb
+		pc = int(pc)
+	except gdb.error:
+		# str(pc) can return things like
+		# "0x429d6c <runtime.gopark+284>", so
+		# chop at first space.
+		pc = int(str(pc).split(None, 1)[0], 16)
+	return pc
+
+
 #
 #  For reference, this is what we're trying to do:
 #  eface: p *(*(struct 'runtime.rtype'*)'main.e'->type_->data)->string
@@ -332,7 +353,8 @@ class IfacePrinter:
 			return "<bad dynamic type>"
 
 		if dtype is None:  # trouble looking up, print something reasonable
-			return "({0}){0}".format(iface_dtype_name(self.val), self.val['data'])
+			return "({typename}){data}".format(
+				typename=iface_dtype_name(self.val), data=self.val['data'])
 
 		try:
 			return self.val['data'].cast(dtype).dereference()
@@ -424,18 +446,7 @@ class GoroutinesCmd(gdb.Command):
 			if ptr['m']:
 				s = '*'
 			pc = ptr['sched']['pc'].cast(vp)
-			# python2 will not cast pc (type void*) to an int cleanly
-			# instead python2 and python3 work with the hex string representation
-			# of the void pointer which we can parse back into an int.
-			# int(pc) will not work.
-			try:
-				#python3 / newer versions of gdb
-				pc = int(pc)
-			except gdb.error:
-				# str(pc) can return things like
-				# "0x429d6c <runtime.gopark+284>", so
-				# chop at first space.
-				pc = int(str(pc).split(None, 1)[0], 16)
+			pc = pc_to_int(pc)
 			blk = gdb.block_for_pc(pc)
 			status = int(ptr['atomicstatus'])
 			st = sts.get(status, "unknown(%d)" % status)
@@ -445,7 +456,7 @@ class GoroutinesCmd(gdb.Command):
 def find_goroutine(goid):
 	"""
 	find_goroutine attempts to find the goroutine identified by goid.
-	It returns a touple of gdv.Value's representing the stack pointer
+	It returns a tuple of gdb.Value's representing the stack pointer
 	and program counter pointer for the goroutine.
 
 	@param int goid
@@ -500,6 +511,10 @@ class GoroutineCmd(gdb.Command):
 
 	Usage: (gdb) goroutine <goid> <gdbcmd>
 
+	You could pass "all" as <goid> to apply <gdbcmd> to all goroutines.
+
+	For example: (gdb) goroutine all <gdbcmd>
+
 	Note that it is ill-defined to modify state in the context of a goroutine.
 	Restrict yourself to inspecting values.
 	"""
@@ -508,27 +523,40 @@ class GoroutineCmd(gdb.Command):
 		gdb.Command.__init__(self, "goroutine", gdb.COMMAND_STACK, gdb.COMPLETE_NONE)
 
 	def invoke(self, arg, _from_tty):
-		goid, cmd = arg.split(None, 1)
-		goid = gdb.parse_and_eval(goid)
-		pc, sp = find_goroutine(int(goid))
+		goid_str, cmd = arg.split(None, 1)
+		goids = []
+
+		if goid_str == 'all':
+			for ptr in SliceValue(gdb.parse_and_eval("'runtime.allgs'")):
+				goids.append(int(ptr['goid']))
+		else:
+			goids = [int(gdb.parse_and_eval(goid_str))]
+
+		for goid in goids:
+			self.invoke_per_goid(goid, cmd)
+
+	def invoke_per_goid(self, goid, cmd):
+		pc, sp = find_goroutine(goid)
 		if not pc:
 			print("No such goroutine: ", goid)
 			return
-		try:
-			#python3 / newer versions of gdb
-			pc = int(pc)
-		except gdb.error:
-			pc = int(str(pc).split(None, 1)[0], 16)
+		pc = pc_to_int(pc)
 		save_frame = gdb.selected_frame()
 		gdb.parse_and_eval('$save_sp = $sp')
 		gdb.parse_and_eval('$save_pc = $pc')
+		# In GDB, assignments to sp must be done from the
+		# top-most frame, so select frame 0 first.
+		gdb.execute('select-frame 0')
 		gdb.parse_and_eval('$sp = {0}'.format(str(sp)))
 		gdb.parse_and_eval('$pc = {0}'.format(str(pc)))
 		try:
 			gdb.execute(cmd)
 		finally:
-			gdb.parse_and_eval('$sp = $save_sp')
+			# In GDB, assignments to sp must be done from the
+			# top-most frame, so select frame 0 first.
+			gdb.execute('select-frame 0')
 			gdb.parse_and_eval('$pc = $save_pc')
+			gdb.parse_and_eval('$sp = $save_sp')
 			save_frame.select()
 
 

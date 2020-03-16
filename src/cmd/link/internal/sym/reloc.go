@@ -22,15 +22,27 @@ import (
 //
 // Some relocations are created by cmd/link.
 type Reloc struct {
-	Off     int32            // offset to rewrite
-	Siz     uint8            // number of bytes to rewrite, 1, 2, or 4
-	Done    bool             // set to true when relocation is complete
-	Variant RelocVariant     // variation on Type
-	Type    objabi.RelocType // the relocation type
-	Add     int64            // addend
-	Xadd    int64            // addend passed to external linker
-	Sym     *Symbol          // symbol the relocation addresses
-	Xsym    *Symbol          // symbol passed to external linker
+	Off       int32            // offset to rewrite
+	Siz       uint8            // number of bytes to rewrite, 1, 2, or 4
+	Done      bool             // set to true when relocation is complete
+	Type      objabi.RelocType // the relocation type
+	Add       int64            // addend
+	Sym       *Symbol          // symbol the relocation addresses
+	*relocExt                  // extra fields (see below), may be nil, call InitExt before use
+}
+
+// relocExt contains extra fields in Reloc that are used only in
+// certain cases.
+type relocExt struct {
+	Xadd    int64        // addend passed to external linker
+	Xsym    *Symbol      // symbol passed to external linker
+	Variant RelocVariant // variation on Type, currently used only on PPC64 and S390X
+}
+
+func (r *Reloc) InitExt() {
+	if r.relocExt == nil {
+		r.relocExt = new(relocExt)
+	}
 }
 
 // RelocVariant is a linker-internal variation on a relocation.
@@ -57,8 +69,8 @@ func RelocName(arch *sys.Arch, r objabi.RelocType) string {
 	// Uncomment code when we include those in bootstrap code.
 
 	switch {
-	case r >= 512: // Mach-O
-		// nr := (r - 512)>>1
+	case r >= objabi.MachoRelocOffset: // Mach-O
+		// nr := (r - objabi.MachoRelocOffset)>>1
 		// switch ctxt.Arch.Family {
 		// case sys.AMD64:
 		// 	return macho.RelocTypeX86_64(nr).String()
@@ -71,8 +83,8 @@ func RelocName(arch *sys.Arch, r objabi.RelocType) string {
 		// default:
 		// 	panic("unreachable")
 		// }
-	case r >= 256: // ELF
-		nr := r - 256
+	case r >= objabi.ElfRelocOffset: // ELF
+		nr := r - objabi.ElfRelocOffset
 		switch arch.Family {
 		case sys.AMD64:
 			return elf.R_X86_64(nr).String()
@@ -83,11 +95,11 @@ func RelocName(arch *sys.Arch, r objabi.RelocType) string {
 		case sys.I386:
 			return elf.R_386(nr).String()
 		case sys.MIPS, sys.MIPS64:
-			// return elf.R_MIPS(nr).String()
+			return elf.R_MIPS(nr).String()
 		case sys.PPC64:
-			// return elf.R_PPC64(nr).String()
+			return elf.R_PPC64(nr).String()
 		case sys.S390X:
-			// return elf.R_390(nr).String()
+			return elf.R_390(nr).String()
 		default:
 			panic("unreachable")
 		}

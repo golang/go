@@ -91,7 +91,7 @@ func interactive(p *profile.Profile, o *plugin.Options) error {
 					}
 					continue
 				} else if okValues := groups[name]; okValues != nil {
-					o.UI.PrintErr(fmt.Errorf("Unrecognized value for %s: %q. Use one of %s", name, value, strings.Join(okValues, ", ")))
+					o.UI.PrintErr(fmt.Errorf("unrecognized value for %s: %q. Use one of %s", name, value, strings.Join(okValues, ", ")))
 					continue
 				}
 			}
@@ -149,9 +149,14 @@ func greetings(p *profile.Profile, ui plugin.UI) {
 	numLabelUnits := identifyNumLabelUnits(p, ui)
 	ropt, err := reportOptions(p, numLabelUnits, pprofVariables)
 	if err == nil {
-		ui.Print(strings.Join(report.ProfileLabels(report.New(p, ropt)), "\n"))
+		rpt := report.New(p, ropt)
+		ui.Print(strings.Join(report.ProfileLabels(rpt), "\n"))
+		if rpt.Total() == 0 && len(p.SampleType) > 1 {
+			ui.Print(`No samples were found with the default sample value type.`)
+			ui.Print(`Try "sample_index" command to analyze different sample values.`, "\n")
+		}
 	}
-	ui.Print("Entering interactive mode (type \"help\" for commands, \"o\" for options)")
+	ui.Print(`Entering interactive mode (type "help" for commands, "o" for options)`)
 }
 
 // shortcuts represents composite commands that expand into a sequence
@@ -262,7 +267,7 @@ func parseCommandLine(input []string) ([]string, variables, error) {
 		}
 	}
 	if c == nil {
-		return nil, nil, fmt.Errorf("Unrecognized command: %q", name)
+		return nil, nil, fmt.Errorf("unrecognized command: %q", name)
 	}
 
 	if c.hasParam {
@@ -289,7 +294,7 @@ func parseCommandLine(input []string) ([]string, variables, error) {
 			if outputFile == "" {
 				i++
 				if i >= len(args) {
-					return nil, nil, fmt.Errorf("Unexpected end of line after >")
+					return nil, nil, fmt.Errorf("unexpected end of line after >")
 				}
 				outputFile = args[i]
 			}
@@ -402,7 +407,7 @@ func newCompleter(fns []string) func(string) string {
 	}
 }
 
-// matchCommand attempts to match a string token to the prefix of a Command.
+// matchVariableOrCommand attempts to match a string token to the prefix of a Command.
 func matchVariableOrCommand(v variables, token string) string {
 	token = strings.ToLower(token)
 	found := ""

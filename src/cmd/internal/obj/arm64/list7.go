@@ -58,6 +58,7 @@ func init() {
 	obj.RegisterRegister(obj.RBaseARM64, REG_SPECIAL+1024, rconv)
 	obj.RegisterOpcode(obj.ABaseARM64, Anames)
 	obj.RegisterRegisterList(obj.RegListARM64Lo, obj.RegListARM64Hi, rlconv)
+	obj.RegisterOpSuffix("arm64", obj.CConvARM)
 }
 
 func arrange(a int) string {
@@ -86,12 +87,15 @@ func arrange(a int) string {
 		return "S"
 	case ARNG_D:
 		return "D"
+	case ARNG_1Q:
+		return "Q1"
 	default:
 		return ""
 	}
 }
 
 func rconv(r int) string {
+	ext := (r >> 5) & 7
 	if r == REGG {
 		return "g"
 	}
@@ -108,28 +112,6 @@ func rconv(r int) string {
 		return strcond[r-COND_EQ]
 	case r == REGSP:
 		return "RSP"
-	case r == REG_DAIF:
-		return "DAIF"
-	case r == REG_NZCV:
-		return "NZCV"
-	case r == REG_FPSR:
-		return "FPSR"
-	case r == REG_FPCR:
-		return "FPCR"
-	case r == REG_SPSR_EL1:
-		return "SPSR_EL1"
-	case r == REG_ELR_EL1:
-		return "ELR_EL1"
-	case r == REG_SPSR_EL2:
-		return "SPSR_EL2"
-	case r == REG_ELR_EL2:
-		return "ELR_EL2"
-	case r == REG_CurrentEL:
-		return "CurrentEL"
-	case r == REG_SP_EL0:
-		return "SP_EL0"
-	case r == REG_SPSel:
-		return "SPSel"
 	case r == REG_DAIFSet:
 		return "DAIFSet"
 	case r == REG_DAIFClr:
@@ -171,57 +153,65 @@ func rconv(r int) string {
 	case r == REG_PSTL3STRM:
 		return "PSTL3STRM"
 	case REG_UXTB <= r && r < REG_UXTH:
-		if (r>>5)&7 != 0 {
-			return fmt.Sprintf("R%d.UXTB<<%d", r&31, (r>>5)&7)
+		if ext != 0 {
+			return fmt.Sprintf("%s.UXTB<<%d", regname(r), ext)
 		} else {
-			return fmt.Sprintf("R%d.UXTB", r&31)
+			return fmt.Sprintf("%s.UXTB", regname(r))
 		}
 	case REG_UXTH <= r && r < REG_UXTW:
-		if (r>>5)&7 != 0 {
-			return fmt.Sprintf("R%d.UXTH<<%d", r&31, (r>>5)&7)
+		if ext != 0 {
+			return fmt.Sprintf("%s.UXTH<<%d", regname(r), ext)
 		} else {
-			return fmt.Sprintf("R%d.UXTH", r&31)
+			return fmt.Sprintf("%s.UXTH", regname(r))
 		}
 	case REG_UXTW <= r && r < REG_UXTX:
-		if (r>>5)&7 != 0 {
-			return fmt.Sprintf("R%d.UXTW<<%d", r&31, (r>>5)&7)
+		if ext != 0 {
+			return fmt.Sprintf("%s.UXTW<<%d", regname(r), ext)
 		} else {
-			return fmt.Sprintf("R%d.UXTW", r&31)
+			return fmt.Sprintf("%s.UXTW", regname(r))
 		}
 	case REG_UXTX <= r && r < REG_SXTB:
-		if (r>>5)&7 != 0 {
-			return fmt.Sprintf("R%d.UXTX<<%d", r&31, (r>>5)&7)
+		if ext != 0 {
+			return fmt.Sprintf("%s.UXTX<<%d", regname(r), ext)
 		} else {
-			return fmt.Sprintf("R%d.UXTX", r&31)
+			return fmt.Sprintf("%s.UXTX", regname(r))
 		}
 	case REG_SXTB <= r && r < REG_SXTH:
-		if (r>>5)&7 != 0 {
-			return fmt.Sprintf("R%d.SXTB<<%d", r&31, (r>>5)&7)
+		if ext != 0 {
+			return fmt.Sprintf("%s.SXTB<<%d", regname(r), ext)
 		} else {
-			return fmt.Sprintf("R%d.SXTB", r&31)
+			return fmt.Sprintf("%s.SXTB", regname(r))
 		}
 	case REG_SXTH <= r && r < REG_SXTW:
-		if (r>>5)&7 != 0 {
-			return fmt.Sprintf("R%d.SXTH<<%d", r&31, (r>>5)&7)
+		if ext != 0 {
+			return fmt.Sprintf("%s.SXTH<<%d", regname(r), ext)
 		} else {
-			return fmt.Sprintf("R%d.SXTH", r&31)
+			return fmt.Sprintf("%s.SXTH", regname(r))
 		}
 	case REG_SXTW <= r && r < REG_SXTX:
-		if (r>>5)&7 != 0 {
-			return fmt.Sprintf("R%d.SXTW<<%d", r&31, (r>>5)&7)
+		if ext != 0 {
+			return fmt.Sprintf("%s.SXTW<<%d", regname(r), ext)
 		} else {
-			return fmt.Sprintf("R%d.SXTW", r&31)
+			return fmt.Sprintf("%s.SXTW", regname(r))
 		}
 	case REG_SXTX <= r && r < REG_SPECIAL:
-		if (r>>5)&7 != 0 {
-			return fmt.Sprintf("R%d.SXTX<<%d", r&31, (r>>5)&7)
+		if ext != 0 {
+			return fmt.Sprintf("%s.SXTX<<%d", regname(r), ext)
 		} else {
-			return fmt.Sprintf("R%d.SXTX", r&31)
+			return fmt.Sprintf("%s.SXTX", regname(r))
 		}
+	// bits 0-4 indicate register, bits 5-7 indicate shift amount, bit 8 equals to 0.
+	case REG_LSL <= r && r < (REG_LSL+1<<8):
+		return fmt.Sprintf("R%d<<%d", r&31, (r>>5)&7)
 	case REG_ARNG <= r && r < REG_ELEM:
 		return fmt.Sprintf("V%d.%s", r&31, arrange((r>>5)&15))
 	case REG_ELEM <= r && r < REG_ELEM_END:
 		return fmt.Sprintf("V%d.%s", r&31, arrange((r>>5)&15))
+	}
+	// Return system register name.
+	name, _, _ := SysRegEnc(int16(r))
+	if name != "" {
+		return name
 	}
 	return fmt.Sprintf("badreg(%d)", r)
 }
@@ -288,4 +278,11 @@ func rlconv(list int64) string {
 	}
 	str += "]"
 	return str
+}
+
+func regname(r int) string {
+	if r&31 == 31 {
+		return "ZR"
+	}
+	return fmt.Sprintf("R%d", r&31)
 }

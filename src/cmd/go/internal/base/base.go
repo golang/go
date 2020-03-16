@@ -30,7 +30,7 @@ type Command struct {
 	Run func(cmd *Command, args []string)
 
 	// UsageLine is the one-line usage message.
-	// The first word in the line is taken to be the command name.
+	// The words between "go" and the first flag or argument in the line are taken to be the command name.
 	UsageLine string
 
 	// Short is the short description shown in the 'go help' output.
@@ -45,26 +45,45 @@ type Command struct {
 	// CustomFlags indicates that the command will do its own
 	// flag parsing.
 	CustomFlags bool
+
+	// Commands lists the available commands and help topics.
+	// The order here is the order in which they are printed by 'go help'.
+	// Note that subcommands are in general best avoided.
+	Commands []*Command
 }
 
-// Commands lists the available commands and help topics.
-// The order here is the order in which they are printed by 'go help'.
-var Commands []*Command
+var Go = &Command{
+	UsageLine: "go",
+	Long:      `Go is a tool for managing Go source code.`,
+	// Commands initialized in package main
+}
 
-// Name returns the command's name: the first word in the usage line.
-func (c *Command) Name() string {
+// LongName returns the command's long name: all the words in the usage line between "go" and a flag or argument,
+func (c *Command) LongName() string {
 	name := c.UsageLine
-	i := strings.Index(name, " ")
-	if i >= 0 {
+	if i := strings.Index(name, " ["); i >= 0 {
 		name = name[:i]
+	}
+	if name == "go" {
+		return ""
+	}
+	return strings.TrimPrefix(name, "go ")
+}
+
+// Name returns the command's short name: the last word in the usage line before a flag or argument.
+func (c *Command) Name() string {
+	name := c.LongName()
+	if i := strings.LastIndex(name, " "); i >= 0 {
+		name = name[i+1:]
 	}
 	return name
 }
 
 func (c *Command) Usage() {
 	fmt.Fprintf(os.Stderr, "usage: %s\n", c.UsageLine)
-	fmt.Fprintf(os.Stderr, "Run 'go help %s' for details.\n", c.Name())
-	os.Exit(2)
+	fmt.Fprintf(os.Stderr, "Run 'go help %s' for details.\n", c.LongName())
+	SetExitStatus(2)
+	Exit()
 }
 
 // Runnable reports whether the command can be run; otherwise
@@ -111,6 +130,10 @@ func SetExitStatus(n int) {
 		exitStatus = n
 	}
 	exitMu.Unlock()
+}
+
+func GetExitStatus() int {
+	return exitStatus
 }
 
 // Run runs the command, with stdout and stderr

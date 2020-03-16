@@ -380,16 +380,6 @@ func appendCmd(cmds []*parse.CommandNode, cmd *parse.CommandNode) []*parse.Comma
 	return append(cmds, cmd)
 }
 
-// indexOfStr is the first i such that eq(s, strs[i]) or -1 if s was not found.
-func indexOfStr(s string, strs []string, eq func(a, b string) bool) int {
-	for i, t := range strs {
-		if eq(s, t) {
-			return i
-		}
-	}
-	return -1
-}
-
 // newIdentCmd produces a command containing a single identifier node.
 func newIdentCmd(identifier string, pos parse.Pos) *parse.CommandNode {
 	return &parse.CommandNode{
@@ -427,7 +417,7 @@ func nudge(c context) context {
 
 // join joins the two contexts of a branch template node. The result is an
 // error context if either of the input contexts are error contexts, or if the
-// the input contexts differ.
+// input contexts differ.
 func join(a, b context, node parse.Node, nodeName string) context {
 	if a.state == stateError {
 		return a
@@ -678,7 +668,7 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 		} else if isComment(c.state) && c.delim == delimNone {
 			switch c.state {
 			case stateJSBlockCmt:
-				// http://es5.github.com/#x7.4:
+				// https://es5.github.com/#x7.4:
 				// "Comments behave like white space and are
 				// discarded except that, if a MultiLineComment
 				// contains a line terminator character, then
@@ -741,7 +731,7 @@ func contextAfterText(c context, s []byte) (context, int) {
 		i = len(s)
 	}
 	if c.delim == delimSpaceOrTagEnd {
-		// http://www.w3.org/TR/html5/syntax.html#attribute-value-(unquoted)-state
+		// https://www.w3.org/TR/html5/syntax.html#attribute-value-(unquoted)-state
 		// lists the runes below as error characters.
 		// Error out because HTML parsers may differ on whether
 		// "<a id= onclick=f("     ends inside id's or onclick's value,

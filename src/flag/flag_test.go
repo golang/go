@@ -9,6 +9,7 @@ import (
 	. "flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"sort"
 	"strconv"
@@ -386,6 +387,8 @@ const defaultOutput = `  -A	for bootstrapping, allow 'any' type
   -C	a boolean defaulting to true (default true)
   -D path
     	set relative path for local imports
+  -E string
+    	issue 23543 (default "0")
   -F number
     	a non-zero number (default 2.7)
   -G float
@@ -412,6 +415,7 @@ func TestPrintDefaults(t *testing.T) {
 	fs.Bool("Alongflagname", false, "disable bounds checking")
 	fs.Bool("C", true, "a boolean defaulting to true")
 	fs.String("D", "", "set relative `path` for local imports")
+	fs.String("E", "0", "issue 23543")
 	fs.Float64("F", 2.7, "a non-zero `number`")
 	fs.Float64("G", 0, "a float that defaults to zero")
 	fs.String("M", "", "a multiline\nhelp\nstring")
@@ -486,5 +490,57 @@ func TestGetters(t *testing.T) {
 	}
 	if fs.Output() != expectedOutput {
 		t.Errorf("unexpected output: got %v, expected %v", fs.Output(), expectedOutput)
+	}
+}
+
+func TestParseError(t *testing.T) {
+	for _, typ := range []string{"bool", "int", "int64", "uint", "uint64", "float64", "duration"} {
+		fs := NewFlagSet("parse error test", ContinueOnError)
+		fs.SetOutput(ioutil.Discard)
+		_ = fs.Bool("bool", false, "")
+		_ = fs.Int("int", 0, "")
+		_ = fs.Int64("int64", 0, "")
+		_ = fs.Uint("uint", 0, "")
+		_ = fs.Uint64("uint64", 0, "")
+		_ = fs.Float64("float64", 0, "")
+		_ = fs.Duration("duration", 0, "")
+		// Strings cannot give errors.
+		args := []string{"-" + typ + "=x"}
+		err := fs.Parse(args) // x is not a valid setting for any flag.
+		if err == nil {
+			t.Errorf("Parse(%q)=%v; expected parse error", args, err)
+			continue
+		}
+		if !strings.Contains(err.Error(), "invalid") || !strings.Contains(err.Error(), "parse error") {
+			t.Errorf("Parse(%q)=%v; expected parse error", args, err)
+		}
+	}
+}
+
+func TestRangeError(t *testing.T) {
+	bad := []string{
+		"-int=123456789012345678901",
+		"-int64=123456789012345678901",
+		"-uint=123456789012345678901",
+		"-uint64=123456789012345678901",
+		"-float64=1e1000",
+	}
+	for _, arg := range bad {
+		fs := NewFlagSet("parse error test", ContinueOnError)
+		fs.SetOutput(ioutil.Discard)
+		_ = fs.Int("int", 0, "")
+		_ = fs.Int64("int64", 0, "")
+		_ = fs.Uint("uint", 0, "")
+		_ = fs.Uint64("uint64", 0, "")
+		_ = fs.Float64("float64", 0, "")
+		// Strings cannot give errors, and bools and durations do not return strconv.NumError.
+		err := fs.Parse([]string{arg})
+		if err == nil {
+			t.Errorf("Parse(%q)=%v; expected range error", arg, err)
+			continue
+		}
+		if !strings.Contains(err.Error(), "invalid") || !strings.Contains(err.Error(), "value out of range") {
+			t.Errorf("Parse(%q)=%v; expected range error", arg, err)
+		}
 	}
 }

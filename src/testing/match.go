@@ -110,7 +110,7 @@ func splitRegexp(s string) []string {
 }
 
 // unique creates a unique name for the given parent and subname by affixing it
-// with one ore more counts, if necessary.
+// with one or more counts, if necessary.
 func (m *matcher) unique(parent, subname string) string {
 	name := fmt.Sprintf("%s/%s", parent, subname)
 	empty := subname == ""

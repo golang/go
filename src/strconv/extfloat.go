@@ -4,6 +4,10 @@
 
 package strconv
 
+import (
+	"math/bits"
+)
+
 // An extFloat represents an extended floating-point number, with more
 // precision than a float64. It does not try to save bits: the
 // number represented by the structure is mant*(2^exp), with a negative
@@ -15,7 +19,7 @@ type extFloat struct {
 }
 
 // Powers of ten taken from double-conversion library.
-// http://code.google.com/p/double-conversion/
+// https://code.google.com/p/double-conversion/
 const (
 	firstPowerOfTen = -348
 	stepPowerOfTen  = 8
@@ -196,57 +200,23 @@ func (f *extFloat) AssignComputeBounds(mant uint64, exp int, neg bool, flt *floa
 
 // Normalize normalizes f so that the highest bit of the mantissa is
 // set, and returns the number by which the mantissa was left-shifted.
-func (f *extFloat) Normalize() (shift uint) {
-	mant, exp := f.mant, f.exp
-	if mant == 0 {
+func (f *extFloat) Normalize() uint {
+	// bits.LeadingZeros64 would return 64
+	if f.mant == 0 {
 		return 0
 	}
-	if mant>>(64-32) == 0 {
-		mant <<= 32
-		exp -= 32
-	}
-	if mant>>(64-16) == 0 {
-		mant <<= 16
-		exp -= 16
-	}
-	if mant>>(64-8) == 0 {
-		mant <<= 8
-		exp -= 8
-	}
-	if mant>>(64-4) == 0 {
-		mant <<= 4
-		exp -= 4
-	}
-	if mant>>(64-2) == 0 {
-		mant <<= 2
-		exp -= 2
-	}
-	if mant>>(64-1) == 0 {
-		mant <<= 1
-		exp -= 1
-	}
-	shift = uint(f.exp - exp)
-	f.mant, f.exp = mant, exp
-	return
+	shift := bits.LeadingZeros64(f.mant)
+	f.mant <<= uint(shift)
+	f.exp -= shift
+	return uint(shift)
 }
 
 // Multiply sets f to the product f*g: the result is correctly rounded,
 // but not normalized.
 func (f *extFloat) Multiply(g extFloat) {
-	fhi, flo := f.mant>>32, uint64(uint32(f.mant))
-	ghi, glo := g.mant>>32, uint64(uint32(g.mant))
-
-	// Cross products.
-	cross1 := fhi * glo
-	cross2 := flo * ghi
-
-	// f.mant*g.mant is fhi*ghi << 64 + (cross1+cross2) << 32 + flo*glo
-	f.mant = fhi*ghi + (cross1 >> 32) + (cross2 >> 32)
-	rem := uint64(uint32(cross1)) + uint64(uint32(cross2)) + ((flo * glo) >> 32)
+	hi, lo := bits.Mul64(f.mant, g.mant)
 	// Round up.
-	rem += (1 << 31)
-
-	f.mant += (rem >> 32)
+	f.mant = hi + (lo >> 63)
 	f.exp = f.exp + g.exp + 64
 }
 

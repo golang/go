@@ -147,7 +147,7 @@ func TestReader(t *testing.T) {
 	for i := 0; i < len(texts)-1; i++ {
 		texts[i] = str + "\n"
 		all += texts[i]
-		str += string(i%26 + 'a')
+		str += string(rune(i)%26 + 'a')
 	}
 	texts[len(texts)-1] = all
 
@@ -282,6 +282,24 @@ func TestUnreadRune(t *testing.T) {
 	}
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+func TestNoUnreadRuneAfterPeek(t *testing.T) {
+	br := NewReader(strings.NewReader("example"))
+	br.ReadRune()
+	br.Peek(1)
+	if err := br.UnreadRune(); err == nil {
+		t.Error("UnreadRune didn't fail after Peek")
+	}
+}
+
+func TestNoUnreadByteAfterPeek(t *testing.T) {
+	br := NewReader(strings.NewReader("example"))
+	br.ReadByte()
+	br.Peek(1)
+	if err := br.UnreadByte(); err == nil {
+		t.Error("UnreadByte didn't fail after Peek")
 	}
 }
 
@@ -550,7 +568,7 @@ func TestWriter(t *testing.T) {
 				t.Errorf("%s: %d bytes written", context, len(written))
 			}
 			for l := 0; l < len(written); l++ {
-				if written[i] != data[i] {
+				if written[l] != data[l] {
 					t.Errorf("wrong bytes written")
 					t.Errorf("want=%q", data[0:len(written)])
 					t.Errorf("have=%q", written)
@@ -1461,6 +1479,106 @@ func (sr *scriptedReader) Read(p []byte) (n int, err error) {
 func newScriptedReader(steps ...func(p []byte) (n int, err error)) io.Reader {
 	sr := scriptedReader(steps)
 	return &sr
+}
+
+// eofReader returns the number of bytes read and io.EOF for the read that consumes the last of the content.
+type eofReader struct {
+	buf []byte
+}
+
+func (r *eofReader) Read(p []byte) (int, error) {
+	read := copy(p, r.buf)
+	r.buf = r.buf[read:]
+
+	switch read {
+	case 0, len(r.buf):
+		// As allowed in the documentation, this will return io.EOF
+		// in the same call that consumes the last of the data.
+		// https://godoc.org/io#Reader
+		return read, io.EOF
+	}
+
+	return read, nil
+}
+
+func TestPartialReadEOF(t *testing.T) {
+	src := make([]byte, 10)
+	eofR := &eofReader{buf: src}
+	r := NewReader(eofR)
+
+	// Start by reading 5 of the 10 available bytes.
+	dest := make([]byte, 5)
+	read, err := r.Read(dest)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n := len(dest); read != n {
+		t.Fatalf("read %d bytes; wanted %d bytes", read, n)
+	}
+
+	// The Reader should have buffered all the content from the io.Reader.
+	if n := len(eofR.buf); n != 0 {
+		t.Fatalf("got %d bytes left in bufio.Reader source; want 0 bytes", n)
+	}
+	// To prove the point, check that there are still 5 bytes available to read.
+	if n := r.Buffered(); n != 5 {
+		t.Fatalf("got %d bytes buffered in bufio.Reader; want 5 bytes", n)
+	}
+
+	// This is the second read of 0 bytes.
+	read, err = r.Read([]byte{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if read != 0 {
+		t.Fatalf("read %d bytes; want 0 bytes", read)
+	}
+}
+
+type writerWithReadFromError struct{}
+
+func (w writerWithReadFromError) ReadFrom(r io.Reader) (int64, error) {
+	return 0, errors.New("writerWithReadFromError error")
+}
+
+func (w writerWithReadFromError) Write(b []byte) (n int, err error) {
+	return 10, nil
+}
+
+func TestWriterReadFromMustSetUnderlyingError(t *testing.T) {
+	var wr = NewWriter(writerWithReadFromError{})
+	if _, err := wr.ReadFrom(strings.NewReader("test2")); err == nil {
+		t.Fatal("expected ReadFrom returns error, got nil")
+	}
+	if _, err := wr.Write([]byte("123")); err == nil {
+		t.Fatal("expected Write returns error, got nil")
+	}
+}
+
+type writeErrorOnlyWriter struct{}
+
+func (w writeErrorOnlyWriter) Write(p []byte) (n int, err error) {
+	return 0, errors.New("writeErrorOnlyWriter error")
+}
+
+// Ensure that previous Write errors are immediately returned
+// on any ReadFrom. See golang.org/issue/35194.
+func TestWriterReadFromMustReturnUnderlyingError(t *testing.T) {
+	var wr = NewWriter(writeErrorOnlyWriter{})
+	s := "test1"
+	wantBuffered := len(s)
+	if _, err := wr.WriteString(s); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := wr.Flush(); err == nil {
+		t.Error("expected flush error, got nil")
+	}
+	if _, err := wr.ReadFrom(strings.NewReader("test2")); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if buffered := wr.Buffered(); buffered != wantBuffered {
+		t.Fatalf("Buffered = %v; want %v", buffered, wantBuffered)
+	}
 }
 
 func BenchmarkReaderCopyOptimal(b *testing.B) {

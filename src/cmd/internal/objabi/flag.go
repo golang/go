@@ -8,6 +8,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -28,7 +30,44 @@ func Flagprint(w io.Writer) {
 
 func Flagparse(usage func()) {
 	flag.Usage = usage
+	os.Args = expandArgs(os.Args)
 	flag.Parse()
+}
+
+// expandArgs expands "response files" arguments in the provided slice.
+//
+// A "response file" argument starts with '@' and the rest of that
+// argument is a filename with CR-or-CRLF-separated arguments. Each
+// argument in the named files can also contain response file
+// arguments. See Issue 18468.
+//
+// The returned slice 'out' aliases 'in' iff the input did not contain
+// any response file arguments.
+//
+// TODO: handle relative paths of recursive expansions in different directories?
+// Is there a spec for this? Are relative paths allowed?
+func expandArgs(in []string) (out []string) {
+	// out is nil until we see a "@" argument.
+	for i, s := range in {
+		if strings.HasPrefix(s, "@") {
+			if out == nil {
+				out = make([]string, 0, len(in)*2)
+				out = append(out, in[:i]...)
+			}
+			slurp, err := ioutil.ReadFile(s[1:])
+			if err != nil {
+				log.Fatal(err)
+			}
+			args := strings.Split(strings.TrimSpace(strings.Replace(string(slurp), "\r", "", -1)), "\n")
+			out = append(out, expandArgs(args)...)
+		} else if out != nil {
+			out = append(out, s)
+		}
+	}
+	if out == nil {
+		return in
+	}
+	return
 }
 
 func AddVersionFlag() {
@@ -47,6 +86,10 @@ func (versionFlag) Set(s string) error {
 	name = name[strings.LastIndex(name, `/`)+1:]
 	name = name[strings.LastIndex(name, `\`)+1:]
 	name = strings.TrimSuffix(name, ".exe")
+
+	// If there's an active experiment, include that,
+	// to distinguish go1.10.2 with an experiment
+	// from go1.10.2 without an experiment.
 	p := Expstring()
 	if p == DefaultExpstring() {
 		p = ""
@@ -61,9 +104,12 @@ func (versionFlag) Set(s string) error {
 	// for releases, but during development we include the full
 	// build ID of the binary, so that if the compiler is changed and
 	// rebuilt, we notice and rebuild all packages.
-	if s == "full" && strings.HasPrefix(Version, "devel") {
-		p += " buildID=" + buildID
+	if s == "full" {
+		if strings.HasPrefix(Version, "devel") {
+			p += " buildID=" + buildID
+		}
 	}
+
 	fmt.Printf("%s version %s%s%s\n", name, Version, sep, p)
 	os.Exit(0)
 	return nil
@@ -103,21 +149,6 @@ func (c *count) IsBoolFlag() bool {
 }
 
 func (c *count) IsCountFlag() bool {
-	return true
-}
-
-type fn0 func()
-
-func (f fn0) Set(s string) error {
-	f()
-	return nil
-}
-
-func (f fn0) Get() interface{} { return nil }
-
-func (f fn0) String() string { return "" }
-
-func (f fn0) IsBoolFlag() bool {
 	return true
 }
 

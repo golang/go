@@ -179,6 +179,7 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
 	// Hide call from linker nosplit analysis.
 	MOVV	$runtime·badsystemstack(SB), R4
 	JAL	(R4)
+	JAL	runtime·abort(SB)
 
 switch:
 	// save our state in g->sched. Pretend to
@@ -290,9 +291,6 @@ TEXT runtime·morestack_noctxt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVV	$NAME(SB), R4;	\
 	JMP	(R4)
 // Note: can't just "BR NAME(SB)" - bad inlining results.
-
-TEXT reflect·call(SB), NOSPLIT, $0-0
-	JMP	·reflectcall(SB)
 
 TEXT ·reflectcall(SB), NOSPLIT|NOFRAME, $0-32
 	MOVWU argsize+24(FP), R1
@@ -607,141 +605,19 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0-0
 	JAL	runtime·save_g(SB)
 	RET
 
-TEXT runtime·getcallerpc(SB),NOSPLIT|NOFRAME,$0-8
-	MOVV	0(R29), R1		// LR saved by caller
-	MOVV	R1, ret+0(FP)
-	RET
-
 TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
 	MOVW	(R0), R0
 	UNDEF
 
 // AES hashing not implemented for mips64
-TEXT runtime·aeshash(SB),NOSPLIT|NOFRAME,$0-0
-	MOVW	(R0), R1
-TEXT runtime·aeshash32(SB),NOSPLIT|NOFRAME,$0-0
-	MOVW	(R0), R1
-TEXT runtime·aeshash64(SB),NOSPLIT|NOFRAME,$0-0
-	MOVW	(R0), R1
-TEXT runtime·aeshashstr(SB),NOSPLIT|NOFRAME,$0-0
-	MOVW	(R0), R1
-
-// memequal(p, q unsafe.Pointer, size uintptr) bool
-TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25
-	MOVV	a+0(FP), R1
-	MOVV	b+8(FP), R2
-	BEQ	R1, R2, eq
-	MOVV	size+16(FP), R3
-	ADDV	R1, R3, R4
-loop:
-	BNE	R1, R4, test
-	MOVV	$1, R1
-	MOVB	R1, ret+24(FP)
-	RET
-test:
-	MOVBU	(R1), R6
-	ADDV	$1, R1
-	MOVBU	(R2), R7
-	ADDV	$1, R2
-	BEQ	R6, R7, loop
-
-	MOVB	R0, ret+24(FP)
-	RET
-eq:
-	MOVV	$1, R1
-	MOVB	R1, ret+24(FP)
-	RET
-
-// memequal_varlen(a, b unsafe.Pointer) bool
-TEXT runtime·memequal_varlen(SB),NOSPLIT,$40-17
-	MOVV	a+0(FP), R1
-	MOVV	b+8(FP), R2
-	BEQ	R1, R2, eq
-	MOVV	8(REGCTXT), R3    // compiler stores size at offset 8 in the closure
-	MOVV	R1, 8(R29)
-	MOVV	R2, 16(R29)
-	MOVV	R3, 24(R29)
-	JAL	runtime·memequal(SB)
-	MOVBU	32(R29), R1
-	MOVB	R1, ret+16(FP)
-	RET
-eq:
-	MOVV	$1, R1
-	MOVB	R1, ret+16(FP)
-	RET
-
-// TODO: share code with memequal?
-TEXT bytes·Equal(SB),NOSPLIT,$0-49
-	MOVV	a_len+8(FP), R3
-	MOVV	b_len+32(FP), R4
-	BNE	R3, R4, noteq		// unequal lengths are not equal
-
-	MOVV	a+0(FP), R1
-	MOVV	b+24(FP), R2
-	ADDV	R1, R3		// end
-
-loop:
-	BEQ	R1, R3, equal		// reached the end
-	MOVBU	(R1), R6
-	ADDV	$1, R1
-	MOVBU	(R2), R7
-	ADDV	$1, R2
-	BEQ	R6, R7, loop
-
-noteq:
-	MOVB	R0, ret+48(FP)
-	RET
-
-equal:
-	MOVV	$1, R1
-	MOVB	R1, ret+48(FP)
-	RET
-
-TEXT bytes·IndexByte(SB),NOSPLIT,$0-40
-	MOVV	s+0(FP), R1
-	MOVV	s_len+8(FP), R2
-	MOVBU	c+24(FP), R3	// byte to find
-	MOVV	R1, R4		// store base for later
-	ADDV	R1, R2		// end
-	ADDV	$-1, R1
-
-loop:
-	ADDV	$1, R1
-	BEQ	R1, R2, notfound
-	MOVBU	(R1), R5
-	BNE	R3, R5, loop
-
-	SUBV	R4, R1		// remove base
-	MOVV	R1, ret+32(FP)
-	RET
-
-notfound:
-	MOVV	$-1, R1
-	MOVV	R1, ret+32(FP)
-	RET
-
-TEXT strings·IndexByte(SB),NOSPLIT,$0-32
-	MOVV	p+0(FP), R1
-	MOVV	b_len+8(FP), R2
-	MOVBU	c+16(FP), R3	// byte to find
-	MOVV	R1, R4		// store base for later
-	ADDV	R1, R2		// end
-	ADDV	$-1, R1
-
-loop:
-	ADDV	$1, R1
-	BEQ	R1, R2, notfound
-	MOVBU	(R1), R5
-	BNE	R3, R5, loop
-
-	SUBV	R4, R1		// remove base
-	MOVV	R1, ret+24(FP)
-	RET
-
-notfound:
-	MOVV	$-1, R1
-	MOVV	R1, ret+24(FP)
-	RET
+TEXT runtime·memhash(SB),NOSPLIT|NOFRAME,$0-32
+	JMP	runtime·memhashFallback(SB)
+TEXT runtime·strhash(SB),NOSPLIT|NOFRAME,$0-24
+	JMP	runtime·strhashFallback(SB)
+TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
+	JMP	runtime·memhash32Fallback(SB)
+TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
+	JMP	runtime·memhash64Fallback(SB)
 
 TEXT runtime·return0(SB), NOSPLIT, $0
 	MOVW	$0, R1
@@ -766,7 +642,7 @@ TEXT _cgo_topofstack(SB),NOSPLIT,$16
 
 // The top-most function running on a goroutine
 // returns to goexit+PCQuantum.
-TEXT runtime·goexit(SB),NOSPLIT|NOFRAME,$0-0
+TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
 	NOR	R0, R0	// NOP
 	JAL	runtime·goexit1(SB)	// does not return
 	// traceback from goexit1 must hit code range of goexit
@@ -874,3 +750,73 @@ flush:
 	MOVV	168(R29), R24
 	MOVV	176(R29), R25
 	JMP	ret
+
+// Note: these functions use a special calling convention to save generated code space.
+// Arguments are passed in registers, but the space for those arguments are allocated
+// in the caller's stack frame. These stubs write the args into that stack space and
+// then tail call to the corresponding runtime handler.
+// The tail call makes these stubs disappear in backtraces.
+TEXT runtime·panicIndex(SB),NOSPLIT,$0-16
+	MOVV	R1, x+0(FP)
+	MOVV	R2, y+8(FP)
+	JMP	runtime·goPanicIndex(SB)
+TEXT runtime·panicIndexU(SB),NOSPLIT,$0-16
+	MOVV	R1, x+0(FP)
+	MOVV	R2, y+8(FP)
+	JMP	runtime·goPanicIndexU(SB)
+TEXT runtime·panicSliceAlen(SB),NOSPLIT,$0-16
+	MOVV	R2, x+0(FP)
+	MOVV	R3, y+8(FP)
+	JMP	runtime·goPanicSliceAlen(SB)
+TEXT runtime·panicSliceAlenU(SB),NOSPLIT,$0-16
+	MOVV	R2, x+0(FP)
+	MOVV	R3, y+8(FP)
+	JMP	runtime·goPanicSliceAlenU(SB)
+TEXT runtime·panicSliceAcap(SB),NOSPLIT,$0-16
+	MOVV	R2, x+0(FP)
+	MOVV	R3, y+8(FP)
+	JMP	runtime·goPanicSliceAcap(SB)
+TEXT runtime·panicSliceAcapU(SB),NOSPLIT,$0-16
+	MOVV	R2, x+0(FP)
+	MOVV	R3, y+8(FP)
+	JMP	runtime·goPanicSliceAcapU(SB)
+TEXT runtime·panicSliceB(SB),NOSPLIT,$0-16
+	MOVV	R1, x+0(FP)
+	MOVV	R2, y+8(FP)
+	JMP	runtime·goPanicSliceB(SB)
+TEXT runtime·panicSliceBU(SB),NOSPLIT,$0-16
+	MOVV	R1, x+0(FP)
+	MOVV	R2, y+8(FP)
+	JMP	runtime·goPanicSliceBU(SB)
+TEXT runtime·panicSlice3Alen(SB),NOSPLIT,$0-16
+	MOVV	R3, x+0(FP)
+	MOVV	R4, y+8(FP)
+	JMP	runtime·goPanicSlice3Alen(SB)
+TEXT runtime·panicSlice3AlenU(SB),NOSPLIT,$0-16
+	MOVV	R3, x+0(FP)
+	MOVV	R4, y+8(FP)
+	JMP	runtime·goPanicSlice3AlenU(SB)
+TEXT runtime·panicSlice3Acap(SB),NOSPLIT,$0-16
+	MOVV	R3, x+0(FP)
+	MOVV	R4, y+8(FP)
+	JMP	runtime·goPanicSlice3Acap(SB)
+TEXT runtime·panicSlice3AcapU(SB),NOSPLIT,$0-16
+	MOVV	R3, x+0(FP)
+	MOVV	R4, y+8(FP)
+	JMP	runtime·goPanicSlice3AcapU(SB)
+TEXT runtime·panicSlice3B(SB),NOSPLIT,$0-16
+	MOVV	R2, x+0(FP)
+	MOVV	R3, y+8(FP)
+	JMP	runtime·goPanicSlice3B(SB)
+TEXT runtime·panicSlice3BU(SB),NOSPLIT,$0-16
+	MOVV	R2, x+0(FP)
+	MOVV	R3, y+8(FP)
+	JMP	runtime·goPanicSlice3BU(SB)
+TEXT runtime·panicSlice3C(SB),NOSPLIT,$0-16
+	MOVV	R1, x+0(FP)
+	MOVV	R2, y+8(FP)
+	JMP	runtime·goPanicSlice3C(SB)
+TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
+	MOVV	R1, x+0(FP)
+	MOVV	R2, y+8(FP)
+	JMP	runtime·goPanicSlice3CU(SB)

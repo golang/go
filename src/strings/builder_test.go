@@ -6,7 +6,6 @@ package strings_test
 
 import (
 	"bytes"
-	"runtime"
 	. "strings"
 	"testing"
 )
@@ -20,6 +19,9 @@ func check(t *testing.T, b *Builder, want string) {
 	}
 	if n := b.Len(); n != len(got) {
 		t.Errorf("Len: got %d; but len(String()) is %d", n, len(got))
+	}
+	if n := b.Cap(); n < len(got) {
+		t.Errorf("Cap: got %d; but len(String()) is %d", n, len(got))
 	}
 }
 
@@ -86,15 +88,24 @@ func TestBuilderReset(t *testing.T) {
 
 func TestBuilderGrow(t *testing.T) {
 	for _, growLen := range []int{0, 100, 1000, 10000, 100000} {
-		var b Builder
-		b.Grow(growLen)
 		p := bytes.Repeat([]byte{'a'}, growLen)
-		allocs := numAllocs(func() { b.Write(p) })
-		if allocs > 0 {
-			t.Errorf("growLen=%d: allocation occurred during write", growLen)
+		allocs := testing.AllocsPerRun(100, func() {
+			var b Builder
+			b.Grow(growLen) // should be only alloc, when growLen > 0
+			if b.Cap() < growLen {
+				t.Fatalf("growLen=%d: Cap() is lower than growLen", growLen)
+			}
+			b.Write(p)
+			if b.String() != string(p) {
+				t.Fatalf("growLen=%d: bad data written after Grow", growLen)
+			}
+		})
+		wantAllocs := 1
+		if growLen == 0 {
+			wantAllocs = 0
 		}
-		if b.String() != string(p) {
-			t.Errorf("growLen=%d: bad data written after Grow", growLen)
+		if g, w := int(allocs), wantAllocs; g != w {
+			t.Errorf("growLen=%d: got %d allocs during Write; want %v", growLen, g, w)
 		}
 	}
 }
@@ -167,20 +178,6 @@ func TestBuilderWriteByte(t *testing.T) {
 }
 
 func TestBuilderAllocs(t *testing.T) {
-	var b Builder
-	b.Grow(5)
-	var s string
-	allocs := numAllocs(func() {
-		b.WriteString("hello")
-		s = b.String()
-	})
-	if want := "hello"; s != want {
-		t.Errorf("String: got %#q; want %#q", s, want)
-	}
-	if allocs > 0 {
-		t.Fatalf("got %d alloc(s); want 0", allocs)
-	}
-
 	// Issue 23382; verify that copyCheck doesn't force the
 	// Builder to escape and be heap allocated.
 	n := testing.AllocsPerRun(10000, func() {
@@ -192,15 +189,6 @@ func TestBuilderAllocs(t *testing.T) {
 	if n != 1 {
 		t.Errorf("Builder allocs = %v; want 1", n)
 	}
-}
-
-func numAllocs(fn func()) uint64 {
-	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
-	var m1, m2 runtime.MemStats
-	runtime.ReadMemStats(&m1)
-	fn()
-	runtime.ReadMemStats(&m2)
-	return m2.Mallocs - m1.Mallocs
 }
 
 func TestBuilderCopyPanic(t *testing.T) {
@@ -227,6 +215,16 @@ func TestBuilderCopyPanic(t *testing.T) {
 				a.WriteByte('x')
 				b := a
 				b.Len()
+			},
+		},
+		{
+			name:      "Cap",
+			wantPanic: false,
+			fn: func() {
+				var a Builder
+				a.WriteByte('x')
+				b := a
+				b.Cap()
 			},
 		},
 		{
@@ -301,4 +299,53 @@ func TestBuilderCopyPanic(t *testing.T) {
 			t.Errorf("%s: panicked = %v; want %v", tt.name, got, tt.wantPanic)
 		}
 	}
+}
+
+var someBytes = []byte("some bytes sdljlk jsklj3lkjlk djlkjw")
+
+var sinkS string
+
+func benchmarkBuilder(b *testing.B, f func(b *testing.B, numWrite int, grow bool)) {
+	b.Run("1Write_NoGrow", func(b *testing.B) {
+		b.ReportAllocs()
+		f(b, 1, false)
+	})
+	b.Run("3Write_NoGrow", func(b *testing.B) {
+		b.ReportAllocs()
+		f(b, 3, false)
+	})
+	b.Run("3Write_Grow", func(b *testing.B) {
+		b.ReportAllocs()
+		f(b, 3, true)
+	})
+}
+
+func BenchmarkBuildString_Builder(b *testing.B) {
+	benchmarkBuilder(b, func(b *testing.B, numWrite int, grow bool) {
+		for i := 0; i < b.N; i++ {
+			var buf Builder
+			if grow {
+				buf.Grow(len(someBytes) * numWrite)
+			}
+			for i := 0; i < numWrite; i++ {
+				buf.Write(someBytes)
+			}
+			sinkS = buf.String()
+		}
+	})
+}
+
+func BenchmarkBuildString_ByteBuffer(b *testing.B) {
+	benchmarkBuilder(b, func(b *testing.B, numWrite int, grow bool) {
+		for i := 0; i < b.N; i++ {
+			var buf bytes.Buffer
+			if grow {
+				buf.Grow(len(someBytes) * numWrite)
+			}
+			for i := 0; i < numWrite; i++ {
+				buf.Write(someBytes)
+			}
+			sinkS = buf.String()
+		}
+	})
 }

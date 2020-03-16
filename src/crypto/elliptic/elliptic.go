@@ -20,7 +20,7 @@ import (
 )
 
 // A Curve represents a short-form Weierstrass curve with a=-3.
-// See http://www.hyperelliptic.org/EFD/g1p/auto-shortw.html
+// See https://www.hyperelliptic.org/EFD/g1p/auto-shortw.html
 type Curve interface {
 	// Params returns the parameters for the curve.
 	Params() *CurveParams
@@ -108,7 +108,7 @@ func (curve *CurveParams) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 // addJacobian takes two points in Jacobian coordinates, (x1, y1, z1) and
 // (x2, y2, z2) and returns their sum, also in Jacobian form.
 func (curve *CurveParams) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int, *big.Int, *big.Int) {
-	// See http://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-2007-bl
+	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-2007-bl
 	x3, y3, z3 := new(big.Int), new(big.Int), new(big.Int)
 	if z1.Sign() == 0 {
 		x3.Set(x2)
@@ -191,7 +191,7 @@ func (curve *CurveParams) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 // doubleJacobian takes a point in Jacobian coordinates, (x, y, z), and
 // returns its double, also in Jacobian form.
 func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, *big.Int) {
-	// See http://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#doubling-dbl-2001-b
+	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#doubling-dbl-2001-b
 	delta := new(big.Int).Mul(z, z)
 	delta.Mod(delta, curve.P)
 	gamma := new(big.Int).Mul(y, y)
@@ -210,8 +210,9 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int, 
 
 	x3 := new(big.Int).Mul(alpha, alpha)
 	beta8 := new(big.Int).Lsh(beta, 3)
+	beta8.Mod(beta8, curve.P)
 	x3.Sub(x3, beta8)
-	for x3.Sign() == -1 {
+	if x3.Sign() == -1 {
 		x3.Add(x3, curve.P)
 	}
 	x3.Mod(x3, curve.P)
@@ -371,7 +372,12 @@ func initP521() {
 	p521.BitSize = 521
 }
 
-// P256 returns a Curve which implements P-256 (see FIPS 186-3, section D.2.3)
+// P256 returns a Curve which implements NIST P-256 (FIPS 186-3, section D.2.3),
+// also known as secp256r1 or prime256v1. The CurveParams.Name of this Curve is
+// "P-256".
+//
+// Multiple invocations of this function will return the same value, so it can
+// be used for equality checks and switch statements.
 //
 // The cryptographic operations are implemented using constant-time algorithms.
 func P256() Curve {
@@ -379,7 +385,11 @@ func P256() Curve {
 	return p256
 }
 
-// P384 returns a Curve which implements P-384 (see FIPS 186-3, section D.2.4)
+// P384 returns a Curve which implements NIST P-384 (FIPS 186-3, section D.2.4),
+// also known as secp384r1. The CurveParams.Name of this Curve is "P-384".
+//
+// Multiple invocations of this function will return the same value, so it can
+// be used for equality checks and switch statements.
 //
 // The cryptographic operations do not use constant-time algorithms.
 func P384() Curve {
@@ -387,7 +397,11 @@ func P384() Curve {
 	return p384
 }
 
-// P521 returns a Curve which implements P-521 (see FIPS 186-3, section D.2.5)
+// P521 returns a Curve which implements NIST P-521 (FIPS 186-3, section D.2.5),
+// also known as secp521r1. The CurveParams.Name of this Curve is "P-521".
+//
+// Multiple invocations of this function will return the same value, so it can
+// be used for equality checks and switch statements.
 //
 // The cryptographic operations do not use constant-time algorithms.
 func P521() Curve {
