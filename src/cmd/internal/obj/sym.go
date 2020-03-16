@@ -297,15 +297,20 @@ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
 					f := func(parent *LSym, aux *LSym) {
 						fn(aux)
 					}
-					ctxt.traverseFuncAux(s, f)
+					ctxt.traverseFuncAux(flag, s, f)
 				}
 			}
 		}
 	}
 }
 
-func (ctxt *Link) traverseFuncAux(fsym *LSym, fn func(parent *LSym, aux *LSym)) {
+func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent *LSym, aux *LSym)) {
 	pc := &fsym.Func.Pcln
+	if flag&traverseAux == 0 {
+		// NB: should it become necessary to walk aux sym reloc references
+		// without walking the aux syms themselves, this can be changed.
+		panic("should not be here")
+	}
 	for _, d := range pc.Funcdata {
 		if d != nil {
 			fn(fsym, d)
@@ -331,21 +336,30 @@ func (ctxt *Link) traverseFuncAux(fsym *LSym, fn func(parent *LSym, aux *LSym)) 
 			continue
 		}
 		fn(fsym, dws)
+		if flag&traverseRefs != 0 {
+			for _, r := range dws.R {
+				if r.Sym != nil {
+					fn(dws, r.Sym)
+				}
+			}
+		}
 	}
 }
 
 // Traverse aux symbols, calling fn for each sym/aux pair.
-func (ctxt *Link) traverseAuxSyms(fn func(parent *LSym, aux *LSym)) {
+func (ctxt *Link) traverseAuxSyms(flag traverseFlag, fn func(parent *LSym, aux *LSym)) {
 	lists := [][]*LSym{ctxt.Text, ctxt.Data, ctxt.ABIAliases}
 	for _, list := range lists {
 		for _, s := range list {
 			if s.Gotype != nil {
-				fn(s, s.Gotype)
+				if flag&traverseDefs != 0 {
+					fn(s, s.Gotype)
+				}
 			}
 			if s.Type != objabi.STEXT {
 				continue
 			}
-			ctxt.traverseFuncAux(s, fn)
+			ctxt.traverseFuncAux(flag, s, fn)
 		}
 	}
 }

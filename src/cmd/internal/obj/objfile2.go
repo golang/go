@@ -454,7 +454,7 @@ func debugAsmEmit(ctxt *Link) {
 			fn := func(par *LSym, aux *LSym) {
 				writeAuxSymDebug(ctxt, par, aux)
 			}
-			ctxt.traverseAuxSyms(fn)
+			ctxt.traverseAuxSyms(traverseAux, fn)
 		}
 	}
 }
