@@ -793,19 +793,6 @@ func (l *Loader) AttrShared(i Sym) bool {
 	return l.attrShared.Has(l.extIndex(i))
 }
 
-// SetAttrShared sets the "shared" property for an external
-// symbol (see AttrShared).
-func (l *Loader) SetAttrShared(i Sym, v bool) {
-	if !l.IsExternal(i) {
-		panic(fmt.Sprintf("tried to set shared attr on non-external symbol %d %s", i, l.SymName(i)))
-	}
-	if v {
-		l.attrShared.Set(l.extIndex(i))
-	} else {
-		l.attrShared.Unset(l.extIndex(i))
-	}
-}
-
 // AttrExternal returns true for function symbols loaded from host
 // object files.
 func (l *Loader) AttrExternal(i Sym) bool {
@@ -890,7 +877,7 @@ func (l *Loader) AttrCgoExportStatic(i Sym) bool {
 	return ok
 }
 
-// SetAttrCgoExportStatic sets the "cgo_export_dynamic" for a symbol
+// SetAttrCgoExportStatic sets the "cgo_export_static" for a symbol
 // (see AttrCgoExportStatic).
 func (l *Loader) SetAttrCgoExportStatic(i Sym, v bool) {
 	if v {
@@ -907,13 +894,17 @@ func (l *Loader) AttrReadOnly(i Sym) bool {
 		return v
 	}
 	if l.IsExternal(i) {
+		pp := l.getPayload(i)
+		if pp.objidx != 0 {
+			return l.objs[pp.objidx].r.ReadOnly()
+		}
 		return false
 	}
 	r, _ := l.toLocal(i)
 	return r.ReadOnly()
 }
 
-// SetAttrReadOnly sets the "cgo_export_dynamic" for a symbol
+// SetAttrReadOnly sets the "data is read only" property for a symbol
 // (see AttrReadOnly).
 func (l *Loader) SetAttrReadOnly(i Sym, v bool) {
 	l.attrReadOnly[i] = v
@@ -2253,24 +2244,6 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 	// need to access the old symbol content.)
 	l.objSyms[symIdx] = objSym{l.extReader, pi}
 	l.extReader.syms = append(l.extReader.syms, symIdx)
-}
-
-// copyAttributes copies over all of the attributes of symbol 'src' to
-// symbol 'dst'. The assumption is that 'dst' is an external symbol.
-func (l *Loader) copyAttributes(src Sym, dst Sym) {
-	l.SetAttrReachable(dst, l.AttrReachable(src))
-	l.SetAttrOnList(dst, l.AttrOnList(src))
-	l.SetAttrLocal(dst, l.AttrLocal(src))
-	l.SetAttrNotInSymbolTable(dst, l.AttrNotInSymbolTable(src))
-	l.SetAttrVisibilityHidden(dst, l.AttrVisibilityHidden(src))
-	l.SetAttrDuplicateOK(dst, l.AttrDuplicateOK(src))
-	l.SetAttrShared(dst, l.AttrShared(src))
-	l.SetAttrExternal(dst, l.AttrExternal(src))
-	l.SetAttrTopFrame(dst, l.AttrTopFrame(src))
-	l.SetAttrSpecial(dst, l.AttrSpecial(src))
-	l.SetAttrCgoExportDynamic(dst, l.AttrCgoExportDynamic(src))
-	l.SetAttrCgoExportStatic(dst, l.AttrCgoExportStatic(src))
-	l.SetAttrReadOnly(dst, l.AttrReadOnly(src))
 }
 
 // migrateAttributes copies over all of the attributes of symbol 'src' to
