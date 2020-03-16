@@ -50,7 +50,7 @@ Default: `false`.
 
 This controls where points documentation for given package in `textDocument/documentLink`.
 It might be one of:
-* `"godoc.org"`   
+* `"godoc.org"`
 * `"pkg.go.dev"`
 If company chooses to use its own `godoc.org`, its address can be used as well.
 
@@ -67,9 +67,21 @@ Default: `""`.
 
 The below settings are considered experimental. They may be deprecated or changed in the future. They are typically used to test experimental opt-in features or to disable features.
 
-### **experimentalDisabledAnalyses** *array of strings*
+### **analyses** *map[string]bool*
 
-A list of the names of analysis passes that should be disabled. You can use this to turn off analyses that you feel are not useful in the editor.
+Analyses specify analyses that the user would like to enable or disable.
+A map of the names of analysis passes that should be enabled/disabled.
+A full list of analyzers that gopls uses can be found [here](analyzers.md)
+
+Example Usage:
+```json5
+...
+"analyses": {
+  "unreachable": false, // Disable the unreachable analyzer.
+  "unusedparams": true  // Enable the unusedparams analyzer.
+}
+...
+```
 
 ### **staticcheck** *boolean*
 

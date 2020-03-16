@@ -124,7 +124,7 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, missi
 			return nil, warn, ctx.Err()
 		}
 		// If we don't have any list, parse, or type errors, run analyses.
-		if err := analyses(ctx, snapshot, reports, ph, snapshot.View().Options().DisabledAnalyses); err != nil {
+		if err := analyses(ctx, snapshot, reports, ph); err != nil {
 			if ctx.Err() != nil {
 				return nil, warn, ctx.Err()
 			}
@@ -269,13 +269,19 @@ func missingModulesDiagnostics(ctx context.Context, snapshot Snapshot, reports m
 	return nil
 }
 
-func analyses(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]Diagnostic, ph PackageHandle, disabledAnalyses map[string]struct{}) error {
+func analyses(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]Diagnostic, ph PackageHandle) error {
 	var analyzers []*analysis.Analyzer
-	for _, a := range snapshot.View().Options().Analyzers {
-		if _, ok := disabledAnalyses[a.Name]; ok {
+	for name, a := range snapshot.View().Options().Analyzers {
+		if enabled, ok := snapshot.View().Options().UserEnabledAnalyses[name]; ok {
+			if enabled {
+				analyzers = append(analyzers, a.Analyzer)
+			}
 			continue
 		}
-		analyzers = append(analyzers, a)
+		if !a.Enabled {
+			continue
+		}
+		analyzers = append(analyzers, a.Analyzer)
 	}
 
 	diagnostics, err := snapshot.Analyze(ctx, ph.ID(), analyzers)

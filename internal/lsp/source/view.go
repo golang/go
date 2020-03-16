@@ -363,6 +363,13 @@ const (
 	UnknownKind
 )
 
+// Analyzer represents a go/analysis analyzer with some boolean properties
+// that let the user know how to use the analyzer.
+type Analyzer struct {
+	Analyzer *analysis.Analyzer
+	Enabled  bool
+}
+
 // Package represents a Go package that has been type-checked. It maintains
 // only the relevant fields of a *go/packages.Package.
 type Package interface {
