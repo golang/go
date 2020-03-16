@@ -27,9 +27,9 @@
 	}
 
 	if (!global.fs && global.require) {
-		const tempFs = require("fs");
-		if (Object.keys(tempFs) !== 0) {
-			global.fs = tempFs;
+		const fs = require("fs");
+		if (Object.keys(fs) !== 0) {
+			global.fs = fs;
 		}
 	}
 
