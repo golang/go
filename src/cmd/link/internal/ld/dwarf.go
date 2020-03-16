@@ -1912,6 +1912,9 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 			for _, s := range unit.Textp2 { // textp2 has been dead-code-eliminated already.
 				fnSym := loader.Sym(s)
 				infosym, _, rangesym, _ := d.ldr.GetFuncDwarfAuxSyms(fnSym)
+				if infosym == 0 {
+					continue
+				}
 				d.ldr.SetAttrNotInSymbolTable(infosym, true)
 				d.ldr.SetAttrReachable(infosym, true)
 

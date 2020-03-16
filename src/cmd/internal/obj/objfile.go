@@ -207,7 +207,9 @@ func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, 
 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
 	}
 	if s.Func.dwarfInfoSym == nil {
-		s.Func.dwarfInfoSym = ctxt.LookupDerived(s, dwarf.InfoPrefix+s.Name)
+		s.Func.dwarfInfoSym = &LSym{
+			Type: objabi.SDWARFINFO,
+		}
 		if ctxt.Flag_locationlists {
 			s.Func.dwarfLocSym = &LSym{
 				Type: objabi.SDWARFLOC,
