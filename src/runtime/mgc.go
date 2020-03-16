@@ -1605,7 +1605,6 @@ top:
 func gcMarkTermination(nextTriggerRatio float64) {
 	// World is stopped.
 	// Start marktermination which includes enabling the write barrier.
-	atomic.Store(&gcBlackenEnabled, 0)
 	setGCPhase(_GCmarktermination)
 
 	work.heap1 = memstats.heap_live
