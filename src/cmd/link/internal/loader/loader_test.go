@@ -39,17 +39,17 @@ func TestAddMaterializedSymbol(t *testing.T) {
 	ts3 := addDummyObjSym(t, ldr, or, "type.string")
 
 	// Create some external symbols.
-	es1 := ldr.AddExtSym("extnew1", 0)
+	es1 := ldr.LookupOrCreateSym("extnew1", 0)
 	if es1 == 0 {
-		t.Fatalf("AddExtSym failed for extnew1")
+		t.Fatalf("LookupOrCreateSym failed for extnew1")
 	}
-	es1x := ldr.AddExtSym("extnew1", 0)
+	es1x := ldr.LookupOrCreateSym("extnew1", 0)
 	if es1x != es1 {
-		t.Fatalf("AddExtSym lookup: expected %d got %d for second lookup", es1, es1x)
+		t.Fatalf("LookupOrCreateSym lookup: expected %d got %d for second lookup", es1, es1x)
 	}
-	es2 := ldr.AddExtSym("go.info.type.uint8", 0)
+	es2 := ldr.LookupOrCreateSym("go.info.type.uint8", 0)
 	if es2 == 0 {
-		t.Fatalf("AddExtSym failed for go.info.type.uint8")
+		t.Fatalf("LookupOrCreateSym failed for go.info.type.uint8")
 	}
 	// Create a nameless symbol
 	es3 := ldr.CreateExtSym("")
@@ -99,7 +99,7 @@ func TestAddMaterializedSymbol(t *testing.T) {
 
 	// Test expansion of attr bitmaps
 	for idx := 0; idx < 36; idx++ {
-		es := ldr.AddExtSym(fmt.Sprintf("zext%d", idx), 0)
+		es := ldr.LookupOrCreateSym(fmt.Sprintf("zext%d", idx), 0)
 		if ldr.AttrOnList(es) {
 			t.Errorf("expected OnList after creation")
 		}
@@ -235,7 +235,7 @@ func TestAddDataMethods(t *testing.T) {
 
 	// Populate loader with some symbols.
 	addDummyObjSym(t, ldr, or, "type.uint8")
-	ldr.AddExtSym("hello", 0)
+	ldr.LookupOrCreateSym("hello", 0)
 
 	arch := sys.ArchAMD64
 	var testpoints = []struct {
@@ -325,9 +325,9 @@ func TestAddDataMethods(t *testing.T) {
 	var pmi Sym
 	for k, tp := range testpoints {
 		name := fmt.Sprintf("new%d", k+1)
-		mi := ldr.AddExtSym(name, 0)
+		mi := ldr.LookupOrCreateSym(name, 0)
 		if mi == 0 {
-			t.Fatalf("AddExtSym failed for '" + name + "'")
+			t.Fatalf("LookupOrCreateSym failed for '" + name + "'")
 		}
 		mi = tp.addDataFunc(ldr, mi, pmi)
 		if ldr.SymType(mi) != tp.expKind {
@@ -359,12 +359,12 @@ func TestOuterSub(t *testing.T) {
 
 	// Populate loader with some symbols.
 	addDummyObjSym(t, ldr, or, "type.uint8")
-	es1 := ldr.AddExtSym("outer", 0)
-	es2 := ldr.AddExtSym("sub1", 0)
-	es3 := ldr.AddExtSym("sub2", 0)
-	es4 := ldr.AddExtSym("sub3", 0)
-	es5 := ldr.AddExtSym("sub4", 0)
-	es6 := ldr.AddExtSym("sub5", 0)
+	es1 := ldr.LookupOrCreateSym("outer", 0)
+	es2 := ldr.LookupOrCreateSym("sub1", 0)
+	es3 := ldr.LookupOrCreateSym("sub2", 0)
+	es4 := ldr.LookupOrCreateSym("sub3", 0)
+	es5 := ldr.LookupOrCreateSym("sub4", 0)
+	es6 := ldr.LookupOrCreateSym("sub5", 0)
 
 	// Should not have an outer sym initially
 	if ldr.OuterSym(es1) != 0 {

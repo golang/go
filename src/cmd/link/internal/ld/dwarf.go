@@ -186,7 +186,7 @@ var gdbscript string
 var dwarfp2 []loader.Sym
 
 func (d *dwctxt2) writeabbrev() loader.Sym {
-	abrvs := d.ldr.AddExtSym(".debug_abbrev", 0)
+	abrvs := d.ldr.LookupOrCreateSym(".debug_abbrev", 0)
 	u := d.ldr.MakeSymbolUpdater(abrvs)
 	u.SetType(sym.SDWARFSECT)
 	u.AddBytes(dwarf.GetAbbrev())
@@ -1372,7 +1372,7 @@ func appendPCDeltaCFA(arch *sys.Arch, b []byte, deltapc, cfa int64) []byte {
 }
 
 func (d *dwctxt2) writeframes(syms []loader.Sym) []loader.Sym {
-	fs := d.ldr.AddExtSym(".debug_frame", 0)
+	fs := d.ldr.LookupOrCreateSym(".debug_frame", 0)
 	fsd := dwSym(fs)
 	fsu := d.ldr.MakeSymbolUpdater(fs)
 	fsu.SetType(sym.SDWARFSECT)
@@ -1540,7 +1540,7 @@ func appendSyms(syms []loader.Sym, src []sym.LoaderSym) []loader.Sym {
 
 func (d *dwctxt2) writeinfo(syms []loader.Sym, units []*sym.CompilationUnit, abbrevsym loader.Sym, pubNames, pubTypes *pubWriter2) []loader.Sym {
 
-	infosec := d.ldr.AddExtSym(".debug_info", 0)
+	infosec := d.ldr.LookupOrCreateSym(".debug_info", 0)
 	disu := d.ldr.MakeSymbolUpdater(infosec)
 	disu.SetType(sym.SDWARFINFO)
 	d.ldr.SetAttrReachable(infosec, true)
@@ -1641,7 +1641,7 @@ type pubWriter2 struct {
 }
 
 func newPubWriter2(d *dwctxt2, sname string) *pubWriter2 {
-	s := d.ldr.AddExtSym(sname, 0)
+	s := d.ldr.LookupOrCreateSym(sname, 0)
 	u := d.ldr.MakeSymbolUpdater(s)
 	u.SetType(sym.SDWARFSECT)
 	return &pubWriter2{d: d, s: s, su: u, sname: sname}
@@ -1714,7 +1714,7 @@ func (d *dwctxt2) writegdbscript(syms []loader.Sym) []loader.Sym {
 	}
 
 	if gdbscript != "" {
-		gs := d.ldr.AddExtSym(".debug_gdb_scripts", 0)
+		gs := d.ldr.LookupOrCreateSym(".debug_gdb_scripts", 0)
 		u := d.ldr.MakeSymbolUpdater(gs)
 		u.SetType(sym.SDWARFSECT)
 
@@ -2065,13 +2065,13 @@ func (d *dwctxt2) dwarfGenerateDebugSyms() {
 	sort.Sort(compilationUnitByStartPC(d.linkctxt.compUnits))
 
 	// Create .debug_line and .debug_ranges section symbols
-	debugLine := d.ldr.AddExtSym(".debug_line", 0)
+	debugLine := d.ldr.LookupOrCreateSym(".debug_line", 0)
 	dlu := d.ldr.MakeSymbolUpdater(debugLine)
 	dlu.SetType(sym.SDWARFSECT)
 	d.ldr.SetAttrReachable(debugLine, true)
 	syms = append(syms, debugLine)
 
-	debugRanges := d.ldr.AddExtSym(".debug_ranges", 0)
+	debugRanges := d.ldr.LookupOrCreateSym(".debug_ranges", 0)
 	dru := d.ldr.MakeSymbolUpdater(debugRanges)
 	dru.SetType(sym.SDWARFRANGE)
 	d.ldr.SetAttrReachable(debugRanges, true)
@@ -2141,7 +2141,7 @@ func (d *dwctxt2) collectlocs(syms []loader.Sym, units []*sym.CompilationUnit) [
 
 	// Don't emit .debug_loc if it's empty -- it makes the ARM linker mad.
 	if !empty {
-		locsym := d.ldr.AddExtSym(".debug_loc", 0)
+		locsym := d.ldr.LookupOrCreateSym(".debug_loc", 0)
 		u := d.ldr.MakeSymbolUpdater(locsym)
 		u.SetType(sym.SDWARFLOC)
 		d.ldr.SetAttrReachable(locsym, true)
