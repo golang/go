@@ -580,10 +580,9 @@ func (d *dwctxt2) newtype(gotype loader.Sym) *dwarf.DWDie {
 		data := d.ldr.Data(gotype)
 		// FIXME: add caching or reuse reloc slice.
 		relocs := d.ldr.Relocs(gotype)
-		rslice := relocs.ReadAll(nil)
 		nfields := decodetypeFuncInCount(d.arch, data)
 		for i := 0; i < nfields; i++ {
-			s := decodetypeFuncInType2(d.ldr, d.arch, gotype, rslice, i)
+			s := decodetypeFuncInType2(d.ldr, d.arch, gotype, &relocs, i)
 			sn := d.ldr.SymName(s)
 			fld := d.newdie(die, dwarf.DW_ABRV_FUNCTYPEPARAM, sn[5:], 0)
 			d.newrefattr(fld, dwarf.DW_AT_type, d.defgotype(s))
@@ -594,7 +593,7 @@ func (d *dwctxt2) newtype(gotype loader.Sym) *dwarf.DWDie {
 		}
 		nfields = decodetypeFuncOutCount(d.arch, data)
 		for i := 0; i < nfields; i++ {
-			s := decodetypeFuncOutType2(d.ldr, d.arch, gotype, rslice, i)
+			s := decodetypeFuncOutType2(d.ldr, d.arch, gotype, &relocs, i)
 			sn := d.ldr.SymName(s)
 			fld := d.newdie(die, dwarf.DW_ABRV_FUNCTYPEPARAM, sn[5:], 0)
 			d.newrefattr(fld, dwarf.DW_AT_type, d.defptrto(d.defgotype(s)))
@@ -1109,22 +1108,22 @@ func (d *dwctxt2) importInfoSymbol(ctxt *Link, dsym loader.Sym) {
 	if d.ldr.SymType(dsym) != sym.SDWARFINFO {
 		log.Fatalf("error: DWARF info sym %d/%s with incorrect type %s", dsym, d.ldr.SymName(dsym), d.ldr.SymType(dsym).String())
 	}
-	drelocs := d.ldr.Relocs(dsym)
-	rslice := drelocs.ReadSyms(nil)
-	for i := 0; i < len(rslice); i++ {
-		r := &rslice[i]
-		if r.Type != objabi.R_DWARFSECREF {
+	relocs := d.ldr.Relocs(dsym)
+	for i := 0; i < relocs.Count; i++ {
+		r := relocs.At2(i)
+		if r.Type() != objabi.R_DWARFSECREF {
 			continue
 		}
+		rsym := r.Sym()
 		// If there is an entry for the symbol in our rtmap, then it
 		// means we've processed the type already, and can skip this one.
-		if _, ok := d.rtmap[r.Sym]; ok {
+		if _, ok := d.rtmap[rsym]; ok {
 			// type already generated
 			continue
 		}
 		// FIXME: is there a way we could avoid materializing the
 		// symbol name here?
-		sn := d.ldr.SymName(r.Sym)
+		sn := d.ldr.SymName(rsym)
 		tn := sn[len(dwarf.InfoPrefix):]
 		ts := d.ldr.Lookup("type."+tn, 0)
 		d.defgotype(ts)
@@ -1848,7 +1847,6 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 	// fake root DIE for compile unit DIEs
 	var dwroot dwarf.DWDie
 	flagVariants := make(map[string]bool)
-	var relocs []loader.Reloc
 
 	for _, lib := range ctxt.Library {
 
@@ -1929,11 +1927,10 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 				}
 
 				drelocs := d.ldr.Relocs(infosym)
-				relocs = drelocs.ReadSyms(relocs)
 				for ri := 0; ri < drelocs.Count; ri++ {
-					r := &relocs[ri]
-					if r.Type == objabi.R_DWARFSECREF {
-						rsym := r.Sym
+					r := drelocs.At2(ri)
+					if r.Type() == objabi.R_DWARFSECREF {
+						rsym := r.Sym()
 						rsn := d.ldr.SymName(rsym)
 						if len(rsn) == 0 {
 							continue
@@ -2011,12 +2008,11 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 			for _, list := range lists {
 				for _, s := range list {
 					symIdx := loader.Sym(s)
-					srelocs := d.ldr.Relocs(symIdx)
-					relocs = srelocs.ReadSyms(relocs)
-					for i := 0; i < len(relocs); i++ {
-						r := &relocs[i]
-						if r.Type == objabi.R_USETYPE {
-							d.defgotype(r.Sym)
+					relocs := d.ldr.Relocs(symIdx)
+					for i := 0; i < relocs.Count; i++ {
+						r := relocs.At2(i)
+						if r.Type() == objabi.R_USETYPE {
+							d.defgotype(r.Sym())
 						}
 					}
 				}
@@ -2122,20 +2118,19 @@ func (d *dwctxt2) dwarfGenerateDebugSyms() {
 
 func (d *dwctxt2) collectlocs(syms []loader.Sym, units []*sym.CompilationUnit) []loader.Sym {
 	empty := true
-	rslice := []loader.Reloc{}
 	for _, u := range units {
 		for _, fn := range u.FuncDIEs2 {
 			relocs := d.ldr.Relocs(loader.Sym(fn))
-			rslice := relocs.ReadSyms(rslice)
-			for i := range rslice {
-				reloc := &rslice[i]
-				if reloc.Type != objabi.R_DWARFSECREF {
+			for i := 0; i < relocs.Count; i++ {
+				reloc := relocs.At2(i)
+				if reloc.Type() != objabi.R_DWARFSECREF {
 					continue
 				}
-				if d.ldr.SymType(reloc.Sym) == sym.SDWARFLOC {
-					d.ldr.SetAttrReachable(reloc.Sym, true)
-					d.ldr.SetAttrNotInSymbolTable(reloc.Sym, true)
-					syms = append(syms, reloc.Sym)
+				rsym := reloc.Sym()
+				if d.ldr.SymType(rsym) == sym.SDWARFLOC {
+					d.ldr.SetAttrReachable(rsym, true)
+					d.ldr.SetAttrNotInSymbolTable(rsym, true)
+					syms = append(syms, rsym)
 					empty = false
 					// One location list entry per function, but many relocations to it. Don't duplicate.
 					break
