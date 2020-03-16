@@ -44,6 +44,8 @@ _testmain.go
 /test/pass.out
 /test/run.out
 /test/times.out
+.vscode
+.idea
 
 # This file includes artifacts of Go build that should not be checked in.
 # For files created by specific development environment (e.g. editor),
