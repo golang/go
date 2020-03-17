@@ -464,6 +464,15 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 			}
 		}
 		return e
+	case *ast.Ellipsis:
+		elt := t.instantiateExpr(ta, e.Elt)
+		if elt == e.Elt {
+			return e
+		}
+		return &ast.Ellipsis{
+			Ellipsis: e.Ellipsis,
+			Elt:      elt,
+		}
 	case *ast.BasicLit:
 		return e
 	case *ast.FuncLit:

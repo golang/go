@@ -407,9 +407,9 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 	}
 	switch e := (*pe).(type) {
 	case *ast.Ident:
-		return
+	case *ast.Ellipsis:
+		t.translateExpr(&e.Elt)
 	case *ast.BasicLit:
-		return
 	case *ast.FuncLit:
 		t.translateFieldList(e.Type.TParams)
 		t.translateFieldList(e.Type.Params)
