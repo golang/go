@@ -28,7 +28,7 @@ func (s *Server) runGenerate(ctx context.Context, dir string, recursive bool) {
 	defer s.clearInProgress(token)
 
 	er := &eventWriter{ctx: ctx}
-	wc := s.newProgressWriter(ctx, cancel)
+	wc := s.newProgressWriter(ctx, cancel, token)
 	defer wc.Close()
 	args := []string{"-x"}
 	if recursive {
@@ -71,13 +71,16 @@ func (ew *eventWriter) Write(p []byte) (n int, err error) {
 // newProgressWriter returns an io.WriterCloser that can be used
 // to report progress on the "go generate" command based on the
 // client capabilities.
-func (s *Server) newProgressWriter(ctx context.Context, cancel func()) io.WriteCloser {
+func (s *Server) newProgressWriter(ctx context.Context, cancel func(), token string) io.WriteCloser {
 	var wc interface {
 		io.WriteCloser
 		start()
 	}
-	// TODO(marwan-at-work): add $/progress notifications
-	wc = &messageWriter{cancel, ctx, s.client}
+	if s.supportsWorkDoneProgress {
+		wc = &workDoneWriter{ctx, token, s.client}
+	} else {
+		wc = &messageWriter{ctx, cancel, s.client}
+	}
 	wc.start()
 	return wc
 }
@@ -88,9 +91,11 @@ func (s *Server) newProgressWriter(ctx context.Context, cancel func()) io.WriteC
 // report anything afterwards. This is because each
 // log shows up as a separate window and therefore
 // would be obnoxious to show every incoming line.
+// Request cancellation happens synchronously through
+// the ShowMessageRequest response.
 type messageWriter struct {
-	cancel func()
 	ctx    context.Context
+	cancel func()
 	client protocol.Client
 }
 
@@ -121,5 +126,61 @@ func (lw *messageWriter) Close() error {
 	return lw.client.ShowMessage(lw.ctx, &protocol.ShowMessageParams{
 		Type:    protocol.Info,
 		Message: "go generate has finished",
+	})
+}
+
+// workDoneWriter implements progressWriter
+// that will send $/progress notifications
+// to the client. Request cancellations
+// happens separately through the
+// window/workDoneProgress/cancel request
+// in which case the given context will be rendered
+// done.
+type workDoneWriter struct {
+	ctx    context.Context
+	token  string
+	client protocol.Client
+}
+
+func (wdw *workDoneWriter) Write(p []byte) (n int, err error) {
+	return len(p), wdw.client.Progress(wdw.ctx, &protocol.ProgressParams{
+		Token: wdw.token,
+		Value: &protocol.WorkDoneProgressReport{
+			Kind:        "report",
+			Cancellable: true,
+			Message:     string(p),
+		},
+	})
+}
+
+func (wdw *workDoneWriter) start() {
+	err := wdw.client.WorkDoneProgressCreate(wdw.ctx, &protocol.WorkDoneProgressCreateParams{
+		Token: wdw.token,
+	})
+	if err != nil {
+		event.Error(wdw.ctx, "generate progress create", err)
+		return
+	}
+	err = wdw.client.Progress(wdw.ctx, &protocol.ProgressParams{
+		Token: wdw.token,
+		Value: &protocol.WorkDoneProgressBegin{
+			Kind:        "begin",
+			Cancellable: true,
+			Message:     "running go generate",
+			Title:       "generate",
+		},
+	})
+	if err != nil {
+		event.Error(wdw.ctx, "generate progress begin", err)
+	}
+}
+
+func (wdw *workDoneWriter) Close() error {
+	return wdw.client.Progress(wdw.ctx, &protocol.ProgressParams{
+		Token: wdw.token,
+		Value: protocol.WorkDoneProgressEnd{
+			Kind:    "end",
+			Message: "finished",
+		},
 	})
 }
