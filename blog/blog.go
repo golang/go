@@ -312,9 +312,21 @@ func (s *Server) renderAtomFeed() error {
 		if i >= s.cfg.FeedArticles {
 			break
 		}
+
+		// Use original article path as ID in atom feed
+		// to avoid articles being treated as new when renamed.
+		idPath := doc.Path
+		if len(doc.OldURL) > 0 {
+			old := doc.OldURL[0]
+			if !strings.HasPrefix(old, "/") {
+				old = "/" + old
+			}
+			idPath = old
+		}
+
 		e := &atom.Entry{
 			Title: doc.Title,
-			ID:    feed.ID + doc.Path,
+			ID:    feed.ID + idPath,
 			Link: []atom.Link{{
 				Rel:  "alternate",
 				Href: doc.Permalink,
