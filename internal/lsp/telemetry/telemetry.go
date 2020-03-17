@@ -26,6 +26,7 @@ var (
 	PackagePath   = &event.Key{Name: "package_path"}
 	Query         = &event.Key{Name: "query"}
 	Snapshot      = &event.Key{Name: "snapshot"}
+	Operation     = &event.Key{Name: "operation"}
 )
 
 var (
