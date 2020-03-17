@@ -626,7 +626,7 @@ func asmb(ctxt *ld.Link) {
 	sect := ld.Segtext.Sections[0]
 	ctxt.Out.SeekSet(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
 	// 0xCC is INT $3 - breakpoint instruction
-	ld.CodeblkPad(ctxt, int64(sect.Vaddr), int64(sect.Length), []byte{0xCC})
+	ld.CodeblkPad(ctxt, ctxt.Out, int64(sect.Vaddr), int64(sect.Length), []byte{0xCC})
 	for _, sect = range ld.Segtext.Sections[1:] {
 		ctxt.Out.SeekSet(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
 		ld.Datblk(ctxt, int64(sect.Vaddr), int64(sect.Length))

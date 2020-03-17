@@ -730,14 +730,15 @@ func dynreloc(ctxt *Link, data *[sym.SXREF][]*sym.Symbol) {
 }
 
 func Codeblk(ctxt *Link, addr int64, size int64) {
-	CodeblkPad(ctxt, addr, size, zeros[:])
+	CodeblkPad(ctxt, ctxt.Out, addr, size, zeros[:])
 }
-func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
+
+func CodeblkPad(ctxt *Link, out *OutBuf, addr int64, size int64, pad []byte) {
 	if *flagA {
 		ctxt.Logf("codeblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
 	}
 
-	blk(ctxt.Out, ctxt.Textp, addr, size, pad)
+	writeBlocks(out, ctxt.outSem, ctxt.Textp, addr, size, pad)
 
 	/* again for printing */
 	if !*flagA {
@@ -795,9 +796,75 @@ func CodeblkPad(ctxt *Link, addr int64, size int64, pad []byte) {
 	}
 }
 
-func blk(out *OutBuf, syms []*sym.Symbol, addr, size int64, pad []byte) {
+const blockSize = 1 << 20 // 1MB chunks written at a time.
+
+// writeBlocks writes a specified chunk of symbols to the output buffer. It
+// breaks the write up into ≥blockSize chunks to write them out, and schedules
+// as many goroutines as necessary to accomplish this task. This call then
+// blocks, waiting on the writes to complete. Note that we use the sem parameter
+// to limit the number of concurrent writes taking place.
+func writeBlocks(out *OutBuf, sem chan int, syms []*sym.Symbol, addr, size int64, pad []byte) {
 	for i, s := range syms {
-		if !s.Attr.SubSymbol() && s.Value >= addr {
+		if s.Value >= addr && !s.Attr.SubSymbol() {
+			syms = syms[i:]
+			break
+		}
+	}
+
+	var wg sync.WaitGroup
+	max, lastAddr, written := int64(blockSize), addr+size, int64(0)
+	for addr < lastAddr {
+		// Find the last symbol we'd write.
+		idx := -1
+		length := int64(0)
+		for i, s := range syms {
+			// If the next symbol's size would put us out of bounds on the total length,
+			// stop looking.
+			if s.Value+s.Size > lastAddr {
+				break
+			}
+
+			// We're gonna write this symbol.
+			idx = i
+			length = s.Value + s.Size - addr
+
+			// If we cross over the max size, we've got enough symbols.
+			if s.Value+s.Size > addr+max {
+				break
+			}
+		}
+
+		// If we didn't find any symbols to write, we're done here.
+		if idx < 0 {
+			break
+		}
+
+		// Start the block output operator.
+		if o, err := out.View(uint64(out.Offset() + written)); err == nil {
+			sem <- 1
+			wg.Add(1)
+			go func(o *OutBuf, syms []*sym.Symbol, addr, size int64, pad []byte) {
+				writeBlock(o, syms, addr, size, pad)
+				wg.Done()
+				<-sem
+			}(o, syms, addr, length, pad)
+		} else { // output not mmaped, don't parallelize.
+			writeBlock(out, syms, addr, length, pad)
+		}
+
+		// Prepare for the next loop.
+		if idx != -1 {
+			syms = syms[idx+1:]
+		}
+		written += length
+		addr += length
+	}
+	wg.Wait()
+}
+
+func writeBlock(out *OutBuf, syms []*sym.Symbol, addr, size int64, pad []byte) {
+	for i, s := range syms {
+		if s.Value >= addr && !s.Attr.SubSymbol() {
 			syms = syms[i:]
 			break
 		}
@@ -841,11 +908,30 @@ func blk(out *OutBuf, syms []*sym.Symbol, addr, size int64, pad []byte) {
 	if addr < eaddr {
 		out.WriteStringPad("", int(eaddr-addr), pad)
 	}
-	out.Flush()
+}
+
+type writeFn func(*Link, *OutBuf, int64, int64)
+
+// WriteParallel handles scheduling parallel execution of data write functions.
+func WriteParallel(wg *sync.WaitGroup, fn writeFn, ctxt *Link, seek, vaddr, length uint64) {
+	if out, err := ctxt.Out.View(seek); err != nil {
+		ctxt.Out.SeekSet(int64(seek))
+		fn(ctxt, ctxt.Out, int64(vaddr), int64(length))
+	} else {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			fn(ctxt, out, int64(vaddr), int64(length))
+		}()
+	}
 }
 
 func Datblk(ctxt *Link, addr int64, size int64) {
 	writeDatblkToOutBuf(ctxt, ctxt.Out, addr, size)
+}
+
+func Datblk2(ctxt *Link, out *OutBuf, addr, size int64) {
+	writeDatblkToOutBuf(ctxt, out, addr, size)
 }
 
 // Used only on Wasm for now.
@@ -862,7 +948,7 @@ func writeDatblkToOutBuf(ctxt *Link, out *OutBuf, addr int64, size int64) {
 		ctxt.Logf("datblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
 	}
 
-	blk(out, ctxt.datap, addr, size, zeros[:])
+	writeBlocks(out, ctxt.outSem, ctxt.datap, addr, size, zeros[:])
 
 	/* again for printing */
 	if !*flagA {
@@ -931,12 +1017,20 @@ func writeDatblkToOutBuf(ctxt *Link, out *OutBuf, addr int64, size int64) {
 	ctxt.Logf("\t%.8x|\n", uint(eaddr))
 }
 
+func Dwarfblk2(ctxt *Link, out *OutBuf, addr int64, size int64) {
+	if *flagA {
+		ctxt.Logf("dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
+	}
+
+	writeBlocks(out, ctxt.outSem, dwarfp, addr, size, zeros[:])
+}
+
 func Dwarfblk(ctxt *Link, addr int64, size int64) {
 	if *flagA {
 		ctxt.Logf("dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
 	}
 
-	blk(ctxt.Out, dwarfp, addr, size, zeros[:])
+	writeBlock(ctxt.Out, dwarfp, addr, size, zeros[:])
 }
 
 var zeros [512]byte
