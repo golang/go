@@ -24,7 +24,8 @@ func TestCheckPtr(t *testing.T) {
 		cmd  string
 		want string
 	}{
-		{"CheckPtrAlignment", "fatal error: checkptr: unsafe pointer conversion\n"},
+		{"CheckPtrAlignmentPtr", "fatal error: checkptr: unsafe pointer conversion\n"},
+		{"CheckPtrAlignmentNoPtr", ""},
 		{"CheckPtrArithmetic", "fatal error: checkptr: unsafe pointer arithmetic\n"},
 		{"CheckPtrSize", "fatal error: checkptr: unsafe pointer conversion\n"},
 		{"CheckPtrSmall", "fatal error: checkptr: unsafe pointer arithmetic\n"},
@@ -37,6 +38,12 @@ func TestCheckPtr(t *testing.T) {
 			got, err := testenv.CleanCmdEnv(exec.Command(exe, tc.cmd)).CombinedOutput()
 			if err != nil {
 				t.Log(err)
+			}
+			if tc.want == "" {
+				if len(got) > 0 {
+					t.Errorf("output:\n%s\nwant no output", got)
+				}
+				return
 			}
 			if !strings.HasPrefix(string(got), tc.want) {
 				t.Errorf("output:\n%s\n\nwant output starting with: %s", got, tc.want)
