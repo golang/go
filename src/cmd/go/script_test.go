@@ -759,7 +759,7 @@ func (ts *testScript) cmdStale(neg bool, args []string) {
 	if len(args) == 0 {
 		ts.fatalf("usage: stale target...")
 	}
-	tmpl := "{{if .Error}}{{.ImportPath}}: {{.Error.Err}}{else}}"
+	tmpl := "{{if .Error}}{{.ImportPath}}: {{.Error.Err}}{{else}}"
 	if neg {
 		tmpl += "{{if .Stale}}{{.ImportPath}} is unexpectedly stale{{end}}"
 	} else {
