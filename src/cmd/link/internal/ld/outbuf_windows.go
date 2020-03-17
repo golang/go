@@ -36,6 +36,7 @@ func (out *OutBuf) Munmap() {
 		return
 	}
 	err := syscall.UnmapViewOfFile(uintptr(unsafe.Pointer(&out.buf[0])))
+	out.buf = nil
 	if err != nil {
 		Exitf("UnmapViewOfFile failed: %v", err)
 	}

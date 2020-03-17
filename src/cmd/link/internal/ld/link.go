@@ -53,7 +53,9 @@ type Link struct {
 	Target
 	ErrorReporter
 	ArchSyms
-	Out *OutBuf
+
+	outSem chan int // limits the number of output writers
+	Out    *OutBuf
 
 	Syms *sym.Symbols
 

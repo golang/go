@@ -31,7 +31,6 @@
 package ld
 
 import (
-	"bufio"
 	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/obj"
@@ -385,13 +384,10 @@ func libinit(ctxt *Link) {
 	Lflag(ctxt, filepath.Join(objabi.GOROOT, "pkg", fmt.Sprintf("%s_%s%s%s", objabi.GOOS, objabi.GOARCH, suffixsep, suffix)))
 
 	mayberemoveoutfile()
-	f, err := os.OpenFile(*flagOutfile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0775)
-	if err != nil {
+
+	if err := ctxt.Out.Open(*flagOutfile); err != nil {
 		Exitf("cannot create %s: %v", *flagOutfile, err)
 	}
-
-	ctxt.Out.w = bufio.NewWriter(f)
-	ctxt.Out.f = f
 
 	if *flagEntrySymbol == "" {
 		switch ctxt.BuildMode {
@@ -1203,25 +1199,21 @@ func hostlinksetup(ctxt *Link) {
 		*flagTmpdir = dir
 		ownTmpDir = true
 		AtExit(func() {
-			ctxt.Out.f.Close()
+			ctxt.Out.Close()
 			os.RemoveAll(*flagTmpdir)
 		})
 	}
 
 	// change our output to temporary object file
-	ctxt.Out.f.Close()
+	if err := ctxt.Out.Close(); err != nil {
+		Exitf("error closing output file")
+	}
 	mayberemoveoutfile()
 
 	p := filepath.Join(*flagTmpdir, "go.o")
-	var err error
-	f, err := os.OpenFile(p, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0775)
-	if err != nil {
+	if err := ctxt.Out.Open(p); err != nil {
 		Exitf("cannot create %s: %v", p, err)
 	}
-
-	ctxt.Out.w = bufio.NewWriter(f)
-	ctxt.Out.f = f
-	ctxt.Out.off = 0
 }
 
 // hostobjCopy creates a copy of the object files in hostobj in a
@@ -1305,11 +1297,9 @@ func (ctxt *Link) archive() {
 
 	// Force the buffer to flush here so that external
 	// tools will see a complete file.
-	ctxt.Out.Flush()
-	if err := ctxt.Out.f.Close(); err != nil {
-		Exitf("close: %v", err)
+	if err := ctxt.Out.Close(); err != nil {
+		Exitf("error closing %v", *flagOutfile)
 	}
-	ctxt.Out.f = nil
 
 	argv := []string{*flagExtar, "-q", "-c", "-s"}
 	if ctxt.HeadType == objabi.Haix {
