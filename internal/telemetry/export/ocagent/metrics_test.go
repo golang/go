@@ -2,10 +2,10 @@ package ocagent_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"golang.org/x/tools/internal/telemetry/event"
-	"golang.org/x/tools/internal/telemetry/metric"
 )
 
 func TestEncodeMetric(t *testing.T) {
@@ -19,204 +19,26 @@ func TestEncodeMetric(t *testing.T) {
 		want string
 	}{
 		{
-			name: "nil data",
-			want: prefix + `null` + suffix,
+			name: "HistogramFloat64, HistogramInt64",
 			run: func(ctx context.Context) {
-				exporter.Metric(ctx, nil)
+				ctx = event.Label(ctx, keyMethod.Of("godoc.ServeHTTP"))
+				latencyMs.Record(ctx, 96.58)
+				//event.Record(ctx, latencyMs.Of(96.58))
+				ctx = event.Label(ctx, event.Err.Of(errors.New("panic: fatal signal")))
+				bytesIn.Record(ctx, 97e2)
 			},
-		},
-		{
-			name: "Int64Data cumulative",
-			run: func(ctx context.Context) {
-				exporter.Metric(ctx, &metric.Int64Data{
-					Info: &metric.Scalar{
-						Name:        "int",
-						Description: "int metric",
-						Keys:        []event.Key{keyHello},
-					},
-					Rows: []int64{
-						1,
-						2,
-						3,
-					},
-					EndTime: &exporter.start,
-				})
-			},
-			want: prefix + `{
+			want: prefix + `
+			{
 				"metric_descriptor": {
-					"name": "int",
-					"description": "int metric",
-					"type": 4,
-					"label_keys": [
-						{
-							"key": "hello"
-						}
-					]
-				},
-				"timeseries": [
-					{
-						"start_timestamp": "1970-01-01T00:00:00Z",
-						"points": [
-							{
-								"timestamp": "1970-01-01T00:00:30Z",
-								"int64Value": 1
-							}
-						]
-					},
-					{
-						"start_timestamp": "1970-01-01T00:00:00Z",
-						"points": [
-							{
-								"timestamp": "1970-01-01T00:00:30Z",
-								"int64Value": 2
-							}
-						]
-					},
-					{
-						"start_timestamp": "1970-01-01T00:00:00Z",
-						"points": [
-							{
-								"timestamp": "1970-01-01T00:00:30Z",
-								"int64Value": 3
-							}
-						]
-					}
-				]
-			}` + suffix,
-		},
-		{
-			name: "Int64Data gauge",
-			run: func(ctx context.Context) {
-				exporter.Metric(ctx, &metric.Int64Data{
-					Info: &metric.Scalar{
-						Name:        "int-gauge",
-						Description: "int metric gauge",
-						Keys:        []event.Key{keyHello},
-					},
-					IsGauge: true,
-				})
-			},
-			want: prefix + `{
-				"metric_descriptor": {
-					"name": "int-gauge",
-					"description": "int metric gauge",
-					"type": 1,
-					"label_keys": [
-						{
-							"key": "hello"
-						}
-					]
-				}
-			}` + suffix,
-		},
-		{
-			name: "Float64Data cumulative",
-			run: func(ctx context.Context) {
-				exporter.Metric(ctx, &metric.Float64Data{
-					Info: &metric.Scalar{
-						Name:        "float",
-						Description: "float metric",
-						Keys:        []event.Key{keyWorld},
-					},
-					Rows: []float64{
-						1.5,
-						4.5,
-					},
-					EndTime: &exporter.start,
-				})
-			},
-			want: prefix + `{
-				"metric_descriptor": {
-					"name": "float",
-					"description": "float metric",
-					"type": 5,
-					"label_keys": [
-						{
-							"key": "world"
-						}
-					]
-				},
-				"timeseries": [
-					{
-						"start_timestamp": "1970-01-01T00:00:00Z",
-						"points": [
-							{
-								"timestamp": "1970-01-01T00:00:30Z",
-								"doubleValue": 1.5
-							}
-						]
-					},
-					{
-						"start_timestamp": "1970-01-01T00:00:00Z",
-						"points": [
-							{
-								"timestamp": "1970-01-01T00:00:30Z",
-								"doubleValue": 4.5
-							}
-						]
-					}
-				]
-			}` + suffix,
-		},
-		{
-			name: "Float64Data gauge",
-			run: func(ctx context.Context) {
-				exporter.Metric(ctx, &metric.Float64Data{
-					Info: &metric.Scalar{
-						Name:        "float-gauge",
-						Description: "float metric gauge",
-						Keys:        []event.Key{keyWorld},
-					},
-					IsGauge: true,
-				})
-			},
-			want: prefix + `{
-				"metric_descriptor": {
-					"name": "float-gauge",
-					"description": "float metric gauge",
-					"type": 2,
-					"label_keys": [
-						{
-							"key": "world"
-						}
-					]
-				}
-			}` + suffix,
-		},
-		{
-			name: "HistogramInt64",
-			run: func(ctx context.Context) {
-				exporter.Metric(ctx, &metric.HistogramInt64Data{
-					Info: &metric.HistogramInt64{
-						Name:        "histogram int",
-						Description: "histogram int metric",
-						Keys:        []event.Key{keyHello},
-						Buckets: []int64{
-							0, 5, 10,
-						},
-					},
-					Rows: []*metric.HistogramInt64Row{
-						{
-							Count: 6,
-							Sum:   40,
-							Values: []int64{
-								1,
-								2,
-								3,
-							},
-						},
-					},
-					EndTime: &exporter.start,
-				})
-			},
-			want: prefix + `{
-				"metric_descriptor": {
-					"name": "histogram int",
-					"description": "histogram int metric",
+					"name": "latency_ms",
+					"description": "The latency of calls in milliseconds",
 					"type": 6,
 					"label_keys": [
 						{
-							"key": "hello"
+							"key": "method"
+						},
+						{
+							"key": "route"
 						}
 					]
 				},
@@ -225,70 +47,45 @@ func TestEncodeMetric(t *testing.T) {
 						"start_timestamp": "1970-01-01T00:00:00Z",
 						"points": [
 							{
-								"timestamp": "1970-01-01T00:00:30Z",
+								"timestamp": "1970-01-01T00:00:40Z",
 								"distributionValue": {
-									"count": 6,
-									"sum": 40,
+									"count": 1,
+									"sum": 96.58,
 									"bucket_options": {
 										"explicit": {
 											"bounds": [
 												0,
 												5,
-												10
+												10,
+												25,
+												50
 											]
 										}
 									},
 									"buckets": [
-										{
-											"count": 1
-										},
-										{
-											"count": 2
-										},
-										{
-											"count": 3
-										}
+										{},
+										{},
+										{},
+										{},
+										{}
 									]
 								}
 							}
 						]
 					}
 				]
-			}` + suffix,
-		},
-		{
-			name: "HistogramFloat64",
-			run: func(ctx context.Context) {
-				exporter.Metric(ctx, &metric.HistogramFloat64Data{
-					Info: &metric.HistogramFloat64{
-						Name:        "histogram float",
-						Description: "histogram float metric",
-						Keys:        []event.Key{keyHello},
-						Buckets: []float64{
-							0, 5,
-						},
-					},
-					Rows: []*metric.HistogramFloat64Row{
-						{
-							Count: 3,
-							Sum:   10,
-							Values: []int64{
-								1,
-								2,
-							},
-						},
-					},
-					EndTime: &exporter.start,
-				})
 			},
-			want: prefix + `{
+			{
 				"metric_descriptor": {
-					"name": "histogram float",
-					"description": "histogram float metric",
+					"name": "latency_ms",
+					"description": "The latency of calls in milliseconds",
 					"type": 6,
 					"label_keys": [
 						{
-							"key": "hello"
+							"key": "method"
+						},
+						{
+							"key": "route"
 						}
 					]
 				},
@@ -297,25 +94,31 @@ func TestEncodeMetric(t *testing.T) {
 						"start_timestamp": "1970-01-01T00:00:00Z",
 						"points": [
 							{
-								"timestamp": "1970-01-01T00:00:30Z",
+								"timestamp": "1970-01-01T00:00:40Z",
 								"distributionValue": {
-									"count": 3,
-									"sum": 10,
+									"count": 1,
+									"sum": 9700,
 									"bucket_options": {
 										"explicit": {
 											"bounds": [
 												0,
-												5
+												10,
+												50,
+												100,
+												500,
+												1000,
+												2000
 											]
 										}
 									},
 									"buckets": [
-										{
-											"count": 1
-										},
-										{
-											"count": 2
-										}
+										{},
+										{},
+										{},
+										{},
+										{},
+										{},
+										{}
 									]
 								}
 							}
