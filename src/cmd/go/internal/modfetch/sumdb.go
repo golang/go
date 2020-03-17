@@ -131,7 +131,7 @@ func (c *dbClient) ReadRemote(path string) ([]byte, error) {
 	targ := web.Join(c.base, path)
 	data, err := web.GetBytes(targ)
 	if false {
-		fmt.Fprintf(os.Stderr, "%.3fs %s\n", time.Since(start).Seconds(), web.Redacted(targ))
+		fmt.Fprintf(os.Stderr, "%.3fs %s\n", time.Since(start).Seconds(), targ.Redacted())
 	}
 	return data, err
 }
