@@ -151,7 +151,7 @@ func (imp *Importer) ImportFrom(importPath, dir string, mode types.ImportMode) (
 
 	imp.translated[importPath] = tdir
 
-	tpkgs, err := rewriteToPkgs(imp, tdir)
+	tpkgs, err := rewriteToPkgs(imp, importPath, tdir)
 	if err != nil {
 		return nil, err
 	}
@@ -184,6 +184,25 @@ func (imp *Importer) findFromPath(gopath, dir string) string {
 	return ""
 }
 
+// Register registers a package under an import path.
+// This is for tests that use directives like //compiledir.
+func (imp *Importer) Register(importPath string, tpkgs []*types.Package) error {
+	switch len(tpkgs) {
+	case 1:
+		imp.packages[importPath] = tpkgs[0]
+		return nil
+	case 2:
+		if strings.HasSuffix(tpkgs[0].Name(), "_test") {
+			imp.packages[importPath] = tpkgs[1]
+			return nil
+		} else if strings.HasSuffix(tpkgs[1].Name(), "_test") {
+			imp.packages[importPath] = tpkgs[0]
+			return nil
+		}
+	}
+	return fmt.Errorf("unexpected number of packages (%d) for %q", len(tpkgs), importPath)
+}
+
 // localImport handles a local import such as
 //     import "./a"
 // This is for tests that use directives like //compiledir.
@@ -195,13 +214,15 @@ func (imp *Importer) localImport(importPath, dir string) (*types.Package, error)
 	return tpkg, nil
 }
 
-// register records information for a package, for use when working
+// record records information for a package, for use when working
 // with packages that import this one.
-func (imp *Importer) register(pkgfiles []namedAST, tpkg *types.Package) {
-	imp.packages[tpkg.Path()] = tpkg
-	for _, nast := range pkgfiles {
-		imp.addIDs(nast.ast)
+func (imp *Importer) record(pkgfiles []namedAST, importPath string, tpkg *types.Package) {
+	if importPath != "" {
+		imp.packages[importPath] = tpkg
 	}
+       for _, nast := range pkgfiles {
+               imp.addIDs(nast.ast)
+       }
 }
 
 // addIDs finds IDs for generic functions and types and adds them to a map.

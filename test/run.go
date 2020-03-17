@@ -233,8 +233,11 @@ func compileFile(runcmd runCmd, longname string, flags []string) (out []byte, er
 func compileInDir(runcmd runCmd, dir string, ft fileType, importer *go2go.Importer, flags []string, localImports bool, names ...string) (out []byte, err error) {
 	gofiles := names
 	if ft == go2Files {
-		_, err := go2go.RewriteFiles(importer, dir, names)
+		tpkgs, err := go2go.RewriteFiles(importer, dir, names)
 		if err != nil {
+			return nil, err
+		}
+		if err := importer.Register(tpkgs[0].Path(), tpkgs); err != nil {
 			return nil, err
 		}
 
