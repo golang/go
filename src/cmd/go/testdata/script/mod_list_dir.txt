@@ -1,4 +1,5 @@
 [short] skip
+[windows] skip # known Windows test failure on release-branch.go1.13; fix is in CL 206144 but requires non-test code changes unlikely to be appropriate for backporting this late
 
 # go list with path to directory should work
 
