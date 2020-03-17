@@ -330,15 +330,46 @@ func (t *translator) translateStmt(ps *ast.Stmt) {
 		return
 	}
 	switch s := (*ps).(type) {
-	case *ast.BlockStmt:
-		t.translateBlockStmt(s)
+	case *ast.DeclStmt:
+		d := s.Decl.(*ast.GenDecl)
+		switch d.Tok {
+		case token.TYPE:
+			for i := range d.Specs {
+				t.translateTypeSpec(&d.Specs[i])
+			}
+		case token.CONST, token.VAR:
+			for i := range d.Specs {
+				t.translateValueSpec(&d.Specs[i])
+			}
+		default:
+			panic(fmt.Sprintf("unknown decl type %v", d.Tok))
+		}
+	case *ast.EmptyStmt:
+	case *ast.LabeledStmt:
+		t.translateStmt(&s.Stmt)
 	case *ast.ExprStmt:
 		t.translateExpr(&s.X)
+	case *ast.SendStmt:
+		t.translateExpr(&s.Chan)
+		t.translateExpr(&s.Value)
 	case *ast.IncDecStmt:
 		t.translateExpr(&s.X)
 	case *ast.AssignStmt:
 		t.translateExprList(s.Lhs)
 		t.translateExprList(s.Rhs)
+	case *ast.GoStmt:
+		e := ast.Expr(s.Call)
+		t.translateExpr(&e)
+		s.Call = e.(*ast.CallExpr)
+	case *ast.DeferStmt:
+		e := ast.Expr(s.Call)
+		t.translateExpr(&e)
+		s.Call = e.(*ast.CallExpr)
+	case *ast.ReturnStmt:
+		t.translateExprList(s.Results)
+	case *ast.BranchStmt:
+	case *ast.BlockStmt:
+		t.translateBlockStmt(s)
 	case *ast.IfStmt:
 		t.translateStmt(&s.Init)
 		t.translateExpr(&s.Cond)
@@ -358,6 +389,8 @@ func (t *translator) translateStmt(ps *ast.Stmt) {
 	case *ast.CommClause:
 		t.translateStmt(&s.Comm)
 		t.translateStmtList(s.Body)
+	case *ast.SelectStmt:
+		t.translateBlockStmt(s.Body)
 	case *ast.ForStmt:
 		t.translateStmt(&s.Init)
 		t.translateExpr(&s.Cond)
@@ -368,22 +401,6 @@ func (t *translator) translateStmt(ps *ast.Stmt) {
 		t.translateExpr(&s.Value)
 		t.translateExpr(&s.X)
 		t.translateBlockStmt(s.Body)
-	case *ast.DeclStmt:
-		d := s.Decl.(*ast.GenDecl)
-		switch d.Tok {
-		case token.TYPE:
-			for i := range d.Specs {
-				t.translateTypeSpec(&d.Specs[i])
-			}
-		case token.CONST, token.VAR:
-			for i := range d.Specs {
-				t.translateValueSpec(&d.Specs[i])
-			}
-		default:
-			panic(fmt.Sprintf("unknown decl type %v", d.Tok))
-		}
-	case *ast.ReturnStmt:
-		t.translateExprList(s.Results)
 	default:
 		panic(fmt.Sprintf("unimplemented Stmt %T", s))
 	}
@@ -420,13 +437,7 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 		t.translateExprList(e.Elts)
 	case *ast.ParenExpr:
 		t.translateExpr(&e.X)
-	case *ast.BinaryExpr:
-		t.translateExpr(&e.X)
-		t.translateExpr(&e.Y)
-	case *ast.KeyValueExpr:
-		t.translateExpr(&e.Key)
-		t.translateExpr(&e.Value)
-	case *ast.UnaryExpr:
+	case *ast.SelectorExpr:
 		t.translateExpr(&e.X)
 	case *ast.IndexExpr:
 		t.translateExpr(&e.X)
@@ -436,6 +447,9 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 		t.translateExpr(&e.Low)
 		t.translateExpr(&e.High)
 		t.translateExpr(&e.Max)
+	case *ast.TypeAssertExpr:
+		t.translateExpr(&e.X)
+		t.translateExpr(&e.Type)
 	case *ast.CallExpr:
 		t.translateExprList(e.Args)
 		if ftyp, ok := t.lookupType(e.Fun).(*types.Signature); ok && len(ftyp.TParams()) > 0 {
@@ -446,8 +460,14 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 		t.translateExpr(&e.Fun)
 	case *ast.StarExpr:
 		t.translateExpr(&e.X)
-	case *ast.SelectorExpr:
+	case *ast.UnaryExpr:
 		t.translateExpr(&e.X)
+	case *ast.BinaryExpr:
+		t.translateExpr(&e.X)
+		t.translateExpr(&e.Y)
+	case *ast.KeyValueExpr:
+		t.translateExpr(&e.Key)
+		t.translateExpr(&e.Value)
 	case *ast.ArrayType:
 		t.translateExpr(&e.Elt)
 	case *ast.StructType:
