@@ -7,7 +7,7 @@ package debug
 import (
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/telemetry/event"
-	"golang.org/x/tools/internal/telemetry/metric"
+	"golang.org/x/tools/internal/telemetry/export/metric"
 )
 
 var (
@@ -20,31 +20,39 @@ var (
 		Description: "Distribution of received bytes, by method.",
 		Keys:        []event.Key{tag.RPCDirection, tag.Method},
 		Buckets:     bytesDistribution,
-	}.Record(tag.ReceivedBytes)
+	}
 
 	sentBytes = metric.HistogramInt64{
 		Name:        "sent_bytes",
 		Description: "Distribution of sent bytes, by method.",
 		Keys:        []event.Key{tag.RPCDirection, tag.Method},
 		Buckets:     bytesDistribution,
-	}.Record(tag.SentBytes)
+	}
 
 	latency = metric.HistogramFloat64{
 		Name:        "latency",
 		Description: "Distribution of latency in milliseconds, by method.",
 		Keys:        []event.Key{tag.RPCDirection, tag.Method},
 		Buckets:     millisecondsDistribution,
-	}.Record(tag.Latency)
+	}
 
 	started = metric.Scalar{
 		Name:        "started",
 		Description: "Count of RPCs started by method.",
 		Keys:        []event.Key{tag.RPCDirection, tag.Method},
-	}.CountInt64(tag.Started)
+	}
 
 	completed = metric.Scalar{
 		Name:        "completed",
 		Description: "Count of RPCs completed by method and status.",
 		Keys:        []event.Key{tag.RPCDirection, tag.Method, tag.StatusCode},
-	}.CountFloat64(tag.Latency)
+	}
 )
+
+func registerMetrics(m *metric.Exporter) {
+	receivedBytes.Record(m, tag.ReceivedBytes)
+	sentBytes.Record(m, tag.SentBytes)
+	latency.Record(m, tag.Latency)
+	started.CountInt64(m, tag.Started)
+	completed.CountFloat64(m, tag.Latency)
+}

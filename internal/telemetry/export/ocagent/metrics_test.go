@@ -22,10 +22,9 @@ func TestEncodeMetric(t *testing.T) {
 			name: "HistogramFloat64, HistogramInt64",
 			run: func(ctx context.Context) {
 				ctx = event.Label(ctx, keyMethod.Of("godoc.ServeHTTP"))
-				latencyMs.Record(ctx, 96.58)
-				//event.Record(ctx, latencyMs.Of(96.58))
+				event.Record(ctx, latencyMs.Of(96.58))
 				ctx = event.Label(ctx, event.Err.Of(errors.New("panic: fatal signal")))
-				bytesIn.Record(ctx, 97e2)
+				event.Record(ctx, bytesIn.Of(97e2))
 			},
 			want: prefix + `
 			{

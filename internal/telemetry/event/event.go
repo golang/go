@@ -19,6 +19,7 @@ const (
 	LabelType
 	QueryType
 	DetachType
+	RecordType
 )
 
 type Event struct {
@@ -35,6 +36,7 @@ func (e Event) IsStartSpan() bool { return e.Type == StartSpanType }
 func (e Event) IsLabel() bool     { return e.Type == LabelType }
 func (e Event) IsQuery() bool     { return e.Type == QueryType }
 func (e Event) IsDetach() bool    { return e.Type == DetachType }
+func (e Event) IsRecord() bool    { return e.Type == RecordType }
 
 func (e Event) Format(f fmt.State, r rune) {
 	if !e.At.IsZero() {

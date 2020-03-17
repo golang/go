@@ -17,10 +17,8 @@ import (
 
 	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/telemetry/export"
+	"golang.org/x/tools/internal/telemetry/export/metric"
 	"golang.org/x/tools/internal/telemetry/export/ocagent"
-	"golang.org/x/tools/internal/telemetry/metric"
-	"golang.org/x/tools/internal/telemetry/stats"
-	"golang.org/x/tools/internal/telemetry/unit"
 )
 
 const testNodeStr = `{
@@ -66,32 +64,33 @@ var (
 	key5dMinHops = event.NewUInt32Key("5d_min_hops", "A test uint32 key")
 	key5eMaxHops = event.NewUInt64Key("5e_max_hops", "A test uint64 key")
 
-	recursiveCalls = stats.Int64("recursive_calls", "Number of recursive calls", unit.Dimensionless)
-	bytesIn        = stats.Int64("bytes_in", "Number of bytes in", unit.Bytes)
-	latencyMs      = stats.Float64("latency", "The latency in milliseconds", unit.Milliseconds)
+	recursiveCalls = event.NewInt64Key("recursive_calls", "Number of recursive calls")
+	bytesIn        = event.NewInt64Key("bytes_in", "Number of bytes in")           //, unit.Bytes)
+	latencyMs      = event.NewFloat64Key("latency", "The latency in milliseconds") //, unit.Milliseconds)
 
 	metricLatency = metric.HistogramFloat64{
 		Name:        "latency_ms",
 		Description: "The latency of calls in milliseconds",
 		Keys:        []event.Key{keyMethod, keyRoute},
 		Buckets:     []float64{0, 5, 10, 25, 50},
-	}.Record(latencyMs)
+	}
 
 	metricBytesIn = metric.HistogramInt64{
 		Name:        "latency_ms",
 		Description: "The latency of calls in milliseconds",
 		Keys:        []event.Key{keyMethod, keyRoute},
 		Buckets:     []int64{0, 10, 50, 100, 500, 1000, 2000},
-	}.Record(bytesIn)
+	}
 
 	metricRecursiveCalls = metric.Scalar{
 		Name:        "latency_ms",
 		Description: "The latency of calls in milliseconds",
 		Keys:        []event.Key{keyMethod, keyRoute},
-	}.SumInt64(recursiveCalls)
+	}
 )
 
 type testExporter struct {
+	metrics metric.Exporter
 	ocagent *ocagent.Exporter
 	sent    fakeSender
 	start   time.Time
@@ -112,6 +111,11 @@ func registerExporter() *testExporter {
 	exporter.start, _ = time.Parse(time.RFC3339Nano, "1970-01-01T00:00:30Z")
 	exporter.at, _ = time.Parse(time.RFC3339Nano, "1970-01-01T00:00:40Z")
 	exporter.end, _ = time.Parse(time.RFC3339Nano, "1970-01-01T00:00:50Z")
+
+	metricLatency.Record(&exporter.metrics, latencyMs)
+	metricBytesIn.Record(&exporter.metrics, bytesIn)
+	metricRecursiveCalls.SumInt64(&exporter.metrics, recursiveCalls)
+
 	event.SetExporter(exporter)
 	return exporter
 }
@@ -127,26 +131,13 @@ func (e *testExporter) ProcessEvent(ctx context.Context, ev event.Event) (contex
 	}
 	ctx, ev = export.Tag(ctx, ev)
 	ctx, ev = export.ContextSpan(ctx, ev)
+	ctx, ev = e.metrics.ProcessEvent(ctx, ev)
 	ctx, ev = e.ocagent.ProcessEvent(ctx, ev)
 	if ev.IsStartSpan() {
 		span := export.GetSpan(ctx)
 		span.ID = export.SpanContext{}
 	}
 	return ctx, ev
-}
-
-func (e *testExporter) Metric(ctx context.Context, data event.MetricData) {
-	switch data := data.(type) {
-	case *metric.Int64Data:
-		data.EndTime = &e.at
-	case *metric.Float64Data:
-		data.EndTime = &e.at
-	case *metric.HistogramInt64Data:
-		data.EndTime = &e.at
-	case *metric.HistogramFloat64Data:
-		data.EndTime = &e.at
-	}
-	e.ocagent.Metric(ctx, data)
 }
 
 func (e *testExporter) Output(route string) []byte {

@@ -17,8 +17,6 @@ type Exporter interface {
 	// This method is called synchronously from the event call site, so it should
 	// return quickly so as not to hold up user code.
 	ProcessEvent(context.Context, Event) (context.Context, Event)
-
-	Metric(context.Context, MetricData)
 }
 
 var (
@@ -44,12 +42,4 @@ func ProcessEvent(ctx context.Context, ev Event) (context.Context, Event) {
 	}
 	// and now also hand the event of to the current exporter
 	return (*exporterPtr).ProcessEvent(ctx, ev)
-}
-
-func Metric(ctx context.Context, data MetricData) {
-	exporterPtr := (*Exporter)(atomic.LoadPointer(&exporter))
-	if exporterPtr == nil {
-		return
-	}
-	(*exporterPtr).Metric(ctx, data)
 }

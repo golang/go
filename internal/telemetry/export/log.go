@@ -51,5 +51,3 @@ func (w *logWriter) ProcessEvent(ctx context.Context, ev event.Event) (context.C
 	}
 	return ctx, ev
 }
-
-func (w *logWriter) Metric(context.Context, event.MetricData) {}

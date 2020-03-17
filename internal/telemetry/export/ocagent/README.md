@@ -38,8 +38,8 @@ import (
 
 	"golang.org/x/tools/internal/telemetry/export"
 	"golang.org/x/tools/internal/telemetry/export/ocagent"
-	"golang.org/x/tools/internal/telemetry/metric"
-	"golang.org/x/tools/internal/telemetry/stats"
+	"golang.org/x/tools/internal/telemetry/export/metric"
+	"golang.org/x/tools/internal/telemetry/event"
 )
 
 func main() {
@@ -54,7 +54,7 @@ func main() {
 	export.SetExporter(exporter)
 
 	ctx := context.TODO()
-	mLatency := stats.Float64("latency", "the latency in milliseconds", "ms")
+	mLatency := event.NewFloat64Key("latency", "the latency in milliseconds", "ms")
 	distribution := metric.HistogramFloat64Data{
 		Info: &metric.HistogramFloat64{
 			Name:        "latencyDistribution",

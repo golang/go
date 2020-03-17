@@ -20,6 +20,7 @@ import (
 
 	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/telemetry/export"
+	"golang.org/x/tools/internal/telemetry/export/metric"
 	"golang.org/x/tools/internal/telemetry/export/ocagent/wire"
 )
 
@@ -46,7 +47,7 @@ type Exporter struct {
 	mu      sync.Mutex
 	config  Config
 	spans   []*export.Span
-	metrics []event.MetricData
+	metrics []metric.Data
 }
 
 // Connect creates a process specific exporter with the specified
@@ -85,22 +86,21 @@ func Connect(config *Config) *Exporter {
 }
 
 func (e *Exporter) ProcessEvent(ctx context.Context, ev event.Event) (context.Context, event.Event) {
-	if !ev.IsEndSpan() {
-		return ctx, ev
-	}
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	span := export.GetSpan(ctx)
-	if span != nil {
-		e.spans = append(e.spans, span)
+	switch {
+	case ev.IsEndSpan():
+		e.mu.Lock()
+		defer e.mu.Unlock()
+		span := export.GetSpan(ctx)
+		if span != nil {
+			e.spans = append(e.spans, span)
+		}
+	case ev.IsRecord():
+		e.mu.Lock()
+		defer e.mu.Unlock()
+		data := metric.Entries.Get(ev.Tags).([]metric.Data)
+		e.metrics = append(e.metrics, data...)
 	}
 	return ctx, ev
-}
-
-func (e *Exporter) Metric(ctx context.Context, data event.MetricData) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.metrics = append(e.metrics, data)
 }
 
 func (e *Exporter) Flush() {
@@ -211,7 +211,7 @@ func convertSpan(span *export.Span) *wire.Span {
 	return result
 }
 
-func convertMetric(data event.MetricData, start time.Time) *wire.Metric {
+func convertMetric(data metric.Data, start time.Time) *wire.Metric {
 	descriptor := dataToMetricDescriptor(data)
 	timeseries := dataToTimeseries(data, start)
 

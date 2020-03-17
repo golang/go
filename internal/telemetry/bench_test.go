@@ -8,8 +8,6 @@ import (
 
 	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/telemetry/export"
-	"golang.org/x/tools/internal/telemetry/stats"
-	"golang.org/x/tools/internal/telemetry/unit"
 )
 
 type Hooks struct {
@@ -20,10 +18,10 @@ type Hooks struct {
 var (
 	aValue  = event.NewInt64Key("a", "")
 	bValue  = event.NewStringKey("b", "")
-	aCount  = stats.Int64("aCount", "Count of time A is called.", unit.Dimensionless)
-	aStat   = stats.Int64("aValue", "A value.", unit.Dimensionless)
-	bCount  = stats.Int64("B", "Count of time B is called.", unit.Dimensionless)
-	bLength = stats.Int64("BLen", "B length.", unit.Dimensionless)
+	aCount  = event.NewInt64Key("aCount", "Count of time A is called.")
+	aStat   = event.NewInt64Key("aValue", "A value.")
+	bCount  = event.NewInt64Key("B", "Count of time B is called.")
+	bLength = event.NewInt64Key("BLen", "B length.")
 
 	Baseline = Hooks{
 		A: func(ctx context.Context, a *int) (context.Context, func()) {
@@ -75,15 +73,15 @@ var (
 
 	Stats = Hooks{
 		A: func(ctx context.Context, a *int) (context.Context, func()) {
-			aCount.Record(ctx, 1)
+			event.Record(ctx, aCount.Of(1))
 			return ctx, func() {
-				aStat.Record(ctx, int64(*a))
+				event.Record(ctx, aStat.Of(int64(*a)))
 			}
 		},
 		B: func(ctx context.Context, b *string) (context.Context, func()) {
-			bCount.Record(ctx, 1)
+			event.Record(ctx, bCount.Of(1))
 			return ctx, func() {
-				bLength.Record(ctx, int64(len(*b)))
+				event.Record(ctx, bLength.Of(int64(len(*b))))
 			}
 		},
 	}
@@ -157,8 +155,4 @@ func newExporter() *loggingExporter {
 func (e *loggingExporter) ProcessEvent(ctx context.Context, ev event.Event) (context.Context, event.Event) {
 	ctx, ev = export.ContextSpan(ctx, ev)
 	return e.logger.ProcessEvent(ctx, ev)
-}
-
-func (e *loggingExporter) Metric(ctx context.Context, data event.MetricData) {
-	e.logger.Metric(ctx, data)
 }

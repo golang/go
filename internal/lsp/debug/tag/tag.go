@@ -7,8 +7,6 @@ package tag
 
 import (
 	"golang.org/x/tools/internal/telemetry/event"
-	"golang.org/x/tools/internal/telemetry/stats"
-	"golang.org/x/tools/internal/telemetry/unit"
 )
 
 var (
@@ -38,10 +36,10 @@ var (
 
 var (
 	// create the stats we measure
-	Started       = stats.Int64("started", "Count of started RPCs.", unit.Dimensionless)
-	ReceivedBytes = stats.Int64("received_bytes", "Bytes received.", unit.Bytes)
-	SentBytes     = stats.Int64("sent_bytes", "Bytes sent.", unit.Bytes)
-	Latency       = stats.Float64("latency_ms", "Elapsed time in milliseconds", unit.Milliseconds)
+	Started       = event.NewInt64Key("started", "Count of started RPCs.")
+	ReceivedBytes = event.NewInt64Key("received_bytes", "Bytes received.")            //, unit.Bytes)
+	SentBytes     = event.NewInt64Key("sent_bytes", "Bytes sent.")                    //, unit.Bytes)
+	Latency       = event.NewFloat64Key("latency_ms", "Elapsed time in milliseconds") //, unit.Milliseconds)
 )
 
 const (

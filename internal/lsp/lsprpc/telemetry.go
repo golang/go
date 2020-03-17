@@ -49,7 +49,7 @@ func (h telemetryHandler) Request(ctx context.Context, conn *jsonrpc2.Conn, dire
 		tag.RPCDirection.Of(mode),
 		tag.RPCID.Of(r.ID.String()),
 	)
-	tag.Started.Record(ctx, 1)
+	event.Record(ctx, tag.Started.Of(1))
 	_, stats.delivering = event.StartSpan(ctx, "queued")
 	return ctx
 }
@@ -67,17 +67,17 @@ func (h telemetryHandler) Done(ctx context.Context, err error) {
 	}
 	elapsedTime := time.Since(stats.start)
 	latencyMillis := float64(elapsedTime) / float64(time.Millisecond)
-	tag.Latency.Record(ctx, latencyMillis)
+	event.Record(ctx, tag.Latency.Of(latencyMillis))
 	stats.close()
 }
 
 func (h telemetryHandler) Read(ctx context.Context, bytes int64) context.Context {
-	tag.SentBytes.Record(ctx, bytes)
+	event.Record(ctx, tag.SentBytes.Of(bytes))
 	return ctx
 }
 
 func (h telemetryHandler) Wrote(ctx context.Context, bytes int64) context.Context {
-	tag.ReceivedBytes.Record(ctx, bytes)
+	event.Record(ctx, tag.ReceivedBytes.Of(bytes))
 	return ctx
 }
 

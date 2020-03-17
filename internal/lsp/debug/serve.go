@@ -31,6 +31,7 @@ import (
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/telemetry/export"
+	"golang.org/x/tools/internal/telemetry/export/metric"
 	"golang.org/x/tools/internal/telemetry/export/ocagent"
 	"golang.org/x/tools/internal/telemetry/export/prometheus"
 )
@@ -55,6 +56,7 @@ type Instance struct {
 
 	LogWriter io.Writer
 
+	metrics    metric.Exporter
 	ocagent    *ocagent.Exporter
 	prometheus *prometheus.Exporter
 	rpcs       *rpcs
@@ -410,6 +412,7 @@ func WithInstance(ctx context.Context, workdir, agent string) context.Context {
 		OCAgentConfig: agent,
 	}
 	i.LogWriter = os.Stderr
+	registerMetrics(&i.metrics)
 	ocConfig := ocagent.Discover()
 	//TODO: we should not need to adjust the discovered configuration
 	ocConfig.Address = i.OCAgentConfig
@@ -553,29 +556,20 @@ func (e *exporter) ProcessEvent(ctx context.Context, ev event.Event) (context.Co
 		return ctx, ev
 	}
 	ctx, ev = export.Tag(ctx, ev)
+	ctx, ev = i.metrics.ProcessEvent(ctx, ev)
 	if i.ocagent != nil {
 		ctx, ev = i.ocagent.ProcessEvent(ctx, ev)
+	}
+	if i.prometheus != nil {
+		ctx, ev = i.prometheus.ProcessEvent(ctx, ev)
+	}
+	if i.rpcs != nil {
+		ctx, ev = i.rpcs.ProcessEvent(ctx, ev)
 	}
 	if i.traces != nil {
 		ctx, ev = i.traces.ProcessEvent(ctx, ev)
 	}
 	return ctx, ev
-}
-
-func (e *exporter) Metric(ctx context.Context, data event.MetricData) {
-	i := GetInstance(ctx)
-	if i == nil {
-		return
-	}
-	if i.ocagent != nil {
-		i.ocagent.Metric(ctx, data)
-	}
-	if i.traces != nil {
-		i.prometheus.Metric(ctx, data)
-	}
-	if i.rpcs != nil {
-		i.rpcs.Metric(ctx, data)
-	}
 }
 
 type dataFunc func(*http.Request) interface{}
