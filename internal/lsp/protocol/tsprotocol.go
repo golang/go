@@ -1,7 +1,7 @@
 // Package protocol contains data types and code for LSP jsonrpcs
 // generated automatically from vscode-languageserver-node
 // commit: 151b520c995ee3d76729b5c46258ab273d989726
-// last fetched Mon Mar 09 2020 10:29:10 GMT-0400 (Eastern Daylight Time)
+// last fetched Fri Mar 13 2020 17:02:20 GMT-0400 (Eastern Daylight Time)
 package protocol
 
 // Code generated (see typescript/README.md) DO NOT EDIT.
@@ -3416,6 +3416,40 @@ type WillSaveTextDocumentParams struct {
 	Reason TextDocumentSaveReason `json:"reason"`
 }
 
+type WorkDoneProgressBegin struct {
+	Kind string `json:"kind"`
+	/**
+	 * Mandatory title of the progress operation. Used to briefly inform about
+	 * the kind of operation being performed.
+	 *
+	 * Examples: "Indexing" or "Linking dependencies".
+	 */
+	Title string `json:"title"`
+	/**
+	 * Controls if a cancel button should show to allow the user to cancel the
+	 * long running operation. Clients that don't support cancellation are allowed
+	 * to ignore the setting.
+	 */
+	Cancellable bool `json:"cancellable,omitempty"`
+	/**
+	 * Optional, more detailed associated progress message. Contains
+	 * complementary information to the `title`.
+	 *
+	 * Examples: "3/25 files", "project/src/module2", "node_modules/some_dep".
+	 * If unset, the previous progress message (if any) is still valid.
+	 */
+	Message string `json:"message,omitempty"`
+	/**
+	 * Optional progress percentage to display (value 100 is considered 100%).
+	 * If not provided infinite progress is assumed and clients are allowed
+	 * to ignore the `percentage` value in subsequent in report notifications.
+	 *
+	 * The value should be steadily rising. Clients are free to ignore values
+	 * that are not following this rule.
+	 */
+	Percentage float64 `json:"percentage,omitempty"`
+}
+
 type WorkDoneProgressCancelParams struct {
 	/**
 	 * The token to be used to report progress.
@@ -3445,6 +3479,15 @@ type WorkDoneProgressCreateParams struct {
 	Token ProgressToken `json:"token"`
 }
 
+type WorkDoneProgressEnd struct {
+	Kind string `json:"kind"`
+	/**
+	 * Optional, a final message indicating to for example indicate the outcome
+	 * of the operation.
+	 */
+	Message string `json:"message,omitempty"`
+}
+
 type WorkDoneProgressOptions struct {
 	WorkDoneProgress bool `json:"workDoneProgress,omitempty"`
 }
@@ -3454,6 +3497,35 @@ type WorkDoneProgressParams struct {
 	 * An optional token that a server can use to report work done progress.
 	 */
 	WorkDoneToken ProgressToken `json:"workDoneToken,omitempty"`
+}
+
+type WorkDoneProgressReport struct {
+	Kind string `json:"kind"`
+	/**
+	 * Controls enablement state of a cancel button. This property is only valid if a cancel
+	 * button got requested in the `WorkDoneProgressStart` payload.
+	 *
+	 * Clients that don't support cancellation or don't support control the button's
+	 * enablement state are allowed to ignore the setting.
+	 */
+	Cancellable bool `json:"cancellable,omitempty"`
+	/**
+	 * Optional, more detailed associated progress message. Contains
+	 * complementary information to the `title`.
+	 *
+	 * Examples: "3/25 files", "project/src/module2", "node_modules/some_dep".
+	 * If unset, the previous progress message (if any) is still valid.
+	 */
+	Message string `json:"message,omitempty"`
+	/**
+	 * Optional progress percentage to display (value 100 is considered 100%).
+	 * If not provided infinite progress is assumed and clients are allowed
+	 * to ignore the `percentage` value in subsequent in report notifications.
+	 *
+	 * The value should be steadily rising. Clients are free to ignore values
+	 * that are not following this rule.
+	 */
+	Percentage float64 `json:"percentage,omitempty"`
 }
 
 /**
@@ -4059,28 +4131,4 @@ type WorkspaceFoldersGn struct {
 	 * using the `client/unregisterCapability` request.
 	 */
 	ChangeNotifications string/*string | boolean*/ `json:"changeNotifications,omitempty"`
-}
-
-// The following types are defined by
-// the protocol but are not yet auto generated
-// TODO: generate progress types from here: https://github.com/microsoft/vscode-languageserver-node/blob/master/protocol/src/protocol.progress.ts
-
-type WorkDoneProgressBegin struct {
-	Kind        string `json:"kind,omitempty"`
-	Title       string `json:"title,omitempty"`
-	Cancellable bool   `json:"cancellable,omitempty"`
-	Message     string `json:"message,omitempty"`
-	Percentage  int    `json:"percentage,omitempty"`
-}
-
-type WorkDoneProgressReport struct {
-	Kind        string `json:"kind,omitempty"`
-	Cancellable bool   `json:"cancellable,omitempty"`
-	Message     string `json:"message,omitempty"`
-	Percentage  int    `json:"percentage,omitempty"`
-}
-
-type WorkDoneProgressEnd struct {
-	Kind    string `json:"kind,omitempty"`
-	Message string `json:"message,omitempty"`
 }
