@@ -440,8 +440,8 @@ func runBuildCmd(name string, count int, dir, tool string, args []string) error 
 	}
 	end := time.Now()
 
-	haveAllocs := false
-	var allocs, allocbytes int64
+	haveAllocs, haveRSS := false, false
+	var allocs, allocbytes, rssbytes int64
 	if *flagAlloc || *flagMemprofile != "" {
 		out, err := ioutil.ReadFile(dir + "/_compilebench_.memprof")
 		if err != nil {
@@ -462,6 +462,9 @@ func runBuildCmd(name string, count int, dir, tool string, args []string) error 
 				allocbytes = val
 			case "Mallocs":
 				allocs = val
+			case "MaxRSS":
+				haveRSS = true
+				rssbytes = val
 			}
 		}
 		if !haveAllocs {
@@ -501,6 +504,9 @@ func runBuildCmd(name string, count int, dir, tool string, args []string) error 
 	fmt.Printf("%s 1 %d ns/op %d user-ns/op", name, wallns, userns)
 	if haveAllocs {
 		fmt.Printf(" %d B/op %d allocs/op", allocbytes, allocs)
+	}
+	if haveRSS {
+		fmt.Printf(" %d maxRSS/op", rssbytes)
 	}
 
 	return nil
