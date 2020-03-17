@@ -540,6 +540,10 @@ type m struct {
 	// requested, but fails. Accessed atomically.
 	preemptGen uint32
 
+	// Whether this is a pending preemption signal on this M.
+	// Accessed atomically.
+	signalPending uint32
+
 	dlogPerM
 
 	mOS
