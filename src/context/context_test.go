@@ -667,7 +667,7 @@ func XTestWithValueChecksKey(t testingT) {
 	}
 }
 
-func TestInvalidDerivedFail(t testingT) {
+func XTestInvalidDerivedFail(t testingT) {
 	panicVal := recoveredValue(func() { WithCancel(nil) })
 	if panicVal == nil {
 		t.Error("expected panic")
