@@ -240,6 +240,7 @@ type Loader struct {
 	symFile    map[Sym]string      // stores file for shlib-derived syms
 	plt        map[Sym]int32       // stores dynimport for pe objects
 	got        map[Sym]int32       // stores got for pe objects
+	dynid      map[Sym]int32       // stores Dynid for symbol
 
 	// Used to implement field tracking; created during deadcode if
 	// field tracking is enabled. Reachparent[K] contains the index of
@@ -302,6 +303,7 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc) *Loader {
 		symFile:              make(map[Sym]string),
 		plt:                  make(map[Sym]int32),
 		got:                  make(map[Sym]int32),
+		dynid:                make(map[Sym]int32),
 		attrTopFrame:         make(map[Sym]struct{}),
 		attrSpecial:          make(map[Sym]struct{}),
 		attrCgoExportDynamic: make(map[Sym]struct{}),
@@ -1127,12 +1129,33 @@ func (l *Loader) SetPlt(i Sym, v int32) {
 // SetGot sets the got value for pe symbols.
 func (l *Loader) SetGot(i Sym, v int32) {
 	if i >= Sym(len(l.objSyms)) || i == 0 {
-		panic("bad symbol for SetPlt")
+		panic("bad symbol for SetGot")
 	}
 	if v == 0 {
 		delete(l.got, i)
 	} else {
 		l.got[i] = v
+	}
+}
+
+// SymDynid returns the "dynid" property for the specified symbol.
+func (l *Loader) SymDynid(i Sym) int32 {
+	if s, ok := l.dynid[i]; ok {
+		return s
+	}
+	return -1
+}
+
+// SetSymDynid sets the "dynid" property for a symbol.
+func (l *Loader) SetSymDynid(i Sym, val int32) {
+	// reject bad symbols
+	if i >= Sym(len(l.objSyms)) || i == 0 {
+		panic("bad symbol index in SetSymDynid")
+	}
+	if val == -1 {
+		delete(l.dynid, i)
+	} else {
+		l.dynid[i] = val
 	}
 }
 
