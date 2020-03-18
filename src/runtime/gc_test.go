@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"reflect"
 	"runtime"
@@ -749,6 +750,24 @@ func BenchmarkScanStackNoLocals(b *testing.B) {
 		b.StopTimer()
 	}
 	close(teardown)
+}
+
+func BenchmarkMSpanCountAlloc(b *testing.B) {
+	// n is the number of bytes to benchmark against.
+	// n must always be a multiple of 8, since gcBits is
+	// always rounded up 8 bytes.
+	for _, n := range []int{8, 16, 32, 64, 128} {
+		b.Run(fmt.Sprintf("bits=%d", n*8), func(b *testing.B) {
+			// Initialize a new byte slice with pseduo-random data.
+			bits := make([]byte, n)
+			rand.Read(bits)
+
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				runtime.MSpanCountAlloc(bits)
+			}
+		})
+	}
 }
 
 func countpwg(n *int, ready *sync.WaitGroup, teardown chan bool) {
