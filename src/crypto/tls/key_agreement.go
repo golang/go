@@ -166,7 +166,7 @@ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Cer
 
 	// See RFC 4492, Section 5.4.
 	ecdhePublic := params.PublicKey()
-	serverECDHEParams := make([]byte, 1+2+1+len(ecdhePublic))
+	serverECDHEParams := make([]byte, 4+len(ecdhePublic))
 	serverECDHEParams[0] = 3 // named curve
 	serverECDHEParams[1] = byte(curveID >> 8)
 	serverECDHEParams[2] = byte(curveID)
