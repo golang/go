@@ -123,27 +123,51 @@ type ArchSyms struct {
 	// Darwin symbols
 	LinkEditGOT *sym.Symbol
 	LinkEditPLT *sym.Symbol
+
+	// ----- loader.Sym equivalents -----
+
+	TOC2    loader.Sym
+	DotTOC2 []loader.Sym // for each version
+
+	GOT2    loader.Sym
+	PLT2    loader.Sym
+	GOTPLT2 loader.Sym
+
+	Tlsg2 loader.Sym
+
+	Dynamic2 loader.Sym
+	DynSym2  loader.Sym
+	DynStr2  loader.Sym
 }
 
 // setArchSyms sets up the ArchSyms structure, and must be called before
 // relocations are applied.
 func (ctxt *Link) setArchSyms() {
-	ctxt.GOT = ctxt.Syms.Lookup(".got", 0)
-	ctxt.PLT = ctxt.Syms.Lookup(".plt", 0)
-	ctxt.GOTPLT = ctxt.Syms.Lookup(".got.plt", 0)
+	ctxt.GOT2 = ctxt.loader.LookupOrCreateSym(".got", 0)
+	ctxt.GOT = ctxt.loader.Syms[ctxt.GOT2]
+	ctxt.PLT2 = ctxt.loader.LookupOrCreateSym(".plt", 0)
+	ctxt.PLT = ctxt.loader.Syms[ctxt.PLT2]
+	ctxt.GOTPLT2 = ctxt.loader.LookupOrCreateSym(".got.plt", 0)
+	ctxt.GOTPLT = ctxt.loader.Syms[ctxt.GOTPLT2]
 
-	ctxt.Dynamic = ctxt.Syms.Lookup(".dynamic", 0)
-	ctxt.DynSym = ctxt.Syms.Lookup(".dynsym", 0)
-	ctxt.DynStr = ctxt.Syms.Lookup(".dynstr", 0)
+	ctxt.Dynamic2 = ctxt.loader.LookupOrCreateSym(".dynamic", 0)
+	ctxt.Dynamic = ctxt.loader.Syms[ctxt.Dynamic2]
+	ctxt.DynSym2 = ctxt.loader.LookupOrCreateSym(".dynsym", 0)
+	ctxt.DynSym = ctxt.loader.Syms[ctxt.DynSym2]
+	ctxt.DynStr2 = ctxt.loader.LookupOrCreateSym(".dynstr", 0)
+	ctxt.DynStr = ctxt.loader.Syms[ctxt.DynStr2]
 
 	if ctxt.IsAIX() {
-		ctxt.TOC = ctxt.Syms.Lookup("TOC", 0)
+		ctxt.TOC2 = ctxt.loader.LookupOrCreateSym("TOC", 0)
+		ctxt.TOC = ctxt.loader.Syms[ctxt.TOC2]
 		ctxt.DotTOC = make([]*sym.Symbol, ctxt.Syms.MaxVersion()+1)
+		ctxt.DotTOC2 = make([]loader.Sym, ctxt.Syms.MaxVersion()+1)
 		for i := 0; i <= ctxt.Syms.MaxVersion(); i++ {
 			if i >= 2 && i < sym.SymVerStatic { // these versions are not used currently
 				continue
 			}
-			ctxt.DotTOC[i] = ctxt.Syms.Lookup(".TOC.", i)
+			ctxt.DotTOC2[i] = ctxt.loader.LookupOrCreateSym(".TOC.", i)
+			ctxt.DotTOC[i] = ctxt.loader.Syms[ctxt.DotTOC2[i]]
 		}
 	}
 	if ctxt.IsElf() {
