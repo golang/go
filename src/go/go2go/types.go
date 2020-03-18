@@ -64,15 +64,15 @@ func (t *translator) instantiateType(ta *typeArgs, typ types.Type) types.Type {
 // This should only be called from instantiateType.
 func (t *translator) doInstantiateType(ta *typeArgs, typ types.Type) types.Type {
 	switch typ := typ.(type) {
-	case *types.Named:
-		return typ
 	case *types.Basic:
 		return typ
-	case *types.TypeParam:
-		if instType, ok := ta.typ(typ); ok {
-			return instType
+	case *types.Array:
+		elem := typ.Elem()
+		instElem := t.instantiateType(ta, elem)
+		if elem == instElem {
+			return typ
 		}
-		return typ
+		return types.NewArray(elem, typ.Len())
 	case *types.Slice:
 		elem := typ.Elem()
 		instElem := t.instantiateType(ta, elem)
@@ -80,26 +80,6 @@ func (t *translator) doInstantiateType(ta *typeArgs, typ types.Type) types.Type 
 			return typ
 		}
 		return types.NewSlice(instElem)
-	case *types.Pointer:
-		elem := typ.Elem()
-		instElem := t.instantiateType(ta, elem)
-		if elem == instElem {
-			return typ
-		}
-		return types.NewPointer(instElem)
-	case *types.Signature:
-		params := t.instantiateTypeTuple(ta, typ.Params())
-		results := t.instantiateTypeTuple(ta, typ.Results())
-		if params == typ.Params() && results == typ.Results() {
-			return typ
-		}
-		r := types.NewSignature(typ.Recv(), params, results, typ.Variadic())
-		if tparams := typ.TParams(); tparams != nil {
-			r.SetTParams(tparams)
-		}
-		return r
-	case *types.Tuple:
-		return t.instantiateTypeTuple(ta, typ)
 	case *types.Struct:
 		n := typ.NumFields()
 		fields := make([]*types.Var, n)
@@ -127,6 +107,53 @@ func (t *translator) doInstantiateType(ta *typeArgs, typ types.Type) types.Type 
 			tags = nil
 		}
 		return types.NewStruct(fields, tags)
+	case *types.Pointer:
+		elem := typ.Elem()
+		instElem := t.instantiateType(ta, elem)
+		if elem == instElem {
+			return typ
+		}
+		return types.NewPointer(instElem)
+	case *types.Tuple:
+		return t.instantiateTypeTuple(ta, typ)
+	case *types.Signature:
+		params := t.instantiateTypeTuple(ta, typ.Params())
+		results := t.instantiateTypeTuple(ta, typ.Results())
+		if params == typ.Params() && results == typ.Results() {
+			return typ
+		}
+		r := types.NewSignature(typ.Recv(), params, results, typ.Variadic())
+		if tparams := typ.TParams(); tparams != nil {
+			r.SetTParams(tparams)
+		}
+		return r
+	case *types.Interface:
+		nm := typ.NumExplicitMethods()
+		methods := make([]*types.Func, nm)
+		changed := false
+		for i := 0; i < nm; i++ {
+			m := typ.ExplicitMethod(i)
+			instSig := t.instantiateType(ta, m.Type()).(*types.Signature)
+			if instSig != m.Type() {
+				m = types.NewFunc(m.Pos(), m.Pkg(), m.Name(), instSig)
+				changed = true
+			}
+			methods[i] = m
+		}
+		ne := typ.NumEmbeddeds()
+		embeddeds := make([]types.Type, ne)
+		for i := 0; i < ne; i++ {
+			e := typ.EmbeddedType(i)
+			instE := t.instantiateType(ta, e)
+			if e != instE {
+				changed = true
+			}
+			embeddeds[i] = instE
+		}
+		if !changed {
+			return typ
+		}
+		return types.NewInterfaceType(methods, embeddeds)
 	case *types.Map:
 		key := t.instantiateType(ta, typ.Key())
 		elem := t.instantiateType(ta, typ.Elem())
@@ -140,6 +167,13 @@ func (t *translator) doInstantiateType(ta *typeArgs, typ types.Type) types.Type 
 			return typ
 		}
 		return types.NewChan(typ.Dir(), elem)
+	case *types.Named:
+		return typ
+	case *types.TypeParam:
+		if instType, ok := ta.typ(typ); ok {
+			return instType
+		}
+		return typ
 	default:
 		panic(fmt.Sprintf("unimplemented Type %T", typ))
 	}
