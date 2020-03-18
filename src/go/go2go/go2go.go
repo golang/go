@@ -81,10 +81,14 @@ func rewriteFilesInPath(importer *Importer, importPath, dir string, go2files []s
 			asts = append(asts, a.ast)
 		}
 
-		conf := types.Config{Importer: importer}
+		var merr multiErr
+		conf := types.Config{
+			Importer: importer,
+			Error:    merr.add,
+		}
 		tpkg, err := conf.Check(pkg.Name, fset, asts, importer.info)
 		if err != nil {
-			return nil, fmt.Errorf("type checking failed for %s: %v", pkg.Name, err)
+			return nil, fmt.Errorf("type checking failed for %s\n%v", pkg.Name, merr)
 		}
 
 		if !strings.HasSuffix(pkg.Name, "_test") {
@@ -115,9 +119,13 @@ func RewriteBuffer(importer *Importer, filename string, file []byte) ([]byte, er
 	if err != nil {
 		return nil, err
 	}
-	conf := types.Config{Importer: importer}
+	var merr multiErr
+	conf := types.Config{
+		Importer: importer,
+		Error:    merr.add,
+	}
 	if _, err := conf.Check(pf.Name.Name, fset, []*ast.File{pf}, importer.info); err != nil {
-		return nil, fmt.Errorf("type checking failed for %s: %v", pf.Name.Name, err)
+		return nil, fmt.Errorf("type checking failed for %s\n%v", pf.Name.Name, merr)
 	}
 	importer.addIDs(pf)
 	if err := rewriteAST(fset, importer, pf, true); err != nil {
@@ -228,4 +236,24 @@ func parseFiles(dir string, go2files []string, fset *token.FileSet) ([]*ast.Pack
 	})
 
 	return rpkgs, nil
+}
+
+// multiErr is an error value that accumulates type checking errors.
+type multiErr []error
+
+// The add methods adds another error to a multiErr.
+func (m *multiErr) add(err error) {
+	*m = append(*m, err)
+}
+
+// The Error method returns the accumulated errors.
+func (m multiErr) Error() string {
+	if len(m) == 0 {
+		return "internal error: empty multiErr"
+	}
+	var sb strings.Builder
+	for _, e := range m {
+		fmt.Fprintln(&sb, e)
+	}
+	return sb.String()
 }
