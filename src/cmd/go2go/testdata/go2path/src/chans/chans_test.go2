@@ -23,8 +23,7 @@ func TestReadAll(t *testing.T) {
 		c <- 5
 		close(c)
 	}()
-	// FIXME: Shouldn't need to specify type here.
-	got := ReadAll(int)(context.Background(), c)
+	got := ReadAll(context.Background(), c)
 	want := []int{4, 2, 5}
 	if !slices.Equal(got, want) {
 		t.Errorf("ReadAll returned %v, want %v", got, want)
@@ -47,8 +46,7 @@ func TestMerge(t *testing.T) {
 		close(c2)
 	}()
 	ctx := context.Background()
-	// FIXME: Shouldn't need to specify type here.
-	got := ReadAll(ctx, Merge(int)(ctx, c1, c2))
+	got := ReadAll(ctx, Merge(ctx, c1, c2))
 	sort.Ints(got)
 	want := []int{1, 2, 3, 4, 5, 6}
 	if !slices.Equal(got, want) {
@@ -66,8 +64,7 @@ func TestFilter(t *testing.T) {
 	}()
 	even := func(i int) bool { return i%2 == 0 }
 	ctx := context.Background()
-	// FIXME: Shouldn't need to specify type here.
-	got := ReadAll(ctx, Filter(int)(ctx, c, even))
+	got := ReadAll(ctx, Filter(ctx, c, even))
 	want := []int{2}
 	if !slices.Equal(got, want) {
 		t.Errorf("Filter returned %v, want %v", got, want)
