@@ -667,6 +667,21 @@ func XTestWithValueChecksKey(t testingT) {
 	}
 }
 
+func XTestInvalidDerivedFail(t testingT) {
+	panicVal := recoveredValue(func() { WithCancel(nil) })
+	if panicVal == nil {
+		t.Error("expected panic")
+	}
+	panicVal = recoveredValue(func() { WithDeadline(nil, time.Now().Add(shortDuration)) })
+	if panicVal == nil {
+		t.Error("expected panic")
+	}
+	panicVal = recoveredValue(func() { WithValue(nil, "foo", "bar") })
+	if panicVal == nil {
+		t.Error("expected panic")
+	}
+}
+
 func recoveredValue(fn func()) (v interface{}) {
 	defer func() { v = recover() }()
 	fn()
