@@ -39,6 +39,14 @@ func findGorootModules(t *testing.T) []gorootModule {
 			if info.Name() == "vendor" || info.Name() == "testdata" {
 				return filepath.SkipDir
 			}
+			if path == filepath.Join(runtime.GOROOT(), "pkg") {
+				// GOROOT/pkg contains generated artifacts, not source code.
+				//
+				// In https://golang.org/issue/37929 it was observed to somehow contain
+				// a module cache, so it is important to skip. (That helps with the
+				// running time of this test anyway.)
+				return filepath.SkipDir
+			}
 			if info.IsDir() || info.Name() != "go.mod" {
 				return nil
 			}
