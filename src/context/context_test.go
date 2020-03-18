@@ -672,11 +672,11 @@ func XTestInvalidDerivedFail(t testingT) {
 	if panicVal == nil {
 		t.Error("expected panic")
 	}
-	panicVal := recoveredValue(func() { WithDeadline(nil, time.Second) })
+	panicVal = recoveredValue(func() { WithDeadline(nil, time.Now().Add(shortDuration)) })
 	if panicVal == nil {
 		t.Error("expected panic")
 	}
-	panicVal := recoveredValue(func() { WithValue(nil, "foo", "bar") })
+	panicVal = recoveredValue(func() { WithValue(nil, "foo", "bar") })
 	if panicVal == nil {
 		t.Error("expected panic")
 	}
