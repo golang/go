@@ -111,3 +111,53 @@ func max(type T interface{ type int })(x ...T) T {
 	}
 	return x0
 }
+
+// When inferring channel types, the channel direction is ignored
+// for the purpose of type inference. Once the type has been in-
+// fered, the usual parameter passing rules are applied.
+// Thus even if a type can be inferred successfully, the function
+// call may not be valid.
+
+func fboth(type T)(chan T)
+func frecv(type T)(<-chan T)
+func fsend(type T)(chan<- T)
+
+func _() {
+	var both chan int
+	var recv <-chan int
+	var send chan<-int
+
+	fboth(both)
+	fboth(recv /* ERROR cannot use */ )
+	fboth(send /* ERROR cannot use */ )
+
+	frecv(both)
+	frecv(recv)
+	frecv(send /* ERROR cannot use */ )
+
+	fsend(both)
+	fsend(recv /* ERROR cannot use */)
+	fsend(send)
+}
+
+func ffboth(type T)(func(chan T))
+func ffrecv(type T)(func(<-chan T))
+func ffsend(type T)(func(chan<- T))
+
+func _() {
+	var both func(chan int)
+	var recv func(<-chan int)
+	var send func(chan<- int)
+
+	ffboth(both)
+	ffboth(recv /* ERROR cannot use */ )
+	ffboth(send /* ERROR cannot use */ )
+
+	ffrecv(both /* ERROR cannot use */ )
+	ffrecv(recv)
+	ffrecv(send /* ERROR cannot use */ )
+
+	ffsend(both /* ERROR cannot use */ )
+	ffsend(recv /* ERROR cannot use */ )
+	ffsend(send)
+}

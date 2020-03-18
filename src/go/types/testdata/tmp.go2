@@ -2,23 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package main
-
-func f(type T)(x T) {
-	f(x)
-}
-
-func g(type T)(x, y T) {
-	g(x, y)
-}
-
-func f2(type T1, T2)(x1 T1, x2 T2) {
-	f2(x1, x2)
-}
-
-func f2p(type T1, T2)(x1 T1, x2 T2) {
-	f2p(x2, x1)
-}
+package p
 
 /*
 func f(func(int))

@@ -35,7 +35,7 @@ contract Sequence(T) {
 }
 
 // Contracts may not be declared locally. They are accepted
-// for good syntax error recovery, but an errors are reported.
+// for good syntax error recovery, but errors are reported.
 func _() {
         contract /* ERROR "inside function" */ C() {}
         contract /* ERROR "inside function" */ C(T) {}

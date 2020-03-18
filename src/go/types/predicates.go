@@ -289,9 +289,9 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams 
 
 	case *Chan:
 		// Two channel types are identical if they have identical value types
-		// and the same direction.
+		// and the same direction. For type inference, channel direction is ignored.
 		if y, ok := y.(*Chan); ok {
-			return x.dir == y.dir && check.identical0(x.elem, y.elem, cmpTags, p, tparams)
+			return (tparams != nil || x.dir == y.dir) && check.identical0(x.elem, y.elem, cmpTags, p, tparams)
 		}
 
 	case *Named:
