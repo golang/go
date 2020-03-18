@@ -80,6 +80,13 @@ func (t *translator) doInstantiateType(ta *typeArgs, typ types.Type) types.Type 
 			return typ
 		}
 		return types.NewSlice(instElem)
+	case *types.Pointer:
+		elem := typ.Elem()
+		instElem := t.instantiateType(ta, elem)
+		if elem == instElem {
+			return typ
+		}
+		return types.NewPointer(instElem)
 	case *types.Signature:
 		params := t.instantiateTypeTuple(ta, typ.Params())
 		results := t.instantiateTypeTuple(ta, typ.Results())
