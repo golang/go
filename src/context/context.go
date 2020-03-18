@@ -231,7 +231,7 @@ type CancelFunc func()
 // call cancel as soon as the operations running in this Context complete.
 func WithCancel(parent Context) (ctx Context, cancel CancelFunc) {
 	if parent == nil {
-		panic("cannot create context from nil parent.")
+		panic("cannot create context from nil parent")
 	}
 	c := newCancelCtx(parent)
 	propagateCancel(parent, &c)
@@ -429,7 +429,7 @@ func (c *cancelCtx) cancel(removeFromParent bool, err error) {
 // call cancel as soon as the operations running in this Context complete.
 func WithDeadline(parent Context, d time.Time) (Context, CancelFunc) {
 	if parent == nil {
-		panic("cannot create context from nil parent.")
+		panic("cannot create context from nil parent")
 	}
 	if cur, ok := parent.Deadline(); ok && cur.Before(d) {
 		// The current deadline is already sooner than the new one.
@@ -518,7 +518,7 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
 // type should be a pointer or interface.
 func WithValue(parent Context, key, val interface{}) Context {
 	if parent == nil {
-		panic("cannot create context from nil parent.")
+		panic("cannot create context from nil parent")
 	}
 	if key == nil {
 		panic("nil key")
