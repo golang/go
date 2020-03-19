@@ -1527,9 +1527,6 @@ func (t *tester) shouldUsePrecompiledStdTest() bool {
 }
 
 func (t *tester) shouldTestCmd() bool {
-	if t.race {
-		return false
-	}
 	if goos == "js" && goarch == "wasm" {
 		// Issues 25911, 35220
 		return false
