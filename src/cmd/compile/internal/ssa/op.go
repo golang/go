@@ -154,6 +154,9 @@ func makeValAndOff(val, off int64) int64 {
 	}
 	return ValAndOff(val<<32 + int64(uint32(off))).Int64()
 }
+func makeValAndOff32(val, off int32) ValAndOff {
+	return ValAndOff(int64(val)<<32 + int64(uint32(off)))
+}
 
 // offOnly returns the offset half of ValAndOff vo.
 // It is intended for use in rewrite rules.
