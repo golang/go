@@ -42,6 +42,10 @@ OBSERVATIONS
 ----------------------------------------------------------------------------------------------------
 OPEN QUESTIONS
 
+- Parsing _ = [](a(int)){} requires parentheses around `(a(int))` - should the parser be smarter in
+  these cases? Another example: []a(b, c){} This cannot be a conversion. Could fix such cases by re-
+  associating the AST when we see a {. Need to be careful, and need to take into account additional
+  complexity of spec.
 - What is the exact nature of a generic type? Does it act as a named type (it can have methods)?
 - For len/cap(x) where x is of type parameter type and the bound contains arrays only, should the
   result be a constant? (right now it is not). What are the implications for alternative, non-
@@ -119,3 +123,10 @@ DESIGN/IMPLEMENTATION
 - 2/20/2020: Receiver type parameters must always be provided in the receiver parameter list of
   a method, even if they are not used by the method. Since the receiver acts like an implicit
   declaration of those type parameters, they may be blank, as with any other declaration.
+
+- 3/20/2020: Local type declarations with an underlying type that is type parameter lose the
+  methods declared with the type parameter bound. But they don't lose the properties of the
+  underlying type, i.e., the properties of the type parameter bound's type list.
+  This is something to consider if we were contemplating moving to a methods-only approach
+  (no type lists), even though local type declarations are exceedingly rare if they exist at
+  all in the wild.

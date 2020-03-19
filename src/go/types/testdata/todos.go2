@@ -20,13 +20,6 @@ func _(type T interface{ type chan int })(ch T) {
 	_ = <- ch /* ERROR cannot receive */
 }
 
-// local variable declaration with underlying generic type is not fully supported
-func _(type T)() {
-	type L T // local variable declaration
-	var x L
-	_ = x /* ERROR not defined */ + x
-}
-
 // pointer indirection of generic types is not yet supported
 func _(type T interface{ type *int })(p T) {
 	_ = *p /* ERROR cannot indirect */
@@ -45,4 +38,16 @@ func _(type T interface{ type int})(x T) {
 	var _ T = 42
 	var _ T = int /* ERROR cannot use */ (42)
 	var _ T = myint /* ERROR cannot use */ (42)
+}
+
+// Composite literals that require parentheses around their types.
+// Should investigate if it makes sense to be smarter when parsing
+// at the cost of more complex rules.
+type T1(type P) struct{}
+type T2(type P, Q) struct{}
+
+func _() {
+   _ = []T1 /* ERROR instantiation */ (int){} // this doesn't work
+   _ = [](T1(int)){}                          // this works
+   _ = [](T2(int, string)){}                  // T2(int, float) cannot be a conversion - should not need ()'s
 }
