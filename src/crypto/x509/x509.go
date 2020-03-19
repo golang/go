@@ -1413,8 +1413,8 @@ func signingParamsForPublicKey(pub interface{}, requestedSigAlgo SignatureAlgori
 // just an empty SEQUENCE.
 var emptyASN1Subject = []byte{0x30, 0}
 
-// CreateCertificate creates a new X.509v3 certificate based on a template.
-// The following members of template are used:
+// CreateCertificate creates a new X.509 v3 certificate based on a template.
+// The following members of template are currently used:
 //
 //  - AuthorityKeyId
 //  - BasicConstraintsValid
@@ -1451,7 +1451,7 @@ var emptyASN1Subject = []byte{0x30, 0}
 //
 // The certificate is signed by parent. If parent is equal to template then the
 // certificate is self-signed. The parameter pub is the public key of the
-// signee and priv is the private key of the signer.
+// certificate to be generated and priv is the private key of the signer.
 //
 // The returned slice is the certificate in DER encoding.
 //
@@ -1465,7 +1465,7 @@ var emptyASN1Subject = []byte{0x30, 0}
 //
 // If SubjectKeyId from template is empty and the template is a CA, SubjectKeyId
 // will be generated from the hash of the public key.
-func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv interface{}) (cert []byte, err error) {
+func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv interface{}) ([]byte, error) {
 	key, ok := priv.(crypto.Signer)
 	if !ok {
 		return nil, errors.New("x509: certificate private key does not implement crypto.Signer")
@@ -1491,12 +1491,12 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 
 	asn1Issuer, err := subjectBytes(parent)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	asn1Subject, err := subjectBytes(template)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	authorityKeyId := template.AuthorityKeyId
@@ -1514,9 +1514,19 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 		subjectKeyId = h[:]
 	}
 
+	// Check that the signer's public key matches the private key, if available.
+	type privateKey interface {
+		Equal(crypto.PublicKey) bool
+	}
+	if privPub, ok := key.Public().(privateKey); !ok {
+		return nil, errors.New("x509: internal error: supported public key does not implement Equal")
+	} else if parent.PublicKey != nil && !privPub.Equal(parent.PublicKey) {
+		return nil, errors.New("x509: provided PrivateKey doesn't match parent's PublicKey")
+	}
+
 	extensions, err := buildCertExtensions(template, bytes.Equal(asn1Subject, emptyASN1Subject), authorityKeyId, subjectKeyId)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	encodedPublicKey := asn1.BitString{BitLength: len(publicKeyBytes) * 8, Bytes: publicKeyBytes}
@@ -1533,7 +1543,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 
 	tbsCertContents, err := asn1.Marshal(c)
 	if err != nil {
-		return
+		return nil, err
 	}
 	c.Raw = tbsCertContents
 
@@ -1555,7 +1565,7 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv 
 	var signature []byte
 	signature, err = key.Sign(rand, signed, signerOpts)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	signedCert, err := asn1.Marshal(certificate{
