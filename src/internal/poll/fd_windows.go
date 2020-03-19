@@ -476,15 +476,6 @@ func (fd *FD) Close() error {
 	return err
 }
 
-// Shutdown wraps the shutdown network call.
-func (fd *FD) Shutdown(how int) error {
-	if err := fd.incref(); err != nil {
-		return err
-	}
-	defer fd.decref()
-	return syscall.Shutdown(fd.Sysfd, how)
-}
-
 // Windows ReadFile and WSARecv use DWORD (uint32) parameter to pass buffer length.
 // This prevents us reading blocks larger than 4GB.
 // See golang.org/issue/26923.
@@ -997,17 +988,6 @@ func (fd *FD) GetFileInformationByHandle(data *syscall.ByHandleFileInformation) 
 	}
 	defer fd.decref()
 	return syscall.GetFileInformationByHandle(fd.Sysfd, data)
-}
-
-// RawControl invokes the user-defined function f for a non-IO
-// operation.
-func (fd *FD) RawControl(f func(uintptr)) error {
-	if err := fd.incref(); err != nil {
-		return err
-	}
-	defer fd.decref()
-	f(uintptr(fd.Sysfd))
-	return nil
 }
 
 // RawRead invokes the user-defined function f for a read operation.
