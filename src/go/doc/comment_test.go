@@ -20,10 +20,10 @@ type testFormatter struct {
 	headID string
 }
 
-// Escape escapes text for HTML. If nice is set,
+// Put escapes text for HTML. If pretty is set,
 // also turn `` and '' into appropirate quotes.
-func (f *testFormatter) Escape(text string, nice bool) {
-	if nice {
+func (f *testFormatter) Put(text string, pretty bool) {
+	if pretty {
 		// In the first pass, we convert `` and '' into their unicode equivalents.
 		// This prevents them from being escaped in HTMLEscape.
 		text = convertQuotes(text)
@@ -38,16 +38,16 @@ func (f *testFormatter) Escape(text string, nice bool) {
 	template.HTMLEscape(f.out, []byte(text))
 }
 
-func (f *testFormatter) WriteURL(url, match string, italics, nice bool) {
+func (f *testFormatter) WriteURL(url, match string, italics, pretty bool) {
 	if len(url) > 0 {
 		f.out.Write(htmlPreLink)
-		f.Escape(url, false)
+		f.Put(url, false)
 		f.out.Write(htmlPostLink)
 	}
 	if italics {
 		f.out.Write(htmlStartI)
 	}
-	f.Escape(match, nice)
+	f.Put(match, pretty)
 	if italics {
 		f.out.Write(htmlEndI)
 	}
@@ -320,7 +320,7 @@ func TestHtmlEscape(t *testing.T) {
 	for i, tt := range commentTests {
 		var buf strings.Builder
 		html.out = &buf
-		html.Escape(tt.in, true)
+		html.Put(tt.in, true)
 		out := buf.String()
 		if out != tt.out {
 			t.Errorf("#%d: mismatch\nhave: %q\nwant: %q", i, out, tt.out)

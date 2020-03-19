@@ -33,13 +33,13 @@ var (
 type Formatter interface {
 	// Put makes sure that a string is propperly written to.
 	// One thing Put should do is making sure the string is propperly escaped
-	// Nice indicates if the text should be formatted or converted
-	Put(text string, nice bool)
+	// pretty indicates if the text should be formatted or converted
+	Put(text string, pretty bool)
 
 	// WriteURL writes the URL to the writer using match as a display name.
-	// italics indicates wether or not it should be italic. If nice is set,
+	// italics indicates wether or not it should be italic. If pretty is set,
 	// also turn `` and '' into appropirate quotes.
-	WriteURL(url, match string, italics, nice bool)
+	WriteURL(url, match string, italics, pretty bool)
 
 	StartPara()
 	PreParaLine(line string)
@@ -77,10 +77,13 @@ var (
 	htmlEndH     = []byte("</h3>\n")
 )
 
-// Escape escapes text for HTML. If nice is set,
+// Escape escapes text for HTML. If pretty is set,
 // also turn `` and '' into appropirate quotes.
-func (f *htmlFormatter) Put(text string, nice bool) {
-	if nice {
+func (f *htmlFormatter) Put(text string, pretty bool) {
+	if pretty {
+		// In the first pass, we convert `` and '' into their unicode equivalents.
+		// This prevents them from being escaped in HTMLEscape.
+		text = convertQuotes(text)
 		var buf bytes.Buffer
 		template.HTMLEscape(&buf, []byte(text))
 		// Now we convert the unicode quotes to their HTML escaped entities to maintain old behavior.
@@ -92,7 +95,7 @@ func (f *htmlFormatter) Put(text string, nice bool) {
 	template.HTMLEscape(f.out, []byte(text))
 }
 
-func (f *htmlFormatter) WriteURL(url, match string, italics, nice bool) {
+func (f *htmlFormatter) WriteURL(url, match string, italics, pretty bool) {
 	if len(url) > 0 {
 		f.out.Write(htmlPreLink)
 		f.Put(url, false)
@@ -101,7 +104,7 @@ func (f *htmlFormatter) WriteURL(url, match string, italics, nice bool) {
 	if italics {
 		f.out.Write(htmlStartI)
 	}
-	f.Put(match, nice)
+	f.Put(match, pretty)
 	if italics {
 		f.out.Write(htmlEndI)
 	}
@@ -169,10 +172,10 @@ var newline = []byte("\n")
 var whiteSpace = []byte(" ")
 var prefix = []byte("// ")
 
-// Escape escapes text for HTML. If nice is set,
+// Escape escapes text for HTML. If pretty is set,
 // also turn `` and '' into appropirate quotes.
-func (f *textFormatter) Put(text string, nice bool) {
-	if nice {
+func (f *textFormatter) Put(text string, pretty bool) {
+	if pretty {
 		text = convertQuotes(text)
 		f.line += text
 		return
@@ -180,11 +183,11 @@ func (f *textFormatter) Put(text string, nice bool) {
 	f.out.Write([]byte(text))
 }
 
-func (f *textFormatter) WriteURL(url, match string, italics, nice bool) {
+func (f *textFormatter) WriteURL(url, match string, italics, pretty bool) {
 	if url == "" {
 		url = match
 	}
-	f.Put(url, nice)
+	f.Put(url, pretty)
 }
 
 func (f *textFormatter) StartPara() {
@@ -295,18 +298,18 @@ var (
 	mdLinkEnd   = []byte(")")
 )
 
-// Escape escapes text for HTML. If nice is set,
+// Escape escapes text for HTML. If pretty is set,
 // also turn `` and '' into appropirate quotes.
-func (f *markdownFormatter) Put(text string, nice bool) {
+func (f *markdownFormatter) Put(text string, pretty bool) {
 	text = mdEscape.ReplaceAllString(text, `\$1`)
 	f.out.Write([]byte(text))
 }
 
-func (f *markdownFormatter) WriteURL(url, match string, italics, nice bool) {
+func (f *markdownFormatter) WriteURL(url, match string, italics, pretty bool) {
 	if len(url) > 0 {
 		f.out.Write(mdLinkStart)
 	}
-	f.Put(match, nice)
+	f.Put(match, pretty)
 	if italics {
 		f.out.Write(htmlStartI)
 	}
@@ -497,10 +500,10 @@ var matchRx = lazyregexp.New(`(` + urlRx + `)|(` + identRx + `)`)
 // the corresponding map value is the empty string, the URL is not converted
 // into a link). Go identifiers that appear in the words map are italicized; if
 // the corresponding map value is not the empty string, it is considered a URL
-// and the word is converted into a link. If nice is set, the remaining text's
+// and the word is converted into a link. If pretty is set, the remaining text's
 // appearance is improved where it makes sense (e.g., `` is turned into &ldquo;
 // and '' into &rdquo;).
-func emphasize(w io.Writer, f Formatter, line string, words map[string]string, nice bool) {
+func emphasize(w io.Writer, f Formatter, line string, words map[string]string, pretty bool) {
 	for {
 		m := matchRx.FindStringSubmatchIndex(line)
 		if m == nil {
@@ -510,10 +513,10 @@ func emphasize(w io.Writer, f Formatter, line string, words map[string]string, n
 
 		// write text before match
 		pre := line[0:m[0]]
-		if nice {
+		if pretty {
 			pre = convertQuotes(line[0:m[0]])
 		}
-		f.Put(pre, nice)
+		f.Put(pre, pretty)
 
 		// adjust match for URLs
 		match := line[m[0]:m[1]]
@@ -552,20 +555,20 @@ func emphasize(w io.Writer, f Formatter, line string, words map[string]string, n
 			}
 			italics = false // don't italicize URLs
 		}
-		if nice {
+		if pretty {
 			match = convertQuotes(match)
 		}
 
 		// write match
-		f.WriteURL(url, match, italics, nice)
+		f.WriteURL(url, match, italics, pretty)
 
 		// advance
 		line = line[m[1]:]
 	}
-	if nice {
+	if pretty {
 		line = convertQuotes(line)
 	}
-	f.Put(line, nice)
+	f.Put(line, pretty)
 }
 
 func convertQuotes(text string) string {
