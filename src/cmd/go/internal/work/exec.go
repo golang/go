@@ -208,6 +208,9 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	if !p.Goroot && !cfg.BuildTrimpath && !strings.HasPrefix(p.Dir, b.WorkDir) {
 		fmt.Fprintf(h, "dir %s\n", p.Dir)
 	}
+	if p.Module != nil {
+		fmt.Fprintf(h, "go %s\n", p.Module.GoVersion)
+	}
 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
 	fmt.Fprintf(h, "import %q\n", p.ImportPath)
 	fmt.Fprintf(h, "omitdebug %v standard %v local %v prefix %q\n", p.Internal.OmitDebug, p.Standard, p.Internal.Local, p.Internal.LocalPrefix)
