@@ -20,6 +20,15 @@ func (fd *FD) eofError(n int, err error) error {
 	return err
 }
 
+// Shutdown wraps syscall.Shutdown.
+func (fd *FD) Shutdown(how int) error {
+	if err := fd.incref(); err != nil {
+		return err
+	}
+	defer fd.decref()
+	return syscall.Shutdown(fd.Sysfd, how)
+}
+
 // Fchmod wraps syscall.Fchmod.
 func (fd *FD) Fchmod(mode uint32) error {
 	if err := fd.incref(); err != nil {
@@ -45,4 +54,15 @@ func (fd *FD) Ftruncate(size int64) error {
 	}
 	defer fd.decref()
 	return syscall.Ftruncate(fd.Sysfd, size)
+}
+
+// RawControl invokes the user-defined function f for a non-IO
+// operation.
+func (fd *FD) RawControl(f func(uintptr)) error {
+	if err := fd.incref(); err != nil {
+		return err
+	}
+	defer fd.decref()
+	f(uintptr(fd.Sysfd))
+	return nil
 }
