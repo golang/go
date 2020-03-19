@@ -8,8 +8,10 @@ import "unsafe"
 
 func checkptrAlignment(p unsafe.Pointer, elem *_type, n uintptr) {
 	// Check that (*[n]elem)(p) is appropriately aligned.
+	// Note that we allow unaligned pointers if the types they point to contain
+	// no pointers themselves. See issue 37298.
 	// TODO(mdempsky): What about fieldAlign?
-	if uintptr(p)&(uintptr(elem.align)-1) != 0 {
+	if elem.ptrdata != 0 && uintptr(p)&(uintptr(elem.align)-1) != 0 {
 		throw("checkptr: unsafe pointer conversion")
 	}
 

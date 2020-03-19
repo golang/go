@@ -950,3 +950,28 @@ func SemNwait(addr *uint32) uint32 {
 	root := semroot(addr)
 	return atomic.Load(&root.nwait)
 }
+
+// MapHashCheck computes the hash of the key k for the map m, twice.
+// Method 1 uses the built-in hasher for the map.
+// Method 2 uses the typehash function (the one used by reflect).
+// Returns the two hash values, which should always be equal.
+func MapHashCheck(m interface{}, k interface{}) (uintptr, uintptr) {
+	// Unpack m.
+	mt := (*maptype)(unsafe.Pointer(efaceOf(&m)._type))
+	mh := (*hmap)(efaceOf(&m).data)
+
+	// Unpack k.
+	kt := efaceOf(&k)._type
+	var p unsafe.Pointer
+	if isDirectIface(kt) {
+		q := efaceOf(&k).data
+		p = unsafe.Pointer(&q)
+	} else {
+		p = efaceOf(&k).data
+	}
+
+	// Compute the hash functions.
+	x := mt.hasher(noescape(p), uintptr(mh.hash0))
+	y := typehash(kt, noescape(p), uintptr(mh.hash0))
+	return x, y
+}

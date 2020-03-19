@@ -244,15 +244,6 @@ func genAMD64() {
 
 	// TODO: MXCSR register?
 
-	// Apparently, the signal handling code path in darwin kernel leaves
-	// the upper bits of Y registers in a dirty state, which causes
-	// many SSE operations (128-bit and narrower) become much slower.
-	// Clear the upper bits to get to a clean state. See issue #37174.
-	// It is safe here as Go code don't use the upper bits of Y registers.
-	p("#ifdef GOOS_darwin")
-	p("VZEROUPPER")
-	p("#endif")
-
 	p("PUSHQ BP")
 	p("MOVQ SP, BP")
 	p("// Save flags before clobbering them")
@@ -261,6 +252,18 @@ func genAMD64() {
 	p("ADJSP $%d", l.stack)
 	p("// But vet doesn't know ADJSP, so suppress vet stack checking")
 	p("NOP SP")
+
+	// Apparently, the signal handling code path in darwin kernel leaves
+	// the upper bits of Y registers in a dirty state, which causes
+	// many SSE operations (128-bit and narrower) become much slower.
+	// Clear the upper bits to get to a clean state. See issue #37174.
+	// It is safe here as Go code don't use the upper bits of Y registers.
+	p("#ifdef GOOS_darwin")
+	p("CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $0")
+	p("JE 2(PC)")
+	p("VZEROUPPER")
+	p("#endif")
+
 	l.save()
 	p("CALL ·asyncPreempt2(SB)")
 	l.restore()
@@ -379,6 +382,7 @@ func genMIPS(_64bit bool) {
 	sub := "SUB"
 	r28 := "R28"
 	regsize := 4
+	softfloat := "GOMIPS_softfloat"
 	if _64bit {
 		mov = "MOVV"
 		movf = "MOVD"
@@ -386,6 +390,7 @@ func genMIPS(_64bit bool) {
 		sub = "SUBV"
 		r28 = "RSB"
 		regsize = 8
+		softfloat = "GOMIPS64_softfloat"
 	}
 
 	// Add integer registers R1-R22, R24-R25, R28
@@ -408,28 +413,36 @@ func genMIPS(_64bit bool) {
 		mov+" LO, R1\n"+mov+" R1, %d(R29)",
 		mov+" %d(R29), R1\n"+mov+" R1, LO",
 		regsize)
+
 	// Add floating point control/status register FCR31 (FCR0-FCR30 are irrelevant)
-	l.addSpecial(
+	var lfp = layout{sp: "R29", stack: l.stack}
+	lfp.addSpecial(
 		mov+" FCR31, R1\n"+mov+" R1, %d(R29)",
 		mov+" %d(R29), R1\n"+mov+" R1, FCR31",
 		regsize)
 	// Add floating point registers F0-F31.
 	for i := 0; i <= 31; i++ {
 		reg := fmt.Sprintf("F%d", i)
-		l.add(movf, reg, regsize)
+		lfp.add(movf, reg, regsize)
 	}
 
 	// allocate frame, save PC of interrupted instruction (in LR)
-	p(mov+" R31, -%d(R29)", l.stack)
-	p(sub+" $%d, R29", l.stack)
+	p(mov+" R31, -%d(R29)", lfp.stack)
+	p(sub+" $%d, R29", lfp.stack)
 
 	l.save()
+	p("#ifndef %s", softfloat)
+	lfp.save()
+	p("#endif")
 	p("CALL ·asyncPreempt2(SB)")
+	p("#ifndef %s", softfloat)
+	lfp.restore()
+	p("#endif")
 	l.restore()
 
-	p(mov+" %d(R29), R31", l.stack)     // sigctxt.pushCall has pushed LR (at interrupt) on stack, restore it
-	p(mov + " (R29), R23")              // load PC to REGTMP
-	p(add+" $%d, R29", l.stack+regsize) // pop frame (including the space pushed by sigctxt.pushCall)
+	p(mov+" %d(R29), R31", lfp.stack)     // sigctxt.pushCall has pushed LR (at interrupt) on stack, restore it
+	p(mov + " (R29), R23")                // load PC to REGTMP
+	p(add+" $%d, R29", lfp.stack+regsize) // pop frame (including the space pushed by sigctxt.pushCall)
 	p("JMP (R23)")
 }
 

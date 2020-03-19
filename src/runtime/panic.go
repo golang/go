@@ -1003,11 +1003,12 @@ func gopanic(e interface{}) {
 			atomic.Xadd(&runningPanicDefers, -1)
 
 			if done {
-				// Remove any remaining non-started, open-coded defer
-				// entry after a recover (there's at most one, if we just
-				// ran a non-open-coded defer), since the entry will
-				// become out-dated and the defer will be executed
-				// normally.
+				// Remove any remaining non-started, open-coded
+				// defer entries after a recover, since the
+				// corresponding defers will be executed normally
+				// (inline). Any such entry will become stale once
+				// we run the corresponding defers inline and exit
+				// the associated stack frame.
 				d := gp._defer
 				var prev *_defer
 				for d != nil {
@@ -1025,8 +1026,9 @@ func gopanic(e interface{}) {
 						} else {
 							prev.link = d.link
 						}
+						newd := d.link
 						freedefer(d)
-						break
+						d = newd
 					} else {
 						prev = d
 						d = d.link
@@ -1279,6 +1281,12 @@ func startpanic_m() bool {
 	}
 }
 
+// throwReportQuirk, if non-nil, is called by throw after dumping the stacks.
+//
+// TODO(austin): Remove this after Go 1.15 when we remove the
+// mlockGsignal workaround.
+var throwReportQuirk func()
+
 var didothers bool
 var deadlock mutex
 
@@ -1324,6 +1332,10 @@ func dopanic_m(gp *g, pc, sp uintptr) bool {
 	}
 
 	printDebugLog()
+
+	if throwReportQuirk != nil {
+		throwReportQuirk()
+	}
 
 	return docrash
 }

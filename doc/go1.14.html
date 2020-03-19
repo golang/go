@@ -25,9 +25,9 @@ Do not send CLs removing the interior tags from such phrases.
 
 <p>
   Module support in the <code>go</code> command is now ready for production use,
-  and we encourage all users to migrate to Go modules for dependency management.
-  If you are unable to migrate due to a problem in the Go toolchain,
-  please ensure that the problem has an
+  and we encourage all users to <a href="https://blog.golang.org/migrating-to-go-modules">migrate to Go
+  modules for dependency management</a>. If you are unable to migrate due to a problem in the Go
+  toolchain, please ensure that the problem has an
   <a href="https://golang.org/issue?q=is%3Aissue+is%3Aopen+label%3Amodules">open issue</a>
   filed. (If the issue is not on the <code>Go1.15</code> milestone, please let us
   know why it prevents you from migrating so that we can prioritize it
@@ -75,6 +75,18 @@ Do not send CLs removing the interior tags from such phrases.
   Go binaries on Windows now
   have <a href="https://docs.microsoft.com/en-us/windows/win32/memory/data-execution-prevention">DEP
   (Data Execution Prevention)</a> enabled.
+</p>
+
+<p><!-- CL 202439 -->
+  On Windows, creating a file
+  via <a href="/pkg/os#CreateFile"><code>os.OpenFile</code></a> with
+  the <a href="/pkg/os/#O_CREATE"><code>os.O_CREATE</code></a> flag, or
+  via <a href="/pkg/syscall#Open"><code>syscall.Open</code></a> with
+  the <a href="/pkg/syscall#O_CREAT"><code>syscall.O_CREAT</code></a>
+  flag, will now create the file as read-only if the
+  bit <code>0o200</code> (owner write permission) is not set in the
+  permission argument. This makes the behavior on Windows more like
+  that on Unix systems.
 </p>
 
 <h3 id="wasm">WebAssembly</h3>
@@ -758,6 +770,19 @@ Do not send CLs removing the interior tags from such phrases.
     </p>
   </dd>
 </dl><!-- net/textproto -->
+
+<dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
+  <dd>
+    <p><!-- CL 185117 -->
+      When parsing of a URL fails
+      (for example by <a href="/pkg/net/url/#Parse"><code>Parse</code></a>
+      or <a href="/pkg/net/url/#ParseRequestURI"><code>ParseRequestURI</code></a>),
+      the resulting <a href="/pkg/net/url/#Error.Error"><code>Error</code></a> message
+      will now quote the unparsable URL.
+      This provides clearer structure and consistency with other parsing errors.
+    </p>
+  </dd>
+</dl><!-- net/url -->
 
 <dl id="os/signal"><dt><a href="/pkg/os/signal/">os/signal</a></dt>
   <dd>

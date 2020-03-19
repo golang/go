@@ -4,9 +4,6 @@
 #include "textflag.h"
 
 TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
-	#ifdef GOOS_darwin
-	VZEROUPPER
-	#endif
 	PUSHQ BP
 	MOVQ SP, BP
 	// Save flags before clobbering them
@@ -15,6 +12,11 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
 	ADJSP $368
 	// But vet doesn't know ADJSP, so suppress vet stack checking
 	NOP SP
+	#ifdef GOOS_darwin
+	CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $0
+	JE 2(PC)
+	VZEROUPPER
+	#endif
 	MOVQ AX, 0(SP)
 	MOVQ CX, 8(SP)
 	MOVQ DX, 16(SP)

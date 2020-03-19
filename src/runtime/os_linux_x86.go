@@ -7,6 +7,8 @@
 
 package runtime
 
+import "runtime/internal/atomic"
+
 //go:noescape
 func uname(utsname *new_utsname) int
 
@@ -58,17 +60,34 @@ func osArchInit() {
 		if m0.gsignal != nil {
 			throw("gsignal quirk too late")
 		}
+		throwReportQuirk = throwBadKernel
 	}
 }
 
 func mlockGsignal(gsignal *g) {
-	if err := mlock(gsignal.stack.hi-physPageSize, physPageSize); err < 0 {
-		printlock()
-		println("runtime: mlock of signal stack failed:", -err)
-		if err == -_ENOMEM {
-			println("runtime: increase the mlock limit (ulimit -l) or")
-		}
-		println("runtime: update your kernel to 5.3.15+, 5.4.2+, or 5.5+")
-		throw("mlock failed")
+	if atomic.Load(&touchStackBeforeSignal) != 0 {
+		// mlock has already failed, don't try again.
+		return
+	}
+
+	// This mlock call may fail, but we don't report the failure.
+	// Instead, if something goes badly wrong, we rely on prepareSignalM
+	// and throwBadKernel to do further mitigation and to report a problem
+	// to the user if mitigation fails. This is because many
+	// systems have a limit on the total mlock size, and many kernels
+	// that appear to have bad versions are actually patched to avoid the
+	// bug described above. We want Go 1.14 to run on those systems.
+	// See #37436.
+	if errno := mlock(gsignal.stack.hi-physPageSize, physPageSize); errno < 0 {
+		atomic.Store(&touchStackBeforeSignal, uint32(-errno))
+	}
+}
+
+// throwBadKernel is called, via throwReportQuirk, by throw.
+func throwBadKernel() {
+	if errno := atomic.Load(&touchStackBeforeSignal); errno != 0 {
+		println("runtime: note: your Linux kernel may be buggy")
+		println("runtime: note: see https://golang.org/wiki/LinuxKernelSignalVectorBug")
+		println("runtime: note: mlock workaround for kernel bug failed with errno", errno)
 	}
 }
