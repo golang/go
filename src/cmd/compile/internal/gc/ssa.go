@@ -6658,21 +6658,21 @@ func fieldIdx(n *Node) int {
 // It also exports a bunch of compiler services for the ssa backend.
 type ssafn struct {
 	curfn        *Node
-	strings      map[string]interface{} // map from constant string to data symbols
-	scratchFpMem *Node                  // temp for floating point register / memory moves on some architectures
-	stksize      int64                  // stack size for current frame
-	stkptrsize   int64                  // prefix of stack containing pointers
-	log          bool                   // print ssa debug to the stdout
+	strings      map[string]*obj.LSym // map from constant string to data symbols
+	scratchFpMem *Node                // temp for floating point register / memory moves on some architectures
+	stksize      int64                // stack size for current frame
+	stkptrsize   int64                // prefix of stack containing pointers
+	log          bool                 // print ssa debug to the stdout
 }
 
-// StringData returns a symbol (a *types.Sym wrapped in an interface) which
+// StringData returns a symbol which
 // is the data component of a global string constant containing s.
-func (e *ssafn) StringData(s string) interface{} {
+func (e *ssafn) StringData(s string) *obj.LSym {
 	if aux, ok := e.strings[s]; ok {
 		return aux
 	}
 	if e.strings == nil {
-		e.strings = make(map[string]interface{})
+		e.strings = make(map[string]*obj.LSym)
 	}
 	data := stringsym(e.curfn.Pos, s)
 	e.strings[s] = data

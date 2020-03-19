@@ -6937,26 +6937,28 @@ func rewriteValueAMD64_OpAMD64CMPBconst(v *Value) bool {
 		return true
 	}
 	// match: (CMPBconst l:(MOVBload {sym} [off] ptr mem) [c])
-	// cond: l.Uses == 1 && validValAndOff(c, off) && clobber(l)
-	// result: @l.Block (CMPBconstload {sym} [makeValAndOff(c,off)] ptr mem)
+	// cond: l.Uses == 1 && clobber(l)
+	// result: @l.Block (CMPBconstload {sym} [makeValAndOff32(int32(c),off)] ptr mem)
 	for {
-		c := v.AuxInt
+		c := int8(v.AuxInt)
 		l := v_0
 		if l.Op != OpAMD64MOVBload {
 			break
 		}
-		off := l.AuxInt
+		off := int32(l.AuxInt)
 		sym := l.Aux
 		mem := l.Args[1]
 		ptr := l.Args[0]
-		if !(l.Uses == 1 && validValAndOff(c, off) && clobber(l)) {
+		if !(l.Uses == 1 && clobber(l)) {
 			break
 		}
 		b = l.Block
 		v0 := b.NewValue0(l.Pos, OpAMD64CMPBconstload, types.TypeFlags)
 		v.copyOf(v0)
-		v0.AuxInt = makeValAndOff(c, off)
-		v0.Aux = sym
+		var _auxint ValAndOff = makeValAndOff32(int32(c), off)
+		v0.AuxInt = int64(_auxint)
+		var _aux interface{} = sym
+		v0.Aux = _aux
 		v0.AddArg2(ptr, mem)
 		return true
 	}
@@ -7322,26 +7324,28 @@ func rewriteValueAMD64_OpAMD64CMPLconst(v *Value) bool {
 		return true
 	}
 	// match: (CMPLconst l:(MOVLload {sym} [off] ptr mem) [c])
-	// cond: l.Uses == 1 && validValAndOff(c, off) && clobber(l)
-	// result: @l.Block (CMPLconstload {sym} [makeValAndOff(c,off)] ptr mem)
+	// cond: l.Uses == 1 && clobber(l)
+	// result: @l.Block (CMPLconstload {sym} [makeValAndOff32(c,off)] ptr mem)
 	for {
-		c := v.AuxInt
+		c := int32(v.AuxInt)
 		l := v_0
 		if l.Op != OpAMD64MOVLload {
 			break
 		}
-		off := l.AuxInt
+		off := int32(l.AuxInt)
 		sym := l.Aux
 		mem := l.Args[1]
 		ptr := l.Args[0]
-		if !(l.Uses == 1 && validValAndOff(c, off) && clobber(l)) {
+		if !(l.Uses == 1 && clobber(l)) {
 			break
 		}
 		b = l.Block
 		v0 := b.NewValue0(l.Pos, OpAMD64CMPLconstload, types.TypeFlags)
 		v.copyOf(v0)
-		v0.AuxInt = makeValAndOff(c, off)
-		v0.Aux = sym
+		var _auxint ValAndOff = makeValAndOff32(c, off)
+		v0.AuxInt = int64(_auxint)
+		var _aux interface{} = sym
+		v0.Aux = _aux
 		v0.AddArg2(ptr, mem)
 		return true
 	}
@@ -7887,26 +7891,28 @@ func rewriteValueAMD64_OpAMD64CMPQconst(v *Value) bool {
 		return true
 	}
 	// match: (CMPQconst l:(MOVQload {sym} [off] ptr mem) [c])
-	// cond: l.Uses == 1 && validValAndOff(c, off) && clobber(l)
-	// result: @l.Block (CMPQconstload {sym} [makeValAndOff(c,off)] ptr mem)
+	// cond: l.Uses == 1 && clobber(l)
+	// result: @l.Block (CMPQconstload {sym} [makeValAndOff32(c,off)] ptr mem)
 	for {
-		c := v.AuxInt
+		c := int32(v.AuxInt)
 		l := v_0
 		if l.Op != OpAMD64MOVQload {
 			break
 		}
-		off := l.AuxInt
+		off := int32(l.AuxInt)
 		sym := l.Aux
 		mem := l.Args[1]
 		ptr := l.Args[0]
-		if !(l.Uses == 1 && validValAndOff(c, off) && clobber(l)) {
+		if !(l.Uses == 1 && clobber(l)) {
 			break
 		}
 		b = l.Block
 		v0 := b.NewValue0(l.Pos, OpAMD64CMPQconstload, types.TypeFlags)
 		v.copyOf(v0)
-		v0.AuxInt = makeValAndOff(c, off)
-		v0.Aux = sym
+		var _auxint ValAndOff = makeValAndOff32(c, off)
+		v0.AuxInt = int64(_auxint)
+		var _aux interface{} = sym
+		v0.Aux = _aux
 		v0.AddArg2(ptr, mem)
 		return true
 	}
@@ -8257,26 +8263,28 @@ func rewriteValueAMD64_OpAMD64CMPWconst(v *Value) bool {
 		return true
 	}
 	// match: (CMPWconst l:(MOVWload {sym} [off] ptr mem) [c])
-	// cond: l.Uses == 1 && validValAndOff(c, off) && clobber(l)
-	// result: @l.Block (CMPWconstload {sym} [makeValAndOff(c,off)] ptr mem)
+	// cond: l.Uses == 1 && clobber(l)
+	// result: @l.Block (CMPWconstload {sym} [makeValAndOff32(int32(c),off)] ptr mem)
 	for {
-		c := v.AuxInt
+		c := int16(v.AuxInt)
 		l := v_0
 		if l.Op != OpAMD64MOVWload {
 			break
 		}
-		off := l.AuxInt
+		off := int32(l.AuxInt)
 		sym := l.Aux
 		mem := l.Args[1]
 		ptr := l.Args[0]
-		if !(l.Uses == 1 && validValAndOff(c, off) && clobber(l)) {
+		if !(l.Uses == 1 && clobber(l)) {
 			break
 		}
 		b = l.Block
 		v0 := b.NewValue0(l.Pos, OpAMD64CMPWconstload, types.TypeFlags)
 		v.copyOf(v0)
-		v0.AuxInt = makeValAndOff(c, off)
-		v0.Aux = sym
+		var _auxint ValAndOff = makeValAndOff32(int32(c), off)
+		v0.AuxInt = int64(_auxint)
+		var _aux interface{} = sym
+		v0.Aux = _aux
 		v0.AddArg2(ptr, mem)
 		return true
 	}

@@ -3911,69 +3911,75 @@ func rewriteValuegeneric_OpConstString(v *Value) bool {
 	config := b.Func.Config
 	fe := b.Func.fe
 	typ := &b.Func.Config.Types
-	// match: (ConstString {s})
-	// cond: config.PtrSize == 4 && s.(string) == ""
+	// match: (ConstString {str})
+	// cond: config.PtrSize == 4 && str == ""
 	// result: (StringMake (ConstNil) (Const32 <typ.Int> [0]))
 	for {
-		s := v.Aux
-		if !(config.PtrSize == 4 && s.(string) == "") {
+		str := v.Aux.(string)
+		if !(config.PtrSize == 4 && str == "") {
 			break
 		}
 		v.reset(OpStringMake)
 		v0 := b.NewValue0(v.Pos, OpConstNil, typ.BytePtr)
 		v1 := b.NewValue0(v.Pos, OpConst32, typ.Int)
-		v1.AuxInt = 0
+		var _auxint int32 = 0
+		v1.AuxInt = int64(_auxint)
 		v.AddArg2(v0, v1)
 		return true
 	}
-	// match: (ConstString {s})
-	// cond: config.PtrSize == 8 && s.(string) == ""
+	// match: (ConstString {str})
+	// cond: config.PtrSize == 8 && str == ""
 	// result: (StringMake (ConstNil) (Const64 <typ.Int> [0]))
 	for {
-		s := v.Aux
-		if !(config.PtrSize == 8 && s.(string) == "") {
+		str := v.Aux.(string)
+		if !(config.PtrSize == 8 && str == "") {
 			break
 		}
 		v.reset(OpStringMake)
 		v0 := b.NewValue0(v.Pos, OpConstNil, typ.BytePtr)
 		v1 := b.NewValue0(v.Pos, OpConst64, typ.Int)
-		v1.AuxInt = 0
+		var _auxint int64 = 0
+		v1.AuxInt = int64(_auxint)
 		v.AddArg2(v0, v1)
 		return true
 	}
-	// match: (ConstString {s})
-	// cond: config.PtrSize == 4 && s.(string) != ""
-	// result: (StringMake (Addr <typ.BytePtr> {fe.StringData(s.(string))} (SB)) (Const32 <typ.Int> [int64(len(s.(string)))]))
+	// match: (ConstString {str})
+	// cond: config.PtrSize == 4 && str != ""
+	// result: (StringMake (Addr <typ.BytePtr> {fe.StringData(str)} (SB)) (Const32 <typ.Int> [int32(len(str))]))
 	for {
-		s := v.Aux
-		if !(config.PtrSize == 4 && s.(string) != "") {
+		str := v.Aux.(string)
+		if !(config.PtrSize == 4 && str != "") {
 			break
 		}
 		v.reset(OpStringMake)
 		v0 := b.NewValue0(v.Pos, OpAddr, typ.BytePtr)
-		v0.Aux = fe.StringData(s.(string))
+		var _aux interface{} = fe.StringData(str)
+		v0.Aux = _aux
 		v1 := b.NewValue0(v.Pos, OpSB, typ.Uintptr)
 		v0.AddArg(v1)
 		v2 := b.NewValue0(v.Pos, OpConst32, typ.Int)
-		v2.AuxInt = int64(len(s.(string)))
+		var _auxint int32 = int32(len(str))
+		v2.AuxInt = int64(_auxint)
 		v.AddArg2(v0, v2)
 		return true
 	}
-	// match: (ConstString {s})
-	// cond: config.PtrSize == 8 && s.(string) != ""
-	// result: (StringMake (Addr <typ.BytePtr> {fe.StringData(s.(string))} (SB)) (Const64 <typ.Int> [int64(len(s.(string)))]))
+	// match: (ConstString {str})
+	// cond: config.PtrSize == 8 && str != ""
+	// result: (StringMake (Addr <typ.BytePtr> {fe.StringData(str)} (SB)) (Const64 <typ.Int> [int64(len(str))]))
 	for {
-		s := v.Aux
-		if !(config.PtrSize == 8 && s.(string) != "") {
+		str := v.Aux.(string)
+		if !(config.PtrSize == 8 && str != "") {
 			break
 		}
 		v.reset(OpStringMake)
 		v0 := b.NewValue0(v.Pos, OpAddr, typ.BytePtr)
-		v0.Aux = fe.StringData(s.(string))
+		var _aux interface{} = fe.StringData(str)
+		v0.Aux = _aux
 		v1 := b.NewValue0(v.Pos, OpSB, typ.Uintptr)
 		v0.AddArg(v1)
 		v2 := b.NewValue0(v.Pos, OpConst64, typ.Int)
-		v2.AuxInt = int64(len(s.(string)))
+		var _auxint int64 = int64(len(str))
+		v2.AuxInt = int64(_auxint)
 		v.AddArg2(v0, v2)
 		return true
 	}

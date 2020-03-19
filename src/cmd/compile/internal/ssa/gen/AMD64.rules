@@ -2145,11 +2145,14 @@
 (CMP(Q|L|W|B) l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) x) && canMergeLoad(v, l) && clobber(l) -> (CMP(Q|L|W|B)load {sym} [off] ptr x mem)
 (CMP(Q|L|W|B) x l:(MOV(Q|L|W|B)load {sym} [off] ptr mem)) && canMergeLoad(v, l) && clobber(l) -> (InvertFlags (CMP(Q|L|W|B)load {sym} [off] ptr x mem))
 
-(CMP(Q|L|W|B)const l:(MOV(Q|L|W|B)load {sym} [off] ptr mem) [c])
+(CMP(Q|L)const l:(MOV(Q|L)load {sym} [off] ptr mem) [c])
 	&& l.Uses == 1
-	&& validValAndOff(c, off)
-	&& clobber(l) ->
-  @l.Block (CMP(Q|L|W|B)constload {sym} [makeValAndOff(c,off)] ptr mem)
+	&& clobber(l) =>
+@l.Block (CMP(Q|L)constload {sym} [makeValAndOff32(c,off)] ptr mem)
+(CMP(W|B)const l:(MOV(W|B)load {sym} [off] ptr mem) [c])
+	&& l.Uses == 1
+	&& clobber(l) =>
+@l.Block (CMP(W|B)constload {sym} [makeValAndOff32(int32(c),off)] ptr mem)
 
 (CMPQload {sym} [off] ptr (MOVQconst [c]) mem) && validValAndOff(c,off) -> (CMPQconstload {sym} [makeValAndOff(c,off)] ptr mem)
 (CMPLload {sym} [off] ptr (MOVLconst [c]) mem) && validValAndOff(c,off) -> (CMPLconstload {sym} [makeValAndOff(c,off)] ptr mem)
