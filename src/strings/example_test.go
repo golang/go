@@ -251,10 +251,12 @@ func ExampleTitle() {
 	fmt.Println(strings.Title("her royal highness"))
 	fmt.Println(strings.Title("loud noises"))
 	fmt.Println(strings.Title("хлеб"))
+	fmt.Println(strings.Title("ǳiǉe iǌut"))
 	// Output:
 	// Her Royal Highness
 	// Loud Noises
 	// Хлеб
+	// ǲiǉe Iǌut
 }
 
 func ExampleToTitle() {
@@ -262,10 +264,12 @@ func ExampleToTitle() {
 	fmt.Println(strings.ToTitle("her royal highness"))
 	fmt.Println(strings.ToTitle("loud noises"))
 	fmt.Println(strings.ToTitle("хлеб"))
+	fmt.Println(strings.ToTitle("ǳiǉe iǌut"))
 	// Output:
 	// HER ROYAL HIGHNESS
 	// LOUD NOISES
 	// ХЛЕБ
+	// ǲIǈE IǋUT
 }
 
 func ExampleToTitleSpecial() {
