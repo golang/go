@@ -56,6 +56,13 @@ If company chooses to use its own `godoc.org`, its address can be used as well.
 
 Default: `"pkg.go.dev"`.
 
+### **local** string
+
+This is the equivalent of the `goimports -local` flag, which puts imports beginning with this string after 3rd-party packages.
+It should be the prefix of the import path whose imports should be grouped separately.
+
+Default: `""`.
+
 ## Experimental
 
 The below settings are considered experimental. They may be deprecated or changed in the future. They are typically used to test experimental opt-in features or to disable features.
