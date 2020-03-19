@@ -94,7 +94,7 @@ current state and issues.
 TO PLAY WITH THIS PROTOTYPE
 
 - Cherry-pick this CL on top of tip (the cherry-pick was tested with
-  tip at 1f231d74f6):
+  tip at b3b174ffcf):
 
   git fetch "https://go.googlesource.com/go" ... && git cherry-pick FETCH_HEAD
 
@@ -139,5 +139,6 @@ Updates:
 12/20/2019: Treat contracts as objects, not types anymore. Various bug fixes and more examples.
 1/14/2020: Implemented contract embedding and instantiation. Lots of bug fixes.
 3/12/2020: Many bug fixes. First steps towards a source-to-source translator.
+3/18/2020: More bug fixes. Fixed type inference for directional channel types.
 
 Change-Id: I29839b5e95d7050fce1dcb3334d3d324883cf76f
