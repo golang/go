@@ -5,7 +5,10 @@ package ld
 
 import (
 	"cmd/internal/obj"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
+	"fmt"
+	"os"
 	"sync"
 )
 
@@ -15,6 +18,7 @@ type unresolvedSymKey struct {
 }
 
 type lookupFn func(name string, version int) *sym.Symbol
+type symNameFn func(s loader.Sym) string
 
 // ErrorReporter is used to make error reporting thread safe.
 type ErrorReporter struct {
@@ -22,6 +26,7 @@ type ErrorReporter struct {
 	unresSyms  map[unresolvedSymKey]bool
 	unresMutex sync.Mutex
 	lookup     lookupFn
+	SymName    symNameFn
 }
 
 // errorUnresolved prints unresolved symbol error for r.Sym that is referenced from s.
@@ -59,4 +64,24 @@ func (reporter *ErrorReporter) errorUnresolved(s *sym.Symbol, r *sym.Reloc) {
 			Errorf(s, "relocation target %s not defined", r.Sym.Name)
 		}
 	}
+}
+
+// Errorf method logs an error message.
+//
+// If more than 20 errors have been printed, exit with an error.
+//
+// Logging an error means that on exit cmd/link will delete any
+// output file and return a non-zero error code.
+// TODO: consolidate the various different versions of Errorf (
+// function, Link method, and ErrorReporter method).
+func (reporter *ErrorReporter) Errorf(s loader.Sym, format string, args ...interface{}) {
+	if s != 0 && reporter.SymName != nil {
+		sn := reporter.SymName(s)
+		format = sn + ": " + format
+	} else {
+		format = fmt.Sprintf("sym %d: %s", s, format)
+	}
+	format += "\n"
+	fmt.Fprintf(os.Stderr, format, args...)
+	afterErrorAction()
 }
