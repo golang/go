@@ -36,10 +36,6 @@ import (
 	"golang.org/x/tools/internal/telemetry/export/prometheus"
 )
 
-type exporter struct {
-	stderr io.Writer
-}
-
 type instanceKeyType int
 
 const instanceKey = instanceKeyType(0)
@@ -387,9 +383,7 @@ func getMemory(r *http.Request) interface{} {
 }
 
 func init() {
-	event.SetExporter(&exporter{
-		stderr: os.Stderr,
-	})
+	event.SetExporter(makeExporter(os.Stderr))
 }
 
 func GetInstance(ctx context.Context) *Instance {
@@ -545,31 +539,33 @@ func (i *Instance) writeMemoryDebug(threshold uint64) error {
 	return nil
 }
 
-func (e *exporter) ProcessEvent(ctx context.Context, ev event.Event) (context.Context, event.Event) {
-	ctx, ev = export.ContextSpan(ctx, ev)
-	i := GetInstance(ctx)
-	if ev.IsLog() && (ev.Error != nil || i == nil) {
-		fmt.Fprintf(e.stderr, "%v\n", ev)
-	}
-	ctx, ev = protocol.LogEvent(ctx, ev)
-	if i == nil {
+func makeExporter(stderr io.Writer) event.Exporter {
+	return func(ctx context.Context, ev event.Event) (context.Context, event.Event) {
+		ctx, ev = export.ContextSpan(ctx, ev)
+		i := GetInstance(ctx)
+		if ev.IsLog() && (ev.Error != nil || i == nil) {
+			fmt.Fprintf(stderr, "%v\n", ev)
+		}
+		ctx, ev = protocol.LogEvent(ctx, ev)
+		if i == nil {
+			return ctx, ev
+		}
+		ctx, ev = export.Tag(ctx, ev)
+		ctx, ev = i.metrics.ProcessEvent(ctx, ev)
+		if i.ocagent != nil {
+			ctx, ev = i.ocagent.ProcessEvent(ctx, ev)
+		}
+		if i.prometheus != nil {
+			ctx, ev = i.prometheus.ProcessEvent(ctx, ev)
+		}
+		if i.rpcs != nil {
+			ctx, ev = i.rpcs.ProcessEvent(ctx, ev)
+		}
+		if i.traces != nil {
+			ctx, ev = i.traces.ProcessEvent(ctx, ev)
+		}
 		return ctx, ev
 	}
-	ctx, ev = export.Tag(ctx, ev)
-	ctx, ev = i.metrics.ProcessEvent(ctx, ev)
-	if i.ocagent != nil {
-		ctx, ev = i.ocagent.ProcessEvent(ctx, ev)
-	}
-	if i.prometheus != nil {
-		ctx, ev = i.prometheus.ProcessEvent(ctx, ev)
-	}
-	if i.rpcs != nil {
-		ctx, ev = i.rpcs.ProcessEvent(ctx, ev)
-	}
-	if i.traces != nil {
-		ctx, ev = i.traces.ProcessEvent(ctx, ev)
-	}
-	return ctx, ev
 }
 
 type dataFunc func(*http.Request) interface{}

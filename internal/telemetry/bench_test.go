@@ -95,7 +95,7 @@ func Benchmark(b *testing.B) {
 	b.Run("TraceNoExporter", Trace.runBenchmark)
 	b.Run("StatsNoExporter", Stats.runBenchmark)
 
-	event.SetExporter(newExporter())
+	event.SetExporter(noopExporter)
 	b.Run("Log", Log.runBenchmark)
 	b.Run("Trace", Trace.runBenchmark)
 	b.Run("Stats", Stats.runBenchmark)
@@ -142,17 +142,9 @@ func (nw *noopWriter) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-type loggingExporter struct {
-	logger event.Exporter
-}
+var noopLogger = export.LogWriter(new(noopWriter), false)
 
-func newExporter() *loggingExporter {
-	return &loggingExporter{
-		logger: export.LogWriter(new(noopWriter), false),
-	}
-}
-
-func (e *loggingExporter) ProcessEvent(ctx context.Context, ev event.Event) (context.Context, event.Event) {
+func noopExporter(ctx context.Context, ev event.Event) (context.Context, event.Event) {
 	ctx, ev = export.ContextSpan(ctx, ev)
-	return e.logger.ProcessEvent(ctx, ev)
+	return noopLogger(ctx, ev)
 }

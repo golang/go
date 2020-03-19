@@ -116,11 +116,11 @@ func registerExporter() *testExporter {
 	metricBytesIn.Record(&exporter.metrics, bytesIn)
 	metricRecursiveCalls.SumInt64(&exporter.metrics, recursiveCalls)
 
-	event.SetExporter(exporter)
+	event.SetExporter(exporter.processEvent)
 	return exporter
 }
 
-func (e *testExporter) ProcessEvent(ctx context.Context, ev event.Event) (context.Context, event.Event) {
+func (e *testExporter) processEvent(ctx context.Context, ev event.Event) (context.Context, event.Event) {
 	switch {
 	case ev.IsStartSpan():
 		ev.At = e.start

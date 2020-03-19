@@ -8,21 +8,17 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 
 	"golang.org/x/tools/internal/telemetry/event"
 )
-
-func init() {
-	event.SetExporter(LogWriter(os.Stderr, true))
-}
 
 // LogWriter returns an Exporter that logs events to the supplied writer.
 // If onlyErrors is true it does not log any event that did not have an
 // associated error.
 // It ignores all telemetry other than log events.
 func LogWriter(w io.Writer, onlyErrors bool) event.Exporter {
-	return &logWriter{writer: w, onlyErrors: onlyErrors}
+	lw := &logWriter{writer: w, onlyErrors: onlyErrors}
+	return lw.ProcessEvent
 }
 
 type logWriter struct {
