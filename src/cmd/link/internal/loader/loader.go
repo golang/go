@@ -254,6 +254,8 @@ type Loader struct {
 	strictDupMsgs int // number of strict-dup warning/errors, when FlagStrictDups is enabled
 
 	elfsetstring elfsetstringFunc
+
+	SymLookup func(name string, ver int) *sym.Symbol
 }
 
 const (
@@ -1893,17 +1895,21 @@ func (l *Loader) PropagateSymbolChangesBackToLoader() {
 
 // PropagateLoaderChangesToSymbols is a temporary shim function that
 // takes a list of loader.Sym symbols and works to copy their contents
-// and attributes over to a corresponding sym.Symbol. See the
-// PropagateSymbolChangesBackToLoader header comment for more info.
+// and attributes over to a corresponding sym.Symbol. The parameter
+// anonVerReplacement specifies a version number for any new anonymous
+// symbols encountered on the list, when creating sym.Symbols for them
+// (or zero if we don't expect to encounter any new anon symbols). See
+// the PropagateSymbolChangesBackToLoader header comment for more
+// info.
 //
 // WARNING: this function is brittle and depends heavily on loader
 // implementation. A key problem with doing this is that as things
 // stand at the moment, some sym.Symbol contents/attributes are
-// populated only when converting from loader.Sym to sym.Symbol
-// in loadlibfull, meaning if we may wipe out some information
-// when copying back.
+// populated only when converting from loader.Sym to sym.Symbol in
+// loadlibfull, meaning we may wipe out some information when copying
+// back.
 
-func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, syms *sym.Symbols) []*sym.Symbol {
+func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, anonVerReplacement int) []*sym.Symbol {
 
 	result := []*sym.Symbol{}
 	relocfixup := []Sym{}
@@ -1922,7 +1928,6 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, syms *sym.Symb
 	// sym.Symbols are created.
 
 	// First pass, symbol creation and symbol data fixup.
-	anonVerReplacement := syms.IncVersion()
 	rslice := []Reloc{}
 	for _, cand := range toconvert {
 
@@ -1930,6 +1935,9 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, syms *sym.Symb
 		sv := l.SymVersion(cand)
 		st := l.SymType(cand)
 		if sv < 0 {
+			if anonVerReplacement == 0 {
+				panic("expected valid anon version replacement")
+			}
 			sv = anonVerReplacement
 		}
 
@@ -1951,7 +1959,7 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, syms *sym.Symb
 				// or may not be in the name lookup map.
 			} else {
 				isnew = true
-				s = syms.Lookup(sn, sv)
+				s = l.SymLookup(sn, sv)
 			}
 		}
 		result = append(result, s)
@@ -2046,7 +2054,7 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols, rp map[*sym.Symbol]*sym.Symbo
 	}
 
 	// Provide lookup functions for sym.Symbols.
-	syms.Lookup = func(name string, ver int) *sym.Symbol {
+	l.SymLookup = func(name string, ver int) *sym.Symbol {
 		i := l.LookupOrCreateSym(name, ver)
 		if s := l.Syms[i]; s != nil {
 			return s
@@ -2056,6 +2064,7 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols, rp map[*sym.Symbol]*sym.Symbo
 		syms.Allsym = append(syms.Allsym, s) // XXX see above
 		return s
 	}
+	syms.Lookup = l.SymLookup
 	syms.ROLookup = func(name string, ver int) *sym.Symbol {
 		i := l.Lookup(name, ver)
 		return l.Syms[i]

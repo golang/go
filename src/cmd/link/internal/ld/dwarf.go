@@ -2048,7 +2048,8 @@ func (d *dwctxt2) dwarfGenerateDebugSyms() {
 		}
 	}
 	dwarfp2 = syms
-	dwarfp = d.ldr.PropagateLoaderChangesToSymbols(dwarfp2, d.linkctxt.Syms)
+	anonVerReplacement := d.linkctxt.Syms.IncVersion()
+	dwarfp = d.ldr.PropagateLoaderChangesToSymbols(dwarfp2, anonVerReplacement)
 }
 
 func (d *dwctxt2) collectlocs(syms []loader.Sym, units []*sym.CompilationUnit) []loader.Sym {
