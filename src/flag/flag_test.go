@@ -454,7 +454,7 @@ func TestUsageOutput(t *testing.T) {
 	defer func(old []string) { os.Args = old }(os.Args)
 	os.Args = []string{"app", "-i=1", "-unknown"}
 	Parse()
-	const want = "flag provided but not defined: -i\nUsage of app:\n"
+	const want = "The flag '-i' is an unknown flag.\nUsage of app:\n"
 	if got := buf.String(); got != want {
 		t.Errorf("output = %q; want %q", got, want)
 	}

@@ -31,7 +31,7 @@ type FlagNotDefinedError struct {
 }
 
 func (e FlagNotDefinedError) Error() string {
-	return fmt.Sprintf("flag provided but not defined: -%s", e.Name)
+	return fmt.Sprintf("The flag '-%s' is an unknown flag.", e.Name)
 }
 
 // A NonFlagError indicates an argument that is not a syntactically-valid flag.

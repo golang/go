@@ -13,7 +13,7 @@ stdout '^golang.org/x/text v0.0.0.* .*vendor[\\/]golang.org[\\/]x[\\/]text[\\/]l
 ! go list -mod=vendor -m rsc.io/quote@latest
 stderr 'go list -m: rsc.io/quote@latest: cannot query module due to -mod=vendor'
 ! go get -mod=vendor -u
-stderr 'flag provided but not defined: -mod'
+stderr 'The flag ''-mod'' is an unknown flag.'
 
 # Since we don't have a complete module graph, 'go list -m' queries
 # that require the complete graph should fail with a useful error.
