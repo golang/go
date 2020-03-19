@@ -1688,6 +1688,9 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
 		if osym.TopFrame() {
 			l.SetAttrTopFrame(gi, true)
 		}
+		if osym.Local() {
+			l.SetAttrLocal(gi, true)
+		}
 		if strings.HasPrefix(name, "go.itablink.") {
 			l.itablink[gi] = struct{}{}
 		}
@@ -1724,6 +1727,10 @@ func loadObjRefs(l *Loader, r *oReader, syms *sym.Symbols) {
 		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
 		v := abiToVer(osym.ABI, r.version)
 		r.syms[ndef+i] = l.LookupOrCreateSym(name, v)
+		if osym.Local() {
+			gi := r.syms[ndef+i]
+			l.SetAttrLocal(gi, true)
+		}
 	}
 }
 
