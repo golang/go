@@ -142,9 +142,4 @@ func (nw *noopWriter) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-var noopLogger = export.LogWriter(new(noopWriter), false)
-
-func noopExporter(ctx context.Context, ev event.Event) (context.Context, event.Event) {
-	ctx, ev = export.ContextSpan(ctx, ev)
-	return noopLogger(ctx, ev)
-}
+var noopExporter = export.Spans(export.LogWriter(new(noopWriter), false))

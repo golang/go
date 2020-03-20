@@ -5,7 +5,7 @@
 package metric
 
 import (
-	"context"
+	"fmt"
 	"sort"
 	"time"
 
@@ -22,7 +22,7 @@ type Data interface {
 	//TODO: rethink the concept of metric handles
 	Handle() string
 	// Groups reports the rows that currently exist for this metric.
-	Groups() []event.TagSet
+	Groups() [][]event.Tag
 }
 
 // Int64Data is a concrete implementation of Data for int64 scalar metrics.
@@ -36,7 +36,7 @@ type Int64Data struct {
 	// End is the last time this metric was updated.
 	EndTime time.Time
 
-	groups []event.TagSet
+	groups [][]event.Tag
 }
 
 // Float64Data is a concrete implementation of Data for float64 scalar metrics.
@@ -50,7 +50,7 @@ type Float64Data struct {
 	// End is the last time this metric was updated.
 	EndTime time.Time
 
-	groups []event.TagSet
+	groups [][]event.Tag
 }
 
 // HistogramInt64Data is a concrete implementation of Data for int64 histogram metrics.
@@ -62,7 +62,7 @@ type HistogramInt64Data struct {
 	// End is the last time this metric was updated.
 	EndTime time.Time
 
-	groups []event.TagSet
+	groups [][]event.Tag
 }
 
 // HistogramInt64Row holds the values for a single row of a HistogramInt64Data.
@@ -88,7 +88,7 @@ type HistogramFloat64Data struct {
 	// End is the last time this metric was updated.
 	EndTime time.Time
 
-	groups []event.TagSet
+	groups [][]event.Tag
 }
 
 // HistogramFloat64Row holds the values for a single row of a HistogramFloat64Data.
@@ -105,28 +105,44 @@ type HistogramFloat64Row struct {
 	Max float64
 }
 
-func getGroup(ctx context.Context, g *[]event.TagSet, keys []event.Key) (int, bool) {
-	group := event.Query(ctx, keys...)
+func tagListEqual(a, b []event.Tag) bool {
+	//TODO: make this more efficient
+	return fmt.Sprint(a) == fmt.Sprint(b)
+}
+
+func tagListLess(a, b []event.Tag) bool {
+	//TODO: make this more efficient
+	return fmt.Sprint(a) < fmt.Sprint(b)
+}
+
+func getGroup(tagMap event.TagMap, g *[][]event.Tag, keys []event.Key) (int, bool) {
+	group := make([]event.Tag, len(keys))
+	for i, key := range keys {
+		tag := tagMap.Find(key)
+		if tag.Valid() {
+			group[i] = tag
+		}
+	}
 	old := *g
 	index := sort.Search(len(old), func(i int) bool {
-		return !old[i].Less(group)
+		return !tagListLess(old[i], group)
 	})
-	if index < len(old) && group.Equal(old[index]) {
+	if index < len(old) && tagListEqual(group, old[index]) {
 		// not a new group
 		return index, false
 	}
-	*g = make([]event.TagSet, len(old)+1)
+	*g = make([][]event.Tag, len(old)+1)
 	copy(*g, old[:index])
 	copy((*g)[index+1:], old[index:])
 	(*g)[index] = group
 	return index, true
 }
 
-func (data *Int64Data) Handle() string         { return data.Info.Name }
-func (data *Int64Data) Groups() []event.TagSet { return data.groups }
+func (data *Int64Data) Handle() string        { return data.Info.Name }
+func (data *Int64Data) Groups() [][]event.Tag { return data.groups }
 
-func (data *Int64Data) modify(ctx context.Context, ev event.Event, tag event.Tag, f func(v int64) int64) Data {
-	index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
+func (data *Int64Data) modify(at time.Time, tagMap event.TagMap, f func(v int64) int64) Data {
+	index, insert := getGroup(tagMap, &data.groups, data.Info.Keys)
 	old := data.Rows
 	if insert {
 		data.Rows = make([]int64, len(old)+1)
@@ -137,40 +153,40 @@ func (data *Int64Data) modify(ctx context.Context, ev event.Event, tag event.Tag
 		copy(data.Rows, old)
 	}
 	data.Rows[index] = f(data.Rows[index])
-	data.EndTime = ev.At
+	data.EndTime = at
 	frozen := *data
 	return &frozen
 }
 
-func (data *Int64Data) countInt64(ctx context.Context, ev event.Event, tag event.Tag) Data {
-	return data.modify(ctx, ev, tag, func(v int64) int64 {
+func (data *Int64Data) countInt64(at time.Time, tagMap event.TagMap, tag event.Tag) Data {
+	return data.modify(at, tagMap, func(v int64) int64 {
 		return v + 1
 	})
 }
 
-func (data *Int64Data) countFloat64(ctx context.Context, ev event.Event, tag event.Tag) Data {
-	return data.modify(ctx, ev, tag, func(v int64) int64 {
+func (data *Int64Data) countFloat64(at time.Time, tagMap event.TagMap, tag event.Tag) Data {
+	return data.modify(at, tagMap, func(v int64) int64 {
 		return v + 1
 	})
 }
 
-func (data *Int64Data) sum(ctx context.Context, ev event.Event, tag event.Tag) Data {
-	return data.modify(ctx, ev, tag, func(v int64) int64 {
-		return v + tag.Value().(int64)
+func (data *Int64Data) sum(at time.Time, tagMap event.TagMap, tag event.Tag) Data {
+	return data.modify(at, tagMap, func(v int64) int64 {
+		return v + tag.Value.(int64)
 	})
 }
 
-func (data *Int64Data) latest(ctx context.Context, ev event.Event, tag event.Tag) Data {
-	return data.modify(ctx, ev, tag, func(v int64) int64 {
-		return tag.Value().(int64)
+func (data *Int64Data) latest(at time.Time, tagMap event.TagMap, tag event.Tag) Data {
+	return data.modify(at, tagMap, func(v int64) int64 {
+		return tag.Value.(int64)
 	})
 }
 
-func (data *Float64Data) Handle() string         { return data.Info.Name }
-func (data *Float64Data) Groups() []event.TagSet { return data.groups }
+func (data *Float64Data) Handle() string        { return data.Info.Name }
+func (data *Float64Data) Groups() [][]event.Tag { return data.groups }
 
-func (data *Float64Data) modify(ctx context.Context, ev event.Event, tag event.Tag, f func(v float64) float64) Data {
-	index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
+func (data *Float64Data) modify(at time.Time, tagMap event.TagMap, f func(v float64) float64) Data {
+	index, insert := getGroup(tagMap, &data.groups, data.Info.Keys)
 	old := data.Rows
 	if insert {
 		data.Rows = make([]float64, len(old)+1)
@@ -181,28 +197,28 @@ func (data *Float64Data) modify(ctx context.Context, ev event.Event, tag event.T
 		copy(data.Rows, old)
 	}
 	data.Rows[index] = f(data.Rows[index])
-	data.EndTime = ev.At
+	data.EndTime = at
 	frozen := *data
 	return &frozen
 }
 
-func (data *Float64Data) sum(ctx context.Context, ev event.Event, tag event.Tag) Data {
-	return data.modify(ctx, ev, tag, func(v float64) float64 {
-		return v + tag.Value().(float64)
+func (data *Float64Data) sum(at time.Time, tagMap event.TagMap, tag event.Tag) Data {
+	return data.modify(at, tagMap, func(v float64) float64 {
+		return v + tag.Value.(float64)
 	})
 }
 
-func (data *Float64Data) latest(ctx context.Context, ev event.Event, tag event.Tag) Data {
-	return data.modify(ctx, ev, tag, func(v float64) float64 {
-		return tag.Value().(float64)
+func (data *Float64Data) latest(at time.Time, tagMap event.TagMap, tag event.Tag) Data {
+	return data.modify(at, tagMap, func(v float64) float64 {
+		return tag.Value.(float64)
 	})
 }
 
-func (data *HistogramInt64Data) Handle() string         { return data.Info.Name }
-func (data *HistogramInt64Data) Groups() []event.TagSet { return data.groups }
+func (data *HistogramInt64Data) Handle() string        { return data.Info.Name }
+func (data *HistogramInt64Data) Groups() [][]event.Tag { return data.groups }
 
-func (data *HistogramInt64Data) modify(ctx context.Context, ev event.Event, tag event.Tag, f func(v *HistogramInt64Row)) Data {
-	index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
+func (data *HistogramInt64Data) modify(at time.Time, tagMap event.TagMap, f func(v *HistogramInt64Row)) Data {
+	index, insert := getGroup(tagMap, &data.groups, data.Info.Keys)
 	old := data.Rows
 	var v HistogramInt64Row
 	if insert {
@@ -219,14 +235,14 @@ func (data *HistogramInt64Data) modify(ctx context.Context, ev event.Event, tag 
 	copy(v.Values, oldValues)
 	f(&v)
 	data.Rows[index] = &v
-	data.EndTime = ev.At
+	data.EndTime = at
 	frozen := *data
 	return &frozen
 }
 
-func (data *HistogramInt64Data) record(ctx context.Context, ev event.Event, tag event.Tag) Data {
-	return data.modify(ctx, ev, tag, func(v *HistogramInt64Row) {
-		value := tag.Value().(int64)
+func (data *HistogramInt64Data) record(at time.Time, tagMap event.TagMap, tag event.Tag) Data {
+	return data.modify(at, tagMap, func(v *HistogramInt64Row) {
+		value := tag.Value.(int64)
 		v.Sum += value
 		if v.Min > value || v.Count == 0 {
 			v.Min = value
@@ -243,11 +259,11 @@ func (data *HistogramInt64Data) record(ctx context.Context, ev event.Event, tag 
 	})
 }
 
-func (data *HistogramFloat64Data) Handle() string         { return data.Info.Name }
-func (data *HistogramFloat64Data) Groups() []event.TagSet { return data.groups }
+func (data *HistogramFloat64Data) Handle() string        { return data.Info.Name }
+func (data *HistogramFloat64Data) Groups() [][]event.Tag { return data.groups }
 
-func (data *HistogramFloat64Data) modify(ctx context.Context, ev event.Event, tag event.Tag, f func(v *HistogramFloat64Row)) Data {
-	index, insert := getGroup(ctx, &data.groups, data.Info.Keys)
+func (data *HistogramFloat64Data) modify(at time.Time, tagMap event.TagMap, f func(v *HistogramFloat64Row)) Data {
+	index, insert := getGroup(tagMap, &data.groups, data.Info.Keys)
 	old := data.Rows
 	var v HistogramFloat64Row
 	if insert {
@@ -264,14 +280,14 @@ func (data *HistogramFloat64Data) modify(ctx context.Context, ev event.Event, ta
 	copy(v.Values, oldValues)
 	f(&v)
 	data.Rows[index] = &v
-	data.EndTime = ev.At
+	data.EndTime = at
 	frozen := *data
 	return &frozen
 }
 
-func (data *HistogramFloat64Data) record(ctx context.Context, ev event.Event, tag event.Tag) Data {
-	return data.modify(ctx, ev, tag, func(v *HistogramFloat64Row) {
-		value := tag.Value().(float64)
+func (data *HistogramFloat64Data) record(at time.Time, tagMap event.TagMap, tag event.Tag) Data {
+	return data.modify(at, tagMap, func(v *HistogramFloat64Row) {
+		value := tag.Value.(float64)
 		v.Sum += value
 		if v.Min > value || v.Count == 0 {
 			v.Min = value

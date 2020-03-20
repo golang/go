@@ -13,6 +13,6 @@ func Record(ctx context.Context, tags ...Tag) {
 	ProcessEvent(ctx, Event{
 		Type: RecordType,
 		At:   time.Now(),
-		Tags: newTagSet(tags),
+		tags: tags,
 	})
 }

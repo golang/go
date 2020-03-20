@@ -7,40 +7,42 @@ package metric
 
 import (
 	"context"
+	"time"
 
 	"golang.org/x/tools/internal/telemetry/event"
 )
 
 var Entries = event.NewKey("metric_entries", "The set of metrics calculated for an event")
 
-type Exporter struct {
+type Config struct {
 	subscribers map[interface{}][]subscriber
 }
 
-type subscriber func(context.Context, event.Event, event.Tag) Data
+type subscriber func(time.Time, event.TagMap, event.Tag) Data
 
-func (e *Exporter) subscribe(key event.Key, s subscriber) {
+func (e *Config) subscribe(key event.Key, s subscriber) {
 	if e.subscribers == nil {
 		e.subscribers = make(map[interface{}][]subscriber)
 	}
-	ident := key.Identity()
-	e.subscribers[ident] = append(e.subscribers[ident], s)
+	e.subscribers[key] = append(e.subscribers[key], s)
 }
 
-func (e *Exporter) ProcessEvent(ctx context.Context, ev event.Event) (context.Context, event.Event) {
-	if !ev.IsRecord() {
-		return ctx, ev
-	}
-	var metrics []Data
-	for i := ev.Tags.Iterator(); i.Next(); {
-		tag := i.Value()
-		id := tag.Key().Identity()
-		if list := e.subscribers[id]; len(list) > 0 {
-			for _, s := range list {
-				metrics = append(metrics, s(ctx, ev, tag))
+func (e *Config) Exporter(output event.Exporter) event.Exporter {
+	return func(ctx context.Context, ev event.Event, tagMap event.TagMap) context.Context {
+		if !ev.IsRecord() {
+			return output(ctx, ev, tagMap)
+		}
+		var metrics []Data
+		for it := ev.Tags(); it.Valid(); it.Advance() {
+			tag := it.Tag()
+			id := tag.Key
+			if list := e.subscribers[id]; len(list) > 0 {
+				for _, s := range list {
+					metrics = append(metrics, s(ev.At, tagMap, tag))
+				}
 			}
 		}
+		tagMap = event.MergeTagMaps(event.NewTagMap(Entries.Of(metrics)), tagMap)
+		return output(ctx, ev, tagMap)
 	}
-	ev.Tags = ev.Tags.Add(Entries.Of(metrics))
-	return ctx, ev
 }

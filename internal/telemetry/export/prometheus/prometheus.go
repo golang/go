@@ -25,13 +25,13 @@ type Exporter struct {
 	metrics []metric.Data
 }
 
-func (e *Exporter) ProcessEvent(ctx context.Context, ev event.Event) (context.Context, event.Event) {
+func (e *Exporter) ProcessEvent(ctx context.Context, ev event.Event, tagMap event.TagMap) context.Context {
 	if !ev.IsRecord() {
-		return ctx, ev
+		return ctx
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	metrics := metric.Entries.Get(ev.Tags).([]metric.Data)
+	metrics := metric.Entries.Get(tagMap).([]metric.Data)
 	for _, data := range metrics {
 		name := data.Handle()
 		// We keep the metrics in name sorted order so the page is stable and easy
@@ -49,7 +49,7 @@ func (e *Exporter) ProcessEvent(ctx context.Context, ev event.Event) (context.Co
 		}
 		e.metrics[index] = data
 	}
-	return ctx, ev
+	return ctx
 }
 
 func (e *Exporter) header(w http.ResponseWriter, name, description string, isGauge, isHistogram bool) {
@@ -64,7 +64,7 @@ func (e *Exporter) header(w http.ResponseWriter, name, description string, isGau
 	fmt.Fprintf(w, "# TYPE %s %s\n", name, kind)
 }
 
-func (e *Exporter) row(w http.ResponseWriter, name string, group event.TagSet, extra string, value interface{}) {
+func (e *Exporter) row(w http.ResponseWriter, name string, group []event.Tag, extra string, value interface{}) {
 	fmt.Fprint(w, name)
 	buf := &bytes.Buffer{}
 	fmt.Fprint(buf, group)

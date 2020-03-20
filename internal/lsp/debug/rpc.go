@@ -91,20 +91,21 @@ type rpcCodeBucket struct {
 	Count int64
 }
 
-func (r *rpcs) ProcessEvent(ctx context.Context, ev event.Event) (context.Context, event.Event) {
+func (r *rpcs) ProcessEvent(ctx context.Context, ev event.Event, tagMap event.TagMap) context.Context {
 	if !ev.IsRecord() {
-		return ctx, ev
+		return ctx
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	metrics := metric.Entries.Get(ev.Tags).([]metric.Data)
+	metrics := metric.Entries.Get(tagMap).([]metric.Data)
 	for _, data := range metrics {
 		for i, group := range data.Groups() {
 			set := &r.Inbound
-			if tag.RPCDirection.Get(group) == tag.Outbound {
+			groupTags := event.NewTagMap(group...)
+			if tag.RPCDirection.Get(groupTags) == tag.Outbound {
 				set = &r.Outbound
 			}
-			method := tag.Method.Get(group)
+			method := tag.Method.Get(groupTags)
 			index := sort.Search(len(*set), func(i int) bool {
 				return (*set)[i].Method >= method
 			})
@@ -120,7 +121,7 @@ func (r *rpcs) ProcessEvent(ctx context.Context, ev event.Event) (context.Contex
 			case started.Name:
 				stats.Started = data.(*metric.Int64Data).Rows[i]
 			case completed.Name:
-				status := tag.StatusCode.Get(group)
+				status := tag.StatusCode.Get(groupTags)
 				var b *rpcCodeBucket
 				for c, entry := range stats.Codes {
 					if entry.Key == status {
@@ -180,7 +181,7 @@ func (r *rpcs) ProcessEvent(ctx context.Context, ev event.Event) (context.Contex
 			stats.InProgress = stats.Started - stats.Completed
 		}
 	}
-	return ctx, ev
+	return ctx
 }
 
 func (r *rpcs) getData(req *http.Request) interface{} {

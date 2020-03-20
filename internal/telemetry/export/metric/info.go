@@ -45,7 +45,7 @@ type HistogramFloat64 struct {
 // CountInt64 creates a new metric based on the Scalar information that counts
 // the number of times the supplied int64 measure is set.
 // Metrics of this type will use Int64Data.
-func (info Scalar) CountInt64(e *Exporter, key event.Key) {
+func (info Scalar) CountInt64(e *Config, key event.Key) {
 	data := &Int64Data{Info: &info}
 	e.subscribe(key, data.countInt64)
 }
@@ -53,7 +53,7 @@ func (info Scalar) CountInt64(e *Exporter, key event.Key) {
 // SumInt64 creates a new metric based on the Scalar information that sums all
 // the values recorded on the int64 measure.
 // Metrics of this type will use Int64Data.
-func (info Scalar) SumInt64(e *Exporter, key event.Key) {
+func (info Scalar) SumInt64(e *Config, key event.Key) {
 	data := &Int64Data{Info: &info}
 	e.subscribe(key, data.sum)
 }
@@ -61,7 +61,7 @@ func (info Scalar) SumInt64(e *Exporter, key event.Key) {
 // LatestInt64 creates a new metric based on the Scalar information that tracks
 // the most recent value recorded on the int64 measure.
 // Metrics of this type will use Int64Data.
-func (info Scalar) LatestInt64(e *Exporter, key event.Key) {
+func (info Scalar) LatestInt64(e *Config, key event.Key) {
 	data := &Int64Data{Info: &info, IsGauge: true}
 	e.subscribe(key, data.latest)
 }
@@ -69,7 +69,7 @@ func (info Scalar) LatestInt64(e *Exporter, key event.Key) {
 // CountFloat64 creates a new metric based on the Scalar information that counts
 // the number of times the supplied float64 measure is set.
 // Metrics of this type will use Int64Data.
-func (info Scalar) CountFloat64(e *Exporter, key event.Key) {
+func (info Scalar) CountFloat64(e *Config, key event.Key) {
 	data := &Int64Data{Info: &info}
 	e.subscribe(key, data.countFloat64)
 }
@@ -77,7 +77,7 @@ func (info Scalar) CountFloat64(e *Exporter, key event.Key) {
 // SumFloat64 creates a new metric based on the Scalar information that sums all
 // the values recorded on the float64 measure.
 // Metrics of this type will use Float64Data.
-func (info Scalar) SumFloat64(e *Exporter, key event.Key) {
+func (info Scalar) SumFloat64(e *Config, key event.Key) {
 	data := &Float64Data{Info: &info}
 	e.subscribe(key, data.sum)
 }
@@ -85,7 +85,7 @@ func (info Scalar) SumFloat64(e *Exporter, key event.Key) {
 // LatestFloat64 creates a new metric based on the Scalar information that tracks
 // the most recent value recorded on the float64 measure.
 // Metrics of this type will use Float64Data.
-func (info Scalar) LatestFloat64(e *Exporter, key event.Key) {
+func (info Scalar) LatestFloat64(e *Config, key event.Key) {
 	data := &Float64Data{Info: &info, IsGauge: true}
 	e.subscribe(key, data.latest)
 }
@@ -93,7 +93,7 @@ func (info Scalar) LatestFloat64(e *Exporter, key event.Key) {
 // Record creates a new metric based on the HistogramInt64 information that
 // tracks the bucketized counts of values recorded on the int64 measure.
 // Metrics of this type will use HistogramInt64Data.
-func (info HistogramInt64) Record(e *Exporter, key event.Key) {
+func (info HistogramInt64) Record(e *Config, key event.Key) {
 	data := &HistogramInt64Data{Info: &info}
 	e.subscribe(key, data.record)
 }
@@ -101,7 +101,7 @@ func (info HistogramInt64) Record(e *Exporter, key event.Key) {
 // Record creates a new metric based on the HistogramFloat64 information that
 // tracks the bucketized counts of values recorded on the float64 measure.
 // Metrics of this type will use HistogramFloat64Data.
-func (info HistogramFloat64) Record(e *Exporter, key event.Key) {
+func (info HistogramFloat64) Record(e *Config, key event.Key) {
 	data := &HistogramFloat64Data{Info: &info}
 	e.subscribe(key, data.record)
 }

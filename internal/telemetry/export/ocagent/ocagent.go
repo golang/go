@@ -85,7 +85,7 @@ func Connect(config *Config) *Exporter {
 	return exporter
 }
 
-func (e *Exporter) ProcessEvent(ctx context.Context, ev event.Event) (context.Context, event.Event) {
+func (e *Exporter) ProcessEvent(ctx context.Context, ev event.Event, tagMap event.TagMap) context.Context {
 	switch {
 	case ev.IsEndSpan():
 		e.mu.Lock()
@@ -97,10 +97,10 @@ func (e *Exporter) ProcessEvent(ctx context.Context, ev event.Event) (context.Co
 	case ev.IsRecord():
 		e.mu.Lock()
 		defer e.mu.Unlock()
-		data := metric.Entries.Get(ev.Tags).([]metric.Data)
+		data := metric.Entries.Get(tagMap).([]metric.Data)
 		e.metrics = append(e.metrics, data...)
 	}
-	return ctx, ev
+	return ctx
 }
 
 func (e *Exporter) Flush() {
@@ -198,9 +198,9 @@ func convertSpan(span *export.Span) *wire.Span {
 		ParentSpanID:            span.ParentID[:],
 		Name:                    toTruncatableString(span.Name),
 		Kind:                    wire.UnspecifiedSpanKind,
-		StartTime:               convertTimestamp(span.Start),
-		EndTime:                 convertTimestamp(span.Finish),
-		Attributes:              convertAttributes(span.Tags),
+		StartTime:               convertTimestamp(span.Start.At),
+		EndTime:                 convertTimestamp(span.Finish.At),
+		Attributes:              convertAttributes(span.Start.Tags()),
 		TimeEvents:              convertEvents(span.Events),
 		SameProcessAsParentSpan: true,
 		//TODO: StackTrace?
@@ -227,18 +227,14 @@ func convertMetric(data metric.Data, start time.Time) *wire.Metric {
 	}
 }
 
-func convertAttributes(tags event.TagSet) *wire.Attributes {
-	i := tags.Iterator()
-	if !i.Next() {
+func convertAttributes(it event.TagIterator) *wire.Attributes {
+	if !it.Valid() {
 		return nil
 	}
 	attributes := make(map[string]wire.Attribute)
-	for {
-		tag := i.Value()
-		attributes[tag.Key().Name()] = convertAttribute(tag.Value())
-		if !i.Next() {
-			break
-		}
+	for ; it.Valid(); it.Advance() {
+		tag := it.Tag()
+		attributes[tag.Key.Name()] = convertAttribute(tag.Value)
 	}
 	return &wire.Attributes{AttributeMap: attributes}
 }
@@ -300,11 +296,12 @@ func convertAnnotation(ev event.Event) *wire.Annotation {
 		description = ev.Error.Error()
 		ev.Error = nil
 	}
-	tags := ev.Tags
+	tags := ev.Tags()
 	if ev.Error != nil {
-		tags = tags.Add(event.Err.Of(ev.Error))
+		extra := event.NewTagIterator(event.Err.Of(ev.Error))
+		tags = event.ChainTagIterators(extra, tags)
 	}
-	if description == "" && tags.IsEmpty() {
+	if description == "" && !tags.Valid() {
 		return nil
 	}
 	return &wire.Annotation{

@@ -11,158 +11,224 @@ import (
 // Tag holds a key and value pair.
 // It is normally used when passing around lists of tags.
 type Tag struct {
-	key   *key
-	value interface{}
+	Key   Key
+	Value interface{}
 }
 
-// TagSet is a collection of Tags.
-// It provides a way to create new tag sets by adding new tags to an existing
-// set, and preserves the order in which tags were added when iterating.
-// Tags can also be searched for in the set by their key.
-type TagSet struct {
-	list tagList
+// TagMap is the interface to a collection of Tags indexed by key.
+type TagMap interface {
+	// IsEmpty returns true if the map holds no tags.
+	IsEmpty() bool
+	// Find returns the tag that matches the supplied key.
+	Find(key interface{}) Tag
 }
 
-type tagList struct {
-	tags []Tag
-	next *tagList
+// TagPointer is the interface to something that provides an iterable
+// list of tags.
+type TagPointer interface {
+	// Next advances to the next entry in the list and return a TagIterator for it.
+	// It will return nil if there are no more entries.
+	Next() TagPointer
+	// Tag returns the tag the pointer is for.
+	Tag() Tag
 }
 
-// TagIterator is used to iterate through all the tags in a TagSet.
+// TagIterator is used to iterate through tags using TagPointer.
+// It is a small helper that will normally fully inline to make it easier to
+// manage the fact that pointer advance returns a new pointer rather than
+// moving the existing one.
 type TagIterator struct {
-	list  tagList
-	index int
+	ptr TagPointer
+}
+
+// tagPointer implements TagPointer over a simple list of tags.
+type tagPointer struct {
+	tags []Tag
+}
+
+// tagPointer wraps a TagPointer filtering out specific tags.
+type tagFilter struct {
+	filter     []Key
+	underlying TagPointer
+}
+
+// tagPointerChain implements TagMap for a list of underlying TagMap.
+type tagPointerChain struct {
+	ptrs []TagPointer
+}
+
+// tagMap implements TagMap for a simple list of tags.
+type tagMap struct {
+	tags []Tag
+}
+
+// tagMapChain implements TagMap for a list of underlying TagMap.
+type tagMapChain struct {
+	maps []TagMap
 }
 
 // Key returns the key for this Tag.
-func (t Tag) Key() Key { return t.key }
-
-// Value returns the value for this Tag.
-func (t Tag) Value() interface{} { return t.value }
+func (t Tag) Valid() bool { return t.Key != nil }
 
 // Format is used for debug printing of tags.
 func (t Tag) Format(f fmt.State, r rune) {
-	if t.key == nil {
+	if !t.Valid() {
 		fmt.Fprintf(f, `nil`)
 		return
 	}
-	fmt.Fprintf(f, `%v="%v"`, t.key.name, t.value)
+	fmt.Fprintf(f, `%v="%v"`, t.Key.Name(), t.Value)
 }
 
-func newTagSet(tags []Tag) TagSet {
-	return TagSet{list: tagList{tags: tags}}
+func (i *TagIterator) Valid() bool {
+	return i.ptr != nil
 }
 
-// FindAll returns corresponding tags for each key in keys.
-// The resulting TagSet will have one entry for each key in the same order
-// as they were passed in, and if no tag is found for a key Tag at its
-// corresponding index will also have no value.
-func (s TagSet) FindAll(keys []Key) TagSet {
-	tags := make([]Tag, len(keys))
-	for i, key := range keys {
-		tags[i] = s.find(key.Identity())
+func (i *TagIterator) Advance() {
+	i.ptr = i.ptr.Next()
+}
+
+func (i *TagIterator) Tag() Tag {
+	return i.ptr.Tag()
+}
+
+func (i tagPointer) Next() TagPointer {
+	// loop until we are on a valid tag
+	for {
+		// move on one tag
+		i.tags = i.tags[1:]
+		// check if we have exhausted the current list
+		if len(i.tags) == 0 {
+			// no more tags, so no more iterator
+			return nil
+		}
+		// if the tag is valid, we are done
+		if i.tags[0].Valid() {
+			return i
+		}
 	}
-	return TagSet{list: tagList{tags: tags}}
 }
 
-func (s TagSet) find(key interface{}) Tag {
-	//TODO: do we want/need a faster access pattern?
-	for i := s.Iterator(); i.Next(); {
-		tag := i.Value()
-		if tag.key == key {
+func (i tagPointer) Tag() Tag {
+	return i.tags[0]
+}
+
+func (i tagFilter) Next() TagPointer {
+	// loop until we are on a valid tag
+	for {
+		i.underlying = i.underlying.Next()
+		if i.underlying == nil {
+			return nil
+		}
+		if !i.filtered() {
+			return i
+		}
+	}
+}
+
+func (i tagFilter) filtered() bool {
+	tag := i.underlying.Tag()
+	for _, f := range i.filter {
+		if tag.Key == f {
+			return true
+		}
+	}
+	return false
+}
+
+func (i tagFilter) Tag() Tag {
+	return i.underlying.Tag()
+}
+
+func (i tagPointerChain) Next() TagPointer {
+	i.ptrs[0] = i.ptrs[0].Next()
+	if i.ptrs[0] == nil {
+		i.ptrs = i.ptrs[1:]
+	}
+	if len(i.ptrs) == 0 {
+		return nil
+	}
+	return i
+}
+
+func (i tagPointerChain) Tag() Tag {
+	return i.ptrs[0].Tag()
+}
+
+func (l tagMap) Find(key interface{}) Tag {
+	for _, tag := range l.tags {
+		if tag.Key == key {
 			return tag
 		}
 	}
 	return Tag{}
 }
 
-// Format pretty prints a list.
-// It is intended only for debugging.
-func (s TagSet) Format(f fmt.State, r rune) {
-	printed := false
-	for i := s.Iterator(); i.Next(); {
-		tag := i.Value()
-		if tag.value == nil {
-			continue
+func (l tagMap) IsEmpty() bool {
+	return len(l.tags) == 0
+}
+
+func (c tagMapChain) Find(key interface{}) Tag {
+	for _, src := range c.maps {
+		tag := src.Find(key)
+		if tag.Valid() {
+			return tag
 		}
-		if printed {
-			fmt.Fprint(f, ",")
+	}
+	return Tag{}
+}
+
+func (c tagMapChain) IsEmpty() bool {
+	for _, src := range c.maps {
+		if !src.IsEmpty() {
+			return false
 		}
-		fmt.Fprint(f, tag)
-		printed = true
 	}
-}
-
-// Add returns a new TagSet where the supplied tags are included and
-// override any tags already in this TagSet.
-func (s TagSet) Add(tags ...Tag) TagSet {
-	if len(tags) <= 0 {
-		// we don't allow empty tag lists in the chain
-		return s
-	}
-	if len(s.list.tags) <= 0 {
-		// adding to an empty list, no need for a chain
-		s.list.tags = tags
-		return s
-	}
-	// we need to add a new entry to the head of the list
-	old := s.list
-	s.list.next = &old
-	s.list.tags = tags
-	return s
-}
-
-// IsEmpty returns true if the TagSet contains no tags.
-func (s TagSet) IsEmpty() bool {
-	// the only way the head can be empty is if there is no chain
-	return len(s.list.tags) <= 0
-}
-
-// Iterator returns an iterator for this TagSet.
-func (s TagSet) Iterator() TagIterator {
-	return TagIterator{list: s.list, index: -1}
-}
-
-// Next advances the iterator onto the next tag.
-// It returns true if the iterator is still valid.
-func (i *TagIterator) Next() bool {
-	// advance the iterator
-	i.index++
-	if i.index < len(i.list.tags) {
-		// within range of the tags, so next was valid
-		return true
-	}
-	if i.list.next == nil {
-		// no more lists in the chain, iterator no longer valid
-		return false
-	}
-	// need to move on to the next list in the chain
-	i.list = *i.list.next
-	i.index = 0
 	return true
 }
 
-// Value returns the tag the iterator is currently pointing to.
-// It is an error to call this on an iterator that is not valid.
-// You must have called Next and checked the return value before
-// calling this method.
-func (i *TagIterator) Value() Tag {
-	return i.list.tags[i.index]
+func NewTagIterator(tags ...Tag) TagIterator {
+	if len(tags) == 0 {
+		return TagIterator{}
+	}
+	result := TagIterator{ptr: tagPointer{tags: tags}}
+	if !result.Tag().Valid() {
+		result.Advance()
+	}
+	return result
 }
 
-// Set can be used to replace the tag currently being pointed to.
-func (i TagIterator) Set(tag Tag) {
-	i.list.tags[i.index] = tag
+func Filter(it TagIterator, keys ...Key) TagIterator {
+	if !it.Valid() || len(keys) == 0 {
+		return it
+	}
+	ptr := tagFilter{filter: keys, underlying: it.ptr}
+	result := TagIterator{ptr: ptr}
+	if ptr.filtered() {
+		result.Advance()
+	}
+	return result
 }
 
-// Equal returns true if two lists are identical.
-func (l TagSet) Equal(other TagSet) bool {
-	//TODO: make this more efficient
-	return fmt.Sprint(l) == fmt.Sprint(other)
+func ChainTagIterators(iterators ...TagIterator) TagIterator {
+	if len(iterators) == 0 {
+		return TagIterator{}
+	}
+	ptrs := make([]TagPointer, 0, len(iterators))
+	for _, it := range iterators {
+		if it.Valid() {
+			ptrs = append(ptrs, it.ptr)
+		}
+	}
+	if len(ptrs) == 0 {
+		return TagIterator{}
+	}
+	return TagIterator{ptr: tagPointerChain{ptrs: ptrs}}
 }
 
-// Less is intended only for using tag lists as a sorting key.
-func (l TagSet) Less(other TagSet) bool {
-	//TODO: make this more efficient
-	return fmt.Sprint(l) < fmt.Sprint(other)
+func NewTagMap(tags ...Tag) TagMap {
+	return tagMap{tags: tags}
+}
+
+func MergeTagMaps(srcs ...TagMap) TagMap {
+	return tagMapChain{maps: srcs}
 }

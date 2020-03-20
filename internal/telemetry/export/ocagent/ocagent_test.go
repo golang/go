@@ -90,12 +90,8 @@ var (
 )
 
 type testExporter struct {
-	metrics metric.Exporter
 	ocagent *ocagent.Exporter
 	sent    fakeSender
-	start   time.Time
-	at      time.Time
-	end     time.Time
 }
 
 func registerExporter() *testExporter {
@@ -108,36 +104,47 @@ func registerExporter() *testExporter {
 	}
 	cfg.Start, _ = time.Parse(time.RFC3339Nano, "1970-01-01T00:00:00Z")
 	exporter.ocagent = ocagent.Connect(&cfg)
-	exporter.start, _ = time.Parse(time.RFC3339Nano, "1970-01-01T00:00:30Z")
-	exporter.at, _ = time.Parse(time.RFC3339Nano, "1970-01-01T00:00:40Z")
-	exporter.end, _ = time.Parse(time.RFC3339Nano, "1970-01-01T00:00:50Z")
 
-	metricLatency.Record(&exporter.metrics, latencyMs)
-	metricBytesIn.Record(&exporter.metrics, bytesIn)
-	metricRecursiveCalls.SumInt64(&exporter.metrics, recursiveCalls)
+	metrics := metric.Config{}
+	metricLatency.Record(&metrics, latencyMs)
+	metricBytesIn.Record(&metrics, bytesIn)
+	metricRecursiveCalls.SumInt64(&metrics, recursiveCalls)
 
-	event.SetExporter(exporter.processEvent)
+	e := exporter.ocagent.ProcessEvent
+	e = metrics.Exporter(e)
+	e = spanFixer(e)
+	e = export.Spans(e)
+	e = export.Labels(e)
+	e = timeFixer(e)
+	event.SetExporter(e)
 	return exporter
 }
 
-func (e *testExporter) processEvent(ctx context.Context, ev event.Event) (context.Context, event.Event) {
-	switch {
-	case ev.IsStartSpan():
-		ev.At = e.start
-	case ev.IsEndSpan():
-		ev.At = e.end
-	default:
-		ev.At = e.at
+func timeFixer(output event.Exporter) event.Exporter {
+	start, _ := time.Parse(time.RFC3339Nano, "1970-01-01T00:00:30Z")
+	at, _ := time.Parse(time.RFC3339Nano, "1970-01-01T00:00:40Z")
+	end, _ := time.Parse(time.RFC3339Nano, "1970-01-01T00:00:50Z")
+	return func(ctx context.Context, ev event.Event, tagMap event.TagMap) context.Context {
+		switch {
+		case ev.IsStartSpan():
+			ev.At = start
+		case ev.IsEndSpan():
+			ev.At = end
+		default:
+			ev.At = at
+		}
+		return output(ctx, ev, tagMap)
 	}
-	ctx, ev = export.Tag(ctx, ev)
-	ctx, ev = export.ContextSpan(ctx, ev)
-	ctx, ev = e.metrics.ProcessEvent(ctx, ev)
-	ctx, ev = e.ocagent.ProcessEvent(ctx, ev)
-	if ev.IsStartSpan() {
-		span := export.GetSpan(ctx)
-		span.ID = export.SpanContext{}
+}
+
+func spanFixer(output event.Exporter) event.Exporter {
+	return func(ctx context.Context, ev event.Event, tagMap event.TagMap) context.Context {
+		if ev.IsStartSpan() {
+			span := export.GetSpan(ctx)
+			span.ID = export.SpanContext{}
+		}
+		return output(ctx, ev, tagMap)
 	}
-	return ctx, ev
 }
 
 func (e *testExporter) Output(route string) []byte {

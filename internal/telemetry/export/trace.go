@@ -7,7 +7,6 @@ package export
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"golang.org/x/tools/internal/telemetry/event"
 )
@@ -21,9 +20,8 @@ type Span struct {
 	Name     string
 	ID       SpanContext
 	ParentID SpanID
-	Start    time.Time
-	Finish   time.Time
-	Tags     event.TagSet
+	Start    event.Event
+	Finish   event.Event
 	Events   []event.Event
 }
 
@@ -31,6 +29,7 @@ type contextKeyType int
 
 const (
 	spanContextKey = contextKeyType(iota)
+	labelContextKey
 )
 
 func GetSpan(ctx context.Context) *Span {
@@ -41,39 +40,40 @@ func GetSpan(ctx context.Context) *Span {
 	return v.(*Span)
 }
 
-// ContextSpan is an exporter that maintains hierarchical span structure in the
+// Spans creates an exporter that maintains hierarchical span structure in the
 // context.
 // It creates new spans on EventStartSpan, adds events to the current span on
 // EventLog or EventTag, and closes the span on EventEndSpan.
 // The span structure can then be used by other exporters.
-func ContextSpan(ctx context.Context, ev event.Event) (context.Context, event.Event) {
-	switch {
-	case ev.IsLog(), ev.IsLabel():
-		if span := GetSpan(ctx); span != nil {
-			span.Events = append(span.Events, ev)
+func Spans(output event.Exporter) event.Exporter {
+	return func(ctx context.Context, ev event.Event, tagMap event.TagMap) context.Context {
+		switch {
+		case ev.IsLog(), ev.IsLabel():
+			if span := GetSpan(ctx); span != nil {
+				span.Events = append(span.Events, ev)
+			}
+		case ev.IsStartSpan():
+			span := &Span{
+				Name:  ev.Message,
+				Start: ev,
+			}
+			if parent := GetSpan(ctx); parent != nil {
+				span.ID.TraceID = parent.ID.TraceID
+				span.ParentID = parent.ID.SpanID
+			} else {
+				span.ID.TraceID = newTraceID()
+			}
+			span.ID.SpanID = newSpanID()
+			ctx = context.WithValue(ctx, spanContextKey, span)
+		case ev.IsEndSpan():
+			if span := GetSpan(ctx); span != nil {
+				span.Finish = ev
+			}
+		case ev.IsDetach():
+			ctx = context.WithValue(ctx, spanContextKey, nil)
 		}
-	case ev.IsStartSpan():
-		span := &Span{
-			Name:  ev.Message,
-			Start: ev.At,
-			Tags:  ev.Tags,
-		}
-		if parent := GetSpan(ctx); parent != nil {
-			span.ID.TraceID = parent.ID.TraceID
-			span.ParentID = parent.ID.SpanID
-		} else {
-			span.ID.TraceID = newTraceID()
-		}
-		span.ID.SpanID = newSpanID()
-		ctx = context.WithValue(ctx, spanContextKey, span)
-	case ev.IsEndSpan():
-		if span := GetSpan(ctx); span != nil {
-			span.Finish = ev.At
-		}
-	case ev.IsDetach():
-		return context.WithValue(ctx, spanContextKey, nil), ev
+		return output(ctx, ev, tagMap)
 	}
-	return ctx, ev
 }
 
 func (s *SpanContext) Format(f fmt.State, r rune) {

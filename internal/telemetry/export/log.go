@@ -26,11 +26,11 @@ type logWriter struct {
 	onlyErrors bool
 }
 
-func (w *logWriter) ProcessEvent(ctx context.Context, ev event.Event) (context.Context, event.Event) {
+func (w *logWriter) ProcessEvent(ctx context.Context, ev event.Event, tagMap event.TagMap) context.Context {
 	switch {
 	case ev.IsLog():
 		if w.onlyErrors && ev.Error == nil {
-			return ctx, ev
+			return ctx
 		}
 		fmt.Fprintf(w.writer, "%v\n", ev)
 	case ev.IsStartSpan():
@@ -45,5 +45,5 @@ func (w *logWriter) ProcessEvent(ctx context.Context, ev event.Event) (context.C
 			fmt.Fprintf(w.writer, "finish: %v %v", span.Name, span.ID)
 		}
 	}
-	return ctx, ev
+	return ctx
 }

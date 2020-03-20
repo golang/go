@@ -49,7 +49,7 @@ var (
 	}
 )
 
-func registerMetrics(m *metric.Exporter) {
+func registerMetrics(m *metric.Config) {
 	receivedBytes.Record(m, tag.ReceivedBytes)
 	sentBytes.Record(m, tag.SentBytes)
 	latency.Record(m, tag.Latency)

@@ -12,7 +12,7 @@ import (
 
 // Exporter is a function that handles events.
 // It may return a modified context and event.
-type Exporter func(context.Context, Event) (context.Context, Event)
+type Exporter func(context.Context, Event, TagMap) context.Context
 
 var (
 	exporter unsafe.Pointer
@@ -34,11 +34,11 @@ func SetExporter(e Exporter) {
 }
 
 // ProcessEvent is called to deliver an event to the global exporter.
-func ProcessEvent(ctx context.Context, ev Event) (context.Context, Event) {
+func ProcessEvent(ctx context.Context, ev Event) context.Context {
 	exporterPtr := (*Exporter)(atomic.LoadPointer(&exporter))
 	if exporterPtr == nil {
-		return ctx, ev
+		return ctx
 	}
 	// and now also hand the event of to the current exporter
-	return (*exporterPtr)(ctx, ev)
+	return (*exporterPtr)(ctx, ev, ev.Map())
 }

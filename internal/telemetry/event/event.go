@@ -17,7 +17,6 @@ const (
 	StartSpanType
 	EndSpanType
 	LabelType
-	QueryType
 	DetachType
 	RecordType
 )
@@ -27,14 +26,14 @@ type Event struct {
 	At      time.Time
 	Message string
 	Error   error
-	Tags    TagSet
+
+	tags []Tag
 }
 
 func (e Event) IsLog() bool       { return e.Type == LogType }
 func (e Event) IsEndSpan() bool   { return e.Type == EndSpanType }
 func (e Event) IsStartSpan() bool { return e.Type == StartSpanType }
 func (e Event) IsLabel() bool     { return e.Type == LabelType }
-func (e Event) IsQuery() bool     { return e.Type == QueryType }
 func (e Event) IsDetach() bool    { return e.Type == DetachType }
 func (e Event) IsRecord() bool    { return e.Type == RecordType }
 
@@ -50,8 +49,19 @@ func (e Event) Format(f fmt.State, r rune) {
 			fmt.Fprintf(f, ": %v", e.Error)
 		}
 	}
-	for i := e.Tags.Iterator(); i.Next(); {
-		tag := i.Value()
-		fmt.Fprintf(f, "\n\t%s = %v", tag.key.name, tag.value)
+	for it := e.Tags(); it.Valid(); it.Advance() {
+		tag := it.Tag()
+		fmt.Fprintf(f, "\n\t%s = %v", tag.Key.Name(), tag.Value)
 	}
+}
+
+func (ev Event) Tags() TagIterator {
+	if len(ev.tags) == 0 {
+		return TagIterator{}
+	}
+	return NewTagIterator(ev.tags...)
+}
+
+func (ev Event) Map() TagMap {
+	return NewTagMap(ev.tags...)
 }
