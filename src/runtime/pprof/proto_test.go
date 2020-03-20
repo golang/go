@@ -422,3 +422,16 @@ func TestFakeMapping(t *testing.T) {
 		}
 	}
 }
+
+// Make sure the profiler can handle an empty stack trace.
+// See issue 37967.
+func TestEmptyStack(t *testing.T) {
+	b := []uint64{
+		3, 0, 500, // hz = 500
+		3, 0, 10, // 10 samples with an empty stack trace
+	}
+	_, err := translateCPUProfile(b)
+	if err != nil {
+		t.Fatalf("translating profile: %v", err)
+	}
+}
