@@ -2364,6 +2364,29 @@ func TestCreateRevocationList(t *testing.T) {
 			expectedError: "x509: template contains nil Number field",
 		},
 		{
+			name: "invalid signature algorithm",
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				SignatureAlgorithm: SHA256WithRSA,
+				RevokedCertificates: []pkix.RevokedCertificate{
+					{
+						SerialNumber:   big.NewInt(2),
+						RevocationTime: time.Time{}.Add(time.Hour),
+					},
+				},
+				Number:     big.NewInt(5),
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+			},
+			expectedError: "x509: requested SignatureAlgorithm does not match private key type",
+		},
+		{
 			name: "valid",
 			issuer: &Certificate{
 				KeyUsage: KeyUsageCRLSign,
@@ -2373,6 +2396,28 @@ func TestCreateRevocationList(t *testing.T) {
 				SubjectKeyId: []byte{1, 2, 3},
 			},
 			template: &RevocationList{
+				RevokedCertificates: []pkix.RevokedCertificate{
+					{
+						SerialNumber:   big.NewInt(2),
+						RevocationTime: time.Time{}.Add(time.Hour),
+					},
+				},
+				Number:     big.NewInt(5),
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+			},
+		},
+		{
+			name: "valid, non-default signature algorithm",
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				SignatureAlgorithm: ECDSAWithSHA512,
 				RevokedCertificates: []pkix.RevokedCertificate{
 					{
 						SerialNumber:   big.NewInt(2),
@@ -2445,6 +2490,12 @@ func TestCreateRevocationList(t *testing.T) {
 			parsedCRL, err := ParseDERCRL(crl)
 			if err != nil {
 				t.Fatalf("Failed to parse generated CRL: %s", err)
+			}
+
+			if tc.template.SignatureAlgorithm != UnknownSignatureAlgorithm &&
+				parsedCRL.SignatureAlgorithm.Algorithm.Equal(signatureAlgorithmDetails[tc.template.SignatureAlgorithm].oid) {
+				t.Fatalf("SignatureAlgorithm mismatch: got %v; want %v.", parsedCRL.SignatureAlgorithm,
+					tc.template.SignatureAlgorithm)
 			}
 
 			if !reflect.DeepEqual(parsedCRL.TBSCertList.RevokedCertificates, tc.template.RevokedCertificates) {
