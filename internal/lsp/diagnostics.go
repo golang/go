@@ -85,19 +85,21 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 	if ctx.Err() != nil {
 		return nil
 	}
+	// If we encounter a genuine error when getting workspace packages,
+	// notify the user that their workspace may be misconfigured.
 	if err != nil {
-		// If we encounter a genuine error when getting workspace packages,
-		// notify the user.
-		s.showedInitialErrorMu.Lock()
-		if !s.showedInitialError {
-			err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-				Type:    protocol.Error,
-				Message: fmt.Sprintf("Your workspace is misconfigured: %s. Please see https://github.com/golang/tools/blob/master/gopls/doc/troubleshooting.md for more information or file an issue (https://github.com/golang/go/issues/new) if you believe this is a mistake.", err.Error()),
-			})
-			s.showedInitialError = err == nil
+		// TODO(golang/go#37971): Remove this guard.
+		if !snapshot.View().ValidBuildConfiguration() {
+			s.showedInitialErrorMu.Lock()
+			if !s.showedInitialError {
+				err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+					Type:    protocol.Error,
+					Message: fmt.Sprintf("Your workspace is misconfigured: %s. Please see https://github.com/golang/tools/blob/master/gopls/doc/troubleshooting.md for more information or file an issue (https://github.com/golang/go/issues/new) if you believe this is a mistake.", err.Error()),
+				})
+				s.showedInitialError = err == nil
+			}
+			s.showedInitialErrorMu.Unlock()
 		}
-		s.showedInitialErrorMu.Unlock()
-
 		event.Error(ctx, "diagnose: no workspace packages", err, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder))
 		return nil
 	}
