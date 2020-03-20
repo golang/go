@@ -991,16 +991,18 @@ func (w *exportWriter) linkname(s *types.Sym) {
 }
 
 func (w *exportWriter) symIdx(s *types.Sym) {
-	lsym := s.Linksym()
-	if lsym.PkgIdx > goobj2.PkgIdxSelf || (lsym.PkgIdx == goobj2.PkgIdxInvalid && !lsym.Indexed()) || s.Linkname != "" {
-		// Don't export index for non-package symbols, linkname'd symbols,
-		// and symbols without an index. They can only be referenced by
-		// name.
-		w.int64(-1)
-	} else {
-		// For a defined symbol, export its index.
-		// For re-exporting an imported symbol, pass its index through.
-		w.int64(int64(lsym.SymIdx))
+	if Ctxt.Flag_go115newobj {
+		lsym := s.Linksym()
+		if lsym.PkgIdx > goobj2.PkgIdxSelf || (lsym.PkgIdx == goobj2.PkgIdxInvalid && !lsym.Indexed()) || s.Linkname != "" {
+			// Don't export index for non-package symbols, linkname'd symbols,
+			// and symbols without an index. They can only be referenced by
+			// name.
+			w.int64(-1)
+		} else {
+			// For a defined symbol, export its index.
+			// For re-exporting an imported symbol, pass its index through.
+			w.int64(int64(lsym.SymIdx))
+		}
 	}
 }
 

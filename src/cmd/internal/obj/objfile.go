@@ -7,17 +7,225 @@
 package obj
 
 import (
+	"bufio"
 	"cmd/internal/bio"
 	"cmd/internal/dwarf"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"fmt"
+	"log"
+	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 )
 
+// objWriter writes Go object files.
+type objWriter struct {
+	wr   *bufio.Writer
+	ctxt *Link
+	// Temporary buffer for zigzag int writing.
+	varintbuf [10]uint8
+
+	// Number of objects written of each type.
+	nRefs     int
+	nData     int
+	nReloc    int
+	nPcdata   int
+	nFuncdata int
+	nFile     int
+
+	pkgpath string // the package import path (escaped), "" if unknown
+}
+
+func (w *objWriter) addLengths(s *LSym) {
+	w.nData += len(s.P)
+	w.nReloc += len(s.R)
+
+	if s.Type != objabi.STEXT {
+		return
+	}
+
+	pc := &s.Func.Pcln
+
+	data := 0
+	data += len(pc.Pcsp.P)
+	data += len(pc.Pcfile.P)
+	data += len(pc.Pcline.P)
+	data += len(pc.Pcinline.P)
+	for _, pcd := range pc.Pcdata {
+		data += len(pcd.P)
+	}
+
+	w.nData += data
+	w.nPcdata += len(pc.Pcdata)
+
+	w.nFuncdata += len(pc.Funcdataoff)
+	w.nFile += len(pc.File)
+}
+
+func (w *objWriter) writeLengths() {
+	w.writeInt(int64(w.nData))
+	w.writeInt(int64(w.nReloc))
+	w.writeInt(int64(w.nPcdata))
+	w.writeInt(int64(0)) // TODO: remove at next object file rev
+	w.writeInt(int64(w.nFuncdata))
+	w.writeInt(int64(w.nFile))
+}
+
+func newObjWriter(ctxt *Link, b *bufio.Writer, pkgpath string) *objWriter {
+	return &objWriter{
+		ctxt:    ctxt,
+		wr:      b,
+		pkgpath: objabi.PathToPrefix(pkgpath),
+	}
+}
+
 func WriteObjFile(ctxt *Link, bout *bio.Writer, pkgpath string) {
-	WriteObjFile2(ctxt, bout, pkgpath)
+	if ctxt.Flag_go115newobj {
+		WriteObjFile2(ctxt, bout, pkgpath)
+		return
+	}
+
+	b := bout.Writer
+	w := newObjWriter(ctxt, b, pkgpath)
+
+	// Magic header
+	w.wr.WriteString("\x00go114ld")
+
+	// Version
+	w.wr.WriteByte(1)
+
+	// Autolib
+	for _, pkg := range ctxt.Imports {
+		w.writeString(pkg)
+	}
+	w.writeString("")
+
+	// DWARF File Table
+	fileTable := ctxt.PosTable.DebugLinesFileTable()
+	w.writeInt(int64(len(fileTable)))
+	for _, str := range fileTable {
+		w.writeString(filepath.ToSlash(str))
+	}
+
+	// Symbol references
+	for _, s := range ctxt.Text {
+		w.writeRefs(s)
+		w.addLengths(s)
+	}
+
+	if ctxt.Headtype == objabi.Haix {
+		// Data must be sorted to keep a constant order in TOC symbols.
+		// As they are created during Progedit, two symbols can be switched between
+		// two different compilations. Therefore, BuildID will be different.
+		// TODO: find a better place and optimize to only sort TOC symbols
+		sort.Slice(ctxt.Data, func(i, j int) bool {
+			return ctxt.Data[i].Name < ctxt.Data[j].Name
+		})
+	}
+
+	for _, s := range ctxt.Data {
+		w.writeRefs(s)
+		w.addLengths(s)
+	}
+	for _, s := range ctxt.ABIAliases {
+		w.writeRefs(s)
+		w.addLengths(s)
+	}
+	// End symbol references
+	w.wr.WriteByte(0xff)
+
+	// Lengths
+	w.writeLengths()
+
+	// Data block
+	for _, s := range ctxt.Text {
+		w.wr.Write(s.P)
+		pc := &s.Func.Pcln
+		w.wr.Write(pc.Pcsp.P)
+		w.wr.Write(pc.Pcfile.P)
+		w.wr.Write(pc.Pcline.P)
+		w.wr.Write(pc.Pcinline.P)
+		for _, pcd := range pc.Pcdata {
+			w.wr.Write(pcd.P)
+		}
+	}
+	for _, s := range ctxt.Data {
+		if len(s.P) > 0 {
+			switch s.Type {
+			case objabi.SBSS, objabi.SNOPTRBSS, objabi.STLSBSS:
+				ctxt.Diag("cannot provide data for %v sym %v", s.Type, s.Name)
+			}
+		}
+		w.wr.Write(s.P)
+	}
+
+	// Symbols
+	for _, s := range ctxt.Text {
+		w.writeSym(s)
+	}
+	for _, s := range ctxt.Data {
+		w.writeSym(s)
+	}
+	for _, s := range ctxt.ABIAliases {
+		w.writeSym(s)
+	}
+
+	// Magic footer
+	w.wr.WriteString("\xffgo114ld")
+}
+
+// Symbols are prefixed so their content doesn't get confused with the magic footer.
+const symPrefix = 0xfe
+
+func (w *objWriter) writeRef(s *LSym, isPath bool) {
+	if s == nil || s.RefIdx != 0 {
+		return
+	}
+	w.wr.WriteByte(symPrefix)
+	if isPath {
+		w.writeString(filepath.ToSlash(s.Name))
+	} else if w.pkgpath != "" {
+		// w.pkgpath is already escaped.
+		n := strings.Replace(s.Name, "\"\".", w.pkgpath+".", -1)
+		w.writeString(n)
+	} else {
+		w.writeString(s.Name)
+	}
+	// Write ABI/static information.
+	abi := int64(s.ABI())
+	if s.Static() {
+		abi = -1
+	}
+	w.writeInt(abi)
+	w.nRefs++
+	s.RefIdx = w.nRefs
+}
+
+func (w *objWriter) writeRefs(s *LSym) {
+	w.writeRef(s, false)
+	w.writeRef(s.Gotype, false)
+	for _, r := range s.R {
+		w.writeRef(r.Sym, false)
+	}
+
+	if s.Type == objabi.STEXT {
+		pc := &s.Func.Pcln
+		for _, d := range pc.Funcdata {
+			w.writeRef(d, false)
+		}
+		for _, f := range pc.File {
+			fsym := w.ctxt.Lookup(f)
+			w.writeRef(fsym, true)
+		}
+		for _, call := range pc.InlTree.nodes {
+			w.writeRef(call.Func, false)
+			f, _ := linkgetlineFromPos(w.ctxt, call.Pos)
+			fsym := w.ctxt.Lookup(f)
+			w.writeRef(fsym, true)
+		}
+	}
 }
 
 func (ctxt *Link) writeSymDebug(s *LSym) {
@@ -99,6 +307,137 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
 			fmt.Fprintf(ctxt.Bso, "\trel %d+%d t=%d %s+%d\n", int(r.Off), r.Siz, r.Type, name, r.Add)
 		}
 	}
+}
+
+func (w *objWriter) writeSym(s *LSym) {
+	ctxt := w.ctxt
+	if ctxt.Debugasm > 0 {
+		w.ctxt.writeSymDebug(s)
+	}
+
+	w.wr.WriteByte(symPrefix)
+	w.wr.WriteByte(byte(s.Type))
+	w.writeRefIndex(s)
+	flags := int64(0)
+	if s.DuplicateOK() {
+		flags |= 1
+	}
+	if s.Local() {
+		flags |= 1 << 1
+	}
+	if s.MakeTypelink() {
+		flags |= 1 << 2
+	}
+	w.writeInt(flags)
+	w.writeInt(s.Size)
+	w.writeRefIndex(s.Gotype)
+	w.writeInt(int64(len(s.P)))
+
+	w.writeInt(int64(len(s.R)))
+	var r *Reloc
+	for i := range s.R {
+		r = &s.R[i]
+		w.writeInt(int64(r.Off))
+		w.writeInt(int64(r.Siz))
+		w.writeInt(int64(r.Type))
+		w.writeInt(r.Add)
+		w.writeRefIndex(r.Sym)
+	}
+
+	if s.Type != objabi.STEXT {
+		return
+	}
+
+	w.writeInt(int64(s.Func.Args))
+	w.writeInt(int64(s.Func.Locals))
+	w.writeBool(s.NoSplit())
+	flags = int64(0)
+	if s.Leaf() {
+		flags |= 1
+	}
+	if s.CFunc() {
+		flags |= 1 << 1
+	}
+	if s.ReflectMethod() {
+		flags |= 1 << 2
+	}
+	if ctxt.Flag_shared {
+		flags |= 1 << 3
+	}
+	if s.TopFrame() {
+		flags |= 1 << 4
+	}
+	w.writeInt(flags)
+	w.writeInt(int64(0)) // TODO: remove at next object file rev
+
+	pc := &s.Func.Pcln
+	w.writeInt(int64(len(pc.Pcsp.P)))
+	w.writeInt(int64(len(pc.Pcfile.P)))
+	w.writeInt(int64(len(pc.Pcline.P)))
+	w.writeInt(int64(len(pc.Pcinline.P)))
+	w.writeInt(int64(len(pc.Pcdata)))
+	for _, pcd := range pc.Pcdata {
+		w.writeInt(int64(len(pcd.P)))
+	}
+	w.writeInt(int64(len(pc.Funcdataoff)))
+	for i := range pc.Funcdataoff {
+		w.writeRefIndex(pc.Funcdata[i])
+	}
+	for i := range pc.Funcdataoff {
+		w.writeInt(pc.Funcdataoff[i])
+	}
+	w.writeInt(int64(len(pc.File)))
+	for _, f := range pc.File {
+		fsym := ctxt.Lookup(f)
+		w.writeRefIndex(fsym)
+	}
+	w.writeInt(int64(len(pc.InlTree.nodes)))
+	for _, call := range pc.InlTree.nodes {
+		w.writeInt(int64(call.Parent))
+		f, l := linkgetlineFromPos(w.ctxt, call.Pos)
+		fsym := ctxt.Lookup(f)
+		w.writeRefIndex(fsym)
+		w.writeInt(int64(l))
+		w.writeRefIndex(call.Func)
+		w.writeInt(int64(call.ParentPC))
+	}
+}
+
+func (w *objWriter) writeBool(b bool) {
+	if b {
+		w.writeInt(1)
+	} else {
+		w.writeInt(0)
+	}
+}
+
+func (w *objWriter) writeInt(sval int64) {
+	var v uint64
+	uv := (uint64(sval) << 1) ^ uint64(sval>>63)
+	p := w.varintbuf[:]
+	for v = uv; v >= 0x80; v >>= 7 {
+		p[0] = uint8(v | 0x80)
+		p = p[1:]
+	}
+	p[0] = uint8(v)
+	p = p[1:]
+	w.wr.Write(w.varintbuf[:len(w.varintbuf)-len(p)])
+}
+
+func (w *objWriter) writeString(s string) {
+	w.writeInt(int64(len(s)))
+	w.wr.WriteString(s)
+}
+
+func (w *objWriter) writeRefIndex(s *LSym) {
+	if s == nil {
+		w.writeInt(0)
+		return
+	}
+	if s.RefIdx == 0 {
+		log.Fatalln("writing an unreferenced symbol", s.Name)
+	}
+	w.writeInt(int64(s.RefIdx))
 }
 
 // relocByOff sorts relocations by their offsets.
