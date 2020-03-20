@@ -543,7 +543,7 @@ func (i *Instance) writeMemoryDebug(threshold uint64) error {
 func makeGlobalExporter(stderr io.Writer) event.Exporter {
 	return func(ctx context.Context, ev event.Event, tags event.TagMap) context.Context {
 		i := GetInstance(ctx)
-		if ev.IsLog() && (ev.Error != nil || i == nil) {
+		if ev.IsLog() && (event.Err.Get(ev.Map()) != nil || i == nil) {
 			fmt.Fprintf(stderr, "%v\n", ev)
 		}
 		ctx = protocol.LogEvent(ctx, ev, tags)

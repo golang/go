@@ -27,7 +27,7 @@ func LogEvent(ctx context.Context, ev event.Event, tags event.TagMap) context.Co
 		return ctx
 	}
 	msg := &LogMessageParams{Type: Info, Message: fmt.Sprint(ev)}
-	if ev.Error != nil {
+	if event.Err.Get(tags) != nil {
 		msg.Type = Error
 	}
 	go client.LogMessage(xcontext.Detach(ctx), msg)

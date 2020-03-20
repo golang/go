@@ -4,11 +4,17 @@
 
 package event
 
-import "math"
+import (
+	"math"
+)
 
 var (
+	// Msg is a key used to add message strings to tag lists.
+	Msg = NewStringKey("message", "a readable message")
+	// Name is used for things like traces that have a name.
+	Name = NewStringKey("name", "an entity name")
 	// Err is a key used to add error values to tag lists.
-	Err = NewErrorKey("error", "")
+	Err = NewErrorKey("error", "an error that occurred")
 )
 
 // Key is the interface shared by all key implementations.
@@ -487,4 +493,7 @@ func (k *ErrorKey) Get(tags TagMap) error {
 }
 
 // From can be used to get a value from a Tag.
-func (k *ErrorKey) From(t Tag) error { return t.untyped.(error) }
+func (k *ErrorKey) From(t Tag) error {
+	err, _ := t.untyped.(error)
+	return err
+}

@@ -9,8 +9,5 @@ import (
 )
 
 func Record(ctx context.Context, tags ...Tag) {
-	dispatch(ctx, Event{
-		typ:  RecordType,
-		tags: tags,
-	})
+	dispatch(ctx, makeEvent(RecordType, sTags{}, tags))
 }

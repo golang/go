@@ -54,7 +54,7 @@ func Spans(output event.Exporter) event.Exporter {
 			}
 		case ev.IsStartSpan():
 			span := &Span{
-				Name:  ev.Message,
+				Name:  event.Name.Get(tagMap),
 				Start: ev,
 			}
 			if parent := GetSpan(ctx); parent != nil {

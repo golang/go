@@ -11,20 +11,13 @@ import (
 
 // Log sends a log event with the supplied tag list to the exporter.
 func Log(ctx context.Context, tags ...Tag) {
-	dispatch(ctx, Event{
-		typ:  LogType,
-		tags: tags,
-	})
+	dispatch(ctx, makeEvent(LogType, sTags{}, tags))
 }
 
 // Print takes a message and a tag list and combines them into a single event
 // before delivering them to the exporter.
 func Print(ctx context.Context, message string, tags ...Tag) {
-	dispatch(ctx, Event{
-		typ:     LogType,
-		Message: message,
-		tags:    tags,
-	})
+	dispatch(ctx, makeEvent(LogType, sTags{Msg.Of(message)}, tags))
 }
 
 // Error takes a message and a tag list and combines them into a single event
@@ -35,10 +28,5 @@ func Error(ctx context.Context, message string, err error, tags ...Tag) {
 		err = errors.New(message)
 		message = ""
 	}
-	dispatch(ctx, Event{
-		typ:     LogType,
-		Message: message,
-		Error:   err,
-		tags:    tags,
-	})
+	dispatch(ctx, makeEvent(LogType, sTags{Msg.Of(message), Err.Of(err)}, tags))
 }

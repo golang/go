@@ -200,7 +200,7 @@ func convertSpan(span *export.Span) *wire.Span {
 		Kind:                    wire.UnspecifiedSpanKind,
 		StartTime:               convertTimestamp(span.Start.At),
 		EndTime:                 convertTimestamp(span.Finish.At),
-		Attributes:              convertAttributes(span.Start.Tags()),
+		Attributes:              convertAttributes(event.Filter(span.Start.Tags(), event.Name)),
 		TimeEvents:              convertEvents(span.Events),
 		SameProcessAsParentSpan: true,
 		//TODO: StackTrace?
@@ -295,18 +295,19 @@ func convertEvent(ev event.Event) wire.TimeEvent {
 }
 
 func convertAnnotation(ev event.Event) *wire.Annotation {
-	description := ev.Message
-	if description == "" && ev.Error != nil {
-		description = ev.Error.Error()
-		ev.Error = nil
-	}
 	tags := ev.Tags()
-	if ev.Error != nil {
-		extra := event.NewTagIterator(event.Err.Of(ev.Error))
-		tags = event.ChainTagIterators(extra, tags)
-	}
-	if description == "" && !tags.Valid() {
+	if !tags.Valid() {
 		return nil
+	}
+	tagMap := ev.Map()
+	description := event.Msg.Get(tagMap)
+	tags = event.Filter(tags, event.Msg)
+	if description == "" {
+		err := event.Err.Get(tagMap)
+		tags = event.Filter(tags, event.Err)
+		if err != nil {
+			description = err.Error()
+		}
 	}
 	return &wire.Annotation{
 		Description: toTruncatableString(description),

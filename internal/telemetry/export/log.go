@@ -29,7 +29,7 @@ type logWriter struct {
 func (w *logWriter) ProcessEvent(ctx context.Context, ev event.Event, tagMap event.TagMap) context.Context {
 	switch {
 	case ev.IsLog():
-		if w.onlyErrors && ev.Error == nil {
+		if w.onlyErrors && event.Err.Get(tagMap) == nil {
 			return ctx
 		}
 		fmt.Fprintf(w.writer, "%v\n", ev)
