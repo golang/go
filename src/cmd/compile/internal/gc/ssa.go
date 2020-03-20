@@ -3251,10 +3251,15 @@ func init() {
 	}
 	// alias defines pkg.fn = pkg2.fn2 for all architectures in archs for which pkg2.fn2 exists.
 	alias := func(pkg, fn, pkg2, fn2 string, archs ...*sys.Arch) {
+		aliased := false
 		for _, a := range archs {
 			if b, ok := intrinsics[intrinsicKey{a, pkg2, fn2}]; ok {
 				intrinsics[intrinsicKey{a, pkg, fn}] = b
+				aliased = true
 			}
+		}
+		if !aliased {
+			panic(fmt.Sprintf("attempted to alias undefined intrinsic: %s.%s", pkg, fn))
 		}
 	}
 
