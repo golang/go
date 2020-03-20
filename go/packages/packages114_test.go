@@ -85,6 +85,5 @@ func testInvalidFilesInOverlay(t *testing.T, exporter packagestest.Exporter) {
 				}
 			}
 		})
-
 	}
 }
