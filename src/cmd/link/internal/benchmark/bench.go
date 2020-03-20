@@ -116,7 +116,7 @@ func (m *Metrics) Start(name string) {
 	m.curMark = &mark{name: name}
 	// Unlikely we need to a GC here, as one was likely just done in closeMark.
 	if m.shouldPProf() {
-		f, err := os.Create(makePProfFilename(m.filebase, name))
+		f, err := os.Create(makePProfFilename(m.filebase, name, "cpuprof"))
 		if err != nil {
 			panic(err)
 		}
@@ -143,6 +143,25 @@ func (m *Metrics) closeMark() {
 		pprof.StopCPUProfile()
 		m.pprofFile.Close()
 		m.pprofFile = nil
+		if m.gc == GC {
+			// Collect a profile of the live heap. Do a
+			// second GC to force sweep completion so we
+			// get a complete snapshot of the live heap at
+			// the end of this phase.
+			runtime.GC()
+			f, err := os.Create(makePProfFilename(m.filebase, m.curMark.name, "memprof"))
+			if err != nil {
+				panic(err)
+			}
+			err = pprof.WriteHeapProfile(f)
+			if err != nil {
+				panic(err)
+			}
+			err = f.Close()
+			if err != nil {
+				panic(err)
+			}
+		}
 	}
 	m.marks = append(m.marks, m.curMark)
 	m.curMark = nil
@@ -171,6 +190,6 @@ func makeBenchString(name string) string {
 	return string(ret)
 }
 
-func makePProfFilename(filebase, name string) string {
-	return fmt.Sprintf("%s_%s.profile", filebase, makeBenchString(name))
+func makePProfFilename(filebase, name, typ string) string {
+	return fmt.Sprintf("%s_%s.%s", filebase, makeBenchString(name), typ)
 }
