@@ -1,2 +1,13 @@
+-- error-rename --
+package b
+
+var c int //@rename("int", "uint")
+
+func _() {
+	error := 1 //@rename("a", "error")
+	error = 2
+	_ = error
+}
+
 -- uint-rename --
 cannot rename builtin "int"
