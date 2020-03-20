@@ -2,54 +2,26 @@
 
 This tutorial provides a minimum example to verify that metrics can be exported to OpenCensus from Go tools.
 
-## Setting up the OpenCensus Agent
-1. Follow the instructions for setting up the [OpenCensus Service](https://opencensus.io/agent). You will need to be able to run the agent.
-2. Create a file named `config.yaml` with the following contents:
-```yaml
-exporters:
-  prometheus:
-    namespace: "promdemo"
-    address: "localhost:8888"
-    const_labels: {
-        "vendor": "gotools"
-    }
-receivers:
-  opencensus:
-    address: "localhost:55678"
+## Setting up oragent
 
-```
-3. Run the OpenCensus Agent with the configuration file. The following command assumes that you are running from binary:
+1. Ensure you have [docker](https://www.docker.com/get-started) and [docker-compose](https://docs.docker.com/compose/install/).
+2. Clone [oragent](https://github.com/orijtech/oragent).
+3. In the oragent directory, start the services:
 ```bash
-bin/ocagent_linux --config config.yaml
+docker-compose up
 ```
-4. If you see output similar to the following, the OpenCensus Agent is now running:
-```bash
-{"level":"info","ts":1574381470.1922305,"caller":"config/config.go:497","msg":"Metrics Exporter enabled","exporter":"prometheus"}
-2019/11/21 18:11:11 Running OpenCensus Trace and Metrics receivers as a gRPC service at "localhost:55678"
-2019/11/21 18:11:11 Running zPages on port 55679
+If everything goes well, you should see output resembling the following:
 ```
-5. You can check the status of the agent using zPages at http://localhost:55679/debug/tracez.
-
-## Setting up Prometheus
-1. Follow the instructions for setting up [Prometheus](https://prometheus.io/docs/prometheus/latest/installation/).
-2. Create a file named `prom.yaml` with the following contents:
-```yaml
-scrape_configs:
-  - job_name: 'agent1'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['localhost:8888']
+Starting oragent_zipkin_1 ... done
+Starting oragent_oragent_1 ... done
+Starting oragent_prometheus_1 ... done
+...
 ```
-3. Run Prometheus with the new configuration file. The following command assumes that you are running from pre-compiled binaries:
-```bash
-./prometheus --config.file=prom.yaml
-```
-4. If you see output similar to the following, Prometheus is now running:
-```bash
-level=info ts=2019-11-22T00:27:13.772Z caller=main.go:626 msg="Server is ready to receive web requests."
-```
-5. You can now access the Prometheus UI at http://localhost:9090.
-6. Check to make sure Prometheus is able to scrape metrics from OpenCensus at http://localhost:9090/targets. If the state for the endpoint `http://localhost:8888/metrics` is not `UP`, make sure the OpenCensus agent is running. If you are running Prometheus using Docker, you may have to add `--net="host"` to your run command so that `localhost` resolves correctly.
+* You can check the status of the OpenCensus agent using zPages at http://localhost:55679/debug/tracez.
+* You can now access the Prometheus UI at http://localhost:9445.
+* You can now access the Zipkin UI at http://localhost:9444.
+4. To shut down oragent, hit Ctrl+C in the terminal.
+5. You can also start oragent in detached mode by running `docker-compose up -d`. To stop oragent while detached, run `docker-compose down`.
 
 ## Exporting Metrics
 1. Clone the [tools](https://golang.org/x/tools) subrepository.
@@ -124,7 +96,7 @@ func randomSleep() int64 {
 ```bash
 go run internal/main.go
 ```
-4. After about 5 seconds, OpenCensus should start receiving your new metrics, which you can see at http://localhost:8888/metrics. This page will look similar to the following:
+4. After about 5 seconds, OpenCensus should start receiving your new metrics, which you can see at http://localhost:8844/metrics. This page will look similar to the following:
 ```
 # HELP promdemo_latencyDistribution the various latencies
 # TYPE promdemo_latencyDistribution histogram
@@ -145,4 +117,4 @@ promdemo_latencyDistribution_bucket{vendor="otc",le="+Inf"} 15
 promdemo_latencyDistribution_sum{vendor="otc"} 1641
 promdemo_latencyDistribution_count{vendor="otc"} 15
 ```
-5. After a few more seconds, Prometheus should start displaying your new metrics. You can view the distribution at http://localhost:9090/graph?g0.range_input=5m&g0.stacked=1&g0.expr=rate(promdemo_latencyDistribution_bucket%5B5m%5D)&g0.tab=0.
+5. After a few more seconds, Prometheus should start displaying your new metrics. You can view the distribution at http://localhost:9445/graph?g0.range_input=5m&g0.stacked=1&g0.expr=rate(oragent_latencyDistribution_bucket%5B5m%5D)&g0.tab=0.
