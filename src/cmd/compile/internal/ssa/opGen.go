@@ -602,6 +602,20 @@ const (
 	OpAMD64CMPLconstload
 	OpAMD64CMPWconstload
 	OpAMD64CMPBconstload
+	OpAMD64CMPQloadidx8
+	OpAMD64CMPQloadidx1
+	OpAMD64CMPLloadidx4
+	OpAMD64CMPLloadidx1
+	OpAMD64CMPWloadidx2
+	OpAMD64CMPWloadidx1
+	OpAMD64CMPBloadidx1
+	OpAMD64CMPQconstloadidx8
+	OpAMD64CMPQconstloadidx1
+	OpAMD64CMPLconstloadidx4
+	OpAMD64CMPLconstloadidx1
+	OpAMD64CMPWconstloadidx2
+	OpAMD64CMPWconstloadidx1
+	OpAMD64CMPBconstloadidx1
 	OpAMD64UCOMISS
 	OpAMD64UCOMISD
 	OpAMD64BTL
@@ -7530,6 +7544,217 @@ var opcodeTable = [...]opInfo{
 		asm:            x86.ACMPB,
 		reg: regInfo{
 			inputs: []inputInfo{
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:      "CMPQloadidx8",
+		auxType:   auxSymOff,
+		argLen:    4,
+		symEffect: SymRead,
+		asm:       x86.ACMPQ,
+		scale:     8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:        "CMPQloadidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymRead,
+		asm:         x86.ACMPQ,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:      "CMPLloadidx4",
+		auxType:   auxSymOff,
+		argLen:    4,
+		symEffect: SymRead,
+		asm:       x86.ACMPL,
+		scale:     4,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:        "CMPLloadidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymRead,
+		asm:         x86.ACMPL,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:      "CMPWloadidx2",
+		auxType:   auxSymOff,
+		argLen:    4,
+		symEffect: SymRead,
+		asm:       x86.ACMPW,
+		scale:     2,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:        "CMPWloadidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymRead,
+		asm:         x86.ACMPW,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:        "CMPBloadidx1",
+		auxType:     auxSymOff,
+		argLen:      4,
+		commutative: true,
+		symEffect:   SymRead,
+		asm:         x86.ACMPB,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:      "CMPQconstloadidx8",
+		auxType:   auxSymValAndOff,
+		argLen:    3,
+		symEffect: SymRead,
+		asm:       x86.ACMPQ,
+		scale:     8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:        "CMPQconstloadidx1",
+		auxType:     auxSymValAndOff,
+		argLen:      3,
+		commutative: true,
+		symEffect:   SymRead,
+		asm:         x86.ACMPQ,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:      "CMPLconstloadidx4",
+		auxType:   auxSymValAndOff,
+		argLen:    3,
+		symEffect: SymRead,
+		asm:       x86.ACMPL,
+		scale:     4,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:        "CMPLconstloadidx1",
+		auxType:     auxSymValAndOff,
+		argLen:      3,
+		commutative: true,
+		symEffect:   SymRead,
+		asm:         x86.ACMPL,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:      "CMPWconstloadidx2",
+		auxType:   auxSymValAndOff,
+		argLen:    3,
+		symEffect: SymRead,
+		asm:       x86.ACMPW,
+		scale:     2,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:        "CMPWconstloadidx1",
+		auxType:     auxSymValAndOff,
+		argLen:      3,
+		commutative: true,
+		symEffect:   SymRead,
+		asm:         x86.ACMPW,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:        "CMPBconstloadidx1",
+		auxType:     auxSymValAndOff,
+		argLen:      3,
+		commutative: true,
+		symEffect:   SymRead,
+		asm:         x86.ACMPB,
+		scale:       1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
 				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
 			},
 		},

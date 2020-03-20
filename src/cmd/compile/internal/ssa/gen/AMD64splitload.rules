@@ -14,3 +14,13 @@
 (CMP(Q|L|W|B)load {sym} [off] ptr x mem) -> (CMP(Q|L|W|B) (MOV(Q|L|W|B)load {sym} [off] ptr mem) x)
 
 (CMP(Q|L|W|B)constload {sym} [vo] ptr mem) -> (CMP(Q|L|W|B)const (MOV(Q|L|W|B)load {sym} [offOnly(vo)] ptr mem) [valOnly(vo)])
+
+(CMP(Q|L|W|B)loadidx1 {sym} [off] ptr idx x mem) -> (CMP(Q|L|W|B) (MOV(Q|L|W|B)loadidx1 {sym} [off] ptr idx mem) x)
+(CMPQloadidx8 {sym} [off] ptr idx x mem) -> (CMPQ (MOVQloadidx8 {sym} [off] ptr idx mem) x)
+(CMPLloadidx4 {sym} [off] ptr idx x mem) -> (CMPL (MOVLloadidx4 {sym} [off] ptr idx mem) x)
+(CMPWloadidx2 {sym} [off] ptr idx x mem) -> (CMPW (MOVWloadidx2 {sym} [off] ptr idx mem) x)
+
+(CMP(Q|L|W|B)constloadidx1 {sym} [vo] ptr idx mem) -> (CMP(Q|L|W|B)const (MOV(Q|L|W|B)loadidx1 {sym} [offOnly(vo)] ptr idx mem) [valOnly(vo)])
+(CMPQconstloadidx8 {sym} [vo] ptr idx mem) -> (CMPQconst (MOVQloadidx8 {sym} [offOnly(vo)] ptr idx mem) [valOnly(vo)])
+(CMPLconstloadidx4 {sym} [vo] ptr idx mem) -> (CMPLconst (MOVLloadidx4 {sym} [offOnly(vo)] ptr idx mem) [valOnly(vo)])
+(CMPWconstloadidx2 {sym} [vo] ptr idx mem) -> (CMPWconst (MOVWloadidx2 {sym} [offOnly(vo)] ptr idx mem) [valOnly(vo)])
