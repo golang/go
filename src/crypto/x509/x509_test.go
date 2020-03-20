@@ -2364,6 +2364,27 @@ func TestCreateRevocationList(t *testing.T) {
 			expectedError: "x509: template contains nil Number field",
 		},
 		{
+			name: "valid",
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				RevokedCertificates: []pkix.RevokedCertificate{
+					{
+						SerialNumber:   big.NewInt(2),
+						RevocationTime: time.Time{}.Add(time.Hour),
+					},
+				},
+				Number:     big.NewInt(5),
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+			},
+		},
+		{
 			name: "valid, extra extension",
 			issuer: &Certificate{
 				KeyUsage: KeyUsageCRLSign,
@@ -2388,6 +2409,21 @@ func TestCreateRevocationList(t *testing.T) {
 						Value: []byte{5, 0},
 					},
 				},
+			},
+		},
+		{
+			name: "valid, empty list",
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				Number:     big.NewInt(5),
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
 			},
 		},
 	}
@@ -2442,6 +2478,11 @@ func TestCreateRevocationList(t *testing.T) {
 			if !reflect.DeepEqual(parsedCRL.TBSCertList.Extensions[1], crlExt) {
 				t.Fatalf("Unexpected second extension: got %v, want %v",
 					parsedCRL.TBSCertList.Extensions[1], crlExt)
+			}
+			if len(parsedCRL.TBSCertList.Extensions[2:]) == 0 && len(tc.template.ExtraExtensions) == 0 {
+				// If we don't have anything to check return early so we don't
+				// hit a [] != nil false positive below.
+				return
 			}
 			if !reflect.DeepEqual(parsedCRL.TBSCertList.Extensions[2:], tc.template.ExtraExtensions) {
 				t.Fatalf("Extensions mismatch: got %v; want %v.",

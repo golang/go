@@ -2215,9 +2215,8 @@ func ParseDERCRL(derBytes []byte) (*pkix.CertificateList, error) {
 // CreateCRL returns a DER encoded CRL, signed by this Certificate, that
 // contains the given list of revoked certificates.
 //
-// Note: this method does not generate RFC 5280 X509 v2 conformant CRLs as
-// it omits the CRL number extension and will also omit the authority key
-// identifier extension if the certificate has an empty SubjectKeyId.
+// Note: this method does not generate an RFC 5280 conformant X.509 v2 CRL.
+// To generate a standards compliant CRL, use CreateRevocationList instead.
 func (c *Certificate) CreateCRL(rand io.Reader, priv interface{}, revokedCerts []pkix.RevokedCertificate, now, expiry time.Time) (crlBytes []byte, err error) {
 	key, ok := priv.(crypto.Signer)
 	if !ok {
@@ -2667,19 +2666,36 @@ func (c *CertificateRequest) CheckSignature() error {
 }
 
 // RevocationList contains the fields used to create an X.509 v2 Certificate
-// Revocation list.
+// Revocation list with CreateRevocationList.
 type RevocationList struct {
+	// SignatureAlgorithm is used to determine the signature algorithm to be
+	// used when signing the CRL. If 0 the default algorithm for the signing
+	// key will be used.
 	SignatureAlgorithm SignatureAlgorithm
 
+	// RevokedCertificates is used to populate the revokedCertificates
+	// sequence in the CRL, it may be empty. RevokedCertificates may be nil,
+	// in which case an empty CRL will be created.
 	RevokedCertificates []pkix.RevokedCertificate
 
-	Number          *big.Int
-	ThisUpdate      time.Time
-	NextUpdate      time.Time
+	// Number is used to populate the X.509 v2 cRLNumber extension in the CRL,
+	// which should be a monotonically increasing sequence number for a given
+	// CRL scope and CRL issuer.
+	Number *big.Int
+	// ThisUpdate is used to populate the thisUpdate field in the CRL, which
+	// indicates the issuance date of the CRL.
+	ThisUpdate time.Time
+	// NextUpdate is used to populate the nextUpdate field in the CRL, which
+	// indicates the date by which the next CRL will be issued. NextUpdate
+	// must be greater than ThisUpdate.
+	NextUpdate time.Time
+	// ExtraExtensions contains any additional extensions to add directly to
+	// the CRL.
 	ExtraExtensions []pkix.Extension
 }
 
-// CreateRevocationList creates a new x509 v2 Certificate Revocation List.
+// CreateRevocationList creates a new X.509 v2 Certificate Revocation List,
+// according to RFC 5280, based on template.
 //
 // The CRL is signed by priv which should be the private key associated with
 // the public key in the issuer certificate.
@@ -2690,20 +2706,6 @@ type RevocationList struct {
 // The issuer distinguished name CRL field and authority key identifier
 // extension are populated using the issuer certificate. issuer must have
 // SubjectKeyId set.
-//
-// The CRL number extension is populated using the Number field of template.
-//
-// The template field RevokedCertificates may be nil, in which case an empty
-// CRL will be created.
-//
-// The template fields NextUpdate must be greater than ThisUpdate.
-//
-// Any extensions in the ExtraExtensions field of template will be copied
-// directly into the CRL.
-//
-// This method is differentiated from the Certificate.CreateCRL method as
-// it creates X509 v2 conformant CRLs as defined by the RFC 5280 CRL profile.
-// This method should be used if created CRLs need to be standards compliant.
 func CreateRevocationList(rand io.Reader, template *RevocationList, issuer *Certificate, priv crypto.Signer) ([]byte, error) {
 	if template == nil {
 		return nil, errors.New("x509: template can not be nil")
@@ -2746,12 +2748,11 @@ func CreateRevocationList(rand io.Reader, template *RevocationList, issuer *Cert
 	}
 
 	tbsCertList := pkix.TBSCertificateList{
-		Version:             1,
-		Signature:           signatureAlgorithm,
-		Issuer:              issuer.Subject.ToRDNSequence(),
-		ThisUpdate:          template.ThisUpdate.UTC(),
-		NextUpdate:          template.NextUpdate.UTC(),
-		RevokedCertificates: revokedCertsUTC,
+		Version:    1, // v2
+		Signature:  signatureAlgorithm,
+		Issuer:     issuer.Subject.ToRDNSequence(),
+		ThisUpdate: template.ThisUpdate.UTC(),
+		NextUpdate: template.NextUpdate.UTC(),
 		Extensions: []pkix.Extension{
 			{
 				Id:    oidExtensionAuthorityKeyId,
@@ -2762,6 +2763,9 @@ func CreateRevocationList(rand io.Reader, template *RevocationList, issuer *Cert
 				Value: crlNum,
 			},
 		},
+	}
+	if len(revokedCertsUTC) > 0 {
+		tbsCertList.RevokedCertificates = revokedCertsUTC
 	}
 
 	if len(template.ExtraExtensions) > 0 {
