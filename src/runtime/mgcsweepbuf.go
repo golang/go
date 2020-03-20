@@ -144,7 +144,7 @@ func (b *gcSweepBuf) pop() *mspan {
 // intervening pops. Spans that are pushed after the call may also
 // appear in these blocks.
 func (b *gcSweepBuf) numBlocks() int {
-	return int((atomic.Load(&b.index) + gcSweepBlockEntries - 1) / gcSweepBlockEntries)
+	return int(divRoundUp(uintptr(atomic.Load(&b.index)), gcSweepBlockEntries))
 }
 
 // block returns the spans in the i'th block of buffer b. block is

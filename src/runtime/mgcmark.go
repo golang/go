@@ -54,7 +54,7 @@ func gcMarkRootPrepare() {
 
 	// Compute how many data and BSS root blocks there are.
 	nBlocks := func(bytes uintptr) int {
-		return int((bytes + rootBlockBytes - 1) / rootBlockBytes)
+		return int(divRoundUp(bytes, rootBlockBytes))
 	}
 
 	work.nDataRoots = 0
