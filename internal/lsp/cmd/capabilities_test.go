@@ -130,15 +130,11 @@ func TestCapabilities(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, item := range list.Items {
-		// We expect the "editor.action.triggerParameterHints" command for functions and methods.
-		if item.Kind == protocol.MethodCompletion || item.Kind == protocol.FunctionCompletion {
-			continue
-		}
 		// All other completion items should have nil commands.
 		// An empty command will be treated as a command with the name '' by VS Code.
 		// This causes VS Code to report errors to users about invalid commands.
 		if item.Command != nil {
-			t.Errorf("unexpected command for non-function completion item")
+			t.Errorf("unexpected command for completion item")
 		}
 		// The item's TextEdit must be a pointer, as VS Code considers TextEdits
 		// that don't contain the cursor position to be invalid.

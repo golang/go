@@ -119,15 +119,6 @@ func toProtocolCompletionItems(candidates []source.CompletionItem, rng protocol.
 			Preselect:     i == 0,
 			Documentation: candidate.Documentation,
 		}
-		// Trigger signature help for any function or method completion.
-		// This is helpful even if a function does not have parameters,
-		// since we show return types as well.
-		switch item.Kind {
-		case protocol.FunctionCompletion, protocol.MethodCompletion:
-			item.Command = &protocol.Command{
-				Command: "editor.action.triggerParameterHints",
-			}
-		}
 		items = append(items, item)
 	}
 	return items
