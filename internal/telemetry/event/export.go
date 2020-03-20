@@ -7,6 +7,7 @@ package event
 import (
 	"context"
 	"sync/atomic"
+	"time"
 	"unsafe"
 )
 
@@ -33,12 +34,16 @@ func SetExporter(e Exporter) {
 	atomic.StorePointer(&exporter, p)
 }
 
-// ProcessEvent is called to deliver an event to the global exporter.
-func ProcessEvent(ctx context.Context, ev Event) context.Context {
+// dispatch is called to deliver an event to the supplied exporter.
+// it will fill in the time and generate the basic tag source.
+func dispatch(ctx context.Context, ev Event) context.Context {
+	// get the global exporter and abort early if there is not one
 	exporterPtr := (*Exporter)(atomic.LoadPointer(&exporter))
 	if exporterPtr == nil {
 		return ctx
 	}
-	// and now also hand the event of to the current exporter
+	// add the current time to the event
+	ev.At = time.Now()
+	// hand the event off to the current exporter
 	return (*exporterPtr)(ctx, ev, ev.Map())
 }

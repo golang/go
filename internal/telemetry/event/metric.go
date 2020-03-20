@@ -6,13 +6,11 @@ package event
 
 import (
 	"context"
-	"time"
 )
 
 func Record(ctx context.Context, tags ...Tag) {
-	ProcessEvent(ctx, Event{
+	dispatch(ctx, Event{
 		Type: RecordType,
-		At:   time.Now(),
 		tags: tags,
 	})
 }

@@ -6,14 +6,12 @@ package event
 
 import (
 	"context"
-	"time"
 )
 
 // Label sends a label event to the exporter with the supplied tags.
 func Label(ctx context.Context, tags ...Tag) context.Context {
-	return ProcessEvent(ctx, Event{
+	return dispatch(ctx, Event{
 		Type: LabelType,
-		At:   time.Now(),
 		tags: tags,
 	})
 }

@@ -7,14 +7,12 @@ package event
 import (
 	"context"
 	"errors"
-	"time"
 )
 
 // Log sends a log event with the supplied tag list to the exporter.
 func Log(ctx context.Context, tags ...Tag) {
-	ProcessEvent(ctx, Event{
+	dispatch(ctx, Event{
 		Type: LogType,
-		At:   time.Now(),
 		tags: tags,
 	})
 }
@@ -22,9 +20,8 @@ func Log(ctx context.Context, tags ...Tag) {
 // Print takes a message and a tag list and combines them into a single event
 // before delivering them to the exporter.
 func Print(ctx context.Context, message string, tags ...Tag) {
-	ProcessEvent(ctx, Event{
+	dispatch(ctx, Event{
 		Type:    LogType,
-		At:      time.Now(),
 		Message: message,
 		tags:    tags,
 	})
@@ -38,9 +35,8 @@ func Error(ctx context.Context, message string, err error, tags ...Tag) {
 		err = errors.New(message)
 		message = ""
 	}
-	ProcessEvent(ctx, Event{
+	dispatch(ctx, Event{
 		Type:    LogType,
-		At:      time.Now(),
 		Message: message,
 		Error:   err,
 		tags:    tags,
