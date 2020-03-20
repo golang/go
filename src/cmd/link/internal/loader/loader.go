@@ -1977,7 +1977,9 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, syms *sym.Symb
 		s := l.Syms[cand]
 		relocs := l.Relocs(cand)
 		rslice = relocs.ReadAll(rslice)
-		s.R = make([]sym.Reloc, len(rslice))
+		if len(s.R) != len(rslice) {
+			s.R = make([]sym.Reloc, len(rslice))
+		}
 		l.convertRelocations(rslice, s, true)
 	}
 
