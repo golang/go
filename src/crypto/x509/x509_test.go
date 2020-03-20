@@ -6,6 +6,7 @@ package x509
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/dsa"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -2295,30 +2296,38 @@ func TestPKCS1MismatchKeyFormat(t *testing.T) {
 }
 
 func TestCreateRevocationList(t *testing.T) {
-	ecdsaPriv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	ec256Priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		t.Fatalf("Failed to generate ECDSA key: %s", err)
+		t.Fatalf("Failed to generate ECDSA P256 key: %s", err)
+	}
+	_, ed25519Priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("Failed to generate Ed25519 key: %s", err)
 	}
 	tests := []struct {
 		name          string
+		key           crypto.Signer
 		issuer        *Certificate
 		template      *RevocationList
 		expectedError string
 	}{
 		{
 			name:          "nil template",
+			key:           ec256Priv,
 			issuer:        nil,
 			template:      nil,
 			expectedError: "x509: template can not be nil",
 		},
 		{
 			name:          "nil issuer",
+			key:           ec256Priv,
 			issuer:        nil,
 			template:      &RevocationList{},
 			expectedError: "x509: issuer can not be nil",
 		},
 		{
 			name: "issuer doesn't have crlSign key usage bit set",
+			key:  ec256Priv,
 			issuer: &Certificate{
 				KeyUsage: KeyUsageCertSign,
 			},
@@ -2327,6 +2336,7 @@ func TestCreateRevocationList(t *testing.T) {
 		},
 		{
 			name: "issuer missing SubjectKeyId",
+			key:  ec256Priv,
 			issuer: &Certificate{
 				KeyUsage: KeyUsageCRLSign,
 			},
@@ -2335,6 +2345,7 @@ func TestCreateRevocationList(t *testing.T) {
 		},
 		{
 			name: "nextUpdate before thisUpdate",
+			key:  ec256Priv,
 			issuer: &Certificate{
 				KeyUsage: KeyUsageCRLSign,
 				Subject: pkix.Name{
@@ -2350,6 +2361,7 @@ func TestCreateRevocationList(t *testing.T) {
 		},
 		{
 			name: "nil Number",
+			key:  ec256Priv,
 			issuer: &Certificate{
 				KeyUsage: KeyUsageCRLSign,
 				Subject: pkix.Name{
@@ -2365,6 +2377,7 @@ func TestCreateRevocationList(t *testing.T) {
 		},
 		{
 			name: "invalid signature algorithm",
+			key:  ec256Priv,
 			issuer: &Certificate{
 				KeyUsage: KeyUsageCRLSign,
 				Subject: pkix.Name{
@@ -2388,6 +2401,29 @@ func TestCreateRevocationList(t *testing.T) {
 		},
 		{
 			name: "valid",
+			key:  ec256Priv,
+			issuer: &Certificate{
+				KeyUsage: KeyUsageCRLSign,
+				Subject: pkix.Name{
+					CommonName: "testing",
+				},
+				SubjectKeyId: []byte{1, 2, 3},
+			},
+			template: &RevocationList{
+				RevokedCertificates: []pkix.RevokedCertificate{
+					{
+						SerialNumber:   big.NewInt(2),
+						RevocationTime: time.Time{}.Add(time.Hour),
+					},
+				},
+				Number:     big.NewInt(5),
+				ThisUpdate: time.Time{}.Add(time.Hour * 24),
+				NextUpdate: time.Time{}.Add(time.Hour * 48),
+			},
+		},
+		{
+			name: "valid, Ed25519 key",
+			key:  ed25519Priv,
 			issuer: &Certificate{
 				KeyUsage: KeyUsageCRLSign,
 				Subject: pkix.Name{
@@ -2409,6 +2445,7 @@ func TestCreateRevocationList(t *testing.T) {
 		},
 		{
 			name: "valid, non-default signature algorithm",
+			key:  ec256Priv,
 			issuer: &Certificate{
 				KeyUsage: KeyUsageCRLSign,
 				Subject: pkix.Name{
@@ -2431,6 +2468,7 @@ func TestCreateRevocationList(t *testing.T) {
 		},
 		{
 			name: "valid, extra extension",
+			key:  ec256Priv,
 			issuer: &Certificate{
 				KeyUsage: KeyUsageCRLSign,
 				Subject: pkix.Name{
@@ -2458,6 +2496,7 @@ func TestCreateRevocationList(t *testing.T) {
 		},
 		{
 			name: "valid, empty list",
+			key:  ec256Priv,
 			issuer: &Certificate{
 				KeyUsage: KeyUsageCRLSign,
 				Subject: pkix.Name{
@@ -2475,7 +2514,7 @@ func TestCreateRevocationList(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			crl, err := CreateRevocationList(rand.Reader, tc.template, tc.issuer, ecdsaPriv)
+			crl, err := CreateRevocationList(rand.Reader, tc.template, tc.issuer, tc.key)
 			if err != nil && tc.expectedError == "" {
 				t.Fatalf("CreateRevocationList failed unexpectedly: %s", err)
 			} else if err != nil && tc.expectedError != err.Error() {
