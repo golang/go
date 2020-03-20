@@ -134,16 +134,16 @@ func (m *Metrics) closeMark() {
 		return
 	}
 	m.curMark.endT = time.Now()
-	runtime.ReadMemStats(&m.curMark.endM)
-	if m.gc == GC {
-		runtime.GC()
-		runtime.ReadMemStats(&m.curMark.gcM)
-	}
 	if m.shouldPProf() {
 		pprof.StopCPUProfile()
 		m.pprofFile.Close()
 		m.pprofFile = nil
-		if m.gc == GC {
+	}
+	runtime.ReadMemStats(&m.curMark.endM)
+	if m.gc == GC {
+		runtime.GC()
+		runtime.ReadMemStats(&m.curMark.gcM)
+		if m.shouldPProf() {
 			// Collect a profile of the live heap. Do a
 			// second GC to force sweep completion so we
 			// get a complete snapshot of the live heap at
