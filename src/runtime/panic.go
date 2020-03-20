@@ -216,7 +216,8 @@ func panicmem() {
 // The compiler turns a defer statement into a call to this.
 //go:nosplit
 func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
-	if getg().m.curg != getg() {
+	gp := getg()
+	if gp.m.curg != gp {
 		// go code on the system stack can't defer
 		throw("defer on system stack")
 	}
@@ -234,6 +235,8 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
 	if d._panic != nil {
 		throw("deferproc: d.panic != nil after newdefer")
 	}
+	d.link = gp._defer
+	gp._defer = d
 	d.fn = fn
 	d.pc = callerpc
 	d.sp = sp
@@ -374,7 +377,8 @@ func init() {
 }
 
 // Allocate a Defer, usually using per-P pool.
-// Each defer must be released with freedefer.
+// Each defer must be released with freedefer.  The defer is not
+// added to any defer chain yet.
 //
 // This must not grow the stack because there may be a frame without
 // stack map information when this is called.
@@ -424,8 +428,6 @@ func newdefer(siz int32) *_defer {
 	}
 	d.siz = siz
 	d.heap = true
-	d.link = gp._defer
-	gp._defer = d
 	return d
 }
 
