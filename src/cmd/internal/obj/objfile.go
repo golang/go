@@ -507,11 +507,17 @@ func (c dwCtxt) AddDWARFAddrSectionOffset(s dwarf.Sym, t interface{}, ofs int64)
 func (c dwCtxt) AddFileRef(s dwarf.Sym, f interface{}) {
 	ls := s.(*LSym)
 	rsym := f.(*LSym)
-	fidx := c.Link.PosTable.FileIndex(rsym.Name)
-	// Note the +1 here -- the value we're writing is going to be an
-	// index into the DWARF line table file section, whose entries
-	// are numbered starting at 1, not 0.
-	ls.WriteInt(c.Link, ls.Size, 4, int64(fidx+1))
+	if c.Link.Flag_go115newobj {
+		fidx := c.Link.PosTable.FileIndex(rsym.Name)
+		// Note the +1 here -- the value we're writing is going to be an
+		// index into the DWARF line table file section, whose entries
+		// are numbered starting at 1, not 0.
+		ls.WriteInt(c.Link, ls.Size, 4, int64(fidx+1))
+	} else {
+		ls.WriteAddr(c.Link, ls.Size, 4, rsym, 0)
+		r := &ls.R[len(ls.R)-1]
+		r.Type = objabi.R_DWARFFILEREF
+	}
 }
 
 func (c dwCtxt) CurrentOffset(s dwarf.Sym) int64 {
@@ -549,22 +555,31 @@ func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, 
 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
 	}
 	if s.Func.dwarfInfoSym == nil {
-		s.Func.dwarfInfoSym = &LSym{
-			Type: objabi.SDWARFINFO,
-		}
-		if ctxt.Flag_locationlists {
-			s.Func.dwarfLocSym = &LSym{
-				Type: objabi.SDWARFLOC,
+		if ctxt.Flag_go115newobj {
+			s.Func.dwarfInfoSym = &LSym{
+				Type: objabi.SDWARFINFO,
 			}
-		}
-		s.Func.dwarfRangesSym = &LSym{
-			Type: objabi.SDWARFRANGE,
+			if ctxt.Flag_locationlists {
+				s.Func.dwarfLocSym = &LSym{
+					Type: objabi.SDWARFLOC,
+				}
+			}
+			s.Func.dwarfRangesSym = &LSym{
+				Type: objabi.SDWARFRANGE,
+			}
+			s.Func.dwarfDebugLinesSym = &LSym{
+				Type: objabi.SDWARFLINES,
+			}
+		} else {
+			s.Func.dwarfInfoSym = ctxt.LookupDerived(s, dwarf.InfoPrefix+s.Name)
+			if ctxt.Flag_locationlists {
+				s.Func.dwarfLocSym = ctxt.LookupDerived(s, dwarf.LocPrefix+s.Name)
+			}
+			s.Func.dwarfRangesSym = ctxt.LookupDerived(s, dwarf.RangePrefix+s.Name)
+			s.Func.dwarfDebugLinesSym = ctxt.LookupDerived(s, dwarf.DebugLinesPrefix+s.Name)
 		}
 		if s.WasInlined() {
 			s.Func.dwarfAbsFnSym = ctxt.DwFixups.AbsFuncDwarfSym(s)
-		}
-		s.Func.dwarfDebugLinesSym = &LSym{
-			Type: objabi.SDWARFLINES,
 		}
 	}
 	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym, s.Func.dwarfAbsFnSym, s.Func.dwarfDebugLinesSym
