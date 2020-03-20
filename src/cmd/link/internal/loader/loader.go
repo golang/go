@@ -797,6 +797,19 @@ func (l *Loader) AttrShared(i Sym) bool {
 	return l.attrShared.Has(l.extIndex(i))
 }
 
+// SetAttrShared sets the "shared" property for an external
+// symbol (see AttrShared).
+func (l *Loader) SetAttrShared(i Sym, v bool) {
+	if !l.IsExternal(i) {
+		panic(fmt.Sprintf("tried to set shared attr on non-external symbol %d %s", i, l.SymName(i)))
+	}
+	if v {
+		l.attrShared.Set(l.extIndex(i))
+	} else {
+		l.attrShared.Unset(l.extIndex(i))
+	}
+}
+
 // AttrExternal returns true for function symbols loaded from host
 // object files.
 func (l *Loader) AttrExternal(i Sym) bool {
@@ -1868,6 +1881,21 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 	}
 }
 
+// ResolveABIAlias given a symbol returns the ABI alias target of that
+// symbol. If the sym in question is not an alias, the sym itself is
+// returned.
+func (l *Loader) ResolveABIAlias(s Sym) Sym {
+	if l.SymType(s) != sym.SABIALIAS {
+		return s
+	}
+	relocs := l.Relocs(s)
+	target := relocs.At2(0).Sym()
+	if l.SymType(target) == sym.SABIALIAS {
+		panic(fmt.Sprintf("ABI alias %s references another ABI alias %s", l.SymName(s), l.SymName(target)))
+	}
+	return target
+}
+
 // PropagateSymbolChangesBackToLoader is a temporary shim function
 // that copies over a given sym.Symbol into the equivalent representation
 // in the loader world. The intent is to enable converting a given
@@ -2263,6 +2291,32 @@ func (l *Loader) CopySym(src, dst Sym) {
 	l.payloads[l.extIndex(dst)] = l.payloads[l.extIndex(src)]
 	l.SetSymFile(dst, l.SymFile(src))
 	// TODO: other attributes?
+}
+
+// CopyAttributes copies over all of the attributes of symbol 'src' to
+// symbol 'dst'.
+func (l *Loader) CopyAttributes(src Sym, dst Sym) {
+	l.SetAttrReachable(dst, l.AttrReachable(src))
+	l.SetAttrOnList(dst, l.AttrOnList(src))
+	l.SetAttrLocal(dst, l.AttrLocal(src))
+	l.SetAttrNotInSymbolTable(dst, l.AttrNotInSymbolTable(src))
+	if l.IsExternal(dst) {
+		l.SetAttrVisibilityHidden(dst, l.AttrVisibilityHidden(src))
+		l.SetAttrDuplicateOK(dst, l.AttrDuplicateOK(src))
+		l.SetAttrShared(dst, l.AttrShared(src))
+		l.SetAttrExternal(dst, l.AttrExternal(src))
+	} else {
+		// Some attributes are modifiable only for external symbols.
+		// In such cases, don't try to transfer over the attribute
+		// from the source even if there is a clash. This comes up
+		// when copying attributes from a dupOK ABI wrapper symbol to
+		// the real target symbol (which may not be marked dupOK).
+	}
+	l.SetAttrTopFrame(dst, l.AttrTopFrame(src))
+	l.SetAttrSpecial(dst, l.AttrSpecial(src))
+	l.SetAttrCgoExportDynamic(dst, l.AttrCgoExportDynamic(src))
+	l.SetAttrCgoExportStatic(dst, l.AttrCgoExportStatic(src))
+	l.SetAttrReadOnly(dst, l.AttrReadOnly(src))
 }
 
 // migrateAttributes copies over all of the attributes of symbol 'src' to
