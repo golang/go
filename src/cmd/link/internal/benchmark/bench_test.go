@@ -39,8 +39,8 @@ func TestPProfFlag(t *testing.T) {
 }
 
 func TestPProfNames(t *testing.T) {
-	want := "foo_BenchmarkTest.profile"
-	if v := makePProfFilename("foo", "test"); v != want {
+	want := "foo_BenchmarkTest.cpuprof"
+	if v := makePProfFilename("foo", "test", "cpuprof"); v != want {
 		t.Errorf("makePProfFilename() == %q, want %q", v, want)
 	}
 }
