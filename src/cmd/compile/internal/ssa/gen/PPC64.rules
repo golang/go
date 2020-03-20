@@ -872,7 +872,7 @@
     (MOVBstorezero [off1+off2] {sym} x mem)
 
 // Stores with addressing that can be done as indexed stores
-(MOV(D|W|H|B)store [off] {sym} p:(ADD ptr idx) val mem) && off == 0 && sym == nil && p.Uses == 1 -> (MOV(D|W|H|B)storeidx ptr idx val mem)
+(MOV(D|W|H|B)store [0] {sym} p:(ADD ptr idx) val mem) && sym == nil && p.Uses == 1 -> (MOV(D|W|H|B)storeidx ptr idx val mem)
 
 // Stores with constant index values can be done without indexed instructions
 (MOVDstoreidx ptr (MOVDconst [c]) val mem) && is16Bit(c) && c%4 == 0 -> (MOVDstore [c] ptr val mem)
@@ -966,11 +966,11 @@
 (MOVWstore [off] {sym} ptr (MOV(W|WZ)reg x) mem) -> (MOVWstore [off] {sym} ptr x mem)
 (MOVBstore [off] {sym} ptr (SRWconst (MOV(H|HZ)reg x) [c]) mem) && c <= 8 -> (MOVBstore [off] {sym} ptr (SRWconst <typ.UInt32> x [c]) mem)
 (MOVBstore [off] {sym} ptr (SRWconst (MOV(W|WZ)reg x) [c]) mem) && c <= 24 -> (MOVBstore [off] {sym} ptr (SRWconst <typ.UInt32> x [c]) mem)
-(MOVBstoreidx [off] {sym} ptr idx (MOV(B|BZ|H|HZ|W|WZ)reg x) mem) -> (MOVBstoreidx [off] {sym} ptr idx x mem)
-(MOVHstoreidx [off] {sym} ptr idx (MOV(H|HZ|W|WZ)reg x) mem) -> (MOVHstoreidx [off] {sym} ptr idx x mem)
-(MOVWstoreidx [off] {sym} ptr idx (MOV(W|WZ)reg x) mem) -> (MOVWstoreidx [off] {sym} ptr idx x mem)
-(MOVBstoreidx [off] {sym} ptr idx (SRWconst (MOV(H|HZ)reg x) [c]) mem) && c <= 8 -> (MOVBstoreidx [off] {sym} ptr idx (SRWconst <typ.UInt32> x [c]) mem)
-(MOVBstoreidx [off] {sym} ptr idx (SRWconst (MOV(W|WZ)reg x) [c]) mem) && c <= 24 -> (MOVBstoreidx [off] {sym} ptr idx (SRWconst <typ.UInt32> x [c]) mem)
+(MOVBstoreidx ptr idx (MOV(B|BZ|H|HZ|W|WZ)reg x) mem) -> (MOVBstoreidx ptr idx x mem)
+(MOVHstoreidx ptr idx (MOV(H|HZ|W|WZ)reg x) mem) -> (MOVHstoreidx ptr idx x mem)
+(MOVWstoreidx ptr idx (MOV(W|WZ)reg x) mem) -> (MOVWstoreidx ptr idx x mem)
+(MOVBstoreidx ptr idx (SRWconst (MOV(H|HZ)reg x) [c]) mem) && c <= 8 -> (MOVBstoreidx ptr idx (SRWconst <typ.UInt32> x [c]) mem)
+(MOVBstoreidx ptr idx (SRWconst (MOV(W|WZ)reg x) [c]) mem) && c <= 24 -> (MOVBstoreidx ptr idx (SRWconst <typ.UInt32> x [c]) mem)
 (MOVHBRstore {sym} ptr (MOV(H|HZ|W|WZ)reg x) mem) -> (MOVHBRstore {sym} ptr x mem)
 (MOVWBRstore {sym} ptr (MOV(W|WZ)reg x) mem) -> (MOVWBRstore {sym} ptr x mem)
 

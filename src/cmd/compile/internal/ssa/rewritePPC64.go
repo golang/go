@@ -6579,11 +6579,13 @@ func rewriteValuePPC64_OpPPC64MOVBstore(v *Value) bool {
 		v.AddArg2(ptr, mem)
 		return true
 	}
-	// match: (MOVBstore [off] {sym} p:(ADD ptr idx) val mem)
-	// cond: off == 0 && sym == nil && p.Uses == 1
+	// match: (MOVBstore [0] {sym} p:(ADD ptr idx) val mem)
+	// cond: sym == nil && p.Uses == 1
 	// result: (MOVBstoreidx ptr idx val mem)
 	for {
-		off := v.AuxInt
+		if v.AuxInt != 0 {
+			break
+		}
 		sym := v.Aux
 		p := v_0
 		if p.Op != OpPPC64ADD {
@@ -6593,7 +6595,7 @@ func rewriteValuePPC64_OpPPC64MOVBstore(v *Value) bool {
 		ptr := p.Args[0]
 		val := v_1
 		mem := v_2
-		if !(off == 0 && sym == nil && p.Uses == 1) {
+		if !(sym == nil && p.Uses == 1) {
 			break
 		}
 		v.reset(OpPPC64MOVBstoreidx)
@@ -7296,11 +7298,9 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
-	// match: (MOVBstoreidx [off] {sym} ptr idx (MOVBreg x) mem)
-	// result: (MOVBstoreidx [off] {sym} ptr idx x mem)
+	// match: (MOVBstoreidx ptr idx (MOVBreg x) mem)
+	// result: (MOVBstoreidx ptr idx x mem)
 	for {
-		off := v.AuxInt
-		sym := v.Aux
 		ptr := v_0
 		idx := v_1
 		if v_2.Op != OpPPC64MOVBreg {
@@ -7309,16 +7309,12 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
 		x := v_2.Args[0]
 		mem := v_3
 		v.reset(OpPPC64MOVBstoreidx)
-		v.AuxInt = off
-		v.Aux = sym
 		v.AddArg4(ptr, idx, x, mem)
 		return true
 	}
-	// match: (MOVBstoreidx [off] {sym} ptr idx (MOVBZreg x) mem)
-	// result: (MOVBstoreidx [off] {sym} ptr idx x mem)
+	// match: (MOVBstoreidx ptr idx (MOVBZreg x) mem)
+	// result: (MOVBstoreidx ptr idx x mem)
 	for {
-		off := v.AuxInt
-		sym := v.Aux
 		ptr := v_0
 		idx := v_1
 		if v_2.Op != OpPPC64MOVBZreg {
@@ -7327,16 +7323,12 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
 		x := v_2.Args[0]
 		mem := v_3
 		v.reset(OpPPC64MOVBstoreidx)
-		v.AuxInt = off
-		v.Aux = sym
 		v.AddArg4(ptr, idx, x, mem)
 		return true
 	}
-	// match: (MOVBstoreidx [off] {sym} ptr idx (MOVHreg x) mem)
-	// result: (MOVBstoreidx [off] {sym} ptr idx x mem)
+	// match: (MOVBstoreidx ptr idx (MOVHreg x) mem)
+	// result: (MOVBstoreidx ptr idx x mem)
 	for {
-		off := v.AuxInt
-		sym := v.Aux
 		ptr := v_0
 		idx := v_1
 		if v_2.Op != OpPPC64MOVHreg {
@@ -7345,16 +7337,12 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
 		x := v_2.Args[0]
 		mem := v_3
 		v.reset(OpPPC64MOVBstoreidx)
-		v.AuxInt = off
-		v.Aux = sym
 		v.AddArg4(ptr, idx, x, mem)
 		return true
 	}
-	// match: (MOVBstoreidx [off] {sym} ptr idx (MOVHZreg x) mem)
-	// result: (MOVBstoreidx [off] {sym} ptr idx x mem)
+	// match: (MOVBstoreidx ptr idx (MOVHZreg x) mem)
+	// result: (MOVBstoreidx ptr idx x mem)
 	for {
-		off := v.AuxInt
-		sym := v.Aux
 		ptr := v_0
 		idx := v_1
 		if v_2.Op != OpPPC64MOVHZreg {
@@ -7363,16 +7351,12 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
 		x := v_2.Args[0]
 		mem := v_3
 		v.reset(OpPPC64MOVBstoreidx)
-		v.AuxInt = off
-		v.Aux = sym
 		v.AddArg4(ptr, idx, x, mem)
 		return true
 	}
-	// match: (MOVBstoreidx [off] {sym} ptr idx (MOVWreg x) mem)
-	// result: (MOVBstoreidx [off] {sym} ptr idx x mem)
+	// match: (MOVBstoreidx ptr idx (MOVWreg x) mem)
+	// result: (MOVBstoreidx ptr idx x mem)
 	for {
-		off := v.AuxInt
-		sym := v.Aux
 		ptr := v_0
 		idx := v_1
 		if v_2.Op != OpPPC64MOVWreg {
@@ -7381,16 +7365,12 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
 		x := v_2.Args[0]
 		mem := v_3
 		v.reset(OpPPC64MOVBstoreidx)
-		v.AuxInt = off
-		v.Aux = sym
 		v.AddArg4(ptr, idx, x, mem)
 		return true
 	}
-	// match: (MOVBstoreidx [off] {sym} ptr idx (MOVWZreg x) mem)
-	// result: (MOVBstoreidx [off] {sym} ptr idx x mem)
+	// match: (MOVBstoreidx ptr idx (MOVWZreg x) mem)
+	// result: (MOVBstoreidx ptr idx x mem)
 	for {
-		off := v.AuxInt
-		sym := v.Aux
 		ptr := v_0
 		idx := v_1
 		if v_2.Op != OpPPC64MOVWZreg {
@@ -7399,17 +7379,13 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
 		x := v_2.Args[0]
 		mem := v_3
 		v.reset(OpPPC64MOVBstoreidx)
-		v.AuxInt = off
-		v.Aux = sym
 		v.AddArg4(ptr, idx, x, mem)
 		return true
 	}
-	// match: (MOVBstoreidx [off] {sym} ptr idx (SRWconst (MOVHreg x) [c]) mem)
+	// match: (MOVBstoreidx ptr idx (SRWconst (MOVHreg x) [c]) mem)
 	// cond: c <= 8
-	// result: (MOVBstoreidx [off] {sym} ptr idx (SRWconst <typ.UInt32> x [c]) mem)
+	// result: (MOVBstoreidx ptr idx (SRWconst <typ.UInt32> x [c]) mem)
 	for {
-		off := v.AuxInt
-		sym := v.Aux
 		ptr := v_0
 		idx := v_1
 		if v_2.Op != OpPPC64SRWconst {
@@ -7426,20 +7402,16 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
 			break
 		}
 		v.reset(OpPPC64MOVBstoreidx)
-		v.AuxInt = off
-		v.Aux = sym
 		v0 := b.NewValue0(v.Pos, OpPPC64SRWconst, typ.UInt32)
 		v0.AuxInt = c
 		v0.AddArg(x)
 		v.AddArg4(ptr, idx, v0, mem)
 		return true
 	}
-	// match: (MOVBstoreidx [off] {sym} ptr idx (SRWconst (MOVHZreg x) [c]) mem)
+	// match: (MOVBstoreidx ptr idx (SRWconst (MOVHZreg x) [c]) mem)
 	// cond: c <= 8
-	// result: (MOVBstoreidx [off] {sym} ptr idx (SRWconst <typ.UInt32> x [c]) mem)
+	// result: (MOVBstoreidx ptr idx (SRWconst <typ.UInt32> x [c]) mem)
 	for {
-		off := v.AuxInt
-		sym := v.Aux
 		ptr := v_0
 		idx := v_1
 		if v_2.Op != OpPPC64SRWconst {
@@ -7456,20 +7428,16 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
 			break
 		}
 		v.reset(OpPPC64MOVBstoreidx)
-		v.AuxInt = off
-		v.Aux = sym
 		v0 := b.NewValue0(v.Pos, OpPPC64SRWconst, typ.UInt32)
 		v0.AuxInt = c
 		v0.AddArg(x)
 		v.AddArg4(ptr, idx, v0, mem)
 		return true
 	}
-	// match: (MOVBstoreidx [off] {sym} ptr idx (SRWconst (MOVWreg x) [c]) mem)
+	// match: (MOVBstoreidx ptr idx (SRWconst (MOVWreg x) [c]) mem)
 	// cond: c <= 24
-	// result: (MOVBstoreidx [off] {sym} ptr idx (SRWconst <typ.UInt32> x [c]) mem)
+	// result: (MOVBstoreidx ptr idx (SRWconst <typ.UInt32> x [c]) mem)
 	for {
-		off := v.AuxInt
-		sym := v.Aux
 		ptr := v_0
 		idx := v_1
 		if v_2.Op != OpPPC64SRWconst {
@@ -7486,20 +7454,16 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
 			break
 		}
 		v.reset(OpPPC64MOVBstoreidx)
-		v.AuxInt = off
-		v.Aux = sym
 		v0 := b.NewValue0(v.Pos, OpPPC64SRWconst, typ.UInt32)
 		v0.AuxInt = c
 		v0.AddArg(x)
 		v.AddArg4(ptr, idx, v0, mem)
 		return true
 	}
-	// match: (MOVBstoreidx [off] {sym} ptr idx (SRWconst (MOVWZreg x) [c]) mem)
+	// match: (MOVBstoreidx ptr idx (SRWconst (MOVWZreg x) [c]) mem)
 	// cond: c <= 24
-	// result: (MOVBstoreidx [off] {sym} ptr idx (SRWconst <typ.UInt32> x [c]) mem)
+	// result: (MOVBstoreidx ptr idx (SRWconst <typ.UInt32> x [c]) mem)
 	for {
-		off := v.AuxInt
-		sym := v.Aux
 		ptr := v_0
 		idx := v_1
 		if v_2.Op != OpPPC64SRWconst {
@@ -7516,8 +7480,6 @@ func rewriteValuePPC64_OpPPC64MOVBstoreidx(v *Value) bool {
 			break
 		}
 		v.reset(OpPPC64MOVBstoreidx)
-		v.AuxInt = off
-		v.Aux = sym
 		v0 := b.NewValue0(v.Pos, OpPPC64SRWconst, typ.UInt32)
 		v0.AuxInt = c
 		v0.AddArg(x)
@@ -7788,11 +7750,13 @@ func rewriteValuePPC64_OpPPC64MOVDstore(v *Value) bool {
 		v.AddArg2(ptr, mem)
 		return true
 	}
-	// match: (MOVDstore [off] {sym} p:(ADD ptr idx) val mem)
-	// cond: off == 0 && sym == nil && p.Uses == 1
+	// match: (MOVDstore [0] {sym} p:(ADD ptr idx) val mem)
+	// cond: sym == nil && p.Uses == 1
 	// result: (MOVDstoreidx ptr idx val mem)
 	for {
-		off := v.AuxInt
+		if v.AuxInt != 0 {
+			break
+		}
 		sym := v.Aux
 		p := v_0
 		if p.Op != OpPPC64ADD {
@@ -7802,7 +7766,7 @@ func rewriteValuePPC64_OpPPC64MOVDstore(v *Value) bool {
 		ptr := p.Args[0]
 		val := v_1
 		mem := v_2
-		if !(off == 0 && sym == nil && p.Uses == 1) {
+		if !(sym == nil && p.Uses == 1) {
 			break
 		}
 		v.reset(OpPPC64MOVDstoreidx)
@@ -8705,11 +8669,13 @@ func rewriteValuePPC64_OpPPC64MOVHstore(v *Value) bool {
 		v.AddArg2(ptr, mem)
 		return true
 	}
-	// match: (MOVHstore [off] {sym} p:(ADD ptr idx) val mem)
-	// cond: off == 0 && sym == nil && p.Uses == 1
+	// match: (MOVHstore [0] {sym} p:(ADD ptr idx) val mem)
+	// cond: sym == nil && p.Uses == 1
 	// result: (MOVHstoreidx ptr idx val mem)
 	for {
-		off := v.AuxInt
+		if v.AuxInt != 0 {
+			break
+		}
 		sym := v.Aux
 		p := v_0
 		if p.Op != OpPPC64ADD {
@@ -8719,7 +8685,7 @@ func rewriteValuePPC64_OpPPC64MOVHstore(v *Value) bool {
 		ptr := p.Args[0]
 		val := v_1
 		mem := v_2
-		if !(off == 0 && sym == nil && p.Uses == 1) {
+		if !(sym == nil && p.Uses == 1) {
 			break
 		}
 		v.reset(OpPPC64MOVHstoreidx)
@@ -8897,11 +8863,9 @@ func rewriteValuePPC64_OpPPC64MOVHstoreidx(v *Value) bool {
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
-	// match: (MOVHstoreidx [off] {sym} ptr idx (MOVHreg x) mem)
-	// result: (MOVHstoreidx [off] {sym} ptr idx x mem)
+	// match: (MOVHstoreidx ptr idx (MOVHreg x) mem)
+	// result: (MOVHstoreidx ptr idx x mem)
 	for {
-		off := v.AuxInt
-		sym := v.Aux
 		ptr := v_0
 		idx := v_1
 		if v_2.Op != OpPPC64MOVHreg {
@@ -8910,16 +8874,12 @@ func rewriteValuePPC64_OpPPC64MOVHstoreidx(v *Value) bool {
 		x := v_2.Args[0]
 		mem := v_3
 		v.reset(OpPPC64MOVHstoreidx)
-		v.AuxInt = off
-		v.Aux = sym
 		v.AddArg4(ptr, idx, x, mem)
 		return true
 	}
-	// match: (MOVHstoreidx [off] {sym} ptr idx (MOVHZreg x) mem)
-	// result: (MOVHstoreidx [off] {sym} ptr idx x mem)
+	// match: (MOVHstoreidx ptr idx (MOVHZreg x) mem)
+	// result: (MOVHstoreidx ptr idx x mem)
 	for {
-		off := v.AuxInt
-		sym := v.Aux
 		ptr := v_0
 		idx := v_1
 		if v_2.Op != OpPPC64MOVHZreg {
@@ -8928,16 +8888,12 @@ func rewriteValuePPC64_OpPPC64MOVHstoreidx(v *Value) bool {
 		x := v_2.Args[0]
 		mem := v_3
 		v.reset(OpPPC64MOVHstoreidx)
-		v.AuxInt = off
-		v.Aux = sym
 		v.AddArg4(ptr, idx, x, mem)
 		return true
 	}
-	// match: (MOVHstoreidx [off] {sym} ptr idx (MOVWreg x) mem)
-	// result: (MOVHstoreidx [off] {sym} ptr idx x mem)
+	// match: (MOVHstoreidx ptr idx (MOVWreg x) mem)
+	// result: (MOVHstoreidx ptr idx x mem)
 	for {
-		off := v.AuxInt
-		sym := v.Aux
 		ptr := v_0
 		idx := v_1
 		if v_2.Op != OpPPC64MOVWreg {
@@ -8946,16 +8902,12 @@ func rewriteValuePPC64_OpPPC64MOVHstoreidx(v *Value) bool {
 		x := v_2.Args[0]
 		mem := v_3
 		v.reset(OpPPC64MOVHstoreidx)
-		v.AuxInt = off
-		v.Aux = sym
 		v.AddArg4(ptr, idx, x, mem)
 		return true
 	}
-	// match: (MOVHstoreidx [off] {sym} ptr idx (MOVWZreg x) mem)
-	// result: (MOVHstoreidx [off] {sym} ptr idx x mem)
+	// match: (MOVHstoreidx ptr idx (MOVWZreg x) mem)
+	// result: (MOVHstoreidx ptr idx x mem)
 	for {
-		off := v.AuxInt
-		sym := v.Aux
 		ptr := v_0
 		idx := v_1
 		if v_2.Op != OpPPC64MOVWZreg {
@@ -8964,8 +8916,6 @@ func rewriteValuePPC64_OpPPC64MOVHstoreidx(v *Value) bool {
 		x := v_2.Args[0]
 		mem := v_3
 		v.reset(OpPPC64MOVHstoreidx)
-		v.AuxInt = off
-		v.Aux = sym
 		v.AddArg4(ptr, idx, x, mem)
 		return true
 	}
@@ -9891,11 +9841,13 @@ func rewriteValuePPC64_OpPPC64MOVWstore(v *Value) bool {
 		v.AddArg2(ptr, mem)
 		return true
 	}
-	// match: (MOVWstore [off] {sym} p:(ADD ptr idx) val mem)
-	// cond: off == 0 && sym == nil && p.Uses == 1
+	// match: (MOVWstore [0] {sym} p:(ADD ptr idx) val mem)
+	// cond: sym == nil && p.Uses == 1
 	// result: (MOVWstoreidx ptr idx val mem)
 	for {
-		off := v.AuxInt
+		if v.AuxInt != 0 {
+			break
+		}
 		sym := v.Aux
 		p := v_0
 		if p.Op != OpPPC64ADD {
@@ -9905,7 +9857,7 @@ func rewriteValuePPC64_OpPPC64MOVWstore(v *Value) bool {
 		ptr := p.Args[0]
 		val := v_1
 		mem := v_2
-		if !(off == 0 && sym == nil && p.Uses == 1) {
+		if !(sym == nil && p.Uses == 1) {
 			break
 		}
 		v.reset(OpPPC64MOVWstoreidx)
@@ -9991,11 +9943,9 @@ func rewriteValuePPC64_OpPPC64MOVWstoreidx(v *Value) bool {
 		v.AddArg3(ptr, val, mem)
 		return true
 	}
-	// match: (MOVWstoreidx [off] {sym} ptr idx (MOVWreg x) mem)
-	// result: (MOVWstoreidx [off] {sym} ptr idx x mem)
+	// match: (MOVWstoreidx ptr idx (MOVWreg x) mem)
+	// result: (MOVWstoreidx ptr idx x mem)
 	for {
-		off := v.AuxInt
-		sym := v.Aux
 		ptr := v_0
 		idx := v_1
 		if v_2.Op != OpPPC64MOVWreg {
@@ -10004,16 +9954,12 @@ func rewriteValuePPC64_OpPPC64MOVWstoreidx(v *Value) bool {
 		x := v_2.Args[0]
 		mem := v_3
 		v.reset(OpPPC64MOVWstoreidx)
-		v.AuxInt = off
-		v.Aux = sym
 		v.AddArg4(ptr, idx, x, mem)
 		return true
 	}
-	// match: (MOVWstoreidx [off] {sym} ptr idx (MOVWZreg x) mem)
-	// result: (MOVWstoreidx [off] {sym} ptr idx x mem)
+	// match: (MOVWstoreidx ptr idx (MOVWZreg x) mem)
+	// result: (MOVWstoreidx ptr idx x mem)
 	for {
-		off := v.AuxInt
-		sym := v.Aux
 		ptr := v_0
 		idx := v_1
 		if v_2.Op != OpPPC64MOVWZreg {
@@ -10022,8 +9968,6 @@ func rewriteValuePPC64_OpPPC64MOVWstoreidx(v *Value) bool {
 		x := v_2.Args[0]
 		mem := v_3
 		v.reset(OpPPC64MOVWstoreidx)
-		v.AuxInt = off
-		v.Aux = sym
 		v.AddArg4(ptr, idx, x, mem)
 		return true
 	}
