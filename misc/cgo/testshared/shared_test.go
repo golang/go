@@ -221,7 +221,7 @@ func cloneGOROOTDeps(goroot string) error {
 
 	for _, dir := range gorootDirs {
 		if testing.Verbose() {
-			fmt.Fprintf(os.Stderr, "+ cp -r %s %s\n", filepath.Join(goroot, dir), filepath.Join(oldGOROOT, dir))
+			fmt.Fprintf(os.Stderr, "+ cp -r %s %s\n", filepath.Join(oldGOROOT, dir), filepath.Join(goroot, dir))
 		}
 		if err := overlayDir(filepath.Join(goroot, dir), filepath.Join(oldGOROOT, dir)); err != nil {
 			return err
