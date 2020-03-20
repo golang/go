@@ -273,6 +273,7 @@ func Main(arch *sys.Arch, theArch Arch) {
 		ctxt.dope()
 	}
 	bench.Start("loadlibfull")
+	setupdynexp(ctxt)
 	ctxt.loadlibfull() // XXX do it here for now
 	if ctxt.IsAIX() {
 		bench.Start("doxcoff")

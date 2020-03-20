@@ -572,31 +572,47 @@ func (ctxt *Link) loadlib() {
 	strictDupMsgCount = ctxt.loader.NStrictDupMsgs()
 }
 
-// Set up dynexp list.
+// genSymsForDynexp constructs a *sym.Symbol version of ctxt.dynexp,
+// writing to the global variable 'dynexp'.
+func genSymsForDynexp(ctxt *Link) {
+	dynexp = make([]*sym.Symbol, len(ctxt.dynexp2))
+	for i, s := range ctxt.dynexp2 {
+		dynexp[i] = ctxt.loader.Syms[s]
+	}
+}
+
+// setupdynexp constructs ctxt.dynexp, a list of loader.Sym.
 func setupdynexp(ctxt *Link) {
 	dynexpMap := ctxt.cgo_export_dynamic
 	if ctxt.LinkMode == LinkExternal {
 		dynexpMap = ctxt.cgo_export_static
 	}
-	dynexp = make([]*sym.Symbol, 0, len(dynexpMap))
+	d := make([]loader.Sym, 0, len(dynexpMap))
 	for exp := range dynexpMap {
-		s := ctxt.Syms.Lookup(exp, 0)
-		dynexp = append(dynexp, s)
+		s := ctxt.loader.LookupOrCreateSym(exp, 0)
+		d = append(d, s)
+		// sanity check
+		if !ctxt.loader.AttrReachable(s) {
+			panic("dynexp entry not reachable")
+		}
 	}
-	sort.Sort(byName(dynexp))
+	sort.Slice(dynexp, func(i, j int) bool {
+		return ctxt.loader.SymName(d[i]) < ctxt.loader.SymName(d[j])
+	})
 
 	// Resolve ABI aliases in the list of cgo-exported functions.
 	// This is necessary because we load the ABI0 symbol for all
 	// cgo exports.
-	for i, s := range dynexp {
-		if s.Type != sym.SABIALIAS {
+	for i, s := range d {
+		if ctxt.loader.SymType(s) != sym.SABIALIAS {
 			continue
 		}
-		t := resolveABIAlias(s)
-		t.Attr |= s.Attr
-		t.SetExtname(s.Extname())
-		dynexp[i] = t
+		t := ctxt.loader.ResolveABIAlias(s)
+		ctxt.loader.CopyAttributes(s, t)
+		ctxt.loader.SetSymExtname(t, ctxt.loader.SymExtname(s))
+		d[i] = t
 	}
+	ctxt.dynexp2 = d
 
 	ctxt.cgo_export_static = nil
 	ctxt.cgo_export_dynamic = nil
@@ -2711,6 +2727,7 @@ func dfs(lib *sym.Library, mark map[*sym.Library]markKind, order *[]*sym.Library
 }
 
 func (ctxt *Link) loadlibfull() {
+
 	// Load full symbol contents, resolve indexed references.
 	ctxt.loader.LoadFull(ctxt.Arch, ctxt.Syms)
 
@@ -2724,7 +2741,8 @@ func (ctxt *Link) loadlibfull() {
 	ctxt.loader.ExtractSymbols(ctxt.Syms, ctxt.Reachparent)
 	ctxt.lookup = ctxt.Syms.ROLookup
 
-	setupdynexp(ctxt)
+	// Recreate dynexp using *sym.Symbol instead of loader.Sym
+	genSymsForDynexp(ctxt)
 
 	// Drop the cgodata reference.
 	ctxt.cgodata = nil

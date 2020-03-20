@@ -92,7 +92,8 @@ type Link struct {
 	cgo_export_static  map[string]bool
 	cgo_export_dynamic map[string]bool
 
-	datap []*sym.Symbol
+	datap   []*sym.Symbol
+	dynexp2 []loader.Sym
 }
 
 type cgodata struct {
