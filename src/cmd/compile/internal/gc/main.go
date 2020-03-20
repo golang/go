@@ -277,6 +277,7 @@ func Main(archInit func(*Arch)) {
 	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
 	flag.BoolVar(&smallFrames, "smallframes", false, "reduce the size limit for stack allocated objects")
 	flag.BoolVar(&Ctxt.UseBASEntries, "dwarfbasentries", Ctxt.UseBASEntries, "use base address selection entries in DWARF")
+	flag.BoolVar(&Ctxt.Flag_go115newobj, "go115newobj", true, "use new object file format")
 	flag.StringVar(&jsonLogOpt, "json", "", "version,destination for JSON compiler/optimizer logging")
 
 	objabi.Flagparse(usage)
@@ -284,7 +285,7 @@ func Main(archInit func(*Arch)) {
 	// Record flags that affect the build result. (And don't
 	// record flags that don't, since that would cause spurious
 	// changes in the binary.)
-	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes")
+	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "go115newobj")
 
 	if smallFrames {
 		maxStackVarSize = 128 * 1024

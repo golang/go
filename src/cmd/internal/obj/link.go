@@ -381,6 +381,7 @@ type LSym struct {
 	Type objabi.SymKind
 	Attribute
 
+	RefIdx int // Index of this symbol in the symbol reference list.
 	Size   int64
 	Gotype *LSym
 	P      []byte
@@ -390,7 +391,7 @@ type LSym struct {
 
 	Pkg    string
 	PkgIdx int32
-	SymIdx int32
+	SymIdx int32 // TODO: replace RefIdx
 }
 
 // A FuncInfo contains extra fields for STEXT symbols.
@@ -651,6 +652,7 @@ type Link struct {
 	Flag_linkshared    bool
 	Flag_optimize      bool
 	Flag_locationlists bool
+	Flag_go115newobj   bool // use new object file format
 	Bso                *bufio.Writer
 	Pathname           string
 	hashmu             sync.Mutex       // protects hash, funchash

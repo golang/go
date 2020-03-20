@@ -164,6 +164,10 @@ func (ctxt *Link) Int64Sym(i int64) *LSym {
 // asm is set to true if this is called by the assembler (i.e. not the compiler),
 // in which case all the symbols are non-package (for now).
 func (ctxt *Link) NumberSyms(asm bool) {
+	if !ctxt.Flag_go115newobj {
+		return
+	}
+
 	if ctxt.Headtype == objabi.Haix {
 		// Data must be sorted to keep a constant order in TOC symbols.
 		// As they are created during Progedit, two symbols can be switched between

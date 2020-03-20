@@ -40,6 +40,7 @@ func main() {
 	}
 	ctxt.Flag_dynlink = *flags.Dynlink
 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
+	ctxt.Flag_go115newobj = *flags.Go115Newobj
 	ctxt.Bso = bufio.NewWriter(os.Stdout)
 	defer ctxt.Bso.Flush()
 
