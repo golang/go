@@ -162,6 +162,32 @@ var combine = map[[2]Op]Op{
 	[2]Op{OpAMD64MOVQstoreconst, OpAMD64LEAQ1}: OpAMD64MOVQstoreconstidx1,
 	[2]Op{OpAMD64MOVQstoreconst, OpAMD64LEAQ8}: OpAMD64MOVQstoreconstidx8,
 
+	[2]Op{OpAMD64CMPBload, OpAMD64ADDQ}: OpAMD64CMPBloadidx1,
+	[2]Op{OpAMD64CMPWload, OpAMD64ADDQ}: OpAMD64CMPWloadidx1,
+	[2]Op{OpAMD64CMPLload, OpAMD64ADDQ}: OpAMD64CMPLloadidx1,
+	[2]Op{OpAMD64CMPQload, OpAMD64ADDQ}: OpAMD64CMPQloadidx1,
+
+	[2]Op{OpAMD64CMPBload, OpAMD64LEAQ1}: OpAMD64CMPBloadidx1,
+	[2]Op{OpAMD64CMPWload, OpAMD64LEAQ1}: OpAMD64CMPWloadidx1,
+	[2]Op{OpAMD64CMPWload, OpAMD64LEAQ2}: OpAMD64CMPWloadidx2,
+	[2]Op{OpAMD64CMPLload, OpAMD64LEAQ1}: OpAMD64CMPLloadidx1,
+	[2]Op{OpAMD64CMPLload, OpAMD64LEAQ4}: OpAMD64CMPLloadidx4,
+	[2]Op{OpAMD64CMPQload, OpAMD64LEAQ1}: OpAMD64CMPQloadidx1,
+	[2]Op{OpAMD64CMPQload, OpAMD64LEAQ8}: OpAMD64CMPQloadidx8,
+
+	[2]Op{OpAMD64CMPBconstload, OpAMD64ADDQ}: OpAMD64CMPBconstloadidx1,
+	[2]Op{OpAMD64CMPWconstload, OpAMD64ADDQ}: OpAMD64CMPWconstloadidx1,
+	[2]Op{OpAMD64CMPLconstload, OpAMD64ADDQ}: OpAMD64CMPLconstloadidx1,
+	[2]Op{OpAMD64CMPQconstload, OpAMD64ADDQ}: OpAMD64CMPQconstloadidx1,
+
+	[2]Op{OpAMD64CMPBconstload, OpAMD64LEAQ1}: OpAMD64CMPBconstloadidx1,
+	[2]Op{OpAMD64CMPWconstload, OpAMD64LEAQ1}: OpAMD64CMPWconstloadidx1,
+	[2]Op{OpAMD64CMPWconstload, OpAMD64LEAQ2}: OpAMD64CMPWconstloadidx2,
+	[2]Op{OpAMD64CMPLconstload, OpAMD64LEAQ1}: OpAMD64CMPLconstloadidx1,
+	[2]Op{OpAMD64CMPLconstload, OpAMD64LEAQ4}: OpAMD64CMPLconstloadidx4,
+	[2]Op{OpAMD64CMPQconstload, OpAMD64LEAQ1}: OpAMD64CMPQconstloadidx1,
+	[2]Op{OpAMD64CMPQconstload, OpAMD64LEAQ8}: OpAMD64CMPQconstloadidx8,
+
 	// 386
 	[2]Op{Op386MOVBload, Op386ADDL}:  Op386MOVBloadidx1,
 	[2]Op{Op386MOVWload, Op386ADDL}:  Op386MOVWloadidx1,
