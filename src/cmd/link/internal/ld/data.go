@@ -729,8 +729,8 @@ func dynreloc(ctxt *Link, data *[sym.SXREF][]*sym.Symbol) {
 	}
 }
 
-func Codeblk(ctxt *Link, addr int64, size int64) {
-	CodeblkPad(ctxt, ctxt.Out, addr, size, zeros[:])
+func Codeblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
+	CodeblkPad(ctxt, out, addr, size, zeros[:])
 }
 
 func CodeblkPad(ctxt *Link, out *OutBuf, addr int64, size int64, pad []byte) {
@@ -926,11 +926,7 @@ func WriteParallel(wg *sync.WaitGroup, fn writeFn, ctxt *Link, seek, vaddr, leng
 	}
 }
 
-func Datblk(ctxt *Link, addr int64, size int64) {
-	writeDatblkToOutBuf(ctxt, ctxt.Out, addr, size)
-}
-
-func Datblk2(ctxt *Link, out *OutBuf, addr, size int64) {
+func Datblk(ctxt *Link, out *OutBuf, addr, size int64) {
 	writeDatblkToOutBuf(ctxt, out, addr, size)
 }
 
@@ -1017,20 +1013,12 @@ func writeDatblkToOutBuf(ctxt *Link, out *OutBuf, addr int64, size int64) {
 	ctxt.Logf("\t%.8x|\n", uint(eaddr))
 }
 
-func Dwarfblk2(ctxt *Link, out *OutBuf, addr int64, size int64) {
+func Dwarfblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
 	if *flagA {
 		ctxt.Logf("dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
 	}
 
 	writeBlocks(out, ctxt.outSem, dwarfp, addr, size, zeros[:])
-}
-
-func Dwarfblk(ctxt *Link, addr int64, size int64) {
-	if *flagA {
-		ctxt.Logf("dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
-	}
-
-	writeBlock(ctxt.Out, dwarfp, addr, size, zeros[:])
 }
 
 var zeros [512]byte
