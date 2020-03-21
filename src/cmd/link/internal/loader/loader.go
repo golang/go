@@ -2060,35 +2060,12 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols, rp map[*sym.Symbol]*sym.Symbo
 		i := l.Lookup(name, ver)
 		return l.Syms[i]
 	}
-	syms.Rename = func(old, new string, ver int) {
-		// annoying... maybe there is a better way to do this
-		if ver >= 2 {
-			panic("cannot rename static symbol")
-		}
-		i := l.Lookup(old, ver)
-		s := l.Syms[i]
-		s.Name = new
-		if s.Extname() == old {
-			s.SetExtname(new)
-		}
-		delete(l.symsByName[ver], old)
-
-		// This mirrors the old code. But I'm not sure if the logic of
-		// handling dup in the old code actually works, or necessary.
-		dupi := l.symsByName[ver][new]
-		dup := l.Syms[dupi]
-		if dup == nil {
-			l.symsByName[ver][new] = i
-		} else {
-			if s.Type == 0 {
-				dup.Attr |= s.Attr
-				*s = *dup
-			} else if dup.Type == 0 {
-				s.Attr |= dup.Attr
-				*dup = *s
-				l.symsByName[ver][new] = i
-			}
-		}
+	syms.Newsym = func(name string, ver int) *sym.Symbol {
+		i := l.newExtSym(name, ver)
+		s := l.allocSym(name, ver)
+		l.installSym(i, s)
+		syms.Allsym = append(syms.Allsym, s) // XXX see above
+		return s
 	}
 }
 
