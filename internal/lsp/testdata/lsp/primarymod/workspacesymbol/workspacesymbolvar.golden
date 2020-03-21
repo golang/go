@@ -1,0 +1,3 @@
+-- workspace_symbol --
+workspacesymbol/a/a.go:3:5-29 WorkspaceSymbolVariableA Variable
+workspacesymbol/b/b.go:3:5-29 WorkspaceSymbolVariableB Variable

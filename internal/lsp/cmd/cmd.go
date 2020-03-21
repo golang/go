@@ -184,6 +184,7 @@ func (app *Application) featureCommands() []tool.Application {
 		&signature{app: app},
 		&suggestedfix{app: app},
 		&symbols{app: app},
+		&workspaceSymbol{app: app},
 	}
 }
 
@@ -239,6 +240,12 @@ func (app *Application) connectRemote(ctx context.Context, remote string) (*conn
 	return connection, connection.initialize(ctx, app.options)
 }
 
+var matcherString = map[source.Matcher]string{
+	source.Fuzzy:           "fuzzy",
+	source.CaseSensitive:   "caseSensitive",
+	source.CaseInsensitive: "default",
+}
+
 func (c *connection) initialize(ctx context.Context, options func(*source.Options)) error {
 	params := &protocol.ParamInitialize{}
 	params.RootURI = protocol.URIFromPath(c.Client.app.wd)
@@ -253,6 +260,9 @@ func (c *connection) initialize(ctx context.Context, options func(*source.Option
 		ContentFormat: []protocol.MarkupKind{opts.PreferredContentFormat},
 	}
 	params.Capabilities.TextDocument.DocumentSymbol.HierarchicalDocumentSymbolSupport = opts.HierarchicalDocumentSymbolSupport
+	params.InitializationOptions = map[string]interface{}{
+		"matcher": matcherString[opts.Matcher],
+	}
 
 	if _, err := c.Server.Initialize(ctx, params); err != nil {
 		return err
