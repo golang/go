@@ -257,6 +257,9 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("dostkcheck")
 	ctxt.dostkcheck()
 
+	bench.Start("mangleTypeSym")
+	ctxt.mangleTypeSym()
+
 	if ctxt.IsELF {
 		bench.Start("doelf")
 		ctxt.doelf()
@@ -279,9 +282,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 		bench.Start("windynrelocsyms")
 		ctxt.windynrelocsyms()
 	}
-
-	bench.Start("mangleTypeSym")
-	ctxt.mangleTypeSym()
 
 	ctxt.setArchSyms()
 	bench.Start("addexport")

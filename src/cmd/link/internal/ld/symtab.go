@@ -163,6 +163,13 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
 		other |= 3 << 5
 	}
 
+	if s == x.Name {
+		// We should use Extname for ELF symbol table.
+		// TODO: maybe genasmsym should have done this. That function is too
+		// overloaded and I would rather not change it for now.
+		s = x.Extname()
+	}
+
 	// When dynamically linking, we create Symbols by reading the names from
 	// the symbol tables of the shared libraries and so the names need to
 	// match exactly. Tools like DTrace will have to wait for now.
