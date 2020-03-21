@@ -2261,6 +2261,24 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 	l.extReader.syms = append(l.extReader.syms, symIdx)
 }
 
+// Copy the payload of symbol src to dst. Both src and dst must be external
+// symbols.
+// The intended use case is that when building/linking against a shared library,
+// where we do symbol name mangling, the Go object file may have reference to
+// the original symbol name whereas the shared library provides a symbol with
+// the mangled name. When we do mangling, we copy payload of mangled to original.
+func (l *Loader) CopySym(src, dst Sym) {
+	if !l.IsExternal(dst) {
+		panic("dst is not external") //l.newExtSym(l.SymName(dst), l.SymVersion(dst))
+	}
+	if !l.IsExternal(src) {
+		panic("src is not external") //l.cloneToExternal(src)
+	}
+	l.payloads[l.extIndex(dst)] = l.payloads[l.extIndex(src)]
+	l.SetSymFile(dst, l.SymFile(src))
+	// TODO: other attributes?
+}
+
 // migrateAttributes copies over all of the attributes of symbol 'src' to
 // sym.Symbol 'dst'.
 func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {

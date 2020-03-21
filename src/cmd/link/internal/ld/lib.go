@@ -794,10 +794,29 @@ func (ctxt *Link) mangleTypeSym() {
 		return
 	}
 
-	for _, s := range ctxt.Syms.Allsym {
-		newName := typeSymbolMangle(s.Name)
-		if newName != s.Name {
-			ctxt.Syms.Rename(s.Name, newName, int(s.Version))
+	ldr := ctxt.loader
+	for s := loader.Sym(1); s < loader.Sym(ldr.NSym()); s++ {
+		if !ldr.AttrReachable(s) {
+			continue
+		}
+		name := ldr.SymName(s)
+		newName := typeSymbolMangle(name)
+		if newName != name {
+			ldr.SetSymExtname(s, newName)
+
+			// When linking against a shared library, the Go object file may
+			// have reference to the original symbol name whereas the shared
+			// library provides a symbol with the mangled name. We need to
+			// copy the payload of mangled to original.
+			// XXX maybe there is a better way to do this.
+			dup := ldr.Lookup(newName, ldr.SymVersion(s))
+			if dup != 0 {
+				st := ldr.SymType(s)
+				dt := ldr.SymType(dup)
+				if st == sym.Sxxx && dt != sym.Sxxx {
+					ldr.CopySym(dup, s)
+				}
+			}
 		}
 	}
 }
