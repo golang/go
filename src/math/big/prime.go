@@ -250,7 +250,7 @@ func (n nat) probablyPrimeLucas() bool {
 	vk := nat(nil).setWord(2)
 	vk1 := nat(nil).setWord(p)
 	t2 := nat(nil) // temp
-	for i := int(s.bitLen()); i >= 0; i-- {
+	for i := int(s.bitLen()-1); i >= 0; i-- {
 		if s.bit(uint(i)) != 0 {
 			// k' = 2k+1
 			// V(k') = V(2k+1) = V(k) V(k+1) - P.
