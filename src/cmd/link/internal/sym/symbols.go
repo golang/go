@@ -46,8 +46,10 @@ type Symbols struct {
 	// if it is not found.
 	ROLookup func(name string, v int) *Symbol
 
-	// Rename renames a symbol.
-	Rename func(old, new string, v int)
+	// Create a symbol with the given name and version. The new symbol
+	// is not added to the lookup table and is not dedup'd with existing
+	// symbols (if any).
+	Newsym func(name string, v int) *Symbol
 }
 
 func NewSymbols() *Symbols {

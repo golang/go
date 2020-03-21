@@ -1186,9 +1186,9 @@ func (ctxt *Link) doxcoff() {
 	if ctxt.LinkMode == LinkExternal {
 		// Change rt0_go name to match name in runtime/cgo:main().
 		rt0 := ctxt.Syms.ROLookup("runtime.rt0_go", 0)
-		ctxt.Syms.Rename(rt0.Name, "runtime_rt0_go", 0)
+		rt0.SetExtname("runtime_rt0_go")
 
-		for _, s := range ctxt.Syms.Allsym {
+		for _, s := range ctxt.Textp {
 			if !s.Attr.CgoExport() {
 				continue
 			}
@@ -1198,9 +1198,19 @@ func (ctxt *Link) doxcoff() {
 				// On AIX, a exported function must have two symbols:
 				// - a .text symbol which must start with a ".".
 				// - a .data symbol which is a function descriptor.
-				ctxt.Syms.Rename(s.Name, "."+name, 0)
+				//
+				// XXX the old code was quite confusing -- it always
+				// rename a version 0 symbol, even if s.Version is not
+				// 0, but the descriptor still points to s.
+				// And in xcoffCreateExportFile, it seems to expect a
+				// name before the renaming.
+				// I guess this happens to work as the ABIALIAS symbol
+				// and the TEXT symbol have the same address.
+				// (Do the same here for now, but using Extname.)
+				s0 := ctxt.Syms.ROLookup(s.Name, 0)
+				s0.SetExtname("." + name)
 
-				desc := ctxt.Syms.Lookup(name, 0)
+				desc := ctxt.Syms.Newsym(name, 0)
 				desc.Type = sym.SNOPTRDATA
 				desc.AddAddr(ctxt.Arch, s)
 				desc.AddAddr(ctxt.Arch, toc)
@@ -1662,7 +1672,7 @@ func xcoffCreateExportFile(ctxt *Link) (fname string) {
 		if !s.Attr.CgoExport() {
 			continue
 		}
-		if !strings.HasPrefix(s.String(), "_cgoexp_") {
+		if !strings.HasPrefix(s.Extname(), "_cgoexp_") {
 			continue
 		}
 
