@@ -216,7 +216,7 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (resp *Response, d
 
 	if req.RequestURI != "" {
 		req.closeBody()
-		return nil, alwaysFalse, errors.New("http: Request.RequestURI can't be set in client requests.")
+		return nil, alwaysFalse, errors.New("http: Request.RequestURI can't be set in client requests")
 	}
 
 	// forkReq forks req into a shallow clone of ireq the first
