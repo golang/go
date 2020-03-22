@@ -15,6 +15,18 @@ import (
 	"syscall"
 )
 
+// registerLoadFromEmbeddedTZData is called by the time/tzdata package,
+// if it is imported.
+func registerLoadFromEmbeddedTZData(f func(string) (string, error)) {
+	loadFromEmbeddedTZData = f
+}
+
+// loadFromEmbeddedTZData is used to load a specific tzdata file
+// from tzdata information embedded in the binary itself.
+// This is set when the time/tzdata package is imported,
+// via registerLoadFromEmbeddedTzdata.
+var loadFromEmbeddedTZData func(zipname string) (string, error)
+
 // maxFileSize is the max permitted size of files read by readFile.
 // As reference, the zoneinfo.zip distributed by Go is ~350 KB,
 // so 10MB is overkill.
@@ -479,6 +491,17 @@ func loadLocation(name string, sources []string) (z *Location, firstErr error) {
 		var zoneData, err = loadTzinfo(name, source)
 		if err == nil {
 			if z, err = LoadLocationFromTZData(name, zoneData); err == nil {
+				return z, nil
+			}
+		}
+		if firstErr == nil && err != syscall.ENOENT {
+			firstErr = err
+		}
+	}
+	if loadFromEmbeddedTZData != nil {
+		zonedata, err := loadFromEmbeddedTZData(name)
+		if err == nil {
+			if z, err = LoadLocationFromTZData(name, []byte(zonedata)); err == nil {
 				return z, nil
 			}
 		}
