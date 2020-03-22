@@ -76,7 +76,7 @@ func netpollarm(pd *pollDesc, mode int) {
 	throw("runtime: unused")
 }
 
-// netpollBreak interrupts an epollwait.
+// netpollBreak interrupts a kevent.
 func netpollBreak() {
 	for {
 		var b byte
