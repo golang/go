@@ -27,13 +27,9 @@ func SubMem(arr []int, b, c, d int) int {
 	arr[4]--
 	// 386:`ADDL\s[$]-20,\s20\([A-Z]+\)`
 	arr[5] -= 20
-	// 386:`SUBL\s\([A-Z]+\)\([A-Z]+\*4\),\s[A-Z]+`
 	ef -= arr[b]
-	// 386:`SUBL\s[A-Z]+,\s\([A-Z]+\)\([A-Z]+\*4\)`
 	arr[c] -= b
-	// 386:`ADDL\s[$]-15,\s\([A-Z]+\)\([A-Z]+\*4\)`
 	arr[d] -= 15
-	// 386:`DECL\s\([A-Z]+\)\([A-Z]+\*4\)`
 	arr[b]--
 	// amd64:`DECQ\s64\([A-Z]+\)`
 	arr[8]--
