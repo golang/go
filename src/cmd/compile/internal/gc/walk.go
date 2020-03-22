@@ -3527,16 +3527,6 @@ func finishcompare(n, r *Node, init *Nodes) *Node {
 	return r
 }
 
-// isIntOrdering reports whether n is a <, ≤, >, or ≥ ordering between integers.
-func (n *Node) isIntOrdering() bool {
-	switch n.Op {
-	case OLE, OLT, OGE, OGT:
-	default:
-		return false
-	}
-	return n.Left.Type.IsInteger() && n.Right.Type.IsInteger()
-}
-
 // return 1 if integer n must be in range [0, max), 0 otherwise
 func bounded(n *Node, max int64) bool {
 	if n.Type == nil || !n.Type.IsInteger() {
