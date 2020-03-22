@@ -117,6 +117,8 @@ TEXT runtime·pipe(SB),NOSPLIT|NOFRAME,$0-12
 	MOVV	R0, R5
 	MOVV	$SYS_pipe2, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, errno+8(FP)
 	RET
 
@@ -126,6 +128,8 @@ TEXT runtime·pipe2(SB),NOSPLIT|NOFRAME,$0-20
 	MOVW	flags+0(FP), R5
 	MOVV	$SYS_pipe2, R2
 	SYSCALL
+	BEQ	R7, 2(PC)
+	SUBVU	R2, R0, R2	// caller expects negative errno
 	MOVW	R2, errno+16(FP)
 	RET
 
