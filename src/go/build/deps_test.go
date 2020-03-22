@@ -166,7 +166,9 @@ var pkgDeps = map[string][]string{
 		"internal/syscall/windows/registry",
 		"syscall",
 		"syscall/js",
+		"time/tzdata",
 	},
+	"time/tzdata": {"L0", "syscall"},
 
 	"internal/cfg":     {"L0"},
 	"internal/poll":    {"L0", "internal/oserror", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8", "internal/syscall/windows", "internal/syscall/unix"},
