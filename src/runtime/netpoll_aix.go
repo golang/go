@@ -128,7 +128,7 @@ func netpollarm(pd *pollDesc, mode int) {
 	unlock(&mtxset)
 }
 
-// netpollBreak interrupts an epollwait.
+// netpollBreak interrupts a poll.
 func netpollBreak() {
 	netpollwakeup()
 }
