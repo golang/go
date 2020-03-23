@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/go/packages/packagestest"
+	"golang.org/x/tools/internal/gocommand"
 )
 
 var testDebug = flag.Bool("debug", false, "enable debug output")
@@ -1638,6 +1639,7 @@ func (c testConfig) test(t *testing.T, fn func(*goimportTest)) {
 					GO111MODULE: env["GO111MODULE"],
 					GOSUMDB:     env["GOSUMDB"],
 					WorkingDir:  exported.Config.Dir,
+					GocmdRunner: &gocommand.Runner{},
 				},
 				exported: exported,
 			}

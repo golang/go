@@ -1,7 +1,11 @@
 // Package packagesinternal exposes internal-only fields from go/packages.
 package packagesinternal
 
-import "time"
+import (
+	"time"
+
+	"golang.org/x/tools/internal/gocommand"
+)
 
 // Fields must match go list;
 type Module struct {
@@ -25,3 +29,7 @@ type ModuleError struct {
 var GetForTest = func(p interface{}) string { return "" }
 
 var GetModule = func(p interface{}) *Module { return nil }
+
+var GetGoCmdRunner = func(config interface{}) *gocommand.Runner { return nil }
+
+var SetGoCmdRunner = func(config interface{}, runner *gocommand.Runner) {}

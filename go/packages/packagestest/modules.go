@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/internal/gocommand"
+	"golang.org/x/tools/internal/packagesinternal"
 )
 
 // Modules is the exporter that produces module layouts.
@@ -166,6 +167,8 @@ func (modules) Finalize(exported *Exported) error {
 		"GOPROXY="+proxyDirToURL(proxyDir),
 		"GOSUMDB=off",
 	)
+	gocmdRunner := &gocommand.Runner{}
+	packagesinternal.SetGoCmdRunner(exported.Config, gocmdRunner)
 
 	// Run go mod download to recreate the mod cache dir with all the extra
 	// stuff in cache. All the files created by Export should be recreated.
@@ -176,7 +179,7 @@ func (modules) Finalize(exported *Exported) error {
 		BuildFlags: exported.Config.BuildFlags,
 		WorkingDir: exported.Config.Dir,
 	}
-	if _, err := inv.Run(context.Background()); err != nil {
+	if _, err := gocmdRunner.Run(context.Background(), inv); err != nil {
 		return err
 	}
 	return nil

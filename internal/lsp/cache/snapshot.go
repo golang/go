@@ -19,6 +19,7 @@ import (
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/event"
 	errors "golang.org/x/xerrors"
@@ -94,7 +95,7 @@ func (s *snapshot) Config(ctx context.Context) *packages.Config {
 	verboseOutput := s.view.options.VerboseOutput
 	s.view.optionsMu.Unlock()
 
-	return &packages.Config{
+	cfg := &packages.Config{
 		Env:        env,
 		Dir:        s.view.folder.Filename(),
 		Context:    ctx,
@@ -117,6 +118,9 @@ func (s *snapshot) Config(ctx context.Context) *packages.Config {
 		},
 		Tests: true,
 	}
+	packagesinternal.SetGoCmdRunner(cfg, s.view.gocmdRunner)
+
+	return cfg
 }
 
 func (s *snapshot) buildOverlay() map[string][]byte {

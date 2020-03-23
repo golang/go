@@ -157,7 +157,8 @@ func (w *Workspace) RunGoCommand(ctx context.Context, verb string, args ...strin
 		Args:       args,
 		WorkingDir: w.workdir,
 	}
-	_, stderr, _, err := inv.RunRaw(ctx)
+	gocmdRunner := &gocommand.Runner{}
+	_, stderr, _, err := gocmdRunner.RunRaw(ctx, inv)
 	if err != nil {
 		return err
 	}

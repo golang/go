@@ -12,9 +12,69 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
+	"sync"
 	"time"
+
+	"golang.org/x/tools/internal/telemetry/event"
 )
+
+// An Runner will run go command invocations and serialize
+// them if it sees a concurrency error.
+type Runner struct {
+	// LoadMu guards packages.Load calls and associated state.
+	loadMu         sync.Mutex
+	serializeLoads int
+}
+
+// 1.13: go: updates to go.mod needed, but contents have changed
+// 1.14: go: updating go.mod: existing contents have changed since last read
+var modConcurrencyError = regexp.MustCompile(`go:.*go.mod.*contents have changed`)
+
+// Run calls Runner.RunRaw, serializing requests if they fight over
+// go.mod changes.
+func (runner *Runner) Run(ctx context.Context, inv Invocation) (*bytes.Buffer, error) {
+	stdout, _, friendly, _ := runner.RunRaw(ctx, inv)
+	return stdout, friendly
+}
+
+// Run calls Innvocation.RunRaw, serializing requests if they fight over
+// go.mod changes.
+func (runner *Runner) RunRaw(ctx context.Context, inv Invocation) (*bytes.Buffer, *bytes.Buffer, error, error) {
+	// We want to run invocations concurrently as much as possible. However,
+	// if go.mod updates are needed, only one can make them and the others will
+	// fail. We need to retry in those cases, but we don't want to thrash so
+	// badly we never recover. To avoid that, once we've seen one concurrency
+	// error, start serializing everything until the backlog has cleared out.
+	runner.loadMu.Lock()
+	var locked bool // If true, we hold the mutex and have incremented.
+	if runner.serializeLoads == 0 {
+		runner.loadMu.Unlock()
+	} else {
+		locked = true
+		runner.serializeLoads++
+	}
+	defer func() {
+		if locked {
+			runner.serializeLoads--
+			runner.loadMu.Unlock()
+		}
+	}()
+
+	for {
+		stdout, stderr, friendlyErr, err := inv.runRaw(ctx)
+		if friendlyErr == nil || !modConcurrencyError.MatchString(friendlyErr.Error()) {
+			return stdout, stderr, friendlyErr, err
+		}
+		event.Error(ctx, "Load concurrency error, will retry serially", err)
+		if !locked {
+			runner.loadMu.Lock()
+			runner.serializeLoads++
+			locked = true
+		}
+	}
+}
 
 // An Invocation represents a call to the go command.
 type Invocation struct {
@@ -26,16 +86,9 @@ type Invocation struct {
 	Logf       func(format string, args ...interface{})
 }
 
-// Run runs the invocation, returning its stdout and an error suitable for
-// human consumption, including stderr.
-func (i *Invocation) Run(ctx context.Context) (*bytes.Buffer, error) {
-	stdout, _, friendly, _ := i.RunRaw(ctx)
-	return stdout, friendly
-}
-
 // RunRaw is like RunPiped, but also returns the raw stderr and error for callers
 // that want to do low-level error handling/recovery.
-func (i *Invocation) RunRaw(ctx context.Context) (stdout *bytes.Buffer, stderr *bytes.Buffer, friendlyError error, rawError error) {
+func (i *Invocation) runRaw(ctx context.Context) (stdout *bytes.Buffer, stderr *bytes.Buffer, friendlyError error, rawError error) {
 	stdout = &bytes.Buffer{}
 	stderr = &bytes.Buffer{}
 	rawError = i.RunPiped(ctx, stdout, stderr)

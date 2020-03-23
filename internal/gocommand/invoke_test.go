@@ -15,7 +15,8 @@ func TestGoVersion(t *testing.T) {
 	inv := gocommand.Invocation{
 		Verb: "version",
 	}
-	if _, err := inv.Run(context.Background()); err != nil {
+	gocmdRunner := &gocommand.Runner{}
+	if _, err := gocmdRunner.Run(context.Background(), inv); err != nil {
 		t.Error(err)
 	}
 }

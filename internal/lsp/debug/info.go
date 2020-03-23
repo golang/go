@@ -50,10 +50,10 @@ func PrintVersionInfo(ctx context.Context, w io.Writer, verbose bool, mode Print
 	})
 	fmt.Fprint(w, "\n")
 	section(w, mode, "Go info", func() {
-		i := &gocommand.Invocation{
+		gocmdRunner := &gocommand.Runner{}
+		version, err := gocmdRunner.Run(ctx, gocommand.Invocation{
 			Verb: "version",
-		}
-		version, err := i.Run(ctx)
+		})
 		if err != nil {
 			panic(err)
 		}

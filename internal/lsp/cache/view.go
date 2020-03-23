@@ -15,12 +15,10 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
 
-	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/imports"
 	"golang.org/x/tools/internal/lsp/debug"
@@ -111,9 +109,8 @@ type view struct {
 	// `go env` variables that need to be tracked.
 	gopath, gocache string
 
-	// LoadMu guards packages.Load calls and associated state.
-	loadMu         sync.Mutex
-	serializeLoads int
+	// gocmdRunner guards go command calls from concurrency errors.
+	gocmdRunner *gocommand.Runner
 }
 
 type builtinPackageHandle struct {
@@ -279,7 +276,7 @@ func (v *view) WriteEnv(ctx context.Context, w io.Writer) error {
 		Env:        env,
 		WorkingDir: v.Folder().Filename(),
 	}
-	stdout, err := inv.Run(ctx)
+	stdout, err := v.gocmdRunner.Run(ctx, inv)
 	if err != nil {
 		return err
 	}
@@ -364,6 +361,7 @@ func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error)
 		WorkingDir:  v.folder.Filename(),
 		BuildFlags:  buildFlags,
 		LocalPrefix: localPrefix,
+		GocmdRunner: v.gocmdRunner,
 	}
 	if verboseOutput {
 		processEnv.Logf = func(format string, args ...interface{}) {
@@ -734,7 +732,7 @@ func (v *view) getGoEnv(ctx context.Context, env []string) (string, error) {
 		Env:        env,
 		WorkingDir: v.Folder().Filename(),
 	}
-	stdout, err := inv.Run(ctx)
+	stdout, err := v.gocmdRunner.Run(ctx, inv)
 	if err != nil {
 		return "", err
 	}
@@ -767,50 +765,6 @@ func (v *view) getGoEnv(ctx context.Context, env []string) (string, error) {
 	return "", nil
 }
 
-// 1.13: go: updates to go.mod needed, but contents have changed
-// 1.14: go: updating go.mod: existing contents have changed since last read
-var modConcurrencyError = regexp.MustCompile(`go:.*go.mod.*contents have changed`)
-
-// LoadPackages calls packages.Load, serializing requests if they fight over
-// go.mod changes.
-func (v *view) loadPackages(cfg *packages.Config, patterns ...string) ([]*packages.Package, error) {
-	// We want to run go list calls concurrently as much as possible. However,
-	// if go.mod updates are needed, only one can make them and the others will
-	// fail. We need to retry in those cases, but we don't want to thrash so
-	// badly we never recover. To avoid that, once we've seen one concurrency
-	// error, start serializing everything until the backlog has cleared out.
-	// This could all be avoided on 1.14 by using multiple -modfiles.
-
-	v.loadMu.Lock()
-	var locked bool // If true, we hold the mutex and have incremented.
-	if v.serializeLoads == 0 {
-		v.loadMu.Unlock()
-	} else {
-		locked = true
-		v.serializeLoads++
-	}
-	defer func() {
-		if locked {
-			v.serializeLoads--
-			v.loadMu.Unlock()
-		}
-	}()
-
-	for {
-		pkgs, err := packages.Load(cfg, patterns...)
-		if err == nil || !modConcurrencyError.MatchString(err.Error()) {
-			return pkgs, err
-		}
-
-		event.Error(cfg.Context, "Load concurrency error, will retry serially", err)
-		if !locked {
-			v.loadMu.Lock()
-			v.serializeLoads++
-			locked = true
-		}
-	}
-}
-
 // This function will return the main go.mod file for this folder if it exists and whether the -modfile
 // flag exists for this version of go.
 func (v *view) modfileFlagExists(ctx context.Context, env []string) (bool, error) {
@@ -824,7 +778,7 @@ func (v *view) modfileFlagExists(ctx context.Context, env []string) (bool, error
 		Env:        append(env, "GO111MODULE=off"),
 		WorkingDir: v.Folder().Filename(),
 	}
-	stdout, err := inv.Run(ctx)
+	stdout, err := v.gocmdRunner.Run(ctx, inv)
 	if err != nil {
 		return false, err
 	}

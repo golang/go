@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"golang.org/x/mod/module"
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/gopathwalk"
 	"golang.org/x/tools/internal/testenv"
 	"golang.org/x/tools/txtar"
@@ -676,6 +677,7 @@ func setup(t *testing.T, main, wd string) *modTest {
 		GOPROXY:     proxyDirToURL(proxyDir),
 		GOSUMDB:     "off",
 		WorkingDir:  filepath.Join(mainDir, wd),
+		GocmdRunner: &gocommand.Runner{},
 	}
 	if *testDebug {
 		env.Logf = log.Printf
@@ -850,6 +852,7 @@ func TestInvalidModCache(t *testing.T) {
 		GOPATH:      filepath.Join(dir, "gopath"),
 		GO111MODULE: "on",
 		GOSUMDB:     "off",
+		GocmdRunner: &gocommand.Runner{},
 		WorkingDir:  dir,
 	}
 	resolver := newModuleResolver(env)
@@ -918,9 +921,10 @@ import _ "rsc.io/quote"
 
 func BenchmarkScanModCache(b *testing.B) {
 	env := &ProcessEnv{
-		GOPATH: build.Default.GOPATH,
-		GOROOT: build.Default.GOROOT,
-		Logf:   log.Printf,
+		GOPATH:      build.Default.GOPATH,
+		GOROOT:      build.Default.GOROOT,
+		GocmdRunner: &gocommand.Runner{},
+		Logf:        log.Printf,
 	}
 	exclude := []gopathwalk.RootType{gopathwalk.RootGOROOT}
 	scanToSlice(env.GetResolver(), exclude)

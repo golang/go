@@ -11,6 +11,7 @@ import (
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
+	"golang.org/x/tools/internal/packagesinternal"
 	"golang.org/x/tools/internal/xcontext"
 	errors "golang.org/x/xerrors"
 )
@@ -32,14 +33,16 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		if !ok {
 			return nil, err
 		}
+		cfg := snapshot.Config(ctx)
 		// Run go.mod tidy on the view.
 		inv := gocommand.Invocation{
 			Verb:       "mod",
 			Args:       []string{"tidy"},
-			Env:        snapshot.Config(ctx).Env,
+			Env:        cfg.Env,
 			WorkingDir: snapshot.View().Folder().Filename(),
 		}
-		if _, err := inv.Run(ctx); err != nil {
+		gocmdRunner := packagesinternal.GetGoCmdRunner(cfg)
+		if _, err := gocmdRunner.Run(ctx, inv); err != nil {
 			return nil, err
 		}
 	case "upgrade.dependency":
@@ -52,14 +55,16 @@ func (s *Server) executeCommand(ctx context.Context, params *protocol.ExecuteCom
 		if !ok {
 			return nil, err
 		}
+		cfg := snapshot.Config(ctx)
 		// Run "go get" on the dependency to upgrade it to the latest version.
 		inv := gocommand.Invocation{
 			Verb:       "get",
 			Args:       strings.Split(deps, " "),
-			Env:        snapshot.Config(ctx).Env,
+			Env:        cfg.Env,
 			WorkingDir: snapshot.View().Folder().Filename(),
 		}
-		if _, err := inv.Run(ctx); err != nil {
+		gocmdRunner := packagesinternal.GetGoCmdRunner(cfg)
+		if _, err := gocmdRunner.Run(ctx, inv); err != nil {
 			return nil, err
 		}
 	}
