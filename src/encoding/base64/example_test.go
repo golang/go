@@ -27,6 +27,15 @@ func Example() {
 	// Hello, 世界
 }
 
+func ExampleEncoding_Encode() {
+	data := []byte("hello gophers!")
+	dst := make([]byte, base64.StdEncoding.EncodedLen(len(data)))
+	base64.StdEncoding.Encode(dst, data)
+	fmt.Printf("%q\n", dst)
+	// Output:
+	// "aGVsbG8gZ29waGVycyE="
+}
+
 func ExampleEncoding_EncodeToString() {
 	data := []byte("any + old & data")
 	str := base64.StdEncoding.EncodeToString(data)
