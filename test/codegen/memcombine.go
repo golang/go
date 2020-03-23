@@ -46,7 +46,6 @@ func load_le32(b []byte) {
 
 func load_le32_idx(b []byte, idx int) {
 	// amd64:`MOVL\s\(.*\)\(.*\*1\),`,-`MOV[BW]`,-`OR`
-	// 386:`MOVL\s\(.*\)\(.*\*1\),`,-`MOV[BW]`,-`OR`
 	// s390x:`MOVWBR\s\(.*\)\(.*\*1\),`
 	// arm64:`MOVWU\s\(R[0-9]+\)\(R[0-9]+\),`,-`MOV[BH]`
 	// ppc64le:`MOVWZ\s`,-`MOV[BH]Z\s`
@@ -198,14 +197,12 @@ func load_be_byte8_uint64_inv(s []byte) uint64 {
 
 func load_le_byte2_uint16_idx(s []byte, idx int) uint16 {
 	// arm64:`MOVHU\s\(R[0-9]+\)\(R[0-9]+\)`,-`ORR`,-`MOVB`
-	// 386:`MOVWLZX\s\([A-Z]+\)\([A-Z]+`,-`ORL`,-`MOVB`
 	// amd64:`MOVWLZX\s\([A-Z]+\)\([A-Z]+`,-`MOVB`,-`OR`
 	return uint16(s[idx]) | uint16(s[idx+1])<<8
 }
 
 func load_le_byte2_uint16_idx_inv(s []byte, idx int) uint16 {
 	// arm64:`MOVHU\s\(R[0-9]+\)\(R[0-9]+\)`,-`ORR`,-`MOVB`
-	// 386:`MOVWLZX\s\([A-Z]+\)\([A-Z]+`,-`ORL`,-`MOVB`
 	// amd64:`MOVWLZX\s\([A-Z]+\)\([A-Z]+`,-`MOVB`,-`OR`
 	return uint16(s[idx+1])<<8 | uint16(s[idx])
 }
@@ -501,13 +498,11 @@ func store_be_byte_8(b []byte, val uint64) {
 func store_le_byte_2_idx(b []byte, idx int, val uint16) {
 	_, _ = b[idx+0], b[idx+1]
 	// arm64:`MOVH\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,-`MOVB`
-	// 386:`MOVW\s[A-Z]+,\s\([A-Z]+\)\([A-Z]+`,-`MOVB`
 	b[idx+1], b[idx+0] = byte(val>>8), byte(val)
 }
 
 func store_le_byte_2_idx_inv(b []byte, idx int, val uint16) {
 	_, _ = b[idx+0], b[idx+1]
-	// 386:`MOVW\s[A-Z]+,\s\([A-Z]+\)\([A-Z]+`,-`MOVB`
 	b[idx+0], b[idx+1] = byte(val), byte(val>>8)
 }
 
