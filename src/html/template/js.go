@@ -179,7 +179,7 @@ func jsValEscaper(args ...interface{}) string {
 	// "<!--", "-->", "<![CDATA[", "]]>", or "</script"
 	// in case custom marshalers produce output containing those.
 
-	// TODO: Maybe abbreviate \u00ab to \xab to produce more compact output.
+	// Note: Can't use \x escaping because it is not JSON compatible
 	if len(b) == 0 {
 		// In, `x=y/{{.}}*z` a json.Marshaler that produces "" should
 		// not cause the output `x=y/*z`.
@@ -287,18 +287,18 @@ var jsStrReplacementTable = []string{
 	0:    `\0`,
 	'\t': `\t`,
 	'\n': `\n`,
-	'\v': `\x0b`, // "\v" == "v" on IE 6.
+	'\v': `\u000b`, // "\v" == "v" on IE 6.
 	'\f': `\f`,
 	'\r': `\r`,
 	// Encode HTML specials as hex so the output can be embedded
 	// in HTML attributes without further encoding.
-	'"':  `\x22`,
-	'&':  `\x26`,
-	'\'': `\x27`,
-	'+':  `\x2b`,
+	'"':  `\u0022`,
+	'&':  `\u0026`,
+	'\'': `\u0027`,
+	'+':  `\u002b`,
 	'/':  `\/`,
-	'<':  `\x3c`,
-	'>':  `\x3e`,
+	'<':  `\u003c`,
+	'>':  `\u003e`,
 	'\\': `\\`,
 }
 
@@ -308,42 +308,42 @@ var jsStrNormReplacementTable = []string{
 	0:    `\0`,
 	'\t': `\t`,
 	'\n': `\n`,
-	'\v': `\x0b`, // "\v" == "v" on IE 6.
+	'\v': `\u000b`, // "\v" == "v" on IE 6.
 	'\f': `\f`,
 	'\r': `\r`,
 	// Encode HTML specials as hex so the output can be embedded
 	// in HTML attributes without further encoding.
-	'"':  `\x22`,
-	'&':  `\x26`,
-	'\'': `\x27`,
-	'+':  `\x2b`,
+	'"':  `\u0022`,
+	'&':  `\u0026`,
+	'\'': `\u0027`,
+	'+':  `\u002b`,
 	'/':  `\/`,
-	'<':  `\x3c`,
-	'>':  `\x3e`,
+	'<':  `\u003c`,
+	'>':  `\u003e`,
 }
 
 var jsRegexpReplacementTable = []string{
 	0:    `\0`,
 	'\t': `\t`,
 	'\n': `\n`,
-	'\v': `\x0b`, // "\v" == "v" on IE 6.
+	'\v': `\u000b`, // "\v" == "v" on IE 6.
 	'\f': `\f`,
 	'\r': `\r`,
 	// Encode HTML specials as hex so the output can be embedded
 	// in HTML attributes without further encoding.
-	'"':  `\x22`,
+	'"':  `\u0022`,
 	'$':  `\$`,
-	'&':  `\x26`,
-	'\'': `\x27`,
+	'&':  `\u0026`,
+	'\'': `\u0027`,
 	'(':  `\(`,
 	')':  `\)`,
 	'*':  `\*`,
-	'+':  `\x2b`,
+	'+':  `\u002b`,
 	'-':  `\-`,
 	'.':  `\.`,
 	'/':  `\/`,
-	'<':  `\x3c`,
-	'>':  `\x3e`,
+	'<':  `\u003c`,
+	'>':  `\u003e`,
 	'?':  `\?`,
 	'[':  `\[`,
 	'\\': `\\`,
