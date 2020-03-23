@@ -2202,12 +2202,10 @@ type muxEntry struct {
 }
 
 // NewServeMux allocates and returns a new ServeMux.
-func NewServeMux() *ServeMux { return new(ServeMux) }
+func NewServeMux() *ServeMux { return &ServeMux{m: make(map[string]muxEntry)} }
 
 // DefaultServeMux is the default ServeMux used by Serve.
-var DefaultServeMux = &defaultServeMux
-
-var defaultServeMux ServeMux
+var DefaultServeMux = NewServeMux()
 
 // cleanPath returns the canonical path for p, eliminating . and .. elements.
 func cleanPath(p string) string {
@@ -2403,9 +2401,6 @@ func (mux *ServeMux) Handle(pattern string, handler Handler) {
 		panic("http: multiple registrations for " + pattern)
 	}
 
-	if mux.m == nil {
-		mux.m = make(map[string]muxEntry)
-	}
 	e := muxEntry{h: handler, pattern: pattern}
 	mux.m[pattern] = e
 	if pattern[len(pattern)-1] == '/' {
