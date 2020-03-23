@@ -3,6 +3,7 @@ package analysistest
 
 import (
 	"fmt"
+	"go/format"
 	"go/token"
 	"go/types"
 	"io/ioutil"
@@ -18,6 +19,8 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/checker"
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/internal/lsp/diff"
+	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
 )
 
@@ -59,6 +62,75 @@ var TestData = func() string {
 // Testing is an abstraction of a *testing.T.
 type Testing interface {
 	Errorf(format string, args ...interface{})
+}
+
+func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns ...string) []*Result {
+	r := Run(t, dir, a, patterns...)
+
+	fileEdits := make(map[*token.File][]diff.TextEdit)
+	fileContents := make(map[*token.File][]byte)
+
+	// Validate edits, prepare the fileEdits map and read the file contents.
+	for _, act := range r {
+		for _, diag := range act.Diagnostics {
+			for _, sf := range diag.SuggestedFixes {
+				for _, edit := range sf.TextEdits {
+					// Validate the edit.
+					if edit.Pos > edit.End {
+						t.Errorf(
+							"diagnostic for analysis %v contains Suggested Fix with malformed edit: pos (%v) > end (%v)",
+							act.Pass.Analyzer.Name, edit.Pos, edit.End)
+						continue
+					}
+					file, endfile := act.Pass.Fset.File(edit.Pos), act.Pass.Fset.File(edit.End)
+					if file == nil || endfile == nil || file != endfile {
+						t.Errorf(
+							"diagnostic for analysis %v contains Suggested Fix with malformed spanning files %v and %v",
+							act.Pass.Analyzer.Name, file.Name(), endfile.Name())
+						continue
+					}
+					if _, ok := fileContents[file]; !ok {
+						contents, err := ioutil.ReadFile(file.Name())
+						if err != nil {
+							t.Errorf("error reading %s: %v", file.Name(), err)
+						}
+						fileContents[file] = contents
+					}
+					spn, err := span.NewRange(act.Pass.Fset, edit.Pos, edit.End).Span()
+					if err != nil {
+						t.Errorf("error converting edit to span %s: %v", file.Name(), err)
+					}
+					fileEdits[file] = append(fileEdits[file], diff.TextEdit{
+						Span:    spn,
+						NewText: string(edit.NewText),
+					})
+				}
+			}
+		}
+	}
+
+	for file, edits := range fileEdits {
+		// Get the original file contents.
+		orig, ok := fileContents[file]
+		if !ok {
+			t.Errorf("could not find file contents for %s", file.Name())
+			continue
+		}
+		out := diff.ApplyEdits(string(orig), edits)
+		// Get the golden file and read the contents.
+		want, err := ioutil.ReadFile(file.Name() + ".golden")
+		if err != nil {
+			t.Errorf("error reading %s.golden: %v", file.Name(), err)
+		}
+		formatted, err := format.Source([]byte(out))
+		if err != nil {
+			continue
+		}
+		if string(want) != string(formatted) {
+			t.Errorf("suggested fixes failed for %s, expected:\n%#v\ngot:\n%#v", file.Name(), string(want), string(formatted))
+		}
+	}
+	return r
 }
 
 // Run applies an analysis to the packages denoted by the "go list" patterns.

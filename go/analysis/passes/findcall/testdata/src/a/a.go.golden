@@ -1,0 +1,8 @@
+package main // want package:"found"
+
+func main() {
+	println_TEST_("hi") // want "call of println"
+	print("hi")         // not a call of println
+}
+
+func println(s string) {} // want println:"found"

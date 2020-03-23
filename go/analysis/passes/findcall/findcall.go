@@ -11,6 +11,7 @@
 package findcall
 
 import (
+	"fmt"
 	"go/ast"
 	"go/types"
 
@@ -48,7 +49,18 @@ func run(pass *analysis.Pass) (interface{}, error) {
 					id = fun.Sel
 				}
 				if id != nil && !pass.TypesInfo.Types[id].IsType() && id.Name == name {
-					pass.Reportf(call.Lparen, "call of %s(...)", id.Name)
+					pass.Report(analysis.Diagnostic{
+						Pos:     call.Lparen,
+						Message: fmt.Sprintf("call of %s(...)", id.Name),
+						SuggestedFixes: []analysis.SuggestedFix{{
+							Message: fmt.Sprintf("Add '_TEST_'"),
+							TextEdits: []analysis.TextEdit{{
+								Pos:     call.Lparen,
+								End:     call.Lparen,
+								NewText: []byte("_TEST_"),
+							}},
+						}},
+					})
 				}
 			}
 			return true

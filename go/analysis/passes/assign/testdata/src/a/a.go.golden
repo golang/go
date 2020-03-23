@@ -15,11 +15,11 @@ type ST struct {
 
 func (s *ST) SetX(x int, ch chan int) {
 	// Accidental self-assignment; it should be "s.x = x"
-	x = x // want "self-assignment of x to x"
+	// want "self-assignment of x to x"
 	// Another mistake
-	s.x = s.x // want "self-assignment of s.x to s.x"
+	// want "self-assignment of s.x to s.x"
 
-	s.l[0] = s.l[0] // want "self-assignment of s.l.0. to s.l.0."
+	// want "self-assignment of s.l.0. to s.l.0."
 
 	// Bail on any potential side effects to avoid false positives
 	s.l[num()] = s.l[num()]
