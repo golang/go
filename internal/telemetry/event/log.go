@@ -12,7 +12,7 @@ import (
 // Log sends a log event with the supplied tag list to the exporter.
 func Log(ctx context.Context, tags ...Tag) {
 	dispatch(ctx, Event{
-		Type: LogType,
+		typ:  LogType,
 		tags: tags,
 	})
 }
@@ -21,7 +21,7 @@ func Log(ctx context.Context, tags ...Tag) {
 // before delivering them to the exporter.
 func Print(ctx context.Context, message string, tags ...Tag) {
 	dispatch(ctx, Event{
-		Type:    LogType,
+		typ:     LogType,
 		Message: message,
 		tags:    tags,
 	})
@@ -36,7 +36,7 @@ func Error(ctx context.Context, message string, err error, tags ...Tag) {
 		message = ""
 	}
 	dispatch(ctx, Event{
-		Type:    LogType,
+		typ:     LogType,
 		Message: message,
 		Error:   err,
 		tags:    tags,

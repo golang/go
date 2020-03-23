@@ -22,7 +22,7 @@ const (
 )
 
 type Event struct {
-	Type    eventType
+	typ     eventType
 	At      time.Time
 	Message string
 	Error   error
@@ -30,12 +30,12 @@ type Event struct {
 	tags []Tag
 }
 
-func (e Event) IsLog() bool       { return e.Type == LogType }
-func (e Event) IsEndSpan() bool   { return e.Type == EndSpanType }
-func (e Event) IsStartSpan() bool { return e.Type == StartSpanType }
-func (e Event) IsLabel() bool     { return e.Type == LabelType }
-func (e Event) IsDetach() bool    { return e.Type == DetachType }
-func (e Event) IsRecord() bool    { return e.Type == RecordType }
+func (e Event) IsLog() bool       { return e.typ == LogType }
+func (e Event) IsEndSpan() bool   { return e.typ == EndSpanType }
+func (e Event) IsStartSpan() bool { return e.typ == StartSpanType }
+func (e Event) IsLabel() bool     { return e.typ == LabelType }
+func (e Event) IsDetach() bool    { return e.typ == DetachType }
+func (e Event) IsRecord() bool    { return e.typ == RecordType }
 
 func (e Event) Format(f fmt.State, r rune) {
 	if !e.At.IsZero() {

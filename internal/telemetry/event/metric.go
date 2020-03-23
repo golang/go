@@ -10,7 +10,7 @@ import (
 
 func Record(ctx context.Context, tags ...Tag) {
 	dispatch(ctx, Event{
-		Type: RecordType,
+		typ:  RecordType,
 		tags: tags,
 	})
 }

@@ -11,7 +11,7 @@ import (
 // Label sends a label event to the exporter with the supplied tags.
 func Label(ctx context.Context, tags ...Tag) context.Context {
 	return dispatch(ctx, Event{
-		Type: LabelType,
+		typ:  LabelType,
 		tags: tags,
 	})
 }
