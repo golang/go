@@ -1,0 +1,10 @@
+This directory contains test data for present's TestTestdata.
+Each file named *.p or *.md is expected to contain a present
+article, then a --- line, then the HTML output for that article.
+
+By convention, testdata files with a .p extension use legacy present
+syntax, while testdata file with a .md extension use Markdown.
+This is only a convention: the Markdown syntax must still begi
+with "# " to be recognized as Markdown by the present parser.
+
+Other files in this directory are supporting files for the articles.

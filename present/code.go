@@ -187,7 +187,7 @@ var codeTemplate = template.Must(template.New("code").Funcs(template.FuncMap{
 }).Parse(codeTemplateHTML))
 
 const codeTemplateHTML = `
-{{with .Prefix}}<pre style="display: none"><span>{{printf "%s" .}}</span></pre>{{end}}
+{{with .Prefix}}<pre style="display: none"><span>{{printf "%s" .}}</span></pre>{{end -}}
 
 <pre{{if .Edit}} contenteditable="true" spellcheck="false"{{end}}{{if .Numbers}} class="numbers"{{end}}>{{/*
 	*/}}{{range .Lines}}<span num="{{.N}}">{{/*
@@ -195,8 +195,7 @@ const codeTemplateHTML = `
 	*/}}{{else}}{{.L}}{{end}}{{/*
 */}}</span>
 {{end}}</pre>
-
-{{with .Suffix}}<pre style="display: none"><span>{{printf "%s" .}}</span></pre>{{end}}
+{{with .Suffix}}<pre style="display: none"><span>{{printf "%s" .}}</span></pre>{{end -}}
 `
 
 // codeLine represents a line of code extracted from a source file.
