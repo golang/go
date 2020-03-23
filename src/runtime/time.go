@@ -251,11 +251,6 @@ func addtimer(t *timer) {
 	}
 	t.status = timerWaiting
 
-	addInitializedTimer(t)
-}
-
-// addInitializedTimer adds an initialized timer to the current P.
-func addInitializedTimer(t *timer) {
 	when := t.when
 
 	pp := getg().m.p.ptr()
@@ -268,7 +263,6 @@ func addInitializedTimer(t *timer) {
 }
 
 // doaddtimer adds t to the current P's heap.
-// It reports whether it saw no problems due to races.
 // The caller must have locked the timers for pp.
 func doaddtimer(pp *p, t *timer) {
 	// Timers rely on the network poller, so make sure the poller
@@ -443,10 +437,14 @@ loop:
 
 	if wasRemoved {
 		t.when = when
-		addInitializedTimer(t)
+		pp := getg().m.p.ptr()
+		lock(&pp.timersLock)
+		doaddtimer(pp, t)
+		unlock(&pp.timersLock)
 		if !atomic.Cas(&t.status, timerModifying, timerWaiting) {
 			badTimer()
 		}
+		wakeNetPoller(when)
 	} else {
 		// The timer is in some other P's heap, so we can't change
 		// the when field. If we did, the other P's heap would
