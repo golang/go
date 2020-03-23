@@ -526,6 +526,59 @@ func (p *recursivePtrStringer) String() string {
 	return fmt.Sprintln(p) // want "Sprintln arg p causes recursive call to String method"
 }
 
+type recursiveError int
+
+func (s recursiveError) Error() string {
+	_ = fmt.Sprintf("%d", s)
+	_ = fmt.Sprintf("%#v", s)
+	_ = fmt.Sprintf("%v", s)  // want "Sprintf format %v with arg s causes recursive Error method call"
+	_ = fmt.Sprintf("%v", &s) // want "Sprintf format %v with arg &s causes recursive Error method call"
+	_ = fmt.Sprintf("%T", s)  // ok; does not recursively call Error
+	return fmt.Sprintln(s)    // want "Sprintln arg s causes recursive call to Error method"
+}
+
+type recursivePtrError int
+
+func (p *recursivePtrError) Error() string {
+	_ = fmt.Sprintf("%v", *p)
+	_ = fmt.Sprint(&p)     // ok; prints address
+	return fmt.Sprintln(p) // want "Sprintln arg p causes recursive call to Error method"
+}
+
+type recursiveStringerAndError int
+
+func (s recursiveStringerAndError) String() string {
+	_ = fmt.Sprintf("%d", s)
+	_ = fmt.Sprintf("%#v", s)
+	_ = fmt.Sprintf("%v", s)  // want "Sprintf format %v with arg s causes recursive String method call"
+	_ = fmt.Sprintf("%v", &s) // want "Sprintf format %v with arg &s causes recursive String method call"
+	_ = fmt.Sprintf("%T", s)  // ok; does not recursively call String
+	return fmt.Sprintln(s)    // want "Sprintln arg s causes recursive call to String method"
+}
+
+func (s recursiveStringerAndError) Error() string {
+	_ = fmt.Sprintf("%d", s)
+	_ = fmt.Sprintf("%#v", s)
+	_ = fmt.Sprintf("%v", s)  // want "Sprintf format %v with arg s causes recursive Error method call"
+	_ = fmt.Sprintf("%v", &s) // want "Sprintf format %v with arg &s causes recursive Error method call"
+	_ = fmt.Sprintf("%T", s)  // ok; does not recursively call Error
+	return fmt.Sprintln(s)    // want "Sprintln arg s causes recursive call to Error method"
+}
+
+type recursivePtrStringerAndError int
+
+func (p *recursivePtrStringerAndError) String() string {
+	_ = fmt.Sprintf("%v", *p)
+	_ = fmt.Sprint(&p)     // ok; prints address
+	return fmt.Sprintln(p) // want "Sprintln arg p causes recursive call to String method"
+}
+
+func (p *recursivePtrStringerAndError) Error() string {
+	_ = fmt.Sprintf("%v", *p)
+	_ = fmt.Sprint(&p)     // ok; prints address
+	return fmt.Sprintln(p) // want "Sprintln arg p causes recursive call to Error method"
+}
+
 // implements a String() method but with non-matching return types
 type nonStringerWrongReturn int
 
