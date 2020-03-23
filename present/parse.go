@@ -470,13 +470,61 @@ func parseSections(ctx *Context, name, prefix string, lines *Lines, number []int
 					return nil, err
 				}
 				e = t
+
+			case isMarkdown:
+				// Collect Markdown lines, including blank lines and indented text.
+				var block []string
+				endLine, endBlock := lines.line-1, -1 // end is last non-empty line
+				for ok {
+					trim := strings.TrimSpace(text)
+					if trim != "" {
+						// Command breaks text block.
+						// Section heading breaks text block in markdown.
+						if text[0] == '.' || text[0] == '#' || isSpeakerNote(text) {
+							break
+						}
+						if strings.HasPrefix(text, `\.`) { // Backslash escapes initial period.
+							text = text[1:]
+						}
+						endLine, endBlock = lines.line, len(block)
+					}
+					block = append(block, text)
+					text, ok = lines.next()
+				}
+				block = block[:endBlock+1]
+				lines.line = endLine + 1
+				if len(block) == 0 {
+					break
+				}
+
+				// Replace all leading tabs with 4 spaces,
+				// which render better in code blocks.
+				// CommonMark defines that for parsing the structure of the file
+				// a tab is equivalent to 4 spaces, so this change won't
+				// affect the later parsing at all.
+				// An alternative would be to apply this to code blocks after parsing,
+				// at the same time that we update <a> targets, but that turns out
+				// to be quite difficult to modify in the AST.
+				for i, line := range block {
+					if len(line) > 0 && line[0] == '\t' {
+						short := strings.TrimLeft(line, "\t")
+						line = strings.Repeat("    ", len(line)-len(short)) + short
+						block[i] = line
+					}
+				}
+				html, err := renderMarkdown([]byte(strings.Join(block, "\n")))
+				if err != nil {
+					return nil, err
+				}
+				e = HTML{HTML: html}
+
 			default:
+				// Collect text lines.
 				var block []string
 				for ok && strings.TrimSpace(text) != "" {
 					// Command breaks text block.
 					// Section heading breaks text block in markdown.
-					if text[0] == '.' || isMarkdown && text[0] == '#' || isSpeakerNote(text) {
-						lines.back()
+					if text[0] == '.' || isSpeakerNote(text) {
 						break
 					}
 					if strings.HasPrefix(text, `\.`) { // Backslash escapes initial period.
@@ -488,30 +536,7 @@ func parseSections(ctx *Context, name, prefix string, lines *Lines, number []int
 				if len(block) == 0 {
 					break
 				}
-				if isMarkdown {
-					// Replace all leading tabs with 4 spaces,
-					// which render better in code blocks.
-					// CommonMark defines that for parsing the structure of the file
-					// a tab is equivalent to 4 spaces, so this change won't
-					// affect the later parsing at all.
-					// An alternative would be to apply this to code blocks after parsing,
-					// at the same time that we update <a> targets, but that turns out
-					// to be quite difficult to modify in the AST.
-					for i, line := range block {
-						if len(line) > 0 && line[0] == '\t' {
-							short := strings.TrimLeft(line, "\t")
-							line = strings.Repeat("    ", len(line)-len(short)) + short
-							block[i] = line
-						}
-					}
-					html, err := renderMarkdown([]byte(strings.Join(block, "\n")))
-					if err != nil {
-						return nil, err
-					}
-					e = HTML{HTML: html}
-				} else {
-					e = Text{Lines: block}
-				}
+				e = Text{Lines: block}
 			}
 			if e != nil {
 				section.Elem = append(section.Elem, e)
