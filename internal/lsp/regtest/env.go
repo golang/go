@@ -141,13 +141,13 @@ func (r *Runner) Close() error {
 // Run executes the test function in the default configured gopls execution
 // modes. For each a test run, a new workspace is created containing the
 // un-txtared files specified by filedata.
-func (r *Runner) Run(t *testing.T, filedata string, test func(context.Context, *testing.T, *Env)) {
+func (r *Runner) Run(t *testing.T, filedata string, test func(e *Env)) {
 	t.Helper()
 	r.RunInMode(r.defaultModes, t, filedata, test)
 }
 
 // RunInMode runs the test in the execution modes specified by the modes bitmask.
-func (r *Runner) RunInMode(modes EnvMode, t *testing.T, filedata string, test func(ctx context.Context, t *testing.T, e *Env)) {
+func (r *Runner) RunInMode(modes EnvMode, t *testing.T, filedata string, test func(e *Env)) {
 	t.Helper()
 	tests := []struct {
 		name         string
@@ -182,7 +182,7 @@ func (r *Runner) RunInMode(modes EnvMode, t *testing.T, filedata string, test fu
 					panic(err)
 				}
 			}()
-			test(ctx, t, env)
+			test(env)
 		})
 	}
 }
@@ -230,8 +230,8 @@ func (r *Runner) separateProcessEnv(ctx context.Context, t *testing.T) (serverte
 // on any error, so that tests for the happy path may be written without
 // checking errors.
 type Env struct {
-	t   *testing.T
-	ctx context.Context
+	T   *testing.T
+	Ctx context.Context
 
 	// Most tests should not need to access the workspace, editor, server, or
 	// connection, but they are available if needed.
@@ -266,8 +266,8 @@ func NewEnv(ctx context.Context, t *testing.T, ws *fake.Workspace, ts servertest
 		t.Fatal(err)
 	}
 	env := &Env{
-		t:               t,
-		ctx:             ctx,
+		T:               t,
+		Ctx:             ctx,
 		W:               ws,
 		E:               editor,
 		Server:          ts,
@@ -362,7 +362,7 @@ func (e *Env) Await(expectations ...DiagnosticExpectation) {
 	// require careful checking of conditions around every state change, so for
 	// now we just limit the scope to diagnostic conditions.
 
-	e.t.Helper()
+	e.T.Helper()
 	e.mu.Lock()
 	// Before adding the waiter, we check if the condition is currently met to
 	// avoid a race where the condition was realized before Await was called.
@@ -379,7 +379,7 @@ func (e *Env) Await(expectations ...DiagnosticExpectation) {
 	e.mu.Unlock()
 
 	select {
-	case <-e.ctx.Done():
+	case <-e.Ctx.Done():
 		// Debugging an unmet expectation can be tricky, so we put some effort into
 		// nicely formatting the failure.
 		var descs []string
@@ -389,7 +389,7 @@ func (e *Env) Await(expectations ...DiagnosticExpectation) {
 		e.mu.Lock()
 		diagString := formatDiagnostics(e.lastDiagnostics)
 		e.mu.Unlock()
-		e.t.Fatalf("waiting on [%s]:\nerr:%v\ndiagnostics:\n%s", strings.Join(descs, ", "), e.ctx.Err(), diagString)
+		e.T.Fatalf("waiting on [%s]:\nerr:%v\ndiagnostics:\n%s", strings.Join(descs, ", "), e.Ctx.Err(), diagString)
 	case <-met:
 	}
 }

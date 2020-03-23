@@ -5,7 +5,6 @@
 package regtest
 
 import (
-	"context"
 	"testing"
 )
 
@@ -24,7 +23,7 @@ func main() {
 }`
 
 func TestDiagnosticErrorInEditedFile(t *testing.T) {
-	runner.Run(t, exampleProgram, func(ctx context.Context, t *testing.T, env *Env) {
+	runner.Run(t, exampleProgram, func(env *Env) {
 		// Deleting the 'n' at the end of Println should generate a single error
 		// diagnostic.
 		env.OpenFile("main.go")
@@ -43,7 +42,7 @@ go 1.12
 func TestMissingImportDiagsClearOnFirstFile(t *testing.T) {
 	t.Skip("skipping due to golang.org/issues/37195")
 	t.Parallel()
-	runner.Run(t, onlyMod, func(ctx context.Context, t *testing.T, env *Env) {
+	runner.Run(t, onlyMod, func(env *Env) {
 		env.CreateBuffer("main.go", "package main\n\nfunc m() {\nlog.Println()\n}")
 		env.SaveBuffer("main.go")
 		// TODO: this shouldn't actually happen
@@ -57,7 +56,7 @@ const Foo = "abc
 `
 
 func TestDiagnosticErrorInNewFile(t *testing.T) {
-	runner.Run(t, brokenFile, func(ctx context.Context, t *testing.T, env *Env) {
+	runner.Run(t, brokenFile, func(env *Env) {
 		env.CreateBuffer("broken.go", brokenFile)
 		env.Await(env.DiagnosticAtRegexp("broken.go", "\"abc"))
 	})
@@ -80,7 +79,7 @@ const a = 2
 `
 
 func TestDiagnosticClearingOnEdit(t *testing.T) {
-	runner.Run(t, badPackage, func(ctx context.Context, t *testing.T, env *Env) {
+	runner.Run(t, badPackage, func(env *Env) {
 		env.OpenFile("b.go")
 		env.Await(env.DiagnosticAtRegexp("a.go", "a = 1"), env.DiagnosticAtRegexp("b.go", "a = 2"))
 
@@ -91,7 +90,7 @@ func TestDiagnosticClearingOnEdit(t *testing.T) {
 }
 
 func TestDiagnosticClearingOnDelete(t *testing.T) {
-	runner.Run(t, badPackage, func(ctx context.Context, t *testing.T, env *Env) {
+	runner.Run(t, badPackage, func(env *Env) {
 		env.OpenFile("a.go")
 		env.Await(env.DiagnosticAtRegexp("a.go", "a = 1"), env.DiagnosticAtRegexp("b.go", "a = 2"))
 		env.RemoveFileFromWorkspace("b.go")
@@ -101,7 +100,7 @@ func TestDiagnosticClearingOnDelete(t *testing.T) {
 }
 
 func TestDiagnosticClearingOnClose(t *testing.T) {
-	runner.Run(t, badPackage, func(ctx context.Context, t *testing.T, env *Env) {
+	runner.Run(t, badPackage, func(env *Env) {
 		env.CreateBuffer("c.go", `package consts
 
 const a = 3`)

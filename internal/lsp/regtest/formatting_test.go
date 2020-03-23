@@ -1,7 +1,6 @@
 package regtest
 
 import (
-	"context"
 	"testing"
 )
 
@@ -23,7 +22,7 @@ func main() {
 `
 
 func TestFormatting(t *testing.T) {
-	runner.Run(t, unformattedProgram, func(ctx context.Context, t *testing.T, env *Env) {
+	runner.Run(t, unformattedProgram, func(env *Env) {
 		env.OpenFile("main.go")
 		env.FormatBuffer("main.go")
 		got := env.E.BufferText("main.go")
@@ -69,7 +68,7 @@ func main() {
 `
 
 func TestOrganizeImports(t *testing.T) {
-	runner.Run(t, disorganizedProgram, func(ctx context.Context, t *testing.T, env *Env) {
+	runner.Run(t, disorganizedProgram, func(env *Env) {
 		env.OpenFile("main.go")
 		env.OrganizeImports("main.go")
 		got := env.E.BufferText("main.go")
@@ -81,7 +80,7 @@ func TestOrganizeImports(t *testing.T) {
 }
 
 func TestFormattingOnSave(t *testing.T) {
-	runner.Run(t, disorganizedProgram, func(ctx context.Context, t *testing.T, env *Env) {
+	runner.Run(t, disorganizedProgram, func(env *Env) {
 		env.OpenFile("main.go")
 		env.SaveBuffer("main.go")
 		got := env.E.BufferText("main.go")

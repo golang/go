@@ -11,53 +11,53 @@ import (
 // RemoveFileFromWorkspace deletes a file on disk but does nothing in the
 // editor. It calls t.Fatal on any error.
 func (e *Env) RemoveFileFromWorkspace(name string) {
-	e.t.Helper()
-	if err := e.W.RemoveFile(e.ctx, name); err != nil {
-		e.t.Fatal(err)
+	e.T.Helper()
+	if err := e.W.RemoveFile(e.Ctx, name); err != nil {
+		e.T.Fatal(err)
 	}
 }
 
 // ReadWorkspaceFile reads a file from the workspace, calling t.Fatal on any
 // error.
 func (e *Env) ReadWorkspaceFile(name string) string {
-	e.t.Helper()
+	e.T.Helper()
 	content, err := e.W.ReadFile(name)
 	if err != nil {
-		e.t.Fatal(err)
+		e.T.Fatal(err)
 	}
 	return content
 }
 
 // OpenFile opens a file in the editor, calling t.Fatal on any error.
 func (e *Env) OpenFile(name string) {
-	e.t.Helper()
-	if err := e.E.OpenFile(e.ctx, name); err != nil {
-		e.t.Fatal(err)
+	e.T.Helper()
+	if err := e.E.OpenFile(e.Ctx, name); err != nil {
+		e.T.Fatal(err)
 	}
 }
 
 // CreateBuffer creates a buffer in the editor, calling t.Fatal on any error.
 func (e *Env) CreateBuffer(name string, content string) {
-	e.t.Helper()
-	if err := e.E.CreateBuffer(e.ctx, name, content); err != nil {
-		e.t.Fatal(err)
+	e.T.Helper()
+	if err := e.E.CreateBuffer(e.Ctx, name, content); err != nil {
+		e.T.Fatal(err)
 	}
 }
 
 // CloseBuffer closes an editor buffer without saving, calling t.Fatal on any
 // error.
 func (e *Env) CloseBuffer(name string) {
-	e.t.Helper()
-	if err := e.E.CloseBuffer(e.ctx, name); err != nil {
-		e.t.Fatal(err)
+	e.T.Helper()
+	if err := e.E.CloseBuffer(e.Ctx, name); err != nil {
+		e.T.Fatal(err)
 	}
 }
 
 // EditBuffer applies edits to an editor buffer, calling t.Fatal on any error.
 func (e *Env) EditBuffer(name string, edits ...fake.Edit) {
-	e.t.Helper()
-	if err := e.E.EditBuffer(e.ctx, name, edits); err != nil {
-		e.t.Fatal(err)
+	e.T.Helper()
+	if err := e.E.EditBuffer(e.Ctx, name, edits); err != nil {
+		e.T.Fatal(err)
 	}
 }
 
@@ -65,13 +65,13 @@ func (e *Env) EditBuffer(name string, edits ...fake.Edit) {
 // buffer specified by name, calling t.Fatal on any error. It first searches
 // for the position in open buffers, then in workspace files.
 func (e *Env) RegexpSearch(name, re string) fake.Pos {
-	e.t.Helper()
+	e.T.Helper()
 	pos, err := e.E.RegexpSearch(name, re)
 	if err == fake.ErrUnknownBuffer {
 		pos, err = e.W.RegexpSearch(name, re)
 	}
 	if err != nil {
-		e.t.Fatalf("RegexpSearch: %v", err)
+		e.T.Fatalf("RegexpSearch: %v", err)
 	}
 	return pos
 }
@@ -79,55 +79,55 @@ func (e *Env) RegexpSearch(name, re string) fake.Pos {
 // RegexpReplace replaces the first group in the first match of regexpStr with
 // the replace text, calling t.Fatal on any error.
 func (e *Env) RegexpReplace(name, regexpStr, replace string) {
-	e.t.Helper()
-	if err := e.E.RegexpReplace(e.ctx, name, regexpStr, replace); err != nil {
-		e.t.Fatalf("RegexpReplace: %v", err)
+	e.T.Helper()
+	if err := e.E.RegexpReplace(e.Ctx, name, regexpStr, replace); err != nil {
+		e.T.Fatalf("RegexpReplace: %v", err)
 	}
 }
 
 // SaveBuffer saves an editor buffer, calling t.Fatal on any error.
 func (e *Env) SaveBuffer(name string) {
-	e.t.Helper()
-	if err := e.E.SaveBuffer(e.ctx, name); err != nil {
-		e.t.Fatal(err)
+	e.T.Helper()
+	if err := e.E.SaveBuffer(e.Ctx, name); err != nil {
+		e.T.Fatal(err)
 	}
 }
 
 // GoToDefinition goes to definition in the editor, calling t.Fatal on any
 // error.
 func (e *Env) GoToDefinition(name string, pos fake.Pos) (string, fake.Pos) {
-	e.t.Helper()
-	n, p, err := e.E.GoToDefinition(e.ctx, name, pos)
+	e.T.Helper()
+	n, p, err := e.E.GoToDefinition(e.Ctx, name, pos)
 	if err != nil {
-		e.t.Fatal(err)
+		e.T.Fatal(err)
 	}
 	return n, p
 }
 
 // FormatBuffer formats the editor buffer, calling t.Fatal on any error.
 func (e *Env) FormatBuffer(name string) {
-	e.t.Helper()
-	if err := e.E.FormatBuffer(e.ctx, name); err != nil {
-		e.t.Fatal(err)
+	e.T.Helper()
+	if err := e.E.FormatBuffer(e.Ctx, name); err != nil {
+		e.T.Fatal(err)
 	}
 }
 
 // OrganizeImports processes the source.organizeImports codeAction, calling
 // t.Fatal on any error.
 func (e *Env) OrganizeImports(name string) {
-	e.t.Helper()
-	if err := e.E.OrganizeImports(e.ctx, name); err != nil {
-		e.t.Fatal(err)
+	e.T.Helper()
+	if err := e.E.OrganizeImports(e.Ctx, name); err != nil {
+		e.T.Fatal(err)
 	}
 }
 
 // CloseEditor shuts down the editor, calling t.Fatal on any error.
 func (e *Env) CloseEditor() {
-	e.t.Helper()
-	if err := e.E.Shutdown(e.ctx); err != nil {
-		e.t.Fatal(err)
+	e.T.Helper()
+	if err := e.E.Shutdown(e.Ctx); err != nil {
+		e.T.Fatal(err)
 	}
-	if err := e.E.Exit(e.ctx); err != nil {
-		e.t.Fatal(err)
+	if err := e.E.Exit(e.Ctx); err != nil {
+		e.T.Fatal(err)
 	}
 }
