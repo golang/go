@@ -1202,6 +1202,14 @@
       (LEAQ8 [off1+4*off2] {sym1} x y)
 // TODO: more?
 
+// Lower LEAQ2/4/8 when the offset is a constant
+(LEAQ2 [off] {sym} x (MOV(Q|L)const [scale])) && is32Bit(off+scale*2) ->
+	(LEAQ [off+scale*2] {sym} x)
+(LEAQ4 [off] {sym} x (MOV(Q|L)const [scale])) && is32Bit(off+scale*4) ->
+	(LEAQ [off+scale*4] {sym} x)
+(LEAQ8 [off] {sym} x (MOV(Q|L)const [scale])) && is32Bit(off+scale*8) ->
+	(LEAQ [off+scale*8] {sym} x)
+
 // Absorb InvertFlags into branches.
 (LT (InvertFlags cmp) yes no) -> (GT cmp yes no)
 (GT (InvertFlags cmp) yes no) -> (LT cmp yes no)
