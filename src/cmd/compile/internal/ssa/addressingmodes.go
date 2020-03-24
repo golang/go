@@ -11,7 +11,7 @@ func addressingModes(f *Func) {
 	default:
 		// Most architectures can't do this.
 		return
-	case "amd64":
+	case "amd64", "386":
 		// TODO: s390x?
 	}
 
