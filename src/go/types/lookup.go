@@ -310,12 +310,9 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 			// comparison in that case.
 			// TODO(gri) is this always correct? what about type bounds?
 			// (Alternative is to rename/subst type parameters and compare.)
-			var tparams []Type
-			if len(mtyp.tparams) > 0 {
-				tparams = make([]Type, len(mtyp.tparams))
-			}
-
-			if !check.identical0(ftyp, mtyp, true, nil, tparams) {
+			u := check.unifier()
+			u.x.init(mtyp.tparams)
+			if !u.unify(ftyp, mtyp) {
 				return m, f
 			}
 		}
@@ -376,12 +373,9 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 		// comparison (provide non-nil tparams to identical0) in that case.
 		// TODO(gri) is this always correct? what about type bounds?
 		// (Alternative is to rename/subst type parameters and compare.)
-		var tparams []Type
-		if len(mtyp.tparams) > 0 {
-			tparams = make([]Type, len(mtyp.tparams))
-		}
-
-		if !check.identical0(ftyp, mtyp, true, nil, tparams) {
+		u := check.unifier()
+		u.x.init(mtyp.tparams)
+		if !u.unify(ftyp, mtyp) {
 			return m, f
 		}
 	}

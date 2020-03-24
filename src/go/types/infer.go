@@ -15,8 +15,8 @@ import "go/token"
 func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, args []*operand) []Type {
 	assert(params.Len() == len(args))
 
-	// targs is the list of inferred type parameter types.
-	targs := make([]Type, len(tparams))
+	u := check.unifier()
+	u.x.init(tparams)
 
 	// Terminology: TPP = type-parameterized function parameter
 
@@ -25,6 +25,9 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 	var indices []int
 	for i, arg := range args {
 		par := params.At(i)
+		// If we permit bidirectional unification, this conditional code needs to be
+		// executed even if par.typ is not parameterized since the argument may be a
+		// generic function (for which we want to infer // its type arguments).
 		if IsParameterized(par.typ) {
 			if arg.mode == invalid {
 				// TODO(gri) we might still be able to infer all targs by
@@ -32,7 +35,11 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 				return nil // error was reported earlier
 			}
 			if isTyped(arg.typ) {
-				if !check.identical0(par.typ, arg.typ, true, nil, targs) {
+				// If we permit bidirectional unification, and arg.typ is
+				// a generic function, we need to initialize u.y with the
+				// respectice type parameters of arg.typ.
+				if !u.unify(par.typ, arg.typ) {
+					//if !check.identical0(par.typ, arg.typ, true, nil, targs) {
 					// Calling subst for an error message can cause problems.
 					// TODO(gri) Determine best approach here.
 					// check.errorf(arg.pos(), "type %s for %s does not match %s = %s",
@@ -57,7 +64,7 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 		// only parameter type it can possibly match against is a *TypeParam.
 		// Thus, only keep the indices of TPPs that are unstructured and which
 		// don't have a type inferred yet.
-		if tpar, _ := par.typ.(*TypeParam); tpar != nil && targs[tpar.index] == nil {
+		if tpar, _ := par.typ.(*TypeParam); tpar != nil && u.x.at(tpar.index) == nil {
 			indices[j] = i
 			j++
 		}
@@ -72,7 +79,8 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 		// The default type for an untyped nil is untyped nil. We must not
 		// infer an untyped nil type as type parameter type. Ignore untyped
 		// nil by making sure all default argument types are typed.
-		if isTyped(targ) && !check.identical0(par.typ, targ, true, nil, targs) {
+		if isTyped(targ) && !u.unify(par.typ, targ) {
+			//if isTyped(targ) && !check.identical0(par.typ, targ, true, nil, targs) {
 			// TODO(gri) see TODO comment above
 			// check.errorf(arg.pos(), "default type %s for %s does not match %s = %s",
 			// 	Default(arg.typ), arg.expr, par.typ, check.subst(pos, par.typ, tparams, targs),
@@ -82,15 +90,20 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 		}
 	}
 
-	// Check if all type parameters have been determined.
+	// Collect type arguments and check if they all have been determined.
 	// TODO(gri) consider moving this outside this function and then we won't need to pass in pos
-	for i, t := range targs {
-		if t == nil {
-			tpar := tparams[i]
+	var targs []Type // lazily allocated
+	for i, tpar := range tparams {
+		targ := u.x.at(i)
+		if targ == nil {
 			ppos := check.fset.Position(tpar.pos).String()
 			check.errorf(pos, "cannot infer %s (%s)", tpar.name, ppos)
 			return nil
 		}
+		if targs == nil {
+			targs = make([]Type, len(tparams))
+		}
+		targs[i] = targ
 	}
 
 	return targs

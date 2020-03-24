@@ -5,6 +5,15 @@
 package p
 
 /*
+func f(type T)(T)
+
+func _() {
+    var x int
+    f(x)
+}
+*/
+
+/*
 func f(func(int))
 func g(type T)(T)
 

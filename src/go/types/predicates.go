@@ -128,6 +128,7 @@ func (p *ifacePair) identical(q *ifacePair) bool {
 }
 
 // If a non-nil tparams is provided, type inference is done for type parameters in x.
+// For changes to this code the corresponding changes should be made to unifier.nify.
 func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams []Type) bool {
 	// If we want type inference, do not shortcut for equal types. Instead
 	// keep comparing them element-wise so we can infer the matching (and
