@@ -416,8 +416,6 @@ type xcoffFile struct {
 	dynLibraries    map[string]int       // Dynamic libraries in .loader section. The integer represents its import file number (- 1)
 	loaderSymbols   []*xcoffLoaderSymbol // symbols inside .loader symbol table
 	loaderReloc     []*xcoffLoaderReloc  // Reloc that must be made inside loader
-
-	ldr *loader.Loader // XXX keep a reference here for now, as it is needed in Xcoffadddynrel. will clean up in the next CL.
 }
 
 // Var used by XCOFF Generation algorithms
@@ -1108,7 +1106,7 @@ func (f *xcoffFile) adddynimpsym(ctxt *Link, s loader.Sym) {
 
 // Xcoffadddynrel adds a dynamic relocation in a XCOFF file.
 // This relocation will be made by the loader.
-func Xcoffadddynrel(target *Target, s *sym.Symbol, r *sym.Reloc) bool {
+func Xcoffadddynrel(target *Target, ldr *loader.Loader, s *sym.Symbol, r *sym.Reloc) bool {
 	if target.IsExternal() {
 		return true
 	}
@@ -1130,7 +1128,7 @@ func Xcoffadddynrel(target *Target, s *sym.Symbol, r *sym.Reloc) bool {
 		if s.Type == sym.SXCOFFTOC && r.Sym.Type == sym.SDYNIMPORT {
 			// Imported symbol relocation
 			for i, dynsym := range xfile.loaderSymbols {
-				if xfile.ldr.Syms[dynsym.sym].Name == r.Sym.Name {
+				if ldr.Syms[dynsym.sym].Name == r.Sym.Name {
 					xldr.symndx = int32(i + 3) // +3 because of 3 section symbols
 					break
 				}
@@ -1189,8 +1187,6 @@ func (ctxt *Link) doxcoff() {
 	})
 
 	xfile.genDynSym(ctxt)
-
-	xfile.ldr = ldr // XXX
 
 	for s := loader.Sym(1); s < loader.Sym(ldr.NSym()); s++ {
 		if strings.HasPrefix(ldr.SymName(s), "TOC.") {

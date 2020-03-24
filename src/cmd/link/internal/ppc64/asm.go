@@ -263,11 +263,11 @@ func gencallstub(ctxt *ld.Link, abicase int, stub *sym.Symbol, targ *sym.Symbol)
 	stub.AddUint32(ctxt.Arch, 0x4e800420) // bctr
 }
 
-func adddynrel(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
 	if target.IsElf() {
 		return addelfdynrel(target, syms, s, r)
 	} else if target.IsAIX() {
-		return ld.Xcoffadddynrel(target, s, r)
+		return ld.Xcoffadddynrel(target, ldr, s, r)
 	}
 	return false
 }
