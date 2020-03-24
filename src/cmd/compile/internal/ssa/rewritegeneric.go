@@ -3983,7 +3983,7 @@ func rewriteValuegeneric_OpConvert(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Convert (Add64 (Convert ptr mem) off) mem)
-	// result: (Add64 ptr off)
+	// result: (AddPtr ptr off)
 	for {
 		if v_0.Op != OpAdd64 {
 			break
@@ -4001,14 +4001,14 @@ func rewriteValuegeneric_OpConvert(v *Value) bool {
 			if mem != v_1 {
 				continue
 			}
-			v.reset(OpAdd64)
+			v.reset(OpAddPtr)
 			v.AddArg2(ptr, off)
 			return true
 		}
 		break
 	}
 	// match: (Convert (Add32 (Convert ptr mem) off) mem)
-	// result: (Add32 ptr off)
+	// result: (AddPtr ptr off)
 	for {
 		if v_0.Op != OpAdd32 {
 			break
@@ -4026,7 +4026,7 @@ func rewriteValuegeneric_OpConvert(v *Value) bool {
 			if mem != v_1 {
 				continue
 			}
-			v.reset(OpAdd32)
+			v.reset(OpAddPtr)
 			v.AddArg2(ptr, off)
 			return true
 		}

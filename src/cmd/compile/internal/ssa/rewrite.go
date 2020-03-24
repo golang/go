@@ -1248,9 +1248,25 @@ func read64(sym interface{}, off int64, byteorder binary.ByteOrder) uint64 {
 	return byteorder.Uint64(buf)
 }
 
+// sequentialAddresses reports true if it can prove that x + n == y
+func sequentialAddresses(x, y *Value, n int64) bool {
+	if x.Op == Op386ADDL && y.Op == Op386LEAL1 && y.AuxInt == n && y.Aux == nil &&
+		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
+			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
+		return true
+	}
+	if x.Op == Op386LEAL1 && y.Op == Op386LEAL1 && y.AuxInt == x.AuxInt+n && x.Aux == y.Aux &&
+		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
+			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
+		return true
+	}
+	return false
+}
+
 // same reports whether x and y are the same value.
 // It checks to a maximum depth of d, so it may report
 // a false negative.
+// TODO: remove when amd64 port is switched to using sequentialAddresses
 func same(x, y *Value, depth int) bool {
 	if x == y {
 		return true

@@ -917,7 +917,7 @@
 (If (ConstBool [c]) yes no) && c == 0 -> (First no yes)
 
 // Get rid of Convert ops for pointer arithmetic on unsafe.Pointer.
-(Convert (Add(64|32) (Convert ptr mem) off) mem) -> (Add(64|32) ptr off)
+(Convert (Add(64|32) (Convert ptr mem) off) mem) -> (AddPtr ptr off)
 (Convert (Convert ptr mem) mem) -> ptr
 
 // strength reduction of divide by a constant.
@@ -1780,6 +1780,10 @@
 // is constant, which pushes constants to the outside
 // of the expression. At that point, any constant-folding
 // opportunities should be obvious.
+// Note: don't include AddPtr here! In order to maintain the
+// invariant that pointers must stay within the pointed-to object,
+// we can't pull part of a pointer computation above the AddPtr.
+// See issue 37881.
 
 // x + (C + z) -> C + (x + z)
 (Add64 (Add64 i:(Const64 <t>) z) x) && (z.Op != OpConst64 && x.Op != OpConst64) -> (Add64 i (Add64 <t> z x))
