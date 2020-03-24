@@ -52,9 +52,9 @@ func TestAddMaterializedSymbol(t *testing.T) {
 		t.Fatalf("LookupOrCreateSym failed for go.info.type.uint8")
 	}
 	// Create a nameless symbol
-	es3 := ldr.CreateExtSym("")
+	es3 := ldr.CreateStaticSym("")
 	if es3 == 0 {
-		t.Fatalf("CreateExtSym failed for nameless sym")
+		t.Fatalf("CreateStaticSym failed for nameless sym")
 	}
 
 	// Grab symbol builder pointers
