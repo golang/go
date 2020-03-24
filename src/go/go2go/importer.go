@@ -15,6 +15,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -34,6 +35,9 @@ type Importer struct {
 
 	// Map from import path to package information.
 	packages map[string]*types.Package
+
+	// Map from import path to list of import paths that it imports.
+	imports map[string][]string
 
 	// Map from Object to AST function declaration for
 	// parameterized functions.
@@ -59,6 +63,7 @@ func NewImporter(tmpdir string) *Importer {
 		info:         info,
 		translated:   make(map[string]string),
 		packages:     make(map[string]*types.Package),
+		imports:      make(map[string][]string),
 		idToFunc:     make(map[types.Object]*ast.FuncDecl),
 		idToTypeSpec: make(map[types.Object]*ast.TypeSpec),
 	}
@@ -216,13 +221,42 @@ func (imp *Importer) localImport(importPath, dir string) (*types.Package, error)
 
 // record records information for a package, for use when working
 // with packages that import this one.
-func (imp *Importer) record(pkgfiles []namedAST, importPath string, tpkg *types.Package) {
+func (imp *Importer) record(pkgfiles []namedAST, importPath string, tpkg *types.Package, asts []*ast.File) {
 	if importPath != "" {
 		imp.packages[importPath] = tpkg
 	}
-       for _, nast := range pkgfiles {
-               imp.addIDs(nast.ast)
-       }
+	imp.imports[importPath] = imp.collectImports(asts)
+	for _, nast := range pkgfiles {
+		imp.addIDs(nast.ast)
+	}
+}
+
+// collectImports returns all the imports paths imported by any of the ASTs.
+func (imp *Importer) collectImports(asts []*ast.File) []string {
+	m := make(map[string]bool)
+	for _, a := range asts {
+		for _, decl := range a.Decls {
+			gen, ok := decl.(*ast.GenDecl)
+			if !ok || gen.Tok != token.IMPORT {
+				continue
+			}
+			for _, spec := range gen.Specs {
+				imp := spec.(*ast.ImportSpec)
+				if imp.Name != nil {
+					// We don't try to handle import aliases.
+					continue
+				}
+				path := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, `"`), `"`)
+				m[path] = true
+			}
+		}
+	}
+	s := make([]string, 0, len(m))
+	for p := range m {
+		s = append(s, p)
+	}
+	sort.Strings(s)
+	return s
 }
 
 // addIDs finds IDs for generic functions and types and adds them to a map.
@@ -268,4 +302,36 @@ func (imp *Importer) lookupFunc(obj types.Object) (*ast.FuncDecl, bool) {
 func (imp *Importer) lookupTypeSpec(obj types.Object) (*ast.TypeSpec, bool) {
 	ts, ok := imp.idToTypeSpec[obj]
 	return ts, ok
+}
+
+// transitiveImports returns all the transitive imports of an import path.
+func (imp *Importer) transitiveImports(path string) []string {
+	return imp.gatherTransitiveImports(path, make(map[string]bool))
+}
+
+// gatherTransitiveImports returns all the transitive imports of an import path,
+// using a map to avoid duplicate work.
+func (imp *Importer) gatherTransitiveImports(path string, m map[string]bool) []string {
+	imports := imp.imports[path]
+	if len(imports) == 0 {
+		return nil
+	}
+	var r []string
+	for _, im := range imports {
+		r = append(r, im)
+		if !m[im] {
+			m[im] = true
+			r = append(r, imp.gatherTransitiveImports(im, m)...)
+		}
+	}
+	dup := make(map[string]bool)
+	for _, p := range r {
+		dup[p] = true
+	}
+	r = make([]string, 0, len(dup))
+	for p := range dup {
+		r = append(r, p)
+	}
+	sort.Strings(r)
+	return r
 }

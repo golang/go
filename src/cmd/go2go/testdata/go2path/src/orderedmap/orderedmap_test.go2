@@ -1,0 +1,63 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package orderedmap
+
+import (
+	"bytes"
+	"testing"
+
+	"slices"
+)
+
+func TestMap(t *testing.T) {
+	m := New([]byte, int)(bytes.Compare)
+
+	if _, found := m.Find([]byte("a")); found {
+		t.Errorf("unexpectedly found %q in empty map", []byte("a"))
+	}
+	if !m.Insert([]byte("a"), 'a') {
+		t.Errorf("key %q unexpectedly already present", []byte("a"))
+	}
+	if !m.Insert([]byte("c"), 'c') {
+		t.Errorf("key %q unexpectedly already present", []byte("c"))
+	}
+	if !m.Insert([]byte("b"), 'b') {
+		t.Errorf("key %q unexpectedly already present", []byte("b"))
+	}
+	if m.Insert([]byte("c"), 'x') {
+		t.Errorf("key %q unexpectedly not present", []byte("c"))
+	}
+
+	if v, found := m.Find([]byte("a")); !found {
+		t.Errorf("did not find %q", []byte("a"))
+	} else if v != 'a' {
+		t.Errorf("key %q returned wrong value %c, expected %c", []byte("a"), v, 'a')
+	}
+	if v, found := m.Find([]byte("c")); !found {
+		t.Errorf("did not find %q", []byte("c"))
+	} else if v != 'x' {
+		t.Errorf("key %q returned wrong value %c, expected %c", []byte("c"), v, 'x')
+	}
+
+	if _, found := m.Find([]byte("d")); found {
+		t.Errorf("unexpectedly found %q", []byte("d"))
+	}
+
+	gather := func(it *Iterator([]byte, int)) []int {
+		var r []int
+		for {
+			_, v, ok := it.Next()
+			if !ok {
+				return r
+			}
+			r = append(r, v)
+		}
+	}
+	got := gather(m.Iterate())
+	want := []int{'a', 'b', 'x'}
+	if !slices.Equal(got, want) {
+		t.Errorf("Iterate returned %v, want %v", got, want)
+	}
+}

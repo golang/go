@@ -92,7 +92,7 @@ func rewriteFilesInPath(importer *Importer, importPath, dir string, go2files []s
 		}
 
 		if !strings.HasSuffix(pkg.Name, "_test") {
-			importer.record(pkgfiles, importPath, tpkg)
+			importer.record(pkgfiles, importPath, tpkg, asts)
 		}
 
 		rpkgs = append(rpkgs, tpkg)
@@ -101,7 +101,7 @@ func rewriteFilesInPath(importer *Importer, importPath, dir string, go2files []s
 
 	for _, tpkg := range tpkgs {
 		for i, pkgfile := range tpkg {
-			if err := rewriteFile(dir, fset, importer, pkgfile.name, pkgfile.ast, i == 0); err != nil {
+			if err := rewriteFile(dir, fset, importer, importPath, pkgfile.name, pkgfile.ast, i == 0); err != nil {
 				return nil, err
 			}
 		}
@@ -128,7 +128,7 @@ func RewriteBuffer(importer *Importer, filename string, file []byte) ([]byte, er
 		return nil, fmt.Errorf("type checking failed for %s\n%v", pf.Name.Name, merr)
 	}
 	importer.addIDs(pf)
-	if err := rewriteAST(fset, importer, pf, true); err != nil {
+	if err := rewriteAST(fset, importer, "", pf, true); err != nil {
 		return nil, err
 	}
 	var buf bytes.Buffer

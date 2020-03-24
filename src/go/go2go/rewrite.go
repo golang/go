@@ -13,6 +13,8 @@ import (
 	"go/types"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -79,8 +81,8 @@ type typeInstantiation struct {
 }
 
 // rewrite rewrites the contents of one file.
-func rewriteFile(dir string, fset *token.FileSet, importer *Importer, filename string, file *ast.File, addImportableName bool) (err error) {
-	if err := rewriteAST(fset, importer, file, addImportableName); err != nil {
+func rewriteFile(dir string, fset *token.FileSet, importer *Importer, importPath, filename string, file *ast.File, addImportableName bool) (err error) {
+	if err := rewriteAST(fset, importer, importPath, file, addImportableName); err != nil {
 		return err
 	}
 
@@ -108,7 +110,7 @@ func rewriteFile(dir string, fset *token.FileSet, importer *Importer, filename s
 }
 
 // rewriteAST rewrites the AST for a file.
-func rewriteAST(fset *token.FileSet, importer *Importer, file *ast.File, addImportableName bool) (err error) {
+func rewriteAST(fset *token.FileSet, importer *Importer, importPath string, file *ast.File, addImportableName bool) (err error) {
 	t := translator{
 		fset:               fset,
 		importer:           importer,
@@ -117,6 +119,63 @@ func rewriteAST(fset *token.FileSet, importer *Importer, file *ast.File, addImpo
 		typeInstantiations: make(map[types.Type][]*typeInstantiation),
 	}
 	t.translate(file)
+
+	// Add all the transitive imports. This is more than we need,
+	// but we're not trying to be elegant here.
+	imps := make(map[string]bool)
+
+	for _, p := range importer.transitiveImports(importPath) {
+		imps[p] = true
+	}
+
+	decls := make([]ast.Decl, 0, len(file.Decls))
+	var specs []ast.Spec
+	for _, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.IMPORT {
+			decls = append(decls, decl)
+			continue
+		}
+		for _, spec := range gen.Specs {
+			imp := spec.(*ast.ImportSpec)
+			if imp.Name != nil {
+				specs = append(specs, imp)
+			}
+			// We picked up Go 2 imports above, but we still
+			// need to pick up Go 1 imports here.
+			path := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, `"`), `"`)
+			if imps[path] {
+				continue
+			}
+			imps[path] = true
+			for _, p := range importer.transitiveImports(path) {
+				imps[p] = true
+			}
+		}
+	}
+	file.Decls = decls
+
+	paths := make([]string, 0, len(imps))
+	for p := range imps {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+
+	for _, p := range paths {
+		specs = append(specs, ast.Spec(&ast.ImportSpec{
+			Path: &ast.BasicLit{
+				Kind:  token.STRING,
+				Value: strconv.Quote(p),
+			},
+		}))
+	}
+	if len(specs) > 0 {
+		first := &ast.GenDecl{
+			Tok:   token.IMPORT,
+			Specs: specs,
+		}
+		file.Decls = append([]ast.Decl{first}, file.Decls...)
+	}
 
 	// Add a name that other packages can reference to avoid an error
 	// about an unused package.
@@ -622,7 +681,7 @@ func (t *translator) instantiationTypes(call *ast.CallExpr) (argList []ast.Expr,
 		typeList = make([]types.Type, 0, len(argList))
 		for _, arg := range argList {
 			if at := t.lookupType(arg); at == nil {
-				panic(fmt.Sprintf("no type found for %T %v", arg, arg))
+				panic(fmt.Sprintf("%s: no type found for %T %v", t.fset.Position(arg.Pos()), arg, arg))
 			} else {
 				typeList = append(typeList, at)
 			}

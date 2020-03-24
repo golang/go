@@ -171,6 +171,8 @@ func (t *translator) instantiateTypeDecl(qid qualifiedIdent, typ *types.Named, a
 
 	instType := t.instantiateType(ta, typ.Underlying())
 
+	t.setType(instIdent, instType)
+
 	nm := typ.NumMethods()
 	for i := 0; i < nm; i++ {
 		method := typ.Method(i)
