@@ -195,7 +195,7 @@ type Arch struct {
 	Openbsddynld   string
 	Dragonflydynld string
 	Solarisdynld   string
-	Adddynrel      func(*Target, *ArchSyms, *sym.Symbol, *sym.Reloc) bool
+	Adddynrel      func(*Target, *loader.Loader, *ArchSyms, *sym.Symbol, *sym.Reloc) bool
 	Archinit       func(*Link)
 	// Archreloc is an arch-specific hook that assists in
 	// relocation processing (invoked by 'relocsym'); it handles

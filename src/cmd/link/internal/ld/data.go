@@ -129,7 +129,7 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
 // to avoid introducing unnecessary allocations in the main loop.
 // TODO: This function is called in parallel. When the Loader wavefront
 // reaches here, calls into the loader need to be parallel as well.
-func relocsym(target *Target, err *ErrorReporter, lookup LookupFn, syms *ArchSyms, s *sym.Symbol) {
+func relocsym(target *Target, ldr *loader.Loader, err *ErrorReporter, lookup LookupFn, syms *ArchSyms, s *sym.Symbol) {
 	if len(s.R) == 0 {
 		return
 	}
@@ -337,7 +337,7 @@ func relocsym(target *Target, err *ErrorReporter, lookup LookupFn, syms *ArchSym
 				// symbol which isn't in .data. However, as .text has the
 				// same address once loaded, this is possible.
 				if s.Sect.Seg == &Segdata {
-					Xcoffadddynrel(target, s, r)
+					Xcoffadddynrel(target, ldr, s, r)
 				}
 			}
 
@@ -575,25 +575,26 @@ func relocsym(target *Target, err *ErrorReporter, lookup LookupFn, syms *ArchSym
 func (ctxt *Link) reloc() {
 	var wg sync.WaitGroup
 	target := &ctxt.Target
+	ldr := ctxt.loader
 	reporter := &ctxt.ErrorReporter
 	lookup := ctxt.Syms.ROLookup
 	syms := &ctxt.ArchSyms
 	wg.Add(3)
 	go func() {
 		for _, s := range ctxt.Textp {
-			relocsym(target, reporter, lookup, syms, s)
+			relocsym(target, ldr, reporter, lookup, syms, s)
 		}
 		wg.Done()
 	}()
 	go func() {
 		for _, s := range ctxt.datap {
-			relocsym(target, reporter, lookup, syms, s)
+			relocsym(target, ldr, reporter, lookup, syms, s)
 		}
 		wg.Done()
 	}()
 	go func() {
 		for _, s := range dwarfp {
-			relocsym(target, reporter, lookup, syms, s)
+			relocsym(target, ldr, reporter, lookup, syms, s)
 		}
 		wg.Done()
 	}()
@@ -666,6 +667,7 @@ func (ctxt *Link) windynrelocsyms() {
 
 func dynrelocsym(ctxt *Link, s *sym.Symbol) {
 	target := &ctxt.Target
+	ldr := ctxt.loader
 	syms := &ctxt.ArchSyms
 	for ri := range s.R {
 		r := &s.R[ri]
@@ -673,7 +675,7 @@ func dynrelocsym(ctxt *Link, s *sym.Symbol) {
 			// It's expected that some relocations will be done
 			// later by relocsym (R_TLS_LE, R_ADDROFF), so
 			// don't worry if Adddynrel returns false.
-			thearch.Adddynrel(target, syms, s, r)
+			thearch.Adddynrel(target, ldr, syms, s, r)
 			continue
 		}
 
@@ -681,7 +683,7 @@ func dynrelocsym(ctxt *Link, s *sym.Symbol) {
 			if r.Sym != nil && !r.Sym.Attr.Reachable() {
 				Errorf(s, "dynamic relocation to unreachable symbol %s", r.Sym.Name)
 			}
-			if !thearch.Adddynrel(target, syms, s, r) {
+			if !thearch.Adddynrel(target, ldr, syms, s, r) {
 				Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d (%s) stype=%d (%s))", r.Sym.Name, r.Type, sym.RelocName(ctxt.Arch, r.Type), r.Sym.Type, r.Sym.Type)
 			}
 		}
@@ -2488,6 +2490,7 @@ func compressSyms(ctxt *Link, syms []*sym.Symbol) []byte {
 		log.Fatalf("NewWriterLevel failed: %s", err)
 	}
 	target := &ctxt.Target
+	ldr := ctxt.loader
 	reporter := &ctxt.ErrorReporter
 	lookup := ctxt.Syms.ROLookup
 	archSyms := &ctxt.ArchSyms
@@ -2502,7 +2505,7 @@ func compressSyms(ctxt *Link, syms []*sym.Symbol) []byte {
 			// TODO: This function call needs to be parallelized when the loader wavefront gets here.
 			s.Attr.Set(sym.AttrReadOnly, false)
 		}
-		relocsym(target, reporter, lookup, archSyms, s)
+		relocsym(target, ldr, reporter, lookup, archSyms, s)
 		if _, err := z.Write(s.P); err != nil {
 			log.Fatalf("compression failed: %s", err)
 		}
