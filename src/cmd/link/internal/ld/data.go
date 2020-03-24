@@ -129,7 +129,7 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
 // to avoid introducing unnecessary allocations in the main loop.
 // TODO: This function is called in parallel. When the Loader wavefront
 // reaches here, calls into the loader need to be parallel as well.
-func relocsym(target *Target, ldr *loader.Loader, err *ErrorReporter, lookup LookupFn, syms *ArchSyms, s *sym.Symbol) {
+func relocsym(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *ArchSyms, s *sym.Symbol) {
 	if len(s.R) == 0 {
 		return
 	}
@@ -378,7 +378,7 @@ func relocsym(target *Target, ldr *loader.Loader, err *ErrorReporter, lookup Loo
 					r.Type = objabi.R_ADDR
 				}
 
-				r.Xsym = lookup(r.Sym.Sect.Name, 0)
+				r.Xsym = r.Sym.Sect.Sym
 				r.Xadd = r.Add + Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr)
 
 				o = r.Xadd
@@ -577,24 +577,23 @@ func (ctxt *Link) reloc() {
 	target := &ctxt.Target
 	ldr := ctxt.loader
 	reporter := &ctxt.ErrorReporter
-	lookup := ctxt.Syms.ROLookup
 	syms := &ctxt.ArchSyms
 	wg.Add(3)
 	go func() {
 		for _, s := range ctxt.Textp {
-			relocsym(target, ldr, reporter, lookup, syms, s)
+			relocsym(target, ldr, reporter, syms, s)
 		}
 		wg.Done()
 	}()
 	go func() {
 		for _, s := range ctxt.datap {
-			relocsym(target, ldr, reporter, lookup, syms, s)
+			relocsym(target, ldr, reporter, syms, s)
 		}
 		wg.Done()
 	}()
 	go func() {
 		for _, s := range dwarfp {
-			relocsym(target, ldr, reporter, lookup, syms, s)
+			relocsym(target, ldr, reporter, syms, s)
 		}
 		wg.Done()
 	}()
@@ -1809,6 +1808,7 @@ func (ctxt *Link) dodata() {
 		}
 
 		sect = addsection(ctxt.Arch, &Segdwarf, s.Name, 04)
+		sect.Sym = s
 		sect.Align = 1
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
@@ -1823,18 +1823,20 @@ func (ctxt *Link) dodata() {
 	for i < len(dwarfp) {
 		curType := dwarfp[i].Type
 		var sect *sym.Section
+		var sectname string
 		switch curType {
 		case sym.SDWARFINFO:
-			sect = addsection(ctxt.Arch, &Segdwarf, ".debug_info", 04)
+			sectname = ".debug_info"
 		case sym.SDWARFRANGE:
-			sect = addsection(ctxt.Arch, &Segdwarf, ".debug_ranges", 04)
+			sectname = ".debug_ranges"
 		case sym.SDWARFLOC:
-			sect = addsection(ctxt.Arch, &Segdwarf, ".debug_loc", 04)
+			sectname = ".debug_loc"
 		default:
 			// Error is unrecoverable, so panic.
 			panic(fmt.Sprintf("unknown DWARF section %v", curType))
 		}
-
+		sect = addsection(ctxt.Arch, &Segdwarf, sectname, 04)
+		sect.Sym = ctxt.Syms.ROLookup(sectname, 0)
 		sect.Align = 1
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
@@ -2492,7 +2494,6 @@ func compressSyms(ctxt *Link, syms []*sym.Symbol) []byte {
 	target := &ctxt.Target
 	ldr := ctxt.loader
 	reporter := &ctxt.ErrorReporter
-	lookup := ctxt.Syms.ROLookup
 	archSyms := &ctxt.ArchSyms
 	for _, s := range syms {
 		// s.P may be read-only. Apply relocations in a
@@ -2505,7 +2506,7 @@ func compressSyms(ctxt *Link, syms []*sym.Symbol) []byte {
 			// TODO: This function call needs to be parallelized when the loader wavefront gets here.
 			s.Attr.Set(sym.AttrReadOnly, false)
 		}
-		relocsym(target, ldr, reporter, lookup, archSyms, s)
+		relocsym(target, ldr, reporter, archSyms, s)
 		if _, err := z.Write(s.P); err != nil {
 			log.Fatalf("compression failed: %s", err)
 		}
