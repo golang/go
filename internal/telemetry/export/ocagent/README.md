@@ -36,25 +36,39 @@ import (
 	"net/http"
 	"time"
 
-	"golang.org/x/tools/internal/telemetry/export"
-	"golang.org/x/tools/internal/telemetry/export/ocagent"
-	"golang.org/x/tools/internal/telemetry/export/metric"
 	"golang.org/x/tools/internal/telemetry/event"
+	"golang.org/x/tools/internal/telemetry/export"
+	"golang.org/x/tools/internal/telemetry/export/metric"
+	"golang.org/x/tools/internal/telemetry/export/ocagent"
 )
 
-func main() {
+type testExporter struct {
+	metrics metric.Exporter
+	ocagent *ocagent.Exporter
+}
 
-	exporter := ocagent.Connect(&ocagent.Config{
+func (e *testExporter) ProcessEvent(ctx context.Context, ev event.Event) (context.Context, event.Event) {
+	ctx, ev = export.Tag(ctx, ev)
+	ctx, ev = export.ContextSpan(ctx, ev)
+	ctx, ev = e.metrics.ProcessEvent(ctx, ev)
+	ctx, ev = e.ocagent.ProcessEvent(ctx, ev)
+	return ctx, ev
+}
+
+func main() {
+	exporter := &testExporter{}
+
+	exporter.ocagent = ocagent.Connect(&ocagent.Config{
 		Start:   time.Now(),
 		Address: "http://127.0.0.1:55678",
 		Service: "go-tools-test",
 		Rate:    5 * time.Second,
 		Client:  &http.Client{},
 	})
-	export.SetExporter(exporter)
+	event.SetExporter(exporter)
 
 	ctx := context.TODO()
-	mLatency := event.NewFloat64Key("latency", "the latency in milliseconds", "ms")
+	mLatency := event.NewFloat64Key("latency", "the latency in milliseconds")
 	distribution := metric.HistogramFloat64Data{
 		Info: &metric.HistogramFloat64{
 			Name:        "latencyDistribution",
@@ -63,12 +77,12 @@ func main() {
 		},
 	}
 
-	distribution.Info.Record(mLatency)
+	distribution.Info.Record(&exporter.metrics, mLatency)
 
 	for {
 		sleep := randomSleep()
 		time.Sleep(time.Duration(sleep) * time.Millisecond)
-		mLatency.Record(ctx, float64(sleep))
+		event.Record(ctx, mLatency.Of(float64(sleep)))
 
 		fmt.Println("Latency: ", float64(sleep))
 	}
