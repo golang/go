@@ -320,13 +320,30 @@ func adddynlib(ctxt *Link, lib string) {
 	seenlib[lib] = true
 
 	if ctxt.IsELF {
-		s := ctxt.DynStr
-		if s.Size == 0 {
-			Addstring(s, "")
+		dsu := ctxt.loader.MakeSymbolUpdater(ctxt.DynStr2)
+		if dsu.Size() == 0 {
+			dsu.Addstring("")
 		}
-		elfWriteDynEnt(ctxt.Arch, ctxt.Dynamic, DT_NEEDED, uint64(Addstring(s, lib)))
+		du := ctxt.loader.MakeSymbolUpdater(ctxt.Dynamic2)
+		Elfwritedynent2(ctxt.Arch, du, DT_NEEDED, uint64(dsu.Addstring(lib)))
 	} else {
 		Errorf(nil, "adddynlib: unsupported binary format")
+	}
+}
+
+func Adddynsym2(ldr *loader.Loader, reporter *ErrorReporter, target *Target, syms *ArchSyms, s loader.Sym) {
+	if ldr.SymDynid(s) >= 0 || target.LinkMode == LinkExternal {
+		return
+	}
+
+	if target.IsELF {
+		elfadddynsym2(ldr, target, syms, s)
+	} else if target.HeadType == objabi.Hdarwin {
+		reporter.Errorf(s, "adddynsym: missed symbol (Extname=%s)", ldr.SymExtname(s))
+	} else if target.HeadType == objabi.Hwindows {
+		// already taken care of
+	} else {
+		reporter.Errorf(s, "adddynsym: unsupported binary format")
 	}
 }
 
@@ -381,17 +398,23 @@ func fieldtrack(arch *sys.Arch, l *loader.Loader) {
 func (ctxt *Link) addexport() {
 	// Track undefined external symbols during external link.
 	if ctxt.LinkMode == LinkExternal {
-		for _, s := range ctxt.Syms.Allsym {
-			if !s.Attr.Reachable() || s.Attr.Special() || s.Attr.SubSymbol() {
+		for _, s := range ctxt.Textp2 {
+			if ctxt.loader.AttrSpecial(s) || ctxt.loader.AttrSubSymbol(s) {
 				continue
 			}
-			if s.Type != sym.STEXT {
-				continue
-			}
-			for i := range s.R {
-				r := &s.R[i]
-				if r.Sym != nil && r.Sym.Type == sym.Sxxx {
-					r.Sym.Type = sym.SUNDEFEXT
+			relocs := ctxt.loader.Relocs(s)
+			for i := 0; i < relocs.Count; i++ {
+				if rs := relocs.At2(i).Sym(); rs != 0 {
+					if ctxt.loader.SymType(rs) == sym.Sxxx && !ctxt.loader.AttrLocal(rs) {
+						// sanity check
+						if len(ctxt.loader.Data(rs)) != 0 {
+							panic("expected no data on undef symbol")
+						}
+						su := ctxt.loader.MakeSymbolUpdater(rs)
+						su.SetType(sym.SUNDEFEXT)
+						// temporary until the wavefront moves past addexport
+						ctxt.loader.Syms[rs].Type = sym.SUNDEFEXT
+					}
 				}
 			}
 		}
@@ -402,12 +425,17 @@ func (ctxt *Link) addexport() {
 		return
 	}
 
-	for _, exp := range dynexp {
-		Adddynsym(&ctxt.Target, &ctxt.ArchSyms, exp)
+	for _, exp := range ctxt.dynexp2 {
+		Adddynsym2(ctxt.loader, &ctxt.ErrorReporter, &ctxt.Target, &ctxt.ArchSyms, exp)
 	}
 	for _, lib := range dynlib {
 		adddynlib(ctxt, lib)
 	}
+
+	// temporary until the wavefront moves past addexport:
+	// copy any changes to loader.Sym symbols back into the sym.Symbol world.
+	modified := []loader.Sym{ctxt.DynSym2, ctxt.Dynamic2, ctxt.DynStr2}
+	ctxt.loader.PropagateLoaderChangesToSymbols(modified, 0)
 }
 
 type Pkg struct {
