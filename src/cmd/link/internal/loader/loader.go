@@ -904,6 +904,10 @@ func (l *Loader) SetAttrCgoExportStatic(i Sym, v bool) {
 	}
 }
 
+func (l *Loader) AttrCgoExport(i Sym) bool {
+	return l.AttrCgoExportDynamic(i) || l.AttrCgoExportStatic(i)
+}
+
 // AttrReadOnly returns true for a symbol whose underlying data
 // is stored via a read-only mmap.
 func (l *Loader) AttrReadOnly(i Sym) bool {
@@ -2351,8 +2355,8 @@ func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {
 	dst.Attr.Set(sym.AttrSubSymbol, dst.Outer != nil)
 
 	// Copy over dynimplib, dynimpvers, extname.
-	if l.SymExtname(src) != "" {
-		dst.SetExtname(l.SymExtname(src))
+	if name, ok := l.extname[src]; ok {
+		dst.SetExtname(name)
 	}
 	if l.SymDynimplib(src) != "" {
 		dst.SetDynimplib(l.SymDynimplib(src))
@@ -2377,7 +2381,13 @@ func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {
 
 // CreateExtSym creates a new external symbol with the specified name
 // without adding it to any lookup tables, returning a Sym index for it.
-func (l *Loader) CreateExtSym(name string) Sym {
+func (l *Loader) CreateExtSym(name string, ver int) Sym {
+	return l.newExtSym(name, ver)
+}
+
+// CreateStaticSym creates a new static symbol with the specified name
+// without adding it to any lookup tables, returning a Sym index for it.
+func (l *Loader) CreateStaticSym(name string) Sym {
 	// Assign a new unique negative version -- this is to mark the
 	// symbol so that it can be skipped when ExtractSymbols is adding
 	// ext syms to the sym.Symbols hash.

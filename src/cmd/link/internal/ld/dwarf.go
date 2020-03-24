@@ -461,7 +461,7 @@ func (d *dwctxt2) dotypedef(parent *dwarf.DWDie, gotype loader.Sym, name string,
 	// Create a new loader symbol for the typedef. We no longer
 	// do lookups of typedef symbols by name, so this is going
 	// to be an anonymous symbol (we want this for perf reasons).
-	tds := d.ldr.CreateExtSym("")
+	tds := d.ldr.CreateExtSym("", 0)
 	tdsu := d.ldr.MakeSymbolUpdater(tds)
 	tdsu.SetType(sym.SDWARFINFO)
 	def.Sym = dwSym(tds)

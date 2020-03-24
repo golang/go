@@ -272,13 +272,13 @@ func Main(arch *sys.Arch, theArch Arch) {
 		bench.Start("dope")
 		ctxt.dope()
 	}
-	bench.Start("loadlibfull")
-	setupdynexp(ctxt)
-	ctxt.loadlibfull() // XXX do it here for now
 	if ctxt.IsAIX() {
 		bench.Start("doxcoff")
 		ctxt.doxcoff()
 	}
+	bench.Start("loadlibfull")
+	setupdynexp(ctxt)
+	ctxt.loadlibfull() // XXX do it here for now
 	if ctxt.IsWindows() {
 		bench.Start("windynrelocsyms")
 		ctxt.windynrelocsyms()

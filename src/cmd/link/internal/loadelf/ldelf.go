@@ -463,7 +463,7 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) (found bool, ehdrFlags 
 // TODO: find a better place for this logic.
 func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, pkg string, length int64, pn string, initEhdrFlags uint32) (textp []loader.Sym, ehdrFlags uint32, err error) {
 	newSym := func(name string, version int) loader.Sym {
-		return l.CreateExtSym(name)
+		return l.CreateStaticSym(name)
 	}
 	lookup := func(name string, version int) loader.Sym {
 		return l.LookupOrCreateSym(name, version)

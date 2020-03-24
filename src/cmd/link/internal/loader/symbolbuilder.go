@@ -23,7 +23,7 @@ type SymbolBuilder struct {
 // an entirely new symbol.
 func (l *Loader) MakeSymbolBuilder(name string) *SymbolBuilder {
 	// for now assume that any new sym is intended to be static
-	symIdx := l.CreateExtSym(name)
+	symIdx := l.CreateStaticSym(name)
 	if l.Syms[symIdx] != nil {
 		panic("can't build if sym.Symbol already present")
 	}
@@ -86,6 +86,7 @@ func (sb *SymbolBuilder) Dynimplib() string      { return sb.l.SymDynimplib(sb.s
 func (sb *SymbolBuilder) Dynimpvers() string     { return sb.l.SymDynimpvers(sb.symIdx) }
 func (sb *SymbolBuilder) SubSym() Sym            { return sb.l.SubSym(sb.symIdx) }
 func (sb *SymbolBuilder) GoType() Sym            { return sb.l.SymGoType(sb.symIdx) }
+func (sb *SymbolBuilder) VisibilityHidden() bool { return sb.l.AttrVisibilityHidden(sb.symIdx) }
 
 // Setters for symbol properties.
 
@@ -103,6 +104,9 @@ func (sb *SymbolBuilder) SetDynimpvers(value string) { sb.l.SetSymDynimpvers(sb.
 func (sb *SymbolBuilder) SetPlt(value int32)         { sb.l.SetPlt(sb.symIdx, value) }
 func (sb *SymbolBuilder) SetGot(value int32)         { sb.l.SetGot(sb.symIdx, value) }
 func (sb *SymbolBuilder) SetSpecial(value bool)      { sb.l.SetAttrSpecial(sb.symIdx, value) }
+func (sb *SymbolBuilder) SetVisibilityHidden(value bool) {
+	sb.l.SetAttrVisibilityHidden(sb.symIdx, value)
+}
 
 func (sb *SymbolBuilder) SetNotInSymbolTable(value bool) {
 	sb.l.SetAttrNotInSymbolTable(sb.symIdx, value)
@@ -312,6 +316,10 @@ func (sb *SymbolBuilder) AddAddrPlus(arch *sys.Arch, tgt Sym, add int64) int64 {
 func (sb *SymbolBuilder) AddAddrPlus4(arch *sys.Arch, tgt Sym, add int64) int64 {
 	sb.setReachable()
 	return sb.addSymRef(tgt, add, objabi.R_ADDR, 4)
+}
+
+func (sb *SymbolBuilder) AddAddr(arch *sys.Arch, tgt Sym) int64 {
+	return sb.AddAddrPlus(arch, tgt, 0)
 }
 
 func (sb *SymbolBuilder) AddPCRelPlus(arch *sys.Arch, tgt Sym, add int64) int64 {
