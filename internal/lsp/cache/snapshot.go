@@ -547,6 +547,10 @@ func (s *snapshot) reloadWorkspace(ctx context.Context) error {
 	s.mu.Lock()
 	var pkgPaths []interface{}
 	for id, pkgPath := range s.workspacePackages {
+		// Don't try to reload "command-line-arguments" directly.
+		if pkgPath == "command-line-arguments" {
+			continue
+		}
 		if s.metadata[id] == nil {
 			pkgPaths = append(pkgPaths, pkgPath)
 		}

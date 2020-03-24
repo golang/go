@@ -43,6 +43,9 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 	for _, scope := range scopes {
 		switch scope := scope.(type) {
 		case packagePath:
+			if scope == "command-line-arguments" {
+				panic("attempted to load command-line-arguments")
+			}
 			// The only time we pass package paths is when we're doing a
 			// partial workspace load. In those cases, the paths came back from
 			// go list and should already be GOPATH-vendorized when appropriate.
