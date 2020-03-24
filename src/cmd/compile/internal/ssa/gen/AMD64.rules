@@ -1604,6 +1604,7 @@
 
 // Move constants offsets from LEAQx up into load. This lets the above combining
 // rules discover indexed load-combining instances.
+//TODO:remove! These rules are bad.
 (MOV(B|W|L|Q)load [i0] {s0} l:(LEAQ1 [i1] {s1} x y) mem) && i1 != 0 && is32Bit(i0+i1)
 -> (MOV(B|W|L|Q)load [i0+i1] {s0} (LEAQ1 <l.Type> [0] {s1} x y) mem)
 (MOV(B|W|L|Q)load [i0] {s0} l:(LEAQ2 [i1] {s1} x y) mem) && i1 != 0 && is32Bit(i0+i1)

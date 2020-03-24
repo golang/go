@@ -715,6 +715,11 @@ func (w *bodyBase) add(node Statement) {
 
 // declared reports if the body contains a Declare with the given name.
 func (w *bodyBase) declared(name string) bool {
+	if name == "nil" {
+		// Treat "nil" as having already been declared.
+		// This lets us use nil to match an aux field.
+		return true
+	}
 	for _, s := range w.list {
 		if decl, ok := s.(*Declare); ok && decl.name == name {
 			return true
