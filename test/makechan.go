@@ -15,6 +15,7 @@ type T chan byte
 var sink T
 
 func main() {
+	sink = make(T, 0)
 	sink = make(T, -1)            // ERROR "negative buffer argument in make.*"
 	sink = make(T, uint64(1<<63)) // ERROR "buffer argument too large in make.*"
 	sink = make(T, 0)
