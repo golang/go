@@ -75,7 +75,7 @@ func netpollBreak() {
 // delay > 0: block for up to that many nanoseconds
 func netpoll(delay int64) gList {
 	var entries [64]overlappedEntry
-	var wait, qty, key, flags, n, i uint32
+	var wait, qty, flags, n, i uint32
 	var errno int32
 	var op *net_op
 	var toRun gList
@@ -99,82 +99,47 @@ func netpoll(delay int64) gList {
 		wait = 1e9
 	}
 
-	if _GetQueuedCompletionStatusEx != nil {
-		n = uint32(len(entries) / int(gomaxprocs))
-		if n < 8 {
-			n = 8
-		}
-		if delay != 0 {
-			mp.blocked = true
-		}
-		if stdcall6(_GetQueuedCompletionStatusEx, iocphandle, uintptr(unsafe.Pointer(&entries[0])), uintptr(n), uintptr(unsafe.Pointer(&n)), uintptr(wait), 0) == 0 {
-			mp.blocked = false
-			errno = int32(getlasterror())
-			if errno == _WAIT_TIMEOUT {
-				return gList{}
-			}
-			println("runtime: GetQueuedCompletionStatusEx failed (errno=", errno, ")")
-			throw("runtime: netpoll failed")
-		}
+	n = uint32(len(entries) / int(gomaxprocs))
+	if n < 8 {
+		n = 8
+	}
+	if delay != 0 {
+		mp.blocked = true
+	}
+	if stdcall6(_GetQueuedCompletionStatusEx, iocphandle, uintptr(unsafe.Pointer(&entries[0])), uintptr(n), uintptr(unsafe.Pointer(&n)), uintptr(wait), 0) == 0 {
 		mp.blocked = false
-		for i = 0; i < n; i++ {
-			op = entries[i].op
-			if op != nil {
-				errno = 0
-				qty = 0
-				if stdcall5(_WSAGetOverlappedResult, op.pd.fd, uintptr(unsafe.Pointer(op)), uintptr(unsafe.Pointer(&qty)), 0, uintptr(unsafe.Pointer(&flags))) == 0 {
-					errno = int32(getlasterror())
-				}
-				handlecompletion(&toRun, op, errno, qty)
-			} else {
-				if delay == 0 {
-					// Forward the notification to the
-					// blocked poller.
-					netpollBreak()
-				}
-			}
+		errno = int32(getlasterror())
+		if errno == _WAIT_TIMEOUT {
+			return gList{}
 		}
-	} else {
-		op = nil
-		errno = 0
-		qty = 0
-		if delay != 0 {
-			mp.blocked = true
-		}
-		if stdcall5(_GetQueuedCompletionStatus, iocphandle, uintptr(unsafe.Pointer(&qty)), uintptr(unsafe.Pointer(&key)), uintptr(unsafe.Pointer(&op)), uintptr(wait)) == 0 {
-			mp.blocked = false
-			errno = int32(getlasterror())
-			if errno == _WAIT_TIMEOUT {
-				return gList{}
+		println("runtime: GetQueuedCompletionStatusEx failed (errno=", errno, ")")
+		throw("runtime: netpoll failed")
+	}
+	mp.blocked = false
+	for i = 0; i < n; i++ {
+		op = entries[i].op
+		if op != nil {
+			errno = 0
+			qty = 0
+			if stdcall5(_WSAGetOverlappedResult, op.pd.fd, uintptr(unsafe.Pointer(op)), uintptr(unsafe.Pointer(&qty)), 0, uintptr(unsafe.Pointer(&flags))) == 0 {
+				errno = int32(getlasterror())
 			}
-			if op == nil {
-				println("runtime: GetQueuedCompletionStatus failed (errno=", errno, ")")
-				throw("runtime: netpoll failed")
-			}
-			// dequeued failed IO packet, so report that
-		}
-		mp.blocked = false
-		if op == nil {
+			handlecompletion(&toRun, op, errno, qty)
+		} else {
 			if delay == 0 {
 				// Forward the notification to the
 				// blocked poller.
 				netpollBreak()
 			}
-			return gList{}
 		}
-		handlecompletion(&toRun, op, errno, qty)
 	}
 	return toRun
 }
 
 func handlecompletion(toRun *gList, op *net_op, errno int32, qty uint32) {
-	if op == nil {
-		println("runtime: GetQueuedCompletionStatus returned op == nil")
-		throw("runtime: netpoll failed")
-	}
 	mode := op.mode
 	if mode != 'r' && mode != 'w' {
-		println("runtime: GetQueuedCompletionStatus returned invalid mode=", mode)
+		println("runtime: GetQueuedCompletionStatusEx returned invalid mode=", mode)
 		throw("runtime: netpoll failed")
 	}
 	op.errno = errno
