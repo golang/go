@@ -225,10 +225,10 @@ func goModWhy(ctx context.Context, cfg *packages.Config, folder string, data *mo
 		return err
 	}
 	whyList := strings.Split(stdout.String(), "\n\n")
-	if len(whyList) <= 1 || len(whyList) > len(data.origParsedFile.Require) {
+	if len(whyList) <= 1 || len(whyList) != len(data.origParsedFile.Require) {
 		return nil
 	}
-	data.why = make(map[string]string)
+	data.why = make(map[string]string, len(data.origParsedFile.Require))
 	for i, req := range data.origParsedFile.Require {
 		data.why[req.Mod.Path] = whyList[i]
 	}
