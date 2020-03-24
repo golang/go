@@ -321,6 +321,26 @@ errors is discouraged.
 
 Default value: `true`.
 
+### **fillreturns**
+
+suggested fixes for "wrong number of return values (want %d, got %d)"
+
+This checker provides suggested fixes for type errors of the
+type "wrong number of return values (want %d, got %d)". For example:
+```go
+func m() (int, string, *bool, error) {
+  return
+}
+```
+will turn into
+```go
+func m() (int, string, *bool, error) {
+  return 0, "", nil, nil
+}
+```
+
+This functionality is similar to [goreturns](https://github.com/sqs/goreturns).
+
 ### **nonewvars**
 
 suggested fixes for "no new vars on left side of :="

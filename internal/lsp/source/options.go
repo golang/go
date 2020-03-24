@@ -36,6 +36,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/unreachable"
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
+	"golang.org/x/tools/internal/lsp/analysis/fillreturns"
 	"golang.org/x/tools/internal/lsp/analysis/nonewvars"
 	"golang.org/x/tools/internal/lsp/analysis/noresultvalues"
 	"golang.org/x/tools/internal/lsp/analysis/simplifycompositelit"
@@ -489,6 +490,7 @@ func (r *OptionResult) setBool(b *bool) {
 
 func typeErrorAnalyzers() map[string]Analyzer {
 	return map[string]Analyzer{
+		fillreturns.Analyzer.Name:    {Analyzer: fillreturns.Analyzer, Enabled: true},
 		nonewvars.Analyzer.Name:      {Analyzer: nonewvars.Analyzer, Enabled: true},
 		noresultvalues.Analyzer.Name: {Analyzer: noresultvalues.Analyzer, Enabled: true},
 		undeclaredname.Analyzer.Name: {Analyzer: undeclaredname.Analyzer, Enabled: true},
