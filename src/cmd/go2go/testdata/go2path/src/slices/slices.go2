@@ -93,3 +93,33 @@ func Min(type Elem contracts.Ordered)(s []Elem) Elem {
 	}
 	return Reduce(s[1:], s[0], alg.Min(Elem))
 }
+
+// Append adds values to the end of a slice, returning a new slice.
+// This is like the predeclared append function; it's an example
+// of how to write it using generics. We used to write code like
+// this before append was added to the language, but we had to write
+// a separate copy for each type.
+func Append(type T)(s []T, t ...T) []T {
+	lens := len(s)
+	tot := lens + len(t)
+	if tot <= cap(s) {
+		s = s[:tot]
+	} else {
+		news := make([]T, tot, tot + tot/2)
+		Copy(news, s)
+		s = news
+	}
+	Copy(s[lens:tot], t)
+	return s
+}
+
+// Copy copies values from t to s, stopping when either slice is full,
+// returning the number of values copied. This is like the predeclared
+// copy function; it's an example of how to write it using generics.
+func Copy(type T)(s, t []T) int {
+	i := 0
+	for ; i < len(s) && i < len(t); i++ {
+		s[i] = t[i]
+	}
+	return i
+}

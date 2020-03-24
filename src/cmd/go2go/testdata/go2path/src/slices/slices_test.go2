@@ -141,3 +141,24 @@ func TestMin(t *testing.T) {
 		t.Errorf("Min(%v) = %q, want %q", s2[:0], got, want)
 	}
 }
+
+func TestAppend(t *testing.T) {
+	s := []int{1, 2, 3}
+	s = Append(s, 4, 5, 6)
+	want := []int{1, 2, 3, 4, 5, 6}
+	if !Equal(s, want) {
+		t.Errorf("after Append got %v, want %v", s, want)
+	}
+}
+
+func TestCopy(t *testing.T) {
+	s1 := []int{1, 2, 3}
+	s2 := []int{4, 5}
+	if got := Copy(s1, s2); got != 2 {
+		t.Errorf("Copy returned %d, want 2", got)
+	}
+	want := []int{4, 5, 3}
+	if !Equal(s1, want) {
+		t.Errorf("after Copy got %v, want %v", s1, want)
+	}
+}
