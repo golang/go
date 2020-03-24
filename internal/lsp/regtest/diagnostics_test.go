@@ -6,11 +6,14 @@ package regtest
 
 import (
 	"testing"
+
+	"golang.org/x/tools/internal/lsp/fake"
 )
 
+// Use mod.com for all go.mod files due to golang/go#35230.
 const exampleProgram = `
 -- go.mod --
-module mod
+module mod.com
 
 go 1.12
 -- main.go --
@@ -34,7 +37,7 @@ func TestDiagnosticErrorInEditedFile(t *testing.T) {
 
 const onlyMod = `
 -- go.mod --
-module mod
+module mod.com
 
 go 1.12
 `
@@ -65,7 +68,7 @@ func TestDiagnosticErrorInNewFile(t *testing.T) {
 // badPackage contains a duplicate definition of the 'a' const.
 const badPackage = `
 -- go.mod --
-module mod
+module mod.com
 
 go 1.12
 -- a.go --
@@ -113,5 +116,29 @@ const a = 3`)
 			env.DiagnosticAtRegexp("a.go", "a = 1"),
 			env.DiagnosticAtRegexp("b.go", "a = 2"),
 			EmptyDiagnostics("c.go"))
+	})
+}
+
+func TestIssue37978(t *testing.T) {
+	runner.Run(t, exampleProgram, func(env *Env) {
+		// Create a new workspace-level directory and empty file.
+		env.CreateBuffer("c/c.go", "")
+
+		// Write the file contents with a missing import.
+		env.EditBuffer("c/c.go", fake.Edit{
+			Text: `package c
+
+const a = http.MethodGet
+`,
+		})
+		env.Await(
+			env.DiagnosticAtRegexp("c/c.go", "http.MethodGet"),
+		)
+		// Save file, which will organize imports, adding the expected import.
+		// Expect the diagnostics to clear.
+		env.SaveBuffer("c/c.go")
+		env.Await(
+			EmptyDiagnostics("c/c.go"),
+		)
 	})
 }

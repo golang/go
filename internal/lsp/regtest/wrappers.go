@@ -71,7 +71,7 @@ func (e *Env) RegexpSearch(name, re string) fake.Pos {
 		pos, err = e.W.RegexpSearch(name, re)
 	}
 	if err != nil {
-		e.T.Fatalf("RegexpSearch: %v", err)
+		e.T.Fatalf("RegexpSearch: %v, %v", name, err)
 	}
 	return pos
 }

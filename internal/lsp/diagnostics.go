@@ -61,7 +61,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 		return nil
 	}
 	if err != nil {
-		event.Error(ctx, "diagnose: could not generate diagnostics for go.mod file", err, tag.Directory.Of(snapshot.View().Folder))
+		event.Error(ctx, "warning: diagnose go.mod", err, tag.Directory.Of(snapshot.View().Folder))
 	}
 	// Ensure that the reports returned from mod.Diagnostics are only related to the
 	// go.mod file for the module.
@@ -85,7 +85,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 		return nil
 	}
 	if err != nil {
-		event.Error(ctx, "diagnose: no workspace packages", err, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder))
+		event.Error(ctx, "failed to load workspace packages, skipping diagnostics", err, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder))
 		return nil
 	}
 	for _, ph := range wsPackages {
@@ -111,7 +111,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 				return
 			}
 			if err != nil {
-				event.Error(ctx, "diagnose: could not generate diagnostics for package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(ph.ID()))
+				event.Error(ctx, "warning: diagnose package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(ph.ID()))
 				return
 			}
 			reportsMu.Lock()
