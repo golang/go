@@ -30,12 +30,3 @@ func TestFunVVnovec(t *testing.T) {
 		}
 	}
 }
-
-func TestFunVWnovec(t *testing.T) {
-	if hasVX == true {
-		for _, a := range sumVW {
-			arg := argVW{a.x, a.z, a.y, a.c}
-			testFunVW(t, "subVW_novec", subVW_novec, arg)
-		}
-	}
-}
