@@ -597,6 +597,9 @@ func (v *view) cancelBackground() {
 }
 
 func (v *view) setBuildInformation(ctx context.Context, folder span.URI, env []string, modfileFlagEnabled bool) error {
+	if err := checkPathCase(folder.Filename()); err != nil {
+		return fmt.Errorf("invalid workspace configuration: %v", err)
+	}
 	// Make sure to get the `go env` before continuing with initialization.
 	gomod, err := v.getGoEnv(ctx, env)
 	if err != nil {
@@ -655,6 +658,13 @@ func (v *view) setBuildInformation(ctx context.Context, folder span.URI, env []s
 	if err := ioutil.WriteFile(tempSumFile(tempModFile.Name()), contents, stat.Mode()); err != nil {
 		return err
 	}
+	return nil
+}
+
+// OS-specific path case check, for case-insensitive filesystems.
+var checkPathCase = defaultCheckPathCase
+
+func defaultCheckPathCase(path string) error {
 	return nil
 }
 
