@@ -600,45 +600,65 @@ func (ctxt *Link) reloc() {
 	wg.Wait()
 }
 
-func windynrelocsym(ctxt *Link, rel, s *sym.Symbol) {
-	for ri := range s.R {
-		r := &s.R[ri]
-		targ := r.Sym
-		if targ == nil {
+func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
+	var su *loader.SymbolBuilder
+	var rslice []loader.Reloc
+	relocs := ctxt.loader.Relocs(s)
+	for ri := 0; ri < relocs.Count; ri++ {
+		r := relocs.At2(ri)
+		targ := r.Sym()
+		if targ == 0 {
 			continue
 		}
-		if !targ.Attr.Reachable() {
-			if r.Type == objabi.R_WEAKADDROFF {
+		rt := r.Type()
+		if !ctxt.loader.AttrReachable(targ) {
+			if rt == objabi.R_WEAKADDROFF {
 				continue
 			}
-			Errorf(s, "dynamic relocation to unreachable symbol %s", targ.Name)
+			ctxt.Errorf(s, "dynamic relocation to unreachable symbol %s",
+				ctxt.loader.SymName(targ))
 		}
-		if r.Sym.Plt() == -2 && r.Sym.Got() != -2 { // make dynimport JMP table for PE object files.
-			targ.SetPlt(int32(rel.Size))
-			r.Sym = rel
-			r.Add = int64(targ.Plt())
+
+		tplt := ctxt.loader.SymPlt(targ)
+		tgot := ctxt.loader.SymGot(targ)
+		if tplt == -2 && tgot != -2 { // make dynimport JMP table for PE object files.
+			tplt := int32(rel.Size())
+			ctxt.loader.SetPlt(targ, tplt)
+
+			if su == nil {
+				su = ctxt.loader.MakeSymbolUpdater(s)
+				rslice = su.Relocs()
+			}
+			r := &rslice[ri]
+			r.Sym = rel.Sym()
+			r.Add = int64(tplt)
 
 			// jmp *addr
 			switch ctxt.Arch.Family {
 			default:
-				Errorf(s, "unsupported arch %v", ctxt.Arch.Family)
+				ctxt.Errorf(s, "unsupported arch %v", ctxt.Arch.Family)
 				return
 			case sys.I386:
 				rel.AddUint8(0xff)
 				rel.AddUint8(0x25)
-				rel.AddAddr(ctxt.Arch, targ)
+				rel.AddAddrPlus(ctxt.Arch, targ, 0)
 				rel.AddUint8(0x90)
 				rel.AddUint8(0x90)
 			case sys.AMD64:
 				rel.AddUint8(0xff)
 				rel.AddUint8(0x24)
 				rel.AddUint8(0x25)
-				rel.AddAddrPlus4(targ, 0)
+				rel.AddAddrPlus4(ctxt.Arch, targ, 0)
 				rel.AddUint8(0x90)
 			}
-		} else if r.Sym.Plt() >= 0 {
-			r.Sym = rel
-			r.Add = int64(targ.Plt())
+		} else if tplt >= 0 {
+			if su == nil {
+				su = ctxt.loader.MakeSymbolUpdater(s)
+				rslice = su.Relocs()
+			}
+			r := &rslice[ri]
+			r.Sym = rel.Sym()
+			r.Add = int64(tplt)
 		}
 	}
 }
@@ -646,22 +666,19 @@ func windynrelocsym(ctxt *Link, rel, s *sym.Symbol) {
 // windynrelocsyms generates jump table to C library functions that will be
 // added later. windynrelocsyms writes the table into .rel symbol.
 func (ctxt *Link) windynrelocsyms() {
-	if !(ctxt.HeadType == objabi.Hwindows && iscgo && ctxt.LinkMode == LinkInternal) {
+	if !(ctxt.IsWindows() && iscgo && ctxt.IsInternal()) {
 		return
 	}
 
-	/* relocation table */
-	rel := ctxt.Syms.Lookup(".rel", 0)
-	rel.Attr |= sym.AttrReachable
-	rel.Type = sym.STEXT
-	ctxt.Textp = append(ctxt.Textp, rel)
+	rel := ctxt.loader.LookupOrCreateSym(".rel", 0)
+	relu := ctxt.loader.MakeSymbolUpdater(rel)
+	relu.SetType(sym.STEXT)
 
-	for _, s := range ctxt.Textp {
-		if s == rel {
-			continue
-		}
-		windynrelocsym(ctxt, rel, s)
+	for _, s := range ctxt.Textp2 {
+		windynrelocsym(ctxt, relu, s)
 	}
+
+	ctxt.Textp2 = append(ctxt.Textp2, rel)
 }
 
 func dynrelocsym(ctxt *Link, s *sym.Symbol) {
