@@ -376,7 +376,7 @@ func (i *Instance) getFile(r *http.Request) interface{} {
 
 func (i *Instance) getInfo(r *http.Request) interface{} {
 	buf := &bytes.Buffer{}
-	i.PrintServerInfo(buf)
+	i.PrintServerInfo(r.Context(), buf)
 	return template.HTML(buf.String())
 }
 

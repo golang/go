@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp/debug"
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
@@ -156,7 +157,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	}
 
 	buf := &bytes.Buffer{}
-	debug.PrintVersionInfo(buf, true, debug.PlainText)
+	debug.PrintVersionInfo(ctx, buf, true, debug.PlainText)
 	event.Print(ctx, buf.String())
 
 	s.addFolders(ctx, s.pendingFolders)
@@ -171,11 +172,20 @@ func (s *Server) addFolders(ctx context.Context, folders []protocol.WorkspaceFol
 
 	for _, folder := range folders {
 		uri := span.URIFromURI(folder.URI)
-		_, snapshot, err := s.addView(ctx, folder.Name, uri)
+		view, snapshot, err := s.addView(ctx, folder.Name, uri)
 		if err != nil {
 			viewErrors[uri] = err
 			continue
 		}
+		// Print each view's environment.
+		buf := &bytes.Buffer{}
+		if err := view.WriteEnv(ctx, buf); err != nil {
+			event.Error(ctx, "failed to write environment", err, tag.Directory.Of(view.Folder()))
+			continue
+		}
+		event.Print(ctx, buf.String())
+
+		// Diagnose the newly created view.
 		go s.diagnoseDetached(snapshot)
 	}
 	if len(viewErrors) > 0 {

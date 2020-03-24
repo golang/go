@@ -32,7 +32,7 @@ func (v *version) DetailedHelp(f *flag.FlagSet) {
 
 // Run prints version information to stdout.
 func (v *version) Run(ctx context.Context, args ...string) error {
-	debug.PrintVersionInfo(os.Stdout, v.app.Verbose, debug.PlainText)
+	debug.PrintVersionInfo(ctx, os.Stdout, v.app.Verbose, debug.PlainText)
 	return nil
 }
 
@@ -69,7 +69,7 @@ A failing unit test is the best.
 func (b *bug) Run(ctx context.Context, args ...string) error {
 	buf := &bytes.Buffer{}
 	fmt.Fprint(buf, goplsBugHeader)
-	debug.PrintVersionInfo(buf, true, debug.Markdown)
+	debug.PrintVersionInfo(ctx, buf, true, debug.Markdown)
 	body := buf.String()
 	title := strings.Join(args, " ")
 	if !strings.HasPrefix(title, goplsBugPrefix) {

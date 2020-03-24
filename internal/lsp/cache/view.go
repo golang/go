@@ -262,6 +262,24 @@ func (v *view) buildBuiltinPackage(ctx context.Context, goFiles []string) error 
 	return nil
 }
 
+func (v *view) WriteEnv(ctx context.Context, w io.Writer) error {
+	env, buildFlags := v.env()
+	// TODO(rstambler): We could probably avoid running this by saving the
+	// output on original create, but I'm not sure if it's worth it.
+	inv := gocommand.Invocation{
+		Verb:       "env",
+		Env:        env,
+		WorkingDir: v.Folder().Filename(),
+	}
+	stdout, err := inv.Run(ctx)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(w, "go env for %v\n(valid build configuration = %v)\n(build flags: %v)\n", v.folder.Filename(), v.hasValidBuildConfiguration, buildFlags)
+	fmt.Fprint(w, stdout)
+	return nil
+}
+
 func (v *view) RunProcessEnvFunc(ctx context.Context, fn func(*imports.Options) error) error {
 	v.importsMu.Lock()
 	defer v.importsMu.Unlock()

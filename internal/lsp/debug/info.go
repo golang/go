@@ -6,10 +6,12 @@
 package debug
 
 import (
+	"context"
 	"fmt"
 	"io"
-	"os/exec"
 	"strings"
+
+	"golang.org/x/tools/internal/gocommand"
 )
 
 type PrintMode int
@@ -24,7 +26,7 @@ const (
 var Version = "master"
 
 // PrintServerInfo writes HTML debug info to w for the Instance.
-func (i *Instance) PrintServerInfo(w io.Writer) {
+func (i *Instance) PrintServerInfo(ctx context.Context, w io.Writer) {
 	section(w, HTML, "Server Instance", func() {
 		fmt.Fprintf(w, "Start time: %v\n", i.StartTime)
 		fmt.Fprintf(w, "LogFile: %s\n", i.Logfile)
@@ -32,13 +34,13 @@ func (i *Instance) PrintServerInfo(w io.Writer) {
 		fmt.Fprintf(w, "Address: %s\n", i.ServerAddress)
 		fmt.Fprintf(w, "Debug address: %s\n", i.DebugAddress)
 	})
-	PrintVersionInfo(w, true, HTML)
+	PrintVersionInfo(ctx, w, true, HTML)
 }
 
-// PrintVersionInfo writes version and environment information to w, using the
-// output format specified by mode. verbose controls whether additional
-// information is written, including section headers.
-func PrintVersionInfo(w io.Writer, verbose bool, mode PrintMode) {
+// PrintVersionInfo writes version information to w, using the output format
+// specified by mode. verbose controls whether additional information is
+// written, including section headers.
+func PrintVersionInfo(ctx context.Context, w io.Writer, verbose bool, mode PrintMode) {
 	if !verbose {
 		printBuildInfo(w, false, mode)
 		return
@@ -48,13 +50,14 @@ func PrintVersionInfo(w io.Writer, verbose bool, mode PrintMode) {
 	})
 	fmt.Fprint(w, "\n")
 	section(w, mode, "Go info", func() {
-		cmd := exec.Command("go", "version")
-		cmd.Stdout = w
-		cmd.Run()
-		fmt.Fprint(w, "\n")
-		cmd = exec.Command("go", "env")
-		cmd.Stdout = w
-		cmd.Run()
+		i := &gocommand.Invocation{
+			Verb: "version",
+		}
+		version, err := i.Run(ctx)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Fprintln(w, version.String())
 	})
 }
 

@@ -93,7 +93,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 		return ctx.Err()
 	}
 
-	event.Print(ctx, "go/packages.Load", tag.Snapshot.Of(s.ID()), tag.Query.Of(query), tag.PackageCount.Of(len(pkgs)))
+	event.Print(ctx, "go/packages.Load", tag.Snapshot.Of(s.ID()), tag.Directory.Of(cfg.Dir), tag.Query.Of(query), tag.PackageCount.Of(len(pkgs)))
 	if len(pkgs) == 0 {
 		return err
 	}
