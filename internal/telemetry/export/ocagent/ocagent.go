@@ -234,43 +234,47 @@ func convertAttributes(it event.TagIterator) *wire.Attributes {
 	attributes := make(map[string]wire.Attribute)
 	for ; it.Valid(); it.Advance() {
 		tag := it.Tag()
-		attributes[tag.Key.Name()] = convertAttribute(tag.Value)
+		attributes[tag.Key.Name()] = convertAttribute(tag)
 	}
 	return &wire.Attributes{AttributeMap: attributes}
 }
 
-func convertAttribute(v interface{}) wire.Attribute {
-	switch v := v.(type) {
-	case int8:
-		return wire.IntAttribute{IntValue: int64(v)}
-	case int16:
-		return wire.IntAttribute{IntValue: int64(v)}
-	case int32:
-		return wire.IntAttribute{IntValue: int64(v)}
-	case int64:
-		return wire.IntAttribute{IntValue: v}
-	case int:
-		return wire.IntAttribute{IntValue: int64(v)}
-	case uint8:
-		return wire.IntAttribute{IntValue: int64(v)}
-	case uint16:
-		return wire.IntAttribute{IntValue: int64(v)}
-	case uint32:
-		return wire.IntAttribute{IntValue: int64(v)}
-	case uint64:
-		return wire.IntAttribute{IntValue: int64(v)}
-	case uint:
-		return wire.IntAttribute{IntValue: int64(v)}
-	case float32:
-		return wire.DoubleAttribute{DoubleValue: float64(v)}
-	case float64:
-		return wire.DoubleAttribute{DoubleValue: v}
-	case bool:
-		return wire.BoolAttribute{BoolValue: v}
-	case string:
-		return wire.StringAttribute{StringValue: toTruncatableString(v)}
+func convertAttribute(tag event.Tag) wire.Attribute {
+	switch key := tag.Key.(type) {
+	case *event.IntKey:
+		return wire.IntAttribute{IntValue: int64(key.From(tag))}
+	case *event.Int8Key:
+		return wire.IntAttribute{IntValue: int64(key.From(tag))}
+	case *event.Int16Key:
+		return wire.IntAttribute{IntValue: int64(key.From(tag))}
+	case *event.Int32Key:
+		return wire.IntAttribute{IntValue: int64(key.From(tag))}
+	case *event.Int64Key:
+		return wire.IntAttribute{IntValue: int64(key.From(tag))}
+	case *event.UIntKey:
+		return wire.IntAttribute{IntValue: int64(key.From(tag))}
+	case *event.UInt8Key:
+		return wire.IntAttribute{IntValue: int64(key.From(tag))}
+	case *event.UInt16Key:
+		return wire.IntAttribute{IntValue: int64(key.From(tag))}
+	case *event.UInt32Key:
+		return wire.IntAttribute{IntValue: int64(key.From(tag))}
+	case *event.UInt64Key:
+		return wire.IntAttribute{IntValue: int64(key.From(tag))}
+	case *event.Float32Key:
+		return wire.DoubleAttribute{DoubleValue: float64(key.From(tag))}
+	case *event.Float64Key:
+		return wire.DoubleAttribute{DoubleValue: key.From(tag)}
+	case *event.BooleanKey:
+		return wire.BoolAttribute{BoolValue: key.From(tag)}
+	case *event.StringKey:
+		return wire.StringAttribute{StringValue: toTruncatableString(key.From(tag))}
+	case *event.ErrorKey:
+		return wire.StringAttribute{StringValue: toTruncatableString(key.From(tag).Error())}
+	case *event.ValueKey:
+		return wire.StringAttribute{StringValue: toTruncatableString(fmt.Sprint(key.From(tag)))}
 	default:
-		return wire.StringAttribute{StringValue: toTruncatableString(fmt.Sprint(v))}
+		return wire.StringAttribute{StringValue: toTruncatableString(fmt.Sprintf("%T", key))}
 	}
 }
 
