@@ -172,8 +172,7 @@ func fillOffsets(td *traceData, start time.Time) {
 func renderTags(tags event.TagIterator) string {
 	buf := &bytes.Buffer{}
 	for ; tags.Valid(); tags.Advance() {
-		tag := tags.Tag()
-		fmt.Fprintf(buf, "%s=%q ", tag.Key.Name(), tag.Value)
+		fmt.Fprintf(buf, "%v ", tags.Tag())
 	}
 	return buf.String()
 }

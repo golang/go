@@ -67,7 +67,7 @@ type tagMapChain struct {
 	maps []TagMap
 }
 
-// Key returns the key for this Tag.
+// Valid returns true if the Tag is a valid one (it has a key).
 func (t Tag) Valid() bool { return t.Key != nil }
 
 // Format is used for debug printing of tags.
@@ -76,7 +76,42 @@ func (t Tag) Format(f fmt.State, r rune) {
 		fmt.Fprintf(f, `nil`)
 		return
 	}
-	fmt.Fprintf(f, `%v="%v"`, t.Key.Name(), t.Value)
+	switch key := t.Key.(type) {
+	case *IntKey:
+		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
+	case *Int8Key:
+		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
+	case *Int16Key:
+		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
+	case *Int32Key:
+		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
+	case *Int64Key:
+		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
+	case *UIntKey:
+		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
+	case *UInt8Key:
+		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
+	case *UInt16Key:
+		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
+	case *UInt32Key:
+		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
+	case *UInt64Key:
+		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
+	case *Float32Key:
+		fmt.Fprintf(f, "%s=%g", key.Name(), key.From(t))
+	case *Float64Key:
+		fmt.Fprintf(f, "%s=%g", key.Name(), key.From(t))
+	case *BooleanKey:
+		fmt.Fprintf(f, "%s=%t", key.Name(), key.From(t))
+	case *StringKey:
+		fmt.Fprintf(f, "%s=%q", key.Name(), key.From(t))
+	case *ErrorKey:
+		fmt.Fprintf(f, "%s=%q", key.Name(), key.From(t))
+	case *ValueKey:
+		fmt.Fprintf(f, "%s=%q", key.Name(), key.From(t))
+	default:
+		fmt.Fprintf(f, `%s="invalid type %T"`, key.Name(), key)
+	}
 }
 
 func (i *TagIterator) Valid() bool {

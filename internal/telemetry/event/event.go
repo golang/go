@@ -51,7 +51,7 @@ func (ev Event) Format(f fmt.State, r rune) {
 	}
 	for it := ev.Tags(); it.Valid(); it.Advance() {
 		tag := it.Tag()
-		fmt.Fprintf(f, "\n\t%s = %v", tag.Key.Name(), tag.Value)
+		fmt.Fprintf(f, "\n\t%v", tag)
 	}
 }
 
