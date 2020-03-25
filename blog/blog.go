@@ -159,6 +159,9 @@ func authors(authors []present.Author) string {
 	for i, a := range authors {
 		if i > 0 {
 			if i == last {
+				if len(authors) > 2 {
+					b.WriteString(",")
+				}
 				b.WriteString(" and ")
 			} else {
 				b.WriteString(", ")
