@@ -29,6 +29,7 @@ var SetTypeErrors = func(p interface{}, errors []types.Error) {}
 type TypeErrorPass string
 
 const (
+	NoNewVars      TypeErrorPass = "nonewvars"
 	NoResultValues TypeErrorPass = "noresultvalues"
 	UndeclaredName TypeErrorPass = "undeclaredname"
 )

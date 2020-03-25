@@ -321,6 +321,24 @@ errors is discouraged.
 
 Default value: `true`.
 
+### **nonewvars**
+
+suggested fixes for "no new vars on left side of :="
+
+This checker provides suggested fixes for type errors of the
+type "no new vars on left side of :=". For example:
+```go
+z := 1
+z := 2
+```
+will turn into
+```go
+z := 1
+z = 2
+```
+
+Default value: `true`.
+
 ### **noresultvalues**
 
 suggested fixes for "no result values expected"

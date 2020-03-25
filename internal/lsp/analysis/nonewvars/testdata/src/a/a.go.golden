@@ -1,0 +1,16 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package nonewvars
+
+import "log"
+
+func x() {
+	z := 1
+	z = 2 // want "no new variables on left side of :="
+
+	_, z = 3, 100 // want "no new variables on left side of :="
+
+	log.Println(z)
+}
