@@ -11420,7 +11420,7 @@ var opcodeTable = [...]opInfo{
 		reg: regInfo{
 			inputs: []inputInfo{
 				{0, 128}, // DI
-				{1, 1},   // AX
+				{1, 879}, // AX CX DX BX BP SI R8 R9
 			},
 			clobbers: 4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
 		},

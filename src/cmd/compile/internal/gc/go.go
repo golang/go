@@ -334,3 +334,6 @@ var (
 	WasmTruncU,
 	SigPanic *obj.LSym
 )
+
+// GCWriteBarrierReg maps from registers to gcWriteBarrier implementation LSyms.
+var GCWriteBarrierReg map[int16]*obj.LSym
