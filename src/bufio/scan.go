@@ -69,6 +69,7 @@ var (
 	ErrTooLong         = errors.New("bufio.Scanner: token too long")
 	ErrNegativeAdvance = errors.New("bufio.Scanner: SplitFunc returns negative advance count")
 	ErrAdvanceTooFar   = errors.New("bufio.Scanner: SplitFunc returns advance count beyond input")
+	ErrBadReadCount    = errors.New("bufio.Scanner: Read returned impossible count")
 )
 
 const (
@@ -211,9 +212,9 @@ func (s *Scanner) Scan() bool {
 		// be extra careful: Scanner is for safe, simple jobs.
 		for loop := 0; ; {
 			n, err := s.r.Read(s.buf[s.end:len(s.buf)])
-			if n < 0 || n > len(s.buf)-s.end {
-				n = 0
-				err = errors.New("bufio.Scanner: Read returned impossible count")
+			if n < 0 || len(s.buf)-s.end < n {
+				s.setErr(ErrBadReadCount)
+				break
 			}
 			s.end += n
 			if err != nil {
