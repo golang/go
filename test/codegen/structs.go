@@ -28,7 +28,7 @@ type Z2 struct {
 
 func Zero2(t *Z2) {
 	// amd64:`XORPS\tX., X`,`MOVUPS\tX., \(.*\)`,`MOVQ\t\$0, 16\(.*\)`
-	// amd64:`.*runtime[.]gcWriteBarrier\(SB\)`
+	// amd64:`.*runtime[.]gcWriteBarrier.*\(SB\)`
 	*t = Z2{}
 }
 
