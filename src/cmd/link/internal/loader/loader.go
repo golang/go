@@ -1667,6 +1667,9 @@ func (l *Loader) Preload(syms *sym.Symbols, f *bio.Reader, lib *sym.Library, uni
 	}
 	r := goobj2.NewReaderFromBytes(roObject, readonly)
 	if r == nil {
+		if len(roObject) >= 8 && bytes.Equal(roObject[:8], []byte("\x00go114ld")) {
+			log.Fatalf("found object file %s in old format, but -go115newobj is true\nset -go115newobj consistently in all -gcflags, -asmflags, and -ldflags", f.File().Name())
+		}
 		panic("cannot read object file")
 	}
 	localSymVersion := syms.IncVersion()
