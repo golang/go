@@ -14,8 +14,7 @@ storage bucket owned by that project.
 ```
 $ gcloud builds submit \
 	--project="${PROJECT_ID}" \
-	--config=gopls/integration/govim/cloudbuild.harness.yaml \
-	--substitutions=_RESULT_BUCKET="${BUCKET}"
+	--config=gopls/integration/govim/cloudbuild.harness.yaml
 ```
 - Run the integration tests:
 ```
@@ -39,7 +38,10 @@ evaluation id.
 ## Running locally
 
 Run `gopls/integration/govim/run_local.sh`. This may take a while the first
-time it is run, as it will require building the test harness. Currently this
-script assumes that docker may be executed without `sudo`.
+time it is run, as it will require building the test harness. This script
+accepts two flags to modify its behavior:
+
+**--sudo**: run docker with `sudo`
+**--short**: run `go test -short`
 
 [govim]: https://github.com/govim/govim

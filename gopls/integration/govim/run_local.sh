@@ -5,8 +5,37 @@
 # license that can be found in the LICENSE file.
 
 # Run govim integration tests against a local gopls.
-# TODO(findleyr): this script assumes that docker may be run without sudo.
-# Update it to escalate privileges if and only if necessary.
+
+usage() {
+  cat <<EOUSAGE
+Usage: $0 [--sudo] [--short]
+
+Run govim tests against HEAD using local docker. If --sudo is set, run docker
+with sudo. If --short is set, run `go test` with `-short`.
+EOUSAGE
+}
+
+SUDO_IF_NEEDED=
+TEST_SHORT=
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    "-h" | "--help" | "help")
+      usage
+      exit 0
+      ;;
+    "--sudo")
+      SUDO_IF_NEEDED="sudo "
+      shift
+      ;;
+    "--short")
+      TEST_SHORT="-short"
+      shift
+      ;;
+    *)
+      usage
+      exit 1
+  esac
+done
 
 # Find the tools root, so that this script can be run from any directory.
 script_dir=$(dirname "$(readlink -f "$0")")
@@ -21,15 +50,16 @@ go build -o "${temp_gopls}"
 # Build the test harness. Here we are careful to pass in a very limited build
 # context so as to optimize caching.
 cd "${tools_dir}"
-docker build -t gopls-govim-harness -f gopls/integration/govim/Dockerfile \
+${SUDO_IF_NEEDED}docker build -t gopls-govim-harness -f gopls/integration/govim/Dockerfile \
   gopls/integration/govim
 
 # Run govim integration tests.
 echo "running govim integration tests using ${temp_gopls}"
 temp_gopls_name=$(basename "${temp_gopls}")
-docker run --rm -t \
+${SUDO_IF_NEEDED}docker run --rm -t \
   -v "${tools_dir}:/src/tools" \
   -w "/src/govim" \
+  --ulimit memlock=-1:-1 \
   gopls-govim-harness \
-  go test ./cmd/govim \
+  go test ${TEST_SHORT} ./cmd/govim \
     -gopls "/src/tools/gopls/${temp_gopls_name}"
