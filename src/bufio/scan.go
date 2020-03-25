@@ -211,6 +211,10 @@ func (s *Scanner) Scan() bool {
 		// be extra careful: Scanner is for safe, simple jobs.
 		for loop := 0; ; {
 			n, err := s.r.Read(s.buf[s.end:len(s.buf)])
+			if n < 0 || n > len(s.buf)-s.end {
+				n = 0
+				err = errors.New("bufio.Scanner: Read returned impossible count")
+			}
 			s.end += n
 			if err != nil {
 				s.setErr(err)
