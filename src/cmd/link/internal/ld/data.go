@@ -2419,6 +2419,24 @@ func (ctxt *Link) address() []*sym.Segment {
 	ctxt.xdefine("runtime.enoptrbss", sym.SNOPTRBSS, int64(noptrbss.Vaddr+noptrbss.Length))
 	ctxt.xdefine("runtime.end", sym.SBSS, int64(Segdata.Vaddr+Segdata.Length))
 
+	if ctxt.IsSolaris() {
+		// On Solaris, in the runtime it sets the external names of the
+		// end symbols. Unset them and define separate symbols, so we
+		// keep both.
+		etext := ctxt.Syms.ROLookup("runtime.etext", 0)
+		edata := ctxt.Syms.ROLookup("runtime.edata", 0)
+		end := ctxt.Syms.ROLookup("runtime.end", 0)
+		etext.SetExtname("runtime.etext")
+		edata.SetExtname("runtime.edata")
+		end.SetExtname("runtime.end")
+		ctxt.xdefine("_etext", etext.Type, etext.Value)
+		ctxt.xdefine("_edata", edata.Type, edata.Value)
+		ctxt.xdefine("_end", end.Type, end.Value)
+		ctxt.Syms.ROLookup("_etext", 0).Sect = etext.Sect
+		ctxt.Syms.ROLookup("_edata", 0).Sect = edata.Sect
+		ctxt.Syms.ROLookup("_end", 0).Sect = end.Sect
+	}
+
 	return order
 }
 
