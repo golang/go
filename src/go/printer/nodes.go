@@ -1072,10 +1072,10 @@ func (p *printer) expr(x ast.Expr) {
 // TODO(gri) complete this
 func (p *printer) constraint(x *ast.Constraint) {
 	if x.Param != nil {
-		p.print(x.Param, blank)
+		p.linebreak(p.lineFor(x.Types[0].Pos()), 1, ignore, false)
+		p.print(indent, x.Param, blank)
 		if len(x.MNames) > 0 {
 			// method names
-			p.print(blank)
 			for i, m := range x.MNames {
 				p.print(m)
 				t := x.Types[i].(*ast.FuncType)
@@ -1083,8 +1083,12 @@ func (p *printer) constraint(x *ast.Constraint) {
 				//p.print(token.COMMA)
 			}
 		}
-	} else {
-		// embedded contract
+		p.print(unindent)
+	} else if len(x.Types) > 0 {
+		p.linebreak(p.lineFor(x.Types[0].Pos()), 1, ignore, false)
+		p.print(indent)
+		p.exprList(token.NoPos, x.Types, 1, 0, token.NoPos, false)
+		p.print(unindent)
 	}
 }
 
@@ -1630,9 +1634,16 @@ func (p *printer) spec(spec ast.Spec, n int, doIndent bool) {
 			}
 			p.print(par)
 		}
-		p.print(token.RPAREN, s.Lbrace, token.LBRACE)
+		p.print(token.RPAREN)
+		if len(s.Constraints) > 0 {
+			p.print(blank)
+		}
+		p.print(s.Lbrace, token.LBRACE)
 		for _, c := range s.Constraints {
 			p.constraint(c)
+		}
+		if len(s.Constraints) > 0 {
+			p.linebreak(p.lineFor(s.Rbrace), 1, ignore, true)
 		}
 		p.print(s.Rbrace, token.RBRACE)
 		p.setComment(s.Comment)

@@ -12,7 +12,9 @@ contract (
 	C2(A, B, C){}
 )
 
-contract _(T){T  m()}
+contract _(T) {
+	T m()
+}
 
 type _(type T) struct{}
 type _(type A C) struct{}
