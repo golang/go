@@ -154,6 +154,11 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 
 	}
 
+	// For type unification, do not shortcut (x == y) for identical
+	// types. Instead keep comparing them element-wise to unify the
+	// matching (and equal type parameter types). A simple test case
+	// where this matters is: func f(type T)(x T) { f(x) } .
+
 	switch x := x.(type) {
 	case *Basic:
 		// Basic types are singletons except for the rune and byte
@@ -329,9 +334,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 	case *TypeParam:
 		// Two type parameters (which are not part of the type parameters of the
 		// enclosing type) are identical if they originate in the same declaration.
-		if y, ok := y.(*TypeParam); ok {
-			return x == y
-		}
+		return x == y
 
 	case nil:
 		// avoid a crash in case of nil type

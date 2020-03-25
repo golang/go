@@ -108,13 +108,13 @@ func hasNil(typ Type) bool {
 // identical reports whether x and y are identical types.
 // Receivers of Signature types are ignored.
 func (check *Checker) identical(x, y Type) bool {
-	return check.identical0(x, y, true, nil, nil)
+	return check.identical0(x, y, true, nil)
 }
 
 // identicalIgnoreTags reports whether x and y are identical types if tags are ignored.
 // Receivers of Signature types are ignored.
 func (check *Checker) identicalIgnoreTags(x, y Type) bool {
-	return check.identical0(x, y, false, nil, nil)
+	return check.identical0(x, y, false, nil)
 }
 
 // An ifacePair is a node in a stack of interface type pairs compared for identity.
@@ -127,18 +127,9 @@ func (p *ifacePair) identical(q *ifacePair) bool {
 	return p.x == q.x && p.y == q.y || p.x == q.y && p.y == q.x
 }
 
-// If a non-nil tparams is provided, type inference is done for type parameters in x.
 // For changes to this code the corresponding changes should be made to unifier.nify.
-func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams []Type) bool {
-	// If we want type inference, do not shortcut for equal types. Instead
-	// keep comparing them element-wise so we can infer the matching (and
-	// equal type parameter types). A simple test case where this matters
-	// is: func f(type T)(x T) { f(x) } .
-	// (If we know that the types are equal, we could optimize this case by
-	// simply extracting the type parameters used and then populate tparams
-	// accordingly. Not clear it's worthwhile the parallel, if slightly more
-	// efficient code structure.)
-	if tparams == nil && x == y {
+func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+	if x == y {
 		return true
 	}
 
@@ -157,13 +148,13 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams 
 		if y, ok := y.(*Array); ok {
 			// If one or both array lengths are unknown (< 0) due to some error,
 			// assume they are the same to avoid spurious follow-on errors.
-			return (x.len < 0 || y.len < 0 || x.len == y.len) && check.identical0(x.elem, y.elem, cmpTags, p, tparams)
+			return (x.len < 0 || y.len < 0 || x.len == y.len) && check.identical0(x.elem, y.elem, cmpTags, p)
 		}
 
 	case *Slice:
 		// Two slice types are identical if they have identical element types.
 		if y, ok := y.(*Slice); ok {
-			return check.identical0(x.elem, y.elem, cmpTags, p, tparams)
+			return check.identical0(x.elem, y.elem, cmpTags, p)
 		}
 
 	case *Struct:
@@ -178,7 +169,7 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams 
 					if f.embedded != g.embedded ||
 						cmpTags && x.Tag(i) != y.Tag(i) ||
 						!f.sameId(g.pkg, g.name) ||
-						!check.identical0(f.typ, g.typ, cmpTags, p, tparams) {
+						!check.identical0(f.typ, g.typ, cmpTags, p) {
 						return false
 					}
 				}
@@ -189,7 +180,7 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams 
 	case *Pointer:
 		// Two pointer types are identical if they have identical base types.
 		if y, ok := y.(*Pointer); ok {
-			return check.identical0(x.base, y.base, cmpTags, p, tparams)
+			return check.identical0(x.base, y.base, cmpTags, p)
 		}
 
 	case *Tuple:
@@ -200,7 +191,7 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams 
 				if x != nil {
 					for i, v := range x.vars {
 						w := y.vars[i]
-						if !check.identical0(v.typ, w.typ, cmpTags, p, tparams) {
+						if !check.identical0(v.typ, w.typ, cmpTags, p) {
 							return false
 						}
 					}
@@ -218,9 +209,9 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams 
 		// parameter names.
 		if y, ok := y.(*Signature); ok {
 			return x.variadic == y.variadic &&
-				check.identicalTParams(x.tparams, y.tparams, cmpTags, p, tparams) &&
-				check.identical0(x.params, y.params, cmpTags, p, tparams) &&
-				check.identical0(x.results, y.results, cmpTags, p, tparams)
+				check.identicalTParams(x.tparams, y.tparams, cmpTags, p) &&
+				check.identical0(x.params, y.params, cmpTags, p) &&
+				check.identical0(x.results, y.results, cmpTags, p)
 		}
 
 	case *Interface:
@@ -274,7 +265,7 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams 
 				}
 				for i, f := range a {
 					g := b[i]
-					if f.Id() != g.Id() || !check.identical0(f.typ, g.typ, cmpTags, q, tparams) {
+					if f.Id() != g.Id() || !check.identical0(f.typ, g.typ, cmpTags, q) {
 						return false
 					}
 				}
@@ -285,69 +276,31 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams 
 	case *Map:
 		// Two map types are identical if they have identical key and value types.
 		if y, ok := y.(*Map); ok {
-			return check.identical0(x.key, y.key, cmpTags, p, tparams) && check.identical0(x.elem, y.elem, cmpTags, p, tparams)
+			return check.identical0(x.key, y.key, cmpTags, p) && check.identical0(x.elem, y.elem, cmpTags, p)
 		}
 
 	case *Chan:
 		// Two channel types are identical if they have identical value types
-		// and the same direction. For type inference, channel direction is ignored.
+		// and the same direction.
 		if y, ok := y.(*Chan); ok {
-			return (tparams != nil || x.dir == y.dir) && check.identical0(x.elem, y.elem, cmpTags, p, tparams)
+			return x.dir == y.dir && check.identical0(x.elem, y.elem, cmpTags, p)
 		}
 
 	case *Named:
 		// Two named types are identical if their type names originate
 		// in the same type declaration.
-		// if y, ok := y.(*Named); ok {
-		// 	return x.obj == y.obj
-		// }
 		if y, ok := y.(*Named); ok {
-			// Without type inference, type parameters (if any) must match
-			// exactly and thus the type names must match exactly as well.
-			if tparams == nil {
-				// TODO(gri) Why is x == y not sufficient? And if it is,
-				//           we can just return false here because x == y
-				//           is caught in the very beginning of this function.
-				return x.obj == y.obj
-			}
-
-			// TODO(gri) This is not always correct: two types may have the same names
-			//           in the same package if one of them is nested in a function.
-			//           Extremely unlikely but we need an always correct solution.
-			if x.obj.pkg == y.obj.pkg && stripArgNames(x.obj.name) == stripArgNames(y.obj.name) {
-				assert(len(x.targs) == len(y.targs))
-				for i, x := range x.targs {
-					if !check.identical0(x, y.targs[i], cmpTags, p, tparams) {
-						return false
-					}
-				}
-				return true
-			}
+			// TODO(gri) Why is x == y not sufficient? And if it is,
+			//           we can just return false here because x == y
+			//           is caught in the very beginning of this function.
+			return x.obj == y.obj
 		}
 
 	case *TypeParam:
-		// TODO(gri) do we need to look at type names here?
-		// - consider type-checking a generic function calling another generic function
-		// - what about self-recursive calls?
-		// (may need a map keyed by type parameters with the values the respective inferred types)
-		if tparams == nil {
-			return false // x and y being equal is caught in the very beginning of this function
-		}
-		// tparams != nil
-		if x := tparams[x.index]; x != nil {
-			// If we have inferred a type x and it matches y, we're
-			// done. check.identical0 won't do this check if we run
-			// in inference mode (tparams != nil), so do it here to
-			// avoid endless recursion.
-			if x == y {
-				return true
-			}
-			return check.identical0(x, y, cmpTags, p, tparams)
-		}
-		tparams[x.index] = y // infer type from y
-		return true
+		// nothing to do (x and y being equal is caught in the very beginning of this function)
 
 	case nil:
+		// avoid a crash in case of nil type
 
 	default:
 		unreachable()
@@ -356,13 +309,13 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair, tparams 
 	return false
 }
 
-func (check *Checker) identicalTParams(x, y []*TypeName, cmpTags bool, p *ifacePair, tparams []Type) bool {
+func (check *Checker) identicalTParams(x, y []*TypeName, cmpTags bool, p *ifacePair) bool {
 	if len(x) != len(y) {
 		return false
 	}
 	for i, x := range x {
 		y := y[i]
-		if !check.identical0(x.typ.(*TypeParam).bound, y.typ.(*TypeParam).bound, cmpTags, p, tparams) {
+		if !check.identical0(x.typ.(*TypeParam).bound, y.typ.(*TypeParam).bound, cmpTags, p) {
 			return false
 		}
 	}
