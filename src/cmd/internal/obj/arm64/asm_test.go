@@ -91,6 +91,7 @@ func TestPCALIGN(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 	tmpfile := filepath.Join(dir, "test.s")
+	tmpout := filepath.Join(dir, "test.o")
 
 	code1 := []byte("TEXT ·foo(SB),$0-0\nMOVD $0, R0\nPCALIGN $8\nMOVD $1, R1\nRET\n")
 	code2 := []byte("TEXT ·foo(SB),$0-0\nMOVD $0, R0\nPCALIGN $16\nMOVD $2, R2\nRET\n")
@@ -111,7 +112,7 @@ func TestPCALIGN(t *testing.T) {
 		if err := ioutil.WriteFile(tmpfile, test.code, 0644); err != nil {
 			t.Fatal(err)
 		}
-		cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", tmpfile)
+		cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", "-o", tmpout, tmpfile)
 		cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
 		out, err := cmd.CombinedOutput()
 		if err != nil {
