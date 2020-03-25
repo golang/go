@@ -11,8 +11,10 @@ import (
 // Tag holds a key and value pair.
 // It is normally used when passing around lists of tags.
 type Tag struct {
-	Key   Key
-	Value interface{}
+	Key     Key
+	packed  uint64
+	str     string
+	untyped interface{}
 }
 
 // TagMap is the interface to a collection of Tags indexed by key.
