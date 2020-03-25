@@ -204,31 +204,26 @@ type qualifiedObject struct {
 // qualifiedObjsAtProtocolPos returns info for all the type.Objects
 // referenced at the given position. An object will be returned for
 // every package that the file belongs to.
-func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position) ([]qualifiedObject, error) {
-	phs, err := s.PackageHandles(ctx, f)
+func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, pp protocol.Position) ([]qualifiedObject, error) {
+	phs, err := s.PackageHandles(ctx, fh)
 	if err != nil {
 		return nil, err
 	}
-
-	var qualifiedObjs []qualifiedObject
-
 	// Check all the packages that the file belongs to.
+	var qualifiedObjs []qualifiedObject
 	for _, ph := range phs {
 		pkg, err := ph.Check(ctx)
 		if err != nil {
 			return nil, err
 		}
-
-		astFile, pos, err := getASTFile(pkg, f, pp)
+		astFile, pos, err := getASTFile(pkg, fh, pp)
 		if err != nil {
 			return nil, err
 		}
-
 		path := pathEnclosingObjNode(astFile, pos)
 		if path == nil {
 			return nil, ErrNoIdentFound
 		}
-
 		var objs []types.Object
 		switch leaf := path[0].(type) {
 		case *ast.Ident:
@@ -252,13 +247,11 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, f FileHandle, p
 			}
 			objs = append(objs, obj)
 		}
-
 		pkgs := make(map[*types.Package]Package)
 		pkgs[pkg.GetTypes()] = pkg
 		for _, imp := range pkg.Imports() {
 			pkgs[imp.GetTypes()] = imp
 		}
-
 		for _, obj := range objs {
 			qualifiedObjs = append(qualifiedObjs, qualifiedObject{
 				obj:       obj,
@@ -268,7 +261,11 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, f FileHandle, p
 			})
 		}
 	}
-
+	// Return an error if no objects were found since callers will assume that
+	// the slice has at least 1 element.
+	if len(qualifiedObjs) == 0 {
+		return nil, errors.Errorf("no object found")
+	}
 	return qualifiedObjs, nil
 }
 
@@ -277,22 +274,18 @@ func getASTFile(pkg Package, f FileHandle, pos protocol.Position) (*ast.File, to
 	if err != nil {
 		return nil, 0, err
 	}
-
 	file, _, m, _, err := pgh.Cached()
 	if err != nil {
 		return nil, 0, err
 	}
-
 	spn, err := m.PointSpan(pos)
 	if err != nil {
 		return nil, 0, err
 	}
-
 	rng, err := spn.Range(m.Converter)
 	if err != nil {
 		return nil, 0, err
 	}
-
 	return file, rng.Start, nil
 }
 
