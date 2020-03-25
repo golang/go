@@ -42,10 +42,13 @@ func (k *ValueKey) Description() string { return k.description }
 // Get can be used to get a tag for the key from a TagMap.
 func (k *ValueKey) Get(tags TagMap) interface{} {
 	if t := tags.Find(k); t.Valid() {
-		return t.Value
+		return k.From(t)
 	}
 	return nil
 }
+
+// From can be used to get a value from a Tag.
+func (k *ValueKey) From(t Tag) interface{} { return t.Value }
 
 // Of creates a new Tag with this key and the supplied value.
 func (k *ValueKey) Of(value interface{}) Tag { return Tag{Key: k, Value: value} }
@@ -70,10 +73,13 @@ func (k *IntKey) Of(v int) Tag { return Tag{Key: k, Value: v} }
 // Get can be used to get a tag for the key from a TagMap.
 func (k *IntKey) Get(tags TagMap) int {
 	if t := tags.Find(k); t.Valid() {
-		return t.Value.(int)
+		return k.From(t)
 	}
 	return 0
 }
+
+// From can be used to get a value from a Tag.
+func (k *IntKey) From(t Tag) int { return t.Value.(int) }
 
 // Int8Key represents a key
 type Int8Key struct {
@@ -95,10 +101,13 @@ func (k *Int8Key) Of(v int8) Tag { return Tag{Key: k, Value: v} }
 // Get can be used to get a tag for the key from a TagMap.
 func (k *Int8Key) Get(tags TagMap) int8 {
 	if t := tags.Find(k); t.Valid() {
-		return t.Value.(int8)
+		return k.From(t)
 	}
 	return 0
 }
+
+// From can be used to get a value from a Tag.
+func (k *Int8Key) From(t Tag) int8 { return t.Value.(int8) }
 
 // Int16Key represents a key
 type Int16Key struct {
@@ -120,10 +129,13 @@ func (k *Int16Key) Of(v int16) Tag { return Tag{Key: k, Value: v} }
 // Get can be used to get a tag for the key from a TagMap.
 func (k *Int16Key) Get(tags TagMap) int16 {
 	if t := tags.Find(k); t.Valid() {
-		return t.Value.(int16)
+		return k.From(t)
 	}
 	return 0
 }
+
+// From can be used to get a value from a Tag.
+func (k *Int16Key) From(t Tag) int16 { return t.Value.(int16) }
 
 // Int32Key represents a key
 type Int32Key struct {
@@ -145,10 +157,13 @@ func (k *Int32Key) Of(v int32) Tag { return Tag{Key: k, Value: v} }
 // Get can be used to get a tag for the key from a TagMap.
 func (k *Int32Key) Get(tags TagMap) int32 {
 	if t := tags.Find(k); t.Valid() {
-		return t.Value.(int32)
+		return k.From(t)
 	}
 	return 0
 }
+
+// From can be used to get a value from a Tag.
+func (k *Int32Key) From(t Tag) int32 { return t.Value.(int32) }
 
 // Int64Key represents a key
 type Int64Key struct {
@@ -170,10 +185,13 @@ func (k *Int64Key) Of(v int64) Tag { return Tag{Key: k, Value: v} }
 // Get can be used to get a tag for the key from a TagMap.
 func (k *Int64Key) Get(tags TagMap) int64 {
 	if t := tags.Find(k); t.Valid() {
-		return t.Value.(int64)
+		return k.From(t)
 	}
 	return 0
 }
+
+// From can be used to get a value from a Tag.
+func (k *Int64Key) From(t Tag) int64 { return t.Value.(int64) }
 
 // UIntKey represents a key
 type UIntKey struct {
@@ -195,10 +213,13 @@ func (k *UIntKey) Of(v uint) Tag { return Tag{Key: k, Value: v} }
 // Get can be used to get a tag for the key from a TagMap.
 func (k *UIntKey) Get(tags TagMap) uint {
 	if t := tags.Find(k); t.Valid() {
-		return t.Value.(uint)
+		return k.From(t)
 	}
 	return 0
 }
+
+// From can be used to get a value from a Tag.
+func (k *UIntKey) From(t Tag) uint { return t.Value.(uint) }
 
 // UInt8Key represents a key
 type UInt8Key struct {
@@ -220,10 +241,13 @@ func (k *UInt8Key) Of(v uint8) Tag { return Tag{Key: k, Value: v} }
 // Get can be used to get a tag for the key from a TagMap.
 func (k *UInt8Key) Get(tags TagMap) uint8 {
 	if t := tags.Find(k); t.Valid() {
-		return t.Value.(uint8)
+		return k.From(t)
 	}
 	return 0
 }
+
+// From can be used to get a value from a Tag.
+func (k *UInt8Key) From(t Tag) uint8 { return t.Value.(uint8) }
 
 // UInt16Key represents a key
 type UInt16Key struct {
@@ -245,10 +269,13 @@ func (k *UInt16Key) Of(v uint16) Tag { return Tag{Key: k, Value: v} }
 // Get can be used to get a tag for the key from a TagMap.
 func (k *UInt16Key) Get(tags TagMap) uint16 {
 	if t := tags.Find(k); t.Valid() {
-		return t.Value.(uint16)
+		return k.From(t)
 	}
 	return 0
 }
+
+// From can be used to get a value from a Tag.
+func (k *UInt16Key) From(t Tag) uint16 { return t.Value.(uint16) }
 
 // UInt32Key represents a key
 type UInt32Key struct {
@@ -270,10 +297,13 @@ func (k *UInt32Key) Of(v uint32) Tag { return Tag{Key: k, Value: v} }
 // Get can be used to get a tag for the key from a TagMap.
 func (k *UInt32Key) Get(tags TagMap) uint32 {
 	if t := tags.Find(k); t.Valid() {
-		return t.Value.(uint32)
+		return k.From(t)
 	}
 	return 0
 }
+
+// From can be used to get a value from a Tag.
+func (k *UInt32Key) From(t Tag) uint32 { return t.Value.(uint32) }
 
 // UInt64Key represents a key
 type UInt64Key struct {
@@ -295,10 +325,13 @@ func (k *UInt64Key) Of(v uint64) Tag { return Tag{Key: k, Value: v} }
 // Get can be used to get a tag for the key from a TagMap.
 func (k *UInt64Key) Get(tags TagMap) uint64 {
 	if t := tags.Find(k); t.Valid() {
-		return t.Value.(uint64)
+		return k.From(t)
 	}
 	return 0
 }
+
+// From can be used to get a value from a Tag.
+func (k *UInt64Key) From(t Tag) uint64 { return t.Value.(uint64) }
 
 // Float32Key represents a key
 type Float32Key struct {
@@ -320,10 +353,13 @@ func (k *Float32Key) Of(v float32) Tag { return Tag{Key: k, Value: v} }
 // Get can be used to get a tag for the key from a TagMap.
 func (k *Float32Key) Get(tags TagMap) float32 {
 	if t := tags.Find(k); t.Valid() {
-		return t.Value.(float32)
+		return k.From(t)
 	}
 	return 0
 }
+
+// From can be used to get a value from a Tag.
+func (k *Float32Key) From(t Tag) float32 { return t.Value.(float32) }
 
 // Float64Key represents a key
 type Float64Key struct {
@@ -345,10 +381,13 @@ func (k *Float64Key) Of(v float64) Tag { return Tag{Key: k, Value: v} }
 // Get can be used to get a tag for the key from a TagMap.
 func (k *Float64Key) Get(tags TagMap) float64 {
 	if t := tags.Find(k); t.Valid() {
-		return t.Value.(float64)
+		return k.From(t)
 	}
 	return 0
 }
+
+// From can be used to get a value from a Tag.
+func (k *Float64Key) From(t Tag) float64 { return t.Value.(float64) }
 
 // StringKey represents a key
 type StringKey struct {
@@ -370,10 +409,13 @@ func (k *StringKey) Of(v string) Tag { return Tag{Key: k, Value: v} }
 // Get can be used to get a tag for the key from a TagMap.
 func (k *StringKey) Get(tags TagMap) string {
 	if t := tags.Find(k); t.Valid() {
-		return t.Value.(string)
+		return k.From(t)
 	}
 	return ""
 }
+
+// From can be used to get a value from a Tag.
+func (k *StringKey) From(t Tag) string { return t.Value.(string) }
 
 // BooleanKey represents a key
 type BooleanKey struct {
@@ -395,10 +437,13 @@ func (k *BooleanKey) Of(v bool) Tag { return Tag{Key: k, Value: v} }
 // Get can be used to get a tag for the key from a TagMap.
 func (k *BooleanKey) Get(tags TagMap) bool {
 	if t := tags.Find(k); t.Valid() {
-		return t.Value.(bool)
+		return k.From(t)
 	}
 	return false
 }
+
+// From can be used to get a value from a Tag.
+func (k *BooleanKey) From(t Tag) bool { return t.Value.(bool) }
 
 // ErrorKey represents a key
 type ErrorKey struct {
@@ -420,7 +465,10 @@ func (k *ErrorKey) Of(v error) Tag { return Tag{Key: k, Value: v} }
 // Get can be used to get a tag for the key from a TagMap.
 func (k *ErrorKey) Get(tags TagMap) error {
 	if t := tags.Find(k); t.Valid() {
-		return t.Value.(error)
+		return k.From(t)
 	}
 	return nil
 }
+
+// From can be used to get a value from a Tag.
+func (k *ErrorKey) From(t Tag) error { return t.Value.(error) }

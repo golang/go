@@ -37,6 +37,7 @@ type Int64Data struct {
 	EndTime time.Time
 
 	groups [][]event.Tag
+	key    *event.Int64Key
 }
 
 // Float64Data is a concrete implementation of Data for float64 scalar metrics.
@@ -51,6 +52,7 @@ type Float64Data struct {
 	EndTime time.Time
 
 	groups [][]event.Tag
+	key    *event.Float64Key
 }
 
 // HistogramInt64Data is a concrete implementation of Data for int64 histogram metrics.
@@ -63,6 +65,7 @@ type HistogramInt64Data struct {
 	EndTime time.Time
 
 	groups [][]event.Tag
+	key    *event.Int64Key
 }
 
 // HistogramInt64Row holds the values for a single row of a HistogramInt64Data.
@@ -89,6 +92,7 @@ type HistogramFloat64Data struct {
 	EndTime time.Time
 
 	groups [][]event.Tag
+	key    *event.Float64Key
 }
 
 // HistogramFloat64Row holds the values for a single row of a HistogramFloat64Data.
@@ -158,13 +162,7 @@ func (data *Int64Data) modify(at time.Time, tagMap event.TagMap, f func(v int64)
 	return &frozen
 }
 
-func (data *Int64Data) countInt64(at time.Time, tagMap event.TagMap, tag event.Tag) Data {
-	return data.modify(at, tagMap, func(v int64) int64 {
-		return v + 1
-	})
-}
-
-func (data *Int64Data) countFloat64(at time.Time, tagMap event.TagMap, tag event.Tag) Data {
+func (data *Int64Data) count(at time.Time, tagMap event.TagMap, tag event.Tag) Data {
 	return data.modify(at, tagMap, func(v int64) int64 {
 		return v + 1
 	})
@@ -172,13 +170,13 @@ func (data *Int64Data) countFloat64(at time.Time, tagMap event.TagMap, tag event
 
 func (data *Int64Data) sum(at time.Time, tagMap event.TagMap, tag event.Tag) Data {
 	return data.modify(at, tagMap, func(v int64) int64 {
-		return v + tag.Value.(int64)
+		return v + data.key.From(tag)
 	})
 }
 
 func (data *Int64Data) latest(at time.Time, tagMap event.TagMap, tag event.Tag) Data {
 	return data.modify(at, tagMap, func(v int64) int64 {
-		return tag.Value.(int64)
+		return data.key.From(tag)
 	})
 }
 
@@ -204,13 +202,13 @@ func (data *Float64Data) modify(at time.Time, tagMap event.TagMap, f func(v floa
 
 func (data *Float64Data) sum(at time.Time, tagMap event.TagMap, tag event.Tag) Data {
 	return data.modify(at, tagMap, func(v float64) float64 {
-		return v + tag.Value.(float64)
+		return v + data.key.From(tag)
 	})
 }
 
 func (data *Float64Data) latest(at time.Time, tagMap event.TagMap, tag event.Tag) Data {
 	return data.modify(at, tagMap, func(v float64) float64 {
-		return tag.Value.(float64)
+		return data.key.From(tag)
 	})
 }
 
@@ -242,7 +240,7 @@ func (data *HistogramInt64Data) modify(at time.Time, tagMap event.TagMap, f func
 
 func (data *HistogramInt64Data) record(at time.Time, tagMap event.TagMap, tag event.Tag) Data {
 	return data.modify(at, tagMap, func(v *HistogramInt64Row) {
-		value := tag.Value.(int64)
+		value := data.key.From(tag)
 		v.Sum += value
 		if v.Min > value || v.Count == 0 {
 			v.Min = value
@@ -287,7 +285,7 @@ func (data *HistogramFloat64Data) modify(at time.Time, tagMap event.TagMap, f fu
 
 func (data *HistogramFloat64Data) record(at time.Time, tagMap event.TagMap, tag event.Tag) Data {
 	return data.modify(at, tagMap, func(v *HistogramFloat64Row) {
-		value := tag.Value.(float64)
+		value := data.key.From(tag)
 		v.Sum += value
 		if v.Min > value || v.Count == 0 {
 			v.Min = value

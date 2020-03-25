@@ -53,6 +53,6 @@ func registerMetrics(m *metric.Config) {
 	receivedBytes.Record(m, tag.ReceivedBytes)
 	sentBytes.Record(m, tag.SentBytes)
 	latency.Record(m, tag.Latency)
-	started.CountInt64(m, tag.Started)
-	completed.CountFloat64(m, tag.Latency)
+	started.Count(m, tag.Started)
+	completed.Count(m, tag.Latency)
 }
