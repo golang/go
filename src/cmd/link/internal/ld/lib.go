@@ -620,7 +620,7 @@ func setupdynexp(ctxt *Link) {
 			panic("dynexp entry not reachable")
 		}
 	}
-	sort.Slice(dynexp, func(i, j int) bool {
+	sort.Slice(d, func(i, j int) bool {
 		return ctxt.loader.SymName(d[i]) < ctxt.loader.SymName(d[j])
 	})
 
