@@ -704,19 +704,24 @@
 (MOVBZreg (SRDconst [c] x)) && c>=56 -> (SRDconst [c] x)
 (MOVBreg (SRDconst [c] x)) && c>56 -> (SRDconst [c] x)
 (MOVBreg (SRDconst [c] x)) && c==56 -> (SRADconst [c] x)
+(MOVBreg (SRADconst [c] x)) && c>=56 -> (SRADconst [c] x)
 (MOVBZreg (SRWconst [c] x)) && c>=24 -> (SRWconst [c] x)
 (MOVBreg (SRWconst [c] x)) && c>24 -> (SRWconst [c] x)
 (MOVBreg (SRWconst [c] x)) && c==24 -> (SRAWconst [c] x)
+(MOVBreg (SRAWconst [c] x)) && c>=24 -> (SRAWconst [c] x)
 
 (MOVHZreg (SRDconst [c] x)) && c>=48 -> (SRDconst [c] x)
 (MOVHreg (SRDconst [c] x)) && c>48 -> (SRDconst [c] x)
 (MOVHreg (SRDconst [c] x)) && c==48 -> (SRADconst [c] x)
+(MOVHreg (SRADconst [c] x)) && c>=48 -> (SRADconst [c] x)
 (MOVHZreg (SRWconst [c] x)) && c>=16 -> (SRWconst [c] x)
 (MOVHreg (SRWconst [c] x)) && c>16 -> (SRWconst [c] x)
+(MOVHreg (SRAWconst [c] x)) && c>=16 -> (SRAWconst [c] x)
 (MOVHreg (SRWconst [c] x)) && c==16 -> (SRAWconst [c] x)
 
 (MOVWZreg (SRDconst [c] x)) && c>=32 -> (SRDconst [c] x)
 (MOVWreg (SRDconst [c] x)) && c>32 -> (SRDconst [c] x)
+(MOVWreg (SRADconst [c] x)) && c>=32 -> (SRADconst [c] x)
 (MOVWreg (SRDconst [c] x)) && c==32 -> (SRADconst [c] x)
 
 // Various redundant zero/sign extension combinations.
