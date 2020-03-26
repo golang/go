@@ -1925,7 +1925,7 @@ func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...interfa
 	cleanup := passLongArgsInResponseFiles(cmd)
 	defer cleanup()
 	cmd.Dir = dir
-	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
+	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
 	cmd.Env = append(cmd.Env, env...)
 	start := time.Now()
 	err := cmd.Run()
@@ -2381,7 +2381,7 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	}
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 	cmd.Dir = b.WorkDir
-	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
+	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
 	cmd.Env = append(cmd.Env, "LC_ALL=C")
 	out, _ := cmd.CombinedOutput()
 	// GCC says "unrecognized command line option".
