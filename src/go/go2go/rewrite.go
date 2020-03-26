@@ -689,14 +689,66 @@ func (t *translator) instantiationTypes(call *ast.CallExpr) (argList []ast.Expr,
 		typeArgs = true
 	} else {
 		for _, typ := range inferred.Targs {
-			typeList = append(typeList, typ)
 			arg := ast.NewIdent(typ.String())
+			if named, ok := typ.(*types.Named); ok && len(named.TArgs()) > 0 {
+				var narg *ast.Ident
+				typ, narg = t.lookupInstantiatedType(named)
+				if narg != nil {
+					arg = ast.NewIdent(narg.Name)
+				}
+			}
+			typeList = append(typeList, typ)
 			argList = append(argList, arg)
 			t.setType(arg, typ)
 		}
 	}
 
 	return
+}
+
+// lookupInstantiatedType looks for an existing instantiation of an
+// instantiated type.
+func (t *translator) lookupInstantiatedType(typ *types.Named) (types.Type, *ast.Ident) {
+	// The name should be something like pkg.name<type1, type2>.
+	name := typ.Obj().Name()
+	idx := strings.Index(name, "<")
+	if idx < 0 {
+		return typ, nil
+	}
+	name = name[:idx]
+	fields := strings.Split(name, ".")
+	if len(fields) > 2 {
+		panic(fmt.Sprintf("unparseable instantiated name %q", name))
+	}
+	if len(fields) > 1 {
+		name = fields[1]
+	}
+
+	tpkg := typ.Obj().Pkg()
+	nobj := tpkg.Scope().Lookup(name)
+	if nobj == nil {
+		panic(fmt.Sprintf("can't find %q in scope of package %q", name, tpkg.Name()))
+	}
+
+	targs := typ.TArgs()
+	instantiations := t.typeInstantiations[nobj.Type()]
+	for _, inst := range instantiations {
+		if t.sameTypes(targs, inst.types) {
+			newName := inst.decl.Name
+			nm := typ.NumMethods()
+			methods := make([]*types.Func, 0, nm)
+			for i := 0; i < nm; i++ {
+				methods = append(methods, typ.Method(i))
+			}
+			obj := typ.Obj()
+			obj = types.NewTypeName(obj.Pos(), obj.Pkg(), newName, nil)
+			nt := types.NewNamed(obj, typ.Underlying(), methods)
+			nt.SetTArgs(targs)
+			return nt, inst.decl
+		}
+	}
+
+	panic(fmt.Sprintf("did not find instantiation for %v %v\n", typ, typ.Underlying()))
 }
 
 // sameTypes reports whether two type slices are the same.

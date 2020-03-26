@@ -1,0 +1,57 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package metrics
+
+import (
+	"sort"
+	"testing"
+
+	"slices"
+)
+
+type S struct{ a, b, c string }
+
+func TestMetrics(t *testing.T) {
+	m1 := Metric1(string){}
+	if got := m1.Count("a"); got != 0 {
+		t.Errorf("Count(%q) = %d, want 0", "a", got)
+	}
+	m1.Add("a")
+	m1.Add("a")
+	if got := m1.Count("a"); got != 2 {
+		t.Errorf("Count(%q) = %d, want 2", "a", got)
+	}
+	if got, want := m1.Metrics(), []string{"a"}; !slices.Equal(got, want) {
+		t.Errorf("Metrics = %v, want %v", got, want)
+	}
+
+	m2 := Metric2(int, float64){}
+	m2.Add(1, 1)
+	m2.Add(2, 2)
+	m2.Add(3, 3)
+	m2.Add(3, 3)
+	k1, k2 := m2.Metrics()
+
+	sort.Ints(k1)
+	w1 := []int{1, 2, 3}
+	if !slices.Equal(k1, w1) {
+		t.Errorf("Metric2.Metrics first slice = %v, want %v", k1, w1)
+	}
+
+	sort.Float64s(k2)
+	w2 := []float64{1, 2, 3}
+	if !slices.Equal(k2, w2) {
+		t.Errorf("Metric2.Metrics first slice = %v, want %v", k2, w2)
+	}
+
+	m3 := Metric3(string, S, S){}
+	m3.Add("a", S{"d", "e", "f"}, S{"g", "h", "i"})
+	m3.Add("a", S{"d", "e", "f"}, S{"g", "h", "i"})
+	m3.Add("a", S{"d", "e", "f"}, S{"g", "h", "i"})
+	m3.Add("b", S{"d", "e", "f"}, S{"g", "h", "i"})
+	if got := m3.Count("a", S{"d", "e", "f"}, S{"g", "h", "i"}); got != 3 {
+		t.Errorf("Count(%v, %v, %v) = %d, want 3", "a", S{"d", "e", "f"}, S{"g", "h", "i"}, got)
+	}
+}

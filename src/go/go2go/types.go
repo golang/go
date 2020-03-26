@@ -168,6 +168,31 @@ func (t *translator) doInstantiateType(ta *typeArgs, typ types.Type) types.Type 
 		}
 		return types.NewChan(typ.Dir(), elem)
 	case *types.Named:
+		targs := typ.TArgs()
+		targsChanged := false
+		if len(targs) > 0 {
+			newTargs := make([]types.Type, 0, len(targs))
+			for _, targ := range targs {
+				newTarg := t.instantiateType(ta, targ)
+				if newTarg != targ {
+					targsChanged = true
+				}
+				newTargs = append(newTargs, newTarg)
+			}
+			targs = newTargs
+		}
+		if targsChanged {
+			nm := typ.NumMethods()
+			methods := make([]*types.Func, 0, nm)
+			for i := 0; i < nm; i++ {
+				methods = append(methods, typ.Method(i))
+			}
+			obj := typ.Obj()
+			obj = types.NewTypeName(obj.Pos(), obj.Pkg(), obj.Name(), nil)
+			nt := types.NewNamed(obj, typ.Underlying(), methods)
+			nt.SetTArgs(targs)
+			return nt
+		}
 		return typ
 	case *types.TypeParam:
 		if instType, ok := ta.typ(typ); ok {

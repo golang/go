@@ -20,17 +20,19 @@ const nameSep = '୦'
 const nameIntro = '୮'
 
 var nameCodes = map[rune]int{
-	' ': 0,
-	'*': 1,
-	';': 2,
-	',': 3,
-	'{': 4,
-	'}': 5,
-	'[': 6,
-	']': 7,
-	'(': 8,
-	')': 9,
-	'.': 10,
+	' ':       0,
+	'*':       1,
+	';':       2,
+	',':       3,
+	'{':       4,
+	'}':       5,
+	'[':       6,
+	']':       7,
+	'(':       8,
+	')':       9,
+	'.':       10,
+	nameSep:   11,
+	nameIntro: 12,
 }
 
 // instantiatedName returns the name of a newly instantiated function.
@@ -49,10 +51,7 @@ func (t *translator) instantiatedName(qid qualifiedIdent, types []types.Type) (s
 		// This is not possible in general but we assume that
 		// identifiers will not contain nameSep or nameIntro.
 		for _, r := range s {
-			if r == nameSep || r == nameIntro {
-				panic(fmt.Sprintf("identifier %q contains mangling rune %c", s, r))
-			}
-			if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_' {
+			if (unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_') && r != nameSep && r != nameIntro {
 				sb.WriteRune(r)
 			} else {
 				code, ok := nameCodes[r]
@@ -66,6 +65,8 @@ func (t *translator) instantiatedName(qid qualifiedIdent, types []types.Type) (s
 	return sb.String(), nil
 }
 
+// importableName returns a name that we define in each package, so that
+// we have something to import to avoid an unused package error.
 func (t *translator) importableName() string {
 	return "Importable" + string(nameSep)
 }
