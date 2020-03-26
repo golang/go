@@ -1833,11 +1833,9 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 		s.Version = int16(pp.ver)
 		s.Type = pp.kind
 		s.Size = pp.size
-		s.Value = l.SymValue(i)
 		if pp.gotype != 0 {
 			s.Gotype = l.Syms[pp.gotype]
 		}
-		s.Value = l.values[i]
 		if f, ok := l.symFile[i]; ok {
 			s.File = f
 		} else if pp.objidx != 0 {
@@ -2326,6 +2324,9 @@ func (l *Loader) CopyAttributes(src Sym, dst Sym) {
 // migrateAttributes copies over all of the attributes of symbol 'src' to
 // sym.Symbol 'dst'.
 func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {
+	dst.Value = l.SymValue(src)
+	dst.Align = l.SymAlign(src)
+
 	dst.Attr.Set(sym.AttrReachable, l.AttrReachable(src))
 	dst.Attr.Set(sym.AttrOnList, l.AttrOnList(src))
 	dst.Attr.Set(sym.AttrLocal, l.AttrLocal(src))
