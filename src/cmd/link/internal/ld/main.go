@@ -276,6 +276,10 @@ func Main(arch *sys.Arch, theArch Arch) {
 		bench.Start("doxcoff")
 		ctxt.doxcoff()
 	}
+
+	bench.Start("textbuildid")
+	ctxt.textbuildid()
+
 	bench.Start("loadlibfull")
 	setupdynexp(ctxt)
 	ctxt.loadlibfull() // XXX do it here for now
@@ -289,8 +293,6 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.addexport()
 	bench.Start("Gentext")
 	thearch.Gentext(ctxt) // trampolines, call stubs, etc.
-	bench.Start("textbuildid")
-	ctxt.textbuildid()
 	bench.Start("textaddress")
 	ctxt.textaddress()
 	bench.Start("pclntab")
