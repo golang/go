@@ -2011,18 +2011,19 @@ func (ctxt *Link) textbuildid() {
 		return
 	}
 
-	s := ctxt.Syms.Lookup("go.buildid", 0)
-	s.Attr |= sym.AttrReachable
+	ldr := ctxt.loader
+	s := ldr.CreateSymForUpdate("go.buildid", 0)
+	s.SetReachable(true)
 	// The \xff is invalid UTF-8, meant to make it less likely
 	// to find one of these accidentally.
 	data := "\xff Go build ID: " + strconv.Quote(*flagBuildid) + "\n \xff"
-	s.Type = sym.STEXT
-	s.P = []byte(data)
-	s.Size = int64(len(s.P))
+	s.SetType(sym.STEXT)
+	s.SetData([]byte(data))
+	s.SetSize(int64(len(data)))
 
-	ctxt.Textp = append(ctxt.Textp, nil)
-	copy(ctxt.Textp[1:], ctxt.Textp)
-	ctxt.Textp[0] = s
+	ctxt.Textp2 = append(ctxt.Textp2, 0)
+	copy(ctxt.Textp2[1:], ctxt.Textp2)
+	ctxt.Textp2[0] = s.Sym()
 }
 
 func (ctxt *Link) buildinfo() {
