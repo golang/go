@@ -430,7 +430,7 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
 
 	cmd := exec.Command(v.cmd, args...)
 	cmd.Dir = dir
-	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
+	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
 	if cfg.BuildX {
 		fmt.Fprintf(os.Stderr, "cd %s\n", dir)
 		fmt.Fprintf(os.Stderr, "%s %s\n", v.cmd, strings.Join(args, " "))
