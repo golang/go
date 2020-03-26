@@ -956,6 +956,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 	case *ast.InterfaceType:
 		p.print(token.INTERFACE)
 		p.fieldList(x.Methods, false, x.Incomplete)
+		// TODO(gri) implement printing of type lists
 
 	case *ast.MapType:
 		p.print(token.MAP, token.LBRACK)
@@ -1069,27 +1070,25 @@ func (p *printer) expr(x ast.Expr) {
 	p.expr1(x, token.LowestPrec, depth)
 }
 
-// TODO(gri) complete this
 func (p *printer) constraint(x *ast.Constraint) {
-	if x.Param != nil {
-		p.linebreak(p.lineFor(x.Types[0].Pos()), 1, ignore, false)
-		p.print(indent, x.Param, blank)
-		if len(x.MNames) > 0 {
-			// method names
-			for i, m := range x.MNames {
-				p.print(m)
-				t := x.Types[i].(*ast.FuncType)
-				p.signature(t)
-				//p.print(token.COMMA)
-			}
-		}
-		p.print(unindent)
-	} else if len(x.Types) > 0 {
-		p.linebreak(p.lineFor(x.Types[0].Pos()), 1, ignore, false)
-		p.print(indent)
-		p.exprList(token.NoPos, x.Types, 1, 0, token.NoPos, false)
-		p.print(unindent)
+	p.print(x.Pos())
+	if x.Param == nil {
+		// embedded contract
+		p.expr(x.Types[0])
+		return
 	}
+	// method or list of types
+	p.print(x.Param, blank)
+	if len(x.MNames) > 0 && x.MNames[0] != nil {
+		// single method
+		// For now we only support a single method
+		// even though the parser is more relaxed.
+		p.print(x.MNames[0])
+		p.signature(x.Types[0].(*ast.FuncType))
+		return
+	}
+	// list of types
+	p.exprList(token.NoPos, x.Types, 1, 0, token.NoPos, false)
 }
 
 // ----------------------------------------------------------------------------
@@ -1636,16 +1635,17 @@ func (p *printer) spec(spec ast.Spec, n int, doIndent bool) {
 		}
 		p.print(token.RPAREN)
 		if len(s.Constraints) > 0 {
-			p.print(blank)
-		}
-		p.print(s.Lbrace, token.LBRACE)
-		for _, c := range s.Constraints {
-			p.constraint(c)
-		}
-		if len(s.Constraints) > 0 {
+			p.print(blank, s.Lbrace, token.LBRACE, indent)
+			for _, c := range s.Constraints {
+				p.linebreak(p.lineFor(c.Pos()), 1, ignore, false)
+				p.constraint(c)
+			}
+			p.print(unindent)
 			p.linebreak(p.lineFor(s.Rbrace), 1, ignore, true)
+			p.print(s.Rbrace, token.RBRACE)
+		} else {
+			p.print(s.Lbrace, token.LBRACE, s.Rbrace, token.RBRACE)
 		}
-		p.print(s.Rbrace, token.RBRACE)
 		p.setComment(s.Comment)
 
 	default:

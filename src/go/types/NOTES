@@ -4,6 +4,7 @@ so we have a better track record. I only switched to this file in Nov 2019, henc
 ----------------------------------------------------------------------------------------------------
 TODO
 
+- go/printer: implement printing of type lists
 - review use of Contract.TParams field - it seems like it's only needed for length checks?
 - review handling of fields of instantiated generic types (do we need to make them non-parameterized,
   similar to what we did for the embedded interfaces created by contract embedding?)
@@ -124,9 +125,25 @@ DESIGN/IMPLEMENTATION
   a method, even if they are not used by the method. Since the receiver acts like an implicit
   declaration of those type parameters, they may be blank, as with any other declaration.
 
-- 3/20/2020: Local type declarations with an underlying type that is type parameter lose the
+- 3/20/2020: Local type declarations with an underlying type that is a type parameter lose the
   methods declared with the type parameter bound. But they don't lose the properties of the
   underlying type, i.e., the properties of the type parameter bound's type list.
   This is something to consider if we were contemplating moving to a methods-only approach
   (no type lists), even though local type declarations are exceedingly rare if they exist at
   all in the wild.
+
+- 3/24/2020: Implemented initial support for bidirection type unification which could make
+  type inference more powerful if we decided to go that route. Specifically, this would
+  permit type inference for the type parameters of a generic function argument. Given:
+  func h(f func(int)); func g(type T)(T); one could allow the call: h(g) and the type argument
+  T of g would be inferred to be int. While not hard to implement, this would be a special case
+  of the rule that all generic types/functions must be instantiated before they are used except
+  for function calls where the type arguments can be inferred from the actual arguments.
+  Decided that for now we leave things as is, since it's not clear the extra complexity is
+  worth the (probably small) convenience.
+
+- 3/25/2020: We can probably simplify the contract syntax again and only permit one of three
+  possible constraint entries: 1) an embedded contract, 2) a type parameter followed by a
+  method signature, and 3) a type parameter followed by a type list. This is what the type
+  checker currently supports and the printer can print. (The parser still accepts a list of
+  method signatures or types, freely mixed.)

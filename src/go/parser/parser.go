@@ -2607,6 +2607,10 @@ func (p *parser) parseConstraint() *ast.Constraint {
 	}
 
 	// list of type constraints or methods
+	// invariant: len(mnames) == len(types)
+	// TODO(gri) We probably can simplify this again and only accept either
+	//           a (single) method or a type list. It seems unlikely that
+	//           people insist on writing T m1(), m2() .
 	var mnames []*ast.Ident
 	var types []ast.Expr
 	for {
