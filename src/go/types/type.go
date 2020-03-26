@@ -522,6 +522,9 @@ func (t *Named) TParams() []*TypeName { return t.tparams }
 // TArgs returns the type arguments after instantiation of the named type t, or nil if not instantiated.
 func (t *Named) TArgs() []Type { return t.targs }
 
+// SetTArgs sets the type arguments of Named.
+func (t *Named) SetTArgs(args []Type) { t.targs = args }
+
 // NumMethods returns the number of explicit methods whose receiver is named type t.
 func (t *Named) NumMethods() int { return len(t.methods) }
 
