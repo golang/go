@@ -77,8 +77,6 @@ idea how to implement that but we can easily type-check it).
 
 MAJOR KNOWN ISSUES
 
-- importing of packages exporting generic code is not implemented
-  in the type-checker
 - various type-specific operations (such as sending a message, type
   assertions, etc.) on expressions of a generic type don't work yet
   (but are relatively easy to implement going forward)
@@ -86,7 +84,6 @@ MAJOR KNOWN ISSUES
   better in a real implementation (the subscript numbers on type
   parameters are there to visually identify different parameters
   with the same name)
-- gofmt works only partly with parameterized code
 
 See also the NOTES file for a more up-to-date documentation of the
 current state and issues.

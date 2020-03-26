@@ -129,7 +129,7 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 
 	case *ast.StructType:
 		buf.WriteString("struct{")
-		writeFieldList(buf, x.Fields, "; ", false)
+		writeFieldList(buf, x.Fields.List, "; ", false)
 		buf.WriteByte('}')
 
 	case *ast.FuncType:
@@ -137,14 +137,28 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 		writeSigExpr(buf, x)
 
 	case *ast.InterfaceType:
+		// separate type list types from method list
+		// TODO(gri) we can get rid of this extra code if writeExprList does the separation
+		var types []ast.Expr
+		var methods []*ast.Field
+		for _, f := range x.Methods.List {
+			if len(f.Names) > 1 && f.Names[0].Name == "type" {
+				// type list type
+				types = append(types, f.Type)
+			} else {
+				// method or embedded interface
+				methods = append(methods, f)
+			}
+		}
+
 		buf.WriteString("interface{")
-		writeFieldList(buf, x.Methods, "; ", true)
-		if len(x.Types) > 0 {
-			if len(x.Methods.List) > 0 {
+		writeFieldList(buf, methods, "; ", true)
+		if len(types) > 0 {
+			if len(methods) > 0 {
 				buf.WriteString("; ")
 			}
 			buf.WriteString("type ")
-			writeExprList(buf, x.Types)
+			writeExprList(buf, types)
 		}
 		buf.WriteByte('}')
 
@@ -171,7 +185,7 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 
 func writeSigExpr(buf *bytes.Buffer, sig *ast.FuncType) {
 	buf.WriteByte('(')
-	writeFieldList(buf, sig.Params, ", ", false)
+	writeFieldList(buf, sig.Params.List, ", ", false)
 	buf.WriteByte(')')
 
 	res := sig.Results
@@ -190,12 +204,12 @@ func writeSigExpr(buf *bytes.Buffer, sig *ast.FuncType) {
 
 	// multiple or named result(s)
 	buf.WriteByte('(')
-	writeFieldList(buf, res, ", ", false)
+	writeFieldList(buf, res.List, ", ", false)
 	buf.WriteByte(')')
 }
 
-func writeFieldList(buf *bytes.Buffer, fields *ast.FieldList, sep string, iface bool) {
-	for i, f := range fields.List {
+func writeFieldList(buf *bytes.Buffer, list []*ast.Field, sep string, iface bool) {
+	for i, f := range list {
 		if i > 0 {
 			buf.WriteString(sep)
 		}

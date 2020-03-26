@@ -1053,7 +1053,7 @@ func (p *parser) parseMethodSpec(scope *ast.Scope) *ast.Field {
 		}
 	} else {
 		// embedded, possibly parameterized interface
-		// (using the enclosing parentheses to distinguish it from a method declaration)
+		// (using enclosing parentheses to distinguish it from a method declaration)
 		typ = p.parseType(true)
 	}
 	p.expectSemi() // call before accessing p.linecomment
@@ -1072,16 +1072,21 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
 	pos := p.expect(token.INTERFACE)
 	lbrace := p.expect(token.LBRACE)
 	scope := ast.NewScope(nil) // interface scope
-	var mlist []*ast.Field
-	var tlist []ast.Expr
+	var list []*ast.Field
 L:
 	for {
 		switch p.tok {
 		case token.IDENT, token.LPAREN:
-			mlist = append(mlist, p.parseMethodSpec(scope))
+			list = append(list, p.parseMethodSpec(scope))
 		case token.TYPE:
+			// all types in a type list share the same field name "type"
+			// (since type is a keyword, a Go program cannot have that field name)
+			name := []*ast.Ident{&ast.Ident{NamePos: p.pos, Name: "type"}}
 			p.next()
-			tlist = append(tlist, p.parseTypeList()...)
+			// add each type as a field named "type"
+			for _, typ := range p.parseTypeList() {
+				list = append(list, &ast.Field{Names: name, Type: typ})
+			}
 			p.expectSemi()
 		default:
 			break L
@@ -1093,10 +1098,9 @@ L:
 		Interface: pos,
 		Methods: &ast.FieldList{
 			Opening: lbrace,
-			List:    mlist,
+			List:    list,
 			Closing: rbrace,
 		},
-		Types: tlist,
 	}
 }
 

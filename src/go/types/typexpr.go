@@ -658,15 +658,22 @@ func (check *Checker) declareInSet(oset *objset, pos token.Pos, obj Object) bool
 }
 
 func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *Named) {
+	var types []ast.Expr
 	for _, f := range iface.Methods.List {
 		if len(f.Names) > 0 {
-			// We have a method with name f.Names[0].
+			// We have a method with name f.Names[0], or a type
+			// of a type list (name.Name == "type").
 			// (The parser ensures that there's only one method
 			// and we don't care if a constructed AST has more.)
 			name := f.Names[0]
 			if name.Name == "_" {
 				check.errorf(name.Pos(), "invalid method name _")
 				continue // ignore
+			}
+
+			if name.Name == "type" {
+				types = append(types, f.Type)
+				continue
 			}
 
 			typ := check.typ(f.Type)
@@ -708,7 +715,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 	}
 
 	// type constraints
-	ityp.types = check.collectTypeConstraints(iface.Pos(), ityp.types, iface.Types)
+	ityp.types = check.collectTypeConstraints(iface.Pos(), ityp.types, types)
 
 	if len(ityp.methods) == 0 && len(ityp.types) == 0 && len(ityp.embeddeds) == 0 {
 		// empty interface

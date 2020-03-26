@@ -36,8 +36,18 @@ type _(type T) interface{}
 type _(type T) interface{
         m(T)
 }
-type _ interface {
-        type int // cannot print interface type lists yet
+type _ interface { type int } // one-liner
+type _ interface{
+        // TODO(gri) comments before type lists are not handled correctly yet
+        m1()
+        type int
+        type bool, string, error
+        m2()
+        m3()
+        type float32,
+                float64,
+                complex64, complex128
+        m4()
 }
 
 type _(type T) struct{}

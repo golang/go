@@ -473,10 +473,18 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 				}
 				p.expr(f.Type)
 			} else { // interface
-				if ftyp, isFtyp := f.Type.(*ast.FuncType); isFtyp {
-					// method
-					p.expr(f.Names[0])
-					p.signature(ftyp)
+				if len(f.Names) > 0 {
+					// type list type or method
+					name := f.Names[0] // "type" or method name
+					p.expr(name)
+					if name.Name == "type" {
+						// type list type
+						p.print(blank)
+						p.expr(f.Type)
+					} else {
+						// method
+						p.signature(f.Type.(*ast.FuncType)) // don't print "func"
+					}
 				} else {
 					// embedded interface
 					p.expr(f.Type)
@@ -544,19 +552,47 @@ func (p *printer) fieldList(fields *ast.FieldList, isStruct, isIncomplete bool) 
 	} else { // interface
 
 		var line int
+		var prev *ast.Ident // previous "type" identifier
 		for i, f := range list {
+			var name *ast.Ident // first name, or nil
+			if len(f.Names) > 0 {
+				name = f.Names[0]
+			}
 			if i > 0 {
-				p.linebreak(p.lineFor(f.Pos()), 1, ignore, p.linesFrom(line) > 0)
+				// don't do a line break (min == 0) if we are printing a list of types
+				// TODO(gri) this doesn't work quite right if the list of types is
+				//           spread across multiple lines
+				min := 1
+				if prev != nil && name == prev {
+					min = 0
+				}
+				p.linebreak(p.lineFor(f.Pos()), min, ignore, p.linesFrom(line) > 0)
 			}
 			p.setComment(f.Doc)
 			p.recordLine(&line)
-			if ftyp, isFtyp := f.Type.(*ast.FuncType); isFtyp {
-				// method
-				p.expr(f.Names[0])
-				p.signature(ftyp)
+			if name != nil {
+				// type list type or method
+				if name.Name == "type" {
+					// type list type
+					if name == prev {
+						// type is part of a list of types
+						p.print(token.COMMA, blank)
+					} else {
+						// type starts a new list of types
+						p.print(name, blank)
+					}
+					p.expr(f.Type)
+					prev = name
+				} else {
+					// method
+					p.expr(name)
+					p.signature(f.Type.(*ast.FuncType)) // don't print "func"
+					prev = nil
+				}
 			} else {
 				// embedded interface
 				p.expr(f.Type)
+				prev = nil
 			}
 			p.setComment(f.Comment)
 		}
@@ -956,7 +992,6 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 	case *ast.InterfaceType:
 		p.print(token.INTERFACE)
 		p.fieldList(x.Methods, false, x.Incomplete)
-		// TODO(gri) implement printing of type lists
 
 	case *ast.MapType:
 		p.print(token.MAP, token.LBRACK)

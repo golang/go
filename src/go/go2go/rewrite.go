@@ -23,7 +23,6 @@ var config = printer.Config{
 	Tabwidth: 8,
 }
 
-
 // isParameterizedFuncDecl reports whether fd is a parameterized function.
 func isParameterizedFuncDecl(fd *ast.FuncDecl, info *types.Info) bool {
 	if fd.Type.TParams != nil {
@@ -182,7 +181,7 @@ func rewriteAST(fset *token.FileSet, importer *Importer, importPath string, file
 	if addImportableName {
 		file.Decls = append(file.Decls,
 			&ast.GenDecl{
-				Tok:   token.TYPE,
+				Tok: token.TYPE,
 				Specs: []ast.Spec{
 					&ast.TypeSpec{
 						Name: ast.NewIdent(t.importableName()),
@@ -255,7 +254,7 @@ func rewriteAST(fset *token.FileSet, importer *Importer, importPath string, file
 			switch tok {
 			case token.CONST, token.VAR:
 				spec = &ast.ValueSpec{
-					Names:  []*ast.Ident{
+					Names: []*ast.Ident{
 						ast.NewIdent("_"),
 					},
 					Values: []ast.Expr{
@@ -278,7 +277,7 @@ func rewriteAST(fset *token.FileSet, importer *Importer, importPath string, file
 			}
 			file.Decls = append(file.Decls,
 				&ast.GenDecl{
-					Tok: tok,
+					Tok:   tok,
 					Specs: []ast.Spec{spec},
 				})
 		}
@@ -536,8 +535,9 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 		t.translateFieldList(e.Params)
 		t.translateFieldList(e.Results)
 	case *ast.InterfaceType:
-		t.translateFieldList(e.Methods)
-		t.translateExprList(e.Types)
+		methods, types := splitFieldList(e.Methods)
+		t.translateFieldList(methods)
+		t.translateExprList(types)
 	case *ast.MapType:
 		t.translateExpr(&e.Key)
 		t.translateExpr(&e.Value)
@@ -546,6 +546,42 @@ func (t *translator) translateExpr(pe *ast.Expr) {
 	default:
 		panic(fmt.Sprintf("unimplemented Expr %T", e))
 	}
+}
+
+// TODO(iant) refactor code and get rid of this?
+func splitFieldList(fl *ast.FieldList) (methods *ast.FieldList, types []ast.Expr) {
+	if fl == nil {
+		return
+	}
+	var mfields []*ast.Field
+	for _, f := range fl.List {
+		if len(f.Names) > 0 && f.Names[0].Name == "type" {
+			// type list type
+			types = append(types, f.Type)
+		} else {
+			mfields = append(mfields, f)
+		}
+	}
+	copy := *fl
+	copy.List = mfields
+	methods = &copy
+	return
+}
+
+// TODO(iant) refactor code and get rid of this?
+func mergeFieldList(methods *ast.FieldList, types []ast.Expr) (fl *ast.FieldList) {
+	fl = methods
+	if len(types) == 0 {
+		return
+	}
+	if fl == nil {
+		fl = new(ast.FieldList)
+	}
+	name := []*ast.Ident{ast.NewIdent("type")}
+	for _, typ := range types {
+		fl.List = append(fl.List, &ast.Field{Names: name, Type: typ})
+	}
+	return
 }
 
 // translateExprList translate an expression list from Go with

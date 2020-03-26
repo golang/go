@@ -4,7 +4,6 @@ so we have a better track record. I only switched to this file in Nov 2019, henc
 ----------------------------------------------------------------------------------------------------
 TODO
 
-- go/printer: implement printing of type lists
 - review use of Contract.TParams field - it seems like it's only needed for length checks?
 - review handling of fields of instantiated generic types (do we need to make them non-parameterized,
   similar to what we did for the embedded interfaces created by contract embedding?)

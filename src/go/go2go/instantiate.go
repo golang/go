@@ -191,13 +191,13 @@ func (t *translator) instantiateTypeDecl(qid qualifiedIdent, typ *types.Named, a
 		tparams := rtyp.(*ast.CallExpr).Args
 		ta := typeArgsFromExprs(t, astTypes, typeTypes, tparams)
 		newDecl := &ast.FuncDecl{
-			Doc:  mast.Doc,
+			Doc: mast.Doc,
 			Recv: &ast.FieldList{
 				Opening: mast.Recv.Opening,
 				List: []*ast.Field{
 					{
-						Doc:     mast.Recv.List[0].Doc,
-						Names:   []*ast.Ident{
+						Doc: mast.Recv.List[0].Doc,
+						Names: []*ast.Ident{
 							mast.Recv.List[0].Names[0],
 						},
 						Type:    newRtype,
@@ -788,15 +788,15 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 			Results: results,
 		}
 	case *ast.InterfaceType:
-		methods := t.instantiateFieldList(ta, e.Methods)
-		types, typesChanged := t.instantiateExprList(ta, e.Types)
+		eMethods, eTypes := splitFieldList(e.Methods)
+		methods := t.instantiateFieldList(ta, eMethods)
+		types, typesChanged := t.instantiateExprList(ta, eTypes)
 		if methods == e.Methods && !typesChanged {
 			return e
 		}
 		return &ast.InterfaceType{
 			Interface:  e.Interface,
-			Methods:    methods,
-			Types:      types,
+			Methods:    mergeFieldList(methods, types),
 			Incomplete: e.Incomplete,
 		}
 	case *ast.MapType:
