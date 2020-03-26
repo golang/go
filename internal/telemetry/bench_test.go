@@ -44,33 +44,33 @@ var (
 
 	Log = Hooks{
 		A: func(ctx context.Context, a int) (context.Context, func()) {
-			event.Print(ctx, "A", aValue.Of(a))
+			event.Print1(ctx, "A", aValue.Of(a))
 			return ctx, func() {}
 		},
 		B: func(ctx context.Context, b string) (context.Context, func()) {
-			event.Print(ctx, "B", bValue.Of(b))
+			event.Print1(ctx, "B", bValue.Of(b))
 			return ctx, func() {}
 		},
 	}
 
 	Trace = Hooks{
 		A: func(ctx context.Context, a int) (context.Context, func()) {
-			return event.StartSpan(ctx, "A", aValue.Of(a))
+			return event.StartSpan1(ctx, "A", aValue.Of(a))
 		},
 		B: func(ctx context.Context, b string) (context.Context, func()) {
-			return event.StartSpan(ctx, "B", bValue.Of(b))
+			return event.StartSpan1(ctx, "B", bValue.Of(b))
 		},
 	}
 
 	Stats = Hooks{
 		A: func(ctx context.Context, a int) (context.Context, func()) {
-			event.Record(ctx, aStat.Of(a))
-			event.Record(ctx, aCount.Of(1))
+			event.Record1(ctx, aStat.Of(a))
+			event.Record1(ctx, aCount.Of(1))
 			return ctx, func() {}
 		},
 		B: func(ctx context.Context, b string) (context.Context, func()) {
-			event.Record(ctx, bLength.Of(len(b)))
-			event.Record(ctx, bCount.Of(1))
+			event.Record1(ctx, bLength.Of(len(b)))
+			event.Record1(ctx, bCount.Of(1))
 			return ctx, func() {}
 		},
 	}
