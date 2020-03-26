@@ -17,4 +17,4 @@ WORKDIR /src
 # a redundant copy of govim to the build cache using `go mod download`.
 RUN GOVIM_VERSION=$(go mod download -json github.com/govim/govim@latest | jq -r .Version) && \
     git clone https://github.com/govim/govim /src/govim && cd /src/govim && \
-    git checkout $GOVIM_VERSION
+    git checkout master
