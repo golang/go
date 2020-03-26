@@ -6427,6 +6427,23 @@ func rewriteValuePPC64_OpPPC64MOVBreg(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVBreg (SRADconst [c] x))
+	// cond: c>=56
+	// result: (SRADconst [c] x)
+	for {
+		if v_0.Op != OpPPC64SRADconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v_0.Args[0]
+		if !(c >= 56) {
+			break
+		}
+		v.reset(OpPPC64SRADconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVBreg (SRWconst [c] x))
 	// cond: c>24
 	// result: (SRWconst [c] x)
@@ -6454,6 +6471,23 @@ func rewriteValuePPC64_OpPPC64MOVBreg(v *Value) bool {
 		c := v_0.AuxInt
 		x := v_0.Args[0]
 		if !(c == 24) {
+			break
+		}
+		v.reset(OpPPC64SRAWconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVBreg (SRAWconst [c] x))
+	// cond: c>=24
+	// result: (SRAWconst [c] x)
+	for {
+		if v_0.Op != OpPPC64SRAWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v_0.Args[0]
+		if !(c >= 24) {
 			break
 		}
 		v.reset(OpPPC64SRAWconst)
@@ -8487,6 +8521,23 @@ func rewriteValuePPC64_OpPPC64MOVHreg(v *Value) bool {
 		v.AddArg(x)
 		return true
 	}
+	// match: (MOVHreg (SRADconst [c] x))
+	// cond: c>=48
+	// result: (SRADconst [c] x)
+	for {
+		if v_0.Op != OpPPC64SRADconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v_0.Args[0]
+		if !(c >= 48) {
+			break
+		}
+		v.reset(OpPPC64SRADconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
 	// match: (MOVHreg (SRWconst [c] x))
 	// cond: c>16
 	// result: (SRWconst [c] x)
@@ -8500,6 +8551,23 @@ func rewriteValuePPC64_OpPPC64MOVHreg(v *Value) bool {
 			break
 		}
 		v.reset(OpPPC64SRWconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVHreg (SRAWconst [c] x))
+	// cond: c>=16
+	// result: (SRAWconst [c] x)
+	for {
+		if v_0.Op != OpPPC64SRAWconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v_0.Args[0]
+		if !(c >= 16) {
+			break
+		}
+		v.reset(OpPPC64SRAWconst)
 		v.AuxInt = c
 		v.AddArg(x)
 		return true
@@ -9644,6 +9712,23 @@ func rewriteValuePPC64_OpPPC64MOVWreg(v *Value) bool {
 			break
 		}
 		v.reset(OpPPC64SRDconst)
+		v.AuxInt = c
+		v.AddArg(x)
+		return true
+	}
+	// match: (MOVWreg (SRADconst [c] x))
+	// cond: c>=32
+	// result: (SRADconst [c] x)
+	for {
+		if v_0.Op != OpPPC64SRADconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v_0.Args[0]
+		if !(c >= 32) {
+			break
+		}
+		v.reset(OpPPC64SRADconst)
 		v.AuxInt = c
 		v.AddArg(x)
 		return true
