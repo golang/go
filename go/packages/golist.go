@@ -502,10 +502,19 @@ func (state *golistState) createDriverResponse(words ...string) (*driverResponse
 					errkind = "use of internal package not allowed"
 				}
 				if errkind != "" {
-					if len(old.Error.ImportStack) < 2 {
-						return nil, fmt.Errorf(`internal error: go list gave a %q error with an import stack with fewer than two elements`, errkind)
+					if len(old.Error.ImportStack) < 1 {
+						return nil, fmt.Errorf(`internal error: go list gave a %q error with empty import stack`, errkind)
 					}
-					importingPkg := old.Error.ImportStack[len(old.Error.ImportStack)-2]
+					importingPkg := old.Error.ImportStack[len(old.Error.ImportStack)-1]
+					if importingPkg == old.ImportPath {
+						// Using an older version of Go which put this package itself on top of import
+						// stack, instead of the importer. Look for importer in second from top
+						// position.
+						if len(old.Error.ImportStack) < 2 {
+							return nil, fmt.Errorf(`internal error: go list gave a %q error with an import stack without importing package`, errkind)
+						}
+						importingPkg = old.Error.ImportStack[len(old.Error.ImportStack)-2]
+					}
 					additionalErrors[importingPkg] = append(additionalErrors[importingPkg], Error{
 						Pos:  old.Error.Pos,
 						Msg:  old.Error.Err,
