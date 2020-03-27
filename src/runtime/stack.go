@@ -1033,6 +1033,17 @@ func newstack() {
 	// Allocate a bigger segment and move the stack.
 	oldsize := gp.stack.hi - gp.stack.lo
 	newsize := oldsize * 2
+
+	// Make sure we grow at least as much as needed to fit the new frame.
+	// (This is just an optimization - the caller of morestack will
+	// recheck the bounds on return.)
+	if f := findfunc(gp.sched.pc); f.valid() {
+		max := uintptr(funcMaxSPDelta(f))
+		for newsize-oldsize < max+_StackGuard {
+			newsize *= 2
+		}
+	}
+
 	if newsize > maxstacksize {
 		print("runtime: goroutine stack exceeds ", maxstacksize, "-byte limit\n")
 		print("runtime: sp=", hex(sp), " stack=[", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n")
