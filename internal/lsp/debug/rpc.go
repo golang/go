@@ -11,9 +11,11 @@ import (
 	"net/http"
 	"sort"
 	"sync"
+	"time"
 
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/telemetry/event"
+	"golang.org/x/tools/internal/telemetry/export"
 	"golang.org/x/tools/internal/telemetry/export/metric"
 )
 
@@ -92,11 +94,33 @@ type rpcCodeBucket struct {
 }
 
 func (r *rpcs) ProcessEvent(ctx context.Context, ev event.Event, tagMap event.TagMap) context.Context {
-	if !ev.IsRecord() {
+	switch {
+	case ev.IsEndSpan():
+		// calculate latency if this was an rpc span
+		span := export.GetSpan(ctx)
+		if span == nil {
+			return ctx
+		}
+		// is this a finished rpc span, if so it will have a status code record
+		for _, ev := range span.Events() {
+			code := tag.StatusCode.Get(ev.Map())
+			if code != "" {
+				elapsedTime := span.Finish().At.Sub(span.Start().At)
+				latencyMillis := float64(elapsedTime) / float64(time.Millisecond)
+				statsCtx := event.Label1(ctx, tag.StatusCode.Of(code))
+				event.Record1(statsCtx, tag.Latency.Of(latencyMillis))
+			}
+		}
+		return ctx
+	case ev.IsRecord():
+		// fall through to the metrics handling logic
+	default:
+		// ignore all other event types
 		return ctx
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	//TODO(38168): we should just deal with the events here and not use metrics
 	metrics := metric.Entries.Get(tagMap).([]metric.Data)
 	for _, data := range metrics {
 		for i, group := range data.Groups() {

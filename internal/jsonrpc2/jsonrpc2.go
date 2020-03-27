@@ -13,6 +13,9 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+
+	"golang.org/x/tools/internal/lsp/debug/tag"
+	"golang.org/x/tools/internal/telemetry/event"
 )
 
 // Conn is a JSON RPC 2 client server connection.
@@ -111,15 +114,19 @@ func (c *Conn) Notify(ctx context.Context, method string, params interface{}) (e
 	for _, h := range c.handlers {
 		ctx = h.Request(ctx, c, Send, request)
 	}
+	ctx, done := event.StartSpan(ctx, request.Method,
+		tag.Method.Of(request.Method),
+		tag.RPCDirection.Of(tag.Outbound),
+		tag.RPCID.Of(request.ID.String()),
+	)
 	defer func() {
-		for _, h := range c.handlers {
-			h.Done(ctx, err)
-		}
+		recordStatus(ctx, err)
+		done()
 	}()
+
+	event.Record(ctx, tag.Started.Of(1))
 	n, err := c.stream.Write(ctx, data)
-	for _, h := range c.handlers {
-		ctx = h.Wrote(ctx, n)
-	}
+	event.Record(ctx, tag.ReceivedBytes.Of(n))
 	return err
 }
 
@@ -146,6 +153,16 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	for _, h := range c.handlers {
 		ctx = h.Request(ctx, c, Send, request)
 	}
+	ctx, done := event.StartSpan(ctx, request.Method,
+		tag.Method.Of(request.Method),
+		tag.RPCDirection.Of(tag.Outbound),
+		tag.RPCID.Of(request.ID.String()),
+	)
+	defer func() {
+		recordStatus(ctx, err)
+		done()
+	}()
+	event.Record(ctx, tag.Started.Of(1))
 	// We have to add ourselves to the pending map before we send, otherwise we
 	// are racing the response. Also add a buffer to rchan, so that if we get a
 	// wire response between the time this call is cancelled and id is deleted
@@ -158,15 +175,10 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 		c.pendingMu.Lock()
 		delete(c.pending, id)
 		c.pendingMu.Unlock()
-		for _, h := range c.handlers {
-			h.Done(ctx, err)
-		}
 	}()
 	// now we are ready to send
 	n, err := c.stream.Write(ctx, data)
-	for _, h := range c.handlers {
-		ctx = h.Wrote(ctx, n)
-	}
+	event.Record(ctx, tag.ReceivedBytes.Of(n))
 	if err != nil {
 		// sending failed, we will never get a response, so don't leave it pending
 		return err
@@ -174,9 +186,6 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	// now wait for the response
 	select {
 	case response := <-rchan:
-		for _, h := range c.handlers {
-			ctx = h.Response(ctx, c, Receive, response)
-		}
 		// is it an error response?
 		if response.Error != nil {
 			return response.Error
@@ -261,13 +270,8 @@ func (r *Request) Reply(ctx context.Context, result interface{}, err error) erro
 	if err != nil {
 		return err
 	}
-	for _, h := range r.conn.handlers {
-		ctx = h.Response(ctx, r.conn, Send, response)
-	}
 	n, err := r.conn.stream.Write(ctx, data)
-	for _, h := range r.conn.handlers {
-		ctx = h.Wrote(ctx, n)
-	}
+	event.Record(ctx, tag.ReceivedBytes.Of(n))
 
 	if err != nil {
 		// TODO(iancottrell): if a stream write fails, we really need to shut down
@@ -324,9 +328,6 @@ func (c *Conn) Run(runCtx context.Context) error {
 		if err := json.Unmarshal(data, msg); err != nil {
 			// a badly formed message arrived, log it and continue
 			// we trust the stream to have isolated the error to just this message
-			for _, h := range c.handlers {
-				h.Error(runCtx, fmt.Errorf("unmarshal failed: %v", err))
-			}
 			continue
 		}
 		// Work out whether this is a request or response.
@@ -349,11 +350,20 @@ func (c *Conn) Run(runCtx context.Context) error {
 			}
 			for _, h := range c.handlers {
 				reqCtx = h.Request(reqCtx, c, Receive, &req.WireRequest)
-				reqCtx = h.Read(reqCtx, n)
 			}
+			reqCtx, done := event.StartSpan(reqCtx, req.WireRequest.Method,
+				tag.Method.Of(req.WireRequest.Method),
+				tag.RPCDirection.Of(tag.Inbound),
+				tag.RPCID.Of(req.WireRequest.ID.String()),
+			)
+			event.Record(reqCtx,
+				tag.Started.Of(1),
+				tag.SentBytes.Of(n))
 			c.setHandling(req, true)
+			_, queueDone := event.StartSpan(reqCtx, "queued")
 			go func() {
 				<-thisRequest
+				queueDone()
 				req.state = requestSerial
 				defer func() {
 					c.setHandling(req, false)
@@ -361,9 +371,8 @@ func (c *Conn) Run(runCtx context.Context) error {
 						req.Reply(reqCtx, nil, NewErrorf(CodeInternalError, "method %q did not reply", req.Method))
 					}
 					req.Parallel()
-					for _, h := range c.handlers {
-						h.Done(reqCtx, err)
-					}
+					recordStatus(reqCtx, nil)
+					done()
 					cancelReq()
 				}()
 				delivered := false
@@ -388,9 +397,6 @@ func (c *Conn) Run(runCtx context.Context) error {
 				rchan <- response
 			}
 		default:
-			for _, h := range c.handlers {
-				h.Error(runCtx, fmt.Errorf("message not a call, notify or response, ignoring"))
-			}
 		}
 	}
 }
@@ -402,4 +408,12 @@ func marshalToRaw(obj interface{}) (*json.RawMessage, error) {
 	}
 	raw := json.RawMessage(data)
 	return &raw, nil
+}
+
+func recordStatus(ctx context.Context, err error) {
+	if err != nil {
+		event.Label(ctx, tag.StatusCode.Of("ERROR"))
+	} else {
+		event.Label(ctx, tag.StatusCode.Of("OK"))
+	}
 }

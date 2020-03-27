@@ -36,37 +36,17 @@ var clientIndex, serverIndex int64
 // The StreamServer type is a jsonrpc2.StreamServer that handles incoming
 // streams as a new LSP session, using a shared cache.
 type StreamServer struct {
-	withTelemetry bool
-	cache         *cache.Cache
+	cache *cache.Cache
 
 	// serverForTest may be set to a test fake for testing.
 	serverForTest protocol.Server
 }
 
-// A ServerOption configures the behavior of the LSP server.
-type ServerOption interface {
-	setServer(*StreamServer)
-}
-
-// WithTelemetry configures either a Server or Forwarder to instrument RPCs
-// with additional telemetry.
-type WithTelemetry bool
-
-func (t WithTelemetry) setServer(s *StreamServer) {
-	s.withTelemetry = bool(t)
-}
-
 // NewStreamServer creates a StreamServer using the shared cache. If
 // withTelemetry is true, each session is instrumented with telemetry that
 // records RPC statistics.
-func NewStreamServer(cache *cache.Cache, opts ...ServerOption) *StreamServer {
-	s := &StreamServer{
-		cache: cache,
-	}
-	for _, opt := range opts {
-		opt.setServer(s)
-	}
-	return s
+func NewStreamServer(cache *cache.Cache) *StreamServer {
+	return &StreamServer{cache: cache}
 }
 
 // debugInstance is the common functionality shared between client and server
@@ -156,9 +136,6 @@ func (s *StreamServer) ServeStream(ctx context.Context, stream jsonrpc2.Stream) 
 	}()
 	conn.AddHandler(protocol.ServerHandler(server))
 	conn.AddHandler(protocol.Canceller{})
-	if s.withTelemetry {
-		conn.AddHandler(telemetryHandler{})
-	}
 	executable, err := os.Executable()
 	if err != nil {
 		log.Printf("error getting gopls path: %v", err)
@@ -184,7 +161,6 @@ type Forwarder struct {
 	goplsPath string
 
 	// configuration
-	withTelemetry       bool
 	dialTimeout         time.Duration
 	retries             int
 	remoteDebug         string
@@ -195,10 +171,6 @@ type Forwarder struct {
 // A ForwarderOption configures the behavior of the LSP forwarder.
 type ForwarderOption interface {
 	setForwarder(*Forwarder)
-}
-
-func (t WithTelemetry) setForwarder(fwd *Forwarder) {
-	fwd.withTelemetry = bool(t)
 }
 
 // RemoteDebugAddress configures the address used by the auto-started Gopls daemon
@@ -290,9 +262,6 @@ func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) err
 	clientConn.AddHandler(protocol.ServerHandler(server))
 	clientConn.AddHandler(protocol.Canceller{})
 	clientConn.AddHandler(forwarderHandler{})
-	if f.withTelemetry {
-		clientConn.AddHandler(telemetryHandler{})
-	}
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
 		return serverConn.Run(ctx)
