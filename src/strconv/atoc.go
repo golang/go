@@ -14,7 +14,7 @@ func convErr(err error, s string) error {
 	return err
 }
 
-func parseFloat(s, orig string, bitSize int) (float64, error) {
+func parseComplexComponent(s, orig string, bitSize int) (float64, error) {
 	if bitSize == 64 {
 		f, err := ParseFloat(s, 32)
 		if err != nil {
@@ -76,7 +76,7 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 	// Is last character an i?
 	if lastChar != "i" {
 		// The last character is not an i so there is only a real component.
-		real, err := parseFloat(s, orig, bitSize)
+		real, err := parseComplexComponent(s, orig, bitSize)
 		if err != nil {
 			return 0, err
 		}
@@ -102,7 +102,7 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 			s = s + "1"
 		}
 
-		imag, err := parseFloat(s, orig, bitSize)
+		imag, err := parseComplexComponent(s, orig, bitSize)
 		if err != nil {
 			return 0, err
 		}
@@ -133,7 +133,7 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 		}
 
 		// Check if left and right are valid float64
-		real, err := parseFloat(left, orig, bitSize)
+		real, err := parseComplexComponent(left, orig, bitSize)
 		if err != nil {
 			continue
 		}
@@ -142,7 +142,7 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 			right = right + "1"
 		}
 
-		imag, err := parseFloat(right, orig, bitSize)
+		imag, err := parseComplexComponent(right, orig, bitSize)
 		if err != nil {
 			continue
 		}
@@ -151,7 +151,7 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 	}
 
 	// Pure imaginary number in exponential form
-	imag, err := parseFloat(s, orig, bitSize)
+	imag, err := parseComplexComponent(s, orig, bitSize)
 	if err != nil {
 		return 0, err
 	}
