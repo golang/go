@@ -79,6 +79,13 @@ func helperCommandContext(t *testing.T, ctx context.Context, s ...string) (cmd *
 	} else {
 		cmd = exec.Command(os.Args[0], cs...)
 	}
+
+	// Temporary code to try to resolve #25628.
+	// TODO(iant): Remove this when we no longer need it.
+	if runtime.GOARCH == "386" && runtime.GOOS == "linux" && testenv.Builder() != "" && len(s) == 1 && s[0] == "read3" && ctx == nil {
+		cmd = exec.Command("/usr/bin/strace", append([]string{"-f", os.Args[0]}, cs...)...)
+	}
+
 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	return cmd
 }
