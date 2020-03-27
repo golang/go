@@ -25,6 +25,7 @@ my $_32bit = "";
 my $tags = "";  # build tags
 my $aix = 0;
 my $solaris = 0;
+my $illumos = 0;
 
 binmode STDOUT;
 
@@ -43,6 +44,11 @@ if($ARGV[0] eq "-solaris") {
 	$solaris = 1;
 	shift;
 }
+if($ARGV[0] eq "-illumos") {
+	$illumos = 1;
+	shift;
+}
+
 if($ARGV[0] eq "-tags") {
 	shift;
 	$tags = $ARGV[0];
@@ -122,7 +128,7 @@ while(<>) {
 		}
 
 	}
-	if($solaris) {
+	if($solaris || $illumos) {
 		if($modname eq "") {
 			$modname = "libc";
 		}

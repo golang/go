@@ -13,7 +13,7 @@ export LC_CTYPE=C
 
 CC=${CC:-gcc}
 
-if [[ "$GOOS" -eq "solaris" ]]; then
+if [[ "$GOOS" -eq "solaris" ||  "$GOOS" -eq "illumos" ]]; then
 	# Assumes GNU versions of utilities in PATH.
 	export PATH=/usr/gnu/bin:$PATH
 fi
@@ -209,7 +209,27 @@ includes_OpenBSD='
 #define SIOCSIFGENERIC		0x80206939
 #define WALTSIG			0x4
 '
-
+if [[ "$GOOS" -eq "illumos" ]]; then 
+includes_SunOS='
+#include <limits.h>
+#include <sys/file.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/sockio.h>
+#include <sys/mman.h>
+#include <sys/wait.h>
+#include <sys/ioctl.h>
+#include <net/bpf.h>
+#include <net/if.h>
+#include <net/if_arp.h>
+#include <net/if_types.h>
+#include <net/route.h>
+#include <netinet/in.h>
+#include <termios.h>
+#include <netinet/ip.h>
+#include <netinet/ip_mroute.h>
+'
+else
 includes_SunOS='
 #include <limits.h>
 #include <sys/types.h>
@@ -228,7 +248,7 @@ includes_SunOS='
 #include <netinet/ip.h>
 #include <netinet/ip_mroute.h>
 '
-
+fi
 includes='
 #include <sys/types.h>
 #include <sys/file.h>
