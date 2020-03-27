@@ -20,19 +20,16 @@ func (s *Server) references(ctx context.Context, params *protocol.ReferenceParam
 	if err != nil {
 		return nil, err
 	}
-
 	var locations []protocol.Location
 	for _, ref := range references {
 		refRange, err := ref.Range()
 		if err != nil {
 			return nil, err
 		}
-
 		locations = append(locations, protocol.Location{
 			URI:   protocol.URIFromSpanURI(ref.URI()),
 			Range: refRange,
 		})
 	}
-
 	return locations, nil
 }

@@ -6,6 +6,7 @@ package source
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -13,7 +14,6 @@ import (
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/telemetry/event"
-	errors "golang.org/x/xerrors"
 )
 
 func Implementation(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position) ([]protocol.Location, error) {
@@ -24,7 +24,6 @@ func Implementation(ctx context.Context, s Snapshot, f FileHandle, pp protocol.P
 	if err != nil {
 		return nil, err
 	}
-
 	var locations []protocol.Location
 	for _, impl := range impls {
 		if impl.pkg == nil || len(impl.pkg.CompiledGoFiles()) == 0 {
@@ -61,7 +60,6 @@ func implementations(ctx context.Context, s Snapshot, f FileHandle, pp protocol.
 	if err != nil {
 		return nil, err
 	}
-
 	for _, qo := range qos {
 		var (
 			queryType   types.Type
@@ -201,6 +199,8 @@ type qualifiedObject struct {
 	sourcePkg Package
 }
 
+var errBuiltin = errors.New("builtin object")
+
 // qualifiedObjsAtProtocolPos returns info for all the type.Objects
 // referenced at the given position. An object will be returned for
 // every package that the file belongs to.
@@ -212,11 +212,11 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, 
 	// Check all the packages that the file belongs to.
 	var qualifiedObjs []qualifiedObject
 	for _, ph := range phs {
-		pkg, err := ph.Check(ctx)
+		searchpkg, err := ph.Check(ctx)
 		if err != nil {
 			return nil, err
 		}
-		astFile, pos, err := getASTFile(pkg, fh, pp)
+		astFile, pos, err := getASTFile(searchpkg, fh, pp)
 		if err != nil {
 			return nil, err
 		}
@@ -230,10 +230,10 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, 
 			// If leaf represents an implicit type switch object or the type
 			// switch "assign" variable, expand to all of the type switch's
 			// implicit objects.
-			if implicits := typeSwitchImplicits(pkg, path); len(implicits) > 0 {
+			if implicits := typeSwitchImplicits(searchpkg, path); len(implicits) > 0 {
 				objs = append(objs, implicits...)
 			} else {
-				obj := pkg.GetTypesInfo().ObjectOf(leaf)
+				obj := searchpkg.GetTypesInfo().ObjectOf(leaf)
 				if obj == nil {
 					return nil, fmt.Errorf("no object for %q", leaf.Name)
 				}
@@ -241,22 +241,30 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, 
 			}
 		case *ast.ImportSpec:
 			// Look up the implicit *types.PkgName.
-			obj := pkg.GetTypesInfo().Implicits[leaf]
+			obj := searchpkg.GetTypesInfo().Implicits[leaf]
 			if obj == nil {
 				return nil, fmt.Errorf("no object for import %q", importPath(leaf))
 			}
 			objs = append(objs, obj)
 		}
 		pkgs := make(map[*types.Package]Package)
-		pkgs[pkg.GetTypes()] = pkg
-		for _, imp := range pkg.Imports() {
+		pkgs[searchpkg.GetTypes()] = searchpkg
+		for _, imp := range searchpkg.Imports() {
 			pkgs[imp.GetTypes()] = imp
 		}
 		for _, obj := range objs {
+			if obj.Parent() == types.Universe {
+				return nil, fmt.Errorf("%w %q", errBuiltin, obj.Name())
+			}
+			pkg, ok := pkgs[obj.Pkg()]
+			if !ok {
+				event.Error(ctx, fmt.Sprintf("no package for obj %s: %v", obj, obj.Pkg()), err)
+				continue
+			}
 			qualifiedObjs = append(qualifiedObjs, qualifiedObject{
 				obj:       obj,
-				pkg:       pkgs[obj.Pkg()],
-				sourcePkg: pkg,
+				pkg:       pkg,
+				sourcePkg: searchpkg,
 				node:      path[0],
 			})
 		}
@@ -264,7 +272,7 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, 
 	// Return an error if no objects were found since callers will assume that
 	// the slice has at least 1 element.
 	if len(qualifiedObjs) == 0 {
-		return nil, errors.Errorf("no object found")
+		return nil, fmt.Errorf("no object found")
 	}
 	return qualifiedObjs, nil
 }

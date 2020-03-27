@@ -10,4 +10,4 @@ func _() {
 }
 
 -- uint-rename --
-cannot rename builtin "int"
+builtin object "int"

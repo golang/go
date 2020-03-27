@@ -49,30 +49,22 @@ func PrepareRename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Po
 	if err != nil {
 		return nil, err
 	}
-
-	// Do not rename builtin identifiers.
-	if qos[0].obj.Parent() == types.Universe {
-		return nil, errors.Errorf("cannot rename builtin %q", qos[0].obj.Name())
-	}
-
-	mr, err := posToMappedRange(s.View(), qos[0].sourcePkg, qos[0].node.Pos(), qos[0].node.End())
+	node, obj, pkg := qos[0].node, qos[0].obj, qos[0].sourcePkg
+	mr, err := posToMappedRange(s.View(), pkg, node.Pos(), node.End())
 	if err != nil {
 		return nil, err
 	}
-
 	rng, err := mr.Range()
 	if err != nil {
 		return nil, err
 	}
-
-	if _, isImport := qos[0].node.(*ast.ImportSpec); isImport {
+	if _, isImport := node.(*ast.ImportSpec); isImport {
 		// We're not really renaming the import path.
 		rng.End = rng.Start
 	}
-
 	return &PrepareItem{
 		Range: rng,
-		Text:  qos[0].obj.Name(),
+		Text:  obj.Name(),
 	}, nil
 }
 
@@ -95,19 +87,13 @@ func Rename(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Position,
 	if !isValidIdentifier(newName) {
 		return nil, errors.Errorf("invalid identifier to rename: %q", newName)
 	}
-	// Do not rename builtin identifiers.
-	if obj.Parent() == types.Universe {
-		return nil, errors.Errorf("cannot rename builtin %q", obj.Name())
-	}
 	if pkg == nil || pkg.IsIllTyped() {
 		return nil, errors.Errorf("package for %s is ill typed", f.Identity().URI)
 	}
-
-	refs, err := References(ctx, s, f, pp, true)
+	refs, err := references(ctx, s, qos, true)
 	if err != nil {
 		return nil, err
 	}
-
 	r := renamer{
 		ctx:          ctx,
 		fset:         s.View().Session().Cache().FileSet(),
