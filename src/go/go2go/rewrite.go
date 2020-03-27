@@ -229,7 +229,7 @@ func rewriteAST(fset *token.FileSet, importer *Importer, importPath string, file
 						tok = token.TYPE
 						importableName = name
 						break nameLoop
-					case *types.Var:
+					case *types.Var, *types.Func:
 						tok = token.VAR
 						importableName = name
 						break nameLoop
