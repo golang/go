@@ -199,6 +199,7 @@ func TestMain(m *testing.M) {
 			return strings.TrimSpace(string(out))
 		}
 		testGOROOT = goEnv("GOROOT")
+		os.Setenv("TESTGO_GOROOT", testGOROOT)
 
 		// The whole GOROOT/pkg tree was installed using the GOHOSTOS/GOHOSTARCH
 		// toolchain (installed in GOROOT/pkg/tool/GOHOSTOS_GOHOSTARCH).
