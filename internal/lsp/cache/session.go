@@ -91,7 +91,7 @@ func (s *Session) Cache() source.Cache {
 func (s *Session) NewView(ctx context.Context, name string, folder span.URI, options source.Options) (source.View, source.Snapshot, error) {
 	s.viewMu.Lock()
 	defer s.viewMu.Unlock()
-	v, snapshot, err := s.createView(ctx, name, folder, options)
+	v, snapshot, err := s.createView(ctx, name, folder, options, 0)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -101,7 +101,7 @@ func (s *Session) NewView(ctx context.Context, name string, folder span.URI, opt
 	return v, snapshot, nil
 }
 
-func (s *Session) createView(ctx context.Context, name string, folder span.URI, options source.Options) (*view, *snapshot, error) {
+func (s *Session) createView(ctx context.Context, name string, folder span.URI, options source.Options, snapshotID uint64) (*view, *snapshot, error) {
 	index := atomic.AddInt64(&viewIndex, 1)
 	// We want a true background context and not a detached context here
 	// the spans need to be unrelated and no tag values should pollute it.
@@ -121,6 +121,7 @@ func (s *Session) createView(ctx context.Context, name string, folder span.URI, 
 		filesByURI:    make(map[span.URI]*fileBase),
 		filesByBase:   make(map[string][]*fileBase),
 		snapshot: &snapshot{
+			id:                snapshotID,
 			packages:          make(map[packageKey]*packageHandle),
 			ids:               make(map[span.URI][]packageID),
 			metadata:          make(map[packageID]*metadata),
@@ -255,7 +256,11 @@ func (s *Session) updateView(ctx context.Context, view *view, options source.Opt
 	if err != nil {
 		return nil, nil, err
 	}
-	v, snapshot, err := s.createView(ctx, view.name, view.folder, options)
+	// Preserve the snapshot ID if we are recreating the view.
+	view.snapshotMu.Lock()
+	snapshotID := view.snapshot.id
+	view.snapshotMu.Unlock()
+	v, snapshot, err := s.createView(ctx, view.name, view.folder, options, snapshotID)
 	if err != nil {
 		// we have dropped the old view, but could not create the new one
 		// this should not happen and is very bad, but we still need to clean

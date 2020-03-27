@@ -61,7 +61,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 		return nil
 	}
 	if err != nil {
-		event.Error(ctx, "warning: diagnose go.mod", err, tag.Directory.Of(snapshot.View().Folder))
+		event.Error(ctx, "warning: diagnose go.mod", err, tag.Directory.Of(snapshot.View().Folder().Filename()))
 	}
 	// Ensure that the reports returned from mod.Diagnostics are only related to the
 	// go.mod file for the module.
@@ -143,7 +143,6 @@ func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, r
 		if ctx.Err() != nil {
 			break
 		}
-
 		// Pre-sort diagnostics to avoid extra work when we compare them.
 		source.SortDiagnostics(diagnostics)
 		toSend := sentDiagnostics{
@@ -181,7 +180,6 @@ func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, r
 			// Do not update the delivered map since it already contains better diagnostics.
 			continue
 		}
-
 		if err := s.client.PublishDiagnostics(ctx, &protocol.PublishDiagnosticsParams{
 			Diagnostics: toProtocolDiagnostics(diagnostics),
 			URI:         protocol.URIFromSpanURI(key.id.URI),

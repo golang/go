@@ -118,7 +118,6 @@ func (e *Editor) initialize(ctx context.Context) error {
 	// TODO: set client capabilities.
 	params.Trace = "messages"
 	// TODO: support workspace folders.
-
 	if e.server != nil {
 		resp, err := e.server.Initialize(ctx, params)
 		if err != nil {

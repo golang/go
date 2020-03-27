@@ -142,3 +142,44 @@ const a = http.MethodGet
 		)
 	})
 }
+
+const noMod = `
+-- main.go --
+package main
+
+import "mod.com/bob"
+
+func main() {
+	bob.Hello()
+}
+`
+
+// TestNoMod confirms that gopls continues to work when a user adds a go.mod
+// file to their workspace.
+func TestNoMod(t *testing.T) {
+	runner.Run(t, noMod, func(env *Env) {
+		env.Await(
+			env.DiagnosticAtRegexp("main.go", `"mod.com/bob"`),
+		)
+		env.CreateBuffer("bob/bob.go", `package bob
+
+func Hello() {
+	var x int
+}
+`)
+		env.Await(
+			env.DiagnosticAtRegexp("bob/bob.go", "x"),
+		)
+		// Save this file because otherwise, the go command will not be able to
+		// resolve mod.com/bob as a package.
+		env.SaveBuffer("bob/bob.go")
+		env.CreateBuffer("go.mod", `module mod.com
+
+go 1.12
+`)
+		env.SaveBuffer("go.mod")
+		env.Await(
+			EmptyDiagnostics("main.go"),
+		)
+	})
+}

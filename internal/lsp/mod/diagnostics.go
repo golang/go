@@ -26,7 +26,6 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 	if realURI == "" || tempURI == "" {
 		return nil, nil, nil
 	}
-
 	ctx, done := event.StartSpan(ctx, "mod.Diagnostics", tag.URI.Of(realURI))
 	defer done()
 
@@ -42,7 +41,6 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 	if err != nil {
 		return nil, nil, err
 	}
-
 	reports := map[source.FileIdentity][]source.Diagnostic{
 		realfh.Identity(): {},
 	}
