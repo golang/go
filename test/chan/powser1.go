@@ -595,7 +595,7 @@ func Subst(U, V PS) PS {
 	return Z
 }
 
-// Monomial Substition: U(c x^n)
+// Monomial Substitution: U(c x^n)
 // Each Ui is multiplied by c^i and followed by n-1 zeros
 
 func MonSubst(U PS, c0 rat, n int) PS {

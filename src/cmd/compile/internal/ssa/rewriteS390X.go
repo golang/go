@@ -612,6 +612,10 @@ func rewriteValueS390X(v *Value) bool {
 		return rewriteValueS390X_OpS390XFADD(v)
 	case OpS390XFADDS:
 		return rewriteValueS390X_OpS390XFADDS(v)
+	case OpS390XFCMP:
+		return rewriteValueS390X_OpS390XFCMP(v)
+	case OpS390XFCMPS:
+		return rewriteValueS390X_OpS390XFCMPS(v)
 	case OpS390XFMOVDload:
 		return rewriteValueS390X_OpS390XFMOVDload(v)
 	case OpS390XFMOVDloadidx:
@@ -7227,6 +7231,86 @@ func rewriteValueS390X_OpS390XFADDS(v *Value) bool {
 			return true
 		}
 		break
+	}
+	return false
+}
+func rewriteValueS390X_OpS390XFCMP(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (FCMP x (FMOVDconst [c]))
+	// cond: auxTo64F(c) == 0
+	// result: (LTDBR x)
+	for {
+		x := v_0
+		if v_1.Op != OpS390XFMOVDconst {
+			break
+		}
+		c := v_1.AuxInt
+		if !(auxTo64F(c) == 0) {
+			break
+		}
+		v.reset(OpS390XLTDBR)
+		v.AddArg(x)
+		return true
+	}
+	// match: (FCMP (FMOVDconst [c]) x)
+	// cond: auxTo64F(c) == 0
+	// result: (InvertFlags (LTDBR <v.Type> x))
+	for {
+		if v_0.Op != OpS390XFMOVDconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v_1
+		if !(auxTo64F(c) == 0) {
+			break
+		}
+		v.reset(OpS390XInvertFlags)
+		v0 := b.NewValue0(v.Pos, OpS390XLTDBR, v.Type)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValueS390X_OpS390XFCMPS(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (FCMPS x (FMOVSconst [c]))
+	// cond: auxTo32F(c) == 0
+	// result: (LTEBR x)
+	for {
+		x := v_0
+		if v_1.Op != OpS390XFMOVSconst {
+			break
+		}
+		c := v_1.AuxInt
+		if !(auxTo32F(c) == 0) {
+			break
+		}
+		v.reset(OpS390XLTEBR)
+		v.AddArg(x)
+		return true
+	}
+	// match: (FCMPS (FMOVSconst [c]) x)
+	// cond: auxTo32F(c) == 0
+	// result: (InvertFlags (LTEBR <v.Type> x))
+	for {
+		if v_0.Op != OpS390XFMOVSconst {
+			break
+		}
+		c := v_0.AuxInt
+		x := v_1
+		if !(auxTo32F(c) == 0) {
+			break
+		}
+		v.reset(OpS390XInvertFlags)
+		v0 := b.NewValue0(v.Pos, OpS390XLTEBR, v.Type)
+		v0.AddArg(x)
+		v.AddArg(v0)
+		return true
 	}
 	return false
 }

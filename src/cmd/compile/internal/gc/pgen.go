@@ -12,7 +12,6 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
-	"fmt"
 	"internal/race"
 	"math/rand"
 	"sort"
@@ -28,11 +27,10 @@ var (
 )
 
 func emitptrargsmap(fn *Node) {
-	if fn.funcname() == "_" {
+	if fn.funcname() == "_" || fn.Func.Nname.Sym.Linkname != "" {
 		return
 	}
-	sym := lookup(fmt.Sprintf("%s.args_stackmap", fn.funcname()))
-	lsym := sym.Linksym()
+	lsym := Ctxt.Lookup(fn.Func.lsym.Name + ".args_stackmap")
 
 	nptr := int(fn.Type.ArgWidth() / int64(Widthptr))
 	bv := bvalloc(int32(nptr) * 2)

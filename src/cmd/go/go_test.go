@@ -199,6 +199,7 @@ func TestMain(m *testing.M) {
 			return strings.TrimSpace(string(out))
 		}
 		testGOROOT = goEnv("GOROOT")
+		os.Setenv("TESTGO_GOROOT", testGOROOT)
 
 		// The whole GOROOT/pkg tree was installed using the GOHOSTOS/GOHOSTARCH
 		// toolchain (installed in GOROOT/pkg/tool/GOHOSTOS_GOHOSTARCH).
@@ -1543,34 +1544,6 @@ func TestSymlinkWarning(t *testing.T) {
 	tg.grepStdoutNot(".", "list should not have matched anything")
 	tg.grepStderr("matched no packages", "list should have reported that pattern matched no packages")
 	tg.grepStderr("ignoring symlink", "list should have reported symlink")
-}
-
-func TestCgoDependsOnSyscall(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test that removes $GOROOT/pkg/*_race in short mode")
-	}
-	if !canCgo {
-		t.Skip("skipping because cgo not enabled")
-	}
-	if !canRace {
-		t.Skip("skipping because race detector not supported")
-	}
-
-	tg := testgo(t)
-	defer tg.cleanup()
-	tg.parallel()
-
-	files, err := filepath.Glob(filepath.Join(runtime.GOROOT(), "pkg", "*_race"))
-	tg.must(err)
-	for _, file := range files {
-		tg.check(robustio.RemoveAll(file))
-	}
-	tg.tempFile("src/foo/foo.go", `
-		package foo
-		//#include <stdio.h>
-		import "C"`)
-	tg.setenv("GOPATH", tg.path("."))
-	tg.run("build", "-race", "foo")
 }
 
 func TestCgoShowsFullPathNames(t *testing.T) {

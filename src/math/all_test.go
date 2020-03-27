@@ -827,6 +827,8 @@ var vfatan2SC = [][2]float64{
 	{+Pi, Inf(-1)},
 	{+Pi, 0},
 	{+Pi, Inf(1)},
+	{1.0, Inf(1)},
+	{-1.0, Inf(1)},
 	{+Pi, NaN()},
 	{Inf(1), Inf(-1)},
 	{Inf(1), -Pi},
@@ -864,6 +866,8 @@ var atan2SC = []float64{
 	Pi,              // atan2(+Pi, -Inf)
 	Pi / 2,          // atan2(+Pi, +0)
 	0,               // atan2(+Pi, +Inf)
+	0,               // atan2(+1, +Inf)
+	Copysign(0, -1), // atan2(-1, +Inf)
 	NaN(),           // atan2(+Pi, NaN)
 	3 * Pi / 4,      // atan2(+Inf, -Inf)
 	Pi / 2,          // atan2(+Inf, -Pi)

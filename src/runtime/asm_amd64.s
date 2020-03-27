@@ -510,7 +510,8 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-32;		\
 	/* call function */			\
 	MOVQ	f+8(FP), DX;			\
 	PCDATA  $PCDATA_StackMapIndex, $0;	\
-	CALL	(DX);				\
+	MOVQ	(DX), AX;			\
+	CALL	AX;				\
 	/* copy return values back */		\
 	MOVQ	argtype+0(FP), DX;		\
 	MOVQ	argptr+16(FP), DI;		\
@@ -1743,3 +1744,34 @@ TEXT runtime·panicSlice3CU(SB),NOSPLIT,$0-16
 DATA runtime·tls_g+0(SB)/8, $16
 GLOBL runtime·tls_g+0(SB), NOPTR, $8
 #endif
+
+// The compiler and assembler's -spectre=ret mode rewrites
+// all indirect CALL AX / JMP AX instructions to be
+// CALL retpolineAX / JMP retpolineAX.
+// See https://support.google.com/faqs/answer/7625886.
+#define RETPOLINE(reg) \
+	/*   CALL setup */     BYTE $0xE8; BYTE $(2+2); BYTE $0; BYTE $0; BYTE $0;	\
+	/* nospec: */									\
+	/*   PAUSE */           BYTE $0xF3; BYTE $0x90;					\
+	/*   JMP nospec */      BYTE $0xEB; BYTE $-(2+2);				\
+	/* setup: */									\
+	/*   MOVQ AX, 0(SP) */  BYTE $0x48|((reg&8)>>1); BYTE $0x89;			\
+	                        BYTE $0x04|((reg&7)<<3); BYTE $0x24;			\
+	/*   RET */             BYTE $0xC3
+
+TEXT runtime·retpolineAX(SB),NOSPLIT,$0; RETPOLINE(0)
+TEXT runtime·retpolineCX(SB),NOSPLIT,$0; RETPOLINE(1)
+TEXT runtime·retpolineDX(SB),NOSPLIT,$0; RETPOLINE(2)
+TEXT runtime·retpolineBX(SB),NOSPLIT,$0; RETPOLINE(3)
+/* SP is 4, can't happen / magic encodings */
+TEXT runtime·retpolineBP(SB),NOSPLIT,$0; RETPOLINE(5)
+TEXT runtime·retpolineSI(SB),NOSPLIT,$0; RETPOLINE(6)
+TEXT runtime·retpolineDI(SB),NOSPLIT,$0; RETPOLINE(7)
+TEXT runtime·retpolineR8(SB),NOSPLIT,$0; RETPOLINE(8)
+TEXT runtime·retpolineR9(SB),NOSPLIT,$0; RETPOLINE(9)
+TEXT runtime·retpolineR10(SB),NOSPLIT,$0; RETPOLINE(10)
+TEXT runtime·retpolineR11(SB),NOSPLIT,$0; RETPOLINE(11)
+TEXT runtime·retpolineR12(SB),NOSPLIT,$0; RETPOLINE(12)
+TEXT runtime·retpolineR13(SB),NOSPLIT,$0; RETPOLINE(13)
+TEXT runtime·retpolineR14(SB),NOSPLIT,$0; RETPOLINE(14)
+TEXT runtime·retpolineR15(SB),NOSPLIT,$0; RETPOLINE(15)

@@ -153,6 +153,9 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 //
 //go:linkname runtime_expandFinalInlineFrame runtime/pprof.runtime_expandFinalInlineFrame
 func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr {
+	if len(stk) == 0 {
+		return stk
+	}
 	pc := stk[len(stk)-1]
 	tracepc := pc - 1
 

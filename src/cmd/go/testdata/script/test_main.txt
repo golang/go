@@ -12,6 +12,10 @@ stdout '^ok.*\[no tests to run\]'
 ! go test standalone_main_wrong_test.go
 stderr 'wrong signature for TestMain, must be: func TestMain\(m \*testing.M\)'
 
+# Test TestMain does not call os.Exit (Issue #34129)
+! go test standalone_testmain_not_call_os_exit_test.go
+! stdout '^ok'
+
 -- standalone_main_normal_test.go --
 // Copyright 2017 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -63,4 +67,26 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	os.Exit(m.Run())
+}
+-- standalone_testmain_not_call_os_exit_test.go --
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package standalone_testmain_not_call_os_exit_test
+
+import (
+	"testing"
+)
+
+func TestWillFail(t *testing.T) {
+	t.Error("this test will fail.")
+}
+
+func TestMain(m *testing.M) {
+	defer func() {
+		recover()
+	}()
+	exit := m.Run()
+	panic(exit)
 }

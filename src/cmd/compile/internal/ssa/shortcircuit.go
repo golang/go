@@ -103,81 +103,73 @@ func shortcircuitBlock(b *Block) bool {
 	// Look for control values of the form Copy(Not(Copy(Phi(const, ...)))).
 	// Those must be the only values in the b, and they each must be used only by b.
 	// Track the negations so that we can swap successors as needed later.
-	v := b.Controls[0]
+	ctl := b.Controls[0]
 	nval := 1 // the control value
-	swap := false
-	for v.Uses == 1 && v.Block == b && (v.Op == OpCopy || v.Op == OpNot) {
-		if v.Op == OpNot {
-			swap = !swap
+	var swap int64
+	for ctl.Uses == 1 && ctl.Block == b && (ctl.Op == OpCopy || ctl.Op == OpNot) {
+		if ctl.Op == OpNot {
+			swap = 1 ^ swap
 		}
-		v = v.Args[0]
+		ctl = ctl.Args[0]
 		nval++ // wrapper around control value
 	}
-	if len(b.Values) != nval || v.Op != OpPhi || v.Block != b || v.Uses != 1 {
+	if len(b.Values) != nval || ctl.Op != OpPhi || ctl.Block != b || ctl.Uses != 1 {
 		return false
 	}
 
-	// Check for const phi args.
-	var changed bool
-	for i := 0; i < len(v.Args); i++ {
-		a := v.Args[i]
-		if a.Op != OpConstBool {
-			continue
+	// Locate index of first const phi arg.
+	cidx := -1
+	for i, a := range ctl.Args {
+		if a.Op == OpConstBool {
+			cidx = i
+			break
 		}
-		// The predecessor we come in from.
-		e1 := b.Preds[i]
-		p := e1.b
-		pi := e1.i
-
-		// The successor we always go to when coming in
-		// from that predecessor.
-		si := 1 - a.AuxInt
-		if swap {
-			si = 1 - si
-		}
-		e2 := b.Succs[si]
-		t := e2.b
-		if p == b || t == b {
-			// This is an infinite loop; we can't remove it. See issue 33903.
-			continue
-		}
-		ti := e2.i
-
-		// Update CFG and Phis.
-		changed = true
-
-		// Remove b's incoming edge from p.
-		b.removePred(i)
-		n := len(b.Preds)
-		v.Args[i].Uses--
-		v.Args[i] = v.Args[n]
-		v.Args[n] = nil
-		v.Args = v.Args[:n]
-
-		// Redirect p's outgoing edge to t.
-		p.Succs[pi] = Edge{t, len(t.Preds)}
-
-		// Fix up t to have one more predecessor.
-		t.Preds = append(t.Preds, Edge{p, pi})
-		for _, w := range t.Values {
-			if w.Op != OpPhi {
-				continue
-			}
-			w.AddArg(w.Args[ti])
-		}
-		i--
+	}
+	if cidx == -1 {
+		return false
 	}
 
-	if !changed {
+	// p is the predecessor corresponding to cidx.
+	pe := b.Preds[cidx]
+	p := pe.b
+	pi := pe.i
+
+	// t is the "taken" branch: the successor we always go to when coming in from p.
+	ti := 1 ^ ctl.Args[cidx].AuxInt ^ swap
+	te := b.Succs[ti]
+	t := te.b
+	if p == b || t == b {
+		// This is an infinite loop; we can't remove it. See issue 33903.
 		return false
+	}
+
+	// We're committed. Update CFG and Phis.
+
+	// Remove b's incoming edge from p.
+	b.removePred(cidx)
+	n := len(b.Preds)
+	ctl.Args[cidx].Uses--
+	ctl.Args[cidx] = ctl.Args[n]
+	ctl.Args[n] = nil
+	ctl.Args = ctl.Args[:n]
+
+	// Redirect p's outgoing edge to t.
+	p.Succs[pi] = Edge{t, len(t.Preds)}
+
+	// Fix up t to have one more predecessor.
+	t.Preds = append(t.Preds, Edge{p, pi})
+	for _, v := range t.Values {
+		if v.Op != OpPhi {
+			continue
+		}
+		v.AddArg(v.Args[te.i])
 	}
 
 	if len(b.Preds) == 0 {
 		// Block is now dead.
 		b.Kind = BlockInvalid
-		return true
 	}
 
-	phielimValue(v)
+	phielimValue(ctl)
 	return true
 }

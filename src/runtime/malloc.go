@@ -1035,9 +1035,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		} else {
 			var sizeclass uint8
 			if size <= smallSizeMax-8 {
-				sizeclass = size_to_class8[(size+smallSizeDiv-1)/smallSizeDiv]
+				sizeclass = size_to_class8[divRoundUp(size, smallSizeDiv)]
 			} else {
-				sizeclass = size_to_class128[(size-smallSizeMax+largeSizeDiv-1)/largeSizeDiv]
+				sizeclass = size_to_class128[divRoundUp(size-smallSizeMax, largeSizeDiv)]
 			}
 			size = uintptr(class_to_size[sizeclass])
 			spc := makeSpanClass(sizeclass, noscan)

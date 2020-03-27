@@ -3245,11 +3245,6 @@ func (s http2SettingID) String() string {
 	return fmt.Sprintf("UNKNOWN_SETTING_%d", uint16(s))
 }
 
-var (
-	http2errInvalidHeaderFieldName  = errors.New("http2: invalid header field name")
-	http2errInvalidHeaderFieldValue = errors.New("http2: invalid header field value")
-)
-
 // validWireHeaderFieldName reports whether v is a valid header field
 // name (key). See httpguts.ValidHeaderName for the base rules.
 //
@@ -4147,13 +4142,10 @@ type http2stream struct {
 	cancelCtx func()
 
 	// owned by serverConn's serve loop:
-	bodyBytes        int64        // body bytes seen so far
-	declBodyBytes    int64        // or -1 if undeclared
-	flow             http2flow    // limits writing from Handler to client
-	inflow           http2flow    // what the client is allowed to POST/etc to us
-	parent           *http2stream // or nil
-	numTrailerValues int64
-	weight           uint8
+	bodyBytes        int64     // body bytes seen so far
+	declBodyBytes    int64     // or -1 if undeclared
+	flow             http2flow // limits writing from Handler to client
+	inflow           http2flow // what the client is allowed to POST/etc to us
 	state            http2streamState
 	resetQueued      bool        // RST_STREAM queued for write; set by sc.resetStream
 	gotTrailerHeader bool        // HEADER frame for trailers was seen
@@ -6592,7 +6584,7 @@ type http2Transport struct {
 	// send in the initial settings frame. It is how many bytes
 	// of response headers are allowed. Unlike the http2 spec, zero here
 	// means to use a default limit (currently 10MB). If you actually
-	// want to advertise an ulimited value to the peer, Transport
+	// want to advertise an unlimited value to the peer, Transport
 	// interprets the highest possible value here (0xffffffff or 1<<32-1)
 	// to mean no limit.
 	MaxHeaderListSize uint32
@@ -8392,7 +8384,9 @@ func (rl *http2clientConnReadLoop) handleResponse(cs *http2clientStream, f *http
 		return nil, errors.New("malformed response from server: malformed non-numeric status pseudo header")
 	}
 
-	header := make(Header)
+	regularFields := f.RegularFields()
+	strs := make([]string, len(regularFields))
+	header := make(Header, len(regularFields))
 	res := &Response{
 		Proto:      "HTTP/2.0",
 		ProtoMajor: 2,
@@ -8400,7 +8394,7 @@ func (rl *http2clientConnReadLoop) handleResponse(cs *http2clientStream, f *http
 		StatusCode: statusCode,
 		Status:     status + " " + StatusText(statusCode),
 	}
-	for _, hf := range f.RegularFields() {
+	for _, hf := range regularFields {
 		key := CanonicalHeaderKey(hf.Name)
 		if key == "Trailer" {
 			t := res.Trailer
@@ -8412,7 +8406,18 @@ func (rl *http2clientConnReadLoop) handleResponse(cs *http2clientStream, f *http
 				t[CanonicalHeaderKey(v)] = nil
 			})
 		} else {
-			header[key] = append(header[key], hf.Value)
+			vv := header[key]
+			if vv == nil && len(strs) > 0 {
+				// More than likely this will be a single-element key.
+				// Most headers aren't multi-valued.
+				// Set the capacity on strs[0] to 1, so any future append
+				// won't extend the slice into the other strings.
+				vv, strs = strs[:1:1], strs[1:]
+				vv[0] = hf.Value
+				header[key] = vv
+			} else {
+				header[key] = append(vv, hf.Value)
+			}
 		}
 	}
 
@@ -8698,8 +8703,6 @@ func (rl *http2clientConnReadLoop) processData(f *http2DataFrame) error {
 	return nil
 }
 
-var http2errInvalidTrailers = errors.New("http2: invalid trailers")
-
 func (rl *http2clientConnReadLoop) endStream(cs *http2clientStream) {
 	// TODO: check that any declared content-length matches, like
 	// server.go's (*stream).endStream method.
@@ -8930,7 +8933,6 @@ func (cc *http2ClientConn) writeStreamReset(streamID uint32, code http2ErrCode, 
 var (
 	http2errResponseHeaderListSize = errors.New("http2: response header list larger than advertised limit")
 	http2errRequestHeaderListSize  = errors.New("http2: request header list larger than peer's advertised limit")
-	http2errPseudoTrailers         = errors.New("http2: invalid pseudo header in trailers")
 )
 
 func (cc *http2ClientConn) logf(format string, args ...interface{}) {

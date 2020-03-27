@@ -250,7 +250,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpRISCV64FSQRTS, ssa.OpRISCV64FNEGS, ssa.OpRISCV64FSQRTD, ssa.OpRISCV64FNEGD,
 		ssa.OpRISCV64FMVSX, ssa.OpRISCV64FMVDX,
 		ssa.OpRISCV64FCVTSW, ssa.OpRISCV64FCVTSL, ssa.OpRISCV64FCVTWS, ssa.OpRISCV64FCVTLS,
-		ssa.OpRISCV64FCVTDW, ssa.OpRISCV64FCVTDL, ssa.OpRISCV64FCVTWD, ssa.OpRISCV64FCVTLD, ssa.OpRISCV64FCVTDS, ssa.OpRISCV64FCVTSD:
+		ssa.OpRISCV64FCVTDW, ssa.OpRISCV64FCVTDL, ssa.OpRISCV64FCVTWD, ssa.OpRISCV64FCVTLD, ssa.OpRISCV64FCVTDS, ssa.OpRISCV64FCVTSD,
+		ssa.OpRISCV64NOT, ssa.OpRISCV64NEG, ssa.OpRISCV64NEGW:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
@@ -340,6 +341,140 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Name = obj.NAME_EXTERN
 		p.To.Sym = gc.BoundsCheckFunc[v.AuxInt]
 		s.UseArgs(16) // space used in callee args area by assembly stubs
+
+	case ssa.OpRISCV64LoweredAtomicLoad8:
+		s.Prog(riscv.AFENCE)
+		p := s.Prog(riscv.AMOVBU)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
+		s.Prog(riscv.AFENCE)
+
+	case ssa.OpRISCV64LoweredAtomicLoad32, ssa.OpRISCV64LoweredAtomicLoad64:
+		as := riscv.ALRW
+		if v.Op == ssa.OpRISCV64LoweredAtomicLoad64 {
+			as = riscv.ALRD
+		}
+		p := s.Prog(as)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
+
+	case ssa.OpRISCV64LoweredAtomicStore8:
+		s.Prog(riscv.AFENCE)
+		p := s.Prog(riscv.AMOVB)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		s.Prog(riscv.AFENCE)
+
+	case ssa.OpRISCV64LoweredAtomicStore32, ssa.OpRISCV64LoweredAtomicStore64:
+		as := riscv.AAMOSWAPW
+		if v.Op == ssa.OpRISCV64LoweredAtomicStore64 {
+			as = riscv.AAMOSWAPD
+		}
+		p := s.Prog(as)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		p.RegTo2 = riscv.REG_ZERO
+
+	case ssa.OpRISCV64LoweredAtomicAdd32, ssa.OpRISCV64LoweredAtomicAdd64:
+		as := riscv.AAMOADDW
+		if v.Op == ssa.OpRISCV64LoweredAtomicAdd64 {
+			as = riscv.AAMOADDD
+		}
+		p := s.Prog(as)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		p.RegTo2 = riscv.REG_TMP
+
+		p2 := s.Prog(riscv.AADD)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = riscv.REG_TMP
+		p2.Reg = v.Args[1].Reg()
+		p2.To.Type = obj.TYPE_REG
+		p2.To.Reg = v.Reg0()
+
+	case ssa.OpRISCV64LoweredAtomicExchange32, ssa.OpRISCV64LoweredAtomicExchange64:
+		as := riscv.AAMOSWAPW
+		if v.Op == ssa.OpRISCV64LoweredAtomicExchange64 {
+			as = riscv.AAMOSWAPD
+		}
+		p := s.Prog(as)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = v.Args[0].Reg()
+		p.RegTo2 = v.Reg0()
+
+	case ssa.OpRISCV64LoweredAtomicCas32, ssa.OpRISCV64LoweredAtomicCas64:
+		// MOV  ZERO, Rout
+		// LR	(Rarg0), Rtmp
+		// BNE	Rtmp, Rarg1, 3(PC)
+		// SC	Rarg2, (Rarg0), Rtmp
+		// BNE	Rtmp, ZERO, -3(PC)
+		// MOV	$1, Rout
+
+		lr := riscv.ALRW
+		sc := riscv.ASCW
+		if v.Op == ssa.OpRISCV64LoweredAtomicCas64 {
+			lr = riscv.ALRD
+			sc = riscv.ASCD
+		}
+
+		r0 := v.Args[0].Reg()
+		r1 := v.Args[1].Reg()
+		r2 := v.Args[2].Reg()
+		out := v.Reg0()
+
+		p := s.Prog(riscv.AMOV)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = riscv.REG_ZERO
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = out
+
+		p1 := s.Prog(lr)
+		p1.From.Type = obj.TYPE_MEM
+		p1.From.Reg = r0
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = riscv.REG_TMP
+
+		p2 := s.Prog(riscv.ABNE)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = r1
+		p2.Reg = riscv.REG_TMP
+		p2.To.Type = obj.TYPE_BRANCH
+
+		p3 := s.Prog(sc)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = r2
+		p3.To.Type = obj.TYPE_MEM
+		p3.To.Reg = r0
+		p3.RegTo2 = riscv.REG_TMP
+
+		p4 := s.Prog(riscv.ABNE)
+		p4.From.Type = obj.TYPE_REG
+		p4.From.Reg = riscv.REG_TMP
+		p4.Reg = riscv.REG_ZERO
+		p4.To.Type = obj.TYPE_BRANCH
+		gc.Patch(p4, p1)
+
+		p5 := s.Prog(riscv.AMOV)
+		p5.From.Type = obj.TYPE_CONST
+		p5.From.Offset = 1
+		p5.To.Type = obj.TYPE_REG
+		p5.To.Reg = out
+
+		p6 := s.Prog(obj.ANOP)
+		gc.Patch(p2, p6)
+
 	case ssa.OpRISCV64LoweredZero:
 		mov, sz := largestMove(v.AuxInt)
 

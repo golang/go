@@ -396,6 +396,12 @@ func (c *fakeConn) ResetSession(ctx context.Context) error {
 	return nil
 }
 
+var _ driver.ConnectionValidator = (*fakeConn)(nil)
+
+func (c *fakeConn) ValidConnection() bool {
+	return !c.isBad()
+}
+
 func (c *fakeConn) Close() (err error) {
 	drv := fdriver.(*fakeDriver)
 	defer func() {

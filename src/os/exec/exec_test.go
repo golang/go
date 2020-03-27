@@ -861,6 +861,9 @@ func TestHelperProcess(*testing.T) {
 			}
 			if got := f.Fd(); got != wantfd {
 				fmt.Printf("leaked parent file. fd = %d; want %d\n", got, wantfd)
+				fdfile := fmt.Sprintf("/proc/self/fd/%d", wantfd)
+				link, err := os.Readlink(fdfile)
+				fmt.Printf("readlink(%q) = %q, %v\n", fdfile, link, err)
 				var args []string
 				switch runtime.GOOS {
 				case "plan9":

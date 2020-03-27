@@ -1044,11 +1044,11 @@ func Index(s, substr string) int {
 			if s[i] != c0 {
 				// IndexByte is faster than bytealg.IndexString, so use it as long as
 				// we're not getting lots of false positives.
-				o := IndexByte(s[i:t], c0)
+				o := IndexByte(s[i+1:t], c0)
 				if o < 0 {
 					return -1
 				}
-				i += o
+				i += o + 1
 			}
 			if s[i+1] == c1 && s[i:i+n] == substr {
 				return i
@@ -1073,11 +1073,11 @@ func Index(s, substr string) int {
 	fails := 0
 	for i < t {
 		if s[i] != c0 {
-			o := IndexByte(s[i:t], c0)
+			o := IndexByte(s[i+1:t], c0)
 			if o < 0 {
 				return -1
 			}
-			i += o
+			i += o + 1
 		}
 		if s[i+1] == c1 && s[i:i+n] == substr {
 			return i

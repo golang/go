@@ -50,6 +50,15 @@ func (pub *PublicKey) Size() int {
 	return (pub.N.BitLen() + 7) / 8
 }
 
+// Equal reports whether pub and x have the same value.
+func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
+	xx, ok := x.(*PublicKey)
+	if !ok {
+		return false
+	}
+	return pub.N.Cmp(xx.N) == 0 && pub.E == xx.E
+}
+
 // OAEPOptions is an interface for passing options to OAEP decryption using the
 // crypto.Decrypter interface.
 type OAEPOptions struct {
