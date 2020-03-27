@@ -198,10 +198,10 @@ func convertSpan(span *export.Span) *wire.Span {
 		ParentSpanID:            span.ParentID[:],
 		Name:                    toTruncatableString(span.Name),
 		Kind:                    wire.UnspecifiedSpanKind,
-		StartTime:               convertTimestamp(span.Start.At),
-		EndTime:                 convertTimestamp(span.Finish.At),
-		Attributes:              convertAttributes(event.Filter(span.Start.Tags(), event.Name)),
-		TimeEvents:              convertEvents(span.Events),
+		StartTime:               convertTimestamp(span.Start().At),
+		EndTime:                 convertTimestamp(span.Finish().At),
+		Attributes:              convertAttributes(event.Filter(span.Start().Tags(), event.Name)),
+		TimeEvents:              convertEvents(span.Events()),
 		SameProcessAsParentSpan: true,
 		//TODO: StackTrace?
 		//TODO: Links?

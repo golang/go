@@ -7,6 +7,7 @@ package metric
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"golang.org/x/tools/internal/telemetry/event"
@@ -28,10 +29,13 @@ func (e *Config) subscribe(key event.Key, s subscriber) {
 }
 
 func (e *Config) Exporter(output event.Exporter) event.Exporter {
+	var mu sync.Mutex
 	return func(ctx context.Context, ev event.Event, tagMap event.TagMap) context.Context {
 		if !ev.IsRecord() {
 			return output(ctx, ev, tagMap)
 		}
+		mu.Lock()
+		defer mu.Unlock()
 		var metrics []Data
 		for it := ev.Tags(); it.Valid(); it.Advance() {
 			tag := it.Tag()

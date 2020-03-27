@@ -7,6 +7,7 @@ package export
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"golang.org/x/tools/internal/telemetry/event"
 )
@@ -20,9 +21,10 @@ type Span struct {
 	Name     string
 	ID       SpanContext
 	ParentID SpanID
-	Start    event.Event
-	Finish   event.Event
-	Events   []event.Event
+	mu       sync.Mutex
+	start    event.Event
+	finish   event.Event
+	events   []event.Event
 }
 
 type contextKeyType int
@@ -50,12 +52,14 @@ func Spans(output event.Exporter) event.Exporter {
 		switch {
 		case ev.IsLog(), ev.IsLabel():
 			if span := GetSpan(ctx); span != nil {
-				span.Events = append(span.Events, ev)
+				span.mu.Lock()
+				span.events = append(span.events, ev)
+				span.mu.Unlock()
 			}
 		case ev.IsStartSpan():
 			span := &Span{
 				Name:  event.Name.Get(tagMap),
-				Start: ev,
+				start: ev,
 			}
 			if parent := GetSpan(ctx); parent != nil {
 				span.ID.TraceID = parent.ID.TraceID
@@ -67,7 +71,9 @@ func Spans(output event.Exporter) event.Exporter {
 			ctx = context.WithValue(ctx, spanContextKey, span)
 		case ev.IsEndSpan():
 			if span := GetSpan(ctx); span != nil {
-				span.Finish = ev
+				span.mu.Lock()
+				span.finish = ev
+				span.mu.Unlock()
 			}
 		case ev.IsDetach():
 			ctx = context.WithValue(ctx, spanContextKey, nil)
@@ -80,10 +86,29 @@ func (s *SpanContext) Format(f fmt.State, r rune) {
 	fmt.Fprintf(f, "%v:%v", s.TraceID, s.SpanID)
 }
 
+func (s *Span) Start() event.Event {
+	// start never changes after construction, so we dont need to hold the mutex
+	return s.start
+}
+
+func (s *Span) Finish() event.Event {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.finish
+}
+
+func (s *Span) Events() []event.Event {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.events
+}
+
 func (s *Span) Format(f fmt.State, r rune) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	fmt.Fprintf(f, "%v %v", s.Name, s.ID)
 	if s.ParentID.IsValid() {
 		fmt.Fprintf(f, "[%v]", s.ParentID)
 	}
-	fmt.Fprintf(f, " %v->%v", s.Start, s.Finish)
+	fmt.Fprintf(f, " %v->%v", s.start, s.finish)
 }

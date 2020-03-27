@@ -93,8 +93,8 @@ func (t *traces) ProcessEvent(ctx context.Context, ev event.Event, tags event.Ta
 			SpanID:   span.ID.SpanID,
 			ParentID: span.ParentID,
 			Name:     span.Name,
-			Start:    span.Start.At,
-			Tags:     renderTags(span.Start.Tags()),
+			Start:    span.Start().At,
+			Tags:     renderTags(span.Start().Tags()),
 		}
 		t.unfinished[span.ID] = td
 		// and wire up parents if we have them
@@ -117,10 +117,11 @@ func (t *traces) ProcessEvent(ctx context.Context, ev event.Event, tags event.Ta
 		}
 		delete(t.unfinished, span.ID)
 
-		td.Finish = span.Finish.At
-		td.Duration = span.Finish.At.Sub(span.Start.At)
-		td.Events = make([]traceEvent, len(span.Events))
-		for i, event := range span.Events {
+		td.Finish = span.Finish().At
+		td.Duration = span.Finish().At.Sub(span.Start().At)
+		events := span.Events()
+		td.Events = make([]traceEvent, len(events))
+		for i, event := range events {
 			td.Events[i] = traceEvent{
 				Time: event.At,
 				Tags: renderTags(event.Tags()),
