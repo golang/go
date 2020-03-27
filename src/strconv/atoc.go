@@ -16,14 +16,12 @@ func convErr(err error, s string) error {
 
 func parseComplexComponent(s, orig string, bitSize int) (float64, error) {
 	if bitSize == 64 {
-		f, err := ParseFloat(s, 32)
-		if err != nil {
-			return 0, convErr(err, orig)
-		}
-		return f, nil
+		bitSize = 32
+	} else {
+		bitSize = 64
 	}
 
-	f, err := ParseFloat(s, 64)
+	f, err := ParseFloat(s, bitSize)
 	if err != nil {
 		return 0, convErr(err, orig)
 	}
