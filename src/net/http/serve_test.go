@@ -1444,13 +1444,9 @@ func testTLSHandshakeTimeout(t *testing.T, mode testMode) {
 		t.Errorf("Read = %d, %v; want an error and no bytes", n, err)
 	}
 
-	select {
-	case v := <-errc:
-		if !strings.Contains(v, "timeout") && !strings.Contains(v, "TLS handshake") {
-			t.Errorf("expected a TLS handshake timeout error; got %q", v)
-		}
-	case <-time.After(5 * time.Second):
-		t.Errorf("timeout waiting for logged error")
+	v := <-errc
+	if !strings.Contains(v, "timeout") && !strings.Contains(v, "TLS handshake") {
+		t.Errorf("expected a TLS handshake timeout error; got %q", v)
 	}
 }
 
