@@ -12,28 +12,27 @@ import (
 // It also returns a function that will end the span, which should normally be
 // deferred.
 func StartSpan(ctx context.Context, name string, tags ...Tag) (context.Context, func()) {
-	ctx = dispatch(ctx, makeEvent(StartSpanType, sTags{Name.Of(name)}, tags))
-	return ctx, func() { dispatch(ctx, makeEvent(EndSpanType, sTags{}, nil)) }
+	return dispatchPair(ctx,
+		makeEvent(StartSpanType, sTags{Name.Of(name)}, tags),
+		makeEvent(EndSpanType, sTags{}, nil))
 }
 
 // StartSpan1 sends a span start event with the supplied tag list to the exporter.
 // It also returns a function that will end the span, which should normally be
 // deferred.
 func StartSpan1(ctx context.Context, name string, t1 Tag) (context.Context, func()) {
-	ctx = dispatch(ctx, makeEvent(StartSpanType, sTags{Name.Of(name), t1}, nil))
-	return ctx, func() {
-		dispatch(ctx, makeEvent(EndSpanType, sTags{}, nil))
-	}
+	return dispatchPair(ctx,
+		makeEvent(StartSpanType, sTags{Name.Of(name), t1}, nil),
+		makeEvent(EndSpanType, sTags{}, nil))
 }
 
 // StartSpan2 sends a span start event with the supplied tag list to the exporter.
 // It also returns a function that will end the span, which should normally be
 // deferred.
 func StartSpan2(ctx context.Context, name string, t1, t2 Tag) (context.Context, func()) {
-	ctx = dispatch(ctx, makeEvent(StartSpanType, sTags{Name.Of(name), t1, t2}, nil))
-	return ctx, func() {
-		dispatch(ctx, makeEvent(EndSpanType, sTags{}, nil))
-	}
+	return dispatchPair(ctx,
+		makeEvent(StartSpanType, sTags{Name.Of(name), t1, t2}, nil),
+		makeEvent(EndSpanType, sTags{}, nil))
 }
 
 // Detach returns a context without an associated span.

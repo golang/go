@@ -34,16 +34,35 @@ func SetExporter(e Exporter) {
 	atomic.StorePointer(&exporter, p)
 }
 
-// dispatch is called to deliver an event to the supplied exporter.
+// deliver is called to deliver an event to the supplied exporter.
 // it will fill in the time and generate the basic tag source.
+func deliver(ctx context.Context, exporter Exporter, ev Event) context.Context {
+	// add the current time to the event
+	ev.At = time.Now()
+	// hand the event off to the current exporter
+	return exporter(ctx, ev, ev.Map())
+}
+
+// dispatch is called to deliver an event to the global exporter if set.
 func dispatch(ctx context.Context, ev Event) context.Context {
 	// get the global exporter and abort early if there is not one
 	exporterPtr := (*Exporter)(atomic.LoadPointer(&exporter))
 	if exporterPtr == nil {
 		return ctx
 	}
-	// add the current time to the event
-	ev.At = time.Now()
-	// hand the event off to the current exporter
-	return (*exporterPtr)(ctx, ev, ev.Map())
+	return deliver(ctx, *exporterPtr, ev)
+}
+
+// dispatchPair is called to deliver a start event to the supplied exporter.
+// It also returns a function that will deliver the end event to the same
+// exporter.
+// it will fill in the time and generate the basic tag source.
+func dispatchPair(ctx context.Context, begin, end Event) (context.Context, func()) {
+	// get the global exporter and abort early if there is not one
+	exporterPtr := (*Exporter)(atomic.LoadPointer(&exporter))
+	if exporterPtr == nil {
+		return ctx, func() {}
+	}
+	ctx = deliver(ctx, *exporterPtr, begin)
+	return ctx, func() { deliver(ctx, *exporterPtr, end) }
 }
