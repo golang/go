@@ -56,6 +56,7 @@ func isParameterizedTypeDecl(s ast.Spec) bool {
 type translator struct {
 	fset               *token.FileSet
 	importer           *Importer
+	tpkg               *types.Package
 	types              map[ast.Expr]types.Type
 	instantiations     map[string][]*instantiation
 	newDecls           []ast.Decl
@@ -80,8 +81,8 @@ type typeInstantiation struct {
 }
 
 // rewrite rewrites the contents of one file.
-func rewriteFile(dir string, fset *token.FileSet, importer *Importer, importPath, filename string, file *ast.File, addImportableName bool) (err error) {
-	if err := rewriteAST(fset, importer, importPath, file, addImportableName); err != nil {
+func rewriteFile(dir string, fset *token.FileSet, importer *Importer, importPath string, tpkg *types.Package, filename string, file *ast.File, addImportableName bool) (err error) {
+	if err := rewriteAST(fset, importer, importPath, tpkg, file, addImportableName); err != nil {
 		return err
 	}
 
@@ -109,10 +110,11 @@ func rewriteFile(dir string, fset *token.FileSet, importer *Importer, importPath
 }
 
 // rewriteAST rewrites the AST for a file.
-func rewriteAST(fset *token.FileSet, importer *Importer, importPath string, file *ast.File, addImportableName bool) (err error) {
+func rewriteAST(fset *token.FileSet, importer *Importer, importPath string, tpkg *types.Package, file *ast.File, addImportableName bool) (err error) {
 	t := translator{
 		fset:               fset,
 		importer:           importer,
+		tpkg:               tpkg,
 		types:              make(map[ast.Expr]types.Type),
 		instantiations:     make(map[string][]*instantiation),
 		typeInstantiations: make(map[types.Type][]*typeInstantiation),
@@ -726,11 +728,19 @@ func (t *translator) instantiationTypes(call *ast.CallExpr) (argList []ast.Expr,
 	} else {
 		for _, typ := range inferred.Targs {
 			arg := ast.NewIdent(typ.String())
-			if named, ok := typ.(*types.Named); ok && len(named.TArgs()) > 0 {
-				var narg *ast.Ident
-				typ, narg = t.lookupInstantiatedType(named)
-				if narg != nil {
-					arg = ast.NewIdent(narg.Name)
+			if named, ok := typ.(*types.Named); ok {
+				if len(named.TArgs()) > 0 {
+					var narg *ast.Ident
+					typ, narg = t.lookupInstantiatedType(named)
+					if narg != nil {
+						arg = ast.NewIdent(narg.Name)
+					}
+				}
+				if named.Obj().Pkg() == t.tpkg {
+					fields := strings.Split(arg.Name, ".")
+					if len(fields) > 1 {
+						arg = ast.NewIdent(fields[1])
+					}
 				}
 			}
 			typeList = append(typeList, typ)

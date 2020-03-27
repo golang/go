@@ -99,9 +99,9 @@ func rewriteFilesInPath(importer *Importer, importPath, dir string, go2files []s
 		tpkgs = append(tpkgs, pkgfiles)
 	}
 
-	for _, tpkg := range tpkgs {
-		for i, pkgfile := range tpkg {
-			if err := rewriteFile(dir, fset, importer, importPath, pkgfile.name, pkgfile.ast, i == 0); err != nil {
+	for i, tpkg := range tpkgs {
+		for j, pkgfile := range tpkg {
+			if err := rewriteFile(dir, fset, importer, importPath, rpkgs[i], pkgfile.name, pkgfile.ast, j == 0); err != nil {
 				return nil, err
 			}
 		}
@@ -124,11 +124,12 @@ func RewriteBuffer(importer *Importer, filename string, file []byte) ([]byte, er
 		Importer: importer,
 		Error:    merr.add,
 	}
-	if _, err := conf.Check(pf.Name.Name, fset, []*ast.File{pf}, importer.info); err != nil {
+	tpkg, err := conf.Check(pf.Name.Name, fset, []*ast.File{pf}, importer.info)
+	if err != nil {
 		return nil, fmt.Errorf("type checking failed for %s\n%v", pf.Name.Name, merr)
 	}
 	importer.addIDs(pf)
-	if err := rewriteAST(fset, importer, "", pf, true); err != nil {
+	if err := rewriteAST(fset, importer, "", tpkg, pf, true); err != nil {
 		return nil, err
 	}
 	var buf bytes.Buffer

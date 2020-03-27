@@ -1,0 +1,65 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Package graph implements general purpose graph algorithms.
+package graph
+
+import "errors"
+
+// A Graph is a collection of nodes. A node may have an arbitrary number
+// of edges. An edge connects two nodes. Both nodes and edges must be
+// comparable. This is an undirected simple graph.
+type Graph(type Node, Edge G) struct {
+	nodes []Node
+}
+
+// G is the contract that the Graph Node and Edge types must implement.
+contract G(Node, Edge) {
+	Node Edges() []Edge
+	comparable(Node)
+	Edge Nodes() (a, b Node)
+	comparable(Edge)
+}
+
+// New creates a new Graph from a collection of Nodes.
+func New(type Node, Edge G)(nodes []Node) *Graph(Node, Edge) {
+	return &Graph(Node, Edge){nodes: nodes}
+}
+
+type nodePath(type Node, Edge G) struct {
+	node Node
+	path []Edge
+}
+
+// ShortestPath returns the shortest path between two nodes,
+// as an ordered list of edges. If there are multiple shortest paths,
+// which one is returned is unpredictable.
+func (g *Graph(Node, Edge)) ShortestPath(from, to Node) ([]Edge, error) {
+	visited := make(map[Node]bool)
+	visited[from] = true
+	workqueue := [](nodePath(Node, Edge)){nodePath(Node, Edge){from, nil}}
+	for len(workqueue) > 0 {
+		current := workqueue
+		workqueue = nil
+		for _, np := range current {
+			edges := np.node.Edges()
+			for _, edge := range edges {
+				a, b := edge.Nodes()
+				if a == np.node {
+					a = b
+				}
+				if !visited[a] {
+					ve := append([]Edge(nil), np.path...)
+					ve = append(ve, edge)
+					if a == to {
+						return ve, nil
+					}
+					workqueue = append(workqueue, nodePath(Node, Edge){a, ve})
+					visited[a] = true
+				}
+			}
+		}
+	}
+	return nil, errors.New("no path")
+}
