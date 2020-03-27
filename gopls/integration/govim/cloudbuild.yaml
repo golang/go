@@ -22,15 +22,21 @@ steps:
   # uploading artifacts.
   - name: 'gcr.io/$PROJECT_ID/govim-harness:3'
     dir: '/src/govim'
+    volumes:
+      - name: artifacts
+        path: /artifacts
     env:
-      - GOVIM_TESTSCRIPT_WORKDIR_ROOT=/workspace/artifacts
+      - GOVIM_TESTSCRIPT_WORKDIR_ROOT=/artifacts
       - VIM_FLAVOR=vim
     args: ['/workspace/gopls/integration/govim/run_tests_for_cloudbuild.sh']
 
   # The govim tests produce a large number of artifacts; tarball/gzip to reduce
   # roundtrips and save space.
   - name: 'ubuntu'
-    args: ['tar', '-czf', 'artifacts.tar.gz', 'artifacts']
+    volumes:
+      - name: artifacts
+        path: /artifacts
+    args: ['tar', '-czf', 'artifacts.tar.gz', '/artifacts']
 
   # Upload artifacts to GCS.
   - name: 'gcr.io/cloud-builders/gsutil'
