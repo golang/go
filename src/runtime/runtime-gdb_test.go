@@ -607,3 +607,83 @@ func TestGdbPanic(t *testing.T) {
 		}
 	}
 }
+
+const InfCallstackSource = `
+package main
+import "C"
+import "time"
+
+func loop() {
+        for i := 0; i < 1000; i++ {
+                time.Sleep(time.Millisecond*5)
+        }
+}
+
+func main() {
+        go loop()
+        time.Sleep(time.Second * 1)
+}
+`
+// TestGdbInfCallstack tests that gdb can unwind the callstack of cgo programs
+// on arm64 platforms without endless frames of function 'crossfunc1'.
+// https://golang.org/issue/37238
+func TestGdbInfCallstack(t *testing.T) {
+	checkGdbEnvironment(t)
+
+	testenv.MustHaveCGO(t)
+	if runtime.GOARCH != "arm64" {
+		t.Skip("skipping infinite callstack test on non-arm64 arches")
+	}
+
+	t.Parallel()
+	checkGdbVersion(t)
+
+	dir, err := ioutil.TempDir("", "go-build")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(dir)
+
+	// Build the source code.
+	src := filepath.Join(dir, "main.go")
+	err = ioutil.WriteFile(src, []byte(InfCallstackSource), 0644)
+	if err != nil {
+		t.Fatalf("failed to create file: %v", err)
+	}
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "a.exe", "main.go")
+	cmd.Dir = dir
+	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+	if err != nil {
+		t.Fatalf("building source %v\n%s", err, out)
+	}
+
+	// Execute gdb commands.
+	// 'setg_gcc' is the first point where we can reproduce the issue with just one 'run' command.
+	args := []string{"-nx", "-batch",
+		"-iex", "add-auto-load-safe-path " + filepath.Join(runtime.GOROOT(), "src", "runtime"),
+		"-ex", "set startup-with-shell off",
+		"-ex", "break setg_gcc",
+		"-ex", "run",
+		"-ex", "backtrace 3",
+		"-ex", "disable 1",
+		"-ex", "continue",
+		filepath.Join(dir, "a.exe"),
+	}
+	got, _ := exec.Command("gdb", args...).CombinedOutput()
+
+	// Check that the backtrace matches
+	// We check the 3 inner most frames only as they are present certainly, according to gcc_<OS>_arm64.c
+	bt := []string{
+		`setg_gcc`,
+		`crosscall1`,
+		`threadentry`,
+	}
+	for i, name := range bt {
+		s := fmt.Sprintf("#%v.*%v", i, name)
+		re := regexp.MustCompile(s)
+		if found := re.Find(got) != nil; !found {
+			t.Errorf("could not find '%v' in backtrace", s)
+			t.Fatalf("gdb output:\n%v", string(got))
+		}
+	}
+}
