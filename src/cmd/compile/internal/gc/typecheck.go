@@ -1634,7 +1634,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			return n
 		}
 		var why string
-		n.Op = convertop(t, n.Type, &why)
+		n.Op = convertop(n.Left.Op == OLITERAL, t, n.Type, &why)
 		if n.Op == 0 {
 			if !n.Diag() && !n.Type.Broke() && !n.Left.Diag() {
 				yyerror("cannot convert %L to type %v%s", n.Left, n.Type, why)
