@@ -78,7 +78,7 @@ func (i *Invocation) RunPiped(ctx context.Context, stdout, stderr io.Writer) err
 	// The Go stdlib has a special feature where if the cwd and the PWD are the
 	// same node then it trusts the PWD, so by setting it in the env for the child
 	// process we fix up all the paths returned by the go command.
-	cmd.Env = append([]string{}, i.Env...)
+	cmd.Env = append([]string{}, append(i.Env, cmd.Env...)...)
 	if i.WorkingDir != "" {
 		cmd.Env = append(cmd.Env, "PWD="+i.WorkingDir)
 		cmd.Dir = i.WorkingDir
