@@ -99,7 +99,7 @@ func ParseComplex(s string, bitSize int) (complex128, error) {
 		// There is only an imaginary component
 
 		if s == "" {
-			s = s + "1"
+			return complex(0, 1), nil
 		}
 
 		imag, err := parseComplexComponent(s, orig, bitSize)
