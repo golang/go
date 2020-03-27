@@ -36,7 +36,9 @@ import (
 var imported_unsafe bool
 
 var (
-	buildid string
+	buildid      string
+	spectre      string
+	spectreIndex bool
 )
 
 var (
@@ -250,6 +252,7 @@ func Main(archInit func(*Arch)) {
 	if sys.RaceDetectorSupported(objabi.GOOS, objabi.GOARCH) {
 		flag.BoolVar(&flag_race, "race", false, "enable race detector")
 	}
+	flag.StringVar(&spectre, "spectre", spectre, "enable spectre mitigations in `list` (all, index, ret)")
 	if enableTrace {
 		flag.BoolVar(&trace, "t", false, "trace type-checking")
 	}
@@ -282,10 +285,36 @@ func Main(archInit func(*Arch)) {
 
 	objabi.Flagparse(usage)
 
+	for _, f := range strings.Split(spectre, ",") {
+		f = strings.TrimSpace(f)
+		switch f {
+		default:
+			log.Fatalf("unknown setting -spectre=%s", f)
+		case "":
+			// nothing
+		case "all":
+			spectreIndex = true
+			Ctxt.Retpoline = true
+		case "index":
+			spectreIndex = true
+		case "ret":
+			Ctxt.Retpoline = true
+		}
+	}
+
+	if spectreIndex {
+		switch objabi.GOARCH {
+		case "amd64":
+			// ok
+		default:
+			log.Fatalf("GOARCH=%s does not support -spectre=index", objabi.GOARCH)
+		}
+	}
+
 	// Record flags that affect the build result. (And don't
 	// record flags that don't, since that would cause spurious
 	// changes in the binary.)
-	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "go115newobj")
+	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre", "go115newobj")
 
 	if smallFrames {
 		maxStackVarSize = 128 * 1024

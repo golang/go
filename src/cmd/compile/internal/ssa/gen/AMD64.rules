@@ -129,6 +129,9 @@
 
 (Slicemask <t> x) -> (SARQconst (NEGQ <t> x) [63])
 
+(SpectreIndex <t> x y) -> (CMOVQCC x (MOVQconst [0]) (CMPQ x y))
+(SpectreSliceIndex <t> x y) -> (CMOVQHI x (MOVQconst [0]) (CMPQ x y))
+
 // Lowering truncation
 // Because we ignore high parts of registers, truncates are just copies.
 (Trunc16to8  ...) -> (Copy ...)
@@ -1198,6 +1201,14 @@
 (LEAQ4 [off1] {sym1} x (LEAQ1 [off2] {sym2} y y)) && is32Bit(off1+4*off2) && sym2 == nil ->
       (LEAQ8 [off1+4*off2] {sym1} x y)
 // TODO: more?
+
+// Lower LEAQ2/4/8 when the offset is a constant
+(LEAQ2 [off] {sym} x (MOV(Q|L)const [scale])) && is32Bit(off+scale*2) ->
+	(LEAQ [off+scale*2] {sym} x)
+(LEAQ4 [off] {sym} x (MOV(Q|L)const [scale])) && is32Bit(off+scale*4) ->
+	(LEAQ [off+scale*4] {sym} x)
+(LEAQ8 [off] {sym} x (MOV(Q|L)const [scale])) && is32Bit(off+scale*8) ->
+	(LEAQ [off+scale*8] {sym} x)
 
 // Absorb InvertFlags into branches.
 (LT (InvertFlags cmp) yes no) -> (GT cmp yes no)

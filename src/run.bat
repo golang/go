@@ -1,7 +1,13 @@
 :: Copyright 2012 The Go Authors. All rights reserved.
 :: Use of this source code is governed by a BSD-style
 :: license that can be found in the LICENSE file.
+
 @echo off
+
+if exist ..\bin\go goto ok
+echo Must run run.bat from Go src directory after installing cmd/go.
+goto fail
+:ok
 
 :: Keep environment variables within this script
 :: unless invoked with --no-local.
@@ -35,13 +41,13 @@ echo.
 set GOROOT_FINAL=
 
 :: get CGO_ENABLED
-go env > env.bat
+..\bin\go env > env.bat
 if errorlevel 1 goto fail
 call env.bat
 del env.bat
 echo.
 
-go tool dist test
+..\bin\go tool dist test
 if errorlevel 1 goto fail
 echo.
 

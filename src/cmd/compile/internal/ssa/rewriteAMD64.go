@@ -1096,6 +1096,10 @@ func rewriteValueAMD64(v *Value) bool {
 		return true
 	case OpSlicemask:
 		return rewriteValueAMD64_OpSlicemask(v)
+	case OpSpectreIndex:
+		return rewriteValueAMD64_OpSpectreIndex(v)
+	case OpSpectreSliceIndex:
+		return rewriteValueAMD64_OpSpectreSliceIndex(v)
 	case OpSqrt:
 		v.Op = OpAMD64SQRTSD
 		return true
@@ -9482,6 +9486,46 @@ func rewriteValueAMD64_OpAMD64LEAQ2(v *Value) bool {
 		v.AddArg2(x, y)
 		return true
 	}
+	// match: (LEAQ2 [off] {sym} x (MOVQconst [scale]))
+	// cond: is32Bit(off+scale*2)
+	// result: (LEAQ [off+scale*2] {sym} x)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		scale := v_1.AuxInt
+		if !(is32Bit(off + scale*2)) {
+			break
+		}
+		v.reset(OpAMD64LEAQ)
+		v.AuxInt = off + scale*2
+		v.Aux = sym
+		v.AddArg(x)
+		return true
+	}
+	// match: (LEAQ2 [off] {sym} x (MOVLconst [scale]))
+	// cond: is32Bit(off+scale*2)
+	// result: (LEAQ [off+scale*2] {sym} x)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		x := v_0
+		if v_1.Op != OpAMD64MOVLconst {
+			break
+		}
+		scale := v_1.AuxInt
+		if !(is32Bit(off + scale*2)) {
+			break
+		}
+		v.reset(OpAMD64LEAQ)
+		v.AuxInt = off + scale*2
+		v.Aux = sym
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64LEAQ4(v *Value) bool {
@@ -9589,6 +9633,46 @@ func rewriteValueAMD64_OpAMD64LEAQ4(v *Value) bool {
 		v.AddArg2(x, y)
 		return true
 	}
+	// match: (LEAQ4 [off] {sym} x (MOVQconst [scale]))
+	// cond: is32Bit(off+scale*4)
+	// result: (LEAQ [off+scale*4] {sym} x)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		scale := v_1.AuxInt
+		if !(is32Bit(off + scale*4)) {
+			break
+		}
+		v.reset(OpAMD64LEAQ)
+		v.AuxInt = off + scale*4
+		v.Aux = sym
+		v.AddArg(x)
+		return true
+	}
+	// match: (LEAQ4 [off] {sym} x (MOVLconst [scale]))
+	// cond: is32Bit(off+scale*4)
+	// result: (LEAQ [off+scale*4] {sym} x)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		x := v_0
+		if v_1.Op != OpAMD64MOVLconst {
+			break
+		}
+		scale := v_1.AuxInt
+		if !(is32Bit(off + scale*4)) {
+			break
+		}
+		v.reset(OpAMD64LEAQ)
+		v.AuxInt = off + scale*4
+		v.Aux = sym
+		v.AddArg(x)
+		return true
+	}
 	return false
 }
 func rewriteValueAMD64_OpAMD64LEAQ8(v *Value) bool {
@@ -9656,6 +9740,46 @@ func rewriteValueAMD64_OpAMD64LEAQ8(v *Value) bool {
 		v.AuxInt = off1 + off2
 		v.Aux = mergeSym(sym1, sym2)
 		v.AddArg2(x, y)
+		return true
+	}
+	// match: (LEAQ8 [off] {sym} x (MOVQconst [scale]))
+	// cond: is32Bit(off+scale*8)
+	// result: (LEAQ [off+scale*8] {sym} x)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		x := v_0
+		if v_1.Op != OpAMD64MOVQconst {
+			break
+		}
+		scale := v_1.AuxInt
+		if !(is32Bit(off + scale*8)) {
+			break
+		}
+		v.reset(OpAMD64LEAQ)
+		v.AuxInt = off + scale*8
+		v.Aux = sym
+		v.AddArg(x)
+		return true
+	}
+	// match: (LEAQ8 [off] {sym} x (MOVLconst [scale]))
+	// cond: is32Bit(off+scale*8)
+	// result: (LEAQ [off+scale*8] {sym} x)
+	for {
+		off := v.AuxInt
+		sym := v.Aux
+		x := v_0
+		if v_1.Op != OpAMD64MOVLconst {
+			break
+		}
+		scale := v_1.AuxInt
+		if !(is32Bit(off + scale*8)) {
+			break
+		}
+		v.reset(OpAMD64LEAQ)
+		v.AuxInt = off + scale*8
+		v.Aux = sym
+		v.AddArg(x)
 		return true
 	}
 	return false
@@ -33030,6 +33154,44 @@ func rewriteValueAMD64_OpSlicemask(v *Value) bool {
 		v0 := b.NewValue0(v.Pos, OpAMD64NEGQ, t)
 		v0.AddArg(x)
 		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpSpectreIndex(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (SpectreIndex <t> x y)
+	// result: (CMOVQCC x (MOVQconst [0]) (CMPQ x y))
+	for {
+		x := v_0
+		y := v_1
+		v.reset(OpAMD64CMOVQCC)
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVQconst, typ.UInt64)
+		v0.AuxInt = 0
+		v1 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
+		v1.AddArg2(x, y)
+		v.AddArg3(x, v0, v1)
+		return true
+	}
+}
+func rewriteValueAMD64_OpSpectreSliceIndex(v *Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (SpectreSliceIndex <t> x y)
+	// result: (CMOVQHI x (MOVQconst [0]) (CMPQ x y))
+	for {
+		x := v_0
+		y := v_1
+		v.reset(OpAMD64CMOVQHI)
+		v0 := b.NewValue0(v.Pos, OpAMD64MOVQconst, typ.UInt64)
+		v0.AuxInt = 0
+		v1 := b.NewValue0(v.Pos, OpAMD64CMPQ, types.TypeFlags)
+		v1.AddArg2(x, y)
+		v.AddArg3(x, v0, v1)
 		return true
 	}
 }

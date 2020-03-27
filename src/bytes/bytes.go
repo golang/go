@@ -1100,11 +1100,11 @@ func Index(s, sep []byte) int {
 			if s[i] != c0 {
 				// IndexByte is faster than bytealg.Index, so use it as long as
 				// we're not getting lots of false positives.
-				o := IndexByte(s[i:t], c0)
+				o := IndexByte(s[i+1:t], c0)
 				if o < 0 {
 					return -1
 				}
-				i += o
+				i += o + 1
 			}
 			if s[i+1] == c1 && Equal(s[i:i+n], sep) {
 				return i
@@ -1129,11 +1129,11 @@ func Index(s, sep []byte) int {
 	t := len(s) - n + 1
 	for i < t {
 		if s[i] != c0 {
-			o := IndexByte(s[i:t], c0)
+			o := IndexByte(s[i+1:t], c0)
 			if o < 0 {
 				break
 			}
-			i += o
+			i += o + 1
 		}
 		if s[i+1] == c1 && Equal(s[i:i+n], sep) {
 			return i

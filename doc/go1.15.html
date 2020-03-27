@@ -86,6 +86,13 @@ TODO
       that reports the time at which the test binary will have exceeded its
       timeout.
     </p>
+    <p><!-- golang.org/issue/34129 -->
+      A <code>TestMain</code> function is no longer required to call
+      <code>os.Exit</code>. If a <code>TestMain</code> function returns,
+      the test binary will call <code>os.Exit</code> with the value returned
+      by <code>m.Run</code>.
+    </p>
+  </dd>
 </dl><!-- testing -->
 
 <h3 id="minor_library_changes">Minor changes to the library</h3>

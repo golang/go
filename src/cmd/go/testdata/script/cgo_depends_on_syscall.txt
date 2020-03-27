@@ -1,0 +1,11 @@
+[!cgo] skip
+[!race] skip
+
+go list -race -deps foo
+stdout syscall
+
+-- foo/foo.go --
+package foo
+
+// #include <stdio.h>
+import "C"

@@ -28,7 +28,7 @@ const (
 //go:cgo_import_dynamic runtime._GetEnvironmentStringsW GetEnvironmentStringsW%0 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetProcAddress GetProcAddress%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetProcessAffinityMask GetProcessAffinityMask%3 "kernel32.dll"
-//go:cgo_import_dynamic runtime._GetQueuedCompletionStatus GetQueuedCompletionStatus%5 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetQueuedCompletionStatusEx GetQueuedCompletionStatusEx%6 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetStdHandle GetStdHandle%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetSystemDirectoryA GetSystemDirectoryA%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetSystemInfo GetSystemInfo%1 "kernel32.dll"
@@ -75,7 +75,7 @@ var (
 	_GetEnvironmentStringsW,
 	_GetProcAddress,
 	_GetProcessAffinityMask,
-	_GetQueuedCompletionStatus,
+	_GetQueuedCompletionStatusEx,
 	_GetStdHandle,
 	_GetSystemDirectoryA,
 	_GetSystemInfo,
@@ -111,7 +111,6 @@ var (
 	// We will load syscalls, if available, before using them.
 	_AddDllDirectory,
 	_AddVectoredContinueHandler,
-	_GetQueuedCompletionStatusEx,
 	_LoadLibraryExA,
 	_LoadLibraryExW,
 	_ stdFunction
@@ -239,7 +238,6 @@ func loadOptionalSyscalls() {
 	}
 	_AddDllDirectory = windowsFindfunc(k32, []byte("AddDllDirectory\000"))
 	_AddVectoredContinueHandler = windowsFindfunc(k32, []byte("AddVectoredContinueHandler\000"))
-	_GetQueuedCompletionStatusEx = windowsFindfunc(k32, []byte("GetQueuedCompletionStatusEx\000"))
 	_LoadLibraryExA = windowsFindfunc(k32, []byte("LoadLibraryExA\000"))
 	_LoadLibraryExW = windowsFindfunc(k32, []byte("LoadLibraryExW\000"))
 	useLoadLibraryEx = (_LoadLibraryExW != nil && _LoadLibraryExA != nil && _AddDllDirectory != nil)
@@ -294,9 +292,7 @@ func loadOptionalSyscalls() {
 
 func monitorSuspendResume() {
 	const (
-		_DEVICE_NOTIFY_CALLBACK   = 2
-		_ERROR_FILE_NOT_FOUND     = 2
-		_ERROR_INVALID_PARAMETERS = 87
+		_DEVICE_NOTIFY_CALLBACK = 2
 	)
 	type _DEVICE_NOTIFY_SUBSCRIBE_PARAMETERS struct {
 		callback uintptr
@@ -323,25 +319,8 @@ func monitorSuspendResume() {
 		callback: compileCallback(*efaceOf(&fn), true),
 	}
 	handle := uintptr(0)
-	ret := stdcall3(powerRegisterSuspendResumeNotification, _DEVICE_NOTIFY_CALLBACK,
+	stdcall3(powerRegisterSuspendResumeNotification, _DEVICE_NOTIFY_CALLBACK,
 		uintptr(unsafe.Pointer(&params)), uintptr(unsafe.Pointer(&handle)))
-	// This function doesn't use GetLastError(), so we use the return value directly.
-	switch ret {
-	case 0:
-		return // Successful, nothing more to do.
-	case _ERROR_FILE_NOT_FOUND:
-		// Systems without access to the suspend/resume notifier
-		// also have their clock on "program time", and therefore
-		// don't want or need this anyway.
-		return
-	case _ERROR_INVALID_PARAMETERS:
-		// This is seen when running in Windows Docker.
-		// See issue 36557.
-		return
-	default:
-		println("runtime: PowerRegisterSuspendResumeNotification failed with errno=", ret)
-		throw("runtime: PowerRegisterSuspendResumeNotification failure")
-	}
 }
 
 //go:nosplit

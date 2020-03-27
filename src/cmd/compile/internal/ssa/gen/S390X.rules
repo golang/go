@@ -1220,6 +1220,12 @@
 (FSUB (FMUL y z) x) -> (FMSUB x y z)
 (FSUBS (FMULS y z) x) -> (FMSUBS x y z)
 
+// Convert floating point comparisons against zero into 'load and test' instructions.
+(FCMP x (FMOVDconst [c])) && auxTo64F(c) == 0 -> (LTDBR x)
+(FCMPS x (FMOVSconst [c])) && auxTo32F(c) == 0 -> (LTEBR x)
+(FCMP (FMOVDconst [c]) x) && auxTo64F(c) == 0 -> (InvertFlags (LTDBR <v.Type> x))
+(FCMPS (FMOVSconst [c]) x) && auxTo32F(c) == 0 -> (InvertFlags (LTEBR <v.Type> x))
+
 // Fold memory operations into operations.
 // Exclude global data (SB) because these instructions cannot handle relative addresses.
 // TODO(mundaym): use LARL in the assembler to handle SB?

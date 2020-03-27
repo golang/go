@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"testing"
 )
 
@@ -77,5 +78,54 @@ func TestNoRet(t *testing.T) {
 	cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Errorf("%v\n%s", err, out)
+	}
+}
+
+// TestPCALIGN verifies the correctness of the PCALIGN by checking if the
+// code can be aligned to the alignment value.
+func TestPCALIGN(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	dir, err := ioutil.TempDir("", "testpcalign")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	tmpfile := filepath.Join(dir, "test.s")
+	tmpout := filepath.Join(dir, "test.o")
+
+	code1 := []byte("TEXT ·foo(SB),$0-0\nMOVD $0, R0\nPCALIGN $8\nMOVD $1, R1\nRET\n")
+	code2 := []byte("TEXT ·foo(SB),$0-0\nMOVD $0, R0\nPCALIGN $16\nMOVD $2, R2\nRET\n")
+	// If the output contains this pattern, the pc-offsite of "MOVD $1, R1" is 8 bytes aligned.
+	out1 := `0x0008\s00008\s\(.*\)\tMOVD\t\$1,\sR1`
+	// If the output contains this pattern, the pc-offsite of "MOVD $2, R2" is 16 bytes aligned.
+	out2 := `0x0010\s00016\s\(.*\)\tMOVD\t\$2,\sR2`
+	var testCases = []struct {
+		name string
+		code []byte
+		out  string
+	}{
+		{"8-byte alignment", code1, out1},
+		{"16-byte alignment", code2, out2},
+	}
+
+	for _, test := range testCases {
+		if err := ioutil.WriteFile(tmpfile, test.code, 0644); err != nil {
+			t.Fatal(err)
+		}
+		cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", "-o", tmpout, tmpfile)
+		cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("The %s build failed: %v, output: %s", test.name, err, out)
+			continue
+		}
+
+		matched, err := regexp.MatchString(test.out, string(out))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !matched {
+			t.Errorf("The %s testing failed!\ninput: %s\noutput: %s\n", test.name, test.code, out)
+		}
 	}
 }

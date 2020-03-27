@@ -46,13 +46,12 @@ func jalrToSym(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc, lr int16) *ob
 
 	to := p.To
 
-	// This offset isn't really encoded with either instruction. It will be
-	// extracted for a relocation later.
 	p.As = AAUIPC
-	p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: to.Offset, Sym: to.Sym}
+	p.Mark |= NEED_PCREL_ITYPE_RELOC
+	p.RestArgs = []obj.Addr{obj.Addr{Type: obj.TYPE_CONST, Offset: to.Offset, Sym: to.Sym}}
+	p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
 	p.Reg = 0
 	p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-	p.Mark |= NEED_PCREL_ITYPE_RELOC
 	p = obj.Appendp(p, newprog)
 
 	// Leave Sym only for the CALL reloc in assemble.
@@ -124,27 +123,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	}
 
 	switch p.As {
-	case ALW, ALWU, ALH, ALHU, ALB, ALBU, ALD, AFLW, AFLD:
-		switch p.From.Type {
-		case obj.TYPE_MEM:
-			// Convert loads from memory/addresses to ternary form.
-			p.Reg = p.From.Reg
-			p.From.Type, p.From.Reg = obj.TYPE_CONST, obj.REG_NONE
-		default:
-			p.Ctxt.Diag("%v\tmemory required for source", p)
-		}
-
-	case ASW, ASH, ASB, ASD, AFSW, AFSD:
-		switch p.To.Type {
-		case obj.TYPE_MEM:
-			// Convert stores to memory/addresses to ternary form.
-			p.Reg = p.From.Reg
-			p.From.Type, p.From.Offset, p.From.Reg = obj.TYPE_CONST, p.To.Offset, obj.REG_NONE
-			p.To.Type, p.To.Offset = obj.TYPE_REG, 0
-		default:
-			p.Ctxt.Diag("%v\tmemory required for destination", p)
-		}
-
 	case obj.AJMP:
 		// Turn JMP into JAL ZERO or JALR ZERO.
 		// p.From is actually an _output_ for this instruction.
@@ -162,7 +140,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 			case obj.NAME_EXTERN:
 				// Handled in preprocess.
 			default:
-				ctxt.Diag("progedit: unsupported name %d for %v", p.To.Name, p)
+				ctxt.Diag("unsupported name %d for %v", p.To.Name, p)
 			}
 		default:
 			panic(fmt.Sprintf("unhandled type %+v", p.To.Type))
@@ -184,63 +162,16 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 	case AJALR:
 		lowerJALR(p)
 
-	case obj.AUNDEF, AECALL, AEBREAK, ASCALL, ASBREAK, ARDCYCLE, ARDTIME, ARDINSTRET:
-		switch p.As {
-		case obj.AUNDEF:
-			p.As = AEBREAK
-		case ASCALL:
-			// SCALL is the old name for ECALL.
-			p.As = AECALL
-		case ASBREAK:
-			// SBREAK is the old name for EBREAK.
-			p.As = AEBREAK
-		}
+	case obj.AUNDEF:
+		p.As = AEBREAK
 
-		ins := encode(p.As)
-		if ins == nil {
-			panic("progedit: tried to rewrite nonexistent instruction")
-		}
+	case ASCALL:
+		// SCALL is the old name for ECALL.
+		p.As = AECALL
 
-		// The CSR isn't exactly an offset, but it winds up in the
-		// immediate area of the encoded instruction, so record it in
-		// the Offset field.
-		p.From.Type = obj.TYPE_CONST
-		p.From.Offset = ins.csr
-		p.Reg = REG_ZERO
-		if p.To.Type == obj.TYPE_NONE {
-			p.To.Type, p.To.Reg = obj.TYPE_REG, REG_ZERO
-		}
-
-	case AFSQRTS, AFSQRTD:
-		// These instructions expect a zero (i.e. float register 0)
-		// to be the second input operand.
-		p.Reg = p.From.Reg
-		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_F0}
-
-	case AFCVTWS, AFCVTLS, AFCVTWUS, AFCVTLUS, AFCVTWD, AFCVTLD, AFCVTWUD, AFCVTLUD:
-		// Set the rounding mode in funct3 to round to zero.
-		p.Scond = 1
-
-	case ASEQZ:
-		// SEQZ rs, rd -> SLTIU $1, rs, rd
-		p.As = ASLTIU
-		p.Reg = p.From.Reg
-		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 1}
-
-	case ASNEZ:
-		// SNEZ rs, rd -> SLTU rs, x0, rd
-		p.As = ASLTU
-		p.Reg = REG_ZERO
-
-	case AFNEGS:
-		// FNEGS rs, rd -> FSGNJNS rs, rs, rd
-		p.As = AFSGNJNS
-		p.Reg = p.From.Reg
-
-	case AFNEGD:
-		// FNEGD rs, rd -> FSGNJND rs, rs, rd
-		p.As = AFSGNJND
-		p.Reg = p.From.Reg
+	case ASBREAK:
+		// SBREAK is the old name for EBREAK.
+		p.As = AEBREAK
 	}
 }
 
@@ -315,8 +246,7 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 				ctxt.Diag("unsupported load at %v", p)
 			}
 			p.As = movToLoad(p.As)
-			p.Reg = addrToReg(p.From)
-			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset}
+			p.From.Reg = addrToReg(p.From)
 
 		case obj.NAME_EXTERN, obj.NAME_STATIC:
 			// AUIPC $off_hi, R
@@ -324,18 +254,16 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 			as := p.As
 			to := p.To
 
-			// The offset is not really encoded with either instruction.
-			// It will be extracted later for a relocation.
 			p.As = AAUIPC
-			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym}
+			p.Mark |= NEED_PCREL_ITYPE_RELOC
+			p.RestArgs = []obj.Addr{obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym}}
+			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
 			p.Reg = 0
 			p.To = obj.Addr{Type: obj.TYPE_REG, Reg: to.Reg}
-			p.Mark |= NEED_PCREL_ITYPE_RELOC
 			p = obj.Appendp(p, newprog)
 
 			p.As = movToLoad(as)
-			p.From = obj.Addr{Type: obj.TYPE_CONST}
-			p.Reg = to.Reg
+			p.From = obj.Addr{Type: obj.TYPE_MEM, Reg: to.Reg, Offset: 0}
 			p.To = to
 
 		default:
@@ -370,14 +298,8 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 			}
 			switch p.To.Name {
 			case obj.NAME_AUTO, obj.NAME_PARAM, obj.NAME_NONE:
-				// The destination address goes in p.From and p.To here,
-				// with the offset in p.From and the register in p.To.
-				// The source register goes in Reg.
 				p.As = movToStore(p.As)
-				p.Reg = p.From.Reg
-				p.From = p.To
-				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset}
-				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: addrToReg(p.To)}
+				p.To.Reg = addrToReg(p.To)
 
 			case obj.NAME_EXTERN:
 				// AUIPC $off_hi, TMP
@@ -385,19 +307,17 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 				as := p.As
 				from := p.From
 
-				// The offset is not really encoded with either instruction.
-				// It will be extracted later for a relocation.
 				p.As = AAUIPC
-				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: p.To.Offset, Sym: p.To.Sym}
+				p.Mark |= NEED_PCREL_STYPE_RELOC
+				p.RestArgs = []obj.Addr{obj.Addr{Type: obj.TYPE_CONST, Offset: p.To.Offset, Sym: p.To.Sym}}
+				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
 				p.Reg = 0
 				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-				p.Mark |= NEED_PCREL_STYPE_RELOC
 				p = obj.Appendp(p, newprog)
 
 				p.As = movToStore(as)
-				p.From = obj.Addr{Type: obj.TYPE_CONST}
-				p.Reg = from.Reg
-				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+				p.From = from
+				p.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_TMP, Offset: 0}
 
 			default:
 				ctxt.Diag("unsupported name %d for %v", p.From.Name, p)
@@ -452,13 +372,12 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 			// ADDI $off_lo, R
 			to := p.To
 
-			// The offset is not really encoded with either instruction.
-			// It will be extracted later for a relocation.
 			p.As = AAUIPC
-			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym}
+			p.Mark |= NEED_PCREL_ITYPE_RELOC
+			p.RestArgs = []obj.Addr{obj.Addr{Type: obj.TYPE_CONST, Offset: p.From.Offset, Sym: p.From.Sym}}
+			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: 0}
 			p.Reg = 0
 			p.To = to
-			p.Mark |= NEED_PCREL_ITYPE_RELOC
 			p = obj.Appendp(p, newprog)
 
 			p.As = AADDI
@@ -529,7 +448,9 @@ func containsCall(sym *obj.LSym) bool {
 func setPCs(p *obj.Prog, pc int64) {
 	for ; p != nil; p = p.Link {
 		p.Pc = pc
-		pc += int64(encodingForProg(p).length)
+		for _, ins := range instructionsForProg(p) {
+			pc += int64(ins.length())
+		}
 	}
 }
 
@@ -804,37 +725,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			// count adjustments from earlier epilogues, since they
 			// won't affect later PCs.
 			p.Spadj = int32(stacksize)
-
-		// Replace FNE[SD] with FEQ[SD] and NOT.
-		case AFNES:
-			if p.To.Type != obj.TYPE_REG {
-				ctxt.Diag("progedit: FNES needs an integer register output")
-			}
-			dst := p.To.Reg
-			p.As = AFEQS
-			p = obj.Appendp(p, newprog)
-
-			p.As = AXORI // [bit] xor 1 = not [bit]
-			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = 1
-			p.Reg = dst
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = dst
-
-		case AFNED:
-			if p.To.Type != obj.TYPE_REG {
-				ctxt.Diag("progedit: FNED needs an integer register output")
-			}
-			dst := p.To.Reg
-			p.As = AFEQD
-			p = obj.Appendp(p, newprog)
-
-			p.As = AXORI // [bit] xor 1 = not [bit]
-			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = 1
-			p.Reg = dst
-			p.To.Type = obj.TYPE_REG
-			p.To.Reg = dst
 		}
 	}
 
@@ -888,7 +778,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			case AXORI:
 				p.As = AXOR
 			default:
-				ctxt.Diag("progedit: unsupported inst %v for splitting", q)
+				ctxt.Diag("unsupported instruction %v for splitting", q)
 			}
 			p.Spadj = q.Spadj
 			p.To = q.To
@@ -896,8 +786,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
 
 		// <load> $imm, REG, TO (load $imm+(REG), TO)
-		// <store> $imm, REG, TO (store $imm+(TO), REG)
-		case ALB, ALH, ALW, ALD, ALBU, ALHU, ALWU, AFLW, AFLD, ASB, ASH, ASW, ASD, AFSW, AFSD:
+		case ALD, ALB, ALH, ALW, ALBU, ALHU, ALWU, AFLW, AFLD:
 			low, high, err := Split32BitImmediate(p.From.Offset)
 			if err != nil {
 				ctxt.Diag("%v: constant %d too large", p, p.From.Offset)
@@ -905,53 +794,59 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if high == 0 {
 				break // no need to split
 			}
-
 			q := *p
-			switch q.As {
-			case ALB, ALH, ALW, ALD, ALBU, ALHU, ALWU, AFLW, AFLD:
-				// LUI $high, TMP
-				// ADD TMP, REG, TMP
-				// <load> $low, TMP, TO
-				p.As = ALUI
-				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high}
-				p.Reg = 0
-				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-				p.Spadj = 0 // needed if TO is SP
-				p = obj.Appendp(p, newprog)
 
-				p.As = AADD
-				p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-				p.Reg = q.Reg
-				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-				p = obj.Appendp(p, newprog)
+			// LUI $high, TMP
+			// ADD TMP, REG, TMP
+			// <load> $low, TMP, TO
+			p.As = ALUI
+			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high}
+			p.Reg = 0
+			p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+			p.Spadj = 0 // needed if TO is SP
+			p = obj.Appendp(p, newprog)
 
-				p.As = q.As
-				p.To = q.To
-				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: low}
-				p.Reg = REG_TMP
+			p.As = AADD
+			p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+			p.Reg = q.From.Reg
+			p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+			p = obj.Appendp(p, newprog)
 
-			case ASB, ASH, ASW, ASD, AFSW, AFSD:
-				// LUI $high, TMP
-				// ADD TMP, TO, TMP
-				// <store> $low, REG, TMP
-				p.As = ALUI
-				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high}
-				p.Reg = 0
-				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-				p.Spadj = 0 // needed if TO is SP
-				p = obj.Appendp(p, newprog)
+			p.As = q.As
+			p.To = q.To
+			p.From = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_TMP, Offset: low}
+			p.Reg = obj.REG_NONE
 
-				p.As = AADD
-				p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-				p.Reg = q.To.Reg
-				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-				p = obj.Appendp(p, newprog)
-
-				p.As = q.As
-				p.Reg = q.Reg
-				p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
-				p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: low}
+		// <store> $imm, REG, TO (store $imm+(TO), REG)
+		case ASD, ASB, ASH, ASW, AFSW, AFSD:
+			low, high, err := Split32BitImmediate(p.To.Offset)
+			if err != nil {
+				ctxt.Diag("%v: constant %d too large", p, p.To.Offset)
 			}
+			if high == 0 {
+				break // no need to split
+			}
+			q := *p
+
+			// LUI $high, TMP
+			// ADD TMP, TO, TMP
+			// <store> $low, REG, TMP
+			p.As = ALUI
+			p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: high}
+			p.Reg = 0
+			p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+			p.Spadj = 0 // needed if TO is SP
+			p = obj.Appendp(p, newprog)
+
+			p.As = AADD
+			p.From = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+			p.Reg = q.To.Reg
+			p.To = obj.Addr{Type: obj.TYPE_REG, Reg: REG_TMP}
+			p = obj.Appendp(p, newprog)
+
+			p.As = q.As
+			p.From = obj.Addr{Type: obj.TYPE_REG, Reg: q.From.Reg, Offset: 0}
+			p.To = obj.Addr{Type: obj.TYPE_MEM, Reg: REG_TMP, Offset: low}
 		}
 	}
 
@@ -1044,7 +939,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	// Validate all instructions - this provides nice error messages.
 	for p := cursym.Func.Text; p != nil; p = p.Link {
-		encodingForProg(p).validate(p)
+		for _, ins := range instructionsForProg(p) {
+			ins.validate(ctxt)
+		}
 	}
 }
 
@@ -1234,29 +1131,29 @@ func Split32BitImmediate(imm int64) (low, high int64, err error) {
 	return low, high, nil
 }
 
-func regVal(r, min, max int16) uint32 {
+func regVal(r, min, max uint32) uint32 {
 	if r < min || r > max {
 		panic(fmt.Sprintf("register out of range, want %d < %d < %d", min, r, max))
 	}
-	return uint32(r - min)
+	return r - min
 }
 
 // regI returns an integer register.
-func regI(r int16) uint32 {
+func regI(r uint32) uint32 {
 	return regVal(r, REG_X0, REG_X31)
 }
 
 // regF returns a float register.
-func regF(r int16) uint32 {
+func regF(r uint32) uint32 {
 	return regVal(r, REG_F0, REG_F31)
 }
 
 // regAddr extracts a register from an Addr.
-func regAddr(a obj.Addr, min, max int16) uint32 {
+func regAddr(a obj.Addr, min, max uint32) uint32 {
 	if a.Type != obj.TYPE_REG {
 		panic(fmt.Sprintf("ill typed: %+v", a))
 	}
-	return regVal(a.Reg, min, max)
+	return regVal(uint32(a.Reg), min, max)
 }
 
 // regIAddr extracts the integer register from an Addr.
@@ -1278,301 +1175,264 @@ func immIFits(x int64, nbits uint) bool {
 	return min <= x && x <= max
 }
 
-// immI extracts the signed integer literal of the specified size from an Addr.
-func immI(a obj.Addr, nbits uint) uint32 {
-	if a.Type != obj.TYPE_CONST {
-		panic(fmt.Sprintf("ill typed: %+v", a))
+// immI extracts the signed integer of the specified size from an immediate.
+func immI(as obj.As, imm int64, nbits uint) uint32 {
+	if !immIFits(imm, nbits) {
+		panic(fmt.Sprintf("%v\tsigned immediate %d cannot fit in %d bits", as, imm, nbits))
 	}
-	if !immIFits(a.Offset, nbits) {
-		panic(fmt.Sprintf("signed immediate %d in %v cannot fit in %d bits", a.Offset, a, nbits))
-	}
-	return uint32(a.Offset)
+	return uint32(imm)
 }
 
-func wantImmI(p *obj.Prog, pos string, a obj.Addr, nbits uint) {
-	if a.Type != obj.TYPE_CONST {
-		p.Ctxt.Diag("%v\texpected immediate in %s position but got %s", p, pos, obj.Dconv(p, &a))
-		return
-	}
-	if !immIFits(a.Offset, nbits) {
-		p.Ctxt.Diag("%v\tsigned immediate in %s position cannot be larger than %d bits but got %d", p, pos, nbits, a.Offset)
+func wantImmI(ctxt *obj.Link, as obj.As, imm int64, nbits uint) {
+	if !immIFits(imm, nbits) {
+		ctxt.Diag("%v\tsigned immediate cannot be larger than %d bits but got %d", as, nbits, imm)
 	}
 }
 
-func wantReg(p *obj.Prog, pos string, descr string, r, min, max int16) {
+func wantReg(ctxt *obj.Link, as obj.As, pos string, descr string, r, min, max uint32) {
 	if r < min || r > max {
-		p.Ctxt.Diag("%v\texpected %s register in %s position but got non-%s register %s", p, descr, pos, descr, RegName(int(r)))
+		var suffix string
+		if r != obj.REG_NONE {
+			suffix = fmt.Sprintf(" but got non-%s register %s", descr, RegName(int(r)))
+		}
+		ctxt.Diag("%v\texpected %s register in %s position%s", as, descr, pos, suffix)
+	}
+}
+
+func wantNoneReg(ctxt *obj.Link, as obj.As, pos string, r uint32) {
+	if r != obj.REG_NONE {
+		ctxt.Diag("%v\texpected no register in %s but got register %s", as, pos, RegName(int(r)))
 	}
 }
 
 // wantIntReg checks that r is an integer register.
-func wantIntReg(p *obj.Prog, pos string, r int16) {
-	wantReg(p, pos, "integer", r, REG_X0, REG_X31)
+func wantIntReg(ctxt *obj.Link, as obj.As, pos string, r uint32) {
+	wantReg(ctxt, as, pos, "integer", r, REG_X0, REG_X31)
 }
 
 // wantFloatReg checks that r is a floating-point register.
-func wantFloatReg(p *obj.Prog, pos string, r int16) {
-	wantReg(p, pos, "float", r, REG_F0, REG_F31)
+func wantFloatReg(ctxt *obj.Link, as obj.As, pos string, r uint32) {
+	wantReg(ctxt, as, pos, "float", r, REG_F0, REG_F31)
 }
 
-func wantRegAddr(p *obj.Prog, pos string, a *obj.Addr, descr string, min int16, max int16) {
-	if a == nil {
-		p.Ctxt.Diag("%v\texpected register in %s position but got nothing", p, pos)
-		return
-	}
-	if a.Type != obj.TYPE_REG {
-		p.Ctxt.Diag("%v\texpected register in %s position but got %s", p, pos, obj.Dconv(p, a))
-		return
-	}
-	if a.Reg < min || a.Reg > max {
-		p.Ctxt.Diag("%v\texpected %s register in %s position but got non-%s register %s", p, descr, pos, descr, obj.Dconv(p, a))
+// wantEvenOffset checks that the offset is a multiple of two.
+func wantEvenOffset(ctxt *obj.Link, as obj.As, offset int64) {
+	if offset%1 != 0 {
+		ctxt.Diag("%v\tjump offset %v must be even", as, offset)
 	}
 }
 
-// wantIntRegAddr checks that a contains an integer register.
-func wantIntRegAddr(p *obj.Prog, pos string, a *obj.Addr) {
-	wantRegAddr(p, pos, a, "integer", REG_X0, REG_X31)
+func validateRIII(ctxt *obj.Link, ins *instruction) {
+	wantIntReg(ctxt, ins.as, "rd", ins.rd)
+	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
+	wantIntReg(ctxt, ins.as, "rs2", ins.rs2)
 }
 
-// wantFloatRegAddr checks that a contains a floating-point register.
-func wantFloatRegAddr(p *obj.Prog, pos string, a *obj.Addr) {
-	wantRegAddr(p, pos, a, "float", REG_F0, REG_F31)
+func validateRFFF(ctxt *obj.Link, ins *instruction) {
+	wantFloatReg(ctxt, ins.as, "rd", ins.rd)
+	wantFloatReg(ctxt, ins.as, "rs1", ins.rs1)
+	wantFloatReg(ctxt, ins.as, "rs2", ins.rs2)
 }
 
-// wantEvenJumpOffset checks that the jump offset is a multiple of two.
-func wantEvenJumpOffset(p *obj.Prog) {
-	if p.To.Offset%1 != 0 {
-		p.Ctxt.Diag("%v\tjump offset %v must be even", p, obj.Dconv(p, &p.To))
-	}
+func validateRFFI(ctxt *obj.Link, ins *instruction) {
+	wantIntReg(ctxt, ins.as, "rd", ins.rd)
+	wantFloatReg(ctxt, ins.as, "rs1", ins.rs1)
+	wantFloatReg(ctxt, ins.as, "rs2", ins.rs2)
 }
 
-func validateRIII(p *obj.Prog) {
-	wantIntRegAddr(p, "from", &p.From)
-	wantIntReg(p, "reg", p.Reg)
-	wantIntRegAddr(p, "to", &p.To)
+func validateRFI(ctxt *obj.Link, ins *instruction) {
+	wantIntReg(ctxt, ins.as, "rd", ins.rd)
+	wantNoneReg(ctxt, ins.as, "rs1", ins.rs1)
+	wantFloatReg(ctxt, ins.as, "rs2", ins.rs2)
 }
 
-func validateRFFF(p *obj.Prog) {
-	wantFloatRegAddr(p, "from", &p.From)
-	wantFloatReg(p, "reg", p.Reg)
-	wantFloatRegAddr(p, "to", &p.To)
+func validateRIF(ctxt *obj.Link, ins *instruction) {
+	wantFloatReg(ctxt, ins.as, "rd", ins.rd)
+	wantNoneReg(ctxt, ins.as, "rs1", ins.rs1)
+	wantIntReg(ctxt, ins.as, "rs2", ins.rs2)
 }
 
-func validateRFFI(p *obj.Prog) {
-	wantFloatRegAddr(p, "from", &p.From)
-	wantFloatReg(p, "reg", p.Reg)
-	wantIntRegAddr(p, "to", &p.To)
+func validateRFF(ctxt *obj.Link, ins *instruction) {
+	wantFloatReg(ctxt, ins.as, "rd", ins.rd)
+	wantNoneReg(ctxt, ins.as, "rs1", ins.rs1)
+	wantFloatReg(ctxt, ins.as, "rs2", ins.rs2)
 }
 
-func validateRFI(p *obj.Prog) {
-	wantFloatRegAddr(p, "from", &p.From)
-	wantIntRegAddr(p, "to", &p.To)
+func validateII(ctxt *obj.Link, ins *instruction) {
+	wantImmI(ctxt, ins.as, ins.imm, 12)
+	wantIntReg(ctxt, ins.as, "rd", ins.rd)
+	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
 }
 
-func validateRIF(p *obj.Prog) {
-	wantIntRegAddr(p, "from", &p.From)
-	wantFloatRegAddr(p, "to", &p.To)
+func validateIF(ctxt *obj.Link, ins *instruction) {
+	wantImmI(ctxt, ins.as, ins.imm, 12)
+	wantFloatReg(ctxt, ins.as, "rd", ins.rd)
+	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
 }
 
-func validateRFF(p *obj.Prog) {
-	wantFloatRegAddr(p, "from", &p.From)
-	wantFloatRegAddr(p, "to", &p.To)
+func validateSI(ctxt *obj.Link, ins *instruction) {
+	wantImmI(ctxt, ins.as, ins.imm, 12)
+	wantIntReg(ctxt, ins.as, "rd", ins.rd)
+	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
 }
 
-func validateII(p *obj.Prog) {
-	wantImmI(p, "from", p.From, 12)
-	wantIntReg(p, "reg", p.Reg)
-	wantIntRegAddr(p, "to", &p.To)
+func validateSF(ctxt *obj.Link, ins *instruction) {
+	wantImmI(ctxt, ins.as, ins.imm, 12)
+	wantIntReg(ctxt, ins.as, "rd", ins.rd)
+	wantFloatReg(ctxt, ins.as, "rs1", ins.rs1)
 }
 
-func validateIF(p *obj.Prog) {
-	wantImmI(p, "from", p.From, 12)
-	wantIntReg(p, "reg", p.Reg)
-	wantFloatRegAddr(p, "to", &p.To)
-}
-
-func validateSI(p *obj.Prog) {
-	wantImmI(p, "from", p.From, 12)
-	wantIntReg(p, "reg", p.Reg)
-	wantIntRegAddr(p, "to", &p.To)
-}
-
-func validateSF(p *obj.Prog) {
-	wantImmI(p, "from", p.From, 12)
-	wantFloatReg(p, "reg", p.Reg)
-	wantIntRegAddr(p, "to", &p.To)
-}
-
-func validateB(p *obj.Prog) {
+func validateB(ctxt *obj.Link, ins *instruction) {
 	// Offsets are multiples of two, so accept 13 bit immediates for the
 	// 12 bit slot. We implicitly drop the least significant bit in encodeB.
-	wantEvenJumpOffset(p)
-	wantImmI(p, "to", p.To, 13)
-	wantIntReg(p, "reg", p.Reg)
-	wantIntRegAddr(p, "from", &p.From)
+	wantEvenOffset(ctxt, ins.as, ins.imm)
+	wantImmI(ctxt, ins.as, ins.imm, 13)
+	wantNoneReg(ctxt, ins.as, "rd", ins.rd)
+	wantIntReg(ctxt, ins.as, "rs1", ins.rs1)
+	wantIntReg(ctxt, ins.as, "rs2", ins.rs2)
 }
 
-func validateU(p *obj.Prog) {
-	if p.As == AAUIPC && p.Mark&(NEED_PCREL_ITYPE_RELOC|NEED_PCREL_STYPE_RELOC) != 0 {
-		// TODO(sorear): Hack.  The Offset is being used here to temporarily
-		// store the relocation addend, not as an actual offset to assemble,
-		// so it's OK for it to be out of range.  Is there a more valid way
-		// to represent this state?
-		return
-	}
-	wantImmI(p, "from", p.From, 20)
-	wantIntRegAddr(p, "to", &p.To)
+func validateU(ctxt *obj.Link, ins *instruction) {
+	wantImmI(ctxt, ins.as, ins.imm, 20)
+	wantIntReg(ctxt, ins.as, "rd", ins.rd)
+	wantNoneReg(ctxt, ins.as, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins.as, "rs2", ins.rs2)
 }
 
-func validateJ(p *obj.Prog) {
+func validateJ(ctxt *obj.Link, ins *instruction) {
 	// Offsets are multiples of two, so accept 21 bit immediates for the
 	// 20 bit slot. We implicitly drop the least significant bit in encodeJ.
-	wantEvenJumpOffset(p)
-	wantImmI(p, "to", p.To, 21)
-	wantIntRegAddr(p, "from", &p.From)
+	wantEvenOffset(ctxt, ins.as, ins.imm)
+	wantImmI(ctxt, ins.as, ins.imm, 21)
+	wantIntReg(ctxt, ins.as, "rd", ins.rd)
+	wantNoneReg(ctxt, ins.as, "rs1", ins.rs1)
+	wantNoneReg(ctxt, ins.as, "rs2", ins.rs2)
 }
 
-func validateRaw(p *obj.Prog) {
+func validateRaw(ctxt *obj.Link, ins *instruction) {
 	// Treat the raw value specially as a 32-bit unsigned integer.
 	// Nobody wants to enter negative machine code.
-	a := p.From
-	if a.Type != obj.TYPE_CONST {
-		p.Ctxt.Diag("%v\texpected immediate in raw position but got %s", p, obj.Dconv(p, &a))
-		return
-	}
-	if a.Offset < 0 || 1<<32 <= a.Offset {
-		p.Ctxt.Diag("%v\timmediate in raw position cannot be larger than 32 bits but got %d", p, a.Offset)
+	if ins.imm < 0 || 1<<32 <= ins.imm {
+		ctxt.Diag("%v\timmediate in raw position cannot be larger than 32 bits but got %d", ins.as, ins.imm)
 	}
 }
 
 // encodeR encodes an R-type RISC-V instruction.
-func encodeR(p *obj.Prog, rs1 uint32, rs2 uint32, rd uint32) uint32 {
-	ins := encode(p.As)
-	if ins == nil {
+func encodeR(as obj.As, rs1, rs2, rd, funct3, funct7 uint32) uint32 {
+	enc := encode(as)
+	if enc == nil {
 		panic("encodeR: could not encode instruction")
 	}
-	if ins.rs2 != 0 && rs2 != 0 {
+	if enc.rs2 != 0 && rs2 != 0 {
 		panic("encodeR: instruction uses rs2, but rs2 was nonzero")
 	}
-
-	// Use Scond for the floating-point rounding mode override.
-	// TODO(sorear): Is there a more appropriate way to handle opcode extension bits like this?
-	return ins.funct7<<25 | ins.rs2<<20 | rs2<<20 | rs1<<15 | ins.funct3<<12 | uint32(p.Scond)<<12 | rd<<7 | ins.opcode
+	return funct7<<25 | enc.funct7<<25 | enc.rs2<<20 | rs2<<20 | rs1<<15 | enc.funct3<<12 | funct3<<12 | rd<<7 | enc.opcode
 }
 
-func encodeRIII(p *obj.Prog) uint32 {
-	return encodeR(p, regI(p.Reg), regIAddr(p.From), regIAddr(p.To))
+func encodeRIII(ins *instruction) uint32 {
+	return encodeR(ins.as, regI(ins.rs1), regI(ins.rs2), regI(ins.rd), ins.funct3, ins.funct7)
 }
 
-func encodeRFFF(p *obj.Prog) uint32 {
-	return encodeR(p, regF(p.Reg), regFAddr(p.From), regFAddr(p.To))
+func encodeRFFF(ins *instruction) uint32 {
+	return encodeR(ins.as, regF(ins.rs1), regF(ins.rs2), regF(ins.rd), ins.funct3, ins.funct7)
 }
 
-func encodeRFFI(p *obj.Prog) uint32 {
-	return encodeR(p, regF(p.Reg), regFAddr(p.From), regIAddr(p.To))
+func encodeRFFI(ins *instruction) uint32 {
+	return encodeR(ins.as, regF(ins.rs1), regF(ins.rs2), regI(ins.rd), ins.funct3, ins.funct7)
 }
 
-func encodeRFI(p *obj.Prog) uint32 {
-	return encodeR(p, regFAddr(p.From), 0, regIAddr(p.To))
+func encodeRFI(ins *instruction) uint32 {
+	return encodeR(ins.as, regF(ins.rs2), 0, regI(ins.rd), ins.funct3, ins.funct7)
 }
 
-func encodeRIF(p *obj.Prog) uint32 {
-	return encodeR(p, regIAddr(p.From), 0, regFAddr(p.To))
+func encodeRIF(ins *instruction) uint32 {
+	return encodeR(ins.as, regI(ins.rs2), 0, regF(ins.rd), ins.funct3, ins.funct7)
 }
 
-func encodeRFF(p *obj.Prog) uint32 {
-	return encodeR(p, regFAddr(p.From), 0, regFAddr(p.To))
+func encodeRFF(ins *instruction) uint32 {
+	return encodeR(ins.as, regF(ins.rs2), 0, regF(ins.rd), ins.funct3, ins.funct7)
 }
 
 // encodeI encodes an I-type RISC-V instruction.
-func encodeI(p *obj.Prog, rd uint32) uint32 {
-	imm := immI(p.From, 12)
-	rs1 := regI(p.Reg)
-	ins := encode(p.As)
-	if ins == nil {
+func encodeI(as obj.As, rs1, rd, imm uint32) uint32 {
+	enc := encode(as)
+	if enc == nil {
 		panic("encodeI: could not encode instruction")
 	}
-	imm |= uint32(ins.csr)
-	return imm<<20 | rs1<<15 | ins.funct3<<12 | rd<<7 | ins.opcode
+	imm |= uint32(enc.csr)
+	return imm<<20 | rs1<<15 | enc.funct3<<12 | rd<<7 | enc.opcode
 }
 
-func encodeII(p *obj.Prog) uint32 {
-	return encodeI(p, regIAddr(p.To))
+func encodeII(ins *instruction) uint32 {
+	return encodeI(ins.as, regI(ins.rs1), regI(ins.rd), uint32(ins.imm))
 }
 
-func encodeIF(p *obj.Prog) uint32 {
-	return encodeI(p, regFAddr(p.To))
+func encodeIF(ins *instruction) uint32 {
+	return encodeI(ins.as, regI(ins.rs1), regF(ins.rd), uint32(ins.imm))
 }
 
 // encodeS encodes an S-type RISC-V instruction.
-func encodeS(p *obj.Prog, rs2 uint32) uint32 {
-	imm := immI(p.From, 12)
-	rs1 := regIAddr(p.To)
-	ins := encode(p.As)
-	if ins == nil {
+func encodeS(as obj.As, rs1, rs2, imm uint32) uint32 {
+	enc := encode(as)
+	if enc == nil {
 		panic("encodeS: could not encode instruction")
 	}
-	return (imm>>5)<<25 | rs2<<20 | rs1<<15 | ins.funct3<<12 | (imm&0x1f)<<7 | ins.opcode
+	return (imm>>5)<<25 | rs2<<20 | rs1<<15 | enc.funct3<<12 | (imm&0x1f)<<7 | enc.opcode
 }
 
-func encodeSI(p *obj.Prog) uint32 {
-	return encodeS(p, regI(p.Reg))
+func encodeSI(ins *instruction) uint32 {
+	return encodeS(ins.as, regI(ins.rd), regI(ins.rs1), uint32(ins.imm))
 }
 
-func encodeSF(p *obj.Prog) uint32 {
-	return encodeS(p, regF(p.Reg))
+func encodeSF(ins *instruction) uint32 {
+	return encodeS(ins.as, regI(ins.rd), regF(ins.rs1), uint32(ins.imm))
 }
 
 // encodeB encodes a B-type RISC-V instruction.
-func encodeB(p *obj.Prog) uint32 {
-	imm := immI(p.To, 13)
-	rs2 := regI(p.Reg)
-	rs1 := regIAddr(p.From)
-	ins := encode(p.As)
-	if ins == nil {
+func encodeB(ins *instruction) uint32 {
+	imm := immI(ins.as, ins.imm, 13)
+	rs2 := regI(ins.rs1)
+	rs1 := regI(ins.rs2)
+	enc := encode(ins.as)
+	if enc == nil {
 		panic("encodeB: could not encode instruction")
 	}
-	return (imm>>12)<<31 | ((imm>>5)&0x3f)<<25 | rs2<<20 | rs1<<15 | ins.funct3<<12 | ((imm>>1)&0xf)<<8 | ((imm>>11)&0x1)<<7 | ins.opcode
+	return (imm>>12)<<31 | ((imm>>5)&0x3f)<<25 | rs2<<20 | rs1<<15 | enc.funct3<<12 | ((imm>>1)&0xf)<<8 | ((imm>>11)&0x1)<<7 | enc.opcode
 }
 
 // encodeU encodes a U-type RISC-V instruction.
-func encodeU(p *obj.Prog) uint32 {
+func encodeU(ins *instruction) uint32 {
 	// The immediates for encodeU are the upper 20 bits of a 32 bit value.
 	// Rather than have the user/compiler generate a 32 bit constant, the
 	// bottommost bits of which must all be zero, instead accept just the
 	// top bits.
-	imm := immI(p.From, 20)
-	rd := regIAddr(p.To)
-	ins := encode(p.As)
-	if ins == nil {
+	imm := immI(ins.as, ins.imm, 20)
+	rd := regI(ins.rd)
+	enc := encode(ins.as)
+	if enc == nil {
 		panic("encodeU: could not encode instruction")
 	}
-	return imm<<12 | rd<<7 | ins.opcode
+	return imm<<12 | rd<<7 | enc.opcode
 }
 
 // encodeJ encodes a J-type RISC-V instruction.
-func encodeJ(p *obj.Prog) uint32 {
-	imm := immI(p.To, 21)
-	rd := regIAddr(p.From)
-	ins := encode(p.As)
-	if ins == nil {
+func encodeJ(ins *instruction) uint32 {
+	imm := immI(ins.as, ins.imm, 21)
+	rd := regI(ins.rd)
+	enc := encode(ins.as)
+	if enc == nil {
 		panic("encodeJ: could not encode instruction")
 	}
-	return (imm>>20)<<31 | ((imm>>1)&0x3ff)<<21 | ((imm>>11)&0x1)<<20 | ((imm>>12)&0xff)<<12 | rd<<7 | ins.opcode
+	return (imm>>20)<<31 | ((imm>>1)&0x3ff)<<21 | ((imm>>11)&0x1)<<20 | ((imm>>12)&0xff)<<12 | rd<<7 | enc.opcode
 }
 
-// encodeRaw encodes a raw instruction value.
-func encodeRaw(p *obj.Prog) uint32 {
+func encodeRawIns(ins *instruction) uint32 {
 	// Treat the raw value specially as a 32-bit unsigned integer.
 	// Nobody wants to enter negative machine code.
-	a := p.From
-	if a.Type != obj.TYPE_CONST {
-		panic(fmt.Sprintf("ill typed: %+v", a))
+	if ins.imm < 0 || 1<<32 <= ins.imm {
+		panic(fmt.Sprintf("immediate %d cannot fit in 32 bits", ins.imm))
 	}
-	if a.Offset < 0 || 1<<32 <= a.Offset {
-		panic(fmt.Sprintf("immediate %d in %v cannot fit in 32 bits", a.Offset, a))
-	}
-	return uint32(a.Offset)
+	return uint32(ins.imm)
 }
 
 func EncodeIImmediate(imm int64) (int64, error) {
@@ -1597,9 +1457,9 @@ func EncodeUImmediate(imm int64) (int64, error) {
 }
 
 type encoding struct {
-	encode   func(*obj.Prog) uint32 // encode returns the machine code for an *obj.Prog
-	validate func(*obj.Prog)        // validate validates an *obj.Prog, calling ctxt.Diag for any issues
-	length   int                    // length of encoded instruction; 0 for pseudo-ops, 4 otherwise
+	encode   func(*instruction) uint32     // encode returns the machine code for an instruction
+	validate func(*obj.Link, *instruction) // validate validates an instruction
+	length   int                           // length of encoded instruction; 0 for pseudo-ops, 4 otherwise
 }
 
 var (
@@ -1632,19 +1492,19 @@ var (
 	jEncoding = encoding{encode: encodeJ, validate: validateJ, length: 4}
 
 	// rawEncoding encodes a raw instruction byte sequence.
-	rawEncoding = encoding{encode: encodeRaw, validate: validateRaw, length: 4}
+	rawEncoding = encoding{encode: encodeRawIns, validate: validateRaw, length: 4}
 
 	// pseudoOpEncoding panics if encoding is attempted, but does no validation.
-	pseudoOpEncoding = encoding{encode: nil, validate: func(*obj.Prog) {}, length: 0}
+	pseudoOpEncoding = encoding{encode: nil, validate: func(*obj.Link, *instruction) {}, length: 0}
 
 	// badEncoding is used when an invalid op is encountered.
 	// An error has already been generated, so let anything else through.
-	badEncoding = encoding{encode: func(*obj.Prog) uint32 { return 0 }, validate: func(*obj.Prog) {}, length: 0}
+	badEncoding = encoding{encode: func(*instruction) uint32 { return 0 }, validate: func(*obj.Link, *instruction) {}, length: 0}
 )
 
-// encodingForAs contains the encoding for a RISC-V instruction.
+// encodings contains the encodings for RISC-V instructions.
 // Instructions are masked with obj.AMask to keep indices small.
-var encodingForAs = [ALAST & obj.AMask]encoding{
+var encodings = [ALAST & obj.AMask]encoding{
 
 	// Unprivileged ISA
 
@@ -1692,6 +1552,9 @@ var encodingForAs = [ALAST & obj.AMask]encoding{
 	ASH & obj.AMask:  sIEncoding,
 	ASB & obj.AMask:  sIEncoding,
 
+	// 2.7: Memory Ordering
+	AFENCE & obj.AMask: iIEncoding,
+
 	// 5.2: Integer Computational Instructions (RV64I)
 	AADDIW & obj.AMask: iIEncoding,
 	ASLLIW & obj.AMask: iIEncoding,
@@ -1721,6 +1584,32 @@ var encodingForAs = [ALAST & obj.AMask]encoding{
 	ADIVUW & obj.AMask:  rIIIEncoding,
 	AREMW & obj.AMask:   rIIIEncoding,
 	AREMUW & obj.AMask:  rIIIEncoding,
+
+	// 8.2: Load-Reserved/Store-Conditional
+	ALRW & obj.AMask: rIIIEncoding,
+	ALRD & obj.AMask: rIIIEncoding,
+	ASCW & obj.AMask: rIIIEncoding,
+	ASCD & obj.AMask: rIIIEncoding,
+
+	// 8.3: Atomic Memory Operations
+	AAMOSWAPW & obj.AMask: rIIIEncoding,
+	AAMOSWAPD & obj.AMask: rIIIEncoding,
+	AAMOADDW & obj.AMask:  rIIIEncoding,
+	AAMOADDD & obj.AMask:  rIIIEncoding,
+	AAMOANDW & obj.AMask:  rIIIEncoding,
+	AAMOANDD & obj.AMask:  rIIIEncoding,
+	AAMOORW & obj.AMask:   rIIIEncoding,
+	AAMOORD & obj.AMask:   rIIIEncoding,
+	AAMOXORW & obj.AMask:  rIIIEncoding,
+	AAMOXORD & obj.AMask:  rIIIEncoding,
+	AAMOMAXW & obj.AMask:  rIIIEncoding,
+	AAMOMAXD & obj.AMask:  rIIIEncoding,
+	AAMOMAXUW & obj.AMask: rIIIEncoding,
+	AAMOMAXUD & obj.AMask: rIIIEncoding,
+	AAMOMINW & obj.AMask:  rIIIEncoding,
+	AAMOMIND & obj.AMask:  rIIIEncoding,
+	AAMOMINUW & obj.AMask: rIIIEncoding,
+	AAMOMINUD & obj.AMask: rIIIEncoding,
 
 	// 10.1: Base Counters and Timers
 	ARDCYCLE & obj.AMask:   iIEncoding,
@@ -1762,6 +1651,9 @@ var encodingForAs = [ALAST & obj.AMask]encoding{
 	AFLTS & obj.AMask: rFFIEncoding,
 	AFLES & obj.AMask: rFFIEncoding,
 
+	// 11.9: Single-Precision Floating-Point Classify Instruction
+	AFCLASSS & obj.AMask: rFIEncoding,
+
 	// 12.3: Double-Precision Load and Store Instructions
 	AFLD & obj.AMask: iFEncoding,
 	AFSD & obj.AMask: sFEncoding,
@@ -1797,6 +1689,9 @@ var encodingForAs = [ALAST & obj.AMask]encoding{
 	AFLTD & obj.AMask: rFFIEncoding,
 	AFLED & obj.AMask: rFFIEncoding,
 
+	// 12.7: Double-Precision Floating-Point Classify Instruction
+	AFCLASSD & obj.AMask: rFIEncoding,
+
 	// Privileged ISA
 
 	// 3.2.1: Environment Call and Breakpoint
@@ -1813,28 +1708,199 @@ var encodingForAs = [ALAST & obj.AMask]encoding{
 	obj.ANOP:      pseudoOpEncoding,
 }
 
-// encodingForProg returns the encoding (encode+validate funcs) for an *obj.Prog.
-func encodingForProg(p *obj.Prog) encoding {
-	if base := p.As &^ obj.AMask; base != obj.ABaseRISCV && base != 0 {
-		p.Ctxt.Diag("encodingForProg: not a RISC-V instruction %s", p.As)
-		return badEncoding
+// encodingForAs returns the encoding for an obj.As.
+func encodingForAs(as obj.As) (encoding, error) {
+	if base := as &^ obj.AMask; base != obj.ABaseRISCV && base != 0 {
+		return badEncoding, fmt.Errorf("encodingForAs: not a RISC-V instruction %s", as)
 	}
-	as := p.As & obj.AMask
-	if int(as) >= len(encodingForAs) {
-		p.Ctxt.Diag("encodingForProg: bad RISC-V instruction %s", p.As)
-		return badEncoding
+	asi := as & obj.AMask
+	if int(asi) >= len(encodings) {
+		return badEncoding, fmt.Errorf("encodingForAs: bad RISC-V instruction %s", as)
 	}
-	enc := encodingForAs[as]
+	enc := encodings[asi]
 	if enc.validate == nil {
-		p.Ctxt.Diag("encodingForProg: no encoding for instruction %s", p.As)
-		return badEncoding
+		return badEncoding, fmt.Errorf("encodingForAs: no encoding for instruction %s", as)
 	}
-	return enc
+	return enc, nil
+}
+
+type instruction struct {
+	as     obj.As // Assembler opcode
+	rd     uint32 // Destination register
+	rs1    uint32 // Source register 1
+	rs2    uint32 // Source register 2
+	imm    int64  // Immediate
+	funct3 uint32 // Function 3
+	funct7 uint32 // Function 7
+}
+
+func (ins *instruction) encode() (uint32, error) {
+	enc, err := encodingForAs(ins.as)
+	if err != nil {
+		return 0, err
+	}
+	if enc.length > 0 {
+		return enc.encode(ins), nil
+	}
+	return 0, fmt.Errorf("fixme")
+}
+
+func (ins *instruction) length() int {
+	enc, err := encodingForAs(ins.as)
+	if err != nil {
+		return 0
+	}
+	return enc.length
+}
+
+func (ins *instruction) validate(ctxt *obj.Link) {
+	enc, err := encodingForAs(ins.as)
+	if err != nil {
+		ctxt.Diag(err.Error())
+		return
+	}
+	enc.validate(ctxt, ins)
+}
+
+// instructionsForProg returns the machine instructions for an *obj.Prog.
+func instructionsForProg(p *obj.Prog) []*instruction {
+	ins := &instruction{
+		as:  p.As,
+		rd:  uint32(p.To.Reg),
+		rs1: uint32(p.Reg),
+		rs2: uint32(p.From.Reg),
+		imm: p.From.Offset,
+	}
+
+	inss := []*instruction{ins}
+	switch ins.as {
+	case AJAL:
+		ins.rd, ins.rs2 = uint32(p.From.Reg), obj.REG_NONE
+		ins.imm = p.To.Offset
+
+	case ABEQ, ABNE, ABLT, ABGE, ABLTU, ABGEU:
+		ins.imm = p.To.Offset
+
+	case ALW, ALWU, ALH, ALHU, ALB, ALBU, ALD, AFLW, AFLD:
+		if p.From.Type != obj.TYPE_MEM {
+			p.Ctxt.Diag("%v requires memory for source", p)
+			return nil
+		}
+		ins.rs1, ins.rs2 = uint32(p.From.Reg), obj.REG_NONE
+		ins.imm = p.From.Offset
+
+	case ASW, ASH, ASB, ASD, AFSW, AFSD:
+		if p.To.Type != obj.TYPE_MEM {
+			p.Ctxt.Diag("%v requires memory for destination", p)
+			return nil
+		}
+		ins.rs1, ins.rs2 = uint32(p.From.Reg), obj.REG_NONE
+		ins.imm = p.To.Offset
+
+	case ALRW, ALRD:
+		// Set aq to use acquire access ordering, which matches Go's memory requirements.
+		ins.funct7 = 2
+		ins.rs1, ins.rs2 = uint32(p.From.Reg), REG_ZERO
+
+	case ASCW, ASCD, AAMOSWAPW, AAMOSWAPD, AAMOADDW, AAMOADDD, AAMOANDW, AAMOANDD, AAMOORW, AAMOORD,
+		AAMOXORW, AAMOXORD, AAMOMINW, AAMOMIND, AAMOMINUW, AAMOMINUD, AAMOMAXW, AAMOMAXD, AAMOMAXUW, AAMOMAXUD:
+		// Set aq to use acquire access ordering, which matches Go's memory requirements.
+		ins.funct7 = 2
+		ins.rd, ins.rs1, ins.rs2 = uint32(p.RegTo2), uint32(p.To.Reg), uint32(p.From.Reg)
+
+	case AECALL, AEBREAK, ARDCYCLE, ARDTIME, ARDINSTRET:
+		insEnc := encode(p.As)
+		if p.To.Type == obj.TYPE_NONE {
+			ins.rd = REG_ZERO
+		}
+		ins.rs1 = REG_ZERO
+		ins.imm = insEnc.csr
+
+	case AFENCE:
+		ins.rd, ins.rs1, ins.rs2 = REG_ZERO, REG_ZERO, obj.REG_NONE
+		ins.imm = 0x0ff
+
+	case AFCVTWS, AFCVTLS, AFCVTWUS, AFCVTLUS, AFCVTWD, AFCVTLD, AFCVTWUD, AFCVTLUD:
+		// Set the rounding mode in funct3 to round to zero.
+		ins.funct3 = 1
+
+	case AFNES, AFNED:
+		// Replace FNE[SD] with FEQ[SD] and NOT.
+		if p.To.Type != obj.TYPE_REG {
+			p.Ctxt.Diag("%v needs an integer register output", ins.as)
+			return nil
+		}
+		if ins.as == AFNES {
+			ins.as = AFEQS
+		} else {
+			ins.as = AFEQD
+		}
+		ins = &instruction{
+			as:  AXORI, // [bit] xor 1 = not [bit]
+			rd:  ins.rd,
+			rs1: ins.rd,
+			imm: 1,
+		}
+		inss = append(inss, ins)
+
+	case AFSQRTS, AFSQRTD:
+		// These instructions expect a zero (i.e. float register 0)
+		// to be the second input operand.
+		ins.rs1 = uint32(p.From.Reg)
+		ins.rs2 = REG_F0
+
+	case ANEG, ANEGW:
+		// NEG rs, rd -> SUB rs, X0, rd
+		ins.as = ASUB
+		if p.As == ANEGW {
+			ins.as = ASUBW
+		}
+		ins.rs1 = REG_ZERO
+		if ins.rd == obj.REG_NONE {
+			ins.rd = ins.rs2
+		}
+
+	case ANOT:
+		// NOT rs, rd -> XORI $-1, rs, rd
+		ins.as = AXORI
+		ins.rs1, ins.rs2 = uint32(p.From.Reg), obj.REG_NONE
+		if ins.rd == obj.REG_NONE {
+			ins.rd = ins.rs1
+		}
+		ins.imm = -1
+
+	case ASEQZ:
+		// SEQZ rs, rd -> SLTIU $1, rs, rd
+		ins.as = ASLTIU
+		ins.rs1 = uint32(p.From.Reg)
+		ins.imm = 1
+
+	case ASNEZ:
+		// SNEZ rs, rd -> SLTU rs, x0, rd
+		ins.as = ASLTU
+		ins.rs1 = REG_ZERO
+
+	case AFNEGS:
+		// FNEGS rs, rd -> FSGNJNS rs, rs, rd
+		ins.as = AFSGNJNS
+		ins.rs1 = uint32(p.From.Reg)
+
+	case AFNEGD:
+		// FNEGD rs, rd -> FSGNJND rs, rs, rd
+		ins.as = AFSGNJND
+		ins.rs1 = uint32(p.From.Reg)
+	}
+	return inss
 }
 
 // assemble emits machine code.
 // It is called at the very end of the assembly process.
 func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+	if ctxt.Retpoline {
+		ctxt.Diag("-spectre=ret not supported on riscv")
+		ctxt.Retpoline = false // don't keep printing
+	}
+
 	var symcode []uint32
 	for p := cursym.Func.Text; p != nil; p = p.Link {
 		switch p.As {
@@ -1863,26 +1929,25 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				ctxt.Diag("AUIPC needing PC-relative reloc missing following instruction")
 				break
 			}
-			if p.From.Sym == nil {
+			addr := p.RestArgs[0]
+			if addr.Sym == nil {
 				ctxt.Diag("AUIPC needing PC-relative reloc missing symbol")
 				break
 			}
 
-			// The relocation offset can be larger than the maximum
-			// size of an AUIPC, so zero p.From.Offset to avoid any
-			// attempt to assemble it.
 			rel := obj.Addrel(cursym)
 			rel.Off = int32(p.Pc)
 			rel.Siz = 8
-			rel.Sym = p.From.Sym
-			rel.Add = p.From.Offset
-			p.From.Offset = 0
+			rel.Sym = addr.Sym
+			rel.Add = addr.Offset
 			rel.Type = rt
 		}
 
-		enc := encodingForProg(p)
-		if enc.length > 0 {
-			symcode = append(symcode, enc.encode(p))
+		for _, ins := range instructionsForProg(p) {
+			ic, err := ins.encode()
+			if err == nil {
+				symcode = append(symcode, ic)
+			}
 		}
 	}
 	cursym.Size = int64(4 * len(symcode))

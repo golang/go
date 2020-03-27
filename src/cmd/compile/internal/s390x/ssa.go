@@ -605,6 +605,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssa.OpS390XLTDBR, ssa.OpS390XLTEBR:
+		opregreg(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[0].Reg())
 	case ssa.OpS390XInvertFlags:
 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
 	case ssa.OpS390XFlagEQ, ssa.OpS390XFlagLT, ssa.OpS390XFlagGT, ssa.OpS390XFlagOV:

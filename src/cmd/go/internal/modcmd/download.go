@@ -24,7 +24,8 @@ var cmdDownload = &base.Command{
 	Long: `
 Download downloads the named modules, which can be module patterns selecting
 dependencies of the main module or module queries of the form path@version.
-With no arguments, download applies to all dependencies of the main module.
+With no arguments, download applies to all dependencies of the main module
+(equivalent to 'go mod download all').
 
 The go command will automatically download modules as needed during ordinary
 execution. The "go mod download" command is useful mainly for pre-filling

@@ -4,12 +4,12 @@
 
 package base
 
-// EnvForDir returns a modified environment suitable for running in the given
-// directory.
-// The environment is the supplied base environment but with an updated $PWD, so
-// that an os.Getwd in the child will be faster.
-func EnvForDir(dir string, base []string) []string {
-	// Internally we only use rooted paths, so dir is rooted.
-	// Even if dir is not rooted, no harm done.
+// AppendPWD returns the result of appending PWD=dir to the environment base.
+//
+// The resulting environment makes os.Getwd more efficient for a subprocess
+// running in dir.
+func AppendPWD(base []string, dir string) []string {
+	// Internally we only use absolute paths, so dir is absolute.
+	// Even if dir is not absolute, no harm done.
 	return append(base, "PWD="+dir)
 }

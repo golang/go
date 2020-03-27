@@ -65,7 +65,7 @@ var pkgDeps = map[string][]string{
 	// but not Unicode tables.
 	"math":          {"internal/cpu", "unsafe", "math/bits"},
 	"math/bits":     {"unsafe"},
-	"math/cmplx":    {"math"},
+	"math/cmplx":    {"math", "math/bits"},
 	"math/rand":     {"L0", "math"},
 	"strconv":       {"L0", "unicode/utf8", "math", "math/bits"},
 	"unicode/utf16": {},
@@ -195,7 +195,7 @@ var pkgDeps = map[string][]string{
 	"regexp":         {"L2", "regexp/syntax"},
 	"regexp/syntax":  {"L2"},
 	"runtime/debug":  {"L2", "fmt", "io/ioutil", "os", "time"},
-	"runtime/pprof":  {"L2", "compress/gzip", "context", "encoding/binary", "fmt", "io/ioutil", "os", "text/tabwriter", "time"},
+	"runtime/pprof":  {"L2", "compress/gzip", "context", "encoding/binary", "fmt", "io/ioutil", "os", "syscall", "text/tabwriter", "time"},
 	"runtime/trace":  {"L0", "context", "fmt"},
 	"text/tabwriter": {"L2"},
 

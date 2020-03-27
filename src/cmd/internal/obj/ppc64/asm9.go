@@ -627,8 +627,6 @@ func addpad(pc, a int64, ctxt *obj.Link) int {
 		}
 	case 16:
 		switch pc % 16 {
-		// When currently aligned to 4, avoid 3 NOPs and set to
-		// 8 byte alignment which should still help.
 		case 4, 12:
 			return 4
 		case 8:
@@ -758,15 +756,20 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		if int(o.size) > 4*len(out) {
 			log.Fatalf("out array in span9 is too small, need at least %d for %v", o.size/4, p)
 		}
-		origsize := o.size
-		c.asmout(p, o, out[:])
-		if origsize == 0 && o.size > 0 {
-			for i = 0; i < int32(o.size/4); i++ {
-				c.ctxt.Arch.ByteOrder.PutUint32(bp, out[0])
-				bp = bp[4:]
+		// asmout is not set up to add large amounts of padding
+		if o.type_ == 0 && p.As == obj.APCALIGN {
+			pad := LOP_RRR(OP_OR, REGZERO, REGZERO, REGZERO)
+			aln := c.vregoff(&p.From)
+			v := addpad(p.Pc, aln, c.ctxt)
+			if v > 0 {
+				// Same padding instruction for all
+				for i = 0; i < int32(v/4); i++ {
+					c.ctxt.Arch.ByteOrder.PutUint32(bp, pad)
+					bp = bp[4:]
+				}
 			}
-			o.size = origsize
 		} else {
+			c.asmout(p, o, out[:])
 			for i = 0; i < int32(o.size/4); i++ {
 				c.ctxt.Arch.ByteOrder.PutUint32(bp, out[i])
 				bp = bp[4:]
@@ -2387,19 +2390,6 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		prasm(p)
 
 	case 0: /* pseudo ops */
-		if p.As == obj.APCALIGN {
-			aln := c.vregoff(&p.From)
-			v := addpad(p.Pc, aln, c.ctxt)
-			if v > 0 {
-				for i := 0; i < 6; i++ {
-					out[i] = uint32(0)
-				}
-				o.size = int8(v)
-				out[0] = LOP_RRR(OP_OR, REGZERO, REGZERO, REGZERO)
-				return
-			}
-			o.size = 0
-		}
 		break
 
 	case 1: /* mov r1,r2 ==> OR Rs,Rs,Ra */

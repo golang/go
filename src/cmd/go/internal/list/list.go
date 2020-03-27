@@ -472,9 +472,6 @@ func runList(cmd *base.Command, args []string) {
 		c := cache.Default()
 		// Add test binaries to packages to be listed.
 		for _, p := range pkgs {
-			if p.Error != nil {
-				continue
-			}
 			if len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 {
 				var pmain, ptest, pxtest *load.Package
 				var err error

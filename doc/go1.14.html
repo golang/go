@@ -77,6 +77,18 @@ Do not send CLs removing the interior tags from such phrases.
   (Data Execution Prevention)</a> enabled.
 </p>
 
+<p><!-- CL 202439 -->
+  On Windows, creating a file
+  via <a href="/pkg/os#CreateFile"><code>os.OpenFile</code></a> with
+  the <a href="/pkg/os/#O_CREATE"><code>os.O_CREATE</code></a> flag, or
+  via <a href="/pkg/syscall#Open"><code>syscall.Open</code></a> with
+  the <a href="/pkg/syscall#O_CREAT"><code>syscall.O_CREAT</code></a>
+  flag, will now create the file as read-only if the
+  bit <code>0o200</code> (owner write permission) is not set in the
+  permission argument. This makes the behavior on Windows more like
+  that on Unix systems.
+</p>
+
 <h3 id="wasm">WebAssembly</h3>
 
 <p><!-- CL 203600 -->

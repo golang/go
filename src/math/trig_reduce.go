@@ -8,13 +8,19 @@ import (
 	"math/bits"
 )
 
-// reduceThreshold is the maximum value where the reduction using Pi/4
-// in 3 float64 parts still gives accurate results.  Above this
-// threshold Payne-Hanek range reduction must be used.
-const reduceThreshold = (1 << 52) / (4 / Pi)
+// reduceThreshold is the maximum value of x where the reduction using Pi/4
+// in 3 float64 parts still gives accurate results. This threshold
+// is set by y*C being representable as a float64 without error
+// where y is given by y = floor(x * (4 / Pi)) and C is the leading partial
+// terms of 4/Pi. Since the leading terms (PI4A and PI4B in sin.go) have 30
+// and 32 trailing zero bits, y should have less than 30 significant bits.
+//	y < 1<<30  -> floor(x*4/Pi) < 1<<30 -> x < (1<<30 - 1) * Pi/4
+// So, conservatively we can take x < 1<<29.
+// Above this threshold Payne-Hanek range reduction must be used.
+const reduceThreshold = 1 << 29
 
 // trigReduce implements Payne-Hanek range reduction by Pi/4
-// for x > 0.  It returns the integer part mod 8 (j) and
+// for x > 0. It returns the integer part mod 8 (j) and
 // the fractional part (z) of x / (Pi/4).
 // The implementation is based on:
 // "ARGUMENT REDUCTION FOR HUGE ARGUMENTS: Good to the Last Bit"

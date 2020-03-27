@@ -46,7 +46,7 @@ func riscv64RegName(r int) string {
 
 func init() {
 	var regNamesRISCV64 []string
-	var gpMask, fpMask, gpspMask, gpspsbMask regMask
+	var gpMask, fpMask, gpgMask, gpspMask, gpspsbMask, gpspsbgMask regMask
 	regNamed := make(map[string]regMask)
 
 	// Build the list of register names, creating an appropriately indexed
@@ -75,15 +75,21 @@ func init() {
 
 		// Add general purpose registers to gpMask.
 		switch r {
-		// ZERO, g, and TMP are not in any gp mask.
-		case riscv64REG_ZERO, riscv64REG_G, riscv64REG_TMP:
+		// ZERO, and TMP are not in any gp mask.
+		case riscv64REG_ZERO, riscv64REG_TMP:
+		case riscv64REG_G:
+			gpgMask |= mask
+			gpspsbgMask |= mask
 		case riscv64REG_SP:
 			gpspMask |= mask
 			gpspsbMask |= mask
+			gpspsbgMask |= mask
 		default:
 			gpMask |= mask
+			gpgMask |= mask
 			gpspMask |= mask
 			gpspsbMask |= mask
+			gpspsbgMask |= mask
 		}
 	}
 
@@ -96,6 +102,7 @@ func init() {
 	// Pseudo-register: SB
 	mask := addreg(-1, "SB")
 	gpspsbMask |= mask
+	gpspsbgMask |= mask
 
 	if len(regNamesRISCV64) > 64 {
 		// regMask is only 64 bits.
@@ -113,6 +120,8 @@ func init() {
 		gp21     = regInfo{inputs: []regMask{gpMask, gpMask}, outputs: []regMask{gpMask}}
 		gpload   = regInfo{inputs: []regMask{gpspsbMask, 0}, outputs: []regMask{gpMask}}
 		gp11sb   = regInfo{inputs: []regMask{gpspsbMask}, outputs: []regMask{gpMask}}
+		gpxchg   = regInfo{inputs: []regMask{gpspsbgMask, gpgMask}, outputs: []regMask{gpMask}}
+		gpcas    = regInfo{inputs: []regMask{gpspsbgMask, gpgMask, gpgMask}, outputs: []regMask{gpMask}}
 
 		fp11    = regInfo{inputs: []regMask{fpMask}, outputs: []regMask{fpMask}}
 		fp21    = regInfo{inputs: []regMask{fpMask, fpMask}, outputs: []regMask{fpMask}}
@@ -131,6 +140,8 @@ func init() {
 		{name: "ADD", argLength: 2, reg: gp21, asm: "ADD", commutative: true}, // arg0 + arg1
 		{name: "ADDI", argLength: 1, reg: gp11sb, asm: "ADDI", aux: "Int64"},  // arg0 + auxint
 		{name: "ADDIW", argLength: 1, reg: gp11, asm: "ADDIW", aux: "Int64"},  // 32 low bits of arg0 + auxint, sign extended to 64 bits
+		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                    // -arg0
+		{name: "NEGW", argLength: 1, reg: gp11, asm: "NEGW"},                  // -arg0 of 32 bits, sign extended to 64 bits
 		{name: "SUB", argLength: 2, reg: gp21, asm: "SUB"},                    // arg0 - arg1
 		{name: "SUBW", argLength: 2, reg: gp21, asm: "SUBW"},                  // 32 low bits of arg 0 - 32 low bits of arg 1, sign extended to 64 bits
 
@@ -179,12 +190,12 @@ func init() {
 		{name: "MOVDstorezero", argLength: 2, reg: gpstore0, aux: "SymOff", asm: "MOV", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // 64 bits
 
 		// Shift ops
-		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                 // arg0 << aux1
-		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                 // arg0 >> aux1, signed
-		{name: "SRL", argLength: 2, reg: gp21, asm: "SRL"},                 // arg0 >> aux1, unsigned
-		{name: "SLLI", argLength: 1, reg: gp11, asm: "SLLI", aux: "Int64"}, // arg0 << auxint
-		{name: "SRAI", argLength: 1, reg: gp11, asm: "SRAI", aux: "Int64"}, // arg0 >> auxint, signed
-		{name: "SRLI", argLength: 1, reg: gp11, asm: "SRLI", aux: "Int64"}, // arg0 >> auxint, unsigned
+		{name: "SLL", argLength: 2, reg: gp21, asm: "SLL"},                 // arg0 << (aux1 & 63)
+		{name: "SRA", argLength: 2, reg: gp21, asm: "SRA"},                 // arg0 >> (aux1 & 63), signed
+		{name: "SRL", argLength: 2, reg: gp21, asm: "SRL"},                 // arg0 >> (aux1 & 63), unsigned
+		{name: "SLLI", argLength: 1, reg: gp11, asm: "SLLI", aux: "Int64"}, // arg0 << auxint, shift amount 0-63
+		{name: "SRAI", argLength: 1, reg: gp11, asm: "SRAI", aux: "Int64"}, // arg0 >> auxint, signed, shift amount 0-63
+		{name: "SRLI", argLength: 1, reg: gp11, asm: "SRLI", aux: "Int64"}, // arg0 >> auxint, unsigned, shift amount 0-63
 
 		// Bitwise ops
 		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true}, // arg0 ^ arg1
@@ -193,6 +204,7 @@ func init() {
 		{name: "ORI", argLength: 1, reg: gp11, asm: "ORI", aux: "Int64"},      // arg0 | auxint
 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0 & arg1
 		{name: "ANDI", argLength: 1, reg: gp11, asm: "ANDI", aux: "Int64"},    // arg0 & auxint
+		{name: "NOT", argLength: 1, reg: gp11, asm: "NOT"},                    // ^arg0
 
 		// Generate boolean values
 		{name: "SEQZ", argLength: 1, reg: gp11, asm: "SEQZ"},                 // arg0 == 0, result is 0 or 1
@@ -261,6 +273,46 @@ func init() {
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,
 		},
+
+		// Atomic loads.
+		// load from arg0. arg1=mem.
+		// returns <value,memory> so they can be properly ordered with other loads.
+		{name: "LoweredAtomicLoad8", argLength: 2, reg: gpload, faultOnNilArg0: true},
+		{name: "LoweredAtomicLoad32", argLength: 2, reg: gpload, faultOnNilArg0: true},
+		{name: "LoweredAtomicLoad64", argLength: 2, reg: gpload, faultOnNilArg0: true},
+
+		// Atomic stores.
+		// store arg1 to arg0. arg2=mem. returns memory.
+		{name: "LoweredAtomicStore8", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicStore32", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicStore64", argLength: 3, reg: gpstore, faultOnNilArg0: true, hasSideEffects: true},
+
+		// Atomic exchange.
+		// store arg1 to *arg0. arg2=mem. returns <old content of *arg0, memory>.
+		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+
+		// Atomic add.
+		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>.
+		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicAdd64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+
+		// Atomic compare and swap.
+		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory.
+		// if *arg0 == arg1 {
+		//   *arg0 = arg2
+		//   return (true, memory)
+		// } else {
+		//   return (false, memory)
+		// }
+		// MOV  $0, Rout
+		// LR	(Rarg0), Rtmp
+		// BNE	Rtmp, Rarg1, 3(PC)
+		// SC	Rarg2, (Rarg0), Rtmp
+		// BNE	Rtmp, ZERO, -3(PC)
+		// MOV  $1, Rout
+		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
 
 		// Lowering pass-throughs
 		{name: "LoweredNilCheck", argLength: 2, faultOnNilArg0: true, nilCheck: true, reg: regInfo{inputs: []regMask{gpspMask}}}, // arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.

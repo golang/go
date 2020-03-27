@@ -15,6 +15,7 @@ import (
 )
 
 type testingT interface {
+	Deadline() (time.Time, bool)
 	Error(args ...interface{})
 	Errorf(format string, args ...interface{})
 	Fail()
@@ -37,6 +38,23 @@ type testingT interface {
 // Context.
 type otherContext struct {
 	Context
+}
+
+const (
+	shortDuration    = 1 * time.Millisecond // a reasonable duration to block in a test
+	veryLongDuration = 1000 * time.Hour     // an arbitrary upper bound on the test's running time
+)
+
+// quiescent returns an arbitrary duration by which the program should have
+// completed any remaining work and reached a steady (idle) state.
+func quiescent(t testingT) time.Duration {
+	deadline, ok := t.Deadline()
+	if !ok {
+		return 5 * time.Second
+	}
+
+	const arbitraryCleanupMargin = 1 * time.Second
+	return time.Until(deadline) - arbitraryCleanupMargin
 }
 
 func XTestBackground(t testingT) {
@@ -95,9 +113,7 @@ func XTestWithCancel(t testingT) {
 		}
 	}
 
-	cancel()
-	time.Sleep(100 * time.Millisecond) // let cancellation propagate
-
+	cancel() // Should propagate synchronously.
 	for i, c := range contexts {
 		select {
 		case <-c.Done():
@@ -123,7 +139,7 @@ func XTestParentFinishesChild(t testingT) {
 	cancelChild, stop := WithCancel(parent)
 	defer stop()
 	valueChild := WithValue(parent, "key", "value")
-	timerChild, stop := WithTimeout(valueChild, 10000*time.Hour)
+	timerChild, stop := WithTimeout(valueChild, veryLongDuration)
 	defer stop()
 
 	select {
@@ -252,11 +268,14 @@ func XTestChildFinishesFirst(t testingT) {
 	}
 }
 
-func testDeadline(c Context, name string, failAfter time.Duration, t testingT) {
+func testDeadline(c Context, name string, t testingT) {
 	t.Helper()
+	d := quiescent(t)
+	timer := time.NewTimer(d)
+	defer timer.Stop()
 	select {
-	case <-time.After(failAfter):
-		t.Fatalf("%s: context should have timed out", name)
+	case <-timer.C:
+		t.Fatalf("%s: context not timed out after %v", name, d)
 	case <-c.Done():
 	}
 	if e := c.Err(); e != DeadlineExceeded {
@@ -265,51 +284,50 @@ func testDeadline(c Context, name string, failAfter time.Duration, t testingT) {
 }
 
 func XTestDeadline(t testingT) {
-	c, _ := WithDeadline(Background(), time.Now().Add(50*time.Millisecond))
+	c, _ := WithDeadline(Background(), time.Now().Add(shortDuration))
 	if got, prefix := fmt.Sprint(c), "context.Background.WithDeadline("; !strings.HasPrefix(got, prefix) {
 		t.Errorf("c.String() = %q want prefix %q", got, prefix)
 	}
-	testDeadline(c, "WithDeadline", time.Second, t)
+	testDeadline(c, "WithDeadline", t)
 
-	c, _ = WithDeadline(Background(), time.Now().Add(50*time.Millisecond))
+	c, _ = WithDeadline(Background(), time.Now().Add(shortDuration))
 	o := otherContext{c}
-	testDeadline(o, "WithDeadline+otherContext", time.Second, t)
+	testDeadline(o, "WithDeadline+otherContext", t)
 
-	c, _ = WithDeadline(Background(), time.Now().Add(50*time.Millisecond))
+	c, _ = WithDeadline(Background(), time.Now().Add(shortDuration))
 	o = otherContext{c}
-	c, _ = WithDeadline(o, time.Now().Add(4*time.Second))
-	testDeadline(c, "WithDeadline+otherContext+WithDeadline", 2*time.Second, t)
+	c, _ = WithDeadline(o, time.Now().Add(veryLongDuration))
+	testDeadline(c, "WithDeadline+otherContext+WithDeadline", t)
 
-	c, _ = WithDeadline(Background(), time.Now().Add(-time.Millisecond))
-	testDeadline(c, "WithDeadline+inthepast", time.Second, t)
+	c, _ = WithDeadline(Background(), time.Now().Add(-shortDuration))
+	testDeadline(c, "WithDeadline+inthepast", t)
 
 	c, _ = WithDeadline(Background(), time.Now())
-	testDeadline(c, "WithDeadline+now", time.Second, t)
+	testDeadline(c, "WithDeadline+now", t)
 }
 
 func XTestTimeout(t testingT) {
-	c, _ := WithTimeout(Background(), 50*time.Millisecond)
+	c, _ := WithTimeout(Background(), shortDuration)
 	if got, prefix := fmt.Sprint(c), "context.Background.WithDeadline("; !strings.HasPrefix(got, prefix) {
 		t.Errorf("c.String() = %q want prefix %q", got, prefix)
 	}
-	testDeadline(c, "WithTimeout", time.Second, t)
+	testDeadline(c, "WithTimeout", t)
 
-	c, _ = WithTimeout(Background(), 50*time.Millisecond)
+	c, _ = WithTimeout(Background(), shortDuration)
 	o := otherContext{c}
-	testDeadline(o, "WithTimeout+otherContext", time.Second, t)
+	testDeadline(o, "WithTimeout+otherContext", t)
 
-	c, _ = WithTimeout(Background(), 50*time.Millisecond)
+	c, _ = WithTimeout(Background(), shortDuration)
 	o = otherContext{c}
-	c, _ = WithTimeout(o, 3*time.Second)
-	testDeadline(c, "WithTimeout+otherContext+WithTimeout", 2*time.Second, t)
+	c, _ = WithTimeout(o, veryLongDuration)
+	testDeadline(c, "WithTimeout+otherContext+WithTimeout", t)
 }
 
 func XTestCanceledTimeout(t testingT) {
 	c, _ := WithTimeout(Background(), time.Second)
 	o := otherContext{c}
-	c, cancel := WithTimeout(o, 2*time.Second)
-	cancel()
-	time.Sleep(100 * time.Millisecond) // let cancellation propagate
+	c, cancel := WithTimeout(o, veryLongDuration)
+	cancel() // Should propagate synchronously.
 	select {
 	case <-c.Done():
 	default:
@@ -467,14 +485,20 @@ func XTestSimultaneousCancels(t testingT) {
 			wg.Done()
 		}(cancel)
 	}
+
+	d := quiescent(t)
+	stuck := make(chan struct{})
+	timer := time.AfterFunc(d, func() { close(stuck) })
+	defer timer.Stop()
+
 	// Wait on all the contexts in a random order.
 	for ctx := range m {
 		select {
 		case <-ctx.Done():
-		case <-time.After(1 * time.Second):
+		case <-stuck:
 			buf := make([]byte, 10<<10)
 			n := runtime.Stack(buf, true)
-			t.Fatalf("timed out waiting for <-ctx.Done(); stacks:\n%s", buf[:n])
+			t.Fatalf("timed out after %v waiting for <-ctx.Done(); stacks:\n%s", d, buf[:n])
 		}
 	}
 	// Wait for all the cancel functions to return.
@@ -485,10 +509,10 @@ func XTestSimultaneousCancels(t testingT) {
 	}()
 	select {
 	case <-done:
-	case <-time.After(1 * time.Second):
+	case <-stuck:
 		buf := make([]byte, 10<<10)
 		n := runtime.Stack(buf, true)
-		t.Fatalf("timed out waiting for cancel functions; stacks:\n%s", buf[:n])
+		t.Fatalf("timed out after %v waiting for cancel functions; stacks:\n%s", d, buf[:n])
 	}
 }
 
@@ -500,12 +524,15 @@ func XTestInterlockedCancels(t testingT) {
 		cancelChild()
 	}()
 	cancelParent()
+	d := quiescent(t)
+	timer := time.NewTimer(d)
+	defer timer.Stop()
 	select {
 	case <-child.Done():
-	case <-time.After(1 * time.Second):
+	case <-timer.C:
 		buf := make([]byte, 10<<10)
 		n := runtime.Stack(buf, true)
-		t.Fatalf("timed out waiting for child.Done(); stacks:\n%s", buf[:n])
+		t.Fatalf("timed out after %v waiting for child.Done(); stacks:\n%s", d, buf[:n])
 	}
 }
 
@@ -523,7 +550,6 @@ func testLayers(t testingT, seed int64, testTimeout bool) {
 		t.Errorf(fmt.Sprintf("seed=%d: %s", seed, format), a...)
 	}
 	const (
-		timeout   = 200 * time.Millisecond
 		minLayers = 30
 	)
 	type value int
@@ -545,7 +571,11 @@ func testLayers(t testingT, seed int64, testTimeout bool) {
 			cancels = append(cancels, cancel)
 		case 2:
 			var cancel CancelFunc
-			ctx, cancel = WithTimeout(ctx, timeout)
+			d := veryLongDuration
+			if testTimeout {
+				d = shortDuration
+			}
+			ctx, cancel = WithTimeout(ctx, d)
 			cancels = append(cancels, cancel)
 			numTimers++
 		}
@@ -568,10 +598,13 @@ func testLayers(t testingT, seed int64, testTimeout bool) {
 	t.Log(ctx)
 	checkValues("before cancel")
 	if testTimeout {
+		d := quiescent(t)
+		timer := time.NewTimer(d)
+		defer timer.Stop()
 		select {
 		case <-ctx.Done():
-		case <-time.After(timeout + time.Second):
-			errorf("ctx should have timed out")
+		case <-timer.C:
+			errorf("ctx should have timed out after %v", d)
 		}
 		checkValues("after timeout")
 	} else {
@@ -615,8 +648,8 @@ func XTestWithCancelCanceledParent(t testingT) {
 	c, _ := WithCancel(parent)
 	select {
 	case <-c.Done():
-	case <-time.After(5 * time.Second):
-		t.Fatal("timeout waiting for Done")
+	default:
+		t.Errorf("child not done immediately upon construction")
 	}
 	if got, want := c.Err(), Canceled; got != want {
 		t.Errorf("child not cancelled; got = %v, want = %v", got, want)
@@ -631,6 +664,21 @@ func XTestWithValueChecksKey(t testingT) {
 	panicVal = recoveredValue(func() { WithValue(Background(), nil, "bar") })
 	if got, want := fmt.Sprint(panicVal), "nil key"; got != want {
 		t.Errorf("panic = %q; want %q", got, want)
+	}
+}
+
+func XTestInvalidDerivedFail(t testingT) {
+	panicVal := recoveredValue(func() { WithCancel(nil) })
+	if panicVal == nil {
+		t.Error("expected panic")
+	}
+	panicVal = recoveredValue(func() { WithDeadline(nil, time.Now().Add(shortDuration)) })
+	if panicVal == nil {
+		t.Error("expected panic")
+	}
+	panicVal = recoveredValue(func() { WithValue(nil, "foo", "bar") })
+	if panicVal == nil {
+		t.Error("expected panic")
 	}
 }
 
@@ -687,7 +735,7 @@ func XTestCustomContextGoroutines(t testingT) {
 	cancel0()
 	checkCreatedGoroutine()
 
-	_, cancel0 = WithTimeout(&myDoneCtx{Background()}, 1*time.Hour)
+	_, cancel0 = WithTimeout(&myDoneCtx{Background()}, veryLongDuration)
 	cancel0()
 	checkCreatedGoroutine()
 
@@ -707,7 +755,7 @@ func XTestCustomContextGoroutines(t testingT) {
 	defer cancel3b()
 	checkCreatedGoroutine() // ctx1 is not providing Done, must not be used
 
-	ctx4, cancel4 := WithTimeout(ctx3, 1*time.Hour)
+	ctx4, cancel4 := WithTimeout(ctx3, veryLongDuration)
 	defer cancel4()
 	checkNoGoroutine()
 
@@ -718,7 +766,7 @@ func XTestCustomContextGoroutines(t testingT) {
 	cancel5()
 	checkNoGoroutine()
 
-	_, cancel6 := WithTimeout(ctx5, 1*time.Hour)
+	_, cancel6 := WithTimeout(ctx5, veryLongDuration)
 	defer cancel6()
 	checkNoGoroutine()
 

@@ -88,6 +88,22 @@ func TestCryptoSigner(t *testing.T) {
 	}
 }
 
+func TestEqual(t *testing.T) {
+	public, private, _ := GenerateKey(rand.Reader)
+
+	if !public.Equal(public) {
+		t.Errorf("public key is not equal to itself: %q", public)
+	}
+	if !public.Equal(crypto.Signer(private).Public().(PublicKey)) {
+		t.Errorf("private.Public() is not Equal to public: %q", public)
+	}
+
+	other, _, _ := GenerateKey(rand.Reader)
+	if public.Equal(other) {
+		t.Errorf("different public keys are Equal")
+	}
+}
+
 func TestGolden(t *testing.T) {
 	// sign.input.gz is a selection of test cases from
 	// https://ed25519.cr.yp.to/python/sign.input

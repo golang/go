@@ -29,10 +29,12 @@ Scripts also have access to these other environment variables:
 	GOARCH=<target GOARCH>
 	GOCACHE=<actual GOCACHE being used outside the test>
 	GOEXE=<executable file suffix: .exe on Windows, empty on other systems>
+	GOEXPSTRING=<value of objabi.Expstring(), from GOEXPERIMENT when toolchain built>
 	GOOS=<target GOOS>
 	GOPATH=$WORK/gopath
 	GOPROXY=<local module proxy serving from cmd/go/testdata/mod>
 	GOROOT=<actual GOROOT>
+	TESTGO_GOROOT=<GOROOT used to build cmd/go, for use in tests that may change GOROOT>
 	HOME=/no-home
 	PATH=<actual PATH>
 	TMPDIR=$WORK/tmp
@@ -66,6 +68,10 @@ The command prefix ! indicates that the command on the rest of the line
 (typically go or a matching predicate) must fail, not succeed. Only certain
 commands support this prefix. They are indicated below by [!] in the synopsis.
 
+The command prefix ? indicates that the command on the rest of the line
+may or may not succeed, but the test should continue regardless.
+Commands that support this prefix are indicated by [?].
+
 The command prefix [cond] indicates that the command on the rest of the line
 should only run when the condition is satisfied. The available conditions are:
 
@@ -89,7 +95,7 @@ are satisfied.
 
 The commands are:
 
-- [!] cc args... [&]
+- [! | ?] cc args... [&]
   Run the C compiler, the platform specific flags (i.e. `go env GOGCCFLAGS`) will be
   added automatically before args.
 
@@ -111,7 +117,7 @@ The commands are:
   Like cmp, but environment variables are substituted in the file contents
   before the comparison. For example, $GOOS is replaced by the target GOOS.
 
-- [!] cp src... dst
+- [! | ?] cp src... dst
   Copy the listed files to the target file or existing directory.
   src can include "stdout" or "stderr" to use the standard output or standard error
   from the most recent exec or go command.
@@ -123,7 +129,7 @@ The commands are:
   The -r flag causes the values to be escaped using regexp.QuoteMeta
   before being recorded.
 
-- [!] exec program [args...] [&]
+- [! | ?] exec program [args...] [&]
   Run the given executable program with the arguments.
   It must (or must not) succeed.
   Note that 'exec' does not terminate the script (unlike in Unix shells).
@@ -140,7 +146,7 @@ The commands are:
   If -readonly is given, the files or directories must be unwritable.
   If -exec is given, the files or directories must be executable.
 
-- [!] go args... [&]
+- [! | ?] go args... [&]
   Run the (test copy of the) go command with the given arguments.
   It must (or must not) succeed.
 

@@ -741,7 +741,12 @@ func (t *tester) registerTests() {
 			})
 		}
 	}
-	if goos != "android" && !t.iOS() && goos != "js" {
+	// Only run the API check on fast development platforms. Android, iOS, and JS
+	// are always cross-compiled, and the filesystems on our only plan9 builders
+	// are too slow to complete in a reasonable timeframe. Every platform checks
+	// the API on every GOOS/GOARCH/CGO_ENABLED combination anyway, so we really
+	// only need to run this check once anywhere to get adequate coverage.
+	if goos != "android" && !t.iOS() && goos != "js" && goos != "plan9" {
 		t.tests = append(t.tests, distTest{
 			name:    "api",
 			heading: "API check",
@@ -1527,9 +1532,6 @@ func (t *tester) shouldUsePrecompiledStdTest() bool {
 }
 
 func (t *tester) shouldTestCmd() bool {
-	if t.race {
-		return false
-	}
 	if goos == "js" && goarch == "wasm" {
 		// Issues 25911, 35220
 		return false

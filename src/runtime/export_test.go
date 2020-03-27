@@ -975,3 +975,11 @@ func MapHashCheck(m interface{}, k interface{}) (uintptr, uintptr) {
 	y := typehash(kt, noescape(p), uintptr(mh.hash0))
 	return x, y
 }
+
+func MSpanCountAlloc(bits []byte) int {
+	s := mspan{
+		nelems:     uintptr(len(bits) * 8),
+		gcmarkBits: (*gcBits)(unsafe.Pointer(&bits[0])),
+	}
+	return s.countAlloc()
+}

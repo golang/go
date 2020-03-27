@@ -7,7 +7,7 @@
 package x509
 
 /*
-#cgo CFLAGS: -mmacosx-version-min=10.10 -D__MAC_OS_X_VERSION_MAX_ALLOWED=101300
+#cgo CFLAGS: -mmacosx-version-min=10.11
 #cgo LDFLAGS: -framework CoreFoundation -framework Security
 
 #include <errno.h>

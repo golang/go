@@ -333,6 +333,7 @@ func doSigPreempt(gp *g, ctxt *sigctxt) {
 
 	// Acknowledge the preemption.
 	atomic.Xadd(&gp.m.preemptGen, 1)
+	atomic.Store(&gp.m.signalPending, 0)
 }
 
 const preemptMSupported = pushCallSupported
@@ -359,7 +360,14 @@ func preemptM(mp *m) {
 		// required).
 		return
 	}
-	signalM(mp, sigPreempt)
+	if atomic.Cas(&mp.signalPending, 0, 1) {
+		// If multiple threads are preempting the same M, it may send many
+		// signals to the same M such that it hardly make progress, causing
+		// live-lock problem. Apparently this could happen on darwin. See
+		// issue #37741.
+		// Only send a signal if there isn't already one pending.
+		signalM(mp, sigPreempt)
+	}
 }
 
 // sigFetchG fetches the value of G safely when running in a signal handler.
