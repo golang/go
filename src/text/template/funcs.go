@@ -653,10 +653,10 @@ var (
 	jsBackslash = []byte(`\\`)
 	jsApos      = []byte(`\'`)
 	jsQuot      = []byte(`\"`)
-	jsLt        = []byte(`\x3C`)
-	jsGt        = []byte(`\x3E`)
-	jsAmp       = []byte(`\x26`)
-	jsEq        = []byte(`\x3D`)
+	jsLt        = []byte(`\u003C`)
+	jsGt        = []byte(`\u003E`)
+	jsAmp       = []byte(`\u0026`)
+	jsEq        = []byte(`\u003D`)
 )
 
 // JSEscape writes to w the escaped JavaScript equivalent of the plain text data b.
