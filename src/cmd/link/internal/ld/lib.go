@@ -2680,16 +2680,17 @@ func (ctxt *Link) callgraph() {
 		return
 	}
 
-	var i int
-	var r *sym.Reloc
-	for _, s := range ctxt.Textp {
-		for i = 0; i < len(s.R); i++ {
-			r = &s.R[i]
-			if r.Sym == nil {
+	ldr := ctxt.loader
+	for _, s := range ctxt.Textp2 {
+		relocs := ldr.Relocs(s)
+		for i := 0; i < relocs.Count; i++ {
+			r := relocs.At2(i)
+			rs := r.Sym()
+			if rs == 0 {
 				continue
 			}
-			if r.Type.IsDirectCall() && r.Sym.Type == sym.STEXT {
-				ctxt.Logf("%s calls %s\n", s.Name, r.Sym.Name)
+			if r.Type().IsDirectCall() && (ldr.SymType(rs) == sym.STEXT || ldr.SymType(rs) == sym.SABIALIAS) {
+				ctxt.Logf("%s calls %s\n", ldr.SymName(s), ldr.SymName(rs))
 			}
 		}
 	}
