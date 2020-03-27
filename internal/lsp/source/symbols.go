@@ -36,7 +36,7 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 		switch decl := decl.(type) {
 		case *ast.FuncDecl:
 			if obj := info.ObjectOf(decl.Name); obj != nil {
-				fs, err := funcSymbol(ctx, snapshot.View(), pkg, decl, obj, q)
+				fs, err := funcSymbol(snapshot.View(), pkg, decl, obj, q)
 				if err != nil {
 					return nil, err
 				}
@@ -52,7 +52,7 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 				switch spec := spec.(type) {
 				case *ast.TypeSpec:
 					if obj := info.ObjectOf(spec.Name); obj != nil {
-						ts, err := typeSymbol(ctx, snapshot.View(), pkg, info, spec, obj, q)
+						ts, err := typeSymbol(snapshot.View(), pkg, info, spec, obj, q)
 						if err != nil {
 							return nil, err
 						}
@@ -62,7 +62,7 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 				case *ast.ValueSpec:
 					for _, name := range spec.Names {
 						if obj := info.ObjectOf(name); obj != nil {
-							vs, err := varSymbol(ctx, snapshot.View(), pkg, decl, name, obj, q)
+							vs, err := varSymbol(snapshot.View(), pkg, decl, name, obj, q)
 							if err != nil {
 								return nil, err
 							}
@@ -76,7 +76,7 @@ func DocumentSymbols(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]p
 	return symbols, nil
 }
 
-func funcSymbol(ctx context.Context, view View, pkg Package, decl *ast.FuncDecl, obj types.Object, q types.Qualifier) (protocol.DocumentSymbol, error) {
+func funcSymbol(view View, pkg Package, decl *ast.FuncDecl, obj types.Object, q types.Qualifier) (protocol.DocumentSymbol, error) {
 	s := protocol.DocumentSymbol{
 		Name: obj.Name(),
 		Kind: protocol.Function,
@@ -112,7 +112,7 @@ func funcSymbol(ctx context.Context, view View, pkg Package, decl *ast.FuncDecl,
 	return s, nil
 }
 
-func typeSymbol(ctx context.Context, view View, pkg Package, info *types.Info, spec *ast.TypeSpec, obj types.Object, q types.Qualifier) (protocol.DocumentSymbol, error) {
+func typeSymbol(view View, pkg Package, info *types.Info, spec *ast.TypeSpec, obj types.Object, q types.Qualifier) (protocol.DocumentSymbol, error) {
 	s := protocol.DocumentSymbol{
 		Name: obj.Name(),
 	}
@@ -238,7 +238,7 @@ func nodesForStructField(i int, st *ast.StructType) (span, selection ast.Node) {
 	return nil, nil
 }
 
-func varSymbol(ctx context.Context, view View, pkg Package, decl ast.Node, name *ast.Ident, obj types.Object, q types.Qualifier) (protocol.DocumentSymbol, error) {
+func varSymbol(view View, pkg Package, decl ast.Node, name *ast.Ident, obj types.Object, q types.Qualifier) (protocol.DocumentSymbol, error) {
 	s := protocol.DocumentSymbol{
 		Name: obj.Name(),
 		Kind: protocol.Variable,

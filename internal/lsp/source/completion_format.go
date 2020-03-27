@@ -67,7 +67,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 			detail = "struct{...}" // for anonymous structs
 		} else if obj.IsField() {
 			var err error
-			detail, err = formatFieldType(c.ctx, c.snapshot, c.pkg, obj, c.qf)
+			detail, err = formatFieldType(c.ctx, c.snapshot, c.pkg, obj)
 			if err != nil {
 				detail = types.TypeString(obj.Type(), c.qf)
 			}

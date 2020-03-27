@@ -1215,7 +1215,7 @@ func testFolders(root string) ([]string, error) {
 	folders := []string{}
 	root = filepath.FromSlash(root)
 	// Get all test directories that are one level deeper than root.
-	if err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(root, func(path string, info os.FileInfo, _ error) error {
 		if !info.IsDir() {
 			return nil
 		}

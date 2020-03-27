@@ -137,7 +137,7 @@ func (s *snapshot) actionHandle(ctx context.Context, id packageID, a *analysis.A
 
 	h := s.view.session.cache.store.Bind(buildActionKey(a, ph), func(ctx context.Context) interface{} {
 		// Analyze dependencies first.
-		results, err := execAll(ctx, fset, deps)
+		results, err := execAll(ctx, deps)
 		if err != nil {
 			return &actionData{
 				err: err,
@@ -174,7 +174,7 @@ func (act *actionHandle) String() string {
 	return fmt.Sprintf("%s@%s", act.analyzer, act.pkg.PkgPath())
 }
 
-func execAll(ctx context.Context, fset *token.FileSet, actions []*actionHandle) (map[*actionHandle]*actionData, error) {
+func execAll(ctx context.Context, actions []*actionHandle) (map[*actionHandle]*actionData, error) {
 	var mu sync.Mutex
 	results := make(map[*actionHandle]*actionData)
 

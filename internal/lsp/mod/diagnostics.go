@@ -44,7 +44,7 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 	}
 
 	reports := map[source.FileIdentity][]source.Diagnostic{
-		realfh.Identity(): []source.Diagnostic{},
+		realfh.Identity(): {},
 	}
 	for _, e := range parseErrors {
 		diag := source.Diagnostic{
@@ -117,7 +117,7 @@ func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, realfh source
 	return actions
 }
 
-func SuggestedGoFixes(ctx context.Context, snapshot source.Snapshot, gofh source.FileHandle, diags []protocol.Diagnostic) ([]protocol.CodeAction, error) {
+func SuggestedGoFixes(ctx context.Context, snapshot source.Snapshot, diags []protocol.Diagnostic) ([]protocol.CodeAction, error) {
 	// TODO: We will want to support diagnostics for go.mod files even when the -modfile flag is turned off.
 	realURI, tempURI := snapshot.View().ModFiles()
 

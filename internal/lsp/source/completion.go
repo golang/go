@@ -488,7 +488,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 		path:                      path,
 		pos:                       pos,
 		seen:                      make(map[types.Object]bool),
-		enclosingFunc:             enclosingFunction(path, rng.Start, pkg.GetTypesInfo()),
+		enclosingFunc:             enclosingFunction(path, pkg.GetTypesInfo()),
 		enclosingCompositeLiteral: enclosingCompositeLiteral(path, rng.Start, pkg.GetTypesInfo()),
 		opts: &completionOptions{
 			matcher:           opts.Matcher,
@@ -953,7 +953,7 @@ func (c *completer) lexical() error {
 			}
 
 			// Don't use LHS of value spec in RHS.
-			if vs := enclosingValueSpec(c.path, c.pos); vs != nil {
+			if vs := enclosingValueSpec(c.path); vs != nil {
 				for _, ident := range vs.Names {
 					if obj.Pos() == ident.Pos() {
 						continue Names
@@ -1263,7 +1263,7 @@ func enclosingCompositeLiteral(path []ast.Node, pos token.Pos, info *types.Info)
 
 // enclosingFunction returns the signature and body of the function
 // enclosing the given position.
-func enclosingFunction(path []ast.Node, pos token.Pos, info *types.Info) *funcInfo {
+func enclosingFunction(path []ast.Node, info *types.Info) *funcInfo {
 	for _, node := range path {
 		switch t := node.(type) {
 		case *ast.FuncDecl:

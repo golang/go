@@ -45,7 +45,7 @@ func sourceError(ctx context.Context, fset *token.FileSet, pkg *pkg, e interface
 			spn = parseGoListError(e.Msg)
 
 			// We may not have been able to parse a valid span.
-			if _, err := spanToRange(ctx, pkg, spn); err != nil {
+			if _, err := spanToRange(pkg, spn); err != nil {
 				return &source.Error{
 					URI:     spn.URI(),
 					Message: msg,
@@ -58,7 +58,7 @@ func sourceError(ctx context.Context, fset *token.FileSet, pkg *pkg, e interface
 	case *scanner.Error:
 		msg = e.Msg
 		kind = source.ParseError
-		spn, err = scannerErrorRange(ctx, fset, pkg, e.Pos)
+		spn, err = scannerErrorRange(fset, pkg, e.Pos)
 		if err != nil {
 			event.Error(ctx, "no span for scanner.Error pos", err, tag.Package.Of(pkg.ID()))
 			spn = span.Parse(e.Pos.String())
@@ -71,7 +71,7 @@ func sourceError(ctx context.Context, fset *token.FileSet, pkg *pkg, e interface
 		}
 		msg = e[0].Msg
 		kind = source.ParseError
-		spn, err = scannerErrorRange(ctx, fset, pkg, e[0].Pos)
+		spn, err = scannerErrorRange(fset, pkg, e[0].Pos)
 		if err != nil {
 			event.Error(ctx, "no span for scanner.Error pos", err, tag.Package.Of(pkg.ID()))
 			spn = span.Parse(e[0].Pos.String())
@@ -92,16 +92,16 @@ func sourceError(ctx context.Context, fset *token.FileSet, pkg *pkg, e interface
 		msg = e.Message
 		kind = source.Analysis
 		category = e.Category
-		fixes, err = suggestedFixes(ctx, fset, pkg, e)
+		fixes, err = suggestedFixes(fset, pkg, e)
 		if err != nil {
 			return nil, err
 		}
-		related, err = relatedInformation(ctx, fset, pkg, e)
+		related, err = relatedInformation(fset, pkg, e)
 		if err != nil {
 			return nil, err
 		}
 	}
-	rng, err := spanToRange(ctx, pkg, spn)
+	rng, err := spanToRange(pkg, spn)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func sourceError(ctx context.Context, fset *token.FileSet, pkg *pkg, e interface
 	}, nil
 }
 
-func suggestedFixes(ctx context.Context, fset *token.FileSet, pkg *pkg, diag *analysis.Diagnostic) ([]source.SuggestedFix, error) {
+func suggestedFixes(fset *token.FileSet, pkg *pkg, diag *analysis.Diagnostic) ([]source.SuggestedFix, error) {
 	var fixes []source.SuggestedFix
 	for _, fix := range diag.SuggestedFixes {
 		edits := make(map[span.URI][]protocol.TextEdit)
@@ -125,7 +125,7 @@ func suggestedFixes(ctx context.Context, fset *token.FileSet, pkg *pkg, diag *an
 			if err != nil {
 				return nil, err
 			}
-			rng, err := spanToRange(ctx, pkg, spn)
+			rng, err := spanToRange(pkg, spn)
 			if err != nil {
 				return nil, err
 			}
@@ -142,14 +142,14 @@ func suggestedFixes(ctx context.Context, fset *token.FileSet, pkg *pkg, diag *an
 	return fixes, nil
 }
 
-func relatedInformation(ctx context.Context, fset *token.FileSet, pkg *pkg, diag *analysis.Diagnostic) ([]source.RelatedInformation, error) {
+func relatedInformation(fset *token.FileSet, pkg *pkg, diag *analysis.Diagnostic) ([]source.RelatedInformation, error) {
 	var out []source.RelatedInformation
 	for _, related := range diag.Related {
 		spn, err := span.NewRange(fset, related.Pos, related.End).Span()
 		if err != nil {
 			return nil, err
 		}
-		rng, err := spanToRange(ctx, pkg, spn)
+		rng, err := spanToRange(pkg, spn)
 		if err != nil {
 			return nil, err
 		}
@@ -200,7 +200,7 @@ func typeErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, pos toke
 	}.Span()
 }
 
-func scannerErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, posn token.Position) (span.Span, error) {
+func scannerErrorRange(fset *token.FileSet, pkg *pkg, posn token.Position) (span.Span, error) {
 	ph, _, err := source.FindFileInPackage(pkg, span.URIFromPath(posn.Filename))
 	if err != nil {
 		return span.Span{}, err
@@ -219,7 +219,7 @@ func scannerErrorRange(ctx context.Context, fset *token.FileSet, pkg *pkg, posn 
 
 // spanToRange converts a span.Span to a protocol.Range,
 // assuming that the span belongs to the package whose diagnostics are being computed.
-func spanToRange(ctx context.Context, pkg *pkg, spn span.Span) (protocol.Range, error) {
+func spanToRange(pkg *pkg, spn span.Span) (protocol.Range, error) {
 	ph, _, err := source.FindFileInPackage(pkg, spn.URI())
 	if err != nil {
 		return protocol.Range{}, err

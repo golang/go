@@ -210,7 +210,7 @@ func diagnostics(ctx context.Context, snapshot Snapshot, reports map[FileIdentit
 		} else if len(set.typeErrors) > 0 {
 			hasTypeErrors = true
 		}
-		if err := addReports(ctx, snapshot, reports, uri, diags...); err != nil {
+		if err := addReports(snapshot, reports, uri, diags...); err != nil {
 			return false, false, err
 		}
 	}
@@ -302,7 +302,7 @@ func analyses(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][
 		if onlyDeletions(e.SuggestedFixes) {
 			tags = append(tags, protocol.Unnecessary)
 		}
-		if err := addReports(ctx, snapshot, reports, e.URI, &Diagnostic{
+		if err := addReports(snapshot, reports, e.URI, &Diagnostic{
 			Range:          e.Range,
 			Message:        e.Message,
 			Source:         e.Category,
@@ -329,7 +329,7 @@ func clearReports(snapshot Snapshot, reports map[FileIdentity][]Diagnostic, uri 
 	return nil
 }
 
-func addReports(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]Diagnostic, uri span.URI, diagnostics ...*Diagnostic) error {
+func addReports(snapshot Snapshot, reports map[FileIdentity][]Diagnostic, uri span.URI, diagnostics ...*Diagnostic) error {
 	if snapshot.View().Ignore(uri) {
 		return nil
 	}

@@ -111,7 +111,7 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 			}
 
 			// Get any actions that might be attributed to missing modules in the go.mod file.
-			actions, err := mod.SuggestedGoFixes(ctx, snapshot, fh, diagnostics)
+			actions, err := mod.SuggestedGoFixes(ctx, snapshot, diagnostics)
 			if err != nil {
 				event.Error(ctx, "quick fixes failed", err, tag.URI.Of(uri))
 			}

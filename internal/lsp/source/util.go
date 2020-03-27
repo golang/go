@@ -458,7 +458,7 @@ func enclosingSelector(path []ast.Node, pos token.Pos) *ast.SelectorExpr {
 	return nil
 }
 
-func enclosingValueSpec(path []ast.Node, pos token.Pos) *ast.ValueSpec {
+func enclosingValueSpec(path []ast.Node) *ast.ValueSpec {
 	for _, n := range path {
 		if vs, ok := n.(*ast.ValueSpec); ok {
 			return vs
@@ -504,7 +504,7 @@ func formatParams(ctx context.Context, s Snapshot, pkg Package, sig *types.Signa
 	params := make([]string, 0, sig.Params().Len())
 	for i := 0; i < sig.Params().Len(); i++ {
 		el := sig.Params().At(i)
-		typ, err := formatFieldType(ctx, s, pkg, el, qf)
+		typ, err := formatFieldType(ctx, s, pkg, el)
 		if err != nil {
 			typ = types.TypeString(el.Type(), qf)
 		}
@@ -523,7 +523,7 @@ func formatParams(ctx context.Context, s Snapshot, pkg Package, sig *types.Signa
 	return params
 }
 
-func formatFieldType(ctx context.Context, s Snapshot, srcpkg Package, obj types.Object, qf types.Qualifier) (string, error) {
+func formatFieldType(ctx context.Context, s Snapshot, srcpkg Package, obj types.Object) (string, error) {
 	file, pkg, err := findPosInPackage(s.View(), srcpkg, obj.Pos())
 	if err != nil {
 		return "", err

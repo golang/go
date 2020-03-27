@@ -7,7 +7,6 @@
 package source
 
 import (
-	"context"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -193,7 +192,7 @@ func (r *renamer) checkInLexicalScope(from types.Object, pkg Package) {
 			// Check for super-block conflict.
 			// The name r.to is defined in a superblock.
 			// Is that name referenced from within this block?
-			forEachLexicalRef(r.ctx, pkg, to, func(id *ast.Ident, block *types.Scope) bool {
+			forEachLexicalRef(pkg, to, func(id *ast.Ident, block *types.Scope) bool {
 				_, obj := lexicalLookup(block, from.Name(), id.Pos())
 				if obj == from {
 					// super-block conflict
@@ -211,7 +210,7 @@ func (r *renamer) checkInLexicalScope(from types.Object, pkg Package) {
 	// Check for sub-block conflict.
 	// Is there an intervening definition of r.to between
 	// the block defining 'from' and some reference to it?
-	forEachLexicalRef(r.ctx, pkg, from, func(id *ast.Ident, block *types.Scope) bool {
+	forEachLexicalRef(pkg, from, func(id *ast.Ident, block *types.Scope) bool {
 		// Find the block that defines the found reference.
 		// It may be an ancestor.
 		fromBlock, _ := lexicalLookup(block, from.Name(), id.Pos())
@@ -283,7 +282,7 @@ func deeper(x, y *types.Scope) bool {
 // pkg that is a reference to obj in lexical scope.  block is the
 // lexical block enclosing the reference.  If fn returns false the
 // iteration is terminated and findLexicalRefs returns false.
-func forEachLexicalRef(ctx context.Context, pkg Package, obj types.Object, fn func(id *ast.Ident, block *types.Scope) bool) bool {
+func forEachLexicalRef(pkg Package, obj types.Object, fn func(id *ast.Ident, block *types.Scope) bool) bool {
 	ok := true
 	var stack []ast.Node
 
@@ -386,7 +385,7 @@ func (r *renamer) checkStructField(from *types.Var) {
 	// go/types offers no easy way to get from a field (or interface
 	// method) to its declaring struct (or interface), so we must
 	// ascend the AST.
-	pkg, path, _ := pathEnclosingInterval(r.ctx, r.fset, r.packages[from.Pkg()], from.Pos(), from.Pos())
+	pkg, path, _ := pathEnclosingInterval(r.fset, r.packages[from.Pkg()], from.Pos(), from.Pos())
 	if pkg == nil || path == nil {
 		return
 	}
@@ -842,7 +841,7 @@ func someUse(info *types.Info, obj types.Object) *ast.Ident {
 //
 // The zero value is returned if not found.
 //
-func pathEnclosingInterval(ctx context.Context, fset *token.FileSet, pkg Package, start, end token.Pos) (resPkg Package, path []ast.Node, exact bool) {
+func pathEnclosingInterval(fset *token.FileSet, pkg Package, start, end token.Pos) (resPkg Package, path []ast.Node, exact bool) {
 	var pkgs = []Package{pkg}
 	for _, f := range pkg.GetSyntax() {
 		for _, imp := range f.Imports {

@@ -402,7 +402,7 @@ func (s *snapshot) ModTidyHandle(ctx context.Context, realfh source.FileHandle) 
 				data.missingDeps[req.Mod.Path] = req
 			}
 		}
-		data.parseErrors, data.err = modRequireErrors(ctx, options, data)
+		data.parseErrors, data.err = modRequireErrors(options, data)
 
 		for _, req := range data.missingDeps {
 			if data.unusedDeps[req.Mod.Path] != nil {
@@ -464,7 +464,7 @@ func extractModParseErrors(ctx context.Context, uri span.URI, m *protocol.Column
 
 // modRequireErrors extracts the errors that occur on the require directives.
 // It checks for directness issues and unused dependencies.
-func modRequireErrors(ctx context.Context, options source.Options, data *modData) ([]source.Error, error) {
+func modRequireErrors(options source.Options, data *modData) ([]source.Error, error) {
 	var errors []source.Error
 	for dep, req := range data.unusedDeps {
 		if req.Syntax == nil {
@@ -472,7 +472,7 @@ func modRequireErrors(ctx context.Context, options source.Options, data *modData
 		}
 		// Handle dependencies that are incorrectly labeled indirect and vice versa.
 		if data.missingDeps[dep] != nil && req.Indirect != data.missingDeps[dep].Indirect {
-			directErr, err := modDirectnessErrors(ctx, options, data, req)
+			directErr, err := modDirectnessErrors(options, data, req)
 			if err != nil {
 				return nil, err
 			}
@@ -484,7 +484,7 @@ func modRequireErrors(ctx context.Context, options source.Options, data *modData
 			if err != nil {
 				return nil, err
 			}
-			edits, err := dropDependencyEdits(ctx, options, data, req)
+			edits, err := dropDependencyEdits(options, data, req)
 			if err != nil {
 				return nil, err
 			}
@@ -504,7 +504,7 @@ func modRequireErrors(ctx context.Context, options source.Options, data *modData
 }
 
 // modDirectnessErrors extracts errors when a dependency is labeled indirect when it should be direct and vice versa.
-func modDirectnessErrors(ctx context.Context, options source.Options, data *modData, req *modfile.Require) (source.Error, error) {
+func modDirectnessErrors(options source.Options, data *modData, req *modfile.Require) (source.Error, error) {
 	rng, err := rangeFromPositions(data.origfh.Identity().URI, data.origMapper, req.Syntax.Start, req.Syntax.End)
 	if err != nil {
 		return source.Error{}, err
@@ -520,7 +520,7 @@ func modDirectnessErrors(ctx context.Context, options source.Options, data *modD
 				return source.Error{}, err
 			}
 		}
-		edits, err := changeDirectnessEdits(ctx, options, data, req, false)
+		edits, err := changeDirectnessEdits(options, data, req, false)
 		if err != nil {
 			return source.Error{}, err
 		}
@@ -536,7 +536,7 @@ func modDirectnessErrors(ctx context.Context, options source.Options, data *modD
 		}, nil
 	}
 	// If the dependency should be indirect, add the // indirect.
-	edits, err := changeDirectnessEdits(ctx, options, data, req, true)
+	edits, err := changeDirectnessEdits(options, data, req, true)
 	if err != nil {
 		return source.Error{}, err
 	}
@@ -564,7 +564,7 @@ func modDirectnessErrors(ctx context.Context, options source.Options, data *modD
 // 	module t
 //
 // 	go 1.11
-func dropDependencyEdits(ctx context.Context, options source.Options, data *modData, req *modfile.Require) ([]protocol.TextEdit, error) {
+func dropDependencyEdits(options source.Options, data *modData, req *modfile.Require) ([]protocol.TextEdit, error) {
 	if err := data.origParsedFile.DropRequire(req.Mod.Path); err != nil {
 		return nil, err
 	}
@@ -598,7 +598,7 @@ func dropDependencyEdits(ctx context.Context, options source.Options, data *modD
 // 	go 1.11
 //
 // 	require golang.org/x/mod v0.1.1-0.20191105210325-c90efee705ee // indirect
-func changeDirectnessEdits(ctx context.Context, options source.Options, data *modData, req *modfile.Require, indirect bool) ([]protocol.TextEdit, error) {
+func changeDirectnessEdits(options source.Options, data *modData, req *modfile.Require, indirect bool) ([]protocol.TextEdit, error) {
 	var newReq []*modfile.Require
 	prevIndirect := false
 	// Change the directness in the matching require statement.

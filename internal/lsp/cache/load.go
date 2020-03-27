@@ -114,7 +114,7 @@ func (s *snapshot) load(ctx context.Context, scopes ...interface{}) error {
 			continue
 		}
 		// Skip test main packages.
-		if isTestMain(ctx, pkg, s.view.gocache) {
+		if isTestMain(pkg, s.view.gocache) {
 			continue
 		}
 		// Set the metadata for this package.
@@ -161,7 +161,7 @@ func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *pa
 	}
 
 	copied := map[packageID]struct{}{
-		id: struct{}{},
+		id: {},
 	}
 	for k, v := range seen {
 		copied[k] = v
@@ -218,7 +218,7 @@ func (s *snapshot) setMetadata(ctx context.Context, pkgPath packagePath, pkg *pa
 	return m, nil
 }
 
-func isTestMain(ctx context.Context, pkg *packages.Package, gocache string) bool {
+func isTestMain(pkg *packages.Package, gocache string) bool {
 	// Test mains must have an import path that ends with ".test".
 	if !strings.HasSuffix(pkg.PkgPath, ".test") {
 		return false

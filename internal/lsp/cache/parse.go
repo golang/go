@@ -307,7 +307,7 @@ func fixSrc(f *ast.File, tok *token.File, src []byte) (newSrc []byte) {
 		case *ast.BlockStmt:
 			newSrc = fixMissingCurlies(f, n, parent, tok, src)
 		case *ast.SelectorExpr:
-			newSrc = fixDanglingSelector(f, n, parent, tok, src)
+			newSrc = fixDanglingSelector(n, tok, src)
 		}
 
 		return newSrc == nil
@@ -460,7 +460,7 @@ func fixEmptySwitch(body *ast.BlockStmt, tok *token.File, src []byte) {
 // To fix completion at "<>", we insert a real "_" after the "." so the
 // following declaration of "x" can be parsed and type checked
 // normally.
-func fixDanglingSelector(f *ast.File, s *ast.SelectorExpr, parent ast.Node, tok *token.File, src []byte) []byte {
+func fixDanglingSelector(s *ast.SelectorExpr, tok *token.File, src []byte) []byte {
 	if !isPhantomUnderscore(s.Sel, tok, src) {
 		return nil
 	}

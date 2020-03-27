@@ -36,7 +36,7 @@ func Format(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.T
 	// Using format.Node on an AST with errors may result in code being modified.
 	// Attempt to format the source of this file instead.
 	if parseErrors != nil {
-		formatted, err := formatSource(ctx, snapshot, fh)
+		formatted, err := formatSource(ctx, fh)
 		if err != nil {
 			return nil, err
 		}
@@ -56,7 +56,7 @@ func Format(ctx context.Context, snapshot Snapshot, fh FileHandle) ([]protocol.T
 	return computeTextEdits(ctx, snapshot.View(), pgh.File(), m, buf.String())
 }
 
-func formatSource(ctx context.Context, s Snapshot, fh FileHandle) ([]byte, error) {
+func formatSource(ctx context.Context, fh FileHandle) ([]byte, error) {
 	ctx, done := event.StartSpan(ctx, "source.formatSource")
 	defer done()
 
