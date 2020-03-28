@@ -1865,7 +1865,8 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 		batch := l.relocBatch
 		s.R = batch[:len(pp.relocs):len(pp.relocs)]
 		l.relocBatch = batch[len(pp.relocs):]
-		l.convertRelocations(pp.relocs, s, false)
+		relocs := l.Relocs(i)
+		l.convertRelocations(&relocs, s, false)
 
 		// Copy data
 		s.P = pp.data
@@ -1977,7 +1978,6 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, anonVerReplace
 	// sym.Symbols are created.
 
 	// First pass, symbol creation and symbol data fixup.
-	rslice := []Reloc{}
 	for _, cand := range toconvert {
 
 		sn := l.SymName(cand)
@@ -2063,11 +2063,10 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, anonVerReplace
 	for _, cand := range relocfixup {
 		s := l.Syms[cand]
 		relocs := l.Relocs(cand)
-		rslice = relocs.ReadAll(rslice)
-		if len(s.R) != len(rslice) {
-			s.R = make([]sym.Reloc, len(rslice))
+		if len(s.R) != relocs.Count {
+			s.R = make([]sym.Reloc, relocs.Count)
 		}
-		l.convertRelocations(rslice, s, true)
+		l.convertRelocations(&relocs, s, true)
 	}
 
 	return result
@@ -2426,7 +2425,6 @@ func loadObjFull(l *Loader, r *oReader) {
 	fdsyms := []*sym.Symbol{}
 	var funcAllocCounts funcAllocInfo
 	pcdataBase := r.PcdataBase()
-	rslice := []Reloc{}
 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
 		// A symbol may be a dup or overwritten. In this case, its
 		// content will actually be provided by a different object
@@ -2471,11 +2469,10 @@ func loadObjFull(l *Loader, r *oReader) {
 
 		// Relocs
 		relocs := l.relocs(r, i)
-		rslice = relocs.ReadAll(rslice)
 		batch := l.relocBatch
 		s.R = batch[:relocs.Count:relocs.Count]
 		l.relocBatch = batch[relocs.Count:]
-		l.convertRelocations(rslice, s, false)
+		l.convertRelocations(&relocs, s, false)
 
 		// Aux symbol info
 		isym := -1
@@ -2645,12 +2642,12 @@ func loadObjFull(l *Loader, r *oReader) {
 // etc. It is assumed that the caller has pre-allocated the dst symbol
 // relocations slice. If 'strict' is set, then this method will
 // panic if it finds a relocation targeting a nil symbol.
-func (l *Loader) convertRelocations(src []Reloc, dst *sym.Symbol, strict bool) {
+func (l *Loader) convertRelocations(src *Relocs, dst *sym.Symbol, strict bool) {
 	for j := range dst.R {
-		r := src[j]
-		rs := r.Sym
-		sz := r.Size
-		rt := r.Type
+		r := src.At2(j)
+		rs := r.Sym()
+		sz := r.Siz()
+		rt := r.Type()
 		if rt == objabi.R_METHODOFF {
 			if l.attrReachable.Has(rs) {
 				rt = objabi.R_ADDROFF
@@ -2671,10 +2668,10 @@ func (l *Loader) convertRelocations(src []Reloc, dst *sym.Symbol, strict bool) {
 			panic("nil reloc target in convertRelocations")
 		}
 		dst.R[j] = sym.Reloc{
-			Off:  r.Off,
+			Off:  r.Off(),
 			Siz:  sz,
 			Type: rt,
-			Add:  r.Add,
+			Add:  r.Add(),
 			Sym:  l.Syms[rs],
 		}
 	}

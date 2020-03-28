@@ -272,7 +272,7 @@ func deadcode2(ctxt *Link) {
 			s := loader.Sym(i)
 			if ldr.IsItabLink(s) {
 				relocs := ldr.Relocs(s)
-				if relocs.Count > 0 && ldr.AttrReachable(relocs.At(0).Sym) {
+				if relocs.Count > 0 && ldr.AttrReachable(relocs.At2(0).Sym()) {
 					ldr.SetAttrReachable(s, true)
 				}
 			}
