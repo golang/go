@@ -1260,46 +1260,15 @@ func sequentialAddresses(x, y *Value, n int64) bool {
 			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
 		return true
 	}
+	if x.Op == OpAMD64ADDQ && y.Op == OpAMD64LEAQ1 && y.AuxInt == n && y.Aux == nil &&
+		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
+			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
+		return true
+	}
+	if x.Op == OpAMD64LEAQ1 && y.Op == OpAMD64LEAQ1 && y.AuxInt == x.AuxInt+n && x.Aux == y.Aux &&
+		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
+			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
+		return true
+	}
 	return false
-}
-
-// same reports whether x and y are the same value.
-// It checks to a maximum depth of d, so it may report
-// a false negative.
-// TODO: remove when amd64 port is switched to using sequentialAddresses
-func same(x, y *Value, depth int) bool {
-	if x == y {
-		return true
-	}
-	if depth <= 0 {
-		return false
-	}
-	if x.Op != y.Op || x.Aux != y.Aux || x.AuxInt != y.AuxInt {
-		return false
-	}
-	if len(x.Args) != len(y.Args) {
-		return false
-	}
-	if opcodeTable[x.Op].commutative {
-		// Check exchanged ordering first.
-		for i, a := range x.Args {
-			j := i
-			if j < 2 {
-				j ^= 1
-			}
-			b := y.Args[j]
-			if !same(a, b, depth-1) {
-				goto checkNormalOrder
-			}
-		}
-		return true
-	checkNormalOrder:
-	}
-	for i, a := range x.Args {
-		b := y.Args[i]
-		if !same(a, b, depth-1) {
-			return false
-		}
-	}
-	return true
 }
