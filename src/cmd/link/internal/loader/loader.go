@@ -68,6 +68,14 @@ type Reloc2 struct {
 
 func (rel Reloc2) Type() objabi.RelocType { return objabi.RelocType(rel.Reloc2.Type()) + rel.typ }
 func (rel Reloc2) Sym() Sym               { return rel.l.resolve(rel.r, rel.Reloc2.Sym()) }
+func (rel Reloc2) SetSym(s Sym)           { rel.Reloc2.SetSym(goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(s)}) }
+
+func (rel Reloc2) SetType(t objabi.RelocType) {
+	if t != objabi.RelocType(uint8(t)) {
+		panic("SetType: type doesn't fit into Reloc2")
+	}
+	rel.Reloc2.SetType(uint8(t))
+}
 
 // Aux2 holds a "handle" to access an aux symbol record from an
 // object file.
@@ -269,14 +277,15 @@ type elfsetstringFunc func(s *sym.Symbol, str string, off int)
 // extSymPayload holds the payload (data + relocations) for linker-synthesized
 // external symbols (note that symbol value is stored in a separate slice).
 type extSymPayload struct {
-	name   string // TODO: would this be better as offset into str table?
-	size   int64
-	ver    int
-	kind   sym.SymKind
-	objidx uint32 // index of original object if sym made by cloneToExternal
-	gotype Sym    // Gotype (0 if not present)
-	relocs []Reloc
-	data   []byte
+	name     string // TODO: would this be better as offset into str table?
+	size     int64
+	ver      int
+	kind     sym.SymKind
+	objidx   uint32 // index of original object if sym made by cloneToExternal
+	gotype   Sym    // Gotype (0 if not present)
+	relocs   []goobj2.Reloc2
+	reltypes []objabi.RelocType // relocation types
+	data     []byte
 }
 
 const (
@@ -1468,89 +1477,13 @@ func (l *Loader) growExtAttrBitmaps() {
 	}
 }
 
-// At method returns the j-th reloc for a global symbol.
-func (relocs *Relocs) At(j int) Reloc {
-	if relocs.l.isExtReader(relocs.r) {
-		pp := relocs.l.payloads[relocs.li]
-		return pp.relocs[j]
-	}
-	rel := goobj2.Reloc{}
-	rel.Read(relocs.r.Reader, relocs.r.RelocOff(relocs.li, j))
-	target := relocs.l.resolve(relocs.r, rel.Sym)
-	return Reloc{
-		Off:  rel.Off,
-		Size: rel.Siz,
-		Type: objabi.RelocType(rel.Type),
-		Add:  rel.Add,
-		Sym:  target,
-	}
-}
-
+// At2 returns the j-th reloc for a global symbol.
 func (relocs *Relocs) At2(j int) Reloc2 {
 	if relocs.l.isExtReader(relocs.r) {
 		pp := relocs.l.payloads[relocs.li]
-		r := pp.relocs[j]
-		// XXX populate a goobj2.Reloc from external reloc record.
-		// Ugly. Maybe we just want to use this format to store the
-		// reloc record in the first place?
-		// Also there is more speedup if we could remove the
-		// conditional here.
-		var b goobj2.Reloc2
-		b.Set(r.Off, r.Size, 0, r.Add, goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(r.Sym)})
-		return Reloc2{&b, relocs.r, relocs.l, r.Type}
+		return Reloc2{&relocs.rs[j], relocs.r, relocs.l, pp.reltypes[j]}
 	}
 	return Reloc2{&relocs.rs[j], relocs.r, relocs.l, 0}
-}
-
-// ReadAll method reads all relocations for a symbol into the
-// specified slice. If the slice capacity is not large enough, a new
-// larger slice will be allocated. Final slice is returned.
-func (relocs *Relocs) ReadAll(dst []Reloc) []Reloc {
-	return relocs.readAll(dst, false)
-}
-
-// ReadSyms method reads all relocation target symbols and reloc types
-// for a symbol into the specified slice. It is like ReadAll but only
-// fill in the Sym and Type fields.
-func (relocs *Relocs) ReadSyms(dst []Reloc) []Reloc {
-	return relocs.readAll(dst, true)
-}
-
-func (relocs *Relocs) readAll(dst []Reloc, onlySymType bool) []Reloc {
-	if relocs.Count == 0 {
-		return dst[:0]
-	}
-
-	if cap(dst) < relocs.Count {
-		dst = make([]Reloc, relocs.Count)
-	}
-	dst = dst[:0]
-
-	if relocs.l.isExtReader(relocs.r) {
-		pp := relocs.l.payloads[relocs.li]
-		dst = append(dst, pp.relocs...)
-		return dst
-	}
-
-	off := relocs.r.RelocOff(relocs.li, 0)
-	rel := goobj2.Reloc{}
-	for i := 0; i < relocs.Count; i++ {
-		if onlySymType {
-			rel.ReadSymType(relocs.r.Reader, off)
-		} else {
-			rel.Read(relocs.r.Reader, off)
-		}
-		off += uint32(rel.Size())
-		target := relocs.l.resolve(relocs.r, rel.Sym)
-		dst = append(dst, Reloc{
-			Off:  rel.Off,
-			Size: rel.Siz,
-			Type: objabi.RelocType(rel.Type),
-			Add:  rel.Add,
-			Sym:  target,
-		})
-	}
-	return dst
 }
 
 // Relocs returns a Relocs object for the given global sym.
@@ -1569,6 +1502,7 @@ func (l *Loader) relocs(r *oReader, li int) Relocs {
 	if l.isExtReader(r) {
 		pp := l.payloads[li]
 		n = len(pp.relocs)
+		rs = pp.relocs
 	} else {
 		rs = r.Relocs2(li)
 		n = len(rs)
@@ -2237,7 +2171,15 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 
 		// Copy relocations
 		relocs := l.Relocs(symIdx)
-		pp.relocs = relocs.ReadAll(nil)
+		pp.relocs = make([]goobj2.Reloc2, relocs.Count)
+		pp.reltypes = make([]objabi.RelocType, relocs.Count)
+		for i := range pp.relocs {
+			// Copy the relocs slice.
+			// Convert local reference to global reference.
+			rel := relocs.At2(i)
+			pp.relocs[i].Set(rel.Off(), rel.Siz(), 0, rel.Add(), goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(rel.Sym())})
+			pp.reltypes[i] = rel.Type()
+		}
 
 		// Copy data
 		pp.data = r.Data(li)
@@ -2634,7 +2576,7 @@ func (l *Loader) convertRelocations(src *Relocs, dst *sym.Symbol, strict bool) {
 		}
 		if rs != 0 && l.Syms[rs] != nil && l.Syms[rs].Type == sym.SABIALIAS {
 			rsrelocs := l.Relocs(rs)
-			rs = rsrelocs.At(0).Sym
+			rs = rsrelocs.At2(0).Sym()
 		}
 		if strict && rs != 0 && l.Syms[rs] == nil && rt != objabi.R_USETYPE {
 			panic("nil reloc target in convertRelocations")
@@ -2659,14 +2601,13 @@ func (l *Loader) convertRelocations(src *Relocs, dst *sym.Symbol, strict bool) {
 // results returned; if "limit" is -1, then all undefs are returned.
 func (l *Loader) UndefinedRelocTargets(limit int) []Sym {
 	result := []Sym{}
-	rslice := []Reloc{}
 	for si := Sym(1); si < Sym(len(l.objSyms)); si++ {
 		relocs := l.Relocs(si)
-		rslice = relocs.ReadSyms(rslice)
 		for ri := 0; ri < relocs.Count; ri++ {
-			r := &rslice[ri]
-			if r.Sym != 0 && l.SymType(r.Sym) == sym.SXREF && l.RawSymName(r.Sym) != ".got" {
-				result = append(result, r.Sym)
+			r := relocs.At2(ri)
+			rs := r.Sym()
+			if rs != 0 && l.SymType(rs) == sym.SXREF && l.RawSymName(rs) != ".got" {
+				result = append(result, rs)
 				if limit != -1 && len(result) >= limit {
 					break
 				}

@@ -5,6 +5,7 @@
 package loader
 
 import (
+	"cmd/internal/goobj2"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
@@ -121,23 +122,37 @@ func (sb *SymbolBuilder) AddBytes(data []byte) {
 	sb.size = int64(len(sb.data))
 }
 
-func (sb *SymbolBuilder) Relocs() []Reloc {
-	return sb.relocs
+func (sb *SymbolBuilder) Relocs() Relocs {
+	return sb.l.Relocs(sb.symIdx)
 }
 
 func (sb *SymbolBuilder) SetRelocs(rslice []Reloc) {
-	sb.relocs = rslice
-}
-
-func (sb *SymbolBuilder) WriteRelocs(rslice []Reloc) {
-	if len(sb.relocs) != len(rslice) {
-		panic("src/dest length mismatch")
+	n := len(rslice)
+	if cap(sb.relocs) < n {
+		sb.relocs = make([]goobj2.Reloc2, n)
+		sb.reltypes = make([]objabi.RelocType, n)
+	} else {
+		sb.relocs = sb.relocs[:n]
+		sb.reltypes = sb.reltypes[:n]
 	}
-	copy(sb.relocs, rslice)
+	for i := range rslice {
+		sb.SetReloc(i, rslice[i])
+	}
 }
 
 func (sb *SymbolBuilder) AddReloc(r Reloc) {
-	sb.relocs = append(sb.relocs, r)
+	// Populate a goobj2.Reloc from external reloc record.
+	var b goobj2.Reloc2
+	b.Set(r.Off, r.Size, 0, r.Add, goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(r.Sym)})
+	sb.relocs = append(sb.relocs, b)
+	sb.reltypes = append(sb.reltypes, r.Type)
+}
+
+// Update the j-th relocation in place.
+func (sb *SymbolBuilder) SetReloc(j int, r Reloc) {
+	// Populate a goobj2.Reloc from external reloc record.
+	sb.relocs[j].Set(r.Off, r.Size, 0, r.Add, goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(r.Sym)})
+	sb.reltypes[j] = r.Type
 }
 
 func (sb *SymbolBuilder) Reachable() bool {
@@ -277,11 +292,6 @@ func (sb *SymbolBuilder) Addstring(str string) int64 {
 	return r
 }
 
-func (sb *SymbolBuilder) addRel() *Reloc {
-	sb.relocs = append(sb.relocs, Reloc{})
-	return &sb.relocs[len(sb.relocs)-1]
-}
-
 func (sb *SymbolBuilder) addSymRef(tgt Sym, add int64, typ objabi.RelocType, rsize int) int64 {
 	if sb.kind == 0 {
 		sb.kind = sym.SDATA
@@ -291,12 +301,13 @@ func (sb *SymbolBuilder) addSymRef(tgt Sym, add int64, typ objabi.RelocType, rsi
 	sb.size += int64(rsize)
 	sb.Grow(sb.size)
 
-	r := sb.addRel()
+	var r Reloc
 	r.Sym = tgt
 	r.Off = int32(i)
 	r.Size = uint8(rsize)
 	r.Type = typ
 	r.Add = add
+	sb.AddReloc(r)
 
 	return i + int64(r.Size)
 }
