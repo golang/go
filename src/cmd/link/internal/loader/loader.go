@@ -1335,65 +1335,34 @@ func (l *Loader) GetFuncDwarfAuxSyms(fnSymIdx Sym) (auxDwarfInfo, auxDwarfLoc, a
 		// not have auxsyms.
 		return
 	}
-	naux := l.NAux(fnSymIdx)
-	if naux == 0 {
-		return
-	}
 	r, li := l.toLocal(fnSymIdx)
-	for i := 0; i < naux; i++ {
-		a := goobj2.Aux{}
-		a.Read(r.Reader, r.AuxOff(li, i))
-		switch a.Type {
+	auxs := r.Auxs2(li)
+	for i := range auxs {
+		a := &auxs[i]
+		switch a.Type() {
 		case goobj2.AuxDwarfInfo:
-			auxDwarfInfo = l.resolve(r, a.Sym)
+			auxDwarfInfo = l.resolve(r, a.Sym())
 			if l.SymType(auxDwarfInfo) != sym.SDWARFINFO {
 				panic("aux dwarf info sym with wrong type")
 			}
 		case goobj2.AuxDwarfLoc:
-			auxDwarfLoc = l.resolve(r, a.Sym)
+			auxDwarfLoc = l.resolve(r, a.Sym())
 			if l.SymType(auxDwarfLoc) != sym.SDWARFLOC {
 				panic("aux dwarf loc sym with wrong type")
 			}
 		case goobj2.AuxDwarfRanges:
-			auxDwarfRanges = l.resolve(r, a.Sym)
+			auxDwarfRanges = l.resolve(r, a.Sym())
 			if l.SymType(auxDwarfRanges) != sym.SDWARFRANGE {
 				panic("aux dwarf ranges sym with wrong type")
 			}
 		case goobj2.AuxDwarfLines:
-			auxDwarfLines = l.resolve(r, a.Sym)
+			auxDwarfLines = l.resolve(r, a.Sym())
 			if l.SymType(auxDwarfLines) != sym.SDWARFLINES {
 				panic("aux dwarf lines sym with wrong type")
 			}
 		}
 	}
 	return
-}
-
-// ReadAuxSyms reads the aux symbol ids for the specified symbol into the
-// slice passed as a parameter. If the slice capacity is not large enough, a new
-// larger slice will be allocated. Final slice is returned.
-func (l *Loader) ReadAuxSyms(symIdx Sym, dst []Sym) []Sym {
-	if l.IsExternal(symIdx) {
-		return dst[:0]
-	}
-	naux := l.NAux(symIdx)
-	if naux == 0 {
-		return dst[:0]
-	}
-
-	if cap(dst) < naux {
-		dst = make([]Sym, naux)
-	}
-	dst = dst[:0]
-
-	r, li := l.toLocal(symIdx)
-	a := goobj2.Aux{}
-	for i := 0; i < naux; i++ {
-		a.ReadSym(r.Reader, r.AuxOff(li, i))
-		dst = append(dst, l.resolve(r, a.Sym))
-	}
-
-	return dst
 }
 
 // PrependSub prepends 'sub' onto the sub list for outer symbol 'outer'.
@@ -2276,15 +2245,14 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 
 	// If we're overriding a data symbol, collect the associated
 	// Gotype, so as to propagate it to the new symbol.
-	naux := r.NAux(li)
-	for j := 0; j < naux; j++ {
-		a := goobj2.Aux{}
-		a.Read(r.Reader, r.AuxOff(li, j))
-		switch a.Type {
+	auxs := r.Auxs2(li)
+	for j := range auxs {
+		a := &auxs[j]
+		switch a.Type() {
 		case goobj2.AuxGotype:
-			pp.gotype = l.resolve(r, a.Sym)
+			pp.gotype = l.resolve(r, a.Sym())
 		default:
-			log.Fatalf("internal error: cloneToExternal applied to %s symbol %s with non-gotype aux data %d", skind.String(), sname, a.Type)
+			log.Fatalf("internal error: cloneToExternal applied to %s symbol %s with non-gotype aux data %d", skind.String(), sname, a.Type())
 		}
 	}
 
@@ -2476,23 +2444,22 @@ func loadObjFull(l *Loader, r *oReader) {
 
 		// Aux symbol info
 		isym := -1
-		naux := r.NAux(i)
-		for j := 0; j < naux; j++ {
-			a := goobj2.Aux{}
-			a.Read(r.Reader, r.AuxOff(i, j))
-			switch a.Type {
+		auxs := r.Auxs2(i)
+		for j := range auxs {
+			a := &auxs[j]
+			switch a.Type() {
 			case goobj2.AuxGotype:
-				typ := resolveSymRef(a.Sym)
+				typ := resolveSymRef(a.Sym())
 				if typ != nil {
 					s.Gotype = typ
 				}
 			case goobj2.AuxFuncdata:
-				fdsyms = append(fdsyms, resolveSymRef(a.Sym))
+				fdsyms = append(fdsyms, resolveSymRef(a.Sym()))
 			case goobj2.AuxFuncInfo:
-				if a.Sym.PkgIdx != goobj2.PkgIdxSelf {
+				if a.Sym().PkgIdx != goobj2.PkgIdxSelf {
 					panic("funcinfo symbol not defined in current package")
 				}
-				isym = int(a.Sym.SymIdx)
+				isym = int(a.Sym().SymIdx)
 			case goobj2.AuxDwarfInfo, goobj2.AuxDwarfLoc, goobj2.AuxDwarfRanges, goobj2.AuxDwarfLines:
 				// ignored for now
 			default:
