@@ -321,13 +321,21 @@ func (r *Reloc2) Sym() SymRef {
 	return SymRef{binary.LittleEndian.Uint32(r[14:]), binary.LittleEndian.Uint32(r[18:])}
 }
 
+func (r *Reloc2) SetOff(x int32)  { binary.LittleEndian.PutUint32(r[:], uint32(x)) }
+func (r *Reloc2) SetSiz(x uint8)  { r[4] = x }
+func (r *Reloc2) SetType(x uint8) { r[5] = x }
+func (r *Reloc2) SetAdd(x int64)  { binary.LittleEndian.PutUint64(r[6:], uint64(x)) }
+func (r *Reloc2) SetSym(x SymRef) {
+	binary.LittleEndian.PutUint32(r[14:], x.PkgIdx)
+	binary.LittleEndian.PutUint32(r[18:], x.SymIdx)
+}
+
 func (r *Reloc2) Set(off int32, size uint8, typ uint8, add int64, sym SymRef) {
-	binary.LittleEndian.PutUint32(r[:], uint32(off))
-	r[4] = size
-	r[5] = typ
-	binary.LittleEndian.PutUint64(r[6:], uint64(add))
-	binary.LittleEndian.PutUint32(r[14:], sym.PkgIdx)
-	binary.LittleEndian.PutUint32(r[18:], sym.SymIdx)
+	r.SetOff(off)
+	r.SetSiz(size)
+	r.SetType(typ)
+	r.SetAdd(add)
+	r.SetSym(sym)
 }
 
 // Aux symbol info.

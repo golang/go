@@ -132,16 +132,9 @@ func (c dwctxt2) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int6
 	switch size {
 	default:
 		c.linkctxt.Errorf(ds, "invalid size %d in adddwarfref\n", size)
-		fallthrough
-	case c.arch.PtrSize:
-		dsu.AddAddrPlus(c.arch, tds, 0)
-	case 4:
-		dsu.AddAddrPlus4(c.arch, tds, 0)
+	case c.arch.PtrSize, 4:
 	}
-	rsl := dsu.Relocs()
-	r := &rsl[len(rsl)-1]
-	r.Type = objabi.R_ADDROFF
-	r.Add = ofs
+	dsu.AddSymRef(c.arch, tds, ofs, objabi.R_ADDROFF, size)
 }
 
 func (c dwctxt2) AddDWARFAddrSectionOffset(s dwarf.Sym, t interface{}, ofs int64) {
@@ -149,14 +142,15 @@ func (c dwctxt2) AddDWARFAddrSectionOffset(s dwarf.Sym, t interface{}, ofs int64
 	if isDwarf64(c.linkctxt) {
 		size = 8
 	}
-
-	c.AddSectionOffset(s, size, t, ofs)
-
 	ds := loader.Sym(s.(dwSym))
 	dsu := c.ldr.MakeSymbolUpdater(ds)
-	rsl := dsu.Relocs()
-	r := &rsl[len(rsl)-1]
-	r.Type = objabi.R_DWARFSECREF
+	tds := loader.Sym(t.(dwSym))
+	switch size {
+	default:
+		c.linkctxt.Errorf(ds, "invalid size %d in adddwarfref\n", size)
+	case c.arch.PtrSize, 4:
+	}
+	dsu.AddSymRef(c.arch, tds, ofs, objabi.R_DWARFSECREF, size)
 }
 
 func (c dwctxt2) Logf(format string, args ...interface{}) {
@@ -345,15 +339,9 @@ func (d *dwctxt2) adddwarfref(sb *loader.SymbolBuilder, t loader.Sym, size int) 
 	switch size {
 	default:
 		d.linkctxt.Errorf(sb.Sym(), "invalid size %d in adddwarfref\n", size)
-		fallthrough
-	case d.arch.PtrSize:
-		result = sb.AddAddrPlus(d.arch, t, 0)
-	case 4:
-		result = sb.AddAddrPlus4(d.arch, t, 0)
+	case d.arch.PtrSize, 4:
 	}
-	rsl := sb.Relocs()
-	r := &rsl[len(rsl)-1]
-	r.Type = objabi.R_DWARFSECREF
+	result = sb.AddSymRef(d.arch, t, 0, objabi.R_DWARFSECREF, size)
 	return result
 }
 

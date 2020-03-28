@@ -602,7 +602,6 @@ func (ctxt *Link) reloc() {
 
 func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
 	var su *loader.SymbolBuilder
-	var rslice []loader.Reloc
 	relocs := ctxt.loader.Relocs(s)
 	for ri := 0; ri < relocs.Count; ri++ {
 		r := relocs.At2(ri)
@@ -627,11 +626,9 @@ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
 
 			if su == nil {
 				su = ctxt.loader.MakeSymbolUpdater(s)
-				rslice = su.Relocs()
 			}
-			r := &rslice[ri]
-			r.Sym = rel.Sym()
-			r.Add = int64(tplt)
+			r.SetSym(rel.Sym())
+			r.SetAdd(int64(tplt))
 
 			// jmp *addr
 			switch ctxt.Arch.Family {
@@ -654,11 +651,9 @@ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
 		} else if tplt >= 0 {
 			if su == nil {
 				su = ctxt.loader.MakeSymbolUpdater(s)
-				rslice = su.Relocs()
 			}
-			r := &rslice[ri]
-			r.Sym = rel.Sym()
-			r.Add = int64(tplt)
+			r.SetSym(rel.Sym())
+			r.SetAdd(int64(tplt))
 		}
 	}
 }
