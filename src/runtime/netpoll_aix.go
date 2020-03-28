@@ -130,9 +130,7 @@ func netpollarm(pd *pollDesc, mode int) {
 
 // netpollBreak interrupts a poll.
 func netpollBreak() {
-	lock(&mtxpoll)
 	netpollwakeup()
-	unlock(&mtxpoll)
 }
 
 // netpoll checks for ready network connections.
