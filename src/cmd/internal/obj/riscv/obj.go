@@ -745,6 +745,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			// count adjustments from earlier epilogues, since they
 			// won't affect later PCs.
 			p.Spadj = int32(stacksize)
+
+		case AADDI:
+			// Refine Spadjs account for adjustment via ADDI instruction.
+			if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_SP && p.From.Type == obj.TYPE_CONST {
+				p.Spadj = int32(-p.From.Offset)
+			}
 		}
 	}
 
