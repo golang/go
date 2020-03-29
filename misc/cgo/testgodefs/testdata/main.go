@@ -11,5 +11,13 @@ var v2 = v1.L
 // Test that P, Q, and R all point to byte.
 var v3 = Issue8478{P: (*byte)(nil), Q: (**byte)(nil), R: (***byte)(nil)}
 
+// Test that N, A and B are fully defined
+var v4 = N{}
+var v5 = A{}
+var v6 = B{}
+
+// Test that S is fully defined
+var v7 = S{}
+
 func main() {
 }
