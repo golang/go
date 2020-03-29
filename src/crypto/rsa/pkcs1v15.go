@@ -277,6 +277,13 @@ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte)
 		return ErrVerification
 	}
 
+	// RFC 8017 Section 8.2.2: If the length of the signature S is not k
+	// octets (where k is the length in octets of the RSA modulus n), output
+	// "invalid signature" and stop.
+	if k != len(sig) {
+		return ErrVerification
+	}
+
 	c := new(big.Int).SetBytes(sig)
 	m := encrypt(new(big.Int), pub, c)
 	em := leftPad(m.Bytes(), k)
