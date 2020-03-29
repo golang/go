@@ -1806,7 +1806,7 @@ func TestMD5(t *testing.T) {
 	}
 }
 
-// certMissingRSANULL contains an RSA public key where the AlgorithmIdentifer
+// certMissingRSANULL contains an RSA public key where the AlgorithmIdentifier
 // parameters are omitted rather than being an ASN.1 NULL.
 const certMissingRSANULL = `
 -----BEGIN CERTIFICATE-----
