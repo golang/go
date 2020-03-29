@@ -77,7 +77,7 @@ with a dot, as in:
 	.iframe https://foo
 	.link https://foo label
 	.html file.html
-	.caption _Gopher_ by [[https://twitter.com/reneefrench][Renée French]]
+	.caption _Gopher_ by [[https://instagram.com/reneefrench][Renee French]]
 
 Other than the commands, the text in a section is interpreted
 either as Markdown or as legacy present markup.
@@ -317,7 +317,7 @@ The template uses the function "caption" to inject figure captions.
 The text after ".caption" is embedded in a figcaption element after
 processing styling and links as in standard text lines.
 
-	.caption _Gopher_ by [[https://twitter.com/reneefrench][Renée French]]
+	.caption _Gopher_ by [[https://instagram.com/reneefrench][Renee French]]
 
 iframe:
 
