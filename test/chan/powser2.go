@@ -191,16 +191,16 @@ func repeat(dat item, out *dch) {
 }
 
 type PS *dch    // power series
-type PS2 *[2]PS // pair of power series
+type PS2 *dch2 // pair of power series
 
 var Ones PS
 var Twos PS
 
-func mkPS() *dch {
+func mkPS() PS {
 	return mkdch()
 }
 
-func mkPS2() *dch2 {
+func mkPS2() PS2 {
 	return mkdch2()
 }
 
@@ -338,8 +338,8 @@ func eval(c *rat, U PS, n int) *rat {
 
 // Make a pair of power series identical to a given power series
 
-func Split(U PS) *dch2 {
-	UU := mkdch2()
+func Split(U PS) PS2 {
+	UU := mkPS2()
 	go split(U, UU)
 	return UU
 }
