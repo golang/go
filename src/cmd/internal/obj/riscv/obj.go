@@ -1998,6 +1998,12 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	for p, i := cursym.P, 0; i < len(symcode); p, i = p[4:], i+1 {
 		ctxt.Arch.ByteOrder.PutUint32(p, symcode[i])
 	}
+
+	obj.MarkUnsafePoints(ctxt, cursym.Func.Text, newprog, isUnsafePoint)
+}
+
+func isUnsafePoint(p *obj.Prog) bool {
+	return p.From.Reg == REG_TMP || p.To.Reg == REG_TMP || p.Reg == REG_TMP
 }
 
 var LinkRISCV64 = obj.LinkArch{
