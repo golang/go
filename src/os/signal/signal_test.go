@@ -152,10 +152,6 @@ func TestStress(t *testing.T) {
 }
 
 func testCancel(t *testing.T, ignore bool) {
-	// Send SIGWINCH. By default this signal should be ignored.
-	syscall.Kill(syscall.Getpid(), syscall.SIGWINCH)
-	quiesce()
-
 	// Ask to be notified on c1 when a SIGWINCH is received.
 	c1 := make(chan os.Signal, 1)
 	Notify(c1, syscall.SIGWINCH)
@@ -175,23 +171,14 @@ func testCancel(t *testing.T, ignore bool) {
 	waitSig(t, c2, syscall.SIGHUP)
 
 	// Ignore, or reset the signal handlers for, SIGWINCH and SIGHUP.
+	// Either way, this should undo both calls to Notify above.
 	if ignore {
 		Ignore(syscall.SIGWINCH, syscall.SIGHUP)
+		// Don't bother deferring a call to Reset: it is documented to undo Notify,
+		// but its documentation says nothing about Ignore, and (as of the time of
+		// writing) it empirically does not undo an Ignore.
 	} else {
 		Reset(syscall.SIGWINCH, syscall.SIGHUP)
-	}
-
-	// At this point we do not expect any further signals on c1.
-	// However, it is just barely possible that the initial SIGWINCH
-	// at the start of this function was delivered after we called
-	// Notify on c1. In that case the waitSig for SIGWINCH may have
-	// picked up that initial SIGWINCH, and the second SIGWINCH may
-	// then have been delivered on the channel. This sequence of events
-	// may have caused issue 15661.
-	// So, read any possible signal from the channel now.
-	select {
-	case <-c1:
-	default:
 	}
 
 	// Send this process a SIGWINCH. It should be ignored.
@@ -206,20 +193,24 @@ func testCancel(t *testing.T, ignore bool) {
 
 	select {
 	case s := <-c1:
-		t.Fatalf("unexpected signal %v", s)
+		t.Errorf("unexpected signal %v", s)
 	default:
 		// nothing to read - good
 	}
 
 	select {
 	case s := <-c2:
-		t.Fatalf("unexpected signal %v", s)
+		t.Errorf("unexpected signal %v", s)
 	default:
 		// nothing to read - good
 	}
 
-	// Reset the signal handlers for all signals.
-	Reset()
+	// One or both of the signals may have been blocked for this process
+	// by the calling process.
+	// Discard any queued signals now to avoid interfering with other tests.
+	Notify(c1, syscall.SIGWINCH)
+	Notify(c2, syscall.SIGHUP)
+	quiesce()
 }
 
 // Test that Reset cancels registration for listed signals on all channels.
@@ -313,61 +304,66 @@ func TestStop(t *testing.T) {
 			// Test the three different signals concurrently.
 			t.Parallel()
 
-			// Send the signal.
+			// If the signal is not ignored, send the signal before registering a
+			// channel to verify the behavior of the default Go handler.
 			// If it's SIGWINCH or SIGUSR1 we should not see it.
 			// If it's SIGHUP, maybe we'll die. Let the flag tell us what to do.
-			switch sig {
-			case syscall.SIGHUP:
-				if *sendUncaughtSighup == 1 {
-					syscall.Kill(syscall.Getpid(), sig)
-					for *dieFromSighup {
-						quiesce()
-					}
-				}
-			default:
+			mayHaveBlockedSignal := false
+			if !Ignored(sig) && (sig != syscall.SIGHUP || *sendUncaughtSighup == 1) {
 				syscall.Kill(syscall.Getpid(), sig)
+				quiesce()
+
+				// We don't know whether sig is blocked for this process; see
+				// https://golang.org/issue/38165. Assume that it could be.
+				mayHaveBlockedSignal = true
 			}
-			quiesce()
 
 			// Ask for signal
 			c := make(chan os.Signal, 1)
 			Notify(c, sig)
 
-			// Send this process that signal
+			// Send this process the signal again.
 			syscall.Kill(syscall.Getpid(), sig)
 			waitSig(t, c, sig)
+
+			if mayHaveBlockedSignal {
+				// We may have received a queued initial signal in addition to the one
+				// that we sent after Notify. If so, waitSig may have observed that
+				// initial signal instead of the second one, and we may need to wait for
+				// the second signal to clear. Do that now.
+				quiesce()
+				select {
+				case <-c:
+				default:
+				}
+			}
 
 			// Stop watching for the signal and send it again.
 			// If it's SIGHUP, maybe we'll die. Let the flag tell us what to do.
 			Stop(c)
-			switch sig {
-			case syscall.SIGHUP:
-				if *sendUncaughtSighup == 2 {
-					syscall.Kill(syscall.Getpid(), sig)
-					for *dieFromSighup {
-						quiesce()
-					}
-				}
-			default:
+			if sig != syscall.SIGHUP || *sendUncaughtSighup == 2 {
 				syscall.Kill(syscall.Getpid(), sig)
-			}
+				quiesce()
 
-			quiesce()
-			select {
-			case s := <-c:
-				if sig == syscall.SIGUSR1 && s == syscall.SIGUSR1 && runtime.GOOS == "android" {
-					testenv.SkipFlaky(t, 38165)
+				select {
+				case s := <-c:
+					t.Errorf("unexpected signal %v", s)
+				default:
+					// nothing to read - good
 				}
-				t.Fatalf("unexpected signal %v", s)
-			default:
-				// nothing to read - good
+
+				// If we're going to receive a signal, it has almost certainly been
+				// received by now. However, it may have been blocked for this process —
+				// we don't know. Explicitly unblock it and wait for it to clear now.
+				Notify(c, sig)
+				quiesce()
+				Stop(c)
 			}
 		})
 	}
 }
 
-// Test that when run under nohup, an uncaught SIGHUP does not kill the program,
-// but a
+// Test that when run under nohup, an uncaught SIGHUP does not kill the program.
 func TestNohup(t *testing.T) {
 	// Ugly: ask for SIGHUP so that child will not have no-hup set
 	// even if test is running under nohup environment.
