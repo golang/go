@@ -447,13 +447,13 @@
 
 // Conditional branches
 //
-// cond is 1 if true. BNE compares against 0.
+// cond is 1 if true.
 //
 // TODO(prattmic): RISCV branch instructions take two operands to compare,
 // so we could generate more efficient code by computing the condition in the
 // branch itself. This should be revisited now that the compiler has support
 // for two control values (https://golang.org/cl/196557).
-(If cond yes no) => (BNE cond yes no)
+(If cond yes no) => (BNEZ cond yes no)
 
 // Calls
 (StaticCall  ...) => (CALLstatic  ...)
@@ -483,7 +483,7 @@
 // Optimizations
 
 // Absorb SNEZ into branch.
-(BNE (SNEZ x) yes no) => (BNE x yes no)
+(BNEZ (SNEZ x) yes no) => (BNEZ x yes no)
 
 // Store zero
 (MOVBstore [off] {sym} ptr (MOVBconst [0]) mem) => (MOVBstorezero [off] {sym} ptr mem)

@@ -382,7 +382,19 @@ func init() {
 	}
 
 	RISCV64blocks := []blockData{
-		{name: "BNE", controls: 1}, // Control != 0 (take a register)
+		{name: "BEQ", controls: 2},
+		{name: "BNE", controls: 2},
+		{name: "BLT", controls: 2},
+		{name: "BGE", controls: 2},
+		{name: "BLTU", controls: 2},
+		{name: "BGEU", controls: 2},
+
+		{name: "BEQZ", controls: 1},
+		{name: "BNEZ", controls: 1},
+		{name: "BLEZ", controls: 1},
+		{name: "BGEZ", controls: 1},
+		{name: "BLTZ", controls: 1},
+		{name: "BGTZ", controls: 1},
 	}
 
 	archs = append(archs, arch{
