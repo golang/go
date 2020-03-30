@@ -39,7 +39,7 @@ func testCommandLine(t *testing.T, exporter packagestest.Exporter) {
 	data := tests.Load(t, exporter, "../testdata")
 	for _, datum := range data {
 		defer datum.Exported.Cleanup()
-		t.Run(datum.Folder, func(t *testing.T) {
+		t.Run(tests.FormatFolderName(datum.Folder), func(t *testing.T) {
 			t.Helper()
 			tests.Run(t, cmdtest.NewRunner(exporter, datum, ctx, ts.Addr, nil), datum)
 		})

@@ -77,7 +77,7 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 		if _, err := session.DidModifyFiles(ctx, modifications); err != nil {
 			t.Fatal(err)
 		}
-		t.Run(datum.Folder, func(t *testing.T) {
+		t.Run(tests.FormatFolderName(datum.Folder), func(t *testing.T) {
 			t.Helper()
 			tests.Run(t, r, datum)
 		})

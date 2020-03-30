@@ -89,7 +89,7 @@ func testLSP(t *testing.T, exporter packagestest.Exporter) {
 			data:   datum,
 			ctx:    ctx,
 		}
-		t.Run(datum.Folder, func(t *testing.T) {
+		t.Run(tests.FormatFolderName(datum.Folder), func(t *testing.T) {
 			t.Helper()
 			tests.Run(t, r, datum)
 		})

@@ -496,3 +496,10 @@ func summarizeCompletionItems(i int, want, got []protocol.CompletionItem, reason
 	}
 	return msg.String()
 }
+
+func FormatFolderName(folder string) string {
+	if index := strings.Index(folder, "testdata"); index != -1 {
+		return folder[index:]
+	}
+	return folder
+}
