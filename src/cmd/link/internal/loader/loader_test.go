@@ -209,10 +209,10 @@ func TestAddMaterializedSymbol(t *testing.T) {
 }
 
 func sameRelocSlice(s1 *Relocs, s2 []Reloc) bool {
-	if s1.Count != len(s2) {
+	if s1.Count() != len(s2) {
 		return false
 	}
-	for i := 0; i < s1.Count; i++ {
+	for i := 0; i < s1.Count(); i++ {
 		r1 := s1.At2(i)
 		r2 := &s2[i]
 		if r1.Sym() != r2.Sym ||

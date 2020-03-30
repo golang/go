@@ -1097,7 +1097,7 @@ func (d *dwctxt2) importInfoSymbol(ctxt *Link, dsym loader.Sym) {
 		log.Fatalf("error: DWARF info sym %d/%s with incorrect type %s", dsym, d.ldr.SymName(dsym), d.ldr.SymType(dsym).String())
 	}
 	relocs := d.ldr.Relocs(dsym)
-	for i := 0; i < relocs.Count; i++ {
+	for i := 0; i < relocs.Count(); i++ {
 		r := relocs.At2(i)
 		if r.Type() != objabi.R_DWARFSECREF {
 			continue
@@ -1850,7 +1850,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 				}
 
 				drelocs := d.ldr.Relocs(infosym)
-				for ri := 0; ri < drelocs.Count; ri++ {
+				for ri := 0; ri < drelocs.Count(); ri++ {
 					r := drelocs.At2(ri)
 					if r.Type() == objabi.R_DWARFSECREF {
 						rsym := r.Sym()
@@ -1932,7 +1932,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
 				for _, s := range list {
 					symIdx := loader.Sym(s)
 					relocs := d.ldr.Relocs(symIdx)
-					for i := 0; i < relocs.Count; i++ {
+					for i := 0; i < relocs.Count(); i++ {
 						r := relocs.At2(i)
 						if r.Type() == objabi.R_USETYPE {
 							d.defgotype(r.Sym())
@@ -2045,7 +2045,7 @@ func (d *dwctxt2) collectlocs(syms []loader.Sym, units []*sym.CompilationUnit) [
 	for _, u := range units {
 		for _, fn := range u.FuncDIEs2 {
 			relocs := d.ldr.Relocs(loader.Sym(fn))
-			for i := 0; i < relocs.Count; i++ {
+			for i := 0; i < relocs.Count(); i++ {
 				reloc := relocs.At2(i)
 				if reloc.Type() != objabi.R_DWARFSECREF {
 					continue

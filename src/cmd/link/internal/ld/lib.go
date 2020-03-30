@@ -2370,7 +2370,7 @@ func (sc *stkChk) check(up *chain, depth int) int {
 		}
 
 		// Process calls in this span.
-		for i := 0; i < relocs.Count; i++ {
+		for i := 0; i < relocs.Count(); i++ {
 			r := relocs.At2(i)
 			if uint32(r.Off()) >= pcsp.NextPC {
 				break
@@ -2707,7 +2707,7 @@ func (ctxt *Link) callgraph() {
 	ldr := ctxt.loader
 	for _, s := range ctxt.Textp2 {
 		relocs := ldr.Relocs(s)
-		for i := 0; i < relocs.Count; i++ {
+		for i := 0; i < relocs.Count(); i++ {
 			r := relocs.At2(i)
 			rs := r.Sym()
 			if rs == 0 {

@@ -603,7 +603,7 @@ func (ctxt *Link) reloc() {
 func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
 	var su *loader.SymbolBuilder
 	relocs := ctxt.loader.Relocs(s)
-	for ri := 0; ri < relocs.Count; ri++ {
+	for ri := 0; ri < relocs.Count(); ri++ {
 		r := relocs.At2(ri)
 		targ := r.Sym()
 		if targ == 0 {

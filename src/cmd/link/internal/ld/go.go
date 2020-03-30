@@ -403,7 +403,7 @@ func (ctxt *Link) addexport() {
 				continue
 			}
 			relocs := ctxt.loader.Relocs(s)
-			for i := 0; i < relocs.Count; i++ {
+			for i := 0; i < relocs.Count(); i++ {
 				if rs := relocs.At2(i).Sym(); rs != 0 {
 					if ctxt.loader.SymType(rs) == sym.Sxxx && !ctxt.loader.AttrLocal(rs) {
 						// sanity check
