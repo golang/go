@@ -126,6 +126,14 @@ type ArchSyms struct {
 
 	// ----- loader.Sym equivalents -----
 
+	Rel2     loader.Sym
+	Rela2    loader.Sym
+	RelPLT2  loader.Sym
+	RelaPLT2 loader.Sym
+
+	LinkEditGOT2 loader.Sym
+	LinkEditPLT2 loader.Sym
+
 	TOC2    loader.Sym
 	DotTOC2 []loader.Sym // for each version
 
@@ -140,45 +148,71 @@ type ArchSyms struct {
 	DynStr2  loader.Sym
 }
 
-// setArchSyms sets up the ArchSyms structure, and must be called before
-// relocations are applied.
-func (ctxt *Link) setArchSyms() {
-	ctxt.GOT2 = ctxt.loader.LookupOrCreateSym(".got", 0)
-	ctxt.GOT = ctxt.loader.Syms[ctxt.GOT2]
-	ctxt.PLT2 = ctxt.loader.LookupOrCreateSym(".plt", 0)
-	ctxt.PLT = ctxt.loader.Syms[ctxt.PLT2]
-	ctxt.GOTPLT2 = ctxt.loader.LookupOrCreateSym(".got.plt", 0)
-	ctxt.GOTPLT = ctxt.loader.Syms[ctxt.GOTPLT2]
+const BeforeLoadlibFull = 1
+const AfterLoadlibFull = 2
 
-	ctxt.Dynamic2 = ctxt.loader.LookupOrCreateSym(".dynamic", 0)
-	ctxt.Dynamic = ctxt.loader.Syms[ctxt.Dynamic2]
-	ctxt.DynSym2 = ctxt.loader.LookupOrCreateSym(".dynsym", 0)
-	ctxt.DynSym = ctxt.loader.Syms[ctxt.DynSym2]
-	ctxt.DynStr2 = ctxt.loader.LookupOrCreateSym(".dynstr", 0)
-	ctxt.DynStr = ctxt.loader.Syms[ctxt.DynStr2]
+func (ctxt *Link) mkArchSym(which int, name string, ls *loader.Sym, ss **sym.Symbol) {
+	if which == BeforeLoadlibFull {
+		*ls = ctxt.loader.LookupOrCreateSym(name, 0)
+	} else {
+		*ss = ctxt.loader.Syms[*ls]
+	}
+}
+
+func (ctxt *Link) mkArchSymVec(which int, name string, i int, ls []loader.Sym, ss []*sym.Symbol) {
+	if which == BeforeLoadlibFull {
+		ls[i] = ctxt.loader.LookupOrCreateSym(name, 0)
+	} else {
+		ss[i] = ctxt.loader.Syms[ls[i]]
+	}
+}
+
+// setArchSyms sets up the ArchSyms structure, and must be called before
+// relocations are applied. This function is invoked twice, once prior
+// to loadlibfull(), and once after the work of loadlibfull is complete.
+func (ctxt *Link) setArchSyms(which int) {
+	if which != BeforeLoadlibFull && which != AfterLoadlibFull {
+		panic("internal error")
+	}
+	ctxt.mkArchSym(which, ".got", &ctxt.GOT2, &ctxt.GOT)
+	ctxt.mkArchSym(which, ".plt", &ctxt.PLT2, &ctxt.PLT)
+	ctxt.mkArchSym(which, ".got.plt", &ctxt.GOTPLT2, &ctxt.GOTPLT)
+	ctxt.mkArchSym(which, ".dynamic", &ctxt.Dynamic2, &ctxt.Dynamic)
+	ctxt.mkArchSym(which, ".dynsym", &ctxt.DynSym2, &ctxt.DynSym)
+	ctxt.mkArchSym(which, ".dynstr", &ctxt.DynStr2, &ctxt.DynStr)
 
 	if ctxt.IsAIX() {
-		ctxt.TOC2 = ctxt.loader.LookupOrCreateSym("TOC", 0)
-		ctxt.TOC = ctxt.loader.Syms[ctxt.TOC2]
-		ctxt.DotTOC = make([]*sym.Symbol, ctxt.Syms.MaxVersion()+1)
-		ctxt.DotTOC2 = make([]loader.Sym, ctxt.Syms.MaxVersion()+1)
+		ctxt.mkArchSym(which, "TOC", &ctxt.TOC2, &ctxt.TOC)
+
+		// NB: note the +2 below for DotTOC2 compared to the +1 for
+		// DocTOC. This is because loadlibfull() creates an additional
+		// syms version during conversion of loader.Sym symbols to
+		// *sym.Symbol symbols. Symbols that are assigned this final
+		// version are not going to have TOC references, so it should
+		// be ok for them to inherit an invalid .TOC. symbol.
+		if which == BeforeLoadlibFull {
+			ctxt.DotTOC2 = make([]loader.Sym, ctxt.Syms.MaxVersion()+2)
+		} else {
+			ctxt.DotTOC = make([]*sym.Symbol, ctxt.Syms.MaxVersion()+1)
+		}
 		for i := 0; i <= ctxt.Syms.MaxVersion(); i++ {
 			if i >= 2 && i < sym.SymVerStatic { // these versions are not used currently
 				continue
 			}
-			ctxt.DotTOC2[i] = ctxt.loader.LookupOrCreateSym(".TOC.", i)
-			ctxt.DotTOC[i] = ctxt.loader.Syms[ctxt.DotTOC2[i]]
+			if ctxt.DotTOC2[i] != 0 {
+				ctxt.mkArchSymVec(which, ".TOC.", i, ctxt.DotTOC2, ctxt.DotTOC)
+			}
 		}
 	}
 	if ctxt.IsElf() {
-		ctxt.Rel = ctxt.Syms.Lookup(".rel", 0)
-		ctxt.Rela = ctxt.Syms.Lookup(".rela", 0)
-		ctxt.RelPLT = ctxt.Syms.Lookup(".rel.plt", 0)
-		ctxt.RelaPLT = ctxt.Syms.Lookup(".rela.plt", 0)
+		ctxt.mkArchSym(which, ".rel", &ctxt.Rel2, &ctxt.Rel)
+		ctxt.mkArchSym(which, ".rela", &ctxt.Rela2, &ctxt.Rela)
+		ctxt.mkArchSym(which, ".rel.plt", &ctxt.RelPLT2, &ctxt.RelPLT)
+		ctxt.mkArchSym(which, ".rela.plt", &ctxt.RelaPLT2, &ctxt.RelaPLT)
 	}
 	if ctxt.IsDarwin() {
-		ctxt.LinkEditGOT = ctxt.Syms.Lookup(".linkedit.got", 0)
-		ctxt.LinkEditPLT = ctxt.Syms.Lookup(".linkedit.plt", 0)
+		ctxt.mkArchSym(which, ".linkedit.got", &ctxt.LinkEditGOT2, &ctxt.LinkEditGOT)
+		ctxt.mkArchSym(which, ".linkedit.plt", &ctxt.LinkEditPLT2, &ctxt.LinkEditPLT)
 	}
 }
 
@@ -2775,7 +2809,7 @@ func (ctxt *Link) loadlibfull() {
 	addToTextp(ctxt)
 
 	// Set special global symbols.
-	ctxt.setArchSyms()
+	ctxt.setArchSyms(AfterLoadlibFull)
 }
 
 func (ctxt *Link) dumpsyms() {
