@@ -12,25 +12,18 @@ import (
 	"golang.org/x/tools/internal/jsonrpc2"
 )
 
-type fakeHandler struct {
-	jsonrpc2.EmptyHandler
-}
-
 type msg struct {
 	Msg string
 }
 
-func (fakeHandler) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered bool) bool {
-	if err := r.Reply(ctx, &msg{"pong"}, nil); err != nil {
-		panic(err)
-	}
-	return true
+func fakeHandler(ctx context.Context, r *jsonrpc2.Request) error {
+	return r.Reply(ctx, &msg{"pong"}, nil)
 }
 
 func TestTestServer(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	server := jsonrpc2.HandlerServer(fakeHandler{})
+	server := jsonrpc2.HandlerServer(fakeHandler)
 	tcpTS := NewTCPServer(ctx, server)
 	defer tcpTS.Close()
 	pipeTS := NewPipeServer(ctx, server)
@@ -47,6 +40,7 @@ func TestTestServer(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			conn := test.connector.Connect(ctx)
+			go conn.Run(ctx, jsonrpc2.MethodNotFound)
 			var got msg
 			if err := conn.Call(ctx, "ping", &msg{"ping"}, &got); err != nil {
 				t.Fatal(err)

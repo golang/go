@@ -30,7 +30,7 @@ func TestIdleTimeout(t *testing.T) {
 		return conn
 	}
 
-	server := HandlerServer(EmptyHandler{})
+	server := HandlerServer(MethodNotFound)
 	// connTimer := &fakeTimer{c: make(chan time.Time, 1)}
 	var (
 		runErr error

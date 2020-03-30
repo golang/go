@@ -53,9 +53,7 @@ func (s *TCPServer) Connect(ctx context.Context) *jsonrpc2.Conn {
 	s.cls.add(func() {
 		netConn.Close()
 	})
-	conn := jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn, netConn))
-	go conn.Run(ctx)
-	return conn
+	return jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn, netConn))
 }
 
 // Close closes all connected pipes.
@@ -92,9 +90,7 @@ func (s *PipeServer) Connect(ctx context.Context) *jsonrpc2.Conn {
 	go s.server.ServeStream(ctx, serverStream)
 
 	clientStream := jsonrpc2.NewStream(cReader, sWriter)
-	clientConn := jsonrpc2.NewConn(clientStream)
-	go clientConn.Run(ctx)
-	return clientConn
+	return jsonrpc2.NewConn(clientStream)
 }
 
 // Close closes all connected pipes.

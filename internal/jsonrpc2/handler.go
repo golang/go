@@ -8,9 +8,16 @@ import (
 	"context"
 )
 
-// Handler is the interface used to hook into the message handling of an rpc
-// connection.
-type Handler interface {
+// Handler is invoked to handle incoming requests.
+// If the request returns false from IsNotify then the Handler must eventually
+// call Reply on the Conn with the supplied request.
+// The handler should return ErrNotHandled if it could not handle the request.
+type Handler func(context.Context, *Request) error
+
+// LegacyHooks is a temporary measure during migration from the old Handler
+// interface to the new HandleFunc.
+// The intent is to delete this interface in a later cl.
+type LegacyHooks interface {
 	// Deliver is invoked to handle incoming requests.
 	// If the request returns false from IsNotify then the Handler must eventually
 	// call Reply on the Conn with the supplied request.
@@ -54,32 +61,12 @@ func (d Direction) String() string {
 	}
 }
 
-type EmptyHandler struct{}
-
-func (EmptyHandler) Deliver(ctx context.Context, r *Request, delivered bool) bool {
-	return false
-}
-
-func (EmptyHandler) Cancel(ctx context.Context, conn *Conn, id ID, cancelled bool) bool {
-	return false
-}
-
-func (EmptyHandler) Request(ctx context.Context, conn *Conn, direction Direction, r *WireRequest) context.Context {
-	return ctx
-}
-
-func (EmptyHandler) Response(ctx context.Context, conn *Conn, direction Direction, r *WireResponse) context.Context {
-	return ctx
-}
-
-type defaultHandler struct{ EmptyHandler }
-
-func (defaultHandler) Deliver(ctx context.Context, r *Request, delivered bool) bool {
-	if delivered {
-		return false
-	}
+// MethodNotFound is a Handler that replies to all call requests with the
+// standard method not found response.
+// This should normally be the final handler in a chain.
+func MethodNotFound(ctx context.Context, r *Request) error {
 	if !r.IsNotify() {
-		r.Reply(ctx, nil, NewErrorf(CodeMethodNotFound, "method %q not found", r.Method))
+		return r.Reply(ctx, nil, NewErrorf(CodeMethodNotFound, "method %q not found", r.Method))
 	}
-	return true
+	return nil
 }

@@ -8,7 +8,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -28,9 +27,6 @@ type Stream interface {
 	// It must be safe for concurrent use.
 	Write(context.Context, []byte) (int64, error)
 }
-
-// ErrDisconnected signals that the stream or connection exited normally.
-var ErrDisconnected = errors.New("disconnected")
 
 // NewStream returns a Stream built on top of an io.Reader and io.Writer
 // The messages are sent with no wrapping, and rely on json decode consistency

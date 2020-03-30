@@ -18,16 +18,24 @@ import (
 	"golang.org/x/tools/internal/telemetry/event"
 )
 
+const (
+	// ErrIdleTimeout is returned when serving timed out waiting for new connections.
+	ErrIdleTimeout = constError("timed out waiting for new connections")
+
+	// ErrDisconnected signals that the stream or connection exited normally.
+	ErrDisconnected = constError("disconnected")
+)
+
 // Conn is a JSON RPC 2 client server connection.
 // Conn is bidirectional; it does not have a designated server or client end.
 type Conn struct {
-	seq        int64 // must only be accessed using atomic operations
-	handlers   []Handler
-	stream     Stream
-	pendingMu  sync.Mutex // protects the pending map
-	pending    map[ID]chan *WireResponse
-	handlingMu sync.Mutex // protects the handling map
-	handling   map[ID]*Request
+	seq         int64 // must only be accessed using atomic operations
+	LegacyHooks LegacyHooks
+	stream      Stream
+	pendingMu   sync.Mutex // protects the pending map
+	pending     map[ID]chan *WireResponse
+	handlingMu  sync.Mutex // protects the handling map
+	handling    map[ID]*Request
 }
 
 type requestState int
@@ -51,6 +59,10 @@ type Request struct {
 	WireRequest
 }
 
+type constError string
+
+func (e constError) Error() string { return string(e) }
+
 // NewErrorf builds a Error struct for the supplied message and code.
 // If args is not empty, message and args will be passed to Sprintf.
 func NewErrorf(code int64, format string, args ...interface{}) *Error {
@@ -64,21 +76,11 @@ func NewErrorf(code int64, format string, args ...interface{}) *Error {
 // You must call Run for the connection to be active.
 func NewConn(s Stream) *Conn {
 	conn := &Conn{
-		handlers: []Handler{defaultHandler{}},
 		stream:   s,
 		pending:  make(map[ID]chan *WireResponse),
 		handling: make(map[ID]*Request),
 	}
 	return conn
-}
-
-// AddHandler adds a new handler to the set the connection will invoke.
-// Handlers are invoked in the reverse order of how they were added, this
-// allows the most recent addition to be the first one to attempt to handle a
-// message.
-func (c *Conn) AddHandler(handler Handler) {
-	// prepend the new handlers so we use them first
-	c.handlers = append([]Handler{handler}, c.handlers...)
 }
 
 // Cancel cancels a pending Call on the server side.
@@ -111,8 +113,8 @@ func (c *Conn) Notify(ctx context.Context, method string, params interface{}) (e
 	if err != nil {
 		return fmt.Errorf("marshalling notify request: %v", err)
 	}
-	for _, h := range c.handlers {
-		ctx = h.Request(ctx, c, Send, request)
+	if c.LegacyHooks != nil {
+		ctx = c.LegacyHooks.Request(ctx, c, Send, request)
 	}
 	ctx, done := event.StartSpan(ctx, request.Method,
 		tag.Method.Of(request.Method),
@@ -150,8 +152,8 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	if err != nil {
 		return fmt.Errorf("marshalling call request: %v", err)
 	}
-	for _, h := range c.handlers {
-		ctx = h.Request(ctx, c, Send, request)
+	if c.LegacyHooks != nil {
+		ctx = c.LegacyHooks.Request(ctx, c, Send, request)
 	}
 	ctx, done := event.StartSpan(ctx, request.Method,
 		tag.Method.Of(request.Method),
@@ -199,11 +201,8 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 		return nil
 	case <-ctx.Done():
 		// Allow the handler to propagate the cancel.
-		cancelled := false
-		for _, h := range c.handlers {
-			if h.Cancel(ctx, c, id, cancelled) {
-				cancelled = true
-			}
+		if c.LegacyHooks != nil {
+			c.LegacyHooks.Cancel(ctx, c, id, false)
 		}
 		return ctx.Err()
 	}
@@ -309,7 +308,7 @@ type combined struct {
 // caused the termination.
 // It must be called exactly once for each Conn.
 // It returns only when the reader is closed or there is an error in the stream.
-func (c *Conn) Run(runCtx context.Context) error {
+func (c *Conn) Run(runCtx context.Context, handler Handler) error {
 	// we need to make the next request "lock" in an unlocked state to allow
 	// the first incoming request to proceed. All later requests are unlocked
 	// by the preceding request going to parallel mode.
@@ -348,8 +347,8 @@ func (c *Conn) Run(runCtx context.Context) error {
 					ID:         msg.ID,
 				},
 			}
-			for _, h := range c.handlers {
-				reqCtx = h.Request(reqCtx, c, Receive, &req.WireRequest)
+			if c.LegacyHooks != nil {
+				reqCtx = c.LegacyHooks.Request(reqCtx, c, Receive, &req.WireRequest)
 			}
 			reqCtx, done := event.StartSpan(reqCtx, req.WireRequest.Method,
 				tag.Method.Of(req.WireRequest.Method),
@@ -375,11 +374,15 @@ func (c *Conn) Run(runCtx context.Context) error {
 					done()
 					cancelReq()
 				}()
-				delivered := false
-				for _, h := range c.handlers {
-					if h.Deliver(reqCtx, req, delivered) {
-						delivered = true
+				if c.LegacyHooks != nil {
+					if c.LegacyHooks.Deliver(reqCtx, req, false) {
+						return
 					}
+				}
+				err := handler(reqCtx, req)
+				if err != nil {
+					// delivery failed, not much we can do
+					event.Error(reqCtx, "jsonrpc2 message delivery failed", err)
 				}
 			}()
 		case msg.ID != nil:

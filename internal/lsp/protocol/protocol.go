@@ -19,28 +19,6 @@ const (
 	RequestCancelledError = -32800
 )
 
-type clientHandler struct {
-	jsonrpc2.EmptyHandler
-	client Client
-}
-
-// ClientHandler returns a jsonrpc2.Handler that handles the LSP client
-// protocol.
-func ClientHandler(client Client) jsonrpc2.Handler {
-	return &clientHandler{client: client}
-}
-
-type serverHandler struct {
-	jsonrpc2.EmptyHandler
-	server Server
-}
-
-// ServerHandler returns a jsonrpc2.Handler that handles the LSP server
-// protocol.
-func ServerHandler(server Server) jsonrpc2.Handler {
-	return &serverHandler{server: server}
-}
-
 // ClientDispatcher returns a Client that dispatches LSP requests across the
 // given jsonrpc2 connection.
 func ClientDispatcher(conn *jsonrpc2.Conn) Client {
@@ -54,7 +32,7 @@ func ServerDispatcher(conn *jsonrpc2.Conn) Server {
 }
 
 // Canceller is a jsonrpc2.Handler that handles LSP request cancellation.
-type Canceller struct{ jsonrpc2.EmptyHandler }
+type Canceller struct{}
 
 func (Canceller) Request(ctx context.Context, conn *jsonrpc2.Conn, direction jsonrpc2.Direction, r *jsonrpc2.WireRequest) context.Context {
 	if direction == jsonrpc2.Receive && r.Method == "$/cancelRequest" {
@@ -94,11 +72,9 @@ func (Canceller) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered boo
 	return r.Method == "$/cancelRequest"
 }
 
-func sendParseError(ctx context.Context, req *jsonrpc2.Request, err error) {
+func sendParseError(ctx context.Context, req *jsonrpc2.Request, err error) error {
 	if _, ok := err.(*jsonrpc2.Error); !ok {
 		err = jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err)
 	}
-	if err := req.Reply(ctx, nil, err); err != nil {
-		event.Error(ctx, "", err)
-	}
+	return req.Reply(ctx, nil, err)
 }

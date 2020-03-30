@@ -6,7 +6,6 @@ package jsonrpc2
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -39,8 +38,7 @@ func (f ServerFunc) ServeStream(ctx context.Context, s Stream) error {
 func HandlerServer(h Handler) StreamServer {
 	return ServerFunc(func(ctx context.Context, s Stream) error {
 		conn := NewConn(s)
-		conn.AddHandler(h)
-		return conn.Run(ctx)
+		return conn.Run(ctx, h)
 	})
 }
 
@@ -58,9 +56,6 @@ func ListenAndServe(ctx context.Context, network, addr string, server StreamServ
 	}
 	return Serve(ctx, ln, server, idleTimeout)
 }
-
-// ErrIdleTimeout is returned when serving timed out waiting for new connections.
-var ErrIdleTimeout = errors.New("timed out waiting for new connections")
 
 // Serve accepts incoming connections from the network, and handles them using
 // the provided server. If idleTimeout is non-zero, ListenAndServe exits after
