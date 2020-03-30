@@ -172,16 +172,14 @@ func TestTagChain(t *testing.T) {
 
 func TestTagMap(t *testing.T) {
 	for _, test := range []struct {
-		name    string
-		tags    []event.Tag
-		keys    []event.Key
-		expect  string
-		isEmpty bool
+		name   string
+		tags   []event.Tag
+		keys   []event.Key
+		expect string
 	}{{
-		name:    "no tags",
-		keys:    []event.Key{AKey},
-		expect:  `nil`,
-		isEmpty: true,
+		name:   "no tags",
+		keys:   []event.Key{AKey},
+		expect: `nil`,
 	}, {
 		name:   "match A",
 		tags:   all,
@@ -220,9 +218,6 @@ func TestTagMap(t *testing.T) {
 	}} {
 		t.Run(test.name, func(t *testing.T) {
 			tagMap := event.NewTagMap(test.tags...)
-			if tagMap.IsEmpty() != test.isEmpty {
-				t.Errorf("IsEmpty gave %v want %v", tagMap.IsEmpty(), test.isEmpty)
-			}
 			got := printTagMap(tagMap, test.keys)
 			if got != test.expect {
 				t.Errorf("got %q want %q", got, test.expect)
@@ -233,27 +228,24 @@ func TestTagMap(t *testing.T) {
 
 func TestTagMapMerge(t *testing.T) {
 	for _, test := range []struct {
-		name    string
-		tags    [][]event.Tag
-		keys    []event.Key
-		expect  string
-		isEmpty bool
+		name   string
+		tags   [][]event.Tag
+		keys   []event.Key
+		expect string
 	}{{
-		name:    "no maps",
-		keys:    []event.Key{AKey},
-		expect:  `nil`,
-		isEmpty: true,
+		name:   "no maps",
+		keys:   []event.Key{AKey},
+		expect: `nil`,
 	}, {
 		name:   "one map",
 		tags:   [][]event.Tag{all},
 		keys:   []event.Key{AKey},
 		expect: `A="a"`,
 	}, {
-		name:    "invalid map",
-		tags:    [][]event.Tag{{}},
-		keys:    []event.Key{AKey},
-		expect:  `nil`,
-		isEmpty: true,
+		name:   "invalid map",
+		tags:   [][]event.Tag{{}},
+		keys:   []event.Key{AKey},
+		expect: `nil`,
 	}, {
 		name:   "two maps",
 		tags:   [][]event.Tag{{B, C}, {A}},
@@ -281,9 +273,6 @@ func TestTagMapMerge(t *testing.T) {
 				maps[i] = event.NewTagMap(v...)
 			}
 			tagMap := event.MergeTagMaps(maps...)
-			if tagMap.IsEmpty() != test.isEmpty {
-				t.Errorf("IsEmpty gave %v want %v", tagMap.IsEmpty(), test.isEmpty)
-			}
 			got := printTagMap(tagMap, test.keys)
 			if got != test.expect {
 				t.Errorf("got %q want %q", got, test.expect)

@@ -19,8 +19,6 @@ type Tag struct {
 
 // TagMap is the interface to a collection of Tags indexed by key.
 type TagMap interface {
-	// IsEmpty returns true if the map holds no tags.
-	IsEmpty() bool
 	// Find returns the tag that matches the supplied key.
 	Find(key interface{}) Tag
 }
@@ -200,10 +198,6 @@ func (l tagMap) Find(key interface{}) Tag {
 	return Tag{}
 }
 
-func (l tagMap) IsEmpty() bool {
-	return len(l.tags) == 0
-}
-
 func (c tagMapChain) Find(key interface{}) Tag {
 	for _, src := range c.maps {
 		tag := src.Find(key)
@@ -212,15 +206,6 @@ func (c tagMapChain) Find(key interface{}) Tag {
 		}
 	}
 	return Tag{}
-}
-
-func (c tagMapChain) IsEmpty() bool {
-	for _, src := range c.maps {
-		if !src.IsEmpty() {
-			return false
-		}
-	}
-	return true
 }
 
 func NewTagIterator(tags ...Tag) TagIterator {
