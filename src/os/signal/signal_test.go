@@ -355,6 +355,9 @@ func TestStop(t *testing.T) {
 			quiesce()
 			select {
 			case s := <-c:
+				if sig == syscall.SIGUSR1 && s == syscall.SIGUSR1 && runtime.GOOS == "android" {
+					testenv.SkipFlaky(t, 38165)
+				}
 				t.Fatalf("unexpected signal %v", s)
 			default:
 				// nothing to read - good
