@@ -41,6 +41,11 @@ type Event struct {
 	dynamic []Tag // dynamically sized storage for remaining tags
 }
 
+// eventTagMap implements TagMap for a the tags of an Event.
+type eventTagMap struct {
+	event Event
+}
+
 func (ev Event) IsLog() bool       { return ev.typ == LogType }
 func (ev Event) IsEndSpan() bool   { return ev.typ == EndSpanType }
 func (ev Event) IsStartSpan() bool { return ev.typ == StartSpanType }
@@ -76,9 +81,21 @@ func (ev Event) Tags() TagIterator {
 }
 
 func (ev Event) Map() TagMap {
-	return MergeTagMaps(
-		NewTagMap(ev.static[:]...),
-		NewTagMap(ev.dynamic...))
+	return &eventTagMap{event: ev}
+}
+
+func (m *eventTagMap) Find(key interface{}) Tag {
+	for _, tag := range m.event.static {
+		if tag.Key == key {
+			return tag
+		}
+	}
+	for _, tag := range m.event.dynamic {
+		if tag.Key == key {
+			return tag
+		}
+	}
+	return Tag{}
 }
 
 func makeEvent(typ eventType, static sTags, tags []Tag) Event {
