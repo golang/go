@@ -2,6 +2,7 @@ package telemetry_test
 
 import (
 	"context"
+	"io/ioutil"
 	"log"
 	"testing"
 
@@ -108,6 +109,11 @@ func Benchmark(b *testing.B) {
 
 	event.SetExporter(noopExporter)
 	for _, t := range benchmarks {
+		b.Run(t.name+"Noop", t.test)
+	}
+
+	event.SetExporter(export.Spans(export.LogWriter(ioutil.Discard, false)))
+	for _, t := range benchmarks {
 		b.Run(t.name, t.test)
 	}
 }
@@ -137,13 +143,9 @@ func (hooks Hooks) runBenchmark(b *testing.B) {
 }
 
 func init() {
-	log.SetOutput(new(noopWriter))
+	log.SetOutput(ioutil.Discard)
 }
 
-type noopWriter int
-
-func (nw *noopWriter) Write(b []byte) (int, error) {
-	return len(b), nil
+func noopExporter(ctx context.Context, ev event.Event, tagMap event.TagMap) context.Context {
+	return ctx
 }
-
-var noopExporter = export.Spans(export.LogWriter(new(noopWriter), false))
