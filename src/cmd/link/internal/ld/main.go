@@ -284,9 +284,9 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	bench.Start("loadlibfull")
 	setupdynexp(ctxt)
+	ctxt.setArchSyms(BeforeLoadlibFull)
 	ctxt.loadlibfull() // XXX do it here for now
 
-	ctxt.setArchSyms()
 	bench.Start("addexport")
 	ctxt.addexport()
 	bench.Start("Gentext")
