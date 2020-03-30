@@ -1479,7 +1479,7 @@ func addpersrc(ctxt *Link) {
 
 	// relocation
 	relocs := ctxt.loader.Relocs(rsrcsym)
-	for i := 0; i < relocs.Count; i++ {
+	for i := 0; i < relocs.Count(); i++ {
 		r := relocs.At2(i)
 		p := data[r.Off():]
 		val := uint32(int64(h.virtualAddress) + r.Add())

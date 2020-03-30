@@ -16,7 +16,7 @@ import (
 // to decodesym.go once the rouetines there have been decprecated + removed.
 
 func decodeReloc2(ldr *loader.Loader, symIdx loader.Sym, relocs *loader.Relocs, off int32) loader.Reloc2 {
-	for j := 0; j < relocs.Count; j++ {
+	for j := 0; j < relocs.Count(); j++ {
 		rel := relocs.At2(j)
 		if rel.Off() == off {
 			return rel

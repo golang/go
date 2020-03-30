@@ -31,8 +31,6 @@ type Sym int
 // Relocs encapsulates the set of relocations on a given symbol; an
 // instance of this type is returned by the Loader Relocs() method.
 type Relocs struct {
-	Count int // == len(rs), TODO: remove
-
 	rs []goobj2.Reloc2
 
 	li int      // local index of symbol whose relocs we're examining
@@ -1477,6 +1475,8 @@ func (l *Loader) growExtAttrBitmaps() {
 	}
 }
 
+func (relocs *Relocs) Count() int { return len(relocs.rs) }
+
 // At2 returns the j-th reloc for a global symbol.
 func (relocs *Relocs) At2(j int) Reloc2 {
 	if relocs.l.isExtReader(relocs.r) {
@@ -1497,22 +1497,18 @@ func (l *Loader) Relocs(i Sym) Relocs {
 
 // Relocs returns a Relocs object given a local sym index and reader.
 func (l *Loader) relocs(r *oReader, li int) Relocs {
-	var n int
 	var rs []goobj2.Reloc2
 	if l.isExtReader(r) {
 		pp := l.payloads[li]
-		n = len(pp.relocs)
 		rs = pp.relocs
 	} else {
 		rs = r.Relocs2(li)
-		n = len(rs)
 	}
 	return Relocs{
-		Count: n,
-		rs:    rs,
-		li:    li,
-		r:     r,
-		l:     l,
+		rs: rs,
+		li: li,
+		r:  r,
+		l:  l,
 	}
 }
 
@@ -1966,8 +1962,8 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, anonVerReplace
 	for _, cand := range relocfixup {
 		s := l.Syms[cand]
 		relocs := l.Relocs(cand)
-		if len(s.R) != relocs.Count {
-			s.R = make([]sym.Reloc, relocs.Count)
+		if len(s.R) != relocs.Count() {
+			s.R = make([]sym.Reloc, relocs.Count())
 		}
 		l.convertRelocations(&relocs, s, true)
 	}
@@ -2171,8 +2167,8 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 
 		// Copy relocations
 		relocs := l.Relocs(symIdx)
-		pp.relocs = make([]goobj2.Reloc2, relocs.Count)
-		pp.reltypes = make([]objabi.RelocType, relocs.Count)
+		pp.relocs = make([]goobj2.Reloc2, relocs.Count())
+		pp.reltypes = make([]objabi.RelocType, relocs.Count())
 		for i := range pp.relocs {
 			// Copy the relocs slice.
 			// Convert local reference to global reference.
@@ -2385,8 +2381,8 @@ func loadObjFull(l *Loader, r *oReader) {
 		// Relocs
 		relocs := l.relocs(r, i)
 		batch := l.relocBatch
-		s.R = batch[:relocs.Count:relocs.Count]
-		l.relocBatch = batch[relocs.Count:]
+		s.R = batch[:relocs.Count():relocs.Count()]
+		l.relocBatch = batch[relocs.Count():]
 		l.convertRelocations(&relocs, s, false)
 
 		// Aux symbol info
@@ -2603,7 +2599,7 @@ func (l *Loader) UndefinedRelocTargets(limit int) []Sym {
 	result := []Sym{}
 	for si := Sym(1); si < Sym(len(l.objSyms)); si++ {
 		relocs := l.Relocs(si)
-		for ri := 0; ri < relocs.Count; ri++ {
+		for ri := 0; ri < relocs.Count(); ri++ {
 			r := relocs.At2(ri)
 			rs := r.Sym()
 			if rs != 0 && l.SymType(rs) == sym.SXREF && l.RawSymName(rs) != ".got" {

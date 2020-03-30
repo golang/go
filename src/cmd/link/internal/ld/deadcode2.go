@@ -86,7 +86,7 @@ func (d *deadcodePass2) init() {
 			exportsIdx := d.ldr.Lookup("go.plugin.exports", 0)
 			if exportsIdx != 0 {
 				relocs := d.ldr.Relocs(exportsIdx)
-				for i := 0; i < relocs.Count; i++ {
+				for i := 0; i < relocs.Count(); i++ {
 					d.mark(relocs.At2(i).Sym(), 0)
 				}
 			}
@@ -139,14 +139,14 @@ func (d *deadcodePass2) flood() {
 		}
 
 		var methods []methodref2
-		for i := 0; i < relocs.Count; i++ {
+		for i := 0; i < relocs.Count(); i++ {
 			r := relocs.At2(i)
 			t := r.Type()
 			if t == objabi.R_WEAKADDROFF {
 				continue
 			}
 			if t == objabi.R_METHODOFF {
-				if i+2 >= relocs.Count {
+				if i+2 >= relocs.Count() {
 					panic("expect three consecutive R_METHODOFF relocs")
 				}
 				methods = append(methods, methodref2{src: symIdx, r: i})
@@ -272,7 +272,7 @@ func deadcode2(ctxt *Link) {
 			s := loader.Sym(i)
 			if ldr.IsItabLink(s) {
 				relocs := ldr.Relocs(s)
-				if relocs.Count > 0 && ldr.AttrReachable(relocs.At2(0).Sym()) {
+				if relocs.Count() > 0 && ldr.AttrReachable(relocs.At2(0).Sym()) {
 					ldr.SetAttrReachable(s, true)
 				}
 			}
