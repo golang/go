@@ -3486,17 +3486,49 @@ func rewriteValuePPC64_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s > 8 && logLargeCopy(v, s)
+	// cond: s > 8 && objabi.GOPPC64 <= 8 && logLargeCopy(v, s)
 	// result: (LoweredMove [s] dst src mem)
 	for {
 		s := v.AuxInt
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s > 8 && logLargeCopy(v, s)) {
+		if !(s > 8 && objabi.GOPPC64 <= 8 && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpPPC64LoweredMove)
+		v.AuxInt = s
+		v.AddArg3(dst, src, mem)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: s > 8 && s <= 64 && objabi.GOPPC64 >= 9
+	// result: (LoweredQuadMoveShort [s] dst src mem)
+	for {
+		s := v.AuxInt
+		dst := v_0
+		src := v_1
+		mem := v_2
+		if !(s > 8 && s <= 64 && objabi.GOPPC64 >= 9) {
+			break
+		}
+		v.reset(OpPPC64LoweredQuadMoveShort)
+		v.AuxInt = s
+		v.AddArg3(dst, src, mem)
+		return true
+	}
+	// match: (Move [s] dst src mem)
+	// cond: s > 8 && objabi.GOPPC64 >= 9 && logLargeCopy(v, s)
+	// result: (LoweredQuadMove [s] dst src mem)
+	for {
+		s := v.AuxInt
+		dst := v_0
+		src := v_1
+		mem := v_2
+		if !(s > 8 && objabi.GOPPC64 >= 9 && logLargeCopy(v, s)) {
+			break
+		}
+		v.reset(OpPPC64LoweredQuadMove)
 		v.AuxInt = s
 		v.AddArg3(dst, src, mem)
 		return true
@@ -14953,16 +14985,66 @@ func rewriteValuePPC64_OpZero(v *Value) bool {
 		return true
 	}
 	// match: (Zero [s] ptr mem)
+	// cond: objabi.GOPPC64 <= 8 && s < 64
+	// result: (LoweredZeroShort [s] ptr mem)
+	for {
+		s := v.AuxInt
+		ptr := v_0
+		mem := v_1
+		if !(objabi.GOPPC64 <= 8 && s < 64) {
+			break
+		}
+		v.reset(OpPPC64LoweredZeroShort)
+		v.AuxInt = s
+		v.AddArg2(ptr, mem)
+		return true
+	}
+	// match: (Zero [s] ptr mem)
+	// cond: objabi.GOPPC64 <= 8
 	// result: (LoweredZero [s] ptr mem)
 	for {
 		s := v.AuxInt
 		ptr := v_0
 		mem := v_1
+		if !(objabi.GOPPC64 <= 8) {
+			break
+		}
 		v.reset(OpPPC64LoweredZero)
 		v.AuxInt = s
 		v.AddArg2(ptr, mem)
 		return true
 	}
+	// match: (Zero [s] ptr mem)
+	// cond: s < 128 && objabi.GOPPC64 >= 9
+	// result: (LoweredQuadZeroShort [s] ptr mem)
+	for {
+		s := v.AuxInt
+		ptr := v_0
+		mem := v_1
+		if !(s < 128 && objabi.GOPPC64 >= 9) {
+			break
+		}
+		v.reset(OpPPC64LoweredQuadZeroShort)
+		v.AuxInt = s
+		v.AddArg2(ptr, mem)
+		return true
+	}
+	// match: (Zero [s] ptr mem)
+	// cond: objabi.GOPPC64 >= 9
+	// result: (LoweredQuadZero [s] ptr mem)
+	for {
+		s := v.AuxInt
+		ptr := v_0
+		mem := v_1
+		if !(objabi.GOPPC64 >= 9) {
+			break
+		}
+		v.reset(OpPPC64LoweredQuadZero)
+		v.AuxInt = s
+		v.AddArg2(ptr, mem)
+		return true
+	}
+	return false
 }
 func rewriteBlockPPC64(b *Block) bool {
 	switch b.Kind {

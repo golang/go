@@ -574,7 +574,12 @@
                                (MOVDstorezero [0] destptr mem))))
 
 // Handle cases not handled above
-(Zero [s] ptr mem) -> (LoweredZero [s] ptr mem)
+// Lowered Short cases do not generate loops, and as a result don't clobber
+// the address registers or flags.
+(Zero [s] ptr mem) && objabi.GOPPC64 <= 8 && s < 64 -> (LoweredZeroShort [s] ptr mem)
+(Zero [s] ptr mem) && objabi.GOPPC64 <= 8 -> (LoweredZero [s] ptr mem)
+(Zero [s] ptr mem) && s < 128 && objabi.GOPPC64 >= 9 -> (LoweredQuadZeroShort [s] ptr mem)
+(Zero [s] ptr mem) && objabi.GOPPC64 >= 9 -> (LoweredQuadZero [s] ptr mem)
 
 // moves
 // Only the MOVD and MOVW instructions require 4 byte
@@ -608,8 +613,12 @@
 
 // Large move uses a loop. Since the address is computed and the
 // offset is zero, any alignment can be used.
-(Move [s] dst src mem) && s > 8 && logLargeCopy(v, s) ->
+(Move [s] dst src mem) && s > 8 && objabi.GOPPC64 <= 8 && logLargeCopy(v, s) ->
         (LoweredMove [s] dst src mem)
+(Move [s] dst src mem) && s > 8 && s <= 64 && objabi.GOPPC64 >= 9 ->
+        (LoweredQuadMoveShort [s] dst src mem)
+(Move [s] dst src mem) && s > 8 && objabi.GOPPC64 >= 9 && logLargeCopy(v, s) ->
+        (LoweredQuadMove [s] dst src mem)
 
 // Calls
 // Lowering calls

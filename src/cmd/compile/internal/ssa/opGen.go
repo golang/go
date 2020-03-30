@@ -1872,7 +1872,13 @@ const (
 	OpPPC64CALLclosure
 	OpPPC64CALLinter
 	OpPPC64LoweredZero
+	OpPPC64LoweredZeroShort
+	OpPPC64LoweredQuadZeroShort
+	OpPPC64LoweredQuadZero
 	OpPPC64LoweredMove
+	OpPPC64LoweredMoveShort
+	OpPPC64LoweredQuadMove
+	OpPPC64LoweredQuadMoveShort
 	OpPPC64LoweredAtomicStore8
 	OpPPC64LoweredAtomicStore32
 	OpPPC64LoweredAtomicStore64
@@ -24865,9 +24871,47 @@ var opcodeTable = [...]opInfo{
 		unsafePoint:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 8}, // R3
+				{0, 1048576}, // R20
 			},
-			clobbers: 8, // R3
+			clobbers: 1048576, // R20
+		},
+	},
+	{
+		name:           "LoweredZeroShort",
+		auxType:        auxInt64,
+		argLen:         2,
+		faultOnNilArg0: true,
+		unsafePoint:    true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:           "LoweredQuadZeroShort",
+		auxType:        auxInt64,
+		argLen:         2,
+		faultOnNilArg0: true,
+		unsafePoint:    true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:           "LoweredQuadZero",
+		auxType:        auxInt64,
+		argLen:         2,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		unsafePoint:    true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1048576}, // R20
+			},
+			clobbers: 1048576, // R20
 		},
 	},
 	{
@@ -24880,10 +24924,54 @@ var opcodeTable = [...]opInfo{
 		unsafePoint:    true,
 		reg: regInfo{
 			inputs: []inputInfo{
-				{0, 8},  // R3
-				{1, 16}, // R4
+				{0, 1048576}, // R20
+				{1, 2097152}, // R21
 			},
-			clobbers: 16408, // R3 R4 R14
+			clobbers: 3145728, // R20 R21
+		},
+	},
+	{
+		name:           "LoweredMoveShort",
+		auxType:        auxInt64,
+		argLen:         3,
+		faultOnNilArg0: true,
+		faultOnNilArg1: true,
+		unsafePoint:    true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
+		},
+	},
+	{
+		name:           "LoweredQuadMove",
+		auxType:        auxInt64,
+		argLen:         3,
+		clobberFlags:   true,
+		faultOnNilArg0: true,
+		faultOnNilArg1: true,
+		unsafePoint:    true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1048576}, // R20
+				{1, 2097152}, // R21
+			},
+			clobbers: 3145728, // R20 R21
+		},
+	},
+	{
+		name:           "LoweredQuadMoveShort",
+		auxType:        auxInt64,
+		argLen:         3,
+		faultOnNilArg0: true,
+		faultOnNilArg1: true,
+		unsafePoint:    true,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+				{1, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+			},
 		},
 	},
 	{
