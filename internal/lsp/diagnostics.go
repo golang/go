@@ -82,7 +82,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 	// Diagnose all of the packages in the workspace.
 	wsPackages, err := snapshot.WorkspacePackages(ctx)
 	if err != nil {
-		event.Error(ctx, "failed to load workspace packages, skipping diagnostics", err, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder))
+		event.Error(ctx, "failed to load workspace packages, skipping diagnostics", err, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder()))
 		return nil
 	}
 	for _, ph := range wsPackages {

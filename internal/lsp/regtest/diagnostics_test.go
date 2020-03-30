@@ -152,34 +152,46 @@ import "mod.com/bob"
 func main() {
 	bob.Hello()
 }
+-- bob/bob.go --
+package bob
+
+func Hello() {
+	var x int
+}
 `
 
 // TestNoMod confirms that gopls continues to work when a user adds a go.mod
 // file to their workspace.
 func TestNoMod(t *testing.T) {
-	runner.Run(t, noMod, func(env *Env) {
-		env.Await(
-			env.DiagnosticAtRegexp("main.go", `"mod.com/bob"`),
-		)
-		env.CreateBuffer("bob/bob.go", `package bob
+	t.Run("manual", func(t *testing.T) {
+		runner.Run(t, noMod, func(env *Env) {
+			env.Await(
+				env.DiagnosticAtRegexp("main.go", `"mod.com/bob"`),
+			)
+			env.CreateBuffer("go.mod", `module mod.com
 
-func Hello() {
-	var x int
-}
+	go 1.12
 `)
-		env.Await(
-			env.DiagnosticAtRegexp("bob/bob.go", "x"),
-		)
-		// Save this file because otherwise, the go command will not be able to
-		// resolve mod.com/bob as a package.
-		env.SaveBuffer("bob/bob.go")
-		env.CreateBuffer("go.mod", `module mod.com
-
-go 1.12
-`)
-		env.SaveBuffer("go.mod")
-		env.Await(
-			EmptyDiagnostics("main.go"),
-		)
+			env.SaveBuffer("go.mod")
+			env.Await(
+				EmptyDiagnostics("main.go"),
+				env.DiagnosticAtRegexp("bob/bob.go", "x"),
+			)
+		})
 	})
+	t.Run("initialized", func(t *testing.T) {
+		runner.Run(t, noMod, func(env *Env) {
+			env.Await(
+				env.DiagnosticAtRegexp("main.go", `"mod.com/bob"`),
+			)
+			if err := env.W.RunGoCommand(env.Ctx, "mod", "init", "mod.com"); err != nil {
+				t.Fatal(err)
+			}
+			env.Await(
+				EmptyDiagnostics("main.go"),
+				env.DiagnosticAtRegexp("bob/bob.go", "x"),
+			)
+		})
+	})
+
 }

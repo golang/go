@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/txtar"
@@ -146,6 +147,32 @@ func (w *Workspace) RemoveFile(ctx context.Context, path string) error {
 		},
 	}}
 	w.sendEvents(ctx, evts)
+	return nil
+}
+
+// RunGoCommand executes a go command in the workspace.
+func (w *Workspace) RunGoCommand(ctx context.Context, verb string, args ...string) error {
+	inv := gocommand.Invocation{
+		Verb:       verb,
+		Args:       args,
+		WorkingDir: w.workdir,
+	}
+	_, stderr, _, err := inv.RunRaw(ctx)
+	if err != nil {
+		return err
+	}
+	// Hardcoded "file watcher": If the command executed was "go mod init",
+	// send a file creation event for a go.mod in the working directory.
+	if strings.HasPrefix(stderr.String(), "go: creating new go.mod") {
+		modpath := filepath.Join(w.workdir, "go.mod")
+		w.sendEvents(ctx, []FileEvent{{
+			Path: modpath,
+			ProtocolEvent: protocol.FileEvent{
+				URI:  toURI(modpath),
+				Type: protocol.Created,
+			},
+		}})
+	}
 	return nil
 }
 
