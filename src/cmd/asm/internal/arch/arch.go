@@ -88,7 +88,8 @@ func jumpX86(word string) bool {
 
 func jumpRISCV(word string) bool {
 	switch word {
-	case "BEQ", "BNE", "BLT", "BGE", "BLTU", "BGEU", "CALL", "JAL", "JALR", "JMP":
+	case "BEQ", "BEQZ", "BGE", "BGEU", "BGEZ", "BGT", "BGTU", "BGTZ", "BLE", "BLEU", "BLEZ",
+		"BLT", "BLTU", "BLTZ", "BNE", "BNEZ", "CALL", "JAL", "JALR", "JMP":
 		return true
 	}
 	return false
