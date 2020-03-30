@@ -2393,8 +2393,6 @@ func elfadddynsym(target *Target, syms *ArchSyms, s *sym.Symbol) {
 
 func elfadddynsym2(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.Sym) {
 	ldr.SetSymDynid(s, int32(Nelfsym))
-	// temporary until wafefront moves past addexport
-	ldr.Syms[s].Dynid = ldr.SymDynid(s)
 	Nelfsym++
 	d := ldr.MakeSymbolUpdater(syms.DynSym2)
 	name := ldr.SymExtname(s)

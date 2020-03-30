@@ -412,8 +412,6 @@ func (ctxt *Link) addexport() {
 						}
 						su := ctxt.loader.MakeSymbolUpdater(rs)
 						su.SetType(sym.SUNDEFEXT)
-						// temporary until the wavefront moves past addexport
-						ctxt.loader.Syms[rs].Type = sym.SUNDEFEXT
 					}
 				}
 			}
@@ -431,11 +429,6 @@ func (ctxt *Link) addexport() {
 	for _, lib := range dynlib {
 		adddynlib(ctxt, lib)
 	}
-
-	// temporary until the wavefront moves past addexport:
-	// copy any changes to loader.Sym symbols back into the sym.Symbol world.
-	modified := []loader.Sym{ctxt.DynSym2, ctxt.Dynamic2, ctxt.DynStr2}
-	ctxt.loader.PropagateLoaderChangesToSymbols(modified, 0)
 }
 
 type Pkg struct {
