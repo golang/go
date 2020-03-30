@@ -281,14 +281,14 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	bench.Start("textbuildid")
 	ctxt.textbuildid()
-
-	bench.Start("loadlibfull")
+	bench.Start("addexport")
 	setupdynexp(ctxt)
 	ctxt.setArchSyms(BeforeLoadlibFull)
+	ctxt.addexport()
+
+	bench.Start("loadlibfull")
 	ctxt.loadlibfull() // XXX do it here for now
 
-	bench.Start("addexport")
-	ctxt.addexport()
 	bench.Start("Gentext")
 	thearch.Gentext(ctxt) // trampolines, call stubs, etc.
 	bench.Start("textaddress")
