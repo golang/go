@@ -2364,6 +2364,11 @@ func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {
 	if got, ok := l.got[src]; ok {
 		dst.SetGot(got)
 	}
+
+	// Copy dynid
+	if dynid, ok := l.dynid[src]; ok {
+		dst.Dynid = dynid
+	}
 }
 
 // CreateExtSym creates a new external symbol with the specified name
