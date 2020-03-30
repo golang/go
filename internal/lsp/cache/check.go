@@ -144,7 +144,9 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 		depHandle, err := s.buildPackageHandle(ctx, depID, mode)
 		if err != nil {
 			event.Error(ctx, "no dep handle", err, tag.Package.Of(string(depID)))
-
+			if ctx.Err() != nil {
+				return nil, nil, ctx.Err()
+			}
 			// One bad dependency should not prevent us from checking the entire package.
 			// Add a special key to mark a bad dependency.
 			depKeys = append(depKeys, packageHandleKey(fmt.Sprintf("%s import not found", id)))

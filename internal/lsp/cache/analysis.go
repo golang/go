@@ -348,6 +348,10 @@ func runAnalysis(ctx context.Context, fset *token.FileSet, analyzer *analysis.An
 			event.Error(ctx, "unable to compute analysis error position", err, tag.Category.Of(diag.Category), tag.Package.Of(pkg.ID()))
 			continue
 		}
+		if ctx.Err() != nil {
+			data.err = ctx.Err()
+			return data
+		}
 		data.diagnostics = append(data.diagnostics, srcErr)
 	}
 	return data

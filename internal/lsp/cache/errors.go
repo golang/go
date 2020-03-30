@@ -60,6 +60,9 @@ func sourceError(ctx context.Context, fset *token.FileSet, pkg *pkg, e interface
 		kind = source.ParseError
 		spn, err = scannerErrorRange(fset, pkg, e.Pos)
 		if err != nil {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
 			event.Error(ctx, "no span for scanner.Error pos", err, tag.Package.Of(pkg.ID()))
 			spn = span.Parse(e.Pos.String())
 		}
@@ -73,6 +76,9 @@ func sourceError(ctx context.Context, fset *token.FileSet, pkg *pkg, e interface
 		kind = source.ParseError
 		spn, err = scannerErrorRange(fset, pkg, e[0].Pos)
 		if err != nil {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
 			event.Error(ctx, "no span for scanner.Error pos", err, tag.Package.Of(pkg.ID()))
 			spn = span.Parse(e[0].Pos.String())
 		}

@@ -247,9 +247,7 @@ func (c *completer) formatBuiltin(cand candidate) CompletionItem {
 		item.Kind = protocol.FunctionCompletion
 		astObj, err := c.snapshot.View().LookupBuiltin(c.ctx, obj.Name())
 		if err != nil {
-			if c.ctx.Err() == nil {
-				event.Error(c.ctx, "no builtin package", err)
-			}
+			event.Error(c.ctx, "no builtin package", err)
 			break
 		}
 		decl, ok := astObj.Decl.(*ast.FuncDecl)

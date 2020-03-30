@@ -56,13 +56,13 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 		// dependency within the require statement.
 		start, end := token.Pos(s+i), token.Pos(s+i+len(dep))
 		target := fmt.Sprintf("https://%s/mod/%s", view.Options().LinkTarget, req.Mod.String())
-		if l, err := toProtocolLink(view, m, target, start, end, source.Mod); err == nil {
-			links = append(links, l)
-		} else {
-			event.Error(ctx, "failed to create protocol link", err)
+		l, err := toProtocolLink(view, m, target, start, end, source.Mod)
+		if err != nil {
+			return nil, err
 		}
+		links = append(links, l)
 	}
-	// TODO(ridersofrohan): handle links for replace and exclude directives
+	// TODO(ridersofrohan): handle links for replace and exclude directives.
 	if syntax := file.Syntax; syntax == nil {
 		return links, nil
 	}
@@ -110,11 +110,12 @@ func goLinks(ctx context.Context, view source.View, fh source.FileHandle) ([]pro
 				target = fmt.Sprintf("https://%s/%s", view.Options().LinkTarget, target)
 				// Account for the quotation marks in the positions.
 				start, end := n.Path.Pos()+1, n.Path.End()-1
-				if l, err := toProtocolLink(view, m, target, start, end, source.Go); err == nil {
-					links = append(links, l)
-				} else {
-					event.Error(ctx, "failed to create protocol link", err)
+				l, err := toProtocolLink(view, m, target, start, end, source.Go)
+				if err != nil {
+					event.Error(ctx, "failed to create link", err)
+					return false
 				}
+				links = append(links, l)
 			}
 			return false
 		case *ast.BasicLit:

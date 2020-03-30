@@ -57,14 +57,14 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 
 	// Diagnose the go.mod file.
 	reports, missingModules, err := mod.Diagnostics(ctx, snapshot)
-	if ctx.Err() != nil {
-		return nil
-	}
 	if err != nil {
 		event.Error(ctx, "warning: diagnose go.mod", err, tag.Directory.Of(snapshot.View().Folder().Filename()))
 	}
-	// Ensure that the reports returned from mod.Diagnostics are only related to the
-	// go.mod file for the module.
+	if ctx.Err() != nil {
+		return nil
+	}
+	// Ensure that the reports returned from mod.Diagnostics are only related
+	// to the go.mod file for the module.
 	if len(reports) > 1 {
 		panic("unexpected reports from mod.Diagnostics")
 	}
@@ -81,9 +81,6 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 
 	// Diagnose all of the packages in the workspace.
 	wsPackages, err := snapshot.WorkspacePackages(ctx)
-	if ctx.Err() != nil {
-		return nil
-	}
 	if err != nil {
 		event.Error(ctx, "failed to load workspace packages, skipping diagnostics", err, tag.Snapshot.Of(snapshot.ID()), tag.Directory.Of(snapshot.View().Folder))
 		return nil
@@ -106,9 +103,6 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 					Type:    protocol.Warning,
 					Message: `You are neither in a module nor in your GOPATH. If you are using modules, please open your editor at the directory containing the go.mod. If you believe this warning is incorrect, please file an issue: https://github.com/golang/go/issues/new.`,
 				})
-			}
-			if ctx.Err() != nil {
-				return
 			}
 			if err != nil {
 				event.Error(ctx, "warning: diagnose package", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(ph.ID()))
@@ -185,9 +179,7 @@ func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, r
 			URI:         protocol.URIFromSpanURI(key.id.URI),
 			Version:     key.id.Version,
 		}); err != nil {
-			if ctx.Err() == nil {
-				event.Error(ctx, "publishReports: failed to deliver diagnostic", err, tag.URI.Of(key.id.URI))
-			}
+			event.Error(ctx, "publishReports: failed to deliver diagnostic", err, tag.URI.Of(key.id.URI))
 			continue
 		}
 		// Update the delivered map.

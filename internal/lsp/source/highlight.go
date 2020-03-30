@@ -40,7 +40,7 @@ func Highlight(ctx context.Context, snapshot Snapshot, fh FileHandle, pos protoc
 	}
 	path, _ := astutil.PathEnclosingInterval(file, rng.Start, rng.Start)
 	if len(path) == 0 {
-		return nil, errors.Errorf("no enclosing position found for %v:%v", int(pos.Line), int(pos.Character))
+		return nil, fmt.Errorf("no enclosing position found for %v:%v", int(pos.Line), int(pos.Character))
 	}
 	// If start==end for astutil.PathEnclosingInterval, the 1-char interval following start is used instead.
 	// As a result, we might not get an exact match so we should check the 1-char interval to the left of the
@@ -147,10 +147,9 @@ Outer:
 	if resultsList != nil && -1 < index && index < len(resultsList.List) {
 		rng, err := nodeToProtocolRange(view, pkg, resultsList.List[index])
 		if err != nil {
-			event.Error(ctx, "Error getting range for node", err)
-		} else {
-			result[rng] = true
+			return nil, err
 		}
+		result[rng] = true
 	}
 	// Add the "func" part of the func declaration.
 	if highlightAllReturnsAndFunc {
@@ -185,9 +184,9 @@ Outer:
 				rng, err := nodeToProtocolRange(view, pkg, toAdd)
 				if err != nil {
 					event.Error(ctx, "Error getting range for node", err)
-				} else {
-					result[rng] = true
+					return false
 				}
+				result[rng] = true
 				return false
 			}
 		}
@@ -268,11 +267,12 @@ func highlightImportUses(ctx context.Context, view View, pkg Package, path []ast
 		if !strings.Contains(basicLit.Value, obj.Name()) {
 			return true
 		}
-		if rng, err := nodeToProtocolRange(view, pkg, n); err == nil {
-			result[rng] = true
-		} else {
+		rng, err := nodeToProtocolRange(view, pkg, n)
+		if err != nil {
 			event.Error(ctx, "Error getting range for node", err)
+			return false
 		}
+		result[rng] = true
 		return false
 	})
 	return rangeMapToSlice(result), nil
@@ -311,11 +311,12 @@ func highlightIdentifiers(ctx context.Context, view View, pkg Package, path []as
 		if nObj := pkg.GetTypesInfo().ObjectOf(n); nObj != idObj {
 			return false
 		}
-		if rng, err := nodeToProtocolRange(view, pkg, n); err == nil {
-			result[rng] = true
-		} else {
+		rng, err := nodeToProtocolRange(view, pkg, n)
+		if err != nil {
 			event.Error(ctx, "Error getting range for node", err)
+			return false
 		}
+		result[rng] = true
 		return false
 	})
 	return rangeMapToSlice(result), nil

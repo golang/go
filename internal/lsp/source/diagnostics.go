@@ -131,10 +131,10 @@ func Diagnostics(ctx context.Context, snapshot Snapshot, ph PackageHandle, missi
 		analyzers = snapshot.View().Options().TypeErrorAnalyzers
 	}
 	if err := analyses(ctx, snapshot, reports, ph, analyzers); err != nil {
+		event.Error(ctx, "analyses failed", err, tag.Snapshot.Of(snapshot.ID()), tag.Package.Of(ph.ID()))
 		if ctx.Err() != nil {
 			return nil, warn, ctx.Err()
 		}
-		event.Error(ctx, "failed to run analyses", err, tag.Package.Of(ph.ID()))
 	}
 	return reports, warn, nil
 }
@@ -227,7 +227,6 @@ func missingModulesDiagnostics(ctx context.Context, snapshot Snapshot, reports m
 	}
 	file, _, m, _, err := snapshot.View().Session().Cache().ParseGoHandle(fh, ParseHeader).Parse(ctx)
 	if err != nil {
-		event.Error(ctx, "could not parse go file when checking for missing modules", err)
 		return err
 	}
 	// Make a dependency->import map to improve performance when finding missing dependencies.
