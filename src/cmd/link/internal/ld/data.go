@@ -826,7 +826,6 @@ func writeBlocks(out *OutBuf, sem chan int, syms []*sym.Symbol, addr, size int64
 
 			// We're gonna write this symbol.
 			idx = i
-			length = s.Value + s.Size - addr
 
 			// If we cross over the max size, we've got enough symbols.
 			if s.Value+s.Size > addr+max {
@@ -837,6 +836,13 @@ func writeBlocks(out *OutBuf, sem chan int, syms []*sym.Symbol, addr, size int64
 		// If we didn't find any symbols to write, we're done here.
 		if idx < 0 {
 			break
+		}
+
+		// Compute the length to write, including padding.
+		if idx+1 < len(syms) {
+			length = syms[idx+1].Value - addr
+		} else {
+			length = lastAddr - addr
 		}
 
 		// Start the block output operator.
