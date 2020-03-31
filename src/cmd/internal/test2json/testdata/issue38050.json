@@ -1,0 +1,56 @@
+{"Action":"run","Test":"Test1"}
+{"Action":"output","Test":"Test1","Output":"=== RUN   Test1\n"}
+{"Action":"output","Test":"Test1","Output":"=== PAUSE Test1\n"}
+{"Action":"pause","Test":"Test1"}
+{"Action":"run","Test":"Test2"}
+{"Action":"output","Test":"Test2","Output":"=== RUN   Test2\n"}
+{"Action":"output","Test":"Test2","Output":"=== PAUSE Test2\n"}
+{"Action":"pause","Test":"Test2"}
+{"Action":"cont","Test":"Test1"}
+{"Action":"output","Test":"Test1","Output":"=== CONT  Test1\n"}
+{"Action":"cont","Test":"Test2"}
+{"Action":"output","Test":"Test2","Output":"=== CONT  Test2\n"}
+{"Action":"run","Test":"Test1/this_passes"}
+{"Action":"output","Test":"Test1/this_passes","Output":"=== RUN   Test1/this_passes\n"}
+{"Action":"output","Test":"Test1/this_passes","Output":"=== PAUSE Test1/this_passes\n"}
+{"Action":"pause","Test":"Test1/this_passes"}
+{"Action":"run","Test":"Test1/this_will_fail"}
+{"Action":"output","Test":"Test1/this_will_fail","Output":"=== RUN   Test1/this_will_fail\n"}
+{"Action":"run","Test":"Test2/this_passes"}
+{"Action":"output","Test":"Test2/this_passes","Output":"=== RUN   Test2/this_passes\n"}
+{"Action":"output","Test":"Test1/this_will_fail","Output":"=== PAUSE Test1/this_will_fail\n"}
+{"Action":"pause","Test":"Test1/this_will_fail"}
+{"Action":"cont","Test":"Test1/this_passes"}
+{"Action":"output","Test":"Test1/this_passes","Output":"=== CONT  Test1/this_passes\n"}
+{"Action":"output","Test":"Test2/this_passes","Output":"=== PAUSE Test2/this_passes\n"}
+{"Action":"pause","Test":"Test2/this_passes"}
+{"Action":"cont","Test":"Test1/this_will_fail"}
+{"Action":"output","Test":"Test1/this_will_fail","Output":"=== CONT  Test1/this_will_fail\n"}
+{"Action":"run","Test":"Test2/this_will_fail"}
+{"Action":"output","Test":"Test2/this_will_fail","Output":"=== RUN   Test2/this_will_fail\n"}
+{"Action":"output","Test":"Test2/this_will_fail","Output":"=== PAUSE Test2/this_will_fail\n"}
+{"Action":"pause","Test":"Test2/this_will_fail"}
+{"Action":"cont","Test":"Test2/this_passes"}
+{"Action":"output","Test":"Test2/this_passes","Output":"=== CONT  Test2/this_passes\n"}
+{"Action":"output","Test":"Test1/this_will_fail","Output":"    Test1/this_will_fail: parallel_test.go:40:\n"}
+{"Action":"output","Test":"Test1/this_will_fail","Output":"        got:  [THIS WILL FAIL]\n"}
+{"Action":"output","Test":"Test1/this_will_fail","Output":"        want: [because this is wrong]\n"}
+{"Action":"cont","Test":"Test2/this_will_fail"}
+{"Action":"output","Test":"Test2/this_will_fail","Output":"=== CONT  Test2/this_will_fail\n"}
+{"Action":"output","Test":"Test1","Output":"--- FAIL: Test1 (0.00s)\n"}
+{"Action":"output","Test":"Test1/this_passes","Output":"    --- PASS: Test1/this_passes (0.00s)\n"}
+{"Action":"pass","Test":"Test1/this_passes"}
+{"Action":"output","Test":"Test1/this_will_fail","Output":"    --- FAIL: Test1/this_will_fail (0.00s)\n"}
+{"Action":"output","Test":"Test2/this_will_fail","Output":"    Test2/this_will_fail: parallel_test.go:40:\n"}
+{"Action":"output","Test":"Test2/this_will_fail","Output":"        got:  [THIS WILL FAIL]\n"}
+{"Action":"output","Test":"Test2/this_will_fail","Output":"        want: [because this is wrong]\n"}
+{"Action":"fail","Test":"Test1/this_will_fail"}
+{"Action":"fail","Test":"Test1"}
+{"Action":"output","Test":"Test2","Output":"--- FAIL: Test2 (0.00s)\n"}
+{"Action":"output","Test":"Test2/this_passes","Output":"    --- PASS: Test2/this_passes (0.00s)\n"}
+{"Action":"pass","Test":"Test2/this_passes"}
+{"Action":"output","Test":"Test2/this_will_fail","Output":"    --- FAIL: Test2/this_will_fail (0.00s)\n"}
+{"Action":"fail","Test":"Test2/this_will_fail"}
+{"Action":"fail","Test":"Test2"}
+{"Action":"output","Output":"FAIL\n"}
+{"Action":"fail"}

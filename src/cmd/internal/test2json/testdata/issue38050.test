@@ -1,0 +1,31 @@
+=== RUN   Test1
+=== PAUSE Test1
+=== RUN   Test2
+=== PAUSE Test2
+=== CONT  Test1
+=== CONT  Test2
+=== RUN   Test1/this_passes
+=== PAUSE Test1/this_passes
+=== RUN   Test1/this_will_fail
+=== RUN   Test2/this_passes
+=== PAUSE Test1/this_will_fail
+=== CONT  Test1/this_passes
+=== PAUSE Test2/this_passes
+=== CONT  Test1/this_will_fail
+=== RUN   Test2/this_will_fail
+=== PAUSE Test2/this_will_fail
+=== CONT  Test2/this_passes
+    Test1/this_will_fail: parallel_test.go:40:
+        got:  [THIS WILL FAIL]
+        want: [because this is wrong]
+=== CONT  Test2/this_will_fail
+--- FAIL: Test1 (0.00s)
+    --- PASS: Test1/this_passes (0.00s)
+    --- FAIL: Test1/this_will_fail (0.00s)
+    Test2/this_will_fail: parallel_test.go:40:
+        got:  [THIS WILL FAIL]
+        want: [because this is wrong]
+--- FAIL: Test2 (0.00s)
+    --- PASS: Test2/this_passes (0.00s)
+    --- FAIL: Test2/this_will_fail (0.00s)
+FAIL
