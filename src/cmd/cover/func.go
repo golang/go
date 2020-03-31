@@ -78,12 +78,12 @@ func funcOutput(profile, outputFile string) error {
 		// Now match up functions and profile blocks.
 		for _, f := range funcs {
 			c, t := f.coverage(profile)
-			fmt.Fprintf(tabber, "%s:%d:\t%s\t%.1f%%\n", fn, f.startLine, f.name, percent(c, t))
+			fmt.Fprintf(tabber, "%s:%d:\t%s\t%.2f%%\n", fn, f.startLine, f.name, percent(c, t))
 			total += t
 			covered += c
 		}
 	}
-	fmt.Fprintf(tabber, "total:\t(statements)\t%.1f%%\n", percent(covered, total))
+	fmt.Fprintf(tabber, "total:\t(statements)\t%.2f%%\n", percent(covered, total))
 
 	return nil
 }

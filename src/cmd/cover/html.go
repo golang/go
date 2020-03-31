@@ -223,7 +223,7 @@ const tmplHTML = `
 			<div id="nav">
 				<select id="files">
 				{{range $i, $f := .Files}}
-				<option value="file{{$i}}">{{$f.Name}} ({{printf "%.1f" $f.Coverage}}%)</option>
+				<option value="file{{$i}}">{{$f.Name}} ({{printf "%.2f" $f.Coverage}}%)</option>
 				{{end}}
 				</select>
 			</div>
