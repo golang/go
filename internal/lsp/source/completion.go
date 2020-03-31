@@ -795,7 +795,8 @@ func (c *completer) unimportedMembers(id *ast.Ident) error {
 		})
 	}
 
-	for path, pkg := range known {
+	for path, relevance := range relevances {
+		pkg := known[path]
 		if pkg.GetTypes().Name() != id.Name {
 			continue
 		}
@@ -806,7 +807,7 @@ func (c *completer) unimportedMembers(id *ast.Ident) error {
 		if imports.ImportPathToAssumedName(path) != pkg.GetTypes().Name() {
 			imp.name = pkg.GetTypes().Name()
 		}
-		c.packageMembers(pkg.GetTypes(), stdScore+.01*float64(relevances[path]), imp)
+		c.packageMembers(pkg.GetTypes(), stdScore+.01*float64(relevance), imp)
 		if len(c.items) >= unimportedMemberTarget {
 			return nil
 		}
@@ -1017,48 +1018,7 @@ func (c *completer) lexical() error {
 	}
 
 	if c.opts.unimported {
-		ctx, cancel := c.deepCompletionContext()
-		defer cancel()
-		// Suggest packages that have not been imported yet.
-		prefix := ""
-		if c.surrounding != nil {
-			prefix = c.surrounding.Prefix()
-		}
-		var (
-			mu               sync.Mutex
-			initialItemCount = len(c.items)
-		)
-		add := func(pkg imports.ImportFix) {
-			mu.Lock()
-			defer mu.Unlock()
-			if _, ok := seen[pkg.IdentName]; ok {
-				return
-			}
-
-			if len(c.items)-initialItemCount >= maxUnimportedPackageNames {
-				cancel()
-				return
-			}
-
-			// Rank unimported packages significantly lower than other results.
-			score := 0.01 * float64(pkg.Relevance)
-
-			// Do not add the unimported packages to seen, since we can have
-			// multiple packages of the same name as completion suggestions, since
-			// only one will be chosen.
-			obj := types.NewPkgName(0, nil, pkg.IdentName, types.NewPackage(pkg.StmtInfo.ImportPath, pkg.IdentName))
-			c.found(candidate{
-				obj:   obj,
-				score: score,
-				imp: &importInfo{
-					importPath: pkg.StmtInfo.ImportPath,
-					name:       pkg.StmtInfo.Name,
-				},
-			})
-		}
-		if err := c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
-			return imports.GetAllCandidates(ctx, add, prefix, c.filename, c.pkg.GetTypes().Name(), opts)
-		}); err != nil {
+		if err := c.unimportedPackages(seen); err != nil {
 			return err
 		}
 	}
@@ -1084,6 +1044,88 @@ func (c *completer) lexical() error {
 	c.addKeywordCompletions()
 
 	return nil
+}
+
+func (c *completer) unimportedPackages(seen map[string]struct{}) error {
+	prefix := ""
+	if c.surrounding != nil {
+		prefix = c.surrounding.Prefix()
+	}
+	initialItemCount := len(c.items)
+
+	known, err := c.snapshot.CachedImportPaths(c.ctx)
+	if err != nil {
+		return err
+	}
+	var paths []string
+	for path := range known {
+		if !strings.HasPrefix(path, prefix) {
+			continue
+		}
+		paths = append(paths, path)
+	}
+
+	var relevances map[string]int
+	if len(paths) != 0 {
+		c.snapshot.View().RunProcessEnvFunc(c.ctx, func(opts *imports.Options) error {
+			relevances = imports.ScoreImportPaths(c.ctx, opts.Env, paths)
+			return nil
+		})
+	}
+
+	for path, relevance := range relevances {
+		pkg := known[path]
+		imp := &importInfo{
+			importPath: path,
+			pkg:        pkg,
+		}
+		if imports.ImportPathToAssumedName(path) != pkg.GetTypes().Name() {
+			imp.name = pkg.GetTypes().Name()
+		}
+		score := 0.01 * float64(relevance)
+		c.found(candidate{
+			obj:   types.NewPkgName(0, nil, pkg.GetTypes().Name(), pkg.GetTypes()),
+			score: score,
+			imp:   imp,
+		})
+		if len(c.items)-initialItemCount >= maxUnimportedPackageNames {
+			return nil
+		}
+	}
+
+	ctx, cancel := c.deepCompletionContext()
+	defer cancel()
+	var mu sync.Mutex
+	add := func(pkg imports.ImportFix) {
+		mu.Lock()
+		defer mu.Unlock()
+		if _, ok := seen[pkg.IdentName]; ok {
+			return
+		}
+
+		if len(c.items)-initialItemCount >= maxUnimportedPackageNames {
+			cancel()
+			return
+		}
+		// Rank unimported packages significantly lower than other results.
+		score := 0.01 * float64(pkg.Relevance)
+
+		// Do not add the unimported packages to seen, since we can have
+		// multiple packages of the same name as completion suggestions, since
+		// only one will be chosen.
+		obj := types.NewPkgName(0, nil, pkg.IdentName, types.NewPackage(pkg.StmtInfo.ImportPath, pkg.IdentName))
+		c.found(candidate{
+			obj:   obj,
+			score: score,
+			imp: &importInfo{
+				importPath: pkg.StmtInfo.ImportPath,
+				name:       pkg.StmtInfo.Name,
+			},
+		})
+	}
+	return c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+		return imports.GetAllCandidates(ctx, add, prefix, c.filename, c.pkg.GetTypes().Name(), opts)
+	})
 }
 
 // alreadyImports reports whether f has an import with the specified path.
