@@ -149,7 +149,6 @@ func (r *objReader) readNew() {
 		f := &Func{
 			Args:     int64(info.Args),
 			Frame:    int64(info.Locals),
-			Align:    info.Align,
 			NoSplit:  info.NoSplit != 0,
 			Leaf:     osym.Leaf(),
 			TopFrame: osym.TopFrame(),

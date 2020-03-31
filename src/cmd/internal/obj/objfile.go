@@ -346,7 +346,6 @@ func (w *objWriter) writeSym(s *LSym) {
 
 	w.writeInt(int64(s.Func.Args))
 	w.writeInt(int64(s.Func.Locals))
-	w.writeInt(int64(s.Func.Align))
 	w.writeBool(s.NoSplit())
 	flags = int64(0)
 	if s.Leaf() {

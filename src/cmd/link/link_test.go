@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"cmd/internal/objabi"
 	"debug/macho"
 	"internal/testenv"
 	"io/ioutil"
@@ -447,104 +446,4 @@ func TestStrictDup(t *testing.T) {
 	if !bytes.Contains(out, []byte("mismatched payload")) {
 		t.Errorf("unexpected output:\n%s", out)
 	}
-}
-
-const testFuncAlignSrc = `
-package main
-import (
-	"fmt"
-	"reflect"
-)
-func alignFunc()
-func alignPc()
-
-func main() {
-	addr1 := reflect.ValueOf(alignFunc).Pointer()
-	addr2 := reflect.ValueOf(alignPc).Pointer()
-	switch {
-	case (addr1 % 2048) != 0 && (addr2 % 512) != 0:
-		fmt.Printf("expected 2048 bytes alignment, got %v; expected 512 bytes alignment, got %v\n", addr1, addr2)
-	case (addr2 % 512) != 0:
-		fmt.Printf("expected 512 bytes alignment, got %v\n", addr2)
-	case (addr1 % 2048) != 0:
-		fmt.Printf("expected 2048 bytes alignment, got %v\n", addr1)
-	default:
-		fmt.Printf("PASS")
-	}
-}
-`
-
-const testFuncAlignAsmSrc = `
-#include "textflag.h"
-TEXT	·alignFunc(SB),NOSPLIT|ALIGN2048, $0-0
-	MOVD	$1, R0
-	MOVD	$2, R1
-	RET
-
-TEXT	·alignPc(SB),NOSPLIT, $0-0
-	MOVD	$2, R0
-	PCALIGN	$512
-	MOVD	$3, R1
-	RET
-`
-
-// TestFuncAlign verifies that the address of a function can be aligned
-// with a specfic value on arm64.
-func TestFuncAlign(t *testing.T) {
-	if objabi.GOARCH != "arm64" {
-		t.Skipf("Skipping FuncAlign test on %s", objabi.GOARCH)
-	}
-	testenv.MustHaveGoBuild(t)
-
-	tmpdir, err := ioutil.TempDir("", "TestFuncAlign")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpdir)
-
-	src := filepath.Join(tmpdir, "falign.go")
-	err = ioutil.WriteFile(src, []byte(testFuncAlignSrc), 0666)
-	if err != nil {
-		t.Fatal(err)
-	}
-	src = filepath.Join(tmpdir, "falign.s")
-	err = ioutil.WriteFile(src, []byte(testFuncAlignAsmSrc), 0666)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Build and run with old object file format.
-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "falign")
-	cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
-	cmd.Dir = tmpdir
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Errorf("build failed: %v", err)
-	}
-	cmd = exec.Command(tmpdir + "/falign")
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Errorf("failed to run with err %v, output: %s", err, out)
-	}
-	if string(out) != "PASS" {
-		t.Errorf("unexpected output: %s\n", out)
-	}
-
-	// Build and run with new object file format.
-	cmd = exec.Command(testenv.GoToolPath(t), "build", "-o", "falign", "-gcflags=all=-newobj", "-asmflags=all=-newobj", "-ldflags=-newobj")
-	cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
-	cmd.Dir = tmpdir
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Errorf("build with newobj failed: %v", err)
-	}
-	cmd = exec.Command(tmpdir + "/falign")
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		t.Errorf("failed to run with -newobj, err: %v, output: %s", err, out)
-	}
-	if string(out) != "PASS" {
-		t.Errorf("unexpected output with -newobj: %s\n", out)
-	}
-
 }

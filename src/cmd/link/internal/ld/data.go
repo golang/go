@@ -2119,10 +2119,6 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s *sym.Symbol, va uint6
 		funcsize = uint64(s.Size)
 	}
 
-	if sect.Align < s.Align {
-		sect.Align = s.Align
-	}
-
 	// On ppc64x a text section should not be larger than 2^26 bytes due to the size of
 	// call target offset field in the bl instruction.  Splitting into smaller text
 	// sections smaller than this limit allows the GNU linker to modify the long calls
