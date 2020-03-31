@@ -122,12 +122,6 @@ func Notify(c chan<- os.Signal, sig ...os.Signal) {
 		panic("os/signal: Notify using nil channel")
 	}
 
-	watchSignalLoopOnce.Do(func() {
-		if watchSignalLoop != nil {
-			go watchSignalLoop()
-		}
-	})
-
 	handlers.Lock()
 	defer handlers.Unlock()
 
@@ -148,6 +142,14 @@ func Notify(c chan<- os.Signal, sig ...os.Signal) {
 			h.set(n)
 			if handlers.ref[n] == 0 {
 				enableSignal(n)
+
+				// The runtime requires that we enable a
+				// signal before starting the watcher.
+				watchSignalLoopOnce.Do(func() {
+					if watchSignalLoop != nil {
+						go watchSignalLoop()
+					}
+				})
 			}
 			handlers.ref[n]++
 		}
