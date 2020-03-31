@@ -1227,7 +1227,6 @@ func loadObjFull(l *Loader, r *oReader) {
 		info.Pcdata = append(info.Pcdata, info.PcdataEnd) // for the ease of knowing where it ends
 		pc.Args = int32(info.Args)
 		pc.Locals = int32(info.Locals)
-		s.Align = int32(info.Align)
 
 		npc := len(info.Pcdata) - 1 // -1 as we appended one above
 		pc.Pcdata = pcDataBatch[:npc:npc]

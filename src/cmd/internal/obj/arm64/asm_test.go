@@ -18,9 +18,7 @@ import (
 
 // TestLarge generates a very large file to verify that large
 // program builds successfully, in particular, too-far
-// conditional branches are fixed, and also verify that the
-// instruction's pc can be correctly aligned even when branches
-// need to be fixed.
+// conditional branches are fixed.
 func TestLarge(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skip in short mode")
@@ -43,27 +41,10 @@ func TestLarge(t *testing.T) {
 		t.Fatalf("can't write output: %v\n", err)
 	}
 
-	pattern := `0x0080\s00128\s\(.*\)\tMOVD\t\$3,\sR3`
-
-	// assemble generated file
-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-S", "-o", filepath.Join(dir, "test.o"), tmpfile)
+	// build generated file
+	cmd := exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
 	cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
 	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Errorf("Assemble failed: %v, output: %s", err, out)
-	}
-	matched, err := regexp.MatchString(pattern, string(out))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !matched {
-		t.Errorf("The alignment is not correct: %t, output:%s\n", matched, out)
-	}
-
-	// build generated file
-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "asm", "-o", filepath.Join(dir, "x.o"), tmpfile)
-	cmd.Env = append(os.Environ(), "GOARCH=arm64", "GOOS=linux")
-	out, err = cmd.CombinedOutput()
 	if err != nil {
 		t.Errorf("Build failed: %v, output: %s", err, out)
 	}
@@ -75,8 +56,6 @@ func gen(buf *bytes.Buffer) {
 	fmt.Fprintln(buf, "TBZ $5, R0, label")
 	fmt.Fprintln(buf, "CBZ R0, label")
 	fmt.Fprintln(buf, "BEQ label")
-	fmt.Fprintln(buf, "PCALIGN $128")
-	fmt.Fprintln(buf, "MOVD $3, R3")
 	for i := 0; i < 1<<19; i++ {
 		fmt.Fprintln(buf, "MOVD R0, R1")
 	}

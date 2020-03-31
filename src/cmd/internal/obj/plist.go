@@ -133,13 +133,6 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
 	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
 	s.Set(AttrTopFrame, flag&TOPFRAME != 0)
-	if flag&ALIGN2048 != 0 {
-		if objabi.GOARCH != "arm64" {
-			ctxt.Diag("ALIGN2048 flag only works on ARM64 at present.")
-		}
-		s.Func.Align = 2048
-	}
-
 	s.Type = objabi.STEXT
 	ctxt.Text = append(ctxt.Text, s)
 

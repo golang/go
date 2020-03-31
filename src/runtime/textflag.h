@@ -35,8 +35,3 @@
 // Function is the top of the call stack. Call stack unwinders should stop
 // at this function.
 #define TOPFRAME 2048
-// ALIGN2048 means that the address of the function must be aligned to a
-// 2048 bytes boundary.
-// Only works on arm64 at present.
-#define ALIGN2048 4096
-
