@@ -74,7 +74,7 @@ func MethodNotFound(ctx context.Context, r *Request) error {
 func MustReply(handler Handler) Handler {
 	return func(ctx context.Context, req *Request) error {
 		err := handler(ctx, req)
-		if req.state < requestReplied {
+		if req.done != nil {
 			panic(fmt.Errorf("request %q was never replied to", req.Method))
 		}
 		return err
