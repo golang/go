@@ -63,21 +63,12 @@ import (
 //    c:        00000004        .word   0x00000004
 //                      c: R_ARM_GOT_PREL       local.moduledata
 
-func gentext(ctxt *ld.Link) {
-	if !ctxt.DynlinkingGo() {
+func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
+	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
+	if initfunc == nil {
 		return
 	}
-	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
-	if addmoduledata.Type == sym.STEXT && ctxt.BuildMode != ld.BuildModePlugin {
-		// we're linking a module containing the runtime -> no need for
-		// an init function
-		return
-	}
-	addmoduledata.Attr |= sym.AttrReachable
-	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
-	initfunc.Type = sym.STEXT
-	initfunc.Attr |= sym.AttrLocal
-	initfunc.Attr |= sym.AttrReachable
+
 	o := func(op uint32) {
 		initfunc.AddUint32(ctxt.Arch, op)
 	}
@@ -85,30 +76,25 @@ func gentext(ctxt *ld.Link) {
 	o(0xe08f0000)
 
 	o(0xeafffffe)
-	rel := initfunc.AddRel()
-	rel.Off = 8
-	rel.Siz = 4
-	rel.Sym = ctxt.Syms.Lookup("runtime.addmoduledata", 0)
-	rel.Type = objabi.R_CALLARM
-	rel.Add = 0xeafffffe // vomit
+	rel := loader.Reloc{
+		Off:  8,
+		Size: 4,
+		Type: objabi.R_CALLARM,
+		Sym:  addmoduledata,
+		Add:  0xeafffffe, // vomit
+	}
+	initfunc.AddReloc(rel)
 
 	o(0x00000000)
-	rel = initfunc.AddRel()
-	rel.Off = 12
-	rel.Siz = 4
-	rel.Sym = ctxt.Moduledata
-	rel.Type = objabi.R_PCREL
-	rel.Add = 4
 
-	if ctxt.BuildMode == ld.BuildModePlugin {
-		ctxt.Textp = append(ctxt.Textp, addmoduledata)
+	rel2 := loader.Reloc{
+		Off:  12,
+		Size: 4,
+		Type: objabi.R_PCREL,
+		Sym:  ctxt.Moduledata2,
+		Add:  4,
 	}
-	ctxt.Textp = append(ctxt.Textp, initfunc)
-	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
-	initarray_entry.Attr |= sym.AttrReachable
-	initarray_entry.Attr |= sym.AttrLocal
-	initarray_entry.Type = sym.SINITARR
-	initarray_entry.AddAddr(ctxt.Arch, initfunc)
+	initfunc.AddReloc(rel2)
 }
 
 // Preserve highest 8 bits of a, and do addition to lower 24-bit
