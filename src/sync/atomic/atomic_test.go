@@ -153,6 +153,21 @@ func TestSwapUintptr(t *testing.T) {
 	}
 }
 
+var global [1024]byte
+
+func testPointers() []unsafe.Pointer {
+	var pointers []unsafe.Pointer
+	// globals
+	for i := 0; i < 10; i++ {
+		pointers = append(pointers, unsafe.Pointer(&global[1<<i-1]))
+	}
+	// heap
+	pointers = append(pointers, unsafe.Pointer(new(byte)))
+	// nil
+	pointers = append(pointers, nil)
+	return pointers
+}
+
 func TestSwapPointer(t *testing.T) {
 	var x struct {
 		before uintptr
@@ -163,13 +178,14 @@ func TestSwapPointer(t *testing.T) {
 	magicptr := uintptr(m)
 	x.before = magicptr
 	x.after = magicptr
-	var j uintptr
-	for delta := uintptr(1 << 16); delta+delta > delta; delta += delta {
-		k := SwapPointer(&x.i, unsafe.Pointer(delta))
-		if uintptr(x.i) != delta || uintptr(k) != j {
-			t.Fatalf("delta=%d i=%d j=%d k=%d", delta, x.i, j, k)
+	var j unsafe.Pointer
+
+	for _, p := range testPointers() {
+		k := SwapPointer(&x.i, p)
+		if x.i != p || k != j {
+			t.Fatalf("p=%p i=%p j=%p k=%p", p, x.i, j, k)
 		}
-		j = delta
+		j = p
 	}
 	if x.before != magicptr || x.after != magicptr {
 		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
@@ -456,20 +472,20 @@ func TestCompareAndSwapPointer(t *testing.T) {
 	magicptr := uintptr(m)
 	x.before = magicptr
 	x.after = magicptr
-	for val := uintptr(1 << 16); val+val > val; val += val {
-		x.i = unsafe.Pointer(val)
-		if !CompareAndSwapPointer(&x.i, unsafe.Pointer(val), unsafe.Pointer(val+1)) {
-			t.Fatalf("should have swapped %#x %#x", val, val+1)
+	q := unsafe.Pointer(new(byte))
+	for _, p := range testPointers() {
+		x.i = p
+		if !CompareAndSwapPointer(&x.i, p, q) {
+			t.Fatalf("should have swapped %p %p", p, q)
 		}
-		if x.i != unsafe.Pointer(val+1) {
-			t.Fatalf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
+		if x.i != q {
+			t.Fatalf("wrong x.i after swap: x.i=%p want %p", x.i, q)
 		}
-		x.i = unsafe.Pointer(val + 1)
-		if CompareAndSwapPointer(&x.i, unsafe.Pointer(val), unsafe.Pointer(val+2)) {
-			t.Fatalf("should not have swapped %#x %#x", val, val+2)
+		if CompareAndSwapPointer(&x.i, p, nil) {
+			t.Fatalf("should not have swapped %p nil", p)
 		}
-		if x.i != unsafe.Pointer(val+1) {
-			t.Fatalf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
+		if x.i != q {
+			t.Fatalf("wrong x.i after swap: x.i=%p want %p", x.i, q)
 		}
 	}
 	if x.before != magicptr || x.after != magicptr {
@@ -595,12 +611,12 @@ func TestLoadPointer(t *testing.T) {
 	magicptr := uintptr(m)
 	x.before = magicptr
 	x.after = magicptr
-	for delta := uintptr(1 << 16); delta+delta > delta; delta += delta {
+	for _, p := range testPointers() {
+		x.i = p
 		k := LoadPointer(&x.i)
-		if k != x.i {
-			t.Fatalf("delta=%d i=%d k=%d", delta, x.i, k)
+		if k != p {
+			t.Fatalf("p=%x k=%x", p, k)
 		}
-		x.i = unsafe.Pointer(uintptr(x.i) + delta)
 	}
 	if x.before != magicptr || x.after != magicptr {
 		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
@@ -730,13 +746,11 @@ func TestStorePointer(t *testing.T) {
 	magicptr := uintptr(m)
 	x.before = magicptr
 	x.after = magicptr
-	v := unsafe.Pointer(uintptr(0))
-	for delta := uintptr(1 << 16); delta+delta > delta; delta += delta {
-		StorePointer(&x.i, unsafe.Pointer(v))
-		if x.i != v {
-			t.Fatalf("delta=%d i=%d v=%d", delta, x.i, v)
+	for _, p := range testPointers() {
+		StorePointer(&x.i, p)
+		if x.i != p {
+			t.Fatalf("x.i=%p p=%p", x.i, p)
 		}
-		v = unsafe.Pointer(uintptr(v) + delta)
 	}
 	if x.before != magicptr || x.after != magicptr {
 		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
