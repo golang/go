@@ -140,12 +140,17 @@ func (sb *SymbolBuilder) SetRelocs(rslice []Reloc) {
 	}
 }
 
-func (sb *SymbolBuilder) AddReloc(r Reloc) {
+// AddReloc appends the specified reloc to the symbols list of
+// relocations. Return value is the index of the newly created
+// reloc.
+func (sb *SymbolBuilder) AddReloc(r Reloc) uint32 {
 	// Populate a goobj2.Reloc from external reloc record.
+	rval := uint32(len(sb.relocs))
 	var b goobj2.Reloc2
 	b.Set(r.Off, r.Size, 0, r.Add, goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(r.Sym)})
 	sb.relocs = append(sb.relocs, b)
 	sb.reltypes = append(sb.reltypes, r.Type)
+	return rval
 }
 
 // Update the j-th relocation in place.
