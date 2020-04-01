@@ -7,6 +7,9 @@ package jsonrpc2
 import (
 	"context"
 	"fmt"
+	"sync"
+
+	"golang.org/x/tools/internal/telemetry/event"
 )
 
 // Handler is invoked to handle incoming requests.
@@ -78,5 +81,81 @@ func MustReply(handler Handler) Handler {
 			panic(fmt.Errorf("request %q was never replied to", req.Method))
 		}
 		return err
+	}
+}
+
+// CancelHandler returns a handler that supports cancellation, and a canceller
+// that can be used to trigger canceling in progress requests.
+func CancelHandler(handler Handler) (Handler, Canceller) {
+	var mu sync.Mutex
+	handling := make(map[ID]context.CancelFunc)
+	wrapped := func(ctx context.Context, req *Request) error {
+		if req.ID != nil {
+			cancelCtx, cancel := context.WithCancel(ctx)
+			ctx = cancelCtx
+			mu.Lock()
+			handling[*req.ID] = cancel
+			mu.Unlock()
+			req.OnReply(func() {
+				mu.Lock()
+				delete(handling, *req.ID)
+				mu.Unlock()
+			})
+		}
+		return handler(ctx, req)
+	}
+	return wrapped, func(id ID) {
+		mu.Lock()
+		cancel, found := handling[id]
+		mu.Unlock()
+		if found {
+			cancel()
+		}
+	}
+}
+
+// AsyncHandler returns a handler that processes each request goes in its own
+// goroutine.
+// The handler returns immediately, without the request being processed.
+// Each request then waits for the previous request to finish before it starts.
+// This allows the stream to unblock at the cost of unbounded goroutines
+// all stalled on the previous one.
+func AsyncHandler(handler Handler) Handler {
+	nextRequest := make(chan struct{})
+	close(nextRequest)
+	return func(ctx context.Context, req *Request) error {
+		waitForPrevious := nextRequest
+		nextRequest = make(chan struct{})
+		unlockNext := nextRequest
+		req.OnReply(func() { close(unlockNext) })
+		_, queueDone := event.StartSpan(ctx, "queued")
+		go func() {
+			<-waitForPrevious
+			queueDone()
+			if err := handler(ctx, req); err != nil {
+				event.Error(ctx, "jsonrpc2 async message delivery failed", err)
+			}
+		}()
+		return nil
+	}
+}
+
+func legacyDeliverHandler(handler Handler) Handler {
+	return func(ctx context.Context, req *Request) error {
+		if req.conn.LegacyHooks != nil {
+			if req.conn.LegacyHooks.Deliver(ctx, req, false) {
+				return nil
+			}
+		}
+		return handler(ctx, req)
+	}
+}
+
+func legacyRequestHandler(handler Handler) Handler {
+	return func(ctx context.Context, req *Request) error {
+		if req.conn.LegacyHooks != nil {
+			ctx = req.conn.LegacyHooks.Request(ctx, req.conn, Receive, &req.WireRequest)
+		}
+		return handler(ctx, req)
 	}
 }
