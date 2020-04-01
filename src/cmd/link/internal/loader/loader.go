@@ -248,6 +248,8 @@ type Loader struct {
 	got        map[Sym]int32       // stores got for pe objects
 	dynid      map[Sym]int32       // stores Dynid for symbol
 
+	relocVariant map[relocId]sym.RelocVariant // stores variant relocs
+
 	// Used to implement field tracking; created during deadcode if
 	// field tracking is enabled. Reachparent[K] contains the index of
 	// the symbol that triggered the marking of symbol K as live.
@@ -1741,7 +1743,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 		s.R = batch[:len(pp.relocs):len(pp.relocs)]
 		l.relocBatch = batch[len(pp.relocs):]
 		relocs := l.Relocs(i)
-		l.convertRelocations(&relocs, s, false)
+		l.convertRelocations(i, &relocs, s, false)
 
 		// Copy data
 		s.P = pp.data
@@ -1941,7 +1943,7 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, anonVerReplace
 		if len(s.R) != relocs.Count() {
 			s.R = make([]sym.Reloc, relocs.Count())
 		}
-		l.convertRelocations(&relocs, s, true)
+		l.convertRelocations(cand, &relocs, s, true)
 	}
 
 	return result
@@ -2356,7 +2358,7 @@ func loadObjFull(l *Loader, r *oReader) {
 		batch := l.relocBatch
 		s.R = batch[:relocs.Count():relocs.Count()]
 		l.relocBatch = batch[relocs.Count():]
-		l.convertRelocations(&relocs, s, false)
+		l.convertRelocations(gi, &relocs, s, false)
 
 		// Aux symbol info
 		isym := -1
@@ -2525,7 +2527,7 @@ func loadObjFull(l *Loader, r *oReader) {
 // etc. It is assumed that the caller has pre-allocated the dst symbol
 // relocations slice. If 'strict' is set, then this method will
 // panic if it finds a relocation targeting a nil symbol.
-func (l *Loader) convertRelocations(src *Relocs, dst *sym.Symbol, strict bool) {
+func (l *Loader) convertRelocations(symIdx Sym, src *Relocs, dst *sym.Symbol, strict bool) {
 	for j := range dst.R {
 		r := src.At2(j)
 		rs := r.Sym()
@@ -2557,7 +2559,44 @@ func (l *Loader) convertRelocations(src *Relocs, dst *sym.Symbol, strict bool) {
 			Add:  r.Add(),
 			Sym:  l.Syms[rs],
 		}
+		if rv := l.RelocVariant(symIdx, j); rv != 0 {
+			dst.R[j].InitExt()
+			dst.R[j].Variant = rv
+		}
 	}
+}
+
+// relocId is essentially a <S,R> tuple identifying the Rth
+// relocation of symbol S.
+type relocId struct {
+	sym  Sym
+	ridx int
+}
+
+// SetRelocVariant sets the 'variant' property of a relocation on
+// some specific symbol.
+func (l *Loader) SetRelocVariant(s Sym, ri int, v sym.RelocVariant) {
+	// sanity check
+	if relocs := l.Relocs(s); ri >= relocs.Count() {
+		panic("invalid relocation ID")
+	}
+	if l.relocVariant == nil {
+		l.relocVariant = make(map[relocId]sym.RelocVariant)
+	}
+	if v != 0 {
+		l.relocVariant[relocId{s, ri}] = v
+	} else {
+		delete(l.relocVariant, relocId{s, ri})
+	}
+}
+
+// RelocVariant returns the 'variant' property of a relocation on
+// some specific symbol.
+func (l *Loader) RelocVariant(s Sym, ri int) sym.RelocVariant {
+	if relocs := l.Relocs(s); ri >= relocs.Count() {
+		panic("invalid relocation ID")
+	}
+	return l.relocVariant[relocId{s, ri}]
 }
 
 // UndefinedRelocTargets iterates through the global symbol index
