@@ -16,7 +16,7 @@ import (
 	"golang.org/x/tools/internal/telemetry/event"
 )
 
-func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.FileIdentity][]source.Diagnostic, map[string]*modfile.Require, error) {
+func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.FileIdentity][]*source.Diagnostic, map[string]*modfile.Require, error) {
 	// TODO: We will want to support diagnostics for go.mod files even when the -modfile flag is turned off.
 	realURI, tempURI := snapshot.View().ModFiles()
 
@@ -39,11 +39,11 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 	if err != nil {
 		return nil, nil, err
 	}
-	reports := map[source.FileIdentity][]source.Diagnostic{
+	reports := map[source.FileIdentity][]*source.Diagnostic{
 		realfh.Identity(): {},
 	}
 	for _, e := range parseErrors {
-		diag := source.Diagnostic{
+		diag := &source.Diagnostic{
 			Message:        e.Message,
 			Range:          e.Range,
 			SuggestedFixes: e.SuggestedFixes,

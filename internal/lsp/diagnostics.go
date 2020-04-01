@@ -39,7 +39,7 @@ func (s *Server) diagnoseSnapshot(snapshot source.Snapshot) {
 
 // diagnose is a helper function for running diagnostics with a given context.
 // Do not call it directly.
-func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysAnalyze bool) map[diagnosticKey][]source.Diagnostic {
+func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysAnalyze bool) map[diagnosticKey][]*source.Diagnostic {
 	ctx, done := event.StartSpan(ctx, "lsp:background-worker")
 	defer done()
 
@@ -51,7 +51,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 	}
 	defer func() { <-s.diagnosticsSema }()
 
-	allReports := make(map[diagnosticKey][]source.Diagnostic)
+	allReports := make(map[diagnosticKey][]*source.Diagnostic)
 	var reportsMu sync.Mutex
 	var wg sync.WaitGroup
 
@@ -123,7 +123,7 @@ func (s *Server) diagnose(ctx context.Context, snapshot source.Snapshot, alwaysA
 	return allReports
 }
 
-func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, reports map[diagnosticKey][]source.Diagnostic) {
+func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, reports map[diagnosticKey][]*source.Diagnostic) {
 	// Check for context cancellation before publishing diagnostics.
 	if ctx.Err() != nil {
 		return
@@ -189,7 +189,7 @@ func (s *Server) publishReports(ctx context.Context, snapshot source.Snapshot, r
 
 // equalDiagnostics returns true if the 2 lists of diagnostics are equal.
 // It assumes that both a and b are already sorted.
-func equalDiagnostics(a, b []source.Diagnostic) bool {
+func equalDiagnostics(a, b []*source.Diagnostic) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -201,7 +201,7 @@ func equalDiagnostics(a, b []source.Diagnostic) bool {
 	return true
 }
 
-func toProtocolDiagnostics(diagnostics []source.Diagnostic) []protocol.Diagnostic {
+func toProtocolDiagnostics(diagnostics []*source.Diagnostic) []protocol.Diagnostic {
 	reports := []protocol.Diagnostic{}
 	for _, diag := range diagnostics {
 		related := make([]protocol.DiagnosticRelatedInformation, 0, len(diag.Related))

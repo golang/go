@@ -497,10 +497,26 @@ func (r *OptionResult) setBool(b *bool) {
 
 func typeErrorAnalyzers() map[string]Analyzer {
 	return map[string]Analyzer{
-		fillreturns.Analyzer.Name:    {Analyzer: fillreturns.Analyzer, enabled: false},
-		nonewvars.Analyzer.Name:      {Analyzer: nonewvars.Analyzer, enabled: false},
-		noresultvalues.Analyzer.Name: {Analyzer: noresultvalues.Analyzer, enabled: false},
-		undeclaredname.Analyzer.Name: {Analyzer: undeclaredname.Analyzer, enabled: false},
+		fillreturns.Analyzer.Name: {
+			Analyzer:   fillreturns.Analyzer,
+			enabled:    false,
+			FixesError: fillreturns.FixesError,
+		},
+		nonewvars.Analyzer.Name: {
+			Analyzer:   nonewvars.Analyzer,
+			enabled:    false,
+			FixesError: nonewvars.FixesError,
+		},
+		noresultvalues.Analyzer.Name: {
+			Analyzer:   noresultvalues.Analyzer,
+			enabled:    false,
+			FixesError: noresultvalues.FixesError,
+		},
+		undeclaredname.Analyzer.Name: {
+			Analyzer:   undeclaredname.Analyzer,
+			enabled:    false,
+			FixesError: undeclaredname.FixesError,
+		},
 	}
 }
 

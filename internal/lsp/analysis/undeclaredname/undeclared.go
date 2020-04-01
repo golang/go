@@ -36,7 +36,7 @@ const undeclaredNamePrefix = "undeclared name: "
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	for _, err := range analysisinternal.GetTypeErrors(pass) {
-		if !strings.HasPrefix(err.Msg, undeclaredNamePrefix) {
+		if !FixesError(err.Msg) {
 			continue
 		}
 		name := strings.TrimPrefix(err.Msg, undeclaredNamePrefix)
@@ -183,4 +183,8 @@ func baseIfStmt(path []ast.Node, index int) ast.Stmt {
 		break
 	}
 	return stmt.(ast.Stmt)
+}
+
+func FixesError(msg string) bool {
+	return strings.HasPrefix(msg, undeclaredNamePrefix)
 }

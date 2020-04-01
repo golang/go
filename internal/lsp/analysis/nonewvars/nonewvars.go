@@ -37,8 +37,6 @@ var Analyzer = &analysis.Analyzer{
 	RunDespiteErrors: true,
 }
 
-const noNewVarsMsg = "no new variables on left side of :="
-
 func run(pass *analysis.Pass) (interface{}, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	errors := analysisinternal.GetTypeErrors(pass)
@@ -63,7 +61,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 
 		for _, err := range errors {
-			if err.Msg != noNewVarsMsg {
+			if !FixesError(err.Msg) {
 				continue
 			}
 			if assignStmt.Pos() > err.Pos || err.Pos >= assignStmt.End() {
@@ -88,4 +86,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 	})
 	return nil, nil
+}
+
+func FixesError(msg string) bool {
+	return msg == "no new variables on left side of :="
 }

@@ -34,8 +34,6 @@ var Analyzer = &analysis.Analyzer{
 	RunDespiteErrors: true,
 }
 
-const noResultValuesMsg = "no result values expected"
-
 func run(pass *analysis.Pass) (interface{}, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	errors := analysisinternal.GetTypeErrors(pass)
@@ -56,7 +54,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 
 		for _, err := range errors {
-			if err.Msg != noResultValuesMsg {
+			if !FixesError(err.Msg) {
 				continue
 			}
 			if retStmt.Pos() >= err.Pos || err.Pos >= retStmt.End() {
@@ -82,4 +80,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 	})
 	return nil, nil
+}
+
+func FixesError(msg string) bool {
+	return msg == "no result values expected"
 }

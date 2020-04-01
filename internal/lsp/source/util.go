@@ -621,13 +621,13 @@ func formatFunction(params []string, results []string, writeResultParens bool) s
 	return detail.String()
 }
 
-func SortDiagnostics(d []Diagnostic) {
+func SortDiagnostics(d []*Diagnostic) {
 	sort.Slice(d, func(i int, j int) bool {
 		return CompareDiagnostic(d[i], d[j]) < 0
 	})
 }
 
-func CompareDiagnostic(a, b Diagnostic) int {
+func CompareDiagnostic(a, b *Diagnostic) int {
 	if r := protocol.CompareRange(a.Range, b.Range); r != 0 {
 		return r
 	}

@@ -14,7 +14,7 @@ import (
 	"golang.org/x/tools/internal/span"
 )
 
-func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnostic) {
+func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnostic) {
 	if len(want) == 1 && want[0].Message == "" {
 		return
 	}

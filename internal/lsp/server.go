@@ -88,7 +88,7 @@ type Server struct {
 type sentDiagnostics struct {
 	version      float64
 	identifier   string
-	sorted       []source.Diagnostic
+	sorted       []*source.Diagnostic
 	withAnalysis bool
 	snapshotID   uint64
 }

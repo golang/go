@@ -23,7 +23,7 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-func (s *snapshot) Analyze(ctx context.Context, id string, analyzers []*analysis.Analyzer) ([]*source.Error, error) {
+func (s *snapshot) Analyze(ctx context.Context, id string, analyzers ...*analysis.Analyzer) ([]*source.Error, error) {
 	var roots []*actionHandle
 
 	for _, a := range analyzers {

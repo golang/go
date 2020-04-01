@@ -50,23 +50,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	errors := analysisinternal.GetTypeErrors(pass)
 	// Filter out the errors that are not relevant to this analyzer.
 	for _, typeErr := range errors {
-		matches := wrongReturnNumRegex.FindStringSubmatch(strings.TrimSpace(typeErr.Msg))
-		if len(matches) < 3 {
+		if !FixesError(typeErr.Msg) {
 			continue
 		}
-		wantNum, err := strconv.Atoi(matches[1])
-		if err != nil {
-			continue
-		}
-		gotNum, err := strconv.Atoi(matches[2])
-		if err != nil {
-			continue
-		}
-		// Logic for handling more return values than expected is hard.
-		if wantNum < gotNum {
-			continue
-		}
-
 		var file *ast.File
 		for _, f := range pass.Files {
 			if f.Pos() <= typeErr.Pos && typeErr.Pos <= f.End() {
@@ -202,4 +188,21 @@ func equalTypes(t1, t2 types.Type) bool {
 	}
 	// TODO: Figure out if we want to check for types.AssignableTo(t1, t2) || types.ConvertibleTo(t1, t2)
 	return false
+}
+
+func FixesError(msg string) bool {
+	matches := wrongReturnNumRegex.FindStringSubmatch(strings.TrimSpace(msg))
+	if len(matches) < 3 {
+		return false
+	}
+	wantNum, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return false
+	}
+	gotNum, err := strconv.Atoi(matches[2])
+	if err != nil {
+		return false
+	}
+	// Logic for handling more return values than expected is hard.
+	return wantNum >= gotNum
 }

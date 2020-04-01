@@ -88,7 +88,7 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
-func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []source.Diagnostic) {
+func (r *runner) Diagnostics(t *testing.T, uri span.URI, want []*source.Diagnostic) {
 	snapshot := r.view.Snapshot()
 
 	fileID, got, err := source.FileDiagnostics(r.ctx, snapshot, uri)

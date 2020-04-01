@@ -259,10 +259,8 @@ func analysisFixes(ctx context.Context, snapshot source.Snapshot, fh source.File
 		return nil, nil, err
 	}
 	for _, diag := range diagnostics {
-		// This code assumes that the analyzer name is the Source of the diagnostic.
-		// If this ever changes, this will need to be addressed.
-		srcErr, analyzer, err := snapshot.FindAnalysisError(ctx, ph.ID(), diag.Source, diag.Message, diag.Range)
-		if err != nil {
+		srcErr, analyzer, ok := findSourceError(ctx, snapshot, ph.ID(), diag)
+		if !ok {
 			continue
 		}
 		for _, fix := range srcErr.SuggestedFixes {
@@ -287,6 +285,47 @@ func analysisFixes(ctx context.Context, snapshot source.Snapshot, fh source.File
 		}
 	}
 	return codeActions, sourceFixAllEdits, nil
+}
+
+func findSourceError(ctx context.Context, snapshot source.Snapshot, pkgID string, diag protocol.Diagnostic) (*source.Error, source.Analyzer, bool) {
+	var analyzer *source.Analyzer
+
+	// If the source is "compiler", we expect a type error analyzer.
+	if diag.Source == "compiler" {
+		for _, a := range snapshot.View().Options().TypeErrorAnalyzers {
+			if a.FixesError(diag.Message) {
+				analyzer = &a
+				break
+			}
+		}
+	} else {
+		// This code assumes that the analyzer name is the Source of the diagnostic.
+		// If this ever changes, this will need to be addressed.
+		if a, ok := snapshot.View().Options().DefaultAnalyzers[diag.Source]; ok {
+			analyzer = &a
+		}
+	}
+	if analyzer == nil || !analyzer.Enabled(snapshot) {
+		return nil, source.Analyzer{}, false
+	}
+	analysisErrors, err := snapshot.Analyze(ctx, pkgID, analyzer.Analyzer)
+	if err != nil {
+		return nil, source.Analyzer{}, false
+	}
+	for _, err := range analysisErrors {
+		if err.Message != diag.Message {
+			continue
+		}
+		if protocol.CompareRange(err.Range, diag.Range) != 0 {
+			continue
+		}
+		if err.Category != analyzer.Analyzer.Name {
+			continue
+		}
+		// The error matches.
+		return err, *analyzer, true
+	}
+	return nil, source.Analyzer{}, false
 }
 
 func documentChanges(fh source.FileHandle, edits []protocol.TextEdit) []protocol.TextDocumentEdit {

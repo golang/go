@@ -163,7 +163,7 @@ func summarizeWorkspaceSymbols(i int, want, got []protocol.SymbolInformation, re
 
 // DiffDiagnostics prints the diff between expected and actual diagnostics test
 // results.
-func DiffDiagnostics(uri span.URI, want, got []source.Diagnostic) string {
+func DiffDiagnostics(uri span.URI, want, got []*source.Diagnostic) string {
 	source.SortDiagnostics(want)
 	source.SortDiagnostics(got)
 
@@ -197,7 +197,7 @@ func DiffDiagnostics(uri span.URI, want, got []source.Diagnostic) string {
 	return ""
 }
 
-func summarizeDiagnostics(i int, uri span.URI, want, got []source.Diagnostic, reason string, args ...interface{}) string {
+func summarizeDiagnostics(i int, uri span.URI, want, got []*source.Diagnostic, reason string, args ...interface{}) string {
 	msg := &bytes.Buffer{}
 	fmt.Fprint(msg, "diagnostics failed")
 	if i >= 0 {
