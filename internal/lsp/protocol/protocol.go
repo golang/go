@@ -69,7 +69,11 @@ func (Canceller) Cancel(ctx context.Context, conn *jsonrpc2.Conn, id jsonrpc2.ID
 
 func (Canceller) Deliver(ctx context.Context, r *jsonrpc2.Request, delivered bool) bool {
 	// Hide cancellations from downstream handlers.
-	return r.Method == "$/cancelRequest"
+	if r.Method != "$/cancelRequest" {
+		return false
+	}
+	r.Reply(ctx, nil, nil)
+	return true
 }
 
 func sendParseError(ctx context.Context, req *jsonrpc2.Request, err error) error {

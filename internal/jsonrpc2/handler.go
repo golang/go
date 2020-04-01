@@ -6,6 +6,7 @@ package jsonrpc2
 
 import (
 	"context"
+	"fmt"
 )
 
 // Handler is invoked to handle incoming requests.
@@ -65,8 +66,17 @@ func (d Direction) String() string {
 // standard method not found response.
 // This should normally be the final handler in a chain.
 func MethodNotFound(ctx context.Context, r *Request) error {
-	if !r.IsNotify() {
-		return r.Reply(ctx, nil, NewErrorf(CodeMethodNotFound, "method %q not found", r.Method))
+	return r.Reply(ctx, nil, NewErrorf(CodeMethodNotFound, "method %q not found", r.Method))
+}
+
+// MustReply creates a Handler that panics if the wrapped handler does
+// not call Reply for every request that it is passed.
+func MustReply(handler Handler) Handler {
+	return func(ctx context.Context, req *Request) error {
+		err := handler(ctx, req)
+		if req.state < requestReplied {
+			panic(fmt.Errorf("request %q was never replied to", req.Method))
+		}
+		return err
 	}
-	return nil
 }

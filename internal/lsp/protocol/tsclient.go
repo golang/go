@@ -42,31 +42,36 @@ func ClientHandler(client Client, handler jsonrpc2.Handler) jsonrpc2.Handler {
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
 				return sendParseError(ctx, r, err)
 			}
-			return client.ShowMessage(ctx, &params)
+			err := client.ShowMessage(ctx, &params)
+			return r.Reply(ctx, nil, err)
 		case "window/logMessage": // notif
 			var params LogMessageParams
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
 				return sendParseError(ctx, r, err)
 			}
-			return client.LogMessage(ctx, &params)
+			err := client.LogMessage(ctx, &params)
+			return r.Reply(ctx, nil, err)
 		case "telemetry/event": // notif
 			var params interface{}
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
 				return sendParseError(ctx, r, err)
 			}
-			return client.Event(ctx, &params)
+			err := client.Event(ctx, &params)
+			return r.Reply(ctx, nil, err)
 		case "textDocument/publishDiagnostics": // notif
 			var params PublishDiagnosticsParams
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
 				return sendParseError(ctx, r, err)
 			}
-			return client.PublishDiagnostics(ctx, &params)
+			err := client.PublishDiagnostics(ctx, &params)
+			return r.Reply(ctx, nil, err)
 		case "$/progress": // notif
 			var params ProgressParams
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
 				return sendParseError(ctx, r, err)
 			}
-			return client.Progress(ctx, &params)
+			err := client.Progress(ctx, &params)
+			return r.Reply(ctx, nil, err)
 		case "workspace/workspaceFolders": // req
 			if r.Params != nil {
 				return r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidParams, "Expected no params"))

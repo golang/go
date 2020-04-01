@@ -926,7 +926,8 @@ function goNot(side: side, m: string) {
     if err := json.Unmarshal(*r.Params, &params); err != nil {
       return sendParseError(ctx, r, err)
     }
-    return ${side.name}.${nm}(ctx, &params)`
+    err:= ${side.name}.${nm}(ctx, &params)
+    return r.Reply(ctx, nil, err)`
   } else {
     case1 = `return ${side.name}.${nm}(ctx)`;
   }

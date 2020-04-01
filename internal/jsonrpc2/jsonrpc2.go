@@ -296,6 +296,7 @@ type combined struct {
 // It must be called exactly once for each Conn.
 // It returns only when the reader is closed or there is an error in the stream.
 func (c *Conn) Run(runCtx context.Context, handler Handler) error {
+	handler = MustReply(handler)
 	// we need to make the next request "lock" in an unlocked state to allow
 	// the first incoming request to proceed. All later requests are unlocked
 	// by the preceding request going to parallel mode.
@@ -353,9 +354,6 @@ func (c *Conn) Run(runCtx context.Context, handler Handler) error {
 				req.state = requestSerial
 				defer func() {
 					setHandling(req, false)
-					if req.state < requestReplied {
-						req.Reply(reqCtx, nil, nil)
-					}
 					done()
 					cancelReq()
 				}()

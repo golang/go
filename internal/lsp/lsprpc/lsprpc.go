@@ -418,10 +418,10 @@ func forwarderHandler(handler jsonrpc2.Handler) jsonrpc2.Handler {
 		// once that process exists.
 		if r.Method == "exit" {
 			ForwarderExitFunc(0)
-			// return nil here to consume the message: in
+			// reply nil here to consume the message: in
 			// tests, ForwarderExitFunc may be overridden to something that doesn't
 			// exit the process.
-			return nil
+			return r.Reply(ctx, nil, nil)
 		}
 		return handler(ctx, r)
 	}
@@ -505,10 +505,7 @@ func handshaker(client *debugClient, goplsPath string, handler jsonrpc2.Handler)
 				resp.DebugAddr = di.ListenedDebugAddress
 			}
 
-			if err := r.Reply(ctx, resp, nil); err != nil {
-				event.Error(ctx, "replying to handshake", err)
-			}
-			return nil
+			return r.Reply(ctx, resp, nil)
 		case sessionsMethod:
 			resp := ServerState{
 				GoplsPath:       goplsPath,
@@ -526,10 +523,7 @@ func handshaker(client *debugClient, goplsPath string, handler jsonrpc2.Handler)
 					})
 				}
 			}
-			if err := r.Reply(ctx, resp, nil); err != nil {
-				event.Error(ctx, "replying to sessions request", err)
-			}
-			return nil
+			return r.Reply(ctx, resp, nil)
 		}
 		return handler(ctx, r)
 	}

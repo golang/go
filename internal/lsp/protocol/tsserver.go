@@ -80,19 +80,22 @@ func ServerHandler(server Server, handler jsonrpc2.Handler) jsonrpc2.Handler {
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
 				return sendParseError(ctx, r, err)
 			}
-			return server.DidChangeWorkspaceFolders(ctx, &params)
+			err := server.DidChangeWorkspaceFolders(ctx, &params)
+			return r.Reply(ctx, nil, err)
 		case "window/workDoneProgress/cancel": // notif
 			var params WorkDoneProgressCancelParams
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
 				return sendParseError(ctx, r, err)
 			}
-			return server.WorkDoneProgressCancel(ctx, &params)
+			err := server.WorkDoneProgressCancel(ctx, &params)
+			return r.Reply(ctx, nil, err)
 		case "initialized": // notif
 			var params InitializedParams
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
 				return sendParseError(ctx, r, err)
 			}
-			return server.Initialized(ctx, &params)
+			err := server.Initialized(ctx, &params)
+			return r.Reply(ctx, nil, err)
 		case "exit": // notif
 			return server.Exit(ctx)
 		case "workspace/didChangeConfiguration": // notif
@@ -100,55 +103,64 @@ func ServerHandler(server Server, handler jsonrpc2.Handler) jsonrpc2.Handler {
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
 				return sendParseError(ctx, r, err)
 			}
-			return server.DidChangeConfiguration(ctx, &params)
+			err := server.DidChangeConfiguration(ctx, &params)
+			return r.Reply(ctx, nil, err)
 		case "textDocument/didOpen": // notif
 			var params DidOpenTextDocumentParams
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
 				return sendParseError(ctx, r, err)
 			}
-			return server.DidOpen(ctx, &params)
+			err := server.DidOpen(ctx, &params)
+			return r.Reply(ctx, nil, err)
 		case "textDocument/didChange": // notif
 			var params DidChangeTextDocumentParams
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
 				return sendParseError(ctx, r, err)
 			}
-			return server.DidChange(ctx, &params)
+			err := server.DidChange(ctx, &params)
+			return r.Reply(ctx, nil, err)
 		case "textDocument/didClose": // notif
 			var params DidCloseTextDocumentParams
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
 				return sendParseError(ctx, r, err)
 			}
-			return server.DidClose(ctx, &params)
+			err := server.DidClose(ctx, &params)
+			return r.Reply(ctx, nil, err)
 		case "textDocument/didSave": // notif
 			var params DidSaveTextDocumentParams
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
 				return sendParseError(ctx, r, err)
 			}
-			return server.DidSave(ctx, &params)
+			err := server.DidSave(ctx, &params)
+			return r.Reply(ctx, nil, err)
 		case "textDocument/willSave": // notif
 			var params WillSaveTextDocumentParams
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
 				return sendParseError(ctx, r, err)
 			}
-			return server.WillSave(ctx, &params)
+			err := server.WillSave(ctx, &params)
+			return r.Reply(ctx, nil, err)
 		case "workspace/didChangeWatchedFiles": // notif
 			var params DidChangeWatchedFilesParams
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
 				return sendParseError(ctx, r, err)
 			}
-			return server.DidChangeWatchedFiles(ctx, &params)
+			err := server.DidChangeWatchedFiles(ctx, &params)
+			return r.Reply(ctx, nil, err)
 		case "$/setTraceNotification": // notif
 			var params SetTraceParams
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
 				return sendParseError(ctx, r, err)
 			}
-			return server.SetTraceNotification(ctx, &params)
+			err := server.SetTraceNotification(ctx, &params)
+			return r.Reply(ctx, nil, err)
 		case "$/logTraceNotification": // notif
 			var params LogTraceParams
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
 				return sendParseError(ctx, r, err)
 			}
-			return server.LogTraceNotification(ctx, &params)
+			err := server.LogTraceNotification(ctx, &params)
+			return r.Reply(ctx, nil, err)
 		case "textDocument/implementation": // req
 			var params ImplementationParams
 			if err := json.Unmarshal(*r.Params, &params); err != nil {
