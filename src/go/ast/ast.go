@@ -921,12 +921,16 @@ type (
 type Constraint struct {
 	// Invariant: Param == nil || len(MNames) == len(Types)
 	// MNames entries will be nil if we have a list of types
-	Param  *Ident   // constrained type parameter; or nil (for embedded contracts)
-	MNames []*Ident // list of method names; or nil (for embedded contracts or type constraints)
-	Types  []Expr   // embedded contract (single *CallExpr), list of types, or list of method signatures (*FuncType)
+	Star   token.Pos // position of "*"; or token.NoPos if not present
+	Param  *Ident    // constrained type parameter; or nil (for embedded contracts)
+	MNames []*Ident  // list of method names; or nil (for embedded contracts or type constraints)
+	Types  []Expr    // embedded contract (single *CallExpr), list of types, or list of method signatures (*FuncType)
 }
 
 func (c *Constraint) Pos() token.Pos {
+	if c.Star.IsValid() {
+		return c.Star
+	}
 	if c.Param != nil {
 		return c.Param.Pos()
 	}

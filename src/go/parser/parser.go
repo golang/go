@@ -2582,7 +2582,7 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token
 	return spec
 }
 
-// Constraint   = TypeParam TypeOrMethod { "," TypeOrMethod } | ContractName "(" [ TypeList [ "," ] ] ")" .
+// Constraint   = [ "*" ] TypeParam TypeOrMethod { "," TypeOrMethod } | ContractName "(" [ TypeList [ "," ] ] ")" .
 // TypeParam    = Ident .
 // TypeOrMethod = Type | MethodName Signature .
 // ContractName = TypeName.
@@ -2598,9 +2598,18 @@ func (p *parser) parseConstraint() *ast.Constraint {
 		return &ast.Constraint{Types: []ast.Expr{p.parseType(true)}}
 	}
 
+	var star token.Pos
+	if p.tok == token.MUL {
+		star = p.pos
+		p.next()
+	}
+
 	tname := p.parseTypeName(nil)
 	if p.tok == token.LPAREN {
 		// ContractName "(" [ TypeList [ "," ] ] ")"
+		if star.IsValid() {
+			p.error(star, "pointer type requires a method")
+		}
 		return &ast.Constraint{Types: []ast.Expr{p.parseTypeInstance(tname)}}
 	}
 
@@ -2627,6 +2636,10 @@ func (p *parser) parseConstraint() *ast.Constraint {
 			tparams, params := p.parseParameters(scope, methodTypeParamsOk|variadicOk, "method")
 			results := p.parseResult(scope, true)
 			typ = &ast.FuncType{Func: token.NoPos, TParams: tparams, Params: params, Results: results}
+		} else if star.IsValid() {
+			// type with (invalid) starred type parameter
+			p.error(star, "pointer type requires a method")
+			star = token.NoPos // suppress further errors
 		}
 		mnames = append(mnames, mname)
 		types = append(types, typ)
@@ -2638,7 +2651,7 @@ func (p *parser) parseConstraint() *ast.Constraint {
 	}
 
 	// param != nil
-	return &ast.Constraint{Param: param, MNames: mnames, Types: types}
+	return &ast.Constraint{Star: star, Param: param, MNames: mnames, Types: types}
 }
 
 // ContractSpec = ident "(" [ IdentList [ "," ] ] ")" "{" { Constraint ";" } "}" .

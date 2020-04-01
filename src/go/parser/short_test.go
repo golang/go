@@ -98,6 +98,7 @@ var valids = []string{
 	`package p; contract C(T){ T int; T imported.T; T chan<-int; T m(x int) float64; C0(); imported.C1(int, T,) }`,
 	`package p; contract C(T){ T int, imported.T, chan<-int; T m(x int) float64; C0(); imported.C1(int, T,) }`,
 	`package p; contract C(T){ (C(T)); (((imported.T))) }`,
+	`package p; contract C(T){ *T m() }`,
 	`package p; func _(type T1, T2 interface{})(x T1) T2`,
 	`package p; func _(type T1 interface{ m() }, T2, T3 interface{})(x T1, y T3) T2`,
 
@@ -179,6 +180,8 @@ var invalids = []string{
 	// contracts
 	`package p; contract C(T, T /* ERROR "T redeclared" */ ) {}`,
 	`package p; contract C(T) { imported /* ERROR "expected type parameter name" */ .T int }`,
+	`package p; contract C(T) { * /* ERROR "requires a method" */ C(T) }`,
+	`package p; contract C(T) { * /* ERROR "requires a method" */ T int }`,
 	`package p; func _() { contract /* ERROR "cannot be inside function" */ C(T) { T m(); type int, float32 } }`,
 
 	// issue 8656
