@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package ioutil
+package ioutil_test
 
 import (
+	. "io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -59,7 +60,7 @@ func TestTempFile_BadPattern(t *testing.T) {
 	tests := []struct {
 		pattern string
 		wantErr bool
-	} {
+	}{
 		{"ioutil*test", false},
 		{"ioutil_test*foo", false},
 		{"ioutil_test" + sep + "foo", true},
@@ -80,7 +81,7 @@ func TestTempFile_BadPattern(t *testing.T) {
 				if err == nil {
 					t.Errorf("Expected an error for pattern %q", tt.pattern)
 				}
-				if g, w := err, errPatternHasSeparator; g != w {
+				if g, w := err, ErrPatternHasSeparator; g != w {
 					t.Errorf("Error mismatch: got %#v, want %#v for pattern %q", g, w, tt.pattern)
 				}
 			} else if err != nil {
@@ -166,7 +167,7 @@ func TestTempDir_BadPattern(t *testing.T) {
 	tests := []struct {
 		pattern string
 		wantErr bool
-	} {
+	}{
 		{"ioutil*test", false},
 		{"ioutil_test*foo", false},
 		{"ioutil_test" + sep + "foo", true},
@@ -182,7 +183,7 @@ func TestTempDir_BadPattern(t *testing.T) {
 				if err == nil {
 					t.Errorf("Expected an error for pattern %q", tt.pattern)
 				}
-				if g, w := err, errPatternHasSeparator; g != w {
+				if g, w := err, ErrPatternHasSeparator; g != w {
 					t.Errorf("Error mismatch: got %#v, want %#v for pattern %q", g, w, tt.pattern)
 				}
 			} else if err != nil {
