@@ -4,6 +4,15 @@
 
 package p
 
+// TODO(gri) this should work
+contract C(T) {
+    T m()
+}
+
+func _(type T C)(x *T) {
+	x.m /* ERROR no field or method m */ ()
+}
+
 /*
 func f(type T)(T)
 

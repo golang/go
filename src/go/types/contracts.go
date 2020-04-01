@@ -33,6 +33,9 @@ func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
 
 	// collect constraints
 	for _, c := range cdecl.Constraints {
+		if c.Star.IsValid() {
+			check.errorf(c.Star, "pointer designation for type parameters not yet supported (* is ignored)")
+		}
 		if c.Param != nil {
 			// If a type name is present, it must be one of the contract's type parameters.
 			pos := c.Param.Pos()

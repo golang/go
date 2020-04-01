@@ -4,6 +4,8 @@ so we have a better track record. I only switched to this file in Nov 2019, henc
 ----------------------------------------------------------------------------------------------------
 TODO
 
+- implement type-checking for type parameters with pointer designation in contracts
+- figure out how to translate methods with pointer designation into interface bounds
 - review use of Contract.TParams field - it seems like it's only needed for length checks?
 - review handling of fields of instantiated generic types (do we need to make them non-parameterized,
   similar to what we did for the embedded interfaces created by contract embedding?)
