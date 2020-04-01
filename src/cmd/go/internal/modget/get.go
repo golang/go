@@ -326,15 +326,18 @@ func runGet(cmd *base.Command, args []string) {
 		// patterns like golang.org/x/tools/..., which can't be expanded
 		// during package loading until they're in the build list.
 		switch {
-		case search.IsRelativePath(path):
-			// Relative paths like ../../foo or ../../foo... are restricted to
-			// matching packages in the main module. If the path is explicit and
-			// contains no wildcards (...), check that it is a package in
-			// the main module. If the path contains wildcards but matches no
-			// packages, we'll warn after package loading.
+		case filepath.IsAbs(path) || search.IsRelativePath(path):
+			// Absolute paths like C:\foo and relative paths like ../foo...
+			// are restricted to matching packages in the main module. If the path
+			// is explicit and contains no wildcards (...), check that it is a
+			// package in the main module. If the path contains wildcards but
+			// matches no packages, we'll warn after package loading.
 			if !strings.Contains(path, "...") {
-				pkgPath := modload.DirImportPath(filepath.FromSlash(path))
-				if pkgs := modload.TargetPackages(pkgPath); len(pkgs) == 0 {
+				var pkgs []string
+				if pkgPath := modload.DirImportPath(path); pkgPath != "." {
+					pkgs = modload.TargetPackages(pkgPath)
+				}
+				if len(pkgs) == 0 {
 					abs, err := filepath.Abs(path)
 					if err != nil {
 						abs = path
@@ -520,7 +523,7 @@ func runGet(cmd *base.Command, args []string) {
 					// If the pattern did not match any packages, look up a new module.
 					// If the pattern doesn't match anything on the last iteration,
 					// we'll print a warning after the outer loop.
-					if !search.IsRelativePath(arg.path) && !match.IsLiteral() && arg.path != "all" {
+					if !match.IsLocal() && !match.IsLiteral() && arg.path != "all" {
 						addQuery(&query{querySpec: querySpec{path: arg.path, vers: arg.vers}, arg: arg.raw})
 					} else {
 						for _, err := range match.Errs {
