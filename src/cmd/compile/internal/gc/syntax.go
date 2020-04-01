@@ -8,7 +8,6 @@ package gc
 
 import (
 	"cmd/compile/internal/ssa"
-	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
@@ -483,7 +482,7 @@ type Param struct {
 	// OTYPE
 	//
 	// TODO: Should Func pragmas also be stored on the Name?
-	Pragma syntax.Pragma
+	Pragma PragmaFlag
 	Alias  bool // node is alias for Ntype (only used when type-checking ODCLTYPE)
 }
 
@@ -565,7 +564,7 @@ type Func struct {
 	Endlineno src.XPos
 	WBPos     src.XPos // position of first write barrier; see SetWBPos
 
-	Pragma syntax.Pragma // go:xxx function annotations
+	Pragma PragmaFlag // go:xxx function annotations
 
 	flags      bitset16
 	numDefers  int // number of defer calls in the function
