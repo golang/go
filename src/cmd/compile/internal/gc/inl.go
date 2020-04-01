@@ -496,7 +496,14 @@ func inlcalls(fn *Node) {
 	if countNodes(fn) >= inlineBigFunctionNodes {
 		maxCost = inlineBigFunctionMaxCost
 	}
-	fn = inlnode(fn, maxCost)
+	// Map to keep track of functions that have been inlined at a particular
+	// call site, in order to stop inlining when we reach the beginning of a
+	// recursion cycle again. We don't inline immediately recursive functions,
+	// but allow inlining if there is a recursion cycle of many functions.
+	// Most likely, the inlining will stop before we even hit the beginning of
+	// the cycle again, but the map catches the unusual case.
+	inlMap := make(map[*Node]bool)
+	fn = inlnode(fn, maxCost, inlMap)
 	if fn != Curfn {
 		Fatalf("inlnode replaced curfn")
 	}
@@ -537,10 +544,10 @@ func inlconv2list(n *Node) []*Node {
 	return s
 }
 
-func inlnodelist(l Nodes, maxCost int32) {
+func inlnodelist(l Nodes, maxCost int32, inlMap map[*Node]bool) {
 	s := l.Slice()
 	for i := range s {
-		s[i] = inlnode(s[i], maxCost)
+		s[i] = inlnode(s[i], maxCost, inlMap)
 	}
 }
 
@@ -557,7 +564,7 @@ func inlnodelist(l Nodes, maxCost int32) {
 // shorter and less complicated.
 // The result of inlnode MUST be assigned back to n, e.g.
 // 	n.Left = inlnode(n.Left)
-func inlnode(n *Node, maxCost int32) *Node {
+func inlnode(n *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 	if n == nil {
 		return n
 	}
@@ -585,19 +592,19 @@ func inlnode(n *Node, maxCost int32) *Node {
 
 	lno := setlineno(n)
 
-	inlnodelist(n.Ninit, maxCost)
+	inlnodelist(n.Ninit, maxCost, inlMap)
 	for _, n1 := range n.Ninit.Slice() {
 		if n1.Op == OINLCALL {
 			inlconv2stmt(n1)
 		}
 	}
 
-	n.Left = inlnode(n.Left, maxCost)
+	n.Left = inlnode(n.Left, maxCost, inlMap)
 	if n.Left != nil && n.Left.Op == OINLCALL {
 		n.Left = inlconv2expr(n.Left)
 	}
 
-	n.Right = inlnode(n.Right, maxCost)
+	n.Right = inlnode(n.Right, maxCost, inlMap)
 	if n.Right != nil && n.Right.Op == OINLCALL {
 		if n.Op == OFOR || n.Op == OFORUNTIL {
 			inlconv2stmt(n.Right)
@@ -612,7 +619,7 @@ func inlnode(n *Node, maxCost int32) *Node {
 		}
 	}
 
-	inlnodelist(n.List, maxCost)
+	inlnodelist(n.List, maxCost, inlMap)
 	if n.Op == OBLOCK {
 		for _, n2 := range n.List.Slice() {
 			if n2.Op == OINLCALL {
@@ -628,7 +635,7 @@ func inlnode(n *Node, maxCost int32) *Node {
 		}
 	}
 
-	inlnodelist(n.Rlist, maxCost)
+	inlnodelist(n.Rlist, maxCost, inlMap)
 	s := n.Rlist.Slice()
 	for i1, n1 := range s {
 		if n1.Op == OINLCALL {
@@ -640,7 +647,7 @@ func inlnode(n *Node, maxCost int32) *Node {
 		}
 	}
 
-	inlnodelist(n.Nbody, maxCost)
+	inlnodelist(n.Nbody, maxCost, inlMap)
 	for _, n := range n.Nbody.Slice() {
 		if n.Op == OINLCALL {
 			inlconv2stmt(n)
@@ -663,12 +670,12 @@ func inlnode(n *Node, maxCost int32) *Node {
 			fmt.Printf("%v:call to func %+v\n", n.Line(), n.Left)
 		}
 		if n.Left.Func != nil && n.Left.Func.Inl != nil && !isIntrinsicCall(n) { // normal case
-			n = mkinlcall(n, n.Left, maxCost)
+			n = mkinlcall(n, n.Left, maxCost, inlMap)
 		} else if n.Left.isMethodExpression() && asNode(n.Left.Sym.Def) != nil {
-			n = mkinlcall(n, asNode(n.Left.Sym.Def), maxCost)
+			n = mkinlcall(n, asNode(n.Left.Sym.Def), maxCost, inlMap)
 		} else if n.Left.Op == OCLOSURE {
 			if f := inlinableClosure(n.Left); f != nil {
-				n = mkinlcall(n, f, maxCost)
+				n = mkinlcall(n, f, maxCost, inlMap)
 			}
 		} else if n.Left.Op == ONAME && n.Left.Name != nil && n.Left.Name.Defn != nil {
 			if d := n.Left.Name.Defn; d.Op == OAS && d.Right.Op == OCLOSURE {
@@ -694,7 +701,7 @@ func inlnode(n *Node, maxCost int32) *Node {
 						}
 						break
 					}
-					n = mkinlcall(n, f, maxCost)
+					n = mkinlcall(n, f, maxCost, inlMap)
 				}
 			}
 		}
@@ -713,7 +720,7 @@ func inlnode(n *Node, maxCost int32) *Node {
 			Fatalf("no function definition for [%p] %+v\n", n.Left.Type, n.Left.Type)
 		}
 
-		n = mkinlcall(n, asNode(n.Left.Type.FuncType().Nname), maxCost)
+		n = mkinlcall(n, asNode(n.Left.Type.FuncType().Nname), maxCost, inlMap)
 	}
 
 	lineno = lno
@@ -833,7 +840,7 @@ var inlgen int
 // parameters.
 // The result of mkinlcall MUST be assigned back to n, e.g.
 // 	n.Left = mkinlcall(n.Left, fn, isddd)
-func mkinlcall(n, fn *Node, maxCost int32) *Node {
+func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
 	if fn.Func.Inl == nil {
 		// No inlinable body.
 		return n
@@ -866,6 +873,16 @@ func mkinlcall(n, fn *Node, maxCost int32) *Node {
 		return n
 	}
 
+	if inlMap[fn] {
+		if Debug['m'] > 1 {
+			fmt.Printf("%v: cannot inline %v into %v: repeated recursive cycle\n", n.Line(), fn, Curfn.funcname())
+		}
+		return n
+	}
+	inlMap[fn] = true
+	defer func() {
+		inlMap[fn] = false
+	}()
 	if Debug_typecheckinl == 0 {
 		typecheckinl(fn)
 	}
@@ -1129,7 +1146,7 @@ func mkinlcall(n, fn *Node, maxCost int32) *Node {
 	// instead we emit the things that the body needs
 	// and each use must redo the inlining.
 	// luckily these are small.
-	inlnodelist(call.Nbody, maxCost)
+	inlnodelist(call.Nbody, maxCost, inlMap)
 	for _, n := range call.Nbody.Slice() {
 		if n.Op == OINLCALL {
 			inlconv2stmt(n)
