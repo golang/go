@@ -250,7 +250,8 @@ type Env struct {
 }
 
 // A diagnosticCondition is satisfied when all expectations are simultaneously
-// met. At that point, the 'met' channel is closed.
+// met. At that point, the 'met' channel is closed. On any failure, err is set
+// and the failed channel is closed.
 type diagnosticCondition struct {
 	expectations []DiagnosticExpectation
 	met          chan struct{}
@@ -287,7 +288,7 @@ func (e *Env) onDiagnostics(_ context.Context, d *protocol.PublishDiagnosticsPar
 	e.lastDiagnostics[pth] = d
 
 	for id, condition := range e.waiters {
-		if meetsCondition(e.lastDiagnostics, condition.expectations) {
+		if meetsExpectations(e.lastDiagnostics, condition.expectations) {
 			delete(e.waiters, id)
 			close(condition.met)
 		}
@@ -295,9 +296,35 @@ func (e *Env) onDiagnostics(_ context.Context, d *protocol.PublishDiagnosticsPar
 	return nil
 }
 
-func meetsCondition(m map[string]*protocol.PublishDiagnosticsParams, expectations []DiagnosticExpectation) bool {
+// ExpectDiagnostics asserts that the current diagnostics in the editor match
+// the given expectations. It is intended to be used together with Env.Await to
+// allow waiting on simpler diagnostic expectations (for example,
+// AnyDiagnosticsACurrenttVersion), followed by more detailed expectations
+// tested by ExpectDiagnostics.
+//
+// For example:
+//  env.RegexpReplace("foo.go", "a", "x")
+//  env.Await(env.AnyDiagnosticAtCurrentVersion("foo.go"))
+//  env.ExpectDiagnostics(env.DiagnosticAtRegexp("foo.go", "x"))
+//
+// This has the advantage of not timing out if the diagnostic received for
+// "foo.go" does not match the expectation: instead it fails early.
+func (e *Env) ExpectDiagnostics(expectations ...DiagnosticExpectation) {
+	e.T.Helper()
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if !meetsExpectations(e.lastDiagnostics, expectations) {
+		e.T.Fatalf("diagnostic are unmet:\n%s\nlast diagnostics:\n%s", summarizeExpectations(expectations), formatDiagnostics(e.lastDiagnostics))
+	}
+}
+
+func meetsExpectations(m map[string]*protocol.PublishDiagnosticsParams, expectations []DiagnosticExpectation) bool {
 	for _, e := range expectations {
-		if !e.IsMet(m) {
+		diags, ok := m[e.Path]
+		if !ok {
+			return false
+		}
+		if !e.IsMet(diags) {
 			return false
 		}
 	}
@@ -307,20 +334,40 @@ func meetsCondition(m map[string]*protocol.PublishDiagnosticsParams, expectation
 // A DiagnosticExpectation is a condition that must be met by the current set
 // of diagnostics.
 type DiagnosticExpectation struct {
-	IsMet       func(map[string]*protocol.PublishDiagnosticsParams) bool
+	// IsMet determines whether the diagnostics for this file version satisfy our
+	// expectation.
+	IsMet func(*protocol.PublishDiagnosticsParams) bool
+	// Description is a human-readable description of the diagnostic expectation.
 	Description string
+	// Path is the workspace-relative path to the file being asserted on.
+	Path string
 }
 
 // EmptyDiagnostics asserts that diagnostics are empty for the
 // workspace-relative path name.
 func EmptyDiagnostics(name string) DiagnosticExpectation {
-	isMet := func(diags map[string]*protocol.PublishDiagnosticsParams) bool {
-		ds, ok := diags[name]
-		return ok && len(ds.Diagnostics) == 0
+	isMet := func(diags *protocol.PublishDiagnosticsParams) bool {
+		return len(diags.Diagnostics) == 0
 	}
 	return DiagnosticExpectation{
 		IsMet:       isMet,
-		Description: fmt.Sprintf("empty diagnostics for %q", name),
+		Description: "empty diagnostics",
+		Path:        name,
+	}
+}
+
+// AnyDiagnosticAtCurrentVersion asserts that there is a diagnostic report for
+// the current edited version of the buffer corresponding to the given
+// workspace-relative pathname.
+func (e *Env) AnyDiagnosticAtCurrentVersion(name string) DiagnosticExpectation {
+	version := e.E.BufferVersion(name)
+	isMet := func(diags *protocol.PublishDiagnosticsParams) bool {
+		return int(diags.Version) == version
+	}
+	return DiagnosticExpectation{
+		IsMet:       isMet,
+		Description: fmt.Sprintf("any diagnostics at version %d", version),
+		Path:        name,
 	}
 }
 
@@ -337,12 +384,8 @@ func (e *Env) DiagnosticAtRegexp(name, re string) DiagnosticExpectation {
 // DiagnosticAt asserts that there is a diagnostic entry at the position
 // specified by line and col, for the workspace-relative path name.
 func DiagnosticAt(name string, line, col int) DiagnosticExpectation {
-	isMet := func(diags map[string]*protocol.PublishDiagnosticsParams) bool {
-		ds, ok := diags[name]
-		if !ok || len(ds.Diagnostics) == 0 {
-			return false
-		}
-		for _, d := range ds.Diagnostics {
+	isMet := func(diags *protocol.PublishDiagnosticsParams) bool {
+		for _, d := range diags.Diagnostics {
 			if d.Range.Start.Line == float64(line) && d.Range.Start.Character == float64(col) {
 				return true
 			}
@@ -351,11 +394,13 @@ func DiagnosticAt(name string, line, col int) DiagnosticExpectation {
 	}
 	return DiagnosticExpectation{
 		IsMet:       isMet,
-		Description: fmt.Sprintf("diagnostic in %q at {line:%d, column:%d}", name, line, col),
+		Description: fmt.Sprintf("diagnostic at {line:%d, column:%d}", line, col),
+		Path:        name,
 	}
 }
 
-// Await waits for all diagnostic expectations to simultaneously be met.
+// Await waits for all diagnostic expectations to simultaneously be met. It
+// should only be called from the main test goroutine.
 func (e *Env) Await(expectations ...DiagnosticExpectation) {
 	// NOTE: in the future this mechanism extend beyond just diagnostics, for
 	// example by modifying IsMet to be a func(*Env) boo.  However, that would
@@ -364,17 +409,18 @@ func (e *Env) Await(expectations ...DiagnosticExpectation) {
 
 	e.T.Helper()
 	e.mu.Lock()
-	// Before adding the waiter, we check if the condition is currently met to
-	// avoid a race where the condition was realized before Await was called.
-	if meetsCondition(e.lastDiagnostics, expectations) {
+	// Before adding the waiter, we check if the condition is currently met or
+	// failed to avoid a race where the condition was realized before Await was
+	// called.
+	if meetsExpectations(e.lastDiagnostics, expectations) {
 		e.mu.Unlock()
 		return
 	}
-	met := make(chan struct{})
-	e.waiters[e.nextWaiterID] = &diagnosticCondition{
+	cond := &diagnosticCondition{
 		expectations: expectations,
-		met:          met,
+		met:          make(chan struct{}),
 	}
+	e.waiters[e.nextWaiterID] = cond
 	e.nextWaiterID++
 	e.mu.Unlock()
 
@@ -382,24 +428,29 @@ func (e *Env) Await(expectations ...DiagnosticExpectation) {
 	case <-e.Ctx.Done():
 		// Debugging an unmet expectation can be tricky, so we put some effort into
 		// nicely formatting the failure.
-		var descs []string
-		for _, e := range expectations {
-			descs = append(descs, e.Description)
-		}
+		summary := summarizeExpectations(expectations)
 		e.mu.Lock()
 		diagString := formatDiagnostics(e.lastDiagnostics)
 		e.mu.Unlock()
-		e.T.Fatalf("waiting on [%s]:\nerr:%v\ndiagnostics:\n%s", strings.Join(descs, ", "), e.Ctx.Err(), diagString)
-	case <-met:
+		e.T.Fatalf("waiting on:\n\t%s\nerr: %v\ndiagnostics:\n%s", summary, e.Ctx.Err(), diagString)
+	case <-cond.met:
 	}
+}
+
+func summarizeExpectations(expectations []DiagnosticExpectation) string {
+	var descs []string
+	for _, e := range expectations {
+		descs = append(descs, fmt.Sprintf("%s: %s", e.Path, e.Description))
+	}
+	return strings.Join(descs, "\n\t")
 }
 
 func formatDiagnostics(diags map[string]*protocol.PublishDiagnosticsParams) string {
 	var b strings.Builder
 	for name, params := range diags {
-		b.WriteString(name + ":\n")
+		b.WriteString(fmt.Sprintf("\t%s (version %d):\n", name, int(params.Version)))
 		for _, d := range params.Diagnostics {
-			b.WriteString(fmt.Sprintf("\t(%d, %d): %s\n", int(d.Range.Start.Line), int(d.Range.Start.Character), d.Message))
+			b.WriteString(fmt.Sprintf("\t\t(%d, %d): %s\n", int(d.Range.Start.Line), int(d.Range.Start.Character), d.Message))
 		}
 	}
 	return b.String()

@@ -407,6 +407,14 @@ func (e *Editor) BufferText(name string) string {
 	return e.buffers[name].text()
 }
 
+// BufferVersion returns the current version of the buffer corresponding to
+// name (or 0 if it is not being edited).
+func (e *Editor) BufferVersion(name string) int {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.buffers[name].version
+}
+
 func (e *Editor) editBufferLocked(ctx context.Context, path string, edits []Edit) error {
 	buf, ok := e.buffers[path]
 	if !ok {
