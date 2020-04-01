@@ -32,6 +32,17 @@ contract _(A, B, C) {
         C a()
 }
 
+contract _(A, Aa, Aaaa, Aaaaa) {
+        A m()
+        Aa m()
+        *Aaa m()
+        *Aaaa m()
+        Aaaaa int
+
+        A string
+        Aaaaa float32
+}
+
 type _(type T) interface{}
 type _(type T) interface{
         m(T)

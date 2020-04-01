@@ -1107,13 +1107,16 @@ func (p *printer) expr(x ast.Expr) {
 
 func (p *printer) constraint(x *ast.Constraint) {
 	p.print(x.Pos())
+	if x.Star.IsValid() {
+		p.print(token.MUL)
+	}
 	if x.Param == nil {
 		// embedded contract
 		p.expr(x.Types[0])
 		return
 	}
 	// method or list of types
-	p.print(x.Param, blank)
+	p.print(x.Param, vtab)
 	if len(x.MNames) > 0 && x.MNames[0] != nil {
 		// single method
 		// For now we only support a single method
