@@ -679,8 +679,12 @@ func Main(archInit func(*Arch)) {
 	if Debug['l'] != 0 {
 		// Find functions that can be inlined and clone them before walk expands them.
 		visitBottomUp(xtop, func(list []*Node, recursive bool) {
+			numfns := numNonClosures(list)
 			for _, n := range list {
-				if !recursive {
+				if !recursive || numfns > 1 {
+					// We allow inlining if there is no
+					// recursion, or the recursion cycle is
+					// across more than one function.
 					caninl(n)
 				} else {
 					if Debug['m'] > 1 {
@@ -822,6 +826,17 @@ func Main(archInit func(*Arch)) {
 			log.Fatalf("cannot write benchmark data: %v", err)
 		}
 	}
+}
+
+// numNonClosures returns the number of functions in list which are not closures.
+func numNonClosures(list []*Node) int {
+	count := 0
+	for _, n := range list {
+		if n.Func.Closure == nil {
+			count++
+		}
+	}
+	return count
 }
 
 func writebench(filename string) error {
