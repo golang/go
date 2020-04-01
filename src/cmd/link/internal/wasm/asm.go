@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"cmd/internal/objabi"
 	"cmd/link/internal/ld"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"io"
 	"regexp"
@@ -38,7 +39,7 @@ const (
 // funcValueOffset is the offset between the PC_F value of a function and the index of the function in WebAssembly
 const funcValueOffset = 0x1000 // TODO(neelance): make function addresses play nice with heap addresses
 
-func gentext(ctxt *ld.Link) {
+func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
 }
 
 type wasmFunc struct {

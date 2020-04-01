@@ -263,6 +263,7 @@ type Arch struct {
 	Elfreloc1   func(*Link, *sym.Reloc, int64) bool
 	Elfsetupplt func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
 	Gentext     func(*Link)
+	Gentext2    func(*Link, *loader.Loader)
 	Machoreloc1 func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
 	PEreloc1    func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
 	Xcoffreloc1 func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
