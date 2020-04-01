@@ -218,41 +218,6 @@ func (s *Sym) Write(w *Writer) {
 	w.Uint32(s.Siz)
 }
 
-func (s *Sym) Read(r *Reader, off uint32) {
-	s.Name = r.StringRef(off)
-	s.ABI = r.uint16At(off + 8)
-	s.Type = r.uint8At(off + 10)
-	s.Flag = r.uint8At(off + 11)
-	s.Siz = r.uint32At(off + 12)
-}
-
-// Read fields other than the symbol name. The name is not necessary
-// in some cases, and most of the time spent in Read is reading the
-// name.
-func (s *Sym) ReadWithoutName(r *Reader, off uint32) {
-	s.ABI = r.uint16At(off + 8)
-	s.Type = r.uint8At(off + 10)
-	s.Flag = r.uint8At(off + 11)
-	s.Siz = r.uint32At(off + 12)
-}
-
-func (s *Sym) ReadFlag(r *Reader, off uint32) {
-	s.Flag = r.uint8At(off + 11)
-}
-
-func (s *Sym) Size() int {
-	return stringRefSize + 2 + 1 + 1 + 4
-}
-
-func (s *Sym) Dupok() bool         { return s.Flag&SymFlagDupok != 0 }
-func (s *Sym) Local() bool         { return s.Flag&SymFlagLocal != 0 }
-func (s *Sym) Typelink() bool      { return s.Flag&SymFlagTypelink != 0 }
-func (s *Sym) Leaf() bool          { return s.Flag&SymFlagLeaf != 0 }
-func (s *Sym) NoSplit() bool       { return s.Flag&SymFlagNoSplit != 0 }
-func (s *Sym) ReflectMethod() bool { return s.Flag&SymFlagReflectMethod != 0 }
-func (s *Sym) IsGoType() bool      { return s.Flag&SymFlagGoType != 0 }
-func (s *Sym) TopFrame() bool      { return s.Flag&SymFlagTopFrame != 0 }
-
 const SymSize = stringRefSize + 2 + 1 + 1 + 4
 
 type Sym2 [SymSize]byte
@@ -288,15 +253,6 @@ func (s *SymRef) Write(w *Writer) {
 	w.Uint32(s.SymIdx)
 }
 
-func (s *SymRef) Read(r *Reader, off uint32) {
-	s.PkgIdx = r.uint32At(off)
-	s.SymIdx = r.uint32At(off + 4)
-}
-
-func (s *SymRef) Size() int {
-	return 4 + 4
-}
-
 // Relocation.
 type Reloc struct {
 	Off  int32
@@ -314,27 +270,7 @@ func (r *Reloc) Write(w *Writer) {
 	r.Sym.Write(w)
 }
 
-func (o *Reloc) Read(r *Reader, off uint32) {
-	o.Off = r.int32At(off)
-	o.Siz = r.uint8At(off + 4)
-	o.Type = r.uint8At(off + 5)
-	o.Add = r.int64At(off + 6)
-	o.Sym.Read(r, off+14)
-}
-
-// Only reads the target symbol and reloc type, leaving other fields unset.
-func (o *Reloc) ReadSymType(r *Reader, off uint32) {
-	o.Type = r.uint8At(off + 5)
-	o.Sym.Read(r, off+14)
-}
-
-func (r *Reloc) Size() int {
-	return 4 + 1 + 1 + 8 + r.Sym.Size()
-}
-
-// XXX experiment with another way of accessing relocations.
-
-const RelocSize = 22 // TODO: is it possible to not hard-code this?
+const RelocSize = 4 + 1 + 1 + 8 + 8
 
 type Reloc2 [RelocSize]byte
 
@@ -387,21 +323,7 @@ func (a *Aux) Write(w *Writer) {
 	a.Sym.Write(w)
 }
 
-func (a *Aux) Read(r *Reader, off uint32) {
-	a.Type = r.uint8At(off)
-	a.Sym.Read(r, off+1)
-}
-
-// Only reads the target symbol, leaving other fields unset.
-func (a *Aux) ReadSym(r *Reader, off uint32) {
-	a.Sym.Read(r, off+1)
-}
-
-func (a *Aux) Size() int {
-	return 1 + a.Sym.Size()
-}
-
-const AuxSize = 9 // TODO: is it possible to not hard-code this?
+const AuxSize = 1 + 8
 
 type Aux2 [AuxSize]byte
 
@@ -597,24 +519,20 @@ func (r *Reader) DwarfFile(i int) string {
 }
 
 func (r *Reader) NSym() int {
-	symsiz := (&Sym{}).Size()
-	return int(r.h.Offsets[BlkSymdef+1]-r.h.Offsets[BlkSymdef]) / symsiz
+	return int(r.h.Offsets[BlkSymdef+1]-r.h.Offsets[BlkSymdef]) / SymSize
 }
 
 func (r *Reader) NNonpkgdef() int {
-	symsiz := (&Sym{}).Size()
-	return int(r.h.Offsets[BlkNonpkgdef+1]-r.h.Offsets[BlkNonpkgdef]) / symsiz
+	return int(r.h.Offsets[BlkNonpkgdef+1]-r.h.Offsets[BlkNonpkgdef]) / SymSize
 }
 
 func (r *Reader) NNonpkgref() int {
-	symsiz := (&Sym{}).Size()
-	return int(r.h.Offsets[BlkNonpkgref+1]-r.h.Offsets[BlkNonpkgref]) / symsiz
+	return int(r.h.Offsets[BlkNonpkgref+1]-r.h.Offsets[BlkNonpkgref]) / SymSize
 }
 
 // SymOff returns the offset of the i-th symbol.
 func (r *Reader) SymOff(i int) uint32 {
-	symsiz := (&Sym{}).Size()
-	return r.h.Offsets[BlkSymdef] + uint32(i*symsiz)
+	return r.h.Offsets[BlkSymdef] + uint32(i*SymSize)
 }
 
 // Sym2 returns a pointer to the i-th symbol.
@@ -633,8 +551,7 @@ func (r *Reader) NReloc(i int) int {
 func (r *Reader) RelocOff(i int, j int) uint32 {
 	relocIdxOff := r.h.Offsets[BlkRelocIdx] + uint32(i*4)
 	relocIdx := r.uint32At(relocIdxOff)
-	relocsiz := (&Reloc{}).Size()
-	return r.h.Offsets[BlkReloc] + (relocIdx+uint32(j))*uint32(relocsiz)
+	return r.h.Offsets[BlkReloc] + (relocIdx+uint32(j))*uint32(RelocSize)
 }
 
 // Reloc2 returns a pointer to the j-th relocation of the i-th symbol.
@@ -660,8 +577,7 @@ func (r *Reader) NAux(i int) int {
 func (r *Reader) AuxOff(i int, j int) uint32 {
 	auxIdxOff := r.h.Offsets[BlkAuxIdx] + uint32(i*4)
 	auxIdx := r.uint32At(auxIdxOff)
-	auxsiz := (&Aux{}).Size()
-	return r.h.Offsets[BlkAux] + (auxIdx+uint32(j))*uint32(auxsiz)
+	return r.h.Offsets[BlkAux] + (auxIdx+uint32(j))*uint32(AuxSize)
 }
 
 // Aux2 returns a pointer to the j-th aux symbol of the i-th symbol.
