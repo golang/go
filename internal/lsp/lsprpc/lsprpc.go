@@ -139,11 +139,11 @@ func (s *StreamServer) ServeStream(ctx context.Context, stream jsonrpc2.Stream) 
 		log.Printf("error getting gopls path: %v", err)
 		executable = ""
 	}
-	conn.LegacyHooks = protocol.Canceller{}
 	ctx = protocol.WithClient(ctx, client)
-	return conn.Run(ctx, handshaker(dc, executable,
-		protocol.ServerHandler(server,
-			jsonrpc2.MethodNotFound)))
+	return conn.Run(ctx, protocol.CancelHandler(
+		handshaker(dc, executable,
+			protocol.ServerHandler(server,
+				jsonrpc2.MethodNotFound))))
 }
 
 // A Forwarder is a jsonrpc2.StreamServer that handles an LSP stream by
@@ -255,11 +255,11 @@ func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) err
 	server := protocol.ServerDispatcher(serverConn)
 
 	// Forward between connections.
-	serverConn.LegacyHooks = protocol.Canceller{}
-	clientConn.LegacyHooks = protocol.Canceller{}
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		return serverConn.Run(ctx, protocol.ClientHandler(client, jsonrpc2.MethodNotFound))
+		return serverConn.Run(ctx, protocol.CancelHandler(
+			protocol.ClientHandler(client,
+				jsonrpc2.MethodNotFound)))
 	})
 	// Don't run the clientConn yet, so that we can complete the handshake before
 	// processing any client messages.
@@ -298,9 +298,10 @@ func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) err
 	}
 	g.Go(func() error {
 		return clientConn.Run(ctx,
-			forwarderHandler(
-				protocol.ServerHandler(server,
-					jsonrpc2.MethodNotFound)))
+			protocol.CancelHandler(
+				forwarderHandler(
+					protocol.ServerHandler(server,
+						jsonrpc2.MethodNotFound))))
 	})
 
 	return g.Wait()

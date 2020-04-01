@@ -233,9 +233,10 @@ func (app *Application) connectRemote(ctx context.Context, remote string) (*conn
 	stream := jsonrpc2.NewHeaderStream(conn, conn)
 	cc := jsonrpc2.NewConn(stream)
 	connection.Server = protocol.ServerDispatcher(cc)
-	cc.LegacyHooks = protocol.Canceller{}
 	ctx = protocol.WithClient(ctx, connection.Client)
-	go cc.Run(ctx, protocol.ClientHandler(connection.Client, jsonrpc2.MethodNotFound))
+	go cc.Run(ctx, protocol.CancelHandler(
+		protocol.ClientHandler(connection.Client,
+			jsonrpc2.MethodNotFound)))
 	return connection, connection.initialize(ctx, app.options)
 }
 

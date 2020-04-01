@@ -30,11 +30,10 @@ const (
 // Conn is bidirectional; it does not have a designated server or client end.
 type Conn struct {
 	seq         int64 // must only be accessed using atomic operations
-	LegacyHooks LegacyHooks
 	stream      Stream
 	pendingMu   sync.Mutex // protects the pending map
 	pending     map[ID]chan *WireResponse
-	canceller   Canceller
+	onCancelled CallCanceller
 }
 
 // Request is sent to a server to represent a Call or Notify operaton.
@@ -50,6 +49,10 @@ type Request struct {
 
 // Canceller is the type for a function that can cancel an in progress request.
 type Canceller func(id ID)
+
+// CallCanceller is the type for a callback when an outgoing request is
+// has it's context cancelled.
+type CallCanceller func(context.Context, *Conn, ID)
 
 type constError string
 
@@ -74,13 +77,11 @@ func NewConn(s Stream) *Conn {
 	return conn
 }
 
-// Cancel cancels a pending Call on the server side.
-// The call is identified by its id.
-// JSON RPC 2 does not specify a cancel message, so cancellation support is not
-// directly wired in. This method allows a higher level protocol to choose how
-// to propagate the cancel.
-func (c *Conn) Cancel(id ID) {
-	c.canceller(id)
+// OnCancelled sets the callback used when an outgoing call request has
+// it's context cancelled when still in progress.
+// Only the last callback registered is used.
+func (c *Conn) OnCancelled(cancelled CallCanceller) {
+	c.onCancelled = cancelled
 }
 
 // Notify is called to send a notification request over the connection.
@@ -98,9 +99,6 @@ func (c *Conn) Notify(ctx context.Context, method string, params interface{}) (e
 	data, err := json.Marshal(request)
 	if err != nil {
 		return fmt.Errorf("marshalling notify request: %v", err)
-	}
-	if c.LegacyHooks != nil {
-		ctx = c.LegacyHooks.Request(ctx, c, Send, request)
 	}
 	ctx, done := event.StartSpan(ctx, request.Method,
 		tag.Method.Of(request.Method),
@@ -137,9 +135,6 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	data, err := json.Marshal(request)
 	if err != nil {
 		return fmt.Errorf("marshalling call request: %v", err)
-	}
-	if c.LegacyHooks != nil {
-		ctx = c.LegacyHooks.Request(ctx, c, Send, request)
 	}
 	ctx, done := event.StartSpan(ctx, request.Method,
 		tag.Method.Of(request.Method),
@@ -187,8 +182,8 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 		return nil
 	case <-ctx.Done():
 		// Allow the handler to propagate the cancel.
-		if c.LegacyHooks != nil {
-			c.LegacyHooks.Cancel(ctx, c, id, false)
+		if c.onCancelled != nil {
+			c.onCancelled(ctx, c, id)
 		}
 		return ctx.Err()
 	}
@@ -282,10 +277,7 @@ type combined struct {
 // It returns only when the reader is closed or there is an error in the stream.
 func (c *Conn) Run(runCtx context.Context, handler Handler) error {
 	handler = MustReply(handler)
-	handler = legacyDeliverHandler(handler)
 	handler = AsyncHandler(handler)
-	handler = legacyRequestHandler(handler)
-	handler, c.canceller = CancelHandler(handler)
 	for {
 		// get the data for a message
 		data, n, err := c.stream.Read(runCtx)
