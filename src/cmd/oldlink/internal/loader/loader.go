@@ -8,14 +8,11 @@ import (
 	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/dwarf"
-	"cmd/internal/goobj2"
-	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/oldlink/internal/sym"
 	"fmt"
 	"log"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -54,7 +51,7 @@ type Reloc struct {
 // extra information.
 // TODO: rename to objReader once the old one is gone?
 type oReader struct {
-	*goobj2.Reader
+	//*goobj2.Reader
 	unit      *sym.CompilationUnit
 	version   int    // version of static symbol
 	flags     uint32 // read from object file
@@ -133,18 +130,8 @@ const (
 )
 
 func NewLoader(flags uint32) *Loader {
-	nbuiltin := goobj2.NBuiltin()
-	return &Loader{
-		start:         make(map[*oReader]Sym),
-		objs:          []objIdx{{nil, 0, 0}},
-		symsByName:    [2]map[string]Sym{make(map[string]Sym), make(map[string]Sym)},
-		objByPkg:      make(map[string]*oReader),
-		overwrite:     make(map[Sym]Sym),
-		itablink:      make(map[Sym]struct{}),
-		extStaticSyms: make(map[nameVer]Sym),
-		builtinSyms:   make([]Sym, nbuiltin),
-		flags:         flags,
-	}
+	log.Fatal("-newobj in oldlink should not be used")
+	panic("unreachable")
 }
 
 // Return the start index in the global index space for a given object file.
@@ -152,66 +139,9 @@ func (l *Loader) startIndex(r *oReader) Sym {
 	return l.start[r]
 }
 
-// Add object file r, return the start index.
-func (l *Loader) addObj(pkg string, r *oReader) Sym {
-	if _, ok := l.start[r]; ok {
-		panic("already added")
-	}
-	pkg = objabi.PathToPrefix(pkg) // the object file contains escaped package path
-	if _, ok := l.objByPkg[pkg]; !ok {
-		l.objByPkg[pkg] = r
-	}
-	n := r.NSym() + r.NNonpkgdef()
-	i := l.max + 1
-	l.start[r] = i
-	l.objs = append(l.objs, objIdx{r, i, i + Sym(n) - 1})
-	l.max += Sym(n)
-	return i
-}
-
 // Add a symbol with a given index, return if it is added.
 func (l *Loader) AddSym(name string, ver int, i Sym, r *oReader, dupok bool, typ sym.SymKind) bool {
-	if l.extStart != 0 {
-		panic("AddSym called after AddExtSym is called")
-	}
-	if ver == r.version {
-		// Static symbol. Add its global index but don't
-		// add to name lookup table, as it cannot be
-		// referenced by name.
-		return true
-	}
-	if oldi, ok := l.symsByName[ver][name]; ok {
-		if dupok {
-			if l.flags&FlagStrictDups != 0 {
-				l.checkdup(name, i, r, oldi)
-			}
-			return false
-		}
-		oldr, li := l.toLocal(oldi)
-		oldsym := goobj2.Sym{}
-		oldsym.Read(oldr.Reader, oldr.SymOff(li))
-		if oldsym.Dupok() {
-			return false
-		}
-		overwrite := r.DataSize(int(i-l.startIndex(r))) != 0
-		if overwrite {
-			// new symbol overwrites old symbol.
-			oldtyp := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type)]
-			if !oldtyp.IsData() && r.DataSize(li) == 0 {
-				log.Fatalf("duplicated definition of symbol " + name)
-			}
-			l.overwrite[oldi] = i
-		} else {
-			// old symbol overwrites new symbol.
-			if typ != sym.SDATA && typ != sym.SNOPTRDATA && typ != sym.SBSS && typ != sym.SNOPTRBSS { // only allow overwriting data symbol
-				log.Fatalf("duplicated definition of symbol " + name)
-			}
-			l.overwrite[i] = oldi
-			return false
-		}
-	}
-	l.symsByName[ver][name] = i
-	return true
+	panic("unreachable")
 }
 
 // Add an external symbol (without index). Return the index of newly added
@@ -286,65 +216,6 @@ func (l *Loader) toLocal(i Sym) (*oReader, int) {
 	return l.objs[k-1].r, int(i - l.objs[k-1].i)
 }
 
-// rcacheGet checks for a valid entry for 's' in the readers cache,
-// where 's' is a local PkgIdxNone ref or def, or zero if
-// the cache is empty or doesn't contain a value for 's'.
-func (or *oReader) rcacheGet(symIdx uint32) Sym {
-	if len(or.rcache) > 0 {
-		return or.rcache[symIdx]
-	}
-	return 0
-}
-
-// rcacheSet installs a new entry in the oReader's PkgNone
-// resolver cache for the specified PkgIdxNone ref or def,
-// allocating a new cache if needed.
-func (or *oReader) rcacheSet(symIdx uint32, gsym Sym) {
-	if len(or.rcache) == 0 {
-		or.rcache = make([]Sym, or.NNonpkgdef()+or.NNonpkgref())
-	}
-	or.rcache[symIdx] = gsym
-}
-
-// Resolve a local symbol reference. Return global index.
-func (l *Loader) resolve(r *oReader, s goobj2.SymRef) Sym {
-	var rr *oReader
-	switch p := s.PkgIdx; p {
-	case goobj2.PkgIdxInvalid:
-		if s.SymIdx != 0 {
-			panic("bad sym ref")
-		}
-		return 0
-	case goobj2.PkgIdxNone:
-		// Check for cached version first
-		if cached := r.rcacheGet(s.SymIdx); cached != 0 {
-			return cached
-		}
-		// Resolve by name
-		i := int(s.SymIdx) + r.NSym()
-		osym := goobj2.Sym{}
-		osym.Read(r.Reader, r.SymOff(i))
-		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
-		v := abiToVer(osym.ABI, r.version)
-		gsym := l.Lookup(name, v)
-		// Add to cache, then return.
-		r.rcacheSet(s.SymIdx, gsym)
-		return gsym
-	case goobj2.PkgIdxBuiltin:
-		return l.builtinSyms[s.SymIdx]
-	case goobj2.PkgIdxSelf:
-		rr = r
-	default:
-		pkg := r.Pkg(int(p))
-		var ok bool
-		rr, ok = l.objByPkg[pkg]
-		if !ok {
-			log.Fatalf("reference of nonexisted package %s, from %v", pkg, r.unit.Lib)
-		}
-	}
-	return l.toGlobal(rr, int(s.SymIdx))
-}
-
 // Look up a symbol by name, return global index, or 0 if not found.
 // This is more like Syms.ROLookup than Lookup -- it doesn't create
 // new symbol.
@@ -358,61 +229,12 @@ func (l *Loader) Lookup(name string, ver int) Sym {
 // Returns whether i is a dup of another symbol, and i is not
 // "primary", i.e. Lookup i by name will not return i.
 func (l *Loader) IsDup(i Sym) bool {
-	if _, ok := l.overwrite[i]; ok {
-		return true
-	}
-	if l.IsExternal(i) {
-		return false
-	}
-	r, li := l.toLocal(i)
-	osym := goobj2.Sym{}
-	osym.Read(r.Reader, r.SymOff(li))
-	if !osym.Dupok() {
-		return false
-	}
-	if osym.Name == "" {
-		return false // Unnamed aux symbol cannot be dup.
-	}
-	if osym.ABI == goobj2.SymABIstatic {
-		return false // Static symbol cannot be dup.
-	}
-	name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
-	ver := abiToVer(osym.ABI, r.version)
-	return l.symsByName[ver][name] != i
+	panic("unreachable")
 }
 
 // Check that duplicate symbols have same contents.
 func (l *Loader) checkdup(name string, i Sym, r *oReader, dup Sym) {
-	li := int(i - l.startIndex(r))
-	p := r.Data(li)
-	if strings.HasPrefix(name, "go.info.") {
-		p, _ = patchDWARFName1(p, r)
-	}
-	rdup, ldup := l.toLocal(dup)
-	pdup := rdup.Data(ldup)
-	if strings.HasPrefix(name, "go.info.") {
-		pdup, _ = patchDWARFName1(pdup, rdup)
-	}
-	if bytes.Equal(p, pdup) {
-		return
-	}
-	reason := "same length but different contents"
-	if len(p) != len(pdup) {
-		reason = fmt.Sprintf("new length %d != old length %d", len(p), len(pdup))
-	}
-	fmt.Fprintf(os.Stderr, "cmd/link: while reading object for '%v': duplicate symbol '%s', previous def at '%v', with mismatched payload: %s\n", r.unit.Lib, name, rdup.unit.Lib, reason)
-
-	// For the moment, whitelist DWARF subprogram DIEs for
-	// auto-generated wrapper functions. What seems to happen
-	// here is that we get different line numbers on formal
-	// params; I am guessing that the pos is being inherited
-	// from the spot where the wrapper is needed.
-	whitelist := strings.HasPrefix(name, "go.info.go.interface") ||
-		strings.HasPrefix(name, "go.info.go.builtin") ||
-		strings.HasPrefix(name, "go.debuglines")
-	if !whitelist {
-		l.strictDupMsgs++
-	}
+	panic("unreachable")
 }
 
 func (l *Loader) NStrictDupMsgs() int { return l.strictDupMsgs }
@@ -429,66 +251,32 @@ func (l *Loader) NDef() int {
 
 // Returns the raw (unpatched) name of the i-th symbol.
 func (l *Loader) RawSymName(i Sym) string {
-	if l.IsExternal(i) {
-		if s := l.Syms[i]; s != nil {
-			return s.Name
-		}
-		return ""
-	}
-	r, li := l.toLocal(i)
-	osym := goobj2.Sym{}
-	osym.Read(r.Reader, r.SymOff(li))
-	return osym.Name
+	panic("unreachable")
 }
 
 // Returns the (patched) name of the i-th symbol.
 func (l *Loader) SymName(i Sym) string {
-	if l.IsExternal(i) {
-		if s := l.Syms[i]; s != nil {
-			return s.Name // external name should already be patched?
-		}
-		return ""
-	}
-	r, li := l.toLocal(i)
-	osym := goobj2.Sym{}
-	osym.Read(r.Reader, r.SymOff(li))
-	return strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
+	panic("unreachable")
 }
 
 // Returns the type of the i-th symbol.
 func (l *Loader) SymType(i Sym) sym.SymKind {
-	if l.IsExternal(i) {
-		if s := l.Syms[i]; s != nil {
-			return s.Type
-		}
-		return 0
-	}
-	r, li := l.toLocal(i)
-	osym := goobj2.Sym{}
-	osym.Read(r.Reader, r.SymOff(li))
-	return sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]
+	panic("unreachable")
 }
 
 // Returns the attributes of the i-th symbol.
 func (l *Loader) SymAttr(i Sym) uint8 {
-	if l.IsExternal(i) {
-		// TODO: do something? External symbols have different representation of attributes. For now, ReflectMethod is the only thing matters and it cannot be set by external symbol.
-		return 0
-	}
-	r, li := l.toLocal(i)
-	osym := goobj2.Sym{}
-	osym.Read(r.Reader, r.SymOff(li))
-	return osym.Flag
+	panic("unreachable")
 }
 
 // Returns whether the i-th symbol has ReflectMethod attribute set.
 func (l *Loader) IsReflectMethod(i Sym) bool {
-	return l.SymAttr(i)&goobj2.SymFlagReflectMethod != 0
+	panic("unreachable")
 }
 
 // Returns whether this is a Go type symbol.
 func (l *Loader) IsGoType(i Sym) bool {
-	return l.SymAttr(i)&goobj2.SymFlagGoType != 0
+	panic("unreachable")
 }
 
 // Returns whether this is a "go.itablink.*" symbol.
@@ -501,62 +289,25 @@ func (l *Loader) IsItabLink(i Sym) bool {
 
 // Returns the symbol content of the i-th symbol. i is global index.
 func (l *Loader) Data(i Sym) []byte {
-	if l.IsExternal(i) {
-		if s := l.Syms[i]; s != nil {
-			return s.P
-		}
-		return nil
-	}
-	r, li := l.toLocal(i)
-	return r.Data(li)
+	panic("unreachable")
 }
 
 // Returns the number of aux symbols given a global index.
 func (l *Loader) NAux(i Sym) int {
-	if l.IsExternal(i) {
-		return 0
-	}
-	r, li := l.toLocal(i)
-	return r.NAux(li)
+	panic("unreachable")
 }
 
 // Returns the referred symbol of the j-th aux symbol of the i-th
 // symbol.
 func (l *Loader) AuxSym(i Sym, j int) Sym {
-	if l.IsExternal(i) {
-		return 0
-	}
-	r, li := l.toLocal(i)
-	a := goobj2.Aux{}
-	a.Read(r.Reader, r.AuxOff(li, j))
-	return l.resolve(r, a.Sym)
+	panic("unreachable")
 }
 
 // ReadAuxSyms reads the aux symbol ids for the specified symbol into the
 // slice passed as a parameter. If the slice capacity is not large enough, a new
 // larger slice will be allocated. Final slice is returned.
 func (l *Loader) ReadAuxSyms(symIdx Sym, dst []Sym) []Sym {
-	if l.IsExternal(symIdx) {
-		return dst[:0]
-	}
-	naux := l.NAux(symIdx)
-	if naux == 0 {
-		return dst[:0]
-	}
-
-	if cap(dst) < naux {
-		dst = make([]Sym, naux)
-	}
-	dst = dst[:0]
-
-	r, li := l.toLocal(symIdx)
-	for i := 0; i < naux; i++ {
-		a := goobj2.Aux{}
-		a.Read(r.Reader, r.AuxOff(li, i))
-		dst = append(dst, l.resolve(r, a.Sym))
-	}
-
-	return dst
+	panic("unreachable")
 }
 
 // OuterSym gets the outer symbol for host object loaded symbols.
@@ -586,147 +337,25 @@ func (l *Loader) InitReachable() {
 
 // At method returns the j-th reloc for a global symbol.
 func (relocs *Relocs) At(j int) Reloc {
-	if relocs.ext != nil {
-		rel := &relocs.ext.R[j]
-		return Reloc{
-			Off:  rel.Off,
-			Size: rel.Siz,
-			Type: rel.Type,
-			Add:  rel.Add,
-			Sym:  relocs.l.Lookup(rel.Sym.Name, int(rel.Sym.Version)),
-		}
-	}
-	rel := goobj2.Reloc{}
-	rel.Read(relocs.r.Reader, relocs.r.RelocOff(relocs.li, j))
-	target := relocs.l.resolve(relocs.r, rel.Sym)
-	return Reloc{
-		Off:  rel.Off,
-		Size: rel.Siz,
-		Type: objabi.RelocType(rel.Type),
-		Add:  rel.Add,
-		Sym:  target,
-	}
+	panic("unreachable")
 }
 
 // ReadAll method reads all relocations for a symbol into the
 // specified slice. If the slice capacity is not large enough, a new
 // larger slice will be allocated. Final slice is returned.
 func (relocs *Relocs) ReadAll(dst []Reloc) []Reloc {
-	if relocs.Count == 0 {
-		return dst[:0]
-	}
-
-	if cap(dst) < relocs.Count {
-		dst = make([]Reloc, relocs.Count)
-	}
-	dst = dst[:0]
-
-	if relocs.ext != nil {
-		for i := 0; i < relocs.Count; i++ {
-			erel := &relocs.ext.R[i]
-			rel := Reloc{
-				Off:  erel.Off,
-				Size: erel.Siz,
-				Type: erel.Type,
-				Add:  erel.Add,
-				Sym:  relocs.l.Lookup(erel.Sym.Name, int(erel.Sym.Version)),
-			}
-			dst = append(dst, rel)
-		}
-		return dst
-	}
-
-	off := relocs.r.RelocOff(relocs.li, 0)
-	for i := 0; i < relocs.Count; i++ {
-		rel := goobj2.Reloc{}
-		rel.Read(relocs.r.Reader, off)
-		off += uint32(rel.Size())
-		target := relocs.l.resolve(relocs.r, rel.Sym)
-		dst = append(dst, Reloc{
-			Off:  rel.Off,
-			Size: rel.Siz,
-			Type: objabi.RelocType(rel.Type),
-			Add:  rel.Add,
-			Sym:  target,
-		})
-	}
-	return dst
+	panic("unreachable")
 }
 
 // Relocs returns a Relocs object for the given global sym.
 func (l *Loader) Relocs(i Sym) Relocs {
-	if l.IsExternal(i) {
-		if s := l.Syms[i]; s != nil {
-			return Relocs{Count: len(s.R), l: l, ext: s}
-		}
-		return Relocs{}
-	}
-	r, li := l.toLocal(i)
-	return l.relocs(r, li)
-}
-
-// Relocs returns a Relocs object given a local sym index and reader.
-func (l *Loader) relocs(r *oReader, li int) Relocs {
-	return Relocs{
-		Count: r.NReloc(li),
-		li:    li,
-		r:     r,
-		l:     l,
-	}
+	panic("unreachable")
 }
 
 // Preload a package: add autolibs, add symbols to the symbol table.
 // Does not read symbol data yet.
 func (l *Loader) Preload(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64, pn string, flags int) {
-	roObject, readonly, err := f.Slice(uint64(length))
-	if err != nil {
-		log.Fatal("cannot read object file:", err)
-	}
-	r := goobj2.NewReaderFromBytes(roObject, readonly)
-	if r == nil {
-		panic("cannot read object file")
-	}
-	localSymVersion := syms.IncVersion()
-	pkgprefix := objabi.PathToPrefix(lib.Pkg) + "."
-	or := &oReader{r, unit, localSymVersion, r.Flags(), pkgprefix, nil}
-
-	// Autolib
-	lib.ImportStrings = append(lib.ImportStrings, r.Autolib()...)
-
-	// DWARF file table
-	nfile := r.NDwarfFile()
-	unit.DWARFFileTable = make([]string, nfile)
-	for i := range unit.DWARFFileTable {
-		unit.DWARFFileTable[i] = r.DwarfFile(i)
-	}
-
-	istart := l.addObj(lib.Pkg, or)
-
-	ndef := r.NSym()
-	nnonpkgdef := r.NNonpkgdef()
-	for i, n := 0, ndef+nnonpkgdef; i < n; i++ {
-		osym := goobj2.Sym{}
-		osym.Read(r, r.SymOff(i))
-		name := strings.Replace(osym.Name, "\"\".", pkgprefix, -1)
-		if name == "" {
-			continue // don't add unnamed aux symbol
-		}
-		v := abiToVer(osym.ABI, localSymVersion)
-		dupok := osym.Dupok()
-		added := l.AddSym(name, v, istart+Sym(i), or, dupok, sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)])
-		if added && strings.HasPrefix(name, "go.itablink.") {
-			l.itablink[istart+Sym(i)] = struct{}{}
-		}
-		if added && strings.HasPrefix(name, "runtime.") {
-			if bi := goobj2.BuiltinIdx(name, v); bi != -1 {
-				// This is a definition of a builtin symbol. Record where it is.
-				l.builtinSyms[bi] = istart + Sym(i)
-			}
-		}
-	}
-
-	// The caller expects us consuming all the data
-	f.MustSeek(length, os.SEEK_CUR)
+	panic("unreachable")
 }
 
 // Make sure referenced symbols are added. Most of them should already be added.
@@ -738,28 +367,11 @@ func (l *Loader) LoadRefs(arch *sys.Arch, syms *sym.Symbols) {
 }
 
 func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch, syms *sym.Symbols) {
-	ndef := r.NSym() + r.NNonpkgdef()
-	for i, n := 0, r.NNonpkgref(); i < n; i++ {
-		osym := goobj2.Sym{}
-		osym.Read(r.Reader, r.SymOff(ndef+i))
-		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
-		v := abiToVer(osym.ABI, r.version)
-		l.AddExtSym(name, v)
-	}
+	panic("unreachable")
 }
 
 func abiToVer(abi uint16, localSymVersion int) int {
-	var v int
-	if abi == goobj2.SymABIstatic {
-		// Static
-		v = localSymVersion
-	} else if abiver := sym.ABIToVersion(obj.ABI(abi)); abiver != -1 {
-		// Note that data symbols are "ABI0", which maps to version 0.
-		v = abiver
-	} else {
-		log.Fatalf("invalid symbol ABI: %d", abi)
-	}
-	return v
+	panic("unreachable")
 }
 
 func preprocess(arch *sys.Arch, s *sym.Symbol) {
@@ -885,90 +497,14 @@ func (l *Loader) addNewSym(i Sym, syms *sym.Symbols, name string, ver int, unit 
 // object corresponding to object reader "r". Return value is the
 // number of sym.Reloc entries required for all the new symbols.
 func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
-	istart := l.startIndex(r)
-	nr := 0
-
-	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
-		// If it's been previously loaded in host object loading, we don't need to do it again.
-		if s := l.Syms[istart+Sym(i)]; s != nil {
-			// Mark symbol as reachable as it wasn't marked as such before.
-			s.Attr.Set(sym.AttrReachable, l.Reachable.Has(istart+Sym(i)))
-			nr += r.NReloc(i)
-			continue
-		}
-		osym := goobj2.Sym{}
-		osym.Read(r.Reader, r.SymOff(i))
-		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
-		if name == "" {
-			continue
-		}
-		ver := abiToVer(osym.ABI, r.version)
-		if osym.ABI != goobj2.SymABIstatic && l.symsByName[ver][name] != istart+Sym(i) {
-			continue
-		}
-
-		t := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]
-		if t == sym.SXREF {
-			log.Fatalf("bad sxref")
-		}
-		if t == 0 {
-			log.Fatalf("missing type for %s in %s", name, r.unit.Lib)
-		}
-		if !l.Reachable.Has(istart+Sym(i)) && !(t == sym.SRODATA && strings.HasPrefix(name, "type.")) && name != "runtime.addmoduledata" && name != "runtime.lastmoduledatap" {
-			// No need to load unreachable symbols.
-			// XXX some type symbol's content may be needed in DWARF code, but they are not marked.
-			// XXX reference to runtime.addmoduledata may be generated later by the linker in plugin mode.
-			continue
-		}
-
-		s := l.addNewSym(istart+Sym(i), syms, name, ver, r.unit, t)
-		s.Attr.Set(sym.AttrReachable, l.Reachable.Has(istart+Sym(i)))
-		nr += r.NReloc(i)
-	}
-	return nr
-}
-
-// funcInfoSym records the sym.Symbol for a function, along with a copy
-// of the corresponding goobj2.Sym and the index of its FuncInfo aux sym.
-// We use this to delay populating FuncInfo until we can batch-allocate
-// slices for their sub-objects.
-type funcInfoSym struct {
-	s    *sym.Symbol // sym.Symbol for a live function
-	osym goobj2.Sym  // object file symbol data for that function
-	isym int         // global symbol index of FuncInfo aux sym for func
-}
-
-// funcAllocInfo records totals/counts for all functions in an objfile;
-// used to help with bulk allocation of sym.Symbol sub-objects.
-type funcAllocInfo struct {
-	symPtr  uint32 // number of *sym.Symbol's needed in file slices
-	inlCall uint32 // number of sym.InlinedCall's needed in inltree slices
-	pcData  uint32 // number of sym.Pcdata's needed in pdata slices
-	fdOff   uint32 // number of int64's needed in all Funcdataoff slices
+	panic("unreachable")
 }
 
 // LoadSymbol loads a single symbol by name.
 // This function should only be used by the host object loaders.
 // NB: This function does NOT set the symbol as reachable.
 func (l *Loader) LoadSymbol(name string, version int, syms *sym.Symbols) *sym.Symbol {
-	global := l.Lookup(name, version)
-
-	// If we're already loaded, bail.
-	if global != 0 && int(global) < len(l.Syms) && l.Syms[global] != nil {
-		return l.Syms[global]
-	}
-
-	// Read the symbol.
-	r, i := l.toLocal(global)
-	istart := l.startIndex(r)
-
-	osym := goobj2.Sym{}
-	osym.Read(r.Reader, r.SymOff(int(i)))
-	if l.symsByName[version][name] != istart+Sym(i) {
-		return nil
-	}
-
-	return l.addNewSym(istart+Sym(i), syms, name, version, r.unit, sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)])
+	panic("unreachable")
 }
 
 // LookupOrCreate looks up a symbol by name, and creates one if not found.
@@ -1023,264 +559,7 @@ func (l *Loader) Create(name string, syms *sym.Symbols) *sym.Symbol {
 }
 
 func loadObjFull(l *Loader, r *oReader) {
-	lib := r.unit.Lib
-	istart := l.startIndex(r)
-
-	resolveSymRef := func(s goobj2.SymRef) *sym.Symbol {
-		i := l.resolve(r, s)
-		return l.Syms[i]
-	}
-
-	funcs := []funcInfoSym{}
-	fdsyms := []*sym.Symbol{}
-	var funcAllocCounts funcAllocInfo
-	pcdataBase := r.PcdataBase()
-	rslice := []Reloc{}
-	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
-		osym := goobj2.Sym{}
-		osym.Read(r.Reader, r.SymOff(i))
-		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
-		if name == "" {
-			continue
-		}
-		ver := abiToVer(osym.ABI, r.version)
-		dupok := osym.Dupok()
-		if dupok {
-			if dupsym := l.symsByName[ver][name]; dupsym != istart+Sym(i) {
-				if l.Reachable.Has(dupsym) {
-					// A dupok symbol is resolved to another package. We still need
-					// to record its presence in the current package, as the trampoline
-					// pass expects packages are laid out in dependency order.
-					s := l.Syms[dupsym]
-					if s.Type == sym.STEXT {
-						lib.DupTextSyms = append(lib.DupTextSyms, s)
-					}
-				}
-				continue
-			}
-		}
-
-		s := l.Syms[istart+Sym(i)]
-		if s == nil {
-			continue
-		}
-		if s.Name != name { // Sanity check. We can remove it in the final version.
-			fmt.Println("name mismatch:", lib, i, s.Name, name)
-			panic("name mismatch")
-		}
-
-		local := osym.Local()
-		makeTypelink := osym.Typelink()
-		size := osym.Siz
-
-		// Symbol data
-		s.P = r.Data(i)
-		s.Attr.Set(sym.AttrReadOnly, r.ReadOnly())
-
-		// Relocs
-		relocs := l.relocs(r, i)
-		rslice = relocs.ReadAll(rslice)
-		batch := l.relocBatch
-		s.R = batch[:relocs.Count:relocs.Count]
-		l.relocBatch = batch[relocs.Count:]
-		for j := range s.R {
-			r := rslice[j]
-			rs := r.Sym
-			sz := r.Size
-			rt := r.Type
-			if rt == objabi.R_METHODOFF {
-				if l.Reachable.Has(rs) {
-					rt = objabi.R_ADDROFF
-				} else {
-					sz = 0
-					rs = 0
-				}
-			}
-			if rt == objabi.R_WEAKADDROFF && !l.Reachable.Has(rs) {
-				rs = 0
-				sz = 0
-			}
-			if rs != 0 && l.SymType(rs) == sym.SABIALIAS {
-				rsrelocs := l.Relocs(rs)
-				rs = rsrelocs.At(0).Sym
-			}
-			s.R[j] = sym.Reloc{
-				Off:  r.Off,
-				Siz:  sz,
-				Type: rt,
-				Add:  r.Add,
-				Sym:  l.Syms[rs],
-			}
-		}
-
-		// Aux symbol info
-		isym := -1
-		naux := r.NAux(i)
-		for j := 0; j < naux; j++ {
-			a := goobj2.Aux{}
-			a.Read(r.Reader, r.AuxOff(i, j))
-			switch a.Type {
-			case goobj2.AuxGotype:
-				typ := resolveSymRef(a.Sym)
-				if typ != nil {
-					s.Gotype = typ
-				}
-			case goobj2.AuxFuncdata:
-				fdsyms = append(fdsyms, resolveSymRef(a.Sym))
-			case goobj2.AuxFuncInfo:
-				if a.Sym.PkgIdx != goobj2.PkgIdxSelf {
-					panic("funcinfo symbol not defined in current package")
-				}
-				isym = int(a.Sym.SymIdx)
-			case goobj2.AuxDwarfInfo, goobj2.AuxDwarfLoc, goobj2.AuxDwarfRanges, goobj2.AuxDwarfLines:
-				// ignored for now
-			default:
-				panic("unknown aux type")
-			}
-		}
-
-		s.File = r.pkgprefix[:len(r.pkgprefix)-1]
-		if dupok {
-			s.Attr |= sym.AttrDuplicateOK
-		}
-		if s.Size < int64(size) {
-			s.Size = int64(size)
-		}
-		s.Attr.Set(sym.AttrLocal, local)
-		s.Attr.Set(sym.AttrMakeTypelink, makeTypelink)
-
-		if s.Type == sym.SDWARFINFO {
-			// For DWARF symbols, replace `"".` to actual package prefix
-			// in the symbol content.
-			// TODO: maybe we should do this in the compiler and get rid
-			// of this.
-			patchDWARFName(s, r)
-		}
-
-		if s.Type != sym.STEXT {
-			continue
-		}
-
-		if isym == -1 {
-			continue
-		}
-
-		// Record function sym and associated info for additional
-		// processing in the loop below.
-		fwis := funcInfoSym{s: s, isym: isym, osym: osym}
-		funcs = append(funcs, fwis)
-
-		// Read the goobj2.FuncInfo for this text symbol so that we can
-		// collect allocation counts. We'll read it again in the loop
-		// below.
-		b := r.Data(isym)
-		info := goobj2.FuncInfo{}
-		info.Read(b)
-		funcAllocCounts.symPtr += uint32(len(info.File))
-		funcAllocCounts.pcData += uint32(len(info.Pcdata))
-		funcAllocCounts.inlCall += uint32(len(info.InlTree))
-		funcAllocCounts.fdOff += uint32(len(info.Funcdataoff))
-	}
-
-	// At this point we can do batch allocation of the sym.FuncInfo's,
-	// along with the slices of sub-objects they use.
-	fiBatch := make([]sym.FuncInfo, len(funcs))
-	inlCallBatch := make([]sym.InlinedCall, funcAllocCounts.inlCall)
-	symPtrBatch := make([]*sym.Symbol, funcAllocCounts.symPtr)
-	pcDataBatch := make([]sym.Pcdata, funcAllocCounts.pcData)
-	fdOffBatch := make([]int64, funcAllocCounts.fdOff)
-
-	// Populate FuncInfo contents for func symbols.
-	for fi := 0; fi < len(funcs); fi++ {
-		s := funcs[fi].s
-		isym := funcs[fi].isym
-		osym := funcs[fi].osym
-
-		s.FuncInfo = &fiBatch[0]
-		fiBatch = fiBatch[1:]
-
-		b := r.Data(isym)
-		info := goobj2.FuncInfo{}
-		info.Read(b)
-
-		if osym.NoSplit() {
-			s.Attr |= sym.AttrNoSplit
-		}
-		if osym.ReflectMethod() {
-			s.Attr |= sym.AttrReflectMethod
-		}
-		if r.Flags()&goobj2.ObjFlagShared != 0 {
-			s.Attr |= sym.AttrShared
-		}
-		if osym.TopFrame() {
-			s.Attr |= sym.AttrTopFrame
-		}
-
-		pc := s.FuncInfo
-
-		if len(info.Funcdataoff) != 0 {
-			nfd := len(info.Funcdataoff)
-			pc.Funcdata = fdsyms[:nfd:nfd]
-			fdsyms = fdsyms[nfd:]
-		}
-
-		info.Pcdata = append(info.Pcdata, info.PcdataEnd) // for the ease of knowing where it ends
-		pc.Args = int32(info.Args)
-		pc.Locals = int32(info.Locals)
-
-		npc := len(info.Pcdata) - 1 // -1 as we appended one above
-		pc.Pcdata = pcDataBatch[:npc:npc]
-		pcDataBatch = pcDataBatch[npc:]
-
-		nfd := len(info.Funcdataoff)
-		pc.Funcdataoff = fdOffBatch[:nfd:nfd]
-		fdOffBatch = fdOffBatch[nfd:]
-
-		nsp := len(info.File)
-		pc.File = symPtrBatch[:nsp:nsp]
-		symPtrBatch = symPtrBatch[nsp:]
-
-		nic := len(info.InlTree)
-		pc.InlTree = inlCallBatch[:nic:nic]
-		inlCallBatch = inlCallBatch[nic:]
-
-		pc.Pcsp.P = r.BytesAt(pcdataBase+info.Pcsp, int(info.Pcfile-info.Pcsp))
-		pc.Pcfile.P = r.BytesAt(pcdataBase+info.Pcfile, int(info.Pcline-info.Pcfile))
-		pc.Pcline.P = r.BytesAt(pcdataBase+info.Pcline, int(info.Pcinline-info.Pcline))
-		pc.Pcinline.P = r.BytesAt(pcdataBase+info.Pcinline, int(info.Pcdata[0]-info.Pcinline))
-		for k := range pc.Pcdata {
-			pc.Pcdata[k].P = r.BytesAt(pcdataBase+info.Pcdata[k], int(info.Pcdata[k+1]-info.Pcdata[k]))
-		}
-		for k := range pc.Funcdataoff {
-			pc.Funcdataoff[k] = int64(info.Funcdataoff[k])
-		}
-		for k := range pc.File {
-			pc.File[k] = resolveSymRef(info.File[k])
-		}
-		for k := range pc.InlTree {
-			inl := &info.InlTree[k]
-			pc.InlTree[k] = sym.InlinedCall{
-				Parent:   inl.Parent,
-				File:     resolveSymRef(inl.File),
-				Line:     inl.Line,
-				Func:     l.SymName(l.resolve(r, inl.Func)),
-				ParentPC: inl.ParentPC,
-			}
-		}
-
-		dupok := osym.Dupok()
-		if !dupok {
-			if s.Attr.OnList() {
-				log.Fatalf("symbol %s listed multiple times", s.Name)
-			}
-			s.Attr.Set(sym.AttrOnList, true)
-			lib.Textp = append(lib.Textp, s)
-		} else {
-			// there may be a dup in another package
-			// put into a temp list and add to text later
-			lib.DupTextSyms = append(lib.DupTextSyms, s)
-		}
-	}
+	panic("unreachable")
 }
 
 var emptyPkg = []byte(`"".`)
