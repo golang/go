@@ -253,6 +253,30 @@ func (s *Sym) ReflectMethod() bool { return s.Flag&SymFlagReflectMethod != 0 }
 func (s *Sym) IsGoType() bool      { return s.Flag&SymFlagGoType != 0 }
 func (s *Sym) TopFrame() bool      { return s.Flag&SymFlagTopFrame != 0 }
 
+const SymSize = stringRefSize + 2 + 1 + 1 + 4
+
+type Sym2 [SymSize]byte
+
+func (s *Sym2) Name(r *Reader) string {
+	len := binary.LittleEndian.Uint32(s[:])
+	off := binary.LittleEndian.Uint32(s[4:])
+	return r.StringAt(off, len)
+}
+
+func (s *Sym2) ABI() uint16 { return binary.LittleEndian.Uint16(s[8:]) }
+func (s *Sym2) Type() uint8 { return s[10] }
+func (s *Sym2) Flag() uint8 { return s[11] }
+func (s *Sym2) Siz() uint32 { return binary.LittleEndian.Uint32(s[12:]) }
+
+func (s *Sym2) Dupok() bool         { return s.Flag()&SymFlagDupok != 0 }
+func (s *Sym2) Local() bool         { return s.Flag()&SymFlagLocal != 0 }
+func (s *Sym2) Typelink() bool      { return s.Flag()&SymFlagTypelink != 0 }
+func (s *Sym2) Leaf() bool          { return s.Flag()&SymFlagLeaf != 0 }
+func (s *Sym2) NoSplit() bool       { return s.Flag()&SymFlagNoSplit != 0 }
+func (s *Sym2) ReflectMethod() bool { return s.Flag()&SymFlagReflectMethod != 0 }
+func (s *Sym2) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
+func (s *Sym2) TopFrame() bool      { return s.Flag()&SymFlagTopFrame != 0 }
+
 // Symbol reference.
 type SymRef struct {
 	PkgIdx uint32
@@ -591,6 +615,12 @@ func (r *Reader) NNonpkgref() int {
 func (r *Reader) SymOff(i int) uint32 {
 	symsiz := (&Sym{}).Size()
 	return r.h.Offsets[BlkSymdef] + uint32(i*symsiz)
+}
+
+// Sym2 returns a pointer to the i-th symbol.
+func (r *Reader) Sym2(i int) *Sym2 {
+	off := r.SymOff(i)
+	return (*Sym2)(unsafe.Pointer(&r.b[off]))
 }
 
 // NReloc returns the number of relocations of the i-th symbol.
