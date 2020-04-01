@@ -41,7 +41,8 @@ import (
 type Error struct {
 	Fset *token.FileSet // file set for interpretation of Pos
 	Pos  token.Pos      // error position
-	Msg  string         // error message
+	Msg  string         // default error message, user-friendly
+	Full string         // full error message, for debugging (may contain internal details)
 	Soft bool           // if set, error is "soft"
 }
 
@@ -49,6 +50,13 @@ type Error struct {
 // filename:line:column: message
 func (err Error) Error() string {
 	return fmt.Sprintf("%s: %s", err.Fset.Position(err.Pos), err.Msg)
+}
+
+// FullError returns an error string like Error, buy it may contain
+// type-checker internal details such as subscript indices for type
+// parameters and more. Useful for debugging.
+func (err Error) FullError() string {
+	return fmt.Sprintf("%s: %s", err.Fset.Position(err.Pos), err.Full)
 }
 
 // An Importer resolves import paths to Packages.

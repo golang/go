@@ -12,6 +12,8 @@ import (
 	"go/token"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 func assert(p bool) {
@@ -82,7 +84,7 @@ func (check *Checker) err(pos token.Pos, msg string, soft bool) {
 		return
 	}
 
-	err := Error{check.fset, pos, msg, soft}
+	err := Error{check.fset, pos, cleanMsg(msg), msg, soft}
 	if check.firstErr == nil {
 		check.firstErr = err
 	}
@@ -120,4 +122,55 @@ func (check *Checker) invalidArg(pos token.Pos, format string, args ...interface
 
 func (check *Checker) invalidOp(pos token.Pos, format string, args ...interface{}) {
 	check.errorf(pos, "invalid operation: "+format, args...)
+}
+
+// cleanMsg removes subscripts and replaces <>'s in instantiated type names with ()'s.
+func cleanMsg(s string) string {
+	var b strings.Builder
+	var p rune    // previous rune
+	n := 0        // nesting level
+	copy := false // indicates that we need a copy
+	for i := 0; ; {
+		r, w := utf8.DecodeRuneInString(s[i:])
+		i += w
+		if r == utf8.RuneError {
+			if w == 0 {
+				break // we're done
+			}
+			if w == 1 {
+				continue // ignore (this should never happen)
+			}
+		}
+
+		// strip subscript digits
+		if '₀' <= r && r < '₀'+10 { // '₀' == U+2080
+			copy = true
+			continue
+		}
+
+		// replace <>'s in instantiated type names by ()'s
+		// (use previous rune p and nesting level n for more
+		// accurate replacement)
+		if r == '<' && isIdentChar(p) {
+			n++
+			copy = true
+			r = '('
+		} else if r == '>' && n > 0 {
+			n--
+			copy = true
+			r = ')'
+		}
+
+		b.WriteRune(r)
+		p = r
+	}
+
+	if copy {
+		return b.String()
+	}
+	return s
+}
+
+func isIdentChar(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_'
 }
