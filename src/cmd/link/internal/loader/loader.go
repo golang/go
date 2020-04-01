@@ -387,15 +387,14 @@ func (l *Loader) AddSym(name string, ver int, r *oReader, li int, kind int, dupo
 		return oldi, false
 	}
 	oldr, oldli := l.toLocal(oldi)
-	oldsym := goobj2.Sym{}
-	oldsym.ReadWithoutName(oldr.Reader, oldr.SymOff(oldli))
+	oldsym := oldr.Sym2(oldli)
 	if oldsym.Dupok() {
 		return oldi, false
 	}
 	overwrite := r.DataSize(li) != 0
 	if overwrite {
 		// new symbol overwrites old symbol.
-		oldtyp := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type)]
+		oldtyp := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type())]
 		if !(oldtyp.IsData() && oldr.DataSize(oldli) == 0) {
 			log.Fatalf("duplicated definition of symbol " + name)
 		}
@@ -617,9 +616,7 @@ func (l *Loader) RawSymName(i Sym) string {
 		return pp.name
 	}
 	r, li := l.toLocal(i)
-	osym := goobj2.Sym{}
-	osym.Read(r.Reader, r.SymOff(li))
-	return osym.Name
+	return r.Sym2(li).Name(r.Reader)
 }
 
 // Returns the (patched) name of the i-th symbol.
@@ -629,9 +626,7 @@ func (l *Loader) SymName(i Sym) string {
 		return pp.name
 	}
 	r, li := l.toLocal(i)
-	osym := goobj2.Sym{}
-	osym.Read(r.Reader, r.SymOff(li))
-	return strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
+	return strings.Replace(r.Sym2(li).Name(r.Reader), "\"\".", r.pkgprefix, -1)
 }
 
 // Returns the version of the i-th symbol.
@@ -641,9 +636,7 @@ func (l *Loader) SymVersion(i Sym) int {
 		return pp.ver
 	}
 	r, li := l.toLocal(i)
-	osym := goobj2.Sym{}
-	osym.ReadWithoutName(r.Reader, r.SymOff(li))
-	return int(abiToVer(osym.ABI, r.version))
+	return int(abiToVer(r.Sym2(li).ABI(), r.version))
 }
 
 // Returns the type of the i-th symbol.
@@ -656,9 +649,7 @@ func (l *Loader) SymType(i Sym) sym.SymKind {
 		return 0
 	}
 	r, li := l.toLocal(i)
-	osym := goobj2.Sym{}
-	osym.ReadWithoutName(r.Reader, r.SymOff(li))
-	return sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]
+	return sym.AbiSymKindToSymKind[objabi.SymKind(r.Sym2(li).Type())]
 }
 
 // Returns the attributes of the i-th symbol.
@@ -668,9 +659,7 @@ func (l *Loader) SymAttr(i Sym) uint8 {
 		return 0
 	}
 	r, li := l.toLocal(i)
-	osym := goobj2.Sym{}
-	osym.ReadFlag(r.Reader, r.SymOff(li))
-	return osym.Flag
+	return r.Sym2(li).Flag()
 }
 
 // AttrReachable returns true for symbols that are transitively
@@ -772,9 +761,7 @@ func (l *Loader) AttrDuplicateOK(i Sym) bool {
 		// might make more sense to copy the flag value out of the object
 		// into a larger bitmap during preload.
 		r, li := l.toLocal(i)
-		osym := goobj2.Sym{}
-		osym.ReadFlag(r.Reader, r.SymOff(li))
-		return osym.Dupok()
+		return r.Sym2(li).Dupok()
 	}
 	return l.attrDuplicateOK.Has(l.extIndex(i))
 }
@@ -1302,18 +1289,6 @@ func (l *Loader) NAux(i Sym) int {
 	return r.NAux(li)
 }
 
-// Returns the referred symbol of the j-th aux symbol of the i-th
-// symbol.
-func (l *Loader) AuxSym(i Sym, j int) Sym {
-	if l.IsExternal(i) {
-		return 0
-	}
-	r, li := l.toLocal(i)
-	a := goobj2.Aux{}
-	a.Read(r.Reader, r.AuxOff(li, j))
-	return l.resolve(r, a.Sym)
-}
-
 // Returns the "handle" to the j-th aux symbol of the i-th symbol.
 func (l *Loader) Aux2(i Sym, j int) Aux2 {
 	if l.IsExternal(i) {
@@ -1612,12 +1587,11 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
 	l.growSyms(len(l.objSyms) + end - start)
 	l.growAttrBitmaps(len(l.objSyms) + end - start)
 	for i := start; i < end; i++ {
-		osym := goobj2.Sym{}
-		osym.Read(r.Reader, r.SymOff(i))
-		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
-		v := abiToVer(osym.ABI, r.version)
+		osym := r.Sym2(i)
+		name := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
+		v := abiToVer(osym.ABI(), r.version)
 		dupok := osym.Dupok()
-		gi, added := l.AddSym(name, v, r, i, kind, dupok, sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)])
+		gi, added := l.AddSym(name, v, r, i, kind, dupok, sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())])
 		r.syms[i] = gi
 		if !added {
 			continue
@@ -1659,10 +1633,9 @@ func (l *Loader) LoadNonpkgSyms(syms *sym.Symbols) {
 func loadObjRefs(l *Loader, r *oReader, syms *sym.Symbols) {
 	ndef := r.NSym() + r.NNonpkgdef()
 	for i, n := 0, r.NNonpkgref(); i < n; i++ {
-		osym := goobj2.Sym{}
-		osym.Read(r.Reader, r.SymOff(ndef+i))
-		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
-		v := abiToVer(osym.ABI, r.version)
+		osym := r.Sym2(ndef + i)
+		name := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
+		v := abiToVer(osym.ABI(), r.version)
 		r.syms[ndef+i] = l.LookupOrCreateSym(name, v)
 		if osym.Local() {
 			gi := r.syms[ndef+i]
@@ -2079,10 +2052,9 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 		if r2, i2 := l.toLocal(gi); r2 != r || i2 != i {
 			continue // come from a different object
 		}
-		osym := goobj2.Sym{}
-		osym.Read(r.Reader, r.SymOff(i))
-		name := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
-		t := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]
+		osym := r.Sym2(i)
+		name := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
+		t := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
 		// NB: for the test below, we can skip most anonymous symbols
 		// since they will never be turned into sym.Symbols (ex:
 		// funcdata), however DWARF subprogram DIE symbols (which are
@@ -2092,7 +2064,7 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 		if name == "" && t != sym.SDWARFINFO {
 			continue
 		}
-		ver := abiToVer(osym.ABI, r.version)
+		ver := abiToVer(osym.ABI(), r.version)
 		if t == sym.SXREF {
 			log.Fatalf("bad sxref")
 		}
@@ -2117,9 +2089,9 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 // We use this to delay populating FuncInfo until we can batch-allocate
 // slices for their sub-objects.
 type funcInfoSym struct {
-	s    *sym.Symbol // sym.Symbol for a live function
-	osym goobj2.Sym  // object file symbol data for that function
-	isym int         // global symbol index of FuncInfo aux sym for func
+	s    *sym.Symbol  // sym.Symbol for a live function
+	osym *goobj2.Sym2 // object file symbol data for that function
+	isym int          // global symbol index of FuncInfo aux sym for func
 }
 
 // funcAllocInfo records totals/counts for all functions in an objfile;
@@ -2146,19 +2118,18 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 	l.growSyms(int(symIdx))
 
 	// Read the particulars from object.
-	osym := goobj2.Sym{}
 	r, li := l.toLocal(symIdx)
-	osym.Read(r.Reader, r.SymOff(li))
-	sname := strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
-	sver := abiToVer(osym.ABI, r.version)
-	skind := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]
+	osym := r.Sym2(li)
+	sname := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
+	sver := abiToVer(osym.ABI(), r.version)
+	skind := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
 
 	// Create new symbol, update version and kind.
 	pi := l.newPayload(sname, sver)
 	pp := l.payloads[pi]
 	pp.kind = skind
 	pp.ver = sver
-	pp.size = int64(osym.Siz)
+	pp.size = int64(osym.Siz())
 	pp.objidx = r.objidx
 
 	// If this is a def, then copy the guts. We expect this case
@@ -2346,8 +2317,7 @@ func loadObjFull(l *Loader, r *oReader) {
 			isdup = true
 		}
 
-		osym := goobj2.Sym{}
-		osym.ReadWithoutName(r.Reader, r.SymOff(i))
+		osym := r.Sym2(i)
 		dupok := osym.Dupok()
 		if dupok && isdup {
 			if l.attrReachable.Has(gi) {
@@ -2372,7 +2342,7 @@ func loadObjFull(l *Loader, r *oReader) {
 
 		local := osym.Local()
 		makeTypelink := osym.Typelink()
-		size := osym.Siz
+		size := osym.Siz()
 
 		// Symbol data
 		s.P = r.Data(i)
@@ -2655,9 +2625,8 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 			if !l.attrReachable.Has(gi) {
 				continue
 			}
-			osym := goobj2.Sym{}
-			osym.ReadWithoutName(r.Reader, r.SymOff(i))
-			st := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]
+			osym := r.Sym2(i)
+			st := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
 			if st != sym.STEXT {
 				continue
 			}
