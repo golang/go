@@ -47,3 +47,34 @@ func _() {
 	var m map[int]int
 	Equal(m, nil)
 }
+
+// If we have a receiver of pointer type (below: *T) we must ignore
+// the pointer in the implementation of the method lookup because
+// the type bound of T is an interface an pointer to interface types
+// have no methods and then the lookup would fail.
+contract C(T) {
+    T m()
+}
+
+// using contract C
+func _(type T C)(x *T) {
+	x.m()
+}
+
+// using an interface as bound
+func _(type T interface{ m() })(x *T) {
+	x.m()
+}
+
+// This is the original (simplified) program causing the same issue.
+type GraphP(type Node, Edge GP) struct {
+	nodes []*Node
+}
+
+contract GP(Node, Edge) {
+	Node Edges() []*Edge
+}
+
+func (g *GraphP(Node, Edge)) Edges(n *Node) []*Edge {
+	return n.Edges()
+}

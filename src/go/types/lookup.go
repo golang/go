@@ -82,7 +82,17 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 		return // blank fields/methods are never found
 	}
 
-	typ, isPtr := derefUnpack(T)
+	typ, isPtr := deref(T)
+
+	// If we have a type parameter, ignore isPtr otherwise we would
+	// return immediately below since the type parameter bound is an
+	// interface. This is needed for methods on variables that are
+	// pointers to values of type parameter type.
+	// TODO(gri) Should this be done in derefUnpack?
+	if tpar, _ := typ.(*TypeParam); tpar != nil {
+		typ = tpar.bound
+		isPtr = false
+	}
 
 	// *typ where typ is an interface has no methods.
 	if isPtr && IsInterface(typ) {
@@ -166,6 +176,9 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 					// this depth, f.typ appears multiple times at the next
 					// depth.
 					if obj == nil && f.embedded {
+						// TODO(gri) investigate derefUnpack here (see
+						// comment in the beginning on unpacking type
+						// parameters).
 						typ, isPtr := derefUnpack(f.typ)
 						// TODO(gri) optimization: ignore types that can't
 						// have fields or methods (only Named, Struct, and
@@ -409,8 +422,7 @@ func deref(typ Type) (Type, bool) {
 	return typ, false
 }
 
-// derefUnpack is like deref but it also unpacks type parameters
-// and parameterized types.
+// derefUnpack is like deref but it also unpacks type parameters.
 func derefUnpack(typ Type) (Type, bool) {
 	typ, ptr := deref(typ)
 	if tpar, _ := typ.(*TypeParam); tpar != nil {

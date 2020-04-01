@@ -4,6 +4,7 @@ so we have a better track record. I only switched to this file in Nov 2019, henc
 ----------------------------------------------------------------------------------------------------
 TODO
 
+- revisit all uses of derefUnpack in lookup.go (see local comments); create test cases
 - implement type-checking for type parameters with pointer designation in contracts
 - figure out how to translate methods with pointer designation into interface bounds
 - review use of Contract.TParams field - it seems like it's only needed for length checks?
