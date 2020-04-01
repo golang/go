@@ -11,7 +11,7 @@ import (
 
 const internalDefinition = `
 -- go.mod --
-module mod
+module mod.com
 
 go 1.12
 -- main.go --
@@ -43,7 +43,7 @@ func TestGoToInternalDefinition(t *testing.T) {
 
 const stdlibDefinition = `
 -- go.mod --
-module mod
+module mod.com
 
 go 1.12
 -- main.go --
@@ -58,7 +58,7 @@ func main() {
 	fmt.Println(time.Now())
 }`
 
-func TestGoToStdlibDefinition(t *testing.T) {
+func TestGoToStdlibDefinition_Issue37045(t *testing.T) {
 	runner.Run(t, stdlibDefinition, func(env *Env) {
 		env.OpenFile("main.go")
 		name, pos := env.GoToDefinition("main.go", env.RegexpSearch("main.go", "Now"))

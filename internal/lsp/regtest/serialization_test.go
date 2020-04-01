@@ -13,7 +13,7 @@ import (
 
 const simpleProgram = `
 -- go.mod --
-module mod
+module mod.com
 
 go 1.12
 -- main.go --

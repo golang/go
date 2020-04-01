@@ -92,7 +92,7 @@ func TestDiagnosticClearingOnEdit(t *testing.T) {
 	})
 }
 
-func TestDiagnosticClearingOnDelete(t *testing.T) {
+func TestDiagnosticClearingOnDelete_Issue37049(t *testing.T) {
 	runner.Run(t, badPackage, func(env *Env) {
 		env.OpenFile("a.go")
 		env.Await(env.DiagnosticAtRegexp("a.go", "a = 1"), env.DiagnosticAtRegexp("b.go", "a = 2"))
