@@ -26,17 +26,16 @@ import (
 //    }
 //
 //    Strings [...]struct {
-//       Len  uint32
 //       Data [...]byte
 //    }
 //
-//    Autolib  [...]stringOff // imported packages (for file loading) // TODO: add fingerprints
-//    PkgIndex [...]stringOff // referenced packages by index
+//    Autolib  [...]string // imported packages (for file loading) // TODO: add fingerprints
+//    PkgIndex [...]string // referenced packages by index
 //
-//    DwarfFiles [...]stringOff
+//    DwarfFiles [...]string
 //
 //    SymbolDefs [...]struct {
-//       Name stringOff
+//       Name string
 //       ABI  uint16
 //       Type uint8
 //       Flag uint8
@@ -69,8 +68,8 @@ import (
 //    Data   [...]byte
 //    Pcdata [...]byte
 //
-// stringOff is a uint32 (?) offset that points to the corresponding
-// string, which is a uint32 length followed by that number of bytes.
+// string is encoded as is a uint32 length followed by a uint32 offset
+// that points to the corresponding string bytes.
 //
 // symRef is struct { PkgIdx, SymIdx uint32 }.
 //
@@ -117,6 +116,8 @@ import (
 // symbols. They are described in the Aux block. See Aux struct below.
 // Currently a symbol's Gotype and FuncInfo are auxiliary symbols. We
 // may make use of aux symbols in more cases, e.g. DWARF symbols.
+
+const stringRefSize = 8 // two uint32s
 
 // Package Index.
 const (
@@ -219,28 +220,28 @@ func (s *Sym) Write(w *Writer) {
 
 func (s *Sym) Read(r *Reader, off uint32) {
 	s.Name = r.StringRef(off)
-	s.ABI = r.uint16At(off + 4)
-	s.Type = r.uint8At(off + 6)
-	s.Flag = r.uint8At(off + 7)
-	s.Siz = r.uint32At(off + 8)
+	s.ABI = r.uint16At(off + 8)
+	s.Type = r.uint8At(off + 10)
+	s.Flag = r.uint8At(off + 11)
+	s.Siz = r.uint32At(off + 12)
 }
 
 // Read fields other than the symbol name. The name is not necessary
 // in some cases, and most of the time spent in Read is reading the
 // name.
 func (s *Sym) ReadWithoutName(r *Reader, off uint32) {
-	s.ABI = r.uint16At(off + 4)
-	s.Type = r.uint8At(off + 6)
-	s.Flag = r.uint8At(off + 7)
-	s.Siz = r.uint32At(off + 8)
+	s.ABI = r.uint16At(off + 8)
+	s.Type = r.uint8At(off + 10)
+	s.Flag = r.uint8At(off + 11)
+	s.Siz = r.uint32At(off + 12)
 }
 
 func (s *Sym) ReadFlag(r *Reader, off uint32) {
-	s.Flag = r.uint8At(off + 7)
+	s.Flag = r.uint8At(off + 11)
 }
 
 func (s *Sym) Size() int {
-	return 4 + 2 + 1 + 1 + 4
+	return stringRefSize + 2 + 1 + 1 + 4
 }
 
 func (s *Sym) Dupok() bool         { return s.Flag&SymFlagDupok != 0 }
@@ -400,7 +401,6 @@ func (w *Writer) AddString(s string) {
 		return
 	}
 	w.stringMap[s] = w.off
-	w.Uint32(uint32(len(s)))
 	w.RawString(s)
 }
 
@@ -409,6 +409,7 @@ func (w *Writer) StringRef(s string) {
 	if !ok {
 		panic(fmt.Sprintf("writeStringRef: string not added: %q", s))
 	}
+	w.Uint32(uint32(len(s)))
 	w.Uint32(off)
 }
 
@@ -506,9 +507,8 @@ func (r *Reader) uint8At(off uint32) uint8 {
 	return b[0]
 }
 
-func (r *Reader) StringAt(off uint32) string {
-	l := r.uint32At(off)
-	b := r.b[off+4 : off+4+l]
+func (r *Reader) StringAt(off uint32, len uint32) string {
+	b := r.b[off : off+len]
 	if r.readonly {
 		return toString(b) // backed by RO memory, ok to make unsafe string
 	}
@@ -530,44 +530,45 @@ func toString(b []byte) string {
 }
 
 func (r *Reader) StringRef(off uint32) string {
-	return r.StringAt(r.uint32At(off))
+	l := r.uint32At(off)
+	return r.StringAt(r.uint32At(off+4), l)
 }
 
 func (r *Reader) Autolib() []string {
-	n := (r.h.Offsets[BlkAutolib+1] - r.h.Offsets[BlkAutolib]) / 4
+	n := (r.h.Offsets[BlkAutolib+1] - r.h.Offsets[BlkAutolib]) / stringRefSize
 	s := make([]string, n)
 	for i := range s {
-		off := r.h.Offsets[BlkAutolib] + uint32(i)*4
+		off := r.h.Offsets[BlkAutolib] + uint32(i)*stringRefSize
 		s[i] = r.StringRef(off)
 	}
 	return s
 }
 
 func (r *Reader) Pkglist() []string {
-	n := (r.h.Offsets[BlkPkgIdx+1] - r.h.Offsets[BlkPkgIdx]) / 4
+	n := (r.h.Offsets[BlkPkgIdx+1] - r.h.Offsets[BlkPkgIdx]) / stringRefSize
 	s := make([]string, n)
 	for i := range s {
-		off := r.h.Offsets[BlkPkgIdx] + uint32(i)*4
+		off := r.h.Offsets[BlkPkgIdx] + uint32(i)*stringRefSize
 		s[i] = r.StringRef(off)
 	}
 	return s
 }
 
 func (r *Reader) NPkg() int {
-	return int(r.h.Offsets[BlkPkgIdx+1]-r.h.Offsets[BlkPkgIdx]) / 4
+	return int(r.h.Offsets[BlkPkgIdx+1]-r.h.Offsets[BlkPkgIdx]) / stringRefSize
 }
 
 func (r *Reader) Pkg(i int) string {
-	off := r.h.Offsets[BlkPkgIdx] + uint32(i)*4
+	off := r.h.Offsets[BlkPkgIdx] + uint32(i)*stringRefSize
 	return r.StringRef(off)
 }
 
 func (r *Reader) NDwarfFile() int {
-	return int(r.h.Offsets[BlkDwarfFile+1]-r.h.Offsets[BlkDwarfFile]) / 4
+	return int(r.h.Offsets[BlkDwarfFile+1]-r.h.Offsets[BlkDwarfFile]) / stringRefSize
 }
 
 func (r *Reader) DwarfFile(i int) string {
-	off := r.h.Offsets[BlkDwarfFile] + uint32(i)*4
+	off := r.h.Offsets[BlkDwarfFile] + uint32(i)*stringRefSize
 	return r.StringRef(off)
 }
 
