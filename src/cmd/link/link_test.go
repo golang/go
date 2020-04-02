@@ -471,3 +471,73 @@ func TestOldLink(t *testing.T) {
 		t.Errorf("%v: %v:\n%s", cmd.Args, err, out)
 	}
 }
+
+const testFuncAlignSrc = `
+package main
+import (
+	"fmt"
+	"reflect"
+)
+func alignPc()
+
+func main() {
+	addr := reflect.ValueOf(alignPc).Pointer()
+	if (addr % 512) != 0 {
+		fmt.Printf("expected 512 bytes alignment, got %v\n", addr)
+	} else {
+		fmt.Printf("PASS")
+	}
+}
+`
+
+const testFuncAlignAsmSrc = `
+#include "textflag.h"
+
+TEXT	·alignPc(SB),NOSPLIT, $0-0
+	MOVD	$2, R0
+	PCALIGN	$512
+	MOVD	$3, R1
+	RET
+`
+
+// TestFuncAlign verifies that the address of a function can be aligned
+// with a specfic value on arm64.
+func TestFuncAlign(t *testing.T) {
+	if runtime.GOARCH != "arm64" || runtime.GOOS != "linux" {
+		t.Skip("skipping on non-linux/arm64 platform")
+	}
+	testenv.MustHaveGoBuild(t)
+
+	tmpdir, err := ioutil.TempDir("", "TestFuncAlign")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "falign.go")
+	err = ioutil.WriteFile(src, []byte(testFuncAlignSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src = filepath.Join(tmpdir, "falign.s")
+	err = ioutil.WriteFile(src, []byte(testFuncAlignAsmSrc), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Build and run with old object file format.
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-o", "falign")
+	cmd.Dir = tmpdir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("build failed: %v", err)
+	}
+	cmd = exec.Command(tmpdir + "/falign")
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Errorf("failed to run with err %v, output: %s", err, out)
+	}
+	if string(out) != "PASS" {
+		t.Errorf("unexpected output: %s\n", out)
+	}
+}

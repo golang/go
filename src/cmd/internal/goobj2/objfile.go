@@ -186,11 +186,12 @@ func (h *Header) Size() int {
 
 // Symbol definition.
 type Sym struct {
-	Name string
-	ABI  uint16
-	Type uint8
-	Flag uint8
-	Siz  uint32
+	Name  string
+	ABI   uint16
+	Type  uint8
+	Flag  uint8
+	Siz   uint32
+	Align uint32
 }
 
 const SymABIstatic = ^uint16(0)
@@ -216,9 +217,10 @@ func (s *Sym) Write(w *Writer) {
 	w.Uint8(s.Type)
 	w.Uint8(s.Flag)
 	w.Uint32(s.Siz)
+	w.Uint32(s.Align)
 }
 
-const SymSize = stringRefSize + 2 + 1 + 1 + 4
+const SymSize = stringRefSize + 2 + 1 + 1 + 4 + 4
 
 type Sym2 [SymSize]byte
 
@@ -228,10 +230,11 @@ func (s *Sym2) Name(r *Reader) string {
 	return r.StringAt(off, len)
 }
 
-func (s *Sym2) ABI() uint16 { return binary.LittleEndian.Uint16(s[8:]) }
-func (s *Sym2) Type() uint8 { return s[10] }
-func (s *Sym2) Flag() uint8 { return s[11] }
-func (s *Sym2) Siz() uint32 { return binary.LittleEndian.Uint32(s[12:]) }
+func (s *Sym2) ABI() uint16   { return binary.LittleEndian.Uint16(s[8:]) }
+func (s *Sym2) Type() uint8   { return s[10] }
+func (s *Sym2) Flag() uint8   { return s[11] }
+func (s *Sym2) Siz() uint32   { return binary.LittleEndian.Uint32(s[12:]) }
+func (s *Sym2) Align() uint32 { return binary.LittleEndian.Uint32(s[16:]) }
 
 func (s *Sym2) Dupok() bool         { return s.Flag()&SymFlagDupok != 0 }
 func (s *Sym2) Local() bool         { return s.Flag()&SymFlagLocal != 0 }

@@ -244,12 +244,17 @@ func (w *writer) Sym(s *LSym) {
 	if strings.HasPrefix(name, "gofile..") {
 		name = filepath.ToSlash(name)
 	}
+	var align uint32
+	if s.Func != nil {
+		align = uint32(s.Func.Align)
+	}
 	o := goobj2.Sym{
-		Name: name,
-		ABI:  abi,
-		Type: uint8(s.Type),
-		Flag: flag,
-		Siz:  uint32(s.Size),
+		Name:  name,
+		ABI:   abi,
+		Type:  uint8(s.Type),
+		Flag:  flag,
+		Siz:   uint32(s.Size),
+		Align: align,
 	}
 	o.Write(w.Writer)
 }

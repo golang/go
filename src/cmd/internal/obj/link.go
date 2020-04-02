@@ -398,6 +398,7 @@ type LSym struct {
 type FuncInfo struct {
 	Args     int32
 	Locals   int32
+	Align    int32
 	Text     *Prog
 	Autot    map[*LSym]struct{}
 	Pcln     Pcln
