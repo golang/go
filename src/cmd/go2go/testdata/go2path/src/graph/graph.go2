@@ -27,6 +27,9 @@ func New(type Node, Edge G)(nodes []Node) *Graph(Node, Edge) {
 	return &Graph(Node, Edge){nodes: nodes}
 }
 
+// nodePath holds the path to a node during ShortestPath.
+// This should ideally be a type defined inside ShortestPath,
+// but the translator tool doesn't support that.
 type nodePath(type Node, Edge G) struct {
 	node Node
 	path []Edge
@@ -56,6 +59,64 @@ func (g *Graph(Node, Edge)) ShortestPath(from, to Node) ([]Edge, error) {
 						return ve, nil
 					}
 					workqueue = append(workqueue, nodePath(Node, Edge){a, ve})
+					visited[a] = true
+				}
+			}
+		}
+	}
+	return nil, errors.New("no path")
+}
+
+// GraphP is a version of Grgaph that uses pointers. This is for testing.
+// I'm not sure which approach will be better in practice, or whether
+// this indicates a problem with the draft design.
+type GraphP(type Node, Edge GP) struct {
+	nodes []*Node
+}
+
+// GP is the contract that the GraphP Node and Edge types must implement.
+contract GP(Node, Edge) {
+	Node Edges() []*Edge
+	Edge Nodes() (a, b *Node)
+}
+
+// NewP creates a new GraphP from a collection of Nodes.
+func NewP(type Node, Edge GP)(nodes []*Node) *GraphP(Node, Edge) {
+	return &GraphP(Node, Edge){nodes: nodes}
+}
+
+// nodePathP holds the path to a node during ShortestPath.
+// This should ideally be a type defined inside ShortestPath,
+// but the translator tool doesn't support that.
+type nodePathP(type Node, Edge GP) struct {
+	node *Node
+	path []*Edge
+}
+
+// ShortestPath returns the shortest path between two nodes,
+// as an ordered list of edges. If there are multiple shortest paths,
+// which one is returned is unpredictable.
+func (g *GraphP(Node, Edge)) ShortestPath(from, to *Node) ([]*Edge, error) {
+	visited := make(map[*Node]bool)
+	visited[from] = true
+	workqueue := [](nodePathP(Node, Edge)){nodePathP(Node, Edge){from, nil}}
+	for len(workqueue) > 0 {
+		current := workqueue
+		workqueue = nil
+		for _, np := range current {
+			edges := np.node.Edges()
+			for _, edge := range edges {
+				a, b := edge.Nodes()
+				if a == np.node {
+					a = b
+				}
+				if !visited[a] {
+					ve := append([]*Edge(nil), np.path...)
+					ve = append(ve, edge)
+					if a == to {
+						return ve, nil
+					}
+					workqueue = append(workqueue, nodePathP(Node, Edge){a, ve})
 					visited[a] = true
 				}
 			}

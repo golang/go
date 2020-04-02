@@ -27,17 +27,17 @@ const (
 )
 
 func (dir direction) String() string {
-	strs := map[direction]string {
+	strs := map[direction]string{
 		north: "north",
-		ne: "ne",
-		east: "east",
-		se: "se",
+		ne:    "ne",
+		east:  "east",
+		se:    "se",
 		south: "south",
-		sw: "sw",
-		west: "west",
-		nw: "nw",
-		up: "up",
-		down: "down",
+		sw:    "sw",
+		west:  "west",
+		nw:    "nw",
+		up:    "up",
+		down:  "down",
 	}
 	if str, ok := strs[dir]; ok {
 		return str
@@ -52,7 +52,7 @@ type mazeRoom struct {
 
 type mazeEdge struct {
 	from, to int
-	dir   direction
+	dir      direction
 }
 
 // Edges returns the exits from the room.
@@ -62,8 +62,8 @@ func (m mazeRoom) Edges() []mazeEdge {
 		if exit != 0 {
 			r = append(r, mazeEdge{
 				from: m.index,
-				to: exit,
-				dir: direction(i),
+				to:   exit,
+				dir:  direction(i),
 			})
 		}
 	}
@@ -86,26 +86,26 @@ func (e mazeEdge) Nodes() (mazeRoom, mazeRoom) {
 // The first maze in Zork. Room indexes based on original Fortran data file.
 // You are in a maze of twisty little passages, all alike.
 var zork = map[int]mazeRoom{
-	11: { exits: [10]int{north: 11, south: 12, east: 14} }, // west to Troll Room
-	12: { exits: [10]int{south: 11, north: 14, east: 13} },
-	13: { exits: [10]int{west: 12, north: 14, up: 16 } },
-	14: { exits: [10]int{west: 13, north: 11, east: 15 } },
-	15: { exits: [10]int{south: 14 } }, // Dead End
-	16: { exits: [10]int{east: 17, north: 13, sw: 18 } }, // skeleton, etc.
-	17: { exits: [10]int{west: 16 } }, // Dead End
-	18: { exits: [10]int{down: 16, east: 19, west: 18, up: 22 } },
-	19: { exits: [10]int{up: 29, west: 18, ne: 15, east: 20, south: 30 } },
-	20: { exits: [10]int{ne: 19, west: 20, se: 21 } },
-	21: { exits: [10]int{north: 20 } }, // Dead End
-	22: { exits: [10]int{north: 18, east: 24, down: 23, south: 28, west: 26, nw: 22 } },
-	23: { exits: [10]int{east: 22, west: 28, up: 24 } },
-	24: { exits: [10]int{ne: 25, down: 23, nw: 28, sw: 26 } },
-	25: { exits: [10]int{sw: 24 } }, // Grating room (up to Clearing)
-	26: { exits: [10]int{west: 16, sw: 24, east: 28, up: 22, north: 27 } },
-	27: { exits: [10]int{south: 26 } }, // Dead End
-	28: { exits: [10]int{east: 22, down: 26, south: 23, west: 24 } },
-	29: { exits: [10]int{west: 30, nw: 29, ne: 19, south: 19 } },
-	30: { exits: [10]int{west: 29, south: 19 } }, // ne to Cyclops Room
+	11: {exits: [10]int{north: 11, south: 12, east: 14}}, // west to Troll Room
+	12: {exits: [10]int{south: 11, north: 14, east: 13}},
+	13: {exits: [10]int{west: 12, north: 14, up: 16}},
+	14: {exits: [10]int{west: 13, north: 11, east: 15}},
+	15: {exits: [10]int{south: 14}},                   // Dead End
+	16: {exits: [10]int{east: 17, north: 13, sw: 18}}, // skeleton, etc.
+	17: {exits: [10]int{west: 16}},                    // Dead End
+	18: {exits: [10]int{down: 16, east: 19, west: 18, up: 22}},
+	19: {exits: [10]int{up: 29, west: 18, ne: 15, east: 20, south: 30}},
+	20: {exits: [10]int{ne: 19, west: 20, se: 21}},
+	21: {exits: [10]int{north: 20}}, // Dead End
+	22: {exits: [10]int{north: 18, east: 24, down: 23, south: 28, west: 26, nw: 22}},
+	23: {exits: [10]int{east: 22, west: 28, up: 24}},
+	24: {exits: [10]int{ne: 25, down: 23, nw: 28, sw: 26}},
+	25: {exits: [10]int{sw: 24}}, // Grating room (up to Clearing)
+	26: {exits: [10]int{west: 16, sw: 24, east: 28, up: 22, north: 27}},
+	27: {exits: [10]int{south: 26}}, // Dead End
+	28: {exits: [10]int{east: 22, down: 26, south: 23, west: 24}},
+	29: {exits: [10]int{west: 30, nw: 29, ne: 19, south: 19}},
+	30: {exits: [10]int{west: 29, south: 19}}, // ne to Cyclops Room
 }
 
 func TestShortestPath(t *testing.T) {
@@ -129,6 +129,74 @@ func TestShortestPath(t *testing.T) {
 	}
 	g := New(mazeRoom, mazeEdge)(nodes)
 	path, err := g.ShortestPath(zork[11], zork[30])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var steps []direction
+	for _, edge := range path {
+		steps = append(steps, edge.dir)
+	}
+	want := []direction{east, west, up, sw, east, south}
+	if !slices.Equal(steps, want) {
+		t.Errorf("ShortestPath returned %v, want %v", steps, want)
+	}
+}
+
+// A version of the above using pointer types.
+
+var zorkP = make(map[int]*mazeRoomP)
+
+type mazeRoomP struct {
+	index int
+	exits [10]int
+}
+
+type mazeEdgeP struct {
+	from, to int
+	dir      direction
+}
+
+func (m *mazeRoomP) Edges() []*mazeEdgeP {
+	var r []*mazeEdgeP
+	for i, exit := range m.exits {
+		if exit != 0 {
+			r = append(r, &mazeEdgeP{
+				from: m.index,
+				to:   exit,
+				dir:  direction(i),
+			})
+		}
+	}
+	return r
+}
+
+func (e *mazeEdgeP) Nodes() (*mazeRoomP, *mazeRoomP) {
+	m1, ok := zorkP[e.from]
+	if !ok {
+		panic("bad edge")
+	}
+	m2, ok := zorkP[e.to]
+	if !ok {
+		panic("bad edge")
+	}
+	return m1, m2
+}
+
+func TestShortestPathP(t *testing.T) {
+	var nodes []*mazeRoomP
+	var start, stop *mazeRoomP
+	for k, v := range zork {
+		mr := &mazeRoomP{index: k, exits: v.exits}
+		zorkP[k] = mr
+		nodes = append(nodes, mr)
+		if k == 11 {
+			start = mr
+		} else if k == 30 {
+			stop = mr
+		}
+	}
+	g := NewP(mazeRoomP, mazeEdgeP)(nodes)
+	path, err := g.ShortestPath(start, stop)
 	if err != nil {
 		t.Fatal(err)
 	}
