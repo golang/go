@@ -1047,6 +1047,9 @@ func (c *completer) lexical() error {
 }
 
 func (c *completer) unimportedPackages(seen map[string]struct{}) error {
+	ctx, cancel := c.deepCompletionContext()
+	defer cancel()
+
 	prefix := ""
 	if c.surrounding != nil {
 		prefix = c.surrounding.Prefix()
@@ -1067,7 +1070,7 @@ func (c *completer) unimportedPackages(seen map[string]struct{}) error {
 
 	var relevances map[string]int
 	if len(paths) != 0 {
-		c.snapshot.View().RunProcessEnvFunc(c.ctx, func(opts *imports.Options) error {
+		c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
 			relevances = imports.ScoreImportPaths(c.ctx, opts.Env, paths)
 			return nil
 		})
@@ -1093,8 +1096,6 @@ func (c *completer) unimportedPackages(seen map[string]struct{}) error {
 		}
 	}
 
-	ctx, cancel := c.deepCompletionContext()
-	defer cancel()
 	var mu sync.Mutex
 	add := func(pkg imports.ImportFix) {
 		mu.Lock()

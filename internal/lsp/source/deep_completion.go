@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-// Limit deep completion results because in most cases there are too many
-// to be useful.
+// MaxDeepCompletions limits deep completion results because in most cases
+// there are too many to be useful.
 const MaxDeepCompletions = 3
 
 // deepCompletionState stores our state as we search for deep completions.
