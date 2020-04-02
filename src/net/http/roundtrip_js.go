@@ -157,7 +157,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
 	})
 	defer success.Release()
 	failure := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		err := fmt.Errorf("net/http: fetch() failed: %s", args[0].String())
+		err := fmt.Errorf("net/http: fetch() failed: %s", args[0].Get("message").String())
 		select {
 		case errCh <- err:
 		case <-req.Context().Done():

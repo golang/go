@@ -49,7 +49,7 @@ func (reporter *ErrorReporter) errorUnresolved(s *sym.Symbol, r *sym.Reloc) {
 				if v == -1 {
 					continue
 				}
-				if rs := reporter.lookup(r.Sym.Name, v); rs != nil && rs.Type != sym.Sxxx {
+				if rs := reporter.lookup(r.Sym.Name, v); rs != nil && rs.Type != sym.Sxxx && rs.Type != sym.SXREF {
 					haveABI = abi
 				}
 			}

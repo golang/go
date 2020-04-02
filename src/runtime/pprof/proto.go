@@ -322,7 +322,10 @@ func (b *profileBuilder) addCPUData(data []uint64, tags []unsafe.Pointer) error 
 			// overflow record
 			count = uint64(stk[0])
 			stk = []uint64{
-				uint64(funcPC(lostProfileEvent)),
+				// gentraceback guarantees that PCs in the
+				// stack can be unconditionally decremented and
+				// still be valid, so we must do the same.
+				uint64(funcPC(lostProfileEvent)+1),
 			}
 		}
 		b.m.lookup(stk, tag).count += int64(count)

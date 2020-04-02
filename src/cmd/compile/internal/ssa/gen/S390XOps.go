@@ -630,6 +630,7 @@ func init() {
 			asm:            "STMG",
 			faultOnNilArg0: true,
 			symEffect:      "Write",
+			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
 		},
 		{
 			name:           "STMG3",
@@ -640,6 +641,7 @@ func init() {
 			asm:            "STMG",
 			faultOnNilArg0: true,
 			symEffect:      "Write",
+			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
 		},
 		{
 			name:      "STMG4",
@@ -657,6 +659,7 @@ func init() {
 			asm:            "STMG",
 			faultOnNilArg0: true,
 			symEffect:      "Write",
+			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
 		},
 		{
 			name:           "STM2",
@@ -667,6 +670,7 @@ func init() {
 			asm:            "STMY",
 			faultOnNilArg0: true,
 			symEffect:      "Write",
+			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
 		},
 		{
 			name:           "STM3",
@@ -677,6 +681,7 @@ func init() {
 			asm:            "STMY",
 			faultOnNilArg0: true,
 			symEffect:      "Write",
+			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
 		},
 		{
 			name:      "STM4",
@@ -694,6 +699,7 @@ func init() {
 			asm:            "STMY",
 			faultOnNilArg0: true,
 			symEffect:      "Write",
+			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
 		},
 
 		// large move

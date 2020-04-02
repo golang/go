@@ -576,6 +576,16 @@ const (
 
 	// Pseudo-instructions.  These get translated by the assembler into other
 	// instructions, based on their operands.
+	ABEQZ
+	ABGEZ
+	ABGT
+	ABGTU
+	ABGTZ
+	ABLE
+	ABLEU
+	ABLEZ
+	ABLTZ
+	ABNEZ
 	AFNEGD
 	AFNEGS
 	AFNED

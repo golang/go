@@ -50,6 +50,14 @@ func rewriteValuegeneric(v *Value) bool {
 		return rewriteValuegeneric_OpConstString(v)
 	case OpConvert:
 		return rewriteValuegeneric_OpConvert(v)
+	case OpCtz16:
+		return rewriteValuegeneric_OpCtz16(v)
+	case OpCtz32:
+		return rewriteValuegeneric_OpCtz32(v)
+	case OpCtz64:
+		return rewriteValuegeneric_OpCtz64(v)
+	case OpCtz8:
+		return rewriteValuegeneric_OpCtz8(v)
 	case OpCvt32Fto32:
 		return rewriteValuegeneric_OpCvt32Fto32(v)
 	case OpCvt32Fto64:
@@ -3983,7 +3991,7 @@ func rewriteValuegeneric_OpConvert(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Convert (Add64 (Convert ptr mem) off) mem)
-	// result: (Add64 ptr off)
+	// result: (AddPtr ptr off)
 	for {
 		if v_0.Op != OpAdd64 {
 			break
@@ -4001,14 +4009,14 @@ func rewriteValuegeneric_OpConvert(v *Value) bool {
 			if mem != v_1 {
 				continue
 			}
-			v.reset(OpAdd64)
+			v.reset(OpAddPtr)
 			v.AddArg2(ptr, off)
 			return true
 		}
 		break
 	}
 	// match: (Convert (Add32 (Convert ptr mem) off) mem)
-	// result: (Add32 ptr off)
+	// result: (AddPtr ptr off)
 	for {
 		if v_0.Op != OpAdd32 {
 			break
@@ -4026,7 +4034,7 @@ func rewriteValuegeneric_OpConvert(v *Value) bool {
 			if mem != v_1 {
 				continue
 			}
-			v.reset(OpAdd32)
+			v.reset(OpAddPtr)
 			v.AddArg2(ptr, off)
 			return true
 		}
@@ -4044,6 +4052,150 @@ func rewriteValuegeneric_OpConvert(v *Value) bool {
 			break
 		}
 		v.copyOf(ptr)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpCtz16(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	config := b.Func.Config
+	// match: (Ctz16 (Const16 [c]))
+	// cond: config.PtrSize == 4
+	// result: (Const32 [ntz16(c)])
+	for {
+		if v_0.Op != OpConst16 {
+			break
+		}
+		c := v_0.AuxInt
+		if !(config.PtrSize == 4) {
+			break
+		}
+		v.reset(OpConst32)
+		v.AuxInt = ntz16(c)
+		return true
+	}
+	// match: (Ctz16 (Const16 [c]))
+	// cond: config.PtrSize == 8
+	// result: (Const64 [ntz16(c)])
+	for {
+		if v_0.Op != OpConst16 {
+			break
+		}
+		c := v_0.AuxInt
+		if !(config.PtrSize == 8) {
+			break
+		}
+		v.reset(OpConst64)
+		v.AuxInt = ntz16(c)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpCtz32(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	config := b.Func.Config
+	// match: (Ctz32 (Const32 [c]))
+	// cond: config.PtrSize == 4
+	// result: (Const32 [ntz32(c)])
+	for {
+		if v_0.Op != OpConst32 {
+			break
+		}
+		c := v_0.AuxInt
+		if !(config.PtrSize == 4) {
+			break
+		}
+		v.reset(OpConst32)
+		v.AuxInt = ntz32(c)
+		return true
+	}
+	// match: (Ctz32 (Const32 [c]))
+	// cond: config.PtrSize == 8
+	// result: (Const64 [ntz32(c)])
+	for {
+		if v_0.Op != OpConst32 {
+			break
+		}
+		c := v_0.AuxInt
+		if !(config.PtrSize == 8) {
+			break
+		}
+		v.reset(OpConst64)
+		v.AuxInt = ntz32(c)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpCtz64(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	config := b.Func.Config
+	// match: (Ctz64 (Const64 [c]))
+	// cond: config.PtrSize == 4
+	// result: (Const32 [ntz(c)])
+	for {
+		if v_0.Op != OpConst64 {
+			break
+		}
+		c := v_0.AuxInt
+		if !(config.PtrSize == 4) {
+			break
+		}
+		v.reset(OpConst32)
+		v.AuxInt = ntz(c)
+		return true
+	}
+	// match: (Ctz64 (Const64 [c]))
+	// cond: config.PtrSize == 8
+	// result: (Const64 [ntz(c)])
+	for {
+		if v_0.Op != OpConst64 {
+			break
+		}
+		c := v_0.AuxInt
+		if !(config.PtrSize == 8) {
+			break
+		}
+		v.reset(OpConst64)
+		v.AuxInt = ntz(c)
+		return true
+	}
+	return false
+}
+func rewriteValuegeneric_OpCtz8(v *Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	config := b.Func.Config
+	// match: (Ctz8 (Const8 [c]))
+	// cond: config.PtrSize == 4
+	// result: (Const32 [ntz8(c)])
+	for {
+		if v_0.Op != OpConst8 {
+			break
+		}
+		c := v_0.AuxInt
+		if !(config.PtrSize == 4) {
+			break
+		}
+		v.reset(OpConst32)
+		v.AuxInt = ntz8(c)
+		return true
+	}
+	// match: (Ctz8 (Const8 [c]))
+	// cond: config.PtrSize == 8
+	// result: (Const64 [ntz8(c)])
+	for {
+		if v_0.Op != OpConst8 {
+			break
+		}
+		c := v_0.AuxInt
+		if !(config.PtrSize == 8) {
+			break
+		}
+		v.reset(OpConst64)
+		v.AuxInt = ntz8(c)
 		return true
 	}
 	return false

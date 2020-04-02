@@ -1543,6 +1543,37 @@ func TestConnTx(t *testing.T) {
 	}
 }
 
+// TestConnIsValid verifies that a database connection that should be discarded,
+// is actually discarded and does not re-enter the connection pool.
+// If the IsValid method from *fakeConn is removed, this test will fail.
+func TestConnIsValid(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	db.SetMaxOpenConns(1)
+
+	ctx := context.Background()
+
+	c, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.Raw(func(raw interface{}) error {
+		dc := raw.(*fakeConn)
+		dc.stickyBad = true
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Close()
+
+	if len(db.freeConn) > 0 && db.freeConn[0].ci.(*fakeConn).stickyBad {
+		t.Fatal("bad connection returned to pool; expected bad connection to be discarded")
+	}
+}
+
 // Tests fix for issue 2542, that we release a lock when querying on
 // a closed connection.
 func TestIssue2542Deadlock(t *testing.T) {
