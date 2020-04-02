@@ -10,7 +10,7 @@ go list -e -f {{.Error}} ./empty
 stdout 'no Go files in \$WORK[/\\]empty'
 
 go list -e -f {{.Error}} ./exclude
-stdout 'package example.com/m/exclude: build constraints exclude all Go files in \$WORK[/\\]exclude'
+stdout 'build constraints exclude all Go files in \$WORK[/\\]exclude'
 
 go list -e -f {{.Error}} ./missing
 stdout 'stat '$WORK'[/\\]missing: directory not found'

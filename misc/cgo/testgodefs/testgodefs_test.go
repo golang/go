@@ -21,6 +21,8 @@ var filePrefixes = []string{
 	"anonunion",
 	"issue8478",
 	"fieldtypedef",
+	"issue37479",
+	"issue37621",
 }
 
 func TestGoDefs(t *testing.T) {

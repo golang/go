@@ -1172,6 +1172,18 @@ func TestTryAdd(t *testing.T) {
 			{Value: []int64{20, 20 * period}, Location: []*profile.Location{{ID: 1}}},
 		},
 	}, {
+		name: "bug38096",
+		input: []uint64{
+			3, 0, 500, // hz = 500. Must match the period.
+			// count (data[2]) == 0 && len(stk) == 1 is an overflow
+			// entry. The "stk" entry is actually the count.
+			4, 0, 0, 4242,
+		},
+		wantLocs: [][]string{{"runtime/pprof.lostProfileEvent"}},
+		wantSamples: []*profile.Sample{
+			{Value: []int64{4242, 4242 * period}, Location: []*profile.Location{{ID: 1}}},
+		},
+	}, {
 		// If a function is called recursively then it must not be
 		// inlined in the caller.
 		//

@@ -354,14 +354,13 @@ func isSmallMakeSlice(n *Node) bool {
 	if n.Op != OMAKESLICE {
 		return false
 	}
-	l := n.Left
 	r := n.Right
 	if r == nil {
-		r = l
+		r = n.Left
 	}
 	t := n.Type
 
-	return smallintconst(l) && smallintconst(r) && (t.Elem().Width == 0 || r.Int64() < maxImplicitStackVarSize/t.Elem().Width)
+	return smallintconst(r) && (t.Elem().Width == 0 || r.Int64() < maxImplicitStackVarSize/t.Elem().Width)
 }
 
 // walk the whole tree of the body of an
@@ -1338,6 +1337,20 @@ opswitch:
 			if i < 0 {
 				Fatalf("walkexpr: invalid index %v", r)
 			}
+
+			// cap is constrained to [0,2^31), so it's safe to do:
+			//
+			// if uint64(len) > cap {
+			//     if len < 0 { panicmakeslicelen() }
+			//     panicmakeslicecap()
+			// }
+			nif := nod(OIF, nod(OGT, conv(l, types.Types[TUINT64]), nodintconst(i)), nil)
+			niflen := nod(OIF, nod(OLT, l, nodintconst(0)), nil)
+			niflen.Nbody.Set1(mkcall("panicmakeslicelen", nil, init))
+			nif.Nbody.Append(niflen, mkcall("panicmakeslicecap", nil, init))
+			nif = typecheck(nif, ctxStmt)
+			init.Append(nif)
+
 			t = types.NewArray(t.Elem(), i) // [r]T
 			var_ := temp(t)
 			a := nod(OAS, var_, nil) // zero temp

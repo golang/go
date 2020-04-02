@@ -347,9 +347,10 @@ func nlz(x int64) int64 {
 }
 
 // ntz returns the number of trailing zeros.
-func ntz(x int64) int64 {
-	return int64(bits.TrailingZeros64(uint64(x)))
-}
+func ntz(x int64) int64   { return int64(bits.TrailingZeros64(uint64(x))) }
+func ntz32(x int64) int64 { return int64(bits.TrailingZeros32(uint32(x))) }
+func ntz16(x int64) int64 { return int64(bits.TrailingZeros16(uint16(x))) }
+func ntz8(x int64) int64  { return int64(bits.TrailingZeros8(uint8(x))) }
 
 func oneBit(x int64) bool {
 	return bits.OnesCount64(uint64(x)) == 1
@@ -990,7 +991,9 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 		OpAMD64ORLload, OpAMD64XORLload, OpAMD64CVTTSD2SL,
 		OpAMD64ADDL, OpAMD64ADDLconst, OpAMD64SUBL, OpAMD64SUBLconst,
 		OpAMD64ANDL, OpAMD64ANDLconst, OpAMD64ORL, OpAMD64ORLconst,
-		OpAMD64XORL, OpAMD64XORLconst, OpAMD64NEGL, OpAMD64NOTL:
+		OpAMD64XORL, OpAMD64XORLconst, OpAMD64NEGL, OpAMD64NOTL,
+		OpAMD64SHRL, OpAMD64SHRLconst, OpAMD64SARL, OpAMD64SARLconst,
+		OpAMD64SHLL, OpAMD64SHLLconst:
 		return true
 	case OpArg:
 		return x.Type.Width == 4
@@ -1248,42 +1251,27 @@ func read64(sym interface{}, off int64, byteorder binary.ByteOrder) uint64 {
 	return byteorder.Uint64(buf)
 }
 
-// same reports whether x and y are the same value.
-// It checks to a maximum depth of d, so it may report
-// a false negative.
-func same(x, y *Value, depth int) bool {
-	if x == y {
+// sequentialAddresses reports true if it can prove that x + n == y
+func sequentialAddresses(x, y *Value, n int64) bool {
+	if x.Op == Op386ADDL && y.Op == Op386LEAL1 && y.AuxInt == n && y.Aux == nil &&
+		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
+			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
 		return true
 	}
-	if depth <= 0 {
-		return false
-	}
-	if x.Op != y.Op || x.Aux != y.Aux || x.AuxInt != y.AuxInt {
-		return false
-	}
-	if len(x.Args) != len(y.Args) {
-		return false
-	}
-	if opcodeTable[x.Op].commutative {
-		// Check exchanged ordering first.
-		for i, a := range x.Args {
-			j := i
-			if j < 2 {
-				j ^= 1
-			}
-			b := y.Args[j]
-			if !same(a, b, depth-1) {
-				goto checkNormalOrder
-			}
-		}
+	if x.Op == Op386LEAL1 && y.Op == Op386LEAL1 && y.AuxInt == x.AuxInt+n && x.Aux == y.Aux &&
+		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
+			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
 		return true
-	checkNormalOrder:
 	}
-	for i, a := range x.Args {
-		b := y.Args[i]
-		if !same(a, b, depth-1) {
-			return false
-		}
+	if x.Op == OpAMD64ADDQ && y.Op == OpAMD64LEAQ1 && y.AuxInt == n && y.Aux == nil &&
+		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
+			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
+		return true
 	}
-	return true
+	if x.Op == OpAMD64LEAQ1 && y.Op == OpAMD64LEAQ1 && y.AuxInt == x.AuxInt+n && x.Aux == y.Aux &&
+		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
+			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
+		return true
+	}
+	return false
 }

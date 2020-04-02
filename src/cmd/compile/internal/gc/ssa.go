@@ -16,6 +16,7 @@ import (
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/obj/x86"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"cmd/internal/sys"
@@ -103,6 +104,20 @@ func initssaconfig() {
 	Udiv = sysvar("udiv")                 // asm func with special ABI
 	writeBarrier = sysvar("writeBarrier") // struct { bool; ... }
 	zerobaseSym = sysvar("zerobase")
+
+	// asm funcs with special ABI
+	if thearch.LinkArch.Name == "amd64" {
+		GCWriteBarrierReg = map[int16]*obj.LSym{
+			x86.REG_AX: sysvar("gcWriteBarrier"),
+			x86.REG_CX: sysvar("gcWriteBarrierCX"),
+			x86.REG_DX: sysvar("gcWriteBarrierDX"),
+			x86.REG_BX: sysvar("gcWriteBarrierBX"),
+			x86.REG_BP: sysvar("gcWriteBarrierBP"),
+			x86.REG_SI: sysvar("gcWriteBarrierSI"),
+			x86.REG_R8: sysvar("gcWriteBarrierR8"),
+			x86.REG_R9: sysvar("gcWriteBarrierR9"),
+		}
+	}
 
 	if thearch.LinkArch.Family == sys.Wasm {
 		BoundsCheckFunc[ssa.BoundsIndex] = sysvar("goPanicIndex")

@@ -512,8 +512,8 @@ func (dc *driverConn) validateConnection(needsReset bool) bool {
 	if needsReset {
 		dc.needReset = true
 	}
-	if cv, ok := dc.ci.(driver.ConnectionValidator); ok {
-		return cv.ValidConnection()
+	if cv, ok := dc.ci.(driver.Validator); ok {
+		return cv.IsValid()
 	}
 	return true
 }

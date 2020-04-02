@@ -18,6 +18,7 @@ func newobject(typ *byte) *any
 func panicdivide()
 func panicshift()
 func panicmakeslicelen()
+func panicmakeslicecap()
 func throwinit()
 func panicwrap()
 

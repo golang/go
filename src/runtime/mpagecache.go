@@ -115,7 +115,7 @@ func (s *pageAlloc) allocToCache() pageCache {
 		// Fast path: there's free pages at or near the searchAddr address.
 		chunk := s.chunkOf(ci)
 		j, _ := chunk.find(1, chunkPageIndex(s.searchAddr))
-		if j < 0 {
+		if j == ^uint(0) {
 			throw("bad summary data")
 		}
 		c = pageCache{

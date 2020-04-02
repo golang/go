@@ -19,9 +19,12 @@ import (
 
 type HTMLWriter struct {
 	Logger
-	w    io.WriteCloser
-	path string
-	dot  *dotWriter
+	w             io.WriteCloser
+	path          string
+	dot           *dotWriter
+	prevHash      []byte
+	pendingPhases []string
+	pendingTitles []string
 }
 
 func NewHTMLWriter(path string, logger Logger, funcname, cfgMask string) *HTMLWriter {
@@ -88,27 +91,22 @@ th, td {
 td > h2 {
     cursor: pointer;
     font-size: 120%;
+    margin: 5px 0px 5px 0px;
 }
 
 td.collapsed {
     font-size: 12px;
     width: 12px;
     border: 1px solid white;
-    padding: 0;
+    padding: 2px;
     cursor: pointer;
     background: #fafafa;
 }
 
-td.collapsed  div {
-     -moz-transform: rotate(-90.0deg);  /* FF3.5+ */
-       -o-transform: rotate(-90.0deg);  /* Opera 10.5 */
-  -webkit-transform: rotate(-90.0deg);  /* Saf3.1+, Chrome */
-             filter:  progid:DXImageTransform.Microsoft.BasicImage(rotation=0.083);  /* IE6,IE7 */
-         -ms-filter: "progid:DXImageTransform.Microsoft.BasicImage(rotation=0.083)"; /* IE8 */
-         margin-top: 10.3em;
-         margin-left: -10em;
-         margin-right: -10em;
-         text-align: right;
+td.collapsed div {
+    /* TODO: Flip the direction of the phase's title 90 degrees on a collapsed column. */
+    writing-mode: vertical-lr;
+    white-space: pre;
 }
 
 code, pre, .lines, .ast {
@@ -263,6 +261,14 @@ body.darkmode table, th {
     border: 1px solid gray;
 }
 
+body.darkmode text {
+    fill: white;
+}
+
+body.darkmode svg polygon:first-child {
+    fill: rgb(21, 21, 21);
+}
+
 .highlight-aquamarine     { background-color: aquamarine; color: black; }
 .highlight-coral          { background-color: coral; color: black; }
 .highlight-lightpink      { background-color: lightpink; color: black; }
@@ -304,7 +310,7 @@ body.darkmode table, th {
     color: gray;
 }
 
-.outline-blue           { outline: blue solid 2px; }
+.outline-blue           { outline: #2893ff solid 2px; }
 .outline-red            { outline: red solid 2px; }
 .outline-blueviolet     { outline: blueviolet solid 2px; }
 .outline-darkolivegreen { outline: darkolivegreen solid 2px; }
@@ -316,7 +322,7 @@ body.darkmode table, th {
 .outline-maroon         { outline: maroon solid 2px; }
 .outline-black          { outline: black solid 2px; }
 
-ellipse.outline-blue           { stroke-width: 2px; stroke: blue; }
+ellipse.outline-blue           { stroke-width: 2px; stroke: #2893ff; }
 ellipse.outline-red            { stroke-width: 2px; stroke: red; }
 ellipse.outline-blueviolet     { stroke-width: 2px; stroke: blueviolet; }
 ellipse.outline-darkolivegreen { stroke-width: 2px; stroke: darkolivegreen; }
@@ -473,7 +479,7 @@ window.onload = function() {
         "deadcode",
         "opt",
         "lower",
-        "late deadcode",
+        "late-deadcode",
         "regalloc",
         "genssa",
     ];
@@ -495,15 +501,34 @@ window.onload = function() {
     }
 
     // Go through all columns and collapse needed phases.
-    var td = document.getElementsByTagName("td");
-    for (var i = 0; i < td.length; i++) {
-        var id = td[i].id;
-        var phase = id.substr(0, id.length-4);
-        var show = expandedDefault.indexOf(phase) !== -1
+    const td = document.getElementsByTagName("td");
+    for (let i = 0; i < td.length; i++) {
+        const id = td[i].id;
+        const phase = id.substr(0, id.length-4);
+        let show = expandedDefault.indexOf(phase) !== -1
+
+        // If show == false, check to see if this is a combined column (multiple phases).
+        // If combined, check each of the phases to see if they are in our expandedDefaults.
+        // If any are found, that entire combined column gets shown.
+        if (!show) {
+            const combined = phase.split('--+--');
+            const len = combined.length;
+            if (len > 1) {
+                for (let i = 0; i < len; i++) {
+                    if (expandedDefault.indexOf(combined[i]) !== -1) {
+                        show = true;
+                        break;
+                    }
+                }
+            }
+        }
         if (id.endsWith("-exp")) {
-            var h2 = td[i].getElementsByTagName("h2");
-            if (h2 && h2[0]) {
-                h2[0].addEventListener('click', toggler(phase));
+            const h2Els = td[i].getElementsByTagName("h2");
+            const len = h2Els.length;
+            if (len > 0) {
+                for (let i = 0; i < len; i++) {
+                    h2Els[i].addEventListener('click', toggler(phase));
+                }
             }
         } else {
             td[i].addEventListener('click', toggler(phase));
@@ -642,12 +667,35 @@ function makeDraggable(event) {
 function toggleDarkMode() {
     document.body.classList.toggle('darkmode');
 
+    // Collect all of the "collapsed" elements and apply dark mode on each collapsed column
     const collapsedEls = document.getElementsByClassName('collapsed');
     const len = collapsedEls.length;
 
     for (let i = 0; i < len; i++) {
         collapsedEls[i].classList.toggle('darkmode');
     }
+
+    // Collect and spread the appropriate elements from all of the svgs on the page into one array
+    const svgParts = [
+        ...document.querySelectorAll('path'),
+        ...document.querySelectorAll('ellipse'),
+        ...document.querySelectorAll('polygon'),
+    ];
+
+    // Iterate over the svgParts specifically looking for white and black fill/stroke to be toggled.
+    // The verbose conditional is intentional here so that we do not mutate any svg path, ellipse, or polygon that is of any color other than white or black.
+    svgParts.forEach(el => {
+        if (el.attributes.stroke.value === 'white') {
+            el.attributes.stroke.value = 'black';
+        } else if (el.attributes.stroke.value === 'black') {
+            el.attributes.stroke.value = 'white';
+        }
+        if (el.attributes.fill.value === 'white') {
+            el.attributes.fill.value = 'black';
+        } else if (el.attributes.fill.value === 'black') {
+            el.attributes.fill.value = 'white';
+        }
+    });
 }
 
 </script>
@@ -707,8 +755,16 @@ func (w *HTMLWriter) WriteFunc(phase, title string, f *Func) {
 	if w == nil {
 		return // avoid generating HTML just to discard it
 	}
-	//w.WriteColumn(phase, title, "", f.HTML())
-	w.WriteColumn(phase, title, "", f.HTML(phase, w.dot))
+	hash := hashFunc(f)
+	w.pendingPhases = append(w.pendingPhases, phase)
+	w.pendingTitles = append(w.pendingTitles, title)
+	if !bytes.Equal(hash, w.prevHash) {
+		phases := strings.Join(w.pendingPhases, "  +  ")
+		w.WriteMultiTitleColumn(phases, w.pendingTitles, fmt.Sprintf("hash-%x", hash), f.HTML(phase, w.dot))
+		w.pendingPhases = w.pendingPhases[:0]
+		w.pendingTitles = w.pendingTitles[:0]
+	}
+	w.prevHash = hash
 }
 
 // FuncLines contains source code for a function to be displayed
@@ -822,6 +878,10 @@ func (w *HTMLWriter) WriteAST(phase string, buf *bytes.Buffer) {
 // WriteColumn writes raw HTML in a column headed by title.
 // It is intended for pre- and post-compilation log output.
 func (w *HTMLWriter) WriteColumn(phase, title, class, html string) {
+	w.WriteMultiTitleColumn(phase, []string{title}, class, html)
+}
+
+func (w *HTMLWriter) WriteMultiTitleColumn(phase string, titles []string, class, html string) {
 	if w == nil {
 		return
 	}
@@ -834,9 +894,11 @@ func (w *HTMLWriter) WriteColumn(phase, title, class, html string) {
 	} else {
 		w.Printf("<td id=\"%v-exp\" class=\"%v\">", id, class)
 	}
-	w.WriteString("<h2>" + title + "</h2>")
+	for _, title := range titles {
+		w.WriteString("<h2>" + title + "</h2>")
+	}
 	w.WriteString(html)
-	w.WriteString("</td>")
+	w.WriteString("</td>\n")
 }
 
 func (w *HTMLWriter) Printf(msg string, v ...interface{}) {
@@ -1016,7 +1078,7 @@ func (d *dotWriter) writeFuncSVG(w io.Writer, phase string, f *Func) {
 				arrow = "dotvee"
 				layoutDrawn[s.b.ID] = true
 			} else if isBackEdge(b.ID, s.b.ID) {
-				color = "blue"
+				color = "#2893ff"
 			}
 			fmt.Fprintf(pipe, `%v -> %v [label=" %d ",style="%s",color="%s",arrowhead="%s"];`, b, s.b, i, style, color, arrow)
 		}

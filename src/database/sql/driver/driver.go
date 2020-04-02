@@ -261,15 +261,15 @@ type SessionResetter interface {
 	ResetSession(ctx context.Context) error
 }
 
-// ConnectionValidator may be implemented by Conn to allow drivers to
+// Validator may be implemented by Conn to allow drivers to
 // signal if a connection is valid or if it should be discarded.
 //
 // If implemented, drivers may return the underlying error from queries,
 // even if the connection should be discarded by the connection pool.
-type ConnectionValidator interface {
-	// ValidConnection is called prior to placing the connection into the
+type Validator interface {
+	// IsValid is called prior to placing the connection into the
 	// connection pool. The connection will be discarded if false is returned.
-	ValidConnection() bool
+	IsValid() bool
 }
 
 // Result is the result of a query execution.

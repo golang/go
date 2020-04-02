@@ -27,6 +27,7 @@ type testingT interface {
 	Log(args ...interface{})
 	Logf(format string, args ...interface{})
 	Name() string
+	Parallel()
 	Skip(args ...interface{})
 	SkipNow()
 	Skipf(format string, args ...interface{})
@@ -284,6 +285,8 @@ func testDeadline(c Context, name string, t testingT) {
 }
 
 func XTestDeadline(t testingT) {
+	t.Parallel()
+
 	c, _ := WithDeadline(Background(), time.Now().Add(shortDuration))
 	if got, prefix := fmt.Sprint(c), "context.Background.WithDeadline("; !strings.HasPrefix(got, prefix) {
 		t.Errorf("c.String() = %q want prefix %q", got, prefix)
@@ -307,6 +310,8 @@ func XTestDeadline(t testingT) {
 }
 
 func XTestTimeout(t testingT) {
+	t.Parallel()
+
 	c, _ := WithTimeout(Background(), shortDuration)
 	if got, prefix := fmt.Sprint(c), "context.Background.WithDeadline("; !strings.HasPrefix(got, prefix) {
 		t.Errorf("c.String() = %q want prefix %q", got, prefix)
@@ -417,9 +422,9 @@ func XTestAllocs(t testingT, testingShort func() bool, testingAllocsPerRun func(
 			gccgoLimit: 3,
 		},
 		{
-			desc: "WithTimeout(bg, 15*time.Millisecond)",
+			desc: "WithTimeout(bg, 1*time.Nanosecond)",
 			f: func() {
-				c, _ := WithTimeout(bg, 15*time.Millisecond)
+				c, _ := WithTimeout(bg, 1*time.Nanosecond)
 				<-c.Done()
 			},
 			limit:      12,
@@ -545,7 +550,9 @@ func XTestLayersTimeout(t testingT) {
 }
 
 func testLayers(t testingT, seed int64, testTimeout bool) {
-	rand.Seed(seed)
+	t.Parallel()
+
+	r := rand.New(rand.NewSource(seed))
 	errorf := func(format string, a ...interface{}) {
 		t.Errorf(fmt.Sprintf("seed=%d: %s", seed, format), a...)
 	}
@@ -560,7 +567,7 @@ func testLayers(t testingT, seed int64, testTimeout bool) {
 		ctx       = Background()
 	)
 	for i := 0; i < minLayers || numTimers == 0 || len(cancels) == 0 || len(vals) == 0; i++ {
-		switch rand.Intn(3) {
+		switch r.Intn(3) {
 		case 0:
 			v := new(value)
 			ctx = WithValue(ctx, v, v)
@@ -587,10 +594,12 @@ func testLayers(t testingT, seed int64, testTimeout bool) {
 			}
 		}
 	}
-	select {
-	case <-ctx.Done():
-		errorf("ctx should not be canceled yet")
-	default:
+	if !testTimeout {
+		select {
+		case <-ctx.Done():
+			errorf("ctx should not be canceled yet")
+		default:
+		}
 	}
 	if s, prefix := fmt.Sprint(ctx), "context.Background."; !strings.HasPrefix(s, prefix) {
 		t.Errorf("ctx.String() = %q want prefix %q", s, prefix)
@@ -608,7 +617,7 @@ func testLayers(t testingT, seed int64, testTimeout bool) {
 		}
 		checkValues("after timeout")
 	} else {
-		cancel := cancels[rand.Intn(len(cancels))]
+		cancel := cancels[r.Intn(len(cancels))]
 		cancel()
 		select {
 		case <-ctx.Done():
