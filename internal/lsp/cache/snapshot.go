@@ -89,8 +89,12 @@ func (s *snapshot) View() source.View {
 // Config returns the configuration used for the snapshot's interaction with the
 // go/packages API.
 func (s *snapshot) Config(ctx context.Context) *packages.Config {
-	env, buildFlags := s.view.env()
-	cfg := &packages.Config{
+	s.view.optionsMu.Lock()
+	env, buildFlags := s.view.envLocked()
+	verboseOutput := s.view.options.VerboseOutput
+	s.view.optionsMu.Unlock()
+
+	return &packages.Config{
 		Env:        env,
 		Dir:        s.view.folder.Filename(),
 		Context:    ctx,
@@ -107,13 +111,12 @@ func (s *snapshot) Config(ctx context.Context) *packages.Config {
 			panic("go/packages must not be used to parse files")
 		},
 		Logf: func(format string, args ...interface{}) {
-			if s.view.options.VerboseOutput {
+			if verboseOutput {
 				event.Print(ctx, fmt.Sprintf(format, args...))
 			}
 		},
 		Tests: true,
 	}
-	return cfg
 }
 
 func (s *snapshot) buildOverlay() map[string][]byte {

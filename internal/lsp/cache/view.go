@@ -37,7 +37,8 @@ type view struct {
 	session *Session
 	id      string
 
-	options source.Options
+	optionsMu sync.Mutex
+	options   source.Options
 
 	// mu protects most mutable state of the view.
 	mu sync.Mutex
@@ -172,6 +173,8 @@ func (v *view) Folder() span.URI {
 }
 
 func (v *view) Options() source.Options {
+	v.optionsMu.Lock()
+	defer v.optionsMu.Unlock()
 	return v.options
 }
 
@@ -189,16 +192,19 @@ func minorOptionsChange(a, b source.Options) bool {
 
 func (v *view) SetOptions(ctx context.Context, options source.Options) (source.View, error) {
 	// no need to rebuild the view if the options were not materially changed
+	v.optionsMu.Lock()
 	if minorOptionsChange(v.options, options) {
 		v.options = options
+		v.optionsMu.Unlock()
 		return v, nil
 	}
+	v.optionsMu.Unlock()
 	newView, _, err := v.session.updateView(ctx, v, options)
 	return newView, err
 }
 
 func (v *view) Rebuild(ctx context.Context) (source.Snapshot, error) {
-	_, snapshot, err := v.session.updateView(ctx, v, v.options)
+	_, snapshot, err := v.session.updateView(ctx, v, v.Options())
 	return snapshot, err
 }
 
@@ -263,7 +269,9 @@ func (v *view) buildBuiltinPackage(ctx context.Context, goFiles []string) error 
 }
 
 func (v *view) WriteEnv(ctx context.Context, w io.Writer) error {
-	env, buildFlags := v.env()
+	v.optionsMu.Lock()
+	env, buildFlags := v.envLocked()
+	v.optionsMu.Unlock()
 	// TODO(rstambler): We could probably avoid running this by saving the
 	// output on original create, but I'm not sure if it's worth it.
 	inv := gocommand.Invocation{
@@ -348,13 +356,16 @@ func (v *view) refreshProcessEnv() {
 }
 
 func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error) {
-	env, buildFlags := v.env()
+	v.optionsMu.Lock()
+	env, buildFlags := v.envLocked()
+	localPrefix, verboseOutput := v.options.LocalPrefix, v.options.VerboseOutput
+	v.optionsMu.Unlock()
 	processEnv := &imports.ProcessEnv{
 		WorkingDir:  v.folder.Filename(),
 		BuildFlags:  buildFlags,
-		LocalPrefix: v.options.LocalPrefix,
+		LocalPrefix: localPrefix,
 	}
-	if v.options.VerboseOutput {
+	if verboseOutput {
 		processEnv.Logf = func(format string, args ...interface{}) {
 			event.Print(ctx, fmt.Sprintf(format, args...))
 		}
@@ -382,7 +393,7 @@ func (v *view) buildProcessEnv(ctx context.Context) (*imports.ProcessEnv, error)
 	return processEnv, nil
 }
 
-func (v *view) env() ([]string, []string) {
+func (v *view) envLocked() ([]string, []string) {
 	// We want to run the go commands with the -modfile flag if the version of go
 	// that we are using supports it.
 	buildFlags := v.options.BuildFlags
