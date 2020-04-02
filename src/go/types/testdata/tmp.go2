@@ -4,11 +4,10 @@
 
 package p
 
-func f(type _ interface{ m() })()
+func f(type T comparable)(x, y T) bool {
+	return x == y
+}
 
-type T struct{}
-func (*T) m()
-
-func _() {
-	f(T)()
+func _(){
+	f(1, 2i /* ERROR does not match */)
 }

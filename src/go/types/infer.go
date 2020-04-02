@@ -18,6 +18,17 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 	u := check.unifier()
 	u.x.init(tparams)
 
+	errorf := func(kind string, tpar, targ Type, arg *operand) {
+		// provide a better error message if we can
+		if tpar, _ := tpar.(*TypeParam); tpar != nil {
+			if inferred := u.x.at(tpar.index); inferred != nil {
+				check.errorf(arg.pos(), "%s %s of %s does not match inferred type %s for %s", kind, targ, arg.expr, inferred, tpar)
+				return
+			}
+		}
+		check.errorf(arg.pos(), "%s %s of %s does not match %s", kind, targ, arg.expr, tpar)
+	}
+
 	// Terminology: generic parameter = function parameter with a type-parameterized type
 
 	// 1st pass: Unify parameter and argument types for generic parameters with typed arguments
@@ -34,17 +45,12 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 				//           simply ignoring (continue) invalid args
 				return nil // error was reported earlier
 			}
-			if isTyped(arg.typ) {
-				// If we permit bidirectional unification, and arg.typ is
-				// a generic function, we need to initialize u.y with the
-				// respectice type parameters of arg.typ.
-				if !u.unify(par.typ, arg.typ) {
-					// Calling subst for an error message can cause problems.
-					// TODO(gri) Determine best approach here.
-					// check.errorf(arg.pos(), "type %s for %s does not match %s = %s",
-					// 	arg.typ, arg.expr, par.typ, check.subst(pos, par.typ, tparams, targs),
-					// )
-					check.errorf(arg.pos(), "type %s for %s does not match %s", arg.typ, arg.expr, par.typ)
+			if targ := arg.typ; isTyped(targ) {
+				// If we permit bidirectional unification, and targ is
+				// a generic function, we need to initialize u.y with
+				// the respectice type parameters of targ.
+				if !u.unify(par.typ, targ) {
+					errorf("type", par.typ, targ, arg)
 					return nil
 				}
 			} else {
@@ -83,11 +89,7 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 		// infer an untyped nil type as type parameter type. Ignore untyped
 		// nil by making sure all default argument types are typed.
 		if isTyped(targ) && !u.unify(par.typ, targ) {
-			// TODO(gri) see TODO comment above
-			// check.errorf(arg.pos(), "default type %s for %s does not match %s = %s",
-			// 	Default(arg.typ), arg.expr, par.typ, check.subst(pos, par.typ, tparams, targs),
-			// )
-			check.errorf(arg.pos(), "default type %s for %s does not match %s", Default(arg.typ), arg.expr, par.typ)
+			errorf("default type", par.typ, targ, arg)
 			return nil
 		}
 	}
