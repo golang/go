@@ -414,12 +414,10 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 	case "tempModfile":
 		result.setBool(&o.TempModfile)
 
-	// Deprecated settings.
+	// Replaced settings.
 	case "experimentalDisabledAnalyses":
 		result.State = OptionDeprecated
-
-	case "wantSuggestedFixes":
-		result.State = OptionDeprecated
+		result.Replacement = "analyses"
 
 	case "disableDeepCompletion":
 		result.State = OptionDeprecated
@@ -444,6 +442,10 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 	case "caseSensitiveCompletion":
 		result.State = OptionDeprecated
 		result.Replacement = "matcher"
+
+	// Deprecated settings.
+	case "wantSuggestedFixes":
+		result.State = OptionDeprecated
 
 	case "noIncrementalSync":
 		result.State = OptionDeprecated
