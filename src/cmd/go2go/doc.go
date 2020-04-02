@@ -32,4 +32,26 @@
 // Translation into standard Go requires generating Go code with mangled names.
 // The mangled names will always include Odia (Oriya) digits, such as ୦ and ୮.
 // Do not use Oriya digits in identifiers in your own code.
+//
+// Because this tool generates Go files, and because instantiated types
+// and functions need to refer to the types with which they are instantiated,
+// using function-local types as type arguments is not supported.
+// This is a deficiency of the tool, it will not be a deficiency in
+// any complete implementation.
+//
+// Because this tool generates Go files, and because it generates type
+// and function instantiations alongside other code in the package that
+// instantiates those functions and types, and because those instantiatations
+// may refer to names in packages imported by the original generic code,
+// this tool will add imports as necessary to support the instantiations.
+// Therefore, packages that use generic code must not use top level
+// definitions whose names are the same as the names of packages imported
+// by the generic code. For example, don't write, in package scope,
+//
+//     var strings = []string{"a", "b"}
+//
+// because if the generic code imports "strings", the variable name will
+// conflict with the package name, even if your code doesn't import "strings".
+// This is a deficiency of the tool, it will not be a deficiency in
+// any complete implementation.
 package main
