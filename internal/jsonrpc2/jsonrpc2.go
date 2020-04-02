@@ -276,8 +276,6 @@ type combined struct {
 // It must be called exactly once for each Conn.
 // It returns only when the reader is closed or there is an error in the stream.
 func (c *Conn) Run(runCtx context.Context, handler Handler) error {
-	handler = MustReply(handler)
-	handler = AsyncHandler(handler)
 	for {
 		// get the data for a message
 		data, n, err := c.stream.Read(runCtx)

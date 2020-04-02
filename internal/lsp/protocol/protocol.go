@@ -33,6 +33,13 @@ func ServerDispatcher(conn *jsonrpc2.Conn) Server {
 	return &serverDispatcher{Conn: conn}
 }
 
+func Handlers(handler jsonrpc2.Handler) jsonrpc2.Handler {
+	return CancelHandler(
+		CancelHandler(
+			jsonrpc2.AsyncHandler(
+				jsonrpc2.MustReply(handler))))
+}
+
 func CancelHandler(handler jsonrpc2.Handler) jsonrpc2.Handler {
 	handler, canceller := jsonrpc2.CancelHandler(handler)
 	return func(ctx context.Context, req *jsonrpc2.Request) error {

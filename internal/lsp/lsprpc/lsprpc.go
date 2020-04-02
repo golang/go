@@ -140,10 +140,11 @@ func (s *StreamServer) ServeStream(ctx context.Context, stream jsonrpc2.Stream) 
 		executable = ""
 	}
 	ctx = protocol.WithClient(ctx, client)
-	return conn.Run(ctx, protocol.CancelHandler(
-		handshaker(dc, executable,
-			protocol.ServerHandler(server,
-				jsonrpc2.MethodNotFound))))
+	return conn.Run(ctx,
+		protocol.Handlers(
+			handshaker(dc, executable,
+				protocol.ServerHandler(server,
+					jsonrpc2.MethodNotFound))))
 }
 
 // A Forwarder is a jsonrpc2.StreamServer that handles an LSP stream by
@@ -257,9 +258,10 @@ func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) err
 	// Forward between connections.
 	g, ctx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		return serverConn.Run(ctx, protocol.CancelHandler(
-			protocol.ClientHandler(client,
-				jsonrpc2.MethodNotFound)))
+		return serverConn.Run(ctx,
+			protocol.Handlers(
+				protocol.ClientHandler(client,
+					jsonrpc2.MethodNotFound)))
 	})
 	// Don't run the clientConn yet, so that we can complete the handshake before
 	// processing any client messages.
@@ -298,7 +300,7 @@ func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) err
 	}
 	g.Go(func() error {
 		return clientConn.Run(ctx,
-			protocol.CancelHandler(
+			protocol.Handlers(
 				forwarderHandler(
 					protocol.ServerHandler(server,
 						jsonrpc2.MethodNotFound))))

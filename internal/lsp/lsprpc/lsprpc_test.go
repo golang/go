@@ -129,7 +129,9 @@ func TestRequestCancellation(t *testing.T) {
 		t.Run(test.serverType, func(t *testing.T) {
 			cc := test.ts.Connect(baseCtx)
 			sd := protocol.ServerDispatcher(cc)
-			go cc.Run(baseCtx, protocol.CancelHandler(jsonrpc2.MethodNotFound))
+			go cc.Run(baseCtx,
+				protocol.Handlers(
+					jsonrpc2.MethodNotFound))
 
 			ctx := context.Background()
 			ctx1, cancel1 := context.WithCancel(ctx)

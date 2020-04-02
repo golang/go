@@ -57,7 +57,10 @@ func NewConnectedEditor(ctx context.Context, ws *Workspace, conn *jsonrpc2.Conn)
 	e := NewEditor(ws)
 	e.server = protocol.ServerDispatcher(conn)
 	e.client = &Client{Editor: e}
-	go conn.Run(ctx, protocol.ClientHandler(e.client, jsonrpc2.MethodNotFound))
+	go conn.Run(ctx,
+		protocol.Handlers(
+			protocol.ClientHandler(e.client,
+				jsonrpc2.MethodNotFound)))
 	if err := e.initialize(ctx); err != nil {
 		return nil, err
 	}
