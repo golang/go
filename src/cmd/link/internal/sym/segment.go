@@ -55,4 +55,5 @@ type Section struct {
 	Elfsect interface{} // an *ld.ElfShdr
 	Reloff  uint64
 	Rellen  uint64
+	Sym     *Symbol // symbol for the section, if any
 }

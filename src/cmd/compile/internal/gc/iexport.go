@@ -991,7 +991,7 @@ func (w *exportWriter) linkname(s *types.Sym) {
 }
 
 func (w *exportWriter) symIdx(s *types.Sym) {
-	if Ctxt.Flag_newobj {
+	if Ctxt.Flag_go115newobj {
 		lsym := s.Linksym()
 		if lsym.PkgIdx > goobj2.PkgIdxSelf || (lsym.PkgIdx == goobj2.PkgIdxInvalid && !lsym.Indexed()) || s.Linkname != "" {
 			// Don't export index for non-package symbols, linkname'd symbols,

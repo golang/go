@@ -103,6 +103,10 @@ func (s *Symbol) Len() int64 {
 	return s.Size
 }
 
+func (s *Symbol) Length(dwarfContext interface{}) int64 {
+	return s.Size
+}
+
 func (s *Symbol) Grow(siz int64) {
 	if int64(int(siz)) != siz {
 		log.Fatalf("symgrow size %d too long", siz)

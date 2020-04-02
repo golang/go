@@ -11,6 +11,7 @@ package goobj
 import (
 	"bufio"
 	"bytes"
+	"cmd/internal/goobj2"
 	"cmd/internal/objabi"
 	"errors"
 	"fmt"
@@ -507,7 +508,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 	if err != nil {
 		return err
 	}
-	if bytes.Equal(p, []byte("\x00go114LD")) {
+	if bytes.Equal(p, []byte(goobj2.Magic)) {
 		r.readNew()
 		return nil
 	}
