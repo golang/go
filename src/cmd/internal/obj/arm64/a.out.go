@@ -410,9 +410,10 @@ const (
 	C_FCON     // floating-point constant
 	C_VCONADDR // 64-bit memory address
 
-	C_AACON // ADDCON offset in auto constant $a(FP)
-	C_LACON // 32-bit offset in auto constant $a(FP)
-	C_AECON // ADDCON offset in extern constant $e(SB)
+	C_AACON  // ADDCON offset in auto constant $a(FP)
+	C_AACON2 // 24-bit offset in auto constant $a(FP)
+	C_LACON  // 32-bit offset in auto constant $a(FP)
+	C_AECON  // ADDCON offset in extern constant $e(SB)
 
 	// TODO(aram): only one branch class should be enough
 	C_SBRA // for TYPE_BRANCH
