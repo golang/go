@@ -19,9 +19,6 @@ func WithClient(ctx context.Context, client Client) context.Context {
 }
 
 func LogEvent(ctx context.Context, ev event.Event, tags event.TagMap) context.Context {
-	if ctx.Err() != nil {
-		return ctx
-	}
 	if !ev.IsLog() {
 		return ctx
 	}

@@ -7,7 +7,6 @@ package lsp
 import (
 	"context"
 	"io"
-	"log"
 	"math/rand"
 	"strconv"
 
@@ -15,7 +14,7 @@ import (
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/telemetry/event"
-	errors "golang.org/x/xerrors"
+	"golang.org/x/xerrors"
 )
 
 func (s *Server) runGenerate(ctx context.Context, dir string, recursive bool) {
@@ -43,12 +42,14 @@ func (s *Server) runGenerate(ctx context.Context, dir string, recursive bool) {
 	}
 	stderr := io.MultiWriter(er, wc)
 	err := inv.RunPiped(ctx, er, stderr)
-	if err != nil && !errors.Is(ctx.Err(), context.Canceled) {
-		log.Printf("generate: command error: %v", err)
-		s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-			Type:    protocol.Error,
-			Message: "go generate exited with an error, check gopls logs",
-		})
+	if err != nil {
+		event.Error(ctx, "generate: command error: %v", err, tag.Directory.Of(dir))
+		if !xerrors.Is(err, context.Canceled) {
+			s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+				Type:    protocol.Error,
+				Message: "go generate exited with an error, check gopls logs",
+			})
+		}
 	}
 }
 

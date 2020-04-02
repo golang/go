@@ -6,13 +6,13 @@ package source
 
 import (
 	"context"
-	"errors"
 	"go/ast"
 	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/telemetry/event"
+	"golang.org/x/xerrors"
 )
 
 // ReferenceInfo holds information about reference to an identifier in Go source.
@@ -33,7 +33,7 @@ func References(ctx context.Context, s Snapshot, f FileHandle, pp protocol.Posit
 
 	qualifiedObjs, err := qualifiedObjsAtProtocolPos(ctx, s, f, pp)
 	// Don't return references for builtin types.
-	if errors.Is(err, errBuiltin) {
+	if xerrors.Is(err, errBuiltin) {
 		return nil, nil
 	}
 	if err != nil {
