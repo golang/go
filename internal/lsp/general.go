@@ -7,6 +7,7 @@ package lsp
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -18,7 +19,6 @@ import (
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/event"
-	errors "golang.org/x/xerrors"
 )
 
 func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitialize) (*protocol.InitializeResult, error) {
@@ -40,6 +40,9 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 	source.SetOptions(&options, params.InitializationOptions)
 	options.ForClientCapabilities(params.Capabilities)
 
+	if !params.RootURI.SpanURI().IsFile() {
+		return nil, fmt.Errorf("unsupported URI scheme: %v (gopls only supports file URIs)", params.RootURI)
+	}
 	s.pendingFolders = params.WorkspaceFolders
 	if len(s.pendingFolders) == 0 {
 		if params.RootURI != "" {
@@ -50,7 +53,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 		} else {
 			// No folders and no root--we are in single file mode.
 			// TODO: https://golang.org/issue/34160.
-			return nil, errors.Errorf("gopls does not yet support editing a single file. Please open a directory.")
+			return nil, errors.New("gopls does not yet support editing a single file. Please open a directory.")
 		}
 	}
 
