@@ -391,7 +391,11 @@ var optab = []Optab{
 	{AMOVD, C_VCON, C_NONE, C_NONE, C_REG, 12, 16, 0, NOTUSETMP, 0},
 
 	{AMOVK, C_VCON, C_NONE, C_NONE, C_REG, 33, 4, 0, 0, 0},
-	{AMOVD, C_AACON, C_NONE, C_NONE, C_REG, 4, 4, REGFROM, 0, 0},
+	{AMOVD, C_AACON, C_NONE, C_NONE, C_RSP, 4, 4, REGFROM, 0, 0},
+	{AMOVD, C_AACON2, C_NONE, C_NONE, C_RSP, 4, 8, REGFROM, 0, 0},
+
+	/* load long effective stack address (load int32 offset and add) */
+	{AMOVD, C_LACON, C_NONE, C_NONE, C_RSP, 34, 8, REGSP, LFROM, 0},
 
 	// Move a large constant to a Vn.
 	{AFMOVQ, C_VCON, C_NONE, C_NONE, C_VREG, 101, 4, 0, LFROM, 0},
@@ -593,9 +597,6 @@ var optab = []Optab{
 	{AFMOVS, C_LOREG, C_NONE, C_NONE, C_FREG, 31, 8, 0, LFROM, 0},
 	{AFMOVD, C_LAUTO, C_NONE, C_NONE, C_FREG, 31, 8, REGSP, LFROM, 0},
 	{AFMOVD, C_LOREG, C_NONE, C_NONE, C_FREG, 31, 8, 0, LFROM, 0},
-
-	/* load long effective stack address (load int32 offset and add) */
-	{AMOVD, C_LACON, C_NONE, C_NONE, C_REG, 34, 8, REGSP, LFROM, 0},
 
 	/* pre/post-indexed load (unscaled, signed 9-bit offset) */
 	{AMOVD, C_LOREG, C_NONE, C_NONE, C_REG, 22, 4, 0, 0, C_XPOST},
@@ -1361,6 +1362,10 @@ func isaddcon(v int64) bool {
 	return v <= 0xFFF
 }
 
+func isaddcon2(v int64) bool {
+	return 0 <= v && v <= 0xFFFFFF
+}
+
 // isbitcon reports whether a constant can be encoded into a logical instruction.
 // bitcon has a binary form of repetition of a bit sequence of length 2, 4, 8, 16, 32, or 64,
 // which itself is a rotate (w.r.t. the length of the unit) of a sequence of ones.
@@ -1889,10 +1894,14 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
 		default:
 			return C_GOK
 		}
-
-		if isaddcon(c.instoffset) {
+		cf := c.instoffset
+		if isaddcon(cf) || isaddcon(-cf) {
 			return C_AACON
 		}
+		if isaddcon2(cf) {
+			return C_AACON2
+		}
+
 		return C_LACON
 
 	case obj.TYPE_BRANCH:
@@ -2046,7 +2055,7 @@ func cmp(a int, b int) bool {
 		return cmp(C_LCON, b)
 
 	case C_LACON:
-		if b == C_AACON {
+		if b == C_AACON || b == C_AACON2 {
 			return true
 		}
 
@@ -3062,11 +3071,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		}
 		o1 |= (uint32(r&31) << 5) | uint32(rt&31)
 
-	case 4: /* mov $addcon, R; mov $recon, R; mov $racon, R */
-		o1 = c.opirr(p, p.As)
-
+	case 4: /* mov $addcon, R; mov $recon, R; mov $racon, R; mov $addcon2, R */
 		rt := int(p.To.Reg)
 		r := int(o.param)
+
 		if r == 0 {
 			r = REGZERO
 		} else if r == REGFROM {
@@ -3075,13 +3083,23 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
 		if r == 0 {
 			r = REGSP
 		}
+
 		v := int32(c.regoff(&p.From))
-		if (v & 0xFFF000) != 0 {
-			v >>= 12
-			o1 |= 1 << 22 /* shift, by 12 */
+		var op int32
+		if v < 0 {
+			v = -v
+			op = int32(c.opirr(p, ASUB))
+		} else {
+			op = int32(c.opirr(p, AADD))
 		}
 
-		o1 |= ((uint32(v) & 0xFFF) << 10) | (uint32(r&31) << 5) | uint32(rt&31)
+		if int(o.size) == 8 {
+			o1 = c.oaddi(p, op, v&0xfff000, r, REGTMP)
+			o2 = c.oaddi(p, op, v&0x000fff, REGTMP, rt)
+			break
+		}
+
+		o1 = c.oaddi(p, op, v, r, rt)
 
 	case 5: /* b s; bl s */
 		o1 = c.opbra(p, p.As)

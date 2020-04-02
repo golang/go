@@ -340,8 +340,19 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
 	MOVD	$0x1111ffff1111aaaa, R1       // MOVD	$1230045644216969898, R1    // a1aa8a922122a2f22122e2f2
 	MOVD	$0, R1                        // 010080d2
 	MOVD	$-1, R1                       // 01008092
-	MOVD	$0x210000, R0                 // MOVD	$2162688, R0                 // 2004a0d2
-	MOVD	$0xffffffffffffaaaa, R1       // MOVD	$-21846, R1                  // a1aa8a92
+	MOVD	$0x210000, R0                 // MOVD	$2162688, R0                // 2004a0d2
+	MOVD	$0xffffffffffffaaaa, R1       // MOVD	$-21846, R1                 // a1aa8a92
+
+	MOVD	$0x1002(RSP), R1              // MOVD	$4098(RSP), R1              // fb074091610b0091
+	MOVD	$0x1708(RSP), RSP             // MOVD	$5896(RSP), RSP             // fb0740917f231c91
+	MOVD	$0x2001(R7), R1               // MOVD	$8193(R7), R1               // fb08409161070091
+	MOVD	$0xffffff(R7), R1             // MOVD	$16777215(R7), R1           // fbfc7f9161ff3f91
+
+	MOVD	$-0x1(R7), R1                 // MOVD	$-1(R7), R1                 // e10400d1
+	MOVD	$-0x30(R7), R1                // MOVD	$-48(R7), R1                // e1c000d1
+	MOVD	$-0x708(R7), R1               // MOVD	$-1800(R7), R1              // e1201cd1
+	MOVD	$-0x2000(RSP), R1             // MOVD	$-8192(RSP), R1             // e10b40d1
+	MOVD	$-0x10000(RSP), RSP           // MOVD	$-65536(RSP), RSP           // ff4340d1
 
 //
 // CLS
