@@ -59,6 +59,9 @@ func (c *completer) builtinArgType(obj types.Object, call *ast.CallExpr, parentI
 
 	switch obj.Name() {
 	case "append":
+		if parentInf.objType == nil {
+			break
+		}
 		inf.objType = parentInf.objType
 
 		// Check if we are completing the variadic append() param.

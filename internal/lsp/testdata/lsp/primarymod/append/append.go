@@ -17,3 +17,4 @@ func _() {
 	// Don't add "..." to append() argument.
 	bar(append()) //@snippet("))", appendStrings, "aStrings", "aStrings")
 }
+}

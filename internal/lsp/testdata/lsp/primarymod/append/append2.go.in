@@ -1,0 +1,5 @@
+package append
+
+func _() {
+	_ = append(a, struct) //@complete(")")
+}
