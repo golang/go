@@ -3,6 +3,10 @@ package refs
 
 type i int //@mark(typeI, "i"),refs("i", typeI, argI, returnI, embeddedI)
 
+type X struct {
+	Y int //@mark(typeXY, "Y")
+}
+
 func _(_ i) []bool { //@mark(argI, "i")
 	return nil
 }

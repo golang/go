@@ -247,11 +247,18 @@ func qualifiedObjsAtProtocolPos(ctx context.Context, s Snapshot, fh FileHandle, 
 			}
 			objs = append(objs, obj)
 		}
+		// Get all of the transitive dependencies of the search package.
 		pkgs := make(map[*types.Package]Package)
-		pkgs[searchpkg.GetTypes()] = searchpkg
-		for _, imp := range searchpkg.Imports() {
-			pkgs[imp.GetTypes()] = imp
+		var addPkg func(pkg Package)
+		addPkg = func(pkg Package) {
+			pkgs[pkg.GetTypes()] = pkg
+			for _, imp := range pkg.Imports() {
+				if _, ok := pkgs[imp.GetTypes()]; !ok {
+					addPkg(imp)
+				}
+			}
 		}
+		addPkg(searchpkg)
 		for _, obj := range objs {
 			if obj.Parent() == types.Universe {
 				return nil, fmt.Errorf("%w %q", errBuiltin, obj.Name())
