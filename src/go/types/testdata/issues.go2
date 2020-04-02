@@ -78,3 +78,32 @@ contract GP(Node, Edge) {
 func (g *GraphP(Node, Edge)) Edges(n *Node) []*Edge {
 	return n.Edges()
 }
+
+// In a generic function body all method calls will be pointer method calls.
+// If necessary, the function body will insert temporary variables, not seen
+// by the user, in order to get an addressable variable to use to call the method.
+// Thus, assume an argument type for a generic function to be the type of addressable
+// values in the generic function when checking if the argument type satisfies the
+// generic function's type bound.
+func f2(type _ interface{ m1(); m2() })()
+
+type T struct{}
+func (T) m1()
+func (*T) m2()
+
+func _() {
+	f2(T)()
+	f2(*T)()
+}
+
+// This is the original (simplified) program causing the same issue.
+func NewP(type Node, Edge GP)(nodes []*Node) *GraphP(Node, Edge) {
+	return &GraphP(Node, Edge){nodes: nodes}
+}
+
+type N struct{}
+func (n *N) Edges() []*E { return nil }
+type E struct{}
+func F() {
+	_ = NewP(N, E)(nil)
+}

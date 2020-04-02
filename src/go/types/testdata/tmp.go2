@@ -4,46 +4,11 @@
 
 package p
 
-contract C(T) {
-    T m()
-}
+func f(type _ interface{ m() })()
 
-func _(type T C)(x *T) {
-	x.m()
-}
-
-/*
-func f(type T)(T)
+type T struct{}
+func (*T) m()
 
 func _() {
-    var x int
-    f(x)
+	f(T)()
 }
-*/
-
-/*
-func f(func(int))
-func g(type T)(T)
-
-func _() {
-	f(g)
-}
-*/
-
-/*
-func f(type T)(T, func(type T)(T))
-func g(type T)(T)
-func _() {
-    var x int
-    f(x, g)
-}
-*/
-
-/*
-func f(type T)(T, func(T))
-func g(type T)(T)
-func _() {
-    var x int
-    f(x, g)
-}
-*/

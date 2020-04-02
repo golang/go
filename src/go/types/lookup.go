@@ -278,19 +278,21 @@ func (check *Checker) lookupType(m map[Type]int, typ Type) (int, bool) {
 // x is of interface type V).
 //
 func MissingMethod(V Type, T *Interface, static bool) (method *Func, wrongType bool) {
-	m, typ := (*Checker)(nil).missingMethod(V, T, static)
+	m, typ := (*Checker)(nil).missingMethod(V, false, T, static)
 	return m, typ != nil
 }
 
-// missingMethod is like MissingMethod but accepts a receiver.
+// missingMethod is like MissingMethod but accepts a *Checker as
+// receiver and an addressable flag.
 // The receiver may be nil if missingMethod is invoked through
 // an exported API call (such as MissingMethod), i.e., when all
 // methods have been type-checked.
+// If addressable is set, V is the type of an addressable variable.
 // If the type has the correctly named method, but with the wrong
 // signature, the existing method is returned as well.
 // To improve error messages, also report the wrong signature
 // when the method exists on *V instead of V.
-func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, wrongType *Func) {
+func (check *Checker) missingMethod(V Type, addressable bool, T *Interface, static bool) (method, wrongType *Func) {
 	check.completeInterface(token.NoPos, T)
 
 	// fast path for common case
@@ -334,10 +336,11 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method, 
 	}
 
 	// A concrete type implements T if it implements all methods of T.
-	Vd, _ := deref(V)
+	Vd, _ := deref(V) // TODO(gri) shouldn't "pointer-ness" flow into rawLookupFieldOrMethod below?
 	Vn, _ := Vd.(*Named)
 	for _, m := range T.allMethods {
-		obj, _, _ := check.rawLookupFieldOrMethod(V, false, m.pkg, m.name)
+		// TODO(gri) should this be calling lookupFieldOrMethod instead (and why not)?
+		obj, _, _ := check.rawLookupFieldOrMethod(V, addressable, m.pkg, m.name)
 
 		// Check if *V implements this method of T.
 		if obj == nil {
@@ -410,7 +413,7 @@ func (check *Checker) assertableTo(V *Interface, T Type, strict bool) (method, w
 	if _, ok := T.Underlying().(*Interface); ok && !(strict || forceStrict) {
 		return
 	}
-	return check.missingMethod(T, V, false)
+	return check.missingMethod(T, false, V, false)
 }
 
 // deref dereferences typ if it is a *Pointer and returns its base and true.

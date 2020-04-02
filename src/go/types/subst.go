@@ -132,10 +132,20 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		iface = check.subst(pos, iface, smap).(*Interface)
 
 		// targ must implement iface (methods)
-		if m, _ := check.missingMethod(targ, iface, true); m != nil {
+		//
+		// Assume targ is addressable, per the draft design: "In a generic function
+		// body all method calls will be pointer method calls. If necessary, the
+		// function body will insert temporary variables, not seen by the user, in
+		// order to get an addressable variable to use to call the method."
+		//
+		// TODO(gri) Instead of the addressable (= true) flag, could we encode the
+		// same information by making targ a pointer type (and then get rid of the
+		// need for that extra flag)?
+		if m, _ := check.missingMethod(targ, true, iface, true); m != nil {
 			// TODO(gri) needs to print updated name to avoid major confusion in error message!
 			//           (print warning for now)
-			check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", targ, tpar.bound, iface, m)
+			// check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", targ, tpar.bound, iface, m)
+			check.softErrorf(pos, "%s does not satisfy %s (missing method %s)", targ, tpar.bound, m.name)
 			break
 		}
 

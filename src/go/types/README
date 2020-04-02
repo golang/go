@@ -77,13 +77,13 @@ idea how to implement that but we can easily type-check it).
 
 MAJOR KNOWN ISSUES
 
-- various type-specific operations (such as sending a message, type
+- Various type-specific operations (such as sending a message, type
   assertions, etc.) on expressions of a generic type don't work yet
   (but are relatively easy to implement going forward)
-- error messages are reasonable but expect them to be significantly
-  better in a real implementation (the subscript numbers on type
-  parameters are there to visually identify different parameters
-  with the same name)
+- Error messages are reasonable but expect them to be significantly
+  better in a real implementation.
+- Type parameters with pointer designation in contracts are not yet
+  supported (e.g.: contract C(T) { *T m() } ).
 
 See also the NOTES file for a more up-to-date documentation of the
 current state and issues.
