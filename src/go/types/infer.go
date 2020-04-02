@@ -18,10 +18,10 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 	u := check.unifier()
 	u.x.init(tparams)
 
-	// Terminology: TPP = type-parameterized function parameter
+	// Terminology: generic parameter = function parameter with a type-parameterized type
 
-	// 1st pass: Unify parameter and argument types for TPPs with typed arguments
-	//           and collect the indices of TPPs with untyped arguments.
+	// 1st pass: Unify parameter and argument types for generic parameters with typed arguments
+	//           and collect the indices of generic parameters with untyped arguments.
 	var indices []int
 	for i, arg := range args {
 		par := params.At(i)
@@ -39,7 +39,6 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 				// a generic function, we need to initialize u.y with the
 				// respectice type parameters of arg.typ.
 				if !u.unify(par.typ, arg.typ) {
-					//if !check.identical0(par.typ, arg.typ, true, nil, targs) {
 					// Calling subst for an error message can cause problems.
 					// TODO(gri) Determine best approach here.
 					// check.errorf(arg.pos(), "type %s for %s does not match %s = %s",
@@ -54,16 +53,20 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 		}
 	}
 
-	// Some of the TPPs with untyped arguments may have been given a type
-	// indirectly via a TPP with a typed argument; we can ignore those now.
+	// Some generic parameters with untyped arguments may have been given a type
+	// indirectly through another generic parameter with a typed argument; we can
+	// ignore those now. (This only means that we know the types for those generic
+	// parameters; it doesn't mean untyped arguments can be passed safely. We still
+	// need to verify that assignment of those arguments is valid when we check
+	// function parameter passing external to infer.)
 	j := 0
 	for _, i := range indices {
 		par := params.At(i)
-		// Since untyped types are all basic (i.e., unstructured) types, an
-		// untyped argument will never match a structured parameter type; the
+		// Since untyped types are all basic (i.e., non-composite) types, an
+		// untyped argument will never match a composite parameter type; the
 		// only parameter type it can possibly match against is a *TypeParam.
-		// Thus, only keep the indices of TPPs that are unstructured and which
-		// don't have a type inferred yet.
+		// Thus, only keep the indices of generic parameters that are not of
+		// composite types and which don't have a type inferred yet.
 		if tpar, _ := par.typ.(*TypeParam); tpar != nil && u.x.at(tpar.index) == nil {
 			indices[j] = i
 			j++
@@ -71,7 +74,7 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 	}
 	indices = indices[:j]
 
-	// 2nd pass: Unify parameter and default argument types for remaining TPPs.
+	// 2nd pass: Unify parameter and default argument types for remaining generic parameters.
 	for _, i := range indices {
 		par := params.At(i)
 		arg := args[i]
@@ -80,7 +83,6 @@ func (check *Checker) infer(pos token.Pos, tparams []*TypeName, params *Tuple, a
 		// infer an untyped nil type as type parameter type. Ignore untyped
 		// nil by making sure all default argument types are typed.
 		if isTyped(targ) && !u.unify(par.typ, targ) {
-			//if isTyped(targ) && !check.identical0(par.typ, targ, true, nil, targs) {
 			// TODO(gri) see TODO comment above
 			// check.errorf(arg.pos(), "default type %s for %s does not match %s = %s",
 			// 	Default(arg.typ), arg.expr, par.typ, check.subst(pos, par.typ, tparams, targs),

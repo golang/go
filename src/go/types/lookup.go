@@ -321,8 +321,8 @@ func (check *Checker) missingMethod(V Type, addressable bool, T *Interface, stat
 			}
 
 			// If the methods have type parameters we don't care whether they
-			// are the same or not, as long as they match up. Use inference
-			// comparison in that case.
+			// are the same or not, as long as they match up. Use unification
+			// to see if they can be made to match.
 			// TODO(gri) is this always correct? what about type bounds?
 			// (Alternative is to rename/subst type parameters and compare.)
 			u := check.unifier()
@@ -336,7 +336,7 @@ func (check *Checker) missingMethod(V Type, addressable bool, T *Interface, stat
 	}
 
 	// A concrete type implements T if it implements all methods of T.
-	Vd, _ := deref(V) // TODO(gri) shouldn't "pointer-ness" flow into rawLookupFieldOrMethod below?
+	Vd, _ := deref(V)
 	Vn, _ := Vd.(*Named)
 	for _, m := range T.allMethods {
 		// TODO(gri) should this be calling lookupFieldOrMethod instead (and why not)?
@@ -385,8 +385,8 @@ func (check *Checker) missingMethod(V Type, addressable bool, T *Interface, stat
 		}
 
 		// If the methods have type parameters we don't care whether they
-		// are the same or not, as long as they match up. Use inference
-		// comparison (provide non-nil tparams to identical0) in that case.
+		// are the same or not, as long as they match up. Use unification
+		// to see if they can be made to match.
 		// TODO(gri) is this always correct? what about type bounds?
 		// (Alternative is to rename/subst type parameters and compare.)
 		u := check.unifier()
