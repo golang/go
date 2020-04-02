@@ -548,13 +548,13 @@ func TestRangeError(t *testing.T) {
 
 func TestExitCode(t *testing.T) {
 	magic := 123
-	if os.Getenv("_child_flag") != "" {
+	if os.Getenv("GO_CHILD_FLAG") != "" {
 		fs := NewFlagSet("test", ExitOnError)
-		if os.Getenv("_child_flag_handle") != "" {
+		if os.Getenv("GO_CHILD_FLAG_HANDLE") != "" {
 			var b bool
-			fs.BoolVar(&b, os.Getenv("_child_flag_handle"), false, "")
+			fs.BoolVar(&b, os.Getenv("GO_CHILD_FLAG_HANDLE"), false, "")
 		}
-		fs.Parse([]string{os.Getenv("_child_flag")})
+		fs.Parse([]string{os.Getenv("GO_CHILD_FLAG")})
 		os.Exit(magic)
 	}
 
@@ -591,8 +591,8 @@ func TestExitCode(t *testing.T) {
 		cmd := exec.Command(os.Args[0], "-test.run=TestExitCode")
 		cmd.Env = append(
 			os.Environ(),
-			"_child_flag="+test.flag,
-			"_child_flag_handle="+test.flagHandle,
+			"GO_CHILD_FLAG="+test.flag,
+			"GO_CHILD_FLAG_HANDLE="+test.flagHandle,
 		)
 		cmd.Run()
 		got := cmd.ProcessState.ExitCode()
