@@ -44,7 +44,7 @@ import (
 	"sync"
 )
 
-func genplt(ctxt *ld.Link) {
+func genplt2(ctxt *ld.Link, ldr *loader.Loader) {
 	// The ppc64 ABI PLT has similar concepts to other
 	// architectures, but is laid out quite differently. When we
 	// see an R_PPC64_REL24 relocation to a dynamic symbol
@@ -93,68 +93,73 @@ func genplt(ctxt *ld.Link) {
 	//
 	// This assumes "case 1" from the ABI, where the caller needs
 	// us to save and restore the TOC pointer.
-	var stubs []*sym.Symbol
-	for _, s := range ctxt.Textp {
-		for i := range s.R {
-			r := &s.R[i]
-			if r.Type != objabi.ElfRelocOffset+objabi.RelocType(elf.R_PPC64_REL24) || r.Sym.Type != sym.SDYNIMPORT {
+	var stubs []loader.Sym
+	for _, s := range ctxt.Textp2 {
+		relocs := ldr.Relocs(s)
+		for i := 0; i < relocs.Count(); i++ {
+			r := relocs.At2(i)
+			if r.Type() != objabi.ElfRelocOffset+objabi.RelocType(elf.R_PPC64_REL24) || ldr.SymType(r.Sym()) != sym.SDYNIMPORT {
 				continue
 			}
 
 			// Reserve PLT entry and generate symbol
 			// resolver
-			addpltsym(ctxt, r.Sym)
+			addpltsym2(ctxt, ldr, r.Sym())
 
-			// Generate call stub
-			n := fmt.Sprintf("%s.%s", s.Name, r.Sym.Name)
-
-			stub := ctxt.Syms.Lookup(n, 0)
-			if s.Attr.Reachable() {
-				stub.Attr |= sym.AttrReachable
-			}
-			if stub.Size == 0 {
-				// Need outer to resolve .TOC.
-				stub.Outer = s
-				stubs = append(stubs, stub)
-				gencallstub(ctxt, 1, stub, r.Sym)
+			// Generate call stub. Important to note that we're looking
+			// up the stub using the same version as the parent symbol (s),
+			// needed so that symtoc() will select the right .TOC. symbol
+			// when processing the stub.  In older versions of the linker
+			// this was done by setting stub.Outer to the parent, but
+			// if the stub has the right version initially this is not needed.
+			n := fmt.Sprintf("%s.%s", ldr.SymName(s), ldr.SymName(r.Sym()))
+			stub := ldr.CreateSymForUpdate(n, ldr.SymVersion(s))
+			if stub.Size() == 0 {
+				stubs = append(stubs, stub.Sym())
+				gencallstub2(ctxt, ldr, 1, stub, r.Sym())
 			}
 
 			// Update the relocation to use the call stub
-			r.Sym = stub
+			r.SetSym(stub.Sym())
+
+			// make sure the data is writeable
+			if ldr.AttrReadOnly(s) {
+				panic("can't write to read-only sym data")
+			}
 
 			// Restore TOC after bl. The compiler put a
 			// nop here for us to overwrite.
+			sp := ldr.Data(s)
 			const o1 = 0xe8410018 // ld r2,24(r1)
-			ctxt.Arch.ByteOrder.PutUint32(s.P[r.Off+4:], o1)
+			ctxt.Arch.ByteOrder.PutUint32(sp[r.Off()+4:], o1)
 		}
 	}
 	// Put call stubs at the beginning (instead of the end).
 	// So when resolving the relocations to calls to the stubs,
 	// the addresses are known and trampolines can be inserted
 	// when necessary.
-	ctxt.Textp = append(stubs, ctxt.Textp...)
+	ctxt.Textp2 = append(stubs, ctxt.Textp2...)
 }
 
-func genaddmoduledata(ctxt *ld.Link) {
-	addmoduledata := ctxt.Syms.ROLookup("runtime.addmoduledata", sym.SymVerABI0)
-	if addmoduledata.Type == sym.STEXT && ctxt.BuildMode != ld.BuildModePlugin {
+func genaddmoduledata2(ctxt *ld.Link, ldr *loader.Loader) {
+	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
+	if initfunc == nil {
 		return
 	}
-	addmoduledata.Attr |= sym.AttrReachable
-	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
-	initfunc.Type = sym.STEXT
-	initfunc.Attr |= sym.AttrLocal
-	initfunc.Attr |= sym.AttrReachable
+
 	o := func(op uint32) {
 		initfunc.AddUint32(ctxt.Arch, op)
 	}
+
 	// addis r2, r12, .TOC.-func@ha
-	rel := initfunc.AddRel()
-	rel.Off = int32(initfunc.Size)
-	rel.Siz = 8
-	rel.Sym = ctxt.Syms.Lookup(".TOC.", 0)
-	rel.Sym.Attr |= sym.AttrReachable
-	rel.Type = objabi.R_ADDRPOWER_PCREL
+	toc := ctxt.DotTOC2[0]
+	rel1 := loader.Reloc{
+		Off:  0,
+		Size: 8,
+		Type: objabi.R_ADDRPOWER_PCREL,
+		Sym:  toc,
+	}
+	initfunc.AddReloc(rel1)
 	o(0x3c4c0000)
 	// addi r2, r2, .TOC.-func@l
 	o(0x38420000)
@@ -163,28 +168,32 @@ func genaddmoduledata(ctxt *ld.Link) {
 	// stdu r31, -32(r1)
 	o(0xf801ffe1)
 	// addis r3, r2, local.moduledata@got@ha
-	rel = initfunc.AddRel()
-	rel.Off = int32(initfunc.Size)
-	rel.Siz = 8
-	if s := ctxt.Syms.ROLookup("local.moduledata", 0); s != nil {
-		rel.Sym = s
-	} else if s := ctxt.Syms.ROLookup("local.pluginmoduledata", 0); s != nil {
-		rel.Sym = s
+	var tgt loader.Sym
+	if s := ldr.Lookup("local.moduledata", 0); s != 0 {
+		tgt = s
+	} else if s := ldr.Lookup("local.pluginmoduledata", 0); s != 0 {
+		tgt = s
 	} else {
-		rel.Sym = ctxt.Syms.Lookup("runtime.firstmoduledata", 0)
+		tgt = ldr.LookupOrCreateSym("runtime.firstmoduledata", 0)
 	}
-	rel.Sym.Attr |= sym.AttrReachable
-	rel.Sym.Attr |= sym.AttrLocal
-	rel.Type = objabi.R_ADDRPOWER_GOT
+	rel2 := loader.Reloc{
+		Off:  int32(initfunc.Size()),
+		Size: 8,
+		Type: objabi.R_ADDRPOWER_GOT,
+		Sym:  tgt,
+	}
+	initfunc.AddReloc(rel2)
 	o(0x3c620000)
 	// ld r3, local.moduledata@got@l(r3)
 	o(0xe8630000)
 	// bl runtime.addmoduledata
-	rel = initfunc.AddRel()
-	rel.Off = int32(initfunc.Size)
-	rel.Siz = 4
-	rel.Sym = addmoduledata
-	rel.Type = objabi.R_CALLPOWER
+	rel3 := loader.Reloc{
+		Off:  int32(initfunc.Size()),
+		Size: 4,
+		Type: objabi.R_CALLPOWER,
+		Sym:  addmoduledata,
+	}
+	initfunc.AddReloc(rel3)
 	o(0x48000001)
 	// nop
 	o(0x60000000)
@@ -196,67 +205,61 @@ func genaddmoduledata(ctxt *ld.Link) {
 	o(0x38210020)
 	// blr
 	o(0x4e800020)
-
-	if ctxt.BuildMode == ld.BuildModePlugin {
-		ctxt.Textp = append(ctxt.Textp, addmoduledata)
-	}
-	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
-	ctxt.Textp = append(ctxt.Textp, initfunc)
-	initarray_entry.Attr |= sym.AttrReachable
-	initarray_entry.Attr |= sym.AttrLocal
-	initarray_entry.Type = sym.SINITARR
-	initarray_entry.AddAddr(ctxt.Arch, initfunc)
 }
 
-func gentext(ctxt *ld.Link) {
+func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
 	if ctxt.DynlinkingGo() {
-		genaddmoduledata(ctxt)
+		genaddmoduledata2(ctxt, ldr)
 	}
 
 	if ctxt.LinkMode == ld.LinkInternal {
-		genplt(ctxt)
+		genplt2(ctxt, ldr)
 	}
 }
 
 // Construct a call stub in stub that calls symbol targ via its PLT
 // entry.
-func gencallstub(ctxt *ld.Link, abicase int, stub *sym.Symbol, targ *sym.Symbol) {
+func gencallstub2(ctxt *ld.Link, ldr *loader.Loader, abicase int, stub *loader.SymbolBuilder, targ loader.Sym) {
 	if abicase != 1 {
 		// If we see R_PPC64_TOCSAVE or R_PPC64_REL24_NOTOC
 		// relocations, we'll need to implement cases 2 and 3.
 		log.Fatalf("gencallstub only implements case 1 calls")
 	}
 
-	plt := ctxt.Syms.Lookup(".plt", 0)
+	plt := ctxt.PLT2
 
-	stub.Type = sym.STEXT
+	stub.SetType(sym.STEXT)
 
 	// Save TOC pointer in TOC save slot
 	stub.AddUint32(ctxt.Arch, 0xf8410018) // std r2,24(r1)
 
 	// Load the function pointer from the PLT.
-	r := stub.AddRel()
-
-	r.Off = int32(stub.Size)
-	r.Sym = plt
-	r.Add = int64(targ.Plt())
-	r.Siz = 2
-	if ctxt.Arch.ByteOrder == binary.BigEndian {
-		r.Off += int32(r.Siz)
+	rel := loader.Reloc{
+		Off:  int32(stub.Size()),
+		Size: 2,
+		Add:  int64(ldr.SymPlt(targ)),
+		Type: objabi.R_POWER_TOC,
+		Sym:  plt,
 	}
-	r.Type = objabi.R_POWER_TOC
-	r.Variant = sym.RV_POWER_HA
+	if ctxt.Arch.ByteOrder == binary.BigEndian {
+		rel.Off += int32(rel.Size)
+	}
+	ri1 := stub.AddReloc(rel)
+	ldr.SetRelocVariant(stub.Sym(), int(ri1), sym.RV_POWER_HA)
 	stub.AddUint32(ctxt.Arch, 0x3d820000) // addis r12,r2,targ@plt@toc@ha
-	r = stub.AddRel()
-	r.Off = int32(stub.Size)
-	r.Sym = plt
-	r.Add = int64(targ.Plt())
-	r.Siz = 2
-	if ctxt.Arch.ByteOrder == binary.BigEndian {
-		r.Off += int32(r.Siz)
+
+	rel2 := loader.Reloc{
+		Off:  int32(stub.Size()),
+		Size: 2,
+		Add:  int64(ldr.SymPlt(targ)),
+		Type: objabi.R_POWER_TOC,
+		Sym:  plt,
 	}
-	r.Type = objabi.R_POWER_TOC
-	r.Variant = sym.RV_POWER_LO
+	if ctxt.Arch.ByteOrder == binary.BigEndian {
+		rel2.Off += int32(rel.Size)
+	}
+	ri2 := stub.AddReloc(rel2)
+	ldr.SetRelocVariant(stub.Sym(), int(ri2), sym.RV_POWER_LO)
 	stub.AddUint32(ctxt.Arch, 0xe98c0000) // ld r12,targ@plt@toc@l(r12)
 
 	// Jump to the loaded pointer
@@ -956,31 +959,32 @@ overflow:
 	return t
 }
 
-func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
-	if s.Plt() >= 0 {
+func addpltsym2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym) {
+	if ldr.SymPlt(s) >= 0 {
 		return
 	}
 
-	ld.Adddynsym(&ctxt.Target, &ctxt.ArchSyms, s)
+	ld.Adddynsym2(ldr, &ctxt.ErrorReporter, &ctxt.Target, &ctxt.ArchSyms, s)
 
 	if ctxt.IsELF {
-		plt := ctxt.Syms.Lookup(".plt", 0)
-		rela := ctxt.Syms.Lookup(".rela.plt", 0)
-		if plt.Size == 0 {
+		plt := ldr.MakeSymbolUpdater(ctxt.PLT2)
+		rela := ldr.MakeSymbolUpdater(ctxt.RelaPLT2)
+		if plt.Size() == 0 {
 			panic("plt is not set up")
 		}
 
 		// Create the glink resolver if necessary
-		glink := ensureglinkresolver(ctxt)
+		glink := ensureglinkresolver2(ctxt, ldr)
 
 		// Write symbol resolver stub (just a branch to the
 		// glink resolver stub)
-		r := glink.AddRel()
-
-		r.Sym = glink
-		r.Off = int32(glink.Size)
-		r.Siz = 4
-		r.Type = objabi.R_CALLPOWER
+		rel := loader.Reloc{
+			Off:  int32(glink.Size()),
+			Size: 4,
+			Type: objabi.R_CALLPOWER,
+			Sym:  glink.Sym(),
+		}
+		glink.AddReloc(rel)
 		glink.AddUint32(ctxt.Arch, 0x48000000) // b .glink
 
 		// In the ppc64 ABI, the dynamic linker is responsible
@@ -989,22 +993,23 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 		// JMP_SLOT dynamic relocation for it.
 		//
 		// TODO(austin): ABI v1 is different
-		s.SetPlt(int32(plt.Size))
+		ldr.SetPlt(s, int32(plt.Size()))
 
-		plt.Size += 8
+		plt.Grow(plt.Size() + 8)
 
-		rela.AddAddrPlus(ctxt.Arch, plt, int64(s.Plt()))
-		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_PPC64_JMP_SLOT)))
+		rela.AddAddrPlus(ctxt.Arch, plt.Sym(), int64(ldr.SymPlt(s)))
+		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(ldr.SymDynid(s)), uint32(elf.R_PPC64_JMP_SLOT)))
 		rela.AddUint64(ctxt.Arch, 0)
 	} else {
-		ld.Errorf(s, "addpltsym: unsupported binary format")
+		ctxt.Errorf(s, "addpltsym: unsupported binary format")
 	}
 }
 
 // Generate the glink resolver stub if necessary and return the .glink section
-func ensureglinkresolver(ctxt *ld.Link) *sym.Symbol {
-	glink := ctxt.Syms.Lookup(".glink", 0)
-	if glink.Size != 0 {
+func ensureglinkresolver2(ctxt *ld.Link, ldr *loader.Loader) *loader.SymbolBuilder {
+	gs := ldr.LookupOrCreateSym(".glink", 0)
+	glink := ldr.MakeSymbolUpdater(gs)
+	if glink.Size() != 0 {
 		return glink
 	}
 
@@ -1030,12 +1035,7 @@ func ensureglinkresolver(ctxt *ld.Link) *sym.Symbol {
 	glink.AddUint32(ctxt.Arch, 0x7800f082) // srdi r0,r0,2
 
 	// r11 = address of the first byte of the PLT
-	r := glink.AddRel()
-
-	r.Off = int32(glink.Size)
-	r.Sym = ctxt.Syms.Lookup(".plt", 0)
-	r.Siz = 8
-	r.Type = objabi.R_ADDRPOWER
+	glink.AddSymRef(ctxt.Arch, ctxt.PLT2, 0, objabi.R_ADDRPOWER, 8)
 
 	glink.AddUint32(ctxt.Arch, 0x3d600000) // addis r11,0,.plt@ha
 	glink.AddUint32(ctxt.Arch, 0x396b0000) // addi r11,r11,.plt@l
@@ -1054,9 +1054,8 @@ func ensureglinkresolver(ctxt *ld.Link) *sym.Symbol {
 
 	// Add DT_PPC64_GLINK .dynamic entry, which points to 32 bytes
 	// before the first symbol resolver stub.
-	s := ctxt.Syms.Lookup(".dynamic", 0)
-
-	ld.Elfwritedynentsymplus(ctxt.Arch, s, ld.DT_PPC64_GLINK, glink, glink.Size-32)
+	du := ldr.MakeSymbolUpdater(ctxt.Dynamic2)
+	ld.Elfwritedynentsymplus2(ctxt, du, ld.DT_PPC64_GLINK, glink.Sym(), glink.Size()-32)
 
 	return glink
 }

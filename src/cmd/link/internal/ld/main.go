@@ -285,18 +285,11 @@ func Main(arch *sys.Arch, theArch Arch) {
 	setupdynexp(ctxt)
 	ctxt.setArchSyms(BeforeLoadlibFull)
 	ctxt.addexport()
-	if thearch.Gentext2 != nil {
-		bench.Start("Gentext")
-		thearch.Gentext2(ctxt, ctxt.loader) // trampolines, call stubs, etc.
-	}
+	bench.Start("Gentext")
+	thearch.Gentext2(ctxt, ctxt.loader) // trampolines, call stubs, etc.
 
 	bench.Start("loadlibfull")
 	ctxt.loadlibfull() // XXX do it here for now
-
-	if thearch.Gentext2 == nil {
-		bench.Start("Gentext")
-		thearch.Gentext(ctxt) // trampolines, call stubs, etc.
-	}
 
 	bench.Start("textaddress")
 	ctxt.textaddress()
