@@ -9,8 +9,20 @@ package regtest
 import (
 	"testing"
 
+	"golang.org/x/tools/internal/lsp/fake"
 	"golang.org/x/tools/internal/lsp/protocol"
 )
+
+const ardanLabsProxy = `
+-- github.com/ardanlabs/conf@v1.2.3/go.mod --
+module github.com/ardanlabs/conf
+
+go 1.12
+-- github.com/ardanlabs/conf@v1.2.3/conf.go --
+package conf
+
+var ErrHelpWanted error
+`
 
 // -modfile flag that is used to provide modfile diagnostics is only available
 // with 1.14.
@@ -29,17 +41,6 @@ func main() {
 	_ = conf.ErrHelpWanted
 }
 `
-	const proxy = `
--- github.com/ardanlabs/conf@v1.2.3/go.mod --
-module github.com/ardanlabs/conf
-
-go 1.12
--- github.com/ardanlabs/conf@v1.2.3/conf.go --
-package conf
-
-var ErrHelpWanted error
-`
-
 	runner.Run(t, ardanLabs, func(t *testing.T, env *Env) {
 		// Expect a diagnostic with a suggested fix to add
 		// "github.com/ardanlabs/conf" to the go.mod file.
@@ -84,5 +85,40 @@ var ErrHelpWanted error
 		env.Await(
 			env.DiagnosticAtRegexp("main.go", `"github.com/ardanlabs/conf"`),
 		)
-	}, WithProxy(proxy))
+	}, WithProxy(ardanLabsProxy))
+}
+
+// Test for golang/go#38207.
+func TestNewModule_Issue38207(t *testing.T) {
+	const emptyFile = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- main.go --
+`
+	runner.Run(t, emptyFile, func(t *testing.T, env *Env) {
+		env.OpenFile("main.go")
+		env.OpenFile("go.mod")
+		env.EditBuffer("main.go", fake.NewEdit(0, 0, 0, 0, `package main
+
+import "github.com/ardanlabs/conf"
+
+func main() {
+	_ = conf.ErrHelpWanted
+}
+`))
+		env.SaveBuffer("main.go")
+		metBy := env.Await(
+			env.DiagnosticAtRegexp("main.go", `"github.com/ardanlabs/conf"`),
+		)
+		d, ok := metBy[0].(*protocol.PublishDiagnosticsParams)
+		if !ok {
+			t.Fatalf("unexpected type for diagnostics (%T)", d)
+		}
+		env.ApplyQuickFixes("main.go", d.Diagnostics)
+		env.Await(
+			EmptyDiagnostics("main.go"),
+		)
+	}, WithProxy(ardanLabsProxy))
 }
