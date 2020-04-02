@@ -282,7 +282,17 @@ func (state *golistState) determineRootDirs() (map[string]string, error) {
 }
 
 func (state *golistState) determineRootDirsModules() (map[string]string, error) {
-	out, err := state.invokeGo("list", "-m", "-json", "all")
+	// This will only return the root directory for the main module.
+	// For now we only support overlays in main modules.
+	// Editing files in the module cache isn't a great idea, so we don't
+	// plan to ever support that, but editing files in replaced modules
+	// is something we may want to support. To do that, we'll want to
+	// do a go list -m to determine the replaced module's module path and
+	// directory, and then a go list -m {{with .Replace}}{{.Dir}}{{end}} <replaced module's path>
+	// from the main module to determine if that module is actually a replacement.
+	// See bcmills's comment here: https://github.com/golang/go/issues/37629#issuecomment-594179751
+	// for more information.
+	out, err := state.invokeGo("list", "-m", "-json")
 	if err != nil {
 		return nil, err
 	}

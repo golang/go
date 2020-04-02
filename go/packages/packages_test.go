@@ -2593,6 +2593,47 @@ func testForTestField(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
+func TestIssue37529(t *testing.T) {
+	packagestest.TestAll(t, testIssue37529)
+}
+func testIssue37529(t *testing.T, exporter packagestest.Exporter) {
+	// Tests #37529. When automatic vendoring is triggered, and we try to determine
+	// the module root dir for a new overlay package, we previously would do a go list -m all,
+	// which is incompatible with automatic vendoring.
+
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+		Files: map[string]interface{}{
+			"c/c2.go":             `package c`,
+			"a/a.go":              `package a; import "b.com/b"; const A = b.B`,
+			"vendor/b.com/b/b.go": `package b; const B = 4`,
+		}}})
+	rootDir := filepath.Dir(filepath.Dir(exported.File("golang.org/fake", "a/a.go")))
+	exported.Config.Overlay = map[string][]byte{
+		filepath.Join(rootDir, "c/c.go"): []byte(`package c; import "golang.org/fake/a"; const C = a.A`),
+	}
+	exported.Config.Env = append(exported.Config.Env, "GOFLAGS=-mod=vendor")
+	exported.Config.Mode = packages.LoadAllSyntax
+
+	defer exported.Cleanup()
+
+	initial, err := packages.Load(exported.Config, "golang.org/fake/c")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check value of a.A.
+	a := initial[0]
+	aA := constant(a, "C")
+	if aA == nil {
+		t.Fatalf("a.A: got nil")
+	}
+	got := aA.Val().String()
+	if got != "4" {
+		t.Errorf("a.A: got %s, want %s", got, "4")
+	}
+}
+
 func errorMessages(errors []packages.Error) []string {
 	var msgs []string
 	for _, err := range errors {
