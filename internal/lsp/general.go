@@ -36,8 +36,9 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 	options := s.session.Options()
 	defer func() { s.session.SetOptions(options) }()
 
-	// TODO: Handle results here.
-	source.SetOptions(&options, params.InitializationOptions)
+	if err := s.handleOptionResults(ctx, source.SetOptions(&options, params.InitializationOptions)); err != nil {
+		return nil, err
+	}
 	options.ForClientCapabilities(params.Capabilities)
 
 	// gopls only supports URIs with a file:// scheme. Any other URIs will not
@@ -367,35 +368,41 @@ func (s *Server) fetchConfig(ctx context.Context, name string, folder span.URI, 
 		return fmt.Errorf("failed to get workspace configuration from client (%s): %v", folder, err)
 	}
 	for _, config := range configs {
-		results := source.SetOptions(o, config)
-		for _, result := range results {
-			if result.Error != nil {
-				if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-					Type:    protocol.Error,
-					Message: result.Error.Error(),
-				}); err != nil {
-					return err
-				}
+		if err := s.handleOptionResults(ctx, source.SetOptions(o, config)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Server) handleOptionResults(ctx context.Context, results source.OptionResults) error {
+	for _, result := range results {
+		if result.Error != nil {
+			if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+				Type:    protocol.Error,
+				Message: result.Error.Error(),
+			}); err != nil {
+				return err
 			}
-			switch result.State {
-			case source.OptionUnexpected:
-				if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-					Type:    protocol.Error,
-					Message: fmt.Sprintf("unexpected config %s", result.Name),
-				}); err != nil {
-					return err
-				}
-			case source.OptionDeprecated:
-				msg := fmt.Sprintf("config %s is deprecated", result.Name)
-				if result.Replacement != "" {
-					msg = fmt.Sprintf("%s, use %s instead", msg, result.Replacement)
-				}
-				if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
-					Type:    protocol.Warning,
-					Message: msg,
-				}); err != nil {
-					return err
-				}
+		}
+		switch result.State {
+		case source.OptionUnexpected:
+			if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+				Type:    protocol.Error,
+				Message: fmt.Sprintf("unexpected config %s", result.Name),
+			}); err != nil {
+				return err
+			}
+		case source.OptionDeprecated:
+			msg := fmt.Sprintf("config %s is deprecated", result.Name)
+			if result.Replacement != "" {
+				msg = fmt.Sprintf("%s, use %s instead", msg, result.Replacement)
+			}
+			if err := s.client.ShowMessage(ctx, &protocol.ShowMessageParams{
+				Type:    protocol.Warning,
+				Message: msg,
+			}); err != nil {
+				return err
 			}
 		}
 	}
