@@ -639,7 +639,24 @@ func (t *test) run() {
 		importer = go2go.NewImporter(t.dir)
 		go2Bytes, err := go2go.RewriteBuffer(importer, t.gofile, srcBytes)
 		if err != nil {
-			t.err = err
+			if !wantError {
+				t.err = err
+				return
+			}
+			if action != "errorcheck" {
+				t.err = fmt.Errorf("%s not supported for .go2 files", action)
+				return
+			}
+			errStr := err.Error()
+			fields := strings.SplitN(errStr, "\n", 2)
+			if len(fields) > 1 && strings.HasPrefix(fields[0], "type checking failed for") {
+				errStr = fields[1]
+			}
+			long := filepath.Join(cwd, t.goFileName())
+			if *updateErrors {
+				t.updateErrors(errStr, long)
+			}
+			t.err = t.errorCheck(errStr, false, long, t.gofile)
 			return
 		}
 		srcBytes = go2Bytes
