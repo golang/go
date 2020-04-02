@@ -535,6 +535,30 @@ func TestStrictDup(t *testing.T) {
 	}
 }
 
+func TestOldLink(t *testing.T) {
+	// Test that old object file format still works.
+	// TODO(go115newobj): delete.
+
+	testenv.MustHaveGoBuild(t)
+
+	tmpdir, err := ioutil.TempDir("", "TestOldLink")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	src := filepath.Join(tmpdir, "main.go")
+	err = ioutil.WriteFile(src, []byte("package main; func main(){}\n"), 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(testenv.GoToolPath(t), "run", "-gcflags=all=-go115newobj=false", "-asmflags=all=-go115newobj=false", "-ldflags=-go115newobj=false", src)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Errorf("%v: %v:\n%s", cmd.Args, err, out)
+	}
+}
+
 const testFuncAlignSrc = `
 package main
 import (

@@ -36,13 +36,15 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
 	"log"
+	"runtime"
 )
 
 func linknew(arch *sys.Arch) *Link {
 	ctxt := &Link{
+		Target:       Target{Arch: arch},
 		Syms:         sym.NewSymbols(),
-		Out:          &OutBuf{arch: arch},
-		Arch:         arch,
+		outSem:       make(chan int, 2*runtime.GOMAXPROCS(0)),
+		Out:          NewOutBuf(arch),
 		LibraryByPkg: make(map[string]*sym.Library),
 	}
 
@@ -51,8 +53,8 @@ func linknew(arch *sys.Arch) *Link {
 	}
 
 	AtExit(func() {
-		if nerrors > 0 && ctxt.Out.f != nil {
-			ctxt.Out.f.Close()
+		if nerrors > 0 {
+			ctxt.Out.Close()
 			mayberemoveoutfile()
 		}
 	})

@@ -19,24 +19,23 @@ import (
 // New object file format.
 //
 //    Header struct {
-//       Magic   [...]byte   // "\x00go114LD"
+//       Magic   [...]byte   // "\x00go115ld"
 //       Flags   uint32
 //       // TODO: Fingerprint
 //       Offsets [...]uint32 // byte offset of each block below
 //    }
 //
 //    Strings [...]struct {
-//       Len  uint32
 //       Data [...]byte
 //    }
 //
-//    Autolib  [...]stringOff // imported packages (for file loading) // TODO: add fingerprints
-//    PkgIndex [...]stringOff // referenced packages by index
+//    Autolib  [...]string // imported packages (for file loading) // TODO: add fingerprints
+//    PkgIndex [...]string // referenced packages by index
 //
-//    DwarfFiles [...]stringOff
+//    DwarfFiles [...]string
 //
 //    SymbolDefs [...]struct {
-//       Name stringOff
+//       Name string
 //       ABI  uint16
 //       Type uint8
 //       Flag uint8
@@ -69,8 +68,8 @@ import (
 //    Data   [...]byte
 //    Pcdata [...]byte
 //
-// stringOff is a uint32 (?) offset that points to the corresponding
-// string, which is a uint32 length followed by that number of bytes.
+// string is encoded as is a uint32 length followed by a uint32 offset
+// that points to the corresponding string bytes.
 //
 // symRef is struct { PkgIdx, SymIdx uint32 }.
 //
@@ -118,6 +117,8 @@ import (
 // Currently a symbol's Gotype and FuncInfo are auxiliary symbols. We
 // may make use of aux symbols in more cases, e.g. DWARF symbols.
 
+const stringRefSize = 8 // two uint32s
+
 // Package Index.
 const (
 	PkgIdxNone    = (1<<31 - 1) - iota // Non-package symbols
@@ -153,7 +154,7 @@ type Header struct {
 	Offsets [NBlk]uint32
 }
 
-const Magic = "\x00go114LD"
+const Magic = "\x00go115ld"
 
 func (h *Header) Write(w *Writer) {
 	w.RawString(h.Magic)
@@ -185,11 +186,12 @@ func (h *Header) Size() int {
 
 // Symbol definition.
 type Sym struct {
-	Name string
-	ABI  uint16
-	Type uint8
-	Flag uint8
-	Siz  uint32
+	Name  string
+	ABI   uint16
+	Type  uint8
+	Flag  uint8
+	Siz   uint32
+	Align uint32
 }
 
 const SymABIstatic = ^uint16(0)
@@ -203,7 +205,7 @@ const (
 	SymFlagLocal
 	SymFlagTypelink
 	SymFlagLeaf
-	SymFlagCFunc
+	SymFlagNoSplit
 	SymFlagReflectMethod
 	SymFlagGoType
 	SymFlagTopFrame
@@ -215,28 +217,33 @@ func (s *Sym) Write(w *Writer) {
 	w.Uint8(s.Type)
 	w.Uint8(s.Flag)
 	w.Uint32(s.Siz)
+	w.Uint32(s.Align)
 }
 
-func (s *Sym) Read(r *Reader, off uint32) {
-	s.Name = r.StringRef(off)
-	s.ABI = r.uint16At(off + 4)
-	s.Type = r.uint8At(off + 6)
-	s.Flag = r.uint8At(off + 7)
-	s.Siz = r.uint32At(off + 8)
+const SymSize = stringRefSize + 2 + 1 + 1 + 4 + 4
+
+type Sym2 [SymSize]byte
+
+func (s *Sym2) Name(r *Reader) string {
+	len := binary.LittleEndian.Uint32(s[:])
+	off := binary.LittleEndian.Uint32(s[4:])
+	return r.StringAt(off, len)
 }
 
-func (s *Sym) Size() int {
-	return 4 + 2 + 1 + 1 + 4
-}
+func (s *Sym2) ABI() uint16   { return binary.LittleEndian.Uint16(s[8:]) }
+func (s *Sym2) Type() uint8   { return s[10] }
+func (s *Sym2) Flag() uint8   { return s[11] }
+func (s *Sym2) Siz() uint32   { return binary.LittleEndian.Uint32(s[12:]) }
+func (s *Sym2) Align() uint32 { return binary.LittleEndian.Uint32(s[16:]) }
 
-func (s *Sym) Dupok() bool         { return s.Flag&SymFlagDupok != 0 }
-func (s *Sym) Local() bool         { return s.Flag&SymFlagLocal != 0 }
-func (s *Sym) Typelink() bool      { return s.Flag&SymFlagTypelink != 0 }
-func (s *Sym) Leaf() bool          { return s.Flag&SymFlagLeaf != 0 }
-func (s *Sym) CFunc() bool         { return s.Flag&SymFlagCFunc != 0 }
-func (s *Sym) ReflectMethod() bool { return s.Flag&SymFlagReflectMethod != 0 }
-func (s *Sym) IsGoType() bool      { return s.Flag&SymFlagGoType != 0 }
-func (s *Sym) TopFrame() bool      { return s.Flag&SymFlagTopFrame != 0 }
+func (s *Sym2) Dupok() bool         { return s.Flag()&SymFlagDupok != 0 }
+func (s *Sym2) Local() bool         { return s.Flag()&SymFlagLocal != 0 }
+func (s *Sym2) Typelink() bool      { return s.Flag()&SymFlagTypelink != 0 }
+func (s *Sym2) Leaf() bool          { return s.Flag()&SymFlagLeaf != 0 }
+func (s *Sym2) NoSplit() bool       { return s.Flag()&SymFlagNoSplit != 0 }
+func (s *Sym2) ReflectMethod() bool { return s.Flag()&SymFlagReflectMethod != 0 }
+func (s *Sym2) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
+func (s *Sym2) TopFrame() bool      { return s.Flag()&SymFlagTopFrame != 0 }
 
 // Symbol reference.
 type SymRef struct {
@@ -247,15 +254,6 @@ type SymRef struct {
 func (s *SymRef) Write(w *Writer) {
 	w.Uint32(s.PkgIdx)
 	w.Uint32(s.SymIdx)
-}
-
-func (s *SymRef) Read(r *Reader, off uint32) {
-	s.PkgIdx = r.uint32At(off)
-	s.SymIdx = r.uint32At(off + 4)
-}
-
-func (s *SymRef) Size() int {
-	return 4 + 4
 }
 
 // Relocation.
@@ -275,16 +273,33 @@ func (r *Reloc) Write(w *Writer) {
 	r.Sym.Write(w)
 }
 
-func (o *Reloc) Read(r *Reader, off uint32) {
-	o.Off = r.int32At(off)
-	o.Siz = r.uint8At(off + 4)
-	o.Type = r.uint8At(off + 5)
-	o.Add = r.int64At(off + 6)
-	o.Sym.Read(r, off+14)
+const RelocSize = 4 + 1 + 1 + 8 + 8
+
+type Reloc2 [RelocSize]byte
+
+func (r *Reloc2) Off() int32  { return int32(binary.LittleEndian.Uint32(r[:])) }
+func (r *Reloc2) Siz() uint8  { return r[4] }
+func (r *Reloc2) Type() uint8 { return r[5] }
+func (r *Reloc2) Add() int64  { return int64(binary.LittleEndian.Uint64(r[6:])) }
+func (r *Reloc2) Sym() SymRef {
+	return SymRef{binary.LittleEndian.Uint32(r[14:]), binary.LittleEndian.Uint32(r[18:])}
 }
 
-func (r *Reloc) Size() int {
-	return 4 + 1 + 1 + 8 + r.Sym.Size()
+func (r *Reloc2) SetOff(x int32)  { binary.LittleEndian.PutUint32(r[:], uint32(x)) }
+func (r *Reloc2) SetSiz(x uint8)  { r[4] = x }
+func (r *Reloc2) SetType(x uint8) { r[5] = x }
+func (r *Reloc2) SetAdd(x int64)  { binary.LittleEndian.PutUint64(r[6:], uint64(x)) }
+func (r *Reloc2) SetSym(x SymRef) {
+	binary.LittleEndian.PutUint32(r[14:], x.PkgIdx)
+	binary.LittleEndian.PutUint32(r[18:], x.SymIdx)
+}
+
+func (r *Reloc2) Set(off int32, size uint8, typ uint8, add int64, sym SymRef) {
+	r.SetOff(off)
+	r.SetSiz(size)
+	r.SetType(typ)
+	r.SetAdd(add)
+	r.SetSym(sym)
 }
 
 // Aux symbol info.
@@ -311,13 +326,13 @@ func (a *Aux) Write(w *Writer) {
 	a.Sym.Write(w)
 }
 
-func (a *Aux) Read(r *Reader, off uint32) {
-	a.Type = r.uint8At(off)
-	a.Sym.Read(r, off+1)
-}
+const AuxSize = 1 + 8
 
-func (a *Aux) Size() int {
-	return 1 + a.Sym.Size()
+type Aux2 [AuxSize]byte
+
+func (a *Aux2) Type() uint8 { return a[0] }
+func (a *Aux2) Sym() SymRef {
+	return SymRef{binary.LittleEndian.Uint32(a[1:]), binary.LittleEndian.Uint32(a[5:])}
 }
 
 type Writer struct {
@@ -335,7 +350,6 @@ func (w *Writer) AddString(s string) {
 		return
 	}
 	w.stringMap[s] = w.off
-	w.Uint32(uint32(len(s)))
 	w.RawString(s)
 }
 
@@ -344,6 +358,7 @@ func (w *Writer) StringRef(s string) {
 	if !ok {
 		panic(fmt.Sprintf("writeStringRef: string not added: %q", s))
 	}
+	w.Uint32(uint32(len(s)))
 	w.Uint32(off)
 }
 
@@ -441,9 +456,8 @@ func (r *Reader) uint8At(off uint32) uint8 {
 	return b[0]
 }
 
-func (r *Reader) StringAt(off uint32) string {
-	l := r.uint32At(off)
-	b := r.b[off+4 : off+4+l]
+func (r *Reader) StringAt(off uint32, len uint32) string {
+	b := r.b[off : off+len]
 	if r.readonly {
 		return toString(b) // backed by RO memory, ok to make unsafe string
 	}
@@ -465,66 +479,69 @@ func toString(b []byte) string {
 }
 
 func (r *Reader) StringRef(off uint32) string {
-	return r.StringAt(r.uint32At(off))
+	l := r.uint32At(off)
+	return r.StringAt(r.uint32At(off+4), l)
 }
 
 func (r *Reader) Autolib() []string {
-	n := (r.h.Offsets[BlkAutolib+1] - r.h.Offsets[BlkAutolib]) / 4
+	n := (r.h.Offsets[BlkAutolib+1] - r.h.Offsets[BlkAutolib]) / stringRefSize
 	s := make([]string, n)
 	for i := range s {
-		off := r.h.Offsets[BlkAutolib] + uint32(i)*4
+		off := r.h.Offsets[BlkAutolib] + uint32(i)*stringRefSize
 		s[i] = r.StringRef(off)
 	}
 	return s
 }
 
 func (r *Reader) Pkglist() []string {
-	n := (r.h.Offsets[BlkPkgIdx+1] - r.h.Offsets[BlkPkgIdx]) / 4
+	n := (r.h.Offsets[BlkPkgIdx+1] - r.h.Offsets[BlkPkgIdx]) / stringRefSize
 	s := make([]string, n)
 	for i := range s {
-		off := r.h.Offsets[BlkPkgIdx] + uint32(i)*4
+		off := r.h.Offsets[BlkPkgIdx] + uint32(i)*stringRefSize
 		s[i] = r.StringRef(off)
 	}
 	return s
 }
 
 func (r *Reader) NPkg() int {
-	return int(r.h.Offsets[BlkPkgIdx+1]-r.h.Offsets[BlkPkgIdx]) / 4
+	return int(r.h.Offsets[BlkPkgIdx+1]-r.h.Offsets[BlkPkgIdx]) / stringRefSize
 }
 
 func (r *Reader) Pkg(i int) string {
-	off := r.h.Offsets[BlkPkgIdx] + uint32(i)*4
+	off := r.h.Offsets[BlkPkgIdx] + uint32(i)*stringRefSize
 	return r.StringRef(off)
 }
 
 func (r *Reader) NDwarfFile() int {
-	return int(r.h.Offsets[BlkDwarfFile+1]-r.h.Offsets[BlkDwarfFile]) / 4
+	return int(r.h.Offsets[BlkDwarfFile+1]-r.h.Offsets[BlkDwarfFile]) / stringRefSize
 }
 
 func (r *Reader) DwarfFile(i int) string {
-	off := r.h.Offsets[BlkDwarfFile] + uint32(i)*4
+	off := r.h.Offsets[BlkDwarfFile] + uint32(i)*stringRefSize
 	return r.StringRef(off)
 }
 
 func (r *Reader) NSym() int {
-	symsiz := (&Sym{}).Size()
-	return int(r.h.Offsets[BlkSymdef+1]-r.h.Offsets[BlkSymdef]) / symsiz
+	return int(r.h.Offsets[BlkSymdef+1]-r.h.Offsets[BlkSymdef]) / SymSize
 }
 
 func (r *Reader) NNonpkgdef() int {
-	symsiz := (&Sym{}).Size()
-	return int(r.h.Offsets[BlkNonpkgdef+1]-r.h.Offsets[BlkNonpkgdef]) / symsiz
+	return int(r.h.Offsets[BlkNonpkgdef+1]-r.h.Offsets[BlkNonpkgdef]) / SymSize
 }
 
 func (r *Reader) NNonpkgref() int {
-	symsiz := (&Sym{}).Size()
-	return int(r.h.Offsets[BlkNonpkgref+1]-r.h.Offsets[BlkNonpkgref]) / symsiz
+	return int(r.h.Offsets[BlkNonpkgref+1]-r.h.Offsets[BlkNonpkgref]) / SymSize
 }
 
 // SymOff returns the offset of the i-th symbol.
 func (r *Reader) SymOff(i int) uint32 {
-	symsiz := (&Sym{}).Size()
-	return r.h.Offsets[BlkSymdef] + uint32(i*symsiz)
+	return r.h.Offsets[BlkSymdef] + uint32(i*SymSize)
+}
+
+// Sym2 returns a pointer to the i-th symbol.
+func (r *Reader) Sym2(i int) *Sym2 {
+	off := r.SymOff(i)
+	return (*Sym2)(unsafe.Pointer(&r.b[off]))
 }
 
 // NReloc returns the number of relocations of the i-th symbol.
@@ -537,8 +554,20 @@ func (r *Reader) NReloc(i int) int {
 func (r *Reader) RelocOff(i int, j int) uint32 {
 	relocIdxOff := r.h.Offsets[BlkRelocIdx] + uint32(i*4)
 	relocIdx := r.uint32At(relocIdxOff)
-	relocsiz := (&Reloc{}).Size()
-	return r.h.Offsets[BlkReloc] + (relocIdx+uint32(j))*uint32(relocsiz)
+	return r.h.Offsets[BlkReloc] + (relocIdx+uint32(j))*uint32(RelocSize)
+}
+
+// Reloc2 returns a pointer to the j-th relocation of the i-th symbol.
+func (r *Reader) Reloc2(i int, j int) *Reloc2 {
+	off := r.RelocOff(i, j)
+	return (*Reloc2)(unsafe.Pointer(&r.b[off]))
+}
+
+// Relocs2 returns a pointer to the relocations of the i-th symbol.
+func (r *Reader) Relocs2(i int) []Reloc2 {
+	off := r.RelocOff(i, 0)
+	n := r.NReloc(i)
+	return (*[1 << 20]Reloc2)(unsafe.Pointer(&r.b[off]))[:n:n]
 }
 
 // NAux returns the number of aux symbols of the i-th symbol.
@@ -551,8 +580,20 @@ func (r *Reader) NAux(i int) int {
 func (r *Reader) AuxOff(i int, j int) uint32 {
 	auxIdxOff := r.h.Offsets[BlkAuxIdx] + uint32(i*4)
 	auxIdx := r.uint32At(auxIdxOff)
-	auxsiz := (&Aux{}).Size()
-	return r.h.Offsets[BlkAux] + (auxIdx+uint32(j))*uint32(auxsiz)
+	return r.h.Offsets[BlkAux] + (auxIdx+uint32(j))*uint32(AuxSize)
+}
+
+// Aux2 returns a pointer to the j-th aux symbol of the i-th symbol.
+func (r *Reader) Aux2(i int, j int) *Aux2 {
+	off := r.AuxOff(i, j)
+	return (*Aux2)(unsafe.Pointer(&r.b[off]))
+}
+
+// Auxs2 returns the aux symbols of the i-th symbol.
+func (r *Reader) Auxs2(i int) []Aux2 {
+	off := r.AuxOff(i, 0)
+	n := r.NAux(i)
+	return (*[1 << 20]Aux2)(unsafe.Pointer(&r.b[off]))[:n:n]
 }
 
 // DataOff returns the offset of the i-th symbol's data.
@@ -563,12 +604,17 @@ func (r *Reader) DataOff(i int) uint32 {
 
 // DataSize returns the size of the i-th symbol's data.
 func (r *Reader) DataSize(i int) int {
-	return int(r.DataOff(i+1) - r.DataOff(i))
+	dataIdxOff := r.h.Offsets[BlkDataIdx] + uint32(i*4)
+	return int(r.uint32At(dataIdxOff+4) - r.uint32At(dataIdxOff))
 }
 
 // Data returns the i-th symbol's data.
 func (r *Reader) Data(i int) []byte {
-	return r.BytesAt(r.DataOff(i), r.DataSize(i))
+	dataIdxOff := r.h.Offsets[BlkDataIdx] + uint32(i*4)
+	base := r.h.Offsets[BlkData]
+	off := r.uint32At(dataIdxOff)
+	end := r.uint32At(dataIdxOff + 4)
+	return r.BytesAt(base+off, int(end-off))
 }
 
 // AuxDataBase returns the base offset of the aux data block.

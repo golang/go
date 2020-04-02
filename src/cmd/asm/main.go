@@ -40,7 +40,7 @@ func main() {
 	}
 	ctxt.Flag_dynlink = *flags.Dynlink
 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
-	ctxt.Flag_newobj = *flags.Newobj
+	ctxt.Flag_go115newobj = *flags.Go115Newobj
 	switch *flags.Spectre {
 	default:
 		log.Printf("unknown setting -spectre=%s", *flags.Spectre)
@@ -87,7 +87,7 @@ func main() {
 			pList.Firstpc, ok = parser.Parse()
 			// reports errors to parser.Errorf
 			if ok {
-				obj.Flushplist(ctxt, pList, nil, "")
+				obj.Flushplist(ctxt, pList, nil, *flags.Importpath)
 			}
 		}
 		if !ok {

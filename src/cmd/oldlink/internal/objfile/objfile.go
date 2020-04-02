@@ -13,10 +13,11 @@ import (
 	"bytes"
 	"cmd/internal/bio"
 	"cmd/internal/dwarf"
+	"cmd/internal/goobj2"
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
-	"cmd/link/internal/sym"
+	"cmd/oldlink/internal/sym"
 	"fmt"
 	"io"
 	"log"
@@ -117,6 +118,9 @@ func (r *objReader) loadObjFile() {
 	var buf [8]uint8
 	r.readFull(buf[:])
 	if string(buf[:]) != startmagic {
+		if string(buf[:]) == goobj2.Magic {
+			log.Fatalf("found object file %s in new format, but -go115newobj is false\nset -go115newobj consistently in all -gcflags, -asmflags, and -ldflags", r.pn)
+		}
 		log.Fatalf("%s: invalid file start %x %x %x %x %x %x %x %x", r.pn, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7])
 	}
 

@@ -18,9 +18,8 @@ import (
 
 // Entry point of writing new object file.
 func WriteObjFile2(ctxt *Link, b *bio.Writer, pkgpath string) {
-	if ctxt.Debugasm > 0 {
-		ctxt.traverseSyms(traverseDefs, ctxt.writeSymDebug)
-	}
+
+	debugAsmEmit(ctxt)
 
 	genFuncInfoSyms(ctxt)
 
@@ -60,7 +59,7 @@ func WriteObjFile2(ctxt *Link, b *bio.Writer, pkgpath string) {
 	// DWARF file table
 	h.Offsets[goobj2.BlkDwarfFile] = w.Offset()
 	for _, f := range ctxt.PosTable.DebugLinesFileTable() {
-		w.StringRef(f)
+		w.StringRef(filepath.ToSlash(f))
 	}
 
 	// Symbol definitions
@@ -207,7 +206,7 @@ func (w *writer) StringTable() {
 		}
 	})
 	for _, f := range w.ctxt.PosTable.DebugLinesFileTable() {
-		w.AddString(f)
+		w.AddString(filepath.ToSlash(f))
 	}
 }
 
@@ -229,8 +228,8 @@ func (w *writer) Sym(s *LSym) {
 	if s.Leaf() {
 		flag |= goobj2.SymFlagLeaf
 	}
-	if s.CFunc() {
-		flag |= goobj2.SymFlagCFunc
+	if s.NoSplit() {
+		flag |= goobj2.SymFlagNoSplit
 	}
 	if s.ReflectMethod() {
 		flag |= goobj2.SymFlagReflectMethod
@@ -245,12 +244,17 @@ func (w *writer) Sym(s *LSym) {
 	if strings.HasPrefix(name, "gofile..") {
 		name = filepath.ToSlash(name)
 	}
+	var align uint32
+	if s.Func != nil {
+		align = uint32(s.Func.Align)
+	}
 	o := goobj2.Sym{
-		Name: name,
-		ABI:  abi,
-		Type: uint8(s.Type),
-		Flag: flag,
-		Siz:  uint32(s.Size),
+		Name:  name,
+		ABI:   abi,
+		Type:  uint8(s.Type),
+		Flag:  flag,
+		Siz:   uint32(s.Size),
+		Align: align,
 	}
 	o.Write(w.Writer)
 }
@@ -300,28 +304,28 @@ func (w *writer) Aux(s *LSym) {
 			o.Write(w.Writer)
 		}
 
-		if s.Func.dwarfInfoSym != nil {
+		if s.Func.dwarfInfoSym != nil && s.Func.dwarfInfoSym.Size != 0 {
 			o := goobj2.Aux{
 				Type: goobj2.AuxDwarfInfo,
 				Sym:  makeSymRef(s.Func.dwarfInfoSym),
 			}
 			o.Write(w.Writer)
 		}
-		if s.Func.dwarfLocSym != nil {
+		if s.Func.dwarfLocSym != nil && s.Func.dwarfLocSym.Size != 0 {
 			o := goobj2.Aux{
 				Type: goobj2.AuxDwarfLoc,
 				Sym:  makeSymRef(s.Func.dwarfLocSym),
 			}
 			o.Write(w.Writer)
 		}
-		if s.Func.dwarfRangesSym != nil {
+		if s.Func.dwarfRangesSym != nil && s.Func.dwarfRangesSym.Size != 0 {
 			o := goobj2.Aux{
 				Type: goobj2.AuxDwarfRanges,
 				Sym:  makeSymRef(s.Func.dwarfRangesSym),
 			}
 			o.Write(w.Writer)
 		}
-		if s.Func.dwarfDebugLinesSym != nil {
+		if s.Func.dwarfDebugLinesSym != nil && s.Func.dwarfDebugLinesSym.Size != 0 {
 			o := goobj2.Aux{
 				Type: goobj2.AuxDwarfLines,
 				Sym:  makeSymRef(s.Func.dwarfDebugLinesSym),
@@ -340,16 +344,16 @@ func nAuxSym(s *LSym) int {
 	if s.Func != nil {
 		// FuncInfo is an aux symbol, each Funcdata is an aux symbol
 		n += 1 + len(s.Func.Pcln.Funcdata)
-		if s.Func.dwarfInfoSym != nil {
+		if s.Func.dwarfInfoSym != nil && s.Func.dwarfInfoSym.Size != 0 {
 			n++
 		}
-		if s.Func.dwarfLocSym != nil {
+		if s.Func.dwarfLocSym != nil && s.Func.dwarfLocSym.Size != 0 {
 			n++
 		}
-		if s.Func.dwarfRangesSym != nil {
+		if s.Func.dwarfRangesSym != nil && s.Func.dwarfRangesSym.Size != 0 {
 			n++
 		}
-		if s.Func.dwarfDebugLinesSym != nil {
+		if s.Func.dwarfDebugLinesSym != nil && s.Func.dwarfDebugLinesSym.Size != 0 {
 			n++
 		}
 	}
@@ -366,14 +370,9 @@ func genFuncInfoSyms(ctxt *Link) {
 		if s.Func == nil {
 			continue
 		}
-		nosplit := uint8(0)
-		if s.NoSplit() {
-			nosplit = 1
-		}
 		o := goobj2.FuncInfo{
-			NoSplit: nosplit,
-			Args:    uint32(s.Func.Args),
-			Locals:  uint32(s.Func.Locals),
+			Args:   uint32(s.Func.Args),
+			Locals: uint32(s.Func.Locals),
 		}
 		pc := &s.Func.Pcln
 		o.Pcsp = pcdataoff
@@ -424,6 +423,43 @@ func genFuncInfoSyms(ctxt *Link) {
 		infosyms = append(infosyms, isym)
 		s.Func.FuncInfoSym = isym
 		b.Reset()
+
+		dwsyms := []*LSym{s.Func.dwarfRangesSym, s.Func.dwarfLocSym, s.Func.dwarfDebugLinesSym, s.Func.dwarfInfoSym}
+		for _, s := range dwsyms {
+			if s == nil || s.Size == 0 {
+				continue
+			}
+			s.PkgIdx = goobj2.PkgIdxSelf
+			s.SymIdx = symidx
+			s.Set(AttrIndexed, true)
+			symidx++
+			infosyms = append(infosyms, s)
+		}
 	}
 	ctxt.defs = append(ctxt.defs, infosyms...)
+}
+
+// debugDumpAux is a dumper for selected aux symbols.
+func writeAuxSymDebug(ctxt *Link, par *LSym, aux *LSym) {
+	// Most aux symbols (ex: funcdata) are not interesting--
+	// pick out just the DWARF ones for now.
+	if aux.Type != objabi.SDWARFLOC &&
+		aux.Type != objabi.SDWARFINFO &&
+		aux.Type != objabi.SDWARFLINES &&
+		aux.Type != objabi.SDWARFRANGE {
+		return
+	}
+	ctxt.writeSymDebugNamed(aux, "aux for "+par.Name)
+}
+
+func debugAsmEmit(ctxt *Link) {
+	if ctxt.Debugasm > 0 {
+		ctxt.traverseSyms(traverseDefs, ctxt.writeSymDebug)
+		if ctxt.Debugasm > 1 {
+			fn := func(par *LSym, aux *LSym) {
+				writeAuxSymDebug(ctxt, par, aux)
+			}
+			ctxt.traverseAuxSyms(traverseAux, fn)
+		}
+	}
 }
