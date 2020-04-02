@@ -367,11 +367,18 @@ const (
 // that let the user know how to use the analyzer.
 type Analyzer struct {
 	Analyzer *analysis.Analyzer
-	Enabled  bool
+	enabled  bool
 
 	// If this is true, then we can apply the suggested fixes
 	// as part of a source.FixAll codeaction.
 	HighConfidence bool
+}
+
+func (a Analyzer) Enabled(snapshot Snapshot) bool {
+	if enabled, ok := snapshot.View().Options().UserEnabledAnalyses[a.Analyzer.Name]; ok {
+		return enabled
+	}
+	return a.enabled
 }
 
 // Package represents a Go package that has been type-checked. It maintains

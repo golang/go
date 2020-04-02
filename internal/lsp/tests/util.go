@@ -503,3 +503,19 @@ func FormatFolderName(folder string) string {
 	}
 	return folder
 }
+
+func EnableAllAnalyzers(snapshot source.Snapshot, opts *source.Options) {
+	if opts.UserEnabledAnalyses == nil {
+		opts.UserEnabledAnalyses = make(map[string]bool)
+	}
+	for _, a := range opts.DefaultAnalyzers {
+		if !a.Enabled(snapshot) {
+			opts.UserEnabledAnalyses[a.Analyzer.Name] = true
+		}
+	}
+	for _, a := range opts.TypeErrorAnalyzers {
+		if !a.Enabled(snapshot) {
+			opts.UserEnabledAnalyses[a.Analyzer.Name] = true
+		}
+	}
+}

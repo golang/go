@@ -263,7 +263,6 @@ func (c *connection) initialize(ctx context.Context, options func(*source.Option
 	params.InitializationOptions = map[string]interface{}{
 		"matcher": matcherString[opts.Matcher],
 	}
-
 	if _, err := c.Server.Initialize(ctx, params); err != nil {
 		return err
 	}
@@ -374,8 +373,13 @@ func (c *cmdClient) Configuration(ctx context.Context, p *protocol.ParamConfigur
 			env[l[0]] = l[1]
 		}
 		results[i] = map[string]interface{}{
-			"env":     env,
-			"go-diff": true,
+			"env": env,
+			"analyses": map[string]bool{
+				"fillreturns":    true,
+				"nonewvars":      true,
+				"noresultvalues": true,
+				"undeclaredname": true,
+			},
 		}
 	}
 	return results, nil

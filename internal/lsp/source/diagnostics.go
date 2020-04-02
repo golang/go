@@ -274,14 +274,8 @@ func missingModulesDiagnostics(ctx context.Context, snapshot Snapshot, reports m
 
 func analyses(ctx context.Context, snapshot Snapshot, reports map[FileIdentity][]Diagnostic, ph PackageHandle, analyses map[string]Analyzer) error {
 	var analyzers []*analysis.Analyzer
-	for name, a := range analyses {
-		if enabled, ok := snapshot.View().Options().UserEnabledAnalyses[name]; ok {
-			if enabled {
-				analyzers = append(analyzers, a.Analyzer)
-			}
-			continue
-		}
-		if !a.Enabled {
+	for _, a := range analyses {
+		if !a.Enabled(snapshot) {
 			continue
 		}
 		analyzers = append(analyzers, a.Analyzer)

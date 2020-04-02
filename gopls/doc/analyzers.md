@@ -341,6 +341,8 @@ func m() (int, string, *bool, error) {
 
 This functionality is similar to [goreturns](https://github.com/sqs/goreturns).
 
+Default value: `false`.
+
 ### **nonewvars**
 
 suggested fixes for "no new vars on left side of :="
@@ -357,7 +359,7 @@ z := 1
 z = 2
 ```
 
-Default value: `true`.
+Default value: `false`.
 
 ### **noresultvalues**
 
@@ -471,7 +473,7 @@ This checker provides suggested fixes for type errors of the
 type `undeclared name: <>`. It will insert a new statement:
 `<> := `.
 
-Default value: `true`.
+Default value: `false`.
 
 ### **unusedparams**
 

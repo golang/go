@@ -51,10 +51,14 @@ func testSource(t *testing.T, exporter packagestest.Exporter) {
 		session := cache.NewSession(ctx)
 		options := tests.DefaultOptions()
 		options.Env = datum.Config.Env
-		view, _, err := session.NewView(ctx, "source_test", span.URIFromPath(datum.Config.Dir), options)
+		view, snapshot, err := session.NewView(ctx, "source_test", span.URIFromPath(datum.Config.Dir), options)
 		if err != nil {
 			t.Fatal(err)
 		}
+		// Enable type error analyses for tests.
+		// TODO(golang/go#38212): Delete this once they are enabled by default.
+		tests.EnableAllAnalyzers(snapshot, &options)
+		view.SetOptions(ctx, options)
 		r := &runner{
 			view: view,
 			data: datum,

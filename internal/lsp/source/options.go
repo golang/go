@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"time"
 
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
 	"golang.org/x/tools/go/analysis/passes/assign"
 	"golang.org/x/tools/go/analysis/passes/atomic"
@@ -196,6 +197,10 @@ type Hooks struct {
 	URLRegexp          *regexp.Regexp
 	DefaultAnalyzers   map[string]Analyzer
 	TypeErrorAnalyzers map[string]Analyzer
+}
+
+func (o Options) AddDefaultAnalyzer(a *analysis.Analyzer) {
+	o.DefaultAnalyzers[a.Name] = Analyzer{Analyzer: a, enabled: true}
 }
 
 type ExperimentalOptions struct {
@@ -492,49 +497,49 @@ func (r *OptionResult) setBool(b *bool) {
 
 func typeErrorAnalyzers() map[string]Analyzer {
 	return map[string]Analyzer{
-		fillreturns.Analyzer.Name:    {Analyzer: fillreturns.Analyzer, Enabled: true},
-		nonewvars.Analyzer.Name:      {Analyzer: nonewvars.Analyzer, Enabled: true},
-		noresultvalues.Analyzer.Name: {Analyzer: noresultvalues.Analyzer, Enabled: true},
-		undeclaredname.Analyzer.Name: {Analyzer: undeclaredname.Analyzer, Enabled: true},
+		fillreturns.Analyzer.Name:    {Analyzer: fillreturns.Analyzer, enabled: false},
+		nonewvars.Analyzer.Name:      {Analyzer: nonewvars.Analyzer, enabled: false},
+		noresultvalues.Analyzer.Name: {Analyzer: noresultvalues.Analyzer, enabled: false},
+		undeclaredname.Analyzer.Name: {Analyzer: undeclaredname.Analyzer, enabled: false},
 	}
 }
 
 func defaultAnalyzers() map[string]Analyzer {
 	return map[string]Analyzer{
 		// The traditional vet suite:
-		asmdecl.Analyzer.Name:      {Analyzer: asmdecl.Analyzer, Enabled: true},
-		assign.Analyzer.Name:       {Analyzer: assign.Analyzer, Enabled: true},
-		atomic.Analyzer.Name:       {Analyzer: atomic.Analyzer, Enabled: true},
-		atomicalign.Analyzer.Name:  {Analyzer: atomicalign.Analyzer, Enabled: true},
-		bools.Analyzer.Name:        {Analyzer: bools.Analyzer, Enabled: true},
-		buildtag.Analyzer.Name:     {Analyzer: buildtag.Analyzer, Enabled: true},
-		cgocall.Analyzer.Name:      {Analyzer: cgocall.Analyzer, Enabled: true},
-		composite.Analyzer.Name:    {Analyzer: composite.Analyzer, Enabled: true},
-		copylock.Analyzer.Name:     {Analyzer: copylock.Analyzer, Enabled: true},
-		errorsas.Analyzer.Name:     {Analyzer: errorsas.Analyzer, Enabled: true},
-		httpresponse.Analyzer.Name: {Analyzer: httpresponse.Analyzer, Enabled: true},
-		loopclosure.Analyzer.Name:  {Analyzer: loopclosure.Analyzer, Enabled: true},
-		lostcancel.Analyzer.Name:   {Analyzer: lostcancel.Analyzer, Enabled: true},
-		nilfunc.Analyzer.Name:      {Analyzer: nilfunc.Analyzer, Enabled: true},
-		printf.Analyzer.Name:       {Analyzer: printf.Analyzer, Enabled: true},
-		shift.Analyzer.Name:        {Analyzer: shift.Analyzer, Enabled: true},
-		stdmethods.Analyzer.Name:   {Analyzer: stdmethods.Analyzer, Enabled: true},
-		structtag.Analyzer.Name:    {Analyzer: structtag.Analyzer, Enabled: true},
-		tests.Analyzer.Name:        {Analyzer: tests.Analyzer, Enabled: true},
-		unmarshal.Analyzer.Name:    {Analyzer: unmarshal.Analyzer, Enabled: true},
-		unreachable.Analyzer.Name:  {Analyzer: unreachable.Analyzer, Enabled: true},
-		unsafeptr.Analyzer.Name:    {Analyzer: unsafeptr.Analyzer, Enabled: true},
-		unusedresult.Analyzer.Name: {Analyzer: unusedresult.Analyzer, Enabled: true},
+		asmdecl.Analyzer.Name:      {Analyzer: asmdecl.Analyzer, enabled: true},
+		assign.Analyzer.Name:       {Analyzer: assign.Analyzer, enabled: true},
+		atomic.Analyzer.Name:       {Analyzer: atomic.Analyzer, enabled: true},
+		atomicalign.Analyzer.Name:  {Analyzer: atomicalign.Analyzer, enabled: true},
+		bools.Analyzer.Name:        {Analyzer: bools.Analyzer, enabled: true},
+		buildtag.Analyzer.Name:     {Analyzer: buildtag.Analyzer, enabled: true},
+		cgocall.Analyzer.Name:      {Analyzer: cgocall.Analyzer, enabled: true},
+		composite.Analyzer.Name:    {Analyzer: composite.Analyzer, enabled: true},
+		copylock.Analyzer.Name:     {Analyzer: copylock.Analyzer, enabled: true},
+		errorsas.Analyzer.Name:     {Analyzer: errorsas.Analyzer, enabled: true},
+		httpresponse.Analyzer.Name: {Analyzer: httpresponse.Analyzer, enabled: true},
+		loopclosure.Analyzer.Name:  {Analyzer: loopclosure.Analyzer, enabled: true},
+		lostcancel.Analyzer.Name:   {Analyzer: lostcancel.Analyzer, enabled: true},
+		nilfunc.Analyzer.Name:      {Analyzer: nilfunc.Analyzer, enabled: true},
+		printf.Analyzer.Name:       {Analyzer: printf.Analyzer, enabled: true},
+		shift.Analyzer.Name:        {Analyzer: shift.Analyzer, enabled: true},
+		stdmethods.Analyzer.Name:   {Analyzer: stdmethods.Analyzer, enabled: true},
+		structtag.Analyzer.Name:    {Analyzer: structtag.Analyzer, enabled: true},
+		tests.Analyzer.Name:        {Analyzer: tests.Analyzer, enabled: true},
+		unmarshal.Analyzer.Name:    {Analyzer: unmarshal.Analyzer, enabled: true},
+		unreachable.Analyzer.Name:  {Analyzer: unreachable.Analyzer, enabled: true},
+		unsafeptr.Analyzer.Name:    {Analyzer: unsafeptr.Analyzer, enabled: true},
+		unusedresult.Analyzer.Name: {Analyzer: unusedresult.Analyzer, enabled: true},
 
 		// Non-vet analyzers
-		deepequalerrors.Analyzer.Name:  {Analyzer: deepequalerrors.Analyzer, Enabled: true},
-		sortslice.Analyzer.Name:        {Analyzer: sortslice.Analyzer, Enabled: true},
-		testinggoroutine.Analyzer.Name: {Analyzer: testinggoroutine.Analyzer, Enabled: true},
-		unusedparams.Analyzer.Name:     {Analyzer: unusedparams.Analyzer, Enabled: false},
+		deepequalerrors.Analyzer.Name:  {Analyzer: deepequalerrors.Analyzer, enabled: true},
+		sortslice.Analyzer.Name:        {Analyzer: sortslice.Analyzer, enabled: true},
+		testinggoroutine.Analyzer.Name: {Analyzer: testinggoroutine.Analyzer, enabled: true},
+		unusedparams.Analyzer.Name:     {Analyzer: unusedparams.Analyzer, enabled: false},
 
 		// gofmt -s suite:
-		simplifycompositelit.Analyzer.Name: {Analyzer: simplifycompositelit.Analyzer, Enabled: true, HighConfidence: true},
-		simplifyrange.Analyzer.Name:        {Analyzer: simplifyrange.Analyzer, Enabled: true, HighConfidence: true},
-		simplifyslice.Analyzer.Name:        {Analyzer: simplifyslice.Analyzer, Enabled: true, HighConfidence: true},
+		simplifycompositelit.Analyzer.Name: {Analyzer: simplifycompositelit.Analyzer, enabled: true, HighConfidence: true},
+		simplifyrange.Analyzer.Name:        {Analyzer: simplifyrange.Analyzer, enabled: true, HighConfidence: true},
+		simplifyslice.Analyzer.Name:        {Analyzer: simplifyslice.Analyzer, enabled: true, HighConfidence: true},
 	}
 }
