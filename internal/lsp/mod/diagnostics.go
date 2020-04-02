@@ -59,16 +59,15 @@ func Diagnostics(ctx context.Context, snapshot source.Snapshot) (map[source.File
 	return reports, missingDeps, nil
 }
 
-func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, realfh source.FileHandle, diags []protocol.Diagnostic) []protocol.CodeAction {
+func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, realfh source.FileHandle, diags []protocol.Diagnostic) ([]protocol.CodeAction, error) {
 	mth, err := snapshot.ModTidyHandle(ctx, realfh)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	_, _, _, parseErrors, err := mth.Tidy(ctx)
 	if err != nil {
-		return nil
+		return nil, err
 	}
-
 	errorsMap := make(map[string][]source.Error)
 	for _, e := range parseErrors {
 		if errorsMap[e.Message] == nil {
@@ -76,7 +75,6 @@ func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, realfh source
 		}
 		errorsMap[e.Message] = append(errorsMap[e.Message], e)
 	}
-
 	var actions []protocol.CodeAction
 	for _, diag := range diags {
 		for _, e := range errorsMap[diag.Message] {
@@ -93,8 +91,7 @@ func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, realfh source
 				for uri, edits := range fix.Edits {
 					fh, err := snapshot.GetFile(uri)
 					if err != nil {
-						event.Error(ctx, "no file", err, tag.URI.Of(uri))
-						continue
+						return nil, err
 					}
 					action.Edit.DocumentChanges = append(action.Edit.DocumentChanges, protocol.TextDocumentEdit{
 						TextDocument: protocol.VersionedTextDocumentIdentifier{
@@ -110,7 +107,7 @@ func SuggestedFixes(ctx context.Context, snapshot source.Snapshot, realfh source
 			}
 		}
 	}
-	return actions
+	return actions, nil
 }
 
 func SuggestedGoFixes(ctx context.Context, snapshot source.Snapshot) (map[string]protocol.TextDocumentEdit, error) {

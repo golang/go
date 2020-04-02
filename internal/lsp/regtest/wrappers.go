@@ -6,6 +6,7 @@ package regtest
 
 import (
 	"golang.org/x/tools/internal/lsp/fake"
+	"golang.org/x/tools/internal/lsp/protocol"
 )
 
 // RemoveFileFromWorkspace deletes a file on disk but does nothing in the
@@ -117,6 +118,14 @@ func (e *Env) FormatBuffer(name string) {
 func (e *Env) OrganizeImports(name string) {
 	e.T.Helper()
 	if err := e.E.OrganizeImports(e.Ctx, name); err != nil {
+		e.T.Fatal(err)
+	}
+}
+
+// ApplyQuickFixes processes the quickfix codeAction, calling t.Fatal on any error.
+func (e *Env) ApplyQuickFixes(path string, diagnostics []protocol.Diagnostic) {
+	e.T.Helper()
+	if err := e.E.ApplyQuickFixes(e.Ctx, path, diagnostics); err != nil {
 		e.T.Fatal(err)
 	}
 }

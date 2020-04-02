@@ -418,7 +418,7 @@ func (e *Env) onLogMessage(_ context.Context, m *protocol.LogMessageParams) erro
 
 func (e *Env) checkConditionsLocked() {
 	for id, condition := range e.waiters {
-		if v, _ := checkExpectations(e.state, condition.expectations); v != Unmet {
+		if v, _, _ := checkExpectations(e.state, condition.expectations); v != Unmet {
 			delete(e.waiters, id)
 			condition.verdict <- v
 		}
@@ -442,23 +442,27 @@ func (e *Env) ExpectNow(expectations ...Expectation) {
 	e.T.Helper()
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	if verdict, summary := checkExpectations(e.state, expectations); verdict != Met {
+	if verdict, summary, _ := checkExpectations(e.state, expectations); verdict != Met {
 		e.T.Fatalf("expectations unmet:\n%s\ncurrent state:\n%v", summary, e.state)
 	}
 }
 
 // checkExpectations reports whether s meets all expectations.
-func checkExpectations(s State, expectations []Expectation) (Verdict, string) {
+func checkExpectations(s State, expectations []Expectation) (Verdict, string, []interface{}) {
 	finalVerdict := Met
+	var metBy []interface{}
 	var summary strings.Builder
 	for _, e := range expectations {
-		v := e.Check(s)
+		v, mb := e.Check(s)
+		if v == Met {
+			metBy = append(metBy, mb)
+		}
 		if v > finalVerdict {
 			finalVerdict = v
 		}
 		summary.WriteString(fmt.Sprintf("\t%v: %s\n", v, e.Description()))
 	}
-	return finalVerdict, summary.String()
+	return finalVerdict, summary.String(), metBy
 }
 
 // An Expectation asserts that the state of the editor at a point in time
@@ -466,8 +470,8 @@ func checkExpectations(s State, expectations []Expectation) (Verdict, string) {
 // certain conditions in the editor are met.
 type Expectation interface {
 	// Check determines whether the state of the editor satisfies the
-	// expectation.
-	Check(State) Verdict
+	// expectation, returning the results that met the condition.
+	Check(State) (Verdict, interface{})
 	// Description is a human-readable description of the expectation.
 	Description() string
 }
@@ -504,12 +508,12 @@ func (v Verdict) String() string {
 // LogExpectation is an expectation on the log messages received by the editor
 // from gopls.
 type LogExpectation struct {
-	check       func([]*protocol.LogMessageParams) Verdict
+	check       func([]*protocol.LogMessageParams) (Verdict, interface{})
 	description string
 }
 
 // Check implements the Expectation interface.
-func (e LogExpectation) Check(s State) Verdict {
+func (e LogExpectation) Check(s State) (Verdict, interface{}) {
 	return e.check(s.logs)
 }
 
@@ -521,13 +525,13 @@ func (e LogExpectation) Description() string {
 // NoErrorLogs asserts that the client has not received any log messages of
 // error severity.
 func NoErrorLogs() LogExpectation {
-	check := func(msgs []*protocol.LogMessageParams) Verdict {
+	check := func(msgs []*protocol.LogMessageParams) (Verdict, interface{}) {
 		for _, msg := range msgs {
 			if msg.Type == protocol.Error {
-				return Unmeetable
+				return Unmeetable, nil
 			}
 		}
-		return Met
+		return Met, nil
 	}
 	return LogExpectation{
 		check:       check,
@@ -542,13 +546,13 @@ func LogMatching(typ protocol.MessageType, re string) LogExpectation {
 	if err != nil {
 		panic(err)
 	}
-	check := func(msgs []*protocol.LogMessageParams) Verdict {
+	check := func(msgs []*protocol.LogMessageParams) (Verdict, interface{}) {
 		for _, msg := range msgs {
 			if msg.Type == typ && rec.Match([]byte(msg.Message)) {
-				return Met
+				return Met, msg
 			}
 		}
-		return Unmet
+		return Unmet, nil
 	}
 	return LogExpectation{
 		check:       check,
@@ -569,11 +573,11 @@ type DiagnosticExpectation struct {
 }
 
 // Check implements the Expectation interface.
-func (e DiagnosticExpectation) Check(s State) Verdict {
+func (e DiagnosticExpectation) Check(s State) (Verdict, interface{}) {
 	if diags, ok := s.diagnostics[e.path]; ok && e.isMet(diags) {
-		return Met
+		return Met, diags
 	}
-	return Unmet
+	return Unmet, nil
 }
 
 // Description implements the Expectation interface.
@@ -639,15 +643,15 @@ func DiagnosticAt(name string, line, col int) DiagnosticExpectation {
 
 // Await waits for all expectations to simultaneously be met. It should only be
 // called from the main test goroutine.
-func (e *Env) Await(expectations ...Expectation) {
+func (e *Env) Await(expectations ...Expectation) []interface{} {
 	e.T.Helper()
 	e.mu.Lock()
 	// Before adding the waiter, we check if the condition is currently met or
 	// failed to avoid a race where the condition was realized before Await was
 	// called.
-	switch verdict, summary := checkExpectations(e.state, expectations); verdict {
+	switch verdict, summary, metBy := checkExpectations(e.state, expectations); verdict {
 	case Met:
-		return
+		return metBy
 	case Unmeetable:
 		e.mu.Unlock()
 		e.T.Fatalf("unmeetable expectations:\n%s\nstate:\n%v", summary, e.state)
@@ -669,13 +673,14 @@ func (e *Env) Await(expectations ...Expectation) {
 			err = fmt.Errorf("condition has final verdict %v", v)
 		}
 	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	_, summary, metBy := checkExpectations(e.state, expectations)
 
+	// Debugging an unmet expectation can be tricky, so we put some effort into
+	// nicely formatting the failure.
 	if err != nil {
-		// Debugging an unmet expectation can be tricky, so we put some effort into
-		// nicely formatting the failure.
-		e.mu.Lock()
-		defer e.mu.Unlock()
-		_, summary := checkExpectations(e.state, expectations)
 		e.T.Fatalf("waiting on:\n%s\nerr:%v\nstate:\n%v", err, summary, e.state)
 	}
+	return metBy
 }

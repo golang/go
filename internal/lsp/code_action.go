@@ -49,7 +49,11 @@ func (s *Server) codeAction(ctx context.Context, params *protocol.CodeActionPara
 	switch fh.Identity().Kind {
 	case source.Mod:
 		if diagnostics := params.Context.Diagnostics; len(diagnostics) > 0 {
-			codeActions = append(codeActions, mod.SuggestedFixes(ctx, snapshot, fh, diagnostics)...)
+			modFixes, err := mod.SuggestedFixes(ctx, snapshot, fh, diagnostics)
+			if err != nil {
+				return nil, err
+			}
+			codeActions = append(codeActions, modFixes...)
 		}
 		if wanted[protocol.SourceOrganizeImports] {
 			codeActions = append(codeActions, protocol.CodeAction{
