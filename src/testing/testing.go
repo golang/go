@@ -217,10 +217,11 @@
 //
 // then the generated test will call TestMain(m) instead of running the tests
 // directly. TestMain runs in the main goroutine and can do whatever setup
-// and teardown is necessary around a call to m.Run. It should then call
-// os.Exit with the result of m.Run. When TestMain is called, flag.Parse has
-// not been run. If TestMain depends on command-line flags, including those
-// of the testing package, it should call flag.Parse explicitly.
+// and teardown is necessary around a call to m.Run. m.Run will return an exit
+// code that may be passed to os.Exit. If TestMain returns, the test wrapper
+// will pass the result of m.Run to os.Exit itself. When TestMain is called,
+// flag.Parse has not been run. If TestMain depends on command-line flags,
+// including those of the testing package, it should call flag.Parse explicitly.
 //
 // A simple implementation of TestMain is:
 //
@@ -238,6 +239,7 @@ import (
 	"fmt"
 	"internal/race"
 	"io"
+	"io/ioutil"
 	"os"
 	"runtime"
 	"runtime/debug"
@@ -361,6 +363,10 @@ type common struct {
 	barrier  chan bool // To signal parallel subtests they may start.
 	signal   chan bool // To signal a test is done.
 	sub      []*T      // Queue of subtests to be run in parallel.
+
+	tempDirOnce sync.Once
+	tempDir     string
+	tempDirErr  error
 }
 
 // Short reports whether the -test.short flag is set.
@@ -560,6 +566,7 @@ type TB interface {
 	SkipNow()
 	Skipf(format string, args ...interface{})
 	Skipped() bool
+	TempDir() string
 
 	// A private method to prevent users implementing the
 	// interface and so future additions to it will not
@@ -790,6 +797,30 @@ func (c *common) Cleanup(f func()) {
 	}
 }
 
+// TempDir returns a temporary directory for the test to use.
+// It is lazily created on first access, and calls t.Fatal if the directory
+// creation fails.
+// Subsequent calls to t.TempDir return the same directory.
+// The directory is automatically removed by Cleanup when the test and
+// all its subtests complete.
+func (c *common) TempDir() string {
+	c.tempDirOnce.Do(func() {
+		c.Helper()
+		c.tempDir, c.tempDirErr = ioutil.TempDir("", c.Name())
+		if c.tempDirErr == nil {
+			c.Cleanup(func() {
+				if err := os.RemoveAll(c.tempDir); err != nil {
+					c.Errorf("TempDir RemoveAll cleanup: %v", err)
+				}
+			})
+		}
+	})
+	if c.tempDirErr != nil {
+		c.Fatalf("TempDir: %v", c.tempDirErr)
+	}
+	return c.tempDir
+}
+
 // panicHanding is an argument to runCleanup.
 type panicHandling int
 
@@ -927,16 +958,15 @@ func tRunner(t *T, fn func(t *T)) {
 				t.Logf("cleanup panicked with %v", r)
 			}
 			// Flush the output log up to the root before dying.
-			t.mu.Lock()
-			root := &t.common
-			for ; root.parent != nil; root = root.parent {
+			for root := &t.common; root.parent != nil; root = root.parent {
+				root.mu.Lock()
 				root.duration += time.Since(root.start)
-				fmt.Fprintf(root.parent.w, "--- FAIL: %s (%s)\n", root.name, fmtDuration(root.duration))
+				d := root.duration
+				root.mu.Unlock()
+				root.flushToParent("--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
 				if r := root.parent.runCleanup(recoverAndReturnPanic); r != nil {
 					fmt.Fprintf(root.parent.w, "cleanup panicked with %v", r)
 				}
-				root.parent.mu.Lock()
-				io.Copy(root.parent.w, bytes.NewReader(root.output))
 			}
 			panic(err)
 		}
@@ -1148,6 +1178,10 @@ type M struct {
 	afterOnce sync.Once
 
 	numRun int
+
+	// value to pass to os.Exit, the outer test func main
+	// harness calls os.Exit with this code. See #34129.
+	exitCode int
 }
 
 // testDeps is an internal interface of functionality that is
@@ -1178,7 +1212,11 @@ func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchma
 }
 
 // Run runs the tests. It returns an exit code to pass to os.Exit.
-func (m *M) Run() int {
+func (m *M) Run() (code int) {
+	defer func() {
+		code = m.exitCode
+	}()
+
 	// Count the number of calls to m.Run.
 	// We only ever expected 1, but we didn't enforce that,
 	// and now there are tests in the wild that call m.Run multiple times.
@@ -1193,12 +1231,14 @@ func (m *M) Run() int {
 	if *parallel < 1 {
 		fmt.Fprintln(os.Stderr, "testing: -parallel can only be given a positive integer")
 		flag.Usage()
-		return 2
+		m.exitCode = 2
+		return
 	}
 
 	if len(*matchList) != 0 {
 		listTests(m.deps.MatchString, m.tests, m.benchmarks, m.examples)
-		return 0
+		m.exitCode = 0
+		return
 	}
 
 	parseCpuList()
@@ -1215,11 +1255,13 @@ func (m *M) Run() int {
 	}
 	if !testOk || !exampleOk || !runBenchmarks(m.deps.ImportPath(), m.deps.MatchString, m.benchmarks) || race.Errors() > 0 {
 		fmt.Println("FAIL")
-		return 1
+		m.exitCode = 1
+		return
 	}
 
 	fmt.Println("PASS")
-	return 0
+	m.exitCode = 0
+	return
 }
 
 func (t *T) report() {

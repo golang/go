@@ -398,6 +398,7 @@ type LSym struct {
 type FuncInfo struct {
 	Args     int32
 	Locals   int32
+	Align    int32
 	Text     *Prog
 	Autot    map[*LSym]struct{}
 	Pcln     Pcln
@@ -652,7 +653,8 @@ type Link struct {
 	Flag_linkshared    bool
 	Flag_optimize      bool
 	Flag_locationlists bool
-	Flag_newobj        bool // use new object file format
+	Flag_go115newobj   bool // use new object file format
+	Retpoline          bool // emit use of retpoline stubs for indirect jmp/call
 	Bso                *bufio.Writer
 	Pathname           string
 	hashmu             sync.Mutex       // protects hash, funchash

@@ -13,7 +13,7 @@ const (
 	expbits64  uint = 11
 	bias64          = -1<<(expbits64-1) + 1
 
-	nan64 uint64 = (1<<expbits64-1)<<mantbits64 + 1
+	nan64 uint64 = (1<<expbits64-1)<<mantbits64 + 1<<(mantbits64-1) // quiet NaN, 0 payload
 	inf64 uint64 = (1<<expbits64 - 1) << mantbits64
 	neg64 uint64 = 1 << (expbits64 + mantbits64)
 
@@ -21,7 +21,7 @@ const (
 	expbits32  uint = 8
 	bias32          = -1<<(expbits32-1) + 1
 
-	nan32 uint32 = (1<<expbits32-1)<<mantbits32 + 1
+	nan32 uint32 = (1<<expbits32-1)<<mantbits32 + 1<<(mantbits32-1) // quiet NaN, 0 payload
 	inf32 uint32 = (1<<expbits32 - 1) << mantbits32
 	neg32 uint32 = 1 << (expbits32 + mantbits32)
 )

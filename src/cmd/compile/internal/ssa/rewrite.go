@@ -347,9 +347,10 @@ func nlz(x int64) int64 {
 }
 
 // ntz returns the number of trailing zeros.
-func ntz(x int64) int64 {
-	return int64(bits.TrailingZeros64(uint64(x)))
-}
+func ntz(x int64) int64   { return int64(bits.TrailingZeros64(uint64(x))) }
+func ntz32(x int64) int64 { return int64(bits.TrailingZeros32(uint32(x))) }
+func ntz16(x int64) int64 { return int64(bits.TrailingZeros16(uint16(x))) }
+func ntz8(x int64) int64  { return int64(bits.TrailingZeros8(uint8(x))) }
 
 func oneBit(x int64) bool {
 	return bits.OnesCount64(uint64(x)) == 1
@@ -487,11 +488,17 @@ func DivisionNeedsFixUp(v *Value) bool {
 
 // auxFrom64F encodes a float64 value so it can be stored in an AuxInt.
 func auxFrom64F(f float64) int64 {
+	if f != f {
+		panic("can't encode a NaN in AuxInt field")
+	}
 	return int64(math.Float64bits(f))
 }
 
 // auxFrom32F encodes a float32 value so it can be stored in an AuxInt.
 func auxFrom32F(f float32) int64 {
+	if f != f {
+		panic("can't encode a NaN in AuxInt field")
+	}
 	return int64(math.Float64bits(extend32Fto64F(f)))
 }
 
@@ -984,7 +991,9 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 		OpAMD64ORLload, OpAMD64XORLload, OpAMD64CVTTSD2SL,
 		OpAMD64ADDL, OpAMD64ADDLconst, OpAMD64SUBL, OpAMD64SUBLconst,
 		OpAMD64ANDL, OpAMD64ANDLconst, OpAMD64ORL, OpAMD64ORLconst,
-		OpAMD64XORL, OpAMD64XORLconst, OpAMD64NEGL, OpAMD64NOTL:
+		OpAMD64XORL, OpAMD64XORLconst, OpAMD64NEGL, OpAMD64NOTL,
+		OpAMD64SHRL, OpAMD64SHRLconst, OpAMD64SARL, OpAMD64SARLconst,
+		OpAMD64SHLL, OpAMD64SHLLconst:
 		return true
 	case OpArg:
 		return x.Type.Width == 4
@@ -1240,4 +1249,29 @@ func read64(sym interface{}, off int64, byteorder binary.ByteOrder) uint64 {
 	buf := make([]byte, 8)
 	copy(buf, src)
 	return byteorder.Uint64(buf)
+}
+
+// sequentialAddresses reports true if it can prove that x + n == y
+func sequentialAddresses(x, y *Value, n int64) bool {
+	if x.Op == Op386ADDL && y.Op == Op386LEAL1 && y.AuxInt == n && y.Aux == nil &&
+		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
+			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
+		return true
+	}
+	if x.Op == Op386LEAL1 && y.Op == Op386LEAL1 && y.AuxInt == x.AuxInt+n && x.Aux == y.Aux &&
+		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
+			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
+		return true
+	}
+	if x.Op == OpAMD64ADDQ && y.Op == OpAMD64LEAQ1 && y.AuxInt == n && y.Aux == nil &&
+		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
+			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
+		return true
+	}
+	if x.Op == OpAMD64LEAQ1 && y.Op == OpAMD64LEAQ1 && y.AuxInt == x.AuxInt+n && x.Aux == y.Aux &&
+		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
+			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
+		return true
+	}
+	return false
 }

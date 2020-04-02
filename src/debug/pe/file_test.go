@@ -621,16 +621,14 @@ func TestBuildingWindowsGUI(t *testing.T) {
 	}
 	defer f.Close()
 
-	const _IMAGE_SUBSYSTEM_WINDOWS_GUI = 2
-
 	switch oh := f.OptionalHeader.(type) {
 	case *OptionalHeader32:
-		if oh.Subsystem != _IMAGE_SUBSYSTEM_WINDOWS_GUI {
-			t.Errorf("unexpected Subsystem value: have %d, but want %d", oh.Subsystem, _IMAGE_SUBSYSTEM_WINDOWS_GUI)
+		if oh.Subsystem != IMAGE_SUBSYSTEM_WINDOWS_GUI {
+			t.Errorf("unexpected Subsystem value: have %d, but want %d", oh.Subsystem, IMAGE_SUBSYSTEM_WINDOWS_GUI)
 		}
 	case *OptionalHeader64:
-		if oh.Subsystem != _IMAGE_SUBSYSTEM_WINDOWS_GUI {
-			t.Errorf("unexpected Subsystem value: have %d, but want %d", oh.Subsystem, _IMAGE_SUBSYSTEM_WINDOWS_GUI)
+		if oh.Subsystem != IMAGE_SUBSYSTEM_WINDOWS_GUI {
+			t.Errorf("unexpected Subsystem value: have %d, but want %d", oh.Subsystem, IMAGE_SUBSYSTEM_WINDOWS_GUI)
 		}
 	default:
 		t.Fatalf("unexpected OptionalHeader type: have %T, but want *pe.OptionalHeader32 or *pe.OptionalHeader64", oh)

@@ -381,7 +381,8 @@ type QueryResult struct {
 // module and only the version "latest", without checking for other possible
 // modules.
 func QueryPackage(path, query string, allowed func(module.Version) bool) ([]QueryResult, error) {
-	if search.IsMetaPackage(path) || strings.Contains(path, "...") {
+	m := search.NewMatch(path)
+	if m.IsLocal() || !m.IsLiteral() {
 		return nil, fmt.Errorf("pattern %s is not an importable package", path)
 	}
 	return QueryPattern(path, query, allowed)
@@ -658,6 +659,13 @@ func (e *PackageNotInModuleError) Error() string {
 		return fmt.Sprintf("module %s@%s found%s, but does not contain packages matching %s", e.Mod.Path, e.Query, found, e.Pattern)
 	}
 	return fmt.Sprintf("module %s@%s found%s, but does not contain package %s", e.Mod.Path, e.Query, found, e.Pattern)
+}
+
+func (e *PackageNotInModuleError) ImportPath() string {
+	if !strings.Contains(e.Pattern, "...") {
+		return e.Pattern
+	}
+	return ""
 }
 
 // ModuleHasRootPackage returns whether module m contains a package m.Path.

@@ -153,6 +153,7 @@ var indexAnyTests = []IndexTest{
 	{"", "abc", -1},
 	{"a", "", -1},
 	{"a", "a", 0},
+	{"\x80", "\xffb", 0},
 	{"aaa", "a", 0},
 	{"abc", "xyz", -1},
 	{"abc", "xcz", 2},
@@ -163,6 +164,7 @@ var indexAnyTests = []IndexTest{
 	{dots + dots + dots, " ", -1},
 	{"012abcba210", "\xffb", 4},
 	{"012\x80bcb\x80210", "\xffb", 3},
+	{"0123456\xcf\x80abc", "\xcfb\x80", 10},
 }
 
 var lastIndexAnyTests = []IndexTest{
@@ -171,6 +173,7 @@ var lastIndexAnyTests = []IndexTest{
 	{"", "abc", -1},
 	{"a", "", -1},
 	{"a", "a", 0},
+	{"\x80", "\xffb", 0},
 	{"aaa", "a", 2},
 	{"abc", "xyz", -1},
 	{"abc", "ab", 1},
@@ -181,6 +184,7 @@ var lastIndexAnyTests = []IndexTest{
 	{dots + dots + dots, " ", -1},
 	{"012abcba210", "\xffb", 6},
 	{"012\x80bcb\x80210", "\xffb", 7},
+	{"0123456\xcf\x80abc", "\xcfb\x80", 10},
 }
 
 // Execute f on each test case.  funcName should be the name of f; it's used
@@ -1787,13 +1791,55 @@ func BenchmarkRepeat(b *testing.B) {
 }
 
 func BenchmarkIndexAnyASCII(b *testing.B) {
-	x := Repeat("#", 4096) // Never matches set
-	cs := "0123456789abcdef"
-	for k := 1; k <= 4096; k <<= 4 {
-		for j := 1; j <= 16; j <<= 1 {
+	x := Repeat("#", 2048) // Never matches set
+	cs := "0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz"
+	for k := 1; k <= 2048; k <<= 4 {
+		for j := 1; j <= 64; j <<= 1 {
 			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
 					IndexAny(x[:k], cs[:j])
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkIndexAnyUTF8(b *testing.B) {
+	x := Repeat("#", 2048) // Never matches set
+	cs := "你好世界, hello world. 你好世界, hello world. 你好世界, hello world."
+	for k := 1; k <= 2048; k <<= 4 {
+		for j := 1; j <= 64; j <<= 1 {
+			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					IndexAny(x[:k], cs[:j])
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkLastIndexAnyASCII(b *testing.B) {
+	x := Repeat("#", 2048) // Never matches set
+	cs := "0123456789abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz"
+	for k := 1; k <= 2048; k <<= 4 {
+		for j := 1; j <= 64; j <<= 1 {
+			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					LastIndexAny(x[:k], cs[:j])
+				}
+			})
+		}
+	}
+}
+
+func BenchmarkLastIndexAnyUTF8(b *testing.B) {
+	x := Repeat("#", 2048) // Never matches set
+	cs := "你好世界, hello world. 你好世界, hello world. 你好世界, hello world."
+	for k := 1; k <= 2048; k <<= 4 {
+		for j := 1; j <= 64; j <<= 1 {
+			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					LastIndexAny(x[:k], cs[:j])
 				}
 			})
 		}

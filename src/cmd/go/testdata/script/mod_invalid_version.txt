@@ -76,17 +76,17 @@ cp go.mod.orig go.mod
 go mod edit -require golang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c
 cd outside
 ! go list -m golang.org/x/text
-stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(2017-09-15T03:28:32Z\)'
+stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(expected 20170915032832\)'
 cd ..
 ! go list -m golang.org/x/text
-stderr 'golang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(2017-09-15T03:28:32Z\)'
+stderr 'golang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(expected 20170915032832\)'
 
 # A 'replace' directive in the main module can replace an invalid timestamp
 # with a valid one.
 go mod edit -replace golang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c=golang.org/x/text@14c0d48ead0c
 cd outside
 ! go list -m golang.org/x/text
-stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(2017-09-15T03:28:32Z\)'
+stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text@v0.1.1-0.20190915032832-14c0d48ead0c: invalid pseudo-version: does not match version-control timestamp \(expected 20170915032832\)'
 cd ..
 go list -m golang.org/x/text
 stdout 'golang.org/x/text v0.1.1-0.20190915032832-14c0d48ead0c => golang.org/x/text v0.1.1-0.20170915032832-14c0d48ead0c'

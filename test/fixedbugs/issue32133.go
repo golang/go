@@ -8,7 +8,7 @@ package p
 
 // errors for the //line-adjusted code below
 // ERROR "newline in string"
-// ERROR "newline in character literal"
+// ERROR "newline in character literal|newline in rune literal"
 // ERROR "newline in string"
 // ERROR "string not terminated"
 

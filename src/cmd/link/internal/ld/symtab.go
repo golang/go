@@ -163,6 +163,13 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
 		other |= 3 << 5
 	}
 
+	if s == x.Name {
+		// We should use Extname for ELF symbol table.
+		// TODO: maybe genasmsym should have done this. That function is too
+		// overloaded and I would rather not change it for now.
+		s = x.Extname()
+	}
+
 	// When dynamically linking, we create Symbols by reading the names from
 	// the symbol tables of the shared libraries and so the names need to
 	// match exactly. Tools like DTrace will have to wait for now.
@@ -326,12 +333,11 @@ func textsectionmap(ctxt *Link) uint32 {
 }
 
 func (ctxt *Link) symtab() {
-	switch ctxt.BuildMode {
-	case BuildModeCArchive, BuildModeCShared:
-		for _, s := range ctxt.Syms.Allsym {
-			// Create a new entry in the .init_array section that points to the
-			// library initializer function.
-			if s.Name == *flagEntrySymbol && ctxt.HeadType != objabi.Haix {
+	if ctxt.HeadType != objabi.Haix {
+		switch ctxt.BuildMode {
+		case BuildModeCArchive, BuildModeCShared:
+			s := ctxt.Syms.ROLookup(*flagEntrySymbol, sym.SymVerABI0)
+			if s != nil {
 				addinitarrdata(ctxt, s)
 			}
 		}

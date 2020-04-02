@@ -26,8 +26,6 @@ const (
 
 func (d *dirInfo) close() {}
 
-func (f *File) seekInvalidate() {}
-
 func (f *File) readdirnames(n int) (names []string, err error) {
 	// If this file has no dirinfo, create one.
 	if f.dirinfo == nil {

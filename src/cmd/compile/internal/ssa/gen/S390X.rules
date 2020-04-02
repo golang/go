@@ -227,8 +227,22 @@
 (Cvt64Fto32 ...) -> (CFDBRA ...)
 (Cvt64Fto64 ...) -> (CGDBRA ...)
 
+// Lowering float <-> uint
+(Cvt32Uto32F ...) -> (CELFBR ...)
+(Cvt32Uto64F ...) -> (CDLFBR ...)
+(Cvt64Uto32F ...) -> (CELGBR ...)
+(Cvt64Uto64F ...) -> (CDLGBR ...)
+
+(Cvt32Fto32U ...) -> (CLFEBR ...)
+(Cvt32Fto64U ...) -> (CLGEBR ...)
+(Cvt64Fto32U ...) -> (CLFDBR ...)
+(Cvt64Fto64U ...) -> (CLGDBR ...)
+
+// Lowering float32 <-> float64
 (Cvt32Fto64F ...) -> (LDEBR ...)
 (Cvt64Fto32F ...) -> (LEDBR ...)
+
+(CvtBoolToUint8 ...) -> (Copy ...)
 
 (Round(32|64)F ...) -> (LoweredRound(32|64)F ...)
 
@@ -1205,6 +1219,12 @@
 (FADDS (FMULS y z) x) -> (FMADDS x y z)
 (FSUB (FMUL y z) x) -> (FMSUB x y z)
 (FSUBS (FMULS y z) x) -> (FMSUBS x y z)
+
+// Convert floating point comparisons against zero into 'load and test' instructions.
+(FCMP x (FMOVDconst [c])) && auxTo64F(c) == 0 -> (LTDBR x)
+(FCMPS x (FMOVSconst [c])) && auxTo32F(c) == 0 -> (LTEBR x)
+(FCMP (FMOVDconst [c]) x) && auxTo64F(c) == 0 -> (InvertFlags (LTDBR <v.Type> x))
+(FCMPS (FMOVSconst [c]) x) && auxTo32F(c) == 0 -> (InvertFlags (LTEBR <v.Type> x))
 
 // Fold memory operations into operations.
 // Exclude global data (SB) because these instructions cannot handle relative addresses.

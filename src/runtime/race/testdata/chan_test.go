@@ -737,3 +737,29 @@ func TestNoRaceBlockedSelectSendSync(t *testing.T) {
 	case <-make(chan int):
 	}
 }
+
+// Test that close synchronizes with a read from the empty closed channel.
+// See https://golang.org/issue/36714.
+func TestNoRaceCloseHappensBeforeRead(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		var loc int
+		var write = make(chan struct{})
+		var read = make(chan struct{})
+
+		go func() {
+			select {
+			case <-write:
+				_ = loc
+			default:
+			}
+			close(read)
+		}()
+
+		go func() {
+			loc = 1
+			close(write)
+		}()
+
+		<-read
+	}
+}

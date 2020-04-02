@@ -1057,16 +1057,13 @@ func TestIdentityResponse(t *testing.T) {
 		t.Fatalf("error writing: %v", err)
 	}
 
-	// The ReadAll will hang for a failing test, so use a Timer to
-	// fail explicitly.
-	goTimeout(t, 2*time.Second, func() {
-		got, _ := ioutil.ReadAll(conn)
-		expectedSuffix := "\r\n\r\ntoo short"
-		if !strings.HasSuffix(string(got), expectedSuffix) {
-			t.Errorf("Expected output to end with %q; got response body %q",
-				expectedSuffix, string(got))
-		}
-	})
+	// The ReadAll will hang for a failing test.
+	got, _ := ioutil.ReadAll(conn)
+	expectedSuffix := "\r\n\r\ntoo short"
+	if !strings.HasSuffix(string(got), expectedSuffix) {
+		t.Errorf("Expected output to end with %q; got response body %q",
+			expectedSuffix, string(got))
+	}
 }
 
 func testTCPConnectionCloses(t *testing.T, req string, h Handler) {
@@ -1438,13 +1435,13 @@ func TestTLSHandshakeTimeout(t *testing.T) {
 		t.Fatalf("Dial: %v", err)
 	}
 	defer conn.Close()
-	goTimeout(t, 10*time.Second, func() {
-		var buf [1]byte
-		n, err := conn.Read(buf[:])
-		if err == nil || n != 0 {
-			t.Errorf("Read = %d, %v; want an error and no bytes", n, err)
-		}
-	})
+
+	var buf [1]byte
+	n, err := conn.Read(buf[:])
+	if err == nil || n != 0 {
+		t.Errorf("Read = %d, %v; want an error and no bytes", n, err)
+	}
+
 	select {
 	case v := <-errc:
 		if !strings.Contains(v, "timeout") && !strings.Contains(v, "TLS handshake") {
@@ -1479,30 +1476,29 @@ func TestTLSServer(t *testing.T) {
 		t.Fatalf("Dial: %v", err)
 	}
 	defer idleConn.Close()
-	goTimeout(t, 10*time.Second, func() {
-		if !strings.HasPrefix(ts.URL, "https://") {
-			t.Errorf("expected test TLS server to start with https://, got %q", ts.URL)
-			return
-		}
-		client := ts.Client()
-		res, err := client.Get(ts.URL)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		if res == nil {
-			t.Errorf("got nil Response")
-			return
-		}
-		defer res.Body.Close()
-		if res.Header.Get("X-TLS-Set") != "true" {
-			t.Errorf("expected X-TLS-Set response header")
-			return
-		}
-		if res.Header.Get("X-TLS-HandshakeComplete") != "true" {
-			t.Errorf("expected X-TLS-HandshakeComplete header")
-		}
-	})
+
+	if !strings.HasPrefix(ts.URL, "https://") {
+		t.Errorf("expected test TLS server to start with https://, got %q", ts.URL)
+		return
+	}
+	client := ts.Client()
+	res, err := client.Get(ts.URL)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if res == nil {
+		t.Errorf("got nil Response")
+		return
+	}
+	defer res.Body.Close()
+	if res.Header.Get("X-TLS-Set") != "true" {
+		t.Errorf("expected X-TLS-Set response header")
+		return
+	}
+	if res.Header.Get("X-TLS-HandshakeComplete") != "true" {
+		t.Errorf("expected X-TLS-HandshakeComplete header")
+	}
 }
 
 func TestServeTLS(t *testing.T) {
@@ -3629,21 +3625,6 @@ func TestHeaderToWire(t *testing.T) {
 	}
 }
 
-// goTimeout runs f, failing t if f takes more than ns to complete.
-func goTimeout(t *testing.T, d time.Duration, f func()) {
-	ch := make(chan bool, 2)
-	timer := time.AfterFunc(d, func() {
-		t.Errorf("Timeout expired after %v", d)
-		ch <- true
-	})
-	defer timer.Stop()
-	go func() {
-		defer func() { ch <- true }()
-		f()
-	}()
-	<-ch
-}
-
 type errorListener struct {
 	errs []error
 }
@@ -4135,10 +4116,19 @@ func TestServerConnState(t *testing.T) {
 
 		doRequests()
 
-		timer := time.NewTimer(5 * time.Second)
+		stateDelay := 5 * time.Second
+		if deadline, ok := t.Deadline(); ok {
+			// Allow an arbitrarily long delay.
+			// This test was observed to be flaky on the darwin-arm64-corellium builder,
+			// so we're increasing the deadline to see if it starts passing.
+			// See https://golang.org/issue/37322.
+			const arbitraryCleanupMargin = 1 * time.Second
+			stateDelay = time.Until(deadline) - arbitraryCleanupMargin
+		}
+		timer := time.NewTimer(stateDelay)
 		select {
 		case <-timer.C:
-			t.Errorf("Timed out waiting for connection to change state.")
+			t.Errorf("Timed out after %v waiting for connection to change state.", stateDelay)
 		case <-complete:
 			timer.Stop()
 		}

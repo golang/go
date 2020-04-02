@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package rsa implements RSA encryption as specified in PKCS#1.
+// Package rsa implements RSA encryption as specified in PKCS#1 and RFC 8017.
 //
 // RSA is a single, fundamental operation that is used in this package to
 // implement either public-key encryption or public-key signatures.
@@ -10,13 +10,13 @@
 // The original specification for encryption and signatures with RSA is PKCS#1
 // and the terms "RSA encryption" and "RSA signatures" by default refer to
 // PKCS#1 version 1.5. However, that specification has flaws and new designs
-// should use version two, usually called by just OAEP and PSS, where
+// should use version 2, usually called by just OAEP and PSS, where
 // possible.
 //
 // Two sets of interfaces are included in this package. When a more abstract
 // interface isn't necessary, there are functions for encrypting/decrypting
 // with v1.5/OAEP and signing/verifying with v1.5/PSS. If one needs to abstract
-// over the public-key primitive, the PrivateKey struct implements the
+// over the public key primitive, the PrivateKey type implements the
 // Decrypter and Signer interfaces from the crypto package.
 //
 // The RSA operations in this package are not implemented using constant-time algorithms.
@@ -48,6 +48,15 @@ type PublicKey struct {
 // for or by this public key will have the same size.
 func (pub *PublicKey) Size() int {
 	return (pub.N.BitLen() + 7) / 8
+}
+
+// Equal reports whether pub and x have the same value.
+func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
+	xx, ok := x.(*PublicKey)
+	if !ok {
+		return false
+	}
+	return pub.N.Cmp(xx.N) == 0 && pub.E == xx.E
 }
 
 // OAEPOptions is an interface for passing options to OAEP decryption using the
@@ -102,7 +111,8 @@ func (priv *PrivateKey) Public() crypto.PublicKey {
 
 // Sign signs digest with priv, reading randomness from rand. If opts is a
 // *PSSOptions then the PSS algorithm will be used, otherwise PKCS#1 v1.5 will
-// be used.
+// be used. digest must be the result of hashing the input message using
+// opts.HashFunc().
 //
 // This method implements crypto.Signer, which is an interface to support keys
 // where the private part is kept in, for example, a hardware module. Common

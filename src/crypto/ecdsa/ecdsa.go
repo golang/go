@@ -62,6 +62,24 @@ type PublicKey struct {
 	X, Y *big.Int
 }
 
+// Equal reports whether pub and x have the same value.
+//
+// Two keys are only considered to have the same value if they have the same Curve value.
+// Note that for example elliptic.P256() and elliptic.P256().Params() are different
+// values, as the latter is a generic not constant time implementation.
+func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
+	xx, ok := x.(*PublicKey)
+	if !ok {
+		return false
+	}
+	return pub.X.Cmp(xx.X) == 0 && pub.Y.Cmp(xx.Y) == 0 &&
+		// Standard library Curve implementations are singletons, so this check
+		// will work for those. Other Curves might be equivalent even if not
+		// singletons, but there is no definitive way to check for that, and
+		// better to err on the side of safety.
+		pub.Curve == xx.Curve
+}
+
 // PrivateKey represents an ECDSA private key.
 type PrivateKey struct {
 	PublicKey

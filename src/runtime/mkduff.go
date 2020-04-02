@@ -194,7 +194,9 @@ func zeroPPC64x(w io.Writer) {
 }
 
 func copyPPC64x(w io.Writer) {
-	fmt.Fprintln(w, "// TODO: Implement runtime·duffcopy.")
+	// duffcopy is not used on PPC64.
+	fmt.Fprintln(w, "TEXT runtime·duffcopy(SB), NOSPLIT|NOFRAME, $0-0")
+	fmt.Fprintln(w, "\tUNDEF")
 }
 
 func tagsMIPS64x(w io.Writer) {

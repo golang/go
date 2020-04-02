@@ -1064,7 +1064,7 @@ label1:
 //	VSX AND, XX3-form
 //	<MNEMONIC> XA,XB,XT produces
 //	<mnemonic> XT,XA,XB
-	XXLANDQ	    VS0,VS1,VS32
+	XXLAND	    VS0,VS1,VS32
 	XXLANDC	    VS0,VS1,VS32
 	XXLEQV	    VS0,VS1,VS32
 	XXLNAND	    VS0,VS1,VS32
@@ -1092,6 +1092,11 @@ label1:
 //	<MNEMONIC> XB,UIM,XT produces
 //	<mnemonic> XT,XB,UIM
 	XXSPLTW	    VS0,$3,VS32
+
+//      VSX permute, XX3-form
+//      <MNEMONIC> XA,XB,XT produces
+//      <mnemonic> XT,XA,XB
+        XXPERM    VS0,VS1,VS32
 
 //	VSX permute, XX3-form
 //	<MNEMONIC> XA,XB,DM,XT produces

@@ -498,6 +498,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		ssa.OpS390XLDGR, ssa.OpS390XLGDR,
 		ssa.OpS390XCEFBRA, ssa.OpS390XCDFBRA, ssa.OpS390XCEGBRA, ssa.OpS390XCDGBRA,
 		ssa.OpS390XCFEBRA, ssa.OpS390XCFDBRA, ssa.OpS390XCGEBRA, ssa.OpS390XCGDBRA,
+		ssa.OpS390XCELFBR, ssa.OpS390XCDLFBR, ssa.OpS390XCELGBR, ssa.OpS390XCDLGBR,
+		ssa.OpS390XCLFEBR, ssa.OpS390XCLFDBR, ssa.OpS390XCLGEBR, ssa.OpS390XCLGDBR,
 		ssa.OpS390XLDEBR, ssa.OpS390XLEDBR,
 		ssa.OpS390XFNEG, ssa.OpS390XFNEGS,
 		ssa.OpS390XLPDFR, ssa.OpS390XLNDFR:
@@ -603,6 +605,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
+	case ssa.OpS390XLTDBR, ssa.OpS390XLTEBR:
+		opregreg(s, v.Op.Asm(), v.Args[0].Reg(), v.Args[0].Reg())
 	case ssa.OpS390XInvertFlags:
 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
 	case ssa.OpS390XFlagEQ, ssa.OpS390XFlagLT, ssa.OpS390XFlagGT, ssa.OpS390XFlagOV:

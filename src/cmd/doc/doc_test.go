@@ -724,6 +724,40 @@ var tests = []test{
 		},
 	},
 
+	// Merging comments with -src.
+	{
+		"merge comments with -src A",
+		[]string{"-src", p + "/merge", `A`},
+		[]string{
+			`A doc`,
+			`func A`,
+			`A comment`,
+		},
+		[]string{
+			`Package A doc`,
+			`Package B doc`,
+			`B doc`,
+			`B comment`,
+			`B doc`,
+		},
+	},
+	{
+		"merge comments with -src B",
+		[]string{"-src", p + "/merge", `B`},
+		[]string{
+			`B doc`,
+			`func B`,
+			`B comment`,
+		},
+		[]string{
+			`Package A doc`,
+			`Package B doc`,
+			`A doc`,
+			`A comment`,
+			`A doc`,
+		},
+	},
+
 	// No dups with -u. Issue 21797.
 	{
 		"case matching on, no dups",

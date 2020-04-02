@@ -660,7 +660,7 @@ func (r *importReader) funcExt(n *Node) {
 	r.symIdx(n.Sym)
 
 	// Escape analysis.
-	for _, fs := range types.RecvsParams {
+	for _, fs := range &types.RecvsParams {
 		for _, f := range fs(n.Type).FieldSlice() {
 			f.Note = r.string()
 		}
@@ -687,7 +687,7 @@ func (r *importReader) linkname(s *types.Sym) {
 }
 
 func (r *importReader) symIdx(s *types.Sym) {
-	if Ctxt.Flag_newobj {
+	if Ctxt.Flag_go115newobj {
 		lsym := s.Linksym()
 		idx := int32(r.int64())
 		if idx != -1 {

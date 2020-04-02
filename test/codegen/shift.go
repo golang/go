@@ -125,3 +125,26 @@ func lshGuarded64(v int64, s uint) int64 {
 	}
 	panic("shift too large")
 }
+
+func checkWidenAfterShift(v int64, u uint64) (int64, uint64) {
+
+	// ppc64le:-".*MOVW"
+	f := int32(v>>32)
+	// ppc64le:".*MOVW"
+	f += int32(v>>31)
+	// ppc64le:-".*MOVH"
+	g := int16(v>>48)
+	// ppc64le:".*MOVH"
+	g += int16(v>>30)
+	// ppc64le:-".*MOVH"
+	g += int16(f>>16)
+	// ppc64le:-".*MOVB"
+	h := int8(v>>56)
+	// ppc64le:".*MOVB"
+	h += int8(v>>28)
+	// ppc64le:-".*MOVB"
+	h += int8(f>>24)
+	// ppc64le:".*MOVB"
+	h += int8(f>>16)
+	return int64(h),uint64(g)
+}

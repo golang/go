@@ -673,10 +673,6 @@ func evconst(n *Node) {
 		}
 
 	case OCOMPLEX:
-		if nl == nil || nr == nil {
-			// TODO(mdempsky): Remove after early OAS2FUNC rewrite CL lands.
-			break
-		}
 		if nl.Op == OLITERAL && nr.Op == OLITERAL {
 			// make it a complex literal
 			c := newMpcmplx()

@@ -26,7 +26,7 @@ func TestFuseEliminatesOneBranch(t *testing.T) {
 			Exit("mem")))
 
 	CheckFunc(fun.f)
-	fuseAll(fun.f)
+	fuseLate(fun.f)
 
 	for _, b := range fun.f.Blocks {
 		if b == fun.blocks["then"] && b.Kind != BlockInvalid {
@@ -56,7 +56,7 @@ func TestFuseEliminatesBothBranches(t *testing.T) {
 			Exit("mem")))
 
 	CheckFunc(fun.f)
-	fuseAll(fun.f)
+	fuseLate(fun.f)
 
 	for _, b := range fun.f.Blocks {
 		if b == fun.blocks["then"] && b.Kind != BlockInvalid {
@@ -90,7 +90,7 @@ func TestFuseHandlesPhis(t *testing.T) {
 			Exit("mem")))
 
 	CheckFunc(fun.f)
-	fuseAll(fun.f)
+	fuseLate(fun.f)
 
 	for _, b := range fun.f.Blocks {
 		if b == fun.blocks["then"] && b.Kind != BlockInvalid {
@@ -122,7 +122,7 @@ func TestFuseEliminatesEmptyBlocks(t *testing.T) {
 		))
 
 	CheckFunc(fun.f)
-	fuseAll(fun.f)
+	fuseLate(fun.f)
 
 	for k, b := range fun.blocks {
 		if k[:1] == "z" && b.Kind != BlockInvalid {
@@ -153,7 +153,7 @@ func TestFuseSideEffects(t *testing.T) {
 			Goto("loop")))
 
 	CheckFunc(fun.f)
-	fuseAll(fun.f)
+	fuseLate(fun.f)
 
 	for _, b := range fun.f.Blocks {
 		if b == fun.blocks["then"] && b.Kind == BlockInvalid {
@@ -196,7 +196,7 @@ func BenchmarkFuse(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				fun := c.Fun("entry", blocks...)
-				fuseAll(fun.f)
+				fuseLate(fun.f)
 			}
 		})
 	}

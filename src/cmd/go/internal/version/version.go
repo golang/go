@@ -53,6 +53,11 @@ var (
 
 func runVersion(cmd *base.Command, args []string) {
 	if len(args) == 0 {
+		if *versionM || *versionV {
+			fmt.Fprintf(os.Stderr, "go version: flags can only be used with arguments\n")
+			base.SetExitStatus(2)
+			return
+		}
 		fmt.Printf("go version %s %s/%s\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
 		return
 	}
@@ -61,6 +66,7 @@ func runVersion(cmd *base.Command, args []string) {
 		info, err := os.Stat(arg)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
+			base.SetExitStatus(1)
 			continue
 		}
 		if info.IsDir() {

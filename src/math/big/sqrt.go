@@ -14,7 +14,8 @@ var (
 //
 // If z's precision is 0, it is changed to x's precision before the
 // operation. Rounding is performed according to z's precision and
-// rounding mode.
+// rounding mode, but z's accuracy is not computed. Specifically, the
+// result of z.Acc() is undefined.
 //
 // The function panics if z < 0. The value of z is undefined in that
 // case.

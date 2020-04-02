@@ -39,6 +39,14 @@ func findGorootModules(t *testing.T) []gorootModule {
 			if info.Name() == "vendor" || info.Name() == "testdata" {
 				return filepath.SkipDir
 			}
+			if path == filepath.Join(runtime.GOROOT(), "pkg") {
+				// GOROOT/pkg contains generated artifacts, not source code.
+				//
+				// In https://golang.org/issue/37929 it was observed to somehow contain
+				// a module cache, so it is important to skip. (That helps with the
+				// running time of this test anyway.)
+				return filepath.SkipDir
+			}
 			if info.IsDir() || info.Name() != "go.mod" {
 				return nil
 			}
@@ -47,6 +55,7 @@ func findGorootModules(t *testing.T) []gorootModule {
 			// Use 'go list' to describe the module contained in this directory (but
 			// not its dependencies).
 			cmd := exec.Command(goBin, "list", "-json", "-m")
+			cmd.Env = append(os.Environ(), "GO111MODULE=on")
 			cmd.Dir = dir
 			cmd.Stderr = new(strings.Builder)
 			out, err := cmd.Output()
@@ -103,6 +112,7 @@ func TestAllDependenciesVendored(t *testing.T) {
 				// dependencies are vendored. If any imported package is missing,
 				// 'go list -deps' will fail when attempting to load it.
 				cmd := exec.Command(goBin, "list", "-mod=vendor", "-deps", "./...")
+				cmd.Env = append(os.Environ(), "GO111MODULE=on")
 				cmd.Dir = m.Dir
 				cmd.Stderr = new(strings.Builder)
 				_, err := cmd.Output()
@@ -115,7 +125,8 @@ func TestAllDependenciesVendored(t *testing.T) {
 
 			// There is no vendor directory, so the module must have no dependencies.
 			// Check that the list of active modules contains only the main module.
-			cmd := exec.Command(goBin, "list", "-m", "all")
+			cmd := exec.Command(goBin, "list", "-mod=mod", "-m", "all")
+			cmd.Env = append(os.Environ(), "GO111MODULE=on")
 			cmd.Dir = m.Dir
 			cmd.Stderr = new(strings.Builder)
 			out, err := cmd.Output()

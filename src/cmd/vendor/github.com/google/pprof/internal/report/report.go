@@ -834,10 +834,19 @@ func printTraces(w io.Writer, rpt *Report) error {
 
 	_, locations := graph.CreateNodes(prof, &graph.Options{})
 	for _, sample := range prof.Sample {
-		var stack graph.Nodes
+		type stk struct {
+			*graph.NodeInfo
+			inline bool
+		}
+		var stack []stk
 		for _, loc := range sample.Location {
-			id := loc.ID
-			stack = append(stack, locations[id]...)
+			nodes := locations[loc.ID]
+			for i, n := range nodes {
+				// The inline flag may be inaccurate if 'show' or 'hide' filter is
+				// used. See https://github.com/google/pprof/issues/511.
+				inline := i != len(nodes)-1
+				stack = append(stack, stk{&n.Info, inline})
+			}
 		}
 
 		if len(stack) == 0 {
@@ -875,10 +884,15 @@ func printTraces(w io.Writer, rpt *Report) error {
 		if d != 0 {
 			v = v / d
 		}
-		fmt.Fprintf(w, "%10s   %s\n",
-			rpt.formatValue(v), stack[0].Info.PrintableName())
-		for _, s := range stack[1:] {
-			fmt.Fprintf(w, "%10s   %s\n", "", s.Info.PrintableName())
+		for i, s := range stack {
+			var vs, inline string
+			if i == 0 {
+				vs = rpt.formatValue(v)
+			}
+			if s.inline {
+				inline = " (inline)"
+			}
+			fmt.Fprintf(w, "%10s   %s%s\n", vs, s.PrintableName(), inline)
 		}
 	}
 	fmt.Fprintln(w, separator)

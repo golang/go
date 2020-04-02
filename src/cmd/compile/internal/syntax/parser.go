@@ -419,7 +419,7 @@ func (p *parser) fileOrNil() *File {
 	}
 	// p.tok == _EOF
 
-	f.Lines = p.source.line
+	f.Lines = p.line
 
 	return f
 }

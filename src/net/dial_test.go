@@ -441,6 +441,14 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 
+	var readDeadline time.Time
+	if td, ok := t.Deadline(); ok {
+		const arbitraryCleanupMargin = 1 * time.Second
+		readDeadline = td.Add(-arbitraryCleanupMargin)
+	} else {
+		readDeadline = time.Now().Add(5 * time.Second)
+	}
+
 	var wg sync.WaitGroup
 	wg.Add(2)
 	handler := func(dss *dualStackServer, ln Listener) {
@@ -450,7 +458,7 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 			t.Fatal(err)
 		}
 		// The client should close itself, without sending data.
-		c.SetReadDeadline(time.Now().Add(1 * time.Second))
+		c.SetReadDeadline(readDeadline)
 		var b [1]byte
 		if _, err := c.Read(b[:]); err != io.EOF {
 			t.Errorf("got %v; want %v", err, io.EOF)

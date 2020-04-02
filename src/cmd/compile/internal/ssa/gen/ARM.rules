@@ -207,6 +207,8 @@
 
 (Round(32|64)F ...) -> (Copy ...)
 
+(CvtBoolToUint8 ...) -> (Copy ...)
+
 // fused-multiply-add
 (FMA x y z) -> (FMULAD z x y)
 

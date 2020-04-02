@@ -106,7 +106,7 @@ func typeAndHashFromSignatureScheme(signatureAlgorithm SignatureScheme) (sigType
 	case Ed25519:
 		sigType = signatureEd25519
 	default:
-		return 0, 0, fmt.Errorf("unsupported signature algorithm: %#04x", signatureAlgorithm)
+		return 0, 0, fmt.Errorf("unsupported signature algorithm: %v", signatureAlgorithm)
 	}
 	switch signatureAlgorithm {
 	case PKCS1WithSHA1, ECDSAWithSHA1:
@@ -120,7 +120,7 @@ func typeAndHashFromSignatureScheme(signatureAlgorithm SignatureScheme) (sigType
 	case Ed25519:
 		hash = directSigning
 	default:
-		return 0, 0, fmt.Errorf("unsupported signature algorithm: %#04x", signatureAlgorithm)
+		return 0, 0, fmt.Errorf("unsupported signature algorithm: %v", signatureAlgorithm)
 	}
 	return sigType, hash, nil
 }

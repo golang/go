@@ -117,17 +117,17 @@ func LastIndex(s, sep []byte) int {
 		return -1
 	}
 	// Rabin-Karp search from the end of the string
-	hashss, pow := hashStrRev(sep)
+	hashss, pow := bytealg.HashStrRevBytes(sep)
 	last := len(s) - n
 	var h uint32
 	for i := len(s) - 1; i >= last; i-- {
-		h = h*primeRK + uint32(s[i])
+		h = h*bytealg.PrimeRK + uint32(s[i])
 	}
 	if h == hashss && Equal(s[last:], sep) {
 		return last
 	}
 	for i := last - 1; i >= 0; i-- {
-		h *= primeRK
+		h *= bytealg.PrimeRK
 		h += uint32(s[i])
 		h -= pow * uint32(s[i+n])
 		if h == hashss && Equal(s[i:i+n], sep) {
@@ -183,6 +183,29 @@ func IndexAny(s []byte, chars string) int {
 		// Avoid scanning all of s.
 		return -1
 	}
+	if len(s) == 1 {
+		r := rune(s[0])
+		if r >= utf8.RuneSelf {
+			// search utf8.RuneError.
+			for _, r = range chars {
+				if r == utf8.RuneError {
+					return 0
+				}
+			}
+			return -1
+		}
+		if bytealg.IndexByteString(chars, s[0]) >= 0 {
+			return 0
+		}
+		return -1
+	}
+	if len(chars) == 1 {
+		r := rune(chars[0])
+		if r >= utf8.RuneSelf {
+			r = utf8.RuneError
+		}
+		return IndexRune(s, r)
+	}
 	if len(s) > 8 {
 		if as, isASCII := makeASCIISet(chars); isASCII {
 			for i, c := range s {
@@ -197,14 +220,26 @@ func IndexAny(s []byte, chars string) int {
 	for i := 0; i < len(s); i += width {
 		r := rune(s[i])
 		if r < utf8.RuneSelf {
-			width = 1
-		} else {
-			r, width = utf8.DecodeRune(s[i:])
-		}
-		for _, ch := range chars {
-			if r == ch {
+			if bytealg.IndexByteString(chars, s[i]) >= 0 {
 				return i
 			}
+			width = 1
+			continue
+		}
+		r, width = utf8.DecodeRune(s[i:])
+		if r == utf8.RuneError {
+			for _, r = range chars {
+				if r == utf8.RuneError {
+					return i
+				}
+			}
+			continue
+		}
+		// r is 2 to 4 bytes. Using strings.Index is more reasonable, but as the bytes
+		// package should not import the strings package, use bytealg.IndexString
+		// instead. And this does not seem to lose much performance.
+		if chars == string(r) || bytealg.IndexString(chars, string(r)) >= 0 {
+			return i
 		}
 	}
 	return -1
@@ -229,13 +264,59 @@ func LastIndexAny(s []byte, chars string) int {
 			return -1
 		}
 	}
-	for i := len(s); i > 0; {
-		r, size := utf8.DecodeLastRune(s[:i])
-		i -= size
-		for _, c := range chars {
-			if r == c {
+	if len(s) == 1 {
+		r := rune(s[0])
+		if r >= utf8.RuneSelf {
+			for _, r = range chars {
+				if r == utf8.RuneError {
+					return 0
+				}
+			}
+			return -1
+		}
+		if bytealg.IndexByteString(chars, s[0]) >= 0 {
+			return 0
+		}
+		return -1
+	}
+	if len(chars) == 1 {
+		cr := rune(chars[0])
+		if cr >= utf8.RuneSelf {
+			cr = utf8.RuneError
+		}
+		for i := len(s); i > 0; {
+			r, size := utf8.DecodeLastRune(s[:i])
+			i -= size
+			if r == cr {
 				return i
 			}
+		}
+		return -1
+	}
+	for i := len(s); i > 0; {
+		r := rune(s[i-1])
+		if r < utf8.RuneSelf {
+			if bytealg.IndexByteString(chars, s[i-1]) >= 0 {
+				return i - 1
+			}
+			i--
+			continue
+		}
+		r, size := utf8.DecodeLastRune(s[:i])
+		i -= size
+		if r == utf8.RuneError {
+			for _, r = range chars {
+				if r == utf8.RuneError {
+					return i
+				}
+			}
+			continue
+		}
+		// r is 2 to 4 bytes. Using strings.Index is more reasonable, but as the bytes
+		// package should not import the strings package, use bytealg.IndexString
+		// instead. And this does not seem to lose much performance.
+		if chars == string(r) || bytealg.IndexString(chars, string(r)) >= 0 {
+			return i
 		}
 	}
 	return -1
@@ -1019,11 +1100,11 @@ func Index(s, sep []byte) int {
 			if s[i] != c0 {
 				// IndexByte is faster than bytealg.Index, so use it as long as
 				// we're not getting lots of false positives.
-				o := IndexByte(s[i:t], c0)
+				o := IndexByte(s[i+1:t], c0)
 				if o < 0 {
 					return -1
 				}
-				i += o
+				i += o + 1
 			}
 			if s[i+1] == c1 && Equal(s[i:i+n], sep) {
 				return i
@@ -1048,11 +1129,11 @@ func Index(s, sep []byte) int {
 	t := len(s) - n + 1
 	for i < t {
 		if s[i] != c0 {
-			o := IndexByte(s[i:t], c0)
+			o := IndexByte(s[i+1:t], c0)
 			if o < 0 {
 				break
 			}
-			i += o
+			i += o + 1
 		}
 		if s[i+1] == c1 && Equal(s[i:i+n], sep) {
 			return i
@@ -1068,7 +1149,7 @@ func Index(s, sep []byte) int {
 			// we should cutover at even larger average skips,
 			// because Equal becomes that much more expensive.
 			// This code does not take that effect into account.
-			j := indexRabinKarp(s[i:], sep)
+			j := bytealg.IndexRabinKarpBytes(s[i:], sep)
 			if j < 0 {
 				return -1
 			}
@@ -1076,64 +1157,4 @@ func Index(s, sep []byte) int {
 		}
 	}
 	return -1
-}
-
-func indexRabinKarp(s, sep []byte) int {
-	// Rabin-Karp search
-	hashsep, pow := hashStr(sep)
-	n := len(sep)
-	var h uint32
-	for i := 0; i < n; i++ {
-		h = h*primeRK + uint32(s[i])
-	}
-	if h == hashsep && Equal(s[:n], sep) {
-		return 0
-	}
-	for i := n; i < len(s); {
-		h *= primeRK
-		h += uint32(s[i])
-		h -= pow * uint32(s[i-n])
-		i++
-		if h == hashsep && Equal(s[i-n:i], sep) {
-			return i - n
-		}
-	}
-	return -1
-}
-
-// primeRK is the prime base used in Rabin-Karp algorithm.
-const primeRK = 16777619
-
-// hashStr returns the hash and the appropriate multiplicative
-// factor for use in Rabin-Karp algorithm.
-func hashStr(sep []byte) (uint32, uint32) {
-	hash := uint32(0)
-	for i := 0; i < len(sep); i++ {
-		hash = hash*primeRK + uint32(sep[i])
-	}
-	var pow, sq uint32 = 1, primeRK
-	for i := len(sep); i > 0; i >>= 1 {
-		if i&1 != 0 {
-			pow *= sq
-		}
-		sq *= sq
-	}
-	return hash, pow
-}
-
-// hashStrRev returns the hash of the reverse of sep and the
-// appropriate multiplicative factor for use in Rabin-Karp algorithm.
-func hashStrRev(sep []byte) (uint32, uint32) {
-	hash := uint32(0)
-	for i := len(sep) - 1; i >= 0; i-- {
-		hash = hash*primeRK + uint32(sep[i])
-	}
-	var pow, sq uint32 = 1, primeRK
-	for i := len(sep); i > 0; i >>= 1 {
-		if i&1 != 0 {
-			pow *= sq
-		}
-		sq *= sq
-	}
-	return hash, pow
 }

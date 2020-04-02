@@ -323,7 +323,12 @@ var genericOps = []opData{
 	{name: "Const32", aux: "Int32"},      // auxint is sign-extended 32 bits
 	// Note: ConstX are sign-extended even when the type of the value is unsigned.
 	// For instance, uint8(0xaa) is stored as auxint=0xffffffffffffffaa.
-	{name: "Const64", aux: "Int64"},    // value is auxint
+	{name: "Const64", aux: "Int64"}, // value is auxint
+	// Note: for both Const32F and Const64F, we disallow encoding NaNs.
+	// Signaling NaNs are tricky because if you do anything with them, they become quiet.
+	// Particularly, converting a 32 bit sNaN to 64 bit and back converts it to a qNaN.
+	// See issue 36399 and 36400.
+	// Encodings of +inf, -inf, and -0 are fine.
 	{name: "Const32F", aux: "Float32"}, // value is math.Float64frombits(uint64(auxint)) and is exactly representable as float 32
 	{name: "Const64F", aux: "Float64"}, // value is math.Float64frombits(uint64(auxint))
 	{name: "ConstInterface"},           // nil interface
@@ -418,6 +423,7 @@ var genericOps = []opData{
 	{name: "Cvt64Fto64", argLength: 1},
 	{name: "Cvt32Fto64F", argLength: 1},
 	{name: "Cvt64Fto32F", argLength: 1},
+	{name: "CvtBoolToUint8", argLength: 1},
 
 	// Force rounding to precision of type.
 	{name: "Round32F", argLength: 1},
@@ -513,6 +519,9 @@ var genericOps = []opData{
 	{name: "Signmask", argLength: 1, typ: "Int32"},  // 0 if arg0 >= 0, -1 if arg0 < 0
 	{name: "Zeromask", argLength: 1, typ: "UInt32"}, // 0 if arg0 == 0, 0xffffffff if arg0 != 0
 	{name: "Slicemask", argLength: 1},               // 0 if arg0 == 0, -1 if arg0 > 0, undef if arg0<0. Type is native int size.
+
+	{name: "SpectreIndex", argLength: 2},      // arg0 if 0 <= arg0 < arg1, 0 otherwise. Type is native int size.
+	{name: "SpectreSliceIndex", argLength: 2}, // arg0 if 0 <= arg0 <= arg1, 0 otherwise. Type is native int size.
 
 	{name: "Cvt32Uto32F", argLength: 1}, // uint32 -> float32, only used on 32-bit arch
 	{name: "Cvt32Uto64F", argLength: 1}, // uint32 -> float64, only used on 32-bit arch

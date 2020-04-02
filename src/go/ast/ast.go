@@ -226,8 +226,8 @@ func (f *FieldList) NumFields() int {
 // or more of the following concrete expression nodes.
 //
 type (
-	// A BadExpr node is a placeholder for expressions containing
-	// syntax errors for which no correct expression nodes can be
+	// A BadExpr node is a placeholder for an expression containing
+	// syntax errors for which a correct expression node cannot be
 	// created.
 	//
 	BadExpr struct {
@@ -897,8 +897,8 @@ func (*TypeSpec) specNode()   {}
 // A declaration is represented by one of the following declaration nodes.
 //
 type (
-	// A BadDecl node is a placeholder for declarations containing
-	// syntax errors for which no correct declaration nodes can be
+	// A BadDecl node is a placeholder for a declaration containing
+	// syntax errors for which a correct declaration node cannot be
 	// created.
 	//
 	BadDecl struct {

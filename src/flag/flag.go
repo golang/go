@@ -9,9 +9,9 @@
 
 	Define flags using flag.String(), Bool(), Int(), etc.
 
-	This declares an integer flag, -flagname, stored in the pointer ip, with type *int.
+	This declares an integer flag, -n, stored in the pointer nFlag, with type *int:
 		import "flag"
-		var ip = flag.Int("flagname", 1234, "help message for flagname")
+		var nFlag = flag.Int("n", 1234, "help message for flag n")
 	If you like, you can bind the flag to a variable using the Var() functions.
 		var flagvar int
 		func init() {

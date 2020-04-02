@@ -50,8 +50,6 @@
 #define SYS_tkill		130
 #define SYS_write		64
 
-#define FENCE WORD $0x0ff0000f
-
 // func exit(code int32)
 TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
 	MOVW	code+0(FP), A0

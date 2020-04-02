@@ -8,3 +8,9 @@
 # See golang.org/issue/9281
 
 * -text
+
+# The only exception is Windows files that must absolutely be CRLF or
+# might not work. Batch files are known to have multiple bugs when run
+# with LF endings. See golang.org/issue/37791 for more information.
+
+*.bat text eol=crlf

@@ -1,0 +1,32 @@
+// Copyright 2019 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// +build mips64 mips64le
+
+package cpu
+
+const CacheLinePadSize = 32
+
+// These are initialized by archauxv in runtime/os_linux_mips64x.go.
+// These should not be changed after they are initialized.
+var HWCap uint
+
+// HWCAP bits. These are exposed by the Linux kernel 5.4.
+const (
+	// CPU features
+	hwcap_MIPS_MSA = 1 << 1
+)
+
+func doinit() {
+	options = []option{
+		{Name: "msa", Feature: &MIPS64X.HasMSA},
+	}
+
+	// HWCAP feature bits
+	MIPS64X.HasMSA = isSet(HWCap, hwcap_MIPS_MSA)
+}
+
+func isSet(hwc uint, value uint) bool {
+	return hwc&value != 0
+}

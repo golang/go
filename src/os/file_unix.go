@@ -226,17 +226,6 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	return newFile(uintptr(r), name, kindOpenFile), nil
 }
 
-// Close closes the File, rendering it unusable for I/O.
-// On files that support SetDeadline, any pending I/O operations will
-// be canceled and return immediately with an error.
-// Close will return an error if it has already been called.
-func (f *File) Close() error {
-	if f == nil {
-		return ErrInvalid
-	}
-	return f.file.close()
-}
-
 func (file *file) close() error {
 	if file == nil {
 		return syscall.EINVAL
@@ -257,45 +246,17 @@ func (file *file) close() error {
 	return err
 }
 
-// read reads up to len(b) bytes from the File.
-// It returns the number of bytes read and an error, if any.
-func (f *File) read(b []byte) (n int, err error) {
-	n, err = f.pfd.Read(b)
-	runtime.KeepAlive(f)
-	return n, err
-}
-
-// pread reads len(b) bytes from the File starting at byte offset off.
-// It returns the number of bytes read and the error, if any.
-// EOF is signaled by a zero count with err set to nil.
-func (f *File) pread(b []byte, off int64) (n int, err error) {
-	n, err = f.pfd.Pread(b, off)
-	runtime.KeepAlive(f)
-	return n, err
-}
-
-// write writes len(b) bytes to the File.
-// It returns the number of bytes written and an error, if any.
-func (f *File) write(b []byte) (n int, err error) {
-	n, err = f.pfd.Write(b)
-	runtime.KeepAlive(f)
-	return n, err
-}
-
-// pwrite writes len(b) bytes to the File starting at byte offset off.
-// It returns the number of bytes written and an error, if any.
-func (f *File) pwrite(b []byte, off int64) (n int, err error) {
-	n, err = f.pfd.Pwrite(b, off)
-	runtime.KeepAlive(f)
-	return n, err
-}
-
 // seek sets the offset for the next Read or Write on file to offset, interpreted
 // according to whence: 0 means relative to the origin of the file, 1 means
 // relative to the current offset, and 2 means relative to the end.
 // It returns the new offset and an error, if any.
 func (f *File) seek(offset int64, whence int) (ret int64, err error) {
-	f.seekInvalidate()
+	if f.dirinfo != nil {
+		// Free cached dirinfo, so we allocate a new one if we
+		// access this file as a directory again. See #35767 and #37161.
+		f.dirinfo.close()
+		f.dirinfo = nil
+	}
 	ret, err = f.pfd.Seek(offset, whence)
 	runtime.KeepAlive(f)
 	return ret, err

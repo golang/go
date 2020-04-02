@@ -1,6 +1,9 @@
 ! go test testdep/p1
 stderr 'package testdep/p1 \(test\)\n\timports testdep/p2\n\timports testdep/p3: build constraints exclude all Go files ' # check for full import stack
 
+! go vet testdep/p1
+stderr 'package testdep/p1 \(test\)\n\timports testdep/p2\n\timports testdep/p3: build constraints exclude all Go files ' # check for full import stack
+
 -- testdep/p1/p1.go --
 package p1
 -- testdep/p1/p1_test.go --

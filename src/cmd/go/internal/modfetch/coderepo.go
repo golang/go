@@ -563,7 +563,7 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
 		return err
 	}
 	if !t.Equal(info.Time.Truncate(time.Second)) {
-		return fmt.Errorf("does not match version-control timestamp (%s)", info.Time.UTC().Format(time.RFC3339))
+		return fmt.Errorf("does not match version-control timestamp (expected %s)", info.Time.UTC().Format(pseudoVersionTimestampFormat))
 	}
 
 	tagPrefix := ""

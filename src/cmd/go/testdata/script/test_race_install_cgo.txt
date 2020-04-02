@@ -2,6 +2,8 @@
 
 [!race] skip
 
+[!darwin] ! stale cmd/cgo  # The darwin builders are spuriously stale; see #33598.
+
 env GOBIN=$WORK/bin
 go install mtime sametime
 
@@ -11,11 +13,9 @@ exec $GOBIN/mtime cgopath.txt # get the mtime of the file whose name is in cgopa
 cp stdout cgotime_before.txt
 
  # For this test, we don't actually care whether 'go test -race -i' succeeds.
- # It may fail, for example, if GOROOT was installed from source as root and
- # is now read-only.
- # We only care that — regardless of whether it succeeds — it does not
- # overwrite cmd/cgo.
-go test -race -i runtime/race
+ # It may fail if GOROOT is read-only (perhaps it was installed as root).
+ # We only care that it does not overwrite cmd/cgo regardless.
+? go test -race -i runtime/race
 
 exec $GOBIN/mtime cgopath.txt # get the mtime of the file whose name is in cgopath.txt
 cp stdout cgotime_after.txt
