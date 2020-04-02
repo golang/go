@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -34,8 +35,7 @@ type EnvMode int
 const (
 	// Singleton mode uses a separate cache for each test.
 	Singleton EnvMode = 1 << iota
-	// Shared mode uses a Shared cache.
-	Shared
+
 	// Forwarded forwards connections to an in-process gopls instance.
 	Forwarded
 	// SeparateProcess runs a separate gopls process, and forwards connections to
@@ -150,12 +150,11 @@ func (r *Runner) Run(t *testing.T, filedata string, test func(e *Env)) {
 func (r *Runner) RunInMode(modes EnvMode, t *testing.T, filedata string, test func(e *Env)) {
 	t.Helper()
 	tests := []struct {
-		name         string
-		mode         EnvMode
-		getConnector func(context.Context, *testing.T) (servertest.Connector, func())
+		name      string
+		mode      EnvMode
+		getServer func(context.Context, *testing.T) jsonrpc2.StreamServer
 	}{
-		{"singleton", Singleton, r.singletonEnv},
-		{"shared", Shared, r.sharedEnv},
+		{"singleton", Singleton, singletonEnv},
 		{"forwarded", Forwarded, r.forwardedEnv},
 		{"separate_process", SeparateProcess, r.separateProcessEnv},
 	}
@@ -169,15 +168,24 @@ func (r *Runner) RunInMode(modes EnvMode, t *testing.T, filedata string, test fu
 			t.Helper()
 			ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
 			defer cancel()
+			ctx = debug.WithInstance(ctx, "", "")
+
 			ws, err := fake.NewWorkspace("lsprpc", []byte(filedata))
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer ws.Close()
-			ts, cleanup := tc.getConnector(ctx, t)
-			defer cleanup()
+			ss := tc.getServer(ctx, t)
+			ls := &loggingServer{delegate: ss}
+			ts := servertest.NewPipeServer(ctx, ls)
+			defer func() {
+				ts.Close()
+			}()
 			env := NewEnv(ctx, t, ws, ts)
 			defer func() {
+				if t.Failed() {
+					ls.printBuffers(t.Name(), os.Stderr)
+				}
 				if err := env.E.Shutdown(ctx); err != nil {
 					panic(err)
 				}
@@ -187,42 +195,47 @@ func (r *Runner) RunInMode(modes EnvMode, t *testing.T, filedata string, test fu
 	}
 }
 
-func (r *Runner) singletonEnv(ctx context.Context, t *testing.T) (servertest.Connector, func()) {
-	ctx = debug.WithInstance(ctx, "", "")
-	ss := lsprpc.NewStreamServer(cache.New(ctx, nil))
-	ts := servertest.NewPipeServer(ctx, ss)
-	cleanup := func() {
-		ts.Close()
+type loggingServer struct {
+	delegate jsonrpc2.StreamServer
+
+	mu      sync.Mutex
+	buffers []*bytes.Buffer
+}
+
+func (s *loggingServer) ServeStream(ctx context.Context, stream jsonrpc2.Stream) error {
+	s.mu.Lock()
+	var buf bytes.Buffer
+	s.buffers = append(s.buffers, &buf)
+	s.mu.Unlock()
+	logStream := protocol.LoggingStream(stream, &buf)
+	return s.delegate.ServeStream(ctx, logStream)
+}
+
+func (s *loggingServer) printBuffers(testname string, w io.Writer) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i, buf := range s.buffers {
+		fmt.Fprintf(os.Stderr, "#### Start Gopls Test Logs %d of %d for %q\n", i+1, len(s.buffers), testname)
+		io.Copy(w, buf)
+		fmt.Fprintf(os.Stderr, "#### End Gopls Test Logs %d of %d for %q\n", i+1, len(s.buffers), testname)
 	}
-	return ts, cleanup
 }
 
-func (r *Runner) sharedEnv(ctx context.Context, t *testing.T) (servertest.Connector, func()) {
-	return r.getTestServer(), func() {}
+func singletonEnv(ctx context.Context, t *testing.T) jsonrpc2.StreamServer {
+	return lsprpc.NewStreamServer(cache.New(ctx, nil))
 }
 
-func (r *Runner) forwardedEnv(ctx context.Context, t *testing.T) (servertest.Connector, func()) {
-	ctx = debug.WithInstance(ctx, "", "")
+func (r *Runner) forwardedEnv(ctx context.Context, t *testing.T) jsonrpc2.StreamServer {
 	ts := r.getTestServer()
-	forwarder := lsprpc.NewForwarder("tcp", ts.Addr)
-	ts2 := servertest.NewPipeServer(ctx, forwarder)
-	cleanup := func() {
-		ts2.Close()
-	}
-	return ts2, cleanup
+	return lsprpc.NewForwarder("tcp", ts.Addr)
 }
 
-func (r *Runner) separateProcessEnv(ctx context.Context, t *testing.T) (servertest.Connector, func()) {
-	ctx = debug.WithInstance(ctx, "", "")
-	socket := r.getRemoteSocket(t)
+func (r *Runner) separateProcessEnv(ctx context.Context, t *testing.T) jsonrpc2.StreamServer {
 	// TODO(rfindley): can we use the autostart behavior here, instead of
 	// pre-starting the remote?
-	forwarder := lsprpc.NewForwarder("unix", socket)
-	ts2 := servertest.NewPipeServer(ctx, forwarder)
-	cleanup := func() {
-		ts2.Close()
-	}
-	return ts2, cleanup
+	socket := r.getRemoteSocket(t)
+	return lsprpc.NewForwarder("unix", socket)
 }
 
 // Env holds an initialized fake Editor, Workspace, and Server, which may be
