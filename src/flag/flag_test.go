@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -599,6 +600,10 @@ func TestExitCode(t *testing.T) {
 		)
 		cmd.Run()
 		got := cmd.ProcessState.ExitCode()
+		// ExitCode is either 0 or 1 on Plan 9.
+		if runtime.GOOS == "plan9" && test.expectExit != 0 {
+			test.expectExit = 1
+		}
 		if got != test.expectExit {
 			t.Errorf("unexpected exit code for test case %+v \n: got %d, expect %d",
 				test, got, test.expectExit)
