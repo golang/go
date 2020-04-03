@@ -308,7 +308,7 @@ type ErrorHandling int
 // These constants cause FlagSet.Parse to behave as described if the parse fails.
 const (
 	ContinueOnError ErrorHandling = iota // Return a descriptive error.
-	ExitOnError                          // Call os.Exit(2).
+	ExitOnError                          // Call os.Exit(2) or for -h/-help Exit(0).
 	PanicOnError                         // Call panic with a descriptive error.
 )
 
@@ -979,6 +979,9 @@ func (f *FlagSet) Parse(arguments []string) error {
 		case ContinueOnError:
 			return err
 		case ExitOnError:
+			if err == ErrHelp {
+				os.Exit(0)
+			}
 			os.Exit(2)
 		case PanicOnError:
 			panic(err)

@@ -119,6 +119,21 @@ TODO
 TODO
 </p>
 
+<dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
+  <dd>
+    <p><!-- CL 221427 -->
+      When the flag package sees <code>-h</code> or <code>-help</code>, and
+      those flags are not defined, the flag package prints a usage message.
+      If the <a href=/pkg/flag/#FlagSet><code>FlagSet</code></a> was created with
+      <a href=/pkg/flag/#ExitOnError><code>ExitOnError</code></a>,
+      <a href=/pkg/flag/#FlagSet.Parse><code>FlagSet.Parse</code></a> would then
+      exit with a status of 2. In this release, the exit status for <code>-h</code>
+      or <code>-help</code> has been changed to 0. In particular, this applies to
+      the default handling of command line flags.
+    </p>
+  </dd>
+</dl>
+
 <dl id="pkg-runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
     <p><!-- CL 221779 -->
