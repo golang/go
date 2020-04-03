@@ -158,7 +158,7 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 		return
 	}
 	if typ.ptrdata != 0 {
-		bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.size)
+		bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.ptrdata)
 	}
 	// There's a race here: if some other goroutine can write to
 	// src, it may change some pointer in src after we've
@@ -198,12 +198,27 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size 
 	if writeBarrier.needed && typ.ptrdata != 0 && size >= sys.PtrSize {
 		// Pointer-align start address for bulk barrier.
 		adst, asrc, asize := dst, src, size
+		ptrdata := typ.ptrdata
+		if ptrdata > off {
+			ptrdata -= off
+		} else {
+			ptrdata = 0
+		}
 		if frag := -off & (sys.PtrSize - 1); frag != 0 {
 			adst = add(dst, frag)
 			asrc = add(src, frag)
 			asize -= frag
+			if ptrdata > frag {
+				ptrdata -= frag
+			} else {
+				ptrdata = 0
+			}
 		}
-		bulkBarrierPreWrite(uintptr(adst), uintptr(asrc), asize&^(sys.PtrSize-1))
+		pwsize := asize &^ (sys.PtrSize - 1)
+		if pwsize > ptrdata {
+			pwsize = ptrdata
+		}
+		bulkBarrierPreWrite(uintptr(adst), uintptr(asrc), pwsize)
 	}
 
 	memmove(dst, src, size)
@@ -270,7 +285,8 @@ func typedslicecopy(typ *_type, dst, src slice) int {
 	// before calling typedslicecopy.
 	size := uintptr(n) * typ.size
 	if writeBarrier.needed {
-		bulkBarrierPreWrite(uintptr(dstp), uintptr(srcp), size)
+		pwsize := size - typ.size + typ.ptrdata
+		bulkBarrierPreWrite(uintptr(dstp), uintptr(srcp), pwsize)
 	}
 	// See typedmemmove for a discussion of the race between the
 	// barrier and memmove.
@@ -318,7 +334,7 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
 //go:nosplit
 func typedmemclr(typ *_type, ptr unsafe.Pointer) {
 	if typ.ptrdata != 0 {
-		bulkBarrierPreWrite(uintptr(ptr), 0, typ.size)
+		bulkBarrierPreWrite(uintptr(ptr), 0, typ.ptrdata)
 	}
 	memclrNoHeapPointers(ptr, typ.size)
 }
