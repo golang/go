@@ -8,11 +8,11 @@ import (
 	"bytes"
 	. "flag"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -548,9 +548,7 @@ func TestRangeError(t *testing.T) {
 }
 
 func TestExitCode(t *testing.T) {
-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
-		t.Skip("skipping on windows and plan9")
-	}
+	testenv.MustHaveExec(t)
 
 	magic := 123
 	if os.Getenv("GO_CHILD_FLAG") != "" {
