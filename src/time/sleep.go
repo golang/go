@@ -38,7 +38,7 @@ func when(d Duration) int64 {
 
 func startTimer(*runtimeTimer)
 func stopTimer(*runtimeTimer) bool
-func resetTimer(*runtimeTimer, int64)
+func resetTimer(*runtimeTimer, int64) bool
 func modTimer(t *runtimeTimer, when, period int64, f func(interface{}, uintptr), arg interface{}, seq uintptr)
 
 // The Timer type represents a single event.
@@ -123,9 +123,7 @@ func (t *Timer) Reset(d Duration) bool {
 		panic("time: Reset called on uninitialized Timer")
 	}
 	w := when(d)
-	active := stopTimer(&t.r)
-	resetTimer(&t.r, w)
-	return active
+	return resetTimer(&t.r, w)
 }
 
 func sendTime(c interface{}, seq uintptr) {
