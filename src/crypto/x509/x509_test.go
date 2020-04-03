@@ -1710,6 +1710,33 @@ func TestNoAuthorityKeyIdInSelfSignedCert(t *testing.T) {
 	}
 }
 
+func TestNoSubjectKeyIdInCert(t *testing.T) {
+	template := &Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: "Σ Acme Co",
+		},
+		NotBefore: time.Unix(1000, 0),
+		NotAfter:  time.Unix(100000, 0),
+
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+	if cert := serialiseAndParse(t, template); len(cert.SubjectKeyId) == 0 {
+		t.Fatalf("self-signed certificate did not generate subject key id using the public key")
+	}
+
+	template.IsCA = false
+	if cert := serialiseAndParse(t, template); len(cert.SubjectKeyId) != 0 {
+		t.Fatalf("self-signed certificate generated subject key id when it isn't a CA")
+	}
+
+	template.SubjectKeyId = []byte{1, 2, 3, 4}
+	if cert := serialiseAndParse(t, template); len(cert.SubjectKeyId) == 0 {
+		t.Fatalf("self-signed certificate erased explicit subject key id")
+	}
+}
+
 func TestASN1BitLength(t *testing.T) {
 	tests := []struct {
 		bytes  []byte
