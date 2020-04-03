@@ -1461,8 +1461,8 @@ func wrapperPathFor(goos, goarch string) string {
 		if gohostos != "android" {
 			return pathf("%s/misc/android/go_android_exec.go", goroot)
 		}
-	case goos == "darwin" && (goarch == "arm" || goarch == "arm64"):
-		if gohostos != "darwin" || (gohostarch != "arm" && gohostarch != "arm64") {
+	case goos == "darwin" && goarch == "arm64":
+		if gohostos != "darwin" || gohostarch != "arm64" {
 			return pathf("%s/misc/ios/go_darwin_arm_exec.go", goroot)
 		}
 	}

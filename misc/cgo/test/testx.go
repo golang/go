@@ -159,7 +159,7 @@ func Add(x int) {
 }
 
 func testCthread(t *testing.T) {
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
 		t.Skip("the iOS exec wrapper is unable to properly handle the panic from Add")
 	}
 	sum.i = 0

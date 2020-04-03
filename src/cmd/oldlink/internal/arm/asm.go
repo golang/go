@@ -618,15 +618,6 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 			}
 			r.Xsym = rs
 
-			// ld64 for arm seems to want the symbol table to contain offset
-			// into the section rather than pseudo virtual address that contains
-			// the section load address.
-			// we need to compensate that by removing the instruction's address
-			// from addend.
-			if ctxt.HeadType == objabi.Hdarwin {
-				r.Xadd -= ld.Symaddr(s) + int64(r.Off)
-			}
-
 			if r.Xadd/4 > 0x7fffff || r.Xadd/4 < -0x800000 {
 				ld.Errorf(s, "direct call too far %d", r.Xadd/4)
 			}
@@ -789,11 +780,6 @@ func asmb(ctxt *ld.Link) {
 }
 
 func asmb2(ctxt *ld.Link) {
-	machlink := uint32(0)
-	if ctxt.HeadType == objabi.Hdarwin {
-		machlink = uint32(ld.Domacholink(ctxt))
-	}
-
 	/* output symbol table */
 	ld.Symsize = 0
 
@@ -810,9 +796,6 @@ func asmb2(ctxt *ld.Link) {
 
 		case objabi.Hplan9:
 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
-
-		case objabi.Hdarwin:
-			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
 
 		case objabi.Hwindows:
 			symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
@@ -845,11 +828,6 @@ func asmb2(ctxt *ld.Link) {
 
 		case objabi.Hwindows:
 			// Do nothing
-
-		case objabi.Hdarwin:
-			if ctxt.LinkMode == ld.LinkExternal {
-				ld.Machoemitreloc(ctxt)
-			}
 		}
 	}
 
@@ -871,9 +849,6 @@ func asmb2(ctxt *ld.Link) {
 		objabi.Hnetbsd,
 		objabi.Hopenbsd:
 		ld.Asmbelf(ctxt, int64(symo))
-
-	case objabi.Hdarwin:
-		ld.Asmbmacho(ctxt)
 
 	case objabi.Hwindows:
 		ld.Asmbpe(ctxt)

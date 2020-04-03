@@ -94,7 +94,7 @@ threadentry(void *v)
 }
 
 // init_working_dir sets the current working directory to the app root.
-// By default darwin/arm processes start in "/".
+// By default darwin/arm64 processes start in "/".
 static void
 init_working_dir()
 {
