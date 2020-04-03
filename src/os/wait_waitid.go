@@ -24,7 +24,7 @@ func (p *Process) blockUntilWaitable() (bool, error) {
 	// The waitid system call expects a pointer to a siginfo_t,
 	// which is 128 bytes on all GNU/Linux systems.
 	// On Darwin, it requires greater than or equal to 64 bytes
-	// for darwin/{386,arm} and 104 bytes for darwin/amd64.
+	// for darwin/386 and 104 bytes for darwin/amd64.
 	// We don't care about the values it returns.
 	var siginfo [16]uint64
 	psig := &siginfo[0]

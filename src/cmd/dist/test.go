@@ -887,7 +887,7 @@ func (t *tester) addCmd(dt *distTest, dir string, cmdline ...interface{}) *exec.
 }
 
 func (t *tester) iOS() bool {
-	return goos == "darwin" && (goarch == "arm" || goarch == "arm64")
+	return goos == "darwin" && goarch == "arm64"
 }
 
 func (t *tester) out(v string) {
@@ -902,7 +902,7 @@ func (t *tester) extLink() bool {
 	switch pair {
 	case "aix-ppc64",
 		"android-arm", "android-arm64",
-		"darwin-386", "darwin-amd64", "darwin-arm", "darwin-arm64",
+		"darwin-386", "darwin-amd64", "darwin-arm64",
 		"dragonfly-amd64",
 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
 		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-mips64", "linux-mips64le", "linux-mips", "linux-mipsle", "linux-s390x",
@@ -927,7 +927,7 @@ func (t *tester) internalLink() bool {
 	if goos == "android" {
 		return false
 	}
-	if goos == "darwin" && (goarch == "arm" || goarch == "arm64") {
+	if t.iOS() {
 		return false
 	}
 	// Internally linking cgo is incomplete on some architectures.
@@ -963,7 +963,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		}
 		switch pair {
 		case "aix-ppc64",
-			"darwin-386", "darwin-amd64", "darwin-arm", "darwin-arm64",
+			"darwin-386", "darwin-amd64", "darwin-arm64",
 			"linux-amd64", "linux-386", "linux-ppc64le", "linux-s390x",
 			"freebsd-amd64",
 			"windows-amd64", "windows-386":

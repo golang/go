@@ -132,7 +132,7 @@ func uint64mod(n, d uint64) uint64 {
 
 //go:nosplit
 // nosplit because division is used in syscall context in nanotime on darwin/386
-// and darwin/arm where stack splits are not allowed.
+// where stack splits are not allowed.
 func int64div(n, d int64) int64 {
 	// Check for 32 bit operands
 	if int64(int32(n)) == n && int64(int32(d)) == d {

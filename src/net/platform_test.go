@@ -54,7 +54,7 @@ func testableNetwork(network string) bool {
 			return unixEnabledOnAIX
 		}
 		// iOS does not support unix, unixgram.
-		if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+		if iOS() {
 			return false
 		}
 	case "unixpacket":
@@ -79,6 +79,10 @@ func testableNetwork(network string) bool {
 		}
 	}
 	return true
+}
+
+func iOS() bool {
+	return runtime.GOOS == "darwin" && runtime.GOARCH == "arm64"
 }
 
 // testableAddress reports whether address of network is testable on

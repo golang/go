@@ -26,8 +26,7 @@ import (
 // import.
 func skipSpecialPlatforms(t *testing.T) {
 	switch platform := runtime.GOOS + "-" + runtime.GOARCH; platform {
-	case "darwin-arm",
-		"darwin-arm64":
+	case "darwin-arm64":
 		t.Skipf("no compiled packages available for import on %s", platform)
 	}
 }

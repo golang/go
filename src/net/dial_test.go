@@ -991,7 +991,7 @@ func TestDialerControl(t *testing.T) {
 // except that it won't skip testing on non-mobile builders.
 func mustHaveExternalNetwork(t *testing.T) {
 	t.Helper()
-	mobile := runtime.GOOS == "android" || runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
+	mobile := runtime.GOOS == "android" || runtime.GOOS == "darwin" && runtime.GOARCH == "arm64"
 	if testenv.Builder() == "" || mobile {
 		testenv.MustHaveExternalNetwork(t)
 	}

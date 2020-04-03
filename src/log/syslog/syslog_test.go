@@ -53,7 +53,7 @@ func testableNetwork(network string) bool {
 		switch runtime.GOOS {
 		case "darwin":
 			switch runtime.GOARCH {
-			case "arm", "arm64":
+			case "arm64":
 				return false
 			}
 		case "android":

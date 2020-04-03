@@ -20,7 +20,7 @@ import (
 func requireTestSOSupported(t *testing.T) {
 	t.Helper()
 	switch runtime.GOARCH {
-	case "arm", "arm64":
+	case "arm64":
 		if runtime.GOOS == "darwin" {
 			t.Skip("No exec facility on iOS.")
 		}
