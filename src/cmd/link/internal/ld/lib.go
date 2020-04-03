@@ -2360,6 +2360,7 @@ func (sc *stkChk) check(up *chain, depth int) int {
 	relocs := ldr.Relocs(s)
 	var ch1 chain
 	pcsp := obj.NewPCIter(uint32(ctxt.Arch.MinLC))
+	ri := 0
 	for pcsp.Init(info.Pcsp()); !pcsp.Done; pcsp.Next() {
 		// pcsp.value is in effect for [pcsp.pc, pcsp.nextpc).
 
@@ -2370,8 +2371,8 @@ func (sc *stkChk) check(up *chain, depth int) int {
 		}
 
 		// Process calls in this span.
-		for i := 0; i < relocs.Count(); i++ {
-			r := relocs.At2(i)
+		for ; ri < relocs.Count(); ri++ {
+			r := relocs.At2(ri)
 			if uint32(r.Off()) >= pcsp.NextPC {
 				break
 			}
