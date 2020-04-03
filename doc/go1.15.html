@@ -148,23 +148,35 @@ TODO
 
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
-    <p><!-- golang.org/issue/33762 -->
+    <p><!-- CL 205899, golang.org/issue/33762 -->
       The new method
-      <a href="/pkg/sync#Map.LoadAndDelete"><code>Map.LoadAndDelete</code></a>
+      <a href="/pkg/sync/#Map.LoadAndDelete"><code>Map.LoadAndDelete</code></a>
       atomically deletes a key and returns the previous value if present.
     </p>
     <p><!-- CL 205899 -->
       The method
-      <a href="/pkg/sync#Map.Delete"><code>Map.Delete</code></a>
+      <a href="/pkg/sync/#Map.Delete"><code>Map.Delete</code></a>
       is more efficient.
     </p>
 </dl><!-- sync -->
 
+<dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
+  <dd>
+    <p><!-- CL 226877, golang.org/issue/35998 -->
+       The new methods
+       <a href="/pkg/testing/#T.TempDir"><code>T.TempDir</code></a> and
+       <a href="/pkg/testing/#B.TempDir"><code>B.TempDir</code></a> and
+       return temporary directories that are automatically cleaned up
+       at the end of the test.
+    </p>
+  </dd>
+</dl><!-- testing -->
+
 <dl id="time"><dt><a href="/pkg/time/">time</a></dt>
   <dd>
-    <p><!-- golang.org/issue/33184 -->
+    <p><!-- CL 220424, CL 217362, golang.org/issue/33184 -->
        The new method
-       <a href="/pkg/time#Ticker.Reset"><code>Ticker.Reset</code></a>
+       <a href="/pkg/time/#Ticker.Reset"><code>Ticker.Reset</code></a>
        supports changing the duration of a ticker.
     </p>
   </dd>
