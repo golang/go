@@ -112,7 +112,7 @@ func (c *Conn) Notify(ctx context.Context, method string, params interface{}) (e
 
 	event.Record(ctx, tag.Started.Of(1))
 	n, err := c.stream.Write(ctx, data)
-	event.Record(ctx, tag.ReceivedBytes.Of(n))
+	event.Record(ctx, tag.SentBytes.Of(n))
 	return err
 }
 
@@ -161,7 +161,7 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	}()
 	// now we are ready to send
 	n, err := c.stream.Write(ctx, data)
-	event.Record(ctx, tag.ReceivedBytes.Of(n))
+	event.Record(ctx, tag.SentBytes.Of(n))
 	if err != nil {
 		// sending failed, we will never get a response, so don't leave it pending
 		return err
@@ -239,7 +239,7 @@ func (r *Request) Reply(ctx context.Context, result interface{}, err error) erro
 		return err
 	}
 	n, err := r.conn.stream.Write(ctx, data)
-	event.Record(ctx, tag.ReceivedBytes.Of(n))
+	event.Record(ctx, tag.SentBytes.Of(n))
 
 	if err != nil {
 		// TODO(iancottrell): if a stream write fails, we really need to shut down
@@ -302,7 +302,7 @@ func (c *Conn) Run(runCtx context.Context, handler Handler) error {
 			)
 			event.Record(reqCtx,
 				tag.Started.Of(1),
-				tag.SentBytes.Of(n))
+				tag.ReceivedBytes.Of(n))
 
 			req := &Request{
 				conn: c,
