@@ -8,9 +8,11 @@ import (
 	"bytes"
 	. "flag"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
@@ -541,6 +543,65 @@ func TestRangeError(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), "invalid") || !strings.Contains(err.Error(), "value out of range") {
 			t.Errorf("Parse(%q)=%v; expected range error", arg, err)
+		}
+	}
+}
+
+func TestExitCode(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	magic := 123
+	if os.Getenv("GO_CHILD_FLAG") != "" {
+		fs := NewFlagSet("test", ExitOnError)
+		if os.Getenv("GO_CHILD_FLAG_HANDLE") != "" {
+			var b bool
+			fs.BoolVar(&b, os.Getenv("GO_CHILD_FLAG_HANDLE"), false, "")
+		}
+		fs.Parse([]string{os.Getenv("GO_CHILD_FLAG")})
+		os.Exit(magic)
+	}
+
+	tests := []struct {
+		flag       string
+		flagHandle string
+		expectExit int
+	}{
+		{
+			flag:       "-h",
+			expectExit: 0,
+		},
+		{
+			flag:       "-help",
+			expectExit: 0,
+		},
+		{
+			flag:       "-undefined",
+			expectExit: 2,
+		},
+		{
+			flag:       "-h",
+			flagHandle: "h",
+			expectExit: magic,
+		},
+		{
+			flag:       "-help",
+			flagHandle: "help",
+			expectExit: magic,
+		},
+	}
+
+	for _, test := range tests {
+		cmd := exec.Command(os.Args[0], "-test.run=TestExitCode")
+		cmd.Env = append(
+			os.Environ(),
+			"GO_CHILD_FLAG="+test.flag,
+			"GO_CHILD_FLAG_HANDLE="+test.flagHandle,
+		)
+		cmd.Run()
+		got := cmd.ProcessState.ExitCode()
+		if got != test.expectExit {
+			t.Errorf("unexpected exit code for test case %+v \n: got %d, expect %d",
+				test, got, test.expectExit)
 		}
 	}
 }
