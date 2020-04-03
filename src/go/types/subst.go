@@ -145,7 +145,6 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 			// TODO(gri) needs to print updated name to avoid major confusion in error message!
 			//           (print warning for now)
 			// check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", targ, tpar.bound, iface, m)
-
 			if m.name == "==" {
 				// We don't want to report "missing method ==".
 				check.softErrorf(pos, "%s does not satisfy comparable", targ)
