@@ -5,10 +5,12 @@
 package asn1
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math/big"
 	"reflect"
+	"sort"
 	"time"
 	"unicode/utf8"
 )
@@ -75,6 +77,60 @@ func (m multiEncoder) Encode(dst []byte) {
 	for _, e := range m {
 		e.Encode(dst[off:])
 		off += e.Len()
+	}
+}
+
+type octetSorter [][]byte
+
+func (s octetSorter) Len() int {
+	return len(s)
+}
+
+func (s octetSorter) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s octetSorter) Less(i, j int) bool {
+	// Since we are using bytes.Compare to compare TLV encodings we
+	// don't need to right pad s[i] and s[j] to the same length as
+	// suggested in X690. If len(s[i]) < len(s[j]) the length octet of
+	// s[i], which is the first determining byte, will inherently be
+	// smaller than the length octet of s[j]. This lets us skip the
+	// padding step.
+	return bytes.Compare(s[i], s[j]) < 0
+}
+
+type setEncoder []encoder
+
+func (s setEncoder) Len() int {
+	var size int
+	for _, e := range s {
+		size += e.Len()
+	}
+	return size
+}
+
+func (s setEncoder) Encode(dst []byte) {
+	// Per X690 Section 11.6: The encodings of the component values of a
+	// set-of value shall appear in ascending order, the encodings being
+	// compared as octet strings with the shorter components being padded
+	// at their trailing end with 0-octets.
+	//
+	// First we encode each element to its TLV encoding and then use
+	// octetSort to get the ordering expected by X690 DER rules before
+	// writing the sorted encodings out to dst.
+	l := make([][]byte, len(s))
+	for i, e := range s {
+		l[i] = make([]byte, e.Len())
+		e.Encode(l[i])
+	}
+
+	sort.Sort(octetSorter(l))
+
+	var off int
+	for _, b := range l {
+		copy(dst[off:], b)
+		off += len(b)
 	}
 }
 
@@ -511,6 +567,9 @@ func makeBody(value reflect.Value, params fieldParameters) (e encoder, err error
 				}
 			}
 
+			if params.set {
+				return setEncoder(m), nil
+			}
 			return multiEncoder(m), nil
 		}
 	case reflect.String:
