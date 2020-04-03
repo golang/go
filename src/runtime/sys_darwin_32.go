@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build darwin
-// +build 386 arm
+// +build 386
 
 package runtime
 
