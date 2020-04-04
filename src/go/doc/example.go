@@ -62,9 +62,6 @@ func Examples(testFiles ...*ast.File) []*Example {
 			if !ok || f.Recv != nil {
 				continue
 			}
-			if params := f.Type.Params; len(params.List) != 0 {
-				continue // function has params; not a valid example
-			}
 			numDecl++
 			name := f.Name.Name
 			if isTest(name, "Test") || isTest(name, "Benchmark") {
@@ -73,6 +70,9 @@ func Examples(testFiles ...*ast.File) []*Example {
 			}
 			if !isTest(name, "Example") {
 				continue
+			}
+			if params := f.Type.Params; len(params.List) != 0 {
+				continue // function has params; not a valid example
 			}
 			if f.Body == nil { // ast.File.Body nil dereference (see issue 28044)
 				continue
