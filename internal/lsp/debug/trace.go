@@ -94,7 +94,7 @@ func (t *traces) ProcessEvent(ctx context.Context, ev event.Event, tags event.Ta
 			ParentID: span.ParentID,
 			Name:     span.Name,
 			Start:    span.Start().At,
-			Tags:     renderTags(span.Start().Tags()),
+			Tags:     renderTags(span.Start()),
 		}
 		t.unfinished[span.ID] = td
 		// and wire up parents if we have them
@@ -124,7 +124,7 @@ func (t *traces) ProcessEvent(ctx context.Context, ev event.Event, tags event.Ta
 		for i, event := range events {
 			td.Events[i] = traceEvent{
 				Time: event.At,
-				Tags: renderTags(event.Tags()),
+				Tags: renderTags(event),
 			}
 		}
 
@@ -170,10 +170,12 @@ func fillOffsets(td *traceData, start time.Time) {
 	}
 }
 
-func renderTags(tags event.TagIterator) string {
+func renderTags(tags event.TagList) string {
 	buf := &bytes.Buffer{}
-	for ; tags.Valid(); tags.Advance() {
-		fmt.Fprintf(buf, "%v ", tags.Tag())
+	for index := 0; tags.Valid(index); index++ {
+		if tag := tags.Tag(index); tag.Valid() {
+			fmt.Fprintf(buf, "%v ", tag)
+		}
 	}
 	return buf.String()
 }

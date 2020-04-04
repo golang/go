@@ -37,8 +37,11 @@ func (e *Config) Exporter(output event.Exporter) event.Exporter {
 		mu.Lock()
 		defer mu.Unlock()
 		var metrics []Data
-		for it := ev.Tags(); it.Valid(); it.Advance() {
-			tag := it.Tag()
+		for index := 0; ev.Valid(index); index++ {
+			tag := ev.Tag(index)
+			if !tag.Valid() {
+				continue
+			}
 			id := tag.Key
 			if list := e.subscribers[id]; len(list) > 0 {
 				for _, s := range list {

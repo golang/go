@@ -22,7 +22,7 @@ var (
 	all  = []event.Tag{A, B, C}
 )
 
-func TestTagIterator(t *testing.T) {
+func TestTagList(t *testing.T) {
 	for _, test := range []struct {
 		name   string
 		tags   []event.Tag
@@ -71,7 +71,7 @@ func TestTagIterator(t *testing.T) {
 		expect: `A="a"`,
 	}} {
 		t.Run(test.name, func(t *testing.T) {
-			got := printIterator(event.NewTagIterator(test.tags...))
+			got := printList(event.NewTagList(test.tags...))
 			if got != test.expect {
 				t.Errorf("got %q want %q", got, test.expect)
 			}
@@ -115,54 +115,8 @@ func TestTagFilter(t *testing.T) {
 		expect:  `B="b"`,
 	}} {
 		t.Run(test.name, func(t *testing.T) {
-			tags := event.NewTagIterator(test.tags...)
-			got := printIterator(event.Filter(tags, test.filters...))
-			if got != test.expect {
-				t.Errorf("got %q want %q", got, test.expect)
-			}
-		})
-	}
-}
-
-func TestTagChain(t *testing.T) {
-	for _, test := range []struct {
-		name   string
-		tags   [][]event.Tag
-		expect string
-	}{{
-		name:   "no iterators",
-		expect: ``,
-	}, {
-		name:   "one iterator",
-		tags:   [][]event.Tag{all},
-		expect: `A="a", B="b", C="c"`,
-	}, {
-		name:   "invalid iterator",
-		tags:   [][]event.Tag{{}},
-		expect: ``,
-	}, {
-		name:   "two iterators",
-		tags:   [][]event.Tag{{B, C}, {A}},
-		expect: `B="b", C="c", A="a"`,
-	}, {
-		name:   "invalid start iterator",
-		tags:   [][]event.Tag{{}, {B, C}},
-		expect: `B="b", C="c"`,
-	}, {
-		name:   "invalid mid iterator",
-		tags:   [][]event.Tag{{A}, {}, {C}},
-		expect: `A="a", C="c"`,
-	}, {
-		name:   "invalid end iterator",
-		tags:   [][]event.Tag{{B, C}, {}},
-		expect: `B="b", C="c"`,
-	}} {
-		t.Run(test.name, func(t *testing.T) {
-			iterators := make([]event.TagIterator, len(test.tags))
-			for i, v := range test.tags {
-				iterators[i] = event.NewTagIterator(v...)
-			}
-			got := printIterator(event.ChainTagIterators(iterators...))
+			tags := event.NewTagList(test.tags...)
+			got := printList(event.Filter(tags, test.filters...))
 			if got != test.expect {
 				t.Errorf("got %q want %q", got, test.expect)
 			}
@@ -281,13 +235,17 @@ func TestTagMapMerge(t *testing.T) {
 	}
 }
 
-func printIterator(it event.TagIterator) string {
+func printList(l event.TagList) string {
 	buf := &bytes.Buffer{}
-	for ; it.Valid(); it.Advance() {
+	for index := 0; l.Valid(index); index++ {
+		tag := l.Tag(index)
+		if !tag.Valid() {
+			continue
+		}
 		if buf.Len() > 0 {
 			buf.WriteString(", ")
 		}
-		fmt.Fprint(buf, it.Tag())
+		fmt.Fprint(buf, tag)
 	}
 	return buf.String()
 }

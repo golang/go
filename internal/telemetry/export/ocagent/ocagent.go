@@ -200,7 +200,7 @@ func convertSpan(span *export.Span) *wire.Span {
 		Kind:                    wire.UnspecifiedSpanKind,
 		StartTime:               convertTimestamp(span.Start().At),
 		EndTime:                 convertTimestamp(span.Finish().At),
-		Attributes:              convertAttributes(event.Filter(span.Start().Tags(), event.Name)),
+		Attributes:              convertAttributes(event.Filter(span.Start(), event.Name)),
 		TimeEvents:              convertEvents(span.Events()),
 		SameProcessAsParentSpan: true,
 		//TODO: StackTrace?
@@ -227,16 +227,32 @@ func convertMetric(data metric.Data, start time.Time) *wire.Metric {
 	}
 }
 
-func convertAttributes(it event.TagIterator) *wire.Attributes {
-	if !it.Valid() {
+func skipToValidTag(l event.TagList) (int, event.Tag) {
+	// skip to the first valid tag
+	for index := 0; l.Valid(index); index++ {
+		if tag := l.Tag(index); tag.Valid() {
+			return index, tag
+		}
+	}
+	return -1, event.Tag{}
+}
+
+func convertAttributes(l event.TagList) *wire.Attributes {
+	index, tag := skipToValidTag(l)
+	if !tag.Valid() {
 		return nil
 	}
 	attributes := make(map[string]wire.Attribute)
-	for ; it.Valid(); it.Advance() {
-		tag := it.Tag()
-		attributes[tag.Key.Name()] = convertAttribute(tag)
+	for {
+		if tag.Valid() {
+			attributes[tag.Key.Name()] = convertAttribute(tag)
+		}
+		index++
+		if !l.Valid(index) {
+			return &wire.Attributes{AttributeMap: attributes}
+		}
+		tag = l.Tag(index)
 	}
-	return &wire.Attributes{AttributeMap: attributes}
 }
 
 func convertAttribute(tag event.Tag) wire.Attribute {
@@ -295,13 +311,12 @@ func convertEvent(ev event.Event) wire.TimeEvent {
 }
 
 func convertAnnotation(ev event.Event) *wire.Annotation {
-	tags := ev.Tags()
-	if !tags.Valid() {
+	if _, tag := skipToValidTag(ev); !tag.Valid() {
 		return nil
 	}
 	tagMap := event.TagMap(ev)
 	description := event.Msg.Get(tagMap)
-	tags = event.Filter(tags, event.Msg)
+	tags := event.Filter(ev, event.Msg)
 	if description == "" {
 		err := event.Err.Get(tagMap)
 		tags = event.Filter(tags, event.Err)
