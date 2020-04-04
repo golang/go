@@ -299,7 +299,7 @@ func convertAnnotation(ev event.Event) *wire.Annotation {
 	if !tags.Valid() {
 		return nil
 	}
-	tagMap := ev.Map()
+	tagMap := event.TagMap(ev)
 	description := event.Msg.Get(tagMap)
 	tags = event.Filter(tags, event.Msg)
 	if description == "" {

@@ -158,8 +158,7 @@ func (r *rpcs) getRPCSpan(ctx context.Context, ev event.Event) (*export.Span, *r
 	}
 	// use the span start event look up the correct stats block
 	// we do this because it prevents us matching a sub span
-	startMap := span.Start().Map()
-	return span, r.getRPCStats(startMap)
+	return span, r.getRPCStats(span.Start())
 }
 
 func (r *rpcs) getRPCStats(tagMap event.TagMap) *rpcStats {
@@ -201,7 +200,7 @@ func (h *rpcTimeHistogram) Mean() timeUnits { return h.Sum / timeUnits(h.Count) 
 
 func getStatusCode(span *export.Span) string {
 	for _, ev := range span.Events() {
-		if status := tag.StatusCode.Get(ev.Map()); status != "" {
+		if status := tag.StatusCode.Get(ev); status != "" {
 			return status
 		}
 	}

@@ -20,7 +20,7 @@ func Labels(output event.Exporter) event.Exporter {
 		stored, _ := ctx.Value(labelContextKey).(event.TagMap)
 		if ev.IsLabel() || ev.IsStartSpan() {
 			// update the tag source stored in the context
-			fromEvent := ev.Map()
+			fromEvent := event.TagMap(ev)
 			if stored == nil {
 				stored = fromEvent
 			} else {

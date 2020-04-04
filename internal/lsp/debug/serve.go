@@ -547,7 +547,7 @@ func makeGlobalExporter(stderr io.Writer) event.Exporter {
 
 		if ev.IsLog() {
 			// Don't log context cancellation errors.
-			if err := event.Err.Get(ev.Map()); xerrors.Is(err, context.Canceled) {
+			if err := event.Err.Get(ev); xerrors.Is(err, context.Canceled) {
 				return ctx
 			}
 			// Make sure any log messages without an instance go to stderr.

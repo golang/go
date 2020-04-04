@@ -40,7 +40,7 @@ func deliver(ctx context.Context, exporter Exporter, ev Event) context.Context {
 	// add the current time to the event
 	ev.At = time.Now()
 	// hand the event off to the current exporter
-	return exporter(ctx, ev, ev.Map())
+	return exporter(ctx, ev, ev)
 }
 
 // dispatch is called to deliver an event to the global exporter if set.

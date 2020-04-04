@@ -54,7 +54,7 @@ func (ev Event) IsDetach() bool    { return ev.typ == DetachType }
 func (ev Event) IsRecord() bool    { return ev.typ == RecordType }
 
 func (ev Event) Format(f fmt.State, r rune) {
-	tagMap := ev.Map()
+	tagMap := TagMap(ev)
 	if !ev.At.IsZero() {
 		fmt.Fprint(f, ev.At.Format("2006/01/02 15:04:05 "))
 	}
@@ -85,17 +85,13 @@ func (ev Event) Tags() TagIterator {
 		NewTagIterator(ev.dynamic...))
 }
 
-func (ev Event) Map() TagMap {
-	return &eventTagMap{event: ev}
-}
-
-func (m *eventTagMap) Find(key interface{}) Tag {
-	for _, tag := range m.event.static {
+func (ev Event) Find(key interface{}) Tag {
+	for _, tag := range ev.static {
 		if tag.Key == key {
 			return tag
 		}
 	}
-	for _, tag := range m.event.dynamic {
+	for _, tag := range ev.dynamic {
 		if tag.Key == key {
 			return tag
 		}
