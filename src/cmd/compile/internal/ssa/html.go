@@ -1005,6 +1005,9 @@ func (b *Block) LongHTML() string {
 	if b.Aux != nil {
 		s += html.EscapeString(fmt.Sprintf(" {%v}", b.Aux))
 	}
+	if t := b.AuxIntString(); t != "" {
+		s += html.EscapeString(fmt.Sprintf(" [%v]", t))
+	}
 	for _, c := range b.ControlValues() {
 		s += fmt.Sprintf(" %s", c.HTML())
 	}
