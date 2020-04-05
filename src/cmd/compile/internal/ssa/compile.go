@@ -136,6 +136,11 @@ func Compile(f *Func) {
 		}
 	}
 
+	if f.HTMLWriter != nil {
+		// Ensure we write any pending phases to the html
+		f.HTMLWriter.flushPhases()
+	}
+
 	if f.ruleMatches != nil {
 		var keys []string
 		for key := range f.ruleMatches {

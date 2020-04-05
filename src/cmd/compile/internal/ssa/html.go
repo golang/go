@@ -774,12 +774,26 @@ func (w *HTMLWriter) WritePhase(phase, title string) {
 	w.pendingPhases = append(w.pendingPhases, phase)
 	w.pendingTitles = append(w.pendingTitles, title)
 	if !bytes.Equal(hash, w.prevHash) {
-		phases := strings.Join(w.pendingPhases, "  +  ")
-		w.WriteMultiTitleColumn(phases, w.pendingTitles, fmt.Sprintf("hash-%x", hash), w.Func.HTML(phase, w.dot))
-		w.pendingPhases = w.pendingPhases[:0]
-		w.pendingTitles = w.pendingTitles[:0]
+		w.flushPhases()
 	}
 	w.prevHash = hash
+}
+
+// flushPhases collects any pending phases and titles, writes them to the html, and resets the pending slices.
+func (w *HTMLWriter) flushPhases() {
+	phaseLen := len(w.pendingPhases)
+	if phaseLen == 0 {
+		return
+	}
+	phases := strings.Join(w.pendingPhases, "  +  ")
+	w.WriteMultiTitleColumn(
+		phases,
+		w.pendingTitles,
+		fmt.Sprintf("hash-%x", w.prevHash),
+		w.Func.HTML(w.pendingPhases[phaseLen-1], w.dot),
+	)
+	w.pendingPhases = w.pendingPhases[:0]
+	w.pendingTitles = w.pendingTitles[:0]
 }
 
 // FuncLines contains source code for a function to be displayed
