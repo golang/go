@@ -150,19 +150,24 @@ type ArchSyms struct {
 const BeforeLoadlibFull = 1
 const AfterLoadlibFull = 2
 
-func (ctxt *Link) mkArchSym(which int, name string, ls *loader.Sym, ss **sym.Symbol) {
+// mkArchSym is a helper for setArchSyms, invoked once before loadlibfull
+// and once after. On the first call it creates a loader.Sym with the
+// specified name, and on the second call a corresponding sym.Symbol.
+func (ctxt *Link) mkArchSym(which int, name string, ver int, ls *loader.Sym, ss **sym.Symbol) {
 	if which == BeforeLoadlibFull {
-		*ls = ctxt.loader.LookupOrCreateSym(name, 0)
+		*ls = ctxt.loader.LookupOrCreateSym(name, ver)
 	} else {
 		*ss = ctxt.loader.Syms[*ls]
 	}
 }
 
-func (ctxt *Link) mkArchSymVec(which int, name string, i int, ls []loader.Sym, ss []*sym.Symbol) {
+// mkArchVecSym is similar to  setArchSyms, but operates on elements within
+// a slice, where each element corresponds to some symbol version.
+func (ctxt *Link) mkArchSymVec(which int, name string, ver int, ls []loader.Sym, ss []*sym.Symbol) {
 	if which == BeforeLoadlibFull {
-		ls[i] = ctxt.loader.LookupOrCreateSym(name, 0)
-	} else {
-		ss[i] = ctxt.loader.Syms[ls[i]]
+		ls[ver] = ctxt.loader.LookupOrCreateSym(name, ver)
+	} else if ls[ver] != 0 {
+		ss[ver] = ctxt.loader.Syms[ls[ver]]
 	}
 }
 
@@ -173,15 +178,15 @@ func (ctxt *Link) setArchSyms(which int) {
 	if which != BeforeLoadlibFull && which != AfterLoadlibFull {
 		panic("internal error")
 	}
-	ctxt.mkArchSym(which, ".got", &ctxt.GOT2, &ctxt.GOT)
-	ctxt.mkArchSym(which, ".plt", &ctxt.PLT2, &ctxt.PLT)
-	ctxt.mkArchSym(which, ".got.plt", &ctxt.GOTPLT2, &ctxt.GOTPLT)
-	ctxt.mkArchSym(which, ".dynamic", &ctxt.Dynamic2, &ctxt.Dynamic)
-	ctxt.mkArchSym(which, ".dynsym", &ctxt.DynSym2, &ctxt.DynSym)
-	ctxt.mkArchSym(which, ".dynstr", &ctxt.DynStr2, &ctxt.DynStr)
+	ctxt.mkArchSym(which, ".got", 0, &ctxt.GOT2, &ctxt.GOT)
+	ctxt.mkArchSym(which, ".plt", 0, &ctxt.PLT2, &ctxt.PLT)
+	ctxt.mkArchSym(which, ".got.plt", 0, &ctxt.GOTPLT2, &ctxt.GOTPLT)
+	ctxt.mkArchSym(which, ".dynamic", 0, &ctxt.Dynamic2, &ctxt.Dynamic)
+	ctxt.mkArchSym(which, ".dynsym", 0, &ctxt.DynSym2, &ctxt.DynSym)
+	ctxt.mkArchSym(which, ".dynstr", 0, &ctxt.DynStr2, &ctxt.DynStr)
 
-	if ctxt.IsAIX() {
-		ctxt.mkArchSym(which, "TOC", &ctxt.TOC2, &ctxt.TOC)
+	if ctxt.IsPPC64() {
+		ctxt.mkArchSym(which, "TOC", 0, &ctxt.TOC2, &ctxt.TOC)
 
 		// NB: note the +2 below for DotTOC2 compared to the +1 for
 		// DocTOC. This is because loadlibfull() creates an additional
@@ -198,20 +203,18 @@ func (ctxt *Link) setArchSyms(which int) {
 			if i >= 2 && i < sym.SymVerStatic { // these versions are not used currently
 				continue
 			}
-			if ctxt.DotTOC2[i] != 0 {
-				ctxt.mkArchSymVec(which, ".TOC.", i, ctxt.DotTOC2, ctxt.DotTOC)
-			}
+			ctxt.mkArchSymVec(which, ".TOC.", i, ctxt.DotTOC2, ctxt.DotTOC)
 		}
 	}
 	if ctxt.IsElf() {
-		ctxt.mkArchSym(which, ".rel", &ctxt.Rel2, &ctxt.Rel)
-		ctxt.mkArchSym(which, ".rela", &ctxt.Rela2, &ctxt.Rela)
-		ctxt.mkArchSym(which, ".rel.plt", &ctxt.RelPLT2, &ctxt.RelPLT)
-		ctxt.mkArchSym(which, ".rela.plt", &ctxt.RelaPLT2, &ctxt.RelaPLT)
+		ctxt.mkArchSym(which, ".rel", 0, &ctxt.Rel2, &ctxt.Rel)
+		ctxt.mkArchSym(which, ".rela", 0, &ctxt.Rela2, &ctxt.Rela)
+		ctxt.mkArchSym(which, ".rel.plt", 0, &ctxt.RelPLT2, &ctxt.RelPLT)
+		ctxt.mkArchSym(which, ".rela.plt", 0, &ctxt.RelaPLT2, &ctxt.RelaPLT)
 	}
 	if ctxt.IsDarwin() {
-		ctxt.mkArchSym(which, ".linkedit.got", &ctxt.LinkEditGOT2, &ctxt.LinkEditGOT)
-		ctxt.mkArchSym(which, ".linkedit.plt", &ctxt.LinkEditPLT2, &ctxt.LinkEditPLT)
+		ctxt.mkArchSym(which, ".linkedit.got", 0, &ctxt.LinkEditGOT2, &ctxt.LinkEditGOT)
+		ctxt.mkArchSym(which, ".linkedit.plt", 0, &ctxt.LinkEditPLT2, &ctxt.LinkEditPLT)
 	}
 }
 
