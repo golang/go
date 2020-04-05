@@ -787,8 +787,7 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpGreater64F:
 		return rewriteValueAMD64_OpGreater64F(v)
 	case OpHasCPUFeature:
-		v.Op = OpAMD64LoweredHasCPUFeature
-		return true
+		return rewriteValueAMD64_OpHasCPUFeature(v)
 	case OpHmul32:
 		v.Op = OpAMD64HMULL
 		return true
@@ -29920,6 +29919,23 @@ func rewriteValueAMD64_OpGreater64F(v *Value) bool {
 		v.reset(OpAMD64SETGF)
 		v0 := b.NewValue0(v.Pos, OpAMD64UCOMISD, types.TypeFlags)
 		v0.AddArg2(x, y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValueAMD64_OpHasCPUFeature(v *Value) bool {
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (HasCPUFeature {s})
+	// result: (SETNE (CMPQconst [0] (LoweredHasCPUFeature {s})))
+	for {
+		s := v.Aux
+		v.reset(OpAMD64SETNE)
+		v0 := b.NewValue0(v.Pos, OpAMD64CMPQconst, types.TypeFlags)
+		v0.AuxInt = 0
+		v1 := b.NewValue0(v.Pos, OpAMD64LoweredHasCPUFeature, typ.UInt64)
+		v1.Aux = s
+		v0.AddArg(v1)
 		v.AddArg(v0)
 		return true
 	}

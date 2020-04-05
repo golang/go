@@ -478,7 +478,8 @@
 (GetClosurePtr ...) -> (LoweredGetClosurePtr ...)
 (GetCallerPC ...) -> (LoweredGetCallerPC ...)
 (GetCallerSP ...) -> (LoweredGetCallerSP ...)
-(HasCPUFeature ...) -> (LoweredHasCPUFeature ...)
+
+(HasCPUFeature {s}) -> (SETNE (CMPQconst [0] (LoweredHasCPUFeature {s})))
 (Addr ...) -> (LEAQ ...)
 (LocalAddr {sym} base _) -> (LEAQ {sym} base)
 
