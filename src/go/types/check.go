@@ -84,7 +84,7 @@ type Checker struct {
 	objMap map[Object]*declInfo       // maps package-level objects and (non-interface) methods to declaration info
 	impMap map[importKey]*Package     // maps (import path, source directory) to (complete or fake) package
 	posMap map[*Interface][]token.Pos // maps interface types to lists of embedded interface positions
-	typMap map[string]*TypeName       // maps an instantiated type to a *Named type -- TODO(gri) this is a quick hack; fix this
+	typMap map[string]*TypeName       // maps an instantiated type hash to a *TypeName -- TODO(gri) this is a quick hack; fix this
 	pkgCnt map[string]int             // counts number of imported packages with a given name (for better error messages)
 
 	// information collected during type-checking of a set of package files

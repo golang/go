@@ -13,11 +13,8 @@ func TestCleanMsg(t *testing.T) {
 		{"", ""},
 		{"   ", "   "},
 		{"foo", "foo"},
-		{"foo<T>", "foo(T)"},
-		{"foo <T>", "foo <T>"},
-		{"foo << bar", "foo << bar"},
 		{"foo₀", "foo"},
-		{"foo<T₀>", "foo(T)"},
+		{"foo(T₀)", "foo(T)"},
 	} {
 		got := cleanMsg(test.in)
 		if got != test.want {

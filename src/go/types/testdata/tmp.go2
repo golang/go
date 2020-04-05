@@ -1,13 +1,14 @@
-// Copyright 2019 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
+package list
 
-package p
-
-func f(type T comparable)(x, y T) bool {
-	return x == y
+type List(type T) struct {
+	root Elem(T)
 }
 
-func _(){
-	f(1, 2i /* ERROR does not match */)
+type Elem(type T) struct {
+	next *Elem(T)
+	list *List(T)
+}
+
+func (l *List(T)) Init() {
+	l.root.next = &l.root
 }

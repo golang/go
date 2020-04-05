@@ -9,7 +9,6 @@ TODO
 - review use of Contract.TParams field - it seems like it's only needed for length checks?
 - review handling of fields of instantiated generic types (do we need to make them non-parameterized,
   similar to what we did for the embedded interfaces created by contract embedding?)
-- debug (and error msg) printing of generic instantiated types needs some work
 - improve error messages!
 - use []*TypeParam for tparams in subst? (unclear)
 - should we use nil instead of &emptyInterface for no type bounds (as an optimization)?
@@ -18,8 +17,6 @@ TODO
 ----------------------------------------------------------------------------------------------------
 KNOWN ISSUES
 
-- a non-comparable type used as type argument for a comparable contract leads to sub-optimal error
-  message (referring to missing method ==)
 - iteration over generic variables doesn't report certain channel errors (see TODOs in code)
 - cannot handle mutually recursive parameterized interfaces using themselves as type bounds
 - contract instantiation requires the type arguments to be type parameters from the type of function

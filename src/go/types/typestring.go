@@ -9,7 +9,6 @@ package types
 import (
 	"bytes"
 	"fmt"
-	"strings"
 	"unicode/utf8"
 )
 
@@ -259,10 +258,13 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 
 	case *Named:
 		writeTypeName(buf, t.obj, qf)
-		// Don't write type parameter list again if we have an instantiated type,
-		// recognized by a closing '>'.
-		// TODO(gri) clean up - this is too subtle a hack and too dependent on subst.
-		if buf.Bytes()[buf.Len()-1] != '>' && t.tparams != nil {
+		if t.targs != nil {
+			// instantiated type
+			buf.WriteByte('(')
+			writeTypeList(buf, t.targs, qf, visited)
+			buf.WriteByte(')')
+		} else if t.tparams != nil {
+			// parameterized type
 			writeTParamList(buf, t.tparams, qf, visited)
 		}
 
@@ -325,12 +327,7 @@ func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited 
 func writeTypeName(buf *bytes.Buffer, obj *TypeName, qf Qualifier) {
 	s := "<Named w/o object>"
 	if obj != nil {
-		// Don't prefix an instantiated type (which is marked by a closing '>')
-		// with yet another package name - the instantiated type is already fully
-		// qualified. See code in subst.go.
-		// TODO(gri) Need to factor out '>' or named type string generation;
-		// this dependency is too subtle.
-		if obj.pkg != nil && !strings.HasSuffix(obj.name, ">") {
+		if obj.pkg != nil {
 			writePackage(buf, obj.pkg, qf)
 		}
 		// TODO(gri): function-local named types should be displayed

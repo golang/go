@@ -12,7 +12,6 @@ import (
 	"bytes"
 	"fmt"
 	"go/token"
-	"strings"
 )
 
 type substMap struct {
@@ -332,20 +331,16 @@ func (subst *subster) typ(typ Type) Type {
 
 		}
 
-		// TODO(gri) revisit name creation (function local types, etc.) and factor out
-		//           (also, stripArgNames call is an awful hack)
-		var buf bytes.Buffer
-		writeTypeName(&buf, t.obj, nil)
-		name := stripArgNames(buf.String()) + "<" + typeListString(new_targs) + ">"
-		dump(">>> new type name: %s", name)
-		if tname, found := subst.check.typMap[name]; found {
+		h := instantiatedHash(t, new_targs)
+		dump(">>> new type hash: %s", h)
+		if tname, found := subst.check.typMap[h]; found {
 			dump(">>> instantiated %s found", tname)
 			return tname.typ
 		}
 
 		// create a new named type and populate caches to avoid endless recursion
-		tname := NewTypeName(subst.pos, t.obj.pkg, name, nil)
-		subst.check.typMap[name] = tname
+		tname := NewTypeName(subst.pos, t.obj.pkg, t.obj.name, nil)
+		subst.check.typMap[h] = tname
 		named := NewNamed(tname, nil, nil)
 		named.tparams = t.tparams // new type is still parameterized
 		named.targs = new_targs
@@ -366,11 +361,21 @@ func (subst *subster) typ(typ Type) Type {
 	return typ
 }
 
-func stripArgNames(s string) string {
-	if i := strings.IndexByte(s, '<'); i > 0 {
-		return s[:i]
-	}
-	return s
+// TODO(gri) Eventually, this should be more sophisticated.
+//           It won't work correctly for locally declared types.
+func instantiatedHash(typ *Named, targs []Type) string {
+	var buf bytes.Buffer
+	writeTypeName(&buf, typ.obj, nil)
+	buf.WriteByte('(')
+	writeTypeList(&buf, targs, nil, nil)
+	buf.WriteByte(')')
+	return buf.String()
+}
+
+func typeListString(list []Type) string {
+	var buf bytes.Buffer
+	writeTypeList(&buf, list, nil, nil)
+	return buf.String()
 }
 
 func (subst *subster) var_(v *Var) *Var {
@@ -456,10 +461,4 @@ func (subst *subster) typeList(in []Type) (out []Type, copied bool) {
 		}
 	}
 	return
-}
-
-func typeListString(list []Type) string {
-	var buf bytes.Buffer
-	writeTypeList(&buf, list, nil, nil)
-	return buf.String()
 }

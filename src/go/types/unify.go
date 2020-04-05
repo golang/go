@@ -320,7 +320,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 			// TODO(gri) This is not always correct: two types may have the same names
 			//           in the same package if one of them is nested in a function.
 			//           Extremely unlikely but we need an always correct solution.
-			if x.obj.pkg == y.obj.pkg && stripArgNames(x.obj.name) == stripArgNames(y.obj.name) {
+			if x.obj.pkg == y.obj.pkg && x.obj.name == y.obj.name {
 				assert(len(x.targs) == len(y.targs))
 				for i, x := range x.targs {
 					if !u.nify(x, y.targs[i], p) {

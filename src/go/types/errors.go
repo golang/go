@@ -12,7 +12,6 @@ import (
 	"go/token"
 	"strconv"
 	"strings"
-	"unicode"
 	"unicode/utf8"
 )
 
@@ -124,11 +123,9 @@ func (check *Checker) invalidOp(pos token.Pos, format string, args ...interface{
 	check.errorf(pos, "invalid operation: "+format, args...)
 }
 
-// cleanMsg removes subscripts and replaces <>'s in instantiated type names with ()'s.
+// cleanMsg removes subscripts in instantiated types.
 func cleanMsg(s string) string {
 	var b strings.Builder
-	var p rune    // previous rune
-	n := 0        // nesting level
 	copy := false // indicates that we need a copy
 	for i := 0; ; {
 		r, w := utf8.DecodeRuneInString(s[i:])
@@ -148,29 +145,11 @@ func cleanMsg(s string) string {
 			continue
 		}
 
-		// replace <>'s in instantiated type names by ()'s
-		// (use previous rune p and nesting level n for more
-		// accurate replacement)
-		if r == '<' && isIdentChar(p) {
-			n++
-			copy = true
-			r = '('
-		} else if r == '>' && n > 0 {
-			n--
-			copy = true
-			r = ')'
-		}
-
 		b.WriteRune(r)
-		p = r
 	}
 
 	if copy {
 		return b.String()
 	}
 	return s
-}
-
-func isIdentChar(r rune) bool {
-	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '_'
 }
