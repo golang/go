@@ -339,7 +339,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	s.softFloat = s.config.SoftFloat
 
 	if printssa {
-		s.f.HTMLWriter = ssa.NewHTMLWriter(ssaDumpFile, s.f.Frontend(), name, ssaDumpCFG)
+		s.f.HTMLWriter = ssa.NewHTMLWriter(ssaDumpFile, s.f, ssaDumpCFG)
 		// TODO: generate and print a mapping from nodes to values and blocks
 		dumpSourcesColumn(s.f.HTMLWriter, fn)
 		s.f.HTMLWriter.WriteAST("AST", astBuf)
@@ -471,7 +471,7 @@ func dumpSourcesColumn(writer *ssa.HTMLWriter, fn *Node) {
 	fname := Ctxt.PosTable.Pos(fn.Pos).Filename()
 	targetFn, err := readFuncLines(fname, fn.Pos.Line(), fn.Func.Endlineno.Line())
 	if err != nil {
-		writer.Logger.Logf("cannot read sources for function %v: %v", fn, err)
+		writer.Logf("cannot read sources for function %v: %v", fn, err)
 	}
 
 	// Read sources of inlined functions.
@@ -487,7 +487,7 @@ func dumpSourcesColumn(writer *ssa.HTMLWriter, fn *Node) {
 		fname := Ctxt.PosTable.Pos(fi.Pos).Filename()
 		fnLines, err := readFuncLines(fname, fi.Pos.Line(), elno.Line())
 		if err != nil {
-			writer.Logger.Logf("cannot read sources for function %v: %v", fi, err)
+			writer.Logf("cannot read sources for inlined function %v: %v", fi, err)
 			continue
 		}
 		inlFns = append(inlFns, fnLines)

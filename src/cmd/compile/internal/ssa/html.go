@@ -18,8 +18,8 @@ import (
 )
 
 type HTMLWriter struct {
-	Logger
 	w             io.WriteCloser
+	Func          *Func
 	path          string
 	dot           *dotWriter
 	prevHash      []byte
@@ -27,22 +27,37 @@ type HTMLWriter struct {
 	pendingTitles []string
 }
 
-func NewHTMLWriter(path string, logger Logger, funcname, cfgMask string) *HTMLWriter {
+func NewHTMLWriter(path string, f *Func, cfgMask string) *HTMLWriter {
 	out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		logger.Fatalf(src.NoXPos, "%v", err)
+		f.Fatalf("%v", err)
 	}
 	pwd, err := os.Getwd()
 	if err != nil {
-		logger.Fatalf(src.NoXPos, "%v", err)
+		f.Fatalf("%v", err)
 	}
-	html := HTMLWriter{w: out, Logger: logger, path: filepath.Join(pwd, path)}
-	html.dot = newDotWriter(cfgMask)
-	html.start(funcname)
+	html := HTMLWriter{
+		w:    out,
+		Func: f,
+		path: filepath.Join(pwd, path),
+		dot:  newDotWriter(cfgMask),
+	}
+	html.start()
 	return &html
 }
 
-func (w *HTMLWriter) start(name string) {
+// Fatalf reports an error and exits.
+func (w *HTMLWriter) Fatalf(msg string, args ...interface{}) {
+	fe := w.Func.Frontend()
+	fe.Fatalf(src.NoXPos, msg, args...)
+}
+
+// Logf calls the (w *HTMLWriter).Func's Logf method passing along a msg and args.
+func (w *HTMLWriter) Logf(msg string, args ...interface{}) {
+	w.Func.Logf(msg, args...)
+}
+
+func (w *HTMLWriter) start() {
 	if w == nil {
 		return
 	}
@@ -703,7 +718,7 @@ function toggleDarkMode() {
 </head>`)
 	w.WriteString("<body>")
 	w.WriteString("<h1>")
-	w.WriteString(html.EscapeString(name))
+	w.WriteString(html.EscapeString(w.Func.Name))
 	w.WriteString("</h1>")
 	w.WriteString(`
 <a href="#" onclick="toggle_visibility('help');return false;" id="helplink">help</a>
@@ -749,18 +764,18 @@ func (w *HTMLWriter) Close() {
 	fmt.Printf("dumped SSA to %v\n", w.path)
 }
 
-// WriteFunc writes f in a column headed by title.
+// WritePhase writes f in a column headed by title.
 // phase is used for collapsing columns and should be unique across the table.
-func (w *HTMLWriter) WriteFunc(phase, title string, f *Func) {
+func (w *HTMLWriter) WritePhase(phase, title string) {
 	if w == nil {
 		return // avoid generating HTML just to discard it
 	}
-	hash := hashFunc(f)
+	hash := hashFunc(w.Func)
 	w.pendingPhases = append(w.pendingPhases, phase)
 	w.pendingTitles = append(w.pendingTitles, title)
 	if !bytes.Equal(hash, w.prevHash) {
 		phases := strings.Join(w.pendingPhases, "  +  ")
-		w.WriteMultiTitleColumn(phases, w.pendingTitles, fmt.Sprintf("hash-%x", hash), f.HTML(phase, w.dot))
+		w.WriteMultiTitleColumn(phases, w.pendingTitles, fmt.Sprintf("hash-%x", hash), w.Func.HTML(phase, w.dot))
 		w.pendingPhases = w.pendingPhases[:0]
 		w.pendingTitles = w.pendingTitles[:0]
 	}
@@ -903,13 +918,13 @@ func (w *HTMLWriter) WriteMultiTitleColumn(phase string, titles []string, class,
 
 func (w *HTMLWriter) Printf(msg string, v ...interface{}) {
 	if _, err := fmt.Fprintf(w.w, msg, v...); err != nil {
-		w.Fatalf(src.NoXPos, "%v", err)
+		w.Fatalf("%v", err)
 	}
 }
 
 func (w *HTMLWriter) WriteString(s string) {
 	if _, err := io.WriteString(w.w, s); err != nil {
-		w.Fatalf(src.NoXPos, "%v", err)
+		w.Fatalf("%v", err)
 	}
 }
 
