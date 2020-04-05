@@ -6,6 +6,7 @@ package syscall
 
 import (
 	"internal/syscall/windows/sysdll"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -107,7 +108,16 @@ func MustLoadDLL(name string) *DLL {
 // FindProc searches DLL d for procedure named name and returns *Proc
 // if found. It returns an error if search fails.
 func (d *DLL) FindProc(name string) (proc *Proc, err error) {
-	namep, err := BytePtrFromString(name)
+	var namep *uint8
+	if name[0] == '#' {
+		var i int
+		i, err = strconv.Atoi(name[1:])
+		if err == nil {
+			namep = (*uint8)(unsafe.Pointer(uintptr(i)))
+		}
+	} else {
+		namep, err = BytePtrFromString(name)
+	}
 	if err != nil {
 		return nil, err
 	}
