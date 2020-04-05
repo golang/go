@@ -70,6 +70,11 @@ func (ev Event) Format(f fmt.State, r rune) {
 	}
 	for it := ev.Tags(); it.Valid(); it.Advance() {
 		tag := it.Tag()
+		// msg and err were both already printed above, so we skip them to avoid
+		// double printing
+		if tag.Key == Msg || tag.Key == Err {
+			continue
+		}
 		fmt.Fprintf(f, "\n\t%v", tag)
 	}
 }
