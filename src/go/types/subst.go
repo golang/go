@@ -331,19 +331,21 @@ func (subst *subster) typ(typ Type) Type {
 
 		}
 
+		// before creating a new named type, check if we have this one already
 		h := instantiatedHash(t, new_targs)
 		dump(">>> new type hash: %s", h)
-		if tname, found := subst.check.typMap[h]; found {
-			dump(">>> instantiated %s found", tname)
-			return tname.typ
+		if named, found := subst.check.typMap[h]; found {
+			dump(">>> found %s", named)
+			subst.cache[t] = named
+			return named
 		}
 
 		// create a new named type and populate caches to avoid endless recursion
 		tname := NewTypeName(subst.pos, t.obj.pkg, t.obj.name, nil)
-		subst.check.typMap[h] = tname
 		named := NewNamed(tname, nil, nil)
 		named.tparams = t.tparams // new type is still parameterized
 		named.targs = new_targs
+		subst.check.typMap[h] = named
 		subst.cache[t] = named
 		dump(">>> subst %s with %s (new: %s)", t.underlying, subst.smap, new_targs)
 		named.underlying = subst.typ(t.underlying)
