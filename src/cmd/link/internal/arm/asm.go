@@ -443,109 +443,120 @@ func immrot(v uint32) uint32 {
 }
 
 // Convert the direct jump relocation r to refer to a trampoline if the target is too far
-func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
-	switch r.Type {
+func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
+	relocs := ldr.Relocs(s)
+	r := relocs.At2(ri)
+	switch r.Type() {
 	case objabi.R_CALLARM:
 		// r.Add is the instruction
 		// low 24-bit encodes the target address
-		t := (ld.Symaddr(r.Sym) + int64(signext24(r.Add&0xffffff)*4) - (s.Value + int64(r.Off))) / 4
-		if t > 0x7fffff || t < -0x800000 || (*ld.FlagDebugTramp > 1 && s.File != r.Sym.File) {
+		t := (ldr.SymValue(rs) + int64(signext24(r.Add()&0xffffff)*4) - (ldr.SymValue(s) + int64(r.Off()))) / 4
+		if t > 0x7fffff || t < -0x800000 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
 			// direct call too far, need to insert trampoline.
 			// look up existing trampolines first. if we found one within the range
 			// of direct call, we can reuse it. otherwise create a new one.
-			offset := (signext24(r.Add&0xffffff) + 2) * 4
-			var tramp *sym.Symbol
+			offset := (signext24(r.Add()&0xffffff) + 2) * 4
+			var tramp loader.Sym
 			for i := 0; ; i++ {
-				name := r.Sym.Name + fmt.Sprintf("%+d-tramp%d", offset, i)
-				tramp = ctxt.Syms.Lookup(name, int(r.Sym.Version))
-				if tramp.Type == sym.SDYNIMPORT {
+				name := ldr.SymName(rs) + fmt.Sprintf("%+d-tramp%d", offset, i)
+				tramp = ldr.LookupOrCreateSym(name, int(ldr.SymVersion(rs)))
+				if ldr.SymType(tramp) == sym.SDYNIMPORT {
 					// don't reuse trampoline defined in other module
 					continue
 				}
-				if tramp.Value == 0 {
+				if ldr.SymValue(tramp) == 0 {
 					// either the trampoline does not exist -- we need to create one,
 					// or found one the address which is not assigned -- this will be
 					// laid down immediately after the current function. use this one.
 					break
 				}
 
-				t = (ld.Symaddr(tramp) - 8 - (s.Value + int64(r.Off))) / 4
+				t = (ldr.SymValue(tramp) - 8 - (ldr.SymValue(s) + int64(r.Off()))) / 4
 				if t >= -0x800000 && t < 0x7fffff {
 					// found an existing trampoline that is not too far
 					// we can just use it
 					break
 				}
 			}
-			if tramp.Type == 0 {
+			if ldr.SymType(tramp) == 0 {
 				// trampoline does not exist, create one
-				ctxt.AddTramp(tramp)
+				trampb := ldr.MakeSymbolUpdater(tramp)
+				ctxt.AddTramp(trampb)
 				if ctxt.DynlinkingGo() {
 					if immrot(uint32(offset)) == 0 {
-						ld.Errorf(s, "odd offset in dynlink direct call: %v+%d", r.Sym, offset)
+						ctxt.Errorf(s, "odd offset in dynlink direct call: %v+%d", ldr.SymName(rs), offset)
 					}
-					gentrampdyn(ctxt.Arch, tramp, r.Sym, int64(offset))
+					gentrampdyn(ctxt.Arch, trampb, rs, int64(offset))
 				} else if ctxt.BuildMode == ld.BuildModeCArchive || ctxt.BuildMode == ld.BuildModeCShared || ctxt.BuildMode == ld.BuildModePIE {
-					gentramppic(ctxt.Arch, tramp, r.Sym, int64(offset))
+					gentramppic(ctxt.Arch, trampb, rs, int64(offset))
 				} else {
-					gentramp(ctxt.Arch, ctxt.LinkMode, tramp, r.Sym, int64(offset))
+					gentramp(ctxt.Arch, ctxt.LinkMode, ldr, trampb, rs, int64(offset))
 				}
 			}
 			// modify reloc to point to tramp, which will be resolved later
-			r.Sym = tramp
-			r.Add = r.Add&0xff000000 | 0xfffffe // clear the offset embedded in the instruction
-			r.Done = false
+			sb := ldr.MakeSymbolUpdater(s)
+			relocs := sb.Relocs()
+			r := relocs.At2(ri)
+			r.SetSym(tramp)
+			r.SetAdd(r.Add()&0xff000000 | 0xfffffe) // clear the offset embedded in the instruction
 		}
 	default:
-		ld.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type))
+		ctxt.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()))
 	}
 }
 
 // generate a trampoline to target+offset
-func gentramp(arch *sys.Arch, linkmode ld.LinkMode, tramp, target *sym.Symbol, offset int64) {
-	tramp.Size = 12 // 3 instructions
-	tramp.P = make([]byte, tramp.Size)
-	t := ld.Symaddr(target) + offset
+func gentramp(arch *sys.Arch, linkmode ld.LinkMode, ldr *loader.Loader, tramp *loader.SymbolBuilder, target loader.Sym, offset int64) {
+	tramp.SetSize(12) // 3 instructions
+	P := make([]byte, tramp.Size())
+	t := ldr.SymValue(target) + offset
 	o1 := uint32(0xe5900000 | 11<<12 | 15<<16) // MOVW (R15), R11 // R15 is actual pc + 8
 	o2 := uint32(0xe12fff10 | 11)              // JMP  (R11)
 	o3 := uint32(t)                            // WORD $target
-	arch.ByteOrder.PutUint32(tramp.P, o1)
-	arch.ByteOrder.PutUint32(tramp.P[4:], o2)
-	arch.ByteOrder.PutUint32(tramp.P[8:], o3)
+	arch.ByteOrder.PutUint32(P, o1)
+	arch.ByteOrder.PutUint32(P[4:], o2)
+	arch.ByteOrder.PutUint32(P[8:], o3)
+	tramp.SetData(P)
 
 	if linkmode == ld.LinkExternal {
-		r := tramp.AddRel()
-		r.Off = 8
-		r.Type = objabi.R_ADDR
-		r.Siz = 4
-		r.Sym = target
-		r.Add = offset
+		r := loader.Reloc{
+			Off: 8,
+			Type: objabi.R_ADDR,
+			Size: 4,
+			Sym: target,
+			Add: offset,
+		}
+		tramp.AddReloc(r)
 	}
 }
 
 // generate a trampoline to target+offset in position independent code
-func gentramppic(arch *sys.Arch, tramp, target *sym.Symbol, offset int64) {
-	tramp.Size = 16 // 4 instructions
-	tramp.P = make([]byte, tramp.Size)
+func gentramppic(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym, offset int64) {
+	tramp.SetSize(16) // 4 instructions
+	P := make([]byte, tramp.Size())
 	o1 := uint32(0xe5900000 | 11<<12 | 15<<16 | 4)  // MOVW 4(R15), R11 // R15 is actual pc + 8
 	o2 := uint32(0xe0800000 | 11<<12 | 15<<16 | 11) // ADD R15, R11, R11
 	o3 := uint32(0xe12fff10 | 11)                   // JMP  (R11)
 	o4 := uint32(0)                                 // WORD $(target-pc) // filled in with relocation
-	arch.ByteOrder.PutUint32(tramp.P, o1)
-	arch.ByteOrder.PutUint32(tramp.P[4:], o2)
-	arch.ByteOrder.PutUint32(tramp.P[8:], o3)
-	arch.ByteOrder.PutUint32(tramp.P[12:], o4)
+	arch.ByteOrder.PutUint32(P, o1)
+	arch.ByteOrder.PutUint32(P[4:], o2)
+	arch.ByteOrder.PutUint32(P[8:], o3)
+	arch.ByteOrder.PutUint32(P[12:], o4)
+	tramp.SetData(P)
 
-	r := tramp.AddRel()
-	r.Off = 12
-	r.Type = objabi.R_PCREL
-	r.Siz = 4
-	r.Sym = target
-	r.Add = offset + 4
+	r := loader.Reloc{
+		Off: 12,
+		Type: objabi.R_PCREL,
+		Size: 4,
+		Sym: target,
+		Add: offset + 4,
+	}
+	tramp.AddReloc(r)
 }
 
 // generate a trampoline to target+offset in dynlink mode (using GOT)
-func gentrampdyn(arch *sys.Arch, tramp, target *sym.Symbol, offset int64) {
-	tramp.Size = 20                                 // 5 instructions
+func gentrampdyn(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym, offset int64) {
+	tramp.SetSize(20)                               // 5 instructions
 	o1 := uint32(0xe5900000 | 11<<12 | 15<<16 | 8)  // MOVW 8(R15), R11 // R15 is actual pc + 8
 	o2 := uint32(0xe0800000 | 11<<12 | 15<<16 | 11) // ADD R15, R11, R11
 	o3 := uint32(0xe5900000 | 11<<12 | 11<<16)      // MOVW (R11), R11
@@ -554,33 +565,36 @@ func gentrampdyn(arch *sys.Arch, tramp, target *sym.Symbol, offset int64) {
 	o6 := uint32(0)
 	if offset != 0 {
 		// insert an instruction to add offset
-		tramp.Size = 24 // 6 instructions
+		tramp.SetSize(24) // 6 instructions
 		o6 = o5
 		o5 = o4
 		o4 = 0xe2800000 | 11<<12 | 11<<16 | immrot(uint32(offset)) // ADD $offset, R11, R11
 		o1 = uint32(0xe5900000 | 11<<12 | 15<<16 | 12)             // MOVW 12(R15), R11
 	}
-	tramp.P = make([]byte, tramp.Size)
-	arch.ByteOrder.PutUint32(tramp.P, o1)
-	arch.ByteOrder.PutUint32(tramp.P[4:], o2)
-	arch.ByteOrder.PutUint32(tramp.P[8:], o3)
-	arch.ByteOrder.PutUint32(tramp.P[12:], o4)
-	arch.ByteOrder.PutUint32(tramp.P[16:], o5)
+	P := make([]byte, tramp.Size())
+	arch.ByteOrder.PutUint32(P, o1)
+	arch.ByteOrder.PutUint32(P[4:], o2)
+	arch.ByteOrder.PutUint32(P[8:], o3)
+	arch.ByteOrder.PutUint32(P[12:], o4)
+	arch.ByteOrder.PutUint32(P[16:], o5)
 	if offset != 0 {
-		arch.ByteOrder.PutUint32(tramp.P[20:], o6)
+		arch.ByteOrder.PutUint32(P[20:], o6)
 	}
+	tramp.SetData(P)
 
-	r := tramp.AddRel()
-	r.Off = 16
-	r.Type = objabi.R_GOTPCREL
-	r.Siz = 4
-	r.Sym = target
-	r.Add = 8
+	r := loader.Reloc{
+		Off: 16,
+		Type: objabi.R_GOTPCREL,
+		Size: 4,
+		Sym: target,
+		Add: 8,
+	}
 	if offset != 0 {
 		// increase reloc offset by 4 as we inserted an ADD instruction
 		r.Off = 20
 		r.Add = 12
 	}
+	tramp.AddReloc(r)
 }
 
 func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {

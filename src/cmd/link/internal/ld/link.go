@@ -80,7 +80,7 @@ type Link struct {
 	PackageFile  map[string]string
 	PackageShlib map[string]string
 
-	tramps []*sym.Symbol // trampolines
+	tramps []loader.Sym // trampolines
 
 	// Used to implement field tracking.
 	Reachparent map[*sym.Symbol]*sym.Symbol

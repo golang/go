@@ -88,6 +88,7 @@ func (sb *SymbolBuilder) Dynimpvers() string     { return sb.l.SymDynimpvers(sb.
 func (sb *SymbolBuilder) SubSym() Sym            { return sb.l.SubSym(sb.symIdx) }
 func (sb *SymbolBuilder) GoType() Sym            { return sb.l.SymGoType(sb.symIdx) }
 func (sb *SymbolBuilder) VisibilityHidden() bool { return sb.l.AttrVisibilityHidden(sb.symIdx) }
+func (sb *SymbolBuilder) Sect() *sym.Section     { return sb.l.SymSect(sb.symIdx) }
 
 // Setters for symbol properties.
 
@@ -108,10 +109,10 @@ func (sb *SymbolBuilder) SetSpecial(value bool)      { sb.l.SetAttrSpecial(sb.sy
 func (sb *SymbolBuilder) SetVisibilityHidden(value bool) {
 	sb.l.SetAttrVisibilityHidden(sb.symIdx, value)
 }
-
 func (sb *SymbolBuilder) SetNotInSymbolTable(value bool) {
 	sb.l.SetAttrNotInSymbolTable(sb.symIdx, value)
 }
+func (sb *SymbolBuilder) SetSect(sect *sym.Section) { sb.l.SetSymSect(sb.symIdx, sect) }
 
 func (sb *SymbolBuilder) AddBytes(data []byte) {
 	sb.setReachable()
