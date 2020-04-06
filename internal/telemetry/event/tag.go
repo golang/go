@@ -106,9 +106,9 @@ func (t Tag) Format(f fmt.State, r rune) {
 	case *StringKey:
 		fmt.Fprintf(f, "%s=%q", key.Name(), key.From(t))
 	case *ErrorKey:
-		fmt.Fprintf(f, "%s=%q", key.Name(), key.From(t))
+		fmt.Fprintf(f, "%s=%v", key.Name(), key.From(t))
 	case *ValueKey:
-		fmt.Fprintf(f, "%s=%q", key.Name(), key.From(t))
+		fmt.Fprintf(f, "%s=%v", key.Name(), key.From(t))
 	default:
 		fmt.Fprintf(f, `%s="invalid type %T"`, key.Name(), key)
 	}
