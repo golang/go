@@ -64,8 +64,6 @@ func testSigaltstack(t *testing.T) {
 	switch {
 	case runtime.GOOS == "solaris", runtime.GOOS == "illumos", runtime.GOOS == "darwin" && runtime.GOARCH == "arm64":
 		t.Skipf("switching signal stack not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
-	case runtime.GOOS == "darwin" && runtime.GOARCH == "386":
-		t.Skipf("sigaltstack fails on darwin/386")
 	}
 
 	C.changeSignalStack()
