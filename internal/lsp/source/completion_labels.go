@@ -5,6 +5,7 @@
 package source
 
 import (
+	"context"
 	"go/ast"
 	"go/token"
 	"math"
@@ -49,7 +50,7 @@ func takesLabel(n ast.Node) labelType {
 
 // labels adds completion items for labels defined in the enclosing
 // function.
-func (c *completer) labels(lt labelType) {
+func (c *completer) labels(ctx context.Context, lt labelType) {
 	if c.enclosingFunc == nil {
 		return
 	}
@@ -57,7 +58,7 @@ func (c *completer) labels(lt labelType) {
 	addLabel := func(score float64, l *ast.LabeledStmt) {
 		labelObj := c.pkg.GetTypesInfo().ObjectOf(l.Label)
 		if labelObj != nil {
-			c.found(candidate{obj: labelObj, score: score})
+			c.found(ctx, candidate{obj: labelObj, score: score})
 		}
 	}
 

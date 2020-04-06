@@ -5,6 +5,7 @@
 package source
 
 import (
+	"context"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -19,7 +20,7 @@ import (
 
 // literal generates composite literal, function literal, and make()
 // completion items.
-func (c *completer) literal(literalType types.Type, imp *importInfo) {
+func (c *completer) literal(ctx context.Context, literalType types.Type, imp *importInfo) {
 	if !c.opts.literal {
 		return
 	}
@@ -101,9 +102,9 @@ func (c *completer) literal(literalType types.Type, imp *importInfo) {
 		matchName = types.TypeString(t.Elem(), qf)
 	}
 
-	addlEdits, err := c.importEdits(imp)
+	addlEdits, err := c.importEdits(ctx, imp)
 	if err != nil {
-		event.Error(c.ctx, "error adding import for literal candidate", err)
+		event.Error(ctx, "error adding import for literal candidate", err)
 		return
 	}
 
@@ -116,7 +117,7 @@ func (c *completer) literal(literalType types.Type, imp *importInfo) {
 				// "foo.&Bar{}".
 				edits, err := prependEdit(c.snapshot.View().Session().Cache().FileSet(), c.mapper, sel, "&")
 				if err != nil {
-					event.Error(c.ctx, "error making edit for literal pointer completion", err)
+					event.Error(ctx, "error making edit for literal pointer completion", err)
 					return
 				}
 				addlEdits = append(addlEdits, edits...)

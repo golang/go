@@ -136,9 +136,6 @@ type completer struct {
 	qf       types.Qualifier
 	opts     *completionOptions
 
-	// ctx is the context associated with this completion request.
-	ctx context.Context
-
 	// filename is the name of the file associated with this completion request.
 	filename string
 
@@ -247,13 +244,6 @@ func (p Selection) Suffix() string {
 	return p.content[p.cursor-p.spanRange.Start:]
 }
 
-func (c *completer) deepCompletionContext() (context.Context, context.CancelFunc) {
-	if c.opts.budget == 0 {
-		return context.WithCancel(c.ctx)
-	}
-	return context.WithDeadline(c.ctx, c.startTime.Add(c.opts.budget))
-}
-
 func (c *completer) setSurrounding(ident *ast.Ident) {
 	if c.surrounding != nil {
 		return
@@ -292,7 +282,7 @@ func (c *completer) getSurrounding() *Selection {
 
 // found adds a candidate completion. We will also search through the object's
 // members for more candidates.
-func (c *completer) found(cand candidate) {
+func (c *completer) found(ctx context.Context, cand candidate) {
 	obj := cand.obj
 
 	if obj.Pkg() != nil && obj.Pkg() != c.pkg.GetTypes() && !obj.Exported() {
@@ -341,7 +331,7 @@ func (c *completer) found(cand candidate) {
 
 		// We only care about named types (i.e. don't want builtin types).
 		if _, isNamed := obj.Type().(*types.Named); isNamed {
-			c.literal(obj.Type(), cand.imp)
+			c.literal(ctx, obj.Type(), cand.imp)
 		}
 	}
 
@@ -370,13 +360,13 @@ func (c *completer) found(cand candidate) {
 		// Avoid calling c.item() for deep candidates that wouldn't be in the top
 		// MaxDeepCompletions anyway.
 		if !c.inDeepCompletion() || c.deepState.isHighScore(cand.score) {
-			if item, err := c.item(cand); err == nil {
+			if item, err := c.item(ctx, cand); err == nil {
 				c.items = append(c.items, item)
 			}
 		}
 	}
 
-	c.deepSearch(cand)
+	c.deepSearch(ctx, cand)
 }
 
 // candidate represents a completion candidate.
@@ -482,7 +472,6 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 		pkg:                       pkg,
 		snapshot:                  snapshot,
 		qf:                        qualifier(file, pkg.GetTypes(), pkg.GetTypesInfo()),
-		ctx:                       ctx,
 		filename:                  fh.Identity().URI.Filename(),
 		file:                      file,
 		path:                      path,
@@ -512,32 +501,40 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 		c.deepState.maxDepth = -1
 	}
 
+	var cancel context.CancelFunc
+	if c.opts.budget == 0 {
+		ctx, cancel = context.WithCancel(ctx)
+	} else {
+		ctx, cancel = context.WithDeadline(ctx, c.startTime.Add(c.opts.budget))
+	}
+	defer cancel()
+
 	if surrounding := c.containingIdent(src); surrounding != nil {
 		c.setSurrounding(surrounding)
 	}
 
-	c.inference = expectedCandidate(c)
+	c.inference = expectedCandidate(ctx, c)
 
 	defer c.sortItems()
 
 	// If we're inside a comment return comment completions
 	for _, comment := range file.Comments {
 		if comment.Pos() < rng.Start && rng.Start <= comment.End() {
-			c.populateCommentCompletions(comment)
+			c.populateCommentCompletions(ctx, comment)
 			return c.items, c.getSurrounding(), nil
 		}
 	}
 
 	// Struct literals are handled entirely separately.
 	if c.wantStructFieldCompletions() {
-		if err := c.structLiteralFieldName(); err != nil {
+		if err := c.structLiteralFieldName(ctx); err != nil {
 			return nil, nil, err
 		}
 		return c.items, c.getSurrounding(), nil
 	}
 
 	if lt := c.wantLabelCompletion(); lt != labelNone {
-		c.labels(lt)
+		c.labels(ctx, lt)
 		return c.items, c.getSurrounding(), nil
 	}
 
@@ -555,7 +552,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 	case *ast.Ident:
 		// Is this the Sel part of a selector?
 		if sel, ok := path[1].(*ast.SelectorExpr); ok && sel.Sel == n {
-			if err := c.selector(sel); err != nil {
+			if err := c.selector(ctx, sel); err != nil {
 				return nil, nil, err
 			}
 			return c.items, c.getSurrounding(), nil
@@ -573,19 +570,19 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 				return nil, nil, ErrIsDefinition{objStr: objStr}
 			}
 		}
-		if err := c.lexical(); err != nil {
+		if err := c.lexical(ctx); err != nil {
 			return nil, nil, err
 		}
 	// The function name hasn't been typed yet, but the parens are there:
 	//   recv.‸(arg)
 	case *ast.TypeAssertExpr:
 		// Create a fake selector expression.
-		if err := c.selector(&ast.SelectorExpr{X: n.X}); err != nil {
+		if err := c.selector(ctx, &ast.SelectorExpr{X: n.X}); err != nil {
 			return nil, nil, err
 		}
 
 	case *ast.SelectorExpr:
-		if err := c.selector(n); err != nil {
+		if err := c.selector(ctx, n); err != nil {
 			return nil, nil, err
 		}
 
@@ -595,7 +592,7 @@ func Completion(ctx context.Context, snapshot Snapshot, fh FileHandle, protoPos 
 
 	default:
 		// fallback to lexical completions
-		if err := c.lexical(); err != nil {
+		if err := c.lexical(ctx); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -687,7 +684,7 @@ func (c *completer) emptySwitchStmt() bool {
 
 // populateCommentCompletions yields completions for an exported
 // variable immediately preceding comment.
-func (c *completer) populateCommentCompletions(comment *ast.CommentGroup) {
+func (c *completer) populateCommentCompletions(ctx context.Context, comment *ast.CommentGroup) {
 
 	// Using the comment position find the line after
 	fset := c.snapshot.View().Session().Cache().FileSet()
@@ -720,7 +717,7 @@ func (c *completer) populateCommentCompletions(comment *ast.CommentGroup) {
 						}
 
 						exportedVar := c.pkg.GetTypesInfo().ObjectOf(name)
-						c.found(candidate{obj: exportedVar, score: stdScore})
+						c.found(ctx, candidate{obj: exportedVar, score: stdScore})
 					}
 				}
 			}
@@ -748,11 +745,11 @@ const (
 )
 
 // selector finds completions for the specified selector expression.
-func (c *completer) selector(sel *ast.SelectorExpr) error {
+func (c *completer) selector(ctx context.Context, sel *ast.SelectorExpr) error {
 	// Is sel a qualified identifier?
 	if id, ok := sel.X.(*ast.Ident); ok {
 		if pkgName, ok := c.pkg.GetTypesInfo().Uses[id].(*types.PkgName); ok {
-			c.packageMembers(pkgName.Imported(), stdScore, nil)
+			c.packageMembers(ctx, pkgName.Imported(), stdScore, nil)
 			return nil
 		}
 	}
@@ -760,21 +757,21 @@ func (c *completer) selector(sel *ast.SelectorExpr) error {
 	// Invariant: sel is a true selector.
 	tv, ok := c.pkg.GetTypesInfo().Types[sel.X]
 	if ok {
-		return c.methodsAndFields(tv.Type, tv.Addressable(), nil)
+		return c.methodsAndFields(ctx, tv.Type, tv.Addressable(), nil)
 	}
 
 	// Try unimported packages.
 	if id, ok := sel.X.(*ast.Ident); ok && c.opts.unimported {
-		if err := c.unimportedMembers(id); err != nil {
+		if err := c.unimportedMembers(ctx, id); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (c *completer) unimportedMembers(id *ast.Ident) error {
+func (c *completer) unimportedMembers(ctx context.Context, id *ast.Ident) error {
 	// Try loaded packages first. They're relevant, fast, and fully typed.
-	known, err := c.snapshot.CachedImportPaths(c.ctx)
+	known, err := c.snapshot.CachedImportPaths(ctx)
 	if err != nil {
 		return err
 	}
@@ -789,8 +786,8 @@ func (c *completer) unimportedMembers(id *ast.Ident) error {
 
 	var relevances map[string]int
 	if len(paths) != 0 {
-		c.snapshot.View().RunProcessEnvFunc(c.ctx, func(opts *imports.Options) error {
-			relevances = imports.ScoreImportPaths(c.ctx, opts.Env, paths)
+		c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
+			relevances = imports.ScoreImportPaths(ctx, opts.Env, paths)
 			return nil
 		})
 	}
@@ -807,14 +804,15 @@ func (c *completer) unimportedMembers(id *ast.Ident) error {
 		if imports.ImportPathToAssumedName(path) != pkg.GetTypes().Name() {
 			imp.name = pkg.GetTypes().Name()
 		}
-		c.packageMembers(pkg.GetTypes(), stdScore+.01*float64(relevance), imp)
+		c.packageMembers(ctx, pkg.GetTypes(), stdScore+.01*float64(relevance), imp)
 		if len(c.items) >= unimportedMemberTarget {
 			return nil
 		}
 	}
 
-	ctx, cancel := c.deepCompletionContext()
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+
 	var mu sync.Mutex
 	add := func(pkgExport imports.PackageExport) {
 		mu.Lock()
@@ -827,7 +825,7 @@ func (c *completer) unimportedMembers(id *ast.Ident) error {
 		pkg := types.NewPackage(pkgExport.Fix.StmtInfo.ImportPath, pkgExport.Fix.IdentName)
 		for _, export := range pkgExport.Exports {
 			score := stdScore + 0.01*float64(pkgExport.Fix.Relevance)
-			c.found(candidate{
+			c.found(ctx, candidate{
 				obj:   types.NewVar(0, pkg, export, nil),
 				score: score,
 				imp: &importInfo{
@@ -845,11 +843,11 @@ func (c *completer) unimportedMembers(id *ast.Ident) error {
 	})
 }
 
-func (c *completer) packageMembers(pkg *types.Package, score float64, imp *importInfo) {
+func (c *completer) packageMembers(ctx context.Context, pkg *types.Package, score float64, imp *importInfo) {
 	scope := pkg.Scope()
 	for _, name := range scope.Names() {
 		obj := scope.Lookup(name)
-		c.found(candidate{
+		c.found(ctx, candidate{
 			obj:         obj,
 			score:       score,
 			imp:         imp,
@@ -858,7 +856,7 @@ func (c *completer) packageMembers(pkg *types.Package, score float64, imp *impor
 	}
 }
 
-func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *importInfo) error {
+func (c *completer) methodsAndFields(ctx context.Context, typ types.Type, addressable bool, imp *importInfo) error {
 	mset := c.methodSetCache[methodSetKey{typ, addressable}]
 	if mset == nil {
 		if addressable && !types.IsInterface(typ) && !isPointer(typ) {
@@ -872,7 +870,7 @@ func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *impo
 	}
 
 	for i := 0; i < mset.Len(); i++ {
-		c.found(candidate{
+		c.found(ctx, candidate{
 			obj:         mset.At(i).Obj(),
 			score:       stdScore,
 			imp:         imp,
@@ -882,7 +880,7 @@ func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *impo
 
 	// Add fields of T.
 	eachField(typ, func(v *types.Var) {
-		c.found(candidate{
+		c.found(ctx, candidate{
 			obj:         v,
 			score:       stdScore - 0.01,
 			imp:         imp,
@@ -894,7 +892,7 @@ func (c *completer) methodsAndFields(typ types.Type, addressable bool, imp *impo
 }
 
 // lexical finds completions in the lexical environment.
-func (c *completer) lexical() error {
+func (c *completer) lexical(ctx context.Context) error {
 	var scopes []*types.Scope // scopes[i], where i<len(path), is the possibly nil Scope of path[i].
 	for _, n := range c.path {
 		// Include *FuncType scope if pos is inside the function body.
@@ -978,7 +976,7 @@ func (c *completer) lexical() error {
 			// If we haven't already added a candidate for an object with this name.
 			if _, ok := seen[obj.Name()]; !ok {
 				seen[obj.Name()] = struct{}{}
-				c.found(candidate{
+				c.found(ctx, candidate{
 					obj:         obj,
 					score:       score,
 					addressable: isVar(obj),
@@ -1007,7 +1005,7 @@ func (c *completer) lexical() error {
 					if imports.ImportPathToAssumedName(pkg.Path()) != pkg.Name() {
 						imp.name = pkg.Name()
 					}
-					c.found(candidate{
+					c.found(ctx, candidate{
 						obj:   obj,
 						score: stdScore,
 						imp:   imp,
@@ -1018,7 +1016,7 @@ func (c *completer) lexical() error {
 	}
 
 	if c.opts.unimported {
-		if err := c.unimportedPackages(seen); err != nil {
+		if err := c.unimportedPackages(ctx, seen); err != nil {
 			return err
 		}
 	}
@@ -1036,7 +1034,7 @@ func (c *completer) lexical() error {
 		// our expected type is "[]int", this will add a candidate of
 		// "[]int{}".
 		if _, named := t.(*types.Named); !named {
-			c.literal(t, nil)
+			c.literal(ctx, t, nil)
 		}
 	}
 
@@ -1046,17 +1044,14 @@ func (c *completer) lexical() error {
 	return nil
 }
 
-func (c *completer) unimportedPackages(seen map[string]struct{}) error {
-	ctx, cancel := c.deepCompletionContext()
-	defer cancel()
-
-	prefix := ""
+func (c *completer) unimportedPackages(ctx context.Context, seen map[string]struct{}) error {
+	var prefix string
 	if c.surrounding != nil {
 		prefix = c.surrounding.Prefix()
 	}
 	initialItemCount := len(c.items)
 
-	known, err := c.snapshot.CachedImportPaths(c.ctx)
+	known, err := c.snapshot.CachedImportPaths(ctx)
 	if err != nil {
 		return err
 	}
@@ -1071,7 +1066,7 @@ func (c *completer) unimportedPackages(seen map[string]struct{}) error {
 	var relevances map[string]int
 	if len(paths) != 0 {
 		c.snapshot.View().RunProcessEnvFunc(ctx, func(opts *imports.Options) error {
-			relevances = imports.ScoreImportPaths(c.ctx, opts.Env, paths)
+			relevances = imports.ScoreImportPaths(ctx, opts.Env, paths)
 			return nil
 		})
 	}
@@ -1086,7 +1081,7 @@ func (c *completer) unimportedPackages(seen map[string]struct{}) error {
 			imp.name = pkg.GetTypes().Name()
 		}
 		score := 0.01 * float64(relevance)
-		c.found(candidate{
+		c.found(ctx, candidate{
 			obj:   types.NewPkgName(0, nil, pkg.GetTypes().Name(), pkg.GetTypes()),
 			score: score,
 			imp:   imp,
@@ -1095,6 +1090,9 @@ func (c *completer) unimportedPackages(seen map[string]struct{}) error {
 			return nil
 		}
 	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	var mu sync.Mutex
 	add := func(pkg imports.ImportFix) {
@@ -1115,7 +1113,7 @@ func (c *completer) unimportedPackages(seen map[string]struct{}) error {
 		// multiple packages of the same name as completion suggestions, since
 		// only one will be chosen.
 		obj := types.NewPkgName(0, nil, pkg.IdentName, types.NewPackage(pkg.StmtInfo.ImportPath, pkg.IdentName))
-		c.found(candidate{
+		c.found(ctx, candidate{
 			obj:   obj,
 			score: score,
 			imp: &importInfo{
@@ -1163,7 +1161,7 @@ func (c *completer) inConstDecl() bool {
 }
 
 // structLiteralFieldName finds completions for struct field names inside a struct literal.
-func (c *completer) structLiteralFieldName() error {
+func (c *completer) structLiteralFieldName(ctx context.Context) error {
 	clInfo := c.enclosingCompositeLiteral
 
 	// Mark fields of the composite literal that have already been set,
@@ -1190,7 +1188,7 @@ func (c *completer) structLiteralFieldName() error {
 		for i := 0; i < t.NumFields(); i++ {
 			field := t.Field(i)
 			if !addedFields[field] {
-				c.found(candidate{
+				c.found(ctx, candidate{
 					obj:   field,
 					score: highScore,
 				})
@@ -1200,10 +1198,10 @@ func (c *completer) structLiteralFieldName() error {
 		// Add lexical completions if we aren't certain we are in the key part of a
 		// key-value pair.
 		if clInfo.maybeInFieldName {
-			return c.lexical()
+			return c.lexical(ctx)
 		}
 	default:
-		return c.lexical()
+		return c.lexical(ctx)
 	}
 
 	return nil
@@ -1468,7 +1466,7 @@ type typeNameInference struct {
 
 // expectedCandidate returns information about the expected candidate
 // for an expression at the query position.
-func expectedCandidate(c *completer) (inf candidateInference) {
+func expectedCandidate(ctx context.Context, c *completer) (inf candidateInference) {
 	inf.typeName = expectTypeName(c)
 
 	if c.enclosingCompositeLiteral != nil {
@@ -1592,7 +1590,7 @@ Nodes:
 						// inferred type from its parent node.
 						defer func() {
 							inf = c.builtinArgType(obj, node, inf)
-							inf.objKind = c.builtinArgKind(obj, node)
+							inf.objKind = c.builtinArgKind(ctx, obj, node)
 						}()
 
 						// The expected type of builtin arguments like append() is

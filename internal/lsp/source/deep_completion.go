@@ -5,6 +5,7 @@
 package source
 
 import (
+	"context"
 	"go/types"
 	"strings"
 	"time"
@@ -162,7 +163,7 @@ func (c *completer) shouldPrune() bool {
 
 // deepSearch searches through cand's subordinate objects for more
 // completion items.
-func (c *completer) deepSearch(cand candidate) {
+func (c *completer) deepSearch(ctx context.Context, cand candidate) {
 	if c.deepState.maxDepth == 0 {
 		return
 	}
@@ -198,7 +199,7 @@ func (c *completer) deepSearch(cand candidate) {
 			// the deep chain.
 			c.deepState.push(obj, true)
 			// The result of a function call is not addressable.
-			c.methodsAndFields(sig.Results().At(0).Type(), false, cand.imp)
+			c.methodsAndFields(ctx, sig.Results().At(0).Type(), false, cand.imp)
 			c.deepState.pop()
 		}
 	}
@@ -208,9 +209,9 @@ func (c *completer) deepSearch(cand candidate) {
 
 	switch obj := obj.(type) {
 	case *types.PkgName:
-		c.packageMembers(obj.Imported(), stdScore, cand.imp)
+		c.packageMembers(ctx, obj.Imported(), stdScore, cand.imp)
 	default:
-		c.methodsAndFields(obj.Type(), cand.addressable, cand.imp)
+		c.methodsAndFields(ctx, obj.Type(), cand.addressable, cand.imp)
 	}
 
 	// Pop the object off our search stack.

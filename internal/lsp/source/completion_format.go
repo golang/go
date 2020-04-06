@@ -23,12 +23,12 @@ import (
 )
 
 // formatCompletion creates a completion item for a given candidate.
-func (c *completer) item(cand candidate) (CompletionItem, error) {
+func (c *completer) item(ctx context.Context, cand candidate) (CompletionItem, error) {
 	obj := cand.obj
 
 	// Handle builtin types separately.
 	if obj.Parent() == types.Universe {
-		return c.formatBuiltin(cand), nil
+		return c.formatBuiltin(ctx, cand), nil
 	}
 
 	var (
@@ -46,7 +46,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	// expandFuncCall mutates the completion label, detail, and snippet
 	// to that of an invocation of sig.
 	expandFuncCall := func(sig *types.Signature) {
-		params := formatParams(c.ctx, c.snapshot, c.pkg, sig, c.qf)
+		params := formatParams(ctx, c.snapshot, c.pkg, sig, c.qf)
 		snip = c.functionCallSnippet(label, params)
 		results, writeParens := formatResults(sig.Results(), c.qf)
 		detail = "func" + formatFunction(params, results, writeParens)
@@ -67,7 +67,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 			detail = "struct{...}" // for anonymous structs
 		} else if obj.IsField() {
 			var err error
-			detail, err = formatFieldType(c.ctx, c.snapshot, c.pkg, obj)
+			detail, err = formatFieldType(ctx, c.snapshot, c.pkg, obj)
 			if err != nil {
 				detail = types.TypeString(obj.Type(), c.qf)
 			}
@@ -115,7 +115,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	// If this candidate needs an additional import statement,
 	// add the additional text edits needed.
 	if cand.imp != nil {
-		addlEdits, err := c.importEdits(cand.imp)
+		addlEdits, err := c.importEdits(ctx, cand.imp)
 		if err != nil {
 			return CompletionItem{}, err
 		}
@@ -144,10 +144,9 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 		if sel := enclosingSelector(c.path, c.pos); sel != nil {
 			edits, err := prependEdit(c.snapshot.View().Session().Cache().FileSet(), c.mapper, sel, prefixOp)
 			if err != nil {
-				event.Error(c.ctx, "error generating prefix edit", err)
-			} else {
-				protocolEdits = append(protocolEdits, edits...)
+				return CompletionItem{}, err
 			}
+			protocolEdits = append(protocolEdits, edits...)
 		} else {
 			// If there is no selector, just stick the prefix at the start.
 			insert = prefixOp + insert
@@ -190,13 +189,13 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 	if err != nil {
 		return item, nil
 	}
-	ident, err := findIdentifier(c.ctx, c.snapshot, pkg, file, obj.Pos())
+	ident, err := findIdentifier(ctx, c.snapshot, pkg, file, obj.Pos())
 	if err != nil {
 		return item, nil
 	}
-	hover, err := ident.Hover(c.ctx)
+	hover, err := ident.Hover(ctx)
 	if err != nil {
-		event.Error(c.ctx, "failed to find Hover", err, tag.URI.Of(uri))
+		event.Error(ctx, "failed to find Hover", err, tag.URI.Of(uri))
 		return item, nil
 	}
 	item.Documentation = hover.Synopsis
@@ -207,7 +206,7 @@ func (c *completer) item(cand candidate) (CompletionItem, error) {
 }
 
 // importEdits produces the text edits necessary to add the given import to the current file.
-func (c *completer) importEdits(imp *importInfo) ([]protocol.TextEdit, error) {
+func (c *completer) importEdits(ctx context.Context, imp *importInfo) ([]protocol.TextEdit, error) {
 	if imp == nil {
 		return nil, nil
 	}
@@ -223,7 +222,7 @@ func (c *completer) importEdits(imp *importInfo) ([]protocol.TextEdit, error) {
 		return nil, errors.Errorf("building import completion for %v: no ParseGoHandle for %s", imp.importPath, c.filename)
 	}
 
-	return computeOneImportFixEdits(c.ctx, c.snapshot.View(), ph, &imports.ImportFix{
+	return computeOneImportFixEdits(ctx, c.snapshot.View(), ph, &imports.ImportFix{
 		StmtInfo: imports.ImportInfo{
 			ImportPath: imp.importPath,
 			Name:       imp.name,
@@ -233,7 +232,7 @@ func (c *completer) importEdits(imp *importInfo) ([]protocol.TextEdit, error) {
 	})
 }
 
-func (c *completer) formatBuiltin(cand candidate) CompletionItem {
+func (c *completer) formatBuiltin(ctx context.Context, cand candidate) CompletionItem {
 	obj := cand.obj
 	item := CompletionItem{
 		Label:      obj.Name(),
@@ -245,17 +244,17 @@ func (c *completer) formatBuiltin(cand candidate) CompletionItem {
 		item.Kind = protocol.ConstantCompletion
 	case *types.Builtin:
 		item.Kind = protocol.FunctionCompletion
-		astObj, err := c.snapshot.View().LookupBuiltin(c.ctx, obj.Name())
+		astObj, err := c.snapshot.View().LookupBuiltin(ctx, obj.Name())
 		if err != nil {
-			event.Error(c.ctx, "no builtin package", err)
+			event.Error(ctx, "no builtin package", err)
 			break
 		}
 		decl, ok := astObj.Decl.(*ast.FuncDecl)
 		if !ok {
 			break
 		}
-		params, _ := formatFieldList(c.ctx, c.snapshot.View(), decl.Type.Params)
-		results, writeResultParens := formatFieldList(c.ctx, c.snapshot.View(), decl.Type.Results)
+		params, _ := formatFieldList(ctx, c.snapshot.View(), decl.Type.Params)
+		results, writeResultParens := formatFieldList(ctx, c.snapshot.View(), decl.Type.Results)
 		item.Label = obj.Name()
 		item.Detail = "func" + formatFunction(params, results, writeResultParens)
 		item.snippet = c.functionCallSnippet(obj.Name(), params)

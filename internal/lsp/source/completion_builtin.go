@@ -5,6 +5,7 @@
 package source
 
 import (
+	"context"
 	"go/ast"
 	"go/types"
 )
@@ -12,8 +13,8 @@ import (
 // builtinArgKind determines the expected object kind for a builtin
 // argument. It attempts to use the AST hints from builtin.go where
 // possible.
-func (c *completer) builtinArgKind(obj types.Object, call *ast.CallExpr) objKind {
-	astObj, err := c.snapshot.View().LookupBuiltin(c.ctx, obj.Name())
+func (c *completer) builtinArgKind(ctx context.Context, obj types.Object, call *ast.CallExpr) objKind {
+	astObj, err := c.snapshot.View().LookupBuiltin(ctx, obj.Name())
 	if err != nil {
 		return 0
 	}
