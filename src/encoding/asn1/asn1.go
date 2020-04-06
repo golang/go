@@ -283,6 +283,7 @@ func parseObjectIdentifier(bytes []byte) (s ObjectIdentifier, err error) {
 		if err != nil {
 			return
 		}
+		fmt.Println(v, offset)
 		s[i] = v
 	}
 	s = s[0:i]
@@ -313,6 +314,12 @@ func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err error) 
 		}
 		ret64 <<= 7
 		b := bytes[offset]
+		// integers should be minimally encoded, so the leading octet should
+		// never be 0x80
+		if shifted == 0 && b == 0x80 {
+			err = SyntaxError{"integer is not minimally encoded"}
+			return
+		}
 		ret64 |= int64(b & 0x7f)
 		offset++
 		if b&0x80 == 0 {
