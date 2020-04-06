@@ -1222,44 +1222,25 @@
 
 // Fold memory operations into operations.
 // Exclude global data (SB) because these instructions cannot handle relative addresses.
-// TODO(mundaym): use LARL in the assembler to handle SB?
 // TODO(mundaym): indexed versions of these?
-(ADD <t> x g:(MOVDload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (ADDload <t> [off] {sym} x ptr mem)
-(ADDW <t> x g:(MOVWload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (ADDWload <t> [off] {sym} x ptr mem)
-(ADDW <t> x g:(MOVWZload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (ADDWload <t> [off] {sym} x ptr mem)
-(MULLD <t> x g:(MOVDload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (MULLDload <t> [off] {sym} x ptr mem)
-(MULLW <t> x g:(MOVWload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (MULLWload <t> [off] {sym} x ptr mem)
-(MULLW <t> x g:(MOVWZload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (MULLWload <t> [off] {sym} x ptr mem)
-(SUB <t> x g:(MOVDload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (SUBload <t> [off] {sym} x ptr mem)
-(SUBW <t> x g:(MOVWload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (SUBWload <t> [off] {sym} x ptr mem)
-(SUBW <t> x g:(MOVWZload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (SUBWload <t> [off] {sym} x ptr mem)
-(AND <t> x g:(MOVDload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (ANDload <t> [off] {sym} x ptr mem)
-(ANDW <t> x g:(MOVWload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (ANDWload <t> [off] {sym} x ptr mem)
-(ANDW <t> x g:(MOVWZload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (ANDWload <t> [off] {sym} x ptr mem)
-(OR <t> x g:(MOVDload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (ORload <t> [off] {sym} x ptr mem)
-(ORW <t> x g:(MOVWload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (ORWload <t> [off] {sym} x ptr mem)
-(ORW <t> x g:(MOVWZload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (ORWload <t> [off] {sym} x ptr mem)
-(XOR <t> x g:(MOVDload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (XORload <t> [off] {sym} x ptr mem)
-(XORW <t> x g:(MOVWload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (XORWload <t> [off] {sym} x ptr mem)
-(XORW <t> x g:(MOVWZload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (XORWload <t> [off] {sym} x ptr mem)
+((ADD|SUB|MULLD|AND|OR|XOR) <t> x g:(MOVDload [off] {sym} ptr mem))
+  && ptr.Op != OpSB
+  && is20Bit(off)
+  && canMergeLoadClobber(v, g, x)
+  && clobber(g)
+  -> ((ADD|SUB|MULLD|AND|OR|XOR)load <t> [off] {sym} x ptr mem)
+((ADD|SUB|MULL|AND|OR|XOR)W <t> x g:(MOVWload [off] {sym} ptr mem))
+  && ptr.Op != OpSB
+  && is20Bit(off)
+  && canMergeLoadClobber(v, g, x)
+  && clobber(g)
+  -> ((ADD|SUB|MULL|AND|OR|XOR)Wload <t> [off] {sym} x ptr mem)
+((ADD|SUB|MULL|AND|OR|XOR)W <t> x g:(MOVWZload [off] {sym} ptr mem))
+  && ptr.Op != OpSB
+  && is20Bit(off)
+  && canMergeLoadClobber(v, g, x)
+  && clobber(g)
+  -> ((ADD|SUB|MULL|AND|OR|XOR)Wload <t> [off] {sym} x ptr mem)
 
 // Combine constant stores into larger (unaligned) stores.
 // Avoid SB because constant stores to relative offsets are
