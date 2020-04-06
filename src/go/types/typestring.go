@@ -269,13 +269,11 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		}
 
 	case *TypeParam:
-		var s string
+		s := "?"
 		if t.obj != nil {
-			s = fmt.Sprintf("%s%s", t.obj.name, subscript(t.id))
-		} else {
-			s = fmt.Sprintf("TypeParam%d[%d]", subscript(t.id), t.index)
+			s = t.obj.name
 		}
-		buf.WriteString(s)
+		buf.WriteString(s + subscript(t.id))
 
 	default:
 		// For externally defined implementations of Type.
@@ -293,33 +291,47 @@ func writeTypeList(buf *bytes.Buffer, list []Type, qf Qualifier, visited []Type)
 }
 
 func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited []Type) {
+	// bound returns the type bound for tname. The result is never nil.
+	bound := func(tname *TypeName) Type {
+		// be careful to avoid crashes in case of inconsistencies
+		if t, _ := tname.typ.(*TypeParam); t != nil && t.bound != nil {
+			return t.bound
+		}
+		return &emptyInterface
+	}
+
+	// If a single type bound is not the empty interface, we have to write them all.
+	var writeBounds bool
+	for _, p := range list {
+		if !bound(p).Underlying().(*Interface).Empty() {
+			writeBounds = true
+			break
+		}
+	}
+
 	buf.WriteString("(type ")
+	var prev Type
 	for i, p := range list {
+		b := bound(p)
 		if i > 0 {
+			if writeBounds && b != prev {
+				// type bound changed - write previous one before advancing
+				buf.WriteByte(' ')
+				writeType(buf, prev, qf, visited)
+			}
 			buf.WriteString(", ")
 		}
+		prev = b
 
-		ptyp, _ := p.typ.(*TypeParam)
-		if ptyp != nil {
-			writeType(buf, ptyp, qf, visited)
+		if t, _ := p.typ.(*TypeParam); t != nil {
+			writeType(buf, t, qf, visited)
 		} else {
 			buf.WriteString(p.name)
 		}
-
-		if ptyp, _ := p.typ.(*TypeParam); ptyp != nil && ptyp.bound != nil {
-			// TODO(gri) Instead of writing the bound with each type
-			//           parameter, consider bundling them up.
-			buf.WriteByte(' ')
-			if ptyp.Interface().Empty() {
-				// quick hack to declutter output
-				// TODO(gri) fix this per the TODO above
-				buf.WriteString("any")
-			} else {
-				writeType(buf, ptyp.bound, qf, visited)
-			}
-			// TODO(gri) if this is a generic type bound, we should print
-			// the type parameters
-		}
+	}
+	if writeBounds && prev != nil {
+		buf.WriteByte(' ')
+		writeType(buf, prev, qf, visited)
 	}
 	buf.WriteByte(')')
 }
@@ -421,7 +433,7 @@ func embeddedFieldName(typ Type) string {
 }
 
 // subscript returns the decimal (utf8) representation of x using subscript digits.
-func subscript(x uint64) []byte {
+func subscript(x uint64) string {
 	const w = len("₀") // all digits 0...9 have the same utf8 width
 	var buf [32 * w]byte
 	i := len(buf)
@@ -433,5 +445,5 @@ func subscript(x uint64) []byte {
 			break
 		}
 	}
-	return buf[i:]
+	return string(buf[i:])
 }

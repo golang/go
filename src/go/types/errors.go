@@ -12,7 +12,6 @@ import (
 	"go/token"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 )
 
 func assert(p bool) {
@@ -83,7 +82,7 @@ func (check *Checker) err(pos token.Pos, msg string, soft bool) {
 		return
 	}
 
-	err := Error{check.fset, pos, cleanMsg(msg), msg, soft}
+	err := Error{check.fset, pos, stripSubscripts(msg), msg, soft}
 	if check.firstErr == nil {
 		check.firstErr = err
 	}
@@ -123,32 +122,16 @@ func (check *Checker) invalidOp(pos token.Pos, format string, args ...interface{
 	check.errorf(pos, "invalid operation: "+format, args...)
 }
 
-// cleanMsg removes subscripts in instantiated types.
-func cleanMsg(s string) string {
+// stripSubscripts removes subscripts from s.
+func stripSubscripts(s string) string {
 	var b strings.Builder
-	copy := false // indicates that we need a copy
-	for i := 0; ; {
-		r, w := utf8.DecodeRuneInString(s[i:])
-		i += w
-		if r == utf8.RuneError {
-			if w == 0 {
-				break // we're done
-			}
-			if w == 1 {
-				continue // ignore (this should never happen)
-			}
-		}
-
+	for _, r := range s {
 		// strip subscript digits
-		if '₀' <= r && r < '₀'+10 { // '₀' == U+2080
-			copy = true
-			continue
+		if !('₀' <= r && r < '₀'+10) { // '₀' == U+2080
+			b.WriteRune(r)
 		}
-
-		b.WriteRune(r)
 	}
-
-	if copy {
+	if b.Len() < len(s) {
 		return b.String()
 	}
 	return s

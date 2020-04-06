@@ -6,7 +6,7 @@ package types
 
 import "testing"
 
-func TestCleanMsg(t *testing.T) {
+func TestStripSubscripts(t *testing.T) {
 	for _, test := range []struct {
 		in, want string
 	}{
@@ -16,7 +16,7 @@ func TestCleanMsg(t *testing.T) {
 		{"foo₀", "foo"},
 		{"foo(T₀)", "foo(T)"},
 	} {
-		got := cleanMsg(test.in)
+		got := stripSubscripts(test.in)
 		if got != test.want {
 			t.Errorf("%q: got %q; want %q", test.in, got, test.want)
 		}

@@ -276,10 +276,17 @@ func TestTypesInfo(t *testing.T) {
 		{`package x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
 
 		// parameterized functions
-		{`package p0; func f(type T)(T); var _ = f(int)`, `f`, `func(type T₁ any)(T₁)`},
+		{`package p0; func f(type T)(T); var _ = f(int)`, `f`, `func(type T₁)(T₁)`},
 		{`package p1; func f(type T)(T); var _ = f(int)`, `f(int)`, `func(int)`},
-		{`package p2; func f(type T)(T); var _ = f(42)`, `f`, `func(type T₁ any)(T₁)`},
+		{`package p2; func f(type T)(T); var _ = f(42)`, `f`, `func(type T₁)(T₁)`},
 		{`package p2; func f(type T)(T); var _ = f(42)`, `f(42)`, `()`},
+
+		// type parameters
+		{`package t0; type t(type) int; var _ t`, `t`, `t0.t`},
+		{`package t1; type t(type P) int; var _ t(int)`, `t`, `t1.t(type P₁)`},
+		{`package t2; type t(type P interface{}) int; var _ t(int)`, `t`, `t2.t(type P₁)`},
+		{`package t3; type t(type P, Q interface{}) int; var _ t(int, int)`, `t`, `t3.t(type P₁, Q₂)`},
+		{`package t4; type t(type P, Q interface{ m() }) int; var _ t(int, int)`, `t`, `t4.t(type P₁, Q₂ interface{m()})`},
 	}
 
 	for _, test := range tests {
