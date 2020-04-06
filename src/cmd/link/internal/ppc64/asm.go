@@ -645,78 +645,83 @@ func archrelocaddr(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Sy
 }
 
 // resolve direct jump relocation r in s, and add trampoline if necessary
-func trampoline(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol) {
+func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
 
 	// Trampolines are created if the branch offset is too large and the linker cannot insert a call stub to handle it.
 	// For internal linking, trampolines are always created for long calls.
 	// For external linking, the linker can insert a call stub to handle a long call, but depends on having the TOC address in
 	// r2.  For those build modes with external linking where the TOC address is not maintained in r2, trampolines must be created.
-	if ctxt.LinkMode == ld.LinkExternal && (ctxt.DynlinkingGo() || ctxt.BuildMode == ld.BuildModeCArchive || ctxt.BuildMode == ld.BuildModeCShared || ctxt.BuildMode == ld.BuildModePIE) {
+	if ctxt.IsExternal() && (ctxt.DynlinkingGo() || ctxt.BuildMode == ld.BuildModeCArchive || ctxt.BuildMode == ld.BuildModeCShared || ctxt.BuildMode == ld.BuildModePIE) {
 		// No trampolines needed since r2 contains the TOC
 		return
 	}
 
-	t := ld.Symaddr(r.Sym) + r.Add - (s.Value + int64(r.Off))
-	switch r.Type {
+	relocs := ldr.Relocs(s)
+	r := relocs.At2(ri)
+	t := ldr.SymValue(rs) + r.Add() - (ldr.SymValue(s) + int64(r.Off()))
+	switch r.Type() {
 	case objabi.R_CALLPOWER:
 
 		// If branch offset is too far then create a trampoline.
 
-		if (ctxt.LinkMode == ld.LinkExternal && s.Sect != r.Sym.Sect) || (ctxt.LinkMode == ld.LinkInternal && int64(int32(t<<6)>>6) != t) || (*ld.FlagDebugTramp > 1 && s.File != r.Sym.File) {
-			var tramp *sym.Symbol
+		if (ctxt.IsExternal() && ldr.SymSect(s) != ldr.SymSect(rs)) || (ctxt.IsInternal() && int64(int32(t<<6)>>6) != t) || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
+			var tramp loader.Sym
 			for i := 0; ; i++ {
 
 				// Using r.Add as part of the name is significant in functions like duffzero where the call
 				// target is at some offset within the function.  Calls to duff+8 and duff+256 must appear as
 				// distinct trampolines.
 
-				name := r.Sym.Name
-				if r.Add == 0 {
+				name := ldr.SymName(rs)
+				if r.Add() == 0 {
 					name = name + fmt.Sprintf("-tramp%d", i)
 				} else {
-					name = name + fmt.Sprintf("%+x-tramp%d", r.Add, i)
+					name = name + fmt.Sprintf("%+x-tramp%d", r.Add(), i)
 				}
 
 				// Look up the trampoline in case it already exists
 
-				tramp = ctxt.Syms.Lookup(name, int(r.Sym.Version))
-				if tramp.Value == 0 {
+				tramp = ldr.LookupOrCreateSym(name, int(ldr.SymVersion(rs)))
+				if ldr.SymValue(tramp) == 0 {
 					break
 				}
 
-				t = ld.Symaddr(tramp) + r.Add - (s.Value + int64(r.Off))
+				t = ldr.SymValue(tramp) + r.Add() - (ldr.SymValue(s) + int64(r.Off()))
 
 				// With internal linking, the trampoline can be used if it is not too far.
 				// With external linking, the trampoline must be in this section for it to be reused.
-				if (ctxt.LinkMode == ld.LinkInternal && int64(int32(t<<6)>>6) == t) || (ctxt.LinkMode == ld.LinkExternal && s.Sect == tramp.Sect) {
+				if (ctxt.IsInternal() && int64(int32(t<<6)>>6) == t) || (ctxt.IsExternal() && ldr.SymSect(s) == ldr.SymSect(tramp)) {
 					break
 				}
 			}
-			if tramp.Type == 0 {
+			if ldr.SymType(tramp) == 0 {
 				if ctxt.DynlinkingGo() || ctxt.BuildMode == ld.BuildModeCArchive || ctxt.BuildMode == ld.BuildModeCShared || ctxt.BuildMode == ld.BuildModePIE {
 					// Should have returned for above cases
-					ld.Errorf(s, "unexpected trampoline for shared or dynamic linking\n")
+					ctxt.Errorf(s, "unexpected trampoline for shared or dynamic linking")
 				} else {
-					ctxt.AddTramp(tramp)
-					gentramp(ctxt, tramp, r.Sym, r.Add)
+					trampb := ldr.MakeSymbolUpdater(tramp)
+					ctxt.AddTramp(trampb)
+					gentramp(ctxt, ldr, trampb, rs, r.Add())
 				}
 			}
-			r.Sym = tramp
-			r.Add = 0 // This was folded into the trampoline target address
-			r.Done = false
+			sb := ldr.MakeSymbolUpdater(s)
+			relocs := sb.Relocs()
+			r := relocs.At2(ri)
+			r.SetSym(tramp)
+			r.SetAdd(0) // This was folded into the trampoline target address
 		}
 	default:
-		ld.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type))
+		ctxt.Errorf(s, "trampoline called with non-jump reloc: %d (%s)", r.Type(), sym.RelocName(ctxt.Arch, r.Type()))
 	}
 }
 
-func gentramp(ctxt *ld.Link, tramp, target *sym.Symbol, offset int64) {
-	tramp.Size = 16 // 4 instructions
-	tramp.P = make([]byte, tramp.Size)
-	t := ld.Symaddr(target) + offset
+func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, target loader.Sym, offset int64) {
+	tramp.SetSize(16) // 4 instructions
+	P := make([]byte, tramp.Size())
+	t := ldr.SymValue(target) + offset
 	var o1, o2 uint32
 
-	if ctxt.HeadType == objabi.Haix {
+	if ctxt.IsAIX() {
 		// On AIX, the address is retrieved with a TOC symbol.
 		// For internal linking, the "Linux" way might still be used.
 		// However, all text symbols are accessed with a TOC symbol as
@@ -725,17 +730,19 @@ func gentramp(ctxt *ld.Link, tramp, target *sym.Symbol, offset int64) {
 		o1 = uint32(0x3fe20000) // lis r2, toctargetaddr hi
 		o2 = uint32(0xebff0000) // ld r31, toctargetaddr lo
 
-		toctramp := ctxt.Syms.Lookup("TOC."+tramp.Name, 0)
-		toctramp.Type = sym.SXCOFFTOC
-		toctramp.Attr |= sym.AttrReachable
+		toctramp := ldr.CreateSymForUpdate("TOC."+ldr.SymName(tramp.Sym()), 0)
+		toctramp.SetType(sym.SXCOFFTOC)
+		toctramp.SetReachable(true)
 		toctramp.AddAddr(ctxt.Arch, target)
 
-		tr := tramp.AddRel()
-		tr.Off = 0
-		tr.Type = objabi.R_ADDRPOWER_TOCREL_DS
-		tr.Siz = 8 // generates 2 relocations:  HA + LO
-		tr.Sym = toctramp
-		tr.Add = offset
+		r := loader.Reloc{
+			Off: 0,
+			Type: objabi.R_ADDRPOWER_TOCREL_DS,
+			Size: 8, // generates 2 relocations:  HA + LO
+			Sym: toctramp.Sym(),
+			Add: offset,
+		}
+		tramp.AddReloc(r)
 	} else {
 		// Used for default build mode for an executable
 		// Address of the call target is generated using
@@ -745,14 +752,15 @@ func gentramp(ctxt *ld.Link, tramp, target *sym.Symbol, offset int64) {
 
 		// With external linking, the target address must be
 		// relocated using LO and HA
-		if ctxt.LinkMode == ld.LinkExternal {
-			tr := tramp.AddRel()
-			tr.Off = 0
-			tr.Type = objabi.R_ADDRPOWER
-			tr.Siz = 8 // generates 2 relocations:  HA + LO
-			tr.Sym = target
-			tr.Add = offset
-
+		if ctxt.IsExternal() {
+			r := loader.Reloc{
+				Off: 0,
+				Type: objabi.R_ADDRPOWER,
+				Size: 8, // generates 2 relocations:  HA + LO
+				Sym: target,
+				Add: offset,
+			}
+			tramp.AddReloc(r)
 		} else {
 			// adjustment needed if lo has sign bit set
 			// when using addi to compute address
@@ -767,10 +775,11 @@ func gentramp(ctxt *ld.Link, tramp, target *sym.Symbol, offset int64) {
 
 	o3 := uint32(0x7fe903a6) // mtctr r31
 	o4 := uint32(0x4e800420) // bctr
-	ctxt.Arch.ByteOrder.PutUint32(tramp.P, o1)
-	ctxt.Arch.ByteOrder.PutUint32(tramp.P[4:], o2)
-	ctxt.Arch.ByteOrder.PutUint32(tramp.P[8:], o3)
-	ctxt.Arch.ByteOrder.PutUint32(tramp.P[12:], o4)
+	ctxt.Arch.ByteOrder.PutUint32(P, o1)
+	ctxt.Arch.ByteOrder.PutUint32(P[4:], o2)
+	ctxt.Arch.ByteOrder.PutUint32(P[8:], o3)
+	ctxt.Arch.ByteOrder.PutUint32(P[12:], o4)
+	tramp.SetData(P)
 }
 
 func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {

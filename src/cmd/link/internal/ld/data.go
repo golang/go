@@ -65,7 +65,7 @@ func isRuntimeDepPkg(pkg string) bool {
 // Estimate the max size needed to hold any new trampolines created for this function. This
 // is used to determine when the section can be split if it becomes too large, to ensure that
 // the trampolines are in the same section as the function that uses them.
-func maxSizeTrampolinesPPC64(s *sym.Symbol, isTramp bool) uint64 {
+func maxSizeTrampolinesPPC64(ldr *loader.Loader, s loader.Sym, isTramp bool) uint64 {
 	// If thearch.Trampoline is nil, then trampoline support is not available on this arch.
 	// A trampoline does not need any dependent trampolines.
 	if thearch.Trampoline == nil || isTramp {
@@ -73,9 +73,10 @@ func maxSizeTrampolinesPPC64(s *sym.Symbol, isTramp bool) uint64 {
 	}
 
 	n := uint64(0)
-	for ri := range s.R {
-		r := &s.R[ri]
-		if r.Type.IsDirectCallOrJump() {
+	relocs := ldr.Relocs(s)
+	for ri := 0; ri < relocs.Count(); ri++ {
+		r := relocs.At2(ri)
+		if r.Type().IsDirectCallOrJump() {
 			n++
 		}
 	}
@@ -87,20 +88,27 @@ func maxSizeTrampolinesPPC64(s *sym.Symbol, isTramp bool) uint64 {
 // ARM, PPC64 & PPC64LE support trampoline insertion for internal and external linking
 // On PPC64 & PPC64LE the text sections might be split but will still insert trampolines
 // where necessary.
-func trampoline(ctxt *Link, s *sym.Symbol) {
+func trampoline(ctxt *Link, s loader.Sym) {
 	if thearch.Trampoline == nil {
 		return // no need or no support of trampolines on this arch
 	}
 
-	for ri := range s.R {
-		r := &s.R[ri]
-		if !r.Type.IsDirectCallOrJump() {
+	ldr := ctxt.loader
+	relocs := ldr.Relocs(s)
+	for ri := 0; ri < relocs.Count(); ri++ {
+		r := relocs.At2(ri)
+		if !r.Type().IsDirectCallOrJump() {
 			continue
 		}
-		if Symaddr(r.Sym) == 0 && (r.Sym.Type != sym.SDYNIMPORT && r.Sym.Type != sym.SUNDEFEXT) {
-			if r.Sym.File != s.File {
-				if !isRuntimeDepPkg(s.File) || !isRuntimeDepPkg(r.Sym.File) {
-					ctxt.errorUnresolved(s, r)
+		rs := r.Sym()
+		if !ldr.AttrReachable(rs) {
+			continue // something is wrong. skip it here and we'll emit a better error later
+		}
+		rs = ldr.ResolveABIAlias(rs)
+		if ldr.SymValue(rs) == 0 && (ldr.SymType(rs) != sym.SDYNIMPORT && ldr.SymType(rs) != sym.SUNDEFEXT) {
+			if ldr.SymPkg(rs) != ldr.SymPkg(s) {
+				if !isRuntimeDepPkg(ldr.SymPkg(s)) || !isRuntimeDepPkg(ldr.SymPkg(rs)) {
+					ctxt.Errorf(s, "unresolved inter-package jump to %s(%s) from %s", ldr.SymName(rs), ldr.SymPkg(rs), ldr.SymPkg(s))
 				}
 				// runtime and its dependent packages may call to each other.
 				// they are fine, as they will be laid down together.
@@ -108,7 +116,7 @@ func trampoline(ctxt *Link, s *sym.Symbol) {
 			continue
 		}
 
-		thearch.Trampoline(ctxt, r, s)
+		thearch.Trampoline(ctxt, ldr, ri, rs, s)
 	}
 
 }
@@ -2175,30 +2183,33 @@ func (ctxt *Link) textaddress() {
 
 	sect.Align = int32(Funcalign)
 
-	text := ctxt.Syms.Lookup("runtime.text", 0)
-	text.Sect = sect
-	if ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal {
+	ldr := ctxt.loader
+	text := ldr.LookupOrCreateSym("runtime.text", 0)
+	ldr.SetAttrReachable(text, true)
+	ldr.SetSymSect(text, sect)
+	if ctxt.IsAIX() && ctxt.IsExternal() {
 		// Setting runtime.text has a real symbol prevents ld to
 		// change its base address resulting in wrong offsets for
 		// reflect methods.
-		text.Align = sect.Align
-		text.Size = 0x8
+		u := ldr.MakeSymbolUpdater(text)
+		u.SetAlign(sect.Align)
+		u.SetSize(8)
 	}
 
-	if (ctxt.DynlinkingGo() && ctxt.HeadType == objabi.Hdarwin) || (ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal) {
-		etext := ctxt.Syms.Lookup("runtime.etext", 0)
-		etext.Sect = sect
+	if (ctxt.DynlinkingGo() && ctxt.IsDarwin()) || (ctxt.IsAIX() && ctxt.IsExternal()) {
+		etext := ldr.LookupOrCreateSym("runtime.etext", 0)
+		ldr.SetSymSect(etext, sect)
 
-		ctxt.Textp = append(ctxt.Textp, etext, nil)
-		copy(ctxt.Textp[1:], ctxt.Textp)
-		ctxt.Textp[0] = text
+		ctxt.Textp2 = append(ctxt.Textp2, etext, 0)
+		copy(ctxt.Textp2[1:], ctxt.Textp2)
+		ctxt.Textp2[0] = text
 	}
 
 	va := uint64(*FlagTextAddr)
 	n := 1
 	sect.Vaddr = va
 	ntramps := 0
-	for _, s := range ctxt.Textp {
+	for _, s := range ctxt.Textp2 {
 		sect, n, va = assignAddress(ctxt, sect, n, s, va, false)
 
 		trampoline(ctxt, s) // resolve jumps, may add trampolines if jump too far
@@ -2206,7 +2217,7 @@ func (ctxt *Link) textaddress() {
 		// lay down trampolines after each function
 		for ; ntramps < len(ctxt.tramps); ntramps++ {
 			tramp := ctxt.tramps[ntramps]
-			if ctxt.HeadType == objabi.Haix && strings.HasPrefix(tramp.Name, "runtime.text.") {
+			if ctxt.IsAIX() && strings.HasPrefix(ldr.SymName(tramp), "runtime.text.") {
 				// Already set in assignAddress
 				continue
 			}
@@ -2215,49 +2226,50 @@ func (ctxt *Link) textaddress() {
 	}
 
 	sect.Length = va - sect.Vaddr
-	ctxt.Syms.Lookup("runtime.etext", 0).Sect = sect
+	etext := ldr.LookupOrCreateSym("runtime.etext", 0)
+	ldr.SetAttrReachable(etext, true)
+	ldr.SetSymSect(etext, sect)
 
 	// merge tramps into Textp, keeping Textp in address order
 	if ntramps != 0 {
-		newtextp := make([]*sym.Symbol, 0, len(ctxt.Textp)+ntramps)
+		newtextp := make([]loader.Sym, 0, len(ctxt.Textp)+ntramps)
 		i := 0
-		for _, s := range ctxt.Textp {
-			for ; i < ntramps && ctxt.tramps[i].Value < s.Value; i++ {
+		for _, s := range ctxt.Textp2 {
+			for ; i < ntramps && ldr.SymValue(ctxt.tramps[i]) < ldr.SymValue(s); i++ {
 				newtextp = append(newtextp, ctxt.tramps[i])
 			}
 			newtextp = append(newtextp, s)
 		}
 		newtextp = append(newtextp, ctxt.tramps[i:ntramps]...)
 
-		ctxt.Textp = newtextp
+		ctxt.Textp2 = newtextp
 	}
 }
 
 // assigns address for a text symbol, returns (possibly new) section, its number, and the address
-// Note: once we have trampoline insertion support for external linking, this function
-// will not need to create new text sections, and so no need to return sect and n.
-func assignAddress(ctxt *Link, sect *sym.Section, n int, s *sym.Symbol, va uint64, isTramp bool) (*sym.Section, int, uint64) {
+func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64, isTramp bool) (*sym.Section, int, uint64) {
+	ldr := ctxt.loader
 	if thearch.AssignAddress != nil {
-		return thearch.AssignAddress(ctxt, sect, n, s, va, isTramp)
+		return thearch.AssignAddress(ldr, sect, n, s, va, isTramp)
 	}
 
-	s.Sect = sect
-	if s.Attr.SubSymbol() {
+	ldr.SetSymSect(s, sect)
+	if ldr.AttrSubSymbol(s) {
 		return sect, n, va
 	}
-	if s.Align != 0 {
-		va = uint64(Rnd(int64(va), int64(s.Align)))
-	} else {
-		va = uint64(Rnd(int64(va), int64(Funcalign)))
+
+	align := ldr.SymAlign(s)
+	if align == 0 {
+		align = int32(Funcalign)
+	}
+	va = uint64(Rnd(int64(va), int64(align)))
+	if sect.Align < align {
+		sect.Align = align
 	}
 
 	funcsize := uint64(MINFUNC) // spacing required for findfunctab
-	if s.Size > MINFUNC {
-		funcsize = uint64(s.Size)
-	}
-
-	if sect.Align < s.Align {
-		sect.Align = s.Align
+	if ldr.SymSize(s) > MINFUNC {
+		funcsize = uint64(ldr.SymSize(s))
 	}
 
 	// On ppc64x a text section should not be larger than 2^26 bytes due to the size of
@@ -2269,33 +2281,33 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s *sym.Symbol, va uint6
 
 	// Only break at outermost syms.
 
-	if ctxt.Arch.InFamily(sys.PPC64) && s.Outer == nil && ctxt.LinkMode == LinkExternal && va-sect.Vaddr+funcsize+maxSizeTrampolinesPPC64(s, isTramp) > 0x1c00000 {
+	if ctxt.Arch.InFamily(sys.PPC64) && ldr.OuterSym(s) == 0 && ctxt.IsExternal() && va-sect.Vaddr+funcsize+maxSizeTrampolinesPPC64(ldr, s, isTramp) > 0x1c00000 {
 		// Set the length for the previous text section
 		sect.Length = va - sect.Vaddr
 
 		// Create new section, set the starting Vaddr
 		sect = addsection(ctxt.Arch, &Segtext, ".text", 05)
 		sect.Vaddr = va
-		s.Sect = sect
+		ldr.SetSymSect(s, sect)
 
 		// Create a symbol for the start of the secondary text sections
-		ntext := ctxt.Syms.Lookup(fmt.Sprintf("runtime.text.%d", n), 0)
-		ntext.Sect = sect
-		if ctxt.HeadType == objabi.Haix {
+		ntext := ldr.CreateSymForUpdate(fmt.Sprintf("runtime.text.%d", n), 0)
+		ntext.SetReachable(true)
+		ntext.SetSect(sect)
+		if ctxt.IsAIX() {
 			// runtime.text.X must be a real symbol on AIX.
 			// Assign its address directly in order to be the
 			// first symbol of this new section.
-			ntext.Type = sym.STEXT
-			ntext.Size = int64(MINFUNC)
-			ntext.Attr |= sym.AttrReachable
-			ntext.Attr |= sym.AttrOnList
-			ctxt.tramps = append(ctxt.tramps, ntext)
+			ntext.SetType(sym.STEXT)
+			ntext.SetSize(int64(MINFUNC))
+			ntext.SetOnList(true)
+			ctxt.tramps = append(ctxt.tramps, ntext.Sym())
 
-			ntext.Value = int64(va)
-			va += uint64(ntext.Size)
+			ntext.SetValue(int64(va))
+			va += uint64(ntext.Size())
 
-			if s.Align != 0 {
-				va = uint64(Rnd(int64(va), int64(s.Align)))
+			if align := ldr.SymAlign(s); align != 0 {
+				va = uint64(Rnd(int64(va), int64(align)))
 			} else {
 				va = uint64(Rnd(int64(va), int64(Funcalign)))
 			}
@@ -2303,9 +2315,9 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s *sym.Symbol, va uint6
 		n++
 	}
 
-	s.Value = 0
-	for sub := s; sub != nil; sub = sub.Sub {
-		sub.Value += int64(va)
+	ldr.SetSymValue(s, 0)
+	for sub := s; sub != 0; sub = ldr.SubSym(sub) {
+		ldr.SetSymValue(sub, ldr.SymValue(sub)+int64(va))
 	}
 
 	va += funcsize
@@ -2585,13 +2597,13 @@ func (ctxt *Link) layout(order []*sym.Segment) uint64 {
 }
 
 // add a trampoline with symbol s (to be laid down after the current function)
-func (ctxt *Link) AddTramp(s *sym.Symbol) {
-	s.Type = sym.STEXT
-	s.Attr |= sym.AttrReachable
-	s.Attr |= sym.AttrOnList
-	ctxt.tramps = append(ctxt.tramps, s)
+func (ctxt *Link) AddTramp(s *loader.SymbolBuilder) {
+	s.SetType(sym.STEXT)
+	s.SetReachable(true)
+	s.SetOnList(true)
+	ctxt.tramps = append(ctxt.tramps, s.Sym())
 	if *FlagDebugTramp > 0 && ctxt.Debugvlog > 0 {
-		ctxt.Logf("trampoline %s inserted\n", s)
+		ctxt.Logf("trampoline %s inserted\n", s.Name())
 	}
 }
 

@@ -254,7 +254,10 @@ type Arch struct {
 	// offset value.
 	Archrelocvariant func(target *Target, syms *ArchSyms, rel *sym.Reloc, sym *sym.Symbol,
 		offset int64) (relocatedOffset int64)
-	Trampoline func(*Link, *sym.Reloc, *sym.Symbol)
+
+	// Generate a trampoline for a call from s to rs if necessary. ri is
+	// index of the relocation.
+	Trampoline func(ctxt *Link, ldr *loader.Loader, ri int, rs, s loader.Sym)
 
 	// Asmb and Asmb2 are arch-specific routines that write the output
 	// file. Typically, Asmb writes most of the content (sections and
@@ -280,7 +283,7 @@ type Arch struct {
 	TLSIEtoLE func(s *sym.Symbol, off, size int)
 
 	// optional override for assignAddress
-	AssignAddress func(ctxt *Link, sect *sym.Section, n int, s *sym.Symbol, va uint64, isTramp bool) (*sym.Section, int, uint64)
+	AssignAddress func(ldr *loader.Loader, sect *sym.Section, n int, s loader.Sym, va uint64, isTramp bool) (*sym.Section, int, uint64)
 }
 
 var (

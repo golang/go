@@ -288,11 +288,10 @@ func Main(arch *sys.Arch, theArch Arch) {
 	bench.Start("Gentext")
 	thearch.Gentext2(ctxt, ctxt.loader) // trampolines, call stubs, etc.
 
-	bench.Start("loadlibfull")
-	ctxt.loadlibfull() // XXX do it here for now
-
 	bench.Start("textaddress")
 	ctxt.textaddress()
+	bench.Start("loadlibfull")
+	ctxt.loadlibfull() // XXX do it here for now
 	bench.Start("pclntab")
 	ctxt.pclntab()
 	bench.Start("findfunctab")

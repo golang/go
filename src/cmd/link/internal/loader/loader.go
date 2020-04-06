@@ -198,6 +198,7 @@ type Loader struct {
 	payloadBatch []extSymPayload
 	payloads     []*extSymPayload // contents of linker-materialized external syms
 	values       []int64          // symbol values, indexed by global sym index
+	sects        []*sym.Section   // symbol's section, indexed by global index
 
 	itablink map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
 
@@ -286,6 +287,7 @@ type extSymPayload struct {
 	relocs   []goobj2.Reloc2
 	reltypes []objabi.RelocType // relocation types
 	data     []byte
+	auxs     []goobj2.Aux2
 }
 
 const (
@@ -664,6 +666,16 @@ func (l *Loader) SymAttr(i Sym) uint8 {
 	return r.Sym2(li).Flag()
 }
 
+// Returns the size of the i-th symbol.
+func (l *Loader) SymSize(i Sym) int64 {
+	if l.IsExternal(i) {
+		pp := l.getPayload(i)
+		return pp.size
+	}
+	r, li := l.toLocal(i)
+	return int64(r.Sym2(li).Siz())
+}
+
 // AttrReachable returns true for symbols that are transitively
 // referenced from the entry points. Unreachable symbols are not
 // written to the output.
@@ -983,6 +995,7 @@ func (l *Loader) growValues(reqLen int) {
 	curLen := len(l.values)
 	if reqLen > curLen {
 		l.values = append(l.values, make([]int64, reqLen+1-curLen)...)
+		l.sects = append(l.sects, make([]*sym.Section, reqLen+1-curLen)...)
 	}
 }
 
@@ -1041,6 +1054,16 @@ func (l *Loader) SetSymAlign(i Sym, align int32) {
 		}
 		l.align[i] = align
 	}
+}
+
+// SymValue returns the section of the i-th symbol. i is global index.
+func (l *Loader) SymSect(i Sym) *sym.Section {
+	return l.sects[i]
+}
+
+// SetSymValue sets the section of the i-th symbol. i is global index.
+func (l *Loader) SetSymSect(i Sym, sect *sym.Section) {
+	l.sects[i] = sect
 }
 
 // SymDynImplib returns the "dynimplib" attribute for the specified
@@ -1518,11 +1541,20 @@ func (fi *FuncInfo) Pcsp() []byte {
 // TODO: more accessors.
 
 func (l *Loader) FuncInfo(i Sym) FuncInfo {
+	var r *oReader
+	var auxs []goobj2.Aux2
 	if l.IsExternal(i) {
-		return FuncInfo{}
+		pp := l.getPayload(i)
+		if pp.objidx == 0 {
+			return FuncInfo{}
+		}
+		r = l.objs[pp.objidx].r
+		auxs = pp.auxs
+	} else {
+		var li int
+		r, li = l.toLocal(i)
+		auxs = r.Auxs2(li)
 	}
-	r, li := l.toLocal(i)
-	auxs := r.Auxs2(li)
 	for j := range auxs {
 		a := &auxs[j]
 		if a.Type() == goobj2.AuxFuncInfo {
@@ -2160,13 +2192,16 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 	// If we're overriding a data symbol, collect the associated
 	// Gotype, so as to propagate it to the new symbol.
 	auxs := r.Auxs2(li)
+	pp.auxs = auxs
+loop:
 	for j := range auxs {
 		a := &auxs[j]
 		switch a.Type() {
 		case goobj2.AuxGotype:
 			pp.gotype = l.resolve(r, a.Sym())
+			break loop
 		default:
-			log.Fatalf("internal error: cloneToExternal applied to %s symbol %s with non-gotype aux data %d", skind.String(), sname, a.Type())
+			// nothing to do
 		}
 	}
 
@@ -2226,6 +2261,7 @@ func (l *Loader) CopyAttributes(src Sym, dst Sym) {
 func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {
 	dst.Value = l.SymValue(src)
 	dst.Align = l.SymAlign(src)
+	dst.Sect = l.SymSect(src)
 
 	dst.Attr.Set(sym.AttrReachable, l.AttrReachable(src))
 	dst.Attr.Set(sym.AttrOnList, l.AttrOnList(src))
@@ -2680,6 +2716,7 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 			}
 			if dupok {
 				lib.DupTextSyms2 = append(lib.DupTextSyms2, sym.LoaderSym(gi))
+				continue
 			}
 
 			lib.Textp2 = append(lib.Textp2, sym.LoaderSym(gi))
