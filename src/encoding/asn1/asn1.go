@@ -283,7 +283,6 @@ func parseObjectIdentifier(bytes []byte) (s ObjectIdentifier, err error) {
 		if err != nil {
 			return
 		}
-		fmt.Println(v, offset)
 		s[i] = v
 	}
 	s = s[0:i]
