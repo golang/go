@@ -62,33 +62,28 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			ktyp = reflect.ValueOf(keyType)
 		}
 		typ := reflect.ValueOf(eltType)
-		for i, x := range outer.Elts {
-			px := &outer.Elts[i]
+		for _, x := range outer.Elts {
 			// look at value of indexed/named elements
 			if t, ok := x.(*ast.KeyValueExpr); ok {
 				if keyType != nil {
-					simplifyLiteral(pass, ktyp, keyType, t.Key, &t.Key)
+					simplifyLiteral(pass, ktyp, keyType, t.Key)
 				}
 				x = t.Value
-				px = &t.Value
 			}
-			simplifyLiteral(pass, typ, eltType, x, px)
+			simplifyLiteral(pass, typ, eltType, x)
 		}
 	})
 	return nil, nil
 }
 
-func simplifyLiteral(pass *analysis.Pass, typ reflect.Value, astType, x ast.Expr, px *ast.Expr) {
+func simplifyLiteral(pass *analysis.Pass, typ reflect.Value, astType, x ast.Expr) {
 	// if the element is a composite literal and its literal type
 	// matches the outer literal's element type exactly, the inner
 	// literal type may be omitted
 	if inner, ok := x.(*ast.CompositeLit); ok && match(typ, reflect.ValueOf(inner.Type)) {
-		old := inner.Type
-		inner.Type = nil
 		var b bytes.Buffer
-		printer.Fprint(&b, pass.Fset, old)
-		createDiagnostic(pass, old.Pos(), old.End(), b.String())
-		inner.Type = old
+		printer.Fprint(&b, pass.Fset, inner.Type)
+		createDiagnostic(pass, inner.Type.Pos(), inner.Type.End(), b.String())
 	}
 	// if the outer literal's element type is a pointer type *T
 	// and the element is & of a composite literal of type T,
@@ -97,15 +92,10 @@ func simplifyLiteral(pass *analysis.Pass, typ reflect.Value, astType, x ast.Expr
 		if addr, ok := x.(*ast.UnaryExpr); ok && addr.Op == token.AND {
 			if inner, ok := addr.X.(*ast.CompositeLit); ok {
 				if match(reflect.ValueOf(ptr.X), reflect.ValueOf(inner.Type)) {
-					old := inner.Type
-					inner.Type = nil // drop T
-					*px = inner      // drop &
 					var b bytes.Buffer
-					printer.Fprint(&b, pass.Fset, old)
-					// Do old.Pos()-1 to account for the &.
-					createDiagnostic(pass, old.Pos()-1, old.End(), "&"+b.String())
-					inner.Type = old
-					*px = inner // add &
+					printer.Fprint(&b, pass.Fset, inner.Type)
+					// Account for the & by subtracting 1 from typ.Pos().
+					createDiagnostic(pass, inner.Type.Pos()-1, inner.Type.End(), "&"+b.String())
 				}
 			}
 		}

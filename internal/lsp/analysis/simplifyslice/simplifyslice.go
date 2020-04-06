@@ -74,23 +74,21 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		if !ok || arg.Obj != s.Obj {
 			return
 		}
-		old := expr.High
 		var b bytes.Buffer
-		printer.Fprint(&b, pass.Fset, old)
+		printer.Fprint(&b, pass.Fset, expr.High)
 		pass.Report(analysis.Diagnostic{
-			Pos:     old.Pos(),
-			End:     old.End(),
+			Pos:     expr.High.Pos(),
+			End:     expr.High.End(),
 			Message: fmt.Sprintf("unneeded: %s", b.String()),
 			SuggestedFixes: []analysis.SuggestedFix{{
 				Message: fmt.Sprintf("Remove '%s'", b.String()),
 				TextEdits: []analysis.TextEdit{{
-					Pos:     old.Pos(),
-					End:     old.End(),
+					Pos:     expr.High.Pos(),
+					End:     expr.High.End(),
 					NewText: []byte{},
 				}},
 			}},
 		})
-		expr.High = old
 	})
 	return nil, nil
 }

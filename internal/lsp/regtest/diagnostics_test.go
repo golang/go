@@ -194,3 +194,50 @@ func TestNoMod(t *testing.T) {
 		})
 	})
 }
+
+const testPackage = `
+-- go.mod --
+module mod.com
+
+go 1.12
+-- lib.go --
+package lib
+
+func Hello(x string) {
+	_ = x
+}
+-- lib_test.go --
+package lib
+
+import "testing"
+
+type testStruct struct{
+	name string
+}
+
+func TestHello(t *testing.T) {
+	testStructs := []*testStruct{
+		&testStruct{"hello"},
+		&testStruct{"goodbye"},
+	}
+	for y := range testStructs {
+		_ = y
+	}
+}
+`
+
+func Test_Issue38267(t *testing.T) {
+	runner.Run(t, testPackage, func(env *Env) {
+		env.OpenFile("lib_test.go")
+		env.Await(
+			DiagnosticAt("lib_test.go", 10, 2),
+			DiagnosticAt("lib_test.go", 11, 2),
+		)
+		env.OpenFile("lib.go")
+		env.RegexpReplace("lib.go", "_ = x", "var y int")
+		env.Await(
+			env.DiagnosticAtRegexp("lib.go", "y int"),
+			EmptyDiagnostics("lib_test.go"),
+		)
+	})
+}
