@@ -445,14 +445,49 @@ func init() {
 			aux:       "Int64",
 			argLength: 2,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R3")},
-				clobbers: buildReg("R3"),
+				inputs:   []regMask{buildReg("R20")},
+				clobbers: buildReg("R20"),
 			},
 			clobberFlags:   true,
 			typ:            "Mem",
 			faultOnNilArg0: true,
 			unsafePoint:    true,
 		},
+		{
+			name:      "LoweredZeroShort",
+			aux:       "Int64",
+			argLength: 2,
+			reg: regInfo{
+				inputs: []regMask{gp}},
+			typ:            "Mem",
+			faultOnNilArg0: true,
+			unsafePoint:    true,
+		},
+		{
+			name:      "LoweredQuadZeroShort",
+			aux:       "Int64",
+			argLength: 2,
+			reg: regInfo{
+				inputs: []regMask{gp},
+			},
+			typ:            "Mem",
+			faultOnNilArg0: true,
+			unsafePoint:    true,
+		},
+		{
+			name:      "LoweredQuadZero",
+			aux:       "Int64",
+			argLength: 2,
+			reg: regInfo{
+				inputs:   []regMask{buildReg("R20")},
+				clobbers: buildReg("R20"),
+			},
+			clobberFlags:   true,
+			typ:            "Mem",
+			faultOnNilArg0: true,
+			unsafePoint:    true,
+		},
+
 		// R31 is temp register
 		// Loop code:
 		//	MOVD len/32,R31		set up loop ctr
@@ -491,10 +526,53 @@ func init() {
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R3"), buildReg("R4")},
-				clobbers: buildReg("R3 R4 R14"),
+				inputs:   []regMask{buildReg("R20"), buildReg("R21")},
+				clobbers: buildReg("R20 R21"),
 			},
 			clobberFlags:   true,
+			typ:            "Mem",
+			faultOnNilArg0: true,
+			faultOnNilArg1: true,
+			unsafePoint:    true,
+		},
+		{
+			name:      "LoweredMoveShort",
+			aux:       "Int64",
+			argLength: 3,
+			reg: regInfo{
+				inputs: []regMask{gp, gp},
+			},
+			typ:            "Mem",
+			faultOnNilArg0: true,
+			faultOnNilArg1: true,
+			unsafePoint:    true,
+		},
+
+		// The following is similar to the LoweredMove, but uses
+		// LXV instead of LXVD2X, which does not require an index
+		// register and will do 4 in a loop instead of only.
+		{
+			name:      "LoweredQuadMove",
+			aux:       "Int64",
+			argLength: 3,
+			reg: regInfo{
+				inputs:   []regMask{buildReg("R20"), buildReg("R21")},
+				clobbers: buildReg("R20 R21"),
+			},
+			clobberFlags:   true,
+			typ:            "Mem",
+			faultOnNilArg0: true,
+			faultOnNilArg1: true,
+			unsafePoint:    true,
+		},
+
+		{
+			name:      "LoweredQuadMoveShort",
+			aux:       "Int64",
+			argLength: 3,
+			reg: regInfo{
+				inputs: []regMask{gp, gp},
+			},
 			typ:            "Mem",
 			faultOnNilArg0: true,
 			faultOnNilArg1: true,

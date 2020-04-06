@@ -470,12 +470,12 @@
 // medium move uses a duff device
 (Move [s] dst src mem)
 	&& s > 32 && s <= 16*64 && s%16 == 8
-	&& !config.noDuffDevice ->
+	&& !config.noDuffDevice && logLargeCopy(v, s) ->
 	(MOVDstore [s-8] dst (MOVDload [s-8] src mem)
 		(DUFFCOPY <types.TypeMem> [8*(64-(s-8)/16)] dst src mem))
 (Move [s] dst src mem)
 	&& s > 32 && s <= 16*64 && s%16 == 0
-	&& !config.noDuffDevice ->
+	&& !config.noDuffDevice && logLargeCopy(v, s) ->
 	(DUFFCOPY [8 * (64 - s/16)] dst src mem)
 // 8 is the number of bytes to encode:
 //
@@ -486,7 +486,7 @@
 
 // large move uses a loop
 (Move [s] dst src mem)
-	&& s > 24 && s%8 == 0 ->
+	&& s > 24 && s%8 == 0 && logLargeCopy(v, s) ->
 	(LoweredMove
 		dst
 		src

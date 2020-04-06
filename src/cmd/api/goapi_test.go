@@ -140,7 +140,6 @@ func TestCompareAPI(t *testing.T) {
 			name: "contexts reconverging",
 			required: []string{
 				"A",
-				"pkg syscall (darwin-386), type RawSockaddrInet6 struct",
 				"pkg syscall (darwin-amd64), type RawSockaddrInet6 struct",
 			},
 			features: []string{
