@@ -902,7 +902,7 @@ func (t *tester) extLink() bool {
 	switch pair {
 	case "aix-ppc64",
 		"android-arm", "android-arm64",
-		"darwin-386", "darwin-amd64", "darwin-arm64",
+		"darwin-amd64", "darwin-arm64",
 		"dragonfly-amd64",
 		"freebsd-386", "freebsd-amd64", "freebsd-arm",
 		"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-mips64", "linux-mips64le", "linux-mips", "linux-mipsle", "linux-s390x",
@@ -963,7 +963,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 		}
 		switch pair {
 		case "aix-ppc64",
-			"darwin-386", "darwin-amd64", "darwin-arm64",
+			"darwin-amd64", "darwin-arm64",
 			"linux-amd64", "linux-386", "linux-ppc64le", "linux-s390x",
 			"freebsd-amd64",
 			"windows-amd64", "windows-386":
@@ -973,7 +973,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
 	case "c-shared":
 		switch pair {
 		case "linux-386", "linux-amd64", "linux-arm", "linux-arm64", "linux-ppc64le", "linux-s390x",
-			"darwin-amd64", "darwin-386",
+			"darwin-amd64",
 			"freebsd-amd64",
 			"android-arm", "android-arm64", "android-386",
 			"windows-amd64", "windows-386":
@@ -1069,7 +1069,7 @@ func (t *tester) cgoTest(dt *distTest) error {
 
 	pair := gohostos + "-" + goarch
 	switch pair {
-	case "darwin-386", "darwin-amd64",
+	case "darwin-amd64",
 		"openbsd-386", "openbsd-amd64",
 		"windows-386", "windows-amd64":
 		// test linkmode=external, but __thread not supported, so skip testtls.
