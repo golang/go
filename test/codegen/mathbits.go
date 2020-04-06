@@ -110,8 +110,9 @@ func Len8(n uint8) int {
 //    bits.OnesCount    //
 // -------------------- //
 
+// amd64:".*x86HasPOPCNT"
 func OnesCount(n uint) int {
-	// amd64:"POPCNTQ",".*x86HasPOPCNT"
+	// amd64:"POPCNTQ"
 	// arm64:"VCNT","VUADDLV"
 	// s390x:"POPCNT"
 	// ppc64:"POPCNTD"
@@ -120,8 +121,9 @@ func OnesCount(n uint) int {
 	return bits.OnesCount(n)
 }
 
+// amd64:".*x86HasPOPCNT"
 func OnesCount64(n uint64) int {
-	// amd64:"POPCNTQ",".*x86HasPOPCNT"
+	// amd64:"POPCNTQ"
 	// arm64:"VCNT","VUADDLV"
 	// s390x:"POPCNT"
 	// ppc64:"POPCNTD"
@@ -130,8 +132,9 @@ func OnesCount64(n uint64) int {
 	return bits.OnesCount64(n)
 }
 
+// amd64:".*x86HasPOPCNT"
 func OnesCount32(n uint32) int {
-	// amd64:"POPCNTL",".*x86HasPOPCNT"
+	// amd64:"POPCNTL"
 	// arm64:"VCNT","VUADDLV"
 	// s390x:"POPCNT"
 	// ppc64:"POPCNTW"
@@ -140,8 +143,9 @@ func OnesCount32(n uint32) int {
 	return bits.OnesCount32(n)
 }
 
+// amd64:".*x86HasPOPCNT"
 func OnesCount16(n uint16) int {
-	// amd64:"POPCNTL",".*x86HasPOPCNT"
+	// amd64:"POPCNTL"
 	// arm64:"VCNT","VUADDLV"
 	// s390x:"POPCNT"
 	// ppc64:"POPCNTW"

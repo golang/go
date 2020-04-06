@@ -1946,9 +1946,9 @@ func TestGenerateUsesBuildContext(t *testing.T) {
 	tg.grepStdout("linux amd64", "unexpected GOOS/GOARCH combination")
 
 	tg.setenv("GOOS", "darwin")
-	tg.setenv("GOARCH", "386")
+	tg.setenv("GOARCH", "arm64")
 	tg.run("generate", "gen")
-	tg.grepStdout("darwin 386", "unexpected GOOS/GOARCH combination")
+	tg.grepStdout("darwin arm64", "unexpected GOOS/GOARCH combination")
 }
 
 func TestGoEnv(t *testing.T) {

@@ -10046,14 +10046,14 @@ func rewriteValue386_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: s > 8 && s <= 4*128 && s%4 == 0 && !config.noDuffDevice
+	// cond: s > 8 && s <= 4*128 && s%4 == 0 && !config.noDuffDevice && logLargeCopy(v, s)
 	// result: (DUFFCOPY [10*(128-s/4)] dst src mem)
 	for {
 		s := v.AuxInt
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s > 8 && s <= 4*128 && s%4 == 0 && !config.noDuffDevice) {
+		if !(s > 8 && s <= 4*128 && s%4 == 0 && !config.noDuffDevice && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(Op386DUFFCOPY)
@@ -10062,14 +10062,14 @@ func rewriteValue386_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] dst src mem)
-	// cond: (s > 4*128 || config.noDuffDevice) && s%4 == 0
+	// cond: (s > 4*128 || config.noDuffDevice) && s%4 == 0 && logLargeCopy(v, s)
 	// result: (REPMOVSL dst src (MOVLconst [s/4]) mem)
 	for {
 		s := v.AuxInt
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !((s > 4*128 || config.noDuffDevice) && s%4 == 0) {
+		if !((s > 4*128 || config.noDuffDevice) && s%4 == 0 && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(Op386REPMOVSL)

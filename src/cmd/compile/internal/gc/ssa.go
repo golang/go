@@ -339,7 +339,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 	s.softFloat = s.config.SoftFloat
 
 	if printssa {
-		s.f.HTMLWriter = ssa.NewHTMLWriter(ssaDumpFile, s.f.Frontend(), name, ssaDumpCFG)
+		s.f.HTMLWriter = ssa.NewHTMLWriter(ssaDumpFile, s.f, ssaDumpCFG)
 		// TODO: generate and print a mapping from nodes to values and blocks
 		dumpSourcesColumn(s.f.HTMLWriter, fn)
 		s.f.HTMLWriter.WriteAST("AST", astBuf)
@@ -471,7 +471,7 @@ func dumpSourcesColumn(writer *ssa.HTMLWriter, fn *Node) {
 	fname := Ctxt.PosTable.Pos(fn.Pos).Filename()
 	targetFn, err := readFuncLines(fname, fn.Pos.Line(), fn.Func.Endlineno.Line())
 	if err != nil {
-		writer.Logger.Logf("cannot read sources for function %v: %v", fn, err)
+		writer.Logf("cannot read sources for function %v: %v", fn, err)
 	}
 
 	// Read sources of inlined functions.
@@ -487,7 +487,7 @@ func dumpSourcesColumn(writer *ssa.HTMLWriter, fn *Node) {
 		fname := Ctxt.PosTable.Pos(fi.Pos).Filename()
 		fnLines, err := readFuncLines(fname, fi.Pos.Line(), elno.Line())
 		if err != nil {
-			writer.Logger.Logf("cannot read sources for function %v: %v", fi, err)
+			writer.Logf("cannot read sources for inlined function %v: %v", fi, err)
 			continue
 		}
 		inlFns = append(inlFns, fnLines)
@@ -3595,8 +3595,7 @@ func init() {
 				s.vars[n] = s.load(types.Types[TFLOAT64], a)
 				return s.variable(n, types.Types[TFLOAT64])
 			}
-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), x86HasFMA, s.sb)
-			v := s.load(types.Types[TBOOL], addr)
+			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[TBOOL], x86HasFMA)
 			b := s.endBlock()
 			b.Kind = ssa.BlockIf
 			b.SetControl(v)
@@ -3661,8 +3660,7 @@ func init() {
 
 	makeRoundAMD64 := func(op ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), x86HasSSE41, s.sb)
-			v := s.load(types.Types[TBOOL], addr)
+			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[TBOOL], x86HasSSE41)
 			b := s.endBlock()
 			b.Kind = ssa.BlockIf
 			b.SetControl(v)
@@ -3869,8 +3867,7 @@ func init() {
 
 	makeOnesCountAMD64 := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), x86HasPOPCNT, s.sb)
-			v := s.load(types.Types[TBOOL], addr)
+			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[TBOOL], x86HasPOPCNT)
 			b := s.endBlock()
 			b.Kind = ssa.BlockIf
 			b.SetControl(v)
