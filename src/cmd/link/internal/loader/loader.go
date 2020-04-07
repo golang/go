@@ -1861,7 +1861,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 	toConvert := make([]Sym, 0, len(l.payloads))
 	for _, i := range l.extReader.syms {
 		sname := l.RawSymName(i)
-		if !l.attrReachable.Has(i) && !strings.HasPrefix(sname, "gofile..") { // XXX file symbols are used but not marked
+		if !l.attrReachable.Has(i) {
 			continue
 		}
 		pp := l.getPayload(i)

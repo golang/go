@@ -554,8 +554,8 @@ func (ctxt *Link) symtab() {
 	moduledata.AddUint(ctxt.Arch, uint64(pclntabNfunc+1))
 	// The filetab slice
 	moduledata.AddAddrPlus(ctxt.Arch, ctxt.Syms.Lookup("runtime.pclntab", 0), int64(pclntabFiletabOffset))
-	moduledata.AddUint(ctxt.Arch, uint64(len(ctxt.Filesyms))+1)
-	moduledata.AddUint(ctxt.Arch, uint64(len(ctxt.Filesyms))+1)
+	moduledata.AddUint(ctxt.Arch, uint64(ctxt.NumFilesyms)+1)
+	moduledata.AddUint(ctxt.Arch, uint64(ctxt.NumFilesyms)+1)
 	// findfunctab
 	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.findfunctab", 0))
 	// minpc, maxpc

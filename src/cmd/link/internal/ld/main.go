@@ -294,10 +294,10 @@ func Main(arch *sys.Arch, theArch Arch) {
 	ctxt.typelink()
 	bench.Start("buildinfo")
 	ctxt.buildinfo()
-	bench.Start("loadlibfull")
-	ctxt.loadlibfull() // XXX do it here for now
 	bench.Start("pclntab")
 	ctxt.pclntab()
+	bench.Start("loadlibfull")
+	ctxt.loadlibfull() // XXX do it here for now
 	bench.Start("findfunctab")
 	ctxt.findfunctab()
 	bench.Start("symtab")
