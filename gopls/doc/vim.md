@@ -100,6 +100,10 @@ autocmd BufWritePre *.go :call CocAction('runCommand', 'editor.action.organizeIm
 
 In vim classic only, use the experimental [`govim`], simply follow the [install steps][govim-install].
 
+## nvim-lsp
+
+To use the new builtin lsp client from neovim, using `nvim-lsp`, follow the install steps [neovim/nvim-lsp] and check the gopls [configuration][nvim-lsp-config].
+
 [vim-go]: https://github.com/fatih/vim-go
 [LanguageClient-neovim]: https://github.com/autozimu/LanguageClient-neovim
 [ale]: https://github.com/w0rp/ale
@@ -110,3 +114,5 @@ In vim classic only, use the experimental [`govim`], simply follow the [install 
 [coc.nvim]: https://github.com/neoclide/coc.nvim/
 [`govim`]: https://github.com/myitcv/govim
 [govim-install]: https://github.com/myitcv/govim/blob/master/README.md#govim---go-development-plugin-for-vim8
+[neovim/nvim-lsp]: https://github.com/neovim/nvim-lsp#install
+[nvim-lsp-config]: https://github.com/neovim/nvim-lsp#gopls
