@@ -103,7 +103,7 @@ func (c *Conn) Notify(ctx context.Context, method string, params interface{}) (e
 	ctx, done := event.StartSpan(ctx, request.Method,
 		tag.Method.Of(request.Method),
 		tag.RPCDirection.Of(tag.Outbound),
-		tag.RPCID.Of(request.ID.String()),
+		tag.RPCID.Of(fmt.Sprintf("%q", request.ID)),
 	)
 	defer func() {
 		recordStatus(ctx, err)
@@ -139,7 +139,7 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	ctx, done := event.StartSpan(ctx, request.Method,
 		tag.Method.Of(request.Method),
 		tag.RPCDirection.Of(tag.Outbound),
-		tag.RPCID.Of(request.ID.String()),
+		tag.RPCID.Of(fmt.Sprintf("%q", request.ID)),
 	)
 	defer func() {
 		recordStatus(ctx, err)
@@ -298,7 +298,7 @@ func (c *Conn) Run(runCtx context.Context, handler Handler) error {
 			reqCtx, spanDone := event.StartSpan(runCtx, msg.Method,
 				tag.Method.Of(msg.Method),
 				tag.RPCDirection.Of(tag.Inbound),
-				tag.RPCID.Of(msg.ID.String()),
+				tag.RPCID.Of(fmt.Sprintf("%q", msg.ID)),
 			)
 			event.Record(reqCtx,
 				tag.Started.Of(1),

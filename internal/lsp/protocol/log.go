@@ -106,17 +106,6 @@ func (m *mapped) setServer(id string, r req) {
 
 const eor = "\r\n\r\n\r\n"
 
-func strID(x *jsonrpc2.ID) string {
-	if x == nil {
-		// should never happen, but we need a number
-		return "999999999"
-	}
-	if x.Name != "" {
-		return x.Name
-	}
-	return fmt.Sprintf("%d", x.Number)
-}
-
 func logCommon(outfd io.Writer, data []byte) (*Combined, time.Time, string) {
 	if outfd == nil {
 		return nil, time.Time{}, ""
@@ -141,13 +130,12 @@ func logOut(outfd io.Writer, data []byte) {
 	if v == nil {
 		return
 	}
+	id := fmt.Sprint(v.ID)
 	if v.Error != nil {
-		id := strID(v.ID)
 		fmt.Fprintf(outfd, "[Error - %s] Received #%s %s%s", tmfmt, id, v.Error, eor)
 		return
 	}
 	buf := strings.Builder{}
-	id := strID(v.ID)
 	fmt.Fprintf(&buf, "[Trace - %s] ", tmfmt) // common beginning
 	if v.ID != nil && v.Method != "" && v.Params != nil {
 		fmt.Fprintf(&buf, "Received request '%s - (%s)'.\n", v.Method, id)
@@ -194,16 +182,15 @@ func logIn(outfd io.Writer, data []byte) {
 	if v == nil {
 		return
 	}
+	id := fmt.Sprint(v.ID)
 	// ID Method Params => Sending request
 	// ID !Method Result(might be null, but !Params) => Sending response (could we get an Error?)
 	// !ID Method Params => Sending notification
 	if v.Error != nil { // does this ever happen?
-		id := strID(v.ID)
 		fmt.Fprintf(outfd, "[Error - %s] Sent #%s %s%s", tmfmt, id, v.Error, eor)
 		return
 	}
 	buf := strings.Builder{}
-	id := strID(v.ID)
 	fmt.Fprintf(&buf, "[Trace - %s] ", tmfmt) // common beginning
 	if v.ID != nil && v.Method != "" && (v.Params != nil || v.Method == "shutdown") {
 		fmt.Fprintf(&buf, "Sending request '%s - (%s)'.\n", v.Method, id)

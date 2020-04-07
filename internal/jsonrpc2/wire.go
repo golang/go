@@ -7,7 +7,7 @@ package jsonrpc2
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
+	"math"
 )
 
 // this file contains the go forms of the wire specification
@@ -109,17 +109,24 @@ func (VersionTag) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// String returns a string representation of the ID.
-// The representation is non ambiguous, string forms are quoted, number forms
-// are preceded by a #
-func (id *ID) String() string {
-	if id == nil {
-		return ""
+const invalidID int64 = math.MaxInt64
+
+// Format writes the ID to the formatter.
+// If the rune is q the representation is non ambiguous,
+// string forms are quoted, number forms are preceded by a #
+func (id *ID) Format(f fmt.State, r rune) {
+	numF, strF := `%d`, `%s`
+	if r == 'q' {
+		numF, strF = `#%d`, `%q`
 	}
-	if id.Name != "" {
-		return strconv.Quote(id.Name)
+	switch {
+	case id == nil:
+		fmt.Fprintf(f, numF, invalidID)
+	case id.Name != "":
+		fmt.Fprintf(f, strF, id.Name)
+	default:
+		fmt.Fprintf(f, numF, id.Number)
 	}
-	return "#" + strconv.FormatInt(id.Number, 10)
 }
 
 func (id *ID) MarshalJSON() ([]byte, error) {
