@@ -2593,9 +2593,6 @@ func (l *Loader) SetRelocVariant(s Sym, ri int, v sym.RelocVariant) {
 // RelocVariant returns the 'variant' property of a relocation on
 // some specific symbol.
 func (l *Loader) RelocVariant(s Sym, ri int) sym.RelocVariant {
-	if relocs := l.Relocs(s); ri >= relocs.Count() {
-		panic("invalid relocation ID")
-	}
 	return l.relocVariant[relocId{s, ri}]
 }
 
