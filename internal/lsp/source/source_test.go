@@ -133,6 +133,7 @@ func (r *runner) CompletionSnippet(t *testing.T, src span.Span, expected tests.C
 	_, list := r.callCompletion(t, src, func(opts *source.Options) {
 		opts.Placeholders = placeholders
 		opts.DeepCompletion = true
+		opts.UnimportedCompletion = false
 	})
 	got := tests.FindItem(list, *items[expected.CompletionItem])
 	want := expected.PlainSnippet
