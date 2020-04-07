@@ -227,6 +227,25 @@ func recursionCallee(n, x int) int {
 	return y * recursionCallee(n-1, x)
 }
 
+func recursionChainTop(x int, pcs []uintptr) {
+	if x < 0 {
+		return
+	}
+	recursionChainMiddle(x, pcs)
+}
+
+func recursionChainMiddle(x int, pcs []uintptr) {
+	recursionChainBottom(x, pcs)
+}
+
+func recursionChainBottom(x int, pcs []uintptr) {
+	// This will be called each time, we only care about the last. We
+	// can't make this conditional or this function won't be inlined.
+	dumpCallers(pcs)
+
+	recursionChainTop(x - 1, pcs)
+}
+
 func parseProfile(t *testing.T, valBytes []byte, f func(uintptr, []*profile.Location, map[string][]string)) *profile.Profile {
 	p, err := profile.Parse(bytes.NewReader(valBytes))
 	if err != nil {
@@ -1158,11 +1177,12 @@ func TestTracebackAll(t *testing.T) {
 	}
 }
 
-// TestTryAdd tests the cases that's hard to test with real program execution.
-// For example, the current go compilers may not inline functions involved in recursion
-// but that may not be true in the future compilers. This tests such cases by
-// using fake call sequences and forcing the profile build utilizing
-// translateCPUProfile defined in proto_test.go
+// TestTryAdd tests the cases that are hard to test with real program execution.
+//
+// For example, the current go compilers may not always inline functions
+// involved in recursion but that may not be true in the future compilers. This
+// tests such cases by using fake call sequences and forcing the profile build
+// utilizing translateCPUProfile defined in proto_test.go
 func TestTryAdd(t *testing.T) {
 	if _, found := findInlinedCall(inlinedCallerDump, 4<<10); !found {
 		t.Skip("Can't determine whether anything was inlined into inlinedCallerDump.")
@@ -1175,6 +1195,23 @@ func TestTryAdd(t *testing.T) {
 	inlinedCallerStack := make([]uint64, 2)
 	for i := range pcs {
 		inlinedCallerStack[i] = uint64(pcs[i])
+	}
+
+	if _, found := findInlinedCall(recursionChainBottom, 4<<10); !found {
+		t.Skip("Can't determine whether anything was inlined into recursionChainBottom.")
+	}
+
+	// recursionChainTop
+	//   recursionChainMiddle
+	//     recursionChainBottom
+	//       recursionChainTop
+	//         recursionChainMiddle
+	//           recursionChainBottom
+	pcs = make([]uintptr, 6)
+	recursionChainTop(1, pcs)
+	recursionStack := make([]uint64, len(pcs))
+	for i := range pcs {
+		recursionStack[i] = uint64(pcs[i])
 	}
 
 	period := int64(2000 * 1000) // 1/500*1e9 nanosec.
@@ -1225,14 +1262,14 @@ func TestTryAdd(t *testing.T) {
 			{Value: []int64{4242, 4242 * period}, Location: []*profile.Location{{ID: 1}}},
 		},
 	}, {
-		// If a function is called recursively then it must not be
-		// inlined in the caller.
+		// If a function is directly called recursively then it must
+		// not be inlined in the caller.
 		//
 		// N.B. We're generating an impossible profile here, with a
 		// recursive inlineCalleeDump call. This is simulating a non-Go
 		// function that looks like an inlined Go function other than
 		// its recursive property. See pcDeck.tryAdd.
-		name: "recursive_func_is_not_inlined",
+		name: "directly_recursive_func_is_not_inlined",
 		input: []uint64{
 			3, 0, 500, // hz = 500. Must match the period.
 			5, 0, 30, inlinedCallerStack[0], inlinedCallerStack[0],
@@ -1244,6 +1281,28 @@ func TestTryAdd(t *testing.T) {
 		wantSamples: []*profile.Sample{
 			{Value: []int64{30, 30 * period}, Location: []*profile.Location{{ID: 1}, {ID: 1}, {ID: 2}}},
 			{Value: []int64{40, 40 * period}, Location: []*profile.Location{{ID: 1}, {ID: 2}}},
+		},
+	}, {
+		name: "recursion_chain_inline",
+		input: []uint64{
+			3, 0, 500, // hz = 500. Must match the period.
+			9, 0, 10, recursionStack[0], recursionStack[1], recursionStack[2], recursionStack[3], recursionStack[4], recursionStack[5],
+		},
+		wantLocs: [][]string{
+			{"runtime/pprof.recursionChainBottom"},
+			{
+				"runtime/pprof.recursionChainMiddle",
+				"runtime/pprof.recursionChainTop",
+				"runtime/pprof.recursionChainBottom",
+			},
+			{
+				"runtime/pprof.recursionChainMiddle",
+				"runtime/pprof.recursionChainTop",
+				"runtime/pprof.TestTryAdd", // inlined into the test.
+			},
+		},
+		wantSamples: []*profile.Sample{
+			{Value: []int64{10, 10 * period}, Location: []*profile.Location{{ID: 1}, {ID: 2}, {ID: 3}}},
 		},
 	}, {
 		name: "truncated_stack_trace_later",
