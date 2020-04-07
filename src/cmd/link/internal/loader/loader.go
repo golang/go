@@ -243,7 +243,7 @@ type Loader struct {
 	localentry map[Sym]uint8       // stores Localentry symbol attribute
 	extname    map[Sym]string      // stores Extname symbol attribute
 	elfType    map[Sym]elf.SymType // stores elf type symbol property
-	symFile    map[Sym]string      // stores file for shlib-derived syms
+	symPkg     map[Sym]string      // stores package for symbol, or library for shlib-derived syms
 	plt        map[Sym]int32       // stores dynimport for pe objects
 	got        map[Sym]int32       // stores got for pe objects
 	dynid      map[Sym]int32       // stores Dynid for symbol
@@ -311,7 +311,7 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc) *Loader {
 		extname:              make(map[Sym]string),
 		attrReadOnly:         make(map[Sym]bool),
 		elfType:              make(map[Sym]elf.SymType),
-		symFile:              make(map[Sym]string),
+		symPkg:               make(map[Sym]string),
 		plt:                  make(map[Sym]int32),
 		got:                  make(map[Sym]int32),
 		dynid:                make(map[Sym]int32),
@@ -1228,39 +1228,39 @@ func (l *Loader) SymUnit(i Sym) *sym.CompilationUnit {
 	return r.unit
 }
 
-// SymFile returns the file for a symbol, which is normally the
-// package the symbol came from (for regular compiler-generated Go
-// symbols), but in the case of building with "-linkshared" (when a
-// symbol is read from a a shared library), will hold the library
-// name.
-func (l *Loader) SymFile(i Sym) string {
+// SymPkg returns the package where the symbol came from (for
+// regular compiler-generated Go symbols), but in the case of
+// building with "-linkshared" (when a symbol is read from a
+// shared library), will hold the library name.
+// NOTE: this correspondes to sym.Symbol.File field.
+func (l *Loader) SymPkg(i Sym) string {
 	if l.IsExternal(i) {
-		if f, ok := l.symFile[i]; ok {
+		if f, ok := l.symPkg[i]; ok {
 			return f
 		}
 		pp := l.getPayload(i)
 		if pp.objidx != 0 {
 			r := l.objs[pp.objidx].r
-			return r.unit.Lib.File
+			return r.unit.Lib.Pkg
 		}
 		return ""
 	}
 	r, _ := l.toLocal(i)
-	return r.unit.Lib.File
+	return r.unit.Lib.Pkg
 }
 
-// SetSymFile sets the file attribute for a symbol. This is
+// SetSymPkg sets the package/library for a symbol. This is
 // needed mainly for external symbols, specifically those imported
 // from shared libraries.
-func (l *Loader) SetSymFile(i Sym, file string) {
+func (l *Loader) SetSymPkg(i Sym, pkg string) {
 	// reject bad symbols
 	if i >= Sym(len(l.objSyms)) || i == 0 {
-		panic("bad symbol index in SetSymFile")
+		panic("bad symbol index in SetSymPkg")
 	}
 	if !l.IsExternal(i) {
 		panic("can't set file for non-external sym")
 	}
-	l.symFile[i] = file
+	l.symPkg[i] = pkg
 }
 
 // SymLocalentry returns the "local entry" value for the specified
@@ -1732,10 +1732,10 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 		if pp.gotype != 0 {
 			s.Gotype = l.Syms[pp.gotype]
 		}
-		if f, ok := l.symFile[i]; ok {
+		if f, ok := l.symPkg[i]; ok {
 			s.File = f
 		} else if pp.objidx != 0 {
-			s.File = l.objs[pp.objidx].r.unit.Lib.File
+			s.File = l.objs[pp.objidx].r.unit.Lib.Pkg
 		}
 
 		// Copy relocations
@@ -1909,12 +1909,12 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, anonVerReplace
 			if gt := l.SymGoType(cand); gt != 0 {
 				s.Gotype = l.Syms[gt]
 			}
-			if f, ok := l.symFile[cand]; ok {
+			if f, ok := l.symPkg[cand]; ok {
 				s.File = f
 			} else {
 				r, _ := l.toLocal(cand)
 				if r != nil && r != l.extReader {
-					s.File = l.SymFile(cand)
+					s.File = l.SymPkg(cand)
 				}
 			}
 		}
@@ -2191,7 +2191,7 @@ func (l *Loader) CopySym(src, dst Sym) {
 		panic("src is not external") //l.cloneToExternal(src)
 	}
 	l.payloads[l.extIndex(dst)] = l.payloads[l.extIndex(src)]
-	l.SetSymFile(dst, l.SymFile(src))
+	l.SetSymPkg(dst, l.SymPkg(src))
 	// TODO: other attributes?
 }
 

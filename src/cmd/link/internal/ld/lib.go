@@ -2162,7 +2162,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			l.SetAttrReachable(s, true)
 
 			// Set .File for the library that actually defines the symbol.
-			l.SetSymFile(s, libpath)
+			l.SetSymPkg(s, libpath)
 
 			// The decodetype_* functions in decodetype.go need access to
 			// the type data.
