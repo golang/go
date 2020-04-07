@@ -2808,6 +2808,10 @@ func (ctxt *Link) loadlibfull() {
 
 	// Set special global symbols.
 	ctxt.setArchSyms(AfterLoadlibFull)
+
+	// Convert special symbols created by pcln.
+	pclntabFirstFunc = ctxt.loader.Syms[pclntabFirstFunc2]
+	pclntabLastFunc = ctxt.loader.Syms[pclntabLastFunc2]
 }
 
 func (ctxt *Link) dumpsyms() {

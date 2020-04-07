@@ -73,7 +73,7 @@ type Link struct {
 	Shlibs       []Shlib
 	Textp        []*sym.Symbol
 	Textp2       []loader.Sym
-	Filesyms     []*sym.Symbol
+	NumFilesyms  int
 	Moduledata   *sym.Symbol
 	Moduledata2  loader.Sym
 
