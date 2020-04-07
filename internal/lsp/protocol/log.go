@@ -14,23 +14,28 @@ import (
 
 type loggingStream struct {
 	stream jsonrpc2.Stream
+	logMu  sync.Mutex
 	log    io.Writer
 }
 
 // LoggingStream returns a stream that does LSP protocol logging too
 func LoggingStream(str jsonrpc2.Stream, w io.Writer) jsonrpc2.Stream {
-	return &loggingStream{str, w}
+	return &loggingStream{stream: str, log: w}
 }
 
 func (s *loggingStream) Read(ctx context.Context) ([]byte, int64, error) {
 	data, count, err := s.stream.Read(ctx)
 	if err == nil {
+		s.logMu.Lock()
+		defer s.logMu.Unlock()
 		logIn(s.log, data)
 	}
 	return data, count, err
 }
 
 func (s *loggingStream) Write(ctx context.Context, data []byte) (int64, error) {
+	s.logMu.Lock()
+	defer s.logMu.Unlock()
 	logOut(s.log, data)
 	count, err := s.stream.Write(ctx, data)
 	return count, err
