@@ -1247,12 +1247,23 @@ opswitch:
 			// are stored with an indirection. So max bucket size is 2048+eps.
 			if !Isconst(hint, CTINT) ||
 				hint.Val().U.(*Mpint).CmpInt64(BUCKETSIZE) <= 0 {
+
+				// In case hint is larger than BUCKETSIZE runtime.makemap
+				// will allocate the buckets on the heap, see #20184
+				//
+				// if hint <= BUCKETSIZE {
+				//     var bv bmap
+				//     b = &bv
+				//     h.buckets = b
+				// }
+
+				nif := nod(OIF, nod(OLE, hint, nodintconst(BUCKETSIZE)), nil)
+				nif.SetLikely(true)
+
 				// var bv bmap
 				bv := temp(bmap(t))
-
 				zero = nod(OAS, bv, nil)
-				zero = typecheck(zero, ctxStmt)
-				init.Append(zero)
+				nif.Nbody.Append(zero)
 
 				// b = &bv
 				b := nod(OADDR, bv, nil)
@@ -1260,8 +1271,11 @@ opswitch:
 				// h.buckets = b
 				bsym := hmapType.Field(5).Sym // hmap.buckets see reflect.go:hmap
 				na := nod(OAS, nodSym(ODOT, h, bsym), b)
-				na = typecheck(na, ctxStmt)
-				init.Append(na)
+				nif.Nbody.Append(na)
+
+				nif = typecheck(nif, ctxStmt)
+				nif = walkstmt(nif)
+				init.Append(nif)
 			}
 		}
 
