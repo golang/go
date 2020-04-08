@@ -193,32 +193,18 @@ func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 
 // typedmemmovepartial is like typedmemmove but assumes that
 // dst and src point off bytes into the value and only copies size bytes.
+// off must be a multiple of sys.PtrSize.
 //go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
 func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
-	if writeBarrier.needed && typ.ptrdata != 0 && size >= sys.PtrSize {
-		// Pointer-align start address for bulk barrier.
-		adst, asrc, asize := dst, src, size
-		ptrdata := typ.ptrdata
-		if ptrdata > off {
-			ptrdata -= off
-		} else {
-			ptrdata = 0
+	if writeBarrier.needed && typ.ptrdata > off && size >= sys.PtrSize {
+		if off&(sys.PtrSize-1) != 0 {
+			panic("reflect: internal error: misaligned offset")
 		}
-		if frag := -off & (sys.PtrSize - 1); frag != 0 {
-			adst = add(dst, frag)
-			asrc = add(src, frag)
-			asize -= frag
-			if ptrdata > frag {
-				ptrdata -= frag
-			} else {
-				ptrdata = 0
-			}
+		pwsize := alignDown(size, sys.PtrSize)
+		if poff := typ.ptrdata - off; pwsize > poff {
+			pwsize = poff
 		}
-		pwsize := asize &^ (sys.PtrSize - 1)
-		if pwsize > ptrdata {
-			pwsize = ptrdata
-		}
-		bulkBarrierPreWrite(uintptr(adst), uintptr(asrc), pwsize)
+		bulkBarrierPreWrite(uintptr(dst), uintptr(src), pwsize)
 	}
 
 	memmove(dst, src, size)
