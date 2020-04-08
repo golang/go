@@ -176,25 +176,6 @@ func inlinedCallee(x, n int) int {
 	return cpuHog0(x, n)
 }
 
-//go:noinline
-func dumpCallers(pcs []uintptr) {
-	if pcs == nil {
-		return
-	}
-
-	skip := 2  // Callers and dumpCallers
-	runtime.Callers(skip, pcs)
-}
-
-//go:noinline
-func inlinedCallerDump(pcs []uintptr) {
-	inlinedCalleeDump(pcs)
-}
-
-func inlinedCalleeDump(pcs []uintptr) {
-	dumpCallers(pcs)
-}
-
 func TestCPUProfileRecursion(t *testing.T) {
 	p := testCPUProfile(t, stackContains, []string{"runtime/pprof.inlinedCallee", "runtime/pprof.recursionCallee", "runtime/pprof.recursionCaller"}, avoidFunctions(), func(dur time.Duration) {
 		cpuHogger(recursionCaller, &salt1, dur)
@@ -1164,14 +1145,12 @@ func TestTracebackAll(t *testing.T) {
 // using fake call sequences and forcing the profile build utilizing
 // translateCPUProfile defined in proto_test.go
 func TestTryAdd(t *testing.T) {
-	// inlinedCallerDump
-	//   inlinedCalleeDump
-	pcs := make([]uintptr, 2)
-	inlinedCallerDump(pcs)
-	inlinedCallerStack := make([]uint64, 2)
-	for i := range pcs {
-		inlinedCallerStack[i] = uint64(pcs[i])
+	inlinedCallerPtr := uint64(funcPC(inlinedCaller)) + 1
+	inlinedCalleePtr, found := findInlinedCall(inlinedCaller, 4<<10)
+	if !found {
+		t.Skip("Can't determine whether inlinedCallee was inlined into inlinedCaller.")
 	}
+	inlinedCalleePtr += 1 // +1 to be safely inside of the function body.
 
 	period := int64(2000 * 1000) // 1/500*1e9 nanosec.
 
@@ -1181,29 +1160,13 @@ func TestTryAdd(t *testing.T) {
 		wantLocs    [][]string        // ordered location entries with function names.
 		wantSamples []*profile.Sample // ordered samples, we care only about Value and the profile location IDs.
 	}{{
-		// Sanity test for a normal, complete stack trace.
-		name: "full_stack_trace",
-		input: []uint64{
-			3, 0, 500, // hz = 500. Must match the period.
-			5, 0, 50, inlinedCallerStack[0], inlinedCallerStack[1],
-		},
-		wantLocs: [][]string{
-			{"runtime/pprof.inlinedCalleeDump", "runtime/pprof.inlinedCallerDump"},
-		},
-		wantSamples: []*profile.Sample{
-			{Value: []int64{50, 50 * period}, Location: []*profile.Location{{ID: 1}}},
-		},
-	}, {
 		name: "bug35538",
 		input: []uint64{
 			3, 0, 500, // hz = 500. Must match the period.
-			// Fake frame: tryAdd will have inlinedCallerDump
-			// (stack[1]) on the deck when it encounters the next
-			// inline function. It should accept this.
-			7, 0, 10, inlinedCallerStack[0], inlinedCallerStack[1], inlinedCallerStack[0], inlinedCallerStack[1],
-			5, 0, 20, inlinedCallerStack[0], inlinedCallerStack[1],
+			7, 0, 10, inlinedCalleePtr, inlinedCallerPtr, inlinedCalleePtr, inlinedCallerPtr,
+			5, 0, 20, inlinedCalleePtr, inlinedCallerPtr,
 		},
-		wantLocs: [][]string{{"runtime/pprof.inlinedCalleeDump", "runtime/pprof.inlinedCallerDump"}},
+		wantLocs: [][]string{{"runtime/pprof.inlinedCallee", "runtime/pprof.inlinedCaller"}},
 		wantSamples: []*profile.Sample{
 			{Value: []int64{10, 10 * period}, Location: []*profile.Location{{ID: 1}, {ID: 1}}},
 			{Value: []int64{20, 20 * period}, Location: []*profile.Location{{ID: 1}}},
@@ -1225,18 +1188,18 @@ func TestTryAdd(t *testing.T) {
 		// inlined in the caller.
 		//
 		// N.B. We're generating an impossible profile here, with a
-		// recursive inlineCalleeDump call. This is simulating a non-Go
+		// recursive inlineCallee call. This is simulating a non-Go
 		// function that looks like an inlined Go function other than
 		// its recursive property. See pcDeck.tryAdd.
 		name: "recursive_func_is_not_inlined",
 		input: []uint64{
 			3, 0, 500, // hz = 500. Must match the period.
-			5, 0, 30, inlinedCallerStack[0], inlinedCallerStack[0],
-			4, 0, 40, inlinedCallerStack[0],
+			5, 0, 30, inlinedCalleePtr, inlinedCalleePtr,
+			4, 0, 40, inlinedCalleePtr,
 		},
-		// inlinedCallerDump shows up here because
+		// inlinedCaller shows up here because
 		// runtime_expandFinalInlineFrame adds it to the stack frame.
-		wantLocs: [][]string{{"runtime/pprof.inlinedCalleeDump"}, {"runtime/pprof.inlinedCallerDump"}},
+		wantLocs: [][]string{{"runtime/pprof.inlinedCallee"}, {"runtime/pprof.inlinedCaller"}},
 		wantSamples: []*profile.Sample{
 			{Value: []int64{30, 30 * period}, Location: []*profile.Location{{ID: 1}, {ID: 1}, {ID: 2}}},
 			{Value: []int64{40, 40 * period}, Location: []*profile.Location{{ID: 1}, {ID: 2}}},
@@ -1245,10 +1208,10 @@ func TestTryAdd(t *testing.T) {
 		name: "truncated_stack_trace_later",
 		input: []uint64{
 			3, 0, 500, // hz = 500. Must match the period.
-			5, 0, 50, inlinedCallerStack[0], inlinedCallerStack[1],
-			4, 0, 60, inlinedCallerStack[0],
+			5, 0, 50, inlinedCalleePtr, inlinedCallerPtr,
+			4, 0, 60, inlinedCalleePtr,
 		},
-		wantLocs: [][]string{{"runtime/pprof.inlinedCalleeDump", "runtime/pprof.inlinedCallerDump"}},
+		wantLocs: [][]string{{"runtime/pprof.inlinedCallee", "runtime/pprof.inlinedCaller"}},
 		wantSamples: []*profile.Sample{
 			{Value: []int64{50, 50 * period}, Location: []*profile.Location{{ID: 1}}},
 			{Value: []int64{60, 60 * period}, Location: []*profile.Location{{ID: 1}}},
@@ -1257,10 +1220,10 @@ func TestTryAdd(t *testing.T) {
 		name: "truncated_stack_trace_first",
 		input: []uint64{
 			3, 0, 500, // hz = 500. Must match the period.
-			4, 0, 70, inlinedCallerStack[0],
-			5, 0, 80, inlinedCallerStack[0], inlinedCallerStack[1],
+			4, 0, 70, inlinedCalleePtr,
+			5, 0, 80, inlinedCalleePtr, inlinedCallerPtr,
 		},
-		wantLocs: [][]string{{"runtime/pprof.inlinedCalleeDump", "runtime/pprof.inlinedCallerDump"}},
+		wantLocs: [][]string{{"runtime/pprof.inlinedCallee", "runtime/pprof.inlinedCaller"}},
 		wantSamples: []*profile.Sample{
 			{Value: []int64{70, 70 * period}, Location: []*profile.Location{{ID: 1}}},
 			{Value: []int64{80, 80 * period}, Location: []*profile.Location{{ID: 1}}},
@@ -1270,9 +1233,9 @@ func TestTryAdd(t *testing.T) {
 		name: "truncated_stack_trace_only",
 		input: []uint64{
 			3, 0, 500, // hz = 500. Must match the period.
-			4, 0, 70, inlinedCallerStack[0],
+			4, 0, 70, inlinedCalleePtr,
 		},
-		wantLocs: [][]string{{"runtime/pprof.inlinedCalleeDump", "runtime/pprof.inlinedCallerDump"}},
+		wantLocs: [][]string{{"runtime/pprof.inlinedCallee", "runtime/pprof.inlinedCaller"}},
 		wantSamples: []*profile.Sample{
 			{Value: []int64{70, 70 * period}, Location: []*profile.Location{{ID: 1}}},
 		},
@@ -1281,16 +1244,12 @@ func TestTryAdd(t *testing.T) {
 		name: "truncated_stack_trace_twice",
 		input: []uint64{
 			3, 0, 500, // hz = 500. Must match the period.
-			4, 0, 70, inlinedCallerStack[0],
-			// Fake frame: add a fake call to
-			// inlinedCallerDump to prevent this sample
-			// from getting merged into above.
-			5, 0, 80, inlinedCallerStack[1], inlinedCallerStack[0],
+			4, 0, 70, inlinedCalleePtr,
+			5, 0, 80, inlinedCallerPtr, inlinedCalleePtr,
 		},
 		wantLocs: [][]string{
-			{"runtime/pprof.inlinedCalleeDump", "runtime/pprof.inlinedCallerDump"},
-			{"runtime/pprof.inlinedCallerDump"},
-		},
+			{"runtime/pprof.inlinedCallee", "runtime/pprof.inlinedCaller"},
+			{"runtime/pprof.inlinedCaller"}},
 		wantSamples: []*profile.Sample{
 			{Value: []int64{70, 70 * period}, Location: []*profile.Location{{ID: 1}}},
 			{Value: []int64{80, 80 * period}, Location: []*profile.Location{{ID: 2}, {ID: 1}}},
