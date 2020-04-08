@@ -1529,12 +1529,17 @@ func (x RelocByOff) Less(i, j int) bool { return x[i].Off < x[j].Off }
 
 // FuncInfo provides hooks to access goobj2.FuncInfo in the objects.
 type FuncInfo struct {
-	l    *Loader
-	r    *oReader
-	data []byte
+	l       *Loader
+	r       *oReader
+	data    []byte
+	lengths goobj2.FuncInfoLengths
 }
 
 func (fi *FuncInfo) Valid() bool { return fi.r != nil }
+
+func (fi *FuncInfo) Args() int {
+	return int((*goobj2.FuncInfo)(nil).ReadArgs(fi.data))
+}
 
 func (fi *FuncInfo) Locals() int {
 	return int((*goobj2.FuncInfo)(nil).ReadLocals(fi.data))
@@ -1545,7 +1550,122 @@ func (fi *FuncInfo) Pcsp() []byte {
 	return fi.r.BytesAt(fi.r.PcdataBase()+pcsp, int(end-pcsp))
 }
 
-// TODO: more accessors.
+func (fi *FuncInfo) Pcfile() []byte {
+	pcf, end := (*goobj2.FuncInfo)(nil).ReadPcfile(fi.data)
+	return fi.r.BytesAt(fi.r.PcdataBase()+pcf, int(end-pcf))
+}
+
+func (fi *FuncInfo) Pcline() []byte {
+	pcln, end := (*goobj2.FuncInfo)(nil).ReadPcline(fi.data)
+	return fi.r.BytesAt(fi.r.PcdataBase()+pcln, int(end-pcln))
+}
+
+// Preload has to be called prior to invoking the various methods
+// below related to pcdata, funcdataoff, files, and inltree nodes.
+func (fi *FuncInfo) Preload() {
+	fi.lengths = (*goobj2.FuncInfo)(nil).ReadFuncInfoLengths(fi.data)
+}
+
+func (fi *FuncInfo) Pcinline() []byte {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	pcinl, end := (*goobj2.FuncInfo)(nil).ReadPcinline(fi.data, fi.lengths.PcdataOff)
+	return fi.r.BytesAt(fi.r.PcdataBase()+pcinl, int(end-pcinl))
+}
+
+func (fi *FuncInfo) NumPcdata() uint32 {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	return fi.lengths.NumPcdata
+}
+
+func (fi *FuncInfo) Pcdata(k int) []byte {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	pcdat, end := (*goobj2.FuncInfo)(nil).ReadPcdata(fi.data, fi.lengths.PcdataOff, uint32(k))
+	return fi.r.BytesAt(fi.r.PcdataBase()+pcdat, int(end-pcdat))
+}
+
+func (fi *FuncInfo) NumFuncdataoff() uint32 {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	return fi.lengths.NumFuncdataoff
+}
+
+func (fi *FuncInfo) Funcdataoff(k int) int64 {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	return (*goobj2.FuncInfo)(nil).ReadFuncdataoff(fi.data, fi.lengths.FuncdataoffOff, uint32(k))
+}
+
+func (fi *FuncInfo) Funcdata(fnsym Sym, syms []Sym) []Sym {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	if int(fi.lengths.NumFuncdataoff) > cap(syms) {
+		syms = make([]Sym, 0, fi.lengths.NumFuncdataoff)
+	} else {
+		syms = syms[:0]
+	}
+	r, li := fi.l.toLocal(fnsym)
+	auxs := r.Auxs2(li)
+	for j := range auxs {
+		a := &auxs[j]
+		if a.Type() == goobj2.AuxFuncdata {
+			syms = append(syms, fi.l.resolve(fi.r, a.Sym()))
+		}
+	}
+	return syms
+}
+
+func (fi *FuncInfo) NumFile() uint32 {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	return fi.lengths.NumFile
+}
+
+func (fi *FuncInfo) File(k int) Sym {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	sr := (*goobj2.FuncInfo)(nil).ReadFile(fi.data, fi.lengths.FileOff, uint32(k))
+	return fi.l.resolve(fi.r, sr)
+}
+
+type InlTreeNode struct {
+	Parent   int32
+	File     Sym
+	Line     int32
+	Func     Sym
+	ParentPC int32
+}
+
+func (fi *FuncInfo) NumInlTree() uint32 {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	return fi.lengths.NumInlTree
+}
+
+func (fi *FuncInfo) InlTree(k int) InlTreeNode {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	node := (*goobj2.FuncInfo)(nil).ReadInlTree(fi.data, fi.lengths.InlTreeOff, uint32(k))
+	return InlTreeNode{
+		Parent:   node.Parent,
+		File:     fi.l.resolve(fi.r, node.File),
+		Line:     node.Line,
+		Func:     fi.l.resolve(fi.r, node.Func),
+		ParentPC: node.ParentPC,
+	}
+}
 
 func (l *Loader) FuncInfo(i Sym) FuncInfo {
 	var r *oReader
@@ -1566,7 +1686,7 @@ func (l *Loader) FuncInfo(i Sym) FuncInfo {
 		a := &auxs[j]
 		if a.Type() == goobj2.AuxFuncInfo {
 			b := r.Data(int(a.Sym().SymIdx))
-			return FuncInfo{l, r, b}
+			return FuncInfo{l, r, b, goobj2.FuncInfoLengths{}}
 		}
 	}
 	return FuncInfo{}
