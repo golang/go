@@ -320,19 +320,11 @@ func SignRSAPKCS1v15(priv *PrivateKeyRSA, h crypto.Hash, hashed []byte) ([]byte,
 }
 
 func VerifyRSAPKCS1v15(pub *PublicKeyRSA, h crypto.Hash, hashed, sig []byte) error {
-	size := int(pub.withKey(func(key *C.GO_RSA) C.int {
-		return C.int(C._goboringcrypto_RSA_size(key))
-	}))
-	if len(sig) < size {
-		// BoringCrypto requires sig to be same size as RSA key, so pad with leading zeros.
-		zsig := make([]byte, size)
-		copy(zsig[len(zsig)-len(sig):], sig)
-		sig = zsig
-	}
 	if h == 0 {
+		var out []byte
 		var outLen C.size_t
-		out := make([]byte, size)
 		if pub.withKey(func(key *C.GO_RSA) C.int {
+			out = make([]byte, C._goboringcrypto_RSA_size(key))
 			return C._goboringcrypto_RSA_verify_raw(key, &outLen, base(out),
 				C.size_t(len(out)), base(sig), C.size_t(len(sig)), C.GO_RSA_PKCS1_PADDING)
 		}) == 0 {
