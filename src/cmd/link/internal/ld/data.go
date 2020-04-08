@@ -101,7 +101,7 @@ func trampoline(ctxt *Link, s loader.Sym) {
 			continue
 		}
 		rs := r.Sym()
-		if !ldr.AttrReachable(rs) {
+		if !ldr.AttrReachable(rs) || ldr.SymType(rs) == sym.Sxxx {
 			continue // something is wrong. skip it here and we'll emit a better error later
 		}
 		rs = ldr.ResolveABIAlias(rs)
