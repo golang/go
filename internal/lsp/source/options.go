@@ -98,6 +98,7 @@ func DefaultOptions() Options {
 			HoverKind:               FullDocumentation,
 			LinkTarget:              "pkg.go.dev",
 			Matcher:                 Fuzzy,
+			SymbolMatcher:           SymbolFuzzy,
 			DeepCompletion:          true,
 			UnimportedCompletion:    true,
 			CompletionDocumentation: true,
@@ -193,6 +194,9 @@ type UserOptions struct {
 	// Matcher specifies the type of matcher to use for completion requests.
 	Matcher Matcher
 
+	// SymbolMatcher specifies the type of matcher to use for symbol requests.
+	SymbolMatcher SymbolMatcher
+
 	// DeepCompletion allows completion to perform nested searches through
 	// possible candidates.
 	DeepCompletion bool
@@ -265,6 +269,14 @@ const (
 	Fuzzy = Matcher(iota)
 	CaseInsensitive
 	CaseSensitive
+)
+
+type SymbolMatcher int
+
+const (
+	SymbolFuzzy = SymbolMatcher(iota)
+	SymbolCaseInsensitive
+	SymbolCaseSensitive
 )
 
 type HoverKind int
@@ -397,6 +409,20 @@ func (o *Options) set(name string, value interface{}) OptionResult {
 			o.Matcher = CaseSensitive
 		default:
 			o.Matcher = CaseInsensitive
+		}
+
+	case "symbolMatcher":
+		matcher, ok := result.asString()
+		if !ok {
+			break
+		}
+		switch matcher {
+		case "fuzzy":
+			o.SymbolMatcher = SymbolFuzzy
+		case "caseSensitive":
+			o.SymbolMatcher = SymbolCaseSensitive
+		default:
+			o.SymbolMatcher = SymbolCaseInsensitive
 		}
 
 	case "hoverKind":

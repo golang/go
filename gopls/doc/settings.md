@@ -139,3 +139,23 @@ Default: `true`.
 ### **staticcheck** *boolean*
 
 If true, it enables the use of the staticcheck.io analyzers.
+
+### **matcher** *string*
+
+Defines the algorithm that is used when calculating completion candidates. Must be one of:
+
+* `"fuzzy"`
+* `"caseSensitive"`
+* `"caseInsensitive"`
+
+Default: `"caseInsensitive"`.
+
+### **symbolMatcher** *string*
+
+Defines the algorithm that is used when calculating workspace symbol results. Must be one of:
+
+* `"fuzzy"`
+* `"caseSensitive"`
+* `"caseInsensitive"`
+
+Default: `"caseInsensitive"`.

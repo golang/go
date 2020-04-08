@@ -59,6 +59,10 @@ type EditorConfig struct {
 	// codeLens command. CodeLens which are not present in this map are left in
 	// their default state.
 	CodeLens map[string]bool
+
+	// SymbolMatcher is the config associated with the "symbolMatcher" gopls
+	// config option.
+	SymbolMatcher *string
 }
 
 // NewEditor Creates a new Editor.
@@ -133,6 +137,10 @@ func (e *Editor) configuration() map[string]interface{} {
 
 	if e.Config.CodeLens != nil {
 		config["codelens"] = e.Config.CodeLens
+	}
+
+	if e.Config.SymbolMatcher != nil {
+		config["symbolMatcher"] = *e.Config.SymbolMatcher
 	}
 
 	return config

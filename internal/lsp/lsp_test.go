@@ -820,23 +820,23 @@ func (r *runner) Symbols(t *testing.T, uri span.URI, expectedSymbols []protocol.
 }
 
 func (r *runner) WorkspaceSymbols(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
-	r.callWorkspaceSymbols(t, query, source.CaseInsensitive, dirs, expectedSymbols)
+	r.callWorkspaceSymbols(t, query, source.SymbolCaseInsensitive, dirs, expectedSymbols)
 }
 
 func (r *runner) FuzzyWorkspaceSymbols(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
-	r.callWorkspaceSymbols(t, query, source.Fuzzy, dirs, expectedSymbols)
+	r.callWorkspaceSymbols(t, query, source.SymbolFuzzy, dirs, expectedSymbols)
 }
 
 func (r *runner) CaseSensitiveWorkspaceSymbols(t *testing.T, query string, expectedSymbols []protocol.SymbolInformation, dirs map[string]struct{}) {
-	r.callWorkspaceSymbols(t, query, source.CaseSensitive, dirs, expectedSymbols)
+	r.callWorkspaceSymbols(t, query, source.SymbolCaseSensitive, dirs, expectedSymbols)
 }
 
-func (r *runner) callWorkspaceSymbols(t *testing.T, query string, matcher source.Matcher, dirs map[string]struct{}, expectedSymbols []protocol.SymbolInformation) {
+func (r *runner) callWorkspaceSymbols(t *testing.T, query string, matcher source.SymbolMatcher, dirs map[string]struct{}, expectedSymbols []protocol.SymbolInformation) {
 	t.Helper()
 
 	original := r.server.session.Options()
 	modified := original
-	modified.Matcher = matcher
+	modified.SymbolMatcher = matcher
 	r.server.session.SetOptions(modified)
 	defer r.server.session.SetOptions(original)
 

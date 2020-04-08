@@ -47,11 +47,11 @@ func (r *workspaceSymbol) Run(ctx context.Context, args ...string) error {
 		}
 		switch r.Matcher {
 		case "fuzzy":
-			o.Matcher = source.Fuzzy
+			o.SymbolMatcher = source.SymbolFuzzy
 		case "caseSensitive":
-			o.Matcher = source.CaseSensitive
+			o.SymbolMatcher = source.SymbolCaseSensitive
 		default:
-			o.Matcher = source.CaseInsensitive
+			o.SymbolMatcher = source.SymbolCaseInsensitive
 		}
 	}
 

@@ -19,7 +19,7 @@ import (
 const maxSymbols = 100
 
 // WorkspaceSymbols matches symbols across views using the given query,
-// according to the matcher Matcher.
+// according to the SymbolMatcher matcher.
 //
 // The workspace symbol method is defined in the spec as follows:
 //
@@ -32,10 +32,10 @@ const maxSymbols = 100
 // WorkspaceSymbols receives the views []View.
 //
 // However, it then becomes unclear what it would mean to call WorkspaceSymbols
-// with a different configured Matcher per View. Therefore we assume that
-// Session level configuration will define the Matcher to be used for the
+// with a different configured SymbolMatcher per View. Therefore we assume that
+// Session level configuration will define the SymbolMatcher to be used for the
 // WorkspaceSymbols method.
-func WorkspaceSymbols(ctx context.Context, matcherType Matcher, views []View, query string) ([]protocol.SymbolInformation, error) {
+func WorkspaceSymbols(ctx context.Context, matcherType SymbolMatcher, views []View, query string) ([]protocol.SymbolInformation, error) {
 	ctx, done := event.Start(ctx, "source.WorkspaceSymbols")
 	defer done()
 	if query == "" {
@@ -102,14 +102,14 @@ type symbolInformation struct {
 
 type matcherFunc func(string) bool
 
-func makeMatcher(m Matcher, query string) matcherFunc {
+func makeMatcher(m SymbolMatcher, query string) matcherFunc {
 	switch m {
-	case Fuzzy:
+	case SymbolFuzzy:
 		fm := fuzzy.NewMatcher(query)
 		return func(s string) bool {
 			return fm.Score(s) > 0
 		}
-	case CaseSensitive:
+	case SymbolCaseSensitive:
 		return func(s string) bool {
 			return strings.Contains(s, query)
 		}
