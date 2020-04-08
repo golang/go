@@ -417,6 +417,16 @@ func dsymptrWeakOff(s *obj.LSym, off int, x *obj.LSym) int {
 	return off
 }
 
+// slicesym writes a static slice symbol {&arr, lencap, lencap} to n.
+func slicesym(n, arr, lencap *Node) {
+	base := n.Xoffset
+	gdata(n, nod(OADDR, arr, nil), Widthptr)
+	n.Xoffset = base + sliceLenOffset
+	gdata(n, lencap, Widthptr)
+	n.Xoffset = base + sliceCapOffset
+	gdata(n, lencap, Widthptr)
+}
+
 func gdata(nam *Node, nr *Node, wid int) {
 	if nam.Op != ONAME {
 		Fatalf("gdata nam op %v", nam.Op)
