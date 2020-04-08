@@ -157,7 +157,7 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 	if dst == src {
 		return
 	}
-	if typ.ptrdata != 0 {
+	if writeBarrier.needed && typ.ptrdata != 0 {
 		bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.ptrdata)
 	}
 	// There's a race here: if some other goroutine can write to
@@ -333,7 +333,7 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
 //
 //go:nosplit
 func typedmemclr(typ *_type, ptr unsafe.Pointer) {
-	if typ.ptrdata != 0 {
+	if writeBarrier.needed && typ.ptrdata != 0 {
 		bulkBarrierPreWrite(uintptr(ptr), 0, typ.ptrdata)
 	}
 	memclrNoHeapPointers(ptr, typ.size)
@@ -346,7 +346,7 @@ func reflect_typedmemclr(typ *_type, ptr unsafe.Pointer) {
 
 //go:linkname reflect_typedmemclrpartial reflect.typedmemclrpartial
 func reflect_typedmemclrpartial(typ *_type, ptr unsafe.Pointer, off, size uintptr) {
-	if typ.ptrdata != 0 {
+	if writeBarrier.needed && typ.ptrdata != 0 {
 		bulkBarrierPreWrite(uintptr(ptr), 0, size)
 	}
 	memclrNoHeapPointers(ptr, size)
