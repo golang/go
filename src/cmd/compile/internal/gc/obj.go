@@ -418,13 +418,16 @@ func dsymptrWeakOff(s *obj.LSym, off int, x *obj.LSym) int {
 }
 
 // slicesym writes a static slice symbol {&arr, lencap, lencap} to n.
-func slicesym(n, arr, lencap *Node) {
+// arr must be an ONAME. slicesym does not modify n.
+func slicesym(n, arr *Node, lencap int64) {
+	s := n.Sym.Linksym()
 	base := n.Xoffset
-	gdata(n, nod(OADDR, arr, nil), Widthptr)
-	n.Xoffset = base + sliceLenOffset
-	gdata(n, lencap, Widthptr)
-	n.Xoffset = base + sliceCapOffset
-	gdata(n, lencap, Widthptr)
+	if arr.Op != ONAME {
+		Fatalf("slicesym non-name arr %v", arr)
+	}
+	s.WriteAddr(Ctxt, base, Widthptr, arr.Sym.Linksym(), arr.Xoffset)
+	s.WriteInt(Ctxt, base+sliceLenOffset, Widthptr, lencap)
+	s.WriteInt(Ctxt, base+sliceCapOffset, Widthptr, lencap)
 }
 
 func gdata(nam *Node, nr *Node, wid int) {
