@@ -21,8 +21,8 @@ type pkg struct {
 	pkgPath         packagePath
 	mode            source.ParseMode
 	forTest         packagePath
-	goFiles         []source.ParseGoHandle
-	compiledGoFiles []source.ParseGoHandle
+	goFiles         []*parseGoHandle
+	compiledGoFiles []*parseGoHandle
 	errors          []*source.Error
 	imports         map[packagePath]*pkg
 	module          *packagesinternal.Module
@@ -52,7 +52,11 @@ func (p *pkg) PkgPath() string {
 }
 
 func (p *pkg) CompiledGoFiles() []source.ParseGoHandle {
-	return p.compiledGoFiles
+	var files []source.ParseGoHandle
+	for _, f := range p.compiledGoFiles {
+		files = append(files, f)
+	}
+	return files
 }
 
 func (p *pkg) File(uri span.URI) (source.ParseGoHandle, error) {

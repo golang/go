@@ -31,10 +31,7 @@ type packageHandleKey string
 type packageHandle struct {
 	handle *memoize.Handle
 
-	goFiles []source.ParseGoHandle
-
-	// compiledGoFiles are the ParseGoHandles that compose the package.
-	compiledGoFiles []source.ParseGoHandle
+	goFiles, compiledGoFiles []*parseGoHandle
 
 	// mode is the mode the the files were parsed in.
 	mode source.ParseMode
@@ -159,7 +156,7 @@ func (s *snapshot) buildKey(ctx context.Context, id packageID, mode source.Parse
 	return ph, deps, nil
 }
 
-func checkPackageKey(id packageID, pghs []source.ParseGoHandle, cfg *packages.Config, deps []packageHandleKey) packageHandleKey {
+func checkPackageKey(id packageID, pghs []*parseGoHandle, cfg *packages.Config, deps []packageHandleKey) packageHandleKey {
 	var depBytes []byte
 	for _, dep := range deps {
 		depBytes = append(depBytes, []byte(dep)...)
@@ -198,7 +195,11 @@ func (ph *packageHandle) check(ctx context.Context) (*pkg, error) {
 }
 
 func (ph *packageHandle) CompiledGoFiles() []source.ParseGoHandle {
-	return ph.compiledGoFiles
+	var files []source.ParseGoHandle
+	for _, f := range ph.compiledGoFiles {
+		files = append(files, f)
+	}
+	return files
 }
 
 func (ph *packageHandle) ID() string {
@@ -248,19 +249,19 @@ func (ph *packageHandle) cached() (*pkg, error) {
 	return data.pkg, data.err
 }
 
-func (s *snapshot) parseGoHandles(ctx context.Context, files []span.URI, mode source.ParseMode) ([]source.ParseGoHandle, error) {
-	phs := make([]source.ParseGoHandle, 0, len(files))
+func (s *snapshot) parseGoHandles(ctx context.Context, files []span.URI, mode source.ParseMode) ([]*parseGoHandle, error) {
+	phs := make([]*parseGoHandle, 0, len(files))
 	for _, uri := range files {
 		fh, err := s.GetFile(uri)
 		if err != nil {
 			return nil, err
 		}
-		phs = append(phs, s.view.session.cache.ParseGoHandle(fh, mode))
+		phs = append(phs, s.view.session.cache.parseGoHandle(fh, mode))
 	}
 	return phs, nil
 }
 
-func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode source.ParseMode, goFiles []source.ParseGoHandle, compiledGoFiles []source.ParseGoHandle, deps map[packagePath]*packageHandle) (*pkg, error) {
+func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode source.ParseMode, goFiles, compiledGoFiles []*parseGoHandle, deps map[packagePath]*packageHandle) (*pkg, error) {
 	ctx, done := event.StartSpan(ctx, "cache.importer.typeCheck", tag.Package.Of(string(m.id)))
 	defer done()
 
@@ -293,12 +294,24 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 		parseErrors  = make([]error, len(pkg.compiledGoFiles))
 		actualErrors = make([]error, len(pkg.compiledGoFiles))
 		wg           sync.WaitGroup
+
+		mu             sync.Mutex
+		skipTypeErrors bool
 	)
 	for i, ph := range pkg.compiledGoFiles {
 		wg.Add(1)
-		go func(i int, ph source.ParseGoHandle) {
-			files[i], _, _, parseErrors[i], actualErrors[i] = ph.Parse(ctx)
-			wg.Done()
+		go func(i int, ph *parseGoHandle) {
+			defer wg.Done()
+			data, err := ph.parse(ctx)
+			if err != nil {
+				actualErrors[i] = err
+				return
+			}
+			files[i], parseErrors[i], actualErrors[i] = data.ast, data.parseError, data.err
+
+			mu.Lock()
+			skipTypeErrors = skipTypeErrors || data.fixed
+			mu.Unlock()
 		}(i, ph)
 	}
 	for _, ph := range pkg.goFiles {
@@ -340,6 +353,11 @@ func typeCheck(ctx context.Context, fset *token.FileSet, m *metadata, mode sourc
 
 	cfg := &types.Config{
 		Error: func(e error) {
+			// If we have fixed parse errors in any of the files,
+			// we should hide type errors, as they may be completely nonsensical.
+			if skipTypeErrors {
+				return
+			}
 			rawErrors = append(rawErrors, e)
 		},
 		Importer: importerFunc(func(pkgPath string) (*types.Package, error) {

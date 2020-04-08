@@ -37,14 +37,24 @@ type parseGoHandle struct {
 type parseGoData struct {
 	memoize.NoCopy
 
-	src        []byte
-	ast        *ast.File
+	ast    *ast.File
+	mapper *protocol.ColumnMapper
+
+	// Source code used to build the AST. It may be different from the
+	// actual content of the file if we have fixed the AST, in which case,
+	// fixed will be true.
+	src   []byte
+	fixed bool
+
 	parseError error // errors associated with parsing the file
-	mapper     *protocol.ColumnMapper
-	err        error
+	err        error // any other errors
 }
 
 func (c *Cache) ParseGoHandle(fh source.FileHandle, mode source.ParseMode) source.ParseGoHandle {
+	return c.parseGoHandle(fh, mode)
+}
+
+func (c *Cache) parseGoHandle(fh source.FileHandle, mode source.ParseMode) *parseGoHandle {
 	key := parseKey{
 		file: fh.Identity(),
 		mode: mode,
@@ -73,12 +83,20 @@ func (pgh *parseGoHandle) Mode() source.ParseMode {
 }
 
 func (pgh *parseGoHandle) Parse(ctx context.Context) (*ast.File, []byte, *protocol.ColumnMapper, error, error) {
-	v := pgh.handle.Get(ctx)
-	if v == nil {
-		return nil, nil, nil, nil, errors.Errorf("no parsed file for %s", pgh.File().Identity().URI)
+	data, err := pgh.parse(ctx)
+	if err != nil {
+		return nil, nil, nil, nil, err
 	}
-	data := v.(*parseGoData)
 	return data.ast, data.src, data.mapper, data.parseError, data.err
+}
+
+func (pgh *parseGoHandle) parse(ctx context.Context) (*parseGoData, error) {
+	v := pgh.handle.Get(ctx)
+	data, ok := v.(*parseGoData)
+	if !ok {
+		return nil, errors.Errorf("no parsed file for %s", pgh.File().Identity().URI)
+	}
+	return data, nil
 }
 
 func (pgh *parseGoHandle) Cached() (*ast.File, []byte, *protocol.ColumnMapper, error, error) {
@@ -97,7 +115,7 @@ func hashParseKey(ph source.ParseGoHandle) string {
 	return hashContents(b.Bytes())
 }
 
-func hashParseKeys(phs []source.ParseGoHandle) string {
+func hashParseKeys(phs []*parseGoHandle) string {
 	b := bytes.NewBuffer(nil)
 	for _, ph := range phs {
 		b.WriteString(hashParseKey(ph))
@@ -123,6 +141,7 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 	}
 	file, parseError := parser.ParseFile(fset, fh.Identity().URI.Filename(), buf, parserMode)
 	var tok *token.File
+	var fixed bool
 	if file != nil {
 		tok = fset.File(file.Pos())
 		if tok == nil {
@@ -130,7 +149,7 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 		}
 
 		// Fix any badly parsed parts of the AST.
-		_ = fixAST(ctx, file, tok, buf)
+		fixed = fixAST(ctx, file, tok, buf)
 
 		// Fix certain syntax errors that render the file unparseable.
 		newSrc := fixSrc(file, tok, buf)
@@ -142,7 +161,7 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 				buf = newSrc
 				tok = fset.File(file.Pos())
 
-				_ = fixAST(ctx, file, tok, buf)
+				fixed = fixAST(ctx, file, tok, buf)
 			}
 		}
 
@@ -150,7 +169,6 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 			trimAST(file)
 		}
 	}
-
 	if file == nil {
 		// If the file is nil only due to parse errors,
 		// the parse errors are the actual errors.
@@ -165,12 +183,12 @@ func parseGo(ctx context.Context, fset *token.FileSet, fh source.FileHandle, mod
 		Converter: span.NewTokenConverter(fset, tok),
 		Content:   buf,
 	}
-
 	return &parseGoData{
 		src:        buf,
 		ast:        file,
 		mapper:     m,
 		parseError: parseError,
+		fixed:      fixed,
 	}
 }
 
@@ -213,26 +231,22 @@ func isEllipsisArray(n ast.Expr) bool {
 
 // fixAST inspects the AST and potentially modifies any *ast.BadStmts so that it can be
 // type-checked more effectively.
-func fixAST(ctx context.Context, n ast.Node, tok *token.File, src []byte) error {
+func fixAST(ctx context.Context, n ast.Node, tok *token.File, src []byte) (fixed bool) {
 	var err error
 	walkASTWithParent(n, func(n, parent ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.BadStmt:
-			err = fixDeferOrGoStmt(n, parent, tok, src) // don't shadow err
-			if err == nil {
+			if fixed = fixDeferOrGoStmt(n, parent, tok, src); fixed {
 				// Recursively fix in our fixed node.
-				err = fixAST(ctx, parent, tok, src)
+				_ = fixAST(ctx, parent, tok, src)
 			} else {
 				err = errors.Errorf("unable to parse defer or go from *ast.BadStmt: %v", err)
 			}
 			return false
 		case *ast.BadExpr:
-			// Don't propagate this error since *ast.BadExpr is very common
-			// and it is only sometimes due to array types. Errors from here
-			// are expected and not actionable in general.
-			if fixArrayType(n, parent, tok, src) == nil {
+			if fixed = fixArrayType(n, parent, tok, src); fixed {
 				// Recursively fix in our fixed node.
-				err = fixAST(ctx, parent, tok, src)
+				_ = fixAST(ctx, parent, tok, src)
 				return false
 			}
 
@@ -266,8 +280,7 @@ func fixAST(ctx context.Context, n ast.Node, tok *token.File, src []byte) error 
 			return true
 		}
 	})
-
-	return err
+	return fixed
 }
 
 // walkASTWithParent walks the AST rooted at n. The semantics are
@@ -556,13 +569,19 @@ func fixInitStmt(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte)
 			return
 		}
 		p.Init = stmt
-		p.Cond = &ast.Ident{Name: "_"}
+		p.Cond = &ast.Ident{
+			Name:    "_",
+			NamePos: stmt.End(),
+		}
 	case *ast.ForStmt:
 		if p.Init != nil {
 			return
 		}
 		p.Init = stmt
-		p.Cond = &ast.Ident{Name: "_"}
+		p.Cond = &ast.Ident{
+			Name:    "_",
+			NamePos: stmt.End(),
+		}
 	case *ast.SwitchStmt:
 		if p.Init != nil {
 			return
@@ -598,14 +617,14 @@ func readKeyword(pos token.Pos, tok *token.File, src []byte) string {
 // fixArrayType tries to parse an *ast.BadExpr into an *ast.ArrayType.
 // go/parser often turns lone array types like "[]int" into BadExprs
 // if it isn't expecting a type.
-func fixArrayType(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte) error {
+func fixArrayType(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte) bool {
 	// Our expected input is a bad expression that looks like "[]someExpr".
 
 	from := bad.Pos()
 	to := bad.End()
 
 	if !from.IsValid() || !to.IsValid() {
-		return errors.Errorf("invalid BadExpr from/to: %d/%d", from, to)
+		return false
 	}
 
 	exprBytes := make([]byte, 0, int(to-from)+3)
@@ -626,24 +645,20 @@ func fixArrayType(bad *ast.BadExpr, parent ast.Node, tok *token.File, src []byte
 
 	expr, err := parseExpr(from, exprBytes)
 	if err != nil {
-		return err
+		return false
 	}
 
 	cl, _ := expr.(*ast.CompositeLit)
 	if cl == nil {
-		return errors.Errorf("expr not compLit (%T)", expr)
+		return false
 	}
 
 	at, _ := cl.Type.(*ast.ArrayType)
 	if at == nil {
-		return errors.Errorf("compLit type not array (%T)", cl.Type)
+		return false
 	}
 
-	if !replaceNode(parent, bad, at) {
-		return errors.Errorf("couldn't replace array type")
-	}
-
-	return nil
+	return replaceNode(parent, bad, at)
 }
 
 // precedingToken scans src to find the token preceding pos.
@@ -670,7 +685,7 @@ func precedingToken(pos token.Pos, tok *token.File, src []byte) token.Token {
 // this statement entirely, and we can't use the type information when completing.
 // Here, we try to generate a fake *ast.DeferStmt or *ast.GoStmt to put into the AST,
 // instead of the *ast.BadStmt.
-func fixDeferOrGoStmt(bad *ast.BadStmt, parent ast.Node, tok *token.File, src []byte) error {
+func fixDeferOrGoStmt(bad *ast.BadStmt, parent ast.Node, tok *token.File, src []byte) bool {
 	// Check if we have a bad statement containing either a "go" or "defer".
 	s := &scanner.Scanner{}
 	s.Init(tok, src, nil, 0)
@@ -681,7 +696,7 @@ func fixDeferOrGoStmt(bad *ast.BadStmt, parent ast.Node, tok *token.File, src []
 	)
 	for {
 		if tkn == token.EOF {
-			return errors.Errorf("reached the end of the file")
+			return false
 		}
 		if pos >= bad.From {
 			break
@@ -700,7 +715,7 @@ func fixDeferOrGoStmt(bad *ast.BadStmt, parent ast.Node, tok *token.File, src []
 			Go: pos,
 		}
 	default:
-		return errors.Errorf("no defer or go statement found")
+		return false
 	}
 
 	var (
@@ -768,11 +783,11 @@ FindTo:
 	}
 
 	if !from.IsValid() || tok.Offset(from) >= len(src) {
-		return errors.Errorf("invalid from position")
+		return false
 	}
 
 	if !to.IsValid() || tok.Offset(to) >= len(src) {
-		return errors.Errorf("invalid to position %d", to)
+		return false
 	}
 
 	// Insert any phantom selectors needed to prevent dangling "." from messing
@@ -792,7 +807,7 @@ FindTo:
 
 	expr, err := parseExpr(from, exprBytes)
 	if err != nil {
-		return err
+		return false
 	}
 
 	// Package the expression into a fake *ast.CallExpr and re-insert
@@ -810,11 +825,7 @@ FindTo:
 		stmt.Call = call
 	}
 
-	if !replaceNode(parent, bad, stmt) {
-		return errors.Errorf("couldn't replace CallExpr")
-	}
-
-	return nil
+	return replaceNode(parent, bad, stmt)
 }
 
 // parseStmt parses the statement in src and updates its position to

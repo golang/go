@@ -6,6 +6,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"go/scanner"
 	"go/token"
 	"go/types"
@@ -85,6 +86,9 @@ func sourceError(ctx context.Context, fset *token.FileSet, pkg *pkg, e interface
 	case types.Error:
 		msg = e.Msg
 		kind = source.TypeError
+		if !e.Pos.IsValid() {
+			return nil, fmt.Errorf("invalid position for type error %v", e)
+		}
 		spn, err = typeErrorRange(ctx, fset, pkg, e.Pos)
 		if err != nil {
 			return nil, err
