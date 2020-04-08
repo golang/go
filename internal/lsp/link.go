@@ -16,25 +16,31 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/mod/modfile"
+	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/telemetry/event"
 )
 
-func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLinkParams) ([]protocol.DocumentLink, error) {
-	// TODO(golang/go#36501): Support document links for go.mod files.
+func (s *Server) documentLink(ctx context.Context, params *protocol.DocumentLinkParams) (links []protocol.DocumentLink, err error) {
 	snapshot, fh, ok, err := s.beginFileRequest(params.TextDocument.URI, source.UnknownKind)
 	if !ok {
 		return nil, err
 	}
 	switch fh.Identity().Kind {
 	case source.Mod:
-		return modLinks(ctx, snapshot, fh)
+		links, err = modLinks(ctx, snapshot, fh)
 	case source.Go:
-		return goLinks(ctx, snapshot.View(), fh)
+		links, err = goLinks(ctx, snapshot.View(), fh)
 	}
-	return nil, nil
+	// Don't return errors for document links.
+	if err != nil {
+		event.Error(ctx, "failed to compute document links", err, tag.URI.Of(fh.Identity().URI))
+		return nil, nil
+	}
+	return links, nil
 }
 
 func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandle) ([]protocol.DocumentLink, error) {
@@ -72,14 +78,14 @@ func modLinks(ctx context.Context, snapshot source.Snapshot, fh source.FileHandl
 		if comments == nil {
 			continue
 		}
-		for _, cmt := range comments.Before {
-			links = append(links, findLinksInString(ctx, view, cmt.Token, token.Pos(cmt.Start.Byte), m, source.Mod)...)
-		}
-		for _, cmt := range comments.Suffix {
-			links = append(links, findLinksInString(ctx, view, cmt.Token, token.Pos(cmt.Start.Byte), m, source.Mod)...)
-		}
-		for _, cmt := range comments.After {
-			links = append(links, findLinksInString(ctx, view, cmt.Token, token.Pos(cmt.Start.Byte), m, source.Mod)...)
+		for _, section := range [][]modfile.Comment{comments.Before, comments.Suffix, comments.After} {
+			for _, comment := range section {
+				l, err := findLinksInString(ctx, view, comment.Token, token.Pos(comment.Start.Byte), m, source.Mod)
+				if err != nil {
+					return nil, err
+				}
+				links = append(links, l...)
+			}
 		}
 	}
 	return links, nil
@@ -98,39 +104,56 @@ func goLinks(ctx context.Context, view source.View, fh source.FileHandle) ([]pro
 	if err != nil {
 		return nil, err
 	}
-	var links []protocol.DocumentLink
+	var imports []*ast.ImportSpec
+	var str []*ast.BasicLit
 	ast.Inspect(file, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.ImportSpec:
-			// For import specs, provide a link to a documentation website, like https://pkg.go.dev.
-			if target, err := strconv.Unquote(n.Path.Value); err == nil {
-				if mod, version, ok := moduleAtVersion(ctx, target, ph); ok && strings.ToLower(view.Options().LinkTarget) == "pkg.go.dev" {
-					target = strings.Replace(target, mod, mod+"@"+version, 1)
-				}
-				target = fmt.Sprintf("https://%s/%s", view.Options().LinkTarget, target)
-				// Account for the quotation marks in the positions.
-				start, end := n.Path.Pos()+1, n.Path.End()-1
-				l, err := toProtocolLink(view, m, target, start, end, source.Go)
-				if err != nil {
-					event.Error(ctx, "failed to create link", err)
-					return false
-				}
-				links = append(links, l)
-			}
+			imports = append(imports, n)
 			return false
 		case *ast.BasicLit:
 			// Look for links in string literals.
 			if n.Kind == token.STRING {
-				links = append(links, findLinksInString(ctx, view, n.Value, n.Pos(), m, source.Go)...)
+				str = append(str, n)
 			}
 			return false
 		}
 		return true
 	})
-	// Look for links in comments.
+	var links []protocol.DocumentLink
+	for _, imp := range imports {
+		// For import specs, provide a link to a documentation website, like https://pkg.go.dev.
+		target, err := strconv.Unquote(imp.Path.Value)
+		if err != nil {
+			continue
+		}
+		if mod, version, ok := moduleAtVersion(ctx, target, ph); ok && strings.ToLower(view.Options().LinkTarget) == "pkg.go.dev" {
+			target = strings.Replace(target, mod, mod+"@"+version, 1)
+		}
+		// Account for the quotation marks in the positions.
+		start := imp.Path.Pos() + 1
+		end := imp.Path.End() - 1
+		target = fmt.Sprintf("https://%s/%s", view.Options().LinkTarget, target)
+		l, err := toProtocolLink(view, m, target, start, end, source.Go)
+		if err != nil {
+			return nil, err
+		}
+		links = append(links, l)
+	}
+	for _, s := range str {
+		l, err := findLinksInString(ctx, view, s.Value, s.Pos(), m, source.Go)
+		if err != nil {
+			return nil, err
+		}
+		links = append(links, l...)
+	}
 	for _, commentGroup := range file.Comments {
 		for _, comment := range commentGroup.List {
-			links = append(links, findLinksInString(ctx, view, comment.Text, comment.Pos(), m, source.Go)...)
+			l, err := findLinksInString(ctx, view, comment.Text, comment.Pos(), m, source.Go)
+			if err != nil {
+				return nil, err
+			}
+			links = append(links, l...)
 		}
 	}
 	return links, nil
@@ -155,25 +178,29 @@ func moduleAtVersion(ctx context.Context, target string, ph source.PackageHandle
 	return modpath, version, true
 }
 
-func findLinksInString(ctx context.Context, view source.View, src string, pos token.Pos, m *protocol.ColumnMapper, fileKind source.FileKind) []protocol.DocumentLink {
+func findLinksInString(ctx context.Context, view source.View, src string, pos token.Pos, m *protocol.ColumnMapper, fileKind source.FileKind) ([]protocol.DocumentLink, error) {
 	var links []protocol.DocumentLink
 	for _, index := range view.Options().URLRegexp.FindAllIndex([]byte(src), -1) {
 		start, end := index[0], index[1]
 		startPos := token.Pos(int(pos) + start)
 		endPos := token.Pos(int(pos) + end)
-		url, err := url.Parse(src[start:end])
+		link := src[start:end]
+		linkURL, err := url.Parse(link)
+		// Fallback: Linkify IP addresses as suggested in golang/go#18824.
 		if err != nil {
-			event.Error(ctx, "failed to parse matching URL", err)
-			continue
+			linkURL, err = url.Parse("//" + link)
+			// Not all potential links will be valid, so don't return this error.
+			if err != nil {
+				continue
+			}
 		}
 		// If the URL has no scheme, use https.
-		if url.Scheme == "" {
-			url.Scheme = "https"
+		if linkURL.Scheme == "" {
+			linkURL.Scheme = "https"
 		}
-		l, err := toProtocolLink(view, m, url.String(), startPos, endPos, fileKind)
+		l, err := toProtocolLink(view, m, linkURL.String(), startPos, endPos, fileKind)
 		if err != nil {
-			event.Error(ctx, "failed to create protocol link", err)
-			continue
+			return nil, err
 		}
 		links = append(links, l)
 	}
@@ -191,12 +218,11 @@ func findLinksInString(ctx context.Context, view source.View, src string, pos to
 		target := fmt.Sprintf("https://github.com/%s/%s/issues/%s", org, repo, number)
 		l, err := toProtocolLink(view, m, target, startPos, endPos, fileKind)
 		if err != nil {
-			event.Error(ctx, "failed to create protocol link", err)
-			continue
+			return nil, err
 		}
 		links = append(links, l)
 	}
-	return links
+	return links, nil
 }
 
 func getIssueRegexp() *regexp.Regexp {
