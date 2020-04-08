@@ -245,6 +245,19 @@ func (s *Sym2) ReflectMethod() bool { return s.Flag()&SymFlagReflectMethod != 0 
 func (s *Sym2) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
 func (s *Sym2) TopFrame() bool      { return s.Flag()&SymFlagTopFrame != 0 }
 
+func (s *Sym2) SetName(x string, w *Writer) {
+	binary.LittleEndian.PutUint32(s[:], uint32(len(x)))
+	binary.LittleEndian.PutUint32(s[4:], w.stringOff(x))
+}
+
+func (s *Sym2) SetABI(x uint16)   { binary.LittleEndian.PutUint16(s[8:], x) }
+func (s *Sym2) SetType(x uint8)   { s[10] = x }
+func (s *Sym2) SetFlag(x uint8)   { s[11] = x }
+func (s *Sym2) SetSiz(x uint32)   { binary.LittleEndian.PutUint32(s[12:], x) }
+func (s *Sym2) SetAlign(x uint32) { binary.LittleEndian.PutUint32(s[16:], x) }
+
+func (s *Sym2) Write(w *Writer) { w.Bytes(s[:]) }
+
 // Symbol reference.
 type SymRef struct {
 	PkgIdx uint32
@@ -302,6 +315,8 @@ func (r *Reloc2) Set(off int32, size uint8, typ uint8, add int64, sym SymRef) {
 	r.SetSym(sym)
 }
 
+func (r *Reloc2) Write(w *Writer) { w.Bytes(r[:]) }
+
 // Aux symbol info.
 type Aux struct {
 	Type uint8
@@ -335,6 +350,14 @@ func (a *Aux2) Sym() SymRef {
 	return SymRef{binary.LittleEndian.Uint32(a[1:]), binary.LittleEndian.Uint32(a[5:])}
 }
 
+func (a *Aux2) SetType(x uint8) { a[0] = x }
+func (a *Aux2) SetSym(x SymRef) {
+	binary.LittleEndian.PutUint32(a[1:], x.PkgIdx)
+	binary.LittleEndian.PutUint32(a[5:], x.SymIdx)
+}
+
+func (a *Aux2) Write(w *Writer) { w.Bytes(a[:]) }
+
 type Writer struct {
 	wr        *bio.Writer
 	stringMap map[string]uint32
@@ -353,13 +376,17 @@ func (w *Writer) AddString(s string) {
 	w.RawString(s)
 }
 
-func (w *Writer) StringRef(s string) {
+func (w *Writer) stringOff(s string) uint32 {
 	off, ok := w.stringMap[s]
 	if !ok {
 		panic(fmt.Sprintf("writeStringRef: string not added: %q", s))
 	}
+	return off
+}
+
+func (w *Writer) StringRef(s string) {
 	w.Uint32(uint32(len(s)))
-	w.Uint32(off)
+	w.Uint32(w.stringOff(s))
 }
 
 func (w *Writer) RawString(s string) {
