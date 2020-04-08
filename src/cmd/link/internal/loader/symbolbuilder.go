@@ -315,6 +315,25 @@ func (sb *SymbolBuilder) SetUint(arch *sys.Arch, r int64, v uint64) int64 {
 	return sb.setUintXX(arch, r, v, int64(arch.PtrSize))
 }
 
+func (sb *SymbolBuilder) SetAddrPlus(arch *sys.Arch, off int64, tgt Sym, add int64) int64 {
+	if sb.Type() == 0 {
+		sb.SetType(sym.SDATA)
+	}
+	sb.setReachable()
+	if off+int64(arch.PtrSize) > sb.size {
+		sb.size = off + int64(arch.PtrSize)
+		sb.Grow(sb.size)
+	}
+	var r Reloc
+	r.Sym = tgt
+	r.Off = int32(off)
+	r.Size = uint8(arch.PtrSize)
+	r.Type = objabi.R_ADDR
+	r.Add = add
+	sb.AddReloc(r)
+	return off + int64(r.Size)
+}
+
 func (sb *SymbolBuilder) Addstring(str string) int64 {
 	sb.setReachable()
 	if sb.kind == 0 {
