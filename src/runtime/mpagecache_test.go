@@ -180,6 +180,9 @@ func TestPageCacheAlloc(t *testing.T) {
 }
 
 func TestPageCacheFlush(t *testing.T) {
+	if GOOS == "openbsd" && testing.Short() {
+		t.Skip("skipping because virtual memory is limited; see #36210")
+	}
 	bits64ToBitRanges := func(bits uint64, base uint) []BitRange {
 		var ranges []BitRange
 		start, size := uint(0), uint(0)
@@ -254,6 +257,9 @@ func TestPageCacheFlush(t *testing.T) {
 }
 
 func TestPageAllocAllocToCache(t *testing.T) {
+	if GOOS == "openbsd" && testing.Short() {
+		t.Skip("skipping because virtual memory is limited; see #36210")
+	}
 	tests := map[string]struct {
 		before map[ChunkIdx][]BitRange
 		scav   map[ChunkIdx][]BitRange

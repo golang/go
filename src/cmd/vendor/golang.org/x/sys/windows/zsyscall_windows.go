@@ -38,224 +38,322 @@ var (
 	modadvapi32 = NewLazySystemDLL("advapi32.dll")
 	modkernel32 = NewLazySystemDLL("kernel32.dll")
 	modshell32  = NewLazySystemDLL("shell32.dll")
+	moduserenv  = NewLazySystemDLL("userenv.dll")
 	modmswsock  = NewLazySystemDLL("mswsock.dll")
 	modcrypt32  = NewLazySystemDLL("crypt32.dll")
+	moduser32   = NewLazySystemDLL("user32.dll")
+	modole32    = NewLazySystemDLL("ole32.dll")
+	modntdll    = NewLazySystemDLL("ntdll.dll")
+	modpsapi    = NewLazySystemDLL("psapi.dll")
 	modws2_32   = NewLazySystemDLL("ws2_32.dll")
 	moddnsapi   = NewLazySystemDLL("dnsapi.dll")
 	modiphlpapi = NewLazySystemDLL("iphlpapi.dll")
 	modsecur32  = NewLazySystemDLL("secur32.dll")
 	modnetapi32 = NewLazySystemDLL("netapi32.dll")
-	moduserenv  = NewLazySystemDLL("userenv.dll")
+	modwtsapi32 = NewLazySystemDLL("wtsapi32.dll")
 
-	procRegisterEventSourceW               = modadvapi32.NewProc("RegisterEventSourceW")
-	procDeregisterEventSource              = modadvapi32.NewProc("DeregisterEventSource")
-	procReportEventW                       = modadvapi32.NewProc("ReportEventW")
-	procOpenSCManagerW                     = modadvapi32.NewProc("OpenSCManagerW")
-	procCloseServiceHandle                 = modadvapi32.NewProc("CloseServiceHandle")
-	procCreateServiceW                     = modadvapi32.NewProc("CreateServiceW")
-	procOpenServiceW                       = modadvapi32.NewProc("OpenServiceW")
-	procDeleteService                      = modadvapi32.NewProc("DeleteService")
-	procStartServiceW                      = modadvapi32.NewProc("StartServiceW")
-	procQueryServiceStatus                 = modadvapi32.NewProc("QueryServiceStatus")
-	procControlService                     = modadvapi32.NewProc("ControlService")
-	procStartServiceCtrlDispatcherW        = modadvapi32.NewProc("StartServiceCtrlDispatcherW")
-	procSetServiceStatus                   = modadvapi32.NewProc("SetServiceStatus")
-	procChangeServiceConfigW               = modadvapi32.NewProc("ChangeServiceConfigW")
-	procQueryServiceConfigW                = modadvapi32.NewProc("QueryServiceConfigW")
-	procChangeServiceConfig2W              = modadvapi32.NewProc("ChangeServiceConfig2W")
-	procQueryServiceConfig2W               = modadvapi32.NewProc("QueryServiceConfig2W")
-	procEnumServicesStatusExW              = modadvapi32.NewProc("EnumServicesStatusExW")
-	procQueryServiceStatusEx               = modadvapi32.NewProc("QueryServiceStatusEx")
-	procGetLastError                       = modkernel32.NewProc("GetLastError")
-	procLoadLibraryW                       = modkernel32.NewProc("LoadLibraryW")
-	procLoadLibraryExW                     = modkernel32.NewProc("LoadLibraryExW")
-	procFreeLibrary                        = modkernel32.NewProc("FreeLibrary")
-	procGetProcAddress                     = modkernel32.NewProc("GetProcAddress")
-	procGetVersion                         = modkernel32.NewProc("GetVersion")
-	procFormatMessageW                     = modkernel32.NewProc("FormatMessageW")
-	procExitProcess                        = modkernel32.NewProc("ExitProcess")
-	procCreateFileW                        = modkernel32.NewProc("CreateFileW")
-	procReadFile                           = modkernel32.NewProc("ReadFile")
-	procWriteFile                          = modkernel32.NewProc("WriteFile")
-	procGetOverlappedResult                = modkernel32.NewProc("GetOverlappedResult")
-	procSetFilePointer                     = modkernel32.NewProc("SetFilePointer")
-	procCloseHandle                        = modkernel32.NewProc("CloseHandle")
-	procGetStdHandle                       = modkernel32.NewProc("GetStdHandle")
-	procSetStdHandle                       = modkernel32.NewProc("SetStdHandle")
-	procFindFirstFileW                     = modkernel32.NewProc("FindFirstFileW")
-	procFindNextFileW                      = modkernel32.NewProc("FindNextFileW")
-	procFindClose                          = modkernel32.NewProc("FindClose")
-	procGetFileInformationByHandle         = modkernel32.NewProc("GetFileInformationByHandle")
-	procGetFileInformationByHandleEx       = modkernel32.NewProc("GetFileInformationByHandleEx")
-	procGetCurrentDirectoryW               = modkernel32.NewProc("GetCurrentDirectoryW")
-	procSetCurrentDirectoryW               = modkernel32.NewProc("SetCurrentDirectoryW")
-	procCreateDirectoryW                   = modkernel32.NewProc("CreateDirectoryW")
-	procRemoveDirectoryW                   = modkernel32.NewProc("RemoveDirectoryW")
-	procDeleteFileW                        = modkernel32.NewProc("DeleteFileW")
-	procMoveFileW                          = modkernel32.NewProc("MoveFileW")
-	procMoveFileExW                        = modkernel32.NewProc("MoveFileExW")
-	procGetComputerNameW                   = modkernel32.NewProc("GetComputerNameW")
-	procGetComputerNameExW                 = modkernel32.NewProc("GetComputerNameExW")
-	procSetEndOfFile                       = modkernel32.NewProc("SetEndOfFile")
-	procGetSystemTimeAsFileTime            = modkernel32.NewProc("GetSystemTimeAsFileTime")
-	procGetSystemTimePreciseAsFileTime     = modkernel32.NewProc("GetSystemTimePreciseAsFileTime")
-	procGetTimeZoneInformation             = modkernel32.NewProc("GetTimeZoneInformation")
-	procCreateIoCompletionPort             = modkernel32.NewProc("CreateIoCompletionPort")
-	procGetQueuedCompletionStatus          = modkernel32.NewProc("GetQueuedCompletionStatus")
-	procPostQueuedCompletionStatus         = modkernel32.NewProc("PostQueuedCompletionStatus")
-	procCancelIo                           = modkernel32.NewProc("CancelIo")
-	procCancelIoEx                         = modkernel32.NewProc("CancelIoEx")
-	procCreateProcessW                     = modkernel32.NewProc("CreateProcessW")
-	procOpenProcess                        = modkernel32.NewProc("OpenProcess")
-	procTerminateProcess                   = modkernel32.NewProc("TerminateProcess")
-	procGetExitCodeProcess                 = modkernel32.NewProc("GetExitCodeProcess")
-	procGetStartupInfoW                    = modkernel32.NewProc("GetStartupInfoW")
-	procGetCurrentProcess                  = modkernel32.NewProc("GetCurrentProcess")
-	procGetProcessTimes                    = modkernel32.NewProc("GetProcessTimes")
-	procDuplicateHandle                    = modkernel32.NewProc("DuplicateHandle")
-	procWaitForSingleObject                = modkernel32.NewProc("WaitForSingleObject")
-	procWaitForMultipleObjects             = modkernel32.NewProc("WaitForMultipleObjects")
-	procGetTempPathW                       = modkernel32.NewProc("GetTempPathW")
-	procCreatePipe                         = modkernel32.NewProc("CreatePipe")
-	procGetFileType                        = modkernel32.NewProc("GetFileType")
-	procCryptAcquireContextW               = modadvapi32.NewProc("CryptAcquireContextW")
-	procCryptReleaseContext                = modadvapi32.NewProc("CryptReleaseContext")
-	procCryptGenRandom                     = modadvapi32.NewProc("CryptGenRandom")
-	procGetEnvironmentStringsW             = modkernel32.NewProc("GetEnvironmentStringsW")
-	procFreeEnvironmentStringsW            = modkernel32.NewProc("FreeEnvironmentStringsW")
-	procGetEnvironmentVariableW            = modkernel32.NewProc("GetEnvironmentVariableW")
-	procSetEnvironmentVariableW            = modkernel32.NewProc("SetEnvironmentVariableW")
-	procSetFileTime                        = modkernel32.NewProc("SetFileTime")
-	procGetFileAttributesW                 = modkernel32.NewProc("GetFileAttributesW")
-	procSetFileAttributesW                 = modkernel32.NewProc("SetFileAttributesW")
-	procGetFileAttributesExW               = modkernel32.NewProc("GetFileAttributesExW")
-	procGetCommandLineW                    = modkernel32.NewProc("GetCommandLineW")
-	procCommandLineToArgvW                 = modshell32.NewProc("CommandLineToArgvW")
-	procLocalFree                          = modkernel32.NewProc("LocalFree")
-	procSetHandleInformation               = modkernel32.NewProc("SetHandleInformation")
-	procFlushFileBuffers                   = modkernel32.NewProc("FlushFileBuffers")
-	procGetFullPathNameW                   = modkernel32.NewProc("GetFullPathNameW")
-	procGetLongPathNameW                   = modkernel32.NewProc("GetLongPathNameW")
-	procGetShortPathNameW                  = modkernel32.NewProc("GetShortPathNameW")
-	procCreateFileMappingW                 = modkernel32.NewProc("CreateFileMappingW")
-	procMapViewOfFile                      = modkernel32.NewProc("MapViewOfFile")
-	procUnmapViewOfFile                    = modkernel32.NewProc("UnmapViewOfFile")
-	procFlushViewOfFile                    = modkernel32.NewProc("FlushViewOfFile")
-	procVirtualLock                        = modkernel32.NewProc("VirtualLock")
-	procVirtualUnlock                      = modkernel32.NewProc("VirtualUnlock")
-	procVirtualAlloc                       = modkernel32.NewProc("VirtualAlloc")
-	procVirtualFree                        = modkernel32.NewProc("VirtualFree")
-	procVirtualProtect                     = modkernel32.NewProc("VirtualProtect")
-	procTransmitFile                       = modmswsock.NewProc("TransmitFile")
-	procReadDirectoryChangesW              = modkernel32.NewProc("ReadDirectoryChangesW")
-	procCertOpenSystemStoreW               = modcrypt32.NewProc("CertOpenSystemStoreW")
-	procCertOpenStore                      = modcrypt32.NewProc("CertOpenStore")
-	procCertEnumCertificatesInStore        = modcrypt32.NewProc("CertEnumCertificatesInStore")
-	procCertAddCertificateContextToStore   = modcrypt32.NewProc("CertAddCertificateContextToStore")
-	procCertCloseStore                     = modcrypt32.NewProc("CertCloseStore")
-	procCertGetCertificateChain            = modcrypt32.NewProc("CertGetCertificateChain")
-	procCertFreeCertificateChain           = modcrypt32.NewProc("CertFreeCertificateChain")
-	procCertCreateCertificateContext       = modcrypt32.NewProc("CertCreateCertificateContext")
-	procCertFreeCertificateContext         = modcrypt32.NewProc("CertFreeCertificateContext")
-	procCertVerifyCertificateChainPolicy   = modcrypt32.NewProc("CertVerifyCertificateChainPolicy")
-	procRegOpenKeyExW                      = modadvapi32.NewProc("RegOpenKeyExW")
-	procRegCloseKey                        = modadvapi32.NewProc("RegCloseKey")
-	procRegQueryInfoKeyW                   = modadvapi32.NewProc("RegQueryInfoKeyW")
-	procRegEnumKeyExW                      = modadvapi32.NewProc("RegEnumKeyExW")
-	procRegQueryValueExW                   = modadvapi32.NewProc("RegQueryValueExW")
-	procGetCurrentProcessId                = modkernel32.NewProc("GetCurrentProcessId")
-	procGetConsoleMode                     = modkernel32.NewProc("GetConsoleMode")
-	procSetConsoleMode                     = modkernel32.NewProc("SetConsoleMode")
-	procGetConsoleScreenBufferInfo         = modkernel32.NewProc("GetConsoleScreenBufferInfo")
-	procWriteConsoleW                      = modkernel32.NewProc("WriteConsoleW")
-	procReadConsoleW                       = modkernel32.NewProc("ReadConsoleW")
-	procCreateToolhelp32Snapshot           = modkernel32.NewProc("CreateToolhelp32Snapshot")
-	procProcess32FirstW                    = modkernel32.NewProc("Process32FirstW")
-	procProcess32NextW                     = modkernel32.NewProc("Process32NextW")
-	procDeviceIoControl                    = modkernel32.NewProc("DeviceIoControl")
-	procCreateSymbolicLinkW                = modkernel32.NewProc("CreateSymbolicLinkW")
-	procCreateHardLinkW                    = modkernel32.NewProc("CreateHardLinkW")
-	procGetCurrentThreadId                 = modkernel32.NewProc("GetCurrentThreadId")
-	procCreateEventW                       = modkernel32.NewProc("CreateEventW")
-	procCreateEventExW                     = modkernel32.NewProc("CreateEventExW")
-	procOpenEventW                         = modkernel32.NewProc("OpenEventW")
-	procSetEvent                           = modkernel32.NewProc("SetEvent")
-	procResetEvent                         = modkernel32.NewProc("ResetEvent")
-	procPulseEvent                         = modkernel32.NewProc("PulseEvent")
-	procDefineDosDeviceW                   = modkernel32.NewProc("DefineDosDeviceW")
-	procDeleteVolumeMountPointW            = modkernel32.NewProc("DeleteVolumeMountPointW")
-	procFindFirstVolumeW                   = modkernel32.NewProc("FindFirstVolumeW")
-	procFindFirstVolumeMountPointW         = modkernel32.NewProc("FindFirstVolumeMountPointW")
-	procFindNextVolumeW                    = modkernel32.NewProc("FindNextVolumeW")
-	procFindNextVolumeMountPointW          = modkernel32.NewProc("FindNextVolumeMountPointW")
-	procFindVolumeClose                    = modkernel32.NewProc("FindVolumeClose")
-	procFindVolumeMountPointClose          = modkernel32.NewProc("FindVolumeMountPointClose")
-	procGetDriveTypeW                      = modkernel32.NewProc("GetDriveTypeW")
-	procGetLogicalDrives                   = modkernel32.NewProc("GetLogicalDrives")
-	procGetLogicalDriveStringsW            = modkernel32.NewProc("GetLogicalDriveStringsW")
-	procGetVolumeInformationW              = modkernel32.NewProc("GetVolumeInformationW")
-	procGetVolumeInformationByHandleW      = modkernel32.NewProc("GetVolumeInformationByHandleW")
-	procGetVolumeNameForVolumeMountPointW  = modkernel32.NewProc("GetVolumeNameForVolumeMountPointW")
-	procGetVolumePathNameW                 = modkernel32.NewProc("GetVolumePathNameW")
-	procGetVolumePathNamesForVolumeNameW   = modkernel32.NewProc("GetVolumePathNamesForVolumeNameW")
-	procQueryDosDeviceW                    = modkernel32.NewProc("QueryDosDeviceW")
-	procSetVolumeLabelW                    = modkernel32.NewProc("SetVolumeLabelW")
-	procSetVolumeMountPointW               = modkernel32.NewProc("SetVolumeMountPointW")
-	procWSAStartup                         = modws2_32.NewProc("WSAStartup")
-	procWSACleanup                         = modws2_32.NewProc("WSACleanup")
-	procWSAIoctl                           = modws2_32.NewProc("WSAIoctl")
-	procsocket                             = modws2_32.NewProc("socket")
-	procsetsockopt                         = modws2_32.NewProc("setsockopt")
-	procgetsockopt                         = modws2_32.NewProc("getsockopt")
-	procbind                               = modws2_32.NewProc("bind")
-	procconnect                            = modws2_32.NewProc("connect")
-	procgetsockname                        = modws2_32.NewProc("getsockname")
-	procgetpeername                        = modws2_32.NewProc("getpeername")
-	proclisten                             = modws2_32.NewProc("listen")
-	procshutdown                           = modws2_32.NewProc("shutdown")
-	procclosesocket                        = modws2_32.NewProc("closesocket")
-	procAcceptEx                           = modmswsock.NewProc("AcceptEx")
-	procGetAcceptExSockaddrs               = modmswsock.NewProc("GetAcceptExSockaddrs")
-	procWSARecv                            = modws2_32.NewProc("WSARecv")
-	procWSASend                            = modws2_32.NewProc("WSASend")
-	procWSARecvFrom                        = modws2_32.NewProc("WSARecvFrom")
-	procWSASendTo                          = modws2_32.NewProc("WSASendTo")
-	procgethostbyname                      = modws2_32.NewProc("gethostbyname")
-	procgetservbyname                      = modws2_32.NewProc("getservbyname")
-	procntohs                              = modws2_32.NewProc("ntohs")
-	procgetprotobyname                     = modws2_32.NewProc("getprotobyname")
-	procDnsQuery_W                         = moddnsapi.NewProc("DnsQuery_W")
-	procDnsRecordListFree                  = moddnsapi.NewProc("DnsRecordListFree")
-	procDnsNameCompare_W                   = moddnsapi.NewProc("DnsNameCompare_W")
-	procGetAddrInfoW                       = modws2_32.NewProc("GetAddrInfoW")
-	procFreeAddrInfoW                      = modws2_32.NewProc("FreeAddrInfoW")
-	procGetIfEntry                         = modiphlpapi.NewProc("GetIfEntry")
-	procGetAdaptersInfo                    = modiphlpapi.NewProc("GetAdaptersInfo")
-	procSetFileCompletionNotificationModes = modkernel32.NewProc("SetFileCompletionNotificationModes")
-	procWSAEnumProtocolsW                  = modws2_32.NewProc("WSAEnumProtocolsW")
-	procGetAdaptersAddresses               = modiphlpapi.NewProc("GetAdaptersAddresses")
-	procGetACP                             = modkernel32.NewProc("GetACP")
-	procMultiByteToWideChar                = modkernel32.NewProc("MultiByteToWideChar")
-	procTranslateNameW                     = modsecur32.NewProc("TranslateNameW")
-	procGetUserNameExW                     = modsecur32.NewProc("GetUserNameExW")
-	procNetUserGetInfo                     = modnetapi32.NewProc("NetUserGetInfo")
-	procNetGetJoinInformation              = modnetapi32.NewProc("NetGetJoinInformation")
-	procNetApiBufferFree                   = modnetapi32.NewProc("NetApiBufferFree")
-	procLookupAccountSidW                  = modadvapi32.NewProc("LookupAccountSidW")
-	procLookupAccountNameW                 = modadvapi32.NewProc("LookupAccountNameW")
-	procConvertSidToStringSidW             = modadvapi32.NewProc("ConvertSidToStringSidW")
-	procConvertStringSidToSidW             = modadvapi32.NewProc("ConvertStringSidToSidW")
-	procGetLengthSid                       = modadvapi32.NewProc("GetLengthSid")
-	procCopySid                            = modadvapi32.NewProc("CopySid")
-	procAllocateAndInitializeSid           = modadvapi32.NewProc("AllocateAndInitializeSid")
-	procCreateWellKnownSid                 = modadvapi32.NewProc("CreateWellKnownSid")
-	procFreeSid                            = modadvapi32.NewProc("FreeSid")
-	procEqualSid                           = modadvapi32.NewProc("EqualSid")
-	procCheckTokenMembership               = modadvapi32.NewProc("CheckTokenMembership")
-	procOpenProcessToken                   = modadvapi32.NewProc("OpenProcessToken")
-	procGetTokenInformation                = modadvapi32.NewProc("GetTokenInformation")
-	procGetUserProfileDirectoryW           = moduserenv.NewProc("GetUserProfileDirectoryW")
-	procGetSystemDirectoryW                = modkernel32.NewProc("GetSystemDirectoryW")
+	procRegisterEventSourceW                                 = modadvapi32.NewProc("RegisterEventSourceW")
+	procDeregisterEventSource                                = modadvapi32.NewProc("DeregisterEventSource")
+	procReportEventW                                         = modadvapi32.NewProc("ReportEventW")
+	procOpenSCManagerW                                       = modadvapi32.NewProc("OpenSCManagerW")
+	procCloseServiceHandle                                   = modadvapi32.NewProc("CloseServiceHandle")
+	procCreateServiceW                                       = modadvapi32.NewProc("CreateServiceW")
+	procOpenServiceW                                         = modadvapi32.NewProc("OpenServiceW")
+	procDeleteService                                        = modadvapi32.NewProc("DeleteService")
+	procStartServiceW                                        = modadvapi32.NewProc("StartServiceW")
+	procQueryServiceStatus                                   = modadvapi32.NewProc("QueryServiceStatus")
+	procQueryServiceLockStatusW                              = modadvapi32.NewProc("QueryServiceLockStatusW")
+	procControlService                                       = modadvapi32.NewProc("ControlService")
+	procStartServiceCtrlDispatcherW                          = modadvapi32.NewProc("StartServiceCtrlDispatcherW")
+	procSetServiceStatus                                     = modadvapi32.NewProc("SetServiceStatus")
+	procChangeServiceConfigW                                 = modadvapi32.NewProc("ChangeServiceConfigW")
+	procQueryServiceConfigW                                  = modadvapi32.NewProc("QueryServiceConfigW")
+	procChangeServiceConfig2W                                = modadvapi32.NewProc("ChangeServiceConfig2W")
+	procQueryServiceConfig2W                                 = modadvapi32.NewProc("QueryServiceConfig2W")
+	procEnumServicesStatusExW                                = modadvapi32.NewProc("EnumServicesStatusExW")
+	procQueryServiceStatusEx                                 = modadvapi32.NewProc("QueryServiceStatusEx")
+	procNotifyServiceStatusChangeW                           = modadvapi32.NewProc("NotifyServiceStatusChangeW")
+	procGetLastError                                         = modkernel32.NewProc("GetLastError")
+	procLoadLibraryW                                         = modkernel32.NewProc("LoadLibraryW")
+	procLoadLibraryExW                                       = modkernel32.NewProc("LoadLibraryExW")
+	procFreeLibrary                                          = modkernel32.NewProc("FreeLibrary")
+	procGetProcAddress                                       = modkernel32.NewProc("GetProcAddress")
+	procGetModuleFileNameW                                   = modkernel32.NewProc("GetModuleFileNameW")
+	procGetModuleHandleExW                                   = modkernel32.NewProc("GetModuleHandleExW")
+	procGetVersion                                           = modkernel32.NewProc("GetVersion")
+	procFormatMessageW                                       = modkernel32.NewProc("FormatMessageW")
+	procExitProcess                                          = modkernel32.NewProc("ExitProcess")
+	procIsWow64Process                                       = modkernel32.NewProc("IsWow64Process")
+	procCreateFileW                                          = modkernel32.NewProc("CreateFileW")
+	procReadFile                                             = modkernel32.NewProc("ReadFile")
+	procWriteFile                                            = modkernel32.NewProc("WriteFile")
+	procGetOverlappedResult                                  = modkernel32.NewProc("GetOverlappedResult")
+	procSetFilePointer                                       = modkernel32.NewProc("SetFilePointer")
+	procCloseHandle                                          = modkernel32.NewProc("CloseHandle")
+	procGetStdHandle                                         = modkernel32.NewProc("GetStdHandle")
+	procSetStdHandle                                         = modkernel32.NewProc("SetStdHandle")
+	procFindFirstFileW                                       = modkernel32.NewProc("FindFirstFileW")
+	procFindNextFileW                                        = modkernel32.NewProc("FindNextFileW")
+	procFindClose                                            = modkernel32.NewProc("FindClose")
+	procGetFileInformationByHandle                           = modkernel32.NewProc("GetFileInformationByHandle")
+	procGetFileInformationByHandleEx                         = modkernel32.NewProc("GetFileInformationByHandleEx")
+	procGetCurrentDirectoryW                                 = modkernel32.NewProc("GetCurrentDirectoryW")
+	procSetCurrentDirectoryW                                 = modkernel32.NewProc("SetCurrentDirectoryW")
+	procCreateDirectoryW                                     = modkernel32.NewProc("CreateDirectoryW")
+	procRemoveDirectoryW                                     = modkernel32.NewProc("RemoveDirectoryW")
+	procDeleteFileW                                          = modkernel32.NewProc("DeleteFileW")
+	procMoveFileW                                            = modkernel32.NewProc("MoveFileW")
+	procMoveFileExW                                          = modkernel32.NewProc("MoveFileExW")
+	procLockFileEx                                           = modkernel32.NewProc("LockFileEx")
+	procUnlockFileEx                                         = modkernel32.NewProc("UnlockFileEx")
+	procGetComputerNameW                                     = modkernel32.NewProc("GetComputerNameW")
+	procGetComputerNameExW                                   = modkernel32.NewProc("GetComputerNameExW")
+	procSetEndOfFile                                         = modkernel32.NewProc("SetEndOfFile")
+	procGetSystemTimeAsFileTime                              = modkernel32.NewProc("GetSystemTimeAsFileTime")
+	procGetSystemTimePreciseAsFileTime                       = modkernel32.NewProc("GetSystemTimePreciseAsFileTime")
+	procGetTimeZoneInformation                               = modkernel32.NewProc("GetTimeZoneInformation")
+	procCreateIoCompletionPort                               = modkernel32.NewProc("CreateIoCompletionPort")
+	procGetQueuedCompletionStatus                            = modkernel32.NewProc("GetQueuedCompletionStatus")
+	procPostQueuedCompletionStatus                           = modkernel32.NewProc("PostQueuedCompletionStatus")
+	procCancelIo                                             = modkernel32.NewProc("CancelIo")
+	procCancelIoEx                                           = modkernel32.NewProc("CancelIoEx")
+	procCreateProcessW                                       = modkernel32.NewProc("CreateProcessW")
+	procOpenProcess                                          = modkernel32.NewProc("OpenProcess")
+	procShellExecuteW                                        = modshell32.NewProc("ShellExecuteW")
+	procSHGetKnownFolderPath                                 = modshell32.NewProc("SHGetKnownFolderPath")
+	procTerminateProcess                                     = modkernel32.NewProc("TerminateProcess")
+	procGetExitCodeProcess                                   = modkernel32.NewProc("GetExitCodeProcess")
+	procGetStartupInfoW                                      = modkernel32.NewProc("GetStartupInfoW")
+	procGetProcessTimes                                      = modkernel32.NewProc("GetProcessTimes")
+	procDuplicateHandle                                      = modkernel32.NewProc("DuplicateHandle")
+	procWaitForSingleObject                                  = modkernel32.NewProc("WaitForSingleObject")
+	procWaitForMultipleObjects                               = modkernel32.NewProc("WaitForMultipleObjects")
+	procGetTempPathW                                         = modkernel32.NewProc("GetTempPathW")
+	procCreatePipe                                           = modkernel32.NewProc("CreatePipe")
+	procGetFileType                                          = modkernel32.NewProc("GetFileType")
+	procCryptAcquireContextW                                 = modadvapi32.NewProc("CryptAcquireContextW")
+	procCryptReleaseContext                                  = modadvapi32.NewProc("CryptReleaseContext")
+	procCryptGenRandom                                       = modadvapi32.NewProc("CryptGenRandom")
+	procGetEnvironmentStringsW                               = modkernel32.NewProc("GetEnvironmentStringsW")
+	procFreeEnvironmentStringsW                              = modkernel32.NewProc("FreeEnvironmentStringsW")
+	procGetEnvironmentVariableW                              = modkernel32.NewProc("GetEnvironmentVariableW")
+	procSetEnvironmentVariableW                              = modkernel32.NewProc("SetEnvironmentVariableW")
+	procCreateEnvironmentBlock                               = moduserenv.NewProc("CreateEnvironmentBlock")
+	procDestroyEnvironmentBlock                              = moduserenv.NewProc("DestroyEnvironmentBlock")
+	procGetTickCount64                                       = modkernel32.NewProc("GetTickCount64")
+	procSetFileTime                                          = modkernel32.NewProc("SetFileTime")
+	procGetFileAttributesW                                   = modkernel32.NewProc("GetFileAttributesW")
+	procSetFileAttributesW                                   = modkernel32.NewProc("SetFileAttributesW")
+	procGetFileAttributesExW                                 = modkernel32.NewProc("GetFileAttributesExW")
+	procGetCommandLineW                                      = modkernel32.NewProc("GetCommandLineW")
+	procCommandLineToArgvW                                   = modshell32.NewProc("CommandLineToArgvW")
+	procLocalFree                                            = modkernel32.NewProc("LocalFree")
+	procSetHandleInformation                                 = modkernel32.NewProc("SetHandleInformation")
+	procFlushFileBuffers                                     = modkernel32.NewProc("FlushFileBuffers")
+	procGetFullPathNameW                                     = modkernel32.NewProc("GetFullPathNameW")
+	procGetLongPathNameW                                     = modkernel32.NewProc("GetLongPathNameW")
+	procGetShortPathNameW                                    = modkernel32.NewProc("GetShortPathNameW")
+	procCreateFileMappingW                                   = modkernel32.NewProc("CreateFileMappingW")
+	procMapViewOfFile                                        = modkernel32.NewProc("MapViewOfFile")
+	procUnmapViewOfFile                                      = modkernel32.NewProc("UnmapViewOfFile")
+	procFlushViewOfFile                                      = modkernel32.NewProc("FlushViewOfFile")
+	procVirtualLock                                          = modkernel32.NewProc("VirtualLock")
+	procVirtualUnlock                                        = modkernel32.NewProc("VirtualUnlock")
+	procVirtualAlloc                                         = modkernel32.NewProc("VirtualAlloc")
+	procVirtualFree                                          = modkernel32.NewProc("VirtualFree")
+	procVirtualProtect                                       = modkernel32.NewProc("VirtualProtect")
+	procTransmitFile                                         = modmswsock.NewProc("TransmitFile")
+	procReadDirectoryChangesW                                = modkernel32.NewProc("ReadDirectoryChangesW")
+	procCertOpenSystemStoreW                                 = modcrypt32.NewProc("CertOpenSystemStoreW")
+	procCertOpenStore                                        = modcrypt32.NewProc("CertOpenStore")
+	procCertEnumCertificatesInStore                          = modcrypt32.NewProc("CertEnumCertificatesInStore")
+	procCertAddCertificateContextToStore                     = modcrypt32.NewProc("CertAddCertificateContextToStore")
+	procCertCloseStore                                       = modcrypt32.NewProc("CertCloseStore")
+	procCertGetCertificateChain                              = modcrypt32.NewProc("CertGetCertificateChain")
+	procCertFreeCertificateChain                             = modcrypt32.NewProc("CertFreeCertificateChain")
+	procCertCreateCertificateContext                         = modcrypt32.NewProc("CertCreateCertificateContext")
+	procCertFreeCertificateContext                           = modcrypt32.NewProc("CertFreeCertificateContext")
+	procCertVerifyCertificateChainPolicy                     = modcrypt32.NewProc("CertVerifyCertificateChainPolicy")
+	procRegOpenKeyExW                                        = modadvapi32.NewProc("RegOpenKeyExW")
+	procRegCloseKey                                          = modadvapi32.NewProc("RegCloseKey")
+	procRegQueryInfoKeyW                                     = modadvapi32.NewProc("RegQueryInfoKeyW")
+	procRegEnumKeyExW                                        = modadvapi32.NewProc("RegEnumKeyExW")
+	procRegQueryValueExW                                     = modadvapi32.NewProc("RegQueryValueExW")
+	procGetCurrentProcessId                                  = modkernel32.NewProc("GetCurrentProcessId")
+	procGetConsoleMode                                       = modkernel32.NewProc("GetConsoleMode")
+	procSetConsoleMode                                       = modkernel32.NewProc("SetConsoleMode")
+	procGetConsoleScreenBufferInfo                           = modkernel32.NewProc("GetConsoleScreenBufferInfo")
+	procWriteConsoleW                                        = modkernel32.NewProc("WriteConsoleW")
+	procReadConsoleW                                         = modkernel32.NewProc("ReadConsoleW")
+	procCreateToolhelp32Snapshot                             = modkernel32.NewProc("CreateToolhelp32Snapshot")
+	procProcess32FirstW                                      = modkernel32.NewProc("Process32FirstW")
+	procProcess32NextW                                       = modkernel32.NewProc("Process32NextW")
+	procThread32First                                        = modkernel32.NewProc("Thread32First")
+	procThread32Next                                         = modkernel32.NewProc("Thread32Next")
+	procDeviceIoControl                                      = modkernel32.NewProc("DeviceIoControl")
+	procCreateSymbolicLinkW                                  = modkernel32.NewProc("CreateSymbolicLinkW")
+	procCreateHardLinkW                                      = modkernel32.NewProc("CreateHardLinkW")
+	procGetCurrentThreadId                                   = modkernel32.NewProc("GetCurrentThreadId")
+	procCreateEventW                                         = modkernel32.NewProc("CreateEventW")
+	procCreateEventExW                                       = modkernel32.NewProc("CreateEventExW")
+	procOpenEventW                                           = modkernel32.NewProc("OpenEventW")
+	procSetEvent                                             = modkernel32.NewProc("SetEvent")
+	procResetEvent                                           = modkernel32.NewProc("ResetEvent")
+	procPulseEvent                                           = modkernel32.NewProc("PulseEvent")
+	procCreateMutexW                                         = modkernel32.NewProc("CreateMutexW")
+	procCreateMutexExW                                       = modkernel32.NewProc("CreateMutexExW")
+	procOpenMutexW                                           = modkernel32.NewProc("OpenMutexW")
+	procReleaseMutex                                         = modkernel32.NewProc("ReleaseMutex")
+	procSleepEx                                              = modkernel32.NewProc("SleepEx")
+	procCreateJobObjectW                                     = modkernel32.NewProc("CreateJobObjectW")
+	procAssignProcessToJobObject                             = modkernel32.NewProc("AssignProcessToJobObject")
+	procTerminateJobObject                                   = modkernel32.NewProc("TerminateJobObject")
+	procSetErrorMode                                         = modkernel32.NewProc("SetErrorMode")
+	procResumeThread                                         = modkernel32.NewProc("ResumeThread")
+	procSetPriorityClass                                     = modkernel32.NewProc("SetPriorityClass")
+	procGetPriorityClass                                     = modkernel32.NewProc("GetPriorityClass")
+	procSetInformationJobObject                              = modkernel32.NewProc("SetInformationJobObject")
+	procGenerateConsoleCtrlEvent                             = modkernel32.NewProc("GenerateConsoleCtrlEvent")
+	procGetProcessId                                         = modkernel32.NewProc("GetProcessId")
+	procOpenThread                                           = modkernel32.NewProc("OpenThread")
+	procSetProcessPriorityBoost                              = modkernel32.NewProc("SetProcessPriorityBoost")
+	procDefineDosDeviceW                                     = modkernel32.NewProc("DefineDosDeviceW")
+	procDeleteVolumeMountPointW                              = modkernel32.NewProc("DeleteVolumeMountPointW")
+	procFindFirstVolumeW                                     = modkernel32.NewProc("FindFirstVolumeW")
+	procFindFirstVolumeMountPointW                           = modkernel32.NewProc("FindFirstVolumeMountPointW")
+	procFindNextVolumeW                                      = modkernel32.NewProc("FindNextVolumeW")
+	procFindNextVolumeMountPointW                            = modkernel32.NewProc("FindNextVolumeMountPointW")
+	procFindVolumeClose                                      = modkernel32.NewProc("FindVolumeClose")
+	procFindVolumeMountPointClose                            = modkernel32.NewProc("FindVolumeMountPointClose")
+	procGetDiskFreeSpaceExW                                  = modkernel32.NewProc("GetDiskFreeSpaceExW")
+	procGetDriveTypeW                                        = modkernel32.NewProc("GetDriveTypeW")
+	procGetLogicalDrives                                     = modkernel32.NewProc("GetLogicalDrives")
+	procGetLogicalDriveStringsW                              = modkernel32.NewProc("GetLogicalDriveStringsW")
+	procGetVolumeInformationW                                = modkernel32.NewProc("GetVolumeInformationW")
+	procGetVolumeInformationByHandleW                        = modkernel32.NewProc("GetVolumeInformationByHandleW")
+	procGetVolumeNameForVolumeMountPointW                    = modkernel32.NewProc("GetVolumeNameForVolumeMountPointW")
+	procGetVolumePathNameW                                   = modkernel32.NewProc("GetVolumePathNameW")
+	procGetVolumePathNamesForVolumeNameW                     = modkernel32.NewProc("GetVolumePathNamesForVolumeNameW")
+	procQueryDosDeviceW                                      = modkernel32.NewProc("QueryDosDeviceW")
+	procSetVolumeLabelW                                      = modkernel32.NewProc("SetVolumeLabelW")
+	procSetVolumeMountPointW                                 = modkernel32.NewProc("SetVolumeMountPointW")
+	procMessageBoxW                                          = moduser32.NewProc("MessageBoxW")
+	procExitWindowsEx                                        = moduser32.NewProc("ExitWindowsEx")
+	procInitiateSystemShutdownExW                            = modadvapi32.NewProc("InitiateSystemShutdownExW")
+	procSetProcessShutdownParameters                         = modkernel32.NewProc("SetProcessShutdownParameters")
+	procGetProcessShutdownParameters                         = modkernel32.NewProc("GetProcessShutdownParameters")
+	procCLSIDFromString                                      = modole32.NewProc("CLSIDFromString")
+	procStringFromGUID2                                      = modole32.NewProc("StringFromGUID2")
+	procCoCreateGuid                                         = modole32.NewProc("CoCreateGuid")
+	procCoTaskMemFree                                        = modole32.NewProc("CoTaskMemFree")
+	procRtlGetVersion                                        = modntdll.NewProc("RtlGetVersion")
+	procRtlGetNtVersionNumbers                               = modntdll.NewProc("RtlGetNtVersionNumbers")
+	procGetProcessPreferredUILanguages                       = modkernel32.NewProc("GetProcessPreferredUILanguages")
+	procGetThreadPreferredUILanguages                        = modkernel32.NewProc("GetThreadPreferredUILanguages")
+	procGetUserPreferredUILanguages                          = modkernel32.NewProc("GetUserPreferredUILanguages")
+	procGetSystemPreferredUILanguages                        = modkernel32.NewProc("GetSystemPreferredUILanguages")
+	procEnumProcesses                                        = modpsapi.NewProc("EnumProcesses")
+	procWSAStartup                                           = modws2_32.NewProc("WSAStartup")
+	procWSACleanup                                           = modws2_32.NewProc("WSACleanup")
+	procWSAIoctl                                             = modws2_32.NewProc("WSAIoctl")
+	procsocket                                               = modws2_32.NewProc("socket")
+	procsendto                                               = modws2_32.NewProc("sendto")
+	procrecvfrom                                             = modws2_32.NewProc("recvfrom")
+	procsetsockopt                                           = modws2_32.NewProc("setsockopt")
+	procgetsockopt                                           = modws2_32.NewProc("getsockopt")
+	procbind                                                 = modws2_32.NewProc("bind")
+	procconnect                                              = modws2_32.NewProc("connect")
+	procgetsockname                                          = modws2_32.NewProc("getsockname")
+	procgetpeername                                          = modws2_32.NewProc("getpeername")
+	proclisten                                               = modws2_32.NewProc("listen")
+	procshutdown                                             = modws2_32.NewProc("shutdown")
+	procclosesocket                                          = modws2_32.NewProc("closesocket")
+	procAcceptEx                                             = modmswsock.NewProc("AcceptEx")
+	procGetAcceptExSockaddrs                                 = modmswsock.NewProc("GetAcceptExSockaddrs")
+	procWSARecv                                              = modws2_32.NewProc("WSARecv")
+	procWSASend                                              = modws2_32.NewProc("WSASend")
+	procWSARecvFrom                                          = modws2_32.NewProc("WSARecvFrom")
+	procWSASendTo                                            = modws2_32.NewProc("WSASendTo")
+	procgethostbyname                                        = modws2_32.NewProc("gethostbyname")
+	procgetservbyname                                        = modws2_32.NewProc("getservbyname")
+	procntohs                                                = modws2_32.NewProc("ntohs")
+	procgetprotobyname                                       = modws2_32.NewProc("getprotobyname")
+	procDnsQuery_W                                           = moddnsapi.NewProc("DnsQuery_W")
+	procDnsRecordListFree                                    = moddnsapi.NewProc("DnsRecordListFree")
+	procDnsNameCompare_W                                     = moddnsapi.NewProc("DnsNameCompare_W")
+	procGetAddrInfoW                                         = modws2_32.NewProc("GetAddrInfoW")
+	procFreeAddrInfoW                                        = modws2_32.NewProc("FreeAddrInfoW")
+	procGetIfEntry                                           = modiphlpapi.NewProc("GetIfEntry")
+	procGetAdaptersInfo                                      = modiphlpapi.NewProc("GetAdaptersInfo")
+	procSetFileCompletionNotificationModes                   = modkernel32.NewProc("SetFileCompletionNotificationModes")
+	procWSAEnumProtocolsW                                    = modws2_32.NewProc("WSAEnumProtocolsW")
+	procGetAdaptersAddresses                                 = modiphlpapi.NewProc("GetAdaptersAddresses")
+	procGetACP                                               = modkernel32.NewProc("GetACP")
+	procMultiByteToWideChar                                  = modkernel32.NewProc("MultiByteToWideChar")
+	procTranslateNameW                                       = modsecur32.NewProc("TranslateNameW")
+	procGetUserNameExW                                       = modsecur32.NewProc("GetUserNameExW")
+	procNetUserGetInfo                                       = modnetapi32.NewProc("NetUserGetInfo")
+	procNetGetJoinInformation                                = modnetapi32.NewProc("NetGetJoinInformation")
+	procNetApiBufferFree                                     = modnetapi32.NewProc("NetApiBufferFree")
+	procLookupAccountSidW                                    = modadvapi32.NewProc("LookupAccountSidW")
+	procLookupAccountNameW                                   = modadvapi32.NewProc("LookupAccountNameW")
+	procConvertSidToStringSidW                               = modadvapi32.NewProc("ConvertSidToStringSidW")
+	procConvertStringSidToSidW                               = modadvapi32.NewProc("ConvertStringSidToSidW")
+	procGetLengthSid                                         = modadvapi32.NewProc("GetLengthSid")
+	procCopySid                                              = modadvapi32.NewProc("CopySid")
+	procAllocateAndInitializeSid                             = modadvapi32.NewProc("AllocateAndInitializeSid")
+	procCreateWellKnownSid                                   = modadvapi32.NewProc("CreateWellKnownSid")
+	procIsWellKnownSid                                       = modadvapi32.NewProc("IsWellKnownSid")
+	procFreeSid                                              = modadvapi32.NewProc("FreeSid")
+	procEqualSid                                             = modadvapi32.NewProc("EqualSid")
+	procGetSidIdentifierAuthority                            = modadvapi32.NewProc("GetSidIdentifierAuthority")
+	procGetSidSubAuthorityCount                              = modadvapi32.NewProc("GetSidSubAuthorityCount")
+	procGetSidSubAuthority                                   = modadvapi32.NewProc("GetSidSubAuthority")
+	procIsValidSid                                           = modadvapi32.NewProc("IsValidSid")
+	procCheckTokenMembership                                 = modadvapi32.NewProc("CheckTokenMembership")
+	procOpenProcessToken                                     = modadvapi32.NewProc("OpenProcessToken")
+	procOpenThreadToken                                      = modadvapi32.NewProc("OpenThreadToken")
+	procImpersonateSelf                                      = modadvapi32.NewProc("ImpersonateSelf")
+	procRevertToSelf                                         = modadvapi32.NewProc("RevertToSelf")
+	procSetThreadToken                                       = modadvapi32.NewProc("SetThreadToken")
+	procLookupPrivilegeValueW                                = modadvapi32.NewProc("LookupPrivilegeValueW")
+	procAdjustTokenPrivileges                                = modadvapi32.NewProc("AdjustTokenPrivileges")
+	procAdjustTokenGroups                                    = modadvapi32.NewProc("AdjustTokenGroups")
+	procGetTokenInformation                                  = modadvapi32.NewProc("GetTokenInformation")
+	procSetTokenInformation                                  = modadvapi32.NewProc("SetTokenInformation")
+	procDuplicateTokenEx                                     = modadvapi32.NewProc("DuplicateTokenEx")
+	procGetUserProfileDirectoryW                             = moduserenv.NewProc("GetUserProfileDirectoryW")
+	procGetSystemDirectoryW                                  = modkernel32.NewProc("GetSystemDirectoryW")
+	procGetWindowsDirectoryW                                 = modkernel32.NewProc("GetWindowsDirectoryW")
+	procGetSystemWindowsDirectoryW                           = modkernel32.NewProc("GetSystemWindowsDirectoryW")
+	procWTSQueryUserToken                                    = modwtsapi32.NewProc("WTSQueryUserToken")
+	procWTSEnumerateSessionsW                                = modwtsapi32.NewProc("WTSEnumerateSessionsW")
+	procWTSFreeMemory                                        = modwtsapi32.NewProc("WTSFreeMemory")
+	procGetSecurityInfo                                      = modadvapi32.NewProc("GetSecurityInfo")
+	procSetSecurityInfo                                      = modadvapi32.NewProc("SetSecurityInfo")
+	procGetNamedSecurityInfoW                                = modadvapi32.NewProc("GetNamedSecurityInfoW")
+	procSetNamedSecurityInfoW                                = modadvapi32.NewProc("SetNamedSecurityInfoW")
+	procBuildSecurityDescriptorW                             = modadvapi32.NewProc("BuildSecurityDescriptorW")
+	procInitializeSecurityDescriptor                         = modadvapi32.NewProc("InitializeSecurityDescriptor")
+	procGetSecurityDescriptorControl                         = modadvapi32.NewProc("GetSecurityDescriptorControl")
+	procGetSecurityDescriptorDacl                            = modadvapi32.NewProc("GetSecurityDescriptorDacl")
+	procGetSecurityDescriptorSacl                            = modadvapi32.NewProc("GetSecurityDescriptorSacl")
+	procGetSecurityDescriptorOwner                           = modadvapi32.NewProc("GetSecurityDescriptorOwner")
+	procGetSecurityDescriptorGroup                           = modadvapi32.NewProc("GetSecurityDescriptorGroup")
+	procGetSecurityDescriptorLength                          = modadvapi32.NewProc("GetSecurityDescriptorLength")
+	procGetSecurityDescriptorRMControl                       = modadvapi32.NewProc("GetSecurityDescriptorRMControl")
+	procIsValidSecurityDescriptor                            = modadvapi32.NewProc("IsValidSecurityDescriptor")
+	procSetSecurityDescriptorControl                         = modadvapi32.NewProc("SetSecurityDescriptorControl")
+	procSetSecurityDescriptorDacl                            = modadvapi32.NewProc("SetSecurityDescriptorDacl")
+	procSetSecurityDescriptorSacl                            = modadvapi32.NewProc("SetSecurityDescriptorSacl")
+	procSetSecurityDescriptorOwner                           = modadvapi32.NewProc("SetSecurityDescriptorOwner")
+	procSetSecurityDescriptorGroup                           = modadvapi32.NewProc("SetSecurityDescriptorGroup")
+	procSetSecurityDescriptorRMControl                       = modadvapi32.NewProc("SetSecurityDescriptorRMControl")
+	procConvertStringSecurityDescriptorToSecurityDescriptorW = modadvapi32.NewProc("ConvertStringSecurityDescriptorToSecurityDescriptorW")
+	procConvertSecurityDescriptorToStringSecurityDescriptorW = modadvapi32.NewProc("ConvertSecurityDescriptorToStringSecurityDescriptorW")
+	procMakeAbsoluteSD                                       = modadvapi32.NewProc("MakeAbsoluteSD")
+	procMakeSelfRelativeSD                                   = modadvapi32.NewProc("MakeSelfRelativeSD")
+	procSetEntriesInAclW                                     = modadvapi32.NewProc("SetEntriesInAclW")
 )
 
 func RegisterEventSource(uncServerName *uint16, sourceName *uint16) (handle Handle, err error) {
@@ -382,6 +480,18 @@ func QueryServiceStatus(service Handle, status *SERVICE_STATUS) (err error) {
 	return
 }
 
+func QueryServiceLockStatus(mgr Handle, lockStatus *QUERY_SERVICE_LOCK_STATUS, bufSize uint32, bytesNeeded *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procQueryServiceLockStatusW.Addr(), 4, uintptr(mgr), uintptr(unsafe.Pointer(lockStatus)), uintptr(bufSize), uintptr(unsafe.Pointer(bytesNeeded)), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
 func ControlService(service Handle, control uint32, status *SERVICE_STATUS) (err error) {
 	r1, _, e1 := syscall.Syscall(procControlService.Addr(), 3, uintptr(service), uintptr(control), uintptr(unsafe.Pointer(status)))
 	if r1 == 0 {
@@ -490,6 +600,14 @@ func QueryServiceStatusEx(service Handle, infoLevel uint32, buff *byte, buffSize
 	return
 }
 
+func NotifyServiceStatusChange(service Handle, notifyMask uint32, notifier *SERVICE_NOTIFY) (ret error) {
+	r0, _, _ := syscall.Syscall(procNotifyServiceStatusChangeW.Addr(), 3, uintptr(service), uintptr(notifyMask), uintptr(unsafe.Pointer(notifier)))
+	if r0 != 0 {
+		ret = syscall.Errno(r0)
+	}
+	return
+}
+
 func GetLastError() (lasterr error) {
 	r0, _, _ := syscall.Syscall(procGetLastError.Addr(), 0, 0, 0, 0)
 	if r0 != 0 {
@@ -576,6 +694,31 @@ func _GetProcAddress(module Handle, procname *byte) (proc uintptr, err error) {
 	return
 }
 
+func GetModuleFileName(module Handle, filename *uint16, size uint32) (n uint32, err error) {
+	r0, _, e1 := syscall.Syscall(procGetModuleFileNameW.Addr(), 3, uintptr(module), uintptr(unsafe.Pointer(filename)), uintptr(size))
+	n = uint32(r0)
+	if n == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetModuleHandleEx(flags uint32, moduleName *uint16, module *Handle) (err error) {
+	r1, _, e1 := syscall.Syscall(procGetModuleHandleExW.Addr(), 3, uintptr(flags), uintptr(unsafe.Pointer(moduleName)), uintptr(unsafe.Pointer(module)))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
 func GetVersion() (ver uint32, err error) {
 	r0, _, e1 := syscall.Syscall(procGetVersion.Addr(), 0, 0, 0, 0)
 	ver = uint32(r0)
@@ -611,7 +754,26 @@ func ExitProcess(exitcode uint32) {
 	return
 }
 
-func CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile int32) (handle Handle, err error) {
+func IsWow64Process(handle Handle, isWow64 *bool) (err error) {
+	var _p0 uint32
+	if *isWow64 {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r1, _, e1 := syscall.Syscall(procIsWow64Process.Addr(), 2, uintptr(handle), uintptr(unsafe.Pointer(&_p0)), 0)
+	*isWow64 = _p0 != 0
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func CreateFile(name *uint16, access uint32, mode uint32, sa *SecurityAttributes, createmode uint32, attrs uint32, templatefile Handle) (handle Handle, err error) {
 	r0, _, e1 := syscall.Syscall9(procCreateFileW.Addr(), 7, uintptr(unsafe.Pointer(name)), uintptr(access), uintptr(mode), uintptr(unsafe.Pointer(sa)), uintptr(createmode), uintptr(attrs), uintptr(templatefile), 0, 0)
 	handle = Handle(r0)
 	if handle == InvalidHandle {
@@ -870,6 +1032,30 @@ func MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) {
 	return
 }
 
+func LockFileEx(file Handle, flags uint32, reserved uint32, bytesLow uint32, bytesHigh uint32, overlapped *Overlapped) (err error) {
+	r1, _, e1 := syscall.Syscall6(procLockFileEx.Addr(), 6, uintptr(file), uintptr(flags), uintptr(reserved), uintptr(bytesLow), uintptr(bytesHigh), uintptr(unsafe.Pointer(overlapped)))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func UnlockFileEx(file Handle, reserved uint32, bytesLow uint32, bytesHigh uint32, overlapped *Overlapped) (err error) {
+	r1, _, e1 := syscall.Syscall6(procUnlockFileEx.Addr(), 5, uintptr(file), uintptr(reserved), uintptr(bytesLow), uintptr(bytesHigh), uintptr(unsafe.Pointer(overlapped)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
 func GetComputerName(buf *uint16, n *uint32) (err error) {
 	r1, _, e1 := syscall.Syscall(procGetComputerNameW.Addr(), 2, uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(n)), 0)
 	if r1 == 0 {
@@ -1008,14 +1194,14 @@ func CreateProcess(appName *uint16, commandLine *uint16, procSecurity *SecurityA
 	return
 }
 
-func OpenProcess(da uint32, inheritHandle bool, pid uint32) (handle Handle, err error) {
+func OpenProcess(desiredAccess uint32, inheritHandle bool, processId uint32) (handle Handle, err error) {
 	var _p0 uint32
 	if inheritHandle {
 		_p0 = 1
 	} else {
 		_p0 = 0
 	}
-	r0, _, e1 := syscall.Syscall(procOpenProcess.Addr(), 3, uintptr(da), uintptr(_p0), uintptr(pid))
+	r0, _, e1 := syscall.Syscall(procOpenProcess.Addr(), 3, uintptr(desiredAccess), uintptr(_p0), uintptr(processId))
 	handle = Handle(r0)
 	if handle == 0 {
 		if e1 != 0 {
@@ -1023,6 +1209,26 @@ func OpenProcess(da uint32, inheritHandle bool, pid uint32) (handle Handle, err 
 		} else {
 			err = syscall.EINVAL
 		}
+	}
+	return
+}
+
+func ShellExecute(hwnd Handle, verb *uint16, file *uint16, args *uint16, cwd *uint16, showCmd int32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procShellExecuteW.Addr(), 6, uintptr(hwnd), uintptr(unsafe.Pointer(verb)), uintptr(unsafe.Pointer(file)), uintptr(unsafe.Pointer(args)), uintptr(unsafe.Pointer(cwd)), uintptr(showCmd))
+	if r1 <= 32 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func shGetKnownFolderPath(id *KNOWNFOLDERID, flags uint32, token Token, path **uint16) (ret error) {
+	r0, _, _ := syscall.Syscall6(procSHGetKnownFolderPath.Addr(), 4, uintptr(unsafe.Pointer(id)), uintptr(flags), uintptr(token), uintptr(unsafe.Pointer(path)), 0, 0)
+	if r0 != 0 {
+		ret = syscall.Errno(r0)
 	}
 	return
 }
@@ -1054,19 +1260,6 @@ func GetExitCodeProcess(handle Handle, exitcode *uint32) (err error) {
 func GetStartupInfo(startupInfo *StartupInfo) (err error) {
 	r1, _, e1 := syscall.Syscall(procGetStartupInfoW.Addr(), 1, uintptr(unsafe.Pointer(startupInfo)), 0, 0)
 	if r1 == 0 {
-		if e1 != 0 {
-			err = errnoErr(e1)
-		} else {
-			err = syscall.EINVAL
-		}
-	}
-	return
-}
-
-func GetCurrentProcess() (pseudoHandle Handle, err error) {
-	r0, _, e1 := syscall.Syscall(procGetCurrentProcess.Addr(), 0, 0, 0, 0)
-	pseudoHandle = Handle(r0)
-	if pseudoHandle == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)
 		} else {
@@ -1259,6 +1452,42 @@ func SetEnvironmentVariable(name *uint16, value *uint16) (err error) {
 			err = syscall.EINVAL
 		}
 	}
+	return
+}
+
+func CreateEnvironmentBlock(block **uint16, token Token, inheritExisting bool) (err error) {
+	var _p0 uint32
+	if inheritExisting {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r1, _, e1 := syscall.Syscall(procCreateEnvironmentBlock.Addr(), 3, uintptr(unsafe.Pointer(block)), uintptr(token), uintptr(_p0))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func DestroyEnvironmentBlock(block *uint16) (err error) {
+	r1, _, e1 := syscall.Syscall(procDestroyEnvironmentBlock.Addr(), 1, uintptr(unsafe.Pointer(block)), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func getTickCount64() (ms uint64) {
+	r0, _, _ := syscall.Syscall(procGetTickCount64.Addr(), 0, 0, 0, 0)
+	ms = uint64(r0)
 	return
 }
 
@@ -1704,7 +1933,7 @@ func RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32
 	return
 }
 
-func getCurrentProcessId() (pid uint32) {
+func GetCurrentProcessId() (pid uint32) {
 	r0, _, _ := syscall.Syscall(procGetCurrentProcessId.Addr(), 0, 0, 0, 0)
 	pid = uint32(r0)
 	return
@@ -1797,6 +2026,30 @@ func Process32First(snapshot Handle, procEntry *ProcessEntry32) (err error) {
 
 func Process32Next(snapshot Handle, procEntry *ProcessEntry32) (err error) {
 	r1, _, e1 := syscall.Syscall(procProcess32NextW.Addr(), 2, uintptr(snapshot), uintptr(unsafe.Pointer(procEntry)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func Thread32First(snapshot Handle, threadEntry *ThreadEntry32) (err error) {
+	r1, _, e1 := syscall.Syscall(procThread32First.Addr(), 2, uintptr(snapshot), uintptr(unsafe.Pointer(threadEntry)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func Thread32Next(snapshot Handle, threadEntry *ThreadEntry32) (err error) {
+	r1, _, e1 := syscall.Syscall(procThread32Next.Addr(), 2, uintptr(snapshot), uintptr(unsafe.Pointer(threadEntry)), 0)
 	if r1 == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)
@@ -1930,6 +2183,237 @@ func PulseEvent(event Handle) (err error) {
 	return
 }
 
+func CreateMutex(mutexAttrs *SecurityAttributes, initialOwner bool, name *uint16) (handle Handle, err error) {
+	var _p0 uint32
+	if initialOwner {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r0, _, e1 := syscall.Syscall(procCreateMutexW.Addr(), 3, uintptr(unsafe.Pointer(mutexAttrs)), uintptr(_p0), uintptr(unsafe.Pointer(name)))
+	handle = Handle(r0)
+	if handle == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func CreateMutexEx(mutexAttrs *SecurityAttributes, name *uint16, flags uint32, desiredAccess uint32) (handle Handle, err error) {
+	r0, _, e1 := syscall.Syscall6(procCreateMutexExW.Addr(), 4, uintptr(unsafe.Pointer(mutexAttrs)), uintptr(unsafe.Pointer(name)), uintptr(flags), uintptr(desiredAccess), 0, 0)
+	handle = Handle(r0)
+	if handle == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func OpenMutex(desiredAccess uint32, inheritHandle bool, name *uint16) (handle Handle, err error) {
+	var _p0 uint32
+	if inheritHandle {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r0, _, e1 := syscall.Syscall(procOpenMutexW.Addr(), 3, uintptr(desiredAccess), uintptr(_p0), uintptr(unsafe.Pointer(name)))
+	handle = Handle(r0)
+	if handle == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func ReleaseMutex(mutex Handle) (err error) {
+	r1, _, e1 := syscall.Syscall(procReleaseMutex.Addr(), 1, uintptr(mutex), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func SleepEx(milliseconds uint32, alertable bool) (ret uint32) {
+	var _p0 uint32
+	if alertable {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r0, _, _ := syscall.Syscall(procSleepEx.Addr(), 2, uintptr(milliseconds), uintptr(_p0), 0)
+	ret = uint32(r0)
+	return
+}
+
+func CreateJobObject(jobAttr *SecurityAttributes, name *uint16) (handle Handle, err error) {
+	r0, _, e1 := syscall.Syscall(procCreateJobObjectW.Addr(), 2, uintptr(unsafe.Pointer(jobAttr)), uintptr(unsafe.Pointer(name)), 0)
+	handle = Handle(r0)
+	if handle == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func AssignProcessToJobObject(job Handle, process Handle) (err error) {
+	r1, _, e1 := syscall.Syscall(procAssignProcessToJobObject.Addr(), 2, uintptr(job), uintptr(process), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func TerminateJobObject(job Handle, exitCode uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procTerminateJobObject.Addr(), 2, uintptr(job), uintptr(exitCode), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func SetErrorMode(mode uint32) (ret uint32) {
+	r0, _, _ := syscall.Syscall(procSetErrorMode.Addr(), 1, uintptr(mode), 0, 0)
+	ret = uint32(r0)
+	return
+}
+
+func ResumeThread(thread Handle) (ret uint32, err error) {
+	r0, _, e1 := syscall.Syscall(procResumeThread.Addr(), 1, uintptr(thread), 0, 0)
+	ret = uint32(r0)
+	if ret == 0xffffffff {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func SetPriorityClass(process Handle, priorityClass uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procSetPriorityClass.Addr(), 2, uintptr(process), uintptr(priorityClass), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetPriorityClass(process Handle) (ret uint32, err error) {
+	r0, _, e1 := syscall.Syscall(procGetPriorityClass.Addr(), 1, uintptr(process), 0, 0)
+	ret = uint32(r0)
+	if ret == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func SetInformationJobObject(job Handle, JobObjectInformationClass uint32, JobObjectInformation uintptr, JobObjectInformationLength uint32) (ret int, err error) {
+	r0, _, e1 := syscall.Syscall6(procSetInformationJobObject.Addr(), 4, uintptr(job), uintptr(JobObjectInformationClass), uintptr(JobObjectInformation), uintptr(JobObjectInformationLength), 0, 0)
+	ret = int(r0)
+	if ret == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GenerateConsoleCtrlEvent(ctrlEvent uint32, processGroupID uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procGenerateConsoleCtrlEvent.Addr(), 2, uintptr(ctrlEvent), uintptr(processGroupID), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetProcessId(process Handle) (id uint32, err error) {
+	r0, _, e1 := syscall.Syscall(procGetProcessId.Addr(), 1, uintptr(process), 0, 0)
+	id = uint32(r0)
+	if id == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func OpenThread(desiredAccess uint32, inheritHandle bool, threadId uint32) (handle Handle, err error) {
+	var _p0 uint32
+	if inheritHandle {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r0, _, e1 := syscall.Syscall(procOpenThread.Addr(), 3, uintptr(desiredAccess), uintptr(_p0), uintptr(threadId))
+	handle = Handle(r0)
+	if handle == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func SetProcessPriorityBoost(process Handle, disable bool) (err error) {
+	var _p0 uint32
+	if disable {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r1, _, e1 := syscall.Syscall(procSetProcessPriorityBoost.Addr(), 2, uintptr(process), uintptr(_p0), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
 func DefineDosDevice(flags uint32, deviceName *uint16, targetPath *uint16) (err error) {
 	r1, _, e1 := syscall.Syscall(procDefineDosDeviceW.Addr(), 3, uintptr(flags), uintptr(unsafe.Pointer(deviceName)), uintptr(unsafe.Pointer(targetPath)))
 	if r1 == 0 {
@@ -2018,6 +2502,18 @@ func FindVolumeClose(findVolume Handle) (err error) {
 
 func FindVolumeMountPointClose(findVolumeMountPoint Handle) (err error) {
 	r1, _, e1 := syscall.Syscall(procFindVolumeMountPointClose.Addr(), 1, uintptr(findVolumeMountPoint), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetDiskFreeSpaceEx(directoryName *uint16, freeBytesAvailableToCaller *uint64, totalNumberOfBytes *uint64, totalNumberOfFreeBytes *uint64) (err error) {
+	r1, _, e1 := syscall.Syscall6(procGetDiskFreeSpaceExW.Addr(), 4, uintptr(unsafe.Pointer(directoryName)), uintptr(unsafe.Pointer(freeBytesAvailableToCaller)), uintptr(unsafe.Pointer(totalNumberOfBytes)), uintptr(unsafe.Pointer(totalNumberOfFreeBytes)), 0, 0)
 	if r1 == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)
@@ -2157,6 +2653,183 @@ func SetVolumeMountPoint(volumeMountPoint *uint16, volumeName *uint16) (err erro
 	return
 }
 
+func MessageBox(hwnd Handle, text *uint16, caption *uint16, boxtype uint32) (ret int32, err error) {
+	r0, _, e1 := syscall.Syscall6(procMessageBoxW.Addr(), 4, uintptr(hwnd), uintptr(unsafe.Pointer(text)), uintptr(unsafe.Pointer(caption)), uintptr(boxtype), 0, 0)
+	ret = int32(r0)
+	if ret == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func ExitWindowsEx(flags uint32, reason uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procExitWindowsEx.Addr(), 2, uintptr(flags), uintptr(reason), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func InitiateSystemShutdownEx(machineName *uint16, message *uint16, timeout uint32, forceAppsClosed bool, rebootAfterShutdown bool, reason uint32) (err error) {
+	var _p0 uint32
+	if forceAppsClosed {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	var _p1 uint32
+	if rebootAfterShutdown {
+		_p1 = 1
+	} else {
+		_p1 = 0
+	}
+	r1, _, e1 := syscall.Syscall6(procInitiateSystemShutdownExW.Addr(), 6, uintptr(unsafe.Pointer(machineName)), uintptr(unsafe.Pointer(message)), uintptr(timeout), uintptr(_p0), uintptr(_p1), uintptr(reason))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func SetProcessShutdownParameters(level uint32, flags uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procSetProcessShutdownParameters.Addr(), 2, uintptr(level), uintptr(flags), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetProcessShutdownParameters(level *uint32, flags *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procGetProcessShutdownParameters.Addr(), 2, uintptr(unsafe.Pointer(level)), uintptr(unsafe.Pointer(flags)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func clsidFromString(lpsz *uint16, pclsid *GUID) (ret error) {
+	r0, _, _ := syscall.Syscall(procCLSIDFromString.Addr(), 2, uintptr(unsafe.Pointer(lpsz)), uintptr(unsafe.Pointer(pclsid)), 0)
+	if r0 != 0 {
+		ret = syscall.Errno(r0)
+	}
+	return
+}
+
+func stringFromGUID2(rguid *GUID, lpsz *uint16, cchMax int32) (chars int32) {
+	r0, _, _ := syscall.Syscall(procStringFromGUID2.Addr(), 3, uintptr(unsafe.Pointer(rguid)), uintptr(unsafe.Pointer(lpsz)), uintptr(cchMax))
+	chars = int32(r0)
+	return
+}
+
+func coCreateGuid(pguid *GUID) (ret error) {
+	r0, _, _ := syscall.Syscall(procCoCreateGuid.Addr(), 1, uintptr(unsafe.Pointer(pguid)), 0, 0)
+	if r0 != 0 {
+		ret = syscall.Errno(r0)
+	}
+	return
+}
+
+func CoTaskMemFree(address unsafe.Pointer) {
+	syscall.Syscall(procCoTaskMemFree.Addr(), 1, uintptr(address), 0, 0)
+	return
+}
+
+func rtlGetVersion(info *OsVersionInfoEx) (ret error) {
+	r0, _, _ := syscall.Syscall(procRtlGetVersion.Addr(), 1, uintptr(unsafe.Pointer(info)), 0, 0)
+	if r0 != 0 {
+		ret = syscall.Errno(r0)
+	}
+	return
+}
+
+func rtlGetNtVersionNumbers(majorVersion *uint32, minorVersion *uint32, buildNumber *uint32) {
+	syscall.Syscall(procRtlGetNtVersionNumbers.Addr(), 3, uintptr(unsafe.Pointer(majorVersion)), uintptr(unsafe.Pointer(minorVersion)), uintptr(unsafe.Pointer(buildNumber)))
+	return
+}
+
+func getProcessPreferredUILanguages(flags uint32, numLanguages *uint32, buf *uint16, bufSize *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procGetProcessPreferredUILanguages.Addr(), 4, uintptr(flags), uintptr(unsafe.Pointer(numLanguages)), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(bufSize)), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func getThreadPreferredUILanguages(flags uint32, numLanguages *uint32, buf *uint16, bufSize *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procGetThreadPreferredUILanguages.Addr(), 4, uintptr(flags), uintptr(unsafe.Pointer(numLanguages)), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(bufSize)), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func getUserPreferredUILanguages(flags uint32, numLanguages *uint32, buf *uint16, bufSize *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procGetUserPreferredUILanguages.Addr(), 4, uintptr(flags), uintptr(unsafe.Pointer(numLanguages)), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(bufSize)), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func getSystemPreferredUILanguages(flags uint32, numLanguages *uint32, buf *uint16, bufSize *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procGetSystemPreferredUILanguages.Addr(), 4, uintptr(flags), uintptr(unsafe.Pointer(numLanguages)), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(bufSize)), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func EnumProcesses(processIds []uint32, bytesReturned *uint32) (err error) {
+	var _p0 *uint32
+	if len(processIds) > 0 {
+		_p0 = &processIds[0]
+	}
+	r1, _, e1 := syscall.Syscall(procEnumProcesses.Addr(), 3, uintptr(unsafe.Pointer(_p0)), uintptr(len(processIds)), uintptr(unsafe.Pointer(bytesReturned)))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
 func WSAStartup(verreq uint32, data *WSAData) (sockerr error) {
 	r0, _, _ := syscall.Syscall(procWSAStartup.Addr(), 2, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
 	if r0 != 0 {
@@ -2193,6 +2866,39 @@ func socket(af int32, typ int32, protocol int32) (handle Handle, err error) {
 	r0, _, e1 := syscall.Syscall(procsocket.Addr(), 3, uintptr(af), uintptr(typ), uintptr(protocol))
 	handle = Handle(r0)
 	if handle == InvalidHandle {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func sendto(s Handle, buf []byte, flags int32, to unsafe.Pointer, tolen int32) (err error) {
+	var _p0 *byte
+	if len(buf) > 0 {
+		_p0 = &buf[0]
+	}
+	r1, _, e1 := syscall.Syscall6(procsendto.Addr(), 6, uintptr(s), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(tolen))
+	if r1 == socket_error {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func recvfrom(s Handle, buf []byte, flags int32, from *RawSockaddrAny, fromlen *int32) (n int32, err error) {
+	var _p0 *byte
+	if len(buf) > 0 {
+		_p0 = &buf[0]
+	}
+	r0, _, e1 := syscall.Syscall6(procrecvfrom.Addr(), 6, uintptr(s), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)))
+	n = int32(r0)
+	if n == -1 {
 		if e1 != 0 {
 			err = errnoErr(e1)
 		} else {
@@ -2699,6 +3405,12 @@ func createWellKnownSid(sidType WELL_KNOWN_SID_TYPE, domainSid *SID, sid *SID, s
 	return
 }
 
+func isWellKnownSid(sid *SID, sidType WELL_KNOWN_SID_TYPE) (isWellKnown bool) {
+	r0, _, _ := syscall.Syscall(procIsWellKnownSid.Addr(), 2, uintptr(unsafe.Pointer(sid)), uintptr(sidType), 0)
+	isWellKnown = r0 != 0
+	return
+}
+
 func FreeSid(sid *SID) (err error) {
 	r1, _, e1 := syscall.Syscall(procFreeSid.Addr(), 1, uintptr(unsafe.Pointer(sid)), 0, 0)
 	if r1 != 0 {
@@ -2717,6 +3429,30 @@ func EqualSid(sid1 *SID, sid2 *SID) (isEqual bool) {
 	return
 }
 
+func getSidIdentifierAuthority(sid *SID) (authority *SidIdentifierAuthority) {
+	r0, _, _ := syscall.Syscall(procGetSidIdentifierAuthority.Addr(), 1, uintptr(unsafe.Pointer(sid)), 0, 0)
+	authority = (*SidIdentifierAuthority)(unsafe.Pointer(r0))
+	return
+}
+
+func getSidSubAuthorityCount(sid *SID) (count *uint8) {
+	r0, _, _ := syscall.Syscall(procGetSidSubAuthorityCount.Addr(), 1, uintptr(unsafe.Pointer(sid)), 0, 0)
+	count = (*uint8)(unsafe.Pointer(r0))
+	return
+}
+
+func getSidSubAuthority(sid *SID, index uint32) (subAuthority *uint32) {
+	r0, _, _ := syscall.Syscall(procGetSidSubAuthority.Addr(), 2, uintptr(unsafe.Pointer(sid)), uintptr(index), 0)
+	subAuthority = (*uint32)(unsafe.Pointer(r0))
+	return
+}
+
+func isValidSid(sid *SID) (isValid bool) {
+	r0, _, _ := syscall.Syscall(procIsValidSid.Addr(), 1, uintptr(unsafe.Pointer(sid)), 0, 0)
+	isValid = r0 != 0
+	return
+}
+
 func checkTokenMembership(tokenHandle Token, sidToCheck *SID, isMember *int32) (err error) {
 	r1, _, e1 := syscall.Syscall(procCheckTokenMembership.Addr(), 3, uintptr(tokenHandle), uintptr(unsafe.Pointer(sidToCheck)), uintptr(unsafe.Pointer(isMember)))
 	if r1 == 0 {
@@ -2729,8 +3465,8 @@ func checkTokenMembership(tokenHandle Token, sidToCheck *SID, isMember *int32) (
 	return
 }
 
-func OpenProcessToken(h Handle, access uint32, token *Token) (err error) {
-	r1, _, e1 := syscall.Syscall(procOpenProcessToken.Addr(), 3, uintptr(h), uintptr(access), uintptr(unsafe.Pointer(token)))
+func OpenProcessToken(process Handle, access uint32, token *Token) (err error) {
+	r1, _, e1 := syscall.Syscall(procOpenProcessToken.Addr(), 3, uintptr(process), uintptr(access), uintptr(unsafe.Pointer(token)))
 	if r1 == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)
@@ -2741,8 +3477,134 @@ func OpenProcessToken(h Handle, access uint32, token *Token) (err error) {
 	return
 }
 
-func GetTokenInformation(t Token, infoClass uint32, info *byte, infoLen uint32, returnedLen *uint32) (err error) {
-	r1, _, e1 := syscall.Syscall6(procGetTokenInformation.Addr(), 5, uintptr(t), uintptr(infoClass), uintptr(unsafe.Pointer(info)), uintptr(infoLen), uintptr(unsafe.Pointer(returnedLen)), 0)
+func OpenThreadToken(thread Handle, access uint32, openAsSelf bool, token *Token) (err error) {
+	var _p0 uint32
+	if openAsSelf {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r1, _, e1 := syscall.Syscall6(procOpenThreadToken.Addr(), 4, uintptr(thread), uintptr(access), uintptr(_p0), uintptr(unsafe.Pointer(token)), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func ImpersonateSelf(impersonationlevel uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procImpersonateSelf.Addr(), 1, uintptr(impersonationlevel), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func RevertToSelf() (err error) {
+	r1, _, e1 := syscall.Syscall(procRevertToSelf.Addr(), 0, 0, 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func SetThreadToken(thread *Handle, token Token) (err error) {
+	r1, _, e1 := syscall.Syscall(procSetThreadToken.Addr(), 2, uintptr(unsafe.Pointer(thread)), uintptr(token), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func LookupPrivilegeValue(systemname *uint16, name *uint16, luid *LUID) (err error) {
+	r1, _, e1 := syscall.Syscall(procLookupPrivilegeValueW.Addr(), 3, uintptr(unsafe.Pointer(systemname)), uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(luid)))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func AdjustTokenPrivileges(token Token, disableAllPrivileges bool, newstate *Tokenprivileges, buflen uint32, prevstate *Tokenprivileges, returnlen *uint32) (err error) {
+	var _p0 uint32
+	if disableAllPrivileges {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r1, _, e1 := syscall.Syscall6(procAdjustTokenPrivileges.Addr(), 6, uintptr(token), uintptr(_p0), uintptr(unsafe.Pointer(newstate)), uintptr(buflen), uintptr(unsafe.Pointer(prevstate)), uintptr(unsafe.Pointer(returnlen)))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func AdjustTokenGroups(token Token, resetToDefault bool, newstate *Tokengroups, buflen uint32, prevstate *Tokengroups, returnlen *uint32) (err error) {
+	var _p0 uint32
+	if resetToDefault {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r1, _, e1 := syscall.Syscall6(procAdjustTokenGroups.Addr(), 6, uintptr(token), uintptr(_p0), uintptr(unsafe.Pointer(newstate)), uintptr(buflen), uintptr(unsafe.Pointer(prevstate)), uintptr(unsafe.Pointer(returnlen)))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetTokenInformation(token Token, infoClass uint32, info *byte, infoLen uint32, returnedLen *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procGetTokenInformation.Addr(), 5, uintptr(token), uintptr(infoClass), uintptr(unsafe.Pointer(info)), uintptr(infoLen), uintptr(unsafe.Pointer(returnedLen)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func SetTokenInformation(token Token, infoClass uint32, info *byte, infoLen uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procSetTokenInformation.Addr(), 4, uintptr(token), uintptr(infoClass), uintptr(unsafe.Pointer(info)), uintptr(infoLen), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func DuplicateTokenEx(existingToken Token, desiredAccess uint32, tokenAttributes *SecurityAttributes, impersonationLevel uint32, tokenType uint32, newToken *Token) (err error) {
+	r1, _, e1 := syscall.Syscall6(procDuplicateTokenEx.Addr(), 6, uintptr(existingToken), uintptr(desiredAccess), uintptr(unsafe.Pointer(tokenAttributes)), uintptr(impersonationLevel), uintptr(tokenType), uintptr(unsafe.Pointer(newToken)))
 	if r1 == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)
@@ -2774,6 +3636,416 @@ func getSystemDirectory(dir *uint16, dirLen uint32) (len uint32, err error) {
 		} else {
 			err = syscall.EINVAL
 		}
+	}
+	return
+}
+
+func getWindowsDirectory(dir *uint16, dirLen uint32) (len uint32, err error) {
+	r0, _, e1 := syscall.Syscall(procGetWindowsDirectoryW.Addr(), 2, uintptr(unsafe.Pointer(dir)), uintptr(dirLen), 0)
+	len = uint32(r0)
+	if len == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func getSystemWindowsDirectory(dir *uint16, dirLen uint32) (len uint32, err error) {
+	r0, _, e1 := syscall.Syscall(procGetSystemWindowsDirectoryW.Addr(), 2, uintptr(unsafe.Pointer(dir)), uintptr(dirLen), 0)
+	len = uint32(r0)
+	if len == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func WTSQueryUserToken(session uint32, token *Token) (err error) {
+	r1, _, e1 := syscall.Syscall(procWTSQueryUserToken.Addr(), 2, uintptr(session), uintptr(unsafe.Pointer(token)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func WTSEnumerateSessions(handle Handle, reserved uint32, version uint32, sessions **WTS_SESSION_INFO, count *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procWTSEnumerateSessionsW.Addr(), 5, uintptr(handle), uintptr(reserved), uintptr(version), uintptr(unsafe.Pointer(sessions)), uintptr(unsafe.Pointer(count)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func WTSFreeMemory(ptr uintptr) {
+	syscall.Syscall(procWTSFreeMemory.Addr(), 1, uintptr(ptr), 0, 0)
+	return
+}
+
+func getSecurityInfo(handle Handle, objectType SE_OBJECT_TYPE, securityInformation SECURITY_INFORMATION, owner **SID, group **SID, dacl **ACL, sacl **ACL, sd **SECURITY_DESCRIPTOR) (ret error) {
+	r0, _, _ := syscall.Syscall9(procGetSecurityInfo.Addr(), 8, uintptr(handle), uintptr(objectType), uintptr(securityInformation), uintptr(unsafe.Pointer(owner)), uintptr(unsafe.Pointer(group)), uintptr(unsafe.Pointer(dacl)), uintptr(unsafe.Pointer(sacl)), uintptr(unsafe.Pointer(sd)), 0)
+	if r0 != 0 {
+		ret = syscall.Errno(r0)
+	}
+	return
+}
+
+func SetSecurityInfo(handle Handle, objectType SE_OBJECT_TYPE, securityInformation SECURITY_INFORMATION, owner *SID, group *SID, dacl *ACL, sacl *ACL) {
+	syscall.Syscall9(procSetSecurityInfo.Addr(), 7, uintptr(handle), uintptr(objectType), uintptr(securityInformation), uintptr(unsafe.Pointer(owner)), uintptr(unsafe.Pointer(group)), uintptr(unsafe.Pointer(dacl)), uintptr(unsafe.Pointer(sacl)), 0, 0)
+	return
+}
+
+func getNamedSecurityInfo(objectName string, objectType SE_OBJECT_TYPE, securityInformation SECURITY_INFORMATION, owner **SID, group **SID, dacl **ACL, sacl **ACL, sd **SECURITY_DESCRIPTOR) (ret error) {
+	var _p0 *uint16
+	_p0, ret = syscall.UTF16PtrFromString(objectName)
+	if ret != nil {
+		return
+	}
+	return _getNamedSecurityInfo(_p0, objectType, securityInformation, owner, group, dacl, sacl, sd)
+}
+
+func _getNamedSecurityInfo(objectName *uint16, objectType SE_OBJECT_TYPE, securityInformation SECURITY_INFORMATION, owner **SID, group **SID, dacl **ACL, sacl **ACL, sd **SECURITY_DESCRIPTOR) (ret error) {
+	r0, _, _ := syscall.Syscall9(procGetNamedSecurityInfoW.Addr(), 8, uintptr(unsafe.Pointer(objectName)), uintptr(objectType), uintptr(securityInformation), uintptr(unsafe.Pointer(owner)), uintptr(unsafe.Pointer(group)), uintptr(unsafe.Pointer(dacl)), uintptr(unsafe.Pointer(sacl)), uintptr(unsafe.Pointer(sd)), 0)
+	if r0 != 0 {
+		ret = syscall.Errno(r0)
+	}
+	return
+}
+
+func SetNamedSecurityInfo(objectName string, objectType SE_OBJECT_TYPE, securityInformation SECURITY_INFORMATION, owner *SID, group *SID, dacl *ACL, sacl *ACL) (ret error) {
+	var _p0 *uint16
+	_p0, ret = syscall.UTF16PtrFromString(objectName)
+	if ret != nil {
+		return
+	}
+	return _SetNamedSecurityInfo(_p0, objectType, securityInformation, owner, group, dacl, sacl)
+}
+
+func _SetNamedSecurityInfo(objectName *uint16, objectType SE_OBJECT_TYPE, securityInformation SECURITY_INFORMATION, owner *SID, group *SID, dacl *ACL, sacl *ACL) (ret error) {
+	r0, _, _ := syscall.Syscall9(procSetNamedSecurityInfoW.Addr(), 7, uintptr(unsafe.Pointer(objectName)), uintptr(objectType), uintptr(securityInformation), uintptr(unsafe.Pointer(owner)), uintptr(unsafe.Pointer(group)), uintptr(unsafe.Pointer(dacl)), uintptr(unsafe.Pointer(sacl)), 0, 0)
+	if r0 != 0 {
+		ret = syscall.Errno(r0)
+	}
+	return
+}
+
+func buildSecurityDescriptor(owner *TRUSTEE, group *TRUSTEE, countAccessEntries uint32, accessEntries *EXPLICIT_ACCESS, countAuditEntries uint32, auditEntries *EXPLICIT_ACCESS, oldSecurityDescriptor *SECURITY_DESCRIPTOR, sizeNewSecurityDescriptor *uint32, newSecurityDescriptor **SECURITY_DESCRIPTOR) (ret error) {
+	r0, _, _ := syscall.Syscall9(procBuildSecurityDescriptorW.Addr(), 9, uintptr(unsafe.Pointer(owner)), uintptr(unsafe.Pointer(group)), uintptr(countAccessEntries), uintptr(unsafe.Pointer(accessEntries)), uintptr(countAuditEntries), uintptr(unsafe.Pointer(auditEntries)), uintptr(unsafe.Pointer(oldSecurityDescriptor)), uintptr(unsafe.Pointer(sizeNewSecurityDescriptor)), uintptr(unsafe.Pointer(newSecurityDescriptor)))
+	if r0 != 0 {
+		ret = syscall.Errno(r0)
+	}
+	return
+}
+
+func initializeSecurityDescriptor(absoluteSD *SECURITY_DESCRIPTOR, revision uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procInitializeSecurityDescriptor.Addr(), 2, uintptr(unsafe.Pointer(absoluteSD)), uintptr(revision), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func getSecurityDescriptorControl(sd *SECURITY_DESCRIPTOR, control *SECURITY_DESCRIPTOR_CONTROL, revision *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procGetSecurityDescriptorControl.Addr(), 3, uintptr(unsafe.Pointer(sd)), uintptr(unsafe.Pointer(control)), uintptr(unsafe.Pointer(revision)))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func getSecurityDescriptorDacl(sd *SECURITY_DESCRIPTOR, daclPresent *bool, dacl **ACL, daclDefaulted *bool) (err error) {
+	var _p0 uint32
+	if *daclPresent {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	var _p1 uint32
+	if *daclDefaulted {
+		_p1 = 1
+	} else {
+		_p1 = 0
+	}
+	r1, _, e1 := syscall.Syscall6(procGetSecurityDescriptorDacl.Addr(), 4, uintptr(unsafe.Pointer(sd)), uintptr(unsafe.Pointer(&_p0)), uintptr(unsafe.Pointer(dacl)), uintptr(unsafe.Pointer(&_p1)), 0, 0)
+	*daclPresent = _p0 != 0
+	*daclDefaulted = _p1 != 0
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func getSecurityDescriptorSacl(sd *SECURITY_DESCRIPTOR, saclPresent *bool, sacl **ACL, saclDefaulted *bool) (err error) {
+	var _p0 uint32
+	if *saclPresent {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	var _p1 uint32
+	if *saclDefaulted {
+		_p1 = 1
+	} else {
+		_p1 = 0
+	}
+	r1, _, e1 := syscall.Syscall6(procGetSecurityDescriptorSacl.Addr(), 4, uintptr(unsafe.Pointer(sd)), uintptr(unsafe.Pointer(&_p0)), uintptr(unsafe.Pointer(sacl)), uintptr(unsafe.Pointer(&_p1)), 0, 0)
+	*saclPresent = _p0 != 0
+	*saclDefaulted = _p1 != 0
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func getSecurityDescriptorOwner(sd *SECURITY_DESCRIPTOR, owner **SID, ownerDefaulted *bool) (err error) {
+	var _p0 uint32
+	if *ownerDefaulted {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r1, _, e1 := syscall.Syscall(procGetSecurityDescriptorOwner.Addr(), 3, uintptr(unsafe.Pointer(sd)), uintptr(unsafe.Pointer(owner)), uintptr(unsafe.Pointer(&_p0)))
+	*ownerDefaulted = _p0 != 0
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func getSecurityDescriptorGroup(sd *SECURITY_DESCRIPTOR, group **SID, groupDefaulted *bool) (err error) {
+	var _p0 uint32
+	if *groupDefaulted {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r1, _, e1 := syscall.Syscall(procGetSecurityDescriptorGroup.Addr(), 3, uintptr(unsafe.Pointer(sd)), uintptr(unsafe.Pointer(group)), uintptr(unsafe.Pointer(&_p0)))
+	*groupDefaulted = _p0 != 0
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func getSecurityDescriptorLength(sd *SECURITY_DESCRIPTOR) (len uint32) {
+	r0, _, _ := syscall.Syscall(procGetSecurityDescriptorLength.Addr(), 1, uintptr(unsafe.Pointer(sd)), 0, 0)
+	len = uint32(r0)
+	return
+}
+
+func getSecurityDescriptorRMControl(sd *SECURITY_DESCRIPTOR, rmControl *uint8) (ret error) {
+	r0, _, _ := syscall.Syscall(procGetSecurityDescriptorRMControl.Addr(), 2, uintptr(unsafe.Pointer(sd)), uintptr(unsafe.Pointer(rmControl)), 0)
+	if r0 != 0 {
+		ret = syscall.Errno(r0)
+	}
+	return
+}
+
+func isValidSecurityDescriptor(sd *SECURITY_DESCRIPTOR) (isValid bool) {
+	r0, _, _ := syscall.Syscall(procIsValidSecurityDescriptor.Addr(), 1, uintptr(unsafe.Pointer(sd)), 0, 0)
+	isValid = r0 != 0
+	return
+}
+
+func setSecurityDescriptorControl(sd *SECURITY_DESCRIPTOR, controlBitsOfInterest SECURITY_DESCRIPTOR_CONTROL, controlBitsToSet SECURITY_DESCRIPTOR_CONTROL) (err error) {
+	r1, _, e1 := syscall.Syscall(procSetSecurityDescriptorControl.Addr(), 3, uintptr(unsafe.Pointer(sd)), uintptr(controlBitsOfInterest), uintptr(controlBitsToSet))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func setSecurityDescriptorDacl(sd *SECURITY_DESCRIPTOR, daclPresent bool, dacl *ACL, daclDefaulted bool) (err error) {
+	var _p0 uint32
+	if daclPresent {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	var _p1 uint32
+	if daclDefaulted {
+		_p1 = 1
+	} else {
+		_p1 = 0
+	}
+	r1, _, e1 := syscall.Syscall6(procSetSecurityDescriptorDacl.Addr(), 4, uintptr(unsafe.Pointer(sd)), uintptr(_p0), uintptr(unsafe.Pointer(dacl)), uintptr(_p1), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func setSecurityDescriptorSacl(sd *SECURITY_DESCRIPTOR, saclPresent bool, sacl *ACL, saclDefaulted bool) (err error) {
+	var _p0 uint32
+	if saclPresent {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	var _p1 uint32
+	if saclDefaulted {
+		_p1 = 1
+	} else {
+		_p1 = 0
+	}
+	r1, _, e1 := syscall.Syscall6(procSetSecurityDescriptorSacl.Addr(), 4, uintptr(unsafe.Pointer(sd)), uintptr(_p0), uintptr(unsafe.Pointer(sacl)), uintptr(_p1), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func setSecurityDescriptorOwner(sd *SECURITY_DESCRIPTOR, owner *SID, ownerDefaulted bool) (err error) {
+	var _p0 uint32
+	if ownerDefaulted {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r1, _, e1 := syscall.Syscall(procSetSecurityDescriptorOwner.Addr(), 3, uintptr(unsafe.Pointer(sd)), uintptr(unsafe.Pointer(owner)), uintptr(_p0))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func setSecurityDescriptorGroup(sd *SECURITY_DESCRIPTOR, group *SID, groupDefaulted bool) (err error) {
+	var _p0 uint32
+	if groupDefaulted {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r1, _, e1 := syscall.Syscall(procSetSecurityDescriptorGroup.Addr(), 3, uintptr(unsafe.Pointer(sd)), uintptr(unsafe.Pointer(group)), uintptr(_p0))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func setSecurityDescriptorRMControl(sd *SECURITY_DESCRIPTOR, rmControl *uint8) {
+	syscall.Syscall(procSetSecurityDescriptorRMControl.Addr(), 2, uintptr(unsafe.Pointer(sd)), uintptr(unsafe.Pointer(rmControl)), 0)
+	return
+}
+
+func convertStringSecurityDescriptorToSecurityDescriptor(str string, revision uint32, sd **SECURITY_DESCRIPTOR, size *uint32) (err error) {
+	var _p0 *uint16
+	_p0, err = syscall.UTF16PtrFromString(str)
+	if err != nil {
+		return
+	}
+	return _convertStringSecurityDescriptorToSecurityDescriptor(_p0, revision, sd, size)
+}
+
+func _convertStringSecurityDescriptorToSecurityDescriptor(str *uint16, revision uint32, sd **SECURITY_DESCRIPTOR, size *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procConvertStringSecurityDescriptorToSecurityDescriptorW.Addr(), 4, uintptr(unsafe.Pointer(str)), uintptr(revision), uintptr(unsafe.Pointer(sd)), uintptr(unsafe.Pointer(size)), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func convertSecurityDescriptorToStringSecurityDescriptor(sd *SECURITY_DESCRIPTOR, revision uint32, securityInformation SECURITY_INFORMATION, str **uint16, strLen *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procConvertSecurityDescriptorToStringSecurityDescriptorW.Addr(), 5, uintptr(unsafe.Pointer(sd)), uintptr(revision), uintptr(securityInformation), uintptr(unsafe.Pointer(str)), uintptr(unsafe.Pointer(strLen)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func makeAbsoluteSD(selfRelativeSD *SECURITY_DESCRIPTOR, absoluteSD *SECURITY_DESCRIPTOR, absoluteSDSize *uint32, dacl *ACL, daclSize *uint32, sacl *ACL, saclSize *uint32, owner *SID, ownerSize *uint32, group *SID, groupSize *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall12(procMakeAbsoluteSD.Addr(), 11, uintptr(unsafe.Pointer(selfRelativeSD)), uintptr(unsafe.Pointer(absoluteSD)), uintptr(unsafe.Pointer(absoluteSDSize)), uintptr(unsafe.Pointer(dacl)), uintptr(unsafe.Pointer(daclSize)), uintptr(unsafe.Pointer(sacl)), uintptr(unsafe.Pointer(saclSize)), uintptr(unsafe.Pointer(owner)), uintptr(unsafe.Pointer(ownerSize)), uintptr(unsafe.Pointer(group)), uintptr(unsafe.Pointer(groupSize)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func makeSelfRelativeSD(absoluteSD *SECURITY_DESCRIPTOR, selfRelativeSD *SECURITY_DESCRIPTOR, selfRelativeSDSize *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procMakeSelfRelativeSD.Addr(), 3, uintptr(unsafe.Pointer(absoluteSD)), uintptr(unsafe.Pointer(selfRelativeSD)), uintptr(unsafe.Pointer(selfRelativeSDSize)))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func setEntriesInAcl(countExplicitEntries uint32, explicitEntries *EXPLICIT_ACCESS, oldACL *ACL, newACL **ACL) (ret error) {
+	r0, _, _ := syscall.Syscall6(procSetEntriesInAclW.Addr(), 4, uintptr(countExplicitEntries), uintptr(unsafe.Pointer(explicitEntries)), uintptr(unsafe.Pointer(oldACL)), uintptr(unsafe.Pointer(newACL)), 0, 0)
+	if r0 != 0 {
+		ret = syscall.Errno(r0)
 	}
 	return
 }

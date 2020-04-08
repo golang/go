@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Version of Sep 4, 2019",
+	"Subtitle": "Version of Jan 14, 2020",
 	"Path": "/ref/spec"
 }-->
 
@@ -20,8 +20,8 @@ dependencies.
 </p>
 
 <p>
-The grammar is compact and regular, allowing for easy analysis by
-automatic tools such as integrated development environments.
+The grammar is compact and simple to parse, allowing for easy analysis
+by automatic tools such as integrated development environments.
 </p>
 
 <h2 id="Notation">Notation</h2>
@@ -2042,7 +2042,7 @@ of the last non-empty expression list.
 <p>
 A type declaration binds an identifier, the <i>type name</i>, to a <a href="#Types">type</a>.
 Type declarations come in two forms: alias declarations and type definitions.
-<p>
+</p>
 
 <pre class="ebnf">
 TypeDecl = "type" ( TypeSpec | "(" { TypeSpec ";" } ")" ) .
@@ -2413,7 +2413,7 @@ operand only on the left-hand side of an <a href="#Assignments">assignment</a>.
 Operand     = Literal | OperandName | "(" Expression ")" .
 Literal     = BasicLit | CompositeLit | FunctionLit .
 BasicLit    = int_lit | float_lit | imaginary_lit | rune_lit | string_lit .
-OperandName = identifier | QualifiedIdent.
+OperandName = identifier | QualifiedIdent .
 </pre>
 
 <h3 id="Qualified_identifiers">Qualified identifiers</h3>
@@ -2553,7 +2553,7 @@ does not have the same effect as allocating a new slice or map value with
 </p>
 
 <pre>
-p1 := &[]int{}    // p1 points to an initialized, empty slice with value []int{} and length 0
+p1 := &amp;[]int{}    // p1 points to an initialized, empty slice with value []int{} and length 0
 p2 := new([]int)  // p2 points to an uninitialized slice with value nil and length 0
 </pre>
 
@@ -3290,8 +3290,8 @@ array with the operand.
 
 <pre>
 var a [10]int
-s1 := a[3:7]   // underlying array of s1 is array a; &s1[2] == &a[5]
-s2 := s1[1:4]  // underlying array of s2 is underlying array of s1 which is array a; &s2[1] == &a[5]
+s1 := a[3:7]   // underlying array of s1 is array a; &amp;s1[2] == &amp;a[5]
+s2 := s1[1:4]  // underlying array of s2 is underlying array of s1 which is array a; &amp;s2[1] == &amp;a[5]
 s2[1] = 42     // s2[1] == s1[2] == a[5] == 42; they all refer to the same underlying array element
 </pre>
 
@@ -5279,7 +5279,7 @@ for i, s := range a {
 }
 
 var key string
-var val interface {}  // element type of m is assignable to val
+var val interface{}  // element type of m is assignable to val
 m := map[string]int{"mon":0, "tue":1, "wed":2, "thu":3, "fri":4, "sat":5, "sun":6}
 for key, val = range m {
 	h(key, val)

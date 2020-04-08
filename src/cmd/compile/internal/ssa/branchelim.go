@@ -148,7 +148,7 @@ func elimIf(f *Func, loadAddr *sparseSet, dom *Block) bool {
 	// the number of useless instructions executed.
 	const maxfuseinsts = 2
 
-	if len(simple.Values) > maxfuseinsts || !allTrivial(simple) {
+	if len(simple.Values) > maxfuseinsts || !canSpeculativelyExecute(simple) {
 		return false
 	}
 
@@ -305,10 +305,10 @@ func elimIfElse(f *Func, loadAddr *sparseSet, b *Block) bool {
 		return false
 	}
 	yes, no := b.Succs[0].Block(), b.Succs[1].Block()
-	if !isLeafPlain(yes) || len(yes.Values) > 1 || !allTrivial(yes) {
+	if !isLeafPlain(yes) || len(yes.Values) > 1 || !canSpeculativelyExecute(yes) {
 		return false
 	}
-	if !isLeafPlain(no) || len(no.Values) > 1 || !allTrivial(no) {
+	if !isLeafPlain(no) || len(no.Values) > 1 || !canSpeculativelyExecute(no) {
 		return false
 	}
 	if b.Succs[0].Block().Succs[0].Block() != b.Succs[1].Block().Succs[0].Block() {
@@ -415,7 +415,15 @@ func shouldElimIfElse(no, yes, post *Block, arch string) bool {
 	}
 }
 
-func allTrivial(b *Block) bool {
+// canSpeculativelyExecute reports whether every value in the block can
+// be evaluated without causing any observable side effects (memory
+// accesses, panics and so on) except for execution time changes. It
+// also ensures that the block does not contain any phis which we can't
+// speculatively execute.
+// Warning: this function cannot currently detect values that represent
+// instructions the execution of which need to be guarded with CPU
+// hardware feature checks. See issue #34950.
+func canSpeculativelyExecute(b *Block) bool {
 	// don't fuse memory ops, Phi ops, divides (can panic),
 	// or anything else with side-effects
 	for _, v := range b.Values {

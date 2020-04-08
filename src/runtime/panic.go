@@ -216,7 +216,8 @@ func panicmem() {
 // The compiler turns a defer statement into a call to this.
 //go:nosplit
 func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
-	if getg().m.curg != getg() {
+	gp := getg()
+	if gp.m.curg != gp {
 		// go code on the system stack can't defer
 		throw("defer on system stack")
 	}
@@ -234,6 +235,8 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
 	if d._panic != nil {
 		throw("deferproc: d.panic != nil after newdefer")
 	}
+	d.link = gp._defer
+	gp._defer = d
 	d.fn = fn
 	d.pc = callerpc
 	d.sp = sp
@@ -283,7 +286,7 @@ func deferprocStack(d *_defer) {
 	d.varp = 0
 	// The lines below implement:
 	//   d.panic = nil
-	//   d.fp = nil
+	//   d.fd = nil
 	//   d.link = gp._defer
 	//   gp._defer = d
 	// But without write barriers. The first three are writes to
@@ -374,7 +377,8 @@ func init() {
 }
 
 // Allocate a Defer, usually using per-P pool.
-// Each defer must be released with freedefer.
+// Each defer must be released with freedefer.  The defer is not
+// added to any defer chain yet.
 //
 // This must not grow the stack because there may be a frame without
 // stack map information when this is called.
@@ -424,8 +428,6 @@ func newdefer(siz int32) *_defer {
 	}
 	d.siz = siz
 	d.heap = true
-	d.link = gp._defer
-	gp._defer = d
 	return d
 }
 
@@ -561,6 +563,12 @@ func deferreturn(arg0 uintptr) {
 	d.fn = nil
 	gp._defer = d.link
 	freedefer(d)
+	// If the defer function pointer is nil, force the seg fault to happen
+	// here rather than in jmpdefer. gentraceback() throws an error if it is
+	// called with a callback on an LR architecture and jmpdefer is on the
+	// stack, because the stack trace can be incorrect in that case - see
+	// issue #8153).
+	_ = fn.fn
 	jmpdefer(fn, uintptr(unsafe.Pointer(&arg0)))
 }
 
@@ -997,11 +1005,12 @@ func gopanic(e interface{}) {
 			atomic.Xadd(&runningPanicDefers, -1)
 
 			if done {
-				// Remove any remaining non-started, open-coded defer
-				// entry after a recover (there's at most one, if we just
-				// ran a non-open-coded defer), since the entry will
-				// become out-dated and the defer will be executed
-				// normally.
+				// Remove any remaining non-started, open-coded
+				// defer entries after a recover, since the
+				// corresponding defers will be executed normally
+				// (inline). Any such entry will become stale once
+				// we run the corresponding defers inline and exit
+				// the associated stack frame.
 				d := gp._defer
 				var prev *_defer
 				for d != nil {
@@ -1019,8 +1028,9 @@ func gopanic(e interface{}) {
 						} else {
 							prev.link = d.link
 						}
+						newd := d.link
 						freedefer(d)
-						break
+						d = newd
 					} else {
 						prev = d
 						d = d.link
@@ -1273,6 +1283,12 @@ func startpanic_m() bool {
 	}
 }
 
+// throwReportQuirk, if non-nil, is called by throw after dumping the stacks.
+//
+// TODO(austin): Remove this after Go 1.15 when we remove the
+// mlockGsignal workaround.
+var throwReportQuirk func()
+
 var didothers bool
 var deadlock mutex
 
@@ -1318,6 +1334,10 @@ func dopanic_m(gp *g, pc, sp uintptr) bool {
 	}
 
 	printDebugLog()
+
+	if throwReportQuirk != nil {
+		throwReportQuirk()
+	}
 
 	return docrash
 }

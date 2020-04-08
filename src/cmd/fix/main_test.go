@@ -76,6 +76,7 @@ func parseFixPrint(t *testing.T, fn func(*ast.File) bool, desc, in string, mustB
 
 func TestRewrite(t *testing.T) {
 	for _, tt := range testCases {
+		tt := tt
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Parallel()
 			// Apply fix: should get tt.Out.

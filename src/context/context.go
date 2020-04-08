@@ -230,6 +230,9 @@ type CancelFunc func()
 // Canceling this context releases resources associated with it, so code should
 // call cancel as soon as the operations running in this Context complete.
 func WithCancel(parent Context) (ctx Context, cancel CancelFunc) {
+	if parent == nil {
+		panic("cannot create context from nil parent")
+	}
 	c := newCancelCtx(parent)
 	propagateCancel(parent, &c)
 	return &c, func() { c.cancel(true, Canceled) }
@@ -425,6 +428,9 @@ func (c *cancelCtx) cancel(removeFromParent bool, err error) {
 // Canceling this context releases resources associated with it, so code should
 // call cancel as soon as the operations running in this Context complete.
 func WithDeadline(parent Context, d time.Time) (Context, CancelFunc) {
+	if parent == nil {
+		panic("cannot create context from nil parent")
+	}
 	if cur, ok := parent.Deadline(); ok && cur.Before(d) {
 		// The current deadline is already sooner than the new one.
 		return WithCancel(parent)
@@ -511,6 +517,9 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
 // struct{}. Alternatively, exported context key variables' static
 // type should be a pointer or interface.
 func WithValue(parent Context, key, val interface{}) Context {
+	if parent == nil {
+		panic("cannot create context from nil parent")
+	}
 	if key == nil {
 		panic("nil key")
 	}

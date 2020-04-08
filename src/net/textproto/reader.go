@@ -557,7 +557,7 @@ func noValidation(_ []byte) error { return nil }
 // contain a colon.
 func mustHaveFieldNameColon(line []byte) error {
 	if bytes.IndexByte(line, ':') < 0 {
-		return ProtocolError(fmt.Sprintf("malformed MIME header: missing colon: %q" + string(line)))
+		return ProtocolError(fmt.Sprintf("malformed MIME header: missing colon: %q", line))
 	}
 	return nil
 }

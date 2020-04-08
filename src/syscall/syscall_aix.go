@@ -23,12 +23,12 @@ func syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err 
 const (
 	_ = iota
 	TIOCSCTTY
-	F_DUPFD_CLOEXEC
 	SYS_EXECVE
 	SYS_FCNTL
 )
 
 const (
+	F_DUPFD_CLOEXEC = 0
 	// AF_LOCAL doesn't exist on AIX
 	AF_LOCAL = AF_UNIX
 )

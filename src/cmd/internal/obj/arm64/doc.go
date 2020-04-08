@@ -53,12 +53,17 @@ Special Cases.
 
 (3) No need to add "W" suffix: LDARB, LDARH, LDAXRB, LDAXRH, LDTRH, LDXRB, LDXRH.
 
+(4) In Go assembly syntax, NOP is a zero-width pseudo-instruction serves generic purpose, nothing
+related to real ARM64 instruction. NOOP serves for the hardware nop instruction. NOOP is an alias of
+HINT $0.
+
   Examples:
     VMOV V13.B[1], R20      <=>      mov x20, v13.b[1]
     VMOV V13.H[1], R20      <=>      mov w20, v13.h[1]
     JMP (R3)                <=>      br x3
     CALL (R17)              <=>      blr x17
     LDAXRB (R19), R16       <=>      ldaxrb w16, [x19]
+    NOOP                    <=>      nop
 
 
 Register mapping rules

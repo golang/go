@@ -7,6 +7,7 @@ package vet
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -17,7 +18,6 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cmdflag"
-	"cmd/go/internal/str"
 	"cmd/go/internal/work"
 )
 
@@ -39,37 +39,44 @@ import (
 var vetTool string // -vettool
 
 func init() {
+	work.AddBuildFlags(CmdVet, work.DefaultBuildFlags)
+	CmdVet.Flag.StringVar(&vetTool, "vettool", "", "")
+}
+
+func parseVettoolFlag(args []string) {
 	// Extract -vettool by ad hoc flag processing:
 	// its value is needed even before we can declare
 	// the flags available during main flag processing.
-	for i, arg := range os.Args {
+	for i, arg := range args {
 		if arg == "-vettool" || arg == "--vettool" {
-			if i+1 >= len(os.Args) {
+			if i+1 >= len(args) {
 				log.Fatalf("%s requires a filename", arg)
 			}
-			vetTool = os.Args[i+1]
-			break
+			vetTool = args[i+1]
+			return
 		} else if strings.HasPrefix(arg, "-vettool=") ||
 			strings.HasPrefix(arg, "--vettool=") {
 			vetTool = arg[strings.IndexByte(arg, '=')+1:]
-			break
+			return
 		}
 	}
 }
 
 // vetFlags processes the command line, splitting it at the first non-flag
 // into the list of flags and list of packages.
-func vetFlags(usage func(), args []string) (passToVet, packageNames []string) {
+func vetFlags(args []string) (passToVet, packageNames []string) {
+	parseVettoolFlag(args)
+
 	// Query the vet command for its flags.
-	tool := vetTool
-	if tool != "" {
+	var tool string
+	if vetTool == "" {
+		tool = base.Tool("vet")
+	} else {
 		var err error
-		tool, err = filepath.Abs(tool)
+		tool, err = filepath.Abs(vetTool)
 		if err != nil {
 			log.Fatal(err)
 		}
-	} else {
-		tool = base.Tool("vet")
 	}
 	out := new(bytes.Buffer)
 	vetcmd := exec.Command(tool, "-flags")
@@ -90,91 +97,85 @@ func vetFlags(usage func(), args []string) (passToVet, packageNames []string) {
 		base.Exit()
 	}
 
-	// Add vet's flags to vetflagDefn.
+	// Add vet's flags to CmdVet.Flag.
 	//
 	// Some flags, in particular -tags and -v, are known to vet but
-	// also defined as build flags. This works fine, so we don't
-	// define them here but use AddBuildFlags to init them.
+	// also defined as build flags. This works fine, so we omit duplicates here.
 	// However some, like -x, are known to the build but not to vet.
-	var vetFlagDefn []*cmdflag.Defn
+	isVetFlag := make(map[string]bool, len(analysisFlags))
+	cf := CmdVet.Flag
 	for _, f := range analysisFlags {
-		switch f.Name {
-		case "tags", "v":
-			continue
+		isVetFlag[f.Name] = true
+		if cf.Lookup(f.Name) == nil {
+			if f.Bool {
+				cf.Bool(f.Name, false, "")
+			} else {
+				cf.String(f.Name, "", "")
+			}
 		}
-		defn := &cmdflag.Defn{
-			Name:       f.Name,
-			PassToTest: true,
-		}
-		if f.Bool {
-			defn.BoolVar = new(bool)
-		}
-		vetFlagDefn = append(vetFlagDefn, defn)
 	}
 
-	// Add build flags to vetFlagDefn.
-	var cmd base.Command
-	work.AddBuildFlags(&cmd, work.DefaultBuildFlags)
-	// This flag declaration is a placeholder:
-	// -vettool is actually parsed by the init function above.
-	cmd.Flag.StringVar(new(string), "vettool", "", "path to vet tool binary")
-	cmd.Flag.VisitAll(func(f *flag.Flag) {
-		vetFlagDefn = append(vetFlagDefn, &cmdflag.Defn{
-			Name:  f.Name,
-			Value: f.Value,
-		})
+	// Record the set of vet tool flags set by GOFLAGS. We want to pass them to
+	// the vet tool, but only if they aren't overridden by an explicit argument.
+	base.SetFromGOFLAGS(&CmdVet.Flag)
+	addFromGOFLAGS := map[string]bool{}
+	CmdVet.Flag.Visit(func(f *flag.Flag) {
+		if isVetFlag[f.Name] {
+			addFromGOFLAGS[f.Name] = true
+		}
 	})
 
-	// Process args.
-	args = str.StringList(cmdflag.FindGOFLAGS(vetFlagDefn), args)
-	for i := 0; i < len(args); i++ {
-		if !strings.HasPrefix(args[i], "-") {
-			return args[:i], args[i:]
+	explicitFlags := make([]string, 0, len(args))
+	for len(args) > 0 {
+		f, remainingArgs, err := cmdflag.ParseOne(&CmdVet.Flag, args)
+
+		if errors.Is(err, flag.ErrHelp) {
+			exitWithUsage()
 		}
 
-		f, value, extraWord := cmdflag.Parse("vet", usage, vetFlagDefn, args, i)
-		if f == nil {
-			fmt.Fprintf(os.Stderr, "vet: flag %q not defined\n", args[i])
-			fmt.Fprintf(os.Stderr, "Run \"go help vet\" for more information\n")
-			base.SetExitStatus(2)
-			base.Exit()
+		if errors.Is(err, cmdflag.ErrFlagTerminator) {
+			// All remaining args must be package names, but the flag terminator is
+			// not included.
+			packageNames = remainingArgs
+			break
 		}
-		if f.Value != nil {
-			if err := f.Value.Set(value); err != nil {
-				base.Fatalf("invalid flag argument for -%s: %v", f.Name, err)
-			}
-			keep := f.PassToTest
-			if !keep {
-				// A build flag, probably one we don't want to pass to vet.
-				// Can whitelist.
-				switch f.Name {
-				case "tags", "v":
-					keep = true
-				}
-			}
-			if !keep {
-				// Flags known to the build but not to vet, so must be dropped.
-				if extraWord {
-					args = append(args[:i], args[i+2:]...)
-					extraWord = false
-				} else {
-					args = append(args[:i], args[i+1:]...)
-				}
-				i--
-			}
+
+		if nf := (cmdflag.NonFlagError{}); errors.As(err, &nf) {
+			// Everything from here on out — including the argument we just consumed —
+			// must be a package name.
+			packageNames = args
+			break
 		}
-		if extraWord {
-			i++
+
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			exitWithUsage()
 		}
+
+		if isVetFlag[f.Name] {
+			// Forward the raw arguments rather than cleaned equivalents, just in
+			// case the vet tool parses them idiosyncratically.
+			explicitFlags = append(explicitFlags, args[:len(args)-len(remainingArgs)]...)
+
+			// This flag has been overridden explicitly, so don't forward its implicit
+			// value from GOFLAGS.
+			delete(addFromGOFLAGS, f.Name)
+		}
+
+		args = remainingArgs
 	}
-	return args, nil
+
+	// Prepend arguments from GOFLAGS before other arguments.
+	CmdVet.Flag.Visit(func(f *flag.Flag) {
+		if addFromGOFLAGS[f.Name] {
+			passToVet = append(passToVet, fmt.Sprintf("-%s=%s", f.Name, f.Value))
+		}
+	})
+	passToVet = append(passToVet, explicitFlags...)
+	return passToVet, packageNames
 }
 
-var vetUsage func()
-
-func init() { vetUsage = usage } // break initialization cycle
-
-func usage() {
+func exitWithUsage() {
 	fmt.Fprintf(os.Stderr, "usage: %s\n", CmdVet.UsageLine)
 	fmt.Fprintf(os.Stderr, "Run 'go help %s' for details.\n", CmdVet.LongName())
 

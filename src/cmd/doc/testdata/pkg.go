@@ -35,6 +35,8 @@ const (
 // Comment about exported variable.
 var ExportedVariable = 1
 
+var ExportedVarOfUnExported unexportedType
+
 // Comment about internal variable.
 var internalVariable = 2
 

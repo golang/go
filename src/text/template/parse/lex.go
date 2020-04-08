@@ -411,7 +411,6 @@ func lexInsideAction(l *lexer) stateFn {
 		}
 	case r <= unicode.MaxASCII && unicode.IsPrint(r):
 		l.emit(itemChar)
-		return lexInsideAction
 	default:
 		return l.errorf("unrecognized character in action: %#U", r)
 	}

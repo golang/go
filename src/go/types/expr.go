@@ -868,8 +868,12 @@ func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, o
 
 // index checks an index expression for validity.
 // If max >= 0, it is the upper bound for index.
-// If index is valid and the result i >= 0, then i is the constant value of index.
-func (check *Checker) index(index ast.Expr, max int64) (i int64, valid bool) {
+// If the result typ is != Typ[Invalid], index is valid and typ is its (possibly named) integer type.
+// If the result val >= 0, index is valid and val is its constant int value.
+func (check *Checker) index(index ast.Expr, max int64) (typ Type, val int64) {
+	typ = Typ[Invalid]
+	val = -1
+
 	var x operand
 	check.expr(&x, index)
 	if x.mode == invalid {
@@ -888,22 +892,24 @@ func (check *Checker) index(index ast.Expr, max int64) (i int64, valid bool) {
 		return
 	}
 
-	// a constant index i must be in bounds
-	if x.mode == constant_ {
-		if constant.Sign(x.val) < 0 {
-			check.invalidArg(x.pos(), "index %s must not be negative", &x)
-			return
-		}
-		i, valid = constant.Int64Val(constant.ToInt(x.val))
-		if !valid || max >= 0 && i >= max {
-			check.errorf(x.pos(), "index %s is out of bounds", &x)
-			return i, false
-		}
-		// 0 <= i [ && i < max ]
-		return i, true
+	if x.mode != constant_ {
+		return x.typ, -1
 	}
 
-	return -1, true
+	// a constant index i must be in bounds
+	if constant.Sign(x.val) < 0 {
+		check.invalidArg(x.pos(), "index %s must not be negative", &x)
+		return
+	}
+
+	v, valid := constant.Int64Val(constant.ToInt(x.val))
+	if !valid || max >= 0 && v >= max {
+		check.errorf(x.pos(), "index %s is out of bounds", &x)
+		return
+	}
+
+	// 0 <= v [ && v < max ]
+	return Typ[Int], v
 }
 
 // indexElts checks the elements (elts) of an array or slice composite literal
@@ -919,7 +925,7 @@ func (check *Checker) indexedElts(elts []ast.Expr, typ Type, length int64) int64
 		validIndex := false
 		eval := e
 		if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
-			if i, ok := check.index(kv.Key, length); ok {
+			if typ, i := check.index(kv.Key, length); typ != Typ[Invalid] {
 				if i >= 0 {
 					index = i
 					validIndex = true
@@ -1411,8 +1417,8 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 				if length >= 0 {
 					max = length + 1
 				}
-				if t, ok := check.index(expr, max); ok && t >= 0 {
-					x = t
+				if _, v := check.index(expr, max); v >= 0 {
+					x = v
 				}
 			case i == 0:
 				// default is 0 for the first index

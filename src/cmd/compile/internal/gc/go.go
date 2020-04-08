@@ -279,7 +279,7 @@ type Arch struct {
 var thearch Arch
 
 var (
-	staticbytes,
+	staticuint64s,
 	zerobase *Node
 
 	assertE2I,
@@ -334,3 +334,6 @@ var (
 	WasmTruncU,
 	SigPanic *obj.LSym
 )
+
+// GCWriteBarrierReg maps from registers to gcWriteBarrier implementation LSyms.
+var GCWriteBarrierReg map[int16]*obj.LSym

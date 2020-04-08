@@ -71,6 +71,22 @@ var builtinCalls = []struct {
 	{"make", `_ = make([]int, 10)`, `func([]int, int) []int`},
 	{"make", `type T []byte; _ = make(T, 10, 20)`, `func(p.T, int, int) p.T`},
 
+	// issue #37349
+	{"make", `              _ = make([]int, 0   )`, `func([]int, int) []int`},
+	{"make", `var l    int; _ = make([]int, l   )`, `func([]int, int) []int`},
+	{"make", `              _ = make([]int, 0, 0)`, `func([]int, int, int) []int`},
+	{"make", `var l    int; _ = make([]int, l, 0)`, `func([]int, int, int) []int`},
+	{"make", `var    c int; _ = make([]int, 0, c)`, `func([]int, int, int) []int`},
+	{"make", `var l, c int; _ = make([]int, l, c)`, `func([]int, int, int) []int`},
+
+	// issue #37393
+	{"make", `                _ = make([]int       , 0   )`, `func([]int, int) []int`},
+	{"make", `var l    byte ; _ = make([]int8      , l   )`, `func([]int8, byte) []int8`},
+	{"make", `                _ = make([]int16     , 0, 0)`, `func([]int16, int, int) []int16`},
+	{"make", `var l    int16; _ = make([]string    , l, 0)`, `func([]string, int16, int) []string`},
+	{"make", `var    c int32; _ = make([]float64   , 0, c)`, `func([]float64, int, int32) []float64`},
+	{"make", `var l, c uint ; _ = make([]complex128, l, c)`, `func([]complex128, uint, uint) []complex128`},
+
 	{"new", `_ = new(int)`, `func(int) *int`},
 	{"new", `type T struct{}; _ = new(T)`, `func(p.T) *p.T`},
 

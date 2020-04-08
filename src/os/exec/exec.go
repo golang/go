@@ -24,6 +24,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"internal/syscall/execenv"
 	"io"
 	"os"
 	"path/filepath"
@@ -222,11 +223,11 @@ func interfaceEqual(a, b interface{}) bool {
 	return a == b
 }
 
-func (c *Cmd) envv() []string {
+func (c *Cmd) envv() ([]string, error) {
 	if c.Env != nil {
-		return c.Env
+		return c.Env, nil
 	}
-	return os.Environ()
+	return execenv.Default(c.SysProcAttr)
 }
 
 func (c *Cmd) argv() []string {
@@ -238,7 +239,6 @@ func (c *Cmd) argv() []string {
 
 // skipStdinCopyError optionally specifies a function which reports
 // whether the provided stdin copy error should be ignored.
-// It is non-nil everywhere but Plan 9, which lacks EPIPE. See exec_posix.go.
 var skipStdinCopyError func(error) bool
 
 func (c *Cmd) stdin() (f *os.File, err error) {
@@ -369,6 +369,8 @@ func lookExtensions(path, dir string) (string, error) {
 
 // Start starts the specified command but does not wait for it to complete.
 //
+// If Start returns successfully, the c.Process field will be set.
+//
 // The Wait method will return the exit code and release associated resources
 // once the command exits.
 func (c *Cmd) Start() error {
@@ -412,11 +414,15 @@ func (c *Cmd) Start() error {
 	}
 	c.childFiles = append(c.childFiles, c.ExtraFiles...)
 
-	var err error
+	envv, err := c.envv()
+	if err != nil {
+		return err
+	}
+
 	c.Process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
 		Dir:   c.Dir,
 		Files: c.childFiles,
-		Env:   addCriticalEnv(dedupEnv(c.envv())),
+		Env:   addCriticalEnv(dedupEnv(envv)),
 		Sys:   c.SysProcAttr,
 	})
 	if err != nil {

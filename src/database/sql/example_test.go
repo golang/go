@@ -41,7 +41,7 @@ func ExampleDB_QueryContext() {
 	// encounter an auto-commit error and be forced to rollback changes.
 	rerr := rows.Close()
 	if rerr != nil {
-		log.Fatal(err)
+		log.Fatal(rerr)
 	}
 
 	// Rows.Err will report the last error encountered by Rows.Scan.

@@ -510,7 +510,6 @@ type m struct {
 	park          note
 	alllink       *m // on allm
 	schedlink     muintptr
-	mcache        *mcache
 	lockedg       guintptr
 	createstack   [32]uintptr // stack that created this thread.
 	lockedExt     uint32      // tracking for external LockOSThread
@@ -522,8 +521,7 @@ type m struct {
 	waittraceskip int
 	startingtrace bool
 	syscalltick   uint32
-	thread        uintptr // thread handle
-	freelink      *m      // on sched.freem
+	freelink      *m // on sched.freem
 
 	// these are here because they are too large to be on the stack
 	// of low-level NOSPLIT functions.
@@ -540,6 +538,10 @@ type m struct {
 	// signals. This is used to detect when a preemption is
 	// requested, but fails. Accessed atomically.
 	preemptGen uint32
+
+	// Whether this is a pending preemption signal on this M.
+	// Accessed atomically.
+	signalPending uint32
 
 	dlogPerM
 
@@ -614,6 +616,11 @@ type p struct {
 
 	_ uint32 // Alignment for atomic fields below
 
+	// The when field of the first entry on the timer heap.
+	// This is updated using atomic functions.
+	// This is 0 if the timer heap is empty.
+	timer0When uint64
+
 	// Per-P GC state
 	gcAssistTime         int64    // Nanoseconds in assistAlloc
 	gcFractionalMarkTime int64    // Nanoseconds in fractional mark worker (atomic)
@@ -645,11 +652,19 @@ type p struct {
 	// Must hold timersLock to access.
 	timers []*timer
 
+	// Number of timers in P's heap.
+	// Modified using atomic instructions.
+	numTimers uint32
+
 	// Number of timerModifiedEarlier timers on P's heap.
 	// This should only be modified while holding timersLock,
 	// or while the timer status is in a transient state
 	// such as timerModifying.
 	adjustTimers uint32
+
+	// Number of timerDeleted timers in P's heap.
+	// Modified using atomic instructions.
+	deletedTimers uint32
 
 	// Race context used while executing timer functions.
 	timerRaceCtx uintptr

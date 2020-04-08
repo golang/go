@@ -1242,6 +1242,41 @@ func testChtimes(t *testing.T, name string) {
 	}
 }
 
+func TestFileChdir(t *testing.T) {
+	// TODO(brainman): file.Chdir() is not implemented on windows.
+	if runtime.GOOS == "windows" {
+		return
+	}
+
+	wd, err := Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %s", err)
+	}
+	defer Chdir(wd)
+
+	fd, err := Open(".")
+	if err != nil {
+		t.Fatalf("Open .: %s", err)
+	}
+	defer fd.Close()
+
+	if err := Chdir("/"); err != nil {
+		t.Fatalf("Chdir /: %s", err)
+	}
+
+	if err := fd.Chdir(); err != nil {
+		t.Fatalf("fd.Chdir: %s", err)
+	}
+
+	wdNew, err := Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %s", err)
+	}
+	if wdNew != wd {
+		t.Fatalf("fd.Chdir failed, got %s, want %s", wdNew, wd)
+	}
+}
+
 func TestChdirAndGetwd(t *testing.T) {
 	// TODO(brainman): file.Chdir() is not implemented on windows.
 	if runtime.GOOS == "windows" {
@@ -1325,8 +1360,9 @@ func TestChdirAndGetwd(t *testing.T) {
 // Test that Chdir+Getwd is program-wide.
 func TestProgWideChdir(t *testing.T) {
 	const N = 10
+	const ErrPwd = "Error!"
 	c := make(chan bool)
-	cpwd := make(chan string)
+	cpwd := make(chan string, N)
 	for i := 0; i < N; i++ {
 		go func(i int) {
 			// Lock half the goroutines in their own operating system
@@ -1339,10 +1375,15 @@ func TestProgWideChdir(t *testing.T) {
 				// See issue 9428.
 				runtime.LockOSThread()
 			}
-			<-c
+			hasErr, closed := <-c
+			if !closed && hasErr {
+				cpwd <- ErrPwd
+				return
+			}
 			pwd, err := Getwd()
 			if err != nil {
 				t.Errorf("Getwd on goroutine %d: %v", i, err)
+				cpwd <- ErrPwd
 				return
 			}
 			cpwd <- pwd
@@ -1350,10 +1391,12 @@ func TestProgWideChdir(t *testing.T) {
 	}
 	oldwd, err := Getwd()
 	if err != nil {
+		c <- true
 		t.Fatalf("Getwd: %v", err)
 	}
 	d, err := ioutil.TempDir("", "test")
 	if err != nil {
+		c <- true
 		t.Fatalf("TempDir: %v", err)
 	}
 	defer func() {
@@ -1363,17 +1406,22 @@ func TestProgWideChdir(t *testing.T) {
 		RemoveAll(d)
 	}()
 	if err := Chdir(d); err != nil {
+		c <- true
 		t.Fatalf("Chdir: %v", err)
 	}
 	// OS X sets TMPDIR to a symbolic link.
 	// So we resolve our working directory again before the test.
 	d, err = Getwd()
 	if err != nil {
+		c <- true
 		t.Fatalf("Getwd: %v", err)
 	}
 	close(c)
 	for i := 0; i < N; i++ {
 		pwd := <-cpwd
+		if pwd == ErrPwd {
+			t.FailNow()
+		}
 		if pwd != d {
 			t.Errorf("Getwd returned %q; want %q", pwd, d)
 		}
@@ -1785,7 +1833,7 @@ func TestAppend(t *testing.T) {
 
 func TestStatDirWithTrailingSlash(t *testing.T) {
 	// Create new temporary directory and arrange to clean it up.
-	path, err := ioutil.TempDir("", "/_TestStatDirWithSlash_")
+	path, err := ioutil.TempDir("", "_TestStatDirWithSlash_")
 	if err != nil {
 		t.Fatalf("TempDir: %s", err)
 	}
@@ -2404,5 +2452,78 @@ func TestUserHomeDir(t *testing.T) {
 	}
 	if !fi.IsDir() {
 		t.Fatalf("dir %s is not directory; type = %v", dir, fi.Mode())
+	}
+}
+
+func TestDirSeek(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		testenv.SkipFlaky(t, 36019)
+	}
+	wd, err := Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, err := Open(wd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dirnames1, err := f.Readdirnames(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ret, err := f.Seek(0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ret != 0 {
+		t.Fatalf("seek result not zero: %d", ret)
+	}
+
+	dirnames2, err := f.Readdirnames(0)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+
+	if len(dirnames1) != len(dirnames2) {
+		t.Fatalf("listings have different lengths: %d and %d\n", len(dirnames1), len(dirnames2))
+	}
+	for i, n1 := range dirnames1 {
+		n2 := dirnames2[i]
+		if n1 != n2 {
+			t.Fatalf("different name i=%d n1=%s n2=%s\n", i, n1, n2)
+		}
+	}
+}
+
+func TestReaddirSmallSeek(t *testing.T) {
+	// See issue 37161. Read only one entry from a directory,
+	// seek to the beginning, and read again. We should not see
+	// duplicate entries.
+	if runtime.GOOS == "windows" {
+		testenv.SkipFlaky(t, 36019)
+	}
+	wd, err := Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	df, err := Open(filepath.Join(wd, "testdata", "issue37161"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	names1, err := df.Readdirnames(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = df.Seek(0, 0); err != nil {
+		t.Fatal(err)
+	}
+	names2, err := df.Readdirnames(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(names2) != 3 {
+		t.Fatalf("first names: %v, second names: %v", names1, names2)
 	}
 }

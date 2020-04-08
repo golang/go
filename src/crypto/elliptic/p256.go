@@ -85,7 +85,7 @@ func (p256Curve) ScalarMult(bigX, bigY *big.Int, scalar []byte) (x, y *big.Int) 
 
 // Field elements are represented as nine, unsigned 32-bit words.
 //
-// The value of an field element is:
+// The value of a field element is:
 //   x[0] + (x[1] * 2**29) + (x[2] * 2**57) + ... + (x[8] * 2**228)
 //
 // That is, each limb is alternately 29 or 28-bits wide in little-endian
@@ -307,7 +307,7 @@ func p256Diff(out, in, in2 *[p256Limbs]uint32) {
 }
 
 // p256ReduceDegree sets out = tmp/R mod p where tmp contains 64-bit words with
-// the same 29,28,... bit positions as an field element.
+// the same 29,28,... bit positions as a field element.
 //
 // The values in field elements are in Montgomery form: x*R mod p where R =
 // 2**257. Since we just multiplied two Montgomery values together, the result

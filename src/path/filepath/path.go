@@ -201,11 +201,13 @@ func Split(path string) (dir, file string) {
 	return path[:i+1], path[i+1:]
 }
 
-// Join joins any number of path elements into a single path, adding
-// a Separator if necessary. Join calls Clean on the result; in particular,
-// all empty strings are ignored.
-// On Windows, the result is a UNC path if and only if the first path
-// element is a UNC path.
+// Join joins any number of path elements into a single path,
+// separating them with an OS specific Separator. Empty elements
+// are ignored. The result is Cleaned. However, if the argument
+// list is empty or all its elements are empty, Join returns
+// an empty string.
+// On Windows, the result will only be a UNC path if the first
+// non-empty element is a UNC path.
 func Join(elem ...string) string {
 	return join(elem)
 }

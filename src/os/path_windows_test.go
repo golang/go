@@ -74,3 +74,18 @@ func TestMkdirAllExtendedLength(t *testing.T) {
 		t.Fatalf("MkdirAll(%q) should have failed, but did not", path)
 	}
 }
+
+func TestOpenRootSlash(t *testing.T) {
+	tests := []string{
+		`/`,
+		`\`,
+	}
+
+	for _, test := range tests {
+		dir, err := os.Open(test)
+		if err != nil {
+			t.Fatalf("Open(%q) failed: %v", test, err)
+		}
+		dir.Close()
+	}
+}

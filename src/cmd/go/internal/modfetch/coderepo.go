@@ -191,22 +191,6 @@ func (r *codeRepo) appendIncompatibleVersions(list, incompatible []string) ([]st
 		return list, nil
 	}
 
-	// We assume that if the latest release of any major version has a go.mod
-	// file, all subsequent major versions will also have go.mod files (and thus
-	// be ineligible for use as +incompatible versions).
-	// If we're wrong about a major version, users will still be able to 'go get'
-	// specific higher versions explicitly — they just won't affect 'latest' or
-	// appear in 'go list'.
-	//
-	// Conversely, we assume that if the latest release of any major version lacks
-	// a go.mod file, all versions also lack go.mod files. If we're wrong, we may
-	// include a +incompatible version that isn't really valid, but most
-	// operations won't try to use that version anyway.
-	//
-	// These optimizations bring
-	// 'go list -versions -m github.com/openshift/origin' down from 1m58s to 0m37s.
-	// That's still not great, but a substantial improvement.
-
 	versionHasGoMod := func(v string) (bool, error) {
 		_, err := r.code.ReadFile(v, "go.mod", codehost.MaxGoMod)
 		if err == nil {
@@ -241,32 +225,41 @@ func (r *codeRepo) appendIncompatibleVersions(list, incompatible []string) ([]st
 		}
 	}
 
-	var lastMajor string
+	var (
+		lastMajor         string
+		lastMajorHasGoMod bool
+	)
 	for i, v := range incompatible {
 		major := semver.Major(v)
-		if major == lastMajor {
-			list = append(list, v+"+incompatible")
+
+		if major != lastMajor {
+			rem := incompatible[i:]
+			j := sort.Search(len(rem), func(j int) bool {
+				return semver.Major(rem[j]) != major
+			})
+			latestAtMajor := rem[j-1]
+
+			var err error
+			lastMajor = major
+			lastMajorHasGoMod, err = versionHasGoMod(latestAtMajor)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if lastMajorHasGoMod {
+			// The latest release of this major version has a go.mod file, so it is
+			// not allowed as +incompatible. It would be confusing to include some
+			// minor versions of this major version as +incompatible but require
+			// semantic import versioning for others, so drop all +incompatible
+			// versions for this major version.
+			//
+			// If we're wrong about a minor version in the middle, users will still be
+			// able to 'go get' specific tags for that version explicitly — they just
+			// won't appear in 'go list' or as the results for queries with inequality
+			// bounds.
 			continue
 		}
-
-		rem := incompatible[i:]
-		j := sort.Search(len(rem), func(j int) bool {
-			return semver.Major(rem[j]) != major
-		})
-		latestAtMajor := rem[j-1]
-
-		ok, err := versionHasGoMod(latestAtMajor)
-		if err != nil {
-			return nil, err
-		}
-		if ok {
-			// This major version has a go.mod file, so it is not allowed as
-			// +incompatible. Subsequent major versions are likely to also have
-			// go.mod files, so stop here.
-			break
-		}
-
-		lastMajor = major
 		list = append(list, v+"+incompatible")
 	}
 
@@ -359,7 +352,7 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
 				Path: r.modPath,
 				Err: &module.InvalidVersionError{
 					Version: info2.Version,
-					Err:     notExistError(err.Error()),
+					Err:     notExistError{err: err},
 				},
 			}
 		}
@@ -570,7 +563,7 @@ func (r *codeRepo) validatePseudoVersion(info *codehost.RevInfo, version string)
 		return err
 	}
 	if !t.Equal(info.Time.Truncate(time.Second)) {
-		return fmt.Errorf("does not match version-control timestamp (%s)", info.Time.UTC().Format(time.RFC3339))
+		return fmt.Errorf("does not match version-control timestamp (expected %s)", info.Time.UTC().Format(pseudoVersionTimestampFormat))
 	}
 
 	tagPrefix := ""
@@ -708,7 +701,7 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 		return "", "", nil, fmt.Errorf("reading %s/%s at revision %s: %v", r.pathPrefix, file1, rev, err1)
 	}
 	mpath1 := modfile.ModulePath(gomod1)
-	found1 := err1 == nil && isMajor(mpath1, r.pathMajor)
+	found1 := err1 == nil && (isMajor(mpath1, r.pathMajor) || r.canReplaceMismatchedVersionDueToBug(mpath1))
 
 	var file2 string
 	if r.pathMajor != "" && r.codeRoot != r.modPath && !strings.HasPrefix(r.pathMajor, ".") {
@@ -719,9 +712,6 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 		// because of replacement modules. This might be a fork of
 		// the real module, found at a different path, usable only in
 		// a replace directive.
-		//
-		// TODO(bcmills): This doesn't seem right. Investigate further.
-		// (Notably: why can't we replace foo/v2 with fork-of-foo/v3?)
 		dir2 := path.Join(r.codeDir, r.pathMajor[1:])
 		file2 = path.Join(dir2, "go.mod")
 		gomod2, err2 := r.code.ReadFile(rev, file2, codehost.MaxGoMod)
@@ -747,11 +737,11 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 
 	// Not v2/go.mod, so it's either go.mod or nothing. Which is it?
 	if found1 {
-		// Explicit go.mod with matching module path OK.
+		// Explicit go.mod with matching major version ok.
 		return rev, r.codeDir, gomod1, nil
 	}
 	if err1 == nil {
-		// Explicit go.mod with non-matching module path disallowed.
+		// Explicit go.mod with non-matching major version disallowed.
 		suffix := ""
 		if file2 != "" {
 			suffix = fmt.Sprintf(" (and ...%s/go.mod does not exist)", r.pathMajor)
@@ -761,6 +751,9 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 		}
 		if r.pathMajor != "" { // ".v1", ".v2" for gopkg.in
 			return "", "", nil, fmt.Errorf("%s has non-...%s module path %q%s at revision %s", file1, r.pathMajor, mpath1, suffix, rev)
+		}
+		if _, _, ok := module.SplitPathVersion(mpath1); !ok {
+			return "", "", nil, fmt.Errorf("%s has malformed module path %q%s at revision %s", file1, mpath1, suffix, rev)
 		}
 		return "", "", nil, fmt.Errorf("%s has post-%s module path %q%s at revision %s", file1, semver.Major(version), mpath1, suffix, rev)
 	}
@@ -778,24 +771,54 @@ func (r *codeRepo) findDir(version string) (rev, dir string, gomod []byte, err e
 	return "", "", nil, fmt.Errorf("missing %s/go.mod at revision %s", r.pathPrefix, rev)
 }
 
+// isMajor reports whether the versions allowed for mpath are compatible with
+// the major version(s) implied by pathMajor, or false if mpath has an invalid
+// version suffix.
 func isMajor(mpath, pathMajor string) bool {
 	if mpath == "" {
+		// If we don't have a path, we don't know what version(s) it is compatible with.
+		return false
+	}
+	_, mpathMajor, ok := module.SplitPathVersion(mpath)
+	if !ok {
+		// An invalid module path is not compatible with any version.
 		return false
 	}
 	if pathMajor == "" {
-		// mpath must NOT have version suffix.
-		i := len(mpath)
-		for i > 0 && '0' <= mpath[i-1] && mpath[i-1] <= '9' {
-			i--
-		}
-		if i < len(mpath) && i >= 2 && mpath[i-1] == 'v' && mpath[i-2] == '/' {
-			// Found valid suffix.
+		// All of the valid versions for a gopkg.in module that requires major
+		// version v0 or v1 are compatible with the "v0 or v1" implied by an empty
+		// pathMajor.
+		switch module.PathMajorPrefix(mpathMajor) {
+		case "", "v0", "v1":
+			return true
+		default:
 			return false
 		}
-		return true
 	}
-	// Otherwise pathMajor is ".v1", ".v2" (gopkg.in), or "/v2", "/v3" etc.
-	return strings.HasSuffix(mpath, pathMajor)
+	if mpathMajor == "" {
+		// Even if pathMajor is ".v0" or ".v1", we can't be sure that a module
+		// without a suffix is tagged appropriately. Besides, we don't expect clones
+		// of non-gopkg.in modules to have gopkg.in paths, so a non-empty,
+		// non-gopkg.in mpath is probably the wrong module for any such pathMajor
+		// anyway.
+		return false
+	}
+	// If both pathMajor and mpathMajor are non-empty, then we only care that they
+	// have the same major-version validation rules. A clone fetched via a /v2
+	// path might replace a module with path gopkg.in/foo.v2-unstable, and that's
+	// ok.
+	return pathMajor[1:] == mpathMajor[1:]
+}
+
+// canReplaceMismatchedVersionDueToBug reports whether versions of r
+// could replace versions of mpath with otherwise-mismatched major versions
+// due to a historical bug in the Go command (golang.org/issue/34254).
+func (r *codeRepo) canReplaceMismatchedVersionDueToBug(mpath string) bool {
+	// The bug caused us to erroneously accept unversioned paths as replacements
+	// for versioned gopkg.in paths.
+	unversioned := r.pathMajor == ""
+	replacingGopkgIn := strings.HasPrefix(mpath, "gopkg.in/")
+	return unversioned && replacingGopkgIn
 }
 
 func (r *codeRepo) GoMod(version string) (data []byte, err error) {
@@ -988,29 +1011,4 @@ func hasPathPrefix(s, prefix string) bool {
 		}
 		return s[len(prefix)] == '/' && s[:len(prefix)] == prefix
 	}
-}
-
-func isVendoredPackage(name string) bool {
-	var i int
-	if strings.HasPrefix(name, "vendor/") {
-		i += len("vendor/")
-	} else if j := strings.Index(name, "/vendor/"); j >= 0 {
-		// This offset looks incorrect; this should probably be
-		//
-		// 	i = j + len("/vendor/")
-		//
-		// (See https://golang.org/issue/31562.)
-		//
-		// Unfortunately, we can't fix it without invalidating checksums.
-		// Fortunately, the error appears to be strictly conservative: we'll retain
-		// vendored packages that we should have pruned, but we won't prune
-		// non-vendored packages that we should have retained.
-		//
-		// Since this defect doesn't seem to break anything, it's not worth fixing
-		// for now.
-		i += len("/vendor/")
-	} else {
-		return false
-	}
-	return strings.Contains(name[i:], "/")
 }

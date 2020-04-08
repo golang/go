@@ -280,7 +280,7 @@ fallback:
 	ADD	$32, R1, R4
 	SYSCALL $SYS_clock_gettime
 	MOVD	32(R1), R3
-	MOVD	48(R1), R5
+	MOVD	40(R1), R5
 	JMP	finish
 
 TEXT runtime·rtsigprocmask(SB),NOSPLIT|NOFRAME,$0-28

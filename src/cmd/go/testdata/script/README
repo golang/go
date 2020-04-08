@@ -29,17 +29,21 @@ Scripts also have access to these other environment variables:
 	GOARCH=<target GOARCH>
 	GOCACHE=<actual GOCACHE being used outside the test>
 	GOEXE=<executable file suffix: .exe on Windows, empty on other systems>
+	GOEXPSTRING=<value of objabi.Expstring(), from GOEXPERIMENT when toolchain built>
 	GOOS=<target GOOS>
 	GOPATH=$WORK/gopath
 	GOPROXY=<local module proxy serving from cmd/go/testdata/mod>
 	GOROOT=<actual GOROOT>
+	TESTGO_GOROOT=<GOROOT used to build cmd/go, for use in tests that may change GOROOT>
 	HOME=/no-home
 	PATH=<actual PATH>
 	TMPDIR=$WORK/tmp
+	GODEBUG=<actual GODEBUG>
 	devnull=<value of os.DevNull>
 	goversion=<current Go version; for example, 1.12>
+	:=<OS-specific path list separator>
 
-The scripts supporting files are unpacked relative to $GOPATH/src (aka $WORK/gopath/src)
+The scripts' supporting files are unpacked relative to $GOPATH/src (aka $WORK/gopath/src)
 and then the script begins execution in that directory as well. Thus the example above runs
 in $WORK/gopath/src with GOPATH=$WORK/gopath and $WORK/gopath/src/hello.go
 containing the listed contents.
@@ -64,6 +68,10 @@ The command prefix ! indicates that the command on the rest of the line
 (typically go or a matching predicate) must fail, not succeed. Only certain
 commands support this prefix. They are indicated below by [!] in the synopsis.
 
+The command prefix ? indicates that the command on the rest of the line
+may or may not succeed, but the test should continue regardless.
+Commands that support this prefix are indicated by [?].
+
 The command prefix [cond] indicates that the command on the rest of the line
 should only run when the condition is satisfied. The available conditions are:
 
@@ -77,6 +85,8 @@ should only run when the condition is satisfied. The available conditions are:
    - [root] for os.Geteuid() == 0
    - [symlink] for testenv.HasSymlink()
    - [exec:prog] for whether prog is available for execution (found by exec.LookPath)
+   - [GODEBUG:value] for whether value is one of the comma-separated entries in the GODEBUG variable
+   - [buildmode:value] for whether -buildmode=value is supported
 
 A condition can be negated: [!short] means to run the rest of the line
 when testing.Short() is false. Multiple conditions may be given for a single
@@ -85,7 +95,7 @@ are satisfied.
 
 The commands are:
 
-- [!] cc args... [&]
+- [! | ?] cc args... [&]
   Run the C compiler, the platform specific flags (i.e. `go env GOGCCFLAGS`) will be
   added automatically before args.
 
@@ -107,18 +117,19 @@ The commands are:
   Like cmp, but environment variables are substituted in the file contents
   before the comparison. For example, $GOOS is replaced by the target GOOS.
 
-- [!] cp src... dst
+- [! | ?] cp src... dst
   Copy the listed files to the target file or existing directory.
   src can include "stdout" or "stderr" to use the standard output or standard error
   from the most recent exec or go command.
 
 - env [-r] [key=value...]
-  With no arguments, print the environment (useful for debugging).
+  With no arguments, print the environment to stdout
+  (useful for debugging and for verifying initial state).
   Otherwise add the listed key=value pairs to the environment.
   The -r flag causes the values to be escaped using regexp.QuoteMeta
   before being recorded.
 
-- [!] exec program [args...] [&]
+- [! | ?] exec program [args...] [&]
   Run the given executable program with the arguments.
   It must (or must not) succeed.
   Note that 'exec' does not terminate the script (unlike in Unix shells).
@@ -130,11 +141,12 @@ The commands are:
   test. At the end of the test, any remaining background processes are
   terminated using os.Interrupt (if supported) or os.Kill.
 
-- [!] exists [-readonly] file...
+- [!] exists [-readonly] [-exec] file...
   Each of the listed files or directories must (or must not) exist.
   If -readonly is given, the files or directories must be unwritable.
+  If -exec is given, the files or directories must be executable.
 
-- [!] go args... [&]
+- [! | ?] go args... [&]
   Run the (test copy of the) go command with the given arguments.
   It must (or must not) succeed.
 
@@ -162,7 +174,7 @@ The commands are:
 
 - [!] stdout [-count=N] pattern
   Apply the grep command (see above) to the standard output
-  from the most recent exec, go, or wait command.
+  from the most recent exec, go, wait, or env command.
 
 - stop [message]
   Stop the test early (marking it as passing), including the message if given.

@@ -182,7 +182,7 @@ func TestRenegotiationExtension(t *testing.T) {
 		cipherSuites:                 []uint16{TLS_RSA_WITH_RC4_128_SHA},
 	}
 
-	bufChan := make(chan []byte)
+	bufChan := make(chan []byte, 1)
 	c, s := localPipe(t)
 
 	go func() {
@@ -274,7 +274,7 @@ func TestTLS12OnlyCipherSuites(t *testing.T) {
 }
 
 func TestTLSPointFormats(t *testing.T) {
-	// Test that a Server returns the ec_point_format extention when ECC is
+	// Test that a Server returns the ec_point_format extension when ECC is
 	// negotiated, and not returned on RSA handshake.
 	tests := []struct {
 		name                string
@@ -575,11 +575,12 @@ func (test *serverTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
 		return nil, nil, err
 	}
 
-	connChan := make(chan interface{})
+	connChan := make(chan interface{}, 1)
 	go func() {
 		tcpConn, err := l.Accept()
 		if err != nil {
 			connChan <- err
+			return
 		}
 		connChan <- tcpConn
 	}()
@@ -1180,11 +1181,21 @@ func TestHandshakeServerRSAPKCS1v15(t *testing.T) {
 }
 
 func TestHandshakeServerRSAPSS(t *testing.T) {
+	// We send rsa_pss_rsae_sha512 first, as the test key won't fit, and we
+	// verify the server implementation will disregard the client preference in
+	// that case. See Issue 29793.
 	test := &serverTest{
 		name:    "RSA-RSAPSS",
-		command: []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha256"},
+		command: []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha512:rsa_pss_rsae_sha256"},
 	}
 	runServerTestTLS12(t, test)
+	runServerTestTLS13(t, test)
+
+	test = &serverTest{
+		name:                          "RSA-RSAPSS-TooSmall",
+		command:                       []string{"openssl", "s_client", "-no_ticket", "-sigalgs", "rsa_pss_rsae_sha512"},
+		expectHandshakeErrorIncluding: "peer doesn't support any of the certificate's signature algorithms",
+	}
 	runServerTestTLS13(t, test)
 }
 
@@ -1637,7 +1648,7 @@ T+E0J8wlH24pgwQHzy7Ko2qLwn1b5PW8ecrlvP1g
 		config.MinVersion = VersionTLS13
 		server := Server(serverConn, config)
 		err := server.Handshake()
-		expectError(t, err, "key size too small for PSS signature")
+		expectError(t, err, "key size too small")
 		close(done)
 	}()
 	err = client.Handshake()

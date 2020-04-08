@@ -28,9 +28,19 @@ import (
 )
 
 var (
+	// Removes package name and method arugments for Java method names.
+	// See tests for examples.
 	javaRegExp = regexp.MustCompile(`^(?:[a-z]\w*\.)*([A-Z][\w\$]*\.(?:<init>|[a-z][\w\$]*(?:\$\d+)?))(?:(?:\()|$)`)
-	goRegExp   = regexp.MustCompile(`^(?:[\w\-\.]+\/)+(.+)`)
-	cppRegExp  = regexp.MustCompile(`^(?:(?:\(anonymous namespace\)::)(\w+$))|(?:(?:\(anonymous namespace\)::)?(?:[_a-zA-Z]\w*\::|)*(_*[A-Z]\w*::~?[_a-zA-Z]\w*)$)`)
+	// Removes package name and method arugments for Go function names.
+	// See tests for examples.
+	goRegExp = regexp.MustCompile(`^(?:[\w\-\.]+\/)+(.+)`)
+	// Strips C++ namespace prefix from a C++ function / method name.
+	// NOTE: Make sure to keep the template parameters in the name. Normally,
+	// template parameters are stripped from the C++ names but when
+	// -symbolize=demangle=templates flag is used, they will not be.
+	// See tests for examples.
+	cppRegExp                = regexp.MustCompile(`^(?:[_a-zA-Z]\w*::)+(_*[A-Z]\w*::~?[_a-zA-Z]\w*(?:<.*>)?)`)
+	cppAnonymousPrefixRegExp = regexp.MustCompile(`^\(anonymous namespace\)::`)
 )
 
 // Graph summarizes a performance profile into a format that is
@@ -191,7 +201,7 @@ type NodeSet map[NodeInfo]bool
 // works as a unique identifier; however, in a tree multiple nodes may share
 // identical NodeInfos. A *Node does uniquely identify a node so we can use that
 // instead. Though a *Node also uniquely identifies a node in a graph,
-// currently, during trimming, graphs are rebult from scratch using only the
+// currently, during trimming, graphs are rebuilt from scratch using only the
 // NodeSet, so there would not be the required context of the initial graph to
 // allow for the use of *Node.
 type NodePtrSet map[*Node]bool
@@ -429,6 +439,7 @@ func newTree(prof *profile.Profile, o *Options) (g *Graph) {
 
 // ShortenFunctionName returns a shortened version of a function's name.
 func ShortenFunctionName(f string) string {
+	f = cppAnonymousPrefixRegExp.ReplaceAllString(f, "")
 	for _, re := range []*regexp.Regexp{goRegExp, javaRegExp, cppRegExp} {
 		if matches := re.FindStringSubmatch(f); len(matches) >= 2 {
 			return strings.Join(matches[1:], "")

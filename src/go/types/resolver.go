@@ -188,6 +188,7 @@ func (check *Checker) importPackage(pos token.Pos, path, dir string) *Package {
 	// package should be complete or marked fake, but be cautious
 	if imp.complete || imp.fake {
 		check.impMap[key] = imp
+		check.pkgCnt[imp.name]++
 		return imp
 	}
 

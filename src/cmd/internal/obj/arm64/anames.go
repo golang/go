@@ -469,6 +469,7 @@ var Anames = []string{
 	"VLD3R",
 	"VLD4R",
 	"VORR",
+	"VREV16",
 	"VREV32",
 	"VREV64",
 	"VST1",

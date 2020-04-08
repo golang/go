@@ -112,15 +112,6 @@ func (fd *FD) Close() error {
 	return err
 }
 
-// Shutdown wraps the shutdown network call.
-func (fd *FD) Shutdown(how int) error {
-	if err := fd.incref(); err != nil {
-		return err
-	}
-	defer fd.decref()
-	return syscall.Shutdown(fd.Sysfd, how)
-}
-
 // SetBlocking puts the file into blocking mode.
 func (fd *FD) SetBlocking() error {
 	if err := fd.incref(); err != nil {
@@ -451,7 +442,7 @@ var tryDupCloexec = int32(1)
 
 // DupCloseOnExec dups fd and marks it close-on-exec.
 func DupCloseOnExec(fd int) (int, string, error) {
-	if atomic.LoadInt32(&tryDupCloexec) == 1 {
+	if syscall.F_DUPFD_CLOEXEC != 0 && atomic.LoadInt32(&tryDupCloexec) == 1 {
 		r0, e1 := fcntl(fd, syscall.F_DUPFD_CLOEXEC, 0)
 		if e1 == nil {
 			return r0, "", nil
@@ -505,17 +496,6 @@ func (fd *FD) WriteOnce(p []byte) (int, error) {
 	}
 	defer fd.writeUnlock()
 	return syscall.Write(fd.Sysfd, p)
-}
-
-// RawControl invokes the user-defined function f for a non-IO
-// operation.
-func (fd *FD) RawControl(f func(uintptr)) error {
-	if err := fd.incref(); err != nil {
-		return err
-	}
-	defer fd.decref()
-	f(uintptr(fd.Sysfd))
-	return nil
 }
 
 // RawRead invokes the user-defined function f for a read operation.

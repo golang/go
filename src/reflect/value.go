@@ -2156,7 +2156,11 @@ type SelectCase struct {
 // and, if that case was a receive operation, the value received and a
 // boolean indicating whether the value corresponds to a send on the channel
 // (as opposed to a zero value received because the channel is closed).
+// Select supports a maximum of 65536 cases.
 func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
+	if len(cases) > 65536 {
+		panic("reflect.Select: too many cases (max 65536)")
+	}
 	// NOTE: Do not trust that caller is not modifying cases data underfoot.
 	// The range is safe because the caller cannot modify our copy of the len
 	// and each iteration makes its own copy of the value c.
@@ -2476,6 +2480,11 @@ func convertOp(dst, src *rtype) func(Value, Type) Value {
 				return cvtRunesString
 			}
 		}
+
+	case Chan:
+		if dst.Kind() == Chan && specialChannelAssignability(dst, src) {
+			return cvtDirect
+		}
 	}
 
 	// dst and src have same underlying type.
@@ -2529,6 +2538,14 @@ func makeFloat(f flag, v float64, t Type) Value {
 	case 8:
 		*(*float64)(ptr) = v
 	}
+	return Value{typ, ptr, f | flagIndir | flag(typ.Kind())}
+}
+
+// makeFloat returns a Value of type t equal to v, where t is a float32 type.
+func makeFloat32(f flag, v float32, t Type) Value {
+	typ := t.common()
+	ptr := unsafe_New(typ)
+	*(*float32)(ptr) = v
 	return Value{typ, ptr, f | flagIndir | flag(typ.Kind())}
 }
 
@@ -2604,6 +2621,12 @@ func cvtUintFloat(v Value, t Type) Value {
 
 // convertOp: floatXX -> floatXX
 func cvtFloat(v Value, t Type) Value {
+	if v.Type().Kind() == Float32 && t.Kind() == Float32 {
+		// Don't do any conversion if both types have underlying type float32.
+		// This avoids converting to float64 and back, which will
+		// convert a signaling NaN to a quiet NaN. See issue 36400.
+		return makeFloat32(v.flag.ro(), *(*float32)(v.ptr), t)
+	}
 	return makeFloat(v.flag.ro(), v.Float(), t)
 }
 
@@ -2614,12 +2637,12 @@ func cvtComplex(v Value, t Type) Value {
 
 // convertOp: intXX -> string
 func cvtIntString(v Value, t Type) Value {
-	return makeString(v.flag.ro(), string(v.Int()), t)
+	return makeString(v.flag.ro(), string(rune(v.Int())), t)
 }
 
 // convertOp: uintXX -> string
 func cvtUintString(v Value, t Type) Value {
-	return makeString(v.flag.ro(), string(v.Uint()), t)
+	return makeString(v.flag.ro(), string(rune(v.Uint())), t)
 }
 
 // convertOp: []byte -> string

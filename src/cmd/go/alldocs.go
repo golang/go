@@ -148,7 +148,7 @@
 // 		build code that will be linked against shared libraries previously
 // 		created with -buildmode=shared.
 // 	-mod mode
-// 		module download mode to use: readonly or vendor.
+// 		module download mode to use: readonly, vendor, or mod.
 // 		See 'go help modules' for more.
 // 	-modcacherw
 // 		leave newly-created directories in the module cache read-write
@@ -907,7 +907,7 @@
 //         Main      bool         // is this the main module?
 //         Indirect  bool         // is this module only an indirect dependency of main module?
 //         Dir       string       // directory holding files for this module, if any
-//         GoMod     string       // path to go.mod file for this module, if any
+//         GoMod     string       // path to go.mod file used when loading this module, if any
 //         GoVersion string       // go version used in module
 //         Error     *ModuleError // error loading module
 //     }
@@ -915,6 +915,9 @@
 //     type ModuleError struct {
 //         Err string // the error itself
 //     }
+//
+// The file GoMod refers to may be outside the module directory if the
+// module is in the module cache or if the -modfile flag is used.
 //
 // The default output is to print the module path and then
 // information about the version and replacement if any.
@@ -1010,17 +1013,20 @@
 //
 // Usage:
 //
-// 	go mod download [-json] [modules]
+// 	go mod download [-x] [-json] [modules]
 //
 // Download downloads the named modules, which can be module patterns selecting
 // dependencies of the main module or module queries of the form path@version.
-// With no arguments, download applies to all dependencies of the main module.
+// With no arguments, download applies to all dependencies of the main module
+// (equivalent to 'go mod download all').
 //
 // The go command will automatically download modules as needed during ordinary
 // execution. The "go mod download" command is useful mainly for pre-filling
 // the local cache or to compute the answers for a Go module proxy.
 //
-// By default, download reports errors to standard error but is otherwise silent.
+// By default, download writes nothing to standard output. It may print progress
+// messages and errors to standard error.
+//
 // The -json flag causes download to print a sequence of JSON objects
 // to standard output, describing each downloaded module (or failure),
 // corresponding to this Go struct:
@@ -1036,6 +1042,8 @@
 //         Sum      string // checksum for path, version (as in go.sum)
 //         GoModSum string // checksum for go.mod (as in go.sum)
 //     }
+//
+// The -x flag causes download to print the commands download executes.
 //
 // See 'go help modules' for more about module queries.
 //
@@ -1073,12 +1081,17 @@
 // add and drop an exclusion for the given module path and version.
 // Note that -exclude=path@version is a no-op if that exclusion already exists.
 //
-// The -replace=old[@v]=new[@v] and -dropreplace=old[@v] flags
-// add and drop a replacement of the given module path and version pair.
-// If the @v in old@v is omitted, the replacement applies to all versions
-// with the old module path. If the @v in new@v is omitted, the new path
-// should be a local module root directory, not a module path.
-// Note that -replace overrides any existing replacements for old[@v].
+// The -replace=old[@v]=new[@v] flag adds a replacement of the given
+// module path and version pair. If the @v in old@v is omitted, a
+// replacement without a version on the left side is added, which applies
+// to all versions of the old module path. If the @v in new@v is omitted,
+// the new path should be a local module root directory, not a module
+// path. Note that -replace overrides any redundant replacements for old[@v],
+// so omitting @v will drop existing replacements for specific versions.
+//
+// The -dropreplace=old[@v] flag drops a replacement of the given
+// module path and version pair. If the @v is omitted, a replacement without
+// a version on the left side is dropped.
 //
 // The -require, -droprequire, -exclude, -dropexclude, -replace,
 // and -dropreplace editing flags may be repeated, and the changes
@@ -1719,8 +1732,10 @@
 // 	GOHOSTOS
 // 		The operating system (GOOS) of the Go toolchain binaries.
 // 	GOMOD
-// 		The absolute path to the go.mod of the main module,
-// 		or the empty string if not using modules.
+// 		The absolute path to the go.mod of the main module.
+// 		If module-aware mode is enabled, but there is no go.mod, GOMOD will be
+// 		os.DevNull ("/dev/null" on Unix-like systems, "NUL" on Windows).
+// 		If module-aware mode is disabled, GOMOD will be the empty string.
 // 	GOTOOLDIR
 // 		The directory where the go tools (compile, cover, doc, etc...) are installed.
 //
@@ -2337,14 +2352,15 @@
 //
 // Module support
 //
-// Go 1.13 includes support for Go modules. Module-aware mode is active by default
-// whenever a go.mod file is found in, or in a parent of, the current directory.
+// The go command includes support for Go modules. Module-aware mode is active
+// by default whenever a go.mod file is found in the current directory or in
+// any parent directory.
 //
 // The quickest way to take advantage of module support is to check out your
 // repository, create a go.mod file (described in the next section) there, and run
 // go commands from within that file tree.
 //
-// For more fine-grained control, Go 1.13 continues to respect
+// For more fine-grained control, the go command continues to respect
 // a temporary environment variable, GO111MODULE, which can be set to one
 // of three string values: off, on, or auto (the default).
 // If GO111MODULE=on, then the go command requires the use of modules,
@@ -2491,9 +2507,20 @@
 // The "go get" command remains permitted to update go.mod even with -mod=readonly,
 // and the "go mod" commands do not take the -mod flag (or any other build flags).
 //
-// If invoked with -mod=vendor, the go command assumes that the vendor
-// directory holds the correct copies of dependencies and ignores
-// the dependency descriptions in go.mod.
+// If invoked with -mod=vendor, the go command loads packages from the main
+// module's vendor directory instead of downloading modules to and loading packages
+// from the module cache. The go command assumes the vendor directory holds
+// correct copies of dependencies, and it does not compute the set of required
+// module versions from go.mod files. However, the go command does check that
+// vendor/modules.txt (generated by 'go mod vendor') contains metadata consistent
+// with go.mod.
+//
+// If invoked with -mod=mod, the go command loads modules from the module cache
+// even if there is a vendor directory present.
+//
+// If the go command is not invoked with a -mod flag and the vendor directory
+// is present and the "go" version in go.mod is 1.14 or higher, the go command
+// will act as if it were invoked with -mod=vendor.
 //
 // Pseudo-versions
 //
@@ -2667,15 +2694,15 @@
 // Go module mirror run by Google and fall back to a direct connection
 // if the proxy reports that it does not have the module (HTTP error 404 or 410).
 // See https://proxy.golang.org/privacy for the service's privacy policy.
-// If GOPROXY is set to the string "direct", downloads use a direct connection
-// to source control servers. Setting GOPROXY to "off" disallows downloading
-// modules from any source. Otherwise, GOPROXY is expected to be a comma-separated
-// list of the URLs of module proxies, in which case the go command will fetch
-// modules from those proxies. For each request, the go command tries each proxy
-// in sequence, only moving to the next if the current proxy returns a 404 or 410
-// HTTP response. The string "direct" may appear in the proxy list,
-// to cause a direct connection to be attempted at that point in the search.
-// Any proxies listed after "direct" are never consulted.
+//
+// If GOPROXY is set to the string "direct", downloads use a direct connection to
+// source control servers. Setting GOPROXY to "off" disallows downloading modules
+// from any source. Otherwise, GOPROXY is expected to be list of module proxy URLs
+// separated by either comma (,) or pipe (|) characters, which control error
+// fallback behavior. For each request, the go command tries each proxy in
+// sequence. If there is an error, the go command will try the next proxy in the
+// list if the error is a 404 or 410 HTTP response or if the current proxy is
+// followed by a pipe character, indicating it is safe to fall back on any error.
 //
 // The GOPRIVATE and GONOPROXY environment variables allow bypassing
 // the proxy for selected modules. See 'go help module-private' for details.
@@ -2692,22 +2719,28 @@
 //
 // Modules and vendoring
 //
-// When using modules, the go command completely ignores vendor directories.
+// When using modules, the go command typically satisfies dependencies by
+// downloading modules from their sources and using those downloaded copies
+// (after verification, as described in the previous section). Vendoring may
+// be used to allow interoperation with older versions of Go, or to ensure
+// that all files used for a build are stored together in a single file tree.
 //
-// By default, the go command satisfies dependencies by downloading modules
-// from their sources and using those downloaded copies (after verification,
-// as described in the previous section). To allow interoperation with older
-// versions of Go, or to ensure that all files used for a build are stored
-// together in a single file tree, 'go mod vendor' creates a directory named
-// vendor in the root directory of the main module and stores there all the
-// packages from dependency modules that are needed to support builds and
-// tests of packages in the main module.
+// The command 'go mod vendor' constructs a directory named vendor in the main
+// module's root directory that contains copies of all packages needed to support
+// builds and tests of packages in the main module. 'go mod vendor' also
+// creates the file vendor/modules.txt that contains metadata about vendored
+// packages and module versions. This file should be kept consistent with go.mod:
+// when vendoring is used, 'go mod vendor' should be run after go.mod is updated.
 //
-// To build using the main module's top-level vendor directory to satisfy
-// dependencies (disabling use of the usual network sources and local
-// caches), use 'go build -mod=vendor'. Note that only the main module's
-// top-level vendor directory is used; vendor directories in other locations
-// are still ignored.
+// If the vendor directory is present in the main module's root directory, it will
+// be used automatically if the "go" version in the main module's go.mod file is
+// 1.14 or higher. Build commands like 'go build' and 'go test' will load packages
+// from the vendor directory instead of accessing the network or the local module
+// cache. To explicitly enable vendoring, invoke the go command with the flag
+// -mod=vendor. To disable vendoring, use the flag -mod=mod.
+//
+// Unlike vendoring in GOPATH, the go command ignores vendor directories in
+// locations other than the main module's root directory.
 //
 //
 // Module authentication using go.sum

@@ -192,8 +192,20 @@ func TestMulUnbalanced(t *testing.T) {
 	}
 }
 
+// rndNat returns a random nat value >= 0 of (usually) n words in length.
+// In extremely unlikely cases it may be smaller than n words if the top-
+// most words are 0.
 func rndNat(n int) nat {
 	return nat(rndV(n)).norm()
+}
+
+// rndNat1 is like rndNat but the result is guaranteed to be > 0.
+func rndNat1(n int) nat {
+	x := nat(rndV(n)).norm()
+	if len(x) == 0 {
+		x.setWord(1)
+	}
+	return x
 }
 
 func BenchmarkMul(b *testing.B) {
@@ -737,5 +749,40 @@ func BenchmarkNatSetBytes(b *testing.B) {
 				n.setBytes(buf[:l])
 			}
 		})
+	}
+}
+
+func TestNatDiv(t *testing.T) {
+	sizes := []int{
+		1, 2, 5, 8, 15, 25, 40, 65, 100,
+		200, 500, 800, 1500, 2500, 4000, 6500, 10000,
+	}
+	for _, i := range sizes {
+		for _, j := range sizes {
+			a := rndNat1(i)
+			b := rndNat1(j)
+			// the test requires b >= 2
+			if len(b) == 1 && b[0] == 1 {
+				b[0] = 2
+			}
+			// choose a remainder c < b
+			c := rndNat1(len(b))
+			if len(c) == len(b) && c[len(c)-1] >= b[len(b)-1] {
+				c[len(c)-1] = 0
+				c = c.norm()
+			}
+			// compute x = a*b+c
+			x := nat(nil).mul(a, b)
+			x = x.add(x, c)
+
+			var q, r nat
+			q, r = q.div(r, x, b)
+			if q.cmp(a) != 0 {
+				t.Fatalf("wrong quotient: got %s; want %s for %s/%s", q.utoa(10), a.utoa(10), x.utoa(10), b.utoa(10))
+			}
+			if r.cmp(c) != 0 {
+				t.Fatalf("wrong remainder: got %s; want %s for %s/%s", r.utoa(10), c.utoa(10), x.utoa(10), b.utoa(10))
+			}
+		}
 	}
 }

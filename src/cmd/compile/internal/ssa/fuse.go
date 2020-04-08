@@ -8,18 +8,18 @@ import (
 	"cmd/internal/src"
 )
 
-// fusePlain runs fuse(f, fuseTypePlain).
-func fusePlain(f *Func) { fuse(f, fuseTypePlain) }
+// fuseEarly runs fuse(f, fuseTypePlain|fuseTypeIntInRange).
+func fuseEarly(f *Func) { fuse(f, fuseTypePlain|fuseTypeIntInRange) }
 
-// fuseAll runs fuse(f, fuseTypeAll).
-func fuseAll(f *Func) { fuse(f, fuseTypeAll) }
+// fuseLate runs fuse(f, fuseTypePlain|fuseTypeIf).
+func fuseLate(f *Func) { fuse(f, fuseTypePlain|fuseTypeIf) }
 
 type fuseType uint8
 
 const (
 	fuseTypePlain fuseType = 1 << iota
 	fuseTypeIf
-	fuseTypeAll = fuseTypePlain | fuseTypeIf
+	fuseTypeIntInRange
 )
 
 // fuse simplifies control flow by joining basic blocks.
@@ -31,6 +31,9 @@ func fuse(f *Func, typ fuseType) {
 			b := f.Blocks[i]
 			if typ&fuseTypeIf != 0 {
 				changed = fuseBlockIf(b) || changed
+			}
+			if typ&fuseTypeIntInRange != 0 {
+				changed = fuseIntegerComparisons(b) || changed
 			}
 			if typ&fuseTypePlain != 0 {
 				changed = fuseBlockPlain(b) || changed
@@ -145,7 +148,7 @@ func fuseBlockIf(b *Block) bool {
 // There may be false positives.
 func isEmpty(b *Block) bool {
 	for _, v := range b.Values {
-		if v.Uses > 0 || v.Type.IsVoid() {
+		if v.Uses > 0 || v.Op.IsCall() || v.Op.HasSideEffects() || v.Type.IsVoid() {
 			return false
 		}
 	}

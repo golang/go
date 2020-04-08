@@ -1,0 +1,13 @@
+[!cgo] skip
+
+# Test that nothing is prepended to $WORK path prefix.
+# See issue golang.org/issue/37012.
+go build -n
+! stderr '[/\\]\$WORK'
+
+-- main.go --
+package main
+
+import "C"
+
+var _ C.int

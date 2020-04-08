@@ -562,6 +562,11 @@ void issue8811Execute() {
 		issue8811Init();
 }
 
+// issue 8945
+
+typedef void (*PFunc8945)();
+PFunc8945 func8945;
+
 // issue 9557
 
 struct issue9557_t {

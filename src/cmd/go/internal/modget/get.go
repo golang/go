@@ -458,7 +458,9 @@ func runGet(cmd *base.Command, args []string) {
 	modOnly := make(map[string]*query)
 	for _, q := range queries {
 		if q.m.Version == "none" {
+			modOnlyMu.Lock()
 			modOnly[q.m.Path] = q
+			modOnlyMu.Unlock()
 			continue
 		}
 		if q.path == q.m.Path {
@@ -518,8 +520,12 @@ func runGet(cmd *base.Command, args []string) {
 					// If the pattern did not match any packages, look up a new module.
 					// If the pattern doesn't match anything on the last iteration,
 					// we'll print a warning after the outer loop.
-					if !search.IsRelativePath(arg.path) && !match.Literal && arg.path != "all" {
+					if !search.IsRelativePath(arg.path) && !match.IsLiteral() && arg.path != "all" {
 						addQuery(&query{querySpec: querySpec{path: arg.path, vers: arg.vers}, arg: arg.raw})
+					} else {
+						for _, err := range match.Errs {
+							base.Errorf("go get: %v", err)
+						}
 					}
 					continue
 				}

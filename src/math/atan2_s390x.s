@@ -134,9 +134,9 @@ yIsPosInf:
 	MOVD	$NegInf, R3
 	CMPUBEQ	R3, R1, negInfPosInf
 
-	//special case Atan2(-Pi, +Inf) = Pi
-	MOVD	$NegPi, R3
-	CMPUBEQ	R3, R1, negPiPosInf
+	//special case Atan2(x, +Inf) = Copysign(0, x)
+	CMPBLT	R1, $0, returnNegZero
+	BR returnPosZero
 
 Normal:
 	FMOVD	x+0(FP), F0
@@ -288,7 +288,10 @@ negInfPosInf:
 	MOVD	$NegPiDiv4, R1
 	MOVD	R1, ret+16(FP)
 	RET
-negPiPosInf:
+returnNegZero:
 	MOVD	$NegZero, R1
 	MOVD	R1, ret+16(FP)
+	RET
+returnPosZero:
+	MOVD	$0, ret+16(FP)
 	RET

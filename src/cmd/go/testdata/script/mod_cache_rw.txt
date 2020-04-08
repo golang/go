@@ -19,8 +19,8 @@ cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
 # should be able to remove the module cache if the '-rf' flags are set.
 [!windows] [exec:rm] exec rm -rf $GOPATH/pkg/mod
 [!windows] [!exec:rm] go clean -modcache
-[windows] [exec:rmdir] exec rmdir /s /q $GOPATH\pkg\mod
-[windows] [!exec:rmdir] go clean -modcache
+[windows] [exec:cmd.exe] exec cmd.exe /c rmdir /s /q $GOPATH\pkg\mod
+[windows] [!exec:cmd.exe] go clean -modcache
 ! exists $GOPATH/pkg/mod
 
 # The directories in the module cache should by default be unwritable,

@@ -46,6 +46,15 @@ func (t *Ticker) Stop() {
 	stopTimer(&t.r)
 }
 
+// Reset stops a ticker and resets its period to the specified duration.
+// The next tick will arrive after the new period elapses.
+func (t *Ticker) Reset(d Duration) {
+	if t.r.f == nil {
+		panic("time: Reset called on uninitialized Ticker")
+	}
+	modTimer(&t.r, when(d), int64(d), t.r.f, t.r.arg, t.r.seq)
+}
+
 // Tick is a convenience wrapper for NewTicker providing access to the ticking
 // channel only. While Tick is useful for clients that have no need to shut down
 // the Ticker, be aware that without a way to shut it down the underlying

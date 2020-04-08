@@ -28,7 +28,7 @@ case "$FC" in
   ;;
 esac
 
-if ! $FC helloworld/helloworld.f90 -o main.exe >& /dev/null; then
+if ! $FC helloworld/helloworld.f90 -o /dev/null >& /dev/null; then
   echo "skipping Fortran test: could not build helloworld.f90 with $FC"
   exit 0
 fi

@@ -1,0 +1,24 @@
+[!net] skip
+
+# Issue 17119: Test more duplicate load errors.
+! go build dupload
+! stderr 'duplicate load|internal error'
+stderr 'dupload/vendor/p must be imported as p'
+
+-- dupload/dupload.go --
+package main
+
+import (
+	_ "dupload/p2"
+	_ "p"
+)
+
+func main() {}
+-- dupload/p/p.go --
+package p
+-- dupload/p2/p2.go --
+package p2
+
+import _ "dupload/vendor/p"
+-- dupload/vendor/p/p.go --
+package p

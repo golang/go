@@ -452,6 +452,7 @@ type OpError struct {
 	Addr Addr
 
 	// Err is the error that occurred during the operation.
+	// The Error method panics if the error is nil.
 	Err error
 }
 

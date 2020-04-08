@@ -62,7 +62,7 @@ func TestSignatureSelection(t *testing.T) {
 			t.Errorf("test[%d]: unexpected selectSignatureScheme error: %v", testNo, err)
 		}
 		if test.expectedSigAlg != sigAlg {
-			t.Errorf("test[%d]: expected signature scheme %#x, got %#x", testNo, test.expectedSigAlg, sigAlg)
+			t.Errorf("test[%d]: expected signature scheme %v, got %v", testNo, test.expectedSigAlg, sigAlg)
 		}
 		sigType, hashFunc, err := typeAndHashFromSignatureScheme(sigAlg)
 		if err != nil {
@@ -108,12 +108,14 @@ func TestSignatureSelection(t *testing.T) {
 		{rsaCert, []SignatureScheme{PKCS1WithSHA256}, VersionTLS13},
 		{pkcs1Cert, []SignatureScheme{PSSWithSHA256, PKCS1WithSHA256}, VersionTLS13},
 		{ecdsaCert, []SignatureScheme{ECDSAWithSHA1}, VersionTLS13},
+		// The key can be too small for the hash.
+		{rsaCert, []SignatureScheme{PSSWithSHA512}, VersionTLS12},
 	}
 
 	for testNo, test := range badTests {
 		sigAlg, err := selectSignatureScheme(test.tlsVersion, test.cert, test.peerSigAlgs)
 		if err == nil {
-			t.Errorf("test[%d]: unexpected success, got %#x", testNo, sigAlg)
+			t.Errorf("test[%d]: unexpected success, got %v", testNo, sigAlg)
 		}
 	}
 }
@@ -127,7 +129,7 @@ func TestLegacyTypeAndHash(t *testing.T) {
 		t.Errorf("RSA: expected signature type %#x, got %#x", expectedSigType, sigType)
 	}
 	if expectedHashFunc := crypto.MD5SHA1; expectedHashFunc != hashFunc {
-		t.Errorf("RSA: expected hash %#x, got %#x", expectedHashFunc, sigType)
+		t.Errorf("RSA: expected hash %#x, got %#x", expectedHashFunc, hashFunc)
 	}
 
 	sigType, hashFunc, err = legacyTypeAndHashFromPublicKey(testECDSAPrivateKey.Public())
@@ -138,7 +140,7 @@ func TestLegacyTypeAndHash(t *testing.T) {
 		t.Errorf("ECDSA: expected signature type %#x, got %#x", expectedSigType, sigType)
 	}
 	if expectedHashFunc := crypto.SHA1; expectedHashFunc != hashFunc {
-		t.Errorf("ECDSA: expected hash %#x, got %#x", expectedHashFunc, sigType)
+		t.Errorf("ECDSA: expected hash %#x, got %#x", expectedHashFunc, hashFunc)
 	}
 
 	// Ed25519 is not supported by TLS 1.0 and 1.1.
@@ -154,13 +156,13 @@ func TestSupportedSignatureAlgorithms(t *testing.T) {
 	for _, sigAlg := range supportedSignatureAlgorithms() {
 		sigType, hash, err := typeAndHashFromSignatureScheme(sigAlg)
 		if err != nil {
-			t.Errorf("%#04x: unexpected error: %v", sigAlg, err)
+			t.Errorf("%v: unexpected error: %v", sigAlg, err)
 		}
 		if sigType == 0 {
-			t.Errorf("%#04x: missing signature type", sigAlg)
+			t.Errorf("%v: missing signature type", sigAlg)
 		}
 		if hash == 0 && sigAlg != Ed25519 {
-			t.Errorf("%#04x: missing hash", sigAlg)
+			t.Errorf("%v: missing hash", sigAlg)
 		}
 	}
 }

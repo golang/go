@@ -1,0 +1,91 @@
+# Tests Issue #10500
+
+[!race] skip
+
+[!darwin] ! stale cmd/cgo  # The darwin builders are spuriously stale; see #33598.
+
+env GOBIN=$WORK/bin
+go install mtime sametime
+
+go tool -n cgo
+cp stdout cgopath.txt
+exec $GOBIN/mtime cgopath.txt # get the mtime of the file whose name is in cgopath.txt
+cp stdout cgotime_before.txt
+
+ # For this test, we don't actually care whether 'go test -race -i' succeeds.
+ # It may fail if GOROOT is read-only (perhaps it was installed as root).
+ # We only care that it does not overwrite cmd/cgo regardless.
+? go test -race -i runtime/race
+
+exec $GOBIN/mtime cgopath.txt # get the mtime of the file whose name is in cgopath.txt
+cp stdout cgotime_after.txt
+exec $GOBIN/sametime cgotime_before.txt cgotime_after.txt
+
+-- mtime/mtime.go --
+package main
+
+import (
+	"io/ioutil"
+	"encoding/json"
+	"fmt"
+	"os"
+	"strings"
+)
+
+func main() {
+	b, err := ioutil.ReadFile(os.Args[1])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	filename := strings.TrimSpace(string(b))
+	info, err := os.Stat(filename)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if err := json.NewEncoder(os.Stdout).Encode(info.ModTime()); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+-- sametime/sametime.go --
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"time"
+)
+
+
+func main() {
+	var t1 time.Time
+	b1, err := ioutil.ReadFile(os.Args[1])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if err := json.Unmarshal(b1, &t1); err != nil  {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	var t2 time.Time
+	b2, err := ioutil.ReadFile(os.Args[2])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if err := json.Unmarshal(b2, &t2); err != nil  {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	if !t1.Equal(t2) {
+		fmt.Fprintf(os.Stderr, "time in %v (%v) is not the same as time in %v (%v)", os.Args[1], t1, os.Args[2], t2)
+		os.Exit(1)
+	}
+}

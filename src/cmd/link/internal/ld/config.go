@@ -38,7 +38,7 @@ func (mode *BuildMode) Set(s string) error {
 		*mode = BuildModeExe
 	case "pie":
 		switch objabi.GOOS {
-		case "aix", "android", "linux":
+		case "aix", "android", "linux", "windows":
 		case "darwin", "freebsd":
 			switch objabi.GOARCH {
 			case "amd64":
@@ -189,6 +189,9 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 	if iscgo && ctxt.Arch.InFamily(sys.MIPS64, sys.MIPS, sys.PPC64) {
 		return true, objabi.GOARCH + " does not support internal cgo"
 	}
+	if iscgo && objabi.GOOS == "android" {
+		return true, objabi.GOOS + " does not support internal cgo"
+	}
 
 	// When the race flag is set, the LLVM tsan relocatable file is linked
 	// into the final binary, which means external linking is required because
@@ -205,7 +208,8 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		return true, "buildmode=c-shared"
 	case BuildModePIE:
 		switch objabi.GOOS + "/" + objabi.GOARCH {
-		case "linux/amd64", "linux/arm64":
+		case "linux/amd64", "linux/arm64", "android/arm64":
+		case "windows/386", "windows/amd64", "windows/arm":
 		default:
 			// Internal linking does not support TLS_IE.
 			return true, "buildmode=pie"
@@ -244,7 +248,7 @@ func determineLinkMode(ctxt *Link) {
 			ctxt.LinkMode = LinkExternal
 			via = "via GO_EXTLINK_ENABLED "
 		default:
-			if extNeeded || (iscgo && externalobj) || ctxt.BuildMode == BuildModePIE {
+			if extNeeded || (iscgo && externalobj) {
 				ctxt.LinkMode = LinkExternal
 			} else {
 				ctxt.LinkMode = LinkInternal
@@ -258,7 +262,10 @@ func determineLinkMode(ctxt *Link) {
 			Exitf("internal linking requested %sbut external linking required: %s", via, extReason)
 		}
 	case LinkExternal:
-		if objabi.GOARCH == "ppc64" && objabi.GOOS != "aix" {
+		switch {
+		case objabi.GOARCH == "riscv64":
+			Exitf("external linking not supported for %s/riscv64", objabi.GOOS)
+		case objabi.GOARCH == "ppc64" && objabi.GOOS != "aix":
 			Exitf("external linking not supported for %s/ppc64", objabi.GOOS)
 		}
 	}

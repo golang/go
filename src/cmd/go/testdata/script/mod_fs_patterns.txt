@@ -33,11 +33,11 @@ stderr 'import lookup disabled'
 
 ! go build -mod=readonly ./nonexist
 ! stderr 'import lookup disabled'
-stderr '^can.t load package: package ./nonexist: cannot find package "." in:\n\t'$WORK'[/\\]gopath[/\\]src[/\\]x[/\\]nonexist$'
+stderr '^stat '$GOPATH'[/\\]src[/\\]x[/\\]nonexist: directory not found'
 
 ! go build -mod=readonly ./go.mod
 ! stderr 'import lookup disabled'
-stderr 'can.t load package: package ./go.mod: cannot find package'
+stderr 'main module \(m\) does not contain package m/go.mod'
 
 
 # File system paths and patterns should allow the '@' character.

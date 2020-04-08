@@ -356,7 +356,7 @@ func TestConcurrentReconnect(t *testing.T) {
 	}
 
 	// count all the messages arriving
-	count := make(chan int)
+	count := make(chan int, 1)
 	go func() {
 		ct := 0
 		for range done {

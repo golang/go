@@ -23,7 +23,7 @@ import (
 
 const debug = false
 
-const doc = `detect some violations of the cgo pointer passing rules
+const Doc = `detect some violations of the cgo pointer passing rules
 
 Check for invalid cgo pointer passing.
 This looks for code that uses cgo to call C code passing values
@@ -34,13 +34,13 @@ or slice to C, either directly, or via a pointer, array, or struct.`
 
 var Analyzer = &analysis.Analyzer{
 	Name:             "cgocall",
-	Doc:              doc,
+	Doc:              Doc,
 	RunDespiteErrors: true,
 	Run:              run,
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	if imports(pass.Pkg, "runtime/cgo") == nil {
+	if !analysisutil.Imports(pass.Pkg, "runtime/cgo") {
 		return nil, nil // doesn't use cgo
 	}
 
@@ -373,16 +373,4 @@ func imported(info *types.Info, spec *ast.ImportSpec) *types.Package {
 		obj = info.Defs[spec.Name] // renaming import
 	}
 	return obj.(*types.PkgName).Imported()
-}
-
-// imports reports whether pkg has path among its direct imports.
-// It returns the imported package if so, or nil if not.
-// TODO(adonovan): move to analysisutil.
-func imports(pkg *types.Package, path string) *types.Package {
-	for _, imp := range pkg.Imports() {
-		if imp.Path() == path {
-			return imp
-		}
-	}
-	return nil
 }

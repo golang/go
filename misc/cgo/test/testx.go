@@ -102,6 +102,11 @@ static void issue7978c(uint32_t *sync) {
 // #include'd twice.  No runtime test; just make sure it compiles.
 #include "issue8331.h"
 
+// issue 8945
+
+typedef void (*PFunc8945)();
+extern PFunc8945 func8945; // definition is in test.go
+
 // issue 20910
 void callMulti(void);
 
@@ -513,6 +518,13 @@ func test7978(t *testing.T) {
 // issue 8331 part 2
 
 var issue8331Var C.issue8331
+
+// issue 8945
+
+//export Test8945
+func Test8945() {
+	_ = C.func8945
+}
 
 // issue 20910
 

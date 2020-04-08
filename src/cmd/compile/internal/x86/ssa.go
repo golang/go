@@ -199,7 +199,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if v.Op == ssa.Op386DIVL || v.Op == ssa.Op386DIVW ||
 			v.Op == ssa.Op386MODL || v.Op == ssa.Op386MODW {
 
-			if ssa.NeedsFixUp(v) {
+			if ssa.DivisionNeedsFixUp(v) {
 				var c *obj.Prog
 				switch v.Op {
 				case ssa.Op386DIVL, ssa.Op386MODL:

@@ -250,9 +250,9 @@ func (lookupDisabledError) Error() string {
 var errLookupDisabled error = lookupDisabledError{}
 
 var (
-	errProxyOff       = notExistError("module lookup disabled by GOPROXY=off")
-	errNoproxy  error = notExistError("disabled by GOPRIVATE/GONOPROXY")
-	errUseProxy error = notExistError("path does not match GOPRIVATE/GONOPROXY")
+	errProxyOff       = notExistErrorf("module lookup disabled by GOPROXY=off")
+	errNoproxy  error = notExistErrorf("disabled by GOPRIVATE/GONOPROXY")
+	errUseProxy error = notExistErrorf("path does not match GOPRIVATE/GONOPROXY")
 )
 
 func lookupDirect(path string) (Repo, error) {
@@ -264,7 +264,7 @@ func lookupDirect(path string) (Repo, error) {
 	rr, err := get.RepoRootForImportPath(path, get.PreferMod, security)
 	if err != nil {
 		// We don't know where to find code for a module with this path.
-		return nil, notExistError(err.Error())
+		return nil, notExistError{err: err}
 	}
 
 	if rr.VCS == "mod" {
@@ -408,11 +408,22 @@ func (l *loggingRepo) Zip(dst io.Writer, version string) error {
 }
 
 // A notExistError is like os.ErrNotExist, but with a custom message
-type notExistError string
+type notExistError struct {
+	err error
+}
+
+func notExistErrorf(format string, args ...interface{}) error {
+	return notExistError{fmt.Errorf(format, args...)}
+}
 
 func (e notExistError) Error() string {
-	return string(e)
+	return e.err.Error()
 }
+
 func (notExistError) Is(target error) bool {
 	return target == os.ErrNotExist
+}
+
+func (e notExistError) Unwrap() error {
+	return e.err
 }

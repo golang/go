@@ -62,6 +62,10 @@ loadregs:
 	// Return result.
 	POPQ	CX
 	MOVQ	AX, libcall_r1(CX)
+	// Floating point return values are returned in XMM0. Setting r2 to this
+	// value in case this call returned a floating point value. For details,
+	// see https://docs.microsoft.com/en-us/cpp/build/x64-calling-convention
+	MOVQ    X0, libcall_r2(CX)
 
 	// GetLastError().
 	MOVQ	0x30(GS), DI

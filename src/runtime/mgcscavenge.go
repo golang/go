@@ -80,6 +80,17 @@ const (
 	// maxPagesPerPhysPage is the maximum number of supported runtime pages per
 	// physical page, based on maxPhysPageSize.
 	maxPagesPerPhysPage = maxPhysPageSize / pageSize
+
+	// scavengeCostRatio is the approximate ratio between the costs of using previously
+	// scavenged memory and scavenging memory.
+	//
+	// For most systems the cost of scavenging greatly outweighs the costs
+	// associated with using scavenged memory, making this constant 0. On other systems
+	// (especially ones where "sysUsed" is not just a no-op) this cost is non-trivial.
+	//
+	// This ratio is used as part of multiplicative factor to help the scavenger account
+	// for the additional costs of using scavenged memory in its pacing.
+	scavengeCostRatio = 0.7 * sys.GoosDarwin
 )
 
 // heapRetained returns an estimate of the current heap RSS.
@@ -166,9 +177,15 @@ func wakeScavenger() {
 		stopTimer(scavenge.timer)
 
 		// Unpark the goroutine and tell it that there may have been a pacing
-		// change.
+		// change. Note that we skip the scheduler's runnext slot because we
+		// want to avoid having the scavenger interfere with the fair
+		// scheduling of user goroutines. In effect, this schedules the
+		// scavenger at a "lower priority" but that's OK because it'll
+		// catch up on the work it missed when it does get scheduled.
 		scavenge.parked = false
-		goready(scavenge.g, 0)
+		systemstack(func() {
+			ready(scavenge.g, 0, false)
+		})
 	}
 	unlock(&scavenge.lock)
 }
@@ -240,7 +257,7 @@ func bgscavenge(c chan int) {
 		released := uintptr(0)
 
 		// Time in scavenging critical section.
-		crit := int64(0)
+		crit := float64(0)
 
 		// Run on the system stack since we grab the heap lock,
 		// and a stack growth with the heap lock means a deadlock.
@@ -258,15 +275,9 @@ func bgscavenge(c chan int) {
 			// Scavenge one page, and measure the amount of time spent scavenging.
 			start := nanotime()
 			released = mheap_.pages.scavengeOne(physPageSize, false)
-			crit = nanotime() - start
+			atomic.Xadduintptr(&mheap_.pages.scavReleased, released)
+			crit = float64(nanotime() - start)
 		})
-
-		if debug.gctrace > 0 {
-			if released > 0 {
-				print("scvg: ", released>>10, " KB released\n")
-			}
-			print("scvg: inuse: ", memstats.heap_inuse>>20, ", idle: ", memstats.heap_idle>>20, ", sys: ", memstats.heap_sys>>20, ", released: ", memstats.heap_released>>20, ", consumed: ", (memstats.heap_sys-memstats.heap_released)>>20, " (MB)\n")
-		}
 
 		if released == 0 {
 			lock(&scavenge.lock)
@@ -274,6 +285,14 @@ func bgscavenge(c chan int) {
 			goparkunlock(&scavenge.lock, waitReasonGCScavengeWait, traceEvGoBlock, 1)
 			continue
 		}
+
+		// Multiply the critical time by 1 + the ratio of the costs of using
+		// scavenged memory vs. scavenging memory. This forces us to pay down
+		// the cost of reusing this memory eagerly by sleeping for a longer period
+		// of time and scavenging less frequently. More concretely, we avoid situations
+		// where we end up scavenging so often that we hurt allocation performance
+		// because of the additional overheads of using scavenged memory.
+		crit *= 1 + scavengeCostRatio
 
 		// If we spent more than 10 ms (for example, if the OS scheduled us away, or someone
 		// put their machine to sleep) in the critical section, bound the time we use to
@@ -290,13 +309,13 @@ func bgscavenge(c chan int) {
 		// much, then scavengeEMWA < idealFraction, so we'll adjust the sleep time
 		// down.
 		adjust := scavengeEWMA / idealFraction
-		sleepTime := int64(adjust * float64(crit) / (scavengePercent / 100.0))
+		sleepTime := int64(adjust * crit / (scavengePercent / 100.0))
 
 		// Go to sleep.
 		slept := scavengeSleep(sleepTime)
 
 		// Compute the new ratio.
-		fraction := float64(crit) / float64(crit+slept)
+		fraction := crit / (crit + float64(slept))
 
 		// Set a lower bound on the fraction.
 		// Due to OS-related anomalies we may "sleep" for an inordinate amount
@@ -340,12 +359,39 @@ func (s *pageAlloc) scavenge(nbytes uintptr, locked bool) uintptr {
 	return released
 }
 
+// printScavTrace prints a scavenge trace line to standard error.
+//
+// released should be the amount of memory released since the last time this
+// was called, and forced indicates whether the scavenge was forced by the
+// application.
+func printScavTrace(released uintptr, forced bool) {
+	printlock()
+	print("scav ",
+		released>>10, " KiB work, ",
+		atomic.Load64(&memstats.heap_released)>>10, " KiB total, ",
+		(atomic.Load64(&memstats.heap_inuse)*100)/heapRetained(), "% util",
+	)
+	if forced {
+		print(" (forced)")
+	}
+	println()
+	printunlock()
+}
+
 // resetScavengeAddr sets the scavenge start address to the top of the heap's
 // address space. This should be called each time the scavenger's pacing
 // changes.
 //
 // s.mheapLock must be held.
 func (s *pageAlloc) resetScavengeAddr() {
+	released := atomic.Loaduintptr(&s.scavReleased)
+	if debug.scavtrace > 0 {
+		printScavTrace(released, false)
+	}
+	// Subtract from scavReleased instead of just setting it to zero because
+	// the scavenger could have increased scavReleased concurrently with the
+	// load above, and we may miss an update by just blindly zeroing the field.
+	atomic.Xadduintptr(&s.scavReleased, -released)
 	s.scavAddr = chunkBase(s.end) - 1
 }
 
@@ -399,72 +445,123 @@ func (s *pageAlloc) scavengeOne(max uintptr, locked bool) uintptr {
 	}
 
 	lockHeap()
-	top := chunkIndex(s.scavAddr)
-	if top < s.start {
+	ci := chunkIndex(s.scavAddr)
+	if ci < s.start {
 		unlockHeap()
 		return 0
 	}
 
 	// Check the chunk containing the scav addr, starting at the addr
 	// and see if there are any free and unscavenged pages.
-	ci := chunkIndex(s.scavAddr)
-	base, npages := s.chunks[ci].findScavengeCandidate(chunkPageIndex(s.scavAddr), minPages, maxPages)
+	//
+	// Only check this if s.scavAddr is covered by any address range
+	// in s.inUse, so that we know our check of the summary is safe.
+	if s.inUse.contains(s.scavAddr) && s.summary[len(s.summary)-1][ci].max() >= uint(minPages) {
+		// We only bother looking for a candidate if there at least
+		// minPages free pages at all. It's important that we only
+		// continue if the summary says we can because that's how
+		// we can tell if parts of the address space are unused.
+		// See the comment on s.chunks in mpagealloc.go.
+		base, npages := s.chunkOf(ci).findScavengeCandidate(chunkPageIndex(s.scavAddr), minPages, maxPages)
 
-	// If we found something, scavenge it and return!
-	if npages != 0 {
-		s.scavengeRangeLocked(ci, base, npages)
-		unlockHeap()
-		return uintptr(npages) * pageSize
-	}
-	unlockHeap()
-
-	// Slow path: iterate optimistically looking for any free and unscavenged page.
-	// If we think we see something, stop and verify it!
-	for i := top - 1; i >= s.start; i-- {
-		// If this chunk is totally in-use or has no unscavenged pages, don't bother
-		// doing a  more sophisticated check.
-		//
-		// Note we're accessing the summary and the chunks without a lock, but
-		// that's fine. We're being optimistic anyway.
-
-		// Check if there are enough free pages at all. It's imperative that we
-		// check this before the chunk itself so that we quickly skip over
-		// unused parts of the address space, which may have a cleared bitmap
-		// but a zero'd summary which indicates not to allocate from there.
-		if s.summary[len(s.summary)-1][i].max() < uint(minPages) {
-			continue
-		}
-
-		// Run over the chunk looking harder for a candidate. Again, we could
-		// race with a lot of different pieces of code, but we're just being
-		// optimistic.
-		if !s.chunks[i].hasScavengeCandidate(minPages) {
-			continue
-		}
-
-		// We found a candidate, so let's lock and verify it.
-		lockHeap()
-
-		// Find, verify, and scavenge if we can.
-		chunk := &s.chunks[i]
-		base, npages := chunk.findScavengeCandidate(pallocChunkPages-1, minPages, maxPages)
-		if npages > 0 {
-			// We found memory to scavenge! Mark the bits and report that up.
-			s.scavengeRangeLocked(i, base, npages)
+		// If we found something, scavenge it and return!
+		if npages != 0 {
+			s.scavengeRangeLocked(ci, base, npages)
 			unlockHeap()
 			return uintptr(npages) * pageSize
 		}
-
-		// We were fooled, let's take this opportunity to move the scavAddr
-		// all the way down to where we searched as scavenged for future calls
-		// and keep iterating.
-		s.scavAddr = chunkBase(i-1) + pallocChunkPages*pageSize - 1
-		unlockHeap()
 	}
 
-	lockHeap()
-	// We couldn't find anything, so signal that there's nothing left
-	// to scavenge.
+	// getInUseRange returns the highest range in the
+	// intersection of [0, addr] and s.inUse.
+	//
+	// s.mheapLock must be held.
+	getInUseRange := func(addr uintptr) addrRange {
+		top := s.inUse.findSucc(addr)
+		if top == 0 {
+			return addrRange{}
+		}
+		r := s.inUse.ranges[top-1]
+		// addr is inclusive, so treat it as such when
+		// updating the limit, which is exclusive.
+		if r.limit > addr+1 {
+			r.limit = addr + 1
+		}
+		return r
+	}
+
+	// Slow path: iterate optimistically over the in-use address space
+	// looking for any free and unscavenged page. If we think we see something,
+	// lock and verify it!
+	//
+	// We iterate over the address space by taking ranges from inUse.
+newRange:
+	for {
+		r := getInUseRange(s.scavAddr)
+		if r.size() == 0 {
+			break
+		}
+		unlockHeap()
+
+		// Iterate over all of the chunks described by r.
+		// Note that r.limit is the exclusive upper bound, but what
+		// we want is the top chunk instead, inclusive, so subtract 1.
+		bot, top := chunkIndex(r.base), chunkIndex(r.limit-1)
+		for i := top; i >= bot; i-- {
+			// If this chunk is totally in-use or has no unscavenged pages, don't bother
+			// doing a  more sophisticated check.
+			//
+			// Note we're accessing the summary and the chunks without a lock, but
+			// that's fine. We're being optimistic anyway.
+
+			// Check quickly if there are enough free pages at all.
+			if s.summary[len(s.summary)-1][i].max() < uint(minPages) {
+				continue
+			}
+
+			// Run over the chunk looking harder for a candidate. Again, we could
+			// race with a lot of different pieces of code, but we're just being
+			// optimistic. Make sure we load the l2 pointer atomically though, to
+			// avoid races with heap growth. It may or may not be possible to also
+			// see a nil pointer in this case if we do race with heap growth, but
+			// just defensively ignore the nils. This operation is optimistic anyway.
+			l2 := (*[1 << pallocChunksL2Bits]pallocData)(atomic.Loadp(unsafe.Pointer(&s.chunks[i.l1()])))
+			if l2 == nil || !l2[i.l2()].hasScavengeCandidate(minPages) {
+				continue
+			}
+
+			// We found a candidate, so let's lock and verify it.
+			lockHeap()
+
+			// Find, verify, and scavenge if we can.
+			chunk := s.chunkOf(i)
+			base, npages := chunk.findScavengeCandidate(pallocChunkPages-1, minPages, maxPages)
+			if npages > 0 {
+				// We found memory to scavenge! Mark the bits and report that up.
+				// scavengeRangeLocked will update scavAddr for us, also.
+				s.scavengeRangeLocked(i, base, npages)
+				unlockHeap()
+				return uintptr(npages) * pageSize
+			}
+
+			// We were fooled, let's take this opportunity to move the scavAddr
+			// all the way down to where we searched as scavenged for future calls
+			// and keep iterating. Then, go get a new range.
+			s.scavAddr = chunkBase(i-1) + pallocChunkPages*pageSize - 1
+			continue newRange
+		}
+		lockHeap()
+
+		// Move the scavenger down the heap, past everything we just searched.
+		// Since we don't check if scavAddr moved while twe let go of the heap lock,
+		// it's possible that it moved down and we're moving it up here. This
+		// raciness could result in us searching parts of the heap unnecessarily.
+		// TODO(mknyszek): Remove this racy behavior through explicit address
+		// space reservations, which are difficult to do with just scavAddr.
+		s.scavAddr = r.base - 1
+	}
+	// We reached the end of the in-use address space and couldn't find anything,
+	// so signal that there's nothing left to scavenge.
 	s.scavAddr = minScavAddr
 	unlockHeap()
 
@@ -475,7 +572,7 @@ func (s *pageAlloc) scavengeOne(max uintptr, locked bool) uintptr {
 //
 // s.mheapLock must be held.
 func (s *pageAlloc) scavengeRangeLocked(ci chunkIdx, base, npages uint) {
-	s.chunks[ci].scavenged.setRange(base, npages)
+	s.chunkOf(ci).scavenged.setRange(base, npages)
 
 	// Compute the full address for the start of the range.
 	addr := chunkBase(ci) + uintptr(base)*pageSize
@@ -514,7 +611,7 @@ func fillAligned(x uint64, m uint) uint64 {
 		// "[It] works by first zeroing the high bits of the [8]
 		// bytes in the word. Subsequently, it adds a number that
 		// will result in an overflow to the high bit of a byte if
-		// any of the low bits were initialy set. Next the high
+		// any of the low bits were initially set. Next the high
 		// bits of the original word are ORed with these values;
 		// thus, the high bit of a byte is set iff any bit in the
 		// byte was set. Finally, we determine if any of these high

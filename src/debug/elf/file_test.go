@@ -818,6 +818,6 @@ func TestIssue10996(t *testing.T) {
 		"0000")
 	_, err := NewFile(bytes.NewReader(data))
 	if err == nil {
-		t.Fatalf("opening invalid ELF file unexpectedly suceeded")
+		t.Fatalf("opening invalid ELF file unexpectedly succeeded")
 	}
 }

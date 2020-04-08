@@ -15,9 +15,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"testing"
+	"time"
 	"unsafe"
 )
 
@@ -287,6 +289,12 @@ func TestSignalExitStatus(t *testing.T) {
 }
 
 func TestSignalIgnoreSIGTRAP(t *testing.T) {
+	if runtime.GOOS == "openbsd" {
+		if bn := testenv.Builder(); strings.HasSuffix(bn, "-62") || strings.HasSuffix(bn, "-64") {
+			testenv.SkipFlaky(t, 17496)
+		}
+	}
+
 	output := runTestProg(t, "testprognet", "SignalIgnoreSIGTRAP")
 	want := "OK\n"
 	if output != want {
@@ -308,20 +316,41 @@ func TestSignalDuringExec(t *testing.T) {
 }
 
 func TestSignalM(t *testing.T) {
+	r, w, errno := runtime.Pipe()
+	if errno != 0 {
+		t.Fatal(syscall.Errno(errno))
+	}
+	defer func() {
+		runtime.Close(r)
+		runtime.Close(w)
+	}()
+	runtime.Closeonexec(r)
+	runtime.Closeonexec(w)
+
 	var want, got int64
 	var wg sync.WaitGroup
 	ready := make(chan *runtime.M)
 	wg.Add(1)
 	go func() {
 		runtime.LockOSThread()
-		want, got = runtime.WaitForSigusr1(func(mp *runtime.M) {
+		want, got = runtime.WaitForSigusr1(r, w, func(mp *runtime.M) {
 			ready <- mp
-		}, 1e9)
+		})
 		runtime.UnlockOSThread()
 		wg.Done()
 	}()
 	waitingM := <-ready
 	runtime.SendSigusr1(waitingM)
+
+	timer := time.AfterFunc(time.Second, func() {
+		// Write 1 to tell WaitForSigusr1 that we timed out.
+		bw := byte(1)
+		if n := runtime.Write(uintptr(w), unsafe.Pointer(&bw), 1); n != 1 {
+			t.Errorf("pipe write failed: %d", n)
+		}
+	})
+	defer timer.Stop()
+
 	wg.Wait()
 	if got == -1 {
 		t.Fatal("signalM signal not received")

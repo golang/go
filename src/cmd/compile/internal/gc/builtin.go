@@ -13,6 +13,7 @@ var runtimeDecls = [...]struct {
 	{"panicdivide", funcTag, 5},
 	{"panicshift", funcTag, 5},
 	{"panicmakeslicelen", funcTag, 5},
+	{"panicmakeslicecap", funcTag, 5},
 	{"throwinit", funcTag, 5},
 	{"panicwrap", funcTag, 5},
 	{"gopanic", funcTag, 7},

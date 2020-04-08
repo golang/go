@@ -1748,7 +1748,7 @@ func TestHandshakeRace(t *testing.T) {
 
 		startWrite := make(chan struct{})
 		startRead := make(chan struct{})
-		readDone := make(chan struct{})
+		readDone := make(chan struct{}, 1)
 
 		client := Client(c, testConfig)
 		go func() {

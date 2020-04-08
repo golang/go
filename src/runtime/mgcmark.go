@@ -46,8 +46,6 @@ const (
 // gcMarkRootPrepare queues root scanning jobs (stacks, globals, and
 // some miscellany) and initializes scanning-related state.
 //
-// The caller must have call gcCopySpans().
-//
 // The world must be stopped.
 //
 //go:nowritebarrier
@@ -56,7 +54,7 @@ func gcMarkRootPrepare() {
 
 	// Compute how many data and BSS root blocks there are.
 	nBlocks := func(bytes uintptr) int {
-		return int((bytes + rootBlockBytes - 1) / rootBlockBytes)
+		return int(divRoundUp(bytes, rootBlockBytes))
 	}
 
 	work.nDataRoots = 0
@@ -965,6 +963,8 @@ const (
 // credit to gcController.bgScanCredit every gcCreditSlack units of
 // scan work.
 //
+// gcDrain will always return if there is a pending STW.
+//
 //go:nowritebarrier
 func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 	if !writeBarrier.needed {
@@ -993,7 +993,8 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 
 	// Drain root marking jobs.
 	if work.markrootNext < work.markrootJobs {
-		for !(preemptible && gp.preempt) {
+		// Stop if we're preemptible or if someone wants to STW.
+		for !(gp.preempt && (preemptible || atomic.Load(&sched.gcwaiting) != 0)) {
 			job := atomic.Xadd(&work.markrootNext, +1) - 1
 			if job >= work.markrootJobs {
 				break
@@ -1006,7 +1007,8 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 	}
 
 	// Drain heap marking jobs.
-	for !(preemptible && gp.preempt) {
+	// Stop if we're preemptible or if someone wants to STW.
+	for !(gp.preempt && (preemptible || atomic.Load(&sched.gcwaiting) != 0)) {
 		// Try to keep work available on the global queue. We used to
 		// check if there were waiting workers, but it's better to
 		// just keep work available than to make workers wait. In the

@@ -34,7 +34,7 @@ type Options struct {
 	UI      UI
 
 	// HTTPServer is a function that should block serving http requests,
-	// including the handlers specfied in args.  If non-nil, pprof will
+	// including the handlers specified in args.  If non-nil, pprof will
 	// invoke this function if necessary to provide a web interface.
 	//
 	// If HTTPServer is nil, pprof will use its own internal HTTP server.
@@ -60,13 +60,6 @@ type FlagSet interface {
 	Int(name string, def int, usage string) *int
 	Float64(name string, def float64, usage string) *float64
 	String(name string, def string, usage string) *string
-
-	// BoolVar, IntVar, Float64Var, and StringVar define new flags referencing
-	// a given pointer, like the functions of the same name in package flag.
-	BoolVar(pointer *bool, name string, def bool, usage string)
-	IntVar(pointer *int, name string, def int, usage string)
-	Float64Var(pointer *float64, name string, def float64, usage string)
-	StringVar(pointer *string, name string, def string, usage string)
 
 	// StringList is similar to String but allows multiple values for a
 	// single flag

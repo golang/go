@@ -12,7 +12,7 @@ package issue24161e1
 #include <TargetConditionals.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <Security/Security.h>
-#if TARGET_OS_IPHONE == 0 && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ < 101200
+#if TARGET_OS_IPHONE == 0 && __MAC_OS_X_VERSION_MAX_ALLOWED < 101200
   typedef CFStringRef SecKeyAlgorithm;
   static CFDataRef SecKeyCreateSignature(SecKeyRef key, SecKeyAlgorithm algorithm, CFDataRef dataToSign, CFErrorRef *error){return NULL;}
   #define kSecKeyAlgorithmECDSASignatureDigestX962SHA1 foo()

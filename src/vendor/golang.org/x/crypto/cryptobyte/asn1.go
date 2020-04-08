@@ -470,7 +470,8 @@ func (s *String) ReadASN1GeneralizedTime(out *time.Time) bool {
 // It reports whether the read was successful.
 func (s *String) ReadASN1BitString(out *encoding_asn1.BitString) bool {
 	var bytes String
-	if !s.ReadASN1(&bytes, asn1.BIT_STRING) || len(bytes) == 0 {
+	if !s.ReadASN1(&bytes, asn1.BIT_STRING) || len(bytes) == 0 ||
+		len(bytes)*8/8 != len(bytes) {
 		return false
 	}
 
@@ -740,7 +741,7 @@ func (s *String) readASN1(out *String, outTag *asn1.Tag, skipHeader bool) bool {
 		length = headerLen + len32
 	}
 
-	if uint32(int(length)) != length || !s.ReadBytes((*[]byte)(out), int(length)) {
+	if int(length) < 0 || !s.ReadBytes((*[]byte)(out), int(length)) {
 		return false
 	}
 	if skipHeader && !out.Skip(int(headerLen)) {

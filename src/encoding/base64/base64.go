@@ -86,6 +86,9 @@ func (enc Encoding) WithPadding(padding rune) *Encoding {
 // Strict creates a new encoding identical to enc except with
 // strict decoding enabled. In this mode, the decoder requires that
 // trailing padding bits are zero, as described in RFC 4648 section 3.5.
+//
+// Note that the input is still malleable, as new line characters
+// (CR and LF) are still ignored.
 func (enc Encoding) Strict() *Encoding {
 	enc.strict = true
 	return &enc

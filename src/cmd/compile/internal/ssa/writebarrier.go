@@ -347,6 +347,7 @@ func writebarrier(f *Func) {
 		bEnd.Values = append(bEnd.Values, last)
 		last.Block = bEnd
 		last.reset(OpPhi)
+		last.Pos = last.Pos.WithNotStmt()
 		last.Type = types.TypeMem
 		last.AddArg(memThen)
 		last.AddArg(memElse)

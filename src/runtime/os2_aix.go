@@ -38,6 +38,7 @@ var (
 //go:cgo_import_dynamic libc_madvise madvise "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_malloc malloc "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_mmap mmap "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_mprotect mprotect "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_munmap munmap "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_open open "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_pipe pipe "libc.a/shr_64.o"
@@ -77,6 +78,7 @@ var (
 //go:linkname libc_madvise libc_madvise
 //go:linkname libc_malloc libc_malloc
 //go:linkname libc_mmap libc_mmap
+//go:linkname libc_mprotect libc_mprotect
 //go:linkname libc_munmap libc_munmap
 //go:linkname libc_open libc_open
 //go:linkname libc_pipe libc_pipe
@@ -118,6 +120,7 @@ var (
 	libc_madvise,
 	libc_malloc,
 	libc_mmap,
+	libc_mprotect,
 	libc_munmap,
 	libc_open,
 	libc_pipe,
@@ -452,6 +455,15 @@ func pipe() (r, w int32, errno int32) {
 //go:nosplit
 func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
 	r, err0 := syscall6(&libc_mmap, uintptr(addr), uintptr(n), uintptr(prot), uintptr(flags), uintptr(fd), uintptr(off))
+	if r == ^uintptr(0) {
+		return nil, int(err0)
+	}
+	return unsafe.Pointer(r), int(err0)
+}
+
+//go:nosplit
+func mprotect(addr unsafe.Pointer, n uintptr, prot int32) (unsafe.Pointer, int) {
+	r, err0 := syscall3(&libc_mprotect, uintptr(addr), uintptr(n), uintptr(prot))
 	if r == ^uintptr(0) {
 		return nil, int(err0)
 	}

@@ -43,6 +43,11 @@ var PhysHugePageSize = physHugePageSize
 
 var NetpollGenericInit = netpollGenericInit
 
+var ParseRelease = parseRelease
+
+var Memmove = memmove
+var MemclrNoHeapPointers = memclrNoHeapPointers
+
 const PreemptMSupported = preemptMSupported
 
 type LFNode struct {
@@ -355,7 +360,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
 		}
 
 		for i := mheap_.pages.start; i < mheap_.pages.end; i++ {
-			pg := mheap_.pages.chunks[i].scavenged.popcntRange(0, pallocChunkPages)
+			pg := mheap_.pages.chunkOf(i).scavenged.popcntRange(0, pallocChunkPages)
 			slow.HeapReleased += uint64(pg) * pageSize
 		}
 		for _, p := range allp {
@@ -576,6 +581,8 @@ func RunGetgThreadSwitchTest() {
 const (
 	PageSize         = pageSize
 	PallocChunkPages = pallocChunkPages
+	PageAlloc64Bit   = pageAlloc64Bit
+	PallocSumBytes   = pallocSumBytes
 )
 
 // Expose pallocSum for testing.
@@ -726,14 +733,37 @@ func (p *PageAlloc) Free(base, npages uintptr) {
 func (p *PageAlloc) Bounds() (ChunkIdx, ChunkIdx) {
 	return ChunkIdx((*pageAlloc)(p).start), ChunkIdx((*pageAlloc)(p).end)
 }
-func (p *PageAlloc) PallocData(i ChunkIdx) *PallocData {
-	return (*PallocData)(&((*pageAlloc)(p).chunks[i]))
-}
 func (p *PageAlloc) Scavenge(nbytes uintptr, locked bool) (r uintptr) {
 	systemstack(func() {
 		r = (*pageAlloc)(p).scavenge(nbytes, locked)
 	})
 	return
+}
+func (p *PageAlloc) InUse() []AddrRange {
+	ranges := make([]AddrRange, 0, len(p.inUse.ranges))
+	for _, r := range p.inUse.ranges {
+		ranges = append(ranges, AddrRange{
+			Base:  r.base,
+			Limit: r.limit,
+		})
+	}
+	return ranges
+}
+
+// Returns nil if the PallocData's L2 is missing.
+func (p *PageAlloc) PallocData(i ChunkIdx) *PallocData {
+	ci := chunkIdx(i)
+	l2 := (*pageAlloc)(p).chunks[ci.l1()]
+	if l2 == nil {
+		return nil
+	}
+	return (*PallocData)(&l2[ci.l2()])
+}
+
+// AddrRange represents a range over addresses.
+// Specifically, it represents the range [Base, Limit).
+type AddrRange struct {
+	Base, Limit uintptr
 }
 
 // BitRange represents a range over a bitmap.
@@ -769,7 +799,7 @@ func NewPageAlloc(chunks, scav map[ChunkIdx][]BitRange) *PageAlloc {
 		p.grow(addr, pallocChunkBytes)
 
 		// Initialize the bitmap and update pageAlloc metadata.
-		chunk := &p.chunks[chunkIndex(addr)]
+		chunk := p.chunkOf(chunkIndex(addr))
 
 		// Clear all the scavenged bits which grow set.
 		chunk.scavenged.clearRange(0, pallocChunkPages)
@@ -823,17 +853,26 @@ func FreePageAlloc(pp *PageAlloc) {
 	}
 
 	// Free the mapped space for chunks.
-	chunksLen := uintptr(cap(p.chunks)) * unsafe.Sizeof(p.chunks[0])
-	sysFree(unsafe.Pointer(&p.chunks[0]), alignUp(chunksLen, physPageSize), nil)
+	for i := range p.chunks {
+		if x := p.chunks[i]; x != nil {
+			p.chunks[i] = nil
+			// This memory comes from sysAlloc and will always be page-aligned.
+			sysFree(unsafe.Pointer(x), unsafe.Sizeof(*p.chunks[0]), nil)
+		}
+	}
 }
 
 // BaseChunkIdx is a convenient chunkIdx value which works on both
 // 64 bit and 32 bit platforms, allowing the tests to share code
 // between the two.
 //
+// On AIX, the arenaBaseOffset is 0x0a00000000000000. However, this
+// constant can't be used here because it is negative and will cause
+// a constant overflow.
+//
 // This should not be higher than 0x100*pallocChunkBytes to support
 // mips and mipsle, which only have 31-bit address spaces.
-var BaseChunkIdx = ChunkIdx(chunkIndex((0xc000*pageAlloc64Bit + 0x100*pageAlloc32Bit) * pallocChunkBytes))
+var BaseChunkIdx = ChunkIdx(chunkIndex(((0xc000*pageAlloc64Bit + 0x100*pageAlloc32Bit) * pallocChunkBytes) + 0x0a00000000000000*sys.GoosAix))
 
 // PageBase returns an address given a chunk index and a page index
 // relative to that chunk.
@@ -857,7 +896,7 @@ func CheckScavengedBitsCleared(mismatches []BitsMismatch) (n int, ok bool) {
 		lock(&mheap_.lock)
 	chunkLoop:
 		for i := mheap_.pages.start; i < mheap_.pages.end; i++ {
-			chunk := &mheap_.pages.chunks[i]
+			chunk := mheap_.pages.chunkOf(i)
 			for j := 0; j < pallocChunkPages/64; j++ {
 				// Run over each 64-bit bitmap section and ensure
 				// scavenged is being cleared properly on allocation.
@@ -910,4 +949,37 @@ var Semrelease1 = semrelease1
 func SemNwait(addr *uint32) uint32 {
 	root := semroot(addr)
 	return atomic.Load(&root.nwait)
+}
+
+// MapHashCheck computes the hash of the key k for the map m, twice.
+// Method 1 uses the built-in hasher for the map.
+// Method 2 uses the typehash function (the one used by reflect).
+// Returns the two hash values, which should always be equal.
+func MapHashCheck(m interface{}, k interface{}) (uintptr, uintptr) {
+	// Unpack m.
+	mt := (*maptype)(unsafe.Pointer(efaceOf(&m)._type))
+	mh := (*hmap)(efaceOf(&m).data)
+
+	// Unpack k.
+	kt := efaceOf(&k)._type
+	var p unsafe.Pointer
+	if isDirectIface(kt) {
+		q := efaceOf(&k).data
+		p = unsafe.Pointer(&q)
+	} else {
+		p = efaceOf(&k).data
+	}
+
+	// Compute the hash functions.
+	x := mt.hasher(noescape(p), uintptr(mh.hash0))
+	y := typehash(kt, noescape(p), uintptr(mh.hash0))
+	return x, y
+}
+
+func MSpanCountAlloc(bits []byte) int {
+	s := mspan{
+		nelems:     uintptr(len(bits) * 8),
+		gcmarkBits: (*gcBits)(unsafe.Pointer(&bits[0])),
+	}
+	return s.countAlloc()
 }

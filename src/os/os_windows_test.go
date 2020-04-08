@@ -263,7 +263,8 @@ func createMountPoint(link string, target *reparseData) error {
 	buf.SubstituteNameLength = target.substituteName.length
 	buf.PrintNameOffset = target.printName.offset
 	buf.PrintNameLength = target.printName.length
-	copy((*[2048]uint16)(unsafe.Pointer(&buf.PathBuffer[0]))[:], target.pathBuf)
+	pbuflen := len(target.pathBuf)
+	copy((*[2048]uint16)(unsafe.Pointer(&buf.PathBuffer[0]))[:pbuflen:pbuflen], target.pathBuf)
 
 	var rdb _REPARSE_DATA_BUFFER
 	rdb.header.ReparseTag = windows.IO_REPARSE_TAG_MOUNT_POINT
@@ -356,7 +357,8 @@ func createSymbolicLink(link string, target *reparseData, isrelative bool) error
 	if isrelative {
 		buf.Flags = windows.SYMLINK_FLAG_RELATIVE
 	}
-	copy((*[2048]uint16)(unsafe.Pointer(&buf.PathBuffer[0]))[:], target.pathBuf)
+	pbuflen := len(target.pathBuf)
+	copy((*[2048]uint16)(unsafe.Pointer(&buf.PathBuffer[0]))[:pbuflen:pbuflen], target.pathBuf)
 
 	var rdb _REPARSE_DATA_BUFFER
 	rdb.header.ReparseTag = syscall.IO_REPARSE_TAG_SYMLINK
@@ -714,7 +716,7 @@ func TestReadStdin(t *testing.T) {
 						if n > consoleSize {
 							n = consoleSize
 						}
-						n = copy((*[10000]uint16)(unsafe.Pointer(buf))[:n], s16)
+						n = copy((*[10000]uint16)(unsafe.Pointer(buf))[:n:n], s16)
 						s16 = s16[n:]
 						*read = uint32(n)
 						t.Logf("read %d -> %d", toread, *read)

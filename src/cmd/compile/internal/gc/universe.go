@@ -66,7 +66,7 @@ var builtinFuncs = [...]struct {
 // isBuiltinFuncName reports whether name matches a builtin function
 // name.
 func isBuiltinFuncName(name string) bool {
-	for _, fn := range builtinFuncs {
+	for _, fn := range &builtinFuncs {
 		if fn.name == name {
 			return true
 		}
@@ -92,7 +92,7 @@ func initUniverse() {
 
 // lexinit initializes known symbols and the basic types.
 func lexinit() {
-	for _, s := range basicTypes {
+	for _, s := range &basicTypes {
 		etype := s.etype
 		if int(etype) >= len(types.Types) {
 			Fatalf("lexinit: %s bad etype", s.name)
@@ -111,13 +111,13 @@ func lexinit() {
 		asNode(s2.Def).Name = new(Name)
 	}
 
-	for _, s := range builtinFuncs {
+	for _, s := range &builtinFuncs {
 		s2 := builtinpkg.Lookup(s.name)
 		s2.Def = asTypesNode(newname(s2))
 		asNode(s2.Def).SetSubOp(s.op)
 	}
 
-	for _, s := range unsafeFuncs {
+	for _, s := range &unsafeFuncs {
 		s2 := unsafepkg.Lookup(s.name)
 		s2.Def = asTypesNode(newname(s2))
 		asNode(s2.Def).SetSubOp(s.op)
@@ -402,7 +402,7 @@ func lexinit1() {
 	dowidth(types.Runetype)
 
 	// backend-dependent builtin types (e.g. int).
-	for _, s := range typedefs {
+	for _, s := range &typedefs {
 		s1 := builtinpkg.Lookup(s.name)
 
 		sameas := s.sameas32

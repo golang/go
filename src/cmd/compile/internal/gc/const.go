@@ -540,11 +540,11 @@ func overflow(v Val, t *types.Type) bool {
 func tostr(v Val) Val {
 	switch u := v.U.(type) {
 	case *Mpint:
-		var i int64 = 0xFFFD
-		if u.Cmp(minintval[TUINT32]) >= 0 && u.Cmp(maxintval[TUINT32]) <= 0 {
-			i = u.Int64()
+		var r rune = 0xFFFD
+		if u.Cmp(minintval[TINT32]) >= 0 && u.Cmp(maxintval[TINT32]) <= 0 {
+			r = rune(u.Int64())
 		}
-		v.U = string(i)
+		v.U = string(r)
 	}
 
 	return v
@@ -673,10 +673,6 @@ func evconst(n *Node) {
 		}
 
 	case OCOMPLEX:
-		if nl == nil || nr == nil {
-			// TODO(mdempsky): Remove after early OAS2FUNC rewrite CL lands.
-			break
-		}
 		if nl.Op == OLITERAL && nr.Op == OLITERAL {
 			// make it a complex literal
 			c := newMpcmplx()

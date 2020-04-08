@@ -7,13 +7,13 @@ package modfetch
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -27,8 +27,6 @@ import (
 )
 
 var PkgMod string // $GOPATH/pkg/mod; set by package modload
-
-const logFindingDelay = 1 * time.Second
 
 func cacheDir(path string) (string, error) {
 	if PkgMod == "" {
@@ -59,8 +57,11 @@ func CachePath(m module.Version, suffix string) (string, error) {
 	return filepath.Join(dir, encVer+"."+suffix), nil
 }
 
-// DownloadDir returns the directory to which m should be downloaded.
-// Note that the directory may not yet exist.
+// DownloadDir returns the directory to which m should have been downloaded.
+// An error will be returned if the module path or version cannot be escaped.
+// An error satisfying errors.Is(err, os.ErrNotExist) will be returned
+// along with the directory if the directory does not exist or if the directory
+// is not completely populated.
 func DownloadDir(m module.Version) (string, error) {
 	if PkgMod == "" {
 		return "", fmt.Errorf("internal error: modfetch.PkgMod not set")
@@ -79,8 +80,38 @@ func DownloadDir(m module.Version) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(PkgMod, enc+"@"+encVer), nil
+
+	dir := filepath.Join(PkgMod, enc+"@"+encVer)
+	if fi, err := os.Stat(dir); os.IsNotExist(err) {
+		return dir, err
+	} else if err != nil {
+		return dir, &DownloadDirPartialError{dir, err}
+	} else if !fi.IsDir() {
+		return dir, &DownloadDirPartialError{dir, errors.New("not a directory")}
+	}
+	partialPath, err := CachePath(m, "partial")
+	if err != nil {
+		return dir, err
+	}
+	if _, err := os.Stat(partialPath); err == nil {
+		return dir, &DownloadDirPartialError{dir, errors.New("not completely extracted")}
+	} else if !os.IsNotExist(err) {
+		return dir, err
+	}
+	return dir, nil
 }
+
+// DownloadDirPartialError is returned by DownloadDir if a module directory
+// exists but was not completely populated.
+//
+// DownloadDirPartialError is equivalent to os.ErrNotExist.
+type DownloadDirPartialError struct {
+	Dir string
+	Err error
+}
+
+func (e *DownloadDirPartialError) Error() string     { return fmt.Sprintf("%s: %v", e.Dir, e.Err) }
+func (e *DownloadDirPartialError) Is(err error) bool { return err == os.ErrNotExist }
 
 // lockVersion locks a file within the module cache that guards the downloading
 // and extraction of the zipfile for the given module version.
@@ -140,11 +171,6 @@ func (r *cachingRepo) Versions(prefix string) ([]string, error) {
 		err  error
 	}
 	c := r.cache.Do("versions:"+prefix, func() interface{} {
-		logTimer := time.AfterFunc(logFindingDelay, func() {
-			fmt.Fprintf(os.Stderr, "go: finding versions for %s\n", r.path)
-		})
-		defer logTimer.Stop()
-
 		list, err := r.r.Versions(prefix)
 		return cached{list, err}
 	}).(cached)
@@ -166,11 +192,6 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
 		if err == nil {
 			return cachedInfo{info, nil}
 		}
-
-		logTimer := time.AfterFunc(logFindingDelay, func() {
-			fmt.Fprintf(os.Stderr, "go: finding %s %s\n", r.path, rev)
-		})
-		defer logTimer.Stop()
 
 		info, err = r.r.Stat(rev)
 		if err == nil {
@@ -199,11 +220,6 @@ func (r *cachingRepo) Stat(rev string) (*RevInfo, error) {
 
 func (r *cachingRepo) Latest() (*RevInfo, error) {
 	c := r.cache.Do("latest:", func() interface{} {
-		logTimer := time.AfterFunc(logFindingDelay, func() {
-			fmt.Fprintf(os.Stderr, "go: finding %s latest\n", r.path)
-		})
-		defer logTimer.Stop()
-
 		info, err := r.r.Latest()
 
 		// Save info for likely future Stat call.

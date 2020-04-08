@@ -646,7 +646,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
 		}
 		n := p.nod(expr, op, p.expr(expr.X), nil)
 		var index [3]*Node
-		for i, x := range expr.Index {
+		for i, x := range &expr.Index {
 			if x != nil {
 				index[i] = p.expr(x)
 			}

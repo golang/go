@@ -484,6 +484,9 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
 		// Sequential consistency is also required here, when racing with such a send.
 		if empty(c) {
 			// The channel is irreversibly closed and empty.
+			if raceenabled {
+				raceacquire(c.raceaddr())
+			}
 			if ep != nil {
 				typedmemclr(c.elemtype, ep)
 			}

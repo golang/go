@@ -10,6 +10,7 @@ import (
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/load"
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"flag"
 	"fmt"
@@ -33,6 +34,20 @@ func BuildInit() {
 			base.Exit()
 		}
 		cfg.BuildPkgdir = p
+	}
+
+	// For each experiment that has been enabled in the toolchain, define a
+	// build tag with the same name but prefixed by "goexperiment." which can be
+	// used for compiling alternative files for the experiment. This allows
+	// changes for the experiment, like extra struct fields in the runtime,
+	// without affecting the base non-experiment code at all. [2:] strips the
+	// leading "X:" from objabi.Expstring().
+	exp := objabi.Expstring()[2:]
+	if exp != "none" {
+		experiments := strings.Split(exp, ",")
+		for _, expt := range experiments {
+			cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, "goexperiment."+expt)
+		}
 	}
 }
 
@@ -86,7 +101,11 @@ func instrumentInit() {
 func buildModeInit() {
 	gccgo := cfg.BuildToolchainName == "gccgo"
 	var codegenArg string
-	platform := cfg.Goos + "/" + cfg.Goarch
+
+	// Configure the build mode first, then verify that it is supported.
+	// That way, if the flag is completely bogus we will prefer to error out with
+	// "-buildmode=%s not supported" instead of naming the specific platform.
+
 	switch cfg.BuildBuildmode {
 	case "archive":
 		pkgsFilter = pkgsNotMain
@@ -95,20 +114,18 @@ func buildModeInit() {
 		if gccgo {
 			codegenArg = "-fPIC"
 		} else {
-			switch platform {
-			case "darwin/arm", "darwin/arm64":
-				codegenArg = "-shared"
-			default:
-				switch cfg.Goos {
-				case "dragonfly", "freebsd", "illumos", "linux", "netbsd", "openbsd", "solaris":
-					if platform == "linux/ppc64" {
-						base.Fatalf("-buildmode=c-archive not supported on %s\n", platform)
-					}
-					// Use -shared so that the result is
-					// suitable for inclusion in a PIE or
-					// shared library.
+			switch cfg.Goos {
+			case "darwin":
+				switch cfg.Goarch {
+				case "arm", "arm64":
 					codegenArg = "-shared"
 				}
+
+			case "dragonfly", "freebsd", "illumos", "linux", "netbsd", "openbsd", "solaris":
+				// Use -shared so that the result is
+				// suitable for inclusion in a PIE or
+				// shared library.
+				codegenArg = "-shared"
 			}
 		}
 		cfg.ExeSuffix = ".a"
@@ -118,27 +135,25 @@ func buildModeInit() {
 		if gccgo {
 			codegenArg = "-fPIC"
 		} else {
-			switch platform {
-			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/ppc64le", "linux/s390x",
-				"android/amd64", "android/arm", "android/arm64", "android/386",
-				"freebsd/amd64":
+			switch cfg.Goos {
+			case "linux", "android", "freebsd":
 				codegenArg = "-shared"
-			case "darwin/amd64", "darwin/386":
-			case "windows/amd64", "windows/386":
+			case "windows":
 				// Do not add usual .exe suffix to the .dll file.
 				cfg.ExeSuffix = ""
-			default:
-				base.Fatalf("-buildmode=c-shared not supported on %s\n", platform)
 			}
 		}
 		ldBuildmode = "c-shared"
 	case "default":
-		switch platform {
-		case "android/arm", "android/arm64", "android/amd64", "android/386":
+		switch cfg.Goos {
+		case "android":
 			codegenArg = "-shared"
 			ldBuildmode = "pie"
-		case "darwin/arm", "darwin/arm64":
-			codegenArg = "-shared"
+		case "darwin":
+			switch cfg.Goarch {
+			case "arm", "arm64":
+				codegenArg = "-shared"
+			}
 			fallthrough
 		default:
 			ldBuildmode = "exe"
@@ -162,16 +177,10 @@ func buildModeInit() {
 		if gccgo {
 			codegenArg = "-fPIE"
 		} else {
-			switch platform {
-			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x",
-				"android/amd64", "android/arm", "android/arm64", "android/386",
-				"freebsd/amd64":
-				codegenArg = "-shared"
-			case "darwin/amd64":
-				codegenArg = "-shared"
-			case "aix/ppc64":
+			switch cfg.Goos {
+			case "aix", "windows":
 			default:
-				base.Fatalf("-buildmode=pie not supported on %s\n", platform)
+				codegenArg = "-shared"
 			}
 		}
 		ldBuildmode = "pie"
@@ -180,11 +189,6 @@ func buildModeInit() {
 		if gccgo {
 			codegenArg = "-fPIC"
 		} else {
-			switch platform {
-			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x":
-			default:
-				base.Fatalf("-buildmode=shared not supported on %s\n", platform)
-			}
 			codegenArg = "-dynlink"
 		}
 		if cfg.BuildO != "" {
@@ -196,14 +200,6 @@ func buildModeInit() {
 		if gccgo {
 			codegenArg = "-fPIC"
 		} else {
-			switch platform {
-			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/s390x", "linux/ppc64le",
-				"android/amd64", "android/arm", "android/arm64", "android/386":
-			case "darwin/amd64":
-			case "freebsd/amd64":
-			default:
-				base.Fatalf("-buildmode=plugin not supported on %s\n", platform)
-			}
 			codegenArg = "-dynlink"
 		}
 		cfg.ExeSuffix = ".so"
@@ -211,16 +207,19 @@ func buildModeInit() {
 	default:
 		base.Fatalf("buildmode=%s not supported", cfg.BuildBuildmode)
 	}
+
+	if !sys.BuildModeSupported(cfg.BuildToolchainName, cfg.BuildBuildmode, cfg.Goos, cfg.Goarch) {
+		base.Fatalf("-buildmode=%s not supported on %s/%s\n", cfg.BuildBuildmode, cfg.Goos, cfg.Goarch)
+	}
+
 	if cfg.BuildLinkshared {
+		if !sys.BuildModeSupported(cfg.BuildToolchainName, "shared", cfg.Goos, cfg.Goarch) {
+			base.Fatalf("-linkshared not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
+		}
 		if gccgo {
 			codegenArg = "-fPIC"
 		} else {
-			switch platform {
-			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x":
-				forcedAsmflags = append(forcedAsmflags, "-D=GOBUILDMODE_shared=1")
-			default:
-				base.Fatalf("-linkshared not supported on %s\n", platform)
-			}
+			forcedAsmflags = append(forcedAsmflags, "-D=GOBUILDMODE_shared=1")
 			codegenArg = "-dynlink"
 			forcedGcflags = append(forcedGcflags, "-linkshared")
 			// TODO(mwhudson): remove -w when that gets fixed in linker.

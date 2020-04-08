@@ -1,0 +1,22 @@
+env GO111MODULE=off
+
+[short] skip
+[GODEBUG:gocacheverify=1] skip
+[gccgo] skip  # gccgo has no standard packages
+
+# Start with a clean build cache:
+# test failures may be masked if the cache has just the right entries already.
+env GOCACHE=$WORK/cache
+
+# Run 'go vet os/user' once to warm up the cache.
+go vet os/user
+
+# Check that second vet reuses cgo-derived inputs.
+# The first command could be build instead of vet,
+# except that if the cache is empty and there's a net.a
+# in GOROOT/pkg, the build will not bother to regenerate
+# and cache the cgo outputs, whereas vet always will.
+
+go vet -x os/user
+! stderr '^(clang|gcc)'  # should not have run compiler
+! stderr '[\\/]cgo '     # should not have run cgo

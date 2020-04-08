@@ -419,7 +419,7 @@ func (lv *Liveness) regEffects(v *ssa.Value) (uevar, kill liveRegMask) {
 			if v.Type.Etype != types.TTUPLE {
 				v.Fatalf("location pair %s has non-tuple type %v", loc, v.Type)
 			}
-			for i, loc1 := range loc {
+			for i, loc1 := range &loc {
 				if loc1 == nil {
 					continue
 				}
@@ -652,7 +652,7 @@ func (lv *Liveness) markUnsafePoints() {
 
 	lv.unsafePoints = bvalloc(int32(lv.f.NumValues()))
 
-	// Mark architecture-specific unsafe pointes.
+	// Mark architecture-specific unsafe points.
 	for _, b := range lv.f.Blocks {
 		for _, v := range b.Values {
 			if v.Op.UnsafePoint() {

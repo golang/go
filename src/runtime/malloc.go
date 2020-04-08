@@ -62,9 +62,10 @@
 // Allocating and freeing a large object uses the mheap
 // directly, bypassing the mcache and mcentral.
 //
-// Free object slots in an mspan are zeroed only if mspan.needzero is
-// false. If needzero is true, objects are zeroed as they are
-// allocated. There are various benefits to delaying zeroing this way:
+// If mspan.needzero is false, then free object slots in the mspan are
+// already zeroed. Otherwise if needzero is true, objects are zeroed as
+// they are allocated. There are various benefits to delaying zeroing
+// this way:
 //
 //	1. Stack frame allocation can avoid zeroing altogether.
 //
@@ -192,10 +193,6 @@ const (
 	// exceed Go's 48 bit limit, it's extremely unlikely in
 	// practice.
 	//
-	// On aix/ppc64, the limits is increased to 1<<60 to accept addresses
-	// returned by mmap syscall. These are in range:
-	//  0x0a00000000000000 - 0x0afffffffffffff
-	//
 	// On 32-bit platforms, we accept the full 32-bit address
 	// space because doing so is cheap.
 	// mips32 only has access to the low 2GB of virtual memory, so
@@ -210,7 +207,7 @@ const (
 	// arenaBaseOffset to offset into the top 4 GiB.
 	//
 	// WebAssembly currently has a limit of 4GB linear memory.
-	heapAddrBits = (_64bit*(1-sys.GoarchWasm)*(1-sys.GoosAix)*(1-sys.GoosDarwin*sys.GoarchArm64))*48 + (1-_64bit+sys.GoarchWasm)*(32-(sys.GoarchMips+sys.GoarchMipsle)) + 60*sys.GoosAix + 33*sys.GoosDarwin*sys.GoarchArm64
+	heapAddrBits = (_64bit*(1-sys.GoarchWasm)*(1-sys.GoosDarwin*sys.GoarchArm64))*48 + (1-_64bit+sys.GoarchWasm)*(32-(sys.GoarchMips+sys.GoarchMipsle)) + 33*sys.GoosDarwin*sys.GoarchArm64
 
 	// maxAlloc is the maximum size of an allocation. On 64-bit,
 	// it's theoretically possible to allocate 1<<heapAddrBits bytes. On
@@ -229,7 +226,6 @@ const (
 	//       Platform  Addr bits  Arena size  L1 entries   L2 entries
 	// --------------  ---------  ----------  ----------  -----------
 	//       */64-bit         48        64MB           1    4M (32MB)
-	//     aix/64-bit         60       256MB        4096    4M (32MB)
 	// windows/64-bit         48         4MB          64    1M  (8MB)
 	//       */32-bit         32         4MB           1  1024  (4KB)
 	//     */mips(le)         31         4MB           1   512  (2KB)
@@ -251,7 +247,7 @@ const (
 	// logHeapArenaBytes is log_2 of heapArenaBytes. For clarity,
 	// prefer using heapArenaBytes where possible (we need the
 	// constant to compute some other constants).
-	logHeapArenaBytes = (6+20)*(_64bit*(1-sys.GoosWindows)*(1-sys.GoosAix)*(1-sys.GoarchWasm)) + (2+20)*(_64bit*sys.GoosWindows) + (2+20)*(1-_64bit) + (8+20)*sys.GoosAix + (2+20)*sys.GoarchWasm
+	logHeapArenaBytes = (6+20)*(_64bit*(1-sys.GoosWindows)*(1-sys.GoarchWasm)) + (2+20)*(_64bit*sys.GoosWindows) + (2+20)*(1-_64bit) + (2+20)*sys.GoarchWasm
 
 	// heapArenaBitmapBytes is the size of each heap arena's bitmap.
 	heapArenaBitmapBytes = heapArenaBytes / (sys.PtrSize * 8 / 2)
@@ -271,10 +267,7 @@ const (
 	// We use the L1 map on 64-bit Windows because the arena size
 	// is small, but the address space is still 48 bits, and
 	// there's a high cost to having a large L2.
-	//
-	// We use the L1 map on aix/ppc64 to keep the same L2 value
-	// as on Linux.
-	arenaL1Bits = 6*(_64bit*sys.GoosWindows) + 12*sys.GoosAix
+	arenaL1Bits = 6 * (_64bit * sys.GoosWindows)
 
 	// arenaL2Bits is the number of bits of the arena number
 	// covered by the second level arena index.
@@ -301,9 +294,15 @@ const (
 	// bits. This offset lets us handle "negative" addresses (or
 	// high addresses if viewed as unsigned).
 	//
+	// On aix/ppc64, this offset allows to keep the heapAddrBits to
+	// 48. Otherwize, it would be 60 in order to handle mmap addresses
+	// (in range 0x0a00000000000000 - 0x0afffffffffffff). But in this
+	// case, the memory reserved in (s *pageAlloc).init for chunks
+	// is causing important slowdowns.
+	//
 	// On other platforms, the user address space is contiguous
 	// and starts at 0, so no offset is necessary.
-	arenaBaseOffset = sys.GoarchAmd64 * (1 << 47)
+	arenaBaseOffset = sys.GoarchAmd64*(1<<47) + (^0x0a00000000000000+1)&uintptrMask*sys.GoosAix
 
 	// Max number of threads to run garbage collection.
 	// 2, 3, and 4 are all plausible maximums depending
@@ -469,8 +468,7 @@ func mallocinit() {
 
 	// Initialize the heap.
 	mheap_.init()
-	_g_ := getg()
-	_g_.m.mcache = allocmcache()
+	mcache0 = allocmcache()
 
 	// Create initial arena growth hints.
 	if sys.PtrSize == 8 {
@@ -504,6 +502,7 @@ func mallocinit() {
 		// allocation at 0x40 << 32 because when using 4k pages with 3-level
 		// translation buffers, the user address space is limited to 39 bits
 		// On darwin/arm64, the address space is even smaller.
+		//
 		// On AIX, mmaps starts at 0x0A00000000000000 for 64-bit.
 		// processes.
 		for i := 0x7f; i >= 0; i-- {
@@ -953,7 +952,19 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 
 	shouldhelpgc := false
 	dataSize := size
-	c := gomcache()
+	var c *mcache
+	if mp.p != 0 {
+		c = mp.p.ptr().mcache
+	} else {
+		// We will be called without a P while bootstrapping,
+		// in which case we use mcache0, which is set in mallocinit.
+		// mcache0 is cleared when bootstrapping is complete,
+		// by procresize.
+		c = mcache0
+		if c == nil {
+			throw("malloc called with no P")
+		}
+	}
 	var x unsafe.Pointer
 	noscan := typ == nil || typ.ptrdata == 0
 	if size <= maxSmallSize {
@@ -1024,9 +1035,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
 		} else {
 			var sizeclass uint8
 			if size <= smallSizeMax-8 {
-				sizeclass = size_to_class8[(size+smallSizeDiv-1)/smallSizeDiv]
+				sizeclass = size_to_class8[divRoundUp(size, smallSizeDiv)]
 			} else {
-				sizeclass = size_to_class128[(size-smallSizeMax+largeSizeDiv-1)/largeSizeDiv]
+				sizeclass = size_to_class128[divRoundUp(size-smallSizeMax, largeSizeDiv)]
 			}
 			size = uintptr(class_to_size[sizeclass])
 			spc := makeSpanClass(sizeclass, noscan)
@@ -1193,7 +1204,7 @@ func reflect_unsafe_NewArray(typ *_type, n int) unsafe.Pointer {
 }
 
 func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
-	mp.mcache.next_sample = nextSample()
+	mp.p.ptr().mcache.next_sample = nextSample()
 	mProf_Malloc(x, size)
 }
 

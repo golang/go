@@ -7,14 +7,14 @@ package tls
 import (
 	"crypto/elliptic"
 	"crypto/hmac"
-	"crypto/subtle"
 	"errors"
-	"golang.org/x/crypto/cryptobyte"
-	"golang.org/x/crypto/curve25519"
-	"golang.org/x/crypto/hkdf"
 	"hash"
 	"io"
 	"math/big"
+
+	"golang.org/x/crypto/cryptobyte"
+	"golang.org/x/crypto/curve25519"
+	"golang.org/x/crypto/hkdf"
 )
 
 // This file contains the functions necessary to compute the TLS 1.3 key
@@ -111,12 +111,15 @@ type ecdheParameters interface {
 
 func generateECDHEParameters(rand io.Reader, curveID CurveID) (ecdheParameters, error) {
 	if curveID == X25519 {
-		p := &x25519Parameters{}
-		if _, err := io.ReadFull(rand, p.privateKey[:]); err != nil {
+		privateKey := make([]byte, curve25519.ScalarSize)
+		if _, err := io.ReadFull(rand, privateKey); err != nil {
 			return nil, err
 		}
-		curve25519.ScalarBaseMult(&p.publicKey, &p.privateKey)
-		return p, nil
+		publicKey, err := curve25519.X25519(privateKey, curve25519.Basepoint)
+		if err != nil {
+			return nil, err
+		}
+		return &x25519Parameters{privateKey: privateKey, publicKey: publicKey}, nil
 	}
 
 	curve, ok := curveForCurveID(curveID)
@@ -178,8 +181,8 @@ func (p *nistParameters) SharedKey(peerPublicKey []byte) []byte {
 }
 
 type x25519Parameters struct {
-	privateKey [32]byte
-	publicKey  [32]byte
+	privateKey []byte
+	publicKey  []byte
 }
 
 func (p *x25519Parameters) CurveID() CurveID {
@@ -191,19 +194,9 @@ func (p *x25519Parameters) PublicKey() []byte {
 }
 
 func (p *x25519Parameters) SharedKey(peerPublicKey []byte) []byte {
-	if len(peerPublicKey) != 32 {
+	sharedKey, err := curve25519.X25519(p.privateKey, peerPublicKey)
+	if err != nil {
 		return nil
 	}
-
-	var theirPublicKey, sharedKey [32]byte
-	copy(theirPublicKey[:], peerPublicKey)
-	curve25519.ScalarMult(&sharedKey, &p.privateKey, &theirPublicKey)
-
-	// Check for low-order inputs. See RFC 8422, Section 5.11.
-	var allZeroes [32]byte
-	if subtle.ConstantTimeCompare(allZeroes[:], sharedKey[:]) == 1 {
-		return nil
-	}
-
-	return sharedKey[:]
+	return sharedKey
 }

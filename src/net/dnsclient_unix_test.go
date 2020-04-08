@@ -173,7 +173,7 @@ func TestAvoidDNSName(t *testing.T) {
 
 		// Without stuff before onion/local, they're fine to
 		// use DNS. With a search path,
-		// "onion.vegegtables.com" can use DNS. Without a
+		// "onion.vegetables.com" can use DNS. Without a
 		// search path (or with a trailing dot), the queries
 		// are just kinda useless, but don't reveal anything
 		// private.

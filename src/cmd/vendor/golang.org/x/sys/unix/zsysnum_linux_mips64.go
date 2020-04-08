@@ -334,4 +334,16 @@ const (
 	SYS_STATX                  = 5326
 	SYS_RSEQ                   = 5327
 	SYS_IO_PGETEVENTS          = 5328
+	SYS_PIDFD_SEND_SIGNAL      = 5424
+	SYS_IO_URING_SETUP         = 5425
+	SYS_IO_URING_ENTER         = 5426
+	SYS_IO_URING_REGISTER      = 5427
+	SYS_OPEN_TREE              = 5428
+	SYS_MOVE_MOUNT             = 5429
+	SYS_FSOPEN                 = 5430
+	SYS_FSCONFIG               = 5431
+	SYS_FSMOUNT                = 5432
+	SYS_FSPICK                 = 5433
+	SYS_PIDFD_OPEN             = 5434
+	SYS_CLONE3                 = 5435
 )

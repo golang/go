@@ -234,6 +234,8 @@ func Create(w io.Writer, m module.Version, files []File) (err error) {
 // belong in the module zip. In particular, CreateFromDir will not include
 // files in modules found in subdirectories, most files in vendor directories,
 // or irregular files (such as symbolic links) in the output archive.
+// Additionally, unlike Create, CreateFromDir will not include directories
+// named ".bzr", ".git", ".hg", or ".svn".
 func CreateFromDir(w io.Writer, m module.Version, dir string) (err error) {
 	defer func() {
 		if zerr, ok := err.(*zipError); ok {
@@ -255,6 +257,14 @@ func CreateFromDir(w io.Writer, m module.Version, dir string) (err error) {
 			if filePath == dir {
 				// Don't skip the top-level directory.
 				return nil
+			}
+
+			// Skip VCS directories.
+			// fossil repos are regular files with arbitrary names, so we don't try
+			// to exclude them.
+			switch filepath.Base(filePath) {
+			case ".bzr", ".git", ".hg", ".svn":
+				return filepath.SkipDir
 			}
 
 			// Skip some subdirectories inside vendor, but maintain bug

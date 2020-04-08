@@ -57,7 +57,8 @@ func Init() (*sys.Arch, ld.Arch) {
 		Gentext:          gentext,
 		Machoreloc1:      machoreloc1,
 
-		Linuxdynld: "/lib/ld-linux-aarch64.so.1",
+		Androiddynld: "/system/bin/linker64",
+		Linuxdynld:   "/lib/ld-linux-aarch64.so.1",
 
 		Freebsddynld:   "/usr/libexec/ld-elf.so.1",
 		Openbsddynld:   "/usr/libexec/ld.so",

@@ -16,14 +16,14 @@ import (
 	"golang.org/x/tools/go/types/typeutil"
 )
 
-const doc = `report passing non-pointer or non-error values to errors.As
+const Doc = `report passing non-pointer or non-error values to errors.As
 
 The errorsas analysis reports calls to errors.As where the type
 of the second argument is not a pointer to a type implementing error.`
 
 var Analyzer = &analysis.Analyzer{
 	Name:     "errorsas",
-	Doc:      doc,
+	Doc:      Doc,
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 	Run:      run,
 }
@@ -51,7 +51,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			return // not enough arguments, e.g. called with return values of another function
 		}
 		if fn.FullName() == "errors.As" && !pointerToInterfaceOrError(pass, call.Args[1]) {
-			pass.ReportRangef(call, "second argument to errors.As must be a pointer to an interface or a type implementing error")
+			pass.ReportRangef(call, "second argument to errors.As must be a non-nil pointer to either a type that implements error, or to any interface type")
 		}
 	})
 	return nil, nil
