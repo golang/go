@@ -10,6 +10,7 @@ import (
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
 	"fmt"
+	"sort"
 )
 
 // SymbolBuilder is a helper designed to help with the construction
@@ -139,6 +140,38 @@ func (sb *SymbolBuilder) SetRelocs(rslice []Reloc) {
 	for i := range rslice {
 		sb.SetReloc(i, rslice[i])
 	}
+}
+
+// Add n relocations, return a handle to the relocations.
+func (sb *SymbolBuilder) AddRelocs(n int) Relocs {
+	sb.relocs = append(sb.relocs, make([]goobj2.Reloc2, n)...)
+	sb.reltypes = append(sb.reltypes, make([]objabi.RelocType, n)...)
+	return sb.l.Relocs(sb.symIdx)
+}
+
+// Add a relocation with given type, return its handle and index
+// (to set other fields).
+func (sb *SymbolBuilder) AddRel(typ objabi.RelocType) (Reloc2, int) {
+	j := len(sb.relocs)
+	sb.relocs = append(sb.relocs, goobj2.Reloc2{})
+	sb.reltypes = append(sb.reltypes, typ)
+	relocs := sb.Relocs()
+	return relocs.At2(j), j
+}
+
+// Sort relocations by offset.
+func (sb *SymbolBuilder) SortRelocs() {
+	sort.Sort((*relocsByOff)(sb.extSymPayload))
+}
+
+// Implement sort.Interface
+type relocsByOff extSymPayload
+
+func (p *relocsByOff) Len() int           { return len(p.relocs) }
+func (p *relocsByOff) Less(i, j int) bool { return p.relocs[i].Off() < p.relocs[j].Off() }
+func (p *relocsByOff) Swap(i, j int) {
+	p.relocs[i], p.relocs[j] = p.relocs[j], p.relocs[i]
+	p.reltypes[i], p.reltypes[j] = p.reltypes[j], p.reltypes[i]
 }
 
 // AddReloc appends the specified reloc to the symbols list of
