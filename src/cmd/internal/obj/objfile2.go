@@ -248,14 +248,13 @@ func (w *writer) Sym(s *LSym) {
 	if s.Func != nil {
 		align = uint32(s.Func.Align)
 	}
-	o := goobj2.Sym{
-		Name:  name,
-		ABI:   abi,
-		Type:  uint8(s.Type),
-		Flag:  flag,
-		Siz:   uint32(s.Size),
-		Align: align,
-	}
+	var o goobj2.Sym2
+	o.SetName(name, w.Writer)
+	o.SetABI(abi)
+	o.SetType(uint8(s.Type))
+	o.SetFlag(flag)
+	o.SetSiz(uint32(s.Size))
+	o.SetAlign(align)
 	o.Write(w.Writer)
 }
 
@@ -271,66 +270,44 @@ func makeSymRef(s *LSym) goobj2.SymRef {
 }
 
 func (w *writer) Reloc(r *Reloc) {
-	o := goobj2.Reloc{
-		Off:  r.Off,
-		Siz:  r.Siz,
-		Type: uint8(r.Type),
-		Add:  r.Add,
-		Sym:  makeSymRef(r.Sym),
-	}
+	var o goobj2.Reloc2
+	o.SetOff(r.Off)
+	o.SetSiz(r.Siz)
+	o.SetType(uint8(r.Type))
+	o.SetAdd(r.Add)
+	o.SetSym(makeSymRef(r.Sym))
+	o.Write(w.Writer)
+}
+
+func (w *writer) aux1(typ uint8, rs *LSym) {
+	var o goobj2.Aux2
+	o.SetType(typ)
+	o.SetSym(makeSymRef(rs))
 	o.Write(w.Writer)
 }
 
 func (w *writer) Aux(s *LSym) {
 	if s.Gotype != nil {
-		o := goobj2.Aux{
-			Type: goobj2.AuxGotype,
-			Sym:  makeSymRef(s.Gotype),
-		}
-		o.Write(w.Writer)
+		w.aux1(goobj2.AuxGotype, s.Gotype)
 	}
 	if s.Func != nil {
-		o := goobj2.Aux{
-			Type: goobj2.AuxFuncInfo,
-			Sym:  makeSymRef(s.Func.FuncInfoSym),
-		}
-		o.Write(w.Writer)
+		w.aux1(goobj2.AuxFuncInfo, s.Func.FuncInfoSym)
 
 		for _, d := range s.Func.Pcln.Funcdata {
-			o := goobj2.Aux{
-				Type: goobj2.AuxFuncdata,
-				Sym:  makeSymRef(d),
-			}
-			o.Write(w.Writer)
+			w.aux1(goobj2.AuxFuncdata, d)
 		}
 
 		if s.Func.dwarfInfoSym != nil && s.Func.dwarfInfoSym.Size != 0 {
-			o := goobj2.Aux{
-				Type: goobj2.AuxDwarfInfo,
-				Sym:  makeSymRef(s.Func.dwarfInfoSym),
-			}
-			o.Write(w.Writer)
+			w.aux1(goobj2.AuxDwarfInfo, s.Func.dwarfInfoSym)
 		}
 		if s.Func.dwarfLocSym != nil && s.Func.dwarfLocSym.Size != 0 {
-			o := goobj2.Aux{
-				Type: goobj2.AuxDwarfLoc,
-				Sym:  makeSymRef(s.Func.dwarfLocSym),
-			}
-			o.Write(w.Writer)
+			w.aux1(goobj2.AuxDwarfLoc, s.Func.dwarfLocSym)
 		}
 		if s.Func.dwarfRangesSym != nil && s.Func.dwarfRangesSym.Size != 0 {
-			o := goobj2.Aux{
-				Type: goobj2.AuxDwarfRanges,
-				Sym:  makeSymRef(s.Func.dwarfRangesSym),
-			}
-			o.Write(w.Writer)
+			w.aux1(goobj2.AuxDwarfRanges, s.Func.dwarfRangesSym)
 		}
 		if s.Func.dwarfDebugLinesSym != nil && s.Func.dwarfDebugLinesSym.Size != 0 {
-			o := goobj2.Aux{
-				Type: goobj2.AuxDwarfLines,
-				Sym:  makeSymRef(s.Func.dwarfDebugLinesSym),
-			}
-			o.Write(w.Writer)
+			w.aux1(goobj2.AuxDwarfLines, s.Func.dwarfDebugLinesSym)
 		}
 	}
 }
