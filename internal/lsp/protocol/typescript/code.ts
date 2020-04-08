@@ -977,19 +977,19 @@ function goReq(side: side, m: string) {
   side.cases.push(`${caseHdr}\n${case1}\n${case2}`);
 
   const callHdr = `func (s *${side.name}Dispatcher) ${sig(nm, a, b, true)} {`;
-  let callBody = `return s.Conn.Call(ctx, "${m}", nil, nil)\n}`;
+  let callBody = `return Call(ctx, s.Conn, "${m}", nil, nil)\n}`;
   if (b != '' && b != 'void') {
     const p2 = a == '' ? 'nil' : 'params';
     const returnType = indirect(b) ? `*${b}` : b;
     callBody = `var result ${returnType}
-			if err := s.Conn.Call(ctx, "${m}", ${
+			if err := Call(ctx, s.Conn, "${m}", ${
       p2}, &result); err != nil {
 				return nil, err
       }
       return result, nil
     }`;
   } else if (a != '') {
-    callBody = `return s.Conn.Call(ctx, "${m}", params, nil) // Call, not Notify
+    callBody = `return Call(ctx, s.Conn, "${m}", params, nil) // Call, not Notify
   }`
   }
   side.calls.push(`${callHdr}\n${callBody}\n`);
@@ -1107,7 +1107,7 @@ function nonstandardRequests() {
   server.calls.push(
     `func (s *serverDispatcher) NonstandardRequest(ctx context.Context, method string, params interface{}) (interface{}, error) {
       var result interface{}
-      if err := s.Conn.Call(ctx, method, params, &result); err != nil {
+      if err := Call(ctx, s.Conn, method, params, &result); err != nil {
         return nil, err
       }
       return result, nil

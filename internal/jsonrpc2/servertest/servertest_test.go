@@ -42,7 +42,7 @@ func TestTestServer(t *testing.T) {
 			conn := test.connector.Connect(ctx)
 			go conn.Run(ctx, jsonrpc2.MethodNotFound)
 			var got msg
-			if err := conn.Call(ctx, "ping", &msg{"ping"}, &got); err != nil {
+			if _, err := conn.Call(ctx, "ping", &msg{"ping"}, &got); err != nil {
 				t.Fatal(err)
 			}
 			if want := "pong"; got.Msg != want {

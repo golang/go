@@ -236,7 +236,7 @@ func QueryServerState(ctx context.Context, network, address string) (*ServerStat
 	serverConn := jsonrpc2.NewConn(jsonrpc2.NewHeaderStream(netConn, netConn))
 	go serverConn.Run(ctx, jsonrpc2.MethodNotFound)
 	var state ServerState
-	if err := serverConn.Call(ctx, sessionsMethod, nil, &state); err != nil {
+	if err := protocol.Call(ctx, serverConn, sessionsMethod, nil, &state); err != nil {
 		return nil, fmt.Errorf("querying server state: %v", err)
 	}
 	return &state, nil
@@ -281,7 +281,7 @@ func (f *Forwarder) ServeStream(ctx context.Context, stream jsonrpc2.Stream) err
 		hreq.Logfile = di.Logfile
 		hreq.DebugAddr = di.ListenedDebugAddress
 	}
-	if err := serverConn.Call(ctx, handshakeMethod, hreq, &hresp); err != nil {
+	if err := protocol.Call(ctx, serverConn, handshakeMethod, hreq, &hresp); err != nil {
 		event.Error(ctx, "forwarder: gopls handshake failed", err)
 	}
 	if hresp.GoplsPath != f.goplsPath {

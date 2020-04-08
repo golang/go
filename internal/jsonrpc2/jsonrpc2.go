@@ -29,11 +29,10 @@ const (
 // Conn is a JSON RPC 2 client server connection.
 // Conn is bidirectional; it does not have a designated server or client end.
 type Conn struct {
-	seq         int64 // must only be accessed using atomic operations
-	stream      Stream
-	pendingMu   sync.Mutex // protects the pending map
-	pending     map[ID]chan *WireResponse
-	onCancelled CallCanceller
+	seq       int64 // must only be accessed using atomic operations
+	stream    Stream
+	pendingMu sync.Mutex // protects the pending map
+	pending   map[ID]chan *WireResponse
 }
 
 // Request is sent to a server to represent a Call or Notify operaton.
@@ -46,13 +45,6 @@ type Request struct {
 	// The Wire values of the request.
 	WireRequest
 }
-
-// Canceller is the type for a function that can cancel an in progress request.
-type Canceller func(id ID)
-
-// CallCanceller is the type for a callback when an outgoing request is
-// has it's context cancelled.
-type CallCanceller func(context.Context, *Conn, ID)
 
 type constError string
 
@@ -75,13 +67,6 @@ func NewConn(s Stream) *Conn {
 		pending: make(map[ID]chan *WireResponse),
 	}
 	return conn
-}
-
-// OnCancelled sets the callback used when an outgoing call request has
-// it's context cancelled when still in progress.
-// Only the last callback registered is used.
-func (c *Conn) OnCancelled(cancelled CallCanceller) {
-	c.onCancelled = cancelled
 }
 
 // Notify is called to send a notification request over the connection.
@@ -119,12 +104,12 @@ func (c *Conn) Notify(ctx context.Context, method string, params interface{}) (e
 // Call sends a request over the connection and then waits for a response.
 // If the response is not an error, it will be decoded into result.
 // result must be of a type you an pass to json.Unmarshal.
-func (c *Conn) Call(ctx context.Context, method string, params, result interface{}) (err error) {
+func (c *Conn) Call(ctx context.Context, method string, params, result interface{}) (_ ID, err error) {
 	// generate a new request identifier
 	id := ID{Number: atomic.AddInt64(&c.seq, 1)}
 	jsonParams, err := marshalToRaw(params)
 	if err != nil {
-		return fmt.Errorf("marshalling call parameters: %v", err)
+		return id, fmt.Errorf("marshalling call parameters: %v", err)
 	}
 	request := &WireRequest{
 		ID:     &id,
@@ -134,7 +119,7 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	// marshal the request now it is complete
 	data, err := json.Marshal(request)
 	if err != nil {
-		return fmt.Errorf("marshalling call request: %v", err)
+		return id, fmt.Errorf("marshalling call request: %v", err)
 	}
 	ctx, done := event.StartSpan(ctx, request.Method,
 		tag.Method.Of(request.Method),
@@ -164,28 +149,24 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	event.Record(ctx, tag.SentBytes.Of(n))
 	if err != nil {
 		// sending failed, we will never get a response, so don't leave it pending
-		return err
+		return id, err
 	}
 	// now wait for the response
 	select {
 	case response := <-rchan:
 		// is it an error response?
 		if response.Error != nil {
-			return response.Error
+			return id, response.Error
 		}
 		if result == nil || response.Result == nil {
-			return nil
+			return id, nil
 		}
 		if err := json.Unmarshal(*response.Result, result); err != nil {
-			return fmt.Errorf("unmarshalling result: %v", err)
+			return id, fmt.Errorf("unmarshalling result: %v", err)
 		}
-		return nil
+		return id, nil
 	case <-ctx.Done():
-		// Allow the handler to propagate the cancel.
-		if c.onCancelled != nil {
-			c.onCancelled(ctx, c, id)
-		}
-		return ctx.Err()
+		return id, ctx.Err()
 	}
 }
 

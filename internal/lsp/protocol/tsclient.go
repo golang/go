@@ -152,7 +152,7 @@ func (s *clientDispatcher) Progress(ctx context.Context, params *ProgressParams)
 }
 func (s *clientDispatcher) WorkspaceFolders(ctx context.Context) ([]WorkspaceFolder /*WorkspaceFolder[] | null*/, error) {
 	var result []WorkspaceFolder /*WorkspaceFolder[] | null*/
-	if err := s.Conn.Call(ctx, "workspace/workspaceFolders", nil, &result); err != nil {
+	if err := Call(ctx, s.Conn, "workspace/workspaceFolders", nil, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
@@ -160,27 +160,27 @@ func (s *clientDispatcher) WorkspaceFolders(ctx context.Context) ([]WorkspaceFol
 
 func (s *clientDispatcher) Configuration(ctx context.Context, params *ParamConfiguration) ([]interface{}, error) {
 	var result []interface{}
-	if err := s.Conn.Call(ctx, "workspace/configuration", params, &result); err != nil {
+	if err := Call(ctx, s.Conn, "workspace/configuration", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
 func (s *clientDispatcher) WorkDoneProgressCreate(ctx context.Context, params *WorkDoneProgressCreateParams) error {
-	return s.Conn.Call(ctx, "window/workDoneProgress/create", params, nil) // Call, not Notify
+	return Call(ctx, s.Conn, "window/workDoneProgress/create", params, nil) // Call, not Notify
 }
 
 func (s *clientDispatcher) RegisterCapability(ctx context.Context, params *RegistrationParams) error {
-	return s.Conn.Call(ctx, "client/registerCapability", params, nil) // Call, not Notify
+	return Call(ctx, s.Conn, "client/registerCapability", params, nil) // Call, not Notify
 }
 
 func (s *clientDispatcher) UnregisterCapability(ctx context.Context, params *UnregistrationParams) error {
-	return s.Conn.Call(ctx, "client/unregisterCapability", params, nil) // Call, not Notify
+	return Call(ctx, s.Conn, "client/unregisterCapability", params, nil) // Call, not Notify
 }
 
 func (s *clientDispatcher) ShowMessageRequest(ctx context.Context, params *ShowMessageRequestParams) (*MessageActionItem /*MessageActionItem | null*/, error) {
 	var result *MessageActionItem /*MessageActionItem | null*/
-	if err := s.Conn.Call(ctx, "window/showMessageRequest", params, &result); err != nil {
+	if err := Call(ctx, s.Conn, "window/showMessageRequest", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
@@ -188,7 +188,7 @@ func (s *clientDispatcher) ShowMessageRequest(ctx context.Context, params *ShowM
 
 func (s *clientDispatcher) ApplyEdit(ctx context.Context, params *ApplyWorkspaceEditParams) (*ApplyWorkspaceEditResponse, error) {
 	var result *ApplyWorkspaceEditResponse
-	if err := s.Conn.Call(ctx, "workspace/applyEdit", params, &result); err != nil {
+	if err := Call(ctx, s.Conn, "workspace/applyEdit", params, &result); err != nil {
 		return nil, err
 	}
 	return result, nil

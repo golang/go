@@ -33,7 +33,7 @@ func TestHoverSerialization(t *testing.T) {
 		params.Position.Line = 3
 		params.Position.Character = 0
 		var resp json.RawMessage
-		if err := env.Conn.Call(env.Ctx, "textDocument/hover", &params, &resp); err != nil {
+		if err := protocol.Call(env.Ctx, env.Conn, "textDocument/hover", &params, &resp); err != nil {
 			t.Fatal(err)
 		}
 		if len(string(resp)) > 0 {

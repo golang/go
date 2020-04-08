@@ -37,9 +37,9 @@ func MustReply(handler Handler) Handler {
 	}
 }
 
-// CancelHandler returns a handler that supports cancellation, and a canceller
+// CancelHandler returns a handler that supports cancellation, and a function
 // that can be used to trigger canceling in progress requests.
-func CancelHandler(handler Handler) (Handler, Canceller) {
+func CancelHandler(handler Handler) (Handler, func(id ID)) {
 	var mu sync.Mutex
 	handling := make(map[ID]context.CancelFunc)
 	wrapped := func(ctx context.Context, req *Request) error {

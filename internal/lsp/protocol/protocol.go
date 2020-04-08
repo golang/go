@@ -22,14 +22,12 @@ const (
 // ClientDispatcher returns a Client that dispatches LSP requests across the
 // given jsonrpc2 connection.
 func ClientDispatcher(conn *jsonrpc2.Conn) Client {
-	conn.OnCancelled(cancelCall)
 	return &clientDispatcher{Conn: conn}
 }
 
 // ServerDispatcher returns a Server that dispatches LSP requests across the
 // given jsonrpc2 connection.
 func ServerDispatcher(conn *jsonrpc2.Conn) Server {
-	conn.OnCancelled(cancelCall)
 	return &serverDispatcher{Conn: conn}
 }
 
@@ -61,6 +59,14 @@ func CancelHandler(handler jsonrpc2.Handler) jsonrpc2.Handler {
 		canceller(v)
 		return req.Reply(ctx, nil, nil)
 	}
+}
+
+func Call(ctx context.Context, conn *jsonrpc2.Conn, method string, params interface{}, result interface{}) error {
+	id, err := conn.Call(ctx, method, params, result)
+	if ctx.Err() != nil {
+		cancelCall(ctx, conn, id)
+	}
+	return err
 }
 
 func cancelCall(ctx context.Context, conn *jsonrpc2.Conn, id jsonrpc2.ID) {

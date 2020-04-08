@@ -63,11 +63,11 @@ func TestPlainCall(t *testing.T) {
 	a, b := prepare(ctx, t, false)
 	for _, test := range callTests {
 		results := test.newResults()
-		if err := a.Call(ctx, test.method, test.params, results); err != nil {
+		if _, err := a.Call(ctx, test.method, test.params, results); err != nil {
 			t.Fatalf("%v:Call failed: %v", test.method, err)
 		}
 		test.verifyResults(t, results)
-		if err := b.Call(ctx, test.method, test.params, results); err != nil {
+		if _, err := b.Call(ctx, test.method, test.params, results); err != nil {
 			t.Fatalf("%v:Call failed: %v", test.method, err)
 		}
 		test.verifyResults(t, results)
@@ -79,11 +79,11 @@ func TestHeaderCall(t *testing.T) {
 	a, b := prepare(ctx, t, true)
 	for _, test := range callTests {
 		results := test.newResults()
-		if err := a.Call(ctx, test.method, test.params, results); err != nil {
+		if _, err := a.Call(ctx, test.method, test.params, results); err != nil {
 			t.Fatalf("%v:Call failed: %v", test.method, err)
 		}
 		test.verifyResults(t, results)
-		if err := b.Call(ctx, test.method, test.params, results); err != nil {
+		if _, err := b.Call(ctx, test.method, test.params, results); err != nil {
 			t.Fatalf("%v:Call failed: %v", test.method, err)
 		}
 		test.verifyResults(t, results)
