@@ -736,11 +736,11 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 		toctramp.AddAddr(ctxt.Arch, target)
 
 		r := loader.Reloc{
-			Off: 0,
+			Off:  0,
 			Type: objabi.R_ADDRPOWER_TOCREL_DS,
 			Size: 8, // generates 2 relocations:  HA + LO
-			Sym: toctramp.Sym(),
-			Add: offset,
+			Sym:  toctramp.Sym(),
+			Add:  offset,
 		}
 		tramp.AddReloc(r)
 	} else {
@@ -754,11 +754,11 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 		// relocated using LO and HA
 		if ctxt.IsExternal() {
 			r := loader.Reloc{
-				Off: 0,
+				Off:  0,
 				Type: objabi.R_ADDRPOWER,
 				Size: 8, // generates 2 relocations:  HA + LO
-				Sym: target,
-				Add: offset,
+				Sym:  target,
+				Add:  offset,
 			}
 			tramp.AddReloc(r)
 		} else {
