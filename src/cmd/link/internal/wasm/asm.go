@@ -87,7 +87,7 @@ func assignAddress(ldr *loader.Loader, sect *sym.Section, n int, s loader.Sym, v
 	// However, there is no PC register, only PC_F and PC_B. PC_F denotes the function,
 	// PC_B the resume point inside of that function. The entry of the function has PC_B = 0.
 	ldr.SetSymSect(s, sect)
-	ldr.SetSymValue(s, int64(funcValueOffset+va/ld.MINFUNC) << 16) // va starts at zero
+	ldr.SetSymValue(s, int64(funcValueOffset+va/ld.MINFUNC)<<16) // va starts at zero
 	va += uint64(ld.MINFUNC)
 	return sect, n, va
 }

@@ -520,11 +520,11 @@ func gentramp(arch *sys.Arch, linkmode ld.LinkMode, ldr *loader.Loader, tramp *l
 
 	if linkmode == ld.LinkExternal {
 		r := loader.Reloc{
-			Off: 8,
+			Off:  8,
 			Type: objabi.R_ADDR,
 			Size: 4,
-			Sym: target,
-			Add: offset,
+			Sym:  target,
+			Add:  offset,
 		}
 		tramp.AddReloc(r)
 	}
@@ -545,11 +545,11 @@ func gentramppic(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym,
 	tramp.SetData(P)
 
 	r := loader.Reloc{
-		Off: 12,
+		Off:  12,
 		Type: objabi.R_PCREL,
 		Size: 4,
-		Sym: target,
-		Add: offset + 4,
+		Sym:  target,
+		Add:  offset + 4,
 	}
 	tramp.AddReloc(r)
 }
@@ -583,11 +583,11 @@ func gentrampdyn(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym,
 	tramp.SetData(P)
 
 	r := loader.Reloc{
-		Off: 16,
+		Off:  16,
 		Type: objabi.R_GOTPCREL,
 		Size: 4,
-		Sym: target,
-		Add: 8,
+		Sym:  target,
+		Add:  8,
 	}
 	if offset != 0 {
 		// increase reloc offset by 4 as we inserted an ADD instruction
