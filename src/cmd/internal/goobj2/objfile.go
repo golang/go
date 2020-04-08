@@ -185,14 +185,19 @@ func (h *Header) Size() int {
 }
 
 // Symbol definition.
-type Sym struct {
-	Name  string
-	ABI   uint16
-	Type  uint8
-	Flag  uint8
-	Siz   uint32
-	Align uint32
-}
+//
+// Serialized format:
+// Sym struct {
+//    Name  string
+//    ABI   uint16
+//    Type  uint8
+//    Flag  uint8
+//    Siz   uint32
+//    Align uint32
+// }
+type Sym2 [SymSize]byte
+
+const SymSize = stringRefSize + 2 + 1 + 1 + 4 + 4
 
 const SymABIstatic = ^uint16(0)
 
@@ -210,19 +215,6 @@ const (
 	SymFlagGoType
 	SymFlagTopFrame
 )
-
-func (s *Sym) Write(w *Writer) {
-	w.StringRef(s.Name)
-	w.Uint16(s.ABI)
-	w.Uint8(s.Type)
-	w.Uint8(s.Flag)
-	w.Uint32(s.Siz)
-	w.Uint32(s.Align)
-}
-
-const SymSize = stringRefSize + 2 + 1 + 1 + 4 + 4
-
-type Sym2 [SymSize]byte
 
 func (s *Sym2) Name(r *Reader) string {
 	len := binary.LittleEndian.Uint32(s[:])
@@ -258,37 +250,28 @@ func (s *Sym2) SetAlign(x uint32) { binary.LittleEndian.PutUint32(s[16:], x) }
 
 func (s *Sym2) Write(w *Writer) { w.Bytes(s[:]) }
 
+// for testing
+func (s *Sym2) fromBytes(b []byte) { copy(s[:], b) }
+
 // Symbol reference.
 type SymRef struct {
 	PkgIdx uint32
 	SymIdx uint32
 }
 
-func (s *SymRef) Write(w *Writer) {
-	w.Uint32(s.PkgIdx)
-	w.Uint32(s.SymIdx)
-}
-
 // Relocation.
-type Reloc struct {
-	Off  int32
-	Siz  uint8
-	Type uint8
-	Add  int64
-	Sym  SymRef
-}
-
-func (r *Reloc) Write(w *Writer) {
-	w.Uint32(uint32(r.Off))
-	w.Uint8(r.Siz)
-	w.Uint8(r.Type)
-	w.Uint64(uint64(r.Add))
-	r.Sym.Write(w)
-}
+//
+// Serialized format:
+// Reloc struct {
+//    Off  int32
+//    Siz  uint8
+//    Type uint8
+//    Add  int64
+//    Sym  SymRef
+// }
+type Reloc2 [RelocSize]byte
 
 const RelocSize = 4 + 1 + 1 + 8 + 8
-
-type Reloc2 [RelocSize]byte
 
 func (r *Reloc2) Off() int32  { return int32(binary.LittleEndian.Uint32(r[:])) }
 func (r *Reloc2) Siz() uint8  { return r[4] }
@@ -317,11 +300,19 @@ func (r *Reloc2) Set(off int32, size uint8, typ uint8, add int64, sym SymRef) {
 
 func (r *Reloc2) Write(w *Writer) { w.Bytes(r[:]) }
 
+// for testing
+func (r *Reloc2) fromBytes(b []byte) { copy(r[:], b) }
+
 // Aux symbol info.
-type Aux struct {
-	Type uint8
-	Sym  SymRef
-}
+//
+// Serialized format:
+// Aux struct {
+//    Type uint8
+//    Sym  SymRef
+// }
+type Aux2 [AuxSize]byte
+
+const AuxSize = 1 + 8
 
 // Aux Type
 const (
@@ -336,15 +327,6 @@ const (
 	// TODO: more. Pcdata?
 )
 
-func (a *Aux) Write(w *Writer) {
-	w.Uint8(a.Type)
-	a.Sym.Write(w)
-}
-
-const AuxSize = 1 + 8
-
-type Aux2 [AuxSize]byte
-
 func (a *Aux2) Type() uint8 { return a[0] }
 func (a *Aux2) Sym() SymRef {
 	return SymRef{binary.LittleEndian.Uint32(a[1:]), binary.LittleEndian.Uint32(a[5:])}
@@ -357,6 +339,9 @@ func (a *Aux2) SetSym(x SymRef) {
 }
 
 func (a *Aux2) Write(w *Writer) { w.Bytes(a[:]) }
+
+// for testing
+func (a *Aux2) fromBytes(b []byte) { copy(a[:], b) }
 
 type Writer struct {
 	wr        *bio.Writer
