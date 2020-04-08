@@ -755,13 +755,7 @@ func (t *translator) instantiationTypes(call *ast.CallExpr) (argList []ast.Expr,
 // lookupInstantiatedType looks for an existing instantiation of an
 // instantiated type.
 func (t *translator) lookupInstantiatedType(typ *types.Named) (types.Type, *ast.Ident) {
-	// The name should be something like pkg.name<type1, type2>.
 	name := typ.Obj().Name()
-	idx := strings.Index(name, "<")
-	if idx < 0 {
-		return typ, nil
-	}
-	name = name[:idx]
 	fields := strings.Split(name, ".")
 	if len(fields) > 2 {
 		panic(fmt.Sprintf("unparseable instantiated name %q", name))
