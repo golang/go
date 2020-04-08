@@ -342,13 +342,13 @@ func typeinit() {
 	simtype[TFUNC] = TPTR
 	simtype[TUNSAFEPTR] = TPTR
 
-	slice_array = int(Rnd(0, int64(Widthptr)))
-	slice_nel = int(Rnd(int64(slice_array)+int64(Widthptr), int64(Widthptr)))
-	slice_cap = int(Rnd(int64(slice_nel)+int64(Widthptr), int64(Widthptr)))
-	sizeof_Slice = int(Rnd(int64(slice_cap)+int64(Widthptr), int64(Widthptr)))
+	slicePtrOffset = 0
+	sliceLenOffset = Rnd(slicePtrOffset+int64(Widthptr), int64(Widthptr))
+	sliceCapOffset = Rnd(sliceLenOffset+int64(Widthptr), int64(Widthptr))
+	sizeofSlice = Rnd(sliceCapOffset+int64(Widthptr), int64(Widthptr))
 
 	// string is same as slice wo the cap
-	sizeof_String = int(Rnd(int64(slice_nel)+int64(Widthptr), int64(Widthptr)))
+	sizeofString = Rnd(sliceLenOffset+int64(Widthptr), int64(Widthptr))
 
 	dowidth(types.Types[TSTRING])
 	dowidth(types.Idealstring)

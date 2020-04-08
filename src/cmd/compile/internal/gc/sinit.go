@@ -130,11 +130,11 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
 		a := s.inittemps[r]
 
 		n := l.copy()
-		n.Xoffset = l.Xoffset + int64(slice_array)
+		n.Xoffset = l.Xoffset + slicePtrOffset
 		gdata(n, nod(OADDR, a, nil), Widthptr)
-		n.Xoffset = l.Xoffset + int64(slice_nel)
+		n.Xoffset = l.Xoffset + sliceLenOffset
 		gdata(n, r.Right, Widthptr)
-		n.Xoffset = l.Xoffset + int64(slice_cap)
+		n.Xoffset = l.Xoffset + sliceCapOffset
 		gdata(n, r.Right, Widthptr)
 		return true
 
@@ -227,11 +227,11 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 		a := staticname(ta)
 		s.inittemps[r] = a
 		n := l.copy()
-		n.Xoffset = l.Xoffset + int64(slice_array)
+		n.Xoffset = l.Xoffset + slicePtrOffset
 		gdata(n, nod(OADDR, a, nil), Widthptr)
-		n.Xoffset = l.Xoffset + int64(slice_nel)
+		n.Xoffset = l.Xoffset + sliceLenOffset
 		gdata(n, r.Right, Widthptr)
-		n.Xoffset = l.Xoffset + int64(slice_cap)
+		n.Xoffset = l.Xoffset + sliceCapOffset
 		gdata(n, r.Right, Widthptr)
 
 		// Fall through to init underlying array.
@@ -615,11 +615,11 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 		v.Type = types.Types[TINT]
 		setintconst(&v, t.NumElem())
 
-		nam.Xoffset += int64(slice_array)
+		nam.Xoffset += slicePtrOffset
 		gdata(&nam, nod(OADDR, vstat, nil), Widthptr)
-		nam.Xoffset += int64(slice_nel) - int64(slice_array)
+		nam.Xoffset += sliceLenOffset - slicePtrOffset
 		gdata(&nam, &v, Widthptr)
-		nam.Xoffset += int64(slice_cap) - int64(slice_nel)
+		nam.Xoffset += sliceCapOffset - sliceLenOffset
 		gdata(&nam, &v, Widthptr)
 
 		return
