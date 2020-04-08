@@ -118,3 +118,14 @@ func decodetypeStructFieldOffsAnon2(ldr *loader.Loader, arch *sys.Arch, symIdx l
 	data := ldr.Data(symIdx)
 	return int64(decodeInuxi(arch, data[off+2*arch.PtrSize:], arch.PtrSize))
 }
+
+// decodetypeStr2 returns the contents of an rtype's str field (a nameOff).
+func decodetypeStr2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) string {
+	relocs := ldr.Relocs(symIdx)
+	str := decodetypeName2(ldr, symIdx, &relocs, 4*arch.PtrSize+8)
+	data := ldr.Data(symIdx)
+	if data[2*arch.PtrSize+4]&tflagExtraStar != 0 {
+		return str[1:]
+	}
+	return str
+}

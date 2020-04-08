@@ -659,7 +659,9 @@ func (l *Loader) SymType(i Sym) sym.SymKind {
 // Returns the attributes of the i-th symbol.
 func (l *Loader) SymAttr(i Sym) uint8 {
 	if l.IsExternal(i) {
-		// TODO: do something? External symbols have different representation of attributes. For now, ReflectMethod is the only thing matters and it cannot be set by external symbol.
+		// TODO: do something? External symbols have different representation of attributes.
+		// For now, ReflectMethod, NoSplit, GoType, and Typelink are used and they cannot be
+		// set by external symbol.
 		return 0
 	}
 	r, li := l.toLocal(i)
@@ -980,6 +982,11 @@ func (l *Loader) IsNoSplit(i Sym) bool {
 // Returns whether this is a Go type symbol.
 func (l *Loader) IsGoType(i Sym) bool {
 	return l.SymAttr(i)&goobj2.SymFlagGoType != 0
+}
+
+// Returns whether this symbol should be included in typelink.
+func (l *Loader) IsTypelink(i Sym) bool {
+	return l.SymAttr(i)&goobj2.SymFlagTypelink != 0
 }
 
 // Returns whether this is a "go.itablink.*" symbol.
