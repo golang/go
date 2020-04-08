@@ -82,13 +82,31 @@ func ExampleParseQuery() {
 }
 
 func ExampleURL_EscapedPath() {
-	u, err := url.Parse("http://example.com/path with spaces")
+	u, err := url.Parse("http://example.com/x/y%2Fz")
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(u.EscapedPath())
+	fmt.Println("Path:", u.Path)
+	fmt.Println("RawPath:", u.RawPath)
+	fmt.Println("EscapedPath:", u.EscapedPath())
 	// Output:
-	// /path%20with%20spaces
+	// Path: /x/y/z
+	// RawPath: /x/y%2Fz
+	// EscapedPath: /x/y%2Fz
+}
+
+func ExampleURL_EscapedFragment() {
+	u, err := url.Parse("http://example.com/#x/y%2Fz")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("Fragment:", u.Fragment)
+	fmt.Println("RawFragment:", u.RawFragment)
+	fmt.Println("EscapedFragment:", u.EscapedFragment())
+	// Output:
+	// Fragment: x/y/z
+	// RawFragment: x/y%2Fz
+	// EscapedFragment: x/y%2Fz
 }
 
 func ExampleURL_Hostname() {

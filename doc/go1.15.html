@@ -138,9 +138,9 @@ TODO
     <p><!-- CL 221427 -->
       When the flag package sees <code>-h</code> or <code>-help</code>, and
       those flags are not defined, the flag package prints a usage message.
-      If the <a href=/pkg/flag/#FlagSet><code>FlagSet</code></a> was created with
-      <a href=/pkg/flag/#ExitOnError><code>ExitOnError</code></a>,
-      <a href=/pkg/flag/#FlagSet.Parse><code>FlagSet.Parse</code></a> would then
+      If the <a href="/pkg/flag/#FlagSet"><code>FlagSet</code></a> was created with
+      <a href="/pkg/flag/#ExitOnError"><code>ExitOnError</code></a>,
+      <a href="/pkg/flag/#FlagSet.Parse"><code>FlagSet.Parse</code></a> would then
       exit with a status of 2. In this release, the exit status for <code>-h</code>
       or <code>-help</code> has been changed to 0. In particular, this applies to
       the default handling of command line flags.
@@ -150,6 +150,13 @@ TODO
 
 <dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
   <dd>
+    <p><!-- CL 227645 -->
+      The new <a href="/pkg/net/url/#URL"><code>URL</code></a> field
+      <code>RawFragment</code> and method <a href="/pkg/net/url/#URL.EscapedFragment"><code>EscapedFragment</code></a>
+      provide detail about and control over the exact encoding of a particular fragment.
+      These are analogous to
+      <code>RawPath</code> and <a href="/pkg/net/url/#URL.EscapedPath"><code>EscapedPath</code></a>.
+    </p>
     <p><!-- CL 207082 -->
       The new <a href="/pkg/net/url/#URL"><code>URL</code></a>
       method <a href="/pkg/net/url/#URL.Redacted"><code>Redacted</code></a>
