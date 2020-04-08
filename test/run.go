@@ -55,6 +55,7 @@ func defaultAllCodeGen() bool {
 }
 
 type fileType int
+
 const (
 	go1Files fileType = iota
 	go2Files
@@ -235,7 +236,11 @@ func compileInDir(runcmd runCmd, dir string, ft fileType, importer *go2go.Import
 	if ft == go2Files {
 		tpkgs, err := go2go.RewriteFiles(importer, dir, names)
 		if err != nil {
-			return nil, err
+			// The error returned by RewriteFiles is similar
+			// to the output of the compiler, so return it
+			// as a []byte, without the first line.
+			errStr := go2Error(err.Error())
+			return []byte(errStr), err
 		}
 		if err := importer.Register(tpkgs[0].Path(), tpkgs); err != nil {
 			return nil, err
@@ -266,6 +271,16 @@ func compileInDir(runcmd runCmd, dir string, ft fileType, importer *go2go.Import
 		cmd = append(cmd, filepath.Join(dir, name))
 	}
 	return runcmd(cmd...)
+}
+
+// go2Error takes an error returned by go/go2go and strips the prefix,
+// to make it look more like an error from "go tool compile".
+func go2Error(s string) string {
+	fields := strings.SplitN(s, "\n", 2)
+	if len(fields) > 1 && strings.HasPrefix(fields[0], "type checking failed for") {
+		return fields[1]
+	}
+	return s
 }
 
 func linkFile(runcmd runCmd, goname string, ldflags []string) (err error) {
@@ -647,11 +662,7 @@ func (t *test) run() {
 				t.err = fmt.Errorf("%s not supported for .go2 files", action)
 				return
 			}
-			errStr := err.Error()
-			fields := strings.SplitN(errStr, "\n", 2)
-			if len(fields) > 1 && strings.HasPrefix(fields[0], "type checking failed for") {
-				errStr = fields[1]
-			}
+			errStr := go2Error(err.Error())
 			long := filepath.Join(cwd, t.goFileName())
 			if *updateErrors {
 				t.updateErrors(errStr, long)

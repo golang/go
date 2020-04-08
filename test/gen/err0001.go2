@@ -8,3 +8,10 @@ package p
 
 func F1(type T comparable)() {}
 func F2() { F1([]int)() } // ERROR "\[\]int does not satisfy comparable$"
+
+contract C(T) {
+	T M()
+}
+
+func F3(type T C)() {}
+func F4() { F3(int)() } // ERROR "int does not satisfy C.*method M"

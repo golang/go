@@ -1,0 +1,10 @@
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package b
+
+import "./a"
+
+func F1(type T a.C)() {}
+func F2() { F1(int)() } // ERROR "int does not satisfy a.C.*method M"
