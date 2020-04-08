@@ -128,9 +128,7 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
 	case OSLICELIT:
 		// copy slice
 		a := s.inittemps[r]
-
-		n := l.copy()
-		slicesym(n, a, r.Right)
+		slicesym(l, a, r.Right.Int64())
 		return true
 
 	case OARRAYLIT, OSTRUCTLIT:
@@ -221,9 +219,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 		ta := types.NewArray(r.Type.Elem(), bound)
 		a := staticname(ta)
 		s.inittemps[r] = a
-		n := l.copy()
-		slicesym(n, a, r.Right)
-
+		slicesym(l, a, bound)
 		// Fall through to init underlying array.
 		l = a
 		fallthrough
@@ -600,11 +596,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 		if !stataddr(&nam, var_) || nam.Class() != PEXTERN {
 			Fatalf("slicelit: %v", var_)
 		}
-
-		var v Node
-		v.Type = types.Types[TINT]
-		setintconst(&v, t.NumElem())
-		slicesym(&nam, vstat, &v)
+		slicesym(&nam, vstat, t.NumElem())
 		return
 	}
 
