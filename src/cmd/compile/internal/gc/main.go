@@ -36,7 +36,9 @@ import (
 var imported_unsafe bool
 
 var (
-	buildid string
+	buildid      string
+	spectre      string
+	spectreIndex bool
 )
 
 var (
@@ -250,6 +252,7 @@ func Main(archInit func(*Arch)) {
 	if sys.RaceDetectorSupported(objabi.GOOS, objabi.GOARCH) {
 		flag.BoolVar(&flag_race, "race", false, "enable race detector")
 	}
+	flag.StringVar(&spectre, "spectre", spectre, "enable spectre mitigations in `list` (all, index, ret)")
 	if enableTrace {
 		flag.BoolVar(&trace, "t", false, "trace type-checking")
 	}
@@ -282,10 +285,36 @@ func Main(archInit func(*Arch)) {
 
 	objabi.Flagparse(usage)
 
+	for _, f := range strings.Split(spectre, ",") {
+		f = strings.TrimSpace(f)
+		switch f {
+		default:
+			log.Fatalf("unknown setting -spectre=%s", f)
+		case "":
+			// nothing
+		case "all":
+			spectreIndex = true
+			Ctxt.Retpoline = true
+		case "index":
+			spectreIndex = true
+		case "ret":
+			Ctxt.Retpoline = true
+		}
+	}
+
+	if spectreIndex {
+		switch objabi.GOARCH {
+		case "amd64":
+			// ok
+		default:
+			log.Fatalf("GOARCH=%s does not support -spectre=index", objabi.GOARCH)
+		}
+	}
+
 	// Record flags that affect the build result. (And don't
 	// record flags that don't, since that would cause spurious
 	// changes in the binary.)
-	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "newobj")
+	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "spectre", "newobj")
 
 	if smallFrames {
 		maxStackVarSize = 128 * 1024
@@ -512,8 +541,8 @@ func Main(archInit func(*Arch)) {
 	types.Sconv = func(s *types.Sym, flag, mode int) string {
 		return sconv(s, FmtFlag(flag), fmtMode(mode))
 	}
-	types.Tconv = func(t *types.Type, flag, mode, depth int) string {
-		return tconv(t, FmtFlag(flag), fmtMode(mode), depth)
+	types.Tconv = func(t *types.Type, flag, mode int) string {
+		return tconv(t, FmtFlag(flag), fmtMode(mode))
 	}
 	types.FormatSym = func(sym *types.Sym, s fmt.State, verb rune, mode int) {
 		symFormat(sym, s, verb, fmtMode(mode))
@@ -526,7 +555,7 @@ func Main(archInit func(*Arch)) {
 	}
 	types.FmtLeft = int(FmtLeft)
 	types.FmtUnsigned = int(FmtUnsigned)
-	types.FErr = FErr
+	types.FErr = int(FErr)
 	types.Ctxt = Ctxt
 
 	initUniverse()
@@ -1071,7 +1100,7 @@ func loadsys() {
 	typecheckok = true
 
 	typs := runtimeTypes()
-	for _, d := range runtimeDecls {
+	for _, d := range &runtimeDecls {
 		sym := Runtimepkg.Lookup(d.name)
 		typ := typs[d.typ]
 		switch d.tag {
@@ -1374,7 +1403,7 @@ var concurrentFlagOK = [256]bool{
 }
 
 func concurrentBackendAllowed() bool {
-	for i, x := range Debug {
+	for i, x := range &Debug {
 		if x != 0 && !concurrentFlagOK[i] {
 			return false
 		}

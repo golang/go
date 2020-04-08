@@ -11,6 +11,7 @@ import (
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"sort"
 )
@@ -196,6 +197,18 @@ func (n *Node) SetHasVal(b bool)    { n.flags.set(nodeHasVal, b) }
 func (n *Node) SetHasOpt(b bool)    { n.flags.set(nodeHasOpt, b) }
 func (n *Node) SetEmbedded(b bool)  { n.flags.set(nodeEmbedded, b) }
 
+// MarkReadonly indicates that n is an ONAME with readonly contents.
+func (n *Node) MarkReadonly() {
+	if n.Op != ONAME {
+		Fatalf("Node.MarkReadonly %v", n.Op)
+	}
+	n.Name.SetReadonly(true)
+	// Mark the linksym as readonly immediately
+	// so that the SSA backend can use this information.
+	// It will be overridden later during dumpglobls.
+	n.Sym.Linksym().Type = objabi.SRODATA
+}
+
 // Val returns the Val for the node.
 func (n *Node) Val() Val {
 	if !n.HasVal() {
@@ -267,6 +280,35 @@ func (n *Node) funcname() string {
 		return "<nil>"
 	}
 	return n.Func.Nname.Sym.Name
+}
+
+// pkgFuncName returns the name of the function referenced by n, with package prepended.
+// This differs from the compiler's internal convention where local functions lack a package
+// because the ultimate consumer of this is a human looking at an IDE; package is only empty
+// if the compilation package is actually the empty string.
+func (n *Node) pkgFuncName() string {
+	var s *types.Sym
+	if n == nil {
+		return "<nil>"
+	}
+	if n.Op == ONAME {
+		s = n.Sym
+	} else {
+		if n.Func == nil || n.Func.Nname == nil {
+			return "<nil>"
+		}
+		s = n.Func.Nname.Sym
+	}
+	pkg := s.Pkg
+
+	p := myimportpath
+	if pkg != nil && pkg.Path != "" {
+		p = pkg.Path
+	}
+	if p == "" {
+		return s.Name
+	}
+	return p + "." + s.Name
 }
 
 // Name holds Node fields used only by named nodes (ONAME, OTYPE, OPACK, OLABEL, some OLITERAL).

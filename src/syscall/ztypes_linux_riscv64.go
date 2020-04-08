@@ -31,13 +31,11 @@ type Timeval struct {
 
 type Timex struct {
 	Modes     uint32
-	Pad_cgo_0 [4]byte
 	Offset    int64
 	Freq      int64
 	Maxerror  int64
 	Esterror  int64
 	Status    int32
-	Pad_cgo_1 [4]byte
 	Constant  int64
 	Precision int64
 	Tolerance int64
@@ -46,14 +44,13 @@ type Timex struct {
 	Ppsfreq   int64
 	Jitter    int64
 	Shift     int32
-	Pad_cgo_2 [4]byte
 	Stabil    int64
 	Jitcnt    int64
 	Calcnt    int64
 	Errcnt    int64
 	Stbcnt    int64
 	Tai       int32
-	Pad_cgo_3 [44]byte
+	_         [44]byte
 }
 
 type Time_t int64
@@ -131,12 +128,12 @@ type Statfs_t struct {
 }
 
 type Dirent struct {
-	Ino       uint64
-	Off       int64
-	Reclen    uint16
-	Type      uint8
-	Name      [256]uint8
-	Pad_cgo_0 [5]byte
+	Ino    uint64
+	Off    int64
+	Reclen uint16
+	Type   uint8
+	Name   [256]uint8
+	_      [5]byte
 }
 
 type Fsid struct {
@@ -144,13 +141,12 @@ type Fsid struct {
 }
 
 type Flock_t struct {
-	Type      int16
-	Whence    int16
-	Pad_cgo_0 [4]byte
-	Start     int64
-	Len       int64
-	Pid       int32
-	Pad_cgo_1 [4]byte
+	Type   int16
+	Whence int16
+	Start  int64
+	Len    int64
+	Pid    int32
+	_      [4]byte
 }
 
 type RawSockaddrInet4 struct {
@@ -231,13 +227,12 @@ type IPv6Mreq struct {
 type Msghdr struct {
 	Name       *byte
 	Namelen    uint32
-	Pad_cgo_0  [4]byte
 	Iov        *Iovec
 	Iovlen     uint64
 	Control    *byte
 	Controllen uint64
 	Flags      int32
-	Pad_cgo_1  [4]byte
+	_          [4]byte
 }
 
 type Cmsghdr struct {
@@ -279,7 +274,6 @@ type TCPInfo struct {
 	Probes         uint8
 	Backoff        uint8
 	Options        uint8
-	Pad_cgo_0      [2]byte
 	Rto            uint32
 	Ato            uint32
 	Snd_mss        uint32
@@ -497,9 +491,8 @@ type SockFilter struct {
 }
 
 type SockFprog struct {
-	Len       uint16
-	Pad_cgo_0 [6]byte
-	Filter    *SockFilter
+	Len    uint16
+	Filter *SockFilter
 }
 
 type InotifyEvent struct {
@@ -570,12 +563,11 @@ type Sysinfo_t struct {
 	Freeswap  uint64
 	Procs     uint16
 	Pad       uint16
-	Pad_cgo_0 [4]byte
 	Totalhigh uint64
 	Freehigh  uint64
 	Unit      uint32
-	X_f       [0]uint8
-	Pad_cgo_1 [4]byte
+	_         [0]uint8
+	_         [4]byte
 }
 
 type Utsname struct {
@@ -588,12 +580,11 @@ type Utsname struct {
 }
 
 type Ustat_t struct {
-	Tfree     int32
-	Pad_cgo_0 [4]byte
-	Tinode    uint64
-	Fname     [6]uint8
-	Fpack     [6]uint8
-	Pad_cgo_1 [4]byte
+	Tfree  int32
+	Tinode uint64
+	Fname  [6]uint8
+	Fpack  [6]uint8
+	_      [4]byte
 }
 
 type EpollEvent struct {
@@ -610,16 +601,21 @@ const (
 	_AT_EACCESS          = 0x200
 )
 
+type pollFd struct {
+	Fd      int32
+	Events  int16
+	Revents int16
+}
+
 type Termios struct {
-	Iflag     uint32
-	Oflag     uint32
-	Cflag     uint32
-	Lflag     uint32
-	Line      uint8
-	Cc        [32]uint8
-	Pad_cgo_0 [3]byte
-	Ispeed    uint32
-	Ospeed    uint32
+	Iflag  uint32
+	Oflag  uint32
+	Cflag  uint32
+	Lflag  uint32
+	Line   uint8
+	Cc     [19]uint8
+	Ispeed uint32
+	Ospeed uint32
 }
 
 const (

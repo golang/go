@@ -11,11 +11,11 @@ import (
 )
 
 func init() {
-	obj.RegisterRegister(obj.RBaseRISCV, REG_END, regName)
+	obj.RegisterRegister(obj.RBaseRISCV, REG_END, RegName)
 	obj.RegisterOpcode(obj.ABaseRISCV, Anames)
 }
 
-func regName(r int) string {
+func RegName(r int) string {
 	switch {
 	case r == 0:
 		return "NONE"

@@ -165,7 +165,7 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
 
 func check(t *testing.T, source, golden string, mode checkMode) {
 	// run the test
-	cc := make(chan int)
+	cc := make(chan int, 1)
 	go func() {
 		runcheck(t, source, golden, mode)
 		cc <- 0

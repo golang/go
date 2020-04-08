@@ -148,6 +148,62 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 	return
 }
 
+// runtime_expandFinalInlineFrame expands the final pc in stk to include all
+// "callers" if pc is inline.
+//
+//go:linkname runtime_expandFinalInlineFrame runtime/pprof.runtime_expandFinalInlineFrame
+func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr {
+	if len(stk) == 0 {
+		return stk
+	}
+	pc := stk[len(stk)-1]
+	tracepc := pc - 1
+
+	f := findfunc(tracepc)
+	if !f.valid() {
+		// Not a Go function.
+		return stk
+	}
+
+	inldata := funcdata(f, _FUNCDATA_InlTree)
+	if inldata == nil {
+		// Nothing inline in f.
+		return stk
+	}
+
+	// Treat the previous func as normal. We haven't actually checked, but
+	// since this pc was included in the stack, we know it shouldn't be
+	// elided.
+	lastFuncID := funcID_normal
+
+	// Remove pc from stk; we'll re-add it below.
+	stk = stk[:len(stk)-1]
+
+	// See inline expansion in gentraceback.
+	var cache pcvalueCache
+	inltree := (*[1 << 20]inlinedCall)(inldata)
+	for {
+		ix := pcdatavalue(f, _PCDATA_InlTreeIndex, tracepc, &cache)
+		if ix < 0 {
+			break
+		}
+		if inltree[ix].funcID == funcID_wrapper && elideWrapperCalling(lastFuncID) {
+			// ignore wrappers
+		} else {
+			stk = append(stk, pc)
+		}
+		lastFuncID = inltree[ix].funcID
+		// Back up to an instruction in the "caller".
+		tracepc = f.entry + uintptr(inltree[ix].parentPc)
+		pc = tracepc + 1
+	}
+
+	// N.B. we want to keep the last parentPC which is not inline.
+	stk = append(stk, pc)
+
+	return stk
+}
+
 // expandCgoFrames expands frame information for pc, known to be
 // a non-Go function, using the cgoSymbolizer hook. expandCgoFrames
 // returns nil if pc could not be expanded.
@@ -614,7 +670,15 @@ func findfunc(pc uintptr) funcInfo {
 			idx++
 		}
 	}
-	return funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[idx].funcoff])), datap}
+	funcoff := datap.ftab[idx].funcoff
+	if funcoff == ^uintptr(0) {
+		// With multiple text sections, there may be functions inserted by the external
+		// linker that are not known by Go. This means there may be holes in the PC
+		// range covered by the func table. The invalid funcoff value indicates a hole.
+		// See also cmd/link/internal/ld/pcln.go:pclntab
+		return funcInfo{}
+	}
+	return funcInfo{(*_func)(unsafe.Pointer(&datap.pclntable[funcoff])), datap}
 }
 
 type pcvalueCache struct {

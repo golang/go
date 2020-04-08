@@ -459,16 +459,16 @@ func readpesym(arch *sys.Arch, lookup func(string, int) *sym.Symbol, f *pe.File,
 		case sys.AMD64:
 			if name == "__imp___acrt_iob_func" {
 				// Do not rename __imp___acrt_iob_func into __acrt_iob_func,
-				// becasue __imp___acrt_iob_func symbol is real
-				// (see commit b295099 from git://git.code.sf.net/p/mingw-w64/mingw-w64 for detials).
+				// because __imp___acrt_iob_func symbol is real
+				// (see commit b295099 from git://git.code.sf.net/p/mingw-w64/mingw-w64 for details).
 			} else {
 				name = strings.TrimPrefix(name, "__imp_") // __imp_Name => Name
 			}
 		case sys.I386:
 			if name == "__imp____acrt_iob_func" {
 				// Do not rename __imp____acrt_iob_func into ___acrt_iob_func,
-				// becasue __imp____acrt_iob_func symbol is real
-				// (see commit b295099 from git://git.code.sf.net/p/mingw-w64/mingw-w64 for detials).
+				// because __imp____acrt_iob_func symbol is real
+				// (see commit b295099 from git://git.code.sf.net/p/mingw-w64/mingw-w64 for details).
 			} else {
 				name = strings.TrimPrefix(name, "__imp_") // __imp_Name => Name
 			}

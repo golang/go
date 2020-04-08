@@ -274,6 +274,15 @@ func (p *addrParser) parseAddressList() ([]*Address, error) {
 	var list []*Address
 	for {
 		p.skipSpace()
+
+		// allow skipping empty entries (RFC5322 obs-addr-list)
+		if p.consume(',') {
+			continue
+		}
+		if p.empty() {
+			break
+		}
+
 		addrs, err := p.parseAddress(true)
 		if err != nil {
 			return nil, err

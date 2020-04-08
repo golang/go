@@ -1,0 +1,17 @@
+# Plugins are only supported on linux,cgo and darwin,cgo.
+[!linux] [!darwin] skip
+[!cgo] skip
+
+go build -n testdep/p2
+! go build -buildmode=plugin testdep/p2
+stderr '-buildmode=plugin requires exactly one main package'
+
+-- testdep/p1/p1.go --
+package p1
+-- testdep/p1/p1_test.go --
+package p1
+
+import _ "testdep/p2"
+-- testdep/p2/p2.go --
+package p2
+

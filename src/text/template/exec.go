@@ -461,7 +461,8 @@ func (s *state) evalCommand(dot reflect.Value, cmd *parse.CommandNode, final ref
 		// Must be a function.
 		return s.evalFunction(dot, n, cmd, cmd.Args, final)
 	case *parse.PipeNode:
-		// Parenthesized pipeline. The arguments are all inside the pipeline; final is ignored.
+		// Parenthesized pipeline. The arguments are all inside the pipeline; final must be absent.
+		s.notAFunction(cmd.Args, final)
 		return s.evalPipeline(dot, n)
 	case *parse.VariableNode:
 		return s.evalVariableNode(dot, n, cmd.Args, final)

@@ -14,6 +14,7 @@ import (
 	"cmd/link/internal/mips"
 	"cmd/link/internal/mips64"
 	"cmd/link/internal/ppc64"
+	"cmd/link/internal/riscv64"
 	"cmd/link/internal/s390x"
 	"cmd/link/internal/wasm"
 	"cmd/link/internal/x86"
@@ -57,6 +58,8 @@ func main() {
 		arch, theArch = mips64.Init()
 	case "ppc64", "ppc64le":
 		arch, theArch = ppc64.Init()
+	case "riscv64":
+		arch, theArch = riscv64.Init()
 	case "s390x":
 		arch, theArch = s390x.Init()
 	case "wasm":

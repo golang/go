@@ -22,10 +22,7 @@ func poly1305vx(out *[16]byte, m *byte, mlen uint64, key *[32]byte)
 //go:noescape
 func poly1305vmsl(out *[16]byte, m *byte, mlen uint64, key *[32]byte)
 
-// Sum generates an authenticator for m using a one-time key and puts the
-// 16-byte result into out. Authenticating two different messages with the same
-// key allows an attacker to forge messages at will.
-func Sum(out *[16]byte, m []byte, key *[32]byte) {
+func sum(out *[16]byte, m []byte, key *[32]byte) {
 	if cpu.S390X.HasVX {
 		var mPtr *byte
 		if len(m) > 0 {

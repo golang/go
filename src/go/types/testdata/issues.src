@@ -4,8 +4,12 @@
 
 package issues
 
-import "fmt"
-import syn "cmd/compile/internal/syntax"
+import (
+	"fmt"
+	syn "cmd/compile/internal/syntax"
+	t1 "text/template"
+	t2 "html/template"
+)
 
 func issue7035() {
 	type T struct{ X int }
@@ -316,7 +320,7 @@ func issue28281g() (... /* ERROR expected type */ TT)
 
 // Issue #26234: Make various field/method lookup errors easier to read by matching cmd/compile's output
 func issue26234a(f *syn.File) {
-	// The error message below should refer to the actual package path base (syntax)
+	// The error message below should refer to the actual package name (syntax)
 	// not the local package name (syn).
 	f.foo /* ERROR f.foo undefined \(type \*syntax.File has no field or method foo\) */
 }
@@ -336,4 +340,16 @@ func issue26234b(x T) {
 
 func issue26234c() {
 	T.x /* ERROR T.x undefined \(type T has no method x\) */ ()
+}
+
+func issue35895() {
+	// T is defined in this package, don't qualify its name with the package name.
+	var _ T = 0 // ERROR cannot convert 0 \(untyped int constant\) to T
+
+	// There is only one package with name syntax imported, only use the (global) package name in error messages.
+	var _ *syn.File = 0 // ERROR cannot convert 0 \(untyped int constant\) to \*syntax.File
+
+	// Because both t1 and t2 have the same global package name (template),
+	// qualify packages with full path name in this case.
+	var _ t1.Template = t2 /* ERROR cannot use .* \(value of type "html/template".Template\) as "text/template".Template */ .Template{}
 }

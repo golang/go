@@ -89,7 +89,7 @@ const DefaultMaxIdleConnsPerHost = 2
 // Request.GetBody defined. HTTP requests are considered idempotent if
 // they have HTTP methods GET, HEAD, OPTIONS, or TRACE; or if their
 // Header map contains an "Idempotency-Key" or "X-Idempotency-Key"
-// entry. If the idempotency key value is an zero-length slice, the
+// entry. If the idempotency key value is a zero-length slice, the
 // request is treated as idempotent but the header is not sent on the
 // wire.
 type Transport struct {
@@ -469,6 +469,17 @@ func (t *Transport) useRegisteredProtocol(req *Request) bool {
 	return true
 }
 
+// alternateRoundTripper returns the alternate RoundTripper to use
+// for this request if the Request's URL scheme requires one,
+// or nil for the normal case of using the Transport.
+func (t *Transport) alternateRoundTripper(req *Request) RoundTripper {
+	if !t.useRegisteredProtocol(req) {
+		return nil
+	}
+	altProto, _ := t.altProto.Load().(map[string]RoundTripper)
+	return altProto[req.URL.Scheme]
+}
+
 // roundTrip implements a RoundTripper over HTTP.
 func (t *Transport) roundTrip(req *Request) (*Response, error) {
 	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
@@ -500,12 +511,9 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		}
 	}
 
-	if t.useRegisteredProtocol(req) {
-		altProto, _ := t.altProto.Load().(map[string]RoundTripper)
-		if altRT := altProto[scheme]; altRT != nil {
-			if resp, err := altRT.RoundTrip(req); err != ErrSkipAltProtocol {
-				return resp, err
-			}
+	if altRT := t.alternateRoundTripper(req); altRT != nil {
+		if resp, err := altRT.RoundTrip(req); err != ErrSkipAltProtocol {
+			return resp, err
 		}
 	}
 	if !isHTTP {
@@ -561,14 +569,11 @@ func (t *Transport) roundTrip(req *Request) (*Response, error) {
 		}
 
 		// Failed. Clean up and determine whether to retry.
-
-		_, isH2DialError := pconn.alt.(http2erringRoundTripper)
-		if http2isNoCachedConnError(err) || isH2DialError {
+		if http2isNoCachedConnError(err) {
 			if t.removeIdleConn(pconn) {
 				t.decConnsPerHost(pconn.cacheKey)
 			}
-		}
-		if !pconn.shouldRetryRequest(req, err) {
+		} else if !pconn.shouldRetryRequest(req, err) {
 			// Issue 16465: return underlying net.Conn.Read error from peek,
 			// as we've historically done.
 			if e, ok := err.(transportReadFromServerError); ok {
@@ -929,16 +934,37 @@ func (t *Transport) queueForIdleConn(w *wantConn) (delivered bool) {
 		return false
 	}
 
+	// If IdleConnTimeout is set, calculate the oldest
+	// persistConn.idleAt time we're willing to use a cached idle
+	// conn.
+	var oldTime time.Time
+	if t.IdleConnTimeout > 0 {
+		oldTime = time.Now().Add(-t.IdleConnTimeout)
+	}
+
 	// Look for most recently-used idle connection.
 	if list, ok := t.idleConn[w.key]; ok {
 		stop := false
 		delivered := false
 		for len(list) > 0 && !stop {
 			pconn := list[len(list)-1]
-			if pconn.isBroken() {
-				// persistConn.readLoop has marked the connection broken,
-				// but Transport.removeIdleConn has not yet removed it from the idle list.
-				// Drop on floor on behalf of Transport.removeIdleConn.
+
+			// See whether this connection has been idle too long, considering
+			// only the wall time (the Round(0)), in case this is a laptop or VM
+			// coming out of suspend with previously cached idle connections.
+			tooOld := !oldTime.IsZero() && pconn.idleAt.Round(0).Before(oldTime)
+			if tooOld {
+				// Async cleanup. Launch in its own goroutine (as if a
+				// time.AfterFunc called it); it acquires idleMu, which we're
+				// holding, and does a synchronous net.Conn.Close.
+				go pconn.closeConnIfStillIdle()
+			}
+			if pconn.isBroken() || tooOld {
+				// If either persistConn.readLoop has marked the connection
+				// broken, but Transport.removeIdleConn has not yet removed it
+				// from the idle list, or if this persistConn is too old (it was
+				// idle too long), then ignore it and look for another. In both
+				// cases it's already in the process of being closed.
 				list = list[:len(list)-1]
 				continue
 			}
@@ -1538,22 +1564,54 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 		if hdr == nil {
 			hdr = make(Header)
 		}
+		if pa := cm.proxyAuth(); pa != "" {
+			hdr = hdr.Clone()
+			hdr.Set("Proxy-Authorization", pa)
+		}
 		connectReq := &Request{
 			Method: "CONNECT",
 			URL:    &url.URL{Opaque: cm.targetAddr},
 			Host:   cm.targetAddr,
 			Header: hdr,
 		}
-		if pa := cm.proxyAuth(); pa != "" {
-			connectReq.Header.Set("Proxy-Authorization", pa)
-		}
-		connectReq.Write(conn)
 
-		// Read response.
-		// Okay to use and discard buffered reader here, because
-		// TLS server will not speak until spoken to.
-		br := bufio.NewReader(conn)
-		resp, err := ReadResponse(br, connectReq)
+		// If there's no done channel (no deadline or cancellation
+		// from the caller possible), at least set some (long)
+		// timeout here. This will make sure we don't block forever
+		// and leak a goroutine if the connection stops replying
+		// after the TCP connect.
+		connectCtx := ctx
+		if ctx.Done() == nil {
+			newCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+			defer cancel()
+			connectCtx = newCtx
+		}
+
+		didReadResponse := make(chan struct{}) // closed after CONNECT write+read is done or fails
+		var (
+			resp *Response
+			err  error // write or read error
+		)
+		// Write the CONNECT request & read the response.
+		go func() {
+			defer close(didReadResponse)
+			err = connectReq.Write(conn)
+			if err != nil {
+				return
+			}
+			// Okay to use and discard buffered reader here, because
+			// TLS server will not speak until spoken to.
+			br := bufio.NewReader(conn)
+			resp, err = ReadResponse(br, connectReq)
+		}()
+		select {
+		case <-connectCtx.Done():
+			conn.Close()
+			<-didReadResponse
+			return nil, connectCtx.Err()
+		case <-didReadResponse:
+			// resp or err now set
+		}
 		if err != nil {
 			conn.Close()
 			return nil, err
@@ -1576,7 +1634,12 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
 
 	if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {
 		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok {
-			return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: next(cm.targetAddr, pconn.conn.(*tls.Conn))}, nil
+			alt := next(cm.targetAddr, pconn.conn.(*tls.Conn))
+			if e, ok := alt.(http2erringRoundTripper); ok {
+				// pconn.conn was closed by next (http2configureTransport.upgradeFn).
+				return nil, e.err
+			}
+			return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: alt}, nil
 		}
 	}
 

@@ -347,9 +347,10 @@ func nlz(x int64) int64 {
 }
 
 // ntz returns the number of trailing zeros.
-func ntz(x int64) int64 {
-	return int64(bits.TrailingZeros64(uint64(x)))
-}
+func ntz(x int64) int64   { return int64(bits.TrailingZeros64(uint64(x))) }
+func ntz32(x int64) int64 { return int64(bits.TrailingZeros32(uint32(x))) }
+func ntz16(x int64) int64 { return int64(bits.TrailingZeros16(uint16(x))) }
+func ntz8(x int64) int64  { return int64(bits.TrailingZeros8(uint8(x))) }
 
 func oneBit(x int64) bool {
 	return bits.OnesCount64(uint64(x)) == 1
@@ -480,18 +481,24 @@ func extend32Fto64F(f float32) float64 {
 	return math.Float64frombits(r)
 }
 
-// NeedsFixUp reports whether the division needs fix-up code.
-func NeedsFixUp(v *Value) bool {
+// DivisionNeedsFixUp reports whether the division needs fix-up code.
+func DivisionNeedsFixUp(v *Value) bool {
 	return v.AuxInt == 0
 }
 
 // auxFrom64F encodes a float64 value so it can be stored in an AuxInt.
 func auxFrom64F(f float64) int64 {
+	if f != f {
+		panic("can't encode a NaN in AuxInt field")
+	}
 	return int64(math.Float64bits(f))
 }
 
 // auxFrom32F encodes a float32 value so it can be stored in an AuxInt.
 func auxFrom32F(f float32) int64 {
+	if f != f {
+		panic("can't encode a NaN in AuxInt field")
+	}
 	return int64(math.Float64bits(extend32Fto64F(f)))
 }
 
@@ -663,13 +670,15 @@ found:
 	return nil // too far away
 }
 
-// clobber invalidates v.  Returns true.
+// clobber invalidates values. Returns true.
 // clobber is used by rewrite rules to:
-//   A) make sure v is really dead and never used again.
-//   B) decrement use counts of v's args.
-func clobber(v *Value) bool {
-	v.reset(OpInvalid)
-	// Note: leave v.Block intact.  The Block field is used after clobber.
+//   A) make sure the values are really dead and never used again.
+//   B) decrement use counts of the values' args.
+func clobber(vv ...*Value) bool {
+	for _, v := range vv {
+		v.reset(OpInvalid)
+		// Note: leave v.Block intact.  The Block field is used after clobber.
+	}
 	return true
 }
 
@@ -982,7 +991,9 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 		OpAMD64ORLload, OpAMD64XORLload, OpAMD64CVTTSD2SL,
 		OpAMD64ADDL, OpAMD64ADDLconst, OpAMD64SUBL, OpAMD64SUBLconst,
 		OpAMD64ANDL, OpAMD64ANDLconst, OpAMD64ORL, OpAMD64ORLconst,
-		OpAMD64XORL, OpAMD64XORLconst, OpAMD64NEGL, OpAMD64NOTL:
+		OpAMD64XORL, OpAMD64XORLconst, OpAMD64NEGL, OpAMD64NOTL,
+		OpAMD64SHRL, OpAMD64SHRLconst, OpAMD64SARL, OpAMD64SARLconst,
+		OpAMD64SHLL, OpAMD64SHLLconst:
 		return true
 	case OpArg:
 		return x.Type.Width == 4
@@ -1203,40 +1214,64 @@ func read8(sym interface{}, off int64) uint8 {
 }
 
 // read16 reads two bytes from the read-only global sym at offset off.
-func read16(sym interface{}, off int64, bigEndian bool) uint16 {
+func read16(sym interface{}, off int64, byteorder binary.ByteOrder) uint16 {
 	lsym := sym.(*obj.LSym)
-	if off >= int64(len(lsym.P))-1 || off < 0 {
-		return 0
+	// lsym.P is written lazily.
+	// Bytes requested after the end of lsym.P are 0.
+	var src []byte
+	if 0 <= off && off < int64(len(lsym.P)) {
+		src = lsym.P[off:]
 	}
-	if bigEndian {
-		return binary.BigEndian.Uint16(lsym.P[off:])
-	} else {
-		return binary.LittleEndian.Uint16(lsym.P[off:])
-	}
+	buf := make([]byte, 2)
+	copy(buf, src)
+	return byteorder.Uint16(buf)
 }
 
 // read32 reads four bytes from the read-only global sym at offset off.
-func read32(sym interface{}, off int64, bigEndian bool) uint32 {
+func read32(sym interface{}, off int64, byteorder binary.ByteOrder) uint32 {
 	lsym := sym.(*obj.LSym)
-	if off >= int64(len(lsym.P))-3 || off < 0 {
-		return 0
+	var src []byte
+	if 0 <= off && off < int64(len(lsym.P)) {
+		src = lsym.P[off:]
 	}
-	if bigEndian {
-		return binary.BigEndian.Uint32(lsym.P[off:])
-	} else {
-		return binary.LittleEndian.Uint32(lsym.P[off:])
-	}
+	buf := make([]byte, 4)
+	copy(buf, src)
+	return byteorder.Uint32(buf)
 }
 
 // read64 reads eight bytes from the read-only global sym at offset off.
-func read64(sym interface{}, off int64, bigEndian bool) uint64 {
+func read64(sym interface{}, off int64, byteorder binary.ByteOrder) uint64 {
 	lsym := sym.(*obj.LSym)
-	if off >= int64(len(lsym.P))-7 || off < 0 {
-		return 0
+	var src []byte
+	if 0 <= off && off < int64(len(lsym.P)) {
+		src = lsym.P[off:]
 	}
-	if bigEndian {
-		return binary.BigEndian.Uint64(lsym.P[off:])
-	} else {
-		return binary.LittleEndian.Uint64(lsym.P[off:])
+	buf := make([]byte, 8)
+	copy(buf, src)
+	return byteorder.Uint64(buf)
+}
+
+// sequentialAddresses reports true if it can prove that x + n == y
+func sequentialAddresses(x, y *Value, n int64) bool {
+	if x.Op == Op386ADDL && y.Op == Op386LEAL1 && y.AuxInt == n && y.Aux == nil &&
+		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
+			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
+		return true
 	}
+	if x.Op == Op386LEAL1 && y.Op == Op386LEAL1 && y.AuxInt == x.AuxInt+n && x.Aux == y.Aux &&
+		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
+			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
+		return true
+	}
+	if x.Op == OpAMD64ADDQ && y.Op == OpAMD64LEAQ1 && y.AuxInt == n && y.Aux == nil &&
+		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
+			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
+		return true
+	}
+	if x.Op == OpAMD64LEAQ1 && y.Op == OpAMD64LEAQ1 && y.AuxInt == x.AuxInt+n && x.Aux == y.Aux &&
+		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
+			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
+		return true
+	}
+	return false
 }

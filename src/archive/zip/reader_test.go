@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"internal/obscuretestdata"
 	"io"
 	"io/ioutil"
 	"os"
@@ -19,11 +20,12 @@ import (
 )
 
 type ZipTest struct {
-	Name    string
-	Source  func() (r io.ReaderAt, size int64) // if non-nil, used instead of testdata/<Name> file
-	Comment string
-	File    []ZipTestFile
-	Error   error // the error that Opening this file should return
+	Name     string
+	Source   func() (r io.ReaderAt, size int64) // if non-nil, used instead of testdata/<Name> file
+	Comment  string
+	File     []ZipTestFile
+	Obscured bool  // needed for Apple notarization (golang.org/issue/34986)
+	Error    error // the error that Opening this file should return
 }
 
 type ZipTestFile struct {
@@ -189,8 +191,12 @@ var tests = []ZipTest{
 	},
 	{
 		// created by Go, before we wrote the "optional" data
-		// descriptor signatures (which are required by OS X)
-		Name: "go-no-datadesc-sig.zip",
+		// descriptor signatures (which are required by macOS).
+		// Use obscured file to avoid Apple’s notarization service
+		// rejecting the toolchain due to an inability to unzip this archive.
+		// See golang.org/issue/34986
+		Name:     "go-no-datadesc-sig.zip.base64",
+		Obscured: true,
 		File: []ZipTestFile{
 			{
 				Name:     "foo.txt",
@@ -208,7 +214,7 @@ var tests = []ZipTest{
 	},
 	{
 		// created by Go, after we wrote the "optional" data
-		// descriptor signatures (which are required by OS X)
+		// descriptor signatures (which are required by macOS)
 		Name: "go-with-datadesc-sig.zip",
 		File: []ZipTestFile{
 			{
@@ -496,8 +502,18 @@ func readTestZip(t *testing.T, zt ZipTest) {
 		rat, size := zt.Source()
 		z, err = NewReader(rat, size)
 	} else {
+		path := filepath.Join("testdata", zt.Name)
+		if zt.Obscured {
+			tf, err := obscuretestdata.DecodeToTempFile(path)
+			if err != nil {
+				t.Errorf("obscuretestdata.DecodeToTempFile(%s): %v", path, err)
+				return
+			}
+			defer os.Remove(tf)
+			path = tf
+		}
 		var rc *ReadCloser
-		rc, err = OpenReader(filepath.Join("testdata", zt.Name))
+		rc, err = OpenReader(path)
 		if err == nil {
 			defer rc.Close()
 			z = &rc.Reader

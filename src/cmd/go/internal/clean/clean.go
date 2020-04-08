@@ -178,7 +178,9 @@ func runClean(cmd *base.Command, args []string) {
 				}
 			}
 			if err != nil {
-				base.Errorf("go clean -testcache: %v", err)
+				if _, statErr := os.Stat(dir); !os.IsNotExist(statErr) {
+					base.Errorf("go clean -testcache: %v", err)
+				}
 			}
 		}
 	}
@@ -230,7 +232,7 @@ func clean(p *load.Package) {
 	cleaned[p] = true
 
 	if p.Dir == "" {
-		base.Errorf("can't load package: %v", p.Error)
+		base.Errorf("%v", p.Error)
 		return
 	}
 	dirs, err := ioutil.ReadDir(p.Dir)

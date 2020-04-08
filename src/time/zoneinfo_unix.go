@@ -34,7 +34,7 @@ func initLocal() {
 	tz, ok := syscall.Getenv("TZ")
 	switch {
 	case !ok:
-		z, err := loadLocation("localtime", []string{"/etc/"})
+		z, err := loadLocation("localtime", []string{"/etc"})
 		if err == nil {
 			localLoc = *z
 			localLoc.name = "Local"

@@ -2,16 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// We skip this test in race mode because, for unknown reasons,
-// linking against CoreFoundation on macOS 10.10 causes mmap to ignore
-// the hint address, which makes the Go allocator incompatible with
-// TSAN. See golang.org/issue/26475.
-//
-// TODO(austin): Once support for macOS 10.10 is dropped, remove the
-// race constraint (and the one in issue21897b.go). See
-// golang.org/issue/26513.
-
-// +build darwin,cgo,!internal,!race
+// +build darwin,cgo,!internal
 
 package cgotest
 

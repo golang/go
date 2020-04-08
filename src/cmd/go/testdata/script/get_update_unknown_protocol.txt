@@ -1,0 +1,13 @@
+[!net] skip
+[!exec:git] skip
+
+# Clone the repo via HTTPS manually.
+exec git clone -q https://github.com/golang/example github.com/golang/example
+
+# Configure the repo to use a protocol unknown to cmd/go
+# that still actually works.
+cd github.com/golang/example
+exec git remote set-url origin xyz://github.com/golang/example
+exec git config --local url.https://github.com/.insteadOf xyz://github.com/
+
+go get -d -u -f github.com/golang/example/hello

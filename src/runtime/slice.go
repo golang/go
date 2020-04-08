@@ -16,7 +16,7 @@ type slice struct {
 	cap   int
 }
 
-// An notInHeapSlice is a slice backed by go:notinheap memory.
+// A notInHeapSlice is a slice backed by go:notinheap memory.
 type notInHeapSlice struct {
 	array *notInHeap
 	len   int
@@ -211,12 +211,12 @@ func slicecopy(to, fm slice, width uintptr) int {
 	if raceenabled {
 		callerpc := getcallerpc()
 		pc := funcPC(slicecopy)
-		racewriterangepc(to.array, uintptr(n*int(width)), callerpc, pc)
 		racereadrangepc(fm.array, uintptr(n*int(width)), callerpc, pc)
+		racewriterangepc(to.array, uintptr(n*int(width)), callerpc, pc)
 	}
 	if msanenabled {
-		msanwrite(to.array, uintptr(n*int(width)))
 		msanread(fm.array, uintptr(n*int(width)))
+		msanwrite(to.array, uintptr(n*int(width)))
 	}
 
 	size := uintptr(n) * width

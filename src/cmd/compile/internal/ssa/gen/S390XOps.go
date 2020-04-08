@@ -181,6 +181,7 @@ func init() {
 		fpgp        = regInfo{inputs: fponly, outputs: gponly}
 		gpfp        = regInfo{inputs: gponly, outputs: fponly}
 		fp11        = regInfo{inputs: fponly, outputs: fponly}
+		fp1flags    = regInfo{inputs: []regMask{fp}}
 		fp11clobber = regInfo{inputs: fponly, outputs: fponly}
 		fp2flags    = regInfo{inputs: []regMask{fp, fp}}
 
@@ -324,8 +325,10 @@ func init() {
 		{name: "CMPUconst", argLength: 1, reg: gp1flags, asm: "CMPU", typ: "Flags", aux: "Int32"},   // arg0 compare to auxint
 		{name: "CMPWUconst", argLength: 1, reg: gp1flags, asm: "CMPWU", typ: "Flags", aux: "Int32"}, // arg0 compare to auxint
 
-		{name: "FCMPS", argLength: 2, reg: fp2flags, asm: "CEBR", typ: "Flags"}, // arg0 compare to arg1, f32
-		{name: "FCMP", argLength: 2, reg: fp2flags, asm: "FCMPU", typ: "Flags"}, // arg0 compare to arg1, f64
+		{name: "FCMPS", argLength: 2, reg: fp2flags, asm: "CEBR", typ: "Flags"},  // arg0 compare to arg1, f32
+		{name: "FCMP", argLength: 2, reg: fp2flags, asm: "FCMPU", typ: "Flags"},  // arg0 compare to arg1, f64
+		{name: "LTDBR", argLength: 1, reg: fp1flags, asm: "LTDBR", typ: "Flags"}, // arg0 compare to 0, f64
+		{name: "LTEBR", argLength: 1, reg: fp1flags, asm: "LTEBR", typ: "Flags"}, // arg0 compare to 0, f32
 
 		{name: "SLD", argLength: 2, reg: sh21, asm: "SLD"},                   // arg0 << arg1, shift amount is mod 64
 		{name: "SLW", argLength: 2, reg: sh21, asm: "SLW"},                   // arg0 << arg1, shift amount is mod 32
@@ -401,8 +404,17 @@ func init() {
 		{name: "CDFBRA", argLength: 1, reg: gpfp, asm: "CDFBRA"}, // convert int32 to float64
 		{name: "CEGBRA", argLength: 1, reg: gpfp, asm: "CEGBRA"}, // convert int64 to float32
 		{name: "CDGBRA", argLength: 1, reg: gpfp, asm: "CDGBRA"}, // convert int64 to float64
-		{name: "LEDBR", argLength: 1, reg: fp11, asm: "LEDBR"},   // convert float64 to float32
-		{name: "LDEBR", argLength: 1, reg: fp11, asm: "LDEBR"},   // convert float32 to float64
+		{name: "CLFEBR", argLength: 1, reg: fpgp, asm: "CLFEBR"}, // convert float32 to uint32
+		{name: "CLFDBR", argLength: 1, reg: fpgp, asm: "CLFDBR"}, // convert float64 to uint32
+		{name: "CLGEBR", argLength: 1, reg: fpgp, asm: "CLGEBR"}, // convert float32 to uint64
+		{name: "CLGDBR", argLength: 1, reg: fpgp, asm: "CLGDBR"}, // convert float64 to uint64
+		{name: "CELFBR", argLength: 1, reg: gpfp, asm: "CELFBR"}, // convert uint32 to float32
+		{name: "CDLFBR", argLength: 1, reg: gpfp, asm: "CDLFBR"}, // convert uint32 to float64
+		{name: "CELGBR", argLength: 1, reg: gpfp, asm: "CELGBR"}, // convert uint64 to float32
+		{name: "CDLGBR", argLength: 1, reg: gpfp, asm: "CDLGBR"}, // convert uint64 to float64
+
+		{name: "LEDBR", argLength: 1, reg: fp11, asm: "LEDBR"}, // convert float64 to float32
+		{name: "LDEBR", argLength: 1, reg: fp11, asm: "LDEBR"}, // convert float32 to float64
 
 		{name: "MOVDaddr", argLength: 1, reg: addr, aux: "SymOff", rematerializeable: true, symEffect: "Read"}, // arg0 + auxint + offset encoded in aux
 		{name: "MOVDaddridx", argLength: 2, reg: addridx, aux: "SymOff", symEffect: "Read"},                    // arg0 + arg1 + auxint + aux
@@ -618,6 +630,7 @@ func init() {
 			asm:            "STMG",
 			faultOnNilArg0: true,
 			symEffect:      "Write",
+			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
 		},
 		{
 			name:           "STMG3",
@@ -628,6 +641,7 @@ func init() {
 			asm:            "STMG",
 			faultOnNilArg0: true,
 			symEffect:      "Write",
+			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
 		},
 		{
 			name:      "STMG4",
@@ -645,6 +659,7 @@ func init() {
 			asm:            "STMG",
 			faultOnNilArg0: true,
 			symEffect:      "Write",
+			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
 		},
 		{
 			name:           "STM2",
@@ -655,6 +670,7 @@ func init() {
 			asm:            "STMY",
 			faultOnNilArg0: true,
 			symEffect:      "Write",
+			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
 		},
 		{
 			name:           "STM3",
@@ -665,6 +681,7 @@ func init() {
 			asm:            "STMY",
 			faultOnNilArg0: true,
 			symEffect:      "Write",
+			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
 		},
 		{
 			name:      "STM4",
@@ -682,6 +699,7 @@ func init() {
 			asm:            "STMY",
 			faultOnNilArg0: true,
 			symEffect:      "Write",
+			clobberFlags:   true, // TODO(mundaym): currently uses AGFI to handle large offsets
 		},
 
 		// large move

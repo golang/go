@@ -162,7 +162,7 @@ func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, e
 		// of IP node.
 		//
 		// When the IP node supports IPv4-mapped IPv6 address,
-		// we allow an listener to listen to the wildcard
+		// we allow a listener to listen to the wildcard
 		// address of both IP addressing spaces by specifying
 		// IPv6 wildcard address.
 		if len(ip) == 0 || ip.Equal(IPv4zero) {

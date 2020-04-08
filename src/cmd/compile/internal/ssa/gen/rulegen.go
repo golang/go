@@ -22,6 +22,7 @@ import (
 	"go/printer"
 	"go/token"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -54,7 +55,10 @@ import (
 
 // If multiple rules match, the first one in file order is selected.
 
-var genLog = flag.Bool("log", false, "generate code that logs; for debugging only")
+var (
+	genLog  = flag.Bool("log", false, "generate code that logs; for debugging only")
+	addLine = flag.Bool("line", false, "add line number comment to generated rules; for debugging only")
+)
 
 type Rule struct {
 	rule string
@@ -137,18 +141,16 @@ func genRulesSuffix(arch arch, suff string) {
 
 		loc := fmt.Sprintf("%s%s.rules:%d", arch.name, suff, ruleLineno)
 		for _, rule2 := range expandOr(rule) {
-			for _, rule3 := range commute(rule2, arch) {
-				r := Rule{rule: rule3, loc: loc}
-				if rawop := strings.Split(rule3, " ")[0][1:]; isBlock(rawop, arch) {
-					blockrules[rawop] = append(blockrules[rawop], r)
-					continue
-				}
-				// Do fancier value op matching.
-				match, _, _ := r.parse()
-				op, oparch, _, _, _, _ := parseValue(match, arch, loc)
-				opname := fmt.Sprintf("Op%s%s", oparch, op.name)
-				oprules[opname] = append(oprules[opname], r)
+			r := Rule{rule: rule2, loc: loc}
+			if rawop := strings.Split(rule2, " ")[0][1:]; isBlock(rawop, arch) {
+				blockrules[rawop] = append(blockrules[rawop], r)
+				continue
 			}
+			// Do fancier value op matching.
+			match, _, _ := r.parse()
+			op, oparch, _, _, _, _ := parseValue(match, arch, loc)
+			opname := fmt.Sprintf("Op%s%s", oparch, op.name)
+			oprules[opname] = append(oprules[opname], r)
 		}
 		rule = ""
 		ruleLineno = 0
@@ -168,18 +170,22 @@ func genRulesSuffix(arch arch, suff string) {
 	sort.Strings(ops)
 
 	genFile := &File{arch: arch, suffix: suff}
-	const chunkSize = 10
 	// Main rewrite routine is a switch on v.Op.
-	fn := &Func{kind: "Value"}
+	fn := &Func{kind: "Value", arglen: -1}
 
 	sw := &Switch{expr: exprf("v.Op")}
 	for _, op := range ops {
-		var ors []string
-		for chunk := 0; chunk < len(oprules[op]); chunk += chunkSize {
-			ors = append(ors, fmt.Sprintf("rewriteValue%s%s_%s_%d(v)", arch.name, suff, op, chunk))
+		eop, ok := parseEllipsisRules(oprules[op], arch)
+		if ok {
+			swc := &Case{expr: exprf(op)}
+			swc.add(stmtf("v.Op = %s", eop))
+			swc.add(stmtf("return true"))
+			sw.add(swc)
+			continue
 		}
+
 		swc := &Case{expr: exprf(op)}
-		swc.add(stmtf("return %s", strings.Join(ors, " || ")))
+		swc.add(stmtf("return rewriteValue%s%s_%s(v)", arch.name, suff, op))
 		sw.add(swc)
 	}
 	fn.add(sw)
@@ -190,47 +196,46 @@ func genRulesSuffix(arch arch, suff string) {
 	// because it is too big for some compilers.
 	for _, op := range ops {
 		rules := oprules[op]
-		// rr is kept between chunks, so that a following chunk checks
-		// that the previous one ended with a rule that wasn't
-		// unconditional.
-		var rr *RuleRewrite
-		for chunk := 0; chunk < len(rules); chunk += chunkSize {
-			endchunk := chunk + chunkSize
-			if endchunk > len(rules) {
-				endchunk = len(rules)
-			}
-			fn := &Func{
-				kind:   "Value",
-				suffix: fmt.Sprintf("_%s_%d", op, chunk),
-			}
-			fn.add(declf("b", "v.Block"))
-			fn.add(declf("config", "b.Func.Config"))
-			fn.add(declf("fe", "b.Func.fe"))
-			fn.add(declf("typ", "&b.Func.Config.Types"))
-			for _, rule := range rules[chunk:endchunk] {
-				if rr != nil && !rr.canFail {
-					log.Fatalf("unconditional rule %s is followed by other rules", rr.match)
-				}
-				rr = &RuleRewrite{loc: rule.loc}
-				rr.match, rr.cond, rr.result = rule.parse()
-				pos, _ := genMatch(rr, arch, rr.match)
-				if pos == "" {
-					pos = "v.Pos"
-				}
-				if rr.cond != "" {
-					rr.add(breakf("!(%s)", rr.cond))
-				}
-				genResult(rr, arch, rr.result, pos)
-				if *genLog {
-					rr.add(stmtf("logRule(%q)", rule.loc))
-				}
-				fn.add(rr)
-			}
-			if rr.canFail {
-				fn.add(stmtf("return false"))
-			}
-			genFile.add(fn)
+		_, ok := parseEllipsisRules(oprules[op], arch)
+		if ok {
+			continue
 		}
+
+		// rr is kept between iterations, so that each rule can check
+		// that the previous rule wasn't unconditional.
+		var rr *RuleRewrite
+		fn := &Func{
+			kind:   "Value",
+			suffix: fmt.Sprintf("_%s", op),
+			arglen: opByName(arch, op).argLength,
+		}
+		fn.add(declf("b", "v.Block"))
+		fn.add(declf("config", "b.Func.Config"))
+		fn.add(declf("fe", "b.Func.fe"))
+		fn.add(declf("typ", "&b.Func.Config.Types"))
+		for _, rule := range rules {
+			if rr != nil && !rr.canFail {
+				log.Fatalf("unconditional rule %s is followed by other rules", rr.match)
+			}
+			rr = &RuleRewrite{loc: rule.loc}
+			rr.match, rr.cond, rr.result = rule.parse()
+			pos, _ := genMatch(rr, arch, rr.match, fn.arglen >= 0)
+			if pos == "" {
+				pos = "v.Pos"
+			}
+			if rr.cond != "" {
+				rr.add(breakf("!(%s)", rr.cond))
+			}
+			genResult(rr, arch, rr.result, pos)
+			if *genLog {
+				rr.add(stmtf("logRule(%q)", rule.loc))
+			}
+			fn.add(rr)
+		}
+		if rr.canFail {
+			fn.add(stmtf("return false"))
+		}
+		genFile.add(fn)
 	}
 
 	// Generate block rewrite function. There are only a few block types
@@ -263,7 +268,13 @@ func genRulesSuffix(arch arch, suff string) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, "", buf, parser.ParseComments)
 	if err != nil {
-		log.Fatal(err)
+		filename := fmt.Sprintf("%s_broken.go", arch.name)
+		if err := ioutil.WriteFile(filename, buf.Bytes(), 0644); err != nil {
+			log.Printf("failed to dump broken code to %s: %v", filename, err)
+		} else {
+			log.Printf("dumped broken code to %s", filename)
+		}
+		log.Fatalf("failed to parse generated code for arch %s: %v", arch.name, err)
 	}
 	tfile := fset.File(file.Pos())
 
@@ -375,23 +386,13 @@ func (u *unusedInspector) exprs(list []ast.Expr) {
 	}
 }
 
-func (u *unusedInspector) stmts(list []ast.Stmt) {
-	for _, x := range list {
-		u.node(x)
-	}
-}
-
-func (u *unusedInspector) decls(list []ast.Decl) {
-	for _, x := range list {
-		u.node(x)
-	}
-}
-
 func (u *unusedInspector) node(node ast.Node) {
 	switch node := node.(type) {
 	case *ast.File:
 		defer u.scoped()()
-		u.decls(node.Decls)
+		for _, decl := range node.Decls {
+			u.node(decl)
+		}
 	case *ast.GenDecl:
 		for _, spec := range node.Specs {
 			u.node(spec)
@@ -426,7 +427,9 @@ func (u *unusedInspector) node(node ast.Node) {
 
 	case *ast.BlockStmt:
 		defer u.scoped()()
-		u.stmts(node.List)
+		for _, stmt := range node.List {
+			u.node(stmt)
+		}
 	case *ast.IfStmt:
 		if node.Init != nil {
 			u.node(node.Init)
@@ -458,7 +461,9 @@ func (u *unusedInspector) node(node ast.Node) {
 	case *ast.CaseClause:
 		u.exprs(node.List)
 		defer u.scoped()()
-		u.stmts(node.Body)
+		for _, stmt := range node.Body {
+			u.node(stmt)
+		}
 	case *ast.BranchStmt:
 	case *ast.ExprStmt:
 		u.node(node.X)
@@ -486,6 +491,8 @@ func (u *unusedInspector) node(node ast.Node) {
 		u.scope.objects[name.Name] = obj
 	case *ast.ReturnStmt:
 		u.exprs(node.Results)
+	case *ast.IncDecStmt:
+		u.node(node.X)
 
 	// expressions
 
@@ -551,6 +558,8 @@ type object struct {
 func fprint(w io.Writer, n Node) {
 	switch n := n.(type) {
 	case *File:
+		file := n
+		seenRewrite := make(map[[3]string]string)
 		fmt.Fprintf(w, "// Code generated from gen/%s%s.rules; DO NOT EDIT.\n", n.arch.name, n.suffix)
 		fmt.Fprintf(w, "// generated with: cd gen; go run *.go\n")
 		fmt.Fprintf(w, "\npackage ssa\n")
@@ -567,8 +576,26 @@ func fprint(w io.Writer, n Node) {
 			f := f.(*Func)
 			fmt.Fprintf(w, "func rewrite%s%s%s%s(", f.kind, n.arch.name, n.suffix, f.suffix)
 			fmt.Fprintf(w, "%c *%s) bool {\n", strings.ToLower(f.kind)[0], f.kind)
+			if f.kind == "Value" && f.arglen > 0 {
+				for i := f.arglen - 1; i >= 0; i-- {
+					fmt.Fprintf(w, "v_%d := v.Args[%d]\n", i, i)
+				}
+			}
 			for _, n := range f.list {
 				fprint(w, n)
+
+				if rr, ok := n.(*RuleRewrite); ok {
+					k := [3]string{
+						normalizeMatch(rr.match, file.arch),
+						normalizeWhitespace(rr.cond),
+						normalizeWhitespace(rr.result),
+					}
+					if prev, ok := seenRewrite[k]; ok {
+						log.Fatalf("duplicate rule %s, previously seen at %s\n", rr.loc, prev)
+					} else {
+						seenRewrite[k] = rr.loc
+					}
+				}
 			}
 			fmt.Fprintf(w, "}\n")
 		}
@@ -588,16 +615,36 @@ func fprint(w io.Writer, n Node) {
 			fprint(w, n)
 		}
 	case *RuleRewrite:
+		if *addLine {
+			fmt.Fprintf(w, "// %s\n", n.loc)
+		}
 		fmt.Fprintf(w, "// match: %s\n", n.match)
 		if n.cond != "" {
 			fmt.Fprintf(w, "// cond: %s\n", n.cond)
 		}
 		fmt.Fprintf(w, "// result: %s\n", n.result)
 		fmt.Fprintf(w, "for %s {\n", n.check)
+		nCommutative := 0
 		for _, n := range n.list {
+			if b, ok := n.(*CondBreak); ok {
+				b.insideCommuteLoop = nCommutative > 0
+			}
 			fprint(w, n)
+			if loop, ok := n.(StartCommuteLoop); ok {
+				if nCommutative != loop.depth {
+					panic("mismatch commute loop depth")
+				}
+				nCommutative++
+			}
 		}
-		fmt.Fprintf(w, "return true\n}\n")
+		fmt.Fprintf(w, "return true\n")
+		for i := 0; i < nCommutative; i++ {
+			fmt.Fprintln(w, "}")
+		}
+		if n.commuteDepth > 0 && n.canFail {
+			fmt.Fprint(w, "break\n")
+		}
+		fmt.Fprintf(w, "}\n")
 	case *Declare:
 		fmt.Fprintf(w, "%s := ", n.name)
 		fprint(w, n.value)
@@ -605,12 +652,20 @@ func fprint(w io.Writer, n Node) {
 	case *CondBreak:
 		fmt.Fprintf(w, "if ")
 		fprint(w, n.expr)
-		fmt.Fprintf(w, " {\nbreak\n}\n")
+		fmt.Fprintf(w, " {\n")
+		if n.insideCommuteLoop {
+			fmt.Fprintf(w, "continue")
+		} else {
+			fmt.Fprintf(w, "break")
+		}
+		fmt.Fprintf(w, "\n}\n")
 	case ast.Node:
 		printConfig.Fprint(w, emptyFset, n)
 		if _, ok := n.(ast.Stmt); ok {
 			fmt.Fprintln(w)
 		}
+	case StartCommuteLoop:
+		fmt.Fprintf(w, "for _i%[1]d := 0; _i%[1]d <= 1; _i%[1]d, %[2]s_0, %[2]s_1 = _i%[1]d + 1, %[2]s_1, %[2]s_0 {\n", n.depth, n.v)
 	default:
 		log.Fatalf("cannot print %T", n)
 	}
@@ -660,6 +715,11 @@ func (w *bodyBase) add(node Statement) {
 
 // declared reports if the body contains a Declare with the given name.
 func (w *bodyBase) declared(name string) bool {
+	if name == "nil" {
+		// Treat "nil" as having already been declared.
+		// This lets us use nil to match an aux field.
+		return true
+	}
 	for _, s := range w.list {
 		if decl, ok := s.(*Declare); ok && decl.name == name {
 			return true
@@ -684,6 +744,7 @@ type (
 		bodyBase
 		kind   string // "Value" or "Block"
 		suffix string
+		arglen int32 // if kind == "Value", number of args for this op
 	}
 	Switch struct {
 		bodyBase // []*Case
@@ -698,15 +759,21 @@ type (
 		match, cond, result string // top comments
 		check               string // top-level boolean expression
 
-		alloc int    // for unique var names
-		loc   string // file name & line number of the original rule
+		alloc        int    // for unique var names
+		loc          string // file name & line number of the original rule
+		commuteDepth int    // used to track depth of commute loops
 	}
 	Declare struct {
 		name  string
 		value ast.Expr
 	}
 	CondBreak struct {
-		expr ast.Expr
+		expr              ast.Expr
+		insideCommuteLoop bool
+	}
+	StartCommuteLoop struct {
+		depth int
+		v     string
 	}
 )
 
@@ -743,7 +810,7 @@ func declf(name, format string, a ...interface{}) *Declare {
 // breakf constructs a simple "if cond { break }" statement, using exprf for its
 // condition.
 func breakf(format string, a ...interface{}) *CondBreak {
-	return &CondBreak{exprf(format, a...)}
+	return &CondBreak{expr: exprf(format, a...)}
 }
 
 func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
@@ -763,7 +830,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 			cname := fmt.Sprintf("b.Controls[%v]", i)
 			vname := fmt.Sprintf("v_%v", i)
 			rr.add(declf(vname, cname))
-			p, op := genMatch0(rr, arch, arg, vname)
+			p, op := genMatch0(rr, arch, arg, vname, nil, false) // TODO: pass non-nil cnt?
 			if op != "" {
 				check := fmt.Sprintf("%s.Op == %s", cname, op)
 				if rr.check == "" {
@@ -829,7 +896,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 	}
 
 	blockName, _ := getBlockInfo(outop, arch)
-	rr.add(stmtf("b.Reset(%s)", blockName))
+	var genControls [2]string
 	for i, control := range t[:outdata.controls] {
 		// Select a source position for any new control values.
 		// TODO: does it always make sense to use the source position
@@ -842,9 +909,19 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 		}
 
 		// Generate a new control value (or copy an existing value).
-		v := genResult0(rr, arch, control, false, false, newpos)
-		rr.add(stmtf("b.AddControl(%s)", v))
+		genControls[i] = genResult0(rr, arch, control, false, false, newpos)
 	}
+	switch outdata.controls {
+	case 0:
+		rr.add(stmtf("b.Reset(%s)", blockName))
+	case 1:
+		rr.add(stmtf("b.resetWithControl(%s, %s)", blockName, genControls[0]))
+	case 2:
+		rr.add(stmtf("b.resetWithControl2(%s, %s, %s)", blockName, genControls[0], genControls[1]))
+	default:
+		log.Fatalf("too many controls: %d", outdata.controls)
+	}
+
 	if auxint != "" {
 		rr.add(stmtf("b.AuxInt = %s", auxint))
 	}
@@ -876,13 +953,14 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 
 // genMatch returns the variable whose source position should be used for the
 // result (or "" if no opinion), and a boolean that reports whether the match can fail.
-func genMatch(rr *RuleRewrite, arch arch, match string) (pos, checkOp string) {
-	return genMatch0(rr, arch, match, "v")
+func genMatch(rr *RuleRewrite, arch arch, match string, pregenTop bool) (pos, checkOp string) {
+	cnt := varCount(rr)
+	return genMatch0(rr, arch, match, "v", cnt, pregenTop)
 }
 
-func genMatch0(rr *RuleRewrite, arch arch, match, v string) (pos, checkOp string) {
+func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, pregenTop bool) (pos, checkOp string) {
 	if match[0] != '(' || match[len(match)-1] != ')' {
-		log.Fatalf("non-compound expr in genMatch0: %q", match)
+		log.Fatalf("%s: non-compound expr in genMatch0: %q", rr.loc, match)
 	}
 	op, oparch, typ, auxint, aux, args := parseValue(match, arch, rr.loc)
 
@@ -911,21 +989,61 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string) (pos, checkOp string
 		}
 	}
 
-	// Access last argument first to minimize bounds checks.
-	if n := len(args); n > 1 {
-		a := args[n-1]
-		if a != "_" && !rr.declared(a) && token.IsIdentifier(a) {
-			rr.add(declf(a, "%s.Args[%d]", v, n-1))
-
-			// delete the last argument so it is not reprocessed
-			args = args[:n-1]
-		} else {
-			rr.add(stmtf("_ = %s.Args[%d]", v, n-1))
+	commutative := op.commutative
+	if commutative {
+		if args[0] == args[1] {
+			// When we have (Add x x), for any x,
+			// even if there are other uses of x besides these two,
+			// and even if x is not a variable,
+			// we can skip the commutative match.
+			commutative = false
 		}
+		if cnt[args[0]] == 1 && cnt[args[1]] == 1 {
+			// When we have (Add x y) with no other uses
+			// of x and y in the matching rule and condition,
+			// then we can skip the commutative match (Add y x).
+			commutative = false
+		}
+	}
+
+	if !pregenTop {
+		// Access last argument first to minimize bounds checks.
+		for n := len(args) - 1; n > 0; n-- {
+			a := args[n]
+			if a == "_" {
+				continue
+			}
+			if !rr.declared(a) && token.IsIdentifier(a) && !(commutative && len(args) == 2) {
+				rr.add(declf(a, "%s.Args[%d]", v, n))
+				// delete the last argument so it is not reprocessed
+				args = args[:n]
+			} else {
+				rr.add(stmtf("_ = %s.Args[%d]", v, n))
+			}
+			break
+		}
+	}
+	if commutative && !pregenTop {
+		for i := 0; i <= 1; i++ {
+			vname := fmt.Sprintf("%s_%d", v, i)
+			rr.add(declf(vname, "%s.Args[%d]", v, i))
+		}
+	}
+	var commuteDepth int
+	if commutative {
+		commuteDepth = rr.commuteDepth
+		rr.add(StartCommuteLoop{commuteDepth, v})
+		rr.commuteDepth++
 	}
 	for i, arg := range args {
 		if arg == "_" {
 			continue
+		}
+		var rhs string
+		if (commutative && i < 2) || pregenTop {
+			rhs = fmt.Sprintf("%s_%d", v, i)
+		} else {
+			rhs = fmt.Sprintf("%s.Args[%d]", v, i)
 		}
 		if !strings.Contains(arg, "(") {
 			// leaf variable
@@ -934,29 +1052,29 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string) (pos, checkOp string
 				// the old definition and the new definition match.
 				// For example, (add x x).  Equality is just pointer equality
 				// on Values (so cse is important to do before lowering).
-				rr.add(breakf("%s != %s.Args[%d]", arg, v, i))
+				rr.add(breakf("%s != %s", arg, rhs))
 			} else {
-				rr.add(declf(arg, "%s.Args[%d]", v, i))
+				if arg != rhs {
+					rr.add(declf(arg, "%s", rhs))
+				}
 			}
 			continue
 		}
 		// compound sexpr
-		argname := fmt.Sprintf("%s_%d", v, i)
-		colon := strings.Index(arg, ":")
-		openparen := strings.Index(arg, "(")
-		if colon >= 0 && openparen >= 0 && colon < openparen {
-			// rule-specified name
-			argname = arg[:colon]
-			arg = arg[colon+1:]
+		argname, expr := splitNameExpr(arg)
+		if argname == "" {
+			argname = fmt.Sprintf("%s_%d", v, i)
 		}
 		if argname == "b" {
 			log.Fatalf("don't name args 'b', it is ambiguous with blocks")
 		}
 
-		rr.add(declf(argname, "%s.Args[%d]", v, i))
+		if argname != rhs {
+			rr.add(declf(argname, "%s", rhs))
+		}
 		bexpr := exprf("%s.Op != addLater", argname)
 		rr.add(&CondBreak{expr: bexpr})
-		argPos, argCheckOp := genMatch0(rr, arch, arg, argname)
+		argPos, argCheckOp := genMatch0(rr, arch, expr, argname, cnt, false)
 		bexpr.(*ast.BinaryExpr).Y.(*ast.Ident).Name = argCheckOp
 
 		if argPos != "" {
@@ -995,9 +1113,7 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 			// It in not safe in general to move a variable between blocks
 			// (and particularly not a phi node).
 			// Introduce a copy.
-			rr.add(stmtf("v.reset(OpCopy)"))
-			rr.add(stmtf("v.Type = %s.Type", result))
-			rr.add(stmtf("v.AddArg(%s)", result))
+			rr.add(stmtf("v.copyOf(%s)", result))
 		}
 		return result
 	}
@@ -1025,8 +1141,7 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 		rr.add(declf(v, "b.NewValue0(%s, Op%s%s, %s)", pos, oparch, op.name, typ))
 		if move && top {
 			// Rewrite original into a copy
-			rr.add(stmtf("v.reset(OpCopy)"))
-			rr.add(stmtf("v.AddArg(%s)", v))
+			rr.add(stmtf("v.copyOf(%s)", v))
 		}
 	}
 
@@ -1036,11 +1151,21 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 	if aux != "" {
 		rr.add(stmtf("%s.Aux = %s", v, aux))
 	}
-	for _, arg := range args {
+	all := new(strings.Builder)
+	for i, arg := range args {
 		x := genResult0(rr, arch, arg, false, move, pos)
-		rr.add(stmtf("%s.AddArg(%s)", v, x))
+		if i > 0 {
+			all.WriteString(", ")
+		}
+		all.WriteString(x)
 	}
-
+	switch len(args) {
+	case 0:
+	case 1:
+		rr.add(stmtf("%s.AddArg(%s)", v, all.String()))
+	default:
+		rr.add(stmtf("%s.AddArg%d(%s)", v, len(args), all.String()))
+	}
 	return v
 }
 
@@ -1149,7 +1274,7 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch, typ, auxi
 		if x.name != s {
 			return false
 		}
-		if x.argLength != -1 && int(x.argLength) != len(args) {
+		if x.argLength != -1 && int(x.argLength) != len(args) && (len(args) != 1 || args[0] != "...") {
 			if strict {
 				return false
 			}
@@ -1189,21 +1314,49 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch, typ, auxi
 	}
 
 	// Sanity check aux, auxint.
-	if auxint != "" {
-		switch op.aux {
-		case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "TypSize":
-		default:
-			log.Fatalf("%s: op %s %s can't have auxint", loc, op.name, op.aux)
-		}
+	if auxint != "" && !opHasAuxInt(op) {
+		log.Fatalf("%s: op %s %s can't have auxint", loc, op.name, op.aux)
 	}
-	if aux != "" {
-		switch op.aux {
-		case "String", "Sym", "SymOff", "SymValAndOff", "Typ", "TypSize", "CCop", "ArchSpecific":
-		default:
-			log.Fatalf("%s: op %s %s can't have aux", loc, op.name, op.aux)
-		}
+	if aux != "" && !opHasAux(op) {
+		log.Fatalf("%s: op %s %s can't have aux", loc, op.name, op.aux)
 	}
 	return
+}
+
+func opHasAuxInt(op opData) bool {
+	switch op.aux {
+	case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "TypSize", "ARM64BitField":
+		return true
+	}
+	return false
+}
+
+func opHasAux(op opData) bool {
+	switch op.aux {
+	case "String", "Sym", "SymOff", "SymValAndOff", "Typ", "TypSize", "CCop", "ArchSpecific":
+		return true
+	}
+	return false
+}
+
+// splitNameExpr splits s-expr arg, possibly prefixed by "name:",
+// into name and the unprefixed expression.
+// For example, "x:(Foo)" yields "x", "(Foo)",
+// and "(Foo)" yields "", "(Foo)".
+func splitNameExpr(arg string) (name, expr string) {
+	colon := strings.Index(arg, ":")
+	if colon < 0 {
+		return "", arg
+	}
+	openparen := strings.Index(arg, "(")
+	if openparen < 0 {
+		log.Fatalf("splitNameExpr(%q): colon but no open parens", arg)
+	}
+	if colon > openparen {
+		// colon is inside the parens, such as in "(Foo x:(Bar))".
+		return "", arg
+	}
+	return arg[:colon], arg[colon+1:]
 }
 
 func getBlockInfo(op string, arch arch) (name string, data blockData) {
@@ -1238,7 +1391,7 @@ func typeName(typ string) string {
 	}
 }
 
-// unbalanced reports whether there aren't the same number of ( and ) in the string.
+// unbalanced reports whether there are a different number of ( and ) in the string.
 func unbalanced(s string) bool {
 	balance := 0
 	for _, c := range s {
@@ -1318,126 +1471,27 @@ func expandOr(r string) []string {
 	return res
 }
 
-// commute returns all equivalent rules to r after applying all possible
-// argument swaps to the commutable ops in r.
-// Potentially exponential, be careful.
-func commute(r string, arch arch) []string {
-	match, cond, result := Rule{rule: r}.parse()
-	a := commute1(match, varCount(match), arch)
-	for i, m := range a {
-		if cond != "" {
-			m += " && " + cond
-		}
-		m += " -> " + result
-		a[i] = m
-	}
-	if len(a) == 1 && normalizeWhitespace(r) != normalizeWhitespace(a[0]) {
-		fmt.Println(normalizeWhitespace(r))
-		fmt.Println(normalizeWhitespace(a[0]))
-		log.Fatalf("commute() is not the identity for noncommuting rule")
-	}
-	if false && len(a) > 1 {
-		fmt.Println(r)
-		for _, x := range a {
-			fmt.Println("  " + x)
-		}
-	}
-	return a
-}
-
-func commute1(m string, cnt map[string]int, arch arch) []string {
-	if m[0] == '<' || m[0] == '[' || m[0] == '{' || token.IsIdentifier(m) {
-		return []string{m}
-	}
-	// Split up input.
-	var prefix string
-	if i := strings.Index(m, ":"); i >= 0 && token.IsIdentifier(m[:i]) {
-		prefix = m[:i+1]
-		m = m[i+1:]
-	}
-	if m[0] != '(' || m[len(m)-1] != ')' {
-		log.Fatalf("non-compound expr in commute1: %q", m)
-	}
-	s := split(m[1 : len(m)-1])
-	op := s[0]
-
-	// Figure out if the op is commutative or not.
-	commutative := false
-	for _, x := range genericOps {
-		if op == x.name {
-			if x.commutative {
-				commutative = true
-			}
-			break
-		}
-	}
-	if arch.name != "generic" {
-		for _, x := range arch.ops {
-			if op == x.name {
-				if x.commutative {
-					commutative = true
-				}
-				break
-			}
-		}
-	}
-	var idx0, idx1 int
-	if commutative {
-		// Find indexes of two args we can swap.
-		for i, arg := range s {
-			if i == 0 || arg[0] == '<' || arg[0] == '[' || arg[0] == '{' {
-				continue
-			}
-			if idx0 == 0 {
-				idx0 = i
-				continue
-			}
-			if idx1 == 0 {
-				idx1 = i
-				break
-			}
-		}
-		if idx1 == 0 {
-			log.Fatalf("couldn't find first two args of commutative op %q", s[0])
-		}
-		if cnt[s[idx0]] == 1 && cnt[s[idx1]] == 1 || s[idx0] == s[idx1] && cnt[s[idx0]] == 2 {
-			// When we have (Add x y) with no other uses of x and y in the matching rule,
-			// then we can skip the commutative match (Add y x).
-			commutative = false
-		}
-	}
-
-	// Recursively commute arguments.
-	a := make([][]string, len(s))
-	for i, arg := range s {
-		a[i] = commute1(arg, cnt, arch)
-	}
-
-	// Choose all possibilities from all args.
-	r := crossProduct(a)
-
-	// If commutative, do that again with its two args reversed.
-	if commutative {
-		a[idx0], a[idx1] = a[idx1], a[idx0]
-		r = append(r, crossProduct(a)...)
-	}
-
-	// Construct result.
-	for i, x := range r {
-		r[i] = prefix + "(" + x + ")"
-	}
-	return r
-}
-
 // varCount returns a map which counts the number of occurrences of
-// Value variables in m.
-func varCount(m string) map[string]int {
+// Value variables in the s-expression rr.match and the Go expression rr.cond.
+func varCount(rr *RuleRewrite) map[string]int {
 	cnt := map[string]int{}
-	varCount1(m, cnt)
+	varCount1(rr.loc, rr.match, cnt)
+	if rr.cond != "" {
+		expr, err := parser.ParseExpr(rr.cond)
+		if err != nil {
+			log.Fatalf("%s: failed to parse cond %q: %v", rr.loc, rr.cond, err)
+		}
+		ast.Inspect(expr, func(n ast.Node) bool {
+			if id, ok := n.(*ast.Ident); ok {
+				cnt[id.Name]++
+			}
+			return true
+		})
+	}
 	return cnt
 }
 
-func varCount1(m string, cnt map[string]int) {
+func varCount1(loc, m string, cnt map[string]int) {
 	if m[0] == '<' || m[0] == '[' || m[0] == '{' {
 		return
 	}
@@ -1446,33 +1500,17 @@ func varCount1(m string, cnt map[string]int) {
 		return
 	}
 	// Split up input.
-	if i := strings.Index(m, ":"); i >= 0 && token.IsIdentifier(m[:i]) {
-		cnt[m[:i]]++
-		m = m[i+1:]
+	name, expr := splitNameExpr(m)
+	if name != "" {
+		cnt[name]++
 	}
-	if m[0] != '(' || m[len(m)-1] != ')' {
-		log.Fatalf("non-compound expr in commute1: %q", m)
+	if expr[0] != '(' || expr[len(expr)-1] != ')' {
+		log.Fatalf("%s: non-compound expr in varCount1: %q", loc, expr)
 	}
-	s := split(m[1 : len(m)-1])
+	s := split(expr[1 : len(expr)-1])
 	for _, arg := range s[1:] {
-		varCount1(arg, cnt)
+		varCount1(loc, arg, cnt)
 	}
-}
-
-// crossProduct returns all possible values
-// x[0][i] + " " + x[1][j] + " " + ... + " " + x[len(x)-1][k]
-// for all valid values of i, j, ..., k.
-func crossProduct(x [][]string) []string {
-	if len(x) == 1 {
-		return x[0]
-	}
-	var r []string
-	for _, tail := range crossProduct(x[1:]) {
-		for _, first := range x[0] {
-			r = append(r, first+" "+tail)
-		}
-	}
-	return r
 }
 
 // normalizeWhitespace replaces 2+ whitespace sequences with a single space.
@@ -1480,6 +1518,138 @@ func normalizeWhitespace(x string) string {
 	x = strings.Join(strings.Fields(x), " ")
 	x = strings.Replace(x, "( ", "(", -1)
 	x = strings.Replace(x, " )", ")", -1)
+	x = strings.Replace(x, "[ ", "[", -1)
+	x = strings.Replace(x, " ]", "]", -1)
 	x = strings.Replace(x, ")->", ") ->", -1)
 	return x
+}
+
+// opIsCommutative reports whether op s is commutative.
+func opIsCommutative(op string, arch arch) bool {
+	for _, x := range genericOps {
+		if op == x.name {
+			if x.commutative {
+				return true
+			}
+			break
+		}
+	}
+	if arch.name != "generic" {
+		for _, x := range arch.ops {
+			if op == x.name {
+				if x.commutative {
+					return true
+				}
+				break
+			}
+		}
+	}
+	return false
+}
+
+func normalizeMatch(m string, arch arch) string {
+	if token.IsIdentifier(m) {
+		return m
+	}
+	op, typ, auxint, aux, args := extract(m)
+	if opIsCommutative(op, arch) {
+		if args[1] < args[0] {
+			args[0], args[1] = args[1], args[0]
+		}
+	}
+	s := new(strings.Builder)
+	fmt.Fprintf(s, "%s <%s> [%s] {%s}", op, typ, auxint, aux)
+	for _, arg := range args {
+		prefix, expr := splitNameExpr(arg)
+		fmt.Fprint(s, " ", prefix, normalizeMatch(expr, arch))
+	}
+	return s.String()
+}
+
+func parseEllipsisRules(rules []Rule, arch arch) (newop string, ok bool) {
+	if len(rules) != 1 {
+		for _, r := range rules {
+			if strings.Contains(r.rule, "...") {
+				log.Fatalf("%s: found ellipsis in rule, but there are other rules with the same op", r.loc)
+			}
+		}
+		return "", false
+	}
+	rule := rules[0]
+	match, cond, result := rule.parse()
+	if cond != "" || !isEllipsisValue(match) || !isEllipsisValue(result) {
+		if strings.Contains(rule.rule, "...") {
+			log.Fatalf("%s: found ellipsis in non-ellipsis rule", rule.loc)
+		}
+		checkEllipsisRuleCandidate(rule, arch)
+		return "", false
+	}
+	op, oparch, _, _, _, _ := parseValue(result, arch, rule.loc)
+	return fmt.Sprintf("Op%s%s", oparch, op.name), true
+}
+
+// isEllipsisValue reports whether s is of the form (OpX ...).
+func isEllipsisValue(s string) bool {
+	if len(s) < 2 || s[0] != '(' || s[len(s)-1] != ')' {
+		return false
+	}
+	c := split(s[1 : len(s)-1])
+	if len(c) != 2 || c[1] != "..." {
+		return false
+	}
+	return true
+}
+
+func checkEllipsisRuleCandidate(rule Rule, arch arch) {
+	match, cond, result := rule.parse()
+	if cond != "" {
+		return
+	}
+	op, _, _, auxint, aux, args := parseValue(match, arch, rule.loc)
+	var auxint2, aux2 string
+	var args2 []string
+	var usingCopy string
+	if result[0] != '(' {
+		// Check for (Foo x) -> x, which can be converted to (Foo ...) -> (Copy ...).
+		args2 = []string{result}
+		usingCopy = " using Copy"
+	} else {
+		_, _, _, auxint2, aux2, args2 = parseValue(result, arch, rule.loc)
+	}
+	// Check that all restrictions in match are reproduced exactly in result.
+	if aux != aux2 || auxint != auxint2 || len(args) != len(args2) {
+		return
+	}
+	for i := range args {
+		if args[i] != args2[i] {
+			return
+		}
+	}
+	switch {
+	case opHasAux(op) && aux == "" && aux2 == "":
+		fmt.Printf("%s: rule silently zeros aux, either copy aux or explicitly zero\n", rule.loc)
+	case opHasAuxInt(op) && auxint == "" && auxint2 == "":
+		fmt.Printf("%s: rule silently zeros auxint, either copy auxint or explicitly zero\n", rule.loc)
+	default:
+		fmt.Printf("%s: possible ellipsis rule candidate%s: %q\n", rule.loc, usingCopy, rule.rule)
+	}
+}
+
+func opByName(arch arch, name string) opData {
+	name = name[2:]
+	for _, x := range genericOps {
+		if name == x.name {
+			return x
+		}
+	}
+	if arch.name != "generic" {
+		name = name[len(arch.name):]
+		for _, x := range arch.ops {
+			if name == x.name {
+				return x
+			}
+		}
+	}
+	log.Fatalf("failed to find op named %s in arch %s", name, arch.name)
+	panic("unreachable")
 }

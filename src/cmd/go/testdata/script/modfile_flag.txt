@@ -11,6 +11,15 @@ cp go.sum go.sum.orig
 go mod init example.com/m
 grep example.com/m go.alt.mod
 
+# 'go env GOMOD' should print the path to the real file.
+# 'go env' does not recognize the '-modfile' flag.
+go env GOMOD
+stdout '^\$WORK[/\\]gopath[/\\]src[/\\]go.mod$'
+
+# 'go list -m' should print the effective go.mod file as GoMod though.
+go list -m -f '{{.GoMod}}'
+stdout '^go.alt.mod$'
+
 # go mod edit should operate on the alternate file
 go mod edit -require rsc.io/quote@v1.5.2
 grep rsc.io/quote go.alt.mod
@@ -44,6 +53,19 @@ exists vendor
 go mod edit -require rsc.io/quote@v1.5.1
 ! go list .
 go list -mod=mod
+rm vendor
+
+
+# 'go generate' should use the alternate file when resolving packages.
+# Recursive go commands started with 'go generate' should not get an explicitly
+# passed -modfile, but they should see arguments from GOFLAGS.
+cp go.alt.mod go.gen.mod
+env OLD_GOFLAGS=$GOFLAGS
+env GOFLAGS=-modfile=go.gen.mod
+go generate -modfile=go.alt.mod .
+env GOFLAGS=$OLD_GOFLAGS
+grep example.com/exclude go.gen.mod
+! grep example.com/exclude go.alt.mod
 
 
 # The original files should not have been modified.
@@ -62,6 +84,10 @@ stderr '-modfile=goaltmod: file does not have .mod extension'
 -- go.sum --
 ʕ◔ϖ◔ʔ
 -- use.go --
-package use
+package main
 
 import _ "rsc.io/quote"
+-- gen.go --
+//go:generate go mod edit -exclude example.com/exclude@v1.0.0
+
+package main

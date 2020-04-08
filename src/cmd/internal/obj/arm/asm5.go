@@ -379,6 +379,11 @@ func checkSuffix(c *ctxt5, p *obj.Prog, o *Optab) {
 }
 
 func span5(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+	if ctxt.Retpoline {
+		ctxt.Diag("-spectre=ret not supported on arm")
+		ctxt.Retpoline = false // don't keep printing
+	}
+
 	var p *obj.Prog
 	var op *obj.Prog
 

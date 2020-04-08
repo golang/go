@@ -306,7 +306,7 @@ func (d *deadcodepass) init() {
 	}
 
 	for _, name := range names {
-		// Mark symbol as an data/ABI0 symbol.
+		// Mark symbol as a data/ABI0 symbol.
 		d.mark(d.ctxt.Syms.ROLookup(name, 0), nil)
 		// Also mark any Go functions (internal ABI).
 		d.mark(d.ctxt.Syms.ROLookup(name, sym.SymVerABIInternal), nil)

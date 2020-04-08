@@ -226,7 +226,7 @@ func (s *mspan) sweep(preserve bool) bool {
 	size := s.elemsize
 	res := false
 
-	c := _g_.m.mcache
+	c := _g_.m.p.ptr().mcache
 	freeToHeap := false
 
 	// The allocBits indicate which unmarked objects don't need to be

@@ -1,0 +1,53 @@
+env GO111MODULE=on
+
+# Regression test for https://golang.org/issue/34769.
+# Missing standard-library imports should refer to GOROOT rather than
+# complaining about a malformed module path.
+# This is especially important when GOROOT is set incorrectly,
+# since such an error will occur for every package in std.
+
+# Building a nonexistent std package directly should fail usefully.
+
+! go build -mod=readonly nonexist
+! stderr 'import lookup disabled'
+! stderr 'missing dot'
+stderr '^package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
+
+! go build nonexist
+! stderr 'import lookup disabled'
+! stderr 'missing dot'
+stderr '^package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
+
+# Building a nonexistent std package indirectly should also fail usefully.
+
+! go build -mod=readonly ./importnonexist
+! stderr 'import lookup disabled'
+! stderr 'missing dot'
+stderr '^importnonexist[/\\]x.go:2:8: package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
+
+! go build ./importnonexist
+! stderr 'import lookup disabled'
+! stderr 'missing dot'
+stderr '^importnonexist[/\\]x.go:2:8: package nonexist is not in GOROOT \('$GOROOT'[/\\]src[/\\]nonexist\)$'
+
+# Building an *actual* std package should fail if GOROOT is set to something bogus.
+
+[!short] go build ./importjson  # Prove that it works when GOROOT is valid.
+
+env GOROOT=$WORK/not-a-valid-goroot
+! go build ./importjson
+! stderr 'import lookup disabled'
+! stderr 'missing dot'
+stderr 'importjson[/\\]x.go:2:8: package encoding/json is not in GOROOT \('$WORK'[/\\]not-a-valid-goroot[/\\]src[/\\]encoding[/\\]json\)$'
+
+-- go.mod --
+module example.com
+go 1.14
+-- importnonexist/x.go --
+package importnonexist
+import _ "nonexist"
+-- importjson/x.go --
+package importjson
+import _ "encoding/json"
+-- $WORK/not-a-valid-goroot/README --
+This directory is not a valid GOROOT.

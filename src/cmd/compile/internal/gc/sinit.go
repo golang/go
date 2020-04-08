@@ -372,7 +372,7 @@ func (c initContext) String() string {
 var statuniqgen int // name generator for static temps
 
 // staticname returns a name backed by a static data symbol.
-// Callers should call n.Name.SetReadonly(true) on the
+// Callers should call n.MarkReadonly on the
 // returned node for readonly nodes.
 func staticname(t *types.Type) *Node {
 	// Don't use lookupN; it interns the resulting string, but these are all unique.
@@ -652,7 +652,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 	if mode&initConst != 0 && !isSmallSliceLit(n) {
 		vstat = staticname(t)
 		if ctxt == inInitFunction {
-			vstat.Name.SetReadonly(true)
+			vstat.MarkReadonly()
 		}
 		fixedlit(ctxt, initKindStatic, n, vstat, init)
 	}
@@ -795,9 +795,9 @@ func maplit(n *Node, m *Node, init *Nodes) {
 
 		// make and initialize static arrays
 		vstatk := staticname(tk)
-		vstatk.Name.SetReadonly(true)
+		vstatk.MarkReadonly()
 		vstate := staticname(te)
-		vstate.Name.SetReadonly(true)
+		vstate.MarkReadonly()
 
 		datak := nod(OARRAYLIT, nil, nil)
 		datae := nod(OARRAYLIT, nil, nil)
@@ -919,7 +919,7 @@ func anylit(n *Node, var_ *Node, init *Nodes) {
 		if var_.isSimpleName() && n.List.Len() > 4 {
 			// lay out static data
 			vstat := staticname(t)
-			vstat.Name.SetReadonly(true)
+			vstat.MarkReadonly()
 
 			ctxt := inInitFunction
 			if n.Op == OARRAYLIT {

@@ -70,7 +70,7 @@ type mheap struct {
 	// on the swept stack.
 	sweepSpans [2]gcSweepBuf
 
-	_ uint32 // align uint64 fields on 32-bit for atomics
+	// _ uint32 // align uint64 fields on 32-bit for atomics
 
 	// Proportional sweep
 	//
@@ -786,7 +786,9 @@ func (h *mheap) reclaim(npage uintptr) {
 // reclaimChunk sweeps unmarked spans that start at page indexes [pageIdx, pageIdx+n).
 // It returns the number of pages returned to the heap.
 //
-// h.lock must be held and the caller must be non-preemptible.
+// h.lock must be held and the caller must be non-preemptible. Note: h.lock may be
+// temporarily unlocked and re-locked in order to do sweeping or if tracing is
+// enabled.
 func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
 	// The heap lock must be held because this accesses the
 	// heapArena.spans arrays using potentially non-live pointers.
@@ -842,8 +844,10 @@ func (h *mheap) reclaimChunk(arenas []arenaIdx, pageIdx, n uintptr) uintptr {
 		n -= uintptr(len(inUse) * 8)
 	}
 	if trace.enabled {
+		unlock(&h.lock)
 		// Account for pages scanned but not reclaimed.
 		traceGCSweepSpan((n0 - nFreed) * pageSize)
+		lock(&h.lock)
 	}
 	return nFreed
 }
@@ -1137,10 +1141,21 @@ func (h *mheap) allocSpan(npages uintptr, manual bool, spanclass spanClass, sysS
 		// which may only be done with the heap locked.
 
 		// Transfer stats from mcache to global.
-		memstats.heap_scan += uint64(gp.m.mcache.local_scan)
-		gp.m.mcache.local_scan = 0
-		memstats.tinyallocs += uint64(gp.m.mcache.local_tinyallocs)
-		gp.m.mcache.local_tinyallocs = 0
+		var c *mcache
+		if gp.m.p != 0 {
+			c = gp.m.p.ptr().mcache
+		} else {
+			// This case occurs while bootstrapping.
+			// See the similar code in mallocgc.
+			c = mcache0
+			if c == nil {
+				throw("mheap.allocSpan called with no P")
+			}
+		}
+		memstats.heap_scan += uint64(c.local_scan)
+		c.local_scan = 0
+		memstats.tinyallocs += uint64(c.local_tinyallocs)
+		c.local_tinyallocs = 0
 
 		// Do some additional accounting if it's a large allocation.
 		if spanclass.sizeclass() == 0 {
@@ -1338,12 +1353,12 @@ func (h *mheap) grow(npage uintptr) bool {
 // Free the span back into the heap.
 func (h *mheap) freeSpan(s *mspan) {
 	systemstack(func() {
-		mp := getg().m
+		c := getg().m.p.ptr().mcache
 		lock(&h.lock)
-		memstats.heap_scan += uint64(mp.mcache.local_scan)
-		mp.mcache.local_scan = 0
-		memstats.tinyallocs += uint64(mp.mcache.local_tinyallocs)
-		mp.mcache.local_tinyallocs = 0
+		memstats.heap_scan += uint64(c.local_scan)
+		c.local_scan = 0
+		memstats.tinyallocs += uint64(c.local_tinyallocs)
+		c.local_tinyallocs = 0
 		if msanenabled {
 			// Tell msan that this entire span is no longer in use.
 			base := unsafe.Pointer(s.base())
@@ -1419,20 +1434,19 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool) {
 // unscav and adds it into scav before continuing.
 func (h *mheap) scavengeAll() {
 	// Disallow malloc or panic while holding the heap lock. We do
-	// this here because this is an non-mallocgc entry-point to
+	// this here because this is a non-mallocgc entry-point to
 	// the mheap API.
 	gp := getg()
 	gp.m.mallocing++
 	lock(&h.lock)
+	// Reset the scavenger address so we have access to the whole heap.
+	h.pages.resetScavengeAddr()
 	released := h.pages.scavenge(^uintptr(0), true)
 	unlock(&h.lock)
 	gp.m.mallocing--
 
-	if debug.gctrace > 0 {
-		if released > 0 {
-			print("forced scvg: ", released>>20, " MB released\n")
-		}
-		print("forced scvg: inuse: ", memstats.heap_inuse>>20, ", idle: ", memstats.heap_idle>>20, ", sys: ", memstats.heap_sys>>20, ", released: ", memstats.heap_released>>20, ", consumed: ", (memstats.heap_sys-memstats.heap_released)>>20, " (MB)\n")
+	if debug.scavtrace > 0 {
+		printScavTrace(released, true)
 	}
 }
 

@@ -227,8 +227,8 @@ func (a *Action) trimpath() string {
 	// For "go build -trimpath", rewrite package source directory
 	// to a file system-independent path (just the import path).
 	if cfg.BuildTrimpath {
-		if m := a.Package.Module; m != nil {
-			rewrite += ";" + m.Dir + "=>" + m.Path + "@" + m.Version
+		if m := a.Package.Module; m != nil && m.Version != "" {
+			rewrite += ";" + a.Package.Dir + "=>" + m.Path + "@" + m.Version + strings.TrimPrefix(a.Package.ImportPath, m.Path)
 		} else {
 			rewrite += ";" + a.Package.Dir + "=>" + a.Package.ImportPath
 		}

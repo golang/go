@@ -1,0 +1,19 @@
+[!net] skip
+[!exec:git] skip
+
+go get github.com/rsc/go-get-issue-11864
+
+# build -i should work
+go build -i github.com/rsc/go-get-issue-11864
+go build -i github.com/rsc/go-get-issue-11864/t
+
+# test -i should work like build -i (golang.org/issue/11988)
+go test -i github.com/rsc/go-get-issue-11864
+go test -i github.com/rsc/go-get-issue-11864/t
+
+# test should work too
+go test github.com/rsc/go-get-issue-11864
+go test github.com/rsc/go-get-issue-11864/t
+
+# external tests should observe internal test exports (golang.org/issue/11977)
+go test github.com/rsc/go-get-issue-11864/vendor/vendor.org/tx2

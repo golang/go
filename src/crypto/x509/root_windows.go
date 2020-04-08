@@ -219,10 +219,26 @@ func (c *Certificate) systemVerify(opts *VerifyOptions) (chains [][]*Certificate
 	if err != nil {
 		return nil, err
 	}
+	if len(chain) < 1 {
+		return nil, errors.New("x509: internal error: system verifier returned an empty chain")
+	}
 
-	chains = append(chains, chain)
+	// Mitigate CVE-2020-0601, where the Windows system verifier might be
+	// tricked into using custom curve parameters for a trusted root, by
+	// double-checking all ECDSA signatures. If the system was tricked into
+	// using spoofed parameters, the signature will be invalid for the correct
+	// ones we parsed. (We don't support custom curves ourselves.)
+	for i, parent := range chain[1:] {
+		if parent.PublicKeyAlgorithm != ECDSA {
+			continue
+		}
+		if err := parent.CheckSignature(chain[i].SignatureAlgorithm,
+			chain[i].RawTBSCertificate, chain[i].Signature); err != nil {
+			return nil, err
+		}
+	}
 
-	return chains, nil
+	return [][]*Certificate{chain}, nil
 }
 
 func loadSystemRoots() (*CertPool, error) {

@@ -60,11 +60,13 @@ start:
 	AUIPC	$0, X10					// 17050000
 	AUIPC	$0, X11					// 97050000
 	AUIPC	$1, X10					// 17150000
-	AUIPC	$1048575, X10				// 17f5ffff
+	AUIPC	$-524288, X15				// 97070080
+	AUIPC	$524287, X10				// 17f5ff7f
 
 	LUI	$0, X15					// b7070000
 	LUI	$167, X15				// b7770a00
-	LUI	$1048575, X15				// b7f7ffff
+	LUI	$-524288, X15				// b7070080
+	LUI	$524287, X15				// b7f7ff7f
 
 	SLL	X6, X5, X7				// b3936200
 	SLL	X5, X6					// 33135300
@@ -89,15 +91,15 @@ start:
 	// to 2 because they transfer control to the second instruction
 	// in the function (the first instruction being an invisible
 	// stack pointer adjustment).
-	JAL	X5, start	// JAL	X5, 2		// eff2dff0
+	JAL	X5, start	// JAL	X5, 2		// eff25ff0
 	JALR	X6, (X5)				// 67830200
 	JALR	X6, 4(X5)				// 67834200
-	BEQ	X5, X6, start	// BEQ	X5, X6, 2	// e38062f0
-	BNE	X5, X6, start	// BNE	X5, X6, 2	// e39e62ee
-	BLT	X5, X6, start	// BLT	X5, X6, 2	// e3cc62ee
-	BLTU	X5, X6, start	// BLTU	X5, X6, 2	// e3ea62ee
-	BGE	X5, X6, start	// BGE	X5, X6, 2	// e3d862ee
-	BGEU	X5, X6, start	// BGEU	X5, X6, 2	// e3f662ee
+	BEQ	X5, X6, start	// BEQ	X5, X6, 2	// e38c62ee
+	BNE	X5, X6, start	// BNE	X5, X6, 2	// e39a62ee
+	BLT	X5, X6, start	// BLT	X5, X6, 2	// e3c862ee
+	BLTU	X5, X6, start	// BLTU	X5, X6, 2	// e3e662ee
+	BGE	X5, X6, start	// BGE	X5, X6, 2	// e3d462ee
+	BGEU	X5, X6, start	// BGEU	X5, X6, 2	// e3f262ee
 
 	// 2.6: Load and Store Instructions
 	LW	(X5), X6				// 03a30200
@@ -119,6 +121,9 @@ start:
 	SH	X5, 4(X6)				// 23125300
 	SB	X5, (X6)				// 23005300
 	SB	X5, 4(X6)				// 23025300
+
+	// 2.7: Memory Ordering Instructions
+	FENCE						// 0f00f00f
 
 	// 5.2: Integer Computational Instructions (RV64I)
 	ADDIW	$1, X5, X6				// 1b831200
@@ -151,6 +156,32 @@ start:
 	DIVUW	X5, X6, X7				// bb535302
 	REMW	X5, X6, X7				// bb635302
 	REMUW	X5, X6, X7				// bb735302
+
+	// 8.2: Load-Reserved/Store-Conditional
+	LRW	(X5), X6				// 2fa30214
+	LRD	(X5), X6				// 2fb30214
+	SCW	X5, (X6), X7				// af23531c
+	SCD	X5, (X6), X7				// af33531c
+
+	// 8.3: Atomic Memory Operations
+	AMOSWAPW	X5, (X6), X7			// af23530c
+	AMOSWAPD	X5, (X6), X7			// af33530c
+	AMOADDW		X5, (X6), X7			// af235304
+	AMOADDD		X5, (X6), X7			// af335304
+	AMOANDW		X5, (X6), X7			// af235364
+	AMOANDD		X5, (X6), X7			// af335364
+	AMOORW		X5, (X6), X7			// af235344
+	AMOORD		X5, (X6), X7			// af335344
+	AMOXORW		X5, (X6), X7			// af235324
+	AMOXORD		X5, (X6), X7			// af335324
+	AMOMAXW		X5, (X6), X7			// af2353a4
+	AMOMAXD		X5, (X6), X7			// af3353a4
+	AMOMAXUW	X5, (X6), X7			// af2353e4
+	AMOMAXUD	X5, (X6), X7			// af3353e4
+	AMOMINW		X5, (X6), X7			// af235384
+	AMOMIND		X5, (X6), X7			// af335384
+	AMOMINUW	X5, (X6), X7			// af2353c4
+	AMOMINUD	X5, (X6), X7			// af3353c4
 
 	// 10.1: Base Counters and Timers
 	RDCYCLE		X5				// f32200c0
@@ -194,6 +225,9 @@ start:
 	FLTS	F0, F1, X7				// d39300a0
 	FLES	F0, F1, X7				// d38300a0
 
+	// 11.9: Single-Precision Floating-Point Classify Instruction
+	FCLASSS	F0, X5					// d31200e0
+
 	// 12.3: Double-Precision Load and Store Instructions
 	FLD	(X5), F0				// 07b00200
 	FLD	4(X5), F0				// 07b04200
@@ -225,6 +259,9 @@ start:
 	FSGNJXD	F1, F0, F2				// 53211022
 	FMVXD	F0, X5					// d30200e2
 	FMVDX	X5, F0					// 538002f2
+
+	// 12.6: Double-Precision Floating-Point Classify Instruction
+	FCLASSD	F0, X5					// d31200e2
 
 	// Privileged ISA
 
@@ -267,3 +304,55 @@ start:
 	MOVD	4(X5), F0				// 07b04200
 	MOVD	F0, 4(X5)				// 27b20200
 	MOVD	F0, F1					// d3000022
+
+	// NOT pseudo-instruction
+	NOT	X5					// 93c2f2ff
+	NOT	X5, X6					// 13c3f2ff
+
+	// NEG/NEGW pseudo-instructions
+	NEG	X5					// b3025040
+	NEG	X5, X6					// 33035040
+	NEGW	X5					// bb025040
+	NEGW	X5, X6					// 3b035040
+
+	// These jumps can get printed as jumps to 2 because they go to the
+	// second instruction in the function (the first instruction is an
+	// invisible stack pointer adjustment).
+	JMP	start		// JMP	2		// 6ff01fc5
+	JMP	(X5)					// 67800200
+	JMP	4(X5)					// 67804200
+
+	// JMP and CALL to symbol are encoded as:
+	//	AUIPC $0, TMP
+	//	JALR $0, TMP
+	// with a R_RISCV_PCREL_ITYPE relocation - the linker resolves the
+	// real address and updates the immediates for both instructions.
+	CALL	asmtest(SB)				// 970f0000
+	JMP	asmtest(SB)				// 970f0000
+
+	// Branch pseudo-instructions
+	BEQZ	X5, start	// BEQZ	X5, 2		// e38a02c2
+	BGEZ	X5, start	// BGEZ	X5, 2		// e3d802c2
+	BGT	X5, X6, start	// BGT	X5, X6, 2	// e3c662c2
+	BGTU	X5, X6, start	// BGTU	X5, X6, 2	// e3e462c2
+	BGTZ	X5, start	// BGTZ	X5, 2		// e34250c2
+	BLE	X5, X6, start	// BLE	X5, X6, 2	// e3d062c2
+	BLEU	X5, X6, start	// BLEU	X5, X6, 2	// e3fe62c0
+	BLEZ	X5, start	// BLEZ	X5, 2		// e35c50c0
+	BLTZ	X5, start	// BLTZ	X5, 2		// e3ca02c0
+	BNEZ	X5, start	// BNEZ	X5, 2		// e39802c0
+
+	// Set pseudo-instructions
+	SEQZ	X15, X15				// 93b71700
+	SNEZ	X15, X15				// b337f000
+
+	// F extension
+	FNEGS	F0, F1					// d3100020
+	FNES	F0, F1, X7				// d3a300a093c31300
+
+	// D extension
+	FNEGD	F0, F1					// d3100022
+	FNED	F0, F1, X5				// d3a200a293c21200
+	FLTD	F0, F1, X5				// d39200a2
+	FLED	F0, F1, X5				// d38200a2
+	FEQD	F0, F1, X5				// d3a200a2

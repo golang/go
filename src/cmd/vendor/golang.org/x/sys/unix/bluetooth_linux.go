@@ -23,6 +23,7 @@ const (
 	HCI_CHANNEL_USER    = 1
 	HCI_CHANNEL_MONITOR = 2
 	HCI_CHANNEL_CONTROL = 3
+	HCI_CHANNEL_LOGGING = 4
 )
 
 // Socketoption Level

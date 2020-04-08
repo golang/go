@@ -649,7 +649,7 @@ func stringEncoder(e *encodeState, v reflect.Value, opts encOpts) {
 func isValidNumber(s string) bool {
 	// This function implements the JSON numbers grammar.
 	// See https://tools.ietf.org/html/rfc7159#section-6
-	// and https://json.org/number.gif
+	// and https://www.json.org/img/number.png
 
 	if s == "" {
 		return false

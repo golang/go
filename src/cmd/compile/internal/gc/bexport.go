@@ -127,7 +127,7 @@ const (
 )
 
 // untype returns the "pseudo" untyped type for a Ctype (import/export use only).
-// (we can't use an pre-initialized array because we must be sure all types are
+// (we can't use a pre-initialized array because we must be sure all types are
 // set up)
 func untype(ctype Ctype) *types.Type {
 	switch ctype {

@@ -46,12 +46,12 @@ func (a *LinkAddr) marshal(b []byte) (int, error) {
 	data := b[8:]
 	if nlen > 0 {
 		b[5] = byte(nlen)
-		copy(data[:nlen], a.Addr)
+		copy(data[:nlen], a.Name)
 		data = data[nlen:]
 	}
 	if alen > 0 {
 		b[6] = byte(alen)
-		copy(data[:alen], a.Name)
+		copy(data[:alen], a.Addr)
 		data = data[alen:]
 	}
 	return ll, nil

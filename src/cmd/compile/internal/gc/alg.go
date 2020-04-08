@@ -186,6 +186,7 @@ func algtype1(t *types.Type) (AlgKind, *types.Type) {
 
 // genhash returns a symbol which is the closure used to compute
 // the hash of a value of type t.
+// Note: the generated function must match runtime.typehash exactly.
 func genhash(t *types.Type) *obj.LSym {
 	switch algtype(t) {
 	default:

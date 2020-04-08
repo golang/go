@@ -954,7 +954,7 @@ func (w *exportWriter) funcExt(n *Node) {
 	w.symIdx(n.Sym)
 
 	// Escape analysis.
-	for _, fs := range types.RecvsParams {
+	for _, fs := range &types.RecvsParams {
 		for _, f := range fs(n.Type).FieldSlice() {
 			w.string(f.Note)
 		}

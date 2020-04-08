@@ -33,7 +33,7 @@ func EpollCreate(size int) (fd int, err error) {
 //sys	Listen(s int, n int) (err error)
 //sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
 //sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
-//sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+//sys	renameat2(olddirfd int, oldpath string, newdirfd int, newpath string, flags uint) (err error)
 //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
 //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
 //sys	Setfsgid(gid int) (err error)
@@ -45,6 +45,10 @@ func EpollCreate(size int) (fd int, err error) {
 //sysnb	Setreuid(ruid int, euid int) (err error)
 //sys	Shutdown(fd int, how int) (err error)
 //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
+
+func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error) {
+	return renameat2(olddirfd, oldpath, newdirfd, newpath, 0)
+}
 
 func Stat(path string, stat *Stat_t) (err error) {
 	return Fstatat(_AT_FDCWD, path, stat, 0)

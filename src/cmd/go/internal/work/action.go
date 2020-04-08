@@ -41,7 +41,7 @@ type Builder struct {
 	IsCmdList           bool // running as part of go list; set p.Stale and additional fields below
 	NeedError           bool // list needs p.Error
 	NeedExport          bool // list needs p.Export
-	NeedCompiledGoFiles bool // list needs p.CompiledGoFIles
+	NeedCompiledGoFiles bool // list needs p.CompiledGoFiles
 
 	objdirSeq int // counter for NewObjdir
 	pkgSeq    int
@@ -291,7 +291,7 @@ func (b *Builder) Init() {
 	}
 
 	if err := CheckGOOSARCHPair(cfg.Goos, cfg.Goarch); err != nil {
-		fmt.Fprintf(os.Stderr, "cmd/go: %v", err)
+		fmt.Fprintf(os.Stderr, "cmd/go: %v\n", err)
 		base.SetExitStatus(2)
 		base.Exit()
 	}

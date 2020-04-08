@@ -7,7 +7,7 @@ package chacha20poly1305
 import (
 	"encoding/binary"
 
-	"golang.org/x/crypto/internal/chacha20"
+	"golang.org/x/crypto/chacha20"
 	"golang.org/x/crypto/internal/subtle"
 	"golang.org/x/crypto/poly1305"
 )
@@ -22,14 +22,10 @@ func (c *chacha20poly1305) sealGeneric(dst, nonce, plaintext, additionalData []b
 		panic("chacha20poly1305: invalid buffer overlap")
 	}
 
-	var polyKey [32]byte
-	s := chacha20.New(c.key, [3]uint32{
-		binary.LittleEndian.Uint32(nonce[0:4]),
-		binary.LittleEndian.Uint32(nonce[4:8]),
-		binary.LittleEndian.Uint32(nonce[8:12]),
-	})
+	var polyKey, discardBuf [32]byte
+	s, _ := chacha20.NewUnauthenticatedCipher(c.key[:], nonce)
 	s.XORKeyStream(polyKey[:], polyKey[:])
-	s.Advance() // skip the next 32 bytes
+	s.XORKeyStream(discardBuf[:], discardBuf[:]) // skip the next 32 bytes
 	s.XORKeyStream(out, plaintext)
 
 	polyInput := make([]byte, roundTo16(len(additionalData))+roundTo16(len(plaintext))+8+8)
@@ -50,14 +46,10 @@ func (c *chacha20poly1305) openGeneric(dst, nonce, ciphertext, additionalData []
 	copy(tag[:], ciphertext[len(ciphertext)-16:])
 	ciphertext = ciphertext[:len(ciphertext)-16]
 
-	var polyKey [32]byte
-	s := chacha20.New(c.key, [3]uint32{
-		binary.LittleEndian.Uint32(nonce[0:4]),
-		binary.LittleEndian.Uint32(nonce[4:8]),
-		binary.LittleEndian.Uint32(nonce[8:12]),
-	})
+	var polyKey, discardBuf [32]byte
+	s, _ := chacha20.NewUnauthenticatedCipher(c.key[:], nonce)
 	s.XORKeyStream(polyKey[:], polyKey[:])
-	s.Advance() // skip the next 32 bytes
+	s.XORKeyStream(discardBuf[:], discardBuf[:]) // skip the next 32 bytes
 
 	polyInput := make([]byte, roundTo16(len(additionalData))+roundTo16(len(ciphertext))+8+8)
 	copy(polyInput, additionalData)

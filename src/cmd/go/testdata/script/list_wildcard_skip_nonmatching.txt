@@ -1,0 +1,13 @@
+# Test that wildcards don't look in useless directories.
+
+# First make sure that badpkg fails the list of '...'.
+! go list ...
+stderr badpkg
+
+# Check that the list of 'm...' succeeds. That implies badpkg was skipped.
+go list m...
+
+-- m/x.go --
+package m
+-- badpkg/x.go --
+pkg badpkg

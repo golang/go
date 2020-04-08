@@ -313,9 +313,11 @@ func (p *Profile) Remove(value interface{}) {
 // Otherwise, WriteTo returns nil.
 //
 // The debug parameter enables additional output.
-// Passing debug=0 prints only the hexadecimal addresses that pprof needs.
-// Passing debug=1 adds comments translating addresses to function names
-// and line numbers, so that a programmer can read the profile without tools.
+// Passing debug=0 writes the gzip-compressed protocol buffer described
+// in https://github.com/google/pprof/tree/master/proto#overview.
+// Passing debug=1 writes the legacy text format with comments
+// translating addresses to function names and line numbers, so that a
+// programmer can read the profile without tools.
 //
 // The predefined profiles may assign meaning to other debug values;
 // for example, when printing the "goroutine" profile, debug=2 means to
@@ -627,6 +629,9 @@ func writeHeapInternal(w io.Writer, debug int, defaultSampleType string) error {
 	fmt.Fprintf(w, "# NumForcedGC = %d\n", s.NumForcedGC)
 	fmt.Fprintf(w, "# GCCPUFraction = %v\n", s.GCCPUFraction)
 	fmt.Fprintf(w, "# DebugGC = %v\n", s.DebugGC)
+
+	// Also flush out MaxRSS on supported platforms.
+	addMaxRSS(w)
 
 	tw.Flush()
 	return b.Flush()

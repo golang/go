@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+const shortDuration = 1 * time.Millisecond // a reasonable duration to block in an example
+
 // This example demonstrates the use of a cancelable context to prevent a
 // goroutine leak. By the end of the example function, the goroutine started
 // by gen will return without leaking.
@@ -55,7 +57,7 @@ func ExampleWithCancel() {
 // This example passes a context with an arbitrary deadline to tell a blocking
 // function that it should abandon its work as soon as it gets to it.
 func ExampleWithDeadline() {
-	d := time.Now().Add(50 * time.Millisecond)
+	d := time.Now().Add(shortDuration)
 	ctx, cancel := context.WithDeadline(context.Background(), d)
 
 	// Even though ctx will be expired, it is good practice to call its
@@ -79,7 +81,7 @@ func ExampleWithDeadline() {
 func ExampleWithTimeout() {
 	// Pass a context with a timeout to tell a blocking function that it
 	// should abandon its work after the timeout elapses.
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), shortDuration)
 	defer cancel()
 
 	select {

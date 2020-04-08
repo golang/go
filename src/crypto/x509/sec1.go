@@ -28,9 +28,9 @@ type ecPrivateKey struct {
 	PublicKey     asn1.BitString        `asn1:"optional,explicit,tag:1"`
 }
 
-// ParseECPrivateKey parses an EC public key in SEC 1, ASN.1 DER form.
+// ParseECPrivateKey parses an EC private key in SEC 1, ASN.1 DER form.
 //
-// This kind of key is commonly encoded in PEM blocks of type "EC PUBLIC KEY".
+// This kind of key is commonly encoded in PEM blocks of type "EC PRIVATE KEY".
 func ParseECPrivateKey(der []byte) (*ecdsa.PrivateKey, error) {
 	return parseECPrivateKey(nil, der)
 }

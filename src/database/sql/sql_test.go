@@ -629,7 +629,8 @@ func TestPoolExhaustOnCancel(t *testing.T) {
 		go func() {
 			rows, err := db.Query("SELECT|people|name,photo|")
 			if err != nil {
-				t.Fatalf("Query: %v", err)
+				t.Errorf("Query: %v", err)
+				return
 			}
 			rows.Close()
 			saturateDone.Done()
@@ -637,6 +638,9 @@ func TestPoolExhaustOnCancel(t *testing.T) {
 	}
 
 	saturate.Wait()
+	if t.Failed() {
+		t.FailNow()
+	}
 	state = 2
 
 	// Now cancel the request while it is waiting.
@@ -781,6 +785,24 @@ func TestQueryRow(t *testing.T) {
 	want := []byte("APHOTO")
 	if !reflect.DeepEqual(photo, want) {
 		t.Errorf("photo = %q; want %q", photo, want)
+	}
+}
+
+func TestRowErr(t *testing.T) {
+	db := newTestDB(t, "people")
+
+	err := db.QueryRowContext(context.Background(), "SELECT|people|bdate|age=?", 3).Err()
+	if err != nil {
+		t.Errorf("Unexpected err = %v; want %v", err, nil)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = db.QueryRowContext(ctx, "SELECT|people|bdate|age=?", 3).Err()
+	exp := "context canceled"
+	if err == nil || !strings.Contains(err.Error(), exp) {
+		t.Errorf("Expected err = %v; got %v", exp, err)
 	}
 }
 
@@ -1518,6 +1540,37 @@ func TestConnTx(t *testing.T) {
 	}
 	if selectName != insertName {
 		t.Fatalf("got %q want %q", selectName, insertName)
+	}
+}
+
+// TestConnIsValid verifies that a database connection that should be discarded,
+// is actually discarded and does not re-enter the connection pool.
+// If the IsValid method from *fakeConn is removed, this test will fail.
+func TestConnIsValid(t *testing.T) {
+	db := newTestDB(t, "people")
+	defer closeDB(t, db)
+
+	db.SetMaxOpenConns(1)
+
+	ctx := context.Background()
+
+	c, err := db.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = c.Raw(func(raw interface{}) error {
+		dc := raw.(*fakeConn)
+		dc.stickyBad = true
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Close()
+
+	if len(db.freeConn) > 0 && db.freeConn[0].ci.(*fakeConn).stickyBad {
+		t.Fatal("bad connection returned to pool; expected bad connection to be discarded")
 	}
 }
 
@@ -3586,6 +3639,61 @@ func TestStatsMaxIdleClosedTen(t *testing.T) {
 	t.Logf("MaxIdleClosed: %d", maxIdleClosed)
 	if maxIdleClosed != 10 {
 		t.Fatal("expected 0 max idle closed conns, got: ", maxIdleClosed)
+	}
+}
+
+func TestMaxIdleTime(t *testing.T) {
+	list := []struct {
+		wantMaxIdleTime time.Duration
+		wantIdleClosed  int64
+		timeOffset      time.Duration
+	}{
+		{time.Nanosecond, 1, 10 * time.Millisecond},
+		{time.Hour, 0, 10 * time.Millisecond},
+	}
+	baseTime := time.Unix(0, 0)
+	defer func() {
+		nowFunc = time.Now
+	}()
+	for _, item := range list {
+		nowFunc = func() time.Time {
+			return baseTime
+		}
+		t.Run(fmt.Sprintf("%v", item.wantMaxIdleTime), func(t *testing.T) {
+			db := newTestDB(t, "people")
+			defer closeDB(t, db)
+
+			db.SetMaxOpenConns(1)
+			db.SetMaxIdleConns(1)
+			db.SetConnMaxIdleTime(item.wantMaxIdleTime)
+			db.SetConnMaxLifetime(0)
+
+			preMaxIdleClosed := db.Stats().MaxIdleTimeClosed
+
+			if err := db.Ping(); err != nil {
+				t.Fatal(err)
+			}
+
+			nowFunc = func() time.Time {
+				return baseTime.Add(item.timeOffset)
+			}
+
+			db.mu.Lock()
+			closing := db.connectionCleanerRunLocked()
+			db.mu.Unlock()
+			for _, c := range closing {
+				c.Close()
+			}
+			if g, w := int64(len(closing)), item.wantIdleClosed; g != w {
+				t.Errorf("got: %d; want %d closed conns", g, w)
+			}
+
+			st := db.Stats()
+			maxIdleClosed := st.MaxIdleTimeClosed - preMaxIdleClosed
+			if g, w := maxIdleClosed, item.wantIdleClosed; g != w {
+				t.Errorf(" got: %d; want %d max idle closed conns", g, w)
+			}
+		})
 	}
 }
 

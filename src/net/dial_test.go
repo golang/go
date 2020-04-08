@@ -155,7 +155,7 @@ func slowDialTCP(ctx context.Context, network string, laddr, raddr *TCPAddr) (*T
 	return c, err
 }
 
-func dialClosedPort() (actual, expected time.Duration) {
+func dialClosedPort(t *testing.T) (actual, expected time.Duration) {
 	// Estimate the expected time for this platform.
 	// On Windows, dialing a closed port takes roughly 1 second,
 	// but other platforms should be instantaneous.
@@ -169,11 +169,12 @@ func dialClosedPort() (actual, expected time.Duration) {
 
 	l, err := Listen("tcp", "127.0.0.1:0")
 	if err != nil {
+		t.Logf("dialClosedPort: Listen failed: %v", err)
 		return 999 * time.Hour, expected
 	}
 	addr := l.Addr().String()
 	l.Close()
-	// On OpenBSD, interference from TestSelfConnect is mysteriously
+	// On OpenBSD, interference from TestTCPSelfConnect is mysteriously
 	// causing the first attempt to hang for a few seconds, so we throw
 	// away the first result and keep the second.
 	for i := 1; ; i++ {
@@ -184,6 +185,7 @@ func dialClosedPort() (actual, expected time.Duration) {
 		}
 		elapsed := time.Now().Sub(startTime)
 		if i == 2 {
+			t.Logf("dialClosedPort: measured delay %v", elapsed)
 			return elapsed, expected
 		}
 	}
@@ -196,7 +198,7 @@ func TestDialParallel(t *testing.T) {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 
-	closedPortDelay, expectClosedPortDelay := dialClosedPort()
+	closedPortDelay, expectClosedPortDelay := dialClosedPort(t)
 	if closedPortDelay > expectClosedPortDelay {
 		t.Errorf("got %v; want <= %v", closedPortDelay, expectClosedPortDelay)
 	}
@@ -317,8 +319,14 @@ func TestDialParallel(t *testing.T) {
 			t.Errorf("#%d: got nil; want non-nil", i)
 		}
 
-		expectElapsedMin := tt.expectElapsed - 95*time.Millisecond
-		expectElapsedMax := tt.expectElapsed + 95*time.Millisecond
+		// We used to always use 95 milliseconds as the slop,
+		// but that was flaky on Windows.  See issue 35616.
+		slop := 95 * time.Millisecond
+		if fifth := tt.expectElapsed / 5; fifth > slop {
+			slop = fifth
+		}
+		expectElapsedMin := tt.expectElapsed - slop
+		expectElapsedMax := tt.expectElapsed + slop
 		if elapsed < expectElapsedMin {
 			t.Errorf("#%d: got %v; want >= %v", i, elapsed, expectElapsedMin)
 		} else if elapsed > expectElapsedMax {
@@ -433,6 +441,14 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 
+	var readDeadline time.Time
+	if td, ok := t.Deadline(); ok {
+		const arbitraryCleanupMargin = 1 * time.Second
+		readDeadline = td.Add(-arbitraryCleanupMargin)
+	} else {
+		readDeadline = time.Now().Add(5 * time.Second)
+	}
+
 	var wg sync.WaitGroup
 	wg.Add(2)
 	handler := func(dss *dualStackServer, ln Listener) {
@@ -442,7 +458,7 @@ func TestDialParallelSpuriousConnection(t *testing.T) {
 			t.Fatal(err)
 		}
 		// The client should close itself, without sending data.
-		c.SetReadDeadline(time.Now().Add(1 * time.Second))
+		c.SetReadDeadline(readDeadline)
 		var b [1]byte
 		if _, err := c.Read(b[:]); err != io.EOF {
 			t.Errorf("got %v; want %v", err, io.EOF)
@@ -667,7 +683,7 @@ func TestDialerDualStack(t *testing.T) {
 		t.Skip("both IPv4 and IPv6 are required")
 	}
 
-	closedPortDelay, expectClosedPortDelay := dialClosedPort()
+	closedPortDelay, expectClosedPortDelay := dialClosedPort(t)
 	if closedPortDelay > expectClosedPortDelay {
 		t.Errorf("got %v; want <= %v", closedPortDelay, expectClosedPortDelay)
 	}
@@ -979,4 +995,33 @@ func mustHaveExternalNetwork(t *testing.T) {
 	if testenv.Builder() == "" || mobile {
 		testenv.MustHaveExternalNetwork(t)
 	}
+}
+
+type contextWithNonZeroDeadline struct {
+	context.Context
+}
+
+func (contextWithNonZeroDeadline) Deadline() (time.Time, bool) {
+	// Return non-zero time.Time value with false indicating that no deadline is set.
+	return time.Unix(0, 0), false
+}
+
+func TestDialWithNonZeroDeadline(t *testing.T) {
+	ln, err := newLocalListener("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	_, port, err := SplitHostPort(ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := contextWithNonZeroDeadline{Context: context.Background()}
+	var dialer Dialer
+	c, err := dialer.DialContext(ctx, "tcp", JoinHostPort("", port))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Close()
 }

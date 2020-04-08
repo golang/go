@@ -39,6 +39,8 @@
 #define SYS_socketcall		102
 #define SYS_setittimer		104
 #define SYS_clone		120
+#define SYS_uname		122
+#define SYS_mlock		150
 #define SYS_sched_yield 	158
 #define SYS_nanosleep		162
 #define SYS_rt_sigreturn	173
@@ -231,9 +233,9 @@ TEXT runtime·walltime1(SB), NOSPLIT, $0-12
 	MOVL	g_m(AX), SI // SI unchanged by C code.
 
 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
-	MOVL	0(SP), DX
-	MOVL	DX, m_vdsoPC(SI)
-	LEAL	sec+0(SP), DX
+	LEAL	sec+0(FP), DX
+	MOVL	-4(DX), CX
+	MOVL	CX, m_vdsoPC(SI)
 	MOVL	DX, m_vdsoSP(SI)
 
 	CMPL	AX, m_curg(SI)	// Only switch if on curg.
@@ -294,9 +296,9 @@ TEXT runtime·nanotime1(SB), NOSPLIT, $0-8
 	MOVL	g_m(AX), SI // SI unchanged by C code.
 
 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
-	MOVL	0(SP), DX
-	MOVL	DX, m_vdsoPC(SI)
-	LEAL	ret+0(SP), DX
+	LEAL	ret+0(FP), DX
+	MOVL	-4(DX), CX
+	MOVL	CX, m_vdsoPC(SI)
 	MOVL	DX, m_vdsoSP(SI)
 
 	CMPL	AX, m_curg(SI)	// Only switch if on curg.
@@ -775,4 +777,21 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-4
 	MOVL	$0, BX  // NULL
 	INVOKE_SYSCALL
 	MOVL	AX, ret+0(FP)
+	RET
+
+// func uname(utsname *new_utsname) int
+TEXT ·uname(SB),NOSPLIT,$0-8
+	MOVL    $SYS_uname, AX
+	MOVL    utsname+0(FP), BX
+	INVOKE_SYSCALL
+	MOVL	AX, ret+4(FP)
+	RET
+
+// func mlock(addr, len uintptr) int
+TEXT ·mlock(SB),NOSPLIT,$0-12
+	MOVL    $SYS_mlock, AX
+	MOVL    addr+0(FP), BX
+	MOVL    len+4(FP), CX
+	INVOKE_SYSCALL
+	MOVL	AX, ret+8(FP)
 	RET

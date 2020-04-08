@@ -305,6 +305,16 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config 
 		c.LinkReg = linkRegMIPS
 		c.hasGReg = true
 		c.noDuffDevice = true
+	case "riscv64":
+		c.PtrSize = 8
+		c.RegSize = 8
+		c.lowerBlock = rewriteBlockRISCV64
+		c.lowerValue = rewriteValueRISCV64
+		c.registers = registersRISCV64[:]
+		c.gpRegMask = gpRegMaskRISCV64
+		c.fpRegMask = fpRegMaskRISCV64
+		c.FPReg = framepointerRegRISCV64
+		c.hasGReg = true
 	case "wasm":
 		c.PtrSize = 8
 		c.RegSize = 8

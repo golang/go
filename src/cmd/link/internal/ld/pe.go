@@ -57,46 +57,15 @@ var (
 )
 
 const (
-	IMAGE_FILE_MACHINE_I386                        = 0x14c
-	IMAGE_FILE_MACHINE_AMD64                       = 0x8664
-	IMAGE_FILE_MACHINE_ARM                         = 0x1c0
-	IMAGE_FILE_MACHINE_ARMNT                       = 0x1c4
-	IMAGE_FILE_RELOCS_STRIPPED                     = 0x0001
-	IMAGE_FILE_EXECUTABLE_IMAGE                    = 0x0002
-	IMAGE_FILE_LINE_NUMS_STRIPPED                  = 0x0004
-	IMAGE_FILE_LARGE_ADDRESS_AWARE                 = 0x0020
-	IMAGE_FILE_32BIT_MACHINE                       = 0x0100
-	IMAGE_FILE_DEBUG_STRIPPED                      = 0x0200
-	IMAGE_SCN_CNT_CODE                             = 0x00000020
-	IMAGE_SCN_CNT_INITIALIZED_DATA                 = 0x00000040
-	IMAGE_SCN_CNT_UNINITIALIZED_DATA               = 0x00000080
-	IMAGE_SCN_MEM_EXECUTE                          = 0x20000000
-	IMAGE_SCN_MEM_READ                             = 0x40000000
-	IMAGE_SCN_MEM_WRITE                            = 0x80000000
-	IMAGE_SCN_MEM_DISCARDABLE                      = 0x2000000
-	IMAGE_SCN_LNK_NRELOC_OVFL                      = 0x1000000
-	IMAGE_SCN_ALIGN_32BYTES                        = 0x600000
-	IMAGE_DIRECTORY_ENTRY_EXPORT                   = 0
-	IMAGE_DIRECTORY_ENTRY_IMPORT                   = 1
-	IMAGE_DIRECTORY_ENTRY_RESOURCE                 = 2
-	IMAGE_DIRECTORY_ENTRY_EXCEPTION                = 3
-	IMAGE_DIRECTORY_ENTRY_SECURITY                 = 4
-	IMAGE_DIRECTORY_ENTRY_BASERELOC                = 5
-	IMAGE_DIRECTORY_ENTRY_DEBUG                    = 6
-	IMAGE_DIRECTORY_ENTRY_COPYRIGHT                = 7
-	IMAGE_DIRECTORY_ENTRY_ARCHITECTURE             = 7
-	IMAGE_DIRECTORY_ENTRY_GLOBALPTR                = 8
-	IMAGE_DIRECTORY_ENTRY_TLS                      = 9
-	IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG              = 10
-	IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT             = 11
-	IMAGE_DIRECTORY_ENTRY_IAT                      = 12
-	IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT             = 13
-	IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR           = 14
-	IMAGE_SUBSYSTEM_WINDOWS_GUI                    = 2
-	IMAGE_SUBSYSTEM_WINDOWS_CUI                    = 3
-	IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE          = 0x0040
-	IMAGE_DLLCHARACTERISTICS_NX_COMPAT             = 0x0100
-	IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE = 0x8000
+	IMAGE_SCN_CNT_CODE               = 0x00000020
+	IMAGE_SCN_CNT_INITIALIZED_DATA   = 0x00000040
+	IMAGE_SCN_CNT_UNINITIALIZED_DATA = 0x00000080
+	IMAGE_SCN_MEM_EXECUTE            = 0x20000000
+	IMAGE_SCN_MEM_READ               = 0x40000000
+	IMAGE_SCN_MEM_WRITE              = 0x80000000
+	IMAGE_SCN_MEM_DISCARDABLE        = 0x2000000
+	IMAGE_SCN_LNK_NRELOC_OVFL        = 0x1000000
+	IMAGE_SCN_ALIGN_32BYTES          = 0x600000
 )
 
 // TODO(crawshaw): add these constants to debug/pe.
@@ -126,6 +95,7 @@ const (
 	IMAGE_REL_ARM_SECREL   = 0x000F
 
 	IMAGE_REL_BASED_HIGHLOW = 3
+	IMAGE_REL_BASED_DIR64   = 10
 )
 
 const (
@@ -752,18 +722,18 @@ func (f *peFile) writeSymbolTableAndStringTable(ctxt *Link) {
 }
 
 // writeFileHeader writes COFF file header for peFile f.
-func (f *peFile) writeFileHeader(arch *sys.Arch, out *OutBuf, linkmode LinkMode) {
+func (f *peFile) writeFileHeader(ctxt *Link) {
 	var fh pe.FileHeader
 
-	switch arch.Family {
+	switch ctxt.Arch.Family {
 	default:
-		Exitf("unknown PE architecture: %v", arch.Family)
+		Exitf("unknown PE architecture: %v", ctxt.Arch.Family)
 	case sys.AMD64:
-		fh.Machine = IMAGE_FILE_MACHINE_AMD64
+		fh.Machine = pe.IMAGE_FILE_MACHINE_AMD64
 	case sys.I386:
-		fh.Machine = IMAGE_FILE_MACHINE_I386
+		fh.Machine = pe.IMAGE_FILE_MACHINE_I386
 	case sys.ARM:
-		fh.Machine = IMAGE_FILE_MACHINE_ARMNT
+		fh.Machine = pe.IMAGE_FILE_MACHINE_ARMNT
 	}
 
 	fh.NumberOfSections = uint16(len(f.sections))
@@ -772,32 +742,31 @@ func (f *peFile) writeFileHeader(arch *sys.Arch, out *OutBuf, linkmode LinkMode)
 	// much more beneficial than having build timestamp in the header.
 	fh.TimeDateStamp = 0
 
-	if linkmode == LinkExternal {
-		fh.Characteristics = IMAGE_FILE_LINE_NUMS_STRIPPED
+	if ctxt.LinkMode == LinkExternal {
+		fh.Characteristics = pe.IMAGE_FILE_LINE_NUMS_STRIPPED
 	} else {
-		switch arch.Family {
-		default:
-			Exitf("write COFF(ext): unknown PE architecture: %v", arch.Family)
+		fh.Characteristics = pe.IMAGE_FILE_EXECUTABLE_IMAGE | pe.IMAGE_FILE_DEBUG_STRIPPED
+		switch ctxt.Arch.Family {
 		case sys.AMD64, sys.I386:
-			fh.Characteristics = IMAGE_FILE_RELOCS_STRIPPED | IMAGE_FILE_EXECUTABLE_IMAGE | IMAGE_FILE_DEBUG_STRIPPED
-		case sys.ARM:
-			fh.Characteristics = IMAGE_FILE_EXECUTABLE_IMAGE | IMAGE_FILE_DEBUG_STRIPPED
+			if ctxt.BuildMode != BuildModePIE {
+				fh.Characteristics |= pe.IMAGE_FILE_RELOCS_STRIPPED
+			}
 		}
 	}
 	if pe64 != 0 {
 		var oh64 pe.OptionalHeader64
 		fh.SizeOfOptionalHeader = uint16(binary.Size(&oh64))
-		fh.Characteristics |= IMAGE_FILE_LARGE_ADDRESS_AWARE
+		fh.Characteristics |= pe.IMAGE_FILE_LARGE_ADDRESS_AWARE
 	} else {
 		var oh pe.OptionalHeader32
 		fh.SizeOfOptionalHeader = uint16(binary.Size(&oh))
-		fh.Characteristics |= IMAGE_FILE_32BIT_MACHINE
+		fh.Characteristics |= pe.IMAGE_FILE_32BIT_MACHINE
 	}
 
 	fh.PointerToSymbolTable = uint32(f.symtabOffset)
 	fh.NumberOfSymbols = uint32(f.symbolCount)
 
-	binary.Write(out, binary.LittleEndian, &fh)
+	binary.Write(ctxt.Out, binary.LittleEndian, &fh)
 }
 
 // writeOptionalHeader writes COFF optional header for peFile f.
@@ -852,26 +821,37 @@ func (f *peFile) writeOptionalHeader(ctxt *Link) {
 	oh64.SizeOfHeaders = uint32(PEFILEHEADR)
 	oh.SizeOfHeaders = uint32(PEFILEHEADR)
 	if windowsgui {
-		oh64.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_GUI
-		oh.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_GUI
+		oh64.Subsystem = pe.IMAGE_SUBSYSTEM_WINDOWS_GUI
+		oh.Subsystem = pe.IMAGE_SUBSYSTEM_WINDOWS_GUI
 	} else {
-		oh64.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_CUI
-		oh.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_CUI
-	}
-
-	switch ctxt.Arch.Family {
-	case sys.ARM:
-		oh64.DllCharacteristics = IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
-		oh.DllCharacteristics = IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
+		oh64.Subsystem = pe.IMAGE_SUBSYSTEM_WINDOWS_CUI
+		oh.Subsystem = pe.IMAGE_SUBSYSTEM_WINDOWS_CUI
 	}
 
 	// Mark as having awareness of terminal services, to avoid ancient compatibility hacks.
-	oh64.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE
-	oh.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE
+	oh64.DllCharacteristics |= pe.IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE
+	oh.DllCharacteristics |= pe.IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE
 
 	// Enable DEP
-	oh64.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_NX_COMPAT
-	oh.DllCharacteristics |= IMAGE_DLLCHARACTERISTICS_NX_COMPAT
+	oh64.DllCharacteristics |= pe.IMAGE_DLLCHARACTERISTICS_NX_COMPAT
+	oh.DllCharacteristics |= pe.IMAGE_DLLCHARACTERISTICS_NX_COMPAT
+
+	// The DLL can be relocated at load time.
+	switch ctxt.Arch.Family {
+	case sys.AMD64, sys.I386:
+		if ctxt.BuildMode == BuildModePIE {
+			oh64.DllCharacteristics |= pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
+			oh.DllCharacteristics |= pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
+		}
+	case sys.ARM:
+		oh64.DllCharacteristics |= pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
+		oh.DllCharacteristics |= pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
+	}
+
+	// Image can handle a high entropy 64-bit virtual address space.
+	if ctxt.BuildMode == BuildModePIE {
+		oh64.DllCharacteristics |= pe.IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA
+	}
 
 	// Disable stack growth as we don't want Windows to
 	// fiddle with the thread stack limits, which we set
@@ -997,7 +977,7 @@ func pewrite(ctxt *Link) {
 		ctxt.Out.WriteStringN("PE", 4)
 	}
 
-	pefile.writeFileHeader(ctxt.Arch, ctxt.Out, ctxt.LinkMode)
+	pefile.writeFileHeader(ctxt)
 
 	pefile.writeOptionalHeader(ctxt)
 
@@ -1210,10 +1190,10 @@ func addimports(ctxt *Link, datsect *peSection) {
 	out.Write32(0)
 
 	// update data directory
-	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress = isect.virtualAddress
-	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].Size = isect.virtualSize
-	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_IAT].VirtualAddress = uint32(dynamic.Value - PEBASE)
-	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_IAT].Size = uint32(dynamic.Size)
+	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress = isect.virtualAddress
+	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_IMPORT].Size = isect.virtualSize
+	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_IAT].VirtualAddress = uint32(dynamic.Value - PEBASE)
+	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_IAT].Size = uint32(dynamic.Size)
 
 	out.SeekSet(endoff)
 }
@@ -1258,8 +1238,8 @@ func addexports(ctxt *Link) {
 	sect.characteristics = IMAGE_SCN_CNT_INITIALIZED_DATA | IMAGE_SCN_MEM_READ
 	sect.checkOffset(ctxt.Out.Offset())
 	va := int(sect.virtualAddress)
-	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress = uint32(va)
-	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].Size = sect.virtualSize
+	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress = uint32(va)
+	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_EXPORT].Size = sect.virtualSize
 
 	vaName := va + binary.Size(&e) + nexport*4
 	vaAddr := va + binary.Size(&e)
@@ -1376,6 +1356,8 @@ func (rt *peBaseRelocTable) addentry(ctxt *Link, s *sym.Symbol, r *sym.Reloc) {
 		Exitf("unsupported relocation size %d\n", r.Siz)
 	case 4:
 		e.typeOff |= uint16(IMAGE_REL_BASED_HIGHLOW << 12)
+	case 8:
+		e.typeOff |= uint16(IMAGE_REL_BASED_DIR64 << 12)
 	}
 
 	b.entries = append(b.entries, e)
@@ -1430,11 +1412,15 @@ func addPEBaseRelocSym(ctxt *Link, s *sym.Symbol, rt *peBaseRelocTable) {
 }
 
 func addPEBaseReloc(ctxt *Link) {
-	// We only generate base relocation table for ARM (and ... ARM64), x86, and AMD64 are marked as legacy
-	// archs and can use fixed base with no base relocation information
+	// Arm does not work without base relocation table.
+	// 386 and amd64 will only require the table for BuildModePIE.
 	switch ctxt.Arch.Family {
 	default:
 		return
+	case sys.I386, sys.AMD64:
+		if ctxt.BuildMode != BuildModePIE {
+			return
+		}
 	case sys.ARM:
 	}
 
@@ -1460,8 +1446,8 @@ func addPEBaseReloc(ctxt *Link) {
 	rsect.checkOffset(startoff)
 	rsect.pad(ctxt.Out, uint32(size))
 
-	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress = rsect.virtualAddress
-	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC].Size = rsect.virtualSize
+	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress = rsect.virtualAddress
+	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_BASERELOC].Size = rsect.virtualSize
 }
 
 func (ctxt *Link) dope() {
@@ -1504,9 +1490,9 @@ func addpersrc(ctxt *Link) {
 	h.pad(ctxt.Out, uint32(rsrcsym.Size))
 
 	// update data directory
-	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress = h.virtualAddress
+	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress = h.virtualAddress
 
-	pefile.dataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h.virtualSize
+	pefile.dataDirectory[pe.IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = h.virtualSize
 }
 
 func Asmbpe(ctxt *Link) {

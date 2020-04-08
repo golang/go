@@ -269,8 +269,8 @@ noswitch:
 
 	MOVW	$CLOCK_REALTIME, R0
 	MOVW	$8(R13), R1	// timespec
-	MOVW	runtime·vdsoClockgettimeSym(SB), R11
-	CMP	$0, R11
+	MOVW	runtime·vdsoClockgettimeSym(SB), R2
+	CMP	$0, R2
 	B.EQ	fallback
 
 	// Store g on gsignal's stack, so if we receive a signal
@@ -292,7 +292,7 @@ noswitch:
 	MOVW	(g_stack+stack_lo)(R6), R6 // g.m.gsignal.stack.lo
 	MOVW	g, (R6)
 
-	BL	(R11)
+	BL	(R2)
 
 	MOVW	$0, R1
 	MOVW	R1, (R6) // clear g slot, R6 is unchanged by C code
@@ -300,7 +300,7 @@ noswitch:
 	JMP	finish
 
 nosaveg:
-	BL	(R11)
+	BL	(R2)
 	JMP	finish
 
 fallback:
@@ -347,8 +347,8 @@ noswitch:
 
 	MOVW	$CLOCK_MONOTONIC, R0
 	MOVW	$8(R13), R1	// timespec
-	MOVW	runtime·vdsoClockgettimeSym(SB), R11
-	CMP	$0, R11
+	MOVW	runtime·vdsoClockgettimeSym(SB), R2
+	CMP	$0, R2
 	B.EQ	fallback
 
 	// Store g on gsignal's stack, so if we receive a signal
@@ -370,7 +370,7 @@ noswitch:
 	MOVW	(g_stack+stack_lo)(R6), R6 // g.m.gsignal.stack.lo
 	MOVW	g, (R6)
 
-	BL	(R11)
+	BL	(R2)
 
 	MOVW	$0, R1
 	MOVW	R1, (R6) // clear g slot, R6 is unchanged by C code
@@ -378,7 +378,7 @@ noswitch:
 	JMP	finish
 
 nosaveg:
-	BL	(R11)
+	BL	(R2)
 	JMP	finish
 
 fallback:

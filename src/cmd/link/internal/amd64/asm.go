@@ -174,6 +174,12 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 			ld.Errorf(s, "unexpected R_X86_64_64 relocation for dynamic symbol %s", targ.Name)
 		}
 		r.Type = objabi.R_ADDR
+		if ctxt.BuildMode == ld.BuildModePIE && ctxt.LinkMode == ld.LinkInternal {
+			// For internal linking PIE, this R_ADDR relocation cannot
+			// be resolved statically. We need to generate a dynamic
+			// relocation. Let the code below handle it.
+			break
+		}
 		return true
 
 	// Handle relocations found in Mach-O object files.
@@ -322,20 +328,35 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 		}
 
 		if ctxt.IsELF {
-			// TODO: We generate a R_X86_64_64 relocation for every R_ADDR, even
-			// though it would be more efficient (for the dynamic linker) if we
-			// generated R_X86_RELATIVE instead.
-			ld.Adddynsym(ctxt, targ)
+			// Generate R_X86_64_RELATIVE relocations for best
+			// efficiency in the dynamic linker.
+			//
+			// As noted above, symbol addresses have not been
+			// assigned yet, so we can't generate the final reloc
+			// entry yet. We ultimately want:
+			//
+			// r_offset = s + r.Off
+			// r_info = R_X86_64_RELATIVE
+			// r_addend = targ + r.Add
+			//
+			// The dynamic linker will set *offset = base address +
+			// addend.
+			//
+			// AddAddrPlus is used for r_offset and r_addend to
+			// generate new R_ADDR relocations that will update
+			// these fields in the 'reloc' phase.
 			rela := ctxt.Syms.Lookup(".rela", 0)
 			rela.AddAddrPlus(ctxt.Arch, s, int64(r.Off))
 			if r.Siz == 8 {
-				rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(targ.Dynid), uint32(elf.R_X86_64_64)))
+				rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(0, uint32(elf.R_X86_64_RELATIVE)))
 			} else {
-				// TODO: never happens, remove.
-				rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(targ.Dynid), uint32(elf.R_X86_64_32)))
+				ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
 			}
-			rela.AddUint64(ctxt.Arch, uint64(r.Add))
-			r.Type = objabi.ElfRelocOffset // ignore during relocsym
+			rela.AddAddrPlus(ctxt.Arch, targ, int64(r.Add))
+			// Not mark r done here. So we still apply it statically,
+			// so in the file content we'll also have the right offset
+			// to the relocation target. So it can be examined statically
+			// (e.g. go version).
 			return true
 		}
 

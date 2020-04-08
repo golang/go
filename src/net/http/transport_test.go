@@ -451,14 +451,23 @@ func TestTransportReadToEndReusesConn(t *testing.T) {
 
 func TestTransportMaxPerHostIdleConns(t *testing.T) {
 	defer afterTest(t)
+	stop := make(chan struct{}) // stop marks the exit of main Test goroutine
+	defer close(stop)
+
 	resch := make(chan string)
 	gotReq := make(chan bool)
 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
 		gotReq <- true
-		msg := <-resch
+		var msg string
+		select {
+		case <-stop:
+			return
+		case msg = <-resch:
+		}
 		_, err := w.Write([]byte(msg))
 		if err != nil {
-			t.Fatalf("Write: %v", err)
+			t.Errorf("Write: %v", err)
+			return
 		}
 	}))
 	defer ts.Close()
@@ -472,6 +481,13 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
 	// Their responses will hang until we write to resch, though.
 	donech := make(chan bool)
 	doReq := func() {
+		defer func() {
+			select {
+			case <-stop:
+				return
+			case donech <- t.Failed():
+			}
+		}()
 		resp, err := c.Get(ts.URL)
 		if err != nil {
 			t.Error(err)
@@ -481,7 +497,6 @@ func TestTransportMaxPerHostIdleConns(t *testing.T) {
 			t.Errorf("ReadAll: %v", err)
 			return
 		}
-		donech <- true
 	}
 	go doReq()
 	<-gotReq
@@ -842,7 +857,9 @@ func TestStressSurpriseServerCloses(t *testing.T) {
 					// where we won the race.
 					res.Body.Close()
 				}
-				activityc <- true
+				if !<-activityc { // Receives false when close(activityc) is executed
+					return
+				}
 			}
 		}()
 	}
@@ -850,8 +867,9 @@ func TestStressSurpriseServerCloses(t *testing.T) {
 	// Make sure all the request come back, one way or another.
 	for i := 0; i < numClients*reqsPerClient; i++ {
 		select {
-		case <-activityc:
+		case activityc <- true:
 		case <-time.After(5 * time.Second):
+			close(activityc)
 			t.Fatalf("presumed deadlock; no HTTP client activity seen in awhile")
 		}
 	}
@@ -1442,6 +1460,72 @@ func TestTransportProxy(t *testing.T) {
 	}
 }
 
+// Issue 28012: verify that the Transport closes its TCP connection to http proxies
+// when they're slow to reply to HTTPS CONNECT responses.
+func TestTransportProxyHTTPSConnectLeak(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ln := newLocalListener(t)
+	defer ln.Close()
+	listenerDone := make(chan struct{})
+	go func() {
+		defer close(listenerDone)
+		c, err := ln.Accept()
+		if err != nil {
+			t.Errorf("Accept: %v", err)
+			return
+		}
+		defer c.Close()
+		// Read the CONNECT request
+		br := bufio.NewReader(c)
+		cr, err := ReadRequest(br)
+		if err != nil {
+			t.Errorf("proxy server failed to read CONNECT request")
+			return
+		}
+		if cr.Method != "CONNECT" {
+			t.Errorf("unexpected method %q", cr.Method)
+			return
+		}
+
+		// Now hang and never write a response; instead, cancel the request and wait
+		// for the client to close.
+		// (Prior to Issue 28012 being fixed, we never closed.)
+		cancel()
+		var buf [1]byte
+		_, err = br.Read(buf[:])
+		if err != io.EOF {
+			t.Errorf("proxy server Read err = %v; want EOF", err)
+		}
+		return
+	}()
+
+	c := &Client{
+		Transport: &Transport{
+			Proxy: func(*Request) (*url.URL, error) {
+				return url.Parse("http://" + ln.Addr().String())
+			},
+		},
+	}
+	req, err := NewRequestWithContext(ctx, "GET", "https://golang.fake.tld/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.Do(req)
+	if err == nil {
+		t.Errorf("unexpected Get success")
+	}
+
+	// Wait unconditionally for the listener goroutine to exit: this should never
+	// hang, so if it does we want a full goroutine dump — and that's exactly what
+	// the testing package will give us when the test run times out.
+	<-listenerDone
+}
+
 // Issue 16997: test transport dial preserves typed errors
 func TestTransportDialPreservesNetOpProxyError(t *testing.T) {
 	defer afterTest(t)
@@ -1481,6 +1565,44 @@ func TestTransportDialPreservesNetOpProxyError(t *testing.T) {
 	}
 	if !reflect.DeepEqual(oe, want) {
 		t.Errorf("Got error %#v; want %#v", oe, want)
+	}
+}
+
+// Issue 36431: calls to RoundTrip should not mutate t.ProxyConnectHeader.
+//
+// (A bug caused dialConn to instead write the per-request Proxy-Authorization
+// header through to the shared Header instance, introducing a data race.)
+func TestTransportProxyDialDoesNotMutateProxyConnectHeader(t *testing.T) {
+	setParallel(t)
+	defer afterTest(t)
+
+	proxy := httptest.NewTLSServer(NotFoundHandler())
+	defer proxy.Close()
+	c := proxy.Client()
+
+	tr := c.Transport.(*Transport)
+	tr.Proxy = func(*Request) (*url.URL, error) {
+		u, _ := url.Parse(proxy.URL)
+		u.User = url.UserPassword("aladdin", "opensesame")
+		return u, nil
+	}
+	h := tr.ProxyConnectHeader
+	if h == nil {
+		h = make(Header)
+	}
+	tr.ProxyConnectHeader = h.Clone()
+
+	req, err := NewRequest("GET", "https://golang.fake.tld/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.Do(req)
+	if err == nil {
+		t.Errorf("unexpected Get success")
+	}
+
+	if !reflect.DeepEqual(tr.ProxyConnectHeader, h) {
+		t.Errorf("tr.ProxyConnectHeader = %v; want %v", tr.ProxyConnectHeader, h)
 	}
 }
 
@@ -2257,7 +2379,9 @@ func TestTransportCancelRequestInDial(t *testing.T) {
 	tr := &Transport{
 		Dial: func(network, addr string) (net.Conn, error) {
 			eventLog.Println("dial: blocking")
-			inDial <- true
+			if !<-inDial {
+				return nil, errors.New("main Test goroutine exited")
+			}
 			<-unblockDial
 			return nil, errors.New("nope")
 		},
@@ -2272,8 +2396,9 @@ func TestTransportCancelRequestInDial(t *testing.T) {
 	}()
 
 	select {
-	case <-inDial:
+	case inDial <- true:
 	case <-time.After(5 * time.Second):
+		close(inDial)
 		t.Fatal("timeout; never saw blocking dial")
 	}
 
@@ -3717,7 +3842,7 @@ func TestTransportRemovesH2ConnsAfterIdle(t *testing.T) {
 	}
 }
 
-// This tests that an client requesting a content range won't also
+// This tests that a client requesting a content range won't also
 // implicitly ask for gzip support. If they want that, they need to do it
 // on their own.
 // golang.org/issue/8923
@@ -5930,7 +6055,11 @@ func TestDontCacheBrokenHTTP2Conn(t *testing.T) {
 
 	var brokenState brokenState
 
+	const numReqs = 5
+	var numDials, gotConns uint32 // atomic
+
 	cst.tr.Dial = func(netw, addr string) (net.Conn, error) {
+		atomic.AddUint32(&numDials, 1)
 		c, err := net.Dial(netw, addr)
 		if err != nil {
 			t.Errorf("unexpected Dial error: %v", err)
@@ -5939,8 +6068,6 @@ func TestDontCacheBrokenHTTP2Conn(t *testing.T) {
 		return &breakableConn{c, &brokenState}, err
 	}
 
-	const numReqs = 5
-	var gotConns uint32 // atomic
 	for i := 1; i <= numReqs; i++ {
 		brokenState.Lock()
 		brokenState.broken = false
@@ -5953,6 +6080,7 @@ func TestDontCacheBrokenHTTP2Conn(t *testing.T) {
 
 		ctx := httptrace.WithClientTrace(context.Background(), &httptrace.ClientTrace{
 			GotConn: func(info httptrace.GotConnInfo) {
+				t.Logf("got conn: %v, reused=%v, wasIdle=%v, idleTime=%v", info.Conn.LocalAddr(), info.Reused, info.WasIdle, info.IdleTime)
 				atomic.AddUint32(&gotConns, 1)
 			},
 			TLSHandshakeDone: func(cfg tls.ConnectionState, err error) {
@@ -5974,6 +6102,9 @@ func TestDontCacheBrokenHTTP2Conn(t *testing.T) {
 	}
 	if got, want := atomic.LoadUint32(&gotConns), 1; int(got) != want {
 		t.Errorf("GotConn calls = %v; want %v", got, want)
+	}
+	if got, want := atomic.LoadUint32(&numDials), numReqs; int(got) != want {
+		t.Errorf("Dials = %v; want %v", got, want)
 	}
 }
 
@@ -6031,5 +6162,37 @@ func TestTransportDecrementConnWhenIdleConnRemoved(t *testing.T) {
 
 	for err := range errCh {
 		t.Errorf("error occurred: %v", err)
+	}
+}
+
+// Issue 36820
+// Test that we use the older backward compatible cancellation protocol
+// when a RoundTripper is registered via RegisterProtocol.
+func TestAltProtoCancellation(t *testing.T) {
+	defer afterTest(t)
+	tr := &Transport{}
+	c := &Client{
+		Transport: tr,
+		Timeout:   time.Millisecond,
+	}
+	tr.RegisterProtocol("timeout", timeoutProto{})
+	_, err := c.Get("timeout://bar.com/path")
+	if err == nil {
+		t.Error("request unexpectedly succeeded")
+	} else if !strings.Contains(err.Error(), timeoutProtoErr.Error()) {
+		t.Errorf("got error %q, does not contain expected string %q", err, timeoutProtoErr)
+	}
+}
+
+var timeoutProtoErr = errors.New("canceled as expected")
+
+type timeoutProto struct{}
+
+func (timeoutProto) RoundTrip(req *Request) (*Response, error) {
+	select {
+	case <-req.Cancel:
+		return nil, timeoutProtoErr
+	case <-time.After(5 * time.Second):
+		return nil, errors.New("request was not canceled")
 	}
 }

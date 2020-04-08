@@ -1875,6 +1875,17 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				p.As = spadjop(ctxt, ASUBL, ASUBQ)
 			}
 		}
+		if ctxt.Retpoline && (p.As == obj.ACALL || p.As == obj.AJMP) && (p.To.Type == obj.TYPE_REG || p.To.Type == obj.TYPE_MEM) {
+			if p.To.Type != obj.TYPE_REG {
+				ctxt.Diag("non-retpoline-compatible: %v", p)
+				continue
+			}
+			p.To.Type = obj.TYPE_BRANCH
+			p.To.Name = obj.NAME_EXTERN
+			p.To.Sym = ctxt.Lookup("runtime.retpoline" + obj.Rconv(int(p.To.Reg)))
+			p.To.Reg = 0
+			p.To.Offset = 0
+		}
 	}
 
 	var count int64 // rough count of number of instructions
@@ -1983,6 +1994,22 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			r := &s.R[i]
 			fmt.Printf(" rel %#.4x/%d %s%+d\n", uint32(r.Off), r.Siz, r.Sym.Name, r.Add)
 		}
+	}
+
+	// Mark nonpreemptible instruction sequences.
+	// The 2-instruction TLS access sequence
+	//	MOVQ TLS, BX
+	//	MOVQ 0(BX)(TLS*1), BX
+	// is not async preemptible, as if it is preempted and resumed on
+	// a different thread, the TLS address may become invalid.
+	if !CanUse1InsnTLS(ctxt) {
+		useTLS := func(p *obj.Prog) bool {
+			// Only need to mark the second instruction, which has
+			// REG_TLS as Index. (It is okay to interrupt and restart
+			// the first instruction.)
+			return p.From.Index == REG_TLS
+		}
+		obj.MarkUnsafePoints(ctxt, s.Func.Text, newprog, useTLS)
 	}
 }
 

@@ -646,7 +646,7 @@ func resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer
 // Implemented in the runtime package.
 func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
 
-// resolveTextOff resolves an function pointer offset from a base type.
+// resolveTextOff resolves a function pointer offset from a base type.
 // The (*rtype).textOff method is a convenience wrapper for this function.
 // Implemented in the runtime package.
 func resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
@@ -1542,6 +1542,18 @@ func implements(T, V *rtype) bool {
 	return false
 }
 
+// specialChannelAssignability reports whether a value x of channel type V
+// can be directly assigned (using memmove) to another channel type T.
+// https://golang.org/doc/go_spec.html#Assignability
+// T and V must be both of Chan kind.
+func specialChannelAssignability(T, V *rtype) bool {
+	// Special case:
+	// x is a bidirectional channel value, T is a channel type,
+	// x's type V and T have identical element types,
+	// and at least one of V or T is not a defined type.
+	return V.ChanDir() == BothDir && (T.Name() == "" || V.Name() == "") && haveIdenticalType(T.Elem(), V.Elem(), true)
+}
+
 // directlyAssignable reports whether a value x of type V can be directly
 // assigned (using memmove) to a value of type T.
 // https://golang.org/doc/go_spec.html#Assignability
@@ -1559,7 +1571,11 @@ func directlyAssignable(T, V *rtype) bool {
 		return false
 	}
 
-	// x's type T and V must  have identical underlying types.
+	if T.Kind() == Chan && specialChannelAssignability(T, V) {
+		return true
+	}
+
+	// x's type T and V must have identical underlying types.
 	return haveIdenticalUnderlyingType(T, V, true)
 }
 
@@ -1597,14 +1613,6 @@ func haveIdenticalUnderlyingType(T, V *rtype, cmpTags bool) bool {
 		return T.Len() == V.Len() && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
 
 	case Chan:
-		// Special case:
-		// x is a bidirectional channel value, T is a channel type,
-		// and x's type V and T have identical element types.
-		if V.ChanDir() == BothDir && haveIdenticalType(T.Elem(), V.Elem(), cmpTags) {
-			return true
-		}
-
-		// Otherwise continue test for identical underlying type.
 		return V.ChanDir() == T.ChanDir() && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)
 
 	case Func:
@@ -2363,6 +2371,7 @@ func StructOf(fields []StructField) Type {
 
 	lastzero := uintptr(0)
 	repr = append(repr, "struct {"...)
+	pkgpath := ""
 	for i, field := range fields {
 		if field.Name == "" {
 			panic("reflect.StructOf: field " + strconv.Itoa(i) + " has no name")
@@ -2373,10 +2382,17 @@ func StructOf(fields []StructField) Type {
 		if field.Type == nil {
 			panic("reflect.StructOf: field " + strconv.Itoa(i) + " has no type")
 		}
-		f := runtimeStructField(field)
+		f, fpkgpath := runtimeStructField(field)
 		ft := f.typ
 		if ft.kind&kindGCProg != 0 {
 			hasGCProg = true
+		}
+		if fpkgpath != "" {
+			if pkgpath == "" {
+				pkgpath = fpkgpath
+			} else if pkgpath != fpkgpath {
+				panic("reflect.Struct: fields with different PkgPath " + pkgpath + " and " + fpkgpath)
+			}
 		}
 
 		// Update string and hash
@@ -2609,6 +2625,9 @@ func StructOf(fields []StructField) Type {
 	prototype := *(**structType)(unsafe.Pointer(&istruct))
 	*typ = *prototype
 	typ.fields = fs
+	if pkgpath != "" {
+		typ.pkgPath = newName(pkgpath, "", false)
+	}
 
 	// Look in cache.
 	if ts, ok := structLookupCache.m.Load(hash); ok {
@@ -2733,7 +2752,10 @@ func StructOf(fields []StructField) Type {
 	return addToCache(&typ.rtype)
 }
 
-func runtimeStructField(field StructField) structField {
+// runtimeStructField takes a StructField value passed to StructOf and
+// returns both the corresponding internal representation, of type
+// structField, and the pkgpath value to use for this field.
+func runtimeStructField(field StructField) (structField, string) {
 	if field.Anonymous && field.PkgPath != "" {
 		panic("reflect.StructOf: field \"" + field.Name + "\" is anonymous but has PkgPath set")
 	}
@@ -2754,11 +2776,12 @@ func runtimeStructField(field StructField) structField {
 	}
 
 	resolveReflectType(field.Type.common()) // install in runtime
-	return structField{
+	f := structField{
 		name:        newName(field.Name, string(field.Tag), exported),
 		typ:         field.Type.common(),
 		offsetEmbed: offsetEmbed,
 	}
+	return f, field.PkgPath
 }
 
 // typeptrdata returns the length in bytes of the prefix of t
@@ -3044,7 +3067,6 @@ func ifaceIndir(t *rtype) bool {
 	return t.kind&kindDirectIface == 0
 }
 
-// Layout matches runtime.gobitvector (well enough).
 type bitVector struct {
 	n    uint32 // number of bits
 	data []byte

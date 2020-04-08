@@ -149,10 +149,11 @@ func Split(path string) (dir, file string) {
 	return path[:i+1], path[i+1:]
 }
 
-// Join joins the argument's path elements into a single path,
-// separating them with slashes. The result is Cleaned. However,
-// if the argument list is empty or all its elements are empty,
-// Join returns an empty string.
+// Join joins any number of path elements into a single path,
+// separating them with slashes. Empty elements are ignored.
+// The result is Cleaned. However, if the argument list is
+// empty or all its elements are empty, Join returns
+// an empty string.
 func Join(elem ...string) string {
 	for i, e := range elem {
 		if e != "" {

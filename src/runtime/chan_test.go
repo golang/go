@@ -719,6 +719,7 @@ func TestSelectStackAdjust(t *testing.T) {
 		if after.NumGC-before.NumGC >= 2 {
 			goto done
 		}
+		runtime.Gosched()
 	}
 	t.Fatal("failed to trigger concurrent GC")
 done:

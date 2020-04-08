@@ -24,6 +24,8 @@ var (
 	AllErrors  = flag.Bool("e", false, "no limit on number of errors reported")
 	SymABIs    = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
 	Newobj     = flag.Bool("newobj", false, "use new object file format")
+
+	Spectre = flag.String("spectre", "", "enable spectre mitigations in `list` (all, ret)")
 )
 
 var (

@@ -187,6 +187,13 @@ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {
 // liveness map active at the entry of function s. It returns the last
 // Prog generated.
 func (ctxt *Link) EmitEntryLiveness(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
+	pcdata := ctxt.EmitEntryStackMap(s, p, newprog)
+	pcdata = ctxt.EmitEntryRegMap(s, pcdata, newprog)
+	return pcdata
+}
+
+// Similar to EmitEntryLiveness, but just emit stack map.
+func (ctxt *Link) EmitEntryStackMap(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
 	pcdata := Appendp(p, newprog)
 	pcdata.Pos = s.Func.Text.Pos
 	pcdata.As = APCDATA
@@ -195,8 +202,12 @@ func (ctxt *Link) EmitEntryLiveness(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
 	pcdata.To.Type = TYPE_CONST
 	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
 
-	// Same, with register map.
-	pcdata = Appendp(pcdata, newprog)
+	return pcdata
+}
+
+// Similar to EmitEntryLiveness, but just emit register map.
+func (ctxt *Link) EmitEntryRegMap(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
+	pcdata := Appendp(p, newprog)
 	pcdata.Pos = s.Func.Text.Pos
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
@@ -215,11 +226,9 @@ func (ctxt *Link) StartUnsafePoint(p *Prog, newprog ProgAlloc) *Prog {
 	pcdata := Appendp(p, newprog)
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
+	pcdata.From.Offset = objabi.PCDATA_RegMapIndex
 	pcdata.To.Type = TYPE_CONST
 	pcdata.To.Offset = -2 // pcdata -2 marks unsafe point
-
-	// TODO: register map?
 
 	return pcdata
 }
@@ -232,7 +241,7 @@ func (ctxt *Link) EndUnsafePoint(p *Prog, newprog ProgAlloc, oldval int64) *Prog
 	pcdata := Appendp(p, newprog)
 	pcdata.As = APCDATA
 	pcdata.From.Type = TYPE_CONST
-	pcdata.From.Offset = objabi.PCDATA_StackMapIndex
+	pcdata.From.Offset = objabi.PCDATA_RegMapIndex
 	pcdata.To.Type = TYPE_CONST
 	pcdata.To.Offset = oldval
 
@@ -248,7 +257,7 @@ func MarkUnsafePoints(ctxt *Link, p0 *Prog, newprog ProgAlloc, isUnsafePoint fun
 	prev := p0
 	oldval := int64(-1) // entry pcdata
 	for p := prev.Link; p != nil; p, prev = p.Link, p {
-		if p.As == APCDATA && p.From.Offset == objabi.PCDATA_StackMapIndex {
+		if p.As == APCDATA && p.From.Offset == objabi.PCDATA_RegMapIndex {
 			oldval = p.To.Offset
 			continue
 		}

@@ -68,23 +68,24 @@ type regInfo struct {
 type auxType int8
 
 const (
-	auxNone         auxType = iota
-	auxBool                 // auxInt is 0/1 for false/true
-	auxInt8                 // auxInt is an 8-bit integer
-	auxInt16                // auxInt is a 16-bit integer
-	auxInt32                // auxInt is a 32-bit integer
-	auxInt64                // auxInt is a 64-bit integer
-	auxInt128               // auxInt represents a 128-bit integer.  Always 0.
-	auxFloat32              // auxInt is a float32 (encoded with math.Float64bits)
-	auxFloat64              // auxInt is a float64 (encoded with math.Float64bits)
-	auxString               // aux is a string
-	auxSym                  // aux is a symbol (a *gc.Node for locals or an *obj.LSym for globals)
-	auxSymOff               // aux is a symbol, auxInt is an offset
-	auxSymValAndOff         // aux is a symbol, auxInt is a ValAndOff
-	auxTyp                  // aux is a type
-	auxTypSize              // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
-	auxCCop                 // aux is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
-	auxArchSpecific         // aux type is specific to a particular backend (see the relevant op for the actual type)
+	auxNone          auxType = iota
+	auxBool                  // auxInt is 0/1 for false/true
+	auxInt8                  // auxInt is an 8-bit integer
+	auxInt16                 // auxInt is a 16-bit integer
+	auxInt32                 // auxInt is a 32-bit integer
+	auxInt64                 // auxInt is a 64-bit integer
+	auxInt128                // auxInt represents a 128-bit integer.  Always 0.
+	auxFloat32               // auxInt is a float32 (encoded with math.Float64bits)
+	auxFloat64               // auxInt is a float64 (encoded with math.Float64bits)
+	auxString                // aux is a string
+	auxSym                   // aux is a symbol (a *gc.Node for locals or an *obj.LSym for globals)
+	auxSymOff                // aux is a symbol, auxInt is an offset
+	auxSymValAndOff          // aux is a symbol, auxInt is a ValAndOff
+	auxTyp                   // aux is a type
+	auxTypSize               // aux is a type, auxInt is a size, must have Aux.(Type).Size() == AuxInt
+	auxCCop                  // aux is a ssa.Op that represents a flags-to-bool conversion (e.g. LessThan)
+	auxARM64BitField         // aux is an arm64 bitfield lsb and width packed into auxint
+	auxArchSpecific          // aux type is specific to a particular backend (see the relevant op for the actual type)
 )
 
 // A SymEffect describes the effect that an SSA Value has on the variable

@@ -1,0 +1,18 @@
+# Tests issue #18845
+[short] skip
+
+go test -bench . -timeout=750ms timeoutbench_test.go
+stdout ok
+stdout PASS
+
+-- timeoutbench_test.go --
+package timeoutbench_test
+
+import (
+	"testing"
+	"time"
+)
+
+func BenchmarkSleep1s(b *testing.B) {
+	time.Sleep(1 * time.Second)
+}

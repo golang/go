@@ -11,10 +11,7 @@ func Sleep(d Duration)
 // Interface to timers implemented in package runtime.
 // Must be in sync with ../runtime/time.go:/^type timer
 type runtimeTimer struct {
-	tb uintptr
-	i  int
-	pp uintptr
-
+	pp       uintptr
 	when     int64
 	period   int64
 	f        func(interface{}, uintptr) // NOTE: must not be closure
@@ -42,6 +39,7 @@ func when(d Duration) int64 {
 func startTimer(*runtimeTimer)
 func stopTimer(*runtimeTimer) bool
 func resetTimer(*runtimeTimer, int64)
+func modTimer(t *runtimeTimer, when, period int64, f func(interface{}, uintptr), arg interface{}, seq uintptr)
 
 // The Timer type represents a single event.
 // When the Timer expires, the current time will be sent on C,
@@ -67,7 +65,7 @@ type Timer struct {
 // 	}
 //
 // This cannot be done concurrent to other receives from the Timer's
-// channel.
+// channel or other calls to the Timer's Stop method.
 //
 // For a timer created with AfterFunc(d, f), if t.Stop returns false, then the timer
 // has already expired and the function f has been started in its own goroutine;

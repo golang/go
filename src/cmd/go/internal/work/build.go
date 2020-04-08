@@ -100,7 +100,7 @@ and test commands:
 		build code that will be linked against shared libraries previously
 		created with -buildmode=shared.
 	-mod mode
-		module download mode to use: readonly or vendor.
+		module download mode to use: readonly, vendor, or mod.
 		See 'go help modules' for more.
 	-modcacherw
 		leave newly-created directories in the module cache read-write
@@ -232,6 +232,7 @@ const (
 	DefaultBuildFlags BuildFlagMask = 0
 	OmitModFlag       BuildFlagMask = 1 << iota
 	OmitModCommonFlags
+	OmitVFlag
 )
 
 // AddBuildFlags adds the flags common to the build, clean, get,
@@ -240,7 +241,9 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.BoolVar(&cfg.BuildA, "a", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildN, "n", false, "")
 	cmd.Flag.IntVar(&cfg.BuildP, "p", cfg.BuildP, "")
-	cmd.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+	if mask&OmitVFlag == 0 {
+		cmd.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+	}
 	cmd.Flag.BoolVar(&cfg.BuildX, "x", false, "")
 
 	cmd.Flag.Var(&load.BuildAsmflags, "asmflags", "")

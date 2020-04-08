@@ -9,14 +9,12 @@ import (
 	"errors"
 	"fmt"
 	"go/build"
-	"io/ioutil"
 	"os"
 	"path"
 	pathpkg "path"
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
@@ -27,9 +25,7 @@ import (
 	"cmd/go/internal/search"
 	"cmd/go/internal/str"
 
-	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 // buildList is the list of modules to use for building packages.
@@ -65,23 +61,13 @@ func ImportPaths(patterns []string) []*search.Match {
 // packages. The build tags should typically be imports.Tags() or
 // imports.AnyTags(); a nil map has no special meaning.
 func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
-	var fsDirs [][]string
 	updateMatches := func(matches []*search.Match, iterating bool) {
-		for i, m := range matches {
+		for _, m := range matches {
 			switch {
-			case build.IsLocalImport(m.Pattern) || filepath.IsAbs(m.Pattern):
+			case m.IsLocal():
 				// Evaluate list of file system directories on first iteration.
-				if fsDirs == nil {
-					fsDirs = make([][]string, len(matches))
-				}
-				if fsDirs[i] == nil {
-					var dirs []string
-					if m.Literal {
-						dirs = []string{m.Pattern}
-					} else {
-						dirs = search.MatchPackagesInFS(m.Pattern).Pkgs
-					}
-					fsDirs[i] = dirs
+				if m.Dirs == nil {
+					matchLocalDirs(m)
 				}
 
 				// Make a copy of the directory list and translate to import paths.
@@ -90,84 +76,33 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 				// from not being in the build list to being in it and back as
 				// the exact version of a particular module increases during
 				// the loader iterations.
-				m.Pkgs = str.StringList(fsDirs[i])
-				pkgs := m.Pkgs
 				m.Pkgs = m.Pkgs[:0]
-				for _, pkg := range pkgs {
-					dir := pkg
-					if !filepath.IsAbs(dir) {
-						dir = filepath.Join(base.Cwd, pkg)
-					} else {
-						dir = filepath.Clean(dir)
-					}
+				for _, dir := range m.Dirs {
+					pkg, err := resolveLocalPackage(dir)
+					if err != nil {
+						if !m.IsLiteral() && (err == errPkgIsBuiltin || err == errPkgIsGorootSrc) {
+							continue // Don't include "builtin" or GOROOT/src in wildcard patterns.
+						}
 
-					// golang.org/issue/32917: We should resolve a relative path to a
-					// package path only if the relative path actually contains the code
-					// for that package.
-					if !dirContainsPackage(dir) {
 						// If we're outside of a module, ensure that the failure mode
 						// indicates that.
 						ModRoot()
 
-						// If the directory is local but does not exist, don't return it
-						// while loader is iterating, since this might trigger a fetch.
-						// After loader is done iterating, we still need to return the
-						// path, so that "go list -e" produces valid output.
 						if !iterating {
-							// We don't have a valid path to resolve to, so report the
-							// unresolved path.
-							m.Pkgs = append(m.Pkgs, pkg)
+							m.AddError(err)
 						}
 						continue
-					}
-
-					// Note: The checks for @ here are just to avoid misinterpreting
-					// the module cache directories (formerly GOPATH/src/mod/foo@v1.5.2/bar).
-					// It's not strictly necessary but helpful to keep the checks.
-					if modRoot != "" && dir == modRoot {
-						pkg = targetPrefix
-					} else if modRoot != "" && strings.HasPrefix(dir, modRoot+string(filepath.Separator)) && !strings.Contains(dir[len(modRoot):], "@") {
-						suffix := filepath.ToSlash(dir[len(modRoot):])
-						if strings.HasPrefix(suffix, "/vendor/") {
-							// TODO getmode vendor check
-							pkg = strings.TrimPrefix(suffix, "/vendor/")
-						} else if targetInGorootSrc && Target.Path == "std" {
-							// Don't add the prefix "std/" to packages in the "std" module.
-							// It's the one module path that isn't a prefix of its packages.
-							pkg = strings.TrimPrefix(suffix, "/")
-							if pkg == "builtin" {
-								// "builtin" is a pseudo-package with a real source file.
-								// It's not included in "std", so it shouldn't be included in
-								// "./..." within module "std" either.
-								continue
-							}
-						} else {
-							modPkg := targetPrefix + suffix
-							if _, ok := dirInModule(modPkg, targetPrefix, modRoot, true); ok {
-								pkg = modPkg
-							} else if !iterating {
-								ModRoot()
-								base.Errorf("go: directory %s is outside main module", base.ShortPath(dir))
-							}
-						}
-					} else if sub := search.InDir(dir, cfg.GOROOTsrc); sub != "" && sub != "." && !strings.Contains(sub, "@") {
-						pkg = filepath.ToSlash(sub)
-					} else if path := pathInModuleCache(dir); path != "" {
-						pkg = path
-					} else {
-						pkg = ""
-						if !iterating {
-							ModRoot()
-							base.Errorf("go: directory %s outside available modules", base.ShortPath(dir))
-						}
 					}
 					m.Pkgs = append(m.Pkgs, pkg)
 				}
 
-			case strings.Contains(m.Pattern, "..."):
-				m.Pkgs = matchPackages(m.Pattern, loaded.tags, true, buildList)
+			case m.IsLiteral():
+				m.Pkgs = []string{m.Pattern()}
 
-			case m.Pattern == "all":
+			case strings.Contains(m.Pattern(), "..."):
+				m.Pkgs = matchPackages(m.Pattern(), loaded.tags, true, buildList)
+
+			case m.Pattern() == "all":
 				loaded.testAll = true
 				if iterating {
 					// Enumerate the packages in the main module.
@@ -179,13 +114,13 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 					m.Pkgs = loaded.computePatternAll(m.Pkgs)
 				}
 
-			case search.IsMetaPackage(m.Pattern): // std, cmd
-				if len(m.Pkgs) == 0 {
-					m.Pkgs = search.MatchPackages(m.Pattern).Pkgs
+			case m.Pattern() == "std" || m.Pattern() == "cmd":
+				if m.Pkgs == nil {
+					m.MatchPackages() // Locate the packages within GOROOT/src.
 				}
 
 			default:
-				m.Pkgs = []string{m.Pattern}
+				panic(fmt.Sprintf("internal error: modload missing case for pattern %s", m.Pattern()))
 			}
 		}
 	}
@@ -194,10 +129,7 @@ func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
 
 	var matches []*search.Match
 	for _, pattern := range search.CleanPatterns(patterns) {
-		matches = append(matches, &search.Match{
-			Pattern: pattern,
-			Literal: !strings.Contains(pattern, "...") && !search.IsMetaPackage(pattern),
-		})
+		matches = append(matches, search.NewMatch(pattern))
 	}
 
 	loaded = newLoader(tags)
@@ -238,6 +170,137 @@ func checkMultiplePaths() {
 	base.ExitIfErrors()
 }
 
+// matchLocalDirs is like m.MatchDirs, but tries to avoid scanning directories
+// outside of the standard library and active modules.
+func matchLocalDirs(m *search.Match) {
+	if !m.IsLocal() {
+		panic(fmt.Sprintf("internal error: resolveLocalDirs on non-local pattern %s", m.Pattern()))
+	}
+
+	if i := strings.Index(m.Pattern(), "..."); i >= 0 {
+		// The pattern is local, but it is a wildcard. Its packages will
+		// only resolve to paths if they are inside of the standard
+		// library, the main module, or some dependency of the main
+		// module. Verify that before we walk the filesystem: a filesystem
+		// walk in a directory like /var or /etc can be very expensive!
+		dir := filepath.Dir(filepath.Clean(m.Pattern()[:i+3]))
+		absDir := dir
+		if !filepath.IsAbs(dir) {
+			absDir = filepath.Join(base.Cwd, dir)
+		}
+		if search.InDir(absDir, cfg.GOROOTsrc) == "" && search.InDir(absDir, ModRoot()) == "" && pathInModuleCache(absDir) == "" {
+			m.Dirs = []string{}
+			m.AddError(fmt.Errorf("directory prefix %s outside available modules", base.ShortPath(absDir)))
+			return
+		}
+	}
+
+	m.MatchDirs()
+}
+
+// resolveLocalPackage resolves a filesystem path to a package path.
+func resolveLocalPackage(dir string) (string, error) {
+	var absDir string
+	if filepath.IsAbs(dir) {
+		absDir = filepath.Clean(dir)
+	} else {
+		absDir = filepath.Join(base.Cwd, dir)
+	}
+
+	bp, err := cfg.BuildContext.ImportDir(absDir, 0)
+	if err != nil && (bp == nil || len(bp.IgnoredGoFiles) == 0) {
+		// golang.org/issue/32917: We should resolve a relative path to a
+		// package path only if the relative path actually contains the code
+		// for that package.
+		//
+		// If the named directory does not exist or contains no Go files,
+		// the package does not exist.
+		// Other errors may affect package loading, but not resolution.
+		if _, err := os.Stat(absDir); err != nil {
+			if os.IsNotExist(err) {
+				// Canonicalize OS-specific errors to errDirectoryNotFound so that error
+				// messages will be easier for users to search for.
+				return "", &os.PathError{Op: "stat", Path: absDir, Err: errDirectoryNotFound}
+			}
+			return "", err
+		}
+		if _, noGo := err.(*build.NoGoError); noGo {
+			// A directory that does not contain any Go source files — even ignored
+			// ones! — is not a Go package, and we can't resolve it to a package
+			// path because that path could plausibly be provided by some other
+			// module.
+			//
+			// Any other error indicates that the package “exists” (at least in the
+			// sense that it cannot exist in any other module), but has some other
+			// problem (such as a syntax error).
+			return "", err
+		}
+	}
+
+	if modRoot != "" && absDir == modRoot {
+		if absDir == cfg.GOROOTsrc {
+			return "", errPkgIsGorootSrc
+		}
+		return targetPrefix, nil
+	}
+
+	// Note: The checks for @ here are just to avoid misinterpreting
+	// the module cache directories (formerly GOPATH/src/mod/foo@v1.5.2/bar).
+	// It's not strictly necessary but helpful to keep the checks.
+	if modRoot != "" && strings.HasPrefix(absDir, modRoot+string(filepath.Separator)) && !strings.Contains(absDir[len(modRoot):], "@") {
+		suffix := filepath.ToSlash(absDir[len(modRoot):])
+		if strings.HasPrefix(suffix, "/vendor/") {
+			if cfg.BuildMod != "vendor" {
+				return "", fmt.Errorf("without -mod=vendor, directory %s has no package path", absDir)
+			}
+
+			readVendorList()
+			pkg := strings.TrimPrefix(suffix, "/vendor/")
+			if _, ok := vendorPkgModule[pkg]; !ok {
+				return "", fmt.Errorf("directory %s is not a package listed in vendor/modules.txt", absDir)
+			}
+			return pkg, nil
+		}
+
+		if targetPrefix == "" {
+			pkg := strings.TrimPrefix(suffix, "/")
+			if pkg == "builtin" {
+				// "builtin" is a pseudo-package with a real source file.
+				// It's not included in "std", so it shouldn't resolve from "."
+				// within module "std" either.
+				return "", errPkgIsBuiltin
+			}
+			return pkg, nil
+		}
+
+		pkg := targetPrefix + suffix
+		if _, ok := dirInModule(pkg, targetPrefix, modRoot, true); !ok {
+			return "", &PackageNotInModuleError{Mod: Target, Pattern: pkg}
+		}
+		return pkg, nil
+	}
+
+	if sub := search.InDir(absDir, cfg.GOROOTsrc); sub != "" && sub != "." && !strings.Contains(sub, "@") {
+		pkg := filepath.ToSlash(sub)
+		if pkg == "builtin" {
+			return "", errPkgIsBuiltin
+		}
+		return pkg, nil
+	}
+
+	pkg := pathInModuleCache(absDir)
+	if pkg == "" {
+		return "", fmt.Errorf("directory %s outside available modules", base.ShortPath(absDir))
+	}
+	return pkg, nil
+}
+
+var (
+	errDirectoryNotFound = errors.New("directory not found")
+	errPkgIsGorootSrc    = errors.New("GOROOT/src is not an importable package")
+	errPkgIsBuiltin      = errors.New(`"builtin" is a pseudo-package, not an importable package`)
+)
+
 // pathInModuleCache returns the import path of the directory dir,
 // if dir is in the module cache copy of a module in our build list.
 func pathInModuleCache(dir string) string {
@@ -265,32 +328,6 @@ func pathInModuleCache(dir string) string {
 		}
 	}
 	return ""
-}
-
-var dirContainsPackageCache sync.Map // absolute dir → bool
-
-func dirContainsPackage(dir string) bool {
-	isPkg, ok := dirContainsPackageCache.Load(dir)
-	if !ok {
-		_, err := cfg.BuildContext.ImportDir(dir, 0)
-		if err == nil {
-			isPkg = true
-		} else {
-			if fi, statErr := os.Stat(dir); statErr != nil || !fi.IsDir() {
-				// A non-directory or inaccessible directory is not a Go package.
-				isPkg = false
-			} else if _, noGo := err.(*build.NoGoError); noGo {
-				// A directory containing no Go source files is not a Go package.
-				isPkg = false
-			} else {
-				// An error other than *build.NoGoError indicates that the package exists
-				// but has some other problem (such as a syntax error).
-				isPkg = true
-			}
-		}
-		isPkg, _ = dirContainsPackageCache.LoadOrStore(dir, isPkg)
-	}
-	return isPkg.(bool)
 }
 
 // ImportFromFiles adds modules to the build list as needed
@@ -655,13 +692,13 @@ func (ld *loader) load(roots func() []string) {
 				if err.newMissingVersion != "" {
 					base.Fatalf("go: %s: package provided by %s at latest version %s but not at required version %s", pkg.stackText(), err.Module.Path, err.Module.Version, err.newMissingVersion)
 				}
+				fmt.Fprintf(os.Stderr, "go: found %s in %s %s\n", pkg.path, err.Module.Path, err.Module.Version)
 				if added[pkg.path] {
 					base.Fatalf("go: %s: looping trying to add package", pkg.stackText())
 				}
 				added[pkg.path] = true
 				numAdded++
 				if !haveMod[err.Module] {
-					fmt.Fprintf(os.Stderr, "go: found %s in %s %s\n", pkg.path, err.Module.Path, err.Module.Version)
 					haveMod[err.Module] = true
 					modAddedBy[err.Module] = pkg
 					buildList = append(buildList, err.Module)
@@ -761,7 +798,7 @@ func (ld *loader) doPkg(item interface{}) {
 			// Leave for error during load.
 			return
 		}
-		if build.IsLocalImport(pkg.path) {
+		if build.IsLocalImport(pkg.path) || filepath.IsAbs(pkg.path) {
 			// Leave for error during load.
 			// (Module mode does not allow local imports.)
 			return
@@ -991,340 +1028,4 @@ func WhyDepth(path string) int {
 		n++
 	}
 	return n
-}
-
-// Replacement returns the replacement for mod, if any, from go.mod.
-// If there is no replacement for mod, Replacement returns
-// a module.Version with Path == "".
-func Replacement(mod module.Version) module.Version {
-	if index != nil {
-		if r, ok := index.replace[mod]; ok {
-			return r
-		}
-		if r, ok := index.replace[module.Version{Path: mod.Path}]; ok {
-			return r
-		}
-	}
-	return module.Version{}
-}
-
-// mvsReqs implements mvs.Reqs for module semantic versions,
-// with any exclusions or replacements applied internally.
-type mvsReqs struct {
-	buildList []module.Version
-	cache     par.Cache
-	versions  sync.Map
-}
-
-// Reqs returns the current module requirement graph.
-// Future calls to SetBuildList do not affect the operation
-// of the returned Reqs.
-func Reqs() mvs.Reqs {
-	r := &mvsReqs{
-		buildList: buildList,
-	}
-	return r
-}
-
-func (r *mvsReqs) Required(mod module.Version) ([]module.Version, error) {
-	type cached struct {
-		list []module.Version
-		err  error
-	}
-
-	c := r.cache.Do(mod, func() interface{} {
-		list, err := r.required(mod)
-		if err != nil {
-			return cached{nil, err}
-		}
-		for i, mv := range list {
-			if index != nil {
-				for index.exclude[mv] {
-					mv1, err := r.next(mv)
-					if err != nil {
-						return cached{nil, err}
-					}
-					if mv1.Version == "none" {
-						return cached{nil, fmt.Errorf("%s(%s) depends on excluded %s(%s) with no newer version available", mod.Path, mod.Version, mv.Path, mv.Version)}
-					}
-					mv = mv1
-				}
-			}
-			list[i] = mv
-		}
-
-		return cached{list, nil}
-	}).(cached)
-
-	return c.list, c.err
-}
-
-var vendorOnce sync.Once
-
-type vendorMetadata struct {
-	Explicit    bool
-	Replacement module.Version
-}
-
-var (
-	vendorList      []module.Version          // modules that contribute packages to the build, in order of appearance
-	vendorReplaced  []module.Version          // all replaced modules; may or may not also contribute packages
-	vendorVersion   map[string]string         // module path → selected version (if known)
-	vendorPkgModule map[string]module.Version // package → containing module
-	vendorMeta      map[module.Version]vendorMetadata
-)
-
-// readVendorList reads the list of vendored modules from vendor/modules.txt.
-func readVendorList() {
-	vendorOnce.Do(func() {
-		vendorList = nil
-		vendorPkgModule = make(map[string]module.Version)
-		vendorVersion = make(map[string]string)
-		vendorMeta = make(map[module.Version]vendorMetadata)
-		data, err := ioutil.ReadFile(filepath.Join(ModRoot(), "vendor/modules.txt"))
-		if err != nil {
-			if !errors.Is(err, os.ErrNotExist) {
-				base.Fatalf("go: %s", err)
-			}
-			return
-		}
-
-		var mod module.Version
-		for _, line := range strings.Split(string(data), "\n") {
-			if strings.HasPrefix(line, "# ") {
-				f := strings.Fields(line)
-
-				if len(f) < 3 {
-					continue
-				}
-				if semver.IsValid(f[2]) {
-					// A module, but we don't yet know whether it is in the build list or
-					// only included to indicate a replacement.
-					mod = module.Version{Path: f[1], Version: f[2]}
-					f = f[3:]
-				} else if f[2] == "=>" {
-					// A wildcard replacement found in the main module's go.mod file.
-					mod = module.Version{Path: f[1]}
-					f = f[2:]
-				} else {
-					// Not a version or a wildcard replacement.
-					// We don't know how to interpret this module line, so ignore it.
-					mod = module.Version{}
-					continue
-				}
-
-				if len(f) >= 2 && f[0] == "=>" {
-					meta := vendorMeta[mod]
-					if len(f) == 2 {
-						// File replacement.
-						meta.Replacement = module.Version{Path: f[1]}
-						vendorReplaced = append(vendorReplaced, mod)
-					} else if len(f) == 3 && semver.IsValid(f[2]) {
-						// Path and version replacement.
-						meta.Replacement = module.Version{Path: f[1], Version: f[2]}
-						vendorReplaced = append(vendorReplaced, mod)
-					} else {
-						// We don't understand this replacement. Ignore it.
-					}
-					vendorMeta[mod] = meta
-				}
-				continue
-			}
-
-			// Not a module line. Must be a package within a module or a metadata
-			// directive, either of which requires a preceding module line.
-			if mod.Path == "" {
-				continue
-			}
-
-			if strings.HasPrefix(line, "## ") {
-				// Metadata. Take the union of annotations across multiple lines, if present.
-				meta := vendorMeta[mod]
-				for _, entry := range strings.Split(strings.TrimPrefix(line, "## "), ";") {
-					entry = strings.TrimSpace(entry)
-					if entry == "explicit" {
-						meta.Explicit = true
-					}
-					// All other tokens are reserved for future use.
-				}
-				vendorMeta[mod] = meta
-				continue
-			}
-
-			if f := strings.Fields(line); len(f) == 1 && module.CheckImportPath(f[0]) == nil {
-				// A package within the current module.
-				vendorPkgModule[f[0]] = mod
-
-				// Since this module provides a package for the build, we know that it
-				// is in the build list and is the selected version of its path.
-				// If this information is new, record it.
-				if v, ok := vendorVersion[mod.Path]; !ok || semver.Compare(v, mod.Version) < 0 {
-					vendorList = append(vendorList, mod)
-					vendorVersion[mod.Path] = mod.Version
-				}
-			}
-		}
-	})
-}
-
-func (r *mvsReqs) modFileToList(f *modfile.File) []module.Version {
-	list := make([]module.Version, 0, len(f.Require))
-	for _, r := range f.Require {
-		list = append(list, r.Mod)
-	}
-	return list
-}
-
-// required returns a unique copy of the requirements of mod.
-func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
-	if mod == Target {
-		if modFile != nil && modFile.Go != nil {
-			r.versions.LoadOrStore(mod, modFile.Go.Version)
-		}
-		return append([]module.Version(nil), r.buildList[1:]...), nil
-	}
-
-	if cfg.BuildMod == "vendor" {
-		// For every module other than the target,
-		// return the full list of modules from modules.txt.
-		readVendorList()
-		return append([]module.Version(nil), vendorList...), nil
-	}
-
-	origPath := mod.Path
-	if repl := Replacement(mod); repl.Path != "" {
-		if repl.Version == "" {
-			// TODO: need to slip the new version into the tags list etc.
-			dir := repl.Path
-			if !filepath.IsAbs(dir) {
-				dir = filepath.Join(ModRoot(), dir)
-			}
-			gomod := filepath.Join(dir, "go.mod")
-			data, err := ioutil.ReadFile(gomod)
-			if err != nil {
-				return nil, fmt.Errorf("parsing %s: %v", base.ShortPath(gomod), err)
-			}
-			f, err := modfile.ParseLax(gomod, data, nil)
-			if err != nil {
-				return nil, fmt.Errorf("parsing %s: %v", base.ShortPath(gomod), err)
-			}
-			if f.Go != nil {
-				r.versions.LoadOrStore(mod, f.Go.Version)
-			}
-			return r.modFileToList(f), nil
-		}
-		mod = repl
-	}
-
-	if mod.Version == "none" {
-		return nil, nil
-	}
-
-	if !semver.IsValid(mod.Version) {
-		// Disallow the broader queries supported by fetch.Lookup.
-		base.Fatalf("go: internal error: %s@%s: unexpected invalid semantic version", mod.Path, mod.Version)
-	}
-
-	data, err := modfetch.GoMod(mod.Path, mod.Version)
-	if err != nil {
-		return nil, err
-	}
-	f, err := modfile.ParseLax("go.mod", data, nil)
-	if err != nil {
-		return nil, module.VersionError(mod, fmt.Errorf("parsing go.mod: %v", err))
-	}
-
-	if f.Module == nil {
-		return nil, module.VersionError(mod, errors.New("parsing go.mod: missing module line"))
-	}
-	if mpath := f.Module.Mod.Path; mpath != origPath && mpath != mod.Path {
-		return nil, module.VersionError(mod, fmt.Errorf(`parsing go.mod:
-	module declares its path as: %s
-	        but was required as: %s`, mpath, mod.Path))
-	}
-	if f.Go != nil {
-		r.versions.LoadOrStore(mod, f.Go.Version)
-	}
-
-	return r.modFileToList(f), nil
-}
-
-func (*mvsReqs) Max(v1, v2 string) string {
-	if v1 != "" && semver.Compare(v1, v2) == -1 {
-		return v2
-	}
-	return v1
-}
-
-// Upgrade is a no-op, here to implement mvs.Reqs.
-// The upgrade logic for go get -u is in ../modget/get.go.
-func (*mvsReqs) Upgrade(m module.Version) (module.Version, error) {
-	return m, nil
-}
-
-func versions(path string) ([]string, error) {
-	// Note: modfetch.Lookup and repo.Versions are cached,
-	// so there's no need for us to add extra caching here.
-	var versions []string
-	err := modfetch.TryProxies(func(proxy string) error {
-		repo, err := modfetch.Lookup(proxy, path)
-		if err == nil {
-			versions, err = repo.Versions("")
-		}
-		return err
-	})
-	return versions, err
-}
-
-// Previous returns the tagged version of m.Path immediately prior to
-// m.Version, or version "none" if no prior version is tagged.
-func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
-	list, err := versions(m.Path)
-	if err != nil {
-		return module.Version{}, err
-	}
-	i := sort.Search(len(list), func(i int) bool { return semver.Compare(list[i], m.Version) >= 0 })
-	if i > 0 {
-		return module.Version{Path: m.Path, Version: list[i-1]}, nil
-	}
-	return module.Version{Path: m.Path, Version: "none"}, nil
-}
-
-// next returns the next version of m.Path after m.Version.
-// It is only used by the exclusion processing in the Required method,
-// not called directly by MVS.
-func (*mvsReqs) next(m module.Version) (module.Version, error) {
-	list, err := versions(m.Path)
-	if err != nil {
-		return module.Version{}, err
-	}
-	i := sort.Search(len(list), func(i int) bool { return semver.Compare(list[i], m.Version) > 0 })
-	if i < len(list) {
-		return module.Version{Path: m.Path, Version: list[i]}, nil
-	}
-	return module.Version{Path: m.Path, Version: "none"}, nil
-}
-
-// fetch downloads the given module (or its replacement)
-// and returns its location.
-//
-// The isLocal return value reports whether the replacement,
-// if any, is local to the filesystem.
-func fetch(mod module.Version) (dir string, isLocal bool, err error) {
-	if mod == Target {
-		return ModRoot(), true, nil
-	}
-	if r := Replacement(mod); r.Path != "" {
-		if r.Version == "" {
-			dir = r.Path
-			if !filepath.IsAbs(dir) {
-				dir = filepath.Join(ModRoot(), dir)
-			}
-			return dir, true, nil
-		}
-		mod = r
-	}
-
-	dir, err = modfetch.Download(mod)
-	return dir, false, err
 }

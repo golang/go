@@ -8,11 +8,6 @@ package work
 
 import (
 	"bytes"
-	"cmd/go/internal/base"
-	"cmd/go/internal/cache"
-	"cmd/go/internal/cfg"
-	"cmd/go/internal/load"
-	"cmd/go/internal/str"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,6 +25,12 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"cmd/go/internal/base"
+	"cmd/go/internal/cache"
+	"cmd/go/internal/cfg"
+	"cmd/go/internal/load"
+	"cmd/go/internal/str"
 )
 
 // actionList returns the list of actions in the dag rooted at root
@@ -206,8 +207,15 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	// The compiler hides the exact value of $GOROOT
 	// when building things in GOROOT.
 	// Assume b.WorkDir is being trimmed properly.
+	// When -trimpath is used with a package built from the module cache,
+	// use the module path and version instead of the directory.
 	if !p.Goroot && !cfg.BuildTrimpath && !strings.HasPrefix(p.Dir, b.WorkDir) {
 		fmt.Fprintf(h, "dir %s\n", p.Dir)
+	} else if cfg.BuildTrimpath && p.Module != nil {
+		fmt.Fprintf(h, "module %s@%s\n", p.Module.Path, p.Module.Version)
+	}
+	if p.Module != nil {
+		fmt.Fprintf(h, "go %s\n", p.Module.GoVersion)
 	}
 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
 	fmt.Fprintf(h, "import %q\n", p.ImportPath)
@@ -481,6 +489,10 @@ func (b *Builder) build(a *Action) (err error) {
 	}
 	if need == 0 {
 		return nil
+	}
+
+	if err := allowInstall(a); err != nil {
+		return err
 	}
 
 	// make target directory
@@ -1185,6 +1197,10 @@ func (b *Builder) link(a *Action) (err error) {
 		return err
 	}
 
+	if err := allowInstall(a); err != nil {
+		return err
+	}
+
 	// make target directory
 	dir, _ := filepath.Split(a.Target)
 	if dir != "" {
@@ -1359,6 +1375,10 @@ func (b *Builder) getPkgConfigFlags(p *load.Package) (cflags, ldflags []string, 
 }
 
 func (b *Builder) installShlibname(a *Action) error {
+	if err := allowInstall(a); err != nil {
+		return err
+	}
+
 	// TODO: BuildN
 	a1 := a.Deps[0]
 	err := ioutil.WriteFile(a.Target, []byte(filepath.Base(a1.Target)+"\n"), 0666)
@@ -1408,6 +1428,10 @@ func (b *Builder) linkShared(a *Action) (err error) {
 		return nil
 	}
 	defer b.flushOutput(a)
+
+	if err := allowInstall(a); err != nil {
+		return err
+	}
 
 	if err := b.Mkdir(a.Objdir); err != nil {
 		return err
@@ -1474,8 +1498,12 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
 		// advertise it by touching the mtimes (usually the libraries are up
 		// to date).
 		if !a.buggyInstall && !b.IsCmdList {
-			now := time.Now()
-			os.Chtimes(a.Target, now, now)
+			if cfg.BuildN {
+				b.Showcmd("", "touch %s", a.Target)
+			} else if err := allowInstall(a); err == nil {
+				now := time.Now()
+				os.Chtimes(a.Target, now, now)
+			}
 		}
 		return nil
 	}
@@ -1485,6 +1513,9 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
 	if b.IsCmdList {
 		a.built = a1.built
 		return nil
+	}
+	if err := allowInstall(a); err != nil {
+		return err
 	}
 
 	if err := b.Mkdir(a.Objdir); err != nil {
@@ -1514,6 +1545,13 @@ func BuildInstallFunc(b *Builder, a *Action) (err error) {
 
 	return b.moveOrCopyFile(a.Target, a1.built, perm, false)
 }
+
+// allowInstall returns a non-nil error if this invocation of the go command is
+// allowed to install a.Target.
+//
+// (The build of cmd/go running under its own test is forbidden from installing
+// to its original GOROOT.)
+var allowInstall = func(*Action) error { return nil }
 
 // cleanup removes a's object dir to keep the amount of
 // on-disk garbage down in a large build. On an operating system
@@ -1678,6 +1716,10 @@ func (b *Builder) installHeader(a *Action) error {
 		return nil
 	}
 
+	if err := allowInstall(a); err != nil {
+		return err
+	}
+
 	dir, _ := filepath.Split(a.Target)
 	if dir != "" {
 		if err := b.Mkdir(dir); err != nil {
@@ -1770,6 +1812,11 @@ func (b *Builder) fmtcmd(dir string, format string, args ...interface{}) string 
 	}
 	if b.WorkDir != "" {
 		cmd = strings.ReplaceAll(cmd, b.WorkDir, "$WORK")
+		escaped := strconv.Quote(b.WorkDir)
+		escaped = escaped[1 : len(escaped)-1] // strip quote characters
+		if escaped != b.WorkDir {
+			cmd = strings.ReplaceAll(cmd, escaped, "$WORK")
+		}
 	}
 	return cmd
 }
@@ -1913,7 +1960,7 @@ func (b *Builder) runOut(a *Action, dir string, env []string, cmdargs ...interfa
 	cleanup := passLongArgsInResponseFiles(cmd)
 	defer cleanup()
 	cmd.Dir = dir
-	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
+	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
 	cmd.Env = append(cmd.Env, env...)
 	start := time.Now()
 	err := cmd.Run()
@@ -2120,9 +2167,8 @@ func (b *Builder) gfortran(a *Action, p *load.Package, workdir, out string, flag
 func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []string, file string, compiler []string) error {
 	file = mkAbs(p.Dir, file)
 	desc := p.ImportPath
-	if !filepath.IsAbs(outfile) {
-		outfile = filepath.Join(p.Dir, outfile)
-	}
+	outfile = mkAbs(p.Dir, outfile)
+
 	output, err := b.runOut(a, filepath.Dir(file), b.cCompilerEnv(), compiler, flags, "-o", outfile, "-c", filepath.Base(file))
 	if len(output) > 0 {
 		// On FreeBSD 11, when we pass -g to clang 3.8 it
@@ -2370,7 +2416,7 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
 	}
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 	cmd.Dir = b.WorkDir
-	cmd.Env = base.EnvForDir(cmd.Dir, os.Environ())
+	cmd.Env = base.AppendPWD(os.Environ(), cmd.Dir)
 	cmd.Env = append(cmd.Env, "LC_ALL=C")
 	out, _ := cmd.CombinedOutput()
 	// GCC says "unrecognized command line option".

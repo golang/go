@@ -1634,7 +1634,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 			return n
 		}
 		var why string
-		n.Op = convertop(t, n.Type, &why)
+		n.Op = convertop(n.Left.Op == OLITERAL, t, n.Type, &why)
 		if n.Op == 0 {
 			if !n.Diag() && !n.Type.Broke() && !n.Left.Diag() {
 				yyerror("cannot convert %L to type %v%s", n.Left, n.Type, why)
@@ -1805,7 +1805,7 @@ func typecheck1(n *Node, top int) (res *Node) {
 
 	case OPRINT, OPRINTN:
 		ok |= ctxStmt
-		typecheckslice(n.List.Slice(), ctxExpr)
+		typecheckargs(n)
 		ls := n.List.Slice()
 		for i1, n1 := range ls {
 			// Special case for print: int constant is int64, not int.

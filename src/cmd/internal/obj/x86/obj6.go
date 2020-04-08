@@ -998,6 +998,12 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		if cursym.CFunc() {
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 		}
+
+		// Mark the stack bound check and morestack call async nonpreemptible.
+		// If we get preempted here, when resumed the preemption request is
+		// cleared, but we'll still call morestack, which will double the stack
+		// unnecessarily. See issue #35470.
+		p = ctxt.StartUnsafePoint(p, newprog)
 	} else if framesize <= objabi.StackBig {
 		// large stack: SP-framesize <= stackguard-StackSmall
 		//	LEAQ -xxx(SP), AX
@@ -1020,6 +1026,8 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		if cursym.CFunc() {
 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
 		}
+
+		p = ctxt.StartUnsafePoint(p, newprog) // see the comment above
 	} else {
 		// Such a large stack we need to protect against wraparound.
 		// If SP is close to zero:
@@ -1029,11 +1037,11 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		//
 		// Preemption sets stackguard to StackPreempt, a very large value.
 		// That breaks the math above, so we have to check for that explicitly.
-		//	MOVQ	stackguard, CX
-		//	CMPQ	CX, $StackPreempt
+		//	MOVQ	stackguard, SI
+		//	CMPQ	SI, $StackPreempt
 		//	JEQ	label-of-call-to-morestack
 		//	LEAQ	StackGuard(SP), AX
-		//	SUBQ	CX, AX
+		//	SUBQ	SI, AX
 		//	CMPQ	AX, $(framesize+(StackGuard-StackSmall))
 
 		p = obj.Appendp(p, newprog)
@@ -1046,6 +1054,8 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		}
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = REG_SI
+
+		p = ctxt.StartUnsafePoint(p, newprog) // see the comment above
 
 		p = obj.Appendp(p, newprog)
 		p.As = cmp
@@ -1090,6 +1100,8 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	jls.As = AJLS
 	jls.To.Type = obj.TYPE_BRANCH
 
+	end := ctxt.EndUnsafePoint(jls, newprog, -1)
+
 	var last *obj.Prog
 	for last = cursym.Func.Text; last.Link != nil; last = last.Link {
 	}
@@ -1101,7 +1113,8 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	spfix.As = obj.ANOP
 	spfix.Spadj = -framesize
 
-	pcdata := ctxt.EmitEntryLiveness(cursym, spfix, newprog)
+	pcdata := ctxt.EmitEntryStackMap(cursym, spfix, newprog)
+	pcdata = ctxt.StartUnsafePoint(pcdata, newprog)
 
 	call := obj.Appendp(pcdata, newprog)
 	call.Pos = cursym.Func.Text.Pos
@@ -1126,7 +1139,9 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		progedit(ctxt, callend.Link, newprog)
 	}
 
-	jmp := obj.Appendp(callend, newprog)
+	pcdata = ctxt.EndUnsafePoint(callend, newprog, -1)
+
+	jmp := obj.Appendp(pcdata, newprog)
 	jmp.As = obj.AJMP
 	jmp.To.Type = obj.TYPE_BRANCH
 	jmp.Pcond = cursym.Func.Text.Link
@@ -1137,7 +1152,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 		q1.Pcond = call
 	}
 
-	return jls
+	return end
 }
 
 var unaryDst = map[obj.As]bool{

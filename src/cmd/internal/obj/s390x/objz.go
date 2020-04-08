@@ -335,6 +335,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if !p.From.Sym.NoSplit() {
 				p, pPreempt = c.stacksplitPre(p, autosize) // emit pre part of split check
 				pPre = p
+				p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
 				wasSplit = true //need post part of split
 			}
 
@@ -575,15 +576,16 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (*obj.Prog, *obj.Pro
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = REG_R3
 
+	// Mark the stack bound check and morestack call async nonpreemptible.
+	// If we get preempted here, when resumed the preemption request is
+	// cleared, but we'll still call morestack, which will double the stack
+	// unnecessarily. See issue #35470.
+	p = c.ctxt.StartUnsafePoint(p, c.newprog)
+
 	q = nil
 	if framesize <= objabi.StackSmall {
 		// small stack: SP < stackguard
-		//	CMP	stackguard, SP
-
-		//p.To.Type = obj.TYPE_REG
-		//p.To.Reg = REGSP
-
-		// q1: BLT	done
+		//	CMPUBGE	stackguard, SP, label-of-call-to-morestack
 
 		p = obj.Appendp(p, c.newprog)
 		//q1 = p
@@ -592,22 +594,11 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (*obj.Prog, *obj.Pro
 		p.Reg = REGSP
 		p.As = ACMPUBGE
 		p.To.Type = obj.TYPE_BRANCH
-		//p = obj.Appendp(ctxt, p)
-
-		//p.As = ACMPU
-		//p.From.Type = obj.TYPE_REG
-		//p.From.Reg = REG_R3
-		//p.To.Type = obj.TYPE_REG
-		//p.To.Reg = REGSP
-
-		//p = obj.Appendp(ctxt, p)
-		//p.As = ABGE
-		//p.To.Type = obj.TYPE_BRANCH
 
 	} else if framesize <= objabi.StackBig {
 		// large stack: SP-framesize < stackguard-StackSmall
 		//	ADD $-(framesize-StackSmall), SP, R4
-		//	CMP stackguard, R4
+		//	CMPUBGE stackguard, R4, label-of-call-to-morestack
 		p = obj.Appendp(p, c.newprog)
 
 		p.As = AADD
@@ -639,7 +630,7 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (*obj.Prog, *obj.Pro
 		//	ADD	$StackGuard, SP, R4
 		//	SUB	R3, R4
 		//	MOVD	$(framesize+(StackGuard-StackSmall)), TEMP
-		//	CMPUBGE	TEMP, R4
+		//	CMPUBGE	TEMP, R4, label-of-call-to-morestack
 		p = obj.Appendp(p, c.newprog)
 
 		p.As = ACMP
@@ -694,7 +685,8 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog, 
 	spfix.As = obj.ANOP
 	spfix.Spadj = -framesize
 
-	pcdata := c.ctxt.EmitEntryLiveness(c.cursym, spfix, c.newprog)
+	pcdata := c.ctxt.EmitEntryStackMap(c.cursym, spfix, c.newprog)
+	pcdata = c.ctxt.StartUnsafePoint(pcdata, c.newprog)
 
 	// MOVD	LR, R5
 	p = obj.Appendp(pcdata, c.newprog)
@@ -720,6 +712,8 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog, 
 	} else {
 		p.To.Sym = c.ctxt.Lookup("runtime.morestack")
 	}
+
+	p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
 
 	// BR	start
 	p = obj.Appendp(p, c.newprog)

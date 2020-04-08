@@ -1,4 +1,7 @@
-<!-- Please answer these questions before submitting your issue. Thanks! -->
+<!--
+Please answer these questions before submitting your issue. Thanks!
+For questions please use one of our forums: https://github.com/golang/go/wiki/Questions
+-->
 
 ### What version of Go are you using (`go version`)?
 
@@ -33,4 +36,3 @@ A link on play.golang.org is best.
 
 
 ### What did you see instead?
-

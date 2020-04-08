@@ -285,6 +285,10 @@ func nilcheckelim2(f *Func) {
 			for _, ptr := range ptrs {
 				// Check to make sure the offset is small.
 				switch opcodeTable[v.Op].auxType {
+				case auxSym:
+					if v.Aux != nil {
+						continue
+					}
 				case auxSymOff:
 					if v.Aux != nil || v.AuxInt < 0 || v.AuxInt >= minZeroPage {
 						continue

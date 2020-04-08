@@ -68,6 +68,8 @@ func testCallers(t *testing.T, pcs []uintptr, pan bool) {
 }
 
 func testCallersEqual(t *testing.T, pcs []uintptr, want []string) {
+	t.Helper()
+
 	got := make([]string, 0, len(want))
 
 	frames := runtime.CallersFrames(pcs)
@@ -254,9 +256,8 @@ func TestCallersDivZeroPanic(t *testing.T) {
 func TestCallersDeferNilFuncPanic(t *testing.T) {
 	// Make sure we don't have any extra frames on the stack. We cut off the check
 	// at runtime.sigpanic, because non-open-coded defers (which may be used in
-	// non-opt or race checker mode) include an extra 'jmpdefer' frame (which is
-	// where the nil pointer deref happens). We could consider hiding jmpdefer in
-	// tracebacks.
+	// non-opt or race checker mode) include an extra 'deferreturn' frame (which is
+	// where the nil pointer deref happens).
 	state := 1
 	want := []string{"runtime.Callers", "runtime_test.TestCallersDeferNilFuncPanic.func1",
 		"runtime.gopanic", "runtime.panicmem", "runtime.sigpanic"}
@@ -275,6 +276,35 @@ func TestCallersDeferNilFuncPanic(t *testing.T) {
 	}()
 	var f func()
 	defer f()
+	// Use the value of 'state' to make sure nil defer func f causes panic at
+	// function exit, rather than at the defer statement.
+	state = 2
+}
+
+// Same test, but forcing non-open-coded defer by putting the defer in a loop.  See
+// issue #36050
+func TestCallersDeferNilFuncPanicWithLoop(t *testing.T) {
+	state := 1
+	want := []string{"runtime.Callers", "runtime_test.TestCallersDeferNilFuncPanicWithLoop.func1",
+		"runtime.gopanic", "runtime.panicmem", "runtime.sigpanic", "runtime.deferreturn", "runtime_test.TestCallersDeferNilFuncPanicWithLoop"}
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("did not panic")
+		}
+		pcs := make([]uintptr, 20)
+		pcs = pcs[:runtime.Callers(0, pcs)]
+		testCallersEqual(t, pcs, want)
+		if state == 1 {
+			t.Fatal("nil defer func panicked at defer time rather than function exit time")
+		}
+
+	}()
+
+	for i := 0; i < 1; i++ {
+		var f func()
+		defer f()
+	}
 	// Use the value of 'state' to make sure nil defer func f causes panic at
 	// function exit, rather than at the defer statement.
 	state = 2

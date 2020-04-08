@@ -108,7 +108,7 @@ func TestSignAndVerifyWithBadPublicKey(t *testing.T) {
 	}
 
 	if Verify(&pub, []byte("testing"), fromHex("2"), fromHex("4")) {
-		t.Errorf("Verify unexpected success with non-existant mod inverse of Q")
+		t.Errorf("Verify unexpected success with non-existent mod inverse of Q")
 	}
 }
 

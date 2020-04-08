@@ -95,6 +95,7 @@ type Var struct {
 type Func struct {
 	Args     int64      // size in bytes of argument frame: inputs and outputs
 	Frame    int64      // size in bytes of local variable frame
+	Align    uint32     // alignment requirement in bytes for the address of the function
 	Leaf     bool       // function omits save of link register (ARM)
 	NoSplit  bool       // function omits stack split prologue
 	TopFrame bool       // function is the top of the call stack
@@ -590,6 +591,7 @@ func (r *objReader) parseObject(prefix []byte) error {
 			s.Func = f
 			f.Args = r.readInt()
 			f.Frame = r.readInt()
+			f.Align = uint32(r.readInt())
 			flags := r.readInt()
 			f.Leaf = flags&(1<<0) != 0
 			f.TopFrame = flags&(1<<4) != 0

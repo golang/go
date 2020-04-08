@@ -8,8 +8,11 @@
 package lockedfile_test
 
 import (
+	"fmt"
+	"internal/testenv"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -171,4 +174,99 @@ func TestCanLockExistingFile(t *testing.T) {
 
 	f.Close()
 	wait(t)
+}
+
+// TestSpuriousEDEADLK verifies that the spurious EDEADLK reported in
+// https://golang.org/issue/32817 no longer occurs.
+func TestSpuriousEDEADLK(t *testing.T) {
+	// 	P.1 locks file A.
+	// 	Q.3 locks file B.
+	// 	Q.3 blocks on file A.
+	// 	P.2 blocks on file B. (Spurious EDEADLK occurs here.)
+	// 	P.1 unlocks file A.
+	// 	Q.3 unblocks and locks file A.
+	// 	Q.3 unlocks files A and B.
+	// 	P.2 unblocks and locks file B.
+	// 	P.2 unlocks file B.
+
+	testenv.MustHaveExec(t)
+
+	dirVar := t.Name() + "DIR"
+
+	if dir := os.Getenv(dirVar); dir != "" {
+		// Q.3 locks file B.
+		b, err := lockedfile.Edit(filepath.Join(dir, "B"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer b.Close()
+
+		if err := ioutil.WriteFile(filepath.Join(dir, "locked"), []byte("ok"), 0666); err != nil {
+			t.Fatal(err)
+		}
+
+		// Q.3 blocks on file A.
+		a, err := lockedfile.Edit(filepath.Join(dir, "A"))
+		// Q.3 unblocks and locks file A.
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer a.Close()
+
+		// Q.3 unlocks files A and B.
+		return
+	}
+
+	dir, remove := mustTempDir(t)
+	defer remove()
+
+	// P.1 locks file A.
+	a, err := lockedfile.Edit(filepath.Join(dir, "A"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run="+t.Name())
+	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", dirVar, dir))
+
+	qDone := make(chan struct{})
+	waitQ := mustBlock(t, "Edit A and B in subprocess", func() {
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("%v:\n%s", err, out)
+		}
+		close(qDone)
+	})
+
+	// Wait until process Q has either failed or locked file B.
+	// Otherwise, P.2 might not block on file B as intended.
+locked:
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "locked")); !os.IsNotExist(err) {
+			break locked
+		}
+		select {
+		case <-qDone:
+			break locked
+		case <-time.After(1 * time.Millisecond):
+		}
+	}
+
+	waitP2 := mustBlock(t, "Edit B", func() {
+		// P.2 blocks on file B. (Spurious EDEADLK occurs here.)
+		b, err := lockedfile.Edit(filepath.Join(dir, "B"))
+		// P.2 unblocks and locks file B.
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		// P.2 unlocks file B.
+		b.Close()
+	})
+
+	// P.1 unlocks file A.
+	a.Close()
+
+	waitQ(t)
+	waitP2(t)
 }

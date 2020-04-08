@@ -110,6 +110,9 @@ func xinit() {
 		fatalf("$GOROOT must be set")
 	}
 	goroot = filepath.Clean(b)
+	if modRoot := findModuleRoot(goroot); modRoot != "" {
+		fatalf("found go.mod file in %s: $GOROOT must not be inside a module", modRoot)
+	}
 
 	b = os.Getenv("GOROOT_FINAL")
 	if b == "" {
@@ -1532,7 +1535,7 @@ var cgoEnabled = map[string]bool{
 	"linux/mipsle":    true,
 	"linux/mips64":    true,
 	"linux/mips64le":  true,
-	"linux/riscv64":   true,
+	"linux/riscv64":   false, // Issue 36641
 	"linux/s390x":     true,
 	"linux/sparc64":   true,
 	"android/386":     true,
@@ -1560,7 +1563,6 @@ var cgoEnabled = map[string]bool{
 // List of platforms which are supported but not complete yet. These get
 // filtered out of cgoEnabled for 'dist list'. See golang.org/issue/28944
 var incomplete = map[string]bool{
-	"linux/riscv64": true,
 	"linux/sparc64": true,
 }
 
@@ -1588,6 +1590,20 @@ func checkCC() {
 			"To set a C compiler, set CC=the-compiler.\n"+
 			"To disable cgo, set CGO_ENABLED=0.\n%s%s", defaultcc[""], err, outputHdr, output)
 	}
+}
+
+func findModuleRoot(dir string) (root string) {
+	for {
+		if fi, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil && !fi.IsDir() {
+			return dir
+		}
+		d := filepath.Dir(dir)
+		if d == dir {
+			break
+		}
+		dir = d
+	}
+	return ""
 }
 
 func defaulttarg() string {

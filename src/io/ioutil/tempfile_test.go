@@ -48,6 +48,48 @@ func TestTempFile_pattern(t *testing.T) {
 	}
 }
 
+func TestTempFile_BadPattern(t *testing.T) {
+	tmpDir, err := TempDir("", t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	const sep = string(os.PathSeparator)
+	tests := []struct {
+		pattern string
+		wantErr bool
+	} {
+		{"ioutil*test", false},
+		{"ioutil_test*foo", false},
+		{"ioutil_test" + sep + "foo", true},
+		{"ioutil_test*" + sep + "foo", true},
+		{"ioutil_test" + sep + "*foo", true},
+		{sep + "ioutil_test" + sep + "*foo", true},
+		{"ioutil_test*foo" + sep, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.pattern, func(t *testing.T) {
+			tmpfile, err := TempFile(tmpDir, tt.pattern)
+			defer func() {
+				if tmpfile != nil {
+					tmpfile.Close()
+				}
+			}()
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("Expected an error for pattern %q", tt.pattern)
+				}
+				if g, w := err, errPatternHasSeparator; g != w {
+					t.Errorf("Error mismatch: got %#v, want %#v for pattern %q", g, w, tt.pattern)
+				}
+			} else if err != nil {
+				t.Errorf("Unexpected error %v for pattern %q", err, tt.pattern)
+			}
+		})
+	}
+}
+
 func TestTempDir(t *testing.T) {
 	name, err := TempDir("/_not_exists_", "foo")
 	if name != "" || err == nil {
@@ -110,5 +152,42 @@ func TestTempDir_BadDir(t *testing.T) {
 	_, err = TempDir(badDir, "foo")
 	if pe, ok := err.(*os.PathError); !ok || !os.IsNotExist(err) || pe.Path != badDir {
 		t.Errorf("TempDir error = %#v; want PathError for path %q satisifying os.IsNotExist", err, badDir)
+	}
+}
+
+func TestTempDir_BadPattern(t *testing.T) {
+	tmpDir, err := TempDir("", t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	const sep = string(os.PathSeparator)
+	tests := []struct {
+		pattern string
+		wantErr bool
+	} {
+		{"ioutil*test", false},
+		{"ioutil_test*foo", false},
+		{"ioutil_test" + sep + "foo", true},
+		{"ioutil_test*" + sep + "foo", true},
+		{"ioutil_test" + sep + "*foo", true},
+		{sep + "ioutil_test" + sep + "*foo", true},
+		{"ioutil_test*foo" + sep, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.pattern, func(t *testing.T) {
+			_, err := TempDir(tmpDir, tt.pattern)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("Expected an error for pattern %q", tt.pattern)
+				}
+				if g, w := err, errPatternHasSeparator; g != w {
+					t.Errorf("Error mismatch: got %#v, want %#v for pattern %q", g, w, tt.pattern)
+				}
+			} else if err != nil {
+				t.Errorf("Unexpected error %v for pattern %q", err, tt.pattern)
+			}
+		})
 	}
 }
