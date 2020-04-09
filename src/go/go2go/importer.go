@@ -14,7 +14,9 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -128,7 +130,9 @@ func (imp *Importer) ImportFrom(importPath, dir string, mode types.ImportMode) (
 	}
 
 	if len(go2files) == 0 {
-		// No .go2 files, so the default importer can handle it.
+		// No .go2 files, so the default importer can handle it,
+		// provided we ensure that the package is installed.
+		imp.installGo1Package(pdir)
 		return defaultImporter.ImportFrom(importPath, dir, mode)
 	}
 
@@ -187,6 +191,17 @@ func (imp *Importer) findFromPath(gopath, dir string) string {
 		}
 	}
 	return ""
+}
+
+// installGo1Package runs "go install" to install a package.
+// This is used for Go 1 packages, because the default
+// importer looks at .a files, not sources.
+// This is best effort; we don't report an error.
+func (imp *Importer) installGo1Package(dir string) {
+	gotool := filepath.Join(runtime.GOROOT(), "bin", "go")
+	cmd := exec.Command(gotool, "install")
+	cmd.Dir = dir
+	cmd.Run()
 }
 
 // Register registers a package under an import path.

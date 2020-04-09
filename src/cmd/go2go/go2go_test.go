@@ -124,6 +124,58 @@ func TestGO2PATH(t *testing.T) {
 	}
 }
 
+func TestGO2PATHEqGOPATH(t *testing.T) {
+	buildGo2go(t)
+
+	pathDir := t.TempDir()
+	pkgDir := filepath.Join(pathDir, "src", "pkg")
+	if err := os.MkdirAll(pkgDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	const pkgSrc = `package pkg; func F() {}`
+	if err := ioutil.WriteFile(filepath.Join(pkgDir, "p.go"), []byte(pkgSrc), 0644); err != nil {
+		t.Fatal(err)
+	}
+	cmdDir := filepath.Join(pathDir, "src", "cmd")
+	if err := os.MkdirAll(cmdDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	const cmdSrc = `package main; import "pkg"; func main() { pkg.F() }`
+	if err := ioutil.WriteFile(filepath.Join(cmdDir, "cmd.go2"), []byte(cmdSrc), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log("go2go build")
+	cmd := exec.Command(testGo2go, "build")
+	cmd.Dir = cmdDir
+	cmd.Env = append(os.Environ(),
+		"GOPATH="+pathDir,
+		"GO2PATH="+pathDir,
+		"GO111MODULE=off")
+	out, err := cmd.CombinedOutput()
+	if len(out) > 0 {
+		t.Logf("%s", out)
+	}
+	if err != nil {
+		t.Fatalf(`error running "go2go build": %v`, err)
+	}
+
+	t.Log("./cmd")
+	cmdName := "./cmd"
+	if runtime.GOOS == "windows" {
+		cmdName += ".exe"
+	}
+	cmd = exec.Command(cmdName)
+	cmd.Dir = cmdDir
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("error running %q: %v", cmdName, err)
+	}
+	if len(out) != 0 {
+		t.Errorf("unexpected output: %q", out)
+	}
+}
+
 const buildSource = `
 package main
 
