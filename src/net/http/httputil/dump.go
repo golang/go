@@ -96,10 +96,8 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 	// switch to http so the Transport doesn't try to do an SSL
 	// negotiation with our dumpConn and its bytes.Buffer & pipe.
 	// The wire format for https and http are the same, anyway.
-	reqSend := req
+	reqSend := *req
 	if req.URL.Scheme == "https" {
-		reqSend = new(http.Request)
-		*reqSend = *req
 		reqSend.URL = new(url.URL)
 		*reqSend.URL = *req.URL
 		reqSend.URL.Scheme = "http"
@@ -142,7 +140,7 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 		}
 	}()
 
-	_, err := t.RoundTrip(reqSend)
+	_, err := t.RoundTrip(&reqSend)
 
 	req.Body = save
 	if err != nil {
