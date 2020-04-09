@@ -99,6 +99,10 @@ func (t *Target) IsS390X() bool {
 	return t.Arch.Family == sys.S390X
 }
 
+func (t *Target) IsWasm() bool {
+	return t.Arch.Family == sys.Wasm
+}
+
 //
 // OS Functions
 //
