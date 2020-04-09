@@ -241,3 +241,21 @@ func Test_Issue38267(t *testing.T) {
 		)
 	})
 }
+
+const packageChange = `
+-- go.mod --
+module fake
+-- a.go --
+package foo
+func main() {}
+`
+
+func TestPackageChange(t *testing.T) {
+	t.Skip("skipping due to golang.org/issues/32149")
+	runner.Run(t, packageChange, func(env *Env) {
+		env.OpenFile("a.go")
+		env.RegexpReplace("a.go", "foo", "foox")
+		// TODO: there should be no error
+		env.Await(EmptyDiagnostics("a.go"))
+	})
+}
