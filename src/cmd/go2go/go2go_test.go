@@ -11,7 +11,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
+	"runtime"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -107,7 +110,7 @@ func TestGO2PATH(t *testing.T) {
 		t.Run(dir, func(t *testing.T) {
 			cmd := exec.Command(testGo2go, "test")
 			cmd.Dir = filepath.Join(testTempDir, "testdata", "go2path", "src", dir)
-			cmd.Env = append(os.Environ(), "GO2PATH=" + filepath.Join(testTempDir, "testdata", "go2path"))
+			cmd.Env = append(os.Environ(), "GO2PATH="+filepath.Join(testTempDir, "testdata", "go2path"))
 			t.Logf("running [%s test] in %s", testGo2go, cmd.Dir)
 			out, err := cmd.CombinedOutput()
 			if len(out) > 0 {
@@ -118,5 +121,63 @@ func TestGO2PATH(t *testing.T) {
 				t.Errorf("error testing %s: %v", dir, err)
 			}
 		})
+	}
+}
+
+const buildSource = `
+package main
+
+import "fmt"
+
+func PrintSlice(type Elem)(s []Elem) {
+	for _, v := range s {
+		fmt.Println(v)
+	}
+}
+
+func main() {
+	PrintSlice([]string{"hello", "world"})
+}
+`
+
+func TestBuild(t *testing.T) {
+	buildGo2go(t)
+
+	dir := filepath.Join(t.TempDir(), "hello")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(dir, "hello.go2"), []byte(buildSource), 0444); err != nil {
+		t.Fatal(err)
+	}
+	t.Log("go2go build")
+	cmd := exec.Command(testGo2go, "build")
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if len(out) > 0 {
+		t.Logf("%s", out)
+	}
+	if err != nil {
+		t.Fatalf(`error running "go2go build": %v`, err)
+	}
+
+	cmdName := "./hello"
+	if runtime.GOOS == "windows" {
+		cmdName += ".exe"
+	}
+	cmd = exec.Command(cmdName)
+	cmd.Dir = dir
+	out, err = cmd.CombinedOutput()
+	t.Log("./hello")
+	if len(out) > 0 {
+		t.Logf("%s", out)
+	}
+	if err != nil {
+		t.Fatalf("error running hello: %v", err)
+	}
+	got := strings.Split(strings.TrimSpace(string(out)), "\n")
+	want := []string{"hello", "world"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("hello output %v, want %v", got, want)
 	}
 }
