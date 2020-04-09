@@ -14,7 +14,6 @@ import (
 	"cmd/link/internal/sym"
 	"encoding/binary"
 	"fmt"
-	"sort"
 )
 
 /*
@@ -700,10 +699,16 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 		if sect.rel == nil {
 			continue
 		}
-		r := make([]loader.Reloc, sect.nreloc)
-		rpi := 0
+
+		sb := l.MakeSymbolUpdater(sect.sym)
 		for j := uint32(0); j < sect.nreloc; j++ {
-			rp := &r[rpi]
+			var (
+				rOff  int32
+				rSize uint8
+				rAdd  int64
+				rType objabi.RelocType
+				rSym  loader.Sym
+			)
 			rel := &sect.rel[j]
 			if rel.scattered != 0 {
 				// mach-o only uses scattered relocation on 32-bit platforms,
@@ -711,11 +716,11 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 				return errorf("%v: unexpected scattered relocation", s)
 			}
 
-			rp.Size = rel.length
-			rp.Type = objabi.MachoRelocOffset + (objabi.RelocType(rel.type_) << 1) + objabi.RelocType(rel.pcrel)
-			rp.Off = int32(rel.addr)
+			rSize = rel.length
+			rType = objabi.MachoRelocOffset + (objabi.RelocType(rel.type_) << 1) + objabi.RelocType(rel.pcrel)
+			rOff = int32(rel.addr)
 
-			// Handle X86_64_RELOC_SIGNED referencing a section (rel->extrn == 0).
+			// Handle X86_64_RELOC_SIGNED referencing a section (rel.extrn == 0).
 			p := l.Data(s)
 			if arch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_SIGNED {
 				// Calculate the addend as the offset into the section.
@@ -735,16 +740,16 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 				// [For future reference, see Darwin's /usr/include/mach-o/x86_64/reloc.h]
 				secaddr := c.seg.sect[rel.symnum-1].addr
 
-				rp.Add = int64(uint64(int64(int32(e.Uint32(p[rp.Off:])))+int64(rp.Off)+4) - secaddr)
+				rAdd = int64(uint64(int64(int32(e.Uint32(p[rOff:])))+int64(rOff)+4) - secaddr)
 			} else {
-				rp.Add = int64(int32(e.Uint32(p[rp.Off:])))
+				rAdd = int64(int32(e.Uint32(p[rOff:])))
 			}
 
 			// An unsigned internal relocation has a value offset
 			// by the section address.
 			if arch.Family == sys.AMD64 && rel.extrn == 0 && rel.type_ == MACHO_X86_64_RELOC_UNSIGNED {
 				secaddr := c.seg.sect[rel.symnum-1].addr
-				rp.Add -= int64(secaddr)
+				rAdd -= int64(secaddr)
 			}
 
 			if rel.extrn == 0 {
@@ -752,8 +757,8 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 					return errorf("invalid relocation: section reference out of range %d vs %d", rel.symnum, c.seg.nsect)
 				}
 
-				rp.Sym = c.seg.sect[rel.symnum-1].sym
-				if rp.Sym == 0 {
+				rSym = c.seg.sect[rel.symnum-1].sym
+				if rSym == 0 {
 					return errorf("invalid relocation: %s", c.seg.sect[rel.symnum-1].name)
 				}
 			} else {
@@ -761,15 +766,17 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 					return errorf("invalid relocation: symbol reference out of range")
 				}
 
-				rp.Sym = symtab.sym[rel.symnum].sym
+				rSym = symtab.sym[rel.symnum].sym
 			}
 
-			rpi++
+			r, _ := sb.AddRel(rType)
+			r.SetOff(rOff)
+			r.SetSiz(rSize)
+			r.SetSym(rSym)
+			r.SetAdd(rAdd)
 		}
 
-		sort.Sort(loader.RelocByOff(r[:rpi]))
-		sb := l.MakeSymbolUpdater(sect.sym)
-		sb.SetRelocs(r[:rpi])
+		sb.SortRelocs()
 	}
 
 	return textp, nil
