@@ -2148,10 +2148,11 @@ func (ctxt *Link) buildinfo() {
 		return
 	}
 
-	s := ctxt.Syms.Lookup(".go.buildinfo", 0)
-	s.Attr |= sym.AttrReachable
-	s.Type = sym.SBUILDINFO
-	s.Align = 16
+	ldr := ctxt.loader
+	s := ldr.CreateSymForUpdate(".go.buildinfo", 0)
+	s.SetReachable(true)
+	s.SetType(sym.SBUILDINFO)
+	s.SetAlign(16)
 	// The \xff is invalid UTF-8, meant to make it less likely
 	// to find one of these accidentally.
 	const prefix = "\xff Go buildinf:" // 14 bytes, plus 2 data bytes filled in below
@@ -2162,14 +2163,16 @@ func (ctxt *Link) buildinfo() {
 	if ctxt.Arch.ByteOrder == binary.BigEndian {
 		data[len(prefix)+1] = 1
 	}
-	s.P = data
-	s.Size = int64(len(s.P))
-	s1 := ctxt.Syms.Lookup("runtime.buildVersion", 0)
-	s2 := ctxt.Syms.Lookup("runtime.modinfo", 0)
-	s.R = []sym.Reloc{
-		{Off: 16, Siz: uint8(ctxt.Arch.PtrSize), Type: objabi.R_ADDR, Sym: s1},
-		{Off: 16 + int32(ctxt.Arch.PtrSize), Siz: uint8(ctxt.Arch.PtrSize), Type: objabi.R_ADDR, Sym: s2},
-	}
+	s.SetData(data)
+	s.SetSize(int64(len(data)))
+	r, _ := s.AddRel(objabi.R_ADDR)
+	r.SetOff(16)
+	r.SetSiz(uint8(ctxt.Arch.PtrSize))
+	r.SetSym(ldr.LookupOrCreateSym("runtime.buildVersion", 0))
+	r, _ = s.AddRel(objabi.R_ADDR)
+	r.SetOff(16 + int32(ctxt.Arch.PtrSize))
+	r.SetSiz(uint8(ctxt.Arch.PtrSize))
+	r.SetSym(ldr.LookupOrCreateSym("runtime.modinfo", 0))
 }
 
 // assign addresses to text
