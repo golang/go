@@ -690,8 +690,12 @@ func TestExtraFiles(t *testing.T) {
 	// Use a deadline to try to get some output even if the program hangs.
 	ctx := context.Background()
 	if deadline, ok := t.Deadline(); ok {
+		// Leave a 20% grace period to flush output, which may be large on the
+		// linux/386 builders because we're running the subprocess under strace.
+		deadline = deadline.Add(-time.Until(deadline) / 5)
+
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithDeadline(ctx, deadline.Add(-time.Second))
+		ctx, cancel = context.WithDeadline(ctx, deadline)
 		defer cancel()
 	}
 	c := helperCommandContext(t, ctx, "read3")
