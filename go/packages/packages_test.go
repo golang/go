@@ -1584,12 +1584,12 @@ func testContainsOverlayXTest(t *testing.T, exporter packagestest.Exporter) {
 // This test ensures that the effective GOARCH variable in the
 // application determines the Sizes function used by the type checker.
 // This behavior is a stop-gap until we make the build system's query
-// too report the correct sizes function for the actual configuration.
+// tool report the correct sizes function for the actual configuration.
 func TestSizes(t *testing.T) { packagestest.TestAll(t, testSizes) }
 func testSizes(t *testing.T, exporter packagestest.Exporter) {
 	// Only run this test on operating systems that have both an amd64 and 386 port.
 	switch runtime.GOOS {
-	case "darwin", "linux", "windows", "freebsd", "openbsd", "android":
+	case "linux", "windows", "freebsd", "openbsd", "netbsd", "android":
 	default:
 		t.Skipf("skipping test on %s", runtime.GOOS)
 	}
