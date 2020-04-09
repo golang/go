@@ -245,9 +245,12 @@ func trimToImports(fset *token.FileSet, f *ast.File, src []byte) ([]byte, int) {
 	if nextLine := fset.Position(end).Line + 1; tok.LineCount() >= nextLine {
 		end = fset.File(f.Pos()).LineStart(nextLine)
 	}
+	if start > end {
+		return nil, 0
+	}
 
 	startLineOffset := fset.Position(start).Line - 1 // lines are 1-indexed.
-	return src[fset.Position(firstImport.Pos()).Offset:fset.Position(end).Offset], startLineOffset
+	return src[fset.Position(start).Offset:fset.Position(end).Offset], startLineOffset
 }
 
 // trimToFirstNonImport returns src from the beginning to the first non-import
