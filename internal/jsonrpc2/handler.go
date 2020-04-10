@@ -31,8 +31,15 @@ func MethodNotFound(ctx context.Context, reply Replier, r *Request) error {
 // not call Reply for every request that it is passed.
 func MustReplyHandler(handler Handler) Handler {
 	return func(ctx context.Context, reply Replier, req *Request) error {
-		err := handler(ctx, reply, req)
-		if req.done != nil {
+		called := false
+		err := handler(ctx, func(ctx context.Context, result interface{}, err error) error {
+			if called {
+				panic(fmt.Errorf("request %q replied to more than once", req.Method))
+			}
+			called = true
+			return reply(ctx, result, err)
+		}, req)
+		if !called {
 			panic(fmt.Errorf("request %q was never replied to", req.Method))
 		}
 		return err
@@ -51,11 +58,13 @@ func CancelHandler(handler Handler) (Handler, func(id ID)) {
 			mu.Lock()
 			handling[*req.ID] = cancel
 			mu.Unlock()
-			req.OnReply(func() {
+			innerReply := reply
+			reply = func(ctx context.Context, result interface{}, err error) error {
 				mu.Lock()
 				delete(handling, *req.ID)
 				mu.Unlock()
-			})
+				return innerReply(ctx, result, err)
+			}
 		}
 		return handler(ctx, reply, req)
 	}
@@ -82,7 +91,11 @@ func AsyncHandler(handler Handler) Handler {
 		waitForPrevious := nextRequest
 		nextRequest = make(chan struct{})
 		unlockNext := nextRequest
-		req.OnReply(func() { close(unlockNext) })
+		innerReply := reply
+		reply = func(ctx context.Context, result interface{}, err error) error {
+			close(unlockNext)
+			return innerReply(ctx, result, err)
+		}
 		_, queueDone := event.StartSpan(ctx, "queued")
 		go func() {
 			<-waitForPrevious

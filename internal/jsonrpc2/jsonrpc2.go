@@ -39,10 +39,6 @@ type Conn struct {
 // Request is sent to a server to represent a Call or Notify operaton.
 type Request struct {
 	conn *Conn
-	// done holds set of callbacks added by OnReply, and is set back to nil if
-	// Reply has been called.
-	done []func()
-
 	// The Wire values of the request.
 	wireRequest
 }
@@ -170,18 +166,11 @@ func (r *Request) IsNotify() bool {
 	return r.ID == nil
 }
 
-func replier(r *Request) Replier {
+func replier(r *Request, spanDone func()) Replier {
 	return func(ctx context.Context, result interface{}, err error) error {
-		if r.done == nil {
-			return fmt.Errorf("reply invoked more than once")
-		}
-
 		defer func() {
 			recordStatus(ctx, err)
-			for i := len(r.done); i > 0; i-- {
-				r.done[i-1]()
-			}
-			r.done = nil
+			spanDone()
 		}()
 
 		if r.IsNotify() {
@@ -223,17 +212,6 @@ func replier(r *Request) Replier {
 		}
 		return nil
 	}
-}
-
-// OnReply adds a done callback to the request.
-// All added callbacks are invoked during the one required call to Reply, and
-// then dropped.
-// It is an error to call this after Reply.
-// This call is not safe for concurrent use, but should only be invoked by
-// handlers and in general only one handler should be working on a request
-// at any time.
-func (r *Request) OnReply(do func()) {
-	r.done = append(r.done, do)
 }
 
 // Run blocks until the connection is terminated, and returns any error that
@@ -278,9 +256,8 @@ func (c *Conn) Run(runCtx context.Context, handler Handler) error {
 					ID:         msg.ID,
 				},
 			}
-			req.OnReply(func() { spanDone() })
 
-			if err := handler(reqCtx, replier(req), req); err != nil {
+			if err := handler(reqCtx, replier(req, spanDone), req); err != nil {
 				// delivery failed, not much we can do
 				event.Error(reqCtx, "jsonrpc2 message delivery failed", err)
 			}
