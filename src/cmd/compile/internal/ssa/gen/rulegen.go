@@ -479,11 +479,15 @@ func (u *unusedInspector) node(node ast.Node) {
 			u.exprs(node.Lhs)
 			break
 		}
-		if len(node.Lhs) != 1 {
+		lhs := node.Lhs
+		if len(lhs) == 2 && lhs[1].(*ast.Ident).Name == "_" {
+			lhs = lhs[:1]
+		}
+		if len(lhs) != 1 {
 			panic("no support for := with multiple names")
 		}
 
-		name := node.Lhs[0].(*ast.Ident)
+		name := lhs[0].(*ast.Ident)
 		obj := &object{
 			name: name.Name,
 			pos:  name.NamePos,
@@ -615,6 +619,16 @@ func fprint(w io.Writer, n Node) {
 			fprint(w, n)
 		}
 		fmt.Fprintf(w, "}\n")
+	case *If:
+		fmt.Fprintf(w, "if ")
+		fprint(w, n.expr)
+		fmt.Fprintf(w, " {\n")
+		fprint(w, n.stmt)
+		if n.alt != nil {
+			fmt.Fprintf(w, "} else {\n")
+			fprint(w, n.alt)
+		}
+		fmt.Fprintf(w, "}\n")
 	case *Case:
 		fmt.Fprintf(w, "case ")
 		fprint(w, n.expr)
@@ -655,6 +669,10 @@ func fprint(w io.Writer, n Node) {
 		fmt.Fprintf(w, "}\n")
 	case *Declare:
 		fmt.Fprintf(w, "%s := ", n.name)
+		fprint(w, n.value)
+		fmt.Fprintln(w)
+	case *Declare2:
+		fmt.Fprintf(w, "%s, %s := ", n.name1, n.name2)
 		fprint(w, n.value)
 		fmt.Fprintln(w)
 	case *CondBreak:
@@ -721,7 +739,7 @@ func (w *bodyBase) add(node Statement) {
 	w.list = append(w.list, node)
 }
 
-// declared reports if the body contains a Declare with the given name.
+// declared reports if the body contains a Declare or Declare2 with the given name.
 func (w *bodyBase) declared(name string) bool {
 	if name == "nil" {
 		// Treat "nil" as having already been declared.
@@ -730,6 +748,9 @@ func (w *bodyBase) declared(name string) bool {
 	}
 	for _, s := range w.list {
 		if decl, ok := s.(*Declare); ok && decl.name == name {
+			return true
+		}
+		if decl, ok := s.(*Declare2); ok && (decl.name1 == name || decl.name2 == name) {
 			return true
 		}
 	}
@@ -754,6 +775,11 @@ type (
 		suffix string
 		arglen int32 // if kind == "Value", number of args for this op
 	}
+	If struct {
+		expr ast.Expr
+		stmt Statement
+		alt  Statement
+	}
 	Switch struct {
 		bodyBase // []*Case
 		expr     ast.Expr
@@ -776,6 +802,11 @@ type (
 		name  string
 		value ast.Expr
 	}
+	Declare2 struct {
+		name1, name2 string
+		value        ast.Expr
+	}
+	// TODO: implement CondBreak as If + Break instead?
 	CondBreak struct {
 		expr              ast.Expr
 		insideCommuteLoop bool
@@ -814,6 +845,12 @@ func stmtf(format string, a ...interface{}) Statement {
 // value.
 func declf(name, format string, a ...interface{}) *Declare {
 	return &Declare{name, exprf(format, a...)}
+}
+
+// decl2f constructs a simple "name1, name2 := value" declaration, using exprf for its
+// value.
+func decl2f(name1, name2, format string, a ...interface{}) *Declare2 {
+	return &Declare2{name1, name2, exprf(format, a...)}
 }
 
 // breakf constructs a simple "if cond { break }" statement, using exprf for its
@@ -1006,12 +1043,11 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 		if !token.IsIdentifier(e.name) || rr.declared(e.name) {
 			switch e.field {
 			case "Aux":
-				if e.dclType == "interface{}" {
-					// see TODO above
-					rr.add(breakf("%s.%s != %s", v, e.field, e.dclType, e.name))
-				} else {
-					rr.add(breakf("%s.%s.(%s) != %s", v, e.field, e.dclType, e.name))
-				}
+				rr.add(&If{
+					expr: exprf("%s.%s == nil", v, e.field),
+					stmt: breakf("%s == nil", e.name),
+					alt:  breakf("%s.%s.(%s) == %s", v, e.field, e.dclType, e.name),
+				})
 			case "AuxInt":
 				rr.add(breakf("%s(%s.%s) != %s", e.dclType, v, e.field, e.name))
 			case "Type":
@@ -1020,9 +1056,9 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 		} else {
 			switch e.field {
 			case "Aux":
-				if e.dclType == "interface{}" {
+				if e.dclType == "Sym" {
 					// TODO: kind of a hack - allows nil interface through
-					rr.add(declf(e.name, "%s.%s", v, e.field))
+					rr.add(decl2f(e.name, "_", "%s.Aux.(Sym)", v))
 				} else {
 					rr.add(declf(e.name, "%s.%s.(%s)", v, e.field, e.dclType))
 				}
@@ -1719,13 +1755,11 @@ func (op opData) auxType() string {
 		return "string"
 	case "Sym":
 		// Note: a Sym can be an *obj.LSym, a *gc.Node, or nil.
-		// TODO: provide an interface for this. Use a singleton to
-		// represent "no offset".
-		return "interface{}"
+		return "Sym"
 	case "SymOff":
-		return "interface{}"
+		return "Sym"
 	case "SymValAndOff":
-		return "interface{}"
+		return "Sym"
 	case "Typ":
 		return "*types.Type"
 	case "TypSize":

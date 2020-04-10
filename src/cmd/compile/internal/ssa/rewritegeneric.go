@@ -3953,7 +3953,7 @@ func rewriteValuegeneric_OpConstString(v *Value) bool {
 		}
 		v.reset(OpStringMake)
 		v0 := b.NewValue0(v.Pos, OpAddr, typ.BytePtr)
-		var _aux interface{} = fe.StringData(str)
+		var _aux Sym = fe.StringData(str)
 		v0.Aux = _aux
 		v1 := b.NewValue0(v.Pos, OpSB, typ.Uintptr)
 		v0.AddArg(v1)
@@ -3973,7 +3973,7 @@ func rewriteValuegeneric_OpConstString(v *Value) bool {
 		}
 		v.reset(OpStringMake)
 		v0 := b.NewValue0(v.Pos, OpAddr, typ.BytePtr)
-		var _aux interface{} = fe.StringData(str)
+		var _aux Sym = fe.StringData(str)
 		v0.Aux = _aux
 		v1 := b.NewValue0(v.Pos, OpSB, typ.Uintptr)
 		v0.AddArg(v1)

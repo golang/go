@@ -6346,20 +6346,6 @@ func (s *SSAGenState) FPJump(b, next *ssa.Block, jumps *[2][2]FloatingEQNEJump) 
 	}
 }
 
-func AuxOffset(v *ssa.Value) (offset int64) {
-	if v.Aux == nil {
-		return 0
-	}
-	n, ok := v.Aux.(*Node)
-	if !ok {
-		v.Fatalf("bad aux type in %s\n", v.LongString())
-	}
-	if n.Class() == PAUTO {
-		return n.Xoffset
-	}
-	return 0
-}
-
 // AddAux adds the offset in the aux fields (AuxInt and Aux) of v to a.
 func AddAux(a *obj.Addr, v *ssa.Value) {
 	AddAux2(a, v, v.AuxInt)

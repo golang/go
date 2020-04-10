@@ -6946,7 +6946,7 @@ func rewriteValueAMD64_OpAMD64CMPBconst(v *Value) bool {
 			break
 		}
 		off := int32(l.AuxInt)
-		sym := l.Aux
+		sym, _ := l.Aux.(Sym)
 		mem := l.Args[1]
 		ptr := l.Args[0]
 		if !(l.Uses == 1 && clobber(l)) {
@@ -6957,7 +6957,7 @@ func rewriteValueAMD64_OpAMD64CMPBconst(v *Value) bool {
 		v.copyOf(v0)
 		var _auxint ValAndOff = makeValAndOff32(int32(c), off)
 		v0.AuxInt = int64(_auxint)
-		var _aux interface{} = sym
+		var _aux Sym = sym
 		v0.Aux = _aux
 		v0.AddArg2(ptr, mem)
 		return true
@@ -7333,7 +7333,7 @@ func rewriteValueAMD64_OpAMD64CMPLconst(v *Value) bool {
 			break
 		}
 		off := int32(l.AuxInt)
-		sym := l.Aux
+		sym, _ := l.Aux.(Sym)
 		mem := l.Args[1]
 		ptr := l.Args[0]
 		if !(l.Uses == 1 && clobber(l)) {
@@ -7344,7 +7344,7 @@ func rewriteValueAMD64_OpAMD64CMPLconst(v *Value) bool {
 		v.copyOf(v0)
 		var _auxint ValAndOff = makeValAndOff32(c, off)
 		v0.AuxInt = int64(_auxint)
-		var _aux interface{} = sym
+		var _aux Sym = sym
 		v0.Aux = _aux
 		v0.AddArg2(ptr, mem)
 		return true
@@ -7900,7 +7900,7 @@ func rewriteValueAMD64_OpAMD64CMPQconst(v *Value) bool {
 			break
 		}
 		off := int32(l.AuxInt)
-		sym := l.Aux
+		sym, _ := l.Aux.(Sym)
 		mem := l.Args[1]
 		ptr := l.Args[0]
 		if !(l.Uses == 1 && clobber(l)) {
@@ -7911,7 +7911,7 @@ func rewriteValueAMD64_OpAMD64CMPQconst(v *Value) bool {
 		v.copyOf(v0)
 		var _auxint ValAndOff = makeValAndOff32(c, off)
 		v0.AuxInt = int64(_auxint)
-		var _aux interface{} = sym
+		var _aux Sym = sym
 		v0.Aux = _aux
 		v0.AddArg2(ptr, mem)
 		return true
@@ -8272,7 +8272,7 @@ func rewriteValueAMD64_OpAMD64CMPWconst(v *Value) bool {
 			break
 		}
 		off := int32(l.AuxInt)
-		sym := l.Aux
+		sym, _ := l.Aux.(Sym)
 		mem := l.Args[1]
 		ptr := l.Args[0]
 		if !(l.Uses == 1 && clobber(l)) {
@@ -8283,7 +8283,7 @@ func rewriteValueAMD64_OpAMD64CMPWconst(v *Value) bool {
 		v.copyOf(v0)
 		var _auxint ValAndOff = makeValAndOff32(int32(c), off)
 		v0.AuxInt = int64(_auxint)
-		var _aux interface{} = sym
+		var _aux Sym = sym
 		v0.Aux = _aux
 		v0.AddArg2(ptr, mem)
 		return true

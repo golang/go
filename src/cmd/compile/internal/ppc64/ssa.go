@@ -654,15 +654,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 	case ssa.OpPPC64ANDCCconst:
 		p := s.Prog(v.Op.Asm())
 		p.Reg = v.Args[0].Reg()
-
-		if v.Aux != nil {
-			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = gc.AuxOffset(v)
-		} else {
-			p.From.Type = obj.TYPE_CONST
-			p.From.Offset = v.AuxInt
-		}
-
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = ppc64.REGTMP // discard result
 
