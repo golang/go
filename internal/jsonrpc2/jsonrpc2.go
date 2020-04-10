@@ -170,62 +170,59 @@ func (r *Request) IsNotify() bool {
 	return r.ID == nil
 }
 
-// Reply sends a reply to the given request.
-// You must call this exactly once for any given request.
-// If err is set then result will be ignored.
-// This will mark the request as done, triggering any done
-// handlers
-func (r *Request) Reply(ctx context.Context, result interface{}, err error) error {
-	if r.done == nil {
-		return fmt.Errorf("reply invoked more than once")
-	}
-
-	defer func() {
-		recordStatus(ctx, err)
-		for i := len(r.done); i > 0; i-- {
-			r.done[i-1]()
+func replier(r *Request) Replier {
+	return func(ctx context.Context, result interface{}, err error) error {
+		if r.done == nil {
+			return fmt.Errorf("reply invoked more than once")
 		}
-		r.done = nil
-	}()
 
-	if r.IsNotify() {
-		return nil
-	}
+		defer func() {
+			recordStatus(ctx, err)
+			for i := len(r.done); i > 0; i-- {
+				r.done[i-1]()
+			}
+			r.done = nil
+		}()
 
-	var raw *json.RawMessage
-	if err == nil {
-		raw, err = marshalToRaw(result)
-	}
-	response := &wireResponse{
-		Result: raw,
-		ID:     r.ID,
-	}
-	if err != nil {
-		if callErr, ok := err.(*wireError); ok {
-			response.Error = callErr
-		} else {
-			response.Error = &wireError{Message: err.Error()}
-			var wrapped *wireError
-			if errors.As(err, &wrapped) {
-				// if we wrapped a wire error, keep the code from the wrapped error
-				// but the message from the outer error
-				response.Error.Code = wrapped.Code
+		if r.IsNotify() {
+			return nil
+		}
+
+		var raw *json.RawMessage
+		if err == nil {
+			raw, err = marshalToRaw(result)
+		}
+		response := &wireResponse{
+			Result: raw,
+			ID:     r.ID,
+		}
+		if err != nil {
+			if callErr, ok := err.(*wireError); ok {
+				response.Error = callErr
+			} else {
+				response.Error = &wireError{Message: err.Error()}
+				var wrapped *wireError
+				if errors.As(err, &wrapped) {
+					// if we wrapped a wire error, keep the code from the wrapped error
+					// but the message from the outer error
+					response.Error.Code = wrapped.Code
+				}
 			}
 		}
-	}
-	data, err := json.Marshal(response)
-	if err != nil {
-		return err
-	}
-	n, err := r.conn.stream.Write(ctx, data)
-	event.Record(ctx, tag.SentBytes.Of(n))
+		data, err := json.Marshal(response)
+		if err != nil {
+			return err
+		}
+		n, err := r.conn.stream.Write(ctx, data)
+		event.Record(ctx, tag.SentBytes.Of(n))
 
-	if err != nil {
-		// TODO(iancottrell): if a stream write fails, we really need to shut down
-		// the whole stream
-		return err
+		if err != nil {
+			// TODO(iancottrell): if a stream write fails, we really need to shut down
+			// the whole stream
+			return err
+		}
+		return nil
 	}
-	return nil
 }
 
 // OnReply adds a done callback to the request.
@@ -283,7 +280,7 @@ func (c *Conn) Run(runCtx context.Context, handler Handler) error {
 			}
 			req.OnReply(func() { spanDone() })
 
-			if err := handler(reqCtx, req); err != nil {
+			if err := handler(reqCtx, replier(req), req); err != nil {
 				// delivery failed, not much we can do
 				event.Error(reqCtx, "jsonrpc2 message delivery failed", err)
 			}

@@ -908,7 +908,7 @@ let server: side = {
 
 // commonly used output
 const notNil = `if r.Params != nil {
-  return r.Reply(ctx, nil, fmt.Errorf("%w: expected no params", jsonrpc2.CodeInvalidParams))
+  return reply(ctx, nil, fmt.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
 }`;
 
 // Go code for notifications. Side is client or server, m is the request
@@ -924,10 +924,10 @@ function goNot(side: side, m: string) {
   if (a != '' && a != 'void') {
     case1 = `var params ${a}
     if err := json.Unmarshal(*r.Params, &params); err != nil {
-      return sendParseError(ctx, r, err)
+      return sendParseError(ctx, reply, r, err)
     }
     err:= ${side.name}.${nm}(ctx, &params)
-    return r.Reply(ctx, nil, err)`
+    return reply(ctx, nil, err)`
   } else {
     case1 = `return ${side.name}.${nm}(ctx)`;
   }
@@ -959,7 +959,7 @@ function goReq(side: side, m: string) {
     if (extraTypes.has('Param' + nm)) a = 'Param' + nm
     case1 = `var params ${a}
     if err := json.Unmarshal(*r.Params, &params); err != nil {
-      return sendParseError(ctx, r, err)
+      return sendParseError(ctx, reply, r, err)
     }`;
   }
   const arg2 = a == '' ? '' : ', &params';
@@ -968,10 +968,10 @@ function goReq(side: side, m: string) {
   }`;
   if (b != '' && b != 'void') {
     case2 = `resp, err := ${side.name}.${nm}(ctx${arg2})
-    return r.Reply(ctx, resp, err)`;
+    return reply(ctx, resp, err)`;
   } else {  // response is nil
     case2 = `err := ${side.name}.${nm}(ctx${arg2})
-    return r.Reply(ctx, nil, err)`
+    return reply(ctx, nil, err)`
   }
 
   side.cases.push(`${caseHdr}\n${case1}\n${case2}`);
@@ -1082,10 +1082,10 @@ function output(side: side) {
   side.methods.forEach((v) => {f(v)});
   f('}\n');
   f(`func ${a}Handler(${side.name} ${a}, handler jsonrpc2.Handler) jsonrpc2.Handler {
-        return func(ctx context.Context, r *jsonrpc2.Request) error {
+        return func(ctx context.Context, reply jsonrpc2.Replier, r *jsonrpc2.Request) error {
             if ctx.Err() != nil {
               ctx := xcontext.Detach(ctx)
-              return r.Reply(ctx, nil, RequestCancelledError)
+              return reply(ctx, nil, RequestCancelledError)
             }
             switch r.Method {`);
   side.cases.forEach((v) => {f(v)});
@@ -1115,14 +1115,14 @@ function nonstandardRequests() {
     }
   `)
   client.cases.push(`default:
-    return handler(ctx, r)`)
+    return handler(ctx, reply, r)`)
   server.cases.push(`default:
   var params interface{}
   if err := json.Unmarshal(*r.Params, &params); err != nil {
-    return sendParseError(ctx, r, err)
+    return sendParseError(ctx, reply, r, err)
   }
   resp, err := server.NonstandardRequest(ctx, r.Method, params)
-  return r.Reply(ctx, resp, err)
+  return reply(ctx, resp, err)
 `)
 }
 
