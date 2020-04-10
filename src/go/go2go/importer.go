@@ -148,7 +148,7 @@ func (imp *Importer) ImportFrom(importPath, dir string, mode types.ImportMode) (
 	if err := os.MkdirAll(tdir, 0755); err != nil {
 		return nil, err
 	}
-	for _, name := range names {
+	for _, name := range go2files {
 		data, err := ioutil.ReadFile(filepath.Join(pdir, name))
 		if err != nil {
 			return nil, err
