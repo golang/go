@@ -138,8 +138,9 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 		}
 		select {
 		case dr.c <- strings.NewReader("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n"):
-		case <-quitReadCh:
+		case quitReadCh<-struct{}{}:
 		}
+		close(quitReadCh)
 	}()
 
 	_, err := t.RoundTrip(reqSend)
@@ -147,7 +148,7 @@ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
 	req.Body = save
 	if err != nil {
 		pw.Close()
-		quitReadCh <- struct{}{}
+		<-quitReadCh
 		return nil, err
 	}
 	dump := buf.Bytes()
