@@ -73,10 +73,6 @@ func putelfsyment(out *OutBuf, off int, addr int64, size int64, info int, shndx 
 	}
 }
 
-var numelfsym = 1 // 0 is reserved
-
-var elfbind int
-
 func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go_ *sym.Symbol) {
 	var typ int
 
@@ -178,7 +174,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
 		s = strings.Replace(s, "·", ".", -1)
 	}
 
-	if ctxt.DynlinkingGo() && bind == STB_GLOBAL && elfbind == STB_LOCAL && x.Type == sym.STEXT {
+	if ctxt.DynlinkingGo() && bind == STB_GLOBAL && ctxt.elfbind == STB_LOCAL && x.Type == sym.STEXT {
 		// When dynamically linking, we want references to functions defined
 		// in this module to always be to the function object, not to the
 		// PLT. We force this by writing an additional local symbol for every
@@ -188,22 +184,22 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
 		// ELF linker -Bsymbolic-functions option, but that is buggy on
 		// several platforms.
 		putelfsyment(ctxt.Out, putelfstr("local."+s), addr, size, STB_LOCAL<<4|typ&0xf, elfshnum, other)
-		x.LocalElfsym = int32(numelfsym)
-		numelfsym++
+		x.LocalElfsym = int32(ctxt.numelfsym)
+		ctxt.numelfsym++
 		return
-	} else if bind != elfbind {
+	} else if bind != ctxt.elfbind {
 		return
 	}
 
 	putelfsyment(ctxt.Out, putelfstr(s), addr, size, bind<<4|typ&0xf, elfshnum, other)
-	x.Elfsym = int32(numelfsym)
-	numelfsym++
+	x.Elfsym = int32(ctxt.numelfsym)
+	ctxt.numelfsym++
 }
 
-func putelfsectionsym(out *OutBuf, s *sym.Symbol, shndx int) {
+func putelfsectionsym(ctxt *Link, out *OutBuf, s *sym.Symbol, shndx int) {
 	putelfsyment(out, 0, 0, 0, STB_LOCAL<<4|STT_SECTION, shndx, 0)
-	s.Elfsym = int32(numelfsym)
-	numelfsym++
+	s.Elfsym = int32(ctxt.numelfsym)
+	ctxt.numelfsym++
 }
 
 func Asmelfsym(ctxt *Link) {
@@ -217,13 +213,13 @@ func Asmelfsym(ctxt *Link) {
 	// It is added with a name to avoid problems with external linking
 	// encountered on some versions of Solaris. See issue #14957.
 	putelfsyment(ctxt.Out, putelfstr("go.go"), 0, 0, STB_LOCAL<<4|STT_FILE, SHN_ABS, 0)
-	numelfsym++
+	ctxt.numelfsym++
 
-	elfbind = STB_LOCAL
+	ctxt.elfbind = STB_LOCAL
 	genasmsym(ctxt, putelfsym)
 
-	elfbind = STB_GLOBAL
-	elfglobalsymndx = numelfsym
+	ctxt.elfbind = STB_GLOBAL
+	elfglobalsymndx = ctxt.numelfsym
 	genasmsym(ctxt, putelfsym)
 }
 
@@ -259,8 +255,6 @@ func putplan9sym(ctxt *Link, x *sym.Symbol, s string, typ SymbolType, addr int64
 func Asmplan9sym(ctxt *Link) {
 	genasmsym(ctxt, putplan9sym)
 }
-
-var symt *sym.Symbol
 
 type byPkg []*sym.Library
 
@@ -434,7 +428,7 @@ func (ctxt *Link) symtab() {
 	symitablink := ctxt.Syms.Lookup("runtime.itablink", 0)
 	symitablink.Type = sym.SITABLINK
 
-	symt = ctxt.Syms.Lookup("runtime.symtab", 0)
+	symt := ctxt.Syms.Lookup("runtime.symtab", 0)
 	symt.Attr |= sym.AttrLocal
 	symt.Type = sym.SSYMTAB
 	symt.Size = 0
