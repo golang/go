@@ -147,7 +147,7 @@ func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
 				for _, targ := range targs {
 					tpar := targ.(*TypeParam)
 					iface := bounds[tpar.index].underlying.(*Interface)
-					embed := tpar.Interface() // don't use Named form of tpar.bound
+					embed := tpar.Bound() // don't use Named form of tpar.bound
 					iface.embeddeds = append(iface.embeddeds, embed)
 					check.posMap[iface] = append(check.posMap[iface], econtr.Pos()) // satisfy completeInterface requirements
 					// check.contractExpr assigned a type bound to its incoming type arguments,
@@ -176,7 +176,7 @@ func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
 
 // Contracts don't have types, but we need to set a type to
 // detect recursive declarations and satisfy assertions.
-type contractType struct{}
+type contractType struct{ aType }
 
 func (contractType) String() string   { return "<dummy contract type>" }
 func (contractType) Underlying() Type { panic("unreachable") }

@@ -14,7 +14,37 @@ type Type interface {
 
 	// String returns a string representation of a type.
 	String() string
+
+	// Converters
+	Basic() *Basic
+	Array() *Array
+	Slice() *Slice
+	Struct() *Struct
+	Pointer() *Pointer
+	Tuple() *Tuple
+	Signature() *Signature
+	Interface() *Interface
+	Map() *Map
+	Chan() *Chan
+	Named() *Named
+	TypeParam() *TypeParam
 }
+
+// aType implements default type behavior
+type aType struct{}
+
+func (aType) Basic() *Basic         { return nil }
+func (aType) Array() *Array         { return nil }
+func (aType) Slice() *Slice         { return nil }
+func (aType) Struct() *Struct       { return nil }
+func (aType) Pointer() *Pointer     { return nil }
+func (aType) Tuple() *Tuple         { return nil }
+func (aType) Signature() *Signature { return nil }
+func (aType) Interface() *Interface { return nil }
+func (aType) Map() *Map             { return nil }
+func (aType) Chan() *Chan           { return nil }
+func (aType) Named() *Named         { return nil }
+func (aType) TypeParam() *TypeParam { return nil }
 
 // BasicKind describes the kind of basic type.
 type BasicKind int
@@ -79,6 +109,7 @@ type Basic struct {
 	kind BasicKind
 	info BasicInfo
 	name string
+	aType
 }
 
 // Kind returns the kind of basic type b.
@@ -94,11 +125,12 @@ func (b *Basic) Name() string { return b.name }
 type Array struct {
 	len  int64
 	elem Type
+	aType
 }
 
 // NewArray returns a new array type for the given element type and length.
 // A negative length indicates an unknown length.
-func NewArray(elem Type, len int64) *Array { return &Array{len, elem} }
+func NewArray(elem Type, len int64) *Array { return &Array{len: len, elem: elem} }
 
 // Len returns the length of array a.
 // A negative result indicates an unknown length.
@@ -110,10 +142,11 @@ func (a *Array) Elem() Type { return a.elem }
 // A Slice represents a slice type.
 type Slice struct {
 	elem Type
+	aType
 }
 
 // NewSlice returns a new slice type for the given element type.
-func NewSlice(elem Type) *Slice { return &Slice{elem} }
+func NewSlice(elem Type) *Slice { return &Slice{elem: elem} }
 
 // Elem returns the element type of slice s.
 func (s *Slice) Elem() Type { return s.elem }
@@ -122,6 +155,7 @@ func (s *Slice) Elem() Type { return s.elem }
 type Struct struct {
 	fields []*Var
 	tags   []string // field tags; nil if there are no tags
+	aType
 }
 
 // NewStruct returns a new struct with the given fields and corresponding field tags.
@@ -158,6 +192,7 @@ func (s *Struct) Tag(i int) string {
 // A Pointer represents a pointer type.
 type Pointer struct {
 	base Type // element type
+	aType
 }
 
 // NewPointer returns a new pointer type for the given element (base) type.
@@ -171,15 +206,22 @@ func (p *Pointer) Elem() Type { return p.base }
 // assignments; they are not first class types of Go.
 type Tuple struct {
 	vars []*Var
+	aType
 }
 
 // NewTuple returns a new tuple for the given variables.
 func NewTuple(x ...*Var) *Tuple {
 	if len(x) > 0 {
-		return &Tuple{x}
+		return &Tuple{vars: x}
 	}
 	return nil
 }
+
+// We cannot rely on the embedded Basic() method because (*Tuple)(nil)
+// is a valid *Tuple value but (*Tuple)(nil).Basic() would panic without
+// this implementation.
+// TODO(gri) It seems that at the moment we only need this converter.
+func (*Tuple) Basic() *Basic { return nil }
 
 // Len returns the number variables of tuple t.
 func (t *Tuple) Len() int {
@@ -206,6 +248,7 @@ type Signature struct {
 	params   *Tuple      // (incoming) parameters from left to right; or nil
 	results  *Tuple      // (outgoing) results from left to right; or nil
 	variadic bool        // true if the last parameter's type is of the form ...T (or string, for append built-in only)
+	aType
 }
 
 // NewSignature returns a new function type for the given receiver, parameters,
@@ -222,7 +265,7 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
 			panic("types.NewSignature: variadic parameter must be of unnamed slice type")
 		}
 	}
-	return &Signature{nil, nil, nil, recv, params, results, variadic}
+	return &Signature{recv: recv, params: params, results: results, variadic: variadic}
 }
 
 // Recv returns the receiver of signature s (if a method), or nil if a
@@ -256,6 +299,8 @@ type Interface struct {
 
 	allMethods []*Func // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
 	allTypes   []Type  // list of types declared with or embedded in this interface
+
+	aType
 }
 
 // is reports whether interface t represents types that all satisfy pred.
@@ -374,23 +419,23 @@ func (t *Interface) Empty() bool {
 
 // empty reports whether interface t is empty without requiring the
 // interface to be complete. Should only be called by Interface.Empty.
-func empty(t *Interface, visited map[*Interface]bool) bool {
+func empty(t *Interface, seen map[*Interface]bool) bool {
 	if len(t.methods) != 0 || len(t.types) != 0 {
 		return false
 	}
 	for _, e := range t.embeddeds {
 		// e should be an interface but be careful (it may be invalid)
-		if e, _ := e.Underlying().(*Interface); e != nil {
+		if e := e.Interface(); e != nil {
 			// Cyclic interfaces such as "type E interface { E }" are not permitted
 			// but they are still constructed and we need to detect such cycles.
-			if visited[e] {
+			if seen[e] {
 				continue
 			}
-			if visited == nil {
-				visited = make(map[*Interface]bool)
+			if seen == nil {
+				seen = make(map[*Interface]bool)
 			}
-			visited[e] = true
-			if !empty(e, visited) {
+			seen[e] = true
+			if !empty(e, seen) {
 				return false
 			}
 		}
@@ -444,7 +489,7 @@ func (t *Interface) Complete() *Interface {
 	types = append(types, t.types...)
 
 	for _, typ := range t.embeddeds {
-		typ := typ.Underlying().(*Interface)
+		typ := typ.Interface()
 		typ.Complete()
 		for _, m := range typ.allMethods {
 			addMethod(m, false)
@@ -472,11 +517,12 @@ func (t *Interface) Complete() *Interface {
 // A Map represents a map type.
 type Map struct {
 	key, elem Type
+	aType
 }
 
 // NewMap returns a new map for the given key and element types.
 func NewMap(key, elem Type) *Map {
-	return &Map{key, elem}
+	return &Map{key: key, elem: elem}
 }
 
 // Key returns the key type of map m.
@@ -489,6 +535,7 @@ func (m *Map) Elem() Type { return m.elem }
 type Chan struct {
 	dir  ChanDir
 	elem Type
+	aType
 }
 
 // A ChanDir value indicates a channel direction.
@@ -503,7 +550,7 @@ const (
 
 // NewChan returns a new channel type for the given direction and element type.
 func NewChan(dir ChanDir, elem Type) *Chan {
-	return &Chan{dir, elem}
+	return &Chan{dir: dir, elem: elem}
 }
 
 // Dir returns the direction of channel c.
@@ -521,6 +568,7 @@ type Named struct {
 	tparams    []*TypeName // type parameters, or nil
 	targs      []Type      // type arguments (after instantiation), or nil
 	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
+	aType
 }
 
 // NewNamed returns a new named type for the given type name, underlying type, and associated methods.
@@ -539,6 +587,21 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 
 // Obj returns the type name for the named type t.
 func (t *Named) Obj() *TypeName { return t.obj }
+
+// Converter methods
+func (t *Named) Basic() *Basic         { return t.Underlying().Basic() }
+func (t *Named) Array() *Array         { return t.Underlying().Array() }
+func (t *Named) Slice() *Slice         { return t.Underlying().Slice() }
+func (t *Named) Struct() *Struct       { return t.Underlying().Struct() }
+func (t *Named) Pointer() *Pointer     { return t.Underlying().Pointer() }
+func (t *Named) Tuple() *Tuple         { return t.Underlying().Tuple() }
+func (t *Named) Signature() *Signature { return t.Underlying().Signature() }
+func (t *Named) Interface() *Interface { return t.Underlying().Interface() }
+func (t *Named) Map() *Map             { return t.Underlying().Map() }
+func (t *Named) Chan() *Chan           { return t.Underlying().Chan() }
+
+// func (t *Named) Named() *Named      // declared below
+func (t *Named) TypeParam() *TypeParam { return t.Underlying().TypeParam() }
 
 // TODO(gri) Come up with a better representation and API to distinguish
 //           between parameterized instantiated and non-instantiated types.
@@ -583,12 +646,13 @@ type TypeParam struct {
 	obj   *TypeName // corresponding type name
 	index int       // parameter index
 	bound Type      // *Named or *Interface; underlying type is always *Interface
+	aType
 }
 
 // NewTypeParam returns a new TypeParam.
 func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
 	assert(bound != nil)
-	typ := &TypeParam{check.nextId, obj, index, bound}
+	typ := &TypeParam{id: check.nextId, obj: obj, index: index, bound: bound}
 	check.nextId++
 	if obj.typ == nil {
 		obj.typ = typ
@@ -596,36 +660,73 @@ func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypePa
 	return typ
 }
 
-func (t *TypeParam) Interface() *Interface {
-	iface := t.bound.Underlying().(*Interface)
+func (t *TypeParam) Bound() *Interface {
+	iface := t.bound.Interface()
 	iface.Complete() // TODO(gri) should we use check.completeInterface instead?
 	return iface
 }
 
 // Implementations for Type methods.
 
-func (b *Basic) Underlying() Type     { return b }
-func (a *Array) Underlying() Type     { return a }
-func (s *Slice) Underlying() Type     { return s }
-func (s *Struct) Underlying() Type    { return s }
-func (p *Pointer) Underlying() Type   { return p }
-func (t *Tuple) Underlying() Type     { return t }
-func (s *Signature) Underlying() Type { return s }
-func (t *Interface) Underlying() Type { return t }
-func (m *Map) Underlying() Type       { return m }
-func (c *Chan) Underlying() Type      { return c }
-func (t *Named) Underlying() Type     { return t.underlying }
-func (t *TypeParam) Underlying() Type { return t } // TODO(gri) should this return t.Interface() instead?
+func (t *Basic) Basic() *Basic             { return t }
+func (t *Array) Array() *Array             { return t }
+func (t *Slice) Slice() *Slice             { return t }
+func (t *Struct) Struct() *Struct          { return t }
+func (t *Pointer) Pointer() *Pointer       { return t }
+func (t *Tuple) Tuple() *Tuple             { return t }
+func (t *Signature) Signature() *Signature { return t }
+func (t *Interface) Interface() *Interface { return t }
+func (t *Map) Map() *Map                   { return t }
+func (t *Chan) Chan() *Chan                { return t }
+func (t *Named) Named() *Named             { return t }
+func (t *TypeParam) TypeParam() *TypeParam { return t }
 
-func (b *Basic) String() string     { return TypeString(b, nil) }
-func (a *Array) String() string     { return TypeString(a, nil) }
-func (s *Slice) String() string     { return TypeString(s, nil) }
-func (s *Struct) String() string    { return TypeString(s, nil) }
-func (p *Pointer) String() string   { return TypeString(p, nil) }
+func (t *Basic) Underlying() Type     { return t }
+func (t *Array) Underlying() Type     { return t }
+func (t *Slice) Underlying() Type     { return t }
+func (t *Struct) Underlying() Type    { return t }
+func (t *Pointer) Underlying() Type   { return t }
+func (t *Tuple) Underlying() Type     { return t }
+func (t *Signature) Underlying() Type { return t }
+func (t *Interface) Underlying() Type { return t }
+func (t *Map) Underlying() Type       { return t }
+func (t *Chan) Underlying() Type      { return t }
+func (t *Named) Underlying() Type {
+	var u Type
+	var seen map[*Named]bool
+	// TODO(gri) If we have a chain of named types, update the
+	//           underlying types once we have found the bottom
+	//           (optimization).
+	for {
+		u = t.underlying
+		if u == nil {
+			return Typ[Invalid]
+		}
+		n, ok := t.underlying.(*Named)
+		if !ok {
+			return u // not a *Named type
+		}
+		if seen[t] {
+			return Typ[Invalid] // we have a cycle
+		}
+		if seen == nil {
+			seen = make(map[*Named]bool)
+		}
+		seen[t] = true
+		t = n
+	}
+}
+func (t *TypeParam) Underlying() Type { return t }
+
+func (t *Basic) String() string     { return TypeString(t, nil) }
+func (t *Array) String() string     { return TypeString(t, nil) }
+func (t *Slice) String() string     { return TypeString(t, nil) }
+func (t *Struct) String() string    { return TypeString(t, nil) }
+func (t *Pointer) String() string   { return TypeString(t, nil) }
 func (t *Tuple) String() string     { return TypeString(t, nil) }
-func (s *Signature) String() string { return TypeString(s, nil) }
+func (t *Signature) String() string { return TypeString(t, nil) }
 func (t *Interface) String() string { return TypeString(t, nil) }
-func (m *Map) String() string       { return TypeString(m, nil) }
-func (c *Chan) String() string      { return TypeString(c, nil) }
+func (t *Map) String() string       { return TypeString(t, nil) }
+func (t *Chan) String() string      { return TypeString(t, nil) }
 func (t *Named) String() string     { return TypeString(t, nil) }
 func (t *TypeParam) String() string { return TypeString(t, nil) }

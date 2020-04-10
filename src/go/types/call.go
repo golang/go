@@ -67,7 +67,7 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
 		// function/method call
 		cgocall := x.mode == cgofunc
 
-		sig, _ := x.typ.Underlying().(*Signature)
+		sig := x.typ.Signature()
 		if sig == nil {
 			check.invalidOp(x.pos(), "cannot call non-function %s", x)
 			x.mode = invalid

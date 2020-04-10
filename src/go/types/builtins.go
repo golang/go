@@ -81,7 +81,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		// of S and the respective parameter passing rules apply."
 		S := x.typ
 		var T Type
-		if s, _ := S.Underlying().(*Slice); s != nil {
+		if s := S.Slice(); s != nil {
 			T = s.elem
 		} else {
 			check.invalidArg(x.pos(), "%s is not a slice", x)
@@ -176,7 +176,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			}
 
 		case *TypeParam:
-			if t.Interface().is(func(t Type) bool {
+			if t.Bound().is(func(t Type) bool {
 				switch t.(type) {
 				case *Basic:
 					if isString(t) && id == _Len {
@@ -209,7 +209,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Close:
 		// close(c)
-		c, _ := x.typ.Underlying().(*Chan)
+		c := x.typ.Chan()
 		if c == nil {
 			check.invalidArg(x.pos(), "%s is not a channel", x)
 			return
@@ -285,7 +285,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		// the argument types must be of floating-point type
 		f := func(x Type) Type {
-			if t, _ := x.Underlying().(*Basic); t != nil {
+			if t := x.Basic(); t != nil {
 				switch t.kind {
 				case Float32:
 					return Typ[Complex64]
@@ -319,7 +319,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	case _Copy:
 		// copy(x, y []T) int
 		var dst Type
-		if t, _ := x.typ.Underlying().(*Slice); t != nil {
+		if t := x.typ.Slice(); t != nil {
 			dst = t.elem
 		}
 
@@ -356,7 +356,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 	case _Delete:
 		// delete(m, k)
-		m, _ := x.typ.Underlying().(*Map)
+		m := x.typ.Map()
 		if m == nil {
 			check.invalidArg(x.pos(), "%s is not a map", x)
 			return
@@ -403,7 +403,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 
 		// the argument must be of complex type
 		f := func(x Type) Type {
-			if t, _ := x.Underlying().(*Basic); t != nil {
+			if t := x.Basic(); t != nil {
 				switch t.kind {
 				case Complex64:
 					return Typ[Float32]
@@ -674,11 +674,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 // applyTypeFunc returns nil.
 // If x is not a type parameter, the result is f(x).
 func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
-	if tp, _ := x.Underlying().(*TypeParam); tp != nil {
+	if tp := x.TypeParam(); tp != nil {
 		// Test if t satisfies the requirements for the argument
 		// type and collect possible result types at the same time.
 		var resTypes []Type
-		if !tp.Interface().is(func(x Type) bool {
+		if !tp.Bound().is(func(x Type) bool {
 			if r := f(x); r != nil {
 				resTypes = append(resTypes, r)
 				return true
@@ -725,7 +725,7 @@ func makeSig(res Type, args ...Type) *Signature {
 //
 func implicitArrayDeref(typ Type) Type {
 	if p, ok := typ.(*Pointer); ok {
-		if a, ok := p.base.Underlying().(*Array); ok {
+		if a := p.base.Array(); a != nil {
 			return a
 		}
 	}

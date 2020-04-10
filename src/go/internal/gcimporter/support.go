@@ -125,3 +125,17 @@ type anyType struct{}
 
 func (t anyType) Underlying() types.Type { return t }
 func (t anyType) String() string         { return "any" }
+
+// types.aType is not exported for now so we need to implemented these here.
+func (anyType) Basic() *types.Basic         { return nil }
+func (anyType) Array() *types.Array         { return nil }
+func (anyType) Slice() *types.Slice         { return nil }
+func (anyType) Struct() *types.Struct       { return nil }
+func (anyType) Pointer() *types.Pointer     { return nil }
+func (anyType) Tuple() *types.Tuple         { return nil }
+func (anyType) Signature() *types.Signature { return nil }
+func (anyType) Interface() *types.Interface { return nil }
+func (anyType) Map() *types.Map             { return nil }
+func (anyType) Chan() *types.Chan           { return nil }
+func (anyType) Named() *types.Named         { return nil }
+func (anyType) TypeParam() *types.TypeParam { return nil }

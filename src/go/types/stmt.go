@@ -350,8 +350,8 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			return
 		}
 
-		tch, ok := ch.typ.Underlying().(*Chan)
-		if !ok {
+		tch := ch.typ.Chan()
+		if tch == nil {
 			check.invalidOp(s.Arrow, "cannot send to non-chan type %s", ch.typ)
 			return
 		}
@@ -616,7 +616,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		case *Interface:
 			xtyp = t
 		case *TypeParam:
-			xtyp = t.Interface()
+			xtyp = t.Bound()
 			strict = true
 		default:
 			check.errorf(x.pos(), "%s is not an interface or generic type", &x)
@@ -883,7 +883,7 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
 	case *Slice:
 		return Typ[Int], typ.elem, ""
 	case *Pointer:
-		if typ, _ := typ.base.Underlying().(*Array); typ != nil {
+		if typ := typ.base.Array(); typ != nil {
 			return Typ[Int], typ.elem, ""
 		}
 	case *Map:
@@ -898,7 +898,7 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
 		first := true
 		var key, val Type
 		var msg string
-		typ.Interface().is(func(t Type) bool {
+		typ.Bound().is(func(t Type) bool {
 			k, v, m := rangeKeyVal(t, wantKey, wantVal)
 			if k == nil || m != "" {
 				key, val, msg = k, v, m

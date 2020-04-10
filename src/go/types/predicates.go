@@ -31,7 +31,7 @@ func is(typ Type, what BasicInfo) bool {
 	case *Basic:
 		return t.info&what != 0
 	case *TypeParam:
-		return t.Interface().is(func(typ Type) bool { return is(typ, what) })
+		return t.Bound().is(func(typ Type) bool { return is(typ, what) })
 	}
 	return false
 }
@@ -45,26 +45,25 @@ func isNumeric(typ Type) bool  { return is(typ, IsNumeric) }
 func isString(typ Type) bool   { return is(typ, IsString) }
 
 func isTyped(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return !ok || t.info&IsUntyped == 0
+	t := typ.Basic()
+	return t == nil || t.info&IsUntyped == 0
 }
 
 func isUntyped(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsUntyped != 0
+	t := typ.Basic()
+	return t != nil && t.info&IsUntyped != 0
 }
 
 func isOrdered(typ Type) bool { return is(typ, IsOrdered) }
 
 func isConstType(typ Type) bool {
-	t, ok := typ.Underlying().(*Basic)
-	return ok && t.info&IsConstType != 0
+	t := typ.Basic()
+	return t != nil && t.info&IsConstType != 0
 }
 
 // IsInterface reports whether typ is an interface type.
 func IsInterface(typ Type) bool {
-	_, ok := typ.Underlying().(*Interface)
-	return ok
+	return typ.Interface() != nil
 }
 
 // Comparable reports whether values of type T are comparable.
@@ -86,7 +85,7 @@ func Comparable(T Type) bool {
 	case *Array:
 		return Comparable(t.elem)
 	case *TypeParam:
-		iface := t.Interface()
+		iface := t.Bound()
 		// If the magic method == exists, the type parameter is comparable.
 		_, m := lookupMethod(iface.allMethods, nil, "==")
 		return m != nil || iface.is(Comparable)

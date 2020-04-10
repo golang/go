@@ -34,39 +34,39 @@ var (
 // Use Universe.Lookup("byte").Type() to obtain the specific
 // alias basic type named "byte" (and analogous for "rune").
 var Typ = []*Basic{
-	Invalid: {Invalid, 0, "invalid type"},
+	Invalid: {Invalid, 0, "invalid type", aType{}},
 
-	Bool:          {Bool, IsBoolean, "bool"},
-	Int:           {Int, IsInteger, "int"},
-	Int8:          {Int8, IsInteger, "int8"},
-	Int16:         {Int16, IsInteger, "int16"},
-	Int32:         {Int32, IsInteger, "int32"},
-	Int64:         {Int64, IsInteger, "int64"},
-	Uint:          {Uint, IsInteger | IsUnsigned, "uint"},
-	Uint8:         {Uint8, IsInteger | IsUnsigned, "uint8"},
-	Uint16:        {Uint16, IsInteger | IsUnsigned, "uint16"},
-	Uint32:        {Uint32, IsInteger | IsUnsigned, "uint32"},
-	Uint64:        {Uint64, IsInteger | IsUnsigned, "uint64"},
-	Uintptr:       {Uintptr, IsInteger | IsUnsigned, "uintptr"},
-	Float32:       {Float32, IsFloat, "float32"},
-	Float64:       {Float64, IsFloat, "float64"},
-	Complex64:     {Complex64, IsComplex, "complex64"},
-	Complex128:    {Complex128, IsComplex, "complex128"},
-	String:        {String, IsString, "string"},
-	UnsafePointer: {UnsafePointer, 0, "Pointer"},
+	Bool:          {Bool, IsBoolean, "bool", aType{}},
+	Int:           {Int, IsInteger, "int", aType{}},
+	Int8:          {Int8, IsInteger, "int8", aType{}},
+	Int16:         {Int16, IsInteger, "int16", aType{}},
+	Int32:         {Int32, IsInteger, "int32", aType{}},
+	Int64:         {Int64, IsInteger, "int64", aType{}},
+	Uint:          {Uint, IsInteger | IsUnsigned, "uint", aType{}},
+	Uint8:         {Uint8, IsInteger | IsUnsigned, "uint8", aType{}},
+	Uint16:        {Uint16, IsInteger | IsUnsigned, "uint16", aType{}},
+	Uint32:        {Uint32, IsInteger | IsUnsigned, "uint32", aType{}},
+	Uint64:        {Uint64, IsInteger | IsUnsigned, "uint64", aType{}},
+	Uintptr:       {Uintptr, IsInteger | IsUnsigned, "uintptr", aType{}},
+	Float32:       {Float32, IsFloat, "float32", aType{}},
+	Float64:       {Float64, IsFloat, "float64", aType{}},
+	Complex64:     {Complex64, IsComplex, "complex64", aType{}},
+	Complex128:    {Complex128, IsComplex, "complex128", aType{}},
+	String:        {String, IsString, "string", aType{}},
+	UnsafePointer: {UnsafePointer, 0, "Pointer", aType{}},
 
-	UntypedBool:    {UntypedBool, IsBoolean | IsUntyped, "untyped bool"},
-	UntypedInt:     {UntypedInt, IsInteger | IsUntyped, "untyped int"},
-	UntypedRune:    {UntypedRune, IsInteger | IsUntyped, "untyped rune"},
-	UntypedFloat:   {UntypedFloat, IsFloat | IsUntyped, "untyped float"},
-	UntypedComplex: {UntypedComplex, IsComplex | IsUntyped, "untyped complex"},
-	UntypedString:  {UntypedString, IsString | IsUntyped, "untyped string"},
-	UntypedNil:     {UntypedNil, IsUntyped, "untyped nil"},
+	UntypedBool:    {UntypedBool, IsBoolean | IsUntyped, "untyped bool", aType{}},
+	UntypedInt:     {UntypedInt, IsInteger | IsUntyped, "untyped int", aType{}},
+	UntypedRune:    {UntypedRune, IsInteger | IsUntyped, "untyped rune", aType{}},
+	UntypedFloat:   {UntypedFloat, IsFloat | IsUntyped, "untyped float", aType{}},
+	UntypedComplex: {UntypedComplex, IsComplex | IsUntyped, "untyped complex", aType{}},
+	UntypedString:  {UntypedString, IsString | IsUntyped, "untyped string", aType{}},
+	UntypedNil:     {UntypedNil, IsUntyped, "untyped nil", aType{}},
 }
 
 var aliases = [...]*Basic{
-	{Byte, IsInteger | IsUnsigned, "byte"},
-	{Rune, IsInteger, "rune"},
+	{Byte, IsInteger | IsUnsigned, "byte", aType{}},
+	{Rune, IsInteger, "rune", aType{}},
 }
 
 func defPredeclaredTypes() {
@@ -214,7 +214,7 @@ func defPredeclaredContracts() {
 	// The interface is parameterized with a single
 	// type parameter to match the comparable contract.
 	pname := NewTypeName(token.NoPos, nil, "T", nil)
-	pname.typ = &TypeParam{0, pname, 0, &emptyInterface}
+	pname.typ = &TypeParam{0, pname, 0, &emptyInterface, aType{}}
 
 	// The type bound interface needs a name so we can attach the
 	// type parameter and to match the usual set up of contracts.

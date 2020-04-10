@@ -111,7 +111,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 	// check bounds
 	for i, tname := range tparams {
 		tpar := tname.typ.(*TypeParam)
-		iface := tpar.Interface()
+		iface := tpar.Bound()
 		if iface.Empty() {
 			continue // no type bound
 		}
@@ -161,8 +161,8 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 
 		// If targ is itself a type parameter, each of its possible types, but at least one, must be in the
 		// list of iface types (i.e., the targ type list must be a non-empty subset of the iface types).
-		if targ, _ := targ.Underlying().(*TypeParam); targ != nil {
-			targBound := targ.Interface()
+		if targ := targ.TypeParam(); targ != nil {
+			targBound := targ.Bound()
 			if len(targBound.allTypes) == 0 {
 				check.softErrorf(pos, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
 				break
@@ -226,24 +226,24 @@ func (subst *subster) typ(typ Type) Type {
 	case *Array:
 		elem := subst.typ(t.elem)
 		if elem != t.elem {
-			return &Array{t.len, elem}
+			return &Array{len: t.len, elem: elem}
 		}
 
 	case *Slice:
 		elem := subst.typ(t.elem)
 		if elem != t.elem {
-			return &Slice{elem}
+			return &Slice{elem: elem}
 		}
 
 	case *Struct:
 		if fields, copied := subst.varList(t.fields); copied {
-			return &Struct{fields, t.tags}
+			return &Struct{fields: fields, tags: t.tags}
 		}
 
 	case *Pointer:
 		base := subst.typ(t.base)
 		if base != t.base {
-			return &Pointer{base}
+			return &Pointer{base: base}
 		}
 
 	case *Tuple:
@@ -256,7 +256,15 @@ func (subst *subster) typ(typ Type) Type {
 		params := subst.tuple(t.params)
 		results := subst.tuple(t.results)
 		if recv != t.recv || params != t.params || results != t.results {
-			return &Signature{t.rparams, t.tparams, t.scope, recv, params, results, t.variadic}
+			return &Signature{
+				rparams:  t.rparams,
+				tparams:  t.tparams,
+				scope:    t.scope,
+				recv:     recv,
+				params:   params,
+				results:  results,
+				variadic: t.variadic,
+			}
 		}
 
 	case *Interface:
@@ -274,13 +282,13 @@ func (subst *subster) typ(typ Type) Type {
 		key := subst.typ(t.key)
 		elem := subst.typ(t.elem)
 		if key != t.key || elem != t.elem {
-			return &Map{key, elem}
+			return &Map{key: key, elem: elem}
 		}
 
 	case *Chan:
 		elem := subst.typ(t.elem)
 		if elem != t.elem {
-			return &Chan{t.dir, elem}
+			return &Chan{dir: t.dir, elem: elem}
 		}
 
 	case *Named:
@@ -398,7 +406,7 @@ func (subst *subster) var_(v *Var) *Var {
 func (subst *subster) tuple(t *Tuple) *Tuple {
 	if t != nil {
 		if vars, copied := subst.varList(t.vars); copied {
-			return &Tuple{vars}
+			return &Tuple{vars: vars}
 		}
 	}
 	return t
