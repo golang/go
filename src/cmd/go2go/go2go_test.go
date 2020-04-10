@@ -68,6 +68,7 @@ func buildGo2go(t *testing.T) {
 }
 
 func TestGO2PATH(t *testing.T) {
+	t.Parallel()
 	buildGo2go(t)
 
 	copyFile := func(path string, info os.FileInfo, err error) error {
@@ -125,6 +126,7 @@ func TestGO2PATH(t *testing.T) {
 }
 
 func TestGO2PATHEqGOPATH(t *testing.T) {
+	t.Parallel()
 	buildGo2go(t)
 
 	pathDir := t.TempDir()
@@ -151,7 +153,8 @@ func TestGO2PATHEqGOPATH(t *testing.T) {
 	cmd.Env = append(os.Environ(),
 		"GOPATH="+pathDir,
 		"GO2PATH="+pathDir,
-		"GO111MODULE=off")
+		"GO111MODULE=off",
+	)
 	out, err := cmd.CombinedOutput()
 	if len(out) > 0 {
 		t.Logf("%s", out)
@@ -193,6 +196,7 @@ func main() {
 `
 
 func TestBuild(t *testing.T) {
+	t.Parallel()
 	buildGo2go(t)
 
 	dir := filepath.Join(t.TempDir(), "hello")
@@ -213,13 +217,17 @@ func TestBuild(t *testing.T) {
 		t.Fatalf(`error running "go2go build": %v`, err)
 	}
 
+	runHello(t, dir)
+}
+
+func runHello(t *testing.T, dir string) {
 	cmdName := "./hello"
 	if runtime.GOOS == "windows" {
 		cmdName += ".exe"
 	}
-	cmd = exec.Command(cmdName)
+	cmd := exec.Command(cmdName)
 	cmd.Dir = dir
-	out, err = cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
 	t.Log("./hello")
 	if len(out) > 0 {
 		t.Logf("%s", out)
@@ -232,4 +240,33 @@ func TestBuild(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("hello output %v, want %v", got, want)
 	}
+}
+
+func TestBuildPackage(t *testing.T) {
+	t.Parallel()
+	buildGo2go(t)
+
+	gopath := t.TempDir()
+	dir := filepath.Join(gopath, "src", "cmd", "hello")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(dir, "hello.go2"), []byte(buildSource), 0444); err != nil {
+		t.Fatal(err)
+	}
+	t.Log("go2go build")
+	cmd := exec.Command(testGo2go, "build", "cmd/hello")
+	cmd.Dir = gopath
+	cmd.Env = append(os.Environ(),
+		"GO2PATH="+gopath,
+	)
+	out, err := cmd.CombinedOutput()
+	if len(out) > 0 {
+		t.Logf("%s", out)
+	}
+	if err != nil {
+		t.Fatalf(`error running "go2go build": %v`, err)
+	}
+
+	runHello(t, gopath)
 }

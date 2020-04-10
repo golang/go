@@ -76,11 +76,14 @@ func main() {
 		cmd.Stderr = os.Stderr
 		cmd.Dir = rundir
 		gopath := importerTmpdir
+		if go2path := os.Getenv("GO2PATH"); go2path != "" {
+			gopath += ":" + go2path
+		}
 		if oldGopath := os.Getenv("GOPATH"); oldGopath != "" {
 			gopath += ":" + oldGopath
 		}
 		cmd.Env = append(os.Environ(),
-			"GOPATH=" + gopath,
+			"GOPATH="+gopath,
 			"GO111MODULE=off",
 		)
 		if err := cmd.Run(); err != nil {
@@ -104,10 +107,32 @@ func expandPackages(pkgs []string) []string {
 	if len(pkgs) == 0 {
 		return []string{"."}
 	}
+	go2path := os.Getenv("GO2PATH")
 	var dirs []string
+pkgloop:
 	for _, pkg := range pkgs {
+		if go2path != "" {
+			for _, pd := range strings.Split(go2path, ":") {
+				d := filepath.Join(pd, "src", pkg)
+				if fi, err := os.Stat(d); err == nil && fi.IsDir() {
+					dirs = append(dirs, d)
+					continue pkgloop
+				}
+			}
+		}
+
 		cmd := exec.Command(gotool, "list", "-f", "{{.Dir}}", pkg)
 		cmd.Stderr = os.Stderr
+		if go2path != "" {
+			gopath := go2path
+			if oldGopath := os.Getenv("GOPATH"); oldGopath != "" {
+				gopath += ":" + oldGopath
+			}
+			cmd.Env = append(os.Environ(),
+				"GOPATH="+gopath,
+				"GO111MODULE=off",
+			)
+		}
 		out, err := cmd.Output()
 		if err != nil {
 			die(fmt.Sprintf("%s list %q failed: %v", gotool, pkg, err))
