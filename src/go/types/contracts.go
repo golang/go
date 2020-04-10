@@ -26,7 +26,7 @@ func (check *Checker) contractDecl(obj *Contract, cdecl *ast.ContractSpec) {
 	bounds := make([]*Named, len(tparams))
 	for i, tpar := range tparams {
 		tname := NewTypeName(tpar.Pos(), check.pkg, obj.name+string(subscript(uint64(i))), nil)
-		named := NewNamed(tname, new(Interface), nil)
+		named := check.NewNamed(tname, new(Interface), nil)
 		named.tparams = tparams
 		bounds[i] = named
 	}
@@ -180,6 +180,7 @@ type contractType struct{ aType }
 
 func (contractType) String() string   { return "<dummy contract type>" }
 func (contractType) Underlying() Type { panic("unreachable") }
+func (contractType) Under() Type      { panic("unreachable") }
 
 func (check *Checker) collectTypeConstraints(pos token.Pos, list []Type, types []ast.Expr) []Type {
 	for _, texpr := range types {

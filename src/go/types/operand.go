@@ -230,8 +230,8 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 		return true
 	}
 
-	Vu := V.Underlying()
-	Tu := T.Underlying()
+	Vu := V.Under()
+	Tu := T.Under()
 
 	// x is an untyped value representable by a value of type T
 	// TODO(gri) This is borrowing from checker.convertUntyped and

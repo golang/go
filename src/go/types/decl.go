@@ -412,7 +412,7 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
 		if !isConstType(t) {
 			// don't report an error if the type is an invalid C (defined) type
 			// (issue #22090)
-			if t.Underlying() != Typ[Invalid] {
+			if t.Under() != Typ[Invalid] {
 				check.errorf(typ.Pos(), "invalid constant type %s", t)
 			}
 			obj.typ = Typ[Invalid]
@@ -489,36 +489,35 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
 	check.initVars(lhs, []ast.Expr{init}, token.NoPos)
 }
 
-// underlying returns the underlying type of typ; possibly by following
-// forward chains of named types. Such chains only exist while named types
-// are incomplete. If an underlying type is found, resolve the chain by
-// setting the underlying type for each defined type in the chain before
-// returning it.
-//
-// If no underlying type is found, a cycle error is reported and Typ[Invalid]
-// is used as underlying type for each defined type in the chain and returned
-// as result.
-func (check *Checker) underlying(typ Type) Type {
-	// If typ is not a defined type, its underlying type is itself.
-	n0, _ := typ.(*Named)
-	if n0 == nil {
-		return typ // nothing to do
+// Under returns the expanded underlying type of n0; possibly by following
+// forward chains of named types. If an underlying type is found, resolve
+// the chain by setting the underlying type for each defined type in the
+// chain before returning it. If no underlying type is found or a cycle
+// is detected, the result is Typ[Invalid]. If a cycle is detected and
+// n0.check != nil, the cycle is reported.
+func (n0 *Named) Under() Type {
+	u := n0.underlying
+	if u == nil {
+		return Typ[Invalid]
 	}
 
 	// If the underlying type of a defined type is not a defined
 	// type, then that is the desired underlying type.
-	typ = n0.underlying
-	n, _ := typ.(*Named)
+	n := u.Named()
 	if n == nil {
-		return typ // common case
+		return u // common case
 	}
 
 	// Otherwise, follow the forward chain.
 	seen := map[*Named]int{n0: 0}
 	path := []Object{n0.obj}
 	for {
-		typ = n.underlying
-		n1, _ := typ.(*Named)
+		u = n.underlying
+		if u == nil {
+			u = Typ[Invalid]
+			break
+		}
+		n1 := u.Named()
 		if n1 == nil {
 			break // end of chain
 		}
@@ -529,8 +528,10 @@ func (check *Checker) underlying(typ Type) Type {
 
 		if i, ok := seen[n]; ok {
 			// cycle
-			check.cycleError(path[i:])
-			typ = Typ[Invalid]
+			if n0.check != nil {
+				n0.check.cycleError(path[i:])
+			}
+			u = Typ[Invalid]
 			break
 		}
 	}
@@ -539,13 +540,14 @@ func (check *Checker) underlying(typ Type) Type {
 		// We should never have to update the underlying type of an imported type;
 		// those underlying types should have been resolved during the import.
 		// Also, doing so would lead to a race condition (was issue #31749).
-		if n.obj.pkg != check.pkg {
+		// Do this check always, not just in debug more (it's cheap).
+		if n0.check != nil && n.obj.pkg != n0.check.pkg {
 			panic("internal error: imported type with unresolved underlying type")
 		}
-		n.underlying = typ
+		n.underlying = u
 	}
 
-	return typ
+	return u
 }
 
 func (n *Named) setUnderlying(typ Type) {
@@ -575,7 +577,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 	} else {
 		// defined type declaration
 
-		named := &Named{obj: obj}
+		named := &Named{check: check, obj: obj}
 		def.setUnderlying(named)
 		obj.typ = named // make sure recursive type declarations terminate
 
@@ -601,7 +603,9 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
 		// and which has as its underlying type the named type B.
 		// Determine the (final, unnamed) underlying type by resolving
 		// any forward chain.
-		named.underlying = check.underlying(named)
+		// TODO(gri) Investigate if we can just use named.origin here
+		//           and rely on lazy computation of the underlying type.
+		named.underlying = named.Under()
 	}
 
 }
@@ -668,7 +672,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
 		}
 
 		// otherwise, bound must be an interface
-		if bound := check.typ(f.Type); IsInterface(bound) {
+		if bound := expand(check.typ(f.Type)); IsInterface(bound) {
 			for i, _ := range f.Names {
 				setBoundAt(index+i, bound)
 			}
@@ -828,7 +832,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
 
 	// spec: "If the base type is a struct type, the non-blank method
 	// and field names must be distinct."
-	base, _ := obj.typ.(*Named) // shouldn't fail but be conservative
+	base := obj.typ.Named() // shouldn't fail but be conservative
 	if base != nil {
 		if t, _ := base.underlying.(*Struct); t != nil {
 			for _, fld := range t.fields {

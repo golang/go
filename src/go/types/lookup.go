@@ -55,7 +55,7 @@ func (check *Checker) lookupFieldOrMethod(T Type, addressable bool, pkg *Package
 	// Thus, if we have a named pointer type, proceed with the underlying
 	// pointer type but discard the result if it is a method since we would
 	// not have found it for T (see also issue 8590).
-	if t, _ := T.(*Named); t != nil {
+	if t := T.Named(); t != nil {
 		if p, _ := t.underlying.(*Pointer); p != nil {
 			obj, index, indirect = check.rawLookupFieldOrMethod(p, false, pkg, name)
 			if _, ok := obj.(*Func); ok {
@@ -121,7 +121,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 
 			// If we have a named type, we may have associated methods.
 			// Look for those first.
-			if named, _ := typ.(*Named); named != nil {
+			if named := typ.Named(); named != nil {
 				if seen[named] {
 					// We have seen this type before, at a more shallow depth
 					// (note that multiples of this type at the current depth
@@ -149,7 +149,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
 				}
 
 				// continue with underlying type
-				typ = named.underlying
+				typ = named.Under()
 			}
 
 			switch t := typ.(type) {
@@ -338,7 +338,7 @@ func (check *Checker) missingMethod(V Type, addressable bool, T *Interface, stat
 
 	// A concrete type implements T if it implements all methods of T.
 	Vd, _ := deref(V)
-	Vn, _ := Vd.(*Named)
+	Vn := Vd.Named()
 	for _, m := range T.allMethods {
 		// TODO(gri) should this be calling lookupFieldOrMethod instead (and why not)?
 		obj, _, _ := check.rawLookupFieldOrMethod(V, addressable, m.pkg, m.name)

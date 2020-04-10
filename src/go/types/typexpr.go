@@ -13,6 +13,7 @@ import (
 	"go/token"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 // ident type-checks identifier e and initializes x with the value or type of e.
@@ -163,8 +164,8 @@ func (check *Checker) genericType(e ast.Expr, reportErr bool) Type {
 	return typ
 }
 
-// isubsts returns an x with identifiers substituted per the substitution map smap.
-// isubsts only handles the case of (valid) method receiver type expressions correctly.
+// isubst returns an x with identifiers substituted per the substitution map smap.
+// isubst only handles the case of (valid) method receiver type expressions correctly.
 func isubst(x ast.Expr, smap map[*ast.Ident]*ast.Ident) ast.Expr {
 	switch n := x.(type) {
 	case *ast.Ident:
@@ -253,7 +254,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 				// Also: Don't report an error via genericType since it will be reported
 				//       again when we type-check the signature.
 				// TODO(gri) maybe the receiver should be marked as invalid instead?
-				if recv, _ := check.genericType(rname, false).(*Named); recv != nil {
+				if recv := check.genericType(rname, false).Named(); recv != nil {
 					recvTParams = recv.tparams
 				}
 			}
@@ -312,19 +313,24 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 		case 1:
 			recv = recvList[0]
 		}
+
+		// TODO(gri) We should delay rtyp expansion to when we actually need the
+		//           receiver; thus all checks here should be delayed to later.
+		rtyp, _ := deref(recv.typ)
+		rtyp = expand(rtyp)
+
 		// spec: "The receiver type must be of the form T or *T where T is a type name."
 		// (ignore invalid types - error was reported before)
-		if t, _ := deref(recv.typ); t != Typ[Invalid] {
+		if t := rtyp; t != Typ[Invalid] {
 			var err string
-			if T, _ := t.(*Named); T != nil {
+			if T := t.Named(); T != nil {
 				// spec: "The type denoted by T is called the receiver base type; it must not
 				// be a pointer or interface type and it must be declared in the same package
 				// as the method."
 				if T.obj.pkg != check.pkg {
 					err = "type not defined in this package"
 				} else {
-					// TODO(gri) This is not correct if the underlying type is unknown yet.
-					switch u := T.underlying.(type) {
+					switch u := T.Under().(type) {
 					case *Basic:
 						// unsafe.Pointer is treated like a regular pointer
 						if u.kind == UnsafePointer {
@@ -350,6 +356,12 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
 	sig.variadic = variadic
 }
 
+// goTypeName returns the Go type name for typ and
+// removes any occurences of "types." from that name.
+func goTypeName(typ Type) string {
+	return strings.ReplaceAll(fmt.Sprintf("%T", typ), "types.", "")
+}
+
 // typInternal drives type checking of types.
 // Must only be called by definedType or genericType.
 //
@@ -359,7 +371,7 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 		check.indent++
 		defer func() {
 			check.indent--
-			check.trace(e.Pos(), "=> %s (%s)", T, fmt.Sprintf("%T", T))
+			check.trace(e.Pos(), "=> %s // %s", T, goTypeName(T))
 		}()
 	}
 
@@ -402,24 +414,40 @@ func (check *Checker) typInternal(e ast.Expr, def *Named) (T Type) {
 		}
 
 	case *ast.CallExpr:
-		typ := check.genericType(e.Fun, true) // TODO(gri) what about cycles?
-		if typ == Typ[Invalid] {
-			return typ // error already reported
+		b := check.genericType(e.Fun, true) // TODO(gri) what about cycles?
+		if b == Typ[Invalid] {
+			return b // error already reported
+		}
+		base := b.Named()
+		if base == nil {
+			unreachable() // should have been caught by genericType
 		}
 
+		// create a new type Instance rather than instantiate the type
+		// TODO(gri) should do argument number check here rather than
+		// when instantiating the type?
+		typ := new(Instance)
+		def.setUnderlying(typ)
+
+		typ.check = check
+		typ.pos = e.Pos()
+		typ.base = base
+
 		// evaluate arguments (always)
-		targs := check.typeList(e.Args)
-		if targs == nil {
+		typ.targs = check.typeList(e.Args)
+		if typ.targs == nil {
+			def.setUnderlying(Typ[Invalid]) // avoid later errors due to lazy instantiation
 			return Typ[Invalid]
 		}
 
-		// instantiate parameterized type
-		poslist := make([]token.Pos, len(e.Args))
+		// determine argument positions (for error reporting)
+		typ.poslist = make([]token.Pos, len(e.Args))
 		for i, arg := range e.Args {
-			poslist[i] = arg.Pos()
+			typ.poslist[i] = arg.Pos()
 		}
-		typ = check.instantiate(e.Pos(), typ, targs, poslist)
-		def.setUnderlying(typ)
+
+		// make sure we check instantiation works at least once
+		check.atEnd(func() { typ.expand() })
 		return typ
 
 	case *ast.ParenExpr:
@@ -696,20 +724,9 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
 			check.recordDef(name, m)
 			ityp.methods = append(ityp.methods, m)
 		} else {
-			// We have an embedded interface and f.Type is its
-			// (possibly qualified) embedded type name. Collect
-			// it if it's a valid interface.
-			typ := check.typ(f.Type)
-
-			utyp := check.underlying(typ)
-			if _, ok := utyp.(*Interface); !ok {
-				if utyp != Typ[Invalid] {
-					check.errorf(f.Type.Pos(), "%s is not an interface", typ)
-				}
-				continue
-			}
-
-			ityp.embeddeds = append(ityp.embeddeds, typ)
+			// We have an embedded type. completeInterface will
+			// eventually verify that we have an interface.
+			ityp.embeddeds = append(ityp.embeddeds, check.typ(f.Type))
 			check.posMap[ityp] = append(check.posMap[ityp], f.Type.Pos())
 		}
 	}
@@ -806,24 +823,26 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
 	}
 
 	// collect types
-	// TODO(gri) report error for multiply explicitly declared identical types
+	// TODO(gri) report error for multiple explicitly declared identical types
 	var types []Type
 	types = append(types, ityp.types...)
 
 	posList := check.posMap[ityp]
 	for i, typ := range ityp.embeddeds {
 		pos := posList[i] // embedding position
-		typ, ok := check.underlying(typ).(*Interface)
-		if !ok {
-			// An error was reported when collecting the embedded types.
-			// Ignore it.
+		utyp := typ.Under()
+		etyp := utyp.Interface()
+		if etyp == nil {
+			if utyp != Typ[Invalid] {
+				check.errorf(pos, "%s is not an interface", typ)
+			}
 			continue
 		}
-		check.completeInterface(pos, typ)
-		for _, m := range typ.allMethods {
+		check.completeInterface(pos, etyp)
+		for _, m := range etyp.allMethods {
 			addMethod(pos, m, false) // use embedding position pos rather than m.pos
 		}
-		types = append(types, typ.allTypes...)
+		types = append(types, etyp.allTypes...)
 	}
 
 	if methods != nil {
@@ -841,7 +860,7 @@ func (a byUniqueTypeName) Less(i, j int) bool { return sortName(a[i]) < sortName
 func (a byUniqueTypeName) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 func sortName(t Type) string {
-	if named, _ := t.(*Named); named != nil {
+	if named := t.Named(); named != nil {
 		return named.obj.Id()
 	}
 	return ""
@@ -933,7 +952,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 			t, isPtr := deref(typ)
 			// Because we have a name, typ must be of the form T or *T, where T is the name
 			// of a (named or alias) type, and t (= deref(typ)) must be the type of T.
-			switch t := t.Underlying().(type) {
+			switch t := t.Under().(type) {
 			case *Basic:
 				if t == Typ[Invalid] {
 					// error was reported before

@@ -4,13 +4,22 @@
 
 package types
 
-import "sort"
+import (
+	"go/token"
+	"sort"
+)
 
 // A Type represents a type of Go.
 // All types implement the Type interface.
 type Type interface {
-	// Underlying returns the underlying type of a type.
+	// Underlying returns the underlying type of a type
+	// w/o following forwarding chains. Only used by
+	// client packages (here for backward-compatibility).
 	Underlying() Type
+
+	// Under returns the true expanded underlying type.
+	// If it doesn't exist, the result is Typ[Invalid].
+	Under() Type
 
 	// String returns a string representation of a type.
 	String() string
@@ -561,6 +570,7 @@ func (c *Chan) Elem() Type { return c.elem }
 
 // A Named represents a named (defined) type.
 type Named struct {
+	check      *Checker    // for Named.Under implementation
 	info       typeInfo    // for cycle detection
 	obj        *TypeName   // corresponding declared object
 	orig       Type        // type (on RHS of declaration) this *Named type is derived of (for cycle reporting)
@@ -585,23 +595,31 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
 	return typ
 }
 
+func (check *Checker) NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+	typ := &Named{check: check, obj: obj, orig: underlying, underlying: underlying, methods: methods}
+	if obj.typ == nil {
+		obj.typ = typ
+	}
+	return typ
+}
+
 // Obj returns the type name for the named type t.
 func (t *Named) Obj() *TypeName { return t.obj }
 
 // Converter methods
-func (t *Named) Basic() *Basic         { return t.Underlying().Basic() }
-func (t *Named) Array() *Array         { return t.Underlying().Array() }
-func (t *Named) Slice() *Slice         { return t.Underlying().Slice() }
-func (t *Named) Struct() *Struct       { return t.Underlying().Struct() }
-func (t *Named) Pointer() *Pointer     { return t.Underlying().Pointer() }
-func (t *Named) Tuple() *Tuple         { return t.Underlying().Tuple() }
-func (t *Named) Signature() *Signature { return t.Underlying().Signature() }
-func (t *Named) Interface() *Interface { return t.Underlying().Interface() }
-func (t *Named) Map() *Map             { return t.Underlying().Map() }
-func (t *Named) Chan() *Chan           { return t.Underlying().Chan() }
+func (t *Named) Basic() *Basic         { return t.Under().Basic() }
+func (t *Named) Array() *Array         { return t.Under().Array() }
+func (t *Named) Slice() *Slice         { return t.Under().Slice() }
+func (t *Named) Struct() *Struct       { return t.Under().Struct() }
+func (t *Named) Pointer() *Pointer     { return t.Under().Pointer() }
+func (t *Named) Tuple() *Tuple         { return t.Under().Tuple() }
+func (t *Named) Signature() *Signature { return t.Under().Signature() }
+func (t *Named) Interface() *Interface { return t.Under().Interface() }
+func (t *Named) Map() *Map             { return t.Under().Map() }
+func (t *Named) Chan() *Chan           { return t.Under().Chan() }
 
 // func (t *Named) Named() *Named      // declared below
-func (t *Named) TypeParam() *TypeParam { return t.Underlying().TypeParam() }
+func (t *Named) TypeParam() *TypeParam { return t.Under().TypeParam() }
 
 // TODO(gri) Come up with a better representation and API to distinguish
 //           between parameterized instantiated and non-instantiated types.
@@ -666,8 +684,58 @@ func (t *TypeParam) Bound() *Interface {
 	return iface
 }
 
-// Implementations for Type methods.
+// An Instance represents an instantiated generic type.
+type Instance struct {
+	check   *Checker    // for lazy instantiation
+	pos     token.Pos   // position of type instantiation; for error reporting only
+	base    *Named      // parameterized type to be instantiated
+	targs   []Type      // type arguments
+	poslist []token.Pos // position of each targ; for error reporting only
+	value   Type        // base(targs...) after instantiation or Typ[Invalid]; nil if not yet set
+	aType
+}
 
+func (t *Instance) Named() *Named { return t.expand().Named() }
+
+// expand returns the instantiated (= expanded) type of t.
+// The result is either an instantiated *Named type, or
+// Typ[Invalid] if there was an error.
+func (t *Instance) expand() Type {
+	v := t.value
+	if v == nil {
+		v = t.check.instantiate(t.pos, t.base, t.targs, t.poslist)
+		if v == nil {
+			v = Typ[Invalid]
+		}
+		t.value = v
+	}
+	// After instantiation we must have an invalid or a *Named type.
+	if debug && v != Typ[Invalid] {
+		_ = v.(*Named)
+	}
+	return v
+}
+
+// Expand expands a type Instance into its instantiated
+// type and leaves all other types alone.
+func Expand(typ Type) Type { return expand(typ) }
+
+// expand is like Expand.
+// TODO(gri) If we keep the exported version, remove this one.
+func expand(typ Type) Type {
+	if t, _ := typ.(*Instance); t != nil {
+		return t.expand()
+	}
+	return typ
+}
+
+// expandf is set to expand.
+// Call expandf when calling expand causes compile-time cycle error.
+var expandf func(Type) Type
+
+func init() { expandf = expand }
+
+// Implementations for Type methods.
 func (t *Basic) Basic() *Basic             { return t }
 func (t *Array) Array() *Array             { return t }
 func (t *Slice) Slice() *Slice             { return t }
@@ -691,32 +759,31 @@ func (t *Signature) Underlying() Type { return t }
 func (t *Interface) Underlying() Type { return t }
 func (t *Map) Underlying() Type       { return t }
 func (t *Chan) Underlying() Type      { return t }
-func (t *Named) Underlying() Type {
-	var u Type
-	var seen map[*Named]bool
-	// TODO(gri) If we have a chain of named types, update the
-	//           underlying types once we have found the bottom
-	//           (optimization).
-	for {
-		u = t.underlying
-		if u == nil {
-			return Typ[Invalid]
-		}
-		n, ok := t.underlying.(*Named)
-		if !ok {
-			return u // not a *Named type
-		}
-		if seen[t] {
-			return Typ[Invalid] // we have a cycle
-		}
-		if seen == nil {
-			seen = make(map[*Named]bool)
-		}
-		seen[t] = true
-		t = n
-	}
-}
+func (t *Named) Underlying() Type     { return t.underlying }
 func (t *TypeParam) Underlying() Type { return t }
+func (t *Instance) Underlying() Type  { return t }
+
+func (t *Basic) Under() Type     { return t }
+func (t *Array) Under() Type     { return t }
+func (t *Slice) Under() Type     { return t }
+func (t *Struct) Under() Type    { return t }
+func (t *Pointer) Under() Type   { return t }
+func (t *Tuple) Under() Type     { return t }
+func (t *Signature) Under() Type { return t }
+func (t *Interface) Under() Type { return t }
+func (t *Map) Under() Type       { return t }
+func (t *Chan) Under() Type      { return t }
+
+// see decl.go for implementation of Named.Under
+
+func (t *TypeParam) Under() Type { return t }
+func (t *Instance) Under() Type {
+	typ := t.expand()
+	if n, _ := typ.(*Named); n != nil {
+		return n.Under()
+	}
+	return typ
+}
 
 func (t *Basic) String() string     { return TypeString(t, nil) }
 func (t *Array) String() string     { return TypeString(t, nil) }
@@ -730,3 +797,4 @@ func (t *Map) String() string       { return TypeString(t, nil) }
 func (t *Chan) String() string      { return TypeString(t, nil) }
 func (t *Named) String() string     { return TypeString(t, nil) }
 func (t *TypeParam) String() string { return TypeString(t, nil) }
+func (i *Instance) String() string  { return TypeString(i, nil) }

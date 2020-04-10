@@ -185,6 +185,9 @@ func isParameterized(typ Type, seen map[Type]bool) (res bool) {
 	case *TypeParam:
 		return true
 
+	case *Instance:
+		return isParameterizedList(t.targs, seen)
+
 	default:
 		unreachable()
 	}

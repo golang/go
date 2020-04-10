@@ -26,7 +26,11 @@ func makeSubstMap(tpars []*TypeName, targs []Type) *substMap {
 	assert(len(tpars) == len(targs))
 	proj := make(map[*TypeParam]Type, len(tpars))
 	for i, tpar := range tpars {
-		targ := targs[i]
+		// We must expand type arguments otherwise *Instance
+		// types end up as components in composite types.
+		// TODO(gri) explain why this causes problems, if it does
+		targ := expand(targs[i])
+		targs[i] = targ
 		assert(targ != nil)
 		proj[tpar.typ.(*TypeParam)] = targs[i]
 	}
@@ -56,7 +60,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 			check.indent--
 			var under Type
 			if res != nil {
-				under = res.Underlying()
+				under = res.Under()
 			}
 			check.trace(pos, "=> %s (under = %s)", res, under)
 		}()
@@ -168,7 +172,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 				break
 			}
 			for _, t := range targBound.allTypes {
-				if !iface.includes(t.Underlying()) {
+				if !iface.includes(t.Under()) {
 					// TODO(gri) match this error message with the one below (or vice versa)
 					check.softErrorf(pos, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, t, iface.allTypes)
 					break
@@ -179,8 +183,8 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 
 		// Otherwise, targ's underlying type must also be one of the interface types listed, if any.
 		// TODO(gri) must it be the underlying type, or should it just be the type? (spec question)
-		if !iface.includes(targ.Underlying()) {
-			check.softErrorf(pos, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ.Underlying(), iface.allTypes)
+		if !iface.includes(targ.Under()) {
+			check.softErrorf(pos, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ.Under(), iface.allTypes)
 			break
 		}
 	}
@@ -354,7 +358,7 @@ func (subst *subster) typ(typ Type) Type {
 
 		// create a new named type and populate caches to avoid endless recursion
 		tname := NewTypeName(subst.pos, t.obj.pkg, t.obj.name, nil)
-		named := NewNamed(tname, nil, nil)
+		named := subst.check.NewNamed(tname, nil, nil)
 		named.tparams = t.tparams // new type is still parameterized
 		named.targs = new_targs
 		subst.check.typMap[h] = named
@@ -367,6 +371,9 @@ func (subst *subster) typ(typ Type) Type {
 
 	case *TypeParam:
 		return subst.smap.lookup(t)
+
+	case *Instance:
+		return subst.typ(t.expand())
 
 	default:
 		panic("unimplemented")

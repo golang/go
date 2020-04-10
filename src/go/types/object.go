@@ -457,7 +457,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 		if tname.IsAlias() {
 			buf.WriteString(" =")
 		} else {
-			typ = typ.Underlying()
+			typ = typ.Under()
 		}
 	}
 

@@ -6,7 +6,7 @@ package types
 
 import "testing"
 
-func TestStripSubscripts(t *testing.T) {
+func TestStripAnnotations(t *testing.T) {
 	for _, test := range []struct {
 		in, want string
 	}{
@@ -15,8 +15,9 @@ func TestStripSubscripts(t *testing.T) {
 		{"foo", "foo"},
 		{"foo₀", "foo"},
 		{"foo(T₀)", "foo(T)"},
+		{"#foo(T₀)", "foo(T)"},
 	} {
-		got := stripSubscripts(test.in)
+		got := stripAnnotations(test.in)
 		if got != test.want {
 			t.Errorf("%q: got %q; want %q", test.in, got, test.want)
 		}

@@ -12,11 +12,11 @@ import (
 )
 
 func isNamed(typ Type) bool {
-	if _, ok := typ.(*Basic); ok {
-		return ok
+	switch typ.(type) {
+	case *Basic, *Named, *Instance:
+		return true
 	}
-	_, ok := typ.(*Named)
-	return ok
+	return false
 }
 
 // isGeneric reports whether a type is a generic, uninstantiated type (generic signatures are not included).
@@ -27,7 +27,7 @@ func isGeneric(typ Type) bool {
 }
 
 func is(typ Type, what BasicInfo) bool {
-	switch t := typ.Underlying().(type) {
+	switch t := typ.Under().(type) {
 	case *Basic:
 		return t.info&what != 0
 	case *TypeParam:
@@ -68,7 +68,7 @@ func IsInterface(typ Type) bool {
 
 // Comparable reports whether values of type T are comparable.
 func Comparable(T Type) bool {
-	switch t := T.Underlying().(type) {
+	switch t := T.Under().(type) {
 	case *Basic:
 		// assume invalid types to be comparable
 		// to avoid follow-up errors
@@ -95,7 +95,7 @@ func Comparable(T Type) bool {
 
 // hasNil reports whether a type includes the nil value.
 func hasNil(typ Type) bool {
-	switch t := typ.Underlying().(type) {
+	switch t := typ.Under().(type) {
 	case *Basic:
 		return t.kind == UnsafePointer
 	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:
@@ -128,6 +128,10 @@ func (p *ifacePair) identical(q *ifacePair) bool {
 
 // For changes to this code the corresponding changes should be made to unifier.nify.
 func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+	// types must be expanded for comparison
+	x = expandf(x)
+	y = expandf(y)
+
 	if x == y {
 		return true
 	}
@@ -297,6 +301,9 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
 
 	case *TypeParam:
 		// nothing to do (x and y being equal is caught in the very beginning of this function)
+
+	// case *Instance:
+	//	unreachable since types are expanded
 
 	case nil:
 		// avoid a crash in case of nil type

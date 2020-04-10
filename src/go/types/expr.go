@@ -488,6 +488,7 @@ func (check *Checker) updateExprVal(x ast.Expr, val constant.Value) {
 
 // convertUntyped attempts to set the type of an untyped value to the target type.
 func (check *Checker) convertUntyped(x *operand, target Type) {
+	target = expand(target)
 	if x.mode == invalid || isTyped(x.typ) || target == Typ[Invalid] {
 		return
 	}
@@ -544,7 +545,7 @@ func (check *Checker) convertUntypedInternal(x *operand, target Type) {
 	assert(isTyped(target))
 
 	// typed target
-	switch t := target.Underlying().(type) {
+	switch t := target.Under().(type) {
 	case *Basic:
 		if x.mode == constant_ {
 			check.representable(x, t)
@@ -1121,7 +1122,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		case hint != nil:
 			// no composite literal type present - use hint (element type of enclosing type)
 			typ = hint
-			base, _ = deref(typ.Underlying()) // *T implies &T{}
+			base, _ = deref(typ.Under()) // *T implies &T{}
 
 		default:
 			// TODO(gri) provide better error messages depending on context
@@ -1129,7 +1130,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 			goto Error
 		}
 
-		switch utyp := base.Underlying().(type) {
+		switch utyp := base.Under().(type) {
 		case *Struct:
 			if len(e.Elts) == 0 {
 				break
@@ -1315,7 +1316,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 
 		valid := false
 		length := int64(-1) // valid if >= 0
-		switch typ := x.typ.Underlying().(type) {
+		switch typ := x.typ.Under().(type) {
 		case *Basic:
 			if isString(typ) {
 				valid = true
@@ -1386,6 +1387,8 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 					e = t.elem
 				case *TypeParam:
 					check.errorf(x.pos(), "type of %s contains a type parameter - cannot index (implementation restriction)", x)
+				case *Instance:
+					panic("unimplemented")
 				}
 				if e != nil && (e == elem || elem == nil) {
 					elem = e
@@ -1421,7 +1424,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 
 		valid := false
 		length := int64(-1) // valid if >= 0
-		switch typ := x.typ.Underlying().(type) {
+		switch typ := x.typ.Under().(type) {
 		case *Basic:
 			if isString(typ) {
 				if e.Slice3 {
@@ -1524,7 +1527,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
 		}
 		var xtyp *Interface
 		var strict bool
-		switch t := x.typ.Underlying().(type) {
+		switch t := x.typ.Under().(type) {
 		case *Interface:
 			xtyp = t
 		case *TypeParam:

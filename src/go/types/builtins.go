@@ -45,7 +45,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	default:
 		// make argument getter
 		xlist, _ := check.exprList(call.Args, false)
-		arg = func(x *operand, i int) { *x = *xlist[i] }
+		arg = func(x *operand, i int) { *x = *xlist[i]; x.typ = expand(x.typ) }
 		nargs = len(xlist)
 		// evaluate first argument, if present
 		if nargs > 0 {
@@ -141,7 +141,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		mode := invalid
 		var typ Type
 		var val constant.Value
-		switch typ = implicitArrayDeref(x.typ.Underlying()); t := typ.(type) {
+		switch typ = implicitArrayDeref(x.typ.Under()); t := typ.(type) {
 		case *Basic:
 			if isString(t) && id == _Len {
 				if x.mode == constant_ {
@@ -329,7 +329,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			return
 		}
 		var src Type
-		switch t := y.typ.Underlying().(type) {
+		switch t := y.typ.Under().(type) {
 		case *Basic:
 			if isString(y.typ) {
 				src = universeByte
@@ -449,7 +449,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		}
 
 		var min int // minimum number of arguments
-		switch T.Underlying().(type) {
+		switch T.Under().(type) {
 		case *Slice:
 			min = 2
 		case *Map, *Chan:

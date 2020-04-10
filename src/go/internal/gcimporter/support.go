@@ -124,6 +124,7 @@ var predeclared = []types.Type{
 type anyType struct{}
 
 func (t anyType) Underlying() types.Type { return t }
+func (t anyType) Under() types.Type      { return t }
 func (t anyType) String() string         { return "any" }
 
 // types.aType is not exported for now so we need to implemented these here.

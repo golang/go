@@ -83,7 +83,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 	// using a map.
 	for _, t := range visited {
 		if t == typ {
-			fmt.Fprintf(buf, "○%T", typ) // cycle to typ
+			fmt.Fprintf(buf, "○%T", goTypeName(typ)) // cycle to typ
 			return
 		}
 	}
@@ -275,6 +275,13 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
 		}
 		buf.WriteString(s + subscript(t.id))
 
+	case *Instance:
+		buf.WriteByte('#') // indicate "non-evaluated" syntactic instance
+		writeTypeName(buf, t.base.obj, qf)
+		buf.WriteByte('(')
+		writeTypeList(buf, t.targs, qf, visited)
+		buf.WriteByte(')')
+
 	default:
 		// For externally defined implementations of Type.
 		buf.WriteString(t.String())
@@ -430,6 +437,8 @@ func embeddedFieldName(typ Type) string {
 		if _, ok := t.base.(*Pointer); !ok {
 			return embeddedFieldName(t.base)
 		}
+	case *Instance:
+		panic("unimplemented")
 	}
 	return "" // not a (pointer to) a defined type
 }

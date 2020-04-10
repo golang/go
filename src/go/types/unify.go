@@ -85,6 +85,10 @@ func (u *unifier) index(tparams []*TypeName, typ Type) int {
 // adapted version of Checker.identical0. For changes to that
 // code the corresponding changes should be made here.
 func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+	// types must be expanded for comparison
+	x = expand(x)
+	y = expand(y)
+
 	//u.check.dump("### u.nify(%s, %s)", x, y)
 	i := u.index(u.x.tparams, x)
 	j := u.index(u.y.tparams, y)
@@ -335,6 +339,9 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
 		// Two type parameters (which are not part of the type parameters of the
 		// enclosing type) are identical if they originate in the same declaration.
 		return x == y
+
+	// case *Instance:
+	//	unreachable since types are expanded
 
 	case nil:
 		// avoid a crash in case of nil type

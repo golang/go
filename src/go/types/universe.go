@@ -261,7 +261,7 @@ func def(obj Object) {
 		return // nothing to do
 	}
 	// fix Obj link for named types
-	if typ, ok := obj.Type().(*Named); ok {
+	if typ := obj.Type().Named(); typ != nil {
 		typ.obj = obj.(*TypeName)
 	}
 	// exported identifiers go into package unsafe

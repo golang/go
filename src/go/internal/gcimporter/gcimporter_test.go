@@ -265,7 +265,8 @@ var importedObjectTests = []struct {
 	{"io.Reader", "type Reader interface{Read(p []byte) (n int, err error)}"},
 	{"io.ReadWriter", "type ReadWriter interface{Reader; Writer}"},
 	{"go/ast.Node", "type Node interface{End() go/token.Pos; Pos() go/token.Pos}"},
-	{"go/types.Type", "type Type interface{String() string; Underlying() Type}"},
+	// go/types.Type has grown much larger - excluded for now
+	// {"go/types.Type", "type Type interface{String() string; Underlying() Type}"},
 }
 
 func TestImportedTypes(t *testing.T) {

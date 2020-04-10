@@ -612,7 +612,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		}
 		var xtyp *Interface
 		var strict bool
-		switch t := x.typ.Underlying().(type) {
+		switch t := x.typ.Under().(type) {
 		case *Interface:
 			xtyp = t
 		case *TypeParam:
@@ -758,7 +758,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 		// determine key/value types
 		var key, val Type
 		if x.mode != invalid {
-			typ := x.typ.Underlying()
+			typ := x.typ.Under()
 			if _, ok := typ.(*Chan); ok && s.Value != nil {
 				// TODO(gri) this also needs to happen for channels in generic variables
 				check.softErrorf(s.Value.Pos(), "range over %s permits only one iteration variable", &x)

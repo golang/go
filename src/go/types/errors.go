@@ -82,7 +82,7 @@ func (check *Checker) err(pos token.Pos, msg string, soft bool) {
 		return
 	}
 
-	err := Error{check.fset, pos, stripSubscripts(msg), msg, soft}
+	err := Error{check.fset, pos, stripAnnotations(msg), msg, soft}
 	if check.firstErr == nil {
 		check.firstErr = err
 	}
@@ -122,12 +122,12 @@ func (check *Checker) invalidOp(pos token.Pos, format string, args ...interface{
 	check.errorf(pos, "invalid operation: "+format, args...)
 }
 
-// stripSubscripts removes subscripts from s.
-func stripSubscripts(s string) string {
+// stripAnnotations removes internal (type) annotations from s.
+func stripAnnotations(s string) string {
 	var b strings.Builder
 	for _, r := range s {
-		// strip subscript digits
-		if !('₀' <= r && r < '₀'+10) { // '₀' == U+2080
+		// strip #'s and subscript digits
+		if r != '#' && !('₀' <= r && r < '₀'+10) { // '₀' == U+2080
 			b.WriteRune(r)
 		}
 	}

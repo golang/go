@@ -87,8 +87,8 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
 
 	// "x's type and T have identical underlying types if tags are ignored"
 	V := x.typ
-	Vu := V.Underlying()
-	Tu := T.Underlying()
+	Vu := V.Under()
+	Tu := T.Under()
 	if check.identicalIgnoreTags(Vu, Tu) {
 		return true
 	}
@@ -97,7 +97,7 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
 	// have identical underlying types if tags are ignored"
 	if V, ok := V.(*Pointer); ok {
 		if T, ok := T.(*Pointer); ok {
-			if check.identicalIgnoreTags(V.base.Underlying(), T.base.Underlying()) {
+			if check.identicalIgnoreTags(V.base.Under(), T.base.Under()) {
 				return true
 			}
 		}
@@ -142,7 +142,8 @@ func isUintptr(typ Type) bool {
 }
 
 func isUnsafePointer(typ Type) bool {
-	// TODO(gri): Is this (typ.Underlying() instead of just typ) correct?
+	// TODO(gri): Is this typ.Basic() instead of typ.(*Basic) correct?
+	//            (The former calls typ.Under(), while the latter doesn't.)
 	//            The spec does not say so, but gc claims it is. See also
 	//            issue 6326.
 	t := typ.Basic()

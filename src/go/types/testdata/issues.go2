@@ -156,3 +156,38 @@ func _() {
     u := NewT2(string)()
     _ = u.Add1()
 }
+
+// When we encounter an instantiated type such as Elem(T) we must
+// not "expand" the instantiation when the type to be instantiated
+// (Elem in this case) is not yet fully set up.
+type Elem(type T) struct {
+	next *Elem(T)
+	list *List(T)
+}
+
+type List(type T) struct {
+	root Elem(T)
+}
+
+func (l *List(T)) Init() {
+	l.root.next = &l.root
+}
+
+// This is the original program causing the same issue.
+type Element(type TElem) struct {
+	next, prev *Element(TElem)
+	list *List2(TElem)
+	Value TElem
+}
+
+type List2(type TElem) struct {
+	root Element(TElem)
+	len  int
+}
+
+func (l *List2(TElem)) Init() *List2(TElem) {
+	l.root.next = &l.root
+	l.root.prev = &l.root
+	l.len = 0
+	return l
+}
