@@ -35,7 +35,7 @@ type overlappedEntry struct {
 var (
 	iocphandle uintptr = _INVALID_HANDLE_VALUE // completion port io handle
 
-	netpollWakeSig uintptr // used to avoid duplicate calls of netpollBreak
+	netpollWakeSig uint32 // used to avoid duplicate calls of netpollBreak
 )
 
 func netpollinit() {
@@ -67,7 +67,7 @@ func netpollarm(pd *pollDesc, mode int) {
 }
 
 func netpollBreak() {
-	if atomic.Casuintptr(&netpollWakeSig, 0, 1) {
+	if atomic.Cas(&netpollWakeSig, 0, 1) {
 		if stdcall4(_PostQueuedCompletionStatus, iocphandle, 0, 0, 0) == 0 {
 			println("runtime: netpoll: PostQueuedCompletionStatus failed (errno=", getlasterror(), ")")
 			throw("runtime: netpoll: PostQueuedCompletionStatus failed")
@@ -133,7 +133,7 @@ func netpoll(delay int64) gList {
 			}
 			handlecompletion(&toRun, op, errno, qty)
 		} else {
-			atomic.Storeuintptr(&netpollWakeSig, 0)
+			atomic.Store(&netpollWakeSig, 0)
 			if delay == 0 {
 				// Forward the notification to the
 				// blocked poller.
