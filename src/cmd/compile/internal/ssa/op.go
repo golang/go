@@ -78,7 +78,7 @@ const (
 	auxFloat32               // auxInt is a float32 (encoded with math.Float64bits)
 	auxFloat64               // auxInt is a float64 (encoded with math.Float64bits)
 	auxString                // aux is a string
-	auxSym                   // aux is a symbol (a *gc.Node for locals or an *obj.LSym for globals)
+	auxSym                   // aux is a symbol (a *gc.Node for locals, an *obj.LSym for globals, or nil for none)
 	auxSymOff                // aux is a symbol, auxInt is an offset
 	auxSymValAndOff          // aux is a symbol, auxInt is a ValAndOff
 	auxTyp                   // aux is a type
@@ -101,6 +101,16 @@ const (
 
 	SymNone SymEffect = 0
 )
+
+// A Sym represents a symbolic offset from a base register.
+// Currently a Sym can be one of 3 things:
+//  - a *gc.Node, for an offset from SP (the stack pointer)
+//  - a *obj.LSym, for an offset from SB (the global pointer)
+//  - nil, for no offset
+type Sym interface {
+	String() string
+	CanBeAnSSASym()
+}
 
 // A ValAndOff is used by the several opcodes. It holds
 // both a value and a pointer offset.
