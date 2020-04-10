@@ -526,6 +526,38 @@ func (e *Editor) GoToDefinition(ctx context.Context, path string, pos Pos) (stri
 	return newPath, newPos, nil
 }
 
+// Symbol performs a workspace symbol search using query
+func (e *Editor) Symbol(ctx context.Context, query string) ([]SymbolInformation, error) {
+	params := &protocol.WorkspaceSymbolParams{}
+	params.Query = query
+
+	resp, err := e.server.Symbol(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("symbol: %w", err)
+	}
+	var res []SymbolInformation
+	for _, si := range resp {
+		ploc := si.Location
+		path := e.sandbox.Workdir.URIToPath(ploc.URI)
+		start := fromProtocolPosition(ploc.Range.Start)
+		end := fromProtocolPosition(ploc.Range.End)
+		rnge := Range{
+			Start: start,
+			End:   end,
+		}
+		loc := Location{
+			Path:  path,
+			Range: rnge,
+		}
+		res = append(res, SymbolInformation{
+			Name:     si.Name,
+			Kind:     si.Kind,
+			Location: loc,
+		})
+	}
+	return res, nil
+}
+
 // OrganizeImports requests and performs the source.organizeImports codeAction.
 func (e *Editor) OrganizeImports(ctx context.Context, path string) error {
 	return e.codeAction(ctx, path, nil, protocol.SourceOrganizeImports)

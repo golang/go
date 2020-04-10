@@ -106,6 +106,16 @@ func (e *Env) GoToDefinition(name string, pos fake.Pos) (string, fake.Pos) {
 	return n, p
 }
 
+// Symbol returns symbols matching query
+func (e *Env) Symbol(query string) []fake.SymbolInformation {
+	e.T.Helper()
+	r, err := e.Editor.Symbol(e.Ctx, query)
+	if err != nil {
+		e.T.Fatal(err)
+	}
+	return r
+}
+
 // FormatBuffer formats the editor buffer, calling t.Fatal on any error.
 func (e *Env) FormatBuffer(name string) {
 	e.T.Helper()

@@ -18,6 +18,13 @@ type Pos struct {
 	Line, Column int
 }
 
+// Range corresponds to protocol.Range, but uses the editor friend Pos
+// instead of UTF-16 oriented protocol.Position
+type Range struct {
+	Start Pos
+	End   Pos
+}
+
 func (p Pos) toProtocolPosition() protocol.Position {
 	return protocol.Position{
 		Line:      float64(p.Line),
@@ -36,6 +43,21 @@ func fromProtocolPosition(pos protocol.Position) Pos {
 type Edit struct {
 	Start, End Pos
 	Text       string
+}
+
+// Location is the editor friendly equivalent of protocol.Location
+type Location struct {
+	Path  string
+	Range Range
+}
+
+// SymbolInformation is an editor friendly version of
+// protocol.SymbolInformation, with location information transformed to byte
+// offsets. Field names correspond to the protocol type.
+type SymbolInformation struct {
+	Name     string
+	Kind     protocol.SymbolKind
+	Location Location
 }
 
 // NewEdit creates an edit replacing all content between
