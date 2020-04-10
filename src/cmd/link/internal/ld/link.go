@@ -96,6 +96,10 @@ type Link struct {
 
 	datap   []*sym.Symbol
 	dynexp2 []loader.Sym
+
+	// Elf symtab variables.
+	numelfsym int // starts at 0, 1 is reserved
+	elfbind   int
 }
 
 type cgodata struct {
