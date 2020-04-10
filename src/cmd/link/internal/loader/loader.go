@@ -1252,10 +1252,10 @@ func (l *Loader) SymUnit(i Sym) *sym.CompilationUnit {
 // shared library), will hold the library name.
 // NOTE: this correspondes to sym.Symbol.File field.
 func (l *Loader) SymPkg(i Sym) string {
+	if f, ok := l.symPkg[i]; ok {
+		return f
+	}
 	if l.IsExternal(i) {
-		if f, ok := l.symPkg[i]; ok {
-			return f
-		}
 		pp := l.getPayload(i)
 		if pp.objidx != 0 {
 			r := l.objs[pp.objidx].r
@@ -1274,9 +1274,6 @@ func (l *Loader) SetSymPkg(i Sym, pkg string) {
 	// reject bad symbols
 	if i >= Sym(len(l.objSyms)) || i == 0 {
 		panic("bad symbol index in SetSymPkg")
-	}
-	if !l.IsExternal(i) {
-		panic("can't set file for non-external sym")
 	}
 	l.symPkg[i] = pkg
 }
@@ -2452,7 +2449,6 @@ func (l *Loader) CreateStaticSym(name string) Sym {
 }
 
 func loadObjFull(l *Loader, r *oReader) {
-	lib := r.unit.Lib
 	resolveSymRef := func(s goobj2.SymRef) *sym.Symbol {
 		i := l.resolve(r, s)
 		return l.Syms[i]
@@ -2463,34 +2459,16 @@ func loadObjFull(l *Loader, r *oReader) {
 		// content will actually be provided by a different object
 		// (to which its global index points). Skip those symbols.
 		gi := l.toGlobal(r, i)
-		var isdup bool
 		if r2, i2 := l.toLocal(gi); r2 != r || i2 != i {
-			isdup = true
-		}
-
-		osym := r.Sym(i)
-		dupok := osym.Dupok()
-		if dupok && isdup {
-			if l.attrReachable.Has(gi) {
-				// A dupok symbol is resolved to another package. We still need
-				// to record its presence in the current package, as the trampoline
-				// pass expects packages are laid out in dependency order.
-				s := l.Syms[gi]
-				if s.Type == sym.STEXT {
-					lib.DupTextSyms = append(lib.DupTextSyms, s)
-				}
-			}
 			continue
-		}
-
-		if isdup {
-			continue // come from a different object
 		}
 		s := l.Syms[gi]
 		if s == nil {
 			continue
 		}
 
+		osym := r.Sym(i)
+		dupok := osym.Dupok()
 		local := osym.Local()
 		makeTypelink := osym.Typelink()
 		size := osym.Siz()
@@ -2711,7 +2689,7 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 			}
 			libtextp2 := []sym.LoaderSym{}
 			lists := [2][]sym.LoaderSym{lib.Textp2, lib.DupTextSyms2}
-			for _, list := range lists {
+			for i, list := range lists {
 				for _, s := range list {
 					sym := Sym(s)
 					if l.attrReachable.Has(sym) && !assignedToUnit.Has(sym) {
@@ -2721,6 +2699,14 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 						if unit != nil {
 							unit.Textp2 = append(unit.Textp2, s)
 							assignedToUnit.Set(sym)
+						}
+						// Dupok symbols may be defined in multiple packages; the
+						// associated package for a dupok sym is chosen sort of
+						// arbitrarily (the first containing package that the linker
+						// loads). Canonicalizes its Pkg to the package with which
+						// it will be laid down in text.
+						if i == 1 /* DupTextSyms2 */ && l.SymPkg(sym) != lib.Pkg {
+							l.SetSymPkg(sym, lib.Pkg)
 						}
 					}
 				}
