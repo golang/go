@@ -760,7 +760,7 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 		if ln == e.Len && elt == e.Elt {
 			return e
 		}
-		return &ast.ArrayType{
+		r = &ast.ArrayType{
 			Lbrack: e.Lbrack,
 			Len:    ln,
 			Elt:    elt,
@@ -770,7 +770,7 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 		if fields == e.Fields {
 			return e
 		}
-		return &ast.StructType{
+		r = &ast.StructType{
 			Struct:     e.Struct,
 			Fields:     fields,
 			Incomplete: e.Incomplete,
@@ -781,7 +781,7 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 		if e.TParams == nil && params == e.Params && results == e.Results {
 			return e
 		}
-		return &ast.FuncType{
+		r = &ast.FuncType{
 			Func:    e.Func,
 			TParams: nil,
 			Params:  params,
@@ -794,7 +794,7 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 		if methods == e.Methods && !typesChanged {
 			return e
 		}
-		return &ast.InterfaceType{
+		r = &ast.InterfaceType{
 			Interface:  e.Interface,
 			Methods:    mergeFieldList(methods, types),
 			Incomplete: e.Incomplete,
@@ -805,7 +805,7 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 		if key == e.Key && value == e.Value {
 			return e
 		}
-		return &ast.MapType{
+		r = &ast.MapType{
 			Map:   e.Map,
 			Key:   key,
 			Value: value,
@@ -815,7 +815,7 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 		if value == e.Value {
 			return e
 		}
-		return &ast.ChanType{
+		r = &ast.ChanType{
 			Begin: e.Begin,
 			Arrow: e.Arrow,
 			Dir:   e.Dir,
@@ -824,8 +824,6 @@ func (t *translator) instantiateExpr(ta *typeArgs, e ast.Expr) ast.Expr {
 	default:
 		panic(fmt.Sprintf("unimplemented Expr %T", e))
 	}
-
-	// We fall down to here for expressions that are not types.
 
 	if et := t.lookupType(e); et != nil {
 		t.setType(r, t.instantiateType(ta, et))

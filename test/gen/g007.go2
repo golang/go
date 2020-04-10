@@ -1,0 +1,20 @@
+// compile
+
+// Copyright 2020 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// Using a type literal based on a type parameter as a type argument
+// in a result.
+
+package p
+
+type S(type T) struct {
+	f T
+}
+
+func SliceS(type T)() S([]T) {
+	return S([]T){nil}
+}
+
+var V = SliceS(int)()
