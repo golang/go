@@ -451,7 +451,8 @@ func (ctxt *Link) symtab() {
 			s.Attr |= sym.AttrNotInSymbolTable
 		}
 
-		if !s.Attr.Reachable() || s.Attr.Special() || s.Type != sym.SRODATA {
+		if !s.Attr.Reachable() || s.Attr.Special() ||
+			(s.Type != sym.SRODATA && s.Type != sym.SGOFUNC) {
 			continue
 		}
 
@@ -504,7 +505,7 @@ func (ctxt *Link) symtab() {
 		case strings.HasPrefix(s.Name, "gcargs."),
 			strings.HasPrefix(s.Name, "gclocals."),
 			strings.HasPrefix(s.Name, "gclocals·"),
-			strings.HasPrefix(s.Name, "inltree."),
+			s.Type == sym.SGOFUNC && s != symgofunc,
 			strings.HasSuffix(s.Name, ".opendefer"):
 			s.Type = sym.SGOFUNC
 			s.Attr |= sym.AttrNotInSymbolTable

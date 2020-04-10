@@ -192,17 +192,17 @@ func (state *pclnState) computeDeferReturn(target *Target, s loader.Sym) uint32 
 	return deferreturn
 }
 
-// genInlTreeSym generates the InlTree sym for the a given function symbol
-// with name 'sn'.
-func (state *pclnState) genInlTreeSym(sn string, fi loader.FuncInfo, arch *sys.Arch) loader.Sym {
-	itsName := "inltree." + sn
+// genInlTreeSym generates the InlTree sym for a function with the
+// specified FuncInfo.
+func (state *pclnState) genInlTreeSym(fi loader.FuncInfo, arch *sys.Arch) loader.Sym {
 	ldr := state.ldr
-	if ldr.Lookup(itsName, 0) != 0 {
-		panic("should not exist yet")
-	}
-	its := ldr.LookupOrCreateSym(itsName, 0)
+	its := ldr.CreateExtSym("", 0)
 	inlTreeSym := ldr.MakeSymbolUpdater(its)
-	inlTreeSym.SetType(sym.SRODATA)
+	// Note: the generated symbol is given a type of sym.SGOFUNC, as a
+	// signal to the symtab() phase that it needs to be grouped in with
+	// other similar symbols (gcdata, etc); the dodata() phase will
+	// eventually switch the type back to SRODATA.
+	inlTreeSym.SetType(sym.SGOFUNC)
 	ldr.SetAttrReachable(its, true)
 	ninl := fi.NumInlTree()
 	for i := 0; i < int(ninl); i++ {
@@ -453,7 +453,7 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 		}
 
 		if fi.Valid() && fi.NumInlTree() > 0 {
-			its := state.genInlTreeSym(sn, fi, ctxt.Arch)
+			its := state.genInlTreeSym(fi, ctxt.Arch)
 			funcdata[objabi.FUNCDATA_InlTree] = its
 			pcdata[objabi.PCDATA_InlTreeIndex] = sym.Pcdata{P: fi.Pcinline()}
 		}
