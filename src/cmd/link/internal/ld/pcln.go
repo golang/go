@@ -137,25 +137,13 @@ func onlycsymbol(sname string) bool {
 	return false
 }
 
-func (state *pclnState) emitPcln(ctxt *Link, s loader.Sym) bool {
-	if ctxt.BuildMode == BuildModePlugin && ctxt.HeadType == objabi.Hdarwin && onlycsymbol(state.ldr.SymName(s)) {
+func emitPcln(ctxt *Link, s loader.Sym, container loader.Bitmap) bool {
+	if ctxt.BuildMode == BuildModePlugin && ctxt.HeadType == objabi.Hdarwin && onlycsymbol(ctxt.loader.SymName(s)) {
 		return false
 	}
 	// We want to generate func table entries only for the "lowest
 	// level" symbols, not containers of subsymbols.
-	return !state.container.Has(s)
-}
-
-func emitPcln(ctxt *Link, s *sym.Symbol) bool {
-	if s == nil {
-		return true
-	}
-	if ctxt.BuildMode == BuildModePlugin && ctxt.HeadType == objabi.Hdarwin && onlycsymbol(s.Name) {
-		return false
-	}
-	// We want to generate func table entries only for the "lowest level" symbols,
-	// not containers of subsymbols.
-	return !s.Attr.Container()
+	return !container.Has(s)
 }
 
 func (state *pclnState) computeDeferReturn(target *Target, s loader.Sym) uint32 {
@@ -251,7 +239,11 @@ var pclntabLastFunc *sym.Symbol
 var pclntabFirstFunc2 loader.Sym
 var pclntabLastFunc2 loader.Sym
 
-func (ctxt *Link) pclntab() {
+// pclntab generates the pcln table for the link output. Return value
+// is a bitmap indexed by global symbol that marks 'container' text
+// symbols, e.g. the set of all symbols X such that Outer(S) = X for
+// some other text symbol S.
+func (ctxt *Link) pclntab() loader.Bitmap {
 	funcdataBytes := int64(0)
 	ldr := ctxt.loader
 	ftabsym := ldr.LookupOrCreateSym("runtime.pclntab", 0)
@@ -280,7 +272,7 @@ func (ctxt *Link) pclntab() {
 	var nfunc int32
 	prevSect := ldr.SymSect(ctxt.Textp2[0])
 	for _, s := range ctxt.Textp2 {
-		if !state.emitPcln(ctxt, s) {
+		if !emitPcln(ctxt, s, state.container) {
 			continue
 		}
 		nfunc++
@@ -343,7 +335,7 @@ func (ctxt *Link) pclntab() {
 	nfunc = 0 // repurpose nfunc as a running index
 	prevFunc := ctxt.Textp2[0]
 	for _, s := range ctxt.Textp2 {
-		if !state.emitPcln(ctxt, s) {
+		if !emitPcln(ctxt, s, state.container) {
 			continue
 		}
 
@@ -546,6 +538,8 @@ func (ctxt *Link) pclntab() {
 	if ctxt.Debugvlog != 0 {
 		ctxt.Logf("pclntab=%d bytes, funcdata total %d bytes\n", ftab.Size(), funcdataBytes)
 	}
+
+	return state.container
 }
 
 func gorootFinal() string {
@@ -573,16 +567,20 @@ const (
 
 // findfunctab generates a lookup table to quickly find the containing
 // function for a pc. See src/runtime/symtab.go:findfunc for details.
-func (ctxt *Link) findfunctab() {
-	t := ctxt.Syms.Lookup("runtime.findfunctab", 0)
-	t.Type = sym.SRODATA
-	t.Attr |= sym.AttrReachable
-	t.Attr |= sym.AttrLocal
+// 'container' is a bitmap indexed by global symbol holding whether
+// a given text symbols is a container (outer sym).
+func (ctxt *Link) findfunctab(container loader.Bitmap) {
+	ldr := ctxt.loader
+	tsym := ldr.LookupOrCreateSym("runtime.findfunctab", 0)
+	t := ldr.MakeSymbolUpdater(tsym)
+	t.SetType(sym.SRODATA)
+	ldr.SetAttrReachable(tsym, true)
+	ldr.SetAttrLocal(tsym, true)
 
 	// find min and max address
-	min := ctxt.Textp[0].Value
-	lastp := ctxt.Textp[len(ctxt.Textp)-1]
-	max := lastp.Value + lastp.Size
+	min := ldr.SymValue(ctxt.Textp2[0])
+	lastp := ctxt.Textp2[len(ctxt.Textp2)-1]
+	max := ldr.SymValue(lastp) + ldr.SymSize(lastp)
 
 	// for each subbucket, compute the minimum of all symbol indexes
 	// that map to that subbucket.
@@ -593,23 +591,23 @@ func (ctxt *Link) findfunctab() {
 		indexes[i] = NOIDX
 	}
 	idx := int32(0)
-	for i, s := range ctxt.Textp {
-		if !emitPcln(ctxt, s) {
+	for i, s := range ctxt.Textp2 {
+		if !emitPcln(ctxt, s, container) {
 			continue
 		}
-		p := s.Value
-		var e *sym.Symbol
+		p := ldr.SymValue(s)
+		var e loader.Sym
 		i++
-		if i < len(ctxt.Textp) {
-			e = ctxt.Textp[i]
+		if i < len(ctxt.Textp2) {
+			e = ctxt.Textp2[i]
 		}
-		for !emitPcln(ctxt, e) && i < len(ctxt.Textp) {
-			e = ctxt.Textp[i]
+		for !emitPcln(ctxt, e, container) && i < len(ctxt.Textp2) {
+			e = ctxt.Textp2[i]
 			i++
 		}
 		q := max
-		if e != nil {
-			q = e.Value
+		if e != 0 {
+			q = ldr.SymValue(e)
 		}
 
 		//print("%d: [%lld %lld] %s\n", idx, p, q, s->name);
