@@ -248,7 +248,7 @@ func (w *writer) Sym(s *LSym) {
 	if s.Func != nil {
 		align = uint32(s.Func.Align)
 	}
-	var o goobj2.Sym2
+	var o goobj2.Sym
 	o.SetName(name, w.Writer)
 	o.SetABI(abi)
 	o.SetType(uint8(s.Type))
@@ -270,7 +270,7 @@ func makeSymRef(s *LSym) goobj2.SymRef {
 }
 
 func (w *writer) Reloc(r *Reloc) {
-	var o goobj2.Reloc2
+	var o goobj2.Reloc
 	o.SetOff(r.Off)
 	o.SetSiz(r.Siz)
 	o.SetType(uint8(r.Type))
@@ -280,7 +280,7 @@ func (w *writer) Reloc(r *Reloc) {
 }
 
 func (w *writer) aux1(typ uint8, rs *LSym) {
-	var o goobj2.Aux2
+	var o goobj2.Aux
 	o.SetType(typ)
 	o.SetSym(makeSymRef(rs))
 	o.Write(w.Writer)

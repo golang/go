@@ -57,7 +57,7 @@ func (r *objReader) readNew() {
 			pkg := pkglist[p]
 			return SymID{fmt.Sprintf("%s.<#%d>", pkg, s.SymIdx), 0}
 		}
-		sym := rr.Sym2(i)
+		sym := rr.Sym(i)
 		return SymID{sym.Name(rr), abiToVer(sym.ABI())}
 	}
 
@@ -68,7 +68,7 @@ func (r *objReader) readNew() {
 	n := rr.NSym() + rr.NNonpkgdef() + rr.NNonpkgref()
 	ndef := rr.NSym() + rr.NNonpkgdef()
 	for i := 0; i < n; i++ {
-		osym := rr.Sym2(i)
+		osym := rr.Sym(i)
 		if osym.Name(rr) == "" {
 			continue // not a real symbol
 		}
@@ -97,7 +97,7 @@ func (r *objReader) readNew() {
 		r.p.Syms = append(r.p.Syms, &sym)
 
 		// Reloc
-		relocs := rr.Relocs2(i)
+		relocs := rr.Relocs(i)
 		sym.Reloc = make([]Reloc, len(relocs))
 		for j := range relocs {
 			rel := &relocs[j]
@@ -113,7 +113,7 @@ func (r *objReader) readNew() {
 		// Aux symbol info
 		isym := -1
 		funcdata := make([]goobj2.SymRef, 0, 4)
-		auxs := rr.Auxs2(i)
+		auxs := rr.Auxs(i)
 		for j := range auxs {
 			a := &auxs[j]
 			switch a.Type() {

@@ -195,7 +195,7 @@ func (h *Header) Size() int {
 //    Siz   uint32
 //    Align uint32
 // }
-type Sym2 [SymSize]byte
+type Sym [SymSize]byte
 
 const SymSize = stringRefSize + 2 + 1 + 1 + 4 + 4
 
@@ -216,42 +216,42 @@ const (
 	SymFlagTopFrame
 )
 
-func (s *Sym2) Name(r *Reader) string {
+func (s *Sym) Name(r *Reader) string {
 	len := binary.LittleEndian.Uint32(s[:])
 	off := binary.LittleEndian.Uint32(s[4:])
 	return r.StringAt(off, len)
 }
 
-func (s *Sym2) ABI() uint16   { return binary.LittleEndian.Uint16(s[8:]) }
-func (s *Sym2) Type() uint8   { return s[10] }
-func (s *Sym2) Flag() uint8   { return s[11] }
-func (s *Sym2) Siz() uint32   { return binary.LittleEndian.Uint32(s[12:]) }
-func (s *Sym2) Align() uint32 { return binary.LittleEndian.Uint32(s[16:]) }
+func (s *Sym) ABI() uint16   { return binary.LittleEndian.Uint16(s[8:]) }
+func (s *Sym) Type() uint8   { return s[10] }
+func (s *Sym) Flag() uint8   { return s[11] }
+func (s *Sym) Siz() uint32   { return binary.LittleEndian.Uint32(s[12:]) }
+func (s *Sym) Align() uint32 { return binary.LittleEndian.Uint32(s[16:]) }
 
-func (s *Sym2) Dupok() bool         { return s.Flag()&SymFlagDupok != 0 }
-func (s *Sym2) Local() bool         { return s.Flag()&SymFlagLocal != 0 }
-func (s *Sym2) Typelink() bool      { return s.Flag()&SymFlagTypelink != 0 }
-func (s *Sym2) Leaf() bool          { return s.Flag()&SymFlagLeaf != 0 }
-func (s *Sym2) NoSplit() bool       { return s.Flag()&SymFlagNoSplit != 0 }
-func (s *Sym2) ReflectMethod() bool { return s.Flag()&SymFlagReflectMethod != 0 }
-func (s *Sym2) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
-func (s *Sym2) TopFrame() bool      { return s.Flag()&SymFlagTopFrame != 0 }
+func (s *Sym) Dupok() bool         { return s.Flag()&SymFlagDupok != 0 }
+func (s *Sym) Local() bool         { return s.Flag()&SymFlagLocal != 0 }
+func (s *Sym) Typelink() bool      { return s.Flag()&SymFlagTypelink != 0 }
+func (s *Sym) Leaf() bool          { return s.Flag()&SymFlagLeaf != 0 }
+func (s *Sym) NoSplit() bool       { return s.Flag()&SymFlagNoSplit != 0 }
+func (s *Sym) ReflectMethod() bool { return s.Flag()&SymFlagReflectMethod != 0 }
+func (s *Sym) IsGoType() bool      { return s.Flag()&SymFlagGoType != 0 }
+func (s *Sym) TopFrame() bool      { return s.Flag()&SymFlagTopFrame != 0 }
 
-func (s *Sym2) SetName(x string, w *Writer) {
+func (s *Sym) SetName(x string, w *Writer) {
 	binary.LittleEndian.PutUint32(s[:], uint32(len(x)))
 	binary.LittleEndian.PutUint32(s[4:], w.stringOff(x))
 }
 
-func (s *Sym2) SetABI(x uint16)   { binary.LittleEndian.PutUint16(s[8:], x) }
-func (s *Sym2) SetType(x uint8)   { s[10] = x }
-func (s *Sym2) SetFlag(x uint8)   { s[11] = x }
-func (s *Sym2) SetSiz(x uint32)   { binary.LittleEndian.PutUint32(s[12:], x) }
-func (s *Sym2) SetAlign(x uint32) { binary.LittleEndian.PutUint32(s[16:], x) }
+func (s *Sym) SetABI(x uint16)   { binary.LittleEndian.PutUint16(s[8:], x) }
+func (s *Sym) SetType(x uint8)   { s[10] = x }
+func (s *Sym) SetFlag(x uint8)   { s[11] = x }
+func (s *Sym) SetSiz(x uint32)   { binary.LittleEndian.PutUint32(s[12:], x) }
+func (s *Sym) SetAlign(x uint32) { binary.LittleEndian.PutUint32(s[16:], x) }
 
-func (s *Sym2) Write(w *Writer) { w.Bytes(s[:]) }
+func (s *Sym) Write(w *Writer) { w.Bytes(s[:]) }
 
 // for testing
-func (s *Sym2) fromBytes(b []byte) { copy(s[:], b) }
+func (s *Sym) fromBytes(b []byte) { copy(s[:], b) }
 
 // Symbol reference.
 type SymRef struct {
@@ -269,28 +269,28 @@ type SymRef struct {
 //    Add  int64
 //    Sym  SymRef
 // }
-type Reloc2 [RelocSize]byte
+type Reloc [RelocSize]byte
 
 const RelocSize = 4 + 1 + 1 + 8 + 8
 
-func (r *Reloc2) Off() int32  { return int32(binary.LittleEndian.Uint32(r[:])) }
-func (r *Reloc2) Siz() uint8  { return r[4] }
-func (r *Reloc2) Type() uint8 { return r[5] }
-func (r *Reloc2) Add() int64  { return int64(binary.LittleEndian.Uint64(r[6:])) }
-func (r *Reloc2) Sym() SymRef {
+func (r *Reloc) Off() int32  { return int32(binary.LittleEndian.Uint32(r[:])) }
+func (r *Reloc) Siz() uint8  { return r[4] }
+func (r *Reloc) Type() uint8 { return r[5] }
+func (r *Reloc) Add() int64  { return int64(binary.LittleEndian.Uint64(r[6:])) }
+func (r *Reloc) Sym() SymRef {
 	return SymRef{binary.LittleEndian.Uint32(r[14:]), binary.LittleEndian.Uint32(r[18:])}
 }
 
-func (r *Reloc2) SetOff(x int32)  { binary.LittleEndian.PutUint32(r[:], uint32(x)) }
-func (r *Reloc2) SetSiz(x uint8)  { r[4] = x }
-func (r *Reloc2) SetType(x uint8) { r[5] = x }
-func (r *Reloc2) SetAdd(x int64)  { binary.LittleEndian.PutUint64(r[6:], uint64(x)) }
-func (r *Reloc2) SetSym(x SymRef) {
+func (r *Reloc) SetOff(x int32)  { binary.LittleEndian.PutUint32(r[:], uint32(x)) }
+func (r *Reloc) SetSiz(x uint8)  { r[4] = x }
+func (r *Reloc) SetType(x uint8) { r[5] = x }
+func (r *Reloc) SetAdd(x int64)  { binary.LittleEndian.PutUint64(r[6:], uint64(x)) }
+func (r *Reloc) SetSym(x SymRef) {
 	binary.LittleEndian.PutUint32(r[14:], x.PkgIdx)
 	binary.LittleEndian.PutUint32(r[18:], x.SymIdx)
 }
 
-func (r *Reloc2) Set(off int32, size uint8, typ uint8, add int64, sym SymRef) {
+func (r *Reloc) Set(off int32, size uint8, typ uint8, add int64, sym SymRef) {
 	r.SetOff(off)
 	r.SetSiz(size)
 	r.SetType(typ)
@@ -298,10 +298,10 @@ func (r *Reloc2) Set(off int32, size uint8, typ uint8, add int64, sym SymRef) {
 	r.SetSym(sym)
 }
 
-func (r *Reloc2) Write(w *Writer) { w.Bytes(r[:]) }
+func (r *Reloc) Write(w *Writer) { w.Bytes(r[:]) }
 
 // for testing
-func (r *Reloc2) fromBytes(b []byte) { copy(r[:], b) }
+func (r *Reloc) fromBytes(b []byte) { copy(r[:], b) }
 
 // Aux symbol info.
 //
@@ -310,7 +310,7 @@ func (r *Reloc2) fromBytes(b []byte) { copy(r[:], b) }
 //    Type uint8
 //    Sym  SymRef
 // }
-type Aux2 [AuxSize]byte
+type Aux [AuxSize]byte
 
 const AuxSize = 1 + 8
 
@@ -327,21 +327,21 @@ const (
 	// TODO: more. Pcdata?
 )
 
-func (a *Aux2) Type() uint8 { return a[0] }
-func (a *Aux2) Sym() SymRef {
+func (a *Aux) Type() uint8 { return a[0] }
+func (a *Aux) Sym() SymRef {
 	return SymRef{binary.LittleEndian.Uint32(a[1:]), binary.LittleEndian.Uint32(a[5:])}
 }
 
-func (a *Aux2) SetType(x uint8) { a[0] = x }
-func (a *Aux2) SetSym(x SymRef) {
+func (a *Aux) SetType(x uint8) { a[0] = x }
+func (a *Aux) SetSym(x SymRef) {
 	binary.LittleEndian.PutUint32(a[1:], x.PkgIdx)
 	binary.LittleEndian.PutUint32(a[5:], x.SymIdx)
 }
 
-func (a *Aux2) Write(w *Writer) { w.Bytes(a[:]) }
+func (a *Aux) Write(w *Writer) { w.Bytes(a[:]) }
 
 // for testing
-func (a *Aux2) fromBytes(b []byte) { copy(a[:], b) }
+func (a *Aux) fromBytes(b []byte) { copy(a[:], b) }
 
 type Writer struct {
 	wr        *bio.Writer
@@ -550,10 +550,10 @@ func (r *Reader) SymOff(i int) uint32 {
 	return r.h.Offsets[BlkSymdef] + uint32(i*SymSize)
 }
 
-// Sym2 returns a pointer to the i-th symbol.
-func (r *Reader) Sym2(i int) *Sym2 {
+// Sym returns a pointer to the i-th symbol.
+func (r *Reader) Sym(i int) *Sym {
 	off := r.SymOff(i)
-	return (*Sym2)(unsafe.Pointer(&r.b[off]))
+	return (*Sym)(unsafe.Pointer(&r.b[off]))
 }
 
 // NReloc returns the number of relocations of the i-th symbol.
@@ -569,17 +569,17 @@ func (r *Reader) RelocOff(i int, j int) uint32 {
 	return r.h.Offsets[BlkReloc] + (relocIdx+uint32(j))*uint32(RelocSize)
 }
 
-// Reloc2 returns a pointer to the j-th relocation of the i-th symbol.
-func (r *Reader) Reloc2(i int, j int) *Reloc2 {
+// Reloc returns a pointer to the j-th relocation of the i-th symbol.
+func (r *Reader) Reloc(i int, j int) *Reloc {
 	off := r.RelocOff(i, j)
-	return (*Reloc2)(unsafe.Pointer(&r.b[off]))
+	return (*Reloc)(unsafe.Pointer(&r.b[off]))
 }
 
-// Relocs2 returns a pointer to the relocations of the i-th symbol.
-func (r *Reader) Relocs2(i int) []Reloc2 {
+// Relocs returns a pointer to the relocations of the i-th symbol.
+func (r *Reader) Relocs(i int) []Reloc {
 	off := r.RelocOff(i, 0)
 	n := r.NReloc(i)
-	return (*[1 << 20]Reloc2)(unsafe.Pointer(&r.b[off]))[:n:n]
+	return (*[1 << 20]Reloc)(unsafe.Pointer(&r.b[off]))[:n:n]
 }
 
 // NAux returns the number of aux symbols of the i-th symbol.
@@ -595,17 +595,17 @@ func (r *Reader) AuxOff(i int, j int) uint32 {
 	return r.h.Offsets[BlkAux] + (auxIdx+uint32(j))*uint32(AuxSize)
 }
 
-// Aux2 returns a pointer to the j-th aux symbol of the i-th symbol.
-func (r *Reader) Aux2(i int, j int) *Aux2 {
+// Aux returns a pointer to the j-th aux symbol of the i-th symbol.
+func (r *Reader) Aux(i int, j int) *Aux {
 	off := r.AuxOff(i, j)
-	return (*Aux2)(unsafe.Pointer(&r.b[off]))
+	return (*Aux)(unsafe.Pointer(&r.b[off]))
 }
 
-// Auxs2 returns the aux symbols of the i-th symbol.
-func (r *Reader) Auxs2(i int) []Aux2 {
+// Auxs returns the aux symbols of the i-th symbol.
+func (r *Reader) Auxs(i int) []Aux {
 	off := r.AuxOff(i, 0)
 	n := r.NAux(i)
-	return (*[1 << 20]Aux2)(unsafe.Pointer(&r.b[off]))[:n:n]
+	return (*[1 << 20]Aux)(unsafe.Pointer(&r.b[off]))[:n:n]
 }
 
 // DataOff returns the offset of the i-th symbol's data.
