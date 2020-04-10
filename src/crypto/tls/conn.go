@@ -162,9 +162,22 @@ type halfConn struct {
 	trafficSecret []byte // current TLS 1.3 traffic secret
 }
 
+type permamentError struct {
+	err net.Error
+}
+
+func (e *permamentError) Error() string   { return e.err.Error() }
+func (e *permamentError) Unwrap() error   { return e.err }
+func (e *permamentError) Timeout() bool   { return e.err.Timeout() }
+func (e *permamentError) Temporary() bool { return false }
+
 func (hc *halfConn) setErrorLocked(err error) error {
-	hc.err = err
-	return err
+	if e, ok := err.(net.Error); ok {
+		hc.err = &permamentError{err: e}
+	} else {
+		hc.err = err
+	}
+	return hc.err
 }
 
 // prepareCipherSpec sets the encryption and MAC states
