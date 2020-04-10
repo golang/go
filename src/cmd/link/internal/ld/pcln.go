@@ -378,7 +378,7 @@ func (ctxt *Link) pclntab() {
 			for i := uint32(0); i < nfd; i++ {
 				funcdataoff = append(funcdataoff, fi.Funcdataoff(int(i)))
 			}
-			funcdata = fi.Funcdata(s, funcdata)
+			funcdata = fi.Funcdata(funcdata)
 		}
 
 		if fi.Valid() && fi.NumInlTree() > 0 {
