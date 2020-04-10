@@ -14,9 +14,9 @@ import (
 	"golang.org/x/tools/internal/xcontext"
 )
 
-const (
+var (
 	// RequestCancelledError should be used when a request is cancelled early.
-	RequestCancelledError = -32800
+	RequestCancelledError = jsonrpc2.NewError(-32800, "JSON RPC cancelled")
 )
 
 // ClientDispatcher returns a Client that dispatches LSP requests across the
@@ -79,7 +79,7 @@ func cancelCall(ctx context.Context, conn *jsonrpc2.Conn, id jsonrpc2.ID) {
 
 func sendParseError(ctx context.Context, req *jsonrpc2.Request, err error) error {
 	if _, ok := err.(*jsonrpc2.Error); !ok {
-		err = jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err)
+		err = fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err)
 	}
 	return req.Reply(ctx, nil, err)
 }

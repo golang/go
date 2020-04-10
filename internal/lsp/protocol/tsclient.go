@@ -10,6 +10,7 @@ package protocol
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/xcontext"
@@ -34,7 +35,7 @@ func ClientHandler(client Client, handler jsonrpc2.Handler) jsonrpc2.Handler {
 	return func(ctx context.Context, r *jsonrpc2.Request) error {
 		if ctx.Err() != nil {
 			ctx := xcontext.Detach(ctx)
-			return r.Reply(ctx, nil, jsonrpc2.NewErrorf(RequestCancelledError, ""))
+			return r.Reply(ctx, nil, RequestCancelledError)
 		}
 		switch r.Method {
 		case "window/showMessage": // notif
@@ -74,7 +75,7 @@ func ClientHandler(client Client, handler jsonrpc2.Handler) jsonrpc2.Handler {
 			return r.Reply(ctx, nil, err)
 		case "workspace/workspaceFolders": // req
 			if r.Params != nil {
-				return r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidParams, "Expected no params"))
+				return r.Reply(ctx, nil, fmt.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
 			}
 			resp, err := client.WorkspaceFolders(ctx)
 			return r.Reply(ctx, resp, err)

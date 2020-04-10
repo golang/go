@@ -22,7 +22,7 @@ type Handler func(context.Context, *Request) error
 // standard method not found response.
 // This should normally be the final handler in a chain.
 func MethodNotFound(ctx context.Context, r *Request) error {
-	return r.Reply(ctx, nil, NewErrorf(CodeMethodNotFound, "method %q not found", r.Method))
+	return r.Reply(ctx, nil, fmt.Errorf("%w: %q", ErrMethodNotFound, r.Method))
 }
 
 // MustReply creates a Handler that panics if the wrapped handler does

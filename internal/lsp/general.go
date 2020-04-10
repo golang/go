@@ -25,7 +25,7 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 	s.stateMu.Lock()
 	if s.state >= serverInitializing {
 		defer s.stateMu.Unlock()
-		return nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidRequest, "initialize called while server in %v state", s.state)
+		return nil, fmt.Errorf("%w: initialize called while server in %v state", jsonrpc2.ErrInvalidRequest, s.state)
 	}
 	s.state = serverInitializing
 	s.stateMu.Unlock()
@@ -118,7 +118,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 	s.stateMu.Lock()
 	if s.state >= serverInitialized {
 		defer s.stateMu.Unlock()
-		return jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidRequest, "initalized called while server in %v state", s.state)
+		return fmt.Errorf("%w: initalized called while server in %v state", jsonrpc2.ErrInvalidRequest, s.state)
 	}
 	s.state = serverInitialized
 	s.stateMu.Unlock()

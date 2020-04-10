@@ -10,6 +10,7 @@ package jsonrpc2
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -49,15 +50,6 @@ type Request struct {
 type constError string
 
 func (e constError) Error() string { return string(e) }
-
-// NewErrorf builds a Error struct for the supplied message and code.
-// If args is not empty, message and args will be passed to Sprintf.
-func NewErrorf(code int64, format string, args ...interface{}) *Error {
-	return &Error{
-		Code:    code,
-		Message: fmt.Sprintf(format, args...),
-	}
-}
 
 // NewConn creates a new connection object around the supplied stream.
 // You must call Run for the connection to be active.
@@ -212,7 +204,13 @@ func (r *Request) Reply(ctx context.Context, result interface{}, err error) erro
 		if callErr, ok := err.(*Error); ok {
 			response.Error = callErr
 		} else {
-			response.Error = NewErrorf(0, "%s", err)
+			response.Error = &Error{Message: err.Error()}
+			var wrapped *Error
+			if errors.As(err, &wrapped) {
+				// if we wrapped a wire error, keep the code from the wrapped error
+				// but the message from the outer error
+				response.Error.Code = wrapped.Code
+			}
 		}
 	}
 	data, err := json.Marshal(response)

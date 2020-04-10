@@ -123,25 +123,25 @@ func testHandler(log bool) jsonrpc2.Handler {
 		switch r.Method {
 		case "no_args":
 			if r.Params != nil {
-				return r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidParams, "Expected no params"))
+				return r.Reply(ctx, nil, fmt.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
 			}
 			return r.Reply(ctx, true, nil)
 		case "one_string":
 			var v string
 			if err := json.Unmarshal(*r.Params, &v); err != nil {
-				return r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err.Error()))
+				return r.Reply(ctx, nil, fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err))
 			}
 			return r.Reply(ctx, "got:"+v, nil)
 		case "one_number":
 			var v int
 			if err := json.Unmarshal(*r.Params, &v); err != nil {
-				return r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err.Error()))
+				return r.Reply(ctx, nil, fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err))
 			}
 			return r.Reply(ctx, fmt.Sprintf("got:%d", v), nil)
 		case "join":
 			var v []string
 			if err := json.Unmarshal(*r.Params, &v); err != nil {
-				return r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeParseError, "%v", err.Error()))
+				return r.Reply(ctx, nil, fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err))
 			}
 			return r.Reply(ctx, path.Join(v...), nil)
 		default:

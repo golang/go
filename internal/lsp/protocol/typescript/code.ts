@@ -908,7 +908,7 @@ let server: side = {
 
 // commonly used output
 const notNil = `if r.Params != nil {
-  return r.Reply(ctx, nil, jsonrpc2.NewErrorf(jsonrpc2.CodeInvalidParams, "Expected no params"))
+  return r.Reply(ctx, nil, fmt.Errorf("%w: expected no params", jsonrpc2.CodeInvalidParams))
 }`;
 
 // Go code for notifications. Side is client or server, m is the request
@@ -1071,6 +1071,7 @@ function output(side: side) {
         import (
           "context"
           "encoding/json"
+          "fmt"
 
           "golang.org/x/tools/internal/jsonrpc2"
           "golang.org/x/tools/internal/xcontext"
@@ -1084,7 +1085,7 @@ function output(side: side) {
         return func(ctx context.Context, r *jsonrpc2.Request) error {
             if ctx.Err() != nil {
               ctx := xcontext.Detach(ctx)
-              return r.Reply(ctx, nil, jsonrpc2.NewErrorf(RequestCancelledError, ""))
+              return r.Reply(ctx, nil, RequestCancelledError)
             }
             switch r.Method {`);
   side.cases.forEach((v) => {f(v)});

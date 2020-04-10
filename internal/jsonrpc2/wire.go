@@ -13,25 +13,25 @@ import (
 // this file contains the go forms of the wire specification
 // see http://www.jsonrpc.org/specification for details
 
-const (
-	// CodeUnknownError should be used for all non coded errors.
-	CodeUnknownError = -32001
-	// CodeParseError is used when invalid JSON was received by the server.
-	CodeParseError = -32700
-	//CodeInvalidRequest is used when the JSON sent is not a valid Request object.
-	CodeInvalidRequest = -32600
-	// CodeMethodNotFound should be returned by the handler when the method does
+var (
+	// ErrUnknown should be used for all non coded errors.
+	ErrUnknown = NewError(-32001, "JSON RPC unknown error")
+	// ErrParse is used when invalid JSON was received by the server.
+	ErrParse = NewError(-32700, "JSON RPC parse error")
+	//ErrInvalidRequest is used when the JSON sent is not a valid Request object.
+	ErrInvalidRequest = NewError(-32600, "JSON RPC invalid request")
+	// ErrMethodNotFound should be returned by the handler when the method does
 	// not exist / is not available.
-	CodeMethodNotFound = -32601
-	// CodeInvalidParams should be returned by the handler when method
+	ErrMethodNotFound = NewError(-32601, "JSON RPC method not found")
+	// ErrInvalidParams should be returned by the handler when method
 	// parameter(s) were invalid.
-	CodeInvalidParams = -32602
-	// CodeInternalError is not currently returned but defined for completeness.
-	CodeInternalError = -32603
+	ErrInvalidParams = NewError(-32602, "JSON RPC invalid params")
+	// ErrInternal is not currently returned but defined for completeness.
+	ErrInternal = NewError(-32603, "JSON RPC internal error")
 
-	//CodeServerOverloaded is returned when a message was refused due to a
+	//ErrServerOverloaded is returned when a message was refused due to a
 	//server being temporarily unable to accept any new messages.
-	CodeServerOverloaded = -32000
+	ErrServerOverloaded = NewError(-32000, "JSON RPC overloaded")
 )
 
 // WireRequest is sent to a server to represent a Call or Notify operaton.
@@ -87,10 +87,14 @@ type ID struct {
 	Number int64
 }
 
-func (err *Error) Error() string {
-	if err == nil {
-		return ""
+func NewError(code int64, message string) error {
+	return &Error{
+		Code:    code,
+		Message: message,
 	}
+}
+
+func (err *Error) Error() string {
 	return err.Message
 }
 

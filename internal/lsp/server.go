@@ -160,8 +160,8 @@ func (s *Server) clearInProgress(token string) {
 	s.inProgressMu.Unlock()
 }
 
-func notImplemented(method string) *jsonrpc2.Error {
-	return jsonrpc2.NewErrorf(jsonrpc2.CodeMethodNotFound, "method %q not yet implemented", method)
+func notImplemented(method string) error {
+	return fmt.Errorf("%w: %q not yet implemented", jsonrpc2.ErrMethodNotFound, method)
 }
 
 //go:generate helper/helper -d protocol/tsserver.go -o server_gen.go -u .
