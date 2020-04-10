@@ -38,9 +38,15 @@ type Conn struct {
 
 // Request is sent to a server to represent a Call or Notify operaton.
 type Request struct {
-	conn *Conn
 	// The Wire values of the request.
-	wireRequest
+	// Method is a string containing the method name to invoke.
+	Method string
+	// Params is either a struct or an array with the parameters of the method.
+	Params *json.RawMessage
+	// The id of this request, used to tie the Response back to the request.
+	// Will be either a string or a number. If not set, the Request is a notify,
+	// and no response is possible.
+	ID *ID
 }
 
 type constError string
@@ -158,22 +164,15 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	}
 }
 
-// Conn returns the connection that created this request.
-func (r *Request) Conn() *Conn { return r.conn }
-
-// IsNotify returns true if this request is a notification.
-func (r *Request) IsNotify() bool {
-	return r.ID == nil
-}
-
-func replier(r *Request, spanDone func()) Replier {
+func replier(conn *Conn, r *Request, spanDone func()) Replier {
 	return func(ctx context.Context, result interface{}, err error) error {
 		defer func() {
 			recordStatus(ctx, err)
 			spanDone()
 		}()
 
-		if r.IsNotify() {
+		if r.ID == nil {
+			// request was a notify, no need to respond
 			return nil
 		}
 
@@ -202,7 +201,7 @@ func replier(r *Request, spanDone func()) Replier {
 		if err != nil {
 			return err
 		}
-		n, err := r.conn.stream.Write(ctx, data)
+		n, err := conn.stream.Write(ctx, data)
 		event.Record(ctx, tag.SentBytes.Of(n))
 
 		if err != nil {
@@ -248,16 +247,12 @@ func (c *Conn) Run(runCtx context.Context, handler Handler) error {
 				tag.ReceivedBytes.Of(n))
 
 			req := &Request{
-				conn: c,
-				wireRequest: wireRequest{
-					VersionTag: msg.VersionTag,
-					Method:     msg.Method,
-					Params:     msg.Params,
-					ID:         msg.ID,
-				},
+				Method: msg.Method,
+				Params: msg.Params,
+				ID:     msg.ID,
 			}
 
-			if err := handler(reqCtx, replier(req, spanDone), req); err != nil {
+			if err := handler(reqCtx, replier(c, req, spanDone), req); err != nil {
 				// delivery failed, not much we can do
 				event.Error(reqCtx, "jsonrpc2 message delivery failed", err)
 			}
