@@ -34,10 +34,10 @@ var (
 	ErrServerOverloaded = NewError(-32000, "JSON RPC overloaded")
 )
 
-// WireRequest is sent to a server to represent a Call or Notify operaton.
-type WireRequest struct {
+// wireRequest is sent to a server to represent a Call or Notify operaton.
+type wireRequest struct {
 	// VersionTag is always encoded as the string "2.0"
-	VersionTag VersionTag `json:"jsonrpc"`
+	VersionTag wireVersionTag `json:"jsonrpc"`
 	// Method is a string containing the method name to invoke.
 	Method string `json:"method"`
 	// Params is either a struct or an array with the parameters of the method.
@@ -52,19 +52,30 @@ type WireRequest struct {
 // It will always have the ID field set to tie it back to a request, and will
 // have either the Result or Error fields set depending on whether it is a
 // success or failure response.
-type WireResponse struct {
+type wireResponse struct {
 	// VersionTag is always encoded as the string "2.0"
-	VersionTag VersionTag `json:"jsonrpc"`
+	VersionTag wireVersionTag `json:"jsonrpc"`
 	// Result is the response value, and is required on success.
 	Result *json.RawMessage `json:"result,omitempty"`
 	// Error is a structured error response if the call fails.
-	Error *Error `json:"error,omitempty"`
+	Error *wireError `json:"error,omitempty"`
 	// ID must be set and is the identifier of the Request this is a response to.
 	ID *ID `json:"id,omitempty"`
 }
 
-// Error represents a structured error in a Response.
-type Error struct {
+// wireCombined has all the fields of both Request and Response.
+// We can decode this and then work out which it is.
+type wireCombined struct {
+	VersionTag wireVersionTag   `json:"jsonrpc"`
+	ID         *ID              `json:"id,omitempty"`
+	Method     string           `json:"method"`
+	Params     *json.RawMessage `json:"params,omitempty"`
+	Result     *json.RawMessage `json:"result,omitempty"`
+	Error      *wireError       `json:"error,omitempty"`
+}
+
+// wireError represents a structured error in a Response.
+type wireError struct {
 	// Code is an error code indicating the type of failure.
 	Code int64 `json:"code"`
 	// Message is a short description of the error.
@@ -73,36 +84,34 @@ type Error struct {
 	Data *json.RawMessage `json:"data"`
 }
 
-// VersionTag is a special 0 sized struct that encodes as the jsonrpc version
+// wireVersionTag is a special 0 sized struct that encodes as the jsonrpc version
 // tag.
 // It will fail during decode if it is not the correct version tag in the
 // stream.
-type VersionTag struct{}
+type wireVersionTag struct{}
 
 // ID is a Request identifier.
-// Only one of either the Name or Number members will be set, using the
-// number form if the Name is the empty string.
 type ID struct {
-	Name   string
-	Number int64
+	name   string
+	number int64
 }
 
 func NewError(code int64, message string) error {
-	return &Error{
+	return &wireError{
 		Code:    code,
 		Message: message,
 	}
 }
 
-func (err *Error) Error() string {
+func (err *wireError) Error() string {
 	return err.Message
 }
 
-func (VersionTag) MarshalJSON() ([]byte, error) {
+func (wireVersionTag) MarshalJSON() ([]byte, error) {
 	return json.Marshal("2.0")
 }
 
-func (VersionTag) UnmarshalJSON(data []byte) error {
+func (wireVersionTag) UnmarshalJSON(data []byte) error {
 	version := ""
 	if err := json.Unmarshal(data, &version); err != nil {
 		return err
@@ -115,6 +124,12 @@ func (VersionTag) UnmarshalJSON(data []byte) error {
 
 const invalidID int64 = math.MaxInt64
 
+// NewIntID returns a new numerical request ID.
+func NewIntID(v int64) *ID { return &ID{number: v} }
+
+// NewStringID returns a new string request ID.
+func NewStringID(v string) *ID { return &ID{name: v} }
+
 // Format writes the ID to the formatter.
 // If the rune is q the representation is non ambiguous,
 // string forms are quoted, number forms are preceded by a #
@@ -126,24 +141,24 @@ func (id *ID) Format(f fmt.State, r rune) {
 	switch {
 	case id == nil:
 		fmt.Fprintf(f, numF, invalidID)
-	case id.Name != "":
-		fmt.Fprintf(f, strF, id.Name)
+	case id.name != "":
+		fmt.Fprintf(f, strF, id.name)
 	default:
-		fmt.Fprintf(f, numF, id.Number)
+		fmt.Fprintf(f, numF, id.number)
 	}
 }
 
 func (id *ID) MarshalJSON() ([]byte, error) {
-	if id.Name != "" {
-		return json.Marshal(id.Name)
+	if id.name != "" {
+		return json.Marshal(id.name)
 	}
-	return json.Marshal(id.Number)
+	return json.Marshal(id.number)
 }
 
 func (id *ID) UnmarshalJSON(data []byte) error {
 	*id = ID{}
-	if err := json.Unmarshal(data, &id.Number); err == nil {
+	if err := json.Unmarshal(data, &id.number); err == nil {
 		return nil
 	}
-	return json.Unmarshal(data, &id.Name)
+	return json.Unmarshal(data, &id.name)
 }

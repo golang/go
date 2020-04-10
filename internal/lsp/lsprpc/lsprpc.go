@@ -533,9 +533,7 @@ func handshaker(client *debugClient, goplsPath string, handler jsonrpc2.Handler)
 }
 
 func sendError(ctx context.Context, req *jsonrpc2.Request, err error) {
-	if _, ok := err.(*jsonrpc2.Error); !ok {
-		err = fmt.Errorf("%w: %v", jsonrpc2.ErrParse, err)
-	}
+	err = fmt.Errorf("%w: %v", jsonrpc2.ErrParse, err)
 	if err := req.Reply(ctx, nil, err); err != nil {
 		event.Error(ctx, "", err)
 	}

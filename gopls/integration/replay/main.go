@@ -35,6 +35,29 @@ var (
 	svresp = make(map[string]*parse.Logmsg)
 )
 
+type wireRequest struct {
+	VersionTag string           `json:"jsonrpc"`
+	Method     string           `json:"method"`
+	Params     *json.RawMessage `json:"params,omitempty"`
+	ID         *jsonrpc2.ID     `json:"id,omitempty"`
+}
+
+type wireResponse struct {
+	VersionTag string           `json:"jsonrpc"`
+	Result     *json.RawMessage `json:"result,omitempty"`
+	Error      interface{}      `json:"error,omitempty"`
+	ID         *jsonrpc2.ID     `json:"id,omitempty"`
+}
+
+type wireCombined struct {
+	VersionTag interface{}      `json:"jsonrpc"`
+	ID         *jsonrpc2.ID     `json:"id,omitempty"`
+	Method     string           `json:"method"`
+	Params     *json.RawMessage `json:"params,omitempty"`
+	Result     *json.RawMessage `json:"result,omitempty"`
+	Error      interface{}      `json:"error,omitempty"`
+}
+
 func main() {
 	log.SetFlags(log.Lshortfile)
 	flag.Usage = func() {
@@ -139,7 +162,7 @@ func main() {
 	}
 }
 
-func msgType(c *p.Combined) parse.MsgType {
+func msgType(c *wireCombined) parse.MsgType {
 	// Method, Params, ID => request
 	// Method, Params, no-ID => notification
 	// Error => error response
@@ -181,25 +204,28 @@ func send(ctx context.Context, l *parse.Logmsg, stream jsonrpc2.Stream, id *json
 		if err != nil {
 			n = 0
 		}
-		id = &jsonrpc2.ID{Number: int64(n)}
+		id = jsonrpc2.NewIntID(int64(n))
 	}
 	var r interface{}
 	switch l.Type {
 	case parse.ClRequest:
-		r = jsonrpc2.WireRequest{
-			ID:     id,
-			Method: l.Method,
-			Params: &y,
+		r = wireRequest{
+			VersionTag: "2.0",
+			ID:         id,
+			Method:     l.Method,
+			Params:     &y,
 		}
 	case parse.SvResponse:
-		r = jsonrpc2.WireResponse{
-			ID:     id,
-			Result: &y,
+		r = wireResponse{
+			VersionTag: "2.0",
+			ID:         id,
+			Result:     &y,
 		}
 	case parse.ToServer:
-		r = jsonrpc2.WireRequest{
-			Method: l.Method,
-			Params: &y,
+		r = wireRequest{
+			VersionTag: "2.0",
+			Method:     l.Method,
+			Params:     &y,
 		}
 	default:
 		log.Fatalf("sending %s", l.Type)
@@ -211,18 +237,10 @@ func send(ctx context.Context, l *parse.Logmsg, stream jsonrpc2.Stream, id *json
 	stream.Write(ctx, data)
 }
 
-func strID(x *jsonrpc2.ID) string {
-	if x.Name != "" {
-		log.Printf("strID returns %s", x.Name)
-		return x.Name
-	}
-	return strconv.Itoa(int(x.Number))
-}
-
-func respond(ctx context.Context, c *p.Combined, stream jsonrpc2.Stream) {
+func respond(ctx context.Context, c *wireCombined, stream jsonrpc2.Stream) {
 	// c is a server request
 	// pick out the id, and look for the response in msgs
-	id := strID(c.ID)
+	id := fmt.Sprint(c.ID)
 	for _, l := range msgs {
 		if l.ID == id && l.Type == parse.SvResponse {
 			// check that the methods match?
@@ -280,7 +298,7 @@ func mimic(ctx context.Context) {
 		log.Fatal(err)
 	}
 	stream := jsonrpc2.NewHeaderStream(fromServer, toServer)
-	rchan := make(chan *p.Combined, 10) // do we need buffering?
+	rchan := make(chan *wireCombined, 10) // do we need buffering?
 	rdr := func() {
 		for {
 			buf, _, err := stream.Read(ctx)
@@ -288,7 +306,7 @@ func mimic(ctx context.Context) {
 				rchan <- nil // close it instead?
 				return
 			}
-			msg := &p.Combined{}
+			msg := &wireCombined{}
 			if err := json.Unmarshal(buf, msg); err != nil {
 				log.Fatal(err)
 			}
@@ -325,7 +343,7 @@ big:
 					respond(ctx, x, stream)
 					continue done // still waiting
 				case parse.ClResponse, parse.ReportErr:
-					id := strID(x.ID)
+					id := fmt.Sprint(x.ID)
 					seenids[id] = true
 					if id == l.ID {
 						break done

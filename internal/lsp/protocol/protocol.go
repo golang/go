@@ -48,15 +48,13 @@ func CancelHandler(handler jsonrpc2.Handler) jsonrpc2.Handler {
 		if err := json.Unmarshal(*req.Params, &params); err != nil {
 			return sendParseError(ctx, req, err)
 		}
-		v := jsonrpc2.ID{}
 		if n, ok := params.ID.(float64); ok {
-			v.Number = int64(n)
+			canceller(*jsonrpc2.NewIntID(int64(n)))
 		} else if s, ok := params.ID.(string); ok {
-			v.Name = s
+			canceller(*jsonrpc2.NewStringID(s))
 		} else {
-			return sendParseError(ctx, req, fmt.Errorf("Request ID %v malformed", params.ID))
+			return sendParseError(ctx, req, fmt.Errorf("request ID %v malformed", params.ID))
 		}
-		canceller(v)
 		return req.Reply(ctx, nil, nil)
 	}
 }
@@ -78,8 +76,5 @@ func cancelCall(ctx context.Context, conn *jsonrpc2.Conn, id jsonrpc2.ID) {
 }
 
 func sendParseError(ctx context.Context, req *jsonrpc2.Request, err error) error {
-	if _, ok := err.(*jsonrpc2.Error); !ok {
-		err = fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err)
-	}
-	return req.Reply(ctx, nil, err)
+	return req.Reply(ctx, nil, fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err))
 }

@@ -35,13 +35,13 @@ var wireIDTestData = []struct {
 		quoted:  `#0`,
 	}, {
 		name:    `number`,
-		id:      &jsonrpc2.ID{Number: 43},
+		id:      jsonrpc2.NewIntID(43),
 		encoded: []byte(`43`),
 		plain:   `43`,
 		quoted:  `#43`,
 	}, {
 		name:    `string`,
-		id:      &jsonrpc2.ID{Name: "life"},
+		id:      jsonrpc2.NewStringID("life"),
 		encoded: []byte(`"life"`),
 		plain:   `life`,
 		quoted:  `"life"`,

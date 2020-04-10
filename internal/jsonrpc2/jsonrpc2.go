@@ -33,7 +33,7 @@ type Conn struct {
 	seq       int64 // must only be accessed using atomic operations
 	stream    Stream
 	pendingMu sync.Mutex // protects the pending map
-	pending   map[ID]chan *WireResponse
+	pending   map[ID]chan *wireResponse
 }
 
 // Request is sent to a server to represent a Call or Notify operaton.
@@ -44,7 +44,7 @@ type Request struct {
 	done []func()
 
 	// The Wire values of the request.
-	WireRequest
+	wireRequest
 }
 
 type constError string
@@ -56,7 +56,7 @@ func (e constError) Error() string { return string(e) }
 func NewConn(s Stream) *Conn {
 	conn := &Conn{
 		stream:  s,
-		pending: make(map[ID]chan *WireResponse),
+		pending: make(map[ID]chan *wireResponse),
 	}
 	return conn
 }
@@ -69,7 +69,7 @@ func (c *Conn) Notify(ctx context.Context, method string, params interface{}) (e
 	if err != nil {
 		return fmt.Errorf("marshalling notify parameters: %v", err)
 	}
-	request := &WireRequest{
+	request := &wireRequest{
 		Method: method,
 		Params: jsonParams,
 	}
@@ -98,12 +98,12 @@ func (c *Conn) Notify(ctx context.Context, method string, params interface{}) (e
 // result must be of a type you an pass to json.Unmarshal.
 func (c *Conn) Call(ctx context.Context, method string, params, result interface{}) (_ ID, err error) {
 	// generate a new request identifier
-	id := ID{Number: atomic.AddInt64(&c.seq, 1)}
+	id := ID{number: atomic.AddInt64(&c.seq, 1)}
 	jsonParams, err := marshalToRaw(params)
 	if err != nil {
 		return id, fmt.Errorf("marshalling call parameters: %v", err)
 	}
-	request := &WireRequest{
+	request := &wireRequest{
 		ID:     &id,
 		Method: method,
 		Params: jsonParams,
@@ -127,7 +127,7 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	// are racing the response. Also add a buffer to rchan, so that if we get a
 	// wire response between the time this call is cancelled and id is deleted
 	// from c.pending, the send to rchan will not block.
-	rchan := make(chan *WireResponse, 1)
+	rchan := make(chan *wireResponse, 1)
 	c.pendingMu.Lock()
 	c.pending[id] = rchan
 	c.pendingMu.Unlock()
@@ -196,16 +196,16 @@ func (r *Request) Reply(ctx context.Context, result interface{}, err error) erro
 	if err == nil {
 		raw, err = marshalToRaw(result)
 	}
-	response := &WireResponse{
+	response := &wireResponse{
 		Result: raw,
 		ID:     r.ID,
 	}
 	if err != nil {
-		if callErr, ok := err.(*Error); ok {
+		if callErr, ok := err.(*wireError); ok {
 			response.Error = callErr
 		} else {
-			response.Error = &Error{Message: err.Error()}
-			var wrapped *Error
+			response.Error = &wireError{Message: err.Error()}
+			var wrapped *wireError
 			if errors.As(err, &wrapped) {
 				// if we wrapped a wire error, keep the code from the wrapped error
 				// but the message from the outer error
@@ -239,17 +239,6 @@ func (r *Request) OnReply(do func()) {
 	r.done = append(r.done, do)
 }
 
-// combined has all the fields of both Request and Response.
-// We can decode this and then work out which it is.
-type combined struct {
-	VersionTag VersionTag       `json:"jsonrpc"`
-	ID         *ID              `json:"id,omitempty"`
-	Method     string           `json:"method"`
-	Params     *json.RawMessage `json:"params,omitempty"`
-	Result     *json.RawMessage `json:"result,omitempty"`
-	Error      *Error           `json:"error,omitempty"`
-}
-
 // Run blocks until the connection is terminated, and returns any error that
 // caused the termination.
 // It must be called exactly once for each Conn.
@@ -264,7 +253,7 @@ func (c *Conn) Run(runCtx context.Context, handler Handler) error {
 			return err
 		}
 		// read a combined message
-		msg := &combined{}
+		msg := &wireCombined{}
 		if err := json.Unmarshal(data, msg); err != nil {
 			// a badly formed message arrived, log it and continue
 			// we trust the stream to have isolated the error to just this message
@@ -285,7 +274,7 @@ func (c *Conn) Run(runCtx context.Context, handler Handler) error {
 
 			req := &Request{
 				conn: c,
-				WireRequest: WireRequest{
+				wireRequest: wireRequest{
 					VersionTag: msg.VersionTag,
 					Method:     msg.Method,
 					Params:     msg.Params,
@@ -305,7 +294,7 @@ func (c *Conn) Run(runCtx context.Context, handler Handler) error {
 			rchan, ok := c.pending[*msg.ID]
 			c.pendingMu.Unlock()
 			if ok {
-				response := &WireResponse{
+				response := &wireResponse{
 					Result: msg.Result,
 					Error:  msg.Error,
 					ID:     msg.ID,

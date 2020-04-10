@@ -41,15 +41,21 @@ func (s *loggingStream) Write(ctx context.Context, data []byte) (int64, error) {
 	return count, err
 }
 
-// Combined has all the fields of both Request and Response.
+// wireCombined has all the fields of both Request and Response.
 // We can decode this and then work out which it is.
-type Combined struct {
-	VersionTag jsonrpc2.VersionTag `json:"jsonrpc"`
-	ID         *jsonrpc2.ID        `json:"id,omitempty"`
-	Method     string              `json:"method"`
-	Params     *json.RawMessage    `json:"params,omitempty"`
-	Result     *json.RawMessage    `json:"result,omitempty"`
-	Error      *jsonrpc2.Error     `json:"error,omitempty"`
+type wireCombined struct {
+	VersionTag interface{}      `json:"jsonrpc"`
+	ID         *jsonrpc2.ID     `json:"id,omitempty"`
+	Method     string           `json:"method"`
+	Params     *json.RawMessage `json:"params,omitempty"`
+	Result     *json.RawMessage `json:"result,omitempty"`
+	Error      *wireError       `json:"error,omitempty"`
+}
+
+type wireError struct {
+	Code    int64            `json:"code"`
+	Message string           `json:"message"`
+	Data    *json.RawMessage `json:"data"`
 }
 
 type req struct {
@@ -106,11 +112,11 @@ func (m *mapped) setServer(id string, r req) {
 
 const eor = "\r\n\r\n\r\n"
 
-func logCommon(outfd io.Writer, data []byte) (*Combined, time.Time, string) {
+func logCommon(outfd io.Writer, data []byte) (*wireCombined, time.Time, string) {
 	if outfd == nil {
 		return nil, time.Time{}, ""
 	}
-	var v Combined
+	var v wireCombined
 	err := json.Unmarshal(data, &v)
 	if err != nil {
 		fmt.Fprintf(outfd, "Unmarshal %v\n", err)
@@ -132,7 +138,7 @@ func logOut(outfd io.Writer, data []byte) {
 	}
 	id := fmt.Sprint(v.ID)
 	if v.Error != nil {
-		fmt.Fprintf(outfd, "[Error - %s] Received #%s %s%s", tmfmt, id, v.Error, eor)
+		fmt.Fprintf(outfd, "[Error - %s] Received #%s %s%s", tmfmt, id, v.Error.Message, eor)
 		return
 	}
 	buf := strings.Builder{}
@@ -171,7 +177,7 @@ func logOut(outfd io.Writer, data []byte) {
 		if v.Result != nil {
 			r = string(*v.Result)
 		}
-		fmt.Fprintf(&buf, "%s\n%s\n%s%s", p, r, v.Error, eor)
+		fmt.Fprintf(&buf, "%s\n%s\n%s%s", p, r, v.Error.Message, eor)
 	}
 	outfd.Write([]byte(buf.String()))
 }
@@ -187,7 +193,7 @@ func logIn(outfd io.Writer, data []byte) {
 	// ID !Method Result(might be null, but !Params) => Sending response (could we get an Error?)
 	// !ID Method Params => Sending notification
 	if v.Error != nil { // does this ever happen?
-		fmt.Fprintf(outfd, "[Error - %s] Sent #%s %s%s", tmfmt, id, v.Error, eor)
+		fmt.Fprintf(outfd, "[Error - %s] Sent #%s %s%s", tmfmt, id, v.Error.Message, eor)
 		return
 	}
 	buf := strings.Builder{}
@@ -230,7 +236,7 @@ func logIn(outfd io.Writer, data []byte) {
 		if v.Result != nil {
 			r = string(*v.Result)
 		}
-		fmt.Fprintf(&buf, "%s\n%s\n%s%s", p, r, v.Error, eor)
+		fmt.Fprintf(&buf, "%s\n%s\n%s%s", p, r, v.Error.Message, eor)
 	}
 	outfd.Write([]byte(buf.String()))
 }
