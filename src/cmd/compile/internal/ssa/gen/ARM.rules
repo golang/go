@@ -243,10 +243,6 @@
 (Leq16U x y) -> (LessEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Leq32U x y) -> (LessEqualU (CMP x y))
 
-(Greater(32|64)F x y) -> (GreaterThan (CMP(F|D) x y))
-
-(Geq(32|64)F x y) -> (GreaterEqual (CMP(F|D) x y))
-
 (OffPtr [off] ptr:(SP)) -> (MOVWaddr [off] ptr)
 (OffPtr [off] ptr) -> (ADDconst [off] ptr)
 

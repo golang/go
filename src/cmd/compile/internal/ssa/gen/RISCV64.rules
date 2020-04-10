@@ -258,14 +258,6 @@
 (Leq64F ...) -> (FLED ...)
 (Leq32F ...) -> (FLES ...)
 
-// Convert x > y to y < x.
-(Greater64F x y) -> (FLTD y x)
-(Greater32F x y) -> (FLTS y x)
-
-// Convert x >= y to !(x < y)
-(Geq64F x y) -> (FLED y x)
-(Geq32F x y) -> (FLES y x)
-
 (EqPtr x y) -> (SEQZ (SUB <x.Type> x y))
 (Eq64  x y) -> (SEQZ (SUB <x.Type> x y))
 (Eq32  x y) -> (SEQZ (SUBW <x.Type> x y))

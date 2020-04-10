@@ -294,10 +294,16 @@ func (v *Value) SetArgs1(a *Value) {
 	v.resetArgs()
 	v.AddArg(a)
 }
-func (v *Value) SetArgs2(a *Value, b *Value) {
+func (v *Value) SetArgs2(a, b *Value) {
 	v.resetArgs()
 	v.AddArg(a)
 	v.AddArg(b)
+}
+func (v *Value) SetArgs3(a, b, c *Value) {
+	v.resetArgs()
+	v.AddArg(a)
+	v.AddArg(b)
+	v.AddArg(c)
 }
 
 func (v *Value) resetArgs() {

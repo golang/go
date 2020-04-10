@@ -120,14 +120,6 @@ func rewriteValuegeneric(v *Value) bool {
 		return rewriteValuegeneric_OpEqPtr(v)
 	case OpEqSlice:
 		return rewriteValuegeneric_OpEqSlice(v)
-	case OpGeq32F:
-		return rewriteValuegeneric_OpGeq32F(v)
-	case OpGeq64F:
-		return rewriteValuegeneric_OpGeq64F(v)
-	case OpGreater32F:
-		return rewriteValuegeneric_OpGreater32F(v)
-	case OpGreater64F:
-		return rewriteValuegeneric_OpGreater64F(v)
 	case OpIMake:
 		return rewriteValuegeneric_OpIMake(v)
 	case OpInterCall:
@@ -3919,69 +3911,75 @@ func rewriteValuegeneric_OpConstString(v *Value) bool {
 	config := b.Func.Config
 	fe := b.Func.fe
 	typ := &b.Func.Config.Types
-	// match: (ConstString {s})
-	// cond: config.PtrSize == 4 && s.(string) == ""
+	// match: (ConstString {str})
+	// cond: config.PtrSize == 4 && str == ""
 	// result: (StringMake (ConstNil) (Const32 <typ.Int> [0]))
 	for {
-		s := v.Aux
-		if !(config.PtrSize == 4 && s.(string) == "") {
+		str := v.Aux.(string)
+		if !(config.PtrSize == 4 && str == "") {
 			break
 		}
 		v.reset(OpStringMake)
 		v0 := b.NewValue0(v.Pos, OpConstNil, typ.BytePtr)
 		v1 := b.NewValue0(v.Pos, OpConst32, typ.Int)
-		v1.AuxInt = 0
+		var _auxint int32 = 0
+		v1.AuxInt = int64(_auxint)
 		v.AddArg2(v0, v1)
 		return true
 	}
-	// match: (ConstString {s})
-	// cond: config.PtrSize == 8 && s.(string) == ""
+	// match: (ConstString {str})
+	// cond: config.PtrSize == 8 && str == ""
 	// result: (StringMake (ConstNil) (Const64 <typ.Int> [0]))
 	for {
-		s := v.Aux
-		if !(config.PtrSize == 8 && s.(string) == "") {
+		str := v.Aux.(string)
+		if !(config.PtrSize == 8 && str == "") {
 			break
 		}
 		v.reset(OpStringMake)
 		v0 := b.NewValue0(v.Pos, OpConstNil, typ.BytePtr)
 		v1 := b.NewValue0(v.Pos, OpConst64, typ.Int)
-		v1.AuxInt = 0
+		var _auxint int64 = 0
+		v1.AuxInt = int64(_auxint)
 		v.AddArg2(v0, v1)
 		return true
 	}
-	// match: (ConstString {s})
-	// cond: config.PtrSize == 4 && s.(string) != ""
-	// result: (StringMake (Addr <typ.BytePtr> {fe.StringData(s.(string))} (SB)) (Const32 <typ.Int> [int64(len(s.(string)))]))
+	// match: (ConstString {str})
+	// cond: config.PtrSize == 4 && str != ""
+	// result: (StringMake (Addr <typ.BytePtr> {fe.StringData(str)} (SB)) (Const32 <typ.Int> [int32(len(str))]))
 	for {
-		s := v.Aux
-		if !(config.PtrSize == 4 && s.(string) != "") {
+		str := v.Aux.(string)
+		if !(config.PtrSize == 4 && str != "") {
 			break
 		}
 		v.reset(OpStringMake)
 		v0 := b.NewValue0(v.Pos, OpAddr, typ.BytePtr)
-		v0.Aux = fe.StringData(s.(string))
+		var _aux Sym = fe.StringData(str)
+		v0.Aux = _aux
 		v1 := b.NewValue0(v.Pos, OpSB, typ.Uintptr)
 		v0.AddArg(v1)
 		v2 := b.NewValue0(v.Pos, OpConst32, typ.Int)
-		v2.AuxInt = int64(len(s.(string)))
+		var _auxint int32 = int32(len(str))
+		v2.AuxInt = int64(_auxint)
 		v.AddArg2(v0, v2)
 		return true
 	}
-	// match: (ConstString {s})
-	// cond: config.PtrSize == 8 && s.(string) != ""
-	// result: (StringMake (Addr <typ.BytePtr> {fe.StringData(s.(string))} (SB)) (Const64 <typ.Int> [int64(len(s.(string)))]))
+	// match: (ConstString {str})
+	// cond: config.PtrSize == 8 && str != ""
+	// result: (StringMake (Addr <typ.BytePtr> {fe.StringData(str)} (SB)) (Const64 <typ.Int> [int64(len(str))]))
 	for {
-		s := v.Aux
-		if !(config.PtrSize == 8 && s.(string) != "") {
+		str := v.Aux.(string)
+		if !(config.PtrSize == 8 && str != "") {
 			break
 		}
 		v.reset(OpStringMake)
 		v0 := b.NewValue0(v.Pos, OpAddr, typ.BytePtr)
-		v0.Aux = fe.StringData(s.(string))
+		var _aux Sym = fe.StringData(str)
+		v0.Aux = _aux
 		v1 := b.NewValue0(v.Pos, OpSB, typ.Uintptr)
 		v0.AddArg(v1)
 		v2 := b.NewValue0(v.Pos, OpConst64, typ.Int)
-		v2.AuxInt = int64(len(s.(string)))
+		var _auxint int64 = int64(len(str))
+		v2.AuxInt = int64(_auxint)
 		v.AddArg2(v0, v2)
 		return true
 	}
@@ -8667,86 +8665,6 @@ func rewriteValuegeneric_OpEqSlice(v *Value) bool {
 		v.AddArg2(v0, v1)
 		return true
 	}
-}
-func rewriteValuegeneric_OpGeq32F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Geq32F (Const32F [c]) (Const32F [d]))
-	// result: (ConstBool [b2i(auxTo32F(c) >= auxTo32F(d))])
-	for {
-		if v_0.Op != OpConst32F {
-			break
-		}
-		c := v_0.AuxInt
-		if v_1.Op != OpConst32F {
-			break
-		}
-		d := v_1.AuxInt
-		v.reset(OpConstBool)
-		v.AuxInt = b2i(auxTo32F(c) >= auxTo32F(d))
-		return true
-	}
-	return false
-}
-func rewriteValuegeneric_OpGeq64F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Geq64F (Const64F [c]) (Const64F [d]))
-	// result: (ConstBool [b2i(auxTo64F(c) >= auxTo64F(d))])
-	for {
-		if v_0.Op != OpConst64F {
-			break
-		}
-		c := v_0.AuxInt
-		if v_1.Op != OpConst64F {
-			break
-		}
-		d := v_1.AuxInt
-		v.reset(OpConstBool)
-		v.AuxInt = b2i(auxTo64F(c) >= auxTo64F(d))
-		return true
-	}
-	return false
-}
-func rewriteValuegeneric_OpGreater32F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Greater32F (Const32F [c]) (Const32F [d]))
-	// result: (ConstBool [b2i(auxTo32F(c) > auxTo32F(d))])
-	for {
-		if v_0.Op != OpConst32F {
-			break
-		}
-		c := v_0.AuxInt
-		if v_1.Op != OpConst32F {
-			break
-		}
-		d := v_1.AuxInt
-		v.reset(OpConstBool)
-		v.AuxInt = b2i(auxTo32F(c) > auxTo32F(d))
-		return true
-	}
-	return false
-}
-func rewriteValuegeneric_OpGreater64F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	// match: (Greater64F (Const64F [c]) (Const64F [d]))
-	// result: (ConstBool [b2i(auxTo64F(c) > auxTo64F(d))])
-	for {
-		if v_0.Op != OpConst64F {
-			break
-		}
-		c := v_0.AuxInt
-		if v_1.Op != OpConst64F {
-			break
-		}
-		d := v_1.AuxInt
-		v.reset(OpConstBool)
-		v.AuxInt = b2i(auxTo64F(c) > auxTo64F(d))
-		return true
-	}
-	return false
 }
 func rewriteValuegeneric_OpIMake(v *Value) bool {
 	v_1 := v.Args[1]

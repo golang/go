@@ -61,7 +61,7 @@ func init() {
 		canRun = false
 	case "darwin":
 		switch runtime.GOARCH {
-		case "arm", "arm64":
+		case "arm64":
 			canRun = false
 		}
 	case "linux":

@@ -259,6 +259,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
 	NC	$8, (R15), n-8(SP)       // d407f010f000
 	OC	$8, (R15), n-8(SP)       // d607f010f000
 	MVC	$8, (R15), n-8(SP)       // d207f010f000
+	MVCIN	$8, (R15), n-8(SP)       // e807f010f000
 	CLC	$8, (R15), n-8(SP)       // d507f000f010
 	XC	$256, -8(R15), -8(R15)   // b90400afc2a8fffffff8d7ffa000a000
 	MVC	$256, 8192(R1), 8192(R2) // b90400a2c2a800002000b90400b1c2b800002000d2ffa000b000

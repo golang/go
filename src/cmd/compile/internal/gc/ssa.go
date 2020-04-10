@@ -1742,9 +1742,6 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OLT, TFLOAT64}: ssa.OpLess64F,
 	opAndType{OLT, TFLOAT32}: ssa.OpLess32F,
 
-	opAndType{OGT, TFLOAT64}: ssa.OpGreater64F,
-	opAndType{OGT, TFLOAT32}: ssa.OpGreater32F,
-
 	opAndType{OLE, TINT8}:    ssa.OpLeq8,
 	opAndType{OLE, TUINT8}:   ssa.OpLeq8U,
 	opAndType{OLE, TINT16}:   ssa.OpLeq16,
@@ -1755,9 +1752,6 @@ var opToSSA = map[opAndType]ssa.Op{
 	opAndType{OLE, TUINT64}:  ssa.OpLeq64U,
 	opAndType{OLE, TFLOAT64}: ssa.OpLeq64F,
 	opAndType{OLE, TFLOAT32}: ssa.OpLeq32F,
-
-	opAndType{OGE, TFLOAT64}: ssa.OpGeq64F,
-	opAndType{OGE, TFLOAT32}: ssa.OpGeq32F,
 }
 
 func (s *state) concreteEtype(t *types.Type) types.EType {
@@ -2345,11 +2339,8 @@ func (s *state) expr(n *Node) *ssa.Value {
 				s.Fatalf("ordered complex compare %v", n.Op)
 			}
 		}
-		if n.Left.Type.IsFloat() {
-			return s.newValueOrSfCall2(s.ssaOp(n.Op, n.Left.Type), types.Types[TBOOL], a, b)
-		}
 
-		// Integer: convert OGE and OGT into OLE and OLT.
+		// Convert OGE and OGT into OLE and OLT.
 		op := n.Op
 		switch op {
 		case OGE:
@@ -2357,6 +2348,11 @@ func (s *state) expr(n *Node) *ssa.Value {
 		case OGT:
 			op, a, b = OLT, b, a
 		}
+		if n.Left.Type.IsFloat() {
+			// float comparison
+			return s.newValueOrSfCall2(s.ssaOp(op, n.Left.Type), types.Types[TBOOL], a, b)
+		}
+		// integer comparison
 		return s.newValue2(s.ssaOp(op, n.Left.Type), types.Types[TBOOL], a, b)
 	case OMUL:
 		a := s.expr(n.Left)
@@ -2834,7 +2830,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 			// Tell liveness we're about to build a new slice
 			s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, sn, s.mem())
 		}
-		capaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, int64(slice_cap), addr)
+		capaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, sliceCapOffset, addr)
 		s.store(types.Types[TINT], capaddr, r[2])
 		s.store(pt, addr, r[0])
 		// load the value we just stored to avoid having to spill it
@@ -2855,7 +2851,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 	if inplace {
 		l = s.variable(&lenVar, types.Types[TINT]) // generates phi for len
 		nl = s.newValue2(s.ssaOp(OADD, types.Types[TINT]), types.Types[TINT], l, s.constInt(types.Types[TINT], nargs))
-		lenaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, int64(slice_nel), addr)
+		lenaddr := s.newValue1I(ssa.OpOffPtr, s.f.Config.Types.IntPtr, sliceLenOffset, addr)
 		s.store(types.Types[TINT], lenaddr, nl)
 	}
 
@@ -3158,18 +3154,14 @@ func softfloatInit() {
 		ssa.OpDiv32F: sfRtCallDef{sysfunc("fdiv32"), TFLOAT32},
 		ssa.OpDiv64F: sfRtCallDef{sysfunc("fdiv64"), TFLOAT64},
 
-		ssa.OpEq64F:      sfRtCallDef{sysfunc("feq64"), TBOOL},
-		ssa.OpEq32F:      sfRtCallDef{sysfunc("feq32"), TBOOL},
-		ssa.OpNeq64F:     sfRtCallDef{sysfunc("feq64"), TBOOL},
-		ssa.OpNeq32F:     sfRtCallDef{sysfunc("feq32"), TBOOL},
-		ssa.OpLess64F:    sfRtCallDef{sysfunc("fgt64"), TBOOL},
-		ssa.OpLess32F:    sfRtCallDef{sysfunc("fgt32"), TBOOL},
-		ssa.OpGreater64F: sfRtCallDef{sysfunc("fgt64"), TBOOL},
-		ssa.OpGreater32F: sfRtCallDef{sysfunc("fgt32"), TBOOL},
-		ssa.OpLeq64F:     sfRtCallDef{sysfunc("fge64"), TBOOL},
-		ssa.OpLeq32F:     sfRtCallDef{sysfunc("fge32"), TBOOL},
-		ssa.OpGeq64F:     sfRtCallDef{sysfunc("fge64"), TBOOL},
-		ssa.OpGeq32F:     sfRtCallDef{sysfunc("fge32"), TBOOL},
+		ssa.OpEq64F:   sfRtCallDef{sysfunc("feq64"), TBOOL},
+		ssa.OpEq32F:   sfRtCallDef{sysfunc("feq32"), TBOOL},
+		ssa.OpNeq64F:  sfRtCallDef{sysfunc("feq64"), TBOOL},
+		ssa.OpNeq32F:  sfRtCallDef{sysfunc("feq32"), TBOOL},
+		ssa.OpLess64F: sfRtCallDef{sysfunc("fgt64"), TBOOL},
+		ssa.OpLess32F: sfRtCallDef{sysfunc("fgt32"), TBOOL},
+		ssa.OpLeq64F:  sfRtCallDef{sysfunc("fge64"), TBOOL},
+		ssa.OpLeq32F:  sfRtCallDef{sysfunc("fge32"), TBOOL},
 
 		ssa.OpCvt32to32F:  sfRtCallDef{sysfunc("fint32to32"), TFLOAT32},
 		ssa.OpCvt32Fto32:  sfRtCallDef{sysfunc("f32toint32"), TINT32},
@@ -3285,10 +3277,7 @@ func init() {
 				// Compiler frontend optimizations emit OBYTES2STRTMP nodes
 				// for the backend instead of slicebytetostringtmp calls
 				// when not instrumenting.
-				slice := args[0]
-				ptr := s.newValue1(ssa.OpSlicePtr, s.f.Config.Types.BytePtr, slice)
-				len := s.newValue1(ssa.OpSliceLen, types.Types[TINT], slice)
-				return s.newValue2(ssa.OpStringMake, n.Type, ptr, len)
+				return s.newValue2(ssa.OpStringMake, n.Type, args[0], args[1])
 			},
 			all...)
 	}
@@ -6357,20 +6346,6 @@ func (s *SSAGenState) FPJump(b, next *ssa.Block, jumps *[2][2]FloatingEQNEJump) 
 	}
 }
 
-func AuxOffset(v *ssa.Value) (offset int64) {
-	if v.Aux == nil {
-		return 0
-	}
-	n, ok := v.Aux.(*Node)
-	if !ok {
-		v.Fatalf("bad aux type in %s\n", v.LongString())
-	}
-	if n.Class() == PAUTO {
-		return n.Xoffset
-	}
-	return 0
-}
-
 // AddAux adds the offset in the aux fields (AuxInt and Aux) of v to a.
 func AddAux(a *obj.Addr, v *ssa.Value) {
 	AddAux2(a, v, v.AuxInt)
@@ -6669,21 +6644,21 @@ func fieldIdx(n *Node) int {
 // It also exports a bunch of compiler services for the ssa backend.
 type ssafn struct {
 	curfn        *Node
-	strings      map[string]interface{} // map from constant string to data symbols
-	scratchFpMem *Node                  // temp for floating point register / memory moves on some architectures
-	stksize      int64                  // stack size for current frame
-	stkptrsize   int64                  // prefix of stack containing pointers
-	log          bool                   // print ssa debug to the stdout
+	strings      map[string]*obj.LSym // map from constant string to data symbols
+	scratchFpMem *Node                // temp for floating point register / memory moves on some architectures
+	stksize      int64                // stack size for current frame
+	stkptrsize   int64                // prefix of stack containing pointers
+	log          bool                 // print ssa debug to the stdout
 }
 
-// StringData returns a symbol (a *types.Sym wrapped in an interface) which
+// StringData returns a symbol which
 // is the data component of a global string constant containing s.
-func (e *ssafn) StringData(s string) interface{} {
+func (e *ssafn) StringData(s string) *obj.LSym {
 	if aux, ok := e.strings[s]; ok {
 		return aux
 	}
 	if e.strings == nil {
-		e.strings = make(map[string]interface{})
+		e.strings = make(map[string]*obj.LSym)
 	}
 	data := stringsym(e.curfn.Pos, s)
 	e.strings[s] = data

@@ -95,6 +95,8 @@ var optimizedLibs = (!strings.Contains(gogcflags, "-N") && !strings.Contains(gog
 // go test debug_test.go -args -u -d
 
 func TestNexting(t *testing.T) {
+	testenv.SkipFlaky(t, 37404)
+
 	skipReasons := "" // Many possible skip reasons, list all that apply
 	if testing.Short() {
 		skipReasons = "not run in short mode; "

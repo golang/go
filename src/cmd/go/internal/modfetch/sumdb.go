@@ -200,8 +200,10 @@ func (c *dbClient) ReadConfig(file string) (data []byte, err error) {
 		return []byte(c.key), nil
 	}
 
-	// GOPATH/pkg is PkgMod/..
-	targ := filepath.Join(PkgMod, "../sumdb/"+file)
+	if cfg.SumdbDir == "" {
+		return nil, errors.New("could not locate sumdb file: missing $GOPATH")
+	}
+	targ := filepath.Join(cfg.SumdbDir, file)
 	data, err = lockedfile.Read(targ)
 	if errors.Is(err, os.ErrNotExist) {
 		// Treat non-existent as empty, to bootstrap the "latest" file
@@ -217,7 +219,10 @@ func (*dbClient) WriteConfig(file string, old, new []byte) error {
 		// Should not happen.
 		return fmt.Errorf("cannot write key")
 	}
-	targ := filepath.Join(PkgMod, "../sumdb/"+file)
+	if cfg.SumdbDir == "" {
+		return errors.New("could not locate sumdb file: missing $GOPATH")
+	}
+	targ := filepath.Join(cfg.SumdbDir, file)
 	os.MkdirAll(filepath.Dir(targ), 0777)
 	f, err := lockedfile.Edit(targ)
 	if err != nil {
@@ -247,7 +252,7 @@ func (*dbClient) WriteConfig(file string, old, new []byte) error {
 // GOPATH/pkg/mod/cache/download/sumdb,
 // which will be deleted by "go clean -modcache".
 func (*dbClient) ReadCache(file string) ([]byte, error) {
-	targ := filepath.Join(PkgMod, "cache/download/sumdb", file)
+	targ := filepath.Join(cfg.GOMODCACHE, "cache/download/sumdb", file)
 	data, err := lockedfile.Read(targ)
 	// lockedfile.Write does not atomically create the file with contents.
 	// There is a moment between file creation and locking the file for writing,
@@ -261,7 +266,7 @@ func (*dbClient) ReadCache(file string) ([]byte, error) {
 
 // WriteCache updates cached lookups or tiles.
 func (*dbClient) WriteCache(file string, data []byte) {
-	targ := filepath.Join(PkgMod, "cache/download/sumdb", file)
+	targ := filepath.Join(cfg.GOMODCACHE, "cache/download/sumdb", file)
 	os.MkdirAll(filepath.Dir(targ), 0777)
 	lockedfile.Write(targ, bytes.NewReader(data), 0666)
 }

@@ -298,12 +298,6 @@
 (Leq32U x y) -> (LessEqualU (CMPW x y))
 (Leq64U x y) -> (LessEqualU (CMP x y))
 
-(Greater32F x y) -> (GreaterThanF (FCMPS x y))
-(Greater64F x y) -> (GreaterThanF (FCMPD x y))
-
-(Geq32F x y) -> (GreaterEqualF (FCMPS x y))
-(Geq64F x y) -> (GreaterEqualF (FCMPD x y))
-
 // Optimize comparison between a floating-point value and 0.0 with "FCMP $(0.0), Fn"
 (FCMPS x (FMOVSconst [0])) -> (FCMPS0 x)
 (FCMPS (FMOVSconst [0]) x) -> (InvertFlags (FCMPS0 x))

@@ -517,7 +517,7 @@ func listStdPkgs(goroot string) ([]string, error) {
 }
 
 func TestDependencies(t *testing.T) {
-	iOS := runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64")
+	iOS := runtime.GOOS == "darwin" && runtime.GOARCH == "arm64"
 	if iOS {
 		// Tests run in a limited file system and we do not
 		// provide access to every source file.

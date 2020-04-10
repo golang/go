@@ -202,12 +202,6 @@ var genericOps = []opData{
 	{name: "Leq32F", argLength: 2, typ: "Bool"},
 	{name: "Leq64F", argLength: 2, typ: "Bool"},
 
-	{name: "Greater32F", argLength: 2, typ: "Bool"},
-	{name: "Greater64F", argLength: 2, typ: "Bool"},
-
-	{name: "Geq32F", argLength: 2, typ: "Bool"},
-	{name: "Geq64F", argLength: 2, typ: "Bool"},
-
 	// the type of a CondSelect is the same as the type of its first
 	// two arguments, which should be register-width scalars; the third
 	// argument should be a boolean

@@ -82,8 +82,12 @@ func helperCommandContext(t *testing.T, ctx context.Context, s ...string) (cmd *
 
 	// Temporary code to try to resolve #25628.
 	// TODO(iant): Remove this when we no longer need it.
-	if runtime.GOARCH == "386" && runtime.GOOS == "linux" && testenv.Builder() != "" && len(s) == 1 && s[0] == "read3" && ctx == nil {
-		cmd = exec.Command("/usr/bin/strace", append([]string{"-f", os.Args[0]}, cs...)...)
+	if runtime.GOARCH == "386" && runtime.GOOS == "linux" && testenv.Builder() != "" && len(s) == 1 && s[0] == "read3" {
+		sctx := ctx
+		if sctx == nil {
+			sctx = context.Background()
+		}
+		cmd = exec.CommandContext(sctx, "/usr/bin/strace", append([]string{"-f", os.Args[0]}, cs...)...)
 	}
 
 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
@@ -683,7 +687,18 @@ func TestExtraFiles(t *testing.T) {
 		t.Fatalf("Seek: %v", err)
 	}
 
-	c := helperCommand(t, "read3")
+	// Use a deadline to try to get some output even if the program hangs.
+	ctx := context.Background()
+	if deadline, ok := t.Deadline(); ok {
+		// Leave a 20% grace period to flush output, which may be large on the
+		// linux/386 builders because we're running the subprocess under strace.
+		deadline = deadline.Add(-time.Until(deadline) / 5)
+
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithDeadline(ctx, deadline)
+		defer cancel()
+	}
+	c := helperCommandContext(t, ctx, "read3")
 	var stdout, stderr bytes.Buffer
 	c.Stdout = &stdout
 	c.Stderr = &stderr

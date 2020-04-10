@@ -5,13 +5,13 @@
 // Lowering arithmetic
 (Add(64|Ptr) ...) -> (ADD ...)
 (Add(32|16|8) ...) -> (ADDW ...)
-(Add32F ...) -> (FADDS ...)
-(Add64F ...) -> (FADD ...)
+(Add32F x y) -> (Select0 (FADDS x y))
+(Add64F x y) -> (Select0 (FADD x y))
 
 (Sub(64|Ptr) ...) -> (SUB ...)
 (Sub(32|16|8) ...) -> (SUBW ...)
-(Sub32F ...) -> (FSUBS ...)
-(Sub64F ...) -> (FSUB ...)
+(Sub32F x y) -> (Select0 (FSUBS x y))
+(Sub64F x y) -> (Select0 (FSUB x y))
 
 (Mul64 ...) -> (MULLD ...)
 (Mul(32|16|8) ...) -> (MULLW ...)
@@ -316,12 +316,6 @@
 (Leq(16|8)U x y) -> (LOCGR {s390x.LessOrEqual} (MOVDconst [0]) (MOVDconst [1]) (CMPWU (MOV(H|B)Zreg x) (MOV(H|B)Zreg y)))
 (Leq64F     x y) -> (LOCGR {s390x.LessOrEqual} (MOVDconst [0]) (MOVDconst [1]) (FCMP x y))
 (Leq32F     x y) -> (LOCGR {s390x.LessOrEqual} (MOVDconst [0]) (MOVDconst [1]) (FCMPS x y))
-
-(Greater64F     x y) -> (LOCGR {s390x.Greater} (MOVDconst [0]) (MOVDconst [1]) (FCMP x y))
-(Greater32F     x y) -> (LOCGR {s390x.Greater} (MOVDconst [0]) (MOVDconst [1]) (FCMPS x y))
-
-(Geq64F     x y) -> (LOCGR {s390x.GreaterOrEqual} (MOVDconst [0]) (MOVDconst [1]) (FCMP x y))
-(Geq32F     x y) -> (LOCGR {s390x.GreaterOrEqual} (MOVDconst [0]) (MOVDconst [1]) (FCMPS x y))
 
 (Eq(64|Ptr) x y) -> (LOCGR {s390x.Equal} (MOVDconst [0]) (MOVDconst [1]) (CMP x y))
 (Eq32       x y) -> (LOCGR {s390x.Equal} (MOVDconst [0]) (MOVDconst [1]) (CMPW x y))
@@ -1215,10 +1209,8 @@
   -> (SUBE x y c)
 
 // fused multiply-add
-(FADD (FMUL y z) x) -> (FMADD x y z)
-(FADDS (FMULS y z) x) -> (FMADDS x y z)
-(FSUB (FMUL y z) x) -> (FMSUB x y z)
-(FSUBS (FMULS y z) x) -> (FMSUBS x y z)
+(Select0 (F(ADD|SUB) (FMUL y z) x)) -> (FM(ADD|SUB) x y z)
+(Select0 (F(ADDS|SUBS) (FMULS y z) x)) -> (FM(ADDS|SUBS) x y z)
 
 // Convert floating point comparisons against zero into 'load and test' instructions.
 (FCMP x (FMOVDconst [c])) && auxTo64F(c) == 0 -> (LTDBR x)
@@ -1226,46 +1218,32 @@
 (FCMP (FMOVDconst [c]) x) && auxTo64F(c) == 0 -> (InvertFlags (LTDBR <v.Type> x))
 (FCMPS (FMOVSconst [c]) x) && auxTo32F(c) == 0 -> (InvertFlags (LTEBR <v.Type> x))
 
+// FSUB, FSUBS, FADD, FADDS now produce a flag, so when a comparison against zero instruction (e.g: LTDBR) is following
+// one of those instructions, we can use the generated flag and remove the comparison instruction.
+(LTDBR (Select0 x:(F(ADD|SUB) _ _)))  -> (Select1 x)
+(LTEBR (Select0 x:(F(ADDS|SUBS) _ _))) -> (Select1 x)
+
 // Fold memory operations into operations.
 // Exclude global data (SB) because these instructions cannot handle relative addresses.
-// TODO(mundaym): use LARL in the assembler to handle SB?
 // TODO(mundaym): indexed versions of these?
-(ADD <t> x g:(MOVDload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (ADDload <t> [off] {sym} x ptr mem)
-(ADDW <t> x g:(MOVWload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (ADDWload <t> [off] {sym} x ptr mem)
-(ADDW <t> x g:(MOVWZload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (ADDWload <t> [off] {sym} x ptr mem)
-(MULLD <t> x g:(MOVDload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (MULLDload <t> [off] {sym} x ptr mem)
-(MULLW <t> x g:(MOVWload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (MULLWload <t> [off] {sym} x ptr mem)
-(MULLW <t> x g:(MOVWZload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (MULLWload <t> [off] {sym} x ptr mem)
-(SUB <t> x g:(MOVDload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (SUBload <t> [off] {sym} x ptr mem)
-(SUBW <t> x g:(MOVWload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (SUBWload <t> [off] {sym} x ptr mem)
-(SUBW <t> x g:(MOVWZload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (SUBWload <t> [off] {sym} x ptr mem)
-(AND <t> x g:(MOVDload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (ANDload <t> [off] {sym} x ptr mem)
-(ANDW <t> x g:(MOVWload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (ANDWload <t> [off] {sym} x ptr mem)
-(ANDW <t> x g:(MOVWZload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (ANDWload <t> [off] {sym} x ptr mem)
-(OR <t> x g:(MOVDload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (ORload <t> [off] {sym} x ptr mem)
-(ORW <t> x g:(MOVWload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (ORWload <t> [off] {sym} x ptr mem)
-(ORW <t> x g:(MOVWZload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (ORWload <t> [off] {sym} x ptr mem)
-(XOR <t> x g:(MOVDload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (XORload <t> [off] {sym} x ptr mem)
-(XORW <t> x g:(MOVWload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (XORWload <t> [off] {sym} x ptr mem)
-(XORW <t> x g:(MOVWZload [off] {sym} ptr mem)) && ptr.Op != OpSB && is20Bit(off) && canMergeLoadClobber(v, g, x) && clobber(g)
-	-> (XORWload <t> [off] {sym} x ptr mem)
+((ADD|SUB|MULLD|AND|OR|XOR) <t> x g:(MOVDload [off] {sym} ptr mem))
+  && ptr.Op != OpSB
+  && is20Bit(off)
+  && canMergeLoadClobber(v, g, x)
+  && clobber(g)
+  -> ((ADD|SUB|MULLD|AND|OR|XOR)load <t> [off] {sym} x ptr mem)
+((ADD|SUB|MULL|AND|OR|XOR)W <t> x g:(MOVWload [off] {sym} ptr mem))
+  && ptr.Op != OpSB
+  && is20Bit(off)
+  && canMergeLoadClobber(v, g, x)
+  && clobber(g)
+  -> ((ADD|SUB|MULL|AND|OR|XOR)Wload <t> [off] {sym} x ptr mem)
+((ADD|SUB|MULL|AND|OR|XOR)W <t> x g:(MOVWZload [off] {sym} ptr mem))
+  && ptr.Op != OpSB
+  && is20Bit(off)
+  && canMergeLoadClobber(v, g, x)
+  && clobber(g)
+  -> ((ADD|SUB|MULL|AND|OR|XOR)Wload <t> [off] {sym} x ptr mem)
 
 // Combine constant stores into larger (unaligned) stores.
 // Avoid SB because constant stores to relative offsets are

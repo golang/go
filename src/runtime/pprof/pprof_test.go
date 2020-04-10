@@ -226,7 +226,7 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
 	switch runtime.GOOS {
 	case "darwin":
 		switch runtime.GOARCH {
-		case "arm", "arm64":
+		case "arm64":
 			// nothing
 		default:
 			out, err := exec.Command("uname", "-a").CombinedOutput()

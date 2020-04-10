@@ -6,6 +6,7 @@ package runtime_test
 
 import (
 	"fmt"
+	"internal/race"
 	"math"
 	"net"
 	"runtime"
@@ -421,6 +422,11 @@ func TestPingPongHog(t *testing.T) {
 	}
 	if testing.Short() {
 		t.Skip("skipping in -short mode")
+	}
+	if race.Enabled {
+		// The race detector randomizes the scheduler,
+		// which causes this test to fail (#38266).
+		t.Skip("skipping in -race mode")
 	}
 
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))

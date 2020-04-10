@@ -100,15 +100,6 @@ func archinit(ctxt *ld.Link) {
 			*ld.FlagRound = 0x10000
 		}
 
-	case objabi.Hdarwin: /* apple MACH */
-		ld.HEADR = ld.INITIAL_MACHO_HEADR
-		if *ld.FlagTextAddr == -1 {
-			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
-		}
-		if *ld.FlagRound == -1 {
-			*ld.FlagRound = 4096
-		}
-
 	case objabi.Hwindows: /* PE executable */
 		// ld.HEADR, ld.FlagTextAddr, ld.FlagRound are set in ld.Peinit
 		return

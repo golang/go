@@ -789,11 +789,6 @@ func asmb(ctxt *ld.Link) {
 }
 
 func asmb2(ctxt *ld.Link) {
-	machlink := uint32(0)
-	if ctxt.HeadType == objabi.Hdarwin {
-		machlink = uint32(ld.Domacholink(ctxt))
-	}
-
 	/* output symbol table */
 	ld.Symsize = 0
 
@@ -810,9 +805,6 @@ func asmb2(ctxt *ld.Link) {
 
 		case objabi.Hplan9:
 			symo = uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
-
-		case objabi.Hdarwin:
-			symo = uint32(ld.Segdwarf.Fileoff + uint64(ld.Rnd(int64(ld.Segdwarf.Filelen), int64(*ld.FlagRound))) + uint64(machlink))
 
 		case objabi.Hwindows:
 			symo = uint32(ld.Segdwarf.Fileoff + ld.Segdwarf.Filelen)
@@ -845,11 +837,6 @@ func asmb2(ctxt *ld.Link) {
 
 		case objabi.Hwindows:
 			// Do nothing
-
-		case objabi.Hdarwin:
-			if ctxt.LinkMode == ld.LinkExternal {
-				ld.Machoemitreloc(ctxt)
-			}
 		}
 	}
 
@@ -871,9 +858,6 @@ func asmb2(ctxt *ld.Link) {
 		objabi.Hnetbsd,
 		objabi.Hopenbsd:
 		ld.Asmbelf(ctxt, int64(symo))
-
-	case objabi.Hdarwin:
-		ld.Asmbmacho(ctxt)
 
 	case objabi.Hwindows:
 		ld.Asmbpe(ctxt)

@@ -12,10 +12,6 @@
 # See: https://github.com/golang/go/issues/36739
 [linux] [riscv64] skip
 
-# External linking is not supported on darwin/386 (10.14+).
-# See: https://github.com/golang/go/issues/31751
-[darwin] [386] skip
-
 cc -c -o syso/objTestImpl.syso syso/src/objTestImpl.c
 go build -ldflags='-linkmode=external' ./cmd/main.go
 
