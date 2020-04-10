@@ -131,7 +131,7 @@ func (sb *SymbolBuilder) Relocs() Relocs {
 func (sb *SymbolBuilder) SetRelocs(rslice []Reloc) {
 	n := len(rslice)
 	if cap(sb.relocs) < n {
-		sb.relocs = make([]goobj2.Reloc2, n)
+		sb.relocs = make([]goobj2.Reloc, n)
 		sb.reltypes = make([]objabi.RelocType, n)
 	} else {
 		sb.relocs = sb.relocs[:n]
@@ -144,7 +144,7 @@ func (sb *SymbolBuilder) SetRelocs(rslice []Reloc) {
 
 // Add n relocations, return a handle to the relocations.
 func (sb *SymbolBuilder) AddRelocs(n int) Relocs {
-	sb.relocs = append(sb.relocs, make([]goobj2.Reloc2, n)...)
+	sb.relocs = append(sb.relocs, make([]goobj2.Reloc, n)...)
 	sb.reltypes = append(sb.reltypes, make([]objabi.RelocType, n)...)
 	return sb.l.Relocs(sb.symIdx)
 }
@@ -153,7 +153,7 @@ func (sb *SymbolBuilder) AddRelocs(n int) Relocs {
 // (to set other fields).
 func (sb *SymbolBuilder) AddRel(typ objabi.RelocType) (Reloc2, int) {
 	j := len(sb.relocs)
-	sb.relocs = append(sb.relocs, goobj2.Reloc2{})
+	sb.relocs = append(sb.relocs, goobj2.Reloc{})
 	sb.reltypes = append(sb.reltypes, typ)
 	relocs := sb.Relocs()
 	return relocs.At2(j), j
@@ -180,7 +180,7 @@ func (p *relocsByOff) Swap(i, j int) {
 func (sb *SymbolBuilder) AddReloc(r Reloc) uint32 {
 	// Populate a goobj2.Reloc from external reloc record.
 	rval := uint32(len(sb.relocs))
-	var b goobj2.Reloc2
+	var b goobj2.Reloc
 	b.Set(r.Off, r.Size, 0, r.Add, goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(r.Sym)})
 	sb.relocs = append(sb.relocs, b)
 	sb.reltypes = append(sb.reltypes, r.Type)
