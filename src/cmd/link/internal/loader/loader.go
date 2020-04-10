@@ -1532,6 +1532,7 @@ type FuncInfo struct {
 	l       *Loader
 	r       *oReader
 	data    []byte
+	auxs    []goobj2.Aux
 	lengths goobj2.FuncInfoLengths
 }
 
@@ -1603,7 +1604,7 @@ func (fi *FuncInfo) Funcdataoff(k int) int64 {
 	return (*goobj2.FuncInfo)(nil).ReadFuncdataoff(fi.data, fi.lengths.FuncdataoffOff, uint32(k))
 }
 
-func (fi *FuncInfo) Funcdata(fnsym Sym, syms []Sym) []Sym {
+func (fi *FuncInfo) Funcdata(syms []Sym) []Sym {
 	if !fi.lengths.Initialized {
 		panic("need to call Preload first")
 	}
@@ -1612,10 +1613,8 @@ func (fi *FuncInfo) Funcdata(fnsym Sym, syms []Sym) []Sym {
 	} else {
 		syms = syms[:0]
 	}
-	r, li := fi.l.toLocal(fnsym)
-	auxs := r.Auxs(li)
-	for j := range auxs {
-		a := &auxs[j]
+	for j := range fi.auxs {
+		a := &fi.auxs[j]
 		if a.Type() == goobj2.AuxFuncdata {
 			syms = append(syms, fi.l.resolve(fi.r, a.Sym()))
 		}
@@ -1686,7 +1685,7 @@ func (l *Loader) FuncInfo(i Sym) FuncInfo {
 		a := &auxs[j]
 		if a.Type() == goobj2.AuxFuncInfo {
 			b := r.Data(int(a.Sym().SymIdx))
-			return FuncInfo{l, r, b, goobj2.FuncInfoLengths{}}
+			return FuncInfo{l, r, b, auxs, goobj2.FuncInfoLengths{}}
 		}
 	}
 	return FuncInfo{}
