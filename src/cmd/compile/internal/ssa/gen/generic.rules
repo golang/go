@@ -504,10 +504,6 @@
 (Eq64F      (Const64F [c]) (Const64F [d])) -> (ConstBool [b2i(auxTo64F(c) == auxTo64F(d))])
 (Neq32F     (Const32F [c]) (Const32F [d])) -> (ConstBool [b2i(auxTo32F(c) != auxTo32F(d))])
 (Neq64F     (Const64F [c]) (Const64F [d])) -> (ConstBool [b2i(auxTo64F(c) != auxTo64F(d))])
-(Greater32F (Const32F [c]) (Const32F [d])) -> (ConstBool [b2i(auxTo32F(c) > auxTo32F(d))])
-(Greater64F (Const64F [c]) (Const64F [d])) -> (ConstBool [b2i(auxTo64F(c) > auxTo64F(d))])
-(Geq32F     (Const32F [c]) (Const32F [d])) -> (ConstBool [b2i(auxTo32F(c) >= auxTo32F(d))])
-(Geq64F     (Const64F [c]) (Const64F [d])) -> (ConstBool [b2i(auxTo64F(c) >= auxTo64F(d))])
 (Less32F    (Const32F [c]) (Const32F [d])) -> (ConstBool [b2i(auxTo32F(c) < auxTo32F(d))])
 (Less64F    (Const64F [c]) (Const64F [d])) -> (ConstBool [b2i(auxTo64F(c) < auxTo64F(d))])
 (Leq32F     (Const32F [c]) (Const32F [d])) -> (ConstBool [b2i(auxTo32F(c) <= auxTo32F(d))])
@@ -877,20 +873,20 @@
 // to other passes for optimizations.
 (StringPtr (StringMake (Addr <t> {s} base) _)) -> (Addr <t> {s} base)
 (StringLen (StringMake _ (Const64 <t> [c]))) -> (Const64 <t> [c])
-(ConstString {s}) && config.PtrSize == 4 && s.(string) == "" ->
+(ConstString {str}) && config.PtrSize == 4 && str == "" =>
   (StringMake (ConstNil) (Const32 <typ.Int> [0]))
-(ConstString {s}) && config.PtrSize == 8 && s.(string) == "" ->
+(ConstString {str}) && config.PtrSize == 8 && str == "" =>
   (StringMake (ConstNil) (Const64 <typ.Int> [0]))
-(ConstString {s}) && config.PtrSize == 4 && s.(string) != "" ->
+(ConstString {str}) && config.PtrSize == 4 && str != "" =>
   (StringMake
-    (Addr <typ.BytePtr> {fe.StringData(s.(string))}
+    (Addr <typ.BytePtr> {fe.StringData(str)}
       (SB))
-    (Const32 <typ.Int> [int64(len(s.(string)))]))
-(ConstString {s}) && config.PtrSize == 8 && s.(string) != "" ->
+    (Const32 <typ.Int> [int32(len(str))]))
+(ConstString {str}) && config.PtrSize == 8 && str != "" =>
   (StringMake
-    (Addr <typ.BytePtr> {fe.StringData(s.(string))}
+    (Addr <typ.BytePtr> {fe.StringData(str)}
       (SB))
-    (Const64 <typ.Int> [int64(len(s.(string)))]))
+    (Const64 <typ.Int> [int64(len(str))]))
 
 // slice ops
 // Only a few slice rules are provided here.  See dec.rules for

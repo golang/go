@@ -54,7 +54,8 @@ type ctxt9 struct {
 // Instruction layout.
 
 const (
-	funcAlign = 16
+	funcAlign     = 16
+	funcAlignMask = funcAlign - 1
 )
 
 const (
@@ -622,11 +623,11 @@ var xcmp [C_NCLASS][C_NCLASS]bool
 func addpad(pc, a int64, ctxt *obj.Link) int {
 	switch a {
 	case 8:
-		if pc%8 != 0 {
+		if pc&7 != 0 {
 			return 4
 		}
 	case 16:
-		switch pc % 16 {
+		switch pc & 15 {
 		case 4, 12:
 			return 4
 		case 8:
@@ -735,8 +736,8 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		c.cursym.Size = pc
 	}
 
-	if pc%funcAlign != 0 {
-		pc += funcAlign - (pc % funcAlign)
+	if r := pc & funcAlignMask; r != 0 {
+		pc += funcAlign - r
 	}
 
 	c.cursym.Size = pc

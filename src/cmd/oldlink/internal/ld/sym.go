@@ -93,19 +93,13 @@ func (ctxt *Link) computeTLSOffset() {
 
 			/*
 			 * For x86, Apple has reserved a slot in the TLS for Go. See issue 23617.
-			 * That slot is at offset 0x30 on amd64, and 0x18 on 386.
+			 * That slot is at offset 0x30 on amd64.
 			 * The slot will hold the G pointer.
 			 * These constants should match those in runtime/sys_darwin_{386,amd64}.s
 			 * and runtime/cgo/gcc_darwin_{386,amd64}.c.
 			 */
-		case sys.I386:
-			ctxt.Tlsoffset = 0x18
-
 		case sys.AMD64:
 			ctxt.Tlsoffset = 0x30
-
-		case sys.ARM:
-			ctxt.Tlsoffset = 0 // dummy value, not needed
 
 		case sys.ARM64:
 			ctxt.Tlsoffset = 0 // dummy value, not needed

@@ -34,6 +34,7 @@ func (c *mcentral) init(spc spanClass) {
 	c.spanclass = spc
 	c.nonempty.init()
 	c.empty.init()
+	lockInit(&c.lock, lockRankMcentral)
 }
 
 // Allocate a span to use in an mcache.

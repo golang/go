@@ -654,10 +654,6 @@ func rewriteValueARM64(v *Value) bool {
 	case OpFloor:
 		v.Op = OpARM64FRINTMD
 		return true
-	case OpGeq32F:
-		return rewriteValueARM64_OpGeq32F(v)
-	case OpGeq64F:
-		return rewriteValueARM64_OpGeq64F(v)
 	case OpGetCallerPC:
 		v.Op = OpARM64LoweredGetCallerPC
 		return true
@@ -667,10 +663,6 @@ func rewriteValueARM64(v *Value) bool {
 	case OpGetClosurePtr:
 		v.Op = OpARM64LoweredGetClosurePtr
 		return true
-	case OpGreater32F:
-		return rewriteValueARM64_OpGreater32F(v)
-	case OpGreater64F:
-		return rewriteValueARM64_OpGreater64F(v)
 	case OpHmul32:
 		return rewriteValueARM64_OpHmul32(v)
 	case OpHmul32u:
@@ -22308,70 +22300,6 @@ func rewriteValueARM64_OpFMA(v *Value) bool {
 		z := v_2
 		v.reset(OpARM64FMADDD)
 		v.AddArg3(z, x, y)
-		return true
-	}
-}
-func rewriteValueARM64_OpGeq32F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq32F x y)
-	// result: (GreaterEqualF (FCMPS x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARM64GreaterEqualF)
-		v0 := b.NewValue0(v.Pos, OpARM64FCMPS, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM64_OpGeq64F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq64F x y)
-	// result: (GreaterEqualF (FCMPD x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARM64GreaterEqualF)
-		v0 := b.NewValue0(v.Pos, OpARM64FCMPD, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM64_OpGreater32F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater32F x y)
-	// result: (GreaterThanF (FCMPS x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARM64GreaterThanF)
-		v0 := b.NewValue0(v.Pos, OpARM64FCMPS, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM64_OpGreater64F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater64F x y)
-	// result: (GreaterThanF (FCMPD x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARM64GreaterThanF)
-		v0 := b.NewValue0(v.Pos, OpARM64FCMPD, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
 		return true
 	}
 }

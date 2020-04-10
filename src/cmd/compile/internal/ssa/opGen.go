@@ -2520,10 +2520,6 @@ const (
 	OpLeq64U
 	OpLeq32F
 	OpLeq64F
-	OpGreater32F
-	OpGreater64F
-	OpGeq32F
-	OpGeq64F
 	OpCondSelect
 	OpAndB
 	OpOrB
@@ -26948,7 +26944,6 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
-		clobberFlags: true,
 		asm:          s390x.AFADDS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -26965,7 +26960,6 @@ var opcodeTable = [...]opInfo{
 		argLen:       2,
 		commutative:  true,
 		resultInArg0: true,
-		clobberFlags: true,
 		asm:          s390x.AFADD,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -26981,7 +26975,6 @@ var opcodeTable = [...]opInfo{
 		name:         "FSUBS",
 		argLen:       2,
 		resultInArg0: true,
-		clobberFlags: true,
 		asm:          s390x.AFSUBS,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -26997,7 +26990,6 @@ var opcodeTable = [...]opInfo{
 		name:         "FSUB",
 		argLen:       2,
 		resultInArg0: true,
-		clobberFlags: true,
 		asm:          s390x.AFSUB,
 		reg: regInfo{
 			inputs: []inputInfo{
@@ -32630,26 +32622,6 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:    "Leq64F",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Greater32F",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Greater64F",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Geq32F",
-		argLen:  2,
-		generic: true,
-	},
-	{
-		name:    "Geq64F",
 		argLen:  2,
 		generic: true,
 	},

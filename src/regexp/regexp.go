@@ -345,6 +345,24 @@ func (re *Regexp) SubexpNames() []string {
 	return re.subexpNames
 }
 
+// SubexpIndex returns the index of the first subexpression with the given name,
+// or -1 if there is no subexpression with that name.
+//
+// Note that multiple subexpressions can be written using the same name, as in
+// (?P<bob>a+)(?P<bob>b+), which declares two subexpressions named "bob".
+// In this case, SubexpIndex returns the index of the leftmost such subexpression
+// in the regular expression.
+func (re *Regexp) SubexpIndex(name string) int {
+	if name != "" {
+		for i, s := range re.subexpNames {
+			if name == s {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
 const endOfText rune = -1
 
 // input abstracts different representations of the input text. It provides

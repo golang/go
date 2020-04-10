@@ -601,10 +601,12 @@ func (a Attribute) TextAttrString() string {
 	return s
 }
 
-// The compiler needs LSym to satisfy fmt.Stringer, because it stores
-// an LSym in ssa.ExternSymbol.
 func (s *LSym) String() string {
 	return s.Name
+}
+
+// The compiler needs *LSym to be assignable to cmd/compile/internal/ssa.Sym.
+func (s *LSym) CanBeAnSSASym() {
 }
 
 type Pcln struct {

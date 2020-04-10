@@ -214,9 +214,6 @@
 (Leq32U x y) -> (XOR (MOVVconst [1]) (SGTU (ZeroExt32to64 x) (ZeroExt32to64 y)))
 (Leq64U x y) -> (XOR (MOVVconst [1]) (SGTU x y))
 
-(Greater(32|64)F x y) -> (FPFlagTrue (CMPGT(F|D) x y))
-(Geq(32|64)F     x y) -> (FPFlagTrue (CMPGE(F|D) x y))
-
 (OffPtr [off] ptr:(SP)) -> (MOVVaddr [off] ptr)
 (OffPtr [off] ptr) -> (ADDVconst [off] ptr)
 

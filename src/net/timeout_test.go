@@ -745,7 +745,7 @@ func TestWriteTimeoutFluctuation(t *testing.T) {
 	defer c.Close()
 
 	d := time.Second
-	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
+	if iOS() {
 		d = 3 * time.Second // see golang.org/issue/10775
 	}
 	max := time.NewTimer(d)

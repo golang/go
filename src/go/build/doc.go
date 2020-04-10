@@ -86,11 +86,11 @@
 // of the individual constraints. That is, the build constraints:
 //
 //	// +build linux darwin
-//	// +build 386
+//	// +build amd64
 //
 // corresponds to the boolean formula:
 //
-//	(linux OR darwin) AND 386
+//	(linux OR darwin) AND amd64
 //
 // During a particular build, the following words are satisfied:
 //

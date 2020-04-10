@@ -174,9 +174,6 @@
 (Leq8U  x y) -> (I64LeU (ZeroExt8to64  x) (ZeroExt8to64  y))
 (Leq(64|32)F ...) -> (F(64|32)Le ...)
 
-(Greater(64|32)F ...) -> (F(64|32)Gt ...)
-(Geq(64|32)F     ...) -> (F(64|32)Ge ...)
-
 (Eq64  ...) -> (I64Eq ...)
 (Eq32  x y) -> (I64Eq (ZeroExt32to64 x) (ZeroExt32to64 y))
 (Eq16  x y) -> (I64Eq (ZeroExt16to64 x) (ZeroExt16to64 y))

@@ -18,8 +18,6 @@
 // The dist tool enables this by build flag when testing.
 
 // +build lldb
-// +build darwin
-// +build arm arm64
 
 #include <limits.h>
 #include <pthread.h>

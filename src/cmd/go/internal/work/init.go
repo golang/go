@@ -117,7 +117,7 @@ func buildModeInit() {
 			switch cfg.Goos {
 			case "darwin":
 				switch cfg.Goarch {
-				case "arm", "arm64":
+				case "arm64":
 					codegenArg = "-shared"
 				}
 
@@ -151,7 +151,7 @@ func buildModeInit() {
 			ldBuildmode = "pie"
 		case "darwin":
 			switch cfg.Goarch {
-			case "arm", "arm64":
+			case "arm64":
 				codegenArg = "-shared"
 			}
 			fallthrough

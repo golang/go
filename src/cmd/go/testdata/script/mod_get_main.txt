@@ -1,9 +1,18 @@
 env GO111MODULE=on
-[short] skip
+cp go.mod.orig go.mod
+
+# relative and absolute paths must be within the main module.
+! go get -d ..
+stderr '^go get \.\.: path '$WORK'[/\\]gopath is not a package in module rooted at '$WORK'[/\\]gopath[/\\]src$'
+! go get -d $WORK
+stderr '^go get '$WORK': path '$WORK' is not a package in module rooted at '$WORK'[/\\]gopath[/\\]src$'
+! go get -d ../...
+stderr '^go get: pattern \.\./\.\.\.: directory prefix \.\. outside available modules$'
+! go get -d $WORK/...
+stderr '^go get: pattern '$WORK'[/\\]\.\.\.: directory prefix \.\.[/\\]\.\. outside available modules$'
 
 # @patch and @latest within the main module refer to the current version.
 # The main module won't be upgraded, but missing dependencies will be added.
-cp go.mod.orig go.mod
 go get -d rsc.io/x
 grep 'rsc.io/quote v1.5.2' go.mod
 go get -d rsc.io/x@upgrade
@@ -18,7 +27,7 @@ cp go.mod.orig go.mod
 stderr '^go get rsc.io/x@latest: can.t request explicit version of path in main module$'
 
 # The main module cannot be updated to a specific version.
-! go get rsc.io/x@v0.1.0
+! go get -d rsc.io/x@v0.1.0
 stderr '^go get rsc.io/x@v0.1.0: can.t request explicit version of path in main module$'
 ! go get -d rsc.io/x@v0.1.0
 stderr '^go get rsc.io/x@v0.1.0: can.t request explicit version of path in main module$'
