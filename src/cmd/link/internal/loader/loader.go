@@ -2458,10 +2458,6 @@ func loadObjFull(l *Loader, r *oReader) {
 		return l.Syms[i]
 	}
 
-	funcs := []funcInfoSym{}
-	fdsyms := []*sym.Symbol{}
-	var funcAllocCounts funcAllocInfo
-	pcdataBase := r.PcdataBase()
 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
 		// A symbol may be a dup or overwritten. In this case, its
 		// content will actually be provided by a different object
@@ -2511,7 +2507,6 @@ func loadObjFull(l *Loader, r *oReader) {
 		l.convertRelocations(gi, &relocs, s, false)
 
 		// Aux symbol info
-		isym := -1
 		auxs := r.Auxs(i)
 		for j := range auxs {
 			a := &auxs[j]
@@ -2521,13 +2516,8 @@ func loadObjFull(l *Loader, r *oReader) {
 				if typ != nil {
 					s.Gotype = typ
 				}
-			case goobj2.AuxFuncdata:
-				fdsyms = append(fdsyms, resolveSymRef(a.Sym()))
-			case goobj2.AuxFuncInfo:
-				if a.Sym().PkgIdx != goobj2.PkgIdxSelf {
-					panic("funcinfo symbol not defined in current package")
-				}
-				isym = int(a.Sym().SymIdx)
+			case goobj2.AuxFuncInfo, goobj2.AuxFuncdata:
+				// already handled
 			case goobj2.AuxDwarfInfo, goobj2.AuxDwarfLoc, goobj2.AuxDwarfRanges, goobj2.AuxDwarfLines:
 				// ignored for now
 			default:
@@ -2544,130 +2534,6 @@ func loadObjFull(l *Loader, r *oReader) {
 		}
 		s.Attr.Set(sym.AttrLocal, local)
 		s.Attr.Set(sym.AttrMakeTypelink, makeTypelink)
-
-		if s.Type != sym.STEXT {
-			continue
-		}
-
-		if isym == -1 {
-			continue
-		}
-
-		// Record function sym and associated info for additional
-		// processing in the loop below.
-		fwis := funcInfoSym{s: s, isym: isym, osym: osym}
-		funcs = append(funcs, fwis)
-
-		// Read the goobj2.FuncInfo for this text symbol so that we can
-		// collect allocation counts. We'll read it again in the loop
-		// below.
-		b := r.Data(isym)
-		info := goobj2.FuncInfo{}
-		info.Read(b)
-		funcAllocCounts.symPtr += uint32(len(info.File))
-		funcAllocCounts.pcData += uint32(len(info.Pcdata))
-		funcAllocCounts.inlCall += uint32(len(info.InlTree))
-		funcAllocCounts.fdOff += uint32(len(info.Funcdataoff))
-	}
-
-	// At this point we can do batch allocation of the sym.FuncInfo's,
-	// along with the slices of sub-objects they use.
-	fiBatch := make([]sym.FuncInfo, len(funcs))
-	inlCallBatch := make([]sym.InlinedCall, funcAllocCounts.inlCall)
-	symPtrBatch := make([]*sym.Symbol, funcAllocCounts.symPtr)
-	pcDataBatch := make([]sym.Pcdata, funcAllocCounts.pcData)
-	fdOffBatch := make([]int64, funcAllocCounts.fdOff)
-
-	// Populate FuncInfo contents for func symbols.
-	for fi := 0; fi < len(funcs); fi++ {
-		s := funcs[fi].s
-		isym := funcs[fi].isym
-		osym := funcs[fi].osym
-
-		s.FuncInfo = &fiBatch[0]
-		fiBatch = fiBatch[1:]
-
-		b := r.Data(isym)
-		info := goobj2.FuncInfo{}
-		info.Read(b)
-
-		if osym.NoSplit() {
-			s.Attr |= sym.AttrNoSplit
-		}
-		if osym.ReflectMethod() {
-			s.Attr |= sym.AttrReflectMethod
-		}
-		if r.Flags()&goobj2.ObjFlagShared != 0 {
-			s.Attr |= sym.AttrShared
-		}
-		if osym.TopFrame() {
-			s.Attr |= sym.AttrTopFrame
-		}
-
-		pc := s.FuncInfo
-
-		if len(info.Funcdataoff) != 0 {
-			nfd := len(info.Funcdataoff)
-			pc.Funcdata = fdsyms[:nfd:nfd]
-			fdsyms = fdsyms[nfd:]
-		}
-
-		info.Pcdata = append(info.Pcdata, info.PcdataEnd) // for the ease of knowing where it ends
-		pc.Args = int32(info.Args)
-		pc.Locals = int32(info.Locals)
-
-		npc := len(info.Pcdata) - 1 // -1 as we appended one above
-		pc.Pcdata = pcDataBatch[:npc:npc]
-		pcDataBatch = pcDataBatch[npc:]
-
-		nfd := len(info.Funcdataoff)
-		pc.Funcdataoff = fdOffBatch[:nfd:nfd]
-		fdOffBatch = fdOffBatch[nfd:]
-
-		nsp := len(info.File)
-		pc.File = symPtrBatch[:nsp:nsp]
-		symPtrBatch = symPtrBatch[nsp:]
-
-		nic := len(info.InlTree)
-		pc.InlTree = inlCallBatch[:nic:nic]
-		inlCallBatch = inlCallBatch[nic:]
-
-		pc.Pcsp.P = r.BytesAt(pcdataBase+info.Pcsp, int(info.Pcfile-info.Pcsp))
-		pc.Pcfile.P = r.BytesAt(pcdataBase+info.Pcfile, int(info.Pcline-info.Pcfile))
-		pc.Pcline.P = r.BytesAt(pcdataBase+info.Pcline, int(info.Pcinline-info.Pcline))
-		pc.Pcinline.P = r.BytesAt(pcdataBase+info.Pcinline, int(info.Pcdata[0]-info.Pcinline))
-		for k := range pc.Pcdata {
-			pc.Pcdata[k].P = r.BytesAt(pcdataBase+info.Pcdata[k], int(info.Pcdata[k+1]-info.Pcdata[k]))
-		}
-		for k := range pc.Funcdataoff {
-			pc.Funcdataoff[k] = int64(info.Funcdataoff[k])
-		}
-		for k := range pc.File {
-			pc.File[k] = resolveSymRef(info.File[k])
-		}
-		for k := range pc.InlTree {
-			inl := &info.InlTree[k]
-			pc.InlTree[k] = sym.InlinedCall{
-				Parent:   inl.Parent,
-				File:     resolveSymRef(inl.File),
-				Line:     inl.Line,
-				Func:     l.SymName(l.resolve(r, inl.Func)),
-				ParentPC: inl.ParentPC,
-			}
-		}
-
-		dupok := osym.Dupok()
-		if !dupok {
-			if s.Attr.OnList() {
-				log.Fatalf("symbol %s listed multiple times", s.Name)
-			}
-			s.Attr.Set(sym.AttrOnList, true)
-			lib.Textp = append(lib.Textp, s)
-		} else {
-			// there may be a dup in another package
-			// put into a temp list and add to text later
-			lib.DupTextSyms = append(lib.DupTextSyms, s)
-		}
 	}
 }
 
