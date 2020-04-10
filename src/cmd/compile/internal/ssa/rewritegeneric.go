@@ -957,6 +957,7 @@ func rewriteValuegeneric_OpAdd32F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Add32F (Const32F [c]) (Const32F [d]))
+	// cond: !math.IsNaN(float64(auxTo32F(c) + auxTo32F(d)))
 	// result: (Const32F [auxFrom32F(auxTo32F(c) + auxTo32F(d))])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -968,6 +969,9 @@ func rewriteValuegeneric_OpAdd32F(v *Value) bool {
 				continue
 			}
 			d := v_1.AuxInt
+			if !(!math.IsNaN(float64(auxTo32F(c) + auxTo32F(d)))) {
+				continue
+			}
 			v.reset(OpConst32F)
 			v.AuxInt = auxFrom32F(auxTo32F(c) + auxTo32F(d))
 			return true
@@ -1233,6 +1237,7 @@ func rewriteValuegeneric_OpAdd64F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Add64F (Const64F [c]) (Const64F [d]))
+	// cond: !math.IsNaN(auxTo64F(c) + auxTo64F(d))
 	// result: (Const64F [auxFrom64F(auxTo64F(c) + auxTo64F(d))])
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
@@ -1244,6 +1249,9 @@ func rewriteValuegeneric_OpAdd64F(v *Value) bool {
 				continue
 			}
 			d := v_1.AuxInt
+			if !(!math.IsNaN(auxTo64F(c) + auxTo64F(d))) {
+				continue
+			}
 			v.reset(OpConst64F)
 			v.AuxInt = auxFrom64F(auxTo64F(c) + auxTo64F(d))
 			return true
@@ -22641,6 +22649,7 @@ func rewriteValuegeneric_OpSub32F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Sub32F (Const32F [c]) (Const32F [d]))
+	// cond: !math.IsNaN(float64(auxTo32F(c) - auxTo32F(d)))
 	// result: (Const32F [auxFrom32F(auxTo32F(c) - auxTo32F(d))])
 	for {
 		if v_0.Op != OpConst32F {
@@ -22651,6 +22660,9 @@ func rewriteValuegeneric_OpSub32F(v *Value) bool {
 			break
 		}
 		d := v_1.AuxInt
+		if !(!math.IsNaN(float64(auxTo32F(c) - auxTo32F(d)))) {
+			break
+		}
 		v.reset(OpConst32F)
 		v.AuxInt = auxFrom32F(auxTo32F(c) - auxTo32F(d))
 		return true
@@ -22879,6 +22891,7 @@ func rewriteValuegeneric_OpSub64F(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Sub64F (Const64F [c]) (Const64F [d]))
+	// cond: !math.IsNaN(auxTo64F(c) - auxTo64F(d))
 	// result: (Const64F [auxFrom64F(auxTo64F(c) - auxTo64F(d))])
 	for {
 		if v_0.Op != OpConst64F {
@@ -22889,6 +22902,9 @@ func rewriteValuegeneric_OpSub64F(v *Value) bool {
 			break
 		}
 		d := v_1.AuxInt
+		if !(!math.IsNaN(auxTo64F(c) - auxTo64F(d))) {
+			break
+		}
 		v.reset(OpConst64F)
 		v.AuxInt = auxFrom64F(auxTo64F(c) - auxTo64F(d))
 		return true
