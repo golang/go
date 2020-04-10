@@ -88,7 +88,7 @@ var (
 	libc_port_dissociate,
 	libc_port_getn,
 	libc_port_alert libcFunc
-	netpollWakeSig uintptr // used to avoid duplicate calls of netpollBreak
+	netpollWakeSig uint32 // used to avoid duplicate calls of netpollBreak
 )
 
 func errno() int32 {
@@ -191,7 +191,7 @@ func netpollarm(pd *pollDesc, mode int) {
 
 // netpollBreak interrupts a port_getn wait.
 func netpollBreak() {
-	if atomic.Casuintptr(&netpollWakeSig, 0, 1) {
+	if atomic.Cas(&netpollWakeSig, 0, 1) {
 		// Use port_alert to put portfd into alert mode.
 		// This will wake up all threads sleeping in port_getn on portfd,
 		// and cause their calls to port_getn to return immediately.
@@ -274,7 +274,7 @@ retry:
 					println("runtime: port_alert failed with", e)
 					throw("runtime: netpoll: port_alert failed")
 				}
-				atomic.Storeuintptr(&netpollWakeSig, 0)
+				atomic.Store(&netpollWakeSig, 0)
 			}
 			continue
 		}
