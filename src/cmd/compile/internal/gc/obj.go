@@ -365,11 +365,12 @@ func stringsym(pos src.XPos, s string) (data *obj.LSym) {
 
 var slicebytes_gen int
 
-func slicebytes(nam *Node, s string, len int) {
+func slicebytes(nam *Node, s string) {
 	slicebytes_gen++
 	symname := fmt.Sprintf(".gobytes.%d", slicebytes_gen)
 	sym := localpkg.Lookup(symname)
-	sym.Def = asTypesNode(newname(sym))
+	symnode := newname(sym)
+	sym.Def = asTypesNode(symnode)
 
 	lsym := sym.Linksym()
 	off := dsname(lsym, 0, s, nam.Pos, "slice")
@@ -378,11 +379,7 @@ func slicebytes(nam *Node, s string, len int) {
 	if nam.Op != ONAME {
 		Fatalf("slicebytes %v", nam)
 	}
-	nsym := nam.Sym.Linksym()
-	off = int(nam.Xoffset)
-	off = dsymptr(nsym, off, lsym, 0)
-	off = duintptr(nsym, off, uint64(len))
-	duintptr(nsym, off, uint64(len))
+	slicesym(nam, symnode, int64(len(s)))
 }
 
 func dsname(s *obj.LSym, off int, t string, pos src.XPos, what string) int {
