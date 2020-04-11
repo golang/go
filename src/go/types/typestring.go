@@ -303,7 +303,9 @@ func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited 
 	// If a single type bound is not the empty interface, we have to write them all.
 	var writeBounds bool
 	for _, p := range list {
-		if !bound(p).Underlying().(*Interface).Empty() {
+		// bound(p) should be an interface but be careful (it may be invalid)
+		b, _ := bound(p).Underlying().(*Interface)
+		if b != nil && !b.Empty() {
 			writeBounds = true
 			break
 		}

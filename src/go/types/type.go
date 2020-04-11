@@ -364,10 +364,38 @@ func (t *Interface) assertCompleteness() {
 func (t *Interface) Method(i int) *Func { t.assertCompleteness(); return t.allMethods[i] }
 
 // Empty reports whether t is the empty interface.
-// The interface must have been completed.
 func (t *Interface) Empty() bool {
-	t.assertCompleteness()
-	return len(t.allMethods) == 0 && len(t.allTypes) == 0
+	if t.allMethods != nil {
+		// interface is complete - quick test
+		return len(t.allMethods) == 0 && len(t.allTypes) == 0
+	}
+	return empty(t, nil)
+}
+
+// empty reports whether interface t is empty without requiring the
+// interface to be complete. Should only be called by Interface.Empty.
+func empty(t *Interface, visited map[*Interface]bool) bool {
+	if len(t.methods) != 0 || len(t.types) != 0 {
+		return false
+	}
+	for _, e := range t.embeddeds {
+		// e should be an interface but be careful (it may be invalid)
+		if e, _ := e.Underlying().(*Interface); e != nil {
+			// Cyclic interfaces such as "type E interface { E }" are not permitted
+			// but they are still constructed and we need to detect such cycles.
+			if visited[e] {
+				continue
+			}
+			if visited == nil {
+				visited = make(map[*Interface]bool)
+			}
+			visited[e] = true
+			if !empty(e, visited) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // includes reports whether the interface t includes the type typ.

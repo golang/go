@@ -1,3 +1,13 @@
+package p
+
+type E /* ERROR illegal cycle */ interface{
+	E
+}
+
+func _(type T E)(x *T) {
+}
+
+/*
 package list
 
 type List(type T) struct {
@@ -12,3 +22,4 @@ type Elem(type T) struct {
 func (l *List(T)) Init() {
 	l.root.next = &l.root
 }
+*/
