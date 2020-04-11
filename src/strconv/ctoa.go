@@ -25,7 +25,7 @@ package strconv
 // For 'g' and 'G' it is the maximum number of significant digits (trailing
 // zeros are removed).
 // The special precision -1 uses the smallest number of digits
-// necessary such that ParseComplex will return f exactly.
+// necessary such that ParseComplex will return c exactly.
 func FormatComplex(c complex128, fmt byte, prec, bitSize int) string {
 
 	if bitSize == 64 {
