@@ -374,6 +374,21 @@ func log2(n int64) int64 {
 	return int64(bits.Len64(uint64(n))) - 1
 }
 
+// logX returns logarithm of n base 2.
+// n must be a positive power of 2 (isPowerOfTwoX returns true).
+func log8(n int8) int64 {
+	return int64(bits.Len8(uint8(n))) - 1
+}
+func log16(n int16) int64 {
+	return int64(bits.Len16(uint16(n))) - 1
+}
+func log32(n int32) int64 {
+	return int64(bits.Len32(uint32(n))) - 1
+}
+func log64(n int64) int64 {
+	return int64(bits.Len64(uint64(n))) - 1
+}
+
 // log2uint32 returns logarithm in base 2 of uint32(n), with log2(0) = -1.
 // Rounds down.
 func log2uint32(n int64) int64 {
@@ -382,6 +397,18 @@ func log2uint32(n int64) int64 {
 
 // isPowerOfTwo reports whether n is a power of 2.
 func isPowerOfTwo(n int64) bool {
+	return n > 0 && n&(n-1) == 0
+}
+func isPowerOfTwo8(n int8) bool {
+	return n > 0 && n&(n-1) == 0
+}
+func isPowerOfTwo16(n int16) bool {
+	return n > 0 && n&(n-1) == 0
+}
+func isPowerOfTwo32(n int32) bool {
+	return n > 0 && n&(n-1) == 0
+}
+func isPowerOfTwo64(n int64) bool {
 	return n > 0 && n&(n-1) == 0
 }
 
