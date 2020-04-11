@@ -1352,7 +1352,8 @@ opswitch:
 				Fatalf("walkexpr: invalid index %v", r)
 			}
 
-			// cap is constrained to [0,2^31), so it's safe to do:
+			// cap is constrained to [0,2^31) or [0,2^63) depending on whether
+			// we're in 32-bit or 64-bit systems. So it's safe to do:
 			//
 			// if uint64(len) > cap {
 			//     if len < 0 { panicmakeslicelen() }
