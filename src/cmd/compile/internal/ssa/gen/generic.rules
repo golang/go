@@ -38,127 +38,128 @@
 // For now, the generated successors must be a permutation of the matched successors.
 
 // constant folding
-(Trunc16to8  (Const16  [c])) -> (Const8   [int64(int8(c))])
-(Trunc32to8  (Const32  [c])) -> (Const8   [int64(int8(c))])
-(Trunc32to16 (Const32  [c])) -> (Const16  [int64(int16(c))])
-(Trunc64to8  (Const64  [c])) -> (Const8   [int64(int8(c))])
-(Trunc64to16 (Const64  [c])) -> (Const16  [int64(int16(c))])
-(Trunc64to32 (Const64  [c])) -> (Const32  [int64(int32(c))])
-(Cvt64Fto32F (Const64F [c])) -> (Const32F [auxFrom32F(float32(auxTo64F(c)))])
-(Cvt32Fto64F (Const32F [c])) -> (Const64F [c]) // c is already a 64 bit float
-(Cvt32to32F  (Const32  [c])) -> (Const32F [auxFrom32F(float32(int32(c)))])
-(Cvt32to64F  (Const32  [c])) -> (Const64F [auxFrom64F(float64(int32(c)))])
-(Cvt64to32F  (Const64  [c])) -> (Const32F [auxFrom32F(float32(c))])
-(Cvt64to64F  (Const64  [c])) -> (Const64F [auxFrom64F(float64(c))])
-(Cvt32Fto32  (Const32F [c])) -> (Const32  [int64(int32(auxTo32F(c)))])
-(Cvt32Fto64  (Const32F [c])) -> (Const64  [int64(auxTo32F(c))])
-(Cvt64Fto32  (Const64F [c])) -> (Const32  [int64(int32(auxTo64F(c)))])
-(Cvt64Fto64  (Const64F [c])) -> (Const64  [int64(auxTo64F(c))])
-(Round32F x:(Const32F)) -> x
-(Round64F x:(Const64F)) -> x
-(CvtBoolToUint8 (ConstBool [c])) -> (Const8 [c])
+(Trunc16to8  (Const16  [c])) => (Const8   [int8(c)])
+(Trunc32to8  (Const32  [c])) => (Const8   [int8(c)])
+(Trunc32to16 (Const32  [c])) => (Const16  [int16(c)])
+(Trunc64to8  (Const64  [c])) => (Const8   [int8(c)])
+(Trunc64to16 (Const64  [c])) => (Const16  [int16(c)])
+(Trunc64to32 (Const64  [c])) => (Const32  [int32(c)])
+(Cvt64Fto32F (Const64F [c])) => (Const32F [float32(c)])
+(Cvt32Fto64F (Const32F [c])) => (Const64F [float64(c)])
+(Cvt32to32F  (Const32  [c])) => (Const32F [float32(c)])
+(Cvt32to64F  (Const32  [c])) => (Const64F [float64(c)])
+(Cvt64to32F  (Const64  [c])) => (Const32F [float32(c)])
+(Cvt64to64F  (Const64  [c])) => (Const64F [float64(c)])
+(Cvt32Fto32  (Const32F [c])) => (Const32  [int32(c)])
+(Cvt32Fto64  (Const32F [c])) => (Const64  [int64(c)])
+(Cvt64Fto32  (Const64F [c])) => (Const32  [int32(c)])
+(Cvt64Fto64  (Const64F [c])) => (Const64  [int64(c)])
+(Round32F x:(Const32F)) => x
+(Round64F x:(Const64F)) => x
+(CvtBoolToUint8 (ConstBool [false])) => (Const8 [0])
+(CvtBoolToUint8 (ConstBool [true])) => (Const8 [1])
 
-(Trunc16to8  (ZeroExt8to16  x)) -> x
-(Trunc32to8  (ZeroExt8to32  x)) -> x
-(Trunc32to16 (ZeroExt8to32  x)) -> (ZeroExt8to16  x)
-(Trunc32to16 (ZeroExt16to32 x)) -> x
-(Trunc64to8  (ZeroExt8to64  x)) -> x
-(Trunc64to16 (ZeroExt8to64  x)) -> (ZeroExt8to16  x)
-(Trunc64to16 (ZeroExt16to64 x)) -> x
-(Trunc64to32 (ZeroExt8to64  x)) -> (ZeroExt8to32  x)
-(Trunc64to32 (ZeroExt16to64 x)) -> (ZeroExt16to32 x)
-(Trunc64to32 (ZeroExt32to64 x)) -> x
-(Trunc16to8  (SignExt8to16  x)) -> x
-(Trunc32to8  (SignExt8to32  x)) -> x
-(Trunc32to16 (SignExt8to32  x)) -> (SignExt8to16  x)
-(Trunc32to16 (SignExt16to32 x)) -> x
-(Trunc64to8  (SignExt8to64  x)) -> x
-(Trunc64to16 (SignExt8to64  x)) -> (SignExt8to16  x)
-(Trunc64to16 (SignExt16to64 x)) -> x
-(Trunc64to32 (SignExt8to64  x)) -> (SignExt8to32  x)
-(Trunc64to32 (SignExt16to64 x)) -> (SignExt16to32 x)
-(Trunc64to32 (SignExt32to64 x)) -> x
+(Trunc16to8  (ZeroExt8to16  x)) => x
+(Trunc32to8  (ZeroExt8to32  x)) => x
+(Trunc32to16 (ZeroExt8to32  x)) => (ZeroExt8to16  x)
+(Trunc32to16 (ZeroExt16to32 x)) => x
+(Trunc64to8  (ZeroExt8to64  x)) => x
+(Trunc64to16 (ZeroExt8to64  x)) => (ZeroExt8to16  x)
+(Trunc64to16 (ZeroExt16to64 x)) => x
+(Trunc64to32 (ZeroExt8to64  x)) => (ZeroExt8to32  x)
+(Trunc64to32 (ZeroExt16to64 x)) => (ZeroExt16to32 x)
+(Trunc64to32 (ZeroExt32to64 x)) => x
+(Trunc16to8  (SignExt8to16  x)) => x
+(Trunc32to8  (SignExt8to32  x)) => x
+(Trunc32to16 (SignExt8to32  x)) => (SignExt8to16  x)
+(Trunc32to16 (SignExt16to32 x)) => x
+(Trunc64to8  (SignExt8to64  x)) => x
+(Trunc64to16 (SignExt8to64  x)) => (SignExt8to16  x)
+(Trunc64to16 (SignExt16to64 x)) => x
+(Trunc64to32 (SignExt8to64  x)) => (SignExt8to32  x)
+(Trunc64to32 (SignExt16to64 x)) => (SignExt16to32 x)
+(Trunc64to32 (SignExt32to64 x)) => x
 
-(ZeroExt8to16  (Const8  [c])) -> (Const16 [int64( uint8(c))])
-(ZeroExt8to32  (Const8  [c])) -> (Const32 [int64( uint8(c))])
-(ZeroExt8to64  (Const8  [c])) -> (Const64 [int64( uint8(c))])
-(ZeroExt16to32 (Const16 [c])) -> (Const32 [int64(uint16(c))])
-(ZeroExt16to64 (Const16 [c])) -> (Const64 [int64(uint16(c))])
-(ZeroExt32to64 (Const32 [c])) -> (Const64 [int64(uint32(c))])
-(SignExt8to16  (Const8  [c])) -> (Const16 [int64(  int8(c))])
-(SignExt8to32  (Const8  [c])) -> (Const32 [int64(  int8(c))])
-(SignExt8to64  (Const8  [c])) -> (Const64 [int64(  int8(c))])
-(SignExt16to32 (Const16 [c])) -> (Const32 [int64( int16(c))])
-(SignExt16to64 (Const16 [c])) -> (Const64 [int64( int16(c))])
-(SignExt32to64 (Const32 [c])) -> (Const64 [int64( int32(c))])
+(ZeroExt8to16  (Const8  [c])) => (Const16 [int16( uint8(c))])
+(ZeroExt8to32  (Const8  [c])) => (Const32 [int32( uint8(c))])
+(ZeroExt8to64  (Const8  [c])) => (Const64 [int64( uint8(c))])
+(ZeroExt16to32 (Const16 [c])) => (Const32 [int32(uint16(c))])
+(ZeroExt16to64 (Const16 [c])) => (Const64 [int64(uint16(c))])
+(ZeroExt32to64 (Const32 [c])) => (Const64 [int64(uint32(c))])
+(SignExt8to16  (Const8  [c])) => (Const16 [int16(c)])
+(SignExt8to32  (Const8  [c])) => (Const32 [int32(c)])
+(SignExt8to64  (Const8  [c])) => (Const64 [int64(c)])
+(SignExt16to32 (Const16 [c])) => (Const32 [int32(c)])
+(SignExt16to64 (Const16 [c])) => (Const64 [int64(c)])
+(SignExt32to64 (Const32 [c])) => (Const64 [int64(c)])
 
-(Neg8   (Const8   [c])) -> (Const8   [int64( -int8(c))])
-(Neg16  (Const16  [c])) -> (Const16  [int64(-int16(c))])
-(Neg32  (Const32  [c])) -> (Const32  [int64(-int32(c))])
-(Neg64  (Const64  [c])) -> (Const64  [-c])
-(Neg32F (Const32F [c])) && auxTo32F(c) != 0 -> (Const32F [auxFrom32F(-auxTo32F(c))])
-(Neg64F (Const64F [c])) && auxTo64F(c) != 0 -> (Const64F [auxFrom64F(-auxTo64F(c))])
+(Neg8   (Const8   [c])) => (Const8   [-c])
+(Neg16  (Const16  [c])) => (Const16  [-c])
+(Neg32  (Const32  [c])) => (Const32  [-c])
+(Neg64  (Const64  [c])) => (Const64  [-c])
+(Neg32F (Const32F [c])) && c != 0 => (Const32F [-c])
+(Neg64F (Const64F [c])) && c != 0 => (Const64F [-c])
 
-(Add8   (Const8 [c])   (Const8 [d]))   -> (Const8  [int64(int8(c+d))])
-(Add16  (Const16 [c])  (Const16 [d]))  -> (Const16 [int64(int16(c+d))])
-(Add32  (Const32 [c])  (Const32 [d]))  -> (Const32 [int64(int32(c+d))])
-(Add64  (Const64 [c])  (Const64 [d]))  -> (Const64 [c+d])
-(Add32F (Const32F [c]) (Const32F [d])) && !math.IsNaN(float64(auxTo32F(c) + auxTo32F(d))) -> (Const32F [auxFrom32F(auxTo32F(c) + auxTo32F(d))])
-(Add64F (Const64F [c]) (Const64F [d])) && !math.IsNaN(auxTo64F(c) + auxTo64F(d)) -> (Const64F [auxFrom64F(auxTo64F(c) + auxTo64F(d))])
-(AddPtr <t> x (Const64 [c])) -> (OffPtr <t> x [c])
-(AddPtr <t> x (Const32 [c])) -> (OffPtr <t> x [c])
+(Add8   (Const8 [c])   (Const8 [d]))   => (Const8  [c+d])
+(Add16  (Const16 [c])  (Const16 [d]))  => (Const16 [c+d])
+(Add32  (Const32 [c])  (Const32 [d]))  => (Const32 [c+d])
+(Add64  (Const64 [c])  (Const64 [d]))  => (Const64 [c+d])
+(Add32F (Const32F [c]) (Const32F [d])) && c+d == c+d => (Const32F [c+d])
+(Add64F (Const64F [c]) (Const64F [d])) && c+d == c+d => (Const64F [c+d])
+(AddPtr <t> x (Const64 [c])) => (OffPtr <t> x [c])
+(AddPtr <t> x (Const32 [c])) => (OffPtr <t> x [int64(c)])
 
-(Sub8   (Const8 [c]) (Const8 [d]))     -> (Const8 [int64(int8(c-d))])
-(Sub16  (Const16 [c]) (Const16 [d]))   -> (Const16 [int64(int16(c-d))])
-(Sub32  (Const32 [c]) (Const32 [d]))   -> (Const32 [int64(int32(c-d))])
-(Sub64  (Const64 [c]) (Const64 [d]))   -> (Const64 [c-d])
-(Sub32F (Const32F [c]) (Const32F [d])) && !math.IsNaN(float64(auxTo32F(c) - auxTo32F(d))) -> (Const32F [auxFrom32F(auxTo32F(c) - auxTo32F(d))])
-(Sub64F (Const64F [c]) (Const64F [d])) && !math.IsNaN(auxTo64F(c) - auxTo64F(d)) -> (Const64F [auxFrom64F(auxTo64F(c) - auxTo64F(d))])
+(Sub8   (Const8 [c]) (Const8 [d]))     => (Const8 [c-d])
+(Sub16  (Const16 [c]) (Const16 [d]))   => (Const16 [c-d])
+(Sub32  (Const32 [c]) (Const32 [d]))   => (Const32 [c-d])
+(Sub64  (Const64 [c]) (Const64 [d]))   => (Const64 [c-d])
+(Sub32F (Const32F [c]) (Const32F [d])) && c-d == c-d => (Const32F [c-d])
+(Sub64F (Const64F [c]) (Const64F [d])) && c-d == c-d => (Const64F [c-d])
 
-(Mul8   (Const8 [c])   (Const8 [d]))   -> (Const8  [int64(int8(c*d))])
-(Mul16  (Const16 [c])  (Const16 [d]))  -> (Const16 [int64(int16(c*d))])
-(Mul32  (Const32 [c])  (Const32 [d]))  -> (Const32 [int64(int32(c*d))])
-(Mul64  (Const64 [c])  (Const64 [d]))  -> (Const64 [c*d])
-(Mul32F (Const32F [c]) (Const32F [d])) && !math.IsNaN(float64(auxTo32F(c) * auxTo32F(d))) -> (Const32F [auxFrom32F(auxTo32F(c) * auxTo32F(d))])
-(Mul64F (Const64F [c]) (Const64F [d])) && !math.IsNaN(auxTo64F(c) * auxTo64F(d)) -> (Const64F [auxFrom64F(auxTo64F(c) * auxTo64F(d))])
+(Mul8   (Const8 [c])   (Const8 [d]))   => (Const8  [c*d])
+(Mul16  (Const16 [c])  (Const16 [d]))  => (Const16 [c*d])
+(Mul32  (Const32 [c])  (Const32 [d]))  => (Const32 [c*d])
+(Mul64  (Const64 [c])  (Const64 [d]))  => (Const64 [c*d])
+(Mul32F (Const32F [c]) (Const32F [d])) && c*d == c*d => (Const32F [c*d])
+(Mul64F (Const64F [c]) (Const64F [d])) && c*d == c*d => (Const64F [c*d])
 
-(And8   (Const8 [c])   (Const8 [d]))   -> (Const8  [int64(int8(c&d))])
-(And16  (Const16 [c])  (Const16 [d]))  -> (Const16 [int64(int16(c&d))])
-(And32  (Const32 [c])  (Const32 [d]))  -> (Const32 [int64(int32(c&d))])
-(And64  (Const64 [c])  (Const64 [d]))  -> (Const64 [c&d])
+(And8   (Const8 [c])   (Const8 [d]))   => (Const8  [c&d])
+(And16  (Const16 [c])  (Const16 [d]))  => (Const16 [c&d])
+(And32  (Const32 [c])  (Const32 [d]))  => (Const32 [c&d])
+(And64  (Const64 [c])  (Const64 [d]))  => (Const64 [c&d])
 
-(Or8   (Const8 [c])   (Const8 [d]))   -> (Const8  [int64(int8(c|d))])
-(Or16  (Const16 [c])  (Const16 [d]))  -> (Const16 [int64(int16(c|d))])
-(Or32  (Const32 [c])  (Const32 [d]))  -> (Const32 [int64(int32(c|d))])
-(Or64  (Const64 [c])  (Const64 [d]))  -> (Const64 [c|d])
+(Or8   (Const8 [c])   (Const8 [d]))   => (Const8  [c|d])
+(Or16  (Const16 [c])  (Const16 [d]))  => (Const16 [c|d])
+(Or32  (Const32 [c])  (Const32 [d]))  => (Const32 [c|d])
+(Or64  (Const64 [c])  (Const64 [d]))  => (Const64 [c|d])
 
-(Xor8   (Const8 [c])   (Const8 [d]))   -> (Const8  [int64(int8(c^d))])
-(Xor16  (Const16 [c])  (Const16 [d]))  -> (Const16 [int64(int16(c^d))])
-(Xor32  (Const32 [c])  (Const32 [d]))  -> (Const32 [int64(int32(c^d))])
-(Xor64  (Const64 [c])  (Const64 [d]))  -> (Const64 [c^d])
+(Xor8   (Const8 [c])   (Const8 [d]))   => (Const8  [c^d])
+(Xor16  (Const16 [c])  (Const16 [d]))  => (Const16 [c^d])
+(Xor32  (Const32 [c])  (Const32 [d]))  => (Const32 [c^d])
+(Xor64  (Const64 [c])  (Const64 [d]))  => (Const64 [c^d])
 
-(Ctz64 (Const64 [c])) && config.PtrSize == 4 -> (Const32 [ntz(c)])
-(Ctz32 (Const32 [c])) && config.PtrSize == 4 -> (Const32 [ntz32(c)])
-(Ctz16 (Const16 [c])) && config.PtrSize == 4 -> (Const32 [ntz16(c)])
-(Ctz8  (Const8  [c])) && config.PtrSize == 4 -> (Const32 [ntz8(c)])
+(Ctz64 (Const64 [c])) && config.PtrSize == 4 => (Const32 [int32(ntz64(c))])
+(Ctz32 (Const32 [c])) && config.PtrSize == 4 => (Const32 [int32(ntz32(c))])
+(Ctz16 (Const16 [c])) && config.PtrSize == 4 => (Const32 [int32(ntz16(c))])
+(Ctz8  (Const8  [c])) && config.PtrSize == 4 => (Const32 [int32(ntz8(c))])
 
-(Ctz64 (Const64 [c])) && config.PtrSize == 8 -> (Const64 [ntz(c)])
-(Ctz32 (Const32 [c])) && config.PtrSize == 8 -> (Const64 [ntz32(c)])
-(Ctz16 (Const16 [c])) && config.PtrSize == 8 -> (Const64 [ntz16(c)])
-(Ctz8  (Const8  [c])) && config.PtrSize == 8 -> (Const64 [ntz8(c)])
+(Ctz64 (Const64 [c])) && config.PtrSize == 8 => (Const64 [int64(ntz64(c))])
+(Ctz32 (Const32 [c])) && config.PtrSize == 8 => (Const64 [int64(ntz32(c))])
+(Ctz16 (Const16 [c])) && config.PtrSize == 8 => (Const64 [int64(ntz16(c))])
+(Ctz8  (Const8  [c])) && config.PtrSize == 8 => (Const64 [int64(ntz8(c))])
 
-(Div8   (Const8  [c])  (Const8  [d])) && d != 0 -> (Const8  [int64(int8(c)/int8(d))])
-(Div16  (Const16 [c])  (Const16 [d])) && d != 0 -> (Const16 [int64(int16(c)/int16(d))])
-(Div32  (Const32 [c])  (Const32 [d])) && d != 0 -> (Const32 [int64(int32(c)/int32(d))])
-(Div64  (Const64 [c])  (Const64 [d])) && d != 0 -> (Const64 [c/d])
-(Div8u  (Const8  [c])  (Const8  [d])) && d != 0 -> (Const8  [int64(int8(uint8(c)/uint8(d)))])
-(Div16u (Const16 [c])  (Const16 [d])) && d != 0 -> (Const16 [int64(int16(uint16(c)/uint16(d)))])
-(Div32u (Const32 [c])  (Const32 [d])) && d != 0 -> (Const32 [int64(int32(uint32(c)/uint32(d)))])
-(Div64u (Const64 [c])  (Const64 [d])) && d != 0 -> (Const64 [int64(uint64(c)/uint64(d))])
-(Div32F (Const32F [c]) (Const32F [d])) && !math.IsNaN(float64(auxTo32F(c) / auxTo32F(d))) -> (Const32F [auxFrom32F(auxTo32F(c) / auxTo32F(d))])
-(Div64F (Const64F [c]) (Const64F [d])) && !math.IsNaN(auxTo64F(c) / auxTo64F(d)) -> (Const64F [auxFrom64F(auxTo64F(c) / auxTo64F(d))])
-(Select0 (Div128u (Const64 [0]) lo y)) -> (Div64u lo y)
-(Select1 (Div128u (Const64 [0]) lo y)) -> (Mod64u lo y)
+(Div8   (Const8  [c])  (Const8  [d])) && d != 0 => (Const8  [c/d])
+(Div16  (Const16 [c])  (Const16 [d])) && d != 0 => (Const16 [c/d])
+(Div32  (Const32 [c])  (Const32 [d])) && d != 0 => (Const32 [c/d])
+(Div64  (Const64 [c])  (Const64 [d])) && d != 0 => (Const64 [c/d])
+(Div8u  (Const8  [c])  (Const8  [d])) && d != 0 => (Const8  [int8(uint8(c)/uint8(d))])
+(Div16u (Const16 [c])  (Const16 [d])) && d != 0 => (Const16 [int16(uint16(c)/uint16(d))])
+(Div32u (Const32 [c])  (Const32 [d])) && d != 0 => (Const32 [int32(uint32(c)/uint32(d))])
+(Div64u (Const64 [c])  (Const64 [d])) && d != 0 => (Const64 [int64(uint64(c)/uint64(d))])
+(Div32F (Const32F [c]) (Const32F [d])) && c/d == c/d => (Const32F [c/d])
+(Div64F (Const64F [c]) (Const64F [d])) && c/d == c/d => (Const64F [c/d])
+(Select0 (Div128u (Const64 [0]) lo y)) => (Div64u lo y)
+(Select1 (Div128u (Const64 [0]) lo y)) => (Mod64u lo y)
 
 (Not (ConstBool [c])) -> (ConstBool [1-c])
 
