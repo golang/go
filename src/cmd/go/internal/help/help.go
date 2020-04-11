@@ -93,7 +93,7 @@ Use "go help{{with .LongName}} {{.}}{{end}} <command>" for more information abou
 {{if eq (.UsageLine) "go"}}
 Additional help topics:
 {{range .Commands}}{{if and (not .Runnable) (not .Commands)}}
-	{{.Name | printf "%-11s"}} {{.Short}}{{end}}{{end}}
+	{{.Name | printf "%-15s"}} {{.Short}}{{end}}{{end}}
 
 Use "go help{{with .LongName}} {{.}}{{end}} <topic>" for more information about that topic.
 {{end}}
