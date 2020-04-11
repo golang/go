@@ -820,6 +820,10 @@ func writeBlocks(out *OutBuf, sem chan int, syms []*sym.Symbol, addr, size int64
 		// Find the last symbol we'd write.
 		idx := -1
 		for i, s := range syms {
+			if s.Attr.SubSymbol() {
+				continue
+			}
+
 			// If the next symbol's size would put us out of bounds on the total length,
 			// stop looking.
 			if s.Value+s.Size > lastAddr {
@@ -847,7 +851,15 @@ func writeBlocks(out *OutBuf, sem chan int, syms []*sym.Symbol, addr, size int64
 		// blocks or at the end.
 		length := int64(0)
 		if idx+1 < len(syms) {
-			length = syms[idx+1].Value - addr
+			// Find the next top-level symbol.
+			// Skip over sub symbols so we won't split a containter symbol
+			// into two blocks.
+			next := syms[idx+1]
+			for next.Attr.SubSymbol() {
+				idx++
+				next = syms[idx+1]
+			}
+			length = next.Value - addr
 		}
 		if length == 0 || length > lastAddr-addr {
 			length = lastAddr - addr
