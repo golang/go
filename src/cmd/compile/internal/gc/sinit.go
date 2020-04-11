@@ -71,7 +71,7 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
 		return false
 	}
 	if r.Class() == PFUNC {
-		gdata(l, r, Widthptr)
+		pfuncsym(l, r)
 		return true
 	}
 	if r.Class() != PEXTERN || r.Sym.Pkg != localpkg {
@@ -107,13 +107,12 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
 		if isZero(r) {
 			return true
 		}
-		gdata(l, r, int(l.Type.Width))
+		litsym(l, r, int(l.Type.Width))
 		return true
 
 	case OADDR:
-		switch r.Left.Op {
-		case ONAME:
-			gdata(l, r, int(l.Type.Width))
+		if a := r.Left; a.Op == ONAME {
+			addrsym(l, a)
 			return true
 		}
 
@@ -121,7 +120,7 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
 		switch r.Left.Op {
 		case OARRAYLIT, OSLICELIT, OSTRUCTLIT, OMAPLIT:
 			// copy pointer
-			gdata(l, nod(OADDR, s.inittemps[r], nil), int(l.Type.Width))
+			addrsym(l, s.inittemps[r])
 			return true
 		}
 
@@ -140,7 +139,7 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
 			n.Xoffset = l.Xoffset + e.Xoffset
 			n.Type = e.Expr.Type
 			if e.Expr.Op == OLITERAL {
-				gdata(n, e.Expr, int(n.Type.Width))
+				litsym(n, e.Expr, int(n.Type.Width))
 				continue
 			}
 			ll := n.sepcopy()
@@ -175,15 +174,13 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 		if isZero(r) {
 			return true
 		}
-		gdata(l, r, int(l.Type.Width))
+		litsym(l, r, int(l.Type.Width))
 		return true
 
 	case OADDR:
 		var nam Node
 		if stataddr(&nam, r.Left) {
-			n := *r
-			n.Left = &nam
-			gdata(l, &n, int(l.Type.Width))
+			addrsym(l, &nam)
 			return true
 		}
 		fallthrough
@@ -195,7 +192,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 			a := staticname(r.Left.Type)
 
 			s.inittemps[r] = a
-			gdata(l, nod(OADDR, a, nil), int(l.Type.Width))
+			addrsym(l, a)
 
 			// Init underlying literal.
 			if !s.staticassign(a, r.Left) {
@@ -235,7 +232,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 			n.Xoffset = l.Xoffset + e.Xoffset
 			n.Type = e.Expr.Type
 			if e.Expr.Op == OLITERAL {
-				gdata(n, e.Expr, int(n.Type.Width))
+				litsym(n, e.Expr, int(n.Type.Width))
 				continue
 			}
 			setlineno(e.Expr)
@@ -257,7 +254,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 			}
 			// Closures with no captured variables are globals,
 			// so the assignment can be done at link time.
-			gdata(l, r.Func.Closure.Func.Nname, Widthptr)
+			pfuncsym(l, r.Func.Closure.Func.Nname)
 			return true
 		}
 		closuredebugruntimecheck(r)
@@ -291,7 +288,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 		n := l.copy()
 
 		// Emit itab, advance offset.
-		gdata(n, itab, Widthptr)
+		addrsym(n, itab.Left) // itab is an OADDR node
 		n.Xoffset += int64(Widthptr)
 
 		// Emit data.
@@ -314,9 +311,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 			if !s.staticassign(a, val) {
 				s.append(nod(OAS, a, val))
 			}
-			ptr := nod(OADDR, a, nil)
-			n.Type = types.NewPtr(val.Type)
-			gdata(n, ptr, Widthptr)
+			addrsym(n, a)
 		}
 
 		return true
@@ -1157,10 +1152,10 @@ func genAsStatic(as *Node) {
 
 	switch {
 	case as.Right.Op == OLITERAL:
+		litsym(&nam, as.Right, int(as.Right.Type.Width))
 	case as.Right.Op == ONAME && as.Right.Class() == PFUNC:
+		pfuncsym(&nam, as.Right)
 	default:
 		Fatalf("genAsStatic: rhs %v", as.Right)
 	}
-
-	gdata(&nam, as.Right, int(as.Right.Type.Width))
 }
