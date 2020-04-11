@@ -307,10 +307,11 @@ func (check *Checker) missingMethod(V Type, addressable bool, T *Interface, stat
 			_, f := lookupMethod(ityp.allMethods, m.pkg, m.name)
 
 			if f == nil {
-				if static {
-					return m, nil
+				// if m is the magic method == we're ok (interfaces are comparable)
+				if m.name == "==" || !static {
+					continue
 				}
-				continue
+				return m, f
 			}
 
 			// both methods must have the same number of type parameters

@@ -4,6 +4,7 @@ so we have a better track record. I only switched to this file in Nov 2019, henc
 ----------------------------------------------------------------------------------------------------
 TODO
 
+- better error message when we need parentheses around a parameterized function parameter type
 - revisit uses of (raw)lookupFieldOrMethod with respect to the addressable flag (can we get rid of it?)
 - revisit all uses of derefUnpack in lookup.go (see local comments); create test cases
 - review use of Contract.TParams field - it seems like it's only needed for length checks?
@@ -27,6 +28,7 @@ KNOWN ISSUES
   Do we actually need it? (Should the draft be updated?)
 - If we do need type-checking for type parameters with pointer designation in contracts, figure
   out how to model this with interfaces. Do we need two interfaces, one for a T and one for a *T?
+- invoking a method of a parameterized embedded type doesn't work (cannot properly determine receiver yet)
 
 ----------------------------------------------------------------------------------------------------
 OBSERVATIONS

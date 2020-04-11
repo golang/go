@@ -6,6 +6,8 @@
 
 package p
 
+import "io"
+
 // This used to crash with an assertion failure when
 // instantiating f(int, int). The assertion was checking
 // that the number of type parameters and arguments was
@@ -29,7 +31,7 @@ func _ () {
 }
 
 // This is the original (simplified) program causing the same issue.
-contract comparable(T) {
+contract onecomparable(T) {
 	T int, int8, int16, int32, int64,
 		uint, uint8, uint16, uint32, uint64, uintptr,
 		float32, float64,
@@ -37,8 +39,8 @@ contract comparable(T) {
 }
 
 contract twocomparable(K, V) {
-	comparable(K)
-	comparable(V)
+	comparable(K) // predeclared contract comparable
+	onecomparable(V)
 }
 
 func Equal(type K, V twocomparable)(m1, m2 map[K]V)
@@ -46,6 +48,21 @@ func Equal(type K, V twocomparable)(m1, m2 map[K]V)
 func _() {
 	var m map[int]int
 	Equal(m, nil)
+}
+
+// Interfaces are always comparable (though the comparison may panic at runtime).
+func eql(type T comparable)(x, y T) bool {
+	return x == y
+}
+
+func _() {
+	var x interface{}
+	var y interface{ m() }
+	eql(x, y /* ERROR does not match */ ) // interfaces of different types
+	eql(x, x)
+	eql(y, y)
+	eql(y, nil)
+	eql(io.Reader)(nil, nil)
 }
 
 // If we have a receiver of pointer type (below: *T) we must ignore
