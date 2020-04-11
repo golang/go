@@ -739,11 +739,19 @@ func (w *bodyBase) add(node Statement) {
 	w.list = append(w.list, node)
 }
 
+// predeclared contains globally known tokens that should not be redefined.
+var predeclared = map[string]bool{
+	"nil":   true,
+	"false": true,
+	"true":  true,
+}
+
 // declared reports if the body contains a Declare or Declare2 with the given name.
 func (w *bodyBase) declared(name string) bool {
-	if name == "nil" {
-		// Treat "nil" as having already been declared.
-		// This lets us use nil to match an aux field.
+	if predeclared[name] {
+		// Treat predeclared names as having already been declared.
+		// This lets us use nil to match an aux field or
+		// true and false to match an auxint field.
 		return true
 	}
 	for _, s := range w.list {
@@ -1049,7 +1057,7 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 					alt:  breakf("%s.%s.(%s) == %s", v, e.field, e.dclType, e.name),
 				})
 			case "AuxInt":
-				rr.add(breakf("%s(%s.%s) != %s", e.dclType, v, e.field, e.name))
+				rr.add(breakf("auxIntTo%s(%s.%s) != %s", strings.Title(e.dclType), v, e.field, e.name))
 			case "Type":
 				rr.add(breakf("%s.%s != %s", v, e.field, e.name))
 			}
@@ -1063,7 +1071,7 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 					rr.add(declf(e.name, "%s.%s.(%s)", v, e.field, e.dclType))
 				}
 			case "AuxInt":
-				rr.add(declf(e.name, "%s(%s.%s)", e.dclType, v, e.field))
+				rr.add(declf(e.name, "auxIntTo%s(%s.%s)", strings.Title(e.dclType), v, e.field))
 			case "Type":
 				rr.add(declf(e.name, "%s.%s", v, e.field))
 			}
@@ -1230,7 +1238,7 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 		if rr.typed {
 			// Make sure auxint value has the right type.
 			rr.add(stmtf("var _auxint %s = %s", op.auxIntType(), auxint))
-			rr.add(stmtf("%s.AuxInt = int64(_auxint)", v))
+			rr.add(stmtf("%s.AuxInt = %sToAuxInt(_auxint)", v, op.auxIntType()))
 		} else {
 			rr.add(stmtf("%s.AuxInt = %s", v, auxint))
 		}
@@ -1772,7 +1780,8 @@ func (op opData) auxType() string {
 // auxIntType returns the Go type that this operation should store in its auxInt field.
 func (op opData) auxIntType() string {
 	switch op.aux {
-	//case "Bool":
+	case "Bool":
+		return "bool"
 	case "Int8":
 		return "int8"
 	case "Int16":
@@ -1782,8 +1791,10 @@ func (op opData) auxIntType() string {
 	case "Int64":
 		return "int64"
 	//case  "Int128":
-	//case  "Float32":
-	//case  "Float64":
+	case "Float32":
+		return "float32"
+	case "Float64":
+		return "float64"
 	case "SymOff":
 		return "int32"
 	case "SymValAndOff":

@@ -6940,12 +6940,12 @@ func rewriteValueAMD64_OpAMD64CMPBconst(v *Value) bool {
 	// cond: l.Uses == 1 && clobber(l)
 	// result: @l.Block (CMPBconstload {sym} [makeValAndOff32(int32(c),off)] ptr mem)
 	for {
-		c := int8(v.AuxInt)
+		c := auxIntToInt8(v.AuxInt)
 		l := v_0
 		if l.Op != OpAMD64MOVBload {
 			break
 		}
-		off := int32(l.AuxInt)
+		off := auxIntToInt32(l.AuxInt)
 		sym, _ := l.Aux.(Sym)
 		mem := l.Args[1]
 		ptr := l.Args[0]
@@ -6956,7 +6956,7 @@ func rewriteValueAMD64_OpAMD64CMPBconst(v *Value) bool {
 		v0 := b.NewValue0(l.Pos, OpAMD64CMPBconstload, types.TypeFlags)
 		v.copyOf(v0)
 		var _auxint ValAndOff = makeValAndOff32(int32(c), off)
-		v0.AuxInt = int64(_auxint)
+		v0.AuxInt = ValAndOffToAuxInt(_auxint)
 		var _aux Sym = sym
 		v0.Aux = _aux
 		v0.AddArg2(ptr, mem)
@@ -7327,12 +7327,12 @@ func rewriteValueAMD64_OpAMD64CMPLconst(v *Value) bool {
 	// cond: l.Uses == 1 && clobber(l)
 	// result: @l.Block (CMPLconstload {sym} [makeValAndOff32(c,off)] ptr mem)
 	for {
-		c := int32(v.AuxInt)
+		c := auxIntToInt32(v.AuxInt)
 		l := v_0
 		if l.Op != OpAMD64MOVLload {
 			break
 		}
-		off := int32(l.AuxInt)
+		off := auxIntToInt32(l.AuxInt)
 		sym, _ := l.Aux.(Sym)
 		mem := l.Args[1]
 		ptr := l.Args[0]
@@ -7343,7 +7343,7 @@ func rewriteValueAMD64_OpAMD64CMPLconst(v *Value) bool {
 		v0 := b.NewValue0(l.Pos, OpAMD64CMPLconstload, types.TypeFlags)
 		v.copyOf(v0)
 		var _auxint ValAndOff = makeValAndOff32(c, off)
-		v0.AuxInt = int64(_auxint)
+		v0.AuxInt = ValAndOffToAuxInt(_auxint)
 		var _aux Sym = sym
 		v0.Aux = _aux
 		v0.AddArg2(ptr, mem)
@@ -7894,12 +7894,12 @@ func rewriteValueAMD64_OpAMD64CMPQconst(v *Value) bool {
 	// cond: l.Uses == 1 && clobber(l)
 	// result: @l.Block (CMPQconstload {sym} [makeValAndOff32(c,off)] ptr mem)
 	for {
-		c := int32(v.AuxInt)
+		c := auxIntToInt32(v.AuxInt)
 		l := v_0
 		if l.Op != OpAMD64MOVQload {
 			break
 		}
-		off := int32(l.AuxInt)
+		off := auxIntToInt32(l.AuxInt)
 		sym, _ := l.Aux.(Sym)
 		mem := l.Args[1]
 		ptr := l.Args[0]
@@ -7910,7 +7910,7 @@ func rewriteValueAMD64_OpAMD64CMPQconst(v *Value) bool {
 		v0 := b.NewValue0(l.Pos, OpAMD64CMPQconstload, types.TypeFlags)
 		v.copyOf(v0)
 		var _auxint ValAndOff = makeValAndOff32(c, off)
-		v0.AuxInt = int64(_auxint)
+		v0.AuxInt = ValAndOffToAuxInt(_auxint)
 		var _aux Sym = sym
 		v0.Aux = _aux
 		v0.AddArg2(ptr, mem)
@@ -8266,12 +8266,12 @@ func rewriteValueAMD64_OpAMD64CMPWconst(v *Value) bool {
 	// cond: l.Uses == 1 && clobber(l)
 	// result: @l.Block (CMPWconstload {sym} [makeValAndOff32(int32(c),off)] ptr mem)
 	for {
-		c := int16(v.AuxInt)
+		c := auxIntToInt16(v.AuxInt)
 		l := v_0
 		if l.Op != OpAMD64MOVWload {
 			break
 		}
-		off := int32(l.AuxInt)
+		off := auxIntToInt32(l.AuxInt)
 		sym, _ := l.Aux.(Sym)
 		mem := l.Args[1]
 		ptr := l.Args[0]
@@ -8282,7 +8282,7 @@ func rewriteValueAMD64_OpAMD64CMPWconst(v *Value) bool {
 		v0 := b.NewValue0(l.Pos, OpAMD64CMPWconstload, types.TypeFlags)
 		v.copyOf(v0)
 		var _auxint ValAndOff = makeValAndOff32(int32(c), off)
-		v0.AuxInt = int64(_auxint)
+		v0.AuxInt = ValAndOffToAuxInt(_auxint)
 		var _aux Sym = sym
 		v0.Aux = _aux
 		v0.AddArg2(ptr, mem)

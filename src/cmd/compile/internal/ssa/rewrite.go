@@ -347,11 +347,12 @@ func nlz(x int64) int64 {
 	return int64(bits.LeadingZeros64(uint64(x)))
 }
 
-// ntz returns the number of trailing zeros.
-func ntz(x int64) int64   { return int64(bits.TrailingZeros64(uint64(x))) }
-func ntz32(x int64) int64 { return int64(bits.TrailingZeros32(uint32(x))) }
-func ntz16(x int64) int64 { return int64(bits.TrailingZeros16(uint16(x))) }
-func ntz8(x int64) int64  { return int64(bits.TrailingZeros8(uint8(x))) }
+// ntzX returns the number of trailing zeros.
+func ntz(x int64) int64 { return int64(bits.TrailingZeros64(uint64(x))) } // TODO: remove when no longer used
+func ntz64(x int64) int { return bits.TrailingZeros64(uint64(x)) }
+func ntz32(x int32) int { return bits.TrailingZeros32(uint32(x)) }
+func ntz16(x int16) int { return bits.TrailingZeros16(uint16(x)) }
+func ntz8(x int8) int   { return bits.TrailingZeros8(uint8(x)) }
 
 func oneBit(x int64) bool {
 	return bits.OnesCount64(uint64(x)) == 1
@@ -511,6 +512,62 @@ func auxTo32F(i int64) float32 {
 // auxTo64F decodes a float64 from the AuxInt value provided.
 func auxTo64F(i int64) float64 {
 	return math.Float64frombits(uint64(i))
+}
+
+func auxIntToBool(i int64) bool {
+	if i == 0 {
+		return false
+	}
+	return true
+}
+func auxIntToInt8(i int64) int8 {
+	return int8(i)
+}
+func auxIntToInt16(i int64) int16 {
+	return int16(i)
+}
+func auxIntToInt32(i int64) int32 {
+	return int32(i)
+}
+func auxIntToInt64(i int64) int64 {
+	return i
+}
+func auxIntToFloat32(i int64) float32 {
+	return float32(math.Float64frombits(uint64(i)))
+}
+func auxIntToFloat64(i int64) float64 {
+	return math.Float64frombits(uint64(i))
+}
+func auxIntToValAndOff(i int64) ValAndOff {
+	return ValAndOff(i)
+}
+
+func boolToAuxInt(b bool) int64 {
+	if b {
+		return 1
+	}
+	return 0
+}
+func int8ToAuxInt(i int8) int64 {
+	return int64(i)
+}
+func int16ToAuxInt(i int16) int64 {
+	return int64(i)
+}
+func int32ToAuxInt(i int32) int64 {
+	return int64(i)
+}
+func int64ToAuxInt(i int64) int64 {
+	return int64(i)
+}
+func float32ToAuxInt(f float32) int64 {
+	return int64(math.Float64bits(float64(f)))
+}
+func float64ToAuxInt(f float64) int64 {
+	return int64(math.Float64bits(f))
+}
+func ValAndOffToAuxInt(v ValAndOff) int64 {
+	return int64(v)
 }
 
 // uaddOvf reports whether unsigned a+b would overflow.
