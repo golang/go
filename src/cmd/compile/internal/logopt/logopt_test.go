@@ -62,7 +62,7 @@ func TestLogOpt(t *testing.T) {
 
 	dir, err := ioutil.TempDir("", "TestLogOpt")
 	if err != nil {
-		t.Skipf("Could not create work directory, assuming not allowed on this platform.  Error was '%v'", err)
+		t.Fatal(err)
 	}
 	defer os.RemoveAll(dir)
 
