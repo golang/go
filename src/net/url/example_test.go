@@ -205,6 +205,21 @@ func ExampleURL_UnmarshalBinary() {
 	// https://example.org/foo
 }
 
+func ExampleURL_Redacted() {
+	u := &url.URL{
+		Scheme: "https",
+		User:   url.UserPassword("user", "password"),
+		Host:   "example.com",
+		Path:   "foo/bar",
+	}
+	fmt.Println(u.Redacted())
+	u.User = url.UserPassword("me", "newerPassword")
+	fmt.Println(u.Redacted())
+	// Output:
+	// https://user:xxxxx@example.com/foo/bar
+	// https://me:xxxxx@example.com/foo/bar
+}
+
 func ExampleURL_RequestURI() {
 	u, err := url.Parse("https://example.org/path?foo=bar")
 	if err != nil {
