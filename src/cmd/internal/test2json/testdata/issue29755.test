@@ -1,0 +1,10 @@
+=== RUN   TestOutputWithSubtest
+=== RUN   TestOutputWithSubtest/sub_test
+--- FAIL: TestOutputWithSubtest (0.00s)
+    foo_test.go:6: output before sub tests
+    --- PASS: TestOutputWithSubtest/sub_test (0.00s)
+        foo_test.go:9: output from sub test
+    foo_test.go:12: output after sub test
+FAIL
+FAIL    gotest.tools/gotestsum/foo      0.001s
+FAIL

@@ -1,0 +1,15 @@
+{"Action":"run","Test":"TestOutputWithSubtest"}
+{"Action":"output","Test":"TestOutputWithSubtest","Output":"=== RUN   TestOutputWithSubtest\n"}
+{"Action":"run","Test":"TestOutputWithSubtest/sub_test"}
+{"Action":"output","Test":"TestOutputWithSubtest/sub_test","Output":"=== RUN   TestOutputWithSubtest/sub_test\n"}
+{"Action":"output","Test":"TestOutputWithSubtest","Output":"--- FAIL: TestOutputWithSubtest (0.00s)\n"}
+{"Action":"output","Test":"TestOutputWithSubtest","Output":"    foo_test.go:6: output before sub tests\n"}
+{"Action":"output","Test":"TestOutputWithSubtest/sub_test","Output":"    --- PASS: TestOutputWithSubtest/sub_test (0.00s)\n"}
+{"Action":"output","Test":"TestOutputWithSubtest/sub_test","Output":"        foo_test.go:9: output from sub test\n"}
+{"Action":"output","Test":"TestOutputWithSubtest","Output":"    foo_test.go:12: output after sub test\n"}
+{"Action":"pass","Test":"TestOutputWithSubtest/sub_test"}
+{"Action":"fail","Test":"TestOutputWithSubtest"}
+{"Action":"output","Output":"FAIL\n"}
+{"Action":"output","Output":"FAIL    gotest.tools/gotestsum/foo      0.001s\n"}
+{"Action":"output","Output":"FAIL\n"}
+{"Action":"fail"}
