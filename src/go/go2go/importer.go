@@ -9,8 +9,10 @@ import (
 	"go/ast"
 	"go/build"
 	"go/importer"
+	"go/parser"
 	"go/token"
 	"go/types"
+	"internal/goroot"
 	"io/ioutil"
 	"log"
 	"os"
@@ -130,10 +132,7 @@ func (imp *Importer) ImportFrom(importPath, dir string, mode types.ImportMode) (
 	}
 
 	if len(go2files) == 0 {
-		// No .go2 files, so the default importer can handle it,
-		// provided we ensure that the package is installed.
-		imp.installGo1Package(pdir)
-		return defaultImporter.ImportFrom(importPath, dir, mode)
+		return imp.importGo1Package(importPath, dir, mode, pdir, gofiles)
 	}
 
 	if len(gofiles) > 0 {
@@ -191,6 +190,59 @@ func (imp *Importer) findFromPath(gopath, dir string) string {
 		}
 	}
 	return ""
+}
+
+// importGo1Package handles importing a package with .go files rather
+// than .go2 files. The default importer can do this if the package
+// has been installed, but not otherwise. Installing the package using
+// "go install" won't work if the Go 1 package depends on a Go 2 package.
+// So use the default importer for a package in the standard library,
+// and otherwise use go/types.
+func (imp *Importer) importGo1Package(importPath, dir string, mode types.ImportMode, pdir string, gofiles []string) (*types.Package, error) {
+	if goroot.IsStandardPackage(runtime.GOROOT(), "gc", importPath) {
+		return defaultImporter.ImportFrom(importPath, dir, mode)
+	}
+
+	if len(gofiles) == 0 {
+		return nil, fmt.Errorf("importing %q: no Go files in %s", importPath, pdir)
+	}
+
+	fset := token.NewFileSet()
+	filter := func(fi os.FileInfo) bool {
+		return !strings.HasSuffix(fi.Name(), "_test.go")
+	}
+	pkgs, err := parser.ParseDir(fset, pdir, filter, 0)
+	if err != nil {
+		return nil, err
+	}
+	if len(pkgs) > 1 {
+		return nil, fmt.Errorf("importing %q: multiple Go packages in %s", importPath, pdir)
+	}
+
+	var apkg *ast.Package
+	for _, apkg = range pkgs {
+		break
+	}
+
+	var asts []*ast.File
+	for _, f := range apkg.Files {
+		asts = append(asts, f)
+	}
+	sort.Slice(asts, func(i, j int) bool {
+		return asts[i].Name.Name < asts[j].Name.Name
+	})
+
+	var merr multiErr
+	conf := types.Config{
+		Importer: imp,
+		Error:    merr.add,
+	}
+	tpkg, err := conf.Check(apkg.Name, fset, asts, imp.info)
+	if err != nil {
+		return nil, merr
+	}
+
+	return tpkg, nil
 }
 
 // installGo1Package runs "go install" to install a package.

@@ -77,7 +77,7 @@ func TestGO2PATH(t *testing.T) {
 		}
 		newPath := filepath.Join(testTempDir, path)
 		if info.IsDir() {
-			if err := os.MkdirAll(newPath, 0755); err != nil {
+			if err := os.MkdirAll(newPath, 0o755); err != nil {
 				t.Fatal(err)
 			}
 			return nil
@@ -86,7 +86,7 @@ func TestGO2PATH(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := ioutil.WriteFile(newPath, data, 0444); err != nil {
+		if err := ioutil.WriteFile(newPath, data, 0o444); err != nil {
 			t.Fatal(err)
 		}
 		return nil
@@ -125,34 +125,48 @@ func TestGO2PATH(t *testing.T) {
 	}
 }
 
+type testFile struct {
+	name, contents string
+}
+
+type testFiles []testFile
+
+func (tfs testFiles) create(t *testing.T, gopath string) {
+	t.Helper()
+	for _, tf := range tfs {
+		fn := filepath.Join(gopath, "src", tf.name)
+		if err := os.MkdirAll(filepath.Dir(fn), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := ioutil.WriteFile(fn, []byte(tf.contents), 0o444); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestGO2PATHEqGOPATH(t *testing.T) {
 	t.Parallel()
 	buildGo2go(t)
 
-	pathDir := t.TempDir()
-	pkgDir := filepath.Join(pathDir, "src", "pkg")
-	if err := os.MkdirAll(pkgDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	const pkgSrc = `package pkg; func F() {}`
-	if err := ioutil.WriteFile(filepath.Join(pkgDir, "p.go"), []byte(pkgSrc), 0644); err != nil {
-		t.Fatal(err)
-	}
-	cmdDir := filepath.Join(pathDir, "src", "cmd")
-	if err := os.MkdirAll(cmdDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	const cmdSrc = `package main; import "pkg"; func main() { pkg.F() }`
-	if err := ioutil.WriteFile(filepath.Join(cmdDir, "cmd.go2"), []byte(cmdSrc), 0644); err != nil {
-		t.Fatal(err)
-	}
+	gopath := t.TempDir()
+	testFiles{
+		{
+			"pkg/p.go",
+			`package pkg; func F() {}`,
+		},
+		{
+			"cmd/cmd.go2",
+			`package main; import "pkg"; func main() { pkg.F() }`,
+		},
+	}.create(t, gopath)
 
 	t.Log("go2go build")
+	cmdDir := filepath.Join(gopath, "src", "cmd")
 	cmd := exec.Command(testGo2go, "build")
 	cmd.Dir = cmdDir
 	cmd.Env = append(os.Environ(),
-		"GOPATH="+pathDir,
-		"GO2PATH="+pathDir,
+		"GOPATH="+gopath,
+		"GO2PATH="+gopath,
 		"GO111MODULE=off",
 	)
 	out, err := cmd.CombinedOutput()
@@ -199,14 +213,16 @@ func TestBuild(t *testing.T) {
 	t.Parallel()
 	buildGo2go(t)
 
-	dir := filepath.Join(t.TempDir(), "hello")
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := ioutil.WriteFile(filepath.Join(dir, "hello.go2"), []byte(buildSource), 0444); err != nil {
-		t.Fatal(err)
-	}
+	gopath := t.TempDir()
+	testFiles{
+		{
+			"hello/hello.go2",
+			buildSource,
+		},
+	}.create(t, gopath)
+
 	t.Log("go2go build")
+	dir := filepath.Join(gopath, "src", "hello")
 	cmd := exec.Command(testGo2go, "build")
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
@@ -247,13 +263,13 @@ func TestBuildPackage(t *testing.T) {
 	buildGo2go(t)
 
 	gopath := t.TempDir()
-	dir := filepath.Join(gopath, "src", "cmd", "hello")
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := ioutil.WriteFile(filepath.Join(dir, "hello.go2"), []byte(buildSource), 0444); err != nil {
-		t.Fatal(err)
-	}
+	testFiles{
+		{
+			"cmd/hello/hello.go2",
+			buildSource,
+		},
+	}.create(t, gopath)
+
 	t.Log("go2go build")
 	cmd := exec.Command(testGo2go, "build", "cmd/hello")
 	cmd.Dir = gopath
@@ -269,4 +285,39 @@ func TestBuildPackage(t *testing.T) {
 	}
 
 	runHello(t, gopath)
+}
+
+func TestTransitiveGo1(t *testing.T) {
+	t.Parallel()
+	buildGo2go(t)
+
+	gopath := t.TempDir()
+	testFiles{
+		{
+			"a/a.go2",
+			`package a; func ident(type T)(v T) T { return v }; func F1(v int) int { return ident(v) }`,
+		},
+		{
+			"b/b.go",
+			`package b; import "a"; func F2(v int) int { return a.F1(v) }`,
+		},
+		{
+			"c/c.go2",
+			`package main; import ("fmt"; "b"); func main() { fmt.Println(b.F2(42)) }`,
+		},
+	}.create(t, gopath)
+
+	t.Log("go2go build")
+	cmd := exec.Command(testGo2go, "build", "c")
+	cmd.Dir = gopath
+	cmd.Env = append(os.Environ(),
+		"GO2PATH="+gopath,
+	)
+	out, err := cmd.CombinedOutput()
+	if len(out) > 0 {
+		t.Logf("%s", out)
+	}
+	if err != nil {
+		t.Fatalf(`error running "go2go build": %v`, err)
+	}
 }
