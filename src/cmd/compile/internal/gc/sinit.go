@@ -208,7 +208,7 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 	case OSTR2BYTES:
 		if l.Class() == PEXTERN && r.Left.Op == OLITERAL {
 			sval := strlit(r.Left)
-			slicebytes(l, sval, len(sval))
+			slicebytes(l, sval)
 			return true
 		}
 
