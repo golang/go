@@ -1,5 +1,4 @@
 env GO111MODULE=on
-env GOPROXY=$GOPROXY/quiet
 env GOSUMDB=$sumdb' '$proxy/sumdb-wrong
 
 # download -json with version should print JSON on sumdb failure

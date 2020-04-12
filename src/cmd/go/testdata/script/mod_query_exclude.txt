@@ -1,5 +1,4 @@
 env GO111MODULE=on
-env GOPROXY=$GOPROXY/quiet
 
 # get excluded version
 cp go.mod1 go.mod

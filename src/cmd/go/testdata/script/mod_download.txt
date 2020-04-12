@@ -1,5 +1,4 @@
 env GO111MODULE=on
-env GOPROXY=$GOPROXY/quiet
 
 # download with version should print nothing
 go mod download rsc.io/quote@v1.5.0
