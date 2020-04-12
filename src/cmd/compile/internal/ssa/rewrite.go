@@ -593,8 +593,24 @@ func float32ToAuxInt(f float32) int64 {
 func float64ToAuxInt(f float64) int64 {
 	return int64(math.Float64bits(f))
 }
-func ValAndOffToAuxInt(v ValAndOff) int64 {
+func valAndOffToAuxInt(v ValAndOff) int64 {
 	return int64(v)
+}
+
+func auxToString(i interface{}) string {
+	return i.(string)
+}
+func auxToSym(i interface{}) Sym {
+	// TODO: kind of a hack - allows nil interface through
+	s, _ := i.(Sym)
+	return s
+}
+
+func stringToAux(s string) interface{} {
+	return s
+}
+func symToAux(s Sym) interface{} {
+	return s
 }
 
 // uaddOvf reports whether unsigned a+b would overflow.
