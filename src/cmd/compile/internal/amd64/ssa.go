@@ -846,6 +846,28 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		if v.Reg() != v.Args[0].Reg() {
 			v.Fatalf("input[0] and output not in same register %s", v.LongString())
 		}
+	case ssa.OpAMD64ADDLloadidx1, ssa.OpAMD64ADDLloadidx4, ssa.OpAMD64ADDLloadidx8, ssa.OpAMD64ADDQloadidx1, ssa.OpAMD64ADDQloadidx8,
+		ssa.OpAMD64SUBLloadidx1, ssa.OpAMD64SUBLloadidx4, ssa.OpAMD64SUBLloadidx8, ssa.OpAMD64SUBQloadidx1, ssa.OpAMD64SUBQloadidx8,
+		ssa.OpAMD64ANDLloadidx1, ssa.OpAMD64ANDLloadidx4, ssa.OpAMD64ANDLloadidx8, ssa.OpAMD64ANDQloadidx1, ssa.OpAMD64ANDQloadidx8,
+		ssa.OpAMD64ORLloadidx1, ssa.OpAMD64ORLloadidx4, ssa.OpAMD64ORLloadidx8, ssa.OpAMD64ORQloadidx1, ssa.OpAMD64ORQloadidx8,
+		ssa.OpAMD64XORLloadidx1, ssa.OpAMD64XORLloadidx4, ssa.OpAMD64XORLloadidx8, ssa.OpAMD64XORQloadidx1, ssa.OpAMD64XORQloadidx8:
+		p := s.Prog(v.Op.Asm())
+
+		r, i := v.Args[1].Reg(), v.Args[2].Reg()
+		p.From.Type = obj.TYPE_MEM
+		p.From.Scale = v.Op.Scale()
+		if p.From.Scale == 1 && i == x86.REG_SP {
+			r, i = i, r
+		}
+		p.From.Reg = r
+		p.From.Index = i
+
+		gc.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+		if v.Reg() != v.Args[0].Reg() {
+			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+		}
 	case ssa.OpAMD64DUFFZERO:
 		off := duffStart(v.AuxInt)
 		adj := duffAdj(v.AuxInt)
