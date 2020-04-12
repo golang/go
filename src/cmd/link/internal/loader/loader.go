@@ -953,21 +953,9 @@ func (l *Loader) AttrSubSymbol(i Sym) bool {
 	return l.OuterSym(i) != 0
 }
 
-// AttrContainer returns true for symbols that are listed as a
-// sub-symbol of some other outer symbol. The sub/outer mechanism is
-// used when loading host objects (sections from the host object
-// become regular linker symbols and symbols go on the Sub list of
-// their section) and for constructing the global offset table when
-// internally linking a dynamic executable.
-func (l *Loader) AttrContainer(i Sym) bool {
-	// we don't explicitly store this attribute any more -- return
-	// a value based on the sub-symbol setting.
-	return l.SubSym(i) != 0
-}
-
-// Note that we don't have SetAttrSubSymbol' or 'SetAttrContainer' methods
-// in the loader; clients should just use methods like PrependSub
-// to establish these relationships
+// Note that we don't have a 'SetAttrSubSymbol' method in the loader;
+// clients should instead use the PrependSub method to establish
+// outer/sub relationships for host object symbols.
 
 // Returns whether the i-th symbol has ReflectMethod attribute set.
 func (l *Loader) IsReflectMethod(i Sym) bool {
