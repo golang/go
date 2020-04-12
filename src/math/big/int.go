@@ -465,8 +465,8 @@ func (x *Int) TrailingZeroBits() uint {
 }
 
 // Exp sets z = x**y mod |m| (i.e. the sign of m is ignored), and returns z.
-// If m == nil or m == 0, z = x**y unless y <= 0 then z = 1. If m > 0, y < 0,
-// and x and n are not relatively prime, z is unchanged and nil is returned.
+// If m == nil or m == 0, z = x**y unless y <= 0 then z = 1. If m != 0, y < 0,
+// and x and m are not relatively prime, z is unchanged and nil is returned.
 //
 // Modular exponentiation of inputs of a particular size is not a
 // cryptographically constant-time operation.
