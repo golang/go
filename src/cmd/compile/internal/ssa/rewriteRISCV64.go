@@ -1894,6 +1894,7 @@ func rewriteValueRISCV64_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] {t} dst src mem)
+	// cond: (s <= 16 || logLargeCopy(v, s))
 	// result: (LoweredMove [t.(*types.Type).Alignment()] dst src (ADDI <src.Type> [s-moveSize(t.(*types.Type).Alignment(), config)] src) mem)
 	for {
 		s := v.AuxInt
@@ -1901,6 +1902,9 @@ func rewriteValueRISCV64_OpMove(v *Value) bool {
 		dst := v_0
 		src := v_1
 		mem := v_2
+		if !(s <= 16 || logLargeCopy(v, s)) {
+			break
+		}
 		v.reset(OpRISCV64LoweredMove)
 		v.AuxInt = t.(*types.Type).Alignment()
 		v0 := b.NewValue0(v.Pos, OpRISCV64ADDI, src.Type)
@@ -1909,6 +1913,7 @@ func rewriteValueRISCV64_OpMove(v *Value) bool {
 		v.AddArg4(dst, src, v0, mem)
 		return true
 	}
+	return false
 }
 func rewriteValueRISCV64_OpMul16(v *Value) bool {
 	v_1 := v.Args[1]

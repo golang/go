@@ -404,7 +404,7 @@
 (Move [8] dst src mem) -> (MOVDstore dst (MOVDload src mem) mem)
 
 // Generic move uses a loop
-(Move [s] {t} dst src mem) ->
+(Move [s] {t} dst src mem) && (s <= 16 || logLargeCopy(v, s)) ->
 	(LoweredMove [t.(*types.Type).Alignment()]
 		dst
 		src
