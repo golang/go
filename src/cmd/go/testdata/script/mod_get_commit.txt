@@ -1,5 +1,4 @@
 env GO111MODULE=on
-env GOPROXY=$GOPROXY/quiet
 [short] skip
 
 # @commit should resolve
