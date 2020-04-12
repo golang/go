@@ -1218,10 +1218,17 @@
 (FCMP (FMOVDconst [c]) x) && auxTo64F(c) == 0 -> (InvertFlags (LTDBR <v.Type> x))
 (FCMPS (FMOVSconst [c]) x) && auxTo32F(c) == 0 -> (InvertFlags (LTEBR <v.Type> x))
 
-// FSUB, FSUBS, FADD, FADDS now produce a flag, so when a comparison against zero instruction (e.g: LTDBR) is following
-// one of those instructions, we can use the generated flag and remove the comparison instruction.
-(LTDBR (Select0 x:(F(ADD|SUB) _ _)))  -> (Select1 x)
-(LTEBR (Select0 x:(F(ADDS|SUBS) _ _))) -> (Select1 x)
+// FSUB, FSUBS, FADD, FADDS now produce a condition code representing the
+// comparison of the result with 0.0. If a compare with zero instruction
+// (e.g. LTDBR) is following one of those instructions, we can use the
+// generated flag and remove the comparison instruction.
+// Note: when inserting Select1 ops we need to ensure they are in the
+// same block as their argument. We could also use @x.Block for this
+// but moving the flag generating value to a different block seems to
+// increase the likelihood that the flags value will have to be regenerated
+// by flagalloc which is not what we want.
+(LTDBR (Select0 x:(F(ADD|SUB) _ _)))   && b == x.Block -> (Select1 x)
+(LTEBR (Select0 x:(F(ADDS|SUBS) _ _))) && b == x.Block -> (Select1 x)
 
 // Fold memory operations into operations.
 // Exclude global data (SB) because these instructions cannot handle relative addresses.

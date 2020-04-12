@@ -8196,14 +8196,16 @@ func rewriteValueS390X_OpS390XLOCGR(v *Value) bool {
 }
 func rewriteValueS390X_OpS390XLTDBR(v *Value) bool {
 	v_0 := v.Args[0]
+	b := v.Block
 	// match: (LTDBR (Select0 x:(FADD _ _)))
+	// cond: b == x.Block
 	// result: (Select1 x)
 	for {
 		if v_0.Op != OpSelect0 {
 			break
 		}
 		x := v_0.Args[0]
-		if x.Op != OpS390XFADD {
+		if x.Op != OpS390XFADD || !(b == x.Block) {
 			break
 		}
 		v.reset(OpSelect1)
@@ -8211,13 +8213,14 @@ func rewriteValueS390X_OpS390XLTDBR(v *Value) bool {
 		return true
 	}
 	// match: (LTDBR (Select0 x:(FSUB _ _)))
+	// cond: b == x.Block
 	// result: (Select1 x)
 	for {
 		if v_0.Op != OpSelect0 {
 			break
 		}
 		x := v_0.Args[0]
-		if x.Op != OpS390XFSUB {
+		if x.Op != OpS390XFSUB || !(b == x.Block) {
 			break
 		}
 		v.reset(OpSelect1)
@@ -8228,14 +8231,16 @@ func rewriteValueS390X_OpS390XLTDBR(v *Value) bool {
 }
 func rewriteValueS390X_OpS390XLTEBR(v *Value) bool {
 	v_0 := v.Args[0]
+	b := v.Block
 	// match: (LTEBR (Select0 x:(FADDS _ _)))
+	// cond: b == x.Block
 	// result: (Select1 x)
 	for {
 		if v_0.Op != OpSelect0 {
 			break
 		}
 		x := v_0.Args[0]
-		if x.Op != OpS390XFADDS {
+		if x.Op != OpS390XFADDS || !(b == x.Block) {
 			break
 		}
 		v.reset(OpSelect1)
@@ -8243,13 +8248,14 @@ func rewriteValueS390X_OpS390XLTEBR(v *Value) bool {
 		return true
 	}
 	// match: (LTEBR (Select0 x:(FSUBS _ _)))
+	// cond: b == x.Block
 	// result: (Select1 x)
 	for {
 		if v_0.Op != OpSelect0 {
 			break
 		}
 		x := v_0.Args[0]
-		if x.Op != OpS390XFSUBS {
+		if x.Op != OpS390XFSUBS || !(b == x.Block) {
 			break
 		}
 		v.reset(OpSelect1)
