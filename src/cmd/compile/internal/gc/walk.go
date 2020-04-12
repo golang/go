@@ -81,18 +81,6 @@ func walkstmtlist(s []*Node) {
 	}
 }
 
-func samelist(a, b []*Node) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, n := range a {
-		if n != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
 func paramoutheap(fn *Node) bool {
 	for _, ln := range fn.Func.Dcl {
 		switch ln.Class() {
@@ -293,16 +281,6 @@ func walkstmt(n *Node) *Node {
 				// order should have rewritten multi-value function calls
 				// with explicit OAS2FUNC nodes.
 				Fatalf("expected %v return arguments, have %v", want, got)
-			}
-
-			if samelist(rl, n.List.Slice()) {
-				// special return in disguise
-				// TODO(josharian, 1.12): is "special return" still relevant?
-				// Tests still pass w/o this. See comments on https://go-review.googlesource.com/c/go/+/118318
-				walkexprlist(n.List.Slice(), &n.Ninit)
-				n.List.Set(nil)
-
-				break
 			}
 
 			// move function calls out, to make reorder3's job easier.
