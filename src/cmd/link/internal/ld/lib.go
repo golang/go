@@ -2604,17 +2604,6 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 
 	for _, s := range ctxt.Textp {
 		put(ctxt, s, s.Name, TextSym, s.Value, s.Gotype)
-
-		locals := int32(0)
-		if s.FuncInfo != nil {
-			locals = s.FuncInfo.Locals
-		}
-		// NOTE(ality): acid can't produce a stack trace without .frame symbols
-		put(ctxt, nil, ".frame", FrameSym, int64(locals)+int64(ctxt.Arch.PtrSize), nil)
-
-		if s.FuncInfo == nil {
-			continue
-		}
 	}
 
 	if ctxt.Debugvlog != 0 || *flagN {
