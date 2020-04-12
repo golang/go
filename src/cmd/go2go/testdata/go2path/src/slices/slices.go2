@@ -13,7 +13,7 @@ import (
 
 // Equal reports whether two slices are equal: the same length and all
 // elements equal. All floating point NaNs are considered equal.
-func Equal(type Elem contracts.Ordered)(s1, s2 []Elem) bool {
+func Equal(type Elem comparable)(s1, s2 []Elem) bool {
 	if len(s1) != len(s2) {
 		return false
 	}
