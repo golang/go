@@ -3,113 +3,114 @@
 // license that can be found in the LICENSE file.
 
 // Lowering arithmetic
-(Add(64|32|16|8) ...) -> (ADD(Q|L|L|L) ...)
-(AddPtr ...) -> (ADDQ ...)
-(Add(32|64)F ...) -> (ADDS(S|D) ...)
+(Add(64|32|16|8) ...) => (ADD(Q|L|L|L) ...)
+(AddPtr ...) => (ADDQ ...)
+(Add(32|64)F ...) => (ADDS(S|D) ...)
 
-(Sub(64|32|16|8) ...) -> (SUB(Q|L|L|L) ...)
-(SubPtr ...) -> (SUBQ ...)
-(Sub(32|64)F ...) -> (SUBS(S|D) ...)
+(Sub(64|32|16|8) ...) => (SUB(Q|L|L|L) ...)
+(SubPtr ...) => (SUBQ ...)
+(Sub(32|64)F ...) => (SUBS(S|D) ...)
 
-(Mul(64|32|16|8) ...) -> (MUL(Q|L|L|L) ...)
-(Mul(32|64)F ...) -> (MULS(S|D) ...)
+(Mul(64|32|16|8) ...) => (MUL(Q|L|L|L) ...)
+(Mul(32|64)F ...) => (MULS(S|D) ...)
 
-(Select0 (Mul64uover x y)) -> (Select0 <typ.UInt64> (MULQU x y))
-(Select0 (Mul32uover x y)) -> (Select0 <typ.UInt32> (MULLU x y))
-(Select1 (Mul(64|32)uover x y)) -> (SETO (Select1 <types.TypeFlags> (MUL(Q|L)U x y)))
+(Select0 (Mul64uover x y)) => (Select0 <typ.UInt64> (MULQU x y))
+(Select0 (Mul32uover x y)) => (Select0 <typ.UInt32> (MULLU x y))
+(Select1 (Mul(64|32)uover x y)) => (SETO (Select1 <types.TypeFlags> (MUL(Q|L)U x y)))
 
-(Hmul(64|32) ...) -> (HMUL(Q|L) ...)
-(Hmul(64|32)u ...) -> (HMUL(Q|L)U ...)
+(Hmul(64|32) ...) => (HMUL(Q|L) ...)
+(Hmul(64|32)u ...) => (HMUL(Q|L)U ...)
 
-(Div(64|32|16) [a] x y) -> (Select0 (DIV(Q|L|W) [a] x y))
-(Div8  x y) -> (Select0 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
-(Div(64|32|16)u x y) -> (Select0 (DIV(Q|L|W)U x y))
-(Div8u x y) -> (Select0 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
-(Div(32|64)F ...) -> (DIVS(S|D) ...)
+(Div(64|32|16) [a] x y) => (Select0 (DIV(Q|L|W) [a] x y))
+(Div8  x y) => (Select0 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
+(Div(64|32|16)u x y) => (Select0 (DIV(Q|L|W)U x y))
+(Div8u x y) => (Select0 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
+(Div(32|64)F ...) => (DIVS(S|D) ...)
 
-(Select0 (Add64carry x y c)) ->
+(Select0 (Add64carry x y c)) =>
 	(Select0 <typ.UInt64> (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags c))))
-(Select1 (Add64carry x y c)) ->
+(Select1 (Add64carry x y c)) =>
 	(NEGQ <typ.UInt64> (SBBQcarrymask <typ.UInt64> (Select1 <types.TypeFlags> (ADCQ x y (Select1 <types.TypeFlags> (NEGLflags c))))))
-(Select0 (Sub64borrow x y c)) ->
+(Select0 (Sub64borrow x y c)) =>
 	(Select0 <typ.UInt64> (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags c))))
-(Select1 (Sub64borrow x y c)) ->
+(Select1 (Sub64borrow x y c)) =>
 	(NEGQ <typ.UInt64> (SBBQcarrymask <typ.UInt64> (Select1 <types.TypeFlags> (SBBQ x y (Select1 <types.TypeFlags> (NEGLflags c))))))
 
 // Optimize ADCQ and friends
-(ADCQ x (MOVQconst [c]) carry) && is32Bit(c) -> (ADCQconst x [c] carry)
-(ADCQ x y (FlagEQ)) -> (ADDQcarry x y)
-(ADCQconst x [c] (FlagEQ)) -> (ADDQconstcarry x [c])
-(ADDQcarry x (MOVQconst [c])) && is32Bit(c) -> (ADDQconstcarry x [c])
-(SBBQ x (MOVQconst [c]) borrow) && is32Bit(c) -> (SBBQconst x [c] borrow)
-(SBBQ x y (FlagEQ)) -> (SUBQborrow x y)
-(SBBQconst x [c] (FlagEQ)) -> (SUBQconstborrow x [c])
-(SUBQborrow x (MOVQconst [c])) && is32Bit(c) -> (SUBQconstborrow x [c])
-(Select1 (NEGLflags (MOVQconst [0]))) -> (FlagEQ)
-(Select1 (NEGLflags (NEGQ (SBBQcarrymask x)))) -> x
+(ADCQ x (MOVQconst [c]) carry) && is32Bit(c) => (ADCQconst x [int32(c)] carry)
+(ADCQ x y (FlagEQ)) => (ADDQcarry x y)
+(ADCQconst x [c] (FlagEQ)) => (ADDQconstcarry x [c])
+(ADDQcarry x (MOVQconst [c])) && is32Bit(c) => (ADDQconstcarry x [int32(c)])
+(SBBQ x (MOVQconst [c]) borrow) && is32Bit(c) => (SBBQconst x [int32(c)] borrow)
+(SBBQ x y (FlagEQ)) => (SUBQborrow x y)
+(SBBQconst x [c] (FlagEQ)) => (SUBQconstborrow x [c])
+(SUBQborrow x (MOVQconst [c])) && is32Bit(c) => (SUBQconstborrow x [int32(c)])
+(Select1 (NEGLflags (MOVQconst [0]))) => (FlagEQ)
+(Select1 (NEGLflags (NEGQ (SBBQcarrymask x)))) => x
 
 
-(Mul64uhilo ...) -> (MULQU2 ...)
-(Div128u ...) -> (DIVQU2 ...)
+(Mul64uhilo ...) => (MULQU2 ...)
+(Div128u ...) => (DIVQU2 ...)
 
-(Avg64u ...) -> (AVGQU ...)
+(Avg64u ...) => (AVGQU ...)
 
-(Mod(64|32|16) [a] x y) -> (Select1 (DIV(Q|L|W) [a] x y))
-(Mod8  x y) -> (Select1 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
-(Mod(64|32|16)u x y) -> (Select1 (DIV(Q|L|W)U x y))
-(Mod8u x y) -> (Select1 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
+(Mod(64|32|16) [a] x y) => (Select1 (DIV(Q|L|W) [a] x y))
+(Mod8  x y) => (Select1 (DIVW  (SignExt8to16 x) (SignExt8to16 y)))
+(Mod(64|32|16)u x y) => (Select1 (DIV(Q|L|W)U x y))
+(Mod8u x y) => (Select1 (DIVWU (ZeroExt8to16 x) (ZeroExt8to16 y)))
 
-(And(64|32|16|8) ...) -> (AND(Q|L|L|L) ...)
-(Or(64|32|16|8) ...) -> (OR(Q|L|L|L) ...)
-(Xor(64|32|16|8) ...) -> (XOR(Q|L|L|L) ...)
-(Com(64|32|16|8) ...) -> (NOT(Q|L|L|L) ...)
+(And(64|32|16|8) ...) => (AND(Q|L|L|L) ...)
+(Or(64|32|16|8) ...) => (OR(Q|L|L|L) ...)
+(Xor(64|32|16|8) ...) => (XOR(Q|L|L|L) ...)
+(Com(64|32|16|8) ...) => (NOT(Q|L|L|L) ...)
 
-(Neg(64|32|16|8) ...) -> (NEG(Q|L|L|L) ...)
-(Neg32F x) -> (PXOR x (MOVSSconst <typ.Float32> [auxFrom32F(float32(math.Copysign(0, -1)))]))
-(Neg64F x) -> (PXOR x (MOVSDconst <typ.Float64> [auxFrom64F(math.Copysign(0, -1))]))
+(Neg(64|32|16|8) ...) => (NEG(Q|L|L|L) ...)
+(Neg32F x) => (PXOR x (MOVSSconst <typ.Float32> [float32(math.Copysign(0, -1))]))
+(Neg64F x) => (PXOR x (MOVSDconst <typ.Float64> [math.Copysign(0, -1)]))
 
 // Lowering boolean ops
-(AndB ...) -> (ANDL ...)
-(OrB ...) -> (ORL ...)
-(Not x) -> (XORLconst [1] x)
+(AndB ...) => (ANDL ...)
+(OrB ...) => (ORL ...)
+(Not x) => (XORLconst [1] x)
 
 // Lowering pointer arithmetic
-(OffPtr [off] ptr) && is32Bit(off) -> (ADDQconst [off] ptr)
-(OffPtr [off] ptr) -> (ADDQ (MOVQconst [off]) ptr)
+(OffPtr [off] ptr) && is32Bit(off) => (ADDQconst [int32(off)] ptr)
+(OffPtr [off] ptr) => (ADDQ (MOVQconst [off]) ptr)
 
 // Lowering other arithmetic
-(Ctz64 <t> x) -> (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <types.TypeFlags> (BSFQ x)))
-(Ctz32 x) -> (Select0 (BSFQ (BTSQconst <typ.UInt64> [32] x)))
-(Ctz16 x) -> (BSFL (BTSLconst <typ.UInt32> [16] x))
-(Ctz8  x) -> (BSFL (BTSLconst <typ.UInt32> [ 8] x))
+(Ctz64 <t> x) => (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <types.TypeFlags> (BSFQ x)))
+(Ctz32 x) => (Select0 (BSFQ (BTSQconst <typ.UInt64> [32] x)))
+(Ctz16 x) => (BSFL (BTSLconst <typ.UInt32> [16] x))
+(Ctz8  x) => (BSFL (BTSLconst <typ.UInt32> [ 8] x))
 
-(Ctz64NonZero x) -> (Select0 (BSFQ x))
-(Ctz32NonZero ...) -> (BSFL ...)
-(Ctz16NonZero ...) -> (BSFL ...)
-(Ctz8NonZero  ...) -> (BSFL ...)
+(Ctz64NonZero x) => (Select0 (BSFQ x))
+(Ctz32NonZero ...) => (BSFL ...)
+(Ctz16NonZero ...) => (BSFL ...)
+(Ctz8NonZero  ...) => (BSFL ...)
 
 // BitLen64 of a 64 bit value x requires checking whether x == 0, since BSRQ is undefined when x == 0.
 // However, for zero-extended values, we can cheat a bit, and calculate
 // BSR(x<<1 + 1), which is guaranteed to be non-zero, and which conveniently
 // places the index of the highest set bit where we want it.
-(BitLen64 <t> x) -> (ADDQconst [1] (CMOVQEQ <t> (Select0 <t> (BSRQ x)) (MOVQconst <t> [-1]) (Select1 <types.TypeFlags> (BSRQ x))))
-(BitLen32 x) -> (Select0 (BSRQ (LEAQ1 <typ.UInt64> [1] (MOVLQZX <typ.UInt64> x) (MOVLQZX <typ.UInt64> x))))
-(BitLen16 x) -> (BSRL (LEAL1 <typ.UInt32> [1] (MOVWQZX <typ.UInt32> x) (MOVWQZX <typ.UInt32> x)))
-(BitLen8  x) -> (BSRL (LEAL1 <typ.UInt32> [1] (MOVBQZX <typ.UInt32> x) (MOVBQZX <typ.UInt32> x)))
+(BitLen64 <t> x) => (ADDQconst [1] (CMOVQEQ <t> (Select0 <t> (BSRQ x)) (MOVQconst <t> [-1]) (Select1 <types.TypeFlags> (BSRQ x))))
+(BitLen32 x) => (Select0 (BSRQ (LEAQ1 <typ.UInt64> [1] (MOVLQZX <typ.UInt64> x) (MOVLQZX <typ.UInt64> x))))
+(BitLen16 x) => (BSRL (LEAL1 <typ.UInt32> [1] (MOVWQZX <typ.UInt32> x) (MOVWQZX <typ.UInt32> x)))
+(BitLen8  x) => (BSRL (LEAL1 <typ.UInt32> [1] (MOVBQZX <typ.UInt32> x) (MOVBQZX <typ.UInt32> x)))
 
-(Bswap(64|32) ...) -> (BSWAP(Q|L) ...)
+(Bswap(64|32) ...) => (BSWAP(Q|L) ...)
 
-(PopCount(64|32) ...) -> (POPCNT(Q|L) ...)
-(PopCount16 x) -> (POPCNTL (MOVWQZX <typ.UInt32> x))
-(PopCount8 x) -> (POPCNTL (MOVBQZX <typ.UInt32> x))
+(PopCount(64|32) ...) => (POPCNT(Q|L) ...)
+(PopCount16 x) => (POPCNTL (MOVWQZX <typ.UInt32> x))
+(PopCount8 x) => (POPCNTL (MOVBQZX <typ.UInt32> x))
 
-(Sqrt ...) -> (SQRTSD ...)
+(Sqrt ...) => (SQRTSD ...)
 
-(RoundToEven x) -> (ROUNDSD [0] x)
-(Floor x)	-> (ROUNDSD [1] x)
-(Ceil x)  	-> (ROUNDSD [2] x)
-(Trunc x) 	-> (ROUNDSD [3] x)
-(FMA x y z) -> (VFMADD231SD z x y)
+(RoundToEven x) => (ROUNDSD [0] x)
+(Floor x)       => (ROUNDSD [1] x)
+(Ceil x)        => (ROUNDSD [2] x)
+(Trunc x)       => (ROUNDSD [3] x)
+
+(FMA x y z) => (VFMADD231SD z x y)
 
 // Lowering extension
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.
