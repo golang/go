@@ -245,11 +245,6 @@ func addtimer(t *timer) {
 	}
 	t.status = timerWaiting
 
-	addInitializedTimer(t)
-}
-
-// addInitializedTimer adds an initialized timer to the current P.
-func addInitializedTimer(t *timer) {
 	when := t.when
 
 	pp := getg().m.p.ptr()
@@ -262,7 +257,6 @@ func addInitializedTimer(t *timer) {
 }
 
 // doaddtimer adds t to the current P's heap.
-// It reports whether it saw no problems due to races.
 // The caller must have locked the timers for pp.
 func doaddtimer(pp *p, t *timer) {
 	// Timers rely on the network poller, so make sure the poller
@@ -292,6 +286,9 @@ func deltimer(t *timer) bool {
 	for {
 		switch s := atomic.Load(&t.status); s {
 		case timerWaiting, timerModifiedLater:
+			// Prevent preemption while the timer is in timerModifying.
+			// This could lead to a self-deadlock. See #38070.
+			mp := acquirem()
 			if atomic.Cas(&t.status, s, timerModifying) {
 				// Must fetch t.pp before changing status,
 				// as cleantimers in another goroutine
@@ -300,11 +297,17 @@ func deltimer(t *timer) bool {
 				if !atomic.Cas(&t.status, timerModifying, timerDeleted) {
 					badTimer()
 				}
+				releasem(mp)
 				atomic.Xadd(&tpp.deletedTimers, 1)
 				// Timer was not yet run.
 				return true
+			} else {
+				releasem(mp)
 			}
 		case timerModifiedEarlier:
+			// Prevent preemption while the timer is in timerModifying.
+			// This could lead to a self-deadlock. See #38070.
+			mp := acquirem()
 			if atomic.Cas(&t.status, s, timerModifying) {
 				// Must fetch t.pp before setting status
 				// to timerDeleted.
@@ -313,9 +316,12 @@ func deltimer(t *timer) bool {
 				if !atomic.Cas(&t.status, timerModifying, timerDeleted) {
 					badTimer()
 				}
+				releasem(mp)
 				atomic.Xadd(&tpp.deletedTimers, 1)
 				// Timer was not yet run.
 				return true
+			} else {
+				releasem(mp)
 			}
 		case timerDeleted, timerRemoving, timerRemoved:
 			// Timer was already run.
@@ -398,25 +404,39 @@ func modtimer(t *timer, when, period int64, f func(interface{}, uintptr), arg in
 
 	status := uint32(timerNoStatus)
 	wasRemoved := false
+	var mp *m
 loop:
 	for {
 		switch status = atomic.Load(&t.status); status {
 		case timerWaiting, timerModifiedEarlier, timerModifiedLater:
+			// Prevent preemption while the timer is in timerModifying.
+			// This could lead to a self-deadlock. See #38070.
+			mp = acquirem()
 			if atomic.Cas(&t.status, status, timerModifying) {
 				break loop
 			}
+			releasem(mp)
 		case timerNoStatus, timerRemoved:
+			// Prevent preemption while the timer is in timerModifying.
+			// This could lead to a self-deadlock. See #38070.
+			mp = acquirem()
+
 			// Timer was already run and t is no longer in a heap.
 			// Act like addtimer.
 			if atomic.Cas(&t.status, status, timerModifying) {
 				wasRemoved = true
 				break loop
 			}
+			releasem(mp)
 		case timerDeleted:
+			// Prevent preemption while the timer is in timerModifying.
+			// This could lead to a self-deadlock. See #38070.
+			mp = acquirem()
 			if atomic.Cas(&t.status, status, timerModifying) {
 				atomic.Xadd(&t.pp.ptr().deletedTimers, -1)
 				break loop
 			}
+			releasem(mp)
 		case timerRunning, timerRemoving, timerMoving:
 			// The timer is being run or moved, by a different P.
 			// Wait for it to complete.
@@ -437,10 +457,15 @@ loop:
 
 	if wasRemoved {
 		t.when = when
-		addInitializedTimer(t)
+		pp := getg().m.p.ptr()
+		lock(&pp.timersLock)
+		doaddtimer(pp, t)
+		unlock(&pp.timersLock)
 		if !atomic.Cas(&t.status, timerModifying, timerWaiting) {
 			badTimer()
 		}
+		releasem(mp)
+		wakeNetPoller(when)
 	} else {
 		// The timer is in some other P's heap, so we can't change
 		// the when field. If we did, the other P's heap would
@@ -472,6 +497,7 @@ loop:
 		if !atomic.Cas(&t.status, timerModifying, newStatus) {
 			badTimer()
 		}
+		releasem(mp)
 
 		// If the new status is earlier, wake up the poller.
 		if newStatus == timerModifiedEarlier {

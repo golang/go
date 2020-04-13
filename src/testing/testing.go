@@ -927,16 +927,15 @@ func tRunner(t *T, fn func(t *T)) {
 				t.Logf("cleanup panicked with %v", r)
 			}
 			// Flush the output log up to the root before dying.
-			t.mu.Lock()
-			root := &t.common
-			for ; root.parent != nil; root = root.parent {
+			for root := &t.common; root.parent != nil; root = root.parent {
+				root.mu.Lock()
 				root.duration += time.Since(root.start)
-				fmt.Fprintf(root.parent.w, "--- FAIL: %s (%s)\n", root.name, fmtDuration(root.duration))
+				d := root.duration
+				root.mu.Unlock()
+				root.flushToParent("--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
 				if r := root.parent.runCleanup(recoverAndReturnPanic); r != nil {
 					fmt.Fprintf(root.parent.w, "cleanup panicked with %v", r)
 				}
-				root.parent.mu.Lock()
-				io.Copy(root.parent.w, bytes.NewReader(root.output))
 			}
 			panic(err)
 		}

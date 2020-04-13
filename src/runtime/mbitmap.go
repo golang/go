@@ -1921,7 +1921,11 @@ Run:
 // The bitmask starts at s.startAddr.
 // The result must be deallocated with dematerializeGCProg.
 func materializeGCProg(ptrdata uintptr, prog *byte) *mspan {
-	s := mheap_.allocManual((ptrdata/(8*sys.PtrSize)+pageSize-1)/pageSize, &memstats.gc_sys)
+	// Each word of ptrdata needs one bit in the bitmap.
+	bitmapBytes := divRoundUp(ptrdata, 8*sys.PtrSize)
+	// Compute the number of pages needed for bitmapBytes.
+	pages := divRoundUp(bitmapBytes, pageSize)
+	s := mheap_.allocManual(pages, &memstats.gc_sys)
 	runGCProg(addb(prog, 4), nil, (*byte)(unsafe.Pointer(s.startAddr)), 1)
 	return s
 }
