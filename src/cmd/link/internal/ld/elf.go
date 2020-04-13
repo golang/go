@@ -884,7 +884,7 @@ func elfwritenetbsdsig(out *OutBuf) int {
 }
 
 // The race detector can't handle ASLR (address space layout randomization).
-// ASLR is on by default for NetBSD, so we turn the ASLR off eplicitly
+// ASLR is on by default for NetBSD, so we turn the ASLR off explicitly
 // using a magic elf Note when building race binaries.
 
 func elfnetbsdpax(sh *ElfShdr, startva uint64, resoff uint64) int {
