@@ -31,7 +31,7 @@ func (out *OutBuf) Mmap(filesize uint64) error {
 	return nil
 }
 
-func (out *OutBuf) Munmap() {
+func (out *OutBuf) munmap() {
 	if out.buf == nil {
 		return
 	}

@@ -11,5 +11,5 @@ import "errors"
 var errNotSupported = errors.New("mmap not supported")
 
 func (out *OutBuf) Mmap(filesize uint64) error { return errNotSupported }
-func (out *OutBuf) Munmap()                    { panic("unreachable") }
+func (out *OutBuf) munmap()                    { panic("unreachable") }
 func (out *OutBuf) Msync() error               { panic("unreachable") }
