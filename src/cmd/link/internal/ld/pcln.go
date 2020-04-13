@@ -601,7 +601,7 @@ func (ctxt *Link) findfunctab(container loader.Bitmap) {
 		if i < len(ctxt.Textp2) {
 			e = ctxt.Textp2[i]
 		}
-		for !emitPcln(ctxt, e, container) && i < len(ctxt.Textp2) {
+		for e != 0 && !emitPcln(ctxt, e, container) && i < len(ctxt.Textp2) {
 			e = ctxt.Textp2[i]
 			i++
 		}
