@@ -540,10 +540,14 @@ func walkTypeSwitch(sw *Node) {
 			caseVar = ncase.Rlist.First()
 		}
 
-		// For single-type cases, we initialize the case
-		// variable as part of the type assertion; but in
-		// other cases, we initialize it in the body.
-		singleType := ncase.List.Len() == 1 && ncase.List.First().Op == OTYPE
+		// For single-type cases with an interface type,
+		// we initialize the case variable as part of the type assertion.
+		// In other cases, we initialize it in the body.
+		var singleType *types.Type
+		if ncase.List.Len() == 1 && ncase.List.First().Op == OTYPE {
+			singleType = ncase.List.First().Type
+		}
+		caseVarInitialized := false
 
 		label := autolabel(".s")
 		jmp := npos(ncase.Pos, nodSym(OGOTO, nil, label))
@@ -564,18 +568,27 @@ func walkTypeSwitch(sw *Node) {
 				continue
 			}
 
-			if singleType {
+			if singleType != nil && singleType.IsInterface() {
 				s.Add(n1.Type, caseVar, jmp)
+				caseVarInitialized = true
 			} else {
 				s.Add(n1.Type, nil, jmp)
 			}
 		}
 
 		body.Append(npos(ncase.Pos, nodSym(OLABEL, nil, label)))
-		if caseVar != nil && !singleType {
+		if caseVar != nil && !caseVarInitialized {
+			val := s.facename
+			if singleType != nil {
+				// We have a single concrete type. Extract the data.
+				if singleType.IsInterface() {
+					Fatalf("singleType interface should have been handled in Add")
+				}
+				val = ifaceData(s.facename, singleType)
+			}
 			l := []*Node{
 				nodl(ncase.Pos, ODCL, caseVar, nil),
-				nodl(ncase.Pos, OAS, caseVar, s.facename),
+				nodl(ncase.Pos, OAS, caseVar, val),
 			}
 			typecheckslice(l, ctxStmt)
 			body.Append(l...)

@@ -2549,7 +2549,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.load(n.Type, addr)
 
 	case ODEREF:
-		p := s.exprPtr(n.Left, false, n.Pos)
+		p := s.exprPtr(n.Left, n.Left.Bounded(), n.Pos)
 		return s.load(n.Type, p)
 
 	case ODOT:

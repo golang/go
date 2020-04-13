@@ -1897,6 +1897,9 @@ func itabType(itab *Node) *Node {
 // The concrete type must be known to have type t.
 // It follows the pointer if !isdirectiface(t).
 func ifaceData(n *Node, t *types.Type) *Node {
+	if t.IsInterface() {
+		Fatalf("ifaceData interface: %v", t)
+	}
 	ptr := nodSym(OIDATA, n, nil)
 	if isdirectiface(t) {
 		ptr.Type = t
