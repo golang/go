@@ -568,6 +568,12 @@ func auxIntToFloat64(i int64) float64 {
 func auxIntToValAndOff(i int64) ValAndOff {
 	return ValAndOff(i)
 }
+func auxIntToInt128(x int64) int128 {
+	if x != 0 {
+		panic("nonzero int128 not allowed")
+	}
+	return 0
+}
 
 func boolToAuxInt(b bool) int64 {
 	if b {
@@ -596,6 +602,12 @@ func float64ToAuxInt(f float64) int64 {
 func valAndOffToAuxInt(v ValAndOff) int64 {
 	return int64(v)
 }
+func int128ToAuxInt(x int128) int64 {
+	if x != 0 {
+		panic("nonzero int128 not allowed")
+	}
+	return 0
+}
 
 func auxToString(i interface{}) string {
 	return i.(string)
@@ -605,12 +617,18 @@ func auxToSym(i interface{}) Sym {
 	s, _ := i.(Sym)
 	return s
 }
+func auxToType(i interface{}) *types.Type {
+	return i.(*types.Type)
+}
 
 func stringToAux(s string) interface{} {
 	return s
 }
 func symToAux(s Sym) interface{} {
 	return s
+}
+func typeToAux(t *types.Type) interface{} {
+	return t
 }
 
 // uaddOvf reports whether unsigned a+b would overflow.

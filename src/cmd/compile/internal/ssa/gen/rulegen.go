@@ -1034,18 +1034,18 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 		if !token.IsIdentifier(e.name) || rr.declared(e.name) {
 			switch e.field {
 			case "Aux":
-				rr.add(breakf("auxTo%s(%s.%s) != %s", strings.Title(e.dclType), v, e.field, e.name))
+				rr.add(breakf("auxTo%s(%s.%s) != %s", title(e.dclType), v, e.field, e.name))
 			case "AuxInt":
-				rr.add(breakf("auxIntTo%s(%s.%s) != %s", strings.Title(e.dclType), v, e.field, e.name))
+				rr.add(breakf("auxIntTo%s(%s.%s) != %s", title(e.dclType), v, e.field, e.name))
 			case "Type":
 				rr.add(breakf("%s.%s != %s", v, e.field, e.name))
 			}
 		} else {
 			switch e.field {
 			case "Aux":
-				rr.add(declf(e.name, "auxTo%s(%s.%s)", strings.Title(e.dclType), v, e.field))
+				rr.add(declf(e.name, "auxTo%s(%s.%s)", title(e.dclType), v, e.field))
 			case "AuxInt":
-				rr.add(declf(e.name, "auxIntTo%s(%s.%s)", strings.Title(e.dclType), v, e.field))
+				rr.add(declf(e.name, "auxIntTo%s(%s.%s)", title(e.dclType), v, e.field))
 			case "Type":
 				rr.add(declf(e.name, "%s.%s", v, e.field))
 			}
@@ -1762,7 +1762,8 @@ func (op opData) auxIntType() string {
 		return "int32"
 	case "Int64":
 		return "int64"
-	//case  "Int128":
+	case "Int128":
+		return "int128"
 	case "Float32":
 		return "float32"
 	case "Float64":
@@ -1780,6 +1781,16 @@ func (op opData) auxIntType() string {
 	}
 }
 
+func title(s string) string {
+	if i := strings.Index(s, "."); i >= 0 {
+		s = s[i+1:]
+	}
+	return strings.Title(s)
+}
+
 func unTitle(s string) string {
+	if i := strings.Index(s, "."); i >= 0 {
+		s = s[i+1:]
+	}
 	return strings.ToLower(s[:1]) + s[1:]
 }
