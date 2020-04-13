@@ -121,6 +121,7 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 		want, err := ioutil.ReadFile(file.Name() + ".golden")
 		if err != nil {
 			t.Errorf("error reading %s.golden: %v", file.Name(), err)
+			continue
 		}
 		formatted, err := format.Source([]byte(out))
 		if err != nil {
