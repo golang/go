@@ -30,8 +30,7 @@ func rewriteValueRISCV64(v *Value) bool {
 		v.Op = OpRISCV64ADD
 		return true
 	case OpAddr:
-		v.Op = OpRISCV64MOVaddr
-		return true
+		return rewriteValueRISCV64_OpAddr(v)
 	case OpAnd16:
 		v.Op = OpRISCV64AND
 		return true
@@ -640,6 +639,20 @@ func rewriteValueRISCV64(v *Value) bool {
 		return rewriteValueRISCV64_OpZeroExt8to64(v)
 	}
 	return false
+}
+func rewriteValueRISCV64_OpAddr(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Addr {sym} base)
+	// result: (MOVaddr {sym} [0] base)
+	for {
+		sym := auxToSym(v.Aux)
+		base := v_0
+		v.reset(OpRISCV64MOVaddr)
+		v.AuxInt = int32ToAuxInt(0)
+		v.Aux = symToAux(sym)
+		v.AddArg(base)
+		return true
+	}
 }
 func rewriteValueRISCV64_OpAvg64u(v *Value) bool {
 	v_1 := v.Args[1]

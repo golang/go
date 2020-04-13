@@ -34,8 +34,7 @@ func rewriteValueWasm(v *Value) bool {
 		v.Op = OpWasmI64Add
 		return true
 	case OpAddr:
-		v.Op = OpWasmLoweredAddr
-		return true
+		return rewriteValueWasm_OpAddr(v)
 	case OpAnd16:
 		v.Op = OpWasmI64And
 		return true
@@ -662,6 +661,20 @@ func rewriteValueWasm(v *Value) bool {
 		return rewriteValueWasm_OpZeroExt8to64(v)
 	}
 	return false
+}
+func rewriteValueWasm_OpAddr(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (Addr {sym} base)
+	// result: (LoweredAddr {sym} [0] base)
+	for {
+		sym := auxToSym(v.Aux)
+		base := v_0
+		v.reset(OpWasmLoweredAddr)
+		v.AuxInt = int32ToAuxInt(0)
+		v.Aux = symToAux(sym)
+		v.AddArg(base)
+		return true
+	}
 }
 func rewriteValueWasm_OpBitLen64(v *Value) bool {
 	v_0 := v.Args[0]

@@ -646,8 +646,7 @@ func rewriteValueAMD64(v *Value) bool {
 	case OpCondSelect:
 		return rewriteValueAMD64_OpCondSelect(v)
 	case OpConst16:
-		v.Op = OpAMD64MOVLconst
-		return true
+		return rewriteValueAMD64_OpConst16(v)
 	case OpConst32:
 		v.Op = OpAMD64MOVLconst
 		return true
@@ -661,14 +660,11 @@ func rewriteValueAMD64(v *Value) bool {
 		v.Op = OpAMD64MOVSDconst
 		return true
 	case OpConst8:
-		v.Op = OpAMD64MOVLconst
-		return true
+		return rewriteValueAMD64_OpConst8(v)
 	case OpConstBool:
-		v.Op = OpAMD64MOVLconst
-		return true
+		return rewriteValueAMD64_OpConstBool(v)
 	case OpConstNil:
-		v.Op = OpAMD64MOVQconst
-		return true
+		return rewriteValueAMD64_OpConstNil(v)
 	case OpCtz16:
 		return rewriteValueAMD64_OpCtz16(v)
 	case OpCtz16NonZero:
@@ -29456,6 +29452,45 @@ func rewriteValueAMD64_OpCondSelect(v *Value) bool {
 		return true
 	}
 	return false
+}
+func rewriteValueAMD64_OpConst16(v *Value) bool {
+	// match: (Const16 [c])
+	// result: (MOVLconst [int32(c)])
+	for {
+		c := auxIntToInt16(v.AuxInt)
+		v.reset(OpAMD64MOVLconst)
+		v.AuxInt = int32ToAuxInt(int32(c))
+		return true
+	}
+}
+func rewriteValueAMD64_OpConst8(v *Value) bool {
+	// match: (Const8 [c])
+	// result: (MOVLconst [int32(c)])
+	for {
+		c := auxIntToInt8(v.AuxInt)
+		v.reset(OpAMD64MOVLconst)
+		v.AuxInt = int32ToAuxInt(int32(c))
+		return true
+	}
+}
+func rewriteValueAMD64_OpConstBool(v *Value) bool {
+	// match: (ConstBool [c])
+	// result: (MOVLconst [int32(b2i(c))])
+	for {
+		c := auxIntToBool(v.AuxInt)
+		v.reset(OpAMD64MOVLconst)
+		v.AuxInt = int32ToAuxInt(int32(b2i(c)))
+		return true
+	}
+}
+func rewriteValueAMD64_OpConstNil(v *Value) bool {
+	// match: (ConstNil )
+	// result: (MOVQconst [0])
+	for {
+		v.reset(OpAMD64MOVQconst)
+		v.AuxInt = int64ToAuxInt(0)
+		return true
+	}
 }
 func rewriteValueAMD64_OpCtz16(v *Value) bool {
 	v_0 := v.Args[0]

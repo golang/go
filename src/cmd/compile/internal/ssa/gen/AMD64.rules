@@ -400,14 +400,14 @@
 	(REPSTOSQ destptr (MOVQconst [s/8]) (MOVQconst [0]) mem)
 
 // Lowering constants
-(Const8   ...) -> (MOVLconst ...)
-(Const16  ...) -> (MOVLconst ...)
-(Const32  ...) -> (MOVLconst ...)
-(Const64  ...) -> (MOVQconst ...)
-(Const32F ...) -> (MOVSSconst ...)
-(Const64F ...) -> (MOVSDconst ...)
-(ConstNil ...) -> (MOVQconst ...)
-(ConstBool ...) -> (MOVLconst ...)
+(Const8   [c]) => (MOVLconst [int32(c)])
+(Const16  [c]) => (MOVLconst [int32(c)])
+(Const32  ...) => (MOVLconst ...)
+(Const64  ...) => (MOVQconst ...)
+(Const32F ...) => (MOVSSconst ...)
+(Const64F ...) => (MOVSDconst ...)
+(ConstNil    ) => (MOVQconst [0])
+(ConstBool [c]) => (MOVLconst [int32(b2i(c))])
 
 // Lowering calls
 (StaticCall ...) -> (CALLstatic ...)
