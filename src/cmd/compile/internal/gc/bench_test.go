@@ -19,3 +19,22 @@ func BenchmarkLoadAdd(b *testing.B) {
 		globl = s
 	}
 }
+
+func BenchmarkModify(b *testing.B) {
+	a := make([]int64, 1024)
+	v := globl
+	for i := 0; i < b.N; i++ {
+		for j := range a {
+			a[j] += v
+		}
+	}
+}
+
+func BenchmarkConstModify(b *testing.B) {
+	a := make([]int64, 1024)
+	for i := 0; i < b.N; i++ {
+		for j := range a {
+			a[j] += 3
+		}
+	}
+}
