@@ -7,10 +7,11 @@ package jsonrpc2
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"time"
+
+	"golang.org/x/tools/internal/telemetry/event"
 )
 
 // NOTE: This file provides an experimental API for serving multiple remote
@@ -96,7 +97,7 @@ func Serve(ctx context.Context, ln net.Listener, server StreamServer, idleTimeou
 		case err := <-doneListening:
 			return err
 		case err := <-closedConns:
-			log.Printf("closed a connection with error: %v", err)
+			event.Error(ctx, "closed a connection", err)
 			activeConns--
 			if activeConns == 0 {
 				connTimer.Reset(idleTimeout)
