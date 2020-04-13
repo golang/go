@@ -181,6 +181,9 @@ func genRulesSuffix(arch arch, suff string) {
 	for _, op := range ops {
 		eop, ok := parseEllipsisRules(oprules[op], arch)
 		if ok {
+			if strings.Contains(oprules[op][0].rule, "=>") && opByName(arch, op).aux != opByName(arch, eop).aux {
+				panic(fmt.Sprintf("can't use ... for ops that have different aux types: %s and %s", op, eop))
+			}
 			swc := &Case{expr: exprf(op)}
 			swc.add(stmtf("v.Op = %s", eop))
 			swc.add(stmtf("return true"))
@@ -1683,15 +1686,19 @@ func checkEllipsisRuleCandidate(rule Rule, arch arch) {
 	var auxint2, aux2 string
 	var args2 []string
 	var usingCopy string
+	var eop opData
 	if result[0] != '(' {
 		// Check for (Foo x) -> x, which can be converted to (Foo ...) -> (Copy ...).
 		args2 = []string{result}
 		usingCopy = " using Copy"
 	} else {
-		_, _, _, auxint2, aux2, args2 = parseValue(result, arch, rule.loc)
+		eop, _, _, auxint2, aux2, args2 = parseValue(result, arch, rule.loc)
 	}
 	// Check that all restrictions in match are reproduced exactly in result.
 	if aux != aux2 || auxint != auxint2 || len(args) != len(args2) {
+		return
+	}
+	if strings.Contains(rule.rule, "=>") && op.aux != eop.aux {
 		return
 	}
 	for i := range args {
