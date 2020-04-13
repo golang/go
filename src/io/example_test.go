@@ -138,7 +138,6 @@ func ExampleMultiReader() {
 func ExampleTeeReader() {
 	var r io.Reader = strings.NewReader("some io.Reader stream to be read\n")
 
-	// every byte read from 'r' will also be written to 'os.Stdout' before
 	r = io.TeeReader(r, os.Stdout)
 
 	// reading from it will also print to stdout now!
