@@ -1242,9 +1242,9 @@ FOq7cMJvODRwvMin9HwNHijXKp8iikXoAnaEHi1kLR4JtSlxH5WKTnmHUWCa54ZA
 9mDH0e5odhcdkMySkwc=
 -----END CERTIFICATE-----`
 
-const ed25519CRLKey = `-----BEGIN PRIVATE KEY-----
+var ed25519CRLKey = testingKey(`-----BEGIN TEST KEY-----
 MC4CAQAwBQYDK2VwBCIEINdKh2096vUBYu4EIFpjShsUSh3vimKya1sQ1YTT4RZG
------END PRIVATE KEY-----`
+-----END TEST KEY-----`)
 
 func TestCRLCreation(t *testing.T) {
 	block, _ := pem.Decode([]byte(pemPrivateKey))
