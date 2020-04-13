@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 )
@@ -18,20 +17,21 @@ import (
 var invalidPCAlignSrc = `
 TEXT test(SB),0,$0-0
 ADD $2, R3
-PCALIGN $64
+PCALIGN $32
 RET
 `
-
 var validPCAlignSrc = `
 TEXT test(SB),0,$0-0
 ADD $2, R3
 PCALIGN $16
-MOVD $8, R16
+MOVD $8, R4
 ADD $8, R4
-PCALIGN $32
-ADD $8, R3
+PCALIGN $16
+ADD $8, R4
 PCALIGN $8
-ADD $4, R8
+ADD $4, R6
+PCALIGN $16
+ADD R2, R3, R4
 RET
 `
 
@@ -39,10 +39,6 @@ RET
 // PCALIGN directive, to verify correct values are and
 // accepted, and incorrect values are flagged in error.
 func TestPCalign(t *testing.T) {
-	var pattern8 = `0x...8\s.*ADD\s..,\sR8`
-	var pattern16 = `0x...[80]\s.*MOVD\s..,\sR16`
-	var pattern32 = `0x...0\s.*ADD\s..,\sR3`
-
 	testenv.MustHaveGoBuild(t)
 
 	dir, err := ioutil.TempDir("", "testpcalign")
@@ -65,30 +61,6 @@ func TestPCalign(t *testing.T) {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Errorf("Build failed: %v, output: %s", err, out)
-	}
-
-	matched, err := regexp.MatchString(pattern8, string(out))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !matched {
-		t.Errorf("The 8 byte alignment is not correct: %t, output:%s\n", matched, out)
-	}
-
-	matched, err = regexp.MatchString(pattern16, string(out))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !matched {
-		t.Errorf("The 16 byte alignment is not correct: %t, output:%s\n", matched, out)
-	}
-
-	matched, err = regexp.MatchString(pattern32, string(out))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !matched {
-		t.Errorf("The 32 byte alignment is not correct: %t, output:%s\n", matched, out)
 	}
 
 	// generate a test with invalid use of PCALIGN
