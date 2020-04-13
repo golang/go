@@ -752,7 +752,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux(&p.To, v)
 	case ssa.OpAMD64MOVBstoreidx1, ssa.OpAMD64MOVWstoreidx1, ssa.OpAMD64MOVLstoreidx1, ssa.OpAMD64MOVQstoreidx1, ssa.OpAMD64MOVSSstoreidx1, ssa.OpAMD64MOVSDstoreidx1,
-		ssa.OpAMD64MOVQstoreidx8, ssa.OpAMD64MOVSDstoreidx8, ssa.OpAMD64MOVLstoreidx8, ssa.OpAMD64MOVSSstoreidx4, ssa.OpAMD64MOVLstoreidx4, ssa.OpAMD64MOVWstoreidx2:
+		ssa.OpAMD64MOVQstoreidx8, ssa.OpAMD64MOVSDstoreidx8, ssa.OpAMD64MOVLstoreidx8, ssa.OpAMD64MOVSSstoreidx4, ssa.OpAMD64MOVLstoreidx4, ssa.OpAMD64MOVWstoreidx2,
+		ssa.OpAMD64ADDLmodifyidx1, ssa.OpAMD64ADDLmodifyidx4, ssa.OpAMD64ADDLmodifyidx8, ssa.OpAMD64ADDQmodifyidx1, ssa.OpAMD64ADDQmodifyidx8,
+		ssa.OpAMD64SUBLmodifyidx1, ssa.OpAMD64SUBLmodifyidx4, ssa.OpAMD64SUBLmodifyidx8, ssa.OpAMD64SUBQmodifyidx1, ssa.OpAMD64SUBQmodifyidx8,
+		ssa.OpAMD64ANDLmodifyidx1, ssa.OpAMD64ANDLmodifyidx4, ssa.OpAMD64ANDLmodifyidx8, ssa.OpAMD64ANDQmodifyidx1, ssa.OpAMD64ANDQmodifyidx8,
+		ssa.OpAMD64ORLmodifyidx1, ssa.OpAMD64ORLmodifyidx4, ssa.OpAMD64ORLmodifyidx8, ssa.OpAMD64ORQmodifyidx1, ssa.OpAMD64ORQmodifyidx8,
+		ssa.OpAMD64XORLmodifyidx1, ssa.OpAMD64XORLmodifyidx4, ssa.OpAMD64XORLmodifyidx8, ssa.OpAMD64XORQmodifyidx1, ssa.OpAMD64XORQmodifyidx8:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[2].Reg()
@@ -796,6 +801,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux2(&p.To, v, off)
+
 	case ssa.OpAMD64MOVQstoreconst, ssa.OpAMD64MOVLstoreconst, ssa.OpAMD64MOVWstoreconst, ssa.OpAMD64MOVBstoreconst:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
@@ -804,11 +810,29 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
 		p.To.Type = obj.TYPE_MEM
 		p.To.Reg = v.Args[0].Reg()
 		gc.AddAux2(&p.To, v, sc.Off())
-	case ssa.OpAMD64MOVQstoreconstidx1, ssa.OpAMD64MOVQstoreconstidx8, ssa.OpAMD64MOVLstoreconstidx1, ssa.OpAMD64MOVLstoreconstidx4, ssa.OpAMD64MOVWstoreconstidx1, ssa.OpAMD64MOVWstoreconstidx2, ssa.OpAMD64MOVBstoreconstidx1:
+	case ssa.OpAMD64MOVQstoreconstidx1, ssa.OpAMD64MOVQstoreconstidx8, ssa.OpAMD64MOVLstoreconstidx1, ssa.OpAMD64MOVLstoreconstidx4, ssa.OpAMD64MOVWstoreconstidx1, ssa.OpAMD64MOVWstoreconstidx2, ssa.OpAMD64MOVBstoreconstidx1,
+		ssa.OpAMD64ADDLconstmodifyidx1, ssa.OpAMD64ADDLconstmodifyidx4, ssa.OpAMD64ADDLconstmodifyidx8, ssa.OpAMD64ADDQconstmodifyidx1, ssa.OpAMD64ADDQconstmodifyidx8,
+		ssa.OpAMD64ANDLconstmodifyidx1, ssa.OpAMD64ANDLconstmodifyidx4, ssa.OpAMD64ANDLconstmodifyidx8, ssa.OpAMD64ANDQconstmodifyidx1, ssa.OpAMD64ANDQconstmodifyidx8,
+		ssa.OpAMD64ORLconstmodifyidx1, ssa.OpAMD64ORLconstmodifyidx4, ssa.OpAMD64ORLconstmodifyidx8, ssa.OpAMD64ORQconstmodifyidx1, ssa.OpAMD64ORQconstmodifyidx8,
+		ssa.OpAMD64XORLconstmodifyidx1, ssa.OpAMD64XORLconstmodifyidx4, ssa.OpAMD64XORLconstmodifyidx8, ssa.OpAMD64XORQconstmodifyidx1, ssa.OpAMD64XORQconstmodifyidx8:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
 		sc := v.AuxValAndOff()
 		p.From.Offset = sc.Val()
+		switch {
+		case p.As == x86.AADDQ && p.From.Offset == 1:
+			p.As = x86.AINCQ
+			p.From.Type = obj.TYPE_NONE
+		case p.As == x86.AADDQ && p.From.Offset == -1:
+			p.As = x86.ADECQ
+			p.From.Type = obj.TYPE_NONE
+		case p.As == x86.AADDL && p.From.Offset == 1:
+			p.As = x86.AINCL
+			p.From.Type = obj.TYPE_NONE
+		case p.As == x86.AADDL && p.From.Offset == -1:
+			p.As = x86.ADECL
+			p.From.Type = obj.TYPE_NONE
+		}
 		memIdx(&p.To, v)
 		gc.AddAux2(&p.To, v, sc.Off())
 	case ssa.OpAMD64MOVLQSX, ssa.OpAMD64MOVWQSX, ssa.OpAMD64MOVBQSX, ssa.OpAMD64MOVLQZX, ssa.OpAMD64MOVWQZX, ssa.OpAMD64MOVBQZX,

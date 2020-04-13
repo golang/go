@@ -753,6 +753,51 @@ const (
 	OpAMD64ANDLmodify
 	OpAMD64ORLmodify
 	OpAMD64XORLmodify
+	OpAMD64ADDQmodifyidx1
+	OpAMD64ADDQmodifyidx8
+	OpAMD64SUBQmodifyidx1
+	OpAMD64SUBQmodifyidx8
+	OpAMD64ANDQmodifyidx1
+	OpAMD64ANDQmodifyidx8
+	OpAMD64ORQmodifyidx1
+	OpAMD64ORQmodifyidx8
+	OpAMD64XORQmodifyidx1
+	OpAMD64XORQmodifyidx8
+	OpAMD64ADDLmodifyidx1
+	OpAMD64ADDLmodifyidx4
+	OpAMD64ADDLmodifyidx8
+	OpAMD64SUBLmodifyidx1
+	OpAMD64SUBLmodifyidx4
+	OpAMD64SUBLmodifyidx8
+	OpAMD64ANDLmodifyidx1
+	OpAMD64ANDLmodifyidx4
+	OpAMD64ANDLmodifyidx8
+	OpAMD64ORLmodifyidx1
+	OpAMD64ORLmodifyidx4
+	OpAMD64ORLmodifyidx8
+	OpAMD64XORLmodifyidx1
+	OpAMD64XORLmodifyidx4
+	OpAMD64XORLmodifyidx8
+	OpAMD64ADDQconstmodifyidx1
+	OpAMD64ADDQconstmodifyidx8
+	OpAMD64ANDQconstmodifyidx1
+	OpAMD64ANDQconstmodifyidx8
+	OpAMD64ORQconstmodifyidx1
+	OpAMD64ORQconstmodifyidx8
+	OpAMD64XORQconstmodifyidx1
+	OpAMD64XORQconstmodifyidx8
+	OpAMD64ADDLconstmodifyidx1
+	OpAMD64ADDLconstmodifyidx4
+	OpAMD64ADDLconstmodifyidx8
+	OpAMD64ANDLconstmodifyidx1
+	OpAMD64ANDLconstmodifyidx4
+	OpAMD64ANDLconstmodifyidx8
+	OpAMD64ORLconstmodifyidx1
+	OpAMD64ORLconstmodifyidx4
+	OpAMD64ORLconstmodifyidx8
+	OpAMD64XORLconstmodifyidx1
+	OpAMD64XORLconstmodifyidx4
+	OpAMD64XORLconstmodifyidx8
 	OpAMD64NEGQ
 	OpAMD64NEGL
 	OpAMD64NOTQ
@@ -9689,6 +9734,706 @@ var opcodeTable = [...]opInfo{
 		faultOnNilArg0: true,
 		symEffect:      SymRead | SymWrite,
 		asm:            x86.AXORL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ADDQmodifyidx1",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AADDQ,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ADDQmodifyidx8",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AADDQ,
+		scale:        8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "SUBQmodifyidx1",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.ASUBQ,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "SUBQmodifyidx8",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.ASUBQ,
+		scale:        8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ANDQmodifyidx1",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AANDQ,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ANDQmodifyidx8",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AANDQ,
+		scale:        8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ORQmodifyidx1",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AORQ,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ORQmodifyidx8",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AORQ,
+		scale:        8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "XORQmodifyidx1",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AXORQ,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "XORQmodifyidx8",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AXORQ,
+		scale:        8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ADDLmodifyidx1",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AADDL,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ADDLmodifyidx4",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AADDL,
+		scale:        4,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ADDLmodifyidx8",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AADDL,
+		scale:        8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "SUBLmodifyidx1",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.ASUBL,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "SUBLmodifyidx4",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.ASUBL,
+		scale:        4,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "SUBLmodifyidx8",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.ASUBL,
+		scale:        8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ANDLmodifyidx1",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AANDL,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ANDLmodifyidx4",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AANDL,
+		scale:        4,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ANDLmodifyidx8",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AANDL,
+		scale:        8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ORLmodifyidx1",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AORL,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ORLmodifyidx4",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AORL,
+		scale:        4,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ORLmodifyidx8",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AORL,
+		scale:        8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "XORLmodifyidx1",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AXORL,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "XORLmodifyidx4",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AXORL,
+		scale:        4,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "XORLmodifyidx8",
+		auxType:      auxSymOff,
+		argLen:       4,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AXORL,
+		scale:        8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{2, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ADDQconstmodifyidx1",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AADDQ,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ADDQconstmodifyidx8",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AADDQ,
+		scale:        8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ANDQconstmodifyidx1",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AANDQ,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ANDQconstmodifyidx8",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AANDQ,
+		scale:        8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ORQconstmodifyidx1",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AORQ,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ORQconstmodifyidx8",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AORQ,
+		scale:        8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "XORQconstmodifyidx1",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AXORQ,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "XORQconstmodifyidx8",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AXORQ,
+		scale:        8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ADDLconstmodifyidx1",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AADDL,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ADDLconstmodifyidx4",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AADDL,
+		scale:        4,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ADDLconstmodifyidx8",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AADDL,
+		scale:        8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ANDLconstmodifyidx1",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AANDL,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ANDLconstmodifyidx4",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AANDL,
+		scale:        4,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ANDLconstmodifyidx8",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AANDL,
+		scale:        8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ORLconstmodifyidx1",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AORL,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ORLconstmodifyidx4",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AORL,
+		scale:        4,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "ORLconstmodifyidx8",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AORL,
+		scale:        8,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "XORLconstmodifyidx1",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AXORL,
+		scale:        1,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "XORLconstmodifyidx4",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AXORL,
+		scale:        4,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15 SB
+			},
+		},
+	},
+	{
+		name:         "XORLconstmodifyidx8",
+		auxType:      auxSymValAndOff,
+		argLen:       3,
+		clobberFlags: true,
+		symEffect:    SymRead | SymWrite,
+		asm:          x86.AXORL,
+		scale:        8,
 		reg: regInfo{
 			inputs: []inputInfo{
 				{1, 65535},      // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
