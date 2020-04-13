@@ -124,3 +124,35 @@ type E struct{}
 func F() {
 	_ = NewP(N, E)(nil)
 }
+
+// When a type parameter is used as an argument to instantiate a parameterized
+// type with a type list constraint, all of the type argument's types in its
+// bound, but at least one (!), must be in the type list of the bound of the
+// corresponding parameterized type's type parameter.
+type T1(type P interface{type uint}) struct{}
+
+func _(type P)() {
+    _ = T1(P /* ERROR missing type uint */ ){}
+}
+
+// This is the original (simplified) program causing the same issue.
+contract Unsigned(T) {
+	T uint
+}
+
+type T2(type U Unsigned) struct {
+    s U
+}
+
+func (u T2(U)) Add1() U {
+    return u.s + 1
+}
+
+func NewT2(type U)() T2(U /* ERROR missing type uint */ ) {
+    return T2(U /* ERROR missing type uint */ ){}
+}
+
+func _() {
+    u := NewT2(string)()
+    _ = u.Add1()
+}

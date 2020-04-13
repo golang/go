@@ -157,11 +157,17 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		if len(iface.allTypes) == 0 {
 			break // nothing to do
 		}
+		// len(iface.allTypes) > 0
 
-		// if targ is itself a type parameter, each of its possible types must be in the
-		// list of iface types (i.e., the targ type list must be a subset of the iface types)
+		// If targ is itself a type parameter, each of its possible types, but at least one, must be in the
+		// list of iface types (i.e., the targ type list must be a non-empty subset of the iface types).
 		if targ, _ := targ.Underlying().(*TypeParam); targ != nil {
-			for _, t := range targ.Interface().allTypes {
+			targBound := targ.Interface()
+			if len(targBound.allTypes) == 0 {
+				check.softErrorf(pos, "%s does not satisfy %s (missing type %s)", targ, tpar.bound, iface.allTypes[0])
+				break
+			}
+			for _, t := range targBound.allTypes {
 				if !iface.includes(t.Underlying()) {
 					// TODO(gri) match this error message with the one below (or vice versa)
 					check.softErrorf(pos, "%s does not satisfy %s (missing type %s)", targ, tpar.bound, t)
@@ -171,13 +177,11 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 			break
 		}
 
-		// otherwise, targ's underlying type must also be one of the interface types listed, if any
-		if len(iface.allTypes) > 0 {
-			// TODO(gri) must it be the underlying type, or should it just be the type? (spec question)
-			if !iface.includes(targ.Underlying()) {
-				check.softErrorf(pos, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ, iface)
-				break
-			}
+		// Otherwise, targ's underlying type must also be one of the interface types listed, if any.
+		// TODO(gri) must it be the underlying type, or should it just be the type? (spec question)
+		if !iface.includes(targ.Underlying()) {
+			check.softErrorf(pos, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ, iface)
+			break
 		}
 	}
 
