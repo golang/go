@@ -7,6 +7,7 @@ package event
 import (
 	"context"
 	"errors"
+	"fmt"
 )
 
 // Log sends a log event with the supplied tag list to the exporter.
@@ -56,4 +57,12 @@ func Error(ctx context.Context, message string, err error, tags ...Tag) {
 		message = ""
 	}
 	dispatch(ctx, makeEvent(LogType, sTags{Msg.Of(message), Err.Of(err)}, tags))
+}
+
+// Debugf sends a log event with the supplied message to the exporter.
+// This is intended only for temporary debugging lines, and usage should not
+// normally be checked in, preffering structured log events for things
+// that have to be used in production.
+func Debugf(ctx context.Context, message string, args ...interface{}) {
+	dispatch(ctx, makeEvent(LogType, sTags{Msg.Of(fmt.Sprintf(message, args...))}, nil))
 }
