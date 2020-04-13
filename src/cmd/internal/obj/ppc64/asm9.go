@@ -620,7 +620,7 @@ var oprange [ALAST & obj.AMask][]Optab
 var xcmp [C_NCLASS][C_NCLASS]bool
 
 // padding bytes to add to align code as requested
-func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
+func addpad(pc, a int64, ctxt *obj.Link) int {
 	switch a {
 	case 8:
 		if pc&7 != 0 {
@@ -632,21 +632,6 @@ func addpad(pc, a int64, ctxt *obj.Link, cursym *obj.LSym) int {
 			return 4
 		case 8:
 			return 8
-		}
-	case 32:
-		switch pc & 31 {
-		case 4, 20:
-			return 12
-		case 8, 24:
-			return 8
-		case 12, 28:
-			return 4
-		}
-		// The default function alignment is 16, but
-		// if 32 byte alignment is requested then the
-		// function needs to be aligned to 32.
-		if cursym.Func.Align < 32 {
-			cursym.Func.Align = 32
 		}
 	default:
 		ctxt.Diag("Unexpected alignment: %d for PCALIGN directive\n", a)
@@ -678,7 +663,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		if m == 0 {
 			if p.As == obj.APCALIGN {
 				a := c.vregoff(&p.From)
-				m = addpad(pc, a, ctxt, cursym)
+				m = addpad(pc, a, ctxt)
 			} else {
 				if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
 					ctxt.Diag("zero-width instruction\n%v", p)
@@ -736,7 +721,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if m == 0 {
 				if p.As == obj.APCALIGN {
 					a := c.vregoff(&p.From)
-					m = addpad(pc, a, ctxt, cursym)
+					m = addpad(pc, a, ctxt)
 				} else {
 					if p.As != obj.ANOP && p.As != obj.AFUNCDATA && p.As != obj.APCDATA {
 						ctxt.Diag("zero-width instruction\n%v", p)
@@ -749,6 +734,10 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		}
 
 		c.cursym.Size = pc
+	}
+
+	if r := pc & funcAlignMask; r != 0 {
+		pc += funcAlign - r
 	}
 
 	c.cursym.Size = pc
@@ -772,7 +761,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		if o.type_ == 0 && p.As == obj.APCALIGN {
 			pad := LOP_RRR(OP_OR, REGZERO, REGZERO, REGZERO)
 			aln := c.vregoff(&p.From)
-			v := addpad(p.Pc, aln, c.ctxt, c.cursym)
+			v := addpad(p.Pc, aln, c.ctxt)
 			if v > 0 {
 				// Same padding instruction for all
 				for i = 0; i < int32(v/4); i++ {
