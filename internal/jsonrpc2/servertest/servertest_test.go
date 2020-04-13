@@ -16,7 +16,7 @@ type msg struct {
 	Msg string
 }
 
-func fakeHandler(ctx context.Context, reply jsonrpc2.Replier, req *jsonrpc2.Request) error {
+func fakeHandler(ctx context.Context, reply jsonrpc2.Replier, req jsonrpc2.Request) error {
 	return reply(ctx, &msg{"pong"}, nil)
 }
 

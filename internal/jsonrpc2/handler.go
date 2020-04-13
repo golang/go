@@ -14,7 +14,7 @@ import (
 
 // Handler is invoked to handle incoming requests.
 // The Replier sends a reply to the request and must be called exactly once.
-type Handler func(ctx context.Context, reply Replier, req *Request) error
+type Handler func(ctx context.Context, reply Replier, req Request) error
 
 // Replier is passed to handlers to allow them to reply to the request.
 // If err is set then result will be ignored.
@@ -23,24 +23,24 @@ type Replier func(ctx context.Context, result interface{}, err error) error
 // MethodNotFound is a Handler that replies to all call requests with the
 // standard method not found response.
 // This should normally be the final handler in a chain.
-func MethodNotFound(ctx context.Context, reply Replier, r *Request) error {
-	return reply(ctx, nil, fmt.Errorf("%w: %q", ErrMethodNotFound, r.Method))
+func MethodNotFound(ctx context.Context, reply Replier, req Request) error {
+	return reply(ctx, nil, fmt.Errorf("%w: %q", ErrMethodNotFound, req.Method()))
 }
 
 // MustReplyHandler creates a Handler that panics if the wrapped handler does
 // not call Reply for every request that it is passed.
 func MustReplyHandler(handler Handler) Handler {
-	return func(ctx context.Context, reply Replier, req *Request) error {
+	return func(ctx context.Context, reply Replier, req Request) error {
 		called := false
 		err := handler(ctx, func(ctx context.Context, result interface{}, err error) error {
 			if called {
-				panic(fmt.Errorf("request %q replied to more than once", req.Method))
+				panic(fmt.Errorf("request %q replied to more than once", req.Method()))
 			}
 			called = true
 			return reply(ctx, result, err)
 		}, req)
 		if !called {
-			panic(fmt.Errorf("request %q was never replied to", req.Method))
+			panic(fmt.Errorf("request %q was never replied to", req.Method()))
 		}
 		return err
 	}
@@ -51,17 +51,17 @@ func MustReplyHandler(handler Handler) Handler {
 func CancelHandler(handler Handler) (Handler, func(id ID)) {
 	var mu sync.Mutex
 	handling := make(map[ID]context.CancelFunc)
-	wrapped := func(ctx context.Context, reply Replier, req *Request) error {
-		if req.ID != nil {
+	wrapped := func(ctx context.Context, reply Replier, req Request) error {
+		if call, ok := req.(*Call); ok {
 			cancelCtx, cancel := context.WithCancel(ctx)
 			ctx = cancelCtx
 			mu.Lock()
-			handling[*req.ID] = cancel
+			handling[call.ID()] = cancel
 			mu.Unlock()
 			innerReply := reply
 			reply = func(ctx context.Context, result interface{}, err error) error {
 				mu.Lock()
-				delete(handling, *req.ID)
+				delete(handling, call.ID())
 				mu.Unlock()
 				return innerReply(ctx, result, err)
 			}
@@ -87,7 +87,7 @@ func CancelHandler(handler Handler) (Handler, func(id ID)) {
 func AsyncHandler(handler Handler) Handler {
 	nextRequest := make(chan struct{})
 	close(nextRequest)
-	return func(ctx context.Context, reply Replier, req *Request) error {
+	return func(ctx context.Context, reply Replier, req Request) error {
 		waitForPrevious := nextRequest
 		nextRequest = make(chan struct{})
 		unlockNext := nextRequest

@@ -40,20 +40,20 @@ func Handlers(handler jsonrpc2.Handler) jsonrpc2.Handler {
 
 func CancelHandler(handler jsonrpc2.Handler) jsonrpc2.Handler {
 	handler, canceller := jsonrpc2.CancelHandler(handler)
-	return func(ctx context.Context, reply jsonrpc2.Replier, req *jsonrpc2.Request) error {
-		if req.Method != "$/cancelRequest" {
+	return func(ctx context.Context, reply jsonrpc2.Replier, req jsonrpc2.Request) error {
+		if req.Method() != "$/cancelRequest" {
 			return handler(ctx, reply, req)
 		}
 		var params CancelParams
-		if err := json.Unmarshal(*req.Params, &params); err != nil {
-			return sendParseError(ctx, reply, req, err)
+		if err := json.Unmarshal(req.Params(), &params); err != nil {
+			return sendParseError(ctx, reply, err)
 		}
 		if n, ok := params.ID.(float64); ok {
 			canceller(*jsonrpc2.NewIntID(int64(n)))
 		} else if s, ok := params.ID.(string); ok {
 			canceller(*jsonrpc2.NewStringID(s))
 		} else {
-			return sendParseError(ctx, reply, req, fmt.Errorf("request ID %v malformed", params.ID))
+			return sendParseError(ctx, reply, fmt.Errorf("request ID %v malformed", params.ID))
 		}
 		return reply(ctx, nil, nil)
 	}
@@ -75,6 +75,6 @@ func cancelCall(ctx context.Context, conn *jsonrpc2.Conn, id jsonrpc2.ID) {
 	conn.Notify(ctx, "$/cancelRequest", &CancelParams{ID: &id})
 }
 
-func sendParseError(ctx context.Context, reply jsonrpc2.Replier, req *jsonrpc2.Request, err error) error {
+func sendParseError(ctx context.Context, reply jsonrpc2.Replier, err error) error {
 	return reply(ctx, nil, fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err))
 }

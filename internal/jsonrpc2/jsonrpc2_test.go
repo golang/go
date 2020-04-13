@@ -134,28 +134,28 @@ func run(ctx context.Context, t *testing.T, withHeaders bool, r io.ReadCloser, w
 }
 
 func testHandler(log bool) jsonrpc2.Handler {
-	return func(ctx context.Context, reply jsonrpc2.Replier, req *jsonrpc2.Request) error {
-		switch req.Method {
+	return func(ctx context.Context, reply jsonrpc2.Replier, req jsonrpc2.Request) error {
+		switch req.Method() {
 		case "no_args":
-			if req.Params != nil {
+			if len(req.Params()) > 0 {
 				return reply(ctx, nil, fmt.Errorf("%w: expected no params", jsonrpc2.ErrInvalidParams))
 			}
 			return reply(ctx, true, nil)
 		case "one_string":
 			var v string
-			if err := json.Unmarshal(*req.Params, &v); err != nil {
+			if err := json.Unmarshal(req.Params(), &v); err != nil {
 				return reply(ctx, nil, fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err))
 			}
 			return reply(ctx, "got:"+v, nil)
 		case "one_number":
 			var v int
-			if err := json.Unmarshal(*req.Params, &v); err != nil {
+			if err := json.Unmarshal(req.Params(), &v); err != nil {
 				return reply(ctx, nil, fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err))
 			}
 			return reply(ctx, fmt.Sprintf("got:%d", v), nil)
 		case "join":
 			var v []string
-			if err := json.Unmarshal(*req.Params, &v); err != nil {
+			if err := json.Unmarshal(req.Params(), &v); err != nil {
 				return reply(ctx, nil, fmt.Errorf("%w: %s", jsonrpc2.ErrParse, err))
 			}
 			return reply(ctx, path.Join(v...), nil)
