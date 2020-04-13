@@ -140,7 +140,7 @@ func ExampleTeeReader() {
 
 	r = io.TeeReader(r, os.Stdout)
 
-	// reading from it will also print to stdout now!
+	// Everything read from r will be copied to stdout.
 	ioutil.ReadAll(r)
 
 	// Output:
@@ -230,7 +230,6 @@ func ExamplePipe() {
 	r, w := io.Pipe()
 
 	go func() {
-		// Pipe is a synchronous so we need to write in a goroutine
 		fmt.Fprint(w, "some io.Reader stream to be read\n")
 		w.Close()
 	}()
