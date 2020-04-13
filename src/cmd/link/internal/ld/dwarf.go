@@ -1970,17 +1970,6 @@ func dwarfGenerateDebugSyms(ctxt *Link) {
 }
 
 func (d *dwctxt2) dwarfGenerateDebugSyms() {
-
-	// Hack: because the "wavefront" hasn't been pushed all the way
-	// up to dodata(), there will have been changes made to the sym.Symbol's
-	// that are not yet reflected in the loader. Call a temporary
-	// loader routine that copies any changes back.
-	// WARNING: changing a symbol's content will usually require
-	// calling the loader cloneToExternal method, meaning that there
-	// can be an increase in memory, so this is likely to mess up any
-	// benchmarking runs.
-	d.ldr.PropagateSymbolChangesBackToLoader()
-
 	abbrev := d.writeabbrev()
 	syms := []loader.Sym{abbrev}
 
@@ -2036,8 +2025,6 @@ func (d *dwctxt2) dwarfGenerateDebugSyms() {
 		}
 	}
 	dwarfp2 = syms
-	anonVerReplacement := d.linkctxt.Syms.IncVersion()
-	dwarfp = d.ldr.PropagateLoaderChangesToSymbols(dwarfp2, anonVerReplacement)
 }
 
 func (d *dwctxt2) collectlocs(syms []loader.Sym, units []*sym.CompilationUnit) []loader.Sym {

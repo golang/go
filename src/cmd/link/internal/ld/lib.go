@@ -2801,6 +2801,16 @@ func (ctxt *Link) loadlibfull() {
 	// Convert special symbols created by pcln.
 	pclntabFirstFunc = ctxt.loader.Syms[pclntabFirstFunc2]
 	pclntabLastFunc = ctxt.loader.Syms[pclntabLastFunc2]
+
+	// Populate dwarfp from dwarfp2. If we see a symbol index on dwarfp2
+	// whose loader.Syms entry is nil, something went wrong.
+	for _, symIdx := range dwarfp2 {
+		s := ctxt.loader.Syms[symIdx]
+		if s == nil {
+			panic(fmt.Sprintf("nil sym for dwarfp2 element %d", symIdx))
+		}
+		dwarfp = append(dwarfp, s)
+	}
 }
 
 func (ctxt *Link) dumpsyms() {

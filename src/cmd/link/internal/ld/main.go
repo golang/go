@@ -298,6 +298,8 @@ func Main(arch *sys.Arch, theArch Arch) {
 	container := ctxt.pclntab()
 	bench.Start("findfunctab")
 	ctxt.findfunctab(container)
+	bench.Start("dwarfGenerateDebugSyms")
+	dwarfGenerateDebugSyms(ctxt)
 	bench.Start("loadlibfull")
 	ctxt.loadlibfull() // XXX do it here for now
 	bench.Start("symtab")
