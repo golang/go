@@ -87,20 +87,6 @@ TODO
 
 <h2 id="library">Core library</h2>
 
-<h3 id="time/tzdata">New embedded tzdata package</h3>
-
-<p> <!-- CL 224588 -->
-  Go 1.15 includes a new package,
-  <a href="/pkg/time/tzdata/"><code>time/tzdata</code></a>,
-  that permits embedding the timezone database into a program.
-  Importing this package (as <code>import _ "time/tzdata"</code>)
-  permits the program to find timezone information even if the
-  timezone database is not available on the local system.
-  You can also embed the timezone database by building
-  with <code>-tags timetzdata</code>.
-  Either approach increases the size of the program by about 800K.
-</p>
-
 <p>
 TODO
 </p>
