@@ -886,7 +886,7 @@ opswitch:
 			init.Append(nif)
 
 			// Build the result.
-			e := nod(OEFACE, tmp, ifaceData(c, types.NewPtr(types.Types[TUINT8])))
+			e := nod(OEFACE, tmp, ifaceData(n.Pos, c, types.NewPtr(types.Types[TUINT8])))
 			e.Type = toType // assign type manually, typecheck doesn't understand OEFACE.
 			e.SetTypecheck(1)
 			n = e
@@ -3165,7 +3165,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
 			eqtype = nod(andor, nonnil, match)
 		}
 		// Check for data equal.
-		eqdata := nod(eq, ifaceData(l, r.Type), r)
+		eqdata := nod(eq, ifaceData(n.Pos, l, r.Type), r)
 		// Put it all together.
 		expr := nod(andor, eqtype, eqdata)
 		n = finishcompare(n, expr, init)
