@@ -1433,7 +1433,7 @@ func (d *dwctxt2) writeframes(syms []loader.Sym) []loader.Sym {
 		fsu.AddBytes(deltaBuf)
 
 		if d.linkctxt.HeadType == objabi.Haix {
-			addDwsectCUSize(".debug_frame", d.ldr.SymFile(fn), fdeLength+uint64(lengthFieldSize))
+			addDwsectCUSize(".debug_frame", d.ldr.SymPkg(fn), fdeLength+uint64(lengthFieldSize))
 		}
 	}
 

@@ -42,7 +42,7 @@ import (
 	"sync"
 )
 
-func gentext(ctxt *ld.Link) {
+func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
 	return
 }
 
