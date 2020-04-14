@@ -584,7 +584,7 @@ func walkTypeSwitch(sw *Node) {
 				if singleType.IsInterface() {
 					Fatalf("singleType interface should have been handled in Add")
 				}
-				val = ifaceData(s.facename, singleType)
+				val = ifaceData(ncase.Pos, s.facename, singleType)
 			}
 			l := []*Node{
 				nodl(ncase.Pos, ODCL, caseVar, nil),
