@@ -6,6 +6,7 @@ package event
 
 import (
 	"fmt"
+	"io"
 )
 
 // Tag holds a key and value pair.
@@ -98,45 +99,13 @@ func (t Tag) Key() Key { return t.key }
 // Format is used for debug printing of tags.
 func (t Tag) Format(f fmt.State, r rune) {
 	if !t.Valid() {
-		fmt.Fprintf(f, `nil`)
+		io.WriteString(f, `nil`)
 		return
 	}
-	switch key := t.key.(type) {
-	case *IntKey:
-		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
-	case *Int8Key:
-		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
-	case *Int16Key:
-		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
-	case *Int32Key:
-		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
-	case *Int64Key:
-		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
-	case *UIntKey:
-		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
-	case *UInt8Key:
-		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
-	case *UInt16Key:
-		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
-	case *UInt32Key:
-		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
-	case *UInt64Key:
-		fmt.Fprintf(f, "%s=%d", key.Name(), key.From(t))
-	case *Float32Key:
-		fmt.Fprintf(f, "%s=%g", key.Name(), key.From(t))
-	case *Float64Key:
-		fmt.Fprintf(f, "%s=%g", key.Name(), key.From(t))
-	case *BooleanKey:
-		fmt.Fprintf(f, "%s=%t", key.Name(), key.From(t))
-	case *StringKey:
-		fmt.Fprintf(f, "%s=%q", key.Name(), key.From(t))
-	case *ErrorKey:
-		fmt.Fprintf(f, "%s=%v", key.Name(), key.From(t))
-	case *ValueKey:
-		fmt.Fprintf(f, "%s=%v", key.Name(), key.From(t))
-	default:
-		fmt.Fprintf(f, `%s="invalid type %T"`, key.Name(), key)
-	}
+	io.WriteString(f, t.Key().Name())
+	io.WriteString(f, "=")
+	var buf [128]byte
+	t.Key().Format(f, buf[:0], t)
 }
 
 func (l *tagList) Valid(index int) bool {

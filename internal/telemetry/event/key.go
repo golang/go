@@ -5,7 +5,10 @@
 package event
 
 import (
+	"fmt"
+	"io"
 	"math"
+	"strconv"
 )
 
 var (
@@ -25,6 +28,12 @@ type Key interface {
 	Name() string
 	// Description returns a string that can be used to describe the value.
 	Description() string
+
+	// Format is used in formatting to append the value of the tag to the
+	// supplied buffer.
+	// The formatter may use the supplied buf as a scratch area to avoid
+	// allocations.
+	Format(w io.Writer, buf []byte, tag Tag)
 }
 
 // ValueKey represents a key for untyped values.
@@ -40,6 +49,10 @@ func NewKey(name, description string) *ValueKey {
 
 func (k *ValueKey) Name() string        { return k.name }
 func (k *ValueKey) Description() string { return k.description }
+
+func (k *ValueKey) Format(w io.Writer, buf []byte, tag Tag) {
+	fmt.Fprint(w, k.From(tag))
+}
 
 // Get can be used to get a tag for the key from a TagMap.
 func (k *ValueKey) Get(tags TagMap) interface{} {
@@ -69,6 +82,10 @@ func NewIntKey(name, description string) *IntKey {
 func (k *IntKey) Name() string        { return k.name }
 func (k *IntKey) Description() string { return k.description }
 
+func (k *IntKey) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendInt(buf, int64(k.From(tag)), 10))
+}
+
 // Of creates a new Tag with this key and the supplied value.
 func (k *IntKey) Of(v int) Tag { return TagOf64(k, uint64(v)) }
 
@@ -96,6 +113,10 @@ func NewInt8Key(name, description string) *Int8Key {
 
 func (k *Int8Key) Name() string        { return k.name }
 func (k *Int8Key) Description() string { return k.description }
+
+func (k *Int8Key) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendInt(buf, int64(k.From(tag)), 10))
+}
 
 // Of creates a new Tag with this key and the supplied value.
 func (k *Int8Key) Of(v int8) Tag { return TagOf64(k, uint64(v)) }
@@ -125,6 +146,10 @@ func NewInt16Key(name, description string) *Int16Key {
 func (k *Int16Key) Name() string        { return k.name }
 func (k *Int16Key) Description() string { return k.description }
 
+func (k *Int16Key) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendInt(buf, int64(k.From(tag)), 10))
+}
+
 // Of creates a new Tag with this key and the supplied value.
 func (k *Int16Key) Of(v int16) Tag { return TagOf64(k, uint64(v)) }
 
@@ -152,6 +177,10 @@ func NewInt32Key(name, description string) *Int32Key {
 
 func (k *Int32Key) Name() string        { return k.name }
 func (k *Int32Key) Description() string { return k.description }
+
+func (k *Int32Key) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendInt(buf, int64(k.From(tag)), 10))
+}
 
 // Of creates a new Tag with this key and the supplied value.
 func (k *Int32Key) Of(v int32) Tag { return TagOf64(k, uint64(v)) }
@@ -181,6 +210,10 @@ func NewInt64Key(name, description string) *Int64Key {
 func (k *Int64Key) Name() string        { return k.name }
 func (k *Int64Key) Description() string { return k.description }
 
+func (k *Int64Key) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendInt(buf, k.From(tag), 10))
+}
+
 // Of creates a new Tag with this key and the supplied value.
 func (k *Int64Key) Of(v int64) Tag { return TagOf64(k, uint64(v)) }
 
@@ -208,6 +241,10 @@ func NewUIntKey(name, description string) *UIntKey {
 
 func (k *UIntKey) Name() string        { return k.name }
 func (k *UIntKey) Description() string { return k.description }
+
+func (k *UIntKey) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendUint(buf, uint64(k.From(tag)), 10))
+}
 
 // Of creates a new Tag with this key and the supplied value.
 func (k *UIntKey) Of(v uint) Tag { return TagOf64(k, uint64(v)) }
@@ -237,6 +274,10 @@ func NewUInt8Key(name, description string) *UInt8Key {
 func (k *UInt8Key) Name() string        { return k.name }
 func (k *UInt8Key) Description() string { return k.description }
 
+func (k *UInt8Key) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendUint(buf, uint64(k.From(tag)), 10))
+}
+
 // Of creates a new Tag with this key and the supplied value.
 func (k *UInt8Key) Of(v uint8) Tag { return TagOf64(k, uint64(v)) }
 
@@ -264,6 +305,10 @@ func NewUInt16Key(name, description string) *UInt16Key {
 
 func (k *UInt16Key) Name() string        { return k.name }
 func (k *UInt16Key) Description() string { return k.description }
+
+func (k *UInt16Key) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendUint(buf, uint64(k.From(tag)), 10))
+}
 
 // Of creates a new Tag with this key and the supplied value.
 func (k *UInt16Key) Of(v uint16) Tag { return TagOf64(k, uint64(v)) }
@@ -293,6 +338,10 @@ func NewUInt32Key(name, description string) *UInt32Key {
 func (k *UInt32Key) Name() string        { return k.name }
 func (k *UInt32Key) Description() string { return k.description }
 
+func (k *UInt32Key) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendUint(buf, uint64(k.From(tag)), 10))
+}
+
 // Of creates a new Tag with this key and the supplied value.
 func (k *UInt32Key) Of(v uint32) Tag { return TagOf64(k, uint64(v)) }
 
@@ -321,6 +370,10 @@ func NewUInt64Key(name, description string) *UInt64Key {
 func (k *UInt64Key) Name() string        { return k.name }
 func (k *UInt64Key) Description() string { return k.description }
 
+func (k *UInt64Key) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendUint(buf, k.From(tag), 10))
+}
+
 // Of creates a new Tag with this key and the supplied value.
 func (k *UInt64Key) Of(v uint64) Tag { return TagOf64(k, v) }
 
@@ -348,6 +401,10 @@ func NewFloat32Key(name, description string) *Float32Key {
 
 func (k *Float32Key) Name() string        { return k.name }
 func (k *Float32Key) Description() string { return k.description }
+
+func (k *Float32Key) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendFloat(buf, float64(k.From(tag)), 'E', -1, 32))
+}
 
 // Of creates a new Tag with this key and the supplied value.
 func (k *Float32Key) Of(v float32) Tag {
@@ -381,6 +438,10 @@ func NewFloat64Key(name, description string) *Float64Key {
 func (k *Float64Key) Name() string        { return k.name }
 func (k *Float64Key) Description() string { return k.description }
 
+func (k *Float64Key) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendFloat(buf, k.From(tag), 'E', -1, 64))
+}
+
 // Of creates a new Tag with this key and the supplied value.
 func (k *Float64Key) Of(v float64) Tag {
 	return TagOf64(k, math.Float64bits(v))
@@ -413,6 +474,10 @@ func NewStringKey(name, description string) *StringKey {
 func (k *StringKey) Name() string        { return k.name }
 func (k *StringKey) Description() string { return k.description }
 
+func (k *StringKey) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendQuote(buf, k.From(tag)))
+}
+
 // Of creates a new Tag with this key and the supplied value.
 func (k *StringKey) Of(v string) Tag { return TagOfString(k, v) }
 
@@ -440,6 +505,10 @@ func NewBooleanKey(name, description string) *BooleanKey {
 
 func (k *BooleanKey) Name() string        { return k.name }
 func (k *BooleanKey) Description() string { return k.description }
+
+func (k *BooleanKey) Format(w io.Writer, buf []byte, tag Tag) {
+	w.Write(strconv.AppendBool(buf, k.From(tag)))
+}
 
 // Of creates a new Tag with this key and the supplied value.
 func (k *BooleanKey) Of(v bool) Tag {
@@ -473,6 +542,10 @@ func NewErrorKey(name, description string) *ErrorKey {
 
 func (k *ErrorKey) Name() string        { return k.name }
 func (k *ErrorKey) Description() string { return k.description }
+
+func (k *ErrorKey) Format(w io.Writer, buf []byte, tag Tag) {
+	io.WriteString(w, k.From(tag).Error())
+}
 
 // Of creates a new Tag with this key and the supplied value.
 func (k *ErrorKey) Of(v error) Tag { return TagOfValue(k, v) }

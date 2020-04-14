@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"strconv"
 	"sync"
 
 	"golang.org/x/tools/internal/telemetry/event"
@@ -57,42 +56,7 @@ func (w *logWriter) ProcessEvent(ctx context.Context, ev event.Event, tagMap eve
 			io.WriteString(w.writer, "\n\t")
 			io.WriteString(w.writer, tag.Key().Name())
 			io.WriteString(w.writer, "=")
-			switch key := tag.Key().(type) {
-			case *event.IntKey:
-				w.writer.Write(strconv.AppendInt(buf, int64(key.From(tag)), 10))
-			case *event.Int8Key:
-				w.writer.Write(strconv.AppendInt(buf, int64(key.From(tag)), 10))
-			case *event.Int16Key:
-				w.writer.Write(strconv.AppendInt(buf, int64(key.From(tag)), 10))
-			case *event.Int32Key:
-				w.writer.Write(strconv.AppendInt(buf, int64(key.From(tag)), 10))
-			case *event.Int64Key:
-				w.writer.Write(strconv.AppendInt(buf, key.From(tag), 10))
-			case *event.UIntKey:
-				w.writer.Write(strconv.AppendUint(buf, uint64(key.From(tag)), 10))
-			case *event.UInt8Key:
-				w.writer.Write(strconv.AppendUint(buf, uint64(key.From(tag)), 10))
-			case *event.UInt16Key:
-				w.writer.Write(strconv.AppendUint(buf, uint64(key.From(tag)), 10))
-			case *event.UInt32Key:
-				w.writer.Write(strconv.AppendUint(buf, uint64(key.From(tag)), 10))
-			case *event.UInt64Key:
-				w.writer.Write(strconv.AppendUint(buf, key.From(tag), 10))
-			case *event.Float32Key:
-				w.writer.Write(strconv.AppendFloat(buf, float64(key.From(tag)), 'E', -1, 32))
-			case *event.Float64Key:
-				w.writer.Write(strconv.AppendFloat(buf, key.From(tag), 'E', -1, 64))
-			case *event.BooleanKey:
-				w.writer.Write(strconv.AppendBool(buf, key.From(tag)))
-			case *event.StringKey:
-				w.writer.Write(strconv.AppendQuote(buf, key.From(tag)))
-			case *event.ErrorKey:
-				io.WriteString(w.writer, key.From(tag).Error())
-			case *event.ValueKey:
-				fmt.Fprint(w.writer, key.From(tag))
-			default:
-				fmt.Fprintf(w.writer, `"invalid key type %T"`, key)
-			}
+			tag.Key().Format(w.writer, buf, tag)
 		}
 		io.WriteString(w.writer, "\n")
 
