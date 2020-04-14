@@ -57,6 +57,9 @@ type Runner struct {
 	mu        sync.Mutex
 	ts        *servertest.TCPServer
 	socketDir string
+	// closers is a queue of clean-up functions to run at the end of the entire
+	// test suite.
+	closers []io.Closer
 }
 
 // NewTestRunner creates a Runner with its shared state initialized, ready to
@@ -125,15 +128,37 @@ func (r *Runner) getRemoteSocket(t *testing.T) string {
 	return socket
 }
 
+// AddCloser schedules a closer to be closed at the end of the test run. This
+// is useful for Windows in particular, as
+func (r *Runner) AddCloser(closer io.Closer) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.closers = append(r.closers, closer)
+}
+
 // Close cleans up resource that have been allocated to this workspace.
 func (r *Runner) Close() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
+	var errmsgs []string
 	if r.ts != nil {
-		r.ts.Close()
+		if err := r.ts.Close(); err != nil {
+			errmsgs = append(errmsgs, err.Error())
+		}
 	}
 	if r.socketDir != "" {
-		os.RemoveAll(r.socketDir)
+		if err := os.RemoveAll(r.socketDir); err != nil {
+			errmsgs = append(errmsgs, err.Error())
+		}
+	}
+	for _, closer := range r.closers {
+		if err := closer.Close(); err != nil {
+			errmsgs = append(errmsgs, err.Error())
+		}
+	}
+	if len(errmsgs) > 0 {
+		return fmt.Errorf("errors closing the test runner:\n\t%s", strings.Join(errmsgs, "\n\t"))
 	}
 	return nil
 }
@@ -170,11 +195,17 @@ func (r *Runner) RunInMode(modes EnvMode, t *testing.T, filedata string, test fu
 			defer cancel()
 			ctx = debug.WithInstance(ctx, "", "")
 
-			ws, err := fake.NewWorkspace("lsprpc", []byte(filedata))
+			ws, err := fake.NewWorkspace("regtest", []byte(filedata))
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer ws.Close()
+			// Deferring the closure of ws until the end of the entire test suite
+			// has, in testing, given the LSP server time to properly shutdown and
+			// release any file locks held in workspace, which is a problem on
+			// Windows. This may still be flaky however, and in the future we need a
+			// better solution to ensure that all Go processes started by gopls have
+			// exited before we clean up.
+			r.AddCloser(ws)
 			ss := tc.getServer(ctx, t)
 			ls := &loggingServer{delegate: ss}
 			ts := servertest.NewPipeServer(ctx, ls)

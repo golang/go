@@ -53,7 +53,7 @@ func TestClientLogging(t *testing.T) {
 	ss := NewStreamServer(cache.New(ctx, nil))
 	ss.serverForTest = server
 	ts := servertest.NewPipeServer(ctx, ss)
-	defer ts.Close()
+	defer checkClose(t, ts.Close)
 	cc := ts.Connect(ctx)
 	go cc.Run(ctx, protocol.ClientHandler(client, jsonrpc2.MethodNotFound))
 
@@ -101,6 +101,13 @@ func (s waitableServer) Shutdown(ctx context.Context) error {
 	return nil
 }
 
+func checkClose(t *testing.T, closer func() error) {
+	t.Helper()
+	if err := closer(); err != nil {
+		t.Errorf("closing: %v", err)
+	}
+}
+
 func TestRequestCancellation(t *testing.T) {
 	server := waitableServer{
 		started: make(chan struct{}),
@@ -110,12 +117,12 @@ func TestRequestCancellation(t *testing.T) {
 	ss := NewStreamServer(cache.New(serveCtx, nil))
 	ss.serverForTest = server
 	tsDirect := servertest.NewTCPServer(serveCtx, ss)
-	defer tsDirect.Close()
+	defer checkClose(t, tsDirect.Close)
 
 	forwarderCtx := debug.WithInstance(baseCtx, "", "")
 	forwarder := NewForwarder("tcp", tsDirect.Addr)
 	tsForwarded := servertest.NewPipeServer(forwarderCtx, forwarder)
-	defer tsForwarded.Close()
+	defer checkClose(t, tsForwarded.Close)
 
 	tests := []struct {
 		serverType string
@@ -183,7 +190,23 @@ func TestDebugInfoLifecycle(t *testing.T) {
 	resetExitFuncs := OverrideExitFuncsForTest()
 	defer resetExitFuncs()
 
-	baseCtx := context.Background()
+	ws, err := fake.NewWorkspace("gopls-lsprpc-test", []byte(exampleProgram))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := ws.Close(); err != nil {
+			// TODO(golang/go#38490): we can't currently make this an error because
+			// it fails on Windows: the workspace directory is still locked by a
+			// separate Go process.
+			// Once we have a reliable way to wait for proper shutdown, make this an
+			// error.
+			t.Logf("closing workspace failed: %v", err)
+		}
+	}()
+
+	baseCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	clientCtx := debug.WithInstance(baseCtx, "", "")
 	serverCtx := debug.WithInstance(baseCtx, "", "")
 
@@ -193,12 +216,6 @@ func TestDebugInfoLifecycle(t *testing.T) {
 
 	forwarder := NewForwarder("tcp", tsBackend.Addr)
 	tsForwarder := servertest.NewPipeServer(clientCtx, forwarder)
-
-	ws, err := fake.NewWorkspace("gopls-lsprpc-test", []byte(exampleProgram))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ws.Close()
 
 	conn1 := tsForwarder.Connect(clientCtx)
 	ed1, err := fake.NewConnectedEditor(clientCtx, ws, conn1)

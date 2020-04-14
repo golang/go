@@ -238,15 +238,19 @@ func (w *Workspace) writeFileData(path string, content string) error {
 }
 
 func (w *Workspace) removeAll() error {
-	var werr, perr error
-	if w.workdir != "" {
-		werr = os.RemoveAll(w.workdir)
-	}
+	var wsErr, gopathErr error
 	if w.gopath != "" {
-		perr = os.RemoveAll(w.gopath)
+		if err := w.RunGoCommand(context.Background(), "clean", "-modcache"); err != nil {
+			gopathErr = fmt.Errorf("cleaning modcache: %v", err)
+		} else {
+			gopathErr = os.RemoveAll(w.gopath)
+		}
 	}
-	if werr != nil || perr != nil {
-		return fmt.Errorf("error(s) cleaning workspace: removing workdir: %v; removing gopath: %v", werr, perr)
+	if w.workdir != "" {
+		wsErr = os.RemoveAll(w.workdir)
+	}
+	if wsErr != nil || gopathErr != nil {
+		return fmt.Errorf("error(s) cleaning workspace: removing workdir: %v; removing gopath: %v", wsErr, gopathErr)
 	}
 	return nil
 }
