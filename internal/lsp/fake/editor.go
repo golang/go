@@ -537,15 +537,19 @@ func (e *Editor) FormatBuffer(ctx context.Context, path string) error {
 	if e.server == nil {
 		return nil
 	}
-	// Because textDocument/formatting has no versions, we must block while
-	// performing formatting.
 	e.mu.Lock()
-	defer e.mu.Unlock()
+	version := e.buffers[path].version
+	e.mu.Unlock()
 	params := &protocol.DocumentFormattingParams{}
 	params.TextDocument.URI = e.ws.URI(path)
 	resp, err := e.server.Formatting(ctx, params)
 	if err != nil {
 		return fmt.Errorf("textDocument/formatting: %v", err)
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if versionAfter := e.buffers[path].version; versionAfter != version {
+		return fmt.Errorf("before receipt of formatting edits, buffer version changed from %d to %d", version, versionAfter)
 	}
 	edits := convertEdits(resp)
 	return e.editBufferLocked(ctx, path, edits)
