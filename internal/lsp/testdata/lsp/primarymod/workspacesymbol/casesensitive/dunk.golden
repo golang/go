@@ -1,2 +1,2 @@
 -- workspace_symbol --
-symbols/main.go:60:6-10 dunk Function
+symbols/main.go:60:6-10 golang.org/x/tools/internal/lsp/symbols.dunk Function

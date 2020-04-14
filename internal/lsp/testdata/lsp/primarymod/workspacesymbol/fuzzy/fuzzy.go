@@ -7,17 +7,20 @@ workspacesymbolfuzzy("rgop",
 	randomgopherinvariable,
 	RandomGopherVariableB,
 	RandomGopherStructB,
+	bBar,
 )
 workspacesymbolfuzzy("randoma",
 	RandomGopherVariableA,
 	RandomGopherConstantA,
 	randomgopherinvariable,
 	RandomGopherVariableB,
+	bBar,
 )
 workspacesymbolfuzzy("randomb",
 	RandomGopherVariableA,
 	randomgopherinvariable,
 	RandomGopherVariableB,
 	RandomGopherStructB,
+	bBar,
 )
 */

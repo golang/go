@@ -65,7 +65,7 @@ outer:
 				if err != nil {
 					return nil, err
 				}
-				for _, si := range findSymbol(file.Decls, pkg.GetTypesInfo(), matcher) {
+				for _, si := range findSymbol(file.Decls, pkg.GetTypesInfo(), matcher, pkg.PkgPath()) {
 					mrng, err := posToMappedRange(view, pkg, si.node.Pos(), si.node.End())
 					if err != nil {
 						event.Error(ctx, "Error getting mapped range for node", err)
@@ -121,18 +121,26 @@ func makeMatcher(m SymbolMatcher, query string) matcherFunc {
 	}
 }
 
-func findSymbol(decls []ast.Decl, info *types.Info, matcher matcherFunc) []symbolInformation {
+func findSymbol(decls []ast.Decl, info *types.Info, matcher matcherFunc, prefix string) []symbolInformation {
 	var result []symbolInformation
 	for _, decl := range decls {
 		switch decl := decl.(type) {
 		case *ast.FuncDecl:
-			if matcher(decl.Name.Name) {
-				kind := protocol.Function
-				if decl.Recv != nil {
-					kind = protocol.Method
+			fn := decl.Name.Name
+			kind := protocol.Function
+			if decl.Recv != nil {
+				kind = protocol.Method
+				switch typ := decl.Recv.List[0].Type.(type) {
+				case *ast.StarExpr:
+					fn = typ.X.(*ast.Ident).Name + "." + fn
+				case *ast.Ident:
+					fn = typ.Name + "." + fn
 				}
+			}
+			target := prefix + "." + fn
+			if matcher(target) {
 				result = append(result, symbolInformation{
-					name: decl.Name.Name,
+					name: target,
 					kind: kind,
 					node: decl.Name,
 				})
@@ -141,9 +149,10 @@ func findSymbol(decls []ast.Decl, info *types.Info, matcher matcherFunc) []symbo
 			for _, spec := range decl.Specs {
 				switch spec := spec.(type) {
 				case *ast.TypeSpec:
-					if matcher(spec.Name.Name) {
+					target := prefix + "." + spec.Name.Name
+					if matcher(target) {
 						result = append(result, symbolInformation{
-							name: spec.Name.Name,
+							name: target,
 							kind: typeToKind(info.TypeOf(spec.Type)),
 							node: spec.Name,
 						})
@@ -151,7 +160,7 @@ func findSymbol(decls []ast.Decl, info *types.Info, matcher matcherFunc) []symbo
 					switch st := spec.Type.(type) {
 					case *ast.StructType:
 						for _, field := range st.Fields.List {
-							result = append(result, findFieldSymbol(field, protocol.Field, matcher)...)
+							result = append(result, findFieldSymbol(field, protocol.Field, matcher, target)...)
 						}
 					case *ast.InterfaceType:
 						for _, field := range st.Methods.List {
@@ -159,18 +168,19 @@ func findSymbol(decls []ast.Decl, info *types.Info, matcher matcherFunc) []symbo
 							if len(field.Names) == 0 {
 								kind = protocol.Interface
 							}
-							result = append(result, findFieldSymbol(field, kind, matcher)...)
+							result = append(result, findFieldSymbol(field, kind, matcher, target)...)
 						}
 					}
 				case *ast.ValueSpec:
 					for _, name := range spec.Names {
-						if matcher(name.Name) {
+						target := prefix + "." + name.Name
+						if matcher(target) {
 							kind := protocol.Variable
 							if decl.Tok == token.CONST {
 								kind = protocol.Constant
 							}
 							result = append(result, symbolInformation{
-								name: name.Name,
+								name: target,
 								kind: kind,
 								node: name,
 							})
@@ -210,14 +220,15 @@ func typeToKind(typ types.Type) protocol.SymbolKind {
 	return protocol.Variable
 }
 
-func findFieldSymbol(field *ast.Field, kind protocol.SymbolKind, matcher matcherFunc) []symbolInformation {
+func findFieldSymbol(field *ast.Field, kind protocol.SymbolKind, matcher matcherFunc, prefix string) []symbolInformation {
 	var result []symbolInformation
 
 	if len(field.Names) == 0 {
 		name := types.ExprString(field.Type)
-		if matcher(name) {
+		target := prefix + "." + name
+		if matcher(target) {
 			result = append(result, symbolInformation{
-				name: name,
+				name: target,
 				kind: kind,
 				node: field,
 			})
@@ -226,9 +237,10 @@ func findFieldSymbol(field *ast.Field, kind protocol.SymbolKind, matcher matcher
 	}
 
 	for _, name := range field.Names {
-		if matcher(name.Name) {
+		target := prefix + "." + name.Name
+		if matcher(target) {
 			result = append(result, symbolInformation{
-				name: name.Name,
+				name: target,
 				kind: kind,
 				node: name,
 			})
