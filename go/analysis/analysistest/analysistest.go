@@ -20,6 +20,7 @@ import (
 	"golang.org/x/tools/go/analysis/internal/checker"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/internal/lsp/diff"
+	"golang.org/x/tools/internal/lsp/diff/myers"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/internal/testenv"
 )
@@ -128,7 +129,8 @@ func RunWithSuggestedFixes(t Testing, dir string, a *analysis.Analyzer, patterns
 			continue
 		}
 		if string(want) != string(formatted) {
-			t.Errorf("suggested fixes failed for %s, expected:\n%#v\ngot:\n%#v", file.Name(), string(want), string(formatted))
+			d := myers.ComputeEdits("", string(want), string(formatted))
+			t.Errorf("suggested fixes failed for %s:\n%s", file.Name(), diff.ToUnified(file.Name()+".golden", "actual", string(want), d))
 		}
 	}
 	return r
