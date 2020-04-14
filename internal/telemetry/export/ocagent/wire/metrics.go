@@ -151,7 +151,7 @@ func (*BucketOptionsExplicit) tagBucketOptions() {}
 var _ BucketOptions = (*BucketOptionsExplicit)(nil)
 var _ json.Marshaler = (*BucketOptionsExplicit)(nil)
 
-// Declared for the purpose of custom JSON marshalling without cycles.
+// Declared for the purpose of custom JSON marshaling without cycles.
 type bucketOptionsExplicitAlias BucketOptionsExplicit
 
 // MarshalJSON creates JSON formatted the same way as jsonpb so that the

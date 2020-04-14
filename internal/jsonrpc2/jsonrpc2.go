@@ -67,7 +67,7 @@ func NewConn(s Stream) *Conn {
 func (c *Conn) Notify(ctx context.Context, method string, params interface{}) (err error) {
 	jsonParams, err := marshalToRaw(params)
 	if err != nil {
-		return fmt.Errorf("marshalling notify parameters: %v", err)
+		return fmt.Errorf("marshaling notify parameters: %v", err)
 	}
 	request := &wireRequest{
 		Method: method,
@@ -75,7 +75,7 @@ func (c *Conn) Notify(ctx context.Context, method string, params interface{}) (e
 	}
 	data, err := json.Marshal(request)
 	if err != nil {
-		return fmt.Errorf("marshalling notify request: %v", err)
+		return fmt.Errorf("marshaling notify request: %v", err)
 	}
 	ctx, done := event.StartSpan(ctx, request.Method,
 		tag.Method.Of(request.Method),
@@ -101,7 +101,7 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	id := ID{number: atomic.AddInt64(&c.seq, 1)}
 	jsonParams, err := marshalToRaw(params)
 	if err != nil {
-		return id, fmt.Errorf("marshalling call parameters: %v", err)
+		return id, fmt.Errorf("marshaling call parameters: %v", err)
 	}
 	request := &wireRequest{
 		ID:     &id,
@@ -111,7 +111,7 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	// marshal the request now it is complete
 	data, err := json.Marshal(request)
 	if err != nil {
-		return id, fmt.Errorf("marshalling call request: %v", err)
+		return id, fmt.Errorf("marshaling call request: %v", err)
 	}
 	ctx, done := event.StartSpan(ctx, request.Method,
 		tag.Method.Of(request.Method),
@@ -154,7 +154,7 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 			return id, nil
 		}
 		if err := json.Unmarshal(*response.Result, result); err != nil {
-			return id, fmt.Errorf("unmarshalling result: %v", err)
+			return id, fmt.Errorf("unmarshaling result: %v", err)
 		}
 		return id, nil
 	case <-ctx.Done():
