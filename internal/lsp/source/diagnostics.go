@@ -350,9 +350,7 @@ func addReports(snapshot Snapshot, reports map[FileIdentity][]*Diagnostic, uri s
 			return nil
 		}
 	}
-	for _, diag := range diagnostics {
-		reports[fh.Identity()] = append(reports[fh.Identity()], diag)
-	}
+	reports[fh.Identity()] = append(reports[fh.Identity()], diagnostics...)
 	return nil
 }
 

@@ -291,9 +291,8 @@ func formatVar(node ast.Spec, obj types.Object, decl *ast.GenDecl) *HoverInforma
 			if field.Pos() <= obj.Pos() && obj.Pos() <= field.End() {
 				if field.Doc.Text() != "" {
 					return &HoverInformation{source: obj, comment: field.Doc}
-				} else if field.Comment.Text() != "" {
-					return &HoverInformation{source: obj, comment: field.Comment}
 				}
+				return &HoverInformation{source: obj, comment: field.Comment}
 			}
 		}
 	}
