@@ -569,10 +569,10 @@ func walkTypeSwitch(sw *Node) {
 			}
 
 			if singleType != nil && singleType.IsInterface() {
-				s.Add(n1.Type, caseVar, jmp)
+				s.Add(ncase.Pos, n1.Type, caseVar, jmp)
 				caseVarInitialized = true
 			} else {
-				s.Add(n1.Type, nil, jmp)
+				s.Add(ncase.Pos, n1.Type, nil, jmp)
 			}
 		}
 
@@ -629,12 +629,12 @@ type typeClause struct {
 	body Nodes
 }
 
-func (s *typeSwitch) Add(typ *types.Type, caseVar *Node, jmp *Node) {
+func (s *typeSwitch) Add(pos src.XPos, typ *types.Type, caseVar, jmp *Node) {
 	var body Nodes
 	if caseVar != nil {
 		l := []*Node{
-			nod(ODCL, caseVar, nil),
-			nod(OAS, caseVar, nil),
+			nodl(pos, ODCL, caseVar, nil),
+			nodl(pos, OAS, caseVar, nil),
 		}
 		typecheckslice(l, ctxStmt)
 		body.Append(l...)
@@ -643,9 +643,9 @@ func (s *typeSwitch) Add(typ *types.Type, caseVar *Node, jmp *Node) {
 	}
 
 	// cv, ok = iface.(type)
-	as := nod(OAS2, nil, nil)
+	as := nodl(pos, OAS2, nil, nil)
 	as.List.Set2(caseVar, s.okname) // cv, ok =
-	dot := nod(ODOTTYPE, s.facename, nil)
+	dot := nodl(pos, ODOTTYPE, s.facename, nil)
 	dot.Type = typ // iface.(type)
 	as.Rlist.Set1(dot)
 	as = typecheck(as, ctxStmt)
@@ -653,7 +653,7 @@ func (s *typeSwitch) Add(typ *types.Type, caseVar *Node, jmp *Node) {
 	body.Append(as)
 
 	// if ok { goto label }
-	nif := nod(OIF, nil, nil)
+	nif := nodl(pos, OIF, nil, nil)
 	nif.Left = s.okname
 	nif.Nbody.Set1(jmp)
 	body.Append(nif)
