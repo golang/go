@@ -765,7 +765,9 @@ func maplit(n *Node, m *Node, init *Nodes) {
 		tk := types.NewArray(n.Type.Key(), int64(len(entries)))
 		te := types.NewArray(n.Type.Elem(), int64(len(entries)))
 
-		// TODO(josharian): suppress alg generation for these types?
+		tk.SetNoalg(true)
+		te.SetNoalg(true)
+
 		dowidth(tk)
 		dowidth(te)
 
