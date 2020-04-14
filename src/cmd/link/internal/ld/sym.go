@@ -46,6 +46,7 @@ func linknew(arch *sys.Arch) *Link {
 		outSem:       make(chan int, 2*runtime.GOMAXPROCS(0)),
 		Out:          NewOutBuf(arch),
 		LibraryByPkg: make(map[string]*sym.Library),
+		numelfsym:    1,
 	}
 
 	if objabi.GOARCH != arch.Name {

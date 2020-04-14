@@ -73,14 +73,14 @@ type Link struct {
 	Shlibs       []Shlib
 	Textp        []*sym.Symbol
 	Textp2       []loader.Sym
-	Filesyms     []*sym.Symbol
+	NumFilesyms  int
 	Moduledata   *sym.Symbol
 	Moduledata2  loader.Sym
 
 	PackageFile  map[string]string
 	PackageShlib map[string]string
 
-	tramps []*sym.Symbol // trampolines
+	tramps []loader.Sym // trampolines
 
 	// Used to implement field tracking.
 	Reachparent map[*sym.Symbol]*sym.Symbol
@@ -96,6 +96,10 @@ type Link struct {
 
 	datap   []*sym.Symbol
 	dynexp2 []loader.Sym
+
+	// Elf symtab variables.
+	numelfsym int // starts at 0, 1 is reserved
+	elfbind   int
 }
 
 type cgodata struct {

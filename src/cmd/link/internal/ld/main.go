@@ -285,24 +285,23 @@ func Main(arch *sys.Arch, theArch Arch) {
 	setupdynexp(ctxt)
 	ctxt.setArchSyms(BeforeLoadlibFull)
 	ctxt.addexport()
-
-	bench.Start("loadlibfull")
-	ctxt.loadlibfull() // XXX do it here for now
-
 	bench.Start("Gentext")
-	thearch.Gentext(ctxt) // trampolines, call stubs, etc.
+	thearch.Gentext2(ctxt, ctxt.loader) // trampolines, call stubs, etc.
+
 	bench.Start("textaddress")
 	ctxt.textaddress()
-	bench.Start("pclntab")
-	ctxt.pclntab()
-	bench.Start("findfunctab")
-	ctxt.findfunctab()
 	bench.Start("typelink")
 	ctxt.typelink()
-	bench.Start("symtab")
-	ctxt.symtab()
 	bench.Start("buildinfo")
 	ctxt.buildinfo()
+	bench.Start("pclntab")
+	container := ctxt.pclntab()
+	bench.Start("findfunctab")
+	ctxt.findfunctab(container)
+	bench.Start("loadlibfull")
+	ctxt.loadlibfull() // XXX do it here for now
+	bench.Start("symtab")
+	ctxt.symtab()
 	bench.Start("dodata")
 	ctxt.dodata()
 	bench.Start("address")

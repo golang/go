@@ -31,7 +31,7 @@ type Sym int
 // Relocs encapsulates the set of relocations on a given symbol; an
 // instance of this type is returned by the Loader Relocs() method.
 type Relocs struct {
-	rs []goobj2.Reloc2
+	rs []goobj2.Reloc
 
 	li int      // local index of symbol whose relocs we're examining
 	r  *oReader // object reader for containing package
@@ -52,7 +52,7 @@ type Reloc struct {
 // Reloc2 holds a "handle" to access a relocation record from an
 // object file.
 type Reloc2 struct {
-	*goobj2.Reloc2
+	*goobj2.Reloc
 	r *oReader
 	l *Loader
 
@@ -64,26 +64,26 @@ type Reloc2 struct {
 	typ objabi.RelocType
 }
 
-func (rel Reloc2) Type() objabi.RelocType { return objabi.RelocType(rel.Reloc2.Type()) + rel.typ }
-func (rel Reloc2) Sym() Sym               { return rel.l.resolve(rel.r, rel.Reloc2.Sym()) }
-func (rel Reloc2) SetSym(s Sym)           { rel.Reloc2.SetSym(goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(s)}) }
+func (rel Reloc2) Type() objabi.RelocType { return objabi.RelocType(rel.Reloc.Type()) + rel.typ }
+func (rel Reloc2) Sym() Sym               { return rel.l.resolve(rel.r, rel.Reloc.Sym()) }
+func (rel Reloc2) SetSym(s Sym)           { rel.Reloc.SetSym(goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(s)}) }
 
 func (rel Reloc2) SetType(t objabi.RelocType) {
 	if t != objabi.RelocType(uint8(t)) {
 		panic("SetType: type doesn't fit into Reloc2")
 	}
-	rel.Reloc2.SetType(uint8(t))
+	rel.Reloc.SetType(uint8(t))
 }
 
 // Aux2 holds a "handle" to access an aux symbol record from an
 // object file.
 type Aux2 struct {
-	*goobj2.Aux2
+	*goobj2.Aux
 	r *oReader
 	l *Loader
 }
 
-func (a Aux2) Sym() Sym { return a.l.resolve(a.r, a.Aux2.Sym()) }
+func (a Aux2) Sym() Sym { return a.l.resolve(a.r, a.Aux.Sym()) }
 
 // oReader is a wrapper type of obj.Reader, along with some
 // extra information.
@@ -198,6 +198,7 @@ type Loader struct {
 	payloadBatch []extSymPayload
 	payloads     []*extSymPayload // contents of linker-materialized external syms
 	values       []int64          // symbol values, indexed by global sym index
+	sects        []*sym.Section   // symbol's section, indexed by global index
 
 	itablink map[Sym]struct{} // itablink[j] defined if j is go.itablink.*
 
@@ -243,10 +244,12 @@ type Loader struct {
 	localentry map[Sym]uint8       // stores Localentry symbol attribute
 	extname    map[Sym]string      // stores Extname symbol attribute
 	elfType    map[Sym]elf.SymType // stores elf type symbol property
-	symFile    map[Sym]string      // stores file for shlib-derived syms
+	symPkg     map[Sym]string      // stores package for symbol, or library for shlib-derived syms
 	plt        map[Sym]int32       // stores dynimport for pe objects
 	got        map[Sym]int32       // stores got for pe objects
 	dynid      map[Sym]int32       // stores Dynid for symbol
+
+	relocVariant map[relocId]sym.RelocVariant // stores variant relocs
 
 	// Used to implement field tracking; created during deadcode if
 	// field tracking is enabled. Reachparent[K] contains the index of
@@ -281,9 +284,10 @@ type extSymPayload struct {
 	kind     sym.SymKind
 	objidx   uint32 // index of original object if sym made by cloneToExternal
 	gotype   Sym    // Gotype (0 if not present)
-	relocs   []goobj2.Reloc2
+	relocs   []goobj2.Reloc
 	reltypes []objabi.RelocType // relocation types
 	data     []byte
+	auxs     []goobj2.Aux
 }
 
 const (
@@ -309,7 +313,7 @@ func NewLoader(flags uint32, elfsetstring elfsetstringFunc) *Loader {
 		extname:              make(map[Sym]string),
 		attrReadOnly:         make(map[Sym]bool),
 		elfType:              make(map[Sym]elf.SymType),
-		symFile:              make(map[Sym]string),
+		symPkg:               make(map[Sym]string),
 		plt:                  make(map[Sym]int32),
 		got:                  make(map[Sym]int32),
 		dynid:                make(map[Sym]int32),
@@ -387,7 +391,7 @@ func (l *Loader) AddSym(name string, ver int, r *oReader, li int, kind int, dupo
 		return oldi, false
 	}
 	oldr, oldli := l.toLocal(oldi)
-	oldsym := oldr.Sym2(oldli)
+	oldsym := oldr.Sym(oldli)
 	if oldsym.Dupok() {
 		return oldi, false
 	}
@@ -616,7 +620,7 @@ func (l *Loader) RawSymName(i Sym) string {
 		return pp.name
 	}
 	r, li := l.toLocal(i)
-	return r.Sym2(li).Name(r.Reader)
+	return r.Sym(li).Name(r.Reader)
 }
 
 // Returns the (patched) name of the i-th symbol.
@@ -626,7 +630,7 @@ func (l *Loader) SymName(i Sym) string {
 		return pp.name
 	}
 	r, li := l.toLocal(i)
-	return strings.Replace(r.Sym2(li).Name(r.Reader), "\"\".", r.pkgprefix, -1)
+	return strings.Replace(r.Sym(li).Name(r.Reader), "\"\".", r.pkgprefix, -1)
 }
 
 // Returns the version of the i-th symbol.
@@ -636,7 +640,7 @@ func (l *Loader) SymVersion(i Sym) int {
 		return pp.ver
 	}
 	r, li := l.toLocal(i)
-	return int(abiToVer(r.Sym2(li).ABI(), r.version))
+	return int(abiToVer(r.Sym(li).ABI(), r.version))
 }
 
 // Returns the type of the i-th symbol.
@@ -649,17 +653,29 @@ func (l *Loader) SymType(i Sym) sym.SymKind {
 		return 0
 	}
 	r, li := l.toLocal(i)
-	return sym.AbiSymKindToSymKind[objabi.SymKind(r.Sym2(li).Type())]
+	return sym.AbiSymKindToSymKind[objabi.SymKind(r.Sym(li).Type())]
 }
 
 // Returns the attributes of the i-th symbol.
 func (l *Loader) SymAttr(i Sym) uint8 {
 	if l.IsExternal(i) {
-		// TODO: do something? External symbols have different representation of attributes. For now, ReflectMethod is the only thing matters and it cannot be set by external symbol.
+		// TODO: do something? External symbols have different representation of attributes.
+		// For now, ReflectMethod, NoSplit, GoType, and Typelink are used and they cannot be
+		// set by external symbol.
 		return 0
 	}
 	r, li := l.toLocal(i)
-	return r.Sym2(li).Flag()
+	return r.Sym(li).Flag()
+}
+
+// Returns the size of the i-th symbol.
+func (l *Loader) SymSize(i Sym) int64 {
+	if l.IsExternal(i) {
+		pp := l.getPayload(i)
+		return pp.size
+	}
+	r, li := l.toLocal(i)
+	return int64(r.Sym(li).Siz())
 }
 
 // AttrReachable returns true for symbols that are transitively
@@ -761,7 +777,7 @@ func (l *Loader) AttrDuplicateOK(i Sym) bool {
 		// might make more sense to copy the flag value out of the object
 		// into a larger bitmap during preload.
 		r, li := l.toLocal(i)
-		return r.Sym2(li).Dupok()
+		return r.Sym(li).Dupok()
 	}
 	return l.attrDuplicateOK.Has(l.extIndex(i))
 }
@@ -937,21 +953,9 @@ func (l *Loader) AttrSubSymbol(i Sym) bool {
 	return l.OuterSym(i) != 0
 }
 
-// AttrContainer returns true for symbols that are listed as a
-// sub-symbol of some other outer symbol. The sub/outer mechanism is
-// used when loading host objects (sections from the host object
-// become regular linker symbols and symbols go on the Sub list of
-// their section) and for constructing the global offset table when
-// internally linking a dynamic executable.
-func (l *Loader) AttrContainer(i Sym) bool {
-	// we don't explicitly store this attribute any more -- return
-	// a value based on the sub-symbol setting.
-	return l.SubSym(i) != 0
-}
-
-// Note that we don't have SetAttrSubSymbol' or 'SetAttrContainer' methods
-// in the loader; clients should just use methods like PrependSub
-// to establish these relationships
+// Note that we don't have a 'SetAttrSubSymbol' method in the loader;
+// clients should instead use the PrependSub method to establish
+// outer/sub relationships for host object symbols.
 
 // Returns whether the i-th symbol has ReflectMethod attribute set.
 func (l *Loader) IsReflectMethod(i Sym) bool {
@@ -968,6 +972,11 @@ func (l *Loader) IsGoType(i Sym) bool {
 	return l.SymAttr(i)&goobj2.SymFlagGoType != 0
 }
 
+// Returns whether this symbol should be included in typelink.
+func (l *Loader) IsTypelink(i Sym) bool {
+	return l.SymAttr(i)&goobj2.SymFlagTypelink != 0
+}
+
 // Returns whether this is a "go.itablink.*" symbol.
 func (l *Loader) IsItabLink(i Sym) bool {
 	if _, ok := l.itablink[i]; ok {
@@ -981,6 +990,7 @@ func (l *Loader) growValues(reqLen int) {
 	curLen := len(l.values)
 	if reqLen > curLen {
 		l.values = append(l.values, make([]int64, reqLen+1-curLen)...)
+		l.sects = append(l.sects, make([]*sym.Section, reqLen+1-curLen)...)
 	}
 }
 
@@ -1039,6 +1049,16 @@ func (l *Loader) SetSymAlign(i Sym, align int32) {
 		}
 		l.align[i] = align
 	}
+}
+
+// SymValue returns the section of the i-th symbol. i is global index.
+func (l *Loader) SymSect(i Sym) *sym.Section {
+	return l.sects[i]
+}
+
+// SetSymValue sets the section of the i-th symbol. i is global index.
+func (l *Loader) SetSymSect(i Sym, sect *sym.Section) {
+	l.sects[i] = sect
 }
 
 // SymDynImplib returns the "dynimplib" attribute for the specified
@@ -1200,7 +1220,7 @@ func (l *Loader) SymGoType(i Sym) Sym {
 		return pp.gotype
 	}
 	r, li := l.toLocal(i)
-	auxs := r.Auxs2(li)
+	auxs := r.Auxs(li)
 	for j := range auxs {
 		a := &auxs[j]
 		switch a.Type() {
@@ -1226,39 +1246,36 @@ func (l *Loader) SymUnit(i Sym) *sym.CompilationUnit {
 	return r.unit
 }
 
-// SymFile returns the file for a symbol, which is normally the
-// package the symbol came from (for regular compiler-generated Go
-// symbols), but in the case of building with "-linkshared" (when a
-// symbol is read from a a shared library), will hold the library
-// name.
-func (l *Loader) SymFile(i Sym) string {
+// SymPkg returns the package where the symbol came from (for
+// regular compiler-generated Go symbols), but in the case of
+// building with "-linkshared" (when a symbol is read from a
+// shared library), will hold the library name.
+// NOTE: this correspondes to sym.Symbol.File field.
+func (l *Loader) SymPkg(i Sym) string {
+	if f, ok := l.symPkg[i]; ok {
+		return f
+	}
 	if l.IsExternal(i) {
-		if f, ok := l.symFile[i]; ok {
-			return f
-		}
 		pp := l.getPayload(i)
 		if pp.objidx != 0 {
 			r := l.objs[pp.objidx].r
-			return r.unit.Lib.File
+			return r.unit.Lib.Pkg
 		}
 		return ""
 	}
 	r, _ := l.toLocal(i)
-	return r.unit.Lib.File
+	return r.unit.Lib.Pkg
 }
 
-// SetSymFile sets the file attribute for a symbol. This is
+// SetSymPkg sets the package/library for a symbol. This is
 // needed mainly for external symbols, specifically those imported
 // from shared libraries.
-func (l *Loader) SetSymFile(i Sym, file string) {
+func (l *Loader) SetSymPkg(i Sym, pkg string) {
 	// reject bad symbols
 	if i >= Sym(len(l.objSyms)) || i == 0 {
-		panic("bad symbol index in SetSymFile")
+		panic("bad symbol index in SetSymPkg")
 	}
-	if !l.IsExternal(i) {
-		panic("can't set file for non-external sym")
-	}
-	l.symFile[i] = file
+	l.symPkg[i] = pkg
 }
 
 // SymLocalentry returns the "local entry" value for the specified
@@ -1298,7 +1315,7 @@ func (l *Loader) Aux2(i Sym, j int) Aux2 {
 	if j >= r.NAux(li) {
 		return Aux2{}
 	}
-	return Aux2{r.Aux2(li, j), r, l}
+	return Aux2{r.Aux(li, j), r, l}
 }
 
 // GetFuncDwarfAuxSyms collects and returns the auxiliary DWARF
@@ -1318,7 +1335,7 @@ func (l *Loader) GetFuncDwarfAuxSyms(fnSymIdx Sym) (auxDwarfInfo, auxDwarfLoc, a
 		return
 	}
 	r, li := l.toLocal(fnSymIdx)
-	auxs := r.Auxs2(li)
+	auxs := r.Auxs(li)
 	for i := range auxs {
 		a := &auxs[i]
 		switch a.Type() {
@@ -1472,12 +1489,12 @@ func (l *Loader) Relocs(i Sym) Relocs {
 
 // Relocs returns a Relocs object given a local sym index and reader.
 func (l *Loader) relocs(r *oReader, li int) Relocs {
-	var rs []goobj2.Reloc2
+	var rs []goobj2.Reloc
 	if l.isExtReader(r) {
 		pp := l.payloads[li]
 		rs = pp.relocs
 	} else {
-		rs = r.Relocs2(li)
+		rs = r.Relocs(li)
 	}
 	return Relocs{
 		rs: rs,
@@ -1497,12 +1514,18 @@ func (x RelocByOff) Less(i, j int) bool { return x[i].Off < x[j].Off }
 
 // FuncInfo provides hooks to access goobj2.FuncInfo in the objects.
 type FuncInfo struct {
-	l    *Loader
-	r    *oReader
-	data []byte
+	l       *Loader
+	r       *oReader
+	data    []byte
+	auxs    []goobj2.Aux
+	lengths goobj2.FuncInfoLengths
 }
 
 func (fi *FuncInfo) Valid() bool { return fi.r != nil }
+
+func (fi *FuncInfo) Args() int {
+	return int((*goobj2.FuncInfo)(nil).ReadArgs(fi.data))
+}
 
 func (fi *FuncInfo) Locals() int {
 	return int((*goobj2.FuncInfo)(nil).ReadLocals(fi.data))
@@ -1513,19 +1536,141 @@ func (fi *FuncInfo) Pcsp() []byte {
 	return fi.r.BytesAt(fi.r.PcdataBase()+pcsp, int(end-pcsp))
 }
 
-// TODO: more accessors.
+func (fi *FuncInfo) Pcfile() []byte {
+	pcf, end := (*goobj2.FuncInfo)(nil).ReadPcfile(fi.data)
+	return fi.r.BytesAt(fi.r.PcdataBase()+pcf, int(end-pcf))
+}
+
+func (fi *FuncInfo) Pcline() []byte {
+	pcln, end := (*goobj2.FuncInfo)(nil).ReadPcline(fi.data)
+	return fi.r.BytesAt(fi.r.PcdataBase()+pcln, int(end-pcln))
+}
+
+// Preload has to be called prior to invoking the various methods
+// below related to pcdata, funcdataoff, files, and inltree nodes.
+func (fi *FuncInfo) Preload() {
+	fi.lengths = (*goobj2.FuncInfo)(nil).ReadFuncInfoLengths(fi.data)
+}
+
+func (fi *FuncInfo) Pcinline() []byte {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	pcinl, end := (*goobj2.FuncInfo)(nil).ReadPcinline(fi.data, fi.lengths.PcdataOff)
+	return fi.r.BytesAt(fi.r.PcdataBase()+pcinl, int(end-pcinl))
+}
+
+func (fi *FuncInfo) NumPcdata() uint32 {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	return fi.lengths.NumPcdata
+}
+
+func (fi *FuncInfo) Pcdata(k int) []byte {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	pcdat, end := (*goobj2.FuncInfo)(nil).ReadPcdata(fi.data, fi.lengths.PcdataOff, uint32(k))
+	return fi.r.BytesAt(fi.r.PcdataBase()+pcdat, int(end-pcdat))
+}
+
+func (fi *FuncInfo) NumFuncdataoff() uint32 {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	return fi.lengths.NumFuncdataoff
+}
+
+func (fi *FuncInfo) Funcdataoff(k int) int64 {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	return (*goobj2.FuncInfo)(nil).ReadFuncdataoff(fi.data, fi.lengths.FuncdataoffOff, uint32(k))
+}
+
+func (fi *FuncInfo) Funcdata(syms []Sym) []Sym {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	if int(fi.lengths.NumFuncdataoff) > cap(syms) {
+		syms = make([]Sym, 0, fi.lengths.NumFuncdataoff)
+	} else {
+		syms = syms[:0]
+	}
+	for j := range fi.auxs {
+		a := &fi.auxs[j]
+		if a.Type() == goobj2.AuxFuncdata {
+			syms = append(syms, fi.l.resolve(fi.r, a.Sym()))
+		}
+	}
+	return syms
+}
+
+func (fi *FuncInfo) NumFile() uint32 {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	return fi.lengths.NumFile
+}
+
+func (fi *FuncInfo) File(k int) Sym {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	sr := (*goobj2.FuncInfo)(nil).ReadFile(fi.data, fi.lengths.FileOff, uint32(k))
+	return fi.l.resolve(fi.r, sr)
+}
+
+type InlTreeNode struct {
+	Parent   int32
+	File     Sym
+	Line     int32
+	Func     Sym
+	ParentPC int32
+}
+
+func (fi *FuncInfo) NumInlTree() uint32 {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	return fi.lengths.NumInlTree
+}
+
+func (fi *FuncInfo) InlTree(k int) InlTreeNode {
+	if !fi.lengths.Initialized {
+		panic("need to call Preload first")
+	}
+	node := (*goobj2.FuncInfo)(nil).ReadInlTree(fi.data, fi.lengths.InlTreeOff, uint32(k))
+	return InlTreeNode{
+		Parent:   node.Parent,
+		File:     fi.l.resolve(fi.r, node.File),
+		Line:     node.Line,
+		Func:     fi.l.resolve(fi.r, node.Func),
+		ParentPC: node.ParentPC,
+	}
+}
 
 func (l *Loader) FuncInfo(i Sym) FuncInfo {
+	var r *oReader
+	var auxs []goobj2.Aux
 	if l.IsExternal(i) {
-		return FuncInfo{}
+		pp := l.getPayload(i)
+		if pp.objidx == 0 {
+			return FuncInfo{}
+		}
+		r = l.objs[pp.objidx].r
+		auxs = pp.auxs
+	} else {
+		var li int
+		r, li = l.toLocal(i)
+		auxs = r.Auxs(li)
 	}
-	r, li := l.toLocal(i)
-	auxs := r.Auxs2(li)
 	for j := range auxs {
 		a := &auxs[j]
 		if a.Type() == goobj2.AuxFuncInfo {
 			b := r.Data(int(a.Sym().SymIdx))
-			return FuncInfo{l, r, b}
+			return FuncInfo{l, r, b, auxs, goobj2.FuncInfoLengths{}}
 		}
 	}
 	return FuncInfo{}
@@ -1587,7 +1732,7 @@ func (l *Loader) preloadSyms(r *oReader, kind int) {
 	l.growSyms(len(l.objSyms) + end - start)
 	l.growAttrBitmaps(len(l.objSyms) + end - start)
 	for i := start; i < end; i++ {
-		osym := r.Sym2(i)
+		osym := r.Sym(i)
 		name := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
 		v := abiToVer(osym.ABI(), r.version)
 		dupok := osym.Dupok()
@@ -1636,7 +1781,7 @@ func (l *Loader) LoadNonpkgSyms(syms *sym.Symbols) {
 func loadObjRefs(l *Loader, r *oReader, syms *sym.Symbols) {
 	ndef := r.NSym() + r.NNonpkgdef()
 	for i, n := 0, r.NNonpkgref(); i < n; i++ {
-		osym := r.Sym2(ndef + i)
+		osym := r.Sym(ndef + i)
 		name := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
 		v := abiToVer(osym.ABI(), r.version)
 		r.syms[ndef+i] = l.LookupOrCreateSym(name, v)
@@ -1700,7 +1845,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 	toConvert := make([]Sym, 0, len(l.payloads))
 	for _, i := range l.extReader.syms {
 		sname := l.RawSymName(i)
-		if !l.attrReachable.Has(i) && !strings.HasPrefix(sname, "gofile..") { // XXX file symbols are used but not marked
+		if !l.attrReachable.Has(i) {
 			continue
 		}
 		pp := l.getPayload(i)
@@ -1730,10 +1875,10 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 		if pp.gotype != 0 {
 			s.Gotype = l.Syms[pp.gotype]
 		}
-		if f, ok := l.symFile[i]; ok {
+		if f, ok := l.symPkg[i]; ok {
 			s.File = f
 		} else if pp.objidx != 0 {
-			s.File = l.objs[pp.objidx].r.unit.Lib.File
+			s.File = l.objs[pp.objidx].r.unit.Lib.Pkg
 		}
 
 		// Copy relocations
@@ -1741,7 +1886,7 @@ func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
 		s.R = batch[:len(pp.relocs):len(pp.relocs)]
 		l.relocBatch = batch[len(pp.relocs):]
 		relocs := l.Relocs(i)
-		l.convertRelocations(&relocs, s, false)
+		l.convertRelocations(i, &relocs, s, false)
 
 		// Copy data
 		s.P = pp.data
@@ -1907,12 +2052,12 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, anonVerReplace
 			if gt := l.SymGoType(cand); gt != 0 {
 				s.Gotype = l.Syms[gt]
 			}
-			if f, ok := l.symFile[cand]; ok {
+			if f, ok := l.symPkg[cand]; ok {
 				s.File = f
 			} else {
 				r, _ := l.toLocal(cand)
 				if r != nil && r != l.extReader {
-					s.File = l.SymFile(cand)
+					s.File = l.SymPkg(cand)
 				}
 			}
 		}
@@ -1941,7 +2086,7 @@ func (l *Loader) PropagateLoaderChangesToSymbols(toconvert []Sym, anonVerReplace
 		if len(s.R) != relocs.Count() {
 			s.R = make([]sym.Reloc, relocs.Count())
 		}
-		l.convertRelocations(&relocs, s, true)
+		l.convertRelocations(cand, &relocs, s, true)
 	}
 
 	return result
@@ -2055,7 +2200,7 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 		if r2, i2 := l.toLocal(gi); r2 != r || i2 != i {
 			continue // come from a different object
 		}
-		osym := r.Sym2(i)
+		osym := r.Sym(i)
 		name := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
 		t := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
 		// NB: for the test below, we can skip most anonymous symbols
@@ -2092,9 +2237,9 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 // We use this to delay populating FuncInfo until we can batch-allocate
 // slices for their sub-objects.
 type funcInfoSym struct {
-	s    *sym.Symbol  // sym.Symbol for a live function
-	osym *goobj2.Sym2 // object file symbol data for that function
-	isym int          // global symbol index of FuncInfo aux sym for func
+	s    *sym.Symbol // sym.Symbol for a live function
+	osym *goobj2.Sym // object file symbol data for that function
+	isym int         // global symbol index of FuncInfo aux sym for func
 }
 
 // funcAllocInfo records totals/counts for all functions in an objfile;
@@ -2122,7 +2267,7 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 
 	// Read the particulars from object.
 	r, li := l.toLocal(symIdx)
-	osym := r.Sym2(li)
+	osym := r.Sym(li)
 	sname := strings.Replace(osym.Name(r.Reader), "\"\".", r.pkgprefix, -1)
 	sver := abiToVer(osym.ABI(), r.version)
 	skind := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
@@ -2141,7 +2286,7 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 
 		// Copy relocations
 		relocs := l.Relocs(symIdx)
-		pp.relocs = make([]goobj2.Reloc2, relocs.Count())
+		pp.relocs = make([]goobj2.Reloc, relocs.Count())
 		pp.reltypes = make([]objabi.RelocType, relocs.Count())
 		for i := range pp.relocs {
 			// Copy the relocs slice.
@@ -2157,14 +2302,17 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
 
 	// If we're overriding a data symbol, collect the associated
 	// Gotype, so as to propagate it to the new symbol.
-	auxs := r.Auxs2(li)
+	auxs := r.Auxs(li)
+	pp.auxs = auxs
+loop:
 	for j := range auxs {
 		a := &auxs[j]
 		switch a.Type() {
 		case goobj2.AuxGotype:
 			pp.gotype = l.resolve(r, a.Sym())
+			break loop
 		default:
-			log.Fatalf("internal error: cloneToExternal applied to %s symbol %s with non-gotype aux data %d", skind.String(), sname, a.Type())
+			// nothing to do
 		}
 	}
 
@@ -2189,7 +2337,7 @@ func (l *Loader) CopySym(src, dst Sym) {
 		panic("src is not external") //l.cloneToExternal(src)
 	}
 	l.payloads[l.extIndex(dst)] = l.payloads[l.extIndex(src)]
-	l.SetSymFile(dst, l.SymFile(src))
+	l.SetSymPkg(dst, l.SymPkg(src))
 	// TODO: other attributes?
 }
 
@@ -2224,6 +2372,7 @@ func (l *Loader) CopyAttributes(src Sym, dst Sym) {
 func (l *Loader) migrateAttributes(src Sym, dst *sym.Symbol) {
 	dst.Value = l.SymValue(src)
 	dst.Align = l.SymAlign(src)
+	dst.Sect = l.SymSect(src)
 
 	dst.Attr.Set(sym.AttrReachable, l.AttrReachable(src))
 	dst.Attr.Set(sym.AttrOnList, l.AttrOnList(src))
@@ -2300,49 +2449,26 @@ func (l *Loader) CreateStaticSym(name string) Sym {
 }
 
 func loadObjFull(l *Loader, r *oReader) {
-	lib := r.unit.Lib
 	resolveSymRef := func(s goobj2.SymRef) *sym.Symbol {
 		i := l.resolve(r, s)
 		return l.Syms[i]
 	}
 
-	funcs := []funcInfoSym{}
-	fdsyms := []*sym.Symbol{}
-	var funcAllocCounts funcAllocInfo
-	pcdataBase := r.PcdataBase()
 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
 		// A symbol may be a dup or overwritten. In this case, its
 		// content will actually be provided by a different object
 		// (to which its global index points). Skip those symbols.
 		gi := l.toGlobal(r, i)
-		var isdup bool
 		if r2, i2 := l.toLocal(gi); r2 != r || i2 != i {
-			isdup = true
-		}
-
-		osym := r.Sym2(i)
-		dupok := osym.Dupok()
-		if dupok && isdup {
-			if l.attrReachable.Has(gi) {
-				// A dupok symbol is resolved to another package. We still need
-				// to record its presence in the current package, as the trampoline
-				// pass expects packages are laid out in dependency order.
-				s := l.Syms[gi]
-				if s.Type == sym.STEXT {
-					lib.DupTextSyms = append(lib.DupTextSyms, s)
-				}
-			}
 			continue
-		}
-
-		if isdup {
-			continue // come from a different object
 		}
 		s := l.Syms[gi]
 		if s == nil {
 			continue
 		}
 
+		osym := r.Sym(i)
+		dupok := osym.Dupok()
 		local := osym.Local()
 		makeTypelink := osym.Typelink()
 		size := osym.Siz()
@@ -2356,11 +2482,10 @@ func loadObjFull(l *Loader, r *oReader) {
 		batch := l.relocBatch
 		s.R = batch[:relocs.Count():relocs.Count()]
 		l.relocBatch = batch[relocs.Count():]
-		l.convertRelocations(&relocs, s, false)
+		l.convertRelocations(gi, &relocs, s, false)
 
 		// Aux symbol info
-		isym := -1
-		auxs := r.Auxs2(i)
+		auxs := r.Auxs(i)
 		for j := range auxs {
 			a := &auxs[j]
 			switch a.Type() {
@@ -2369,13 +2494,8 @@ func loadObjFull(l *Loader, r *oReader) {
 				if typ != nil {
 					s.Gotype = typ
 				}
-			case goobj2.AuxFuncdata:
-				fdsyms = append(fdsyms, resolveSymRef(a.Sym()))
-			case goobj2.AuxFuncInfo:
-				if a.Sym().PkgIdx != goobj2.PkgIdxSelf {
-					panic("funcinfo symbol not defined in current package")
-				}
-				isym = int(a.Sym().SymIdx)
+			case goobj2.AuxFuncInfo, goobj2.AuxFuncdata:
+				// already handled
 			case goobj2.AuxDwarfInfo, goobj2.AuxDwarfLoc, goobj2.AuxDwarfRanges, goobj2.AuxDwarfLines:
 				// ignored for now
 			default:
@@ -2392,130 +2512,6 @@ func loadObjFull(l *Loader, r *oReader) {
 		}
 		s.Attr.Set(sym.AttrLocal, local)
 		s.Attr.Set(sym.AttrMakeTypelink, makeTypelink)
-
-		if s.Type != sym.STEXT {
-			continue
-		}
-
-		if isym == -1 {
-			continue
-		}
-
-		// Record function sym and associated info for additional
-		// processing in the loop below.
-		fwis := funcInfoSym{s: s, isym: isym, osym: osym}
-		funcs = append(funcs, fwis)
-
-		// Read the goobj2.FuncInfo for this text symbol so that we can
-		// collect allocation counts. We'll read it again in the loop
-		// below.
-		b := r.Data(isym)
-		info := goobj2.FuncInfo{}
-		info.Read(b)
-		funcAllocCounts.symPtr += uint32(len(info.File))
-		funcAllocCounts.pcData += uint32(len(info.Pcdata))
-		funcAllocCounts.inlCall += uint32(len(info.InlTree))
-		funcAllocCounts.fdOff += uint32(len(info.Funcdataoff))
-	}
-
-	// At this point we can do batch allocation of the sym.FuncInfo's,
-	// along with the slices of sub-objects they use.
-	fiBatch := make([]sym.FuncInfo, len(funcs))
-	inlCallBatch := make([]sym.InlinedCall, funcAllocCounts.inlCall)
-	symPtrBatch := make([]*sym.Symbol, funcAllocCounts.symPtr)
-	pcDataBatch := make([]sym.Pcdata, funcAllocCounts.pcData)
-	fdOffBatch := make([]int64, funcAllocCounts.fdOff)
-
-	// Populate FuncInfo contents for func symbols.
-	for fi := 0; fi < len(funcs); fi++ {
-		s := funcs[fi].s
-		isym := funcs[fi].isym
-		osym := funcs[fi].osym
-
-		s.FuncInfo = &fiBatch[0]
-		fiBatch = fiBatch[1:]
-
-		b := r.Data(isym)
-		info := goobj2.FuncInfo{}
-		info.Read(b)
-
-		if osym.NoSplit() {
-			s.Attr |= sym.AttrNoSplit
-		}
-		if osym.ReflectMethod() {
-			s.Attr |= sym.AttrReflectMethod
-		}
-		if r.Flags()&goobj2.ObjFlagShared != 0 {
-			s.Attr |= sym.AttrShared
-		}
-		if osym.TopFrame() {
-			s.Attr |= sym.AttrTopFrame
-		}
-
-		pc := s.FuncInfo
-
-		if len(info.Funcdataoff) != 0 {
-			nfd := len(info.Funcdataoff)
-			pc.Funcdata = fdsyms[:nfd:nfd]
-			fdsyms = fdsyms[nfd:]
-		}
-
-		info.Pcdata = append(info.Pcdata, info.PcdataEnd) // for the ease of knowing where it ends
-		pc.Args = int32(info.Args)
-		pc.Locals = int32(info.Locals)
-
-		npc := len(info.Pcdata) - 1 // -1 as we appended one above
-		pc.Pcdata = pcDataBatch[:npc:npc]
-		pcDataBatch = pcDataBatch[npc:]
-
-		nfd := len(info.Funcdataoff)
-		pc.Funcdataoff = fdOffBatch[:nfd:nfd]
-		fdOffBatch = fdOffBatch[nfd:]
-
-		nsp := len(info.File)
-		pc.File = symPtrBatch[:nsp:nsp]
-		symPtrBatch = symPtrBatch[nsp:]
-
-		nic := len(info.InlTree)
-		pc.InlTree = inlCallBatch[:nic:nic]
-		inlCallBatch = inlCallBatch[nic:]
-
-		pc.Pcsp.P = r.BytesAt(pcdataBase+info.Pcsp, int(info.Pcfile-info.Pcsp))
-		pc.Pcfile.P = r.BytesAt(pcdataBase+info.Pcfile, int(info.Pcline-info.Pcfile))
-		pc.Pcline.P = r.BytesAt(pcdataBase+info.Pcline, int(info.Pcinline-info.Pcline))
-		pc.Pcinline.P = r.BytesAt(pcdataBase+info.Pcinline, int(info.Pcdata[0]-info.Pcinline))
-		for k := range pc.Pcdata {
-			pc.Pcdata[k].P = r.BytesAt(pcdataBase+info.Pcdata[k], int(info.Pcdata[k+1]-info.Pcdata[k]))
-		}
-		for k := range pc.Funcdataoff {
-			pc.Funcdataoff[k] = int64(info.Funcdataoff[k])
-		}
-		for k := range pc.File {
-			pc.File[k] = resolveSymRef(info.File[k])
-		}
-		for k := range pc.InlTree {
-			inl := &info.InlTree[k]
-			pc.InlTree[k] = sym.InlinedCall{
-				Parent:   inl.Parent,
-				File:     resolveSymRef(inl.File),
-				Line:     inl.Line,
-				Func:     l.SymName(l.resolve(r, inl.Func)),
-				ParentPC: inl.ParentPC,
-			}
-		}
-
-		dupok := osym.Dupok()
-		if !dupok {
-			if s.Attr.OnList() {
-				log.Fatalf("symbol %s listed multiple times", s.Name)
-			}
-			s.Attr.Set(sym.AttrOnList, true)
-			lib.Textp = append(lib.Textp, s)
-		} else {
-			// there may be a dup in another package
-			// put into a temp list and add to text later
-			lib.DupTextSyms = append(lib.DupTextSyms, s)
-		}
 	}
 }
 
@@ -2525,7 +2521,7 @@ func loadObjFull(l *Loader, r *oReader) {
 // etc. It is assumed that the caller has pre-allocated the dst symbol
 // relocations slice. If 'strict' is set, then this method will
 // panic if it finds a relocation targeting a nil symbol.
-func (l *Loader) convertRelocations(src *Relocs, dst *sym.Symbol, strict bool) {
+func (l *Loader) convertRelocations(symIdx Sym, src *Relocs, dst *sym.Symbol, strict bool) {
 	for j := range dst.R {
 		r := src.At2(j)
 		rs := r.Sym()
@@ -2557,7 +2553,41 @@ func (l *Loader) convertRelocations(src *Relocs, dst *sym.Symbol, strict bool) {
 			Add:  r.Add(),
 			Sym:  l.Syms[rs],
 		}
+		if rv := l.RelocVariant(symIdx, j); rv != 0 {
+			dst.R[j].InitExt()
+			dst.R[j].Variant = rv
+		}
 	}
+}
+
+// relocId is essentially a <S,R> tuple identifying the Rth
+// relocation of symbol S.
+type relocId struct {
+	sym  Sym
+	ridx int
+}
+
+// SetRelocVariant sets the 'variant' property of a relocation on
+// some specific symbol.
+func (l *Loader) SetRelocVariant(s Sym, ri int, v sym.RelocVariant) {
+	// sanity check
+	if relocs := l.Relocs(s); ri >= relocs.Count() {
+		panic("invalid relocation ID")
+	}
+	if l.relocVariant == nil {
+		l.relocVariant = make(map[relocId]sym.RelocVariant)
+	}
+	if v != 0 {
+		l.relocVariant[relocId{s, ri}] = v
+	} else {
+		delete(l.relocVariant, relocId{s, ri})
+	}
+}
+
+// RelocVariant returns the 'variant' property of a relocation on
+// some specific symbol.
+func (l *Loader) RelocVariant(s Sym, ri int) sym.RelocVariant {
+	return l.relocVariant[relocId{s, ri}]
 }
 
 // UndefinedRelocTargets iterates through the global symbol index
@@ -2628,7 +2658,7 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 			if !l.attrReachable.Has(gi) {
 				continue
 			}
-			osym := r.Sym2(i)
+			osym := r.Sym(i)
 			st := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
 			if st != sym.STEXT {
 				continue
@@ -2644,6 +2674,7 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 			}
 			if dupok {
 				lib.DupTextSyms2 = append(lib.DupTextSyms2, sym.LoaderSym(gi))
+				continue
 			}
 
 			lib.Textp2 = append(lib.Textp2, sym.LoaderSym(gi))
@@ -2658,7 +2689,7 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 			}
 			libtextp2 := []sym.LoaderSym{}
 			lists := [2][]sym.LoaderSym{lib.Textp2, lib.DupTextSyms2}
-			for _, list := range lists {
+			for i, list := range lists {
 				for _, s := range list {
 					sym := Sym(s)
 					if l.attrReachable.Has(sym) && !assignedToUnit.Has(sym) {
@@ -2668,6 +2699,14 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 						if unit != nil {
 							unit.Textp2 = append(unit.Textp2, s)
 							assignedToUnit.Set(sym)
+						}
+						// Dupok symbols may be defined in multiple packages; the
+						// associated package for a dupok sym is chosen sort of
+						// arbitrarily (the first containing package that the linker
+						// loads). Canonicalizes its Pkg to the package with which
+						// it will be laid down in text.
+						if i == 1 /* DupTextSyms2 */ && l.SymPkg(sym) != lib.Pkg {
+							l.SetSymPkg(sym, lib.Pkg)
 						}
 					}
 				}

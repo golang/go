@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"sort"
 	"strings"
 )
 
@@ -895,17 +894,19 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 			rela = 1
 		}
 		n := int(rsect.size / uint64(4+4*is64) / uint64(2+rela))
-		r := make([]loader.Reloc, n)
 		p := rsect.base
+		sb := l.MakeSymbolUpdater(sect.sym)
 		for j := 0; j < n; j++ {
 			var add uint64
 			var symIdx int
 			var relocType uint64
+			var rOff int32
+			var rAdd int64
+			var rSym loader.Sym
 
-			rp := &r[j]
 			if is64 != 0 {
 				// 64-bit rel/rela
-				rp.Off = int32(e.Uint64(p))
+				rOff = int32(e.Uint64(p))
 
 				p = p[8:]
 				switch arch.Family {
@@ -926,7 +927,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 				}
 			} else {
 				// 32-bit rel/rela
-				rp.Off = int32(e.Uint32(p))
+				rOff = int32(e.Uint32(p))
 
 				p = p[4:]
 				info := e.Uint32(p)
@@ -946,7 +947,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 			}
 
 			if symIdx == 0 { // absolute relocation, don't bother reading the null symbol
-				rp.Sym = 0
+				rSym = 0
 			} else {
 				var elfsym ElfSym
 				if err := readelfsym(newSym, lookup, l, arch, elfobj, int(symIdx), &elfsym, 0, 0); err != nil {
@@ -957,42 +958,42 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader, 
 					return errorf("malformed elf file: %s#%d: reloc of invalid sym #%d %s shndx=%d type=%d", l.SymName(sect.sym), j, int(symIdx), elfsym.name, elfsym.shndx, elfsym.type_)
 				}
 
-				rp.Sym = elfsym.sym
+				rSym = elfsym.sym
 			}
 
-			rp.Type = objabi.ElfRelocOffset + objabi.RelocType(relocType)
-			rp.Size, err = relSize(arch, pn, uint32(relocType))
+			rType := objabi.ElfRelocOffset + objabi.RelocType(relocType)
+			rSize, err := relSize(arch, pn, uint32(relocType))
 			if err != nil {
 				return nil, 0, err
 			}
 			if rela != 0 {
-				rp.Add = int64(add)
+				rAdd = int64(add)
 			} else {
 				// load addend from image
-				if rp.Size == 4 {
-					rp.Add = int64(e.Uint32(sect.base[rp.Off:]))
-				} else if rp.Size == 8 {
-					rp.Add = int64(e.Uint64(sect.base[rp.Off:]))
+				if rSize == 4 {
+					rAdd = int64(e.Uint32(sect.base[rOff:]))
+				} else if rSize == 8 {
+					rAdd = int64(e.Uint64(sect.base[rOff:]))
 				} else {
-					return errorf("invalid rela size %d", rp.Size)
+					return errorf("invalid rela size %d", rSize)
 				}
 			}
 
-			if rp.Size == 2 {
-				rp.Add = int64(int16(rp.Add))
+			if rSize == 2 {
+				rAdd = int64(int16(rAdd))
 			}
-			if rp.Size == 4 {
-				rp.Add = int64(int32(rp.Add))
+			if rSize == 4 {
+				rAdd = int64(int32(rAdd))
 			}
+
+			r, _ := sb.AddRel(rType)
+			r.SetOff(rOff)
+			r.SetSiz(rSize)
+			r.SetSym(rSym)
+			r.SetAdd(rAdd)
 		}
 
-		//print("rel %s %d %d %s %#llx\n", sect->sym->name, rp->type, rp->siz, rp->sym->name, rp->add);
-		sort.Sort(loader.RelocByOff(r[:n]))
-		// just in case
-
-		sb := l.MakeSymbolUpdater(sect.sym)
-		r = r[:n]
-		sb.SetRelocs(r)
+		sb.SortRelocs() // just in case
 	}
 
 	return textp, ehdrFlags, nil

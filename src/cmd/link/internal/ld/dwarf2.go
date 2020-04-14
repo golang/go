@@ -56,20 +56,20 @@ func dwarfaddelfsectionsyms(ctxt *Link) {
 	}
 
 	s := ctxt.Syms.Lookup(".debug_info", 0)
-	putelfsectionsym(ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+	putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
 	s = ctxt.Syms.Lookup(".debug_abbrev", 0)
-	putelfsectionsym(ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+	putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
 	s = ctxt.Syms.Lookup(".debug_line", 0)
-	putelfsectionsym(ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+	putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
 	s = ctxt.Syms.Lookup(".debug_frame", 0)
-	putelfsectionsym(ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+	putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
 	s = ctxt.Syms.Lookup(".debug_loc", 0)
 	if s.Sect != nil {
-		putelfsectionsym(ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+		putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
 	}
 	s = ctxt.Syms.Lookup(".debug_ranges", 0)
 	if s.Sect != nil {
-		putelfsectionsym(ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
+		putelfsectionsym(ctxt, ctxt.Out, s, s.Sect.Elfsect.(*ElfShdr).shnum)
 	}
 }
 

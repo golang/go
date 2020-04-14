@@ -45,59 +45,29 @@ func PADDR(x uint32) uint32 {
 	return x &^ 0x80000000
 }
 
-func Addcall(ctxt *ld.Link, s *sym.Symbol, t *sym.Symbol) int64 {
-	s.Attr |= sym.AttrReachable
-	i := s.Size
-	s.Size += 4
-	s.Grow(s.Size)
-	r := s.AddRel()
-	r.Sym = t
-	r.Off = int32(i)
-	r.Type = objabi.R_CALL
-	r.Siz = 4
-	return i + int64(r.Siz)
-}
+func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
+	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
+	if initfunc == nil {
+		return
+	}
 
-func gentext(ctxt *ld.Link) {
-	if !ctxt.DynlinkingGo() {
-		return
-	}
-	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
-	if addmoduledata.Type == sym.STEXT && ctxt.BuildMode != ld.BuildModePlugin {
-		// we're linking a module containing the runtime -> no need for
-		// an init function
-		return
-	}
-	addmoduledata.Attr |= sym.AttrReachable
-	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
-	initfunc.Type = sym.STEXT
-	initfunc.Attr |= sym.AttrLocal
-	initfunc.Attr |= sym.AttrReachable
 	o := func(op ...uint8) {
 		for _, op1 := range op {
 			initfunc.AddUint8(op1)
 		}
 	}
+
 	// 0000000000000000 <local.dso_init>:
 	//    0:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 7 <local.dso_init+0x7>
 	// 			3: R_X86_64_PC32	runtime.firstmoduledata-0x4
 	o(0x48, 0x8d, 0x3d)
-	initfunc.AddPCRelPlus(ctxt.Arch, ctxt.Moduledata, 0)
+	initfunc.AddPCRelPlus(ctxt.Arch, ctxt.Moduledata2, 0)
 	//    7:	e8 00 00 00 00       	callq  c <local.dso_init+0xc>
 	// 			8: R_X86_64_PLT32	runtime.addmoduledata-0x4
 	o(0xe8)
-	Addcall(ctxt, initfunc, addmoduledata)
+	initfunc.AddSymRef(ctxt.Arch, addmoduledata, 0, objabi.R_CALL, 4)
 	//    c:	c3                   	retq
 	o(0xc3)
-	if ctxt.BuildMode == ld.BuildModePlugin {
-		ctxt.Textp = append(ctxt.Textp, addmoduledata)
-	}
-	ctxt.Textp = append(ctxt.Textp, initfunc)
-	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
-	initarray_entry.Attr |= sym.AttrReachable
-	initarray_entry.Attr |= sym.AttrLocal
-	initarray_entry.Type = sym.SINITARR
-	initarray_entry.AddAddr(ctxt.Arch, initfunc)
 }
 
 // makeWritable makes a readonly symbol writable if we do opcode rewriting.
