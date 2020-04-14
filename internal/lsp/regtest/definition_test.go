@@ -29,7 +29,7 @@ const message = "Hello World."
 `
 
 func TestGoToInternalDefinition(t *testing.T) {
-	runner.Run(t, internalDefinition, func(env *Env) {
+	runner.Run(t, internalDefinition, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		name, pos := env.GoToDefinition("main.go", env.RegexpSearch("main.go", "message"))
 		if want := "const.go"; name != want {
@@ -59,7 +59,7 @@ func main() {
 }`
 
 func TestGoToStdlibDefinition_Issue37045(t *testing.T) {
-	runner.Run(t, stdlibDefinition, func(env *Env) {
+	runner.Run(t, stdlibDefinition, func(t *testing.T, env *Env) {
 		env.OpenFile("main.go")
 		name, pos := env.GoToDefinition("main.go", env.RegexpSearch("main.go", "Now"))
 		if got, want := path.Base(name), "time.go"; got != want {

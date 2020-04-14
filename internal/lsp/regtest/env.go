@@ -141,13 +141,13 @@ func (r *Runner) Close() error {
 // Run executes the test function in the default configured gopls execution
 // modes. For each a test run, a new workspace is created containing the
 // un-txtared files specified by filedata.
-func (r *Runner) Run(t *testing.T, filedata string, test func(e *Env)) {
+func (r *Runner) Run(t *testing.T, filedata string, test func(t *testing.T, e *Env)) {
 	t.Helper()
 	r.RunInMode(r.defaultModes, t, filedata, test)
 }
 
 // RunInMode runs the test in the execution modes specified by the modes bitmask.
-func (r *Runner) RunInMode(modes EnvMode, t *testing.T, filedata string, test func(e *Env)) {
+func (r *Runner) RunInMode(modes EnvMode, t *testing.T, filedata string, test func(t *testing.T, e *Env)) {
 	t.Helper()
 	tests := []struct {
 		name      string
@@ -190,7 +190,7 @@ func (r *Runner) RunInMode(modes EnvMode, t *testing.T, filedata string, test fu
 					panic(err)
 				}
 			}()
-			test(env)
+			test(t, env)
 		})
 	}
 }

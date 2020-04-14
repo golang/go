@@ -26,7 +26,7 @@ func main() {
 }`
 
 func TestDiagnosticErrorInEditedFile(t *testing.T) {
-	runner.Run(t, exampleProgram, func(env *Env) {
+	runner.Run(t, exampleProgram, func(t *testing.T, env *Env) {
 		// Deleting the 'n' at the end of Println should generate a single error
 		// diagnostic.
 		env.OpenFile("main.go")
@@ -45,7 +45,7 @@ go 1.12
 func TestMissingImportDiagsClearOnFirstFile(t *testing.T) {
 	t.Skip("skipping due to golang.org/issues/37195")
 	t.Parallel()
-	runner.Run(t, onlyMod, func(env *Env) {
+	runner.Run(t, onlyMod, func(t *testing.T, env *Env) {
 		env.CreateBuffer("main.go", "package main\n\nfunc m() {\nlog.Println()\n}")
 		env.SaveBuffer("main.go")
 		// TODO: this shouldn't actually happen
@@ -59,7 +59,7 @@ const Foo = "abc
 `
 
 func TestDiagnosticErrorInNewFile(t *testing.T) {
-	runner.Run(t, brokenFile, func(env *Env) {
+	runner.Run(t, brokenFile, func(t *testing.T, env *Env) {
 		env.CreateBuffer("broken.go", brokenFile)
 		env.Await(env.DiagnosticAtRegexp("broken.go", "\"abc"))
 	})
@@ -82,7 +82,7 @@ const a = 2
 `
 
 func TestDiagnosticClearingOnEdit(t *testing.T) {
-	runner.Run(t, badPackage, func(env *Env) {
+	runner.Run(t, badPackage, func(t *testing.T, env *Env) {
 		env.OpenFile("b.go")
 		env.Await(env.DiagnosticAtRegexp("a.go", "a = 1"), env.DiagnosticAtRegexp("b.go", "a = 2"))
 
@@ -93,7 +93,7 @@ func TestDiagnosticClearingOnEdit(t *testing.T) {
 }
 
 func TestDiagnosticClearingOnDelete_Issue37049(t *testing.T) {
-	runner.Run(t, badPackage, func(env *Env) {
+	runner.Run(t, badPackage, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
 		env.Await(env.DiagnosticAtRegexp("a.go", "a = 1"), env.DiagnosticAtRegexp("b.go", "a = 2"))
 		env.RemoveFileFromWorkspace("b.go")
@@ -103,7 +103,7 @@ func TestDiagnosticClearingOnDelete_Issue37049(t *testing.T) {
 }
 
 func TestDiagnosticClearingOnClose(t *testing.T) {
-	runner.Run(t, badPackage, func(env *Env) {
+	runner.Run(t, badPackage, func(t *testing.T, env *Env) {
 		env.CreateBuffer("c.go", `package consts
 
 const a = 3`)
@@ -120,7 +120,7 @@ const a = 3`)
 }
 
 func TestIssue37978(t *testing.T) {
-	runner.Run(t, exampleProgram, func(env *Env) {
+	runner.Run(t, exampleProgram, func(t *testing.T, env *Env) {
 		// Create a new workspace-level directory and empty file.
 		env.CreateBuffer("c/c.go", "")
 
@@ -164,7 +164,7 @@ func Hello() {
 // file to their workspace.
 func TestNoMod(t *testing.T) {
 	t.Run("manual", func(t *testing.T) {
-		runner.Run(t, noMod, func(env *Env) {
+		runner.Run(t, noMod, func(t *testing.T, env *Env) {
 			env.Await(
 				env.DiagnosticAtRegexp("main.go", `"mod.com/bob"`),
 			)
@@ -180,7 +180,7 @@ func TestNoMod(t *testing.T) {
 		})
 	})
 	t.Run("initialized", func(t *testing.T) {
-		runner.Run(t, noMod, func(env *Env) {
+		runner.Run(t, noMod, func(t *testing.T, env *Env) {
 			env.Await(
 				env.DiagnosticAtRegexp("main.go", `"mod.com/bob"`),
 			)
@@ -227,7 +227,7 @@ func TestHello(t *testing.T) {
 `
 
 func Test_Issue38267(t *testing.T) {
-	runner.Run(t, testPackage, func(env *Env) {
+	runner.Run(t, testPackage, func(t *testing.T, env *Env) {
 		env.OpenFile("lib_test.go")
 		env.Await(
 			DiagnosticAt("lib_test.go", 10, 2),
@@ -252,7 +252,7 @@ func main() {}
 
 func TestPackageChange(t *testing.T) {
 	t.Skip("skipping due to golang.org/issues/32149")
-	runner.Run(t, packageChange, func(env *Env) {
+	runner.Run(t, packageChange, func(t *testing.T, env *Env) {
 		env.OpenFile("a.go")
 		env.RegexpReplace("a.go", "foo", "foox")
 		// TODO: there should be no error
