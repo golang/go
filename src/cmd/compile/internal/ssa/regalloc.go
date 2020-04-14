@@ -2164,6 +2164,9 @@ func (e *edgeState) set(loc Location, vid ID, c *Value, final bool, pos src.XPos
 	a = append(a, c)
 	e.cache[vid] = a
 	if r, ok := loc.(*Register); ok {
+		if e.usedRegs&(regMask(1)<<uint(r.num)) != 0 {
+			e.s.f.Fatalf("%v is already set (v%d/%v)", r, vid, c)
+		}
 		e.usedRegs |= regMask(1) << uint(r.num)
 		if final {
 			e.finalRegs |= regMask(1) << uint(r.num)
