@@ -4,11 +4,22 @@
 
 package big
 
-import "math"
-
-var (
-	three = NewFloat(3.0)
+import (
+	"math"
+	"sync"
 )
+
+var threeOnce struct {
+	sync.Once
+	v *Float
+}
+
+func three() *Float {
+	threeOnce.Do(func() {
+		threeOnce.v = NewFloat(3.0)
+	})
+	return threeOnce.v
+}
 
 // Sqrt sets z to the rounded square root of x, and returns it.
 //
@@ -129,6 +140,7 @@ func (z *Float) sqrtInverse(x *Float) {
 	//   t2 = t - g(t) = ½t(3 - xt²)
 	u := newFloat(z.prec)
 	v := newFloat(z.prec)
+	three := three()
 	ng := func(t *Float) *Float {
 		u.prec = t.prec
 		v.prec = t.prec
