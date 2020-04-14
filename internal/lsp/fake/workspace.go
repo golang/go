@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/tools/internal/gocommand"
 	"golang.org/x/tools/internal/lsp/protocol"
+	"golang.org/x/tools/internal/proxydir"
 	"golang.org/x/tools/internal/span"
 	"golang.org/x/tools/txtar"
 )
@@ -29,9 +30,10 @@ type FileEvent struct {
 // The Workspace type represents a temporary workspace to use for editing Go
 // files in tests.
 type Workspace struct {
-	name    string
-	gopath  string
-	workdir string
+	name     string
+	gopath   string
+	workdir  string
+	proxydir string
 
 	watcherMu sync.Mutex
 	watchers  []func(context.Context, []FileEvent)
@@ -40,7 +42,7 @@ type Workspace struct {
 // NewWorkspace creates a named workspace populated by the txtar-encoded
 // content given by txt. It creates temporary directories for the workspace
 // content and for GOPATH.
-func NewWorkspace(name string, txt []byte) (_ *Workspace, err error) {
+func NewWorkspace(name string, srctxt string, proxytxt string) (_ *Workspace, err error) {
 	w := &Workspace{name: name}
 	defer func() {
 		// Clean up if we fail at any point in this constructor.
@@ -58,13 +60,71 @@ func NewWorkspace(name string, txt []byte) (_ *Workspace, err error) {
 		return nil, fmt.Errorf("creating temporary gopath: %v", err)
 	}
 	w.gopath = gopath
-	archive := txtar.Parse(txt)
-	for _, f := range archive.Files {
-		if err := w.writeFileData(f.Name, string(f.Data)); err != nil {
-			return nil, err
+	files := unpackTxt(srctxt)
+	for name, data := range files {
+		if err := w.writeFileData(name, string(data)); err != nil {
+			return nil, fmt.Errorf("writing to workdir: %v", err)
 		}
 	}
+	pd, err := ioutil.TempDir("", fmt.Sprintf("goplstest-proxy-%s-", name))
+	if err != nil {
+		return nil, fmt.Errorf("creating temporary proxy dir: %v", err)
+	}
+	w.proxydir = pd
+	if err := writeProxyDir(unpackTxt(proxytxt), w.proxydir); err != nil {
+		return nil, fmt.Errorf("writing proxy dir: %v", err)
+	}
 	return w, nil
+}
+
+func unpackTxt(txt string) map[string][]byte {
+	dataMap := make(map[string][]byte)
+	archive := txtar.Parse([]byte(txt))
+	for _, f := range archive.Files {
+		dataMap[f.Name] = f.Data
+	}
+	return dataMap
+}
+
+func writeProxyDir(files map[string][]byte, dir string) error {
+	type moduleVersion struct {
+		modulePath, version string
+	}
+	// Transform into the format expected by the proxydir package.
+	filesByModule := make(map[moduleVersion]map[string][]byte)
+	for name, data := range files {
+		modulePath, version, suffix := splitModuleVersionPath(name)
+		mv := moduleVersion{modulePath, version}
+		if _, ok := filesByModule[mv]; !ok {
+			filesByModule[mv] = make(map[string][]byte)
+		}
+		filesByModule[mv][suffix] = data
+	}
+	for mv, files := range filesByModule {
+		if err := proxydir.WriteModuleVersion(dir, mv.modulePath, mv.version, files); err != nil {
+			return fmt.Errorf("error writing %s@%s: %v", mv.modulePath, mv.version, err)
+		}
+	}
+	return nil
+}
+
+// splitModuleVersionPath extracts module information from files stored in the
+// directory structure modulePath@version/suffix.
+// For example:
+//  splitModuleVersionPath("mod.com@v1.2.3/package") = ("mod.com", "v1.2.3", "package")
+func splitModuleVersionPath(path string) (modulePath, version, suffix string) {
+	parts := strings.Split(path, "/")
+	var modulePathParts []string
+	for i, p := range parts {
+		if strings.Contains(p, "@") {
+			mv := strings.SplitN(p, "@", 2)
+			modulePathParts = append(modulePathParts, mv[0])
+			return strings.Join(modulePathParts, "/"), mv[1], strings.Join(parts[i+1:], "/")
+		}
+		modulePathParts = append(modulePathParts, p)
+	}
+	// Default behavior: this is just a module path.
+	return path, "", ""
 }
 
 // RootURI returns the root URI for this workspace.
@@ -75,6 +135,11 @@ func (w *Workspace) RootURI() protocol.DocumentURI {
 // GOPATH returns the value that GOPATH should be set to for this workspace.
 func (w *Workspace) GOPATH() string {
 	return w.gopath
+}
+
+// GOPROXY returns the value that GOPROXY should be set to for this workspace.
+func (w *Workspace) GOPROXY() string {
+	return proxydir.ToURL(w.proxydir)
 }
 
 // AddWatcher registers the given func to be called on any file change.
@@ -156,6 +221,7 @@ func (w *Workspace) RemoveFile(ctx context.Context, path string) error {
 func (w *Workspace) GoEnv() []string {
 	return []string{
 		"GOPATH=" + w.GOPATH(),
+		"GOPROXY=" + w.GOPROXY(),
 		"GO111MODULE=",
 		"GOSUMDB=off",
 	}

@@ -190,7 +190,7 @@ func TestDebugInfoLifecycle(t *testing.T) {
 	resetExitFuncs := OverrideExitFuncsForTest()
 	defer resetExitFuncs()
 
-	ws, err := fake.NewWorkspace("gopls-lsprpc-test", []byte(exampleProgram))
+	ws, err := fake.NewWorkspace("gopls-lsprpc-test", exampleProgram, "")
 	if err != nil {
 		t.Fatal(err)
 	}

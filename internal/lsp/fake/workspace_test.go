@@ -21,13 +21,13 @@ Hello World!
 func newWorkspace(t *testing.T) (*Workspace, <-chan []FileEvent, func()) {
 	t.Helper()
 
-	ws, err := NewWorkspace("default", []byte(data))
+	ws, err := NewWorkspace("default", data, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	cleanup := func() {
 		if err := ws.Close(); err != nil {
-			t.Fatal(err)
+			t.Errorf("closing workspace: %v", err)
 		}
 	}
 
@@ -87,6 +87,27 @@ func TestWorkspace_WriteFile(t *testing.T) {
 		want := "42"
 		if got != want {
 			t.Errorf("ws.ReadFile(%q) = %q, want %q", test.path, got, want)
+		}
+	}
+}
+
+func TestSplitModuleVersionPath(t *testing.T) {
+	tests := []struct {
+		path                                string
+		wantModule, wantVersion, wantSuffix string
+	}{
+		{"foo.com@v1.2.3/bar", "foo.com", "v1.2.3", "bar"},
+		{"foo.com/module@v1.2.3/bar", "foo.com/module", "v1.2.3", "bar"},
+		{"foo.com@v1.2.3", "foo.com", "v1.2.3", ""},
+		{"std@v1.14.0", "std", "v1.14.0", ""},
+		{"another/module/path", "another/module/path", "", ""},
+	}
+
+	for _, test := range tests {
+		module, version, suffix := splitModuleVersionPath(test.path)
+		if module != test.wantModule || version != test.wantVersion || suffix != test.wantSuffix {
+			t.Errorf("splitModuleVersionPath(%q) =\n\t(%q, %q, %q)\nwant\n\t(%q, %q, %q)",
+				test.path, module, version, suffix, test.wantModule, test.wantVersion, test.wantSuffix)
 		}
 	}
 }

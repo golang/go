@@ -163,17 +163,61 @@ func (r *Runner) Close() error {
 	return nil
 }
 
+type runConfig struct {
+	modes    EnvMode
+	proxyTxt string
+	timeout  time.Duration
+}
+
+func (r *Runner) defaultConfig() *runConfig {
+	return &runConfig{
+		modes:   r.defaultModes,
+		timeout: r.timeout,
+	}
+}
+
+// A RunOption augments the behavior of the test runner.
+type RunOption interface {
+	set(*runConfig)
+}
+
+type optionSetter func(*runConfig)
+
+func (f optionSetter) set(opts *runConfig) {
+	f(opts)
+}
+
+// WithTimeout configures a custom timeout for this test run.
+func WithTimeout(d time.Duration) RunOption {
+	return optionSetter(func(opts *runConfig) {
+		opts.timeout = d
+	})
+}
+
+// WithProxy configures a file proxy using the given txtar-encoded string.
+func WithProxy(txt string) RunOption {
+	return optionSetter(func(opts *runConfig) {
+		opts.proxyTxt = txt
+	})
+}
+
+// WithModes configures the execution modes that the test should run in.
+func WithModes(modes EnvMode) RunOption {
+	return optionSetter(func(opts *runConfig) {
+		opts.modes = modes
+	})
+}
+
 // Run executes the test function in the default configured gopls execution
 // modes. For each a test run, a new workspace is created containing the
 // un-txtared files specified by filedata.
-func (r *Runner) Run(t *testing.T, filedata string, test func(t *testing.T, e *Env)) {
+func (r *Runner) Run(t *testing.T, filedata string, test func(t *testing.T, e *Env), opts ...RunOption) {
 	t.Helper()
-	r.RunInMode(r.defaultModes, t, filedata, test)
-}
+	config := r.defaultConfig()
+	for _, opt := range opts {
+		opt.set(config)
+	}
 
-// RunInMode runs the test in the execution modes specified by the modes bitmask.
-func (r *Runner) RunInMode(modes EnvMode, t *testing.T, filedata string, test func(t *testing.T, e *Env)) {
-	t.Helper()
 	tests := []struct {
 		name      string
 		mode      EnvMode
@@ -186,16 +230,16 @@ func (r *Runner) RunInMode(modes EnvMode, t *testing.T, filedata string, test fu
 
 	for _, tc := range tests {
 		tc := tc
-		if modes&tc.mode == 0 {
+		if config.modes&tc.mode == 0 {
 			continue
 		}
 		t.Run(tc.name, func(t *testing.T) {
 			t.Helper()
-			ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+			ctx, cancel := context.WithTimeout(context.Background(), config.timeout)
 			defer cancel()
 			ctx = debug.WithInstance(ctx, "", "")
 
-			ws, err := fake.NewWorkspace("regtest", []byte(filedata))
+			ws, err := fake.NewWorkspace("regtest", filedata, config.proxyTxt)
 			if err != nil {
 				t.Fatal(err)
 			}

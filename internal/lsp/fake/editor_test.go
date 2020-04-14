@@ -48,7 +48,7 @@ func main() {
 `
 
 func TestClientEditing(t *testing.T) {
-	ws, err := NewWorkspace("TestClientEditing", []byte(exampleProgram))
+	ws, err := NewWorkspace("TestClientEditing", exampleProgram, "")
 	if err != nil {
 		t.Fatal(err)
 	}

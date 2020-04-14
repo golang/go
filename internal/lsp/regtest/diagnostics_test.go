@@ -259,3 +259,48 @@ func TestPackageChange(t *testing.T) {
 		env.Await(EmptyDiagnostics("a.go"))
 	})
 }
+
+const testPackageWithRequire = `
+-- go.mod --
+module mod.com
+
+go 1.12
+
+require (
+	foo.test v1.2.3
+)
+-- print.go --
+package lib
+
+import (
+	"fmt"
+
+	"foo.test/bar"
+)
+
+func PrintAnswer() {
+	fmt.Printf("answer: %s", bar.Answer)
+}
+`
+
+const testPackageWithRequireProxy = `
+-- foo.test@v1.2.3/go.mod --
+module foo.test
+
+go 1.12
+-- foo.test@v1.2.3/bar/const.go --
+package bar
+
+const Answer = 42
+`
+
+func TestResolveDiagnosticWithDownload(t *testing.T) {
+	runner.Run(t, testPackageWithRequire, func(t *testing.T, env *Env) {
+		env.OpenFile("print.go")
+		env.W.RunGoCommand(env.Ctx, "mod", "download")
+		// Check that gopackages correctly loaded this dependency. We should get a
+		// diagnostic for the wrong formatting type.
+		// TODO: we should be able to easily also match the diagnostic message.
+		env.Await(env.DiagnosticAtRegexp("print.go", "fmt.Printf"))
+	}, WithProxy(testPackageWithRequireProxy))
+}
