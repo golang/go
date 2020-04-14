@@ -709,7 +709,7 @@ func dynrelocsym(ctxt *Link, s *sym.Symbol) {
 	}
 }
 
-func dynreloc(ctxt *Link, data *[sym.SXREF][]*sym.Symbol) {
+func (state *dodataState) dynreloc(ctxt *Link) {
 	if ctxt.HeadType == objabi.Hwindows {
 		return
 	}
@@ -722,7 +722,7 @@ func dynreloc(ctxt *Link, data *[sym.SXREF][]*sym.Symbol) {
 	for _, s := range ctxt.Textp {
 		dynrelocsym(ctxt, s)
 	}
-	for _, syms := range data {
+	for _, syms := range state.data {
 		for _, s := range syms {
 			dynrelocsym(ctxt, s)
 		}
@@ -1347,7 +1347,7 @@ func fixZeroSizedSymbols(ctxt *Link) {
 }
 
 // makeRelroForSharedLib creates a section of readonly data if necessary.
-func makeRelroForSharedLib(target *Link, data *[sym.SXREF][]*sym.Symbol) {
+func (state *dodataState) makeRelroForSharedLib(target *Link) {
 	if !target.UseRelro() {
 		return
 	}
@@ -1359,9 +1359,9 @@ func makeRelroForSharedLib(target *Link, data *[sym.SXREF][]*sym.Symbol) {
 		symnrelro := sym.RelROMap[symnro]
 
 		ro := []*sym.Symbol{}
-		relro := data[symnrelro]
+		relro := state.data[symnrelro]
 
-		for _, s := range data[symnro] {
+		for _, s := range state.data[symnro] {
 			isRelro := len(s.R) > 0
 			switch s.Type {
 			case sym.STYPE, sym.STYPERELRO, sym.SGOFUNCRELRO:
@@ -1398,9 +1398,19 @@ func makeRelroForSharedLib(target *Link, data *[sym.SXREF][]*sym.Symbol) {
 			}
 		}
 
-		data[symnro] = ro
-		data[symnrelro] = relro
+		state.data[symnro] = ro
+		state.data[symnrelro] = relro
 	}
+}
+
+// dodataState holds bits of state information needed by dodata() and the
+// various helpers it calls. The lifetime of these items should not extend
+// past the end of dodata().
+type dodataState struct {
+	// Data symbols bucketed by type.
+	data [sym.SXREF][]*sym.Symbol
+	// Max alignment for each flavor of data symbol.
+	dataMaxAlign [sym.SXREF]int32
 }
 
 func (ctxt *Link) dodata() {
@@ -1408,7 +1418,7 @@ func (ctxt *Link) dodata() {
 	fixZeroSizedSymbols(ctxt)
 
 	// Collect data symbols by type into data.
-	var data [sym.SXREF][]*sym.Symbol
+	state := dodataState{}
 	for _, s := range ctxt.Syms.Allsym {
 		if !s.Attr.Reachable() || s.Attr.Special() || s.Attr.SubSymbol() {
 			continue
@@ -1416,7 +1426,7 @@ func (ctxt *Link) dodata() {
 		if s.Type <= sym.STEXT || s.Type >= sym.SXREF {
 			continue
 		}
-		data[s.Type] = append(data[s.Type], s)
+		state.data[s.Type] = append(state.data[s.Type], s)
 	}
 
 	// Now that we have the data symbols, but before we start
@@ -1428,19 +1438,19 @@ func (ctxt *Link) dodata() {
 	if ctxt.HeadType == objabi.Hdarwin {
 		machosymorder(ctxt)
 	}
-	dynreloc(ctxt, &data)
+	state.dynreloc(ctxt)
 
 	// Move any RO data with relocations to a separate section.
-	makeRelroForSharedLib(ctxt, &data)
+	state.makeRelroForSharedLib(ctxt)
 
 	// Sort symbols.
 	var dataMaxAlign [sym.SXREF]int32
 	var wg sync.WaitGroup
-	for symn := range data {
+	for symn := range state.data {
 		symn := sym.SymKind(symn)
 		wg.Add(1)
 		go func() {
-			data[symn], dataMaxAlign[symn] = dodataSect(ctxt, symn, data[symn])
+			state.data[symn], state.dataMaxAlign[symn] = dodataSect(ctxt, symn, state.data[symn])
 			wg.Done()
 		}()
 	}
@@ -1453,6 +1463,36 @@ func (ctxt *Link) dodata() {
 		ctxt.Syms.ROLookup("runtime.bss", 0).Align = dataMaxAlign[sym.SBSS]
 	}
 
+	state.allocateSections(ctxt)
+
+	/* number the sections */
+	n := int16(1)
+
+	for _, sect := range Segtext.Sections {
+		sect.Extnum = n
+		n++
+	}
+	for _, sect := range Segrodata.Sections {
+		sect.Extnum = n
+		n++
+	}
+	for _, sect := range Segrelrodata.Sections {
+		sect.Extnum = n
+		n++
+	}
+	for _, sect := range Segdata.Sections {
+		sect.Extnum = n
+		n++
+	}
+	for _, sect := range Segdwarf.Sections {
+		sect.Extnum = n
+		n++
+	}
+}
+
+// allocateSections allocates sym.Section objects for data sections
+// of interest and assigns symbols into the sections.
+func (state *dodataState) allocateSections(ctxt *Link) {
 	// Allocate sections.
 	// Data is processed before segtext, because we need
 	// to see all symbols in the .data and .bss sections in order
@@ -1468,7 +1508,7 @@ func (ctxt *Link) dodata() {
 		sym.SWINDOWS,
 	}
 	for _, symn := range writable {
-		for _, s := range data[symn] {
+		for _, s := range state.data[symn] {
 			sect := addsection(ctxt.Arch, &Segdata, s.Name, 06)
 			sect.Align = symalign(s)
 			datsize = Rnd(datsize, int64(sect.Align))
@@ -1483,12 +1523,12 @@ func (ctxt *Link) dodata() {
 	}
 
 	// .got (and .toc on ppc64)
-	if len(data[sym.SELFGOT]) > 0 {
+	if len(state.data[sym.SELFGOT]) > 0 {
 		sect := addsection(ctxt.Arch, &Segdata, ".got", 06)
-		sect.Align = dataMaxAlign[sym.SELFGOT]
+		sect.Align = state.dataMaxAlign[sym.SELFGOT]
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
-		for _, s := range data[sym.SELFGOT] {
+		for _, s := range state.data[sym.SELFGOT] {
 			datsize = aligndatsize(datsize, s)
 			s.Sect = sect
 			s.Type = sym.SDATA
@@ -1513,12 +1553,12 @@ func (ctxt *Link) dodata() {
 
 	/* pointer-free data */
 	sect := addsection(ctxt.Arch, &Segdata, ".noptrdata", 06)
-	sect.Align = dataMaxAlign[sym.SNOPTRDATA]
+	sect.Align = state.dataMaxAlign[sym.SNOPTRDATA]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	ctxt.Syms.Lookup("runtime.noptrdata", 0).Sect = sect
 	ctxt.Syms.Lookup("runtime.enoptrdata", 0).Sect = sect
-	for _, s := range data[sym.SNOPTRDATA] {
+	for _, s := range state.data[sym.SNOPTRDATA] {
 		datsize = aligndatsize(datsize, s)
 		s.Sect = sect
 		s.Type = sym.SDATA
@@ -1537,17 +1577,17 @@ func (ctxt *Link) dodata() {
 	}
 
 	if ctxt.HeadType == objabi.Haix {
-		if len(data[sym.SINITARR]) > 0 {
+		if len(state.data[sym.SINITARR]) > 0 {
 			Errorf(nil, "XCOFF format doesn't allow .init_array section")
 		}
 	}
 
-	if hasinitarr && len(data[sym.SINITARR]) > 0 {
+	if hasinitarr && len(state.data[sym.SINITARR]) > 0 {
 		sect := addsection(ctxt.Arch, &Segdata, ".init_array", 06)
-		sect.Align = dataMaxAlign[sym.SINITARR]
+		sect.Align = state.dataMaxAlign[sym.SINITARR]
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
-		for _, s := range data[sym.SINITARR] {
+		for _, s := range state.data[sym.SINITARR] {
 			datsize = aligndatsize(datsize, s)
 			s.Sect = sect
 			s.Value = int64(uint64(datsize) - sect.Vaddr)
@@ -1559,14 +1599,14 @@ func (ctxt *Link) dodata() {
 
 	/* data */
 	sect = addsection(ctxt.Arch, &Segdata, ".data", 06)
-	sect.Align = dataMaxAlign[sym.SDATA]
+	sect.Align = state.dataMaxAlign[sym.SDATA]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	ctxt.Syms.Lookup("runtime.data", 0).Sect = sect
 	ctxt.Syms.Lookup("runtime.edata", 0).Sect = sect
 	var gc GCProg
 	gc.Init(ctxt, "runtime.gcdata")
-	for _, s := range data[sym.SDATA] {
+	for _, s := range state.data[sym.SDATA] {
 		s.Sect = sect
 		s.Type = sym.SDATA
 		datsize = aligndatsize(datsize, s)
@@ -1577,7 +1617,7 @@ func (ctxt *Link) dodata() {
 	gc.End(datsize - int64(sect.Vaddr))
 	// On AIX, TOC entries must be the last of .data
 	// These aren't part of gc as they won't change during the runtime.
-	for _, s := range data[sym.SXCOFFTOC] {
+	for _, s := range state.data[sym.SXCOFFTOC] {
 		s.Sect = sect
 		s.Type = sym.SDATA
 		datsize = aligndatsize(datsize, s)
@@ -1589,14 +1629,14 @@ func (ctxt *Link) dodata() {
 
 	/* bss */
 	sect = addsection(ctxt.Arch, &Segdata, ".bss", 06)
-	sect.Align = dataMaxAlign[sym.SBSS]
+	sect.Align = state.dataMaxAlign[sym.SBSS]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	ctxt.Syms.Lookup("runtime.bss", 0).Sect = sect
 	ctxt.Syms.Lookup("runtime.ebss", 0).Sect = sect
 	gc = GCProg{}
 	gc.Init(ctxt, "runtime.gcbss")
-	for _, s := range data[sym.SBSS] {
+	for _, s := range state.data[sym.SBSS] {
 		s.Sect = sect
 		datsize = aligndatsize(datsize, s)
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
@@ -1609,12 +1649,12 @@ func (ctxt *Link) dodata() {
 
 	/* pointer-free bss */
 	sect = addsection(ctxt.Arch, &Segdata, ".noptrbss", 06)
-	sect.Align = dataMaxAlign[sym.SNOPTRBSS]
+	sect.Align = state.dataMaxAlign[sym.SNOPTRBSS]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	ctxt.Syms.Lookup("runtime.noptrbss", 0).Sect = sect
 	ctxt.Syms.Lookup("runtime.enoptrbss", 0).Sect = sect
-	for _, s := range data[sym.SNOPTRBSS] {
+	for _, s := range state.data[sym.SNOPTRBSS] {
 		datsize = aligndatsize(datsize, s)
 		s.Sect = sect
 		s.Value = int64(uint64(datsize) - sect.Vaddr)
@@ -1625,12 +1665,12 @@ func (ctxt *Link) dodata() {
 	checkdatsize(ctxt, datsize, sym.SNOPTRBSS)
 
 	// Coverage instrumentation counters for libfuzzer.
-	if len(data[sym.SLIBFUZZER_EXTRA_COUNTER]) > 0 {
+	if len(state.data[sym.SLIBFUZZER_EXTRA_COUNTER]) > 0 {
 		sect := addsection(ctxt.Arch, &Segdata, "__libfuzzer_extra_counters", 06)
-		sect.Align = dataMaxAlign[sym.SLIBFUZZER_EXTRA_COUNTER]
+		sect.Align = state.dataMaxAlign[sym.SLIBFUZZER_EXTRA_COUNTER]
 		datsize = Rnd(datsize, int64(sect.Align))
 		sect.Vaddr = uint64(datsize)
-		for _, s := range data[sym.SLIBFUZZER_EXTRA_COUNTER] {
+		for _, s := range state.data[sym.SLIBFUZZER_EXTRA_COUNTER] {
 			datsize = aligndatsize(datsize, s)
 			s.Sect = sect
 			s.Value = int64(uint64(datsize) - sect.Vaddr)
@@ -1640,7 +1680,7 @@ func (ctxt *Link) dodata() {
 		checkdatsize(ctxt, datsize, sym.SLIBFUZZER_EXTRA_COUNTER)
 	}
 
-	if len(data[sym.STLSBSS]) > 0 {
+	if len(state.data[sym.STLSBSS]) > 0 {
 		var sect *sym.Section
 		if (ctxt.IsELF || ctxt.HeadType == objabi.Haix) && (ctxt.LinkMode == LinkExternal || !*FlagD) {
 			sect = addsection(ctxt.Arch, &Segdata, ".tbss", 06)
@@ -1649,7 +1689,7 @@ func (ctxt *Link) dodata() {
 		}
 		datsize = 0
 
-		for _, s := range data[sym.STLSBSS] {
+		for _, s := range state.data[sym.STLSBSS] {
 			datsize = aligndatsize(datsize, s)
 			s.Sect = sect
 			s.Value = datsize
@@ -1683,10 +1723,10 @@ func (ctxt *Link) dodata() {
 	datsize = 0
 
 	/* read-only executable ELF, Mach-O sections */
-	if len(data[sym.STEXT]) != 0 {
-		Errorf(nil, "dodata found an sym.STEXT symbol: %s", data[sym.STEXT][0].Name)
+	if len(state.data[sym.STEXT]) != 0 {
+		Errorf(nil, "dodata found an sym.STEXT symbol: %s", state.data[sym.STEXT][0].Name)
 	}
-	for _, s := range data[sym.SELFRXSECT] {
+	for _, s := range state.data[sym.SELFRXSECT] {
 		sect := addsection(ctxt.Arch, &Segtext, s.Name, 04)
 		sect.Align = symalign(s)
 		datsize = Rnd(datsize, int64(sect.Align))
@@ -1710,7 +1750,7 @@ func (ctxt *Link) dodata() {
 		ctxt.Syms.Lookup("runtime.etypes", 0).Sect = sect
 	}
 	for _, symn := range sym.ReadOnly {
-		align := dataMaxAlign[symn]
+		align := state.dataMaxAlign[symn]
 		if sect.Align < align {
 			sect.Align = align
 		}
@@ -1718,7 +1758,7 @@ func (ctxt *Link) dodata() {
 	datsize = Rnd(datsize, int64(sect.Align))
 	for _, symn := range sym.ReadOnly {
 		symnStartValue := datsize
-		for _, s := range data[symn] {
+		for _, s := range state.data[symn] {
 			datsize = aligndatsize(datsize, s)
 			s.Sect = sect
 			s.Type = sym.SRODATA
@@ -1737,7 +1777,7 @@ func (ctxt *Link) dodata() {
 	sect.Length = uint64(datsize) - sect.Vaddr
 
 	/* read-only ELF, Mach-O sections */
-	for _, s := range data[sym.SELFROSECT] {
+	for _, s := range state.data[sym.SELFROSECT] {
 		sect = addsection(ctxt.Arch, segro, s.Name, 04)
 		sect.Align = symalign(s)
 		datsize = Rnd(datsize, int64(sect.Align))
@@ -1750,7 +1790,7 @@ func (ctxt *Link) dodata() {
 	}
 	checkdatsize(ctxt, datsize, sym.SELFROSECT)
 
-	for _, s := range data[sym.SMACHOPLT] {
+	for _, s := range state.data[sym.SMACHOPLT] {
 		sect = addsection(ctxt.Arch, segro, s.Name, 04)
 		sect.Align = symalign(s)
 		datsize = Rnd(datsize, int64(sect.Align))
@@ -1804,7 +1844,7 @@ func (ctxt *Link) dodata() {
 
 		for _, symnro := range sym.ReadOnly {
 			symn := sym.RelROMap[symnro]
-			align := dataMaxAlign[symn]
+			align := state.dataMaxAlign[symn]
 			if sect.Align < align {
 				sect.Align = align
 			}
@@ -1823,7 +1863,7 @@ func (ctxt *Link) dodata() {
 
 			symn := sym.RelROMap[symnro]
 			symnStartValue := datsize
-			for _, s := range data[symn] {
+			for _, s := range state.data[symn] {
 				datsize = aligndatsize(datsize, s)
 				if s.Outer != nil && s.Outer.Sect != nil && s.Outer.Sect != sect {
 					Errorf(s, "s.Outer (%s) in different section from s, %s != %s", s.Outer.Name, s.Outer.Sect.Name, sect.Name)
@@ -1848,7 +1888,7 @@ func (ctxt *Link) dodata() {
 
 	/* typelink */
 	sect = addrelrosection(".typelink")
-	sect.Align = dataMaxAlign[sym.STYPELINK]
+	sect.Align = state.dataMaxAlign[sym.STYPELINK]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	typelink := ctxt.Syms.Lookup("runtime.typelink", 0)
@@ -1860,12 +1900,12 @@ func (ctxt *Link) dodata() {
 
 	/* itablink */
 	sect = addrelrosection(".itablink")
-	sect.Align = dataMaxAlign[sym.SITABLINK]
+	sect.Align = state.dataMaxAlign[sym.SITABLINK]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	ctxt.Syms.Lookup("runtime.itablink", 0).Sect = sect
 	ctxt.Syms.Lookup("runtime.eitablink", 0).Sect = sect
-	for _, s := range data[sym.SITABLINK] {
+	for _, s := range state.data[sym.SITABLINK] {
 		datsize = aligndatsize(datsize, s)
 		s.Sect = sect
 		s.Type = sym.SRODATA
@@ -1882,12 +1922,12 @@ func (ctxt *Link) dodata() {
 
 	/* gosymtab */
 	sect = addrelrosection(".gosymtab")
-	sect.Align = dataMaxAlign[sym.SSYMTAB]
+	sect.Align = state.dataMaxAlign[sym.SSYMTAB]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	ctxt.Syms.Lookup("runtime.symtab", 0).Sect = sect
 	ctxt.Syms.Lookup("runtime.esymtab", 0).Sect = sect
-	for _, s := range data[sym.SSYMTAB] {
+	for _, s := range state.data[sym.SSYMTAB] {
 		datsize = aligndatsize(datsize, s)
 		s.Sect = sect
 		s.Type = sym.SRODATA
@@ -1899,12 +1939,12 @@ func (ctxt *Link) dodata() {
 
 	/* gopclntab */
 	sect = addrelrosection(".gopclntab")
-	sect.Align = dataMaxAlign[sym.SPCLNTAB]
+	sect.Align = state.dataMaxAlign[sym.SPCLNTAB]
 	datsize = Rnd(datsize, int64(sect.Align))
 	sect.Vaddr = uint64(datsize)
 	ctxt.Syms.Lookup("runtime.pclntab", 0).Sect = sect
 	ctxt.Syms.Lookup("runtime.epclntab", 0).Sect = sect
-	for _, s := range data[sym.SPCLNTAB] {
+	for _, s := range state.data[sym.SPCLNTAB] {
 		datsize = aligndatsize(datsize, s)
 		s.Sect = sect
 		s.Type = sym.SRODATA
@@ -1920,7 +1960,7 @@ func (ctxt *Link) dodata() {
 	}
 
 	for symn := sym.SELFRXSECT; symn < sym.SXREF; symn++ {
-		ctxt.datap = append(ctxt.datap, data[symn]...)
+		ctxt.datap = append(ctxt.datap, state.data[symn]...)
 	}
 
 	var i int
@@ -1982,30 +2022,6 @@ func (ctxt *Link) dodata() {
 		}
 		sect.Length = uint64(datsize) - sect.Vaddr
 		checkdatsize(ctxt, datsize, curType)
-	}
-
-	/* number the sections */
-	n := int32(1)
-
-	for _, sect := range Segtext.Sections {
-		sect.Extnum = int16(n)
-		n++
-	}
-	for _, sect := range Segrodata.Sections {
-		sect.Extnum = int16(n)
-		n++
-	}
-	for _, sect := range Segrelrodata.Sections {
-		sect.Extnum = int16(n)
-		n++
-	}
-	for _, sect := range Segdata.Sections {
-		sect.Extnum = int16(n)
-		n++
-	}
-	for _, sect := range Segdwarf.Sections {
-		sect.Extnum = int16(n)
-		n++
 	}
 }
 
