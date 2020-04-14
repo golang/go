@@ -72,7 +72,7 @@ func (ev Event) Format(f fmt.State, r rune) {
 		tag := ev.Tag(index)
 		// msg and err were both already printed above, so we skip them to avoid
 		// double printing
-		if !tag.Valid() || tag.Key == Msg || tag.Key == Err {
+		if !tag.Valid() || tag.Key() == Msg || tag.Key() == Err {
 			continue
 		}
 		fmt.Fprintf(f, "\n\t%v", tag)
@@ -90,14 +90,14 @@ func (ev Event) Tag(index int) Tag {
 	return ev.dynamic[index-len(ev.static)]
 }
 
-func (ev Event) Find(key interface{}) Tag {
+func (ev Event) Find(key Key) Tag {
 	for _, tag := range ev.static {
-		if tag.Key == key {
+		if tag.Key() == key {
 			return tag
 		}
 	}
 	for _, tag := range ev.dynamic {
-		if tag.Key == key {
+		if tag.Key() == key {
 			return tag
 		}
 	}

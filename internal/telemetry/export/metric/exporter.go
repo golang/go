@@ -42,7 +42,7 @@ func (e *Config) Exporter(output event.Exporter) event.Exporter {
 			if !tag.Valid() {
 				continue
 			}
-			id := tag.Key
+			id := tag.Key()
 			if list := e.subscribers[id]; len(list) > 0 {
 				for _, s := range list {
 					metrics = append(metrics, s(ev.At, tagMap, tag))

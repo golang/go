@@ -51,13 +51,13 @@ func (w *logWriter) ProcessEvent(ctx context.Context, ev event.Event, tagMap eve
 		}
 		for index := 0; ev.Valid(index); index++ {
 			tag := ev.Tag(index)
-			if !tag.Valid() || tag.Key == event.Msg || tag.Key == event.Err {
+			if !tag.Valid() || tag.Key() == event.Msg || tag.Key() == event.Err {
 				continue
 			}
 			io.WriteString(w.writer, "\n\t")
-			io.WriteString(w.writer, tag.Key.Name())
+			io.WriteString(w.writer, tag.Key().Name())
 			io.WriteString(w.writer, "=")
-			switch key := tag.Key.(type) {
+			switch key := tag.Key().(type) {
 			case *event.IntKey:
 				w.writer.Write(strconv.AppendInt(buf, int64(key.From(tag)), 10))
 			case *event.Int8Key:

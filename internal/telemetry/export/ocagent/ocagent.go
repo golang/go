@@ -245,7 +245,7 @@ func convertAttributes(l event.TagList) *wire.Attributes {
 	attributes := make(map[string]wire.Attribute)
 	for {
 		if tag.Valid() {
-			attributes[tag.Key.Name()] = convertAttribute(tag)
+			attributes[tag.Key().Name()] = convertAttribute(tag)
 		}
 		index++
 		if !l.Valid(index) {
@@ -256,7 +256,7 @@ func convertAttributes(l event.TagList) *wire.Attributes {
 }
 
 func convertAttribute(tag event.Tag) wire.Attribute {
-	switch key := tag.Key.(type) {
+	switch key := tag.Key().(type) {
 	case *event.IntKey:
 		return wire.IntAttribute{IntValue: int64(key.From(tag))}
 	case *event.Int8Key:
