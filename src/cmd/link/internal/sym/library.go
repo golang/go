@@ -13,8 +13,6 @@ type Library struct {
 	Hash          string
 	ImportStrings []string
 	Imports       []*Library
-	Textp         []*Symbol // text symbols defined in this library
-	DupTextSyms   []*Symbol // dupok text symbols defined in this library
 	Main          bool
 	Safe          bool
 	Units         []*CompilationUnit

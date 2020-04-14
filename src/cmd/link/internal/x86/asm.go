@@ -41,20 +41,7 @@ import (
 	"sync"
 )
 
-// Append 4 bytes to s and create a R_CALL relocation targeting t to fill them in.
-func addcall(ctxt *ld.Link, s *sym.Symbol, t *sym.Symbol) {
-	s.Attr |= sym.AttrReachable
-	i := s.Size
-	s.Size += 4
-	s.Grow(s.Size)
-	r := s.AddRel()
-	r.Sym = t
-	r.Off = int32(i)
-	r.Type = objabi.R_CALL
-	r.Siz = 4
-}
-
-func gentext(ctxt *ld.Link) {
+func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
 	if ctxt.DynlinkingGo() {
 		// We need get_pc_thunk.
 	} else {
@@ -71,7 +58,7 @@ func gentext(ctxt *ld.Link) {
 	}
 
 	// Generate little thunks that load the PC of the next instruction into a register.
-	thunks := make([]*sym.Symbol, 0, 7+len(ctxt.Textp))
+	thunks := make([]loader.Sym, 0, 7+len(ctxt.Textp2))
 	for _, r := range [...]struct {
 		name string
 		num  uint8
@@ -85,10 +72,9 @@ func gentext(ctxt *ld.Link) {
 		{"si", 6},
 		{"di", 7},
 	} {
-		thunkfunc := ctxt.Syms.Lookup("__x86.get_pc_thunk."+r.name, 0)
-		thunkfunc.Type = sym.STEXT
-		thunkfunc.Attr |= sym.AttrLocal
-		thunkfunc.Attr |= sym.AttrReachable //TODO: remove?
+		thunkfunc := ldr.CreateSymForUpdate("__x86.get_pc_thunk."+r.name, 0)
+		thunkfunc.SetType(sym.STEXT)
+		ldr.SetAttrLocal(thunkfunc.Sym(), true)
 		o := func(op ...uint8) {
 			for _, op1 := range op {
 				thunkfunc.AddUint8(op1)
@@ -100,23 +86,15 @@ func gentext(ctxt *ld.Link) {
 		// c3		ret
 		o(0xc3)
 
-		thunks = append(thunks, thunkfunc)
+		thunks = append(thunks, thunkfunc.Sym())
 	}
-	ctxt.Textp = append(thunks, ctxt.Textp...) // keep Textp in dependency order
+	ctxt.Textp2 = append(thunks, ctxt.Textp2...) // keep Textp2 in dependency order
 
-	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
-	if addmoduledata.Type == sym.STEXT && ctxt.BuildMode != ld.BuildModePlugin {
-		// we're linking a module containing the runtime -> no need for
-		// an init function
+	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
+	if initfunc == nil {
 		return
 	}
 
-	addmoduledata.Attr |= sym.AttrReachable
-
-	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
-	initfunc.Type = sym.STEXT
-	initfunc.Attr |= sym.AttrLocal
-	initfunc.Attr |= sym.AttrReachable
 	o := func(op ...uint8) {
 		for _, op1 := range op {
 			initfunc.AddUint8(op1)
@@ -135,38 +113,20 @@ func gentext(ctxt *ld.Link) {
 	o(0x53)
 
 	o(0xe8)
-	addcall(ctxt, initfunc, ctxt.Syms.Lookup("__x86.get_pc_thunk.cx", 0))
+	initfunc.AddSymRef(ctxt.Arch, ldr.Lookup("__x86.get_pc_thunk.cx", 0), 0, objabi.R_CALL, 4)
 
 	o(0x8d, 0x81)
-	initfunc.AddPCRelPlus(ctxt.Arch, ctxt.Moduledata, 6)
+	initfunc.AddPCRelPlus(ctxt.Arch, ctxt.Moduledata2, 6)
 
 	o(0x8d, 0x99)
-	i := initfunc.Size
-	initfunc.Size += 4
-	initfunc.Grow(initfunc.Size)
-	r := initfunc.AddRel()
-	r.Sym = ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
-	r.Off = int32(i)
-	r.Type = objabi.R_PCREL
-	r.Add = 12
-	r.Siz = 4
-
+	gotsym := ldr.LookupOrCreateSym("_GLOBAL_OFFSET_TABLE_", 0)
+	initfunc.AddSymRef(ctxt.Arch, gotsym, 12, objabi.R_PCREL, 4)
 	o(0xe8)
-	addcall(ctxt, initfunc, addmoduledata)
+	initfunc.AddSymRef(ctxt.Arch, addmoduledata, 0, objabi.R_CALL, 4)
 
 	o(0x5b)
 
 	o(0xc3)
-
-	if ctxt.BuildMode == ld.BuildModePlugin {
-		ctxt.Textp = append(ctxt.Textp, addmoduledata)
-	}
-	ctxt.Textp = append(ctxt.Textp, initfunc)
-	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
-	initarray_entry.Attr |= sym.AttrReachable
-	initarray_entry.Attr |= sym.AttrLocal
-	initarray_entry.Type = sym.SINITARR
-	initarray_entry.AddAddr(ctxt.Arch, initfunc)
 }
 
 func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {

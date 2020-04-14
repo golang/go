@@ -150,19 +150,24 @@ type ArchSyms struct {
 const BeforeLoadlibFull = 1
 const AfterLoadlibFull = 2
 
-func (ctxt *Link) mkArchSym(which int, name string, ls *loader.Sym, ss **sym.Symbol) {
+// mkArchSym is a helper for setArchSyms, invoked once before loadlibfull
+// and once after. On the first call it creates a loader.Sym with the
+// specified name, and on the second call a corresponding sym.Symbol.
+func (ctxt *Link) mkArchSym(which int, name string, ver int, ls *loader.Sym, ss **sym.Symbol) {
 	if which == BeforeLoadlibFull {
-		*ls = ctxt.loader.LookupOrCreateSym(name, 0)
+		*ls = ctxt.loader.LookupOrCreateSym(name, ver)
 	} else {
 		*ss = ctxt.loader.Syms[*ls]
 	}
 }
 
-func (ctxt *Link) mkArchSymVec(which int, name string, i int, ls []loader.Sym, ss []*sym.Symbol) {
+// mkArchVecSym is similar to  setArchSyms, but operates on elements within
+// a slice, where each element corresponds to some symbol version.
+func (ctxt *Link) mkArchSymVec(which int, name string, ver int, ls []loader.Sym, ss []*sym.Symbol) {
 	if which == BeforeLoadlibFull {
-		ls[i] = ctxt.loader.LookupOrCreateSym(name, 0)
-	} else {
-		ss[i] = ctxt.loader.Syms[ls[i]]
+		ls[ver] = ctxt.loader.LookupOrCreateSym(name, ver)
+	} else if ls[ver] != 0 {
+		ss[ver] = ctxt.loader.Syms[ls[ver]]
 	}
 }
 
@@ -173,15 +178,15 @@ func (ctxt *Link) setArchSyms(which int) {
 	if which != BeforeLoadlibFull && which != AfterLoadlibFull {
 		panic("internal error")
 	}
-	ctxt.mkArchSym(which, ".got", &ctxt.GOT2, &ctxt.GOT)
-	ctxt.mkArchSym(which, ".plt", &ctxt.PLT2, &ctxt.PLT)
-	ctxt.mkArchSym(which, ".got.plt", &ctxt.GOTPLT2, &ctxt.GOTPLT)
-	ctxt.mkArchSym(which, ".dynamic", &ctxt.Dynamic2, &ctxt.Dynamic)
-	ctxt.mkArchSym(which, ".dynsym", &ctxt.DynSym2, &ctxt.DynSym)
-	ctxt.mkArchSym(which, ".dynstr", &ctxt.DynStr2, &ctxt.DynStr)
+	ctxt.mkArchSym(which, ".got", 0, &ctxt.GOT2, &ctxt.GOT)
+	ctxt.mkArchSym(which, ".plt", 0, &ctxt.PLT2, &ctxt.PLT)
+	ctxt.mkArchSym(which, ".got.plt", 0, &ctxt.GOTPLT2, &ctxt.GOTPLT)
+	ctxt.mkArchSym(which, ".dynamic", 0, &ctxt.Dynamic2, &ctxt.Dynamic)
+	ctxt.mkArchSym(which, ".dynsym", 0, &ctxt.DynSym2, &ctxt.DynSym)
+	ctxt.mkArchSym(which, ".dynstr", 0, &ctxt.DynStr2, &ctxt.DynStr)
 
-	if ctxt.IsAIX() {
-		ctxt.mkArchSym(which, "TOC", &ctxt.TOC2, &ctxt.TOC)
+	if ctxt.IsPPC64() {
+		ctxt.mkArchSym(which, "TOC", 0, &ctxt.TOC2, &ctxt.TOC)
 
 		// NB: note the +2 below for DotTOC2 compared to the +1 for
 		// DocTOC. This is because loadlibfull() creates an additional
@@ -198,20 +203,18 @@ func (ctxt *Link) setArchSyms(which int) {
 			if i >= 2 && i < sym.SymVerStatic { // these versions are not used currently
 				continue
 			}
-			if ctxt.DotTOC2[i] != 0 {
-				ctxt.mkArchSymVec(which, ".TOC.", i, ctxt.DotTOC2, ctxt.DotTOC)
-			}
+			ctxt.mkArchSymVec(which, ".TOC.", i, ctxt.DotTOC2, ctxt.DotTOC)
 		}
 	}
 	if ctxt.IsElf() {
-		ctxt.mkArchSym(which, ".rel", &ctxt.Rel2, &ctxt.Rel)
-		ctxt.mkArchSym(which, ".rela", &ctxt.Rela2, &ctxt.Rela)
-		ctxt.mkArchSym(which, ".rel.plt", &ctxt.RelPLT2, &ctxt.RelPLT)
-		ctxt.mkArchSym(which, ".rela.plt", &ctxt.RelaPLT2, &ctxt.RelaPLT)
+		ctxt.mkArchSym(which, ".rel", 0, &ctxt.Rel2, &ctxt.Rel)
+		ctxt.mkArchSym(which, ".rela", 0, &ctxt.Rela2, &ctxt.Rela)
+		ctxt.mkArchSym(which, ".rel.plt", 0, &ctxt.RelPLT2, &ctxt.RelPLT)
+		ctxt.mkArchSym(which, ".rela.plt", 0, &ctxt.RelaPLT2, &ctxt.RelaPLT)
 	}
 	if ctxt.IsDarwin() {
-		ctxt.mkArchSym(which, ".linkedit.got", &ctxt.LinkEditGOT2, &ctxt.LinkEditGOT)
-		ctxt.mkArchSym(which, ".linkedit.plt", &ctxt.LinkEditPLT2, &ctxt.LinkEditPLT)
+		ctxt.mkArchSym(which, ".linkedit.got", 0, &ctxt.LinkEditGOT2, &ctxt.LinkEditGOT)
+		ctxt.mkArchSym(which, ".linkedit.plt", 0, &ctxt.LinkEditPLT2, &ctxt.LinkEditPLT)
 	}
 }
 
@@ -251,7 +254,10 @@ type Arch struct {
 	// offset value.
 	Archrelocvariant func(target *Target, syms *ArchSyms, rel *sym.Reloc, sym *sym.Symbol,
 		offset int64) (relocatedOffset int64)
-	Trampoline func(*Link, *sym.Reloc, *sym.Symbol)
+
+	// Generate a trampoline for a call from s to rs if necessary. ri is
+	// index of the relocation.
+	Trampoline func(ctxt *Link, ldr *loader.Loader, ri int, rs, s loader.Sym)
 
 	// Asmb and Asmb2 are arch-specific routines that write the output
 	// file. Typically, Asmb writes most of the content (sections and
@@ -263,6 +269,7 @@ type Arch struct {
 	Elfreloc1   func(*Link, *sym.Reloc, int64) bool
 	Elfsetupplt func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
 	Gentext     func(*Link)
+	Gentext2    func(*Link, *loader.Loader)
 	Machoreloc1 func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
 	PEreloc1    func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
 	Xcoffreloc1 func(*sys.Arch, *OutBuf, *sym.Symbol, *sym.Reloc, int64) bool
@@ -276,7 +283,7 @@ type Arch struct {
 	TLSIEtoLE func(s *sym.Symbol, off, size int)
 
 	// optional override for assignAddress
-	AssignAddress func(ctxt *Link, sect *sym.Section, n int, s *sym.Symbol, va uint64, isTramp bool) (*sym.Section, int, uint64)
+	AssignAddress func(ldr *loader.Loader, sect *sym.Section, n int, s loader.Sym, va uint64, isTramp bool) (*sym.Section, int, uint64)
 }
 
 var (
@@ -2158,7 +2165,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
 			l.SetAttrReachable(s, true)
 
 			// Set .File for the library that actually defines the symbol.
-			l.SetSymFile(s, libpath)
+			l.SetSymPkg(s, libpath)
 
 			// The decodetype_* functions in decodetype.go need access to
 			// the type data.
@@ -2597,17 +2604,6 @@ func genasmsym(ctxt *Link, put func(*Link, *sym.Symbol, string, SymbolType, int6
 
 	for _, s := range ctxt.Textp {
 		put(ctxt, s, s.Name, TextSym, s.Value, s.Gotype)
-
-		locals := int32(0)
-		if s.FuncInfo != nil {
-			locals = s.FuncInfo.Locals
-		}
-		// NOTE(ality): acid can't produce a stack trace without .frame symbols
-		put(ctxt, nil, ".frame", FrameSym, int64(locals)+int64(ctxt.Arch.PtrSize), nil)
-
-		if s.FuncInfo == nil {
-			continue
-		}
 	}
 
 	if ctxt.Debugvlog != 0 || *flagN {
@@ -2801,6 +2797,10 @@ func (ctxt *Link) loadlibfull() {
 
 	// Set special global symbols.
 	ctxt.setArchSyms(AfterLoadlibFull)
+
+	// Convert special symbols created by pcln.
+	pclntabFirstFunc = ctxt.loader.Syms[pclntabFirstFunc2]
+	pclntabLastFunc = ctxt.loader.Syms[pclntabLastFunc2]
 }
 
 func (ctxt *Link) dumpsyms() {
