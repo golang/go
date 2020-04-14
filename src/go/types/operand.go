@@ -252,7 +252,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 
 	// T is an interface type and x implements T
 	if Ti, ok := Tu.(*Interface); ok {
-		if m, wrongType := check.missingMethod(x.typ, Ti, true); m != nil /* Implements(x.typ, Ti) */ {
+		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
 			if reason != nil {
 				if wrongType {
 					*reason = "wrong type for method " + m.Name()

@@ -1242,9 +1242,9 @@ FOq7cMJvODRwvMin9HwNHijXKp8iikXoAnaEHi1kLR4JtSlxH5WKTnmHUWCa54ZA
 9mDH0e5odhcdkMySkwc=
 -----END CERTIFICATE-----`
 
-const ed25519CRLKey = `-----BEGIN PRIVATE KEY-----
+var ed25519CRLKey = testingKey(`-----BEGIN TEST KEY-----
 MC4CAQAwBQYDK2VwBCIEINdKh2096vUBYu4EIFpjShsUSh3vimKya1sQ1YTT4RZG
------END PRIVATE KEY-----`
+-----END TEST KEY-----`)
 
 func TestCRLCreation(t *testing.T) {
 	block, _ := pem.Decode([]byte(pemPrivateKey))
@@ -1707,6 +1707,33 @@ func TestNoAuthorityKeyIdInSelfSignedCert(t *testing.T) {
 	template.AuthorityKeyId = []byte{1, 2, 3, 4}
 	if cert := serialiseAndParse(t, template); len(cert.AuthorityKeyId) == 0 {
 		t.Fatalf("self-signed certificate erased explicit authority key id")
+	}
+}
+
+func TestNoSubjectKeyIdInCert(t *testing.T) {
+	template := &Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: "Σ Acme Co",
+		},
+		NotBefore: time.Unix(1000, 0),
+		NotAfter:  time.Unix(100000, 0),
+
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+	if cert := serialiseAndParse(t, template); len(cert.SubjectKeyId) == 0 {
+		t.Fatalf("self-signed certificate did not generate subject key id using the public key")
+	}
+
+	template.IsCA = false
+	if cert := serialiseAndParse(t, template); len(cert.SubjectKeyId) != 0 {
+		t.Fatalf("self-signed certificate generated subject key id when it isn't a CA")
+	}
+
+	template.SubjectKeyId = []byte{1, 2, 3, 4}
+	if cert := serialiseAndParse(t, template); len(cert.SubjectKeyId) == 0 {
+		t.Fatalf("self-signed certificate erased explicit subject key id")
 	}
 }
 

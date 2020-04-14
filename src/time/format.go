@@ -856,7 +856,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		}
 		if std == 0 {
 			if len(value) != 0 {
-				return Time{}, &ParseError{alayout, avalue, "", value, ": extra text: " + value}
+				return Time{}, &ParseError{alayout, avalue, "", value, ": extra text: " + quote(value)}
 			}
 			break
 		}
@@ -1390,7 +1390,7 @@ func ParseDuration(s string) (Duration, error) {
 		return 0, nil
 	}
 	if s == "" {
-		return 0, errors.New("time: invalid duration " + orig)
+		return 0, errors.New("time: invalid duration " + quote(orig))
 	}
 	for s != "" {
 		var (
@@ -1402,13 +1402,13 @@ func ParseDuration(s string) (Duration, error) {
 
 		// The next character must be [0-9.]
 		if !(s[0] == '.' || '0' <= s[0] && s[0] <= '9') {
-			return 0, errors.New("time: invalid duration " + orig)
+			return 0, errors.New("time: invalid duration " + quote(orig))
 		}
 		// Consume [0-9]*
 		pl := len(s)
 		v, s, err = leadingInt(s)
 		if err != nil {
-			return 0, errors.New("time: invalid duration " + orig)
+			return 0, errors.New("time: invalid duration " + quote(orig))
 		}
 		pre := pl != len(s) // whether we consumed anything before a period
 
@@ -1422,7 +1422,7 @@ func ParseDuration(s string) (Duration, error) {
 		}
 		if !pre && !post {
 			// no digits (e.g. ".s" or "-.s")
-			return 0, errors.New("time: invalid duration " + orig)
+			return 0, errors.New("time: invalid duration " + quote(orig))
 		}
 
 		// Consume unit.
@@ -1434,17 +1434,17 @@ func ParseDuration(s string) (Duration, error) {
 			}
 		}
 		if i == 0 {
-			return 0, errors.New("time: missing unit in duration " + orig)
+			return 0, errors.New("time: missing unit in duration " + quote(orig))
 		}
 		u := s[:i]
 		s = s[i:]
 		unit, ok := unitMap[u]
 		if !ok {
-			return 0, errors.New("time: unknown unit " + u + " in duration " + orig)
+			return 0, errors.New("time: unknown unit " + quote(u) + " in duration " + quote(orig))
 		}
 		if v > (1<<63-1)/unit {
 			// overflow
-			return 0, errors.New("time: invalid duration " + orig)
+			return 0, errors.New("time: invalid duration " + quote(orig))
 		}
 		v *= unit
 		if f > 0 {
@@ -1453,13 +1453,13 @@ func ParseDuration(s string) (Duration, error) {
 			v += int64(float64(f) * (float64(unit) / scale))
 			if v < 0 {
 				// overflow
-				return 0, errors.New("time: invalid duration " + orig)
+				return 0, errors.New("time: invalid duration " + quote(orig))
 			}
 		}
 		d += v
 		if d < 0 {
 			// overflow
-			return 0, errors.New("time: invalid duration " + orig)
+			return 0, errors.New("time: invalid duration " + quote(orig))
 		}
 	}
 
