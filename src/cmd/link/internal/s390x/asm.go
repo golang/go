@@ -51,59 +51,28 @@ import (
 //	undef
 //
 // The job of appending the moduledata is delegated to runtime.addmoduledata.
-func gentext(ctxt *ld.Link) {
-	if !ctxt.DynlinkingGo() {
+func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
+	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
+	if initfunc == nil {
 		return
 	}
-	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
-	if addmoduledata.Type == sym.STEXT && ctxt.BuildMode != ld.BuildModePlugin {
-		// we're linking a module containing the runtime -> no need for
-		// an init function
-		return
-	}
-	addmoduledata.Attr |= sym.AttrReachable
-	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
-	initfunc.Type = sym.STEXT
-	initfunc.Attr |= sym.AttrLocal
-	initfunc.Attr |= sym.AttrReachable
 
 	// larl %r2, <local.moduledata>
 	initfunc.AddUint8(0xc0)
 	initfunc.AddUint8(0x20)
-	lmd := initfunc.AddRel()
-	lmd.InitExt()
-	lmd.Off = int32(initfunc.Size)
-	lmd.Siz = 4
-	lmd.Sym = ctxt.Moduledata
-	lmd.Type = objabi.R_PCREL
-	lmd.Variant = sym.RV_390_DBL
-	lmd.Add = 2 + int64(lmd.Siz)
-	initfunc.AddUint32(ctxt.Arch, 0)
+	initfunc.AddSymRef(ctxt.Arch, ctxt.Moduledata2, 6, objabi.R_PCREL, 4)
+	r1 := initfunc.Relocs()
+	ldr.SetRelocVariant(initfunc.Sym(), r1.Count()-1, sym.RV_390_DBL)
 
 	// jg <runtime.addmoduledata[@plt]>
 	initfunc.AddUint8(0xc0)
 	initfunc.AddUint8(0xf4)
-	rel := initfunc.AddRel()
-	rel.InitExt()
-	rel.Off = int32(initfunc.Size)
-	rel.Siz = 4
-	rel.Sym = ctxt.Syms.Lookup("runtime.addmoduledata", 0)
-	rel.Type = objabi.R_CALL
-	rel.Variant = sym.RV_390_DBL
-	rel.Add = 2 + int64(rel.Siz)
-	initfunc.AddUint32(ctxt.Arch, 0)
+	initfunc.AddSymRef(ctxt.Arch, addmoduledata, 6, objabi.R_CALL, 4)
+	r2 := initfunc.Relocs()
+	ldr.SetRelocVariant(initfunc.Sym(), r2.Count()-1, sym.RV_390_DBL)
 
 	// undef (for debugging)
 	initfunc.AddUint32(ctxt.Arch, 0)
-	if ctxt.BuildMode == ld.BuildModePlugin {
-		ctxt.Textp = append(ctxt.Textp, addmoduledata)
-	}
-	ctxt.Textp = append(ctxt.Textp, initfunc)
-	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
-	initarray_entry.Attr |= sym.AttrLocal
-	initarray_entry.Attr |= sym.AttrReachable
-	initarray_entry.Type = sym.SINITARR
-	initarray_entry.AddAddr(ctxt.Arch, initfunc)
 }
 
 func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {

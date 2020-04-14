@@ -32,6 +32,7 @@
 package ld
 
 import (
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"io/ioutil"
 	"log"
@@ -214,4 +215,47 @@ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg strin
 func atolwhex(s string) int64 {
 	n, _ := strconv.ParseInt(s, 0, 64)
 	return n
+}
+
+// PrepareAddmoduledata returns a symbol builder that target-specific
+// code can use to build up the linker-generated go.link.addmoduledata
+// function, along with the sym for runtime.addmoduledata itself. If
+// this function is not needed (for example in cases where we're
+// linking a module that contains the runtime) the returned builder
+// will be nil.
+func PrepareAddmoduledata(ctxt *Link) (*loader.SymbolBuilder, loader.Sym) {
+	if !ctxt.DynlinkingGo() {
+		return nil, 0
+	}
+	amd := ctxt.loader.LookupOrCreateSym("runtime.addmoduledata", 0)
+	if ctxt.loader.SymType(amd) == sym.STEXT && ctxt.BuildMode != BuildModePlugin {
+		// we're linking a module containing the runtime -> no need for
+		// an init function
+		return nil, 0
+	}
+	ctxt.loader.SetAttrReachable(amd, true)
+
+	// Create a new init func text symbol. Caller will populate this
+	// sym with arch-specific content.
+	ifs := ctxt.loader.LookupOrCreateSym("go.link.addmoduledata", 0)
+	initfunc := ctxt.loader.MakeSymbolUpdater(ifs)
+	ctxt.loader.SetAttrReachable(ifs, true)
+	ctxt.loader.SetAttrLocal(ifs, true)
+	initfunc.SetType(sym.STEXT)
+
+	// Add the init func and/or addmoduledata to Textp2.
+	if ctxt.BuildMode == BuildModePlugin {
+		ctxt.Textp2 = append(ctxt.Textp2, amd)
+	}
+	ctxt.Textp2 = append(ctxt.Textp2, initfunc.Sym())
+
+	// Create an init array entry
+	amdi := ctxt.loader.LookupOrCreateSym("go.link.addmoduledatainit", 0)
+	initarray_entry := ctxt.loader.MakeSymbolUpdater(amdi)
+	ctxt.loader.SetAttrReachable(amdi, true)
+	ctxt.loader.SetAttrLocal(amdi, true)
+	initarray_entry.SetType(sym.SINITARR)
+	initarray_entry.AddAddr(ctxt.Arch, ifs)
+
+	return initfunc, amd
 }
