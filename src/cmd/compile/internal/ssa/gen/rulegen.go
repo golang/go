@@ -181,6 +181,9 @@ func genRulesSuffix(arch arch, suff string) {
 	for _, op := range ops {
 		eop, ok := parseEllipsisRules(oprules[op], arch)
 		if ok {
+			if strings.Contains(oprules[op][0].rule, "=>") && opByName(arch, op).aux != opByName(arch, eop).aux {
+				panic(fmt.Sprintf("can't use ... for ops that have different aux types: %s and %s", op, eop))
+			}
 			swc := &Case{expr: exprf(op)}
 			swc.add(stmtf("v.Op = %s", eop))
 			swc.add(stmtf("return true"))
@@ -671,10 +674,6 @@ func fprint(w io.Writer, n Node) {
 		fmt.Fprintf(w, "%s := ", n.name)
 		fprint(w, n.value)
 		fmt.Fprintln(w)
-	case *Declare2:
-		fmt.Fprintf(w, "%s, %s := ", n.name1, n.name2)
-		fprint(w, n.value)
-		fmt.Fprintln(w)
 	case *CondBreak:
 		fmt.Fprintf(w, "if ")
 		fprint(w, n.expr)
@@ -739,18 +738,23 @@ func (w *bodyBase) add(node Statement) {
 	w.list = append(w.list, node)
 }
 
-// declared reports if the body contains a Declare or Declare2 with the given name.
+// predeclared contains globally known tokens that should not be redefined.
+var predeclared = map[string]bool{
+	"nil":   true,
+	"false": true,
+	"true":  true,
+}
+
+// declared reports if the body contains a Declare with the given name.
 func (w *bodyBase) declared(name string) bool {
-	if name == "nil" {
-		// Treat "nil" as having already been declared.
-		// This lets us use nil to match an aux field.
+	if predeclared[name] {
+		// Treat predeclared names as having already been declared.
+		// This lets us use nil to match an aux field or
+		// true and false to match an auxint field.
 		return true
 	}
 	for _, s := range w.list {
 		if decl, ok := s.(*Declare); ok && decl.name == name {
-			return true
-		}
-		if decl, ok := s.(*Declare2); ok && (decl.name1 == name || decl.name2 == name) {
 			return true
 		}
 	}
@@ -802,10 +806,6 @@ type (
 		name  string
 		value ast.Expr
 	}
-	Declare2 struct {
-		name1, name2 string
-		value        ast.Expr
-	}
 	// TODO: implement CondBreak as If + Break instead?
 	CondBreak struct {
 		expr              ast.Expr
@@ -845,12 +845,6 @@ func stmtf(format string, a ...interface{}) Statement {
 // value.
 func declf(name, format string, a ...interface{}) *Declare {
 	return &Declare{name, exprf(format, a...)}
-}
-
-// decl2f constructs a simple "name1, name2 := value" declaration, using exprf for its
-// value.
-func decl2f(name1, name2, format string, a ...interface{}) *Declare2 {
-	return &Declare2{name1, name2, exprf(format, a...)}
 }
 
 // breakf constructs a simple "if cond { break }" statement, using exprf for its
@@ -1043,27 +1037,18 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 		if !token.IsIdentifier(e.name) || rr.declared(e.name) {
 			switch e.field {
 			case "Aux":
-				rr.add(&If{
-					expr: exprf("%s.%s == nil", v, e.field),
-					stmt: breakf("%s == nil", e.name),
-					alt:  breakf("%s.%s.(%s) == %s", v, e.field, e.dclType, e.name),
-				})
+				rr.add(breakf("auxTo%s(%s.%s) != %s", title(e.dclType), v, e.field, e.name))
 			case "AuxInt":
-				rr.add(breakf("%s(%s.%s) != %s", e.dclType, v, e.field, e.name))
+				rr.add(breakf("auxIntTo%s(%s.%s) != %s", title(e.dclType), v, e.field, e.name))
 			case "Type":
 				rr.add(breakf("%s.%s != %s", v, e.field, e.name))
 			}
 		} else {
 			switch e.field {
 			case "Aux":
-				if e.dclType == "Sym" {
-					// TODO: kind of a hack - allows nil interface through
-					rr.add(decl2f(e.name, "_", "%s.Aux.(Sym)", v))
-				} else {
-					rr.add(declf(e.name, "%s.%s.(%s)", v, e.field, e.dclType))
-				}
+				rr.add(declf(e.name, "auxTo%s(%s.%s)", title(e.dclType), v, e.field))
 			case "AuxInt":
-				rr.add(declf(e.name, "%s(%s.%s)", e.dclType, v, e.field))
+				rr.add(declf(e.name, "auxIntTo%s(%s.%s)", title(e.dclType), v, e.field))
 			case "Type":
 				rr.add(declf(e.name, "%s.%s", v, e.field))
 			}
@@ -1229,8 +1214,7 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 	if auxint != "" {
 		if rr.typed {
 			// Make sure auxint value has the right type.
-			rr.add(stmtf("var _auxint %s = %s", op.auxIntType(), auxint))
-			rr.add(stmtf("%s.AuxInt = int64(_auxint)", v))
+			rr.add(stmtf("%s.AuxInt = %sToAuxInt(%s)", v, unTitle(op.auxIntType()), auxint))
 		} else {
 			rr.add(stmtf("%s.AuxInt = %s", v, auxint))
 		}
@@ -1238,8 +1222,7 @@ func genResult0(rr *RuleRewrite, arch arch, result string, top, move bool, pos s
 	if aux != "" {
 		if rr.typed {
 			// Make sure aux value has the right type.
-			rr.add(stmtf("var _aux %s = %s", op.auxType(), aux))
-			rr.add(stmtf("%s.Aux = _aux", v))
+			rr.add(stmtf("%s.Aux = %sToAux(%s)", v, unTitle(op.auxType()), aux))
 		} else {
 			rr.add(stmtf("%s.Aux = %s", v, aux))
 		}
@@ -1703,15 +1686,19 @@ func checkEllipsisRuleCandidate(rule Rule, arch arch) {
 	var auxint2, aux2 string
 	var args2 []string
 	var usingCopy string
+	var eop opData
 	if result[0] != '(' {
 		// Check for (Foo x) -> x, which can be converted to (Foo ...) -> (Copy ...).
 		args2 = []string{result}
 		usingCopy = " using Copy"
 	} else {
-		_, _, _, auxint2, aux2, args2 = parseValue(result, arch, rule.loc)
+		eop, _, _, auxint2, aux2, args2 = parseValue(result, arch, rule.loc)
 	}
 	// Check that all restrictions in match are reproduced exactly in result.
 	if aux != aux2 || auxint != auxint2 || len(args) != len(args2) {
+		return
+	}
+	if strings.Contains(rule.rule, "=>") && op.aux != eop.aux {
 		return
 	}
 	for i := range args {
@@ -1772,7 +1759,8 @@ func (op opData) auxType() string {
 // auxIntType returns the Go type that this operation should store in its auxInt field.
 func (op opData) auxIntType() string {
 	switch op.aux {
-	//case "Bool":
+	case "Bool":
+		return "bool"
 	case "Int8":
 		return "int8"
 	case "Int16":
@@ -1781,9 +1769,12 @@ func (op opData) auxIntType() string {
 		return "int32"
 	case "Int64":
 		return "int64"
-	//case  "Int128":
-	//case  "Float32":
-	//case  "Float64":
+	case "Int128":
+		return "int128"
+	case "Float32":
+		return "float32"
+	case "Float64":
+		return "float64"
 	case "SymOff":
 		return "int32"
 	case "SymValAndOff":
@@ -1795,4 +1786,18 @@ func (op opData) auxIntType() string {
 	default:
 		return "invalid"
 	}
+}
+
+func title(s string) string {
+	if i := strings.Index(s, "."); i >= 0 {
+		s = s[i+1:]
+	}
+	return strings.Title(s)
+}
+
+func unTitle(s string) string {
+	if i := strings.Index(s, "."); i >= 0 {
+		s = s[i+1:]
+	}
+	return strings.ToLower(s[:1]) + s[1:]
 }

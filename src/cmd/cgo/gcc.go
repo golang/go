@@ -3006,8 +3006,9 @@ func (c *typeConv) anonymousStructTypedef(dt *dwarf.TypedefType) bool {
 	return ok && st.StructName == ""
 }
 
-// badPointerTypedef reports whether t is a C typedef that should not be considered a pointer in Go.
-// A typedef is bad if C code sometimes stores non-pointers in this type.
+// badPointerTypedef reports whether dt is a C typedef that should not be
+// considered a pointer in Go. A typedef is bad if C code sometimes stores
+// non-pointers in this type.
 // TODO: Currently our best solution is to find these manually and list them as
 // they come up. A better solution is desired.
 func (c *typeConv) badPointerTypedef(dt *dwarf.TypedefType) bool {

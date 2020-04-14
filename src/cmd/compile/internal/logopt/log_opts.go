@@ -294,18 +294,23 @@ func checkLogPath(flag, destination string) {
 	dest = destination
 }
 
-var loggedOpts []LoggedOpt
+var loggedOpts []*LoggedOpt
 var mu = sync.Mutex{} // mu protects loggedOpts.
+
+func NewLoggedOpt(pos src.XPos, what, pass, fname string, args ...interface{}) *LoggedOpt {
+	pass = strings.Replace(pass, " ", "_", -1)
+	return &LoggedOpt{pos, pass, fname, what, args}
+}
 
 func LogOpt(pos src.XPos, what, pass, fname string, args ...interface{}) {
 	if Format == None {
 		return
 	}
-	pass = strings.Replace(pass, " ", "_", -1)
+	lo := NewLoggedOpt(pos, what, pass, fname, args...)
 	mu.Lock()
 	defer mu.Unlock()
 	// Because of concurrent calls from back end, no telling what the order will be, but is stable-sorted by outer Pos before use.
-	loggedOpts = append(loggedOpts, LoggedOpt{pos, pass, fname, what, args})
+	loggedOpts = append(loggedOpts, lo)
 }
 
 func Enabled() bool {
@@ -321,7 +326,7 @@ func Enabled() bool {
 // byPos sorts diagnostics by source position.
 type byPos struct {
 	ctxt *obj.Link
-	a    []LoggedOpt
+	a    []*LoggedOpt
 }
 
 func (x byPos) Len() int { return len(x.a) }
@@ -402,15 +407,9 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
 		// For LSP, make a subdirectory for the package, and for each file foo.go, create foo.json in that subdirectory.
 		currentFile := ""
 		for _, x := range loggedOpts {
-			posTmp = ctxt.AllPos(x.pos, posTmp)
-			// Reverse posTmp to put outermost first.
-			l := len(posTmp)
-			for i := 0; i < l/2; i++ {
-				posTmp[i], posTmp[l-i-1] = posTmp[l-i-1], posTmp[i]
-			}
-
-			p0 := posTmp[0]
+			posTmp, p0 := x.parsePos(ctxt, posTmp)
 			p0f := uprootedPath(p0.Filename())
+
 			if currentFile != p0f {
 				if w != nil {
 					w.Close()
@@ -429,16 +428,27 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
 
 			diagnostic.Code = x.what
 			diagnostic.Message = target
-			diagnostic.Range = Range{Start: Position{p0.Line(), p0.Col()},
-				End: Position{p0.Line(), p0.Col()}}
+			diagnostic.Range = newPointRange(p0)
 			diagnostic.RelatedInformation = diagnostic.RelatedInformation[:0]
 
-			for i := 1; i < l; i++ {
-				p := posTmp[i]
-				loc := Location{URI: uriIfy(uprootedPath(p.Filename())),
-					Range: Range{Start: Position{p.Line(), p.Col()},
-						End: Position{p.Line(), p.Col()}}}
-				diagnostic.RelatedInformation = append(diagnostic.RelatedInformation, DiagnosticRelatedInformation{Location: loc, Message: "inlineLoc"})
+			appendInlinedPos(posTmp, &diagnostic)
+
+			// Diagnostic explanation is stored in RelatedInformation after inlining info
+			if len(x.target) > 1 {
+				switch y := x.target[1].(type) {
+				case []*LoggedOpt:
+					for _, z := range y {
+						posTmp, p0 := z.parsePos(ctxt, posTmp)
+						loc := newLocation(p0)
+						msg := z.what
+						if len(z.target) > 0 {
+							msg = msg + ": " + fmt.Sprint(z.target[0])
+						}
+
+						diagnostic.RelatedInformation = append(diagnostic.RelatedInformation, DiagnosticRelatedInformation{Location: loc, Message: msg})
+						appendInlinedPos(posTmp, &diagnostic)
+					}
+				}
 			}
 
 			encoder.Encode(diagnostic)
@@ -447,4 +457,34 @@ func FlushLoggedOpts(ctxt *obj.Link, slashPkgPath string) {
 			w.Close()
 		}
 	}
+}
+
+func newPointRange(p src.Pos) Range {
+	return Range{Start: Position{p.Line(), p.Col()},
+		End: Position{p.Line(), p.Col()}}
+}
+
+func newLocation(p src.Pos) Location {
+	loc := Location{URI: uriIfy(uprootedPath(p.Filename())), Range: newPointRange(p)}
+	return loc
+}
+
+// appendInlinedPos extracts inlining information from posTmp and append it to diagnostic
+func appendInlinedPos(posTmp []src.Pos, diagnostic *Diagnostic) {
+	for i := 1; i < len(posTmp); i++ {
+		p := posTmp[i]
+		loc := newLocation(p)
+		diagnostic.RelatedInformation = append(diagnostic.RelatedInformation, DiagnosticRelatedInformation{Location: loc, Message: "inlineLoc"})
+	}
+}
+
+func (x *LoggedOpt) parsePos(ctxt *obj.Link, posTmp []src.Pos) ([]src.Pos, src.Pos) {
+	posTmp = ctxt.AllPos(x.pos, posTmp)
+	// Reverse posTmp to put outermost first.
+	l := len(posTmp)
+	for i := 0; i < l/2; i++ {
+		posTmp[i], posTmp[l-i-1] = posTmp[l-i-1], posTmp[i]
+	}
+	p0 := posTmp[0]
+	return posTmp, p0
 }

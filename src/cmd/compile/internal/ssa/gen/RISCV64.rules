@@ -404,7 +404,7 @@
 (Move [8] dst src mem) -> (MOVDstore dst (MOVDload src mem) mem)
 
 // Generic move uses a loop
-(Move [s] {t} dst src mem) ->
+(Move [s] {t} dst src mem) && (s <= 16 || logLargeCopy(v, s)) ->
 	(LoweredMove [t.(*types.Type).Alignment()]
 		dst
 		src
@@ -442,7 +442,7 @@
 (MOVDconst <t> [c]) && !is32Bit(c) && int32(c) <  0 -> (ADD (SLLI <t> [32] (MOVDconst [c>>32+1])) (MOVDconst [int64(int32(c))]))
 (MOVDconst <t> [c]) && !is32Bit(c) && int32(c) >= 0 -> (ADD (SLLI <t> [32] (MOVDconst [c>>32+0])) (MOVDconst [int64(int32(c))]))
 
-(Addr ...) -> (MOVaddr ...)
+(Addr {sym} base) => (MOVaddr {sym} [0] base)
 (LocalAddr {sym} base _) -> (MOVaddr {sym} base)
 
 // Conditional branches
