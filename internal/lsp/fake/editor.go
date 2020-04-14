@@ -104,11 +104,13 @@ func (e *Editor) Client() *Client {
 }
 
 func (e *Editor) configuration() map[string]interface{} {
+	env := map[string]interface{}{}
+	for _, value := range e.ws.GoEnv() {
+		kv := strings.SplitN(value, "=", 2)
+		env[kv[0]] = kv[1]
+	}
 	return map[string]interface{}{
-		"env": map[string]interface{}{
-			"GOPATH":      e.ws.GOPATH(),
-			"GO111MODULE": "on",
-		},
+		"env": env,
 	}
 }
 
@@ -117,8 +119,9 @@ func (e *Editor) initialize(ctx context.Context) error {
 	params.ClientInfo.Name = "fakeclient"
 	params.ClientInfo.Version = "v1.0.0"
 	params.RootURI = e.ws.RootURI()
+	params.Capabilities.Workspace.Configuration = true
+	// TODO: set client capabilities
 
-	// TODO: set client capabilities.
 	params.Trace = "messages"
 	// TODO: support workspace folders.
 	if e.server != nil {
@@ -134,6 +137,7 @@ func (e *Editor) initialize(ctx context.Context) error {
 			return fmt.Errorf("initialized: %v", err)
 		}
 	}
+	// TODO: await initial configuration here, or expect gopls to manage that?
 	return nil
 }
 

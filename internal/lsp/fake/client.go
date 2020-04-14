@@ -78,8 +78,15 @@ func (c *Client) WorkspaceFolders(context.Context) ([]protocol.WorkspaceFolder, 
 	return []protocol.WorkspaceFolder{}, nil
 }
 
-func (c *Client) Configuration(context.Context, *protocol.ParamConfiguration) ([]interface{}, error) {
-	return []interface{}{c.configuration()}, nil
+func (c *Client) Configuration(_ context.Context, p *protocol.ParamConfiguration) ([]interface{}, error) {
+	results := make([]interface{}, len(p.Items))
+	for i, item := range p.Items {
+		if item.Section != "gopls" {
+			continue
+		}
+		results[i] = c.configuration()
+	}
+	return results, nil
 }
 
 func (c *Client) RegisterCapability(context.Context, *protocol.RegistrationParams) error {

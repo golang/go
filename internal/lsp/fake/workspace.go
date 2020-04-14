@@ -123,7 +123,8 @@ func (w *Workspace) ReadFile(path string) (string, error) {
 	return string(b), nil
 }
 
-// RegexpSearch searches the file
+// RegexpSearch searches the file corresponding to path for the first position
+// matching re.
 func (w *Workspace) RegexpSearch(path string, re string) (Pos, error) {
 	content, err := w.ReadFile(path)
 	if err != nil {
@@ -150,12 +151,23 @@ func (w *Workspace) RemoveFile(ctx context.Context, path string) error {
 	return nil
 }
 
+// GoEnv returns the environment variables that should be used for invoking Go
+// commands in the workspace.
+func (w *Workspace) GoEnv() []string {
+	return []string{
+		"GOPATH=" + w.GOPATH(),
+		"GO111MODULE=",
+		"GOSUMDB=off",
+	}
+}
+
 // RunGoCommand executes a go command in the workspace.
 func (w *Workspace) RunGoCommand(ctx context.Context, verb string, args ...string) error {
 	inv := gocommand.Invocation{
 		Verb:       verb,
 		Args:       args,
 		WorkingDir: w.workdir,
+		Env:        w.GoEnv(),
 	}
 	gocmdRunner := &gocommand.Runner{}
 	_, stderr, _, err := gocmdRunner.RunRaw(ctx, inv)
