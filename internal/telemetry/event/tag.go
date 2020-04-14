@@ -7,6 +7,8 @@ package event
 import (
 	"fmt"
 	"io"
+	"reflect"
+	"unsafe"
 )
 
 // Tag holds a key and value pair.
@@ -14,7 +16,6 @@ import (
 type Tag struct {
 	key     Key
 	packed  uint64
-	str     string
 	untyped interface{}
 }
 
@@ -82,13 +83,26 @@ func (t Tag) Unpack64() uint64 { return t.packed }
 // TagOfString creates a new tag from a key and a string.
 // This method is for implementing new key types, tag creation should
 // normally be done with the Of method of the key.
-func TagOfString(k Key, v string) Tag { return Tag{key: k, str: v} }
+func TagOfString(k Key, v string) Tag {
+	hdr := (*reflect.StringHeader)(unsafe.Pointer(&v))
+	return Tag{
+		key:     k,
+		packed:  uint64(hdr.Len),
+		untyped: unsafe.Pointer(hdr.Data),
+	}
+}
 
 // UnpackString assumes the tag was built using TagOfString and returns the
 // value that was passed to that constructor.
 // This method is for implementing new key types, for type safety normal
 // access should be done with the From method of the key.
-func (t Tag) UnpackString() string { return t.str }
+func (t Tag) UnpackString() string {
+	var v string
+	hdr := (*reflect.StringHeader)(unsafe.Pointer(&v))
+	hdr.Data = uintptr(t.untyped.(unsafe.Pointer))
+	hdr.Len = int(t.packed)
+	return *(*string)(unsafe.Pointer(hdr))
+}
 
 // Valid returns true if the Tag is a valid one (it has a key).
 func (t Tag) Valid() bool { return t.key != nil }
