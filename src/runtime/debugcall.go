@@ -95,9 +95,129 @@ func debugCallCheck(pc uintptr) string {
 	return ret
 }
 
-// debugCallWrap pushes a defer to recover from panics in debug calls
-// and then calls the dispatching function at PC dispatch.
+// debugCallWrap starts a new goroutine to run a debug call and blocks
+// the calling goroutine. On the goroutine, it prepares to recover
+// panics from the debug call, and then calls the call dispatching
+// function at PC dispatch.
 func debugCallWrap(dispatch uintptr) {
+	var lockedm bool
+	var lockedExt uint32
+	callerpc := getcallerpc()
+	gp := getg()
+
+	// Create a new goroutine to execute the call on. Run this on
+	// the system stack to avoid growing our stack.
+	systemstack(func() {
+		var args struct {
+			dispatch uintptr
+			callingG *g
+		}
+		args.dispatch = dispatch
+		args.callingG = gp
+		fn := debugCallWrap1
+		newg := newproc1(*(**funcval)(unsafe.Pointer(&fn)), unsafe.Pointer(&args), int32(unsafe.Sizeof(args)), gp, callerpc)
+
+		// If the current G is locked, then transfer that
+		// locked-ness to the new goroutine.
+		if gp.lockedm != 0 {
+			// Save lock state to restore later.
+			mp := gp.m
+			if mp != gp.lockedm.ptr() {
+				throw("inconsistent lockedm")
+			}
+
+			lockedm = true
+			lockedExt = mp.lockedExt
+
+			// Transfer external lock count to internal so
+			// it can't be unlocked from the debug call.
+			mp.lockedInt++
+			mp.lockedExt = 0
+
+			mp.lockedg.set(newg)
+			newg.lockedm.set(mp)
+			gp.lockedm = 0
+		}
+
+		// Stash newg away so we can execute it below (mcall's
+		// closure can't capture anything).
+		gp.schedlink.set(newg)
+	})
+
+	// Switch to the new goroutine.
+	mcall(func(gp *g) {
+		// Get newg.
+		newg := gp.schedlink.ptr()
+		gp.schedlink = 0
+
+		// Park the calling goroutine.
+		gp.waitreason = waitReasonDebugCall
+		if trace.enabled {
+			traceGoPark(traceEvGoBlock, 1)
+		}
+		casgstatus(gp, _Grunning, _Gwaiting)
+		dropg()
+
+		// Directly execute the new goroutine. The debug
+		// protocol will continue on the new goroutine, so
+		// it's important we not just let the scheduler do
+		// this or it may resume a different goroutine.
+		execute(newg, true)
+	})
+
+	// We'll resume here when the call returns.
+
+	// Restore locked state.
+	if lockedm {
+		mp := gp.m
+		mp.lockedExt = lockedExt
+		mp.lockedInt--
+		mp.lockedg.set(gp)
+		gp.lockedm.set(mp)
+	}
+}
+
+// debugCallWrap1 is the continuation of debugCallWrap on the callee
+// goroutine.
+func debugCallWrap1(dispatch uintptr, callingG *g) {
+	// Dispatch call and trap panics.
+	debugCallWrap2(dispatch)
+
+	// Resume the caller goroutine.
+	getg().schedlink.set(callingG)
+	mcall(func(gp *g) {
+		callingG := gp.schedlink.ptr()
+		gp.schedlink = 0
+
+		// Unlock this goroutine from the M if necessary. The
+		// calling G will relock.
+		if gp.lockedm != 0 {
+			gp.lockedm = 0
+			gp.m.lockedg = 0
+		}
+
+		// Switch back to the calling goroutine. At some point
+		// the scheduler will schedule us again and we'll
+		// finish exiting.
+		if trace.enabled {
+			traceGoSched()
+		}
+		casgstatus(gp, _Grunning, _Grunnable)
+		dropg()
+		lock(&sched.lock)
+		globrunqput(gp)
+		unlock(&sched.lock)
+
+		if trace.enabled {
+			traceGoUnpark(callingG, 0)
+		}
+		casgstatus(callingG, _Gwaiting, _Grunnable)
+		execute(callingG, true)
+	})
+}
+
+func debugCallWrap2(dispatch uintptr) {
+	// Call the dispatch function and trap panics.
 	var dispatchF func()
 	dispatchFV := funcval{dispatch}
 	*(*unsafe.Pointer)(unsafe.Pointer(&dispatchF)) = noescape(unsafe.Pointer(&dispatchFV))
