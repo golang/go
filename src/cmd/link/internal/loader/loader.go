@@ -2234,25 +2234,6 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
 	return nr
 }
 
-// funcInfoSym records the sym.Symbol for a function, along with a copy
-// of the corresponding goobj2.Sym and the index of its FuncInfo aux sym.
-// We use this to delay populating FuncInfo until we can batch-allocate
-// slices for their sub-objects.
-type funcInfoSym struct {
-	s    *sym.Symbol // sym.Symbol for a live function
-	osym *goobj2.Sym // object file symbol data for that function
-	isym int         // global symbol index of FuncInfo aux sym for func
-}
-
-// funcAllocInfo records totals/counts for all functions in an objfile;
-// used to help with bulk allocation of sym.Symbol sub-objects.
-type funcAllocInfo struct {
-	symPtr  uint32 // number of *sym.Symbol's needed in file slices
-	inlCall uint32 // number of sym.InlinedCall's needed in inltree slices
-	pcData  uint32 // number of sym.Pcdata's needed in pdata slices
-	fdOff   uint32 // number of int64's needed in all Funcdataoff slices
-}
-
 // cloneToExternal takes the existing object file symbol (symIdx)
 // and creates a new external symbol payload that is a clone with
 // respect to name, version, type, relocations, etc. The idea here
