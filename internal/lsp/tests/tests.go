@@ -1076,7 +1076,8 @@ func (data *Data) collectPrepareRenames(src span.Span, rng span.Range, placehold
 	}
 }
 
-func (data *Data) collectSymbols(name string, spn span.Span, kind string, parentName string) {
+// collectSymbols is responsible for collecting @symbol annotations.
+func (data *Data) collectSymbols(name string, spn span.Span, kind string, parentName string, siName string) {
 	m, err := data.Mapper(spn.URI())
 	if err != nil {
 		data.t.Fatal(err)
@@ -1098,7 +1099,7 @@ func (data *Data) collectSymbols(name string, spn span.Span, kind string, parent
 
 	// Reuse @symbol in the workspace symbols tests.
 	si := protocol.SymbolInformation{
-		Name: sym.Name,
+		Name: siName,
 		Kind: sym.Kind,
 		Location: protocol.Location{
 			URI:   protocol.URIFromSpanURI(spn.URI()),

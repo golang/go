@@ -1,9 +1,9 @@
 package a
 
-var WorkspaceSymbolVariableA = "a" //@symbol("WorkspaceSymbolVariableA", "WorkspaceSymbolVariableA", "Variable", "")
+var WorkspaceSymbolVariableA = "a" //@symbol("WorkspaceSymbolVariableA", "WorkspaceSymbolVariableA", "Variable", "", "WorkspaceSymbolVariableA")
 
-const WorkspaceSymbolConstantA = "a" //@symbol("WorkspaceSymbolConstantA", "WorkspaceSymbolConstantA", "Constant", "")
+const WorkspaceSymbolConstantA = "a" //@symbol("WorkspaceSymbolConstantA", "WorkspaceSymbolConstantA", "Constant", "", "WorkspaceSymbolConstantA")
 
 const (
-	workspacesymbolinvariable = iota //@symbol("workspacesymbolinvariable", "workspacesymbolinvariable", "Constant", "")
+	workspacesymbolinvariable = iota //@symbol("workspacesymbolinvariable", "workspacesymbolinvariable", "Constant", "", "workspacesymbolinvariable")
 )
