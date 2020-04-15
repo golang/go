@@ -170,7 +170,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 			for _, t := range targBound.allTypes {
 				if !iface.includes(t.Underlying()) {
 					// TODO(gri) match this error message with the one below (or vice versa)
-					check.softErrorf(pos, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, t, iface)
+					check.softErrorf(pos, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, t, iface.allTypes)
 					break
 				}
 			}
@@ -180,7 +180,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		// Otherwise, targ's underlying type must also be one of the interface types listed, if any.
 		// TODO(gri) must it be the underlying type, or should it just be the type? (spec question)
 		if !iface.includes(targ.Underlying()) {
-			check.softErrorf(pos, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ, iface)
+			check.softErrorf(pos, "%s does not satisfy %s (%s not found in %s)", targ, tpar.bound, targ.Underlying(), iface.allTypes)
 			break
 		}
 	}
