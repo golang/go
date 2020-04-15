@@ -432,15 +432,17 @@ verb followed by arguments. For example:
 	require new/thing/v2 v2.3.4
 	exclude old/thing v1.2.3
 	replace bad/thing v1.4.5 => good/thing v1.4.5
+	retract v1.5.6
 
 The verbs are
 	module, to define the module path;
 	go, to set the expected language version;
 	require, to require a particular module at a given version or later;
-	exclude, to exclude a particular module version from use; and
-	replace, to replace a module version with a different module version.
+	exclude, to exclude a particular module version from use;
+	replace, to replace a module version with a different module version; and
+	retract, to indicate a previously released version should not be used.
 Exclude and replace apply only in the main module's go.mod and are ignored
-in dependencies.  See https://research.swtch.com/vgo-mvs for details.
+in dependencies.  See https://golang.org/ref/mod for details.
 
 The leading verb can be factored out of adjacent lines to create a block,
 like in Go imports:
