@@ -108,7 +108,7 @@ func lock2(l *mutex) {
 }
 
 func unlock(l *mutex) {
-	lockRankRelease(l)
+	unlockWithRank(l)
 }
 
 func unlock2(l *mutex) {
