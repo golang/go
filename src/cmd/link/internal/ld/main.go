@@ -319,35 +319,25 @@ func Main(arch *sys.Arch, theArch Arch) {
 	// for which we have computed the size and offset, in a
 	// mmap'd region. The second part writes more content, for
 	// which we don't know the size.
-	var outputMmapped bool
 	if ctxt.Arch.Family != sys.Wasm {
 		// Don't mmap if we're building for Wasm. Wasm file
 		// layout is very different so filesize is meaningless.
-		err := ctxt.Out.Mmap(filesize)
-		outputMmapped = err == nil
+		if err := ctxt.Out.Mmap(filesize); err != nil {
+			ctxt.Errorf(0, "error mapping file: %v", err)
+		}
 	}
-	if outputMmapped {
-		// Asmb will redirect symbols to the output file mmap, and relocations
-		// will be applied directly there.
-		bench.Start("Asmb")
-		thearch.Asmb(ctxt)
-		bench.Start("reloc")
-		ctxt.reloc()
-	} else {
-		// If we don't mmap, we need to apply relocations before
-		// writing out.
-		bench.Start("reloc")
-		ctxt.reloc()
-		bench.Start("Asmb")
-		thearch.Asmb(ctxt)
-	}
+
+	// Asmb will redirect symbols to the output file mmap, and relocations
+	// will be applied directly there.
+	bench.Start("Asmb")
+	thearch.Asmb(ctxt)
+	bench.Start("reloc")
+	ctxt.reloc()
 	bench.Start("Asmb2")
 	thearch.Asmb2(ctxt)
 
-	if outputMmapped {
-		bench.Start("Munmap")
-		ctxt.Out.Munmap()
-	}
+	bench.Start("Munmap")
+	ctxt.Out.Close() // Close handles Munmapping if necessary.
 
 	bench.Start("undef")
 	ctxt.undef()
