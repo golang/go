@@ -175,6 +175,15 @@ func computeFixEdits(view View, ph ParseGoHandle, options *imports.Options, orig
 	// just those sections against each other, then shift the resulting
 	// edits to the right lines in the original file.
 	left, right := origImports, fixedImports
+
+	// If there is no diff, return early, as there's no need to compute edits.
+	// imports.ApplyFixes also formats the file, and this way we avoid
+	// unnecessary formatting, which may cause further issues if we can't
+	// find an import block on which to anchor the diffs.
+	if len(left) == 0 && len(right) == 0 {
+		return nil, nil
+	}
+
 	converter := span.NewContentConverter(filename, origImports)
 	offset := origImportOffset
 
