@@ -8,6 +8,7 @@ package types
 
 import (
 	"bytes"
+	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/token"
@@ -254,8 +255,8 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) bool {
 	if Ti, ok := Tu.(*Interface); ok {
 		if m, wrongType := check.missingMethod(V, Ti, true); m != nil /* Implements(V, Ti) */ {
 			if reason != nil {
-				if wrongType {
-					*reason = "wrong type for method " + m.Name()
+				if wrongType != nil {
+					*reason = fmt.Sprintf("wrong type for method %s (have %s, want %s)", m.Name(), wrongType.typ, m.typ)
 				} else {
 					*reason = "missing method " + m.Name()
 				}
