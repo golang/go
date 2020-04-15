@@ -1100,9 +1100,14 @@
 // module path and version pair. If the @v is omitted, a replacement without
 // a version on the left side is dropped.
 //
+// The -retract=version and -dropretract=version flags add and drop a
+// retraction on the given version. The version may be a single version
+// like "v1.2.3" or a closed interval like "[v1.1.0-v1.1.9]". Note that
+// -retract=version is a no-op if that retraction already exists.
+//
 // The -require, -droprequire, -exclude, -dropexclude, -replace,
-// and -dropreplace editing flags may be repeated, and the changes
-// are applied in the order given.
+// -dropreplace, -retract, and -dropretract editing flags may be repeated,
+// and the changes are applied in the order given.
 //
 // The -go=version flag sets the expected Go language version.
 //
@@ -1135,6 +1140,15 @@
 // 		Old Module
 // 		New Module
 // 	}
+//
+// 	type Retract struct {
+// 		Low       string
+// 		High      string
+// 		Rationale string
+// 	}
+//
+// Retract entries representing a single version (not an interval) will have
+// the "Low" and "High" fields set to the same value.
 //
 // Note that this only describes the go.mod file itself, not other modules
 // referred to indirectly. For the full set of modules available to a build,
