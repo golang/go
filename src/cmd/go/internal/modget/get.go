@@ -702,6 +702,15 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
 	// Everything succeeded. Update go.mod.
 	modload.AllowWriteGoMod()
 	modload.WriteGoMod()
+	modload.DisallowWriteGoMod()
+
+	// Report warnings if any retracted versions are in the build list.
+	// This must be done after writing go.mod to avoid spurious '// indirect'
+	// comments. These functions read and write global state.
+	// TODO(golang.org/issue/40775): ListModules resets modload.loader, which
+	// contains information about direct dependencies that WriteGoMod uses.
+	// Refactor to avoid these kinds of global side effects.
+	reportRetractions(ctx)
 
 	// If -d was specified, we're done after the module work.
 	// We've already downloaded modules by loading packages above.
@@ -804,6 +813,14 @@ func getQuery(ctx context.Context, path, vers string, prevM module.Version, forc
 		base.Fatalf("go get: internal error: prevM may be set if and only if forceModulePath is set")
 	}
 
+	// If vers is a query like "latest", we should ignore retracted and excluded
+	// versions. If vers refers to a specific version or commit like "v1.0.0"
+	// or "master", we should only ignore excluded versions.
+	allowed := modload.CheckAllowed
+	if modload.IsRevisionQuery(vers) {
+		allowed = modload.CheckExclusions
+	}
+
 	// If the query must be a module path, try only that module path.
 	if forceModulePath {
 		if path == modload.Target.Path {
@@ -812,7 +829,7 @@ func getQuery(ctx context.Context, path, vers string, prevM module.Version, forc
 			}
 		}
 
-		info, err := modload.Query(ctx, path, vers, prevM.Version, modload.CheckAllowed)
+		info, err := modload.Query(ctx, path, vers, prevM.Version, allowed)
 		if err == nil {
 			if info.Version != vers && info.Version != prevM.Version {
 				logOncef("go: %s %s => %s", path, vers, info.Version)
@@ -838,7 +855,7 @@ func getQuery(ctx context.Context, path, vers string, prevM module.Version, forc
 	// If it turns out to only exist as a module, we can detect the resulting
 	// PackageNotInModuleError and avoid a second round-trip through (potentially)
 	// all of the configured proxies.
-	results, err := modload.QueryPattern(ctx, path, vers, modload.CheckAllowed)
+	results, err := modload.QueryPattern(ctx, path, vers, allowed)
 	if err != nil {
 		// If the path doesn't contain a wildcard, check whether it was actually a
 		// module path instead. If so, return that.
@@ -1048,6 +1065,43 @@ func (r *lostUpgradeReqs) Required(mod module.Version) ([]module.Version, error)
 		return []module.Version{r.lost}, nil
 	}
 	return r.Reqs.Required(mod)
+}
+
+// reportRetractions prints warnings if any modules in the build list are
+// retracted.
+func reportRetractions(ctx context.Context) {
+	// Query for retractions of modules in the build list.
+	// Use modload.ListModules, since that provides information in the same format
+	// as 'go list -m'. Don't query for "all", since that's not allowed outside a
+	// module.
+	buildList := modload.BuildList()
+	args := make([]string, 0, len(buildList))
+	for _, m := range buildList {
+		if m.Version == "" {
+			// main module or dummy target module
+			continue
+		}
+		args = append(args, m.Path+"@"+m.Version)
+	}
+	listU := false
+	listVersions := false
+	listRetractions := true
+	mods := modload.ListModules(ctx, args, listU, listVersions, listRetractions)
+	retractPath := ""
+	for _, mod := range mods {
+		if len(mod.Retracted) > 0 {
+			if retractPath == "" {
+				retractPath = mod.Path
+			} else {
+				retractPath = "<module>"
+			}
+			rationale := modload.ShortRetractionRationale(mod.Retracted[0])
+			logOncef("go: warning: %s@%s is retracted: %s", mod.Path, mod.Version, rationale)
+		}
+	}
+	if modload.HasModRoot() && retractPath != "" {
+		logOncef("go: run 'go get %s@latest' to switch to the latest unretracted version", retractPath)
+	}
 }
 
 var loggedLines sync.Map
