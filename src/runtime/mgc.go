@@ -1373,6 +1373,10 @@ func gcStart(trigger gcTrigger) {
 	// the world.
 	gcController.markStartTime = now
 
+	// In STW mode, we could block the instant systemstack
+	// returns, so make sure we're not preemptible.
+	mp = acquirem()
+
 	// Concurrent mark.
 	systemstack(func() {
 		now = startTheWorldWithSema(trace.enabled)
@@ -1385,10 +1389,10 @@ func gcStart(trigger gcTrigger) {
 	// this goroutine becomes runnable again, and we could
 	// self-deadlock otherwise.
 	semrelease(&worldsema)
+	releasem(mp)
 
-	// In STW mode, we could block the instant systemstack
-	// returns, so don't do anything important here. Make sure we
-	// block rather than returning to user code.
+	// Make sure we block instead of returning to user code
+	// in STW mode.
 	if mode != gcBackgroundMode {
 		Gosched()
 	}
