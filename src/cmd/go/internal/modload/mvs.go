@@ -6,6 +6,7 @@ package modload
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -73,16 +74,29 @@ func (*mvsReqs) Upgrade(m module.Version) (module.Version, error) {
 	return m, nil
 }
 
-func versions(path string) ([]string, error) {
+func versions(ctx context.Context, path string, allowed AllowedFunc) ([]string, error) {
 	// Note: modfetch.Lookup and repo.Versions are cached,
 	// so there's no need for us to add extra caching here.
 	var versions []string
 	err := modfetch.TryProxies(func(proxy string) error {
 		repo, err := modfetch.Lookup(proxy, path)
-		if err == nil {
-			versions, err = repo.Versions("")
+		if err != nil {
+			return err
 		}
-		return err
+		allVersions, err := repo.Versions("")
+		if err != nil {
+			return err
+		}
+		allowedVersions := make([]string, 0, len(allVersions))
+		for _, v := range allVersions {
+			if err := allowed(ctx, module.Version{Path: path, Version: v}); err == nil {
+				allowedVersions = append(allowedVersions, v)
+			} else if !errors.Is(err, ErrDisallowed) {
+				return err
+			}
+		}
+		versions = allowedVersions
+		return nil
 	})
 	return versions, err
 }
@@ -90,7 +104,8 @@ func versions(path string) ([]string, error) {
 // Previous returns the tagged version of m.Path immediately prior to
 // m.Version, or version "none" if no prior version is tagged.
 func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
-	list, err := versions(m.Path)
+	// TODO(golang.org/issue/38714): thread tracing context through MVS.
+	list, err := versions(context.TODO(), m.Path, CheckAllowed)
 	if err != nil {
 		return module.Version{}, err
 	}
@@ -105,7 +120,8 @@ func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
 // It is only used by the exclusion processing in the Required method,
 // not called directly by MVS.
 func (*mvsReqs) next(m module.Version) (module.Version, error) {
-	list, err := versions(m.Path)
+	// TODO(golang.org/issue/38714): thread tracing context through MVS.
+	list, err := versions(context.TODO(), m.Path, CheckAllowed)
 	if err != nil {
 		return module.Version{}, err
 	}

@@ -812,7 +812,7 @@ func getQuery(ctx context.Context, path, vers string, prevM module.Version, forc
 			}
 		}
 
-		info, err := modload.Query(ctx, path, vers, prevM.Version, modload.Allowed)
+		info, err := modload.Query(ctx, path, vers, prevM.Version, modload.CheckAllowed)
 		if err == nil {
 			if info.Version != vers && info.Version != prevM.Version {
 				logOncef("go: %s %s => %s", path, vers, info.Version)
@@ -838,7 +838,7 @@ func getQuery(ctx context.Context, path, vers string, prevM module.Version, forc
 	// If it turns out to only exist as a module, we can detect the resulting
 	// PackageNotInModuleError and avoid a second round-trip through (potentially)
 	// all of the configured proxies.
-	results, err := modload.QueryPattern(ctx, path, vers, modload.Allowed)
+	results, err := modload.QueryPattern(ctx, path, vers, modload.CheckAllowed)
 	if err != nil {
 		// If the path doesn't contain a wildcard, check whether it was actually a
 		// module path instead. If so, return that.
@@ -994,7 +994,7 @@ func (u *upgrader) Upgrade(m module.Version) (module.Version, error) {
 	// If we're querying "upgrade" or "patch", Query will compare the current
 	// version against the chosen version and will return the current version
 	// if it is newer.
-	info, err := modload.Query(context.TODO(), m.Path, string(getU), m.Version, modload.Allowed)
+	info, err := modload.Query(context.TODO(), m.Path, string(getU), m.Version, modload.CheckAllowed)
 	if err != nil {
 		// Report error but return m, to let version selection continue.
 		// (Reporting the error will fail the command at the next base.ExitIfErrors.)

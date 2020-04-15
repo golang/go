@@ -286,7 +286,7 @@ func Import(ctx context.Context, path string) (m module.Version, dir string, err
 
 	fmt.Fprintf(os.Stderr, "go: finding module for package %s\n", path)
 
-	candidates, err := QueryPackage(ctx, path, "latest", Allowed)
+	candidates, err := QueryPackage(ctx, path, "latest", CheckAllowed)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			// Return "cannot find module providing package […]" instead of whatever

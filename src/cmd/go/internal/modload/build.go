@@ -90,7 +90,7 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 		return
 	}
 
-	if info, err := Query(ctx, m.Path, "upgrade", m.Version, Allowed); err == nil && semver.Compare(info.Version, m.Version) > 0 {
+	if info, err := Query(ctx, m.Path, "upgrade", m.Version, CheckAllowed); err == nil && semver.Compare(info.Version, m.Version) > 0 {
 		m.Update = &modinfo.ModulePublic{
 			Path:    m.Path,
 			Version: info.Version,
@@ -100,8 +100,8 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 }
 
 // addVersions fills in m.Versions with the list of known versions.
-func addVersions(m *modinfo.ModulePublic) {
-	m.Versions, _ = versions(m.Path)
+func addVersions(ctx context.Context, m *modinfo.ModulePublic) {
+	m.Versions, _ = versions(ctx, m.Path, CheckAllowed)
 }
 
 func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modinfo.ModulePublic {
