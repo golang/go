@@ -99,6 +99,11 @@ func debugCallCheck(pc uintptr) string {
 // the calling goroutine. On the goroutine, it prepares to recover
 // panics from the debug call, and then calls the call dispatching
 // function at PC dispatch.
+//
+// This must be deeply nosplit because there are untyped values on the
+// stack from debugCallV1.
+//
+//go:nosplit
 func debugCallWrap(dispatch uintptr) {
 	var lockedm bool
 	var lockedExt uint32
@@ -139,6 +144,12 @@ func debugCallWrap(dispatch uintptr) {
 			gp.lockedm = 0
 		}
 
+		// Mark the calling goroutine as being at an async
+		// safe-point, since it has a few conservative frames
+		// at the bottom of the stack. This also prevents
+		// stack shrinks.
+		gp.asyncSafePoint = true
+
 		// Stash newg away so we can execute it below (mcall's
 		// closure can't capture anything).
 		gp.schedlink.set(newg)
@@ -175,6 +186,8 @@ func debugCallWrap(dispatch uintptr) {
 		mp.lockedg.set(gp)
 		gp.lockedm.set(mp)
 	}
+
+	gp.asyncSafePoint = false
 }
 
 // debugCallWrap1 is the continuation of debugCallWrap on the callee

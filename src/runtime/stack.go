@@ -1216,29 +1216,8 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
 		minsize = sys.MinFrameSize
 	}
 	if size > minsize {
-		var stkmap *stackmap
 		stackid := pcdata
-		if f.funcID != funcID_debugCallV1 {
-			stkmap = (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
-		} else {
-			// debugCallV1's stack map is the register map
-			// at its call site.
-			callerPC := frame.lr
-			caller := findfunc(callerPC)
-			if !caller.valid() {
-				println("runtime: debugCallV1 called by unknown caller", hex(callerPC))
-				throw("bad debugCallV1")
-			}
-			stackid = int32(-1)
-			if callerPC != caller.entry {
-				callerPC--
-				stackid = pcdatavalue(caller, _PCDATA_RegMapIndex, callerPC, cache)
-			}
-			if stackid == -1 {
-				stackid = 0 // in prologue
-			}
-			stkmap = (*stackmap)(funcdata(caller, _FUNCDATA_RegPointerMaps))
-		}
+		stkmap := (*stackmap)(funcdata(f, _FUNCDATA_LocalsPointerMaps))
 		if stkmap == nil || stkmap.n <= 0 {
 			print("runtime: frame ", funcname(f), " untyped locals ", hex(frame.varp-size), "+", hex(size), "\n")
 			throw("missing stackmap")
