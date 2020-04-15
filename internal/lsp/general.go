@@ -73,6 +73,10 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 			PrepareProvider: r.PrepareSupport,
 		}
 	}
+
+	goplsVer := &bytes.Buffer{}
+	debug.PrintVersionInfo(ctx, goplsVer, true, debug.PlainText)
+
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
 			CodeActionProvider: codeActionProvider,
@@ -110,6 +114,13 @@ func (s *Server) initialize(ctx context.Context, params *protocol.ParamInitializ
 					ChangeNotifications: "workspace/didChangeWorkspaceFolders",
 				},
 			},
+		},
+		ServerInfo: struct {
+			Name    string `json:"name"`
+			Version string `json:"version,omitempty"`
+		}{
+			Name:    "gopls",
+			Version: goplsVer.String(),
 		},
 	}, nil
 }
@@ -159,6 +170,7 @@ func (s *Server) initialized(ctx context.Context, params *protocol.InitializedPa
 		})
 	}
 
+	// TODO: this event logging may be unnecessary. The version info is included in the initialize response.
 	buf := &bytes.Buffer{}
 	debug.PrintVersionInfo(ctx, buf, true, debug.PlainText)
 	event.Print(ctx, buf.String())
