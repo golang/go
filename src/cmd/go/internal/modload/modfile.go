@@ -5,15 +5,17 @@
 package modload
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"path/filepath"
+	"sync"
+
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/par"
-	"errors"
-	"fmt"
-	"path/filepath"
-	"sync"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -41,10 +43,32 @@ type requireMeta struct {
 	indirect bool
 }
 
-// Allowed reports whether module m is allowed (not excluded) by the main module's go.mod.
-func Allowed(m module.Version) bool {
-	return index == nil || !index.exclude[m]
+// CheckAllowed returns an error equivalent to ErrDisallowed if m is excluded by
+// the main module's go.mod. Most version queries use this to filter out
+// versions that should not be used.
+func CheckAllowed(ctx context.Context, m module.Version) error {
+	return CheckExclusions(ctx, m)
 }
+
+// ErrDisallowed is returned by version predicates passed to Query and similar
+// functions to indicate that a version should not be considered.
+var ErrDisallowed = errors.New("disallowed module version")
+
+// CheckExclusions returns an error equivalent to ErrDisallowed if module m is
+// excluded by the main module's go.mod file.
+func CheckExclusions(ctx context.Context, m module.Version) error {
+	if index != nil && index.exclude[m] {
+		return module.VersionError(m, errExcluded)
+	}
+	return nil
+}
+
+var errExcluded = &excludedError{}
+
+type excludedError struct{}
+
+func (e *excludedError) Error() string     { return "excluded by go.mod" }
+func (e *excludedError) Is(err error) bool { return err == ErrDisallowed }
 
 // Replacement returns the replacement for mod, if any, from go.mod.
 // If there is no replacement for mod, Replacement returns

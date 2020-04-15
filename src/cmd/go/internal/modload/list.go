@@ -34,7 +34,7 @@ func ListModules(ctx context.Context, args []string, listU, listVersions bool) [
 						addUpdate(ctx, m)
 					}
 					if listVersions {
-						addVersions(m)
+						addVersions(ctx, m)
 					}
 					<-sem
 				}()
@@ -83,7 +83,12 @@ func listModules(ctx context.Context, args []string, listVersions bool) []*modin
 				}
 			}
 
-			info, err := Query(ctx, path, vers, current, nil)
+			allowed := CheckAllowed
+			if IsRevisionQuery(vers) {
+				// Allow excluded versions if the user asked for a specific revision.
+				allowed = nil
+			}
+			info, err := Query(ctx, path, vers, current, allowed)
 			if err != nil {
 				mods = append(mods, &modinfo.ModulePublic{
 					Path:    path,
