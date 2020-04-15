@@ -15,3 +15,19 @@ contract C(T) {
 
 func F3(type T C)() {}
 func F4() { F3(int)() } // ERROR "int does not satisfy C.*method M"
+
+func F5(type T)() { F3(T)() } // ERROR "T does not satisfy C.*method M"
+
+contract signed(T) {
+	 T int, int8, int16, int32, int64
+}
+
+contract integer(T) {
+	T int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64, uintptr
+}
+
+func F6(type T signed)(a T) bool { return a < 0 }
+func F7(type T)(a T) bool { return F6(a) } // ERROR "T does not satisfy signed.*T has no type constraints"
+func F8(type T integer)(a T) bool { return F6(a) } // ERROR "T does not satisfy signed.*T type constraint uint not found in"
+func F9(a uint) bool { return F6(a) } // ERROR "uint does not satisfy signed.*uint not found in"

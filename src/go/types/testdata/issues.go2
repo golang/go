@@ -132,7 +132,7 @@ func F() {
 type T1(type P interface{type uint}) struct{}
 
 func _(type P)() {
-    _ = T1(P /* ERROR missing type uint */ ){}
+    _ = T1(P /* ERROR P has no type constraints */ ){}
 }
 
 // This is the original (simplified) program causing the same issue.
@@ -148,8 +148,8 @@ func (u T2(U)) Add1() U {
     return u.s + 1
 }
 
-func NewT2(type U)() T2(U /* ERROR missing type uint */ ) {
-    return T2(U /* ERROR missing type uint */ ){}
+func NewT2(type U)() T2(U /* ERROR U has no type constraints */ ) {
+    return T2(U /* ERROR U has no type constraints */ ){}
 }
 
 func _() {

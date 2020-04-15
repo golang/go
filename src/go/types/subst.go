@@ -164,13 +164,13 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
 		if targ, _ := targ.Underlying().(*TypeParam); targ != nil {
 			targBound := targ.Interface()
 			if len(targBound.allTypes) == 0 {
-				check.softErrorf(pos, "%s does not satisfy %s (missing type %s)", targ, tpar.bound, iface.allTypes[0])
+				check.softErrorf(pos, "%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
 				break
 			}
 			for _, t := range targBound.allTypes {
 				if !iface.includes(t.Underlying()) {
 					// TODO(gri) match this error message with the one below (or vice versa)
-					check.softErrorf(pos, "%s does not satisfy %s (missing type %s)", targ, tpar.bound, t)
+					check.softErrorf(pos, "%s does not satisfy %s (%s type constraint %s not found in %s)", targ, tpar.bound, targ, t, iface)
 					break
 				}
 			}

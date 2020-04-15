@@ -319,7 +319,7 @@ func _(type P B1)(x T3(P))
 
 type B2 interface{type int, string}
 
-func _(type P B2)(x T3(P /* ERROR missing type string */ ))
+func _(type P B2)(x T3(P /* ERROR type constraint string not found in */ ))
 
 
 contract B3(T) {
@@ -328,7 +328,7 @@ contract B3(T) {
 
 type T4(type P B1) P
 
-func _(type P B3)(x T4(P /* ERROR missing type string */ ))
+func _(type P B3)(x T4(P /* ERROR type constraint string not found in */ ))
 
 // --------------------------------------------------------------------------------------
 // Type parameters may be from different parameterized objects
