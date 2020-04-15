@@ -94,7 +94,7 @@ Loop:
 }
 
 func unlock(l *mutex) {
-	lockRankRelease(l)
+	unlockWithRank(l)
 }
 
 //go:nowritebarrier
