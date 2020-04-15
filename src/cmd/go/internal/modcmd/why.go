@@ -69,12 +69,13 @@ func runWhy(ctx context.Context, cmd *base.Command, args []string) {
 	if *whyM {
 		listU := false
 		listVersions := false
+		listRetractions := false
 		for _, arg := range args {
 			if strings.Contains(arg, "@") {
 				base.Fatalf("go mod why: module query not allowed")
 			}
 		}
-		mods := modload.ListModules(ctx, args, listU, listVersions)
+		mods := modload.ListModules(ctx, args, listU, listVersions, listRetractions)
 		byModule := make(map[module.Version][]string)
 		for _, path := range loadALL(ctx) {
 			m := modload.PackageModule(path)

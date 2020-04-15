@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"internal/goroot"
 	"os"
@@ -58,7 +59,9 @@ func PackageModuleInfo(pkgpath string) *modinfo.ModulePublic {
 	if !ok {
 		return nil
 	}
-	return moduleInfo(context.TODO(), m, true)
+	fromBuildList := true
+	listRetracted := false
+	return moduleInfo(context.TODO(), m, fromBuildList, listRetracted)
 }
 
 func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
@@ -66,13 +69,17 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
 		return nil
 	}
 
+	listRetracted := false
 	if i := strings.Index(path, "@"); i >= 0 {
-		return moduleInfo(ctx, module.Version{Path: path[:i], Version: path[i+1:]}, false)
+		m := module.Version{Path: path[:i], Version: path[i+1:]}
+		fromBuildList := false
+		return moduleInfo(ctx, m, fromBuildList, listRetracted)
 	}
 
 	for _, m := range BuildList() {
 		if m.Path == path {
-			return moduleInfo(ctx, m, true)
+			fromBuildList := true
+			return moduleInfo(ctx, m, fromBuildList, listRetracted)
 		}
 	}
 
@@ -100,11 +107,37 @@ func addUpdate(ctx context.Context, m *modinfo.ModulePublic) {
 }
 
 // addVersions fills in m.Versions with the list of known versions.
-func addVersions(ctx context.Context, m *modinfo.ModulePublic) {
-	m.Versions, _ = versions(ctx, m.Path, CheckAllowed)
+// Excluded versions will be omitted. If listRetracted is false, retracted
+// versions will also be omitted.
+func addVersions(ctx context.Context, m *modinfo.ModulePublic, listRetracted bool) {
+	allowed := CheckAllowed
+	if listRetracted {
+		allowed = CheckExclusions
+	}
+	m.Versions, _ = versions(ctx, m.Path, allowed)
 }
 
-func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modinfo.ModulePublic {
+// addRetraction fills in m.Retracted if the module was retracted by its author.
+// m.Error is set if there's an error loading retraction information.
+func addRetraction(ctx context.Context, m *modinfo.ModulePublic) {
+	if m.Version == "" {
+		return
+	}
+
+	err := checkRetractions(ctx, module.Version{Path: m.Path, Version: m.Version})
+	var rerr *retractedError
+	if errors.As(err, &rerr) {
+		if len(rerr.rationale) == 0 {
+			m.Retracted = []string{"retracted by module author"}
+		} else {
+			m.Retracted = rerr.rationale
+		}
+	} else if err != nil && m.Error == nil {
+		m.Error = &modinfo.ModuleError{Err: err.Error()}
+	}
+}
+
+func moduleInfo(ctx context.Context, m module.Version, fromBuildList, listRetracted bool) *modinfo.ModulePublic {
 	if m == Target {
 		info := &modinfo.ModulePublic{
 			Path:    m.Path,
@@ -151,6 +184,10 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modi
 			dir, err := modfetch.DownloadDir(mod)
 			if err == nil {
 				m.Dir = dir
+			}
+
+			if listRetracted {
+				addRetraction(ctx, m)
 			}
 		}
 
@@ -205,6 +242,7 @@ func moduleInfo(ctx context.Context, m module.Version, fromBuildList bool) *modi
 		completeFromModCache(info.Replace)
 		info.Dir = info.Replace.Dir
 		info.GoMod = info.Replace.GoMod
+		info.Retracted = info.Replace.Retracted
 	}
 	info.GoVersion = info.Replace.GoVersion
 	return info

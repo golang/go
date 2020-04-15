@@ -916,6 +916,7 @@
 //         Dir       string       // directory holding files for this module, if any
 //         GoMod     string       // path to go.mod file used when loading this module, if any
 //         GoVersion string       // go version used in module
+//         Retracted string       // retraction information, if any (with -retracted or -u)
 //         Error     *ModuleError // error loading module
 //     }
 //
@@ -947,14 +948,16 @@
 // The -u flag adds information about available upgrades.
 // When the latest version of a given module is newer than
 // the current one, list -u sets the Module's Update field
-// to information about the newer module.
+// to information about the newer module. list -u will also set
+// the module's Retracted field if the current version is retracted.
 // The Module's String method indicates an available upgrade by
 // formatting the newer version in brackets after the current version.
+// If a version is retracted, the string "(retracted)" will follow it.
 // For example, 'go list -m -u all' might print:
 //
 //     my/main/module
 //     golang.org/x/text v0.3.0 [v0.4.0] => /tmp/text
-//     rsc.io/pdf v0.1.1 [v0.1.2]
+//     rsc.io/pdf v0.1.1 (retracted) [v0.1.2]
 //
 // (For tools, 'go list -m -u -json all' may be more convenient to parse.)
 //
@@ -963,6 +966,14 @@
 // to semantic versioning, earliest to latest. The flag also changes
 // the default output format to display the module path followed by the
 // space-separated version list.
+//
+// The -retracted flag causes list to report information about retracted
+// module versions. When -retracted is used with -f or -json, the Retracted
+// field will be set to a string explaining why the version was retracted.
+// The string is taken from comments on the retract directive in the
+// module's go.mod file. When -retracted is used with -versions, retracted
+// versions are listed together with unretracted versions. The -retracted
+// flag may be used with or without -m.
 //
 // The arguments to list -m are interpreted as a list of modules, not packages.
 // The main module is the module containing the current directory.

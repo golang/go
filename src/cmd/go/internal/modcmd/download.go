@@ -12,8 +12,8 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
-	"cmd/go/internal/modload"
 	"cmd/go/internal/modfetch"
+	"cmd/go/internal/modload"
 	"cmd/go/internal/work"
 
 	"golang.org/x/mod/module"
@@ -136,9 +136,10 @@ func runDownload(ctx context.Context, cmd *base.Command, args []string) {
 	var mods []*moduleJSON
 	listU := false
 	listVersions := false
+	listRetractions := false
 	type token struct{}
 	sem := make(chan token, runtime.GOMAXPROCS(0))
-	for _, info := range modload.ListModules(ctx, args, listU, listVersions) {
+	for _, info := range modload.ListModules(ctx, args, listU, listVersions, listRetractions) {
 		if info.Replace != nil {
 			info = info.Replace
 		}
