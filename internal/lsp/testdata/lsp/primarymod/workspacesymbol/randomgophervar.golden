@@ -1,0 +1,3 @@
+-- workspace_symbol --
+workspacesymbol/a/a.go:3:5-26 RandomGopherVariableA Variable
+workspacesymbol/b/b.go:3:5-26 RandomGopherVariableB Variable

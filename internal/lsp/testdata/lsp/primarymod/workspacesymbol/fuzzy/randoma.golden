@@ -1,0 +1,5 @@
+-- workspace_symbol --
+workspacesymbol/a/a.go:3:5-26 RandomGopherVariableA Variable
+workspacesymbol/a/a.go:5:7-28 RandomGopherConstantA Constant
+workspacesymbol/a/a.go:8:2-24 randomgopherinvariable Constant
+workspacesymbol/b/b.go:3:5-26 RandomGopherVariableB Variable

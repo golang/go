@@ -1,23 +1,23 @@
 package fuzzy
 
 /*@
-workspacesymbolfuzzy("wsym",
-	WorkspaceSymbolVariableA,
-	WorkspaceSymbolConstantA,
-	workspacesymbolinvariable,
-	WorkspaceSymbolVariableB,
-	WorkspaceSymbolStructB,
+workspacesymbolfuzzy("rgop",
+	RandomGopherVariableA,
+	RandomGopherConstantA,
+	randomgopherinvariable,
+	RandomGopherVariableB,
+	RandomGopherStructB,
 )
-workspacesymbolfuzzy("symbola",
-	WorkspaceSymbolVariableA,
-	WorkspaceSymbolConstantA,
-	workspacesymbolinvariable,
-	WorkspaceSymbolVariableB,
+workspacesymbolfuzzy("randoma",
+	RandomGopherVariableA,
+	RandomGopherConstantA,
+	randomgopherinvariable,
+	RandomGopherVariableB,
 )
-workspacesymbolfuzzy("symbolb",
-	WorkspaceSymbolVariableA,
-	workspacesymbolinvariable,
-	WorkspaceSymbolVariableB,
-	WorkspaceSymbolStructB,
+workspacesymbolfuzzy("randomb",
+	RandomGopherVariableA,
+	randomgopherinvariable,
+	RandomGopherVariableB,
+	RandomGopherStructB,
 )
 */

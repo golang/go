@@ -1,5 +1,5 @@
 -- symbols --
-WorkspaceSymbolVariableA Variable 3:5-3:29
-WorkspaceSymbolConstantA Constant 5:7-5:31
-workspacesymbolinvariable Constant 8:2-8:27
+RandomGopherVariableA Variable 3:5-3:26
+RandomGopherConstantA Constant 5:7-5:28
+randomgopherinvariable Constant 8:2-8:24
 
