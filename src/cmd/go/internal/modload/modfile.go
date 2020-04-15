@@ -9,13 +9,16 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"sync"
+	"unicode"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/lockedfile"
 	"cmd/go/internal/modfetch"
 	"cmd/go/internal/par"
+	"cmd/go/internal/trace"
 
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -44,10 +47,16 @@ type requireMeta struct {
 }
 
 // CheckAllowed returns an error equivalent to ErrDisallowed if m is excluded by
-// the main module's go.mod. Most version queries use this to filter out
-// versions that should not be used.
+// the main module's go.mod or retracted by its author. Most version queries use
+// this to filter out versions that should not be used.
 func CheckAllowed(ctx context.Context, m module.Version) error {
-	return CheckExclusions(ctx, m)
+	if err := CheckExclusions(ctx, m); err != nil {
+		return err
+	}
+	if err := checkRetractions(ctx, m); err != nil {
+		return err
+	}
+	return nil
 }
 
 // ErrDisallowed is returned by version predicates passed to Query and similar
@@ -69,6 +78,120 @@ type excludedError struct{}
 
 func (e *excludedError) Error() string     { return "excluded by go.mod" }
 func (e *excludedError) Is(err error) bool { return err == ErrDisallowed }
+
+// checkRetractions returns an error if module m has been retracted by
+// its author.
+func checkRetractions(ctx context.Context, m module.Version) error {
+	if m.Version == "" {
+		// Main module, standard library, or file replacement module.
+		// Cannot be retracted.
+		return nil
+	}
+
+	// Look up retraction information from the latest available version of
+	// the module. Cache retraction information so we don't parse the go.mod
+	// file repeatedly.
+	type entry struct {
+		retract []retraction
+		err     error
+	}
+	path := m.Path
+	e := retractCache.Do(path, func() (v interface{}) {
+		ctx, span := trace.StartSpan(ctx, "checkRetractions "+path)
+		defer span.Done()
+
+		if repl := Replacement(module.Version{Path: m.Path}); repl.Path != "" {
+			// All versions of the module were replaced with a local directory.
+			// Don't load retractions.
+			return &entry{nil, nil}
+		}
+
+		// Find the latest version of the module.
+		// Ignore exclusions from the main module's go.mod.
+		// We may need to account for the current version: for example,
+		// v2.0.0+incompatible is not "latest" if v1.0.0 is current.
+		rev, err := Query(ctx, path, "latest", findCurrentVersion(path), nil)
+		if err != nil {
+			return &entry{err: err}
+		}
+
+		// Load go.mod for that version.
+		// If the version is replaced, we'll load retractions from the replacement.
+		// If there's an error loading the go.mod, we'll return it here.
+		// These errors should generally be ignored by callers of checkRetractions,
+		// since they happen frequently when we're offline. These errors are not
+		// equivalent to ErrDisallowed, so they may be distinguished from
+		// retraction errors.
+		summary, err := goModSummary(module.Version{Path: path, Version: rev.Version})
+		if err != nil {
+			return &entry{err: err}
+		}
+		return &entry{retract: summary.retract}
+	}).(*entry)
+
+	if e.err != nil {
+		return fmt.Errorf("loading module retractions: %v", e.err)
+	}
+
+	var rationale []string
+	isRetracted := false
+	for _, r := range e.retract {
+		if semver.Compare(r.Low, m.Version) <= 0 && semver.Compare(m.Version, r.High) <= 0 {
+			isRetracted = true
+			if r.Rationale != "" {
+				rationale = append(rationale, r.Rationale)
+			}
+		}
+	}
+	if isRetracted {
+		return &retractedError{rationale: rationale}
+	}
+	return nil
+}
+
+var retractCache par.Cache
+
+type retractedError struct {
+	rationale []string
+}
+
+func (e *retractedError) Error() string {
+	msg := "retracted by module author"
+	if len(e.rationale) > 0 {
+		// This is meant to be a short error printed on a terminal, so just
+		// print the first rationale.
+		msg += ": " + ShortRetractionRationale(e.rationale[0])
+	}
+	return msg
+}
+
+func (e *retractedError) Is(err error) bool {
+	return err == ErrDisallowed
+}
+
+// ShortRetractionRationale returns a retraction rationale string that is safe
+// to print in a terminal. It returns hard-coded strings if the rationale
+// is empty, too long, or contains non-printable characters.
+func ShortRetractionRationale(rationale string) string {
+	const maxRationaleBytes = 500
+	if i := strings.Index(rationale, "\n"); i >= 0 {
+		rationale = rationale[:i]
+	}
+	rationale = strings.TrimSpace(rationale)
+	if rationale == "" {
+		return "retracted by module author"
+	}
+	if len(rationale) > maxRationaleBytes {
+		return "(rationale omitted: too long)"
+	}
+	for _, r := range rationale {
+		if !unicode.IsGraphic(r) && !unicode.IsSpace(r) {
+			return "(rationale omitted: contains non-printable characters)"
+		}
+	}
+	// NOTE: the go.mod parser rejects invalid UTF-8, so we don't check that here.
+	return rationale
+}
 
 // Replacement returns the replacement for mod, if any, from go.mod.
 // If there is no replacement for mod, Replacement returns
@@ -210,6 +333,14 @@ type modFileSummary struct {
 	module     module.Version
 	goVersionV string // GoVersion with "v" prefix
 	require    []module.Version
+	retract    []retraction
+}
+
+// A retraction consists of a retracted version interval and rationale.
+// retraction is like modfile.Retract, but it doesn't point to the syntax tree.
+type retraction struct {
+	modfile.VersionInterval
+	Rationale string
 }
 
 // goModSummary returns a summary of the go.mod file for module m,
@@ -361,6 +492,15 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
 		summary.require = make([]module.Version, 0, len(f.Require))
 		for _, req := range f.Require {
 			summary.require = append(summary.require, req.Mod)
+		}
+	}
+	if len(f.Retract) > 0 {
+		summary.retract = make([]retraction, 0, len(f.Retract))
+		for _, ret := range f.Retract {
+			summary.retract = append(summary.retract, retraction{
+				VersionInterval: ret.VersionInterval,
+				Rationale:       ret.Rationale,
+			})
 		}
 	}
 

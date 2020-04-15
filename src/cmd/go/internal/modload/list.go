@@ -85,7 +85,8 @@ func listModules(ctx context.Context, args []string, listVersions bool) []*modin
 
 			allowed := CheckAllowed
 			if IsRevisionQuery(vers) {
-				// Allow excluded versions if the user asked for a specific revision.
+				// Allow excluded and retracted versions if the user asked for a
+				// specific revision.
 				allowed = nil
 			}
 			info, err := Query(ctx, path, vers, current, allowed)
