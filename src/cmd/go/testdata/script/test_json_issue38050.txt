@@ -1,0 +1,74 @@
+# Run go test -json on a contrived test suite that
+# runs tests in parallel, some of which fail with
+# output. We assert here that the t.Error logs
+# are correctly attributed to the originating test
+# cases by the test2json utility.
+! go test -json -short -v parallel
+
+# Check for run action
+stdout '"Package":"parallel"'
+
+# Check for correctly attributed log/failure output
+stdout '"Action":"output","Package":"parallel","Test":"Test1/this_will_fail","Output":"    Test1/this_will_fail: parallel_test.go:40: \\n"}'
+stdout '"Action":"output","Package":"parallel","Test":"Test1/this_will_fail","Output":"        got:  \[THIS WILL FAIL\]\\n"}'
+stdout '"Action":"output","Package":"parallel","Test":"Test1/this_will_fail","Output":"        want: \[because this is wrong\]\\n"}'
+stdout '"Action":"output","Package":"parallel","Test":"Test2/this_will_fail","Output":"    Test2/this_will_fail: parallel_test.go:40: \\n"}'
+stdout '"Action":"output","Package":"parallel","Test":"Test2/this_will_fail","Output":"        got:  \[THIS WILL FAIL\]\\n"}'
+stdout '"Action":"output","Package":"parallel","Test":"Test2/this_will_fail","Output":"        want: \[because this is wrong\]\\n"}'
+
+# Check for run action via go tool test2json
+go test -o $WORK/tmp/parallel.test$GOEXE -c parallel
+! go tool test2json -p parallel $WORK/tmp/parallel.test$GOEXE -test.v
+stdout '"Package":"parallel"'
+
+# Check for correctly attributed log/failure output via go tool test2json
+stdout '"Action":"output","Package":"parallel","Test":"Test1/this_will_fail","Output":"    Test1/this_will_fail: parallel_test.go:40: \\n"}'
+stdout '"Action":"output","Package":"parallel","Test":"Test1/this_will_fail","Output":"        got:  \[THIS WILL FAIL\]\\n"}'
+stdout '"Action":"output","Package":"parallel","Test":"Test1/this_will_fail","Output":"        want: \[because this is wrong\]\\n"}'
+stdout '"Action":"output","Package":"parallel","Test":"Test2/this_will_fail","Output":"    Test2/this_will_fail: parallel_test.go:40: \\n"}'
+stdout '"Action":"output","Package":"parallel","Test":"Test2/this_will_fail","Output":"        got:  \[THIS WILL FAIL\]\\n"}'
+stdout '"Action":"output","Package":"parallel","Test":"Test2/this_will_fail","Output":"        want: \[because this is wrong\]\\n"}'
+
+-- parallel/parallel_test.go --
+package parallel
+
+import (
+	"strings"
+	"testing"
+)
+
+func Test1(t *testing.T) { runSuite(t) }
+func Test2(t *testing.T) { runSuite(t) }
+
+func runSuite(t *testing.T) {
+	t.Parallel() // run top-level tests in parallel
+
+	for _, test := range testCases {
+		t.Run(test.input, test.execute)
+	}
+}
+
+var testCases = []TestCase{
+	{
+		input:    "this passes",
+		expected: "THIS PASSES",
+	},
+	{
+		input:    "this will fail",
+		expected: "because this is wrong",
+	},
+}
+
+type TestCase struct {
+	input    string
+	expected string
+}
+
+func (test TestCase) execute(t *testing.T) {
+	t.Parallel() // run each sub-test in parallel
+
+	actual := strings.ToUpper(test.input)
+	if actual != test.expected {
+		t.Errorf("\ngot:  [%s]\nwant: [%s]", actual, test.expected)
+	}
+}
