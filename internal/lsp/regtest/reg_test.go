@@ -18,8 +18,11 @@ import (
 )
 
 var (
-	runSubprocessTests = flag.Bool("enable_gopls_subprocess_tests", false, "run regtests against a gopls subprocess")
-	goplsBinaryPath    = flag.String("gopls_test_binary", "", "path to the gopls binary for use as a remote, for use with the -gopls_subprocess_testmode flag")
+	runSubprocessTests       = flag.Bool("enable_gopls_subprocess_tests", false, "run regtests against a gopls subprocess")
+	goplsBinaryPath          = flag.String("gopls_test_binary", "", "path to the gopls binary for use as a remote, for use with the -gopls_subprocess_testmode flag")
+	alwaysPrintLogs          = flag.Bool("regtest_print_rpc_logs", false, "whether to always print RPC logs")
+	regtestTimeout           = flag.Duration("regtest_timeout", 60*time.Second, "default timeout for each regtest")
+	printGoroutinesOnFailure = flag.Bool("regtest_print_goroutines", false, "whether to print goroutine info on failure")
 )
 
 var runner *Runner
@@ -33,7 +36,12 @@ func TestMain(m *testing.M) {
 	resetExitFuncs := lsprpc.OverrideExitFuncsForTest()
 	defer resetExitFuncs()
 
-	const testTimeout = 60 * time.Second
+	runner = &Runner{
+		DefaultModes:             NormalModes,
+		Timeout:                  *regtestTimeout,
+		AlwaysPrintLogs:          *alwaysPrintLogs,
+		PrintGoroutinesOnFailure: *printGoroutinesOnFailure,
+	}
 	if *runSubprocessTests {
 		goplsPath := *goplsBinaryPath
 		if goplsPath == "" {
@@ -43,10 +51,10 @@ func TestMain(m *testing.M) {
 				panic(fmt.Sprintf("finding test binary path: %v", err))
 			}
 		}
-		runner = NewTestRunner(NormalModes|SeparateProcess, testTimeout, goplsPath)
-	} else {
-		runner = NewTestRunner(NormalModes, testTimeout, "")
+		runner.DefaultModes = NormalModes | SeparateProcess
+		runner.GoplsPath = goplsPath
 	}
+
 	code := m.Run()
 	runner.Close()
 	os.Exit(code)

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"golang.org/x/tools/internal/lsp/fake"
+	"golang.org/x/tools/internal/lsp/protocol"
 )
 
 // Use mod.com for all go.mod files due to golang/go#35230.
@@ -31,7 +32,14 @@ func TestDiagnosticErrorInEditedFile(t *testing.T) {
 		// diagnostic.
 		env.OpenFile("main.go")
 		env.RegexpReplace("main.go", "Printl(n)", "")
-		env.Await(env.DiagnosticAtRegexp("main.go", "Printl"))
+		env.Await(
+			env.DiagnosticAtRegexp("main.go", "Printl"),
+			// Assert that this test has sent no error logs to the client. This is not
+			// strictly necessary for testing this regression, but is included here
+			// as an example of using the NoErrorLogs() expectation. Feel free to
+			// delete.
+			NoErrorLogs(),
+		)
 	})
 }
 
@@ -88,7 +96,10 @@ func TestDiagnosticClearingOnEdit(t *testing.T) {
 
 		// Fix the error by editing the const name in b.go to `b`.
 		env.RegexpReplace("b.go", "(a) = 2", "b")
-		env.Await(EmptyDiagnostics("a.go"), EmptyDiagnostics("b.go"))
+		env.Await(
+			EmptyDiagnostics("a.go"),
+			EmptyDiagnostics("b.go"),
+		)
 	})
 }
 
@@ -297,10 +308,16 @@ const Answer = 42
 func TestResolveDiagnosticWithDownload(t *testing.T) {
 	runner.Run(t, testPackageWithRequire, func(t *testing.T, env *Env) {
 		env.OpenFile("print.go")
-		env.W.RunGoCommand(env.Ctx, "mod", "download")
 		// Check that gopackages correctly loaded this dependency. We should get a
 		// diagnostic for the wrong formatting type.
 		// TODO: we should be able to easily also match the diagnostic message.
 		env.Await(env.DiagnosticAtRegexp("print.go", "fmt.Printf"))
 	}, WithProxy(testPackageWithRequireProxy))
+}
+
+func TestMissingDependency(t *testing.T) {
+	runner.Run(t, testPackageWithRequire, func(t *testing.T, env *Env) {
+		env.OpenFile("print.go")
+		env.Await(LogMatching(protocol.Error, "initial workspace load failed"))
+	})
 }
