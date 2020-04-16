@@ -2341,6 +2341,60 @@ func testIssue37529(t *testing.T, exporter packagestest.Exporter) {
 	}
 }
 
+func TestIssue37098(t *testing.T) { packagestest.TestAll(t, testIssue37098) }
+func testIssue37098(t *testing.T, exporter packagestest.Exporter) {
+	// packages.Load should only return Go sources in
+	// (*Package).CompiledGoFiles.  This tests #37098, where using SWIG to
+	// causes C++ sources to be inadvertently included in
+	// (*Package).CompiledGoFiles.
+	t.Skip("Issue #37098: SWIG causes generated C++ sources in CompiledGoFiles")
+
+	// Create a fake package with an empty Go source, and a SWIG interface
+	// file.
+	exported := packagestest.Export(t, exporter, []packagestest.Module{{
+		Name: "golang.org/fake",
+		Files: map[string]interface{}{
+			// The "package" statement must be included for SWIG sources to
+			// be generated.
+			"a/a.go":      "package a",
+			"a/a.swigcxx": "",
+		}}})
+	defer exported.Cleanup()
+
+	initial, err := packages.Load(exported.Config, "golang.org/fake/a")
+	if err != nil {
+		t.Fatalf("failed to load the package: %v", err)
+	}
+	// Try and parse each of the files
+	for _, pkg := range initial {
+		for _, file := range pkg.CompiledGoFiles {
+
+			// Validate that each file can be parsed as a Go source.
+			fset := token.NewFileSet()
+			_, err := parser.ParseFile(fset, file, nil, parser.ImportsOnly)
+			if err != nil {
+				t.Errorf("Failed to parse file '%s' as a Go source: %v", file, err)
+
+				contents, err := ioutil.ReadFile(file)
+				if err != nil {
+					t.Fatalf("Failed to read the un-parsable file '%s': %v", file, err)
+				}
+
+				// Print out some of the un-parsable file to aid in debugging.
+				n := len(contents)
+
+				// Don't print the whole file if it is too large.
+				const maxBytes = 1000
+				if n > maxBytes {
+					n = maxBytes
+				}
+
+				t.Logf("First %d bytes of un-parsable file: %s", n, contents[:n])
+			}
+		}
+	}
+}
+
 // TestInvalidFilesInXTest checks the fix for golang/go#37971 in Go 1.15.
 func TestInvalidFilesInXTest(t *testing.T) { packagestest.TestAll(t, testInvalidFilesInXTest) }
 func testInvalidFilesInXTest(t *testing.T, exporter packagestest.Exporter) {
