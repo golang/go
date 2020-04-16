@@ -889,19 +889,31 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 		}
 	}
 	for _, e := range []struct {
-		name, field string
+		name, field, dclType string
 	}{
-		{auxint, "AuxInt"},
-		{aux, "Aux"},
+		{auxint, "AuxInt", data.auxIntType()},
+		{aux, "Aux", data.auxType()},
 	} {
 		if e.name == "" {
 			continue
 		}
+		if !rr.typed {
+			if !token.IsIdentifier(e.name) || rr.declared(e.name) {
+				// code or variable
+				rr.add(breakf("b.%s != %s", e.field, e.name))
+			} else {
+				rr.add(declf(e.name, "b.%s", e.field))
+			}
+			continue
+		}
+
+		if e.dclType == "" {
+			log.Fatalf("op %s has no declared type for %s", data.name, e.field)
+		}
 		if !token.IsIdentifier(e.name) || rr.declared(e.name) {
-			// code or variable
-			rr.add(breakf("b.%s != %s", e.field, e.name))
+			rr.add(breakf("%sTo%s(b.%s) != %s", unTitle(e.field), title(e.dclType), e.field, e.name))
 		} else {
-			rr.add(declf(e.name, "b.%s", e.field))
+			rr.add(declf(e.name, "%sTo%s(b.%s)", unTitle(e.field), title(e.dclType), e.field))
 		}
 	}
 	if rr.cond != "" {
@@ -910,7 +922,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 
 	// Rule matches. Generate result.
 	outop, _, auxint, aux, t := extract(rr.result) // remove parens, then split
-	_, outdata := getBlockInfo(outop, arch)
+	blockName, outdata := getBlockInfo(outop, arch)
 	if len(t) < outdata.controls {
 		log.Fatalf("incorrect number of output arguments in %s, got %v wanted at least %v", rule, len(s), outdata.controls)
 	}
@@ -935,7 +947,6 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 		log.Fatalf("unmatched successors %v in %s", m, rule)
 	}
 
-	blockName, _ := getBlockInfo(outop, arch)
 	var genControls [2]string
 	for i, control := range t[:outdata.controls] {
 		// Select a source position for any new control values.
@@ -963,10 +974,20 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 	}
 
 	if auxint != "" {
-		rr.add(stmtf("b.AuxInt = %s", auxint))
+		if rr.typed {
+			// Make sure auxint value has the right type.
+			rr.add(stmtf("b.AuxInt = %sToAuxInt(%s)", unTitle(outdata.auxIntType()), auxint))
+		} else {
+			rr.add(stmtf("b.AuxInt = %s", auxint))
+		}
 	}
 	if aux != "" {
-		rr.add(stmtf("b.Aux = %s", aux))
+		if rr.typed {
+			// Make sure aux value has the right type.
+			rr.add(stmtf("b.Aux = %sToAux(%s)", unTitle(outdata.auxType()), aux))
+		} else {
+			rr.add(stmtf("b.Aux = %s", aux))
+		}
 	}
 
 	succChanged := false
@@ -1409,7 +1430,8 @@ func opHasAuxInt(op opData) bool {
 
 func opHasAux(op opData) bool {
 	switch op.aux {
-	case "String", "Sym", "SymOff", "SymValAndOff", "Typ", "TypSize", "CCop", "ArchSpecific":
+	case "String", "Sym", "SymOff", "SymValAndOff", "Typ", "TypSize", "CCop",
+		"S390XCCMask", "S390XRotateParams":
 		return true
 	}
 	return false
@@ -1751,6 +1773,10 @@ func (op opData) auxType() string {
 		return "*types.Type"
 	case "TypSize":
 		return "*types.Type"
+	case "S390XCCMask":
+		return "s390x.CCMask"
+	case "S390XRotateParams":
+		return "s390x.RotateParams"
 	default:
 		return "invalid"
 	}
@@ -1788,16 +1814,50 @@ func (op opData) auxIntType() string {
 	}
 }
 
+// auxType returns the Go type that this block should store in its aux field.
+func (b blockData) auxType() string {
+	switch b.aux {
+	case "S390XCCMask", "S390XCCMaskInt8", "S390XCCMaskUint8":
+		return "s390x.CCMask"
+	case "S390XRotateParams":
+		return "s390x.RotateParams"
+	default:
+		return "invalid"
+	}
+}
+
+// auxIntType returns the Go type that this block should store in its auxInt field.
+func (b blockData) auxIntType() string {
+	switch b.aux {
+	case "S390XCCMaskInt8":
+		return "int8"
+	case "S390XCCMaskUint8":
+		return "uint8"
+	default:
+		return "invalid"
+	}
+}
+
 func title(s string) string {
 	if i := strings.Index(s, "."); i >= 0 {
-		s = s[i+1:]
+		switch strings.ToLower(s[:i]) {
+		case "s390x": // keep arch prefix for clarity
+			s = s[:i] + s[i+1:]
+		default:
+			s = s[i+1:]
+		}
 	}
 	return strings.Title(s)
 }
 
 func unTitle(s string) string {
 	if i := strings.Index(s, "."); i >= 0 {
-		s = s[i+1:]
+		switch strings.ToLower(s[:i]) {
+		case "s390x": // keep arch prefix for clarity
+			s = s[:i] + s[i+1:]
+		default:
+			s = s[i+1:]
+		}
 	}
 	return strings.ToLower(s[:1]) + s[1:]
 }
