@@ -2664,19 +2664,17 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 		}
 	}
 
-	// Now redo the assignment of text symbols to libs/units.
+	// Now assemble global textp, and assign text symbols to units.
 	for _, doInternal := range [2]bool{true, false} {
 		for idx, lib := range libs {
 			if intlibs[idx] != doInternal {
 				continue
 			}
-			libtextp2 := []sym.LoaderSym{}
 			lists := [2][]sym.LoaderSym{lib.Textp2, lib.DupTextSyms2}
 			for i, list := range lists {
 				for _, s := range list {
 					sym := Sym(s)
 					if l.attrReachable.Has(sym) && !assignedToUnit.Has(sym) {
-						libtextp2 = append(libtextp2, s)
 						textp2 = append(textp2, sym)
 						unit := l.SymUnit(sym)
 						if unit != nil {
@@ -2694,7 +2692,8 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
 					}
 				}
 			}
-			lib.Textp2 = libtextp2
+			lib.Textp2 = nil
+			lib.DupTextSyms2 = nil
 		}
 	}
 
