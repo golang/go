@@ -1444,7 +1444,6 @@ func (ctxt *Link) dodata() {
 	state.makeRelroForSharedLib(ctxt)
 
 	// Sort symbols.
-	var dataMaxAlign [sym.SXREF]int32
 	var wg sync.WaitGroup
 	for symn := range state.data {
 		symn := sym.SymKind(symn)
@@ -1459,8 +1458,8 @@ func (ctxt *Link) dodata() {
 	if ctxt.HeadType == objabi.Haix && ctxt.LinkMode == LinkExternal {
 		// These symbols must have the same alignment as their section.
 		// Otherwize, ld might change the layout of Go sections.
-		ctxt.Syms.ROLookup("runtime.data", 0).Align = dataMaxAlign[sym.SDATA]
-		ctxt.Syms.ROLookup("runtime.bss", 0).Align = dataMaxAlign[sym.SBSS]
+		ctxt.Syms.ROLookup("runtime.data", 0).Align = state.dataMaxAlign[sym.SDATA]
+		ctxt.Syms.ROLookup("runtime.bss", 0).Align = state.dataMaxAlign[sym.SBSS]
 	}
 
 	state.allocateSections(ctxt)
