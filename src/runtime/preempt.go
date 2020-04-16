@@ -58,6 +58,9 @@ import (
 	"unsafe"
 )
 
+// Keep in sync with cmd/compile/internal/gc/plive.go:go115ReduceLiveness.
+const go115ReduceLiveness = true
+
 type suspendGState struct {
 	g *g
 
@@ -393,12 +396,22 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) bool {
 		// use the LR for unwinding, which will be bad.
 		return false
 	}
-	smi := pcdatavalue(f, _PCDATA_RegMapIndex, pc, nil)
-	if smi == -2 {
-		// Unsafe-point marked by compiler. This includes
-		// atomic sequences (e.g., write barrier) and nosplit
-		// functions (except at calls).
-		return false
+	if !go115ReduceLiveness {
+		smi := pcdatavalue(f, _PCDATA_RegMapIndex, pc, nil)
+		if smi == -2 {
+			// Unsafe-point marked by compiler. This includes
+			// atomic sequences (e.g., write barrier) and nosplit
+			// functions (except at calls).
+			return false
+		}
+	} else {
+		up := pcdatavalue(f, _PCDATA_UnsafePoint, pc, nil)
+		if up != _PCDATA_UnsafePointSafe {
+			// Unsafe-point marked by compiler. This includes
+			// atomic sequences (e.g., write barrier) and nosplit
+			// functions (except at calls).
+			return false
+		}
 	}
 	if fd := funcdata(f, _FUNCDATA_LocalsPointerMaps); fd == nil || fd == unsafe.Pointer(&no_pointers_stackmap) {
 		// This is assembly code. Don't assume it's

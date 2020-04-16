@@ -70,9 +70,13 @@ func newProgs(fn *Node, worker int) *Progs {
 
 	pp.pos = fn.Pos
 	pp.settext(fn)
-	pp.nextLive = LivenessInvalid
 	// PCDATA tables implicitly start with index -1.
 	pp.prevLive = LivenessIndex{-1, -1, false}
+	if go115ReduceLiveness {
+		pp.nextLive = pp.prevLive
+	} else {
+		pp.nextLive = LivenessInvalid
+	}
 	return pp
 }
 
@@ -117,18 +121,32 @@ func (pp *Progs) Prog(as obj.As) *obj.Prog {
 		Addrconst(&p.From, objabi.PCDATA_StackMapIndex)
 		Addrconst(&p.To, int64(idx))
 	}
-	if pp.nextLive.isUnsafePoint {
-		// Unsafe points are encoded as a special value in the
-		// register map.
-		pp.nextLive.regMapIndex = objabi.PCDATA_RegMapUnsafe
-	}
-	if pp.nextLive.regMapIndex != pp.prevLive.regMapIndex {
-		// Emit register map index change.
-		idx := pp.nextLive.regMapIndex
-		pp.prevLive.regMapIndex = idx
-		p := pp.Prog(obj.APCDATA)
-		Addrconst(&p.From, objabi.PCDATA_RegMapIndex)
-		Addrconst(&p.To, int64(idx))
+	if !go115ReduceLiveness {
+		if pp.nextLive.isUnsafePoint {
+			// Unsafe points are encoded as a special value in the
+			// register map.
+			pp.nextLive.regMapIndex = objabi.PCDATA_RegMapUnsafe
+		}
+		if pp.nextLive.regMapIndex != pp.prevLive.regMapIndex {
+			// Emit register map index change.
+			idx := pp.nextLive.regMapIndex
+			pp.prevLive.regMapIndex = idx
+			p := pp.Prog(obj.APCDATA)
+			Addrconst(&p.From, objabi.PCDATA_RegMapIndex)
+			Addrconst(&p.To, int64(idx))
+		}
+	} else {
+		if pp.nextLive.isUnsafePoint != pp.prevLive.isUnsafePoint {
+			// Emit unsafe-point marker.
+			pp.prevLive.isUnsafePoint = pp.nextLive.isUnsafePoint
+			p := pp.Prog(obj.APCDATA)
+			Addrconst(&p.From, objabi.PCDATA_UnsafePoint)
+			if pp.nextLive.isUnsafePoint {
+				Addrconst(&p.To, objabi.PCDATA_UnsafePointUnsafe)
+			} else {
+				Addrconst(&p.To, objabi.PCDATA_UnsafePointSafe)
+			}
+		}
 	}
 
 	p := pp.next
