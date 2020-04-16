@@ -325,6 +325,21 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 		return newoff
 	}
 
+	setAddr := (*loader.SymbolBuilder).SetAddrPlus
+	if ctxt.IsExe() && ctxt.IsInternal() {
+		// Internal linking static executable. At this point the function
+		// addresses are known, so we can just use them instead of emitting
+		// relocations.
+		// For other cases we are generating a relocatable binary so we
+		// still need to emit relocations.
+		setAddr = func(s *loader.SymbolBuilder, arch *sys.Arch, off int64, tgt loader.Sym, add int64) int64 {
+			if v := ldr.SymValue(tgt); v != 0 {
+				return s.SetUint(arch, off, uint64(v+add))
+			}
+			return s.SetAddrPlus(arch, off, tgt, add)
+		}
+	}
+
 	pcsp := sym.Pcdata{}
 	pcfile := sym.Pcdata{}
 	pcline := sym.Pcdata{}
@@ -347,7 +362,7 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 			// invalid funcoff value to mark the hole. See also
 			// runtime/symtab.go:findfunc
 			prevFuncSize := int64(ldr.SymSize(prevFunc))
-			ftab.SetAddrPlus(ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), prevFunc, prevFuncSize)
+			setAddr(ftab, ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), prevFunc, prevFuncSize)
 			ftab.SetUint(ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), ^uint64(0))
 			nfunc++
 		}
@@ -397,10 +412,7 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 		funcstart := int32(dSize)
 		funcstart += int32(-dSize) & (int32(ctxt.Arch.PtrSize) - 1) // align to ptrsize
 
-		// NB: for the static binary internal-link case, we could just
-		// emit the symbol value instead of creating a relocation here
-		// (might speed things up for that case).
-		ftab.SetAddrPlus(ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), s, 0)
+		setAddr(ftab, ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), s, 0)
 		ftab.SetUint(ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize)+int64(ctxt.Arch.PtrSize), uint64(funcstart))
 
 		// Write runtime._func. Keep in sync with ../../../../runtime/runtime2.go:/_func
@@ -416,7 +428,7 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 		ftab.Grow(int64(end))
 
 		// entry uintptr
-		off = int32(ftab.SetAddrPlus(ctxt.Arch, int64(off), s, 0))
+		off = int32(setAddr(ftab, ctxt.Arch, int64(off), s, 0))
 
 		// name int32
 		sn := ldr.SymName(s)
@@ -497,7 +509,7 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 				}
 				// TODO: Dedup.
 				funcdataBytes += int64(len(ldr.Data(funcdata[i])))
-				ftab.SetAddrPlus(ctxt.Arch, dataoff, funcdata[i], funcdataoff[i])
+				setAddr(ftab, ctxt.Arch, dataoff, funcdata[i], funcdataoff[i])
 			}
 			off += int32(len(funcdata)) * int32(ctxt.Arch.PtrSize)
 		}
@@ -513,7 +525,7 @@ func (ctxt *Link) pclntab() loader.Bitmap {
 	last := ctxt.Textp2[len(ctxt.Textp2)-1]
 	pclntabLastFunc2 = last
 	// Final entry of table is just end pc.
-	ftab.SetAddrPlus(ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), last, ldr.SymSize(last))
+	setAddr(ftab, ctxt.Arch, 8+int64(ctxt.Arch.PtrSize)+int64(nfunc)*2*int64(ctxt.Arch.PtrSize), last, ldr.SymSize(last))
 
 	// Start file table.
 	dSize := len(ftab.Data())
