@@ -1140,6 +1140,9 @@ func (d *dwctxt2) writelines(unit *sym.CompilationUnit, ls loader.Sym) {
 	lsu := d.ldr.MakeSymbolUpdater(ls)
 	newattr(unit.DWInfo, dwarf.DW_AT_stmt_list, dwarf.DW_CLS_PTR, lsu.Size(), dwSym(ls))
 
+	internalExec := d.linkctxt.BuildMode == BuildModeExe && d.linkctxt.IsInternal()
+	addAddrPlus := loader.GenAddAddrPlusFunc(internalExec)
+
 	// Write .debug_line Line Number Program Header (sec 6.2.4)
 	// Fields marked with (*) must be changed for 64-bit dwarf
 	unitLengthOffset := lsu.Size()
@@ -1209,7 +1212,7 @@ func (d *dwctxt2) writelines(unit *sym.CompilationUnit, ls loader.Sym) {
 		lsu.AddUint8(0)
 		dwarf.Uleb128put(d, lsDwsym, 1+int64(d.arch.PtrSize))
 		lsu.AddUint8(dwarf.DW_LNE_set_address)
-		addr := lsu.AddAddrPlus(d.arch, fnSym, 0)
+		addr := addAddrPlus(lsu, d.arch, fnSym, 0)
 		// Make sure the units are sorted.
 		if addr < lastAddr {
 			d.linkctxt.Errorf(fnSym, "address wasn't increasing %x < %x",
@@ -1347,6 +1350,9 @@ func (d *dwctxt2) writeframes(syms []loader.Sym) []loader.Sym {
 		Exitf("dwarf: cieReserve too small by %d bytes.", -pad)
 	}
 
+	internalExec := d.linkctxt.BuildMode == BuildModeExe && d.linkctxt.IsInternal()
+	addAddrPlus := loader.GenAddAddrPlusFunc(internalExec)
+
 	fsu.AddBytes(zeros[:pad])
 
 	var deltaBuf []byte
@@ -1428,7 +1434,7 @@ func (d *dwctxt2) writeframes(syms []loader.Sym) []loader.Sym {
 		} else {
 			d.addDwarfAddrField(fsu, 0) // CIE offset
 		}
-		fsu.AddAddrPlus(d.arch, s, 0)
+		addAddrPlus(fsu, d.arch, s, 0)
 		fsu.AddUintXX(d.arch, uint64(len(d.ldr.Data(fn))), d.arch.PtrSize) // address range
 		fsu.AddBytes(deltaBuf)
 

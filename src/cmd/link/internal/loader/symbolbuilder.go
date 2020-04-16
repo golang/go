@@ -405,3 +405,24 @@ func (sb *SymbolBuilder) AddSize(arch *sys.Arch, tgt Sym) int64 {
 	sb.setReachable()
 	return sb.addSymRef(tgt, 0, objabi.R_SIZE, arch.PtrSize)
 }
+
+// GenAddAddrPlusFunc returns a function to be called when capturing
+// a function symbol's address. In later stages of the link (when
+// address assignment is done) when doing internal linking and
+// targeting an executable, we can just emit the address of a function
+// directly instead of generating a relocation. Clients can call
+// this function (setting 'internalExec' based on build mode and target)
+// and then invoke the returned function in roughly the same way that
+// loader.*SymbolBuilder.AddAddrPlus would be used.
+func GenAddAddrPlusFunc(internalExec bool) func(s *SymbolBuilder, arch *sys.Arch, tgt Sym, add int64) int64 {
+	if internalExec {
+		return func(s *SymbolBuilder, arch *sys.Arch, tgt Sym, add int64) int64 {
+			if v := s.l.SymValue(tgt); v != 0 {
+				return s.AddUint(arch, uint64(v+add))
+			}
+			return s.AddAddrPlus(arch, tgt, add)
+		}
+	} else {
+		return (*SymbolBuilder).AddAddrPlus
+	}
+}
