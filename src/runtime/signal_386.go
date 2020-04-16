@@ -48,8 +48,6 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	}
 }
 
-const pushCallSupported = true
-
 func (c *sigctxt) pushCall(targetPC uintptr) {
 	// Make it look like the signaled instruction called target.
 	pc := uintptr(c.eip())

@@ -86,8 +86,6 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
 	c.set_pc(uint64(funcPC(sigpanic)))
 }
 
-const pushCallSupported = true
-
 func (c *sigctxt) pushCall(targetPC uintptr) {
 	// Push the LR to stack, as we'll clobber it in order to
 	// push the call. The function being pushed is responsible
