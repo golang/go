@@ -16,7 +16,7 @@ import (
 	"errors"
 )
 
-// Seek whence values.
+// Seek from values.
 const (
 	SeekStart   = 0 // seek relative to the origin of the file
 	SeekCurrent = 1 // seek relative to the current offset
