@@ -756,6 +756,7 @@ func asmb2(ctxt *ld.Link) {
 			if ctxt.IsELF {
 				ctxt.Out.SeekSet(symo)
 				ld.Asmelfsym(ctxt)
+				ctxt.Out.Flush()
 				ctxt.Out.Write(ld.Elfstrdat)
 
 				if ctxt.LinkMode == ld.LinkExternal {
@@ -765,11 +766,13 @@ func asmb2(ctxt *ld.Link) {
 
 		case objabi.Hplan9:
 			ld.Asmplan9sym(ctxt)
+			ctxt.Out.Flush()
 
 			sym := ctxt.Syms.Lookup("pclntab", 0)
 			if sym != nil {
 				ld.Lcsize = int32(len(sym.P))
 				ctxt.Out.Write(sym.P)
+				ctxt.Out.Flush()
 			}
 
 		case objabi.Hwindows:
@@ -814,6 +817,8 @@ func asmb2(ctxt *ld.Link) {
 	case objabi.Hwindows:
 		ld.Asmbpe(ctxt)
 	}
+
+	ctxt.Out.Flush()
 }
 
 func tlsIEtoLE(s *sym.Symbol, off, size int) {

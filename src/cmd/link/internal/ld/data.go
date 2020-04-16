@@ -32,6 +32,7 @@
 package ld
 
 import (
+	"bufio"
 	"bytes"
 	"cmd/internal/gcprog"
 	"cmd/internal/objabi"
@@ -957,10 +958,11 @@ func Datblk(ctxt *Link, out *OutBuf, addr, size int64) {
 
 // Used only on Wasm for now.
 func DatblkBytes(ctxt *Link, addr int64, size int64) []byte {
-	buf := make([]byte, size)
-	out := &OutBuf{heap: buf}
+	buf := bytes.NewBuffer(make([]byte, 0, size))
+	out := &OutBuf{w: bufio.NewWriter(buf)}
 	writeDatblkToOutBuf(ctxt, out, addr, size)
-	return buf
+	out.Flush()
+	return buf.Bytes()
 }
 
 func writeDatblkToOutBuf(ctxt *Link, out *OutBuf, addr int64, size int64) {

@@ -142,6 +142,7 @@ func asmb2(ctxt *ld.Link) {
 		ctxt.Out.SeekSet(int64(symo))
 
 		ld.Asmelfsym(ctxt)
+		ctxt.Out.Flush()
 		ctxt.Out.Write(ld.Elfstrdat)
 
 		if ctxt.LinkMode == ld.LinkExternal {
@@ -156,6 +157,7 @@ func asmb2(ctxt *ld.Link) {
 	default:
 		ld.Errorf(nil, "unsupported operating system")
 	}
+	ctxt.Out.Flush()
 
 	if *ld.FlagC {
 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
