@@ -1389,6 +1389,7 @@ func (f *xcoffFile) writeLdrScn(ctxt *Link, globalOff uint64) {
 	}
 
 	f.loaderSize = off + uint64(stlen)
+	ctxt.Out.Flush()
 
 	/* again for printing */
 	if !*flagA {
@@ -1557,6 +1558,8 @@ func Asmbxcoff(ctxt *Link, fileoff int64) {
 	}
 	// write string table
 	xfile.stringTable.write(ctxt.Out)
+
+	ctxt.Out.Flush()
 
 	// write headers
 	xcoffwrite(ctxt)
