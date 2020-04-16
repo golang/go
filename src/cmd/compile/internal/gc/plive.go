@@ -24,6 +24,16 @@ import (
 	"strings"
 )
 
+// go115ReduceLiveness disables register maps and only produces stack
+// maps at call sites.
+//
+// In Go 1.15, we changed debug call injection to use conservative
+// scanning instead of precise pointer maps, so these are no longer
+// necessary.
+//
+// Keep in sync with runtime/preempt.go:go115ReduceLiveness.
+const go115ReduceLiveness = true
+
 // OpVarDef is an annotation for the liveness analysis, marking a place
 // where a complete initialization (definition) of a variable begins.
 // Since the liveness analysis can see initialization of single-word
@@ -165,18 +175,27 @@ func (m *LivenessMap) set(v *ssa.Value, i LivenessIndex) {
 }
 
 func (m LivenessMap) Get(v *ssa.Value) LivenessIndex {
-	// All safe-points are in the map, so if v isn't in
-	// the map, it's an unsafe-point.
+	if !go115ReduceLiveness {
+		// All safe-points are in the map, so if v isn't in
+		// the map, it's an unsafe-point.
+		if idx, ok := m.vals[v.ID]; ok {
+			return idx
+		}
+		return LivenessInvalid
+	}
+
+	// If v isn't in the map, then it's a "don't care" and not an
+	// unsafe-point.
 	if idx, ok := m.vals[v.ID]; ok {
 		return idx
 	}
-	return LivenessInvalid
+	return LivenessIndex{StackMapDontCare, StackMapDontCare, false}
 }
 
 // LivenessIndex stores the liveness map information for a Value.
 type LivenessIndex struct {
 	stackMapIndex int
-	regMapIndex   int
+	regMapIndex   int // only for !go115ReduceLiveness
 
 	// isUnsafePoint indicates that this is an unsafe-point.
 	//
@@ -188,7 +207,7 @@ type LivenessIndex struct {
 }
 
 // LivenessInvalid indicates an unsafe point with no stack map.
-var LivenessInvalid = LivenessIndex{StackMapDontCare, StackMapDontCare, true}
+var LivenessInvalid = LivenessIndex{StackMapDontCare, StackMapDontCare, true} // only for !go115ReduceLiveness
 
 // StackMapDontCare indicates that the stack map index at a Value
 // doesn't matter.
@@ -392,6 +411,9 @@ func affectedNode(v *ssa.Value) (*Node, ssa.SymEffect) {
 
 // regEffects returns the registers affected by v.
 func (lv *Liveness) regEffects(v *ssa.Value) (uevar, kill liveRegMask) {
+	if go115ReduceLiveness {
+		return 0, 0
+	}
 	if v.Op == ssa.OpPhi {
 		// All phi node arguments must come from the same
 		// register and the result must also go to that
@@ -473,7 +495,7 @@ func (lv *Liveness) regEffects(v *ssa.Value) (uevar, kill liveRegMask) {
 	return uevar, kill
 }
 
-type liveRegMask uint32
+type liveRegMask uint32 // only if !go115ReduceLiveness
 
 func (m liveRegMask) niceString(config *ssa.Config) string {
 	if m == 0 {
@@ -835,7 +857,7 @@ func (lv *Liveness) hasStackMap(v *ssa.Value) bool {
 	// The runtime only has safe-points in function prologues, so
 	// we only need stack maps at call sites. go:nosplit functions
 	// are similar.
-	if compiling_runtime || lv.f.NoSplit {
+	if go115ReduceLiveness || compiling_runtime || lv.f.NoSplit {
 		if !v.Op.IsCall() {
 			return false
 		}
@@ -1172,13 +1194,15 @@ func (lv *Liveness) epilogue() {
 			lv.f.Fatalf("%v %L recorded as live on entry", lv.fn.Func.Nname, n)
 		}
 	}
-	// Check that no registers are live at function entry.
-	// The context register, if any, comes from a
-	// LoweredGetClosurePtr operation first thing in the function,
-	// so it doesn't appear live at entry.
-	if regs := lv.regMaps[0]; regs != 0 {
-		lv.printDebug()
-		lv.f.Fatalf("%v register %s recorded as live on entry", lv.fn.Func.Nname, regs.niceString(lv.f.Config))
+	if !go115ReduceLiveness {
+		// Check that no registers are live at function entry.
+		// The context register, if any, comes from a
+		// LoweredGetClosurePtr operation first thing in the function,
+		// so it doesn't appear live at entry.
+		if regs := lv.regMaps[0]; regs != 0 {
+			lv.printDebug()
+			lv.f.Fatalf("%v register %s recorded as live on entry", lv.fn.Func.Nname, regs.niceString(lv.f.Config))
+		}
 	}
 }
 
@@ -1199,7 +1223,7 @@ func (lv *Liveness) epilogue() {
 // PCDATA tables cost about 100k. So for now we keep using a single index for
 // both bitmap lists.
 func (lv *Liveness) compact(b *ssa.Block) {
-	add := func(live varRegVec, isUnsafePoint bool) LivenessIndex {
+	add := func(live varRegVec, isUnsafePoint bool) LivenessIndex { // only if !go115ReduceLiveness
 		// Deduplicate the stack map.
 		stackIndex := lv.stackMapSet.add(live.vars)
 		// Deduplicate the register map.
@@ -1214,11 +1238,26 @@ func (lv *Liveness) compact(b *ssa.Block) {
 	pos := 0
 	if b == lv.f.Entry {
 		// Handle entry stack map.
-		add(lv.livevars[0], false)
+		if !go115ReduceLiveness {
+			add(lv.livevars[0], false)
+		} else {
+			lv.stackMapSet.add(lv.livevars[0].vars)
+		}
 		pos++
 	}
 	for _, v := range b.Values {
-		if lv.hasStackMap(v) {
+		if go115ReduceLiveness {
+			hasStackMap := lv.hasStackMap(v)
+			isUnsafePoint := lv.allUnsafe || lv.unsafePoints.Get(int32(v.ID))
+			idx := LivenessIndex{StackMapDontCare, 0, isUnsafePoint}
+			if hasStackMap {
+				idx.stackMapIndex = lv.stackMapSet.add(lv.livevars[pos].vars)
+				pos++
+			}
+			if hasStackMap || isUnsafePoint {
+				lv.livenessMap.set(v, idx)
+			}
+		} else if lv.hasStackMap(v) {
 			isUnsafePoint := lv.allUnsafe || lv.unsafePoints.Get(int32(v.ID))
 			lv.livenessMap.set(v, add(lv.livevars[pos], isUnsafePoint))
 			pos++
@@ -1407,7 +1446,7 @@ func (lv *Liveness) printDebug() {
 						printed = true
 					}
 				}
-				if pcdata.RegMapValid() {
+				if pcdata.RegMapValid() { // only if !go115ReduceLiveness
 					regLive := lv.regMaps[pcdata.regMapIndex]
 					if regLive != 0 {
 						if printed {
@@ -1491,19 +1530,21 @@ func (lv *Liveness) emit() (argsSym, liveSym, regsSym *obj.LSym) {
 		loff = dbvec(&liveSymTmp, loff, locals)
 	}
 
-	regs := bvalloc(lv.usedRegs())
-	roff := duint32(&regsSymTmp, 0, uint32(len(lv.regMaps))) // number of bitmaps
-	roff = duint32(&regsSymTmp, roff, uint32(regs.n))        // number of bits in each bitmap
-	if regs.n > 32 {
-		// Our uint32 conversion below won't work.
-		Fatalf("GP registers overflow uint32")
-	}
+	if !go115ReduceLiveness {
+		regs := bvalloc(lv.usedRegs())
+		roff := duint32(&regsSymTmp, 0, uint32(len(lv.regMaps))) // number of bitmaps
+		roff = duint32(&regsSymTmp, roff, uint32(regs.n))        // number of bits in each bitmap
+		if regs.n > 32 {
+			// Our uint32 conversion below won't work.
+			Fatalf("GP registers overflow uint32")
+		}
 
-	if regs.n > 0 {
-		for _, live := range lv.regMaps {
-			regs.Clear()
-			regs.b[0] = uint32(live)
-			roff = dbvec(&regsSymTmp, roff, regs)
+		if regs.n > 0 {
+			for _, live := range lv.regMaps {
+				regs.Clear()
+				regs.b[0] = uint32(live)
+				roff = dbvec(&regsSymTmp, roff, regs)
+			}
 		}
 	}
 
@@ -1518,7 +1559,11 @@ func (lv *Liveness) emit() (argsSym, liveSym, regsSym *obj.LSym) {
 			lsym.P = tmpSym.P
 		})
 	}
-	return makeSym(&argsSymTmp), makeSym(&liveSymTmp), makeSym(&regsSymTmp)
+	if !go115ReduceLiveness {
+		return makeSym(&argsSymTmp), makeSym(&liveSymTmp), makeSym(&regsSymTmp)
+	}
+	// TODO(go115ReduceLiveness): Remove regsSym result
+	return makeSym(&argsSymTmp), makeSym(&liveSymTmp), nil
 }
 
 // Entry pointer for liveness analysis. Solves for the liveness of
@@ -1578,11 +1623,13 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
 	p.To.Name = obj.NAME_EXTERN
 	p.To.Sym = ls.Func.GCLocals
 
-	p = pp.Prog(obj.AFUNCDATA)
-	Addrconst(&p.From, objabi.FUNCDATA_RegPointerMaps)
-	p.To.Type = obj.TYPE_MEM
-	p.To.Name = obj.NAME_EXTERN
-	p.To.Sym = ls.Func.GCRegs
+	if !go115ReduceLiveness {
+		p = pp.Prog(obj.AFUNCDATA)
+		Addrconst(&p.From, objabi.FUNCDATA_RegPointerMaps)
+		p.To.Type = obj.TYPE_MEM
+		p.To.Name = obj.NAME_EXTERN
+		p.To.Sym = ls.Func.GCRegs
+	}
 
 	return lv.livenessMap
 }

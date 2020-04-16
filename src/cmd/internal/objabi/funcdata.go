@@ -11,13 +11,14 @@ package objabi
 // ../../../runtime/symtab.go.
 
 const (
-	PCDATA_RegMapIndex   = 0
+	PCDATA_RegMapIndex   = 0 // if !go115ReduceLiveness
+	PCDATA_UnsafePoint   = 0 // if go115ReduceLiveness
 	PCDATA_StackMapIndex = 1
 	PCDATA_InlTreeIndex  = 2
 
 	FUNCDATA_ArgsPointerMaps    = 0
 	FUNCDATA_LocalsPointerMaps  = 1
-	FUNCDATA_RegPointerMaps     = 2
+	FUNCDATA_RegPointerMaps     = 2 // if !go115ReduceLiveness
 	FUNCDATA_StackObjects       = 3
 	FUNCDATA_InlTree            = 4
 	FUNCDATA_OpenCodedDeferInfo = 5
@@ -32,5 +33,11 @@ const (
 // Special PCDATA values.
 const (
 	// PCDATA_RegMapIndex values.
+	//
+	// Only if !go115ReduceLiveness.
 	PCDATA_RegMapUnsafe = -2 // Unsafe for async preemption
+
+	// PCDATA_UnsafePoint values.
+	PCDATA_UnsafePointSafe   = -1 // Safe for async preemption
+	PCDATA_UnsafePointUnsafe = -2 // Unsafe for async preemption
 )
