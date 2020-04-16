@@ -733,14 +733,13 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 		toctramp := ldr.CreateSymForUpdate("TOC."+ldr.SymName(tramp.Sym()), 0)
 		toctramp.SetType(sym.SXCOFFTOC)
 		toctramp.SetReachable(true)
-		toctramp.AddAddr(ctxt.Arch, target)
+		toctramp.AddAddrPlus(ctxt.Arch, target, offset)
 
 		r := loader.Reloc{
 			Off:  0,
 			Type: objabi.R_ADDRPOWER_TOCREL_DS,
 			Size: 8, // generates 2 relocations:  HA + LO
 			Sym:  toctramp.Sym(),
-			Add:  offset,
 		}
 		tramp.AddReloc(r)
 	} else {
