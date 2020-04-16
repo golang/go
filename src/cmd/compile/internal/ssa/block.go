@@ -336,9 +336,9 @@ func (b *Block) LackingPos() bool {
 
 func (b *Block) AuxIntString() string {
 	switch b.Kind.AuxIntType() {
-	case "Int8":
+	case "int8":
 		return fmt.Sprintf("%v", int8(b.AuxInt))
-	case "UInt8":
+	case "uint8":
 		return fmt.Sprintf("%v", uint8(b.AuxInt))
 	default: // type specified but not implemented - print as int64
 		return fmt.Sprintf("%v", b.AuxInt)

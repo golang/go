@@ -256,13 +256,13 @@ func (k BlockKind) String() string { return blockString[k] }
 func (k BlockKind) AuxIntType() string {
 	switch k {
 	case BlockS390XCIJ:
-		return "Int8"
+		return "int8"
 	case BlockS390XCGIJ:
-		return "Int8"
+		return "int8"
 	case BlockS390XCLIJ:
-		return "UInt8"
+		return "uint8"
 	case BlockS390XCLGIJ:
-		return "UInt8"
+		return "uint8"
 	}
 	return ""
 }
@@ -28569,7 +28569,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "RXSBG",
-		auxType:      auxArchSpecific,
+		auxType:      auxS390XRotateParams,
 		argLen:       2,
 		resultInArg0: true,
 		clobberFlags: true,
@@ -28655,7 +28655,7 @@ var opcodeTable = [...]opInfo{
 	},
 	{
 		name:         "LOCGR",
-		auxType:      auxArchSpecific,
+		auxType:      auxS390XCCMask,
 		argLen:       3,
 		resultInArg0: true,
 		asm:          s390x.ALOCGR,

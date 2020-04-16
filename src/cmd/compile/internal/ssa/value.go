@@ -183,7 +183,7 @@ func (v *Value) auxString() string {
 		return fmt.Sprintf(" [%g]", v.AuxFloat())
 	case auxString:
 		return fmt.Sprintf(" {%q}", v.Aux)
-	case auxSym, auxTyp, auxArchSpecific:
+	case auxSym, auxTyp:
 		if v.Aux != nil {
 			return fmt.Sprintf(" {%v}", v.Aux)
 		}
@@ -204,6 +204,8 @@ func (v *Value) auxString() string {
 		return s + fmt.Sprintf(" [%s]", v.AuxValAndOff())
 	case auxCCop:
 		return fmt.Sprintf(" {%s}", v.Aux.(Op))
+	case auxS390XCCMask, auxS390XRotateParams:
+		return fmt.Sprintf(" {%v}", v.Aux)
 	}
 	return ""
 }
