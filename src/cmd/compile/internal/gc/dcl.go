@@ -590,14 +590,6 @@ func checkdupfields(what string, fss ...[]*types.Field) {
 // a type for struct/interface/arglist
 func tostruct(l []*Node) *types.Type {
 	t := types.New(TSTRUCT)
-	tostruct0(t, l)
-	return t
-}
-
-func tostruct0(t *types.Type, l []*Node) {
-	if t == nil || !t.IsStruct() {
-		Fatalf("struct expected")
-	}
 
 	fields := make([]*types.Field, len(l))
 	for i, n := range l {
@@ -614,6 +606,8 @@ func tostruct0(t *types.Type, l []*Node) {
 	if !t.Broke() {
 		checkwidth(t)
 	}
+
+	return t
 }
 
 func tofunargs(l []*Node, funarg types.Funarg) *types.Type {
@@ -684,15 +678,6 @@ func tointerface(l []*Node) *types.Type {
 		return types.Types[TINTER]
 	}
 	t := types.New(TINTER)
-	tointerface0(t, l)
-	return t
-}
-
-func tointerface0(t *types.Type, l []*Node) {
-	if t == nil || !t.IsInterface() {
-		Fatalf("interface expected")
-	}
-
 	var fields []*types.Field
 	for _, n := range l {
 		f := interfacefield(n)
@@ -702,6 +687,7 @@ func tointerface0(t *types.Type, l []*Node) {
 		fields = append(fields, f)
 	}
 	t.SetInterface(fields)
+	return t
 }
 
 func fakeRecv() *Node {
@@ -724,14 +710,6 @@ func isifacemethod(f *types.Type) bool {
 // turn a parsed function declaration into a type
 func functype(this *Node, in, out []*Node) *types.Type {
 	t := types.New(TFUNC)
-	functype0(t, this, in, out)
-	return t
-}
-
-func functype0(t *types.Type, this *Node, in, out []*Node) {
-	if t == nil || t.Etype != TFUNC {
-		Fatalf("function type expected")
-	}
 
 	var rcvr []*Node
 	if this != nil {
@@ -748,15 +726,13 @@ func functype0(t *types.Type, this *Node, in, out []*Node) {
 	}
 
 	t.FuncType().Outnamed = t.NumResults() > 0 && origSym(t.Results().Field(0).Sym) != nil
+
+	return t
 }
 
 func functypefield(this *types.Field, in, out []*types.Field) *types.Type {
 	t := types.New(TFUNC)
-	functypefield0(t, this, in, out)
-	return t
-}
 
-func functypefield0(t *types.Type, this *types.Field, in, out []*types.Field) {
 	var rcvr []*types.Field
 	if this != nil {
 		rcvr = []*types.Field{this}
@@ -766,6 +742,8 @@ func functypefield0(t *types.Type, this *types.Field, in, out []*types.Field) {
 	t.FuncType().Results = tofunargsfield(out, types.FunargResults)
 
 	t.FuncType().Outnamed = t.NumResults() > 0 && origSym(t.Results().Field(0).Sym) != nil
+
+	return t
 }
 
 // origSym returns the original symbol written by the user.
