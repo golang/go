@@ -94,40 +94,28 @@ func (m *mapped) setServer(id string, r req) {
 
 const eor = "\r\n\r\n\r\n"
 
-func logCommon(outfd io.Writer) (time.Time, string) {
-	if outfd == nil {
-		return time.Time{}, ""
+func logCommon(outfd io.Writer, msg jsonrpc2.Message, direction, pastTense string) {
+	if msg == nil || outfd == nil {
+		return
 	}
 	tm := time.Now()
 	tmfmt := tm.Format("15:04:05.000 PM")
-	return tm, tmfmt
-}
-
-// logOut and logIn could be combined. "received"<->"Sending", serverCalls<->clientCalls
-// but it wouldn't be a lot shorter or clearer and "shutdown" is a special case
-
-// Writing a message to the client, log it
-func logOut(outfd io.Writer, msg jsonrpc2.Message) {
-	tm, tmfmt := logCommon(outfd)
-	if msg == nil {
-		return
-	}
 
 	buf := strings.Builder{}
 	fmt.Fprintf(&buf, "[Trace - %s] ", tmfmt) // common beginning
 	switch msg := msg.(type) {
 	case *jsonrpc2.Call:
 		id := fmt.Sprint(msg.ID())
-		fmt.Fprintf(&buf, "Received request '%s - (%s)'.\n", msg.Method(), id)
+		fmt.Fprintf(&buf, "%s request '%s - (%s)'.\n", direction, msg.Method(), id)
 		fmt.Fprintf(&buf, "Params: %s%s", msg.Params(), eor)
 		maps.setServer(id, req{method: msg.Method(), start: tm})
 	case *jsonrpc2.Notification:
-		fmt.Fprintf(&buf, "Received notification '%s'.\n", msg.Method())
+		fmt.Fprintf(&buf, "%s notification '%s'.\n", direction, msg.Method())
 		fmt.Fprintf(&buf, "Params: %s%s", msg.Params(), eor)
 	case *jsonrpc2.Response:
 		id := fmt.Sprint(msg.ID())
 		if err := msg.Err(); err != nil {
-			fmt.Fprintf(outfd, "[Error - %s] Received #%s %s%s", tmfmt, id, err, eor)
+			fmt.Fprintf(outfd, "[Error - %s] %s #%s %s%s", pastTense, tmfmt, id, err, eor)
 			return
 		}
 		cc := maps.client(id, true)
@@ -139,34 +127,12 @@ func logOut(outfd io.Writer, msg jsonrpc2.Message) {
 	outfd.Write([]byte(buf.String()))
 }
 
+// Writing a message to the client, log it
+func logOut(outfd io.Writer, msg jsonrpc2.Message) {
+	logCommon(outfd, msg, "Received", "Received")
+}
+
 // Got a message from the client, log it
 func logIn(outfd io.Writer, msg jsonrpc2.Message) {
-	tm, tmfmt := logCommon(outfd)
-	if msg == nil {
-		return
-	}
-	buf := strings.Builder{}
-	fmt.Fprintf(&buf, "[Trace - %s] ", tmfmt) // common beginning
-	switch msg := msg.(type) {
-	case *jsonrpc2.Call:
-		id := fmt.Sprint(msg.ID())
-		fmt.Fprintf(&buf, "Sending request '%s - (%s)'.\n", msg.Method(), id)
-		fmt.Fprintf(&buf, "Params: %s%s", msg.Params(), eor)
-		maps.setServer(id, req{method: msg.Method(), start: tm})
-	case *jsonrpc2.Notification:
-		fmt.Fprintf(&buf, "Sending notification '%s'.\n", msg.Method())
-		fmt.Fprintf(&buf, "Params: %s%s", msg.Params(), eor)
-	case *jsonrpc2.Response:
-		id := fmt.Sprint(msg.ID())
-		if err := msg.Err(); err != nil {
-			fmt.Fprintf(outfd, "[Error - %s] Sent #%s %s%s", tmfmt, id, err, eor)
-			return
-		}
-		cc := maps.client(id, true)
-		elapsed := tm.Sub(cc.start)
-		fmt.Fprintf(&buf, "Sending response '%s - (%s)' in %dms.\n",
-			cc.method, id, elapsed/time.Millisecond)
-		fmt.Fprintf(&buf, "Result: %s%s", msg.Result(), eor)
-	}
-	outfd.Write([]byte(buf.String()))
+	logCommon(outfd, msg, "Sending", "Sent")
 }
