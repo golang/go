@@ -1507,6 +1507,30 @@ func (ctxt *Link) dodata() {
 	}
 }
 
+// assignDsymsToSection assigns a collection of data symbols to a
+// newly created section. "sect" is the section into which to place
+// the symbols, "syms" holds the list of symbols to assign,
+// "forceType" (if non-zero) contains a new sym type to apply to each
+// sym during the assignment, and "aligner" is a hook to call to
+// handle alignment during the assignment process.
+func (state *dodataState) assignDsymsToSection(sect *sym.Section, syms []*sym.Symbol, forceType sym.SymKind, aligner func(datsize int64, s *sym.Symbol) int64) {
+	for _, s := range syms {
+		state.datsize = aligner(state.datsize, s)
+		s.Sect = sect
+		if forceType != sym.Sxxx {
+			s.Type = forceType
+		}
+		s.Value = int64(uint64(state.datsize) - sect.Vaddr)
+		state.datsize += s.Size
+	}
+	sect.Length = uint64(state.datsize) - sect.Vaddr
+}
+
+func (state *dodataState) assignToSection(sect *sym.Section, symn sym.SymKind, forceType sym.SymKind) {
+	state.assignDsymsToSection(sect, state.data[symn], forceType, aligndatsize)
+	state.checkdatsize(symn)
+}
+
 // allocateSections allocates sym.Section objects for data sections
 // of interest and assigns symbols into the sections.
 func (state *dodataState) allocateSections(ctxt *Link) {
@@ -1544,27 +1568,21 @@ func (state *dodataState) allocateSections(ctxt *Link) {
 		sect.Align = state.dataMaxAlign[sym.SELFGOT]
 		state.datsize = Rnd(state.datsize, int64(sect.Align))
 		sect.Vaddr = uint64(state.datsize)
-		for _, s := range state.data[sym.SELFGOT] {
-			state.datsize = aligndatsize(state.datsize, s)
-			s.Sect = sect
-			s.Type = sym.SDATA
-			s.Value = int64(uint64(state.datsize) - sect.Vaddr)
+		state.assignToSection(sect, sym.SELFGOT, sym.SDATA)
+		if ctxt.IsPPC64() {
+			for _, s := range state.data[sym.SELFGOT] {
+				// Resolve .TOC. symbol for this object file (ppc64)
+				toc := ctxt.Syms.ROLookup(".TOC.", int(s.Version))
+				if toc != nil {
+					toc.Sect = sect
+					toc.Outer = s
+					toc.Sub = s.Sub
+					s.Sub = toc
 
-			// Resolve .TOC. symbol for this object file (ppc64)
-			toc := ctxt.Syms.ROLookup(".TOC.", int(s.Version))
-			if toc != nil {
-				toc.Sect = sect
-				toc.Outer = s
-				toc.Sub = s.Sub
-				s.Sub = toc
-
-				toc.Value = 0x8000
+					toc.Value = 0x8000
+				}
 			}
-
-			state.datsize += s.Size
 		}
-		state.checkdatsize(sym.SELFGOT)
-		sect.Length = uint64(state.datsize) - sect.Vaddr
 	}
 
 	/* pointer-free data */
@@ -1574,15 +1592,7 @@ func (state *dodataState) allocateSections(ctxt *Link) {
 	sect.Vaddr = uint64(state.datsize)
 	ctxt.Syms.Lookup("runtime.noptrdata", 0).Sect = sect
 	ctxt.Syms.Lookup("runtime.enoptrdata", 0).Sect = sect
-	for _, s := range state.data[sym.SNOPTRDATA] {
-		state.datsize = aligndatsize(state.datsize, s)
-		s.Sect = sect
-		s.Type = sym.SDATA
-		s.Value = int64(uint64(state.datsize) - sect.Vaddr)
-		state.datsize += s.Size
-	}
-	state.checkdatsize(sym.SNOPTRDATA)
-	sect.Length = uint64(state.datsize) - sect.Vaddr
+	state.assignToSection(sect, sym.SNOPTRDATA, sym.SDATA)
 
 	hasinitarr := ctxt.linkShared
 
@@ -1603,14 +1613,7 @@ func (state *dodataState) allocateSections(ctxt *Link) {
 		sect.Align = state.dataMaxAlign[sym.SINITARR]
 		state.datsize = Rnd(state.datsize, int64(sect.Align))
 		sect.Vaddr = uint64(state.datsize)
-		for _, s := range state.data[sym.SINITARR] {
-			state.datsize = aligndatsize(state.datsize, s)
-			s.Sect = sect
-			s.Value = int64(uint64(state.datsize) - sect.Vaddr)
-			state.datsize += s.Size
-		}
-		sect.Length = uint64(state.datsize) - sect.Vaddr
-		state.checkdatsize(sym.SINITARR)
+		state.assignToSection(sect, sym.SINITARR, sym.Sxxx)
 	}
 
 	/* data */
@@ -1620,26 +1623,12 @@ func (state *dodataState) allocateSections(ctxt *Link) {
 	sect.Vaddr = uint64(state.datsize)
 	ctxt.Syms.Lookup("runtime.data", 0).Sect = sect
 	ctxt.Syms.Lookup("runtime.edata", 0).Sect = sect
-	var gc GCProg
-	gc.Init(ctxt, "runtime.gcdata")
-	for _, s := range state.data[sym.SDATA] {
-		s.Sect = sect
-		s.Type = sym.SDATA
-		state.datsize = aligndatsize(state.datsize, s)
-		s.Value = int64(uint64(state.datsize) - sect.Vaddr)
-		gc.AddSym(s)
-		state.datsize += s.Size
-	}
-	gc.End(state.datsize - int64(sect.Vaddr))
+	state.assignToSection(sect, sym.SDATA, sym.SDATA)
+	dataGcEnd := state.datsize - int64(sect.Vaddr)
+
 	// On AIX, TOC entries must be the last of .data
 	// These aren't part of gc as they won't change during the runtime.
-	for _, s := range state.data[sym.SXCOFFTOC] {
-		s.Sect = sect
-		s.Type = sym.SDATA
-		state.datsize = aligndatsize(state.datsize, s)
-		s.Value = int64(uint64(state.datsize) - sect.Vaddr)
-		state.datsize += s.Size
-	}
+	state.assignToSection(sect, sym.SXCOFFTOC, sym.SDATA)
 	state.checkdatsize(sym.SDATA)
 	sect.Length = uint64(state.datsize) - sect.Vaddr
 
@@ -1650,18 +1639,26 @@ func (state *dodataState) allocateSections(ctxt *Link) {
 	sect.Vaddr = uint64(state.datsize)
 	ctxt.Syms.Lookup("runtime.bss", 0).Sect = sect
 	ctxt.Syms.Lookup("runtime.ebss", 0).Sect = sect
-	gc = GCProg{}
-	gc.Init(ctxt, "runtime.gcbss")
-	for _, s := range state.data[sym.SBSS] {
-		s.Sect = sect
-		state.datsize = aligndatsize(state.datsize, s)
-		s.Value = int64(uint64(state.datsize) - sect.Vaddr)
-		gc.AddSym(s)
-		state.datsize += s.Size
+	state.assignToSection(sect, sym.SBSS, sym.Sxxx)
+	bssGcEnd := state.datsize - int64(sect.Vaddr)
+
+	// Emit gcdata for bcc symbols now that symbol values have been assigned.
+	gcsToEmit := []struct {
+		symName string
+		symKind sym.SymKind
+		gcEnd   int64
+	}{
+		{"runtime.gcdata", sym.SDATA, dataGcEnd},
+		{"runtime.gcbss", sym.SBSS, bssGcEnd},
 	}
-	state.checkdatsize(sym.SBSS)
-	sect.Length = uint64(state.datsize) - sect.Vaddr
-	gc.End(int64(sect.Length))
+	for _, g := range gcsToEmit {
+		var gc GCProg
+		gc.Init(ctxt, g.symName)
+		for _, s := range state.data[g.symKind] {
+			gc.AddSym(s)
+		}
+		gc.End(g.gcEnd)
+	}
 
 	/* pointer-free bss */
 	sect = addsection(ctxt.Arch, &Segdata, ".noptrbss", 06)
@@ -1670,15 +1667,8 @@ func (state *dodataState) allocateSections(ctxt *Link) {
 	sect.Vaddr = uint64(state.datsize)
 	ctxt.Syms.Lookup("runtime.noptrbss", 0).Sect = sect
 	ctxt.Syms.Lookup("runtime.enoptrbss", 0).Sect = sect
-	for _, s := range state.data[sym.SNOPTRBSS] {
-		state.datsize = aligndatsize(state.datsize, s)
-		s.Sect = sect
-		s.Value = int64(uint64(state.datsize) - sect.Vaddr)
-		state.datsize += s.Size
-	}
-	sect.Length = uint64(state.datsize) - sect.Vaddr
 	ctxt.Syms.Lookup("runtime.end", 0).Sect = sect
-	state.checkdatsize(sym.SNOPTRBSS)
+	state.assignToSection(sect, sym.SNOPTRBSS, sym.Sxxx)
 
 	// Coverage instrumentation counters for libfuzzer.
 	if len(state.data[sym.SLIBFUZZER_EXTRA_COUNTER]) > 0 {
@@ -1686,14 +1676,7 @@ func (state *dodataState) allocateSections(ctxt *Link) {
 		sect.Align = state.dataMaxAlign[sym.SLIBFUZZER_EXTRA_COUNTER]
 		state.datsize = Rnd(state.datsize, int64(sect.Align))
 		sect.Vaddr = uint64(state.datsize)
-		for _, s := range state.data[sym.SLIBFUZZER_EXTRA_COUNTER] {
-			state.datsize = aligndatsize(state.datsize, s)
-			s.Sect = sect
-			s.Value = int64(uint64(state.datsize) - sect.Vaddr)
-			state.datsize += s.Size
-		}
-		sect.Length = uint64(state.datsize) - sect.Vaddr
-		state.checkdatsize(sym.SLIBFUZZER_EXTRA_COUNTER)
+		state.assignToSection(sect, sym.SLIBFUZZER_EXTRA_COUNTER, sym.Sxxx)
 	}
 
 	if len(state.data[sym.STLSBSS]) > 0 {
@@ -1774,14 +1757,7 @@ func (state *dodataState) allocateSections(ctxt *Link) {
 	state.datsize = Rnd(state.datsize, int64(sect.Align))
 	for _, symn := range sym.ReadOnly {
 		symnStartValue := state.datsize
-		for _, s := range state.data[symn] {
-			state.datsize = aligndatsize(state.datsize, s)
-			s.Sect = sect
-			s.Type = sym.SRODATA
-			s.Value = int64(uint64(state.datsize) - sect.Vaddr)
-			state.datsize += s.Size
-		}
-		state.checkdatsize(symn)
+		state.assignToSection(sect, symn, sym.SRODATA)
 		if ctxt.HeadType == objabi.Haix {
 			// Read-only symbols might be wrapped inside their outer
 			// symbol.
@@ -1790,7 +1766,6 @@ func (state *dodataState) allocateSections(ctxt *Link) {
 			xcoffUpdateOuterSize(ctxt, state.datsize-symnStartValue, symn)
 		}
 	}
-	sect.Length = uint64(state.datsize) - sect.Vaddr
 
 	/* read-only ELF, Mach-O sections */
 	for _, s := range state.data[sym.SELFROSECT] {
@@ -1879,17 +1854,13 @@ func (state *dodataState) allocateSections(ctxt *Link) {
 
 			symn := sym.RelROMap[symnro]
 			symnStartValue := state.datsize
+
 			for _, s := range state.data[symn] {
-				state.datsize = aligndatsize(state.datsize, s)
 				if s.Outer != nil && s.Outer.Sect != nil && s.Outer.Sect != sect {
 					Errorf(s, "s.Outer (%s) in different section from s, %s != %s", s.Outer.Name, s.Outer.Sect.Name, sect.Name)
 				}
-				s.Sect = sect
-				s.Type = sym.SRODATA
-				s.Value = int64(uint64(state.datsize) - sect.Vaddr)
-				state.datsize += s.Size
 			}
-			state.checkdatsize(symn)
+			state.assignToSection(sect, symn, sym.SRODATA)
 			if ctxt.HeadType == objabi.Haix {
 				// Read-only symbols might be wrapped inside their outer
 				// symbol.
@@ -1921,15 +1892,7 @@ func (state *dodataState) allocateSections(ctxt *Link) {
 	sect.Vaddr = uint64(state.datsize)
 	ctxt.Syms.Lookup("runtime.itablink", 0).Sect = sect
 	ctxt.Syms.Lookup("runtime.eitablink", 0).Sect = sect
-	for _, s := range state.data[sym.SITABLINK] {
-		state.datsize = aligndatsize(state.datsize, s)
-		s.Sect = sect
-		s.Type = sym.SRODATA
-		s.Value = int64(uint64(state.datsize) - sect.Vaddr)
-		state.datsize += s.Size
-	}
-	state.checkdatsize(sym.SITABLINK)
-	sect.Length = uint64(state.datsize) - sect.Vaddr
+	state.assignToSection(sect, sym.SITABLINK, sym.SRODATA)
 	if ctxt.HeadType == objabi.Haix {
 		// Store .itablink size because its symbols are wrapped
 		// under an outer symbol: runtime.itablink.
@@ -1943,15 +1906,7 @@ func (state *dodataState) allocateSections(ctxt *Link) {
 	sect.Vaddr = uint64(state.datsize)
 	ctxt.Syms.Lookup("runtime.symtab", 0).Sect = sect
 	ctxt.Syms.Lookup("runtime.esymtab", 0).Sect = sect
-	for _, s := range state.data[sym.SSYMTAB] {
-		state.datsize = aligndatsize(state.datsize, s)
-		s.Sect = sect
-		s.Type = sym.SRODATA
-		s.Value = int64(uint64(state.datsize) - sect.Vaddr)
-		state.datsize += s.Size
-	}
-	state.checkdatsize(sym.SSYMTAB)
-	sect.Length = uint64(state.datsize) - sect.Vaddr
+	state.assignToSection(sect, sym.SSYMTAB, sym.SRODATA)
 
 	/* gopclntab */
 	sect = addrelrosection(".gopclntab")
@@ -1960,15 +1915,7 @@ func (state *dodataState) allocateSections(ctxt *Link) {
 	sect.Vaddr = uint64(state.datsize)
 	ctxt.Syms.Lookup("runtime.pclntab", 0).Sect = sect
 	ctxt.Syms.Lookup("runtime.epclntab", 0).Sect = sect
-	for _, s := range state.data[sym.SPCLNTAB] {
-		state.datsize = aligndatsize(state.datsize, s)
-		s.Sect = sect
-		s.Type = sym.SRODATA
-		s.Value = int64(uint64(state.datsize) - sect.Vaddr)
-		state.datsize += s.Size
-	}
-	state.checkdatsize(sym.SRODATA)
-	sect.Length = uint64(state.datsize) - sect.Vaddr
+	state.assignToSection(sect, sym.SPCLNTAB, sym.SRODATA)
 
 	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
 	if state.datsize != int64(uint32(state.datsize)) {
@@ -1979,7 +1926,8 @@ func (state *dodataState) allocateSections(ctxt *Link) {
 		ctxt.datap = append(ctxt.datap, state.data[symn]...)
 	}
 
-	// DWARF
+	alignOne := func(datsize int64, s *sym.Symbol) int64 { return datsize }
+
 	for i := 0; i < len(dwarfp); i++ {
 		// First the section symbol.
 		s := dwarfp[i].secSym()
@@ -1996,13 +1944,10 @@ func (state *dodataState) allocateSections(ctxt *Link) {
 
 		// Then any sub-symbols for the section symbol.
 		subSyms := dwarfp[i].subSyms()
+		state.assignDsymsToSection(sect, subSyms, sym.SRODATA, alignOne)
+
 		for j := 0; j < len(subSyms); j++ {
 			s := subSyms[j]
-			s.Sect = sect
-			s.Type = sym.SRODATA
-			s.Value = int64(uint64(state.datsize) - sect.Vaddr)
-			state.datsize += s.Size
-
 			if ctxt.HeadType == objabi.Haix && curType == sym.SDWARFLOC {
 				// Update the size of .debug_loc for this symbol's
 				// package.
