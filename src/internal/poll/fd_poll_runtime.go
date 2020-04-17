@@ -123,7 +123,7 @@ func convertErr(res int, isFile bool) error {
 	case pollErrClosing:
 		return errClosing(isFile)
 	case pollErrTimeout:
-		return ErrTimeout
+		return ErrDeadlineExceeded
 	case pollErrNotPollable:
 		return ErrNotPollable
 	}

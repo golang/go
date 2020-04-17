@@ -7,7 +7,6 @@ package net
 import (
 	"context"
 	"internal/nettrace"
-	"internal/poll"
 	"syscall"
 	"time"
 )
@@ -141,7 +140,7 @@ func partialDeadline(now, deadline time.Time, addrsRemaining int) (time.Time, er
 	}
 	timeRemaining := deadline.Sub(now)
 	if timeRemaining <= 0 {
-		return time.Time{}, poll.ErrTimeout
+		return time.Time{}, errTimeout
 	}
 	// Tentatively allocate equal time to each remaining address.
 	timeout := timeRemaining / time.Duration(addrsRemaining)
