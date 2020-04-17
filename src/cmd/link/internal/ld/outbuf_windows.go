@@ -41,10 +41,3 @@ func (out *OutBuf) munmap() {
 		Exitf("UnmapViewOfFile failed: %v", err)
 	}
 }
-
-func (out *OutBuf) Msync() error {
-	if out.buf == nil {
-		return nil
-	}
-	return syscall.FlushViewOfFile(uintptr(unsafe.Pointer(&out.buf[0])), 0)
-}
