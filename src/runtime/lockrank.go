@@ -27,7 +27,8 @@ package runtime
 type lockRank int
 
 // Constants representing the lock rank of the architecture-independent locks in
-// the runtime.
+// the runtime. Locks with lower rank must be taken before locks with higher
+// rank.
 const (
 	lockRankDummy lockRank = iota
 
