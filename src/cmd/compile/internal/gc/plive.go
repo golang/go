@@ -646,7 +646,7 @@ func (lv *Liveness) pointerMap(liveout bvec, vars []*Node, args, locals bvec) {
 func (lv *Liveness) markUnsafePoints() {
 	if compiling_runtime || lv.f.NoSplit {
 		// No complex analysis necessary. Do this on the fly
-		// in issafepoint.
+		// in hasStackMap.
 		return
 	}
 
@@ -801,9 +801,12 @@ func (lv *Liveness) markUnsafePoints() {
 	}
 }
 
-// Returns true for instructions that are safe points that must be annotated
-// with liveness information.
-func (lv *Liveness) issafepoint(v *ssa.Value) bool {
+// Returns true for instructions that must have a stack map.
+//
+// This does not necessarily mean the instruction is a safe-point. In
+// particular, call Values can have a stack map in case the callee
+// grows the stack, but not themselves be a safe-point.
+func (lv *Liveness) hasStackMap(v *ssa.Value) bool {
 	// The runtime was written with the assumption that
 	// safe-points only appear at call sites (because that's how
 	// it used to be). We could and should improve that, but for
@@ -1049,7 +1052,7 @@ func (lv *Liveness) epilogue() {
 		// Walk forward through the basic block instructions and
 		// allocate liveness maps for those instructions that need them.
 		for _, v := range b.Values {
-			if !lv.issafepoint(v) {
+			if !lv.hasStackMap(v) {
 				continue
 			}
 
@@ -1064,7 +1067,7 @@ func (lv *Liveness) epilogue() {
 		for i := len(b.Values) - 1; i >= 0; i-- {
 			v := b.Values[i]
 
-			if lv.issafepoint(v) {
+			if lv.hasStackMap(v) {
 				// Found an interesting instruction, record the
 				// corresponding liveness information.
 
@@ -1113,7 +1116,7 @@ func (lv *Liveness) epilogue() {
 		// of the context register, so it's dead after the call.
 		index = int32(firstBitmapIndex)
 		for _, v := range b.Values {
-			if lv.issafepoint(v) {
+			if lv.hasStackMap(v) {
 				live := lv.livevars[index]
 				if v.Op.IsCall() && live.regs != 0 {
 					lv.printDebug()
@@ -1185,7 +1188,7 @@ func (lv *Liveness) compact(b *ssa.Block) {
 		pos++
 	}
 	for _, v := range b.Values {
-		if lv.issafepoint(v) {
+		if lv.hasStackMap(v) {
 			lv.livenessMap.set(v, add(lv.livevars[pos]))
 			pos++
 		}
@@ -1360,7 +1363,7 @@ func (lv *Liveness) printDebug() {
 				fmt.Printf("\n")
 			}
 
-			if !lv.issafepoint(v) {
+			if !lv.hasStackMap(v) {
 				continue
 			}
 
