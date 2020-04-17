@@ -457,7 +457,7 @@ func walkexpr(n *Node, init *Nodes) *Node {
 		nn := nod(ODEREF, n.Name.Param.Heapaddr, nil)
 		nn = typecheck(nn, ctxExpr)
 		nn = walkexpr(nn, init)
-		nn.Left.SetNonNil(true)
+		nn.Left.MarkNonNil()
 		return nn
 	}
 
@@ -762,7 +762,7 @@ opswitch:
 		if !a.isBlank() {
 			var_ := temp(types.NewPtr(t.Elem()))
 			var_.SetTypecheck(1)
-			var_.SetNonNil(true) // mapaccess always returns a non-nil pointer
+			var_.MarkNonNil() // mapaccess always returns a non-nil pointer
 			n.List.SetFirst(var_)
 			n = walkexpr(n, init)
 			init.Append(n)
@@ -1103,7 +1103,7 @@ opswitch:
 			}
 		}
 		n.Type = types.NewPtr(t.Elem())
-		n.SetNonNil(true) // mapaccess1* and mapassign always return non-nil pointers.
+		n.MarkNonNil() // mapaccess1* and mapassign always return non-nil pointers.
 		n = nod(ODEREF, n, nil)
 		n.Type = t.Elem()
 		n.SetTypecheck(1)
@@ -1382,7 +1382,7 @@ opswitch:
 
 			fn := syslook(fnname)
 			m.Left = mkcall1(fn, types.Types[TUNSAFEPTR], init, typename(t.Elem()), conv(len, argtype), conv(cap, argtype))
-			m.Left.SetNonNil(true)
+			m.Left.MarkNonNil()
 			m.List.Set2(conv(len, types.Types[TINT]), conv(cap, types.Types[TINT]))
 
 			m = typecheck(m, ctxExpr)
@@ -1952,7 +1952,7 @@ func callnew(t *types.Type) *Node {
 	n := nod(ONEWOBJ, typename(t), nil)
 	n.Type = types.NewPtr(t)
 	n.SetTypecheck(1)
-	n.SetNonNil(true)
+	n.MarkNonNil()
 	return n
 }
 
