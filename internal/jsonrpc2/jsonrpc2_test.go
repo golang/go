@@ -16,8 +16,8 @@ import (
 	"sync"
 	"testing"
 
+	"golang.org/x/tools/internal/event/export/eventtest"
 	"golang.org/x/tools/internal/jsonrpc2"
-	"golang.org/x/tools/internal/telemetry/export/eventtest"
 )
 
 var logRPC = flag.Bool("logrpc", false, "Enable jsonrpc2 communication logging")

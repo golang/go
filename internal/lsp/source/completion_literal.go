@@ -12,10 +12,10 @@ import (
 	"strings"
 	"unicode"
 
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/diff"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/snippet"
-	"golang.org/x/tools/internal/telemetry/event"
 )
 
 // literal generates composite literal, function literal, and make()

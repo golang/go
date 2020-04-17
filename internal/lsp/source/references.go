@@ -10,8 +10,8 @@ import (
 	"go/token"
 	"go/types"
 
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/xerrors"
 )
 

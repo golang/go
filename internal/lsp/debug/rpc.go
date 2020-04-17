@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/tools/internal/event/core"
+	"golang.org/x/tools/internal/event/export"
 	"golang.org/x/tools/internal/lsp/debug/tag"
-	"golang.org/x/tools/internal/telemetry/event"
-	"golang.org/x/tools/internal/telemetry/export"
 )
 
 var rpcTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
@@ -77,7 +77,7 @@ type rpcCodeBucket struct {
 	Count int64
 }
 
-func (r *rpcs) ProcessEvent(ctx context.Context, ev event.Event, tagMap event.TagMap) context.Context {
+func (r *rpcs) ProcessEvent(ctx context.Context, ev core.Event, tagMap core.TagMap) context.Context {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	switch {
@@ -103,7 +103,7 @@ func (r *rpcs) ProcessEvent(ctx context.Context, ev event.Event, tagMap event.Ta
 	return ctx
 }
 
-func endRPC(ctx context.Context, ev event.Event, span *export.Span, stats *rpcStats) {
+func endRPC(ctx context.Context, ev core.Event, span *export.Span, stats *rpcStats) {
 	// update the basic counts
 	stats.Completed++
 
@@ -150,7 +150,7 @@ func endRPC(ctx context.Context, ev event.Event, span *export.Span, stats *rpcSt
 	}
 }
 
-func (r *rpcs) getRPCSpan(ctx context.Context, ev event.Event) (*export.Span, *rpcStats) {
+func (r *rpcs) getRPCSpan(ctx context.Context, ev core.Event) (*export.Span, *rpcStats) {
 	// get the span
 	span := export.GetSpan(ctx)
 	if span == nil {
@@ -161,7 +161,7 @@ func (r *rpcs) getRPCSpan(ctx context.Context, ev event.Event) (*export.Span, *r
 	return span, r.getRPCStats(span.Start())
 }
 
-func (r *rpcs) getRPCStats(tagMap event.TagMap) *rpcStats {
+func (r *rpcs) getRPCStats(tagMap core.TagMap) *rpcStats {
 	method := tag.Method.Get(tagMap)
 	if method == "" {
 		return nil

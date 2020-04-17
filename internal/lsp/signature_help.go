@@ -7,10 +7,11 @@ package lsp
 import (
 	"context"
 
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/event/core"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/lsp/source"
-	"golang.org/x/tools/internal/telemetry/event"
 )
 
 func (s *Server) signatureHelp(ctx context.Context, params *protocol.SignatureHelpParams) (*protocol.SignatureHelp, error) {
@@ -20,7 +21,7 @@ func (s *Server) signatureHelp(ctx context.Context, params *protocol.SignatureHe
 	}
 	info, activeParameter, err := source.SignatureHelp(ctx, snapshot, fh, params.Position)
 	if err != nil {
-		event.Print(ctx, "no signature help", tag.Position.Of(params.Position), event.Err.Of(err))
+		event.Print(ctx, "no signature help", tag.Position.Of(params.Position), core.Err.Of(err))
 		return nil, nil
 	}
 	return &protocol.SignatureHelp{

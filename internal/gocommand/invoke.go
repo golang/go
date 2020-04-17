@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/tools/internal/telemetry/event"
+	"golang.org/x/tools/internal/event"
 )
 
 // An Runner will run go command invocations and serialize

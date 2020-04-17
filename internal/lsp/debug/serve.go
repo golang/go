@@ -26,14 +26,15 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/event/core"
+	"golang.org/x/tools/internal/event/export"
+	"golang.org/x/tools/internal/event/export/metric"
+	"golang.org/x/tools/internal/event/export/ocagent"
+	"golang.org/x/tools/internal/event/export/prometheus"
 	"golang.org/x/tools/internal/lsp/debug/tag"
 	"golang.org/x/tools/internal/lsp/protocol"
 	"golang.org/x/tools/internal/span"
-	"golang.org/x/tools/internal/telemetry/event"
-	"golang.org/x/tools/internal/telemetry/export"
-	"golang.org/x/tools/internal/telemetry/export/metric"
-	"golang.org/x/tools/internal/telemetry/export/ocagent"
-	"golang.org/x/tools/internal/telemetry/export/prometheus"
 	"golang.org/x/xerrors"
 )
 
@@ -542,12 +543,12 @@ func (i *Instance) writeMemoryDebug(threshold uint64) error {
 }
 
 func makeGlobalExporter(stderr io.Writer) event.Exporter {
-	return func(ctx context.Context, ev event.Event, tags event.TagMap) context.Context {
+	return func(ctx context.Context, ev core.Event, tags core.TagMap) context.Context {
 		i := GetInstance(ctx)
 
 		if ev.IsLog() {
 			// Don't log context cancellation errors.
-			if err := event.Err.Get(ev); xerrors.Is(err, context.Canceled) {
+			if err := core.Err.Get(ev); xerrors.Is(err, context.Canceled) {
 				return ctx
 			}
 			// Make sure any log messages without an instance go to stderr.
@@ -564,7 +565,7 @@ func makeGlobalExporter(stderr io.Writer) event.Exporter {
 }
 
 func makeInstanceExporter(i *Instance) event.Exporter {
-	exporter := func(ctx context.Context, ev event.Event, tags event.TagMap) context.Context {
+	exporter := func(ctx context.Context, ev core.Event, tags core.TagMap) context.Context {
 		if i.ocagent != nil {
 			ctx = i.ocagent.ProcessEvent(ctx, ev, tags)
 		}

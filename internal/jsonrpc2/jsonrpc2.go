@@ -14,8 +14,9 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"golang.org/x/tools/internal/event"
+	"golang.org/x/tools/internal/event/core"
 	"golang.org/x/tools/internal/lsp/debug/tag"
-	"golang.org/x/tools/internal/telemetry/event"
 )
 
 const (
@@ -172,7 +173,7 @@ func (c *Conn) Run(runCtx context.Context, handler Handler) error {
 		}
 		switch msg := msg.(type) {
 		case Request:
-			tags := []event.Tag{
+			tags := []core.Tag{
 				tag.Method.Of(msg.Method()),
 				tag.RPCDirection.Of(tag.Inbound),
 				{}, // reserved for ID if present

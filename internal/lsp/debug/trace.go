@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/tools/internal/telemetry/event"
-	"golang.org/x/tools/internal/telemetry/export"
+	"golang.org/x/tools/internal/event/core"
+	"golang.org/x/tools/internal/event/export"
 )
 
 var traceTmpl = template.Must(template.Must(baseTemplate.Clone()).Parse(`
@@ -73,7 +73,7 @@ type traceEvent struct {
 	Tags   string
 }
 
-func (t *traces) ProcessEvent(ctx context.Context, ev event.Event, tags event.TagMap) context.Context {
+func (t *traces) ProcessEvent(ctx context.Context, ev core.Event, tags core.TagMap) context.Context {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	span := export.GetSpan(ctx)
@@ -170,7 +170,7 @@ func fillOffsets(td *traceData, start time.Time) {
 	}
 }
 
-func renderTags(tags event.TagList) string {
+func renderTags(tags core.TagList) string {
 	buf := &bytes.Buffer{}
 	for index := 0; tags.Valid(index); index++ {
 		if tag := tags.Tag(index); tag.Valid() {

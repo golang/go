@@ -9,8 +9,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/jsonrpc2"
-	"golang.org/x/tools/internal/telemetry/event"
 	"golang.org/x/tools/internal/xcontext"
 )
 

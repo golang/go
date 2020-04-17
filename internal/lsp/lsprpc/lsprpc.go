@@ -18,12 +18,12 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/tools/internal/event"
 	"golang.org/x/tools/internal/jsonrpc2"
 	"golang.org/x/tools/internal/lsp"
 	"golang.org/x/tools/internal/lsp/cache"
 	"golang.org/x/tools/internal/lsp/debug"
 	"golang.org/x/tools/internal/lsp/protocol"
-	"golang.org/x/tools/internal/telemetry/event"
 )
 
 // AutoNetwork is the pseudo network type used to signal that gopls should use
