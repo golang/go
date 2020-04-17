@@ -2820,14 +2820,19 @@ func (ctxt *Link) loadlibfull() {
 	pclntabFirstFunc = ctxt.loader.Syms[pclntabFirstFunc2]
 	pclntabLastFunc = ctxt.loader.Syms[pclntabLastFunc2]
 
-	// Populate dwarfp from dwarfp2. If we see a symbol index on dwarfp2
+	// Populate dwarfp from dwarfp2. If we see a symbol index
 	// whose loader.Syms entry is nil, something went wrong.
-	for _, symIdx := range dwarfp2 {
-		s := ctxt.loader.Syms[symIdx]
-		if s == nil {
-			panic(fmt.Sprintf("nil sym for dwarfp2 element %d", symIdx))
+	for _, si := range dwarfp2 {
+		syms := make([]*sym.Symbol, 0, len(si.syms))
+		for _, symIdx := range si.syms {
+			s := ctxt.loader.Syms[symIdx]
+			if s == nil {
+				panic(fmt.Sprintf("nil sym for dwarfp2 element %d", symIdx))
+			}
+			s.Attr |= sym.AttrLocal
+			syms = append(syms, s)
 		}
-		dwarfp = append(dwarfp, s)
+		dwarfp = append(dwarfp, dwarfSecInfo2{syms: syms})
 	}
 }
 

@@ -599,8 +599,10 @@ func (ctxt *Link) reloc() {
 		wg.Done()
 	}()
 	go func() {
-		for _, s := range dwarfp {
-			relocsym(target, ldr, reporter, syms, s)
+		for _, si := range dwarfp {
+			for _, s := range si.syms {
+				relocsym(target, ldr, reporter, syms, s)
+			}
 		}
 		wg.Done()
 	}()
@@ -1042,7 +1044,21 @@ func Dwarfblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
 		ctxt.Logf("dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
 	}
 
-	writeBlocks(out, ctxt.outSem, dwarfp, addr, size, zeros[:])
+	// Concatenate the section symbol lists into a single list to pass
+	// to writeBlocks.
+	//
+	// NB: ideally we would do a separate writeBlocks call for each
+	// section, but this would run the risk of undoing any file offset
+	// adjustments made during layout.
+	n := 0
+	for i := range dwarfp {
+		n += len(dwarfp[i].syms)
+	}
+	syms := make([]*sym.Symbol, 0, n)
+	for i := range dwarfp {
+		syms = append(syms, dwarfp[i].syms...)
+	}
+	writeBlocks(out, ctxt.outSem, syms, addr, size, zeros[:])
 }
 
 var zeros [512]byte
@@ -1963,13 +1979,10 @@ func (state *dodataState) allocateSections(ctxt *Link) {
 		ctxt.datap = append(ctxt.datap, state.data[symn]...)
 	}
 
-	var i int
-	for ; i < len(dwarfp); i++ {
-		s := dwarfp[i]
-		if s.Type != sym.SDWARFSECT {
-			break
-		}
-
+	// DWARF
+	for i := 0; i < len(dwarfp); i++ {
+		// First the section symbol.
+		s := dwarfp[i].secSym()
 		sect = addsection(ctxt.Arch, &Segdwarf, s.Name, 04)
 		sect.Sym = s
 		sect.Align = 1
@@ -1979,39 +1992,15 @@ func (state *dodataState) allocateSections(ctxt *Link) {
 		s.Type = sym.SRODATA
 		s.Value = int64(uint64(state.datsize) - sect.Vaddr)
 		state.datsize += s.Size
-		sect.Length = uint64(state.datsize) - sect.Vaddr
-	}
-	state.checkdatsize(sym.SDWARFSECT)
+		curType := s.Type
 
-	for i < len(dwarfp) {
-		curType := dwarfp[i].Type
-		var sect *sym.Section
-		var sectname string
-		switch curType {
-		case sym.SDWARFINFO:
-			sectname = ".debug_info"
-		case sym.SDWARFRANGE:
-			sectname = ".debug_ranges"
-		case sym.SDWARFLOC:
-			sectname = ".debug_loc"
-		default:
-			// Error is unrecoverable, so panic.
-			panic(fmt.Sprintf("unknown DWARF section %v", curType))
-		}
-		sect = addsection(ctxt.Arch, &Segdwarf, sectname, 04)
-		sect.Sym = ctxt.Syms.ROLookup(sectname, 0)
-		sect.Align = 1
-		state.datsize = Rnd(state.datsize, int64(sect.Align))
-		sect.Vaddr = uint64(state.datsize)
-		for ; i < len(dwarfp); i++ {
-			s := dwarfp[i]
-			if s.Type != curType {
-				break
-			}
+		// Then any sub-symbols for the section symbol.
+		subSyms := dwarfp[i].subSyms()
+		for j := 0; j < len(subSyms); j++ {
+			s := subSyms[j]
 			s.Sect = sect
 			s.Type = sym.SRODATA
 			s.Value = int64(uint64(state.datsize) - sect.Vaddr)
-			s.Attr |= sym.AttrLocal
 			state.datsize += s.Size
 
 			if ctxt.HeadType == objabi.Haix && curType == sym.SDWARFLOC {
@@ -2504,12 +2493,17 @@ func (ctxt *Link) address() []*sym.Segment {
 		}
 	}
 
-	for _, s := range dwarfp {
-		if s.Sect != nil {
-			s.Value += int64(s.Sect.Vaddr)
-		}
-		for sub := s.Sub; sub != nil; sub = sub.Sub {
-			sub.Value += s.Value
+	for _, si := range dwarfp {
+		for _, s := range si.syms {
+			if s.Sect != nil {
+				s.Value += int64(s.Sect.Vaddr)
+			}
+			if s.Sub != nil {
+				panic(fmt.Sprintf("unexpected sub-sym for %s %s", s.Name, s.Type.String()))
+			}
+			for sub := s.Sub; sub != nil; sub = sub.Sub {
+				sub.Value += s.Value
+			}
 		}
 	}
 

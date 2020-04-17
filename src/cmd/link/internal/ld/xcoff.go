@@ -1657,12 +1657,18 @@ func (f *xcoffFile) emitRelocations(ctxt *Link, fileoff int64) {
 	}
 
 dwarfLoop:
-	for _, sect := range Segdwarf.Sections {
+	for i := 0; i < len(Segdwarf.Sections); i++ {
+		sect := Segdwarf.Sections[i]
+		si := dwarfp[i]
+		if si.secSym() != sect.Sym ||
+			si.secSym().Sect != sect {
+			panic("inconsistency between dwarfp and Segdwarf")
+		}
 		for _, xcoffSect := range f.sections {
 			_, subtyp := xcoffGetDwarfSubtype(sect.Name)
 			if xcoffSect.Sflags&0xF0000 == subtyp {
 				xcoffSect.Srelptr = uint64(ctxt.Out.Offset())
-				xcoffSect.Snreloc = relocsect(sect, dwarfp, sect.Vaddr)
+				xcoffSect.Snreloc = relocsect(sect, si.syms, sect.Vaddr)
 				continue dwarfLoop
 			}
 		}

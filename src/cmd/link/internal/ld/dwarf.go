@@ -177,14 +177,46 @@ func (c dwctxt2) RecordChildDieOffsets(s dwarf.Sym, vars []*dwarf.Var, offsets [
 
 var gdbscript string
 
-var dwarfp2 []loader.Sym
+// dwarfSecInfo holds information about a DWARF output section,
+// specifically a section symbol and a list of symbols contained in
+// that section. On the syms list, the first symbol will always be the
+// section symbol, then any remaining symbols (if any) will be
+// sub-symbols in that section. Note that for some sections (eg:
+// .debug_abbrev), the section symbol is all there is (all content is
+// contained in it). For other sections (eg: .debug_info), the section
+// symbol is empty and all the content is in the sub-symbols. Finally
+// there are some sections (eg: .debug_ranges) where it is a mix (both
+// the section symbol and the sub-symbols have content)
+type dwarfSecInfo struct {
+	syms []loader.Sym
+}
 
-func (d *dwctxt2) writeabbrev() loader.Sym {
+// secSym returns the section symbol for the section.
+func (dsi *dwarfSecInfo) secSym() loader.Sym {
+	if len(dsi.syms) == 0 {
+		return 0
+	}
+	return dsi.syms[0]
+}
+
+// subSyms returns a list of sub-symbols for the section.
+func (dsi *dwarfSecInfo) subSyms() []loader.Sym {
+	if len(dsi.syms) == 0 {
+		return []loader.Sym{}
+	}
+	return dsi.syms[1:]
+}
+
+// dwarfp2 stores the collected DWARF symbols created during
+// dwarf generation.
+var dwarfp2 []dwarfSecInfo
+
+func (d *dwctxt2) writeabbrev() dwarfSecInfo {
 	abrvs := d.ldr.LookupOrCreateSym(".debug_abbrev", 0)
 	u := d.ldr.MakeSymbolUpdater(abrvs)
 	u.SetType(sym.SDWARFSECT)
 	u.AddBytes(dwarf.GetAbbrev())
-	return abrvs
+	return dwarfSecInfo{syms: []loader.Sym{abrvs}}
 }
 
 var dwtypes dwarf.DWDie
@@ -1294,12 +1326,11 @@ func appendPCDeltaCFA(arch *sys.Arch, b []byte, deltapc, cfa int64) []byte {
 	return b
 }
 
-func (d *dwctxt2) writeframes(syms []loader.Sym) []loader.Sym {
+func (d *dwctxt2) writeframes() dwarfSecInfo {
 	fs := d.ldr.LookupOrCreateSym(".debug_frame", 0)
 	fsd := dwSym(fs)
 	fsu := d.ldr.MakeSymbolUpdater(fs)
 	fsu.SetType(sym.SDWARFSECT)
-	syms = append(syms, fs)
 	isdw64 := isDwarf64(d.linkctxt)
 	haslr := haslinkregister(d.linkctxt)
 
@@ -1443,7 +1474,7 @@ func (d *dwctxt2) writeframes(syms []loader.Sym) []loader.Sym {
 		}
 	}
 
-	return syms
+	return dwarfSecInfo{syms: []loader.Sym{fs}}
 }
 
 /*
@@ -1464,13 +1495,13 @@ func appendSyms(syms []loader.Sym, src []sym.LoaderSym) []loader.Sym {
 	return syms
 }
 
-func (d *dwctxt2) writeinfo(syms []loader.Sym, units []*sym.CompilationUnit, abbrevsym loader.Sym, pubNames, pubTypes *pubWriter2) []loader.Sym {
+func (d *dwctxt2) writeinfo(units []*sym.CompilationUnit, abbrevsym loader.Sym, pubNames, pubTypes *pubWriter2) dwarfSecInfo {
 
 	infosec := d.ldr.LookupOrCreateSym(".debug_info", 0)
 	disu := d.ldr.MakeSymbolUpdater(infosec)
 	disu.SetType(sym.SDWARFINFO)
 	d.ldr.SetAttrReachable(infosec, true)
-	syms = append(syms, infosec)
+	syms := []loader.Sym{infosec}
 
 	for _, u := range units {
 		compunit := u.DWInfo
@@ -1548,7 +1579,8 @@ func (d *dwctxt2) writeinfo(syms []loader.Sym, units []*sym.CompilationUnit, abb
 		pubTypes.endCompUnit(compunit, uint32(cusize)+4)
 		syms = append(syms, cu...)
 	}
-	return syms
+
+	return dwarfSecInfo{syms: syms}
 }
 
 /*
@@ -1624,10 +1656,10 @@ func ispubtype(die *dwarf.DWDie) bool {
 	return die.Abbrev >= dwarf.DW_ABRV_NULLTYPE
 }
 
-func (d *dwctxt2) writegdbscript(syms []loader.Sym) []loader.Sym {
+func (d *dwctxt2) writegdbscript() dwarfSecInfo {
 	// TODO (aix): make it available
 	if d.linkctxt.HeadType == objabi.Haix {
-		return syms
+		return dwarfSecInfo{}
 	}
 	if d.linkctxt.LinkMode == LinkExternal && d.linkctxt.HeadType == objabi.Hwindows && d.linkctxt.BuildMode == BuildModeCArchive {
 		// gcc on Windows places .debug_gdb_scripts in the wrong location, which
@@ -1636,21 +1668,19 @@ func (d *dwctxt2) writegdbscript(syms []loader.Sym) []loader.Sym {
 		// (see fix near writeGDBLinkerScript).
 		// c-archive users would need to specify the linker script manually.
 		// For UX it's better not to deal with this.
-		return syms
+		return dwarfSecInfo{}
+	}
+	if gdbscript == "" {
+		return dwarfSecInfo{}
 	}
 
-	if gdbscript != "" {
-		gs := d.ldr.LookupOrCreateSym(".debug_gdb_scripts", 0)
-		u := d.ldr.MakeSymbolUpdater(gs)
-		u.SetType(sym.SDWARFSECT)
+	gs := d.ldr.LookupOrCreateSym(".debug_gdb_scripts", 0)
+	u := d.ldr.MakeSymbolUpdater(gs)
+	u.SetType(sym.SDWARFSECT)
 
-		syms = append(syms, gs)
-		u.AddUint8(1) // magic 1 byte?
-		u.Addstring(gdbscript)
-	}
-
-	return syms
-
+	u.AddUint8(1) // magic 1 byte?
+	u.Addstring(gdbscript)
+	return dwarfSecInfo{syms: []loader.Sym{gs}}
 }
 
 // FIXME: might be worth looking replacing this map with a function
@@ -1976,8 +2006,8 @@ func dwarfGenerateDebugSyms(ctxt *Link) {
 }
 
 func (d *dwctxt2) dwarfGenerateDebugSyms() {
-	abbrev := d.writeabbrev()
-	syms := []loader.Sym{abbrev}
+	abbrevSec := d.writeabbrev()
+	dwarfp2 = append(dwarfp2, abbrevSec)
 
 	d.calcCompUnitRanges()
 	sort.Sort(compilationUnitByStartPC(d.linkctxt.compUnits))
@@ -1987,7 +2017,7 @@ func (d *dwctxt2) dwarfGenerateDebugSyms() {
 	dlu := d.ldr.MakeSymbolUpdater(debugLine)
 	dlu.SetType(sym.SDWARFSECT)
 	d.ldr.SetAttrReachable(debugLine, true)
-	syms = append(syms, debugLine)
+	dwarfp2 = append(dwarfp2, dwarfSecInfo{syms: []loader.Sym{debugLine}})
 
 	debugRanges := d.ldr.LookupOrCreateSym(".debug_ranges", 0)
 	dru := d.ldr.MakeSymbolUpdater(debugRanges)
@@ -2014,27 +2044,34 @@ func (d *dwctxt2) dwarfGenerateDebugSyms() {
 	pubNames := newPubWriter2(d, ".debug_pubnames")
 	pubTypes := newPubWriter2(d, ".debug_pubtypes")
 
-	// Need to reorder symbols so sym.SDWARFINFO is after all sym.SDWARFSECT
-	infosyms := d.writeinfo(nil, d.linkctxt.compUnits, abbrev, pubNames, pubTypes)
+	infoSec := d.writeinfo(d.linkctxt.compUnits, abbrevSec.secSym(), pubNames, pubTypes)
 
-	syms = d.writeframes(syms)
-	syms = append(syms, pubNames.s, pubTypes.s)
-	syms = d.writegdbscript(syms)
-	// We are now done writing SDWARFSECT symbols, so we can write
-	// other SDWARF* symbols.
-	syms = append(syms, infosyms...)
-	syms = d.collectlocs(syms, d.linkctxt.compUnits)
-	syms = append(syms, debugRanges)
+	framesSec := d.writeframes()
+	dwarfp2 = append(dwarfp2, framesSec)
+	dwarfp2 = append(dwarfp2, dwarfSecInfo{syms: []loader.Sym{pubNames.s}})
+	dwarfp2 = append(dwarfp2, dwarfSecInfo{syms: []loader.Sym{pubTypes.s}})
+	gdbScriptSec := d.writegdbscript()
+	if gdbScriptSec.secSym() != 0 {
+		dwarfp2 = append(dwarfp2, gdbScriptSec)
+	}
+	dwarfp2 = append(dwarfp2, infoSec)
+	locSec := d.collectlocs(d.linkctxt.compUnits)
+	if locSec.secSym() != 0 {
+		dwarfp2 = append(dwarfp2, locSec)
+	}
+
+	rsyms := []loader.Sym{debugRanges}
 	for _, unit := range d.linkctxt.compUnits {
 		for _, s := range unit.RangeSyms2 {
-			syms = append(syms, loader.Sym(s))
+			rsyms = append(rsyms, loader.Sym(s))
 		}
 	}
-	dwarfp2 = syms
+	dwarfp2 = append(dwarfp2, dwarfSecInfo{syms: rsyms})
 }
 
-func (d *dwctxt2) collectlocs(syms []loader.Sym, units []*sym.CompilationUnit) []loader.Sym {
+func (d *dwctxt2) collectlocs(units []*sym.CompilationUnit) dwarfSecInfo {
 	empty := true
+	syms := []loader.Sym{}
 	for _, u := range units {
 		for _, fn := range u.FuncDIEs2 {
 			relocs := d.ldr.Relocs(loader.Sym(fn))
@@ -2057,14 +2094,15 @@ func (d *dwctxt2) collectlocs(syms []loader.Sym, units []*sym.CompilationUnit) [
 	}
 
 	// Don't emit .debug_loc if it's empty -- it makes the ARM linker mad.
-	if !empty {
-		locsym := d.ldr.LookupOrCreateSym(".debug_loc", 0)
-		u := d.ldr.MakeSymbolUpdater(locsym)
-		u.SetType(sym.SDWARFLOC)
-		d.ldr.SetAttrReachable(locsym, true)
-		syms = append(syms, locsym)
+	if empty {
+		return dwarfSecInfo{}
 	}
-	return syms
+
+	locsym := d.ldr.LookupOrCreateSym(".debug_loc", 0)
+	u := d.ldr.MakeSymbolUpdater(locsym)
+	u.SetType(sym.SDWARFLOC)
+	d.ldr.SetAttrReachable(locsym, true)
+	return dwarfSecInfo{syms: append([]loader.Sym{locsym}, syms...)}
 }
 
 /*
