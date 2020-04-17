@@ -57,10 +57,6 @@ func (c *Conn) Notify(ctx context.Context, method string, params interface{}) (e
 	if err != nil {
 		return fmt.Errorf("marshaling notify parameters: %v", err)
 	}
-	data, err := json.Marshal(notify)
-	if err != nil {
-		return fmt.Errorf("marshaling notify request: %v", err)
-	}
 	ctx, done := event.StartSpan(ctx, method,
 		tag.Method.Of(method),
 		tag.RPCDirection.Of(tag.Outbound),
@@ -71,7 +67,7 @@ func (c *Conn) Notify(ctx context.Context, method string, params interface{}) (e
 	}()
 
 	event.Record(ctx, tag.Started.Of(1))
-	n, err := c.stream.Write(ctx, data)
+	n, err := c.stream.Write(ctx, notify)
 	event.Record(ctx, tag.SentBytes.Of(n))
 	return err
 }
@@ -85,11 +81,6 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 	call, err := NewCall(id, method, params)
 	if err != nil {
 		return id, fmt.Errorf("marshaling call parameters: %v", err)
-	}
-	// marshal the request now it is complete
-	data, err := json.Marshal(call)
-	if err != nil {
-		return id, fmt.Errorf("marshaling call request: %v", err)
 	}
 	ctx, done := event.StartSpan(ctx, method,
 		tag.Method.Of(method),
@@ -115,7 +106,7 @@ func (c *Conn) Call(ctx context.Context, method string, params, result interface
 		c.pendingMu.Unlock()
 	}()
 	// now we are ready to send
-	n, err := c.stream.Write(ctx, data)
+	n, err := c.stream.Write(ctx, call)
 	event.Record(ctx, tag.SentBytes.Of(n))
 	if err != nil {
 		// sending failed, we will never get a response, so don't leave it pending
@@ -155,10 +146,8 @@ func replier(conn *Conn, req Request, spanDone func()) Replier {
 		if err != nil {
 			return err
 		}
-		data, err := json.Marshal(response)
-		n, err := conn.stream.Write(ctx, data)
+		n, err := conn.stream.Write(ctx, response)
 		event.Record(ctx, tag.SentBytes.Of(n))
-
 		if err != nil {
 			// TODO(iancottrell): if a stream write fails, we really need to shut down
 			// the whole stream
@@ -174,19 +163,12 @@ func replier(conn *Conn, req Request, spanDone func()) Replier {
 // It returns only when the reader is closed or there is an error in the stream.
 func (c *Conn) Run(runCtx context.Context, handler Handler) error {
 	for {
-		// get the data for a message
-		data, n, err := c.stream.Read(runCtx)
+		// get the next message
+		msg, n, err := c.stream.Read(runCtx)
 		if err != nil {
 			// The stream failed, we cannot continue. If the client disconnected
 			// normally, we should get ErrDisconnected here.
 			return err
-		}
-		// read a combined message
-		msg, err := DecodeMessage(data)
-		if err != nil {
-			// a badly formed message arrived, log it and continue
-			// we trust the stream to have isolated the error to just this message
-			continue
 		}
 		switch msg := msg.(type) {
 		case Request:

@@ -22,10 +22,10 @@ import (
 type Stream interface {
 	// Read gets the next message from the stream.
 	// It is never called concurrently.
-	Read(context.Context) ([]byte, int64, error)
+	Read(context.Context) (Message, int64, error)
 	// Write sends a message to the stream.
 	// It must be safe for concurrent use.
-	Write(context.Context, []byte) (int64, error)
+	Write(context.Context, Message) (int64, error)
 }
 
 // NewStream returns a Stream built on top of an io.Reader and io.Writer
@@ -44,7 +44,7 @@ type plainStream struct {
 	out   io.Writer
 }
 
-func (s *plainStream) Read(ctx context.Context) ([]byte, int64, error) {
+func (s *plainStream) Read(ctx context.Context) (Message, int64, error) {
 	select {
 	case <-ctx.Done():
 		return nil, 0, ctx.Err()
@@ -57,14 +57,19 @@ func (s *plainStream) Read(ctx context.Context) ([]byte, int64, error) {
 		}
 		return nil, 0, err
 	}
-	return raw, int64(len(raw)), nil
+	msg, err := DecodeMessage(raw)
+	return msg, int64(len(raw)), err
 }
 
-func (s *plainStream) Write(ctx context.Context, data []byte) (int64, error) {
+func (s *plainStream) Write(ctx context.Context, msg Message) (int64, error) {
 	select {
 	case <-ctx.Done():
 		return 0, ctx.Err()
 	default:
+	}
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return 0, fmt.Errorf("marshaling message: %v", err)
 	}
 	s.outMu.Lock()
 	n, err := s.out.Write(data)
@@ -88,7 +93,7 @@ type headerStream struct {
 	out   io.Writer
 }
 
-func (s *headerStream) Read(ctx context.Context) ([]byte, int64, error) {
+func (s *headerStream) Read(ctx context.Context) (Message, int64, error) {
 	select {
 	case <-ctx.Done():
 		return nil, 0, ctx.Err()
@@ -136,14 +141,19 @@ func (s *headerStream) Read(ctx context.Context) ([]byte, int64, error) {
 		return nil, total, err
 	}
 	total += length
-	return data, total, nil
+	msg, err := DecodeMessage(data)
+	return msg, total, err
 }
 
-func (s *headerStream) Write(ctx context.Context, data []byte) (int64, error) {
+func (s *headerStream) Write(ctx context.Context, msg Message) (int64, error) {
 	select {
 	case <-ctx.Done():
 		return 0, ctx.Err()
 	default:
+	}
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return 0, fmt.Errorf("marshaling message: %v", err)
 	}
 	s.outMu.Lock()
 	defer s.outMu.Unlock()

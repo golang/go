@@ -8,7 +8,6 @@ package main
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -148,7 +147,7 @@ func send(ctx context.Context, l *parse.Logmsg, stream jsonrpc2.Stream, id *json
 		}
 		id = jsonrpc2.NewIntID(int64(n))
 	}
-	var msg interface{}
+	var msg jsonrpc2.Message
 	var err error
 	switch l.Type {
 	case parse.ClRequest:
@@ -163,11 +162,7 @@ func send(ctx context.Context, l *parse.Logmsg, stream jsonrpc2.Stream, id *json
 	if err != nil {
 		log.Fatal(err)
 	}
-	data, err := json.Marshal(msg)
-	if err != nil {
-		log.Fatal(err)
-	}
-	stream.Write(ctx, data)
+	stream.Write(ctx, msg)
 }
 
 func respond(ctx context.Context, c *jsonrpc2.Call, stream jsonrpc2.Stream) {
@@ -235,14 +230,10 @@ func mimic(ctx context.Context) {
 	rchan := make(chan jsonrpc2.Message, 10) // do we need buffering?
 	rdr := func() {
 		for {
-			buf, _, err := stream.Read(ctx)
+			msg, _, err := stream.Read(ctx)
 			if err != nil {
 				rchan <- nil // close it instead?
 				return
-			}
-			msg, err := jsonrpc2.DecodeMessage(buf)
-			if err != nil {
-				log.Fatal(err)
 			}
 			rchan <- msg
 		}

@@ -22,21 +22,21 @@ func LoggingStream(str jsonrpc2.Stream, w io.Writer) jsonrpc2.Stream {
 	return &loggingStream{stream: str, log: w}
 }
 
-func (s *loggingStream) Read(ctx context.Context) ([]byte, int64, error) {
-	data, count, err := s.stream.Read(ctx)
+func (s *loggingStream) Read(ctx context.Context) (jsonrpc2.Message, int64, error) {
+	msg, count, err := s.stream.Read(ctx)
 	if err == nil {
 		s.logMu.Lock()
 		defer s.logMu.Unlock()
-		logIn(s.log, data)
+		logIn(s.log, msg)
 	}
-	return data, count, err
+	return msg, count, err
 }
 
-func (s *loggingStream) Write(ctx context.Context, data []byte) (int64, error) {
+func (s *loggingStream) Write(ctx context.Context, msg jsonrpc2.Message) (int64, error) {
 	s.logMu.Lock()
 	defer s.logMu.Unlock()
-	logOut(s.log, data)
-	count, err := s.stream.Write(ctx, data)
+	logOut(s.log, msg)
+	count, err := s.stream.Write(ctx, msg)
 	return count, err
 }
 
@@ -94,26 +94,21 @@ func (m *mapped) setServer(id string, r req) {
 
 const eor = "\r\n\r\n\r\n"
 
-func logCommon(outfd io.Writer, data []byte) (jsonrpc2.Message, time.Time, string) {
+func logCommon(outfd io.Writer) (time.Time, string) {
 	if outfd == nil {
-		return nil, time.Time{}, ""
-	}
-	v, err := jsonrpc2.DecodeMessage(data)
-	if err != nil {
-		fmt.Fprintf(outfd, "Unmarshal %v\n", err)
-		panic(err) // do better
+		return time.Time{}, ""
 	}
 	tm := time.Now()
 	tmfmt := tm.Format("15:04:05.000 PM")
-	return v, tm, tmfmt
+	return tm, tmfmt
 }
 
 // logOut and logIn could be combined. "received"<->"Sending", serverCalls<->clientCalls
 // but it wouldn't be a lot shorter or clearer and "shutdown" is a special case
 
 // Writing a message to the client, log it
-func logOut(outfd io.Writer, data []byte) {
-	msg, tm, tmfmt := logCommon(outfd, data)
+func logOut(outfd io.Writer, msg jsonrpc2.Message) {
+	tm, tmfmt := logCommon(outfd)
 	if msg == nil {
 		return
 	}
@@ -145,8 +140,8 @@ func logOut(outfd io.Writer, data []byte) {
 }
 
 // Got a message from the client, log it
-func logIn(outfd io.Writer, data []byte) {
-	msg, tm, tmfmt := logCommon(outfd, data)
+func logIn(outfd io.Writer, msg jsonrpc2.Message) {
+	tm, tmfmt := logCommon(outfd)
 	if msg == nil {
 		return
 	}
