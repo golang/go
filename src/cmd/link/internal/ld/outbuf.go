@@ -5,7 +5,6 @@
 package ld
 
 import (
-	"bufio"
 	"cmd/internal/sys"
 	"cmd/link/internal/sym"
 	"encoding/binary"
@@ -61,7 +60,6 @@ type OutBuf struct {
 	buf  []byte // backing store of mmap'd output file
 	heap []byte // backing store for non-mmapped data
 
-	w      *bufio.Writer
 	name   string
 	f      *os.File
 	encbuf [8]byte // temp buffer used by WriteN methods
@@ -78,7 +76,6 @@ func (out *OutBuf) Open(name string) error {
 	}
 	out.off = 0
 	out.name = name
-	out.w = bufio.NewWriter(f)
 	out.f = f
 	return nil
 }
@@ -92,13 +89,11 @@ func NewOutBuf(arch *sys.Arch) *OutBuf {
 var viewError = errors.New("output not mmapped")
 
 func (out *OutBuf) View(start uint64) (*OutBuf, error) {
-	if !out.isMmapped() {
-		return nil, viewError
-	}
 	return &OutBuf{
 		arch:   out.arch,
 		name:   out.name,
 		buf:    out.buf,
+		heap:   out.heap,
 		off:    int64(start),
 		isView: true,
 	}, nil
@@ -110,9 +105,16 @@ func (out *OutBuf) Close() error {
 	if out.isView {
 		return viewCloseError
 	}
-	out.Flush()
+	if out.isMmapped() {
+		return out.Munmap()
+	}
 	if out.f == nil {
 		return nil
+	}
+	if len(out.heap) != 0 {
+		if _, err := out.f.Write(out.heap); err != nil {
+			return err
+		}
 	}
 	if err := out.f.Close(); err != nil {
 		return err
@@ -151,20 +153,10 @@ func (out *OutBuf) Munmap() error {
 // writing. When the mmapped section is full, we switch over the heap memory
 // for writing.
 func (out *OutBuf) writeLoc(lenToWrite int64) (int64, []byte) {
-	if !out.isMmapped() {
-		panic("shouldn't happen")
-	}
-
 	// See if we have enough space in the mmaped area.
 	bufLen := int64(len(out.buf))
 	if out.off+lenToWrite <= bufLen {
 		return out.off, out.buf
-	}
-
-	// The heap variables aren't protected by a mutex. For now, just bomb if you
-	// try to use OutBuf in parallel. (Note this probably could be fixed.)
-	if out.isView {
-		panic("cannot write to heap in parallel")
 	}
 
 	// Not enough space in the mmaped area, write to heap area instead.
@@ -172,21 +164,17 @@ func (out *OutBuf) writeLoc(lenToWrite int64) (int64, []byte) {
 	heapLen := int64(len(out.heap))
 	lenNeeded := heapPos + lenToWrite
 	if lenNeeded > heapLen { // do we need to grow the heap storage?
+		// The heap variables aren't protected by a mutex. For now, just bomb if you
+		// try to use OutBuf in parallel. (Note this probably could be fixed.)
+		if out.isView {
+			panic("cannot write to heap in parallel")
+		}
 		out.heap = append(out.heap, make([]byte, lenNeeded-heapLen)...)
 	}
 	return heapPos, out.heap
 }
 
 func (out *OutBuf) SeekSet(p int64) {
-	if p == out.off {
-		return
-	}
-	if !out.isMmapped() {
-		out.Flush()
-		if _, err := out.f.Seek(p, 0); err != nil {
-			Exitf("seeking to %d in %s: %v", p, out.name, err)
-		}
-	}
 	out.off = p
 }
 
@@ -195,33 +183,18 @@ func (out *OutBuf) Offset() int64 {
 }
 
 // Write writes the contents of v to the buffer.
-//
-// As Write is backed by a bufio.Writer, callers do not have
-// to explicitly handle the returned error as long as Flush is
-// eventually called.
 func (out *OutBuf) Write(v []byte) (int, error) {
-	if out.isMmapped() {
-		n := len(v)
-		pos, buf := out.writeLoc(int64(n))
-		copy(buf[pos:], v)
-		out.off += int64(n)
-		return n, nil
-	}
-	n, err := out.w.Write(v)
+	n := len(v)
+	pos, buf := out.writeLoc(int64(n))
+	copy(buf[pos:], v)
 	out.off += int64(n)
-	return n, err
+	return n, nil
 }
 
 func (out *OutBuf) Write8(v uint8) {
-	if out.isMmapped() {
-		pos, buf := out.writeLoc(1)
-		buf[pos] = v
-		out.off++
-		return
-	}
-	if err := out.w.WriteByte(v); err == nil {
-		out.off++
-	}
+	pos, buf := out.writeLoc(1)
+	buf[pos] = v
+	out.off++
 }
 
 // WriteByte is an alias for Write8 to fulfill the io.ByteWriter interface.
@@ -256,16 +229,11 @@ func (out *OutBuf) Write64b(v uint64) {
 }
 
 func (out *OutBuf) WriteString(s string) {
-	if out.isMmapped() {
-		pos, buf := out.writeLoc(int64(len(s)))
-		n := copy(buf[pos:], s)
-		if n != len(s) {
-			log.Fatalf("WriteString truncated. buffer size: %d, offset: %d, len(s)=%d", len(out.buf), out.off, len(s))
-		}
-		out.off += int64(n)
-		return
+	pos, buf := out.writeLoc(int64(len(s)))
+	n := copy(buf[pos:], s)
+	if n != len(s) {
+		log.Fatalf("WriteString truncated. buffer size: %d, offset: %d, len(s)=%d", len(out.buf), out.off, len(s))
 	}
-	n, _ := out.w.WriteString(s)
 	out.off += int64(n)
 }
 
@@ -297,26 +265,10 @@ func (out *OutBuf) WriteStringPad(s string, n int, pad []byte) {
 // edit to the symbol content.
 // If the output file is not Mmap'd, just writes the content.
 func (out *OutBuf) WriteSym(s *sym.Symbol) {
-	// NB: We inline the Write call for speediness.
-	if out.isMmapped() {
-		n := int64(len(s.P))
-		pos, buf := out.writeLoc(n)
-		copy(buf[pos:], s.P)
-		out.off += n
-		s.P = buf[pos : pos+n]
-		s.Attr.Set(sym.AttrReadOnly, false)
-	} else {
-		n, _ := out.w.Write(s.P)
-		out.off += int64(n)
-	}
-}
-
-func (out *OutBuf) Flush() {
-	var err error
-	if out.w != nil {
-		err = out.w.Flush()
-	}
-	if err != nil {
-		Exitf("flushing %s: %v", out.name, err)
-	}
+	n := int64(len(s.P))
+	pos, buf := out.writeLoc(n)
+	copy(buf[pos:], s.P)
+	out.off += n
+	s.P = buf[pos : pos+n]
+	s.Attr.Set(sym.AttrReadOnly, false)
 }

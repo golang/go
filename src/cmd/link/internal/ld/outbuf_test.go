@@ -50,6 +50,7 @@ func TestWriteLoc(t *testing.T) {
 		{100, 100, 0, 100, 100, 0, true},
 		{10, 10, 0, 100, 100, 0, true},
 		{10, 20, 10, 100, 110, 10, true},
+		{0, 0, 0, 100, 100, 0, true},
 	}
 
 	for i, test := range tests {

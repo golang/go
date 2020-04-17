@@ -1130,7 +1130,6 @@ func asmb2(ctxt *ld.Link) {
 		default:
 			if ctxt.IsELF {
 				ld.Asmelfsym(ctxt)
-				ctxt.Out.Flush()
 				ctxt.Out.Write(ld.Elfstrdat)
 
 				if ctxt.LinkMode == ld.LinkExternal {
@@ -1140,18 +1139,15 @@ func asmb2(ctxt *ld.Link) {
 
 		case objabi.Hplan9:
 			ld.Asmplan9sym(ctxt)
-			ctxt.Out.Flush()
 
 			sym := ctxt.Syms.Lookup("pclntab", 0)
 			if sym != nil {
 				ld.Lcsize = int32(len(sym.P))
 				ctxt.Out.Write(sym.P)
-				ctxt.Out.Flush()
 			}
 
 		case objabi.Haix:
 			// symtab must be added once sections have been created in ld.Asmbxcoff
-			ctxt.Out.Flush()
 		}
 	}
 
@@ -1180,7 +1176,6 @@ func asmb2(ctxt *ld.Link) {
 		ld.Asmbxcoff(ctxt, int64(fileoff))
 	}
 
-	ctxt.Out.Flush()
 	if *ld.FlagC {
 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
 		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
