@@ -172,6 +172,25 @@ TODO
   </dd>
 </dl>
 
+<dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+  <dd>
+    <p><!-- CL -->
+      If an I/O operation exceeds a deadline set by
+      the <a href="/pkg/net/#Conn"><code>Conn.SetDeadline</code></a>,
+      <code>Conn.SetReadDeadline</code>,
+      or <code>Conn.SetWriteDeadline</code> methods, it will now
+      return an error that is or wraps
+      <a href="/pkg/os#ErrDeadlineExceeded"><code>os.ErrDeadlineExceeded</code></a>.
+      This may be used to reliably detect whether an error is due to
+      an exceeded deadline.
+      Earlier releases recommended calling the <code>Timeout</code>
+      method on the error, but I/O operations can return errors for
+      which <code>Timeout</code> returns <code>true</code> although a
+      deadline has not been exceeded.
+    </p>
+  </dd>
+</dl>
+
 <dl id="net/http/pprof"><dt><a href="/pkg/net/http/pprof/">net/http/pprof</a></dt>
   <dd>
     <p><!-- CL 147598, 229537 -->
@@ -196,6 +215,25 @@ TODO
       The new <a href="/pkg/net/url/#URL"><code>URL</code></a>
       method <a href="/pkg/net/url/#URL.Redacted"><code>Redacted</code></a>
       returns the URL in string form with any password replaced with <code>xxxxx</code>.
+    </p>
+  </dd>
+</dl>
+
+<dl id="os"><dt><a href="/pkg/os/">os</a></dt>
+  <dd>
+    <p><!-- CL -->
+      If an I/O operation exceeds a deadline set by
+      the <a href="/pkg/os/#File.SetDeadline"><code>File.SetDeadline</code></a>,
+      <a href="/pkg/os/#File.SetReadDeadline"><code>File.SetReadDeadline</code></a>,
+      or <a href="/pkg/os/#File.SetWriteDeadline"><code>File.SetWriteDeadline</code></a>
+      methods, it will now return an error that is or wraps
+      <a href="/pkg/os#ErrDeadlineExceeded"><code>os.ErrDeadlineExceeded</code></a>.
+      This may be used to reliably detect whether an error is due to
+      an exceeded deadline.
+      Earlier releases recommended calling the <code>Timeout</code>
+      method on the error, but I/O operations can return errors for
+      which <code>Timeout</code> returns <code>true</code> although a
+      deadline has not been exceeded.
     </p>
   </dd>
 </dl>
