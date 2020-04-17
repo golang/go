@@ -840,7 +840,6 @@ opswitch:
 			n.Left = cheapexpr(n.Left, init)
 			// byteindex widens n.Left so that the multiplication doesn't overflow.
 			index := nod(OLSH, byteindex(n.Left), nodintconst(3))
-			index.SetBounded(true)
 			if thearch.LinkArch.ByteOrder == binary.BigEndian {
 				index = nod(OADD, index, nodintconst(7))
 			}
