@@ -13,6 +13,13 @@ import (
 	"os"
 )
 
+// If fallocate is not supported on this platform, return this error.
+// Note this is the same error returned by filesystems that don't support
+// fallocate, and that is intentional. The error is ignored where needed, and
+// OutBuf writes to heap memory.
+const fallocateNotSupportedErr = "operation not supported"
+const outbufMode = 0775
+
 // OutBuf is a buffered file writer.
 //
 // It is simlar to the Writer in cmd/internal/bio with a few small differences.
@@ -70,7 +77,7 @@ func (out *OutBuf) Open(name string) error {
 	if out.f != nil {
 		return errors.New("cannot open more than one file")
 	}
-	f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0775)
+	f, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, outbufMode)
 	if err != nil {
 		return err
 	}

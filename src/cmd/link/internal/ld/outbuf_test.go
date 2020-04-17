@@ -33,6 +33,9 @@ func TestMMap(t *testing.T) {
 	if err := ob.Mmap(1 << 20); err != nil {
 		t.Errorf("error mmapping file %v", err)
 	}
+	if !ob.isMmapped() {
+		t.Errorf("should be mmapped")
+	}
 }
 
 // TestWriteLoc ensures that the math surrounding writeLoc is correct.

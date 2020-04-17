@@ -12,5 +12,4 @@ func (out *OutBuf) Mmap(filesize uint64) error {
 	return nil
 }
 
-func (out *OutBuf) munmap()      { panic("unreachable") }
-func (out *OutBuf) Msync() error { panic("unreachable") }
+func (out *OutBuf) munmap() { panic("unreachable") }

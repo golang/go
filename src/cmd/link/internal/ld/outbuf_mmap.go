@@ -8,11 +8,19 @@ package ld
 
 import (
 	"syscall"
-	"unsafe"
 )
 
 func (out *OutBuf) Mmap(filesize uint64) error {
-	err := out.f.Truncate(int64(filesize))
+	err := out.fallocate(filesize)
+	if err != nil {
+		// Some file systems do not support fallocate. We ignore that error as linking
+		// can still take place, but you might SIGBUS when you write to the mmapped
+		// area.
+		if err.Error() != fallocateNotSupportedErr {
+			return err
+		}
+	}
+	err = out.f.Truncate(int64(filesize))
 	if err != nil {
 		Exitf("resize output file failed: %v", err)
 	}
@@ -24,27 +32,10 @@ func (out *OutBuf) munmap() {
 	if out.buf == nil {
 		return
 	}
-	err := out.Msync()
-	if err != nil {
-		Exitf("msync output file failed: %v", err)
-	}
 	syscall.Munmap(out.buf)
 	out.buf = nil
-	_, err = out.f.Seek(out.off, 0)
+	_, err := out.f.Seek(out.off, 0)
 	if err != nil {
 		Exitf("seek output file failed: %v", err)
 	}
-}
-
-func (out *OutBuf) Msync() error {
-	if out.buf == nil {
-		return nil
-	}
-	// TODO: netbsd supports mmap and msync, but the syscall package doesn't define MSYNC.
-	// It is excluded from the build tag for now.
-	_, _, errno := syscall.Syscall(syscall.SYS_MSYNC, uintptr(unsafe.Pointer(&out.buf[0])), uintptr(len(out.buf)), syscall.MS_SYNC)
-	if errno != 0 {
-		return errno
-	}
-	return nil
 }
