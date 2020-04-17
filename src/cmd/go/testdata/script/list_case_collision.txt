@@ -20,6 +20,10 @@ stdout 'case-insensitive import collision'
 ! go build example/a/pkg example/a/Pkg
 stderr 'case-insensitive import collision'
 
+# Test that the path reported with an indirect import is correct.
+[!darwin] [!windows] ! go build example/c
+[!darwin] [!windows] stderr '^package example/c\n\timports example/b: case-insensitive file name collision: "FILE.go" and "file.go"$'
+
 -- example/a/a.go --
 package p
 import (
@@ -34,3 +38,7 @@ package pkg
 package b
 -- example/b/FILE.go --
 package b
+-- example/c/c.go --
+package c
+
+import _ "example/b"
