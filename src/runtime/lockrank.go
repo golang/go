@@ -76,9 +76,9 @@ const (
 	// Memory-related non-leaf locks
 	lockRankWbufSpans
 	lockRankMheap
+	lockRankMheapSpecial
 
 	// Memory-related leaf locks
-	lockRankMheapSpecial
 	lockRankGlobalAlloc
 
 	// Other leaf locks
@@ -144,11 +144,11 @@ var lockNames = []string{
 	lockRankDefer:      "defer",
 	lockRankSudog:      "sudog",
 
-	lockRankWbufSpans: "wbufSpans",
-	lockRankMheap:     "mheap",
-
+	lockRankWbufSpans:    "wbufSpans",
+	lockRankMheap:        "mheap",
 	lockRankMheapSpecial: "mheapSpecial",
-	lockRankGlobalAlloc:  "globalAlloc.mutex",
+
+	lockRankGlobalAlloc: "globalAlloc.mutex",
 
 	lockRankGFree: "gFree",
 
@@ -221,7 +221,7 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
 	lockRankWbufSpans:    {lockRankScavenge, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankSched, lockRankAllg, lockRankPollDesc, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankHchan, lockRankNotifyList, lockRankTraceStrings, lockRankMspanSpecial, lockRankProf, lockRankRoot, lockRankDefer, lockRankSudog},
 	lockRankMheap:        {lockRankScavenge, lockRankSweepWaiters, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankSched, lockRankAllg, lockRankAllp, lockRankPollDesc, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankHchan, lockRankMspanSpecial, lockRankProf, lockRankGcBitsArenas, lockRankRoot, lockRankMcentral, lockRankStackpool, lockRankStackLarge, lockRankDefer, lockRankSudog, lockRankWbufSpans},
 	lockRankMheapSpecial: {lockRankScavenge, lockRankCpuprof, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankHchan},
-	lockRankGlobalAlloc:  {lockRankSpine, lockRankMheap},
+	lockRankGlobalAlloc:  {lockRankProf, lockRankSpine, lockRankMheap, lockRankMheapSpecial},
 
 	lockRankGFree: {lockRankSched},
 
