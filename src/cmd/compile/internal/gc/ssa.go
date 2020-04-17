@@ -394,7 +394,7 @@ func buildssa(fn *Node, worker int) *ssa.Func {
 		// For this value, AuxInt is initialized to zero by default
 		startDeferBits := s.entryNewValue0(ssa.OpConst8, types.Types[TUINT8])
 		s.vars[&deferBitsVar] = startDeferBits
-		s.deferBitsAddr = s.addr(deferBitsTemp, false)
+		s.deferBitsAddr = s.addr(deferBitsTemp)
 		s.store(types.Types[TUINT8], s.deferBitsAddr, startDeferBits)
 		// Make sure that the deferBits stack slot is kept alive (for use
 		// by panics) and stores to deferBits are not eliminated, even if
@@ -1246,7 +1246,7 @@ func (s *state) stmt(n *Node) {
 			if rhs == nil {
 				r = nil // Signal assign to use OpZero.
 			} else {
-				r = s.addr(rhs, false)
+				r = s.addr(rhs)
 			}
 		} else {
 			if rhs == nil {
@@ -2008,10 +2008,10 @@ func (s *state) expr(n *Node) *ssa.Value {
 		if s.canSSA(n) {
 			return s.variable(n, n.Type)
 		}
-		addr := s.addr(n, false)
+		addr := s.addr(n)
 		return s.load(n.Type, addr)
 	case OCLOSUREVAR:
-		addr := s.addr(n, false)
+		addr := s.addr(n)
 		return s.load(n.Type, addr)
 	case OLITERAL:
 		switch u := n.Val().U.(type) {
@@ -2542,7 +2542,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		return s.expr(n.Left)
 
 	case OADDR:
-		return s.addr(n.Left, n.Bounded())
+		return s.addr(n.Left)
 
 	case ORESULT:
 		addr := s.constOffPtrSP(types.NewPtr(n.Type), n.Xoffset)
@@ -2567,7 +2567,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 		// prevents false memory dependencies in race/msan
 		// instrumentation.
 		if islvalue(n) && !s.canSSA(n) {
-			p := s.addr(n, false)
+			p := s.addr(n)
 			return s.load(n.Type, p)
 		}
 		v := s.expr(n.Left)
@@ -2600,7 +2600,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 			}
 			return s.load(types.Types[TUINT8], ptr)
 		case n.Left.Type.IsSlice():
-			p := s.addr(n, false)
+			p := s.addr(n)
 			return s.load(n.Left.Type.Elem(), p)
 		case n.Left.Type.IsArray():
 			if canSSAType(n.Left.Type) {
@@ -2620,7 +2620,7 @@ func (s *state) expr(n *Node) *ssa.Value {
 				s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded()) // checks i == 0
 				return s.newValue1I(ssa.OpArraySelect, n.Type, 0, a)
 			}
-			p := s.addr(n, false)
+			p := s.addr(n)
 			return s.load(n.Left.Type.Elem(), p)
 		default:
 			s.Fatalf("bad type for index %v", n.Left.Type)
@@ -2786,7 +2786,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 
 	var slice, addr *ssa.Value
 	if inplace {
-		addr = s.addr(sn, false)
+		addr = s.addr(sn)
 		slice = s.load(n.Type, addr)
 	} else {
 		slice = s.expr(sn)
@@ -2867,7 +2867,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
 		if canSSAType(n.Type) {
 			args = append(args, argRec{v: s.expr(n), store: true})
 		} else {
-			v := s.addr(n, false)
+			v := s.addr(n)
 			args = append(args, argRec{v: v})
 		}
 	}
@@ -3038,7 +3038,7 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask) 
 	}
 
 	// Left is not ssa-able. Compute its address.
-	addr := s.addr(left, false)
+	addr := s.addr(left)
 	if isReflectHeaderDataField(left) {
 		// Package unsafe's documentation says storing pointers into
 		// reflect.SliceHeader and reflect.StringHeader's Data fields
@@ -4215,7 +4215,7 @@ func (s *state) openDeferSave(n *Node, t *types.Type, val *ssa.Value) *ssa.Value
 		argTemp.Name.SetNeedzero(true)
 	}
 	if !canSSA {
-		a := s.addr(n, false)
+		a := s.addr(n)
 		s.move(t, addrArgTemp, a)
 		return addrArgTemp
 	}
@@ -4387,7 +4387,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
 		d := tempAt(n.Pos, s.curfn, t)
 
 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, d, s.mem())
-		addr := s.addr(d, false)
+		addr := s.addr(d)
 
 		// Must match reflect.go:deferstruct and src/runtime/runtime2.go:_defer.
 		// 0: siz
@@ -4578,9 +4578,7 @@ func etypesign(e types.EType) int8 {
 
 // addr converts the address of the expression n to SSA, adds it to s and returns the SSA result.
 // The value that the returned Value represents is guaranteed to be non-nil.
-// If bounded is true then this address does not require a nil check for its operand
-// even if that would otherwise be implied.
-func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+func (s *state) addr(n *Node) *ssa.Value {
 	if n.Op != ONAME {
 		s.pushLine(n.Pos)
 		defer s.popLine()
@@ -4633,25 +4631,25 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
 			p := s.newValue1(ssa.OpSlicePtr, t, a)
 			return s.newValue2(ssa.OpPtrIndex, t, p, i)
 		} else { // array
-			a := s.addr(n.Left, bounded)
+			a := s.addr(n.Left)
 			i := s.expr(n.Right)
 			len := s.constInt(types.Types[TINT], n.Left.Type.NumElem())
 			i = s.boundsCheck(i, len, ssa.BoundsIndex, n.Bounded())
 			return s.newValue2(ssa.OpPtrIndex, types.NewPtr(n.Left.Type.Elem()), a, i)
 		}
 	case ODEREF:
-		return s.exprPtr(n.Left, bounded, n.Pos)
+		return s.exprPtr(n.Left, false, n.Pos)
 	case ODOT:
-		p := s.addr(n.Left, bounded)
+		p := s.addr(n.Left)
 		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset, p)
 	case ODOTPTR:
-		p := s.exprPtr(n.Left, bounded, n.Pos)
+		p := s.exprPtr(n.Left, false, n.Pos)
 		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset, p)
 	case OCLOSUREVAR:
 		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset,
 			s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr))
 	case OCONVNOP:
-		addr := s.addr(n.Left, bounded)
+		addr := s.addr(n.Left)
 		return s.newValue1(ssa.OpCopy, t, addr) // ensure that addr has the right type
 	case OCALLFUNC, OCALLINTER, OCALLMETH:
 		return s.call(n, callNormal)
@@ -5076,7 +5074,7 @@ func (s *state) storeArgWithBase(n *Node, t *types.Type, base *ssa.Value, off in
 	}
 
 	if !canSSAType(t) {
-		a := s.addr(n, false)
+		a := s.addr(n)
 		s.move(t, addr, a)
 		return
 	}
@@ -5630,7 +5628,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
 		// TODO: get rid of some of these temporaries.
 		tmp = tempAt(n.Pos, s.curfn, n.Type)
 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, tmp, s.mem())
-		addr = s.addr(tmp, false)
+		addr = s.addr(tmp)
 	}
 
 	cond := s.newValue2(ssa.OpEqPtr, types.Types[TBOOL], itab, targetITab)
