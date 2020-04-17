@@ -673,6 +673,7 @@ func (h *mheap) init() {
 	lockInit(&h.lock, lockRankMheap)
 	lockInit(&h.sweepSpans[0].spineLock, lockRankSpine)
 	lockInit(&h.sweepSpans[1].spineLock, lockRankSpine)
+	lockInit(&h.speciallock, lockRankMheapSpecial)
 
 	h.spanalloc.init(unsafe.Sizeof(mspan{}), recordspan, unsafe.Pointer(h), &memstats.mspan_sys)
 	h.cachealloc.init(unsafe.Sizeof(mcache{}), nil, nil, &memstats.mcache_sys)
