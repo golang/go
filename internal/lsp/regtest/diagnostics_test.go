@@ -51,13 +51,21 @@ go 1.12
 `
 
 func TestMissingImportDiagsClearOnFirstFile(t *testing.T) {
-	t.Skip("skipping due to golang.org/issues/37195")
 	t.Parallel()
 	runner.Run(t, onlyMod, func(t *testing.T, env *Env) {
-		env.CreateBuffer("main.go", "package main\n\nfunc m() {\nlog.Println()\n}")
+		env.CreateBuffer("main.go", `package main
+
+func m() {
+	log.Println()
+}
+`)
+		env.Await(
+			env.DiagnosticAtRegexp("main.go", "log"),
+		)
 		env.SaveBuffer("main.go")
-		// TODO: this shouldn't actually happen
-		env.Await(env.DiagnosticAtRegexp("main.go", "Println"))
+		env.Await(
+			EmptyDiagnostics("main.go"),
+		)
 	})
 }
 
