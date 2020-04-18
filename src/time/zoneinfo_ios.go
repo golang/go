@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build darwin
-// +build arm arm64
+// +build arm64
 
 package time
 

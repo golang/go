@@ -243,10 +243,6 @@
 (Leq16U x y) -> (LessEqualU (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Leq32U x y) -> (LessEqualU (CMP x y))
 
-(Greater(32|64)F x y) -> (GreaterThan (CMP(F|D) x y))
-
-(Geq(32|64)F x y) -> (GreaterEqual (CMP(F|D) x y))
-
 (OffPtr [off] ptr:(SP)) -> (MOVWaddr [off] ptr)
 (OffPtr [off] ptr) -> (ADDconst [off] ptr)
 
@@ -338,12 +334,12 @@
 // 8 and 128 are magic constants, see runtime/mkduff.go
 (Move [s] {t} dst src mem)
 	&& s%4 == 0 && s > 4 && s <= 512
-	&& t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice ->
+	&& t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice && logLargeCopy(v, s) ->
 	(DUFFCOPY [8 * (128 - s/4)] dst src mem)
 
 // Large move uses a loop
 (Move [s] {t} dst src mem)
-	&& (s > 512 || config.noDuffDevice) || t.(*types.Type).Alignment()%4 != 0 ->
+	&& ((s > 512 || config.noDuffDevice) || t.(*types.Type).Alignment()%4 != 0) && logLargeCopy(v, s) ->
 	(LoweredMove [t.(*types.Type).Alignment()]
 		dst
 		src

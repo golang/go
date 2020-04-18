@@ -91,7 +91,7 @@ const (
 
 	// The stack guard is a pointer this many bytes above the
 	// bottom of the stack.
-	_StackGuard = 896*sys.StackGuardMultiplier + _StackSystem
+	_StackGuard = 928*sys.StackGuardMultiplier + _StackSystem
 
 	// After a stack split check the SP is allowed to be this
 	// many bytes below the stack guard. This saves an instruction
@@ -161,9 +161,11 @@ func stackinit() {
 	}
 	for i := range stackpool {
 		stackpool[i].item.span.init()
+		lockInit(&stackpool[i].item.mu, lockRankStackpool)
 	}
 	for i := range stackLarge.free {
 		stackLarge.free[i].init()
+		lockInit(&stackLarge.lock, lockRankStackLarge)
 	}
 }
 
@@ -182,6 +184,7 @@ func stacklog2(n uintptr) int {
 func stackpoolalloc(order uint8) gclinkptr {
 	list := &stackpool[order].item.span
 	s := list.first
+	lockWithRankMayAcquire(&mheap_.lock, lockRankMheap)
 	if s == nil {
 		// no free stacks. Allocate another span worth.
 		s = mheap_.allocManual(_StackCacheSize>>_PageShift, &memstats.stacks_inuse)
@@ -388,6 +391,8 @@ func stackalloc(n uint32) stack {
 			stackLarge.free[log2npage].remove(s)
 		}
 		unlock(&stackLarge.lock)
+
+		lockWithRankMayAcquire(&mheap_.lock, lockRankMheap)
 
 		if s == nil {
 			// Allocate a new stack from the heap.

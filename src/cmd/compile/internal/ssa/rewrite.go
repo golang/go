@@ -5,8 +5,10 @@
 package ssa
 
 import (
+	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/internal/obj/s390x"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"encoding/binary"
@@ -22,9 +24,19 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 	// repeat rewrites until we find no more rewrites
 	pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
 	pendingLines.clear()
+	debug := f.pass.debug
+	if debug > 1 {
+		fmt.Printf("%s: rewriting for %s\n", f.pass.name, f.Name)
+	}
 	for {
 		change := false
 		for _, b := range f.Blocks {
+			var b0 *Block
+			if debug > 1 {
+				b0 = new(Block)
+				*b0 = *b
+				b0.Succs = append([]Edge{}, b.Succs...) // make a new copy, not aliasing
+			}
 			for i, c := range b.ControlValues() {
 				for c.Op == OpCopy {
 					c = c.Args[0]
@@ -33,9 +45,22 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 			}
 			if rb(b) {
 				change = true
+				if debug > 1 {
+					fmt.Printf("rewriting %s  ->  %s\n", b0.LongString(), b.LongString())
+				}
 			}
 			for j, v := range b.Values {
-				change = phielimValue(v) || change
+				var v0 *Value
+				if debug > 1 {
+					v0 = new(Value)
+					*v0 = *v
+					v0.Args = append([]*Value{}, v.Args...) // make a new copy, not aliasing
+				}
+
+				vchange := phielimValue(v)
+				if vchange && debug > 1 {
+					fmt.Printf("rewriting %s  ->  %s\n", v0.LongString(), v.LongString())
+				}
 
 				// Eliminate copy inputs.
 				// If any copy input becomes unused, mark it
@@ -69,17 +94,20 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 						}
 						a.Pos = a.Pos.WithNotStmt()
 					}
-					change = true
+					vchange = true
 					for a.Uses == 0 {
 						b := a.Args[0]
 						a.reset(OpInvalid)
 						a = b
 					}
 				}
+				if vchange && debug > 1 {
+					fmt.Printf("rewriting %s  ->  %s\n", v0.LongString(), v.LongString())
+				}
 
 				// apply rewrite function
 				if rv(v) {
-					change = true
+					vchange = true
 					// If value changed to a poor choice for a statement boundary, move the boundary
 					if v.Pos.IsStmt() == src.PosIsStmt {
 						if k := nextGoodStatementIndex(v, j, b); k != j {
@@ -87,6 +115,11 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter) {
 							b.Values[k].Pos = b.Values[k].Pos.WithIsStmt()
 						}
 					}
+				}
+
+				change = change || vchange
+				if vchange && debug > 1 {
+					fmt.Printf("rewriting %s  ->  %s\n", v0.LongString(), v.LongString())
 				}
 			}
 		}
@@ -346,10 +379,12 @@ func nlz(x int64) int64 {
 	return int64(bits.LeadingZeros64(uint64(x)))
 }
 
-// ntz returns the number of trailing zeros.
-func ntz(x int64) int64 {
-	return int64(bits.TrailingZeros64(uint64(x)))
-}
+// ntzX returns the number of trailing zeros.
+func ntz(x int64) int64 { return int64(bits.TrailingZeros64(uint64(x))) } // TODO: remove when no longer used
+func ntz64(x int64) int { return bits.TrailingZeros64(uint64(x)) }
+func ntz32(x int32) int { return bits.TrailingZeros32(uint32(x)) }
+func ntz16(x int16) int { return bits.TrailingZeros16(uint16(x)) }
+func ntz8(x int8) int   { return bits.TrailingZeros8(uint8(x)) }
 
 func oneBit(x int64) bool {
 	return bits.OnesCount64(uint64(x)) == 1
@@ -371,6 +406,21 @@ func log2(n int64) int64 {
 	return int64(bits.Len64(uint64(n))) - 1
 }
 
+// logX returns logarithm of n base 2.
+// n must be a positive power of 2 (isPowerOfTwoX returns true).
+func log8(n int8) int64 {
+	return int64(bits.Len8(uint8(n))) - 1
+}
+func log16(n int16) int64 {
+	return int64(bits.Len16(uint16(n))) - 1
+}
+func log32(n int32) int64 {
+	return int64(bits.Len32(uint32(n))) - 1
+}
+func log64(n int64) int64 {
+	return int64(bits.Len64(uint64(n))) - 1
+}
+
 // log2uint32 returns logarithm in base 2 of uint32(n), with log2(0) = -1.
 // Rounds down.
 func log2uint32(n int64) int64 {
@@ -379,6 +429,18 @@ func log2uint32(n int64) int64 {
 
 // isPowerOfTwo reports whether n is a power of 2.
 func isPowerOfTwo(n int64) bool {
+	return n > 0 && n&(n-1) == 0
+}
+func isPowerOfTwo8(n int8) bool {
+	return n > 0 && n&(n-1) == 0
+}
+func isPowerOfTwo16(n int16) bool {
+	return n > 0 && n&(n-1) == 0
+}
+func isPowerOfTwo32(n int32) bool {
+	return n > 0 && n&(n-1) == 0
+}
+func isPowerOfTwo64(n int64) bool {
 	return n > 0 && n&(n-1) == 0
 }
 
@@ -509,6 +571,114 @@ func auxTo32F(i int64) float32 {
 // auxTo64F decodes a float64 from the AuxInt value provided.
 func auxTo64F(i int64) float64 {
 	return math.Float64frombits(uint64(i))
+}
+
+func auxIntToBool(i int64) bool {
+	if i == 0 {
+		return false
+	}
+	return true
+}
+func auxIntToInt8(i int64) int8 {
+	return int8(i)
+}
+func auxIntToInt16(i int64) int16 {
+	return int16(i)
+}
+func auxIntToInt32(i int64) int32 {
+	return int32(i)
+}
+func auxIntToInt64(i int64) int64 {
+	return i
+}
+func auxIntToUint8(i int64) uint8 {
+	return uint8(i)
+}
+func auxIntToFloat32(i int64) float32 {
+	return float32(math.Float64frombits(uint64(i)))
+}
+func auxIntToFloat64(i int64) float64 {
+	return math.Float64frombits(uint64(i))
+}
+func auxIntToValAndOff(i int64) ValAndOff {
+	return ValAndOff(i)
+}
+func auxIntToInt128(x int64) int128 {
+	if x != 0 {
+		panic("nonzero int128 not allowed")
+	}
+	return 0
+}
+
+func boolToAuxInt(b bool) int64 {
+	if b {
+		return 1
+	}
+	return 0
+}
+func int8ToAuxInt(i int8) int64 {
+	return int64(i)
+}
+func int16ToAuxInt(i int16) int64 {
+	return int64(i)
+}
+func int32ToAuxInt(i int32) int64 {
+	return int64(i)
+}
+func int64ToAuxInt(i int64) int64 {
+	return int64(i)
+}
+func uint8ToAuxInt(i uint8) int64 {
+	return int64(int8(i))
+}
+func float32ToAuxInt(f float32) int64 {
+	return int64(math.Float64bits(float64(f)))
+}
+func float64ToAuxInt(f float64) int64 {
+	return int64(math.Float64bits(f))
+}
+func valAndOffToAuxInt(v ValAndOff) int64 {
+	return int64(v)
+}
+func int128ToAuxInt(x int128) int64 {
+	if x != 0 {
+		panic("nonzero int128 not allowed")
+	}
+	return 0
+}
+
+func auxToString(i interface{}) string {
+	return i.(string)
+}
+func auxToSym(i interface{}) Sym {
+	// TODO: kind of a hack - allows nil interface through
+	s, _ := i.(Sym)
+	return s
+}
+func auxToType(i interface{}) *types.Type {
+	return i.(*types.Type)
+}
+func auxToS390xCCMask(i interface{}) s390x.CCMask {
+	return i.(s390x.CCMask)
+}
+func auxToS390xRotateParams(i interface{}) s390x.RotateParams {
+	return i.(s390x.RotateParams)
+}
+
+func stringToAux(s string) interface{} {
+	return s
+}
+func symToAux(s Sym) interface{} {
+	return s
+}
+func typeToAux(t *types.Type) interface{} {
+	return t
+}
+func s390xCCMaskToAux(c s390x.CCMask) interface{} {
+	return c
+}
+func s390xRotateParamsToAux(r s390x.RotateParams) interface{} {
+	return r
 }
 
 // uaddOvf reports whether unsigned a+b would overflow.
@@ -990,7 +1160,9 @@ func zeroUpper32Bits(x *Value, depth int) bool {
 		OpAMD64ORLload, OpAMD64XORLload, OpAMD64CVTTSD2SL,
 		OpAMD64ADDL, OpAMD64ADDLconst, OpAMD64SUBL, OpAMD64SUBLconst,
 		OpAMD64ANDL, OpAMD64ANDLconst, OpAMD64ORL, OpAMD64ORLconst,
-		OpAMD64XORL, OpAMD64XORLconst, OpAMD64NEGL, OpAMD64NOTL:
+		OpAMD64XORL, OpAMD64XORLconst, OpAMD64NEGL, OpAMD64NOTL,
+		OpAMD64SHRL, OpAMD64SHRLconst, OpAMD64SARL, OpAMD64SARLconst,
+		OpAMD64SHLL, OpAMD64SHLLconst:
 		return true
 	case OpArg:
 		return x.Type.Width == 4
@@ -1071,14 +1243,27 @@ func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
 	switch c.arch {
 	case "amd64":
 		return sz <= 16 || (sz < 1024 && disjoint(dst, sz, src, sz))
-	case "386", "ppc64", "ppc64le", "arm64":
+	case "386", "arm64":
 		return sz <= 8
-	case "s390x":
+	case "s390x", "ppc64", "ppc64le":
 		return sz <= 8 || disjoint(dst, sz, src, sz)
 	case "arm", "mips", "mips64", "mipsle", "mips64le":
 		return sz <= 4
 	}
 	return false
+}
+
+// logLargeCopy logs the occurrence of a large copy.
+// The best place to do this is in the rewrite rules where the size of the move is easy to find.
+// "Large" is arbitrarily chosen to be 128 bytes; this may change.
+func logLargeCopy(v *Value, s int64) bool {
+	if s < 128 {
+		return true
+	}
+	if logopt.Enabled() {
+		logopt.LogOpt(v.Pos, "copy", "lower", v.Block.Func.Name, fmt.Sprintf("%d bytes", s))
+	}
+	return true
 }
 
 // hasSmallRotate reports whether the architecture has rotate instructions
@@ -1248,42 +1433,27 @@ func read64(sym interface{}, off int64, byteorder binary.ByteOrder) uint64 {
 	return byteorder.Uint64(buf)
 }
 
-// same reports whether x and y are the same value.
-// It checks to a maximum depth of d, so it may report
-// a false negative.
-func same(x, y *Value, depth int) bool {
-	if x == y {
+// sequentialAddresses reports true if it can prove that x + n == y
+func sequentialAddresses(x, y *Value, n int64) bool {
+	if x.Op == Op386ADDL && y.Op == Op386LEAL1 && y.AuxInt == n && y.Aux == nil &&
+		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
+			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
 		return true
 	}
-	if depth <= 0 {
-		return false
-	}
-	if x.Op != y.Op || x.Aux != y.Aux || x.AuxInt != y.AuxInt {
-		return false
-	}
-	if len(x.Args) != len(y.Args) {
-		return false
-	}
-	if opcodeTable[x.Op].commutative {
-		// Check exchanged ordering first.
-		for i, a := range x.Args {
-			j := i
-			if j < 2 {
-				j ^= 1
-			}
-			b := y.Args[j]
-			if !same(a, b, depth-1) {
-				goto checkNormalOrder
-			}
-		}
+	if x.Op == Op386LEAL1 && y.Op == Op386LEAL1 && y.AuxInt == x.AuxInt+n && x.Aux == y.Aux &&
+		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
+			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
 		return true
-	checkNormalOrder:
 	}
-	for i, a := range x.Args {
-		b := y.Args[i]
-		if !same(a, b, depth-1) {
-			return false
-		}
+	if x.Op == OpAMD64ADDQ && y.Op == OpAMD64LEAQ1 && y.AuxInt == n && y.Aux == nil &&
+		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
+			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
+		return true
 	}
-	return true
+	if x.Op == OpAMD64LEAQ1 && y.Op == OpAMD64LEAQ1 && y.AuxInt == x.AuxInt+n && x.Aux == y.Aux &&
+		(x.Args[0] == y.Args[0] && x.Args[1] == y.Args[1] ||
+			x.Args[0] == y.Args[1] && x.Args[1] == y.Args[0]) {
+		return true
+	}
+	return false
 }

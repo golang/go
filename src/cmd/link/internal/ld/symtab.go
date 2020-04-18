@@ -73,10 +73,6 @@ func putelfsyment(out *OutBuf, off int, addr int64, size int64, info int, shndx 
 	}
 }
 
-var numelfsym = 1 // 0 is reserved
-
-var elfbind int
-
 func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go_ *sym.Symbol) {
 	var typ int
 
@@ -163,6 +159,13 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
 		other |= 3 << 5
 	}
 
+	if s == x.Name {
+		// We should use Extname for ELF symbol table.
+		// TODO: maybe genasmsym should have done this. That function is too
+		// overloaded and I would rather not change it for now.
+		s = x.Extname()
+	}
+
 	// When dynamically linking, we create Symbols by reading the names from
 	// the symbol tables of the shared libraries and so the names need to
 	// match exactly. Tools like DTrace will have to wait for now.
@@ -171,7 +174,7 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
 		s = strings.Replace(s, "·", ".", -1)
 	}
 
-	if ctxt.DynlinkingGo() && bind == STB_GLOBAL && elfbind == STB_LOCAL && x.Type == sym.STEXT {
+	if ctxt.DynlinkingGo() && bind == STB_GLOBAL && ctxt.elfbind == STB_LOCAL && x.Type == sym.STEXT {
 		// When dynamically linking, we want references to functions defined
 		// in this module to always be to the function object, not to the
 		// PLT. We force this by writing an additional local symbol for every
@@ -181,22 +184,22 @@ func putelfsym(ctxt *Link, x *sym.Symbol, s string, t SymbolType, addr int64, go
 		// ELF linker -Bsymbolic-functions option, but that is buggy on
 		// several platforms.
 		putelfsyment(ctxt.Out, putelfstr("local."+s), addr, size, STB_LOCAL<<4|typ&0xf, elfshnum, other)
-		x.LocalElfsym = int32(numelfsym)
-		numelfsym++
+		x.LocalElfsym = int32(ctxt.numelfsym)
+		ctxt.numelfsym++
 		return
-	} else if bind != elfbind {
+	} else if bind != ctxt.elfbind {
 		return
 	}
 
 	putelfsyment(ctxt.Out, putelfstr(s), addr, size, bind<<4|typ&0xf, elfshnum, other)
-	x.Elfsym = int32(numelfsym)
-	numelfsym++
+	x.Elfsym = int32(ctxt.numelfsym)
+	ctxt.numelfsym++
 }
 
-func putelfsectionsym(out *OutBuf, s *sym.Symbol, shndx int) {
+func putelfsectionsym(ctxt *Link, out *OutBuf, s *sym.Symbol, shndx int) {
 	putelfsyment(out, 0, 0, 0, STB_LOCAL<<4|STT_SECTION, shndx, 0)
-	s.Elfsym = int32(numelfsym)
-	numelfsym++
+	s.Elfsym = int32(ctxt.numelfsym)
+	ctxt.numelfsym++
 }
 
 func Asmelfsym(ctxt *Link) {
@@ -210,13 +213,13 @@ func Asmelfsym(ctxt *Link) {
 	// It is added with a name to avoid problems with external linking
 	// encountered on some versions of Solaris. See issue #14957.
 	putelfsyment(ctxt.Out, putelfstr("go.go"), 0, 0, STB_LOCAL<<4|STT_FILE, SHN_ABS, 0)
-	numelfsym++
+	ctxt.numelfsym++
 
-	elfbind = STB_LOCAL
+	ctxt.elfbind = STB_LOCAL
 	genasmsym(ctxt, putelfsym)
 
-	elfbind = STB_GLOBAL
-	elfglobalsymndx = numelfsym
+	ctxt.elfbind = STB_GLOBAL
+	elfglobalsymndx = ctxt.numelfsym
 	genasmsym(ctxt, putelfsym)
 }
 
@@ -252,8 +255,6 @@ func putplan9sym(ctxt *Link, x *sym.Symbol, s string, typ SymbolType, addr int64
 func Asmplan9sym(ctxt *Link) {
 	genasmsym(ctxt, putplan9sym)
 }
-
-var symt *sym.Symbol
 
 type byPkg []*sym.Library
 
@@ -326,12 +327,11 @@ func textsectionmap(ctxt *Link) uint32 {
 }
 
 func (ctxt *Link) symtab() {
-	switch ctxt.BuildMode {
-	case BuildModeCArchive, BuildModeCShared:
-		for _, s := range ctxt.Syms.Allsym {
-			// Create a new entry in the .init_array section that points to the
-			// library initializer function.
-			if s.Name == *flagEntrySymbol && ctxt.HeadType != objabi.Haix {
+	if ctxt.HeadType != objabi.Haix {
+		switch ctxt.BuildMode {
+		case BuildModeCArchive, BuildModeCShared:
+			s := ctxt.Syms.ROLookup(*flagEntrySymbol, sym.SymVerABI0)
+			if s != nil {
 				addinitarrdata(ctxt, s)
 			}
 		}
@@ -428,7 +428,7 @@ func (ctxt *Link) symtab() {
 	symitablink := ctxt.Syms.Lookup("runtime.itablink", 0)
 	symitablink.Type = sym.SITABLINK
 
-	symt = ctxt.Syms.Lookup("runtime.symtab", 0)
+	symt := ctxt.Syms.Lookup("runtime.symtab", 0)
 	symt.Attr |= sym.AttrLocal
 	symt.Type = sym.SSYMTAB
 	symt.Size = 0
@@ -445,7 +445,8 @@ func (ctxt *Link) symtab() {
 			s.Attr |= sym.AttrNotInSymbolTable
 		}
 
-		if !s.Attr.Reachable() || s.Attr.Special() || s.Type != sym.SRODATA {
+		if !s.Attr.Reachable() || s.Attr.Special() ||
+			(s.Type != sym.SRODATA && s.Type != sym.SGOFUNC) {
 			continue
 		}
 
@@ -498,7 +499,7 @@ func (ctxt *Link) symtab() {
 		case strings.HasPrefix(s.Name, "gcargs."),
 			strings.HasPrefix(s.Name, "gclocals."),
 			strings.HasPrefix(s.Name, "gclocals·"),
-			strings.HasPrefix(s.Name, "inltree."),
+			s.Type == sym.SGOFUNC && s != symgofunc,
 			strings.HasSuffix(s.Name, ".opendefer"):
 			s.Type = sym.SGOFUNC
 			s.Attr |= sym.AttrNotInSymbolTable
@@ -548,8 +549,8 @@ func (ctxt *Link) symtab() {
 	moduledata.AddUint(ctxt.Arch, uint64(pclntabNfunc+1))
 	// The filetab slice
 	moduledata.AddAddrPlus(ctxt.Arch, ctxt.Syms.Lookup("runtime.pclntab", 0), int64(pclntabFiletabOffset))
-	moduledata.AddUint(ctxt.Arch, uint64(len(ctxt.Filesyms))+1)
-	moduledata.AddUint(ctxt.Arch, uint64(len(ctxt.Filesyms))+1)
+	moduledata.AddUint(ctxt.Arch, uint64(ctxt.NumFilesyms)+1)
+	moduledata.AddUint(ctxt.Arch, uint64(ctxt.NumFilesyms)+1)
 	// findfunctab
 	moduledata.AddAddr(ctxt.Arch, ctxt.Syms.Lookup("runtime.findfunctab", 0))
 	// minpc, maxpc

@@ -396,9 +396,9 @@ func (c *fakeConn) ResetSession(ctx context.Context) error {
 	return nil
 }
 
-var _ driver.ConnectionValidator = (*fakeConn)(nil)
+var _ driver.Validator = (*fakeConn)(nil)
 
-func (c *fakeConn) ValidConnection() bool {
+func (c *fakeConn) IsValid() bool {
 	return !c.isBad()
 }
 

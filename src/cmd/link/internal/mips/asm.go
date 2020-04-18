@@ -34,17 +34,19 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
 	"fmt"
 	"log"
+	"sync"
 )
 
-func gentext(ctxt *ld.Link) {
+func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
 	return
 }
 
-func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
 	log.Fatalf("adddynrel not implemented")
 	return false
 }
@@ -74,7 +76,7 @@ func elfreloc1(ctxt *ld.Link, r *sym.Reloc, sectoff int64) bool {
 	return true
 }
 
-func elfsetupplt(ctxt *ld.Link) {
+func elfsetupplt(ctxt *ld.Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {
 	return
 }
 
@@ -96,8 +98,8 @@ func applyrel(arch *sys.Arch, r *sym.Reloc, s *sym.Symbol, val int64, t int64) i
 	}
 }
 
-func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
-	if ctxt.LinkMode == ld.LinkExternal {
+func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
+	if target.IsExternal() {
 		switch r.Type {
 		default:
 			return val, false
@@ -116,12 +118,12 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 				ld.Errorf(s, "missing section for %s", rs.Name)
 			}
 			r.Xsym = rs
-			return applyrel(ctxt.Arch, r, s, val, r.Xadd), true
+			return applyrel(target.Arch, r, s, val, r.Xadd), true
 		case objabi.R_ADDRMIPSTLS, objabi.R_CALLMIPS, objabi.R_JMPMIPS:
 			r.Done = false
 			r.Xsym = r.Sym
 			r.Xadd = r.Add
-			return applyrel(ctxt.Arch, r, s, val, r.Add), true
+			return applyrel(target.Arch, r, s, val, r.Add), true
 		}
 	}
 
@@ -129,10 +131,10 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 	case objabi.R_CONST:
 		return r.Add, true
 	case objabi.R_GOTOFF:
-		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0)), true
+		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(syms.GOT), true
 	case objabi.R_ADDRMIPS, objabi.R_ADDRMIPSU:
 		t := ld.Symaddr(r.Sym) + r.Add
-		return applyrel(ctxt.Arch, r, s, val, t), true
+		return applyrel(target.Arch, r, s, val, t), true
 	case objabi.R_CALLMIPS, objabi.R_JMPMIPS:
 		t := ld.Symaddr(r.Sym) + r.Add
 
@@ -145,20 +147,20 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 			ld.Errorf(s, "direct call too far: %s %x", r.Sym.Name, t)
 		}
 
-		return applyrel(ctxt.Arch, r, s, val, t), true
+		return applyrel(target.Arch, r, s, val, t), true
 	case objabi.R_ADDRMIPSTLS:
 		// thread pointer is at 0x7000 offset from the start of TLS data area
 		t := ld.Symaddr(r.Sym) + r.Add - 0x7000
 		if t < -32768 || t >= 32678 {
 			ld.Errorf(s, "TLS offset out of range %d", t)
 		}
-		return applyrel(ctxt.Arch, r, s, val, t), true
+		return applyrel(target.Arch, r, s, val, t), true
 	}
 
 	return val, false
 }
 
-func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
+func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
 	return -1
 }
 
@@ -167,24 +169,24 @@ func asmb(ctxt *ld.Link) {
 		ld.Asmbelfsetup()
 	}
 
+	var wg sync.WaitGroup
 	sect := ld.Segtext.Sections[0]
-	ctxt.Out.SeekSet(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
-	ld.Codeblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
+	offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+	ld.WriteParallel(&wg, ld.Codeblk, ctxt, offset, sect.Vaddr, sect.Length)
+
 	for _, sect = range ld.Segtext.Sections[1:] {
-		ctxt.Out.SeekSet(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
-		ld.Datblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
+		offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+		ld.WriteParallel(&wg, ld.Datblk, ctxt, offset, sect.Vaddr, sect.Length)
 	}
 
 	if ld.Segrodata.Filelen > 0 {
-		ctxt.Out.SeekSet(int64(ld.Segrodata.Fileoff))
-		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
+		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrodata.Fileoff, ld.Segrodata.Vaddr, ld.Segrodata.Filelen)
 	}
 
-	ctxt.Out.SeekSet(int64(ld.Segdata.Fileoff))
-	ld.Datblk(ctxt, int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
+	ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segdata.Fileoff, ld.Segdata.Vaddr, ld.Segdata.Filelen)
 
-	ctxt.Out.SeekSet(int64(ld.Segdwarf.Fileoff))
-	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
+	ld.WriteParallel(&wg, ld.Dwarfblk, ctxt, ld.Segdwarf.Fileoff, ld.Segdwarf.Vaddr, ld.Segdwarf.Filelen)
+	wg.Wait()
 }
 
 func asmb2(ctxt *ld.Link) {

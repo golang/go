@@ -6,11 +6,18 @@ package pprof
 
 import (
 	"bytes"
+	"fmt"
+	"internal/profile"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"runtime/pprof"
+	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // TestDescriptions checks that the profile names under runtime/pprof package
@@ -40,6 +47,8 @@ func TestHandlers(t *testing.T) {
 		{"/debug/pprof/profile?seconds=1", Profile, http.StatusOK, "application/octet-stream", `attachment; filename="profile"`, nil},
 		{"/debug/pprof/symbol", Symbol, http.StatusOK, "text/plain; charset=utf-8", "", nil},
 		{"/debug/pprof/trace", Trace, http.StatusOK, "application/octet-stream", `attachment; filename="trace"`, nil},
+		{"/debug/pprof/mutex", Index, http.StatusOK, "application/octet-stream", `attachment; filename="mutex"`, nil},
+		{"/debug/pprof/block?seconds=1", Index, http.StatusOK, "application/octet-stream", `attachment; filename="block-delta"`, nil},
 		{"/debug/pprof/", Index, http.StatusOK, "text/html; charset=utf-8", "", []byte("Types of profiles available:")},
 	}
 	for _, tc := range testCases {
@@ -78,5 +87,183 @@ func TestHandlers(t *testing.T) {
 			}
 		})
 	}
+}
 
+var Sink uint32
+
+func mutexHog1(mu1, mu2 *sync.Mutex, start time.Time, dt time.Duration) {
+	atomic.AddUint32(&Sink, 1)
+	for time.Since(start) < dt {
+		// When using gccgo the loop of mutex operations is
+		// not preemptible. This can cause the loop to block a GC,
+		// causing the time limits in TestDeltaContentionz to fail.
+		// Since this loop is not very realistic, when using
+		// gccgo add preemption points 100 times a second.
+		t1 := time.Now()
+		for time.Since(start) < dt && time.Since(t1) < 10*time.Millisecond {
+			mu1.Lock()
+			mu2.Lock()
+			mu1.Unlock()
+			mu2.Unlock()
+		}
+		if runtime.Compiler == "gccgo" {
+			runtime.Gosched()
+		}
+	}
+}
+
+// mutexHog2 is almost identical to mutexHog but we keep them separate
+// in order to distinguish them with function names in the stack trace.
+// We make them slightly different, using Sink, because otherwise
+// gccgo -c opt will merge them.
+func mutexHog2(mu1, mu2 *sync.Mutex, start time.Time, dt time.Duration) {
+	atomic.AddUint32(&Sink, 2)
+	for time.Since(start) < dt {
+		// See comment in mutexHog.
+		t1 := time.Now()
+		for time.Since(start) < dt && time.Since(t1) < 10*time.Millisecond {
+			mu1.Lock()
+			mu2.Lock()
+			mu1.Unlock()
+			mu2.Unlock()
+		}
+		if runtime.Compiler == "gccgo" {
+			runtime.Gosched()
+		}
+	}
+}
+
+// mutexHog starts multiple goroutines that runs the given hogger function for the specified duration.
+// The hogger function will be given two mutexes to lock & unlock.
+func mutexHog(duration time.Duration, hogger func(mu1, mu2 *sync.Mutex, start time.Time, dt time.Duration)) {
+	start := time.Now()
+	mu1 := new(sync.Mutex)
+	mu2 := new(sync.Mutex)
+	var wg sync.WaitGroup
+	wg.Add(10)
+	for i := 0; i < 10; i++ {
+		go func() {
+			defer wg.Done()
+			hogger(mu1, mu2, start, duration)
+		}()
+	}
+	wg.Wait()
+}
+
+func TestDeltaProfile(t *testing.T) {
+	rate := runtime.SetMutexProfileFraction(1)
+	defer func() {
+		runtime.SetMutexProfileFraction(rate)
+	}()
+
+	// mutexHog1 will appear in non-delta mutex profile
+	// if the mutex profile works.
+	mutexHog(20*time.Millisecond, mutexHog1)
+
+	// If mutexHog1 does not appear in the mutex profile,
+	// skip this test. Mutex profile is likely not working,
+	// so is the delta profile.
+
+	p, err := query("/debug/pprof/mutex")
+	if err != nil {
+		t.Skipf("mutex profile is unsupported: %v", err)
+	}
+
+	if !seen(p, "mutexHog1") {
+		t.Skipf("mutex profile is not working: %v", p)
+	}
+
+	// causes mutexHog2 call stacks to appear in the mutex profile.
+	done := make(chan bool)
+	go func() {
+		for {
+			mutexHog(20*time.Millisecond, mutexHog2)
+			select {
+			case <-done:
+				done <- true
+				return
+			default:
+				time.Sleep(10 * time.Millisecond)
+			}
+		}
+	}()
+	defer func() { // cleanup the above goroutine.
+		done <- true
+		<-done // wait for the goroutine to exit.
+	}()
+
+	for _, tc := range []struct {
+		endpoint             string
+		seconds              int
+		mutexHog1, mutexHog2 bool
+	}{
+		{"/debug/pprof/mutex?seconds=1", 1, false, true},
+		{"/debug/pprof/mutex", 0, true, true},
+	} {
+		t.Run(tc.endpoint, func(t *testing.T) {
+			p, err := query(tc.endpoint)
+			if err != nil {
+				t.Fatalf("failed to query profile: %v", err)
+			}
+			t.Logf("Profile=%v", p)
+
+			if got := seen(p, "mutexHog1"); got != tc.mutexHog1 {
+				t.Errorf("seen(mutexHog1) = %t, want %t", got, tc.mutexHog1)
+			}
+			if got := seen(p, "mutexHog2"); got != tc.mutexHog2 {
+				t.Errorf("seen(mutexHog2) = %t, want %t", got, tc.mutexHog2)
+			}
+
+			if tc.seconds > 0 {
+				got := time.Duration(p.DurationNanos) * time.Nanosecond
+				want := time.Duration(tc.seconds) * time.Second
+				if got < want/2 || got > 2*want {
+					t.Errorf("got duration = %v; want ~%v", got, want)
+				}
+			}
+
+		})
+	}
+}
+
+var srv = httptest.NewServer(nil)
+
+func query(endpoint string) (*profile.Profile, error) {
+	url := srv.URL + endpoint
+	r, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch %q: %v", url, err)
+	}
+	if r.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch %q: %v", url, r.Status)
+	}
+
+	b, err := ioutil.ReadAll(r.Body)
+	r.Body.Close()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read and parse the result from %q: %v", url, err)
+	}
+	return profile.Parse(bytes.NewBuffer(b))
+}
+
+// seen returns true if the profile includes samples whose stacks include
+// the specified function name (fname).
+func seen(p *profile.Profile, fname string) bool {
+	locIDs := map[*profile.Location]bool{}
+	for _, loc := range p.Location {
+		for _, l := range loc.Line {
+			if strings.Contains(l.Function.Name, fname) {
+				locIDs[loc] = true
+				break
+			}
+		}
+	}
+	for _, sample := range p.Sample {
+		for _, loc := range sample.Location {
+			if locIDs[loc] {
+				return true
+			}
+		}
+	}
+	return false
 }

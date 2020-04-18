@@ -428,42 +428,49 @@ func (ctxt *Link) domacho() {
 	}
 
 	// empirically, string table must begin with " \x00".
-	s := ctxt.Syms.Lookup(".machosymstr", 0)
+	s := ctxt.loader.LookupOrCreateSym(".machosymstr", 0)
+	sb := ctxt.loader.MakeSymbolUpdater(s)
 
-	s.Type = sym.SMACHOSYMSTR
-	s.Attr |= sym.AttrReachable
-	s.AddUint8(' ')
-	s.AddUint8('\x00')
+	sb.SetType(sym.SMACHOSYMSTR)
+	sb.SetReachable(true)
+	sb.AddUint8(' ')
+	sb.AddUint8('\x00')
 
-	s = ctxt.Syms.Lookup(".machosymtab", 0)
-	s.Type = sym.SMACHOSYMTAB
-	s.Attr |= sym.AttrReachable
+	s = ctxt.loader.LookupOrCreateSym(".machosymtab", 0)
+	sb = ctxt.loader.MakeSymbolUpdater(s)
+	sb.SetType(sym.SMACHOSYMTAB)
+	sb.SetReachable(true)
 
-	if ctxt.LinkMode != LinkExternal {
-		s := ctxt.Syms.Lookup(".plt", 0) // will be __symbol_stub
-		s.Type = sym.SMACHOPLT
-		s.Attr |= sym.AttrReachable
+	if ctxt.IsInternal() {
+		s = ctxt.loader.LookupOrCreateSym(".plt", 0) // will be __symbol_stub
+		sb = ctxt.loader.MakeSymbolUpdater(s)
+		sb.SetType(sym.SMACHOPLT)
+		sb.SetReachable(true)
 
-		s = ctxt.Syms.Lookup(".got", 0) // will be __nl_symbol_ptr
-		s.Type = sym.SMACHOGOT
-		s.Attr |= sym.AttrReachable
-		s.Align = 4
+		s = ctxt.loader.LookupOrCreateSym(".got", 0) // will be __nl_symbol_ptr
+		sb = ctxt.loader.MakeSymbolUpdater(s)
+		sb.SetType(sym.SMACHOGOT)
+		sb.SetReachable(true)
+		sb.SetAlign(4)
 
-		s = ctxt.Syms.Lookup(".linkedit.plt", 0) // indirect table for .plt
-		s.Type = sym.SMACHOINDIRECTPLT
-		s.Attr |= sym.AttrReachable
+		s = ctxt.loader.LookupOrCreateSym(".linkedit.plt", 0) // indirect table for .plt
+		sb = ctxt.loader.MakeSymbolUpdater(s)
+		sb.SetType(sym.SMACHOINDIRECTPLT)
+		sb.SetReachable(true)
 
-		s = ctxt.Syms.Lookup(".linkedit.got", 0) // indirect table for .got
-		s.Type = sym.SMACHOINDIRECTGOT
-		s.Attr |= sym.AttrReachable
+		s = ctxt.loader.LookupOrCreateSym(".linkedit.got", 0) // indirect table for .got
+		sb = ctxt.loader.MakeSymbolUpdater(s)
+		sb.SetType(sym.SMACHOINDIRECTGOT)
+		sb.SetReachable(true)
 	}
 
 	// Add a dummy symbol that will become the __asm marker section.
-	if ctxt.LinkMode == LinkExternal {
-		s := ctxt.Syms.Lookup(".llvmasm", 0)
-		s.Type = sym.SMACHO
-		s.Attr |= sym.AttrReachable
-		s.AddUint8(0)
+	if ctxt.IsExternal() {
+		s = ctxt.loader.LookupOrCreateSym(".llvmasm", 0)
+		sb = ctxt.loader.MakeSymbolUpdater(s)
+		sb.SetType(sym.SMACHO)
+		sb.SetReachable(true)
+		sb.AddUint8(0)
 	}
 }
 
@@ -883,7 +890,7 @@ func machosymtab(ctxt *Link) {
 		// symbols like crosscall2 are in pclntab and end up
 		// pointing at the host binary, breaking unwinding.
 		// See Issue #18190.
-		cexport := !isGoSymbol && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(s))
+		cexport := !isGoSymbol && (ctxt.BuildMode != BuildModePlugin || onlycsymbol(s.Name))
 		if cexport || export || isGoSymbol {
 			symstr.AddUint8('_')
 		}
@@ -1053,10 +1060,10 @@ func Machoemitreloc(ctxt *Link) {
 
 	machorelocsect(ctxt, Segtext.Sections[0], ctxt.Textp)
 	for _, sect := range Segtext.Sections[1:] {
-		machorelocsect(ctxt, sect, datap)
+		machorelocsect(ctxt, sect, ctxt.datap)
 	}
 	for _, sect := range Segdata.Sections {
-		machorelocsect(ctxt, sect, datap)
+		machorelocsect(ctxt, sect, ctxt.datap)
 	}
 	for _, sect := range Segdwarf.Sections {
 		machorelocsect(ctxt, sect, dwarfp)

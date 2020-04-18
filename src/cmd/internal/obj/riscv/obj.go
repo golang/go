@@ -406,20 +406,40 @@ func rewriteMOV(ctxt *obj.Link, newprog obj.ProgAlloc, p *obj.Prog) {
 }
 
 // InvertBranch inverts the condition of a conditional branch.
-func InvertBranch(i obj.As) obj.As {
-	switch i {
+func InvertBranch(as obj.As) obj.As {
+	switch as {
 	case ABEQ:
 		return ABNE
-	case ABNE:
-		return ABEQ
-	case ABLT:
-		return ABGE
+	case ABEQZ:
+		return ABNEZ
 	case ABGE:
 		return ABLT
-	case ABLTU:
-		return ABGEU
 	case ABGEU:
 		return ABLTU
+	case ABGEZ:
+		return ABLTZ
+	case ABGT:
+		return ABLE
+	case ABGTU:
+		return ABLEU
+	case ABGTZ:
+		return ABLEZ
+	case ABLE:
+		return ABGT
+	case ABLEU:
+		return ABGTU
+	case ABLEZ:
+		return ABGTZ
+	case ABLT:
+		return ABGE
+	case ABLTU:
+		return ABGEU
+	case ABLTZ:
+		return ABGEZ
+	case ABNE:
+		return ABEQ
+	case ABNEZ:
+		return ABEQZ
 	default:
 		panic("InvertBranch: not a branch")
 	}
@@ -725,6 +745,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			// count adjustments from earlier epilogues, since they
 			// won't affect later PCs.
 			p.Spadj = int32(stacksize)
+
+		case AADDI:
+			// Refine Spadjs account for adjustment via ADDI instruction.
+			if p.To.Type == obj.TYPE_REG && p.To.Reg == REG_SP && p.From.Type == obj.TYPE_CONST {
+				p.Spadj = int32(-p.From.Offset)
+			}
 		}
 	}
 
@@ -860,7 +886,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 		for p := cursym.Func.Text; p != nil; p = p.Link {
 			switch p.As {
-			case ABEQ, ABNE, ABLT, ABGE, ABLTU, ABGEU:
+			case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ:
 				if p.To.Type != obj.TYPE_BRANCH {
 					panic("assemble: instruction with branch-like opcode lacks destination")
 				}
@@ -917,7 +943,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	// instructions will break everything--don't do it!
 	for p := cursym.Func.Text; p != nil; p = p.Link {
 		switch p.As {
-		case AJAL, ABEQ, ABNE, ABLT, ABLTU, ABGE, ABGEU:
+		case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ, AJAL:
 			switch p.To.Type {
 			case obj.TYPE_BRANCH:
 				p.To.Type, p.To.Offset = obj.TYPE_CONST, p.Pcond.Pc-p.Pc
@@ -1778,7 +1804,29 @@ func instructionsForProg(p *obj.Prog) []*instruction {
 		ins.rd, ins.rs2 = uint32(p.From.Reg), obj.REG_NONE
 		ins.imm = p.To.Offset
 
-	case ABEQ, ABNE, ABLT, ABGE, ABLTU, ABGEU:
+	case ABEQ, ABEQZ, ABGE, ABGEU, ABGEZ, ABGT, ABGTU, ABGTZ, ABLE, ABLEU, ABLEZ, ABLT, ABLTU, ABLTZ, ABNE, ABNEZ:
+		switch ins.as {
+		case ABEQZ:
+			ins.as, ins.rs1, ins.rs2 = ABEQ, REG_ZERO, uint32(p.From.Reg)
+		case ABGEZ:
+			ins.as, ins.rs1, ins.rs2 = ABGE, REG_ZERO, uint32(p.From.Reg)
+		case ABGT:
+			ins.as, ins.rs1, ins.rs2 = ABLT, uint32(p.Reg), uint32(p.From.Reg)
+		case ABGTU:
+			ins.as, ins.rs1, ins.rs2 = ABLTU, uint32(p.Reg), uint32(p.From.Reg)
+		case ABGTZ:
+			ins.as, ins.rs1, ins.rs2 = ABLT, uint32(p.From.Reg), REG_ZERO
+		case ABLE:
+			ins.as, ins.rs1, ins.rs2 = ABGE, uint32(p.Reg), uint32(p.From.Reg)
+		case ABLEU:
+			ins.as, ins.rs1, ins.rs2 = ABGEU, uint32(p.Reg), uint32(p.From.Reg)
+		case ABLEZ:
+			ins.as, ins.rs1, ins.rs2 = ABGE, uint32(p.From.Reg), REG_ZERO
+		case ABLTZ:
+			ins.as, ins.rs1, ins.rs2 = ABLT, REG_ZERO, uint32(p.From.Reg)
+		case ABNEZ:
+			ins.as, ins.rs1, ins.rs2 = ABNE, REG_ZERO, uint32(p.From.Reg)
+		}
 		ins.imm = p.To.Offset
 
 	case ALW, ALWU, ALH, ALHU, ALB, ALBU, ALD, AFLW, AFLD:
@@ -1956,6 +2004,12 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	for p, i := cursym.P, 0; i < len(symcode); p, i = p[4:], i+1 {
 		ctxt.Arch.ByteOrder.PutUint32(p, symcode[i])
 	}
+
+	obj.MarkUnsafePoints(ctxt, cursym.Func.Text, newprog, isUnsafePoint)
+}
+
+func isUnsafePoint(p *obj.Prog) bool {
+	return p.From.Reg == REG_TMP || p.To.Reg == REG_TMP || p.Reg == REG_TMP
 }
 
 var LinkRISCV64 = obj.LinkArch{

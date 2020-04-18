@@ -34,28 +34,20 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/ld"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"debug/elf"
-	"encoding/binary"
 	"fmt"
 	"log"
+	"sync"
 )
 
-func gentext(ctxt *ld.Link) {
-	if !ctxt.DynlinkingGo() {
+func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
+	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
+	if initfunc == nil {
 		return
 	}
-	addmoduledata := ctxt.Syms.Lookup("runtime.addmoduledata", 0)
-	if addmoduledata.Type == sym.STEXT && ctxt.BuildMode != ld.BuildModePlugin {
-		// we're linking a module containing the runtime -> no need for
-		// an init function
-		return
-	}
-	addmoduledata.Attr |= sym.AttrReachable
-	initfunc := ctxt.Syms.Lookup("go.link.addmoduledata", 0)
-	initfunc.Type = sym.STEXT
-	initfunc.Attr |= sym.AttrLocal
-	initfunc.Attr |= sym.AttrReachable
+
 	o := func(op uint32) {
 		initfunc.AddUint32(ctxt.Arch, op)
 	}
@@ -66,39 +58,33 @@ func gentext(ctxt *ld.Link) {
 	// 	4: R_AARCH64_ADD_ABS_LO12_NC	local.moduledata
 	o(0x90000000)
 	o(0x91000000)
-	rel := initfunc.AddRel()
-	rel.Off = 0
-	rel.Siz = 8
-	rel.Sym = ctxt.Moduledata
-	rel.Type = objabi.R_ADDRARM64
+	rel := loader.Reloc{
+		Off:  0,
+		Size: 8,
+		Type: objabi.R_ADDRARM64,
+		Sym:  ctxt.Moduledata2,
+	}
+	initfunc.AddReloc(rel)
 
 	// 8:	14000000 	b	0 <runtime.addmoduledata>
 	// 	8: R_AARCH64_CALL26	runtime.addmoduledata
 	o(0x14000000)
-	rel = initfunc.AddRel()
-	rel.Off = 8
-	rel.Siz = 4
-	rel.Sym = ctxt.Syms.Lookup("runtime.addmoduledata", 0)
-	rel.Type = objabi.R_CALLARM64 // Really should be R_AARCH64_JUMP26 but doesn't seem to make any difference
-
-	if ctxt.BuildMode == ld.BuildModePlugin {
-		ctxt.Textp = append(ctxt.Textp, addmoduledata)
+	rel2 := loader.Reloc{
+		Off:  8,
+		Size: 4,
+		Type: objabi.R_CALLARM64, // Really should be R_AARCH64_JUMP26 but doesn't seem to make any difference
+		Sym:  addmoduledata,
 	}
-	ctxt.Textp = append(ctxt.Textp, initfunc)
-	initarray_entry := ctxt.Syms.Lookup("go.link.addmoduledatainit", 0)
-	initarray_entry.Attr |= sym.AttrReachable
-	initarray_entry.Attr |= sym.AttrLocal
-	initarray_entry.Type = sym.SINITARR
-	initarray_entry.AddAddr(ctxt.Arch, initfunc)
+	initfunc.AddReloc(rel2)
 }
 
-func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
+func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
 	targ := r.Sym
 
 	switch r.Type {
 	default:
 		if r.Type >= objabi.ElfRelocOffset {
-			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(ctxt.Arch, r.Type))
+			ld.Errorf(s, "unexpected relocation type %d (%s)", r.Type, sym.RelocName(target.Arch, r.Type))
 			return false
 		}
 
@@ -130,8 +116,8 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_CALL26),
 		objabi.ElfRelocOffset + objabi.RelocType(elf.R_AARCH64_JUMP26):
 		if targ.Type == sym.SDYNIMPORT {
-			addpltsym(ctxt, targ)
-			r.Sym = ctxt.Syms.Lookup(".plt", 0)
+			addpltsym(target, syms, targ)
+			r.Sym = syms.PLT
 			r.Add += int64(targ.Plt())
 		}
 		if (targ.Type == 0 || targ.Type == sym.SXREF) && !targ.Attr.VisibilityHidden() {
@@ -149,10 +135,10 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 
 		// fall back to using GOT
 		// TODO: just needs relocation, no need to put in .dynsym
-		addgotsym(ctxt, targ)
+		addgotsym(target, syms, targ)
 
 		r.Type = objabi.R_ARM64_GOT
-		r.Sym = ctxt.Syms.Lookup(".got", 0)
+		r.Sym = syms.GOT
 		r.Add += int64(targ.Got())
 		return true
 
@@ -172,7 +158,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 			ld.Errorf(s, "unexpected R_AARCH64_ABS64 relocation for dynamic symbol %s", targ.Name)
 		}
 		r.Type = objabi.R_ADDR
-		if ctxt.BuildMode == ld.BuildModePIE && ctxt.LinkMode == ld.LinkInternal {
+		if target.IsPIE() && target.IsInternal() {
 			// For internal linking PIE, this R_ADDR relocation cannot
 			// be resolved statically. We need to generate a dynamic
 			// relocation. Let the code below handle it.
@@ -217,25 +203,25 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 			// nothing to do, the relocation will be laid out in reloc
 			return true
 		}
-		if ctxt.LinkMode == ld.LinkExternal {
+		if target.IsExternal() {
 			// External linker will do this relocation.
 			return true
 		}
 
 	case objabi.R_ADDR:
-		if s.Type == sym.STEXT && ctxt.IsELF {
+		if s.Type == sym.STEXT && target.IsElf() {
 			// The code is asking for the address of an external
 			// function. We provide it with the address of the
 			// correspondent GOT symbol.
-			addgotsym(ctxt, targ)
+			addgotsym(target, syms, targ)
 
-			r.Sym = ctxt.Syms.Lookup(".got", 0)
+			r.Sym = syms.GOT
 			r.Add += int64(targ.Got())
 			return true
 		}
 
 		// Process dynamic relocations for the data sections.
-		if ctxt.BuildMode == ld.BuildModePIE && ctxt.LinkMode == ld.LinkInternal {
+		if target.IsPIE() && target.IsInternal() {
 			// When internally linking, generate dynamic relocations
 			// for all typical R_ADDR relocations. The exception
 			// are those R_ADDR that are created as part of generating
@@ -283,7 +269,7 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 			}
 		}
 
-		if ctxt.IsELF {
+		if target.IsElf() {
 			// Generate R_AARCH64_RELATIVE relocations for best
 			// efficiency in the dynamic linker.
 			//
@@ -301,14 +287,14 @@ func adddynrel(ctxt *ld.Link, s *sym.Symbol, r *sym.Reloc) bool {
 			// AddAddrPlus is used for r_offset and r_addend to
 			// generate new R_ADDR relocations that will update
 			// these fields in the 'reloc' phase.
-			rela := ctxt.Syms.Lookup(".rela", 0)
-			rela.AddAddrPlus(ctxt.Arch, s, int64(r.Off))
+			rela := syms.Rela
+			rela.AddAddrPlus(target.Arch, s, int64(r.Off))
 			if r.Siz == 8 {
-				rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(0, uint32(elf.R_AARCH64_RELATIVE)))
+				rela.AddUint64(target.Arch, ld.ELF64_R_INFO(0, uint32(elf.R_AARCH64_RELATIVE)))
 			} else {
 				ld.Errorf(s, "unexpected relocation for dynamic symbol %s", targ.Name)
 			}
-			rela.AddAddrPlus(ctxt.Arch, targ, int64(r.Add))
+			rela.AddAddrPlus(target.Arch, targ, int64(r.Add))
 			// Not mark r done here. So we still apply it statically,
 			// so in the file content we'll also have the right offset
 			// to the relocation target. So it can be examined statically
@@ -434,14 +420,14 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, s *sym.Symbol, r *sym.Reloc, se
 	return true
 }
 
-func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
-	if ctxt.LinkMode == ld.LinkExternal {
+func archreloc(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bool) {
+	if target.IsExternal() {
 		switch r.Type {
 		default:
 			return val, false
 		case objabi.R_ARM64_GOTPCREL:
 			var o1, o2 uint32
-			if ctxt.Arch.ByteOrder == binary.BigEndian {
+			if target.IsBigEndian() {
 				o1 = uint32(val >> 32)
 				o2 = uint32(val)
 			} else {
@@ -456,14 +442,14 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 			// (https://sourceware.org/bugzilla/show_bug.cgi?id=18270). So
 			// we convert the adrp; ld64 + R_ARM64_GOTPCREL into adrp;
 			// add + R_ADDRARM64.
-			if !(r.Sym.IsFileLocal() || r.Sym.Attr.VisibilityHidden() || r.Sym.Attr.Local()) && r.Sym.Type == sym.STEXT && ctxt.DynlinkingGo() {
+			if !(r.Sym.IsFileLocal() || r.Sym.Attr.VisibilityHidden() || r.Sym.Attr.Local()) && r.Sym.Type == sym.STEXT && target.IsDynlinkingGo() {
 				if o2&0xffc00000 != 0xf9400000 {
 					ld.Errorf(s, "R_ARM64_GOTPCREL against unexpected instruction %x", o2)
 				}
 				o2 = 0x91000000 | (o2 & 0x000003ff)
 				r.Type = objabi.R_ADDRARM64
 			}
-			if ctxt.Arch.ByteOrder == binary.BigEndian {
+			if target.IsBigEndian() {
 				val = int64(o1)<<32 | int64(o2)
 			} else {
 				val = int64(o2)<<32 | int64(o1)
@@ -490,10 +476,10 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 			// the BR26 relocation should be fully resolved at link time.
 			// That is the reason why the next if block is disabled. When the bug in ld64
 			// is fixed, we can enable this block and also enable duff's device in cmd/7g.
-			if false && ctxt.HeadType == objabi.Hdarwin {
+			if false && target.IsDarwin() {
 				var o0, o1 uint32
 
-				if ctxt.Arch.ByteOrder == binary.BigEndian {
+				if target.IsBigEndian() {
 					o0 = uint32(val >> 32)
 					o1 = uint32(val)
 				} else {
@@ -510,7 +496,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 				r.Xadd = 0
 
 				// when laid out, the instruction order must always be o1, o2.
-				if ctxt.Arch.ByteOrder == binary.BigEndian {
+				if target.IsBigEndian() {
 					val = int64(o0)<<32 | int64(o1)
 				} else {
 					val = int64(o1)<<32 | int64(o0)
@@ -533,7 +519,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 		return r.Add, true
 
 	case objabi.R_GOTOFF:
-		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(ctxt.Syms.Lookup(".got", 0)), true
+		return ld.Symaddr(r.Sym) + r.Add - ld.Symaddr(syms.GOT), true
 
 	case objabi.R_ADDRARM64:
 		t := ld.Symaddr(r.Sym) + r.Add - ((s.Value + int64(r.Off)) &^ 0xfff)
@@ -543,7 +529,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 
 		var o0, o1 uint32
 
-		if ctxt.Arch.ByteOrder == binary.BigEndian {
+		if target.IsBigEndian() {
 			o0 = uint32(val >> 32)
 			o1 = uint32(val)
 		} else {
@@ -555,42 +541,42 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 		o1 |= uint32(t&0xfff) << 10
 
 		// when laid out, the instruction order must always be o1, o2.
-		if ctxt.Arch.ByteOrder == binary.BigEndian {
+		if target.IsBigEndian() {
 			return int64(o0)<<32 | int64(o1), true
 		}
 		return int64(o1)<<32 | int64(o0), true
 
 	case objabi.R_ARM64_TLS_LE:
 		r.Done = false
-		if ctxt.HeadType == objabi.Hdarwin {
-			ld.Errorf(s, "TLS reloc on unsupported OS %v", ctxt.HeadType)
+		if target.IsDarwin() {
+			ld.Errorf(s, "TLS reloc on unsupported OS %v", target.HeadType)
 		}
 		// The TCB is two pointers. This is not documented anywhere, but is
 		// de facto part of the ABI.
-		v := r.Sym.Value + int64(2*ctxt.Arch.PtrSize)
+		v := r.Sym.Value + int64(2*target.Arch.PtrSize)
 		if v < 0 || v >= 32678 {
 			ld.Errorf(s, "TLS offset out of range %d", v)
 		}
 		return val | (v << 5), true
 
 	case objabi.R_ARM64_TLS_IE:
-		if ctxt.BuildMode == ld.BuildModePIE && ctxt.IsELF {
+		if target.IsPIE() && target.IsElf() {
 			// We are linking the final executable, so we
 			// can optimize any TLS IE relocation to LE.
 			r.Done = false
-			if ctxt.HeadType != objabi.Hlinux {
-				ld.Errorf(s, "TLS reloc on unsupported OS %v", ctxt.HeadType)
+			if !target.IsLinux() {
+				ld.Errorf(s, "TLS reloc on unsupported OS %v", target.HeadType)
 			}
 
 			// The TCB is two pointers. This is not documented anywhere, but is
 			// de facto part of the ABI.
-			v := ld.Symaddr(r.Sym) + int64(2*ctxt.Arch.PtrSize) + r.Add
+			v := ld.Symaddr(r.Sym) + int64(2*target.Arch.PtrSize) + r.Add
 			if v < 0 || v >= 32678 {
 				ld.Errorf(s, "TLS offset out of range %d", v)
 			}
 
 			var o0, o1 uint32
-			if ctxt.Arch.ByteOrder == binary.BigEndian {
+			if target.IsBigEndian() {
 				o0 = uint32(val >> 32)
 				o1 = uint32(val)
 			} else {
@@ -609,7 +595,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 			o1 = 0xf2800000 | uint32(o1&0x1f) | (uint32(v&0xffff) << 5)
 
 			// when laid out, the instruction order must always be o0, o1.
-			if ctxt.Arch.ByteOrder == binary.BigEndian {
+			if target.IsBigEndian() {
 				return int64(o0)<<32 | int64(o1), true
 			}
 			return int64(o1)<<32 | int64(o0), true
@@ -620,7 +606,7 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 	case objabi.R_CALLARM64:
 		var t int64
 		if r.Sym.Type == sym.SDYNIMPORT {
-			t = (ld.Symaddr(ctxt.Syms.Lookup(".plt", 0)) + r.Add) - (s.Value + int64(r.Off))
+			t = (ld.Symaddr(syms.PLT) + r.Add) - (s.Value + int64(r.Off))
 		} else {
 			t = (ld.Symaddr(r.Sym) + r.Add) - (s.Value + int64(r.Off))
 		}
@@ -707,35 +693,30 @@ func archreloc(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, val int64) (int64, bo
 	return val, false
 }
 
-func archrelocvariant(ctxt *ld.Link, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
+func archrelocvariant(target *ld.Target, syms *ld.ArchSyms, r *sym.Reloc, s *sym.Symbol, t int64) int64 {
 	log.Fatalf("unexpected relocation variant")
 	return -1
 }
 
-func elfsetupplt(ctxt *ld.Link) {
-	plt := ctxt.Syms.Lookup(".plt", 0)
-	gotplt := ctxt.Syms.Lookup(".got.plt", 0)
-	if plt.Size == 0 {
+func elfsetupplt(ctxt *ld.Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {
+	if plt.Size() == 0 {
 		// stp     x16, x30, [sp, #-16]!
 		// identifying information
 		plt.AddUint32(ctxt.Arch, 0xa9bf7bf0)
 
 		// the following two instructions (adrp + ldr) load *got[2] into x17
 		// adrp    x16, &got[0]
-		plt.AddAddrPlus4(gotplt, 16)
-		plt.SetUint32(ctxt.Arch, plt.Size-4, 0x90000010)
-		plt.R[len(plt.R)-1].Type = objabi.R_ARM64_GOT
+		plt.AddSymRef(ctxt.Arch, gotplt.Sym(), 16, objabi.R_ARM64_GOT, 4)
+		plt.SetUint32(ctxt.Arch, plt.Size()-4, 0x90000010)
 
 		// <imm> is the offset value of &got[2] to &got[0], the same below
 		// ldr     x17, [x16, <imm>]
-		plt.AddAddrPlus4(gotplt, 16)
-		plt.SetUint32(ctxt.Arch, plt.Size-4, 0xf9400211)
-		plt.R[len(plt.R)-1].Type = objabi.R_ARM64_GOT
+		plt.AddSymRef(ctxt.Arch, gotplt.Sym(), 16, objabi.R_ARM64_GOT, 4)
+		plt.SetUint32(ctxt.Arch, plt.Size()-4, 0xf9400211)
 
 		// add     x16, x16, <imm>
-		plt.AddAddrPlus4(gotplt, 16)
-		plt.SetUint32(ctxt.Arch, plt.Size-4, 0x91000210)
-		plt.R[len(plt.R)-1].Type = objabi.R_ARM64_PCREL
+		plt.AddSymRef(ctxt.Arch, gotplt.Sym(), 16, objabi.R_ARM64_PCREL, 4)
+		plt.SetUint32(ctxt.Arch, plt.Size()-4, 0x91000210)
 
 		// br      x17
 		plt.AddUint32(ctxt.Arch, 0xd61f0220)
@@ -746,57 +727,57 @@ func elfsetupplt(ctxt *ld.Link) {
 		plt.AddUint32(ctxt.Arch, 0xd503201f)
 
 		// check gotplt.size == 0
-		if gotplt.Size != 0 {
-			ld.Errorf(gotplt, "got.plt is not empty at the very beginning")
+		if gotplt.Size() != 0 {
+			ctxt.Errorf(gotplt.Sym(), "got.plt is not empty at the very beginning")
 		}
-		gotplt.AddAddrPlus(ctxt.Arch, ctxt.Syms.Lookup(".dynamic", 0), 0)
+		gotplt.AddAddrPlus(ctxt.Arch, dynamic, 0)
 
 		gotplt.AddUint64(ctxt.Arch, 0)
 		gotplt.AddUint64(ctxt.Arch, 0)
 	}
 }
 
-func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
+func addpltsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
 	if s.Plt() >= 0 {
 		return
 	}
 
-	ld.Adddynsym(ctxt, s)
+	ld.Adddynsym(target, syms, s)
 
-	if ctxt.IsELF {
-		plt := ctxt.Syms.Lookup(".plt", 0)
-		gotplt := ctxt.Syms.Lookup(".got.plt", 0)
-		rela := ctxt.Syms.Lookup(".rela.plt", 0)
+	if target.IsElf() {
+		plt := syms.PLT
+		gotplt := syms.GOTPLT
+		rela := syms.RelaPLT
 		if plt.Size == 0 {
-			elfsetupplt(ctxt)
+			panic("plt is not set up")
 		}
 
 		// adrp    x16, &got.plt[0]
 		plt.AddAddrPlus4(gotplt, gotplt.Size)
-		plt.SetUint32(ctxt.Arch, plt.Size-4, 0x90000010)
+		plt.SetUint32(target.Arch, plt.Size-4, 0x90000010)
 		plt.R[len(plt.R)-1].Type = objabi.R_ARM64_GOT
 
 		// <offset> is the offset value of &got.plt[n] to &got.plt[0]
 		// ldr     x17, [x16, <offset>]
 		plt.AddAddrPlus4(gotplt, gotplt.Size)
-		plt.SetUint32(ctxt.Arch, plt.Size-4, 0xf9400211)
+		plt.SetUint32(target.Arch, plt.Size-4, 0xf9400211)
 		plt.R[len(plt.R)-1].Type = objabi.R_ARM64_GOT
 
 		// add     x16, x16, <offset>
 		plt.AddAddrPlus4(gotplt, gotplt.Size)
-		plt.SetUint32(ctxt.Arch, plt.Size-4, 0x91000210)
+		plt.SetUint32(target.Arch, plt.Size-4, 0x91000210)
 		plt.R[len(plt.R)-1].Type = objabi.R_ARM64_PCREL
 
 		// br      x17
-		plt.AddUint32(ctxt.Arch, 0xd61f0220)
+		plt.AddUint32(target.Arch, 0xd61f0220)
 
 		// add to got.plt: pointer to plt[0]
-		gotplt.AddAddrPlus(ctxt.Arch, plt, 0)
+		gotplt.AddAddrPlus(target.Arch, plt, 0)
 
 		// rela
-		rela.AddAddrPlus(ctxt.Arch, gotplt, gotplt.Size-8)
-		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_AARCH64_JUMP_SLOT)))
-		rela.AddUint64(ctxt.Arch, 0)
+		rela.AddAddrPlus(target.Arch, gotplt, gotplt.Size-8)
+		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_AARCH64_JUMP_SLOT)))
+		rela.AddUint64(target.Arch, 0)
 
 		s.SetPlt(int32(plt.Size - 16))
 	} else {
@@ -804,21 +785,21 @@ func addpltsym(ctxt *ld.Link, s *sym.Symbol) {
 	}
 }
 
-func addgotsym(ctxt *ld.Link, s *sym.Symbol) {
+func addgotsym(target *ld.Target, syms *ld.ArchSyms, s *sym.Symbol) {
 	if s.Got() >= 0 {
 		return
 	}
 
-	ld.Adddynsym(ctxt, s)
-	got := ctxt.Syms.Lookup(".got", 0)
+	ld.Adddynsym(target, syms, s)
+	got := syms.GOT
 	s.SetGot(int32(got.Size))
-	got.AddUint64(ctxt.Arch, 0)
+	got.AddUint64(target.Arch, 0)
 
-	if ctxt.IsELF {
-		rela := ctxt.Syms.Lookup(".rela", 0)
-		rela.AddAddrPlus(ctxt.Arch, got, int64(s.Got()))
-		rela.AddUint64(ctxt.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_AARCH64_GLOB_DAT)))
-		rela.AddUint64(ctxt.Arch, 0)
+	if target.IsElf() {
+		rela := syms.Rela
+		rela.AddAddrPlus(target.Arch, got, int64(s.Got()))
+		rela.AddUint64(target.Arch, ld.ELF64_R_INFO(uint32(s.Dynid), uint32(elf.R_AARCH64_GLOB_DAT)))
+		rela.AddUint64(target.Arch, 0)
 	} else {
 		ld.Errorf(s, "addgotsym: unsupported binary format")
 	}
@@ -829,28 +810,28 @@ func asmb(ctxt *ld.Link) {
 		ld.Asmbelfsetup()
 	}
 
+	var wg sync.WaitGroup
 	sect := ld.Segtext.Sections[0]
-	ctxt.Out.SeekSet(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
-	ld.Codeblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
-	for _, sect = range ld.Segtext.Sections[1:] {
-		ctxt.Out.SeekSet(int64(sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff))
-		ld.Datblk(ctxt, int64(sect.Vaddr), int64(sect.Length))
+	offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+	ld.WriteParallel(&wg, ld.Codeblk, ctxt, offset, sect.Vaddr, sect.Length)
+
+	for _, sect := range ld.Segtext.Sections[1:] {
+		offset := sect.Vaddr - ld.Segtext.Vaddr + ld.Segtext.Fileoff
+		ld.WriteParallel(&wg, ld.Datblk, ctxt, offset, sect.Vaddr, sect.Length)
 	}
 
 	if ld.Segrodata.Filelen > 0 {
-		ctxt.Out.SeekSet(int64(ld.Segrodata.Fileoff))
-		ld.Datblk(ctxt, int64(ld.Segrodata.Vaddr), int64(ld.Segrodata.Filelen))
+		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrodata.Fileoff, ld.Segrodata.Vaddr, ld.Segrodata.Filelen)
 	}
+
 	if ld.Segrelrodata.Filelen > 0 {
-		ctxt.Out.SeekSet(int64(ld.Segrelrodata.Fileoff))
-		ld.Datblk(ctxt, int64(ld.Segrelrodata.Vaddr), int64(ld.Segrelrodata.Filelen))
+		ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segrelrodata.Fileoff, ld.Segrelrodata.Vaddr, ld.Segrelrodata.Filelen)
 	}
 
-	ctxt.Out.SeekSet(int64(ld.Segdata.Fileoff))
-	ld.Datblk(ctxt, int64(ld.Segdata.Vaddr), int64(ld.Segdata.Filelen))
+	ld.WriteParallel(&wg, ld.Datblk, ctxt, ld.Segdata.Fileoff, ld.Segdata.Vaddr, ld.Segdata.Filelen)
 
-	ctxt.Out.SeekSet(int64(ld.Segdwarf.Fileoff))
-	ld.Dwarfblk(ctxt, int64(ld.Segdwarf.Vaddr), int64(ld.Segdwarf.Filelen))
+	ld.WriteParallel(&wg, ld.Dwarfblk, ctxt, ld.Segdwarf.Fileoff, ld.Segdwarf.Vaddr, ld.Segdwarf.Filelen)
+	wg.Wait()
 }
 
 func asmb2(ctxt *ld.Link) {

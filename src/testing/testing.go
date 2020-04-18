@@ -239,6 +239,7 @@ import (
 	"fmt"
 	"internal/race"
 	"io"
+	"io/ioutil"
 	"os"
 	"runtime"
 	"runtime/debug"
@@ -362,6 +363,10 @@ type common struct {
 	barrier  chan bool // To signal parallel subtests they may start.
 	signal   chan bool // To signal a test is done.
 	sub      []*T      // Queue of subtests to be run in parallel.
+
+	tempDirOnce sync.Once
+	tempDir     string
+	tempDirErr  error
 }
 
 // Short reports whether the -test.short flag is set.
@@ -561,6 +566,7 @@ type TB interface {
 	SkipNow()
 	Skipf(format string, args ...interface{})
 	Skipped() bool
+	TempDir() string
 
 	// A private method to prevent users implementing the
 	// interface and so future additions to it will not
@@ -789,6 +795,30 @@ func (c *common) Cleanup(f func()) {
 		}
 		f()
 	}
+}
+
+// TempDir returns a temporary directory for the test to use.
+// It is lazily created on first access, and calls t.Fatal if the directory
+// creation fails.
+// Subsequent calls to t.TempDir return the same directory.
+// The directory is automatically removed by Cleanup when the test and
+// all its subtests complete.
+func (c *common) TempDir() string {
+	c.tempDirOnce.Do(func() {
+		c.Helper()
+		c.tempDir, c.tempDirErr = ioutil.TempDir("", c.Name())
+		if c.tempDirErr == nil {
+			c.Cleanup(func() {
+				if err := os.RemoveAll(c.tempDir); err != nil {
+					c.Errorf("TempDir RemoveAll cleanup: %v", err)
+				}
+			})
+		}
+	})
+	if c.tempDirErr != nil {
+		c.Fatalf("TempDir: %v", c.tempDirErr)
+	}
+	return c.tempDir
 }
 
 // panicHanding is an argument to runCleanup.

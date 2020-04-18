@@ -174,9 +174,6 @@
 (Leq8U  x y) -> (I64LeU (ZeroExt8to64  x) (ZeroExt8to64  y))
 (Leq(64|32)F ...) -> (F(64|32)Le ...)
 
-(Greater(64|32)F ...) -> (F(64|32)Gt ...)
-(Geq(64|32)F     ...) -> (F(64|32)Ge ...)
-
 (Eq64  ...) -> (I64Eq ...)
 (Eq32  x y) -> (I64Eq (ZeroExt32to64 x) (ZeroExt32to64 y))
 (Eq16  x y) -> (I64Eq (ZeroExt16to64 x) (ZeroExt16to64 y))
@@ -253,7 +250,7 @@
 			(I64Store dst (I64Load src mem) mem)))
 
 // Large copying uses helper.
-(Move [s] dst src mem) && s%8 == 0 ->
+(Move [s] dst src mem) && s%8 == 0 && logLargeCopy(v, s) ->
 	(LoweredMove [s/8] dst src mem)
 
 // Lowering Zero instructions
@@ -319,7 +316,7 @@
 (GetClosurePtr ...) -> (LoweredGetClosurePtr ...)
 (GetCallerPC ...) -> (LoweredGetCallerPC ...)
 (GetCallerSP ...) -> (LoweredGetCallerSP ...)
-(Addr ...) -> (LoweredAddr ...)
+(Addr {sym} base) => (LoweredAddr {sym} [0] base)
 (LocalAddr {sym} base _) -> (LoweredAddr {sym} base)
 
 // Write barrier.

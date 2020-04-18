@@ -164,10 +164,6 @@ func rewriteValueMIPS(v *Value) bool {
 		return rewriteValueMIPS_OpEqB(v)
 	case OpEqPtr:
 		return rewriteValueMIPS_OpEqPtr(v)
-	case OpGeq32F:
-		return rewriteValueMIPS_OpGeq32F(v)
-	case OpGeq64F:
-		return rewriteValueMIPS_OpGeq64F(v)
 	case OpGetCallerPC:
 		v.Op = OpMIPSLoweredGetCallerPC
 		return true
@@ -177,10 +173,6 @@ func rewriteValueMIPS(v *Value) bool {
 	case OpGetClosurePtr:
 		v.Op = OpMIPSLoweredGetClosurePtr
 		return true
-	case OpGreater32F:
-		return rewriteValueMIPS_OpGreater32F(v)
-	case OpGreater64F:
-		return rewriteValueMIPS_OpGreater64F(v)
 	case OpHmul32:
 		return rewriteValueMIPS_OpHmul32(v)
 	case OpHmul32u:
@@ -1122,70 +1114,6 @@ func rewriteValueMIPS_OpEqPtr(v *Value) bool {
 		v.reset(OpMIPSSGTUconst)
 		v.AuxInt = 1
 		v0 := b.NewValue0(v.Pos, OpMIPSXOR, typ.UInt32)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueMIPS_OpGeq32F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq32F x y)
-	// result: (FPFlagTrue (CMPGEF x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpMIPSFPFlagTrue)
-		v0 := b.NewValue0(v.Pos, OpMIPSCMPGEF, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueMIPS_OpGeq64F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq64F x y)
-	// result: (FPFlagTrue (CMPGED x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpMIPSFPFlagTrue)
-		v0 := b.NewValue0(v.Pos, OpMIPSCMPGED, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueMIPS_OpGreater32F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater32F x y)
-	// result: (FPFlagTrue (CMPGTF x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpMIPSFPFlagTrue)
-		v0 := b.NewValue0(v.Pos, OpMIPSCMPGTF, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueMIPS_OpGreater64F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater64F x y)
-	// result: (FPFlagTrue (CMPGTD x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpMIPSFPFlagTrue)
-		v0 := b.NewValue0(v.Pos, OpMIPSCMPGTD, types.TypeFlags)
 		v0.AddArg2(x, y)
 		v.AddArg(v0)
 		return true
@@ -5263,7 +5191,7 @@ func rewriteValueMIPS_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] {t} dst src mem)
-	// cond: (s > 16 || t.(*types.Type).Alignment()%4 != 0)
+	// cond: (s > 16 && logLargeCopy(v, s) || t.(*types.Type).Alignment()%4 != 0)
 	// result: (LoweredMove [t.(*types.Type).Alignment()] dst src (ADDconst <src.Type> src [s-moveSize(t.(*types.Type).Alignment(), config)]) mem)
 	for {
 		s := v.AuxInt
@@ -5271,7 +5199,7 @@ func rewriteValueMIPS_OpMove(v *Value) bool {
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s > 16 || t.(*types.Type).Alignment()%4 != 0) {
+		if !(s > 16 && logLargeCopy(v, s) || t.(*types.Type).Alignment()%4 != 0) {
 			break
 		}
 		v.reset(OpMIPSLoweredMove)

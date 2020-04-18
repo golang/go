@@ -43,6 +43,18 @@ TODO
 
 <h3 id="go-command">Go command</h3>
 
+<p><!-- golang.org/issue/37367 -->
+  The <code>GOPROXY</code> environment variable now supports skipping proxies
+  that return errors. Proxy URLs may now be separated with either commas
+  (<code>,</code>) or pipe characters (<code>|</code>). If a proxy URL is
+  followed by a comma, the <code>go</code> command will only try the next proxy
+  in the list after a 404 or 410 HTTP response. If a proxy URL is followed by a
+  pipe character, the <code>go</code> command will try the next proxy in the
+  list after any error. Note that the default value of <code>GOPROXY</code>
+  remains <code>https://proxy.golang.org,direct</code>, which does not fall
+  back to <code>direct</code> in case of errors.
+</p>
+
 <p>
 TODO
 </p>
@@ -74,6 +86,20 @@ TODO
 
 
 <h2 id="library">Core library</h2>
+
+<h3 id="time/tzdata">New embedded tzdata package</h3>
+
+<p> <!-- CL 224588 -->
+  Go 1.15 includes a new package,
+  <a href="/pkg/time/tzdata/"><code>time/tzdata</code></a>,
+  that permits embedding the timezone database into a program.
+  Importing this package (as <code>import _ "time/tzdata"</code>)
+  permits the program to find timezone information even if the
+  timezone database is not available on the local system.
+  You can also embed the timezone database by building
+  with <code>-tags timetzdata</code>.
+  Either approach increases the size of the program by about 800 KB.
+</p>
 
 <p>
 TODO
@@ -107,6 +133,38 @@ TODO
 TODO
 </p>
 
+<dl id="flag"><dt><a href="/pkg/flag/">flag</a></dt>
+  <dd>
+    <p><!-- CL 221427 -->
+      When the flag package sees <code>-h</code> or <code>-help</code>, and
+      those flags are not defined, the flag package prints a usage message.
+      If the <a href="/pkg/flag/#FlagSet"><code>FlagSet</code></a> was created with
+      <a href="/pkg/flag/#ExitOnError"><code>ExitOnError</code></a>,
+      <a href="/pkg/flag/#FlagSet.Parse"><code>FlagSet.Parse</code></a> would then
+      exit with a status of 2. In this release, the exit status for <code>-h</code>
+      or <code>-help</code> has been changed to 0. In particular, this applies to
+      the default handling of command line flags.
+    </p>
+  </dd>
+</dl>
+
+<dl id="net/url"><dt><a href="/pkg/net/url/">net/url</a></dt>
+  <dd>
+    <p><!-- CL 227645 -->
+      The new <a href="/pkg/net/url/#URL"><code>URL</code></a> field
+      <code>RawFragment</code> and method <a href="/pkg/net/url/#URL.EscapedFragment"><code>EscapedFragment</code></a>
+      provide detail about and control over the exact encoding of a particular fragment.
+      These are analogous to
+      <code>RawPath</code> and <a href="/pkg/net/url/#URL.EscapedPath"><code>EscapedPath</code></a>.
+    </p>
+    <p><!-- CL 207082 -->
+      The new <a href="/pkg/net/url/#URL"><code>URL</code></a>
+      method <a href="/pkg/net/url/#URL.Redacted"><code>Redacted</code></a>
+      returns the URL in string form with any password replaced with <code>xxxxx</code>.
+    </p>
+  </dd>
+</dl>
+
 <dl id="pkg-runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
   <dd>
     <p><!-- CL 221779 -->
@@ -121,23 +179,35 @@ TODO
 
 <dl id="sync"><dt><a href="/pkg/sync/">sync</a></dt>
   <dd>
-    <p><!-- golang.org/issue/33762 -->
+    <p><!-- CL 205899, golang.org/issue/33762 -->
       The new method
-      <a href="/pkg/sync#Map.LoadAndDelete"><code>Map.LoadAndDelete</code></a>
+      <a href="/pkg/sync/#Map.LoadAndDelete"><code>Map.LoadAndDelete</code></a>
       atomically deletes a key and returns the previous value if present.
     </p>
     <p><!-- CL 205899 -->
       The method
-      <a href="/pkg/sync#Map.Delete"><code>Map.Delete</code></a>
+      <a href="/pkg/sync/#Map.Delete"><code>Map.Delete</code></a>
       is more efficient.
     </p>
 </dl><!-- sync -->
 
+<dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
+  <dd>
+    <p><!-- CL 226877, golang.org/issue/35998 -->
+       The new methods
+       <a href="/pkg/testing/#T.TempDir"><code>T.TempDir</code></a> and
+       <a href="/pkg/testing/#B.TempDir"><code>B.TempDir</code></a> and
+       return temporary directories that are automatically cleaned up
+       at the end of the test.
+    </p>
+  </dd>
+</dl><!-- testing -->
+
 <dl id="time"><dt><a href="/pkg/time/">time</a></dt>
   <dd>
-    <p><!-- golang.org/issue/33184 -->
+    <p><!-- CL 220424, CL 217362, golang.org/issue/33184 -->
        The new method
-       <a href="/pkg/time#Ticker.Reset"><code>Ticker.Reset</code></a>
+       <a href="/pkg/time/#Ticker.Reset"><code>Ticker.Reset</code></a>
        supports changing the duration of a ticker.
     </p>
   </dd>

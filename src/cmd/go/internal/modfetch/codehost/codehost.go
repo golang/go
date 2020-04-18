@@ -153,15 +153,11 @@ func ShortenSHA1(rev string) string {
 	return rev
 }
 
-// WorkRoot is the root of the cached work directory.
-// It is set by cmd/go/internal/modload.InitMod.
-var WorkRoot string
-
 // WorkDir returns the name of the cached work directory to use for the
 // given repository type and name.
 func WorkDir(typ, name string) (dir, lockfile string, err error) {
-	if WorkRoot == "" {
-		return "", "", fmt.Errorf("codehost.WorkRoot not set")
+	if cfg.GOMODCACHE == "" {
+		return "", "", fmt.Errorf("neither GOPATH nor GOMODCACHE are set")
 	}
 
 	// We name the work directory for the SHA256 hash of the type and name.
@@ -173,7 +169,7 @@ func WorkDir(typ, name string) (dir, lockfile string, err error) {
 		return "", "", fmt.Errorf("codehost.WorkDir: type cannot contain colon")
 	}
 	key := typ + ":" + name
-	dir = filepath.Join(WorkRoot, fmt.Sprintf("%x", sha256.Sum256([]byte(key))))
+	dir = filepath.Join(cfg.GOMODCACHE, "cache/vcs", fmt.Sprintf("%x", sha256.Sum256([]byte(key))))
 
 	if cfg.BuildX {
 		fmt.Fprintf(os.Stderr, "mkdir -p %s # %s %s\n", filepath.Dir(dir), typ, name)

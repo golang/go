@@ -582,10 +582,6 @@ func rewriteValueARM(v *Value) bool {
 		return rewriteValueARM_OpEqPtr(v)
 	case OpFMA:
 		return rewriteValueARM_OpFMA(v)
-	case OpGeq32F:
-		return rewriteValueARM_OpGeq32F(v)
-	case OpGeq64F:
-		return rewriteValueARM_OpGeq64F(v)
 	case OpGetCallerPC:
 		v.Op = OpARMLoweredGetCallerPC
 		return true
@@ -595,10 +591,6 @@ func rewriteValueARM(v *Value) bool {
 	case OpGetClosurePtr:
 		v.Op = OpARMLoweredGetClosurePtr
 		return true
-	case OpGreater32F:
-		return rewriteValueARM_OpGreater32F(v)
-	case OpGreater64F:
-		return rewriteValueARM_OpGreater64F(v)
 	case OpHmul32:
 		v.Op = OpARMHMUL
 		return true
@@ -14079,70 +14071,6 @@ func rewriteValueARM_OpFMA(v *Value) bool {
 		return true
 	}
 }
-func rewriteValueARM_OpGeq32F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq32F x y)
-	// result: (GreaterEqual (CMPF x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARMGreaterEqual)
-		v0 := b.NewValue0(v.Pos, OpARMCMPF, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGeq64F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Geq64F x y)
-	// result: (GreaterEqual (CMPD x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARMGreaterEqual)
-		v0 := b.NewValue0(v.Pos, OpARMCMPD, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGreater32F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater32F x y)
-	// result: (GreaterThan (CMPF x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARMGreaterThan)
-		v0 := b.NewValue0(v.Pos, OpARMCMPF, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
-func rewriteValueARM_OpGreater64F(v *Value) bool {
-	v_1 := v.Args[1]
-	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Greater64F x y)
-	// result: (GreaterThan (CMPD x y))
-	for {
-		x := v_0
-		y := v_1
-		v.reset(OpARMGreaterThan)
-		v0 := b.NewValue0(v.Pos, OpARMCMPD, types.TypeFlags)
-		v0.AddArg2(x, y)
-		v.AddArg(v0)
-		return true
-	}
-}
 func rewriteValueARM_OpIsInBounds(v *Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -15228,7 +15156,7 @@ func rewriteValueARM_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] {t} dst src mem)
-	// cond: s%4 == 0 && s > 4 && s <= 512 && t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice
+	// cond: s%4 == 0 && s > 4 && s <= 512 && t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice && logLargeCopy(v, s)
 	// result: (DUFFCOPY [8 * (128 - s/4)] dst src mem)
 	for {
 		s := v.AuxInt
@@ -15236,7 +15164,7 @@ func rewriteValueARM_OpMove(v *Value) bool {
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !(s%4 == 0 && s > 4 && s <= 512 && t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice) {
+		if !(s%4 == 0 && s > 4 && s <= 512 && t.(*types.Type).Alignment()%4 == 0 && !config.noDuffDevice && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpARMDUFFCOPY)
@@ -15245,7 +15173,7 @@ func rewriteValueARM_OpMove(v *Value) bool {
 		return true
 	}
 	// match: (Move [s] {t} dst src mem)
-	// cond: (s > 512 || config.noDuffDevice) || t.(*types.Type).Alignment()%4 != 0
+	// cond: ((s > 512 || config.noDuffDevice) || t.(*types.Type).Alignment()%4 != 0) && logLargeCopy(v, s)
 	// result: (LoweredMove [t.(*types.Type).Alignment()] dst src (ADDconst <src.Type> src [s-moveSize(t.(*types.Type).Alignment(), config)]) mem)
 	for {
 		s := v.AuxInt
@@ -15253,7 +15181,7 @@ func rewriteValueARM_OpMove(v *Value) bool {
 		dst := v_0
 		src := v_1
 		mem := v_2
-		if !((s > 512 || config.noDuffDevice) || t.(*types.Type).Alignment()%4 != 0) {
+		if !(((s > 512 || config.noDuffDevice) || t.(*types.Type).Alignment()%4 != 0) && logLargeCopy(v, s)) {
 			break
 		}
 		v.reset(OpARMLoweredMove)

@@ -1475,6 +1475,55 @@ flush:
 	MOVQ	96(SP), R15
 	JMP	ret
 
+// gcWriteBarrierCX is gcWriteBarrier, but with args in DI and CX.
+TEXT runtime·gcWriteBarrierCX(SB),NOSPLIT,$0
+	XCHGQ CX, AX
+	CALL runtime·gcWriteBarrier(SB)
+	XCHGQ CX, AX
+	RET
+
+// gcWriteBarrierDX is gcWriteBarrier, but with args in DI and DX.
+TEXT runtime·gcWriteBarrierDX(SB),NOSPLIT,$0
+	XCHGQ DX, AX
+	CALL runtime·gcWriteBarrier(SB)
+	XCHGQ DX, AX
+	RET
+
+// gcWriteBarrierBX is gcWriteBarrier, but with args in DI and BX.
+TEXT runtime·gcWriteBarrierBX(SB),NOSPLIT,$0
+	XCHGQ BX, AX
+	CALL runtime·gcWriteBarrier(SB)
+	XCHGQ BX, AX
+	RET
+
+// gcWriteBarrierBP is gcWriteBarrier, but with args in DI and BP.
+TEXT runtime·gcWriteBarrierBP(SB),NOSPLIT,$0
+	XCHGQ BP, AX
+	CALL runtime·gcWriteBarrier(SB)
+	XCHGQ BP, AX
+	RET
+
+// gcWriteBarrierSI is gcWriteBarrier, but with args in DI and SI.
+TEXT runtime·gcWriteBarrierSI(SB),NOSPLIT,$0
+	XCHGQ SI, AX
+	CALL runtime·gcWriteBarrier(SB)
+	XCHGQ SI, AX
+	RET
+
+// gcWriteBarrierR8 is gcWriteBarrier, but with args in DI and R8.
+TEXT runtime·gcWriteBarrierR8(SB),NOSPLIT,$0
+	XCHGQ R8, AX
+	CALL runtime·gcWriteBarrier(SB)
+	XCHGQ R8, AX
+	RET
+
+// gcWriteBarrierR9 is gcWriteBarrier, but with args in DI and R9.
+TEXT runtime·gcWriteBarrierR9(SB),NOSPLIT,$0
+	XCHGQ R9, AX
+	CALL runtime·gcWriteBarrier(SB)
+	XCHGQ R9, AX
+	RET
+
 DATA	debugCallFrameTooLarge<>+0x00(SB)/20, $"call frame too large"
 GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
 

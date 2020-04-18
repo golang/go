@@ -101,27 +101,51 @@ cached module versions with GOPROXY=https://example.com/proxy.
 
 var proxyOnce struct {
 	sync.Once
-	list []string
+	list []proxySpec
 	err  error
 }
 
-func proxyURLs() ([]string, error) {
+type proxySpec struct {
+	// url is the proxy URL or one of "off", "direct", "noproxy".
+	url string
+
+	// fallBackOnError is true if a request should be attempted on the next proxy
+	// in the list after any error from this proxy. If fallBackOnError is false,
+	// the request will only be attempted on the next proxy if the error is
+	// equivalent to os.ErrNotFound, which is true for 404 and 410 responses.
+	fallBackOnError bool
+}
+
+func proxyList() ([]proxySpec, error) {
 	proxyOnce.Do(func() {
 		if cfg.GONOPROXY != "" && cfg.GOPROXY != "direct" {
-			proxyOnce.list = append(proxyOnce.list, "noproxy")
+			proxyOnce.list = append(proxyOnce.list, proxySpec{url: "noproxy"})
 		}
-		for _, proxyURL := range strings.Split(cfg.GOPROXY, ",") {
-			proxyURL = strings.TrimSpace(proxyURL)
-			if proxyURL == "" {
+
+		goproxy := cfg.GOPROXY
+		for goproxy != "" {
+			var url string
+			fallBackOnError := false
+			if i := strings.IndexAny(goproxy, ",|"); i >= 0 {
+				url = goproxy[:i]
+				fallBackOnError = goproxy[i] == '|'
+				goproxy = goproxy[i+1:]
+			} else {
+				url = goproxy
+				goproxy = ""
+			}
+
+			url = strings.TrimSpace(url)
+			if url == "" {
 				continue
 			}
-			if proxyURL == "off" {
+			if url == "off" {
 				// "off" always fails hard, so can stop walking list.
-				proxyOnce.list = append(proxyOnce.list, "off")
+				proxyOnce.list = append(proxyOnce.list, proxySpec{url: "off"})
 				break
 			}
-			if proxyURL == "direct" {
-				proxyOnce.list = append(proxyOnce.list, "direct")
+			if url == "direct" {
+				proxyOnce.list = append(proxyOnce.list, proxySpec{url: "direct"})
 				// For now, "direct" is the end of the line. We may decide to add some
 				// sort of fallback behavior for them in the future, so ignore
 				// subsequent entries for forward-compatibility.
@@ -131,18 +155,21 @@ func proxyURLs() ([]string, error) {
 			// Single-word tokens are reserved for built-in behaviors, and anything
 			// containing the string ":/" or matching an absolute file path must be a
 			// complete URL. For all other paths, implicitly add "https://".
-			if strings.ContainsAny(proxyURL, ".:/") && !strings.Contains(proxyURL, ":/") && !filepath.IsAbs(proxyURL) && !path.IsAbs(proxyURL) {
-				proxyURL = "https://" + proxyURL
+			if strings.ContainsAny(url, ".:/") && !strings.Contains(url, ":/") && !filepath.IsAbs(url) && !path.IsAbs(url) {
+				url = "https://" + url
 			}
 
 			// Check that newProxyRepo accepts the URL.
 			// It won't do anything with the path.
-			_, err := newProxyRepo(proxyURL, "golang.org/x/text")
-			if err != nil {
+			if _, err := newProxyRepo(url, "golang.org/x/text"); err != nil {
 				proxyOnce.err = err
 				return
 			}
-			proxyOnce.list = append(proxyOnce.list, proxyURL)
+
+			proxyOnce.list = append(proxyOnce.list, proxySpec{
+				url:             url,
+				fallBackOnError: fallBackOnError,
+			})
 		}
 	})
 
@@ -150,15 +177,16 @@ func proxyURLs() ([]string, error) {
 }
 
 // TryProxies iterates f over each configured proxy (including "noproxy" and
-// "direct" if applicable) until f returns an error that is not
-// equivalent to os.ErrNotExist.
+// "direct" if applicable) until f returns no error or until f returns an
+// error that is not equivalent to os.ErrNotExist on a proxy configured
+// not to fall back on errors.
 //
 // TryProxies then returns that final error.
 //
 // If GOPROXY is set to "off", TryProxies invokes f once with the argument
 // "off".
 func TryProxies(f func(proxy string) error) error {
-	proxies, err := proxyURLs()
+	proxies, err := proxyList()
 	if err != nil {
 		return err
 	}
@@ -166,28 +194,39 @@ func TryProxies(f func(proxy string) error) error {
 		return f("off")
 	}
 
-	var lastAttemptErr error
+	// We try to report the most helpful error to the user. "direct" and "noproxy"
+	// errors are best, followed by proxy errors other than ErrNotExist, followed
+	// by ErrNotExist. Note that errProxyOff, errNoproxy, and errUseProxy are
+	// equivalent to ErrNotExist.
+	const (
+		notExistRank = iota
+		proxyRank
+		directRank
+	)
+	var bestErr error
+	bestErrRank := notExistRank
 	for _, proxy := range proxies {
-		err = f(proxy)
-		if !errors.Is(err, os.ErrNotExist) {
-			lastAttemptErr = err
-			break
+		err := f(proxy.url)
+		if err == nil {
+			return nil
+		}
+		isNotExistErr := errors.Is(err, os.ErrNotExist)
+
+		if proxy.url == "direct" || proxy.url == "noproxy" {
+			bestErr = err
+			bestErrRank = directRank
+		} else if bestErrRank <= proxyRank && !isNotExistErr {
+			bestErr = err
+			bestErrRank = proxyRank
+		} else if bestErrRank == notExistRank {
+			bestErr = err
 		}
 
-		// The error indicates that the module does not exist.
-		// In general we prefer to report the last such error,
-		// because it indicates the error that occurs after all other
-		// options have been exhausted.
-		//
-		// However, for modules in the NOPROXY list, the most useful error occurs
-		// first (with proxy set to "noproxy"), and the subsequent errors are all
-		// errNoProxy (which is not particularly helpful). Do not overwrite a more
-		// useful error with errNoproxy.
-		if lastAttemptErr == nil || !errors.Is(err, errNoproxy) {
-			lastAttemptErr = err
+		if !proxy.fallBackOnError && !isNotExistErr {
+			break
 		}
 	}
-	return lastAttemptErr
+	return bestErr
 }
 
 type proxyRepo struct {

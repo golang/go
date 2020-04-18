@@ -46,5 +46,22 @@ stderr '503 Service Unavailable'
 rm $GOPATH/pkg/mod/cache/download/sumdb
 rm go.sum
 
+# the error from the last attempted proxy should be returned.
+cp go.mod.orig go.mod
+env GOSUMDB=$sumdb
+env GOPROXY=$proxy/sumdb-404,$proxy/sumdb-503
+! go get -d rsc.io/fortune@v1.0.0
+stderr '503 Service Unavailable'
+rm $GOPATH/pkg/mod/cache/download/sumdb
+rm go.sum
+
+# if proxies are separated with '|', fallback is allowed on any error.
+cp go.mod.orig go.mod
+env GOSUMDB=$sumdb
+env GOPROXY=$proxy/sumdb-503|https://0.0.0.0|$proxy
+go get -d rsc.io/fortune@v1.0.0
+rm $GOPATH/pkg/mod/cache/download/sumdb
+rm go.sum
+
 -- go.mod.orig --
 module m

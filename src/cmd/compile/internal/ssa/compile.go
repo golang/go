@@ -55,7 +55,7 @@ func Compile(f *Func) {
 	if f.Log() {
 		printFunc(f)
 	}
-	f.HTMLWriter.WriteFunc("start", "start", f)
+	f.HTMLWriter.WritePhase("start", "start")
 	if BuildDump != "" && BuildDump == f.Name {
 		f.dumpFile("build")
 	}
@@ -111,7 +111,7 @@ func Compile(f *Func) {
 				f.Logf("  pass %s end %s\n", p.name, stats)
 				printFunc(f)
 			}
-			f.HTMLWriter.WriteFunc(phaseName, fmt.Sprintf("%s <span class=\"stats\">%s</span>", phaseName, stats), f)
+			f.HTMLWriter.WritePhase(phaseName, fmt.Sprintf("%s <span class=\"stats\">%s</span>", phaseName, stats))
 		}
 		if p.time || p.mem {
 			// Surround timing information w/ enough context to allow comparisons.
@@ -134,6 +134,11 @@ func Compile(f *Func) {
 		if checkEnabled {
 			checkFunc(f)
 		}
+	}
+
+	if f.HTMLWriter != nil {
+		// Ensure we write any pending phases to the html
+		f.HTMLWriter.flushPhases()
 	}
 
 	if f.ruleMatches != nil {

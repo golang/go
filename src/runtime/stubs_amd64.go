@@ -4,6 +4,15 @@
 
 package runtime
 
+// Called from compiled code; declared for vet; do NOT call from Go.
+func gcWriteBarrierCX()
+func gcWriteBarrierDX()
+func gcWriteBarrierBX()
+func gcWriteBarrierBP()
+func gcWriteBarrierSI()
+func gcWriteBarrierR8()
+func gcWriteBarrierR9()
+
 // stackcheck checks that SP is in range [g->stack.lo, g->stack.hi).
 func stackcheck()
 

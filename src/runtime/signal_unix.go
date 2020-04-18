@@ -336,7 +336,7 @@ func doSigPreempt(gp *g, ctxt *sigctxt) {
 	atomic.Store(&gp.m.signalPending, 0)
 }
 
-const preemptMSupported = pushCallSupported
+const preemptMSupported = true
 
 // preemptM sends a preemption request to mp. This request may be
 // handled asynchronously and may be coalesced with other requests to
@@ -345,13 +345,8 @@ const preemptMSupported = pushCallSupported
 // safe-point, it will preempt the goroutine. It always atomically
 // increments mp.preemptGen after handling a preemption request.
 func preemptM(mp *m) {
-	if !pushCallSupported {
-		// This architecture doesn't support ctxt.pushCall
-		// yet, so doSigPreempt won't work.
-		return
-	}
-	if GOOS == "darwin" && (GOARCH == "arm" || GOARCH == "arm64") && !iscgo {
-		// On darwin, we use libc calls, and cgo is required on ARM and ARM64
+	if GOOS == "darwin" && GOARCH == "arm64" && !iscgo {
+		// On darwin, we use libc calls, and cgo is required on ARM64
 		// so we have TLS set up to save/restore G during C calls. If cgo is
 		// absent, we cannot save/restore G in TLS, and if a signal is
 		// received during C execution we cannot get the G. Therefore don't
@@ -1191,7 +1186,7 @@ func signalstack(s *stack) {
 	sigaltstack(&st, nil)
 }
 
-// setsigsegv is used on darwin/arm{,64} to fake a segmentation fault.
+// setsigsegv is used on darwin/arm64 to fake a segmentation fault.
 //
 // This is exported via linkname to assembly in runtime/cgo.
 //

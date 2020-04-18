@@ -18,9 +18,8 @@ import (
 
 // Entry point of writing new object file.
 func WriteObjFile2(ctxt *Link, b *bio.Writer, pkgpath string) {
-	if ctxt.Debugasm > 0 {
-		ctxt.traverseSyms(traverseDefs, ctxt.writeSymDebug)
-	}
+
+	debugAsmEmit(ctxt)
 
 	genFuncInfoSyms(ctxt)
 
@@ -60,7 +59,7 @@ func WriteObjFile2(ctxt *Link, b *bio.Writer, pkgpath string) {
 	// DWARF file table
 	h.Offsets[goobj2.BlkDwarfFile] = w.Offset()
 	for _, f := range ctxt.PosTable.DebugLinesFileTable() {
-		w.StringRef(f)
+		w.StringRef(filepath.ToSlash(f))
 	}
 
 	// Symbol definitions
@@ -207,7 +206,7 @@ func (w *writer) StringTable() {
 		}
 	})
 	for _, f := range w.ctxt.PosTable.DebugLinesFileTable() {
-		w.AddString(f)
+		w.AddString(filepath.ToSlash(f))
 	}
 }
 
@@ -229,8 +228,8 @@ func (w *writer) Sym(s *LSym) {
 	if s.Leaf() {
 		flag |= goobj2.SymFlagLeaf
 	}
-	if s.CFunc() {
-		flag |= goobj2.SymFlagCFunc
+	if s.NoSplit() {
+		flag |= goobj2.SymFlagNoSplit
 	}
 	if s.ReflectMethod() {
 		flag |= goobj2.SymFlagReflectMethod
@@ -245,13 +244,17 @@ func (w *writer) Sym(s *LSym) {
 	if strings.HasPrefix(name, "gofile..") {
 		name = filepath.ToSlash(name)
 	}
-	o := goobj2.Sym{
-		Name: name,
-		ABI:  abi,
-		Type: uint8(s.Type),
-		Flag: flag,
-		Siz:  uint32(s.Size),
+	var align uint32
+	if s.Func != nil {
+		align = uint32(s.Func.Align)
 	}
+	var o goobj2.Sym
+	o.SetName(name, w.Writer)
+	o.SetABI(abi)
+	o.SetType(uint8(s.Type))
+	o.SetFlag(flag)
+	o.SetSiz(uint32(s.Size))
+	o.SetAlign(align)
 	o.Write(w.Writer)
 }
 
@@ -267,66 +270,44 @@ func makeSymRef(s *LSym) goobj2.SymRef {
 }
 
 func (w *writer) Reloc(r *Reloc) {
-	o := goobj2.Reloc{
-		Off:  r.Off,
-		Siz:  r.Siz,
-		Type: uint8(r.Type),
-		Add:  r.Add,
-		Sym:  makeSymRef(r.Sym),
-	}
+	var o goobj2.Reloc
+	o.SetOff(r.Off)
+	o.SetSiz(r.Siz)
+	o.SetType(uint8(r.Type))
+	o.SetAdd(r.Add)
+	o.SetSym(makeSymRef(r.Sym))
+	o.Write(w.Writer)
+}
+
+func (w *writer) aux1(typ uint8, rs *LSym) {
+	var o goobj2.Aux
+	o.SetType(typ)
+	o.SetSym(makeSymRef(rs))
 	o.Write(w.Writer)
 }
 
 func (w *writer) Aux(s *LSym) {
 	if s.Gotype != nil {
-		o := goobj2.Aux{
-			Type: goobj2.AuxGotype,
-			Sym:  makeSymRef(s.Gotype),
-		}
-		o.Write(w.Writer)
+		w.aux1(goobj2.AuxGotype, s.Gotype)
 	}
 	if s.Func != nil {
-		o := goobj2.Aux{
-			Type: goobj2.AuxFuncInfo,
-			Sym:  makeSymRef(s.Func.FuncInfoSym),
-		}
-		o.Write(w.Writer)
+		w.aux1(goobj2.AuxFuncInfo, s.Func.FuncInfoSym)
 
 		for _, d := range s.Func.Pcln.Funcdata {
-			o := goobj2.Aux{
-				Type: goobj2.AuxFuncdata,
-				Sym:  makeSymRef(d),
-			}
-			o.Write(w.Writer)
+			w.aux1(goobj2.AuxFuncdata, d)
 		}
 
-		if s.Func.dwarfInfoSym != nil {
-			o := goobj2.Aux{
-				Type: goobj2.AuxDwarfInfo,
-				Sym:  makeSymRef(s.Func.dwarfInfoSym),
-			}
-			o.Write(w.Writer)
+		if s.Func.dwarfInfoSym != nil && s.Func.dwarfInfoSym.Size != 0 {
+			w.aux1(goobj2.AuxDwarfInfo, s.Func.dwarfInfoSym)
 		}
-		if s.Func.dwarfLocSym != nil {
-			o := goobj2.Aux{
-				Type: goobj2.AuxDwarfLoc,
-				Sym:  makeSymRef(s.Func.dwarfLocSym),
-			}
-			o.Write(w.Writer)
+		if s.Func.dwarfLocSym != nil && s.Func.dwarfLocSym.Size != 0 {
+			w.aux1(goobj2.AuxDwarfLoc, s.Func.dwarfLocSym)
 		}
-		if s.Func.dwarfRangesSym != nil {
-			o := goobj2.Aux{
-				Type: goobj2.AuxDwarfRanges,
-				Sym:  makeSymRef(s.Func.dwarfRangesSym),
-			}
-			o.Write(w.Writer)
+		if s.Func.dwarfRangesSym != nil && s.Func.dwarfRangesSym.Size != 0 {
+			w.aux1(goobj2.AuxDwarfRanges, s.Func.dwarfRangesSym)
 		}
-		if s.Func.dwarfDebugLinesSym != nil {
-			o := goobj2.Aux{
-				Type: goobj2.AuxDwarfLines,
-				Sym:  makeSymRef(s.Func.dwarfDebugLinesSym),
-			}
-			o.Write(w.Writer)
+		if s.Func.dwarfDebugLinesSym != nil && s.Func.dwarfDebugLinesSym.Size != 0 {
+			w.aux1(goobj2.AuxDwarfLines, s.Func.dwarfDebugLinesSym)
 		}
 	}
 }
@@ -340,16 +321,16 @@ func nAuxSym(s *LSym) int {
 	if s.Func != nil {
 		// FuncInfo is an aux symbol, each Funcdata is an aux symbol
 		n += 1 + len(s.Func.Pcln.Funcdata)
-		if s.Func.dwarfInfoSym != nil {
+		if s.Func.dwarfInfoSym != nil && s.Func.dwarfInfoSym.Size != 0 {
 			n++
 		}
-		if s.Func.dwarfLocSym != nil {
+		if s.Func.dwarfLocSym != nil && s.Func.dwarfLocSym.Size != 0 {
 			n++
 		}
-		if s.Func.dwarfRangesSym != nil {
+		if s.Func.dwarfRangesSym != nil && s.Func.dwarfRangesSym.Size != 0 {
 			n++
 		}
-		if s.Func.dwarfDebugLinesSym != nil {
+		if s.Func.dwarfDebugLinesSym != nil && s.Func.dwarfDebugLinesSym.Size != 0 {
 			n++
 		}
 	}
@@ -366,14 +347,9 @@ func genFuncInfoSyms(ctxt *Link) {
 		if s.Func == nil {
 			continue
 		}
-		nosplit := uint8(0)
-		if s.NoSplit() {
-			nosplit = 1
-		}
 		o := goobj2.FuncInfo{
-			NoSplit: nosplit,
-			Args:    uint32(s.Func.Args),
-			Locals:  uint32(s.Func.Locals),
+			Args:   uint32(s.Func.Args),
+			Locals: uint32(s.Func.Locals),
 		}
 		pc := &s.Func.Pcln
 		o.Pcsp = pcdataoff
@@ -424,6 +400,43 @@ func genFuncInfoSyms(ctxt *Link) {
 		infosyms = append(infosyms, isym)
 		s.Func.FuncInfoSym = isym
 		b.Reset()
+
+		dwsyms := []*LSym{s.Func.dwarfRangesSym, s.Func.dwarfLocSym, s.Func.dwarfDebugLinesSym, s.Func.dwarfInfoSym}
+		for _, s := range dwsyms {
+			if s == nil || s.Size == 0 {
+				continue
+			}
+			s.PkgIdx = goobj2.PkgIdxSelf
+			s.SymIdx = symidx
+			s.Set(AttrIndexed, true)
+			symidx++
+			infosyms = append(infosyms, s)
+		}
 	}
 	ctxt.defs = append(ctxt.defs, infosyms...)
+}
+
+// debugDumpAux is a dumper for selected aux symbols.
+func writeAuxSymDebug(ctxt *Link, par *LSym, aux *LSym) {
+	// Most aux symbols (ex: funcdata) are not interesting--
+	// pick out just the DWARF ones for now.
+	if aux.Type != objabi.SDWARFLOC &&
+		aux.Type != objabi.SDWARFINFO &&
+		aux.Type != objabi.SDWARFLINES &&
+		aux.Type != objabi.SDWARFRANGE {
+		return
+	}
+	ctxt.writeSymDebugNamed(aux, "aux for "+par.Name)
+}
+
+func debugAsmEmit(ctxt *Link) {
+	if ctxt.Debugasm > 0 {
+		ctxt.traverseSyms(traverseDefs, ctxt.writeSymDebug)
+		if ctxt.Debugasm > 1 {
+			fn := func(par *LSym, aux *LSym) {
+				writeAuxSymDebug(ctxt, par, aux)
+			}
+			ctxt.traverseAuxSyms(traverseAux, fn)
+		}
+	}
 }

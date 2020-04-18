@@ -319,10 +319,10 @@ func dowidth(t *types.Type) {
 		Fatalf("dowidth any")
 
 	case TSTRING:
-		if sizeof_String == 0 {
+		if sizeofString == 0 {
 			Fatalf("early dowidth string")
 		}
-		w = int64(sizeof_String)
+		w = sizeofString
 		t.Align = uint8(Widthptr)
 
 	case TARRAY:
@@ -344,7 +344,7 @@ func dowidth(t *types.Type) {
 		if t.Elem() == nil {
 			break
 		}
-		w = int64(sizeof_Slice)
+		w = sizeofSlice
 		checkwidth(t.Elem())
 		t.Align = uint8(Widthptr)
 

@@ -202,12 +202,6 @@ var genericOps = []opData{
 	{name: "Leq32F", argLength: 2, typ: "Bool"},
 	{name: "Leq64F", argLength: 2, typ: "Bool"},
 
-	{name: "Greater32F", argLength: 2, typ: "Bool"},
-	{name: "Greater64F", argLength: 2, typ: "Bool"},
-
-	{name: "Geq32F", argLength: 2, typ: "Bool"},
-	{name: "Geq64F", argLength: 2, typ: "Bool"},
-
 	// the type of a CondSelect is the same as the type of its first
 	// two arguments, which should be register-width scalars; the third
 	// argument should be a boolean
@@ -377,6 +371,8 @@ var genericOps = []opData{
 	// general-purpose registers (the exact clobber set is
 	// arch-dependent), and is not a safe-point.
 	{name: "WB", argLength: 3, typ: "Mem", aux: "Sym", symEffect: "None"}, // arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+
+	{name: "HasCPUFeature", argLength: 0, typ: "bool", aux: "Sym", symEffect: "None"}, // aux=place that this feature flag can be loaded from
 
 	// PanicBounds and PanicExtend generate a runtime panic.
 	// Their arguments provide index values to use in panic messages.

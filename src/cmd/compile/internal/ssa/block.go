@@ -124,15 +124,8 @@ func (b *Block) LongString() string {
 	if b.Aux != nil {
 		s += fmt.Sprintf(" {%s}", b.Aux)
 	}
-	if t := b.Kind.AuxIntType(); t != "" {
-		switch t {
-		case "Int8":
-			s += fmt.Sprintf(" [%v]", int8(b.AuxInt))
-		case "UInt8":
-			s += fmt.Sprintf(" [%v]", uint8(b.AuxInt))
-		default:
-			s += fmt.Sprintf(" [%v]", b.AuxInt)
-		}
+	if t := b.AuxIntString(); t != "" {
+		s += fmt.Sprintf(" [%s]", t)
 	}
 	for _, c := range b.ControlValues() {
 		s += fmt.Sprintf(" %s", c)
@@ -339,6 +332,19 @@ func (b *Block) LackingPos() bool {
 		return false
 	}
 	return true
+}
+
+func (b *Block) AuxIntString() string {
+	switch b.Kind.AuxIntType() {
+	case "int8":
+		return fmt.Sprintf("%v", int8(b.AuxInt))
+	case "uint8":
+		return fmt.Sprintf("%v", uint8(b.AuxInt))
+	default: // type specified but not implemented - print as int64
+		return fmt.Sprintf("%v", b.AuxInt)
+	case "": // no aux int type
+		return ""
+	}
 }
 
 func (b *Block) Logf(msg string, args ...interface{})   { b.Func.Logf(msg, args...) }

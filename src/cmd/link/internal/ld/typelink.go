@@ -6,6 +6,7 @@ package ld
 
 import (
 	"cmd/internal/objabi"
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"sort"
 )
@@ -14,7 +15,7 @@ type byTypeStr []typelinkSortKey
 
 type typelinkSortKey struct {
 	TypeStr string
-	Type    *sym.Symbol
+	Type    loader.Sym
 }
 
 func (s byTypeStr) Less(i, j int) bool { return s[i].TypeStr < s[j].TypeStr }
@@ -25,25 +26,27 @@ func (s byTypeStr) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 // Types that should be added to the typelinks table are marked with the
 // MakeTypelink attribute by the compiler.
 func (ctxt *Link) typelink() {
+	ldr := ctxt.loader
 	typelinks := byTypeStr{}
-	for _, s := range ctxt.Syms.Allsym {
-		if s.Attr.Reachable() && s.Attr.MakeTypelink() {
-			typelinks = append(typelinks, typelinkSortKey{decodetypeStr(ctxt.Arch, s), s})
+	for s := loader.Sym(1); s < loader.Sym(ldr.NSym()); s++ {
+		if ldr.AttrReachable(s) && ldr.IsTypelink(s) {
+			typelinks = append(typelinks, typelinkSortKey{decodetypeStr2(ldr, ctxt.Arch, s), s})
 		}
 	}
 	sort.Sort(typelinks)
 
-	tl := ctxt.Syms.Lookup("runtime.typelink", 0)
-	tl.Type = sym.STYPELINK
-	tl.Attr |= sym.AttrReachable | sym.AttrLocal
-	tl.Size = int64(4 * len(typelinks))
-	tl.P = make([]byte, tl.Size)
-	tl.R = make([]sym.Reloc, len(typelinks))
+	tl := ldr.CreateSymForUpdate("runtime.typelink", 0)
+	tl.SetType(sym.STYPELINK)
+	ldr.SetAttrReachable(tl.Sym(), true)
+	ldr.SetAttrLocal(tl.Sym(), true)
+	tl.SetSize(int64(4 * len(typelinks)))
+	tl.Grow(tl.Size())
+	relocs := tl.AddRelocs(len(typelinks))
 	for i, s := range typelinks {
-		r := &tl.R[i]
-		r.Sym = s.Type
-		r.Off = int32(i * 4)
-		r.Siz = 4
-		r.Type = objabi.R_ADDROFF
+		r := relocs.At2(i)
+		r.SetSym(s.Type)
+		r.SetOff(int32(i * 4))
+		r.SetSiz(4)
+		r.SetType(objabi.R_ADDROFF)
 	}
 }

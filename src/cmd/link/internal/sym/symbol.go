@@ -31,7 +31,6 @@ type Symbol struct {
 	File        string // actually package!
 	auxinfo     *AuxSymbol
 	Sect        *Section
-	FuncInfo    *FuncInfo
 	Unit        *CompilationUnit
 	// P contains the raw symbol data.
 	P []byte
@@ -100,6 +99,10 @@ func (s *Symbol) ElfsymForReloc() int32 {
 }
 
 func (s *Symbol) Len() int64 {
+	return s.Size
+}
+
+func (s *Symbol) Length(dwarfContext interface{}) int64 {
 	return s.Size
 }
 
@@ -513,29 +516,6 @@ func SortSub(l *Symbol) *Symbol {
 
 	le.Sub = nil
 	return l
-}
-
-type FuncInfo struct {
-	Args        int32
-	Locals      int32
-	Pcsp        Pcdata
-	Pcfile      Pcdata
-	Pcline      Pcdata
-	Pcinline    Pcdata
-	Pcdata      []Pcdata
-	Funcdata    []*Symbol
-	Funcdataoff []int64
-	File        []*Symbol
-	InlTree     []InlinedCall
-}
-
-// InlinedCall is a node in a local inlining tree (FuncInfo.InlTree).
-type InlinedCall struct {
-	Parent   int32   // index of parent in InlTree
-	File     *Symbol // file of the inlined call
-	Line     int32   // line number of the inlined call
-	Func     string  // name of the function that was inlined
-	ParentPC int32   // PC of the instruction just before the inlined body (offset from function start)
 }
 
 type Pcdata struct {

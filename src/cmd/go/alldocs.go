@@ -1017,7 +1017,8 @@
 //
 // Download downloads the named modules, which can be module patterns selecting
 // dependencies of the main module or module queries of the form path@version.
-// With no arguments, download applies to all dependencies of the main module.
+// With no arguments, download applies to all dependencies of the main module
+// (equivalent to 'go mod download all').
 //
 // The go command will automatically download modules as needed during ordinary
 // execution. The "go mod download" command is useful mainly for pre-filling
@@ -2693,15 +2694,15 @@
 // Go module mirror run by Google and fall back to a direct connection
 // if the proxy reports that it does not have the module (HTTP error 404 or 410).
 // See https://proxy.golang.org/privacy for the service's privacy policy.
-// If GOPROXY is set to the string "direct", downloads use a direct connection
-// to source control servers. Setting GOPROXY to "off" disallows downloading
-// modules from any source. Otherwise, GOPROXY is expected to be a comma-separated
-// list of the URLs of module proxies, in which case the go command will fetch
-// modules from those proxies. For each request, the go command tries each proxy
-// in sequence, only moving to the next if the current proxy returns a 404 or 410
-// HTTP response. The string "direct" may appear in the proxy list,
-// to cause a direct connection to be attempted at that point in the search.
-// Any proxies listed after "direct" are never consulted.
+//
+// If GOPROXY is set to the string "direct", downloads use a direct connection to
+// source control servers. Setting GOPROXY to "off" disallows downloading modules
+// from any source. Otherwise, GOPROXY is expected to be list of module proxy URLs
+// separated by either comma (,) or pipe (|) characters, which control error
+// fallback behavior. For each request, the go command tries each proxy in
+// sequence. If there is an error, the go command will try the next proxy in the
+// list if the error is a 404 or 410 HTTP response or if the current proxy is
+// followed by a pipe character, indicating it is safe to fall back on any error.
 //
 // The GOPRIVATE and GONOPROXY environment variables allow bypassing
 // the proxy for selected modules. See 'go help module-private' for details.

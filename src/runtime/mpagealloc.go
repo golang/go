@@ -724,7 +724,7 @@ nextLevel:
 	// is what the final level represents.
 	ci := chunkIdx(i)
 	j, searchIdx := s.chunkOf(ci).find(npages, 0)
-	if j < 0 {
+	if j == ^uint(0) {
 		// We couldn't find any space in this chunk despite the summaries telling
 		// us it should be there. There's likely a bug, so dump some state and throw.
 		sum := s.summary[len(s.summary)-1][i]
@@ -766,7 +766,7 @@ func (s *pageAlloc) alloc(npages uintptr) (addr uintptr, scav uintptr) {
 		i := chunkIndex(s.searchAddr)
 		if max := s.summary[len(s.summary)-1][i].max(); max >= uint(npages) {
 			j, searchIdx := s.chunkOf(i).find(npages, chunkPageIndex(s.searchAddr))
-			if j < 0 {
+			if j == ^uint(0) {
 				print("runtime: max = ", max, ", npages = ", npages, "\n")
 				print("runtime: searchIdx = ", chunkPageIndex(s.searchAddr), ", s.searchAddr = ", hex(s.searchAddr), "\n")
 				throw("bad summary data")

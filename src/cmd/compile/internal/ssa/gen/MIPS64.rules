@@ -214,9 +214,6 @@
 (Leq32U x y) -> (XOR (MOVVconst [1]) (SGTU (ZeroExt32to64 x) (ZeroExt32to64 y)))
 (Leq64U x y) -> (XOR (MOVVconst [1]) (SGTU x y))
 
-(Greater(32|64)F x y) -> (FPFlagTrue (CMPGT(F|D) x y))
-(Geq(32|64)F     x y) -> (FPFlagTrue (CMPGE(F|D) x y))
-
 (OffPtr [off] ptr:(SP)) -> (MOVVaddr [off] ptr)
 (OffPtr [off] ptr) -> (ADDVconst [off] ptr)
 
@@ -359,7 +356,7 @@
 // medium move uses a duff device
 (Move [s] {t} dst src mem)
 	&& s%8 == 0 && s >= 24 && s <= 8*128 && t.(*types.Type).Alignment()%8 == 0
-	&& !config.noDuffDevice ->
+	&& !config.noDuffDevice && logLargeCopy(v, s)  ->
 	(DUFFCOPY [16 * (128 - s/8)] dst src mem)
 // 16 and 128 are magic constants.  16 is the number of bytes to encode:
 //	MOVV	(R1), R23
@@ -370,7 +367,7 @@
 
 // large or unaligned move uses a loop
 (Move [s] {t} dst src mem)
-	&& s > 24 || t.(*types.Type).Alignment()%8 != 0 ->
+	&& s > 24 && logLargeCopy(v, s) || t.(*types.Type).Alignment()%8 != 0 ->
 	(LoweredMove [t.(*types.Type).Alignment()]
 		dst
 		src
