@@ -150,16 +150,20 @@ func GCPhys() {
 
 		// The page cache could hide 64 8-KiB pages from the scavenger today.
 		maxPageCache = (8 << 10) * 64
+
+		// Reduce GOMAXPROCS down to 4 if it's greater. We need to bound the amount
+		// of memory held in the page cache because the scavenger can't reach it.
+		// The page cache will hold at most maxPageCache of memory per-P, so this
+		// bounds the amount of memory hidden from the scavenger to 4*maxPageCache
+		// at most.
+		maxProcs = 4
 	)
 	// Set GOGC so that this test operates under consistent assumptions.
 	debug.SetGCPercent(100)
-	// Reduce GOMAXPROCS down to 4 if it's greater. We need to bound the amount
-	// of memory held in the page cache because the scavenger can't reach it.
-	// The page cache will hold at most maxPageCache of memory per-P, so this
-	// bounds the amount of memory hidden from the scavenger to 4*maxPageCache.
 	procs := runtime.GOMAXPROCS(-1)
-	if procs > 4 {
-		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+	if procs > maxProcs {
+		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(maxProcs))
+		procs = runtime.GOMAXPROCS(-1)
 	}
 	// Save objects which we want to survive, and condemn objects which we don't.
 	// Note that we condemn objects in this way and release them all at once in

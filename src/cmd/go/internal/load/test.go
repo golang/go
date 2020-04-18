@@ -6,7 +6,6 @@ package load
 
 import (
 	"bytes"
-	"cmd/go/internal/base"
 	"cmd/go/internal/str"
 	"errors"
 	"fmt"
@@ -56,7 +55,6 @@ func TestPackagesFor(p *Package, cover *TestCover) (pmain, ptest, pxtest *Packag
 		}
 		if len(p1.DepsErrors) > 0 {
 			perr := p1.DepsErrors[0]
-			perr.Pos = "" // show full import stack
 			err = perr
 			break
 		}
@@ -272,7 +270,9 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
 	// afterward that gathers t.Cover information.
 	t, err := loadTestFuncs(ptest)
 	if err != nil && pmain.Error == nil {
-		pmain.Error = &PackageError{Err: err}
+		_ = pmain.setLoadPackageDataError(err, p.ImportPath, &stk)
+		// Ignore return value. None of the errors from loadTestFuncs should prevent
+		// us from loading information about imports.
 	}
 	t.Cover = cover
 	if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
@@ -541,7 +541,7 @@ var testFileSet = token.NewFileSet()
 func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 	f, err := parser.ParseFile(testFileSet, filename, nil, parser.ParseComments)
 	if err != nil {
-		return base.ExpandScanner(err)
+		return err
 	}
 	for _, d := range f.Decls {
 		n, ok := d.(*ast.FuncDecl)

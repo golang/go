@@ -14,6 +14,8 @@ import (
 // hashing a Type.
 type AlgKind int
 
+//go:generate stringer -type AlgKind -trimprefix A
+
 const (
 	// These values are known by runtime.
 	ANOEQ AlgKind = iota

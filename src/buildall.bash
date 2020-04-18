@@ -42,7 +42,7 @@ gettargets() {
 }
 
 selectedtargets() {
-	gettargets | egrep -v 'android-arm|darwin-arm' | egrep "$pattern"
+	gettargets | egrep -v 'android-arm|darwin-arm64' | egrep "$pattern"
 }
 
 # put linux first in the target list to get all the architectures up front.

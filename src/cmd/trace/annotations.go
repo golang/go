@@ -1062,7 +1062,10 @@ Search log text: <form onsubmit="window.location.search+='&logtext='+window.logt
                 <td class="when">{{$el.WhenString}}</td>
                 <td class="elapsed">{{$el.Duration}}</td>
 		<td></td>
-                <td><a href="/trace?taskid={{$el.ID}}#{{asMillisecond $el.Start}}:{{asMillisecond $el.End}}">Task {{$el.ID}}</a> ({{if .Complete}}complete{{else}}incomplete{{end}})</td>
+                <td>
+<a href="/trace?focustask={{$el.ID}}#{{asMillisecond $el.Start}}:{{asMillisecond $el.End}}">Task {{$el.ID}}</a>
+<a href="/trace?taskid={{$el.ID}}#{{asMillisecond $el.Start}}:{{asMillisecond $el.End}}">(goroutine view)</a>
+({{if .Complete}}complete{{else}}incomplete{{end}})</td>
         </tr>
         {{range $el.Events}}
         <tr>
@@ -1249,7 +1252,7 @@ function reloadTable(key, value) {
 {{range .Data}}
   <tr>
     <td> <a href="/trace?goid={{.G}}">{{.G}}</a> </td>
-    <td> {{if .TaskID}}<a href="/trace?taskid={{.TaskID}}">{{.TaskID}}</a>{{end}} </td>
+    <td> {{if .TaskID}}<a href="/trace?focustask={{.TaskID}}">{{.TaskID}}</a>{{end}} </td>
     <td> {{prettyDuration .TotalTime}} </td>
     <td>
         <div class="stacked-bar-graph">

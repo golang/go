@@ -32,7 +32,6 @@ package ld
 
 import (
 	"bufio"
-	"cmd/internal/obj"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
@@ -42,53 +41,46 @@ import (
 )
 
 type Shlib struct {
-	Path            string
-	Hash            []byte
-	Deps            []string
-	File            *elf.File
-	gcdataAddresses map[*sym.Symbol]uint64
+	Path string
+	Hash []byte
+	Deps []string
+	File *elf.File
 }
 
 // Link holds the context for writing object code from a compiler
 // or for reading that input into the linker.
 type Link struct {
-	Out *OutBuf
+	Target
+	ErrorReporter
+	ArchSyms
+
+	outSem chan int // limits the number of output writers
+	Out    *OutBuf
 
 	Syms *sym.Symbols
 
-	Arch      *sys.Arch
 	Debugvlog int
 	Bso       *bufio.Writer
 
 	Loaded bool // set after all inputs have been loaded as symbols
 
-	IsELF    bool
-	HeadType objabi.HeadType
-
-	linkShared    bool // link against installed Go shared libraries
-	LinkMode      LinkMode
-	BuildMode     BuildMode
-	canUsePlugins bool // initialized when Loaded is set to true
 	compressDWARF bool
 
-	Tlsg         *sym.Symbol
+	Tlsg2        loader.Sym
 	Libdir       []string
 	Library      []*sym.Library
 	LibraryByPkg map[string]*sym.Library
 	Shlibs       []Shlib
-	Tlsoffset    int
 	Textp        []*sym.Symbol
-	Filesyms     []*sym.Symbol
+	Textp2       []loader.Sym
+	NumFilesyms  int
 	Moduledata   *sym.Symbol
+	Moduledata2  loader.Sym
 
 	PackageFile  map[string]string
 	PackageShlib map[string]string
 
-	tramps []*sym.Symbol // trampolines
-
-	// unresolvedSymSet is a set of erroneous unresolved references.
-	// Used to avoid duplicated error messages.
-	unresolvedSymSet map[unresolvedSymKey]bool
+	tramps []loader.Sym // trampolines
 
 	// Used to implement field tracking.
 	Reachparent map[*sym.Symbol]*sym.Symbol
@@ -96,61 +88,24 @@ type Link struct {
 	compUnits []*sym.CompilationUnit // DWARF compilation units
 	runtimeCU *sym.CompilationUnit   // One of the runtime CUs, the last one seen.
 
-	relocbuf []byte // temporary buffer for applying relocations
-
 	loader  *loader.Loader
 	cgodata []cgodata // cgo directives to load, three strings are args for loadcgo
 
 	cgo_export_static  map[string]bool
 	cgo_export_dynamic map[string]bool
+
+	datap   []*sym.Symbol
+	dynexp2 []loader.Sym
+
+	// Elf symtab variables.
+	numelfsym int // starts at 0, 1 is reserved
+	elfbind   int
 }
 
 type cgodata struct {
 	file       string
 	pkg        string
 	directives [][]string
-}
-
-type unresolvedSymKey struct {
-	from *sym.Symbol // Symbol that referenced unresolved "to"
-	to   *sym.Symbol // Unresolved symbol referenced by "from"
-}
-
-// ErrorUnresolved prints unresolved symbol error for r.Sym that is referenced from s.
-func (ctxt *Link) ErrorUnresolved(s *sym.Symbol, r *sym.Reloc) {
-	if ctxt.unresolvedSymSet == nil {
-		ctxt.unresolvedSymSet = make(map[unresolvedSymKey]bool)
-	}
-
-	k := unresolvedSymKey{from: s, to: r.Sym}
-	if !ctxt.unresolvedSymSet[k] {
-		ctxt.unresolvedSymSet[k] = true
-
-		// Try to find symbol under another ABI.
-		var reqABI, haveABI obj.ABI
-		haveABI = ^obj.ABI(0)
-		reqABI, ok := sym.VersionToABI(int(r.Sym.Version))
-		if ok {
-			for abi := obj.ABI(0); abi < obj.ABICount; abi++ {
-				v := sym.ABIToVersion(abi)
-				if v == -1 {
-					continue
-				}
-				if rs := ctxt.Syms.ROLookup(r.Sym.Name, v); rs != nil && rs.Type != sym.Sxxx {
-					haveABI = abi
-				}
-			}
-		}
-
-		// Give a special error message for main symbol (see #24809).
-		if r.Sym.Name == "main.main" {
-			Errorf(s, "function main is undeclared in the main package")
-		} else if haveABI != ^obj.ABI(0) {
-			Errorf(s, "relocation target %s not defined for %s (but is defined for %s)", r.Sym.Name, reqABI, haveABI)
-		} else {
-			Errorf(s, "relocation target %s not defined", r.Sym.Name)
-		}
-	}
 }
 
 // The smallest possible offset from the hardware stack pointer to a local

@@ -109,8 +109,8 @@ func TestMkdirAllAtSlash(t *testing.T) {
 		t.Skipf("skipping on %s", runtime.GOOS)
 	case "darwin":
 		switch runtime.GOARCH {
-		case "arm", "arm64":
-			t.Skipf("skipping on darwin/%s, mkdir returns EPERM", runtime.GOARCH)
+		case "arm64":
+			t.Skipf("skipping on darwin/arm64, mkdir returns EPERM")
 		}
 	}
 	RemoveAll("/_go_os_test")

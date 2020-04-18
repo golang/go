@@ -311,6 +311,10 @@ func (n *Node) pkgFuncName() string {
 	return p + "." + s.Name
 }
 
+// The compiler needs *Node to be assignable to cmd/compile/internal/ssa.Sym.
+func (n *Node) CanBeAnSSASym() {
+}
+
 // Name holds Node fields used only by named nodes (ONAME, OTYPE, OPACK, OLABEL, some OLITERAL).
 type Name struct {
 	Pack      *Node      // real package for import . names

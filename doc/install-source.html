@@ -106,23 +106,17 @@ Go does not support CentOS 6 on these systems.
 
 </div>
 
-<h2 id="go14">Install Go compiler binaries</h2>
+<h2 id="go14">Install Go compiler binaries for bootstrap</h2>
 
 <p>
 The Go toolchain is written in Go. To build it, you need a Go compiler installed.
-The scripts that do the initial build of the tools look for an existing Go tool
-chain in <code>$GOROOT_BOOTSTRAP</code>.
-If unset, the default value of <code>GOROOT_BOOTSTRAP</code>
-is <code>$HOME/go1.4</code>.
-</p>
-
-<p>
-There are many options for the bootstrap toolchain.
-After obtaining one, set <code>GOROOT_BOOTSTRAP</code> to the
-directory containing the unpacked tree.
-For example, <code>$GOROOT_BOOTSTRAP/bin/go</code> should be
-the <code>go</code> command binary for the bootstrap toolchain.
-</p>
+The scripts that do the initial build of the tools look for a "go" command
+in <code>$PATH</code>, so as long as you have Go installed in your
+system and configured in your <code>$PATH</code>, you are ready to build Go
+from source. 
+Or if you prefer you can set <code>$GOROOT_BOOTSTRAP</code> to the
+root of a Go installation to use to build the new Go toolchain;
+<code>$GOROOT_BOOTSTRAP/bin/go</code> should be the go command to use.</p>
 
 <h3 id="bootstrapFromBinaryRelease">Bootstrap toolchain from binary release</h3>
 
@@ -546,13 +540,7 @@ The valid combinations of <code>$GOOS</code> and <code>$GOARCH</code> are:
 <td></td><td><code>android</code></td> <td><code>arm64</code></td>
 </tr>
 <tr>
-<td></td><td><code>darwin</code></td> <td><code>386</code></td>
-</tr>
-<tr>
 <td></td><td><code>darwin</code></td> <td><code>amd64</code></td>
-</tr>
-<tr>
-<td></td><td><code>darwin</code></td> <td><code>arm</code></td>
 </tr>
 <tr>
 <td></td><td><code>darwin</code></td> <td><code>arm64</code></td>

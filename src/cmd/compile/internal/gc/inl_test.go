@@ -155,11 +155,11 @@ func TestIntendedInlining(t *testing.T) {
 		},
 	}
 
-	if runtime.GOARCH != "386" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" {
+	if runtime.GOARCH != "386" && runtime.GOARCH != "mips64" && runtime.GOARCH != "mips64le" && runtime.GOARCH != "riscv64" {
 		// nextFreeFast calls sys.Ctz64, which on 386 is implemented in asm and is not inlinable.
 		// We currently don't have midstack inlining so nextFreeFast is also not inlinable on 386.
-		// On MIPS64x, Ctz64 is not intrinsified and causes nextFreeFast too expensive to inline
-		// (Issue 22239).
+		// On mips64x and riscv64, Ctz64 is not intrinsified and causes nextFreeFast too expensive
+		// to inline (Issue 22239).
 		want["runtime"] = append(want["runtime"], "nextFreeFast")
 	}
 	if runtime.GOARCH != "386" {
@@ -175,7 +175,7 @@ func TestIntendedInlining(t *testing.T) {
 	}
 
 	switch runtime.GOARCH {
-	case "386", "wasm", "arm", "riscv64":
+	case "386", "wasm", "arm":
 	default:
 		// TODO(mvdan): As explained in /test/inline_sync.go, some
 		// architectures don't have atomic intrinsics, so these go over

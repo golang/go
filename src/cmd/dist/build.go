@@ -1461,8 +1461,8 @@ func wrapperPathFor(goos, goarch string) string {
 		if gohostos != "android" {
 			return pathf("%s/misc/android/go_android_exec.go", goroot)
 		}
-	case goos == "darwin" && (goarch == "arm" || goarch == "arm64"):
-		if gohostos != "darwin" || (gohostarch != "arm" && gohostarch != "arm64") {
+	case goos == "darwin" && goarch == "arm64":
+		if gohostos != "darwin" || gohostarch != "arm64" {
 			return pathf("%s/misc/ios/go_darwin_arm_exec.go", goroot)
 		}
 	}
@@ -1515,9 +1515,7 @@ func checkNotStale(goBinary string, targets ...string) {
 // by 'go tool dist list'.
 var cgoEnabled = map[string]bool{
 	"aix/ppc64":       true,
-	"darwin/386":      false, // Issue 31751
 	"darwin/amd64":    true,
-	"darwin/arm":      true,
 	"darwin/arm64":    true,
 	"dragonfly/amd64": true,
 	"freebsd/386":     true,

@@ -8,8 +8,8 @@ package cpu
 
 const CacheLinePadSize = 32
 
-// These are initialized by archauxv in runtime/os_linux_mips64x.go.
-// These should not be changed after they are initialized.
+// This is initialized by archauxv and should not be changed after it is
+// initialized.
 var HWCap uint
 
 // HWCAP bits. These are exposed by the Linux kernel 5.4.

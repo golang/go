@@ -398,6 +398,7 @@ type LSym struct {
 type FuncInfo struct {
 	Args     int32
 	Locals   int32
+	Align    int32
 	Text     *Prog
 	Autot    map[*LSym]struct{}
 	Pcln     Pcln
@@ -600,10 +601,12 @@ func (a Attribute) TextAttrString() string {
 	return s
 }
 
-// The compiler needs LSym to satisfy fmt.Stringer, because it stores
-// an LSym in ssa.ExternSymbol.
 func (s *LSym) String() string {
 	return s.Name
+}
+
+// The compiler needs *LSym to be assignable to cmd/compile/internal/ssa.Sym.
+func (s *LSym) CanBeAnSSASym() {
 }
 
 type Pcln struct {
@@ -652,7 +655,7 @@ type Link struct {
 	Flag_linkshared    bool
 	Flag_optimize      bool
 	Flag_locationlists bool
-	Flag_newobj        bool // use new object file format
+	Flag_go115newobj   bool // use new object file format
 	Retpoline          bool // emit use of retpoline stubs for indirect jmp/call
 	Bso                *bufio.Writer
 	Pathname           string

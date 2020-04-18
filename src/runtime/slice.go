@@ -182,7 +182,7 @@ func growslice(et *_type, old slice, cap int) slice {
 		if lenmem > 0 && writeBarrier.enabled {
 			// Only shade the pointers in old.array since we know the destination slice p
 			// only contains nil pointers because it has been cleared during alloc.
-			bulkBarrierPreWriteSrcOnly(uintptr(p), uintptr(old.array), lenmem)
+			bulkBarrierPreWriteSrcOnly(uintptr(p), uintptr(old.array), lenmem-et.size+et.ptrdata)
 		}
 	}
 	memmove(p, old.array, lenmem)
@@ -194,14 +194,14 @@ func isPowerOfTwo(x uintptr) bool {
 	return x&(x-1) == 0
 }
 
-func slicecopy(to, fm slice, width uintptr) int {
-	if fm.len == 0 || to.len == 0 {
+func slicecopy(toPtr unsafe.Pointer, toLen int, fmPtr unsafe.Pointer, fmLen int, width uintptr) int {
+	if fmLen == 0 || toLen == 0 {
 		return 0
 	}
 
-	n := fm.len
-	if to.len < n {
-		n = to.len
+	n := fmLen
+	if toLen < n {
+		n = toLen
 	}
 
 	if width == 0 {
@@ -211,43 +211,43 @@ func slicecopy(to, fm slice, width uintptr) int {
 	if raceenabled {
 		callerpc := getcallerpc()
 		pc := funcPC(slicecopy)
-		racereadrangepc(fm.array, uintptr(n*int(width)), callerpc, pc)
-		racewriterangepc(to.array, uintptr(n*int(width)), callerpc, pc)
+		racereadrangepc(fmPtr, uintptr(n*int(width)), callerpc, pc)
+		racewriterangepc(toPtr, uintptr(n*int(width)), callerpc, pc)
 	}
 	if msanenabled {
-		msanread(fm.array, uintptr(n*int(width)))
-		msanwrite(to.array, uintptr(n*int(width)))
+		msanread(fmPtr, uintptr(n*int(width)))
+		msanwrite(toPtr, uintptr(n*int(width)))
 	}
 
 	size := uintptr(n) * width
 	if size == 1 { // common case worth about 2x to do here
 		// TODO: is this still worth it with new memmove impl?
-		*(*byte)(to.array) = *(*byte)(fm.array) // known to be a byte pointer
+		*(*byte)(toPtr) = *(*byte)(fmPtr) // known to be a byte pointer
 	} else {
-		memmove(to.array, fm.array, size)
+		memmove(toPtr, fmPtr, size)
 	}
 	return n
 }
 
-func slicestringcopy(to []byte, fm string) int {
-	if len(fm) == 0 || len(to) == 0 {
+func slicestringcopy(toPtr *byte, toLen int, fm string) int {
+	if len(fm) == 0 || toLen == 0 {
 		return 0
 	}
 
 	n := len(fm)
-	if len(to) < n {
-		n = len(to)
+	if toLen < n {
+		n = toLen
 	}
 
 	if raceenabled {
 		callerpc := getcallerpc()
 		pc := funcPC(slicestringcopy)
-		racewriterangepc(unsafe.Pointer(&to[0]), uintptr(n), callerpc, pc)
+		racewriterangepc(unsafe.Pointer(toPtr), uintptr(n), callerpc, pc)
 	}
 	if msanenabled {
-		msanwrite(unsafe.Pointer(&to[0]), uintptr(n))
+		msanwrite(unsafe.Pointer(toPtr), uintptr(n))
 	}
 
-	memmove(unsafe.Pointer(&to[0]), stringStructOf(&fm).str, uintptr(n))
+	memmove(unsafe.Pointer(toPtr), stringStructOf(&fm).str, uintptr(n))
 	return n
 }

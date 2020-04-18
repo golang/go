@@ -177,7 +177,7 @@ func (t *objTool) Disasm(file string, start, end uint64) ([]driver.Inst, error) 
 		return nil, err
 	}
 	var asm []driver.Inst
-	d.Decode(start, end, nil, func(pc, size uint64, file string, line int, text string) {
+	d.Decode(start, end, nil, false, func(pc, size uint64, file string, line int, text string) {
 		asm = append(asm, driver.Inst{Addr: pc, File: file, Line: line, Text: text})
 	})
 	return asm, nil

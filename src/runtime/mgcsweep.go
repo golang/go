@@ -64,6 +64,7 @@ func finishsweep_m() {
 func bgsweep(c chan int) {
 	sweep.g = getg()
 
+	lockInit(&sweep.lock, lockRankSweep)
 	lock(&sweep.lock)
 	sweep.parked = true
 	c <- 1

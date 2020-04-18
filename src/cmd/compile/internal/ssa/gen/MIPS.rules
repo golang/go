@@ -205,9 +205,6 @@
 (Leq16U x y) -> (XORconst [1] (SGTU (ZeroExt16to32 x) (ZeroExt16to32 y)))
 (Leq32U x y) -> (XORconst [1] (SGTU x y))
 
-(Greater(32|64)F x y) -> (FPFlagTrue (CMPGT(F|D) x y))
-(Geq(32|64)F     x y) -> (FPFlagTrue (CMPGE(F|D) x y))
-
 (OffPtr [off] ptr:(SP)) -> (MOVWaddr [off] ptr)
 (OffPtr [off] ptr) -> (ADDconst [off] ptr)
 
@@ -325,7 +322,7 @@
 
 // large or unaligned move uses a loop
 (Move [s] {t} dst src mem)
-	&& (s > 16 || t.(*types.Type).Alignment()%4 != 0) ->
+	&& (s > 16 && logLargeCopy(v, s) || t.(*types.Type).Alignment()%4 != 0) ->
 	(LoweredMove [t.(*types.Type).Alignment()]
 		dst
 		src

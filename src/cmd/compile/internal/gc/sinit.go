@@ -128,14 +128,7 @@ func (s *InitSchedule) staticcopy(l *Node, r *Node) bool {
 	case OSLICELIT:
 		// copy slice
 		a := s.inittemps[r]
-
-		n := l.copy()
-		n.Xoffset = l.Xoffset + int64(slice_array)
-		gdata(n, nod(OADDR, a, nil), Widthptr)
-		n.Xoffset = l.Xoffset + int64(slice_nel)
-		gdata(n, r.Right, Widthptr)
-		n.Xoffset = l.Xoffset + int64(slice_cap)
-		gdata(n, r.Right, Widthptr)
+		slicesym(l, a, r.Right.Int64())
 		return true
 
 	case OARRAYLIT, OSTRUCTLIT:
@@ -224,16 +217,10 @@ func (s *InitSchedule) staticassign(l *Node, r *Node) bool {
 		// Init slice.
 		bound := r.Right.Int64()
 		ta := types.NewArray(r.Type.Elem(), bound)
+		ta.SetNoalg(true)
 		a := staticname(ta)
 		s.inittemps[r] = a
-		n := l.copy()
-		n.Xoffset = l.Xoffset + int64(slice_array)
-		gdata(n, nod(OADDR, a, nil), Widthptr)
-		n.Xoffset = l.Xoffset + int64(slice_nel)
-		gdata(n, r.Right, Widthptr)
-		n.Xoffset = l.Xoffset + int64(slice_cap)
-		gdata(n, r.Right, Widthptr)
-
+		slicesym(l, a, bound)
 		// Fall through to init underlying array.
 		l = a
 		fallthrough
@@ -610,18 +597,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
 		if !stataddr(&nam, var_) || nam.Class() != PEXTERN {
 			Fatalf("slicelit: %v", var_)
 		}
-
-		var v Node
-		v.Type = types.Types[TINT]
-		setintconst(&v, t.NumElem())
-
-		nam.Xoffset += int64(slice_array)
-		gdata(&nam, nod(OADDR, vstat, nil), Widthptr)
-		nam.Xoffset += int64(slice_nel) - int64(slice_array)
-		gdata(&nam, &v, Widthptr)
-		nam.Xoffset += int64(slice_cap) - int64(slice_nel)
-		gdata(&nam, &v, Widthptr)
-
+		slicesym(&nam, vstat, t.NumElem())
 		return
 	}
 
@@ -789,7 +765,9 @@ func maplit(n *Node, m *Node, init *Nodes) {
 		tk := types.NewArray(n.Type.Key(), int64(len(entries)))
 		te := types.NewArray(n.Type.Elem(), int64(len(entries)))
 
-		// TODO(josharian): suppress alg generation for these types?
+		tk.SetNoalg(true)
+		te.SetNoalg(true)
+
 		dowidth(tk)
 		dowidth(te)
 

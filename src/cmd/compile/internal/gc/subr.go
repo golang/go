@@ -376,7 +376,13 @@ func newnamel(pos src.XPos, s *types.Sym) *Node {
 // nodSym makes a Node with Op op and with the Left field set to left
 // and the Sym field set to sym. This is for ODOT and friends.
 func nodSym(op Op, left *Node, sym *types.Sym) *Node {
-	n := nod(op, left, nil)
+	return nodlSym(lineno, op, left, sym)
+}
+
+// nodlSym makes a Node with position Pos, with Op op, and with the Left field set to left
+// and the Sym field set to sym. This is for ODOT and friends.
+func nodlSym(pos src.XPos, op Op, left *Node, sym *types.Sym) *Node {
+	n := nodl(pos, op, left, nil)
 	n.Sym = sym
 	return n
 }
@@ -542,7 +548,7 @@ func methtype(t *types.Type) *types.Type {
 // Is type src assignment compatible to type dst?
 // If so, return op code to use in conversion.
 // If not, return OXXX.
-func assignop(src *types.Type, dst *types.Type, why *string) Op {
+func assignop(src, dst *types.Type, why *string) Op {
 	if why != nil {
 		*why = ""
 	}
@@ -665,7 +671,8 @@ func assignop(src *types.Type, dst *types.Type, why *string) Op {
 // Can we convert a value of type src to a value of type dst?
 // If so, return op code to use in conversion (maybe OCONVNOP).
 // If not, return OXXX.
-func convertop(src *types.Type, dst *types.Type, why *string) Op {
+// srcConstant indicates whether the value of type src is a constant.
+func convertop(srcConstant bool, src, dst *types.Type, why *string) Op {
 	if why != nil {
 		*why = ""
 	}
@@ -738,6 +745,13 @@ func convertop(src *types.Type, dst *types.Type, why *string) Op {
 		if simtype[src.Etype] == simtype[dst.Etype] {
 			return OCONVNOP
 		}
+		return OCONV
+	}
+
+	// Special case for constant conversions: any numeric
+	// conversion is potentially okay. We'll validate further
+	// within evconst. See #38117.
+	if srcConstant && (src.IsInteger() || src.IsFloat() || src.IsComplex()) && (dst.IsInteger() || dst.IsFloat() || dst.IsComplex()) {
 		return OCONV
 	}
 
@@ -913,6 +927,21 @@ func (o Op) IsSlice3() bool {
 	}
 	Fatalf("IsSlice3 op %v", o)
 	return false
+}
+
+// slicePtrLen extracts the pointer and length from a slice.
+// This constructs two nodes referring to n, so n must be a cheapexpr.
+func (n *Node) slicePtrLen() (ptr, len *Node) {
+	var init Nodes
+	c := cheapexpr(n, &init)
+	if c != n || init.Len() != 0 {
+		Fatalf("slicePtrLen not cheap: %v", n)
+	}
+	ptr = nod(OSPTR, n, nil)
+	ptr.Type = n.Type.Elem().PtrTo()
+	len = nod(OLEN, n, nil)
+	len.Type = types.Types[TINT]
+	return ptr, len
 }
 
 // labeledControl returns the control flow Node (for, switch, select)
@@ -1873,8 +1902,11 @@ func itabType(itab *Node) *Node {
 // ifaceData loads the data field from an interface.
 // The concrete type must be known to have type t.
 // It follows the pointer if !isdirectiface(t).
-func ifaceData(n *Node, t *types.Type) *Node {
-	ptr := nodSym(OIDATA, n, nil)
+func ifaceData(pos src.XPos, n *Node, t *types.Type) *Node {
+	if t.IsInterface() {
+		Fatalf("ifaceData interface: %v", t)
+	}
+	ptr := nodlSym(pos, OIDATA, n, nil)
 	if isdirectiface(t) {
 		ptr.Type = t
 		ptr.SetTypecheck(1)
@@ -1883,7 +1915,7 @@ func ifaceData(n *Node, t *types.Type) *Node {
 	ptr.Type = types.NewPtr(t)
 	ptr.SetBounded(true)
 	ptr.SetTypecheck(1)
-	ind := nod(ODEREF, ptr, nil)
+	ind := nodl(pos, ODEREF, ptr, nil)
 	ind.Type = t
 	ind.SetTypecheck(1)
 	return ind

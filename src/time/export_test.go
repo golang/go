@@ -38,6 +38,10 @@ var (
 	NextStdChunk           = nextStdChunk
 )
 
+func LoadFromEmbeddedTZData(zone string) (string, error) {
+	return loadFromEmbeddedTZData(zone)
+}
+
 // StdChunkNames maps from nextStdChunk results to the matched strings.
 var StdChunkNames = map[int]string{
 	0:                               "",

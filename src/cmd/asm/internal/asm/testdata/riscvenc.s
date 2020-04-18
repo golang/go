@@ -330,6 +330,19 @@ start:
 	CALL	asmtest(SB)				// 970f0000
 	JMP	asmtest(SB)				// 970f0000
 
+	// Branch pseudo-instructions
+	BEQZ	X5, start	// BEQZ	X5, 2		// e38a02c2
+	BGEZ	X5, start	// BGEZ	X5, 2		// e3d802c2
+	BGT	X5, X6, start	// BGT	X5, X6, 2	// e3c662c2
+	BGTU	X5, X6, start	// BGTU	X5, X6, 2	// e3e462c2
+	BGTZ	X5, start	// BGTZ	X5, 2		// e34250c2
+	BLE	X5, X6, start	// BLE	X5, X6, 2	// e3d062c2
+	BLEU	X5, X6, start	// BLEU	X5, X6, 2	// e3fe62c0
+	BLEZ	X5, start	// BLEZ	X5, 2		// e35c50c0
+	BLTZ	X5, start	// BLTZ	X5, 2		// e3ca02c0
+	BNEZ	X5, start	// BNEZ	X5, 2		// e39802c0
+
+	// Set pseudo-instructions
 	SEQZ	X15, X15				// 93b71700
 	SNEZ	X15, X15				// b337f000
 

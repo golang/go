@@ -17,7 +17,7 @@ func (out *OutBuf) Mmap(filesize uint64) error {
 	}
 
 	low, high := uint32(filesize), uint32(filesize>>32)
-	fmap, err := syscall.CreateFileMapping(syscall.Handle(out.f.Fd()), nil, syscall.PAGE_READONLY, high, low, nil)
+	fmap, err := syscall.CreateFileMapping(syscall.Handle(out.f.Fd()), nil, syscall.PAGE_READWRITE, high, low, nil)
 	if err != nil {
 		return err
 	}
@@ -36,6 +36,7 @@ func (out *OutBuf) Munmap() {
 		return
 	}
 	err := syscall.UnmapViewOfFile(uintptr(unsafe.Pointer(&out.buf[0])))
+	out.buf = nil
 	if err != nil {
 		Exitf("UnmapViewOfFile failed: %v", err)
 	}

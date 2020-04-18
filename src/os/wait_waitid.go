@@ -23,8 +23,7 @@ const _P_PID = 1
 func (p *Process) blockUntilWaitable() (bool, error) {
 	// The waitid system call expects a pointer to a siginfo_t,
 	// which is 128 bytes on all GNU/Linux systems.
-	// On Darwin, it requires greater than or equal to 64 bytes
-	// for darwin/{386,arm} and 104 bytes for darwin/amd64.
+	// On darwin/amd64, it requires 104 bytes.
 	// We don't care about the values it returns.
 	var siginfo [16]uint64
 	psig := &siginfo[0]

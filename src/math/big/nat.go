@@ -740,7 +740,8 @@ func (z nat) divLarge(u, uIn, vIn nat) (q, r nat) {
 // The remainder overwrites input u.
 //
 // Precondition:
-// - len(q) >= len(u)-len(v)
+// - q is large enough to hold the quotient u / v
+//   which has a maximum length of len(u)-len(v)+1.
 func (q nat) divBasic(u, v nat) {
 	n := len(v)
 	m := len(u) - n
@@ -779,6 +780,8 @@ func (q nat) divBasic(u, v nat) {
 		}
 
 		// D4.
+		// Compute the remainder u - (q̂*v) << (_W*j).
+		// The subtraction may overflow if q̂ estimate was off by one.
 		qhatv[n] = mulAddVWW(qhatv[0:n], v, qhat, 0)
 		qhl := len(qhatv)
 		if j+qhl > len(u) && qhatv[n] == 0 {
@@ -787,7 +790,11 @@ func (q nat) divBasic(u, v nat) {
 		c := subVV(u[j:j+qhl], u[j:], qhatv)
 		if c != 0 {
 			c := addVV(u[j:j+n], u[j:], v)
-			u[j+n] += c
+			// If n == qhl, the carry from subVV and the carry from addVV
+			// cancel out and don't affect u[j+n].
+			if n < qhl {
+				u[j+n] += c
+			}
 			qhat--
 		}
 
@@ -827,6 +834,10 @@ func (z nat) divRecursive(u, v nat) {
 	putNat(tmp)
 }
 
+// divRecursiveStep computes the division of u by v.
+// - z must be large enough to hold the quotient
+// - the quotient will overwrite z
+// - the remainder will overwrite u
 func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
 	u = u.norm()
 	v = v.norm()

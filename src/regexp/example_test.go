@@ -280,6 +280,19 @@ func ExampleRegexp_SubexpNames() {
 	// Turing Alan
 }
 
+func ExampleRegexp_SubexpIndex() {
+	re := regexp.MustCompile(`(?P<first>[a-zA-Z]+) (?P<last>[a-zA-Z]+)`)
+	fmt.Println(re.MatchString("Alan Turing"))
+	matches := re.FindStringSubmatch("Alan Turing")
+	lastIndex := re.SubexpIndex("last")
+	fmt.Printf("last => %d\n", lastIndex)
+	fmt.Println(matches[lastIndex])
+	// Output:
+	// true
+	// last => 2
+	// Turing
+}
+
 func ExampleRegexp_Split() {
 	a := regexp.MustCompile(`a`)
 	fmt.Println(a.Split("banana", -1))

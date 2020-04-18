@@ -482,7 +482,7 @@ func UserHomeDir() (string, error) {
 	case "android":
 		return "/sdcard", nil
 	case "darwin":
-		if runtime.GOARCH == "arm" || runtime.GOARCH == "arm64" {
+		if runtime.GOARCH == "arm64" {
 			return "/", nil
 		}
 	}
