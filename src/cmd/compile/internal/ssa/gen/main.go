@@ -26,6 +26,9 @@ import (
 	"sync"
 )
 
+// TODO: capitalize these types, so that we can more easily tell variable names
+// apart from type names, and avoid awkward func parameters like "arch arch".
+
 type arch struct {
 	name            string
 	pkg             string // obj package to import for this arch.
