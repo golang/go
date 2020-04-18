@@ -137,10 +137,12 @@ func genRulesSuffix(arch arch, suff string) {
 			ruleLineno = lineno
 		}
 		if strings.HasSuffix(rule, "->") || strings.HasSuffix(rule, "=>") {
-			continue
+			continue // continue on the next line
 		}
-		if unbalanced(rule) {
-			continue
+		if n := balance(rule); n > 0 {
+			continue // open parentheses remain, continue on the next line
+		} else if n < 0 {
+			break // continuing the line can't help, and it will only make errors worse
 		}
 
 		loc := fmt.Sprintf("%s%s.rules:%d", arch.name, suff, ruleLineno)
@@ -162,7 +164,7 @@ func genRulesSuffix(arch arch, suff string) {
 	if err := scanner.Err(); err != nil {
 		log.Fatalf("scanner failed: %v\n", err)
 	}
-	if unbalanced(rule) {
+	if balance(rule) != 0 {
 		log.Fatalf("%s.rules:%d: unbalanced rule: %v\n", arch.name, lineno, rule)
 	}
 
@@ -607,9 +609,8 @@ func fprint(w io.Writer, n Node) {
 					}
 					if prev, ok := seenRewrite[k]; ok {
 						log.Fatalf("duplicate rule %s, previously seen at %s\n", rr.Loc, prev)
-					} else {
-						seenRewrite[k] = rr.Loc
 					}
+					seenRewrite[k] = rr.Loc
 				}
 			}
 			fmt.Fprintf(w, "}\n")
@@ -878,7 +879,7 @@ func genBlockRewrite(rule Rule, arch arch, data blockData) *RuleRewrite {
 				if rr.Check == "" {
 					rr.Check = check
 				} else {
-					rr.Check = rr.Check + " && " + check
+					rr.Check += " && " + check
 				}
 			}
 			if p == "" {
@@ -1118,10 +1119,8 @@ func genMatch0(rr *RuleRewrite, arch arch, match, v string, cnt map[string]int, 
 			rr.add(declf(vname, "%s.Args[%d]", v, i))
 		}
 	}
-	var commuteDepth int
 	if commutative {
-		commuteDepth = rr.CommuteDepth
-		rr.add(StartCommuteLoop{commuteDepth, v})
+		rr.add(StartCommuteLoop{rr.CommuteDepth, v})
 		rr.CommuteDepth++
 	}
 	for i, arg := range args {
@@ -1507,17 +1506,23 @@ func typeName(typ string) string {
 	}
 }
 
-// unbalanced reports whether there are a different number of ( and ) in the string.
-func unbalanced(s string) bool {
+// balance returns the number of unclosed '(' characters in s.
+// If a ')' appears without a corresponding '(', balance returns -1.
+func balance(s string) int {
 	balance := 0
 	for _, c := range s {
-		if c == '(' {
+		switch c {
+		case '(':
 			balance++
-		} else if c == ')' {
+		case ')':
 			balance--
+			if balance < 0 {
+				// don't allow ")(" to return 0
+				return -1
+			}
 		}
 	}
-	return balance != 0
+	return balance
 }
 
 // findAllOpcode is a function to find the opcode portion of s-expressions.
