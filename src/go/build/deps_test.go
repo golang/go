@@ -246,7 +246,7 @@ var pkgDeps = map[string][]string{
 	"go/internal/gccgoimporter": {"L4", "OS", "debug/elf", "go/constant", "go/token", "go/types", "internal/xcoff", "text/scanner"},
 	"go/internal/srcimporter":   {"L4", "OS", "fmt", "go/ast", "go/build", "go/parser", "go/token", "go/types", "path/filepath"},
 	"go/types":                  {"L4", "GOPARSER", "container/heap", "go/constant"},
-	"go/go2go":                  {"L4", "GOPARSER", "OS", "go/build", "go/importer", "go/types"},
+	"go/go2go":                  {"L4", "GOPARSER", "OS", "go/build", "go/importer", "go/types", "internal/goroot"},
 
 	// One of a kind.
 	"archive/tar":               {"L4", "OS", "syscall", "os/user"},
