@@ -22,7 +22,8 @@ import (
 //
 //	1. direct call
 //	2. through a reachable interface type
-//	3. reflect.Value.Method, or reflect.Type.Method
+//	3. reflect.Value.Method (or MethodByName), or reflect.Type.Method
+//	   (or MethodByName)
 //
 // The first case is handled by the flood fill, a directly called method
 // is marked as reachable.
@@ -33,7 +34,7 @@ import (
 // as reachable. This is extremely conservative, but easy and correct.
 //
 // The third case is handled by looking to see if any of:
-//	- reflect.Value.Method is reachable
+//	- reflect.Value.Method or MethodByName is reachable
 // 	- reflect.Type.Method or MethodByName is called (through the
 // 	  REFLECTMETHOD attribute marked by the compiler).
 // If any of these happen, all bets are off and all exported methods
